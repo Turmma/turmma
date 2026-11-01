@@ -37,7 +37,16 @@
 // nenhum. Arquivo novo, ainda fora do git, tem todos os casos alterados. A exceção é o caso cujo trecho sem comentário (do título
 // ao próximo `test(`, com o gancho que vier depois dele) é igual ao do HEAD, no mesmo arquivo e com o mesmo título: trocar só um
 // comentário não faz o caso crescer, e o `restos` da onda de nomes cobra a troca (`2026-10-31-duracao-do-e2e-so-comentario`).
-// Título de modelo (`${}`), título repetido no spec e título novo continuam alterados.
+// Título repetido no spec e título novo continuam alterados; o de modelo (`${}`) tem o par descrito mais abaixo.
+//
+// A segunda exceção é o caso que a onda de nomes só renomeou (`2026-11-01-duracao-do-e2e-so-nomes-do-mapa`, Tech Spec §13): o trecho do HEAD e o da
+// árvore têm os mesmos tokens, e em cada posição o da árvore é o do HEAD ou, sendo os dois identificadores, um `para` que o mapa da onda dá ao `de` do HEAD
+// (`nomesDoMapaDaOnda`, `tokensDoTrecho`). Mapa da onda é o `tools/renomear/mapas/*.json` fora do HEAD ou diferente dele; mapa já commitado não isenta
+// nada. O portão lista os isentos que estavam acima do limite (`casosIsentosPorSoRename`).
+//
+// O caso de título de modelo (`${}`) tem par nas duas exceções: o da árvore é o caso cujo `test(` está na linha que o relatório dá, e o do HEAD é o único
+// caso de título de modelo cujo título, lido como tokens pela mesma regra, é o da árvore (`casosDeTituloDeModelo`, `parDoCasoDeModelo`). O prazo dele
+// continua sem leitura e conta 30 s.
 import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
@@ -187,7 +196,8 @@ export function casosAlterados(casos: readonly CasoMedido[], alteracaoDe: (arqui
 
 /**
  * O título que o spec escreve por extenso, sem as barras de escape. `null` quando é um modelo com `${}`: o título só existe
- * quando o código roda, e o HEAD não o diz.
+ * quando o código roda, e o prazo dele não se lê (conta 30 s). Para a isenção das duas exceções, o caso de modelo tem par por
+ * `casosDeTituloDeModelo`.
  */
 function tituloLiteral(corpo: string): string | null {
   return corpo.includes('${') ? null : corpo.replace(/\\(.)/g, '$1')
@@ -205,6 +215,11 @@ function tituloLiteral(corpo: string): string | null {
  * de sintaxe fica como está, comentário e tudo: o que sobrar só faz o caso parecer alterado, que cobra mais.
  */
 export function semComentarios(texto: string): string {
+  return semComentariosComFaixas(texto).texto
+}
+
+/** O `semComentarios` e as faixas `[início, fim)` do texto original que ele tirou, em ordem: é com elas que um deslocamento do texto lido volta a ser do original. */
+function semComentariosComFaixas(texto: string): { texto: string; faixas: [number, number][] } {
   const ts = carregarTypescript()
   const fonte = ts.createSourceFile(
     'spec.ts',
@@ -229,7 +244,7 @@ export function semComentarios(texto: string): string {
     saida += texto.slice(desde, inicio)
     desde = fim
   }
-  return saida + texto.slice(desde)
+  return { texto: saida + texto.slice(desde), faixas: comentarios }
 }
 
 /**
@@ -335,6 +350,40 @@ export function casosDoSpec(textoBruto: string): CasoDoSpec[] {
   return casos
 }
 
+/** O caso cujo título tem `${}`: o título como o spec o escreve (com a crase ou a aspa), o trecho como em `CasoDoSpec` e a linha do `test(` no arquivo original. */
+export interface CasoDeTituloDeModelo {
+  titulo: string
+  trecho: string
+  linha: number
+}
+
+/** A linha, no texto original, do deslocamento `deslocamento` do texto sem comentários: as faixas tiradas antes dele somam ao deslocamento. */
+function linhaNoOriginal(textoBruto: string, faixas: readonly [number, number][], deslocamento: number): number {
+  let removido = 0
+  for (const [de, ate] of faixas) {
+    if (de - removido > deslocamento) break
+    removido += ate - de
+  }
+  return textoBruto.slice(0, deslocamento + removido).split('\n').length
+}
+
+/**
+ * Os casos de título de modelo (`${}`), que `casosDoSpec` pula porque o título só existe quando o código roda. A linha é a do `test(` no texto
+ * original, a mesma que o relatório do Playwright dá (`CasoMedido.linha`): o comentário de bloco que a leitura tirou desloca o texto lido, e
+ * `linhaNoOriginal` desfaz o deslocamento.
+ */
+export function casosDeTituloDeModelo(textoBruto: string): CasoDeTituloDeModelo[] {
+  const { texto, faixas } = semComentariosComFaixas(textoBruto)
+  const inicios = [...texto.matchAll(INICIO_DE_CASO)]
+  return inicios.flatMap((inicio, indice) => {
+    const [tudo, aspa = '', corpo = ''] = inicio
+    if (tituloLiteral(corpo) !== null) return []
+    const de = inicio.index ?? 0
+    const proximo = inicios[indice + 1]?.index ?? texto.length
+    return [{ titulo: `${aspa}${corpo}${aspa}`, trecho: texto.slice(de + tudo.length, proximo).trim(), linha: linhaNoOriginal(textoBruto, faixas, de) }]
+  })
+}
+
 /** Os casos dos specs de `e2e/` no HEAD. Sem HEAD (repositório sem commit), nenhum. */
 function casosDoHead(raiz: string): CasoDoSpec[] {
   try {
@@ -432,36 +481,222 @@ export function avisoDosCasosLentos(lentos: readonly CasoMedido[], limiteDe: (ca
   )
 }
 
-/**
- * Dos casos que o diff tocou, os que só mudaram de comentário: o trecho sem comentário (`casosDoSpec`: do título ao próximo `test(`, o
- * mesmo que `casosAlterados` atribui ao caso, com o `beforeEach` ou o `test.use` que vem depois dele) é igual ao do mesmo caso no HEAD,
- * no mesmo arquivo. O par se acha pelo título, e só quando é único dos dois lados; sem par (arquivo novo, título novo, título de modelo
- * que o `casosDoSpec` pula, título repetido) o caso fica de fora daqui e continua alterado: cobra mais, nunca menos.
- */
-function casosSoComComentarioAlterado(raiz: string, casos: readonly CasoMedido[]): Set<CasoMedido> {
-  const textosDe = (arquivo: string): { arvore: CasoDoSpec[]; head: CasoDoSpec[] } => {
-    try {
-      const head = execFileSync('git', ['show', `HEAD:${arquivo}`], { cwd: raiz, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] })
-      return { arvore: casosDoSpec(readFileSync(join(raiz, arquivo), 'utf8')), head: casosDoSpec(head) }
-    } catch {
-      // Arquivo sem `HEAD:<arquivo>` (novo, ou movido para cá) ou que a árvore não lê: sem par, e o caso fica na régua.
-      return { arvore: [], head: [] }
-    }
+/** Os nomes que a onda troca: cada `de` com os `para` que o mapa lhe dá. */
+export type NomesDoMapa = ReadonlyMap<string, ReadonlySet<string>>
+
+interface TextosDoSpec {
+  arvore: CasoDoSpec[]
+  head: CasoDoSpec[]
+  modeloDaArvore: CasoDeTituloDeModelo[]
+  modeloDoHead: CasoDeTituloDeModelo[]
+}
+type Par = { doHead: { trecho: string }; daArvore: { trecho: string } }
+
+const SEM_TEXTOS: TextosDoSpec = { arvore: [], head: [], modeloDaArvore: [], modeloDoHead: [] }
+
+function textosDoSpec(raiz: string, arquivo: string): TextosDoSpec {
+  try {
+    const head = execFileSync('git', ['show', `HEAD:${arquivo}`], { cwd: raiz, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] })
+    const arvore = readFileSync(join(raiz, arquivo), 'utf8')
+    return { arvore: casosDoSpec(arvore), head: casosDoSpec(head), modeloDaArvore: casosDeTituloDeModelo(arvore), modeloDoHead: casosDeTituloDeModelo(head) }
+  } catch {
+    // Arquivo sem `HEAD:<arquivo>` (novo, ou movido para cá) ou que a árvore não lê: sem par, e o caso fica na régua.
+    return SEM_TEXTOS
   }
+}
+
+const unico = <T>(itens: readonly T[]): T | undefined => (itens.length === 1 ? itens[0] : undefined)
+
+/** O par do caso de título literal: o mesmo título, único dos dois lados. O medido leva o título do `describe` na frente (`suite › caso`) e o do spec pode ter ` › ` dentro. */
+function parDoCasoLiteral(textos: TextosDoSpec, medido: CasoMedido): Par | undefined {
+  const daArvore = unico(textos.arvore.filter((c) => medido.titulo === c.titulo || medido.titulo.endsWith(` › ${c.titulo}`)))
+  const doHead = daArvore === undefined ? undefined : unico(textos.head.filter((c) => c.titulo === daArvore.titulo))
+  return daArvore === undefined || doHead === undefined ? undefined : { doHead, daArvore }
+}
+
+/**
+ * O par do caso de título de modelo (Tech Spec §13, ampliação (b)): o do HEAD é o único caso de título de modelo cujo título, lido como tokens pela
+ * regra dos nomes, é o da árvore, e o par é um para um: esse caso do HEAD também tem de ser ligado, pela mesma regra, a um único caso da árvore. Título
+ * repetido no HEAD, ou que não bate, fica sem par; e na árvore, a cópia do caso (com o mesmo título ou com um nome do mapa trocado num dos dois) deixa
+ * os dois sem par: o caso novo não herda a isenção do que já existia.
+ */
+function parDoCasoDeModelo(textos: TextosDoSpec, daArvore: CasoDeTituloDeModelo, nomes: NomesDoMapa): Par | undefined {
+  const doHead = unico(textos.modeloDoHead.filter((c) => mesmosTokensComOsNomesDoMapa(c.titulo, daArvore.titulo, nomes)))
+  if (doHead === undefined) return undefined
+  const ligadosAoDoHead = textos.modeloDaArvore.filter((c) => mesmosTokensComOsNomesDoMapa(doHead.titulo, c.titulo, nomes))
+  return ligadosAoDoHead.length === 1 ? { doHead, daArvore } : undefined
+}
+
+/**
+ * Dos casos que o diff tocou, os que têm par no HEAD e cujo par `igual` aprova. O caso de título de modelo (`${}`) tem o `test(` na linha que o
+ * relatório dá (`parDoCasoDeModelo`); o de título literal se acha pelo título (`parDoCasoLiteral`). Sem par (arquivo novo, título novo, título
+ * repetido) o caso fica de fora daqui e continua alterado: cobra mais, nunca menos.
+ */
+function casosComParNoHead(raiz: string, casos: readonly CasoMedido[], igual: (par: Par) => boolean, nomesDoTitulo: NomesDoMapa): Set<CasoMedido> {
   const iguais = new Set<CasoMedido>()
   // Um arquivo por vez: o `git show` e a leitura rodam uma vez por spec, e não uma vez por caso tocado.
   for (const arquivo of new Set(casos.map((medido) => medido.arquivo))) {
-    const textos = textosDe(arquivo)
+    const textos = textosDoSpec(raiz, arquivo)
     for (const medido of casos.filter((outro) => outro.arquivo === arquivo)) {
-      // O título medido leva o do `describe` na frente (`suite › caso`); o do spec é o último pedaço, e pode ter ` › ` dentro dele.
-      const [daArvore, ...outrosDaArvore] = textos.arvore.filter((c) => medido.titulo === c.titulo || medido.titulo.endsWith(` › ${c.titulo}`))
-      if (daArvore === undefined || outrosDaArvore.length > 0) continue
-      const [doHead, ...outrosDoHead] = textos.head.filter((c) => c.titulo === daArvore.titulo)
-      if (doHead === undefined || outrosDoHead.length > 0) continue
-      if (doHead.trecho === daArvore.trecho) iguais.add(medido)
+      const deModelo = textos.modeloDaArvore.find((c) => c.linha === medido.linha)
+      const par = deModelo === undefined ? parDoCasoLiteral(textos, medido) : parDoCasoDeModelo(textos, deModelo, nomesDoTitulo)
+      if (par !== undefined && igual(par)) iguais.add(medido)
     }
   }
   return iguais
+}
+
+const PASTA_DOS_MAPAS = 'tools/renomear/mapas'
+
+/** Os mapas da onda em curso: `tools/renomear/mapas/*.json` novos na árvore ou diferentes do HEAD. */
+function mapasDaOnda(raiz: string): string[] {
+  const git = (...argumentos: string[]) => execFileSync('git', argumentos, { cwd: raiz, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
+  try {
+    const nomes = [...git('ls-files', '--others', '--exclude-standard', '--', PASTA_DOS_MAPAS).split('\n'), ...git('diff', '--name-only', 'HEAD', '--', PASTA_DOS_MAPAS).split('\n')]
+    return [...new Set(nomes.filter((nome) => nome.endsWith('.json') && existsSync(join(raiz, nome))))]
+  } catch {
+    return []
+  }
+}
+
+interface EntradaLida {
+  tipo?: unknown
+  de?: unknown
+  para?: unknown
+}
+
+/** As entradas de um mapa; mapa que não se lê (JSON quebrado, sem `entradas`, `entradas` que não é lista) não tem nenhuma, e a que não é objeto (`null`, número, texto) é ignorada. */
+function entradasDoMapa(raiz: string, arquivo: string): EntradaLida[] {
+  try {
+    const entradas = (JSON.parse(readFileSync(join(raiz, arquivo), 'utf8')) as { entradas?: unknown }).entradas
+    return Array.isArray(entradas) ? (entradas as unknown[]).filter((entrada): entrada is EntradaLida => typeof entrada === 'object' && entrada !== null) : []
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Os nomes que a onda em curso troca: o `de` → `para` das entradas `tipo: "simbolo"` dos mapas que a árvore tem fora do HEAD (arquivo novo) ou
+ * diferentes dele (`mapasDaOnda`). Mapa já commitado é de uma onda que passou e não isenta nada; entrada `arquivo`, `pasta` e `pacote`
+ * renomeiam caminho, não o identificador que o caso escreve. O mesmo `de` com mais de um `para` vale com qualquer um deles: em cada posição o token
+ * da árvore é o do HEAD ou um `para` (Tech Spec §13, ampliação (a)).
+ */
+export function nomesDoMapaDaOnda(raiz: string): NomesDoMapa {
+  const nomes = new Map<string, Set<string>>()
+  for (const arquivo of mapasDaOnda(raiz)) {
+    for (const { tipo, de, para } of entradasDoMapa(raiz, arquivo)) {
+      if (tipo !== 'simbolo' || typeof de !== 'string' || typeof para !== 'string') continue
+      nomes.set(de, (nomes.get(de) ?? new Set<string>()).add(para))
+    }
+  }
+  return nomes
+}
+
+/** Depois destes tokens, uma `/` divide; depois de qualquer outro, abre uma expressão regular literal. Montado uma vez, na primeira `/` lida. */
+let conjuntoAntesDeDivisao: ReadonlySet<TS.SyntaxKind> | undefined
+const ANTES_DE_DIVISAO = (K: typeof TS.SyntaxKind): ReadonlySet<TS.SyntaxKind> =>
+  (conjuntoAntesDeDivisao ??= new Set([
+    K.Identifier, K.NumericLiteral, K.BigIntLiteral, K.StringLiteral, K.NoSubstitutionTemplateLiteral, K.TemplateTail, K.RegularExpressionLiteral,
+    K.CloseParenToken, K.CloseBracketToken, K.CloseBraceToken, K.ThisKeyword, K.SuperKeyword, K.TrueKeyword, K.FalseKeyword, K.NullKeyword,
+    K.PlusPlusToken, K.MinusMinusToken,
+  ]))
+
+/** O próximo token do trecho, com a pilha de `${` e `{` posta em dia: a `}` que fecha um `${` continua o modelo, e a `/` fora de valor abre uma regex. */
+function proximoToken(escaner: TS.Scanner, abertos: ('chave' | 'modelo')[], anterior: TS.SyntaxKind): TS.SyntaxKind {
+  const K = carregarTypescript().SyntaxKind
+  let tipo = escaner.scan()
+  if (tipo === K.OpenBraceToken) abertos.push('chave')
+  else if (tipo === K.CloseBraceToken && abertos.at(-1) === 'modelo') tipo = escaner.reScanTemplateToken(false)
+  else if (tipo === K.CloseBraceToken) abertos.pop()
+  else if ((tipo === K.SlashToken || tipo === K.SlashEqualsToken) && !ANTES_DE_DIVISAO(K).has(anterior)) tipo = escaner.reScanSlashToken()
+  if (tipo === K.TemplateHead) abertos.push('modelo')
+  else if (tipo === K.TemplateTail) abertos.pop()
+  return tipo
+}
+
+/** Um token do trecho: o texto dele e se é identificador (palavra-chave, texto entre aspas ou crase e expressão regular não são). */
+export interface TokenDoTrecho {
+  texto: string
+  identificador: boolean
+}
+
+/**
+ * Os tokens do trecho de um caso, para comparar dois trechos sem olhar espaço, quebra de linha nem comentário. O texto de uma aspa, de uma crase ou
+ * de uma expressão regular é um token só e nunca é identificador, e por isso nenhum nome do mapa o alcança. A vírgula logo antes de `)`, `]` ou `}`
+ * sai, porque é o que o prettier põe ou tira quando o nome muda de tamanho e a chamada quebra em linhas. O trecho é um pedaço de arquivo, e o
+ * escâner (e não o parser, que descarta o que não fecha) lê o que vier.
+ */
+export function tokensDoTrecho(trecho: string): TokenDoTrecho[] {
+  const ts = carregarTypescript()
+  const escaner = ts.createScanner(ts.ScriptTarget.Latest, true, ts.LanguageVariant.Standard, trecho)
+  const tokens: TokenDoTrecho[] = []
+  const abertos: ('chave' | 'modelo')[] = []
+  let anterior = ts.SyntaxKind.Unknown
+  for (let tipo = proximoToken(escaner, abertos, anterior); tipo !== ts.SyntaxKind.EndOfFileToken; tipo = proximoToken(escaner, abertos, anterior)) {
+    tokens.push({ texto: escaner.getTokenText(), identificador: tipo === ts.SyntaxKind.Identifier })
+    anterior = tipo
+  }
+  return tokens.filter((token, i) => token.texto !== ',' || ![')', ']', '}'].includes(tokens[i + 1]?.texto ?? ''))
+}
+
+/**
+ * Os dois textos têm os mesmos tokens, e em cada posição o da árvore é o do HEAD ou, sendo os dois identificadores, um `para` que o mapa dá ao `de`
+ * que é o do HEAD. Sem resolver símbolo: o nome local homônimo de um `de` que o mapa troca só noutro arquivo fica igual nos dois lados, e o número
+ * de tokens, que não muda, é o que prova que o caso não cresceu.
+ */
+function mesmosTokensComOsNomesDoMapa(doHead: string, daArvore: string, nomes: NomesDoMapa): boolean {
+  const esperado = tokensDoTrecho(doHead)
+  const atual = tokensDoTrecho(daArvore)
+  return (
+    esperado.length === atual.length &&
+    esperado.every((token, i) => {
+      const novo = atual[i]
+      return novo !== undefined && (novo.texto === token.texto || (token.identificador && novo.identificador && nomes.get(token.texto)?.has(novo.texto) === true))
+    })
+  )
+}
+
+type Analise = { motivo: string } | { alterados: CasoMedido[]; isentosPorNome: CasoMedido[] }
+
+/**
+ * Dos casos medidos, os alterados: o diff os tocou, e nem só o comentário nem só os nomes do mapa da onda mudaram neles. `isentosPorNome` são os
+ * que a segunda exceção tirou. Relatório ausente ou ilegível é `motivo`.
+ */
+function analisarOsCasos(raiz: string, caminhoDoRelatorio: string): Analise {
+  if (!existsSync(caminhoDoRelatorio)) {
+    return { motivo: `o Playwright não deixou o relatório de duração em ${caminhoDoRelatorio}: o portão não mediu os casos de e2e.` }
+  }
+  let relatorio: RelatorioDoPlaywright
+  try {
+    relatorio = JSON.parse(readFileSync(caminhoDoRelatorio, 'utf8')) as RelatorioDoPlaywright
+  } catch {
+    return { motivo: `o relatório de duração ${caminhoDoRelatorio} não é um JSON legível: o portão não mediu os casos de e2e.` }
+  }
+  const tocados = casosAlterados(casosMedidos(relatorio), (arquivo) => alteracoesDoArquivo(raiz, arquivo))
+  // Trocar só um comentário não faz o caso crescer, e o `restos` da onda de nomes cobra a troca (`2026-10-31-duracao-do-e2e-so-comentario`).
+  // O título de modelo do par aqui é o mesmo da árvore, sem nome nenhum trocado: o trecho não inclui o título, e um título renomeado é da outra exceção.
+  const soComentario = casosComParNoHead(raiz, tocados, ({ doHead, daArvore }) => doHead.trecho === daArvore.trecho, new Map())
+  const restantes = tocados.filter((caso) => !soComentario.has(caso))
+  // Nem trocar só o nome que o mapa da onda troca (`2026-11-01-duracao-do-e2e-so-nomes-do-mapa`). Sem mapa da onda, a isenção não existe.
+  const nomes = nomesDoMapaDaOnda(raiz)
+  const soOsNomesDoMapa = ({ doHead, daArvore }: Par) => mesmosTokensComOsNomesDoMapa(doHead.trecho, daArvore.trecho, nomes)
+  const soNomes = nomes.size === 0 ? new Set<CasoMedido>() : casosComParNoHead(raiz, restantes, soOsNomesDoMapa, nomes)
+  return { alterados: restantes.filter((caso) => !soNomes.has(caso)), isentosPorNome: restantes.filter((caso) => soNomes.has(caso)) }
+}
+
+/** O limite de cada caso: o HEAD só se lê quando algum tem prazo declarado, porque sem isso todos medem 15 s e não há o que procurar. */
+function limiteDosCasos(raiz: string, casos: readonly CasoMedido[]): (caso: CasoMedido) => number {
+  const doHead = casos.some((caso) => caso.prazoMs > PRAZO_PADRAO_DO_CASO_DE_E2E_MS) ? prazosDoHead(raiz) : new Map<string, number>()
+  return (caso) => limiteDoCaso(caso, doHead)
+}
+
+/**
+ * Os casos que a isenção de só nomes do mapa deixou fora da régua e que estavam acima do limite: o portão os lista, e o relatório da onda os
+ * copia na seção "Só rename na régua de duração" (Tech Spec §13). Vazio sem mapa da onda, ou com o relatório ausente.
+ */
+export function casosIsentosPorSoRename(raiz: string, caminhoDoRelatorio: string): CasoMedido[] {
+  const analise = analisarOsCasos(raiz, caminhoDoRelatorio)
+  return 'motivo' in analise ? [] : casosLentos(analise.isentosPorNome, limiteDosCasos(raiz, analise.isentosPorNome))
 }
 
 /**
@@ -469,22 +704,10 @@ function casosSoComComentarioAlterado(raiz: string, casos: readonly CasoMedido[]
  * reprova: com a corrida verde ele tem de existir, e sem ele o portão não mediu nada.
  */
 export function motivoDaDuracaoDoE2e(raiz: string, caminhoDoRelatorio: string): string | null {
-  if (!existsSync(caminhoDoRelatorio)) {
-    return `o Playwright não deixou o relatório de duração em ${caminhoDoRelatorio}: o portão não mediu os casos de e2e.`
-  }
-  let relatorio: RelatorioDoPlaywright
-  try {
-    relatorio = JSON.parse(readFileSync(caminhoDoRelatorio, 'utf8')) as RelatorioDoPlaywright
-  } catch {
-    return `o relatório de duração ${caminhoDoRelatorio} não é um JSON legível: o portão não mediu os casos de e2e.`
-  }
-  const tocados = casosAlterados(casosMedidos(relatorio), (arquivo) => alteracoesDoArquivo(raiz, arquivo))
-  const soComentario = casosSoComComentarioAlterado(raiz, tocados)
-  const alterados = tocados.filter((caso) => !soComentario.has(caso))
-  // O HEAD só se lê quando algum caso alterado tem prazo declarado: sem isso todos medem 15 s e não há o que procurar.
-  const doHead = alterados.some((caso) => caso.prazoMs > PRAZO_PADRAO_DO_CASO_DE_E2E_MS) ? prazosDoHead(raiz) : new Map<string, number>()
-  const limiteDe = (caso: CasoMedido) => limiteDoCaso(caso, doHead)
-  const lentos = casosLentos(alterados, limiteDe)
+  const analise = analisarOsCasos(raiz, caminhoDoRelatorio)
+  if ('motivo' in analise) return analise.motivo
+  const limiteDe = limiteDosCasos(raiz, analise.alterados)
+  const lentos = casosLentos(analise.alterados, limiteDe)
   return lentos.length === 0 ? null : avisoDosCasosLentos(lentos, limiteDe)
 }
 

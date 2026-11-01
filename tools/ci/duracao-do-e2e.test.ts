@@ -7,6 +7,7 @@ import {
   alteracoesDoArquivo,
   avisoDosCasosLentos,
   casosAlterados,
+  casosIsentosPorSoRename,
   casosLentos,
   casosMedidos,
   LIMITE_DO_CASO_DE_E2E_MS,
@@ -598,12 +599,21 @@ describe('no repositório: o diff do git decide qual caso é alterado', () => {
     expect(motivo).not.toContain('e2e/outro.spec.ts')
   })
 
-  it('título de modelo (${}): o HEAD não diz como o caso se chama, e o comentário sozinho não o tira da régua', () => {
+  it('título de modelo (${}): o par vem pela linha do `test(` e pelo título lido como tokens, e o comentário sozinho tira o caso da régua (§13, ampliação (b))', () => {
     const raiz = repositorioComNotaNoSegundo()
     const texto = readFileSync(join(raiz, ESPEC), 'utf8')
     writeFileSync(join(raiz, ESPEC), texto.replace("test('segundo'", 'test(`segundo ${nome}`'))
     git(raiz, 'commit', '-q', '-am', 'modelo')
     trocarANota(raiz)
+    expect(motivoDaDuracaoDoE2e(raiz, relatorioComOSegundo(raiz, 'segundo 1'))).toBeNull()
+  })
+
+  it('título de modelo (${}) que mudou junto com o comentário: sem o mesmo título no HEAD, o caso continua medido', () => {
+    const raiz = repositorioComNotaNoSegundo()
+    const texto = readFileSync(join(raiz, ESPEC), 'utf8')
+    writeFileSync(join(raiz, ESPEC), texto.replace("test('segundo'", 'test(`segundo ${nome}`'))
+    git(raiz, 'commit', '-q', '-am', 'modelo')
+    trocarANota(raiz, [['test(`segundo ${nome}`', 'test(`segundo ${outro}`']])
     expect(motivoDaDuracaoDoE2e(raiz, relatorioComOSegundo(raiz, 'segundo 1'))).toContain('e2e/material.spec.ts:7 (celular) levou 19,0 s')
   })
 
@@ -802,6 +812,344 @@ describe('no repositório: o diff do git decide qual caso é alterado', () => {
     writeFileSync(quebrado, '{ não é json')
     expect(motivoDaDuracaoDoE2e(raiz, quebrado)).toContain('não é um JSON legível')
   })
+  // --- Só os nomes do mapa da onda (correção `2026-11-01-duracao-do-e2e-so-nomes-do-mapa`) ---
+
+  const SEGUNDO = "test('segundo', async () => {\n  await a()\n  await b()\n  await c()"
+  const ENTRADA = (campos: Record<string, string> = {}) => ({ tipo: 'simbolo', de: 'b', para: 'bb', linhaDoAnexo: 'inventario-web-e2e.md:1', ...campos })
+  const ATE_O_TERCEIRO = "\n})\n\ntest('terceiro'"
+
+  /**
+   * O `repositorioComSpec` com `trocasNoHead` já commitadas e o mapa da onda (`tools/renomear/mapas/11.json`) escrito: fora do git, como a
+   * onda em curso o tem, ou commitado (`mapaNoHead`), que é o mapa de uma onda que já passou.
+   */
+  function repositorioComMapa(entradas: unknown[], opcoes: { trocasNoHead?: [string, string][]; mapaNoHead?: boolean } = {}): string {
+    const raiz = repositorioComSpec()
+    let texto = readFileSync(join(raiz, ESPEC), 'utf8')
+    for (const [de, para] of opcoes.trocasNoHead ?? []) texto = trocarOuFalhar(texto, de, para)
+    writeFileSync(join(raiz, ESPEC), texto)
+    mkdirSync(join(raiz, 'tools/renomear/mapas'), { recursive: true })
+    writeFileSync(join(raiz, 'tools/renomear/mapas/11.json'), JSON.stringify({ linha: true, entradas }))
+    git(raiz, 'add', opcoes.mapaNoHead === true ? '.' : 'e2e')
+    git(raiz, 'commit', '-q', '--allow-empty', '-m', 'base')
+    return raiz
+  }
+
+  function trocarNaArvore(raiz: string, trocas: [string, string][]): void {
+    let texto = readFileSync(join(raiz, ESPEC), 'utf8')
+    for (const [de, para] of trocas) texto = trocarOuFalhar(texto, de, para)
+    writeFileSync(join(raiz, ESPEC), texto)
+  }
+
+  /** O `segundo` com o `b` do mapa já trocado por `bb`, e o que mais a troca pedir. */
+  const renomeado = (...trocas: [string, string][]): [string, string] => {
+    let novo = SEGUNDO.replace('await b()', 'await bb()')
+    for (const [de, para] of trocas) novo = trocarOuFalhar(novo, de, para)
+    return [SEGUNDO, novo]
+  }
+
+  const AINDA_LENTO = 'e2e/material.spec.ts:7 (celular) levou 19,0 s'
+
+  it('só os nomes do mapa da onda mudam: o caso não conta como alterado e a régua passa', () => {
+    const raiz = repositorioComMapa([ENTRADA()])
+    trocarNaArvore(raiz, [renomeado()])
+    expect(git(raiz, 'diff', '--stat', 'HEAD')).toContain(ESPEC)
+    expect(motivoDaDuracaoDoE2e(raiz, relatorioComOSegundo(raiz, 'segundo'))).toBeNull()
+  })
+
+  it('o nome mais longo quebra a chamada em linhas e põe a vírgula final, como o prettier: o caso continua isento', () => {
+    const raiz = repositorioComMapa([ENTRADA({ para: 'carregarSemRedeLentaDoPerfil' })], {
+      trocasNoHead: [[`  await b()\n  await c()${ATE_O_TERCEIRO}`, `  await b(alfa, beta)\n  await c()${ATE_O_TERCEIRO}`]],
+    })
+    trocarNaArvore(raiz, [['  await a()\n  await b(alfa, beta)', '  await a()\n  await carregarSemRedeLentaDoPerfil(\n    alfa,\n    beta,\n  )']])
+    expect(motivoDaDuracaoDoE2e(raiz, relatorioComOSegundo(raiz, 'segundo', 17))).toBeNull()
+  })
+
+  /**
+   * O `segundo` (o caso lento, no `test(` da linha 7) com o corpo à escolha, uma linha por item. O terceiro caso desce as linhas que o corpo
+   * a mais tem sobre as três de sempre. Os testes de leitura do trecho (modelo, regex) escrevem aqui, no caso que o relatório mede, e não no
+   * `primeiro`: erro de leitura que desalinha HEAD e árvore do mesmo jeito só aparece quando o texto trocado vem depois do erro.
+   */
+  const segundoCom = (...corpo: string[]): string => `test('segundo', async () => {\n${corpo.map((linha) => `  ${linha}`).join('\n')}`
+  const linhaDoTerceiro = (corpo: string[]): number => 13 + corpo.length - 3
+
+  it('o nome do mapa dentro de um modelo de texto troca só na expressão, e o que vem depois do modelo continua lido', () => {
+    // O `}` do `if`, aberto antes do modelo, não pode ser tomado por continuação dele: o `await b()` que vem depois tem de ser lido como código.
+    const corpo = (nome: string) => ['if (x) {', '  await a(`b ${' + nome + '}`)', '}', `await ${nome}()`, 'await c()']
+    const raiz = repositorioComMapa([ENTRADA()], { trocasNoHead: [[SEGUNDO, segundoCom(...corpo('b'))]] })
+    trocarNaArvore(raiz, [[segundoCom(...corpo('b')), segundoCom(...corpo('bb'))]])
+    expect(motivoDaDuracaoDoE2e(raiz, relatorioComOSegundo(raiz, 'segundo', linhaDoTerceiro(corpo('b'))))).toBeNull()
+  })
+
+  it('a expressão regular literal com aspa não engole o nome do mapa que vem depois dela na linha', () => {
+    const corpo = (nome: string) => ['await a()', `await a(/['"]/, ${nome})`, 'await c()']
+    const raiz = repositorioComMapa([ENTRADA()], { trocasNoHead: [[SEGUNDO, segundoCom(...corpo('b'))]] })
+    trocarNaArvore(raiz, [[segundoCom(...corpo('b')), segundoCom(...corpo('bb'))]])
+    expect(motivoDaDuracaoDoE2e(raiz, relatorioComOSegundo(raiz, 'segundo'))).toBeNull()
+  })
+
+  it('o nome trocado não está no mapa: o caso continua medido', () => {
+    const raiz = repositorioComMapa([ENTRADA()])
+    trocarNaArvore(raiz, [[SEGUNDO, SEGUNDO.replace('await b()', 'await zz()')]])
+    expect(motivoDaDuracaoDoE2e(raiz, relatorioComOSegundo(raiz, 'segundo'))).toContain(AINDA_LENTO)
+  })
+
+  it('o nome do mapa mais uma linha de código: o caso continua medido', () => {
+    const raiz = repositorioComMapa([ENTRADA()])
+    trocarNaArvore(raiz, [renomeado(['await c()', 'await d()'])])
+    expect(motivoDaDuracaoDoE2e(raiz, relatorioComOSegundo(raiz, 'segundo'))).toContain(AINDA_LENTO)
+  })
+
+  it('o objeto dentro de um modelo de texto não fecha o modelo: o nome do mapa depois dele continua lido como código', () => {
+    // O `}` do objeto `{ k: 1 }` tem a `{` aberta dentro do `${}`; sem contar essa `{`, o `}` dele seria lido como o fim da expressão e o `b` que vem depois, na mesma expressão, viraria texto.
+    const corpo = (nome: string) => ['await a(`x ${f({ k: 1 }, ' + nome + ')} y`)', `await ${nome}()`, 'await c()']
+    const raiz = repositorioComMapa([ENTRADA()], { trocasNoHead: [[SEGUNDO, segundoCom(...corpo('b'))]] })
+    trocarNaArvore(raiz, [[segundoCom(...corpo('b')), segundoCom(...corpo('bb'))]])
+    expect(motivoDaDuracaoDoE2e(raiz, relatorioComOSegundo(raiz, 'segundo'))).toBeNull()
+  })
+
+  it('a barra que divide não abre expressão regular: o nome do mapa depois dela é trocado', () => {
+    const corpo = (nome: string) => ['await a()', `await a(x / ${nome})`, 'await c()']
+    const raiz = repositorioComMapa([ENTRADA()], { trocasNoHead: [[SEGUNDO, segundoCom(...corpo('b'))]] })
+    trocarNaArvore(raiz, [[segundoCom(...corpo('b')), segundoCom(...corpo('bb'))]])
+    expect(motivoDaDuracaoDoE2e(raiz, relatorioComOSegundo(raiz, 'segundo'))).toBeNull()
+  })
+
+  it('a expressão regular que começa com = é uma só: o nome do mapa dentro dela não é identificador', () => {
+    const raiz = repositorioComMapa([ENTRADA()], { trocasNoHead: [[SEGUNDO, segundoCom('await a()', 'await a(/=b/)', 'await c()')]] })
+    trocarNaArvore(raiz, [[segundoCom('await a()', 'await a(/=b/)', 'await c()'), segundoCom('await a()', 'await a(/=bb/)', 'await c()')]])
+    expect(motivoDaDuracaoDoE2e(raiz, relatorioComOSegundo(raiz, 'segundo'))).toContain(AINDA_LENTO)
+  })
+
+  describe('mapa que não se lê: a régua só perde a isenção, e não quebra', () => {
+    const comMapa = (conteudo: string): string => {
+      const raiz = repositorioComMapa([])
+      writeFileSync(join(raiz, 'tools/renomear/mapas/11.json'), conteudo)
+      trocarNaArvore(raiz, [renomeado()])
+      return raiz
+    }
+
+    it('JSON quebrado', () => {
+      const raiz = comMapa('{ não é json')
+      expect(motivoDaDuracaoDoE2e(raiz, relatorioComOSegundo(raiz, 'segundo'))).toContain(AINDA_LENTO)
+    })
+
+    it('entradas que é objeto, e não lista', () => {
+      // Prova só o resultado (sem isenção, o caso fica medido): quem mostra que o mapa é lido é o vizinho, 'entrada que não é objeto é ignorada, e a boa ao lado dela vale'.
+      const raiz = comMapa(JSON.stringify({ linha: true, entradas: { tipo: 'simbolo', de: 'b', para: 'bb' } }))
+      expect(motivoDaDuracaoDoE2e(raiz, relatorioComOSegundo(raiz, 'segundo'))).toContain(AINDA_LENTO)
+    })
+
+    it('entrada que não é objeto é ignorada, e a boa ao lado dela vale', () => {
+      const raiz = comMapa(JSON.stringify({ linha: true, entradas: [null, 3, 'b', ENTRADA()] }))
+      expect(motivoDaDuracaoDoE2e(raiz, relatorioComOSegundo(raiz, 'segundo'))).toBeNull()
+    })
+  })
+
+  it('o nome do mapa e uma linha a mais no fim do caso: o caso cresceu e continua medido', () => {
+    // A linha entra depois do `})` do caso e antes do `test(` seguinte, onde o trecho do caso termina: os tokens do HEAD são o começo dos da árvore.
+    const raiz = repositorioComMapa([ENTRADA()])
+    trocarNaArvore(raiz, [renomeado(), [ATE_O_TERCEIRO, "\n})\n\nawait depois()\n\ntest('terceiro'"]])
+    expect(motivoDaDuracaoDoE2e(raiz, relatorioComOSegundo(raiz, 'segundo', 15))).toContain(AINDA_LENTO)
+  })
+
+  it('palavra-chave do mapa não é identificador: o caso continua medido', () => {
+    const raiz = repositorioComMapa([ENTRADA({ de: 'async', para: 'asincrono' })])
+    trocarNaArvore(raiz, [["test('segundo', async () => {", "test('segundo', asincrono () => {"]])
+    expect(motivoDaDuracaoDoE2e(raiz, relatorioComOSegundo(raiz, 'segundo'))).toContain(AINDA_LENTO)
+  })
+
+  it('o nome antigo trocado dentro de um texto não é rename do mapa: o caso continua medido', () => {
+    const raiz = repositorioComMapa([ENTRADA()], { trocasNoHead: [[`  await a()\n  await b()\n  await c()${ATE_O_TERCEIRO}`, `  await a('b')\n  await b()\n  await c()${ATE_O_TERCEIRO}`]] })
+    trocarNaArvore(raiz, [["await a('b')\n  await b()", "await a('bb')\n  await bb()"]])
+    expect(motivoDaDuracaoDoE2e(raiz, relatorioComOSegundo(raiz, 'segundo'))).toContain(AINDA_LENTO)
+  })
+
+  it('o mesmo rename com o mapa já no HEAD não isenta nada: é de uma onda que passou', () => {
+    const raiz = repositorioComMapa([ENTRADA()], { mapaNoHead: true })
+    trocarNaArvore(raiz, [renomeado()])
+    expect(motivoDaDuracaoDoE2e(raiz, relatorioComOSegundo(raiz, 'segundo'))).toContain(AINDA_LENTO)
+  })
+
+  it('o mapa do HEAD que a onda alterou na árvore vale como o da onda em curso', () => {
+    const raiz = repositorioComMapa([ENTRADA({ de: 'x', para: 'y' })], { mapaNoHead: true })
+    writeFileSync(join(raiz, 'tools/renomear/mapas/11.json'), JSON.stringify({ linha: true, entradas: [ENTRADA()] }))
+    trocarNaArvore(raiz, [renomeado()])
+    expect(motivoDaDuracaoDoE2e(raiz, relatorioComOSegundo(raiz, 'segundo'))).toBeNull()
+  })
+
+  it('entrada que não é símbolo não isenta: arquivo, pasta e pacote renomeiam caminho, não o identificador do caso', () => {
+    const raiz = repositorioComMapa([ENTRADA({ tipo: 'arquivo' })])
+    trocarNaArvore(raiz, [renomeado()])
+    expect(motivoDaDuracaoDoE2e(raiz, relatorioComOSegundo(raiz, 'segundo'))).toContain(AINDA_LENTO)
+  })
+
+  it('sem mapa da onda a isenção não existe', () => {
+    const raiz = repositorioComSpec()
+    trocarNaArvore(raiz, [renomeado()])
+    expect(motivoDaDuracaoDoE2e(raiz, relatorioComOSegundo(raiz, 'segundo'))).toContain(AINDA_LENTO)
+  })
+
+  it('sem mapa da onda, mudar só o espaço do caso também não o tira da régua', () => {
+    const raiz = repositorioComSpec()
+    trocarNaArvore(raiz, [[`  await b()\n  await c()${ATE_O_TERCEIRO}`, `  await  b()\n  await c()${ATE_O_TERCEIRO}`]])
+    expect(motivoDaDuracaoDoE2e(raiz, relatorioComOSegundo(raiz, 'segundo'))).toContain(AINDA_LENTO)
+  })
+
+  it('o mapa que dá dois nomes novos ao mesmo nome antigo isenta o caso que usa qualquer um deles', () => {
+    const raiz = repositorioComMapa([ENTRADA({ para: 'outro' }), ENTRADA()])
+    trocarNaArvore(raiz, [renomeado()])
+    expect(motivoDaDuracaoDoE2e(raiz, relatorioComOSegundo(raiz, 'segundo'))).toBeNull()
+    trocarNaArvore(raiz, [['await bb()', 'await outro()']])
+    expect(motivoDaDuracaoDoE2e(raiz, relatorioComOSegundo(raiz, 'segundo'))).toBeNull()
+    trocarNaArvore(raiz, [['await outro()', 'await terceiro()']])
+    expect(motivoDaDuracaoDoE2e(raiz, relatorioComOSegundo(raiz, 'segundo'))).toContain(AINDA_LENTO)
+  })
+
+  it('o nome local homônimo de um nome que o mapa troca só noutro arquivo fica como está: o caso continua isento', () => {
+    // Como `secao` em `e2e/lista-da-turma.spec.ts:214`: o mapa troca `b` só no símbolo de `e2e/support/gallery.ts`, e o caso tem um `b` próprio.
+    const raiz = repositorioComMapa([ENTRADA({ arquivo: 'e2e/support/gallery.ts' }), ENTRADA({ de: 'a', para: 'aa' })])
+    trocarNaArvore(raiz, [[SEGUNDO, SEGUNDO.replace('await a()', 'await aa()')]])
+    expect(motivoDaDuracaoDoE2e(raiz, relatorioComOSegundo(raiz, 'segundo'))).toBeNull()
+  })
+
+  it('o token da árvore que não é o do HEAD nem um nome que o mapa dá àquele nome continua medido', () => {
+    // O `bb` é um `para` do mapa, mas de `b`: na posição do `a` do HEAD ele não vale.
+    const raiz = repositorioComMapa([ENTRADA(), ENTRADA({ de: 'a', para: 'aa' })])
+    trocarNaArvore(raiz, [[SEGUNDO, SEGUNDO.replace('await a()', 'await bb()')]])
+    expect(motivoDaDuracaoDoE2e(raiz, relatorioComOSegundo(raiz, 'segundo'))).toContain(AINDA_LENTO)
+  })
+
+  // --- Título de modelo (`${}`): o par pela linha do `test(` ---
+
+  /** Um spec com um caso de título de modelo no `test(` da linha 2 (o relatório o dá em `modelo 1`) e o corpo à escolha. */
+  const specDeModelo = (titulo: string, corpo: string[], antes: string[] = []): string =>
+    ["import { test } from '@playwright/test'", ...antes, `test(\`${titulo}\`, async () => {`, ...corpo.map((linha) => `  ${linha}`), '})', ''].join('\n')
+
+  /** O repositório cujo único spec é o `specDoHead`, o mapa da onda escrito fora do git e o relatório com o caso de modelo na linha `linha`, a 19 s. */
+  function repositorioComModelo(entradas: unknown[], specDoHead: string): string {
+    const raiz = repositorioComMapa(entradas)
+    writeFileSync(join(raiz, ESPEC), specDoHead)
+    git(raiz, 'commit', '-q', '-am', 'modelo')
+    return raiz
+  }
+
+  const relatorioDoModelo = (raiz: string, linha = 2): string => {
+    const caminho = join(raiz, 'modelo.json')
+    writeFileSync(caminho, JSON.stringify(relatorioDe({ linha, titulo: 'modelo 1', projeto: 'celular', duracoes: [19_000] })))
+    return caminho
+  }
+  const MODELO_LENTO = 'e2e/material.spec.ts:2 (celular) levou 19,0 s'
+
+  it('título de modelo e corpo só com nomes do mapa: o caso é isento e o portão o lista', () => {
+    const raiz = repositorioComModelo([ENTRADA()], specDeModelo('modelo ${b}', ['await a()', 'await b()']))
+    writeFileSync(join(raiz, ESPEC), specDeModelo('modelo ${bb}', ['await a()', 'await bb()']))
+    expect(motivoDaDuracaoDoE2e(raiz, relatorioDoModelo(raiz))).toBeNull()
+    expect(casosIsentosPorSoRename(raiz, relatorioDoModelo(raiz)).map((isento) => [isento.arquivo, isento.linha, isento.duracaoMs])).toEqual([[ESPEC, 2, 19_000]])
+  })
+
+  it('título de modelo com a parte literal mudada continua medido', () => {
+    const raiz = repositorioComModelo([ENTRADA()], specDeModelo('modelo ${b}', ['await a()', 'await b()']))
+    writeFileSync(join(raiz, ESPEC), specDeModelo('modelo novo ${bb}', ['await a()', 'await bb()']))
+    expect(motivoDaDuracaoDoE2e(raiz, relatorioDoModelo(raiz))).toContain(MODELO_LENTO)
+  })
+
+  it('título de modelo com a expressão trocada por um nome fora do mapa continua medido', () => {
+    const raiz = repositorioComModelo([ENTRADA()], specDeModelo('modelo ${b}', ['await a()', 'await b()']))
+    writeFileSync(join(raiz, ESPEC), specDeModelo('modelo ${zz}', ['await a()', 'await bb()']))
+    expect(motivoDaDuracaoDoE2e(raiz, relatorioDoModelo(raiz))).toContain(MODELO_LENTO)
+  })
+
+  it('título de modelo repetido no HEAD não tem par: o caso continua medido', () => {
+    const doisNoHead = `${specDeModelo('modelo ${b}', ['await a()', 'await b()'])}${specDeModelo('modelo ${b}', ['await outra()', 'await b()']).split('\n').slice(1).join('\n')}`
+    const raiz = repositorioComModelo([ENTRADA()], doisNoHead)
+    // A árvore fica com um caso só, o primeiro, com título e corpo trocados pelo mapa: o título dele alcança os dois casos do HEAD.
+    writeFileSync(join(raiz, ESPEC), specDeModelo('modelo ${bb}', ['await a()', 'await bb()']))
+    expect(motivoDaDuracaoDoE2e(raiz, relatorioDoModelo(raiz))).toContain(MODELO_LENTO)
+  })
+
+  it('título de modelo copiado na árvore não tem par: os dois continuam medidos', () => {
+    const raiz = repositorioComModelo([ENTRADA()], specDeModelo('modelo ${b}', ['await a()', 'await b()']))
+    const copia = specDeModelo('modelo ${bb}', ['await a()', 'await bb()'])
+    writeFileSync(join(raiz, ESPEC), `${copia}${copia.split('\n').slice(1).join('\n')}`)
+    expect(motivoDaDuracaoDoE2e(raiz, relatorioDoModelo(raiz))).toContain(MODELO_LENTO)
+  })
+
+  it('o comentário de bloco de várias linhas antes do caso não desloca a linha que o relatório dá', () => {
+    const nota = ['/* nota', '   em três', '   linhas */']
+    const raiz = repositorioComModelo([ENTRADA()], specDeModelo('modelo ${b}', ['await a()', 'await b()'], nota))
+    writeFileSync(join(raiz, ESPEC), specDeModelo('modelo ${bb}', ['await a()', 'await bb()'], nota))
+    expect(motivoDaDuracaoDoE2e(raiz, relatorioDoModelo(raiz, 5))).toBeNull()
+  })
+
+  it('cópia do título de modelo com o nome do mapa trocado num dos dois: o caso novo continua medido', () => {
+    // O original fica como estava (o homônimo local da ampliação (a)); o caso novo, com o nome do mapa, entra acima dele. Os dois ligam ao mesmo caso do HEAD.
+    const raiz = repositorioComModelo([ENTRADA()], specDeModelo('modelo ${b}', ['await a()', 'await b()']))
+    const original = specDeModelo('modelo ${b}', ['await a()', 'await b()']).split('\n').slice(1).join('\n')
+    writeFileSync(join(raiz, ESPEC), `${specDeModelo('modelo ${bb}', ['await a()', 'await bb()'])}${original}`)
+    expect(motivoDaDuracaoDoE2e(raiz, relatorioDoModelo(raiz, 2))).toContain(MODELO_LENTO)
+  })
+
+  it('o comentário de bloco comprido depois do início do caso de modelo não desloca a linha dele', () => {
+    // O comentário vem depois do `test(`, no corpo, e é mais longo que o resto da linha do `test(`: sem parar na primeira faixa depois do deslocamento, a linha calculada desce.
+    const nota = ['/* uma nota comprida, em várias linhas,', '   que passa de longe do tamanho da linha do test(', '   e vai até aqui, bem depois do título */']
+    const raiz = repositorioComModelo([ENTRADA()], specDeModelo('modelo ${b}', [...nota, 'await a()', 'await b()']))
+    writeFileSync(join(raiz, ESPEC), specDeModelo('modelo ${bb}', [...nota, 'await a()', 'await bb()']))
+    expect(motivoDaDuracaoDoE2e(raiz, relatorioDoModelo(raiz))).toBeNull()
+  })
+
+  it('o caso de título literal e o de título de modelo no mesmo spec acham cada um o seu par', () => {
+    const spec = (nome: string) =>
+      ["import { test } from '@playwright/test'", `test(\`modelo \${${nome}}\`, async () => {`, '  await a()', `  await ${nome}()`, '})', '', "test('literal', async () => {", `  await ${nome}()`, '})', ''].join('\n')
+    const raiz = repositorioComModelo([ENTRADA()], spec('b'))
+    writeFileSync(join(raiz, ESPEC), spec('bb'))
+    const caminho = join(raiz, 'dois.json')
+    writeFileSync(
+      caminho,
+      JSON.stringify(
+        relatorioDe(
+          { linha: 2, titulo: 'modelo 1', projeto: 'celular', duracoes: [19_000] },
+          { linha: 7, titulo: 'literal', projeto: 'celular', duracoes: [19_000] },
+        ),
+      ),
+    )
+    expect(motivoDaDuracaoDoE2e(raiz, caminho)).toBeNull()
+    expect(casosIsentosPorSoRename(raiz, caminho).map((isento) => isento.linha)).toEqual([2, 7])
+  })
+
+  it('o título literal que só troca de aspas, com o corpo igual, acha o par pelo título literal e sai da régua', () => {
+    // Pelo caminho do título de modelo, `'literal'` e `"literal"` são tokens diferentes e o caso ficaria sem par, medido.
+    const spec = (titulo: string) => ["import { test } from '@playwright/test'", `test(${titulo}, async () => {`, '  await a()', '})', ''].join('\n')
+    const raiz = repositorioComModelo([], spec("'literal'"))
+    writeFileSync(join(raiz, ESPEC), spec('"literal"'))
+    const caminho = join(raiz, 'aspas.json')
+    writeFileSync(caminho, JSON.stringify(relatorioDe({ linha: 2, titulo: 'literal', projeto: 'celular', duracoes: [19_000] })))
+    expect(motivoDaDuracaoDoE2e(raiz, caminho)).toBeNull()
+  })
+
+  it('título de modelo e só o comentário do corpo mudam, sem mapa nenhum: o caso sai da régua pela exceção do comentário', () => {
+    const raiz = repositorioComModelo([], specDeModelo('modelo ${b}', ['// nota antiga', 'await b()']))
+    writeFileSync(join(raiz, ESPEC), specDeModelo('modelo ${b}', ['// nota nova', 'await b()']))
+    expect(motivoDaDuracaoDoE2e(raiz, relatorioDoModelo(raiz))).toBeNull()
+  })
+
+  it('título de modelo e comentário do corpo mudam, mas o título trocou um nome do mapa: o caso sai pela exceção dos nomes e não pela do comentário', () => {
+    const raiz = repositorioComModelo([ENTRADA()], specDeModelo('modelo ${b}', ['// nota antiga', 'await b()']))
+    writeFileSync(join(raiz, ESPEC), specDeModelo('modelo ${bb}', ['// nota nova', 'await b()']))
+    expect(casosIsentosPorSoRename(raiz, relatorioDoModelo(raiz)).map((isento) => isento.linha)).toEqual([2])
+  })
+
+  it('casosIsentosPorSoRename lista o caso isento que estava acima do limite, e só ele', () => {
+    const raiz = repositorioComMapa([ENTRADA()])
+    // O `primeiro` (2 s) também só mudou de nome: é isento, mas está abaixo do limite e não entra na lista.
+    trocarNaArvore(raiz, [renomeado(), ["test('primeiro', async () => {\n  await a()\n  await b()", "test('primeiro', async () => {\n  await a()\n  await bb()"]])
+    const isentos = casosIsentosPorSoRename(raiz, relatorioComOSegundo(raiz, 'segundo'))
+    expect(isentos.map((isento) => [isento.arquivo, isento.linha, isento.projeto, isento.duracaoMs])).toEqual([[ESPEC, 7, 'celular', 19_000]])
+    // O caso que só mudou de comentário sai da régua pela outra exceção e não entra na lista.
+    const outra = repositorioComNotaNoSegundo()
+    trocarANota(outra)
+    expect(casosIsentosPorSoRename(outra, relatorioComOSegundo(outra, 'segundo'))).toEqual([])
+    expect(casosIsentosPorSoRename(raiz, join(raiz, 'nao-existe.json'))).toEqual([])
+  })
 })
 
 describe('as ligações que nenhuma função sozinha prova', () => {
@@ -820,6 +1168,13 @@ describe('as ligações que nenhuma função sozinha prova', () => {
     expect(portao).toContain('rodar(passo.comando, ambienteDoPasso(passo))')
     expect(portao).toMatch(/if \(daTarefa\) \{\n {2}rmSync\(relatorioDoE2e, \{ force: true \}\)/)
     expect(portao.indexOf('motivoDaDuracaoDoE2e(raiz, relatorioDoE2e)')).toBeLessThan(portao.indexOf('conferirMutacoesDoDocumento(raiz'))
+  })
+
+  it('o portão imprime os casos que a isenção de só nomes do mapa deixou passar, antes das mutações', () => {
+    const portao = ler('tools/processo/portao-local.ts')
+    expect(portao).toContain('casosIsentosPorSoRename(raiz, relatorioDoE2e)')
+    expect(portao).toContain('Só rename na régua de duração')
+    expect(portao.indexOf('casosIsentosPorSoRename(raiz, relatorioDoE2e)')).toBeLessThan(portao.indexOf('conferirMutacoesDoDocumento(raiz'))
   })
 
   it('o portão liga a sequência pura às suítes, aos serviços de job e às mutações de integração', () => {
