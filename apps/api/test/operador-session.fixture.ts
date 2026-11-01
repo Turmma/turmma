@@ -5,7 +5,7 @@ import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
 import { DURACAO_DA_SESSAO_DE_OPERADOR_HORAS } from '../src/operacao/sessao/sessao-timeouts.js'
 
 /** Um operador ativo com uma sessão aberta, e o token de acesso dela. */
-export interface SessaoDeOperadorDeTeste {
+export interface TestOperadorSessao {
   readonly operadorId: string
   readonly apelido: string
   readonly nome: string
@@ -27,7 +27,7 @@ export interface SessaoDeOperadorDeTeste {
  * auditoria dos comandos que rodaram sobre esses operadores: sem isso, o operador ativo que ficasse faria todo `ops:*`
  * de outro arquivo de teste exigir um `OPERADOR` que ele não conhece.
  */
-export class BancadaDeOperadores {
+export class OperadorFixtures {
   readonly pool: DatabasePool
   readonly #emissor: OperadorTokenIssuer
   readonly #chave: Uint8Array
@@ -53,7 +53,7 @@ export class BancadaDeOperadores {
   }
 
   /** Uma sessão aberta agora, de 8 h, para o operador, e o token de acesso dela. */
-  async sessao(operador: { operadorId: string; apelido: string; nome: string }): Promise<SessaoDeOperadorDeTeste> {
+  async sessao(operador: { operadorId: string; apelido: string; nome: string }): Promise<TestOperadorSessao> {
     const refresh = randomBytes(32).toString('base64url')
     const refreshHash = createHash('sha256').update(refresh).digest('hex')
     const { rows } = await this.pool.query<{ id: string }>(
@@ -73,7 +73,7 @@ export class BancadaDeOperadores {
   }
 
   /** Operador novo com uma sessão aberta. */
-  async operadorComSessao(): Promise<SessaoDeOperadorDeTeste> {
+  async operadorComSessao(): Promise<TestOperadorSessao> {
     return this.sessao(await this.operador())
   }
 

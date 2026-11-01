@@ -8,11 +8,11 @@ import { Secret, TOTP } from 'otpauth'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { SecretCipher, REDIS_LOGIN_CLIENT, gerarCodigosDeRecuperacao, gerarSegredo, PasswordHasher, hmacDaRecuperacao } from '../src/credencial/index.js'
-import { chamar, subirApi, type ApiDeTeste } from './test-api.js'
-import { configuracaoDeTeste } from './test-config.js'
+import { chamar, subirApi, type TestApi } from './test-api.js'
+import { testConfig } from './test-config.js'
 import { montarEscolaComTurma, type EscolaComTurma } from './escola-turma.fixture.js'
-import { FerramentasDaSala, pedidoDaSala, type NomeDaLista, type SalaDeTeste } from './sala.fixture.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
+import { FerramentasDaSala, pedidoDaSala, type NomeDaLista, type TestSala } from './sala.fixture.js'
+import { SessaoFixtures, type TestSessao } from './sessao.fixture.js'
 
 /** Senha sintética das contas e dos alunos deste teste: nenhuma é de pessoa real. */
 const SENHA = 'senha-sintetica-correta-1'
@@ -49,12 +49,12 @@ async function clientePronto(cliente: Redis): Promise<void> {
 }
 
 describe('ciclo de vida da conta: desativação, limpeza da conta global e eliminação por escola (17.1)', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
-  const configuracao = configuracaoDeTeste()
+  const configuracao = testConfig()
   const cifra = new SecretCipher(configuracao.login.mfa.versaoCifra, configuracao.login.mfa.chavesCifra)
   const servico = new CicloDeVidaService(bancada.banco)
-  let api: ApiDeTeste
+  let api: TestApi
   let hashDaSenha: string
 
   beforeAll(async () => {
@@ -71,7 +71,7 @@ describe('ciclo de vida da conta: desativação, limpeza da conta global e elimi
   })
 
   /** Como a coordenação chamaria pela tela do F2: no contexto da sessão dela, com a escola e o autor. */
-  const pela = <T>(coordenacao: SessaoDeTeste, acao: () => Promise<T>): Promise<T> =>
+  const pela = <T>(coordenacao: TestSessao, acao: () => Promise<T>): Promise<T> =>
     runInContext({ requisicaoId: randomUUID(), escolaId: coordenacao.escolaId, usuarioId: coordenacao.usuarioId, papel: 'coordenador' }, acao)
 
   /** Como o operador chamaria por comando, a pedido formal da escola: sem usuário no contexto. */
@@ -687,14 +687,14 @@ describe('ciclo de vida da conta: desativação, limpeza da conta global e elimi
       sala = new FerramentasDaSala(api, bancada)
     })
 
-    const decidir = async (s: SalaDeTeste, ids: readonly string[], decisao: 'aprovar' | 'recusar' = 'aprovar') => {
+    const decidir = async (s: TestSala, ids: readonly string[], decisao: 'aprovar' | 'recusar' = 'aprovar') => {
       const resposta = await chamar(api.url, 'POST', '/v1/reivindicacoes/decidir', s.professor.token, { ids, decisao })
       expect(resposta.status).toBe(200)
       expect(decisaoResponseSchema.parse(resposta.corpo).resultados.map((linha) => linha.resultado)).toEqual(ids.map(() => 'decidida'))
     }
 
     /** O aluno reivindica o nome pela sala, com a matrícula certa, e o id do pedido pendente que nasceu. */
-    async function pedir(s: SalaDeTeste, nome: NomeDaLista): Promise<string> {
+    async function pedir(s: TestSala, nome: NomeDaLista): Promise<string> {
       expect((await sala.reivindicar(pedidoDaSala(s, nome))).status).toBe(200)
       const { rows } = await bancada.pool.query<{ id: string }>(`select id from reivindicacao where escola_id = $1 and lista_nome_id = $2 and estado = 'pendente'`, [s.escolaId, nome.id])
       const id = rows[0]?.id

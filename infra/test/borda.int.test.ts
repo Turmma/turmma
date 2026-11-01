@@ -6,8 +6,8 @@ import { join } from 'node:path'
 import { setTimeout as esperar } from 'node:timers/promises'
 import type { Socket as SocketCliente } from 'socket.io-client'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { salaDaEscola } from '../../apps/realtime/src/system.gateway.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from '../../apps/api/test/sessao.fixture.js'
+import { escolaRoom } from '../../apps/realtime/src/system.gateway.js'
+import { SessaoFixtures, type TestSessao } from '../../apps/api/test/sessao.fixture.js'
 import { criarCliente, criarEmissor } from '../../apps/realtime/test/realtime.fixture.js'
 import { lerAmbienteDeTeste, valorObrigatorio } from '../../tools/ci/compose.ts'
 import { raizRepositorio } from '../../tools/ci/executar.ts'
@@ -229,9 +229,9 @@ async function subirBordaDescartavel(servidorDoUpstream: string): Promise<BordaD
 }
 
 describe('borda com duas APIs e dois realtimes', () => {
-  const sessoes = new BancadaDeSessoes()
-  let principal: SessaoDeTeste
-  let daTurma: SessaoDeTeste[]
+  const sessoes = new SessaoFixtures()
+  let principal: TestSessao
+  let daTurma: TestSessao[]
   let token: string
   /** Alunos da escola da turma para as rajadas: cada um fica bem abaixo do próprio limite por minuto. */
   let turma: string[]
@@ -505,7 +505,7 @@ describe('borda com duas APIs e dois realtimes', () => {
           await expect.poll(() => clientes.every((cliente) => cliente.connected), { timeout: 30_000 }).toBe(true)
           // Sala tomada de novo depois da reconexão: a emissão só vale depois que todos voltaram.
           await esperar(300)
-          emissor.servidor.of(SYSTEM_REALTIME_NAMESPACE).to(salaDaEscola(escolaDaTurma)).emit('sistema.teste', { marca })
+          emissor.servidor.of(SYSTEM_REALTIME_NAMESPACE).to(escolaRoom(escolaDaTurma)).emit('sistema.teste', { marca })
           await expect.poll(() => clientes.filter((cliente) => !recebidos.get(cliente)?.includes(marca)).length, { timeout: 10_000 }).toBe(0)
         }
 

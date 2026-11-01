@@ -21,7 +21,7 @@ import { PREFIXO_DO_CONTADOR_DA_OPERACAO } from '../src/operacao/entrada/entrada
 import { OperadorMfaService } from '../src/operacao/mfa/segundo-fator.service.js'
 import { gerarConviteDeOperador } from '../src/ops/operador.js'
 import { REDIS_LOGIN_CLIENT, LoginLockout, SESSAO_COOKIE, type OrigemDaTentativa } from '../src/credencial/index.js'
-import { configuracaoDeTeste } from './test-config.js'
+import { testConfig } from './test-config.js'
 import { caminhoConcreto, rotasDe } from './registered-routes.js'
 import {
   ativarNoBanco,
@@ -47,10 +47,10 @@ import {
   type Cabecalhos,
   type Resposta,
 } from './operador-mfa.fixture.js'
-import { BancadaDeOperadores } from './operador-session.fixture.js'
+import { OperadorFixtures } from './operador-session.fixture.js'
 
 const SENHA = 'senha-nova-do-operador-1'
-const configuracao = configuracaoDeTeste()
+const configuracao = testConfig()
 
 /** Um operador com o segundo fator ativo pela API (configurar e o primeiro código), com a sessão que isso abriu. */
 interface OperadorAtivo {
@@ -63,7 +63,7 @@ interface OperadorAtivo {
 }
 
 describe('segundo fator do operador: configurar e entrar com código (tarefa 7.0)', () => {
-  const operadores = new BancadaDeOperadores()
+  const operadores = new OperadorFixtures()
   const linhasDeLog: string[] = []
   /** Tudo que foi recebido e não pode aparecer no log: segredos, URIs, códigos, desafios, tokens e cookies. */
   const segredosVistos = new Set<string>([SENHA])
@@ -482,7 +482,7 @@ describe('segundo fator do operador: configurar e entrar com código (tarefa 7.0
 })
 
 describe('segundo fator do operador com o Redis de fila fora (C13)', () => {
-  const operadores = new BancadaDeOperadores()
+  const operadores = new OperadorFixtures()
   let app: INestApplication
   let url: string
   let cliente: Redis
@@ -533,12 +533,12 @@ describe('segundo fator do operador com o Redis de fila fora (C13)', () => {
 
 describe('segundo fator do operador: o limite (C32 e C34)', () => {
   const LIMITE_POR_IP = 3
-  const operadores = new BancadaDeOperadores()
+  const operadores = new OperadorFixtures()
   let app: INestApplication
   let url: string
 
   beforeAll(async () => {
-    ;({ app, url } = await subir(configuracaoDeTeste({ ambiente: { LIMITE_REQ_IP_ANONIMO_MIN: String(LIMITE_POR_IP), LIMITE_PROXIES_CONFIAVEIS: '127.0.0.1' } })))
+    ;({ app, url } = await subir(testConfig({ ambiente: { LIMITE_REQ_IP_ANONIMO_MIN: String(LIMITE_POR_IP), LIMITE_PROXIES_CONFIAVEIS: '127.0.0.1' } })))
   })
 
   afterAll(async () => {

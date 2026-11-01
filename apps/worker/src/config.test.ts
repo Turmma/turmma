@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { MOTIVO_VAGAS_DESLIGADAS_EM_PRODUCAO } from '@educa/core'
-import { InvalidConfigError, lerConfiguracao } from './config.js'
+import { InvalidConfigError, loadConfig } from './config.js'
 
 const storageValido = {
   STORAGE_URL: 'http://storage:8333',
@@ -43,7 +43,7 @@ const janelaValida = {
 
 function erroDe(ambiente: Record<string, string | undefined>): InvalidConfigError {
   try {
-    lerConfiguracao(ambiente)
+    loadConfig(ambiente)
   } catch (erro) {
     if (erro instanceof InvalidConfigError) return erro
     throw erro
@@ -53,7 +53,7 @@ function erroDe(ambiente: Record<string, string | undefined>): InvalidConfigErro
 
 describe('lerConfiguracao do worker', () => {
   it('converte o ambiente: só as filas de FILAS, cada uma com o próprio pool', () => {
-    expect(lerConfiguracao(ambienteValido)).toEqual({
+    expect(loadConfig(ambienteValido)).toEqual({
       banco: { url: ambienteValido.BANCO_URL, maximoConexoes: 80, timeoutConexaoMs: 2000, timeoutConsultaMs: 2000 },
       redisFilaUrl: 'redis://redis-fila:6379',
       pools: { interativa: 50, normal: 30 },
@@ -66,20 +66,20 @@ describe('lerConfiguracao do worker', () => {
 
   it('o worker-lote atende só o lote, e o pool de outra fila no ambiente não liga a fila', () => {
     const lote = { ...ambienteValido, ...storageValido, ...janelaValida, FILAS: 'lote', WORKER_POOL_LOTE: '10' }
-    expect(lerConfiguracao(lote).pools).toEqual({ lote: 10 })
+    expect(loadConfig(lote).pools).toEqual({ lote: 10 })
   })
 
   it('quem atende o lote (a consolidação mede os bytes, o expurgo apaga o arquivo) ou a fila normal (monta o arquivo do titular) lê o storage; quem atende só a interativa, não', () => {
     const lote = { ...ambienteValido, ...storageValido, ...janelaValida, FILAS: 'lote', WORKER_POOL_LOTE: '10' }
-    expect(lerConfiguracao(lote).storage).toEqual({
+    expect(loadConfig(lote).storage).toEqual({
       url: 'http://storage:8333',
       regiao: 'us-east-1',
       bucket: 'educa-local',
       chaveAcesso: 'chave_sintetica',
       chaveSecreta: 'segredo_sintetico_xyz',
     })
-    expect(lerConfiguracao(ambienteValido).storage).toEqual(lerConfiguracao(lote).storage)
-    expect(lerConfiguracao({ ...ambienteValido, ...soInterativa }).storage).toBeUndefined()
+    expect(loadConfig(ambienteValido).storage).toEqual(loadConfig(lote).storage)
+    expect(loadConfig({ ...ambienteValido, ...soInterativa }).storage).toBeUndefined()
   })
 
   it.each(Object.keys(storageValido))('quem atende a fila normal não sobe sem %s: o arquivo do titular é gravado no storage (F3, tarefa 13.0)', (variavel) => {
@@ -88,13 +88,13 @@ describe('lerConfiguracao do worker', () => {
 
   it('quem atende só a interativa sobe sem nenhuma variável do storage', () => {
     const semStorage = Object.fromEntries(Object.keys(storageValido).map((variavel) => [variavel, undefined]))
-    expect(lerConfiguracao({ ...ambienteValido, ...semStorage, ...soInterativa })).toMatchObject({ pools: { interativa: 50 } })
+    expect(loadConfig({ ...ambienteValido, ...semStorage, ...soInterativa })).toMatchObject({ pools: { interativa: 50 } })
   })
 
   it('o worker-lote lê o horário letivo padrão, que o expurgo da escola confere a cada lote; o worker-interativo não', () => {
     const lote = { ...ambienteValido, ...storageValido, ...janelaValida, FILAS: 'lote', WORKER_POOL_LOTE: '10' }
-    expect(lerConfiguracao(lote).janelaPadrao).toEqual({ fuso: 'America/Sao_Paulo', diasLetivos: [1, 2, 3, 4, 5], inicio: '07:00', fim: '18:00' })
-    expect(lerConfiguracao(ambienteValido).janelaPadrao).toBeUndefined()
+    expect(loadConfig(lote).janelaPadrao).toEqual({ fuso: 'America/Sao_Paulo', diasLetivos: [1, 2, 3, 4, 5], inicio: '07:00', fim: '18:00' })
+    expect(loadConfig(ambienteValido).janelaPadrao).toBeUndefined()
   })
 
   it.each(Object.keys(janelaValida))('o worker-lote não sobe sem %s', (variavel) => {
@@ -122,8 +122,8 @@ describe('lerConfiguracao do worker', () => {
   })
 
   it('com VAGAS_POR_ESCOLA_DESLIGADAS=true fora de produção, sobe sem teto por escola (controle negativo do cenário de carga)', () => {
-    expect(lerConfiguracao({ ...ambienteValido, VAGAS_POR_ESCOLA_DESLIGADAS: 'true' }).vagasPorEscolaDesligadas).toBe(true)
-    expect(lerConfiguracao(ambienteValido)).not.toHaveProperty('vagasPorEscolaDesligadas')
+    expect(loadConfig({ ...ambienteValido, VAGAS_POR_ESCOLA_DESLIGADAS: 'true' }).vagasPorEscolaDesligadas).toBe(true)
+    expect(loadConfig(ambienteValido)).not.toHaveProperty('vagasPorEscolaDesligadas')
   })
 
   it('recusa subir com VAGAS_POR_ESCOLA_DESLIGADAS=true e AMBIENTE=producao: a flag de teste não vira porta aberta', () => {

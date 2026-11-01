@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { BancadaDeSessoes } from '../../apps/api/test/sessao.fixture.js'
+import { SessaoFixtures } from '../../apps/api/test/sessao.fixture.js'
 import { lerAmbienteDeTeste, valorObrigatorio } from '../../tools/ci/compose.ts'
 import { compose, composeAssincronoOuFalha, PROCESSOS_DA_FILA, recriarDoZero } from '../../tools/testes/compose.ts'
 import { alertaCom, lerRegrasNoGrafana, REGRAS_PROVISIONADAS, type EstadoDoAlerta } from '../scripts/ensaio-alertas.ts'
@@ -15,7 +15,7 @@ const PROMETHEUS = `http://127.0.0.1:${porta('PROMETHEUS_PORTA_HOST')}`
 const SERVICOS = ['observabilidade', 'worker-lote-1'] as const
 const UID = REGRAS_PROVISIONADAS.incidenteSemConfirmacao
 
-const sessoes = new BancadaDeSessoes()
+const sessoes = new SessaoFixtures()
 const escolas: string[] = []
 const incidentes: string[] = []
 

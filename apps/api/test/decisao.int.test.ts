@@ -16,10 +16,10 @@ import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { DecisaoRepository } from '../src/sala/decisao/decisao.repository.js'
 import { ListaLivreRepository } from '../src/sala/reivindicacao/lista-livre.repository.js'
 import { ReivindicacaoRepository } from '../src/sala/reivindicacao/reivindicacao.repository.js'
-import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from './test-api.js'
-import { esperarNaTrava, GatilhoDeParada } from './write-block-trigger.js'
-import { FerramentasDaSala, pedidoDaSala, semRequisicao, SENHA_DA_SALA, type NomeDaLista, type SalaDeTeste } from './sala.fixture.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
+import { chamar, subirApi, type TestApi, type RespostaHttp } from './test-api.js'
+import { esperarNaTrava, WriteBlockTrigger } from './write-block-trigger.js'
+import { FerramentasDaSala, pedidoDaSala, semRequisicao, SENHA_DA_SALA, type NomeDaLista, type TestSala } from './sala.fixture.js'
+import { SessaoFixtures, type TestSessao } from './sessao.fixture.js'
 
 /**
  * Os pedidos da turma e a decisão (A1, tarefa 8.0; `tasks/prd-apresentacao-escola/cenarios.md`): `GET
@@ -37,9 +37,9 @@ const AMBIENTE = { LIMITE_PROXIES_CONFIAVEIS: '127.0.0.1' }
 const FINALIDADE = 'conferencia_de_cadastro'
 
 describe('decisão dos pedidos (A1, tarefa 8.0): uma pessoa aprova ou recusa, e só a aprovação cria o aluno', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
-  let api: ApiDeTeste
+  let api: TestApi
   let sala: FerramentasDaSala
 
   beforeAll(async () => {
@@ -53,9 +53,9 @@ describe('decisão dos pedidos (A1, tarefa 8.0): uma pessoa aprova ou recusa, e 
     await medidor.encerrar()
   })
 
-  const post = (sessao: SessaoDeTeste, caminho: string, corpo?: unknown) => chamar(api.url, 'POST', caminho, sessao.token, corpo)
-  const decidir = (sessao: SessaoDeTeste, ids: readonly string[], decisao: 'aprovar' | 'recusar' = 'aprovar') => post(sessao, '/v1/reivindicacoes/decidir', { ids, decisao })
-  const lerPedidos = (sessao: SessaoDeTeste, turmaId: string, consulta = '') => chamar(api.url, 'GET', `/v1/turmas/${turmaId}/reivindicacoes${consulta}`, sessao.token)
+  const post = (sessao: TestSessao, caminho: string, corpo?: unknown) => chamar(api.url, 'POST', caminho, sessao.token, corpo)
+  const decidir = (sessao: TestSessao, ids: readonly string[], decisao: 'aprovar' | 'recusar' = 'aprovar') => post(sessao, '/v1/reivindicacoes/decidir', { ids, decisao })
+  const lerPedidos = (sessao: TestSessao, turmaId: string, consulta = '') => chamar(api.url, 'GET', `/v1/turmas/${turmaId}/reivindicacoes${consulta}`, sessao.token)
 
   /** O resultado de cada id, na ordem do pedido, de uma decisão que respondeu 200. */
   function resultados(resposta: RespostaHttp): ResultadoDaDecisao[] {
@@ -64,7 +64,7 @@ describe('decisão dos pedidos (A1, tarefa 8.0): uma pessoa aprova ou recusa, e 
   }
 
   /** O aluno reivindica o nome pela sala, com a matrícula certa, e o id do pedido pendente que nasceu. */
-  async function pedir(s: SalaDeTeste, nome: NomeDaLista, extra: Record<string, unknown> = {}): Promise<string> {
+  async function pedir(s: TestSala, nome: NomeDaLista, extra: Record<string, unknown> = {}): Promise<string> {
     const resposta = await sala.reivindicar(pedidoDaSala(s, nome, extra))
     expect(resposta.status).toBe(200)
     const { rows } = await bancada.pool.query<{ id: string }>(`select id from reivindicacao where escola_id = $1 and lista_nome_id = $2 and estado = 'pendente'`, [s.escolaId, nome.id])
@@ -116,7 +116,7 @@ describe('decisão dos pedidos (A1, tarefa 8.0): uma pessoa aprova ou recusa, e 
   }
 
   /** O login por matrícula na escola, como a página da escola faz. */
-  const entrar = (s: SalaDeTeste, matricula: string, senha = SENHA_DA_SALA) => chamar(api.url, 'POST', '/v1/sessao/matricula', undefined, { slug: s.slug, matricula, senha })
+  const entrar = (s: TestSala, matricula: string, senha = SENHA_DA_SALA) => chamar(api.url, 'POST', '/v1/sessao/matricula', undefined, { slug: s.slug, matricula, senha })
 
   /** Os vínculos de professor do usuário na turma. */
   async function vinculosDe(usuarioId: string, turmaId: string): Promise<string[]> {
@@ -573,7 +573,7 @@ describe('decisão dos pedidos (A1, tarefa 8.0): uma pessoa aprova ou recusa, e 
       const s = await sala.montar()
       const nome = await sala.umNome(s)
       const pedidoId = await pedir(s, nome)
-      const gatilho = new GatilhoDeParada(bancada.pool, { tabela: 'lista_nome', evento: 'update', quando: `new.id = '${nome.id}'::uuid and new.estado = 'aprovado'` })
+      const gatilho = new WriteBlockTrigger(bancada.pool, { tabela: 'lista_nome', evento: 'update', quando: `new.id = '${nome.id}'::uuid and new.estado = 'aprovado'` })
       await gatilho.armar()
       try {
         const aprovando = decidir(s.professor, [pedidoId])
@@ -615,7 +615,7 @@ describe('decisão dos pedidos (A1, tarefa 8.0): uma pessoa aprova ou recusa, e 
   })
 
   describe('o nome aprovado na lista (E6, E7, R2) e na virada do ano (E19)', () => {
-    async function aprovado(s: SalaDeTeste): Promise<{ nome: NomeDaLista; alunoId: string }> {
+    async function aprovado(s: TestSala): Promise<{ nome: NomeDaLista; alunoId: string }> {
       const nome = await sala.umNome(s)
       const pedidoId = await pedir(s, nome)
       expect(resultados(await decidir(s.professor, [pedidoId]))).toEqual(['decidida'])
@@ -681,7 +681,7 @@ describe('decisão dos pedidos (A1, tarefa 8.0): uma pessoa aprova ou recusa, e 
       const [avulso, gravacao] = (await sala.nomes(s, s.turma, 2)) as [NomeDaLista, NomeDaLista]
       for (const nome of [avulso, gravacao]) {
         const pedidoId = await pedir(s, nome)
-        const gatilho = new GatilhoDeParada(bancada.pool, { tabela: 'lista_nome', evento: 'update', quando: `new.id = '${nome.id}'::uuid and new.estado = 'aprovado'` })
+        const gatilho = new WriteBlockTrigger(bancada.pool, { tabela: 'lista_nome', evento: 'update', quando: `new.id = '${nome.id}'::uuid and new.estado = 'aprovado'` })
         await gatilho.armar()
         try {
           const aprovando = decidir(s.professor, [pedidoId])

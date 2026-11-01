@@ -31,12 +31,12 @@ import { randomUUID } from 'node:crypto'
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { aguardarSaudavel, compose, composeAssincronoOuFalha, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
-import { BancadaDeFila, LogEmMemoria, urlRedisDeFila } from './queue.fixture.js'
+import { QueueFixtures, InMemoryLog, urlRedisDeFila } from './queue.fixture.js'
 
 // Despachantes e workers de verdade (a mesma montagem do main.ts), no processo do teste, contra o
 // Postgres e o Redis de fila do compose de teste. Cada bancada usa um prefixo próprio no BullMQ.
 
-async function aguardarEstado(bancada: BancadaDeFila, id: string, estado: string, limiteMs = 30_000): Promise<void> {
+async function aguardarEstado(bancada: QueueFixtures, id: string, estado: string, limiteMs = 30_000): Promise<void> {
   await expect.poll(async () => (await bancada.estado(id))?.estado, { timeout: limiteMs, interval: 100 }).toBe(estado)
 }
 
@@ -46,14 +46,14 @@ beforeAll(() => {
 })
 
 describe('dois despachantes e dois workers sobre a mesma fila', () => {
-  let bancada: BancadaDeFila
+  let bancada: QueueFixtures
   // Escolas reais, criadas a cada caso: desde a tarefa 3.0 `job_registro` e
   // `configuracao_operacional_escola` têm FK para `escola`, e id inventado é recusado pelo banco.
   let ESCOLA_A: string
   let ESCOLA_B: string
 
   beforeEach(async () => {
-    bancada = new BancadaDeFila()
+    bancada = new QueueFixtures()
     await bancada.limparRegistro()
     ;[ESCOLA_A, ESCOLA_B] = await Promise.all([bancada.escola(), bancada.escola()])
   })
@@ -72,7 +72,7 @@ describe('dois despachantes e dois workers sobre a mesma fila', () => {
     }
     expect(ids.size).toBe(500)
 
-    const logs = { d1: new LogEmMemoria('despachante-1'), d2: new LogEmMemoria('despachante-2'), w1: new LogEmMemoria('worker-1'), w2: new LogEmMemoria('worker-2') }
+    const logs = { d1: new InMemoryLog('despachante-1'), d2: new InMemoryLog('despachante-2'), w1: new InMemoryLog('worker-1'), w2: new InMemoryLog('worker-2') }
     const trabalhadores = [bancada.worker(logs.w1, { concorrencia: 10 }), bancada.worker(logs.w2, { concorrencia: 10 })]
     const despachantes = [bancada.despachante(logs.d1), bancada.despachante(logs.d2)]
     // Os dois partem juntos sobre as mesmas 500 linhas: é a disputa que o SKIP LOCKED e a troca condicional resolvem.
@@ -87,7 +87,7 @@ describe('dois despachantes e dois workers sobre a mesma fila', () => {
     await Promise.all(despachantes.map((montado) => montado.encerrar()))
     await Promise.all(trabalhadores.map((montado) => montado.encerrar()))
 
-    const publicadosPor = (log: LogEmMemoria) => log.doEvento('job.publicado').map((registro) => String(registro['jobId']))
+    const publicadosPor = (log: InMemoryLog) => log.doEvento('job.publicado').map((registro) => String(registro['jobId']))
     const publicados1 = publicadosPor(logs.d1)
     const publicados2 = publicadosPor(logs.d2)
     // A disputa aconteceu de verdade: os dois publicaram, e nenhuma rodada falhou calada.
@@ -112,8 +112,8 @@ describe('dois despachantes e dois workers sobre a mesma fila', () => {
   it('o worker restaura escola e requisição do job: toda linha do despachante e do worker sobre ele leva o requisicaoId de quem pediu', async () => {
     const requisicaoId = randomUUID()
     const id = await bancada.enfileirar(ESCOLA_B, {}, requisicaoId)
-    const logDespachante = new LogEmMemoria('despachante')
-    const logWorker = new LogEmMemoria('worker')
+    const logDespachante = new InMemoryLog('despachante')
+    const logWorker = new InMemoryLog('worker')
     const { workers } = bancada.worker(logWorker)
     bancada.despachante(logDespachante).despachante.iniciar()
     await aguardarEstado(bancada, id, 'concluido')
@@ -130,10 +130,10 @@ describe('dois despachantes e dois workers sobre a mesma fila', () => {
 
   it('falha permanente: 5 tentativas com recuo e depois falhou, com a escola e o código tipado', async () => {
     const id = await bancada.enfileirar(ESCOLA_A, { dados: { cpuMs: 0, falhar: true } })
-    const logWorker = new LogEmMemoria('worker')
+    const logWorker = new InMemoryLog('worker')
     bancada.worker(logWorker)
     const inicio = performance.now()
-    bancada.despachante(new LogEmMemoria('despachante')).despachante.iniciar()
+    bancada.despachante(new InMemoryLog('despachante')).despachante.iniciar()
 
     await aguardarEstado(bancada, id, 'falhou', 60_000)
     // Recuo exponencial de 2 s com jitter de 50 %: as quatro esperas somam pelo menos 15 s.
@@ -149,7 +149,7 @@ describe('dois despachantes e dois workers sobre a mesma fila', () => {
 
   it('erro inesperado com valor de campo na mensagem: nem o Redis nem o log recebem o texto, só o código', async () => {
     const id = await bancada.enfileirar(ESCOLA_A)
-    const logWorker = new LogEmMemoria('worker')
+    const logWorker = new InMemoryLog('worker')
     const processadores = {
       sintetico: () => Promise.reject(new Error('Key (nome)=(Enzo Martins) already exists')),
     }
@@ -211,9 +211,9 @@ describe('dois despachantes e dois workers sobre a mesma fila', () => {
 
   it('o mesmo job entregue de novo pela fila depois de concluído não roda outra vez', async () => {
     const id = await bancada.enfileirar(ESCOLA_A)
-    const logWorker = new LogEmMemoria('worker')
+    const logWorker = new InMemoryLog('worker')
     bancada.worker(logWorker)
-    bancada.despachante(new LogEmMemoria('despachante')).despachante.iniciar()
+    bancada.despachante(new InMemoryLog('despachante')).despachante.iniciar()
     await aguardarEstado(bancada, id, 'concluido')
 
     // A fila perdeu o job e ele foi publicado de novo, com o mesmo id.
@@ -230,7 +230,7 @@ describe('dois despachantes e dois workers sobre a mesma fila', () => {
       const daEscolaB = await bancada.enfileirar(ESCOLA_B)
       const outraDaEscolaB = await bancada.enfileirar(ESCOLA_B)
       await bancada.reservar(ESCOLA_B)
-      const logWorker = new LogEmMemoria('worker')
+      const logWorker = new InMemoryLog('worker')
       bancada.worker(logWorker)
       const inexistente = randomUUID()
 
@@ -285,7 +285,7 @@ describe('dois despachantes e dois workers sobre a mesma fila', () => {
     }
 
     it('o job é gravado na transação de quem pede: se ela desfaz, não sobra linha nem publicação', async () => {
-      const logDespachante = new LogEmMemoria('despachante')
+      const logDespachante = new InMemoryLog('despachante')
       bancada.despachante(logDespachante).despachante.iniciar()
       await expect(
         runInContext({ requisicaoId: randomUUID(), escolaId: ESCOLA_A }, () =>
@@ -476,9 +476,9 @@ describe('dois despachantes e dois workers sobre a mesma fila', () => {
       const chaveAMais = await gravarPorSql(TIPO_JOB_SINTETICO, ESCOLA_A, { cpuMs: 0, falhar: false, [sentinela]: sentinela })
       const foraDoFormato = await gravarPorSql(TIPO_JOB_SINTETICO, ESCOLA_A, { cpuMs: -1, falhar: false })
       const chamados: string[] = []
-      const logWorker = new LogEmMemoria('worker')
+      const logWorker = new InMemoryLog('worker')
       bancada.worker(logWorker, { processadores: { [TIPO_JOB_SINTETICO]: () => Promise.resolve(void chamados.push('chamado')) } })
-      bancada.despachante(new LogEmMemoria('despachante')).despachante.iniciar()
+      bancada.despachante(new InMemoryLog('despachante')).despachante.iniciar()
 
       for (const id of [chaveAMais, foraDoFormato]) {
         await aguardarEstado(bancada, id, 'falhou')
@@ -498,8 +498,8 @@ describe('dois despachantes e dois workers sobre a mesma fila', () => {
 
     it('tipo que o registro não tem (uma linha de outra versão) termina falhou com TIPO_DESCONHECIDO, definitivo', async () => {
       const id = await gravarPorSql('tipo.de-uma-versao-antiga', ESCOLA_A, { qualquer: 'coisa' })
-      bancada.worker(new LogEmMemoria('worker'))
-      bancada.despachante(new LogEmMemoria('despachante')).despachante.iniciar()
+      bancada.worker(new InMemoryLog('worker'))
+      bancada.despachante(new InMemoryLog('despachante')).despachante.iniciar()
 
       await aguardarEstado(bancada, id, 'falhou')
       expect(await bancada.estado(id)).toEqual({ estado: 'falhou', escolaId: ESCOLA_A, codigoFalha: JobFailureCode.TIPO_DESCONHECIDO })
@@ -509,8 +509,8 @@ describe('dois despachantes e dois workers sobre a mesma fila', () => {
     it('rotina do sistema com escola (a linha foi escrita por SQL; o check do banco a aceita) não roda, e o dado da escola fica como está', async () => {
       const id = await gravarPorSql(TIPO_EXPURGAR_JOBS, ESCOLA_A, {})
       const chamados: string[] = []
-      bancada.worker(new LogEmMemoria('worker'), { processadores: { [TIPO_EXPURGAR_JOBS]: () => Promise.resolve(void chamados.push('chamado')) } })
-      bancada.despachante(new LogEmMemoria('despachante')).despachante.iniciar()
+      bancada.worker(new InMemoryLog('worker'), { processadores: { [TIPO_EXPURGAR_JOBS]: () => Promise.resolve(void chamados.push('chamado')) } })
+      bancada.despachante(new InMemoryLog('despachante')).despachante.iniciar()
 
       await aguardarEstado(bancada, id, 'falhou')
       expect(await bancada.estado(id)).toEqual({ estado: 'falhou', escolaId: ESCOLA_A, codigoFalha: JobFailureCode.DADOS_INVALIDOS })
@@ -519,7 +519,7 @@ describe('dois despachantes e dois workers sobre a mesma fila', () => {
   })
 
   it('o aviso do NOTIFY acorda o despachante sem esperar a sondagem', async () => {
-    const logDespachante = new LogEmMemoria('despachante')
+    const logDespachante = new InMemoryLog('despachante')
     // Sondagem de um minuto: só o aviso explica a publicação em segundos.
     bancada.despachante(logDespachante, { intervaloMs: 60_000 }).despachante.iniciar()
     // A primeira rodada (que abre o LISTEN) já passou, e o laço dorme a sondagem inteira.
@@ -536,12 +536,12 @@ describe('dois despachantes e dois workers sobre a mesma fila', () => {
     await bancada.fila.add('sintetico', { escolaId: ESCOLA_A, requisicaoId: null }, { ...jobOptions(TIPO_JOB_SINTETICO), jobId: id })
     await bancada.pool.query(`update job_registro set reservado_ate = now() - interval '1 second' where id = $1`, [id])
 
-    const logDespachante = new LogEmMemoria('despachante')
+    const logDespachante = new InMemoryLog('despachante')
     bancada.despachante(logDespachante).despachante.iniciar()
     await expect.poll(() => logDespachante.doEvento('job.publicado').map((registro) => registro['jobId']), { timeout: 5_000 }).toEqual([id])
     expect((await bancada.estado(id))?.estado).toBe('publicado')
 
-    const logWorker = new LogEmMemoria('worker')
+    const logWorker = new InMemoryLog('worker')
     bancada.worker(logWorker)
     await aguardarEstado(bancada, id, 'concluido')
     await new Promise((resolver) => setTimeout(resolver, 1_000))
@@ -561,7 +561,7 @@ describe('dois despachantes e dois workers sobre a mesma fila', () => {
     it('Postgres fora na troca para ativo: a tentativa conta sem executar, e com o Postgres de volta o job executa uma vez e conclui', async () => {
       // Tentativas de sobra: com o recuo sorteado para baixo, as cinco de verdade podem acabar antes de o Postgres ficar saudável.
       const id = await publicado(10)
-      const logWorker = new LogEmMemoria('worker')
+      const logWorker = new InMemoryLog('worker')
       await composeAssincronoOuFalha('stop', 'postgres')
       try {
         bancada.worker(logWorker)
@@ -592,7 +592,7 @@ describe('dois despachantes e dois workers sobre a mesma fila', () => {
 
       const medidor = new MedidorDeTeste()
       try {
-        bancada.worker(new LogEmMemoria('worker'), { medidor: medidor.medidor })
+        bancada.worker(new InMemoryLog('worker'), { medidor: medidor.medidor })
         await aguardarEstado(bancada, id, 'concluido', 40_000)
         expect(await medidor.pontos(METRICS.jobsStalled)).toEqual([{ atributos: { fila: 'interativa' }, valor: 1 }])
       } finally {
@@ -602,7 +602,7 @@ describe('dois despachantes e dois workers sobre a mesma fila', () => {
 
     it('SIGTERM com job que passa da graça e tentativas sobrando: o encerramento força a saída no prazo, sem marcar falha, e o job segue na fila para outra réplica', async () => {
       const id = await publicado(5)
-      const logWorker = new LogEmMemoria('worker')
+      const logWorker = new InMemoryLog('worker')
       const graca = 1_000
       // Um job que não termina: só a graça encerra o worker.
       const montado = bancada.worker(logWorker, { graca, processadores: { sintetico: () => new Promise<void>(() => undefined) } })
@@ -626,7 +626,7 @@ describe('dois despachantes e dois workers sobre a mesma fila', () => {
 
     it('SIGTERM com job na última tentativa além da graça: a linha termina falhou/EXECUCAO_INTERROMPIDA, a vaga sai, e a réplica que retoma o job pelo stalled não o executa', async () => {
       const id = await publicado(1)
-      const logWorker = new LogEmMemoria('worker')
+      const logWorker = new InMemoryLog('worker')
       const montado = bancada.worker(logWorker, { graca: 1_000, processadores: { sintetico: () => new Promise<void>(() => undefined) } })
       await aguardarEstado(bancada, id, 'ativo')
       expect(await bancada.vagas.membros('interativa', ESCOLA_A)).toEqual([id])
@@ -637,7 +637,7 @@ describe('dois despachantes e dois workers sobre a mesma fila', () => {
       expect(logWorker.doEvento('job.falhou')).toEqual([expect.objectContaining({ jobId: id, codigo: JobFailureCode.EXECUCAO_INTERROMPIDA })])
 
       // O lock do job que ficou na fila vence (10 s) e o stalled de outra réplica o devolve: ela vê a linha final e não o executa.
-      const logSobrevivente = new LogEmMemoria('worker')
+      const logSobrevivente = new InMemoryLog('worker')
       const executados: string[] = []
       bancada.worker(logSobrevivente, { processadores: { sintetico: (_dados, execucao) => (executados.push(execucao.jobId), Promise.resolve()) } })
       await expect.poll(async () => (await bancada.fila.getJob(id))?.getState(), { timeout: 45_000, interval: 500 }).toBe('completed')
@@ -648,7 +648,7 @@ describe('dois despachantes e dois workers sobre a mesma fila', () => {
 
     it('SIGTERM com duas escolas na última tentativa: cada falha grava só a linha da própria escola, e cada vaga sai da própria escola', async () => {
       const [idA, idB] = [await publicado(1, ESCOLA_A), await publicado(1, ESCOLA_B)]
-      const logWorker = new LogEmMemoria('worker')
+      const logWorker = new InMemoryLog('worker')
       const montado = bancada.worker(logWorker, { graca: 1_000, processadores: { sintetico: () => new Promise<void>(() => undefined) } })
       await aguardarEstado(bancada, idA, 'ativo')
       await aguardarEstado(bancada, idB, 'ativo')

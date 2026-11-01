@@ -6,10 +6,10 @@ import { MATERIAL_DE_DEMONSTRACAO } from '../../../tools/demonstracao/conteudo-e
 import { EXECUTOR_DE_AGENTE } from '../src/ia/ia.module.js'
 import { REDIS_CACHE_CLIENT } from '../src/rate-limit.module.js'
 import { REDIS_LOGIN_CLIENT } from '../src/credencial/index.js'
-import { chamar, type ApiDeTeste, type RespostaHttp } from './test-api.js'
+import { chamar, type TestApi, type RespostaHttp } from './test-api.js'
 import { montarEscolaComTurma, type EscolaComTurma } from './escola-turma.fixture.js'
 import { enviarMaterial, esperarExtracao, PDF_DE_DEMONSTRACAO } from './material.fixture.js'
-import type { BancadaDeSessoes, SessaoDeTeste } from './sessao.fixture.js'
+import type { SessaoFixtures, TestSessao } from './sessao.fixture.js'
 
 /**
  * Uma escola pronta para o Assistente de ensino (MVP, A2): a de `montarEscolaComTurma`, mais a professora com vínculo
@@ -19,11 +19,11 @@ import type { BancadaDeSessoes, SessaoDeTeste } from './sessao.fixture.js'
  */
 export interface EscolaComAssistente extends EscolaComTurma {
   readonly escolaId: string
-  readonly professora: SessaoDeTeste
-  readonly colega: SessaoDeTeste
+  readonly professora: TestSessao
+  readonly colega: TestSessao
   /** A professora de Física do 2ºB: a mesma turma da professora, outra disciplina. */
-  readonly deFisica: SessaoDeTeste
-  readonly aluno: SessaoDeTeste
+  readonly deFisica: TestSessao
+  readonly aluno: TestSessao
   readonly materialId: string
 }
 
@@ -32,7 +32,7 @@ export const NOME_DA_PROFESSORA_DE_TESTE = 'Professora Sintética Helena Prado'
 export const NOME_DO_ALUNO_DE_TESTE = 'Aluno Sintético Caio Moreira'
 
 /** Vínculo de professor `confirmado`, como a coordenação cria e o professor confirma (9.0), gravado direto. */
-export async function vincularProfessor(bancada: BancadaDeSessoes, escola: EscolaComTurma, usuarioId: string, turmaId: string, disciplinaId: string, estado: 'confirmado' | 'pendente' = 'confirmado'): Promise<void> {
+export async function vincularProfessor(bancada: SessaoFixtures, escola: EscolaComTurma, usuarioId: string, turmaId: string, disciplinaId: string, estado: 'confirmado' | 'pendente' = 'confirmado'): Promise<void> {
   await bancada.pool.query(
     `insert into vinculo (escola_id, ano_letivo_id, usuario_id, turma_id, disciplina_id, papel, estado, criado_por, decidido_em) values ($1, $2, $3, $4, $5, 'professor', $6, $7, case when $6 = 'confirmado' then now() end)`,
     [escola.coordenacao.escolaId, escola.anoLetivoId, usuarioId, turmaId, disciplinaId, estado, escola.coordenacao.usuarioId],
@@ -44,14 +44,14 @@ export async function vincularProfessor(bancada: BancadaDeSessoes, escola: Escol
  * licença declarada, e já extraído: `pronto`, com um trecho por página. Devolve o id do material. `arquivo` troca o
  * PDF quando a mesma escola precisa de um segundo material (o mesmo arquivo duas vezes é `CONFLITO`).
  */
-export async function enviarMaterialDeDemonstracao(api: ApiDeTeste, escola: EscolaComTurma, disciplinaId: string, titulo: string = MATERIAL_DE_DEMONSTRACAO.titulo, arquivo: Buffer = PDF_DE_DEMONSTRACAO): Promise<string> {
+export async function enviarMaterialDeDemonstracao(api: TestApi, escola: EscolaComTurma, disciplinaId: string, titulo: string = MATERIAL_DE_DEMONSTRACAO.titulo, arquivo: Buffer = PDF_DE_DEMONSTRACAO): Promise<string> {
   const resposta = await enviarMaterial(api, { token: await escola.coordenacao.tokenNovo() }, { titulo, disciplinaId }, { arquivo })
   if (resposta.status !== 201) throw new Error(`material de teste não enviado: ${String(resposta.status)} ${resposta.corpo.erro?.codigo ?? ''}`)
   await esperarExtracao(api)
   return resposta.corpo['id'] as string
 }
 
-export async function montarEscolaComAssistente(api: ApiDeTeste, bancada: BancadaDeSessoes): Promise<EscolaComAssistente> {
+export async function montarEscolaComAssistente(api: TestApi, bancada: SessaoFixtures): Promise<EscolaComAssistente> {
   const escola = await montarEscolaComTurma(api, bancada)
   const { escolaId } = escola.coordenacao
   const [professora, colega, deFisica] = await bancada.sessoes(escolaId, { papel: 'professor', quantidade: 3 })
@@ -81,7 +81,7 @@ export interface AnoAnterior {
  * O vínculo fica confirmado de propósito: o que tira do alcance o que é de 2025 tem de ser a cláusula de ano letivo do
  * repository, e não a falta de vínculo (regra 10, item 2).
  */
-export async function montarAnoAnterior(bancada: BancadaDeSessoes, escola: EscolaComAssistente): Promise<AnoAnterior> {
+export async function montarAnoAnterior(bancada: SessaoFixtures, escola: EscolaComAssistente): Promise<AnoAnterior> {
   const { rows: anos } = await bancada.pool.query<{ id: string }>(`insert into ano_letivo (escola_id, ano, inicio, fim, situacao) values ($1, 2025, '2025-02-01', '2025-12-15', 'encerrado') returning id`, [escola.escolaId])
   const anoLetivoId = anos[0]?.id
   if (anoLetivoId === undefined) throw new Error('ano anterior não criado')
@@ -99,7 +99,7 @@ export async function montarAnoAnterior(bancada: BancadaDeSessoes, escola: Escol
  * Uma cópia do artefato no ano anterior, na turma daquele ano; com `adaptada`, a versão adaptada dela, com a entrega
  * `pendente`. Devolve os ids. É gravado direto: nenhuma rota escreve em ano encerrado.
  */
-export async function copiarArtefatoParaOAnoAnterior(bancada: BancadaDeSessoes, escola: EscolaComAssistente, anterior: AnoAnterior, artefatoId: string): Promise<{ artefatoId: string; adaptadaId: string; entregaId: string }> {
+export async function copiarArtefatoParaOAnoAnterior(bancada: SessaoFixtures, escola: EscolaComAssistente, anterior: AnoAnterior, artefatoId: string): Promise<{ artefatoId: string; adaptadaId: string; entregaId: string }> {
   const copiar = async (origemId: string | null, conteudo: string): Promise<string> => {
     const { rows } = await bancada.pool.query<{ id: string }>(
       `insert into artefato (escola_id, ano_letivo_id, turma_id, disciplina_id, tipo, titulo, conteudo, origem_id, criado_por)
@@ -124,7 +124,7 @@ export async function copiarArtefatoParaOAnoAnterior(bancada: BancadaDeSessoes, 
 }
 
 /** O contexto que a `SessaoGuard` gravaria para esta pessoa: é nele que um service chamado direto roda, como numa rota. */
-export function comoPessoa<T>(escola: EscolaComAssistente, sessao: SessaoDeTeste, papel: PapelDeUsuario, funcao: () => T): T {
+export function comoPessoa<T>(escola: EscolaComAssistente, sessao: TestSessao, papel: PapelDeUsuario, funcao: () => T): T {
   const contexto: RequestContext = { requisicaoId: randomUUID(), escolaId: escola.escolaId, usuarioId: sessao.usuarioId, papel, sessaoId: sessao.sessaoId, anoLetivoId: escola.anoLetivoId }
   return runInContext(contexto, funcao)
 }
@@ -136,7 +136,7 @@ export interface ExecucaoLida {
 }
 
 /** Espera o executor terminar o que tem e lê a execução como a tela lê, em `GET /v1/execucoes/:id`. */
-export async function execucaoTerminada(api: ApiDeTeste, sessao: SessaoDeTeste, execucaoId: string): Promise<ExecucaoLida> {
+export async function execucaoTerminada(api: TestApi, sessao: TestSessao, execucaoId: string): Promise<ExecucaoLida> {
   await api.app.get<InProcessAgenteExecutor>(EXECUTOR_DE_AGENTE).ociosa()
   const resposta = await chamar(api.url, 'GET', `/v1/execucoes/${execucaoId}`, await sessao.tokenNovo())
   if (resposta.status !== 200) throw new Error(`a execução não foi lida: ${String(resposta.status)}`)
@@ -144,7 +144,7 @@ export async function execucaoTerminada(api: ApiDeTeste, sessao: SessaoDeTeste, 
 }
 
 /** O `POST` que dispara IA, e o id da execução que o `202` devolveu. */
-export async function dispararExecucao(api: ApiDeTeste, sessao: SessaoDeTeste, caminho: string, corpo: Record<string, unknown>): Promise<string> {
+export async function dispararExecucao(api: TestApi, sessao: TestSessao, caminho: string, corpo: Record<string, unknown>): Promise<string> {
   const resposta: RespostaHttp = await chamar(api.url, 'POST', caminho, await sessao.tokenNovo(), { chaveEnvio: randomUUID(), ...corpo })
   if (resposta.status !== 202) throw new Error(`o pedido não foi aceito: ${String(resposta.status)} ${resposta.corpo.erro?.codigo ?? ''}`)
   return resposta.corpo['execucaoId'] as string
@@ -154,7 +154,7 @@ export async function dispararExecucao(api: ApiDeTeste, sessao: SessaoDeTeste, c
  * Zera os contadores do limite de pedidos de IA e os do limite geral por usuário, para um teste não gastar o minuto do
  * outro: um arquivo destes faz, pela mesma professora, mais requisições por minuto do que uma pessoa faria.
  */
-export async function zerarLimiteDePedidosDeIa(api: ApiDeTeste): Promise<void> {
+export async function zerarLimiteDePedidosDeIa(api: TestApi): Promise<void> {
   for (const [redis, padrao] of [[api.app.get<Redis>(REDIS_LOGIN_CLIENT), 'ia:pedidos-*'], [api.app.get<Redis>(REDIS_CACHE_CLIENT), `${PREFIXO_LIMITE_USUARIO}:*`]] as const) {
     const chaves = await redis.keys(padrao)
     if (chaves.length > 0) await redis.del(...chaves)
@@ -162,7 +162,7 @@ export async function zerarLimiteDePedidosDeIa(api: ApiDeTeste): Promise<void> {
 }
 
 /** Quantas linhas da escola há na tabela, com o filtro dado. */
-export async function contarNaEscola(bancada: BancadaDeSessoes, tabela: string, escolaId: string, filtro = 'true'): Promise<number> {
+export async function contarNaEscola(bancada: SessaoFixtures, tabela: string, escolaId: string, filtro = 'true'): Promise<number> {
   const { rows } = await bancada.pool.query<{ total: string }>(`select count(*) as total from ${tabela} where escola_id = $1 and ${filtro}`, [escolaId])
   return Number(rows[0]?.total)
 }

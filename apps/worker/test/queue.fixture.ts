@@ -30,12 +30,12 @@ import { randomUUID } from 'node:crypto'
 import { lerAmbienteDeTeste, valorObrigatorio } from '../../../tools/ci/compose.ts'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
 import { criarEscola, criarRede } from '../../api/src/operacao/escola/escola.js'
-import { montarDespachante, type DespachanteMontado, type OpcoesDaMontagem as OpcoesDoDespachante } from '../../despachante/src/composition.js'
-import type { ProcessadoresDeJob } from '../src/job-executor.js'
-import { montarWorker, type WorkerMontado } from '../src/composition.js'
+import { createOutboxRelay, type OutboxRelayRuntime, type CreateOutboxRelayOptions } from '../../despachante/src/composition.js'
+import type { JobProcessors } from '../src/job-executor.js'
+import { createWorker, type WorkerRuntime } from '../src/composition.js'
 
 /** O operador que a bancada grava na auditoria da rede e da escola que cria. */
-export const OPERADOR_DA_BANCADA = 'teste-fila'
+export const FIXTURES_OPERADOR = 'teste-fila'
 
 const ambiente = lerAmbienteDeTeste()
 
@@ -72,7 +72,7 @@ export function urlRedisDeFila(): string {
 }
 
 /** Log em memória, para o teste ler o que o processo escreveria no stdout. */
-export class LogEmMemoria {
+export class InMemoryLog {
   readonly linhas: string[] = []
   readonly logger: LoggerBase
 
@@ -145,7 +145,7 @@ export function esperarORedisNaPrimeiraVez(montado: MontadoQueEspera): void {
  * O que o teste pede à bancada: o job como a linha de `job_registro` o guarda, com o que não vier no valor padrão do sintético. O
  * `tipo` é um dos do registro da bancada; o tipo que o registro não tem entra por SQL, no teste que o prova.
  */
-export interface PedidoDaBancada<Registro extends JobRegistry = typeof JOB_DEFINITIONS> {
+export interface FixtureRequest<Registro extends JobRegistry = typeof JOB_DEFINITIONS> {
   tipo?: Extract<keyof Registro, string>
   fila?: QueueName
   naoUrgente?: boolean
@@ -156,11 +156,11 @@ export interface PedidoDaBancada<Registro extends JobRegistry = typeof JOB_DEFIN
  * O que o teste usa para olhar o banco e as filas por fora: pool próprio, repositories reais, uma
  * `Queue` por fila e as vagas, no mesmo prefixo dos despachantes e workers do teste.
  *
- * O registro de jobs é o de produção, salvo o que o teste injeta (`new BancadaDeFila(definicoes)`): os despachantes e os workers
+ * O registro de jobs é o de produção, salvo o que o teste injeta (`new QueueFixtures(definicoes)`): os despachantes e os workers
  * da bancada o usam para publicar com a retentativa do tipo e para validar os dados da linha, e o teste que precisa de um tipo
  * de dados próprios (o `rotulo` do teste de vagas) ou de uma retentativa curta o declara aqui, sem tocar `JOB_DEFINITIONS`.
  */
-export class BancadaDeFila<Registro extends JobRegistry = typeof JOB_DEFINITIONS> {
+export class QueueFixtures<Registro extends JobRegistry = typeof JOB_DEFINITIONS> {
   readonly definicoes: JobRegistry
   readonly prefixo = `teste-${randomUUID()}`
   readonly pool: DatabasePool = createPool(configuracaoDoBanco(), () => undefined)
@@ -173,7 +173,7 @@ export class BancadaDeFila<Registro extends JobRegistry = typeof JOB_DEFINITIONS
     QUEUE_NAMES.map((fila) => [fila, new Queue<QueuedJobData>(bullmqQueueName(fila, 'worker'), { connection: this.redis, prefix: this.prefixo })]),
   ) as Record<QueueName, Queue<QueuedJobData>>
   readonly vagas = new EscolaConcurrencyLimiter(this.redis, this.prefixo)
-  readonly #montados: Array<DespachanteMontado | WorkerMontado> = []
+  readonly #montados: Array<OutboxRelayRuntime | WorkerRuntime> = []
 
   constructor(definicoes?: Registro) {
     this.definicoes = definicoes ?? JOB_DEFINITIONS
@@ -197,7 +197,7 @@ export class BancadaDeFila<Registro extends JobRegistry = typeof JOB_DEFINITIONS
    */
   async escola(): Promise<string> {
     // A bancada não é o comando nem o painel: o autor é fixo, sem conferir operador ativo.
-    const autor = async () => OPERADOR_DA_BANCADA
+    const autor = async () => FIXTURES_OPERADOR
     const { id: redeId } = await criarRede(this.banco, autor, { id: randomUUID(), nome: 'Rede sintética da fila', tipo: 'independente' })
     return (await criarEscola(this.banco, autor, { id: randomUUID(), redeId, nome: 'Escola sintética da fila', slug: `fila-${randomUUID()}` })).id
   }
@@ -208,7 +208,7 @@ export class BancadaDeFila<Registro extends JobRegistry = typeof JOB_DEFINITIONS
    * (chave a mais, formato errado). A definição é provada pelo `JobOutbox` de verdade, em `job-execution.int.test.ts ›
    * enfileirar`, e a do worker, em `job-execution.int.test.ts › o worker valida pela definição`.
    */
-  enfileirar(escolaId: string, pedido: PedidoDaBancada<Registro> = {}, requisicaoId = randomUUID()): Promise<string> {
+  enfileirar(escolaId: string, pedido: FixtureRequest<Registro> = {}, requisicaoId = randomUUID()): Promise<string> {
     const fila = pedido.fila ?? 'interativa'
     return runInContext({ requisicaoId, escolaId }, () =>
       this.banco.transaction((tx) =>
@@ -279,8 +279,8 @@ export class BancadaDeFila<Registro extends JobRegistry = typeof JOB_DEFINITIONS
   }
 
   /** Com `vagasPorEscolaDesligadas`, a montagem do controle negativo do cenário de carga. */
-  despachante(log: LogEmMemoria, opcoes: Omit<OpcoesDoDespachante, 'prefixo'> = {}, vagasPorEscolaDesligadas?: true): DespachanteMontado {
-    const montado = montarDespachante(
+  despachante(log: InMemoryLog, opcoes: Omit<CreateOutboxRelayOptions, 'prefixo'> = {}, vagasPorEscolaDesligadas?: true): OutboxRelayRuntime {
+    const montado = createOutboxRelay(
       {
         banco: configuracaoDoBanco(3),
         redisFilaUrl: urlRedisDeFila(),
@@ -298,20 +298,20 @@ export class BancadaDeFila<Registro extends JobRegistry = typeof JOB_DEFINITIONS
 
   /** Um worker que atende as três filas, com `concorrencia` em cada uma, salvo `pools` explícito. */
   worker(
-    log: LogEmMemoria,
+    log: InMemoryLog,
     opcoes: {
       concorrencia?: number
       pools?: Partial<Record<QueueName, number>>
-      processadores?: ProcessadoresDeJob
+      processadores?: JobProcessors
       graca?: number
       intervaloRenovacaoDaVagaMs?: number
       validadeDaVagaMs?: number
       medidor?: Meter
       vagasPorEscolaDesligadas?: true
     } = {},
-  ): WorkerMontado {
+  ): WorkerRuntime {
     const pools = opcoes.pools ?? Object.fromEntries(QUEUE_NAMES.map((fila) => [fila, opcoes.concorrencia ?? 5]))
-    const montado = montarWorker(
+    const montado = createWorker(
       {
         banco: configuracaoDoBanco(),
         redisFilaUrl: urlRedisDeFila(),

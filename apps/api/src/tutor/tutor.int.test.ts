@@ -12,7 +12,7 @@ import type { Redis } from 'ioredis'
 import { randomUUID } from 'node:crypto'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
-import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from '../../test/test-api.js'
+import { chamar, subirApi, type TestApi, type RespostaHttp } from '../../test/test-api.js'
 import {
   comoPessoa,
   dispararExecucao,
@@ -38,9 +38,9 @@ import {
   trocasJaFeitas,
 } from '../../test/escola-tutor.fixture.js'
 import * as pelaRota from '../../test/atividade.fixture.js'
-import { GatilhoDeParada } from '../../test/write-block-trigger.js'
+import { WriteBlockTrigger } from '../../test/write-block-trigger.js'
 import { variacaoDoPdf } from '../../test/material.fixture.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from '../../test/sessao.fixture.js'
+import { SessaoFixtures, type TestSessao } from '../../test/sessao.fixture.js'
 import { TETO_DE_PEDIDOS_DE_IA_POR_USUARIO } from '../assistente/ai-request-rate-limit.js'
 import { EXECUTOR_DE_AGENTE } from '../ia/ia.module.js'
 import { REDIS_CACHE_CLIENT } from '../rate-limit.module.js'
@@ -67,10 +67,10 @@ interface SinalRow {
  * consulta alcançaria se a cláusula de escopo saísse do repository (regra 10, item 5).
  */
 describe('Tutor e sinais', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
   const linhasDeLog: string[] = []
-  let api: ApiDeTeste
+  let api: TestApi
   let executor: InProcessAgenteExecutor
   let a: EscolaComAssistente
   let b: EscolaComAssistente
@@ -81,21 +81,21 @@ describe('Tutor e sinais', () => {
   let rotas: pelaRota.RotasDaAtividade
 
   const sql = <Linha extends Record<string, unknown> = Record<string, unknown>>(texto: string, valores: unknown[] = []) => bancada.pool.query<Linha>(texto, valores)
-  const get = async (sessao: SessaoDeTeste, caminho: string): Promise<RespostaHttp> => chamar(api.url, 'GET', caminho, await sessao.tokenNovo())
-  const enviar = async (sessao: SessaoDeTeste, corpo: Record<string, unknown>): Promise<RespostaHttp> => chamar(api.url, 'POST', '/v1/tutor/mensagens', await sessao.tokenNovo(), { chaveEnvio: randomUUID(), ...corpo })
-  const turno = async (sessao: SessaoDeTeste, texto: string, onde: Record<string, unknown> = {}): Promise<ExecucaoLida & { execucaoId: string }> => {
+  const get = async (sessao: TestSessao, caminho: string): Promise<RespostaHttp> => chamar(api.url, 'GET', caminho, await sessao.tokenNovo())
+  const enviar = async (sessao: TestSessao, corpo: Record<string, unknown>): Promise<RespostaHttp> => chamar(api.url, 'POST', '/v1/tutor/mensagens', await sessao.tokenNovo(), { chaveEnvio: randomUUID(), ...corpo })
+  const turno = async (sessao: TestSessao, texto: string, onde: Record<string, unknown> = {}): Promise<ExecucaoLida & { execucaoId: string }> => {
     const execucaoId = await dispararExecucao(api, sessao, '/v1/tutor/mensagens', { texto, ...onde })
     return { execucaoId, ...(await execucaoTerminada(api, sessao, execucaoId)) }
   }
   const naQuestao = (questao: number, atividadeAplicadaId: string = atividade) => ({ atividadeAplicadaId, questao })
   const resposta = (execucao: ExecucaoLida): { tipo: string; texto: string; citacoes?: { materialId: string; pagina: number }[] } => execucao.resultado?.mensagem as never
-  const conversaDe = async (sessao: SessaoDeTeste, consulta = '') => conversaDoTutorResponseSchema.parse((await get(sessao, `/v1/tutor/conversa${consulta}`)).corpo)
-  const memoriaDe = async (sessao: SessaoDeTeste) => memoriaDoTutorResponseSchema.parse((await get(sessao, '/v1/tutor/memoria')).corpo)
-  const sinaisPara = async (sessao: SessaoDeTeste, turmaId: string, consulta = '') => sinaisResponseSchema.parse((await get(sessao, `/v1/sinais?turmaId=${turmaId}${consulta}`)).corpo)
-  const usoPara = async (sessao: SessaoDeTeste, turmaId: string) => usoDoTutorResponseSchema.parse((await get(sessao, `/v1/tutor/uso?turmaId=${turmaId}`)).corpo)
-  const sinaisDe = async (aluno: SessaoDeTeste): Promise<SinalRow[]> =>
+  const conversaDe = async (sessao: TestSessao, consulta = '') => conversaDoTutorResponseSchema.parse((await get(sessao, `/v1/tutor/conversa${consulta}`)).corpo)
+  const memoriaDe = async (sessao: TestSessao) => memoriaDoTutorResponseSchema.parse((await get(sessao, '/v1/tutor/memoria')).corpo)
+  const sinaisPara = async (sessao: TestSessao, turmaId: string, consulta = '') => sinaisResponseSchema.parse((await get(sessao, `/v1/sinais?turmaId=${turmaId}${consulta}`)).corpo)
+  const usoPara = async (sessao: TestSessao, turmaId: string) => usoDoTutorResponseSchema.parse((await get(sessao, `/v1/tutor/uso?turmaId=${turmaId}`)).corpo)
+  const sinaisDe = async (aluno: TestSessao): Promise<SinalRow[]> =>
     (await sql<SinalRow & Record<string, unknown>>('select tipo, atividade_aplicada_id, questao, material_id, pagina from sinal_tutor where escola_id = $1 and aluno_id = $2 order by id', [aluno.escolaId, aluno.usuarioId])).rows
-  const mensagensDe = async (aluno: SessaoDeTeste) =>
+  const mensagensDe = async (aluno: TestSessao) =>
     (await sql<{ autor: string; tipo: string; texto: string; questao: number | null; material_id: string | null; pagina: number | null; atividade_aplicada_id: string | null }>(
       'select autor, tipo, texto, questao, material_id, pagina, atividade_aplicada_id from mensagem_tutor where escola_id = $1 and aluno_id = $2 order by id',
       [aluno.escolaId, aluno.usuarioId],
@@ -104,7 +104,7 @@ describe('Tutor e sinais', () => {
   const retomar = (escola: EscolaComAssistente, funcao: ChaveDeFuncao) =>
     sql('update suspensao_de_funcao set retomada_em = now(), retomada_por = $3 where escola_id = $1 and funcao = $2 and retomada_em is null', [escola.escolaId, funcao, escola.coordenacao.usuarioId])
   /** Um aluno novo com vínculo confirmado na turma: cada grupo de testes usa o seu, para o freio e os sinais de um não contarem no outro. */
-  const novoAluno = async (escola: EscolaComAssistente, turmaId: string = escola.turma, nome = `Aluno Sintético ${randomUUID().slice(0, 8)}`): Promise<SessaoDeTeste> => {
+  const novoAluno = async (escola: EscolaComAssistente, turmaId: string = escola.turma, nome = `Aluno Sintético ${randomUUID().slice(0, 8)}`): Promise<TestSessao> => {
     const sessao = await bancada.sessao(escola.escolaId, 'aluno')
     await sql('update usuario set nome = $1 where id = $2', [nome, sessao.usuarioId])
     await sql(`insert into vinculo (escola_id, ano_letivo_id, usuario_id, turma_id, papel, estado, criado_por, decidido_em) values ($1, $2, $3, $4, 'aluno', 'confirmado', $5, now())`, [
@@ -117,7 +117,7 @@ describe('Tutor e sinais', () => {
     return sessao
   }
   /** O aluno sai da turma do 2ºB e vai para o 2ºC, no mesmo ano: o vínculo antigo é encerrado (`realocacao`). */
-  const transferir = async (escola: EscolaComAssistente, aluno: SessaoDeTeste) => {
+  const transferir = async (escola: EscolaComAssistente, aluno: TestSessao) => {
     await sql(`update vinculo set estado = 'encerrado', motivo_encerramento = 'realocacao', encerrado_em = now() where escola_id = $1 and usuario_id = $2 and turma_id = $3`, [escola.escolaId, aluno.usuarioId, escola.turma])
     await sql(`insert into vinculo (escola_id, ano_letivo_id, usuario_id, turma_id, papel, estado, criado_por, decidido_em) values ($1, $2, $3, $4, 'aluno', 'confirmado', $5, now())`, [escola.escolaId, escola.anoLetivoId, aluno.usuarioId, escola.outraTurma, escola.coordenacao.usuarioId])
   }
@@ -357,8 +357,8 @@ describe('Tutor e sinais', () => {
     // `mensagem_tutor` como a de qualquer aluno e as quatro contas leem a mesma linha. Os três casos abaixo fixam o número
     // nas quatro: o freio do dia, a barra do aluno, o dia e o mês que a professora vê. Se a decisão mudar, mudam juntos.
     describe('o encaminhamento gasta uma troca, por ora', () => {
-      const naConversa = (aluno: SessaoDeTeste) => conversaDe(aluno, `?atividadeAplicadaId=${atividade}`)
-      const trocasDaProfessora = async (aluno: SessaoDeTeste) => (await usoPara(a.professora, a.turma)).alunos.find((linha) => linha.aluno.id === aluno.usuarioId)?.trocasHoje
+      const naConversa = (aluno: TestSessao) => conversaDe(aluno, `?atividadeAplicadaId=${atividade}`)
+      const trocasDaProfessora = async (aluno: TestSessao) => (await usoPara(a.professora, a.turma)).alunos.find((linha) => linha.aluno.id === aluno.usuarioId)?.trocasHoje
 
       it('a barra do aluno, a lista da professora e o mês da turma passam de 0 a 1 depois do encaminhamento', async () => {
         const aluno = await novoAluno(a)
@@ -499,9 +499,9 @@ describe('Tutor e sinais', () => {
      * Envia as perguntas, espera todas as execuções paradas antes de rodar (o `update` para `rodando`), roda `aoParar` e
      * solta. Devolve as respostas do `POST`, com as execuções já terminadas.
      */
-    const abrindoEntreO202EAExecucao = async (alunos: readonly SessaoDeTeste[], enviarTodos: () => Promise<RespostaHttp[]>, aoParar: () => Promise<void>): Promise<RespostaHttp[]> => {
+    const abrindoEntreO202EAExecucao = async (alunos: readonly TestSessao[], enviarTodos: () => Promise<RespostaHttp[]>, aoParar: () => Promise<void>): Promise<RespostaHttp[]> => {
       const ids = alunos.map((aluno) => `'${aluno.usuarioId}'::uuid`).join(', ')
-      const parada = new GatilhoDeParada(bancada.pool, { tabela: 'execucao_agente', evento: 'update', quando: `new.solicitada_por in (${ids}) and new.estado = 'rodando'` })
+      const parada = new WriteBlockTrigger(bancada.pool, { tabela: 'execucao_agente', evento: 'update', quando: `new.solicitada_por in (${ids}) and new.estado = 'rodando'` })
       await parada.armar()
       let aceitas: RespostaHttp[]
       try {
@@ -594,8 +594,8 @@ describe('Tutor e sinais', () => {
         const execucaoId = aceita.corpo['execucaoId'] as string
         expect(await execucaoLida(execucaoId), `aluno ${String(posicao)}`).toEqual([pausada])
         expect(await consumoDaExecucao(execucaoId), `aluno ${String(posicao)}`).toBe(0)
-        expect((await mensagensDe(alunos[posicao] as SessaoDeTeste)).map((mensagem) => mensagem.autor)).toEqual(['aluno'])
-        expect(await sinaisDe(alunos[posicao] as SessaoDeTeste)).toEqual([])
+        expect((await mensagensDe(alunos[posicao] as TestSessao)).map((mensagem) => mensagem.autor)).toEqual(['aluno'])
+        expect(await sinaisDe(alunos[posicao] as TestSessao)).toEqual([])
       }
       expect((await usoPara(a.professora, a.turma)).trocasDaTurmaNoMes).toBe(noMesAntes)
     })
@@ -913,7 +913,7 @@ describe('Tutor e sinais', () => {
       await turno(semDisciplina, 'o que eu estudo hoje?')
       await turno(semDisciplina, 'eu apanho em casa')
 
-      const quem = (itens: readonly { aluno: { id: string } }[], aluno: SessaoDeTeste) => itens.filter((item) => item.aluno.id === aluno.usuarioId).length
+      const quem = (itens: readonly { aluno: { id: string } }[], aluno: TestSessao) => itens.filter((item) => item.aluno.id === aluno.usuarioId).length
       const [sinaisDeQuimica, sinaisDeFisica] = [await sinaisPara(a.professora, a.turma, '&limite=100'), await sinaisPara(a.deFisica, a.turma, '&limite=100')]
       expect([quem(sinaisDeQuimica.itens, deQuimica), quem(sinaisDeQuimica.itens, deFisica), quem(sinaisDeQuimica.itens, semDisciplina)]).toEqual([1, 0, 1])
       expect([quem(sinaisDeFisica.itens, deQuimica), quem(sinaisDeFisica.itens, deFisica), quem(sinaisDeFisica.itens, semDisciplina)]).toEqual([0, 1, 1])
@@ -930,7 +930,7 @@ describe('Tutor e sinais', () => {
     it('o aluno transferido depois do 202 e antes de a execução rodar: a execução falha com código do catálogo, sem resposta, sem sinal e sem troca contada', async () => {
       const aluno = await novoAluno(a)
       // A pergunta fora de atividade e de material: o alcance da hora de rodar acha a turma nova, e só a conferência da turma da pergunta recusa.
-      const parada = new GatilhoDeParada(bancada.pool, { tabela: 'execucao_agente', evento: 'update', quando: `new.solicitada_por = '${aluno.usuarioId}'::uuid and new.estado = 'rodando'` })
+      const parada = new WriteBlockTrigger(bancada.pool, { tabela: 'execucao_agente', evento: 'update', quando: `new.solicitada_por = '${aluno.usuarioId}'::uuid and new.estado = 'rodando'` })
       await parada.armar()
       const aceita = await enviar(aluno, { texto: 'como eu organizo o estudo de estequiometria?' }).catch(async (falha: unknown) => {
         await parada.desarmar()
@@ -982,7 +982,7 @@ describe('Tutor e sinais', () => {
       let anterior: AnoAnterior
       /** A escola A vista no ano anterior: o que os helpers gravam com ela cai em 2025. */
       let deAntes: EscolaComAssistente
-      let aluno: SessaoDeTeste
+      let aluno: TestSessao
       let atividadeDeAntes: string
 
       beforeAll(async () => {

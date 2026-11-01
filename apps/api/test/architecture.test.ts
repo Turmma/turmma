@@ -15,8 +15,8 @@ import { OperacaoLoginRoute, OperacaoRoute } from '../src/operacao/decorators.js
 import { OperacaoModule } from '../src/operacao/operacao.module.js'
 import { PainelController } from '../src/operacao/painel/painel.controller.js'
 import { PainelRepository } from '../src/operacao/painel/painel.repository.js'
-import { configuracaoDeTeste } from './test-config.js'
-import { controladoresDoModulo, ROTAS_COM_SESSAO_DE_OPERADOR, ROTAS_DO_PAINEL, rotasDe, rotasDeOperacaoSemGuarda, rotasForaDaCerca, type RotaRegistrada } from './registered-routes.js'
+import { testConfig } from './test-config.js'
+import { controladoresDoModulo, ROTAS_COM_SESSAO_DE_OPERADOR, ROTAS_DO_PAINEL, rotasDe, rotasDeOperacaoSemGuarda, rotasForaDaCerca, type RegisteredRoute } from './registered-routes.js'
 
 const RAIZ = fileURLToPath(new URL('../../../', import.meta.url))
 const ESTE_ARQUIVO = 'apps/api/test/architecture.test.ts'
@@ -577,8 +577,8 @@ function marcadoresForaDaOperacao(arquivos: readonly Arquivo[]): string[] {
     .map((arquivo) => arquivo.caminho)
 }
 
-const rotasDaApi = (): RotaRegistrada[] => rotasDe(controladoresDoModulo(AppModule.forRoot(configuracaoDeTeste())))
-const nomeDaRota = (rota: RotaRegistrada) => `${rota.verbo} ${rota.caminho}`
+const rotasDaApi = (): RegisteredRoute[] => rotasDe(controladoresDoModulo(AppModule.forRoot(testConfig())))
+const nomeDaRota = (rota: RegisteredRoute) => `${rota.verbo} ${rota.caminho}`
 
 // Controllers de mentira, para provar que as conferências reprovam o que deveriam.
 @Controller('v1/operacao/so-metadado')
@@ -637,7 +637,7 @@ describe('arquitetura: os marcadores da operação só na pasta da operação (C
   })
 
   it('em método e em classe: todo controller registrado com marcador é um controller do OperacaoModule', () => {
-    const daOperacao = new Set(controladoresDoModulo(OperacaoModule.forRoot(configuracaoDeTeste().identidade, { dispositivo: configuracaoDeTeste().login.dispositivo, mfa: configuracaoDeTeste().login.mfa })))
+    const daOperacao = new Set(controladoresDoModulo(OperacaoModule.forRoot(testConfig().identidade, { dispositivo: testConfig().login.dispositivo, mfa: testConfig().login.mfa })))
     const marcados = new Set(rotasDaApi().filter((rota) => rota.marcador !== undefined).map((rota) => rota.controlador))
     expect(marcados.size).toBeGreaterThan(0)
     expect([...marcados].filter((controlador) => !daOperacao.has(controlador)).map((controlador) => controlador.name)).toEqual([])
@@ -692,7 +692,7 @@ describe('arquitetura: marcador e caminho /v1/operacao andam juntos (C42)', () =
 })
 
 describe('arquitetura: toda rota @RotaDeOperacao conta pelo rl:op:{sub} (C36, parte)', () => {
-  const identidade = configuracaoDeTeste().identidade
+  const identidade = testConfig().identidade
   const OPERADOR = '0190f5a0-0000-7000-8000-0000000000e1'
   const SESSAO = '0190f5a0-0000-7000-8000-0000000000f1'
 
@@ -708,7 +708,7 @@ describe('arquitetura: toda rota @RotaDeOperacao conta pelo rl:op:{sub} (C36, pa
     return { guarda, limitador }
   }
 
-  function execucao(rota: Pick<RotaRegistrada, 'handler' | 'controlador'>, authorization?: string): ExecutionContext {
+  function execucao(rota: Pick<RegisteredRoute, 'handler' | 'controlador'>, authorization?: string): ExecutionContext {
     const requisicao = { headers: authorization === undefined ? {} : { authorization }, socket: { remoteAddress: '127.0.0.1' } }
     return {
       getHandler: () => rota.handler,
@@ -768,7 +768,7 @@ describe('arquitetura: as rotas @EntradaDeOperacao são exatamente as sete da se
 })
 
 describe('arquitetura: toda rota @EntradaDeOperacao está num dos três grupos de limite (C36, parte)', () => {
-  const identidade = configuracaoDeTeste().identidade
+  const identidade = testConfig().identidade
   /**
    * O grupo de cada entrada (Tech Spec da A0, seção 5, "Limite"): rebaixa no semáforo do hash (quem recusa é o contador
    * por conta), recusa pelo contador do `operador.id` no service (a rota também não responde 429 pelo IP), ou o limite
@@ -786,7 +786,7 @@ describe('arquitetura: toda rota @EntradaDeOperacao está num dos três grupos d
   }
 
   /** O que a `RateLimitGuard` faz com a rota, com o IP acima do limite: qual limite ela conta, e se responde 429. */
-  async function acimaDoLimite(rota: RotaRegistrada): Promise<{ contou: string[]; recusou: boolean; rebaixou: boolean }> {
+  async function acimaDoLimite(rota: RegisteredRoute): Promise<{ contou: string[]; recusou: boolean; rebaixou: boolean }> {
     const recusa = { aceita: false, msAteLiberar: 1_000 } as const
     const limitador = {
       consumirDeOperador: vi.fn(async () => recusa),
@@ -1323,7 +1323,7 @@ const USO_DA_ROTINA = /\bCronEscolasRepository\b|cron-escolas\.repository/
 /**
  * Fora dos testes, quem pode usar a lista de escolas da rotina: ela mesma, o barrel, e o worker-lote, que a usa na rotina
  * noturna (para abrir o contexto de cada escola) e nas medições por escola: as noites do expurgo e as horas do incidente sem
- * confirmação (a base `MedicaoPorEscola`, F3, tarefa 9.0). Uma rota da API que a importasse
+ * confirmação (a base `EscolaGauge`, F3, tarefa 9.0). Uma rota da API que a importasse
  * teria uma consulta sem escopo ao alcance de uma requisição.
  */
 const QUEM_USA_A_ROTINA = [

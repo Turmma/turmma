@@ -8,9 +8,9 @@ import {
   type Clock,
 } from '@educa/core'
 import type { TIPO_ELIMINAR_TITULAR } from '@educa/shared'
-import type { Processador } from '../job-executor.js'
+import type { JobProcessor } from '../job-executor.js'
 
-export interface DependenciasDaEliminacaoDoTitular {
+export interface EliminacaoDoTitularDependencies {
   banco: Database
   /** O horário letivo da escola do contexto: a troca de nome confere a janela entre uma faixa e outra, e para quando ela abre. */
   janelaDaEscola: Pick<OperationalSettings<JanelaLetiva>, 'daEscola'>
@@ -36,7 +36,7 @@ export interface DependenciasDaEliminacaoDoTitular {
  *   inteira, e o alerta de 48 h aparece se o pedido não concluir.
  * - Loga só o resultado (`status`); nunca o titular, o nome, o termo nem contagem por tabela.
  */
-export function criarEliminacaoDoTitular({ banco, janelaDaEscola, relogio, logger, faixa }: DependenciasDaEliminacaoDoTitular): Processador<typeof TIPO_ELIMINAR_TITULAR> {
+export function criarEliminacaoDoTitular({ banco, janelaDaEscola, relogio, logger, faixa }: EliminacaoDoTitularDependencies): JobProcessor<typeof TIPO_ELIMINAR_TITULAR> {
   return async ({ pedidoId }) => {
     const janela = await janelaDaEscola.daEscola()
     const status = await new EliminacaoDoTitular(banco, relogio).eliminar(pedidoId, {

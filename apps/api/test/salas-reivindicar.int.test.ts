@@ -8,12 +8,12 @@ import { sortearCodigoDaTurma } from '../src/sala/codigo-da-sala.js'
 import { ListaLivreRepository } from '../src/sala/reivindicacao/lista-livre.repository.js'
 import { ReivindicacaoRepository } from '../src/sala/reivindicacao/reivindicacao.repository.js'
 import { ESPERA_MAXIMA_PELO_HASH_MS, PasswordHasher, RETRY_AFTER_MAXIMO_S, RETRY_AFTER_MINIMO_S, HashBulkhead } from '../src/credencial/index.js'
-import { aguardar, esperarNaTrava, GatilhoDeParada } from './write-block-trigger.js'
-import { chamar, subirApi, type ApiDeTeste } from './test-api.js'
+import { aguardar, esperarNaTrava, WriteBlockTrigger } from './write-block-trigger.js'
+import { chamar, subirApi, type TestApi } from './test-api.js'
 import { montarEscolaComTurma, type EscolaComTurma } from './escola-turma.fixture.js'
 import { FerramentasDaSala } from './sala.fixture.js'
 import { ipSorteado } from './operador-mfa.fixture.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
+import { SessaoFixtures, type TestSessao } from './sessao.fixture.js'
 
 /**
  * A reivindicação do nome pela página pública da sala (A1, tarefa 6.0; `tasks/prd-apresentacao-escola/cenarios.md`):
@@ -61,20 +61,20 @@ interface Nome {
 interface Sala extends EscolaComTurma {
   readonly escolaId: string
   readonly slug: string
-  readonly professor: SessaoDeTeste
+  readonly professor: TestSessao
   readonly vinculos: readonly string[]
   readonly token: string
   readonly codigo: string
 }
 
 describe('salas/reivindicar (A1, tarefa 6.0): o aluno pede o próprio nome, e o pedido fica pendente', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
-  let api: ApiDeTeste
+  let api: TestApi
   /** Com o limite anônimo por IP baixo (L10). */
-  let apiDoLimite: ApiDeTeste
+  let apiDoLimite: TestApi
   /** Com um hash por vez: a saturação do semáforo é determinística, sem depender da CPU (C2 (b), L9). */
-  let apiDoSemaforo: ApiDeTeste
+  let apiDoSemaforo: TestApi
   let hashes: MockInstance<PasswordHasher['gerar']>
   let gerarReal: PasswordHasher['gerar']
   let hashesDoSemaforo: MockInstance<PasswordHasher['gerar']>
@@ -129,7 +129,7 @@ describe('salas/reivindicar (A1, tarefa 6.0): o aluno pede o próprio nome, e o 
     }
   }
 
-  const post = (sessao: SessaoDeTeste, caminho: string, corpo?: unknown, url = api.url) => chamar(url, 'POST', caminho, sessao.token, corpo)
+  const post = (sessao: TestSessao, caminho: string, corpo?: unknown, url = api.url) => chamar(url, 'POST', caminho, sessao.token, corpo)
 
   async function gerar(sala: Pick<Sala, 'professor'>, turmaId: string, url = api.url): Promise<{ token: string; codigo: string }> {
     const gerado = await post(sala.professor, `/v1/turmas/${turmaId}/acesso`, { validadeDias: 7 }, url)
@@ -749,7 +749,7 @@ describe('salas/reivindicar (A1, tarefa 6.0): o aluno pede o próprio nome, e o 
     it('C4: reivindicar × retirar o mesmo nome livre, parado depois do update do nome: o pedido fica, e a retirada recebe CONFLITO', async () => {
       const sala = await montar()
       const nome = await umNome(sala)
-      const gatilho = new GatilhoDeParada(bancada.pool, { tabela: 'lista_nome', evento: 'update', quando: `new.id = '${nome.id}'::uuid` })
+      const gatilho = new WriteBlockTrigger(bancada.pool, { tabela: 'lista_nome', evento: 'update', quando: `new.id = '${nome.id}'::uuid` })
       await gatilho.armar()
       try {
         const reivindicando = reivindicar(pedido(sala, nome))
@@ -771,7 +771,7 @@ describe('salas/reivindicar (A1, tarefa 6.0): o aluno pede o próprio nome, e o 
     it('C4: retirar × reivindicar, com a retirada parada depois do delete: o nome sai, e a reivindicação, que esperou a FK, é recusada, sem pedido', async () => {
       const sala = await montar()
       const nome = await umNome(sala)
-      const gatilho = new GatilhoDeParada(bancada.pool, { tabela: 'lista_nome', evento: 'delete', quando: `old.id = '${nome.id}'::uuid` })
+      const gatilho = new WriteBlockTrigger(bancada.pool, { tabela: 'lista_nome', evento: 'delete', quando: `old.id = '${nome.id}'::uuid` })
       await gatilho.armar()
       try {
         const retirando = chamar(api.url, 'DELETE', `/v1/lista-nomes/${nome.id}`, sala.coordenacao.token)

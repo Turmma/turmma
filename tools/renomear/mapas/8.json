@@ -1,0 +1,1332 @@
+{
+  "linha": true,
+  "entradas": [
+    {
+      "tipo": "simbolo",
+      "de": "FalhaDeJob",
+      "para": "JobFailureError",
+      "arquivo": "apps/worker/src/job-failure.error.ts",
+      "linhaDoAnexo": "inventario-back.md:260"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "TempoEsgotado",
+      "para": "JobTimeoutError",
+      "arquivo": "apps/worker/src/job-executor.ts",
+      "linhaDoAnexo": "inventario-back.md:262"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ErroParaAFila",
+      "para": "QueueFacingError",
+      "arquivo": "apps/worker/src/job-executor.ts",
+      "linhaDoAnexo": "inventario-back.md:263"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ExecutorDeJobs",
+      "para": "JobExecutor",
+      "arquivo": "apps/worker/src/job-executor.ts",
+      "linhaDoAnexo": "inventario-back.md:274"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Processador",
+      "para": "JobProcessor",
+      "arquivo": "apps/worker/src/job-executor.ts",
+      "linhaDoAnexo": "inventario-back.md:276"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ProcessadoresDeJob",
+      "para": "JobProcessors",
+      "arquivo": "apps/worker/src/job-executor.ts",
+      "linhaDoAnexo": "inventario-back.md:277"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ProcessadorSemTipo",
+      "para": "UntypedJobProcessor",
+      "arquivo": "apps/worker/src/job-executor.ts",
+      "linhaDoAnexo": "inventario-back.md:278"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ExecucaoDoJob",
+      "para": "JobExecution",
+      "arquivo": "apps/worker/src/job-executor.ts",
+      "linhaDoAnexo": "inventario-back.md:279"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "JobDaFila",
+      "para": "QueuedJob",
+      "arquivo": "apps/worker/src/job-executor.ts",
+      "linhaDoAnexo": "inventario-back.md:280"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "AvisoDeVagaLivre",
+      "para": "SlotReleasedNotifier",
+      "arquivo": "apps/worker/src/job-executor.ts",
+      "linhaDoAnexo": "inventario-back.md:281"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "VagaDoJob",
+      "para": "JobSlot",
+      "arquivo": "apps/worker/src/job-executor.ts",
+      "linhaDoAnexo": "inventario-back.md:282"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "TentativaEmAndamento",
+      "para": "InFlightAttempt",
+      "arquivo": "apps/worker/src/job-executor.ts",
+      "linhaDoAnexo": "inventario-back.md:283"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RenovacaoDaVaga",
+      "para": "SlotRenewal",
+      "arquivo": "apps/worker/src/job-executor.ts",
+      "linhaDoAnexo": "inventario-back.md:284"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DependenciasDoExecutor",
+      "para": "JobExecutorDependencies",
+      "arquivo": "apps/worker/src/job-executor.ts",
+      "linhaDoAnexo": "inventario-back.md:285"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "criarProcessadorSintetico",
+      "para": "createSyntheticProcessor",
+      "arquivo": "apps/worker/src/processors/synthetic.ts",
+      "linhaDoAnexo": "inventario-back.md:288"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "SandboxDeCpu",
+      "para": "CpuSandbox",
+      "arquivo": "apps/worker/src/processors/synthetic.ts",
+      "linhaDoAnexo": "inventario-back.md:289"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "QueimaDeCpu",
+      "para": "CpuBurner",
+      "arquivo": "apps/worker/src/processors/synthetic.ts",
+      "linhaDoAnexo": "inventario-back.md:290"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ARQUIVO_DO_SANDBOX",
+      "para": "SANDBOX_FILE",
+      "arquivo": "apps/worker/src/processors/synthetic.ts",
+      "linhaDoAnexo": "inventario-back.md:291"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Agendamento",
+      "para": "JobSchedule",
+      "arquivo": "apps/worker/src/job-schedules.ts",
+      "linhaDoAnexo": "inventario-back.md:293"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "AGENDAMENTOS",
+      "para": "JOB_SCHEDULES",
+      "arquivo": "apps/worker/src/job-schedules.ts",
+      "linhaDoAnexo": "inventario-back.md:294"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "TipoAgendado",
+      "para": "ScheduledJobType",
+      "arquivo": "apps/worker/src/job-schedules.ts",
+      "linhaDoAnexo": "inventario-back.md:295"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "registrarAgendamentos",
+      "para": "registerJobSchedulers",
+      "arquivo": "apps/worker/src/job-schedules.ts",
+      "linhaDoAnexo": "inventario-back.md:296"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "criarDisparoDeAgendamento",
+      "para": "createScheduleProcessor",
+      "arquivo": "apps/worker/src/job-schedules.ts",
+      "linhaDoAnexo": "inventario-back.md:297"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "FILA_DOS_AGENDAMENTOS",
+      "para": "SCHEDULES_QUEUE",
+      "arquivo": "apps/worker/src/job-schedules.ts",
+      "linhaDoAnexo": "inventario-back.md:298"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "FUSO_DOS_AGENDAMENTOS",
+      "para": "SCHEDULE_TIMEZONE",
+      "arquivo": "apps/worker/src/job-schedules.ts",
+      "linhaDoAnexo": "inventario-back.md:299"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "TENTATIVAS_DO_DISPARO",
+      "para": "SCHEDULE_ATTEMPTS",
+      "arquivo": "apps/worker/src/job-schedules.ts",
+      "linhaDoAnexo": "inventario-back.md:299"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CicloDoWorker",
+      "para": "WorkerLifecycle",
+      "arquivo": "apps/worker/src/app.module.ts",
+      "linhaDoAnexo": "inventario-back.md:300"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "MedidorDeStorage",
+      "para": "StorageSizeReader",
+      "arquivo": "apps/worker/src/storage/storage-size-reader.ts",
+      "linhaDoAnexo": "inventario-back.md:301"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "montarWorker",
+      "para": "createWorker",
+      "arquivo": "apps/worker/src/composition.ts",
+      "linhaDoAnexo": "inventario-back.md:311"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "WorkerMontado",
+      "para": "WorkerRuntime",
+      "arquivo": "apps/worker/src/composition.ts",
+      "linhaDoAnexo": "inventario-back.md:312"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "montarProcessadores",
+      "para": "createProcessors",
+      "arquivo": "apps/worker/src/composition.ts",
+      "linhaDoAnexo": "inventario-back.md:313"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ProcessadoresMontados",
+      "para": "ProcessorSet",
+      "arquivo": "apps/worker/src/composition.ts",
+      "linhaDoAnexo": "inventario-back.md:314"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PecasDosProcessadores",
+      "para": "ProcessorParts",
+      "arquivo": "apps/worker/src/composition.ts",
+      "linhaDoAnexo": "inventario-back.md:314"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "montarRotinas",
+      "para": "createRoutines",
+      "arquivo": "apps/worker/src/composition.ts",
+      "linhaDoAnexo": "inventario-back.md:315"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcoesDaMontagem",
+      "para": "CreateWorkerOptions",
+      "arquivo": "apps/worker/src/composition.ts",
+      "linhaDoAnexo": "inventario-back.md:316"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcoesDaMontagem",
+      "para": "CreateOutboxRelayOptions",
+      "arquivo": "apps/despachante/src/composition.ts",
+      "linhaDoAnexo": "inventario-back.md:321"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "GRACA_DO_DESLIGAMENTO_MS",
+      "para": "SHUTDOWN_GRACE_MS",
+      "arquivo": "apps/worker/src/composition.ts",
+      "linhaDoAnexo": "inventario-back.md:317"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConfiguracaoWorker",
+      "para": "WorkerConfig",
+      "arquivo": "apps/worker/src/config.ts",
+      "linhaDoAnexo": "inventario-back.md:325"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConfiguracaoStorage",
+      "para": "StorageConfig",
+      "arquivo": "apps/worker/src/config.ts",
+      "linhaDoAnexo": "inventario-back.md:325"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaFilas",
+      "para": "filasSchema",
+      "arquivo": "apps/worker/src/config.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:86"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaStorage",
+      "para": "storageSchema",
+      "arquivo": "apps/worker/src/config.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:87"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConfiguracaoDespachante",
+      "para": "DespachanteConfig",
+      "arquivo": "apps/despachante/src/config.ts",
+      "linhaDoAnexo": "inventario-back.md:326"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConfiguracaoRealtime",
+      "para": "RealtimeConfig",
+      "arquivo": "apps/realtime/src/config.ts",
+      "linhaDoAnexo": "inventario-back.md:327"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "lerConfiguracao",
+      "para": "loadConfig",
+      "linhaDoAnexo": "inventario-back.md:329"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "MedicaoPorEscola",
+      "para": "EscolaGauge",
+      "arquivo": "apps/worker/src/escola-gauge.ts",
+      "linhaDoAnexo": "inventario-back.md:337"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DependenciasDaMedicaoPorEscola",
+      "para": "EscolaGaugeDependencies",
+      "arquivo": "apps/worker/src/escola-gauge.ts",
+      "linhaDoAnexo": "inventario-back.md:339"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DescricaoDaMedicaoPorEscola",
+      "para": "EscolaGaugeDescription",
+      "arquivo": "apps/worker/src/escola-gauge.ts",
+      "linhaDoAnexo": "inventario-back.md:339"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "INTERVALO_DA_MEDICAO_POR_ESCOLA_MS",
+      "para": "ESCOLA_GAUGE_INTERVAL_MS",
+      "arquivo": "apps/worker/src/escola-gauge.ts",
+      "linhaDoAnexo": "inventario-back.md:340"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "MedicaoDoIncidente",
+      "para": "IncidenteGauge",
+      "arquivo": "apps/worker/src/incidente-gauge.ts",
+      "linhaDoAnexo": "inventario-back.md:341"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DependenciasDaMedicaoDoIncidente",
+      "para": "IncidenteGaugeDependencies",
+      "arquivo": "apps/worker/src/incidente-gauge.ts",
+      "linhaDoAnexo": "inventario-back.md:341"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "MedicaoDoExpurgo",
+      "para": "ExpurgoGauge",
+      "arquivo": "apps/worker/src/expurgo-gauge.ts",
+      "linhaDoAnexo": "inventario-back.md:342"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DependenciasDaMedicaoDoExpurgo",
+      "para": "ExpurgoGaugeDependencies",
+      "arquivo": "apps/worker/src/expurgo-gauge.ts",
+      "linhaDoAnexo": "inventario-back.md:342"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "MedicaoDoArquivo",
+      "para": "ArquivoGauge",
+      "arquivo": "apps/worker/src/arquivo-gauge.ts",
+      "linhaDoAnexo": "inventario-back.md:343"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DependenciasDaMedicaoDoArquivo",
+      "para": "ArquivoGaugeDependencies",
+      "arquivo": "apps/worker/src/arquivo-gauge.ts",
+      "linhaDoAnexo": "inventario-back.md:343"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "MedicaoDaEliminacao",
+      "para": "EliminacaoGauge",
+      "arquivo": "apps/worker/src/eliminacao-gauge.ts",
+      "linhaDoAnexo": "inventario-back.md:344"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DependenciasDaMedicaoDaEliminacao",
+      "para": "EliminacaoGaugeDependencies",
+      "arquivo": "apps/worker/src/eliminacao-gauge.ts",
+      "linhaDoAnexo": "inventario-back.md:344"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DependenciasDaConsolidacao",
+      "para": "UsageConsolidationDependencies",
+      "arquivo": "apps/worker/src/processors/consolidar-uso.ts",
+      "linhaDoAnexo": "inventario-back.md:426"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DependenciasDoExpurgoDaEscola",
+      "para": "ExpurgoDaEscolaDependencies",
+      "arquivo": "apps/worker/src/processors/expurgar-escola.ts",
+      "linhaDoAnexo": "inventario-back.md:427"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DependenciasDoExpurgoDeAcesso",
+      "para": "ExpurgoDeAcessoDependencies",
+      "arquivo": "apps/worker/src/processors/expurgar-acesso.ts",
+      "linhaDoAnexo": "inventario-back.md:428"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DependenciasDoExpurgo",
+      "para": "ExpurgoDeJobsDependencies",
+      "arquivo": "apps/worker/src/processors/expurgar-jobs.ts",
+      "linhaDoAnexo": "inventario-back.md:429"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DependenciasDaMontagemDoArquivo",
+      "para": "MontarArquivoDependencies",
+      "arquivo": "apps/worker/src/processors/montar-arquivo.ts",
+      "linhaDoAnexo": "inventario-back.md:430"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DependenciasDaRotinaDeExpurgo",
+      "para": "ExpurgoRoutineDependencies",
+      "arquivo": "apps/worker/src/processors/expurgar-dado-pessoal.ts",
+      "linhaDoAnexo": "inventario-back.md:431"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DependenciasDaEliminacaoDoTitular",
+      "para": "EliminacaoDoTitularDependencies",
+      "arquivo": "apps/worker/src/processors/eliminar-titular.ts",
+      "linhaDoAnexo": "inventario-back.md:432"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DependenciasDoApagarArquivos",
+      "para": "ApagarArquivosDependencies",
+      "arquivo": "apps/worker/src/processors/expurgar-escola.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:88"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "montarDespachante",
+      "para": "createOutboxRelay",
+      "arquivo": "apps/despachante/src/composition.ts",
+      "linhaDoAnexo": "inventario-back.md:319"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DespachanteMontado",
+      "para": "OutboxRelayRuntime",
+      "arquivo": "apps/despachante/src/composition.ts",
+      "linhaDoAnexo": "inventario-back.md:320"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CicloDoDespachante",
+      "para": "OutboxRelayLifecycle",
+      "arquivo": "apps/despachante/src/app.module.ts",
+      "linhaDoAnexo": "inventario-back.md:322"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "MedicaoDaFila",
+      "para": "QueueGauge",
+      "arquivo": "apps/despachante/src/queue-gauge.ts",
+      "linhaDoAnexo": "inventario-back.md:346"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DependenciasDaMedicao",
+      "para": "QueueGaugeDependencies",
+      "arquivo": "apps/despachante/src/queue-gauge.ts",
+      "linhaDoAnexo": "inventario-back.md:347"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcoesDaMedicao",
+      "para": "QueueGaugeOptions",
+      "arquivo": "apps/despachante/src/queue-gauge.ts",
+      "linhaDoAnexo": "inventario-back.md:347"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "SerieDaFila",
+      "para": "QueueSeries",
+      "arquivo": "apps/despachante/src/queue-gauge.ts",
+      "linhaDoAnexo": "inventario-back.md:348"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Despachante",
+      "para": "OutboxRelay",
+      "arquivo": "apps/despachante/src/outbox-relay.ts",
+      "linhaDoAnexo": "inventario-back.md:357"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DependenciasDoDespachante",
+      "para": "OutboxRelayDependencies",
+      "arquivo": "apps/despachante/src/outbox-relay.ts",
+      "linhaDoAnexo": "inventario-back.md:359"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DependenciasDaPublicacao",
+      "para": "PublishDependencies",
+      "arquivo": "apps/despachante/src/outbox-relay.ts",
+      "linhaDoAnexo": "inventario-back.md:359"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcoesDoDespachante",
+      "para": "OutboxRelayOptions",
+      "arquivo": "apps/despachante/src/outbox-relay.ts",
+      "linhaDoAnexo": "inventario-back.md:359"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "publicarComVaga",
+      "para": "publishWithSlot",
+      "arquivo": "apps/despachante/src/outbox-relay.ts",
+      "linhaDoAnexo": "inventario-back.md:368"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Reconciliacao",
+      "para": "OutboxSweeper",
+      "arquivo": "apps/despachante/src/outbox-sweeper.ts",
+      "linhaDoAnexo": "inventario-back.md:360"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DependenciasDaReconciliacao",
+      "para": "OutboxSweeperDependencies",
+      "arquivo": "apps/despachante/src/outbox-sweeper.ts",
+      "linhaDoAnexo": "inventario-back.md:361"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcoesDaReconciliacao",
+      "para": "OutboxSweeperOptions",
+      "arquivo": "apps/despachante/src/outbox-sweeper.ts",
+      "linhaDoAnexo": "inventario-back.md:361"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ResultadoDaReconciliacao",
+      "para": "SweepResult",
+      "arquivo": "apps/despachante/src/outbox-sweeper.ts",
+      "linhaDoAnexo": "inventario-back.md:361"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "FilaDePublicacao",
+      "para": "JobPublisher",
+      "arquivo": "apps/despachante/src/job-publisher.ts",
+      "linhaDoAnexo": "inventario-back.md:363"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PublicacaoBullMQ",
+      "para": "BullMQJobPublisher",
+      "arquivo": "apps/despachante/src/job-publisher.ts",
+      "linhaDoAnexo": "inventario-back.md:364"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "FilaBullMQ",
+      "para": "BullMQQueue",
+      "arquivo": "apps/despachante/src/job-publisher.ts",
+      "linhaDoAnexo": "inventario-back.md:365"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "SituacaoNaFila",
+      "para": "QueuedJobState",
+      "arquivo": "apps/despachante/src/job-publisher.ts",
+      "linhaDoAnexo": "inventario-back.md:366"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PrazoDaFilaEsgotado",
+      "para": "QueueTimeoutError",
+      "arquivo": "apps/despachante/src/job-publisher.ts",
+      "linhaDoAnexo": "inventario-back.md:264"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "criarAplicacaoRealtime",
+      "para": "createRealtimeApp",
+      "arquivo": "apps/realtime/src/configure-app.ts",
+      "linhaDoAnexo": "inventario-back.md:323"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "SistemaGateway",
+      "para": "SystemGateway",
+      "arquivo": "apps/realtime/src/system.gateway.ts",
+      "linhaDoAnexo": "inventario-back.md:376"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ProntidaoController",
+      "para": "ReadinessController",
+      "arquivo": "apps/realtime/src/readiness.controller.ts",
+      "linhaDoAnexo": "inventario-back.md:378"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "AdaptadorSocketIoComRedis",
+      "para": "RedisIoAdapter",
+      "arquivo": "apps/realtime/src/redis-adapter.ts",
+      "linhaDoAnexo": "inventario-back.md:380"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "criarAdaptadorRedis",
+      "para": "createRedisAdapter",
+      "arquivo": "apps/realtime/src/redis-adapter.ts",
+      "linhaDoAnexo": "inventario-back.md:382"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "criarClienteRedisDoRealtime",
+      "para": "createRealtimeRedisClient",
+      "arquivo": "apps/realtime/src/redis-adapter.ts",
+      "linhaDoAnexo": "inventario-back.md:382"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "prepararServidorRealtime",
+      "para": "prepareRealtimeServer",
+      "arquivo": "apps/realtime/src/redis-adapter.ts",
+      "linhaDoAnexo": "inventario-back.md:382"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OPCOES_DO_SERVIDOR_REALTIME",
+      "para": "REALTIME_SERVER_OPTIONS",
+      "arquivo": "apps/realtime/src/redis-adapter.ts",
+      "linhaDoAnexo": "inventario-back.md:383"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PREFIXO_REDIS_REALTIME",
+      "para": "REALTIME_REDIS_PREFIX",
+      "arquivo": "apps/realtime/src/redis-adapter.ts",
+      "linhaDoAnexo": "inventario-back.md:383"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "autenticacaoDoHandshake",
+      "para": "handshakeAuth",
+      "arquivo": "apps/realtime/src/handshake-auth.ts",
+      "linhaDoAnexo": "inventario-back.md:385"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DadosDoSocket",
+      "para": "SocketData",
+      "arquivo": "apps/realtime/src/handshake-auth.ts",
+      "linhaDoAnexo": "inventario-back.md:386"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "SocketRealtime",
+      "para": "RealtimeSocket",
+      "arquivo": "apps/realtime/src/handshake-auth.ts",
+      "linhaDoAnexo": "inventario-back.md:386"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ErroDeConexao",
+      "para": "ConnectionError",
+      "arquivo": "apps/realtime/src/handshake-auth.ts",
+      "linhaDoAnexo": "inventario-back.md:265"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "erroDeConexaoNaoAutenticada",
+      "para": "unauthenticatedConnectionError",
+      "arquivo": "apps/realtime/src/handshake-auth.ts",
+      "linhaDoAnexo": "inventario-back.md:266"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "erroDeConexaoIndisponivel",
+      "para": "unavailableConnectionError",
+      "arquivo": "apps/realtime/src/handshake-auth.ts",
+      "linhaDoAnexo": "inventario-back.md:266"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaAutenticacao",
+      "para": "autenticacaoSchema",
+      "arquivo": "apps/realtime/src/handshake-auth.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:73"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CONFIGURACAO_IDENTIDADE",
+      "para": "IDENTITY_CONFIG",
+      "arquivo": "apps/realtime/src/system.gateway.ts",
+      "linhaDoAnexo": "inventario-back.md:387"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LEITURA_DE_SESSAO",
+      "para": "SESSAO_READER",
+      "arquivo": "apps/realtime/src/system.gateway.ts",
+      "linhaDoAnexo": "inventario-back.md:388"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LOGGER_REALTIME",
+      "para": "REALTIME_LOGGER",
+      "arquivo": "apps/realtime/src/system.gateway.ts",
+      "linhaDoAnexo": "inventario-back.md:389"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CLIENTE_REDIS_REALTIME",
+      "para": "REALTIME_REDIS_CLIENT",
+      "arquivo": "apps/realtime/src/app.module.ts",
+      "linhaDoAnexo": "inventario-back.md:390"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "POOL_BANCO_REALTIME",
+      "para": "REALTIME_DB_POOL",
+      "arquivo": "apps/realtime/src/app.module.ts",
+      "linhaDoAnexo": "inventario-back.md:391"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "salaDaEscola",
+      "para": "escolaRoom",
+      "arquivo": "apps/realtime/src/system.gateway.ts",
+      "linhaDoAnexo": "inventario-back.md:392"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "BancadaDeSessoes",
+      "para": "SessaoFixtures",
+      "arquivo": "apps/api/test/sessao.fixture.ts",
+      "linhaDoAnexo": "inventario-back.md:450"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "BancadaDeOperadores",
+      "para": "OperadorFixtures",
+      "arquivo": "apps/api/test/operador-session.fixture.ts",
+      "linhaDoAnexo": "inventario-back.md:451"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "BancadaDeFila",
+      "para": "QueueFixtures",
+      "arquivo": "apps/worker/test/queue.fixture.ts",
+      "linhaDoAnexo": "inventario-back.md:452"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OPERADOR_DA_BANCADA",
+      "para": "FIXTURES_OPERADOR",
+      "arquivo": "apps/worker/test/queue.fixture.ts",
+      "linhaDoAnexo": "inventario-back.md:453"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoDaBancada",
+      "para": "FixtureRequest",
+      "arquivo": "apps/worker/test/queue.fixture.ts",
+      "linhaDoAnexo": "inventario-back.md:454"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LogEmMemoria",
+      "para": "InMemoryLog",
+      "arquivo": "apps/worker/test/queue.fixture.ts",
+      "linhaDoAnexo": "inventario-back.md:455"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "execucaoDoJob",
+      "para": "jobExecution",
+      "arquivo": "apps/worker/test/job-execution.fixture.ts",
+      "linhaDoAnexo": "inventario-back.md:457"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ModeloDeMentira",
+      "para": "FakeModel",
+      "arquivo": "apps/api/test/escola-tutor.fixture.ts",
+      "linhaDoAnexo": "inventario-back.md:458"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "subirModeloDeMentira",
+      "para": "startFakeModel",
+      "arquivo": "apps/api/test/escola-tutor.fixture.ts",
+      "linhaDoAnexo": "inventario-back.md:458"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ambienteDoModeloDeMentira",
+      "para": "fakeModelEnv",
+      "arquivo": "apps/api/test/escola-tutor.fixture.ts",
+      "linhaDoAnexo": "inventario-back.md:458"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "GatilhoDeParada",
+      "para": "WriteBlockTrigger",
+      "arquivo": "apps/api/test/write-block-trigger.ts",
+      "linhaDoAnexo": "inventario-back.md:459"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CapturaDeDadoPessoal",
+      "para": "PersonalDataCapture",
+      "arquivo": "apps/api/test/personal-data-capture.ts",
+      "linhaDoAnexo": "inventario-back.md:461"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ApiDeTeste",
+      "para": "TestApi",
+      "arquivo": "apps/api/test/test-api.ts",
+      "linhaDoAnexo": "inventario-back.md:463"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "MONTAGEM_DE_TESTE",
+      "para": "TEST_APP_OPTIONS",
+      "arquivo": "apps/api/test/test-config.ts",
+      "linhaDoAnexo": "inventario-back.md:466"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "SobreposicaoDeTeste",
+      "para": "TestOverrides",
+      "arquivo": "apps/api/test/test-config.ts",
+      "linhaDoAnexo": "inventario-back.md:466"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "configuracaoDeTeste",
+      "para": "testConfig",
+      "linhaDoAnexo": "inventario-back.md:466"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "SessaoDeTeste",
+      "para": "TestSessao",
+      "arquivo": "apps/api/test/sessao.fixture.ts",
+      "linhaDoAnexo": "inventario-back.md:468"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcoesDeSessao",
+      "para": "SessaoFixtureOptions",
+      "arquivo": "apps/api/test/sessao.fixture.ts",
+      "linhaDoAnexo": "inventario-back.md:468"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "SessaoDeOperadorDeTeste",
+      "para": "TestOperadorSessao",
+      "arquivo": "apps/api/test/operador-session.fixture.ts",
+      "linhaDoAnexo": "inventario-back.md:470"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CenarioDeAtivacao",
+      "para": "ActivationScenario",
+      "arquivo": "apps/api/test/ativacao.fixture.ts",
+      "linhaDoAnexo": "inventario-back.md:473"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ContaDeTeste",
+      "para": "TestConta",
+      "arquivo": "apps/api/test/ativacao.fixture.ts",
+      "linhaDoAnexo": "inventario-back.md:473"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConviteDeTeste",
+      "para": "TestConvite",
+      "arquivo": "apps/api/test/ativacao.fixture.ts",
+      "linhaDoAnexo": "inventario-back.md:473"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcoesDoArtefatoDeTeste",
+      "para": "TestArtefatoOptions",
+      "arquivo": "apps/api/test/atividade.fixture.ts",
+      "linhaDoAnexo": "inventario-back.md:475"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcoesDaAplicacao",
+      "para": "AplicacaoOptions",
+      "arquivo": "apps/api/test/escola-tutor.fixture.ts",
+      "linhaDoAnexo": "inventario-back.md:475"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcoesDoEnvio",
+      "para": "UploadOptions",
+      "arquivo": "apps/api/test/material.fixture.ts",
+      "linhaDoAnexo": "inventario-back.md:477"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CamposDoEnvio",
+      "para": "UploadFields",
+      "arquivo": "apps/api/test/material.fixture.ts",
+      "linhaDoAnexo": "inventario-back.md:477"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "SalaDeTeste",
+      "para": "TestSala",
+      "arquivo": "apps/api/test/sala.fixture.ts",
+      "linhaDoAnexo": "inventario-back.md:480"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcoesDoPedido",
+      "para": "SalaRequestOptions",
+      "arquivo": "apps/api/test/sala.fixture.ts",
+      "linhaDoAnexo": "inventario-back.md:480"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RotaRegistrada",
+      "para": "RegisteredRoute",
+      "linhaDoAnexo": "inventario-back.md:485"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "InstanciaDeTeste",
+      "para": "TestInstance",
+      "arquivo": "apps/realtime/test/realtime.fixture.ts",
+      "linhaDoAnexo": "inventario-back.md:487"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcoesDeConexao",
+      "para": "ConnectionOptions",
+      "arquivo": "apps/realtime/test/realtime.fixture.ts",
+      "linhaDoAnexo": "inventario-back.md:487"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LinhaDoAcesso",
+      "para": "AcessoRow",
+      "linhaDoAnexo": "inventario-adenda-2.md:64"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LinhaDaSecao",
+      "para": "SecaoRow",
+      "arquivo": "apps/api/test/incidente.int.test.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:65"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LinhaDeAuditoria",
+      "para": "AuditoriaRow",
+      "arquivo": "apps/api/test/material.fixture.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:66"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LinhaDoMaterial",
+      "para": "MaterialRow",
+      "arquivo": "apps/api/test/material.fixture.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:67"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LinhaDoTrecho",
+      "para": "TrechoRow",
+      "arquivo": "apps/api/test/material.fixture.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:68"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LinhaDeProvedor",
+      "para": "ProvedorRow",
+      "arquivo": "apps/api/test/provedores-da-escola.int.test.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:69"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LinhaDoSuboperador",
+      "para": "SuboperadorRow",
+      "arquivo": "apps/api/test/suboperador.int.test.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:70"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LinhaDeSessao",
+      "para": "SessaoRow",
+      "arquivo": "apps/api/test/troca-de-escola.int.test.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:71"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LinhaDeVinculo",
+      "para": "VinculoRow",
+      "arquivo": "apps/api/test/virada-do-ano.int.test.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:72"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LinhaDeEfeito",
+      "para": "EfeitoRow",
+      "arquivo": "apps/worker/test/job-reexecution.int.test.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:89"
+    }
+  ],
+  "ocorrencias": [
+    {
+      "arquivo": "apps/api/src/config.test.ts",
+      "de": "lerConfiguracao",
+      "classe": "fica",
+      "linha": "inventario-back.md:329",
+      "trecho": "lerConfiguracao"
+    },
+    {
+      "arquivo": "apps/despachante/src/config.test.ts",
+      "de": "lerConfiguracao",
+      "classe": "fica",
+      "linha": "inventario-back.md:329",
+      "trecho": "lerConfiguracao do despachante"
+    },
+    {
+      "arquivo": "apps/realtime/src/config.test.ts",
+      "de": "lerConfiguracao",
+      "classe": "fica",
+      "linha": "inventario-back.md:329",
+      "trecho": "lerConfiguracao do realtime"
+    },
+    {
+      "arquivo": "apps/worker/src/config.test.ts",
+      "de": "lerConfiguracao",
+      "classe": "fica",
+      "linha": "inventario-back.md:329",
+      "trecho": "lerConfiguracao do worker"
+    },
+    {
+      "arquivo": "apps/despachante/src/job-publisher.test.ts",
+      "de": "PublicacaoBullMQ",
+      "classe": "fica",
+      "linha": "inventario-back.md:364",
+      "trecho": "PublicacaoBullMQ"
+    },
+    {
+      "arquivo": "apps/despachante/src/outbox-relay.test.ts",
+      "de": "Despachante",
+      "classe": "fica",
+      "linha": "inventario-back.md:357",
+      "trecho": "Despachante.rodada"
+    },
+    {
+      "arquivo": "apps/despachante/src/queue-gauge.test.ts",
+      "de": "MedicaoDaFila",
+      "classe": "fica",
+      "linha": "inventario-back.md:346",
+      "trecho": "MedicaoDaFila"
+    },
+    {
+      "arquivo": "apps/worker/src/job-executor.test.ts",
+      "de": "ExecutorDeJobs",
+      "classe": "fica",
+      "linha": "inventario-back.md:274",
+      "trecho": "ExecutorDeJobs e a vaga"
+    },
+    {
+      "arquivo": "apps/worker/src/job-executor.test.ts",
+      "de": "ExecutorDeJobs",
+      "classe": "fica",
+      "linha": "inventario-back.md:274",
+      "trecho": "ExecutorDeJobs e a definição do tipo"
+    },
+    {
+      "arquivo": "apps/worker/src/job-executor.test.ts",
+      "de": "AvisoDeVagaLivre",
+      "classe": "fica",
+      "linha": "inventario-back.md:281",
+      "trecho": "AvisoDeVagaLivre"
+    },
+    {
+      "arquivo": "apps/worker/src/processors/synthetic.test.ts",
+      "de": "SandboxDeCpu",
+      "classe": "fica",
+      "linha": "inventario-back.md:289",
+      "trecho": "SandboxDeCpu: o job sintético queima CPU de verdade, fora do event loop"
+    },
+    {
+      "arquivo": "apps/worker/src/storage/storage-size-reader.test.ts",
+      "de": "MedidorDeStorage",
+      "classe": "fica",
+      "linha": "inventario-back.md:301",
+      "trecho": "MedidorDeStorage"
+    },
+    {
+      "arquivo": "apps/realtime/src/app.module.ts",
+      "de": "CLIENTE_REDIS_REALTIME",
+      "classe": "trava",
+      "linha": "travas.md:168",
+      "trecho": "CLIENTE_REDIS_REALTIME"
+    },
+    {
+      "arquivo": "apps/realtime/src/app.module.ts",
+      "de": "POOL_BANCO_REALTIME",
+      "classe": "trava",
+      "linha": "travas.md:168",
+      "trecho": "POOL_BANCO_REALTIME"
+    },
+    {
+      "arquivo": "apps/realtime/src/system.gateway.ts",
+      "de": "CONFIGURACAO_IDENTIDADE",
+      "classe": "trava",
+      "linha": "travas.md:168",
+      "trecho": "CONFIGURACAO_IDENTIDADE"
+    },
+    {
+      "arquivo": "apps/realtime/src/system.gateway.ts",
+      "de": "LEITURA_DE_SESSAO",
+      "classe": "trava",
+      "linha": "travas.md:168",
+      "trecho": "LEITURA_DE_SESSAO"
+    },
+    {
+      "arquivo": "apps/realtime/src/system.gateway.ts",
+      "de": "LOGGER_REALTIME",
+      "classe": "trava",
+      "linha": "travas.md:168",
+      "trecho": "LOGGER_REALTIME"
+    },
+    {
+      "arquivo": "apps/worker/src/job-failure.error.ts",
+      "de": "FalhaDeJob",
+      "classe": "trava",
+      "linha": "travas.md:169",
+      "trecho": "FalhaDeJob"
+    },
+    {
+      "arquivo": "apps/worker/src/job-executor.ts",
+      "de": "ErroParaAFila",
+      "classe": "trava",
+      "linha": "travas.md:169",
+      "trecho": "ErroParaAFila"
+    },
+    {
+      "arquivo": "apps/despachante/src/job-publisher.ts",
+      "de": "PrazoDaFilaEsgotado",
+      "classe": "trava",
+      "linha": "travas.md:169",
+      "trecho": "PrazoDaFilaEsgotado"
+    },
+    {
+      "arquivo": "apps/worker/test/expurgo-da-escola.int.test.ts",
+      "de": "FalhaDeJob",
+      "classe": "trava",
+      "linha": "travas.md:169",
+      "trecho": "FalhaDeJob"
+    },
+    {
+      "arquivo": "apps/worker/test/expurgo-de-acesso.int.test.ts",
+      "de": "FalhaDeJob",
+      "classe": "trava",
+      "linha": "travas.md:169",
+      "trecho": "FalhaDeJob"
+    },
+    {
+      "arquivo": "infra/compose.yml",
+      "de": "GRACA_DO_DESLIGAMENTO_MS",
+      "classe": "trava",
+      "linha": "travas.md:170",
+      "trecho": "GRACA_DO_DESLIGAMENTO_MS"
+    },
+    {
+      "arquivo": "apps/api/test/lista.int.test.ts",
+      "de": "LinhaDeAuditoria",
+      "classe": "fica",
+      "linha": "inventario-adenda-2.md:21"
+    },
+    {
+      "arquivo": "apps/worker/test/eliminar-titular.int.test.ts",
+      "de": "LinhaDeAuditoria",
+      "classe": "fica",
+      "linha": "inventario-adenda-2.md:21"
+    },
+    {
+      "arquivo": "apps/web/src/areas/coordenacao/material/Material.tsx",
+      "de": "LinhaDoMaterial",
+      "classe": "fica",
+      "linha": "inventario-adenda-2.md:67"
+    },
+    {
+      "arquivo": "apps/web/src/areas/coordenacao/material/materiais-da-escola.ts",
+      "de": "LinhaDoMaterial",
+      "classe": "fica",
+      "linha": "inventario-adenda-2.md:67"
+    },
+    {
+      "arquivo": "e2e/support/seed.ts",
+      "de": "ConviteDeTeste",
+      "classe": "fica",
+      "linha": "inventario-back.md:473"
+    }
+  ],
+  "excecoesDoConferir": [
+    {
+      "arquivo": "apps/realtime/src/app.module.ts",
+      "texto": "CLIENTE_REDIS_REALTIME",
+      "motivo": "a descrição do Symbol(…) acompanha a constante do token de DI (inventario-back.md:565; travas.md:168)"
+    },
+    {
+      "arquivo": "apps/realtime/src/app.module.ts",
+      "texto": "REALTIME_REDIS_CLIENT",
+      "motivo": "a descrição do Symbol(…) acompanha a constante do token de DI (inventario-back.md:565; travas.md:168)"
+    },
+    {
+      "arquivo": "apps/realtime/src/app.module.ts",
+      "texto": "POOL_BANCO_REALTIME",
+      "motivo": "a descrição do Symbol(…) acompanha a constante do token de DI (inventario-back.md:565; travas.md:168)"
+    },
+    {
+      "arquivo": "apps/realtime/src/app.module.ts",
+      "texto": "REALTIME_DB_POOL",
+      "motivo": "a descrição do Symbol(…) acompanha a constante do token de DI (inventario-back.md:565; travas.md:168)"
+    },
+    {
+      "arquivo": "apps/realtime/src/system.gateway.ts",
+      "texto": "CONFIGURACAO_IDENTIDADE",
+      "motivo": "a descrição do Symbol(…) acompanha a constante do token de DI (inventario-back.md:565; travas.md:168)"
+    },
+    {
+      "arquivo": "apps/realtime/src/system.gateway.ts",
+      "texto": "IDENTITY_CONFIG",
+      "motivo": "a descrição do Symbol(…) acompanha a constante do token de DI (inventario-back.md:565; travas.md:168)"
+    },
+    {
+      "arquivo": "apps/realtime/src/system.gateway.ts",
+      "texto": "LEITURA_DE_SESSAO",
+      "motivo": "a descrição do Symbol(…) acompanha a constante do token de DI (inventario-back.md:565; travas.md:168)"
+    },
+    {
+      "arquivo": "apps/realtime/src/system.gateway.ts",
+      "texto": "SESSAO_READER",
+      "motivo": "a descrição do Symbol(…) acompanha a constante do token de DI (inventario-back.md:565; travas.md:168)"
+    },
+    {
+      "arquivo": "apps/realtime/src/system.gateway.ts",
+      "texto": "LOGGER_REALTIME",
+      "motivo": "a descrição do Symbol(…) acompanha a constante do token de DI (inventario-back.md:565; travas.md:168)"
+    },
+    {
+      "arquivo": "apps/realtime/src/system.gateway.ts",
+      "texto": "REALTIME_LOGGER",
+      "motivo": "a descrição do Symbol(…) acompanha a constante do token de DI (inventario-back.md:565; travas.md:168)"
+    },
+    {
+      "arquivo": "apps/worker/src/job-failure.error.ts",
+      "texto": "FalhaDeJob",
+      "motivo": "this.name da classe de erro acompanha a classe, e o teste espera o nome novo (adenda 1 do inventário; travas.md:169)"
+    },
+    {
+      "arquivo": "apps/worker/src/job-failure.error.ts",
+      "texto": "JobFailureError",
+      "motivo": "this.name da classe de erro acompanha a classe, e o teste espera o nome novo (adenda 1 do inventário; travas.md:169)"
+    },
+    {
+      "arquivo": "apps/worker/src/job-executor.ts",
+      "texto": "ErroParaAFila",
+      "motivo": "this.name da classe de erro acompanha a classe, e o teste espera o nome novo (adenda 1 do inventário; travas.md:169)"
+    },
+    {
+      "arquivo": "apps/worker/src/job-executor.ts",
+      "texto": "QueueFacingError",
+      "motivo": "this.name da classe de erro acompanha a classe, e o teste espera o nome novo (adenda 1 do inventário; travas.md:169)"
+    },
+    {
+      "arquivo": "apps/despachante/src/job-publisher.ts",
+      "texto": "PrazoDaFilaEsgotado",
+      "motivo": "this.name da classe de erro acompanha a classe, e o teste espera o nome novo (adenda 1 do inventário; travas.md:169)"
+    },
+    {
+      "arquivo": "apps/despachante/src/job-publisher.ts",
+      "texto": "QueueTimeoutError",
+      "motivo": "this.name da classe de erro acompanha a classe, e o teste espera o nome novo (adenda 1 do inventário; travas.md:169)"
+    },
+    {
+      "arquivo": "apps/worker/test/expurgo-da-escola.int.test.ts",
+      "texto": "FalhaDeJob",
+      "motivo": "this.name da classe de erro acompanha a classe, e o teste espera o nome novo (adenda 1 do inventário; travas.md:169)"
+    },
+    {
+      "arquivo": "apps/worker/test/expurgo-da-escola.int.test.ts",
+      "texto": "JobFailureError",
+      "motivo": "this.name da classe de erro acompanha a classe, e o teste espera o nome novo (adenda 1 do inventário; travas.md:169)"
+    },
+    {
+      "arquivo": "apps/worker/test/expurgo-de-acesso.int.test.ts",
+      "texto": "FalhaDeJob",
+      "motivo": "this.name da classe de erro acompanha a classe, e o teste espera o nome novo (adenda 1 do inventário; travas.md:169)"
+    },
+    {
+      "arquivo": "apps/worker/test/expurgo-de-acesso.int.test.ts",
+      "texto": "JobFailureError",
+      "motivo": "this.name da classe de erro acompanha a classe, e o teste espera o nome novo (adenda 1 do inventário; travas.md:169)"
+    }
+  ]
+}

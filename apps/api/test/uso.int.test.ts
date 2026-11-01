@@ -9,8 +9,8 @@ import { lerAmbienteDeTeste, valorObrigatorio } from '../../../tools/ci/compose.
 import { aguardarSaudavel, compose, composeOuFalha, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
 import { AppModule } from '../src/app.module.js'
 import { configureApp } from '../src/configure-app.js'
-import { configuracaoDeTeste, MONTAGEM_DE_TESTE } from './test-config.js'
-import { BancadaDeSessoes } from './sessao.fixture.js'
+import { testConfig, TEST_APP_OPTIONS } from './test-config.js'
+import { SessaoFixtures } from './sessao.fixture.js'
 
 const ambienteDeTeste = lerAmbienteDeTeste()
 const URL_REDIS_FILA = `redis://127.0.0.1:${valorObrigatorio(ambienteDeTeste, 'REDIS_FILA_PORTA_HOST')}`
@@ -21,14 +21,14 @@ const redis = new Redis(URL_REDIS_FILA, { maxRetriesPerRequest: null })
 redis.on('error', () => undefined)
 
 async function subirApi(ambiente: Record<string, string> = {}): Promise<string> {
-  const app = await NestFactory.create(AppModule.forRoot(configuracaoDeTeste({ ambiente }), MONTAGEM_DE_TESTE), { logger: false })
+  const app = await NestFactory.create(AppModule.forRoot(testConfig({ ambiente }), TEST_APP_OPTIONS), { logger: false })
   configureApp(app, createLogger({ servico: 'api-teste', nivel: 'silent' }))
   await app.listen(0, '127.0.0.1')
   apps.push(app)
   return `http://127.0.0.1:${(app.getHttpServer().address() as AddressInfo).port}`
 }
 
-const sessoes = new BancadaDeSessoes()
+const sessoes = new SessaoFixtures()
 /** Um token de uma sessão nova, de um usuário novo da escola. */
 const tokenDa = async (escolaId: string) => (await sessoes.sessao(escolaId)).token
 

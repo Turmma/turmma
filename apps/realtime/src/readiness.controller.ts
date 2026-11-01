@@ -12,7 +12,7 @@ interface RespostaHttp {
  */
 @Public()
 @Controller('prontidao')
-export class ProntidaoController {
+export class ReadinessController {
   constructor(private readonly drenagem: GracefulShutdown) {}
 
   @Get()

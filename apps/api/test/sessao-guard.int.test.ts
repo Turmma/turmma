@@ -15,8 +15,8 @@ import { AppModule } from '../src/app.module.js'
 import { configureApp } from '../src/configure-app.js'
 import { executarOpsSessaoSintetica, type CommandDatabase } from '../src/ops/sessao-sintetica.js'
 import { MOTIVO_SESSAO_SINTETICA_FORA_DO_LOCAL } from '../src/sessao/index.js'
-import { configuracaoDeTeste } from './test-config.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
+import { testConfig } from './test-config.js'
+import { SessaoFixtures, type TestSessao } from './sessao.fixture.js'
 
 const ambienteDeTeste = lerAmbienteDeTeste()
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
@@ -41,7 +41,7 @@ interface Resposta {
 }
 
 describe('GuardaDeSessao: toda requisição autenticada é conferida contra a sessão gravada', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   let app: INestApplication
   let url: string
   let leituras: ReturnType<typeof vi.spyOn>
@@ -61,7 +61,7 @@ describe('GuardaDeSessao: toda requisição autenticada é conferida contra a se
   const tokenCom = async (claims: { escolaId: string; usuarioId: string; sessaoId: string }) => (await emissor.emitir(claims)).token
 
   beforeAll(async () => {
-    @Module({ imports: [AppModule.forRoot(configuracaoDeTeste({ ambiente: { LIMITE_REQ_USUARIO_MIN: String(LIMITE_DO_USUARIO) } }))], controllers: [ControladorDoAno] })
+    @Module({ imports: [AppModule.forRoot(testConfig({ ambiente: { LIMITE_REQ_USUARIO_MIN: String(LIMITE_DO_USUARIO) } }))], controllers: [ControladorDoAno] })
     class ModuloDeTeste {}
     app = await NestFactory.create(ModuloDeTeste, { logger: false })
     configureApp(app, createLogger({ servico: 'api-teste', nivel: 'silent' }))
@@ -139,8 +139,8 @@ describe('GuardaDeSessao: toda requisição autenticada é conferida contra a se
   })
 
   describe('isolamento: a sessão é lida por (esc, sid), e o usuário dela precisa ser o sub', () => {
-    let a: SessaoDeTeste
-    let b: SessaoDeTeste
+    let a: TestSessao
+    let b: TestSessao
 
     beforeAll(async () => {
       a = await bancada.escolaComSessao('coordenador')
@@ -275,7 +275,7 @@ describe('GuardaDeSessao: toda requisição autenticada é conferida contra a se
 })
 
 describe('ops:sessao-sintetica', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
 
   afterAll(async () => {
     await bancada.fechar()

@@ -1,9 +1,9 @@
 import { METRICS, type CronEscolasRepository, type ExpurgoDaEscolaRepository, type LoggerBase, type Meter, type Clock } from '@educa/core'
-import { MedicaoPorEscola } from './escola-gauge.js'
+import { EscolaGauge } from './escola-gauge.js'
 
 const MS_POR_HORA = 3_600_000
 
-export interface DependenciasDaMedicaoDaEliminacao {
+export interface EliminacaoGaugeDependencies {
   escolas: Pick<CronEscolasRepository, 'listarIds'>
   repositorio: Pick<ExpurgoDaEscolaRepository, 'vencimentoDoAgendadoMaisAntigo'>
   relogio: Clock
@@ -17,13 +17,13 @@ export interface DependenciasDaMedicaoDaEliminacao {
  * do prazo" dispara acima de 48 (`HORAS_AGENDADO_PARA_ALERTAR`): uma interrupção pela janela letiva é esperada e cabe nas 48 h. A
  * escola sem eliminação vencida não tem série, e a série some quando o job conclui o pedido.
  *
- * O laço, a lista de escolas, o contexto de cada uma e a exportação são da `MedicaoPorEscola`; aqui está só o que se mede numa
+ * O laço, a lista de escolas, o contexto de cada uma e a exportação são da `EscolaGauge`; aqui está só o que se mede numa
  * escola, lido pelo `ExpurgoDaEscolaRepository`, com o escopo do contexto. A série traz a escola e um número: nenhum id de pedido,
  * nenhum titular.
  */
-export class MedicaoDaEliminacao extends MedicaoPorEscola {
+export class EliminacaoGauge extends EscolaGauge {
   constructor(
-    private readonly dependencias: DependenciasDaMedicaoDaEliminacao,
+    private readonly dependencias: EliminacaoGaugeDependencies,
     opcoes: { intervaloMs?: number } = {},
   ) {
     super(

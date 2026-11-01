@@ -3,18 +3,18 @@ import { ErrorCode, type PapelDeUsuario } from '@educa/shared'
 import { randomBytes } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
-import { chamar, subirApi, type ApiDeTeste } from './test-api.js'
+import { chamar, subirApi, type TestApi } from './test-api.js'
 import { esperarNaTrava } from './write-block-trigger.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
+import { SessaoFixtures, type TestSessao } from './sessao.fixture.js'
 
 /** Datas antigas e conhecidas, alinhadas ao milissegundo: o que o JavaScript lê do banco é o que o banco guardou. */
 const DATA_ANTIGA = '2020-01-02T03:04:05.678Z'
 const OUTRA_DATA = '2021-05-06T07:08:09.123Z'
 
 describe('introdução vista: POST /v1/eu/introducao grava a data da própria pessoa, e GET /v1/eu a devolve', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
-  let api: ApiDeTeste
+  let api: TestApi
 
   beforeAll(async () => {
     api = await subirApi(medidor.medidor)
@@ -40,7 +40,7 @@ describe('introdução vista: POST /v1/eu/introducao grava a data da própria pe
 
   const gravarNoBanco = (usuarioId: string, data: string) => bancada.pool.query('update usuario set introducao_vista_em = $2 where id = $1', [usuarioId, data])
 
-  async function usuarioDaMesmaConta(origem: SessaoDeTeste, escolaId: string): Promise<string> {
+  async function usuarioDaMesmaConta(origem: TestSessao, escolaId: string): Promise<string> {
     const { rows } = await bancada.pool.query<{ id: string }>('select id from usuario where escola_id = $1 and conta_id = (select conta_id from usuario where id = $2)', [escolaId, origem.usuarioId])
     const id = rows[0]?.id
     if (id === undefined) throw new Error('o usuário da mesma conta não existe')

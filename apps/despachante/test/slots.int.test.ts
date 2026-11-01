@@ -21,9 +21,9 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import { compose, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
-import type { Processador } from '../../worker/src/job-executor.js'
-import { FalhaDeJob } from '../../worker/src/job-failure.error.js'
-import { BancadaDeFila, configuracaoDoBanco, LogEmMemoria, urlRedisDeFila } from '../../worker/test/queue.fixture.js'
+import type { JobProcessor } from '../../worker/src/job-executor.js'
+import { JobFailureError } from '../../worker/src/job-failure.error.js'
+import { QueueFixtures, configuracaoDoBanco, InMemoryLog, urlRedisDeFila } from '../../worker/test/queue.fixture.js'
 
 // Despachantes e workers de verdade (a mesma montagem do main.ts), no processo do teste, contra o
 // Postgres e o Redis de fila do compose de teste, com as vagas padrão de `.env.example`
@@ -100,7 +100,7 @@ beforeAll(() => {
 })
 
 describe('vagas por escola e filas por prioridade', () => {
-  let bancada: BancadaDeFila<typeof DEFINICOES_DO_TESTE>
+  let bancada: QueueFixtures<typeof DEFINICOES_DO_TESTE>
   // Escolas reais, criadas a cada caso: desde a tarefa 3.0 `job_registro` e
   // `configuracao_operacional_escola` têm FK para `escola`, e id inventado é recusado pelo banco.
   let ESCOLA_A: string
@@ -109,7 +109,7 @@ describe('vagas por escola e filas por prioridade', () => {
   const processadores: ProcessadorContado[] = []
 
   beforeEach(async () => {
-    bancada = new BancadaDeFila(DEFINICOES_DO_TESTE)
+    bancada = new QueueFixtures(DEFINICOES_DO_TESTE)
     await bancada.limparRegistro()
     ;[ESCOLA_A, ESCOLA_B, ESCOLA_C] = await Promise.all([bancada.escola(), bancada.escola(), bancada.escola()])
   })
@@ -167,10 +167,10 @@ describe('vagas por escola e filas por prioridade', () => {
     await bancada.configurarEscola(ESCOLA_A, { vagas: { lote: 1_000 } })
     const lotes = contado()
     await inserirJobs(ESCOLA_A, 'lote', 1_000, 'A')
-    bancada.worker(new LogEmMemoria('worker-lote'), { pools: { lote: 10 }, processadores: { sintetico: lotes.processar } })
-    const logInterativo = new LogEmMemoria('worker-interativo')
+    bancada.worker(new InMemoryLog('worker-lote'), { pools: { lote: 10 }, processadores: { sintetico: lotes.processar } })
+    const logInterativo = new InMemoryLog('worker-interativo')
     bancada.worker(logInterativo, { pools: { interativa: 5, normal: 5 } })
-    bancada.despachante(new LogEmMemoria('despachante')).despachante.iniciar()
+    bancada.despachante(new InMemoryLog('despachante')).despachante.iniciar()
 
     // O pool de lote está cheio, com 990 lotes publicados atrás dele.
     await expect.poll(() => bancada.filas.lote.getJobCounts('active', 'waiting'), { timeout: 30_000, interval: 200 }).toEqual({ active: 10, waiting: 990 })
@@ -188,8 +188,8 @@ describe('vagas por escola e filas por prioridade', () => {
   it('a escola A com 1.000 lotes nunca passa de 2 vagas em uso, com dois despachantes; um lote da B começa sem esperar', async () => {
     const processador = contado(150)
     await inserirJobs(ESCOLA_A, 'lote', 1_000, 'A')
-    bancada.worker(new LogEmMemoria('worker-lote'), { pools: { lote: 10 }, processadores: { sintetico: processador.processar } })
-    for (const nome of ['despachante-1', 'despachante-2']) bancada.despachante(new LogEmMemoria(nome)).despachante.iniciar()
+    bancada.worker(new InMemoryLog('worker-lote'), { pools: { lote: 10 }, processadores: { sintetico: processador.processar } })
+    for (const nome of ['despachante-1', 'despachante-2']) bancada.despachante(new InMemoryLog(nome)).despachante.iniciar()
 
     // Vários ciclos de vaga da A, conferindo o ZSET a cada 20 ms.
     let maiorEmUso = 0
@@ -213,9 +213,9 @@ describe('vagas por escola e filas por prioridade', () => {
   it('a vaga liberada acorda o despachante: com a escola no teto, o job seguinte começa quando o anterior termina, sem esperar a sondagem', async () => {
     await bancada.configurarEscola(ESCOLA_A, { vagas: { interativa: 1 } })
     const processador = contado(200)
-    bancada.worker(new LogEmMemoria('worker-interativo'), { pools: { interativa: 5 }, processadores: { sintetico: processador.processar } })
+    bancada.worker(new InMemoryLog('worker-interativo'), { pools: { interativa: 5 }, processadores: { sintetico: processador.processar } })
     // Sondagem de 30 s: se o próximo job saísse só nela, os cinco levariam dois minutos.
-    bancada.despachante(new LogEmMemoria('despachante'), { intervaloMs: 30_000 }).despachante.iniciar()
+    bancada.despachante(new InMemoryLog('despachante'), { intervaloMs: 30_000 }).despachante.iniciar()
     const ids = await inserirJobs(ESCOLA_A, 'interativa', 5, 'A')
     const inicio = performance.now()
     for (const id of ids) await aguardarEstado(id, 'concluido', 15_000)
@@ -225,9 +225,9 @@ describe('vagas por escola e filas por prioridade', () => {
 
   it('controle negativo do cenário de carga: com a vaga por escola desligada no despachante e no worker, a escola passa do teto', async () => {
     const processador = contado()
-    const log = new LogEmMemoria('worker-interativo')
+    const log = new InMemoryLog('worker-interativo')
     bancada.worker(log, { pools: { interativa: 20 }, processadores: { sintetico: processador.processar }, vagasPorEscolaDesligadas: true })
-    bancada.despachante(new LogEmMemoria('despachante'), {}, true).despachante.iniciar()
+    bancada.despachante(new InMemoryLog('despachante'), {}, true).despachante.iniciar()
     await inserirJobs(ESCOLA_A, 'interativa', 12, 'A')
     // Com o teto padrão de 5 vagas interativas no despachante, só 5 começariam. O worker confere a vaga que o
     // despachante já tomou; a flag nele vale para a vaga que venceu no caminho, e o log prova que ela chegou lá.
@@ -259,7 +259,7 @@ describe('vagas por escola e filas por prioridade', () => {
     const id = await bancada.enfileirar(ESCOLA_A, { fila: 'lote' })
     const deOutroDespachante = [randomUUID(), randomUUID()]
     let outroJaTomou = false
-    const log = new LogEmMemoria('despachante')
+    const log = new InMemoryLog('despachante')
     // Entre a estimativa desta instância e a tomada, outro despachante leva as duas vagas da escola.
     const montado = bancada.despachante(log, {
       embrulharVagas: (vagas) => ({
@@ -307,8 +307,8 @@ describe('vagas por escola e filas por prioridade', () => {
     }
 
     const id = await bancada.enfileirar(ESCOLA_A, { fila: 'lote' })
-    bancada.worker(new LogEmMemoria('worker'), { pools: { lote: 10 } })
-    bancada.despachante(new LogEmMemoria('despachante')).despachante.iniciar()
+    bancada.worker(new InMemoryLog('worker'), { pools: { lote: 10 } })
+    bancada.despachante(new InMemoryLog('despachante')).despachante.iniciar()
     await esperar(1_500)
     expect((await bancada.estado(id))?.estado).toBe('aguardando')
 
@@ -323,18 +323,18 @@ describe('vagas por escola e filas por prioridade', () => {
     let tentativas = 0
     let terminar: () => void = () => undefined
     const segundaTentativa = new Promise<void>((resolver) => (terminar = resolver))
-    const processador: Processador<typeof TIPO_JOB_SINTETICO> = async () => {
+    const processador: JobProcessor<typeof TIPO_JOB_SINTETICO> = async () => {
       tentativas++
       if (tentativas === 1) {
         await esperar(800)
-        throw new FalhaDeJob(JobFailureCode.FALHA_SINTETICA)
+        throw new JobFailureError(JobFailureCode.FALHA_SINTETICA)
       }
       await segundaTentativa
     }
     const id = await bancada.enfileirar(ESCOLA_A, { fila: 'normal' })
     const chave = bancada.vagas.chave('normal', ESCOLA_A)
-    bancada.worker(new LogEmMemoria('worker'), { pools: { normal: 5 }, processadores: { sintetico: processador }, intervaloRenovacaoDaVagaMs: 200 })
-    bancada.despachante(new LogEmMemoria('despachante')).despachante.iniciar()
+    bancada.worker(new InMemoryLog('worker'), { pools: { normal: 5 }, processadores: { sintetico: processador }, intervaloRenovacaoDaVagaMs: 200 })
+    bancada.despachante(new InMemoryLog('despachante')).despachante.iniciar()
 
     await aguardarEstado(id, 'ativo')
     const primeiro = Number(await bancada.redis.zscore(chave, id))
@@ -355,7 +355,7 @@ describe('vagas por escola e filas por prioridade', () => {
     // Validade de 1 s: três validades passam com os dois lotes da A publicados e nenhum worker de pé.
     const validadeDaVagaMs = 1_000
     const daEscolaA = await inserirJobs(ESCOLA_A, 'lote', 10, 'A')
-    bancada.despachante(new LogEmMemoria('despachante'), { validadeDaVagaMs }).despachante.iniciar()
+    bancada.despachante(new InMemoryLog('despachante'), { validadeDaVagaMs }).despachante.iniciar()
     await expect.poll(() => bancada.filas.lote.getJobCounts('waiting'), { timeout: 5_000, interval: 50 }).toEqual({ waiting: 2 })
     for (let conferencia = 0; conferencia < 7; conferencia++) {
       await esperar(500)
@@ -365,7 +365,7 @@ describe('vagas por escola e filas por prioridade', () => {
 
     // A réplica volta: a A segue com duas por vez, e a B entra sem esperar a pilha da A.
     const processador = contado(300)
-    bancada.worker(new LogEmMemoria('worker-lote'), { pools: { lote: 10 }, processadores: { sintetico: processador.processar }, validadeDaVagaMs, intervaloRenovacaoDaVagaMs: 200 })
+    bancada.worker(new InMemoryLog('worker-lote'), { pools: { lote: 10 }, processadores: { sintetico: processador.processar }, validadeDaVagaMs, intervaloRenovacaoDaVagaMs: 200 })
     const [daEscolaB = ''] = await inserirJobs(ESCOLA_B, 'lote', 1, 'B')
     await expect.poll(() => processador.iniciados('B'), { timeout: 3_000, interval: 20 }).toBe(1)
     await aguardarEstado(daEscolaB, 'concluido')
@@ -378,11 +378,11 @@ describe('vagas por escola e filas por prioridade', () => {
       ...DEFINICOES_DO_TESTE,
       [TIPO_JOB_SINTETICO]: defineJob({ ...DEFINICOES_DO_TESTE[TIPO_JOB_SINTETICO], retentativa: { tentativas: 2, recuoMs: 50, jitter: 0 } }),
     }
-    const curta = new BancadaDeFila(definicoes)
+    const curta = new QueueFixtures(definicoes)
     try {
       const escola = await curta.escola()
       const id = await curta.enfileirar(escola, { dados: { rotulo: 'A' } })
-      expect(await curta.despachante(new LogEmMemoria('despachante')).despachante.rodada()).toBe(1)
+      expect(await curta.despachante(new InMemoryLog('despachante')).despachante.rodada()).toBe(1)
       const naFila = await curta.fila.getJob(id)
       expect(naFila?.opts).toMatchObject({ attempts: 2, backoff: { type: 'exponential', delay: 50, jitter: 0 } })
     } finally {
@@ -391,15 +391,15 @@ describe('vagas por escola e filas por prioridade', () => {
   })
 
   it('o tipo da API vai à fila da API: o worker, que consome as filas do worker, não o recebe, e a linha segue publicada', async () => {
-    const daApi = new BancadaDeFila({ ...DEFINICOES_DO_TESTE, [TIPO_JOB_SINTETICO]: defineJob({ ...DEFINICOES_DO_TESTE[TIPO_JOB_SINTETICO], executor: 'api' }) })
+    const daApi = new QueueFixtures({ ...DEFINICOES_DO_TESTE, [TIPO_JOB_SINTETICO]: defineJob({ ...DEFINICOES_DO_TESTE[TIPO_JOB_SINTETICO], executor: 'api' }) })
     const filaDaApi = new Queue(bullmqQueueName('interativa', 'api'), { connection: daApi.redis, prefix: daApi.prefixo })
     filaDaApi.on('error', () => undefined)
     const processador = contado()
     try {
-      daApi.worker(new LogEmMemoria('worker'), { processadores: { sintetico: processador.processar } })
+      daApi.worker(new InMemoryLog('worker'), { processadores: { sintetico: processador.processar } })
       const escola = await daApi.escola()
       const id = await daApi.enfileirar(escola, { dados: { rotulo: 'A' } })
-      expect(await daApi.despachante(new LogEmMemoria('despachante')).despachante.rodada()).toBe(1)
+      expect(await daApi.despachante(new InMemoryLog('despachante')).despachante.rodada()).toBe(1)
       await expect.poll(async () => (await daApi.estado(id))?.estado, { timeout: 5_000, interval: 50 }).toBe('publicado')
       expect(await filaDaApi.getJob(id)).toBeDefined()
       expect(await daApi.fila.getJob(id)).toBeUndefined()
@@ -420,7 +420,7 @@ describe('vagas por escola e filas por prioridade', () => {
     await bancada.filas.lote.addBulk(ids.map((jobId) => ({ name: 'sintetico', data: { escolaId: ESCOLA_A, requisicaoId: null }, opts: { ...jobOptions(TIPO_JOB_SINTETICO), jobId } })))
     await runInContext({ requisicaoId: randomUUID(), escolaId: ESCOLA_A }, () => bancada.despacho.marcarPublicados(ids))
     const processador = contado(300)
-    const log = new LogEmMemoria('worker-lote')
+    const log = new InMemoryLog('worker-lote')
     const medidor = new MedidorDeTeste()
     bancada.worker(log, { pools: { lote: 10 }, processadores: { sintetico: processador.processar }, medidor: medidor.medidor })
 
@@ -479,8 +479,8 @@ describe('vagas por escola e filas por prioridade', () => {
     await bancada.configurarEscola(ESCOLA_C, { vagas: null, limiteReqEscolaMin: 10 })
     const processador = contado(200)
     for (const [escolaId, rotulo] of [[ESCOLA_A, 'A'], [ESCOLA_B, 'B'], [ESCOLA_C, 'C']] as const) await inserirJobs(escolaId, 'lote', 40, rotulo)
-    bancada.worker(new LogEmMemoria('worker-lote'), { pools: { lote: 20 }, processadores: { sintetico: processador.processar } })
-    bancada.despachante(new LogEmMemoria('despachante')).despachante.iniciar()
+    bancada.worker(new InMemoryLog('worker-lote'), { pools: { lote: 20 }, processadores: { sintetico: processador.processar } })
+    bancada.despachante(new InMemoryLog('despachante')).despachante.iniciar()
 
     await expect
       .poll(() => [processador.iniciados('A') >= 15, processador.iniciados('B') >= 6, processador.iniciados('C') >= 6], { timeout: 30_000, interval: 100 })
@@ -493,8 +493,8 @@ describe('vagas por escola e filas por prioridade', () => {
       const ocupantes = Array.from({ length: 5 }, () => randomUUID())
       await bancada.vagas.tomar('interativa', ESCOLA_A, 5, ocupantes)
       const daEscolaA = await Promise.all(Array.from({ length: 20 }, () => bancada.enfileirar(ESCOLA_A)))
-      bancada.worker(new LogEmMemoria('worker'), { pools: { interativa: 5 } })
-      bancada.despachante(new LogEmMemoria('despachante')).despachante.iniciar()
+      bancada.worker(new InMemoryLog('worker'), { pools: { interativa: 5 } })
+      bancada.despachante(new InMemoryLog('despachante')).despachante.iniciar()
 
       const daEscolaB = await bancada.enfileirar(ESCOLA_B)
       await aguardarEstado(daEscolaB, 'concluido', 3_000)

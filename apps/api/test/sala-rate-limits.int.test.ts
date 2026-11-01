@@ -15,11 +15,11 @@ import {
   TETO_DE_MATRICULAS_ERRADAS_POR_NOME,
 } from '../src/sala/sala-rate-limits.js'
 import { type LoginBucket, WindowCounter, PasswordHasher, JANELA_DO_CONTADOR_POR_IP_MS, HashBulkhead } from '../src/credencial/index.js'
-import { subirApi, type ApiDeTeste } from './test-api.js'
+import { subirApi, type TestApi } from './test-api.js'
 import { aguardar } from './write-block-trigger.js'
-import { FerramentasDaSala, pedidoDaSala, semRequisicao, SENHA_DA_SALA, type NomeDaLista, type RespostaDaSala, type SalaDeTeste } from './sala.fixture.js'
+import { FerramentasDaSala, pedidoDaSala, semRequisicao, SENHA_DA_SALA, type NomeDaLista, type RespostaDaSala, type TestSala } from './sala.fixture.js'
 import { ipSorteado } from './operador-mfa.fixture.js'
-import { BancadaDeSessoes } from './sessao.fixture.js'
+import { SessaoFixtures } from './sessao.fixture.js'
 
 /**
  * Os limites da página pública da sala (A1, tarefa 7.0; `tasks/prd-apresentacao-escola/cenarios.md`, seção L, e o I10):
@@ -57,12 +57,12 @@ async function emLotes<T>(quantas: number, tamanho: number, tarefa: (posicao: nu
 }
 
 describe('limites da sala (A1, tarefa 7.0): por escola, por nome e por turma, nunca por IP', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
   const linhasDeLog: string[] = []
-  let api: ApiDeTeste
+  let api: TestApi
   /** Com o pool do banco no tamanho mínimo (L3). */
-  let apiDoPool: ApiDeTeste
+  let apiDoPool: TestApi
   let sala: FerramentasDaSala
   let hashes: MockInstance<PasswordHasher['gerar']>
   let gerarReal: PasswordHasher['gerar']
@@ -108,7 +108,7 @@ describe('limites da sala (A1, tarefa 7.0): por escola, por nome e por turma, nu
   const linhasDoLimite = () => linhasDeLog.map((linha) => JSON.parse(linha) as Record<string, unknown>).filter((linha) => linha['evento'] === 'sala.limite_atingido')
 
   /** Um pedido com matrícula errada no nome, pelo código da sala. */
-  const errar = (de: SalaDeTeste, nome: NomeDaLista, extra: Record<string, unknown> = {}, ip?: string) =>
+  const errar = (de: TestSala, nome: NomeDaLista, extra: Record<string, unknown> = {}, ip?: string) =>
     sala.reivindicar(pedidoDaSala(de, nome, { matricula: matriculaErrada(), ...extra }), ip === undefined ? {} : { ip })
 
   describe('I10 e L4: o limite por nome só alcança o nome livre da turma do acesso', () => {

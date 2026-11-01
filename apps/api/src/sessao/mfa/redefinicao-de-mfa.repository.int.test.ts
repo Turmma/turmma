@@ -1,11 +1,11 @@
 import { runInContext } from '@educa/core'
 import { randomUUID } from 'node:crypto'
 import { afterAll, describe, expect, it } from 'vitest'
-import { BancadaDeSessoes } from '../../../test/sessao.fixture.js'
+import { SessaoFixtures } from '../../../test/sessao.fixture.js'
 import { RedefinicaoDeMfaRepository } from './redefinicao-de-mfa.repository.js'
 
 describe('RedefinicaoDeMfaRepository: o alvo é procurado só na escola do contexto', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
 
   afterAll(async () => {
     await bancada.fechar()

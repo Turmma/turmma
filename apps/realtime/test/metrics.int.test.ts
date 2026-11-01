@@ -3,20 +3,20 @@ import { METRICS } from '@educa/core'
 import type { Socket as SocketCliente } from 'socket.io-client'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
-import { BancadaDeSessoes, type SessaoDeTeste } from '../../api/test/sessao.fixture.js'
-import { conectar, criarCliente, loggerEmMemoria, subirInstancia, type InstanciaDeTeste } from './realtime.fixture.js'
+import { SessaoFixtures, type TestSessao } from '../../api/test/sessao.fixture.js'
+import { conectar, criarCliente, loggerEmMemoria, subirInstancia, type TestInstance } from './realtime.fixture.js'
 
 // Uma instância do realtime montada como no boot, com o Redis de fila do compose de teste, lendo as métricas
 // que ela exportaria.
 
 describe('métricas do realtime', () => {
   const medidor = new MedidorDeTeste()
-  const bancada = new BancadaDeSessoes()
-  let instancia: InstanciaDeTeste
+  const bancada = new SessaoFixtures()
+  let instancia: TestInstance
   const clientes: SocketCliente[] = []
   // Uma sessão real em cada escola: o handshake lê a sessão gravada antes de contar a conexão.
-  let sessaoDeA: SessaoDeTeste
-  let sessaoDeB: SessaoDeTeste
+  let sessaoDeA: TestSessao
+  let sessaoDeB: TestSessao
 
   beforeAll(async () => {
     instancia = await subirInstancia(loggerEmMemoria().logger, {}, medidor.medidor)

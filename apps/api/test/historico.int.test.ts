@@ -4,9 +4,9 @@ import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { TurmaRepository } from '../src/estrutura/turma/turma.repository.js'
-import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from './test-api.js'
+import { chamar, subirApi, type TestApi, type RespostaHttp } from './test-api.js'
 import { alunosNaTurma, montarEscolaComTurma, type EscolaComTurma } from './escola-turma.fixture.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
+import { SessaoFixtures, type TestSessao } from './sessao.fixture.js'
 
 const semRequisicao = (resposta: RespostaHttp) => ({ status: resposta.status, codigo: resposta.corpo.erro?.codigo, mensagem: (resposta.corpo.erro as { mensagem?: string } | undefined)?.mensagem })
 
@@ -24,20 +24,20 @@ const FINALIDADE = 'acompanhamento_pedagogico'
 interface EscolaComHistorico extends EscolaComTurma {
   readonly alunosDoB: readonly string[]
   readonly alunosDoC: readonly string[]
-  readonly continua: SessaoDeTeste
+  readonly continua: TestSessao
   readonly vinculoQueContinua: string
-  readonly desligado: SessaoDeTeste
-  readonly realocado: SessaoDeTeste
-  readonly nuncaConfirmou: SessaoDeTeste
-  readonly contestou: SessaoDeTeste
-  readonly duasDisciplinas: SessaoDeTeste
-  readonly aluno: SessaoDeTeste
+  readonly desligado: TestSessao
+  readonly realocado: TestSessao
+  readonly nuncaConfirmou: TestSessao
+  readonly contestou: TestSessao
+  readonly duasDisciplinas: TestSessao
+  readonly aluno: TestSessao
 }
 
 describe('histórico: o ano encerrado fica só em leitura, para a coordenação e para o professor que tinha a turma (10.0, RF16)', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
-  let api: ApiDeTeste
+  let api: TestApi
 
   beforeAll(async () => {
     api = await subirApi(medidor.medidor)
@@ -49,17 +49,17 @@ describe('histórico: o ano encerrado fica só em leitura, para a coordenação 
     await medidor.encerrar()
   })
 
-  const post = (sessao: SessaoDeTeste, caminho: string, corpo?: unknown): Promise<RespostaHttp> => chamar(api.url, 'POST', caminho, sessao.token, corpo)
-  const get = (sessao: SessaoDeTeste, caminho: string): Promise<RespostaHttp> => chamar(api.url, 'GET', caminho, sessao.token)
+  const post = (sessao: TestSessao, caminho: string, corpo?: unknown): Promise<RespostaHttp> => chamar(api.url, 'POST', caminho, sessao.token, corpo)
+  const get = (sessao: TestSessao, caminho: string): Promise<RespostaHttp> => chamar(api.url, 'GET', caminho, sessao.token)
   const ids = (resposta: RespostaHttp) => (resposta.corpo['itens'] as Array<{ usuarioId: string }>).map((aluno) => aluno.usuarioId)
 
-  async function vincular(escola: EscolaComTurma, professor: SessaoDeTeste, turmaId = escola.turma, disciplinaId = escola.quimica): Promise<string> {
+  async function vincular(escola: EscolaComTurma, professor: TestSessao, turmaId = escola.turma, disciplinaId = escola.quimica): Promise<string> {
     const resposta = await post(escola.coordenacao, '/v1/vinculos', { usuarioId: professor.usuarioId, turmaId, disciplinaId, papel: 'professor' })
     expect(resposta.status).toBe(201)
     return resposta.corpo['id'] as string
   }
 
-  async function confirmar(professor: SessaoDeTeste, id: string): Promise<void> {
+  async function confirmar(professor: TestSessao, id: string): Promise<void> {
     expect((await post(professor, `/v1/vinculos/${id}/confirmar`)).status).toBe(200)
   }
 

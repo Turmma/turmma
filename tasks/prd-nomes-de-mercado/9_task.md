@@ -79,7 +79,7 @@ O arquivo de componente do kit acompanha o componente na 9.0 (a 6.0 moveu só as
 
 31/10 — portão vermelho na duração de e2e/tokens.spec.ts:215 (só comentário): a onda não mexe no caso; a correção duracao-do-e2e-so-comentario tira da régua o caso de trecho sem comentário igual ao do HEAD (Tech Spec §13).
 
-31/10 — o encontro com a spec (a 7.0 e as duas correções do `conferir` e da duração) soma ao `travas.md` as linhas da 7.0; as citações de linha das Mutações abaixo (guardioes, tamanho-web e estados) passam a 168, 169 e 170, onde o bloco "Achadas na 9.0" ficou, depois do "Achadas na 7.0".
+31/10 — o encontro com a spec (a 7.0 e as duas correções do `conferir` e da duração) soma ao `travas.md` as linhas da 7.0; as citações de linha das Mutações abaixo (guardioes, tamanho-web e estados) passam a 168, 169 e 170, onde o bloco "Achadas na 9.0" ficou, depois do "Achadas na 7.0". No encontro seguinte (31/10, correção `encontro-9`), com a 8.0 da spec, o bloco "Achadas na 8.0" entrou antes dele e as citações passaram a 178, 179 e 180.
 
 31/10 — O conferir acusava os dois Linha de apps/web (o do kit e o de coordenacao/comum, que é da 10.0): limite (3) da ferramenta, consertado na correção 2026-10-31-conferir-homonimo-no-mesmo-pacote; a onda não mudou. Tech Spec §5 e casos.md (conferir) — triagem do Arquiteto, 31/10. Com a ferramenta nova o conferir mostrou quatro strings de `perigo-cheio.test.ts` (as duas de `<Botao …>` e as duas de `<Button …>`) sem exceção no mapa, e o restos mostrou o comentário de `tools/ci/duracao-do-e2e.test.ts:482`, que cita a troca `Campo` → `FormField`: as quatro entraram em `excecoesDoConferir` e o comentário em `fica` (inventario-web-e2e.md:554, item e), tudo no `9.json`.
 
@@ -145,7 +145,7 @@ teste: tools/renomear/restos.test.ts › a árvore não tem resto dos mapas apli
 +"apps/web/src/components/ui/ai/CaixaPedido.tsx": {
 ```
 
-**`guardioes.test.ts`** (linha 168, forma A). Com o arquivo de exemplo da exceção no nome antigo, o caso que confere que ele existe fica vermelho.
+**`guardioes.test.ts`** (linha 178, forma A). Com o arquivo de exemplo da exceção no nome antigo, o caso que confere que ele existe fica vermelho.
 
 ```mutacao
 arquivo: tools/processo/harness/guardioes.test.ts
@@ -161,7 +161,7 @@ teste: tools/processo/harness/guardioes.test.ts › cada exceção casa ao menos
 +{ prefixo: 'apps/web/src/components/ui/ai/', arquivo: 'apps/web/src/components/ui/ai/AssinaturaIA.tsx', guardioes: [P, C, I] },
 ```
 
-**`tamanho-web.test.ts`** (linha 169, forma C). O chunk de mentira só precisa casar `pecas-*.js`; o nome antigo nele é resto do mapa.
+**`tamanho-web.test.ts`** (linha 179, forma C). O chunk de mentira só precisa casar `pecas-*.js`; o nome antigo nele é resto do mapa.
 
 ```mutacao
 arquivo: tools/ci/tamanho-web.test.ts
@@ -170,7 +170,7 @@ teste: tools/renomear/restos.test.ts › a árvore não tem resto dos mapas apli
 +const sozinho = sizeLimit(buildDeMentira({ ...BUILD_PEQUENO, 'pecas-CaixaPedido.js': jsComBrotliDe(41_000) }))
 ```
 
-**`estados.test.tsx`** (linha 170, forma A). Com a peça no nome antigo, a lista de `chunk-names.ts` não a tem e o caso das peças novas fica vermelho.
+**`estados.test.tsx`** (linha 180, forma A). Com a peça no nome antigo, a lista de `chunk-names.ts` não a tem e o caso das peças novas fica vermelho.
 
 ```mutacao
 arquivo: apps/web/src/components/states/estados.test.tsx

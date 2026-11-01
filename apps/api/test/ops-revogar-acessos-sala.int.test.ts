@@ -4,9 +4,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { lerAmbienteDeTeste } from '../../../tools/ci/compose.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { executarOpsRevogarAcessosSala } from '../src/ops/revogar-acessos-sala.js'
-import { chamar, subirApi, type ApiDeTeste } from './test-api.js'
-import { FerramentasDaSala, type SalaDeTeste } from './sala.fixture.js'
-import { BancadaDeSessoes } from './sessao.fixture.js'
+import { chamar, subirApi, type TestApi } from './test-api.js'
+import { FerramentasDaSala, type TestSala } from './sala.fixture.js'
+import { SessaoFixtures } from './sessao.fixture.js'
 
 /**
  * `ops:revogar-acessos-sala` (A1, tarefa 9.0; `tasks/prd-apresentacao-escola/cenarios.md`, E29 e a concorrência): o
@@ -25,10 +25,10 @@ interface Execucao {
 }
 
 describe('ops:revogar-acessos-sala (A1, tarefa 9.0): o operador revoga os acessos da escola do log', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
   const ambiente = { ...lerAmbienteDeTeste(), OPERADOR }
-  let api: ApiDeTeste
+  let api: TestApi
   let sala: FerramentasDaSala
 
   beforeAll(async () => {
@@ -54,7 +54,7 @@ describe('ops:revogar-acessos-sala (A1, tarefa 9.0): o operador revoga os acesso
    * uma terceira turma com o acesso vencido. Devolve o link e o código vigentes de cada turma e os ids.
    */
   async function montarEscolaComAcessos(): Promise<{
-    sala: SalaDeTeste
+    sala: TestSala
     vigentes: Array<{ id: string; turmaId: string; token: string; codigo: string }>
     vencido: string
     revogadoAntes: string
@@ -97,7 +97,7 @@ describe('ops:revogar-acessos-sala (A1, tarefa 9.0): o operador revoga os acesso
     return rows[0]?.revogado_em ?? null
   }
 
-  const abre = async (montada: SalaDeTeste, pelo: { token: string } | { codigo: string }) => (await sala.abrir({ slug: montada.slug, ...pelo })).status
+  const abre = async (montada: TestSala, pelo: { token: string } | { codigo: string }) => (await sala.abrir({ slug: montada.slug, ...pelo })).status
 
   it('E29: revoga todos os vigentes de A na hora, link e código respondem NAO_ENCONTRADO, uma auditoria por acesso com o operador, e B intacta; a segunda execução revoga zero', async () => {
     const a = await montarEscolaComAcessos()

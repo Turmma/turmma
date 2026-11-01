@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
-import { subirApi, type ApiDeTeste, type RespostaHttp } from '../../test/test-api.js'
+import { subirApi, type TestApi, type RespostaHttp } from '../../test/test-api.js'
 import {
   alunosComSessao,
   aplicarAtividade,
@@ -21,7 +21,7 @@ import {
   type RotasDaAtividade,
 } from '../../test/atividade.fixture.js'
 import { montarEscolaComAssistente, NOME_DO_ALUNO_DE_TESTE, type EscolaComAssistente } from '../../test/escola-assistente.fixture.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from '../../test/sessao.fixture.js'
+import { SessaoFixtures, type TestSessao } from '../../test/sessao.fixture.js'
 
 /**
  * A atividade aplicada, do aplicar ao encerrar, e o lado do aluno (MVP, A3), com a API montada pelo `AppModule` e o
@@ -30,13 +30,13 @@ import { BancadaDeSessoes, type SessaoDeTeste } from '../../test/sessao.fixture.
  * e a validação do lote, em `correcao.int.test.ts`.
  */
 describe('atividade aplicada', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
   const linhasDeLog: string[] = []
-  let api: ApiDeTeste
+  let api: TestApi
   let rotas: RotasDaAtividade
   let a: EscolaComAssistente
-  let bia: SessaoDeTeste
+  let bia: TestSessao
 
   const sql = async <Linha extends Record<string, unknown>>(texto: string, valores: unknown[] = []): Promise<Linha[]> => (await bancada.pool.query(texto, valores)).rows as Linha[]
   const erro = (resposta: RespostaHttp) => ({ status: resposta.status, codigo: resposta.corpo.erro?.codigo })
@@ -56,7 +56,7 @@ describe('atividade aplicada', () => {
     api = await subirApi(medidor.medidor, {}, linhasDeLog)
     rotas = rotasDaAtividade(api)
     a = await montarEscolaComAssistente(api, bancada)
-    ;[bia] = (await alunosComSessao(bancada, a, a.turma, ['Aluna Sintética Bia Souza'])) as [SessaoDeTeste]
+    ;[bia] = (await alunosComSessao(bancada, a, a.turma, ['Aluna Sintética Bia Souza'])) as [TestSessao]
   })
 
   afterAll(async () => {
@@ -200,18 +200,18 @@ describe('atividade aplicada', () => {
     describe('só a escolha mais nova vale (51.0, RF21)', () => {
       const caminho = (id: string, questao: number) => `/v1/atividades-aplicadas/${id}/respostas/${String(questao)}`
       /** O `PUT` como o cliente novo o manda: a alternativa e a ordem dela. */
-      const responderComSequencia = (aluno: SessaoDeTeste, id: string, questao: number, alternativa: number, sequencia: number) => rotas.pedir(aluno, 'PUT', caminho(id, questao), { alternativa, sequencia })
+      const responderComSequencia = (aluno: TestSessao, id: string, questao: number, alternativa: number, sequencia: number) => rotas.pedir(aluno, 'PUT', caminho(id, questao), { alternativa, sequencia })
       const gravadasDe = (id: string, alunoId: string) =>
         sql<{ questao: number; alternativa: number; sequencia: number; respondida_em: Date }>('select questao, alternativa, sequencia::int as sequencia, respondida_em from resposta_atividade where atividade_aplicada_id = $1 and aluno_id = $2 order by questao', [id, alunoId])
       /** Um aluno por caso: o limite é de 120 requisições por minuto por usuário, e o das vinte repetições gasta 41. */
-      let alunos: SessaoDeTeste[]
+      let alunos: TestSessao[]
       beforeAll(async () => {
         alunos = await alunosComSessao(bancada, a, a.turma, Array.from({ length: 11 }, (_, i) => `Aluno sintético da sequência ${String(i + 1)}`))
       })
       const dessaForma = (resposta: RespostaHttp) => questaoSalvaResponseSchema.parse(resposta.corpo)
 
       it('5 e 7 ao mesmo tempo, nas duas ordens, deixam a 7: vinte repetições, e a prova reaberta devolve a alternativa e a sequência gravadas', async () => {
-        const aluno = alunos[0] as SessaoDeTeste
+        const aluno = alunos[0] as TestSessao
         const id = await aplicada()
         await rotas.prova(aluno, id)
         for (let repeticao = 0; repeticao < 20; repeticao++) {
@@ -225,7 +225,7 @@ describe('atividade aplicada', () => {
       })
 
       it('a 5 que chega depois da 7 responde 200 com a 7 gravada (alternativa e sequência), e nada muda no banco', async () => {
-        const aluno = alunos[1] as SessaoDeTeste
+        const aluno = alunos[1] as TestSessao
         const id = await aplicada()
         await rotas.prova(aluno, id)
         const sete = await responderComSequencia(aluno, id, 2, 3, 7)
@@ -238,7 +238,7 @@ describe('atividade aplicada', () => {
       })
 
       it('a mesma sequência com outra alternativa não troca a gravada (duas abas que leram a mesma): a segunda recebe a da primeira; o reenvio igual devolve a mesma', async () => {
-        const aluno = alunos[2] as SessaoDeTeste
+        const aluno = alunos[2] as TestSessao
         const id = await aplicada()
         await rotas.prova(aluno, id)
         await responderComSequencia(aluno, id, 1, 1, 6)
@@ -249,7 +249,7 @@ describe('atividade aplicada', () => {
       })
 
       it('a mesma sequência com outra alternativa, ao mesmo tempo: uma vence, e as duas respostas são iguais à linha gravada', async () => {
-        const aluno = alunos[10] as SessaoDeTeste
+        const aluno = alunos[10] as TestSessao
         const id = await aplicada()
         await rotas.prova(aluno, id)
         const [um, outro] = await Promise.all([responderComSequencia(aluno, id, 1, 1, 6), responderComSequencia(aluno, id, 1, 3, 6)])
@@ -265,7 +265,7 @@ describe('atividade aplicada', () => {
       })
 
       it('quem perde numa questão recebe a gravada daquela questão e daquele aluno, nunca a de outra questão nem a de um colega', async () => {
-        const aluno = alunos[3] as SessaoDeTeste
+        const aluno = alunos[3] as TestSessao
         const id = await aplicada()
         await rotas.prova(aluno, id)
         await responderComSequencia(bia, id, 2, 0, 90)
@@ -277,7 +277,7 @@ describe('atividade aplicada', () => {
       })
 
       it('cliente antigo (sem sequência) e depois o novo com servidor + 1: o novo vence, e o antigo sobe a sequência em 1', async () => {
-        const aluno = alunos[4] as SessaoDeTeste
+        const aluno = alunos[4] as TestSessao
         const id = await aplicada()
         await rotas.prova(aluno, id)
         expect(dessaForma(await rotas.responder(aluno, id, 4, 0))).toMatchObject({ alternativa: 0, sequencia: 1 })
@@ -291,7 +291,7 @@ describe('atividade aplicada', () => {
       })
 
       it('sequência negativa, fracionária, texto ou nula, ou uma chave a mais, é ENTRADA_INVALIDA, e nada é gravado', async () => {
-        const aluno = alunos[5] as SessaoDeTeste
+        const aluno = alunos[5] as TestSessao
         const id = await aplicada()
         await rotas.prova(aluno, id)
         for (const corpo of [{ alternativa: 1, sequencia: -1 }, { alternativa: 1, sequencia: 1.5 }, { alternativa: 1, sequencia: '3' }, { alternativa: 1, sequencia: null }, { alternativa: 1, sequencia: 1, alunoId: bia.usuarioId }, { alternativa: 1, sequencia: 1, escolaId: a.escolaId }]) {
@@ -304,7 +304,7 @@ describe('atividade aplicada', () => {
       })
 
       it('o aluno de A com a atividade de B recebe o mesmo 404 do inexistente, e nenhuma sequência de B muda', async () => {
-        const aluno = alunos[6] as SessaoDeTeste
+        const aluno = alunos[6] as TestSessao
         const b = await montarEscolaComAssistente(api, bancada)
         const deB = await aplicarAtividade(rotas, b.professora, await criarAtividade(bancada, b), b.turma)
         await rotas.prova(b.aluno, deB)
@@ -318,7 +318,7 @@ describe('atividade aplicada', () => {
       })
 
       it('depois do envio, ATIVIDADE_ENCERRADA com qualquer sequência, e o que estava salvo não muda', async () => {
-        const aluno = alunos[7] as SessaoDeTeste
+        const aluno = alunos[7] as TestSessao
         const id = await aplicada()
         await rotas.prova(aluno, id)
         await responderComSequencia(aluno, id, 1, 2, 5)
@@ -329,7 +329,7 @@ describe('atividade aplicada', () => {
       })
 
       it('a migration 0037 aplicada sobre linhas antigas deixa todas com sequência 0 (e o cliente antigo, a partir delas, sobe para 1)', async () => {
-        const aluno = alunos[8] as SessaoDeTeste
+        const aluno = alunos[8] as TestSessao
         // O texto do arquivo da migration, aplicado a uma tabela de rascunho que já tem linhas: é ele que o `migrate` roda no banco da escola.
         const migration = readFileSync(join(PASTA_MIGRACOES, '0037_sequencia_da_resposta.sql'), 'utf8')
         const cliente = await bancada.pool.connect()
@@ -438,7 +438,7 @@ describe('atividade aplicada', () => {
 
     it('o aluno que chega à turma depois de a atividade aberta a encontra na lista e responde', async () => {
       const id = await aplicada()
-      const [novato] = (await alunosComSessao(bancada, a, a.turma, ['Aluno Sintético que chegou em maio'])) as [SessaoDeTeste]
+      const [novato] = (await alunosComSessao(bancada, a, a.turma, ['Aluno Sintético que chegou em maio'])) as [TestSessao]
       expect(minhasAtividadesResponseSchema.parse((await rotas.minhas(novato)).corpo).itens.find((item) => item.id === id)).toMatchObject({ situacao: 'para_fazer' })
       await responderProva(rotas, novato, id, [...GABARITO_DE_TESTE])
       expect(await respostasDe(id, novato.usuarioId)).toHaveLength(5)

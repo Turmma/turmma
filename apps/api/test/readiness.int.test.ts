@@ -8,8 +8,8 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, onTestFinished } 
 import { aguardarSaudavel, compose } from '../../../tools/testes/compose.ts'
 import { AppModule } from '../src/app.module.js'
 import { configureApp } from '../src/configure-app.js'
-import { configuracaoDeTeste } from './test-config.js'
-import { BancadaDeSessoes } from './sessao.fixture.js'
+import { testConfig } from './test-config.js'
+import { SessaoFixtures } from './sessao.fixture.js'
 
 const DURACAO_DA_REQUISICAO_LENTA_MS = 2_500
 const ESPERA_DA_BORDA_MS = 1_500
@@ -26,7 +26,7 @@ class ControladorLento {
 }
 
 async function subirApi(ambiente: Record<string, string> = {}): Promise<{ app: INestApplication; url: string }> {
-  @Module({ imports: [AppModule.forRoot(configuracaoDeTeste({ ambiente, banco: { timeoutConexaoMs: 500, timeoutConsultaMs: 500 } }))], controllers: [ControladorLento] })
+  @Module({ imports: [AppModule.forRoot(testConfig({ ambiente, banco: { timeoutConexaoMs: 500, timeoutConsultaMs: 500 } }))], controllers: [ControladorLento] })
   class ModuloDeTeste {}
 
   const app = await NestFactory.create(ModuloDeTeste, { logger: false })
@@ -76,7 +76,7 @@ describe('GET /prontidao', () => {
 describe('drenagem no desligamento', () => {
   it('põe /prontidao em 503, segue atendendo durante a espera da borda, termina a requisição em andamento e só então fecha', async () => {
     const { app, url } = await subirApi({ DRENAGEM_ESPERA_BORDA_MS: String(ESPERA_DA_BORDA_MS), DRENAGEM_PRAZO_MS: '8000' })
-    const sessoes = new BancadaDeSessoes()
+    const sessoes = new SessaoFixtures()
     onTestFinished(() => sessoes.fechar())
     const { token } = await sessoes.escolaComSessao()
 

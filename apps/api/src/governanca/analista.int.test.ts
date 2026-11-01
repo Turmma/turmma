@@ -3,7 +3,7 @@ import { analistaNominalResponseSchema, resumoDoAnalistaResponseSchema, type Con
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
-import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from '../../test/test-api.js'
+import { chamar, subirApi, type TestApi, type RespostaHttp } from '../../test/test-api.js'
 import {
   alunosComSessao,
   aplicarAtividade,
@@ -30,7 +30,7 @@ import {
   type EscolaComAssistente,
 } from '../../test/escola-assistente.fixture.js'
 import { aplicarAtividade as gravarAplicacao, lancarLote, trocasJaFeitas } from '../../test/escola-tutor.fixture.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from '../../test/sessao.fixture.js'
+import { SessaoFixtures, type TestSessao } from '../../test/sessao.fixture.js'
 import { TETO_DE_PEDIDOS_DE_IA_POR_USUARIO } from '../assistente/ai-request-rate-limit.js'
 import { EXECUTOR_DE_AGENTE } from '../ia/ia.module.js'
 import { LIMIAR_DE_ACERTO_BAIXO_PERCENTUAL } from './analista.service.js'
@@ -49,22 +49,22 @@ const NOME_DA_BIA = 'Aluna Sintética Bia Souza'
  * - **Física tem uma professora só** (no 2ºB): o lote dela está aprovado, e mesmo assim o recorte não leva número.
  */
 describe('Analista de desempenho escolar', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
   const linhasDeLog: string[] = []
-  let api: ApiDeTeste
+  let api: TestApi
   let executor: InProcessAgenteExecutor
   let rotas: RotasDaAtividade
   let a: EscolaComAssistente
   let b: EscolaComAssistente
-  let bia: SessaoDeTeste
-  let alunoDoC: SessaoDeTeste
+  let bia: TestSessao
+  let alunoDoC: TestSessao
   /** A lista de Química do 2ºC, encerrada, com o lote ainda pendente. */
   let pendenteNoC: string
 
   const sql = async <Linha extends Record<string, unknown>>(texto: string, valores: unknown[] = []): Promise<Linha[]> => (await bancada.pool.query(texto, valores)).rows as Linha[]
-  const get = async (sessao: SessaoDeTeste, caminho: string): Promise<RespostaHttp> => chamar(api.url, 'GET', caminho, await sessao.tokenNovo())
-  const post = async (sessao: SessaoDeTeste, caminho: string, corpo: unknown = {}): Promise<RespostaHttp> => chamar(api.url, 'POST', caminho, await sessao.tokenNovo(), corpo)
+  const get = async (sessao: TestSessao, caminho: string): Promise<RespostaHttp> => chamar(api.url, 'GET', caminho, await sessao.tokenNovo())
+  const post = async (sessao: TestSessao, caminho: string, corpo: unknown = {}): Promise<RespostaHttp> => chamar(api.url, 'POST', caminho, await sessao.tokenNovo(), corpo)
   const erro = (resposta: RespostaHttp) => ({ status: resposta.status, codigo: resposta.corpo.erro?.codigo })
   const NAO_ENCONTRADO = { status: 404, codigo: 'NAO_ENCONTRADO' }
   const ENTRADA_INVALIDA = { status: 400, codigo: 'ENTRADA_INVALIDA' }
@@ -80,7 +80,7 @@ describe('Analista de desempenho escolar', () => {
     expect(resumo.id).toBe(execucao.resultado?.['resumoId'])
     return { id: resumo.id, conteudo: resumo.conteudo, texto: JSON.stringify(resposta.corpo) }
   }
-  const nominal = (sessao: SessaoDeTeste, turmaId: string, finalidade: string | null = FINALIDADE) =>
+  const nominal = (sessao: TestSessao, turmaId: string, finalidade: string | null = FINALIDADE) =>
     get(sessao, `/v1/analista/nominal?turmaId=${turmaId}${finalidade === null ? '' : `&finalidade=${finalidade}`}`)
   /** O 2025 da escola A, criado uma vez só (o ano é único por escola) e usado por quem precisar dele. */
   let anoAnterior: AnoAnterior | undefined
@@ -89,7 +89,7 @@ describe('Analista de desempenho escolar', () => {
     sql<{ autor_usuario_id: string; entidade_id: string; depois: unknown; finalidade: string }>(`select autor_usuario_id, entidade_id, depois, finalidade from auditoria where escola_id = $1 and acao = 'analista.nominal_lido' order by id`, [escola.escolaId])
 
   /** Aplica a lista, os alunos respondem e a professora encerra: o lote nasce pendente. Devolve o id da aplicação. */
-  const comLote = async (escola: EscolaComAssistente, professora: SessaoDeTeste, turmaId: string, disciplinaId: string, respostas: readonly (readonly [SessaoDeTeste, readonly number[]])[]): Promise<string> => {
+  const comLote = async (escola: EscolaComAssistente, professora: TestSessao, turmaId: string, disciplinaId: string, respostas: readonly (readonly [TestSessao, readonly number[]])[]): Promise<string> => {
     const id = await aplicarAtividade(rotas, professora, await criarAtividade(bancada, escola, { turmaId, disciplinaId }), turmaId)
     for (const [aluno, marcadas] of respostas) await responderProva(rotas, aluno, id, marcadas)
     if ((await encerrarAtividade(rotas, professora, id)) === null) throw new Error('o lote não nasceu')
@@ -102,8 +102,8 @@ describe('Analista de desempenho escolar', () => {
     rotas = rotasDaAtividade(api)
     a = await montarEscolaComAssistente(api, bancada)
     b = await montarEscolaComAssistente(api, bancada)
-    ;[bia] = (await alunosComSessao(bancada, a, a.turma, [NOME_DA_BIA])) as [SessaoDeTeste]
-    ;[alunoDoC] = (await alunosComSessao(bancada, a, a.outraTurma, ['Aluno Sintético do 2ºC'])) as [SessaoDeTeste]
+    ;[bia] = (await alunosComSessao(bancada, a, a.turma, [NOME_DA_BIA])) as [TestSessao]
+    ;[alunoDoC] = (await alunosComSessao(bancada, a, a.outraTurma, ['Aluno Sintético do 2ºC'])) as [TestSessao]
 
     // Química, 2ºB: aprovado.
     const quimicaDoB = await comLote(a, a.professora, a.turma, a.quimica, [[a.aluno, TODAS_CERTAS], [bia, QUASE_TUDO_ERRADO]])

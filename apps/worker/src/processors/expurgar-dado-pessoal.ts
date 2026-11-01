@@ -11,15 +11,15 @@ import {
   type Clock,
 } from '@educa/core'
 import { JobFailureCode, InvariantException, TIPO_EXPURGAR_ESCOLA, type TIPO_EXPURGAR_DADO_PESSOAL } from '@educa/shared'
-import type { Processador } from '../job-executor.js'
-import { FalhaDeJob } from '../job-failure.error.js'
+import type { JobProcessor } from '../job-executor.js'
+import { JobFailureError } from '../job-failure.error.js'
 
 /** A data local de `agora` no `fuso`, `AAAA-MM-DD`: a chave de idempotência do expurgo da escola naquela noite. */
 export function chaveDaNoite(fuso: string, agora: Date): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: fuso, year: 'numeric', month: '2-digit', day: '2-digit' }).format(agora)
 }
 
-export interface DependenciasDaRotinaDeExpurgo {
+export interface ExpurgoRoutineDependencies {
   escolas: Pick<CronEscolasRepository, 'listarIds'>
   banco: Database
   enfileirador: Pick<JobOutbox, 'enfileirarUmaVez'>
@@ -39,10 +39,10 @@ export interface DependenciasDaRotinaDeExpurgo {
  * Uma escola que falha não segura as outras: a rotina segue e, no fim, falha o job, para a fila tentar de novo (as que
  * já foram enfileiradas colidem na chave). Loga só contagens, e a escola que falhou pelo id.
  */
-export function criarRotinaDeExpurgo({ escolas, banco, enfileirador, janelaDaEscola, relogio, logger }: DependenciasDaRotinaDeExpurgo): Processador<typeof TIPO_EXPURGAR_DADO_PESSOAL> {
+export function criarRotinaDeExpurgo({ escolas, banco, enfileirador, janelaDaEscola, relogio, logger }: ExpurgoRoutineDependencies): JobProcessor<typeof TIPO_EXPURGAR_DADO_PESSOAL> {
   return async () => {
     const contexto = currentContext()
-    if (contexto?.rotinaDoSistema !== true) throw new FalhaDeJob(JobFailureCode.DADOS_INVALIDOS, true)
+    if (contexto?.rotinaDoSistema !== true) throw new JobFailureError(JobFailureCode.DADOS_INVALIDOS, true)
     const agora = relogio.agora()
     const ids = await escolas.listarIds()
     let enfileiradosTotal = 0

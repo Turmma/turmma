@@ -159,6 +159,16 @@ O relatório do `aplicar` da 7.0 achou estas, que a revisão da spec não listou
 | `tools/guardas/camadas.cjs` (`cerca-resolucao-de-tenant`, linha 147, e o `comment`) e `camadas.test.ts` (a chave, linha 142) | o nome da cerca acompanha a classe `TenantResolutionRepository` (observação do Orquestrador, levada da 6.0) | 7.0 | A | O `camadas.test.ts` com a chave antiga `'cerca-resolucao-de-tenant'`: o caso "toda regra da configuração tem a sua fixture, e nenhuma fixture é de regra que não existe" fica vermelho, porque o `camadas.cjs` não tem mais essa regra |
 | `infra/scripts/carga-login.ts`, `carga-sala.ts`, `ensaio-alertas.ts`, as chaves `criarSessoesSinteticas` e `emissorDeTokenSintetico` do tipo literal de `importar<…>` e as chamadas que as usam | `createSyntheticSessions` e `syntheticTokenIssuer`: a chave é o que o `dist` da api exporta, e o `importar<T>` é uma afirmação de tipo, então a chave antiga compilaria e quebraria na execução (a mesma troca da chave `HashDeSenha`, linha 85) | 7.0 | C (`tsc`) | `tsc -p infra/tsconfig.json`: a chave antiga numa chamada dá `TS2339` nas três; o `restos` não olha a chave nem o membro (`7_task.md`, "Mutações") |
 
+## Achadas na 8.0
+
+O relatório do `aplicar` da 8.0 achou estas, que a revisão da spec não listou (Tech Spec §5, passo 6). As linhas acima não mudam de número.
+
+| Trava | O que lê pelo nome | Onda | Forma | Prova |
+|---|---|---|---|---|
+| a descrição de `Symbol('…')` de cada token de DI de `apps/realtime/src/` (`app.module.ts`: `CLIENTE_REDIS_REALTIME`, `POOL_BANCO_REALTIME`; `system.gateway.ts`: `CONFIGURACAO_IDENTIDADE`, `LEITURA_DE_SESSAO`, `LOGGER_REALTIME`) | a descrição acompanha a constante (`inventario-back.md:565`) | 8.0 | C | O `restos` dá zero; a string entra em `excecoesDoConferir`. Nenhum teste lê a descrição |
+| o `this.name` de `FalhaDeJob`, `ErroParaAFila` e `PrazoDaFilaEsgotado`, e o `name: 'FalhaDeJob'` que `expurgo-da-escola.int.test.ts` e `expurgo-de-acesso.int.test.ts` esperam da rejeição | o nome da classe, que o log (`tipo`) e a pilha mostram, e que aparece na pilha que o BullMQ grava no Redis (adenda 1; `inventario-back.md:559`) | 8.0 | A (`FalhaDeJob`, pelos dois testes) e C (os outros dois) | A: o `this.name` de `JobFailureError` no nome antigo deixa vermelhos os dois testes, que esperam `JobFailureError`. C: o `restos` dá zero nos outros dois; a string entra em `excecoesDoConferir`. Nenhum alerta nem o runbook lê o nome (`grep` em `infra/` e `docs/`) |
+| `infra/compose.yml` (380), o comentário que cita `GRACA_DO_DESLIGAMENTO_MS` | a constante do worker, na justificativa do `stop_grace_period` | 8.0 | C | O `restos` dá zero; `docker compose config` sai igual (o comentário não entra na saída) |
+
 ## Achadas na 9.0
 
 O relatório do `aplicar` da 9.0 achou estas, que a revisão da spec não listou (Tech Spec §5, passo 6). As linhas acima não mudam de número.

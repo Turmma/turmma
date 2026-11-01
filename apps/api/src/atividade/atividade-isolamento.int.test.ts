@@ -3,11 +3,11 @@ import { desempenhoDaTurmaResponseSchema, minhasAtividadesResponseSchema, provaR
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
-import { subirApi, type ApiDeTeste, type RespostaHttp } from '../../test/test-api.js'
+import { subirApi, type TestApi, type RespostaHttp } from '../../test/test-api.js'
 import { alunosComSessao, aplicarAtividade, aprovarOLote, criarAtividade, encerrarAtividade, GABARITO_DE_TESTE, responderProva, rotasDaAtividade, type RotasDaAtividade } from '../../test/atividade.fixture.js'
 import { copiarArtefatoParaOAnoAnterior, montarAnoAnterior, montarEscolaComAssistente, vincularProfessor, type EscolaComAssistente } from '../../test/escola-assistente.fixture.js'
 import { lancarLote } from '../../test/escola-tutor.fixture.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from '../../test/sessao.fixture.js'
+import { SessaoFixtures, type TestSessao } from '../../test/sessao.fixture.js'
 import { AtividadeAplicadaRepository } from './atividade-aplicada/atividade-aplicada.repository.js'
 import { CorrecaoRepository } from './correcao/correcao.repository.js'
 import { DesempenhoRepository } from './desempenho/desempenho.repository.js'
@@ -24,15 +24,15 @@ import { MinhaAtividadeRepository } from './minha-atividade/minha-atividade.repo
  * quebra se a cláusula de escopo sair, mesmo com o vínculo dando a mesma resposta pela rota.
  */
 describe('isolamento da atividade e da correção', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
-  let api: ApiDeTeste
+  let api: TestApi
   let rotas: RotasDaAtividade
   let a: EscolaComAssistente
   let b: EscolaComAssistente
-  let pendente: SessaoDeTeste
-  let alunoDoC: SessaoDeTeste
-  let bia: SessaoDeTeste
+  let pendente: TestSessao
+  let alunoDoC: TestSessao
+  let bia: TestSessao
   /** Aberta, com uma resposta do Caio. */
   let aberta: string
   /** Encerrada, com o lote pendente e a Bia em destaque (em branco). */
@@ -57,7 +57,7 @@ describe('isolamento da atividade e da correção', () => {
     auditorias: await contar('auditoria', `escola_id = $1 and acao in ('atividade.aplicada', 'correcao.destaque_aberto', 'lote.aprovado', 'turma.desempenho_lido')`, [a.escolaId]),
   })
 
-  async function comLote(escola: EscolaComAssistente, alunos: readonly (readonly [SessaoDeTeste, readonly (number | null)[]])[]): Promise<{ id: string; entregaId: string }> {
+  async function comLote(escola: EscolaComAssistente, alunos: readonly (readonly [TestSessao, readonly (number | null)[]])[]): Promise<{ id: string; entregaId: string }> {
     const id = await aplicarAtividade(rotas, escola.professora, await criarAtividade(bancada, escola), escola.turma)
     for (const [aluno, marcadas] of alunos) await responderProva(rotas, aluno, id, marcadas)
     const entregaId = await encerrarAtividade(rotas, escola.professora, id)
@@ -72,8 +72,8 @@ describe('isolamento da atividade e da correção', () => {
     b = await montarEscolaComAssistente(api, bancada)
     pendente = await bancada.sessao(a.escolaId, 'professor')
     await vincularProfessor(bancada, a, pendente.usuarioId, a.turma, a.quimica, 'pendente')
-    ;[bia] = (await alunosComSessao(bancada, a, a.turma, ['Aluna Sintética Bia Souza'])) as [SessaoDeTeste]
-    ;[alunoDoC] = (await alunosComSessao(bancada, a, a.outraTurma, ['Aluno Sintético do 2ºC'])) as [SessaoDeTeste]
+    ;[bia] = (await alunosComSessao(bancada, a, a.turma, ['Aluna Sintética Bia Souza'])) as [TestSessao]
+    ;[alunoDoC] = (await alunosComSessao(bancada, a, a.outraTurma, ['Aluno Sintético do 2ºC'])) as [TestSessao]
 
     aprovada = await comLote(a, [[a.aluno, [...GABARITO_DE_TESTE]]])
     await aprovarOLote(rotas, a.professora, aprovada.id)
@@ -126,7 +126,7 @@ describe('isolamento da atividade e da correção', () => {
       const corpo = (artefatoId: string, turmaId: string) => ({ artefatoId, turmaId, avaliativa: false })
       const doInexistente = erro(await rotas.aplicar(a.professora, corpo(randomUUID(), a.turma)))
       expect(doInexistente).toEqual(NAO_ENCONTRADO)
-      const tentativas: [SessaoDeTeste, string, string][] = [
+      const tentativas: [TestSessao, string, string][] = [
         // De outra escola: o artefato de A, na turma de A ou na dela.
         [b.professora, artefatoDeA, a.turma],
         [b.professora, artefatoDeA, b.turma],
@@ -250,7 +250,7 @@ describe('isolamento da atividade e da correção', () => {
   })
 
   describe('no repository: o id certo com o contexto errado', () => {
-    const contexto = (escolaId: string, anoLetivoId: string, sessao: SessaoDeTeste, papel: PapelDeUsuario): RequestContext => ({ requisicaoId: randomUUID(), escolaId, usuarioId: sessao.usuarioId, papel, sessaoId: sessao.sessaoId, anoLetivoId })
+    const contexto = (escolaId: string, anoLetivoId: string, sessao: TestSessao, papel: PapelDeUsuario): RequestContext => ({ requisicaoId: randomUUID(), escolaId, usuarioId: sessao.usuarioId, papel, sessaoId: sessao.sessaoId, anoLetivoId })
     const vazio = (lido: unknown): boolean => lido === undefined || lido === false || lido === 0 || (Array.isArray(lido) && lido.length === 0) || (lido instanceof Map && lido.size === 0)
 
     it('cada leitura acha o dado no contexto da dona, e não acha nada com a escola trocada nem com o ano letivo trocado', async () => {
@@ -300,7 +300,7 @@ describe('isolamento da atividade e da correção', () => {
       const anterior = await montarAnoAnterior(bancada, a)
       const deAntes = { ...a, anoLetivoId: anterior.anoLetivoId }
       // Um aluno que só existiu no 2ºB de 2025: lá ele fez a lista, e o lote foi aprovado pela professora (que tem vínculo confirmado lá).
-      const [antigo] = (await alunosComSessao(bancada, deAntes, anterior.turmaId, ['Aluno Sintético de 2025'])) as [SessaoDeTeste]
+      const [antigo] = (await alunosComSessao(bancada, deAntes, anterior.turmaId, ['Aluno Sintético de 2025'])) as [TestSessao]
       const { artefatoId } = await copiarArtefatoParaOAnoAnterior(bancada, a, anterior, artefatoDeA)
       const [aplicacao] = await sql<{ id: string }>('insert into atividade_aplicada (escola_id, ano_letivo_id, turma_id, artefato_id, avaliativa, aplicada_por) values ($1, $2, $3, $4, false, $5) returning id', [a.escolaId, anterior.anoLetivoId, anterior.turmaId, artefatoId, a.professora.usuarioId])
       const aplicacaoId = aplicacao?.id ?? ''

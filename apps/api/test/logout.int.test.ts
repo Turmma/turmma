@@ -1,13 +1,13 @@
 import { ErrorCode } from '@educa/shared'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
-import { chamar, cookieDeRenovacao, estadoDaSessao, registrosDeAcesso, renovar, subirApi, type ApiDeTeste } from './test-api.js'
-import { BancadaDeSessoes } from './sessao.fixture.js'
+import { chamar, cookieDeRenovacao, estadoDaSessao, registrosDeAcesso, renovar, subirApi, type TestApi } from './test-api.js'
+import { SessaoFixtures } from './sessao.fixture.js'
 
 describe('DELETE /v1/sessao: sair encerra na hora', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
-  let api: ApiDeTeste
+  let api: TestApi
 
   beforeAll(async () => {
     api = await subirApi(medidor.medidor)

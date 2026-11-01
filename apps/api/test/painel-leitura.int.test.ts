@@ -16,7 +16,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
 import { PainelService } from '../src/operacao/painel/painel.service.js'
 import { esperarErro, pedir, PRAZO_DAS_CONSULTAS_MS, subirApiDoPainel, todasAsPaginas, type Resposta } from './painel.fixture.js'
-import { BancadaDeOperadores, type SessaoDeOperadorDeTeste } from './operador-session.fixture.js'
+import { OperadorFixtures, type TestOperadorSessao } from './operador-session.fixture.js'
 import { segurarTravaDaEscola } from './escola-lock.js'
 
 /**
@@ -42,7 +42,7 @@ const ZERO = periodo(0, 0, 0)
 const porId = (a: { id: string }, b: { id: string }) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
 
 describe('painel da operação: a lista de escolas e o uso, entre escolas (tarefa 5.0)', () => {
-  const operadores = new BancadaDeOperadores()
+  const operadores = new OperadorFixtures()
   const linhasDeLog: string[] = []
   const sufixo = randomUUID().slice(0, 8)
   const escolas: string[] = []
@@ -53,7 +53,7 @@ describe('painel da operação: a lista de escolas e o uso, entre escolas (taref
   let pool: DatabasePool
   let banco: Database
   let redeId: string
-  let sessao: SessaoDeOperadorDeTeste
+  let sessao: TestOperadorSessao
 
   async function umaLinha<T>(consulta: string, parametros: unknown[]): Promise<T> {
     const { rows } = await pool.query<T & Record<string, unknown>>(consulta, parametros)

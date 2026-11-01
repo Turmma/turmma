@@ -21,8 +21,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { AppModule } from '../src/app.module.js'
 import { DB_POOL } from '../src/database.module.js'
 import { configureApp } from '../src/configure-app.js'
-import { configuracaoDeTeste } from './test-config.js'
-import { BancadaDeSessoes } from './sessao.fixture.js'
+import { testConfig } from './test-config.js'
+import { SessaoFixtures } from './sessao.fixture.js'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const TABELA = `teste_erro_${Date.now()}`
@@ -114,11 +114,11 @@ function esperarEnvelopeSemVazamento(corpo: unknown, codigo: ErrorCode): string 
 
 describe('erro tipado e log sem dado pessoal', () => {
   let app: INestApplication
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
 
   beforeAll(async () => {
     @Module({
-      imports: [AppModule.forRoot(configuracaoDeTeste({ banco: { timeoutConexaoMs: 1_000, timeoutConsultaMs: 300 } }))],
+      imports: [AppModule.forRoot(testConfig({ banco: { timeoutConexaoMs: 1_000, timeoutConsultaMs: 300 } }))],
       controllers: [ControladorDeTeste, ControladorDeEco],
     })
     class ModuloDeTeste {}

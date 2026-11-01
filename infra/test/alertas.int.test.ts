@@ -1,7 +1,7 @@
 import pg from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cookieDaResposta, cookieDeRenovacao, renovar } from '../../apps/api/test/test-api.js'
-import { BancadaDeSessoes } from '../../apps/api/test/sessao.fixture.js'
+import { SessaoFixtures } from '../../apps/api/test/sessao.fixture.js'
 import { lerAmbienteDeTeste, valorObrigatorio } from '../../tools/ci/compose.ts'
 import { aguardarSaudavel, compose, composeAssincrono, composeAssincronoCom, composeAssincronoOuFalha, recriarDoZero } from '../../tools/testes/compose.ts'
 import { arquivosDeAlertaDoRepositorio } from '../../tools/guardas/alerta-tem-runbook.ts'
@@ -41,7 +41,7 @@ const DURACAO_DOS_JOBS_LONGOS_MS = 50_000
 const escolas: string[] = []
 const bancoUrl = urlDoBancoDeTeste()
 
-const sessoes = new BancadaDeSessoes()
+const sessoes = new SessaoFixtures()
 
 /** O token de uma sessão nova de coordenação na escola: a rota de job sintético é da unidade. */
 async function token(escolaId: string): Promise<string> {

@@ -8,9 +8,9 @@ import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { travarRedis } from '../../../tools/testes/redis-travado.ts'
 import { REDIS_LOGIN_CLIENT, ChallengeConsumer, LoginLockout, WindowCounter, ChallengeIssuer, PasswordHasher, PREFIXO_FALHAS_POR_IP_NA_ESCOLA, LoginFallbackTracker, HashBulkhead, verifyChallenge } from '../src/credencial/index.js'
 import { ESCOLA_DESCONHECIDA } from '../src/sessao/index.js'
-import { comoAWebNo503, subirApi, type ApiDeTeste } from './test-api.js'
-import { configuracaoDeTeste } from './test-config.js'
-import { BancadaDeSessoes } from './sessao.fixture.js'
+import { comoAWebNo503, subirApi, type TestApi } from './test-api.js'
+import { testConfig } from './test-config.js'
+import { SessaoFixtures } from './sessao.fixture.js'
 
 const SENHA = 'senha-sintetica-do-ataque-1'
 const SENHA_ERRADA = 'senha-sintetica-errada-do-ataque'
@@ -23,7 +23,7 @@ const AMBIENTE_DO_ATAQUE = { LOGIN_HASH_CONCORRENCIA: '1', LIMITE_PROXIES_CONFIA
 /** O limite por IP das rotas anônimas nesta API: baixo, para o teste passar dele sem milhares de pedidos. */
 const LIMITE_ANONIMO_POR_IP = Number(AMBIENTE_DO_ATAQUE.LIMITE_REQ_IP_ANONIMO_MIN)
 /** O limite por IP da rota de e-mail do ambiente de teste (o do `.env.example`). */
-const LIMITE_EMAIL_POR_IP = configuracaoDeTeste().login.limiteEmailPorIpMin
+const LIMITE_EMAIL_POR_IP = testConfig().login.limiteEmailPorIpMin
 
 interface Resposta {
   status: number
@@ -63,10 +63,10 @@ function cookieDeDispositivo(resposta: Resposta): string {
 }
 
 describe('ataque de senha nunca bloqueia a escola: rebaixa, por IP e escola, e quem já entrou naquele navegador mantém a vez', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
   const linhasDeLog: string[] = []
-  let api: ApiDeTeste
+  let api: TestApi
   let semaforo: HashBulkhead
   let hash: PasswordHasher
   let verificacoes: MockInstance<PasswordHasher['verificar']>
@@ -481,7 +481,7 @@ describe('ataque de senha nunca bloqueia a escola: rebaixa, por IP e escola, e q
   it('falha (Redis de fila parado): a conta segurada continua segurada, o rebaixamento segue em memória com o limiar dividido pelas instâncias (100 ÷ 2), e limite.seguro_ativo vai a 1', async () => {
     const e = await escola()
     const [aluno] = await alunos(e.escolaId, 1)
-    const instancias: ApiDeTeste[] = []
+    const instancias: TestApi[] = []
     const medidores: MedidorDeTeste[] = []
     const subir = async () => {
       const medidorDaInstancia = new MedidorDeTeste()
@@ -491,7 +491,7 @@ describe('ataque de senha nunca bloqueia a escola: rebaixa, por IP e escola, e q
       observeInsuranceLimiter(medidorDaInstancia.medidor, instancia.app.get(RateLimiter), instancia.app.get(LoginFallbackTracker))
       return { instancia, medidor: medidorDaInstancia }
     }
-    const pela = (instancia: ApiDeTeste) => async (matricula: string, senha: string, ip: string) => {
+    const pela = (instancia: TestApi) => async (matricula: string, senha: string, ip: string) => {
       naoPodemAparecer.add(ip)
       const resposta = await fetch(`${instancia.url}/v1/sessao/matricula`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': ip }, body: JSON.stringify({ slug: e.slug, matricula, senha }) })
       return lerResposta(resposta)
@@ -577,15 +577,15 @@ describe('ataque de senha nunca bloqueia a escola: rebaixa, por IP e escola, e q
     // O prazo de produção entra pela configuração, que é por onde o contêiner o recebe desde a correção
     // 2026-09-22-corte-de-100-ms-do-redis-recusa-o-desafio-no-e2e: montar sem a opção de teste já não significa
     // "produção", porque aí quem decide é o `AMBIENTE`, e o do compose de teste é `local`, com os 2 s da fila. A opção
-    // de montagem (`MONTAGEM_DE_TESTE`) também não serviria: ela pula justamente a leitura que se quer provar. Quem
+    // de montagem (`TEST_APP_OPTIONS`) também não serviria: ela pula justamente a leitura que se quer provar. Quem
     // diz que `staging` vale 100 ms é `config.test.ts`; aqui se prova que esse valor chega ao cliente.
     const instancia = await subirApi(medidorDoDesafio.medidor, { login: { prazoDoRedisMs: TIMEOUT_COMANDO_REDIS_API_MS } }, undefined, {})
     try {
       await clientePronto(instancia.app.get<Redis>(REDIS_LOGIN_CLIENT, { strict: false }))
       observeInsuranceLimiter(medidorDoDesafio.medidor, instancia.app.get(RateLimiter), instancia.app.get(LoginFallbackTracker))
-      const chave = configuracaoDeTeste().identidade.chaveAssinatura
+      const chave = testConfig().identidade.chaveAssinatura
       const desafio = await verifyChallenge(await new ChallengeIssuer(chave).emitir({ contaId: randomUUID(), etapa: 'mfa', mfaCumprido: false }), chave, ['mfa'])
-      const travado = await travarRedis(configuracaoDeTeste().redisFilaUrl, 3_000)
+      const travado = await travarRedis(testConfig().redisFilaUrl, 3_000)
       const comecou = performance.now()
       await expect(instancia.app.get(ChallengeConsumer).consumir(desafio)).rejects.toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
       // O corte é curto, e é isso que separa esta montagem da do compose: com o prazo da fila chegando até aqui, a

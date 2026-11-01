@@ -2,9 +2,9 @@ import { ErrorCode, MENSAGENS_DE_ERRO, type PapelDeUsuario } from '@educa/shared
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
-import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from './test-api.js'
+import { chamar, subirApi, type TestApi, type RespostaHttp } from './test-api.js'
 import { montarEscolaComAssistente, type EscolaComAssistente } from './escola-assistente.fixture.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
+import { SessaoFixtures, type TestSessao } from './sessao.fixture.js'
 
 /**
  * A borda de entrada de `atividade/`, `artefato/`, `material/`, `tutor/` e `privacidade/` (reengenharia, 17.0, RF5; D81):
@@ -159,9 +159,9 @@ const ROTAS: readonly Rota[] = [
 ]
 
 describe('a borda de entrada de atividade, artefato, material, tutor e privacidade: cada rota responde igual antes e depois do ZodValidationPipe e do IdPipe', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
-  let api: ApiDeTeste
+  let api: TestApi
   let escola: EscolaComAssistente
 
   beforeAll(async () => {
@@ -176,7 +176,7 @@ describe('a borda de entrada de atividade, artefato, material, tutor e privacida
     await medidor.encerrar()
   })
 
-  const sessaoDe = (papel: PapelDeUsuario): SessaoDeTeste => {
+  const sessaoDe = (papel: PapelDeUsuario): TestSessao => {
     if (papel === 'coordenador') return escola.coordenacao
     return papel === 'professor' ? escola.professora : escola.aluno
   }

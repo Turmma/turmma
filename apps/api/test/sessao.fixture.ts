@@ -16,7 +16,7 @@ export const OPERADOR_DE_TESTE = 'teste-integracao'
  */
 export const autorDaBancada = async (): Promise<string> => OPERADOR_DE_TESTE
 
-export interface SessaoDeTeste {
+export interface TestSessao {
   readonly escolaId: string
   readonly usuarioId: string
   readonly sessaoId: string
@@ -28,7 +28,7 @@ export interface SessaoDeTeste {
   tokenEm(agora: Date): Promise<string>
 }
 
-export interface OpcoesDeSessao {
+export interface SessaoFixtureOptions {
   papel?: PapelDeUsuario
   quantidade?: number
 }
@@ -64,7 +64,7 @@ export const TABELAS_DO_MVP_NA_ORDEM_DE_LIMPEZA = [
   'suspensao_de_funcao',
 ] as const
 
-export class BancadaDeSessoes {
+export class SessaoFixtures {
   readonly pool: DatabasePool
   readonly banco: Database
   readonly #ambiente: Record<string, string | undefined>
@@ -105,7 +105,7 @@ export class BancadaDeSessoes {
   }
 
   /** `quantidade` sessões na escola, cada uma de um usuário novo com o papel pedido (aluno, se nada for dito). */
-  async sessoes(escolaId: string, { papel = 'aluno', quantidade = 1 }: OpcoesDeSessao = {}): Promise<SessaoDeTeste[]> {
+  async sessoes(escolaId: string, { papel = 'aluno', quantidade = 1 }: SessaoFixtureOptions = {}): Promise<TestSessao[]> {
     const emissor = syntheticTokenIssuer(this.#ambiente)
     const criadas = await createSyntheticSessions(this.banco, this.#ambiente, { escolaId, papel, quantidade })
     return criadas.map((criada) => ({
@@ -117,7 +117,7 @@ export class BancadaDeSessoes {
     }))
   }
 
-  async sessao(escolaId: string, papel: PapelDeUsuario = 'aluno'): Promise<SessaoDeTeste> {
+  async sessao(escolaId: string, papel: PapelDeUsuario = 'aluno'): Promise<TestSessao> {
     const [criada] = await this.sessoes(escolaId, { papel })
     if (criada === undefined) throw new Error('sessão de teste não criada')
     return criada
@@ -175,7 +175,7 @@ export class BancadaDeSessoes {
   }
 
   /** Escola nova com uma sessão. */
-  async escolaComSessao(papel: PapelDeUsuario = 'aluno'): Promise<SessaoDeTeste> {
+  async escolaComSessao(papel: PapelDeUsuario = 'aluno'): Promise<TestSessao> {
     return this.sessao(await this.escola(), papel)
   }
 

@@ -8,9 +8,9 @@ import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { DisciplinaRepository } from '../src/estrutura/disciplina/disciplina.repository.js'
 import { TurmaRepository } from '../src/estrutura/turma/turma.repository.js'
 import { VinculoRepository } from '../src/estrutura/vinculo/vinculo.repository.js'
-import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from './test-api.js'
+import { chamar, subirApi, type TestApi, type RespostaHttp } from './test-api.js'
 import { alunosNaTurma, montarEscolaComTurma, type EscolaComTurma } from './escola-turma.fixture.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
+import { SessaoFixtures, type TestSessao } from './sessao.fixture.js'
 
 /** O status e o código do erro: o `requisicaoId` muda a cada chamada, e o resto precisa ser idêntico. */
 const semRequisicao = (resposta: RespostaHttp) => ({ status: resposta.status, codigo: resposta.corpo.erro?.codigo, mensagem: (resposta.corpo.erro as { mensagem?: string } | undefined)?.mensagem })
@@ -20,9 +20,9 @@ const NAO_ENCONTRADO = { status: 404, codigo: ErrorCode.NAO_ENCONTRADO, mensagem
 const FINALIDADE = 'acompanhamento_pedagogico'
 
 describe('acesso à turma: só o vínculo confirmado abre a turma e os alunos (RF5, RF15)', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
-  let api: ApiDeTeste
+  let api: TestApi
 
   beforeAll(async () => {
     api = await subirApi(medidor.medidor)
@@ -34,9 +34,9 @@ describe('acesso à turma: só o vínculo confirmado abre a turma e os alunos (R
     await medidor.encerrar()
   })
 
-  const post = (sessao: SessaoDeTeste | string, caminho: string, corpo?: unknown): Promise<RespostaHttp> =>
+  const post = (sessao: TestSessao | string, caminho: string, corpo?: unknown): Promise<RespostaHttp> =>
     chamar(api.url, 'POST', caminho, typeof sessao === 'string' ? sessao : sessao.token, corpo)
-  const get = (sessao: SessaoDeTeste | string, caminho: string): Promise<RespostaHttp> => chamar(api.url, 'GET', caminho, typeof sessao === 'string' ? sessao : sessao.token)
+  const get = (sessao: TestSessao | string, caminho: string): Promise<RespostaHttp> => chamar(api.url, 'GET', caminho, typeof sessao === 'string' ? sessao : sessao.token)
 
   async function vincular(escola: EscolaComTurma, usuarioId: string, turmaId = escola.turma, disciplinaId = escola.quimica): Promise<string> {
     const resposta = await post(escola.coordenacao, '/v1/vinculos', { usuarioId, turmaId, disciplinaId, papel: 'professor' })
@@ -44,7 +44,7 @@ describe('acesso à turma: só o vínculo confirmado abre a turma e os alunos (R
     return resposta.corpo['id'] as string
   }
 
-  async function confirmar(professor: SessaoDeTeste | string, id: string): Promise<void> {
+  async function confirmar(professor: TestSessao | string, id: string): Promise<void> {
     expect((await post(professor, `/v1/vinculos/${id}/confirmar`)).status).toBe(200)
   }
 
@@ -224,7 +224,7 @@ describe('acesso à turma: só o vínculo confirmado abre a turma e os alunos (R
 
   describe('isolamento entre escolas (regra 10; Tech Spec, seção 6)', () => {
     interface EscolaComVinculo extends EscolaComTurma {
-      readonly professor: SessaoDeTeste
+      readonly professor: TestSessao
       readonly vinculo: string
       readonly pendente: string
       readonly alunos: readonly string[]
@@ -285,7 +285,7 @@ describe('acesso à turma: só o vínculo confirmado abre a turma e os alunos (R
     it('`vinculos/:id/*` e `turmas/:id` com id de B dão o mesmo 404 do inexistente, e nada muda em B', async () => {
       const antesEmB = await estadoDe(b)
       const inexistente = randomUUID()
-      const pedidos: Array<[SessaoDeTeste, 'GET' | 'POST', (id: string) => string, unknown]> = [
+      const pedidos: Array<[TestSessao, 'GET' | 'POST', (id: string) => string, unknown]> = [
         [a.coordenacao, 'POST', (id) => `/v1/vinculos/${id}/encerrar`, { motivo: 'desligamento' }],
         [a.professor, 'POST', (id) => `/v1/vinculos/${id}/confirmar`, undefined],
         [a.professor, 'POST', (id) => `/v1/vinculos/${id}/contestar`, { contestacao: 'outro' }],

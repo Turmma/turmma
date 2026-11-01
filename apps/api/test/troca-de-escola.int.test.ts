@@ -14,9 +14,9 @@ import { travarRedis } from '../../../tools/testes/redis-travado.ts'
 import { AppModule } from '../src/app.module.js'
 import { configureApp } from '../src/configure-app.js'
 import { CHALLENGE_AUDIENCE, SecretCipher, REDIS_LOGIN_CLIENT, ChallengeIssuer, gerarSegredo, PasswordHasher, TIPO_DESAFIO, CHALLENGE_TTL_SECONDS } from '../src/credencial/index.js'
-import { configuracaoDeTeste, MONTAGEM_DE_TESTE } from './test-config.js'
+import { testConfig, TEST_APP_OPTIONS } from './test-config.js'
 import { montarEscolaComTurma } from './escola-turma.fixture.js'
-import { BancadaDeSessoes } from './sessao.fixture.js'
+import { SessaoFixtures } from './sessao.fixture.js'
 
 /** Senha sintética das contas deste teste: nenhuma é de pessoa real. */
 const SENHA_SINTETICA = 'senha-sintetica-correta-1'
@@ -43,7 +43,7 @@ interface Pessoa {
   escolaId: string
 }
 
-interface LinhaDeSessao {
+interface SessaoRow {
   id: string
   familia: string
   metodo: string
@@ -74,9 +74,9 @@ function nomesDosCookies(resposta: Resposta): string[] {
 }
 
 describe('POST /v1/sessao/escola e /v1/eu.acessos: quem trabalha em mais de uma escola escolhe e troca', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
-  const configuracao = configuracaoDeTeste()
+  const configuracao = testConfig()
   const cifra = new SecretCipher(configuracao.login.mfa.versaoCifra, configuracao.login.mfa.chavesCifra)
   const linhasDeLog: string[] = []
   /** Tudo que foi mandado ou recebido e não pode aparecer no log: e-mails, desafios, tokens e cookies. */
@@ -86,7 +86,7 @@ describe('POST /v1/sessao/escola e /v1/eu.acessos: quem trabalha em mais de uma 
   let hash: PasswordHasher
 
   beforeAll(async () => {
-    app = await NestFactory.create(AppModule.forRoot(configuracao, { medidor: medidor.medidor, ...MONTAGEM_DE_TESTE }), { logger: false })
+    app = await NestFactory.create(AppModule.forRoot(configuracao, { medidor: medidor.medidor, ...TEST_APP_OPTIONS }), { logger: false })
     configureApp(app, createLogger({ servico: 'api-teste', nivel: 'trace', destino: { write: (linha: string) => linhasDeLog.push(linha) } }), medidor.medidor)
     await app.listen(0, '127.0.0.1')
     url = `http://127.0.0.1:${(app.getHttpServer().address() as AddressInfo).port}`
@@ -191,15 +191,15 @@ describe('POST /v1/sessao/escola e /v1/eu.acessos: quem trabalha em mais de uma 
     return texto(escolhido.corpo['token'])
   }
 
-  async function sessoesDe(escolaId: string, usuarioId: string): Promise<LinhaDeSessao[]> {
-    const { rows } = await bancada.pool.query<LinhaDeSessao>(
+  async function sessoesDe(escolaId: string, usuarioId: string): Promise<SessaoRow[]> {
+    const { rows } = await bancada.pool.query<SessaoRow>(
       'select id, familia, metodo, conta_id, encerrada_em, motivo from sessao where escola_id = $1 and usuario_id = $2 order by id',
       [escolaId, usuarioId],
     )
     return rows
   }
 
-  async function sessaoUnica(escolaId: string, usuarioId: string): Promise<LinhaDeSessao> {
+  async function sessaoUnica(escolaId: string, usuarioId: string): Promise<SessaoRow> {
     const sessoes = await sessoesDe(escolaId, usuarioId)
     expect(sessoes).toHaveLength(1)
     const [unica] = sessoes
@@ -766,12 +766,12 @@ describe('POST /v1/sessao/escola e /v1/eu.acessos: quem trabalha em mais de uma 
   })
 
   it('esteira: com o Redis de fila respondendo acima dos 100 ms, a escolha da escola continua entrando (correção 2026-09-22-corte-de-100-ms-do-redis-recusa-o-desafio-no-e2e)', async () => {
-    // Esta instância monta **sem** `MONTAGEM_DE_TESTE`, de propósito: é a API como o contêiner do compose a sobe, com
+    // Esta instância monta **sem** `TEST_APP_OPTIONS`, de propósito: é a API como o contêiner do compose a sobe, com
     // o prazo do cliente Redis do login vindo só da configuração. É a montagem que o e2e usa, e a única que tinha
     // ficado presa aos 100 ms de produção.
     const medidorDoCompose = new MedidorDeTeste()
     const logDoCompose: string[] = []
-    const instancia = await NestFactory.create(AppModule.forRoot(configuracaoDeTeste(), { medidor: medidorDoCompose.medidor }), { logger: false })
+    const instancia = await NestFactory.create(AppModule.forRoot(testConfig(), { medidor: medidorDoCompose.medidor }), { logger: false })
     configureApp(instancia, createLogger({ servico: 'api-teste', nivel: 'trace', destino: { write: (linha: string) => logDoCompose.push(linha) } }), medidorDoCompose.medidor)
     await instancia.listen(0, '127.0.0.1')
     const urlDoCompose = `http://127.0.0.1:${String((instancia.getHttpServer().address() as AddressInfo).port)}`

@@ -5,9 +5,9 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { REDIS_LOGIN_CLIENT, PasswordHasher } from '../src/credencial/index.js'
-import { chamar, comoAWebNo503, subirApi, type ApiDeTeste } from './test-api.js'
+import { chamar, comoAWebNo503, subirApi, type TestApi } from './test-api.js'
 import { alunosNaTurma, montarEscolaComTurma } from './escola-turma.fixture.js'
-import { BancadaDeSessoes } from './sessao.fixture.js'
+import { SessaoFixtures } from './sessao.fixture.js'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const SENHA_DE_A = 'senha-sintetica-da-escola-a'
@@ -39,12 +39,12 @@ function matriculaRara(): string {
 }
 
 describe('POST /v1/sessao/matricula: o aluno entra pelo endereço da escola com matrícula e senha', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
   const linhasDeLog: string[] = []
   /** Matrículas raras e slugs digitados que passaram pelo login: nenhum pode aparecer no log. */
   const naoPodemIrAoLog = new Set<string>()
-  let api: ApiDeTeste
+  let api: TestApi
   let hash: PasswordHasher
   let verificacoes: ReturnType<typeof vi.spyOn>
   let hashDeA: string

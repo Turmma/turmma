@@ -7,9 +7,9 @@ import { Server } from 'socket.io'
 import { io, type Socket as SocketCliente } from 'socket.io-client'
 import { lerAmbienteDeTeste, valorObrigatorio } from '../../../tools/ci/compose.ts'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
-import { criarClienteRedisDoRealtime, prepararServidorRealtime } from '../src/redis-adapter.js'
-import { lerConfiguracao, type ConfiguracaoRealtime } from '../src/config.js'
-import { criarAplicacaoRealtime } from '../src/configure-app.js'
+import { createRealtimeRedisClient, prepareRealtimeServer } from '../src/redis-adapter.js'
+import { loadConfig, type RealtimeConfig } from '../src/config.js'
+import { createRealtimeApp } from '../src/configure-app.js'
 
 export const ambienteDeTeste = lerAmbienteDeTeste()
 
@@ -18,11 +18,11 @@ export function urlRedisDeFila(): string {
 }
 
 /**
- * Configuração pelo mesmo `lerConfiguracao` do boot, com o Redis de fila e o Postgres do compose de teste.
+ * Configuração pelo mesmo `loadConfig` do boot, com o Redis de fila e o Postgres do compose de teste.
  * O handshake lê a sessão gravada nesse Postgres, com a mesma consulta da API.
  */
-export function configuracaoDeTeste(ambiente: Record<string, string> = {}): ConfiguracaoRealtime {
-  return lerConfiguracao({
+export function testConfig(ambiente: Record<string, string> = {}): RealtimeConfig {
+  return loadConfig({
     ...ambienteDeTeste,
     REALTIME_PORTA: '3000',
     REDIS_FILA_URL: urlRedisDeFila(),
@@ -34,13 +34,13 @@ export function configuracaoDeTeste(ambiente: Record<string, string> = {}): Conf
   })
 }
 
-export interface InstanciaDeTeste {
+export interface TestInstance {
   app: INestApplication
   url: string
 }
 
-export async function subirInstancia(logger: LoggerBase, ambiente: Record<string, string> = {}, medidor?: Meter): Promise<InstanciaDeTeste> {
-  const app = await criarAplicacaoRealtime(configuracaoDeTeste(ambiente), logger, ...(medidor === undefined ? [] : [medidor]))
+export async function subirInstancia(logger: LoggerBase, ambiente: Record<string, string> = {}, medidor?: Meter): Promise<TestInstance> {
+  const app = await createRealtimeApp(testConfig(ambiente), logger, ...(medidor === undefined ? [] : [medidor]))
   await app.listen(0, '127.0.0.1')
   const { port } = app.getHttpServer().address() as AddressInfo
   return { app, url: `http://127.0.0.1:${port}` }
@@ -52,7 +52,7 @@ export function loggerEmMemoria(): { logger: LoggerBase; linhas: string[] } {
   return { linhas, logger: createLogger({ servico: 'realtime-teste', destino: { write: (linha: string) => linhas.push(linha) } }) }
 }
 
-export interface OpcoesDeConexao {
+export interface ConnectionOptions {
   /** Troca o `auth` do pacote de conexão (casos de recusa). */
   auth?: Record<string, unknown>
   query?: Record<string, string>
@@ -62,7 +62,7 @@ export interface OpcoesDeConexao {
 }
 
 /** Cliente com as opções de reconexão de `@educa/shared`, sem conectar ainda. */
-export function criarCliente(url: string, token: string | (() => string), opcoes: OpcoesDeConexao = {}): SocketCliente {
+export function criarCliente(url: string, token: string | (() => string), opcoes: ConnectionOptions = {}): SocketCliente {
   const padrao = realtimeClientOptions(typeof token === 'string' ? () => token : token)
   return io(`${url}${opcoes.namespace ?? SYSTEM_REALTIME_NAMESPACE}`, {
     ...padrao,
@@ -116,10 +116,10 @@ export function recusaDaConexao(cliente: SocketCliente, prazoMs = 5_000): Promis
  * desse cliente estiver lendo o stream.
  */
 export async function criarEmissor(tamanhoMaximoDoStream = 10_000): Promise<{ servidor: Server; fechar: () => Promise<void> }> {
-  const cliente = criarClienteRedisDoRealtime(urlRedisDeFila(), () => undefined)
+  const cliente = createRealtimeRedisClient(urlRedisDeFila(), () => undefined)
   await cliente.connect()
   // Servidor HTTP que nunca escuta: só para o `close()` do socket.io ter o que fechar.
-  const servidor = prepararServidorRealtime(new Server(createServer()), cliente, tamanhoMaximoDoStream)
+  const servidor = prepareRealtimeServer(new Server(createServer()), cliente, tamanhoMaximoDoStream)
   // Um namespace precisa existir no nó para ele publicar no stream.
   servidor.of(SYSTEM_REALTIME_NAMESPACE)
   return {

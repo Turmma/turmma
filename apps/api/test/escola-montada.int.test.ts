@@ -24,9 +24,9 @@ import type { z } from 'zod'
 import { hmacDoCodigoDaTurma, sortearCodigoDaTurma } from '../src/sala/codigo-da-sala.js'
 import { hashDoToken } from '../src/credencial/index.js'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
-import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from './test-api.js'
-import { configuracaoDeTeste } from './test-config.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
+import { chamar, subirApi, type TestApi, type RespostaHttp } from './test-api.js'
+import { testConfig } from './test-config.js'
+import { SessaoFixtures, type TestSessao } from './sessao.fixture.js'
 
 /**
  * Os cenários transversais da A1 (`tasks/prd-apresentacao-escola/cenarios.md`): I3, P1, A1, A3 e A4, cada um uma
@@ -72,9 +72,9 @@ import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
 interface EscolaMontada {
   readonly escolaId: string
   readonly slug: string
-  readonly coordenacao: SessaoDeTeste
-  readonly professor: SessaoDeTeste
-  readonly aluno: SessaoDeTeste
+  readonly coordenacao: TestSessao
+  readonly professor: TestSessao
+  readonly aluno: TestSessao
   /** Sem vínculo: renomear e excluir dão certo. */
   readonly disciplina: string
   readonly turma: string
@@ -437,13 +437,13 @@ const ROTAS_DA_A1: readonly RotaDaA1[] = [
 ]
 
 /** A sessão que chama a rota com sucesso: a da coordenação, ou a do professor ou do aluno na rota dele. */
-const autorDa = (rota: RotaDaA1, escola: EscolaMontada): SessaoDeTeste => (rota.autor === 'professor' ? escola.professor : rota.autor === 'aluno' ? escola.aluno : escola.coordenacao)
+const autorDa = (rota: RotaDaA1, escola: EscolaMontada): TestSessao => (rota.autor === 'professor' ? escola.professor : rota.autor === 'aluno' ? escola.aluno : escola.coordenacao)
 
 describe('escola montada (A1): as varreduras transversais sobre as rotas novas', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
   const linhasDeLog: string[] = []
-  let api: ApiDeTeste
+  let api: TestApi
   /** A escola B: só é alvo de pedidos da A, e nunca muda. */
   let b: EscolaMontada
 
@@ -575,7 +575,7 @@ describe('escola montada (A1): as varreduras transversais sobre as rotas novas',
   }
 
   /** Chama a rota com o id no lugar do parâmetro do caminho, se ela tem um; a anônima, sem token. */
-  function pedir(rota: RotaDaA1, sessao: SessaoDeTeste, alvo: string | undefined, corpo?: Record<string, unknown>): Promise<RespostaHttp> {
+  function pedir(rota: RotaDaA1, sessao: TestSessao, alvo: string | undefined, corpo?: Record<string, unknown>): Promise<RespostaHttp> {
     const [verbo, caminho] = rota.rota.split(' ') as [string, string]
     const endereco = alvo === undefined ? caminho : caminho.replace(/:[A-Za-z]+/, alvo)
     return chamar(api.url, verbo, endereco, rota.anonima === true ? undefined : sessao.token, corpo, { 'X-Forwarded-For': IP_DO_PEDIDO })
@@ -667,9 +667,9 @@ describe('escola montada (A1): as varreduras transversais sobre as rotas novas',
         // Na rota da coordenação, o professor e o aluno; na do professor, a coordenação, o aluno e o professor na turma em
         // que ele não tem vínculo; na aberta ao professor, o aluno e o professor sem vínculo; na do aluno, a coordenação e o
         // professor (P4).
-        const semVinculo = (): Array<readonly [string, SessaoDeTeste, string | undefined]> =>
+        const semVinculo = (): Array<readonly [string, TestSessao, string | undefined]> =>
           rota.alvoSemVinculo === undefined ? [] : [['professor sem vínculo na turma', a.professor, rota.alvoSemVinculo(a)]]
-        const tentativas: Array<readonly [string, SessaoDeTeste, string | undefined]> =
+        const tentativas: Array<readonly [string, TestSessao, string | undefined]> =
           rota.autor === 'professor'
             ? [['coordenação', a.coordenacao, rota.alvo?.(a)], ['aluno', a.aluno, rota.alvo?.(a)], ...semVinculo()]
             : rota.autor === 'aluno'
@@ -781,7 +781,7 @@ describe('escola montada (A1): as varreduras transversais sobre as rotas novas',
     expect(linhas.filter((linha) => linha['evento'] === 'http.erro')).toHaveLength(erros)
     const todoOLog = linhasDeLog.join('\n')
     // A chave do HMAC do código da turma na API de teste: o log não tem o código digitado nem o HMAC dele.
-    const chaveDoCodigo = configuracaoDeTeste().sala.chaveCodigo
+    const chaveDoCodigo = testConfig().sala.chaveCodigo
     for (const escola of escolas) {
       for (const sentinela of [
         ...Object.values(escola.nomes),

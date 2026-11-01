@@ -7,7 +7,7 @@ import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { TrechoSearch } from '../src/material/trecho-search.js'
 import { PdfExtractor, type ResultadoDaExtracao } from '../src/material/pdf-extraction.js'
 import { ENVIOS_POR_ESCOLA_NA_JANELA, ENVIOS_POR_USUARIO_NA_JANELA, IDADE_DO_MATERIAL_PARADO_MS, MATERIAIS_EM_PROCESSAMENTO_POR_ESCOLA, MaterialService } from '../src/material/material.service.js'
-import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from './test-api.js'
+import { chamar, subirApi, type TestApi, type RespostaHttp } from './test-api.js'
 import { montarEscolaComTurma as montarEscola, type EscolaComTurma } from './escola-turma.fixture.js'
 import {
   apagarMateriais,
@@ -22,7 +22,7 @@ import {
   trechosDa,
   variacaoDoPdf,
 } from './material.fixture.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
+import { SessaoFixtures, type TestSessao } from './sessao.fixture.js'
 
 /** `quantidade` campos de texto que o contrato não tem, para encher o multipart. */
 function camposAMais(quantidade: number): Record<string, string> {
@@ -42,24 +42,24 @@ const PDF_ACIMA_DO_TETO = Buffer.concat([PDF_DE_DEMONSTRACAO, Buffer.alloc(MAXIM
  * professor. O isolamento entre escolas está em `material-isolamento.int.test.ts`.
  */
 describe('material da escola', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
   const linhasDeLog: string[] = []
-  let api: ApiDeTeste
+  let api: TestApi
   /** As escolas que o teste montou: o material delas sai antes de a bancada apagar as disciplinas. */
   const escolasDoTeste: string[] = []
 
-  async function montarEscolaComTurma(daApi: ApiDeTeste, daBancada: BancadaDeSessoes): Promise<EscolaComTurma> {
+  async function montarEscolaComTurma(daApi: TestApi, daBancada: SessaoFixtures): Promise<EscolaComTurma> {
     const escola = await montarEscola(daApi, daBancada)
     escolasDoTeste.push(escola.coordenacao.escolaId)
     return escola
   }
 
-  const get = (sessao: SessaoDeTeste, caminho: string): Promise<RespostaHttp> => chamar(api.url, 'GET', caminho, sessao.token)
-  const del = (sessao: SessaoDeTeste, caminho: string): Promise<RespostaHttp> => chamar(api.url, 'DELETE', caminho, sessao.token)
-  const post = (sessao: SessaoDeTeste, caminho: string, corpo?: unknown): Promise<RespostaHttp> => chamar(api.url, 'POST', caminho, sessao.token, corpo)
+  const get = (sessao: TestSessao, caminho: string): Promise<RespostaHttp> => chamar(api.url, 'GET', caminho, sessao.token)
+  const del = (sessao: TestSessao, caminho: string): Promise<RespostaHttp> => chamar(api.url, 'DELETE', caminho, sessao.token)
+  const post = (sessao: TestSessao, caminho: string, corpo?: unknown): Promise<RespostaHttp> => chamar(api.url, 'POST', caminho, sessao.token, corpo)
   const erroDe = (resposta: RespostaHttp) => ({ status: resposta.status, codigo: resposta.corpo.erro?.codigo })
-  const buscar = (sessao: SessaoDeTeste, q: string, resto = '') => get(sessao, `/v1/materiais/busca?q=${encodeURIComponent(q)}${resto}`)
+  const buscar = (sessao: TestSessao, q: string, resto = '') => get(sessao, `/v1/materiais/busca?q=${encodeURIComponent(q)}${resto}`)
   const itensDe = (resposta: RespostaHttp) => buscaDeMaterialResponseSchema.parse(resposta.corpo).itens
 
   /** O conteúdo da página como o material o escreve, sem o rodapé corrido. */
@@ -74,7 +74,7 @@ describe('material da escola', () => {
   }
 
   /** Um professor da escola com vínculo na turma e na disciplina, `confirmado` ou ainda `pendente`. */
-  async function professorCom(escola: EscolaComTurma, disciplinaId: string, confirmar: boolean): Promise<SessaoDeTeste> {
+  async function professorCom(escola: EscolaComTurma, disciplinaId: string, confirmar: boolean): Promise<TestSessao> {
     const professor = await bancada.sessao(escola.coordenacao.escolaId, 'professor')
     const criado = await post(escola.coordenacao, '/v1/vinculos', { usuarioId: professor.usuarioId, turmaId: escola.turma, disciplinaId, papel: 'professor' })
     expect(criado.status).toBe(201)
@@ -563,7 +563,7 @@ describe('material da escola', () => {
       const pendente = await professorCom(escola, escola.quimica, false)
       const semVinculo = await bancada.sessao(escola.coordenacao.escolaId, 'professor')
 
-      const lista = async (sessao: SessaoDeTeste, consulta = '') => listaDeMateriaisResponseSchema.parse((await get(sessao, `/v1/materiais${consulta}`)).corpo).itens.map((item) => item.id)
+      const lista = async (sessao: TestSessao, consulta = '') => listaDeMateriaisResponseSchema.parse((await get(sessao, `/v1/materiais${consulta}`)).corpo).itens.map((item) => item.id)
       expect(await lista(confirmado)).toEqual([deQuimica])
       // O filtro do cliente só restringe: pedir a disciplina sem vínculo não a abre.
       expect(await lista(confirmado, `?disciplinaId=${escola.fisica}`)).toEqual([])

@@ -3,15 +3,15 @@ import pg from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
-import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from './test-api.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
+import { chamar, subirApi, type TestApi, type RespostaHttp } from './test-api.js'
+import { SessaoFixtures, type TestSessao } from './sessao.fixture.js'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
 
 describe('estrutura: a coordenação monta o ano letivo, as séries, as disciplinas e as turmas (RF2)', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
-  let api: ApiDeTeste
+  let api: TestApi
 
   beforeAll(async () => {
     api = await subirApi(medidor.medidor)
@@ -23,26 +23,26 @@ describe('estrutura: a coordenação monta o ano letivo, as séries, as discipli
     await medidor.encerrar()
   })
 
-  const post = (sessao: SessaoDeTeste, caminho: string, corpo?: unknown): Promise<RespostaHttp> => chamar(api.url, 'POST', caminho, sessao.token, corpo)
-  const get = (sessao: SessaoDeTeste, caminho: string): Promise<RespostaHttp> => chamar(api.url, 'GET', caminho, sessao.token)
-  const patch = (sessao: SessaoDeTeste, caminho: string, corpo: unknown): Promise<RespostaHttp> => chamar(api.url, 'PATCH', caminho, sessao.token, corpo)
-  const excluir = (sessao: SessaoDeTeste, caminho: string): Promise<RespostaHttp> => chamar(api.url, 'DELETE', caminho, sessao.token)
+  const post = (sessao: TestSessao, caminho: string, corpo?: unknown): Promise<RespostaHttp> => chamar(api.url, 'POST', caminho, sessao.token, corpo)
+  const get = (sessao: TestSessao, caminho: string): Promise<RespostaHttp> => chamar(api.url, 'GET', caminho, sessao.token)
+  const patch = (sessao: TestSessao, caminho: string, corpo: unknown): Promise<RespostaHttp> => chamar(api.url, 'PATCH', caminho, sessao.token, corpo)
+  const excluir = (sessao: TestSessao, caminho: string): Promise<RespostaHttp> => chamar(api.url, 'DELETE', caminho, sessao.token)
 
   const periodo = (ano: number) => ({ ano, inicio: `${ano}-02-01`, fim: `${ano}-12-15` })
 
-  async function criarAno(coordenacao: SessaoDeTeste, ano: number): Promise<string> {
+  async function criarAno(coordenacao: TestSessao, ano: number): Promise<string> {
     const resposta = await post(coordenacao, '/v1/anos-letivos', periodo(ano))
     expect(resposta.status).toBe(201)
     return resposta.corpo['id'] as string
   }
 
-  async function anoEmCurso(coordenacao: SessaoDeTeste, ano: number): Promise<string> {
+  async function anoEmCurso(coordenacao: TestSessao, ano: number): Promise<string> {
     const id = await criarAno(coordenacao, ano)
     expect((await post(coordenacao, `/v1/anos-letivos/${id}/abrir`)).status).toBe(200)
     return id
   }
 
-  async function criarSerie(coordenacao: SessaoDeTeste, etapa: string, ano: number): Promise<string> {
+  async function criarSerie(coordenacao: TestSessao, etapa: string, ano: number): Promise<string> {
     const resposta = await post(coordenacao, '/v1/series', { etapa, ano })
     expect(resposta.status).toBe(201)
     return resposta.corpo['id'] as string
@@ -380,13 +380,13 @@ describe('estrutura: a coordenação monta o ano letivo, as séries, as discipli
   })
 
   describe('E2 (A1, RF3): a coordenação renomeia e exclui disciplina e turma', () => {
-    async function criarDisciplina(coordenacao: SessaoDeTeste, nome: string): Promise<Record<string, unknown>> {
+    async function criarDisciplina(coordenacao: TestSessao, nome: string): Promise<Record<string, unknown>> {
       const resposta = await post(coordenacao, '/v1/disciplinas', { nome, area: 'ciencias_da_natureza' })
       expect(resposta.status).toBe(201)
       return resposta.corpo
     }
 
-    async function criarTurma(coordenacao: SessaoDeTeste, serieId: string, nome: string): Promise<Record<string, unknown>> {
+    async function criarTurma(coordenacao: TestSessao, serieId: string, nome: string): Promise<Record<string, unknown>> {
       const resposta = await post(coordenacao, '/v1/turmas', { serieId, nome, turno: 'tarde' })
       expect(resposta.status).toBe(201)
       return resposta.corpo

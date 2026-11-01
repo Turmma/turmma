@@ -7,11 +7,11 @@ import { randomUUID } from 'node:crypto'
 import request from 'supertest'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { compose, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
-import { BancadaDeFila, LogEmMemoria } from '../../worker/test/queue.fixture.js'
+import { QueueFixtures, InMemoryLog } from '../../worker/test/queue.fixture.js'
 import { AppModule } from '../src/app.module.js'
 import { configureApp } from '../src/configure-app.js'
-import { configuracaoDeTeste } from './test-config.js'
-import { BancadaDeSessoes } from './sessao.fixture.js'
+import { testConfig } from './test-config.js'
+import { SessaoFixtures } from './sessao.fixture.js'
 
 /** Uma escola que o corpo tenta impor: não precisa existir, o corpo estrito recusa o campo. */
 const ESCOLA_NO_CORPO = '0190f5a0-0000-7000-8000-00000000000b'
@@ -19,8 +19,8 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const ROTA = '/v1/sistema/jobs-sinteticos'
 
 
-async function subirApi(log: LogEmMemoria, ambiente: Record<string, string> = {}): Promise<INestApplication> {
-  const app = await NestFactory.create(AppModule.forRoot(configuracaoDeTeste({ ambiente })), { logger: false })
+async function subirApi(log: InMemoryLog, ambiente: Record<string, string> = {}): Promise<INestApplication> {
+  const app = await NestFactory.create(AppModule.forRoot(testConfig({ ambiente })), { logger: false })
   configureApp(app, log.logger)
   await app.listen(0, '127.0.0.1')
   return app
@@ -36,8 +36,8 @@ function semRequisicaoId(corpo: { erro: Record<string, unknown> }): Record<strin
 const pedidoValido = { fila: 'interativa', cpuMs: 0, naoUrgente: false }
 
 describe('POST e GET /v1/sistema/jobs-sinteticos', () => {
-  const log = new LogEmMemoria('api')
-  const sessoes = new BancadaDeSessoes()
+  const log = new InMemoryLog('api')
+  const sessoes = new SessaoFixtures()
   let app: INestApplication
   let pool: DatabasePool
   // Escolas e sessões reais: a SessaoGuard lê a sessão do token. Coordenação: a rota de job sintético é da unidade.
@@ -55,7 +55,7 @@ describe('POST e GET /v1/sistema/jobs-sinteticos', () => {
     // Um despachante do compose de pé tiraria o job de `aguardando` antes de o teste olhar.
     compose('stop', ...PROCESSOS_DA_FILA)
     app = await subirApi(log, { ROTAS_SINTETICAS: 'true' })
-    pool = createPool(configuracaoDeTeste().banco, () => undefined)
+    pool = createPool(testConfig().banco, () => undefined)
     const sessaoA = await sessoes.escolaComSessao('coordenador')
     const sessaoB = await sessoes.escolaComSessao('coordenador')
     ESCOLA_A = sessaoA.escolaId
@@ -121,7 +121,7 @@ describe('POST e GET /v1/sistema/jobs-sinteticos', () => {
   })
 
   it('caminho feliz com despachante e worker: o GET mostra aguardando, ativo e concluido, com as datas', async () => {
-    const bancada = new BancadaDeFila()
+    const bancada = new QueueFixtures()
     try {
       await bancada.limparRegistro()
       const resposta = await request(app.getHttpServer()).post(ROTA).set('Authorization', `Bearer ${tokenB}`).send({ ...pedidoValido, cpuMs: 1_500 })
@@ -129,8 +129,8 @@ describe('POST e GET /v1/sistema/jobs-sinteticos', () => {
       const consultar = async () => (await request(app.getHttpServer()).get(`${ROTA}/${jobId}`).set('Authorization', `Bearer ${tokenB}`)).body as Record<string, unknown>
 
       expect((await consultar())['estado']).toBe('aguardando')
-      bancada.worker(new LogEmMemoria('worker'))
-      bancada.despachante(new LogEmMemoria('despachante')).despachante.iniciar()
+      bancada.worker(new InMemoryLog('worker'))
+      bancada.despachante(new InMemoryLog('despachante')).despachante.iniciar()
 
       await expect.poll(async () => (await consultar())['estado'], { timeout: 10_000, interval: 100 }).toBe('ativo')
       expect(await consultar()).toEqual({ estado: 'ativo', criadoEm: expect.any(String), iniciadoEm: expect.any(String) })
@@ -146,7 +146,7 @@ describe('POST e GET /v1/sistema/jobs-sinteticos', () => {
   it('job que falhou de vez aparece no GET como falhou, com o código tipado e a data', async () => {
     const criado = await request(app.getHttpServer()).post(ROTA).set('Authorization', `Bearer ${tokenA}`).send(pedidoValido)
     const jobId = (criado.body as { jobId: string }).jobId
-    const bancada = new BancadaDeFila()
+    const bancada = new QueueFixtures()
     try {
       // O que o worker grava na última tentativa, pelo mesmo repository e no escopo da escola do job.
       await bancada.reservar(ESCOLA_A)
@@ -209,7 +209,7 @@ describe('POST e GET /v1/sistema/jobs-sinteticos', () => {
     })
 
     it('com ROTAS_SINTETICAS=false, o POST responde o mesmo 404 de uma rota inexistente, com ou sem token', async () => {
-      const desligada = await subirApi(new LogEmMemoria('api-desligada'), { ROTAS_SINTETICAS: 'false' })
+      const desligada = await subirApi(new InMemoryLog('api-desligada'), { ROTAS_SINTETICAS: 'false' })
       try {
         const antes = await contarJobs(ESCOLA_A)
         const servidor = desligada.getHttpServer()

@@ -5,11 +5,11 @@ import type { AddressInfo } from 'node:net'
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { compose, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
-import { Despachante } from '../src/outbox-relay.js'
-import { MedicaoDaFila } from '../src/queue-gauge.js'
-import { Reconciliacao } from '../src/outbox-sweeper.js'
-import { montarDespachante, TETO_DA_ESPERA_DO_REDIS_MS } from '../src/composition.js'
-import { BancadaDeFila, configuracaoDoBanco, janelaPadraoDoAmbiente, LogEmMemoria, vagasPadraoDoAmbiente } from '../../worker/test/queue.fixture.js'
+import { OutboxRelay } from '../src/outbox-relay.js'
+import { QueueGauge } from '../src/queue-gauge.js'
+import { OutboxSweeper } from '../src/outbox-sweeper.js'
+import { createOutboxRelay, TETO_DA_ESPERA_DO_REDIS_MS } from '../src/composition.js'
+import { QueueFixtures, configuracaoDoBanco, janelaPadraoDoAmbiente, InMemoryLog, vagasPadraoDoAmbiente } from '../../worker/test/queue.fixture.js'
 
 // O `pronto` da montagem e o embrulho da bancada, da correção
 // `2026-09-16-rodada-antes-do-redis-do-despachante`. A corrida que causou o defeito (conexão do Redis
@@ -22,13 +22,13 @@ beforeAll(() => {
 })
 
 describe('o `pronto` da montagem do despachante', () => {
-  let bancada: BancadaDeFila
+  let bancada: QueueFixtures
   // Escolas reais, criadas a cada caso: desde a tarefa 3.0 `job_registro` e
   // `configuracao_operacional_escola` têm FK para `escola`, e id inventado é recusado pelo banco.
   let ESCOLA_A: string
 
   beforeEach(async () => {
-    bancada = new BancadaDeFila()
+    bancada = new QueueFixtures()
     await bancada.limparRegistro()
     ESCOLA_A = await bancada.escola()
   })
@@ -51,7 +51,7 @@ describe('o `pronto` da montagem do despachante', () => {
     // O job enfileirado é o que impede a asserção de passar de graça: sem linha `aguardando`, a
     // rodada volta na consulta ao Postgres e nunca chega a emitir comando de Redis.
     const id = await bancada.enfileirar(ESCOLA_A, { fila: 'interativa' })
-    const log = new LogEmMemoria('despachante')
+    const log = new InMemoryLog('despachante')
     const montado = bancada.despachante(log)
 
     const comecou = Date.now()
@@ -79,8 +79,8 @@ describe('o `pronto` da montagem do despachante', () => {
   it('borda: com o Redis fora, resolve pelo erro do cliente, e não esperando o teto', async () => {
     // Sem isto, tirar o `redis.on('error')` da montagem ficaria invisível: todo teste de Redis fora
     // passaria a pagar o teto calado, e a suíte seguiria verde.
-    const log = new LogEmMemoria('despachante-sem-redis')
-    const montado = montarDespachante(
+    const log = new InMemoryLog('despachante-sem-redis')
+    const montado = createOutboxRelay(
       {
         banco: configuracaoDoBanco(),
         redisFilaUrl: `redis://127.0.0.1:${await portaSemNinguem()}`,
@@ -112,13 +112,13 @@ describe('o `pronto` da montagem do despachante', () => {
     // `apps/worker/test/wait-for-redis.test.ts`; aqui prova-se que a bancada de fato o aplica.
     const medidor = new MedidorDeTeste()
     try {
-      const montado = bancada.despachante(new LogEmMemoria('despachante'), { medidor: medidor.medidor })
+      const montado = bancada.despachante(new InMemoryLog('despachante'), { medidor: medidor.medidor })
 
-      expect(montado.despachante.rodada).not.toBe(Despachante.prototype.rodada)
-      expect(montado.reconciliacao.reconciliar).not.toBe(Reconciliacao.prototype.reconciliar)
+      expect(montado.despachante.rodada).not.toBe(OutboxRelay.prototype.rodada)
+      expect(montado.reconciliacao.reconciliar).not.toBe(OutboxSweeper.prototype.reconciliar)
       // `toBeDefined` antes: sem ele, a montagem que parasse de criar a medição passaria de graça.
       expect(montado.medicao).toBeDefined()
-      expect(montado.medicao?.medir).not.toBe(MedicaoDaFila.prototype.medir)
+      expect(montado.medicao?.medir).not.toBe(QueueGauge.prototype.medir)
     } finally {
       await medidor.encerrar()
     }

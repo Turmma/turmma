@@ -16,10 +16,10 @@ import { executarOpsRedefinirMfa } from '../src/ops/redefinir-mfa.js'
 import { executarOpsRevogarConvite } from '../src/ops/revogar-convite.js'
 import { executarOpsUso } from '../src/ops/uso.js'
 import { criarConviteDeCoordenador } from '../src/sessao/index.js'
-import { esperarNaTrava, GatilhoDeParada } from './write-block-trigger.js'
+import { esperarNaTrava, WriteBlockTrigger } from './write-block-trigger.js'
 import { ESPERA_DO_AUTOR, esperarErro, nomeQueVemPrimeiro, pedir, PRAZO_DAS_CONSULTAS_MS, segurarODesativar as segurarODesativarNoBanco, subirApiDoPainel as subir } from './painel.fixture.js'
-import { BancadaDeOperadores, type SessaoDeOperadorDeTeste } from './operador-session.fixture.js'
-import { autorDaBancada, BancadaDeSessoes } from './sessao.fixture.js'
+import { OperadorFixtures, type TestOperadorSessao } from './operador-session.fixture.js'
+import { autorDaBancada, SessaoFixtures } from './sessao.fixture.js'
 
 /**
  * A escrita do painel da operação (A0b, tarefa 1.0): `POST /v1/operacao/redes` e `/escolas`, e o autor conferido dentro
@@ -30,8 +30,8 @@ import { autorDaBancada, BancadaDeSessoes } from './sessao.fixture.js'
 const RECUSA_DO_OPERADOR = 'OPERADOR não é um operador ativo da equipe\n'
 
 describe('painel da operação: rede e escola, com o autor conferido na transação (tarefa 1.0)', () => {
-  const operadores = new BancadaDeOperadores()
-  const escolasDaBancada = new BancadaDeSessoes()
+  const operadores = new OperadorFixtures()
+  const escolasDaBancada = new SessaoFixtures()
   const linhasDeLog: string[] = []
   const redes: string[] = []
   const escolas: string[] = []
@@ -47,7 +47,7 @@ describe('painel da operação: rede e escola, com o autor conferido na transaç
   const novaRede = (nome = `Rede Sintética ${randomUUID().slice(0, 8)}`) => ({ id: randomUUID(), nome, tipo: 'prefeitura' as const })
   const novaEscola = (redeId: string, slug = `painel-${randomUUID().slice(0, 12)}`) => ({ id: randomUUID(), redeId, nome: `Colégio Sintético ${slug}`, slug })
 
-  async function criarRedePeloPainel(sessao: SessaoDeOperadorDeTeste): Promise<string> {
+  async function criarRedePeloPainel(sessao: TestOperadorSessao): Promise<string> {
     const pedido = novaRede()
     const resposta = await pedir(url, 'POST', '/v1/operacao/redes', sessao.token, pedido)
     expect(resposta.status).toBe(201)
@@ -144,7 +144,7 @@ describe('painel da operação: rede e escola, com o autor conferido na transaç
   describe('E2: o mesmo pedido duas vezes, ao mesmo tempo, cria uma vez e responde o mesmo id', () => {
     it('POST /redes: o segundo espera o primeiro no índice do id e responde o mesmo id, com uma linha e uma auditoria', async () => {
       const sessao = await operadores.operadorComSessao()
-      const gatilho = new GatilhoDeParada(pool, { tabela: 'rede', evento: 'insert', quando: `new.nome like 'Rede Parada %'` })
+      const gatilho = new WriteBlockTrigger(pool, { tabela: 'rede', evento: 'insert', quando: `new.nome like 'Rede Parada %'` })
       await gatilho.armar()
       try {
         const pedido = novaRede(`Rede Parada ${randomUUID().slice(0, 8)}`)
@@ -170,7 +170,7 @@ describe('painel da operação: rede e escola, com o autor conferido na transaç
     it('POST /escolas: o mesmo, esperando nos índices do id e do slug', async () => {
       const sessao = await operadores.operadorComSessao()
       const redeId = await criarRedePeloPainel(sessao)
-      const gatilho = new GatilhoDeParada(pool, { tabela: 'escola', evento: 'insert', quando: `new.slug like 'parada-%'` })
+      const gatilho = new WriteBlockTrigger(pool, { tabela: 'escola', evento: 'insert', quando: `new.slug like 'parada-%'` })
       await gatilho.armar()
       try {
         const pedido = novaEscola(redeId, `parada-${randomUUID().slice(0, 12)}`)
@@ -232,7 +232,7 @@ describe('painel da operação: rede e escola, com o autor conferido na transaç
     it('E4: ids diferentes com o mesmo slug, ao mesmo tempo: um cria, o outro espera no índice do slug e recebe CONFLITO, nunca 500', async () => {
       const sessao = await operadores.operadorComSessao()
       const redeId = await criarRedePeloPainel(sessao)
-      const gatilho = new GatilhoDeParada(pool, { tabela: 'escola', evento: 'insert', quando: `new.slug like 'disputa-%'` })
+      const gatilho = new WriteBlockTrigger(pool, { tabela: 'escola', evento: 'insert', quando: `new.slug like 'disputa-%'` })
       await gatilho.armar()
       try {
         const slug = `disputa-${randomUUID().slice(0, 12)}`
@@ -328,7 +328,7 @@ describe('painel da operação: rede e escola, com o autor conferido na transaç
     it('pelo painel, com a escrita segurando o for share: o desativar espera, e a escrita entra com a auditoria', async () => {
       const [sessao, quemDesativa] = await Promise.all([operadores.operadorComSessao(), operadores.operador()])
       const redeId = await criarRedePeloPainel(sessao)
-      const gatilho = new GatilhoDeParada(pool, { tabela: 'escola', evento: 'insert', quando: `new.slug like 'antes-do-desativar-%'` })
+      const gatilho = new WriteBlockTrigger(pool, { tabela: 'escola', evento: 'insert', quando: `new.slug like 'antes-do-desativar-%'` })
       await gatilho.armar()
       try {
         const pedido = novaEscola(redeId, `antes-do-desativar-${randomUUID().slice(0, 12)}`)

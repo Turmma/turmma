@@ -3,7 +3,7 @@ import { CHAVES_DE_FUNCAO, consumoResponseSchema, funcaoDaGovernancaResponseSche
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
-import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from '../../test/test-api.js'
+import { chamar, subirApi, type TestApi, type RespostaHttp } from '../../test/test-api.js'
 import { aplicarAtividade, aprovarOLote, criarAtividade, criarVersaoAdaptada, encerrarAtividade, responderProva, rotasDaAtividade, type RotasDaAtividade } from '../../test/atividade.fixture.js'
 import {
   contarNaEscola,
@@ -18,7 +18,7 @@ import {
   zerarLimiteDePedidosDeIa,
   type EscolaComAssistente,
 } from '../../test/escola-assistente.fixture.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from '../../test/sessao.fixture.js'
+import { SessaoFixtures, type TestSessao } from '../../test/sessao.fixture.js'
 import { EXECUTOR_DE_AGENTE } from '../ia/ia.module.js'
 
 /**
@@ -28,9 +28,9 @@ import { EXECUTOR_DE_AGENTE } from '../ia/ia.module.js'
  * adaptada pendente. A escola B tem as próprias entregas, que nunca entram nos números de A.
  */
 describe('governança de IA da coordenação', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
-  let api: ApiDeTeste
+  let api: TestApi
   let executor: InProcessAgenteExecutor
   let rotas: RotasDaAtividade
   let a: EscolaComAssistente
@@ -39,13 +39,13 @@ describe('governança de IA da coordenação', () => {
   let original: string
   let loteAprovado: string
   /** A série de um professor só, em A: o 3º ano, com o 3ºA. */
-  let terceiroAno: { serieId: string; turmaId: string; professor: SessaoDeTeste; entregaId: string }
+  let terceiroAno: { serieId: string; turmaId: string; professor: TestSessao; entregaId: string }
   /** A versão adaptada da colega, no 2ºC: é o segundo professor com entrega no 2º ano. */
   let entregaDaColega: string
 
   const sql = async <Linha extends Record<string, unknown>>(texto: string, valores: unknown[] = []): Promise<Linha[]> => (await bancada.pool.query(texto, valores)).rows as Linha[]
-  const get = async (sessao: SessaoDeTeste, caminho: string): Promise<RespostaHttp> => chamar(api.url, 'GET', caminho, await sessao.tokenNovo())
-  const post = async (sessao: SessaoDeTeste, caminho: string, corpo: unknown = {}): Promise<RespostaHttp> => chamar(api.url, 'POST', caminho, await sessao.tokenNovo(), corpo)
+  const get = async (sessao: TestSessao, caminho: string): Promise<RespostaHttp> => chamar(api.url, 'GET', caminho, await sessao.tokenNovo())
+  const post = async (sessao: TestSessao, caminho: string, corpo: unknown = {}): Promise<RespostaHttp> => chamar(api.url, 'POST', caminho, await sessao.tokenNovo(), corpo)
   const erro = (resposta: RespostaHttp) => ({ status: resposta.status, codigo: resposta.corpo.erro?.codigo })
   const NAO_ENCONTRADO = { status: 404, codigo: 'NAO_ENCONTRADO' }
   const ENTRADA_INVALIDA = { status: 400, codigo: 'ENTRADA_INVALIDA' }

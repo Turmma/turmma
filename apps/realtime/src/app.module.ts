@@ -2,27 +2,27 @@ import { createDatabase, GracefulShutdown, AuthGuard, SessaoRepository, type Log
 import { Inject, Module, type DynamicModule, type OnApplicationShutdown } from '@nestjs/common'
 import { APP_GUARD, Reflector } from '@nestjs/core'
 import type { Redis } from 'ioredis'
-import type { ConfiguracaoRealtime } from './config.js'
-import { ProntidaoController } from './readiness.controller.js'
-import { CONFIGURACAO_IDENTIDADE, LEITURA_DE_SESSAO, LOGGER_REALTIME, SistemaGateway } from './system.gateway.js'
+import type { RealtimeConfig } from './config.js'
+import { ReadinessController } from './readiness.controller.js'
+import { IDENTITY_CONFIG, SESSAO_READER, REALTIME_LOGGER, SystemGateway } from './system.gateway.js'
 
-export const CLIENTE_REDIS_REALTIME = Symbol('CLIENTE_REDIS_REALTIME')
-export const POOL_BANCO_REALTIME = Symbol('POOL_BANCO_REALTIME')
+export const REALTIME_REDIS_CLIENT = Symbol('REALTIME_REDIS_CLIENT')
+export const REALTIME_DB_POOL = Symbol('REALTIME_DB_POOL')
 
 @Module({})
 export class AppModule implements OnApplicationShutdown {
-  static forRoot(config: ConfiguracaoRealtime, cliente: Redis, pool: DatabasePool, logger: LoggerBase): DynamicModule {
+  static forRoot(config: RealtimeConfig, cliente: Redis, pool: DatabasePool, logger: LoggerBase): DynamicModule {
     return {
       module: AppModule,
-      controllers: [ProntidaoController],
+      controllers: [ReadinessController],
       providers: [
-        SistemaGateway,
-        { provide: CONFIGURACAO_IDENTIDADE, useValue: config.identidade },
+        SystemGateway,
+        { provide: IDENTITY_CONFIG, useValue: config.identidade },
         // A mesma leitura da `SessaoGuard` da API, no pool do realtime: um caminho de identidade só.
-        { provide: LEITURA_DE_SESSAO, useValue: new SessaoRepository(createDatabase(pool)) },
-        { provide: LOGGER_REALTIME, useValue: logger },
-        { provide: CLIENTE_REDIS_REALTIME, useValue: cliente },
-        { provide: POOL_BANCO_REALTIME, useValue: pool },
+        { provide: SESSAO_READER, useValue: new SessaoRepository(createDatabase(pool)) },
+        { provide: REALTIME_LOGGER, useValue: logger },
+        { provide: REALTIME_REDIS_CLIENT, useValue: cliente },
+        { provide: REALTIME_DB_POOL, useValue: pool },
         { provide: GracefulShutdown, useValue: new GracefulShutdown(config.drenagem) },
         {
           // Toda rota HTTP exige token, salvo `@Public()`: rota nova nasce fechada.
@@ -35,8 +35,8 @@ export class AppModule implements OnApplicationShutdown {
   }
 
   constructor(
-    @Inject(CLIENTE_REDIS_REALTIME) private readonly cliente: Redis,
-    @Inject(POOL_BANCO_REALTIME) private readonly pool: DatabasePool,
+    @Inject(REALTIME_REDIS_CLIENT) private readonly cliente: Redis,
+    @Inject(REALTIME_DB_POOL) private readonly pool: DatabasePool,
   ) {}
 
   /**

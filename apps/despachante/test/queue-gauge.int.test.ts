@@ -16,7 +16,7 @@ import { randomUUID } from 'node:crypto'
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { compose, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
-import { BancadaDeFila, configuracaoDoBanco, LogEmMemoria } from '../../worker/test/queue.fixture.js'
+import { QueueFixtures, configuracaoDoBanco, InMemoryLog } from '../../worker/test/queue.fixture.js'
 
 // A medição das filas do despachante de verdade (a mesma montagem do main.ts), contra o Postgres e o Redis
 // de fila do compose de teste, com o horário letivo padrão de `.env.example`. O relógio falso põe a escola
@@ -41,7 +41,7 @@ beforeAll(() => {
 })
 
 describe('medição das filas por escola, no despachante', () => {
-  let bancada: BancadaDeFila
+  let bancada: QueueFixtures
   // Escolas reais, criadas a cada caso: desde a tarefa 3.0 `job_registro` e
   // `configuracao_operacional_escola` têm FK para `escola`, e id inventado é recusado pelo banco.
   let ESCOLA_A: string
@@ -49,7 +49,7 @@ describe('medição das filas por escola, no despachante', () => {
   let medidor: MedidorDeTeste
 
   beforeEach(async () => {
-    bancada = new BancadaDeFila()
+    bancada = new QueueFixtures()
     medidor = new MedidorDeTeste()
     await bancada.limparRegistro()
     // O id da escola é sorteado e não cresce com a criação (o `ops:escola` e o painel mandam UUID v4). A ordem ruim fica
@@ -70,7 +70,7 @@ describe('medição das filas por escola, no despachante', () => {
   }
 
   async function medir(): Promise<void> {
-    const { medicao } = bancada.despachante(new LogEmMemoria('despachante'), { medidor: medidor.medidor, relogio: { agora: () => TERCA_10H } })
+    const { medicao } = bancada.despachante(new InMemoryLog('despachante'), { medidor: medidor.medidor, relogio: { agora: () => TERCA_10H } })
     if (medicao === undefined) throw new Error('o despachante com medidor não montou a medição')
     await medicao.medir()
   }
@@ -234,7 +234,7 @@ describe('medição das filas por escola, no despachante', () => {
     await falhou(ESCOLA_A, 'sintetico', 31, 2)
     await falhou(ESCOLA_A, 'ia.geracao.concluida', 29)
     await falhou(ESCOLA_B, 'titular.eliminar', 31)
-    const { medicao } = bancada.despachante(new LogEmMemoria('despachante'), { medidor: medidor.medidor, relogio: { agora: () => TERCA_10H } })
+    const { medicao } = bancada.despachante(new InMemoryLog('despachante'), { medidor: medidor.medidor, relogio: { agora: () => TERCA_10H } })
     if (medicao === undefined) throw new Error('o despachante com medidor não montou a medição')
 
     await medicao.medir()

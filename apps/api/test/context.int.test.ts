@@ -10,8 +10,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { lerAmbienteDeTeste } from '../../../tools/ci/compose.ts'
 import { AppModule } from '../src/app.module.js'
 import { configureApp } from '../src/configure-app.js'
-import { configuracaoDeTeste } from './test-config.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
+import { testConfig } from './test-config.js'
+import { SessaoFixtures, type TestSessao } from './sessao.fixture.js'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
@@ -43,7 +43,7 @@ class ControladorAnonimo {
 }
 
 async function subirApi(ambiente: Record<string, string> = {}): Promise<INestApplication> {
-  @Module({ imports: [AppModule.forRoot(configuracaoDeTeste({ ambiente }))], controllers: [ControladorSemMarcacao, ControladorAnonimo] })
+  @Module({ imports: [AppModule.forRoot(testConfig({ ambiente }))], controllers: [ControladorSemMarcacao, ControladorAnonimo] })
   class ModuloDeTeste {}
 
   const app = await NestFactory.create(ModuloDeTeste, { logger: false })
@@ -71,13 +71,13 @@ function esperarNaoAutenticado(resposta: request.Response): void {
 }
 
 describe('identidade pela sessão do token e GET /v1/sistema/contexto', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   let app: INestApplication
-  let a: SessaoDeTeste
-  let b: SessaoDeTeste
+  let a: TestSessao
+  let b: TestSessao
   let tokenA: string
   let tokenB: string
-  const esperadoDe = (sessao: SessaoDeTeste) => ({ escolaId: sessao.escolaId, usuarioId: sessao.usuarioId, papel: 'aluno', sessaoId: sessao.sessaoId, anoLetivoId: null })
+  const esperadoDe = (sessao: TestSessao) => ({ escolaId: sessao.escolaId, usuarioId: sessao.usuarioId, papel: 'aluno', sessaoId: sessao.sessaoId, anoLetivoId: null })
 
   beforeAll(async () => {
     a = await bancada.escolaComSessao()
@@ -203,14 +203,14 @@ describe('identidade pela sessão do token e GET /v1/sistema/contexto', () => {
 })
 
 describe('o emissor sintético do F0 saiu (tarefa 3.0)', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
 
   afterAll(async () => {
     await bancada.fechar()
   })
 
   /** O mesmo token da sessão real, só que assinado com o emissor `sintetico` que existia no F0. */
-  const comEmissorSintetico = (sessao: SessaoDeTeste): Promise<string> =>
+  const comEmissorSintetico = (sessao: TestSessao): Promise<string> =>
     tokenAssinadoComAChaveDoAmbiente({ iss: 'sintetico', esc: sessao.escolaId, sub: sessao.usuarioId, sid: sessao.sessaoId })
 
   it.each([

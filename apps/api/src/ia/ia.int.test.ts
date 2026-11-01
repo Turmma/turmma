@@ -25,9 +25,9 @@ import { and, eq } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
-import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from '../../test/test-api.js'
+import { chamar, subirApi, type TestApi, type RespostaHttp } from '../../test/test-api.js'
 import { montarEscolaComTurma, type EscolaComTurma } from '../../test/escola-turma.fixture.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from '../../test/sessao.fixture.js'
+import { SessaoFixtures, type TestSessao } from '../../test/sessao.fixture.js'
 import { ExecucaoScheduler, type ExecucaoRequest } from './execucao.scheduler.js'
 import { FuncaoSuspensionCheck } from './funcao-suspension-check.js'
 import { ConsumoRepository } from './consumo.repository.js'
@@ -44,24 +44,24 @@ import { SuspensaoRepository } from './suspensao.repository.js'
  * saísse do repository (regra 10, item 5).
  */
 describe('camada de IA na API', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
-  let api: ApiDeTeste
+  let api: TestApi
   let agendador: ExecucaoScheduler
   let executor: InProcessAgenteExecutor
 
   interface Escola extends EscolaComTurma {
     readonly escolaId: string
-    readonly professor: SessaoDeTeste
-    readonly outroProfessor: SessaoDeTeste
-    readonly aluno: SessaoDeTeste
-    readonly outroAluno: SessaoDeTeste
+    readonly professor: TestSessao
+    readonly outroProfessor: TestSessao
+    readonly aluno: TestSessao
+    readonly outroAluno: TestSessao
   }
   let a: Escola
   let b: Escola
 
   const sql = (texto: string, valores: unknown[] = []) => bancada.pool.query(texto, valores)
-  const get = (sessao: SessaoDeTeste, caminho: string): Promise<RespostaHttp> => chamar(api.url, 'GET', caminho, sessao.token)
+  const get = (sessao: TestSessao, caminho: string): Promise<RespostaHttp> => chamar(api.url, 'GET', caminho, sessao.token)
 
   async function montarEscola(): Promise<Escola> {
     const escola = await montarEscolaComTurma(api, bancada)
@@ -79,7 +79,7 @@ describe('camada de IA na API', () => {
   }
 
   /** O contexto que a `SessaoGuard` gravaria para esta pessoa: é nele que o serviço roda, como numa rota. */
-  const contextoDe = (escola: Escola, sessao: SessaoDeTeste, papel: PapelDeUsuario): RequestContext => ({
+  const contextoDe = (escola: Escola, sessao: TestSessao, papel: PapelDeUsuario): RequestContext => ({
     requisicaoId: randomUUID(),
     escolaId: escola.escolaId,
     usuarioId: sessao.usuarioId,
@@ -87,7 +87,7 @@ describe('camada de IA na API', () => {
     sessaoId: sessao.sessaoId,
     anoLetivoId: escola.anoLetivoId,
   })
-  const como = <T>(escola: Escola, sessao: SessaoDeTeste, papel: PapelDeUsuario, funcao: () => T): T => runInContext(contextoDe(escola, sessao, papel), funcao)
+  const como = <T>(escola: Escola, sessao: TestSessao, papel: PapelDeUsuario, funcao: () => T): T => runInContext(contextoDe(escola, sessao, papel), funcao)
   /** Só a escola, sem pessoa: o contexto que as portas de IA leem, a escola de quem pede (8.0). */
   const noContextoDe = <T>(escola: Escola, funcao: () => T): T => runInContext({ requisicaoId: randomUUID(), escolaId: escola.escolaId }, funcao)
 
@@ -109,7 +109,7 @@ describe('camada de IA na API', () => {
     Number(((await sql(`select count(*) as total from ${tabela} where escola_id = $1 and ${filtro}`, [escolaId])).rows as { total: string }[])[0]?.total)
 
   /** Uma execução pendente gravada à mão, como o `POST` de um pacote de domínio a deixaria. */
-  async function execucaoPendente(escola: Escola, de: SessaoDeTeste, tarefa = 'gerar_atividade_objetiva', funcao: ChaveDeFuncao = 'conversa_e_ferramentas'): Promise<{ id: string; escolaId: string; chave: string }> {
+  async function execucaoPendente(escola: Escola, de: TestSessao, tarefa = 'gerar_atividade_objetiva', funcao: ChaveDeFuncao = 'conversa_e_ferramentas'): Promise<{ id: string; escolaId: string; chave: string }> {
     const chave = randomUUID()
     const entrada = tarefa === 'gerar_atividade_objetiva' ? { tarefa, parametros: { turmaId: escola.turma, disciplinaId: escola.quimica, tema: 'estequiometria' } } : { tarefa }
     const { rows } = await sql('insert into execucao_agente (escola_id, ano_letivo_id, funcao, tarefa, solicitada_por, chave_envio, entrada) values ($1, $2, $3, $4, $5, $6, $7) returning id', [
@@ -125,7 +125,7 @@ describe('camada de IA na API', () => {
   }
 
   /** `quantidade` perguntas do aluno ao Tutor hoje, cada uma com a execução dela, ainda não respondida. */
-  async function perguntasAoTutor(escola: Escola, aluno: SessaoDeTeste, quantidade: number): Promise<string[]> {
+  async function perguntasAoTutor(escola: Escola, aluno: TestSessao, quantidade: number): Promise<string[]> {
     const { rows } = await sql(
       `with novas as (
          insert into execucao_agente (escola_id, ano_letivo_id, funcao, tarefa, solicitada_por, chave_envio, entrada)
@@ -188,7 +188,7 @@ describe('camada de IA na API', () => {
   }
 
   /** O pedido que o pacote do Tutor faria para a pergunta de um aluno. */
-  function pedidoDoTutor(escola: Escola, aluno: SessaoDeTeste, duvida: string) {
+  function pedidoDoTutor(escola: Escola, aluno: TestSessao, duvida: string) {
     const aoConcluir = vi.fn(async (saida: Awaited<ReturnType<typeof turnoDoTutor.falso>>, tx: DatabaseTransaction, execucaoId: string): Promise<ResultadoGravado> => {
       const [mensagem] = await tx
         .insert(mensagemTutor)
@@ -477,7 +477,7 @@ describe('camada de IA na API', () => {
   })
 
   describe('OrcamentoRepository: o freio diário do Tutor', () => {
-    const consulta = (escola: Escola, aluno: SessaoDeTeste) => ({ funcao: 'tutor_com_o_aluno' as const, alunoId: aluno.usuarioId, turmaId: escola.turma })
+    const consulta = (escola: Escola, aluno: TestSessao) => ({ funcao: 'tutor_com_o_aluno' as const, alunoId: aluno.usuarioId, turmaId: escola.turma })
     /** A consulta feita no contexto da escola: é de lá que a porta lê a escola, e a consulta não a traz (8.0). */
     const consultarEm = (escola: Escola, orcamento: OrcamentoDeIa, pergunta: OrcamentoQuery) => noContextoDe(escola, () => orcamento.consultar(pergunta))
 
@@ -666,7 +666,7 @@ describe('camada de IA na API', () => {
           estado: 'concluida',
           em: new Date(),
         }
-        const turno = (escola: Escola, aluno: SessaoDeTeste) =>
+        const turno = (escola: Escola, aluno: TestSessao) =>
           noContextoDe(escola, async () => {
             const suspensa = await suspensao.estaSuspensa('tutor_com_o_aluno')
             const decisao = await orcamento.consultar({ funcao: 'tutor_com_o_aluno', alunoId: aluno.usuarioId })
@@ -861,7 +861,7 @@ describe('camada de IA na API', () => {
 
     it('a resposta do Tutor que o resultado aponta só sai se for da conversa do próprio aluno, na escola dele, mesmo com a referência forjada', async () => {
       // `resultado.mensagemId` é jsonb, sem FK: o que prende o texto da conversa a quem lê é a cláusula de escola e de aluno.
-      const respostaDoTutorA = async (escola: Escola, aluno: SessaoDeTeste): Promise<{ execucaoId: string; mensagemId: string }> => {
+      const respostaDoTutorA = async (escola: Escola, aluno: TestSessao): Promise<{ execucaoId: string; mensagemId: string }> => {
         const { pedido } = pedidoDoTutor(escola, aluno, 'como eu acho o reagente limitante?')
         const { execucaoId } = await como(escola, aluno, 'aluno', () => agendador.agendar(pedido))
         await executor.ociosa()

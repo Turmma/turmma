@@ -4,17 +4,17 @@ import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it, onTestFinished } from 'vitest'
 import { lerAmbienteDeTeste, valorObrigatorio } from '../../../tools/ci/compose.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
-import type { ConfiguracaoStorage } from '../src/config.js'
-import { MedicaoDoIncidente } from '../src/incidente-gauge.js'
-import { montarWorker } from '../src/composition.js'
-import { BancadaDeFila, configuracaoDoBanco, janelaPadraoDoAmbiente, LogEmMemoria, urlRedisDeFila, vagasPadraoDoAmbiente } from './queue.fixture.js'
+import type { StorageConfig } from '../src/config.js'
+import { IncidenteGauge } from '../src/incidente-gauge.js'
+import { createWorker } from '../src/composition.js'
+import { QueueFixtures, configuracaoDoBanco, janelaPadraoDoAmbiente, InMemoryLog, urlRedisDeFila, vagasPadraoDoAmbiente } from './queue.fixture.js'
 
 // A medição `incidente.horas_sem_confirmacao` (F3, tarefa 9.0; Tech Spec do F3, seção 7c) contra o Postgres do compose de teste,
 // com a lista de escolas dada e o relógio injetado: as horas desde que a Turmma soube do incidente mais antigo da escola que ainda
 // não foi confirmado. O alerta de 24 h em si, com o Prometheus e o Grafana, é `infra/test/alerta-do-incidente.int.test.ts`.
 
 const ambiente = lerAmbienteDeTeste()
-const STORAGE: ConfiguracaoStorage = {
+const STORAGE: StorageConfig = {
   url: `http://127.0.0.1:${valorObrigatorio(ambiente, 'STORAGE_PORTA_HOST')}`,
   regiao: valorObrigatorio(ambiente, 'STORAGE_REGIAO'),
   bucket: valorObrigatorio(ambiente, 'STORAGE_BUCKET'),
@@ -25,12 +25,12 @@ const AGORA = new Date('2026-10-09T15:00:00-03:00')
 const relogio = { agora: () => AGORA }
 
 describe('medição das horas do incidente sem confirmação', () => {
-  let bancada: BancadaDeFila
-  const log = new LogEmMemoria('worker-teste')
+  let bancada: QueueFixtures
+  const log = new InMemoryLog('worker-teste')
   const incidentes: string[] = []
 
   beforeAll(() => {
-    bancada = new BancadaDeFila()
+    bancada = new QueueFixtures()
   })
 
   afterAll(async () => {
@@ -56,8 +56,8 @@ describe('medição das horas do incidente sem confirmação', () => {
     }
   }
 
-  function medicaoDe(ids: readonly string[], medidor: MedidorDeTeste, repositorio: Pick<IncidenteDaEscolaRepository, 'conhecidoEmDoPendenteMaisAntigo'> = new IncidenteDaEscolaRepository(bancada.banco)): MedicaoDoIncidente {
-    return new MedicaoDoIncidente({ escolas: { listarIds: () => Promise.resolve([...ids]) }, repositorio, relogio, logger: log.logger, medidor: medidor.medidor })
+  function medicaoDe(ids: readonly string[], medidor: MedidorDeTeste, repositorio: Pick<IncidenteDaEscolaRepository, 'conhecidoEmDoPendenteMaisAntigo'> = new IncidenteDaEscolaRepository(bancada.banco)): IncidenteGauge {
+    return new IncidenteGauge({ escolas: { listarIds: () => Promise.resolve([...ids]) }, repositorio, relogio, logger: log.logger, medidor: medidor.medidor })
   }
 
   async function porEscola(medidor: MedidorDeTeste): Promise<Record<string, unknown>> {
@@ -131,7 +131,7 @@ describe('medição das horas do incidente sem confirmação', () => {
     let agora = AGORA
     const medidor = new MedidorDeTeste()
     onTestFinished(() => medidor.encerrar())
-    const medicao = new MedicaoDoIncidente({
+    const medicao = new IncidenteGauge({
       escolas: { listarIds: () => Promise.resolve([randomUUID(), a]) },
       repositorio: new IncidenteDaEscolaRepository(bancada.banco),
       relogio: { agora: () => agora },
@@ -150,7 +150,7 @@ describe('medição das horas do incidente sem confirmação', () => {
     await incidente(31, [a])
     const medidor = new MedidorDeTeste()
     onTestFinished(() => medidor.encerrar())
-    const worker = montarWorker(
+    const worker = createWorker(
       { banco: configuracaoDoBanco(), redisFilaUrl: urlRedisDeFila(), pools: { lote: 2 }, vagasPadrao: vagasPadraoDoAmbiente(), threadsMaximo: 1, storage: STORAGE, janelaPadrao: janelaPadraoDoAmbiente() },
       log.logger,
       { prefixo: bancada.prefixo, relogio, agendamentos: [], medidor: medidor.medidor },

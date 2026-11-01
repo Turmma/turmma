@@ -8,7 +8,7 @@ import type { AddressInfo } from 'node:net'
 import { expect } from 'vitest'
 import { AppModule } from '../src/app.module.js'
 import { configureApp } from '../src/configure-app.js'
-import { configuracaoDeTeste, MONTAGEM_DE_TESTE } from './test-config.js'
+import { testConfig, TEST_APP_OPTIONS } from './test-config.js'
 
 /**
  * O que os testes de integração do painel da operação (A0b) têm em comum: a API montada com o log capturado, o pedido
@@ -58,7 +58,7 @@ export function esperarErro(resposta: Resposta, status: number, codigo: ErrorCod
  * (`prazoDasConsultasMs`) é para o teste que quer o `statement_timeout` estourando numa trava segura.
  */
 export async function subirApiDoPainel(linhasDeLog: string[], ambiente: Record<string, string> = {}, prazoDasConsultasMs = PRAZO_DAS_CONSULTAS_MS): Promise<{ app: INestApplication; url: string }> {
-  const app = await NestFactory.create(AppModule.forRoot(configuracaoDeTeste({ banco: { timeoutConsultaMs: prazoDasConsultasMs }, ambiente }), MONTAGEM_DE_TESTE), { logger: false })
+  const app = await NestFactory.create(AppModule.forRoot(testConfig({ banco: { timeoutConsultaMs: prazoDasConsultasMs }, ambiente }), TEST_APP_OPTIONS), { logger: false })
   configureApp(app, createLogger({ servico: 'api-teste', nivel: 'info', destino: { write: (linha: string) => linhasDeLog.push(linha) } }))
   await app.listen(0, '127.0.0.1')
   return { app, url: `http://127.0.0.1:${(app.getHttpServer().address() as AddressInfo).port}` }

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { BancadaDeSessoes, type SessaoDeTeste } from '../../apps/api/test/sessao.fixture.js'
+import { SessaoFixtures, type TestSessao } from '../../apps/api/test/sessao.fixture.js'
 import { lerAmbienteDeTeste, valorObrigatorio } from '../../tools/ci/compose.ts'
 import { aguardarSaudavel, compose, composeAssincronoOuFalha, composeOuFalha, PROCESSOS_DA_FILA } from '../../tools/testes/compose.ts'
 
@@ -27,10 +27,10 @@ function logsDesde(desde: string, ...servicos: string[]): LinhaDeLog[] {
 }
 
 describe('job pela API até o worker, com processos de verdade', () => {
-  const sessoes = new BancadaDeSessoes()
+  const sessoes = new SessaoFixtures()
   // Escola e sessão reais, criadas depois de o compose subir. Cada pedido leva um token novo da sessão: o de acesso
   // vale 10 min, e o arquivo passa disso com a construção das imagens.
-  let sessao: SessaoDeTeste
+  let sessao: TestSessao
   let ESCOLA: string
 
   const criarJob = async (corpo: Record<string, unknown>, requisicaoId = randomUUID()): Promise<string> => {

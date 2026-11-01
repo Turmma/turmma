@@ -2,9 +2,9 @@ import { throttledWarn, runInContext, summarizeError, ROTULO_ESCOLA, type CronEs
 import { randomUUID } from 'node:crypto'
 
 /** De quanto em quanto tempo o worker-lote mede uma série por escola. Os valores mudam devagar (uma vez por noite, ou por hora): 5 min sobram. */
-export const INTERVALO_DA_MEDICAO_POR_ESCOLA_MS = 5 * 60_000
+export const ESCOLA_GAUGE_INTERVAL_MS = 5 * 60_000
 
-export interface DependenciasDaMedicaoPorEscola {
+export interface EscolaGaugeDependencies {
   escolas: Pick<CronEscolasRepository, 'listarIds'>
   relogio: Clock
   logger: LoggerBase
@@ -12,7 +12,7 @@ export interface DependenciasDaMedicaoPorEscola {
 }
 
 /** O que identifica a série: o nome da métrica, o texto do gauge e o evento do aviso quando o Postgres não responde. */
-export interface DescricaoDaMedicaoPorEscola {
+export interface EscolaGaugeDescription {
   readonly metrica: string
   readonly descricao: string
   readonly evento: string
@@ -25,7 +25,7 @@ export interface DescricaoDaMedicaoPorEscola {
  * `CronEscolasRepository`, a mesma da rotina, e cada escola é lida no contexto dela. Quem herda diz só **o que medir numa
  * escola** (`medirEscola`); a escola que devolve `undefined` não tem série. Com o Postgres fora, a medição anterior sai da exportação.
  */
-export abstract class MedicaoPorEscola {
+export abstract class EscolaGauge {
   readonly #series = new Map<string, number>()
   readonly #intervaloMs: number
   readonly #avisarFalha: (erro: unknown) => void
@@ -35,11 +35,11 @@ export abstract class MedicaoPorEscola {
   #acordar: (() => void) | undefined
 
   protected constructor(
-    private readonly base: DependenciasDaMedicaoPorEscola,
-    descricao: DescricaoDaMedicaoPorEscola,
+    private readonly base: EscolaGaugeDependencies,
+    descricao: EscolaGaugeDescription,
     opcoes: { intervaloMs?: number } = {},
   ) {
-    this.#intervaloMs = opcoes.intervaloMs ?? INTERVALO_DA_MEDICAO_POR_ESCOLA_MS
+    this.#intervaloMs = opcoes.intervaloMs ?? ESCOLA_GAUGE_INTERVAL_MS
     let ultimoErro: unknown
     const aviso = throttledWarn(() => base.logger.warn({ evento: descricao.evento, erro: summarizeError(ultimoErro) }))
     this.#avisarFalha = (erro) => {

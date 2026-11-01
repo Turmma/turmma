@@ -3,7 +3,7 @@ import { JobFailureCode, JOB_DEFINITIONS, TIPO_JOB_SINTETICO, type JobRegistry }
 import { randomUUID } from 'node:crypto'
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { compose, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
-import { BancadaDeFila, LogEmMemoria } from './queue.fixture.js'
+import { QueueFixtures, InMemoryLog } from './queue.fixture.js'
 
 // O prazo do tipo aplicado pelo worker (reengenharia, RF17, tarefa 43.0): worker de verdade, no processo do teste, contra o
 // Postgres e o Redis de fila do compose de teste. O registro de jobs é o de produção com o `prazoMs` do sintético trocado por um
@@ -17,7 +17,7 @@ const DEFINICOES_COM_PRAZO_CURTO: JobRegistry = {
 /** Um valor que só o `dados` do job tem: se ele aparecer no log, o log vazou o conteúdo do job. */
 const CPU_QUE_SO_O_JOB_TEM = 4_242
 
-async function aguardarEstado(bancada: BancadaDeFila, id: string, estado: string, limiteMs = 15_000): Promise<void> {
+async function aguardarEstado(bancada: QueueFixtures, id: string, estado: string, limiteMs = 15_000): Promise<void> {
   await expect.poll(async () => (await bancada.estado(id))?.estado, { timeout: limiteMs, interval: 50 }).toBe(estado)
 }
 
@@ -27,11 +27,11 @@ beforeAll(() => {
 })
 
 describe('o worker corta a tentativa no prazo do tipo', () => {
-  let bancada: BancadaDeFila
+  let bancada: QueueFixtures
   let ESCOLA_A: string
 
   beforeEach(async () => {
-    bancada = new BancadaDeFila(DEFINICOES_COM_PRAZO_CURTO)
+    bancada = new QueueFixtures(DEFINICOES_COM_PRAZO_CURTO)
     await bancada.limparRegistro()
     ESCOLA_A = await bancada.escola()
   })
@@ -51,7 +51,7 @@ describe('o worker corta a tentativa no prazo do tipo', () => {
 
   it('job que não termina, na última tentativa: falhou/TEMPO_ESGOTADO, a vaga sai do Redis, e o log leva só ids, o prazo e o código', async () => {
     const id = await publicado(1)
-    const log = new LogEmMemoria('worker')
+    const log = new InMemoryLog('worker')
     let sinalRecebido: AbortSignal | undefined
     bancada.worker(log, {
       processadores: {
@@ -80,7 +80,7 @@ describe('o worker corta a tentativa no prazo do tipo', () => {
     const processador = (): Promise<void> => (++chamadas === 1 ? new Promise<void>((resolver) => setTimeout(resolver, 8_000)) : Promise.resolve())
     const [primeiro, segundo] = [await publicado(1), await publicado(1)]
     const inicio = performance.now()
-    bancada.worker(new LogEmMemoria('worker'), { processadores: { sintetico: processador } })
+    bancada.worker(new InMemoryLog('worker'), { processadores: { sintetico: processador } })
 
     await expect
       .poll(async () => [(await bancada.estado(primeiro))?.estado, (await bancada.estado(segundo))?.estado].sort(), { timeout: 6_000, interval: 50 })
@@ -95,7 +95,7 @@ describe('o worker corta a tentativa no prazo do tipo', () => {
     // O job de `cpuMs` 1 nunca termina e ignora o sinal, em toda tentativa; o outro termina na hora.
     const processador = (dados: { cpuMs: number }): Promise<void> => (dados.cpuMs === 1 ? new Promise<void>(() => undefined) : Promise.resolve())
     const preso = await publicado(3, 1)
-    bancada.worker(new LogEmMemoria('worker'), { processadores: { sintetico: processador } })
+    bancada.worker(new InMemoryLog('worker'), { processadores: { sintetico: processador } })
     // O segundo só entra com o primeiro rodando: com os dois na fila, quem toma a vaga primeiro não é garantido.
     await aguardarEstado(bancada, preso, 'ativo')
     const livre = await publicado(1, 2)
@@ -107,7 +107,7 @@ describe('o worker corta a tentativa no prazo do tipo', () => {
 
   it('estouro com tentativa sobrando: a vaga sai, o job volta à fila pelo recuo, e o estado não é falhou', async () => {
     const id = await publicado(3)
-    const log = new LogEmMemoria('worker')
+    const log = new InMemoryLog('worker')
     bancada.worker(log, { processadores: { sintetico: () => new Promise<void>(() => undefined) } })
 
     await expect.poll(() => log.doEvento('job.tempo_esgotado').length, { timeout: 10_000, interval: 50 }).toBeGreaterThan(0)

@@ -6,10 +6,10 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { sortearCodigoDaTurma } from '../src/sala/codigo-da-sala.js'
-import { chamar, subirApi, type ApiDeTeste } from './test-api.js'
-import { esperarNaTrava, GatilhoDeParada } from './write-block-trigger.js'
-import { FerramentasDaSala, semRequisicao, type SalaDeTeste } from './sala.fixture.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
+import { chamar, subirApi, type TestApi } from './test-api.js'
+import { esperarNaTrava, WriteBlockTrigger } from './write-block-trigger.js'
+import { FerramentasDaSala, semRequisicao, type TestSala } from './sala.fixture.js'
+import { SessaoFixtures, type TestSessao } from './sessao.fixture.js'
 
 /**
  * O acesso da turma depois do fim do vínculo de quem o gerou (correção `2026-10-03-acesso-sobrevive-ao-vinculo`, G1 da
@@ -27,19 +27,19 @@ const NAO_ENCONTRADO = {
   texto: JSON.stringify({ erro: { codigo: ErrorCode.NAO_ENCONTRADO, mensagem: MENSAGENS_DE_ERRO.NAO_ENCONTRADO, requisicaoId: '-' } }),
 }
 
-interface LinhaDoAcesso {
+interface AcessoRow {
   readonly id: string
   readonly criado_por: string | null
   readonly revogado_em: Date | null
 }
 
 describe('acesso da turma × fim do vínculo de quem o gerou (correção 2026-10-03)', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
   // Um pool próprio para a eliminação: o da bancada tem duas conexões, e nas corridas uma fica com a trava do gatilho.
   const poolDoCiclo = createPool({ url: urlDoBancoDeTeste(), maximoConexoes: 4, timeoutConexaoMs: 5_000, timeoutConsultaMs: 30_000 }, () => undefined)
   const ciclo = new CicloDeVidaService(createDatabase(poolDoCiclo))
-  let api: ApiDeTeste
+  let api: TestApi
   let sala: FerramentasDaSala
 
   beforeAll(async () => {
@@ -54,10 +54,10 @@ describe('acesso da turma × fim do vínculo de quem o gerou (correção 2026-10
     await medidor.encerrar()
   })
 
-  const post = (sessao: SessaoDeTeste, caminho: string, corpo?: unknown) => chamar(api.url, 'POST', caminho, sessao.token, corpo)
+  const post = (sessao: TestSessao, caminho: string, corpo?: unknown) => chamar(api.url, 'POST', caminho, sessao.token, corpo)
 
   /** O vínculo de professor do usuário na turma, pelo banco (a `montar` da sala não devolve os ids). */
-  async function vinculoDe(s: SalaDeTeste, usuarioId: string, turmaId: string): Promise<string> {
+  async function vinculoDe(s: TestSala, usuarioId: string, turmaId: string): Promise<string> {
     const { rows } = await bancada.pool.query<{ id: string }>("select id from vinculo where escola_id = $1 and usuario_id = $2 and turma_id = $3 and papel = 'professor'", [
       s.escolaId,
       usuarioId,
@@ -69,7 +69,7 @@ describe('acesso da turma × fim do vínculo de quem o gerou (correção 2026-10
   }
 
   /** Um professor novo da escola, confirmado na turma e na disciplina. */
-  async function professorConfirmado(s: SalaDeTeste, turmaId: string, disciplinaId: string): Promise<SessaoDeTeste> {
+  async function professorConfirmado(s: TestSala, turmaId: string, disciplinaId: string): Promise<TestSessao> {
     const professor = await bancada.sessao(s.escolaId, 'professor')
     const criado = await post(s.coordenacao, '/v1/vinculos', { usuarioId: professor.usuarioId, turmaId, disciplinaId, papel: 'professor' })
     expect(criado.status).toBe(201)
@@ -77,19 +77,19 @@ describe('acesso da turma × fim do vínculo de quem o gerou (correção 2026-10
     return professor
   }
 
-  async function encerrar(s: SalaDeTeste, vinculo: string, motivo: 'desligamento' | 'realocacao' = 'desligamento') {
+  async function encerrar(s: TestSala, vinculo: string, motivo: 'desligamento' | 'realocacao' = 'desligamento') {
     return post(s.coordenacao, `/v1/vinculos/${vinculo}/encerrar`, { motivo })
   }
 
-  async function acessosDa(s: Pick<SalaDeTeste, 'escolaId'>, turmaId: string): Promise<LinhaDoAcesso[]> {
-    const { rows } = await bancada.pool.query<LinhaDoAcesso>('select id, criado_por, revogado_em from acesso_turma where escola_id = $1 and turma_id = $2 order by criado_em, id', [
+  async function acessosDa(s: Pick<TestSala, 'escolaId'>, turmaId: string): Promise<AcessoRow[]> {
+    const { rows } = await bancada.pool.query<AcessoRow>('select id, criado_por, revogado_em from acesso_turma where escola_id = $1 and turma_id = $2 order by criado_em, id', [
       s.escolaId,
       turmaId,
     ])
     return rows
   }
 
-  async function revogadosNaAuditoria(s: Pick<SalaDeTeste, 'escolaId'>): Promise<Array<{ entidade_id: string; autor_usuario_id: string | null; depois: unknown }>> {
+  async function revogadosNaAuditoria(s: Pick<TestSala, 'escolaId'>): Promise<Array<{ entidade_id: string; autor_usuario_id: string | null; depois: unknown }>> {
     const { rows } = await bancada.pool.query<{ entidade_id: string; autor_usuario_id: string | null; depois: unknown }>(
       "select entidade_id, autor_usuario_id, depois from auditoria where escola_id = $1 and acao = 'acesso_turma.revogado' order by id",
       [s.escolaId],
@@ -98,11 +98,11 @@ describe('acesso da turma × fim do vínculo de quem o gerou (correção 2026-10
   }
 
   /** O link e o código abrem a sala (200) ou respondem o mesmo corpo do token e do código sorteados. */
-  async function abreASala(s: Pick<SalaDeTeste, 'slug' | 'token' | 'codigo'>): Promise<{ token: number; codigo: number }> {
+  async function abreASala(s: Pick<TestSala, 'slug' | 'token' | 'codigo'>): Promise<{ token: number; codigo: number }> {
     return { token: (await sala.abrir({ slug: s.slug, token: s.token })).status, codigo: (await sala.abrir({ slug: s.slug, codigo: s.codigo })).status }
   }
 
-  async function naoAbreASala(s: Pick<SalaDeTeste, 'slug' | 'token' | 'codigo'>): Promise<void> {
+  async function naoAbreASala(s: Pick<TestSala, 'slug' | 'token' | 'codigo'>): Promise<void> {
     expect(semRequisicao(await sala.abrir({ slug: s.slug, token: s.token }))).toEqual(NAO_ENCONTRADO)
     expect(semRequisicao(await sala.abrir({ slug: s.slug, codigo: s.codigo }))).toEqual(NAO_ENCONTRADO)
     // O revogado responde byte a byte como o que nunca existiu (regra 10, item 6).
@@ -339,7 +339,7 @@ describe('acesso da turma × fim do vínculo de quem o gerou (correção 2026-10
       await bancada.pool.query('delete from vinculo where id = $1', [quimica])
       const pendente = await post(s.coordenacao, '/v1/vinculos', { usuarioId: s.professor.usuarioId, turmaId: s.turma, disciplinaId: s.fisica, papel: 'professor' })
       expect(pendente.status).toBe(201)
-      const gatilho = new GatilhoDeParada(bancada.pool, { tabela: 'vinculo', evento: 'delete', quando: `old.usuario_id = '${s.professor.usuarioId}'::uuid` })
+      const gatilho = new WriteBlockTrigger(bancada.pool, { tabela: 'vinculo', evento: 'delete', quando: `old.usuario_id = '${s.professor.usuarioId}'::uuid` })
       await gatilho.armar()
       try {
         const eliminando = eliminarPelaCoordenacao(s)
@@ -359,14 +359,14 @@ describe('acesso da turma × fim do vínculo de quem o gerou (correção 2026-10
     })
   })
 
-  const eliminarPelaCoordenacao = (s: SalaDeTeste) =>
+  const eliminarPelaCoordenacao = (s: TestSala) =>
     runInContext({ requisicaoId: randomUUID(), escolaId: s.escolaId, usuarioId: s.coordenacao.usuarioId, papel: 'coordenador' as const }, () => ciclo.eliminar(s.professor.usuarioId))
 
   describe('a corrida com o gerar, na trava da turma', () => {
     it('o gerar parado depois do insert: o encerrar espera a turma e revoga o acesso que acabou de nascer', async () => {
       const s = await sala.montar()
       const vinculo = await vinculoDe(s, s.professor.usuarioId, s.turma)
-      const gatilho = new GatilhoDeParada(bancada.pool, { tabela: 'acesso_turma', evento: 'insert', quando: `new.turma_id = '${s.turma}'::uuid` })
+      const gatilho = new WriteBlockTrigger(bancada.pool, { tabela: 'acesso_turma', evento: 'insert', quando: `new.turma_id = '${s.turma}'::uuid` })
       await gatilho.armar()
       try {
         const gerando = chamar(api.url, 'POST', `/v1/turmas/${s.turma}/acesso`, s.professor.token, { validadeDias: 7 })
@@ -386,7 +386,7 @@ describe('acesso da turma × fim do vínculo de quem o gerou (correção 2026-10
     it('o encerrar parado com a turma travada: o gerar espera, reconfere o vínculo e sai NAO_ENCONTRADO, sem acesso vigente', async () => {
       const s = await sala.montar()
       const vinculo = await vinculoDe(s, s.professor.usuarioId, s.turma)
-      const gatilho = new GatilhoDeParada(bancada.pool, { tabela: 'vinculo', evento: 'update', quando: `new.id = '${vinculo}'::uuid and new.estado = 'encerrado'` })
+      const gatilho = new WriteBlockTrigger(bancada.pool, { tabela: 'vinculo', evento: 'update', quando: `new.id = '${vinculo}'::uuid and new.estado = 'encerrado'` })
       await gatilho.armar()
       try {
         const encerrando = encerrar(s, vinculo)
@@ -407,7 +407,7 @@ describe('acesso da turma × fim do vínculo de quem o gerou (correção 2026-10
 
     it('o gerar parado depois do insert: a eliminação espera a turma e revoga o acesso que acabou de nascer', async () => {
       const s = await sala.montar()
-      const gatilho = new GatilhoDeParada(bancada.pool, { tabela: 'acesso_turma', evento: 'insert', quando: `new.turma_id = '${s.turma}'::uuid` })
+      const gatilho = new WriteBlockTrigger(bancada.pool, { tabela: 'acesso_turma', evento: 'insert', quando: `new.turma_id = '${s.turma}'::uuid` })
       await gatilho.armar()
       let novo: { token: string; codigo: string } | undefined
       try {
@@ -429,7 +429,7 @@ describe('acesso da turma × fim do vínculo de quem o gerou (correção 2026-10
     it('a eliminação parada com a turma travada: o gerar espera, reconfere o vínculo e sai NAO_ENCONTRADO, sem acesso vigente', async () => {
       const s = await sala.montar()
       const vinculo = await vinculoDe(s, s.professor.usuarioId, s.turma)
-      const gatilho = new GatilhoDeParada(bancada.pool, { tabela: 'vinculo', evento: 'delete', quando: `old.id = '${vinculo}'::uuid` })
+      const gatilho = new WriteBlockTrigger(bancada.pool, { tabela: 'vinculo', evento: 'delete', quando: `old.id = '${vinculo}'::uuid` })
       await gatilho.armar()
       try {
         const eliminando = eliminarPelaCoordenacao(s)

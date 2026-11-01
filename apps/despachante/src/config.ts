@@ -19,7 +19,7 @@ const envSchema = z.object({
   REDIS_FILA_URL: z.string().regex(/^redis:\/\/[^/\s]+(\/\d+)?$/),
 })
 
-export interface ConfiguracaoDespachante {
+export interface DespachanteConfig {
   /** Pool próprio, com o `statement_timeout` do ambiente; a conexão do `LISTEN` sai dele. */
   banco: DatabaseConfig
   redisFilaUrl: string
@@ -37,7 +37,7 @@ export interface ConfiguracaoDespachante {
 }
 
 /** Lê e valida o ambiente do despachante. Todos os problemas saem de uma vez, só pelo nome. */
-export function lerConfiguracao(ambiente: Record<string, string | undefined>): ConfiguracaoDespachante {
+export function loadConfig(ambiente: Record<string, string | undefined>): DespachanteConfig {
   const problemas: InvalidConfigError[] = []
   const ler = <T>(leitura: () => T): T | undefined => {
     try {

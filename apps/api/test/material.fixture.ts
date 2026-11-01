@@ -2,8 +2,8 @@ import { randomBytes, randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { CAMINHO_DO_MATERIAL } from '../../../tools/demonstracao/gerar-material.ts'
 import { ExtractionQueue } from '../src/material/extraction-queue.js'
-import type { ApiDeTeste, RespostaHttp } from './test-api.js'
-import type { BancadaDeSessoes, SessaoDeTeste } from './sessao.fixture.js'
+import type { TestApi, RespostaHttp } from './test-api.js'
+import type { SessaoFixtures, TestSessao } from './sessao.fixture.js'
 
 /** O PDF de demonstração commitado: seis páginas de "Química 2 — Capítulo 7: Estequiometria". */
 export const PDF_DE_DEMONSTRACAO = readFileSync(CAMINHO_DO_MATERIAL)
@@ -38,7 +38,7 @@ export function pdfCorrompido(): Buffer {
   return Buffer.concat([Buffer.from('%PDF-1.7\n', 'latin1'), randomBytes(2048)])
 }
 
-export interface CamposDoEnvio {
+export interface UploadFields {
   readonly titulo?: string
   readonly disciplinaId: string
   readonly titularidade?: string
@@ -49,7 +49,7 @@ export interface CamposDoEnvio {
   readonly extra?: Readonly<Record<string, string>>
 }
 
-export interface OpcoesDoEnvio {
+export interface UploadOptions {
   /** O arquivo; `null` manda o pedido sem arquivo nenhum. */
   readonly arquivo?: Buffer | null
   readonly nomeDoArquivo?: string
@@ -63,7 +63,7 @@ export interface OpcoesDoEnvio {
 }
 
 /** `POST /v1/materiais` como a tela manda: multipart, com os campos antes do arquivo. */
-export async function enviarMaterial(api: ApiDeTeste, sessao: Pick<SessaoDeTeste, 'token'>, campos: CamposDoEnvio, opcoes: OpcoesDoEnvio = {}): Promise<RespostaHttp & { retryAfter: string | null }> {
+export async function enviarMaterial(api: TestApi, sessao: Pick<TestSessao, 'token'>, campos: UploadFields, opcoes: UploadOptions = {}): Promise<RespostaHttp & { retryAfter: string | null }> {
   const { arquivo = PDF_DE_DEMONSTRACAO, nomeDoArquivo = 'capitulo.pdf', tipo = 'application/pdf', arquivoPrimeiro = false, campoDoArquivo = 'arquivo', copias = 1 } = opcoes
   const formulario = new FormData()
   const anexar = (): void => {
@@ -93,11 +93,11 @@ export async function enviarMaterial(api: ApiDeTeste, sessao: Pick<SessaoDeTeste
 }
 
 /** Espera a fila de extração desta instância esvaziar: o material já saiu de `processando`. */
-export function esperarExtracao(api: ApiDeTeste): Promise<void> {
+export function esperarExtracao(api: TestApi): Promise<void> {
   return api.app.get(ExtractionQueue).ociosa()
 }
 
-export interface LinhaDoMaterial {
+export interface MaterialRow {
   readonly id: string
   readonly disciplina_id: string
   readonly titulo: string
@@ -113,27 +113,27 @@ export interface LinhaDoMaterial {
 }
 
 /** As linhas de `material` da escola, em ordem de envio, com as excluídas. */
-export async function materiaisDa(bancada: BancadaDeSessoes, escolaId: string): Promise<LinhaDoMaterial[]> {
-  const { rows } = await bancada.pool.query<LinhaDoMaterial>(
+export async function materiaisDa(bancada: SessaoFixtures, escolaId: string): Promise<MaterialRow[]> {
+  const { rows } = await bancada.pool.query<MaterialRow>(
     'select id, disciplina_id, titulo, estado, falha, paginas, sha256, tamanho_bytes, declaracao, enviado_por, excluido_por, excluido_em from material where escola_id = $1 order by id',
     [escolaId],
   )
   return rows
 }
 
-export interface LinhaDoTrecho {
+export interface TrechoRow {
   readonly material_id: string
   readonly disciplina_id: string
   readonly pagina: number
   readonly texto: string
 }
 
-export async function trechosDa(bancada: BancadaDeSessoes, escolaId: string): Promise<LinhaDoTrecho[]> {
-  const { rows } = await bancada.pool.query<LinhaDoTrecho>('select material_id, disciplina_id, pagina, texto from trecho where escola_id = $1 order by material_id, pagina', [escolaId])
+export async function trechosDa(bancada: SessaoFixtures, escolaId: string): Promise<TrechoRow[]> {
+  const { rows } = await bancada.pool.query<TrechoRow>('select material_id, disciplina_id, pagina, texto from trecho where escola_id = $1 order by material_id, pagina', [escolaId])
   return rows
 }
 
-export interface LinhaDeAuditoria {
+export interface AuditoriaRow {
   readonly entidade: string
   readonly entidade_id: string
   readonly autor_usuario_id: string | null
@@ -141,8 +141,8 @@ export interface LinhaDeAuditoria {
   readonly depois: unknown
 }
 
-export async function auditoriaDa(bancada: BancadaDeSessoes, escolaId: string, acao: string): Promise<LinhaDeAuditoria[]> {
-  const { rows } = await bancada.pool.query<LinhaDeAuditoria>('select entidade, entidade_id, autor_usuario_id, antes, depois from auditoria where escola_id = $1 and acao = $2 order by em, id', [escolaId, acao])
+export async function auditoriaDa(bancada: SessaoFixtures, escolaId: string, acao: string): Promise<AuditoriaRow[]> {
+  const { rows } = await bancada.pool.query<AuditoriaRow>('select entidade, entidade_id, autor_usuario_id, antes, depois from auditoria where escola_id = $1 and acao = $2 order by em, id', [escolaId, acao])
   return rows
 }
 
@@ -151,8 +151,8 @@ export async function auditoriaDa(bancada: BancadaDeSessoes, escolaId: string, a
  * de envios sem subir dezenas de arquivos. Cada um com um resumo próprio.
  */
 export async function materiaisJaEnviados(
-  bancada: BancadaDeSessoes,
-  sessao: Pick<SessaoDeTeste, 'escolaId' | 'usuarioId'>,
+  bancada: SessaoFixtures,
+  sessao: Pick<TestSessao, 'escolaId' | 'usuarioId'>,
   disciplinaId: string,
   quantidade: number,
   { estado = 'falhou', enviadoHaMs = 0 }: { estado?: 'processando' | 'falhou'; enviadoHaMs?: number } = {},
@@ -176,7 +176,7 @@ export async function materiaisJaEnviados(
  * Apaga os trechos e os materiais das escolas do teste. **Antes de `bancada.fechar()`**: a bancada apaga a disciplina,
  * e o material aponta para ela.
  */
-export async function apagarMateriais(bancada: BancadaDeSessoes, escolas: readonly string[]): Promise<void> {
+export async function apagarMateriais(bancada: SessaoFixtures, escolas: readonly string[]): Promise<void> {
   if (escolas.length === 0) return
   await bancada.pool.query('delete from trecho where escola_id = any($1::uuid[])', [escolas])
   await bancada.pool.query('delete from material where escola_id = any($1::uuid[])', [escolas])

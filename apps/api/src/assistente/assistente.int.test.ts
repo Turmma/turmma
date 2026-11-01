@@ -6,8 +6,8 @@ import { join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
-import { CapturaDeDadoPessoal } from '../../test/personal-data-capture.js'
-import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from '../../test/test-api.js'
+import { PersonalDataCapture } from '../../test/personal-data-capture.js'
+import { chamar, subirApi, type TestApi, type RespostaHttp } from '../../test/test-api.js'
 import {
   comoPessoa,
   contarNaEscola,
@@ -19,7 +19,7 @@ import {
   zerarLimiteDePedidosDeIa,
   type EscolaComAssistente,
 } from '../../test/escola-assistente.fixture.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from '../../test/sessao.fixture.js'
+import { SessaoFixtures, type TestSessao } from '../../test/sessao.fixture.js'
 import { ExecucaoScheduler } from '../ia/execucao.scheduler.js'
 import { EXECUTOR_DE_AGENTE, SUSPENSAO_DE_FUNCAO } from '../ia/ia.module.js'
 import { TrechoSearch } from '../material/trecho-search.js'
@@ -36,19 +36,19 @@ import { TurmaDoProfessorRepository } from './turma-do-professor.repository.js'
  * cláusula de escopo saísse do repository (regra 10, item 5).
  */
 describe('Assistente de ensino', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
   const linhasDeLog: string[] = []
-  let api: ApiDeTeste
+  let api: TestApi
   let executor: InProcessAgenteExecutor
   let a: EscolaComAssistente
   let b: EscolaComAssistente
 
   const sql = (texto: string, valores: unknown[] = []) => bancada.pool.query(texto, valores)
-  const get = async (sessao: SessaoDeTeste, caminho: string): Promise<RespostaHttp> => chamar(api.url, 'GET', caminho, await sessao.tokenNovo())
-  const post = async (sessao: SessaoDeTeste, caminho: string, corpo: unknown): Promise<RespostaHttp> => chamar(api.url, 'POST', caminho, await sessao.tokenNovo(), corpo)
+  const get = async (sessao: TestSessao, caminho: string): Promise<RespostaHttp> => chamar(api.url, 'GET', caminho, await sessao.tokenNovo())
+  const post = async (sessao: TestSessao, caminho: string, corpo: unknown): Promise<RespostaHttp> => chamar(api.url, 'POST', caminho, await sessao.tokenNovo(), corpo)
   const mensagem = (escola: EscolaComAssistente, texto: string, extra: Record<string, unknown> = {}) => ({ texto, turmaId: escola.turma, disciplinaId: escola.quimica, chaveEnvio: randomUUID(), ...extra })
-  const conversaDe = async (sessao: SessaoDeTeste, consulta = '') => conversaDoAssistenteResponseSchema.parse((await get(sessao, `/v1/assistente/conversa${consulta}`)).corpo)
+  const conversaDe = async (sessao: TestSessao, consulta = '') => conversaDoAssistenteResponseSchema.parse((await get(sessao, `/v1/assistente/conversa${consulta}`)).corpo)
   const suspender = (escola: EscolaComAssistente, funcao: ChaveDeFuncao) => sql('insert into suspensao_de_funcao (escola_id, funcao, suspensa_por) values ($1, $2, $3)', [escola.escolaId, funcao, escola.coordenacao.usuarioId])
   const retomar = (escola: EscolaComAssistente, funcao: ChaveDeFuncao) =>
     sql('update suspensao_de_funcao set retomada_em = now(), retomada_por = $3 where escola_id = $1 and funcao = $2 and retomada_em is null', [escola.escolaId, funcao, escola.coordenacao.usuarioId])
@@ -81,7 +81,7 @@ describe('Assistente de ensino', () => {
     })
 
     it('a suspensão que aparece é a da escola de quem lê: suspensa em A, a mesma função segue ativa em B, e a retomada some', async () => {
-      const suspensas = async (sessao: SessaoDeTeste) =>
+      const suspensas = async (sessao: TestSessao) =>
         timeResponseSchema
           .parse((await get(sessao, '/v1/time')).corpo)
           .agentes.flatMap((agente) => agente.funcoes)
@@ -193,7 +193,7 @@ describe('Assistente de ensino', () => {
 
     it('o corpo e a consulta inválidos: nenhuma execução nem consumo; a resposta é só o código do catálogo e o que foi mandado não vai ao log; o limite 100 passa e o 101 não', async () => {
       const SENTINELA = `sentinela-do-corpo-${randomUUID()}`
-      const captura = new CapturaDeDadoPessoal(linhasDeLog)
+      const captura = new PersonalDataCapture(linhasDeLog)
       const execucoesAntes = await contarNaEscola(bancada, 'execucao_agente', a.escolaId)
       const consumoAntes = await contarNaEscola(bancada, 'consumo_ia', a.escolaId)
       const corpoInvalido = await captura.capturar(post(a.professora, '/v1/assistente/mensagens', mensagem(a, SENTINELA, { escolaId: b.escolaId, [SENTINELA]: SENTINELA })))

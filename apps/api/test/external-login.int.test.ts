@@ -7,8 +7,8 @@ import { runInContext, METRICS } from '@educa/core'
 import { randomUUID } from 'node:crypto'
 import { PasswordHasher, loadExternalLoginConfig } from '../src/credencial/index.js'
 import { ContaExternalRepository, COOKIE_OIDC, CookieOidc } from '../src/sessao/index.js'
-import { chamar, renovar, subirApi, type ApiDeTeste } from './test-api.js'
-import { BancadaDeSessoes } from './sessao.fixture.js'
+import { chamar, renovar, subirApi, type TestApi } from './test-api.js'
+import { SessaoFixtures } from './sessao.fixture.js'
 import { adulterarPenultimo } from './tampered-text.js'
 
 // Os usuários sintéticos do oidc-falso (infra/oidc-falso/config.json), escolhidos pelo nome digitado no login dele.
@@ -62,10 +62,10 @@ async function redirecionamento(resposta: Response): Promise<Redirecionamento> {
 }
 
 describe('login pela conta Google ou Microsoft da escola, contra o oidc-falso do compose', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
   const linhasDeLog: string[] = []
-  let api: ApiDeTeste
+  let api: TestApi
   let hashDoAluno: string
 
   beforeAll(async () => {
