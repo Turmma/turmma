@@ -15,7 +15,7 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
 import { ARGUMENTOS_COMPOSE, servicosDeJob } from '../ci/compose.ts'
-import { arquivoDoRelatorioDoE2e, motivoDaDuracaoDoE2e, VARIAVEL_DO_RELATORIO_DO_E2E } from '../ci/duracao-do-e2e.ts'
+import { arquivoDoRelatorioDoE2e, casosIsentosPorSoRename, motivoDaDuracaoDoE2e, VARIAVEL_DO_RELATORIO_DO_E2E } from '../ci/duracao-do-e2e.ts'
 import { e2eDosLiteraisRemovidos } from '../ci/e2e-que-cita-literal.ts'
 import { garantirFilaDeCarga } from '../ci/fila-de-carga.ts'
 import { avisoDaDivergenciaSoNoDocumento } from './divergencias.ts'
@@ -189,6 +189,13 @@ const duracaoDoE2e = daTarefa && alvos.e2e.length > 0 ? motivoDaDuracaoDoE2e(rai
 if (duracaoDoE2e !== null) {
   process.stdout.write(`\n✗ portão local vermelho na duração do e2e: ${duracaoDoE2e}\nNenhum carimbo gravado.\n`)
   process.exit(1)
+}
+// O caso que a onda de nomes só renomeou pelo mapa sai da régua (Tech Spec §13), mas os que estavam acima do limite ficam à vista: o relatório da onda
+// os copia na seção "Só rename na régua de duração".
+const soRenameNaReguaDeDuracao = daTarefa && alvos.e2e.length > 0 ? casosIsentosPorSoRename(raiz, relatorioDoE2e) : []
+if (soRenameNaReguaDeDuracao.length > 0) {
+  const linhas = soRenameNaReguaDeDuracao.map((caso) => `  ${caso.arquivo}:${String(caso.linha)} (${caso.projeto}) levou ${(caso.duracaoMs / 1000).toFixed(1).replace('.', ',')} s — ${caso.titulo}`)
+  process.stdout.write(`\nSó rename na régua de duração: ${String(soRenameNaReguaDeDuracao.length)} caso(s) acima do limite que só diferem do HEAD pelos nomes do mapa da onda:\n${linhas.join('\n')}\n`)
 }
 // As mutações do documento, depois das suítes: só com os testes verdes um teste vermelho quer dizer que a cláusula tem
 // quem a prove. Cada uma é aplicada, o teste citado roda, tem de cair, e o arquivo volta ao que era.
