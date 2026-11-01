@@ -2437,3 +2437,11 @@ repetem aqui.
       `arquivosAlterados` (`caducidade.ts:228`), então entra junto com a duplicata acima (test-engineer, rodada 1)
 - [ ] Da correção `2026-10-31-portao-conta-o-merge-como-o-git-hook`, para o Arquiteto e a retro da spec: a frase da `techspec.md:69` dizendo que o `PreToolUse` conta igual ao git hook,
       e o registro, nos "Limites declarados" (`techspec.md:110`), de que um arquivo só do outro lado do merge é tratado como já revisto (revisor-geral, privacy-guardian e tenancy-guardian, rodada 1)
+
+## Da tarefa 12.0 de nomes-de-mercado (X8), fora dela
+
+- [ ] Da tarefa 12.0, `tools/guardas/` e `tools/renomear/referencias.ts`, para a próxima tarefa ou correção que os tocar: (a) o comentário de
+      `SEM_VARREDURA` dizer que a isenção dos dois arquivos da guarda é só do rename (privacy-guardian, rodada 1); (b) um segundo caso de escape em
+      `excecoesSemAlvo`, com `(` ou `+`, para provar a classe de caracteres inteira (test-engineer, rodada 2); (c) quebrar a linha longa do cabeçalho de
+      `regras-nome.mjs` (revisor-geral, rodada 2); (d) o caso `cada linha da gramática é exercida…` de `guardas.test.ts` usar `restoDoNome`, exportado,
+      em vez de refazer o `casa` (test-engineer, rodada 1)

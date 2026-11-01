@@ -1,6 +1,7 @@
 import comentarios from '@eslint-community/eslint-plugin-eslint-comments'
 import { erroTipado } from './regras-erro.mjs'
 import { logSemConteudoMontado, logSemDadoPessoal } from './regras-log.mjs'
+import { nomeDeMercado } from './regras-nome.mjs'
 import { MENSAGEM_SDK_DE_IA, PASTA_DOS_ADAPTADORES, REGEX_SDK_DE_IA, sdkDeIaSoNoAdaptador } from './regras-ia.mjs'
 import { esperarServicoDoCompose, testeSemDesligar } from './regras-teste.mjs'
 import { tabelaSoNoRepository } from './regras-tenant.mjs'
@@ -20,6 +21,7 @@ export const guardas = {
     'teste-sem-desligar': testeSemDesligar,
     'tabela-so-no-repository': tabelaSoNoRepository,
     'erro-tipado': erroTipado,
+    'nome-de-mercado': nomeDeMercado,
   },
 }
 
@@ -36,6 +38,17 @@ export const REGRAS_EM_TODO_ARQUIVO = [...REGRAS_DE_LOG, ...REGRAS_DE_SDK_DE_IA,
  */
 export const REGRAS_DE_ERRO = ['guardas/erro-tipado']
 export const ESCOPO_DO_ERRO_TIPADO = ['apps/*/src/**/*.{ts,tsx}', 'packages/core/src/**/*.{ts,tsx}']
+/**
+ * Em código novo não nasce o nome técnico em português que a X8 trocou pelo de mercado (RF8; D81): a declaração de topo, o
+ * arquivo e a pasta. Vale em `apps`, `packages` e `e2e`; `tools/` fica de fora (o PRD não o renomeia). Entra na segunda
+ * passada, sem comentários: o `eslint-disable` não a desliga.
+ */
+export const REGRAS_DE_NOME = ['guardas/nome-de-mercado']
+export const ESCOPO_DO_NOME = [
+  'apps/**/*.{js,mjs,cjs,jsx,ts,mts,cts,tsx}',
+  'packages/**/*.{js,mjs,cjs,jsx,ts,mts,cts,tsx}',
+  'e2e/**/*.{js,mjs,cjs,jsx,ts,mts,cts,tsx}',
+]
 export const REGRAS_DE_TESTE = ['guardas/esperar-servico-do-compose', 'guardas/teste-sem-desligar']
 /**
  * O `no-restricted-syntax` do ESLint, com os seletores em `eslint.config.mjs`, serve a dois blocos: a entrada do
@@ -65,6 +78,7 @@ export const REGRAS_DAS_GUARDAS = [
   ...REGRAS_DE_SDK_DE_IA,
   ...REGRAS_DE_TENANT,
   ...REGRAS_DE_ERRO,
+  ...REGRAS_DE_NOME,
   ...REGRAS_DE_TESTE,
   ...REGRAS_DE_ENTRADA,
   ...REGRAS_DO_KIT,
@@ -153,6 +167,10 @@ export const configuracaoDasGuardas = [
   {
     files: ESCOPO_DO_ERRO_TIPADO,
     rules: Object.fromEntries(REGRAS_DE_ERRO.map((regra) => [regra, 'error'])),
+  },
+  {
+    files: ESCOPO_DO_NOME,
+    rules: Object.fromEntries(REGRAS_DE_NOME.map((regra) => [regra, 'error'])),
   },
   {
     files: ARQUIVOS_DE_TESTE,

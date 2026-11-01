@@ -20,7 +20,11 @@ export interface Referencia {
 }
 
 const PASTAS_VARRIDAS = new Set(['apps', 'packages', 'e2e', 'tools', 'infra', '.github'])
-const SEM_VARREDURA = ['tools/renomear/', 'package-lock.json']
+/**
+ * O que o passo 6 não varre. Os dois arquivos de `tools/guardas/` citam o nome antigo por obrigação: a lista da guarda do RF8 e
+ * os casos dela (`Botao`, `lerConfiguracao`, `packages/core/src/fila/`). Ali o nome antigo é o dado, como o `de` é no mapa.
+ */
+const SEM_VARREDURA = ['tools/renomear/', 'package-lock.json', 'tools/guardas/nomes-de-mercado.mjs', 'tools/guardas/guardas.test.ts']
 const TEXTO_SEM_CODIGO = /(\.(json|jsonc|ya?ml|toml|sh)|(^|[/.])Dockerfile)$/
 /** Um `\b` de regex vira este marcador: ele separa palavras, e a regra da palavra comum o reconhece. */
 const BORDA = '\u0001'

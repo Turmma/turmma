@@ -93,7 +93,14 @@ mais de uma entrada (troca à mão), porque o homônimo de outro pacote é citad
    prefixo da gramática em `startsWith`/`endsWith`. O símbolo `comum` só é listado quando o literal inteiro é ele,
    quando vem seguido de `(`, precedido de `@` ou `\b`, ou é segmento de caminho ou de acesso a membro; em prosa, URL
    (o literal com `://`) e e-mail (`\S+@\S+\.\S+`), não. A regex com alternância que parte o nome também é
-   limite do `travas.md`. Ocorrência não classificada deixa o relatório vermelho.
+   limite do `travas.md`. Ocorrência não classificada deixa o relatório vermelho. **Não varre** `tools/renomear/`,
+   o `package-lock.json` e, desde a 12.0, os dois arquivos que citam o nome antigo por obrigação: a lista da guarda do
+   RF8 (`tools/guardas/nomes-de-mercado.mjs`) e `tools/guardas/guardas.test.ts`, onde estão os casos dela (`Botao`,
+   `lerConfiguracao`, `packages/core/src/fila/`; `guarda.md`). Ali o nome antigo é o dado, como o `de` é no mapa: o
+   `restos` não o cobra, e o `reaplicar` não o manda trocar à mão. A isenção é desses dois arquivos, pelo nome
+   (`SEM_VARREDURA`, em `referencias.ts`), e só da busca por texto: o identificador e o comentário deles continuam
+   na régua do `restos`, e o outro arquivo de `tools/guardas/` continua varrido (triagem da divergência da 12.0,
+   01/11/2026).
 7. Grava o `<N>.relatorio.md`.
 
 Só grava depois de calcular tudo; a onda se desfaz com `git reset --hard` e `git clean -fd`, ou `git revert`.

@@ -1,12 +1,14 @@
 import { ESLint, type Linter } from 'eslint'
 import { spawnSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join, matchesGlob } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { raizRepositorio } from '../ci/executar.ts'
 import { criarEslintDasGuardas, violacoesDasGuardas } from './eslint-das-guardas.ts'
 import type { Supressoes } from './catraca.ts'
-import { ARQUIVOS_DE_TESTE, EXCECOES_DAS_GUARDAS, REGRAS_DAS_GUARDAS, REGRAS_DE_ERRO, REGRAS_DE_LOG, REGRAS_DE_SDK_DE_IA, REGRAS_DE_TAMANHO, REGRAS_DE_TENANT, REGRAS_DE_TESTE, REGRAS_EM_TODO_ARQUIVO } from './index.mjs'
+import { ARQUIVOS_DE_TESTE, ESCOPO_DO_NOME, EXCECOES_DAS_GUARDAS, REGRAS_DAS_GUARDAS, REGRAS_DE_ERRO, REGRAS_DE_LOG, REGRAS_DE_NOME, REGRAS_DE_SDK_DE_IA, REGRAS_DE_TAMANHO, REGRAS_DE_TENANT, REGRAS_DE_TESTE, REGRAS_EM_TODO_ARQUIVO } from './index.mjs'
+import { EXCECOES_NOMINAIS, FORMAS } from './nomes-de-mercado.mjs'
+import { excecoesSemAlvo, sugestoesDoNome } from './regras-nome.mjs'
 import { CHAVES_PESSOAIS, ehChaveOperacional, ehNomePessoal } from './regras-log.mjs'
 
 // Cada fixture em __fixtures__ traz, na própria linha, a marca "reprova: <regra>". O teste passa
@@ -470,6 +472,244 @@ describe('guarda de erro tipado (RF13; regra 00, item 9; regra 20, item 11)', ()
     const violacoes = resultados.flatMap((resultado) => resultado.messages.filter((mensagem) => mensagem.ruleId === 'guardas/erro-tipado').map((mensagem) => `${resultado.filePath}:${mensagem.line}`))
     expect(violacoes).toEqual([])
   }, 120_000)
+})
+
+describe('guarda de nome de mercado (RF8; regra 60; D81)', () => {
+  const REGRA = 'guardas/nome-de-mercado'
+  const regras = new Set([REGRA])
+  const RECUSADO = 'nome-recusado.ts'
+  const PASSA = 'nome-que-passa.ts'
+  const SEM_MARCA = 'nome-sem-marca.ts'
+  const DA_GUARDA = ['1 guardas/nome-de-mercado']
+
+  /** As mensagens da guarda sobre um texto, na passada sem comentários. */
+  async function mensagensDe(texto: string, caminho: string): Promise<string[]> {
+    const [resultado] = await eslintDasGuardas.lintText(texto, { filePath: join(raizRepositorio, caminho) })
+    return (resultado?.messages ?? []).filter((mensagem) => mensagem.ruleId === REGRA).map((mensagem) => mensagem.message)
+  }
+
+  it('fica entre as que a passada sem comentários roda, só em apps, packages e e2e, e fora de tools/', async () => {
+    expect(REGRAS_DE_NOME).toEqual([REGRA])
+    expect(REGRAS_DAS_GUARDAS).toContain(REGRA)
+    expect(ESCOPO_DO_NOME.map((glob) => glob.split('/')[0])).toEqual(['apps', 'packages', 'e2e'])
+    const nivelEm = async (caminho: string) =>
+      ((await eslint.calculateConfigForFile(join(raizRepositorio, caminho))) as { rules: Record<string, [number, ...unknown[]]> }).rules[REGRA]?.[0] ?? 0
+    for (const caminho of ['apps/api/src/x/x.service.ts', 'apps/web/src/x.tsx', 'apps/api/test/x.int.test.ts', 'packages/core/src/x.ts', 'packages/shared/src/x.ts', 'e2e/x.spec.ts', 'e2e/support/x.ts']) {
+      expect(await nivelEm(caminho), caminho).toBe(2)
+    }
+    for (const caminho of ['tools/ci/x.ts', 'tools/guardas/x.mjs', 'infra/scripts/x.ts', 'eslint.config.mjs']) expect(await nivelEm(caminho), caminho).toBe(0)
+  })
+
+  it.each(['apps/api/src/x/x.service.ts', 'apps/web/src/x.ts', 'apps/worker/src/x.ts', 'packages/core/src/x.ts', 'packages/shared/src/x.ts', 'e2e/x.spec.ts'])(
+    'recusa cada forma, no tipo de declaração em que a linha vale, e cada jeito de declarar a mesma peça, em %s',
+    async (caminho) => {
+      expect(await lintar(eslintDasGuardas, RECUSADO, caminho, regras)).toEqual(marcasDeViolacao(RECUSADO))
+    },
+  )
+
+  const CASOS = [
+    ['AdaptadorX', 'classe', 'apps/api/src/x.ts', ['`XAdapter`']],
+    ['GuardaX', 'classe', 'apps/api/src/x.ts', ['`XGuard`']],
+    ['FiltroX', 'classe', 'apps/api/src/x.ts', ['`XFilter`']],
+    ['InterceptorX', 'classe', 'apps/api/src/x.ts', ['`XInterceptor`']],
+    ['ErroX', 'classe', 'apps/api/src/x.ts', ['`XException`', '`XError`']],
+    ['FalhaX', 'classe', 'apps/api/src/x.ts', ['`XException`', '`XError`']],
+    ['EmissorX', 'classe', 'apps/api/src/x.ts', ['`XIssuer`']],
+    ['ArmazemX', 'classe', 'apps/api/src/x.ts', ['`XFileStorage`']],
+    ['MedicaoX', 'classe', 'apps/api/src/x.ts', ['`XGauge`']],
+    ['BancadaX', 'classe', 'apps/api/src/x.ts', ['`XFixtures`']],
+    ['XEmMemoria', 'classe', 'apps/api/src/x.ts', ['`InMemoryX`']],
+    ['XEmMemoria', 'interface', 'apps/api/src/x.ts', ['`InMemoryX`']],
+    ['XEmMemoria', 'tipo', 'apps/api/src/x.ts', ['`InMemoryX`']],
+    ['LinhaX', 'interface', 'apps/api/src/x.ts', ['`XRow`']],
+    ['LinhaX', 'tipo', 'apps/api/src/x.ts', ['`XRow`']],
+    ['OpcoesX', 'tipo', 'apps/api/src/x.ts', ['`XOptions`']],
+    ['DependenciasX', 'interface', 'apps/api/src/x.ts', ['`XDependencies`']],
+    ['ConfiguracaoX', 'tipo', 'apps/api/src/x.ts', ['`XConfig`']],
+    ['esquemaTurma', 'const', 'apps/api/src/x.ts', ['`turmaSchema`']],
+    ['esquemaTurma', 'funcao', 'apps/api/src/x.ts', ['`turmaSchema`']],
+    ['lerConfiguracaoApi', 'funcao', 'apps/api/src/x.ts', ['`loadApiConfig`']],
+    ['lerConfiguracao', 'funcao', 'apps/api/src/x.ts', ['`loadConfig`']],
+    ['lerConfiguracao', 'const', 'apps/api/src/x.ts', ['`loadConfig`']],
+    ['consultaTurmas', 'const', 'apps/web/src/x.ts', ['`turmasQueryOptions`']],
+    ['consultaTurmas', 'funcao', 'apps/web/src/x.ts', ['`turmasQueryOptions`']],
+    ['EntradaDoTutor', 'interface', 'packages/core/src/ia/tasks/x.ts', ['`TutorInput`']],
+    ['EntradaDeLote', 'tipo', 'packages/core/src/ia/tasks/x.ts', ['`LoteInput`']],
+    ['SaidaDoTutor', 'interface', 'packages/core/src/ia/tasks/x.ts', ['`TutorOutput`']],
+    ['SaidaDeLote', 'tipo', 'packages/core/src/ia/tasks/x.ts', ['`LoteOutput`']],
+    ['Botao', 'classe', 'apps/web/src/x.ts', ['`Button`']],
+    ['Cartao', 'interface', 'apps/web/src/x.ts', ['`Card`']],
+    ['Dialogo', 'tipo', 'apps/web/src/x.ts', ['`Dialog`']],
+    ['Abas', 'const', 'apps/web/src/x.ts', ['`Tabs`']],
+    ['Tabela', 'funcao', 'apps/web/src/x.ts', ['`Table`']],
+    ['Tela', 'enum', 'apps/web/src/x.ts', ['`Page`']],
+  ] as const
+
+  it.each(CASOS)('%s (%s) em %s dá o nome de mercado %j', (nome, tipo, caminho, esperado) => {
+    const sugestoes = sugestoesDoNome(nome, tipo, caminho)
+    expect(sugestoes?.map((sugestao) => `\`${sugestao}\``)).toEqual([...esperado])
+  })
+
+  it('cada linha da gramática é exercida por ao menos um caso da tabela, no tipo e no caminho em que ela vale', () => {
+    const casa = (linha: (typeof FORMAS)[number], nome: string) =>
+      linha.casa === 'exato' ? nome === linha.forma : linha.casa === 'prefixo' ? nome.startsWith(linha.forma) : nome.endsWith(linha.forma)
+    for (const linha of FORMAS) {
+      const exercida = CASOS.some(([nome, tipo, caminho]) => casa(linha, nome) && (linha.tipos as readonly string[]).includes(tipo) && (linha.onde === undefined || linha.onde.test(caminho)))
+      expect(exercida, `${linha.casa} ${linha.forma} (${linha.tipos.join(', ')}) não tem caso`).toBe(true)
+    }
+  })
+
+  it('a mensagem de `class AdaptadorX` contém `XAdapter`; a de `class ErroX`, `XException` e `XError`', async () => {
+    const [mensagem] = await mensagensDe('export class AdaptadorX {}', 'apps/api/src/x.ts')
+    expect(mensagem).toContain('`AdaptadorX`')
+    expect(mensagem).toContain('XAdapter')
+    const [doErro] = await mensagensDe('export class ErroX {}', 'apps/api/src/x.ts')
+    expect(doErro).toContain('`XException` ou `XError`')
+  })
+
+  it('a mesma forma no tipo em que a linha não vale passa, e o nome de domínio, de propósito, também', async () => {
+    expect(marcas(lerFixture(PASSA))).toEqual([])
+    for (const caminho of ['apps/api/src/x.ts', 'apps/worker/src/x.ts', 'packages/core/src/x.ts', 'packages/shared/src/x.ts', 'e2e/x.spec.ts']) {
+      expect(await lintar(eslintDasGuardas, PASSA, caminho, regras), caminho).toEqual([])
+    }
+  })
+
+  it('`ErroX` declarada dentro de função, método e propriedade não é lida (limite declarado), e a classe em `const` conta como const', async () => {
+    const texto = 'export function montar(): void {\n  class ErroX {}\n  void ErroX\n}\nexport const ErroDaClasse = class {}\n'
+    expect(await mensagensDe(texto, 'apps/api/src/x.ts')).toEqual([])
+    expect(await mensagensDe('export class ErroX {}\n', 'apps/api/src/x.ts')).toHaveLength(1)
+  })
+
+  it('a declaração anônima `export default class {}` e `export default function () {}` passa sem quebrar a regra', async () => {
+    for (const texto of ['export default class {}\n', 'export default function () {}\n', 'export default (() => 1)\n']) {
+      expect(await mensagensDe(texto, 'apps/api/src/x.ts'), texto).toEqual([])
+    }
+  })
+
+  it('`Erros` e `Linhas` passam: o prefixo só casa com a letra maiúscula depois, e a classe `Erro` sozinha também', async () => {
+    const texto = 'export class Erros {}\nexport interface Linhas {}\nexport class Erro {}\nexport interface Linha {}\nexport class Filtros {}\n'
+    expect(await mensagensDe(texto, 'apps/api/src/x.ts')).toEqual([])
+    const comMaiuscula = 'export class ErroS {}\nexport interface LinhaS {}\n'
+    expect(await mensagensDe(comMaiuscula, 'apps/api/src/x.ts')).toHaveLength(2)
+  })
+
+  it('`consulta…` vale só em apps/web: lá reprova const e função, e passa tipo, interface e classe; fora de lá, passa', async () => {
+    const fixture = 'nome-so-na-web.ts'
+    expect(await lintar(eslintDasGuardas, fixture, 'apps/web/src/x.ts', regras)).toEqual(marcasDeViolacao(fixture))
+    for (const caminho of ['apps/api/src/x.ts', 'apps/webhook/src/x.ts', 'packages/core/src/x.ts', 'e2e/x.spec.ts']) {
+      expect(await lintar(eslintDasGuardas, fixture, caminho, regras), caminho).toEqual([])
+    }
+  })
+
+  it('`EntradaDe…`, `EntradaDo…`, `SaidaDe…` e `SaidaDo…` valem só em ia/tasks e só em interface e tipo; fora de ia/tasks passam', async () => {
+    const fixture = 'nome-so-em-ia-tasks.ts'
+    for (const caminho of ['packages/core/src/ia/tasks/x.ts', 'apps/api/src/ia/tasks/x.ts']) {
+      expect(await lintar(eslintDasGuardas, fixture, caminho, regras), caminho).toEqual(marcasDeViolacao(fixture))
+    }
+    for (const caminho of ['packages/core/src/x.ts', 'packages/core/src/ia/x.ts', 'packages/core/src/ia/tarefas/x.ts', 'packages/core/src/ia/tasks-x/x.ts', 'apps/api/src/entrada/x.ts']) {
+      expect(await lintar(eslintDasGuardas, fixture, caminho, regras), caminho).toEqual([])
+    }
+  })
+
+  it.each([
+    ['apps/api/src/adaptador-x.ts', 'x-adapter'],
+    ['apps/web/src/guarda-rota.tsx', 'rota.guard'],
+    ['packages/core/src/ia/adaptador-ollama.test.ts', 'ollama-adapter'],
+    ['packages/core/src/repositorio-em-memoria.ts', 'in-memory-repositorio'],
+    ['apps/api/src/x-em-memoria.ts', 'in-memory-x'],
+    ['e2e/support/adaptador-x.ts', 'x-adapter'],
+  ])('o arquivo %s é recusado, e a mensagem dá %s', async (caminho, sugestao) => {
+    expect(await lintar(eslintDasGuardas, SEM_MARCA, caminho, regras)).toEqual(DA_GUARDA)
+    expect((await mensagensDe(lerFixture(SEM_MARCA), caminho))[0]).toContain(`\`${sugestao}\``)
+  })
+
+  it.each([
+    'apps/api/src/adaptador-x/y.ts',
+    'apps/web/src/guarda-x/y.ts',
+    'apps/api/src/x-em-memoria/y.ts',
+    'packages/core/src/adaptador-x/y.ts',
+    'packages/core/src/fila/y.ts',
+    'packages/core/src/limite/y.ts',
+    'packages/shared/src/limite/y.ts',
+  ])('a pasta de %s é recusada', async (caminho) => {
+    expect(await lintar(eslintDasGuardas, SEM_MARCA, caminho, regras)).toEqual(DA_GUARDA)
+  })
+
+  it('a pasta recusada e o arquivo recusado no mesmo caminho dão duas acusações; a mensagem da pasta dá rate-limit e queue', async () => {
+    expect(await lintar(eslintDasGuardas, SEM_MARCA, 'apps/api/src/adaptador-x/guarda-y.ts', regras)).toEqual([...DA_GUARDA, ...DA_GUARDA])
+    expect((await mensagensDe(lerFixture(SEM_MARCA), 'packages/core/src/limite/y.ts'))[0]).toContain('`rate-limit/`')
+    expect((await mensagensDe(lerFixture(SEM_MARCA), 'packages/core/src/fila/y.ts'))[0]).toContain('`queue/`')
+  })
+
+  it.each([
+    'apps/api/src/fila/y.ts',
+    'apps/api/src/limite/y.ts',
+    'apps/worker/src/fila/y.ts',
+    'e2e/limite/y.ts',
+    'packages/core/src/filas/y.ts',
+    'packages/core/src/fila-de-jobs/y.ts',
+    'packages/core/src/adaptador/y.ts',
+    'packages/core/src/ia/ollama-adapter.ts',
+    'packages/core/src/x-em-memoria-y.ts',
+    'apps/api/src/turma/turma.guard.ts',
+    'apps/api/src/guardas/y.ts',
+  ])('o caminho %s passa: fila/ e limite/ são domínio nos apps, e o resto não é segmento da lista', async (caminho) => {
+    expect(await lintar(eslintDasGuardas, SEM_MARCA, caminho, regras)).toEqual([])
+  })
+
+  it('a exceção nominal `esquemaDeCor` passa em e2e/aparencia.spec.ts e reprova em qualquer outro arquivo', async () => {
+    const fixture = 'nome-de-cor.ts'
+    expect(await lintar(eslintDasGuardas, fixture, 'e2e/aparencia.spec.ts', regras)).toEqual([])
+    for (const caminho of ['e2e/outro.spec.ts', 'apps/web/src/x.ts', 'e2e/support/aparencia.spec.ts']) {
+      expect(await lintar(eslintDasGuardas, fixture, caminho, regras), caminho).toEqual(marcasDeViolacao(fixture))
+    }
+  })
+
+  it('a exceção nominal tem alvo: o arquivo existe e cita o nome', () => {
+    const disco = { existe: (arquivo: string) => existsSync(join(raizRepositorio, arquivo)), ler: (arquivo: string) => readFileSync(join(raizRepositorio, arquivo), 'utf8') }
+    expect(EXCECOES_NOMINAIS.length).toBeGreaterThan(0)
+    expect(excecoesSemAlvo(EXCECOES_NOMINAIS, disco)).toEqual([])
+    for (const excecao of EXCECOES_NOMINAIS) expect(excecao.motivo.length, excecao.nome).toBeGreaterThan(20)
+  })
+
+  it('a guarda reprova quando o alvo da exceção não existe, ou existe e não cita mais o nome', () => {
+    const disco = { existe: (arquivo: string) => existsSync(join(raizRepositorio, arquivo)), ler: (arquivo: string) => readFileSync(join(raizRepositorio, arquivo), 'utf8') }
+    const sumiu = { arquivo: 'e2e/arquivo-que-nao-existe.spec.ts', nome: 'esquemaDeCor', motivo: 'x' }
+    const semNome = { arquivo: 'e2e/aparencia.spec.ts', nome: 'esquemaQueNaoEstaLa', motivo: 'x' }
+    expect(excecoesSemAlvo([sumiu, semNome, ...EXCECOES_NOMINAIS], disco)).toEqual([sumiu, semNome])
+  })
+
+  it('o nome da exceção é escapado: `esquema.DeCor` não casa `esquemaXDeCor` no arquivo', () => {
+    const disco = { existe: () => true, ler: () => 'const esquemaXDeCor = 1\n' }
+    const comPonto = { arquivo: 'e2e/x.spec.ts', nome: 'esquema.DeCor', motivo: 'x' }
+    expect(excecoesSemAlvo([comPonto], disco)).toEqual([comPonto])
+  })
+
+  it('quem contorna é acusado: `export default class`, `abstract class` e `export abstract class` reprovam', async () => {
+    for (const texto of ['export default class AdaptadorX {}\n', 'abstract class AdaptadorX {}\n', 'export abstract class AdaptadorX {}\n', 'declare class AdaptadorX {}\n', 'export default function lerConfiguracao() {}\n']) {
+      expect(await mensagensDe(texto, 'apps/api/src/x.ts'), texto).toHaveLength(1)
+    }
+  })
+
+  it('o eslint-disable não fura: o ESLint comum aceita o comentário e reprova a diretiva, e a passada sem comentários reprova a classe', async () => {
+    const fixture = 'nome-desligado.ts'
+    const diretivas = new Set([REGRA_DAS_DIRETIVAS, REGRA])
+    expect(await lintar(eslint, fixture, 'apps/api/src/x.ts', diretivas)).toEqual(marcasDeViolacao(fixture))
+    expect(await lintar(eslintDasGuardas, fixture, 'apps/api/src/x.ts', regras)).toEqual(['3 guardas/nome-de-mercado'])
+  })
+
+  it.each(['tools/x.ts', 'tools/guardas/x.mjs', 'tools/renomear/x.ts', 'infra/scripts/x.ts'])('tools/ e infra/ ficam fora: a fixture que reprova em apps passa em %s', async (caminho) => {
+    expect(await lintar(eslintDasGuardas, RECUSADO, caminho, regras)).toEqual([])
+    expect(await lintar(eslintDasGuardas, SEM_MARCA, caminho.replace(/x\.(ts|mjs)$/, 'adaptador-x.ts'), regras)).toEqual([])
+  })
+
+  it('a árvore depois da 11.0 passa sem nenhum erro (RF8): nenhuma declaração de topo, arquivo ou pasta de apps, packages e e2e tem nome técnico em português', async () => {
+    const eslintDoRepositorio = criarEslintDasGuardas()
+    const resultados = await eslintDoRepositorio.lintFiles(ESCOPO_DO_NOME)
+    expect(resultados.length).toBeGreaterThan(500)
+    const violacoes = resultados.flatMap((resultado) => resultado.messages.filter((mensagem) => mensagem.ruleId === REGRA).map((mensagem) => `${resultado.filePath}:${mensagem.line} ${mensagem.message}`))
+    expect(violacoes).toEqual([])
+  }, 240_000)
 })
 
 describe('guarda desligada por comentário', () => {

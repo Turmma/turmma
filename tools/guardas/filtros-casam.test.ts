@@ -5,7 +5,7 @@ import { basename, join, matchesGlob } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { PASTA_DO_PROTOTIPO } from '../renomear/ast.ts'
 import { EXCECOES_DO_CODIGO, REGRAS_DO_RF16, RESTO_DO_PROCESSO } from '../processo/guardioes-por-caminho.ts'
-import { ARQUIVOS_DE_TESTE, configuracaoDasGuardas, ESCOPO_DO_ERRO_TIPADO, EXCECOES_DAS_GUARDAS } from './index.mjs'
+import { ARQUIVOS_DE_TESTE, configuracaoDasGuardas, ESCOPO_DO_ERRO_TIPADO, ESCOPO_DO_NOME, EXCECOES_DAS_GUARDAS } from './index.mjs'
 import { PASTA_DOS_ADAPTADORES } from './regras-ia.mjs'
 
 // Nenhum filtro casa vazio (X8, 2.0; Tech Spec §5, "A trava contra filtro vazio"). Um glob, um caminho ou um `path` de regex que
@@ -214,10 +214,11 @@ const { default: configuracaoDoEslint } = (await import('../../eslint.config.mjs
 /** Cada fonte com o mínimo de itens que rende hoje (revisão da spec, rodada 9). */
 function fontesDaArvore(): Fonte[] {
   return [
-    carregarFonte('configuracaoDasGuardas', 13, () => globs(configuracaoDasGuardas.flatMap((bloco) => textos(bloco.files)))),
+    carregarFonte('configuracaoDasGuardas', 16, () => globs(configuracaoDasGuardas.flatMap((bloco) => textos(bloco.files)))),
     carregarFonte('EXCECOES_DAS_GUARDAS', 10, () => globs(EXCECOES_DAS_GUARDAS.flatMap((excecao) => excecao.files))),
     carregarFonte('PASTA_DOS_ADAPTADORES', 1, () => globs([PASTA_DOS_ADAPTADORES])),
     carregarFonte('ESCOPO_DO_ERRO_TIPADO', 2, () => globs(ESCOPO_DO_ERRO_TIPADO)),
+    carregarFonte('ESCOPO_DO_NOME', 3, () => globs(ESCOPO_DO_NOME)),
     carregarFonte('ARQUIVOS_DE_TESTE', 2, () => globs(ARQUIVOS_DE_TESTE)),
     carregarFonte('camadas.cjs', 35, () => pathsDoCamadas(requerer(join(RAIZ, 'tools/guardas/camadas.cjs')) as Camadas)),
     carregarFonte('guardioes-por-caminho.ts', 45, () => prefixos([...EXCECOES_DO_CODIGO.map((e) => e.prefixo), ...REGRAS_DO_RF16.map((r) => r.prefixo), ...RESTO_DO_PROCESSO])),

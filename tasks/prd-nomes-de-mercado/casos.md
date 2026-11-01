@@ -102,7 +102,11 @@ Os dois vêm da 2ª rodada da correção `2026-10-30-conferir-homonimo-de-outro-
 - `docs/decisoes.md`;
 - a troca à mão registrada no relatório;
 - um documento com o nome antigo numa onda de linha;
-- o README do ouro numa onda que não é a 13.0.
+- o README do ouro numa onda que não é a 13.0;
+- o nome antigo numa string de `tools/guardas/nomes-de-mercado.mjs` e de `tools/guardas/guardas.test.ts`, a lista e os
+  casos da guarda do RF8 (12.0). O passo 6 não os varre (`referencias.test.ts › o que o passo 6 deixa de fora`); o
+  mesmo nome numa string de outro arquivo de `tools/guardas/` continua listado (`› o que o passo 6 lista`), e a árvore
+  de hoje fica limpa (`restos.test.ts › a árvore não tem resto dos mapas aplicados`).
 
 ## Trava contra filtro vazio (2.0)
 

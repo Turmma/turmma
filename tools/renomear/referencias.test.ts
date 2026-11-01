@@ -47,6 +47,7 @@ describe('o que o passo 6 lista', () => {
     ['caminho antigo no knip.json', { 'knip.json': '{ "workspaces": { "packages/nucleo": {} } }\n' }, [entrada('pasta', 'packages/nucleo')], 'knip.json: packages/nucleo'],
     ['caminho em .github/', { '.github/workflows/ci.yml': 'run: cd packages/nucleo && ls\n' }, [entrada('pasta', 'packages/nucleo')], '.github/workflows/ci.yml: packages/nucleo'],
     ['*.Dockerfile', { 'infra/docker/servico.Dockerfile': 'COPY packages/nucleo/drizzle ./\n' }, [entrada('pasta', 'packages/nucleo')], 'infra/docker/servico.Dockerfile: packages/nucleo'],
+    ["'Botao' em outro arquivo de tools/guardas/, que segue varrido", { 'tools/guardas/index.mjs': "export const f = ['Botao']\n" }, [entrada('simbolo', 'Botao')], 'tools/guardas/index.mjs: Botao'],
     ['.cjs', { 'tools/guardas/camadas.cjs': "module.exports = { path: 'packages/nucleo' }\n" }, [entrada('pasta', 'packages/nucleo')], 'tools/guardas/camadas.cjs: packages/nucleo'],
   ]
   it.each(casos)('%s', (_nome, arquivos, entradas, esperado) => {
@@ -63,6 +64,8 @@ describe('o que o passo 6 deixa de fora', () => {
     ["'nucleo', nome solto do pacote", { 'apps/a.ts': "export const s = 'nucleo'\n" }, [entrada('pacote', '@educa/nucleo')]],
     ["'./fila/x', nome solto da pasta", { 'apps/a.ts': "export const s = './fila/x'\n" }, [entrada('simbolo', 'Fila'), entrada('pasta', 'packages/nucleo/src/fila')]],
     ['a pasta do mapa de ondas, tools/renomear/', { 'tools/renomear/mapas/1.json': '{ "x": "@educa/nucleo" }\n' }, [entrada('pacote', '@educa/nucleo')]],
+    ["'Botao' na lista da guarda do RF8, tools/guardas/nomes-de-mercado.mjs", { 'tools/guardas/nomes-de-mercado.mjs': "export const f = ['Botao']\n" }, [entrada('simbolo', 'Botao')]],
+    ["'Botao' nos casos da guarda do RF8, tools/guardas/guardas.test.ts", { 'tools/guardas/guardas.test.ts': "export const f = ['Botao']\n" }, [entrada('simbolo', 'Botao')]],
     ["startsWith('es'), prefixo curto demais para ser nome", { 'apps/a.ts': "export const f = (n: string) => n.startsWith('es')\n" }, [entrada('simbolo', 'esquemaTurma')]],
     ['o JsxText, que é texto de tela', { 'apps/web/a.tsx': 'export const A = () => <p>Banco</p>\n' }, [entrada('simbolo', 'Banco')]],
   ]

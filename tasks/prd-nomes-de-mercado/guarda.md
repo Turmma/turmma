@@ -23,14 +23,17 @@ mensagem. A regra lê **só a declaração de topo de arquivo**, exportada ou n�
 | prefixo `Linha`, `Opcoes`, `Dependencias`, `Configuracao` | interface e tipo | `<X>Row`, `<X>Options`, `<X>Dependencies`, `<X>Config` |
 | prefixo `esquema`, `lerConfiguracao`, e o nome exato `lerConfiguracao` | const e função | `<x>Schema`, `load<X>Config` (`loadConfig` no nome exato) |
 | prefixo `consulta` | const e função em `apps/web/**` | `<x>QueryOptions` |
-| prefixo `EntradaDe`, `EntradaDo`, `SaidaDe`, `SaidaDo` | interface e tipo em `**/ia/tarefas/**` | `<X>Input`, `<X>Output` |
+| prefixo `EntradaDe`, `EntradaDo`, `SaidaDe`, `SaidaDo` | interface e tipo em `**/ia/tasks/**` | `<X>Input`, `<X>Output` |
 | segmento de arquivo ou de pasta: `adaptador-*`, `guarda-*`, `*-em-memoria` | arquivo e pasta, em todo o escopo | o do anexo |
 | pasta `limite/` e `fila/` | pasta, só em `packages/**` | `rate-limit/`, `queue/` |
 
 O prefixo só casa quando a letra seguinte é maiúscula. `Erro` não casa `Erros`, e `Linha` não casa `Linhas`.
 
 **O resto é limite declarado.** A regra não lê método, variável local, propriedade, string nem declaração dentro de
-função. `Pedido…` e `Resposta…` ficam fora da lista, porque colidem com o domínio. `fila/` e `limite/` valem só em
+função, a desestruturação de topo (`export const { esquemaX } = …` passa) e a assinatura sem corpo (`declare function
+lerConfiguracao(): void` passa). O caminho é o relativo ao `cwd` do ESLint, que tem de ser a raiz do repositório: um ESLint de
+editor com outro `workingDirectory` lê `src/…`, e as linhas com `onde` (`consulta…`, `EntradaDe…`, as pastas `fila/` e `limite/`)
+deixam de valer sem aviso. `Pedido…` e `Resposta…` ficam fora da lista, porque colidem com o domínio. `fila/` e `limite/` valem só em
 `packages/`, porque "fila" e "limite" são domínio nos apps.
 
 **Exceção nominal**, na própria `nomes-de-mercado.mjs`, com o motivo: `esquemaDeCor` (`e2e/aparencia.spec.ts`), que é
@@ -51,7 +54,7 @@ Com o inventário e as adendas 1 a 3 aplicados, a árvore inteira passa.
 **Recusados:**
 - um por linha da tabela, no tipo de declaração em que a linha vale: `class AdaptadorX`, `class ErroX`,
   `interface LinhaX`, `type OpcoesX`, `class XEmMemoria`, `const esquemaX`, `function lerConfiguracaoX`,
-  `const consultaX` em `apps/web`, `interface EntradaDoX` em `ia/tarefas/`;
+  `const consultaX` em `apps/web`, `interface EntradaDoX` em `ia/tasks/`;
 - o nome exato `Botao` e o nome exato `function lerConfiguracao`;
 - um arquivo `adaptador-x.ts`, um `guarda-x.ts` e um `x-em-memoria.ts` em `apps/`;
 - uma pasta `fila/` e uma `limite/` em `packages/`;
@@ -60,7 +63,7 @@ Com o inventário e as adendas 1 a 3 aplicados, a árvore inteira passa.
 **Passam:**
 - a mesma forma no tipo em que a linha não vale: `function ErroDaOperacao`, `type FalhaDeMaterial`, `function LinhaX`,
   `function XEmMemoria`, `interface esquemaX`, `const consultaX` fora de `apps/web`, `interface EntradaDoX` fora de
-  `ia/tarefas/`;
+  `ia/tasks/`;
 - `class ErroX` declarada dentro de uma função;
 - um arquivo em `apps/api/src/fila/` e outro em `apps/api/src/limite/`;
 - `const esquemaDeCor` em `e2e/aparencia.spec.ts`;
