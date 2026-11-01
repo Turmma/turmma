@@ -27,6 +27,8 @@ import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, violacoesGraves } from '.
  */
 
 const SENHA_NOVA = 'frase-sintetica-do-convite'
+/** Quanto o servidor demora a responder à gravação da introdução, no caso do "Pular" que prova a corrida entre a tela e o banco. */
+const ATRASO_DA_GRAVACAO_MS = 1000
 const TITULO_DO_AVISO = 'Aviso de incidente de segurança'
 
 async function acionar(alvo: Locator, hasTouch: boolean): Promise<void> {
@@ -38,7 +40,11 @@ const pular = (page: Page) => page.getByRole('button', { name: 'Pular', exact: t
 const fechar = (page: Page) => page.getByRole('button', { name: 'Fechar', exact: true })
 const guardadoNoNavegador = (page: Page) => page.evaluate(() => JSON.stringify([...Object.entries(localStorage), ...Object.entries(sessionStorage)]))
 
-/** Os pedidos de gravação da introdução que a página fez, desde que foi chamada. */
+/**
+ * Os pedidos de gravação da introdução que a página fez, desde que foi chamada. O evento `request` dispara quando o navegador **envia** o pedido,
+ * antes do handler de `page.route` e muito antes de o servidor gravar: por isso a contagem não prova a data no banco, e o caso do "Pular" só fica
+ * vermelho com a resposta atrasada porque o pedido já foi contado enquanto o banco ainda está vazio.
+ */
 function contarGravacoes(page: Page): Request[] {
   const feitos: Request[] = []
   page.on('request', (pedido) => {
@@ -106,12 +112,20 @@ test.describe('a introdução da coordenação', () => {
     await esperarIntroducaoDaCoordenacao(page, coordenadora.escolaNome)
     const gravacoes = contarGravacoes(page)
 
+    // O servidor demora a gravar: o pedido já saiu e a tela já seguiu, e o banco ainda não tem a data. É a corrida da esteira, feita à vista.
+    await page.route('**/v1/eu/introducao', async (rota) => {
+      await new Promise((fim) => setTimeout(fim, ATRASO_DA_GRAVACAO_MS))
+      await rota.continue()
+    })
     await acionar(pular(page), hasTouch)
     // Só o endereço: esperar a tela do Painel soma uns 5 s ao caso (o Painel em si está provado no caso dos quatro passos).
     await expect(page).toHaveURL(/\/coordenacao\/painel$/, { timeout: PRAZO_DA_ENTRADA_MS })
     await expect.poll(() => gravacoes.length).toBe(1)
-    // A data está no servidor, e a entrada seguinte já não desvia para a introdução (o desvio em si está em `Inicio.test.tsx`).
-    expect(await introducaoVistaEmDoUsuario(coordenadora.usuarioId)).not.toBeNull()
+    // Quem prova a gravação é este poll do banco: o pedido saiu e a tela já seguiu, mas o servidor pode ainda não ter gravado. A data no servidor
+    // é o que faz a entrada seguinte não desviar para a introdução (o desvio em si está em `Inicio.test.tsx`); a contagem acima só diz que o pedido saiu.
+    await expect.poll(() => introducaoVistaEmDoUsuario(coordenadora.usuarioId), { timeout: PRAZO_DA_ENTRADA_MS }).not.toBeNull()
+    // O atraso só valia para a gravação do "Pular": a entrada seguinte volta ao servidor sem ele.
+    await page.unroute('**/v1/eu/introducao')
     await page.goto('/')
     // Só o endereço, como acima: esperar a tela do Painel não prova mais nada aqui.
     await expect(page).toHaveURL(/\/coordenacao\/painel$/, { timeout: PRAZO_DA_ENTRADA_MS })

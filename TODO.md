@@ -2413,3 +2413,11 @@ repetem aqui.
 - [ ] Da correção `2026-10-31-aplicar-lento-com-dependentes`, `tools/renomear/projetos.test.ts`, para a próxima correção que o tocar: repetir
       `expect(projetos.length).toBeGreaterThan(0)` no caso da pasta e separar em dois `it` o caso do `include` por padrão, que faz dois moves
       (test-engineer e revisor-geral, rodada 2)
+
+## Da correção 2026-10-31-introducao-pular-grava-a-data, fora dela
+
+- [ ] Da correção `2026-10-31-introducao-pular-grava-a-data`: levar `ATRASO_DA_GRAVACAO_MS`, o trecho de `page.route` que atrasa a gravação e o `contarGravacoes`,
+      hoje copiados nos specs de introdução do professor e da coordenação (e o `contarGravacoes` também no do aluno), para um ajudante em `e2e/support/`; fazer quando um
+      spec de introdução voltar a ser tocado (revisor-geral e test-engineer, rodada 1)
+- [ ] Da correção `2026-10-31-introducao-pular-grava-a-data`: caso de clique duplo no "Pular" com a resposta atrasada, provando uma gravação só no e2e; é cenário novo,
+      e a data já é única por `coalesce(introducao_vista_em, now())` (`eu.repository.ts:51`) (infra-guardian, rodada 1)
