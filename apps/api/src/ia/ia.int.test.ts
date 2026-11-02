@@ -899,7 +899,14 @@ describe('camada de IA na API', () => {
 
     it('a cláusula de escola das mensagens vale por si: com a pessoa de B e a escola A no contexto, a mensagem de B não é achada', async () => {
       // O id de usuário é de uma escola só, então pela rota a cláusula de pessoa já barra a outra escola. Aqui o
-      // contexto junta a escola A com a pessoa de B, que é o que sobraria se só a cláusula de escola segurasse.
+      // contexto junta a escola A com a pessoa e o ano de B, que é o que sobraria se só a cláusula de escola segurasse:
+      // com o ano de A, a cláusula de ano barraria a mensagem de B e o caso não provaria a de escola.
+      // O caso cria as conversas de B de que precisa: o portão o roda sozinho, pelo nome, sem os casos que vêm antes.
+      const { pedido: pedidoAssistenteDeB } = pedidoDoAssistente(b)
+      await como(b, b.professor, 'professor', () => agendador.agendar(pedidoAssistenteDeB))
+      const { pedido: pedidoTutorDeB } = pedidoDoTutor(b, b.outroAluno, 'como eu acho o reagente limitante?')
+      await como(b, b.outroAluno, 'aluno', () => agendador.agendar(pedidoTutorDeB))
+      await executor.ociosa()
       const { rows: doTutor } = await sql(`select id from mensagem_tutor where escola_id = $1 and aluno_id = $2 and autor = 'tutor' limit 1`, [b.escolaId, b.outroAluno.usuarioId])
       const { rows: doAssistente } = await sql(
         `select m.id from mensagem_agente m join thread_agente t on t.escola_id = m.escola_id and t.id = m.thread_id where m.escola_id = $1 and t.usuario_id = $2 and m.autor = 'agente' limit 1`,
@@ -908,14 +915,45 @@ describe('camada de IA na API', () => {
       const [idDoTutor, idDoAssistente] = [(doTutor as { id: string }[])[0]?.id ?? '', (doAssistente as { id: string }[])[0]?.id ?? '']
       expect(idDoTutor).not.toBe('')
       expect(idDoAssistente).not.toBe('')
-      const naEscola = <T>(escolaId: string, usuarioId: string, funcao: () => T): T => runInContext({ requisicaoId: randomUUID(), escolaId, usuarioId }, funcao)
+      const naEscola = <T>(escolaId: string, usuarioId: string, anoLetivoId: string, funcao: () => T): T => runInContext({ requisicaoId: randomUUID(), escolaId, usuarioId, anoLetivoId }, funcao)
       const execucoes = new ExecucaoDaSessaoRepository(bancada.banco)
 
-      expect(await naEscola(a.escolaId, b.outroAluno.usuarioId, () => execucoes.mensagemDoTutor(idDoTutor))).toBeUndefined()
-      expect(await naEscola(a.escolaId, b.professor.usuarioId, () => execucoes.mensagemDoAssistente(idDoAssistente))).toBeUndefined()
+      expect(await naEscola(a.escolaId, b.outroAluno.usuarioId, b.anoLetivoId, () => execucoes.mensagemDoTutor(idDoTutor))).toBeUndefined()
+      expect(await naEscola(a.escolaId, b.professor.usuarioId, b.anoLetivoId, () => execucoes.mensagemDoAssistente(idDoAssistente))).toBeUndefined()
       // Na escola certa, a mesma pessoa acha a própria mensagem.
-      expect(await naEscola(b.escolaId, b.outroAluno.usuarioId, () => execucoes.mensagemDoTutor(idDoTutor))).toMatchObject({ id: idDoTutor })
-      expect(await naEscola(b.escolaId, b.professor.usuarioId, () => execucoes.mensagemDoAssistente(idDoAssistente))).toMatchObject({ id: idDoAssistente })
+      expect(await naEscola(b.escolaId, b.outroAluno.usuarioId, b.anoLetivoId, () => execucoes.mensagemDoTutor(idDoTutor))).toMatchObject({ id: idDoTutor })
+      expect(await naEscola(b.escolaId, b.professor.usuarioId, b.anoLetivoId, () => execucoes.mensagemDoAssistente(idDoAssistente))).toMatchObject({ id: idDoAssistente })
+    })
+
+    it('a resposta do Assistente é do ano letivo em que foi dada: no ano em curso, a de um ano anterior da mesma pessoa não é achada', async () => {
+      // Mesma escola e mesma pessoa, em outra thread, do ano anterior: só o ano muda. É a cláusula de ano da mensagem que a tira do alcance
+      // (o join com a thread só iguala o ano da mensagem ao da thread), e não a de escola nem a de pessoa (regra 10, item 2).
+      const { rows: anos } = await sql(`insert into ano_letivo (escola_id, ano, inicio, fim, situacao) values ($1, 2025, '2025-02-01', '2025-12-15', 'encerrado') returning id`, [a.escolaId])
+      const anterior = (anos as { id: string }[])[0]?.id ?? ''
+      const { rows: threads } = await sql(`insert into thread_agente (escola_id, ano_letivo_id, usuario_id, agente) values ($1, $2, $3, 'assistente_de_ensino') returning id`, [a.escolaId, anterior, a.professor.usuarioId])
+      const threadId = (threads as { id: string }[])[0]?.id ?? ''
+      const { rows: execucoesGravadas } = await sql(
+        `insert into execucao_agente (escola_id, ano_letivo_id, funcao, tarefa, solicitada_por, chave_envio, entrada)
+         values ($1, $2, 'conversa_e_ferramentas', 'propor_ferramenta', $3, $4, '{"tarefa":"propor_ferramenta"}') returning id`,
+        [a.escolaId, anterior, a.professor.usuarioId, randomUUID()],
+      )
+      const execucaoId = (execucoesGravadas as { id: string }[])[0]?.id ?? ''
+      const { rows: mensagens } = await sql(
+        `insert into mensagem_agente (escola_id, ano_letivo_id, thread_id, execucao_id, autor, conteudo) values ($1, $2, $3, $4, 'agente', '{"tipo":"texto","texto":"resposta sintética de 2025"}') returning id`,
+        [a.escolaId, anterior, threadId, execucaoId],
+      )
+      const mensagemId = (mensagens as { id: string }[])[0]?.id ?? ''
+      expect(mensagemId).not.toBe('')
+      const execucoes = new ExecucaoDaSessaoRepository(bancada.banco)
+      const doProfessor = <T>(anoLetivoId: string, funcao: () => T): T =>
+        runInContext({ requisicaoId: randomUUID(), escolaId: a.escolaId, usuarioId: a.professor.usuarioId, anoLetivoId }, funcao)
+
+      expect(await doProfessor(a.anoLetivoId, () => execucoes.mensagemDoAssistente(mensagemId))).toBeUndefined()
+      // No ano dela, a mesma pessoa a acha.
+      expect(await doProfessor(anterior, () => execucoes.mensagemDoAssistente(mensagemId))).toMatchObject({ id: mensagemId })
+      // Sem ano em curso no contexto, falha fechado como objeto que não existe, antes de ler: nunca cai num ano qualquer.
+      const semAno = runInContext({ requisicaoId: randomUUID(), escolaId: a.escolaId, usuarioId: a.professor.usuarioId }, () => execucoes.mensagemDoAssistente(mensagemId))
+      expect(await erroDe(semAno)).toMatchObject({ codigo: ErrorCode.NAO_ENCONTRADO })
     })
 
     it('a execução que falhou devolve só o código do erro, e a sem sessão não passa', async () => {

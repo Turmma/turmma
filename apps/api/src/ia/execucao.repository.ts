@@ -145,14 +145,18 @@ export class ExecucaoDaSessaoRepository {
     return linha
   }
 
-  /** A resposta do Assistente com esse id, na conversa desta pessoa: a thread é dela, e a mensagem é do agente. */
+  /**
+   * A resposta do Assistente com esse id, na conversa desta pessoa: a thread é dela, e a mensagem é do agente e do ano
+   * letivo em curso. A de um ano anterior não é achada: o join só iguala o ano da mensagem ao da thread, então a cláusula
+   * de ano é a da própria mensagem (regra 10, item 2).
+   */
   async mensagemDoAssistente(id: string): Promise<(MensagemGravada & { conteudo: unknown }) | undefined> {
     const escolaId = requireEscolaId()
     const [linha] = await this.banco
       .select({ id: mensagemAgente.id, criadaEm: mensagemAgente.criadaEm, conteudo: mensagemAgente.conteudo })
       .from(mensagemAgente)
       .innerJoin(threadAgente, and(eq(threadAgente.escolaId, mensagemAgente.escolaId), eq(threadAgente.anoLetivoId, mensagemAgente.anoLetivoId), eq(threadAgente.id, mensagemAgente.threadId)))
-      .where(and(eq(mensagemAgente.escolaId, escolaId), eq(mensagemAgente.id, id), eq(mensagemAgente.autor, 'agente'), eq(threadAgente.usuarioId, requireUsuarioId())))
+      .where(and(eq(mensagemAgente.escolaId, escolaId), eq(mensagemAgente.anoLetivoId, requireAnoEmCurso()), eq(mensagemAgente.id, id), eq(mensagemAgente.autor, 'agente'), eq(threadAgente.usuarioId, requireUsuarioId())))
     return linha
   }
 
