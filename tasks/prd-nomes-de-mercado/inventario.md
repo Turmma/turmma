@@ -18,7 +18,7 @@ das três varreduras estão fechadas na §2.
 ## 1. Regras de tradução
 
 Valem para as três tabelas e para o código que vier depois. A guarda do RF8 usa os prefixos e sufixos da coluna da
-esquerda.
+esquerda, menos as formas que a `guarda.md` tira, com o motivo, em "O que fica fora da lista, e por quê".
 
 | Português | Inglês | Exemplo |
 |---|---|---|
@@ -208,3 +208,9 @@ caso que pegava.
 - Onze declarações de topo de regra já aprovada (§1) que a guarda do RF8 acusou na árvore depois das ondas 3.0 a 11.0:
   a adenda 2 as tirou por terem homônimo já citado num anexo, pelo nome e não pelo caminho. A tabela está em
   `inventario-adenda-5.md`. Entram numa correção com mapa próprio, antes de a 12.0 retomar; a guarda não ganha exceção
+
+**Adenda 6 — 02/11/2026, aprovada pelo Joaquim no terminal do Orquestrador (opção A), depois do rename**
+
+- `ProcessadorContado` → `CountingProcessor`, classe local de `apps/despachante/test/slots.int.test.ts`, que a lista
+  nova da guarda (`Processador…`) acusaria. O rename foi feito no `9614bdf8`, antes da aprovação; a adenda o registra, e
+  nenhum código muda. A tabela está em `inventario-adenda-6.md`
