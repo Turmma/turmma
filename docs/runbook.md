@@ -977,6 +977,39 @@ tomada de novo, com o `privacy-guardian`. O mesmo vale para o relatório do cens
 (`censo-do-e2e-<i>`, o `censo-do-e2e.json`), que também é público, inclusive na execução de pull request de fork, e leva o
 `stdout`, o `stderr` e os `errors` de cada caso: um `console.log` de fixture com dado real vazaria por ali.
 
+## Buscar um erro no log pelo `tipo`
+
+O erro que sai no log traz o campo `tipo`, que é o nome da classe do erro (`summarizeError`, `packages/core/src/error/summarize-error.ts`);
+o do banco sai como `ErroDoPostgres`, com o `sqlstate`. Na renomeação para os nomes de mercado (X8, novembro de 2026) 20 classes
+mudaram de nome, e **o `tipo` mudou com elas**. Busca de log salva, painel ou alerta que filtre pelo nome da esquerda deixa de
+casar, sem erro nenhum: troque pelo da direita. Para olhar um período anterior à troca, procure pelos dois. Nenhuma regra de alerta
+filtra pelo `tipo` antigo do log (conferido por `tools/guardas/runbook-tipo-do-log.test.ts`); o `tipo` das regras é rótulo de métrica.
+
+| `tipo` antigo | `tipo` novo | Onde nasce |
+|---|---|---|
+| `ArgumentoInvalido` | `InvalidArgumentError` | comando de operação (`apps/api/src/ops/command.ts`) |
+| `ArmazemIndisponivel` | `FileStorageUnavailableError` | storage de arquivo (`packages/core/src/titular/file-storage.ts`) |
+| `AuditoriaRecusada` | `AuditoriaRejectedError` | gravação ou leitura de auditoria recusada (erro de programação) |
+| `ConfiguracaoInvalida` | `InvalidConfigError` | validação da configuração na subida |
+| `DesativacaoRecusada` | `DesativacaoRejectedError` | comando de operação que desativa (`apps/api/src/ops/operador.ts`) |
+| `ErroDeDominio` | `DomainException` | regra de negócio recusada |
+| `ErroDeIa` | `LLMError` | camada de IA (código de erro da IA, sem texto livre) |
+| `ErroDeInvariante` | `InvariantException` | invariante quebrada |
+| `ErroDoProvedor` | `ProviderError` | adaptador do provedor de IA (falha de tempo ou indisponibilidade) |
+| `ErroParaAFila` | `QueueFacingError` | erro do worker que vai ao Redis só com o código |
+| `FalhaDeJob` | `JobFailureError` | falha prevista de um processador de job |
+| `MapaDeAuditoriaInvalido` | `InvalidAuditoriaMapError` | mapa de ações de auditoria na subida |
+| `MaterialSemConteudoAproveitavel` | `MaterialSemConteudoAproveitavelError` | tarefa de IA que não achou nos trechos nada de que tirar a saída |
+| `MigracaoFalhou` | `MigrationFailedError` | migração de banco |
+| `OperadorRecusado` | `OperadorRejectedError` | comando de operação recusado |
+| `PedidoDeJobRecusado` | `JobRequestRejectedError` | `JobOutbox` recusou o pedido antes de gravar |
+| `PrazoDaFilaEsgotado` | `QueueTimeoutError` | despachante, fila de Redis que não respondeu |
+| `ProvedorExternoFalhou` | `ExternalProviderError` | conta Google ou Microsoft da escola (D48) |
+| `RotasSemPermissao` | `RoutesWithoutPermissaoError` | rota sem permissão declarada, na subida |
+| `SegredoNaoDecifra` | `SecretDecryptionError` | credencial da escola que não decifra |
+
+O `codigo_falha` de `job_registro` (`TEMPO_ESGOTADO` e os outros) não mudou: é um código, e não o nome de uma classe.
+
 ## Como avisar as escolas
 
 *A definir antes do piloto:* canal (e-mail para a coordenação, aviso na tela), texto padrão
