@@ -3,34 +3,58 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { raizRepositorio } from '../ci/executar.ts'
+import { lerTodosOsMapas } from '../renomear/reaplicar.ts'
 
 /**
  * `summarizeError` grava `erro.name` no campo `tipo` do log. A X8 (nomes de mercado) renomeou estas classes de erro do servidor, e
  * com elas o `tipo`: busca de log salva com o nome antigo deixa de casar, sem erro. O runbook diz o nome novo de cada uma.
- * `ErroDaApi` (hoje `ApiError`) é do cliente web e não chega a log do servidor: fica fora.
+ * O erro do cliente web não chega a log do servidor: fica fora.
+ *
+ * Só o nome novo é escrito aqui. O antigo vem dos mapas da renomeação (`tools/renomear/mapas/*.json`), onde ele já mora: repeti-lo no
+ * teste o deixaria como resto de nome antigo para o `restos`, e um 21º renomeado exigiria editar dois lugares.
  */
-const TIPOS_RENOMEADOS: ReadonlyArray<readonly [antigo: string, novo: string]> = [
-  ['ArgumentoInvalido', 'InvalidArgumentError'],
-  ['ArmazemIndisponivel', 'FileStorageUnavailableError'],
-  ['AuditoriaRecusada', 'AuditoriaRejectedError'],
-  ['ConfiguracaoInvalida', 'InvalidConfigError'],
-  ['DesativacaoRecusada', 'DesativacaoRejectedError'],
-  ['ErroDeDominio', 'DomainException'],
-  ['ErroDeIa', 'LLMError'],
-  ['ErroDeInvariante', 'InvariantException'],
-  ['ErroDoProvedor', 'ProviderError'],
-  ['ErroParaAFila', 'QueueFacingError'],
-  ['FalhaDeJob', 'JobFailureError'],
-  ['MapaDeAuditoriaInvalido', 'InvalidAuditoriaMapError'],
-  ['MaterialSemConteudoAproveitavel', 'MaterialSemConteudoAproveitavelError'],
-  ['MigracaoFalhou', 'MigrationFailedError'],
-  ['OperadorRecusado', 'OperadorRejectedError'],
-  ['PedidoDeJobRecusado', 'JobRequestRejectedError'],
-  ['PrazoDaFilaEsgotado', 'QueueTimeoutError'],
-  ['ProvedorExternoFalhou', 'ExternalProviderError'],
-  ['RotasSemPermissao', 'RoutesWithoutPermissaoError'],
-  ['SegredoNaoDecifra', 'SecretDecryptionError'],
+const TIPOS_NOVOS: readonly string[] = [
+  'InvalidArgumentError',
+  'FileStorageUnavailableError',
+  'AuditoriaRejectedError',
+  'InvalidConfigError',
+  'DesativacaoRejectedError',
+  'DomainException',
+  'LLMError',
+  'InvariantException',
+  'ProviderError',
+  'QueueFacingError',
+  'JobFailureError',
+  'InvalidAuditoriaMapError',
+  'MaterialSemConteudoAproveitavelError',
+  'MigrationFailedError',
+  'OperadorRejectedError',
+  'JobRequestRejectedError',
+  'QueueTimeoutError',
+  'ExternalProviderError',
+  'RoutesWithoutPermissaoError',
+  'SecretDecryptionError',
 ]
+
+/** Os nomes antigos de cada nome novo, segundo as entradas `simbolo` dos mapas aplicados (lidos como o `restos` os lê). */
+function antigosPorNovo(): Map<string, Set<string>> {
+  const antigos = new Map<string, Set<string>>(TIPOS_NOVOS.map((novo) => [novo, new Set<string>()]))
+  for (const mapa of lerTodosOsMapas(raizRepositorio)) {
+    for (const entrada of mapa.entradas) {
+      if (entrada.tipo === 'simbolo') antigos.get(entrada.para)?.add(entrada.de)
+    }
+  }
+  return antigos
+}
+
+/**
+ * Os pares `[antigo, novo]`, na ordem de `TIPOS_NOVOS`. O nome novo sem antigo nos mapas fica fora dos pares, e os casos que usam os
+ * pares não reclamam: quem impede o branco é o caso "cada `tipo` novo tem um único nome antigo nos mapas da renomeação".
+ */
+function tiposRenomeados(): ReadonlyArray<readonly [antigo: string, novo: string]> {
+  const antigos = antigosPorNovo()
+  return TIPOS_NOVOS.flatMap((novo) => [...(antigos.get(novo) ?? [])].map((antigo): readonly [string, string] => [antigo, novo]))
+}
 
 const TITULO_DA_SECAO = '## Buscar um erro no log pelo `tipo`'
 
@@ -60,26 +84,31 @@ function codigoDoServidor(): string[] {
 }
 
 describe('runbook: o `tipo` do log das classes de erro renomeadas na X8', () => {
+  it('cada `tipo` novo tem um único nome antigo nos mapas da renomeação', () => {
+    const antigos = antigosPorNovo()
+    expect(TIPOS_NOVOS.filter((novo) => antigos.get(novo)?.size !== 1)).toEqual([])
+  })
+
   it('o runbook diz, para cada classe de erro renomeada, o `tipo` antigo e o novo, na mesma linha', () => {
     const secao = secaoDoRunbook()
     expect(secao).not.toBe('')
     const linhas = secao.split('\n')
-    const semLinha = TIPOS_RENOMEADOS.filter(([antigo, novo]) => !linhas.some((linha) => linha.includes(`\`${antigo}\``) && linha.includes(`\`${novo}\``)))
+    const semLinha = tiposRenomeados().filter(([antigo, novo]) => !linhas.some((linha) => linha.includes(`\`${antigo}\``) && linha.includes(`\`${novo}\``)))
     expect(semLinha).toEqual([])
   })
 
   it('o `tipo` novo de cada linha é o `name` de uma classe do código, e o antigo não é mais de nenhuma', () => {
     const conteudo = codigoDoServidor().map(ler).join('\n')
     const definidos = (nome: string) => new RegExp(`\\bname(?:\\s*=|:)\\s*'${nome}'`).test(conteudo)
-    expect(TIPOS_RENOMEADOS.filter(([, novo]) => !definidos(novo))).toEqual([])
-    expect(TIPOS_RENOMEADOS.filter(([antigo]) => definidos(antigo))).toEqual([])
+    expect(TIPOS_NOVOS.filter((novo) => !definidos(novo))).toEqual([])
+    expect(tiposRenomeados().filter(([antigo]) => definidos(antigo))).toEqual([])
   })
 
   it('nenhuma regra de alerta busca pelo `tipo` antigo', () => {
     const regras = arquivosDoRepositorio().filter((caminho) => caminho.startsWith('infra/grafana/alertas/'))
     expect(regras.length).toBeGreaterThan(0)
     const conteudo = regras.map(ler).join('\n')
-    expect(TIPOS_RENOMEADOS.filter(([antigo]) => conteudo.includes(antigo))).toEqual([])
+    expect(tiposRenomeados().filter(([antigo]) => conteudo.includes(antigo))).toEqual([])
   })
 })
 
