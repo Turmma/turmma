@@ -80,7 +80,7 @@ O que trava o projeto e não se resolve programando. Vários têm prazo externo.
       (`apps/web/src/areas/aluno/introducao/`). **Falta** a revisão do texto por orientação
       educacional e por advogado (`docs/aia/tutor.md`, pendência 12). A decisão do Joaquim (26/10/2026, opção A)
       está feita na correção `2026-10-26-mensagem-fixa-avisa-o-professor`: a mensagem fixa que o aluno recebe ao
-      contar algo pessoal difícil (`packages/nucleo/src/ia/tarefas/turno-do-tutor.ts`) e o aviso de privacidade dizem a
+      contar algo pessoal difícil (`packages/core/src/ia/tasks/turno-do-tutor.ts`) e o aviso de privacidade dizem a
       mesma frase, `FRASE_DO_AVISO_AO_PROFESSOR` (`packages/shared/src/tutor/sinal.ts`), uma constante só; mudar o texto
       na revisão é mudar ela. **Falta** a fixture de e2e `MENSAGEM_FIXA` (`e2e/support/aluno.ts`, ~250-255) terminar
       nessa frase, e `e2e/aluno-tutor.spec.ts` e `e2e/aluno-fluxo.spec.ts` conferirem a frase no cartão (só roda na
@@ -165,7 +165,7 @@ O que trava o projeto e não se resolve programando. Vários têm prazo externo.
       (`tentativa_atividade`), e não a de respostas. Rever junto da conferência do arquivo da 13.0, no item acima
       (dono: Joaquim)
 - [x] **(F3, 13.0) O resumo do arquivo do titular diz "Os pedidos de entrada na turma que você fez ou decidiu"** — *resolvido na correção `2026-10-10-resumo-do-arquivo-do-pedido-de-entrada`: o texto do arquivo é o da tela, e a consulta diz que o pedido recusado antes entra de propósito. O rótulo por papel ficou de fora: o texto com os dois caminhos é verdadeiro para os dois, e um por papel muda a forma de `LeituraDaTabela` (desenho).*
-      (`packages/nucleo/src/titular/leitura-do-titular.ts`, `LEITURAS_DO_ARQUIVO.reivindicacao.descricao`), e a consulta do
+      (`packages/core/src/titular/leitura-do-titular.ts`, `LEITURAS_DO_ARQUIVO.reivindicacao.descricao`), e a consulta do
       aluno traz todo pedido feito no nome dele na lista, inclusive o recusado antes, que pode ser de outra pessoa (a recusa
       devolve o nome a `livre` e o pedido continua na linha: `devolverNome`, `apps/api/src/sala/decisao/decisao.repository.ts`). A
       tela da 18.0 diz "feitos com o seu nome ou decididos por você": alinhar o texto do arquivo e o comentário da consulta
@@ -228,7 +228,7 @@ O que trava o projeto e não se resolve programando. Vários têm prazo externo.
       `artefato (escola_id, criado_por)`) entraram sem `concurrently`. Com dado
       sintético, cabe; a partir do staging, **toda** migration nova leva cada check em arquivo próprio com `NOT VALID` e
       `VALIDATE`, e índice com `concurrently` fora de transação (Tech Spec do F3, seção 7c). O `migrar` usa o
-      `statement_timeout` de 2 s da consulta (`packages/nucleo/src/db/migrar.ts`): com volume real, um `CREATE INDEX` em
+      `statement_timeout` de 2 s da consulta (`packages/core/src/db/migrate.ts`): com volume real, um `CREATE INDEX` em
       `execucao_agente` ou `consumo_ia` passa disso e derruba o deploy, então o prazo do migrador muda junto.
       Os índices de `execucao_agente` e de `mensagem_tutor` são os que mais pesam, porque as duas tabelas crescem por turno
       do Tutor (`docs/infra.md` 3.6); o prazo é o portão do piloto (`infra-guardian` da 3.0, da 4.0 e da 5.0). A 0028 (tarefa 7.0) soma o check
@@ -256,7 +256,7 @@ O que trava o projeto e não se resolve programando. Vários têm prazo externo.
       F3, em arquivo próprio: `not envio_externo or provedor is not null or em < '<corte>'`, `NOT VALID` e depois `VALIDATE`. O
       `<corte>` é o instante, tirado do registro do deploy, a partir do qual todas as instâncias rodam o código do F3. **O `VALIDATE`
       se mede no volume do staging**: `consumo_ia` é a tabela que mais cresce depois de `execucao_agente`, e o `migrar` roda com o
-      `statement_timeout` de 2 s da consulta (`packages/nucleo/src/db/migrar.ts`), então o prazo do migrador muda junto. Pré-condição
+      `statement_timeout` de 2 s da consulta (`packages/core/src/db/migrate.ts`), então o prazo do migrador muda junto. Pré-condição
       do rollback, já no runbook ("Voltar o código com eliminação agendada em curso"): com a contração aplicada, voltar o código para
       antes do F3 exige antes o `drop constraint` dela (Tech Spec do F3, seção 3; `infra-guardian` da revisão da spec).
 - [ ] **(F3, 19.0) O expurgo de 1 milhão de linhas dura segundos, e a fase mede a B durante eles:** no `npm run carga`, o expurgo e a troca de
@@ -747,7 +747,7 @@ para o staging".
       `maestri routine`), provar com alguém trabalhando que a saída vazia não acorda o modelo, e só então religar e
       acertar os dois textos. Até lá, toda vigia acorda o Orquestrador: no F3, 96 de 100 foram "nada a fazer"
       (dono: Joaquim)
-- [ ] **(F3, retro) 26 `@SemEscopo` em `tenant-resolution.repository.ts`:** o `tenancy-guardian` apontou na 14.0
+- [ ] **(F3, retro) 26 `@Unscoped` (ex-`@SemEscopo`) em `tenant-resolution.repository.ts`:** o `tenancy-guardian` apontou na 14.0
       que o número passa do sinal da regra 10, item 9. Declarar a exceção na regra ou partir o módulo é decisão de
       desenho sobre a regra 10, e não se resolve por retrospectiva: entra na Tech Spec da próxima spec que tocar sessão
       (dono: Joaquim)
@@ -1660,7 +1660,7 @@ Achados ao conferir o código depois do merge (`13eab64`). Não estão resolvido
 
 - **O `TESTE` da `guarda:camadas` libera das cercas qualquer `src/**/__fixtures__/` e `src/**/test/`** (X5, 12.0,
   `tenancy-guardian`): hoje existem `apps/web/src/__fixtures__`, `apps/web/src/operacao/__fixtures__` e
-  `packages/nucleo/src/ia/__fixtures__`, e um arquivo de produção posto numa pasta com esse nome passa pelas três cercas. Restringir o
+  `packages/core/src/ia/__fixtures__`, e um arquivo de produção posto numa pasta com esse nome passa pelas três cercas. Restringir o
   padrão de `tools/guardas/camadas.cjs` a `*.test.ts`, `*.spec.ts`, `apps/*/test/`, `e2e/` e `__fixtures__/` fora de `src/`, ou deixar
   escrito por que não; a varredura por nome (linha abaixo) tem o mesmo furo. Muda o que o lint acusa no código de hoje (as `__fixtures__` de `src/` precisam de nome de teste)
 - **A varredura por nome das classes cercadas** (X5, 12.0, `architecture.test.ts › o nome das classes cercadas…`, recomendações da 2ª rodada):
@@ -1770,14 +1770,14 @@ Achados ao conferir o código depois do merge (`13eab64`). Não estão resolvido
 - [ ] **(X5, 51.0) Cenário de carga da prova em `infra/k6/`:** o `PUT` de resposta com `sequencia` (escola inteira respondendo ao mesmo tempo, com reenvio) cabe junto da 52.0 e da 53.0, com o adaptador falso e sem provedor pago (`infra-guardian`, 51.0, 1ª rodada).
 - [ ] **(X5, 51.0) Dizer nos fixtures que o `PUT` sem `sequencia` é o cliente antigo:** `apps/api/test/atividade.fixture.ts` e `e2e/support/aluno-api.ts` mandam a resposta sem `sequencia`, e quem lê não sabe que isso é o caminho do cliente antigo (`infra-guardian`, 51.0, 1ª rodada).
 - [ ] **(X5, 51.0) `arquivo-do-titular.int.test.ts` com data fixa:** três a quatro casos de data e de validade vencem desde 19/10/2026 e deixam a esteira vermelha, com e sem a 51.0 (verificado revertendo `leitura-do-titular.ts`). Corrigir (data relativa ao relógio do teste) **antes do pouso**, fora da 51.0 (`revisor-geral`, 51.0, 1ª rodada).
-- [ ] **(X5, 7.0) `rotinaDoSistema` sem escola, em unidade:** falta um caso de unidade com `rotinaDoSistema: true` e sem escola em `packages/nucleo/src/contexto/contexto.test.ts`; hoje só `apps/despachante/test/slots.int.test.ts` (a `daEscola`) segura a regra de que a rotina não ganha leitura sem escopo (`test-engineer`, 7.0, 1ª rodada).
+- [ ] **(X5, 7.0) `rotinaDoSistema` sem escola, em unidade:** falta um caso de unidade com `rotinaDoSistema: true` e sem escola em `packages/core/src/context/context.test.ts`; hoje só `apps/despachante/test/slots.int.test.ts` (a `daEscola`) segura a regra de que a rotina não ganha leitura sem escopo (`test-engineer`, 7.0, 1ª rodada).
 - [ ] **(X5, 7.0) Mutação por método do `ConviteRepository`:** `usuarioConvidado`, `criarConvite`, `travarEscola`, `dadosDaCoordenacao` e `dadosDoProfessor` só trocaram a cópia por `exigirEscolaDoContexto`, e a presença da chamada é provada pela guarda; falta um caso de teste e uma mutação por método (`revisor-geral` e `test-engineer`, 7.0, 1ª rodada).
-- [ ] **(X5, 7.0) Cópia local fora de repository:** `packages/nucleo/src/configuracao/configuracao-operacional.ts:165` ainda checa a escola do contexto com a mensagem própria `'configuração operacional sem escola no contexto'`; trocar por `exigirEscolaDoContexto` quando alguma tarefa tocar o arquivo (`revisor-geral`, 7.0, 1ª rodada).
+- [ ] **(X5, 7.0) Cópia local fora de repository:** `packages/core/src/settings/operational-settings.ts` ainda checa a escola do contexto com a mensagem própria `'configuração operacional sem escola no contexto'`; trocar por `exigirEscolaDoContexto` quando alguma tarefa tocar o arquivo (`revisor-geral`, 7.0, 1ª rodada).
 - [ ] **(X5, 53.0) Dado sintético com atividade "para responder" na vitrine:** `tools/vitrine/` não tem atividade aberta com respostas ainda não salvas, e o estado "não salva" e o "Tentar de novo" não são fotografados a 360 px (`frontend-reviewer`, 53.0, 1ª rodada).
 - [ ] **(X5, 53.0) `aoAbrirSessao(tentarTodas)` sem a variação do recuo:** a fila manda na hora em que a sessão volta, sem o jitter de `esperaAntesDeTentar`; só pesa se a sessão passar a voltar sozinha de muitas abas ao mesmo tempo, o que hoje não existe (`infra-guardian`, 53.0, 1ª rodada).
 - [ ] **(X5, 53.0) Acabamentos do espelho:** (1) o comentário de `apps/web/src/api/sessao.ts:76-78` ainda aponta para `areas/aluno/espelho-da-fila.ts` e diz só "sai no 'Sair'": citar `api/espelho-da-fila.ts`, a suspensão e a troca de dono feita pela casca; (2) a limpeza no "Sair" só vale porque a `CascaDaEscola` é importada direto, sem `lazy`: importar o espelho em `main.tsx` (ou registrar o gancho por função chamada ali) e acrescentar em `CascaDaEscola.test.tsx` o caso que clica em "Sair" e confere o `sessionStorage` vazio sem a Atividade carregada; (3) `api/espelho-da-fila.ts` importa o tipo `EscolhaPendente` de `areas/aluno/respostas`: derivar de `EspelhoDaFila['pendentes'][number]` (ou mover para `packages/shared`); (4) caso que fixe que a troca de escola da mesma pessoa apaga as pendentes da escola anterior (`revisor-geral` e `test-engineer`, 53.0, 2ª rodada).
 - [ ] **(X5, 8.0) `onda-1a.md` acima do teto:** o arquivo tem cerca de 2.700 palavras e o teto da `techspec.md` é 1.500 (já passava, com 2.442 no HEAD); enxugar ou partir na próxima tarefa da onda 1a que o tocar (`revisor-geral`, 8.0, 1ª rodada).
-- [ ] **(X5, 8.0) Fixture no `dist` do núcleo:** `packages/nucleo/tsconfig.build.json` só exclui `src/**/*.test.ts`, então `ia/__fixtures__/contexto-da-escola.ts` (e os outros `__fixtures__`) vão para o `dist`; acrescentar `src/**/__fixtures__/**` ao `exclude` (`revisor-geral`, 8.0, 1ª rodada).
+- [ ] **(X5, 8.0) Fixture no `dist` do núcleo:** `packages/core/tsconfig.build.json` só exclui `src/**/*.test.ts`, então `ia/__fixtures__/escola-context.ts` (e os outros `__fixtures__`) vão para o `dist`; acrescentar `src/**/__fixtures__/**` ao `exclude` (`revisor-geral`, 8.0, 1ª rodada).
 - [ ] **A guarda de chave pessoal olha só o primeiro nível do esquema** (X5, 18.0; `tools/guardas/definicoes-de-job.test.ts`,
   `chavesPessoaisDe` lê `esquema.shape`): descer recursivamente na tarefa da onda 3 que trouxer o primeiro payload de job com
   objeto ou lista de objetos, porque `{ aluno: { nome } }` hoje passaria (`privacy-guardian`, 18.0, 1ª rodada)
@@ -2511,3 +2511,37 @@ repetem aqui.
 - [ ] Da correção `2026-11-02-merge-da-develop`: contar na telemetria do front a falha de carga do pedaço da onça (`.catch(() => SEM_ONCA)` da `CascaPublica`);
       a telemetria do front ainda não existe (infra-guardian, rodada 1)
 - [ ] Da correção `2026-11-02-merge-da-develop`: citar em `docs/infra.md`, seção 3, o teto do primeiro carregamento da entrada (infra-guardian, rodada 1)
+
+## Do fechamento da X8 (nomes de mercado), fora dela
+
+- [ ] **(X8, censo do e2e) 25 casos acima de 2/3 do prazo na esteira `41539071519`** (`ac0c983`, fechamento da X8; dívida da develop, dono: Orquestrador, uma correção por linha ociosa, 02/11/2026). **Acima de 90%, primeiro:** `e2e/mfa.spec.ts:14` [celular], 27,3 s de 30. Os outros são a "Sobra" do item (X4, censo do e2e) acima (`convite:154`, `mfa:14` e `:151`, `escola-e-vinculos:211` e `:271`, `operacao:45`, `areas:279` e `:483`, e os seis de 90 s), mais `operacao-convite:95` [celular], 21,8 s de 30. A X8 tocou esses arquivos só no rename (783 linhas trocadas por 783), sem mudar o que o caso faz; a lista inteira sai de `node tools/processo/esteira.ts --censo`
+- [ ] Da validação da X8 (rodadas 1 e 3, menor), dono: quem mexer no `tools/renomear/`, 02/11/2026: `tools/renomear/sintaxe.ts:31-34`, o `restos` não cobra o nome
+      antigo na própria declaração (`class AdaptadorFalso {}` sem uso passa limpo). Cobrar a declaração de topo cujo nome é `de` de uma entrada com `arquivo` igual ao
+      caminho dela (depois dos moves), ou declarar o limite na Tech Spec §5 da próxima spec de rename
+- [ ] Da validação da X8 (rodadas 1 e 3, menor), dono: Arquiteto, 02/11/2026: em `tasks/prd-nomes-de-mercado/tasks.md:16-19`, as subtarefas 2.1 a 2.4 estão `[ ]`
+      com a 2.0 `[x]`; marcar na próxima vez que o documento for tocado (é histórico da X8)
+- [ ] Da validação da X8 (rodada 3, menor), dono: Orquestrador, 02/11/2026: o registro de decisão do Joaquim no `estado.md` leva a hora do relógio (`date`), não
+      a estimada (o "Respondida 02/11 ~12:15" da adenda 6 não bate com `fe02869f`, 19:01)
+- [ ] Da validação da X8 (rodada 3, menor), dono: retro da X8, 02/11/2026: numa spec de rename, o `revisor-geral` (ou o documento da correção) confere que todo
+      nome trocado está num mapa ou numa adenda aprovada; na correção `guarda-formas-do-inventario` o rename fora do inventário passou como "colisão" e custou uma
+      rodada de validação
+- [ ] Da X8, decidir com o Joaquim (achado de passagem da correção da L1), 02/11/2026: a API devolve `ERRO_INTERNO` (500), e não 503, com o Postgres sem resposta
+      no `query_timeout` (`packages/core`, `pool.ts`/`mapPostgresError`); `e2e/coordenacao-introducao.spec.ts:102` tem a mesma exposição
+- [ ] Da tarefa 11.0 da X8 (revisor-geral, 2ª), dono: Arquiteto, 02/11/2026: em "Como testar" de `tasks/prd-nomes-de-mercado/11_task.md`, a frase diz que
+      `tools/ci/codigo-do-autenticador.test.ts` importa `e2e/__fixtures__/sessao.ts`; o arquivo importa de `e2e/support/seed.ts`, como a tabela de previstos já diz
+- [ ] Da tarefa 11.0 da X8 (infra-guardian, 1ª), para a próxima tarefa que tocar o arquivo, 02/11/2026: o título do caso em `tools/ci/playwright.test.ts` cita
+      `e2e/__fixtures__/perfis.ts` e "test com perfil"; a pasta é `e2e/support/` (`profiles.ts`)
+- [ ] Da tarefa 13.0 da X8 (conformidade-reviewer, 1ª e 2ª), dono: Arquiteto, antes de a AIA do Tutor ir ao dossiê (D61), 02/11/2026: `docs/aia/tutor.md:165` diz que
+      "só a `AgentSignature`" desenha a cabeça da onça; o código diz que é o `AgentAvatar`
+- [ ] Da tarefa 13.0 da X8 (test-engineer, 1ª), junto da onça, 02/11/2026: `Onca.test.tsx:27-33` sem o `expect(fim).toBeGreaterThan(inicio)` que o
+      `CabecaOnca.test.tsx` tem
+- [ ] Da tarefa 13.0 da X8 (revisor-geral e test-engineer, 2ª), junto da próxima mudança no `tools/renomear/`, 02/11/2026: o `trecho` de vários `fica` novos do
+      `tools/renomear/mapas/13.json` cita outra peça da mesma linha (`AvisoFila` na 540, `MotorFormulario` e `Estado` na 541, `Cartao` e `Tela` na 542); quebra se a
+      lista for reordenada
+- [ ] Da tarefa 13.0 da X8 (revisor-geral, 2ª), com as imprecisões de documento sobre o mockup, 02/11/2026: `PaginaMini` na §9.3 de `docs/mvp-rapido.md:541` não
+      existe em `mockups/src`
+- [ ] Da tarefa 13.0 da X8 (test-engineer, 2ª), 02/11/2026: `13_task.md:65` descreve a busca em prosa, sem o comando literal, e a saída listada omite `com`
+- [ ] Da tarefa 8.0 da X8 (infra-guardian), dono: Orquestrador, depois que o runbook estiver na `main` de `Turmma/turmma`, 02/11/2026: abrir um `runbook_url` com
+      âncora acentuada e conferir que cai na seção
+- [ ] Da X8 (fora do inventário pelo RF7, string), 02/11/2026: a marca na string `folder: Educa.ia alertas` de `tools/guardas/alerta-tem-runbook.test.ts:14` vai
+      com a renomeação técnica para Turmma
