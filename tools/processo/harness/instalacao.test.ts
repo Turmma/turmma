@@ -48,7 +48,7 @@ describe('o projeto processo do Vitest', () => {
     // Os vizinhos continuam onde estavam: o outro teste de integração de tools/, o de unidade do processo e o de infra.
     expect(coletado('tools/guardas/gitleaks.int.test.ts')).toEqual(['integracao'])
     expect(coletado('tools/processo/revisoes.test.ts')).toEqual(['unidade'])
-    expect(coletado('infra/test/metrics.int.test.ts')).toEqual(['infra'])
+    expect(coletado('infra/test/metricas.int.test.ts')).toEqual(['infra'])
   })
 
   it('não coleta o que os ignorados excluem, mesmo dentro de tools/processo/, nem a cópia do worktree de um subagente', () => {

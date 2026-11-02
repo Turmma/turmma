@@ -2445,3 +2445,12 @@ repetem aqui.
       `excecoesSemAlvo`, com `(` ou `+`, para provar a classe de caracteres inteira (test-engineer, rodada 2); (c) quebrar a linha longa do cabeçalho de
       `regras-nome.mjs` (revisor-geral, rodada 2); (d) o caso `cada linha da gramática é exercida…` de `guardas.test.ts` usar `restoDoNome`, exportado,
       em vez de refazer o `casa` (test-engineer, rodada 1)
+
+## Da correção 2026-11-02-mensagem-do-tutor-por-ano, fora dela
+
+- [ ] Em `apps/api/src/ia/ia.int.test.ts`, para a próxima tarefa ou correção que tocar o arquivo: (a) um caso pela rota `GET /v1/execucoes/:id`, com execução
+      forjada do ano em curso cujo `resultado.mensagemId` aponta para a mensagem de um ano anterior, exigindo 404 com o mesmo corpo dos outros casos de recusa; vale
+      para o Tutor (`:959`) e para o Assistente (`:928`) (test-engineer, rodada 1); (b) o caso do Tutor depende de nenhum outro abrir 2025 na escola B, e os dados
+      de 2025 ficam lá até o fim do `describe`: um ano exclusivo do caso, ou um ajudante que crie ou reaproveite o ano anterior (test-engineer e infra-guardian,
+      rodada 1); (c) opcional: um caso em `apps/api/test/arquivo-do-titular.int.test.ts` provando que o arquivo do titular traz a mensagem do Tutor de um ano encerrado
+      (privacy-guardian, rodada 1)

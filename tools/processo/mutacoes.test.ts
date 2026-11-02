@@ -157,7 +157,7 @@ describe('o comando que roda o teste de uma mutação', () => {
     expect(tipoDoTeste('apps/api/src/x.test.ts')).toBe('unidade')
     expect(tipoDoTeste('apps/web/src/Tela.test.tsx')).toBe('unidade')
     expect(tipoDoTeste('apps/api/test/x.int.test.ts')).toBe('integracao')
-    expect(tipoDoTeste('infra/test/metrics.int.test.ts')).toBe('infra')
+    expect(tipoDoTeste('infra/test/metricas.int.test.ts')).toBe('infra')
     // O teste do git hook roda contra um git de verdade, sem compose: projeto próprio, e o resto de `tools/` fica na integração.
     expect(tipoDoTeste('tools/processo/hook-git.int.test.ts')).toBe('processo')
     expect(tipoDoTeste('tools/guardas/gitleaks.int.test.ts')).toBe('integracao')
