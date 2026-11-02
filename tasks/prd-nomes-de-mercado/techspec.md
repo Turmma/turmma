@@ -71,12 +71,19 @@ mais de uma entrada (troca à mão), porque o homônimo de outro pacote é citad
    acompanha o move da pasta, não o do `index.ts` sozinho; o mapa move a pasta, e o typecheck do portão pega o que
    escapar. O rename só de caixa passa por um nome intermediário.
 4. No pacote, troca o `name`, os `exports` e as dependências, e roda `npm install --package-lock-only`.
-5. Em comentário e em documento vivo (`CLAUDE.md`, `.claude/`, `docs/`), troca sozinho só o identificador composto
+5. Em comentário e em documento vivo (`CLAUDE.md`, `.claude/`, `docs/` e o `README.md` de qualquer pasta, menos o do protótipo,
+   o do ouro e os de `tasks/`; correção `2026-11-02-reaplicar-filtra-arquivo`), troca sozinho só o identificador composto
    (`AdaptadorFalso`, `exigirEscolaDoContexto`), o que está entre crases e o que está em `{@link}`, e o caminho. A
    palavra comum (`com`, `Banco`, `Tela`, `Contador`, `Despachante`, `Fila`, `migrar`) vai para a lista de troca à mão
    do relatório. A palavra comum entre crases que nomeia outra coisa (o serviço `migrar` do compose, a `migrar` de
    `separar-achados.ts`) o passo 5 troca do mesmo jeito: a onda desfaz à mão e registra a ocorrência como `fica`, com o
-   motivo, e o arquivo entra nos "Arquivos previstos" mesmo sem diff no fim. O `de` de símbolo com mais de uma entrada (os
+   motivo, e o arquivo entra nos "Arquivos previstos" mesmo sem diff no fim. No `aplicar`, no `restos` e no `reaplicar`, a palavra
+   comum entre crases que é **pedaço de outro nome** não se troca nem se cobra (correção `2026-11-02-reaplicar-filtra-arquivo`): o
+   nome de arquivo com hífen (`portao-local.ts`), com extensão (`portao.ts`) e o fim de domínio (`example.com`). **O limite declarado:**
+   a regra de `texto.ts` é a forma, não o sentido: qualquer `` `x.Palavra` `` entre crases ou em `{@link Modulo.membro}`, sem `(` depois,
+   é lido como fim de domínio, e fica sem troca e sem aviso do `restos`. O membro de chamada (`Modulo.com()`) continua trocado. Quem
+   cita o membro sem chamada confere à mão. O caminho sem extensão de um `arquivo` (`apps/web/src/estilos`) não leva o nome de outro
+   arquivo de mesma base (`estilos.test.ts`). O `de` de símbolo com mais de uma entrada (os
    homônimos de pacotes diferentes, acima) não tem um `para` só: o passo 5 não o troca em lugar nenhum, nem composto, nem
    entre crases, nem em `{@link}`, e cada ocorrência vai para a troca à mão. Seguir o pacote do arquivo erraria calado,
    porque o comentário de um pacote cita o homônimo do outro (o `queue.fixture.ts` do worker importa o do despachante); a
@@ -122,11 +129,19 @@ de busca do passo 6 no código e a do passo 5 em comentário e documento (a pala
 o `fica`, a chave mantida pelo passo 2, o `describe`/`it`/`test`, a troca à mão registrada e o que o passo 5 deixa
 fora. O `arquivo` de um `fica` e o da troca à mão registrada são os da árvore logo depois da onda que os
 classificou: antes de comparar, o `restos` (e a lista de não classificadas do `reaplicar`) leva cada um pelos movimentos
-`arquivo` e `pasta` das ondas seguintes, na ordem das ondas. O mapa e o relatório de onda feita não se reescrevem. O mapa de linha (`"linha": true`) não olha documento até a 13.0 criar o `mapas/13.json`, que tira também a
+`arquivo` e `pasta` das ondas seguintes, na ordem das ondas. O mapa e o relatório de onda feita não se reescrevem. **A exceção, com motivo:** o `13.json` ganhou a ocorrência `fica` do serviço
+`migrar` do compose citado no `README.md` da raiz (correção `2026-11-02-reaplicar-filtra-arquivo`): o `README.md` só entrou como
+documento vivo para o `restos` nessa correção, e a classificação cabe no mapa da onda que leva os documentos, a 13.0. O mapa de linha (`"linha": true`) não olha documento até a 13.0 criar o `mapas/13.json`, que tira também a
 isenção do ouro; o `reaplicar` leva então os mapas de linha aos documentos (RF3, RF6, RF9, RF10).
 
 **O `reaplicar`.** O merge da `develop` que traz nome antigo vira uma correção (`/corrigir`), com revisão. A correção
-roda `reaplicar`, que aplica os mapas feitos só às ocorrências novas: o `de` que não existe mais não é erro. Depois
+roda `reaplicar`, que aplica os mapas feitos só às ocorrências novas: o `de` que não existe mais não é erro. O símbolo com `arquivo`
+vale só no alcance dele (correção `2026-11-02-reaplicar-filtra-arquivo`): o arquivo da entrada (onde a onda o viu e onde as
+seguintes o deixaram) e quem importa o nome de lá, pelo caminho relativo, por um barrel do pacote que não declara o nome antigo ou
+pelo nome do pacote (inclusive o que uma onda `pacote` seguinte trocou); o homônimo de outra pasta e quem o importa ficam. O que o
+mapa classifica `fica` e a troca à mão que o relatório da onda registra (por arquivo e nome, não por linha) não se trocam de novo, no
+identificador, no comentário e no documento. **O limite declarado:** quem importa o nome de outro pacote que o reexporta não entra no
+rename (o `restos` e o `tsc` o acusam); o `fica` vale por comentário, não por ocorrência dentro de um JSDoc de várias linhas. Depois
 roda `conferir` e `restos`. A correção `links-do-runbook` entra antes da 4.0.
 
 **A trava contra filtro vazio** (2.0): cada glob, caminho e `path` em regex de
@@ -186,9 +201,10 @@ a do texto antigo e a do novo, como o `perigo-cheio.test.ts` da 9.0. Os comentá
 `fidelidade-ao-mockup.test.tsx`, fica sem diff, e as cores lidas da 9.7 são as mesmas nove (triagem da divergência da
 13.0, 01/11/2026).
 
-O passo 5 da 13.0 nos documentos não usa o `reaplicar`: a `renomearPelaSintaxe` dele troca o identificador na árvore
-inteira, sem o filtro do `arquivo` da entrada, e com os mapas de linha reescreve código (o `portao` de
-`tools/processo/`). A 13.0 aplica o passo 5 só aos documentos, e a prova é a mesma: o `conferir` com o diff de código
+O passo 5 da 13.0 nos documentos não usou o `reaplicar`: a `renomearPelaSintaxe` dele trocava o identificador na árvore
+inteira, sem o filtro do `arquivo` da entrada, e com os mapas de linha reescrevia código (o `portao` de
+`tools/processo/`). A correção `2026-11-02-reaplicar-filtra-arquivo` resolveu isso: o filtro por `arquivo`, o respeito ao `fica` e à
+troca à mão registrada, e o passo 5 sem a palavra comum que é pedaço de outro nome (§5 e o parágrafo do `reaplicar`). A 13.0 aplica o passo 5 só aos documentos, e a prova é a mesma: o `conferir` com o diff de código
 vazio e o `restos` limpo, rodado depois do `git add` (a `Arvore` lê o índice). O conserto do `reaplicar` é uma correção
 própria, fora da 13.0 (triagem da divergência da 13.0, 01/11/2026).
 

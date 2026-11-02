@@ -51,7 +51,19 @@ Cada cláusula da Tech Spec §5 tem ao menos um caso que a deixa vermelha, se fo
 ## `reaplicar` (1.0)
 
 - o `de` já renomeado não é erro;
-- a ocorrência nova é renomeada.
+- a ocorrência nova é renomeada;
+- o símbolo com `arquivo` só vale no alcance dele (correção `2026-11-02-reaplicar-filtra-arquivo`): o arquivo da entrada, e quem
+  importa o nome dele (pelo arquivo, por um barrel do pacote que não declara o nome antigo, ou pelo nome do pacote, inclusive o nome
+  antigo que uma onda `pacote` seguinte trocou). Fica o homônimo de outra pasta (`portao` de `tools/processo/` × o de `e2e/`), o
+  declarado em outro arquivo do pacote e quem o importa;
+- o que o mapa classifica `fica` não se troca (o identificador do arquivo, a linha do documento com o `trecho`), nem a troca à mão que o
+  relatório da onda registra, no comentário e no documento;
+- o passo 5 não troca a palavra comum que é parte de outro nome entre crases (`portao-local.ts`, `portao.ts`, `example.com`) e troca o
+  membro de chamada (`Modulo.com()`); o caminho sem extensão não leva o nome de outro arquivo (`estilos.css` × `estilos.test.ts`);
+- o README de qualquer pasta é documento vivo (o `reaplicar` o troca e o `restos` o cobra);
+- o arquivo que importa só outro nome do módulo da entrada e tem um homônimo local não entra no alcance; o arquivo da própria
+  entrada entra mesmo sem importar nada (o nome antigo que o merge trouxe para ele muda);
+- **conferência manual, sem teste:** a árvore real, com as 11 ondas aplicadas, sai do `reaplicar` sem nenhuma mudança.
 
 ## `conferir` (2.0)
 

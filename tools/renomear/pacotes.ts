@@ -14,7 +14,7 @@ const ehPackageJson = (caminho: string): boolean => /(^|\/)package\.json$/.test(
 const escapar = (texto: string): string => texto.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')
 
 /** O nome do pacote de `@escopo/nome/sub` ou `nome/sub`. */
-function nomeDoPacote(especificador: string): string {
+export function nomeDoPacote(especificador: string): string {
   const partes = especificador.split('/')
   return partes.slice(0, especificador.startsWith('@') ? 2 : 1).join('/')
 }

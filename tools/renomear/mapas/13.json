@@ -420,6 +420,13 @@
       "classe": "fica",
       "linha": "inventario-back.md:39",
       "trecho": "**`monta uma atividade de estequiometria com 5 questões`** →"
+    },
+    {
+      "arquivo": "README.md",
+      "de": "migrar",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:228",
+      "trecho": "o serviço `migrar` aplica as migrations"
     }
   ],
   "excecoesDoConferir": [

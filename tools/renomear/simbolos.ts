@@ -56,7 +56,7 @@ function achadosDaDeclaracao(declaracao: ts.Statement, de: string, para: string)
   return [...achados, ...membros.flatMap((membro) => achadoDe(membro.name, de, true, colide))]
 }
 
-function declaracoesDeTopo(declaracoes: readonly ts.Statement[], de: string, para: string): Achado[] {
+export function declaracoesDeTopo(declaracoes: readonly ts.Statement[], de: string, para: string): Achado[] {
   return declaracoes.flatMap((declaracao) => {
     const dentro = ts.isModuleDeclaration(declaracao) && declaracao.body !== undefined && ts.isModuleBlock(declaracao.body) ? declaracoesDeTopo(declaracao.body.statements, de, para) : []
     return [...achadosDaDeclaracao(declaracao, de, para), ...dentro]

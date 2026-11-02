@@ -5,7 +5,8 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { PASTA_DO_PROTOTIPO } from './ast.ts'
 import { PASTA_DOS_MAPAS } from './reaplicar.ts'
 import { apagarRepositoriosDeTeste, montarRepositorio, type RepositorioDeTeste } from './repositorio-de-teste.ts'
-import { restos, trocaAMaoRegistrada } from './restos.ts'
+import { trocaAMaoRegistrada } from './registradas.ts'
+import { restos } from './restos.ts'
 
 // O `restos` pelo efeito: o repositório de brinquedo já tem a onda aplicada (o mapa em `tools/renomear/mapas/`), e o caso deixa um nome
 // antigo para trás, ou o deixa onde ele pode ficar. O que se confere é a lista de restos, com o arquivo e a linha.
@@ -119,6 +120,11 @@ describe('restos: vermelho', () => {
       { '4': mapa([NUCLEO]), '13': mapa([ADAPTADOR]) },
     )
     expect(sobras(repo)).toEqual(['docs/aia/ouro/README.md:1 documento packages/nucleo'])
+  })
+
+  it('o README fora de docs/ é documento vivo, e o nome de arquivo com a palavra comum não é resto', () => {
+    const repo = aposAOnda({ 'packages/shared/src/ia/README.md': 'O `Fila` do executor.\n', 'docs/guia.md': 'Rode `tools/Fila-local.ts` e abra `example.com`.\n' }, { '4': mapa([FILA, COM]) })
+    expect(sobras(repo)).toEqual(['packages/shared/src/ia/README.md:1 documento Fila'])
   })
 
   it('na 13.0, o JSON do ouro também, e o JSON de outra pasta de docs/ não', () => {

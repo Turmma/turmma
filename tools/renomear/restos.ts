@@ -2,12 +2,11 @@ import ts from 'typescript'
 import { Arvore } from './arvore.ts'
 import { analisar, ehCodigo, linhaDe, PASTA_DO_PROTOTIPO } from './ast.ts'
 import { casosDe } from './casos.ts'
-import { arquivoDepoisDasOndas, type EntradaDoMapa, type Mapa, ocorrenciasNoLugarDeHoje } from './mapa.ts'
+import { type EntradaDoMapa, ocorrenciasNoLugarDeHoje } from './mapa.ts'
 import { acharReferencias, estaClassificada } from './referencias.ts'
-import { MAPA_DOS_DOCUMENTOS, lerTodosOsMapas, PASTA_DOS_MAPAS } from './reaplicar.ts'
-import { TITULO_DA_TROCA_A_MAO } from './relatorio.ts'
+import { lerTodosOsMapas, MAPA_DOS_DOCUMENTOS, registradasDasOndas } from './reaplicar.ts'
 import { textoDoUso } from './sintaxe.ts'
-import { comentariosDe, ehDocumentoVivo, foraDoPasso5, semExtensaoDoCaminho, trocarTrecho } from './texto.ts'
+import { aparar, comentariosDe, ehDocumentoVivo, foraDoPasso5, semExtensaoDoCaminho, trocarTrecho } from './texto.ts'
 
 /**
  * `restos`: nenhum `de` de nenhum mapa aplicado sobrou (Tech Spec da X8, §5). Busca com a forma do passo 6 no código (string,
@@ -41,35 +40,11 @@ export interface ResultadoDosRestos {
 }
 
 const PASTAS_DO_OURO = ['docs/aia/ouro/', 'docs/aia/ouro-retido/']
-const aparar = (texto: string): string => texto.replace(/\s+/g, ' ').trim().slice(0, 100)
 
 /** O identificador que o `restos` não cobra: a ferramenta, o protótipo, o histórico e o documento. A fixture entra: a onda a renomeia à mão (RF6). */
 const foraDoIdentificador = (caminho: string): boolean => caminho.startsWith('tools/renomear/') || new RegExp(`(^|/)(node_modules|${PASTA_DO_PROTOTIPO}|tasks|docs)/`).test(caminho)
 
 const ehDoOuro = (caminho: string): boolean => PASTAS_DO_OURO.some((pasta) => caminho.startsWith(pasta)) && /\.(md|json)$/.test(caminho)
-
-// ---- o que o relatório da onda registra -------------------------------------------------------------------------------
-
-/** As linhas da tabela "Troca à mão" do relatório da onda: `arquivo` e `nome`. */
-export function trocaAMaoRegistrada(relatorio: string): Set<string> {
-  const registrada = new Set<string>()
-  const linhas = relatorio.split('\n')
-  const inicio = linhas.indexOf(TITULO_DA_TROCA_A_MAO)
-  if (inicio < 0) return registrada
-  for (const linha of linhas.slice(inicio + 1)) {
-    if (linha.startsWith('## ')) break
-    const celulas = linha.split(/(?<!\\)\|/).map((celula) => celula.trim())
-    const [, arquivo, nome] = celulas
-    if (celulas.length >= 4 && arquivo !== undefined && nome !== undefined && arquivo !== 'Arquivo' && !/^-+$/.test(arquivo)) registrada.add(`${arquivo}\u0000${nome}`)
-  }
-  return registrada
-}
-
-/** A chave `arquivo\0nome` da troca à mão, com o arquivo levado pelos movimentos das ondas seguintes. */
-function chaveDaTrocaAMaoNoLugarDeHoje(chave: string, mapas: readonly Mapa[], indiceDaOnda: number): string {
-  const [arquivo = '', nome = ''] = chave.split('\u0000')
-  return `${arquivoDepoisDasOndas(arquivo, mapas, indiceDaOnda)}\u0000${nome}`
-}
 
 // ---- a busca por texto (passo 6) --------------------------------------------------------------------------------------
 
@@ -179,7 +154,7 @@ export function restos(raiz: string): ResultadoDosRestos {
   const todas = mapas.flatMap((mapa) => mapa.entradas)
   const fica = ocorrenciasNoLugarDeHoje(mapas).filter((ocorrencia) => ocorrencia.classe === 'fica')
   const dosDocumentos = mapas.filter((mapa) => !mapa.linha || existe13).flatMap((mapa) => mapa.entradas)
-  const registrada = new Set(mapas.flatMap((mapa, indice) => [...trocaAMaoRegistrada(arvore.lerOuNada(`${PASTA_DOS_MAPAS}/${mapa.nome}.relatorio.md`) ?? '')].map((chave) => chaveDaTrocaAMaoNoLugarDeHoje(chave, mapas, indice))))
+  const registrada = registradasDasOndas(arvore, mapas)
   const achados = [
     ...restosDeTexto(arvore, todas),
     ...restosDeIdentificador(arvore, todas),

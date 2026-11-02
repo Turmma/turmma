@@ -5,8 +5,9 @@ import { reescreverRelativos } from './especificadores.ts'
 import { type EntradaDoMapa, lerMapa, type Mapa, ocorrenciasNoLugarDeHoje, validarMapa } from './mapa.ts'
 import { atualizarAlvosDoPacote, renomearPacotes } from './pacotes.ts'
 import { acharReferencias, estaClassificada } from './referencias.ts'
-import { renomearPelaSintaxe } from './sintaxe.ts'
-import { aplicarPasso5 } from './texto.ts'
+import { chaveDaTrocaAMaoNoLugarDeHoje, trocaAMaoRegistrada } from './registradas.ts'
+import { alcanceDaEntrada, renomearPelaSintaxe } from './sintaxe.ts'
+import { aplicarPasso5, type FicaEm } from './texto.ts'
 
 /**
  * `reaplicar`: leva ao nome novo o que o merge da `develop` traz com o nome antigo (Tech Spec da X8, §5). Aplica todos os
@@ -16,6 +17,12 @@ import { aplicarPasso5 } from './texto.ts'
 
 export const PASTA_DOS_MAPAS = 'tools/renomear/mapas'
 export const MAPA_DOS_DOCUMENTOS = `${PASTA_DOS_MAPAS}/13.json`
+
+/** A troca à mão que os relatórios das ondas registram, como `arquivo\0nome`, com o arquivo no lugar de hoje. */
+export function registradasDasOndas(arvore: Arvore, mapas: readonly Mapa[]): Set<string> {
+  const chaves = mapas.flatMap((mapa, indice) => [...trocaAMaoRegistrada(arvore.lerOuNada(`${PASTA_DOS_MAPAS}/${mapa.nome}.relatorio.md`) ?? '')].map((chave) => chaveDaTrocaAMaoNoLugarDeHoje(chave, mapas, indice)))
+  return new Set(chaves)
+}
 
 export interface OpcoesDoReaplicar {
   executar?: Executor
@@ -66,14 +73,15 @@ function reaplicarCaminho(arvore: Arvore, entrada: EntradaDoMapa): void {
   levarOQueFicou(arvore, entrada)
 }
 
-/** Um mapa inteiro sobre a árvore. Devolve `true` se mudou o nome de um pacote. */
-function reaplicarMapa(arvore: Arvore, mapa: Mapa, documentos: boolean): boolean {
+/** Um mapa inteiro sobre a árvore; o símbolo com `arquivo` só vale no alcance dele (`alcanceDaEntrada`). Devolve `true` se mudou o nome de um pacote. */
+function reaplicarMapa(arvore: Arvore, mapas: readonly Mapa[], indice: number, documentos: boolean, ficaEm: FicaEm, deixaNoTexto: FicaEm): boolean {
+  const mapa = mapas[indice] as Mapa
   for (const entrada of mapa.entradas) {
-    if (entrada.tipo === 'simbolo') renomearPelaSintaxe(arvore, entrada)
+    if (entrada.tipo === 'simbolo') renomearPelaSintaxe(arvore, entrada, alcanceDaEntrada(arvore, entrada, mapas, indice), ficaEm)
     else if (entrada.tipo !== 'pacote') reaplicarCaminho(arvore, entrada)
   }
   const mudouPacote = renomearPacotes(arvore, mapa.entradas)
-  aplicarPasso5(arvore, mapa.entradas, { documentos })
+  aplicarPasso5(arvore, mapa.entradas, { documentos, ficaEm: deixaNoTexto })
   return mudouPacote
 }
 
@@ -81,8 +89,13 @@ export function reaplicar(raiz: string, opcoes: OpcoesDoReaplicar = {}): Resulta
   const mapas = lerTodosOsMapas(raiz)
   const arvore = Arvore.carregar(raiz)
   const documentosDosMapasDeLinha = arvore.existe(MAPA_DOS_DOCUMENTOS)
-  const mudouPacote = mapas.map((mapa) => reaplicarMapa(arvore, mapa, !mapa.linha || documentosDosMapasDeLinha)).some(Boolean)
   const ocorrencias = ocorrenciasNoLugarDeHoje(mapas)
+  const ficam = ocorrencias.filter((ocorrencia) => ocorrencia.classe === 'fica')
+  const ficaEm: FicaEm = (arquivo, de, trecho) => estaClassificada({ arquivo, linha: 0, de, trecho }, ficam) !== undefined
+  const registradas = registradasDasOndas(arvore, mapas)
+  // No comentário e no documento, a palavra que o relatório da onda registrou como troca à mão também fica (o `restos` a libera igual).
+  const deixaNoTexto: FicaEm = (arquivo, de, trecho) => ficaEm(arquivo, de, trecho) || registradas.has(`${arquivo}\u0000${de}`)
+  const mudouPacote = mapas.map((mapa, indice) => reaplicarMapa(arvore, mapas, indice, !mapa.linha || documentosDosMapasDeLinha, ficaEm, deixaNoTexto)).some(Boolean)
   const novas = acharReferencias(arvore, mapas.flatMap((mapa) => mapa.entradas))
     .filter((referencia) => estaClassificada(referencia, ocorrencias) === undefined)
     .map((referencia) => `${referencia.arquivo}:${String(referencia.linha)} cita "${referencia.de}": ${referencia.trecho}`)
