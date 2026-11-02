@@ -1,5 +1,136 @@
 # Validação — nomes-de-mercado (X8)
 
+## Rodada 2 — 02/11/2026
+
+**Escopo:** funcionalidade completa (revalidação depois da correção `2026-11-02-guarda-formas-do-inventario`)
+**Commit validado:** `68902e84` (código igual ao de `9614bdf8`; o `68902e84` só registra o estado)
+**Veredito: REPROVADA**
+
+O crítico da rodada 1 está fechado: a guarda recusa agora `Agendador…` e as formas do `inventario.md` §1 que valem, e as
+três que ficaram de fora têm o motivo escrito na `guarda.md`. A mesma correção abriu um crítico novo, pequeno mas contra
+um RF com ⛔: ela renomeou `ProcessadorContado` (`apps/despachante/test/slots.int.test.ts`) para `CountingProcessor`
+sem adenda e sem a palavra do Joaquim (RF2). O nome escolhido também não é o que a guarda dá (`ContadoProcessor`).
+
+Diferença de código desde a rodada 1 (`git diff 13b562c9 68902e84`): `tools/guardas/nomes-de-mercado.mjs`, as três
+fixtures da guarda, `tools/guardas/guardas.test.ts`, `apps/despachante/test/slots.int.test.ts` (só o nome da classe e
+dois comentários) e a `guarda.md`. Nenhum `it`, `describe` ou `test` de `apps/`, `packages/` ou `e2e/` mudou. Os RF que
+essa diferença não toca guardam a evidência da rodada 1, que continua valendo, e o `restos` rodou de novo.
+
+O `node_modules` estava em dia com o `package-lock.json`: não precisei de `npm ci`.
+
+### 1. RF a RF
+
+| RF | Situação | Código | Teste | Observação |
+|---|---|---|---|---|
+| RF1 | ATENDIDO | como na rodada 1 | documento | `inventario.md` sem diff desde a rodada 1 |
+| RF2 | **PARCIAL** | `apps/despachante/test/slots.int.test.ts:59` (`class CountingProcessor`, era `ProcessadorContado`), no `9614bdf8` | `git grep ProcessadorContado 68902e84`: só no documento da correção, no `achados/` e no `estado.md`. Não aparece em `inventario*.md`, nas adendas 1 a 5 nem em `tools/renomear/mapas/` | É peça técnica em português que o inventário não listou (o inventário lista classe não exportada, como `TempoEsgotado` e `CicloDoWorker` em `inventario-back.md:262,300`, e a adenda 5 levou ao Joaquim o `Cartao` local de `ChoicePrompt.test.tsx`). Foi achada pela guarda depois da aprovação, no mesmo caso da adenda 5, e renomeada sem adenda. Sonda minha: a guarda dá `ContadoProcessor` para ela, e o nome que entrou foi outro, `CountingProcessor`. Crítico 1 |
+| RF3 | ATENDIDO | `tools/renomear/restos.ts` | `node tools/renomear/restos.ts` no `68902e84`: "limpo. 11 mapas, nenhum nome antigo sobrou." | O limite da declaração (menor da rodada 1) continua |
+| RF4 | ATENDIDO | como na rodada 1 | `packages/`, `infra/` e os compose sem diff desde a rodada 1 | A construção das imagens é da esteira |
+| RF5 | ATENDIDO | como na rodada 1 | `apps/web/` sem diff desde a rodada 1 | |
+| RF6 | ATENDIDO | `apps/despachante/test/slots.int.test.ts` | diff do `9614bdf8`: só `ProcessadorContado` → `CountingProcessor` e dois comentários, sem linha de `it`/`describe`/`test` | O apoio de teste ganhou nome de mercado; a forma como entrou é o problema do RF2 |
+| RF7 | ATENDIDO | como na rodada 1 (`conferir` verde nas onze ondas) | o diff de `apps/`, `packages/` e `e2e/` desde a rodada 1 é só o nome de uma classe local de teste: nenhuma string de fora, nenhum caso entra ou sai | Os casos novos de `guardas.test.ts` são da guarda (RF8), que o PRD §9 tira da conta |
+| RF8 | ATENDIDO | `tools/guardas/nomes-de-mercado.mjs:46-53` (`Agendador`, `Processador`, `Executor`, com as variantes `…De` e os nomes exatos), `:69-70` (`METADADO_`; `CHAVE_` só em `apps/web`), `SEGMENTOS` (`*-de-teste`); `guarda.md` §"O que fica fora da lista, e por quê" (`:50`) | `tools/guardas/guardas.test.ts -t "guarda de nome de mercado"`: 104 ✅, com "a árvore depois da 11.0 passa sem nenhum erro", `class AdaptadorX` recusada com `XAdapter` e `class AgendadorDeX` com `XScheduler`; mutação abaixo. **Sonda minha** (`ESLint.lintText`, sem gravar arquivo): recusa `AgendadorDeX` (`XScheduler`), `AgendadorDeExecucao` (`ExecucaoScheduler`), `ExecutorDeX`, `ProcessadorDeX`, `ExecutorDeJobs` (`JobExecutor`), `Processador` (`JobProcessor`), `METADADO_X` (`X_KEY`), `CHAVE_X` em `apps/web` (`X_QUERY_KEY`), o arquivo `apps/api/test/material-de-teste.ts` (`material.fixture`), `AdaptadorX`, `XEmMemoria`; passam `TurmaController`, `EliminacaoDoTitular` e, como a `guarda.md` declara, `CHAVE_X` fora da web, `ConsultaDeX` e `Agendamento` | Todo item do critério tem prova. As três formas do §1 que ficaram de fora têm motivo de colisão escrito (`ConsultaDoReact`, `ConsultaComPrazoDoCliente`, "agendamento" de domínio, `CHAVE_DA_TRAVA_*`). O `inventario.md:20-21` ainda diz "a coluna da esquerda" sem ressalva (menor 1) |
+| RF9 | ATENDIDO | como na rodada 1 | `docs/` sem diff desde a rodada 1; `restos` limpo com o `13.json` | |
+| RF10 | ATENDIDO | como na rodada 1 | `.claude/` e `CLAUDE.md` sem diff desde a rodada 1 | |
+| RF11 | ATENDIDO | como na rodada 1 | as guardas do RF11 (`escopo-dos-repositories.ts`, `camadas.cjs`, `eslint-suppressions.json`) sem diff desde a rodada 1 | |
+
+Nenhum RF tem tela ("Nenhuma tela muda", Tech Spec §9): sem foto.
+
+Provas de mutação (a árvore terminou limpa, `git status` vazio):
+
+| RF | Cláusula removida | Teste que ficou vermelho |
+|---|---|---|
+| RF8 | a linha `{ forma: 'Agendador', casa: 'prefixo', … }` de `tools/guardas/nomes-de-mercado.mjs:47` | `tools/guardas/guardas.test.ts`: os seis "recusa cada forma… em <caminho>" e "AgendadorX (classe) em apps/api/src/x.ts dá o nome de mercado ["`XScheduler`"]" (7 vermelhos) |
+
+As mutações da rodada 1 (RF8 `Adaptador`, RF11 `@Unscoped`, RF3 `restos`) não foram refeitas: o código delas não mudou.
+
+### 2. Regras de negócio, casos de borda e critério de pronto
+
+| Item | Situação | Evidência |
+|---|---|---|
+| Regra: glossário vence | cumprida | `Agendamento` e `ConsultaX` passam de propósito (palavra de domínio, `guarda.md:50`); `TurmaController`, `EliminacaoDoTitular` passam (sonda) |
+| Regra: nome misto, sem misturar idiomas na mesma palavra | cumprida | como na rodada 1 |
+| Regra: o nome novo é o da documentação | cumprida, com uma ressalva | `CountingProcessor` é nome em inglês inventado para uma classe local de teste, fora do mecânico que a guarda dá (`ContadoProcessor`): entra no crítico 1, para o Joaquim escolher |
+| Regra: as regras 10, 20 e 70 não se afrouxam | cumprida | as travas não mudaram desde a rodada 1; os quatro guardiões aprovaram a correção |
+| Regra: cada onda termina verde e pousável | cumprida no que cabe aqui | a esteira é do Orquestrador |
+| Borda: correção na `develop` no meio da X8 com nome antigo | coberta por teste; **pendente na prática** | como na rodada 1 (seção 6) |
+| Bordas: colisão de nome, colisão com biblioteca, string de fora, recusa de domínio, rename só de caixa | cobertas | como na rodada 1; a correção não as toca |
+| Pronto: nenhuma peça do inventário e das adendas 1 a 5 com nome antigo | cumprido | `restos` limpo no `68902e84` |
+| Pronto: `@educa/core` construído, compose sem diff de serviço | cumprido | rodada 1; sem diff desde então |
+| Pronto: kit com os nomes do shadcn e do Radix, onça sem diff | cumprido | rodada 1; `apps/web` sem diff desde então |
+| Pronto: apoio de teste com nome de mercado, texto dos casos igual | cumprido | RF6 |
+| Pronto: `conferir` verde em cada onda | cumprido | rodada 1 |
+| Pronto: a guarda recusa o nome técnico em português, e a árvore passa | **cumprido** | RF8 |
+| Pronto: documentos vivos, `.claude/` e `CLAUDE.md` com os nomes novos | cumprido | RF9, RF10 |
+| Pronto: cada trava continua recusando o que recusava | cumprido | rodada 1, e a mutação desta rodada |
+| Pronto: esteira verde no último commit que alterou código | esteira: conferida no fechamento | |
+| Roadmap, "Pronto quando": a guarda recusa `Adaptador…`, `…EmMemoria`, `Agendador…` | **cumprido** | sonda e mutação do RF8 |
+| Roadmap: guia §9, `docs/arquitetura.md` e o README da camada de IA | cumprido | RF9 |
+
+### 3. Portão
+
+| Portão | Resultado |
+|---|---|
+| `npm run typecheck` | não rodado: suíte inteira, da esteira |
+| `npm run lint` | não rodado: suíte inteira, da esteira |
+| `npm run test` | não rodado inteiro. Rodado isolado, como evidência: `tools/guardas/guardas.test.ts -t "guarda de nome de mercado"` (104 ✅, com o caso da árvore inteira). Nenhum vermelho fora da mutação |
+| Ferramentas da onda | `restos` limpo no `68902e84` |
+| `npm run test:e2e` | não se aplica aqui (esteira) |
+| `npm run test:infra` | não se aplica aqui (esteira) |
+| Esteira do GitHub | conferida no fechamento: não entra no veredito |
+| Revisões com veto registradas e aprovadas | ✅ A correção `guarda-formas-do-inventario` tem os seis revisores obrigatórios, com APROVADO na última rodada (o `test-engineer` reprovou a 1ª por falta de blocos de mutação e aprovou a 2ª, com doze blocos). As 13 tarefas e as outras correções: como na rodada 1 |
+
+### 4. Achados
+
+**Críticos**
+- `apps/despachante/test/slots.int.test.ts:59` (correção `2026-11-02-guarda-formas-do-inventario`, `9614bdf8`): `ProcessadorContado`
+  virou `CountingProcessor` sem estar no inventário nem numa adenda, e sem a aprovação do Joaquim. O RF2 (⛔) diz que peça achada depois
+  da aprovação entra numa adenda que ele aprova antes do rename, e a adenda 5 fez exatamente isso para as onze declarações que a guarda
+  acusou na 12.0. O documento da correção chama a troca de "colisão que a lista nova achou" e o `revisor-geral` a registrou sem cobrar a
+  adenda. O nome também foge do mecânico: a guarda sugere `ContadoProcessor`. Correção (uma das duas): (a) o Orquestrador leva ao Joaquim
+  uma adenda 6 de uma linha (`ProcessadorContado` → `CountingProcessor` ou `ContadoProcessor`, tipo classe não exportada, caminho, 4 usos),
+  registrada com a data da aprovação e com a nota de que ela veio depois do `9614bdf8`; se ele escolher `ContadoProcessor`, uma correção de
+  uma linha aplica; ou (b) uma correção volta ao `ProcessadorContado` e o põe como exceção nominal na `nomes-de-mercado.mjs`, com o motivo.
+  Depois, revalidar só o RF2.
+
+**Maiores**
+- Nenhum.
+
+**Menores**
+- `tasks/prd-nomes-de-mercado/inventario.md:20-21` (dono: Arquiteto ou Orquestrador, no fechamento): a frase "A guarda do RF8 usa os
+  prefixos e sufixos da coluna da esquerda" segue sem ressalva, e a `guarda.md:50` tira três formas dessa coluna. Recomendação do
+  `revisor-geral` (1ª rodada da correção), recusada por o arquivo estar fora da correção. Correção: uma linha no §1 apontando para a
+  `guarda.md`, "O que fica fora da lista". Se a adenda 6 do crítico for escrita, cabe no mesmo commit.
+- Da rodada 1, sem mudança: `tools/renomear/sintaxe.ts:31-34` (o `restos` não cobra o nome antigo na declaração); `TODO.md` com 11
+  itens que citam caminho antigo; `tasks.md:16-19`, as subtarefas 2.1 a 2.4 em `[ ]` com a 2.0 `[x]`; `ROADMAP.md:360` cita
+  `packages/nucleo/src/ia/README.md`. Donos e correções como na rodada 1.
+
+**Positivos**
+- A correção registrou o que ficou de fora com o motivo, no lugar em que a gramática vive (`guarda.md`), e pôs um caso de "passa" para
+  cada forma excluída (`ConsultaX`, `Agendamento`, `CHAVE_X` fora da web). Quem ler a guarda não vai achar o furo de novo.
+- O `test-engineer` reprovou a 1ª rodada por faltarem nove blocos de mutação, e a 2ª veio com um bloco por cláusula nova.
+
+### 5. Conclusão
+
+REPROVADA por um crítico só, novo, e pequeno: uma classe local de teste renomeada fora do inventário, contra o RF2. O RF8 e os dois
+itens de pronto que faltavam na rodada 1 estão cumpridos, com sonda e mutação próprias. O resto da funcionalidade não mudou desde a
+rodada 1 e segue provado lá.
+
+O caminho até APROVADA: a palavra do Joaquim numa adenda 6 de uma linha (opção a, sem código se ele aceitar `CountingProcessor`), ou a
+volta ao nome antigo com exceção nominal (opção b). Depois, revalidar só o RF2.
+
+### 6. Pendências herdadas
+
+- **Merge da `develop` antes do pouso** (Orquestrador, `passos/8-validacao-e-pouso.md:67-70`): como na rodada 1. A `origin/develop`
+  tem os mesmos commits de 30/10 que a spec não trouxe (12 no `git log 68902e84..origin/develop`, contando os merges e os de
+  registro), com 17 arquivos de código em `apps/web/src/componentes/` e `e2e/casca-publica.spec.ts`, no caminho e no nome antigos. O
+  `restos` e a guarda desta validação não viram esse código.
+- **Aviso de pouso** (o campo `tipo` do log em 20 classes de erro), **`ERRO_INTERNO` com o Postgres sem resposta** e a frase de
+  "Como testar" do `11_task.md`: como na rodada 1.
+- **Fora do processo:** nenhum commit `Fora do processo:` com código na spec. O único commit de código desde a rodada 1 é o
+  `9614bdf8`, marcado `(correção 2026-11-02-guarda-formas-do-inventario)`.
+- **Revisão da spec:** `revisao-spec.md`, rodada 9 (30/10/2026), APROVADA.
+
 ## Rodada 1 — 02/11/2026
 
 **Escopo:** funcionalidade completa
