@@ -5,19 +5,19 @@ provedor, modelo nem prompt (regra 30). Qual adaptador atende é `IA_ADAPTADOR`:
 teste e desenvolvimento) ou `openai_compat` (`llama-server` local, ou o provedor contratado).
 
 ```ts
-import { ErroDeIa, gerarAtividadeObjetiva, type LLMProvider } from '@educa/nucleo'
+import { LLMError, gerarAtividadeObjetiva, type LLMProvider } from '@educa/core'
 
 const { saida, medicao } = await ia.gerar({
   tarefa: gerarAtividadeObjetiva,        // já declara a função (D9), o perfil e o prompt
   escolaId,                              // do contexto ou da execução gravada, nunca do cliente
   entrada: { tema, quantidade: 5, contexto: { serie, disciplina }, habilidades, trechos },
-  execucaoId, sinal,                     // o que o ExecutorDeAgente entrega ao trabalho
+  execucaoId, sinal,                     // o que o AgenteExecutor entrega ao trabalho
 })
 // saida: ConteudoDeAtividade, com a página citada conferida contra os trechos
-// falha: sempre ErroDeIa (codigoDeIa: IA_INDISPONIVEL | IA_TEMPO_ESGOTADO | IA_SAIDA_INVALIDA | …)
+// falha: sempre LLMError (codigoDeIa: IA_INDISPONIVEL | IA_TEMPO_ESGOTADO | IA_SAIDA_INVALIDA | …)
 ```
 
-- **Tarefas** (`tarefas/`, catálogo em `CATALOGO_DE_TAREFAS`; os nomes são os de `TAREFAS_DE_IA`, em `@educa/shared`):
+- **Tarefas** (`tasks/`, catálogo em `TASK_CATALOG`; os nomes são os de `TAREFAS_DE_IA`, em `@educa/shared`):
   `propor_ferramenta`, `gerar_atividade_objetiva`, `gerar_plano_de_aula`, `adaptar_atividade`, `turno_do_tutor`,
   `relatorio_da_correcao`, `resumo_do_analista`. A entrada é estrita: não existe chave para nome de aluno ou de
   professor. Isso prende a forma, não o que a pessoa escreve: a tarefa com texto livre leva `levaTextoLivreDePessoa`.
@@ -31,10 +31,10 @@ const { saida, medicao } = await ia.gerar({
 
 ## Na API: como um pacote de domínio dispara uma tarefa
 
-O `IaModule` (`apps/api/src/ia/`) é global. O pacote injeta o `AgendadorDeExecucoes` e, no `POST`, faz uma chamada:
+O `IaModule` (`apps/api/src/ia/`) é global. O pacote injeta o `ExecucaoScheduler` e, no `POST`, faz uma chamada:
 
 ```ts
-constructor(private readonly agendador: AgendadorDeExecucoes) {}
+constructor(private readonly agendador: ExecucaoScheduler) {}
 
 return this.agendador.agendar({               // responde { execucaoId }: é o corpo do 202
   tarefa: proporFerramenta,                    // o Tutor: turnoDoTutor, com alunoId e turmaId
@@ -47,9 +47,9 @@ return this.agendador.agendar({               // responde { execucaoId }: é o c
 ```
 
 - Escola, ano letivo e quem pediu vêm da sessão; `entrada` e `aoConcluir` rodam depois do `202`, no contexto de quem pediu.
-- A suspensão é conferida antes de gravar; a falha vira `falhou` com um `CodigoDeErro`, e o que `aoConcluir` gravou é desfeito.
+- A suspensão é conferida antes de gravar; a falha vira `falhou` com um `ErrorCode`, e o que `aoConcluir` gravou é desfeito.
 - A tela lê o resultado em `GET /v1/execucoes/:id` (só quem pediu). O Tutor grava `mensagem_tutor` no lugar de `mensagem_agente`.
-- Função que roda **sem modelo** (a correção de objetiva): `ConferenciaDeFuncao.exigirAtiva('correcao_de_objetiva')`.
+- Função que roda **sem modelo** (a correção de objetiva): `FuncaoSuspensionCheck.exigirAtiva('correcao_de_objetiva')`.
 - As portas também são injetáveis: `LLM_PROVIDER`, `EXECUTOR_DE_AGENTE`, `SUSPENSAO_DE_FUNCAO` e `ORCAMENTO_DE_IA` (o
   `POST` do Tutor consulta este último antes de gravar, para responder `LIMITE_DIARIO_DO_TUTOR` na hora).
 - O executor roda no processo da API (`TODO(fila)`, D77); na subida, a varredura encerra o que ficou preso.

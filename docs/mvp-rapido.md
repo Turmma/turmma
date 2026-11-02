@@ -492,7 +492,7 @@ Alunos na turma aberta.
 
 `apps/web/src/index.css` já carrega os tokens do mockup (paleta, raios 10/12/16/28, sombras `caixa` e `flutua`, tempos,
 foco). Tailwind 4, Vite, React 19 e lucide estão nas mesmas versões. A casca da escola (lateral de 260 px, trilho de 56,
-gaveta no celular), o `Botao` em pílula, o `Dialogo`, o `Campo` e os estados vazio, carregando e erro já existem. **O que
+gaveta no celular), o `Button` em pílula, o `Dialog`, o `FormField` e os estados vazio, carregando e erro já existem. **O que
 falta são as composições das telas e as peças de IA.** Não se copia arquivo de `mockups/` (README do mockup, P21): a tela
 do produto é escrita de novo a partir do desenho e dos textos.
 

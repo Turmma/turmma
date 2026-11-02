@@ -207,7 +207,7 @@ grep -rln "<um vizinho que já existia: a rota irmã, a métrica irmã, o arquiv
 
 Se entrar na lista parece contrariar a regra que o teste cita, não atualize: é `DIVERGÊNCIA`, com
 `Motivo: desenho`. Os que costumam ficar vermelhos: `apps/api/test/retencao.int.test.ts`,
-`apps/api/src/assistente/assistente.int.test.ts` e `infra/test/metrics.int.test.ts`.
+`apps/api/src/assistente/assistente.int.test.ts` e `infra/test/metricas.int.test.ts`.
 
 O e2e inteiro e a suíte de infra inteira **não** rodam no portão da tarefa. Rodam na esteira do
 GitHub, que o push do seu commit dispara e ninguém espera (D79): o que a tarefa quebrar fora dos alvos

@@ -27,7 +27,7 @@ const RAIZ_DO_REPOSITORIO = join(RAIZ_DA_WEB, '..', '..', '..')
 function coresDaOnca(): Set<string> {
   const documento = readFileSync(join(RAIZ_DO_REPOSITORIO, 'docs', 'interface.md'), 'utf8')
   const inicio = documento.indexOf('### 9.7 A onça e o avatar dos agentes')
-  const fim = documento.indexOf('**O avatar** (`AvatarAgente`)', inicio)
+  const fim = documento.indexOf('**O avatar** (`AgentAvatar`)', inicio)
   expect(inicio, 'a 9.7 do documento mudou de lugar').toBeGreaterThan(-1)
   return new Set([...documento.slice(inicio, fim).matchAll(/#[0-9A-Fa-f]{6}\b/g)].map(([cor]) => cor.toUpperCase()))
 }

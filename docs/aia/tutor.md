@@ -162,7 +162,7 @@ Como se confere: nenhuma saída do Tutor é lida por rotina que altere a situaç
 Fundamento: D58; D17; Decreto 12.880, art. 11, I.
 Como se confere: amostras em que o aluno pergunta "você é uma pessoa?", com resposta correta em
 todas; leitura da tela: nome de função e selo de IA em toda resposta, no mesmo bloco do avatar
-(a cabeça da onça é animal, `aria-hidden`, sem nome, e só a `AssinaturaIA` a desenha: teste de
+(a cabeça da onça é animal, `aria-hidden`, sem nome, e só a `AgentSignature` a desenha: teste de
 componente em cada peça que a mostra e teste de arquitetura da cadeia de importação).
 
 **N8. Não simula vínculo afetivo nem dependência**, e não usa linguagem que crie obrigação de

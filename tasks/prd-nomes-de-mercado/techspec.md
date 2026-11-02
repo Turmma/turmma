@@ -178,6 +178,20 @@ novo, como qualquer chamador: na 9.0, `Onca.tsx` troca `SeloIA` de `../ai/Assina
 mudam: o teste de fidelidade e os irmãos passam sem diff, e o `git diff --stat` da pasta mostra só `Onca.tsx`. O
 comentário da onça que cita o nome antigo do kit é da 13.0 (triagem da 9.0, 31/10/2026).
 
+Na 13.0, a frase `**O avatar** (`AvatarAgente`)` de `docs/interface.md` passa a `**O avatar** (`AgentAvatar`)` (RF9), e o
+literal que `Onca.test.tsx` e `CabecaOnca.test.tsx` procuram para achar o fim da 9.7 acompanha, uma linha em cada: é o
+nome renomeado que o teste lê como texto (RF7), declarado em `mapas/13.json` com duas `excecoesDoConferir` por arquivo,
+a do texto antigo e a do novo, como o `perigo-cheio.test.ts` da 9.0. Os comentários de `CabecaOnca.tsx` e
+`CabecaOnca.test.tsx` que citam `AvatarAgente` e `AssinaturaIA` trocam na mesma tarefa. O teste de fidelidade do RF5,
+`fidelidade-ao-mockup.test.tsx`, fica sem diff, e as cores lidas da 9.7 são as mesmas nove (triagem da divergência da
+13.0, 01/11/2026).
+
+O passo 5 da 13.0 nos documentos não usa o `reaplicar`: a `renomearPelaSintaxe` dele troca o identificador na árvore
+inteira, sem o filtro do `arquivo` da entrada, e com os mapas de linha reescreve código (o `portao` de
+`tools/processo/`). A 13.0 aplica o passo 5 só aos documentos, e a prova é a mesma: o `conferir` com o diff de código
+vazio e o `restos` limpo, rodado depois do `git add` (a `Arvore` lê o índice). O conserto do `reaplicar` é uma correção
+própria, fora da 13.0 (triagem da divergência da 13.0, 01/11/2026).
+
 **A guarda (12.0)** é a regra `guardas/nome-de-mercado`, em `REGRAS_DAS_GUARDAS`, só em `apps/`, `packages/` e
 `e2e/`. A gramática (forma, tipos de declaração em que vale, nome de mercado na mensagem), o limite declarado e os
 casos estão em `guarda.md`. Com o inventário e as adendas aplicados, a árvore inteira passa.

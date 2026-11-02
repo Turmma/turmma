@@ -215,9 +215,9 @@ interface PropsDaCabecaOnca {
  *   (a partir de 40 px).
  * - **Parada.** Nenhum `animate`, transição, temporizador nem efeito: ela é desenho, e o que a faria viva não existe aqui.
  * - **Sem nome e sem texto.** `aria-hidden`, sem `<title>` nem `<desc>`: "onça" não é o nome de agente nenhum. Quem
- *   assina é a função, ao lado (`AssinaturaIA`).
+ *   assina é a função, ao lado (`AgentSignature`).
  *
- * Quem a desenha é só o `AvatarAgente`, que a põe num círculo com o anel do agente (a cadeia fechada é um teste:
+ * Quem a desenha é só o `AgentAvatar`, que a põe num círculo com o anel do agente (a cadeia fechada é um teste:
  * `components/ui/ai/avatar-so-nas-duas-pecas.test.ts`). O SVG preenche a caixa em que está: o círculo e o recuo são do avatar.
  */
 export function CabecaOnca({ tamanho }: PropsDaCabecaOnca) {

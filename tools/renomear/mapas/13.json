@@ -1,0 +1,447 @@
+{
+  "linha": false,
+  "entradas": [],
+  "ocorrencias": [
+    {
+      "arquivo": ".claude/agents/frontend-reviewer.md",
+      "de": "Tela",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:48",
+      "trecho": "pelo código e escreva `Tela vista: não` com o motivo: a Mesa"
+    },
+    {
+      "arquivo": ".claude/agents/implementador.md",
+      "de": "portao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:556",
+      "trecho": "(`node tools/processo/portao-local.ts --tarefa`) roda uma ve"
+    },
+    {
+      "arquivo": ".claude/rules/00-arquitetura.md",
+      "de": "com",
+      "classe": "fica",
+      "linha": "inventario-back.md:39",
+      "trecho": "Checagem: `guardas/tabela-so-no-repository`, `tools/guardas/"
+    },
+    {
+      "arquivo": ".claude/rules/10-multitenancy.md",
+      "de": "com",
+      "classe": "fica",
+      "linha": "inventario-back.md:39",
+      "trecho": "Checagem: `guardas/tabela-so-no-repository`, `tools/guardas/"
+    },
+    {
+      "arquivo": ".claude/rules/10-multitenancy.md",
+      "de": "com",
+      "classe": "fica",
+      "linha": "inventario-back.md:39",
+      "trecho": "Checagem: `tools/guardas/repositories-com-escopo.test.ts`, `"
+    },
+    {
+      "arquivo": ".claude/rules/40-testes.md",
+      "de": "portao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:556",
+      "trecho": "Checagem: `tools/processo/portao-local.test.ts`, `tools/proc"
+    },
+    {
+      "arquivo": ".claude/rules/40-testes.md",
+      "de": "portao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:556",
+      "trecho": "`node tools/processo/portao-local.ts --tarefa <documento>`. "
+    },
+    {
+      "arquivo": ".claude/rules/40-testes.md",
+      "de": "portao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:556",
+      "trecho": "na máquina com `node tools/processo/portao-local.ts --e2e --"
+    },
+    {
+      "arquivo": ".claude/rules/70-conformidade-cne.md",
+      "de": "com",
+      "classe": "fica",
+      "linha": "inventario-back.md:39",
+      "trecho": "Checagem: `packages/core/src/ia/tasks/turno-do-tutor.test.ts"
+    },
+    {
+      "arquivo": ".claude/skills/corrigir/SKILL.md",
+      "de": "portao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:556",
+      "trecho": "`node tools/processo/portao-local.ts conferir tasks/correcoe"
+    },
+    {
+      "arquivo": ".claude/skills/executar-task/SKILL.md",
+      "de": "portao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:556",
+      "trecho": "linhas ao mesmo tempo estoura os 30 s. O `portao-local.ts` e"
+    },
+    {
+      "arquivo": ".claude/skills/executar-task/SKILL.md",
+      "de": "portao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:556",
+      "trecho": "testes), e grava o carimbo em `.processo/portao.json`. Mexeu"
+    },
+    {
+      "arquivo": ".claude/skills/executar-task/SKILL.md",
+      "de": "portao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:556",
+      "trecho": "`node tools/processo/portao-local.ts --tarefa apps/api/test/"
+    },
+    {
+      "arquivo": ".claude/skills/playwright-best-practices/",
+      "de": "com",
+      "classe": "fica",
+      "linha": "inventario-back.md:39"
+    },
+    {
+      "arquivo": ".claude/skills/revisar-spec/SKILL.md",
+      "de": "com",
+      "classe": "fica",
+      "linha": "inventario-back.md:39",
+      "trecho": "`Revisa a spec de <funcionalidade> com os guardiões`."
+    },
+    {
+      "arquivo": ".claude/skills/revisar-tarefa/SKILL.md",
+      "de": "portao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:556",
+      "trecho": "`node tools/processo/portao-local.ts --tarefa`). Três rodada"
+    },
+    {
+      "arquivo": ".claude/skills/revisar-tarefa/SKILL.md",
+      "de": "portao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:556",
+      "trecho": "Rode `node tools/processo/portao-local.ts revisores <documen"
+    },
+    {
+      "arquivo": ".claude/skills/revisar-tarefa/SKILL.md",
+      "de": "portao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:556",
+      "trecho": "`node tools/processo/portao-local.ts --tarefa <documento>`"
+    },
+    {
+      "arquivo": ".claude/skills/seguir/SKILL.md",
+      "de": "com",
+      "classe": "fica",
+      "linha": "inventario-back.md:39",
+      "trecho": "| `validacao-com-ressalvas` | — | parada ou aviso (passo 7) "
+    },
+    {
+      "arquivo": ".claude/skills/seguir/passos/7-paradas.md",
+      "de": "com",
+      "classe": "fica",
+      "linha": "inventario-back.md:39",
+      "trecho": "commit. É por \"aceitas por\" nessa linha que o script sai de "
+    },
+    {
+      "arquivo": ".claude/skills/seguir/passos/8-validacao-e-pouso.md",
+      "de": "portao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:556",
+      "trecho": "da spec, `node tools/processo/portao-local.ts --e2e --infra`"
+    },
+    {
+      "arquivo": ".claude/skills/seguir/passos/8-validacao-e-pouso.md",
+      "de": "portao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:556",
+      "trecho": "e siga com `node tools/processo/portao-local.ts conferir --c"
+    },
+    {
+      "arquivo": ".claude/skills/seguir/time.md",
+      "de": "portao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:556",
+      "trecho": "revisão válida, sem portão da tarefa carimbado (`node tools/"
+    },
+    {
+      "arquivo": ".claude/skills/validar/SKILL.md",
+      "de": "com",
+      "classe": "fica",
+      "linha": "inventario-back.md:39",
+      "trecho": "roadmap`, só com `validacao.md`, `ROADMAP.md`, `techspec.md`"
+    },
+    {
+      "arquivo": ".claude/skills/validar/SKILL.md",
+      "de": "com",
+      "classe": "fica",
+      "linha": "inventario-back.md:39",
+      "trecho": "`validacao-com-ressalvas`."
+    },
+    {
+      "arquivo": "CLAUDE.md",
+      "de": "com",
+      "classe": "fica",
+      "linha": "inventario-back.md:39",
+      "trecho": "> `turmma.com`; o registro no INPI e o do domínio seguem pen"
+    },
+    {
+      "arquivo": "docs/decisoes-em-aberto.md",
+      "de": "com",
+      "classe": "fica",
+      "linha": "inventario-back.md:39",
+      "trecho": "| Registro no INPI e do domínio `turmma.com` (o nome já está"
+    },
+    {
+      "arquivo": "docs/guia-do-desenvolvedor.md",
+      "de": "com",
+      "classe": "fica",
+      "linha": "inventario-back.md:39",
+      "trecho": "| Teste dos repositories | repository sem prova de escopo ne"
+    },
+    {
+      "arquivo": "docs/interface.md",
+      "de": "secao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:372",
+      "trecho": "| `t-secao` | 20 / 26 px | 700 | | Título de seção, de diálo"
+    },
+    {
+      "arquivo": "docs/interface.md",
+      "de": "secao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:372",
+      "trecho": "| Os três de `states/` (R) | Caixa de 2 px, título em `t-sec"
+    },
+    {
+      "arquivo": "docs/interface.md",
+      "de": "secao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:372",
+      "trecho": "| `Dialog` (R) | Sobre o `veu`. Caixa centrada de até 520 px"
+    },
+    {
+      "arquivo": "docs/interface.md",
+      "de": "secao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:372",
+      "trecho": "| `Sheet` (N) | A partir de 768 px, entra pela direita com 4"
+    },
+    {
+      "arquivo": "docs/interface.md",
+      "de": "secao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:372",
+      "trecho": "| **Painel** | O Painel, Turmas, Escola, Registros, a operaç"
+    },
+    {
+      "arquivo": "docs/modelo-de-dados.md",
+      "de": "com",
+      "classe": "fica",
+      "linha": "inventario-back.md:39",
+      "trecho": "`SuboperadorDaEscolaRepository`, que filtra por `(alcance = "
+    },
+    {
+      "arquivo": "docs/mvp-rapido.md",
+      "de": "AssinaturaIA",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:111",
+      "trecho": "`AssinaturaIA` e `SeloIA`",
+      "motivo": "nome do mockup, que fica fora da X8"
+    },
+    {
+      "arquivo": "docs/mvp-rapido.md",
+      "de": "AvatarAgente",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:110",
+      "trecho": "`AvatarAgente` do mockup",
+      "motivo": "nome do mockup, que fica fora da X8"
+    },
+    {
+      "arquivo": "docs/mvp-rapido.md",
+      "de": "AvisoFila",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:126",
+      "trecho": "`professor/Conversa.tsx`",
+      "motivo": "nome do mockup, que fica fora da X8"
+    },
+    {
+      "arquivo": "docs/mvp-rapido.md",
+      "de": "AvisoFila",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:126",
+      "trecho": "`CaixaPedido`, `MensagemIA`",
+      "motivo": "nome do mockup, que fica fora da X8"
+    },
+    {
+      "arquivo": "docs/mvp-rapido.md",
+      "de": "BarraRotulada",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:31",
+      "trecho": "`NumeroPainel`, `BarraRotulada`",
+      "motivo": "nome do mockup, que fica fora da X8"
+    },
+    {
+      "arquivo": "docs/mvp-rapido.md",
+      "de": "CaixaPedido",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:119",
+      "trecho": "`CaixaPedido`, `MensagemIA`",
+      "motivo": "nome do mockup, que fica fora da X8"
+    },
+    {
+      "arquivo": "docs/mvp-rapido.md",
+      "de": "Cartao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:23",
+      "trecho": "`NumeroPainel`, `BarraRotulada`",
+      "motivo": "nome do mockup, que fica fora da X8"
+    },
+    {
+      "arquivo": "docs/mvp-rapido.md",
+      "de": "ChipFonte",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:120",
+      "trecho": "`CaixaPedido`, `MensagemIA`",
+      "motivo": "nome do mockup, que fica fora da X8"
+    },
+    {
+      "arquivo": "docs/mvp-rapido.md",
+      "de": "Conversa",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:114",
+      "trecho": "`professor/Conversa.tsx`",
+      "motivo": "nome do mockup, que fica fora da X8"
+    },
+    {
+      "arquivo": "docs/mvp-rapido.md",
+      "de": "Escolha",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:124",
+      "trecho": "`CaixaPedido`, `MensagemIA`",
+      "motivo": "nome do mockup, que fica fora da X8"
+    },
+    {
+      "arquivo": "docs/mvp-rapido.md",
+      "de": "Estado",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:35",
+      "trecho": "`AssinaturaIA` e `SeloIA`",
+      "motivo": "nome do mockup, que fica fora da X8"
+    },
+    {
+      "arquivo": "docs/mvp-rapido.md",
+      "de": "Fontes",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:121",
+      "trecho": "`CaixaPedido`, `MensagemIA`",
+      "motivo": "nome do mockup, que fica fora da X8"
+    },
+    {
+      "arquivo": "docs/mvp-rapido.md",
+      "de": "LinhaAprovacao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:123",
+      "trecho": "`AssinaturaIA` e `SeloIA`",
+      "motivo": "nome do mockup, que fica fora da X8"
+    },
+    {
+      "arquivo": "docs/mvp-rapido.md",
+      "de": "MensagemIA",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:115",
+      "trecho": "`CaixaPedido`, `MensagemIA`",
+      "motivo": "nome do mockup, que fica fora da X8"
+    },
+    {
+      "arquivo": "docs/mvp-rapido.md",
+      "de": "MensagemPessoa",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:116",
+      "trecho": "`CaixaPedido`, `MensagemIA`",
+      "motivo": "nome do mockup, que fica fora da X8"
+    },
+    {
+      "arquivo": "docs/mvp-rapido.md",
+      "de": "MotorFormulario",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:127",
+      "trecho": "`MotorFormulario`: a ferramenta",
+      "motivo": "nome do mockup, que fica fora da X8"
+    },
+    {
+      "arquivo": "docs/mvp-rapido.md",
+      "de": "MotorFormulario",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:127",
+      "trecho": "`AssinaturaIA` e `SeloIA`",
+      "motivo": "nome do mockup, que fica fora da X8"
+    },
+    {
+      "arquivo": "docs/mvp-rapido.md",
+      "de": "NumeroPainel",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:45",
+      "trecho": "`NumeroPainel`, `BarraRotulada`",
+      "motivo": "nome do mockup, que fica fora da X8"
+    },
+    {
+      "arquivo": "docs/mvp-rapido.md",
+      "de": "PaginaMini",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:122",
+      "trecho": "`AssinaturaIA` e `SeloIA`",
+      "motivo": "nome do mockup, que fica fora da X8"
+    },
+    {
+      "arquivo": "docs/mvp-rapido.md",
+      "de": "SeloIA",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:112",
+      "trecho": "`AssinaturaIA` e `SeloIA`",
+      "motivo": "nome do mockup, que fica fora da X8"
+    },
+    {
+      "arquivo": "docs/mvp-rapido.md",
+      "de": "Tela",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:48",
+      "trecho": "`NumeroPainel`, `BarraRotulada`",
+      "motivo": "nome do mockup, que fica fora da X8"
+    },
+    {
+      "arquivo": "docs/mvp-rapido.md",
+      "de": "portao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:556",
+      "trecho": "O portão é o normal: `node tools/processo/portao-local.ts`, "
+    },
+    {
+      "arquivo": "docs/roteiro-da-demonstracao.md",
+      "de": "com",
+      "classe": "fica",
+      "linha": "inventario-back.md:39",
+      "trecho": "**`monta uma atividade de estequiometria com 5 questões`** →"
+    }
+  ],
+  "excecoesDoConferir": [
+    {
+      "arquivo": "apps/web/src/components/ui/onca/Onca.test.tsx",
+      "texto": "**O avatar** (`AvatarAgente`)",
+      "motivo": "nome do kit lido como texto pelo teste, que acha o fim da 9.7 de docs/interface.md pela frase do avatar (RF7); trocado na 13.0 junto com o documento (Tech Spec §5, triagem da divergência da 13.0)"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/onca/Onca.test.tsx",
+      "texto": "**O avatar** (`AgentAvatar`)",
+      "motivo": "nome do kit lido como texto pelo teste, que acha o fim da 9.7 de docs/interface.md pela frase do avatar (RF7); trocado na 13.0 junto com o documento (Tech Spec §5, triagem da divergência da 13.0)"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/onca/CabecaOnca.test.tsx",
+      "texto": "**O avatar** (`AvatarAgente`)",
+      "motivo": "nome do kit lido como texto pelo teste, que acha o fim da 9.7 de docs/interface.md pela frase do avatar (RF7); trocado na 13.0 junto com o documento (Tech Spec §5, triagem da divergência da 13.0)"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/onca/CabecaOnca.test.tsx",
+      "texto": "**O avatar** (`AgentAvatar`)",
+      "motivo": "nome do kit lido como texto pelo teste, que acha o fim da 9.7 de docs/interface.md pela frase do avatar (RF7); trocado na 13.0 junto com o documento (Tech Spec §5, triagem da divergência da 13.0)"
+    }
+  ]
+}

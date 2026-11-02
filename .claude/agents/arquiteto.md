@@ -96,7 +96,7 @@ critério de conclusão**, acrescente:
    - para cada cenário da tabela que tem precedente no repositório: o teste a copiar, como
      `arquivo › nome do caso`, e o que muda nele;
    - a peça de apoio certa: fixture, helper, fábrica de dados (`e2e/support/…`, `apps/api/test/…`,
-     `GatilhoDeParada`), com o nome da função;
+     `WriteBlockTrigger`), com o nome da função;
    - o comando para rodar esse teste isolado (passo 4 de `executar-task`);
    - as armadilhas que já apareceram nesta funcionalidade e valem para a tarefa: leia o
      `achados/indice.md` e a seção "O que falhou" do `estado.md`, e cite só as que se aplicam;

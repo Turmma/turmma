@@ -6,7 +6,7 @@
 >
 > - **Entregues:** P14 e P29 (Seu time em conversa, com filtro por função:
 >   `apps/web/src/areas/professor/assistente/Time.tsx`), P15 (Home com "Esperando você" só com pendência:
->   `Home.tsx`), P16 (`apps/web/src/components/ui/ai/Escolha.tsx`), P17 (o menu Ferramenta da caixa
+>   `Home.tsx`), P16 (`apps/web/src/components/ui/ai/ChoicePrompt.tsx`), P17 (o menu Ferramenta da caixa
 >   de pedido, só com o que existe: `CaixaDoAssistente.tsx`), P19
 >   (`apps/web/src/areas/coordenacao/governanca/Agentes.tsx`, com a suspensão por função), P23
 >   (`components/ui/ai/schema-form.ts`) e P24 ("só conversar", `resposta: 'so_conversar'`). Na

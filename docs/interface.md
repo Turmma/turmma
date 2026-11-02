@@ -182,10 +182,10 @@ No código, **a ferramenta é dado**: um contrato por ferramenta em `packages/sh
 formulário derivado dele, em vez de uma tela escrita à mão por ferramenta (P23). Entregue no MVP:
 a descrição de campos de cada ferramenta sai de `descricaoDaFerramenta`
 (`apps/web/src/areas/professor/ferramentas/ferramentas.ts`), e um motor só a desenha
-(`apps/web/src/components/ui/ai/schema-form.ts` e `MotorFormulario.tsx`).
+(`apps/web/src/components/ui/ai/schema-form.ts` e `SchemaForm.tsx`).
 
 **A página de Ferramentas** (X3, tarefa 7.0) tem uma seção por categoria que tem ferramenta (hoje Planejar, Preparar a aula e
-Avaliar; "Corrigir" não aparece, porque nenhuma ferramenta dela existe) e um cartão por ferramenta: uma `Linha` de 108 px no
+Avaliar; "Corrigir" não aparece, porque nenhuma ferramenta dela existe) e um cartão por ferramenta: uma `ListItem` de 108 px no
 mínimo, com o ícone ilustrado de 48 px, o nome, o que ela entrega em até três linhas e, se a coordenação suspendeu a função, o
 selo "Suspensa pela coordenação" (a frase da suspensão fica no alto da página). A grade tem 3 colunas a partir de 1280 px, 2 a
 partir de 768 e 1 abaixo. Dois avisos no alto **não tiram cartão**: a leitura do time que falhou ("Não foi possível conferir…",
@@ -745,7 +745,7 @@ A régua do mockup (R1 a R12), ajustada ao que o produto já decidiu. Vale para 
 |---|---|
 | R1 | No máximo **quatro lugares** por papel, iguais na lateral e na barra de baixo. Ação não é lugar |
 | R2 | **Dois níveis**: lugar, tela e detalhe. O detalhe abre ao lado (480 px) ou como folha de baixo. Só o objeto grande vira página, com voltar |
-| R3 | No máximo **três abas**, nunca uma dentro da outra. Jeito de ver é `Segmentado`. Um filtro visível por tela |
+| R3 | No máximo **três abas**, nunca uma dentro da outra. Jeito de ver é `SegmentedControl`. Um filtro visível por tela |
 | R4 | **Um botão cheio** por tela: laranja para criar e pedir, grafite para decidir. O raro vai para "Mais opções" |
 | R5 | **Linha inteira clicável**, com chevron. Nada de "Ver" repetido |
 | R6 | **Título sim, descrição não** (revê o P03). A explicação fica onde a dúvida nasce, em uma linha |
@@ -1025,8 +1025,8 @@ a fonte do sistema não tem o 500, o navegador usa o regular.
 | Peça | Face | Degrau | Desce |
 |---|---|---|---|
 | Botão `principal` · `compacto` | 44 · 36 px (o `compacto`, 44 abaixo de 768) | 4 | 4 |
-| Botão só de ícone, `Toque` | 40 px (o botão, também 44 e 48) | 3 | 3 |
-| Cartão clicável, `Opcao` (no mínimo 64 px), seletor de escola (48 px) | livre | 4 | 2 |
+| Botão só de ícone, `Toggle` | 40 px (o botão, também 44 e 48) | 3 | 3 |
+| Cartão clicável, `OptionCard` (no mínimo 64 px), seletor de escola (48 px) | livre | 4 | 2 |
 
 - **Elevação: nenhuma sombra com desfoque.** O que flutua tem a borda de 2 px e um degrau sólido
   de 4 px em `borda` (`shadow-flutua`), sobre o `veu` quando é modal
@@ -1038,7 +1038,7 @@ a fonte do sistema não tem o 500, o navegador usa o regular.
 - **Largura.** Toda página fica numa **moldura de 1200 px**, e a coluna começa na borda esquerda
   dela, para o título não pular ao trocar de lugar. São quatro tipos de página (11.2):
 
-| Tipo de página | Coluna | Na `Tela` |
+| Tipo de página | Coluna | Na `Page` |
 |---|---|---|
 | Conversa | 768 px | `conversa` (era 760) |
 | Leitura | 880 px | `leitura`, nova |
@@ -1074,10 +1074,10 @@ A cor dominante é a face da família, lida do token, e o papel e as linhas são
 
 Os quatro da X1 se chamam `inicio`, `turmas`, `tarefas` (que ilustra Atividades) e `ferramentas` (os
 quatro quadradinhos, que o mockup chama `mais`). O visto de `tarefas` é feito de dois retângulos de
-ponta redonda, para toda forma pintar por `fill-*`. O `Icone` tem cinco tamanhos: 24, 28, 32, 40 e 48.
+ponta redonda, para toda forma pintar por `fill-*`. O `Icon` tem cinco tamanhos: 24, 28, 32, 40 e 48.
 
 Lugar que a D80 não ilustrou (o Eu do aluno, que tomou o lugar de Minha turma) usa o ícone do
-`lucide` num `Ladrilho`, até a spec da área. Os ícones de lugar moram na entrada e somam até
+`lucide` num `IconTile`, até a spec da área. Os ícones de lugar moram na entrada e somam até
 4 kB em brotli; acima disso saem dela para um `.svg` gerado pelo build, importado por URL, com hash
 no nome e teto próprio no `.size-limit.json` (`lugares-*.svg`, 6 kB em brotli). Nunca um arquivo de
 `public/`, que não tem hash nem entra em medição. Medido na X1: os quatro ícones pesam 484 bytes em
@@ -1158,11 +1158,11 @@ chão sob a onça de corpo inteiro é do cenário, o token `onca-chao` (9.10), e
 da pata que acena** são traço parado, na cor da sombra (correção `2026-10-28-onca-do-mockup-v3`). O mockup tem ainda `acolhendo` e
 `dormindo`, a cabeça feliz do avatar e as pintas que voam: nada disso entra (D80, item 3).
 
-**O avatar** (`AvatarAgente`) é a cabeça da onça num círculo `fundo`, com anel de 2 px na cor do
+**O avatar** (`AgentAvatar`) é a cabeça da onça num círculo `fundo`, com anel de 2 px na cor do
 agente: **Tutor `laranja`, Assistente de ensino `azul`, Analista de desempenho escolar `anil`**. O
 círculo com o ícone da função sai das telas. O avatar é `aria-hidden` e **só aparece com o nome da
 função e o selo "IA" visíveis no mesmo bloco**. Isso é garantido por estrutura, e não por
-combinado: só a `AssinaturaIA` o desenha (o balão de `MensagemIA` a usa como cabeçalho, e a tela
+combinado: só a `AgentSignature` o desenha (o balão de `AIMessage` a usa como cabeçalho, e a tela
 Agentes a usa com o nome da função em `h2`), e um teste reprova outro arquivo que importe o avatar
 ou qualquer coisa da pasta da onça. O bloco é o `data-assinatura`, e o teste confere que cada
 `data-agente` tem, nele, o nome da função em texto visível e um `data-selo-ia`. O cartão de cada
@@ -1542,9 +1542,9 @@ teste de componente. As medidas vêm do inventário do mockup; "(produto)" marca
 
 | Peça | Desenho | Estados e teclado |
 |---|---|---|
-| `Botao` (R) | Canto 12, rótulo em `t-rotulo` numa linha, glifo de 20 px à esquerda. `principal`: face de 44 px. `compacto`: face de 36 px (44 abaixo de 768), letra de 14 | Hover troca a face; apertado desce o degrau, também no toque; desligado sem degrau, face `borda`, texto `apoio` |
-| `Toque` (N) | Pílula com face de 40 px (44 abaixo de 768), borda 2, 15 px em 700. Escolhido em `azul-claro`, `azul-borda`, `azul-texto` | `aria-pressed`. É filtro e sugestão, não aba |
-| `Menu` (R) | Caixa flutuante de canto 16, borda 2 e degrau 4 (a `shadow-flutua`), com a largura do `floating.ts`: 320 px, ou a janela menos as duas margens (produto: o mínimo de 224 px do mockup não entra, o menu de ferramenta e o de turma precisam dos 320). Item de 44 px, canto 10, 15 px em 500, glifo de 18 em `sutil` | Realçado em `fundo-suave`, perigoso em `vermelho-texto`. Desligado em `sutil`, sem realce, com `aria-disabled` (produto: a cor sozinha não o diria). Teclado de `menu-keyboard.ts`; o Esc fecha só o menu, também dentro de um `Dialogo` ou do `PainelLado` |
+| `Button` (R) | Canto 12, rótulo em `t-rotulo` numa linha, glifo de 20 px à esquerda. `principal`: face de 44 px. `compacto`: face de 36 px (44 abaixo de 768), letra de 14 | Hover troca a face; apertado desce o degrau, também no toque; desligado sem degrau, face `borda`, texto `apoio` |
+| `Toggle` (N) | Pílula com face de 40 px (44 abaixo de 768), borda 2, 15 px em 700. Escolhido em `azul-claro`, `azul-borda`, `azul-texto` | `aria-pressed`. É filtro e sugestão, não aba |
+| `Menu` (R) | Caixa flutuante de canto 16, borda 2 e degrau 4 (a `shadow-flutua`), com a largura do `floating.ts`: 320 px, ou a janela menos as duas margens (produto: o mínimo de 224 px do mockup não entra, o menu de ferramenta e o de turma precisam dos 320). Item de 44 px, canto 10, 15 px em 500, glifo de 18 em `sutil` | Realçado em `fundo-suave`, perigoso em `vermelho-texto`. Desligado em `sutil`, sem realce, com `aria-disabled` (produto: a cor sozinha não o diria). Teclado de `menu-keyboard.ts`; o Esc fecha só o menu, também dentro de um `Dialog` ou do `Sheet` |
 
 Os seis desenhos do botão, e nenhum outro (RF5 da X1):
 
@@ -1564,46 +1564,46 @@ prova isso (RF6 da X1).
 
 | Peça | Desenho | Estados e teclado |
 |---|---|---|
-| `Cartao` (R) | Canto 16, borda 2, face `fundo`, 16 px por dentro (20 a partir de 768). De leitura, sem degrau. A cor de família vai no ladrilho e no selo de dentro, nunca no fundo inteiro | Clicável: degrau, hover `fundo-suave`. Selecionado: `azul-claro` com `azul-borda` |
-| `Linha` (N) | A linha inteira clicável: mínimo de 64 px. Título em `t-cartao`, numa linha com reticências (o `title` guarda o texto inteiro; o título fixo e curto, que não pode sair cortado a 360 px, pede `tituloEmDuasLinhas` e quebra em até duas); embaixo, `t-apoio`; no fim, chevron de 20 em `apagado`, decoração. O fio de 2 px entre uma linha e a de cima é de quem junta as linhas, com `divide-y-2 divide-borda` na moldura (produto): a linha sozinha não sabe se é a primeira | Link, botão ou só leitura (sem foco e sem chevron). Hover `fundo-suave`; o anel de foco por dentro (−3 px) |
-| `Tabela` (R) | Moldura de canto 16. Cabeçalho de 44 px em `t-selo`; linha de 64 px, 15 px em 500. Abaixo de 768 px cada linha vira um cartão | Linha ativa em `azul-claro`. Linha que abre: inteira, por Enter e espaço. Não ordena |
-| `Abas` (R) | Linha de 44 px (produto: as abas de página do mockup, que levam o número; a de 48 px é a do mockup solta) sobre um fio de 2 px. Rótulo em `t-rotulo`, `sutil`; a ativa em `azul-texto`, com sublinhado de 3 px em `azul`. **Até três** | Teclado de `tabs-keyboard.ts`; `aria-selected` e `aria-controls` |
-| `Tela` (R) | A moldura de toda tela, com o título e as larguras (11.2) | — |
+| `Card` (R) | Canto 16, borda 2, face `fundo`, 16 px por dentro (20 a partir de 768). De leitura, sem degrau. A cor de família vai no ladrilho e no selo de dentro, nunca no fundo inteiro | Clicável: degrau, hover `fundo-suave`. Selecionado: `azul-claro` com `azul-borda` |
+| `ListItem` (N) | A linha inteira clicável: mínimo de 64 px. Título em `t-cartao`, numa linha com reticências (o `title` guarda o texto inteiro; o título fixo e curto, que não pode sair cortado a 360 px, pede `tituloEmDuasLinhas` e quebra em até duas); embaixo, `t-apoio`; no fim, chevron de 20 em `apagado`, decoração. O fio de 2 px entre uma linha e a de cima é de quem junta as linhas, com `divide-y-2 divide-borda` na moldura (produto): a linha sozinha não sabe se é a primeira | Link, botão ou só leitura (sem foco e sem chevron). Hover `fundo-suave`; o anel de foco por dentro (−3 px) |
+| `Table` (R) | Moldura de canto 16. Cabeçalho de 44 px em `t-selo`; linha de 64 px, 15 px em 500. Abaixo de 768 px cada linha vira um cartão | Linha ativa em `azul-claro`. Linha que abre: inteira, por Enter e espaço. Não ordena |
+| `Tabs` (R) | Linha de 44 px (produto: as abas de página do mockup, que levam o número; a de 48 px é a do mockup solta) sobre um fio de 2 px. Rótulo em `t-rotulo`, `sutil`; a ativa em `azul-texto`, com sublinhado de 3 px em `azul`. **Até três** | Teclado de `tabs-keyboard.ts`; `aria-selected` e `aria-controls` |
+| `Page` (R) | A moldura de toda tela, com o título e as larguras (11.2) | — |
 | Os três de `states/` (R) | Caixa de 2 px, título em `t-secao` e uma ação. O vazio tracejado (`borda-campo`) centraliza; o vazio de lista continua à esquerda (produto: ele mora dentro de lista e de cartão, e a tela é que recompõe). A onça só entra quando a tela a passa em `ilustracao` (9.7); a peça não a importa | Carregando é texto parado em `status`, sem pulso; o erro tem `alert` só na mensagem, e o botão e o "Tentando de novo…" ficam fora dele |
 
 **Marcar e informar**
 
 | Peça | Desenho | Estados e teclado |
 |---|---|---|
-| `Ladrilho` (N) | Quadrado de canto 12, fundo no `claro` da família, ícone a 72% do lado, com o `texto` da família como cor do `lucide` (`currentColor`). Seis tamanhos: 32, 36 (a caixa do ícone na lateral), 40, 44, 48 e 56 px | `role="img"` com rótulo; sem ele, `aria-hidden` |
-| `Estado`, o selo (R) | 24 px de altura, canto 8, `t-selo`, glifo de 16. Neutro: `fundo-suave` com `apoio`. De família: `claro` com `texto`. As famílias de hoje (`pendente`, `ok`, `erro`, `info`) continuam | Sempre com texto ou glifo |
-| `Contador` (N) | Pílula na face da família, texto `sobre-cor` em 700, tabular, de 24 px (produto: um tamanho só) | O que ele conta é texto escondido depois do número (produto: não `role="img"`, para a aba e a linha lerem o mesmo texto). Sem item, não aparece, e não pisca |
-| `Aviso` (N) | Canto 12, borda 2 na `borda` da família, fundo `claro`, sem degrau. Glifo num círculo de 28, uma forma por tom. Título em `t-cartao`; corpo em 15 / 21 px, `tinta`. Informação azul, atenção amarelo, erro vermelho, certo verde | `role="alert"` só no erro, e só no texto dele (a ação fica fora). Os outros três tons não têm papel vivo (produto: o `status` do mockup em texto parado é ruído). Não fecha |
-| `Faixa` (R) | O aviso permanente, que não fecha (D8), na família `info` | `role="note"`. Não tem botão |
-| `BarraRotulada` (R) | Trilho em `ia-cx` (produto), de 12 px e ponta redonda, com o enchimento em `sutil`: a mesma cor nos dois, vazia ou cheia. O texto ("2 de 8") vai fora. Só mede o que tem fim | Só desenho, `aria-hidden` (produto): o valor está escrito ao lado, e `role="progressbar"` o diria duas vezes. Barra de acerto é neutra |
-| `NumeroPainel` (R) | O valor em `t-numero`, o rótulo em `t-selo`, `sutil` | Sem variação "boa" ou "ruim" em cor |
-| As de `components/ui/ai/` (R) | O avatar da 9.7; o nome da função em 15 px e 700; o selo "IA" neutro; o chip de página, pílula de 28 px com borda de 2 px e sem degrau (corre dentro da linha de texto); o chip "da web", com a borda tracejada, que **nasce com a busca na web (F9, D68)**: hoje nenhuma citação vem da web, e a peça não desenha o que não tem dado; a linha de quem aprovou, em `ok`. As duas opções da `Escolha` são uma constante só: borda de 2 px e degrau `borda`, nenhuma na face do primário nem na do oficial. A `CaixaPedido` mede o texto de exemplo, quando vazia, num espelho fora do campo (o campo em uso nunca é escrito, e o desfazer do navegador fica inteiro), para ele aparecer inteiro a 360 px. O "Tentar de novo" do `AvisoFila` é `secundario`: é uma tentativa dentro da conversa, que não decide nada e convive com o primário da caixa de pedido; o `EstadoErro` de página, que é a única ação da tela, usa o primário laranja | O chip abre por clique e por teclado |
+| `IconTile` (N) | Quadrado de canto 12, fundo no `claro` da família, ícone a 72% do lado, com o `texto` da família como cor do `lucide` (`currentColor`). Seis tamanhos: 32, 36 (a caixa do ícone na lateral), 40, 44, 48 e 56 px | `role="img"` com rótulo; sem ele, `aria-hidden` |
+| `StatusBadge`, o selo (R) | 24 px de altura, canto 8, `t-selo`, glifo de 16. Neutro: `fundo-suave` com `apoio`. De família: `claro` com `texto`. As famílias de hoje (`pendente`, `ok`, `erro`, `info`) continuam | Sempre com texto ou glifo |
+| `CountBadge` (N) | Pílula na face da família, texto `sobre-cor` em 700, tabular, de 24 px (produto: um tamanho só) | O que ele conta é texto escondido depois do número (produto: não `role="img"`, para a aba e a linha lerem o mesmo texto). Sem item, não aparece, e não pisca |
+| `Alert` (N) | Canto 12, borda 2 na `borda` da família, fundo `claro`, sem degrau. Glifo num círculo de 28, uma forma por tom. Título em `t-cartao`; corpo em 15 / 21 px, `tinta`. Informação azul, atenção amarelo, erro vermelho, certo verde | `role="alert"` só no erro, e só no texto dele (a ação fica fora). Os outros três tons não têm papel vivo (produto: o `status` do mockup em texto parado é ruído). Não fecha |
+| `Banner` (R) | O aviso permanente, que não fecha (D8), na família `info` | `role="note"`. Não tem botão |
+| `ProgressBar` (R) | Trilho em `ia-cx` (produto), de 12 px e ponta redonda, com o enchimento em `sutil`: a mesma cor nos dois, vazia ou cheia. O texto ("2 de 8") vai fora. Só mede o que tem fim | Só desenho, `aria-hidden` (produto): o valor está escrito ao lado, e `role="progressbar"` o diria duas vezes. Barra de acerto é neutra |
+| `StatCard` (R) | O valor em `t-numero`, o rótulo em `t-selo`, `sutil` | Sem variação "boa" ou "ruim" em cor |
+| As de `components/ui/ai/` (R) | O avatar da 9.7; o nome da função em 15 px e 700; o selo "IA" neutro; o chip de página, pílula de 28 px com borda de 2 px e sem degrau (corre dentro da linha de texto); o chip "da web", com a borda tracejada, que **nasce com a busca na web (F9, D68)**: hoje nenhuma citação vem da web, e a peça não desenha o que não tem dado; a linha de quem aprovou, em `ok`. As duas opções da `ChoicePrompt` são uma constante só: borda de 2 px e degrau `borda`, nenhuma na face do primário nem na do oficial. A `PromptInput` mede o texto de exemplo, quando vazia, num espelho fora do campo (o campo em uso nunca é escrito, e o desfazer do navegador fica inteiro), para ele aparecer inteiro a 360 px. O "Tentar de novo" do `QueueAlert` é `secundario`: é uma tentativa dentro da conversa, que não decide nada e convive com o primário da caixa de pedido; o `ErrorState` de página, que é a única ação da tela, usa o primário laranja | O chip abre por clique e por teclado |
 
 **Formulário**
 
 | Peça | Desenho | Estados e teclado |
 |---|---|---|
-| `Campo`, `CampoDeSenha`, `CampoLongo`, `Selecao` (R) | 48 px (o longo, no mínimo 96), canto 12, borda 2 em `borda-campo` (produto), fundo `campo`, 17 px em 500. Rótulo de 15 px em 700; dica em `t-apoio` | Foco: o anel, colado à borda (produto). Inválido: borda e mensagem em `vermelho-texto`, com ícone ao lado do texto; a mensagem é descrição do campo (`aria-describedby`), sem `role="alert"` (produto: o aviso do envio já é uma região própria, e o campo o lê ao receber o foco). Desligado: `fundo-suave` com texto `apoio` |
-| `Busca` (N) | 44 px, letra de 16, lupa de 20 à esquerda | O rótulo é só para leitor de tela |
-| `Opcao` (N) | Um `<label>` com o `<input>` de verdade: degrau, canto 12, mínimo de 64 px. Texto em `t-cartao`; à direita, um círculo de 24 com o visto. Marcada em `azul-claro`, `azul-borda`, `azul-texto`. Desligada: `borda`, `fundo-suave`, texto `apoio` (4,5:1), sem degrau; o círculo, marcado ou não, sem cor de ação (o visto fica, em `apoio`) | Teclado nativo. Quem usa põe o `fieldset` e a `legend` |
-| `Interruptor` (N) | Trilho de 52 × 32 px, com alvo de toque de 44 px de altura abaixo de 768. Desligado: `borda`, com borda `borda-campo` (produto). Ligado: `azul`, com borda `azul-degrau`. Bolinha de 24 em `fundo` (produto). Fora de uso: `fundo-suave` com borda `borda` e bolinha `borda-campo`, sem opacidade (produto); a posição da bolinha continua dizendo o estado | `role="switch"`. Muda na hora |
-| `Segmentado` (N) | Grupo de 44 px, borda 2, canto 12. A opção ativa em `azul-claro`, `azul-borda`, `azul-texto`. Até quatro; com quatro rótulos longos, `emDuasColunasNoCelular` põe as opções duas por linha abaixo de 768 px (o filtro "Estado" de Registros › IA). Troca o jeito de ver; não é aba | `radiogroup`, com as setas, Home e End |
-| `Aparencia` (N) | O `Segmentado` Sistema · Claro · Escuro, em "Sua conta" | Só a escolha explícita grava; voltar a Sistema apaga a chave. Sem armazenamento, vale o sistema, calado |
-| `TamanhoDaLetra` (N) | `components/settings/TamanhoDaLetra` (numa pasta própria: `components/` já está no teto de 25 arquivos de produção). Três `Opcao` de rádio (Padrão · Grande · Maior) num `fieldset` "Tamanho da letra", e a prévia "Assim fica a minha letra." no tamanho de agora. Em Eu › Ajustes, com a `Aparencia` | Setas trocam a escolha, uma parada de Tab. Só a escolha grava; Padrão apaga a chave. Sem armazenamento, vale na sessão, calado |
+| `FormField`, `PasswordInput`, `Textarea`, `Select` (R) | 48 px (o longo, no mínimo 96), canto 12, borda 2 em `borda-campo` (produto), fundo `campo`, 17 px em 500. Rótulo de 15 px em 700; dica em `t-apoio` | Foco: o anel, colado à borda (produto). Inválido: borda e mensagem em `vermelho-texto`, com ícone ao lado do texto; a mensagem é descrição do campo (`aria-describedby`), sem `role="alert"` (produto: o aviso do envio já é uma região própria, e o campo o lê ao receber o foco). Desligado: `fundo-suave` com texto `apoio` |
+| `SearchInput` (N) | 44 px, letra de 16, lupa de 20 à esquerda | O rótulo é só para leitor de tela |
+| `OptionCard` (N) | Um `<label>` com o `<input>` de verdade: degrau, canto 12, mínimo de 64 px. Texto em `t-cartao`; à direita, um círculo de 24 com o visto. Marcada em `azul-claro`, `azul-borda`, `azul-texto`. Desligada: `borda`, `fundo-suave`, texto `apoio` (4,5:1), sem degrau; o círculo, marcado ou não, sem cor de ação (o visto fica, em `apoio`) | Teclado nativo. Quem usa põe o `fieldset` e a `legend` |
+| `Switch` (N) | Trilho de 52 × 32 px, com alvo de toque de 44 px de altura abaixo de 768. Desligado: `borda`, com borda `borda-campo` (produto). Ligado: `azul`, com borda `azul-degrau`. Bolinha de 24 em `fundo` (produto). Fora de uso: `fundo-suave` com borda `borda` e bolinha `borda-campo`, sem opacidade (produto); a posição da bolinha continua dizendo o estado | `role="switch"`. Muda na hora |
+| `SegmentedControl` (N) | Grupo de 44 px, borda 2, canto 12. A opção ativa em `azul-claro`, `azul-borda`, `azul-texto`. Até quatro; com quatro rótulos longos, `emDuasColunasNoCelular` põe as opções duas por linha abaixo de 768 px (o filtro "Estado" de Registros › IA). Troca o jeito de ver; não é aba | `radiogroup`, com as setas, Home e End |
+| `ThemePreference` (N) | O `SegmentedControl` Sistema · Claro · Escuro, em "Sua conta" | Só a escolha explícita grava; voltar a Sistema apaga a chave. Sem armazenamento, vale o sistema, calado |
+| `TextSize` (N) | `components/settings/TextSize` (numa pasta própria: `components/` já está no teto de 25 arquivos de produção). Três `OptionCard` de rádio (Padrão · Grande · Maior) num `fieldset` "Tamanho da letra", e a prévia "Assim fica a minha letra." no tamanho de agora. Em Eu › Ajustes, com a `ThemePreference` | Setas trocam a escolha, uma parada de Tab. Só a escolha grava; Padrão apaga a chave. Sem armazenamento, vale na sessão, calado |
 
 **Sobrepor**
 
 | Peça | Desenho | Estados e teclado |
 |---|---|---|
-| `Dialogo` (R) | Sobre o `veu`. Caixa centrada de até 520 px, canto 16, borda 2 e degrau 4 (o anel e o degrau são a `shadow-flutua`). Título em `t-secao`, **sem altura mínima de 64 px** (produto: o diálogo de um campo e dois botões precisa caber nos 640 px de um celular baixo, A72). Miolo com 24 px (20 abaixo de 640), e a caixa rola por dentro; rodapé com os botões à direita. **Sem "X" no cabeçalho** (produto: ele seria o primeiro controle do Tab, e todo diálogo já tem "Cancelar" ou "Fechar") | O `veu` vale para todo `<dialog>` modal, e por isso a gaveta da casca (13.0) já o herda a partir da 7.0: não é decisão dela. Ao abrir, o foco vai ao primeiro campo ou ao primeiro botão do rodapé; na confirmação, ao texto. O Tab e o Shift+Tab não saem da caixa; o Esc fecha; ao fechar, o foco volta a quem abriu, ou ao `focoDeReserva` quando esse saiu da página |
-| `DialogoDeConfirmacao`, `dialogs.tsx` (R) | A caixa do `Dialogo` (produto: 520 px, e não os 460 do mockup: uma largura só para todo diálogo). **Dois botões do mesmo tamanho**, em duas colunas iguais a partir de 640 px e empilhados abaixo, com o `secundario` primeiro (à esquerda, ou em cima) e o que confirma depois, em `oficial` ou em `perigo` cheio. O `perigo` cheio só vive dentro de uma confirmação, e a lista é fechada: a `DialogoDeConfirmacao`, a `ConfirmacaoDePerigo` de `dialogs.tsx` e o `DialogoDeDecisao` dos pedidos de nome, mais a definição do botão e a galeria, que mostra o desenho. `components/perigo-cheio.test.ts` a guarda: um uso novo reprova. A `ConfirmacaoDePerigo` mantém os botões à direita, com a largura do rótulo e a mesma altura (produto) | O que vai acontecer está escrito antes dos botões (regra 50, item 8). O foco começa no texto, e nenhum botão o recebe ao abrir |
-| `LoginPorCima` (R) | O diálogo da sessão vencida, na mesma caixa e com os campos da pele (borda 2 em `borda-campo`, fundo `campo`). O véu dele é o forte, preto a 75% nos dois temas, e não o `veu` (produto: a tela de quem saiu tem de sumir) | Funciona com outro diálogo aberto por baixo |
-| `PainelLado` (N) | A partir de 768 px, entra pela direita com 480 px e a altura da janela. Abaixo, folha de baixo de até 88% da altura, com canto de 20 em cima e a área segura do aparelho no pé. Cabeçalho de 64 px, com o título em `t-secao` e o "Fechar" de 44 px; rodapé opcional com os botões à direita. Não anima largura nem altura | Diálogo modal: o Tab não sai, e o foco entra no miolo, e não no "Fechar" (produto: quem abre quer ler). Fecha com o "Fechar" e com o Esc, e só com eles: o toque fora não fecha (produto: apagaria o que foi digitado). Ao fechar, o foco volta a quem abriu, ou ao `focoDeReserva` |
+| `Dialog` (R) | Sobre o `veu`. Caixa centrada de até 520 px, canto 16, borda 2 e degrau 4 (o anel e o degrau são a `shadow-flutua`). Título em `t-secao`, **sem altura mínima de 64 px** (produto: o diálogo de um campo e dois botões precisa caber nos 640 px de um celular baixo, A72). Miolo com 24 px (20 abaixo de 640), e a caixa rola por dentro; rodapé com os botões à direita. **Sem "X" no cabeçalho** (produto: ele seria o primeiro controle do Tab, e todo diálogo já tem "Cancelar" ou "Fechar") | O `veu` vale para todo `<dialog>` modal, e por isso a gaveta da casca (13.0) já o herda a partir da 7.0: não é decisão dela. Ao abrir, o foco vai ao primeiro campo ou ao primeiro botão do rodapé; na confirmação, ao texto. O Tab e o Shift+Tab não saem da caixa; o Esc fecha; ao fechar, o foco volta a quem abriu, ou ao `focoDeReserva` quando esse saiu da página |
+| `ConfirmDialog`, `dialogs.tsx` (R) | A caixa do `Dialog` (produto: 520 px, e não os 460 do mockup: uma largura só para todo diálogo). **Dois botões do mesmo tamanho**, em duas colunas iguais a partir de 640 px e empilhados abaixo, com o `secundario` primeiro (à esquerda, ou em cima) e o que confirma depois, em `oficial` ou em `perigo` cheio. O `perigo` cheio só vive dentro de uma confirmação, e a lista é fechada: a `ConfirmDialog`, a `DangerConfirmDialog` de `dialogs.tsx` e o `DialogoDeDecisao` dos pedidos de nome, mais a definição do botão e a galeria, que mostra o desenho. `components/perigo-cheio.test.ts` a guarda: um uso novo reprova. A `DangerConfirmDialog` mantém os botões à direita, com a largura do rótulo e a mesma altura (produto) | O que vai acontecer está escrito antes dos botões (regra 50, item 8). O foco começa no texto, e nenhum botão o recebe ao abrir |
+| `ReauthDialog` (R) | O diálogo da sessão vencida, na mesma caixa e com os campos da pele (borda 2 em `borda-campo`, fundo `campo`). O véu dele é o forte, preto a 75% nos dois temas, e não o `veu` (produto: a tela de quem saiu tem de sumir) | Funciona com outro diálogo aberto por baixo |
+| `Sheet` (N) | A partir de 768 px, entra pela direita com 480 px e a altura da janela. Abaixo, folha de baixo de até 88% da altura, com canto de 20 em cima e a área segura do aparelho no pé. Cabeçalho de 64 px, com o título em `t-secao` e o "Fechar" de 44 px; rodapé opcional com os botões à direita. Não anima largura nem altura | Diálogo modal: o Tab não sai, e o foco entra no miolo, e não no "Fechar" (produto: quem abre quer ler). Fecha com o "Fechar" e com o Esc, e só com eles: o toque fora não fecha (produto: apagaria o que foi digitado). Ao fechar, o foco volta a quem abriu, ou ao `focoDeReserva` |
 
 O que o mockup tem e a X1 não traz nasce com a tela que usa (X2 a X4).
 
@@ -1675,7 +1675,7 @@ Uma só para coordenação, professor e aluno. A lateral do professor, como fica
   `azul-texto` e `aria-current`; apagado tem texto `sutil`, e `fundo-suave` com `tinta` no hover
 - **O trilho** tem 88 px e só os ícones, cada um com nome acessível e dica. A lateral recolhe para
   ele por escolha, que o navegador lembra, e **não anima a largura**
-- **O pé** tem a pessoa (as iniciais, o nome e o papel), os links dela, a `Aparencia` e o **Sair**,
+- **O pé** tem a pessoa (as iniciais, o nome e o papel), os links dela, a `ThemePreference` e o **Sair**,
   que fica à vista no pé da lateral, no trilho e na barra de topo do celular, a um clique e do
   tamanho dos vizinhos (D59; RF15 da X1)
 - **O tema** é escrito no `<html>` (`data-tema`) por um script em linha, antes de o CSS pintar. No
@@ -1696,7 +1696,7 @@ família dele, e os 28 px são o miolo desse ladrilho (a peça de 32 px). Nome c
 reticências. Na conversa, em qualquer largura, a caixa de pedido fica presa embaixo e a lista rola
 por trás. Enquanto a barra de baixo existe, a página reserva o lugar dela (`--barra-baixo`): o último
 botão da tela termina acima da barra, o foco do teclado nunca para atrás dela, e a barra presa
-(`BarraPresa`) de uma tela sobe para ficar logo acima.
+(`StickyFooter`) de uma tela sobe para ficar logo acima.
 
 **O que cada papel vê.** Na X1 os itens eram os de antes da pele, na ordem e nos endereços de antes
 (RF16 e RF18); os lugares da D80 chegam com a spec da área, e a coordenação já os tem desde a X2.
@@ -1715,7 +1715,7 @@ suspensa fica na tela do Tutor.
 
 **O sino** (X2 e X3) fica no canto de cima à direita da área de conteúdo, e na barra de topo no
 celular. O contador é laranja, e é o único número da casca do professor e da coordenação. A lista
-abre num painel de 400 px ancorado no sino, e como `PainelLado` no celular. **No pé da lista do
+abre num painel de 400 px ancorado no sino, e como `Sheet` no celular. **No pé da lista do
 professor** ficam duas linhas que não são pendência e não entram no número: "O que o Assistente
 fez" e "O que o Tutor viu" (grupo "Acompanhar a IA"). Elas aparecem com a lista em dia, carregando,
 lida em parte ou com erro, e ir a uma delas fecha a lista, como a qualquer item.
@@ -1738,7 +1738,7 @@ mesmo endereço.
 
 ### 11.2 Os tipos de página e o cabeçalho
 
-Quatro tipos, quatro larguras (9.3) e um cabeçalho. Na X1 toda tela continua na `Tela`, que passa a
+Quatro tipos, quatro larguras (9.3) e um cabeçalho. Na X1 toda tela continua na `Page`, que passa a
 mostrar o título e ganha as larguras novas; a composição de cada tipo chega com a spec da área.
 
 | Tipo | Para | Como é |
@@ -1788,7 +1788,7 @@ Uma tela só, sem lateral (seção 5a).
 
 - **Barra de topo** de 72 px (56 no celular, contando a borda), face `fundo`, borda de baixo de 2:
   a pinta e "Operação Turmma" em 17 px e 700 (sem o fio vertical do mockup: o nome já traz a marca);
-  à direita, a `Aparencia`, o nome do operador e o **Sair**, à vista. Abaixo dela, a navegação
+  à direita, a `ThemePreference`, o nome do operador e o **Sair**, à vista. Abaixo dela, a navegação
   "Operação" (Escolas e Uso), com o item da tela em `azul-texto`, sublinhado e `aria-current`. Troca a
   faixa preta de antes (X1, 15.0)
 - **O corpo** é uma página de painel, com o título "Operação", a linha fixa de que a operação não vê
@@ -1836,13 +1836,13 @@ professora não está no Início: está no sino.** O menu **Ferramenta** fica na
   estado em texto e o selo ("N esperando você" em `pendente`, "Em dia" em `ok`, "Não lida" em `info`)
 - **Hoje** é uma coluna só, sem grade: o aviso de atenção humana em `pendente` (ícone e texto), os sinais como
   falas do Tutor, o bloco recolhido "O que o Tutor faz sozinho…", as barras neutras do acerto por habilidade.
-  O painel "O que o Tutor viu" é o `PainelLado` (480 px à direita; folha de baixo a 360 px)
-- **Atividades** é uma lista de `Linha`, separadas por borda de 2 px, com o ícone da ferramenta à esquerda e o
-  selo do estado à direita; o filtro é o `Segmentado`, em duas colunas no celular; o painel da atividade é o
-  `PainelLado`, com as ações no rodapé
-- **Alunos** empilha o resumo do acesso, a lista de pedidos e a `Tabela` "Acertos por aluno" (nome, acertos e
+  O painel "O que o Tutor viu" é o `Sheet` (480 px à direita; folha de baixo a 360 px)
+- **Atividades** é uma lista de `ListItem`, separadas por borda de 2 px, com o ícone da ferramenta à esquerda e o
+  selo do estado à direita; o filtro é o `SegmentedControl`, em duas colunas no celular; o painel da atividade é o
+  `Sheet`, com as ações no rodapé
+- **Alunos** empilha o resumo do acesso, a lista de pedidos e a `Table` "Acertos por aluno" (nome, acertos e
   por habilidade), sem coluna que ordene por acerto
-- **"Convidar alunos"** é o `Dialogo` de 520 px. O passo "Acesso gerado" usa a variante `inteira` (a janela
+- **"Convidar alunos"** é o `Dialog` de 520 px. O passo "Acesso gerado" usa a variante `inteira` (a janela
   toda, no `fundo` do tema, para que nada da turma fique legível atrás do código projetado)
 - **Em nenhuma aba** há nota, média, ranking, ordem por acerto, tempo parado nem a conversa de um aluno
   (regra 50, itens 9 e 10; D64, D69)

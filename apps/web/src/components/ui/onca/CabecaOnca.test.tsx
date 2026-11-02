@@ -9,7 +9,7 @@ import { CabecaOnca, type TamanhoDaCabeca } from './CabecaOnca'
 
 /**
  * A cabeça da onça (RF10 da X1; `docs/interface.md` 9.7; D58, D59; regra 70, itens 4a e 4b): um desenho só, parado, sem
- * nome. O que o navegador pinta — o círculo, o anel, o fundo — é do `AvatarAgente`; aqui está o que o `jsdom` sabe: o
+ * nome. O que o navegador pinta — o círculo, o anel, o fundo — é do `AgentAvatar`; aqui está o que o `jsdom` sabe: o
  * SVG como ele é, e o que ele não tem.
  */
 afterEach(() => {
@@ -25,7 +25,7 @@ const RAIZ_DO_REPOSITORIO = join(RAIZ_DA_WEB, '..', '..', '..')
 function coresDaOnca(): Set<string> {
   const documento = readFileSync(join(RAIZ_DO_REPOSITORIO, 'docs', 'interface.md'), 'utf8')
   const inicio = documento.indexOf('### 9.7 A onça e o avatar dos agentes')
-  const fim = documento.indexOf('**O avatar** (`AvatarAgente`)', inicio)
+  const fim = documento.indexOf('**O avatar** (`AgentAvatar`)', inicio)
   expect(inicio, 'a 9.7 do documento mudou de lugar').toBeGreaterThan(-1)
   expect(fim, 'a 9.7 do documento mudou de lugar').toBeGreaterThan(inicio)
   return new Set([...documento.slice(inicio, fim).matchAll(/#[0-9A-Fa-f]{6}\b/g)].map(([cor]) => cor.toUpperCase()))

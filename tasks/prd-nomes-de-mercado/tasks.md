@@ -28,7 +28,7 @@
 - [x] **10.0 — Onda da web fora do kit (linha web)**
 - [x] **11.0 — Onda do e2e, símbolos (linha web)**
 - [x] **12.0 — A guarda `guardas/nome-de-mercado` recusa nome técnico em português em código novo**
-- [ ] **13.0 — Onda dos documentos: o guia com a §9 reescrita, a arquitetura, a interface, os README e `.claude/`**
+- [x] **13.0 — Onda dos documentos: o guia com a §9 reescrita, a arquitetura, a interface, os README e `.claude/`**
 
 As subtarefas das ondas 3.0 a 11.0 e 13.0 estão em cada `N_task.md`. São as mesmas cinco, descritas abaixo.
 

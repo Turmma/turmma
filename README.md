@@ -39,7 +39,7 @@ mostra carregando, vazio, erro e com dado com os componentes de `apps/web/src/co
 (Caddy, `infra/Caddyfile`) em http://127.0.0.1:53000/saude, e o realtime em
 http://127.0.0.1:53000/socket.io/, que autentica o handshake pela mesma sessão gravada da API. A borda balanceia duas instâncias de cada, e
 `docker compose restart api-1` troca uma instância sem derrubar requisição. Antes das
-instâncias, o serviço `migrar` aplica as migrations (`packages/nucleo/drizzle`) e sai. Todo
+instâncias, o serviço `migrar` aplica as migrations (`packages/core/drizzle`) e sai. Todo
 job nasce em `job_registro`, os dois despachantes o levam à fila dele no Redis (interativa,
 normal ou lote) dentro das vagas da escola, e os workers de cada prioridade o executam; `POST /v1/sistema/jobs-sinteticos` (com token) cria um job de teste. O painel "Fundação — rota, fila e escola" fica no Grafana local, em
 http://127.0.0.1:53300 (pasta Educa.ia), com latência e erro por rota, espera e tamanho da fila por
@@ -76,7 +76,7 @@ mesmo tempo, cada uma na sua linha (D79).
 | `npm run test:e2e` | mede o teto do bundle da web (size-limit, 150 kB em brotli), sobe o compose de teste completo e roda o Playwright com axe nos projetos `chromebook` (CPU ×4, Fast 3G) e `celular` (360 × 800, toque, CPU ×4, rede móvel lenta), deixando o ambiente de pé |
 | `npm run ci:verificar`, `ci:integracao`, `ci:infra`, `ci:e2e` | exatamente o que a esteira roda; derrubam o ambiente no fim. Na esteira o e2e roda em oito fatias, `ci:e2e -- --shard=<i>/8` |
 | `npm run ci:conferir-entregas` | a terceira camada do RF14: confere, em `origin/develop..HEAD`, que todo commit com código tem a marca `(tarefa N.0)` ou `(correção <slug>)` e a linha `Revisões:`, ou `Fora do processo: <motivo>`. A esteira o roda só em `spec/**` e `correcao/**`; sai 2 sem a `origin/develop` |
-| `npm run db:gerar` | gera a migration a partir do schema Drizzle (`packages/nucleo/src/db/schema`); revise o SQL antes de versionar |
+| `npm run db:gerar` | gera a migration a partir do schema Drizzle (`packages/core/src/db/schema`); revise o SQL antes de versionar |
 | `OPERADOR=<voce> npm run -s ops:escola -- rede criar --nome <nome> --tipo prefeitura\|grupo\|independente` e `escola criar --rede <uuid> --nome <nome> --slug <endereco>` | cria a rede e a escola pelo comando, imprimindo só o id, e grava a auditoria com o operador; o painel da operação (A0b) cria pelo mesmo caso de uso. Não há outro caminho de criação |
 | `OPERADOR=<voce> npm run -s ops:convite-coordenador -- --escola <slug> --email <e-mail> --nome <nome> --saida <arquivo>` | cria o convite do primeiro coordenador (72 h, uso único) e grava o token só no arquivo, com modo 0600; o terminal mostra o id do convite e o caminho do arquivo. Mande o link `/convite#<token>` à pessoa e apague o arquivo. Com convite em aberto (pendente ou vencido) ou coordenação ativa na escola, recusa com `CONFLITO`: revogue antes, ou refaça pelo painel |
 | `OPERADOR=<voce> npm run -s ops:revogar-convite -- --convite <uuid>` | revoga o último convite da escola, pendente, vencido ou aceito sem a primeira entrada, grava a auditoria com o operador e imprime só `ok` ou o código do erro (`CONFLITO` com coordenação ativa, ou se o convite não é o último). Não desfaz uma ativação que já aconteceu: aí a escola desativa o usuário |

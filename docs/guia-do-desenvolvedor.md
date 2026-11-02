@@ -11,7 +11,7 @@ leia a regra de `.claude/rules/` da área em que você vai mexer.
 > **A regra de idioma (D81).** A peça técnica tem o nome do framework, em inglês: `Controller`, `Service`,
 > `Repository`, `Module`, `Pipe`, `Guard`, os hooks `use…`. O conceito do domínio fica em português, pelo
 > `docs/glossario.md`: `turma`, `nota`, `matricula`, `anoLetivo`. Por isso você vai ver `TurmaController` e
-> `turma.repository.ts`. Algumas peças técnicas antigas têm nome em português, e a §9 traz o equivalente de mercado até a X8 renomeá-las (D81 revista).
+> `turma.repository.ts`. O que ainda tem nome próprio, por misturar uma palavra do domínio com a peça, está na §9 com o padrão que implementa.
 
 ---
 
@@ -39,8 +39,8 @@ tools/               guardas de lint, scripts da esteira, apoio de teste, proces
 docs/                produto, decisões, LGPD, regulação, arquitetura, infra, runbook
 ```
 
-**A direção das dependências é uma só: `shared` ← `nucleo` ← `apps`.** A web depende só de `shared` e nunca de
-`nucleo`, porque o navegador não pode ver código de servidor. Os pacotes compilam nesta ordem: shared, nucleo, api,
+**A direção das dependências é uma só: `shared` ← `core` ← `apps`.** A web depende só de `shared` e nunca de
+`core`, porque o navegador não pode ver código de servidor. Os pacotes compilam nesta ordem: shared, core, api,
 realtime, despachante, worker, web.
 
 **O que não muda nunca** (o motivo está no `CLAUDE.md`):
@@ -62,7 +62,7 @@ realtime, despachante, worker, web.
 |---|---|---|
 | Projeto Maven multi-módulo | npm workspaces (`apps/*`, `packages/*`) | `package.json` |
 | Módulo `-api` com os DTOs, compartilhado | `packages/shared` (esquemas zod) | `packages/shared/src/estrutura/disciplina.ts` |
-| `@Configuration` + `@Bean` | `@Module` do NestJS; o módulo que recebe configuração usa `static com(config): DynamicModule` | `apps/api/src/app.module.ts`, `estrutura/estrutura.module.ts` |
+| `@Configuration` + `@Bean` | `@Module` do NestJS; o módulo que recebe configuração usa `static forRoot(config): DynamicModule` | `apps/api/src/app.module.ts`, `estrutura/estrutura.module.ts` |
 | `@RestController` + `@RequestMapping("/v1/x")` | `@Controller('v1/x')` | `apps/api/src/estrutura/disciplina/disciplina.controller.ts` |
 | `@Service` | classe de service, criada pelo módulo com `useFactory` | `estrutura/disciplina/disciplina.service.ts` |
 | `@Repository` + filtro de tenant do Hibernate | repository do Drizzle que lê a escola por `requireEscolaId()` | `estrutura/disciplina/disciplina.repository.ts` |
@@ -71,16 +71,16 @@ realtime, despachante, worker, web.
 | Bean Validation (`@Valid` no `@RequestBody`) | esquema zod de `shared` com o `ZodValidationPipe` do NestJS | §5.1 |
 | DTO de resposta (record) | esquema de resposta zod, aplicado com `.parse` no service | `disciplinaResponseSchema` |
 | Spring Security filter chain | quatro guardas globais, nesta ordem: autenticação, limite, sessão, permissão | `app.module.ts`, `APP_GUARD` |
-| `@PreAuthorize("hasRole(...)")` na rota | `@RequirePermissao('disciplina', 'criar')` sobre a `MATRIZ`: cobre **a rota e o papel**, não o objeto | `nucleo/src/permissao/permite.decorator.ts`, `shared/src/permissao/matriz.ts` |
+| `@PreAuthorize("hasRole(...)")` na rota | `@RequirePermissao('disciplina', 'criar')` sobre a `MATRIZ`: cobre **a rota e o papel**, não o objeto | `core/src/permissao/require-permissao.decorator.ts`, `shared/src/permissao/matriz.ts` |
 | `@PostAuthorize` / `hasPermission(obj)` no objeto | o alcance `turma_vinculada` ou `proprio`, aplicado **no repository** com o usuário do contexto | `assistente/turma-do-professor.repository.ts` |
-| `SecurityContextHolder` / `RequestContextHolder` (ThreadLocal) | contexto da requisição em `AsyncLocalStorage` | `nucleo/src/contexto/contexto.ts` |
-| Exceção de negócio + `@ControllerAdvice` | `DomainException(ErrorCode.X)` + `AllExceptionsFilter` | `nucleo/src/erro/` |
+| `SecurityContextHolder` / `RequestContextHolder` (ThreadLocal) | contexto da requisição em `AsyncLocalStorage` | `core/src/context/context.ts` |
+| Exceção de negócio + `@ControllerAdvice` | `DomainException(ErrorCode.X)` + `AllExceptionsFilter` | `core/src/error/` |
 | `@ConfigurationProperties` + `@Validated` | `config.ts` com zod, que lista todos os erros de uma vez | `apps/api/src/config.ts` |
-| `ApplicationEventPublisher` transacional / outbox | `JobOutbox` (transactional outbox) + despachante | `nucleo/src/fila/enfileirador.ts`, `apps/despachante/` |
+| `ApplicationEventPublisher` transacional / outbox | `JobOutbox` (transactional outbox) + despachante | `core/src/queue/job-outbox.ts`, `apps/despachante/` |
 | `@RabbitListener` / `@KafkaListener` | processador do worker, registrado por tipo de job | `apps/worker/src/composition.ts` |
-| `@Scheduled` | `AGENDAMENTOS` (job scheduler do BullMQ) | `apps/worker/src/job-schedules.ts` |
-| Spring AI `ChatClient` atrás de uma interface | porta `LLMProvider` e gateway `LLMGateway` | `nucleo/src/ia/porta.ts`, `provedor.ts` |
-| Actuator `/health`, graceful shutdown | `/saude` e `ProntidaoController`; `GracefulShutdown` | `apps/api/src/system/readiness.controller.ts`, `nucleo/src/instancia/drenagem.ts` |
+| `@Scheduled` | `JOB_SCHEDULES` (job scheduler do BullMQ) | `apps/worker/src/job-schedules.ts` |
+| Spring AI `ChatClient` atrás de uma interface | porta `LLMProvider` e gateway `LLMGateway` | `core/src/ia/port.ts`, `llm-gateway.ts` |
+| Actuator `/health`, graceful shutdown | `/saude` e `ReadinessController`; `GracefulShutdown` | `apps/api/src/system/readiness.controller.ts`, `core/src/runtime/graceful-shutdown.ts` |
 | JUnit + Mockito | Vitest, projeto `unidade` (`x.test.ts`) | `vitest.config.ts` |
 | `@SpringBootTest` + Testcontainers | Vitest, projeto `integracao` (`x.int.test.ts`), com Postgres e Redis reais no compose de teste | `tools/testes/integracao.setup.ts` |
 | ArchUnit / Checkstyle | regras de ESLint em `tools/guardas/`, `dependency-cruiser` e testes de arquitetura | §7 |
@@ -146,7 +146,7 @@ apps/api/src/
   sessao/                      uma subpasta por fluxo (login/, convite/, refresh/, external/...) e tenant/, a
                                resolução da escola antes de haver sessão; de fora, só pelo sessao/index.ts
   credencial/                  as primitivas da entrada, sem módulo Nest: senha, hash, cookie, desafio,
-                               ContadorDeTentativas e, em senha/, ContadorEmJanela e SemaforoDeHash; de fora de
+                               LoginLockout e, em senha/, WindowCounter e HashBulkhead; de fora de
                                sessao/, só pelo credencial/index.ts
   http/pagination.ts            paginar e paginarPor, o corte da página de uma listagem
   operacao/escola/             criarRede e criarEscola, que o painel e o comando ops:escola chamam
@@ -158,12 +158,12 @@ apps/api/test/                 testes de integração: entre outros, os que cruz
 packages/shared/src/<modulo>/  esquemas zod de pedido e resposta do módulo
 packages/core/src/
   db/schema/                   uma tabela por arquivo
-  contexto/ identidade/ permissao/ erro/ fila/ ia/ limite/ log/ auditoria/ titular/ ...
+  context/ identidade/ permissao/ error/ queue/ ia/ rate-limit/ log/ auditoria/ titular/ ...
 
 apps/web/src/
   routes.tsx                    as rotas de topo; cada área carrega as dela com lazy
-  api/                         cliente HTTP (chamarApi), sessão, consultas comuns
-  components/ui/              o kit visual: Botao, Campo, Dialogo, Abas, Tabela...
+  api/                         cliente HTTP (apiRequest), sessão, consultas comuns
+  components/ui/              o kit visual: Button, FormField, Dialog, Tabs, Table...
   components/                 peças de domínio usadas por mais de uma área
   areas/<papel>/<assunto>/     ex.: areas/professor/turmas/ — telas, hooks e consultas do assunto
   operacao/                    o painel da operação Turmma
@@ -234,7 +234,7 @@ Exemplo: a disciplina (`apps/api/src/estrutura/`, `packages/shared/src/estrutura
        turma aceita também o vínculo encerrado pela virada (`fim_do_ano`) que tinha sido confirmado e não foi
        contestado (`#confirmadoAteOFimDoAno`, no mesmo arquivo).
    - **`proprio`:** a coluna do dono da linha é o usuário do contexto. Por exemplo,
-     `eq(threadAgente.usuarioId, exigirUsuarioDoContexto())` ou `eq(mensagemTutor.alunoId, exigirUsuarioDoContexto())`,
+     `eq(threadAgente.usuarioId, requireUsuarioId())` ou `eq(mensagemTutor.alunoId, requireUsuarioId())`,
      em `apps/api/src/ia/execucao.repository.ts`. Aqui não há vínculo.
 6. **Registro.** Ponha o controller e o service no `<modulo>.module.ts`.
 7. **Testes:**
@@ -298,11 +298,11 @@ Exemplo: `apps/api/src/artefato/ferramentas.service.ts`.
 1. **A tarefa** fica em `packages/core/src/ia/tasks/<tarefa>.ts`, com `defineTask`, o perfil (`rapido`,
    `padrao`, `complexo`, `visao`) e os esquemas de entrada e saída. O prompt é versionado em `ia/prompts/`. Registre
    em `TASK_CATALOG`.
-2. **O módulo chama** o `AgendadorDeExecucoes.agendar({ tarefa, chaveEnvio, ... })`. A resposta é 202 com
+2. **O módulo chama** o `ExecucaoScheduler.agendar({ tarefa, chaveEnvio, ... })`. A resposta é 202 com
    `execucaoId`, e a execução roda em segundo plano, passando pelo gateway: orçamento, suspensão da função, prazo e
    validação da saída.
 3. **Nunca chame o adaptador nem a porta direto.** O lint barra só o import de SDK de IA. Chamar o
-   `OpenAICompatAdapter` ou o `LLMProvider` sem passar pelo `AgendadorDeExecucoes` e pelo gateway não tem trava de
+   `OpenAICompatAdapter` ou o `LLMProvider` sem passar pelo `ExecucaoScheduler` e pelo gateway não tem trava de
    máquina: é proibido pela regra 30, e quem segura é a revisão.
 4. **Teste com o `FakeAdapter`.** Nenhum teste chama provedor pago.
 5. **Funcionalidade de alto risco** só entra com a AIA escrita em `docs/aia/` (regra 70.6a). A lista da regra é:
@@ -312,24 +312,24 @@ Exemplo: `apps/api/src/artefato/ferramentas.service.ts`.
 
 ### 5.5 Uma tela nova
 
-Exemplo: as disciplinas da coordenação (`apps/web/src/api/estrutura.ts` e a tela que usa `consultaDisciplinas`).
+Exemplo: as disciplinas da coordenação (`apps/web/src/api/estrutura.ts` e a tela que usa `disciplinasQueryOptions`).
 
 1. **A consulta**, com `queryOptions` e a chave do assunto:
    ```ts
-   export const consultaDisciplinas = queryOptions({
-     queryKey: [...CHAVE_DA_ESTRUTURA, 'disciplinas'],
+   export const disciplinasQueryOptions = queryOptions({
+     queryKey: [...ESTRUTURA_QUERY_KEY, 'disciplinas'],
      queryFn: ({ signal }) => lerPaginas<Disciplina>('/v1/disciplinas', listaDeDisciplinasResponseSchema, signal),
    })
    ```
    A resposta é validada pelo mesmo esquema de `shared` que a API usa.
-2. **A tela** faz `useQuery(consultaDisciplinas)` e trata os quatro estados da regra 50.5:
-   - carregando, com `EstadoCarregando`;
-   - erro, com `EstadoErro`, que tem "Tentar de novo";
-   - vazio, com `EstadoVazio`;
+2. **A tela** faz `useQuery(disciplinasQueryOptions)` e trata os quatro estados da regra 50.5:
+   - carregando, com `LoadingState`;
+   - erro, com `ErrorState`, que tem "Tentar de novo";
+   - vazio, com `EmptyState`;
    - com dado.
    
    Os três primeiros ficam em `components/states/`.
-3. **A mutação** usa `useEnvioUnico` (`components/dialogs.tsx`), que trava o duplo clique, com `onSuccess`
+3. **A mutação** usa `useSingleSubmit` (`components/dialogs.tsx`), que trava o duplo clique, com `onSuccess`
    invalidando a chave do assunto.
 4. **A rota** entra no `routes.tsx` da área.
 5. **O visual:**
@@ -346,7 +346,7 @@ Exemplo: as disciplinas da coordenação (`apps/web/src/api/estrutura.ts` e a te
 
 Todo módulo novo entrega um (regra 10.5). Exemplo: `apps/api/test/estrutura-isolamento.int.test.ts`.
 
-O exemplo monta duas escolas completas, A e B, com a `BancadaDeSessoes`:
+O exemplo monta duas escolas completas, A e B, com a `SessaoFixtures`:
 
 ```ts
 const coordenacao = await bancada.escolaComSessao('coordenador')
@@ -394,7 +394,7 @@ Teste novo vai para onde o módulo já guarda os seus.
 
 **Onde estão os apoios:**
 - `apps/api/test/test-api.ts`: `subirApi` e `chamar`;
-- `apps/api/test/sessao.fixture.ts`: `BancadaDeSessoes`;
+- `apps/api/test/sessao.fixture.ts`: `SessaoFixtures`;
 - `e2e/support/`.
 
 **O que é proibido:** `.skip`, `.only`, teste comentado, `any` para calar o compilador e asserção que sempre passa. O
@@ -413,13 +413,13 @@ falha?**
 | Lint `guardas/teste-sem-desligar` | `.skip`, `.only`, `.todo` | `tools/guardas/regras-teste.mjs` |
 | Lint de entrada | `@Body()`, `@Query()` ou `@Param()` sem pipe em todo controller da API, e `@Req()` cru fora de `sessao/` e `operacao/` | `eslint.config.mjs` |
 | Lint do kit | `components/ui/` importando `api/`, `areas/` ou `sessao/` | `eslint.config.mjs` |
-| Lint de tabela | importar tabela do núcleo fora de um repository | `tools/guardas/tabelas-do-nucleo.mjs` |
+| Lint de tabela | importar tabela do core fora de um repository | `tools/guardas/tabelas-do-nucleo.mjs` |
 | Lint `guardas/erro-tipado` | `throw new Error(...)` ou literal lançado em produção, e `InvariantException` com motivo que não é texto fixo | `tools/guardas/regras-erro.mjs` |
-| `dependency-cruiser` | import contra a direção `shared ← nucleo ← apps`, app importando app, produção importando teste, controller importando repository ou Drizzle, service importando Drizzle, repository importando service, `sessao/` e `credencial/` por fora do `index.ts`, e ciclo | `tools/guardas/camadas.cjs`, `npm run guarda:camadas` (dentro do `npm run lint`) |
+| `dependency-cruiser` | import contra a direção `shared ← core ← apps`, app importando app, produção importando teste, controller importando repository ou Drizzle, service importando Drizzle, repository importando service, `sessao/` e `credencial/` por fora do `index.ts`, e ciclo | `tools/guardas/camadas.cjs`, `npm run guarda:camadas` (dentro do `npm run lint`) |
 | ESLint `complexity`, `max-lines-per-function`, `max-depth` | função acima de 10 de complexidade, 80 linhas de código ou 4 níveis de aninhamento. O que já passava disso em 22/10/2026 está em `eslint-suppressions.json`, que só encolhe: supressão nova reprova | `eslint.config.mjs`, `tools/guardas/catraca.test.ts` |
 | Teste dos repositories | repository sem prova de escopo nem motivo escrito | `tools/guardas/repositories-com-escopo.test.ts`, sobre `escopo-dos-repositories.ts` |
 | Teste do tamanho de pasta | pasta de produção da API ou da web com mais de 25 arquivos direto nela | `tools/guardas/tamanho-das-pastas.test.ts` |
-| `architecture.test.ts` | tabela sem `escola_id` fora das exceções, tabela sem classificação de retenção, leitura entre escolas fora do lugar certo, classe cercada (`PainelRepository`, `ContaGlobalRepository`, `ResolucaoDeTenantRepository`) citada fora da zona dela | `apps/api/test/architecture.test.ts` |
+| `architecture.test.ts` | tabela sem `escola_id` fora das exceções, tabela sem classificação de retenção, leitura entre escolas fora do lugar certo, classe cercada (`PainelRepository`, `ContaGlobalRepository`, `TenantResolutionRepository`) citada fora da zona dela | `apps/api/test/architecture.test.ts` |
 | Teste de tokens | cor fora da paleta | `apps/web/src/estilos.test.ts` |
 | `size-limit` | bundle da web acima do teto | `.size-limit.json` |
 | `gitleaks`, `npm audit` e `knip` | segredo no código, dependência vulnerável, dependência usada sem estar declarada ou declarada sem uso | `npm run guarda:segredo`, `guarda:dependencias` |
@@ -447,36 +447,35 @@ Ainda não há `npm run dev` com recarga a quente: a stack sobe pelo compose. O 
 
 ---
 
-## 9. Nomes nossos e o equivalente de mercado
+## 9. Nomes nossos e o padrão que eles implementam
 
-| Aqui | Conceito de mercado |
+A X8 deu às peças técnicas o nome que o mercado dá (D81). O que sobrou com nome próprio é o que mistura uma palavra do
+domínio com a peça, ou o que o nome sozinho não diz. A tabela traz só esses, com o padrão que cada um implementa.
+
+| Aqui | Padrão de mercado |
 |---|---|
 | `JobOutbox` + tabela `job_registro` | Transactional outbox |
 | despachante (`apps/despachante`) | Outbox relay |
-| `Reconciliacao` | Outbox sweeper (republica o que o Redis perdeu) |
-| `JobNotificationListener` | Listener de Postgres `LISTEN/NOTIFY` |
 | `EscolaConcurrencyLimiter` | Limite de concorrência por tenant (semáforo distribuído no Redis, em Lua) |
-| `ExecutorDeJobs` e `Processador` | Registro de job handlers por tipo |
-| `DomainException` + `ErrorCode` | Domain exception com código de erro |
-| `InvariantException` | `IllegalStateException`: o que não pode acontecer, com motivo em texto fixo |
-| `AllExceptionsFilter` | Global exception handler (`@ControllerAdvice`) |
 | `@RequirePermissao` + `MATRIZ` | Autorização declarativa (`@PreAuthorize`) com matriz de permissões |
-| `AuthGuard`, `DeLimite`, `DeSessao`, `DePermissao` | Filter chain de segurança |
 | `PermissaoBootCheck` | Verificação fail-fast no boot |
-| contexto (`AsyncLocalStorage`) | ThreadLocal / TenantContext |
-| `@Unscoped` | Bypass explícito e justificado do filtro de tenant |
-| `RateLimiter` | Rate limiter (Redis, com reserva em memória) |
-| `ContadorEmJanela` | Rate limiter por janela de tempo (login, sala e pedidos de IA do Assistente) |
-| `ContadorDeTentativas` | Proteção contra força bruta / lockout de login |
-| `SemaforoDeHash` | Bulkhead (limita o argon2 ao mesmo tempo) |
-| `GracefulShutdown` | Graceful shutdown |
-| `Heartbeat` | Heartbeat / liveness |
-| `LLMProvider` / `LLMGateway` | Porta hexagonal e gateway de LLM |
-| `FakeAdapter` | Fake adapter / test double |
-| `AgendadorDeExecucoes` | Comando assíncrono idempotente (202 Accepted) |
 | `AuditoriaRecorder` | Audit log |
-| `UsageMeter` | Usage metering |
-| `BancadaDeSessoes` | Test fixture builder |
+| `ExecucaoScheduler` | Comando assíncrono idempotente (202 Accepted) |
+| `SessaoFixtures` | Test fixture builder |
+
+As outras peças já têm o nome do padrão, e por isso não estão na tabela:
+
+- **Fila e jobs:** `OutboxSweeper` (republica o que o Redis perdeu), `JobNotificationListener` (o `LISTEN` do Postgres que
+  acorda o despachante), `JobExecutor` e `JobProcessor` (registro de job handlers por tipo).
+- **Erro:** `DomainException` com `ErrorCode`, `AllExceptionsFilter` (o `@ControllerAdvice`) e `InvariantException`
+  (o `IllegalStateException`: o que não pode acontecer, com motivo em texto fixo).
+- **Entrada e limite:** `AuthGuard` e as outras guardas globais, `RateLimiter` (Redis, com reserva em memória),
+  `WindowCounter` (a janela de tempo do login, da sala e dos pedidos de IA do Assistente), `LoginLockout` (proteção
+  contra força bruta) e `HashBulkhead` (limita o argon2 ao mesmo tempo).
+- **Escopo:** `@Unscoped`, o bypass explícito e justificado do filtro de tenant, e o contexto em `AsyncLocalStorage`,
+  que faz o papel do ThreadLocal.
+- **Processo:** `GracefulShutdown`, `Heartbeat` (a liveness do processo sem HTTP), `UsageMeter` (usage metering), e
+  `LLMProvider` com `LLMGateway`, que são a porta e o gateway de LLM; `FakeAdapter` é o test double dela.
 
 ---
 

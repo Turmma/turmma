@@ -92,11 +92,11 @@ só o id do titular e as duas marcas, `nome_trocado` e `homonimo`.
 não tem `escolaId` porque é o login; `Usuario` é a pessoa *naquela* escola, com o papel dela.
 Um professor em duas escolas é uma `Conta` com dois `Usuario`, e o escopo de tenant continua
 inteiro na regra 10: toda tabela de domínio tem `escolaId`, e quem resolve a fronteira é a
-`ResolucaoDeTenantRepository`, com `@Unscoped` e teste de arquitetura que prova que só `sessao`
+`TenantResolutionRepository`, com `@Unscoped` e teste de arquitetura que prova que só `sessao`
 a importa. Ela não é mais a única a alcançar a `Conta` sem escopo: as três operações sobre a
 `Conta` global que o ciclo de vida faz (travar, limpar a conta sem uso e encerrar as sessões dela) moram
 na `ContaGlobalRepository`, em `packages/core/src/ciclo-de-vida`, desde que o ciclo de vida foi
-para o `nucleo` (F3, tarefa 1.0): ela não sai pelo barrel do pacote, só pelo subcaminho
+para o `core` (F3, tarefa 1.0): ela não sai pelo barrel do pacote, só pelo subcaminho
 `@educa/core/conta-global`, e o teste de arquitetura lista quem a importa — o
 `CicloDeVidaService` e o `sessao` (a redefinição do MFA), e os testes deles. As três são exceções antigas que mudaram
 de lugar, mas já estão no ponto que a regra 10, item 9 aponta como sinal de desenho errado (a
@@ -214,10 +214,10 @@ consultas sem escopo que ela alcança são estas, cada uma com `@Unscoped` e a j
 
 | Repository e método | O que faz | Justificativa |
 |---|---|---|
-| `ResolucaoDeTenantRepository.acessoDaSalaPorToken` | acha o acesso vigente pelo hash do token, conferido contra a escola do slug, no ano `em_curso` dela | o link e o código da sala não dizem a escola; o token é único no sistema, e o slug é conferido contra a escola da linha no mesmo comando; devolve só escola, ano e turma |
-| `ResolucaoDeTenantRepository.acessoDaSalaPorCodigo` | acha o acesso vigente pelo HMAC do código, buscado já na escola do slug, no ano `em_curso` dela | o link e o código da sala não dizem a escola; o código é único só dentro da escola e a chave do HMAC é uma só, então o mesmo código em duas escolas tem o mesmo HMAC, e só o slug as separa; devolve só escola, ano e turma |
+| `TenantResolutionRepository.acessoDaSalaPorToken` | acha o acesso vigente pelo hash do token, conferido contra a escola do slug, no ano `em_curso` dela | o link e o código da sala não dizem a escola; o token é único no sistema, e o slug é conferido contra a escola da linha no mesmo comando; devolve só escola, ano e turma |
+| `TenantResolutionRepository.acessoDaSalaPorCodigo` | acha o acesso vigente pelo HMAC do código, buscado já na escola do slug, no ano `em_curso` dela | o link e o código da sala não dizem a escola; o código é único só dentro da escola e a chave do HMAC é uma só, então o mesmo código em duas escolas tem o mesmo HMAC, e só o slug as separa; devolve só escola, ano e turma |
 
-Ficam em `sessao`, e não em `sala`, porque a `ResolucaoDeTenantRepository` é a fronteira da resolução
+Ficam em `sessao`, e não em `sala`, porque a `TenantResolutionRepository` é a fronteira da resolução
 de tenant e só `sessao` a importa (teste de arquitetura I1): o `sala` alcança as duas pelo `AcessoDaSala`,
 de `apps/api/src/sessao/tenant/acesso-da-sala.ts`, que devolve só a escola, o ano e a turma e roda o resto no
 contexto delas. Inexistente, vencido, revogado, de ano encerrado, de turma excluída (a cascata levou o
@@ -344,8 +344,8 @@ código:
 | `PainelRepository.escolas` | a lista de escolas, com o estado da coordenação e as contagens do ano em curso | só id, nome, endereço e número, sem pessoa |
 | `PainelRepository.uso` | o uso de infra de cada escola no último dia fechado e no mês dele | só id, nome e número, sem pessoa |
 | `RedeEEscolaRepository.criarRede`, `criarEscola` | cria, ou lê pelo id o pedido repetido | a rede fica acima do tenant, e a escola é o próprio tenant, que nasce ali; só o comando ou o painel cria, e devolve só o id |
-| `ResolucaoDeTenantRepository.contaParaConvite` | acha ou cria a conta pelo e-mail no convite da coordenação | a conta é global e não tem escola; não lê nada dela e devolve só o id e se é nova |
-| `ResolucaoDeTenantRepository.escolaDoConviteParaOperador` | a escola do convite de coordenação | recebe só o id do convite, e a escola dele vira o contexto, nunca o argumento |
+| `TenantResolutionRepository.contaParaConvite` | acha ou cria a conta pelo e-mail no convite da coordenação | a conta é global e não tem escola; não lê nada dela e devolve só o id e se é nova |
+| `TenantResolutionRepository.escolaDoConviteParaOperador` | a escola do convite de coordenação | recebe só o id do convite, e a escola dele vira o contexto, nunca o argumento |
 
 O `PainelRepository` é o único lugar da leitura entre escolas: os três métodos dele são todos
 `@Unscoped`, e só o `painel.service.ts` o importa (teste de arquitetura I1). Os outros quatro já
@@ -744,7 +744,7 @@ liga a decisão sobre o professor (D45, regra 70 item 8). Os dois estão no mapa
    - o próprio tenant: `Escola` e a `Rede` acima dela — ver "Estrutura institucional";
    - tabela pública sem dono (habilidades da BNCC, banco de questões público);
    - a identidade de login (`Conta`, `CodigoRecuperacao`), que é global por desenho e só é
-     alcançada pelo módulo `sessao` e pelo `nucleo/ciclo-de-vida` (a `ContaGlobalRepository`),
+     alcançada pelo módulo `sessao` e pelo `core/ciclo-de-vida` (a `ContaGlobalRepository`),
      além da limpeza noturna do expurgo de acesso — ver "Pessoas e vínculos";
    - as tabelas da operação Turmma (`Operador`, `CodigoRecuperacaoOperador`, `ConviteOperador`,
      `SessaoOperador`, `AcessoOperacao`, `AuditoriaOperacao`), da nossa equipe e não de escola,

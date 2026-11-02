@@ -26,7 +26,7 @@ packages/core   TS                  contexto, guardas, erro, schema e migrations
 Postgres 18 · Redis (fila e cache) · S3-compatível · LLMProvider (falso | OpenAI-compatível)
 ```
 
-A direção das dependências é `shared ← nucleo ← apps`, e a web depende só de `shared`. O `dependency-cruiser`
+A direção das dependências é `shared ← core ← apps`, e a web depende só de `shared`. O `dependency-cruiser`
 (`tools/guardas/camadas.cjs`, que o `npm run lint` roda pelo `guarda:camadas`) reprova o import contra essa direção, a
 app que importa outra app, a produção que importa teste e qualquer ciclo de import.
 
@@ -65,7 +65,7 @@ Módulos montados (`apps/api/src/app.module.ts`):
 - de domínio: `estrutura` (escola, ano letivo, série, turma, disciplina, vínculo, lista), `professores`, `material`,
   `ia`, `assistente`, `artefato`, `entrega`, `atividade`, `tutor`, `governanca`, `privacidade`, `sala`, `operacao`,
   `sistema` e `sessao`;
-- de infraestrutura: `BancoModule`, `LimiteModule` e `UsoModule`.
+- de infraestrutura: `DatabaseModule`, `RateLimitModule` e `UsageModule`.
 
 Os módulos de ingestão, questão, avaliação, correção, nota e notificação nascem nas fases deles (F4, F6, F13, F17).
 
@@ -78,7 +78,7 @@ as que variam por período têm `anoLetivoId`. Id é UUID. Teste de isolamento a
 módulo novo. Ver `.claude/rules/10-multitenancy.md`.
 
 **O único alcance entre escolas é o módulo `operacao`** (A0b, painel da operação Turmma), e só
-para o operador com sessão (`@RotaDeOperacao`). Ele cria rede e escola pelos casos de uso do
+para o operador com sessão (`@OperacaoRoute`). Ele cria rede e escola pelos casos de uso do
 `ops:escola`, e lê entre escolas por um só repository, o `PainelRepository`, em que cada método
 é `@Unscoped` com a justificativa do painel (regra 10, item 9), devolvendo id, nome e número,
 nunca pessoa. As escritas do painel alcançam mais quatro `@Unscoped` dos comandos `ops:*`,
@@ -106,7 +106,7 @@ pelos leitores que a escola já usa (`docs/modelo-de-dados.md`, "A leitura da op
   senha e existe de verdade. Vínculo não confirmado não dá acesso a aluno.
 - Um usuário pode ter vínculo em mais de uma escola; o token carrega a escola ativa.
 - Convite é token único, com validade curta, uso único e revogável.
-- **O `SessaoModule` é global desde a A0**, como o `BancoModule` e o `LimiteModule`. Ele exporta o
+- **O `SessaoModule` é global desde a A0**, como o `DatabaseModule` e o `RateLimitModule`. Ele exporta o
   semáforo do hash de senha, o hash, o contador de tentativas e o cliente do Redis de fila do login
   (as classes moram em `apps/api/src/credencial/` desde a X5),
   e o `OperacaoModule` (a entrada, o convite e o segundo fator do operador Turmma) recebe a **mesma
@@ -126,7 +126,7 @@ Cada escola tem um limite de concorrência (`EscolaConcurrencyLimiter`), e o lot
 compose, o `worker-interativo` atende `interativa` e `normal`, e o `worker-lote` atende `lote`.
 
 **Exceção declarada:** as tarefas de IA (Tutor, ferramentas do professor) ainda rodam no processo da API, pelo
-`AgendadorDeExecucoes`, que responde 202 e executa em segundo plano (D77). A ida para o worker está registrada na X6
+`ExecucaoScheduler`, que responde 202 e executa em segundo plano (D77). A ida para o worker está registrada na X6
 (`reengenharia-continuacao`, 42.0 e 47.0), antes do portão do piloto.
 
 No F3, o expurgo noturno (`retencao.expurgar-escola`, um job por escola, à 1h) e a eliminação do titular (`titular.eliminar`,
@@ -162,7 +162,7 @@ uma janela permanente sobre o comportamento do aluno.
 ## Camada de IA
 
 ```
-Serviço de domínio → AgendadorDeExecucoes → LLMGateway (gateway: orçamento, suspensão, prazo, validação da saída)
+Serviço de domínio → ExecucaoScheduler → LLMGateway (gateway: orçamento, suspensão, prazo, validação da saída)
                                               → LLMProvider (porta)
                                                   ├── FakeAdapter          testes e carga, custo zero (padrão)
                                                   └── OpenAICompatAdapter   produção, e o modelo local no
@@ -195,7 +195,7 @@ esquemas vêm de `packages/shared`, e a resposta da API é validada na leitura. 
 a sessão volta pelo cookie. Alvo de desempenho: o computador de escola, que é fraco, com o Chromebook de entrada como
 referência, e o celular em rede móvel. Toda tela é responsiva desde a primeira versão (D51).
 
-Lista longa é paginada na API, por cursor. A virtualização ainda não existe (`components/ui/Tabela.tsx` não pagina nem
+Lista longa é paginada na API, por cursor. A virtualização ainda não existe (`components/ui/Table.tsx` não pagina nem
 virtualiza) e entra quando uma tela precisar mostrar centenas de linhas. O bundle tem teto no `.size-limit.json`, e
 nada assume máquina boa.
 
