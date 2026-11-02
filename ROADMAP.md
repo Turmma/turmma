@@ -367,6 +367,8 @@ guardas, a unidade, a integração e o e2e rodam verdes antes e depois, com o di
 > completo e pouso próprio. O mockup de referência é o de `Prototipo_Turmma` (branch
 > `mockups/interface`, commit `a95568d`); nada de lá é copiado para o `apps/web`, menos o traço da onça
 > (D80, revista em 28/10/2026).
+>
+> **Revisto em 30/10/2026** (D80): com as quatro pousadas, o mockup deixa de ser o alvo e vira referência.
 
 **O que as quatro têm em comum.** Nenhuma muda regra de negócio, permissão nem contrato da API, fora
 o que a X4 declara. Toda tela continua com os quatro estados, com o e2e que já prova a regra dela e

@@ -3,6 +3,7 @@ import { act, cleanup, render, renderHook } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { CenaDaOnca } from './CenaDaOnca'
 import { Onca, POSES, type Pose } from './Onca'
 import { esquecerQueAcenou, useAcenarNaPrimeiraVez } from './movimento-da-onca'
 
@@ -84,10 +85,32 @@ describe('Onca: o acenar, e nenhum outro temporizador', () => {
     expect(desenhar('apontando').querySelectorAll('.onca-acena'), 'só a pose acenando acena').toHaveLength(0)
   })
 
+  it('uma pose que não acena não gasta o aceno da sessão: depois da apontando e da parada, a acenando ainda acena', () => {
+    desenhar('apontando')
+    cleanup()
+    desenhar('acenando', false)
+    cleanup()
+    expect(desenhar('acenando').querySelectorAll('[data-parte="pata-d"] > .onca-acena')).toHaveLength(1)
+  })
+
   it('o gancho só liga o aceno para quem pede: `acenando` falso não acena nem gasta o aceno da sessão', () => {
-    expect(renderHook(() => useAcenarNaPrimeiraVez(false)).result.current).toBe(false)
-    expect(renderHook(() => useAcenarNaPrimeiraVez(true)).result.current, '`acenando` falso não gastou o aceno').toBe(true)
-    expect(renderHook(() => useAcenarNaPrimeiraVez(true)).result.current, 'o aceno da sessão já foi gasto').toBe(false)
+    expect(renderHook(() => useAcenarNaPrimeiraVez(false, 'agente')).result.current).toBe(false)
+    expect(renderHook(() => useAcenarNaPrimeiraVez(true, 'agente')).result.current, '`acenando` falso não gastou o aceno').toBe(true)
+    expect(renderHook(() => useAcenarNaPrimeiraVez(true, 'agente')).result.current, 'o aceno da sessão já foi gasto').toBe(false)
+  })
+
+  it('o aceno da marca e o do agente são memórias separadas: gastar um não gasta o outro, em qualquer ordem', () => {
+    expect(renderHook(() => useAcenarNaPrimeiraVez(true, 'marca')).result.current, 'a marca acena').toBe(true)
+    expect(renderHook(() => useAcenarNaPrimeiraVez(true, 'marca')).result.current, 'o aceno da marca foi gasto').toBe(false)
+    expect(renderHook(() => useAcenarNaPrimeiraVez(true, 'agente')).result.current, 'o do agente continua inteiro').toBe(true)
+    expect(renderHook(() => useAcenarNaPrimeiraVez(true, 'agente')).result.current, 'o do agente foi gasto').toBe(false)
+    esquecerQueAcenou()
+    expect(renderHook(() => useAcenarNaPrimeiraVez(true, 'agente')).result.current, 'agente primeiro').toBe(true)
+    expect(renderHook(() => useAcenarNaPrimeiraVez(true, 'marca')).result.current, 'a marca ainda acena').toBe(true)
+    // As duas estão gastas; esquecer zera as duas.
+    esquecerQueAcenou()
+    expect(renderHook(() => useAcenarNaPrimeiraVez(true, 'marca')).result.current, 'esquecer zera a marca').toBe(true)
+    expect(renderHook(() => useAcenarNaPrimeiraVez(true, 'agente')).result.current, 'esquecer zera o agente').toBe(true)
   })
 
   it('o aceno acaba com a pose: da acenando para a apontando, a pata não fica girando', () => {
@@ -136,5 +159,31 @@ describe('Onca.css', () => {
     const infinitos = [...semComentario.matchAll(/([^{}]+)\{[^{}]*infinite[^{}]*\}/g)].map(([, seletor = '']) => seletor.trim())
     expect(infinitos).toEqual([])
     expect(semComentario).not.toMatch(/infinite|onca-pisca|onca-ponto/)
+  })
+})
+
+describe('o cenário da onça da marca (D80 revista às 21:45): só a onça se mexe', () => {
+  it('o `Onca.css` continua com as três animações e nenhuma regra com `transition`: o cenário não tem CSS próprio (o SVG dele, sem animação, quem mede é o e2e com `getAnimations`)', () => {
+    const semComentario = CSS.replace(/\/\*[\s\S]*?\*\//g, '')
+    const regras = [...semComentario.matchAll(/([^{}@]+)\{([^{}]*)\}/g)].filter(([, , corpo = '']) => /\banimation\s*:/.test(corpo)).map(([, seletor = '']) => seletor.trim())
+    // Entrar, acenar e comemorar (e a regra do "reduzir movimento", que desliga as três): nenhuma regra nova para o cenário.
+    expect(regras).toEqual(['.onca-animada .onca-entra', '.onca .onca-acena', '.onca .onca-comemora', '.onca *, .onca'])
+    expect(semComentario).not.toMatch(/\btransition\b/)
+    // Cada animação roda uma vez: a duração e a contagem de voltas que o CSS escreve não têm `infinite` nem número de voltas maior que 1.
+    for (const [, declaracao = ''] of semComentario.matchAll(/\banimation\s*:([^;]+);/g)) expect(declaracao).not.toMatch(/infinite|\b[2-9]\b(?!\d*m?s)/)
+  })
+
+  it('animada, a figura do cenário tem só dois movimentos, o de entrar e o de acenar, e os dois são da onça', () => {
+    const { container } = render(<CenaDaOnca />)
+    expect(container.querySelectorAll('.onca-entra')).toHaveLength(1)
+    expect(container.querySelectorAll('.onca-acena')).toHaveLength(1)
+    expect(container.querySelectorAll('[data-cena-da-onca] > svg .onca-entra, [data-cena-da-onca] > svg .onca-acena, [data-cena-da-onca] > svg [class*="animate"]')).toHaveLength(0)
+    // Com "reduzir movimento" o gancho não liga o aceno, e o cenário, que nunca se mexeu, fica como estava.
+    cleanup()
+    esquecerQueAcenou()
+    reduzirMovimento(true)
+    const parado = render(<CenaDaOnca />)
+    expect(parado.container.querySelectorAll('.onca-acena')).toHaveLength(0)
+    expect(parado.container.querySelectorAll('[data-cena-da-onca] > svg > *').length).toBeGreaterThan(10)
   })
 })

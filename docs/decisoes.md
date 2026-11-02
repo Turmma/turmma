@@ -105,7 +105,10 @@ Fica **uma só**, a de outubro, em todas as telas (D80): a técnica é tomada, a
 cores, ícones e fonte são nossos), e a mecânica de uso compulsivo fica de fora por lei (D59). Onde o
 mockup afrouxa uma proteção que o produto já tem, vale o produto. A identidade visual (paleta,
 tipografia, ícones, mascote) **não está em aberto**: a D80 a fechou, e texto de skill, de regra ou de
-documento que a dê como pendente perde para ela.
+documento que a dê como pendente perde para ela. Desde 30/10/2026 o mockup é referência, não alvo (D80 revista): a pele
+é a do produto, e muda por decisão. A onça entrou na tela de entrar na mesma noite como **onça da marca**, sem assinatura
+e num lugar fechado, depois com um canto de sala parado, onde ela não dá aula (D80 revista). O laço dela, seja piscar, respirar ou balançar o rabo, já foi vetado duas vezes, e o veto vale
+para a onça, não para uma tela: pedir "mais vida" numa tela não o reabre.
 
 **Vigiar a navegação do aluno.** Pedido em 19/09/2026: alertar o professor quando o aluno sai
 do sistema para usar outra IA, e medir tempo ocioso. Ficou: saída da aba só durante a prova,
@@ -1508,6 +1511,60 @@ nem nos `packages/`. O mockup continua sem ser importado, e um teste guarda os v
 (`fidelidade-ao-mockup.test.tsx`). Motivo: redesenhada à mão na X1 e na X4, a onça saiu outra, e quem
 abria o produto não via a mascote que o Gabriel escolheu; só a cópia fiel, presa por teste ao original,
 garante o desenho dele em todo lugar e nos três papéis.
+*Revista em 30/10/2026* pela palavra do Joaquim, com a X1 a X4 e a onça pousadas: **o mockup de outubro deixa de ser o
+alvo e vira referência** ("para aquele momento a gente ia seguir o mockup […] dai o mockup vira so alguma referencia […]
+so vamos utilizar o mockup caso tenha alguma referencias e vamos corrigir"). Daqui em diante o critério de certo de uma
+tela é o `docs/interface.md` e as decisões; o mockup é consultado quando ajudar, e diferença em relação a ele não é
+defeito, motivo de reprovação nem pendência. A pele que ele trouxe (itens 1 a 6) continua sendo a do produto e muda como
+qualquer decisão. A pasta `mockups/` fica no repositório, com a mesma cerca. A onça continua a que está no produto, e o
+teste que a guarda passa a proteger o traço do produto, e não "o do mockup": mudá-la pede decisão do Joaquim e o parecer
+do `conformidade-reviewer` do item 3, com os valores do teste atualizados na mesma correção. Não mudam o item 3 (o que a
+onça não faz: D58, D59, Decreto 12.880), o item 7 e a cerca de que nada do mockup é copiado para o `apps/web` nem para os
+`packages/` (a onça, já copiada, segue sendo a única exceção, e nenhuma nova se abre). Motivo: o mockup serviu para a
+virada da pele (X1 a X4 e a onça), que terminou; daqui em diante o produto muda pelas próprias decisões e pelo
+`docs/interface.md`, e o mockup só é consultado quando ajudar.
+*Revista de novo em 30/10/2026, à noite*, por **delegação do Joaquim**, que confere pela foto no pouso da correção que a
+trouxer. Ele achou a tela de entrar "morta" e pediu a onça ali, "para alegrar"; ao sair do computador, deixou no terminal do
+Orquestrador, às 19:30: "a pinta se quiser pode remover mas quero alguma coisa que alegre mais… pense e depois faça… vai fazendo
+tudo". Muda o item 3, que dizia que a onça vai **sempre** com o nome da função e o selo "IA": passa a haver duas onças, com
+fronteira escrita. A **onça-agente** continua como estava, sempre assinada e só em região que guarda produção do agente que
+assina. A **onça da marca** é nova, com lugar fechado: o painel da casca pública, em todas as telas dela (entrada da equipe e
+do aluno, convite, segundo fator e turma pública), igual para todo papel. Não tem nome, legenda, selo, fala nem texto atribuído,
+é `aria-hidden` e nunca aparece em área de papel nem em região de agente. Ela vem na pose `acenando`, no lugar da pinta grande
+apagada, que sai do painel. De 1024 px para cima tem 160 px, centrada no painel, e **entra e acena uma vez** ao abrir a página,
+com o movimento que já existe, para depois ficar parada; o movimento some com `prefers-reduced-motion`. No celular, onde o painel
+vira uma faixa só com a marca, ela tem 88 px, **parada**, sobre `fundo`, acima do formulário. O painel ganha um fundo quente
+(`laranja-claro`, com a borda em `laranja-borda`), feito só com tokens que já existem. Se a foto do tema claro não mostrar os pés
+da onça, que são do mesmo creme, o painel volta a `papel`, sem cor nova e sem mexer na onça. Não entra texto novo, e os textos da
+casca continuam os mesmos (RF20 da X1). Ela fica fora do primeiro carregamento: a casca a importa de forma tardia, com a caixa
+reservada, e o teto de 150 kB não sobe. Ficam vetados, também nesta tela: a onça assinada por um agente na entrada, onde nenhum
+agente produziu nada e o selo perderia o sentido; e todo laço, seja respirar, piscar ou balançar o rabo (D59; Decreto 12.880,
+arts. 9º e 10). O veto ao laço vale para a onça, não para uma tela. Pareceres: do `conformidade-reviewer` (onça da marca sem
+assinatura passa com estas condições, a assinada pelo Tutor e o laço não passam) e do `frontend-reviewer` (fundo, tamanho,
+posição e import tardio). Motivo: a entrada é a primeira tela de todo mundo, e a mascote que a escola escolheu não aparecia nela.
+Na entrada ainda não há saída de IA, e a D58 pede rótulo na saída de IA, não na marca: uma onça sem fala, sem nome e presa ao
+painel não se passa por agente nem por pessoa. A fronteira escrita, guardada por teste, impede que a exceção se espalhe.
+Na foto, o painel ficou em `papel`: os pés da onça sumiam no `laranja-claro`, como a revisão previa.
+*Revista de novo em 30/10/2026, às 21:45*, também por **delegação do Joaquim**, que confere pela foto no pouso da correção
+que a trouxer. Ao ver a onça sozinha no painel, ele disse ao Orquestrador: "tem que deixar um pouco melhor, botar algum elemento,
+tipo local pra ele, sei lá". A onça da marca ganha um **cenário**: um canto de sala de aula, com uma lousa ao lado dela, uma
+pilha de três livros onde ela pisa, um vaso com planta e um lápis deitado no chão. O desenho é chapado, sem contorno e sem degradê,
+como o da onça. De 1024 px para cima a onça passa de 160 para 240 px, com o mesmo desenho, a mesma pose e o mesmo movimento, e o
+cenário tem até 432 × 300 px, centrado no painel, com 40 px de respiro dos lados. No celular nada muda: a onça de 88 px fica sem
+cenário. O cenário faz parte da onça da marca e herda a fronteira dela: mora só no painel da casca pública, nunca em área de
+papel nem junto da onça-agente, e não tem texto, glifo, nome nem rótulo acessível. **A onça da marca não ensina**: fica de
+frente para quem chega, ao lado da lousa e nunca diante dela, e não segura, não aponta nem olha para a lousa. Ficam vetados
+giz, ponteiro ou lápis na pata, óculos, capelo, roupa ou crachá, mesa de professor e a pose `apontando`. Na lousa só entram
+triângulo, círculo e linha ondulada em giz. Letra, algarismo, sinal de conta, certo ou X, estrela e qualquer marca que lembre
+nota ou prêmio ficam de fora. Os livros não repetem o trio de cores dos agentes (laranja, azul e anil) nem cor de estado, e
+nenhum leva nome ou ícone de matéria. As cores são só de tokens que já existem e não invertem entre os temas. O cenário é
+**parado** desde o primeiro quadro: nada balança, se desenha sozinho, reage ao cursor ou ao que se digita (nem a mascote que
+cobre os olhos na senha, comum em telas de entrada). O único movimento continua sendo o da onça, entrar e acenar uma vez (D59).
+O cenário vai no mesmo import tardio da onça, sem texto novo, e o primeiro carregamento continua ≤ 150 kB. Pareceres: do
+`conformidade-reviewer` (passa com estas condições; o "2+2" na lousa e a onça dando aula não passam) e do `frontend-reviewer`
+(tokens, tamanho, altura mínima do painel e peso). Motivo: a onça sozinha no meio de um painel vazio ainda deixava a entrada
+fria; um lugar para ela diz, sem nenhuma palavra, que o produto é da escola. A fronteira e os vetos impedem que esse lugar a
+transforme em professora ou em agente.
 
 **D81 — Padrão de mercado antes de mecanismo próprio: a peça técnica tem o nome do framework, o
 conceito do domínio fica em português, e a X5 é recortada para pousar.** *(decidida em 22/10/2026 pelo

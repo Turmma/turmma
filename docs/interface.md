@@ -15,7 +15,8 @@ partida para o PRD da funcionalidade, que pode mudar.
 papel. A numeração dela não muda, porque tarefas do F1 já citam as seções 1, 2, 3 e 6. A
 **Parte B** (seções 8 a 12) é o design. A pele, a navegação e o padrão de página são os da **D80**
 (12/10/2026), que revê a D72, a D73 e a D69: o sistema que o Gabriel desenhou em mockup de 04 a
-07/10/2026. O produto chega a ele em quatro specs fora da sequência (`ROADMAP.md`): a **X1**
+07/10/2026. Desde 30/10/2026, com a X1 a X4 pousadas, o mockup é referência e não alvo (D80 revista): o que vale é
+este documento. O produto chega a ele em quatro specs fora da sequência (`ROADMAP.md`): a **X1**
 (`pele-e-casca`) troca a pele e a casca, com os itens e as telas de hoje; a **X2**, a **X3** e a
 **X4** recompõem as telas da coordenação, do professor e do aluno. Cada seção diz o que já existe
 e o que nasce em qual spec ou fase. O que falta decidir está na seção 7.
@@ -107,6 +108,12 @@ existe e onde nasce o que falta: a **X1** troca a pele e a casca com os itens de
 - **Meu uso**, o espelho da D45, sai de Turmas e vai para a **conta do professor** (D69 revista): é
   dele primeiro, o que a coordenação vê dele é agregado, e o nominal só abre com auditoria. A tela
   diz isso em português comum. Nasce no F12; a conta já tem "Meus dados", do F3
+- **A introdução** (X4, tarefa 10.0) abre na primeira entrada, em tela de foco: quatro passos, todos
+  que se pulam, falados pelo Assistente de ensino (com a função e o selo "IA"): ele prepara e a
+  professora aprova; só a resposta do Tutor chega ao aluno sem a aprovação dela; a IA não corrige
+  redação nem discursiva; e usar ou não a ferramenta não gera número sobre ela. O último passo traz
+  "Onde fica cada coisa", lida da navegação do papel. "Rever a introdução" fica no menu da pessoa,
+  depois de "Meus dados"; revendo, nada é gravado e todo passo fecha
 - **Lugar sem tela não aparece** (D73, que continua valendo). **Projetos** e **Fixados** só entram
   se o `descobrir` do P05 aceitar
 
@@ -393,8 +400,12 @@ acendem Início, `/aluno/atividades` é Tarefas, `/aluno/privacidade` acende Eu,
 leva a `/aluno/eu`, sem ficar no histórico. O rodapé fixo da lateral do aluno saiu: "Privacidade" é
 uma linha de Eu, e o "Sair" fica à vista na casca em todo lugar e também é uma linha de Eu (D59).
 
-- **Início** é a conversa com o **Tutor**, restrito ao conteúdo da turma, citando a página do
-  material. Travado durante avaliação em andamento. Se apresenta pela função, como os outros
+- **Início** é onde o aluno abre (X4, tarefa 3.0): a saudação do Tutor, com a função e o selo "IA",
+  a faixa de supervisão, presa, e até três tarefas "Para fazer", cada uma com "Pedir ajuda ao Tutor",
+  que leva à conversa daquela tarefa. O Início não mostra o uso do dia, que fica na tela do Tutor
+  (regra 80: a leitura do uso iria para a rajada de login), e a avaliação aberta é avisada antes de o
+  aluno abrir a tarefa, sem tirar o caminho até o Tutor (D36). A conversa é com o **Tutor**, restrito
+  ao conteúdo da turma, citando a página do material. Travado durante avaliação em andamento. Se apresenta pela função, como os outros
   agentes do time (D17, D58); **nunca afirma ser uma pessoa** e, perguntado sobre si, explica o que
   é, como funciona e que pode errar, em linguagem da faixa etária (D65)
 - **Pesquisa em fontes aprovadas**, quando a escola liberou e o professor ligou para a turma
@@ -407,11 +418,10 @@ uma linha de Eu, e o "Sair" fica à vista na casca em todo lugar e também é um
 - **A caixa de escrever nunca some**, nem depois de um assunto delicado: é por ela que a mensagem
   fixa chega, com o caminho para um adulto (D36; D80, item 7)
 - **Tarefas** são as atividades e as provas atribuídas pelo professor, em Para fazer, Entregues e
-  Corrigidas, e a tarefa aberta. O item se chama Tarefas desde a tarefa 2.0 da X4, no endereço de
-  Atividades; os três grupos chegam na 4.0
-- **Eu** é como estou indo, só do próprio aluno, por assunto, a partir do que o professor já
-  aprovou; a porta para **Privacidade** ("Meus dados", do F3) e para os ajustes de aparência e de
-  tamanho da letra; e, com o F9, **o que o Tutor lembra**: tudo que o aluno já fez no sistema —
+  Corrigidas, e a tarefa aberta, no endereço de Atividades (X4). O desenho das duas está na 11.5
+- **Eu** é **"Como estou indo"**, só do próprio aluno: uma linha por tarefa de correção aprovada,
+  com "N de M certas" e as habilidades a rever; as linhas **Privacidade** ("Meus dados", do F3),
+  **Ajustes** (aparência e tamanho da letra), **Rever a introdução** e **Sair**; e, com o F9, **o que o Tutor lembra**: tudo que o aluno já fez no sistema —
   atividades, trabalhos, avaliações e sessões (D66) —, que ele consegue ver e contestar. Toma o
   lugar de "Minha turma"
 - **Avisar um adulto** é o caminho para avisar sobre algo errado no sistema: o canal de notificação
@@ -516,8 +526,19 @@ item Agentes e o item Privacidade de hoje.
   coordenação da escola afetada; "Ver depois" deixa uma faixa fixa, sem botão de fechar, até a confirmação, e o "Sair" nunca fica
   fora de alcance (D59)
 
-**O sino "Esperando você"** da coordenação nasce na X2, com o que espera uma decisão dela e o
-produto já sabe. A lista fecha no PRD da X2.
+**O sino "Esperando você"** da coordenação (X2, RF4 a RF7) lista cinco tipos, e só eles: incidente
+sem confirmação, professor que contestou a turma, convite vencido, material que falhou e turmas sem
+professor. Cada item leva à tela que resolve e sai quando o estado muda; sem item, o vazio diz "Tudo
+em dia". Nenhum item conta por professor (o único número é o das turmas sem professor), e o que só
+se lê com leitura auditada (lista de nomes, pedidos de nome, pedidos do titular) não entra (regra 20,
+item 10; D45, D64). O sino não pisca, não soa e não relê por tempo.
+
+**A introdução** (X4, tarefa 11.0) abre na primeira entrada, em tela de foco, falada pelo Analista
+de desempenho escolar: quatro passos ("Eu ajudo a ler os números de <nome da escola>."; a escola em números
+agregados, com professor só em grupo de dois ou mais, D45; dado com nome só abre com motivo, e fica
+registrado; e o que a IA nunca faz, com "Onde fica cada coisa"). O último leva ao Painel. O aviso de
+incidente aparece por cima dela: "Ver depois" o fecha e a introdução continua. "Rever a introdução"
+é a única linha do menu da pessoa da coordenação.
 
 **Fica na fase de cada um, e não aparece antes dela** (D73; D80, item 7): Adaptações, o Dossiê
 (Conformidade), os Avisos (Denúncias), Exportar, Auditoria e Configurações da escola.
@@ -633,8 +654,8 @@ para ninguém confundir com a tela de uma escola. As medidas estão na seção 1
   degrau, mascote). A marca, a mascote, as cores, os ícones e a fonte são nossos, e o verde não é a
   cor principal; ainda assim o parecer entra junto do registro no INPI (D80; `TODO.md`)
 - **O mockup de outubro está em `mockups/`** desde 16/10/2026 (cópia de `Prototipo_Turmma` em
-  `a95568d`, D80). A fonte de valores continua sendo esta Parte B e o inventário em
-  `tasks/prd-pele-e-casca/mockup.md`; o mockup é para ver. Nada de lá é copiado para o `apps/web`, **com uma exceção**: a onça
+  `a95568d`, D80), **como referência**: desde 30/10/2026 ele não é o alvo (D80 revista). A fonte de valores é esta
+  Parte B; o mockup é para consultar quando ajudar, e diferença em relação a ele não é defeito nem pendência. Nada de lá é copiado para o `apps/web`, **com uma exceção**: a onça
   (o traço, as poses e o movimento que ficaram, 9.7), que o Joaquim mandou trazer fiel ao mockup (correção
   `2026-10-28-onca-do-mockup`). O desenho foi copiado para `components/ui/onca/`, o mockup continua sem ser importado, e um teste
   guarda os valores do original
@@ -650,9 +671,6 @@ para ninguém confundir com a tela de uma escola. As medidas estão na seção 1
   a "15ª rodada" da conversa (voto, refazer e editar em toda resposta, anexo na caixa), que mexe no
   registro que o professor supervisiona e cria dado novo de menor; e os painéis de gestão, que
   pintam "melhoraram" de verde e "pioraram" de vermelho, contra a regra de cor por categoria (9.1)
-- **A cor do Assistente e a do Tutor.** O texto da D80, item 3, diz Assistente em laranja e Tutor
-  em azul; o mockup e a Tech Spec da X1 dizem o contrário, e é o Tutor que já é laranja no produto.
-  Este documento segue o mockup (9.7). Falta acertar a frase da decisão
 - **O rótulo em caixa-alta de 15 px na lateral**, medido na fonte do ChromeOS: se cortar, desce a
   14 px (Tech Spec da X1, seção 12)
 - **O script do tema diante de uma política de segurança de conteúdo**: quando o F16 trouxer uma,
@@ -664,8 +682,6 @@ para ninguém confundir com a tela de uma escola. As medidas estão na seção 1
   oito ferramentas novas do catálogo (P22)
 - **Indicadores da turma aberta e do Meu uso**: quais, limiar e texto do alerta (decisão em aberto
   no `CLAUDE.md`; o ponto de partida está no P11)
-- **O que entra na fila "Esperando você"** de cada papel, e a composição de cada tela: fecham nos
-  PRDs da X2, da X3 e da X4
 - Imagens da ferramenta de apresentação (D67)
 
 ---
@@ -683,13 +699,13 @@ e a 13ª, as peças, e a 14ª, os tipos de página e o modo escuro.
 
 | Fonte | O que ela dá | O que ela não dá |
 |---|---|---|
-| **O mockup de outubro** (`Prototipo_Turmma`, commit `a95568d`; inventário em `tasks/prd-pele-e-casca/mockup.md`) | Os valores de cor, as medidas, o desenho das peças, a casca e os tipos de página | Código. Ele não fala com servidor, usa bibliotecas que o produto não tem (10.1) e afrouxa proteções que o produto cumpre (8.3) |
+| **O mockup de outubro** (`Prototipo_Turmma`, commit `a95568d`; inventário em `tasks/prd-pele-e-casca/mockup.md`) | Deu os valores de cor, as medidas, o desenho das peças, a casca e os tipos de página da X1 a X4; desde 30/10/2026 é só referência (D80 revista) | Código. Ele não fala com servidor, usa bibliotecas que o produto não tem (10.1) e afrouxa proteções que o produto cumpre (8.3) |
 | **Duolingo** | A **técnica**: ilustração chapada, borda grossa com degrau sólido, cor por família, mascote, contraste alto | A marca, a mascote, o verde, a fonte e as mecânicas de uso (8.3) |
 | **A marca** (`apps/web/public/marca/`) | A pinta, o logotipo, o laranja `#E8732E` e a onça | A pele da landing page, que continua só lá |
 | **O produto que já existe** | As regras, os quatro estados, os textos, os nomes acessíveis e o e2e que prova cada regra | — |
 
 **Regra vence desenho** (D80, item 7): onde o mockup e uma proteção do produto discordam, vale o
-produto.
+produto. E, desde 30/10/2026, este documento vence o mockup (D80 revista).
 
 ### 8.2 O que tomamos
 
@@ -1097,9 +1113,7 @@ de menu, 20 px em botão.
 | `t-toque` | 100 ms | linear | A peça com degrau descendo e voltando |
 | `t-estado` | 150 ms | `curva-estado` | A bolinha do interruptor, o chevron da linha no hover |
 | `t-gesto` | 260 ms | `curva-estado` | Abrir menu, diálogo e painel ao lado |
-| `t-barra` | 400 ms | `ease-out` | O preenchimento da barra de progresso, por `scaleX` |
 | `t-entrada` | 420 ms | `curva-entrada` | Mensagem nova na conversa, passo da introdução |
-| `t-salto` | 600 ms | `curva-quique` | A comemoração (X4) |
 
 1. **Só `transform` e `opacity` animam.** Cor, borda e sombra trocam na hora, e o teste do CSS
    servido confere as propriedades animadas (RF8 da X1)
@@ -1115,8 +1129,10 @@ de menu, 20 px em botão.
 6. **`prefers-reduced-motion`** desliga tudo o que desloca, por uma regra global: sobra só a troca
    de opacidade
 7. **A comemoração** aparece uma vez, só na **entrega** de uma tarefa, nunca em nota, em acerto ou
-   em tempo de uso, e some com `prefers-reduced-motion` (D80, item 7; D59). Nasce na X4, se o
-   parecer do `conformidade-reviewer` aceitar (seção 7)
+   em tempo de uso, e some com `prefers-reduced-motion` (D80, item 7; D59). Nasceu na X4, com o
+   parecer do `conformidade-reviewer` (seção 7). O salto é o da onça, `onca-comemorar` (500 ms,
+   `ease-out`; 9.7), e não um token desta tabela. A barra de progresso não anima: o preenchimento
+   é desenho parado
 8. **Área do aluno:** sem número subindo, sem selo de conquista, sem nada que premie ficar (D59)
 
 ### 9.6 A marca na interface
@@ -1128,8 +1144,9 @@ de menu, 20 px em botão.
   vira indicador de carregamento
 - **A turma se reconhece pela cor da matéria**, no selo e no ladrilho, e não por um avatar próprio:
   a proposta de uma pinta por turma sai
-- A pinta pode aparecer parada, bem apagada, no painel da casca pública (11.3). Em nenhuma outra
-  tela há textura de fundo
+- Nenhuma tela tem textura de fundo. A pinta grande e apagada do painel da casca pública saiu em 30/10/2026: o lugar
+  passou para a onça da marca e o cenário dela, um canto de sala parado (9.7, 11.3; D80 revista). O cenário é ilustração
+  de um lugar só, e não textura
 
 ### 9.7 A onça e o avatar dos agentes
 
@@ -1141,8 +1158,10 @@ dois temas: pelagem `#E8732E`, sombra `#D75F18`, realce `#ED935D`, creme `#FDEBD
 **O traço é o do mockup de outubro, copiado e não importado** (correção `2026-10-28-onca-do-mockup`): o corpo e a
 cabeça numa forma só, as orelhas com miolo, a máscara clara de dois círculos, os olhos com pupila recortada e brilho, o
 focinho com o nariz arredondado, as cinco rosetas (a pinta da marca girada, declarada uma vez por desenho), o rabo com anéis e a
-pata com o punho. Um teste guarda as impressões do original e reprova a cópia que se afastar dele
-(`components/ui/onca/fidelidade-ao-mockup.test.tsx`).
+pata com o punho. Um teste guarda as impressões do traço e reprova a cópia que se afastar dele
+(`components/ui/onca/fidelidade-ao-mockup.test.tsx`). Desde 30/10/2026 ele guarda a onça do produto, e não "a do
+mockup": mudá-la pede decisão do Joaquim e o parecer do `conformidade-reviewer`, com os valores do teste atualizados na
+mesma correção (D80 revista).
 
 **O rosto da onça de corpo inteiro muda com a pose, e só com ela**: acenando (olhos de frente, boca aberta), apontando (olhar de
 lado, sorriso), comemorando (olhos felizes, boca bem aberta) e pensando (olhar para cima e de lado, boca de lado). O rosto da
@@ -1151,7 +1170,9 @@ que a tela escolhe, nunca de quem usa.
 
 **O movimento é pouco, e nada fica em laço** (parecer do `conformidade-reviewer` na correção `2026-10-28-onca-do-mockup`; D59;
 regra 70, item 4b). Vem do `Onca.css`, copiado do mockup, e são três, cada um **uma vez**: **entrar** na tela (240 ms), **acenar**
-(a pata, na primeira vez da sessão, e só enquanto a pose é `acenando`) e o **salto da comemoração** (500 ms; é o único salto da
+(a pata, na primeira vez desde que a página abriu, e só enquanto a pose é `acenando`: a marca de que já acenou fica na
+memória da página, e não no navegador, de modo que recarregar acena de novo e quem entra depois no mesmo computador não
+herda nada) e o **salto da comemoração** (500 ms; é o único salto da
 `Comemoracao`, que não põe outro por cima). Os três **param com `prefers-reduced-motion`**, e o avatar nunca se mexe. **Não
 entram**, por veto: a onça piscando por temporizador, e o laço dos três pontos do `pensando`, que ficam **parados**. A sombra do
 chão sob a onça de corpo inteiro é do cenário, o token `onca-chao` (9.10), e não uma das cores dela. As **duas linhas curtas ao lado
@@ -1167,7 +1188,7 @@ Agentes a usa com o nome da função em `h2`), e um teste reprova outro arquivo 
 ou qualquer coisa da pasta da onça. O bloco é o `data-assinatura`, e o teste confere que cada
 `data-agente` tem, nele, o nome da função em texto visível e um `data-selo-ia`. O cartão de cada
 agente na tela Agentes leva `data-cartao-do-agente`, e não `data-agente`, que é só do avatar.
-A casca não desenha a onça nem o avatar do agente: ela mora na entrada, e a lateral não leva mais
+A casca da escola não desenha a onça nem o avatar do agente, e a lateral não leva mais
 agentes (o grupo "Seu time" saiu na X3). As funções do Assistente não têm avatar próprio, e aparecem pelo nome ("Assistente · correção de objetiva").
 Tamanhos: 24 px na linha da mensagem, 32 na assinatura, 40 e 48 no cabeçalho.
 
@@ -1192,6 +1213,7 @@ correções aprovadas pelo professor), nem para dar estado a um agente: a pose `
 | Acenando · apontando · pensando | Os passos da introdução (pensando: o passo da letra, com os três pontos parados) | X4, tarefa 5.0, com parecer dado; `pensando` e o movimento (entrar e acenar, uma vez), na correção `2026-10-28-onca-do-mockup`, com parecer |
 | Comemorando | A entrega de uma tarefa (9.5, regra 7) | X4, tarefa 5.0, com parecer dado, nas condições da Parte B, item "A comemoração na entrega e a onça acolhendo" |
 | Acolhendo (expressão de preocupação) | — | não entra (D80, item 3) |
+| Acenando, **da marca** | O painel da casca pública (11.3): de 1024 px para cima, 240 px, sobre o cenário da sala, entra e acena uma vez; no celular, 88 px e parada, sem cenário, acima do formulário. Sem legenda | a correção da onça na entrada, com parecer (D80 revista em 30/10/2026, à noite); o cenário e os 240 px, na correção `2026-10-30-cenario-da-onca`, com parecer (D80 revista às 21:45) |
 
 O que a onça **nunca** é, em nenhuma spec (D58; Decreto 12.880, art. 11; regra 70, item 4a):
 
@@ -1203,8 +1225,55 @@ O que a onça **nunca** é, em nenhuma spec (D58; Decreto 12.880, art. 11; regra
 - **Nunca é agressiva**, e **nunca fica "online"**: ponto ao lado do avatar só diz que há algo
   esperando a pessoa (D59)
 
+**A onça da marca (D80 revista em 30/10/2026, à noite).** Há duas onças, com fronteira escrita. A **onça-agente** é a de
+toda a seção: sempre assinada e só onde a região guarda produção do agente. A **onça da marca** mora só no painel da casca
+pública (11.3), em todas as telas dela e igual para todo papel. É uma peça própria, que desenha a onça sem `figcaption`, sem
+nome, sem selo e sem texto acessível, e é `aria-hidden`. A `Onca` continua exigindo `agente`, e a onça da marca nunca entra em
+área de papel nem em região de agente. A pose é sempre `acenando`. O movimento é o que já existe (entrar e acenar uma vez, que
+somem com `prefers-reduced-motion`), e nenhum laço entra, também aqui. Nenhum texto fica ao lado dela. A lista fechada de
+`avatar-so-nas-duas-pecas.test.ts` a nomeia, e um teste prova que a figura dela não tem texto acessível nem `figcaption`.
+O atributo dela é `data-onca-da-marca`, e não `data-onca`, que é da onça assinada: nenhuma conta de "onça de agente" a conta.
+**O aceno da marca é dela**: a memória de "já acenou" é separada da da onça-agente. A entrada leva à introdução do papel sem
+recarregar a página, e a onça da introdução ainda acena depois da da entrada, mesmo a 360 px, onde a de 160 px, escondida só pelo
+CSS, também é montada. Se o pedaço da onça não carregar, a casca fica sem ela, com as caixas no lugar, e o formulário continua.
+
 A onça fica fora do primeiro carregamento (10.4), e o caminho da pinta, que as rosetas repetem, é
 declarado uma vez, e não copiado em cada avatar.
+
+**O cenário da onça da marca (D80 revista em 30/10/2026, às 21:45).** De 1024 px para cima, a onça da marca fica num canto de
+sala de aula, desenhado chapado, sem contorno e sem degradê, dentro de uma `figure` `aria-hidden` de até 432 × 300 px, a
+`CenaDaOnca`. A onça tem 240 px, um para um com o quadro do desenho, e é a mesma da `OncaDaMarca`, sem traço novo, na pose `acenando`.
+
+- **O lugar**: a lousa fica ao lado da onça, nunca atrás nem diante dela. A onça pisa numa pilha de três livros deitados e fica de
+  frente para quem chega. Há também um vaso com planta e um lápis deitado no chão. A sombra `onca-chao` da onça cai no livro de
+  cima, e uma segunda, do mesmo token, fica no chão sob a pilha
+- **A onça não ensina**: não segura, não aponta e não olha para a lousa. Nada vai na pata, nem giz, nem ponteiro, nem lápis.
+  Também não entram óculos, capelo, roupa, crachá, mesa de professor nem a pose `apontando`
+- **A lousa não tem texto**: só triângulo, círculo e linha ondulada em giz. Não entram letra, algarismo, sinal de conta, certo
+  ou X, estrela, pinta da marca nem nada que lembre nota ou prêmio. O SVG não tem `<text>`, `<title>`, `<desc>`, `role` nem
+  `aria-label`
+- **As cores** são só classes `fill-*` e `stroke-*` de tokens que não invertem entre os temas, sem hex, sem `style` e sem
+  opacidade:
+
+  | Objeto | Token |
+  |---|---|
+  | Lousa | `verde-degrau` |
+  | Giz | `white` |
+  | Moldura, calha e vaso | `laranja-degrau` |
+  | Livros | `roxo-degrau`, `turquesa-degrau` e `rosa-degrau` |
+  | Páginas | `white`, só dentro da lombada |
+  | Folhas | `lima-degrau` |
+  | Lápis | `amarelo-degrau`, com a ponta em `white` |
+  | Sombras | `onca-chao` |
+
+  Não entram `grafite`, `noite`, `-texto`, `-claro` nem `sobre-cor`, porque invertem entre os temas. Os livros não repetem o trio
+  dos agentes, laranja, azul e anil, nem verde, vermelho ou amarelo de estado, e nenhum leva nome ou ícone de matéria
+- **Parado**: o cenário não tem `animation` nem `transition`, e não reage ao cursor, ao foco nem ao que se digita. O único
+  movimento é o da onça, entrar e acenar uma vez, que some com `prefers-reduced-motion`. As marcas de giz ficam fora da caixa da
+  pata que acena
+- **O peso**: até 40 nós e 3 kB, sem filtro, degradê nem `clipPath`. Vai no pedaço Peças, no mesmo import tardio
+- **A fronteira**: a `CenaDaOnca` só é importada pela `CascaPublica`, e de forma tardia. Ela entra na lista fechada de
+  `avatar-so-nas-duas-pecas.test.ts`. No celular não há cenário: lá continua a `OncaDaMarca` de 88 px
 
 ### 9.8 Tom da interface
 
@@ -1374,12 +1443,9 @@ variável. `veu` e `onca-chao` são as únicas cores fora do hex de seis dígito
   --t-toque: 100ms;
   --t-estado: 150ms;
   --t-gesto: 260ms;
-  --t-barra: 400ms;
   --t-entrada: 420ms;
-  --t-salto: 600ms;
   --curva-estado: cubic-bezier(0.2, 0, 0, 1);
   --curva-entrada: cubic-bezier(0.22, 1, 0.36, 1);
-  --curva-quique: cubic-bezier(0.35, 1.8, 0.35, 0.83);
 }
 ```
 
@@ -1518,8 +1584,10 @@ teclado.
    grade na tabela) a peça do produto tem
 2. **Um anel de foco só**: contorno de 3 px em `foco`, com 2 px de afastamento, em tudo o que
    recebe foco pelo teclado, nos dois temas. No campo de texto o afastamento é zero; na linha de
-   tabela e no item da barra de baixo (que encosta no pé e nas laterais da janela) o anel vai por dentro. Nenhuma peça apaga o contorno, nem depende de `:has()` para
-   mostrá-lo. A única exceção é a face `noite` no escuro, onde ela é clara e o `foco` dá 1,99:1: ali o
+   tabela e no item da barra de baixo (que encosta no pé e nas laterais da janela) o anel vai por dentro. Nenhuma peça apaga o contorno sem passá-lo à moldura, nem depende de `:has()` para
+   mostrá-lo: onde a moldura é maior que o campo (a opção de marcar, o formulário da ferramenta e a caixa de conversa do
+   Tutor e do Assistente), o anel é da moldura, por `focus-within`, colado à borda, e o campo de dentro não desenha o seu
+   (correção `2026-10-29-contorno-do-campo-de-conversa`). A única exceção é a face `noite` no escuro, onde ela é clara e o `foco` dá 1,99:1: ali o
    anel é o `sobre-grafite`, o texto da própria face (e volta ao `foco` dentro de peça com chão próprio)
 3. **Os quatro estados** (regra 50, item 5). O mockup não fala com servidor e não desenha
    carregando nem erro: valem os três de `components/states/`, e botão que dispara pedido não
@@ -1637,8 +1705,10 @@ perto de 127 kB, e o teto **não sobe** com a pele (RF22 da X1).
 | Peças | As peças novas, as de `components/ui/ai/` e a onça (o teto do pedaço sobe de 26 para até 40 kB) | Na primeira tela que usa |
 | Galeria | Todas as peças, nos dois temas | Só com a variável do build ligada |
 
-- **A casca mora na entrada**, e por isso não importa peça de fora dela: nem a onça, nem peça de
-  `components/ui/ai/`
+- **A casca mora na entrada**, e por isso não importa de forma estática peça de fora dela: nem a onça, nem peça de
+  `components/ui/ai/`. A única exceção é a onça da marca da casca pública, com o cenário dela (9.7, 11.3), que entra por import tardio
+  (`React.lazy`), com a caixa reservada e um `fallback` vazio, e cai no pedaço Peças que já existe, sem pedaço novo nem
+  teto maior
 - **A área de um papel não baixa ícone nem peça de outro**
 - **Nenhuma fonte.** Nenhuma imagem decorativa acima de 30 KB; ilustração é SVG
 
@@ -1772,8 +1842,15 @@ a aula ao vivo (F10). Topo de 64 px com o sair, o miolo rolando por dentro e o r
 
 A entrada, o convite, a reivindicação de nome e a verificação em duas etapas, no tema do sistema.
 
-- **A partir de 1024 px a tela se divide**: à esquerda, o painel em `papel`, com a marca e a pinta
-  parada; à direita, o cartão do formulário. **Abaixo disso, empilha**
+- **A partir de 1024 px a tela se divide**: à esquerda, o painel em `papel`, com a borda de 2 px em `borda`, a marca no
+  topo e, no centro, o cenário da onça da marca (9.7): um canto de sala de 432 × 300 px no máximo, com 40 px de respiro dos
+  lados também a 1024 px, e a onça de 240 px sobre os livros, na pose `acenando`, que entra e acena uma vez. À direita, o
+  cartão do formulário. O painel tem altura mínima de 34rem, para o cenário centrado não encostar na marca em janela baixa,
+  e o topo do cenário fica abaixo da marca também a 1366 × 650. **Abaixo disso, empilha**: a faixa de topo fica só com a
+  marca, e a onça da marca, de 88 px, parada e sem cenário, vai sobre `fundo`, acima do formulário. A pinta grande e
+  apagada saiu (D80 revista em 30/10/2026, à noite). O painel é `papel`, e não `laranja-claro`, porque a foto do tema claro
+  mostrou os pés da onça, de creme `#FDEBDD`, sumindo no `laranja-claro`, que tem o mesmo valor. O cenário veio às 21:45
+  (D80 revista)
 - **O formulário.** Aluno: "Entrar com a conta da escola" (Google ou Microsoft, quando a escola
   tem) ou escola, matrícula e senha (D48). Professor e coordenação: o que o F1 definiu, com o
   segundo fator da coordenação. Não existe "Cadastre-se" (D2), nem busca pública de escola. Um
@@ -1874,15 +1951,35 @@ seção 1.3, a fila.
   campo do professor (D55)
 - No MVP (A3) o que se aprova é **diagnóstico**, não nota (D46). O desenho é o mesmo
 
-**Área do aluno** (era 11.6; X4). A mesma casca, mais calma:
+**Área do aluno** (era 11.6; recomposta na X4). A mesma casca, mais calma:
 
-- **Faixa fixa no alto do Tutor**: "Seu professor acompanha como você usa o Tutor." Não fecha (D8)
+- **Início** (X4, 3.0): a saudação ("Oi, <nome>.") com a assinatura do Tutor, a faixa de supervisão e "Para fazer", até três
+  tarefas, sem número de uso. A partir de 768 px a tarefa vira linha, com "Pedir ajuda ao Tutor" ao lado do título; abaixo,
+  cartão. O título abre a tarefa e o "Pedir ajuda" abre a conversa dela: são dois links, nenhum dentro do outro. O Início
+  cabe em 1366 × 768 com três tarefas (RF20 da X4)
+- **Tarefas** (X4, 4.0): Para fazer, Entregues e Corrigidas, sem número no título dos grupos (a lista é paginada, e o
+  número seria só o das já carregadas); cada tarefa é uma linha com o ladrilho na cor e no ícone da matéria, e a matéria
+  desconhecida vai em `anil`, com um livro aberto
+- **A tarefa aberta** (X4, 6.0 e correção `2026-10-25-tarefa-aberta-cabe-em-1366`): uma questão por vez, com as
+  alternativas em rádio grande, "Anterior" e "Próxima" e o mapa de quais já têm resposta. Cada escolha vai ao servidor na
+  hora, e "Resposta salva" só aparece com a confirmação dele (regra 80, item 6). "Pedir ajuda ao Tutor nesta questão" fica
+  no cartão da questão. A partir de 768 px, "Enviar a atividade", o ponto de parada e "Anterior" e "Próxima" ficam numa
+  linha só, sem barra presa; no celular a barra fica presa embaixo. Corrigida, ela mostra o diagnóstico (acertos por
+  habilidade e questão por questão, em contagem, sem nota, sem percentual e sem comparação), com a assinatura da função
+  que corrigiu e quem aprovou; a partir de 1024 px em duas colunas, com "Questão por questão" rolando por dentro. A
+  comemoração, uma vez, no envio confirmado (9.5, regra 7)
+- **Eu** (X4, 2.0, 7.0 e 8.0): a turma, a série e a escola na linha de apoio do título, sem cartão; os avisos de
+  carregando, erro e "sem turma" logo abaixo dele; "Como estou indo" e as quatro linhas da conta (Privacidade, Ajustes,
+  Rever a introdução, Sair) em duas colunas e em grade 2 × 2 a partir de 1024 px, numa coluna abaixo. As linhas existem
+  em todo estado: o "Sair" nunca depende da leitura da turma (D59). "Ajustes" abre um diálogo com a aparência e o tamanho
+  da letra, que só grava ao escolher. Cabe em 1366 × 768 com duas tarefas corrigidas
+- **Faixa fixa no alto do Início e do Tutor**: "Quem dá a aula acompanha como você usa o Tutor." Não fecha (D8)
 - **A caixa de pedido é só texto e enviar.** Sem seletor, sem anexo, sem texto de exemplo que
-  troca sozinho. Atalho, só para o que o professor atribuiu ("Continuar a atividade de
-  estequiometria")
-- **"Hoje: 12 de 60 perguntas"** em texto, com barra fina em cor neutra. Não fica vermelha, não
+  troca sozinho, e sem atalho. A conversa é a de uma tarefa atribuída pelo professor: o caminho
+  até ela é o "Pedir ajuda ao Tutor" do Início e da tarefa aberta
+- **Na tela do Tutor, e não no Início, "Hoje: 12 de 60 perguntas"** em texto, com barra fina em cor neutra (12b da X4). Não fica vermelha, não
   pisca; no fim, diz com calma que por hoje acabou e que amanhã volta (D38, D59)
-- **Privacidade** fica no rodapé da lateral, e a **seção "Meus dados"** abre dentro dela (F3, tarefa 18.0; RF12 e RF20). A tela
+- **Privacidade** é uma linha de Eu (o rodapé da lateral do aluno saiu na X4), e a **seção "Meus dados"** abre dentro dela (F3, tarefa 18.0; RF12 e RF20). A tela
   é a mesma do professor (menu da pessoa), com o mesmo texto, escrito para quem está no 6º ano: **os pedidos da própria pessoa na
   escola ativa**, o mais recente primeiro, cada um com o que é ("Cópia dos seus dados"), o dia em que chegou à escola, o selo em
   texto e uma explicação; e **"O que a escola guarda de você"**, a contagem de registros por categoria, com o nome de cada categoria dito a quem é

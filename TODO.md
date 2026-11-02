@@ -625,8 +625,7 @@ para o staging".
       tarefa que mexer em `textos-do-pedido.ts` (dono: Joaquim)
 - [ ] **(X2, 6.0) Três recomendações que a tarefa deixou para depois:** (a) o selo da situação na tabela de Professores diz a
       frase inteira de `TEXTO_DO_ESTADO_DO_PROFESSOR`; selos curtos ("Ativo", "Convite em aberto", "Convite vencido"), com
-      a frase no painel, mudam o texto de tela e o que o e2e confere, e a 6.2 manda esse texto na tabela (o Arquiteto decide
-      com o mockup 3.6); (b) a barra de abas de `Estrutura.tsx` a 360 px derruba "Material" para a segunda linha; (c) o
+      a frase no painel, mudam o texto de tela e o que o e2e confere, e a 6.2 manda esse texto na tabela (o Arquiteto decide); (b) a barra de abas de `Estrutura.tsx` a 360 px derruba "Material" para a segunda linha; (c) o
       clique duplo no nome da linha pode empilhar dois passos iguais no histórico (`abrirPainel` em `Professores.tsx`),
       risco baixo, cobertura extra; (d) no caso dos homônimos de `Professores.test.tsx` o id sai de
       `localizacao.history?.at(-1) ?? ''`, e com o histórico vazio o teste falha sem dizer por quê: uma asserção de que o
@@ -1433,11 +1432,12 @@ código"), com o destino de cada uma. As pequenas foram fechadas na correção `
       (`infra-guardian` e `privacy-guardian`, X3); (d) o texto "Aprovado por gente", na governança, soa estranho: a
       X2 recompõe a tela (`frontend-reviewer`, tarefa 1.0 da X1); (e) o staging precisa servir `/assets/*` com cache
       longo e o `index.html` sem cache, porque o script do tema mora nele (`infra-guardian`, X1)
-- [ ] **(D80) Decisões que tomei por delegação nas specs X2 a X4, para o Joaquim rever:** estão na seção 12 da Tech
+- [x] *(saiu: D80 revista em 30/10/2026, o mockup é referência; o que divergiu dele fica como o produto está)*
+      ~~**(D80) Decisões que tomei por delegação nas specs X2 a X4, para o Joaquim rever:** estão na seção 12 da Tech
       Spec de cada uma (12b na X4). As que mudam o desenho do mockup: a onça fora do vazio do sino (X2); o aviso de
       atenção humana em Hoje sem nome, com "Ver quem", e o "Acesso gerado" em tela inteira (X3); o Início do aluno
       sem "Hoje: N de 60" e sem os avisos de pausa, a introdução "uma vez só" com ressalva, o texto do aviso de
-      privacidade e a onça de rosto neutro, com comemoração só na entrega (X4)
+      privacidade e a onça de rosto neutro, com comemoração só na entrega (X4)~~
 
 ## Fase posterior
 
@@ -1578,7 +1578,7 @@ Achados ao conferir o código depois do merge (`13eab64`). Não estão resolvido
 - [ ] **Sino da coordenação, restos da rodada 2 (telas da coordenação).** Ajuste de texto da `techspec.md` §7c (a célula de carga descreve o sino duas vezes); mensagem de asserção explícita no `toBeGreaterThanOrEqual(0)` do e2e da troca de escola; `tools/vitrine` não captura o painel modal aberto (o Validador usa o e2e); nome da escola cortado ("Colégio s…") no celular (X-spec da casca).
 - [ ] **`sino-por-area.test.tsx`:** a espera invertida de 300 ms depende de o teste de controle já ter carregado o `lazy()` do sino; carregar o código no `beforeAll` (telas da coordenação, 1.0).
 - [ ] **`Abas` a 360 px (telas da coordenação, 3.0).** Em Escola a aba "Material" cai numa segunda linha. Mexe no layout do `Abas` para as quatro telas de abas (Escola, Registros e as que vêm), e não numa tela só: decidir se a linha rola de lado dentro do próprio contêiner ou se o rótulo encurta.
-- [ ] **Sombra ou borda no pé do miolo que rola (telas da coordenação, 3.0).** Dá a pista de que há mais embaixo. É decisão de desenho do mockup e só faz sentido com a altura do miolo fechada (3.0).
+- [x] *(saiu: D80 revista em 30/10/2026, o mockup é referência)* ~~**Sombra ou borda no pé do miolo que rola (telas da coordenação, 3.0).** Dá a pista de que há mais embaixo. É decisão de desenho do mockup e só faz sentido com a altura do miolo fechada (3.0).~~
 - [ ] **Nome da escola cortado no cabeçalho do celular (telas da coordenação, 3.0).** A 360 px a barra de topo mostra "Colégio s…". Decidir junto com as abas do `Abas` a 360 px (item acima).
 - [ ] **Analista: o "Gerar resumo" do alto durante a leitura (telas da coordenação, 4.0; frontend-reviewer e revisor-geral, 1ª rodada; test-engineer, 1ª e 2ª).** Hoje o botão do alto aparece enquanto `resumo.isPending`, um toque nessa hora já gera, e ele some quando o vazio chega (salto de layout). Esconder também na leitura muda o que o comentário de `Analista.test.tsx` diz ser intencional. Junto: a mutação 3 do `4_task.md` fica vermelha por `TypeError`, e `resumo.data?.resumo == null` esconderia o botão na carga sem teste nenhum perceber.
 - [ ] **Analista: mínimo de alunos por recorte (telas da coordenação, 4.0; privacy-guardian, 1ª rodada).** Um recorte com "2 alunos" mostra o acerto (75%), perto do individual; a regra pede dois professores, e não diz quantos alunos. Decidir junto dos indicadores de desempenho, antes do piloto com dado real. Já existia antes da 4.0.
@@ -2079,8 +2079,8 @@ Ficam, de antes da retro:
       `Linha` seria mais robusto, e o e2e passaria a usá-lo (`e2e/aluno-atividade.spec.ts`, "Tarefas a 360 px"). A mudança é na
       `Linha`, da X1 (dono: Arquiteto, com a X1; origem: `4_task.md`, `revisor-geral` 1ª)
 - [ ] **(X4, 6.0) A ordem do Tab na tarefa aberta: "Anterior" e "Próxima" vêm no DOM depois de "Enviar a atividade" e de "Pedir
-      ajuda ao Tutor".** A barra presa é o último bloco, e o envio fica acima dela. Reavaliar se o envio vai para dentro da barra,
-      como no mockup 2.3a (muda a estrutura da tela, e por isso não é barata). O Validador confere a forma contra o mockup 2.3a
+      ajuda ao Tutor".** A barra presa é o último bloco, e o envio fica acima dela. Reavaliar se o envio vai para dentro da barra
+      (muda a estrutura da tela, e por isso não é barata)
       (dono: Validador; origem: `6_task.md`, `frontend-reviewer` 1ª)
 - [ ] **(X4, 6.0) O dado da vitrine cheia se contradiz:** a tarefa corrigida diz "Você respondeu 0 de 4 questões" ao lado de
       "Você acertou 3 de 4". É o semeador de `tools/vitrine/`, fora dos arquivos da 6.0: semear as respostas da atividade
@@ -2276,15 +2276,16 @@ repetem aqui.
       id (frontend-reviewer, rodada 1)
 - [ ] Da correção `2026-10-28-onca-do-mockup-v2`: se aparecer um segundo export "só para os testes" no código de produção, criar a guarda
       que reprove o uso fora de `*.test.*` (hoje só `esquecerQueAcenou`, em `movimento-da-onca.ts`)
-- [ ] Da correção `2026-10-28-onca-do-mockup-v2`: `tasks/prd-pele-e-casca/mockup.md:1369` e `docs/interface.md:1154` ainda descrevem o aceno
-      pela chave do `sessionStorage` ou sem dizer que "sessão" é a página aberta; o Arquiteto ajusta na próxima passagem por `docs/interface.md`
+- [x] *(feito em 30/10/2026 no `docs/interface.md` 9.7, que diz "desde que a página abriu" e onde a marca fica; o `mockup.md` da X1 é registro e não se edita)* ~~Da correção `2026-10-28-onca-do-mockup-v2`: `tasks/prd-pele-e-casca/mockup.md:1369` e `docs/interface.md:1154` ainda descrevem o aceno
+      pela chave do `sessionStorage` ou sem dizer que "sessão" é a página aberta; o Arquiteto ajusta na próxima passagem por `docs/interface.md`~~
 - [ ] Da correção `2026-10-28-onca-do-mockup-v2`: congelar a mão de cada pose (`maoD`, punho ou creme, e o `cy` 212 em acenando e apontando) em
       `fidelidade-ao-mockup.test.tsx`, junto da fidelidade da onça
 - [ ] e2e com "reduzir movimento" no passo `pensando` da introdução do aluno (test-engineer, rodada 1); o da árvore da
       comemoração entrou na correção
-- [ ] Da rodada 2 da onça: `docs/interface.md` (tabela da 9.5) ainda diz que a comemoração usa o `t-salto` (600 ms, `curva-quique`), e o
+- [x] *(feito em 30/10/2026: a 9.5 e o bloco da 9.10 não têm mais `t-salto`, `t-barra` nem `curva-quique`, que o `estilos.css` já não tinha; a 9.7 não fala mais em movimento próprio)* ~~Da rodada 2 da onça: `docs/interface.md` (tabela da 9.5) ainda diz que a comemoração usa o `t-salto` (600 ms, `curva-quique`), e o
       salto que ficou é o `onca-comemorar` (500 ms, `ease-out`); nenhum CSS de `apps/web/src` usa o token: alinhar a linha ou tirar
       `--t-salto` do `index.css`. E a linha da 9.7 que ainda fala em "movimento próprio do conformidade-reviewer" na `Comemoracao`
+      `--t-salto` do `estilos.css`. E a linha da 9.7 que ainda fala em "movimento próprio do conformidade-reviewer" na `Comemoracao`~~
 - [ ] Da rodada 2 da onça, só de arrumação: `estilos.test.ts` (caso "nenhum CSS de `apps/web/src`… tem laço") faz uma segunda busca
       recursiva de pasta, e o arquivo já tem uma; `Introducao.test.tsx` ("a onça não se mexe: nenhum temporizador entre um passo e
       outro") pede nome revisto; o comentário da prop `animada` em `Onca.tsx` virou uma linha só, longa; os 30 s do caso "nenhuma
@@ -2306,9 +2307,9 @@ repetem aqui.
 - [ ] Da validação da onça, rodada 3 (m1 e m2): em `EstadoVazio.tsx`, o `justify-center` do `TopoDoVazio` (`:33`) e o da linha do botão (`:56`)
       não fazem nada no `tracejado` (quem centraliza é o `items-center` da caixa); e `e2e/professor-criados.spec.ts:82` mede a onça, o título e o
       botão, mas não o centro de cada linha da descrição (por `Range`)
-- [ ] Da validação da onça, rodadas 2 e 3 (m5): o mockup usa `pensando` em dois passos da introdução do professor e `acolhendo` na da
+- [x] *(saiu: D80 revista em 30/10/2026, o mockup é referência)* ~~Da validação da onça, rodadas 2 e 3 (m5): o mockup usa `pensando` em dois passos da introdução do professor e `acolhendo` na da
       coordenação. A `acolhendo` não entra (D80, item 3); o `pensando` na introdução do professor pede parecer do conformidade-reviewer, se o
-      Joaquim quiser
+      Joaquim quiser~~
 - [ ] Da correção da onça: o push de um commit só de documento na branch cancela a esteira do commit de código anterior (cancelou três vezes em
       28/10). Fazer o commit de documento depois da esteira, ou a esteira não cancelar quando o commit novo não muda código (dono: Orquestrador)
 
@@ -2454,3 +2455,59 @@ repetem aqui.
       de 2025 ficam lá até o fim do `describe`: um ano exclusivo do caso, ou um ajudante que crie ou reaproveite o ano anterior (test-engineer e infra-guardian,
       rodada 1); (c) opcional: um caso em `apps/api/test/arquivo-do-titular.int.test.ts` provando que o arquivo do titular traz a mensagem do Tutor de um ano encerrado
       (privacy-guardian, rodada 1)
+## Da correção 2026-10-30-tela-de-entrar (a pinta centrada da casca pública), fora dela
+
+- [ ] Da correção `2026-10-30-tela-de-entrar`: teste de guarda do `lg:` da altura mínima da `CascaPublica` (`lg:min-h-[40rem]`). Trocar por
+      `min-h-[40rem]` empilharia 640 px de painel no celular sem nenhum teste vermelho; o caso de 1023 e 360 px poderia exigir o painel empilhado
+      baixo (uma quarta mutação). Junto, medir a rolagem vertical a 1024 × 500 (`scrollHeight >= 640`), que o comentário afirma e o caso não mede: a
+      altura do painel hoje é provada só de forma indireta, pela pinta abaixo da marca (test-engineer, rodada 2)
+- [ ] Da correção `2026-10-30-tela-de-entrar`: observação, só a reabrir se houver queixa. A 1024 × 500 o botão "Entrar" fica a poucos pixels da borda de
+      baixo da janela, e quem não sabe que a página rola pode achar que o formulário termina ali; a saída seria `lg:min-h-[40rem]` valer só acima de uma
+      altura de janela (frontend-reviewer, rodada 2)
+- [ ] Da correção `2026-10-30-tela-de-entrar`: acompanhar o tempo do caso novo de `e2e/casca-publica.spec.ts` na esteira da `develop`, depois do pouso
+      (3,6 a 4,1 s contra os 15 s do portão); se passar de 10 s, entra no lote de e2e perto do prazo (infra-guardian, rodadas 1 e 2)
+
+## Da correção 2026-10-30-onca-na-entrada (a onça da marca na casca pública), fora dela
+
+- [ ] Da correção `2026-10-30-onca-na-entrada`: `Cache-Control` longo e `immutable` para `assets/*-[hash].js` no servidor da web; o `infra/Caddyfile` não o define,
+      e o pedaço da onça, como os outros, é baixado de novo na rede lenta da escola. Conferir primeiro de onde a web é servida (infra-guardian, rodada 1)
+- [ ] Da correção `2026-10-30-onca-na-entrada`: registrar um evento sem dado pessoal quando o pedaço da onça não carrega (por exemplo `casca.onca.falhou`); depende de a web
+      já ter um canal de erro do front, e criar um é trabalho próprio (infra-guardian, rodada 2)
+- [ ] Da correção `2026-10-30-onca-na-entrada`: uma linha na AIA ou no dossiê de conformidade dizendo que a mascote da marca não é agente nem saída de IA;
+      `docs/aia/` e `docs/conformidade-mec.md` (conformidade-reviewer, rodada 1)
+- [ ] Da correção `2026-10-30-onca-na-entrada`: guarda que impeça um componente fora da casca de pôr `data-onca` na onça da marca; hoje só o `OncaDaMarca.test.tsx` prova a
+      ausência, e a lista fechada de `avatar-so-nas-duas-pecas.test.ts` limita quem importa a peça (conformidade-reviewer, rodada 2)
+- [ ] Da correção `2026-10-30-onca-na-entrada`: a D80 revista, em `docs/decisoes.md`, ainda descreve o painel da casca pública em `laranja-claro`; a foto do tema claro o
+      devolveu a `papel` (11.3). Revisão de decisão se escreve pela skill `registrar-decisao` (revisor-geral, rodada 1)
+- [ ] Da correção `2026-10-30-onca-na-entrada`: `docs/interface.md` (por volta da linha 1172) ainda diz "na primeira vez desde que a página abriu"; remeter ao parágrafo da onça da marca
+      na 9.7, que separa o aceno da marca do do agente. Entra na próxima revisão da 9.7 (revisor-geral, rodada 2)
+- [ ] Da correção `2026-10-30-onca-na-entrada`: levar à retro o ponto cego do `mutacoes.ts --faltando`: os `.ts` da raiz de `apps/web/` (`chunk-names.ts`) ficam fora da
+      varredura de linha nova com condição, e a cláusula nova de lá só ganhou bloco porque o revisor a viu (test-engineer, rodada 1)
+- [ ] Da correção `2026-10-30-onca-na-entrada`: e2e com `page.route('**/assets/pecas-*OncaDaMarca*.js', (r) => r.abort())` em `/entrar`, para provar no navegador, com o nome real do
+      pedaço, que a falha do carregamento deixa o formulário de pé; o unitário já prova a regra, e `e2e/casca-publica.spec.ts` está perto do prazo (test-engineer, rodada 2)
+- [ ] Da correção `2026-10-30-onca-na-entrada`: a onça de 160 px continua montada no celular e gasta o aceno da marca sem ninguém ver; sem efeito hoje, e a que aparece ao passar de
+      1024 px depois não acena. Reabrir se a marca passar a acenar também no celular (revisor-geral, rodada 2)
+- [ ] Da correção `2026-10-30-onca-na-entrada`: acabamento. Juntar os dois blocos JSDoc seguidos de `movimento-da-onca.ts` (o primeiro ficou solto no tipo `DonoDoAceno`) e dar à
+      mensagem `'a marca gasta já foi para o agente'` de `OncaDaMarca.test.tsx` o que ela confere; entra quando outra tarefa tocar os arquivos (revisor-geral e test-engineer, rodada 2)
+
+## Da correção 2026-10-30-cenario-da-onca (o canto de sala da onça na casca pública), fora dela
+
+- [ ] Da correção `2026-10-30-cenario-da-onca`: no celular a caixa do cenário está `hidden`, mas o `lazy` de `CascaPublica.tsx:71-75` ainda baixa o pedaço `CenaDaOnca`;
+      condicionar o `import()` a `matchMedia('(min-width: 1024px)')`, ajustando o contrato dos testes da casca (frontend-reviewer, rodada 2)
+- [ ] Da correção `2026-10-30-cenario-da-onca`: tirar o `160` de `TamanhoDaOncaDaMarca` e passar `OncaDaMarca.test.tsx:70` para 240 e 88 (os casos das linhas 27, 56, 83, 96 e 108
+      renderizam `tamanho={160}`); entra na tarefa que tocar `OncaDaMarca` (conformidade-reviewer e revisor-geral, rodada 1)
+- [ ] Da correção `2026-10-30-cenario-da-onca`: `docs/interface.md:1237` ainda diz "a de 160 px, escondida só pelo CSS"; texto do Arquiteto (revisor-geral, rodada 1)
+- [ ] Da correção `2026-10-30-cenario-da-onca`: as peças da casca estão em 35,01 kB de um teto de 40; olhar antes da próxima peça. O `Cache-Control` dos `pecas-*` é o item já
+      aberto na seção da `onca-na-entrada` (infra-guardian, rodada 1)
+- [ ] Da correção `2026-10-30-cenario-da-onca`: conferir, numa tarefa própria, que o fluxo do aluno não pede e-mail; o campo "E-mail" de `/entrar` é da casca de antes
+      (regra 20, item 2; D48) (privacy-guardian, rodada 2)
+
+## Da correção 2026-11-02-merge-da-develop (o merge da develop na X8), fora dela
+
+- [ ] Da correção `2026-11-02-merge-da-develop`: os comentários de `apps/web/src/components/ui/Comemoracao.tsx:19` e `apps/web/src/components/ui/ai/AgentAvatar.tsx:52`
+      citam `ia/avatar-so-nas-duas-pecas.test.ts`, que é `ai/…`; já estavam assim no HEAD da spec (conformidade-reviewer, rodada 1)
+- [ ] Da correção `2026-11-02-merge-da-develop`: na mensagem do segundo fator, a 1366 px, "e-mail" quebra em "e-" / "mail"; `e‑mail` (hífen sem quebra) ou
+      `text-wrap: pretty`. É CSS da tela de entrar que veio da `develop` (frontend-reviewer, rodada 1)
+- [ ] Da correção `2026-11-02-merge-da-develop`: contar na telemetria do front a falha de carga do pedaço da onça (`.catch(() => SEM_ONCA)` da `CascaPublica`);
+      a telemetria do front ainda não existe (infra-guardian, rodada 1)
+- [ ] Da correção `2026-11-02-merge-da-develop`: citar em `docs/infra.md`, seção 3, o teto do primeiro carregamento da entrada (infra-guardian, rodada 1)
