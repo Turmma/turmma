@@ -40,7 +40,7 @@ function nosDoPlano(no: NoDoPlano | undefined): NoDoPlano[] {
 }
 
 /**
- * O `sintetico` deste arquivo aceita, além dos dados do sintético, o `rotulo` da escola que o `ProcessadorContado` conta: o
+ * O `sintetico` deste arquivo aceita, além dos dados do sintético, o `rotulo` da escola que o `CountingProcessor` conta: o
  * registro de produção o recusaria (chave a mais), e é por isso que o teste injeta o seu na bancada. Os campos são opcionais
  * porque os casos que não contam por escola enfileiram o dado padrão da bancada.
  */
@@ -53,10 +53,10 @@ const DEFINICOES_DO_TESTE = {
 }
 
 /**
- * Processador que conta, por rótulo de escola (`dados.rotulo`), quantos jobs começaram e quantos
+ * `CountingProcessor`: o processador que conta, por rótulo de escola (`dados.rotulo`), quantos jobs começaram e quantos
  * rodaram ao mesmo tempo. Com `duracaoMs`, cada job leva esse tempo; sem, espera `soltar()`.
  */
-class ProcessadorContado {
+class CountingProcessor {
   readonly #emExecucao = new Map<string, number>()
   readonly #maximo = new Map<string, number>()
   readonly #iniciados = new Map<string, number>()
@@ -106,7 +106,7 @@ describe('vagas por escola e filas por prioridade', () => {
   let ESCOLA_A: string
   let ESCOLA_B: string
   let ESCOLA_C: string
-  const processadores: ProcessadorContado[] = []
+  const processadores: CountingProcessor[] = []
 
   beforeEach(async () => {
     bancada = new QueueFixtures(DEFINICOES_DO_TESTE)
@@ -119,8 +119,8 @@ describe('vagas por escola e filas por prioridade', () => {
     await bancada.fechar()
   }, 60_000)
 
-  function contado(duracaoMs?: number): ProcessadorContado {
-    const processador = new ProcessadorContado(duracaoMs)
+  function contado(duracaoMs?: number): CountingProcessor {
+    const processador = new CountingProcessor(duracaoMs)
     processadores.push(processador)
     return processador
   }

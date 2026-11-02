@@ -518,6 +518,16 @@ describe('guarda de nome de mercado (RF8; regra 60; D81)', () => {
     ['ArmazemX', 'classe', 'apps/api/src/x.ts', ['`XFileStorage`']],
     ['MedicaoX', 'classe', 'apps/api/src/x.ts', ['`XGauge`']],
     ['BancadaX', 'classe', 'apps/api/src/x.ts', ['`XFixtures`']],
+    ['AgendadorX', 'classe', 'apps/api/src/x.ts', ['`XScheduler`']],
+    ['AgendadorDeExecucao', 'classe', 'apps/api/src/x.ts', ['`ExecucaoScheduler`']],
+    ['ProcessadorDeX', 'classe', 'apps/api/src/x.ts', ['`XProcessor`']],
+    ['ProcessadorX', 'classe', 'apps/api/src/x.ts', ['`XProcessor`']],
+    ['Processador', 'classe', 'apps/api/src/x.ts', ['`JobProcessor`']],
+    ['ExecutorDeX', 'classe', 'apps/api/src/x.ts', ['`XExecutor`']],
+    ['ExecutorX', 'classe', 'apps/api/src/x.ts', ['`XExecutor`']],
+    ['ExecutorDeJobs', 'classe', 'apps/api/src/x.ts', ['`JobExecutor`']],
+    ['METADADO_ROTA_ANONIMA', 'const', 'apps/api/src/x.ts', ['`ROTA_ANONIMA_KEY`']],
+    ['CHAVE_MEUS_VINCULOS', 'const', 'apps/web/src/x.ts', ['`MEUS_VINCULOS_QUERY_KEY`']],
     ['XEmMemoria', 'classe', 'apps/api/src/x.ts', ['`InMemoryX`']],
     ['XEmMemoria', 'interface', 'apps/api/src/x.ts', ['`InMemoryX`']],
     ['XEmMemoria', 'tipo', 'apps/api/src/x.ts', ['`InMemoryX`']],
@@ -565,6 +575,9 @@ describe('guarda de nome de mercado (RF8; regra 60; D81)', () => {
     expect(mensagem).toContain('XAdapter')
     const [doErro] = await mensagensDe('export class ErroX {}', 'apps/api/src/x.ts')
     expect(doErro).toContain('`XException` ou `XError`')
+    const [doAgendador] = await mensagensDe('export class AgendadorDeX {}', 'apps/api/src/ia/x.ts')
+    expect(doAgendador).toContain('`AgendadorDeX`')
+    expect(doAgendador).toContain('`XScheduler`')
   })
 
   it('a mesma forma no tipo em que a linha não vale passa, e o nome de domínio, de propósito, também', async () => {
@@ -593,7 +606,7 @@ describe('guarda de nome de mercado (RF8; regra 60; D81)', () => {
     expect(await mensagensDe(comMaiuscula, 'apps/api/src/x.ts')).toHaveLength(2)
   })
 
-  it('`consulta…` vale só em apps/web: lá reprova const e função, e passa tipo, interface e classe; fora de lá, passa', async () => {
+  it('`consulta…` e `CHAVE_…` valem só em apps/web: lá reprovam const e função, e passam tipo, interface e classe; fora de lá, passam', async () => {
     const fixture = 'nome-so-na-web.ts'
     expect(await lintar(eslintDasGuardas, fixture, 'apps/web/src/x.ts', regras)).toEqual(marcasDeViolacao(fixture))
     for (const caminho of ['apps/api/src/x.ts', 'apps/webhook/src/x.ts', 'packages/core/src/x.ts', 'e2e/x.spec.ts']) {
@@ -618,6 +631,9 @@ describe('guarda de nome de mercado (RF8; regra 60; D81)', () => {
     ['packages/core/src/repositorio-em-memoria.ts', 'in-memory-repositorio'],
     ['apps/api/src/x-em-memoria.ts', 'in-memory-x'],
     ['e2e/support/adaptador-x.ts', 'x-adapter'],
+    ['apps/api/test/material-de-teste.ts', 'material.fixture'],
+    ['apps/api/test/material-de-teste.int.test.ts', 'material.fixture'],
+    ['packages/core/src/sessao-de-teste.ts', 'sessao.fixture'],
   ])('o arquivo %s é recusado, e a mensagem dá %s', async (caminho, sugestao) => {
     expect(await lintar(eslintDasGuardas, SEM_MARCA, caminho, regras)).toEqual(DA_GUARDA)
     expect((await mensagensDe(lerFixture(SEM_MARCA), caminho))[0]).toContain(`\`${sugestao}\``)
@@ -627,6 +643,7 @@ describe('guarda de nome de mercado (RF8; regra 60; D81)', () => {
     'apps/api/src/adaptador-x/y.ts',
     'apps/web/src/guarda-x/y.ts',
     'apps/api/src/x-em-memoria/y.ts',
+    'apps/api/test/material-de-teste/y.ts',
     'packages/core/src/adaptador-x/y.ts',
     'packages/core/src/fila/y.ts',
     'packages/core/src/limite/y.ts',
@@ -651,6 +668,9 @@ describe('guarda de nome de mercado (RF8; regra 60; D81)', () => {
     'packages/core/src/adaptador/y.ts',
     'packages/core/src/ia/ollama-adapter.ts',
     'packages/core/src/x-em-memoria-y.ts',
+    'apps/api/test/material-de-testes.ts',
+    'apps/api/test/material.fixture.ts',
+    'apps/api/test/de-teste.ts',
     'apps/api/src/turma/turma.guard.ts',
     'apps/api/src/guardas/y.ts',
   ])('o caminho %s passa: fila/ e limite/ são domínio nos apps, e o resto não é segmento da lista', async (caminho) => {
@@ -663,6 +683,13 @@ describe('guarda de nome de mercado (RF8; regra 60; D81)', () => {
     for (const caminho of ['e2e/outro.spec.ts', 'apps/web/src/x.ts', 'e2e/support/aparencia.spec.ts']) {
       expect(await lintar(eslintDasGuardas, fixture, caminho, regras), caminho).toEqual(marcasDeViolacao(fixture))
     }
+  })
+
+  it('a exceção nominal `CHAVE_CHEIO_NAS_CLASSES` passa em apps/web/src/__fixtures__/danger-solid.ts e reprova em qualquer outro arquivo', async () => {
+    const texto = 'const CHAVE_CHEIO_NAS_CLASSES = /x/\nvoid CHAVE_CHEIO_NAS_CLASSES\n'
+    expect(await mensagensDe(texto, 'apps/web/src/__fixtures__/danger-solid.ts')).toEqual([])
+    for (const caminho of ['apps/web/src/__fixtures__/outro.ts', 'apps/web/src/danger-solid.ts']) expect(await mensagensDe(texto, caminho), caminho).toHaveLength(1)
+    expect((await mensagensDe(texto, 'apps/web/src/x.ts'))[0]).toContain('`CHEIO_NAS_CLASSES_QUERY_KEY`')
   })
 
   it('a exceção nominal tem alvo: o arquivo existe e cita o nome', () => {

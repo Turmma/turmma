@@ -11,6 +11,12 @@ export class EmissorX {} // reprova: guardas/nome-de-mercado
 export class ArmazemX {} // reprova: guardas/nome-de-mercado
 export class MedicaoX {} // reprova: guardas/nome-de-mercado
 export class BancadaX {} // reprova: guardas/nome-de-mercado
+export class AgendadorX {} // reprova: guardas/nome-de-mercado
+export class AgendadorDeJobs {} // reprova: guardas/nome-de-mercado
+export class ProcessadorX {} // reprova: guardas/nome-de-mercado
+export class Processador {} // reprova: guardas/nome-de-mercado
+export class ExecutorDeX {} // reprova: guardas/nome-de-mercado
+export class ExecutorDeJobs {} // reprova: guardas/nome-de-mercado
 export class ErroDaOperacao {} // reprova: guardas/nome-de-mercado
 export class FalhaDeMaterial {} // reprova: guardas/nome-de-mercado
 export class FiltroDeEstado {} // reprova: guardas/nome-de-mercado
@@ -30,6 +36,8 @@ export function esquemaDoLote(): void {} // reprova: guardas/nome-de-mercado
 export function lerConfiguracaoX(): void {} // reprova: guardas/nome-de-mercado
 export function lerConfiguracao(): void {} // reprova: guardas/nome-de-mercado
 export const lerConfiguracaoDoAmbiente = (): void => {} // reprova: guardas/nome-de-mercado
+
+export const METADADO_ROTA_ANONIMA = 1 // reprova: guardas/nome-de-mercado
 
 export class Botao {} // reprova: guardas/nome-de-mercado
 export interface Cartao {} // reprova: guardas/nome-de-mercado

@@ -22,6 +22,18 @@ export class EliminacaoDoTitular {}
 export class PedidoDoTitular {}
 export class CorrecaoService {}
 export class ValidacaoDoLote {}
+export function AgendadorX(): void {}
+export type ProcessadorX = Record<string, string>
+export interface ExecutorDeX {}
+export const METADADOS_X = 1
+export const METADADO = 1
+export const CHAVE_X = 1
+export const ConsultaX = 1
+export interface ConsultaDoReact {}
+export class Agendamento {}
+export class Agendadores {}
+export class Processadores {}
+export class Executores {}
 export const Erros = 1
 export const Linhas = 2
 export class Erro {}

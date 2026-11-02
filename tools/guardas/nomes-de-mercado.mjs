@@ -43,6 +43,14 @@ export const FORMAS = [
   { forma: 'Armazem', casa: 'prefixo', tipos: EM_CLASSE, mercado: ['{X}FileStorage'] },
   { forma: 'Medicao', casa: 'prefixo', tipos: EM_CLASSE, mercado: ['{X}Gauge'] },
   { forma: 'Bancada', casa: 'prefixo', tipos: EM_CLASSE, mercado: ['{X}Fixtures'] },
+  { forma: 'AgendadorDe', casa: 'prefixo', tipos: EM_CLASSE, mercado: ['{X}Scheduler'] },
+  { forma: 'Agendador', casa: 'prefixo', tipos: EM_CLASSE, mercado: ['{X}Scheduler'] },
+  { forma: 'Processador', casa: 'exato', tipos: EM_CLASSE, mercado: ['JobProcessor'] },
+  { forma: 'ProcessadorDe', casa: 'prefixo', tipos: EM_CLASSE, mercado: ['{X}Processor'] },
+  { forma: 'Processador', casa: 'prefixo', tipos: EM_CLASSE, mercado: ['{X}Processor'] },
+  { forma: 'ExecutorDeJobs', casa: 'exato', tipos: EM_CLASSE, mercado: ['JobExecutor'] },
+  { forma: 'ExecutorDe', casa: 'prefixo', tipos: EM_CLASSE, mercado: ['{X}Executor'] },
+  { forma: 'Executor', casa: 'prefixo', tipos: EM_CLASSE, mercado: ['{X}Executor'] },
 
   { forma: 'EmMemoria', casa: 'sufixo', tipos: ['classe', 'interface', 'tipo'], mercado: ['InMemory{X}'] },
 
@@ -56,6 +64,11 @@ export const FORMAS = [
   { forma: 'lerConfiguracao', casa: 'prefixo', tipos: EM_CONST_E_FUNCAO, mercado: ['load{X}Config'] },
   { forma: 'consulta', casa: 'prefixo', tipos: EM_CONST_E_FUNCAO, mercado: ['{x}QueryOptions'], onde: /^apps\/web\// },
 
+  // A constante de chave: a de metadado do Nest (`SetMetadata`) em qualquer lugar; a do TanStack Query só na web, porque
+  // `CHAVE_DA_TRAVA_*`, `CHAVE_V1` e afins são chave de lock, de cifra e de teste nos apps e nos pacotes.
+  { forma: 'METADADO_', casa: 'prefixo', tipos: EM_CONST_E_FUNCAO, mercado: ['{X}_KEY'] },
+  { forma: 'CHAVE_', casa: 'prefixo', tipos: EM_CONST_E_FUNCAO, mercado: ['{X}_QUERY_KEY'], onde: /^apps\/web\// },
+
   // A pasta das tarefas de IA se chama `tasks/` desde a 5.0 (`ia/tarefas/` → `ia/tasks/`).
   ...['EntradaDe', 'EntradaDo'].map((forma) => ({ forma, casa: 'prefixo', tipos: EM_INTERFACE_E_TIPO, mercado: ['{X}Input'], onde: /(?:^|\/)ia\/tasks\// })),
   ...['SaidaDe', 'SaidaDo'].map((forma) => ({ forma, casa: 'prefixo', tipos: EM_INTERFACE_E_TIPO, mercado: ['{X}Output'], onde: /(?:^|\/)ia\/tasks\// })),
@@ -63,12 +76,13 @@ export const FORMAS = [
 
 /**
  * O segmento de arquivo e de pasta (sem a extensão, que começa no primeiro ponto): `adaptador-*`, `guarda-*`,
- * `*-em-memoria`. Vale em todo o escopo da guarda; `mercado` é o que a mensagem sugere.
+ * `*-em-memoria`, `*-de-teste`. Vale em todo o escopo da guarda; `mercado` é o que a mensagem sugere.
  */
 export const SEGMENTOS = [
   { padrao: /^adaptador-(.+)/, mercado: '{x}-adapter' },
   { padrao: /^guarda-(.+)/, mercado: '{x}.guard' },
   { padrao: /^(.+)-em-memoria$/, mercado: 'in-memory-{x}' },
+  { padrao: /^(.+)-de-teste$/, mercado: '{x}.fixture' },
 ]
 
 /** A pasta que é domínio nos apps ("fila", "limite") e por isso só é técnica em `packages/`. */
@@ -86,5 +100,10 @@ export const EXCECOES_NOMINAIS = [
     arquivo: 'e2e/aparencia.spec.ts',
     nome: 'esquemaDeCor',
     motivo: 'É o esquema de cor da tela (`prefers-color-scheme`, o `color-scheme` do navegador), e não um schema zod.',
+  },
+  {
+    arquivo: 'apps/web/src/__fixtures__/danger-solid.ts',
+    nome: 'CHAVE_CHEIO_NAS_CLASSES',
+    motivo: 'É a chave `cheio` de um objeto, procurada por expressão regular no código da tela, e não uma chave do TanStack Query.',
   },
 ]
