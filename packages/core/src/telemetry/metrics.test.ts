@@ -134,7 +134,7 @@ describe('configuração da telemetria', () => {
 describe('métricas com escola', () => {
   it('lista fechada: `escola_id` só nas quatro de job, nas três de login (Tech Spec da identidade, 7c) nas noites sem expurgo (F3, tarefa 3.0) nas horas do incidente sem confirmação (F3, tarefa 9.0) nas do arquivo do titular em preparação (F3, tarefa 13.0) e nas da eliminação agendada vencida (F3, tarefa 15.0)', () => {
     // Uma métrica nova com escola precisa entrar aqui de propósito: o rótulo multiplica as séries por escola, e fora
-    // desta lista o teste de cardinalidade da observabilidade (infra/test/metrics.int.test.ts) a reprova.
+    // desta lista o teste de cardinalidade da observabilidade (infra/test/metricas.int.test.ts) a reprova.
     expect([...METRICS_WITH_ESCOLA].sort()).toEqual(
       [
         METRICS.esperaMaisAntiga,
