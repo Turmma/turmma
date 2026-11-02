@@ -907,10 +907,10 @@ describe('camada de IA na API', () => {
       const { pedido: pedidoTutorDeB } = pedidoDoTutor(b, b.outroAluno, 'como eu acho o reagente limitante?')
       await como(b, b.outroAluno, 'aluno', () => agendador.agendar(pedidoTutorDeB))
       await executor.ociosa()
-      const { rows: doTutor } = await sql(`select id from mensagem_tutor where escola_id = $1 and aluno_id = $2 and autor = 'tutor' limit 1`, [b.escolaId, b.outroAluno.usuarioId])
+      const { rows: doTutor } = await sql(`select id from mensagem_tutor where escola_id = $1 and ano_letivo_id = $3 and aluno_id = $2 and autor = 'tutor' limit 1`, [b.escolaId, b.outroAluno.usuarioId, b.anoLetivoId])
       const { rows: doAssistente } = await sql(
-        `select m.id from mensagem_agente m join thread_agente t on t.escola_id = m.escola_id and t.id = m.thread_id where m.escola_id = $1 and t.usuario_id = $2 and m.autor = 'agente' limit 1`,
-        [b.escolaId, b.professor.usuarioId],
+        `select m.id from mensagem_agente m join thread_agente t on t.escola_id = m.escola_id and t.id = m.thread_id where m.escola_id = $1 and m.ano_letivo_id = $3 and t.usuario_id = $2 and m.autor = 'agente' limit 1`,
+        [b.escolaId, b.professor.usuarioId, b.anoLetivoId],
       )
       const [idDoTutor, idDoAssistente] = [(doTutor as { id: string }[])[0]?.id ?? '', (doAssistente as { id: string }[])[0]?.id ?? '']
       expect(idDoTutor).not.toBe('')
@@ -953,6 +953,38 @@ describe('camada de IA na API', () => {
       expect(await doProfessor(anterior, () => execucoes.mensagemDoAssistente(mensagemId))).toMatchObject({ id: mensagemId })
       // Sem ano em curso no contexto, falha fechado como objeto que não existe, antes de ler: nunca cai num ano qualquer.
       const semAno = runInContext({ requisicaoId: randomUUID(), escolaId: a.escolaId, usuarioId: a.professor.usuarioId }, () => execucoes.mensagemDoAssistente(mensagemId))
+      expect(await erroDe(semAno)).toMatchObject({ codigo: ErrorCode.NAO_ENCONTRADO })
+    })
+
+    it('a resposta do Tutor é do ano letivo em que foi dada: no ano em curso, a de um ano anterior do mesmo aluno não é achada', async () => {
+      // Mesma escola e mesmo aluno, com turma e execução do ano anterior: só o ano muda. Nada além da cláusula de ano da própria
+      // mensagem a tira do alcance (as FKs só ligam a mensagem à turma e à execução do ano dela), regra 10, item 2.
+      // Na escola B, porque o caso do Assistente já abriu o ano de 2025 da A (um por escola e ano).
+      const { rows: anos } = await sql(`insert into ano_letivo (escola_id, ano, inicio, fim, situacao) values ($1, 2025, '2025-02-01', '2025-12-15', 'encerrado') returning id`, [b.escolaId])
+      const anterior = (anos as { id: string }[])[0]?.id ?? ''
+      const { rows: turmas } = await sql(`insert into turma (escola_id, ano_letivo_id, serie_id, nome) values ($1, $2, $3, 'turma de 2025') returning id`, [b.escolaId, anterior, b.serieId])
+      const turmaId = (turmas as { id: string }[])[0]?.id ?? ''
+      const { rows: execucoesGravadas } = await sql(
+        `insert into execucao_agente (escola_id, ano_letivo_id, funcao, tarefa, solicitada_por, chave_envio, entrada)
+         values ($1, $2, 'tutor_com_o_aluno', 'turno_do_tutor', $3, $4, '{"tarefa":"turno_do_tutor"}') returning id`,
+        [b.escolaId, anterior, b.outroAluno.usuarioId, randomUUID()],
+      )
+      const execucaoId = (execucoesGravadas as { id: string }[])[0]?.id ?? ''
+      const { rows: mensagens } = await sql(
+        `insert into mensagem_tutor (escola_id, ano_letivo_id, turma_id, aluno_id, execucao_id, autor, tipo, texto) values ($1, $2, $3, $4, $5, 'tutor', 'texto', 'resposta sintética de 2025') returning id`,
+        [b.escolaId, anterior, turmaId, b.outroAluno.usuarioId, execucaoId],
+      )
+      const mensagemId = (mensagens as { id: string }[])[0]?.id ?? ''
+      expect(mensagemId).not.toBe('')
+      const execucoes = new ExecucaoDaSessaoRepository(bancada.banco)
+      const doAluno = <T>(anoLetivoId: string, funcao: () => T): T =>
+        runInContext({ requisicaoId: randomUUID(), escolaId: b.escolaId, usuarioId: b.outroAluno.usuarioId, anoLetivoId }, funcao)
+
+      expect(await doAluno(b.anoLetivoId, () => execucoes.mensagemDoTutor(mensagemId))).toBeUndefined()
+      // No ano dela, o mesmo aluno a acha.
+      expect(await doAluno(anterior, () => execucoes.mensagemDoTutor(mensagemId))).toMatchObject({ id: mensagemId })
+      // Sem ano em curso no contexto, falha fechado como objeto que não existe, antes de ler: nunca cai num ano qualquer.
+      const semAno = runInContext({ requisicaoId: randomUUID(), escolaId: b.escolaId, usuarioId: b.outroAluno.usuarioId }, () => execucoes.mensagemDoTutor(mensagemId))
       expect(await erroDe(semAno)).toMatchObject({ codigo: ErrorCode.NAO_ENCONTRADO })
     })
 
