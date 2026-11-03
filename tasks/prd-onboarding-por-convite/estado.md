@@ -1,6 +1,7 @@
 # Estado da execução — onboarding-por-convite
 
 ## Agora
+- **03/11 ~19:20:** tarefa 2.0 encontrada (`292430e3`, spec em `daf7246d`, verificação passou, push feito). Esteira rodando (41725161004). Linha 1 → 4.0 (grande), par reiniciado, `PEDIDO` enviado; linha 2 ociosa (nada mais parte, tudo espera a 4.0). **Espero:** `/seguir RELATÓRIO` do Implementador (4.0, 1ª tentativa). **Devo ainda:** triar o §5 Gravar da Tech Spec com o Arquiteto antes da partida da 6.0 (apontá-lo para a linha que vai rodar a 6.0). **Base:** `spec/onboarding-por-convite` em `daf7246d`
 - **03/11 ~18:45:** tarefa 3.0 encontrada (`8f38c269`, spec em `a0fd755a`, verificação passou, push feito; 3ª tentativa, 6 revisores aprovados). Esteira rodando (41719999658), veredito no próximo encontro. Linha 2 ociosa e nada parte (as presas esperam a 2.0 ou a 4.0). **Espero:** `/seguir RELATÓRIO` do Implementador (2.0, 1ª tentativa). **Devo ainda:** o §5 Gravar da 6.0 (triagem do Arquiteto, antes dela). **Base:** `spec/onboarding-por-convite` em `a0fd755a`
 - **03/11 ~18:20:** Diagnóstico do Arquiteto na 3.0 (`.processo/ordens/diagnostico-3.md`): a causa era a triagem da r1; o desativar passa a alcançar quem o login ativaria (RF5 e E11 da A1 ficam, sem mudar desenho). Implementador 2 reiniciado (contexto no fim) e `PEDIDO de retomada` da 3.0 (3ª tentativa) enviado, com diagnóstico e `3_task-r2.md`. **Espero:** `/seguir RELATÓRIO` do Implementador (2.0, 1ª tentativa) e do Implementador 2 (3.0, 3ª). **Devo ainda:** o §5 Gravar da 6.0 (triagem do Arquiteto).
 - **03/11 ~18:10:** `ESCALADA` da Mesa 2 na 3.0 (infra-guardian e test-engineer, 2 reprovações; tensão: convite do aceito que não entrou, RF16, fica aberto ao reativar; itens 1 e 2 da ordem `3_task-r2.md` se chocam). Arquiteto reiniciado na linha 2, `PEDIDO` de diagnóstico enviado (`.processo/ordens/diagnostico-3.md`). **Espero:** `/seguir RELATÓRIO` do Arquiteto; depois `PEDIDO de retomada` ao Implementador 2 (3ª tentativa) apontando o diagnóstico e `3_task-r2.md`. Linha 1 (2.0) segue. O §5 Gravar da 6.0 continua em "Devo ainda".
@@ -20,6 +21,7 @@
 - **Base:** `spec/onboarding-por-convite` em `a3119593`
 
 ## Concluídas
+- 2.0 — o banco do F2 e a chave da turma, 19:20, `292430e3` (divergência triada: o job gravar-planilha foi para a 4.4)
 - 3.0 — desativar do professor, 18:45, `8f38c269` (3 tentativas: divergência e escalada triadas pelo Arquiteto)
 - 1.0 — estrutura, decisão e cadastro do professor no core (`05e587b9`; 1ª rodada reprovada por tenancy e test-engineer, aprovada na 2ª)
 | Tarefa | Commit | Modelo | Rodadas | Observação |
