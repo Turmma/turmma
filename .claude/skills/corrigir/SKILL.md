@@ -78,8 +78,8 @@ node tools/processo/portao-local.ts --tarefa tasks/correcoes/<AAAA-MM-DD>-<slug>
 
 Cláusula que a correção acrescenta ganha o seu bloco `mutacao` no documento, numa seção "Mutações"
 (`executar-task`, passo 2): o portão a prova, e `node tools/processo/mutacoes.ts --faltando <documento>`, antes dos
-revisores, lista a que ficou sem bloco. Valem as duas regras de lá: o vermelho de cada bloco é o da cláusula (leia a linha do
-`expect` que caiu), e o começo de "Mutações" leva a linha `--faltando: <n> linhas (<n> blocos, <n> motivos)`, também para
+revisores, lista a que ficou sem bloco. Valem as duas regras de lá: o vermelho de cada bloco é o da cláusula (toda asserção negativa leva no
+bloco a linha `falha: <trecho da linha do expect>`, que o portão confere contra a linha em que o caso caiu; no `expect` quebrado em várias linhas, é a do matcher), e o começo de "Mutações" leva a linha `--faltando: <n> linhas (<n> blocos, <n> motivos)`, também para
 código de `tools/`. Renomear peça que o documento da correção não nomeia (fora do mapa, da adenda aprovada ou da "Origem") é
 `DIVERGÊNCIA` de desenho, como no aviso do começo, e não colisão resolvida aqui. Correção de **teste intermitente** leva também a prova
 da estabilidade: o teste rodado sozinho dez vezes seguidas, e o número no documento. Correção que

@@ -76,9 +76,13 @@ alcançada. O portão da tarefa aplica cada bloco, roda o teste citado, exige ve
 (`tools/processo/mutacoes.ts`). O vermelho tem de vir de um caso que falhou: trecho que deixa o arquivo com erro de sintaxe, ou
 o módulo sem carregar, é recusado como erro de carga. Troque-o por código válido.
 
-Vermelho não basta: tem de ser o da cláusula. No caso com mais de um `expect`, em especial uma negativa (`not.toContain`,
-`not.toMatch`) depois de uma positiva, rode o caso mutado uma vez, isolado, e leia na saída a linha do `expect` que caiu. Se
-caiu antes da cláusula, troque a mutação por uma que deixe as asserções anteriores verdes. "Sem mutação" só vale com o
+Vermelho não basta: tem de ser o da cláusula. Toda asserção negativa (`not.toContain`, `not.toMatch`, `not.toBe`, `toHaveLength(0)`
+e as que provam que algo não acontece) leva no cabeçalho do bloco a linha `falha: <trecho da linha do expect>` (por exemplo
+`falha: not.toContain('insertAuditoria')`; se o `expect` se quebra em várias linhas, a pilha aponta a do matcher, e é o trecho dela que se copia): a corrida lê no relatório a linha do arquivo de teste em que o caso caiu e recusa o bloco
+com "vermelho em outra asserção" se o trecho não está nela, e recusa o trecho que não existe no arquivo de teste. É o que pega
+o caso que cai no `expect` positivo, antes da negativa, e deixa o bloco passar (cinco reprovações da X8). Se a recusa vier, a
+mutação deixou de passar pelas asserções anteriores: troque-a por uma que as deixe verdes, não o trecho de `falha:`. Sem a linha,
+vale o vermelho de qualquer caso, e então o `expect` que caiu se lê à mão, rodando o caso mutado uma vez, isolado. "Sem mutação" só vale com o
 `--faltando` vazio e sem trava achada (pela ferramenta da spec ou pelo anexo de travas dela). E a prova que a tabela cita, um
 caso ou uma ferramenta, tem de ler os arquivos da linha: abra o que ela lê antes de citá-la.
 

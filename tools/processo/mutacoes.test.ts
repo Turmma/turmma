@@ -17,6 +17,7 @@ import {
   ehArquivoDeProducao,
   ehArquivoDoFaltando,
   exigenciaDeMutacao,
+  falhaNaLinhaCerta,
   impressaoDasMutacoes,
   lerMutacoes,
   linhasAcrescentadas,
@@ -122,6 +123,27 @@ describe('ler os blocos de mutação do documento', () => {
       'mutação 4: linha "linha sem marca" não começa com "-", "+" nem espaço',
       'mutação 5: o que entra é igual ao que sai',
     ])
+  })
+
+  it('a linha "falha:" diz qual expect tem de cair: o trecho inteiro, com dois-pontos e parênteses, vai para a mutação; sem ela, a mutação não ganha o campo', () => {
+    const { mutacoes, erros } = lerMutacoes(
+      [
+        bloco('arquivo: a.ts', 'teste: a.test.ts › um caso', "falha: not.toContain('insertAuditoria')", '- x', '+ y'),
+        bloco('arquivo: a.ts', 'teste: a.test.ts', '- x', '+ y'),
+        bloco('arquivo: a.ts', 'teste: a.test.ts', 'falha: expect(r.status): 404', '- x', '+ y'),
+      ].join('\n\n'),
+    )
+    expect(erros).toEqual([])
+    expect(mutacoes.map((m) => m.falha)).toEqual(["not.toContain('insertAuditoria')", undefined, 'expect(r.status): 404'])
+    expect('falha' in (mutacoes[1] ?? {})).toBe(false)
+    // O `falha:` entra na impressão dos blocos: trocar o trecho invalida o que o portão conferiu. (A trava de forma, `'falha' in`, acima, é a que
+    // prova que o bloco sem a linha não ganha o campo; o `JSON.stringify` descarta `undefined`, e por isso a impressão não a distingue.)
+    expect(impressaoDasMutacoes([mutacoes[0] as Mutacao])).not.toBe(impressaoDasMutacoes([{ ...(mutacoes[0] as Mutacao), falha: 'outro' }]))
+  })
+
+  it('"falha:" vazia ou depois do diff não é cabeçalho: vira erro, e não some', () => {
+    const { erros } = lerMutacoes([bloco('arquivo: a.ts', 'teste: a.test.ts', '- x', 'falha: tarde')].join('\n\n'))
+    expect(erros).toEqual(['mutação 1: linha "falha: tarde" não começa com "-", "+" nem espaço'])
   })
 
   it('documento sem bloco não tem mutação nem erro', () => {
@@ -329,6 +351,69 @@ describe('conferir as mutações: o teste tem de cair sem a cláusula, e o arqui
     const resultados = conferirMutacoes(raiz, [mutacao()], () => 'carga')
     expect(resultados.map((resultado) => resultado.veredito)).toEqual(['recusada'])
     expect(resultados[0]?.motivo).toMatch(/não passa sem a mutação/)
+  })
+
+  describe('"falha:" — o vermelho tem de ser o do expect que o bloco diz', () => {
+    const FONTE_DO_TESTE = "it('caso', () => {\n  expect(1).toBe(1)\n  expect(lista)\n    .not.toContain('insertAuditoria')\n})\n"
+    function arvoreComTeste(): string {
+      const raiz = arvore()
+      writeFileSync(join(raiz, 'apps/api/test/pedidos.int.test.ts'), FONTE_DO_TESTE)
+      return raiz
+    }
+
+    it('a corrida mutada recebe o teste e o trecho; o relatório que acha o trecho na linha que caiu é vermelho, e a limpa não recebe nada', () => {
+      const raiz = arvoreComTeste()
+      const recebidos: unknown[] = []
+      const resultados = conferirMutacoes(raiz, [mutacao({ falha: ".not.toContain('insertAuditoria')" })], (_comando, _prazo, _restaurar, falha) => {
+        recebidos.push(falha)
+        return falha === undefined
+      })
+      expect(resultados.map((resultado) => resultado.veredito)).toEqual(['vermelho'])
+      expect(recebidos).toEqual([undefined, { teste: 'apps/api/test/pedidos.int.test.ts', trecho: ".not.toContain('insertAuditoria')" }])
+    })
+
+    it('o caso que caiu numa asserção anterior é recusado com a linha que caiu, e o arquivo volta', () => {
+      const raiz = arvoreComTeste()
+      const avisos: string[] = []
+      const resultados = conferirMutacoes(
+        raiz,
+        [mutacao({ falha: ".not.toContain('insertAuditoria')" })],
+        (_comando, _prazo, _restaurar, falha) => (falha === undefined ? true : { outra: 'linha 2: expect(1).toBe(1)' }),
+        (texto) => avisos.push(texto),
+      )
+      expect(resultados.map((resultado) => resultado.veredito)).toEqual(['recusada'])
+      expect(resultados[0]?.motivo).toMatch(/vermelho em outra asserção/)
+      expect(resultados[0]?.motivo).toContain('linha 2: expect(1).toBe(1)')
+      expect(resultados[0]?.motivo).toContain(".not.toContain('insertAuditoria')")
+      expect(avisos.join('')).toMatch(/^✗ .*vermelho em outra asserção/)
+      expect(avisos.join('')).not.toContain('✓')
+      expect(fonte(raiz)).toBe(REPOSITORIO)
+    })
+
+    it('trecho que não existe no arquivo de teste é recusado antes de rodar qualquer corrida', () => {
+      const raiz = arvoreComTeste()
+      let corridas = 0
+      const resultados = conferirMutacoes(raiz, [mutacao({ falha: ".not.toContain('nao-existe')" })], () => {
+        corridas += 1
+        return true
+      })
+      expect(resultados.map((resultado) => resultado.veredito)).toEqual(['recusada'])
+      expect(resultados[0]?.motivo).toMatch(/"falha:"/)
+      expect(resultados[0]?.motivo).toContain("nao-existe")
+      expect(corridas).toBe(0)
+      expect(fonte(raiz)).toBe(REPOSITORIO)
+    })
+
+    it('sem a linha, nada muda: a corrida não recebe trecho, e o vermelho de qualquer caso vale', () => {
+      const raiz = arvoreComTeste()
+      const recebidos: unknown[] = []
+      const resultados = conferirMutacoes(raiz, [mutacao()], (_comando, _prazo, _restaurar, falha) => {
+        recebidos.push(falha)
+        return recebidos.length === 1
+      })
+      expect(resultados.map((resultado) => resultado.veredito)).toEqual(['vermelho'])
+      expect(recebidos).toEqual([undefined, undefined])
+    })
   })
 
   it('restaura o arquivo mesmo quando a corrida do teste estoura', () => {
@@ -1579,6 +1664,70 @@ describe('o relatório da corrida: só o caso que rodou e falhou prova a cláusu
     })
   })
 
+  describe('falhaNaLinhaCerta: a linha do arquivo de teste em que o caso caiu tem o trecho do bloco', () => {
+    const TESTE = 'apps/api/test/pedidos.int.test.ts'
+    const FONTE = "it('caso', () => {\n  expect(1).toBe(1)\n  expect(lista)\n    .not.toContain('insertAuditoria')\n})\n"
+    const TRECHO = ".not.toContain('insertAuditoria')"
+    const pilha = (linha: number) => `AssertionError: x\n    at /repo/${TESTE}:${String(linha)}:10\n    at file:///repo/node_modules/vitest/dist/run.js:1628:35`
+    const doVitest = (...casos: string[][]) =>
+      JSON.stringify({ numFailedTests: casos.length, testResults: [{ assertionResults: [{ status: 'passed', failureMessages: [] }, ...casos.map((failureMessages) => ({ status: 'failed', failureMessages }))] }] })
+    const comResultados = (...resultados: object[]) =>
+      JSON.stringify({ stats: { unexpected: resultados.length }, suites: [{ suites: [{ specs: [{ tests: [{ results: resultados }] }] }] }] })
+    const doPlaywright = (...erros: object[][]) => comResultados(...erros.map((errors) => ({ status: 'failed', errors })))
+    const local = (linha: number, file = `/repo/${TESTE}`) => ({ message: 'x', location: { file, line: linha, column: 10 } })
+
+    it('vitest: a primeira linha do arquivo de teste na pilha, e não a das chamadas do próprio Vitest', () => {
+      expect(falhaNaLinhaCerta('vitest', doVitest([pilha(4)]), FONTE, TESTE, TRECHO)).toBeNull()
+    })
+
+    it('vitest: caso que caiu numa asserção anterior é recusado, e o motivo traz a linha e o texto dela', () => {
+      const motivo = falhaNaLinhaCerta('vitest', doVitest([pilha(2)]), FONTE, TESTE, TRECHO)
+      expect(motivo).toContain('linha 2')
+      expect(motivo).toContain('expect(1).toBe(1)')
+    })
+
+    it('vitest: com vários casos vermelhos, basta um cair na linha do trecho', () => {
+      expect(falhaNaLinhaCerta('vitest', doVitest([pilha(2)], [pilha(4)]), FONTE, TESTE, TRECHO)).toBeNull()
+      expect(falhaNaLinhaCerta('vitest', doVitest([pilha(2)], [pilha(3)]), FONTE, TESTE, TRECHO)).not.toBeNull()
+    })
+
+    it('vitest: pilha sem frame do arquivo de teste, ou relatório que não se lê, não prova a linha', () => {
+      expect(falhaNaLinhaCerta('vitest', doVitest(['Error: x\n    at file:///repo/node_modules/vitest/dist/run.js:1:1']), FONTE, TESTE, TRECHO)).toMatch(/não achei no relatório a linha/)
+      for (const texto of [null, '', '{"truncado']) expect(falhaNaLinhaCerta('vitest', texto, FONTE, TESTE, TRECHO)).toMatch(/não se lê/)
+      for (const texto of ['null', '{}']) expect(falhaNaLinhaCerta('vitest', texto, FONTE, TESTE, TRECHO)).toMatch(/não achei no relatório a linha/)
+    })
+
+    it('vitest: o frame de outro arquivo cujo caminho só termina igual não é o do arquivo de teste', () => {
+      const deOutro = `Error: x\n    at /repo/outro-${TESTE}:4:10`
+      expect(falhaNaLinhaCerta('vitest', doVitest([deOutro]), FONTE, TESTE, TRECHO)).toMatch(/não achei no relatório a linha/)
+    })
+
+    it('playwright: errors[].location, na linha do trecho ou fora dela', () => {
+      expect(falhaNaLinhaCerta('playwright', doPlaywright([local(4)]), FONTE, TESTE, TRECHO)).toBeNull()
+      expect(falhaNaLinhaCerta('playwright', doPlaywright([local(2)]), FONTE, TESTE, TRECHO)).toContain('linha 2')
+      // O arquivo vem relativo ao testDir, e não absoluto, ou igual ao caminho do bloco.
+      expect(falhaNaLinhaCerta('playwright', doPlaywright([local(4, 'pedidos.int.test.ts')]), FONTE, TESTE, TRECHO)).toBeNull()
+      expect(falhaNaLinhaCerta('playwright', doPlaywright([local(4, TESTE)]), FONTE, TESTE, TRECHO)).toBeNull()
+    })
+
+    it('playwright: o caso que estourou o tempo conta, o erro no campo antigo `error` também, e o erro sem location nem pilha não prova a linha', () => {
+      expect(falhaNaLinhaCerta('playwright', comResultados({ status: 'timedOut', errors: [local(4)] }), FONTE, TESTE, TRECHO)).toBeNull()
+      expect(falhaNaLinhaCerta('playwright', comResultados({ status: 'passed', errors: [local(4)] }), FONTE, TESTE, TRECHO)).not.toBeNull()
+      expect(falhaNaLinhaCerta('playwright', comResultados({ status: 'failed', error: local(4) }), FONTE, TESTE, TRECHO)).toBeNull()
+      expect(falhaNaLinhaCerta('playwright', doPlaywright([]), FONTE, TESTE, TRECHO)).toMatch(/não achei no relatório a linha/)
+      // Sem `location`, a pilha na mensagem ainda localiza.
+      const soPilha = { message: `Error\n    at /repo/${TESTE}:4:3` }
+      expect(falhaNaLinhaCerta('playwright', doPlaywright([soPilha]), FONTE, TESTE, TRECHO)).toBeNull()
+    })
+
+    it('playwright: erro lançado num apoio (location fora do arquivo de teste) usa o frame do arquivo de teste na pilha; sem ele, não prova', () => {
+      const noApoio = { message: 'x', stack: `Error\n    at /repo/e2e/support/p.ts:9:1\n    at /repo/${TESTE}:4:3`, location: { file: '/repo/e2e/support/p.ts', line: 9, column: 1 } }
+      expect(falhaNaLinhaCerta('playwright', doPlaywright([noApoio]), FONTE, TESTE, TRECHO)).toBeNull()
+      expect(falhaNaLinhaCerta('playwright', doPlaywright([{ message: 'x', location: { file: '/repo/e2e/support/p.ts', line: 9, column: 1 } }]), FONTE, TESTE, TRECHO)).not.toBeNull()
+      expect(falhaNaLinhaCerta('playwright', doPlaywright(), FONTE, TESTE, TRECHO)).not.toBeNull()
+    })
+  })
+
   describe('prepararRelatorio: o que cada corrida recebe para gravar o relatório', () => {
     it('vitest: o repórter json e o arquivo, depois de tudo o que o comando já tinha, inclusive o -t do caso', () => {
       const comando = ['npx', 'vitest', 'run', '--project', 'unidade', 'a.test.ts', '-t', 'o caso']
@@ -1668,6 +1817,34 @@ describe('o relatório da corrida: só o caso que rodou e falhou prova a cláusu
       expect(rodar(comando('sintaxe.test.ts'))).toBe('carga')
       expect(rodar(comando('modulo.test.ts'))).toBe('carga')
       expect(rodar(comando('nao-existe.test.ts'))).toBe('carga')
+    }, 120_000)
+
+    it('vitest, com "falha:": o caso que cai na asserção certa é false; o que cai antes dela é { outra }', () => {
+      const dir = pasta({
+        'cai.test.ts': "it('cai', () => {\n  expect(1).toBe(1)\n  expect('abc')\n    .not.toContain('b')\n})\n",
+        'cai-antes.test.ts': "it('cai', () => {\n  expect(1).toBe(2)\n  expect('abc')\n    .not.toContain('b')\n})\n",
+      })
+      const rodar = rodarCalado(RAIZ)
+      const comando = (arquivo: string) => ['npx', 'vitest', 'run', '--root', dir, '--globals', arquivo]
+      const falha = (arquivo: string) => ({ teste: join(dir, arquivo), trecho: ".not.toContain('b')" })
+      expect(rodar(comando('cai.test.ts'), 120_000, undefined, falha('cai.test.ts'))).toBe(false)
+      expect(rodar(comando('cai-antes.test.ts'), 120_000, undefined, falha('cai-antes.test.ts'))).toMatchObject({ outra: expect.stringContaining('expect(1).toBe(2)') })
+      // Sem a linha, os dois são vermelho de caso, como antes.
+      expect(rodar(comando('cai-antes.test.ts'))).toBe(false)
+    }, 120_000)
+
+    it('playwright, com "falha:": a mesma conferência pela localização do erro', () => {
+      const dir = pasta({
+        'pw.config.ts': `import { relatoriosDoPlaywright } from ${JSON.stringify(join(RAIZ, 'tools/ci/duracao-do-e2e.ts'))}\nexport default { testDir: '.', reporter: relatoriosDoPlaywright(false, process.env[${JSON.stringify(VARIAVEL_DO_RELATORIO_DO_E2E)}]) }\n`,
+        'cai.spec.ts': "import { test, expect } from '@playwright/test'\ntest('cai', () => {\n  expect(1).toBe(1)\n  expect('abc')\n    .not.toContain('b')\n})\n",
+        'cai-antes.spec.ts': "import { test, expect } from '@playwright/test'\ntest('cai', () => {\n  expect(1).toBe(2)\n  expect('abc')\n    .not.toContain('b')\n})\n",
+      })
+      symlinkSync(join(RAIZ, 'node_modules'), join(dir, 'node_modules'))
+      const rodar = rodarCalado(RAIZ)
+      const comando = (arquivo: string) => ['npx', 'playwright', 'test', '-c', join(dir, 'pw.config.ts'), join(dir, arquivo)]
+      const falha = (arquivo: string) => ({ teste: join(dir, arquivo), trecho: ".not.toContain('b')" })
+      expect(rodar(comando('cai.spec.ts'), 120_000, undefined, falha('cai.spec.ts'))).toBe(false)
+      expect(rodar(comando('cai-antes.spec.ts'), 120_000, undefined, falha('cai-antes.spec.ts'))).toMatchObject({ outra: expect.stringContaining('expect(1).toBe(2)') })
     }, 120_000)
 
     it('playwright, com a configuração que lê a mesma variável do playwright.config.ts: asserção cai, sintaxe é carga', () => {

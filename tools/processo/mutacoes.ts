@@ -30,7 +30,16 @@
 // também. O portão fica vermelho, o que está certo, e o motivo diz isso; a mutação de produção que só quebra o preparo de um teste
 // de integração precisa de um trecho que ainda deixe um caso rodar e falhar.
 //
-// Uma terceira linha de cabeçalho, `projeto: celular`, é opcional e só vale para teste de e2e: diz em que projeto do
+// Uma linha de cabeçalho, `falha: <trecho da linha do expect>`, é opcional e diz qual asserção tem de cair (X8, M1 da retrospectiva):
+//
+//   falha: not.toContain('insertAuditoria')
+//
+// A corrida lê no relatório (a pilha do Vitest, `errors[].location` do Playwright) a primeira linha do arquivo de teste em que o caso
+// caiu, lê essa linha no arquivo e recusa o bloco com "vermelho em outra asserção" se o trecho não está nela: o caso com um `expect`
+// positivo antes da negativa fica vermelho na positiva, e esse vermelho não prova a cláusula. O trecho que não existe no arquivo de
+// teste é recusado antes de qualquer corrida. Sem a linha, nada muda: vale o vermelho de qualquer caso.
+//
+// Outra linha de cabeçalho, `projeto: celular`, é opcional e só vale para teste de e2e: diz em que projeto do
 // Playwright o caso roda. Sem ela é o `chromebook`. A cláusula que só existe no celular (o ramo de toque, o menu de baixo)
 // não é alcançada no computador, e o teste ficaria verde sem ela; o bloco diz onde ela se prova.
 import { execFileSync, spawn, spawnSync } from 'node:child_process'
@@ -47,6 +56,8 @@ export interface Mutacao {
   caso: string | null
   /** O projeto do Playwright onde o caso de e2e roda. Ausente: `chromebook`. Só o bloco que declara a linha o tem. */
   projeto?: ProjetoDoE2e
+  /** O trecho da linha do `expect` que tem de cair no arquivo de teste. Ausente: vale o vermelho de qualquer caso. */
+  falha?: string
   /** O que tem de estar no arquivo hoje: contexto e linhas que saem, na ordem. */
   antes: string[]
   /** O que fica no lugar: contexto e linhas que entram, na ordem. */
@@ -76,16 +87,18 @@ export function lerMutacoes(documento: string): Leitura {
     let arquivo: string | null = null
     let teste: string | null = null
     let projeto: string | null = null
+    let falha: string | null = null
     const antes: string[] = []
     const depois: string[] = []
     let saiAlguma = false
     let erro: string | null = null
     for (const linha of linhas) {
       if (linha.trim() === '') continue
-      const cabecalho = /^(arquivo|teste|projeto):\s*(.+?)\s*$/.exec(linha)
+      const cabecalho = /^(arquivo|teste|projeto|falha):\s*(.+?)\s*$/.exec(linha)
       if (cabecalho && antes.length === 0 && depois.length === 0) {
         if (cabecalho[1] === 'arquivo') arquivo = cabecalho[2] ?? null
         else if (cabecalho[1] === 'teste') teste = cabecalho[2] ?? null
+        else if (cabecalho[1] === 'falha') falha = cabecalho[2] ?? null
         else projeto = cabecalho[2] ?? null
         continue
       }
@@ -122,6 +135,7 @@ export function lerMutacoes(documento: string): Leitura {
       teste: caminhoDoTeste.trim(),
       caso: caso.length > 0 ? caso.join(' › ').trim() : null,
       ...(doBloco ? { projeto: doBloco } : {}),
+      ...(falha ? { falha } : {}),
       antes,
       depois,
     })
@@ -215,9 +229,19 @@ const TIMEOUT_PADRAO_DO_E2E_MS = 30_000
 /**
  * O que a corrida devolve: `true` passou, `false` caiu porque um caso falhou, `'estourou'` foi morta no prazo e `'carga'` caiu
  * sem caso nenhum falhar (erro de sintaxe, módulo que não carrega, nenhum caso rodou). O relógio de quem chama também decide
- * (um `rodar` que não sabe medir só devolve `false`), e a corrida que levou mais que o prazo conta como estourada.
+ * (um `rodar` que não sabe medir só devolve `false`), e a corrida que levou mais que o prazo conta como estourada. `{ outra }`: um caso
+ * falhou, mas não na linha que `falha` pedia (só com o quarto argumento); `outra` diz a linha que caiu.
  */
-export type Rodar = (comando: string[], prazoMs?: number, restaurar?: Restauracao) => boolean | 'estourou' | 'carga'
+export type Rodar = (comando: string[], prazoMs?: number, restaurar?: Restauracao, falha?: FalhaEsperada) => boolean | 'estourou' | 'carga' | { outra: string }
+
+/**
+ * A asserção que o bloco diz que tem de cair (`falha:`): o arquivo de teste, como o bloco o escreveu, e o trecho da linha do `expect`.
+ * Com ela, a corrida devolve `{ outra }` (o motivo, com a linha que caiu) quando o caso vermelho caiu em outro lugar.
+ */
+export interface FalhaEsperada {
+  teste: string
+  trecho: string
+}
 
 /**
  * O arquivo que a mutada alterou e o que ele era: o supervisor o devolve quando o grupo do teste acaba, por qualquer caminho.
@@ -296,6 +320,34 @@ function segundos(ms: number): string {
 
 const TETO_EM_TEXTO = `${String(TETO_DA_CORRIDA_MS / 60_000)} min`
 
+/** O motivo da recusa da mutação que a corrida mutada não provou, ou `null` se ela caiu na linha certa ou ficou verde (o chamador distingue). */
+function motivoDaMutadaRecusada(
+  corrida: ReturnType<Rodar>,
+  { mutadaMs, prazo, limpaMs, testTimeout, falha }: { mutadaMs: number; prazo: number; limpaMs: number; testTimeout: number; falha: string | undefined },
+): string | null {
+  if (corrida === 'estourou' || mutadaMs > prazo) {
+    return `o teste passou do prazo de ${segundos(prazo)} com a cláusula fora (o maior entre 3 × a corrida limpa de ${segundos(limpaMs)}, o testTimeout de ${segundos(testTimeout)} e ${segundos(PISO_DO_PRAZO_MS)}, até ${TETO_EM_TEXTO}): foi morto, com o grupo de processo, e o arquivo voltou ao que era`
+  }
+  if (corrida === 'carga') {
+    return 'o teste ficou vermelho por erro de carga, e não por um caso que falhou (sintaxe, módulo que não carrega, preparo do teste que lançou, ambiente que não subiu ou nenhum caso rodou): a mutação não prova a cláusula. Troque o trecho por código válido, que o arquivo de teste consiga carregar e rodar'
+  }
+  if (typeof corrida === 'object') {
+    return `vermelho em outra asserção: o caso caiu, mas não no expect que "falha:" cita (\`${falha ?? ''}\`): ${corrida.outra}. A mutação não prova a cláusula: troque-a por uma que deixe as asserções anteriores verdes, ou corrija o trecho de "falha:"`
+  }
+  return null
+}
+
+/** O que a corrida mutada confere no relatório: ausente se o bloco não tem `falha:`. */
+function falhaEsperada(mutacao: Mutacao): FalhaEsperada | undefined {
+  return mutacao.falha === undefined ? undefined : { teste: mutacao.teste, trecho: mutacao.falha }
+}
+
+/** O trecho de `falha:` que não está no arquivo de teste não prova nada: recusado antes de qualquer corrida. */
+function recusaDaFalhaQueNaoExiste(raiz: string, mutacao: Mutacao): string | null {
+  if (mutacao.falha === undefined || readFileSync(join(raiz, mutacao.teste), 'utf8').includes(mutacao.falha)) return null
+  return `a linha "falha:" cita \`${mutacao.falha}\`, que não está em ${mutacao.teste}: copie o trecho da linha do expect que tem de cair`
+}
+
 /**
  * Confere as mutações, uma a uma. Para cada par de teste e caso, uma corrida limpa antes, que tem de passar e de caber no
  * teto de 10 min: sem ela, um nome de caso errado ou um teste já vermelho contaria como mutação provada, e a limpa
@@ -328,6 +380,11 @@ export function conferirMutacoes(
       recusar(`${mutacao.teste} não existe ou não é arquivo de teste`)
       continue
     }
+    const semTrecho = recusaDaFalhaQueNaoExiste(raiz, mutacao)
+    if (semTrecho !== null) {
+      recusar(semTrecho)
+      continue
+    }
     const original = readFileSync(caminho, 'utf8')
     const aplicada = aplicarMutacao(original, mutacao)
     if ('recusa' in aplicada) {
@@ -358,20 +415,15 @@ export function conferirMutacoes(
     try {
       writeFileSync(caminho, aplicada.mutado)
       const inicio = agora()
-      corridaMutada = rodar(comando, prazo, { arquivo: caminho, original })
+      corridaMutada = rodar(comando, prazo, { arquivo: caminho, original }, falhaEsperada(mutacao))
       mutadaMs = agora() - inicio
     } finally {
       writeFileSync(caminho, original)
     }
-    if (corridaMutada === 'estourou' || mutadaMs > prazo) {
-      recusar(
-        `o teste passou do prazo de ${segundos(prazo)} com a cláusula fora (o maior entre 3 × a corrida limpa de ${segundos(limpa.ms)}, o testTimeout de ${segundos(testTimeout)} e ${segundos(PISO_DO_PRAZO_MS)}, até ${TETO_EM_TEXTO}): foi morto, com o grupo de processo, e o arquivo voltou ao que era`,
-      )
-    } else if (corridaMutada === 'carga') {
-      recusar(
-        'o teste ficou vermelho por erro de carga, e não por um caso que falhou (sintaxe, módulo que não carrega, preparo do teste que lançou, ambiente que não subiu ou nenhum caso rodou): a mutação não prova a cláusula. Troque o trecho por código válido, que o arquivo de teste consiga carregar e rodar',
-      )
-    } else if (corridaMutada) {
+    const motivo = motivoDaMutadaRecusada(corridaMutada, { mutadaMs, prazo, limpaMs: limpa.ms, testTimeout, falha: mutacao.falha })
+    if (motivo !== null) {
+      recusar(motivo)
+    } else if (corridaMutada === true) {
       avisar(`✗ ${rotulo}: o teste continuou verde sem a cláusula. Falta o teste que falhe sem ela.\n`)
       resultados.push({ mutacao, veredito: 'verde', motivo: 'o teste continuou verde sem a cláusula' })
     } else {
@@ -506,7 +558,9 @@ export interface RelatorioPreparado {
  *
  * O relatório do Vitest guarda o nome de cada caso e a mensagem de cada asserção que falhou. Só dado sintético entra nos testes
  * (regra 20, item 17), e é isso que o mantém inofensivo; a pasta temporária de `rodarCalado`, apagada no fim da corrida, existe
- * também para esse conteúdo não ficar no disco depois dela.
+ * também para esse conteúdo não ficar no disco depois dela. O que o portão mostra no terminal a partir dele (`falhaNaLinhaCerta`) é a linha
+ * do código do arquivo de teste e o número dela, e nunca a mensagem da asserção: `failureMessages` traz valores de fixture, e quem mexer no
+ * motivo não deve passar a mostrá-los (regra 20, itens 9 e 17).
  */
 export function prepararRelatorio(comando: string[], arquivo: string): RelatorioPreparado | null {
   const [programa, segundo] = comando
@@ -542,12 +596,103 @@ export function casoFalhouNoRelatorio(leitor: LeitorDoRelatorio, texto: string |
   return (leitor === 'vitest' ? contagemNoJson(relatorio, 'numFailedTests') : contagemNoJson(relatorio, 'stats', 'unexpected')) > 0
 }
 
+/** Os campos de um objeto do JSON, ou `null` se o valor não é objeto. */
+function objeto(valor: unknown): Record<string, unknown> | null {
+  return typeof valor === 'object' && valor !== null && !Array.isArray(valor) ? (valor as Record<string, unknown>) : null
+}
+
+function lista(valor: unknown): unknown[] {
+  return Array.isArray(valor) ? valor : []
+}
+
+/** A linha do primeiro frame do arquivo de teste num texto de pilha (`…/arquivo:linha:coluna`). */
+function linhaNaPilha(pilha: string, teste: string): number | null {
+  const frame = new RegExp(`(?:^|[\\s(/\\\\])${escapar(teste.replaceAll('\\', '/'))}:(\\d+):\\d+`).exec(pilha.replaceAll('\\', '/'))
+  return frame ? Number(frame[1]) : null
+}
+
+/** Os casos que falharam no Vitest, cada um com a linha do arquivo de teste em que caiu (`null`: a pilha não tem frame dele). */
+function linhasDoVitest(relatorio: unknown, teste: string): (number | null)[] {
+  const linhas: (number | null)[] = []
+  for (const arquivo of lista(objeto(relatorio)?.testResults)) {
+    for (const caso of lista(objeto(arquivo)?.assertionResults)) {
+      const dados = objeto(caso)
+      if (dados?.status !== 'failed') continue
+      const pilhas = lista(dados.failureMessages).filter((texto): texto is string => typeof texto === 'string')
+      linhas.push(pilhas.map((pilha) => linhaNaPilha(pilha, teste)).find((linha) => linha !== null) ?? null)
+    }
+  }
+  return linhas
+}
+
+/**
+ * O erro do Playwright cai no arquivo de teste se `location.file` é ele, absoluto ou relativo ao `testDir`. Limite conhecido: o relativo só é
+ * comparado pelo fim do caminho, e um apoio de mesmo nome de arquivo noutra pasta do `testDir` também passaria; é improvável, e apertar
+ * a comparação muda o comportamento (`TODO.md`).
+ */
+function ehOArquivo(file: unknown, teste: string): boolean {
+  if (typeof file !== 'string') return false
+  const alvo = teste.replaceAll('\\', '/')
+  const achado = file.replaceAll('\\', '/')
+  return achado === alvo || achado.endsWith(`/${alvo}`) || alvo.endsWith(`/${achado}`)
+}
+
+/** Os resultados de caso que falharam, em qualquer profundidade das suites do relatório do Playwright. */
+function resultadosFalhos(suite: unknown): Record<string, unknown>[] {
+  const dados = objeto(suite)
+  const daqui = lista(dados?.specs)
+    .flatMap((especificacao) => lista(objeto(especificacao)?.tests))
+    .flatMap((execucao) => lista(objeto(execucao)?.results))
+    .map(objeto)
+    .filter((resultado): resultado is Record<string, unknown> => resultado?.status === 'failed' || resultado?.status === 'timedOut')
+  return [...lista(dados?.suites).flatMap(resultadosFalhos), ...daqui]
+}
+
+/** A linha do arquivo de teste num erro do Playwright: `location`, ou a pilha se o erro foi lançado num apoio. */
+function linhaDoErro(resultado: Record<string, unknown>, teste: string): number | null {
+  const erro = objeto(lista(resultado.errors)[0] ?? resultado.error)
+  const local = objeto(erro?.location)
+  if (ehOArquivo(local?.file, teste) && typeof local?.line === 'number') return local.line
+  const pilha = [erro?.stack, erro?.message].find((texto): texto is string => typeof texto === 'string')
+  return pilha === undefined ? null : linhaNaPilha(pilha, teste)
+}
+
+/** Os casos que falharam no Playwright, cada um com a linha do arquivo de teste (`null`: nem `location` nem a pilha a dão). */
+function linhasDoPlaywright(relatorio: unknown, teste: string): (number | null)[] {
+  return resultadosFalhos(relatorio).map((resultado) => linhaDoErro(resultado, teste))
+}
+
+/**
+ * A linha `falha:` do bloco confere com o relatório? `null`: ao menos um caso vermelho caiu numa linha do arquivo de teste que tem o
+ * `trecho`. Senão, o motivo, com a linha que caiu e o texto dela. Basta um caso: `-t` pode pegar mais de um, e o que caiu na linha
+ * certa prova a cláusula. Relatório que não se lê, ou pilha sem frame do arquivo de teste, não prova a linha e também é motivo.
+ */
+export function falhaNaLinhaCerta(leitor: LeitorDoRelatorio, texto: string | null, fonteDoTeste: string, teste: string, trecho: string): string | null {
+  let relatorio: unknown
+  try {
+    relatorio = JSON.parse(texto ?? '')
+  } catch {
+    return 'o relatório da corrida não se lê, e a linha em que o caso caiu não se sabe'
+  }
+  const linhas = leitor === 'vitest' ? linhasDoVitest(relatorio, teste) : linhasDoPlaywright(relatorio, teste)
+  const fonte = fonteDoTeste.split('\n')
+  if (linhas.some((linha) => linha !== null && (fonte[linha - 1] ?? '').includes(trecho))) return null
+  const primeira = linhas.find((linha) => linha !== null)
+  if (primeira === undefined) return `não achei no relatório a linha de ${teste} em que o caso caiu`
+  return `o caso caiu na linha ${String(primeira)} de ${teste} (\`${(fonte[primeira - 1] ?? '').trim()}\`)`
+}
+
 /** O que a corrida diz, dado o código de saída do supervisor e o relatório que o teste gravou (se gravou). */
-function veredictoDaCorrida(status: number | null, relatorio: RelatorioPreparado | null, arquivo: string): ReturnType<Rodar> {
+function veredictoDaCorrida(status: number | null, relatorio: RelatorioPreparado | null, arquivo: string, raiz: string, falha?: FalhaEsperada): ReturnType<Rodar> {
   if (status === SAIDA_DO_PRAZO) return 'estourou'
   if (status === 0) return true
   if (relatorio === null) return false
-  return casoFalhouNoRelatorio(relatorio.leitor, existsSync(arquivo) ? readFileSync(arquivo, 'utf8') : null) ? false : 'carga'
+  const texto = existsSync(arquivo) ? readFileSync(arquivo, 'utf8') : null
+  if (!casoFalhouNoRelatorio(relatorio.leitor, texto)) return 'carga'
+  if (!falha) return false
+  // Limite conhecido: a fonte do teste é lida depois da corrida; se o `arquivo:` do bloco for o próprio arquivo de teste, as linhas são as da mutada.
+  const outra = falhaNaLinhaCerta(relatorio.leitor, texto, readFileSync(resolve(raiz, falha.teste), 'utf8'), falha.teste, falha.trecho)
+  return outra === null ? false : { outra }
 }
 
 /**
@@ -562,7 +707,7 @@ export function rodarCalado(
   opcoes: { esperaAteSigkillMs?: number; preparar?: (comando: string[], arquivo: string) => RelatorioPreparado | null } = {},
 ): Rodar {
   const supervisor = copiaDoSupervisor()
-  return (comando, prazoMs = TETO_DA_CORRIDA_MS, restaurar) => {
+  return (comando, prazoMs = TETO_DA_CORRIDA_MS, restaurar, falha) => {
     const pasta = mkdtempSync(join(tmpdir(), 'educa-corrida-'))
     try {
       const arquivo = join(pasta, 'relatorio.json')
@@ -576,7 +721,7 @@ export function rodarCalado(
         [...process.execArgv, supervisor, MARCA_DO_SUPERVISOR, String(prazoMs), String(opcoes.esperaAteSigkillMs ?? ESPERA_ATE_SIGKILL_MS), ...aRestaurar, '--', ...(relatorio?.comando ?? comando)],
         { cwd: raiz, stdio: 'ignore', env: { ...process.env, ...relatorio?.env, EDUCA_BANCO_NOVO: undefined } },
       )
-      return veredictoDaCorrida(resultado.status, relatorio, arquivo)
+      return veredictoDaCorrida(resultado.status, relatorio, arquivo, raiz, falha)
     } finally {
       rmSync(pasta, { recursive: true, force: true })
     }

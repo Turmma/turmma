@@ -2526,7 +2526,7 @@ repetem aqui.
       `DIVERGÊNCIA` de desenho, nunca colisão; caso em `docs/processo-licoes.md`)* ~~Da validação da X8 (rodada 3, menor), dono: retro da X8, 02/11/2026: numa
       spec de rename, o `revisor-geral` (ou o documento da correção) confere que todo nome trocado está num mapa ou numa adenda aprovada; na correção
       `guarda-formas-do-inventario` o rename fora do inventário passou como "colisão" e custou uma rodada de validação~~
-- [ ] **(X8, retro, M1) O bloco de mutação diz qual `expect` tem de cair**, dono: Orquestrador, uma correção (`corrigir`), 02/11/2026, aceita pelo Joaquim:
+- [x] *(feito na correção `2026-11-02-mutacao-diz-o-expect`, 02/11/2026)* **(X8, retro, M1) O bloco de mutação diz qual `expect` tem de cair**, dono: Orquestrador, uma correção (`corrigir`), 02/11/2026, aceita pelo Joaquim:
       em `tools/processo/mutacoes.ts`, uma terceira linha de cabeçalho opcional, `falha: <trecho da linha do expect>` (ex.: `falha: not.toContain('insertAuditoria')`).
       Com ela, a corrida pega, no relatório JSON do Vitest (`failureMessages`, a pilha) ou do Playwright (`errors[].location`), a primeira linha do arquivo de
       teste em que o caso caiu, lê essa linha e recusa o bloco com "vermelho em outra asserção" quando o trecho não está nela. Sem a linha, nada muda. O
@@ -2554,3 +2554,20 @@ repetem aqui.
       âncora acentuada e conferir que cai na seção
 - [ ] Da X8 (fora do inventário pelo RF7, string), 02/11/2026: a marca na string `folder: Educa.ia alertas` de `tools/guardas/alerta-tem-runbook.test.ts:14` vai
       com a renomeação técnica para Turmma
+
+## Da correção 2026-11-02-mutacao-diz-o-expect (a linha `falha:` do bloco de mutação), fora dela
+
+- [ ] Da correção `2026-11-02-mutacao-diz-o-expect` (revisor-geral, 1ª), para quem mexer em `veredictoDaCorrida`: sem relatório, devolver `{ outra: … }` quando há
+      `falha:`; hoje `comandoDoTeste` só gera comandos de vitest e de playwright, então o caminho não é alcançável. Fecha se surgir tipo novo de teste
+- [ ] Da correção `2026-11-02-mutacao-diz-o-expect` (revisor-geral, 1ª), junto de quem mexer em `tools/processo/mutacoes.ts`: apertar `ehOArquivo` (o relativo é
+      comparado só pelo fim do caminho, e um apoio de mesmo nome noutra pasta do `testDir` passaria); o limite está no comentário dela
+- [ ] Da correção `2026-11-02-mutacao-diz-o-expect` (test-engineer, 1ª), como continuação da linha "(X8, retro, M1)" acima (já feita): recusar o `falha:` cujo trecho aparece em mais de uma
+      linha do arquivo de teste (o exemplo é `toContain('x')` / `.not.toContain('x')`: o trecho `toContain('x')` está nas duas, e uma asserção anterior passa por certa)
+- [ ] Da correção `2026-11-02-mutacao-diz-o-expect` (test-engineer, 1ª): a obrigação de `falha:` em asserção negativa só está no texto das skills; um aviso do
+      `--faltando` ou do portão a cobraria (ferramenta nova)
+- [ ] Da correção `2026-11-02-mutacao-diz-o-expect` (test-engineer, 1ª), junto de quem mexer em `mutacoes.ts`: recusar o `falha:` quando o `arquivo:` do bloco é o próprio
+      arquivo de teste (a fonte é lida depois da corrida; o limite está no comentário de `veredictoDaCorrida`)
+- [ ] Da correção `2026-11-02-mutacao-diz-o-expect` (revisor-geral, 1ª), a próxima tarefa que mexer no template: `.claude/skills/criar-tasks/task-template.md:156`, a seção
+      "Mutações", não fala da linha `falha:`
+- [ ] Da correção `2026-11-02-mutacao-diz-o-expect` (revisor-geral, 1ª), dono: Arquiteto, na próxima retrospectiva: `docs/processo-licoes.md:42` ainda diz que a defesa da X8 é
+      "ler a linha do `expect` que caiu"
