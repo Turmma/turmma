@@ -1,6 +1,7 @@
 # Estado da execução — onboarding-por-convite
 
 ## Agora
+- **03/11 ~17:20:** tarefa 1.0 encontrada (`05e587b9`, spec em `0bc2b612`, verificação passou, push feito). Esteira rodando (41710918285), veredito no próximo encontro. Linha 1 → 2.0; linha 2 aberta → 3.0. **Espero:** `/seguir RELATÓRIO` do Implementador (2.0) e do Implementador 2 (3.0), 1ª tentativa. Duplicatas "#2" criadas por engano foram dispensadas. **Base:** `spec/onboarding-por-convite` em `0bc2b612`
 - **03/11 16:47:** Implementador da linha 1 estava sem memória (sessão reiniciada) com trabalho da 1.0 não commitado na árvore; enviado `PEDIDO de retomada` da 1.0 (1ª tentativa continua). **Espero:** `/seguir RELATÓRIO` do Implementador.
 - **03/11 ~16:10:** por palavra do Joaquim ("pode começar agora"), linha 1 aberta e tarefa 1.0 pedida ao Implementador (par no checkout `--l1`). **Espero:** `/seguir RELATÓRIO` do Implementador, 1ª tentativa. **Devo ainda:** as três pendências da X8 (ver abaixo). **Base:** `spec/onboarding-por-convite` em `f1e70b2c`
 - **03/11 16:03:** F2 cortada em duas specs por decisão do Joaquim (`648bd616`); 16 tarefas geradas (`ebae5b1c`). Aviso da D79 dado; **a construção começa às 16:31**, na primeira vigia depois da hora, sem objeção do Joaquim no meu terminal nem no do Arquiteto (a pausa anterior era só para a VM). Vigia ligada. Próxima: tarefa 1.0 (grande)
@@ -12,6 +13,7 @@
 - **Base:** `spec/onboarding-por-convite` em `a3119593`
 
 ## Concluídas
+- 1.0 — estrutura, decisão e cadastro do professor no core (`05e587b9`; 1ª rodada reprovada por tenancy e test-engineer, aprovada na 2ª)
 | Tarefa | Commit | Modelo | Rodadas | Observação |
 |---|---|---|---|---|
 
