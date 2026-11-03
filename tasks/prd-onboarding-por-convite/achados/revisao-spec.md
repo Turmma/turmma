@@ -1783,3 +1783,72 @@ Arquivos auditados:
 - /home/joaquimdp/Documents/git/.maestri/floors/educaia--speconboarding-por-convite/tasks/prd-onboarding-por-convite/prd.md
 - /home/joaquimdp/Documents/git/.maestri/floors/educaia--speconboarding-por-convite/tasks/prd-onboarding-por-convite/achados/revisao-spec.md
 - /home/joaquimdp/Documents/git/.maestri/floors/educaia--speconboarding-por-convite/docs/lgpd.md
+
+## revisor-geral · 5ª rodada · REPROVADO · 2026-11-03 15:53:26 · `tasks/prd-onboarding-por-convite/revisao-spec.md`
+
+VEREDITO: REPROVADO
+Escopo: incompleto. O corte deixou uma dependência da F2 para a F2c sem declarar e um cenário de carga sem dono.
+Aderência à Tech Spec: divergência em `cenarios.md` da F2 (o [C] do RF2) e em `cenarios.md` da F2c ("A1 que muda de regra")
+Portão local: não se aplica. É revisão de spec, sem código. O `conferir` responde "nunca passou nesta árvore", o que é esperado aqui.
+
+**Bloqueantes**
+
+1. **Cenário de carga da F2 depende de uma rota que agora é da F2c, e a F2c ficou sem cenário de carga.**
+   - **Onde:** `/home/joaquimdp/Documents/git/.maestri/floors/educaia--speconboarding-por-convite/tasks/prd-onboarding-por-convite/cenarios.md:18-19`.
+   - **O que está errado:** o [C] pede "o de professores junto com o login e o redefinir deles: zero 503 … no login e no redefinir". O `/v1/senha/redefinir` só existe na F2c (techspec da F2c, §4). Do jeito que está, a F2 não consegue cumprir o próprio cenário.
+   - **O que se perdeu:** a F2c não tem nenhum cenário [C]. A seção "Caminho quente" dela diz "provisória e conta externa entram na rajada do login" (`/home/joaquimdp/Documents/git/.maestri/floors/educaia--speconboarding-por-convite/tasks/prd-acesso-e-convites/techspec.md:130`), mas nenhum cenário prova isso. A metade "redefinir contra o job de professores" não está em nenhuma das duas specs.
+   - **Correção exigida:**
+     - Na F2, tirar "e o redefinir deles" e "no redefinir" da linha 19.
+     - Na F2c, criar um [C] com o job de professores do F2 junto da rajada de login (com provisória e conta externa) e do redefinir: zero 503 no login e no redefinir, e o passo (3) abaixo de 1 s.
+
+2. **A F2c muda uma regra que a F2 testa, e não declara isso.**
+   - **Onde:** o RF6 da F2 (`/home/joaquimdp/Documents/git/.maestri/floors/educaia--speconboarding-por-convite/tasks/prd-onboarding-por-convite/prd.md:49`) e o cenário em `/home/joaquimdp/Documents/git/.maestri/floors/educaia--speconboarding-por-convite/tasks/prd-onboarding-por-convite/cenarios.md:81`.
+   - **O que está errado:** o cenário diz "conta de outra escola cliente ganha o segundo vínculo no aceite". Na F2 só existe o link copiado, então esse teste nasce com aceite sem verificação. A F2c passa a exigir o e-mail verificado nesse caso (`VERIFICACAO_PENDENTE`, techspec da F2c §5, "Posse do e-mail"). Mas a seção "A1 que muda de regra" da F2c (`/home/joaquimdp/Documents/git/.maestri/floors/educaia--speconboarding-por-convite/tasks/prd-acesso-e-convites/cenarios.md:119-122`) lista só as linhas 320, 377 e 447 de `convite.int.test.ts`. O teste que a F2 vai criar quebra na F2c sem estar previsto.
+   - **Correção exigida:**
+     - Na F2c, renomear a seção para "A1 e F2 que mudam de regra" e incluir o teste do RF6 da F2 (aceite de conta de outra escola por link copiado passa a exigir e-mail verificado).
+     - No cenário do RF6 da F2, registrar que a F2c muda essa regra.
+
+**Recomendações**
+
+- `cenarios.md:61` da F2 diz "Desligado não entra … nem por conta externa". Isso fica no RF5, que é sobre o aluno, e conta externa de aluno só nasce na F2c. Dizer que, na F2, a conta é semeada direto no banco, ou levar a cláusula do aluno para a F2c.
+- A F2 vai poder ir para uma escola real antes da F2c, e o aceite entre escolas por link copiado continua sem prova de posse. O `docs/lgpd.md:78` amarra essa prova (e o provedor de e-mail como suboperador) ao portão da primeira escola real. Registrar no ROADMAP.md, na F2c, que ela precisa pousar antes da primeira escola real.
+- `docs/lgpd.md:76`, `:80` e `:82` ainda dizem "(F2, RF11)", "(F2, RF13)" e "(F2, RF14)" na finalidade. Trocar para F2c.
+- Na techspec da F2c, §2, a linha de `packages/shared/` cita só os códigos de erro. Citar também os contratos das rotas novas (regra 00).
+- A F2 perdeu "enviar e-mail não prende a tela" do RF15, e a F2c não diz isso com todas as letras. Hoje só está implícito no job e no estado do envio do RF11. Vale uma frase no RF11.
+- As recomendações das rodadas 7 e 8 que viraram tarefa da F2c (o texto do diálogo do "Enviar" e a frase do RF11) estão só no `revisao-spec.md` da F2. Copiar para a abertura da F2c.
+
+Os demais pontos estão coerentes:
+- Corridas (9), Limites (6), Auditoria (6), bordas, regras, dados pessoais, perguntas, premissas e riscos estão inteiros e não aparecem duplicados.
+- O "Depende de" da F2c cobre `travarPendente`, `fechar('encerrada')`, o `desativar` e os expurgos. A revogação do convite pelo `desativar` ficou só na F2, e o cancelamento do envio só na F2c.
+- O RF18 de cada uma se demonstra só com o que ela mesma entrega.
+- No ROADMAP.md, a F2 e a F2c batem com os PRDs.
+
+## revisor-geral · 6ª rodada · APROVADO · 2026-11-03 15:55:23 · `tasks/prd-onboarding-por-convite/revisao-spec.md`
+
+VEREDITO: APROVADO
+
+Escopo: respeitado. O corte entre o F2 e a F2c não deixou cenário nem dependência sem dono.
+
+Aderência à Tech Spec: ok.
+
+Portão local: o `conferir` responde "nunca passou nesta árvore". Numa revisão de spec isso é esperado, porque não há código para o carimbo cobrir.
+
+Bloqueantes: nenhum. Os dois da rodada 9 estão resolvidos.
+
+1. **Cenário de carga.** O [C] do RF2 do F2 (`/home/joaquimdp/Documents/git/.maestri/floors/educaia--speconboarding-por-convite/tasks/prd-onboarding-por-convite/cenarios.md:18-19`) não cita mais o redefinir e cobra zero 503 só no gerar acesso, na decisão e no login. A F2c ganhou a seção "Carga" (`/home/joaquimdp/Documents/git/.maestri/floors/educaia--speconboarding-por-convite/tasks/prd-acesso-e-convites/cenarios.md:138-141`). Ela põe o job de professores do F2, com 300 linhas, que é o teto do RF6, junto da rajada de login com provisória e conta externa e do redefinir. Exige zero 503 no login e no redefinir e o passo (3) abaixo de 1 s. Com isso, a linha "Caminho quente" da techspec da F2c (§7c, linha 130) passa a ter um cenário que a prova.
+2. **Regra que a F2c muda.** A seção agora se chama "A1 e F2 que mudam de regra" (`/home/joaquimdp/Documents/git/.maestri/floors/educaia--speconboarding-por-convite/tasks/prd-acesso-e-convites/cenarios.md:143-148`) e inclui o caso do RF6 do F2. O cenário do RF6 do F2 (`/home/joaquimdp/Documents/git/.maestri/floors/educaia--speconboarding-por-convite/tasks/prd-onboarding-por-convite/cenarios.md:81-82`) diz que a F2c o reescreve, e o `6_task.md:45` repete isso.
+
+As recomendações da rodada 9 também foram aplicadas:
+- **RF5 do F2:** saiu a conta externa, e o caso do aluno desligado que tenta entrar pela conta da escola foi para a F2c (`cenarios.md:136`).
+- **ROADMAP.md:** a F2c aparece como "pousa antes da primeira escola real", com o motivo.
+- **`docs/lgpd.md`:** as finalidades agora dizem `(F2c, RF11/RF13/RF14)`.
+- **Techspec da F2c, §2:** cita os contratos das rotas novas.
+- **PRD da F2c, RF11:** tem a frase "o envio não prende a tela".
+- **`abertura.md`:** traz as recomendações das rodadas 7 e 8 e a linha que falta em `docs/decisoes-em-aberto.md`.
+
+A correção não abriu outro buraco. Procurei redefinir, esqueci, provisória, Mailpit e conta externa nos arquivos do F2: as duas menções que sobraram dizem que aquilo é da F2c, em `3_task.md:75` e `6_task.md:77`.
+
+Recomendações:
+- **Cabeçalho dos cenários da F2c** (`/home/joaquimdp/Documents/git/.maestri/floors/educaia--speconboarding-por-convite/tasks/prd-acesso-e-convites/cenarios.md:21-22`): ele diz que os cenários foram separados "sem mudar nenhum". A rodada 10 acrescentou três: o [C], o do aluno desligado pela conta da escola e a seção "A1 e F2 que mudam de regra". Vale dizer que esses três nasceram na conferência do corte.
+- **Techspec da F2c, §7c, "Caminho quente":** pode apontar para a seção "Carga" do `cenarios.md`, do mesmo jeito que a linha "Limites e corridas" aponta para as tabelas.
+- **`docs/decisoes-em-aberto.md`:** a linha do provedor de e-mail de produção continua ausente, e por enquanto só a `abertura.md` registra que ela falta. Se a F2c demorar a abrir, vale escrever a linha já, para a pendência não depender de alguém abrir o andar.

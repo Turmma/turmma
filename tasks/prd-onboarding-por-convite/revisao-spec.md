@@ -216,6 +216,38 @@ Os dois bloqueantes da rodada 7 foram dados como resolvidos. `privacy-guardian` 
   sem ano no contexto; teto da transação inteira do passo (3); `docs/lgpd.md`, "Acesso da turma", diz que a desativação
   revoga (`infra-guardian`, `privacy-guardian`)
 
+## Rodada 9 — 03/11/2026 (o corte em duas specs)
+
+Depois da rodada 8, o `criar-tasks` passou de 20 tarefas, e o Joaquim escolheu cortar o F2 em duas specs: esta, com as
+planilhas, e a F2c (`tasks/prd-acesso-e-convites/`), com e-mail, senha e conta da escola, sem mudar regra. O
+`revisor-geral` conferiu só a coerência do corte.
+
+**Veredito: REPROVADA**
+
+| Revisor | Veredito | Bloqueantes |
+|---|---|---|
+| `revisor-geral` | REPROVADO | 2 |
+
+### Correções exigidas
+- `cenarios.md`, [C] do RF2: sem o redefinir, que é da F2c; a F2c ganha o seu [C] (`revisor-geral`)
+- A F2c muda a regra do aceite entre escolas que o RF6 daqui testa: declarar nas duas (`revisor-geral`)
+
+### Recomendações
+- RF5 sem "conta externa"; ROADMAP: a F2c pousa antes da primeira escola real; `docs/lgpd.md` com (F2c, RF1x); contratos
+  na §2 da F2c; "o envio não prende a tela" no RF11 da F2c; as recomendações das rodadas 7 e 8 na abertura da F2c
+
+## Rodada 10 — 03/11/2026
+
+**Veredito: APROVADA**
+
+| Revisor | Veredito | Bloqueantes |
+|---|---|---|
+| `revisor-geral` | APROVADO | 0 |
+
+### Recomendações (aplicadas)
+- O cabeçalho dos cenários da F2c diz o que a conferência do corte acrescentou; a §7c da F2c aponta a seção "Carga"; a
+  linha do provedor de e-mail entra já em `docs/decisoes-em-aberto.md`
+
 ## Revisões
 
 Preenchida pelo hook `tools/processo/revisoes.ts` quando cada revisor termina. Não edite à mão:
@@ -257,3 +289,5 @@ atual, com APROVADO quando o revisor tem veto.
 | 2026-11-03 13:14:19 | 2026-11-03 13:16:29 | `test-engineer` | 7 | REPROVADO | a78ad3658d2b37531 |
 | 2026-11-03 13:14:10 | 2026-11-03 13:17:50 | `infra-guardian` | 7 | APROVADO | a78373edfe4b14995 |
 | 2026-11-03 15:00:43 | 2026-11-03 15:02:02 | `test-engineer` | 8 | APROVADO | a89691b6f8395304f |
+| 2026-11-03 15:50:46 | 2026-11-03 15:53:26 | `revisor-geral` | 5 | REPROVADO | a166d2d5bfe338070 |
+| 2026-11-03 15:54:34 | 2026-11-03 15:55:23 | `revisor-geral` | 6 | APROVADO | ab02f1191967ec9d5 |

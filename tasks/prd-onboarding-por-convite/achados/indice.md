@@ -41,3 +41,5 @@ Leia este índice antes de codar, e abra só os blocos que interessam à tarefa 
 | 2026-11-03 13:16:29 | `test-engineer` | 7ª | REPROVADO | `revisao-spec` | O "Enviar" e o "Reenviar" que fazem `convite/refazer` (linha nova) não têm cenário que caia sem a regra (techspec.md:78). |
 | 2026-11-03 13:17:50 | `infra-guardian` | 7ª | APROVADO | `revisao-spec` | §2 e §5, "turmas por id num comando": escrever "em ordem de id (`order by id`)". Um comando só não fixa a ordem das travas quando dois planos são diferentes,… |
 | 2026-11-03 15:02:02 | `test-engineer` | 8ª | APROVADO | `revisao-spec` | Unicidade violada em quatro cenários [P] (RF3 matrícula, a nova; RF3 `chave`, as duas; RF7 vínculo à mão com a mesma tripla): escrever que o `desatualizada`… |
+| 2026-11-03 15:53:26 | `revisor-geral` | 5ª | REPROVADO | `revisao-spec` | Cenário de carga da F2 depende de uma rota que agora é da F2c, e a F2c ficou sem cenário de carga. |
+| 2026-11-03 15:55:23 | `revisor-geral` | 6ª | APROVADO | `revisao-spec` | Cabeçalho dos cenários da F2c (`tasks/prd-acesso-e-convites/cenarios.md:21-22`): ele diz que os cenários foram separados "sem mudar nenhum". A rodada 10… |
