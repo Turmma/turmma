@@ -1,14 +1,14 @@
 # PRD — A escola inteira entra de uma vez
 
-**Status:** aprovado (03/11/2026, Joaquim)
+**Status:** aprovado (03/11/2026, Joaquim); revisão da spec: posse do e-mail (escolha dele), RF16 e RF18 alinhados
 **Funcionalidade do roadmap:** F2 — `onboarding-por-convite`, no recorte de 03/11/2026: a visão Semana saiu
 para a F2b (`semana-do-professor`), e o Classroom ficou sem fase até uma escola pedir
 **Depende de:** F1, A1
 
 ## 1. Problema
 
-A Na A1 a coordenadora cria cada turma, sobe a lista turma a turma, cadastra cada professor, copia cada
-convite e aloca à mão. Com 900 alunos, 30 turmas e 40 professores, é um dia de cliques, e
+Na A1 a coordenadora cria cada turma, sobe a lista turma a turma, cadastra cada professor, copia cada
+convite e aloca à mão. Com 900 alunos, é um dia de cliques, e
 a grade horária, de onde a alocação deveria sair, não existe (D3 revista). Aluno que esquece a senha não volta, e
 o de escola com Google ou Microsoft é recusado (D48).
 
@@ -58,9 +58,9 @@ uma senha provisória, sem ninguém cadastrado um a um.
 | RF13 | **Senha provisória**: coordenação, ou professor com vínculo confirmado na turma, gera para aluno aprovado uma senha mostrada uma vez, válida por 24 horas, que só serve para o aluno criar a nova antes de qualquer tela. A antiga para de valer na geração | Aluno de outra turma ou escola responde igual a inexistente; a provisória não entra duas vezes |
 | RF14 | **Conta da escola do aluno**: pelo link da sala, ele entra com a conta de um domínio liberado, escolhe o nome, informa a matrícula, e a aprovação liga a conta; o aluno já aprovado liga a sua em "Eu". Uma conta por aluno; conta ligada a outro é recusada sem dizer a quem; guarda-se só o identificador opaco | Antes da aprovação, recusada; depois, entra; o banco não tem e-mail nem foto do provedor |
 | RF15 | A prévia de 3.000 linhas sai em até 10 segundos; gravar e enviar e-mail não prendem a tela, que diz quando terminou | Teste de carga com 3.000 linhas |
-| RF16 | Tudo alcança só a escola ativa e o ano em curso; id de outra escola responde igual a inexistente (regra 10) | Isolamento por módulo novo |
+| RF16 | Tudo alcança só a escola ativa e o ano em curso, ou o planejado que a coordenação escolhe; id de outra escola responde igual a inexistente (regra 10) | Isolamento por módulo novo |
 | RF17 | Ficam na auditoria, com autor e data: planilha gravada (tipo e contagens), transferência, desligamento, envio de convite, senha provisória e conta ligada; nenhum registro traz nome ou matrícula | Um registro por ação |
-| RF18 | O e2e prova a escola entrando: escola vazia → quatro planilhas, uma suja → convites → professor confirma o que a grade definiu → um aluno reivindica com a conta da escola e outro com matrícula → aprovação (regra 40) | e2e em `chromebook` |
+| RF18 | O e2e prova a escola entrando: escola vazia → quatro planilhas, uma suja → convites → professor confirma o que a grade definiu → um aluno reivindica com a conta da escola e outro com matrícula → aprovação (regra 40) | e2e em `chromebook` e `celular` |
 
 ## 6. Regras de negócio
 
@@ -76,15 +76,16 @@ uma senha provisória, sem ninguém cadastrado um a um.
 
 | Caso | Comportamento esperado |
 |---|---|
-| Dois alunos com o mesmo nome na turma | A matrícula os separa |
+| Homônimos na turma | A matrícula os separa |
 | Transferido com pedido pendente | Pedido encerrado; o nome vai livre para a turma nova |
-| Matrícula que o Excel virou número ("1,23E+05", zeros perdidos) | XLSX lê como texto; no CSV, notação científica é erro na linha |
-| Grade com professor não convidado | Nasce cadastrado e entra no envio seguinte |
+| Matrícula que o Excel virou número | XLSX lê como texto; no CSV, notação científica é erro na linha |
+| Grade com professor não convidado | Nasce cadastrado; entra no envio seguinte |
 | Professor discorda da alocação | Contesta; reimportar não reabre o contestado |
-| Professor em duas escolas clientes | Uma conta, um vínculo e uma grade por escola |
+| Professor em duas escolas clientes | Uma conta; vínculo e grade por escola |
 | E-mail que volta | "Falhou"; corrigir e reenviar, ou copiar o link |
-| Aluno com conta da escola pede senha provisória | A tela diz que ele entra pela conta da escola |
+| Aluno com conta da escola pede senha provisória | A tela diz que ele entra pela conta |
 | Grade subida com o ano `planejado` | Vale quando o ano entrar em curso |
+| Conta de link copiado aceita convite de outra escola | Só com o e-mail verificado |
 
 ## 8. Dado pessoal envolvido
 
@@ -93,7 +94,7 @@ uma senha provisória, sem ninguém cadastrado um a um.
 | Nome, matrícula e vínculo do aluno, da planilha | aluno | identificar na turma | A1 e F3 | sim |
 | Nome e e-mail do professor, da planilha | professor | convidar e autenticar | conta global | sim |
 | Aula da grade (turma, disciplina, professor, dia, horário, sala) | professor | derivar o vínculo e a semana (F2b) | ano letivo + prazo de estrutura do F3 | não: entra |
-| Estado do envio do convite (data, estado, id no provedor) | professor | mostrar se chegou | até aceite, revogação ou vencimento | não: entra |
+| Estado do envio do convite (data, estado) | professor | mostrar se chegou | até aceite, revogação ou vencimento | não: entra |
 | E-mail e texto enviados ao provedor de e-mail | professor, coordenador | entregar convite e redefinição | contrato do suboperador | não: provedor entra como suboperador |
 | Pedido de redefinição (hash do token, validade, uso) | professor, coordenador | redefinir a senha | 30 dias após uso ou vencimento | não: entra |
 | Senha provisória (hash, validade, quem gerou) | aluno, quem gerou | voltar a entrar sem e-mail | hash sai no uso ou vencimento; autor na auditoria | não: entra |
@@ -107,7 +108,7 @@ escola ligada só com aprovação humana).
 
 ## 9. Métricas
 
-- Dias até 90% dos professores com vínculo confirmado
+- Dias até 90% dos vínculos confirmados
 - Linhas com erro na primeira tentativa, e tentativas até gravar
 - Convites que falharam, por escola
 - Senhas provisórias por semana por escola
