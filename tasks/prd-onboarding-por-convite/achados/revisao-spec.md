@@ -1734,3 +1734,52 @@ Recomendações:
 3. **§5, passo (3), desligamento de professor:** a conta é travada em `FOR SHARE` e, dentro do `desativar`, sobe para `FOR UPDATE`. Duas escolas desligando ao mesmo tempo o mesmo professor dão `40P01` entre os dois jobs. A nova tentativa resolve, e nenhuma requisição entra no ciclo, mas vale escrever o caso e cobrir com um [P]. Ou então travar direto em `FOR UPDATE` as contas que o job vai desativar.
 4. **§5 e §7c, duração do passo (3):** o `statement_timeout` de 1,5 s vale por comando. Com 3.000 linhas em lotes de 500, a transação pode segurar as turmas por mais tempo contra o gerar acesso das 7h30. Hoje só o [C] e o alerta de mais de 1 s cobrem isso. Sugiro um teto da transação inteira, com `transaction_timeout` (Postgres 17) ou corte por tempo decorrido, que vire nova tentativa.
 5. **§5, "turma de todo marcado" na planilha de professores:** dizer que, para o professor desligado, entram todas as turmas dos vínculos dele, em qualquer estado. É o mesmo conjunto que o `travarContraOGerarDoProfessor` trava. Assim o `desativar` chamado dentro do job não trava uma turma nova depois dos pedidos.
+
+## test-engineer · 8ª rodada · APROVADO · 2026-11-03 15:02:02 · `tasks/prd-onboarding-por-convite/revisao-spec.md`
+
+**VEREDITO: APROVADO**
+
+Os dois bloqueantes da rodada 7 estão resolvidos e a correção não abriu bloqueante novo. Ficam cinco recomendações. Duas delas valem para a hora de escrever as tarefas: o momento em que o resultado do job é conferido e o tipo do teste do diálogo.
+
+**Cenários exigidos:**
+- O "Enviar" e o "Reenviar" fazem o `convite/refazer` numa linha nova e não reaproveitam o convite aberto.
+- Só o último link gerado é aceito.
+- As 24 h do envio contam do `criadoEm` novo, contra o expurgo da noite.
+- Matrícula lançada à mão entre o passo (2) e o (3) do job leva a `desatualizada`, nunca a `falhou`.
+- As recomendações da rodada 7 (segunda execução, determinismo, link da conta, vaga do `EMAIL_POR_MINUTO`, PRD RF11).
+
+**Cobertos:**
+- **Bloqueante 1 da rodada 7: resolvido.**
+  - O `cenarios.md`, seção "E-mail, convite e posse", RF11, tem o cenário [I] "Convite copiado e aberto, criado há 2 dias", que vale também para o "Reenviar".
+  - Ele derruba a mutação "o Enviar reaproveita a linha e só grava `canal = 'email'`" por três asserções independentes:
+    - o id do convite é novo;
+    - o token copiado é recusado no aceite;
+    - o expurgo rodando logo depois não grava `falhou`, porque o `criadoEm` de 2 dias, reaproveitado, faria gravar.
+  - O cenário "Refazer invalida o link anterior" agora diz "só o último link gerado é aceito". Bate com a Tech Spec §4 ("'Enviar', 'Reenviar' e o 'Copiar link' fazem o `convite/refazer` (linha nova)") e com a linha "Envio do convite" do `docs/lgpd.md`, que conta do `criadoEm`.
+  - O cenário de "Dois Enviar convites" e a tabela "Corridas" ("vale o último") continuam coerentes com o refazer.
+- **Bloqueante 2 da rodada 7: resolvido.** A seção "Planilha", RF3, tem o cenário [P] com barreira entre o (2) e o (3). A matrícula M é lançada à mão como avulsa. O resultado esperado é `desatualizada`, nunca `falhou`, zero `lista_nome` da planilha gravadas e a avulsa intacta. É o par que faltava à `chave` (RF3) e ao `vinculo_ativo_unico` (RF7), contra a cláusula da Tech Spec §5, passo (3).
+- **Recomendações da rodada 7:**
+  - Segunda execução observável: atendida em "Job e estados", pela métrica "job por resultado" com uma `concluida` e uma `ignorada`.
+  - Determinismo: atendido em RF7, com o espião no SQL conferindo um único `for no key update` com `order by id`, no job e no `desativar`.
+  - O que se confere no link da conta: atendido em RF11 (`envio = 'falhou'`, cifrados nulos, "não aparece em lista").
+  - "Solta a vaga": atendido na tabela "Limites", linha `EMAIL_POR_MINUTO`.
+- **Fora de escopo nesta rodada:** IA (Tech Spec §7b, "Sem IA"), `.skip` e mocks não se aplicam, porque não há código.
+
+**Bloqueantes:** nenhum.
+
+**Recomendações:**
+1. **Unicidade violada em quatro cenários [P] (RF3 matrícula, a nova; RF3 `chave`, as duas; RF7 vínculo à mão com a mesma tripla):** escrever que o `desatualizada` acontece na mesma execução, sem nova tentativa. Por exemplo: o processor chamado uma vez, ou a tentativa do job igual a 1.
+   - **Por que:** com a mutação "único violado vira nova tentativa", a tentativa seguinte refaz a classificação no passo (2). A matrícula M já existe, a turma já casa, o vínculo já é reaproveitável. A assinatura muda e o job sai `desatualizada` do mesmo jeito.
+   - **O risco:** um teste que leve o job até o estado final pelo BullMQ passa com a cláusula removida.
+   - **Por que não é bloqueante:** o portão de mutações da tarefa acusa isso. Mas a tarefa precisa escrever o cenário desse jeito.
+2. **RF11, "O diálogo do 'Enviar' avisa que os links copiados antes deixam de valer":** essa cláusula está dentro de um [I], e teste com Postgres não vê diálogo. Ela precisa de um teste de componente [U] ou de um passo no [E], citado pelo nome na tarefa da tela. Sem isso, é a cláusula juntada por ponto e vírgula que fica sem teste.
+3. **Texto do diálogo:** o "Enviar" sem seleção inclui quem já recebeu e-mail e ainda não aceitou, então também invalida links enviados por e-mail, e não só os copiados. Sugestão: "os links enviados ou copiados antes deixam de valer".
+4. **PRD RF11, para o `revisor-geral` (continua da rodada 7):** o PRD ainda diz que o "Enviar" manda "com o token da A1" e que "o link copiável continua". Falta registrar que o "Enviar" também gera link novo e invalida o anterior, como já diz o critério do "Reenviar". A Tech Spec §9 também não cita o aviso do diálogo.
+5. **Faltou par no RF3 matrícula:** o caso em que a matrícula M é de um aluno **aprovado**, lançado à mão entre o (2) e o (3), que viola o único da `credencial_matricula`. O "único violado (matrícula)" da Tech Spec §5 deve valer para as duas tabelas. Cabe na mesma tarefa.
+
+Arquivos auditados:
+- /home/joaquimdp/Documents/git/.maestri/floors/educaia--speconboarding-por-convite/tasks/prd-onboarding-por-convite/cenarios.md
+- /home/joaquimdp/Documents/git/.maestri/floors/educaia--speconboarding-por-convite/tasks/prd-onboarding-por-convite/techspec.md
+- /home/joaquimdp/Documents/git/.maestri/floors/educaia--speconboarding-por-convite/tasks/prd-onboarding-por-convite/prd.md
+- /home/joaquimdp/Documents/git/.maestri/floors/educaia--speconboarding-por-convite/tasks/prd-onboarding-por-convite/achados/revisao-spec.md
+- /home/joaquimdp/Documents/git/.maestri/floors/educaia--speconboarding-por-convite/docs/lgpd.md

@@ -195,8 +195,8 @@ Sem IA.
 `Escola.tsx`; o XLSX carrega sob demanda (`docs/interface.md` 10.4). Prévia: erros, avisos e marcas primeiro, o resto em
 contagem, paginado de 100; marca rotulada com nome e matrícula. Vazio com "Baixar
 modelo"; falha com "Tentar de novo"; código de erro vira frase com o que fazer. A grade, tabela com cabeçalhos, rola no
-cartão a 360 px. A provisória confirma nome e turma antes de gerar. Telas novas: esqueci, redefinir, verificar, trocar a
-provisória (estados no `cenarios.md`), conta da escola na sala e em "Eu"; cada uma atualiza o `docs/interface.md`.
+cartão a 360 px. A provisória confirma nome e turma antes de gerar; "Enviar" avisa que os links anteriores caducam. Telas novas: esqueci, redefinir, verificar, trocar a
+provisória, conta da escola na sala e em "Eu"; cada uma atualiza o `docs/interface.md`.
 
 ## 10. Testes
 

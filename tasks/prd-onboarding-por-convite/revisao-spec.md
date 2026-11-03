@@ -190,6 +190,32 @@ Os bloqueantes da rodada 4 foram dados como resolvidos; os desta nasceram dos tr
 - Para a rodada 8 ou as tarefas: se o `desativar` trava o ano em `FOR SHARE` contra o `virarAno` e o `virarSala`, e o `eliminar` sem ano no contexto; teto da transação inteira do passo (3) (`transaction_timeout` ou corte por tempo, virando nova tentativa) (`infra-guardian`)
 - Para as tarefas: `docs/lgpd.md`, "Acesso da turma", passa a dizer que a desativação revoga; frase no PRD RF11 sobre os links copiados (é texto de tela, o critério não muda) (`privacy-guardian`, `test-engineer`)
 
+## Rodada 8 — 03/11/2026
+
+**Veredito: APROVADA**
+
+| Revisor | Veredito | Bloqueantes |
+|---|---|---|
+| `test-engineer` | APROVADO | 0 |
+
+Os dois bloqueantes da rodada 7 foram dados como resolvidos. `privacy-guardian` e `infra-guardian` aprovaram na rodada 7;
+`tenancy-guardian` e `revisor-geral` na 4; `frontend-reviewer` na 3. Nenhum deles voltou: a rodada 8 só mexeu em cenário.
+
+### Correções exigidas na Tech Spec
+- nenhuma
+
+### Recomendações (levadas ao `cenarios.md` e às tarefas)
+- Os [P] de único violado (matrícula, as duas `chave`, vínculo à mão com a mesma tripla) conferem o `desatualizada` na mesma
+  execução, com a tentativa igual a 1, e não pelo estado final via BullMQ (`test-engineer`)
+- O aviso do diálogo do "Enviar" é teste de tela ([E] ou componente), citado na tarefa da tela; o texto diz "os links
+  enviados ou copiados antes deixam de valer" (`test-engineer`)
+- PRD RF11: o "Enviar" também gera link novo e invalida o anterior; a Tech Spec §9 cita o aviso do diálogo (`test-engineer`)
+- RF3: o par com a matrícula de aluno **aprovado** lançada entre o (2) e o (3), que viola o único da `credencial_matricula`
+  (`test-engineer`)
+- Da rodada 7, para as tarefas: o `desativar` trava o ano em `FOR SHARE` contra o `virarAno` e o `virarSala`, e o `eliminar`
+  sem ano no contexto; teto da transação inteira do passo (3); `docs/lgpd.md`, "Acesso da turma", diz que a desativação
+  revoga (`infra-guardian`, `privacy-guardian`)
+
 ## Revisões
 
 Preenchida pelo hook `tools/processo/revisoes.ts` quando cada revisor termina. Não edite à mão:
@@ -230,3 +256,4 @@ atual, com APROVADO quando o revisor tem veto.
 | 2026-11-03 13:14:25 | 2026-11-03 13:15:50 | `privacy-guardian` | 7 | APROVADO | ad9d77a7cac89a105 |
 | 2026-11-03 13:14:19 | 2026-11-03 13:16:29 | `test-engineer` | 7 | REPROVADO | a78ad3658d2b37531 |
 | 2026-11-03 13:14:10 | 2026-11-03 13:17:50 | `infra-guardian` | 7 | APROVADO | a78373edfe4b14995 |
+| 2026-11-03 15:00:43 | 2026-11-03 15:02:02 | `test-engineer` | 8 | APROVADO | a89691b6f8395304f |

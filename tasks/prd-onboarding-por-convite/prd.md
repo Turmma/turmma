@@ -1,6 +1,6 @@
 # PRD — A escola inteira entra de uma vez
 
-**Status:** aprovado (03/11/2026, Joaquim); revisão da spec: posse do e-mail (escolha dele), RF16 e RF18 alinhados
+**Status:** aprovado (03/11/2026, Joaquim); revisão da spec: posse do e-mail (escolha dele), RF11, RF16 e RF18 alinhados
 **Funcionalidade do roadmap:** F2 — `onboarding-por-convite`, no recorte de 03/11/2026: a visão Semana saiu
 para a F2b (`semana-do-professor`), e o Classroom ficou sem fase até uma escola pedir
 **Depende de:** F1, A1
@@ -53,7 +53,7 @@ uma senha provisória, sem ninguém cadastrado um a um.
 | RF8 | **Gravar a grade gera a alocação**: turma × disciplina × professor sem vínculo vira vínculo pendente, e o professor confirma ou contesta (A1). Confirmado não muda | Sem confirmar, o professor não alcança a turma |
 | RF9 | Reimportar a grade a substitui. Vínculo que perdeu as aulas aparece "sai da grade" e só encerra marcado; o criado à mão sem aula fica | Grade sem o professor X: o vínculo dele segue até a marca |
 | RF10 | A **planilha de calendário** traz início, fim, tipo (feriado, recesso, evento) e descrição; data fora do ano letivo é erro; reimportar substitui, com a diferença na prévia | Feriado de 2027 no ano 2026: erro |
-| RF11 | **Convite por e-mail**: "Enviar convites" manda, de uma vez, aos professores sem aceite ou aos selecionados, com o token da A1 (uso único, 7 dias, revogável). O e-mail traz a escola e o link, nunca nome de aluno; cada professor mostra o estado (na fila, enviado, falhou); reenviar refaz o token; o link copiável continua | 40 convites num clique; reenviar invalida o anterior |
+| RF11 | **Convite por e-mail**: "Enviar convites" manda aos professores sem aceite ou aos selecionados, com o token da A1 (uso único, 7 dias, revogável). O e-mail traz a escola e o link, nunca nome de aluno; cada professor mostra o estado (na fila, enviado, falhou); enviar e reenviar refazem o token; o link copiável continua | 40 convites num clique; enviar invalida o anterior |
 | RF12 | **Esqueci a senha** (professor e coordenação): link por e-mail, uso único, 1 hora; resposta igual exista ou não a conta; redefinir encerra as sessões; o segundo fator continua | E-mail inexistente e existente respondem igual |
 | RF13 | **Senha provisória**: coordenação, ou professor com vínculo confirmado na turma, gera para aluno aprovado uma senha mostrada uma vez, válida por 24 horas, que só serve para o aluno criar a nova antes de qualquer tela. A antiga para de valer na geração | Aluno de outra turma ou escola responde igual a inexistente; a provisória não entra duas vezes |
 | RF14 | **Conta da escola do aluno**: pelo link da sala, ele entra com a conta de um domínio liberado, escolhe o nome, informa a matrícula, e a aprovação liga a conta; o aluno já aprovado liga a sua em "Eu". Uma conta por aluno; conta ligada a outro é recusada sem dizer a quem; guarda-se só o identificador opaco | Antes da aprovação, recusada; depois, entra; o banco não tem e-mail nem foto do provedor |

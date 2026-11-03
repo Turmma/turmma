@@ -1,6 +1,6 @@
 # Cenários de teste — onboarding-por-convite
 
-Exigidos pela revisão da spec, rodadas 1 a 6 (`revisao-spec.md`). Cada cenário diz o que precisa falhar se a regra sumir, e cai
+Exigidos pela revisão da spec, rodadas 1 a 8 (`revisao-spec.md`). Cada cenário diz o que precisa falhar se a regra sumir, e cai
 numa tarefa do `tasks.md`, que diz qual. I = integração com Postgres real e relógio injetado · U = unidade · E = e2e em
 `chromebook` e `celular`, com axe · P = chamadas em paralelo · C = cenário de carga.
 
@@ -35,6 +35,11 @@ numa tarefa do `tasks.md`, que diz qual. I = integração com Postgres real e re
   - [I] Matrícula repetida na mesma planilha: erro nas duas linhas.
   - [P] Aluno novo de matrícula M na planilha e, com barreira entre o (2) e o (3), nome avulso lançado à mão na mesma
     escola com a matrícula M: `desatualizada`, nunca `falhou`; zero `lista_nome` da planilha gravadas; a avulsa intacta.
+  - [P] O mesmo com a matrícula M de um aluno **aprovado** lançado entre o (2) e o (3), que viola o único da
+    `credencial_matricula`: `desatualizada`, nunca `falhou`.
+  - Nos [P] de único violado (matrícula, as duas `chave`, vínculo à mão com a mesma tripla) o `desatualizada` sai **na
+    mesma execução**: o processor é chamado uma vez (tentativa 1), e o teste não chega ao estado final pelo BullMQ, que
+    passaria com "único violado vira nova tentativa".
   - [I] Homônimos na mesma turma, com matrículas diferentes: dois alunos.
 - **RF4.**
   - [I] Mesma planilha duas vezes: segunda prévia só "já existe", e o banco não muda.
@@ -145,7 +150,7 @@ numa tarefa do `tasks.md`, que diz qual. I = integração com Postgres real e re
   - [I] Refazer invalida o link anterior no aceite; só o último link gerado é aceito.
   - [I] Convite copiado e aberto, criado há 2 dias (relógio falso): "Enviar" cria convite de id novo, o token copiado é
     recusado no aceite, o `retencao.expurgar-escola` logo depois não grava `falhou` no envio novo, e com mais de 24 h do
-    novo `criadoEm` grava. O mesmo com "Reenviar". O diálogo do "Enviar" avisa que os links copiados antes deixam de valer.
+    novo `criadoEm` grava. O mesmo com "Reenviar".
   - [I] SMTP 5xx: `falhou` sem nova tentativa. 4xx: a linha volta a `na_fila`, o segundo envio chega ao falso e a linha
     termina `enviado`; com revogação entre as tentativas, termina `cancelado`, sem segundo envio. Recusa na entrega
     mostra "falhou" na lista.
@@ -273,6 +278,7 @@ numa tarefa do `tasks.md`, que diz qual. I = integração com Postgres real e re
   sem rolagem horizontal, alvo de 44 px nas ações principais e de 24 px em todo o resto.
 - [E] Prévia carregando e falha: estado visível e "Tentar de novo".
 - [E] Gerar provisória para aluno com conta da escola: a tela diz que ele entra pela conta.
+- [E] O diálogo do "Enviar convites" diz que os links enviados ou copiados antes deixam de valer.
 
 ## Corridas
 
