@@ -2522,9 +2522,18 @@ repetem aqui.
       com a 2.0 `[x]`; marcar na próxima vez que o documento for tocado (é histórico da X8)
 - [ ] Da validação da X8 (rodada 3, menor), dono: Orquestrador, 02/11/2026: o registro de decisão do Joaquim no `estado.md` leva a hora do relógio (`date`), não
       a estimada (o "Respondida 02/11 ~12:15" da adenda 6 não bate com `fe02869f`, 19:01)
-- [ ] Da validação da X8 (rodada 3, menor), dono: retro da X8, 02/11/2026: numa spec de rename, o `revisor-geral` (ou o documento da correção) confere que todo
-      nome trocado está num mapa ou numa adenda aprovada; na correção `guarda-formas-do-inventario` o rename fora do inventário passou como "colisão" e custou uma
-      rodada de validação
+- [x] *(feito na retro da X8, 02/11/2026, proposta P5: `executar-task`, passo 3, e `corrigir`, passo 4, dizem que nome fora do mapa ou da adenda é
+      `DIVERGÊNCIA` de desenho, nunca colisão; caso em `docs/processo-licoes.md`)* ~~Da validação da X8 (rodada 3, menor), dono: retro da X8, 02/11/2026: numa
+      spec de rename, o `revisor-geral` (ou o documento da correção) confere que todo nome trocado está num mapa ou numa adenda aprovada; na correção
+      `guarda-formas-do-inventario` o rename fora do inventário passou como "colisão" e custou uma rodada de validação~~
+- [ ] **(X8, retro, M1) O bloco de mutação diz qual `expect` tem de cair**, dono: Orquestrador, uma correção (`corrigir`), 02/11/2026, aceita pelo Joaquim:
+      em `tools/processo/mutacoes.ts`, uma terceira linha de cabeçalho opcional, `falha: <trecho da linha do expect>` (ex.: `falha: not.toContain('insertAuditoria')`).
+      Com ela, a corrida pega, no relatório JSON do Vitest (`failureMessages`, a pilha) ou do Playwright (`errors[].location`), a primeira linha do arquivo de
+      teste em que o caso caiu, lê essa linha e recusa o bloco com "vermelho em outra asserção" quando o trecho não está nela. Sem a linha, nada muda. O
+      parser (`lerMutacoes`, regex `^(arquivo|teste|projeto):`) passa a aceitar `falha`. Casos em `mutacoes.test.ts`: o trecho certo passa; o caso que cai numa
+      asserção anterior é recusado; trecho que não existe no arquivo de teste é recusado na leitura. E o `executar-task` (passo 2, parágrafo "Vermelho não
+      basta") e o `corrigir` (passo 4) passam a pedir a linha `falha:` em toda asserção negativa, no lugar de ler a saída à mão. Motivo: cinco reprovações da X8
+      (3.0 ×2, 4.0, 7.0, 10.0) por bloco vermelho pelo motivo errado (`tasks/prd-nomes-de-mercado/retro.md`, grupo A)
 - [ ] Da X8, decidir com o Joaquim (achado de passagem da correção da L1), 02/11/2026: a API devolve `ERRO_INTERNO` (500), e não 503, com o Postgres sem resposta
       no `query_timeout` (`packages/core`, `pool.ts`/`mapPostgresError`); `e2e/coordenacao-introducao.spec.ts:102` tem a mesma exposição
 - [ ] Da tarefa 11.0 da X8 (revisor-geral, 2ª), dono: Arquiteto, 02/11/2026: em "Como testar" de `tasks/prd-nomes-de-mercado/11_task.md`, a frase diz que

@@ -115,6 +115,14 @@ expressão regular sobre código), a Tech Spec escreve a gramática que a guarda
 Na X7, a 10.0 levou três reprovações de forma nova, uma por rodada (`$'…'`, `--config-env=`, opção
 global), uma escalada e um bloqueio, até a §5(a) ganhar "todo o resto é limite".
 
+Se a funcionalidade cria uma **ferramenta que roda sobre o repositório inteiro** (um rename, uma migração de dado, uma
+varredura), a Tech Spec dá o critério medido sobre a árvore real, com tempo e resultado (por exemplo: "o maior mapa roda em
+até 20 min sem gravar; `conferir` e `restos` limpos na árvore sã"), e a tarefa que cria a ferramenta o prova antes do
+commit, não a primeira que a usa. Na X8, a 1.0 e a 2.0 passaram só em fixture, e onze correções da ferramenta vieram nas
+ondas (o `aplicar` com 12 h projetadas na 3.0 e 3 h 33 na 5.0, símbolos perdidos, homônimos, o `reaplicar` sem filtro). Spec
+de rename lê também "Para a próxima spec de rename", em `tasks/prd-nomes-de-mercado/retro.md`, e declara os limites do
+`restos` que ela lista, cada um com a busca que o cobre.
+
 ### 6. Mapear conformidade
 
 Cada decisão contra `.claude/rules/`. Desvio precisa de justificativa escrita e alternativa

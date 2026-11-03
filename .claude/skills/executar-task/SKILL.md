@@ -76,8 +76,15 @@ alcançada. O portão da tarefa aplica cada bloco, roda o teste citado, exige ve
 (`tools/processo/mutacoes.ts`). O vermelho tem de vir de um caso que falhou: trecho que deixa o arquivo com erro de sintaxe, ou
 o módulo sem carregar, é recusado como erro de carga. Troque-o por código válido.
 
+Vermelho não basta: tem de ser o da cláusula. No caso com mais de um `expect`, em especial uma negativa (`not.toContain`,
+`not.toMatch`) depois de uma positiva, rode o caso mutado uma vez, isolado, e leia na saída a linha do `expect` que caiu. Se
+caiu antes da cláusula, troque a mutação por uma que deixe as asserções anteriores verdes. "Sem mutação" só vale com o
+`--faltando` vazio e sem trava achada (pela ferramenta da spec ou pelo anexo de travas dela). E a prova que a tabela cita, um
+caso ou uma ferramenta, tem de ler os arquivos da linha: abra o que ela lê antes de citá-la.
+
 Antes de pedir a rodada, rode `node tools/processo/mutacoes.ts --faltando <documento>`: cada linha que ele lista ganha bloco
-em "Mutações", ou a meia linha do motivo. Na X4, a 4.0 e a 6.0 reprovaram por linha que ele já apontava. E cada linha da
+em "Mutações", ou a meia linha do motivo, e o começo de "Mutações" leva a linha `--faltando: <n> linhas (<n> blocos, <n>
+motivos)`. Vale para o código de `tools/` também. Na X4, a 4.0 e a 6.0 reprovaram por linha que ele já apontava. E cada linha da
 tabela de testes ganha o caso na coluna "Caso" (pergunta 11); documento sem a coluna leva a lista "linha → caso" no plano.
 
 ## 3. Implementar
@@ -89,6 +96,8 @@ tabela de testes ganha o caso na coluna "Caso" (pergunta 11); documento sem a co
 - Vocabulário do glossário no código e no banco
 - Descobriu que a Tech Spec está errada: PARE e envie `/seguir DIVERGÊNCIA de Implementador`, com
   `Motivo: desenho`. Não improvise.
+- Renomear peça que o documento não nomeia (fora do mapa, da adenda aprovada ou dos arquivos previstos) também é
+  `DIVERGÊNCIA` de desenho, nunca "colisão" resolvida no próprio commit.
 
 ## 4. Portão da tarefa
 

@@ -1506,7 +1506,7 @@ coisas. O item 3 dizia "uma expressão neutra só" para a onça inteira: o avata
 de corpo inteiro passa a ter o rosto da pose, o do mockup (acenando, apontando, comemorando e pensando),
 com o parecer do `conformidade-reviewer` dado na correção; o piscar e o laço dos três pontos, que ele
 vetou, e as poses `acolhendo` e `dormindo` continuam fora. E o traço da onça é **copiado** do mockup para
-`apps/web/src/componentes/ui/onca/`: é a única exceção à cerca de que nada do mockup entra no `apps/web`
+`apps/web/src/componentes/ui/onca/` (desde a X8, `apps/web/src/components/ui/onca/`): é a única exceção à cerca de que nada do mockup entra no `apps/web`
 nem nos `packages/`. O mockup continua sem ser importado, e um teste guarda os valores do original
 (`fidelidade-ao-mockup.test.tsx`). Motivo: redesenhada à mão na X1 e na X4, a onça saiu outra, e quem
 abria o produto não via a mascote que o Gabriel escolheu; só a cópia fiel, presa por teste ao original,
