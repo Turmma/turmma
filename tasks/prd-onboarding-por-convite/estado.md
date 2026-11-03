@@ -1,6 +1,7 @@
 # Estado da execução — onboarding-por-convite
 
 ## Agora
+- **03/11 ~19:45:** `DIVERGÊNCIA` (portão) do Implementador na 4.0: `tools/renomear/restos.test.ts` falha por "migrar" num comentário de `packages/core/src/db/migracao-f2.int.test.ts:12` (da 2.0; símbolo do mapa de nomes-de-mercado). Decidi sem perguntar: correção na linha 1 (Implementador e Mesa reiniciados), `PEDIDO` com guardião `revisor-geral`, trocando só a palavra do comentário; o commit dela fica na linha e segue com o da 4.0. **Espero:** `/seguir RELATÓRIO` do Implementador (4.0, 1ª tentativa).
 - **03/11 ~19:20:** tarefa 2.0 encontrada (`292430e3`, spec em `daf7246d`, verificação passou, push feito). Esteira rodando (41725161004). Linha 1 → 4.0 (grande), par reiniciado, `PEDIDO` enviado; linha 2 ociosa (nada mais parte, tudo espera a 4.0). **Espero:** `/seguir RELATÓRIO` do Implementador (4.0, 1ª tentativa). **Devo ainda:** triar o §5 Gravar da Tech Spec com o Arquiteto antes da partida da 6.0 (apontá-lo para a linha que vai rodar a 6.0). **Base:** `spec/onboarding-por-convite` em `daf7246d`
 - **03/11 ~18:45:** tarefa 3.0 encontrada (`8f38c269`, spec em `a0fd755a`, verificação passou, push feito; 3ª tentativa, 6 revisores aprovados). Esteira rodando (41719999658), veredito no próximo encontro. Linha 2 ociosa e nada parte (as presas esperam a 2.0 ou a 4.0). **Espero:** `/seguir RELATÓRIO` do Implementador (2.0, 1ª tentativa). **Devo ainda:** o §5 Gravar da 6.0 (triagem do Arquiteto, antes dela). **Base:** `spec/onboarding-por-convite` em `a0fd755a`
 - **03/11 ~18:20:** Diagnóstico do Arquiteto na 3.0 (`.processo/ordens/diagnostico-3.md`): a causa era a triagem da r1; o desativar passa a alcançar quem o login ativaria (RF5 e E11 da A1 ficam, sem mudar desenho). Implementador 2 reiniciado (contexto no fim) e `PEDIDO de retomada` da 3.0 (3ª tentativa) enviado, com diagnóstico e `3_task-r2.md`. **Espero:** `/seguir RELATÓRIO` do Implementador (2.0, 1ª tentativa) e do Implementador 2 (3.0, 3ª). **Devo ainda:** o §5 Gravar da 6.0 (triagem do Arquiteto).
@@ -30,4 +31,5 @@
 ## Esperando o Joaquim
 ## O que falhou
 ## O que decidi sem perguntar
+- 03/11, `DIVERGÊNCIA` (portão) da 4.0: o resto "migrar" num comentário da 2.0 deixava `restos.test.ts` vermelho; correção na linha 1, antes de retomar a 4.0, pelo Implementador reiniciado (passo 6), com `revisor-geral`. Troca só a palavra do comentário.
 - 02/11, fechamento da X8: o censo deu 25 casos acima de 2/3 do prazo em arquivos que a X8 tocou só no rename; tratei como dívida da `develop` (linha no `TODO.md`), sem correção, e disse no pedido de pouso
