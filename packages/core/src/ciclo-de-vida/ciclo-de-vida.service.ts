@@ -38,7 +38,14 @@ const naoEncontrado = () => new DomainException(ErrorCode.NAO_ENCONTRADO)
  * - **Desativar:** o usuário deixa de entrar na requisição seguinte (a guarda recusa usuário desativado) e deixa de ter
  *   credencial guardada nesta escola: as sessões dele aqui são encerradas, o hash da senha da matrícula é apagado e a
  *   conta Google ou Microsoft ligada é desligada. Se a conta global ficou sem usuário ativo em escola nenhuma, ela é
- *   limpa (e-mail, senha, segundo fator e as sessões que restarem).
+ *   limpa (e-mail, senha, segundo fator e as sessões que restarem). **Os vínculos dele na escola são encerrados**, de
+ *   professor e de aluno, no ano em curso e no planejado, por `desligamento`, e o acesso da turma que ele gerou é
+ *   revogado com `acesso_turma.revogado`: professor desativado em março não vê a turma em outubro (regra 20, item 18). Desativa
+ *   o usuário ativo e o que aceitou o convite com a conta que já tinha senha e ainda não entrou (o `aceito` da A1, que o
+ *   login ativaria): os dois respondem igual e terminam `desativado` (E11 da A1). Qualquer outro inativo, como o professor
+ *   pendente, responde `NAO_ENCONTRADO` antes de travar a conta, e o convite em aberto dele sai pelo `convite/revogar` da A1.
+ *   O convite em aberto de um usuário ativo, que nenhuma rota cria, é revogado como defesa (onboarding-por-convite, 3.0; N1
+ *   da A1), sem a trava da escola.
  * - **Eliminar:** apaga de fato o usuário e o que é dele nesta escola (credencial, conta externa, vínculos e sessões,
  *   e, do aluno que entrou pela lista da A1, a linha `aprovado` da lista e os pedidos dela, antes do usuário); o
  *   registro de acesso e a auditoria ficam pela retenção legal. De quem gerou acesso da turma, gravou a lista ou decidiu
@@ -50,19 +57,37 @@ const naoEncontrado = () => new DomainException(ErrorCode.NAO_ENCONTRADO)
  * - **Desligar a conta externa:** a coordenação desliga a conta Google ou Microsoft de um usuário ativo, e ele liga a
  *   nova no login seguinte (decidido na 13.0).
  *
- * A ordem das travas: o usuário, depois a conta, e só então as sessões, como a redefinição do MFA (conta, depois
- * sessões), para as duas não se prenderem uma à outra. Duas desativações de usuários da mesma conta ao mesmo tempo
+ * A ordem das travas é a **global** do job da planilha (Tech Spec do onboarding-por-convite, seção 5, "O job"): o ano em
+ * `FOR SHARE` (os anos em que o usuário tem vínculo, contra a virada do ano e a da sala), o usuário, a conta, as turmas dele
+ * num comando só em ordem de id, e só então o resto (vínculo, acesso, sessões; a redefinição do MFA segue conta, depois
+ * sessões), para o job, a desativação e a eliminação não se prenderem uns aos outros (`40P01`). **Uma exceção conhecida:** o
+ * `#eliminarPessoasDesativadas` do expurgo da escola (`retencao/expurgo-da-escola.repository.ts`) trava o usuário antes de chamar
+ * o `eliminar`, que trava o ano depois; ninguém segura o ano de forma exclusiva esperando esse usuário (a virada do ano não
+ * trava usuário), então não há ciclo, mas a ordem ali é usuário, ano. Duas desativações de usuários da mesma conta ao mesmo tempo
  * esperam uma pela outra na conta, e a segunda vê que ninguém mais está ativo.
  */
 export class CicloDeVidaService {
   constructor(private readonly banco: Database) {}
 
   async desativar(usuarioId: string, autoria: AutoriaDoCicloDeVida = {}, transacao?: DatabaseTransaction): Promise<void> {
-    await this.#naTransacao(usuarioId, transacao, async (tx, alvo) => {
-      if (alvo.desativadoEm !== null) throw naoEncontrado()
+    await this.#naTransacao(usuarioId, transacao, 'abertos', true, async (tx, alvo) => {
       const repositorio = new CicloDeVidaRepository(tx)
+      // Depois do ano, do usuário e da conta (`#naTransacao`): as turmas dele, num comando só e em ordem de id, antes de
+      // qualquer vínculo (turma → vínculo, a ordem do encerrar, do excluir e da eliminação).
+      await repositorio.travarContraOGerarDoProfessor(usuarioId)
       const desativadoEm = await repositorio.desativar(usuarioId)
       if (desativadoEm === undefined) throw naoEncontrado()
+      // Os vínculos, no ano em curso e no planejado, e só então o acesso da turma que ele gerou: com o vínculo encerrado, nenhum
+      // vínculo `confirmado` o segura (regra 20, item 18).
+      const vinculosEncerrados = await repositorio.encerrarVinculosDaPessoa(usuarioId, 'desligamento')
+      for (const encerrado of vinculosEncerrados) {
+        await registro.gravar(tx, 'vinculo.encerrado', { entidadeId: encerrado.id, antes: { estado: encerrado.estadoAntes }, depois: { estado: 'encerrado', motivo: 'desligamento' }, ...autoria })
+      }
+      for (const revogado of await repositorio.revogarDeQuemSaiu(usuarioId)) {
+        await registro.gravar(tx, 'acesso_turma.revogado', { entidadeId: revogado.id, depois: { turmaId: revogado.turmaId }, ...autoria })
+      }
+      const conviteRevogado = await repositorio.revogarConviteAberto(usuarioId)
+      if (conviteRevogado !== undefined) await registro.gravar(tx, 'convite.revogado', { entidadeId: conviteRevogado.id, depois: { tipo: conviteRevogado.tipo }, ...autoria })
       const sessoesEncerradas = await repositorio.encerrarSessoesDoUsuario(usuarioId, 'desativacao')
       const credencialApagada = await repositorio.apagarSenhaDaMatricula(usuarioId)
       const contaExternaDesligada = (await repositorio.apagarContaExterna(usuarioId)) !== undefined
@@ -77,7 +102,7 @@ export class CicloDeVidaService {
   }
 
   async eliminar(usuarioId: string, autoria: AutoriaDoCicloDeVida = {}, transacao?: DatabaseTransaction): Promise<void> {
-    await this.#naTransacao(usuarioId, transacao, async (tx, alvo) => {
+    await this.#naTransacao(usuarioId, transacao, 'todos', false, async (tx, alvo) => {
       const repositorio = new CicloDeVidaRepository(tx)
       const sessoesApagadas = await repositorio.apagarSessoes(usuarioId)
       // As turmas dele em `FOR NO KEY UPDATE` antes de apagar os vínculos (turma → vínculo, como o encerrar e o excluir): o gerar que está no meio termina primeiro, e o acesso
@@ -134,7 +159,7 @@ export class CicloDeVidaService {
   }
 
   async desligarContaExterna(usuarioId: string, autoria: AutoriaDoCicloDeVida = {}): Promise<void> {
-    await this.#naTransacao(usuarioId, undefined, async (tx, alvo) => {
+    await this.#naTransacao(usuarioId, undefined, 'nenhum', false, async (tx, alvo) => {
       if (alvo.desativadoEm !== null) throw naoEncontrado()
       const desligada = await new CicloDeVidaRepository(tx).apagarContaExterna(usuarioId)
       if (desligada === undefined) throw naoEncontrado()
@@ -150,18 +175,36 @@ export class CicloDeVidaService {
   }
 
   /**
-   * Na transação de quem chama, ou numa própria quando não há, trava o usuário da escola do contexto e a conta dele, e só
-   * então roda a ação. O próprio usuário da sessão não se desativa nem se elimina: a escola ficaria sem quem pediu, e a
-   * resposta é a mesma do id de ninguém.
+   * Na transação de quem chama, ou numa própria quando não há, trava, na ordem global do job da planilha (onboarding-por-convite,
+   * 3.0; Tech Spec, seção 5, "O job"), o ano, o usuário da escola do contexto e a conta dele, e só então roda a ação (que trava
+   * as turmas). `anos` diz quais anos da escola, com vínculo do usuário, entram em `FOR SHARE` antes de tudo: os que ainda têm
+   * vínculo aberto (`abertos`, a desativação), todos (`todos`, a eliminação, que roda sem ano no contexto) ou nenhum.
+   *
+   * Com `recusarInativo` (a desativação), o usuário inativo que não está à espera da primeira entrada responde `NAO_ENCONTRADO`
+   * logo depois de travado, antes da conta.
+   *
+   * O próprio usuário da sessão não se desativa nem se elimina: a escola ficaria sem quem pediu, e a resposta é a mesma do id
+   * de ninguém.
    */
-  async #naTransacao(usuarioId: string, transacao: DatabaseTransaction | undefined, acao: (tx: DatabaseTransaction, alvo: UsuarioDoCicloDeVida) => Promise<void>): Promise<void> {
+  async #naTransacao(
+    usuarioId: string,
+    transacao: DatabaseTransaction | undefined,
+    anos: 'abertos' | 'todos' | 'nenhum',
+    recusarInativo: boolean,
+    acao: (tx: DatabaseTransaction, alvo: UsuarioDoCicloDeVida) => Promise<void>,
+  ): Promise<void> {
     requireEscolaId()
     if (!idSchema.safeParse(usuarioId).success) throw naoEncontrado()
     // O contexto guarda o id em minúsculas, como o Postgres o devolve: a comparação com o próprio usuário vale em qualquer caixa.
     if (currentContext()?.usuarioId === usuarioId.toLowerCase()) throw naoEncontrado()
     const rodar = async (tx: DatabaseTransaction): Promise<void> => {
-      const alvo = await new CicloDeVidaRepository(tx).travarUsuario(usuarioId)
+      const repositorio = new CicloDeVidaRepository(tx)
+      if (anos !== 'nenhum') await repositorio.travarAnosDosVinculos(usuarioId, anos === 'abertos')
+      const alvo = await repositorio.travarUsuario(usuarioId)
       if (alvo === undefined) throw naoEncontrado()
+      // O inativo que o login não ativaria (pendente, vencido, revogado, desativado) é recusado antes de pedir a conta: o aceite
+      // com conta sem senha trava conta e depois usuário, e esta transação já tem o usuário (`40P01`). O à espera passa.
+      if (recusarInativo && alvo.desativadoEm !== null && !alvo.aEsperaDaPrimeiraEntrada) throw naoEncontrado()
       if (alvo.contaId !== null) await new ContaGlobalRepository(tx).travarConta(alvo.contaId)
       await acao(tx, alvo)
     }

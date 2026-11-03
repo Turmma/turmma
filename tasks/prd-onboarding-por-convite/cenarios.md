@@ -84,8 +84,16 @@ numa tarefa do `tasks.md`, que diz qual. I = integração com Postgres real e re
   - [P] Duas escolas importam o mesmo professor ao mesmo tempo: as duas `concluida`, uma `conta`.
   - [I] 301 linhas: erro de teto; 300 entram.
   - [I] Professor ausente na reimportação segue ativo sem marca; marcado, é desligado pelo `desativar`.
-  - [I] O `desativar` encerra os vínculos do professor na escola, no ano em curso e no planejado, e revoga o convite aberto
-    (N1 da A1).
+  - [I] O `desativar` encerra os vínculos da pessoa (professor ou aluno) na escola, por pessoa e sem o ano do contexto, no ano em curso e no planejado, e revoga o convite aberto
+    (N1 da A1). O convite aberto em usuário ativo não nasce por rota nenhuma: o caso é defesa, com o estado montado no
+    banco e dito no nome do teste.
+  - [I] Professor pendente, cadastrado pela rota real (`POST /v1/professores`): o `desativar` responde `NAO_ENCONTRADO`,
+    igual ao inexistente, e não toca o convite nem os vínculos; o `convite/revogar` da A1 é que o tira.
+  - [I] Professor que aceitou com a conta que já tinha senha e não entrou: o `desativar` responde como ao ativo, os
+    vínculos são encerrados, o estado na lista vira `desativado`, e o login com o bilhete não o ativa.
+  - [P] `desativar` × aceite com conta sem senha, nas duas ordens: zero `40P01`; quando a desativação vem depois,
+    `usado_em < desativado_em` e o bilhete não reativa (o fechamento vem do `clock_timestamp()`).
+  - [P] `desativar` × `ativar` do login do à espera: o usuário termina inativo e sem vínculo aberto.
   - [I] Professor desligado pela planilha: o passo (3) trava todas as turmas dos vínculos dele, em qualquer estado (o
     mesmo conjunto do `travarContraOGerarDoProfessor`), antes dos pedidos.
   - [P] Duas escolas desligando pela planilha o mesmo professor ao mesmo tempo: as duas `concluida` (o `40P01` entre os

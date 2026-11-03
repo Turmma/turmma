@@ -22,7 +22,7 @@ cenários foram distribuídos pelo `test-engineer`; cada linha do `cenarios.md` 
   - [x] 2.4 Classificação das tabelas; modelo de dados, glossário, runbook
   - [x] 2.5 Testes: checks no banco, chave, corrida da criação
 
-- [ ] **3.0 — Desativar encerra os vínculos e revoga o convite, na ordem global**
+- [x] **3.0 — Desativar encerra os vínculos e revoga o convite, na ordem global**
   - [ ] 3.1 Vínculos encerrados pelo `encerrar`, turmas por id num comando
   - [ ] 3.2 Convite aberto revogado
   - [ ] 3.3 Ordem global no `desativar` e no `eliminar`
