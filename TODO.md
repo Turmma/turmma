@@ -486,6 +486,8 @@ para o staging".
       aninhado) e mostra a configuração **efetiva** — inclusive o `health_checker` que o próprio Caddy
       acrescenta ao `exclude`. Roda em `test:infra`, não no portão rápido: custa o binário do Caddy
 
+- [ ] **Imagem da folha de resposta na tabela de dados de `docs/lgpd.md`** (D83, F6b), com finalidade e retenção curta, antes
+      da migration da F6b (regra 20, item 1). A retenção está em aberto em `docs/decisoes-em-aberto.md`
 - [ ] **Escolher o provedor da VPS de produção** (D82, 03/11/2026): região Brasil (D28), processamento no Brasil
       para conversa de aluno (D62), snapshot e backup fora da VPS, e a borda (o túnel da Cloudflare era o desenho
       da VM de casa). Antes de o F18 começar

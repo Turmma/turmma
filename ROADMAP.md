@@ -595,6 +595,24 @@ teste prova que a contagem de saídas da aba não existe fora de avaliação nem
 tem rubrica, lote e correção cega, e **nenhum campo do sistema guarda nota, conceito ou devolutiva de
 discursiva gerada por IA**; e o professor vê em Turmas quem precisa de atenção, pelo indicador decidido.
 
+**Fora desta fase:** a prova no papel (impressão, folha de resposta e leitura por foto) é a F6b (D83).
+
+## F6b — `prova-no-papel` [ ]
+**Depende de:** F6
+
+Decisão de 03/11/2026 (D83). O modo `papel_foto` e a `FolhaResposta` já estão desenhados em `docs/modelo-de-dados.md`;
+nada disso existe no código. **Falta:** montar e imprimir a prova com a quantidade de versões que o professor escolher
+(ordem de questões e de alternativas embaralhadas); a **folha de resposta por aluno**, com marcas de registro nos cantos
+e um QR com código opaco (nunca o gabarito: o servidor o busca pelo código); a leitura da foto por algoritmo
+determinístico, **sem IA**; a conferência humana dos casos duvidosos; o **lançamento manual** como saída; a correção
+entrando no lote com validação registrada (D56); e a AIA da correção de objetiva reaberta antes do PRD. Em discursiva no
+papel a IA não lê nem corrige (D55). **Em aberto** (`docs/decisoes-em-aberto.md`): retenção da imagem de conferência,
+leitura no navegador ou no servidor, e se a fase vem antes ou depois da F9 no piloto.
+
+**Pronto quando:** o professor imprime a prova com N versões e uma folha por aluno; a foto das folhas corrige pelo gabarito
+da versão certa; a marcação duvidosa cai na conferência ou no lançamento manual; teste prova que o QR não carrega gabarito e
+que a imagem não sai do nosso ambiente; e nenhum campo guarda nota ou devolutiva de discursiva gerada por IA.
+
 ## F7 — `chat-e-ferramentas-professor` [ ]
 **Depende de:** F6
 
@@ -840,6 +858,7 @@ staging (D31 revista). O provedor de nuvem é escolhido na migração (D42).
 - F5 corre desde o início, independente do domínio; a fatia mínima dela nasceu na A2
 - F3 corre em paralelo com F4 e F5, e **não pode ser a última**
 - F13 pode correr junto de F12; a fila do F11 e o gateway do F5 chegam pela X6
+- F6b (prova no papel) corre depois da F6; antes ou depois da F9 se decide com o piloto (D83)
 - F17 (nota oficial) corre depois de F6, F11 e F13, em paralelo com F12 e F14, e antes do F15
 - O teste de carga começa no F0 com um cenário mínimo e cresce a cada funcionalidade do
   caminho quente (F2, F5, F6, F9), em vez de nascer inteiro no F16

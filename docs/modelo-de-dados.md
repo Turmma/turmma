@@ -440,7 +440,10 @@ FolhaResposta    → avaliacao*, aluno*, codigo*, versao
 Captura          → folhaResposta*, imagemUrl*, status, confianca, revisadoPor?
 ```
 
-`codigo` é impresso na folha e identifica aluno e avaliação sem depender de OCR de nome.
+`codigo` é impresso na folha e identifica aluno e avaliação sem depender de OCR de nome. É **opaco**: o QR nunca carrega o
+gabarito, que o servidor busca pelo código. A quantidade de `versao` é escolhida pelo professor. A folha tem marcas de
+registro nos cantos, e a leitura é determinística, **sem IA**; a imagem serve à conferência dos casos duvidosos, com
+retenção curta, e o que a leitura não resolver cai no lançamento manual (D83, F6b).
 
 ## Agentes
 

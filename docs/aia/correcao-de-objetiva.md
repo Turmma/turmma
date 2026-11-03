@@ -14,7 +14,8 @@
 > **Sobre as fontes:** o ato do CNE de 01/09/2026 foi lido só por cobertura de imprensa
 > (`docs/regulacao.md`). O que esta AIA atribui a ele vale até a leitura do texto oficial.
 > **Alcance deste rascunho:** a avaliação **online objetiva**. O modo papel com foto traz leitura
-> de imagem, que não é determinística (regra 40), e reabre esta AIA antes do PRD do F6.
+> de imagem, que não é determinística (regra 40), e reabre esta AIA antes do PRD do F6. Desde a D83 (03/11/2026) o modo
+> papel é a F6b, com leitura determinística e sem IA: esta AIA é reaberta antes do PRD dela.
 
 ---
 

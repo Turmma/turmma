@@ -142,6 +142,7 @@ algo que dependa dela.** Nova decisão ou revisão entra lá e aqui, pela skill 
 | D80 | A pele é o sistema Turmma; o mockup de outubro é só referência |
 | D81 | Padrão de mercado antes de mecanismo próprio |
 | D82 | A produção roda em VPS em região Brasil, não na VM de casa |
+| D83 | A prova no papel é a F6b: folha lida por foto, sem IA, versões escolhidas pelo professor |
 
 ## Conflitos já resolvidos e decisões em aberto
 
