@@ -58,6 +58,7 @@
   Contexto: validação rodada 3 APROVADA; esteira verde em `ac0c983` (41539071519, a 1/8 rodou de novo: o 500 da prova não se reproduziu); censo: 25 casos de dívida já conhecida (TODO.md), um a 91% (`mfa:14` celular); `ERRO_INTERNO` (500 em vez de 503 com o Postgres sem resposta) a decidir, já no TODO.md; o `tipo` do log mudou de nome (aviso a quem lê log)
   Opções: A) pousar | B) corrigir antes os casos do censo ou o 500/503 | C) outra coisa
   Recomendo: A; o resto é dívida registrada, e a X8 segura o F2
+  **Respondida** 02/11: A, no terminal do Orquestrador. Pouso na `develop` com push
 - 02/11 ~12:10 — X8 validação rodada 2 (crítico 1, RF2)
   Decisão: `ProcessadorContado`, classe local de teste renomeada para `CountingProcessor` sem adenda, entra numa adenda 6, ou volta ao nome antigo com exceção nominal na guarda?
   Contexto: `tasks/prd-nomes-de-mercado/validacao.md`, "Críticos". Mesmo caso da adenda 5: peça achada pela guarda depois da aprovação. O nome mecânico da guarda seria `ContadoProcessor`; quem renomeou escolheu `CountingProcessor`
