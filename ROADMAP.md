@@ -464,15 +464,29 @@ reivindicando no mesmo minuto sem duplicidade nem erro cru.
 
 **Falta:** importar **grade horária e calendário**, que passam a definir a alocação (D3 revista), e o lugar
 "Grade e calendário" no menu de Escola, que não existe (hoje são Turmas, Professores e Material); a escola
-inteira em escala, com alunos e professores em lote e planilha suja; o reset de senha do aluno pelo
-coordenador; a entrada do aluno pela conta da escola (o login Google e Microsoft existe, mas aluno sem ligação
-não entra; D48); e o Classroom como adaptador opcional, no fim. **Entra aqui o que era o F8**: a visão
-**Semana** em Turmas, com a rotina por escola e turma ligada a avaliações, entregas e ao que os agentes
-concluíram.
+inteira em escala, com alunos e professores em lote e planilha suja, a reimportação que atualiza, transfere e
+desliga com a marca da coordenação, e o convite do professor por e-mail, com o "esqueci a senha" da equipe; a
+senha provisória do aluno, dada pela coordenação ou pelo professor da turma; e a entrada do aluno pela conta da
+escola (o login Google e Microsoft existe, mas aluno sem ligação não entra; D48).
+
+**Saiu no recorte de 03/11/2026** (PRD, `tasks/prd-onboarding-por-convite/prd.md`): a visão **Semana**, que era o
+F8, foi para a F2b, logo a seguir; o **Classroom** (D48) ficou sem fase até uma escola pedir.
 
 **Pronto quando:** uma escola inteira entra sem ninguém ser cadastrado individualmente, professor incluído;
-a grade e o calendário importados geram a alocação; o coordenador redefine a senha de um aluno, com
-auditoria; e o professor abre a semana e vê o que precisa fazer sem cadastrar nada.
+a grade e o calendário importados geram a alocação; a reimportação não duplica nem tira ninguém sozinha; o
+professor recebe o convite por e-mail; o coordenador ou o professor da turma dá ao aluno uma senha provisória,
+com auditoria; e o aluno entra pela conta da escola depois da aprovação.
+
+## F2b — `semana-do-professor` [ ]
+**Depende de:** F2
+
+A visão **Semana** em Turmas, que era o F8: a rotina por escola e turma, saída da grade e do calendário do F2,
+ligada a avaliações, entregas e ao que os agentes concluíram, e a `Aula` concreta, com "O que vou dar". O "seu
+dia e sua semana" do Assistente continua no F11, lendo o que esta fase gera. O professor não cria nem move aula
+(regra 60, item 8). Fecha no PRD dela a decisão em aberto do calendário de duas escolas (P12).
+
+**Pronto quando:** o professor abre a semana e vê o que precisa fazer sem cadastrar nada; feriado e recesso do
+calendário tiram a aula do dia; e nenhuma tela mostra dado de outra escola.
 
 ## X6 — `reengenharia-continuacao` [ ]
 **Depende de:** X5 · **não segura a X4 nem o F2**
@@ -665,7 +679,7 @@ a suspensão por função numa escola sem desligar o resto; a correção de obje
 **Vem da X6:** o runtime na fila do worker, com entrega ao menos uma vez (42.0 e 47.0, D49).
 
 **Falta aqui:** thread para o Tutor e para o Analista, e os não-lidos; o limite de passos e de custo por
-execução; "seu dia e sua semana" do Assistente, que lê a grade do F2; o Analista disparado por evento; e as
+execução; "seu dia e sua semana" do Assistente, que lê a grade do F2 e a semana da F2b; o Analista disparado por evento; e as
 etapas 2 a 6 das AIA de cada função de alto risco, com a revisão do Gabriel e o procedimento de suspensão
 (D60). O encaminhamento de assunto delicado (D36) fecha no F9.
 
