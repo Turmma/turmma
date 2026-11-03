@@ -26,7 +26,7 @@ No worker, a conta global só se alcança pela exceção da seção 6 e pelo cic
 
 ## 3. Modelo de dados
 
-Todo id é `uuid` com `uuidv7()`; toda tabela nova com ano tem FK composta `(escolaId, anoLetivoId)` para `ano_letivo`.
+Todo id é `uuid` com `uuidv7()`; toda tabela nova com ano tem FK composta `(escolaId, anoLetivoId)` para `ano_letivo`, salvo a `alocacao`, que prende escola e ano pela FK composta do vínculo (`escolaId, anoLetivoId, vinculoId`), que já leva ao ano.
 
 ```
 importacao_planilha  escolaId*, anoLetivoId?, tipo, estado (na_fila|concluida|desatualizada|falhou),

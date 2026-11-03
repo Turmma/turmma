@@ -26,6 +26,10 @@ export const PAPEIS_DE_VINCULO_PELA_COORDENACAO = ['professor'] as const satisfi
 export const CONTESTACOES_DE_VINCULO = ['nao_leciono', 'turma_errada', 'disciplina_errada', 'outro'] as const
 export type ContestacaoDeVinculo = (typeof CONTESTACOES_DE_VINCULO)[number]
 
+/** De onde o vínculo veio: a coordenação à mão, a grade importada ou a lista de nomes (F2, `vinculo.origem`). O check `vinculo_origem_valida` do banco repete esta lista. */
+export const ORIGENS_DE_VINCULO = ['coordenacao', 'grade', 'lista'] as const
+export type OrigemDeVinculo = (typeof ORIGENS_DE_VINCULO)[number]
+
 /** Por que o vínculo acabou. `fim_do_ano` é só da virada do ano letivo (10.0). */
 export const MOTIVOS_DE_ENCERRAMENTO_DE_VINCULO = ['fim_do_ano', 'desligamento', 'realocacao'] as const
 export type MotivoDeEncerramentoDeVinculo = (typeof MOTIVOS_DE_ENCERRAMENTO_DE_VINCULO)[number]

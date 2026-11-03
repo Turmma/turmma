@@ -485,6 +485,92 @@ describe('estrutura: a coordenação monta o ano letivo, as séries, as discipli
       expect([['biologia', 'física'], ['biologia', 'química']]).toContainEqual(await minusculas('disciplina'))
     })
 
+    async function chaveNoBanco(turmaId: unknown): Promise<string | null> {
+      const { rows } = await bancada.pool.query<{ chave: string | null }>('select chave from turma where id = $1', [turmaId])
+      if (rows[0] === undefined) throw new Error('turma sem linha')
+      return rows[0].chave
+    }
+
+    it('F2, RF3: a turma criada grava a chave do nome ("8º A" vira 8a) e a renomeada a recalcula no mesmo update, inclusive para nula; nome fora do padrão fica sem chave', async () => {
+      const coordenacao = await coordenacaoNova()
+      await anoEmCurso(coordenacao, 2026)
+      const serie = await criarSerie(coordenacao, 'ef_anos_finais', 8)
+      const oitavoA = await criarTurma(coordenacao, serie, '8º A')
+      const semChave = await criarTurma(coordenacao, serie, 'Turma Branca')
+      expect(await chaveNoBanco(oitavoA['id'])).toBe('8a')
+      expect(await chaveNoBanco(semChave['id'])).toBeNull()
+
+      // Renomear recalcula: para outra série e letra, a chave acompanha; para fora do padrão, vira nula; de volta, a chave volta.
+      for (const [nome, chave] of [
+        ['9B', '9b'],
+        ['Turma Azul', null],
+        ['8º ano A', '8a'],
+      ] as const) {
+        const renomeada = await patch(coordenacao, `/v1/turmas/${String(oitavoA['id'])}`, { nome })
+        expect(renomeada.status, nome).toBe(200)
+        expect(await chaveNoBanco(oitavoA['id']), nome).toBe(chave)
+      }
+      // Quem não tinha chave (fora do padrão) ganha uma ao receber um nome do padrão.
+      expect((await patch(coordenacao, `/v1/turmas/${String(semChave['id'])}`, { nome: '7ºC' })).status).toBe(200)
+      expect(await chaveNoBanco(semChave['id'])).toBe('7c')
+      // A chave não é parte da resposta: o contrato da turma não mudou.
+      expect((await get(coordenacao, '/v1/turmas')).corpo['itens'] as unknown[]).toHaveLength(2)
+      expect((await get(coordenacao, `/v1/turmas/${String(semChave['id'])}`)).corpo).not.toHaveProperty('chave')
+    })
+
+    it('F2, RF3: criar ou renomear com a chave de outra turma do ano, escrita de outro jeito, dá CONFLITO sem o valor, e a turma fica como estava; a mesma chave em outra escola e em outro ano é aceita', async () => {
+      const coordenacao = await coordenacaoNova()
+      await anoEmCurso(coordenacao, 2026)
+      const serie = await criarSerie(coordenacao, 'ef_anos_finais', 8)
+      const oitavoA = await criarTurma(coordenacao, serie, '8ºA')
+      const oitavoB = await criarTurma(coordenacao, serie, '8ºB')
+
+      for (const [rotulo, resposta] of [
+        ['criar', await post(coordenacao, '/v1/turmas', { serieId: serie, nome: '8 a' })],
+        ['renomear', await patch(coordenacao, `/v1/turmas/${String(oitavoB['id'])}`, { nome: '8º ano A' })],
+      ] as const) {
+        expect(resposta.status, rotulo).toBe(409)
+        expect(resposta.corpo.erro?.codigo, rotulo).toBe(ErrorCode.CONFLITO)
+        // Sem o `requisicaoId`: é um UUID sorteado a cada resposta e pode conter "8a" por acaso.
+        const texto = JSON.stringify({ ...resposta.corpo.erro, requisicaoId: undefined })
+        for (const vazamento of ['8 a', '8º ano A', '8a', 'chave', 'unica', 'turma_']) expect(texto, `${rotulo}: ${vazamento}`).not.toContain(vazamento)
+      }
+      expect(await nomesNoBanco('turma', coordenacao.escolaId)).toEqual(['8ºA', '8ºB'])
+      expect(await chaveNoBanco(oitavoB['id'])).toBe('8b')
+      expect(await chaveNoBanco(oitavoA['id'])).toBe('8a')
+
+      // A mesma chave em outro ano da mesma escola: o único é por ano.
+      const ano2027 = await bancada.pool.query<{ id: string }>("insert into ano_letivo (escola_id, ano, inicio, fim, situacao) values ($1, 2027, '2027-02-01', '2027-12-15', 'planejado') returning id", [coordenacao.escolaId])
+      const turmaDe2027 = await bancada.pool.query("insert into turma (escola_id, ano_letivo_id, serie_id, nome, chave) values ($1, $2, $3, '8ºA', '8a')", [coordenacao.escolaId, ano2027.rows[0]?.id, serie])
+      expect(turmaDe2027.rowCount).toBe(1)
+
+      // E em outra escola: o único é por escola.
+      const outra = await coordenacaoNova()
+      await anoEmCurso(outra, 2026)
+      const serieDaOutra = await criarSerie(outra, 'ef_anos_finais', 8)
+      const daOutra = await criarTurma(outra, serieDaOutra, '8A')
+      expect(await chaveNoBanco(daOutra['id'])).toBe('8a')
+      expect((await patch(outra, `/v1/turmas/${String(daOutra['id'])}`, { nome: '8º A' })).status).toBe(200)
+    })
+
+    it('F2, RF3 [P]: "8º A" e "8A" criadas à mão ao mesmo tempo dão uma turma só, e a outra recebe CONFLITO; duas turmas renomeadas para "8º A" e "8A" em paralelo, também', async () => {
+      const coordenacao = await coordenacaoNova()
+      await anoEmCurso(coordenacao, 2026)
+      const serie = await criarSerie(coordenacao, 'ef_anos_finais', 8)
+
+      const criadas = await Promise.all([post(coordenacao, '/v1/turmas', { serieId: serie, nome: '8º A' }), post(coordenacao, '/v1/turmas', { serieId: serie, nome: '8A' })])
+      expect(criadas.map((resposta) => resposta.status).sort()).toEqual([201, 409])
+      expect(criadas.find((resposta) => resposta.status === 409)?.corpo.erro?.codigo).toBe(ErrorCode.CONFLITO)
+      expect(await contar('turma', coordenacao.escolaId)).toBe(1)
+
+      const [x, y] = [await criarTurma(coordenacao, serie, '8ºX'), await criarTurma(coordenacao, serie, '8ºY')]
+      const outraChave = await Promise.all([patch(coordenacao, `/v1/turmas/${String(x['id'])}`, { nome: '8 Z' }), patch(coordenacao, `/v1/turmas/${String(y['id'])}`, { nome: '8ºz' })])
+      expect(outraChave.map((resposta) => resposta.status).sort()).toEqual([200, 409])
+      const chaves = (await bancada.pool.query<{ chave: string }>('select chave from turma where escola_id = $1 order by chave', [coordenacao.escolaId])).rows.map((linha) => linha.chave)
+      // A que perdeu continua com a chave de antes: uma renomeada e uma intacta.
+      expect([['8a', '8x', '8z'], ['8a', '8y', '8z']]).toContainEqual(chaves)
+    })
+
     it('excluir disciplina com vínculo e turma com vínculo, também já encerrado: CONFLITO sem o nome da restrição, e nada é apagado; a turma vazia e a disciplina sem vínculo saem', async () => {
       const coordenacao = await coordenacaoNova()
       await anoEmCurso(coordenacao, 2026)

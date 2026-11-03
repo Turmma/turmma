@@ -10,7 +10,7 @@ Rede*            nome, tipo (prefeitura | grupo | independente), ipsSaida (IP p�
 Escola*          → rede*, nome, slug*, inatividadeAlunoMin (30), inatividadeEquipeMin (120)
 AnoLetivo*       → escola*, ano, inicio, fim, situacao (planejado | em_curso | encerrado)
 Serie*           → escola*, etapa (ef_anos_finais | em), ano (6–9 | 1–3)
-Turma*           → escola*, anoLetivo*, serie*, nome (2ºB), turno?
+Turma*           → escola*, anoLetivo*, serie*, nome (2ºB), turno?, chave? (F2: o nome normalizado, "2b")
 Disciplina*      → escola*, nome, area? (área da BNCC)
 ```
 
@@ -48,6 +48,7 @@ Vinculo*         → escola*, anoLetivo*, usuario*, turma*, disciplina?, papel*,
                    estado* (pendente | confirmado | contestado | encerrado),
                    contestacao? (nao_leciono | turma_errada | disciplina_errada | outro),
                    complemento?, motivoEncerramento? (fim_do_ano | desligamento | realocacao),
+                   origem* (coordenacao | grade | lista; F2, padrão coordenacao),
                    criadoPor*, decididoEm?, encerradoEm?
 Sessao*          → escola*, conta?, usuario*, metodo* (email | matricula | externo), familia*,
                    refreshHash*, ultimoUsoEm*, expiraEm*, encerradaEm?, motivo?
@@ -368,12 +369,37 @@ todos os repositories que a lista toca.
 ## Grade horária e calendário
 
 ```
-GradeHoraria*    → escola*, anoLetivo*, nome
-TempoAula*       → gradeHoraria*, diaSemana*, ordem*, inicio*, fim*
-Alocacao*        → tempoAula*, turma*, disciplina*, professor*, sala?
-EventoCalendario → escola*, tipo (feriado | recesso | evento), inicio, fim
-Aula             → alocacao*, data*, conteudo?, status, observacao?
+Alocacao*          → escola*, anoLetivo*, vinculo* (FK composta com o ano, cascata), diaSemana* (1–7),
+                     inicio*, fim* (inicio < fim), sala?; único (vinculo, diaSemana, inicio)
+EventoCalendario*  → escola*, anoLetivo*, tipo (feriado | recesso | evento), inicio, fim, descricao (≤ 120)
+ImportacaoPlanilha* → escola*, anoLetivo? (nulo só no tipo professores), tipo (alunos | professores | grade | calendario),
+                     estado (na_fila | concluida | desatualizada | falhou), linhas?, marcas?, assinatura*,
+                     resumo? (só contagens), erro? (expirou | trava_esgotada | erro_interno), criadoPor?, criadoEm*, concluidaEm?
+Aula               → alocacao*, data*, conteudo?, status, observacao?
 ```
+
+**`Alocacao` (F2, migration 0040) substitui as três tabelas da grade** que este documento desenhava (`GradeHoraria`, `TempoAula` e a
+`Alocacao` presa a elas): a aula é o vínculo (turma, disciplina e professor) num dia da semana e num horário, e a "grade horária"
+do glossário são as alocações do ano. O `id` é estável: reimportar a grade mantém a aula que continua (mesmo vínculo, dia e início)
+e apaga a que saiu, então a `Aula` concreta da F2b aponta para um id que a reimportação não troca. Sai em cascata com o vínculo
+(a FK composta `(escolaId, anoLetivoId, vinculoId)` é também a FK com o ano), e o `vinculo` ganhou o único `(escolaId, anoLetivoId, id)`
+que ela referencia. A aula tem `escola_id` e `ano_letivo_id` (regra 10) e nunca aponta para o vínculo de outra escola nem de outro ano.
+
+**`EventoCalendario`** é o calendário do ano; reimportar substitui os do ano. A descrição é texto livre de até 120 caracteres, e o
+modelo da planilha pede para não escrever nome de pessoa.
+
+**`ImportacaoPlanilha`** é a fila e o rastro das planilhas (alunos, professores, grade, calendário): uma importação `na_fila` por
+escola (único parcial). `linhas` e `marcas` são o dado em trânsito, apagadas em toda troca de estado; o que fica (tipo, estado,
+contagens, código do erro, sem nome nem matrícula) sai em 90 dias (`docs/lgpd.md`). O autor (`criadoPor`) vira nulo na eliminação.
+Quem grava `Alocacao`, `EventoCalendario` e `ImportacaoPlanilha` é o job `estrutura.gravar-planilha` (F2, 4.0 em diante).
+
+**`Turma.chave`** (F2) é o nome normalizado ("8ºA", "8º A", "8A", "8a" e "8º ano A" dão `8a`; "Turma Azul" e "10A" ficam sem chave), que
+faz a planilha casar a turma que já existe. Nasce na criação e é recalculada na renomeação, no mesmo `update`. O único parcial
+`(escolaId, anoLetivoId, chave)` onde a chave não é nula faz duas turmas "8A" e "8º A" resultarem em uma só (a outra recebe `CONFLITO`); a
+migration preencheu só as turmas cuja chave era única no ano. A conta mora em `packages/shared/src/importacao/normalizador.ts` e a
+migration a repete em SQL.
+
+**`Vinculo.origem`** (F2) diz de onde o vínculo veio: `coordenacao` (à mão, o padrão das linhas que já existiam), `grade` ou `lista`.
 
 `Aula` é a instância concreta gerada a partir de `Alocacao` mais o calendário escolar. É a
 camada onde o professor registra o que deu e é a fonte do "seu dia e sua semana", função do

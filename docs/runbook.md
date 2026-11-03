@@ -695,6 +695,46 @@ quando".
 **Depois:** registre no `TODO.md` a janela (de quando a quando), as escolas avisadas e quantos pedidos `agendado` estavam em curso,
 só com ids e datas.
 
+## Voltar o código depois da chave da turma (rollback)
+
+*Procedimento, não alerta: não há regra em `infra/grafana/alertas/`. Vale para qualquer volta de versão que passe pela migration
+`0040_f2_planilhas` (F2, tarefa 2.0; Tech Spec do F2, seção 3).*
+
+**O que a migration deixou:** as tabelas `importacao_planilha`, `alocacao` e `evento_calendario`, a coluna `turma.chave` (com o único
+parcial `turma_chave_no_ano_unica`), a coluna `vinculo.origem` (padrão `coordenacao`) e o único `vinculo_escola_ano_id_unico`. Tudo só
+expande: o código anterior roda sobre isso sem erro. **Não reverta a 0040**: apagar `turma.chave` ou o índice desfaz a única coisa
+que impede "8º A" e "8A" de virarem duas turmas depois que o código novo voltar.
+
+**O que o código anterior faz com elas:** ignora tudo. Ele cria e renomeia turma **sem calcular a `chave`**: a turma criada nesse
+tempo fica com a chave nula, e a renomeada fica com a chave **do nome antigo**. A planilha de alunos só chega com o código novo, então
+nada importa errado durante a volta; o estrago é a chave desatualizada quando o código novo voltar.
+
+**Na volta para a versão nova (roll-forward), antes de liberar a planilha:** recalcule a chave de todas as turmas, na mesma conta
+da migration, só onde ela é única no ano. Duas turmas do mesmo ano que o código anterior deixou com a mesma chave ficam as duas sem
+chave (a prévia as acusa como erro e a coordenação renomeia uma delas):
+
+```
+docker compose exec postgres psql -U educa -1 -c "update turma set chave = null where chave is not null;
+with calculada as (
+  select id, escola_id, ano_letivo_id,
+    regexp_match(lower(translate(btrim(nome), 'áàâãäÁÀÂÃÄéèêëÉÈÊËíìîïÍÌÎÏóòôõöÓÒÔÕÖúùûüÚÙÛÜçÇ', 'aaaaaaaaaaeeeeeeeeiiiiiiiioooooooooouuuuuuuucc')), '^(\d)\s*[ºo°ª]?\s*(ano)?\s*([a-z])$') as achado
+  from turma
+), com_chave as (
+  select id, escola_id, ano_letivo_id, achado[1] || achado[3] as chave from calculada where achado is not null
+), unica as (
+  select id, chave from (select id, chave, count(*) over (partition by escola_id, ano_letivo_id, chave) as total from com_chave) contada where total = 1
+)
+update turma set chave = unica.chave from unica where turma.id = unica.id"
+```
+
+O `-1` roda tudo numa transação: o `update` que zera e o que recalcula entram juntos, ou nenhum entra. Confira depois, só com contagens:
+`select count(*) filter (where chave is null) as sem_chave, count(*) as total from turma`.
+
+**Não faça:** escrever `chave` à mão, nem apagar o índice para "passar" uma duplicata: a duplicata é erro de planilha, e o lugar de
+resolvê-la é a coordenação, renomeando a turma.
+
+**Depois:** registre no `TODO.md` a janela (de quando a quando) e quantas turmas ficaram sem chave por repetição, só contagens.
+
 ## Rotina do sistema sem rodar (consolidação de uso, expurgo de jobs, expurgo do acesso)
 
 *A preencher antes da primeira escola real* (pendência em `TODO.md`). Hoje nada avisa se

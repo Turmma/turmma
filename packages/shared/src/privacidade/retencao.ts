@@ -73,6 +73,7 @@ export const CHAVES_DE_PRAZO_FIXO = [
   'convite_e_acesso_da_turma',
   'credencial',
   'lista_de_nomes',
+  'planilha_importada',
   'registro_de_decisao',
   'tarefa_em_segundo_plano',
   'equipe_turmma',
@@ -93,6 +94,10 @@ export const PRAZOS_FIXOS: Readonly<Record<ChaveDePrazoFixo, DefinicaoDoPrazoFix
   convite_e_acesso_da_turma: { descricao: 'Convites e links de entrada nas turmas', prazo: '30 dias depois de usados, revogados ou vencidos' },
   credencial: { descricao: 'Senha, segundo fator e ligação com a conta Google ou Microsoft da escola', prazo: 'até a pessoa ser desativada' },
   lista_de_nomes: { descricao: 'Lista de nomes das turmas, antes de o aluno entrar', prazo: 'até o encerramento do ano letivo' },
+  planilha_importada: {
+    descricao: 'Registro das planilhas que a coordenação importou: o tipo, o estado e as contagens, sem nome nem matrícula',
+    prazo: '90 dias depois de concluída; o texto da planilha só até o fim da importação',
+  },
   registro_de_decisao: { descricao: 'Auditoria e registro das decisões sobre o que a IA produziu', prazo: 'enquanto durar o contrato com a escola, e mais 5 anos' },
   tarefa_em_segundo_plano: { descricao: 'Registro técnico das tarefas feitas em segundo plano, só com códigos', prazo: '7 dias; a que falhou, 30 dias; a do pedido de acesso ou de eliminação que falhou, até a equipe Turmma resolver' },
   equipe_turmma: { descricao: 'Contas e acessos da equipe Turmma ao painel da operação, sem dado da escola', prazo: 'acesso, 6 meses; conta, até a desativação; registro, enquanto durar o contrato, e mais 5 anos' },

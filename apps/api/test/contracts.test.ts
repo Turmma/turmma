@@ -126,6 +126,33 @@ describe('contratos de saída: nenhuma resposta traz credencial, segredo ou iden
     ])
   })
 
+  it('F2, RF17: a grade sai sem e-mail: o professor da aula vai só com id e nome, e o calendário não tem pessoa', () => {
+    expect(camposDoEsquema(shared.gradeResponseSchema)).toEqual([
+      'aulas',
+      'aulas[].id',
+      'aulas[].turmaId',
+      'aulas[].disciplinaId',
+      'aulas[].professor',
+      'aulas[].professor.usuarioId',
+      'aulas[].professor.nome',
+      'aulas[].diaSemana',
+      'aulas[].inicio',
+      'aulas[].fim',
+      'aulas[].sala',
+    ])
+    expect(problemasDoContrato('gradeResponseSchema', shared.gradeResponseSchema)).toEqual([])
+    expect(camposDoEsquema(shared.calendarioResponseSchema)).toEqual(['eventos', 'eventos[].id', 'eventos[].tipo', 'eventos[].inicio', 'eventos[].fim', 'eventos[].descricao'])
+    // A varredura reprova a grade que passasse a levar o e-mail do professor, em qualquer profundidade.
+    const comEmail = z.object({ aulas: z.array(z.object({ professor: z.object({ usuarioId: z.uuid(), nome: z.string(), email: z.email() }) })) })
+    expect(problemasDoContrato('gradeResponseSchema', comEmail)).toEqual(['gradeResponseSchema: aulas[].professor.email (email)'])
+  })
+
+  it('F2: a prévia e o gravar das planilhas entram na varredura e saem sem campo proibido', () => {
+    const nomes = esquemasDeResposta.map(([nome]) => nome)
+    expect(nomes).toEqual(expect.arrayContaining(['previaDaPlanilhaResponseSchema', 'gravarPlanilhaResponseSchema', 'gradeResponseSchema', 'calendarioResponseSchema']))
+    expect(camposDoEsquema(shared.gravarPlanilhaResponseSchema)).toEqual(['id'])
+  })
+
   it('e-mail é recusado em contrato que pode chegar ao aluno, e só passa em contrato declarado da equipe', () => {
     const comEmail = z.object({ itens: z.array(z.object({ usuarioId: z.uuid(), email: z.email() })) })
     expect(problemasDoContrato('alunosDaTurmaResponseSchema', comEmail)).toEqual(['alunosDaTurmaResponseSchema: itens[].email (email)'])

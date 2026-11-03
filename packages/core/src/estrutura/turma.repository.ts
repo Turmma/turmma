@@ -10,7 +10,7 @@ import { vinculo } from '../db/schema/vinculo.js'
 import { requestSessao } from '../identidade/auth.guard.js'
 import type { AlunoDaTurma, PaginationQuery, TurmaAbertaResponse, Turma, Turno } from '@educa/shared'
 import { and, asc, eq, exists, gt, isNotNull, isNull, not, or, sql, type SQL } from 'drizzle-orm'
-import { InvariantException } from '@educa/shared'
+import { chaveDaTurma, InvariantException } from '@educa/shared'
 import { excluirSemReferencia } from './exclusao.js'
 
 export interface NovaTurma {
@@ -112,10 +112,15 @@ export class TurmaRepository {
     return linha !== undefined
   }
 
+  /**
+   * Cria a turma no ano em curso, com a `chave` do nome ("8º A" → `8a`, F2, 2.0): a chave que faz a planilha casar "8ºA" com "8A".
+   * Nome fora do padrão ("Turma Azul") deixa a chave nula. Outra turma do ano com a mesma chave, escrita de outro jeito ("8A" contra
+   * "8º A"), é barrada pelo único parcial `turma_chave_no_ano_unica`, e o 23505 sai `CONFLITO` como o do nome repetido, sem o valor.
+   */
   async criar(nova: NovaTurma): Promise<TurmaGravada> {
     const [criada] = await this.banco
       .insert(turma)
-      .values({ escolaId: requireEscolaId(), anoLetivoId: requireAnoEmCurso(), serieId: nova.serieId, nome: nova.nome, turno: nova.turno })
+      .values({ escolaId: requireEscolaId(), anoLetivoId: requireAnoEmCurso(), serieId: nova.serieId, nome: nova.nome, chave: chaveDaTurma(nova.nome), turno: nova.turno })
       .returning(colunas)
     if (criada === undefined) throw new InvariantException('turma não criada')
     return criada
@@ -125,11 +130,15 @@ export class TurmaRepository {
    * Troca o nome da turma do ano em curso com esse id e devolve a turma renomeada, com o id da série, que o service
    * troca pela série. A de outro ano (encerrado ou planejado), de outra escola ou inexistente não é achada
    * (`undefined`), e nada muda. O nome de outra turma do mesmo ano é barrado pelo mesmo índice único do criar.
+   *
+   * A `chave` é recalculada no mesmo `update` (F2, 2.0): renomear para "Turma Azul" a deixa nula, e para o nome de outra escrita
+   * como a de uma turma do ano ("8A" contra "8º A"), o único parcial da chave barra e sai `CONFLITO`. A planilha que traz o nome
+   * antigo deixa de casar com a turma e vira "turma nova".
    */
   async renomear(id: string, nome: string): Promise<(TurmaGravada & { readonly serieId: string }) | undefined> {
     const [renomeada] = await this.banco
       .update(turma)
-      .set({ nome })
+      .set({ nome, chave: chaveDaTurma(nome) })
       .where(and(eq(turma.escolaId, requireEscolaId()), eq(turma.anoLetivoId, requireAnoEmCurso()), eq(turma.id, id)))
       .returning({ ...colunas, serieId: turma.serieId })
     return renomeada

@@ -281,6 +281,13 @@
       "when": 1792895006040,
       "tag": "0039_introducao_vista",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1793737509376,
+      "tag": "0040_f2_planilhas",
+      "breakpoints": true
     }
   ]
 }

@@ -15,6 +15,10 @@ import { serie } from './serie.js'
  *   com o de 2027, que é outra turma. A virada de ano não colide.
  * - `unique (escola_id, ano_letivo_id, id)` é o alvo do vínculo (9.0), que referencia a turma pelo ano dela; o índice
  *   serve também à listagem do ano em curso, paginada por id.
+ * - `chave` (F2, tarefa 2.0): o nome normalizado, que casa "8ºA" com "8A" na planilha (`chaveDaTurma`, em `packages/shared`). Nasce na
+ *   criação e é recalculada na renomeação, no mesmo `update`; nome fora do padrão ("Turma Azul") deixa a chave nula. O índice único
+ *   parcial `(escola_id, ano_letivo_id, chave)` onde a chave não é nula faz "8º A" e "8A" criadas ao mesmo tempo resultarem em uma
+ *   só (`CONFLITO` na que perde), e a migration só a preencheu onde era única no ano.
  * - Sem dado de pessoa.
  */
 export const turma = pgTable(
@@ -28,11 +32,15 @@ export const turma = pgTable(
     serieId: uuid().notNull(),
     nome: text().notNull(),
     turno: text().$type<Turno>(),
+    chave: text(),
   },
   (tabela) => [
     unique('turma_escola_id_unico').on(tabela.escolaId, tabela.id),
     unique('turma_escola_ano_id_unico').on(tabela.escolaId, tabela.anoLetivoId, tabela.id),
     uniqueIndex('turma_nome_no_ano_unico').on(tabela.escolaId, tabela.anoLetivoId, sql`lower(${tabela.nome})`),
+    uniqueIndex('turma_chave_no_ano_unica')
+      .on(tabela.escolaId, tabela.anoLetivoId, tabela.chave)
+      .where(sql`${tabela.chave} is not null`),
     foreignKey({ name: 'turma_ano_letivo_da_escola_fk', columns: [tabela.escolaId, tabela.anoLetivoId], foreignColumns: [anoLetivo.escolaId, anoLetivo.id] }),
     foreignKey({ name: 'turma_serie_da_escola_fk', columns: [tabela.escolaId, tabela.serieId], foreignColumns: [serie.escolaId, serie.id] }),
     check('turma_nome_preenchido', sql`char_length(btrim(${tabela.nome})) between 1 and 40`),

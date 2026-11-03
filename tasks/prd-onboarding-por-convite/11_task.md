@@ -16,6 +16,9 @@ Turma, disciplina e professor inexistentes nascem ao gravar; conflito de horári
   pendente; o do ano planejado só se confirma em curso), "O job" passo (1) (o professor novo)
 - `prd.md` RF7, RF8; PRD §7 ("Professor discorda", "Grade com professor não convidado", "ano planejado")
 - `cenarios.md` "RF7 e RF8"; regra 60 itens 8 e 8a
+- Arquivo do titular (regra 20, item 19; `docs/lgpd.md`, linha da aula da grade: o titular é o professor): a 2.0 deixou a `alocacao` fora
+  dele (`packages/shared/src/privacidade/classificacao.ts`, comentário da `alocacao`); esta tarefa, que a grava, põe no arquivo do
+  professor a leitura das aulas dele pelo vínculo (dia, horário e sala), com o caso em `apps/api/test/arquivo-do-titular.int.test.ts`
 - Código: os tipos professores (6.0) e alunos (7.0, a turma nova); `packages/core/src/estrutura/vinculo.repository.ts`;
   `apps/api/test/vinculo.int.test.ts`
 

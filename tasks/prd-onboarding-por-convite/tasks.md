@@ -15,12 +15,12 @@ cenários foram distribuídos pelo `test-engineer`; cada linha do `cenarios.md` 
   - [x] 1.4 Busca pelos caminhos antigos; `docs/arquitetura.md`, `docs/modelo-de-dados.md`
   - [x] 1.5 Testes: caracterização, cerca, quem contorna, alvo que some
 
-- [ ] **2.0 — O banco do F2 existe, e a turma ganha a chave que casa "8ºA" com "8A"**
-  - [ ] 2.1 Migration: `importacao_planilha`, `alocacao`, `evento_calendario`, `turma.chave`, `vinculo.origem`
-  - [ ] 2.2 `packages/shared/src/importacao/`: normalizador, cabeçalhos, contratos, `resumo` estrito; nome do job
-  - [ ] 2.3 `turma.chave` na criação e na renomeação, `CONFLITO`
-  - [ ] 2.4 Classificação das tabelas; modelo de dados, glossário, runbook
-  - [ ] 2.5 Testes: checks no banco, chave, corrida da criação
+- [x] **2.0 — O banco do F2 existe, e a turma ganha a chave que casa "8ºA" com "8A"**
+  - [x] 2.1 Migration: `importacao_planilha`, `alocacao`, `evento_calendario`, `turma.chave`, `vinculo.origem`
+  - [x] 2.2 `packages/shared/src/importacao/`: normalizador, cabeçalhos, contratos, `resumo` estrito (a definição do job foi para a 4.4)
+  - [x] 2.3 `turma.chave` na criação e na renomeação, `CONFLITO`
+  - [x] 2.4 Classificação das tabelas; modelo de dados, glossário, runbook
+  - [x] 2.5 Testes: checks no banco, chave, corrida da criação
 
 - [ ] **3.0 — Desativar encerra os vínculos e revoga o convite, na ordem global**
   - [ ] 3.1 Vínculos encerrados pelo `encerrar`, turmas por id num comando
@@ -33,7 +33,7 @@ cenários foram distribuídos pelo `test-engineer`; cada linha do `cenarios.md` 
   - [ ] 4.1 O motor e o tipo calendário
   - [ ] 4.2 `ImportacaoRepository`; gravar refaz a prévia e fecha a `na_fila` velha
   - [ ] 4.3 Rotas de prévia e gravar, com o filtro do ano
-  - [ ] 4.4 Processor `gravar-planilha.ts`, tempos e métricas
+  - [ ] 4.4 Definição do job `estrutura.gravar-planilha` e processor `gravar-planilha.ts`, tempos e métricas
   - [ ] 4.5 Auditoria `planilha.gravada`
   - [ ] 4.6 Testes: estados, job duas vezes, falha no lote, trava, isolamento, ano
 

@@ -125,10 +125,10 @@ export const LEITURAS_DO_ARQUIVO: Readonly<Record<string, LeituraDaTabela>> = {
   },
   vinculo: {
     descricao: 'Os seus vínculos com turmas e disciplinas',
-    colunas: ['id', 'ano_letivo_id', 'turma_id', 'disciplina_id', 'papel', 'estado', 'contestacao', 'complemento', 'motivo_encerramento', 'criado_em', 'decidido_em', 'encerrado_em'],
+    colunas: ['id', 'ano_letivo_id', 'turma_id', 'disciplina_id', 'papel', 'estado', 'origem', 'contestacao', 'complemento', 'motivo_encerramento', 'criado_em', 'decidido_em', 'encerrado_em'],
     fora: { escola_id: ESCOPO, usuario_id: 'o próprio titular', criado_por: OUTRA_PESSOA },
     consultas: ({ escolaId, titularId }) => [
-      sql`select ${selectColumns('id', 'ano_letivo_id', 'turma_id', 'disciplina_id', 'papel', 'estado', 'contestacao', 'complemento', 'motivo_encerramento', 'criado_em', 'decidido_em', 'encerrado_em')} from vinculo t where t.escola_id = ${escolaId} and t.usuario_id = ${titularId}`,
+      sql`select ${selectColumns('id', 'ano_letivo_id', 'turma_id', 'disciplina_id', 'papel', 'estado', 'origem', 'contestacao', 'complemento', 'motivo_encerramento', 'criado_em', 'decidido_em', 'encerrado_em')} from vinculo t where t.escola_id = ${escolaId} and t.usuario_id = ${titularId}`,
     ],
   },
   lista_nome: {

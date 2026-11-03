@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm'
 import { check, foreignKey, index, pgTable, text, timestamp, unique, uniqueIndex, uuid, varchar } from 'drizzle-orm/pg-core'
-import type { ContestacaoDeVinculo, EstadoDeVinculo, MotivoDeEncerramentoDeVinculo, PapelDeVinculo } from '@educa/shared'
+import type { ContestacaoDeVinculo, EstadoDeVinculo, MotivoDeEncerramentoDeVinculo, OrigemDeVinculo, PapelDeVinculo } from '@educa/shared'
 import { disciplina } from './disciplina.js'
 import { escola } from './escola.js'
 import { turma } from './turma.js'
@@ -23,6 +23,9 @@ const SEM_DISCIPLINA = '00000000-0000-0000-0000-000000000000'
  *   só (`coalesce`), porque no índice comum dois nulos não colidem.
  * - `complemento` é texto do professor, até 140 caracteres: só a coordenação o lê, nunca vai a log nem a auditoria, e
  *   é apagado na virada do ano (10.0; `docs/lgpd.md`).
+ * - `origem` (F2, tarefa 2.0): de onde o vínculo veio, `coordenacao` (à mão, o padrão das linhas que já existiam), `grade` (criado pela
+ *   planilha da grade) ou `lista` (o aluno que volta na virada). Só o rastro: a grade encerra apenas o vínculo marcado.
+ * - `unique (escola_id, ano_letivo_id, id)` (F2, tarefa 2.0) é o alvo da FK composta da `alocacao`, que aponta para o vínculo pelo ano dele.
  * - Índices `(escola_id, ano_letivo_id, usuario_id, estado)` para os vínculos da pessoa e `(escola_id, ano_letivo_id,
  *   turma_id, estado)` para a turma e os alunos dela: começam pelo escopo (regra 80, item 8).
  */
@@ -39,6 +42,7 @@ export const vinculo = pgTable(
     disciplinaId: uuid(),
     papel: text().$type<PapelDeVinculo>().notNull(),
     estado: text().$type<EstadoDeVinculo>().notNull().default('pendente'),
+    origem: text().$type<OrigemDeVinculo>().notNull().default('coordenacao'),
     contestacao: text().$type<ContestacaoDeVinculo>(),
     complemento: varchar({ length: 140 }),
     motivoEncerramento: text().$type<MotivoDeEncerramentoDeVinculo>(),
@@ -49,6 +53,7 @@ export const vinculo = pgTable(
   },
   (tabela) => [
     unique('vinculo_escola_id_unico').on(tabela.escolaId, tabela.id),
+    unique('vinculo_escola_ano_id_unico').on(tabela.escolaId, tabela.anoLetivoId, tabela.id),
     foreignKey({
       name: 'vinculo_turma_do_ano_da_escola_fk',
       columns: [tabela.escolaId, tabela.anoLetivoId, tabela.turmaId],
@@ -64,6 +69,7 @@ export const vinculo = pgTable(
     // O expurgo do `vinculo_encerrado` (F3, tarefa 5.0): só o encerrado, do mais antigo.
     index('vinculo_encerrado_idx').on(tabela.escolaId, tabela.encerradoEm).where(sql`${tabela.estado} = 'encerrado'`),
     check('vinculo_papel_valido', sql`${tabela.papel} in ('professor', 'aluno')`),
+    check('vinculo_origem_valida', sql`${tabela.origem} in ('coordenacao', 'grade', 'lista')`),
     check('vinculo_estado_valido', sql`${tabela.estado} in ('pendente', 'confirmado', 'contestado', 'encerrado')`),
     check(
       'vinculo_contestacao_valida',

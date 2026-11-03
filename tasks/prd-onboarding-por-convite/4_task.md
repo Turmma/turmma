@@ -16,14 +16,14 @@ A planilha de calendário entra pela API: a prévia classifica, gravar responde 
 - `prd.md` RF2, RF10, RF15, RF16, RF17
 - `cenarios.md` RF2, RF10, "Job e estados"
 - Regra 00 item 4; regra 80 itens 2, 3 e 7; D49
-- Código: `packages/core/src/queue/`; `apps/worker/src/composition.ts`, `job-executor.ts`; `apps/api/src/estrutura/lista/`
+- Código: `packages/core/src/queue/`; `packages/shared/src/system/job-definitions.ts` e o teste dele; `apps/worker/src/composition.ts`, `job-executor.ts`, `composition.test.ts`; `apps/api/src/estrutura/lista/`
 
 ## Subtarefas
 
 - [ ] 4.1 — `packages/core/src/importacao/`: o motor (classificação em lote, assinatura, três passos, escrita condicional, resultados) e o tipo calendário
 - [ ] 4.2 — `ImportacaoRepository` com escopo; o gravar refaz a prévia, fecha `falhou` a `na_fila` de mais de 1 h (`for update nowait`; travada: `CONFLITO`) e enfileira
 - [ ] 4.3 — Rotas `POST /v1/importacoes/:tipo/previa` e `POST /v1/importacoes/:tipo` (coordenador), com o filtro `anoLetivoId` validado no servidor
-- [ ] 4.4 — `apps/worker/src/processors/gravar-planilha.ts`: escola da linha; os tempos do passo (3); nova tentativa com espera crescente; métricas por resultado e do passo (3)
+- [ ] 4.4 — `estrutura.gravar-planilha` em `packages/shared/src/system/job-definitions.ts` (constante `TIPO_GRAVAR_PLANILHA`, fila `normal`, escopo `escola`, executor `worker`, dados estritos só com o id da importação), vinda da 2.2; `apps/worker/src/processors/gravar-planilha.ts`: escola da linha; os tempos do passo (3); nova tentativa com espera crescente; métricas por resultado e do passo (3)
 - [ ] 4.5 — Auditoria `planilha.gravada` (tipo e contagens)
 - [ ] 4.6 — Testes
 
@@ -36,6 +36,7 @@ A planilha de calendário entra pela API: a prévia classifica, gravar responde 
 | `apps/api/src/estrutura/estrutura.module.ts` | alterado |
 | `apps/worker/src/processors/gravar-planilha.ts` | novo |
 | `apps/worker/src/composition.ts` | alterado |
+| `packages/shared/src/system/job-definitions.ts`, `job-definitions.test.ts` | alterado |
 | `apps/api/test/importacao.int.test.ts`, `apps/worker/test/gravar-planilha.int.test.ts` | novo |
 
 ## Testes que provam a regra
@@ -74,6 +75,7 @@ A planilha de calendário entra pela API: a prévia classifica, gravar responde 
 - Worker com relógio: `apps/worker/test/expurgo-de-acesso.int.test.ts` (`relogioEm`, o processor criado com repositório e relógio)
 - Barreira e trava: `WriteBlockTrigger`, `esperarNaTrava` (`apps/api/test/write-block-trigger.ts`); auditoria: `auditoriaDa(bancada, escolaId, acao)` (`apps/api/test/material.fixture.ts`)
 - Comandos: `npx vitest run --project integracao apps/api/test/importacao.int.test.ts apps/worker/test/gravar-planilha.int.test.ts`
+- Registro de jobs: `apps/worker/src/composition.test.ts` exige processador para todo tipo do worker na réplica de cada fila dele, e o 3º caso lista os tipos da `normal` (passa a incluir o novo); `job-definitions.test.ts` conta os tipos e fixa os prazos: o novo entra na lista e no `prazoMs`
 - Armadilhas: o desfecho de uma execução se prova chamando o processor (tentativa 1); nos [P] do `lock_timeout`, só o estado final
 
 ## Autoconferência
