@@ -1,6 +1,7 @@
 # Estado da execução — onboarding-por-convite
 
 ## Agora
+- **03/11 ~16:10:** por palavra do Joaquim ("pode começar agora"), linha 1 aberta e tarefa 1.0 pedida ao Implementador (par no checkout `--l1`). **Espero:** `/seguir RELATÓRIO` do Implementador, 1ª tentativa. **Devo ainda:** as três pendências da X8 (ver abaixo). **Base:** `spec/onboarding-por-convite` em `f1e70b2c`
 - **03/11 16:03:** F2 cortada em duas specs por decisão do Joaquim (`648bd616`); 16 tarefas geradas (`ebae5b1c`). Aviso da D79 dado; **a construção começa às 16:31**, na primeira vigia depois da hora, sem objeção do Joaquim no meu terminal nem no do Arquiteto (a pausa anterior era só para a VM). Vigia ligada. Próxima: tarefa 1.0 (grande)
 - **03/11:** Revisão da spec aprovada na rodada 8 (`d8e435d7`). Ao gerar as tarefas, 7 saíram grandes demais; cortadas passam de 20 (limite do `criar-tasks`). **Aguardando o Joaquim no terminal do Arquiteto:** 1) duas specs (recomendado), 2) uma spec com 20 tarefas, 3) uma spec com o PRD recortado. Nada parte antes da resposta
 - **03/11 (VM de volta):** Arquiteto reiniciado no andar; `PEDIDO de retomada` enviado (rodada 8 da revisão da spec só com o test-engineer, depois `criar-tasks`). **Espero:** o `/seguir RELATÓRIO` do Arquiteto. Construção não parte sem a palavra do Joaquim
