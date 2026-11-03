@@ -11,7 +11,7 @@ import { migrate, PASTA_MIGRACOES, type MigrationConfig } from './migrate.js'
 
 /**
  * A migration `0040_f2_planilhas` (F2, tarefa 2.0) sobre dado que já existia: um banco só para este teste, migrado até a 0039 (o que
- * a A1 deixou), com turmas escritas de vários jeitos, e depois migrado até a 0040 pelo mesmo `migrate` do serviço `migrar`. Prova
+ * a A1 deixou), com turmas escritas de vários jeitos, e depois migrado até a 0040 pelo mesmo `migrate` do serviço de migração. Prova
  * as duas promessas da Tech Spec, seção 3: a migration só expande (nada apagado, nenhuma coluna a menos) e a `turma.chave` das
  * turmas que já existem nasce só onde é única no ano.
  */
