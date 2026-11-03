@@ -334,7 +334,7 @@ usuários de uma vez, e o uso se concentra no horário de aula. API, realtime e 
 separados e sem estado desde o início, para uma rede municipal (D20) ser questão de mais
 instâncias, não de refazer. Modelo de carga em `docs/infra.md`.
 
-**D26 — Banco, Redis e storage rodam na VM própria no início e viram serviços gerenciados na migração para a AWS.**
+**D26 — Banco, Redis e storage rodam na VPS no início e viram serviços gerenciados na migração para a AWS.**
 Quem opera é o Joaquim, sozinho e sem plantão. Manter Postgres com replicação e backup na
 mão não cabe nisso. Continuam sendo padrões abertos (Postgres, Redis, S3), então a regra 00
 e o `docker compose up` seguem valendo.
@@ -343,6 +343,7 @@ storage rodam em contêiner na VM de produção própria (F18), e passam a geren
 para a AWS (D42). O que o serviço gerenciado dava de graça vira obrigação do F18: backup diário fora da VM,
 snapshot antes de deploy, restauração executada de verdade e alerta de backup vencido. O portão da primeira
 escola real vale igual. Motivo, nas palavras do Joaquim: "quero rodar a produção na minha máquina em casa porque tem PC potente no início, depois a migração para AWS": custo de hospedagem perto de zero no primeiro ano, numa máquina que aguenta a carga das primeiras escolas, e o compose de sempre, que sobe o sistema inteiro num servidor (o critério da stack), torna a migração uma troca de endereço e de serviço gerenciado, não uma reescrita.
+Revista em 03/11/2026, pelo Joaquim (D82): o banco, o Redis e o storage em contêiner passam a rodar na VPS de produção, não na máquina de casa. O backup diário fora da VM vira fora da VPS. O resto fica.
 
 **D27 — Meta de 99,5% de disponibilidade no horário letivo, com prova resiliente.**
 Resposta de prova salva por item, relógio no servidor e retomada após queda. Deploy em
@@ -366,7 +367,7 @@ Uns 7% do preço alvo. É medido por escola desde o F0, junto com o custo de IA 
 Revista em 13/09/2026: o uso já nasce marcado por escola no F0; o custo do ambiente passa a
 ser medido quando o staging existir (D31).
 
-**D31 — Produção na VM própria, com deploy automático pela `main`; homologação opcional.**
+**D31 — Produção na VPS, com deploy automático pela `main`; homologação opcional.**
 Staging recebe todo commit do `main`, roda e2e e teste de carga, e só tem seed sintético.
 Com commit direto no `main` (D23), é o staging que segura o erro antes de chegar à escola.
 Revista em 13/09/2026: o F0 e a validação inicial são 100% locais, sem ambiente remoto e
@@ -381,6 +382,7 @@ espera a janela. Uma VM de homologação é opcional e pode nem existir; até l�
 esteira, e a demonstração externa e o piloto partem da VM, com dado sintético enquanto o portão da primeira
 escola real não abre (regra 20). Os itens marcados "antes do staging" no `TODO.md` passam a valer antes da
 produção na VM. Motivo, nas palavras do Joaquim: "quero rodar a produção na minha máquina em casa porque tem PC potente no início, depois a migração para AWS": custo de hospedagem perto de zero no primeiro ano, numa máquina que aguenta a carga das primeiras escolas, e o compose de sempre, que sobe o sistema inteiro num servidor (o critério da stack), torna a migração uma troca de endereço e de serviço gerenciado, não uma reescrita.
+Revista em 03/11/2026, pelo Joaquim (D82): a produção é a VPS, não a VM de casa. O deploy automático pela `main`, a janela fora do horário letivo e a homologação opcional não mudam.
 
 **D32 — Os agentes são sete, mais o Mensageiro da família na fase posterior.**
 Rotina, Corretor, Planejador, Monitor de turma, Tutor, Adaptador e Analista da coordenação.
@@ -477,7 +479,7 @@ R$ 5, IA (R$ 1,50) mais infra (R$ 2) mais imposto dão uns R$ 4,15 e não sobra 
 nem licitação. Perder licitação só por preço é aceito. O orçamento continua sendo
 configuração por rede.
 
-**D42 — O provedor de nuvem é escolhido na migração para fora da VM, com a AWS São Paulo como candidata.**
+**D42 — O provedor de nuvem é escolhido na migração para fora da VPS, com a AWS São Paulo como candidata.**
 Nada de produção é necessário antes do staging. Critérios: região São Paulo, Postgres
 gerenciado com pgvector e backup contínuo, Redis gerenciado configurável sem expulsão de
 chave, storage S3-compatível, custo dentro de R$ 2 por aluno (D30), preço em real ou
@@ -490,6 +492,7 @@ Revista em 24/10/2026, pelo Joaquim: a produção começa na VM própria, numa m
 com só a borda exposta pelo túnel da Cloudflare com Access (F18); a escolha de provedor vai para a migração,
 com os mesmos critérios e a AWS São Paulo como candidata. A máquina fica no Brasil, então a D28 continua.
 Motivo, nas palavras do Joaquim: "quero rodar a produção na minha máquina em casa porque tem PC potente no início, depois a migração para AWS": custo de hospedagem perto de zero no primeiro ano, numa máquina que aguenta a carga das primeiras escolas, e o compose de sempre, que sobe o sistema inteiro num servidor (o critério da stack), torna a migração uma troca de endereço e de serviço gerenciado, não uma reescrita.
+Revista em 03/11/2026, pelo Joaquim (D82): a produção começa numa VPS em região Brasil, não na máquina AM5 com Proxmox em casa. A escolha entre VPS e nuvem gerenciada segue pelos mesmos critérios, e a AWS São Paulo segue candidata na migração.
 
 **D43 — O recorte é anos finais e Ensino Médio, em qualquer computador da escola.**
 Do 6º ao 9º ano e do 1º ao 3º do Ensino Médio, em escola particular e rede pública, com o
@@ -1619,3 +1622,6 @@ function calling, quando existir. Banco, rota HTTP, código de erro e texto de t
 palavras dele: "tools já entendo que é a tool que o agente pode usar via MCP… coisa de software podia ser
 inglês como geralmente é chamado"; o rename gradual deixa a base em dois idiomas por tempo indefinido, e
 quem vem do mercado lê a peça traduzida como mecanismo próprio.
+
+**D82 — A produção roda em VPS em região Brasil, no lugar da VM de casa; o deploy automático pela `main` continua.**
+A produção do F18 sobe numa VPS contratada, em região Brasil (D28), com o mesmo compose, o mesmo deploy automático pela `main`, fora do horário letivo e com rollback sozinho. O provedor da VPS está em aberto. Banco, Redis e storage seguem em contêiner na própria VPS, e a migração para serviços gerenciados (D26, D42) segue como estava. Revisa a D26, a D31 e a D42. Motivo, nas palavras do Joaquim: disponibilidade. Uma máquina em casa fica sujeita a queda de luz e de internet, o que não combina com os 99,5% no horário letivo (D27) nem com a regra 80, e uma VPS de datacenter tira esse risco sem mudar o compose.

@@ -68,7 +68,7 @@ Playwright, esteira de typecheck/lint/test, log estruturado **sem dado pessoal**
 tipado. API, realtime e worker como processos separados e sem estado. Filas com prioridade
 e limite por escola, com entrega pelo menos uma vez e chave de idempotência obrigatória no
 processador (D49). Rate limit por usuário e por escola. Métrica básica. Tudo local: a
-produção nasce depois, na VM (D31). Ver `docs/infra.md`.
+produção nasce depois, na VPS (D31, D82). Ver `docs/infra.md`.
 
 **Pronto quando:** `docker compose up` sobe tudo, um e2e verde toca API e web, e a esteira
 do GitHub fica verde no mesmo commit.
@@ -733,7 +733,7 @@ vazio.
 **Falta:** o seed **sintético** de uma escola completa, que um comando sobe: turmas dos anos finais e do Ensino
 Médio, professores, alunos fictícios, grade e calendário, um bimestre de atividades com diagnóstico e notas, e
 o feed de agentes com atividade recente. Pode nascer de `tools/vitrine/` e das fixtures do e2e, apontando para
-o banco da demonstração. Onde ela roda (na VM, num espaço de escola fictícia, ou noutro ambiente) se decide no
+o banco da demonstração. Onde ela roda (na VPS, num espaço de escola fictícia, ou noutro ambiente) se decide no
 PRD.
 
 **Pronto quando:** um comando sobe a demonstração povoada, as quatro coisas da D24 aparecem nela, e o feed
@@ -755,29 +755,31 @@ publicado.
 **Pronto quando:** nenhum caminho grava `Nota` sem autor humano, o lote não libera sem abrir os destaques, e
 as notas aprovadas saem num arquivo que o sistema de gestão importa.
 
-## F18 — `producao-na-vm` [ ]
+## F18 — `producao-na-vps` [ ]
 **Depende de:** F0 (concluída). Corre em paralelo com F2 a F5
 
-A produção do Turmma passa a rodar em **VM própria** (máquina AM5 com Proxmox, operada pelo
-Joaquim, em casa), em vez de nascer no provedor da D42, e migra para a AWS depois — decisão de
-14/10/2026, registrada em 24/10/2026 como revisão da **D26, D31 e D42** (homologação opcional, pode nem existir).
-Três fatias: **1.** a VM de produção — compose de sempre, só a borda exposta pelo túnel da
-Cloudflare com Access, deploy e rollback ensaiados, dado sintético enquanto o portão não
-abre (regra 20); **2.** backup diário fora da VM, snapshot antes de deploy e restauração
-executada de verdade; **3.** o **painel de recursos** no Grafana (`infra/grafana`), com CPU,
-memória e disco por VM e por contêiner, alertas (disco 80%, memória 90%, CPU 85% no horário
+A produção do Turmma roda numa **VPS em região Brasil**, operada pelo Joaquim, em vez de nascer no
+provedor gerenciado da D42, e migra para a nuvem gerenciada depois. Começou como VM de casa (decisão de
+14/10/2026, registrada em 24/10/2026 como revisão da **D26, D31 e D42**) e passou para a VPS em 03/11/2026
+(**D82**), por disponibilidade (homologação opcional, pode nem existir). **O provedor da VPS está em aberto**
+(`docs/decisoes-em-aberto.md`).
+Três fatias: **1.** a VPS de produção — compose de sempre, borda exposta a definir com o provedor (o túnel da
+Cloudflare com Access era o desenho da VM de casa), deploy e rollback ensaiados, dado sintético enquanto o
+portão não abre (regra 20); **2.** backup diário fora da VPS, snapshot antes de deploy (conforme o que o
+provedor oferecer) e restauração executada de verdade; **3.** o **painel de recursos** no Grafana
+(`infra/grafana`), com CPU, memória e disco por VPS e por contêiner, alertas (disco 80%, memória 90%, CPU 85% no horário
 letivo, backup vencido) com runbook e aviso no celular. **PRD ainda não criado** — entra
 quando a fase começar.
 
 **O deploy é automático** (pedido do Joaquim em 24/10/2026): o merge na `main`, com a esteira verde, sobe
-sozinho na VM, sem ninguém digitar nada. Fora do horário letivo, sai na hora; dentro dele, espera a janela
+sozinho na VPS, sem ninguém digitar nada. Fora do horário letivo, sai na hora; dentro dele, espera a janela
 (D27, regra 80). Troca uma API de cada vez, com migration que expande e depois contrai, e volta sozinho para
 a versão anterior se o `/saude` não responder.
 
-**Pronto quando:** um merge na `main` chega à VM sem passo manual, e um merge em horário letivo
-espera a janela; a VM sobe sozinha depois de um desligamento e `/saude` responde em até
+**Pronto quando:** um merge na `main` chega à VPS sem passo manual, e um merge em horário letivo
+espera a janela; a VPS sobe sozinha depois de um reinício e `/saude` responde em até
 5 min; o deploy troca uma API de cada vez e o rollback volta em 2 min; uma restauração de
-backup foi executada em VM nova e cronometrada; e o painel de recursos mostra as três VMs
+backup foi executada em VPS nova e cronometrada; e o painel de recursos mostra as VPS
 com alerta ensaiado chegando ao celular.
 
 ## F16 — `hardening-e-conformidade` [ ]
@@ -816,7 +818,7 @@ e-mail** antes de uma conta de professor cruzar escolas (D71 revista em 25/09/20
 uma escola não abre a conta no convite de outra. O piloto do 1º semestre de 2027
 vem antes do F16 (D1 revista), então esses itens são puxados para antes dele.
 
-A **VM de produção** do F18 (deploy automático pela `main`, check externo, backup fora da VM) existe antes
+A **VPS de produção** do F18 (deploy automático pela `main`, check externo, backup fora da VPS) existe antes
 da primeira demonstração a alguém de fora ou do piloto, o que vier primeiro, e faz o papel que era do
 staging (D31 revista). O provedor de nuvem é escolhido na migração (D42).
 
@@ -841,5 +843,5 @@ staging (D31 revista). O provedor de nuvem é escolhido na migração (D42).
 - F17 (nota oficial) corre depois de F6, F11 e F13, em paralelo com F12 e F14, e antes do F15
 - O teste de carga começa no F0 com um cenário mínimo e cresce a cada funcionalidade do
   caminho quente (F2, F5, F6, F9), em vez de nascer inteiro no F16
-- F18 (`producao-na-vm`) corre em paralelo com F2 a F5, não depende de nenhuma delas e é o
+- F18 (`producao-na-vps`) corre em paralelo com F2 a F5, não depende de nenhuma delas e é o
   que substitui o staging (D31 revista)

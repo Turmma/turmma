@@ -145,9 +145,10 @@ pgvector, índice parcial ou particionamento por escola. Não verificado.
 
 Para dez escolas, operada por uma pessoa (D26):
 
-> **No início, a produção roda numa VM própria** (F18; D26, D31 e D42 revistas em 24/10/2026): o mesmo
-> compose, com Postgres, Redis e storage em contêiner, backup diário fora da VM e só a borda exposta pelo túnel
-> da Cloudflare. O desenho abaixo, com serviço gerenciado, é o da migração para a AWS.
+> **No início, a produção roda numa VPS em região Brasil** (F18; D26, D31 e D42 revistas em 24/10/2026 e em
+> 03/11/2026, D82, por disponibilidade): o mesmo compose, com Postgres, Redis e storage em contêiner, backup
+> diário fora da VPS e a borda a definir com o provedor (o túnel da Cloudflare era o desenho da VM de casa).
+> O provedor da VPS está em aberto. O desenho abaixo, com serviço gerenciado, é o da migração para a AWS.
 
 ```
                   ┌───────────────────── região Brasil (D28) ─────────────────────┐
@@ -324,7 +325,7 @@ Queda curta da rede da escola ou do sistema não pode fazer aluno perder respost
 
 ### 6.2 Deploy
 
-- O merge na `main`, com a esteira verde, sobe sozinho na VM de produção (F18, D31 revista). Não há
+- O merge na `main`, com a esteira verde, sobe sozinho na VPS de produção (F18, D31 e D82). Não há
   staging; a esteira do GitHub é o portão
 - A produção só recebe deploy **fora do horário letivo**: o merge feito dentro dele espera a janela
 - Migration é compatível com a versão anterior do código (expandir, migrar, contrair).
@@ -389,7 +390,7 @@ valida os R$ 30 junto com a planilha de `docs/negocio.md`.
 | Ambiente | Para quê | Dado |
 |---|---|---|
 | local | desenvolvimento, `docker compose up`, Ollama | seed sintético |
-| homologação (opcional) | substitui o staging (D31 revista): pode nem existir; se existir, é uma VM ao lado da de produção, com o mesmo compose. Antes, o staging recebia todo commit do `main`, rodava e2e e teste de carga e espelhava a produção. Criado antes da primeira demonstração externa ou do piloto; até lá, o portão é a esteira do GitHub (D31) | **seed sintético, nunca dado real** (regra 20) |
+| homologação (opcional) | substitui o staging (D31 revista): pode nem existir; se existir, é uma VPS ao lado da de produção, com o mesmo compose. Antes, o staging recebia todo commit do `main`, rodava e2e e teste de carga e espelhava a produção. Criado antes da primeira demonstração externa ou do piloto; até lá, o portão é a esteira do GitHub (D31) | **seed sintético, nunca dado real** (regra 20) |
 | produção | escolas | real |
 
 A demonstração de venda (F15) roda no staging com a seed completa, ou num espaço de escola
@@ -448,7 +449,8 @@ Nenhum dado real de escola entra em produção antes de:
 
 ## 12. Em aberto
 
-- Provedor de nuvem em região Brasil: escolhido na migração para fora da VM própria, pelos
+- Provedor da VPS de produção em região Brasil (D82): a definir antes do F18. Snapshot, backup e borda dependem dele
+- Provedor de nuvem em região Brasil: escolhido na migração para fora da VPS, pelos
   critérios da D42, com a AWS São Paulo como candidata
 - Provedor de modelo principal e de reserva: sai da avaliação de
   `docs/avaliacao-de-modelos.md` (D37). Se o escolhido processar fora do Brasil, a

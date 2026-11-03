@@ -486,9 +486,12 @@ para o staging".
       aninhado) e mostra a configuração **efetiva** — inclusive o `health_checker` que o próprio Caddy
       acrescenta ao `exclude`. Roda em `test:infra`, não no portão rápido: custa o binário do Caddy
 
-- [ ] **Onde este arquivo diz "staging", vale a VM de produção do F18** (D31 revista em 24/10/2026): o item
-      "antes do staging" vale antes da produção na VM. O provedor de nuvem, com Postgres + pgvector, Redis e storage
-      S3 gerenciados (D26, D28), é escolhido na migração para a AWS (D42). O Redis da VM fica na mesma máquina da
+- [ ] **Escolher o provedor da VPS de produção** (D82, 03/11/2026): região Brasil (D28), processamento no Brasil
+      para conversa de aluno (D62), snapshot e backup fora da VPS, e a borda (o túnel da Cloudflare era o desenho
+      da VM de casa). Antes de o F18 começar
+- [ ] **Onde este arquivo diz "staging", vale a VPS de produção do F18** (D31 revista em 24/10/2026 e D82): o item
+      "antes do staging" vale antes da produção na VPS. O provedor de nuvem, com Postgres + pgvector, Redis e storage
+      S3 gerenciados (D26, D28), é escolhido na migração para a AWS (D42). O Redis da VPS fica na mesma máquina da
       API, e o corte de 100 ms do cliente do login é ensaiado nela (`infra-guardian`)
 - [ ] **Bloqueio de IP na borda contra ataque ao código da turma** (A1): na A1 não existe, e a resposta é revogar os
       acessos da escola (`docs/runbook.md`, "Código da turma errado em massa numa escola"). Entra com o staging e o
@@ -2200,7 +2203,7 @@ repetem aqui.
       playwright` e `npx vitest`, do `package-lock.json`, rodam. O `npx skills update -p` pelo Claude passa a pedir `--yes` (dono:
       Orquestrador; guardiões: `infra-guardian`, `revisor-geral`)
 - [ ] **(X4, MN7, correção `2026-10-26-npx-sem-instalar`) O `npm_config_yes=false` vale só para a sessão do Claude Code**: o `env` do
-      `.claude/settings.json` não chega à esteira nem à VM de produção. Hoje nada quebra (a esteira roda `npx vitest`, que está no
+      `.claude/settings.json` não chega à esteira nem à VPS de produção. Hoje nada quebra (a esteira roda `npx vitest`, que está no
       `package-lock.json`); se a esteira ou um script passar a rodar `npx` de pacote de fora, decidir se ele leva a mesma barreira
       (dono: Arquiteto; origem: `infra-guardian`, 1ª rodada)
 - [ ] **(X4, MN7, correção `2026-10-26-npx-sem-instalar`) Dois textos ainda mandam rodar `npx skills update -p` sem `--yes`**:
