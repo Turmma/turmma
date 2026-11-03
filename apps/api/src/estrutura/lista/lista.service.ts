@@ -17,8 +17,7 @@ import {
 } from '@educa/shared'
 import { paginar } from '../../http/pagination.js'
 import { errosDasLinhas, lerTextoDaLista, type ParsedRow } from './lista-reader.js'
-import { ListaRepository } from './lista.repository.js'
-import { TurmaRepository } from '../turma/turma.repository.js'
+import { ListaRepository, TurmaRepository } from '@educa/core/estrutura'
 
 const registro = new AuditoriaRecorder()
 

@@ -93,15 +93,22 @@ não tem `escolaId` porque é o login; `Usuario` é a pessoa *naquela* escola, c
 Um professor em duas escolas é uma `Conta` com dois `Usuario`, e o escopo de tenant continua
 inteiro na regra 10: toda tabela de domínio tem `escolaId`, e quem resolve a fronteira é a
 `TenantResolutionRepository`, com `@Unscoped` e teste de arquitetura que prova que só `sessao`
-a importa. Ela não é mais a única a alcançar a `Conta` sem escopo: as três operações sobre a
-`Conta` global que o ciclo de vida faz (travar, limpar a conta sem uso e encerrar as sessões dela) moram
-na `ContaGlobalRepository`, em `packages/core/src/ciclo-de-vida`, desde que o ciclo de vida foi
-para o `core` (F3, tarefa 1.0): ela não sai pelo barrel do pacote, só pelo subcaminho
+a importa. Ela não é mais a única a alcançar a `Conta` sem escopo: as operações sobre a
+`Conta` global que o ciclo de vida faz (travar, limpar a conta sem uso e encerrar as sessões dela) e o achar ou criar
+a conta pelo e-mail do convite (`contaParaConvite`, que veio do `TenantResolutionRepository` na tarefa 1.0 do
+onboarding-por-convite) moram na `ContaGlobalRepository`, em `packages/core/src/ciclo-de-vida`, desde que o ciclo de
+vida foi para o `core` (F3, tarefa 1.0): ela não sai pelo barrel do pacote, só pelo subcaminho
 `@educa/core/conta-global`, e o teste de arquitetura lista quem a importa — o
-`CicloDeVidaService` e o `sessao` (a redefinição do MFA), e os testes deles. As três são exceções antigas que mudaram
-de lugar, mas já estão no ponto que a regra 10, item 9 aponta como sinal de desenho errado (a
-terceira no mesmo módulo): qualquer outra ali é mudança de spec, discutida antes, e não acréscimo
-de tarefa. A única leitura nova (F3, tarefa 13.0) é a do e-mail da `Conta` pelo arquivo do titular
+`CicloDeVidaService`, o `sessao` (a redefinição do MFA e o convite do coordenador), e **o arquivo**
+`packages/core/src/estrutura/cadastro-de-professor.ts` (o cadastro do professor, que descarta o `nova`), e os testes
+deles. O cadastro, que repassa a conta sem escopo, tem o subcaminho próprio `@educa/core/cadastro-de-professor` (fora do
+barril `@educa/core/estrutura`), e quem o chama também é cercado: só o `sessao` da API, pela entrada `contaDoProfessor` do
+`architecture.test.ts` e pela regra `cerca-cadastro-de-professor` do `camadas.cjs`; o worker da planilha entra na zona
+na 4.0. A cerca de `estrutura/` é o arquivo, e não a pasta: um vizinho que a importe, por import, reexport, `import()`,
+`require` ou o caminho como texto, reprova o `architecture.test.ts` e o `cerca-conta-global` de
+`tools/guardas/camadas.cjs`. As quatro são exceções antigas que mudaram de lugar, mas já estão no ponto que a regra 10,
+item 9 aponta como sinal de desenho errado: qualquer outra ali é mudança de spec, discutida antes, e não acréscimo de
+tarefa. A única leitura nova (F3, tarefa 13.0) é a do e-mail da `Conta` pelo arquivo do titular
 (`LeituraDoTitular`, tabela `conta`, que a Tech Spec do F3, seção 3, manda levar "só o e-mail, nas duas
 versões"): ela **não é consulta sem escopo**, porque junta o `Usuario` da escola do contexto pelo id do
 titular e devolve só `id` e `email` da conta dele; a conta de outra pessoa, ou a de quem não é usuário desta
@@ -344,7 +351,7 @@ código:
 | `PainelRepository.escolas` | a lista de escolas, com o estado da coordenação e as contagens do ano em curso | só id, nome, endereço e número, sem pessoa |
 | `PainelRepository.uso` | o uso de infra de cada escola no último dia fechado e no mês dele | só id, nome e número, sem pessoa |
 | `RedeEEscolaRepository.criarRede`, `criarEscola` | cria, ou lê pelo id o pedido repetido | a rede fica acima do tenant, e a escola é o próprio tenant, que nasce ali; só o comando ou o painel cria, e devolve só o id |
-| `TenantResolutionRepository.contaParaConvite` | acha ou cria a conta pelo e-mail no convite da coordenação | a conta é global e não tem escola; não lê nada dela e devolve só o id e se é nova |
+| `ContaGlobalRepository.contaParaConvite` | acha ou cria a conta pelo e-mail no convite da coordenação e no cadastro do professor | a conta é global e não tem escola; não lê nada dela e devolve só o id e se é nova (o cadastro do professor descarta o `nova`) |
 | `TenantResolutionRepository.escolaDoConviteParaOperador` | a escola do convite de coordenação | recebe só o id do convite, e a escola dele vira o contexto, nunca o argumento |
 
 O `PainelRepository` é o único lugar da leitura entre escolas: os três métodos dele são todos
@@ -744,7 +751,7 @@ liga a decisão sobre o professor (D45, regra 70 item 8). Os dois estão no mapa
    - o próprio tenant: `Escola` e a `Rede` acima dela — ver "Estrutura institucional";
    - tabela pública sem dono (habilidades da BNCC, banco de questões público);
    - a identidade de login (`Conta`, `CodigoRecuperacao`), que é global por desenho e só é
-     alcançada pelo módulo `sessao` e pelo `core/ciclo-de-vida` (a `ContaGlobalRepository`),
+     alcançada pelo módulo `sessao`, pelo `core/ciclo-de-vida` e pelo arquivo `core/estrutura/cadastro-de-professor.ts` (a `ContaGlobalRepository`),
      além da limpeza noturna do expurgo de acesso — ver "Pessoas e vínculos";
    - as tabelas da operação Turmma (`Operador`, `CodigoRecuperacaoOperador`, `ConviteOperador`,
      `SessaoOperador`, `AcessoOperacao`, `AuditoriaOperacao`), da nossa equipe e não de escola,

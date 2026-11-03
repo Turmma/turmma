@@ -8,12 +8,12 @@ cenários foram distribuídos pelo `test-engineer`; cada linha do `cenarios.md` 
 
 ## Lista
 
-- [ ] **1.0 — A estrutura, a decisão e o cadastro do professor moram no core, sem mudar comportamento**
-  - [ ] 1.1 Commit de caracterização: mover sem mudar teste
-  - [ ] 1.2 `cadastro-de-professor.ts`; `contaParaConvite` no `ContaGlobalRepository`
-  - [ ] 1.3 Cerca por arquivo nas duas guardas, com fixture
-  - [ ] 1.4 Busca pelos caminhos antigos; `docs/arquitetura.md`, `docs/modelo-de-dados.md`
-  - [ ] 1.5 Testes: caracterização, cerca, quem contorna, alvo que some
+- [x] **1.0 — A estrutura, a decisão e o cadastro do professor moram no core, sem mudar comportamento**
+  - [x] 1.1 Commit de caracterização: mover sem mudar teste
+  - [x] 1.2 `cadastro-de-professor.ts`; `contaParaConvite` no `ContaGlobalRepository`
+  - [x] 1.3 Cerca por arquivo nas duas guardas, com fixture
+  - [x] 1.4 Busca pelos caminhos antigos; `docs/arquitetura.md`, `docs/modelo-de-dados.md`
+  - [x] 1.5 Testes: caracterização, cerca, quem contorna, alvo que some
 
 - [ ] **2.0 — O banco do F2 existe, e a turma ganha a chave que casa "8ºA" com "8A"**
   - [ ] 2.1 Migration: `importacao_planilha`, `alocacao`, `evento_calendario`, `turma.chave`, `vinculo.origem`

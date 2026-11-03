@@ -1,13 +1,13 @@
 import { DomainException, estadoDoProfessor, AuditoriaRecorder, systemClock, type Database, type Clock } from '@educa/core'
 import { ErrorCode, REFAZER_CONVITE_DE_PROFESSOR_POR_ESTADO, REVOGAR_CONVITE_DE_PROFESSOR_POR_ESTADO, type CadastrarProfessorRequest } from '@educa/shared'
 import { ConviteRepository } from './convite.repository.js'
-import { convidar, expiraEmDo, refazerSobATrava, tokenNovo } from './convite.service.js'
+import { convidarProfessor, expiraEmDo, refazerSobATrava, tokenNovo } from './convite.service.js'
 
 /**
  * Os casos de uso do convite de professor pela coordenação da escola (A1, tarefa 3.0, RF6): cadastrar, refazer e
- * revogar. Moram em `sessao` porque o cadastro alcança a conta global (`contaParaConvite`), e reusam o corpo comum do
- * convite de `convite.service.ts` (`convidar`, `refazerSobATrava`), sem copiar. Tudo no contexto da sessão: a escola e o
- * autor vêm dele, nunca do corpo.
+ * revogar. Moram em `sessao` e reusam o corpo comum do convite de `convite.service.ts` (`convidarProfessor`,
+ * `refazerSobATrava`), sem copiar; a conta do e-mail vem do cadastro do professor, no core (`contaDoProfessor`). Tudo no
+ * contexto da sessão: a escola e o autor vêm dele, nunca do corpo.
  */
 
 const registro = new AuditoriaRecorder()
@@ -33,7 +33,7 @@ async function professorSobATrava(convites: ConviteRepository, usuarioId: string
 /**
  * O cadastro do professor pela coordenação da escola (`POST /v1/professores`; A1, tarefa 3.0, RF6; Tech Spec da A1,
  * seção 5, passo 1), no contexto da sessão: a escola e o autor vêm dele, nunca do corpo. Numa transação, com a trava do
- * convite da escola como primeira instrução (a mesma do operador e do aceite), o corpo comum de `convidar` com o papel
+ * convite da escola como primeira instrução (a mesma do operador e do aceite), o corpo comum de `convidarProfessor` com o papel
  * `professor` e o convite válido por 7 dias, e a auditoria `professor.cadastrado` (sem campo nenhum) e `convite.criado`
  * (o tipo, o usuário e a validade, sem `contaNova`): nada diz à coordenação se o e-mail tinha conta em outra escola (E11).
  *
@@ -50,7 +50,7 @@ export async function cadastrarProfessor(banco: Database, pedido: CadastrarProfe
   return banco.transaction(async (tx) => {
     const convites = new ConviteRepository(tx)
     await convites.travarEscola()
-    const { conviteId, usuarioId } = await convidar(tx, convites, 'professor', pedido, token, expiraEm)
+    const { conviteId, usuarioId } = await convidarProfessor(tx, convites, pedido, token, expiraEm)
     await registro.gravar(tx, 'professor.cadastrado', { entidadeId: usuarioId })
     await registro.gravar(tx, 'convite.criado', { entidadeId: conviteId, depois: { tipo: 'professor', usuarioId, expiraEm: expiraEm.toISOString() } })
     return { usuarioId, conviteId, token }

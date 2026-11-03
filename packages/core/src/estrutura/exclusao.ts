@@ -1,4 +1,5 @@
-import { DomainException, postgresErrorIn } from '@educa/core'
+import { DomainException } from '../error/domain.exception.js'
+import { postgresErrorIn } from '../error/summarize-error.js'
 import { ErrorCode } from '@educa/shared'
 
 /** SQLSTATE `foreign_key_violation`: uma linha de outra tabela ainda aponta para a que se quer apagar. */

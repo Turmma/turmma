@@ -13,7 +13,7 @@ import {
 import { randomBytes, randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
-import { DecisaoRepository } from '../src/sala/decisao/decisao.repository.js'
+import { DecisaoRepository } from '@educa/core/estrutura'
 import { ListaLivreRepository } from '../src/sala/reivindicacao/lista-livre.repository.js'
 import { ReivindicacaoRepository } from '../src/sala/reivindicacao/reivindicacao.repository.js'
 import { chamar, subirApi, type TestApi, type RespostaHttp } from './test-api.js'

@@ -17,7 +17,7 @@ No worker, a conta global só se alcança pela exceção da seção 6 e pelo cic
 
 | Módulo | Novo ou alterado | O quê |
 |---|---|---|
-| `packages/core/src/estrutura/` | novo, por **mudança de lugar** | sobem de `apps/api`, para haver um jeito só: os repositories de turma, série, disciplina, lista e vínculo; o `encerrar`; o `travarPendente` e o `fechar` da decisão; o cadastro do professor, com o `contaParaConvite` indo do `TenantResolutionRepository` para o `ContaGlobalRepository` |
+| `packages/core/src/estrutura/` | novo, por **mudança de lugar** | sobem de `apps/api`, para haver um jeito só: os repositories de turma, série, disciplina, lista e vínculo; o `encerrar`; o `travarPendente` e o `fechar` da decisão; o `exclusao.ts`, que turma e disciplina importam para traduzir o 23503 da exclusão; o cadastro do professor, com o `contaParaConvite` indo do `TenantResolutionRepository` para o `ContaGlobalRepository` |
 | `packages/core/src/importacao/` | novo | o motor |
 | `apps/api/src/estrutura/importacao/`, `grade/`; `professores/`, `sala/` | novo; alterado | rotas; seção 5 |
 | `apps/worker/src/processors/` | alterado | `gravar-planilha.ts`, os dois expurgos (seção 5) |
@@ -105,8 +105,15 @@ Grade: linha sem professor é erro; reaproveita o vínculo aberto ou cria um pen
 Escola e ano vêm do contexto; no job, da linha, nunca do payload. Uma exceção, cercada **por arquivo**
 nas duas guardas (`ZONAS_DAS_CLASSES_CERCADAS` do `architecture.test.ts` e `cerca-conta-global` de
 `tools/guardas/camadas.cjs`, cada uma com fixture que reprova o arquivo vizinho) e no `docs/modelo-de-dados.md`:
-- `ContaGlobalRepository.contaParaConvite`, `@Unscoped('a conta é global: acha ou cria pelo e-mail')`, e o cadastro descarta o `nova`:
+- `ContaGlobalRepository.contaParaConvite`, `@Unscoped('a conta é global: acha ou cria pelo e-mail, sem ler nada dela, e devolve só o id e se ela é nova')`, e o cadastro descarta o `nova`:
   zona `packages/core/src/estrutura/cadastro-de-professor.ts`
+
+O cadastro entrega só o id da conta (`contaDoProfessor`). O `convidar` da A1 fica na API com duas entradas, `convidar` (o
+coordenador, que leva o `nova` à auditoria) e `convidarProfessor` (que chama o cadastro); o que o worker da 6.0 precisar do
+convite sobe para o core nessa tarefa, e o arquivo do cadastro continua o único de `estrutura/` que alcança a classe.
+O próprio `contaDoProfessor` também é cercado, porque repassa a conta sem escopo: sai pelo subcaminho `@educa/core/cadastro-de-professor`
+e não pelo barril `@educa/core/estrutura`, e só `apps/api/src/sessao/` o chama (a 4.0 acrescenta o processor do worker à zona,
+nas duas guardas). A cerca é a entrada `contaDoProfessor` de `ZONAS_DAS_CLASSES_CERCADAS` e a regra `cerca-cadastro-de-professor`.
 
 O `sistema.expurgar-acesso` ganha o alvo da `importacao_planilha` final, como rotina nossa (regra 10, item 9). Os casos
 estão no `cenarios.md`.

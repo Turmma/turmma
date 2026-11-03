@@ -1,8 +1,10 @@
-import { disciplina, requireEscolaId, type Database, type DatabaseTransaction } from '@educa/core'
+import { requireEscolaId } from '../context/context-escola.js'
+import type { Database, DatabaseTransaction } from '../db/database.js'
+import { disciplina } from '../db/schema/disciplina.js'
 import type { PaginationQuery, Disciplina, CriarDisciplinaRequest } from '@educa/shared'
 import { and, asc, eq, gt } from 'drizzle-orm'
 import { InvariantException } from '@educa/shared'
-import { excluirSemReferencia } from '../exclusao.js'
+import { excluirSemReferencia } from './exclusao.js'
 
 const colunas = { id: disciplina.id, nome: disciplina.nome, area: disciplina.area }
 

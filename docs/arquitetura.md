@@ -21,7 +21,7 @@ apps/despachante  Node + TS           lê o outbox (job_registro) e publica no B
 apps/worker       BullMQ              executa os jobs: expurgo, retenção, pedidos do titular, rotinas
 apps/realtime     socket.io           hoje só o canal /sistema; a sala ao vivo por turma é do F10
 packages/shared   zod                 contrato de pedido e resposta, códigos de erro, matriz de permissão
-packages/core   TS                  contexto, guardas, erro, schema e migrations, fila, IA, limite, log
+packages/core   TS                  contexto, guardas, erro, schema e migrations, fila, IA, limite, log, e os repositories da estrutura e da decisão (`estrutura/`, subcaminho `@educa/core/estrutura`), que a API e o worker usam
 
 Postgres 18 · Redis (fila e cache) · S3-compatível · LLMProvider (falso | OpenAI-compatível)
 ```

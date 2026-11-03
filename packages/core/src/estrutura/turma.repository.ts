@@ -1,8 +1,17 @@
-import { acessoTurma, anoLetivo, requireAnoEmCurso, requireEscolaId, serie, requestSessao, turma, usuario, vinculo, type Database, type DatabaseTransaction } from '@educa/core'
+import { requireAnoEmCurso } from '../context/ano-em-curso.js'
+import { requireEscolaId } from '../context/context-escola.js'
+import type { Database, DatabaseTransaction } from '../db/database.js'
+import { acessoTurma } from '../db/schema/acesso-turma.js'
+import { anoLetivo } from '../db/schema/ano-letivo.js'
+import { serie } from '../db/schema/serie.js'
+import { turma } from '../db/schema/turma.js'
+import { usuario } from '../db/schema/usuario.js'
+import { vinculo } from '../db/schema/vinculo.js'
+import { requestSessao } from '../identidade/auth.guard.js'
 import type { AlunoDaTurma, PaginationQuery, TurmaAbertaResponse, Turma, Turno } from '@educa/shared'
 import { and, asc, eq, exists, gt, isNotNull, isNull, not, or, sql, type SQL } from 'drizzle-orm'
 import { InvariantException } from '@educa/shared'
-import { excluirSemReferencia } from '../exclusao.js'
+import { excluirSemReferencia } from './exclusao.js'
 
 export interface NovaTurma {
   readonly serieId: string

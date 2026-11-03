@@ -1,16 +1,13 @@
-import {
-  convite,
-  disciplina,
-  estadoDoProfessor,
-  requireAnoEmCurso,
-  requireEscolaId,
-  requestSessao,
-  turma,
-  usuario,
-  vinculo,
-  type Database,
-  type DatabaseTransaction,
-} from '@educa/core'
+import { requireAnoEmCurso } from '../context/ano-em-curso.js'
+import { requireEscolaId } from '../context/context-escola.js'
+import { estadoDoProfessor } from '../convite/estado-do-professor.js'
+import type { Database, DatabaseTransaction } from '../db/database.js'
+import { convite } from '../db/schema/convite.js'
+import { disciplina } from '../db/schema/disciplina.js'
+import { turma } from '../db/schema/turma.js'
+import { usuario } from '../db/schema/usuario.js'
+import { vinculo } from '../db/schema/vinculo.js'
+import { requestSessao } from '../identidade/auth.guard.js'
 import {
   InvariantException,
   ESTADOS_DO_PROFESSOR_ALOCAVEIS,

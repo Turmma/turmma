@@ -20,7 +20,6 @@ describe('ResolucaoDeTenantRepository: toda operação sem escopo é marcada e j
       'apagarMfa',
       'ativarMfa',
       'avancarPassoDoMfa',
-      'contaParaConvite',
       'contaPorEmail',
       'conviteValidoPorHash',
       'criarContas',
@@ -69,7 +68,6 @@ describe('ResolucaoDeTenantRepository: toda operação sem escopo é marcada e j
     expect(justificativas['escolaDoConviteParaOperador']).toMatch(/rotina do operador, pelo comando ou pelo painel/)
     for (const metodo of ['conviteValidoPorHash', 'usarConvitePorHash']) expect(justificativas[metodo], metodo).toMatch(/link do convite não diz a escola/)
     for (const metodo of ['definirSenhaNoAceite', 'usuarioComConviteAceito']) expect(justificativas[metodo], metodo).toMatch(/credencial da equipe é global/)
-    expect(justificativas['contaParaConvite']).toMatch(/conta é global.*pelo comando ou pelo painel/)
     expect(justificativas['escolaPorSlug']).toMatch(/slug é o que dá a escola/)
     expect(justificativas['escolasDaRedeDoIpDeSaida']).toMatch(/antes de haver escola/)
     // A1, tarefa 5.0 (I2): a página pública da sala acha o acesso pelo link ou pelo código, sem sessão.

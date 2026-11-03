@@ -8,7 +8,7 @@ import {
   type SerieResponse,
 } from '@educa/shared'
 import { paginar } from '../../http/pagination.js'
-import { SerieRepository } from './serie.repository.js'
+import { SerieRepository } from '@educa/core/estrutura'
 
 /**
  * A coordenação cria e lista as séries do recorte (RF2, D43). Fora do recorte é `ENTRADA_INVALIDA` no contrato e, se

@@ -1,3 +1,5 @@
+import { runInContext } from '@educa/core'
+import { TurmaRepository } from '@educa/core/estrutura'
 import { ErrorCode, MENSAGENS_DE_ERRO } from '@educa/shared'
 import { createHash, createHmac, randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -670,5 +672,32 @@ describe('acesso da turma (A1, tarefa 4.0): gerar, revogar e ler o link e o cód
       await gatilho.desarmar()
     }
     expect(await acessosDa(e, e.turma)).toEqual([])
+  })
+
+  describe('o TurmaRepository que subiu para o core (onboarding-por-convite, 1.0): o isolamento continua no repository', () => {
+    /**
+     * O contexto da escola A com o ano em curso da B: o que a `SessaoGuard` nunca grava, mas o único jeito de a cláusula
+     * `escolaId` ser a que decide, já que o ano de cada escola é só dela. Sem a cláusula, a turma de B apareceria. Cobre só o
+     * repository: a prova pela rota, com o contexto que a `SessaoGuard` de fato grava, continua nos casos da A1, neste arquivo.
+     */
+    async function noContexto<T>(escolaId: string, anoLetivoId: string, usuarioId: string, rodar: (turmas: TurmaRepository) => Promise<T>): Promise<T> {
+      return runInContext({ requisicaoId: randomUUID(), escolaId, anoLetivoId, usuarioId }, () => bancada.banco.transaction((tx) => rodar(new TurmaRepository(tx))))
+    }
+
+    it('no contexto da escola A, a turma de B não é aberta nem travada, e no contexto de B é', async () => {
+      const a = await montar()
+      const b = await montar()
+      const deAComOAnoDeB = (rodar: (turmas: TurmaRepository) => Promise<unknown>) => noContexto(a.escolaId, b.anoLetivoId, a.coordenacao.usuarioId, rodar)
+      expect(await deAComOAnoDeB((turmas) => turmas.aberta(b.turma, 'unidade'))).toBeUndefined()
+      expect(await deAComOAnoDeB((turmas) => turmas.travarContraOGerar(b.turma, 'no key update'))).toBe(false)
+      expect(await deAComOAnoDeB((turmas) => turmas.travarContraExclusao(b.turma))).toBe(false)
+      expect(await deAComOAnoDeB((turmas) => turmas.travarAnoEmCurso())).toBe(false)
+      // O controle: no contexto da própria escola, as mesmas chamadas acham a turma, e o teste não passa só por ela não existir.
+      const deB = (rodar: (turmas: TurmaRepository) => Promise<unknown>) => noContexto(b.escolaId, b.anoLetivoId, b.coordenacao.usuarioId, rodar)
+      expect(await deB((turmas) => turmas.aberta(b.turma, 'unidade'))).toMatchObject({ id: b.turma, nome: '2ºB' })
+      expect(await deB((turmas) => turmas.travarContraOGerar(b.turma, 'no key update'))).toBe(true)
+      expect(await deB((turmas) => turmas.travarContraExclusao(b.turma))).toBe(true)
+      expect(await deB((turmas) => turmas.travarAnoEmCurso())).toBe(true)
+    })
   })
 })

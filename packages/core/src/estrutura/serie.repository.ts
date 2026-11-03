@@ -1,4 +1,6 @@
-import { requireEscolaId, serie, type Database, type DatabaseTransaction } from '@educa/core'
+import { requireEscolaId } from '../context/context-escola.js'
+import type { Database, DatabaseTransaction } from '../db/database.js'
+import { serie } from '../db/schema/serie.js'
 import type { PaginationQuery, CriarSerieRequest, Serie } from '@educa/shared'
 import { and, asc, eq, gt } from 'drizzle-orm'
 import { InvariantException } from '@educa/shared'

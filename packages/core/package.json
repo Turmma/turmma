@@ -14,6 +14,16 @@
       "types": "./dist/ciclo-de-vida/index.d.ts",
       "default": "./dist/ciclo-de-vida/index.js"
     },
+    "./estrutura": {
+      "source": "./src/estrutura/index.ts",
+      "types": "./dist/estrutura/index.d.ts",
+      "default": "./dist/estrutura/index.js"
+    },
+    "./cadastro-de-professor": {
+      "source": "./src/estrutura/cadastro-de-professor.ts",
+      "types": "./dist/estrutura/cadastro-de-professor.d.ts",
+      "default": "./dist/estrutura/cadastro-de-professor.js"
+    },
     "./conta-global": {
       "source": "./src/ciclo-de-vida/conta-global.repository.ts",
       "types": "./dist/ciclo-de-vida/conta-global.repository.d.ts",

@@ -152,7 +152,7 @@ export const LEITURAS_DO_ARQUIVO: Readonly<Record<string, LeituraDaTabela>> = {
     consultas: ({ escolaId, titularId }) => [
       // O aluno: todo pedido ligado à linha dele na lista de nomes (`lista_nome.usuario_id`): o que o aprovou e também o
       // recusado antes naquele nome, que pode ter sido de outra pessoa. A recusa devolve o nome a `livre` e o pedido continua
-      // apontando para a linha (`devolverNome`, `apps/api/src/sala/decisao/decisao.repository.ts`). Entra de propósito, e não
+      // apontando para a linha (`devolverNome`, `packages/core/src/estrutura/decisao.repository.ts`). Entra de propósito, e não
       // identifica ninguém: a linha leva `id`, `ano_letivo_id`, `turma_id`, `lista_nome_id`, o estado, as datas e `decidida_como`,
       // e `decidida_por`, `chave_envio`, `senha_hash` e `teve_matricula_errada` ficam na `fora`.
       // Por isso o texto diz "feitos com o seu nome", e não "que você fez".

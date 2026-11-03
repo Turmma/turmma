@@ -1,3 +1,4 @@
+import { ErrorCode } from '@educa/shared'
 import { and, eq, exists, gt, isNotNull, isNull, or, sql } from 'drizzle-orm'
 import type { Database, DatabaseTransaction } from '../db/database.js'
 import { codigoRecuperacao } from '../db/schema/codigo-recuperacao.js'
@@ -6,17 +7,19 @@ import { convite } from '../db/schema/convite.js'
 import { sessao, type MotivoDeEncerramento } from '../db/schema/sessao.js'
 import { usuario } from '../db/schema/usuario.js'
 import { Unscoped } from '../db/unscoped.decorator.js'
+import { DomainException } from '../error/domain.exception.js'
 
 /**
  * A conta global (o login da equipe), que não tem escola: as três escritas nela que o ciclo de vida e a redefinição do
- * MFA fazem depois de a escola do usuário ser conhecida (F3, tarefa 1.0; Tech Spec do F3, seção 6). Saíram da
- * resolução de tenant do módulo `sessao` quando o ciclo de vida veio para o `nucleo`, que não importa `apps/api`.
+ * MFA fazem depois de a escola do usuário ser conhecida (F3, tarefa 1.0; Tech Spec do F3, seção 6), e o achar ou criar
+ * a conta pelo e-mail do convite (`contaParaConvite`; onboarding-por-convite, tarefa 1.0). Saíram da resolução de tenant
+ * do módulo `sessao` quando o ciclo de vida veio para o `nucleo`, que não importa `apps/api`.
  *
  * O desvio da regra 10, item 9 fica contido por teste: a classe não sai pelo barrel do `@educa/core` (só pelo
- * subcaminho `@educa/core/conta-global`), e só o módulo `sessao` da API e esta pasta a importam
- * (`apps/api/test/architecture.test.ts`). As três exceções são antigas e mudaram de lugar, mas já estão no ponto que a
- * regra 10, item 9 aponta como sinal de desenho errado (a terceira no mesmo módulo): qualquer outra aqui é mudança de
- * spec, discutida antes.
+ * subcaminho `@educa/core/conta-global`), e só o módulo `sessao` da API, a pasta do ciclo de vida e **o arquivo**
+ * `estrutura/cadastro-de-professor.ts` a importam (`apps/api/test/architecture.test.ts` e a regra `cerca-conta-global`).
+ * As quatro exceções são antigas e mudaram de lugar, mas já estão no ponto que a regra 10, item 9 aponta como sinal de
+ * desenho errado: qualquer outra aqui é mudança de spec, discutida antes.
  */
 export class ContaGlobalRepository {
   constructor(private readonly banco: Database | DatabaseTransaction) {}
@@ -75,5 +78,26 @@ export class ContaGlobalRepository {
     await this.banco.delete(codigoRecuperacao).where(eq(codigoRecuperacao.contaId, contaId))
     await this.encerrarSessoesDaConta(contaId, 'conta_limpa')
     return limpas.length === 1
+  }
+
+  /**
+   * Acha ou cria a conta do e-mail, para o convite do coordenador e o do professor: conta nova nasce sem senha. Não lê
+   * nada da conta existente além do id, e quem chama não diz ao operador nem à coordenação se ela já existia.
+   *
+   * A conta existente fica travada (`FOR NO KEY UPDATE`) até o fim da transação do convite (17.0): a limpeza da conta
+   * sem uso, na desativação ou no expurgo da madrugada, não apaga o e-mail de uma conta que está recebendo convite (o
+   * expurgo a pula, com `skip locked`, e a desativação espera). Se a limpeza travou antes, esta leitura espera o commit
+   * dela, relê a linha, e a conta sem e-mail não é achada: o convite cria outra conta, com o e-mail.
+   */
+  @Unscoped('a conta é global: acha ou cria pelo e-mail, sem ler nada dela, e devolve só o id e se ela é nova')
+  async contaParaConvite(email: string): Promise<{ id: string; nova: boolean }> {
+    for (let tentativa = 0; tentativa < 3; tentativa++) {
+      const [criada] = await this.banco.insert(conta).values({ email }).onConflictDoNothing({ target: conta.email }).returning({ id: conta.id })
+      if (criada !== undefined) return { id: criada.id, nova: true }
+      const [existente] = await this.banco.select({ id: conta.id }).from(conta).where(eq(conta.email, email)).limit(1).for('no key update')
+      if (existente !== undefined) return { id: existente.id, nova: false }
+    }
+    // Três limpezas seguidas da mesma conta no meio de um convite não acontecem: se acontecer, quem convida tenta de novo.
+    throw new DomainException(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
   }
 }

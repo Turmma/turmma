@@ -23,6 +23,9 @@ const TODO_O_CODIGO = '^(?:apps|packages|tools|infra)/'
 const PRODUCAO = { path: '^(?:apps|packages)/[^/]+/src/', pathNot: TESTE }
 const DRIZZLE = String.raw`(?:^|/)node_modules/drizzle-orm(?:/|$)`
 
+/** A exceção de `estrutura/` à cerca da conta global é este **arquivo**, e não a pasta (onboarding-por-convite, 1.0; Tech Spec, seção 6). */
+const CADASTRO_DE_PROFESSOR = String.raw`^packages/core/src/estrutura/cadastro-de-professor\.ts$`
+
 /** O subcaminho `@educa/core/conta-global` resolve para este arquivo pela condição `source` (`conditionNames`, abaixo). */
 const CONTA_GLOBAL = String.raw`^packages/core/src/ciclo-de-vida/conta-global\.repository\.ts$`
 
@@ -152,10 +155,17 @@ module.exports = {
     },
     {
       name: 'cerca-conta-global',
-      comment: 'A `ContaGlobalRepository` escreve na `Conta`, que não tem escola: só `sessao/` e o ciclo de vida do nucleo a importam (F3, 1.0).',
+      comment: 'A `ContaGlobalRepository` escreve na `Conta`, que não tem escola: só `sessao/`, o ciclo de vida do nucleo e o **arquivo** do cadastro do professor a importam, e não a pasta `estrutura/` dele (F3, 1.0; onboarding-por-convite, 1.0).',
       severity: 'error',
-      from: { path: TODO_O_CODIGO, pathNot: [SESSAO, '^packages/core/src/ciclo-de-vida/', TESTE] },
+      from: { path: TODO_O_CODIGO, pathNot: [SESSAO, '^packages/core/src/ciclo-de-vida/', CADASTRO_DE_PROFESSOR, TESTE] },
       to: { path: CONTA_GLOBAL },
+    },
+    {
+      name: 'cerca-cadastro-de-professor',
+      comment: 'O `contaDoProfessor` acha ou cria a conta global pelo e-mail, sem escopo de escola: só `sessao/` o chama (onboarding-por-convite, 1.0). Nem o barril `estrutura/index.ts` o reexporta.',
+      severity: 'error',
+      from: { path: TODO_O_CODIGO, pathNot: [SESSAO, TESTE] },
+      to: { path: CADASTRO_DE_PROFESSOR },
     },
     {
       name: 'cerca-painel-repository',

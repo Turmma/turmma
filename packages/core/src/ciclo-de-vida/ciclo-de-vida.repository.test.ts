@@ -11,12 +11,12 @@ const metodosDe = (classe: { prototype: object }) => Object.getOwnPropertyNames(
  * da desativação e da eliminação continuam todas na escola do contexto.
  */
 describe('ciclo de vida no nucleo: as exceções ao escopo são só as da conta global', () => {
-  it('a ContaGlobalRepository tem só os três métodos da conta global, cada um com @SemEscopo e a justificativa da credencial global', () => {
-    expect(metodosDe(ContaGlobalRepository)).toEqual(['encerrarSessoesDaConta', 'limparContaSemUso', 'travarConta'])
+  it('a ContaGlobalRepository tem só os quatro métodos da conta global, cada um com @SemEscopo e a justificativa de que a conta é global', () => {
+    expect(metodosDe(ContaGlobalRepository)).toEqual(['contaParaConvite', 'encerrarSessoesDaConta', 'limparContaSemUso', 'travarConta'])
     for (const metodo of metodosDe(ContaGlobalRepository)) {
       const justificativa = unscopedJustification(ContaGlobalRepository, metodo)
       expect(justificativa?.length ?? 0, metodo).toBeGreaterThanOrEqual(TAMANHO_MINIMO_JUSTIFICATIVA_SEM_ESCOPO)
-      expect(justificativa, metodo).toMatch(/credencial da equipe é global/)
+      expect(justificativa, metodo).toMatch(metodo === 'contaParaConvite' ? /a conta é global: acha ou cria pelo e-mail/ : /credencial da equipe é global/)
     }
   })
 

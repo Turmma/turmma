@@ -21,7 +21,7 @@ import { usuario } from './usuario.js'
  *   que sai da lista não apaga o pedido decidido, que fica sem nome. O nome de outra escola, ou inexistente, é recusado
  *   pela FK no `insert`.
  * - A turma por FK composta `(escola_id, ano_letivo_id, turma_id)`, sem ação: a turma com pedido não se exclui (o 23503
- *   vira `CONFLITO` em `apps/api/src/estrutura/exclusao.ts`).
+ *   vira `CONFLITO` em `packages/core/src/estrutura/exclusao.ts`).
  * - `decidida_por` por FK composta com a escola, `on delete set null (decidida_por)` (escrito à mão na 0021): a
  *   eliminação de quem decidiu não apaga o pedido, e a autoria fica na auditoria (`reivindicacao.decidida`, 8.0).
  * - Índice único parcial `(escola_id, chave_envio) where chave_envio is not null`: a mesma chave não grava dois pedidos

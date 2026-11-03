@@ -9,7 +9,7 @@ import {
   type DisciplinaResponse,
   type ListaDeDisciplinasResponse,
 } from '@educa/shared'
-import { DisciplinaRepository } from './disciplina.repository.js'
+import { DisciplinaRepository } from '@educa/core/estrutura'
 import { paginar } from '../../http/pagination.js'
 
 /**
