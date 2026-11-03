@@ -279,6 +279,18 @@ describe('acesso da turma × fim do vínculo de quem o gerou (correção 2026-10
     expect(await revogadosNaAuditoria(s)).toEqual([{ entidade_id: acesso?.id, autor_usuario_id: s.coordenacao.usuarioId, depois: { turmaId: s.turma } }])
   })
 
+  it('a desativação do professor revoga o acesso que ele gerou, com auditoria, e o link e o código deixam de abrir a sala na tarefa 3.0', async () => {
+    const s = await sala.montar()
+    const [acesso] = await acessosDa(s, s.turma)
+    expect(await abreASala(s)).toEqual({ token: 200, codigo: 200 })
+
+    await desativarPelaCoordenacao(s)
+
+    expect(await acessosDa(s, s.turma)).toEqual([{ id: acesso?.id, criado_por: s.professor.usuarioId, revogado_em: expect.any(Date) }])
+    await naoAbreASala(s)
+    expect(await revogadosNaAuditoria(s)).toEqual([{ entidade_id: acesso?.id, autor_usuario_id: s.coordenacao.usuarioId, depois: { turmaId: s.turma } }])
+  })
+
   it('a eliminação pelo comando do operador, sem usuário nem ano no contexto, revoga com o operador como autor', async () => {
     const s = await sala.montar()
     const [acesso] = await acessosDa(s, s.turma)
@@ -362,6 +374,9 @@ describe('acesso da turma × fim do vínculo de quem o gerou (correção 2026-10
   const eliminarPelaCoordenacao = (s: TestSala) =>
     runInContext({ requisicaoId: randomUUID(), escolaId: s.escolaId, usuarioId: s.coordenacao.usuarioId, papel: 'coordenador' as const }, () => ciclo.eliminar(s.professor.usuarioId))
 
+  const desativarPelaCoordenacao = (s: TestSala) =>
+    runInContext({ requisicaoId: randomUUID(), escolaId: s.escolaId, usuarioId: s.coordenacao.usuarioId, papel: 'coordenador' as const }, () => ciclo.desativar(s.professor.usuarioId))
+
   describe('a corrida com o gerar, na trava da turma', () => {
     it('o gerar parado depois do insert: o encerrar espera a turma e revoga o acesso que acabou de nascer', async () => {
       const s = await sala.montar()
@@ -424,6 +439,48 @@ describe('acesso da turma × fim do vínculo de quem o gerou (correção 2026-10
       }
       expect((await acessosDa(s, s.turma)).filter((linha) => linha.revogado_em === null)).toEqual([])
       await naoAbreASala({ slug: s.slug, ...novo })
+    })
+
+    it('o gerar parado depois do insert: a desativação espera a turma e revoga o acesso que acabou de nascer na tarefa 3.0', async () => {
+      const s = await sala.montar()
+      const gatilho = new WriteBlockTrigger(bancada.pool, { tabela: 'acesso_turma', evento: 'insert', quando: `new.turma_id = '${s.turma}'::uuid` })
+      await gatilho.armar()
+      let novo: { token: string; codigo: string } | undefined
+      try {
+        const gerando = chamar(api.url, 'POST', `/v1/turmas/${s.turma}/acesso`, s.professor.token, { validadeDias: 7 })
+        await gatilho.esperarParadas()
+        const desativando = desativarPelaCoordenacao(s)
+        await esperarNaTrava(bancada.pool, '%"turma"%for no key update%')
+        await gatilho.soltar()
+        const [gerado] = await Promise.all([gerando, desativando])
+        expect(gerado.status).toBe(201)
+        novo = { token: gerado.corpo['token'] as string, codigo: gerado.corpo['codigo'] as string }
+      } finally {
+        await gatilho.desarmar()
+      }
+      expect((await acessosDa(s, s.turma)).filter((linha) => linha.revogado_em === null)).toEqual([])
+      await naoAbreASala({ slug: s.slug, ...novo })
+    })
+
+    it('a desativação parada com a turma travada: o gerar espera, reconfere o vínculo e sai NAO_ENCONTRADO, sem acesso vigente na tarefa 3.0', async () => {
+      const s = await sala.montar()
+      const vinculo = await vinculoDe(s, s.professor.usuarioId, s.turma)
+      const gatilho = new WriteBlockTrigger(bancada.pool, { tabela: 'vinculo', evento: 'update', quando: `new.id = '${vinculo}'::uuid and new.estado = 'encerrado'` })
+      await gatilho.armar()
+      try {
+        const desativando = desativarPelaCoordenacao(s)
+        await gatilho.esperarParadas()
+        const gerando = chamar(api.url, 'POST', `/v1/turmas/${s.turma}/acesso`, s.professor.token, { validadeDias: 7 })
+        await esperarNaTrava(bancada.pool, '%"turma"%for share%')
+        await gatilho.soltar()
+        const [, gerado] = await Promise.all([desativando, gerando])
+        expect(gerado.status).toBe(404)
+        expect(gerado.corpo['erro']).toEqual(expect.objectContaining({ codigo: ErrorCode.NAO_ENCONTRADO }))
+      } finally {
+        await gatilho.desarmar()
+      }
+      expect((await acessosDa(s, s.turma)).filter((linha) => linha.revogado_em === null)).toEqual([])
+      await naoAbreASala(s)
     })
 
     it('a eliminação parada com a turma travada: o gerar espera, reconfere o vínculo e sai NAO_ENCONTRADO, sem acesso vigente', async () => {
