@@ -151,6 +151,15 @@ export const METRICS = {
    * alerta "Eliminação do titular agendada há mais de 48 h do prazo" dispara acima de 48.
    */
   horasDaEliminacaoVencida: 'eliminacao.horas_vencida',
+  /**
+   * Execuções do job `estrutura.gravar-planilha` (F2, tarefa 4.0), por `resultado`: `concluida`,
+   * `desatualizada`, `ignorada` (a importação já não estava `na_fila`: outra execução a fechou), `nova_tentativa` (trava ou
+   * deadlock no passo 3, a fila repete) e `falhou`. Sem escola: a escola vai no log do job. O alerta "importação `falhou` acima
+   * de 20% em 1 h" lê esta série.
+   */
+  importacaoPorResultado: 'importacao.job',
+  /** Histograma, em segundos, do passo (3) do job da planilha (a transação com as travas e a escrita). O alerta dispara acima de 1 s. */
+  duracaoDoPasso3DaImportacao: 'importacao.passo3.duracao',
 } as const
 
 /**

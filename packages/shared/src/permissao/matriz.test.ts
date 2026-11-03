@@ -123,6 +123,14 @@ describe('MATRIZ de permissão', () => {
     expect(abertasAoAluno).toEqual(['minha_turma.ler'])
   })
 
+  it('F2: as planilhas são só da coordenação, na escola inteira; professor, aluno e rede, `nunca`', () => {
+    expect(RECURSOS.importacao_planilha).toEqual(['previa', 'gravar'])
+    for (const acao of RECURSOS.importacao_planilha) {
+      expect(alcanceDe('coordenador', 'importacao_planilha', acao), acao).toBe('unidade')
+      for (const papel of ['professor', 'aluno', 'rede'] as const) expect(alcanceDe(papel, 'importacao_planilha', acao), `${papel} importacao_planilha.${acao}`).toBe('nunca')
+    }
+  })
+
   // MVP de apresentação (D77; `docs/mvp-rapido.md`, seção 7): uma célula por rota. A comparação com a expectativa pega a
   // célula trocada; estes testes dizem a regra de cada grupo.
   const RECURSOS_DO_MVP = ['material', 'time', 'assistente', 'execucao', 'ferramenta', 'artefato', 'entrega', 'atividade_aplicada', 'minha_atividade', 'correcao', 'desempenho_da_turma', 'tutor', 'sinal', 'uso_do_tutor', 'governanca', 'analista'] as const

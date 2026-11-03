@@ -136,6 +136,11 @@ vencidas e uma troca de nome na escola A, que nada disso atrasa o interativo da 
 adaptador falso de latência simulada) e que nenhum statement chega a 1,5 s nem é cancelado pelo `statement_timeout` de 2 s
 (`docs/infra.md`, seção 10).
 
+No F2, a planilha da coordenação (`POST /v1/importacoes/:tipo`) responde 202 e enfileira `estrutura.gravar-planilha`, da fila
+`normal`, com só o id da importação no payload. O job lê a importação pela escola da linha do outbox e grava em três passos: o
+(3) é uma transação curta (`lock_timeout` de 1 s, `statement_timeout` de 1,5 s) que trava a importação, depois o ano letivo, e
+só então escreve. Trava esgotada repete com espera crescente; na última tentativa a importação sai `falhou`.
+
 A entrega é **pelo menos uma vez** (D49): o job nasce no Postgres, o despachante publica no
 BullMQ quando a escola tem vaga, e a reconciliação republica o que o Redis perdeu. Por isso
 todo processador recebe chave de idempotência e precisa tolerar reexecução sem duplicar

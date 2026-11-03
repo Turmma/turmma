@@ -9,6 +9,7 @@ import {
   TIPO_EXPURGAR_DADO_PESSOAL,
   TIPO_EXPURGAR_ESCOLA,
   TIPO_EXPURGAR_JOBS,
+  TIPO_GRAVAR_PLANILHA,
   TIPO_JOB_SINTETICO,
   TIPO_MONTAR_ARQUIVO,
   type JobData,
@@ -19,7 +20,7 @@ import {
 import { CPU_MS_MAXIMO_SINTETICO } from './synthetic-jobs.js'
 import { QUEUE_NAMES } from './jobs.js'
 
-const OS_8_TIPOS = [
+const OS_9_TIPOS = [
   TIPO_MONTAR_ARQUIVO,
   TIPO_ELIMINAR_TITULAR,
   TIPO_EXPURGAR_ESCOLA,
@@ -27,6 +28,7 @@ const OS_8_TIPOS = [
   TIPO_EXPURGAR_ACESSO,
   TIPO_EXPURGAR_JOBS,
   TIPO_EXPURGAR_DADO_PESSOAL,
+  TIPO_GRAVAR_PLANILHA,
   TIPO_JOB_SINTETICO,
 ] as const
 
@@ -35,7 +37,7 @@ const UM_UUID = '0191f3a6-6b9e-7c1a-8f35-2d4c5b6a7e80'
 const base = { filas: ['lote'], escopo: 'escola', executor: 'worker', retentativa: { tentativas: 1, recuoMs: 1, jitter: 0 }, prazoMs: 1, naoUrgente: true } as const
 
 describe('o registro de jobs', () => {
-  it('tem os 8 tipos de hoje, com o nome que o banco e o worker já usam', () => {
+  it('tem os 9 tipos de hoje, com o nome que o banco e o worker já usam', () => {
     expect(Object.keys(JOB_DEFINITIONS).sort()).toEqual(
       [
         'titular.montar-arquivo',
@@ -45,10 +47,11 @@ describe('o registro de jobs', () => {
         'sistema.expurgar-acesso',
         'sistema.expurgar-jobs',
         'sistema.expurgar-dado-pessoal',
+        'estrutura.gravar-planilha',
         'sintetico',
       ].sort(),
     )
-    expect([...OS_8_TIPOS].sort()).toEqual(Object.keys(JOB_DEFINITIONS).sort())
+    expect([...OS_9_TIPOS].sort()).toEqual(Object.keys(JOB_DEFINITIONS).sort())
   })
 
   it('cada tipo declara a fila, o não urgente, o escopo e o executor de hoje', () => {
@@ -61,6 +64,7 @@ describe('o registro de jobs', () => {
       'sistema.expurgar-acesso': [['lote'], true, 'sistema', 'worker'],
       'sistema.expurgar-jobs': [['lote'], true, 'sistema', 'worker'],
       'sistema.expurgar-dado-pessoal': [['lote'], true, 'sistema', 'worker'],
+      'estrutura.gravar-planilha': [['normal'], false, 'escola', 'worker'],
       sintetico: [[...QUEUE_NAMES], 'do-pedido', 'escola', 'worker'],
     })
   })
@@ -81,9 +85,10 @@ describe('o registro de jobs', () => {
       [TIPO_EXPURGAR_ACESSO]: {},
       [TIPO_EXPURGAR_JOBS]: {},
       [TIPO_EXPURGAR_DADO_PESSOAL]: {},
+      [TIPO_GRAVAR_PLANILHA]: { importacaoId: UM_UUID },
       [TIPO_JOB_SINTETICO]: { cpuMs: 0, falhar: false },
     }
-    for (const tipo of OS_8_TIPOS) {
+    for (const tipo of OS_9_TIPOS) {
       const { dados } = JOB_DEFINITIONS[tipo]
       expect(dados.safeParse(payloads[tipo]).success, `${tipo} aceita o de hoje`).toBe(true)
       expect(dados.safeParse({ ...payloads[tipo], escolaId: UM_UUID }).success, `${tipo} recusa a chave a mais`).toBe(false)
@@ -101,8 +106,8 @@ describe('o registro de jobs', () => {
     expect(JOB_DEFINITIONS[TIPO_JOB_SINTETICO].prazoMs).toBeGreaterThan(CPU_MS_MAXIMO_SINTETICO)
   })
 
-  it('o prazo de cada um dos 8 tipos é o conferido na 43.0: o worker corta a tentativa nele, então mudar um valor é decisão de quem mede o tipo', () => {
-    expect(Object.fromEntries(OS_8_TIPOS.map((tipo) => [tipo, JOB_DEFINITIONS[tipo].prazoMs]))).toEqual({
+  it('o prazo de cada um dos 9 tipos é o conferido na 43.0: o worker corta a tentativa nele, então mudar um valor é decisão de quem mede o tipo', () => {
+    expect(Object.fromEntries(OS_9_TIPOS.map((tipo) => [tipo, JOB_DEFINITIONS[tipo].prazoMs]))).toEqual({
       [TIPO_MONTAR_ARQUIVO]: 300_000,
       [TIPO_ELIMINAR_TITULAR]: 600_000,
       [TIPO_EXPURGAR_ESCOLA]: 21_600_000,
@@ -110,6 +115,7 @@ describe('o registro de jobs', () => {
       [TIPO_EXPURGAR_ACESSO]: 600_000,
       [TIPO_EXPURGAR_JOBS]: 600_000,
       [TIPO_EXPURGAR_DADO_PESSOAL]: 600_000,
+      [TIPO_GRAVAR_PLANILHA]: 300_000,
       [TIPO_JOB_SINTETICO]: 90_000,
     })
   })
@@ -149,7 +155,7 @@ describe('definirJob', () => {
 
 describe('os tipos que o `Enfileirador` lê da definição', () => {
   it('o tipo é uma das chaves do registro, e os dados são os do tipo', () => {
-    expectTypeOf<JobType>().toEqualTypeOf<(typeof OS_8_TIPOS)[number]>()
+    expectTypeOf<JobType>().toEqualTypeOf<(typeof OS_9_TIPOS)[number]>()
     expectTypeOf<JobData<typeof TIPO_MONTAR_ARQUIVO>>().toEqualTypeOf<{ pedidoId: string }>()
     expectTypeOf<JobData<typeof TIPO_EXPURGAR_JOBS>>().toEqualTypeOf<Record<string, never>>()
     // @ts-expect-error tipo que não está no registro

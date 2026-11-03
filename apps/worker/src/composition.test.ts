@@ -60,9 +60,9 @@ describe('a réplica de cada fila contra o registro de jobs', () => {
     }
   })
 
-  it('o arquivo do titular só na `normal`, as rotinas só no `lote` e o sintético nas três', async () => {
+  it('o arquivo do titular e a planilha só na `normal`, as rotinas só no `lote` e o sintético nas três', async () => {
     expect(await tiposDaReplicaDa('interativa')).toEqual(['sintetico'])
-    expect(await tiposDaReplicaDa('normal')).toEqual(['sintetico', 'titular.montar-arquivo'])
+    expect(await tiposDaReplicaDa('normal')).toEqual(['estrutura.gravar-planilha', 'sintetico', 'titular.montar-arquivo'])
     expect(await tiposDaReplicaDa('lote')).toEqual([
       'retencao.expurgar-escola',
       'sintetico',

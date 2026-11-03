@@ -58,6 +58,8 @@ dia, início); a `Aula` da F2b aponta para ela. Glossário: "Grade horária" sã
 
 `anoLetivoId` é filtro validado no servidor (como o de turma): sem ele, o ano em curso;
 com ele, só o `planejado` da escola da sessão; outro valor, `NAO_ENCONTRADO`, como o `turmaId` fora da escola ou do ano.
+O corpo de 512 KB de texto, escapado em JSON, passa do limite padrão do servidor (100 KB): a API lê corpo JSON de até 1 MB
+(`LIMITE_DO_CORPO_JSON`, em `configure-app.ts`), e cada contrato continua limitando o próprio campo.
 `/v1/turmas/:id/lista/previa` e `/lista` ficam, com o contrato da importação
 (202). O "Copiar link" do professor cadastrado pela planilha faz o `convite/refazer` (linha nova).
 
@@ -82,7 +84,8 @@ e aplica em lotes de 500, com escrita condicional (`lista_nome` com `where estad
 apagar a `lista_nome`). Diferença, zero linhas (inclusive o `encerrar` que devolve `false`) ou único violado (`chave`,
 matrícula, `vinculo_ativo_unico`): a transação volta e a importação sai `desatualizada`; conta sem e-mail: nova tentativa,
 que refaz o (1). Trava esgotada ou deadlock: nova tentativa com espera crescente. Falha definitiva ou `ultimaTentativa`:
-`falhou`. Toda troca de estado: `where estado = 'na_fila'`, apagando `linhas` e `marcas`.
+`falhou`. Importação de quem já saiu (`criado_por` nulo, pela eliminação da pessoa): `desatualizada`, sem gravar, porque
+a auditoria precisa de autor humano e a rotina não assina `planilha.gravada` (`auditoria_rotina_so_nas_acoes`). Toda troca de estado: `where estado = 'na_fila'`, apagando `linhas` e `marcas`.
 
 | Estado | Entra | Sai | Prazo e falha |
 |---|---|---|---|
@@ -112,7 +115,7 @@ O cadastro entrega só o id da conta (`contaDoProfessor`). O `convidar` da A1 fi
 coordenador, que leva o `nova` à auditoria) e `convidarProfessor` (que chama o cadastro); o que o worker da 6.0 precisar do
 convite sobe para o core nessa tarefa, e o arquivo do cadastro continua o único de `estrutura/` que alcança a classe.
 O próprio `contaDoProfessor` também é cercado, porque repassa a conta sem escopo: sai pelo subcaminho `@educa/core/cadastro-de-professor`
-e não pelo barril `@educa/core/estrutura`, e só `apps/api/src/sessao/` o chama (a 4.0 acrescenta o processor do worker à zona,
+e não pelo barril `@educa/core/estrutura`, e só `apps/api/src/sessao/` o chama (a 6.0 acrescenta o processor do worker à zona,
 nas duas guardas). A cerca é a entrada `contaDoProfessor` de `ZONAS_DAS_CLASSES_CERCADAS` e a regra `cerca-cadastro-de-professor`.
 
 O `sistema.expurgar-acesso` ganha o alvo da `importacao_planilha` final, como rotina nossa (regra 10, item 9). Os casos

@@ -29,7 +29,7 @@ cenários foram distribuídos pelo `test-engineer`; cada linha do `cenarios.md` 
   - [ ] 3.4 `docs/lgpd.md` "Acesso da turma"
   - [ ] 3.5 Testes: ordem pelo espião, corridas com `virarSala` e `virarAno`, isolamento
 
-- [ ] **4.0 — O motor da planilha grava o calendário: prévia, gravar e job em três passos**
+- [x] **4.0 — O motor da planilha grava o calendário: prévia, gravar e job em três passos**
   - [ ] 4.1 O motor e o tipo calendário
   - [ ] 4.2 `ImportacaoRepository`; gravar refaz a prévia e fecha a `na_fila` velha
   - [ ] 4.3 Rotas de prévia e gravar, com o filtro do ano

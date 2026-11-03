@@ -128,7 +128,8 @@ numa tarefa do `tasks.md`, que diz qual. I = integração com Postgres real e re
     sai sem reler nada; estado `concluida`, e a métrica "job por resultado" (§7c) conta uma `concluida` e uma `ignorada`.
   - [I] Assinatura diferente: `desatualizada`; ano encerrado entre gravar e o job: `desatualizada`.
   - [I] `linhas` e `marcas` nulas em `concluida`, `desatualizada` e `falhou`; a linha final sai em 90 dias.
-  - [I] `na_fila` há mais de 1 h: o gravar seguinte a fecha `falhou` (`expirada`); travada por um job rodando, o gravar
+  - [I] Quem gravou já saiu (`criado_por` nulo): o job sai `desatualizada`, sem gravar e sem auditoria.
+  - [I] `na_fila` há mais de 1 h: o gravar seguinte a fecha `falhou` (`expirou`); travada por um job rodando, o gravar
     responde `CONFLITO` sem esperar.
   - [I] Tentativas esgotadas, e falha definitiva: `falhou` com o código, `linhas` e `marcas` nulas.
   - [I] Sem gravar novo, relógio falso: com 59 min o `retencao.expurgar-escola` mantém a `na_fila`; com 61 min a fecha

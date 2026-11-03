@@ -210,6 +210,9 @@ export class SessaoFixtures {
         await this.pool.query('delete from reivindicacao where escola_id = any($1::uuid[])', [escolas])
         // A lista de nomes da A1 (2.0) aponta para a turma e para o usuário.
         await this.pool.query('delete from lista_nome where escola_id = any($1::uuid[])', [escolas])
+        // As planilhas e o calendário do F2 (4.0) apontam para o ano letivo (a planilha, também para quem a gravou).
+        await this.pool.query('delete from importacao_planilha where escola_id = any($1::uuid[])', [escolas])
+        await this.pool.query('delete from evento_calendario where escola_id = any($1::uuid[])', [escolas])
         await this.pool.query('delete from turma where escola_id = any($1::uuid[])', [escolas])
         await this.pool.query('delete from serie where escola_id = any($1::uuid[])', [escolas])
         await this.pool.query('delete from disciplina where escola_id = any($1::uuid[])', [escolas])

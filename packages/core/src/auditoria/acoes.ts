@@ -30,7 +30,9 @@ import {
   PAPEIS_DE_VINCULO,
   PAPEIS_DO_TITULAR,
   RISCOS_DO_INCIDENTE,
+  CHAVES_DO_RESUMO_DA_IMPORTACAO,
   SOLICITANTES_DO_PEDIDO,
+  TIPOS_DE_PLANILHA,
   TIPOS_DE_CONVITE,
   TIPOS_DE_ENTREGA,
   TIPOS_DE_PEDIDO_DO_TITULAR,
@@ -69,6 +71,14 @@ export interface DefinicaoDeAcao {
    */
   readonly finalidade: z.ZodEnum | null
 }
+
+/**
+ * As contagens do `resumo` da importação que a auditoria `planilha.gravada` leva: as mesmas chaves, com `nomes_corrigidos`
+ * escrito `corrigidos` (nenhum campo da auditoria tem "nome" no nome, por mais que seja só um número).
+ */
+const contagensDaPlanilhaGravada = z.strictObject(
+  Object.fromEntries(CHAVES_DO_RESUMO_DA_IMPORTACAO.map((chave) => [chave === 'nomes_corrigidos' ? 'corrigidos' : chave, z.number().int().nonnegative().optional()])),
+)
 
 /**
  * Toda ação que a auditoria aceita, com a lista fechada de `antes`, `depois` e `finalidade`. Cada tarefa
@@ -345,6 +355,19 @@ export const ACOES_DE_AUDITORIA = {
     entidade: 'turma',
     antes: null,
     depois: z.strictObject({ ids: z.array(z.uuid()), gravados: z.number().int().nonnegative(), jaExistentes: z.number().int().nonnegative() }),
+    finalidade: null,
+  },
+  /**
+   * O job `estrutura.gravar-planilha` concluiu uma planilha (F2, 4.0, RF17): `entidadeId` é a `importacao_planilha`; leva o tipo e
+   * as contagens do `resumo` (só números, de chaves de lista fechada; `corrigidos` é o `nomes_corrigidos` do resumo, sem a palavra
+   * que o mapa proíbe em campo). Nunca o nome, a matrícula, o e-mail nem a descrição de um
+   * evento. O autor é a coordenação que gravou; a importação de quem já saiu não grava nem é auditada (sai `desatualizada`),
+   * porque a rotina não assina esta ação (`auditoria_rotina_so_nas_acoes`).
+   */
+  'planilha.gravada': {
+    entidade: 'importacao_planilha',
+    antes: null,
+    depois: z.strictObject({ tipo: z.enum(TIPOS_DE_PLANILHA), contagens: contagensDaPlanilhaGravada }),
     finalidade: null,
   },
   /**

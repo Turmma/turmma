@@ -102,6 +102,7 @@ export const CHAVES_DO_RESUMO_DA_IMPORTACAO = [
   'vinculos_encerrados',
   'aulas',
   'eventos',
+  'eventos_removidos',
 ] as const
 export type ChaveDoResumoDaImportacao = (typeof CHAVES_DO_RESUMO_DA_IMPORTACAO)[number]
 

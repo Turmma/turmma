@@ -45,6 +45,7 @@ import {
   TIPO_EXPURGAR_DADO_PESSOAL,
   TIPO_EXPURGAR_ESCOLA,
   TIPO_EXPURGAR_JOBS,
+  TIPO_GRAVAR_PLANILHA,
   TIPO_JOB_SINTETICO,
   TIPO_MONTAR_ARQUIVO,
   type QueueName,
@@ -66,6 +67,7 @@ import { EliminacaoGauge } from './eliminacao-gauge.js'
 import { ArquivoGauge } from './arquivo-gauge.js'
 import { ExpurgoGauge } from './expurgo-gauge.js'
 import { IncidenteGauge } from './incidente-gauge.js'
+import { criarGravacaoDaPlanilha } from './processors/gravar-planilha.js'
 import { criarMontagemDoArquivo } from './processors/montar-arquivo.js'
 import { createSyntheticProcessor, CpuSandbox, type CpuBurner } from './processors/synthetic.js'
 import { criarClienteS3, StorageSizeReader } from './storage/storage-size-reader.js'
@@ -275,11 +277,20 @@ export function createProcessors(config: Pick<WorkerConfig, 'pools' | 'storage' 
     config.pools.lote === undefined || config.storage === undefined || config.janelaPadrao === undefined || armazem === undefined
       ? undefined
       : createRoutines(config.storage, config.janelaPadrao, banco, uso, relogio, logger, medidor, armazem)
-  const montagemDoArquivo =
-    config.pools.normal === undefined || armazem === undefined ? undefined : { [TIPO_MONTAR_ARQUIVO]: criarMontagemDoArquivo({ banco, armazem, relogio, logger }) }
   return {
-    processadores: { [TIPO_JOB_SINTETICO]: createSyntheticProcessor(pecas.cpu, pecas.efeitos), ...rotinas?.processadores, ...montagemDoArquivo },
+    processadores: { [TIPO_JOB_SINTETICO]: createSyntheticProcessor(pecas.cpu, pecas.efeitos), ...rotinas?.processadores, ...(config.pools.normal === undefined ? {} : processadoresDaNormal(pecas)) },
     ...(rotinas === undefined ? {} : { rotinas }),
+  }
+}
+
+/**
+ * Os processadores da fila `normal`: o arquivo do titular, que precisa do armazém, e a planilha da escola (F2, 4.0), que não
+ * precisa dele.
+ */
+function processadoresDaNormal({ banco, relogio, logger, medidor, armazem }: ProcessorParts): JobProcessors {
+  return {
+    ...(armazem === undefined ? {} : { [TIPO_MONTAR_ARQUIVO]: criarMontagemDoArquivo({ banco, armazem, relogio, logger }) }),
+    [TIPO_GRAVAR_PLANILHA]: criarGravacaoDaPlanilha({ banco, logger, ...(medidor === undefined ? {} : { medidor }) }),
   }
 }
 
