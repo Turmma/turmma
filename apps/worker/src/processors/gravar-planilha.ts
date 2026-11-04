@@ -1,3 +1,4 @@
+import { contaDoProfessor, travarContasDoProfessor } from '@educa/core/cadastro-de-professor'
 import {
   ehFalhaDeTrava,
   executarPlanilha,
@@ -29,6 +30,9 @@ const LIMITES_DO_PASSO_3_S = [0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 0.75, 1, 1.5, 3
  * `estrutura.gravar-planilha` (F2, tarefa 4.0; Tech Spec, seção 5, "O job"): no contexto da escola do outbox, lê a importação
  * **dessa escola** pelo id do job, refaz a classificação e grava em três passos (`executarPlanilha`, em `@educa/core`).
  *
+ * - **O passo (1) da planilha de professores acha ou cria a conta global** pelo `contaDoProfessor`, e o passo (3) trava e confere
+ *   essas contas pelo `travarContasDoProfessor`; este arquivo é o único do worker a importá-los (Tech Spec, seção 6; as duas guardas
+ *   de cerca): o motor, no core, recebe as duas funções e não conhece a conta global.
  * - **O job leva só o id da importação**, e a escola é a da linha do job: o id de uma importação de outra escola não é achado, e
  *   o job termina `ignorada` sem tocar nela.
  * - **A entrega é pelo menos uma vez (D49).** A segunda execução acha a importação fora de `na_fila` e sai `ignorada`, sem reler
@@ -48,7 +52,7 @@ export function criarGravacaoDaPlanilha({ banco, logger, medidor }: GravarPlanil
   return async ({ importacaoId }, execucao) => {
     requireEscolaId()
     try {
-      const estado = await executarPlanilha(banco, importacaoId, { aoMedirOPasso3: (segundos) => duracaoDoPasso3?.record(segundos) })
+      const estado = await executarPlanilha(banco, importacaoId, { aoMedirOPasso3: (segundos) => duracaoDoPasso3?.record(segundos), acharConta: contaDoProfessor, travarContas: travarContasDoProfessor })
       porResultado?.add(1, { resultado: estado })
       logger.info({ evento: 'importacao.job_terminou', importacaoId, estado, tentativa: execucao.tentativa })
     } catch (erro) {

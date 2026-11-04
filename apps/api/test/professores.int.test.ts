@@ -1,8 +1,10 @@
-import { VALIDADE_DO_CONVITE_HORAS_POR_TIPO } from '@educa/core'
-import { ErrorCode, conviteDeProfessorResponseSchema, listaDeProfessoresResponseSchema, MENSAGENS_DE_ERRO, type ConviteDeProfessorResponse } from '@educa/shared'
+import { createDatabase, createPool, executarPlanilha, runInContext, VALIDADE_DO_CONVITE_HORAS_POR_TIPO, type Database, type DatabasePool } from '@educa/core'
+import { contaDoProfessor, travarContasDoProfessor } from '@educa/core/cadastro-de-professor'
+import { ErrorCode, conviteDeProfessorResponseSchema, listaDeProfessoresResponseSchema, MAXIMO_DE_LINHAS_DA_PLANILHA_DE_PROFESSORES, MENSAGENS_DE_ERRO, previaDaPlanilhaResponseSchema, type ConviteDeProfessorResponse } from '@educa/shared'
 import type { Redis } from 'ioredis'
 import { createHash, randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { criarConviteDeCoordenador } from '../src/sessao/index.js'
 import { REDIS_LOGIN_CLIENT, PasswordHasher } from '../src/credencial/index.js'
@@ -847,5 +849,184 @@ describe('professores (A1, tarefa 3.0): a coordenação cadastra, o professor ac
     const vistos = [...primeira.itens, ...segunda.itens].map((item) => item.usuarioId)
     expect(vistos).toEqual(deA.map((gerado) => gerado.usuarioId).sort())
     expect(vistos).not.toContain(deB.usuarioId)
+  })
+
+  describe('a planilha de professores (F2, tarefa 6.0; RF6, RF16): prévia, gravar e o cadastrado na lista', () => {
+    let apoio: DatabasePool
+    let bancoDoJob: Database
+
+    beforeAll(() => {
+      apoio = createPool({ url: urlDoBancoDeTeste(), maximoConexoes: 4, timeoutConexaoMs: 5_000, timeoutConsultaMs: 30_000 }, () => undefined)
+      bancoDoJob = createDatabase(apoio)
+    })
+
+    afterAll(async () => {
+      await apoio.end()
+    })
+
+    const texto = (...linhas: string[]): string => ['nome;email', ...linhas].join('\n')
+    const previa = (coordenacao: TestSessao, planilha: string, extra: Record<string, unknown> = {}) => pedir('POST', '/v1/importacoes/professores/previa', coordenacao.token, { texto: planilha, ...extra })
+    const gravar = (coordenacao: TestSessao, planilha: string, desligar: readonly string[] = [], extra: Record<string, unknown> = {}) =>
+      pedir('POST', '/v1/importacoes/professores', coordenacao.token, { texto: planilha, marcas: { desligar }, ...extra })
+    const emailNovo = (): string => `planilha-${randomUUID()}@escola.invalid`
+
+    /** O job uma vez (tentativa 1), no contexto da escola, com o achar-ou-criar conta que o worker passa. */
+    const rodar = (escolaId: string, importacaoId: string) => runInContext({ requisicaoId: randomUUID(), escolaId }, () => executarPlanilha(bancoDoJob, importacaoId, { acharConta: contaDoProfessor, travarContas: travarContasDoProfessor }))
+
+    /** Grava a planilha pela API, roda o job e confere que concluiu. */
+    async function importada(coordenacao: TestSessao, planilha: string, desligar: readonly string[] = []): Promise<void> {
+      const aceita = await gravar(coordenacao, planilha, desligar)
+      expect(aceita.status).toBe(202)
+      expect(await rodar(coordenacao.escolaId, String(aceita.corpo['id']))).toBe('concluida')
+    }
+
+    const usuarioDoEmail = async (escolaId: string, email: string): Promise<string | undefined> =>
+      (await bancada.pool.query<{ id: string }>("select u.id from usuario u join conta c on c.id = u.conta_id where u.escola_id = $1 and u.papel = 'professor' and c.email = $2", [escolaId, email])).rows[0]?.id
+
+    const importacoesDa = async (escolaId: string): Promise<number> => (await bancada.pool.query<{ total: number }>('select count(*)::int as total from importacao_planilha where escola_id = $1', [escolaId])).rows[0]?.total ?? 0
+
+    it('RF6, isolamento: a prévia não distingue o e-mail com conta na escola B do e-mail novo, nem na resposta nem nas contagens', async () => {
+      const a = await escolaComCoordenacao()
+      const b = await escolaComCoordenacao()
+      const deB = await cadastrado(b.coordenacao)
+      const comConta = await previa(a.coordenacao, texto(`Com Conta Na B;${deB.email}`))
+      const semConta = await previa(a.coordenacao, texto(`Sem Conta Em Lugar Nenhum;${emailNovo()}`))
+
+      expect(comConta.status).toBe(200)
+      expect(previaDaPlanilhaResponseSchema.parse(comConta.corpo)).toEqual(previaDaPlanilhaResponseSchema.parse(semConta.corpo))
+      expect(comConta.corpo).toEqual({ linhas: [{ linha: 2, resultado: 'entra' }], contagens: { entram: 1, ja_existem: 0 }, candidatos: [] })
+    })
+
+    it('RF6: o professor de uma conta de outra escola cliente ganha o segundo vínculo no aceite do link copiado, sem conta nova', async () => {
+      const escolaA = await bancada.escola()
+      const deA = await professoraDe(escolaA)
+      const { escolaId: escolaB, coordenacao } = await escolaComCoordenacao()
+      await importada(coordenacao, texto(`Professora em duas escolas;${deA.email}`))
+      const usuarioDeB = (await usuarioDoEmail(escolaB, deA.email)) ?? ''
+      expect(await estadoNaLista(coordenacao, usuarioDeB)).toBe('pendente')
+
+      const copiado = await refazer(coordenacao, usuarioDeB)
+      const aceite = await aceitar(conviteDeProfessorResponseSchema.parse(copiado.corpo).token)
+
+      expect(aceite.corpo).toEqual({ etapa: 'entrar', bilhete: expect.any(String) })
+      const login = await entrar(deA.email, SENHA_DE_A, String(aceite.corpo['bilhete']))
+      expect(login.corpo).toEqual({ etapa: 'escolher', desafio: expect.any(String), acessos: expect.any(Array) })
+      expect((await bancada.pool.query('select count(*)::int as total from conta where email = $1', [deA.email])).rows).toEqual([{ total: 1 }])
+      expect((await bancada.pool.query('select count(*)::int as total from usuario where conta_id = $1', [deA.contaId])).rows).toEqual([{ total: 2 }])
+    })
+
+    it('o cadastrado pelo job aparece `pendente` na lista, sem e-mail nem link, e o "Copiar link" faz o `convite/refazer`: o link novo vale e derruba o convite sem token', async () => {
+      const { escolaId, coordenacao } = await escolaComCoordenacao()
+      const email = emailNovo()
+      await importada(coordenacao, texto(`Cadastrada Pela Planilha;${email}`))
+      const usuarioId = (await usuarioDoEmail(escolaId, email)) ?? ''
+
+      const lista = await listar(coordenacao, '?limite=100')
+      expect(listaDeProfessoresResponseSchema.parse(lista.corpo).itens).toEqual([{ usuarioId, nome: 'Cadastrada Pela Planilha', estado: 'pendente' }])
+      expect(lista.texto).not.toContain(email)
+
+      const copiado = await refazer(coordenacao, usuarioId)
+      expect(copiado.status).toBe(201)
+      expect(copiado.cacheControl).toBe('no-store')
+      const link = conviteDeProfessorResponseSchema.parse(copiado.corpo)
+      expect(link.usuarioId).toBe(usuarioId)
+      expect((await convitesDa(escolaId)).map((convite) => convite.aberto)).toEqual([false, true])
+      expect((await consultar(link.token)).status).toBe(200)
+      expect(await estadoNaLista(coordenacao, usuarioId)).toBe('pendente')
+    })
+
+    it('301 linhas: erro de teto na última, gravar recusa e nada fica; 300 linhas entram', async () => {
+      const { escolaId, coordenacao } = await escolaComCoordenacao()
+      const linhas = Array.from({ length: MAXIMO_DE_LINHAS_DA_PLANILHA_DE_PROFESSORES + 1 }, (_, posicao) => `Professor ${String(posicao)};${emailNovo()}`)
+
+      const acima = await previa(coordenacao, texto(...linhas))
+      const lidas = previaDaPlanilhaResponseSchema.parse(acima.corpo)
+      expect(lidas.linhas.at(-1)).toEqual({ linha: MAXIMO_DE_LINHAS_DA_PLANILHA_DE_PROFESSORES + 2, resultado: 'erro', erro: 'acima_do_teto' })
+      expect(lidas.contagens.entram).toBe(MAXIMO_DE_LINHAS_DA_PLANILHA_DE_PROFESSORES)
+      expect((await gravar(coordenacao, texto(...linhas))).status).toBe(400)
+      expect(await importacoesDa(escolaId)).toBe(0)
+
+      const dentro = await gravar(coordenacao, texto(...linhas.slice(0, MAXIMO_DE_LINHAS_DA_PLANILHA_DE_PROFESSORES)))
+      expect(dentro.status).toBe(202)
+      expect(await rodar(escolaId, String(dentro.corpo['id']))).toBe('concluida')
+      expect((await bancada.pool.query<{ total: number }>("select count(*)::int as total from usuario where escola_id = $1 and papel = 'professor'", [escolaId])).rows[0]?.total).toBe(MAXIMO_DE_LINHAS_DA_PLANILHA_DE_PROFESSORES)
+    })
+
+    it('e-mail inválido, nome vazio e linha incompleta: erro na linha com o código, e gravar recusa com `ENTRADA_INVALIDA` sem gravar nada', async () => {
+      const { escolaId, coordenacao } = await escolaComCoordenacao()
+      const planilha = texto(`Sem Arroba;sem-arroba`, `   ;${emailNovo()}`, 'Só uma coluna', `Boa Pessoa;${emailNovo()}`)
+
+      const lida = previaDaPlanilhaResponseSchema.parse((await previa(coordenacao, planilha)).corpo)
+
+      expect(lida.linhas.map((linha) => [linha.linha, linha.resultado, linha.erro])).toEqual([
+        [2, 'erro', 'email_invalido'],
+        [3, 'erro', 'nome_vazio'],
+        [4, 'erro', 'linha_incompleta'],
+        [5, 'entra', undefined],
+      ])
+      const recusada = await gravar(coordenacao, planilha)
+      expect(recusada.status).toBe(400)
+      expect(recusada.corpo.erro?.['codigo']).toBe(ErrorCode.ENTRADA_INVALIDA)
+      expect(await importacoesDa(escolaId)).toBe(0)
+    })
+
+    it('RF4, candidato: só o ausente ativo é candidato, com o nome e o id; o pendente (convidado pela planilha anterior) não é, e marcá-lo é `ENTRADA_INVALIDA` com o convite aberto', async () => {
+      const { escolaId, coordenacao } = await escolaComCoordenacao()
+      const ativa = await professoraDe(escolaId)
+      const pendente = await cadastrado(coordenacao)
+
+      const lida = previaDaPlanilhaResponseSchema.parse((await previa(coordenacao, texto(`Quem Entra;${emailNovo()}`))).corpo)
+
+      expect(lida.candidatos).toEqual([{ id: ativa.usuarioId, acao: 'desligar', rotulo: 'Pessoa sintética' }])
+      const recusada = await gravar(coordenacao, texto(`Quem Entra;${emailNovo()}`), [pendente.usuarioId])
+      expect(recusada.status).toBe(400)
+      expect(recusada.corpo.erro?.['codigo']).toBe(ErrorCode.ENTRADA_INVALIDA)
+      expect(await importacoesDa(escolaId)).toBe(0)
+      expect((await convitesDa(escolaId)).map((convite) => convite.aberto)).toEqual([true])
+    })
+
+    it('RF16, isolamento: a marca de um professor da escola B é `ENTRADA_INVALIDA`, e a prévia de A não traz candidato de B', async () => {
+      const a = await escolaComCoordenacao()
+      const b = await escolaComCoordenacao()
+      const deB = await professoraDe(b.escolaId)
+
+      const lida = previaDaPlanilhaResponseSchema.parse((await previa(a.coordenacao, texto(`Quem Entra;${emailNovo()}`))).corpo)
+      const marcada = await gravar(a.coordenacao, texto(`Quem Entra;${emailNovo()}`), [deB.usuarioId])
+
+      expect(lida.candidatos).toEqual([])
+      expect(marcada.status).toBe(400)
+      expect(marcada.corpo.erro?.['codigo']).toBe(ErrorCode.ENTRADA_INVALIDA)
+      expect(await importacoesDa(a.escolaId)).toBe(0)
+      expect((await bancada.pool.query<{ ativo: boolean }>('select desativado_em is null as ativo from usuario where id = $1', [deB.usuarioId])).rows).toEqual([{ ativo: true }])
+    })
+
+    it('permissão: o professor não sobe a planilha de professores, nem a prévia, e nada é gravado', async () => {
+      const escolaId = await bancada.escola()
+      const professor = await bancada.sessao(escolaId, 'professor')
+      const planilha = texto(`Quem Quer Entrar;${emailNovo()}`)
+
+      const daPrevia = await previa(professor, planilha)
+      const dogravar = await gravar(professor, planilha)
+
+      // A rota de coordenação responde ao professor como a rota que não existe (regra 10, item 6).
+      expect([daPrevia.status, daPrevia.corpo.erro?.['codigo'], dogravar.status, dogravar.corpo.erro?.['codigo']]).toEqual([404, ErrorCode.NAO_ENCONTRADO, 404, ErrorCode.NAO_ENCONTRADO])
+      expect(await importacoesDa(escolaId)).toBe(0)
+    })
+
+    it('escola sem ano em curso: a prévia e o gravar funcionam, e a importação fica sem ano; com `anoLetivoId` no corpo, o tipo responde como o inexistente', async () => {
+      const { escolaId, coordenacao } = await escolaComCoordenacao()
+      const email = emailNovo()
+
+      expect((await previa(coordenacao, texto(`Sem Ano;${email}`))).status).toBe(200)
+      const aceita = await gravar(coordenacao, texto(`Sem Ano;${email}`))
+      expect(aceita.status).toBe(202)
+      expect(await rodar(escolaId, String(aceita.corpo['id']))).toBe('concluida')
+      expect((await bancada.pool.query<{ ano_letivo_id: string | null }>('select ano_letivo_id from importacao_planilha where escola_id = $1', [escolaId])).rows).toEqual([{ ano_letivo_id: null }])
+
+      const outroAno = { anoLetivoId: randomUUID() }
+      for (const comAno of [await previa(coordenacao, texto(`Sem Ano;${email}`), outroAno), await gravar(coordenacao, texto(`Sem Ano;${email}`), [], outroAno)]) {
+        expect([comAno.status, comAno.corpo.erro?.['codigo']]).toEqual([404, ErrorCode.NAO_ENCONTRADO])
+      }
+    })
   })
 })

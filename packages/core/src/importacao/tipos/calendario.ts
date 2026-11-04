@@ -102,6 +102,7 @@ function planejarContra(ano: AnoDeDestino, eventos: readonly EventoLido[], exist
 export const tipoCalendario: TipoDeImportacao = {
   tipo: 'calendario',
   usaTurma: false,
+  usaAno: true,
 
   async previa(repositorio, ano, texto): Promise<PreviaDoTipo> {
     const tabela = lerTabela(texto, CABECALHOS_DA_PLANILHA.calendario)

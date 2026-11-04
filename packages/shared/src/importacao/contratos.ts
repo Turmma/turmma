@@ -34,6 +34,9 @@ export type TipoDeEventoDoCalendario = (typeof TIPOS_DE_EVENTO_DO_CALENDARIO)[nu
 /** A descrição do evento: texto livre, e por isso curto e sem nome de pessoa (`docs/lgpd.md`). O check do banco repete o 120. */
 export const TAMANHO_MAXIMO_DA_DESCRICAO_DO_EVENTO = 120
 
+/** Quantas linhas a planilha de professores aceita (PRD, RF6): a 301ª é erro de teto, e nada grava. */
+export const MAXIMO_DE_LINHAS_DA_PLANILHA_DE_PROFESSORES = 300
+
 /** O texto da planilha, até 512 KB em UTF-8 (Tech Spec, seção 4; regra 80, item 3). Acima disso, `ENTRADA_INVALIDA`. */
 export const MAXIMO_DE_BYTES_DA_PLANILHA = 512 * 1024
 

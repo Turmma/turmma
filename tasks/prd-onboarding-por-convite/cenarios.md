@@ -84,6 +84,12 @@ numa tarefa do `tasks.md`, que diz qual. I = integração com Postgres real e re
   - [P] Duas escolas importam o mesmo professor ao mesmo tempo: as duas `concluida`, uma `conta`.
   - [I] 301 linhas: erro de teto; 300 entram.
   - [I] Professor ausente na reimportação segue ativo sem marca; marcado, é desligado pelo `desativar`.
+  - [I] Ausente `pendente` (convidado pela planilha anterior) não sai entre os candidatos; marcado: `ENTRADA_INVALIDA`, e
+    o convite dele segue aberto. Ausente `aceito` que não entrou é candidato e, marcado, sai `desativado`.
+  - [P] Candidato desativado por outro caminho entre o (2) e o (3): o `NAO_ENCONTRADO` do `desativar` deixa a importação
+    `desatualizada`, sem escrita.
+  - [P] Cadastrar, refazer ou revogar o convite da escola em curso (a trava do convite da escola na mão): o (3) da
+    planilha de professores espera, estoura o `lock_timeout` e volta; a nova tentativa conclui.
   - [I] O `desativar` encerra os vínculos da pessoa (professor ou aluno) na escola, por pessoa e sem o ano do contexto, no ano em curso e no planejado, e revoga o convite aberto
     (N1 da A1). O convite aberto em usuário ativo não nasce por rota nenhuma: o caso é defesa, com o estado montado no
     banco e dito no nome do teste.
@@ -96,8 +102,8 @@ numa tarefa do `tasks.md`, que diz qual. I = integração com Postgres real e re
   - [P] `desativar` × `ativar` do login do à espera: o usuário termina inativo e sem vínculo aberto.
   - [I] Professor desligado pela planilha: o passo (3) trava todas as turmas dos vínculos dele, em qualquer estado (o
     mesmo conjunto do `travarContraOGerarDoProfessor`), antes dos pedidos.
-  - [P] Duas escolas desligando pela planilha o mesmo professor ao mesmo tempo: as duas `concluida` (o `40P01` entre os
-    jobs vira nova tentativa), nenhuma requisição no ciclo.
+  - [P] Duas escolas desligando pela planilha o mesmo professor ao mesmo tempo: as duas `concluida`, nenhuma `falhou`
+    (o `40P01` entre os jobs vira nova tentativa da fila, e a importação não guarda erro).
   - [I] Professor cadastrado pelo job aparece `pendente` na lista; "Copiar link" passa pelo `convite/refazer`.
   - [I] O `resumo` do job e a `planilha.gravada` não distinguem e-mail com conta em outra escola de e-mail novo.
 - **RF7 e RF8.**

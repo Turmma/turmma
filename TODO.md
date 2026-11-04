@@ -2571,3 +2571,34 @@ repetem aqui.
       "Mutações", não fala da linha `falha:`
 - [ ] Da correção `2026-11-02-mutacao-diz-o-expect` (revisor-geral, 1ª), dono: Arquiteto, na próxima retrospectiva: `docs/processo-licoes.md:42` ainda diz que a defesa da X8 é
       "ler a linha do `expect` que caiu"
+
+## Da tarefa 6.0 do onboarding-por-convite (a planilha de professores), fora dela
+
+- [ ] Da 6.0 (privacy-guardian, 1ª): o `desativar` do job passa `{}` como autoria (`tipos/professores.ts`, o `aplicar`); uma marca de origem na auditoria depende de a
+      `AutoriaDoCicloDeVida` aceitá-la, o que muda o contrato do ciclo de vida (3.0)
+- [ ] Da 6.0 (infra-guardian, 1ª): a conta do desligado é travada em `FOR UPDATE` depois das turmas, fora da ordem global (`motor.ts`); muda a ordem de trava do `desativar` da 3.0, e o
+      revisor não achou ciclo possível
+- [ ] Da 6.0 (infra-guardian, 1ª): os anos dos vínculos dos marcados são travados um por vez (`tipos/professores.ts`, o `travar`); sem conflito hoje (trava compartilhada), é uniformidade
+- [ ] Da 6.0 (infra-guardian, 1ª e 2ª): `acharConta` e `travarContas` ausentes lançam `InvariantException` (`motor.ts`, o passo (1)), que o processor repete até esgotar as tentativas;
+      quando o processor da 4.0 tratar o erro, os dois saem juntos para terminal
+- [ ] Da 6.0 (infra-guardian, 1ª): `travar` e `planejar` leem `professoresDaEscola()` duas vezes (`tipos/professores.ts`); otimização que muda a forma do `travar`, sem efeito de resultado
+- [ ] Da 6.0 (revisor-geral, 1ª): o convite do professor tem dois corpos (`convidar-professor-da-planilha.ts` e os serviços da API); o corpo único toca
+      `convite-de-professor.service.ts` e `convite.service.ts`, fora da 6.0
+- [ ] Da 6.0 (infra-guardian, 2ª; tenancy-guardian, 2ª): o docblock da `ContaGlobalRepository` (`conta-global.repository.ts:12-24`) diz "qualquer outra aqui é mudança de spec" e lista só
+      `sessao`, `ciclo-de-vida` e `cadastro-de-professor.ts` como importadores; citar a 6.0 como a mudança de spec da quinta exceção e dizer que o processor alcança a classe por
+      `travarContasDoProfessor` (texto de comentário)
+- [ ] Da 6.0 (tenancy-guardian, 2ª; privacy-guardian, 2ª), também na retro da funcionalidade: a `ContaGlobalRepository` tem cinco métodos `@Unscoped`, e a regra 10, item 9 chama de sinal de
+      desenho errado já na terceira; revisar o desenho da conta global (um repository por finalidade) antes de entrar uma sexta
+- [ ] Da 6.0 (revisor-geral, 2ª): o comentário de cabeçalho de `ciclo-de-vida.repository.test.ts:8-11` diz "as mesmas três exceções", e o teste afirma cinco métodos
+- [ ] Da 6.0 (revisor-geral, 2ª): `docs/modelo-de-dados.md:111`, a frase das "quatro primeiras" e da "quinta" exceção ficou longa e emendada; partir em duas
+- [ ] Da 6.0 (conformidade-reviewer, 2ª): um teste unitário que afirme que quem pode ser desligado sai só de `ESTADOS_QUE_SAEM` e da ausência na planilha, para fixar a D64 (hoje a garantia é
+      o comentário de `professores.ts` e o código não ler métrica; teste de guarda, sem mudar comportamento)
+- [ ] Da 6.0 (privacy-guardian, 2ª), junto do teste do expurgo (limpeza da conta, F1 17.0): a frase nova de `docs/lgpd.md:65` promete a limpeza da conta que nasceu sem usuário, e nenhum
+      teste a prova (`expurgo-de-acesso.int.test.ts` só semeia conta com usuário desativado); caso com `conta` sem nenhum `usuario`, limpa pelo `limparLoteDeContasSemUso`
+- [ ] Da 6.0 (privacy-guardian, 2ª): a mesma frase de `docs/lgpd.md:65` cita só o job que termina `desatualizada`; o que termina `falhou` depois do passo (1) também deixa a conta sem usuário
+- [ ] Da 6.0 (test-engineer, 2ª): o caso "o motor sem o achar-ou-criar conta do worker" (`gravar-planilha-professores.int.test.ts`) tem comentário que diz "nenhuma conta nasce" sem asserção; acrescentar a
+      contagem ou tirar a frase
+- [ ] Da 6.0 (test-engineer, 2ª): os casos de borda (mesmo nome, `desativado` com e-mail, `desativado` com a conta limpa) não estão na tabela de "Testes que provam a regra" nem num bloco de mutação
+      do `ESTADOS_QUE_ENTRAM`
+- [ ] Da 6.0 (test-engineer, 2ª): o nome do caso de isolamento ("o job não espera a trava dele") promete mais que o caso prova: só a linha do `usuario` da B é travada, e não
+      `travarAnosDosVinculos` nem `travarContraOGerarDosProfessores`; o `segurador` poderia travar também uma turma da B

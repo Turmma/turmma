@@ -158,9 +158,10 @@ const ESPERADAS: Readonly<Record<string, readonly string[]>> = {
     'packages/core/src/retencao/atalho.ts -> packages/core/src/ciclo-de-vida/conta-global.repository.ts',
     'tools/conta-global.ts -> packages/core/src/ciclo-de-vida/conta-global.repository.ts',
   ],
-  // O cadastro do professor acha ou cria a conta global: só `sessao/` o importa (o controle `sessao/login/usa-cadastro.ts` passa). O barril `estrutura/index.ts` que o reexporta é acusado.
+  // O cadastro do professor acha ou cria a conta global: só `sessao/` e o processor da planilha (o arquivo, e não a pasta `processors/`) o importam (os controles `sessao/login/usa-cadastro.ts` e `processors/gravar-planilha.ts` passam). O barril `estrutura/index.ts` que o reexporta é acusado.
   'cerca-cadastro-de-professor': [
     'apps/api/src/estrutura/turma/vaza-cadastro.ts -> packages/core/src/estrutura/cadastro-de-professor.ts',
+    'apps/worker/src/processors/vizinho-do-cadastro.ts -> packages/core/src/estrutura/cadastro-de-professor.ts',
     'infra/cadastro-dinamico.ts -> packages/core/src/estrutura/cadastro-de-professor.ts',
     'packages/core/src/estrutura/index.ts -> packages/core/src/estrutura/cadastro-de-professor.ts',
     'tools/cadastro-reexporta.ts -> packages/core/src/estrutura/cadastro-de-professor.ts',
@@ -235,14 +236,15 @@ describe('a guarda de camadas no repositório de hoje', () => {
     expect(importa(/^packages\/core\/src\/estrutura\/cadastro-de-professor\.ts$/, 'packages/core/src/ciclo-de-vida/conta-global.repository.ts')).toBe(true)
   }, 120_000)
 
-  it('real: só o módulo sessao importa o cadastro do professor, e o barril estrutura/index.ts não o reexporta', () => {
+  it('real: só o módulo sessao e o processor da planilha importam o cadastro do professor, e o barril estrutura/index.ts não o reexporta', () => {
     const modulos = repositorio().relatorio.modules
     const alvo = 'packages/core/src/estrutura/cadastro-de-professor.ts'
     const quemImporta = modulos.filter((modulo) => modulo.dependencies.some((dependencia) => dependencia.resolved === alvo)).map((modulo) => modulo.source)
-    // O subcaminho `@educa/core/cadastro-de-professor` resolve para o arquivo (a aresta existe), e quem o importa, fora teste, é só `sessao/`.
+    // O subcaminho `@educa/core/cadastro-de-professor` resolve para o arquivo (a aresta existe), e quem o importa, fora teste, é só `sessao/` e o processor da planilha.
     const deProducao = quemImporta.filter((fonte) => !/\.(?:test|spec)\.ts$/.test(fonte))
     expect(deProducao.length).toBeGreaterThan(0)
-    expect(deProducao.filter((fonte) => !fonte.startsWith('apps/api/src/sessao/'))).toEqual([])
+    expect(deProducao).toContain('apps/worker/src/processors/gravar-planilha.ts')
+    expect(deProducao.filter((fonte) => !fonte.startsWith('apps/api/src/sessao/') && fonte !== 'apps/worker/src/processors/gravar-planilha.ts')).toEqual([])
     expect(quemImporta).not.toContain('packages/core/src/estrutura/index.ts')
   }, 120_000)
 

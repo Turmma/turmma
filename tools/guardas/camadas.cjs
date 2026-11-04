@@ -26,6 +26,9 @@ const DRIZZLE = String.raw`(?:^|/)node_modules/drizzle-orm(?:/|$)`
 /** A exceção de `estrutura/` à cerca da conta global é este **arquivo**, e não a pasta (onboarding-por-convite, 1.0; Tech Spec, seção 6). */
 const CADASTRO_DE_PROFESSOR = String.raw`^packages/core/src/estrutura/cadastro-de-professor\.ts$`
 
+/** O único arquivo do worker que acha ou cria a conta do professor: o processor do job da planilha, passo (1) (onboarding-por-convite, 6.0; Tech Spec, seção 6). */
+const PROCESSOR_DA_PLANILHA = String.raw`^apps/worker/src/processors/gravar-planilha\.ts$`
+
 /** O subcaminho `@educa/core/conta-global` resolve para este arquivo pela condição `source` (`conditionNames`, abaixo). */
 const CONTA_GLOBAL = String.raw`^packages/core/src/ciclo-de-vida/conta-global\.repository\.ts$`
 
@@ -162,9 +165,9 @@ module.exports = {
     },
     {
       name: 'cerca-cadastro-de-professor',
-      comment: 'O `contaDoProfessor` acha ou cria a conta global pelo e-mail, sem escopo de escola: só `sessao/` o chama (onboarding-por-convite, 1.0). Nem o barril `estrutura/index.ts` o reexporta.',
+      comment: 'O `contaDoProfessor` acha ou cria a conta global pelo e-mail, sem escopo de escola: só `sessao/` e o processor do job da planilha (o **arquivo**) o chamam (onboarding-por-convite, 1.0 e 6.0). Nem o barril `estrutura/index.ts` o reexporta.',
       severity: 'error',
-      from: { path: TODO_O_CODIGO, pathNot: [SESSAO, TESTE] },
+      from: { path: TODO_O_CODIGO, pathNot: [SESSAO, PROCESSOR_DA_PLANILHA, TESTE] },
       to: { path: CADASTRO_DE_PROFESSOR },
     },
     {

@@ -45,7 +45,7 @@ cenários foram distribuídos pelo `test-engineer`; cada linha do `cenarios.md` 
   - [ ] 5.5 Alertas e runbook
   - [ ] 5.6 Testes
 
-- [ ] **6.0 — A planilha de professores cadastra a equipe e desliga só o marcado**
+- [x] **6.0 — A planilha de professores cadastra a equipe e desliga só o marcado**
   - [ ] 6.1 Tipo professores
   - [ ] 6.2 Passo (1) das contas
   - [ ] 6.3 `convidar` da A1; desligar pelo `desativar`

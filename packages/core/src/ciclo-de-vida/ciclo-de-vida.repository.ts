@@ -147,6 +147,16 @@ export class CicloDeVidaRepository {
    * (o comando do operador), e o limite de tenant continua sendo a escola.
    */
   async travarContraOGerarDoProfessor(usuarioId: string): Promise<void> {
+    await this.travarContraOGerarDosProfessores([usuarioId])
+  }
+
+  /**
+   * O mesmo para vários professores de uma vez, num comando só e em ordem de id (o passo (3) da planilha de professores,
+   * onboarding-por-convite, 6.0): a união das turmas de todos os vínculos deles, em qualquer estado, para duas importações
+   * ou a desativação que chegar com as turmas em outra ordem não se prenderem (`40P01`).
+   */
+  async travarContraOGerarDosProfessores(usuarioIds: readonly string[]): Promise<void> {
+    if (usuarioIds.length === 0) return
     await this.tx
       .select({ id: turma.id })
       .from(turma)
@@ -162,7 +172,7 @@ export class CicloDeVidaRepository {
                   eq(vinculo.escolaId, turma.escolaId),
                   eq(vinculo.anoLetivoId, turma.anoLetivoId),
                   eq(vinculo.turmaId, turma.id),
-                  eq(vinculo.usuarioId, usuarioId),
+                  inArray(vinculo.usuarioId, [...usuarioIds]),
                   eq(vinculo.papel, 'professor'),
                 ),
               ),

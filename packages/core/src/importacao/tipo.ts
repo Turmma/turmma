@@ -1,4 +1,6 @@
-import type { CandidatoDaMarca, PreviaDaPlanilhaRow, ResumoDaImportacao, TipoDePlanilha } from '@educa/shared'
+import type { CandidatoDaMarca, MarcasDaPlanilha, PreviaDaPlanilhaRow, ResumoDaImportacao, TipoDePlanilha } from '@educa/shared'
+import type { CicloDeVidaService } from '../ciclo-de-vida/ciclo-de-vida.service.js'
+import type { DatabaseTransaction } from '../db/database.js'
 import type { AnoDeDestino, ImportacaoRepository } from './importacao.repository.js'
 
 /**
@@ -16,19 +18,56 @@ export interface PreviaDoTipo {
   readonly assinatura: string
 }
 
+/** O que o `aplicar` usa além do repository: a transação do passo (3) e o ciclo de vida, para desativar na mesma transação. */
+export interface AmbienteDaGravacao {
+  readonly tx: DatabaseTransaction
+  readonly ciclo: CicloDeVidaService
+}
+
 /** O que a planilha fará no ano, na leitura de agora: a `assinatura` do que foi visto, as contagens e a escrita. */
 export interface PlanoDaImportacao {
   readonly assinatura: string
   readonly resumo: ResumoDaImportacao
   /** Escreve na transação do passo (3), com o que o `planejar` desta transação viu. */
-  aplicar(gravacao: ImportacaoRepository): Promise<void>
+  aplicar(gravacao: ImportacaoRepository, ambiente: AmbienteDaGravacao): Promise<void>
 }
 
-export interface TipoDeImportacao {
+interface TipoBase {
   readonly tipo: TipoDePlanilha
   /** Só a lista por turma (7.0) usa o `turmaId` do corpo; nos outros tipos ele não existe, e vale como turma que não se acha. */
   readonly usaTurma: boolean
+}
+
+/** O tipo que grava num ano letivo: o calendário, a grade e a lista de alunos. */
+export interface TipoDeImportacao extends TipoBase {
+  readonly usaAno: true
   previa(repositorio: ImportacaoRepository, ano: AnoDeDestino, texto: string): Promise<PreviaDoTipo>
   /** `undefined` quando o que o gravar guardou não tem a forma do tipo: o job falha de vez, sem repetir. */
   planejar(repositorio: ImportacaoRepository, ano: AnoDeDestino, guardado: unknown): Promise<PlanoDaImportacao | undefined>
 }
+
+/** As contas que o passo (1) achou ou criou, pelo e-mail normalizado: o `id` de cada uma. */
+export type ContasDoJob = ReadonlyMap<string, string>
+
+/** Trava as contas do passo (1) e confere o e-mail de cada uma; `false` se alguma o perdeu. É do worker, que alcança a conta global; o motor só a repassa. */
+export type TravaDasContas = (contas: ContasDoJob) => Promise<boolean>
+
+/**
+ * O tipo que não é de um ano (a planilha de professores, `anoLetivoId` nulo): funciona com a escola sem ano em curso. Tem o
+ * passo (1), as contas, e a trava própria do passo (3), porque escreve em usuário, conta e turma.
+ */
+export interface TipoSemAno extends TipoBase {
+  readonly usaAno: false
+  previa(repositorio: ImportacaoRepository, texto: string): Promise<PreviaDoTipo>
+  /** Os e-mails do passo (1), um por pessoa e em ordem; `undefined` quando o que o gravar guardou não tem a forma do tipo. */
+  emailsDasContas(guardado: unknown): readonly string[] | undefined
+  /**
+   * A trava do passo (3) depois da importação, na ordem global da Tech Spec (seção 5): a trava do convite da escola, os anos, os
+   * usuários que vai escrever, as contas (`FOR SHARE`, com o e-mail conferido) e as turmas. Sem ela o `planejar` não lê.
+   */
+  travar(repositorio: ImportacaoRepository, tx: DatabaseTransaction, guardado: unknown, marcas: MarcasDaPlanilha, contas: ContasDoJob, travarContas: TravaDasContas): Promise<void>
+  /** `undefined` quando o que o gravar guardou não tem a forma do tipo. */
+  planejar(repositorio: ImportacaoRepository, guardado: unknown, marcas: MarcasDaPlanilha, contas: ContasDoJob): Promise<PlanoDaImportacao | undefined>
+}
+
+export type TipoDoMotor = TipoDeImportacao | TipoSemAno

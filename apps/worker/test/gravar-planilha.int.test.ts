@@ -241,10 +241,10 @@ describe('estrutura.gravar-planilha', () => {
     expect(await eventosDe(escola)).toBe(0)
   })
 
-  it('falha definitiva também quando o tipo não é um que o motor grava (o `professores`, sem ano): `falhou` na primeira tentativa', async () => {
+  it('falha definitiva também quando o tipo não é um que o motor grava (a `grade`, que chega na 8.0): `falhou` na primeira tentativa', async () => {
     const escola = await escolaNova()
     const id = await gravar(escola, planilha(2))
-    await bancada.pool.query("update importacao_planilha set tipo = 'professores', ano_letivo_id = null where id = $1", [id])
+    await bancada.pool.query("update importacao_planilha set tipo = 'grade' where id = $1", [id])
 
     await expect(tentar(escola.escolaId, id, 1)).rejects.toBeInstanceOf(JobFailureError)
 

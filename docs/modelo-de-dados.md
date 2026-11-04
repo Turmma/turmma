@@ -103,11 +103,11 @@ vida foi para o `core` (F3, tarefa 1.0): ela não sai pelo barrel do pacote, só
 `CicloDeVidaService`, o `sessao` (a redefinição do MFA e o convite do coordenador), e **o arquivo**
 `packages/core/src/estrutura/cadastro-de-professor.ts` (o cadastro do professor, que descarta o `nova`), e os testes
 deles. O cadastro, que repassa a conta sem escopo, tem o subcaminho próprio `@educa/core/cadastro-de-professor` (fora do
-barril `@educa/core/estrutura`), e quem o chama também é cercado: só o `sessao` da API, pela entrada `contaDoProfessor` do
-`architecture.test.ts` e pela regra `cerca-cadastro-de-professor` do `camadas.cjs`; o worker da planilha entra na zona
-na 4.0. A cerca de `estrutura/` é o arquivo, e não a pasta: um vizinho que a importe, por import, reexport, `import()`,
+barril `@educa/core/estrutura`), e quem o chama também é cercado: só o `sessao` da API e o **arquivo** do processor do job da
+planilha (`apps/worker/src/processors/gravar-planilha.ts`, que o chama no passo (1) e passa a função ao motor; onboarding-por-convite,
+6.0), pela entrada `contaDoProfessor` do `architecture.test.ts` e pela regra `cerca-cadastro-de-professor` do `camadas.cjs`. A cerca de `estrutura/` é o arquivo, e não a pasta: um vizinho que a importe, por import, reexport, `import()`,
 `require` ou o caminho como texto, reprova o `architecture.test.ts` e o `cerca-conta-global` de
-`tools/guardas/camadas.cjs`. As quatro são exceções antigas que mudaram de lugar, mas já estão no ponto que a regra 10,
+`tools/guardas/camadas.cjs`. As quatro primeiras são exceções antigas que mudaram de lugar, e a quinta (a trava das contas do passo (3) da planilha de professores, `travarEConferir`, `@Unscoped`, que o processor injeta no motor por `travarContasDoProfessor`, onboarding-por-convite, 6.0) está no mesmo arquivo cercado; já estão no ponto que a regra 10,
 item 9 aponta como sinal de desenho errado: qualquer outra ali é mudança de spec, discutida antes, e não acréscimo de
 tarefa. A única leitura nova (F3, tarefa 13.0) é a do e-mail da `Conta` pelo arquivo do titular
 (`LeituraDoTitular`, tabela `conta`, que a Tech Spec do F3, seção 3, manda levar "só o e-mail, nas duas
@@ -115,7 +115,7 @@ versões"): ela **não é consulta sem escopo**, porque junta o `Usuario` da esc
 titular e devolve só `id` e `email` da conta dele; a conta de outra pessoa, ou a de quem não é usuário desta
 escola, nunca chega. Por isso não passa pela `ContaGlobalRepository`, e o teste de arquitetura do arquivo
 (`o arquivo do titular lê as tabelas da classificação`) confere que a leitura declara toda coluna da `Conta`
-como entra ou fora (`senha_hash`, `mfa_*`).
+como entra ou fora (`senha_hash`, `mfa_*`). A segunda leitura do mesmo desenho (onboarding-por-convite, 6.0) é a do `ImportacaoRepository.professoresDaEscola`, que lê o e-mail da `Conta` pelo `leftJoin` de `usuario.conta_id` filtrado pela escola do contexto e papel `professor`, só para casar a linha da planilha com o professor da escola: o e-mail não sai do repository nem vai à resposta, e a conta de quem não é professor desta escola nunca chega (`packages/core/src/importacao/importacao.repository.ts`).
 
 **O aluno é `Usuario` sem `Conta`**, com `CredencialMatricula`. Não tem e-mail (regra 20).
 Matrícula é única por `(escolaId, matricula)`, nunca globalmente: dois alunos em escolas

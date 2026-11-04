@@ -1,14 +1,18 @@
-import { ErrorCode, InvariantException, type ErroDaImportacao, type EstadoDaImportacao, type ResumoDaImportacao, type TipoDeEventoDoCalendario, type TipoDePlanilha } from '@educa/shared'
-import { and, eq, inArray, lt, sql } from 'drizzle-orm'
+import { ErrorCode, InvariantException, type EstadoDoProfessor, type ErroDaImportacao, type EstadoDaImportacao, type ResumoDaImportacao, type TipoDeEventoDoCalendario, type TipoDePlanilha } from '@educa/shared'
+import { and, asc, desc, eq, inArray, lt, sql } from 'drizzle-orm'
+import { estadoDoProfessor, type UltimoConviteDoProfessor } from '../convite/estado-do-professor.js'
 import { requireAnoEmCurso } from '../context/ano-em-curso.js'
 import { requireEscolaId } from '../context/context-escola.js'
 import type { Database, DatabaseTransaction } from '../db/database.js'
 import { anoLetivo } from '../db/schema/ano-letivo.js'
+import { conta } from '../db/schema/conta.js'
+import { convite } from '../db/schema/convite.js'
 import { eventoCalendario } from '../db/schema/evento-calendario.js'
 import { importacaoPlanilha } from '../db/schema/importacao-planilha.js'
+import { usuario } from '../db/schema/usuario.js'
 import { DomainException } from '../error/domain.exception.js'
 import { postgresErrorIn } from '../error/summarize-error.js'
-import { requestSessao } from '../identidade/auth.guard.js'
+import { requestIdentity } from '../identidade/auth.guard.js'
 
 /** O ano em que a planilha grava: o em curso da sessão, ou o planejado que a coordenação escolheu. */
 export interface AnoDeDestino {
@@ -28,6 +32,14 @@ export interface EventoGravado {
 }
 
 export type EventoNovo = Omit<EventoGravado, 'id'>
+
+/** Um professor da escola como a planilha o compara: o `email` vem da conta dele e só serve para casar a linha (nunca sai da API), e o `estado` é o da lista. */
+export interface ProfessorDaEscola {
+  readonly usuarioId: string
+  readonly nome: string
+  readonly email: string | null
+  readonly estado: EstadoDoProfessor
+}
 
 /** A importação que o gravar enfileira. `linhas` e `marcas` são o dado da planilha em trânsito, e saem em toda troca de estado. */
 export interface NovaImportacao {
@@ -133,7 +145,7 @@ export class ImportacaoRepository {
         linhas: nova.linhas,
         marcas: nova.marcas,
         assinatura: nova.assinatura,
-        criadoPor: requestSessao().usuarioId,
+        criadoPor: requestIdentity().usuarioId,
       })
       .returning({ id: importacaoPlanilha.id })
     if (criada === undefined) throw new InvariantException('importação não criada')
@@ -222,5 +234,45 @@ export class ImportacaoRepository {
     for (let inicio = 0; inicio < eventos.length; inicio += TAMANHO_DO_LOTE) {
       await this.banco.insert(eventoCalendario).values(eventos.slice(inicio, inicio + TAMANHO_DO_LOTE).map((evento) => ({ escolaId, anoLetivoId, ...evento })))
     }
+  }
+
+  /**
+   * Os professores da escola do contexto, para a planilha de professores (6.0): o usuário `professor` de cada um, o e-mail da
+   * conta dele (nulo se a conta já foi limpa) e o estado pela mesma regra da lista (`estadoDoProfessor`, com o último convite de
+   * professor e a hora do banco). A conta entra só pelo `usuario.conta_id` da escola: a planilha nunca pergunta a e-mail de
+   * conta que a escola não tem (E11 da A1), e o e-mail não sai daqui para a resposta. Em ordem de id.
+   */
+  async professoresDaEscola(): Promise<ProfessorDaEscola[]> {
+    const escolaId = requireEscolaId()
+    const professores = await this.banco
+      .select({ usuarioId: usuario.id, nome: usuario.nome, email: conta.email, desativadoEm: usuario.desativadoEm, agora: sql<Date>`now()`.mapWith(usuario.desativadoEm) })
+      .from(usuario)
+      .leftJoin(conta, eq(conta.id, usuario.contaId))
+      .where(and(eq(usuario.escolaId, escolaId), eq(usuario.papel, 'professor')))
+      .orderBy(asc(usuario.id))
+    const convites = await this.banco
+      .select({ usuarioId: convite.usuarioId, id: convite.id, expiraEm: convite.expiraEm, usadoEm: convite.usadoEm, revogadoEm: convite.revogadoEm })
+      .from(convite)
+      .where(and(eq(convite.escolaId, escolaId), eq(convite.tipo, 'professor')))
+      .orderBy(asc(convite.usuarioId), desc(convite.expiraEm), desc(convite.id))
+    const ultimo = new Map<string, UltimoConviteDoProfessor>()
+    for (const { usuarioId, ...lido } of convites) if (!ultimo.has(usuarioId)) ultimo.set(usuarioId, lido)
+    return professores.map(({ usuarioId, nome, email, desativadoEm, agora }) => ({
+      usuarioId,
+      nome,
+      email: email?.toLowerCase() ?? null,
+      estado: estadoDoProfessor({ desativadoEm, ultimoConvite: ultimo.get(usuarioId), agora }),
+    }))
+  }
+
+  /** Trava os usuários da escola em `FOR NO KEY UPDATE`, em ordem de id e num comando só: o `desativar` e o aceite esperam o fim do passo (3), ou o passo (3) os espera. */
+  async travarUsuarios(ids: readonly string[]): Promise<void> {
+    if (ids.length === 0) return
+    await this.banco
+      .select({ id: usuario.id })
+      .from(usuario)
+      .where(and(eq(usuario.escolaId, requireEscolaId()), inArray(usuario.id, [...ids])))
+      .orderBy(asc(usuario.id))
+      .for('no key update')
   }
 }

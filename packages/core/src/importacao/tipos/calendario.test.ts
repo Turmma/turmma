@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { AnoDeDestino, EventoGravado, ImportacaoRepository } from '../importacao.repository.js'
 import { tipoCalendario } from './calendario.js'
+import type { AmbienteDaGravacao } from '../tipo.js'
 
 const ANO: AnoDeDestino = { id: 'ano-1', inicio: '2026-02-01', fim: '2026-12-15', situacao: 'em_curso' }
 const CABECALHO = 'inicio;fim;tipo;descricao'
@@ -132,7 +133,8 @@ describe('tipoCalendario.planejar', () => {
     } as unknown as ImportacaoRepository
     const guardado = [{ tipo: 'feriado', inicio: '2026-04-21', fim: '2026-04-21', descricao: 'Tiradentes' }]
     const plano = await tipoCalendario.planejar(repositorioCom([evento('7', '2026-05-01', 'Trabalho')]), ANO, guardado)
-    await plano?.aplicar(gravacao)
+    // O calendário só escreve pelo repository: a transação e o ciclo de vida do ambiente são de quem desativa pessoa.
+    await plano?.aplicar(gravacao, {} as unknown as AmbienteDaGravacao)
     expect(chamadas).toEqual(['apagar 7', 'inserir Tiradentes'])
   })
 })

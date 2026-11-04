@@ -51,7 +51,7 @@ const ZONAS_DAS_CLASSES_CERCADAS: readonly { classe: string; uso: RegExp; zona: 
   // A zona do painel é o arquivo do service e o do repository, e não a pasta `operacao/painel/`.
   { classe: 'PainelRepository', uso: /\bPainelRepository\b|painel\.repository/, zona: ['apps/api/src/operacao/painel/painel.service.ts', 'apps/api/src/operacao/painel/painel.repository.ts'] },
   // O cadastro do professor acha ou cria a conta global pelo e-mail, sem escopo: só `sessao/` o chama. Cercar a classe não basta, porque a função a repassa (onboarding-por-convite, 1.0, tenancy-guardian).
-  { classe: 'contaDoProfessor', uso: /\bcontaDoProfessor\b|cadastro-de-professor|@educa\/core\/cadastro-de-professor/, zona: ['apps/api/src/sessao/', 'packages/core/src/estrutura/cadastro-de-professor.ts'] },
+  { classe: 'contaDoProfessor', uso: /\bcontaDoProfessor\b|cadastro-de-professor|@educa\/core\/cadastro-de-professor/, zona: ['apps/api/src/sessao/', 'apps/worker/src/processors/gravar-planilha.ts', 'packages/core/src/estrutura/cadastro-de-professor.ts'] },
 ]
 
 /** A entrada da zona que termina em `/` é uma pasta (o caminho começa por ela); a outra é um arquivo, e só ele (`cadastro-de-professor.tsx` e `.ts.bak` não são a zona). */
@@ -175,7 +175,9 @@ describe('arquitetura: a conta global só pelo módulo sessao e pelo ciclo de vi
     // O barril da estrutura é lido de verdade (os repositories saem por ele) e não repassa o cadastro: o `contaDoProfessor` tem o subcaminho próprio, cercado.
     expect(Object.keys(estrutura)).toContain('TurmaRepository')
     expect(Object.keys(estrutura)).not.toContain('contaDoProfessor')
-    expect(Object.keys(cadastro)).toEqual(['contaDoProfessor'])
+    expect(Object.keys(estrutura)).not.toContain('travarContasDoProfessor')
+    // O subcaminho do cadastro entrega as duas funções que repassam a conta sem escopo (6.0): achar ou criar, e travar as do passo (3).
+    expect(Object.keys(cadastro).sort()).toEqual(['contaDoProfessor', 'travarContasDoProfessor'])
   })
 
   it('nem o barrel de credencial/ exporta a ResolucaoDeTenantRepository nem a ContaGlobalRepository, com o nome dela ou outro (33.0)', async () => {
