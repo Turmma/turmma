@@ -1,6 +1,7 @@
 # Estado da execução — onboarding-por-convite
 
 ## Agora
+- **03/11 ~23:30:** 7.0 encontrada (`6a01c41b`, spec em `48901ecc`, verificação passou, push feito; seis revisores aprovados na 2ª). Esteira de `87d036e` (6.0) **VERMELHA** no job infra: `infra/test/metricas.int.test.ts` acha `importacao_minutos_na_fila` com `escola_id` fora da lista fechada (métrica da 4.0). Correção `metrica-escola-id-fora-da-lista` na linha 2 (par reiniciado, `PEDIDO` com infra, privacy, test-engineer e revisor-geral), **antes** da 8.0 (que partiria na linha 1). **Espero:** `/seguir RELATÓRIO` do Implementador 2 (correção); depois encontro da linha 2 e partida da 8.0. **Base:** `spec/onboarding-por-convite` em `48901ecc`
 - **03/11 ~22:40:** 6.0 encontrada (`bba4fa98`, correção encontro-6 resolvida; spec em `87d036e3`, verificação passou, push feito). Esteira de `a067ca7` (5.0) ainda rodando; leio no próximo encontro. Linha 1 → 7.0 (par reiniciado, `PEDIDO` enviado); linha 2 ociosa (nada mais parte). **Espero:** `/seguir RELATÓRIO` do Implementador (7.0, 1ª tentativa). **Base:** `spec/onboarding-por-convite` em `87d036e3`
 - **03/11 ~22:15:** 6.0 concluída na linha 2 (`993c6734`, seis revisores aprovados na 2ª, 89 mutações), mas o encontro deu `CONFLITO` (barrels `index.ts` de `core/importacao`, `core` e `shared`, por causa da 5.0). Correção `encontro-6` na linha 2 (par reiniciado, `PEDIDO` com `revisor-geral` e `test-engineer`); depois repito o encontro. Esteira da spec em `a067ca7` (5.0) rodando. **Espero:** `/seguir RELATÓRIO` do Implementador 2 (correção encontro-6). Linha 1 ociosa (7.0 espera a 6.0). **Base:** `spec/onboarding-por-convite` em `a067ca7f`
 - **03/11 ~21:40:** tarefa 5.0 encontrada (`3ff168a2`, spec em `a067ca7f`, verificação passou, push feito; 65 mutações, seis revisores aprovados). Esteira de `a0e62a3` verde (4.0 ok); a da 5.0 roda, leio no próximo encontro. Linha 1 ociosa e nada parte (7.0 espera a 6.0). **Espero:** `/seguir RELATÓRIO` do Implementador 2 (6.0, 1ª tentativa). **Base:** `spec/onboarding-por-convite` em `a067ca7f`
@@ -35,6 +36,7 @@
 
 ## Esperando o Joaquim
 ## O que falhou
+- 03/11, esteira de `87d036e`: job infra vermelho por métrica `importacao_minutos_na_fila` (4.0) com `escola_id` fora da lista fechada do teste; só a esteira roda `ci:infra`. Correção `metrica-escola-id-fora-da-lista`.
 - 03/11, encontro da 6.0: `CONFLITO` nos três `index.ts` (a 5.0 pousou antes); correção `encontro-6` na linha 2.
 ## O que decidi sem perguntar
 - 03/11, `DIVERGÊNCIA` (portão) da 4.0: o resto "migrar" num comentário da 2.0 deixava `restos.test.ts` vermelho; correção na linha 1, antes de retomar a 4.0, pelo Implementador reiniciado (passo 6), com `revisor-geral`. Troca só a palavra do comentário.
