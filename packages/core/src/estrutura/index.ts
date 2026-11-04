@@ -4,7 +4,7 @@
 // a conta global pelo e-mail, tem o subcaminho próprio `@educa/core/cadastro-de-professor`, e quem o chama está cercado nas
 // duas guardas (regra 10, item 9). Um `export` dele neste barril o deixaria ao alcance de todo módulo que importa a estrutura.
 export { DecisaoRepository } from './decisao.repository.js'
-export type { AlcanceDoPedido, NomeDoPedido, PedidoPendente, PedidoTravado } from './decisao.repository.js'
+export type { AlcanceDoPedido, NomeDoPedido, PedidoPendente, PedidosParaEncerrar, PedidoTravado } from './decisao.repository.js'
 export { DisciplinaRepository } from './disciplina.repository.js'
 export { ListaRepository } from './lista.repository.js'
 export type { NomeNovo } from './lista.repository.js'

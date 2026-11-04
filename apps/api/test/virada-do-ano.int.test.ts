@@ -1,11 +1,11 @@
 import { createDatabase, createPool, executarPlanilha, runInContext, type Database, type DatabasePool } from '@educa/core'
 import { ErrorCode, decisaoResponseSchema, MENSAGENS_DE_ERRO, type ResultadoDaDecisao } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { AnoLetivoRepository } from '../src/estrutura/ano-letivo/ano-letivo.repository.js'
-import { VinculoRepository } from '@educa/core/estrutura'
+import { DecisaoRepository, VinculoRepository } from '@educa/core/estrutura'
 import { chamar, subirApi, type TestApi, type RespostaHttp } from './test-api.js'
 import { alunosNaTurma, montarEscolaComTurma, type EscolaComTurma } from './escola-turma.fixture.js'
 import { aguardar, WriteBlockTrigger } from './write-block-trigger.js'
@@ -364,7 +364,15 @@ describe('virada do ano: encerrar o ano letivo encerra os vínculos por `fim_do_
       const aprovadoAntes = await pedidoNoBanco(pedidoAprovado)
       linhasDeLog.length = 0
 
-      const resposta = await encerrar(s)
+      // O encerramento do pendente é a função da transferência pela planilha (F2, 9.0), `fechar(…, 'encerrada')`: uma só escrita para os dois caminhos.
+      const fechar = vi.spyOn(DecisaoRepository.prototype, 'fechar')
+      let resposta: Awaited<ReturnType<typeof encerrar>>
+      try {
+        resposta = await encerrar(s)
+        expect(fechar).toHaveBeenCalledWith({ anoLetivoId: s.anoLetivoId }, 'encerrada')
+      } finally {
+        fechar.mockRestore()
+      }
       expect(resposta.status).toBe(200)
 
       const { rows: acessos } = await bancada.pool.query<{ id: string; revogado: boolean }>('select id, revogado_em is not null as revogado from acesso_turma where escola_id = $1 and ano_letivo_id = $2', [

@@ -7,7 +7,7 @@ import { disciplina } from '../db/schema/disciplina.js'
 import { turma } from '../db/schema/turma.js'
 import { usuario } from '../db/schema/usuario.js'
 import { vinculo } from '../db/schema/vinculo.js'
-import { requestSessao } from '../identidade/auth.guard.js'
+import { requestIdentity, requestSessao } from '../identidade/auth.guard.js'
 import {
   InvariantException,
   ESTADOS_DO_PROFESSOR_ALOCAVEIS,
@@ -18,7 +18,7 @@ import {
   type MotivoDeEncerramentoDeVinculo,
   type PapelDeVinculo,
 } from '@educa/shared'
-import { and, asc, desc, eq, gt, inArray, isNotNull, ne, sql, type SQL } from 'drizzle-orm'
+import { and, asc, desc, eq, gt, inArray, isNotNull, ne, or, sql, type SQL } from 'drizzle-orm'
 
 export interface NovoVinculo {
   readonly usuarioId: string
@@ -217,6 +217,55 @@ export class VinculoRepository {
       .where(and(this.#escopo(), eq(vinculo.id, id), ne(vinculo.estado, 'encerrado')))
       .returning({ id: vinculo.id })
     return mudados.length === 1
+  }
+
+  /**
+   * A transferência pela planilha de alunos (F2, 9.0; Tech Spec do onboarding, seção 5, "Gravar"): encerra, com o `motivo`, o vínculo
+   * de aluno aberto de cada par (aluno, turma) no ano dado, e devolve o id e o estado de antes de cada um, para a auditoria
+   * `vinculo.encerrado`. É a escrita do `encerrar`, mas por aluno e turma e num ano que não é o do contexto (o planejado também
+   * recebe planilha), porque o `encerrar` da coordenação alcança só o vínculo de professor do ano em curso. Os vínculos são lidos
+   * com `FOR UPDATE`, em ordem de id (a decisão que chega no meio espera e o relê já encerrado). O aluno não gera acesso de turma
+   * (`acesso_turma.criado_por` é de professor), e por isso não há acesso a revogar. Menos vínculos que pares é diferença (o vínculo
+   * foi encerrado à mão, ou nunca existiu), e o motor fecha a importação `desatualizada`. Só aceita ano já conferido na escola: o
+   * `anoDeDestino` do motor, nunca um id vindo do cliente; a escola vem do contexto.
+   */
+  async encerrarDosAlunos(
+    anoLetivoId: string,
+    pares: ReadonlyArray<{ readonly usuarioId: string; readonly turmaId: string }>,
+    motivo: MotivoDeEncerramentoDeVinculo,
+  ): Promise<Array<{ readonly id: string; readonly estadoAntes: EstadoDeVinculo }>> {
+    if (pares.length === 0) return []
+    const escolaId = requireEscolaId()
+    const doPar = and(
+      eq(vinculo.escolaId, escolaId),
+      eq(vinculo.anoLetivoId, anoLetivoId),
+      eq(vinculo.papel, 'aluno'),
+      ne(vinculo.estado, 'encerrado'),
+      or(...pares.map(({ usuarioId, turmaId }) => and(eq(vinculo.usuarioId, usuarioId), eq(vinculo.turmaId, turmaId)))),
+    )
+    const abertos = await this.banco.select({ id: vinculo.id, estado: vinculo.estado }).from(vinculo).where(doPar).orderBy(asc(vinculo.id)).for('update')
+    if (abertos.length === 0) return []
+    await this.banco
+      .update(vinculo)
+      .set({ estado: 'encerrado', motivoEncerramento: motivo, encerradoEm: sql`now()` })
+      .where(and(eq(vinculo.escolaId, escolaId), inArray(vinculo.id, abertos.map((aberto) => aberto.id))))
+    return abertos.map((aberto) => ({ id: aberto.id, estadoAntes: aberto.estado }))
+  }
+
+  /**
+   * Os vínculos de aluno que a transferência pela planilha abre (F2, 9.0): nascem `confirmado`, sem disciplina, com `origem = lista`
+   * e a coordenação que gravou a planilha em `criado_por`, no ano dado. Um vínculo aberto do aluno na turma de destino viola o
+   * único (`vinculo_ativo_unico`, 23505), e o motor fecha a importação `desatualizada`. Só aceita ano já conferido na escola (o `anoDeDestino`
+   * do motor, nunca um id vindo do cliente); a escola vem do contexto.
+   */
+  async criarAlunosDaLista(anoLetivoId: string, alunos: ReadonlyArray<{ readonly usuarioId: string; readonly turmaId: string }>): Promise<Array<{ readonly id: string; readonly usuarioId: string }>> {
+    if (alunos.length === 0) return []
+    const escolaId = requireEscolaId()
+    const { usuarioId: criadoPor } = requestIdentity()
+    return this.banco
+      .insert(vinculo)
+      .values(alunos.map(({ usuarioId, turmaId }) => ({ escolaId, anoLetivoId, usuarioId, turmaId, disciplinaId: null, papel: 'aluno' as const, estado: 'confirmado' as const, origem: 'lista' as const, criadoPor, decididoEm: sql`now()` })))
+      .returning({ id: vinculo.id, usuarioId: vinculo.usuarioId })
   }
 
   /**

@@ -1419,7 +1419,7 @@ describe('arquitetura: o que a auditoria diz de outra pessoa não entra no arqui
    * rotina** assinam, mais `usuario.ativado_por_convite`, em que quem assina é a própria pessoa e o id é o dela. Ação nova com
    * `entidade: 'usuario'` obriga a quem a cria a ler este comentário e a decidir quem a assina.
    */
-  const COORDENACAO_OPERACAO_E_ROTINA = ['professor.cadastrado', 'usuario.desativado', 'usuario.eliminado', 'usuario.mfa_redefinicao_recusada', 'usuario.mfa_redefinido', 'usuario.nome_corrigido']
+  const COORDENACAO_OPERACAO_E_ROTINA = ['aluno.transferido', 'professor.cadastrado', 'usuario.desativado', 'usuario.eliminado', 'usuario.mfa_redefinicao_recusada', 'usuario.mfa_redefinido', 'usuario.nome_corrigido']
   const A_PROPRIA_PESSOA = ['usuario.ativado_por_convite']
 
   it('as ações sobre `usuario` são exatamente estas, e nenhuma é de professor ou aluno sobre outra pessoa', () => {

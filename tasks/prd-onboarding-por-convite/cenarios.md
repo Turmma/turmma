@@ -9,7 +9,7 @@ numa tarefa do `tasks.md`, que diz qual. I = integração com Postgres real e re
 
 - **RF2.**
   - [I] Gravar direto, sem prévia, com texto errado: `ENTRADA_INVALIDA` e nenhuma linha em `importacao_planilha`.
-  - [I] Marca fora dos candidatos: `ENTRADA_INVALIDA`.
+  - [I] Marca fora dos candidatos: `ENTRADA_INVALIDA`. A marca de candidato com a ação trocada (o id de quem sai da planilha marcado em `transferir`, por exemplo) também.
   - [U] Leitor: `;`, tab, UTF-16, BOM, windows-1252; notação científica no CSV é erro na linha.
   - [U] XLSX real na biblioteca real: `00123` em célula de texto chega `00123`; em célula numérica chega `123` e o
     comportamento está escrito no teste.
@@ -62,15 +62,17 @@ numa tarefa do `tasks.md`, que diz qual. I = integração com Postgres real e re
   - [I] Matrícula da escola B na planilha da A sai "entra", nunca "nome corrigido" com o nome da B.
 - **RF5.**
   - [I] Transferido: alcança a nova, não a antiga; a resposta de atividade continua presa à turma antiga.
-  - [I] Transferência e "sai da grade" passam pelo `encerrar`: o acesso da turma do último vínculo confirmado é revogado.
+  - [I] Transferência de aluno: o vínculo antigo é encerrado por `realocacao` pelo `encerrarDosAlunos`, que faz a mesma escrita do `encerrar`. Não há `acesso_turma` a revogar, porque o aluno não gera acesso.
+  - [I] "Sai da grade" (professor) passa pelo `encerrar`: o acesso da turma do último vínculo confirmado é revogado.
   - [I] Desligado não entra por matrícula, e as sessões caem (a conta da escola do aluno é da F2c).
   - [I] Nome não aprovado desligado sai da `lista_nome`, o pedido pendente fica `encerrada`, `lista_nome.retirado` sem nome.
   - [I] Transferido com pedido pendente: pedido `encerrada`, nome livre na turma nova.
+  - [I] A turma nova que só a linha "muda de turma" pede nasce só com a marca; sem a marca nada é criado. `transferidos` só aparece no `resumo` quando é maior que zero.
   - [P] Job de transferência contra o professor aprovando o pedido da mesma linha, uma parte parada no meio: nenhum aluno
     aprovado fica na turma antiga.
   - [P] Reivindicação parada no nome da turma antiga contra o passo (3) da transferência ou do desligamento: reivindicação
     recusada ou job `desatualizada`; nunca pedido pendente com o nome em outra turma ou com o nome nulo.
-  - [P] Aluno a transferir desativado à mão entre o passo (2) e o (3): `desatualizada`, sem vínculo novo.
+  - [P] Aluno a transferir desativado à mão entre o passo (2) e o (3): `desatualizada`, sem vínculo novo, a `lista_nome` intacta e os outros marcados intactos.
   - [P] Vínculo do aluno a transferir encerrado à mão entre o (2) e o (3): `desatualizada`, sem vínculo novo.
   - [P] Passo (3) corrigindo o nome e desligando X, com barreira, contra a coordenação desativando X e eliminando X: zero
     `40P01` na requisição; o job conclui, tenta de novo ou sai `desatualizada`. O espião no SQL confere a ordem global
@@ -236,6 +238,7 @@ Cada linha é um cenário [I]: a ação gera um registro com autor e data, e o r
 | `planilha.gravada` | o job conclui | tipo e contagens |
 | `usuario.nome_corrigido`, `lista.nome_corrigido` | nome corrigido | por aluno |
 | `aluno.transferido` | transferência | turmas de origem e destino |
+| `lista.transferida` | transferência do nome ainda não aprovado | turmas de origem e destino |
 | `lista_nome.retirado` | desligar não aprovado | — |
 | `usuario.desativado` | desligar | — |
 | `vinculo.criado`, `vinculo.encerrado` | grade e transferência | origem |

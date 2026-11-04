@@ -27,6 +27,7 @@ import {
   MOTIVOS_DE_ENCERRAMENTO_PELA_COORDENACAO,
   MOTIVOS_DE_SUSPENSAO,
   ORIGENS_DA_RETENCAO,
+  ORIGENS_DE_VINCULO,
   PAPEIS_DE_USUARIO,
   PAPEIS_DE_VINCULO,
   PAPEIS_DO_TITULAR,
@@ -278,8 +279,8 @@ export const ACOES_DE_AUDITORIA = {
     finalidade: null,
   },
   /**
-   * A coordenação criou o vínculo (9.0, RF3, RF19): de quem, em que turma e disciplina, com que papel. Nasce pendente.
-   * `entidadeId` é o vínculo.
+   * A coordenação criou o vínculo (9.0, RF3, RF19): de quem, em que turma e disciplina, com que papel. Nasce pendente. A planilha
+   * de alunos (F2, 9.0) abre o do aluno transferido já `confirmado` e diz a `origem` (`lista`). `entidadeId` é o vínculo.
    */
   'vinculo.criado': {
     entidade: 'vinculo',
@@ -289,7 +290,8 @@ export const ACOES_DE_AUDITORIA = {
       turmaId: z.uuid(),
       disciplinaId: z.uuid().nullable(),
       papel: z.enum(PAPEIS_DE_VINCULO),
-      estado: z.literal('pendente'),
+      estado: z.enum(['pendente', 'confirmado']),
+      origem: z.enum(ORIGENS_DE_VINCULO).optional(),
     }),
     finalidade: null,
   },
@@ -310,11 +312,11 @@ export const ACOES_DE_AUDITORIA = {
     depois: z.strictObject({ estado: z.literal('contestado'), contestacao: z.enum(CONTESTACOES_DE_VINCULO) }),
     finalidade: null,
   },
-  /** A coordenação encerrou o vínculo (9.0, RF5, RF19): o acesso cai na requisição seguinte. */
+  /** A coordenação encerrou o vínculo (9.0, RF5, RF19): o acesso cai na requisição seguinte. A planilha de alunos (F2, 9.0) o encerra por `realocacao` e diz a `origem` (`lista`). */
   'vinculo.encerrado': {
     entidade: 'vinculo',
     antes: z.strictObject({ estado: z.enum(ESTADOS_DE_VINCULO) }),
-    depois: z.strictObject({ estado: z.literal('encerrado'), motivo: z.enum(MOTIVOS_DE_ENCERRAMENTO_PELA_COORDENACAO) }),
+    depois: z.strictObject({ estado: z.literal('encerrado'), motivo: z.enum(MOTIVOS_DE_ENCERRAMENTO_PELA_COORDENACAO), origem: z.enum(ORIGENS_DE_VINCULO).optional() }),
     finalidade: null,
   },
   /**
@@ -401,6 +403,26 @@ export const ACOES_DE_AUDITORIA = {
     entidade: 'lista_nome',
     antes: null,
     depois: null,
+    finalidade: null,
+  },
+  /**
+   * A planilha de alunos passou o aluno aprovado de turma (F2, 9.0, RF5 e RF17): `entidadeId` é o usuário; `depois` leva só as duas
+   * turmas, a de origem e a de destino. Nunca o nome nem a matrícula. O autor é a coordenação que gravou a planilha e marcou a transferência.
+   */
+  'aluno.transferido': {
+    entidade: 'usuario',
+    antes: null,
+    depois: z.strictObject({ turmaOrigemId: z.uuid(), turmaDestinoId: z.uuid() }),
+    finalidade: null,
+  },
+  /**
+   * A planilha de alunos passou de turma o nome de quem ainda não foi aprovado (F2, 9.0, RF5 e RF17): `entidadeId` é a linha da lista,
+   * que volta `livre` na turma nova (o pedido pendente dela, se havia, é encerrado sem decisão). Só as duas turmas; nunca o nome.
+   */
+  'lista.transferida': {
+    entidade: 'lista_nome',
+    antes: null,
+    depois: z.strictObject({ turmaOrigemId: z.uuid(), turmaDestinoId: z.uuid() }),
     finalidade: null,
   },
   /**

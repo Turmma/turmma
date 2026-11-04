@@ -2634,14 +2634,26 @@ repetem aqui.
       anexar o `EXPLAIN` com 3.000 linhas ou trocar por duas consultas unidas (custo medido como limitado: milhares de linhas por escola e ano)
 - [ ] Da 9.0, da 10.0 e da 13.0 (conformidade-reviewer, 1ª): os candidatos a `transferir` e `desligar` chegam à tela desmarcados, sem "marcar todos" vindo marcado, e com teste de que gravar
       sem marca não muda ninguém; na 13.0, o rótulo diz que é conferência feita a partir da planilha
-- [ ] Da 9.0 e da 10.0 (revisor-geral, 1ª): o gravar aceita `marcas.transferir` e `marcas.desligar` e o job conclui sem efeito até lá; a spec não pousa com a marca sem efeito (9.0 e 10.0
-      ficam antes do pouso)
+- [ ] Da 9.0 e da 10.0 (revisor-geral, 1ª): o gravar aceita `marcas.transferir` e `marcas.desligar` e o job conclui sem efeito até lá; a spec não pousa com a marca sem efeito (a `transferir` ganhou efeito na 9.0;
+      a 10.0 fica antes do pouso por causa da `desligar`)
 - [ ] Do `ImportacaoRepository.corrigirNomesDosAlunos` (revisor-geral e test-engineer, 2ª), junto da linha acima que o move para o repository de `usuario`: reescrever o comentário e o motivo (6) da 8.0
       dizendo que as cláusulas de `usuario` dependem de `travarUsuarios` vir antes da releitura, e a brecha ABA (aluno lido como "já existe" e renomeado de volta antes da releitura), ou travar
       também os aprovados de "já existe" (muda a ordem das travas do passo (3))
 - [ ] Da spec do onboarding (revisor-geral, 2ª): escrever na `techspec.md` §4 e na tabela "Limites" do `cenarios.md` que as duas rotas da lista têm o mesmo limite de 20 por minuto por
       usuário de `/v1/importacoes` e ocupam as duas vagas da escola (já provado em `lista.int.test.ts`); é do Arquiteto, na revisão da spec ou na retro
 - [ ] Da 9.0 (tenancy-guardian, 2ª): o caso de isolamento da prévia em `gravar-planilha-alunos.int.test.ts` chama `motor.previa` direto; refazê-lo pela rota `/v1/importacoes/alunos/previa` com o
-      token da escola A, quando a 9.0 mexer na rota e no motor da marca
+      token da escola A, quando a 9.0 mexer na rota e no motor da marca (a 9.0 mexeu só no motor da marca, e provou a marca de outra escola em `transferencia-pela-planilha.int.test.ts`; a rota segue sem o caso)
+- [ ] Da 9.0 (revisor-geral, 2ª): ajustar o texto do `9_task.md` (Objetivo, subtarefas 9.1 e 9.3 e a linha da tabela de testes do `encerrar`) e o da `techspec.md` §5 ("`encerrar` que devolve `false`"):
+      a transferência passa por `encerrarDosAlunos`, sem acesso a revogar, e a diferença vem da contagem; a tabela "Divergências resolvidas" e o `cenarios.md` já dizem o que vale (retrospectiva da spec)
+- [ ] Da 9.0 (revisor-geral e test-engineer, 2ª): `transferencia-pela-planilha.int.test.ts` importa o `DecisaoService` de `apps/api` (se ele subir para `packages/core`, o import vai junto); o `rollback` do `finally`
+      dos auxiliares roda depois de um `commit` que deu certo (inofensivo, o Postgres avisa); no caso do job parado depois de encerrar o pedido, asserir que a 8A não tem vínculo novo e comentar que o
+      `Promise.all` garante zero `40P01`; comentar que a mutação do `doPar` só é pega pela contagem devolvida (`vinculos: 0`); dizer nos dois blocos de `eq(reivindicacao.escolaId, …)` que são a mesma linha por dois caminhos
+- [ ] Da 9.0 (tenancy-guardian, 1ª): `fechar({ listaNomeIds }, 'encerrada')` sem `anoLetivoId` no `where` (muda o contrato; a 10.0 chama o `fechar` pelos mesmos nomes); e a sobrecarga do `fechar` (decidir e encerrar num método só) e o
+      `?? ''` do `vinculo.criado` (`alunos.ts`), que esconde uma invariante (revisor-geral, 1ª)
+- [ ] Da 9.0 (revisor-geral, 1ª): unificar `encerrarDosAlunos` com `CicloDeVidaRepository.encerrarVinculosDaPessoa` (retrospectiva da spec); (privacy-guardian, 1ª) `lista.transferida` com `entidade: 'lista_nome'` não entra no arquivo do
+      titular que aprovar o nome depois (como `lista.nome_corrigido`; pergunta para a retrospectiva)
+- [ ] Da 9.0 (infra-guardian, 1ª), para a 16.0: auditoria linha por linha no passo (3) com as turmas travadas (gravar em lote só se a medida do `importacao-7h30.js` passar de 1 s); `EXPLAIN` do `or()` com 500 pares em
+      `vinculo_usuario_idx`; o caso dos 501 transferidos não mede a duração do passo (3). (test-engineer, 1ª) duas tentativas do mesmo job de transferência em paralelo (D49), teste novo com a barreira
+- [ ] Da 9.0 (conformidade-reviewer, 1ª), para a 10.0 ou a 13.0: provar que a sessão de tutor aberta na turma antiga deixa de ser alcançável pelo aluno transferido e que registro e resumo seguem visíveis ao professor da turma antiga
 - [ ] Do teste `[P] duas vagas da escola ocupadas` de `lista.int.test.ts` (test-engineer, 2ª): o título sugere chamadas em paralelo e o teste ocupa as vagas pelo `SchoolSemaphore`; renomear
 - [ ] De `turma.alunos_lidos` em `importacao-alunos.int.test.ts` (privacy-guardian, 2ª): procurar também a matrícula das duas linhas no registro, além do nome

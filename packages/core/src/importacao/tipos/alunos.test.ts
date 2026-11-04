@@ -147,15 +147,17 @@ describe('classificar, a reimportação pela matrícula (F2, 8.0, RF4)', () => {
     const lidas = [lida(2, '8A', 'Ana Nome Novo', 'm1'), lida(3, '9C', 'Bia', 'm2'), lida(4, '8B', 'Carla', 'm3')]
     const achados = alunos([naLista('l1', 'm1', 'Ana Souza', 't2')], [aprovado('u2', 'm2', 'Bia Lima', 't1')])
 
-    const { linhas, novas, candidatos, resumo } = classificar(ANO, lidas, [t1, t2], emUso('m1', 'm2'), achados)
+    const { linhas, novas, novasDeTransferencia, candidatos, resumo } = classificar(ANO, lidas, [t1, t2], emUso('m1', 'm2'), achados)
 
     expect(linhas.map((l) => l.resultado)).toEqual(['muda_de_turma', 'muda_de_turma', 'entra'])
     expect(novas).toEqual([])
+    // A turma que só a linha "muda de turma" pede só nasce se a coordenação marcar a transferência (planoDe, 9.0).
+    expect(novasDeTransferencia).toEqual([{ chave: '9c', nome: '9C', serie: { etapa: 'ef_anos_finais', ano: 9 } }])
     expect(candidatos.filter((c) => c.acao === 'transferir')).toEqual([
       { id: 'l1', acao: 'transferir', rotulo: 'Ana Souza (m1)', turmaId: 't2' },
       { id: 'u2', acao: 'transferir', rotulo: 'Bia Lima (m2)', turmaId: 't1' },
     ])
-    // Mudar de turma não corrige o nome junto: o nome só muda com a marca (9.0).
+    // Mudar de turma não corrige o nome junto, nem com a marca: a transferência leva a pessoa, e o nome é outra decisão da coordenação.
     expect(resumo).toEqual({ entram: 1, ja_existem: 0, turmas_novas: 0 })
   })
 
@@ -269,10 +271,10 @@ describe('o plano da reimportação: a escrita condicional que muda menos linhas
 
   /** A gravação que diz ter mudado `mudadasNaLista` linhas da lista e `mudadosAlunos` alunos. */
   const gravacaoQueMuda = (mudadasNaLista: number, mudadosAlunos: number) =>
-    ({ corrigirNomesNaLista: () => Promise.resolve(mudadasNaLista), corrigirNomesDosAlunos: () => Promise.resolve(mudadosAlunos), seriesDaEscola: () => Promise.resolve([]), inserirNomes: () => Promise.resolve() }) as unknown as ImportacaoRepository
+    ({ corrigirNomesNaLista: () => Promise.resolve(mudadasNaLista), corrigirNomesDosAlunos: () => Promise.resolve(mudadosAlunos), seriesDaEscola: () => Promise.resolve([]), inserirNomes: () => Promise.resolve(), encerrarPedidosDosNomes: () => Promise.resolve(), transferirNomes: () => Promise.resolve(0), encerrarVinculosDosAlunos: () => Promise.resolve([]), criarVinculosDosAlunos: () => Promise.resolve([]), transferirAprovados: () => Promise.resolve(0) }) as unknown as ImportacaoRepository
 
   async function aplicar(comAprovado: boolean, mudadasNaLista: number, mudadosAlunos: number) {
-    const plano = await tipoAlunos.planejar?.(leitura(comAprovado), { id: ANO } as never, guardado)
+    const plano = await tipoAlunos.planejar?.(leitura(comAprovado), { id: ANO } as never, guardado, { transferir: [], desligar: [], encerrar: [] })
     if (plano === undefined) throw new Error('sem plano')
     await plano.aplicar(gravacaoQueMuda(mudadasNaLista, mudadosAlunos), { tx: {} as never, ciclo: {} as never })
   }

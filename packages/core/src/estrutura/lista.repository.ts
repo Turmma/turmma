@@ -45,6 +45,21 @@ export interface CorrecaoDeNomeNaLista {
   readonly nome: string
 }
 
+/** Um nome ainda não aprovado a passar de turma: o `estado` e a turma lidos são a condição da escrita. */
+export interface TransferenciaDeNome {
+  readonly id: string
+  readonly estadoLido: 'livre' | 'reivindicado'
+  readonly turmaLidaId: string
+  readonly turmaId: string
+}
+
+/** O nome do aluno aprovado a passar de turma: a linha dele é a `aprovado` do usuário, na turma lida. */
+export interface TransferenciaDeAprovado {
+  readonly usuarioId: string
+  readonly turmaLidaId: string
+  readonly turmaId: string
+}
+
 const colunas = { id: listaNome.id, nome: listaNome.nome, matricula: listaNome.matricula, estado: listaNome.estado }
 
 /** A matrícula como o índice único a guarda: é por ela que a busca usa o índice `(escola_id, ano_letivo_id, btrim)`. */
@@ -149,6 +164,40 @@ export class ListaRepository {
       where l.escola_id = ${requireEscolaId()} and l.ano_letivo_id = ${anoLetivoId} and l.id = v.id and l.estado = v.estado and l.estado <> 'aprovado'
       returning l.id`)
     return corrigidas.rows.length
+  }
+
+  /**
+   * Passa de turma, em lote, o nome de quem ainda não foi aprovado (F2, 9.0; Tech Spec do onboarding, seção 5, "Gravar"): a linha vai
+   * à turma de destino e fica `livre` (o `reivindicado` perde o pedido, que `DecisaoRepository.fechar(…, 'encerrada')` já fechou). A
+   * escrita é condicional ao que a planilha leu: o `estado` e a turma da linha. Uma reivindicação que tomou o nome entre a prévia e o
+   * passo (3) o deixou `reivindicado`, e a linha não é mexida. Devolve quantas mudou; menos que as pedidas é diferença, e o motor fecha a
+   * importação `desatualizada`. O `anoLetivoId` só pode ser um ano já conferido na escola, o `anoDeDestino` ou o `anoPorId` do motor, nunca um id vindo do cliente.
+   */
+  async transferirNomes(anoLetivoId: string, transferencias: readonly TransferenciaDeNome[]): Promise<number> {
+    if (transferencias.length === 0) return 0
+    const valores = sql.join(transferencias.map(({ id, estadoLido, turmaLidaId, turmaId }) => sql`(${id}::uuid, ${estadoLido}, ${turmaLidaId}::uuid, ${turmaId}::uuid)`), sql`, `)
+    const movidas = await this.banco.execute(sql`
+      update lista_nome as l set turma_id = v.turma_id, estado = 'livre'
+      from (values ${valores}) as v(id, estado_lido, turma_lida_id, turma_id)
+      where l.escola_id = ${requireEscolaId()} and l.ano_letivo_id = ${anoLetivoId} and l.id = v.id and l.estado = v.estado_lido and l.turma_id = v.turma_lida_id
+      returning l.id`)
+    return movidas.rows.length
+  }
+
+  /**
+   * Passa de turma, em lote, a linha `aprovado` de cada aluno (F2, 9.0): ela guarda só o estado e o usuário, e acompanha o aluno à
+   * turma nova (a lista da turma e a virada do ano a leem). Condicional à turma que a planilha leu; menos linhas mudadas que pedidas é
+   * diferença. O usuário foi travado antes (`travarUsuarios`). Só aceita ano já conferido na escola (o do motor), nunca um id vindo do cliente.
+   */
+  async transferirAprovados(anoLetivoId: string, transferencias: readonly TransferenciaDeAprovado[]): Promise<number> {
+    if (transferencias.length === 0) return 0
+    const valores = sql.join(transferencias.map(({ usuarioId, turmaLidaId, turmaId }) => sql`(${usuarioId}::uuid, ${turmaLidaId}::uuid, ${turmaId}::uuid)`), sql`, `)
+    const movidas = await this.banco.execute(sql`
+      update lista_nome as l set turma_id = v.turma_id
+      from (values ${valores}) as v(usuario_id, turma_lida_id, turma_id)
+      where l.escola_id = ${requireEscolaId()} and l.ano_letivo_id = ${anoLetivoId} and l.usuario_id = v.usuario_id and l.estado = 'aprovado' and l.turma_id = v.turma_lida_id
+      returning l.id`)
+    return movidas.rows.length
   }
 
   /**

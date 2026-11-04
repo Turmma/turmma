@@ -62,11 +62,12 @@ export interface TipoDeImportacao extends TipoBase {
   previa(repositorio: ImportacaoRepository, ano: AnoDeDestino, texto: string): Promise<PreviaDoTipo>
   /**
    * A trava do passo (3) que o tipo pede depois do ano e antes de o `planejar` ler (a planilha de alunos trava as turmas que as
-   * linhas tocam, em ordem de id e num comando, na ordem global da Tech Spec, seção 5). O calendário não tem.
+   * linhas tocam e as de origem de cada transferência marcada, em ordem de id e num comando, na ordem global da Tech Spec, seção 5).
+   * O calendário não tem. As `marcas` são as da coordenação, validadas contra os candidatos pelo gravar.
    */
-  travar?(repositorio: ImportacaoRepository, ano: AnoDeDestino, guardado: unknown): Promise<void>
+  travar?(repositorio: ImportacaoRepository, ano: AnoDeDestino, guardado: unknown, marcas: MarcasDaPlanilha): Promise<void>
   /** `undefined` quando o que o gravar guardou não tem a forma do tipo: o job falha de vez, sem repetir. */
-  planejar(repositorio: ImportacaoRepository, ano: AnoDeDestino, guardado: unknown): Promise<PlanoDaImportacao | undefined>
+  planejar(repositorio: ImportacaoRepository, ano: AnoDeDestino, guardado: unknown, marcas: MarcasDaPlanilha): Promise<PlanoDaImportacao | undefined>
   /**
    * A prévia da lista de uma turma (A1, 8.0): as mesmas linhas, o mesmo gravar e o mesmo job, com a turma já dada em vez de achada
    * pelo nome. Só a planilha de alunos a tem. A turma que não é da escola e do ano de destino é `NAO_ENCONTRADO`.

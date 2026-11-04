@@ -30,6 +30,9 @@ export interface PedidoTravado {
   readonly senhaHash: string
 }
 
+/** Os pedidos `pendente` que `fechar(…, 'encerrada')` fecha: os dos nomes dados, ou todos os de um ano. */
+export type PedidosParaEncerrar = { readonly listaNomeIds: readonly string[] } | { readonly anoLetivoId: string }
+
 /** O nome e a matrícula da linha da lista do pedido, que a aprovação leva ao usuário e à credencial. */
 export interface NomeDoPedido {
   readonly nome: string
@@ -159,8 +162,30 @@ export class DecisaoRepository {
    * Fecha o pedido que `travarPendente` travou nesta transação: o estado, quando, quem e como decidiu, e o hash, a chave e
    * a marca de matrícula errada apagados na mesma escrita (check `reivindicacao_segredo_so_pendente`; `docs/lgpd.md`). A
    * escola do contexto é a segunda camada: o id já veio da linha travada.
+   *
+   * Com `'encerrada'` (F2, 9.0; Tech Spec do onboarding, seção 5, "Gravar"), fecha os pedidos `pendente` dos nomes dados, ou do ano
+   * dado, **sem decisão**: grava só o estado e anula os segredos, e `decidida_em`, `decidida_por` e `decidida_como` ficam nulos
+   * (regra 70, item 2: encerrar não é decidir). É a mesma escrita da transferência pela planilha e da virada do ano (`virarSala`).
+   * Só o `pendente` é fechado, nunca o pedido que já foi aprovado, recusado ou encerrado; devolve os ids fechados. Quem chama passa um
+   * ano já conferido na escola (o `anoDeDestino` do motor, ou o ano que a virada acabou de encerrar), nunca um id vindo do cliente.
    */
-  async fechar(id: string, estado: 'aprovada' | 'recusada', decididaComo: DecisorDaReivindicacao): Promise<void> {
+  async fechar(id: string, estado: 'aprovada' | 'recusada', decididaComo: DecisorDaReivindicacao): Promise<void>
+  async fechar(onde: PedidosParaEncerrar, estado: 'encerrada'): Promise<string[]>
+  async fechar(alvo: string | PedidosParaEncerrar, estado: 'aprovada' | 'recusada' | 'encerrada', decididaComo?: DecisorDaReivindicacao): Promise<string[] | void> {
+    if (typeof alvo !== 'string') {
+      const fechados = await this.banco
+        .update(reivindicacao)
+        .set({ estado: 'encerrada', senhaHash: null, chaveEnvio: null, teveMatriculaErrada: null })
+        .where(
+          and(
+            eq(reivindicacao.escolaId, requireEscolaId()),
+            eq(reivindicacao.estado, 'pendente'),
+            'anoLetivoId' in alvo ? eq(reivindicacao.anoLetivoId, alvo.anoLetivoId) : inArray(reivindicacao.listaNomeId, [...alvo.listaNomeIds]),
+          ),
+        )
+        .returning({ id: reivindicacao.id })
+      return fechados.map((fechado) => fechado.id)
+    }
     await this.banco
       .update(reivindicacao)
       .set({
@@ -172,7 +197,8 @@ export class DecisaoRepository {
         chaveEnvio: null,
         teveMatriculaErrada: null,
       })
-      .where(and(eq(reivindicacao.escolaId, requireEscolaId()), eq(reivindicacao.id, id)))
+      .where(and(eq(reivindicacao.escolaId, requireEscolaId()), eq(reivindicacao.id, alvo)))
+    return undefined
   }
 
   /**

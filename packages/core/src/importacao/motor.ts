@@ -94,9 +94,10 @@ export class MotorDePlanilha {
   async gravar(tipo: TipoDePlanilha, pedido: GravarPlanilhaRequest, daLista?: DaLista): Promise<{ readonly id: string }> {
     const { ano, previa } = await this.preparar(tipo, pedido, daLista)
     if (previa.linhas.some((linha) => linha.resultado === 'erro')) throw new DomainException(ErrorCode.ENTRADA_INVALIDA)
-    const candidatos = new Set(previa.candidatos.map((candidato) => candidato.id))
-    const marcadas = [...pedido.marcas.transferir, ...pedido.marcas.desligar, ...pedido.marcas.encerrar]
-    if (marcadas.some((id) => !candidatos.has(id))) throw new DomainException(ErrorCode.ENTRADA_INVALIDA)
+    // Cada marca vale para a ação do candidato: o id de quem sai da planilha, marcado em `transferir`, não transfere nem desliga ninguém.
+    const candidatos = new Set(previa.candidatos.map((candidato) => `${candidato.acao}:${candidato.id}`))
+    const marcadas = [...pedido.marcas.transferir.map((id) => `transferir:${id}`), ...pedido.marcas.desligar.map((id) => `desligar:${id}`), ...pedido.marcas.encerrar.map((id) => `encerrar:${id}`)]
+    if (marcadas.some((marca) => !candidatos.has(marca))) throw new DomainException(ErrorCode.ENTRADA_INVALIDA)
     // Já há `na_fila` na escola: o único parcial viola `23505`, que o filtro global de erros responde como `CONFLITO`.
     return this.banco.transaction(async (tx) => {
       const importacoes = new ImportacaoRepository(tx)
@@ -219,7 +220,7 @@ async function passo2(repositorio: ImportacaoRepository, alvo: Alvo, linhas: unk
   if (tipo.usaAno) {
     const ano = anoLetivoId === null ? undefined : await repositorio.anoPorId(anoLetivoId)
     if (ano === undefined || ano.situacao === 'encerrado') return false
-    const vista = await tipo.planejar(repositorio, ano, linhas)
+    const vista = await tipo.planejar(repositorio, ano, linhas, marcas)
     if (vista === undefined) throw new ImportacaoIlegivelError()
     return vista.assinatura === assinatura
   }
@@ -271,8 +272,8 @@ async function planejarSobTrava(gravacao: ImportacaoRepository, tx: DatabaseTran
   }
   const ano = anoLetivoId === null ? undefined : await gravacao.anoPorId(anoLetivoId, true)
   if (ano === undefined || ano.situacao === 'encerrado') return 'encerrado'
-  await tipo.travar?.(gravacao, ano, linhas)
-  const plano = await tipo.planejar(gravacao, ano, linhas)
+  await tipo.travar?.(gravacao, ano, linhas, marcas)
+  const plano = await tipo.planejar(gravacao, ano, linhas, marcas)
   if (plano === undefined) throw new ImportacaoIlegivelError()
   return plano
 }

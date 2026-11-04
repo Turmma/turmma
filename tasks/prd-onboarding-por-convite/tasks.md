@@ -66,7 +66,7 @@ cenários foram distribuídos pelo `test-engineer`; cada linha do `cenarios.md` 
   - [ ] 8.4 `lista.int.test.ts` reescrito onde a regra muda
   - [ ] 8.5 Testes: corridas com a aprovação
 
-- [ ] **9.0 — A coordenação transfere o aluno pela planilha, e o pedido pendente se encerra**
+- [x] **9.0 — A coordenação transfere o aluno pela planilha, e o pedido pendente se encerra**
   - [ ] 9.1 Transferência pelo `encerrar`
   - [ ] 9.2 `fechar('encerrada')`, também no `virarSala`
   - [ ] 9.3 Escrita condicional e `desatualizada`

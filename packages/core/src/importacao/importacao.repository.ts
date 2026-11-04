@@ -1,4 +1,4 @@
-import { ErrorCode, InvariantException, type CriarSerieRequest, type EstadoDoProfessor, type Serie, type ErroDaImportacao, type EstadoDaImportacao, type ResumoDaImportacao, type TipoDeEventoDoCalendario, type TipoDePlanilha } from '@educa/shared'
+import { ErrorCode, InvariantException, type CriarSerieRequest, type EstadoDeVinculo, type EstadoDoProfessor, type MotivoDeEncerramentoDeVinculo, type Serie, type ErroDaImportacao, type EstadoDaImportacao, type ResumoDaImportacao, type TipoDeEventoDoCalendario, type TipoDePlanilha } from '@educa/shared'
 import { and, asc, desc, eq, inArray, lt, sql } from 'drizzle-orm'
 import { estadoDoProfessor, type UltimoConviteDoProfessor } from '../convite/estado-do-professor.js'
 import { requireAnoEmCurso } from '../context/ano-em-curso.js'
@@ -14,9 +14,10 @@ import { DomainException } from '../error/domain.exception.js'
 import { postgresErrorIn } from '../error/summarize-error.js'
 import { requestIdentity } from '../identidade/auth.guard.js'
 import { DecisaoRepository } from '../estrutura/decisao.repository.js'
-import { ListaRepository, type AlunosParaReimportar, type CorrecaoDeNomeNaLista } from '../estrutura/lista.repository.js'
+import { ListaRepository, type AlunosParaReimportar, type CorrecaoDeNomeNaLista, type TransferenciaDeAprovado, type TransferenciaDeNome } from '../estrutura/lista.repository.js'
 import { SerieRepository } from '../estrutura/serie.repository.js'
 import { TurmaRepository, type TurmaDoAno } from '../estrutura/turma.repository.js'
+import { VinculoRepository } from '../estrutura/vinculo.repository.js'
 
 /** O ano em que a planilha grava: o em curso da sessão, ou o planejado que a coordenação escolheu. */
 export interface AnoDeDestino {
@@ -385,6 +386,57 @@ export class ImportacaoRepository {
       corrigidos += mudados.rows.length
     }
     return corrigidos
+  }
+
+  /**
+   * Fecha, sem decisão, os pedidos `pendente` desses nomes (planilha de alunos, 9.0): o nome `reivindicado` que a transferência leva à
+   * turma nova volta `livre`, e o pedido que o prendia à turma antiga é `encerrada`, pela mesma função da virada do ano. Em lotes de
+   * `TAMANHO_DO_LOTE`; os pedidos já foram travados no passo (3) (`travarPedidosPendentes`).
+   */
+  async encerrarPedidosDosNomes(listaNomeIds: readonly string[]): Promise<void> {
+    requireEscolaId()
+    const decisao = new DecisaoRepository(this.banco)
+    for (let inicio = 0; inicio < listaNomeIds.length; inicio += TAMANHO_DO_LOTE) await decisao.fechar({ listaNomeIds: listaNomeIds.slice(inicio, inicio + TAMANHO_DO_LOTE) }, 'encerrada')
+  }
+
+  /** Passa de turma os nomes ainda não aprovados, em lotes de `TAMANHO_DO_LOTE`; devolve quantos mudaram (menos que os pedidos é diferença). */
+  async transferirNomes(anoLetivoId: string, transferencias: readonly TransferenciaDeNome[]): Promise<number> {
+    requireEscolaId()
+    const lista = new ListaRepository(this.banco)
+    let movidos = 0
+    for (let inicio = 0; inicio < transferencias.length; inicio += TAMANHO_DO_LOTE) movidos += await lista.transferirNomes(anoLetivoId, transferencias.slice(inicio, inicio + TAMANHO_DO_LOTE))
+    return movidos
+  }
+
+  /** Passa de turma a linha `aprovado` de cada aluno, em lotes; devolve quantas mudaram. */
+  async transferirAprovados(anoLetivoId: string, transferencias: readonly TransferenciaDeAprovado[]): Promise<number> {
+    requireEscolaId()
+    const lista = new ListaRepository(this.banco)
+    let movidos = 0
+    for (let inicio = 0; inicio < transferencias.length; inicio += TAMANHO_DO_LOTE) movidos += await lista.transferirAprovados(anoLetivoId, transferencias.slice(inicio, inicio + TAMANHO_DO_LOTE))
+    return movidos
+  }
+
+  /** Encerra o vínculo de aluno de cada par (aluno, turma) no ano, em lotes; devolve o que encerrou, com o estado de antes. */
+  async encerrarVinculosDosAlunos(
+    anoLetivoId: string,
+    pares: ReadonlyArray<{ readonly usuarioId: string; readonly turmaId: string }>,
+    motivo: MotivoDeEncerramentoDeVinculo,
+  ): Promise<Array<{ readonly id: string; readonly estadoAntes: EstadoDeVinculo }>> {
+    requireEscolaId()
+    const vinculos = new VinculoRepository(this.banco)
+    const encerrados: Array<{ readonly id: string; readonly estadoAntes: EstadoDeVinculo }> = []
+    for (let inicio = 0; inicio < pares.length; inicio += TAMANHO_DO_LOTE) encerrados.push(...(await vinculos.encerrarDosAlunos(anoLetivoId, pares.slice(inicio, inicio + TAMANHO_DO_LOTE), motivo)))
+    return encerrados
+  }
+
+  /** Abre o vínculo confirmado de cada aluno na turma nova, em lotes, com a coordenação que gravou a planilha como autora. */
+  async criarVinculosDosAlunos(anoLetivoId: string, alunos: ReadonlyArray<{ readonly usuarioId: string; readonly turmaId: string }>): Promise<Array<{ readonly id: string; readonly usuarioId: string }>> {
+    requireEscolaId()
+    const vinculos = new VinculoRepository(this.banco)
+    const criados: Array<{ readonly id: string; readonly usuarioId: string }> = []
+    for (let inicio = 0; inicio < alunos.length; inicio += TAMANHO_DO_LOTE) criados.push(...(await vinculos.criarAlunosDaLista(anoLetivoId, alunos.slice(inicio, inicio + TAMANHO_DO_LOTE))))
+    return criados
   }
 
   /** As séries da escola, numa consulta só. */

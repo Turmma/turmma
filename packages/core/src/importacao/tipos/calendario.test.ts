@@ -106,23 +106,25 @@ describe('tipoCalendario.previa', () => {
   })
 })
 
+const SEM_MARCAS = { transferir: [], desligar: [], encerrar: [] }
+
 describe('tipoCalendario.planejar', () => {
   it('refaz o plano do que a prévia guardou, com a mesma assinatura se o ano não mudou', async () => {
     const lida = await previa('2026-04-21;2026-04-21;feriado;Tiradentes')
-    const plano = await tipoCalendario.planejar(repositorioCom([]), ANO, lida.guardado)
+    const plano = await tipoCalendario.planejar(repositorioCom([]), ANO, lida.guardado, SEM_MARCAS)
     expect(plano?.assinatura).toBe(lida.assinatura)
     expect(plano?.resumo).toEqual({ entram: 1, ja_existem: 0, eventos_removidos: 0 })
-    const outroEstado = await tipoCalendario.planejar(repositorioCom([evento('1', '2026-05-01', 'Trabalho')]), ANO, lida.guardado)
+    const outroEstado = await tipoCalendario.planejar(repositorioCom([evento('1', '2026-05-01', 'Trabalho')]), ANO, lida.guardado, SEM_MARCAS)
     expect(outroEstado?.assinatura).not.toBe(lida.assinatura)
   })
 
   it('o que foi guardado fora da forma (chave a mais, tipo fora da lista, data torta, descrição vazia, não é lista) não tem plano', async () => {
     const boa = { tipo: 'feriado', inicio: '2026-04-21', fim: '2026-04-21', descricao: 'Tiradentes' }
     for (const guardado of [{ ...boa, extra: 1 }, { ...boa, tipo: 'ferias' }, { ...boa, inicio: '21/04/2026' }, { ...boa, descricao: '' }, { ...boa, descricao: 'x'.repeat(121) }]) {
-      expect(await tipoCalendario.planejar(repositorioCom([]), ANO, [guardado]), JSON.stringify(guardado)).toBeUndefined()
+      expect(await tipoCalendario.planejar(repositorioCom([]), ANO, [guardado], SEM_MARCAS), JSON.stringify(guardado)).toBeUndefined()
     }
-    expect(await tipoCalendario.planejar(repositorioCom([]), ANO, boa)).toBeUndefined()
-    expect(await tipoCalendario.planejar(repositorioCom([]), ANO, null)).toBeUndefined()
+    expect(await tipoCalendario.planejar(repositorioCom([]), ANO, boa, SEM_MARCAS)).toBeUndefined()
+    expect(await tipoCalendario.planejar(repositorioCom([]), ANO, null, SEM_MARCAS)).toBeUndefined()
   })
 
   it('`aplicar` apaga o que sai antes de inserir o que entra, e só escreve o que o plano disse', async () => {
@@ -132,7 +134,7 @@ describe('tipoCalendario.planejar', () => {
       inserirEventos: (_ano: string, eventos: readonly { descricao: string }[]) => Promise.resolve(void chamadas.push(`inserir ${eventos.map((e) => e.descricao).join(',')}`)),
     } as unknown as ImportacaoRepository
     const guardado = [{ tipo: 'feriado', inicio: '2026-04-21', fim: '2026-04-21', descricao: 'Tiradentes' }]
-    const plano = await tipoCalendario.planejar(repositorioCom([evento('7', '2026-05-01', 'Trabalho')]), ANO, guardado)
+    const plano = await tipoCalendario.planejar(repositorioCom([evento('7', '2026-05-01', 'Trabalho')]), ANO, guardado, SEM_MARCAS)
     // O calendário só escreve pelo repository: a transação e o ciclo de vida do ambiente são de quem desativa pessoa.
     await plano?.aplicar(gravacao, {} as unknown as AmbienteDaGravacao)
     expect(chamadas).toEqual(['apagar 7', 'inserir Tiradentes'])

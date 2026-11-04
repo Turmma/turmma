@@ -11,6 +11,7 @@ import {
   type CandidatoDaMarca,
   type CriarSerieRequest,
   type Etapa,
+  type MarcasDaPlanilha,
   type PreviaDaPlanilhaRow,
   type ResumoDaImportacao,
 } from '@educa/shared'
@@ -33,7 +34,9 @@ import type { PlanoDaImportacao, PreviaDoTipo, TipoDeImportacao } from '../tipo.
  *
  * - **Reimportar atualiza sem duplicar, pela matrícula (8.0).** A matrícula que a escola já tem neste ano diz o que a linha faria:
  *   "já existe" (mesmo nome, mesma turma), "nome corrigido" (mesma turma, outro nome: o do aprovado vai ao `usuario.nome`, o do não
- *   aprovado à `lista_nome`) ou "muda de turma" (outra turma: só candidato a marca, sem efeito até a 9.0). O aluno da turma que a
+ *   aprovado à `lista_nome`) ou "muda de turma" (outra turma: candidato a marca; com a marca da coordenação, a transferência da 9.0:
+ *   o vínculo antigo é encerrado por `realocacao`, o novo nasce confirmado, a linha da lista vai à turma nova e o pedido pendente é
+ *   encerrado sem decisão; o trabalho feito fica na turma antiga). O aluno da turma que a
  *   planilha cita e que ela não traz é candidato a "fora da planilha" (marca de desligar, sem efeito até a 10.0): só os das turmas
  *   citadas, para a planilha de uma série não oferecer a escola inteira. Sem marca nada muda, a não ser o nome corrigido.
  * - **A lista de uma turma (A1) é a mesma planilha com a turma dada** (`previaDaLista`): as linhas vêm do formato da A1, sem coluna
@@ -127,6 +130,8 @@ interface CandidatoLido extends CandidatoDaMarca {
 interface Classificacao {
   readonly linhas: readonly ClassificadaRow[]
   readonly novas: readonly TurmaNova[]
+  /** As turmas que só uma linha "muda de turma" pede: nascem se, e só se, a coordenação marcou uma transferência para elas. */
+  readonly novasDeTransferencia: readonly TurmaNova[]
   readonly candidatos: readonly CandidatoLido[]
   readonly resumo: ResumoDaImportacao
   readonly assinatura: string
@@ -275,6 +280,7 @@ export function classificar(
   const aprovados = new Map(alunos.aprovados.map((aluno) => [aluno.matricula, aluno]))
   const doTexto = errosDoTexto(lidas)
   const novasPorChave = new Map<string, TurmaNova>()
+  const daTransferenciaPorChave = new Map<string, TurmaNova>()
   const linhas = lidas.map((lida, posicao): ClassificadaRow => {
     const { linha, turma, nome, matricula } = lida
     const erroDoTexto = doTexto[posicao]
@@ -282,18 +288,23 @@ export function classificar(
     const destino = destinoDaLinha(lida, porIndice, turmas)
     if (typeof destino === 'string') return { linha, resultado: 'erro', erro: destino, nome, matricula }
     const alvo = alvoDaMatricula(matricula, naLista, aprovados)
-    if (alvo !== undefined) return { linha, resultado: resultadoComAlvo(destino, alvo, nome), destino, alvo, nome, matricula }
+    if (alvo !== undefined) {
+      const resultado = resultadoComAlvo(destino, alvo, nome)
+      if (resultado === 'muda_de_turma' && destino.tipo === 'nova' && !daTransferenciaPorChave.has(destino.chave)) daTransferenciaPorChave.set(destino.chave, turmaNova(destino, turma))
+      return { linha, resultado, destino, alvo, nome, matricula }
+    }
     if (emUso.has(matricula)) return { linha, resultado: 'ja_existe', destino, nome, matricula }
     if (destino.tipo === 'nova' && !novasPorChave.has(destino.chave)) novasPorChave.set(destino.chave, turmaNova(destino, turma))
     return { linha, resultado: 'entra', destino, nome, matricula }
   })
   const quantas = (resultado: ResultadoDaLinha) => linhas.filter((linha) => linha.resultado === resultado).length
   const novas = [...novasPorChave.values()].sort((a, b) => (a.chave < b.chave ? -1 : 1))
+  const novasDeTransferencia = [...daTransferenciaPorChave.values()].filter(({ chave }) => !novasPorChave.has(chave)).sort((a, b) => (a.chave < b.chave ? -1 : 1))
   const corrigidos = quantas('nome_corrigido')
   // A contagem que não houve não entra: o `resumo` guarda só o que a planilha fez (a chave ausente vale zero).
   const resumo = { entram: quantas('entra'), ja_existem: quantas('ja_existe'), ...(corrigidos > 0 ? { nomes_corrigidos: corrigidos } : {}), turmas_novas: novas.length }
   const candidatos = candidatosDe(linhas, alunos, new Set(lidas.map((lida) => lida.matricula)))
-  return { linhas, novas, candidatos, resumo, assinatura: assinaturaDe(anoLetivoId, linhas) }
+  return { linhas, novas, novasDeTransferencia, candidatos, resumo, assinatura: assinaturaDe(anoLetivoId, linhas) }
 }
 
 /**
@@ -335,14 +346,58 @@ async function corrigirNomes(gravacao: ImportacaoRepository, tx: DatabaseTransac
   for (const { usuarioId } of dosAlunos) await registro.gravar(tx, 'usuario.nome_corrigido', { entidadeId: usuarioId })
 }
 
-function planoDe(anoLetivoId: string, classificacao: Classificacao): PlanoDaImportacao {
+/** Uma transferência marcada: a matrícula "muda de turma" que a coordenação marcou, com quem ela é no banco e a turma para onde vai. */
+interface Transferencia {
+  readonly alvo: Alvo
+  readonly destino: Destino
+}
+
+/** As linhas "muda de turma" cujo alvo a coordenação marcou em `transferir`: sem a marca, a linha não grava nada. */
+function transferenciasDe(linhas: readonly ClassificadaRow[], marcas: MarcasDaPlanilha): Transferencia[] {
+  const marcadas = new Set(marcas.transferir)
+  return linhas.flatMap(({ resultado, alvo, destino }) => (resultado === 'muda_de_turma' && alvo !== undefined && destino !== undefined && marcadas.has(alvo.id) ? [{ alvo, destino }] : []))
+}
+
+/**
+ * Passa os marcados à turma de destino (RF5; Tech Spec, seção 5, "Gravar"), na transação do passo (3), com as turmas, os usuários e os
+ * pedidos já travados. O nome ainda não aprovado vai `livre` à turma nova, e o pedido pendente dele é encerrado antes (a
+ * escrita confere o estado e a turma que a planilha leu). O aluno aprovado tem o vínculo encerrado por `realocacao`, o novo
+ * confirmado na turma nova e a linha da lista levada junto; o trabalho que ele fez fica na turma antiga, onde foi feito. Menos linhas
+ * mudadas que pedidas (o nome tomado por uma reivindicação, o vínculo encerrado à mão) é diferença: o motor fecha `desatualizada`.
+ * Audita por aluno e por nome, só com as duas turmas.
+ */
+async function transferir(gravacao: ImportacaoRepository, tx: DatabaseTransaction, anoLetivoId: string, transferencias: readonly Transferencia[], turmasNovas: ReadonlyMap<string, string>): Promise<void> {
+  const nomes = transferencias.flatMap(({ alvo, destino }) => (alvo.tipo === 'lista' ? [{ id: alvo.id, estadoLido: alvo.estado, turmaLidaId: alvo.turmaId, turmaId: idDaTurma(destino, turmasNovas) }] : []))
+  const alunos = transferencias.flatMap(({ alvo, destino }) => (alvo.tipo === 'usuario' ? [{ usuarioId: alvo.id, turmaLidaId: alvo.turmaId, turmaId: idDaTurma(destino, turmasNovas) }] : []))
+  await gravacao.encerrarPedidosDosNomes(nomes.filter(({ estadoLido }) => estadoLido === 'reivindicado').map(({ id }) => id))
+  if ((await gravacao.transferirNomes(anoLetivoId, nomes)) !== nomes.length) throw new DiferencaNaPlanilhaError()
+  for (const { id, turmaLidaId, turmaId } of nomes) await registro.gravar(tx, 'lista.transferida', { entidadeId: id, depois: { turmaOrigemId: turmaLidaId, turmaDestinoId: turmaId } })
+
+  const encerrados = await gravacao.encerrarVinculosDosAlunos(anoLetivoId, alunos.map(({ usuarioId, turmaLidaId }) => ({ usuarioId, turmaId: turmaLidaId })), 'realocacao')
+  if (encerrados.length !== alunos.length) throw new DiferencaNaPlanilhaError()
+  for (const { id, estadoAntes } of encerrados) await registro.gravar(tx, 'vinculo.encerrado', { entidadeId: id, antes: { estado: estadoAntes }, depois: { estado: 'encerrado', motivo: 'realocacao', origem: 'lista' } })
+  const criados = await gravacao.criarVinculosDosAlunos(anoLetivoId, alunos.map(({ usuarioId, turmaId }) => ({ usuarioId, turmaId })))
+  const destinoDe = new Map(alunos.map(({ usuarioId, turmaId }) => [usuarioId, turmaId]))
+  for (const { id, usuarioId } of criados) {
+    await registro.gravar(tx, 'vinculo.criado', { entidadeId: id, depois: { usuarioId, turmaId: destinoDe.get(usuarioId) ?? '', disciplinaId: null, papel: 'aluno', estado: 'confirmado', origem: 'lista' } })
+  }
+  if ((await gravacao.transferirAprovados(anoLetivoId, alunos)) !== alunos.length) throw new DiferencaNaPlanilhaError()
+  for (const { usuarioId, turmaLidaId, turmaId } of alunos) await registro.gravar(tx, 'aluno.transferido', { entidadeId: usuarioId, depois: { turmaOrigemId: turmaLidaId, turmaDestinoId: turmaId } })
+}
+
+function planoDe(anoLetivoId: string, classificacao: Classificacao, marcas: MarcasDaPlanilha): PlanoDaImportacao {
+  const transferencias = transferenciasDe(classificacao.linhas, marcas)
+  const chavesDaTransferencia = new Set(transferencias.flatMap(({ destino }) => (destino.tipo === 'nova' ? [destino.chave] : [])))
+  const turmasACriar = [...classificacao.novas, ...classificacao.novasDeTransferencia.filter(({ chave }) => chavesDaTransferencia.has(chave))]
+  // As contagens que não houve não entram: a chave ausente vale zero.
+  const resumo = { ...classificacao.resumo, turmas_novas: turmasACriar.length, ...(transferencias.length > 0 ? { transferidos: transferencias.length } : {}) }
   return {
     assinatura: classificacao.assinatura,
-    resumo: classificacao.resumo,
+    resumo,
     aplicar: async (gravacao, { tx }) => {
       const series = new Map((await gravacao.seriesDaEscola()).map((serie) => [`${serie.etapa}:${String(serie.ano)}`, serie.id]))
       const novas = new Map<string, string>()
-      for (const nova of classificacao.novas) {
+      for (const nova of turmasACriar) {
         const chaveDaSerie = `${nova.serie.etapa}:${String(nova.serie.ano)}`
         const serieId = series.get(chaveDaSerie) ?? (await gravacao.criarSerie(pedidoDaSerie(nova.serie)))
         series.set(chaveDaSerie, serieId)
@@ -353,6 +408,7 @@ function planoDe(anoLetivoId: string, classificacao: Classificacao): PlanoDaImpo
       const entram = classificacao.linhas.filter((linha) => linha.resultado === 'entra')
       await gravacao.inserirNomes(anoLetivoId, entram.map(({ destino, nome, matricula }) => ({ turmaId: idDaTurma(destino, novas), nome, matricula })))
       await corrigirNomes(gravacao, tx, anoLetivoId, classificacao.linhas)
+      await transferir(gravacao, tx, anoLetivoId, transferencias, novas)
     },
   }
 }
@@ -406,19 +462,25 @@ export const tipoAlunos: TipoDeImportacao = {
    * mais simples do que repetir a classificação para escolher. Os pedidos pendentes presos, o `planejar` lê o nome da lista já sem
    * que uma aprovação possa passar o nome antigo ao `usuario`.
    */
-  async travar(repositorio, ano, guardado) {
+  async travar(repositorio, ano, guardado, marcas) {
     const lido = guardadoSchema.safeParse(guardado)
     if (!lido.success) return
     const turmas = await repositorio.turmasDoAno(ano.id)
     const antes = await classificarAgora(repositorio, ano.id, lido.data, turmas)
-    await repositorio.travarUsuarios(antes.linhas.flatMap(({ resultado, alvo }) => (resultado === 'nome_corrigido' && alvo?.tipo === 'usuario' ? [alvo.id] : [])))
-    const tocadas = turmasTocadas(lido.data, turmas)
+    const transferidos = transferenciasDe(antes.linhas, marcas)
+    const aTravar = [
+      ...antes.linhas.flatMap(({ resultado, alvo }) => (resultado === 'nome_corrigido' && alvo?.tipo === 'usuario' ? [alvo.id] : [])),
+      ...transferidos.flatMap(({ alvo }) => (alvo.tipo === 'usuario' ? [alvo.id] : [])),
+    ]
+    await repositorio.travarUsuarios(aTravar)
+    // Destino e origem de todo marcado: o gerar acesso e a decisão em sala da turma antiga esperam, como os da nova.
+    const tocadas = [...new Set([...turmasTocadas(lido.data, turmas), ...transferidos.map(({ alvo }) => alvo.turmaId)])].sort()
     await repositorio.travarTurmas(ano.id, tocadas)
     await repositorio.travarPedidosPendentes(ano.id, tocadas)
   },
 
-  async planejar(repositorio, ano, guardado) {
+  async planejar(repositorio, ano, guardado, marcas) {
     const lido = guardadoSchema.safeParse(guardado)
-    return lido.success ? planoDe(ano.id, await classificarAgora(repositorio, ano.id, lido.data)) : undefined
+    return lido.success ? planoDe(ano.id, await classificarAgora(repositorio, ano.id, lido.data), marcas) : undefined
   },
 }
