@@ -497,14 +497,19 @@ describe('planilha de calendário (F2, tarefa 4.0): prévia, gravar e job', () =
       const sessao = await bancada.sessao(e.escolaId, papel)
       expect(erroDe(await pedir(sessao, 'POST', '/v1/importacoes/calendario/previa', { texto: planilha })), papel).toEqual(NAO_ENCONTRADO)
       expect(erroDe(await pedir(sessao, 'POST', '/v1/importacoes/calendario', { texto: planilha })), papel).toEqual(NAO_ENCONTRADO)
+      // O professor sobe a grade: recusado igual (a grade é da coordenação, F2, 11.0).
+      const grade = 'turma;disciplina;professor;email;dia;inicio;fim;sala\n8A;Química;Ana Souza;ana@escola.invalid;1;08:00;08:50;'
+      expect(erroDe(await pedir(sessao, 'POST', '/v1/importacoes/grade/previa', { texto: grade })), papel).toEqual(NAO_ENCONTRADO)
+      expect(erroDe(await pedir(sessao, 'POST', '/v1/importacoes/grade', { texto: grade })), papel).toEqual(NAO_ENCONTRADO)
     }
     // O que o objeto tem de herança (`constructor`) não é um tipo de planilha: a rota não existe.
     for (const tipo of ['horario', 'constructor', 'toString']) {
       expect(erroDe(await pedir(e.coordenacao, 'POST', `/v1/importacoes/${tipo}/previa`, { texto: planilha })), tipo).toEqual(NAO_ENCONTRADO)
       expect(erroDe(await pedir(e.coordenacao, 'POST', `/v1/importacoes/${tipo}`, { texto: planilha })), tipo).toEqual(NAO_ENCONTRADO)
     }
-    // O tipo que a tarefa seguinte traz ainda não grava (os professores gravam desde a 6.0 e os alunos desde a 7.0, e têm o seu arquivo).
-    for (const tipo of ['grade']) expect(erroDe(await pedir(e.coordenacao, 'POST', `/v1/importacoes/${tipo}/previa`, { texto: planilha })), tipo).toEqual(NAO_ENCONTRADO)
+    // Os quatro tipos gravam (os professores desde a 6.0, os alunos desde a 7.0 e a grade desde a 11.0, e têm o seu arquivo): o texto do
+    // calendário na rota da grade não é a planilha dela, e é o cabeçalho que a recusa, não a rota que não existe.
+    expect(erroDe(await pedir(e.coordenacao, 'POST', '/v1/importacoes/grade/previa', { texto: planilha }))).toEqual(ENTRADA_INVALIDA)
     expect(await importacoesDe(e.escolaId)).toEqual([])
   })
 

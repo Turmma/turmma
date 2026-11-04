@@ -110,13 +110,13 @@ interface ClassificadaRow {
 }
 
 /** A série que o nome da turma diz: 6º ao 9º do Ensino Fundamental, 1º ao 3º do Médio. */
-interface Serie {
+export interface Serie {
   readonly etapa: Etapa
   readonly ano: number
 }
 
 /** A turma que a planilha cria: a chave, o nome na grafia da primeira linha que a pediu e a série que a chave diz. */
-interface TurmaNova {
+export interface TurmaNova {
   readonly chave: string
   readonly nome: string
   readonly serie: Serie
@@ -141,7 +141,7 @@ interface Classificacao {
 const SEM_ALUNOS: AlunosParaReimportar = { naoAprovados: [], aprovados: [] }
 
 /** O nome da turma como a planilha o escreveu: sem espaço a mais. */
-function nomeDaTurma(texto: string): string {
+export function nomeDaTurma(texto: string): string {
   return texto.replace(/\s+/g, ' ').trim()
 }
 
@@ -149,12 +149,12 @@ function nomeDaTurma(texto: string): string {
  * Por onde a turma se acha: a `chave` do nome ("8ºA" → `8a`), ou, se o nome não tem o padrão, o próprio nome sem acento nem
  * caixa (`n:turma azul`). A turma da escola usa a `chave` gravada, ou a calculada pelo nome quando ela é nula.
  */
-function indiceDaTurma(nome: string, chave: string | null): string {
+export function indiceDaTurma(nome: string, chave: string | null): string {
   const doNome = chaveDaTurma(nome)
   return chave ?? doNome ?? `n:${normalizarTexto(nome)}`
 }
 
-function indexarTurmas(turmas: readonly TurmaDoAno[]): Map<string, TurmaDoAno[]> {
+export function indexarTurmas(turmas: readonly TurmaDoAno[]): Map<string, TurmaDoAno[]> {
   const porIndice = new Map<string, TurmaDoAno[]>()
   for (const turma of turmas) {
     const indice = indiceDaTurma(turma.nome, turma.chave)
@@ -327,7 +327,7 @@ function idDaTurma(destino: Destino | undefined, novas: ReadonlyMap<string, stri
 }
 
 /** O pedido de série para a etapa e o ano que o nome da turma disse. */
-function pedidoDaSerie({ etapa, ano }: Serie): CriarSerieRequest {
+export function pedidoDaSerie({ etapa, ano }: Serie): CriarSerieRequest {
   return etapa === 'em' ? { etapa: 'em', ano } : { etapa: 'ef_anos_finais', ano }
 }
 
@@ -385,6 +385,24 @@ async function transferir(gravacao: ImportacaoRepository, tx: DatabaseTransactio
   for (const { usuarioId, turmaLidaId, turmaId } of alunos) await registro.gravar(tx, 'aluno.transferido', { entidadeId: usuarioId, depois: { turmaOrigemId: turmaLidaId, turmaDestinoId: turmaId } })
 }
 
+/**
+ * Cria as turmas que a planilha trouxe e a escola ainda não tinha (alunos, 7.0, e grade, 11.0), cada uma na série que o nome diz, criada
+ * se faltar, com a ação `turma.criada` (série e origem `planilha`). Devolve o id de cada turma pela `chave`.
+ */
+export async function criarTurmasNovas(gravacao: ImportacaoRepository, tx: DatabaseTransaction, anoLetivoId: string, turmasACriar: readonly TurmaNova[]): Promise<Map<string, string>> {
+  const series = new Map((await gravacao.seriesDaEscola()).map((serie) => [`${serie.etapa}:${String(serie.ano)}`, serie.id]))
+  const novas = new Map<string, string>()
+  for (const nova of turmasACriar) {
+    const chaveDaSerie = `${nova.serie.etapa}:${String(nova.serie.ano)}`
+    const serieId = series.get(chaveDaSerie) ?? (await gravacao.criarSerie(pedidoDaSerie(nova.serie)))
+    series.set(chaveDaSerie, serieId)
+    const turmaId = await gravacao.criarTurma(anoLetivoId, { serieId, nome: nova.nome })
+    novas.set(nova.chave, turmaId)
+    await registro.gravar(tx, 'turma.criada', { entidadeId: turmaId, depois: { serie: nova.serie, origem: 'planilha' } })
+  }
+  return novas
+}
+
 function planoDe(anoLetivoId: string, classificacao: Classificacao, marcas: MarcasDaPlanilha): PlanoDaImportacao {
   const transferencias = transferenciasDe(classificacao.linhas, marcas)
   const chavesDaTransferencia = new Set(transferencias.flatMap(({ destino }) => (destino.tipo === 'nova' ? [destino.chave] : [])))
@@ -395,16 +413,7 @@ function planoDe(anoLetivoId: string, classificacao: Classificacao, marcas: Marc
     assinatura: classificacao.assinatura,
     resumo,
     aplicar: async (gravacao, { tx }) => {
-      const series = new Map((await gravacao.seriesDaEscola()).map((serie) => [`${serie.etapa}:${String(serie.ano)}`, serie.id]))
-      const novas = new Map<string, string>()
-      for (const nova of turmasACriar) {
-        const chaveDaSerie = `${nova.serie.etapa}:${String(nova.serie.ano)}`
-        const serieId = series.get(chaveDaSerie) ?? (await gravacao.criarSerie(pedidoDaSerie(nova.serie)))
-        series.set(chaveDaSerie, serieId)
-        const turmaId = await gravacao.criarTurma(anoLetivoId, { serieId, nome: nova.nome })
-        novas.set(nova.chave, turmaId)
-        await registro.gravar(tx, 'turma.criada', { entidadeId: turmaId, depois: { serie: nova.serie, origem: 'planilha' } })
-      }
+      const novas = await criarTurmasNovas(gravacao, tx, anoLetivoId, turmasACriar)
       const entram = classificacao.linhas.filter((linha) => linha.resultado === 'entra')
       await gravacao.inserirNomes(anoLetivoId, entram.map(({ destino, nome, matricula }) => ({ turmaId: idDaTurma(destino, novas), nome, matricula })))
       await corrigirNomes(gravacao, tx, anoLetivoId, classificacao.linhas)

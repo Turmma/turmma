@@ -1,5 +1,6 @@
 import { ErrorCode, InvariantException, type CriarSerieRequest, type EstadoDeVinculo, type EstadoDoProfessor, type MotivoDeEncerramentoDeVinculo, type Serie, type ErroDaImportacao, type EstadoDaImportacao, type ResumoDaImportacao, type TipoDeEventoDoCalendario, type TipoDePlanilha } from '@educa/shared'
 import { and, asc, desc, eq, inArray, lt, sql } from 'drizzle-orm'
+import { ConviteDaEscolaRepository } from '../convite/convite-da-escola.repository.js'
 import { estadoDoProfessor, type UltimoConviteDoProfessor } from '../convite/estado-do-professor.js'
 import { requireAnoEmCurso } from '../context/ano-em-curso.js'
 import { requireEscolaId } from '../context/context-escola.js'
@@ -14,10 +15,12 @@ import { DomainException } from '../error/domain.exception.js'
 import { postgresErrorIn } from '../error/summarize-error.js'
 import { requestIdentity } from '../identidade/auth.guard.js'
 import { DecisaoRepository } from '../estrutura/decisao.repository.js'
+import { DisciplinaRepository } from '../estrutura/disciplina.repository.js'
 import { ListaRepository, type AlunosParaReimportar, type CorrecaoDeNomeNaLista, type TransferenciaDeAprovado, type TransferenciaDeNome } from '../estrutura/lista.repository.js'
 import { SerieRepository } from '../estrutura/serie.repository.js'
 import { TurmaRepository, type TurmaDoAno } from '../estrutura/turma.repository.js'
 import { VinculoRepository } from '../estrutura/vinculo.repository.js'
+import { AlocacaoRepository, type AulaGravada, type AulaNova } from './alocacao.repository.js'
 
 /** O ano em que a planilha grava: o em curso da sessão, ou o planejado que a coordenação escolheu. */
 export interface AnoDeDestino {
@@ -437,6 +440,61 @@ export class ImportacaoRepository {
     const criados: Array<{ readonly id: string; readonly usuarioId: string }> = []
     for (let inicio = 0; inicio < alunos.length; inicio += TAMANHO_DO_LOTE) criados.push(...(await vinculos.criarAlunosDaLista(anoLetivoId, alunos.slice(inicio, inicio + TAMANHO_DO_LOTE))))
     return criados
+  }
+
+  /**
+   * Da planilha da grade (F2, 11.0). A trava do convite da escola (`pg_advisory_xact_lock`, a mesma do cadastrar, refazer e revogar da A1), a
+   * primeira da ordem global do passo (3) depois da importação: a grade cadastra professor novo pelo `convidar`, e o `convidar` pede essa trava
+   * antes de ler o estado do professor.
+   */
+  travarConviteDaEscola(): Promise<void> {
+    requireEscolaId()
+    return new ConviteDaEscolaRepository(this.banco).travarEscola()
+  }
+
+  /** As disciplinas da escola numa consulta só. */
+  disciplinasDaEscola(): Promise<Array<{ readonly id: string; readonly nome: string }>> {
+    requireEscolaId()
+    return new DisciplinaRepository(this.banco).todas()
+  }
+
+  /** Cria a disciplina que a planilha da grade trouxe e a escola ainda não tinha; o nome repetido (sem diferenciar caixa) viola o único (23505), e o motor fecha `desatualizada`. */
+  async criarDisciplina(nome: string): Promise<string> {
+    requireEscolaId()
+    return (await new DisciplinaRepository(this.banco).criar({ nome })).id
+  }
+
+  /** Os vínculos de professor ainda abertos do ano de destino, numa consulta só. */
+  vinculosDeProfessorDoAno(anoLetivoId: string): ReturnType<VinculoRepository['professoresAbertosDoAno']> {
+    requireEscolaId()
+    return new VinculoRepository(this.banco).professoresAbertosDoAno(anoLetivoId)
+  }
+
+  /** Cria, em lotes de `TAMANHO_DO_LOTE`, os vínculos pendentes de `origem = grade`, com a coordenação que gravou a planilha como autora. */
+  async criarVinculosDeProfessorDaGrade(
+    anoLetivoId: string,
+    novos: ReadonlyArray<{ readonly usuarioId: string; readonly turmaId: string; readonly disciplinaId: string }>,
+  ): Promise<Array<{ readonly id: string; readonly usuarioId: string; readonly turmaId: string; readonly disciplinaId: string | null }>> {
+    requireEscolaId()
+    const vinculos = new VinculoRepository(this.banco)
+    const criados: Array<{ readonly id: string; readonly usuarioId: string; readonly turmaId: string; readonly disciplinaId: string | null }> = []
+    for (let inicio = 0; inicio < novos.length; inicio += TAMANHO_DO_LOTE) criados.push(...(await vinculos.criarProfessoresDaGrade(anoLetivoId, novos.slice(inicio, inicio + TAMANHO_DO_LOTE))))
+    return criados
+  }
+
+  /** As aulas do ano de destino, numa consulta só. */
+  aulasDoAno(anoLetivoId: string): Promise<AulaGravada[]> {
+    requireEscolaId()
+    return new AlocacaoRepository(this.banco).doAno(anoLetivoId)
+  }
+
+  /** Grava as aulas, em lotes de `TAMANHO_DO_LOTE`; a que já existe para (vínculo, dia, início) muda de fim e de sala e mantém o id. Devolve quantas escreveu. */
+  async gravarAulas(anoLetivoId: string, aulas: readonly AulaNova[]): Promise<number> {
+    requireEscolaId()
+    const alocacoes = new AlocacaoRepository(this.banco)
+    let gravadas = 0
+    for (let inicio = 0; inicio < aulas.length; inicio += TAMANHO_DO_LOTE) gravadas += await alocacoes.gravar(anoLetivoId, aulas.slice(inicio, inicio + TAMANHO_DO_LOTE))
+    return gravadas
   }
 
   /** As séries da escola, numa consulta só. */

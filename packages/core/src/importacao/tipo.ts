@@ -56,18 +56,36 @@ interface TipoBase {
   readonly usaTurma: boolean
 }
 
+/** O que o passo (3) dá ao `travar` de um tipo de um ano que cadastra professor: as contas que o passo (1) achou e a trava delas. */
+export interface ContasDoPasso3 {
+  readonly contas: ContasDoJob
+  /** Trava em `FOR SHARE` as contas e confere o e-mail de cada uma; `false` se alguma o perdeu. */
+  readonly travarContas: TravaDasContas
+}
+
 /** O tipo que grava num ano letivo: o calendário, a grade e a lista de alunos. */
 export interface TipoDeImportacao extends TipoBase {
   readonly usaAno: true
+  /**
+   * O tipo que cadastra professor novo (a grade): o motor pega a trava do convite da escola antes do ano, a primeira da ordem global do passo
+   * (3) depois da importação, porque o `convidar` a pede antes de ler o estado do professor.
+   */
+  readonly cadastraProfessores?: true
   previa(repositorio: ImportacaoRepository, ano: AnoDeDestino, texto: string): Promise<PreviaDoTipo>
   /**
-   * A trava do passo (3) que o tipo pede depois do ano e antes de o `planejar` ler (a planilha de alunos trava as turmas que as
-   * linhas tocam e as de origem de cada transferência marcada, em ordem de id e num comando, na ordem global da Tech Spec, seção 5).
-   * O calendário não tem. As `marcas` são as da coordenação, validadas contra os candidatos pelo gravar.
+   * Os e-mails do passo (1), um por pessoa, para o tipo de um ano que cadastra professor (a grade: só os professores que a escola ainda não
+   * tem). Lida sem trava, e só diz de quem a conta se acha ou se cria; `undefined` quando o que o gravar guardou não tem a forma do tipo.
    */
-  travar?(repositorio: ImportacaoRepository, ano: AnoDeDestino, guardado: unknown, marcas: MarcasDaPlanilha): Promise<void>
-  /** `undefined` quando o que o gravar guardou não tem a forma do tipo: o job falha de vez, sem repetir. */
-  planejar(repositorio: ImportacaoRepository, ano: AnoDeDestino, guardado: unknown, marcas: MarcasDaPlanilha): Promise<PlanoDaImportacao | undefined>
+  emailsDasContas?(repositorio: ImportacaoRepository, guardado: unknown): Promise<readonly string[] | undefined>
+  /**
+   * A trava do passo (3) que o tipo pede depois do ano e antes de o `planejar` ler (a planilha de alunos trava as turmas que as
+   * linhas tocam e as de origem de cada transferência marcada, em ordem de id e num comando, na ordem global da Tech Spec, seção 5;
+   * a grade, os professores que cita, as contas dos novos e as turmas). O calendário não tem. As `marcas` são as da coordenação,
+   * validadas contra os candidatos pelo gravar; o `passo3` só é usado por quem cadastra professor.
+   */
+  travar?(repositorio: ImportacaoRepository, ano: AnoDeDestino, guardado: unknown, marcas: MarcasDaPlanilha, passo3: ContasDoPasso3): Promise<void>
+  /** `undefined` quando o que o gravar guardou não tem a forma do tipo: o job falha de vez, sem repetir. As `contas` são as do passo (1), que só a grade usa; sem elas, vazias. */
+  planejar(repositorio: ImportacaoRepository, ano: AnoDeDestino, guardado: unknown, marcas: MarcasDaPlanilha, contas?: ContasDoJob): Promise<PlanoDaImportacao | undefined>
   /**
    * A prévia da lista de uma turma (A1, 8.0): as mesmas linhas, o mesmo gravar e o mesmo job, com a turma já dada em vez de achada
    * pelo nome. Só a planilha de alunos a tem. A turma que não é da escola e do ano de destino é `NAO_ENCONTRADO`.

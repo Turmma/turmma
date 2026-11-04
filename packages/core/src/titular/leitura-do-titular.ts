@@ -131,6 +131,15 @@ export const LEITURAS_DO_ARQUIVO: Readonly<Record<string, LeituraDaTabela>> = {
       sql`select ${selectColumns('id', 'ano_letivo_id', 'turma_id', 'disciplina_id', 'papel', 'estado', 'origem', 'contestacao', 'complemento', 'motivo_encerramento', 'criado_em', 'decidido_em', 'encerrado_em')} from vinculo t where t.escola_id = ${escolaId} and t.usuario_id = ${titularId}`,
     ],
   },
+  alocacao: {
+    descricao: 'As suas aulas na grade horária (dia, horário e sala)',
+    colunas: ['id', 'ano_letivo_id', 'vinculo_id', 'dia_semana', 'inicio', 'fim', 'sala'],
+    fora: { escola_id: ESCOPO },
+    consultas: ({ escolaId, titularId }) => [
+      sql`select ${selectColumns('id', 'ano_letivo_id', 'vinculo_id', 'dia_semana', 'inicio', 'fim', 'sala')} from alocacao t
+          where t.escola_id = ${escolaId} and t.vinculo_id in (select v.id from vinculo v where v.escola_id = ${escolaId} and v.usuario_id = ${titularId} and v.papel = 'professor')`,
+    ],
+  },
   lista_nome: {
     descricao: 'O seu nome na lista da turma',
     colunas: ['id', 'ano_letivo_id', 'turma_id', 'nome', 'matricula', 'estado', 'criado_em'],
