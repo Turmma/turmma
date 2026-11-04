@@ -1,9 +1,11 @@
-import { createDatabase, createPool, executarPlanilha, runInContext, type Database, type DatabasePool } from '@educa/core'
-import { ErrorCode, previaDaPlanilhaResponseSchema } from '@educa/shared'
+import { createDatabase, createPool, executarPlanilha, PREFIXO_VAGAS_DA_IMPORTACAO, runInContext, SchoolSemaphore, type Database, type DatabasePool } from '@educa/core'
+import { ErrorCode, importacaoSchema, LIMITE_DA_PLANILHA_POR_MINUTO, MAXIMO_DE_LINHAS_DA_PLANILHA, previaDaPlanilhaResponseSchema, VAGAS_DA_PLANILHA_POR_ESCOLA } from '@educa/shared'
+import type { Redis } from 'ioredis'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
+import { REDIS_CACHE_CLIENT, VAGAS_DA_PLANILHA } from '../src/rate-limit.module.js'
 import { auditoriaDa } from './material.fixture.js'
 import { SessaoFixtures, type TestSessao } from './sessao.fixture.js'
 import { chamar, subirApi, type RespostaHttp, type TestApi } from './test-api.js'
@@ -20,6 +22,7 @@ const CABECALHO = 'inicio;fim;tipo;descricao'
 const NAO_ENCONTRADO = { status: 404, codigo: ErrorCode.NAO_ENCONTRADO }
 const CONFLITO = { status: 409, codigo: ErrorCode.CONFLITO }
 const ENTRADA_INVALIDA = { status: 400, codigo: ErrorCode.ENTRADA_INVALIDA }
+const LIMITE_EXCEDIDO = { status: 429, codigo: ErrorCode.LIMITE_EXCEDIDO }
 
 /** Uma escola com o ano de 2026 em curso (de 01/02 a 15/12) e o de 2027 planejado, montados pela API como a coordenação faria. */
 interface Escola {
@@ -548,5 +551,227 @@ describe('planilha de calendário (F2, tarefa 4.0): prévia, gravar e job', () =
     expect(await eventosDe(e.emCurso)).toEqual([])
     expect((await importacoesDe(e.escolaId))[0]).toMatchObject({ estado: 'desatualizada', linhas: null, marcas: null })
     expect(await auditoriaDa(bancada, e.escolaId, 'planilha.gravada')).toEqual([])
+  })
+  describe('GET /v1/importacoes/:id (F2, tarefa 5.0)', () => {
+    it('a coordenação acompanha a importação: `na_fila` sem resumo, e `concluida` com as contagens; nem `linhas` nem `marcas` saem', async () => {
+      const e = await escolaComAnos()
+      const id = await gravada(e, texto(evento('2026-04-21', '2026-04-21', 'feriado', 'Tiradentes')))
+
+      const naFila = await pedir(e.coordenacao, 'GET', `/v1/importacoes/${id}`)
+      expect(naFila.status).toBe(200)
+      expect(importacaoSchema.parse(naFila.corpo)).toMatchObject({ id, tipo: 'calendario', estado: 'na_fila', resumo: null, erro: null, concluidaEm: null })
+
+      expect(await rodar(e.escolaId, id)).toBe('concluida')
+      const concluida = await pedir(e.coordenacao, 'GET', `/v1/importacoes/${id}`)
+      expect(importacaoSchema.parse(concluida.corpo)).toMatchObject({ estado: 'concluida', resumo: { entram: 1, ja_existem: 0, eventos_removidos: 0 } })
+      expect(Object.keys(concluida.corpo).sort()).toEqual(['concluidaEm', 'criadoEm', 'erro', 'estado', 'id', 'resumo', 'tipo'])
+    })
+
+    it('a que falhou traz o código do erro e nenhum resumo', async () => {
+      const e = await escolaComAnos()
+      const id = await gravada(e, texto(evento('2026-04-21', '2026-04-21', 'feriado', 'Tiradentes')))
+      await bancada.pool.query("update importacao_planilha set criado_em = now() - interval '61 minutes' where id = $1", [id])
+      await gravada(e, texto(evento('2026-05-01', '2026-05-01', 'feriado', 'Trabalho')))
+
+      const lida = importacaoSchema.parse((await pedir(e.coordenacao, 'GET', `/v1/importacoes/${id}`)).corpo)
+      expect(lida).toMatchObject({ estado: 'falhou', erro: 'expirou', resumo: null })
+      expect(lida.concluidaEm).not.toBeNull()
+    })
+
+    it('isolamento: o id da importação da B, na A, responde igual ao de uma que não existe', async () => {
+      const a = await escolaComAnos()
+      const b = await escolaComAnos()
+      const daB = await gravada(b, texto(evento('2026-04-21', '2026-04-21', 'feriado', 'Tiradentes da B')))
+
+      expect(erroDe(await pedir(a.coordenacao, 'GET', `/v1/importacoes/${daB}`))).toEqual(NAO_ENCONTRADO)
+      expect(erroDe(await pedir(a.coordenacao, 'GET', `/v1/importacoes/${randomUUID()}`))).toEqual(NAO_ENCONTRADO)
+      expect((await pedir(b.coordenacao, 'GET', `/v1/importacoes/${daB}`)).status).toBe(200)
+    })
+
+    it('sem ano em curso a importação da escola responde, e a da outra escola continua igual à que não existe', async () => {
+      const escolaId = await bancada.escola()
+      const coordenacao = await bancada.sessao(escolaId, 'coordenador')
+      const e: Escola = { escolaId, coordenacao, emCurso: '', planejado: await anoNovo(coordenacao, 2027, false) }
+      const outra = await escolaComAnos()
+      const id = await gravada(e, texto(evento('2027-04-21', '2027-04-21', 'feriado', 'Tiradentes')), { anoLetivoId: e.planejado })
+      const daOutra = await gravada(outra, texto(evento('2026-04-21', '2026-04-21', 'feriado', 'Tiradentes da outra')))
+
+      expect(importacaoSchema.parse((await pedir(coordenacao, 'GET', `/v1/importacoes/${id}`)).corpo)).toMatchObject({ id, estado: 'na_fila' })
+      expect(erroDe(await pedir(coordenacao, 'GET', `/v1/importacoes/${daOutra}`))).toEqual(NAO_ENCONTRADO)
+    })
+
+    it('o professor e o aluno da mesma escola, e o id que não é UUID, não alcançam a importação', async () => {
+      const e = await escolaComAnos()
+      const id = await gravada(e, texto(evento('2026-04-21', '2026-04-21', 'feriado', 'Tiradentes')))
+      for (const papel of ['professor', 'aluno'] as const) {
+        expect(erroDe(await pedir(await bancada.sessao(e.escolaId, papel), 'GET', `/v1/importacoes/${id}`)), papel).toEqual(NAO_ENCONTRADO)
+      }
+      expect(erroDe(await pedir(e.coordenacao, 'GET', '/v1/importacoes/1837'))).toEqual(NAO_ENCONTRADO)
+    })
+  })
+
+  describe('limites da prévia e do gravar (F2, tarefa 5.0)', () => {
+    const vagasDaApi = () => api.app.get<SchoolSemaphore>(VAGAS_DA_PLANILHA, { strict: false })
+    const planilhaPequena = texto(evento('2026-04-21', '2026-04-21', 'feriado', 'Tiradentes'))
+
+    it('20 pedidos por minuto por usuário, prévia e gravar no mesmo balde: o 21º recebe 429 nas duas rotas, e outro usuário da escola segue', async () => {
+      const e = await escolaComAnos()
+      expect(LIMITE_DA_PLANILHA_POR_MINUTO).toBe(20)
+      const status: number[] = []
+      for (let i = 0; i < 12; i += 1) status.push((await previa(e, planilhaPequena)).status)
+      // Os oito gravares gastam o balde mesmo quando respondem CONFLITO (a fila da escola já tem uma).
+      for (let i = 0; i < 8; i += 1) status.push((await gravar(e, planilhaPequena)).status)
+      expect(status.slice(0, 12)).toEqual(Array<number>(12).fill(200))
+      expect(status.slice(12).sort()).toEqual([202, 409, 409, 409, 409, 409, 409, 409])
+
+      expect(erroDe(await previa(e, planilhaPequena))).toEqual(LIMITE_EXCEDIDO)
+      expect(erroDe(await gravar(e, planilhaPequena))).toEqual(LIMITE_EXCEDIDO)
+      expect((await importacoesDe(e.escolaId)).map((importacao) => importacao.estado)).toEqual(['na_fila'])
+
+      const outra = await bancada.sessao(e.escolaId, 'coordenador')
+      expect((await pedir(outra, 'POST', '/v1/importacoes/calendario/previa', { texto: planilhaPequena })).status).toBe(200)
+    })
+
+    it('[P] três prévias ao mesmo tempo na escola: as duas primeiras ocupam a vaga, a terceira recebe 429, e a outra escola segue', async () => {
+      const e = await escolaComAnos()
+      const outra = await escolaComAnos()
+      const ocupadas = [await vagasDaApi().ocupar(e.escolaId), await vagasDaApi().ocupar(e.escolaId)]
+      expect(VAGAS_DA_PLANILHA_POR_ESCOLA).toBe(2)
+      try {
+        expect(ocupadas.every((vaga) => vaga !== undefined)).toBe(true)
+        expect(erroDe(await previa(e, planilhaPequena))).toEqual(LIMITE_EXCEDIDO)
+        expect(erroDe(await gravar(e, planilhaPequena))).toEqual(LIMITE_EXCEDIDO)
+        expect((await previa(outra, planilhaPequena)).status).toBe(200)
+      } finally {
+        await Promise.all(ocupadas.map((vaga) => vaga?.liberar()))
+      }
+      expect((await previa(e, planilhaPequena)).status).toBe(200)
+      expect(await importacoesDe(e.escolaId)).toEqual([])
+    })
+
+    it('[P] o gravar ocupa vaga: com uma vaga já ocupada e um gravar parado na escrita, a prévia da escola recebe 429 e a da outra escola segue; solto, a vaga volta', async () => {
+      const e = await escolaComAnos()
+      const outra = await escolaComAnos()
+      const parada = new WriteBlockTrigger(apoio, { tabela: 'importacao_planilha', evento: 'insert', quando: `new.escola_id = '${e.escolaId}'` })
+      const outraVaga = await vagasDaApi().ocupar(e.escolaId)
+      await parada.armar()
+      try {
+        const emAndamento = gravar(e, planilhaPequena)
+        await parada.esperarParadas()
+
+        expect(erroDe(await previa(e, planilhaPequena))).toEqual(LIMITE_EXCEDIDO)
+        expect((await previa(outra, planilhaPequena)).status).toBe(200)
+
+        await parada.soltar()
+        expect((await emAndamento).status).toBe(202)
+      } finally {
+        await parada.desarmar()
+        await outraVaga?.liberar()
+      }
+      // As duas vagas voltaram: duas prévias seguidas e uma terceira ao mesmo tempo que a segunda passam, uma de cada vez.
+      expect((await previa(e, planilhaPequena)).status).toBe(200)
+      const ocupadas = await Promise.all([vagasDaApi().ocupar(e.escolaId), vagasDaApi().ocupar(e.escolaId)])
+      expect(ocupadas.map((vaga) => vaga !== undefined)).toEqual([true, true])
+      await Promise.all(ocupadas.map((vaga) => vaga?.liberar()))
+    })
+
+    it('o pedido que falha dentro do trabalho devolve a vaga: três prévias que dão NAO_ENCONTRADO (ano de outra escola) não deixam a escola cheia', async () => {
+      const e = await escolaComAnos()
+      for (let i = 0; i < VAGAS_DA_PLANILHA_POR_ESCOLA + 1; i += 1) expect(erroDe(await previa(e, planilhaPequena, { anoLetivoId: randomUUID() }))).toEqual(NAO_ENCONTRADO)
+      expect((await previa(e, planilhaPequena)).status).toBe(200)
+    })
+
+    it('a vaga volta quando o processo morre: o membro vencido sai da conta pela hora do Redis, o vivo segue contando, e a chave ganha prazo', async () => {
+      const cliente = api.app.get<Redis>(REDIS_CACHE_CLIENT, { strict: false })
+      const escolaId = randomUUID()
+      const prefixo = `${PREFIXO_VAGAS_DA_IMPORTACAO}:teste${PREFIXO}`
+      const chave = `${prefixo}:${escolaId}`
+      const semaforo = new SchoolSemaphore(cliente, { prefixo, maximo: 2, validadeMs: 5_000, instancias: 1 })
+      // O estado que um processo morto deixa: uma vaga que já venceu e outra que ainda vale, pontuadas pela hora do próprio Redis.
+      const [segundos, micro] = await cliente.time()
+      const agoraMs = Number(segundos) * 1000 + Math.floor(Number(micro) / 1000)
+      await cliente.zadd(chave, String(agoraMs - 60_000), 'processo-morto', String(agoraMs + 120_000), 'processo-vivo')
+      expect(await cliente.pttl(chave)).toBe(-1)
+
+      expect(await semaforo.ocupar(escolaId)).toBeDefined()
+      expect(await semaforo.ocupar(escolaId)).toBeUndefined()
+      expect(await cliente.zrange(chave, '0', '-1')).toContain('processo-vivo')
+      expect(await cliente.zrange(chave, '0', '-1')).not.toContain('processo-morto')
+      // A chave ganha prazo: se ninguém mais voltar, ela some sozinha.
+      const prazo = await cliente.pttl(chave)
+      expect(prazo).toBeGreaterThan(0)
+      expect(prazo).toBeLessThanOrEqual(5_000)
+      await cliente.del(chave)
+    })
+
+    it('[P] dez pedidos ao mesmo tempo na mesma escola ocupam exatamente as duas vagas, e a outra escola tem as dela', async () => {
+      const a = randomUUID()
+      const b = randomUUID()
+      const pedidos = await Promise.all([...Array.from({ length: 10 }, () => vagasDaApi().ocupar(a)), ...Array.from({ length: 10 }, () => vagasDaApi().ocupar(b))])
+      const deA = pedidos.slice(0, 10).filter((vaga) => vaga !== undefined)
+      const deB = pedidos.slice(10).filter((vaga) => vaga !== undefined)
+      try {
+        expect([deA.length, deB.length]).toEqual([VAGAS_DA_PLANILHA_POR_ESCOLA, VAGAS_DA_PLANILHA_POR_ESCOLA])
+      } finally {
+        await Promise.all([...deA, ...deB].map((vaga) => vaga.liberar()))
+      }
+      // Devolvidas, as duas voltam a ser ocupadas.
+      const denovo = await Promise.all(Array.from({ length: 5 }, () => vagasDaApi().ocupar(a)))
+      expect(denovo.filter((vaga) => vaga !== undefined)).toHaveLength(VAGAS_DA_PLANILHA_POR_ESCOLA)
+      await Promise.all(denovo.map((vaga) => vaga?.liberar()))
+    })
+
+    it('3.000 linhas entram; 3.001 linhas são ENTRADA_INVALIDA na prévia e no gravar, e nada é gravado', async () => {
+      const e = await escolaComAnos()
+      expect(MAXIMO_DE_LINHAS_DA_PLANILHA).toBe(3_000)
+      const comLinhas = (quantas: number): string => texto(...Array.from({ length: quantas }, (_, posicao) => evento('2026-06-01', '2026-06-01', 'evento', `Evento ${String(posicao + 1)}`)))
+
+      expect((await previa(e, comLinhas(3_000))).status).toBe(200)
+      expect(erroDe(await previa(e, comLinhas(3_001)))).toEqual(ENTRADA_INVALIDA)
+      expect(erroDe(await gravar(e, comLinhas(3_001)))).toEqual(ENTRADA_INVALIDA)
+      expect(await importacoesDe(e.escolaId)).toEqual([])
+    })
+
+    it('512 KB exatos entram na prévia; 512 KB + 1 byte, com poucas linhas, são ENTRADA_INVALIDA', async () => {
+      const e = await escolaComAnos()
+      const cabecalho = `${CABECALHO}\n`
+      const linha = (tamanho: number): string => `2026-04-21;2026-04-21;feriado;${PREFIXO} ${'a'.repeat(tamanho)}`
+      // Uma só linha, com o tamanho exato: o limite de bytes decide, não o de linhas.
+      const sobra = 512 * 1024 - Buffer.byteLength(cabecalho) - Buffer.byteLength(linha(0))
+      const exato = `${cabecalho}${linha(sobra)}`
+      expect(Buffer.byteLength(exato)).toBe(512 * 1024)
+
+      expect(erroDe(await previa(e, `${exato}a`))).toEqual(ENTRADA_INVALIDA)
+      // A linha é grande demais para uma descrição, mas o texto cabe: a prévia responde 200 e aponta o erro da linha 2.
+      const lida = await previa(e, exato)
+      expect(lida.status).toBe(200)
+      expect(previaDaPlanilhaResponseSchema.parse(lida.corpo).linhas).toMatchObject([{ linha: 2, resultado: 'erro' }])
+    })
+
+    it('o teto de 100 KB vale para as outras rotas: um JSON válido de 101 KB em `POST /v1/series` é ENTRADA_INVALIDA (400, tipado, sem pilha) e não grava; o de 100 KB exatos é aceito; e a planilha de 300 KB segue lida', async () => {
+      const a = await escolaComAnos()
+      const b = await escolaComAnos()
+      const serie = '{"etapa":"ef_anos_finais","ano":7}'
+      // O corpo é o que o contrato aceitaria: só o tamanho (espaço em branco depois do JSON) o distingue do aceito.
+      const comTamanho = (bytes: number): string => serie + ' '.repeat(bytes - serie.length)
+      const bruto = async (e: Escola, corpo: string) => {
+        const resposta = await fetch(`${api.url}/v1/series`, { method: 'POST', headers: { Authorization: `Bearer ${e.coordenacao.token}`, 'Content-Type': 'application/json' }, body: corpo })
+        return { status: resposta.status, texto: await resposta.text() }
+      }
+      const seriesDe = async (e: Escola) => (await bancada.pool.query('select 1 from serie where escola_id = $1', [e.escolaId])).rowCount
+      expect(comTamanho(101 * 1024)).toHaveLength(101 * 1024)
+
+      const recusada = await bruto(a, comTamanho(101 * 1024))
+      expect(recusada.status).toBe(400)
+      expect(JSON.parse(recusada.texto)).toMatchObject({ erro: { codigo: ErrorCode.ENTRADA_INVALIDA } })
+      expect(recusada.texto).not.toMatch(/stack|\bat \S+ \(/)
+      expect(await seriesDe(a)).toBe(0)
+
+      // Controle: o mesmo corpo com 100 KB exatos entra, pela mesma rota e a mesma sessão.
+      expect((await bruto(b, comTamanho(100 * 1024))).status).toBe(201)
+      expect(await seriesDe(b)).toBe(1)
+
+      expect((await previa(a, texto(...Array.from({ length: 3_000 }, (_, posicao) => evento('2026-06-01', '2026-06-01', 'evento', `Evento ${String(posicao + 1)} ${'x'.repeat(60)}`))))).status).toBe(200)
+    })
   })
 })

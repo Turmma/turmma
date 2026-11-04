@@ -73,8 +73,8 @@ export {
   RETENCAO_JOB_FALHO_SEGUNDOS,
 } from './queue/publishing.js'
 export type { QueuedJobData, PublishedJobOptions } from './queue/publishing.js'
-export { ehFalhaDeTrava, executarPlanilha, ImportacaoIlegivelError, ImportacaoRepository, MotorDePlanilha, TENTATIVAS_DO_JOB } from './importacao/index.js'
-export type { ResultadoDaExecucao } from './importacao/index.js'
+export { CalendarioRepository, ehFalhaDeTrava, executarPlanilha, ImportacaoIlegivelError, ImportacaoRepository, MotorDePlanilha, TENTATIVAS_DO_JOB } from './importacao/index.js'
+export type { ImportacaoLida, ResultadoDaExecucao } from './importacao/index.js'
 export { DomainException, HTTP_STATUS_BY_CODE, DEFAULT_RETRY_AFTER_SECONDS } from './error/domain.exception.js'
 export { AllExceptionsFilter } from './error/all-exceptions.filter.js'
 export { mapPostgresError } from './error/map-postgres-error.js'
@@ -127,6 +127,8 @@ export {
   JANELA_LIMITE_SEGUNDOS,
   insuranceLimit,
   PREFIXO_LIMITE_BUSCA_TITULAR,
+  PREFIXO_LIMITE_IMPORTACAO,
+  PREFIXO_VAGAS_DA_IMPORTACAO,
   PREFIXO_LIMITE_ESCOLA,
   PREFIXO_LIMITE_IP,
   PREFIXO_LIMITE_IP_LOGIN,
@@ -140,6 +142,9 @@ export { RateLimiter, loadRateLimitConfig } from './rate-limit/rate-limiter.js'
 export type { RateLimitConfig, RateLimitResult } from './rate-limit/rate-limiter.js'
 export { TrustedProxies } from './rate-limit/trusted-proxies.js'
 export { AcceptsChallenge, DowngradeRateLimit, IS_PUBLIC_KEY, Public, SkipRateLimit } from './rate-limit/route-markers.decorator.js'
+export { ImportacaoRateLimit, IMPORTACAO_RATE_LIMIT_KEY } from './rate-limit/importacao-rate-limit.decorator.js'
+export { SchoolSemaphore, VALIDADE_DA_VAGA_DA_PLANILHA_MS } from './rate-limit/school-semaphore.js'
+export type { Vaga, SchoolSemaphoreOptions } from './rate-limit/school-semaphore.js'
 export { TitularSearchRateLimit, TITULAR_SEARCH_RATE_LIMIT_KEY } from './rate-limit/titular-search-rate-limit.decorator.js'
 export { createApiRedisClient, createQueueRedisClient, TIMEOUT_COMANDO_REDIS_API_MS, TIMEOUT_COMANDO_REDIS_FILA_MS } from './redis/clients.js'
 export { usoInfraDiario } from './db/schema/uso-infra-diario.js'
@@ -175,6 +180,7 @@ export {
   ExpurgoDeAcessoRepository,
   expurgoAccessBatchStatement,
   RETENCAO_CONVITE_DIAS,
+  RETENCAO_IMPORTACAO_DIAS,
   RETENCAO_INCIDENTE_ANOS,
   RETENCAO_REGISTRO_ACESSO_MESES,
   RETENCAO_SESSAO_DIAS,

@@ -2571,3 +2571,15 @@ repetem aqui.
       "Mutações", não fala da linha `falha:`
 - [ ] Da correção `2026-11-02-mutacao-diz-o-expect` (revisor-geral, 1ª), dono: Arquiteto, na próxima retrospectiva: `docs/processo-licoes.md:42` ainda diz que a defesa da X8 é
       "ler a linha do `expect` que caiu"
+
+## Da tarefa 5.0 do onboarding-por-convite (limites, expurgos e calendário), fora dela
+
+- [ ] Do `sistema.expurgar-acesso` (infra-guardian, 1ª): índice parcial em `importacao_planilha (concluida_em) where estado <> 'na_fila'` para o `delete` dos 90 dias; migration
+      em tabela que hoje é pequena, vale quando o volume crescer
+- [ ] Do balde `rl:importacao` (test-engineer, 1ª): cobrir o seguro em memória com o Redis fora, como o teste de `school-semaphore.test.ts` faz com o semáforo
+- [ ] Da medição `importacao.minutos_na_fila` (test-engineer, 1ª): caso em `apps/worker/test/importacao-gauge.int.test.ts` com 30 e 31 minutos, a borda do alerta da importação parada
+- [ ] Do teto de 100 KB em `apps/api/src/configure-app.ts` (tenancy-guardian, revisor-geral e infra-guardian, 2ª): a regex do `Content-Type` só reconhece `application/json` no
+      começo; se o leitor de JSON passar a aceitar `+json` (ou valor com espaço), o teto acompanha. Se aparecer abuso com JSON em pedaços (sem `Content-Length`), o caminho é
+      contar os bytes no fluxo
+- [ ] Do caso "[P] dez pedidos ao mesmo tempo" de `apps/api/test/importacao.int.test.ts` (test-engineer, 2ª): conferir com `ZCARD` da chave da escola igual a 2 que a conta passou
+      pelo Redis; com o cliente fora de `ready`, o seguro em memória daria o mesmo resultado

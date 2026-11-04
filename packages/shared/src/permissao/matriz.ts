@@ -90,9 +90,15 @@ export const RECURSOS = {
   material: ['enviar', 'listar', 'ler', 'excluir', 'buscar'],
   /**
    * As planilhas da escola (F2, 4.0; Tech Spec, seção 4), só da coordenação: `previa` é `POST /v1/importacoes/:tipo/previa`
-   * e `gravar`, `POST /v1/importacoes/:tipo` (202). A leitura do estado (`GET /v1/importacoes/:id`) entra na 5.0.
+   * e `gravar`, `POST /v1/importacoes/:tipo` (202); `ler` é `GET /v1/importacoes/:id` (5.0), o estado e as contagens da
+   * importação da escola, sem linha da planilha.
    */
-  importacao_planilha: ['previa', 'gravar'],
+  importacao_planilha: ['previa', 'gravar', 'ler'],
+  /**
+   * O calendário do ano (F2, 5.0), `GET /v1/calendario`: a coordenação lê o da escola, no ano em curso ou no planejado que
+   * ela escolhe; o professor lê o do ano em curso, só com vínculo confirmado nele. O aluno e a rede não o leem.
+   */
+  calendario: ['ler'],
   /** `GET /v1/time` (MVP, A2): os agentes, as funções, a autonomia e a suspensão na escola. Catálogo, sem dado de pessoa. */
   time: ['ler'],
   /**
@@ -218,7 +224,8 @@ export const MATRIZ: { readonly [P in Papel]: CelulasDoPapel } = {
     professor: { listar: 'nunca', cadastrar: 'nunca', refazer_convite: 'nunca', revogar_convite: 'nunca' },
     indicador_professor: { ler_agregado: 'agregado', ler_nominal: 'nunca' },
     material: { enviar: 'nunca', listar: 'nunca', ler: 'nunca', excluir: 'nunca', buscar: 'nunca' },
-    importacao_planilha: { previa: 'nunca', gravar: 'nunca' },
+    importacao_planilha: { previa: 'nunca', gravar: 'nunca', ler: 'nunca' },
+    calendario: { ler: 'nunca' },
     time: { ler: 'nunca' },
     assistente: { ler_conversa: 'nunca', enviar_mensagem: 'nunca' },
     execucao: { ler: 'nunca' },
@@ -261,7 +268,8 @@ export const MATRIZ: { readonly [P in Papel]: CelulasDoPapel } = {
     professor: { listar: 'unidade', cadastrar: 'unidade', refazer_convite: 'unidade', revogar_convite: 'unidade' },
     indicador_professor: { ler_agregado: 'agregado', ler_nominal: 'nominal_auditado' },
     material: { enviar: 'unidade', listar: 'unidade', ler: 'unidade', excluir: 'unidade', buscar: 'unidade' },
-    importacao_planilha: { previa: 'unidade', gravar: 'unidade' },
+    importacao_planilha: { previa: 'unidade', gravar: 'unidade', ler: 'unidade' },
+    calendario: { ler: 'unidade' },
     time: { ler: 'unidade' },
     assistente: { ler_conversa: 'nunca', enviar_mensagem: 'nunca' },
     execucao: { ler: 'proprio' },
@@ -304,7 +312,8 @@ export const MATRIZ: { readonly [P in Papel]: CelulasDoPapel } = {
     professor: { listar: 'nunca', cadastrar: 'nunca', refazer_convite: 'nunca', revogar_convite: 'nunca' },
     indicador_professor: { ler_agregado: 'nunca', ler_nominal: 'proprio' },
     material: { enviar: 'nunca', listar: 'turma_vinculada', ler: 'turma_vinculada', excluir: 'nunca', buscar: 'turma_vinculada' },
-    importacao_planilha: { previa: 'nunca', gravar: 'nunca' },
+    importacao_planilha: { previa: 'nunca', gravar: 'nunca', ler: 'nunca' },
+    calendario: { ler: 'turma_vinculada' },
     time: { ler: 'unidade' },
     assistente: { ler_conversa: 'proprio', enviar_mensagem: 'proprio' },
     execucao: { ler: 'proprio' },
@@ -347,7 +356,8 @@ export const MATRIZ: { readonly [P in Papel]: CelulasDoPapel } = {
     professor: { listar: 'nunca', cadastrar: 'nunca', refazer_convite: 'nunca', revogar_convite: 'nunca' },
     indicador_professor: { ler_agregado: 'nunca', ler_nominal: 'nunca' },
     material: { enviar: 'nunca', listar: 'nunca', ler: 'nunca', excluir: 'nunca', buscar: 'nunca' },
-    importacao_planilha: { previa: 'nunca', gravar: 'nunca' },
+    importacao_planilha: { previa: 'nunca', gravar: 'nunca', ler: 'nunca' },
+    calendario: { ler: 'nunca' },
     time: { ler: 'nunca' },
     assistente: { ler_conversa: 'nunca', enviar_mensagem: 'nunca' },
     execucao: { ler: 'proprio' },

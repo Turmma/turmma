@@ -50,6 +50,17 @@ export interface ImportacaoParaExecutar {
   readonly criadoPor: string | null
 }
 
+/** A importação como a coordenação a lê (`GET /v1/importacoes/:id`): o estado, as contagens e o código do erro. Nunca a linha da planilha. */
+export interface ImportacaoLida {
+  readonly id: string
+  readonly tipo: TipoDePlanilha
+  readonly estado: EstadoDaImportacao
+  readonly resumo: unknown
+  readonly erro: ErroDaImportacao | null
+  readonly criadoEm: Date
+  readonly concluidaEm: Date | null
+}
+
 /** `lock_not_available`: o `lock_timeout` estourou, ou o `nowait` não pegou a linha. */
 const SQLSTATE_TRAVA_NAO_DISPONIVEL = '55P03'
 
@@ -166,6 +177,37 @@ export class ImportacaoRepository {
       .where(and(eq(importacaoPlanilha.escolaId, requireEscolaId()), eq(importacaoPlanilha.id, id)))
     const [linha] = await (travar ? consulta.for('update') : consulta)
     return linha
+  }
+
+  /**
+   * A importação da escola do contexto para a leitura da coordenação (5.0): sem `linhas` nem `marcas`, que são o dado da
+   * planilha em trânsito e não saem por rota nenhuma. Só exige a escola, e não o ano em curso: a coordenação acompanha a
+   * importação mesmo na escola que ainda não abriu o ano. Id de outra escola, ou inexistente, não é achado.
+   */
+  async lerPorId(id: string): Promise<ImportacaoLida | undefined> {
+    const [linha] = await this.banco
+      .select({
+        id: importacaoPlanilha.id,
+        tipo: importacaoPlanilha.tipo,
+        estado: importacaoPlanilha.estado,
+        resumo: importacaoPlanilha.resumo,
+        erro: importacaoPlanilha.erro,
+        criadoEm: importacaoPlanilha.criadoEm,
+        concluidaEm: importacaoPlanilha.concluidaEm,
+      })
+      .from(importacaoPlanilha)
+      .where(and(eq(importacaoPlanilha.escolaId, requireEscolaId()), eq(importacaoPlanilha.id, id)))
+    return linha
+  }
+
+  /** Quando a `na_fila` mais antiga da escola do contexto foi gravada, ou `undefined` sem nenhuma: é o que o alerta de importação parada mede (5.0). */
+  async criadaEmDaNaFilaMaisAntiga(): Promise<Date | undefined> {
+    const [linha] = await this.banco
+      .select({ criadoEm: sql<Date | string | null>`min(${importacaoPlanilha.criadoEm})` })
+      .from(importacaoPlanilha)
+      .where(and(eq(importacaoPlanilha.escolaId, requireEscolaId()), eq(importacaoPlanilha.estado, 'na_fila')))
+    const valor = linha?.criadoEm
+    return valor === null || valor === undefined ? undefined : valor instanceof Date ? valor : new Date(valor)
   }
 
   /** Os tempos do passo (3): trava esperada até 1 s, cada comando até 1,5 s. Só vale na transação de quem chama (`set local`). */

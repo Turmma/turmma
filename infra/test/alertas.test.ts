@@ -13,6 +13,8 @@ import { lerEscolaARevogar, OPCAO_DA_ESCOLA } from '../../apps/api/src/ops/revog
 import { EVENTO_DO_LIMITE_DA_SALA, JANELA_DOS_LIMITES_DA_SALA_MS, SalaRateLimits, TETO_DE_CODIGOS_ERRADOS_POR_ESCOLA } from '../../apps/api/src/sala/sala-rate-limits.ts'
 import { WindowCounter } from '../../apps/api/src/credencial/senha/window-counter.ts'
 import { LIMITES_DO_HISTOGRAMA_HTTP_S } from '../../packages/core/src/telemetry/metrics.ts'
+import { LIMITES_DO_PASSO_3_S as LIMITES_DO_PASSO_3_DA_IMPORTACAO_S } from '../../apps/worker/src/processors/gravar-planilha.ts'
+import { MINUTOS_DA_IMPORTACAO_NA_FILA_PARA_ALERTAR } from '../../packages/shared/src/importacao/contratos.ts'
 import { HORAS_EM_PREPARACAO_PARA_ALERTAR } from '../../packages/shared/src/privacidade/arquivo.ts'
 import { HORAS_AGENDADO_PARA_ALERTAR } from '../../packages/shared/src/privacidade/titular.ts'
 import { HORAS_PARA_A_ESCOLA_CONFIRMAR } from '../../packages/shared/src/privacidade/incidente.ts'
@@ -157,6 +159,28 @@ describe('regras de alerta provisionadas', () => {
     expect(expressao(eliminacao)).toBe('max by (escola_id) (eliminacao_horas_vencida{job="educa/worker"})')
     expect(limiar(eliminacao)).toEqual({ type: 'gt', params: [HORAS_AGENDADO_PARA_ALERTAR] })
 
+    // F2, tarefa 5.0: a razão de `falhou` sobre os desfechos (`concluida`, `desatualizada`, `falhou`) da última hora, só com importação na hora; acima de 20%.
+    const importacaoFalhou = regraPorUid(REGRAS_PROVISIONADAS.importacaoFalhou).regra
+    expect(importacaoFalhou.for).toBe('5m')
+    expect(expressao(importacaoFalhou)).toBe(
+      '(sum (increase(importacao_job_total{job="educa/worker", resultado="falhou"}[1h])) / sum (increase(importacao_job_total{job="educa/worker", resultado=~"concluida|desatualizada|falhou"}[1h]))) and on () (sum (increase(importacao_job_total{job="educa/worker", resultado=~"concluida|desatualizada|falhou"}[1h])) > 0)',
+    )
+    expect(limiar(importacaoFalhou)).toEqual({ type: 'gt', params: [0.2] })
+
+    // F2, tarefa 5.0: por escola, em qualquer réplica do worker-lote, e só acima de 30 min na fila (MINUTOS_DA_IMPORTACAO_NA_FILA_PARA_ALERTAR).
+    const importacaoParada = regraPorUid(REGRAS_PROVISIONADAS.importacaoParada).regra
+    expect(importacaoParada.for).toBe('1m')
+    expect(expressao(importacaoParada)).toBe('max by (escola_id) (importacao_minutos_na_fila{job="educa/worker"})')
+    expect(limiar(importacaoParada)).toEqual({ type: 'gt', params: [MINUTOS_DA_IMPORTACAO_NA_FILA_PARA_ALERTAR] })
+
+    // F2, tarefa 5.0: o p95 do passo 3 do job da planilha na janela de 5 min, só com execução nela; acima de 1 s, que é fronteira de balde.
+    const passo3 = regraPorUid(REGRAS_PROVISIONADAS.importacaoPasso3Lento).regra
+    expect(passo3.for).toBe('5m')
+    expect(expressao(passo3)).toBe(
+      'histogram_quantile(0.95, sum by (le) (rate(importacao_passo3_duracao_seconds_bucket{job="educa/worker"}[5m]))) and on () (sum (rate(importacao_passo3_duracao_seconds_count{job="educa/worker"}[5m])) > 0)',
+    )
+    expect(limiar(passo3)).toEqual({ type: 'gt', params: [1] })
+
     // X5, tarefa 44.0: por tipo, em qualquer despachante, com qualquer job falho na tabela (acima de zero), por 1 min.
     const falhouDeVez = regraPorUid(REGRAS_PROVISIONADAS.jobFalhouDeVez).regra
     expect(falhouDeVez.for).toBe('1m')
@@ -196,6 +220,10 @@ describe('regras de alerta provisionadas', () => {
     expect(entrada).toContain(`npm run -s ops:revogar-acessos-sala -- --${OPCAO_DA_ESCOLA} <escolaId do log>`)
     const pacote = JSON.parse(readFileSync(join(raizRepositorio, 'package.json'), 'utf8')) as { scripts: Record<string, string> }
     expect(pacote.scripts['ops:revogar-acessos-sala']).toMatch(/build -w @educa\/api && node --env-file=\.env\.example apps\/api\/dist\/ops\/revogar-acessos-sala\.js$/)
+  })
+
+  it('o limite de 1 s do passo 3 da importação é fronteira de balde do histograma, e a lista de balde do job é a que o alerta lê', () => {
+    expect(LIMITES_DO_PASSO_3_DA_IMPORTACAO_S).toContain(1)
   })
 
   it('o código que o ensaio tenta tem o formato do código da turma: 8 caracteres do alfabeto sem letra que confunde', () => {

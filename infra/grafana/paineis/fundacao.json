@@ -1924,6 +1924,55 @@
           "range": true
         }
       ]
+    },
+    {
+      "id": 42,
+      "type": "timeseries",
+      "title": "Importação de planilha na fila (minutos, por escola)",
+      "description": "Há quantos minutos a importação de planilha mais antiga de cada escola espera o job. O alerta dispara acima de 30 min. A escola sem importação na fila não tem linha; a linha some quando o job termina ou o expurgo da 1h a fecha falhou.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 139
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "m",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max by (escola_id) (importacao_minutos_na_fila)",
+          "legendFormat": "{{escola_id}}",
+          "range": true
+        }
+      ]
     }
   ]
 }

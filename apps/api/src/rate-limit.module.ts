@@ -3,13 +3,17 @@ import {
   OperationalSettings,
   OperationalSettingsRepository,
   createApiRedisClient,
+  PREFIXO_VAGAS_DA_IMPORTACAO,
   RateLimiter,
   TrustedProxies,
+  SchoolSemaphore,
+  VALIDADE_DA_VAGA_DA_PLANILHA_MS,
   resolverLimites,
   type Database,
   type RateLimitConfig,
   type RateLimits,
 } from '@educa/core'
+import { VAGAS_DA_PLANILHA_POR_ESCOLA } from '@educa/shared'
 import { Global, Inject, Logger, Module, type DynamicModule, type OnApplicationShutdown } from '@nestjs/common'
 import type { Redis } from 'ioredis'
 import { DB } from './database.module.js'
@@ -17,6 +21,8 @@ import { DB } from './database.module.js'
 export const REDIS_CACHE_CLIENT = Symbol('REDIS_CACHE_CLIENT')
 /** Os limites de requisição da escola do token: os da `configuracao_operacional_escola`, ou o padrão do ambiente. */
 export const ESCOLA_RATE_LIMITS = Symbol('ESCOLA_RATE_LIMITS')
+/** As vagas de planilha da escola: quantas prévias e gravares ela classifica ao mesmo tempo (F2, 5.0). */
+export const VAGAS_DA_PLANILHA = Symbol('VAGAS_DA_PLANILHA')
 
 /**
  * Rate limit da API: o cliente do Redis de cache, o limitador, os limites de cada escola e os
@@ -60,9 +66,15 @@ export class RateLimitModule implements OnApplicationShutdown {
           },
           inject: [DB],
         },
+        {
+          provide: VAGAS_DA_PLANILHA,
+          useFactory: (cliente: Redis) =>
+            new SchoolSemaphore(cliente, { prefixo: PREFIXO_VAGAS_DA_IMPORTACAO, maximo: VAGAS_DA_PLANILHA_POR_ESCOLA, validadeMs: VALIDADE_DA_VAGA_DA_PLANILHA_MS, instancias: config.instancias }),
+          inject: [REDIS_CACHE_CLIENT],
+        },
         { provide: TrustedProxies, useValue: new TrustedProxies(config.proxiesConfiaveis) },
       ],
-      exports: [RateLimiter, TrustedProxies, ESCOLA_RATE_LIMITS],
+      exports: [RateLimiter, TrustedProxies, ESCOLA_RATE_LIMITS, VAGAS_DA_PLANILHA],
     }
   }
 

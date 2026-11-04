@@ -15,6 +15,7 @@ import {
   ExpurgoDeAcessoRepository,
   ExpurgoDeJobsRepository,
   IncidenteDaEscolaRepository,
+  ImportacaoRepository,
   JobOutboxRepository,
   METRICS,
   bullmqQueueName,
@@ -65,6 +66,7 @@ import { criarEliminacaoDoTitular } from './processors/eliminar-titular.js'
 import { criarExpurgoDaEscola } from './processors/expurgar-escola.js'
 import { EliminacaoGauge } from './eliminacao-gauge.js'
 import { ArquivoGauge } from './arquivo-gauge.js'
+import { ImportacaoGauge } from './importacao-gauge.js'
 import { ExpurgoGauge } from './expurgo-gauge.js'
 import { IncidenteGauge } from './incidente-gauge.js'
 import { criarGravacaoDaPlanilha } from './processors/gravar-planilha.js'
@@ -295,6 +297,18 @@ function processadoresDaNormal({ banco, relogio, logger, medidor, armazem }: Pro
 }
 
 /**
+ * Liga a medição dos minutos da importação de planilha na fila (F2, tarefa 5.0) e devolve como encerrá-la. Sem medidor não há o que
+ * medir, e o encerrar não faz nada. Fica fora de `createRoutines` para a catraca de complexidade dela não subir.
+ */
+function iniciarMedicaoDaImportacao(dependencias: { escolas: CronEscolasRepository; banco: Database; relogio: Clock; logger: LoggerBase; medidor: Meter | undefined }): () => Promise<void> {
+  const { escolas, banco, relogio, logger, medidor } = dependencias
+  if (medidor === undefined) return () => Promise.resolve()
+  const medicao = new ImportacaoGauge({ escolas, repositorio: new ImportacaoRepository(banco), relogio, logger, medidor })
+  medicao.iniciar()
+  return () => medicao.encerrar()
+}
+
+/**
  * As rotinas do sistema, que só a réplica de lote executa: consolidação de uso (com o storage),
  * expurgo de `job_registro`, expurgo do acesso (registro de acesso, sessão e convite, 17.0) e o expurgo do dado pessoal
  * (F3, tarefa 3.0): a rotina que grava um job por escola, o job da escola, e, com o medidor, a medição das noites
@@ -327,6 +341,7 @@ function createRoutines(
   medicaoDoArquivo?.iniciar()
   const medicaoDaEliminacao = medidor === undefined ? undefined : new EliminacaoGauge({ escolas, repositorio: expurgoDaEscola, relogio, logger, medidor })
   medicaoDaEliminacao?.iniciar()
+  const encerrarMedicaoDaImportacao = iniciarMedicaoDaImportacao({ escolas, banco, relogio, logger, medidor })
   return {
     processadores: {
       [TIPO_CONSOLIDAR_USO]: criarConsolidacaoDeUso({
@@ -357,6 +372,7 @@ function createRoutines(
       await medicaoDoIncidente?.encerrar()
       await medicaoDoArquivo?.encerrar()
       await medicaoDaEliminacao?.encerrar()
+      await encerrarMedicaoDaImportacao()
       s3.destroy()
     },
   }

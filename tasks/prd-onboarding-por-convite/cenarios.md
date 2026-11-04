@@ -130,7 +130,8 @@ numa tarefa do `tasks.md`, que diz qual. I = integração com Postgres real e re
   - [I] `linhas` e `marcas` nulas em `concluida`, `desatualizada` e `falhou`; a linha final sai em 90 dias.
   - [I] Quem gravou já saiu (`criado_por` nulo): o job sai `desatualizada`, sem gravar e sem auditoria.
   - [I] `na_fila` há mais de 1 h: o gravar seguinte a fecha `falhou` (`expirou`); travada por um job rodando, o gravar
-    responde `CONFLITO` sem esperar.
+    responde `CONFLITO` sem esperar. A rotina que fecha a `na_fila` parada roda à 1h: o dado da planilha pode ficar, na pior hipótese,
+    cerca de 25 h, e "1 h" não quer dizer em tempo real.
   - [I] Tentativas esgotadas, e falha definitiva: `falhou` com o código, `linhas` e `marcas` nulas.
   - [I] Sem gravar novo, relógio falso: com 59 min o `retencao.expurgar-escola` mantém a `na_fila`; com 61 min a fecha
     `falhou`, com `linhas` e `marcas` nulas.
@@ -210,9 +211,10 @@ Cada linha é um cenário [I]; o semáforo, [P].
 | Limite | Valor | Ao passar |
 |---|---|---|
 | Prévia e gravar | 20/min por usuário, no mesmo balde | 429 |
-| Prévias simultâneas | 2 por escola, no Redis, com o gravar ocupando vaga e prazo de validade | recusada; a outra escola segue; a vaga volta quando o processo morre |
+| Prévias simultâneas | 2 por escola, no Redis, com o gravar ocupando vaga e prazo de validade de 30 s | recusada; a outra escola segue; a vaga volta quando o processo morre |
 | Importação `na_fila` | 1 por escola | `CONFLITO` |
 | Texto da planilha | 512 KB e 3.000 linhas, só nessas rotas | `ENTRADA_INVALIDA` |
+| Corpo JSON de outra rota | 100 KB pelo `Content-Length`, fora de `/v1/importacoes`; o multipart (material) não entra | `ENTRADA_INVALIDA` |
 
 ## Auditoria (RF17)
 
