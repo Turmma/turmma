@@ -443,7 +443,7 @@ function SubirLista({ turmaId, aoGravar, recarregarNomes }: { turmaId: string; a
   const falhaDaGravacao =
     gravar.mutacao.isError && gravar.mutacao.variables === texto
     ? errorText(gravar.mutacao.error, {
-        [ErrorCode.CONFLITO]: 'Uma das matrículas passou a ser usada em outra turma ou por um aluno depois da prévia. Nada foi gravado: veja a prévia de novo.',
+        [ErrorCode.CONFLITO]: 'Uma das matrículas passou a ser usada em outra turma ou por um aluno depois da prévia, e essa linha não foi gravada. A lista de nomes da turma mostra o que entrou: veja a prévia de novo.',
         [ErrorCode.ENTRADA_INVALIDA]: 'A lista tem linha com erro. Nada foi gravado: veja a prévia de novo.',
         [ErrorCode.NAO_ENCONTRADO]: 'Esta turma não está mais no ano letivo em curso. Nada foi gravado.',
       })

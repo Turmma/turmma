@@ -474,11 +474,16 @@ describe('o foco depois de cada ação', () => {
     const estado = listaQueMuda(rede, [])
     rede.responderPor(`/v1/turmas/${TURMA.id}/lista/previa`, {
       status: 200,
-      corpo: { entram: 1, jaExistem: 0, comErro: 0, linhas: [{ linha: 1, nome: 'Ana Souza', matricula: '2026001', resultado: 'entra' }] },
+      corpo: { linhas: [{ linha: 1, resultado: 'entra' }], contagens: { entram: 1 }, candidatos: [] },
     })
     rede.responderPor(new RegExp(`^/v1/turmas/${TURMA.id}/lista$`), () => {
       estado.itens = [NOME(1, 'livre', 'Ana Souza', '2026001')]
-      return { status: 200, corpo: { gravados: 1, jaExistentes: 0 } }
+      return { status: 202, corpo: { id: id(900) } }
+    })
+    // A API grava pelo job (F2, 8.0): a tela espera a importação concluir para dizer quantos nomes entraram.
+    rede.responderPor(`/v1/importacoes/${id(900)}`, {
+      status: 200,
+      corpo: { id: id(900), tipo: 'alunos', estado: 'concluida', resumo: { entram: 1 }, erro: null, criadoEm: '2026-11-04T10:00:00-03:00', concluidaEm: '2026-11-04T10:00:01-03:00' },
     })
     await montarEEsperar()
     expect(await nomes().findByText('Nenhum nome nesta turma ainda')).toBeTruthy()
@@ -493,6 +498,71 @@ describe('o foco depois de cada ação', () => {
     expect(linhasDosNomes()[0]?.textContent).toContain('Ana Souza')
     expect((screen.getByLabelText('Lista colada') as HTMLTextAreaElement).value).toBe('')
   })
+
+  const CONFLITO_DA_GRAVACAO =
+    'Uma das matrículas passou a ser usada em outra turma ou por um aluno depois da prévia, e essa linha não foi gravada. A lista de nomes da turma mostra o que entrou: veja a prévia de novo.'
+  const CONCLUIDA = (resumo: Record<string, number>) => ({
+    id: id(900),
+    tipo: 'alunos',
+    estado: 'concluida',
+    resumo,
+    erro: null,
+    criadoEm: '2026-11-04T10:00:00-03:00',
+    concluidaEm: '2026-11-04T10:00:01-03:00',
+  })
+
+  it.each([
+    {
+      caso: 'parcial',
+      texto: 'Ana Souza;2026001\nBia Lima;2026002',
+      linhas: [1, 2],
+      poeNaLista: [NOME(1, 'livre', 'Ana Souza', '2026001')],
+      importacao: CONCLUIDA({ entram: 1 }),
+    },
+    { caso: 'nada', texto: 'Bia Lima;2026002', linhas: [1], poeNaLista: [], importacao: CONCLUIDA({}) },
+    {
+      caso: 'envelheceu',
+      texto: 'Bia Lima;2026002',
+      linhas: [1],
+      poeNaLista: [],
+      importacao: { ...CONCLUIDA({}), estado: 'desatualizada', resumo: null, concluidaEm: null },
+    },
+  ])(
+    'a gravação que deixou linha de fora diz que essa linha não foi gravada e aponta a lista, que mostra o que entrou: parcial, nada e prévia que envelheceu ($caso)',
+    async ({ texto, linhas, poeNaLista, importacao }) => {
+      const usuario = userEvent.setup()
+      const rede = fakeNetwork()
+      const estado = listaQueMuda(rede, [])
+      rede.responderPor(`/v1/turmas/${TURMA.id}/lista/previa`, {
+        status: 200,
+        corpo: { linhas: linhas.map((linha) => ({ linha, resultado: 'entra' })), contagens: { entram: linhas.length }, candidatos: [] },
+      })
+      rede.responderPor(new RegExp(`^/v1/turmas/${TURMA.id}/lista$`), () => {
+        estado.itens = poeNaLista
+        return { status: 202, corpo: { id: id(900) } }
+      })
+      rede.responderPor(`/v1/importacoes/${id(900)}`, { status: 200, corpo: importacao })
+      await montarEEsperar()
+      expect(await nomes().findByText('Nenhum nome nesta turma ainda')).toBeTruthy()
+
+      const campo = screen.getByLabelText('Lista colada') as HTMLTextAreaElement
+      await usuario.click(campo)
+      await usuario.paste(texto)
+      await usuario.click(screen.getByRole('button', { name: 'Ver a prévia' }))
+      await usuario.click(await screen.findByRole('button', { name: 'Gravar lista' }))
+
+      const alerta = await screen.findByRole('alert')
+      expect(alerta.textContent).toBe(CONFLITO_DA_GRAVACAO)
+      if (poeNaLista.length === 0) {
+        expect(await nomes().findByText('Nenhum nome nesta turma ainda')).toBeTruthy()
+      } else {
+        await waitFor(() => expect(linhasDosNomes()).toHaveLength(1))
+        expect(linhasDosNomes()[0]?.textContent).toContain('Ana Souza')
+      }
+      expect(screen.queryByRole('button', { name: 'Gravar lista' })).toBeNull()
+      expect(campo.value).toBe(texto)
+    },
+  )
 
   it('acrescentar um nome fecha o diálogo, anuncia na seção dos nomes e devolve o foco ao botão que o abriu', async () => {
     const usuario = userEvent.setup()

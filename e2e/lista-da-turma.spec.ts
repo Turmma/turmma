@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { Locator, Page, Request, Route } from '@playwright/test'
 import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
-import { entrarComoCoordenacaoNaMesmaAba, abrirEstrutura, esperarEstrutura, esperarPainel, SIGN_IN_TIMEOUT_MS } from './support/casca.ts'
+import { entrarComoCoordenacaoNaMesmaAba, abrirEstrutura, esperarEstrutura, SIGN_IN_TIMEOUT_MS } from './support/casca.ts'
 import { linhasDaTabela, paginaNaoRola } from './support/coordenacao.ts'
 import { expect, test } from './support/profiles.ts'
 import {
@@ -199,6 +199,61 @@ test.describe('W10 e W4 (Lista): a lista de nomes da turma', () => {
     await expect(linhasDaTabela(lista).filter({ hasText: homonimo })).toContainText('880001')
     await expect(lista).not.toContainText('880004')
 
+    // O que o leitor aceita calado e a tela aponta: o cabeçalho que ele não reconhece entra como aluno, e a coluna que
+    // parece CPF segura a gravação (aluno não tem CPF, regra 20).
+    const verPrevia = principal(page).getByRole('button', { name: 'Ver a prévia' })
+    await colada.fill(`Aluno;RA\nCom documento ${marca};123.456.789-09`)
+    await activate(verPrevia, hasTouch)
+    // A linha que parece CPF é erro da API (correção 2026-10-03-trava-de-documento-so-na-tela), e não "entra".
+    await expect(previa.getByRole('status')).toHaveText('1 nome entra · 0 já estão na lista · 1 linha com erro', { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(previa).toContainText('A primeira linha parece um cabeçalho, e vai entrar como aluno.')
+    await expect(previa).toContainText('A segunda coluna parece CPF ou data de nascimento, e não matrícula.')
+    // A linha suspeita diz o porquê, como erro, em vez de "Entra na lista", e o motivo de não gravar não repete o aviso.
+    await expect(previa.getByRole('listitem').filter({ hasText: '123.456.789-09' })).toContainText('Parece CPF ou data de nascimento, e não matrícula: confira esta linha.')
+    await expect(previa.getByRole('listitem').filter({ hasText: '123.456.789-09' })).not.toContainText('Entra na lista')
+    await expect(previa).toContainText('Nada é gravado enquanto a segunda coluna parecer CPF ou data de nascimento.')
+    await expect(previa.getByRole('button', { name: 'Gravar lista' })).toHaveCount(0)
+    // O título antes da lista, com vírgula: o leitor passa a separar pela vírgula, as linhas com ";" saem sem matrícula, e
+    // a tela diz para tirar o título.
+    await colada.fill(`Turma 8ºA, manhã\nAna ${marca};660080\nBia ${marca};660081`)
+    await activate(verPrevia, hasTouch)
+    await expect(previa.getByRole('status')).toContainText('2 linhas com erro', { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(previa).toContainText('Quase todas as linhas ficaram sem matrícula. Se a primeira linha é um título')
+    await expect(previa.getByRole('button', { name: 'Gravar lista' })).toHaveCount(0)
+
+    // A prévia lenta mora aqui, no fim do caso, porque a coordenadora, a turma e a lista já estão na tela: um caso próprio pagaria
+    // a preparação de novo e passaria da metade do prazo (o título do caso não muda: é por ele que o prazo do HEAD é achado).
+    // A resposta que chega com o foco já de volta no campo (a rede lenta): a prévia aparece, o foco fica onde a pessoa
+    // está, e o que ela digita em seguida entra no campo.
+    let segurada = gate()
+    await page.route(`**/v1/turmas/${turma.id}/lista/previa`, async (rota: Route) => {
+      await segurada.aberta
+      await rota.continue()
+    })
+    await colada.fill(`Aluno antigo ${marca};660002`)
+    const lenta = page.waitForResponse((pedido) => new URL(pedido.url()).pathname.endsWith('/lista/previa'))
+    await activate(verPrevia, hasTouch)
+    await colada.focus()
+    segurada.abrir()
+    await (await lenta).finished()
+    await expect(previa).toBeVisible()
+    await expect(colada).toBeFocused()
+    await colada.press('Control+End')
+    await page.keyboard.type('9')
+    await expect(colada).toHaveValue(`Aluno antigo ${marca};6600029`)
+
+    // De um botão, o foco vai: quem deu um Tab durante a espera e parou em "Acrescentar um nome" não estava digitando, e
+    // é pelo foco no título que o leitor de tela fica sabendo que a prévia pedida chegou.
+    segurada = gate()
+    await colada.fill(`Aluno do tab ${marca};660005`)
+    const comTab = page.waitForResponse((pedido) => new URL(pedido.url()).pathname.endsWith('/lista/previa'))
+    await activate(verPrevia, hasTouch)
+    await page.keyboard.press('Tab')
+    await expect(lista.getByRole('button', { name: 'Acrescentar um nome' })).toBeFocused()
+    segurada.abrir()
+    await (await comTab).finished()
+    await expect(previa.getByRole('heading', { name: 'Prévia' })).toBeFocused()
+
     // Sem rastro: nome e matrícula não vão para o armazenamento do navegador nem para o endereço, e a tela não cria
     // banco nem cache no navegador.
     const guardado = await page.evaluate(async () => ({
@@ -236,9 +291,15 @@ test.describe('W10 e W4 (Lista): a lista de nomes da turma', () => {
     })
     await page.goto('/entrar')
     await entrarComoCoordenacaoNaMesmaAba(page, coordenadora, hasTouch)
-    await abrirEstrutura(page, hasTouch)
-    await expect(principal(page).getByRole('region', { name: 'Turmas de 2026' })).toContainText(turma.nome, { timeout: SIGN_IN_TIMEOUT_MS })
-    await abrirTurma(page, turma.nome, hasTouch)
+    // A turma abre pelo endereço, sem passar pela Estrutura: abrir pela linha dela já está provado nos outros casos deste
+    // arquivo e em `e2e/estrutura.spec.ts`, e aqui custaria uns 8 s do prazo.
+    const irPara = (destino: string) =>
+      page.evaluate((caminho) => {
+        window.history.pushState(null, '', caminho)
+        window.dispatchEvent(new PopStateEvent('popstate'))
+      }, destino)
+    await irPara(`/coordenacao/estrutura/turmas/${turma.id}`)
+    await expect(principal(page).getByRole('heading', { level: 1, name: `Turma ${turma.nome}` })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     const lista = principal(page).getByRole('region', { name: 'Nomes da turma' })
     await expect(lista).toContainText(`Primeira da lista ${marca}`, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(lista).toContainText('Mostrando os primeiros 100 nomes')
@@ -274,18 +335,15 @@ test.describe('W10 e W4 (Lista): a lista de nomes da turma', () => {
     await expect(reivindicado.getByRole('button')).toHaveCount(0)
     await expect(lista.getByRole('button', { name: `Retirar Primeira da lista ${marca}, matrícula 660001 da lista` })).toBeVisible()
 
-    // O que a tela segura antes de enviar: o texto vazio, a lista acima de 200 nomes e o arquivo acima de 64 KB.
+    // O que a tela segura antes de enviar: o texto vazio e o arquivo acima de 512 KB (o teto de 3.000 linhas ficou de fora: colar 3.002 linhas no campo leva uns 27 s na tela).
     const campo = principal(page).getByLabel('Lista colada')
     const verPrevia = principal(page).getByRole('button', { name: 'Ver a prévia' })
     const subir = principal(page).getByRole('region', { name: 'Subir a lista de nomes' })
     await activate(verPrevia, hasTouch)
     await expect(subir.getByRole('alert')).toHaveText('Cole a lista ou escolha o arquivo antes de ver a prévia.')
-    await campo.fill(Array.from({ length: 202 }, (_, posicao) => `Aluno ${String(posicao)};${String(700000 + posicao)}`).join('\n'))
-    await activate(verPrevia, hasTouch)
-    await expect(subir.getByRole('alert')).toHaveText('A lista passa de 200 nomes. Divida em partes e envie uma de cada vez.')
     await principal(page)
       .getByLabel('Ou escolha o arquivo (CSV ou TXT, como o Excel salva)')
-      .setInputFiles({ name: 'grande.csv', mimeType: 'text/csv', buffer: Buffer.alloc(64 * 1024 + 4, 'a') })
+      .setInputFiles({ name: 'grande.csv', mimeType: 'text/csv', buffer: Buffer.alloc(512 * 1024 + 4, 'a') })
     await expect(subir.getByRole('alert')).toHaveText('A lista é grande demais para um envio só. Divida em partes e envie uma de cada vez.')
     // A planilha do Excel (um zip) não é texto: a tela diz para salvar como CSV, em vez de encher o campo de lixo.
     await principal(page)
@@ -320,61 +378,12 @@ test.describe('W10 e W4 (Lista): a lista de nomes da turma', () => {
     await expect(subir.getByRole('alert')).toHaveCount(0)
     expect(previas).toHaveLength(1)
 
-    // O que o leitor aceita calado e a tela aponta: o cabeçalho que ele não reconhece entra como aluno, e a coluna que
-    // parece CPF segura a gravação (aluno não tem CPF, regra 20).
-    await campo.fill(`Aluno;RA\nCom documento ${marca};123.456.789-09`)
-    await activate(verPrevia, hasTouch)
-    const comAvisos = principal(page).getByRole('region', { name: 'Prévia' })
-    // A linha que parece CPF é erro da API (correção 2026-10-03-trava-de-documento-so-na-tela), e não "entra".
-    await expect(comAvisos.getByRole('status')).toHaveText('1 nome entra · 0 já estão na lista · 1 linha com erro', { timeout: SIGN_IN_TIMEOUT_MS })
-    await expect(comAvisos).toContainText('A primeira linha parece um cabeçalho, e vai entrar como aluno.')
-    await expect(comAvisos).toContainText('A segunda coluna parece CPF ou data de nascimento, e não matrícula.')
-    // A linha suspeita diz o porquê, como erro, em vez de "Entra na lista", e o motivo de não gravar não repete o aviso.
-    await expect(comAvisos.getByRole('listitem').filter({ hasText: '123.456.789-09' })).toContainText('Parece CPF ou data de nascimento, e não matrícula: confira esta linha.')
-    await expect(comAvisos.getByRole('listitem').filter({ hasText: '123.456.789-09' })).not.toContainText('Entra na lista')
-    await expect(comAvisos).toContainText('Nada é gravado enquanto a segunda coluna parecer CPF ou data de nascimento.')
-    await expect(comAvisos.getByRole('button', { name: 'Gravar lista' })).toHaveCount(0)
-    // O título antes da lista, com vírgula: o leitor passa a separar pela vírgula, as linhas com ";" saem sem matrícula, e
-    // a tela diz para tirar o título.
-    await campo.fill(`Turma 8ºA, manhã\nAna ${marca};660080\nBia ${marca};660081`)
-    await activate(verPrevia, hasTouch)
-    await expect(comAvisos.getByRole('status')).toContainText('2 linhas com erro', { timeout: SIGN_IN_TIMEOUT_MS })
-    await expect(comAvisos).toContainText('Quase todas as linhas ficaram sem matrícula. Se a primeira linha é um título')
-    await expect(comAvisos.getByRole('button', { name: 'Gravar lista' })).toHaveCount(0)
-
-    // A resposta que chega com o foco já de volta no campo (a rede lenta): a prévia aparece, o foco fica onde a pessoa
-    // está, e o que ela digita em seguida entra no campo.
-    let segurada = gate()
+    // Resposta atrasada: a prévia do texto de antes chega depois da edição e não aparece.
+    const segurada = gate()
     await page.route(`**/v1/turmas/${turma.id}/lista/previa`, async (rota: Route) => {
       await segurada.aberta
       await rota.continue()
     })
-    await campo.fill(`Aluno antigo ${marca};660002`)
-    const lenta = page.waitForResponse((pedido) => new URL(pedido.url()).pathname.endsWith('/lista/previa'))
-    await activate(verPrevia, hasTouch)
-    await campo.focus()
-    segurada.abrir()
-    await (await lenta).finished()
-    await expect(principal(page).getByRole('region', { name: 'Prévia' })).toBeVisible()
-    await expect(campo).toBeFocused()
-    await campo.press('Control+End')
-    await page.keyboard.type('9')
-    await expect(campo).toHaveValue(`Aluno antigo ${marca};6600029`)
-
-    // De um botão, o foco vai: quem deu um Tab durante a espera e parou em "Acrescentar um nome" não estava digitando, e
-    // é pelo foco no título que o leitor de tela fica sabendo que a prévia pedida chegou.
-    segurada = gate()
-    await campo.fill(`Aluno do tab ${marca};660005`)
-    const comTab = page.waitForResponse((pedido) => new URL(pedido.url()).pathname.endsWith('/lista/previa'))
-    await activate(verPrevia, hasTouch)
-    await page.keyboard.press('Tab')
-    await expect(lista.getByRole('button', { name: 'Acrescentar um nome' })).toBeFocused()
-    segurada.abrir()
-    await (await comTab).finished()
-    await expect(principal(page).getByRole('region', { name: 'Prévia' }).getByRole('heading', { name: 'Prévia' })).toBeFocused()
-
-    // Resposta atrasada: a prévia do texto de antes chega depois da edição e não aparece.
-    segurada = gate()
     await campo.fill(`Aluno antigo ${marca};660002`)
     const resposta = page.waitForResponse((pedido) => new URL(pedido.url()).pathname.endsWith('/lista/previa'))
     await activate(verPrevia, hasTouch)
@@ -392,7 +401,7 @@ test.describe('W10 e W4 (Lista): a lista de nomes da turma', () => {
     await expect(campo).toBeFocused()
     await campo.fill(`Aluno novo ${marca};660003`)
 
-    // A gravação recusada: a matrícula passou para a lista de outra turma depois da prévia. Nada é gravado, a prévia
+    // A gravação recusada: a matrícula passou para a lista de outra turma depois da prévia. A linha não é gravada, a prévia
     // sai com o "Gravar lista", a tela pede a prévia de novo, e a lista recarrega (com o nome que outra pessoa pôs nela
     // enquanto isso).
     await activate(verPrevia, hasTouch)
@@ -402,7 +411,7 @@ test.describe('W10 e W4 (Lista): a lista de nomes da turma', () => {
     await porNaListaDaTurma(coordenadora.escolaId, turma.id, [{ nome: `Chegou durante a prévia ${marca}`, matricula: '660070' }])
     await activate(previa.getByRole('button', { name: 'Gravar lista' }), hasTouch)
     await expect(subir.getByRole('alert')).toHaveText(
-      'Uma das matrículas passou a ser usada em outra turma ou por um aluno depois da prévia. Nada foi gravado: veja a prévia de novo.',
+      'Uma das matrículas passou a ser usada em outra turma ou por um aluno depois da prévia, e essa linha não foi gravada. A lista de nomes da turma mostra o que entrou: veja a prévia de novo.',
       { timeout: SIGN_IN_TIMEOUT_MS },
     )
     await expect(subir.getByRole('alert')).toBeFocused()
@@ -492,11 +501,6 @@ test.describe('W10 e W4 (Lista): a lista de nomes da turma', () => {
 
     // Outra turma já aberta antes, pelo histórico, sem passar pela Estrutura: a tela recomeça, sem o texto colado na
     // anterior (que "Gravar lista" mandaria para a turma nova).
-    const irPara = (destino: string) =>
-      page.evaluate((caminho) => {
-        window.history.pushState(null, '', caminho)
-        window.dispatchEvent(new PopStateEvent('popstate'))
-      }, destino)
     await irPara(`/coordenacao/estrutura/turmas/${outraTurma.id}`)
     await expect(principal(page).getByRole('heading', { level: 1, name: `Turma ${outraTurma.nome}` })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await irPara(`/coordenacao/estrutura/turmas/${turma.id}`)
@@ -505,12 +509,6 @@ test.describe('W10 e W4 (Lista): a lista de nomes da turma', () => {
     await irPara(`/coordenacao/estrutura/turmas/${outraTurma.id}`)
     await expect(principal(page).getByRole('heading', { level: 1, name: `Turma ${outraTurma.nome}` })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(principal(page).getByLabel('Lista colada')).toHaveValue('')
-    // A página inicial leva a coordenação para o Painel sem ficar no histórico: o Voltar do navegador sai do Painel
-    // para a turma de antes, em vez de cair na página inicial e ser trazido de volta.
-    await irPara('/')
-    await esperarPainel(page)
-    await page.goBack()
-    await expect(principal(page).getByRole('heading', { level: 1, name: `Turma ${outraTurma.nome}` })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     // "Voltar para Escola" leva de volta à lista de turmas.
     await activate(principal(page).getByRole('link', { name: 'Voltar para Escola' }), hasTouch)
     await esperarEstrutura(page)

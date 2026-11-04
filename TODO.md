@@ -2657,3 +2657,27 @@ repetem aqui.
 - [ ] Da 9.0 (conformidade-reviewer, 1ª), para a 10.0 ou a 13.0: provar que a sessão de tutor aberta na turma antiga deixa de ser alcançável pelo aluno transferido e que registro e resumo seguem visíveis ao professor da turma antiga
 - [ ] Do teste `[P] duas vagas da escola ocupadas` de `lista.int.test.ts` (test-engineer, 2ª): o título sugere chamadas em paralelo e o teste ocupa as vagas pelo `SchoolSemaphore`; renomear
 - [ ] De `turma.alunos_lidos` em `importacao-alunos.int.test.ts` (privacy-guardian, 2ª): procurar também a matrícula das duas linhas no registro, além do nome
+
+## Da correção `e2e-contrato-da-lista-8` (esteira da 8.0), fora dela
+
+- [ ] Da 13.0: apagar `apps/web/src/areas/coordenacao/estrutura/ponte-da-lista.ts` e `api/lista.test.ts` junto de `api/lista.ts` e dos três esquemas antigos da lista (a linha da 8.0 acima); a tela nova aceita as 3.000 linhas do teto da planilha no Chromebook, dentro do prazo, com e2e do teto
+      (colar 3.002 linhas no campo da tela antiga leva uns 27 s, e por isso `e2e/lista-da-turma.spec.ts:214` só confere o arquivo acima de 512 KB; as 3.000 linhas já têm prova em
+      `lista-reader.test.ts:123` e em `importacao.int.test.ts:724`). O que a ponte deixa para a tela nova (revisores da 1ª rodada): o leitor da ponte (`ponte-da-lista.ts`, a função `camposDa` e a leitura do cabeçalho) é cópia de
+      `apps/api/src/estrutura/lista/lista-reader.ts`: se o da API mudar antes da 13.0, a ponte põe o nome na linha errada sem dar sinal; as duas cópias têm de andar juntas (revisor-geral, test-engineer,
+      privacy-guardian). O prazo da ponte (60 s) é menor que o do job (300 s): a tela nova mostra o estado da importação em vez de desistir (infra-guardian). O texto "Até 200 nomes por vez"
+      (`ListaDaTurma.tsx:476` e `:439`) está desatualizado, o teto é 3.000 linhas (frontend-reviewer, conformidade-reviewer, revisor-geral, test-engineer). O `CONFLITO` do POST também acontece com outra
+      importação já na fila, e a tela diz "Uma das matrículas passou a ser usada…" (test-engineer). Ao apagar a ponte, conferir que a tela nova não mostra o `rotulo` dos `candidatos` de outra turma sem a
+      marca da coordenação (privacy-guardian), e pedir a auditoria da regra 70 nessa tarefa (conformidade-reviewer). A prévia nova também mostra `nome_corrigido` (a ponte o recusa, porque a tela da A1 não sabe
+      dizer que o nome será corrigido) e `muda_de_turma` por extenso. O caso `o erro da leitura da lista com "Tentar de novo"…` (`e2e/lista-da-turma.spec.ts`, o antigo 516) leva 56-60 s no celular, acima da metade do
+      prazo dele, e só não é cobrado porque o diff da correção não o toca: a 13.0, que reescreve esses casos com a tela nova, o encurta (2ª triagem do Arquiteto).
+      Da 2ª rodada: a prévia com uma linha `nome_corrigido` falha inteira com a mensagem genérica de erro, e tentar de novo não resolve; na reimportação, um acento corrigido trava a lista inteira até a 13.0;
+      a tela nova diz o que fazer, e o texto do caso tem teste (test-engineer, frontend-reviewer, revisor-geral). O `Retry-After` do 429 (`esperaSegundos` do `ApiError`) como piso da próxima espera, e o
+      `AbortSignal` no polling (`authedGet` já aceita um sinal, `apps/web/src/api/sessao.ts`) (infra-guardian). Ao apagar a ponte, pedir também a auditoria do `tenancy-guardian` nessa tarefa:
+      `candidatos` e `rotulo` têm de vir só da escola da sessão (tenancy-guardian). Incluir `ponte-da-lista.ts` e `api/lista.test.ts` nos arquivos previstos do `13_task.md`, para o leitor copiado não
+      sobreviver à tela nova (privacy-guardian; é do Arquiteto). O caso da lista paginada de `lista-da-turma.spec.ts` (o 214 no HEAD) leva 43,3 s no celular contra os 45 s da metade do prazo, e no runner,
+      que leva perto do dobro, chega a uns 87 de 90 s: entra no lote de e2e perto do prazo, ou a 13.0 o encurta (test-engineer).
+      Da 3ª rodada: o texto do `CONFLITO` da gravação diz "essa linha", no singular; com mais de uma linha de fora fica imprecisa, e a tela nova diz quantas entraram e quantas ficaram de fora
+      (revisor-geral, frontend-reviewer, test-engineer, conformidade-reviewer). A prévia `desatualizada` e o `CONFLITO` do POST com outra importação na fila usam o texto de "matrícula em outra
+      turma", e a causa real pode ser outra: separar "a lista mudou desde a prévia" de "uma matrícula passou a outra turma" (revisor-geral, test-engineer).
+- [ ] Da integração (infra-guardian): o job passou a `timeout-minutes: 30` porque levava de 15 a 20 min no runner; se passar de uns 25, dividir a suíte em fatias como o e2e (`rate-limit` 141 s,
+      `password-attack` 97 s, `sessao-guard` 55 s e `job-execution` 53 s são os maiores)

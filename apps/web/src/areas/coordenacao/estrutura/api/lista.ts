@@ -1,8 +1,9 @@
 import {
+  gravarPlanilhaResponseSchema,
+  importacaoSchema,
   nomeDaListaSchema,
-  gravacaoDaListaResponseSchema,
   listaDaTurmaResponseSchema,
-  previaDaListaResponseSchema,
+  previaDaPlanilhaResponseSchema,
   type FinalidadeDaLeituraDeAlunos,
   type NomeDaLista,
   type NomeAvulsoRequest,
@@ -13,6 +14,7 @@ import { infiniteQueryOptions } from '@tanstack/react-query'
 import { EMPTY_BODY } from '../../../../api/client'
 import { ESTRUTURA_QUERY_KEY } from '../../../../api/estrutura'
 import { authedGet, authedRequest } from '../../../../api/sessao'
+import { alunosDoTexto, esperarAGravacao, previaNoFormatoDaLista, type AcompanhamentoDaImportacao } from '../ponte-da-lista'
 
 /**
  * A lista de nomes da turma pela coordenação (A1, 2.0 e 13.0; RF4 e RF5). Nome e matrícula só passam por aqui no corpo da
@@ -48,14 +50,23 @@ export function listaDaTurmaQueryOptions(turmaId: string) {
   })
 }
 
-/** `POST /v1/turmas/:id/lista/previa`: o que aconteceria com cada linha, sem gravar nada. */
-export function previaDaLista(turmaId: string, texto: string): Promise<PreviaDaListaResponse> {
-  return authedRequest(`/v1/turmas/${encodeURIComponent(turmaId)}/lista/previa`, previaDaListaResponseSchema, { metodo: 'POST', corpo: { texto } })
+/**
+ * `POST /v1/turmas/:id/lista/previa`: o que aconteceria com cada linha, sem gravar nada. A API responde no contrato da importação
+ * (F2, 8.0); a tela da A1 ainda lê o formato antigo, e a ponte o reescreve até a 13.0.
+ */
+export async function previaDaLista(turmaId: string, texto: string): Promise<PreviaDaListaResponse> {
+  const resposta = await authedRequest(`/v1/turmas/${encodeURIComponent(turmaId)}/lista/previa`, previaDaPlanilhaResponseSchema, { metodo: 'POST', corpo: { texto } })
+  return previaNoFormatoDaLista(texto, resposta)
 }
 
-/** `POST /v1/turmas/:id/lista`: grava só se nenhuma linha tiver erro; reenviar acrescenta só o que falta (RF5). */
-export function gravarLista(turmaId: string, texto: string): Promise<GravacaoDaListaResponse> {
-  return authedRequest(`/v1/turmas/${encodeURIComponent(turmaId)}/lista`, gravacaoDaListaResponseSchema, { metodo: 'POST', corpo: { texto } })
+/**
+ * `POST /v1/turmas/:id/lista`: grava só se nenhuma linha tiver erro (RF5). A API responde 202 com o id da importação (F2, 8.0), e a
+ * ponte espera o job terminar em `GET /v1/importacoes/:id` para a tela dizer quantos nomes entraram, como antes da 13.0. Sem marcas: a
+ * tela da A1 não as oferece, e a transferência e o desligamento só valem com a marca da coordenação.
+ */
+export async function gravarLista(turmaId: string, texto: string, acompanhamento: AcompanhamentoDaImportacao = {}): Promise<GravacaoDaListaResponse> {
+  const { id } = await authedRequest(`/v1/turmas/${encodeURIComponent(turmaId)}/lista`, gravarPlanilhaResponseSchema, { metodo: 'POST', corpo: { texto } })
+  return esperarAGravacao(() => authedGet(`/v1/importacoes/${encodeURIComponent(id)}`, importacaoSchema), alunosDoTexto(texto), acompanhamento)
 }
 
 /** `POST /v1/turmas/:id/lista/nome`: o nome avulso, o aluno que chega em maio. */
