@@ -313,7 +313,7 @@ assembleia de pais, escolas técnicas.
 - **O que convence é o fluxo completo funcionando** (D1). Por isso a demonstração (F15) tem
   seed sintético de uma escola inteira e o feed de agentes nunca aparece vazio
 - **Uma escola piloto gratuita entra no 1º semestre de 2027** usando o que estiver pronto
-  (D1 revista). Antes dela, entrevistas com escolas de Joinville (`TODO.md`). Com ciclo de
+  (D1 revista) e com a fatia da D84 (professor, coordenação e família; Tutor pronto, liberado por escola). Antes dela, entrevistas com escolas de Joinville (`TODO.md`). Com ciclo de
   6 a 18 meses e o calendário da mensalidade, a primeira receita realista é em 2028
 
 O que a coordenação precisa ver na primeira semana para renovar está em D24.

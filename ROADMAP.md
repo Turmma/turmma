@@ -6,6 +6,11 @@ O alvo é o sistema inteiro, não um MVP fatiado, porque a venda acontece em reu
 coordenação e em assembleia de pais, e o que convence é o fluxo completo. Um pedaço não
 vende.
 
+**A fatia do piloto (D84, 03/11/2026).** F2, F4, F5 com a X6 parcial, F18, F6, F6b, F7 mínima (rubrica), F11 mínima, trio da F12
+(Auditoria, Conformidade, Denúncias), portal da família (F19) e F9, nesta ordem de construção. O Tutor fica pronto e
+alinhado antes da entrada da escola, mas desligado na escola até a Turmma liberá-lo, por chave no painel da Operação (D84). Ficam fora: o resto de F7, F11 e F12,
+F17, F14, F15 e F16.
+
 **Piloto por fatias (D1 revista).** Uma escola piloto gratuita entra no 1º semestre de 2027
 usando o que já estiver pronto, antes do F16. O portão da primeira escola real (abaixo) vale
 antes dela. Quais funcionalidades formam a fatia do piloto está em aberto em `docs/decisoes-em-aberto.md`.
@@ -616,6 +621,8 @@ que a imagem não sai do nosso ambiente; e nenhum campo guarda nota ou devolutiv
 ## F7 — `chat-e-ferramentas-professor` [ ]
 **Depende de:** F6
 
+**No piloto (D84):** só a rubrica por competência para redação e discursiva, sem correção por IA (D55). O resto fica depois.
+
 Conferido contra o código em 24/10/2026. **Já existe** (A2, X3): Início em chat com o **Assistente de ensino**, com contexto de turma e
 material; um motor só para chat e formulário, em que o chat propõe a ferramenta e pergunta antes (D18);
 atividade objetiva (é a "prova" do MVP); plano de aula, com duração fixa em 50 minutos; **Adaptação** por
@@ -636,6 +643,10 @@ sem campo em que caiba um diagnóstico.
 
 ## F9 — `ambiente-do-aluno` [ ]
 **Depende de:** F6 · a busca em fontes aprovadas espera a busca na web do F7
+
+**No piloto (D84):** construída e alinhada antes da entrada da escola, mas com o Tutor desligado na escola até a Turmma liberá-lo, por **chave por escola no painel da Operação** (D76, D84), desligada por padrão.
+Se soma à suspensão da função pela coordenação e à política por turma (modo do professor; fora da sala, D19). O padrão do modo em sala se decide no PRD.
+O parecer do art. 24 do ECA Digital, a AIA e o contrato de IA no Brasil (D62) vêm antes dela.
 
 Conferido contra o código em 24/10/2026. **Já existe** (A4, X4): o Tutor socrático, com a conferência que descarta a resposta pronta; o escopo
 da turma, com teste de isolamento; a trava durante avaliação; a identidade de IA, que nunca se passa por pessoa
@@ -675,6 +686,9 @@ instâncias, só ao professor certo.
 ## F11 — `agentes` [ ]
 **Depende de:** F7, F9 e a fila da X6
 
+**No piloto (D84):** a parte mínima, sem esperar a F7 inteira nem a F9: limite de passos e de custo por execução, e a AIA de cada função
+de alto risco com o procedimento de suspensão (D60). Thread, "seu dia e sua semana" e o Analista por evento ficam depois.
+
 Conferido contra o código em 24/10/2026. **Já existe** (A2 a A5): os três agentes da D32 revista; a função com autonomia declarada e visível
 (D9); a entrega pendente, com o portão de aprovação; a execução registrada e idempotente pela chave de envio;
 a suspensão por função numa escola sem desligar o resto; a correção de objetiva e a Adaptação. Os três
@@ -693,6 +707,9 @@ aviso nem chamada de IA.
 
 ## F12 — `governanca-do-coordenador` [ ]
 **Depende de:** F6, F9, F11
+
+**No piloto (D84):** o trio mínimo, Auditoria, Conformidade (o dossiê) e Denúncias, sem esperar a F9. A entrada do aluno em Denúncias
+chega com a F9. O resto desta fase fica depois.
 
 Conferido contra o código em 24/10/2026. **Já existe** (A5, X2): a governança com a autonomia de cada função, suspender e retomar; o consumo em
 tokens; o resumo do **Analista de desempenho escolar** a pedido, com o alerta de habilidade com acerto baixo;
@@ -756,6 +773,18 @@ PRD.
 
 **Pronto quando:** um comando sobe a demonstração povoada, as quatro coisas da D24 aparecem nela, e o feed
 nunca aparece vazio.
+
+## F19 — `portal-da-familia` [ ]
+**Depende de:** F2 (o vínculo do responsável) e F6 (o que o professor aprova) · **bloqueio:** parecer do art. 24 do ECA Digital
+
+Decisão de 03/11/2026 (D84, que revisa a D11). Spec nova, no piloto. **Falta tudo:** a conta de responsável vinculada ao aluno, por convite da
+escola (D3), e uma casca própria; a tela que mostra **só o que o professor aprovou** — entregas e prazos, diagnóstico por habilidade e avisos
+aprovados —, em linguagem simples; nada de conversa do Tutor e nada de nota oficial (D46, regra 70); o isolamento entre escolas e entre famílias
+(regras 10 e 20, com o teste de trocar o id); a AIA do que a família vê; e o aviso de privacidade do responsável. **Em aberto**
+(`docs/decisoes-em-aberto.md`): se a F13 mínima (motor de eventos e sino) entra antes, e como a conta de responsável é criada e verificada.
+
+**Pronto quando:** o responsável entra, vê só o aluno dele e só o que o professor aprovou; teste prova que não alcança conversa do Tutor, nota
+oficial, nem outro aluno nem outra escola; e nada do que a IA gerou chega à família sem aprovação registrada.
 
 ## F17 — `nota-oficial-e-boletim` [ ]
 **Depende de:** F6, F11, F13
@@ -844,7 +873,6 @@ staging (D31 revista). O provedor de nuvem é escolhido na migração (D42).
 
 ## Fase posterior (decidida, fora do alvo atual)
 
-- `portal-da-familia` — interface do responsável sobre o motor de F13
 - `canal-whatsapp` — depende de aprovação da Meta, com prazo próprio
 - Educação infantil e anos iniciais — reavaliar a regra 70 antes (o recorte atual é anos
   finais e Ensino Médio, D43)

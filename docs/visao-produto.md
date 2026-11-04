@@ -266,7 +266,7 @@ desde a primeira chamada, a margem some sem ninguém perceber.
 antes de ver qualquer valor.
 
 **Construir sem ninguém usar.** O sistema inteiro é o alvo, mas uma escola piloto usa o que
-estiver pronto antes do fim (D1).
+estiver pronto antes do fim (D1), na fatia da D84.
 
 **A norma mexer de novo.** O texto oficial do CNE ainda não foi publicado, a ANPD vai
 regulamentar o art. 11 do Decreto 12.880/2026, e o art. 24 do ECA Digital tem duas leituras

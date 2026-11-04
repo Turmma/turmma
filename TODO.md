@@ -486,6 +486,10 @@ para o staging".
       aninhado) e mostra a configuração **efetiva** — inclusive o `health_checker` que o próprio Caddy
       acrescenta ao `exclude`. Roda em `test:infra`, não no portão rápido: custa o binário do Caddy
 
+- [ ] **Pedir o parecer do advogado sobre o art. 24 do ECA Digital** (D84): é bloqueio do portal da família (F19) e do Tutor (F9) no piloto.
+      Os itens ligados (arts. 17 e 18 e a busca para até 16 anos) vão no mesmo pedido (`docs/decisoes-em-aberto.md`)
+- [ ] **Chave por escola do Tutor, no painel da Operação** (D84, D76): desligada por padrão, ligada só depois do contrato de IA no Brasil, da AIA e
+      do parecer. Soma-se à suspensão por função (D9) e à política por turma (F9). Entra na F9 ou antes, junto do painel
 - [ ] **Imagem da folha de resposta na tabela de dados de `docs/lgpd.md`** (D83, F6b), com finalidade e retenção curta, antes
       da migration da F6b (regra 20, item 1). A retenção está em aberto em `docs/decisoes-em-aberto.md`
 - [ ] **Escolher o provedor da VPS de produção** (D82, 03/11/2026): região Brasil (D28), processamento no Brasil
