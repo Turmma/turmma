@@ -163,7 +163,7 @@ export const importacaoSchema = z
 export type Importacao = z.infer<typeof importacaoSchema>
 
 /** O que a linha da prévia vira se a planilha for gravada. Cada tipo usa o seu pedaço (alunos, professores, grade, calendário). */
-export const RESULTADOS_DA_LINHA_DA_PLANILHA = ['entra', 'ja_existe', 'novo', 'nome_corrigido', 'muda_de_turma', 'fora_da_planilha', 'sai_da_grade', 'erro'] as const
+export const RESULTADOS_DA_LINHA_DA_PLANILHA = ['entra', 'ja_existe', 'novo', 'nome_corrigido', 'muda_de_turma', 'fora_da_planilha', 'sai_da_grade', 'volta', 'erro'] as const
 export type ResultadoDaLinhaDaPlanilha = (typeof RESULTADOS_DA_LINHA_DA_PLANILHA)[number]
 
 /** O código de um erro ou aviso de linha: palavra de lista fechada de cada tipo, nunca texto montado com o dado da linha. */

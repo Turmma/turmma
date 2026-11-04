@@ -14,7 +14,7 @@ import { DomainException } from '../error/domain.exception.js'
 import { postgresErrorIn } from '../error/summarize-error.js'
 import { requestIdentity } from '../identidade/auth.guard.js'
 import { DecisaoRepository } from '../estrutura/decisao.repository.js'
-import { ListaRepository, type AlunosParaReimportar, type CorrecaoDeNomeNaLista, type TransferenciaDeAprovado, type TransferenciaDeNome } from '../estrutura/lista.repository.js'
+import { ListaRepository, type AlunoDaVirada, type AlunosParaReimportar, type CorrecaoDeNomeNaLista, type RetiradaDeNome, type TransferenciaDeAprovado, type TransferenciaDeNome } from '../estrutura/lista.repository.js'
 import { SerieRepository } from '../estrutura/serie.repository.js'
 import { TurmaRepository, type TurmaDoAno } from '../estrutura/turma.repository.js'
 import { VinculoRepository } from '../estrutura/vinculo.repository.js'
@@ -354,6 +354,15 @@ export class ImportacaoRepository {
     return new ListaRepository(this.banco).paraReimportar(anoLetivoId, matriculas, turmaIds)
   }
 
+  /**
+   * Os alunos que as matrículas da planilha acham pela credencial e que não têm linha `aprovado` no ano de destino: a virada de ano
+   * (planilha de alunos, 10.0). Uma consulta, qualquer que seja o número de linhas.
+   */
+  alunosDaVirada(anoLetivoId: string, matriculas: readonly string[]): Promise<AlunoDaVirada[]> {
+    requireEscolaId()
+    return new ListaRepository(this.banco).daVirada(anoLetivoId, matriculas)
+  }
+
   /** Trava os pedidos pendentes das turmas do ano (`FOR UPDATE`, por id num comando): a última trava da ordem global do passo (3). */
   travarPedidosPendentes(anoLetivoId: string, turmaIds: readonly string[]): Promise<void> {
     requireEscolaId()
@@ -397,6 +406,26 @@ export class ImportacaoRepository {
     requireEscolaId()
     const decisao = new DecisaoRepository(this.banco)
     for (let inicio = 0; inicio < listaNomeIds.length; inicio += TAMANHO_DO_LOTE) await decisao.fechar({ listaNomeIds: listaNomeIds.slice(inicio, inicio + TAMANHO_DO_LOTE) }, 'encerrada')
+  }
+
+  /**
+   * Tira da lista, em lotes de `TAMANHO_DO_LOTE`, os nomes ainda não aprovados que a coordenação marcou para desligar (planilha de alunos,
+   * 10.0): os pedidos pendentes deles já foram encerrados (`encerrarPedidosDosNomes`). Devolve quantos saíram (menos que os pedidos é diferença).
+   */
+  async retirarNomes(anoLetivoId: string, retiradas: readonly RetiradaDeNome[]): Promise<string[]> {
+    requireEscolaId()
+    const lista = new ListaRepository(this.banco)
+    const retirados: string[] = []
+    for (let inicio = 0; inicio < retiradas.length; inicio += TAMANHO_DO_LOTE) retirados.push(...(await lista.retirarNomes(anoLetivoId, retiradas.slice(inicio, inicio + TAMANHO_DO_LOTE))))
+    return retirados
+  }
+
+  /** Grava a linha `aprovado` de cada aluno que volta, em lotes, com a coordenação que gravou a planilha como autora (a virada de ano, 10.0). */
+  async inserirAprovados(anoLetivoId: string, alunos: ReadonlyArray<{ readonly usuarioId: string; readonly turmaId: string }>): Promise<void> {
+    requireEscolaId()
+    const lista = new ListaRepository(this.banco)
+    const { usuarioId } = requestIdentity()
+    for (let inicio = 0; inicio < alunos.length; inicio += TAMANHO_DO_LOTE) await lista.inserirAprovados(anoLetivoId, usuarioId, alunos.slice(inicio, inicio + TAMANHO_DO_LOTE))
   }
 
   /** Passa de turma os nomes ainda não aprovados, em lotes de `TAMANHO_DO_LOTE`; devolve quantos mudaram (menos que os pedidos é diferença). */

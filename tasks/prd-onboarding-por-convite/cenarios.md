@@ -80,8 +80,10 @@ numa tarefa do `tasks.md`, que diz qual. I = integração com Postgres real e re
   - [P] Desligamento de não aprovado contra a decisão do mesmo pedido: pedido `encerrada` ou decidido, nunca pendente sem
     nome; o job nunca `falhou` pelo check.
 - **Virada de ano.**
-  - [I] Aluno aprovado do ano encerrado na planilha do planejado: "volta", vínculo confirmado na turma nova, mesmo login.
-  - [I] Aluno desativado na planilha: erro na linha.
+  - [I] Aluno aprovado do ano encerrado na planilha do planejado: "volta", vínculo confirmado na turma nova, mesmo login, e a
+    linha `aprovado` na lista do planejado; o vínculo do ano encerrado fica intacto; a mesma planilha de novo é "já existe".
+  - [I] Aluno desativado na planilha do planejado, sem linha no ano: erro na linha (`aluno_desativado`); no ano em curso, ou
+    com linha no ano, a matrícula segue "já existe".
   - [I] Gravar a grade e o calendário do ano planejado não toca as alocações nem os eventos do ano anterior.
   - [I] Vínculo pendente da grade do ano planejado: o professor não o vê nem confirma; com o ano em curso, confirma.
 - **RF6.**

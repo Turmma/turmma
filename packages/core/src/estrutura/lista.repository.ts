@@ -4,9 +4,10 @@ import type { Database, DatabaseTransaction } from '../db/database.js'
 import { credencialMatricula } from '../db/schema/credencial-matricula.js'
 import { listaNome } from '../db/schema/lista-nome.js'
 import { usuario } from '../db/schema/usuario.js'
+import { vinculo } from '../db/schema/vinculo.js'
 import { requestSessao } from '../identidade/auth.guard.js'
 import type { PaginationQuery, NomeDaLista } from '@educa/shared'
-import { and, asc, eq, gt, inArray, isNull, ne, or, sql, type SQL } from 'drizzle-orm'
+import { and, asc, eq, gt, inArray, isNull, ne, notExists, or, sql, type SQL } from 'drizzle-orm'
 import { InvariantException } from '@educa/shared'
 
 /** Um nome a gravar: nome e matrícula já conferidos, sem espaço nas pontas. */
@@ -36,6 +37,24 @@ export interface AlunoAprovado {
 export interface AlunosParaReimportar {
   readonly naoAprovados: readonly NomeNaoAprovado[]
   readonly aprovados: readonly AlunoAprovado[]
+}
+
+/**
+ * O aluno que a matrícula da planilha acha pela credencial e que não tem linha `aprovado` no ano de destino (a virada de ano, 10.0): o
+ * `desativado` o recusa, e `comVinculo` diz que ele já tem vínculo de aluno aberto no ano, e então não "volta".
+ */
+export interface AlunoDaVirada {
+  readonly usuarioId: string
+  readonly matricula: string
+  readonly desativado: boolean
+  readonly comVinculo: boolean
+}
+
+/** Um nome ainda não aprovado a sair da lista (a planilha de alunos, 10.0): o `estado` e a turma lidos são a condição da escrita. */
+export interface RetiradaDeNome {
+  readonly id: string
+  readonly estadoLido: 'livre' | 'reivindicado'
+  readonly turmaLidaId: string
 }
 
 /** Um nome a corrigir na lista: o `estado` lido é a condição da escrita (a aprovação do mesmo nome muda o estado e a deixa sem linha). */
@@ -149,6 +168,35 @@ export class ListaRepository {
   }
 
   /**
+   * Os alunos da escola que as matrículas dadas acham pela credencial e que não têm linha `aprovado` no ano de destino, ativos ou
+   * desativados (a virada de ano, F2, 10.0; Tech Spec do onboarding, seção 5, "Gravar"): numa consulta, com o vínculo de aluno
+   * aberto (não `encerrado`) deste ano. Só da escola do contexto: a matrícula de outra escola é outra matrícula (regra 60, item 6).
+   * O `anoLetivoId` só pode ser um ano já conferido na escola (o `anoDeDestino` do motor), nunca um id vindo do cliente.
+   */
+  async daVirada(anoLetivoId: string, matriculas: readonly string[]): Promise<AlunoDaVirada[]> {
+    if (matriculas.length === 0) return []
+    const escolaId = requireEscolaId()
+    const aprovadoNoAno = this.banco
+      .select({ um: listaNome.id })
+      .from(listaNome)
+      .where(and(eq(listaNome.escolaId, escolaId), eq(listaNome.anoLetivoId, anoLetivoId), eq(listaNome.estado, 'aprovado'), eq(listaNome.usuarioId, usuario.id)))
+    const vinculoAberto = this.banco
+      .select({ um: vinculo.id })
+      .from(vinculo)
+      .where(and(eq(vinculo.escolaId, escolaId), eq(vinculo.anoLetivoId, anoLetivoId), eq(vinculo.usuarioId, usuario.id), eq(vinculo.papel, 'aluno'), ne(vinculo.estado, 'encerrado')))
+    return this.banco
+      .select({
+        usuarioId: usuario.id,
+        matricula: credencialMatricula.matricula,
+        desativado: sql<boolean>`${usuario.desativadoEm} is not null`,
+        comVinculo: sql<boolean>`exists ${vinculoAberto}`,
+      })
+      .from(credencialMatricula)
+      .innerJoin(usuario, and(eq(usuario.escolaId, credencialMatricula.escolaId), eq(usuario.id, credencialMatricula.usuarioId)))
+      .where(and(eq(credencialMatricula.escolaId, escolaId), inArray(credencialMatricula.matricula, [...matriculas]), eq(usuario.papel, 'aluno'), notExists(aprovadoNoAno)))
+  }
+
+  /**
    * Corrige o nome de quem ainda não foi aprovado (F2, 8.0), em lote: cada linha só muda se continua no estado que a planilha
    * leu e não está aprovada (a aprovação passa o nome ao `usuario` e o apaga da lista). Devolve quantas mudou; menos que as
    * pedidas é diferença, e o motor fecha a importação `desatualizada`. O isolamento entre escolas desta escrita depende de o
@@ -198,6 +246,36 @@ export class ListaRepository {
       where l.escola_id = ${requireEscolaId()} and l.ano_letivo_id = ${anoLetivoId} and l.usuario_id = v.usuario_id and l.estado = 'aprovado' and l.turma_id = v.turma_lida_id
       returning l.id`)
     return movidas.rows.length
+  }
+
+  /**
+   * Tira da lista, em lote, os nomes ainda não aprovados que a coordenação marcou para desligar (F2, 10.0; Tech Spec do onboarding, seção 5,
+   * "Gravar"): a linha sai de fato, porque é pré-cadastro, sem conta nem histórico. A escrita é condicional ao que a planilha leu, o
+   * `estado` e a turma da linha: uma reivindicação que tomou o nome, ou a troca de turma à mão, entre a prévia e o passo (3) deixa a linha
+   * e o pedido como estão. Devolve os ids que saíram; menos que os pedidos é diferença, e o motor fecha a importação `desatualizada`. O
+   * pedido pendente do nome (`reivindicado`) já foi encerrado pelo `DecisaoRepository.fechar(…, 'encerrada')`, e o `set null` da FK
+   * deixa os pedidos antigos sem nome. O `anoLetivoId` só pode ser um ano já conferido na escola, nunca um id vindo do cliente.
+   */
+  async retirarNomes(anoLetivoId: string, retiradas: readonly RetiradaDeNome[]): Promise<string[]> {
+    if (retiradas.length === 0) return []
+    const valores = sql.join(retiradas.map(({ id, estadoLido, turmaLidaId }) => sql`(${id}::uuid, ${estadoLido}, ${turmaLidaId}::uuid)`), sql`, `)
+    const apagadas = await this.banco.execute<{ id: string }>(sql`
+      delete from lista_nome as l
+      using (values ${valores}) as v(id, estado_lido, turma_lida_id)
+      where l.escola_id = ${requireEscolaId()} and l.ano_letivo_id = ${anoLetivoId} and l.id = v.id and l.estado = v.estado_lido and l.turma_id = v.turma_lida_id
+      returning l.id`)
+    return apagadas.rows.map((linha) => linha.id)
+  }
+
+  /**
+   * Grava a linha `aprovado` de cada aluno que volta na turma nova (a virada de ano, F2, 10.0): só o estado e o usuário, como a aprovação a
+   * deixa (check `lista_nome_aprovado_sem_nome`), com quem gravou a planilha como autora. É ela que a reimportação seguinte lê para
+   * corrigir, transferir ou desligar o aluno no ano. Sem `on conflict`: a matrícula nula não colide, e o vínculo único é o do `vinculo`.
+   */
+  async inserirAprovados(anoLetivoId: string, criadoPor: string, alunos: ReadonlyArray<{ readonly usuarioId: string; readonly turmaId: string }>): Promise<void> {
+    if (alunos.length === 0) return
+    const escolaId = requireEscolaId()
+    await this.banco.insert(listaNome).values(alunos.map(({ usuarioId, turmaId }) => ({ escolaId, anoLetivoId, turmaId, estado: 'aprovado' as const, usuarioId, criadoPor })))
   }
 
   /**

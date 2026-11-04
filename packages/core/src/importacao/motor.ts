@@ -272,7 +272,7 @@ async function planejarSobTrava(gravacao: ImportacaoRepository, tx: DatabaseTran
   }
   const ano = anoLetivoId === null ? undefined : await gravacao.anoPorId(anoLetivoId, true)
   if (ano === undefined || ano.situacao === 'encerrado') return 'encerrado'
-  await tipo.travar?.(gravacao, ano, linhas, marcas)
+  await tipo.travar?.(gravacao, ano, linhas, marcas, tx)
   const plano = await tipo.planejar(gravacao, ano, linhas, marcas)
   if (plano === undefined) throw new ImportacaoIlegivelError()
   return plano

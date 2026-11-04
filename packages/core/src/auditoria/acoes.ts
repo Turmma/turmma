@@ -426,12 +426,14 @@ export const ACOES_DE_AUDITORIA = {
     finalidade: null,
   },
   /**
-   * A coordenação retirou um nome livre da lista (A1, 2.0, RF5): a linha sai de fato, porque é pré-cadastro, sem conta
-   * nem histórico (Tech Spec da A1, seção 7). `entidadeId` é a linha que saiu; fica a turma dela. Nunca o nome.
+   * A coordenação retirou um nome da lista (A1, 2.0, RF5): a linha sai de fato, porque é pré-cadastro, sem conta nem histórico
+   * (Tech Spec da A1, seção 7). `entidadeId` é a linha que saiu; ficam a turma dela e o estado que tinha: `livre` pela rota, e também
+   * `reivindicado` pela planilha de alunos, que marca o ausente a desligar (F2, 10.0; o pedido pendente dele é encerrado antes, sem decisão).
+   * Nunca o nome.
    */
   'lista_nome.retirado': {
     entidade: 'lista_nome',
-    antes: z.strictObject({ turmaId: z.uuid(), estado: z.literal('livre') }),
+    antes: z.strictObject({ turmaId: z.uuid(), estado: z.enum(['livre', 'reivindicado']) }),
     depois: null,
     finalidade: null,
   },

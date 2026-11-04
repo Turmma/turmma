@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import type { TurmaDoAno } from '../../estrutura/turma.repository.js'
 import type { ImportacaoRepository } from '../importacao.repository.js'
 import { DiferencaNaPlanilhaError } from '../erros.js'
+import { DomainException } from '../../error/domain.exception.js'
+import { ErrorCode } from '@educa/shared'
 import { classificar, tipoAlunos } from './alunos.js'
 
 const ANO = 'ano-2026'
@@ -154,8 +156,8 @@ describe('classificar, a reimportação pela matrícula (F2, 8.0, RF4)', () => {
     // A turma que só a linha "muda de turma" pede só nasce se a coordenação marcar a transferência (planoDe, 9.0).
     expect(novasDeTransferencia).toEqual([{ chave: '9c', nome: '9C', serie: { etapa: 'ef_anos_finais', ano: 9 } }])
     expect(candidatos.filter((c) => c.acao === 'transferir')).toEqual([
-      { id: 'l1', acao: 'transferir', rotulo: 'Ana Souza (m1)', turmaId: 't2' },
-      { id: 'u2', acao: 'transferir', rotulo: 'Bia Lima (m2)', turmaId: 't1' },
+      { id: 'l1', acao: 'transferir', rotulo: 'Ana Souza (m1)', turmaId: 't2', alvo: { tipo: 'lista', id: 'l1', estado: 'livre', nome: 'Ana Souza', turmaId: 't2' } },
+      { id: 'u2', acao: 'transferir', rotulo: 'Bia Lima (m2)', turmaId: 't1', alvo: { tipo: 'usuario', id: 'u2', nome: 'Bia Lima', turmaId: 't1' } },
     ])
     // Mudar de turma não corrige o nome junto, nem com a marca: a transferência leva a pessoa, e o nome é outra decisão da coordenação.
     expect(resumo).toEqual({ entram: 1, ja_existem: 0, turmas_novas: 0 })
@@ -285,5 +287,135 @@ describe('o plano da reimportação: a escrita condicional que muda menos linhas
 
   it('o nome do aprovado que a escrita não achou mais como a planilha leu (desativado, ou com o nome trocado) é `DiferencaNaPlanilhaError`', async () => {
     await expect(aplicar(true, 0, 0)).rejects.toBeInstanceOf(DiferencaNaPlanilhaError)
+  })
+})
+
+describe('classificar, a virada de ano: o aluno do ano anterior na planilha do planejado (F2, 10.0, RF4)', () => {
+  const t1 = turma('t1', '8A', '8a')
+  const daVirada = (...alunos: Array<{ usuarioId: string; matricula: string; desativado?: boolean; comVinculo?: boolean }>) =>
+    new Map(alunos.map((aluno) => [aluno.matricula, { desativado: false, comVinculo: false, ...aluno }]))
+  const alunos = { naoAprovados: [], aprovados: [] }
+
+  it('a matrícula com credencial, sem linha no ano e sem vínculo aberto "volta" para a turma da linha, com o usuário da credencial, e conta em `voltam`', () => {
+    const { linhas, resumo } = classificar(ANO, [lida(2, '8A', 'Ana', 'm1'), lida(3, '8A', 'Bia', 'm2')], [t1], new Set(['m1']), alunos, daVirada({ usuarioId: 'u1', matricula: 'm1' }))
+
+    expect(linhas.map((l) => [l.resultado, l.volta, l.destino])).toEqual([
+      ['volta', 'u1', { tipo: 'existente', turmaId: 't1' }],
+      ['entra', undefined, { tipo: 'existente', turmaId: 't1' }],
+    ])
+    expect(resumo).toEqual({ entram: 1, ja_existem: 0, voltam: 1, turmas_novas: 0 })
+  })
+
+  it('o aluno com vínculo aberto no ano segue "já existe", e o desativado sem linha no ano é erro `aluno_desativado`, sem dado da linha', () => {
+    const { linhas, resumo } = classificar(
+      ANO,
+      [lida(2, '8A', 'Ana', 'm1'), lida(3, '8A', 'Bia', 'm2')],
+      [t1],
+      new Set(['m1', 'm2']),
+      alunos,
+      daVirada({ usuarioId: 'u1', matricula: 'm1', comVinculo: true }, { usuarioId: 'u2', matricula: 'm2', desativado: true }),
+    )
+
+    expect(linhas.map((l) => [l.resultado, l.erro, l.volta])).toEqual([
+      ['ja_existe', undefined, undefined],
+      ['erro', 'aluno_desativado', undefined],
+    ])
+    expect(resumo).not.toHaveProperty('voltam')
+  })
+
+  it('sem o mapa da virada (o ano em curso), a matrícula só na credencial segue "já existe", também a do aluno desativado', () => {
+    const { linhas } = classificar(ANO, [lida(2, '8A', 'Ana', 'm1')], [t1], new Set(['m1']), alunos)
+
+    expect(linhas.map((l) => l.resultado)).toEqual(['ja_existe'])
+  })
+
+  it('a turma que só a linha "volta" pede nasce com a planilha, e a matrícula de outra escola (fora do mapa) segue "entra"', () => {
+    const { linhas, novas } = classificar(ANO, [lida(2, '9C', 'Ana', 'm1'), lida(3, '9C', 'Bia', 'm2')], [t1], new Set(['m1']), alunos, daVirada({ usuarioId: 'u1', matricula: 'm1' }))
+
+    expect(novas).toEqual([{ chave: '9c', nome: '9C', serie: { etapa: 'ef_anos_finais', ano: 9 } }])
+    expect(linhas.map((l) => l.resultado)).toEqual(['volta', 'entra'])
+  })
+
+  it('a assinatura muda com o aluno que volta: o usuário da credencial é parte do que a coordenação viu', () => {
+    const lidas = [lida(2, '8A', 'Ana', 'm1')]
+    const com = (usuarioId: string) => classificar(ANO, lidas, [t1], new Set(['m1']), alunos, daVirada({ usuarioId, matricula: 'm1' })).assinatura
+
+    expect(com('u1')).toBe(com('u1'))
+    expect(com('u1')).not.toBe(com('u2'))
+    expect(com('u1')).not.toBe(classificar(ANO, lidas, [t1], new Set(['m1']), alunos).assinatura)
+  })
+
+  it('a turma de quem volta vem só da coluna turma da linha: o aluno da mesma turma do ano anterior vai para a 9ºA se a linha diz 9ºA, e quem a linha põe na 8ºA vai para a 8ºA', () => {
+    const t2 = turma('t2', '9A', '9a', 'ef_anos_finais', 9)
+    const { linhas } = classificar(ANO, [lida(2, '9A', 'Ana', 'm1'), lida(3, '8A', 'Bia', 'm2')], [t1, t2], new Set(['m1', 'm2']), alunos, daVirada({ usuarioId: 'u1', matricula: 'm1' }, { usuarioId: 'u2', matricula: 'm2' }))
+
+    expect(linhas.map((l) => [l.resultado, l.volta, l.destino])).toEqual([
+      ['volta', 'u1', { tipo: 'existente', turmaId: 't2' }],
+      ['volta', 'u2', { tipo: 'existente', turmaId: 't1' }],
+    ])
+  })
+})
+
+describe('o plano do desligamento: a marca que não acha mais o candidato, ou o `desativar` que não acha o aluno, é diferença (F2, 10.0, RF4 e RF5)', () => {
+  const t1 = turma('t1', '8A', '8a')
+  const guardado = [{ linha: 2, turma: '8A', nome: 'Ana', matricula: 'm1' }]
+  const UUID_DO_APROVADO = '11111111-1111-4111-8111-111111111111'
+  const UUID_DO_NOME = '22222222-2222-4222-8222-222222222222'
+
+  const leitura = (): ImportacaoRepository =>
+    ({
+      turmasDoAno: () => Promise.resolve([t1]),
+      matriculasEmUso: () => Promise.resolve(new Set(['m1'])),
+      alunosParaReimportar: () =>
+        Promise.resolve({
+          naoAprovados: [{ id: UUID_DO_NOME, turmaId: 't1', nome: 'Nome Ausente', matricula: 'm9', estado: 'reivindicado' as const }],
+          aprovados: [
+            { usuarioId: 'u1', turmaId: 't1', nome: 'Ana', matricula: 'm1' },
+            { usuarioId: UUID_DO_APROVADO, turmaId: 't1', nome: 'Aluno Ausente', matricula: 'm8' },
+          ],
+        }),
+    }) as unknown as ImportacaoRepository
+
+  const gravacao = (retirados: string[]): ImportacaoRepository =>
+    ({
+      seriesDaEscola: () => Promise.resolve([]),
+      inserirNomes: () => Promise.resolve(),
+      corrigirNomesNaLista: () => Promise.resolve(0),
+      corrigirNomesDosAlunos: () => Promise.resolve(0),
+      encerrarPedidosDosNomes: () => Promise.resolve(),
+      transferirNomes: () => Promise.resolve(0),
+      encerrarVinculosDosAlunos: () => Promise.resolve([]),
+      criarVinculosDosAlunos: () => Promise.resolve([]),
+      transferirAprovados: () => Promise.resolve(0),
+      retirarNomes: () => Promise.resolve(retirados),
+    }) as unknown as ImportacaoRepository
+
+  const plano = (desligar: string[]) => tipoAlunos.planejar?.(leitura(), { id: ANO, situacao: 'em_curso' } as never, guardado, { transferir: [], desligar, encerrar: [] })
+
+  it('o id marcado que não é mais candidato (o aluno desativado à mão, o nome aprovado ou levado de turma) é `DiferencaNaPlanilhaError`, antes de qualquer escrita', async () => {
+    const desligamento = await plano(['33333333-3333-4333-8333-333333333333'])
+
+    await expect(desligamento?.aplicar(gravacao([]), { tx: {} as never, ciclo: { desativar: () => Promise.reject(new Error('não devia desativar')) } as never })).rejects.toBeInstanceOf(DiferencaNaPlanilhaError)
+  })
+
+  it('o `NAO_ENCONTRADO` do `desativar` (já desativado entre o passo (2) e o (3)) é `DiferencaNaPlanilhaError`; outro erro dele segue como erro', async () => {
+    const desligamento = await plano([UUID_DO_APROVADO])
+    const ciclo = (erro: unknown) => ({ desativar: () => Promise.reject(erro) }) as never
+
+    await expect(desligamento?.aplicar(gravacao([]), { tx: {} as never, ciclo: ciclo(new DomainException(ErrorCode.NAO_ENCONTRADO)) })).rejects.toBeInstanceOf(DiferencaNaPlanilhaError)
+    await expect(desligamento?.aplicar(gravacao([]), { tx: {} as never, ciclo: ciclo(new Error('falha do banco')) })).rejects.toThrow('falha do banco')
+    // Outro erro de domínio do `desativar` (o próprio usuário da sessão, por exemplo) não é diferença: sobe como veio.
+    await expect(desligamento?.aplicar(gravacao([]), { tx: {} as never, ciclo: ciclo(new DomainException(ErrorCode.ERRO_INTERNO)) })).rejects.toMatchObject({ codigo: ErrorCode.ERRO_INTERNO })
+  })
+
+  it('o nome que a escrita condicional não retirou (a reivindicação ou a troca de turma chegou antes) é `DiferencaNaPlanilhaError`', async () => {
+    const desligamento = await plano([UUID_DO_NOME])
+
+    await expect(desligamento?.aplicar(gravacao([]), { tx: {} as never, ciclo: {} as never })).rejects.toBeInstanceOf(DiferencaNaPlanilhaError)
+  })
+
+  it('o resumo conta `desligados` e `retirados` só quando há marca, e o que não foi marcado não entra', async () => {
+    expect((await plano([UUID_DO_APROVADO, UUID_DO_NOME]))?.resumo).toEqual({ entram: 0, ja_existem: 1, turmas_novas: 0, desligados: 1, retirados: 1 })
+    expect((await plano([]))?.resumo).toEqual({ entram: 0, ja_existem: 1, turmas_novas: 0 })
   })
 })

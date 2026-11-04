@@ -73,7 +73,7 @@ cenários foram distribuídos pelo `test-engineer`; cada linha do `cenarios.md` 
   - [ ] 9.4 Auditoria
   - [ ] 9.5 Testes: corridas com a decisão e a reivindicação
 
-- [ ] **10.0 — A coordenação desliga o aluno pela planilha, e o aprovado volta na virada do ano**
+- [x] **10.0 — A coordenação desliga o aluno pela planilha, e o aprovado volta na virada do ano**
   - [ ] 10.1 Desligar o aprovado pelo `desativar`
   - [ ] 10.2 Retirar o não aprovado
   - [ ] 10.3 A volta na virada

@@ -91,7 +91,7 @@ update nowait`; travada: `CONFLITO`) e enfileira.
 `contaParaConvite`, cada uma numa transação curta, na ordem do e-mail. (2) Sem trava: lê a importação (fora de
 `na_fila`, sai) e refaz a classificação; assinatura diferente: `desatualizada`. (3) Uma transação curta (`lock_timeout` de
 1 s, `statement_timeout` de 1,5 s) trava na **ordem global**, que o `desativar` e o `eliminar` também seguem: a importação
-(`for update`; fora de `na_fila`, sai), na planilha de professores a trava do convite da escola (`pg_advisory_xact_lock`, a mesma do cadastrar, refazer e revogar da A1, que vêm antes de ler o estado), o ano (`FOR SHARE`; na de professores, o dos vínculos de todo marcado), os usuários que vai escrever (`FOR NO KEY UPDATE`), as contas
+(`for update`; fora de `na_fila`, sai), na planilha de professores a trava do convite da escola (`pg_advisory_xact_lock`, a mesma do cadastrar, refazer e revogar da A1, que vêm antes de ler o estado), o ano (`FOR SHARE`; na de professores, o dos vínculos de todo marcado; na de alunos, o dos vínculos de todo aprovado marcado para desligar), os usuários que vai escrever (`FOR NO KEY UPDATE`), as contas
 (`FOR SHARE`), as turmas tocadas (destino, origem e turma de todo marcado), em ordem de id num comando só, em `FOR NO KEY UPDATE`
 (barra o gerar acesso, não o `FOR KEY SHARE` das FKs da decisão e da reivindicação), e os pedidos pendentes
 delas, relidos. Relê o estado de toda linha em que o (2) se baseou (turma, usuário, vínculo, `lista_nome`, pedido, conta)
@@ -116,8 +116,11 @@ Importação parada: o `retencao.expurgar-escola` (1h, por escola, com escopo); 
 (`usuario.nome_corrigido`) ou na `lista_nome` (`lista.nome_corrigido`), sem nome; transferência (9.0) pelo encerramento do vínculo do aluno (`encerrarDosAlunos`, `realocacao`, a mesma escrita do `encerrar`, por aluno e turma), vínculo confirmado na nova,
 `lista_nome` na nova turma (`lista.transferida` e `aluno.transferido` na auditoria, só com as duas turmas), pedido pendente encerrado pelo `fechar('encerrada')`, que grava só o estado e anula os
 segredos, sem `decidida*` (o `virarSala` usa a mesma função); desligar o aprovado pelo `desativar`; o não
-aprovado apaga a `lista_nome` e encerra o pedido (`lista_nome.retirado`). Virada de ano: aprovado sem vínculo no ano de
-destino "volta", confirmado e com o mesmo login; desativado é erro. Professores: o `convidar` da A1, token descartado (fica `pendente`). Candidato a desligar é só o ausente que o `desativar`
+aprovado apaga a `lista_nome` e encerra o pedido (`lista_nome.retirado`, com a turma e o estado que o nome tinha, `livre` ou
+`reivindicado`; o pedido pendente é encerrado antes). *Virada de ano (só na planilha do ano planejado):* o aluno que a
+credencial da matrícula acha, sem linha `aprovado` nem vínculo aberto no ano de destino, "volta", sem marca: vínculo confirmado na turma da linha
+(`vinculo.criado`), a linha `aprovado` da lista do ano e o mesmo login, e o vínculo do ano encerrado não é tocado; o desativado
+sem linha no ano é erro de linha (`aluno_desativado`). No ano em curso, e com linha no ano, a matrícula segue "já existe" (8.0). Professores: o `convidar` da A1, token descartado (fica `pendente`). Candidato a desligar é só o ausente que o `desativar`
 alcança, `ativo` ou `aceito` pelo `estadoDoProfessor`; o ausente `pendente`, `vencido`, `revogado` ou `desativado` não é
 candidato (marcado: `ENTRADA_INVALIDA`), e o convite em aberto sai pelo "Revogar" da lista (`convite/revogar` da A1). O
 `NAO_ENCONTRADO` do `desativar` no (3) é diferença: `desatualizada`.
