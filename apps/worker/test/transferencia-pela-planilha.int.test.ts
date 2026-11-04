@@ -90,7 +90,7 @@ describe('estrutura.gravar-planilha, transferência de aluno', () => {
     await bancada.fechar()
   })
 
-  const consulta = async <Linha extends object>(sql: string, parametros: unknown[] = []): Promise<Linha[]> => (await bancada.pool.query<Linha>(sql, parametros)).rows
+  const consulta = async <Registro extends object>(sql: string, parametros: unknown[] = []): Promise<Registro[]> => (await bancada.pool.query<Registro>(sql, parametros)).rows
 
   async function escolaNova(): Promise<Escola> {
     const escolaId = await bancada.escola()
