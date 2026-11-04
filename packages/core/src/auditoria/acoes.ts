@@ -8,6 +8,7 @@ import {
   InvariantException,
   ESTADOS_DE_MATERIAL,
   ESTADOS_DE_VINCULO,
+  ETAPAS,
   ESTADOS_DO_PEDIDO,
   ESTADOS_EM_DECISAO,
   FINALIDADE_DA_REDEFINICAO_PELO_OPERADOR,
@@ -368,6 +369,17 @@ export const ACOES_DE_AUDITORIA = {
     entidade: 'importacao_planilha',
     antes: null,
     depois: z.strictObject({ tipo: z.enum(TIPOS_DE_PLANILHA), contagens: contagensDaPlanilhaGravada }),
+    finalidade: null,
+  },
+  /**
+   * A planilha de alunos criou uma turma que a escola ainda não tinha (F2, 7.0, RF17): `entidadeId` é a turma; `depois` leva a
+   * série dela, que a planilha tirou do nome ("8ºA" é o 8º ano do Ensino Fundamental), e a origem. Nunca o nome da turma nem de
+   * aluno. O autor é a coordenação que gravou a planilha.
+   */
+  'turma.criada': {
+    entidade: 'turma',
+    antes: null,
+    depois: z.strictObject({ serie: z.strictObject({ etapa: z.enum(ETAPAS), ano: z.number().int() }), origem: z.literal('planilha') }),
     finalidade: null,
   },
   /**

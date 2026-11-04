@@ -503,8 +503,8 @@ describe('planilha de calendário (F2, tarefa 4.0): prévia, gravar e job', () =
       expect(erroDe(await pedir(e.coordenacao, 'POST', `/v1/importacoes/${tipo}/previa`, { texto: planilha })), tipo).toEqual(NAO_ENCONTRADO)
       expect(erroDe(await pedir(e.coordenacao, 'POST', `/v1/importacoes/${tipo}`, { texto: planilha })), tipo).toEqual(NAO_ENCONTRADO)
     }
-    // Os tipos que as tarefas seguintes trazem ainda não gravam (os professores gravam desde a 6.0, e têm o seu arquivo).
-    for (const tipo of ['alunos', 'grade']) expect(erroDe(await pedir(e.coordenacao, 'POST', `/v1/importacoes/${tipo}/previa`, { texto: planilha })), tipo).toEqual(NAO_ENCONTRADO)
+    // O tipo que a tarefa seguinte traz ainda não grava (os professores gravam desde a 6.0 e os alunos desde a 7.0, e têm o seu arquivo).
+    for (const tipo of ['grade']) expect(erroDe(await pedir(e.coordenacao, 'POST', `/v1/importacoes/${tipo}/previa`, { texto: planilha })), tipo).toEqual(NAO_ENCONTRADO)
     expect(await importacoesDe(e.escolaId)).toEqual([])
   })
 

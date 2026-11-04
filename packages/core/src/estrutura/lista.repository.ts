@@ -84,6 +84,40 @@ export class ListaRepository {
   }
 
   /**
+   * Das matrículas dadas, as que já são de alguém da escola no ano de destino da planilha (F2, 7.0): as que estão na lista de
+   * alguma turma do ano (`lista_nome`, no ano dado) ou são de um aluno da escola (`credencial_matricula`, de qualquer ano, também a
+   * do aluno desativado). Duas consultas, qualquer que seja o número de matrículas, e só da escola do contexto: a matrícula de
+   * outra escola é outra matrícula (regra 60, item 6) e nunca aparece aqui.
+   *
+   * Não há único entre a `credencial_matricula` e a `lista_nome`: a proteção é a releitura sob a trava do passo (3), que muda a
+   * assinatura. Uma credencial gravada depois dela, sem trava, dá o mesmo estado final de "planilha primeiro, aprovação depois", e essa ordem serial é aceita.
+   */
+  async emUsoNoAno(anoLetivoId: string, matriculas: readonly string[]): Promise<Set<string>> {
+    if (matriculas.length === 0) return new Set()
+    const escolaId = requireEscolaId()
+    const naLista = await this.banco
+      .select({ matricula: matriculaDoIndice })
+      .from(listaNome)
+      .where(and(eq(listaNome.escolaId, escolaId), eq(listaNome.anoLetivoId, anoLetivoId), inArray(matriculaDoIndice, [...matriculas])))
+    const comCredencial = await this.banco
+      .select({ matricula: credencialMatricula.matricula })
+      .from(credencialMatricula)
+      .where(and(eq(credencialMatricula.escolaId, escolaId), inArray(credencialMatricula.matricula, [...matriculas])))
+    return new Set([...naLista, ...comCredencial].map((linha) => linha.matricula))
+  }
+
+  /**
+   * Grava os nomes na turma de cada um, `livre`, no ano de destino da planilha e com quem a gravou (F2, 7.0). Sem `on conflict`: a
+   * matrícula que entrou na lista entre a prévia e a gravação viola o índice único (23505), e o motor fecha a importação
+   * `desatualizada` com a transação desfeita.
+   */
+  async inserirNoAno(anoLetivoId: string, criadoPor: string, nomes: ReadonlyArray<NomeNovo & { readonly turmaId: string }>): Promise<void> {
+    if (nomes.length === 0) return
+    const escolaId = requireEscolaId()
+    await this.banco.insert(listaNome).values(nomes.map(({ turmaId, nome, matricula }) => ({ escolaId, anoLetivoId, turmaId, nome, matricula, criadoPor })))
+  }
+
+  /**
    * Grava os nomes na turma, `livre`, com quem gravou, e devolve os que entraram. A matrícula que já está na lista da
    * escola neste ano não entra de novo nem falha (`on conflict do nothing`, C8): a mesma lista gravada duas vezes ao
    * mesmo tempo entra uma vez.

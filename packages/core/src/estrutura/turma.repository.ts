@@ -8,8 +8,8 @@ import { turma } from '../db/schema/turma.js'
 import { usuario } from '../db/schema/usuario.js'
 import { vinculo } from '../db/schema/vinculo.js'
 import { requestSessao } from '../identidade/auth.guard.js'
-import type { AlunoDaTurma, PaginationQuery, TurmaAbertaResponse, Turma, Turno } from '@educa/shared'
-import { and, asc, eq, exists, gt, isNotNull, isNull, not, or, sql, type SQL } from 'drizzle-orm'
+import type { AlunoDaTurma, Etapa, PaginationQuery, TurmaAbertaResponse, Turma, Turno } from '@educa/shared'
+import { and, asc, eq, exists, gt, inArray, isNotNull, isNull, not, or, sql, type SQL } from 'drizzle-orm'
 import { chaveDaTurma, InvariantException } from '@educa/shared'
 import { excluirSemReferencia } from './exclusao.js'
 
@@ -29,6 +29,14 @@ export type TurmaGravada = Omit<Turma, 'serie'>
 export type AlcanceDaTurma = 'unidade' | 'turma_vinculada'
 
 const colunas = { id: turma.id, anoLetivoId: turma.anoLetivoId, nome: turma.nome, turno: turma.turno }
+
+/** A turma de um ano como a planilha de alunos a compara: o nome, a `chave` (nula se a migration não a pôde preencher) e a série. */
+export interface TurmaDoAno {
+  readonly id: string
+  readonly nome: string
+  readonly chave: string | null
+  readonly serie: { readonly id: string; readonly etapa: Etapa; readonly ano: number }
+}
 
 /**
  * As turmas da escola do contexto no ano letivo em curso dela, e só delas: escola e ano vêm do contexto que a
@@ -173,6 +181,50 @@ export class TurmaRepository {
         .returning({ id: turma.id })
       return apagadas.length > 0
     })
+  }
+
+  /**
+   * As turmas do ano com esse id, com a série, numa consulta só e em ordem de id (F2, 7.0: a planilha de alunos compara cada linha
+   * com elas, e o número de consultas não cresce com as linhas). O ano é o de destino da planilha, que o motor conferiu (o em curso
+   * ou um planejado da escola); a escola vem do contexto, e a FK composta `(escola_id, ano_letivo_id)` é a segunda camada.
+   */
+  async doAnoComSerie(anoLetivoId: string): Promise<TurmaDoAno[]> {
+    const linhas = await this.banco
+      .select({ id: turma.id, nome: turma.nome, chave: turma.chave, serieId: serie.id, etapa: serie.etapa, ano: serie.ano })
+      .from(turma)
+      .innerJoin(serie, and(eq(serie.escolaId, turma.escolaId), eq(serie.id, turma.serieId)))
+      .where(and(eq(turma.escolaId, requireEscolaId()), eq(turma.anoLetivoId, anoLetivoId)))
+      .orderBy(asc(turma.id))
+    return linhas.map(({ serieId, etapa, ano, ...resto }) => ({ ...resto, serie: { id: serieId, etapa, ano } }))
+  }
+
+  /**
+   * Cria a turma no ano de destino da planilha, com a `chave` do nome (como o `criar`, mas num ano que não é o do contexto: o
+   * planejado também recebe a planilha). Outra turma do ano com a mesma chave ou o mesmo nome viola o único (23505), e o motor
+   * fecha a importação `desatualizada`.
+   */
+  async criarNoAno(anoLetivoId: string, nova: Pick<NovaTurma, 'serieId' | 'nome'>): Promise<string> {
+    const [criada] = await this.banco
+      .insert(turma)
+      .values({ escolaId: requireEscolaId(), anoLetivoId, serieId: nova.serieId, nome: nova.nome, chave: chaveDaTurma(nova.nome) })
+      .returning({ id: turma.id })
+    if (criada === undefined) throw new InvariantException('turma não criada')
+    return criada.id
+  }
+
+  /**
+   * Trava as turmas do ano com esses ids em `FOR NO KEY UPDATE`, em ordem de id e num comando só (F2, 7.0; Tech Spec, seção 5,
+   * passo (3)): o gerar acesso (`FOR SHARE`) e a renomeação esperam o fim da transação, e a decisão em sala, que só pede
+   * `FOR KEY SHARE`, passa. Quem trava turma em outro caminho trava por id num comando, ou abre um deadlock.
+   */
+  async travarNoAno(anoLetivoId: string, ids: readonly string[]): Promise<void> {
+    if (ids.length === 0) return
+    await this.banco
+      .select({ id: turma.id })
+      .from(turma)
+      .where(and(eq(turma.escolaId, requireEscolaId()), eq(turma.anoLetivoId, anoLetivoId), inArray(turma.id, [...ids])))
+      .orderBy(asc(turma.id))
+      .for('no key update')
   }
 
   /** Uma página das turmas do ano em curso, com a série, em ordem de criação e uma linha a mais que diz se há próxima. */

@@ -52,7 +52,7 @@ cenários foram distribuídos pelo `test-engineer`; cada linha do `cenarios.md` 
   - [ ] 6.4 Cadastrado `pendente` e "Copiar link" na lista
   - [ ] 6.5 Testes: duas escolas, desligamento, expurgo entre o (1) e o (3)
 
-- [ ] **7.0 — A planilha de alunos acha a turma pelo nome sujo e cria a que falta**
+- [x] **7.0 — A planilha de alunos acha a turma pelo nome sujo e cria a que falta**
   - [ ] 7.1 Tipo alunos: entrada
   - [ ] 7.2 Turma e série novas, `lista_nome` nova
   - [ ] 7.3 Releitura e único violado no passo (3)

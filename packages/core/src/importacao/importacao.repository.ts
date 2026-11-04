@@ -1,4 +1,4 @@
-import { ErrorCode, InvariantException, type EstadoDoProfessor, type ErroDaImportacao, type EstadoDaImportacao, type ResumoDaImportacao, type TipoDeEventoDoCalendario, type TipoDePlanilha } from '@educa/shared'
+import { ErrorCode, InvariantException, type CriarSerieRequest, type EstadoDoProfessor, type Serie, type ErroDaImportacao, type EstadoDaImportacao, type ResumoDaImportacao, type TipoDeEventoDoCalendario, type TipoDePlanilha } from '@educa/shared'
 import { and, asc, desc, eq, inArray, lt, sql } from 'drizzle-orm'
 import { estadoDoProfessor, type UltimoConviteDoProfessor } from '../convite/estado-do-professor.js'
 import { requireAnoEmCurso } from '../context/ano-em-curso.js'
@@ -13,6 +13,9 @@ import { usuario } from '../db/schema/usuario.js'
 import { DomainException } from '../error/domain.exception.js'
 import { postgresErrorIn } from '../error/summarize-error.js'
 import { requestIdentity } from '../identidade/auth.guard.js'
+import { ListaRepository } from '../estrutura/lista.repository.js'
+import { SerieRepository } from '../estrutura/serie.repository.js'
+import { TurmaRepository, type TurmaDoAno } from '../estrutura/turma.repository.js'
 
 /** O ano em que a planilha grava: o em curso da sessão, ou o planejado que a coordenação escolheu. */
 export interface AnoDeDestino {
@@ -316,5 +319,52 @@ export class ImportacaoRepository {
       .where(and(eq(usuario.escolaId, requireEscolaId()), inArray(usuario.id, [...ids])))
       .orderBy(asc(usuario.id))
       .for('no key update')
+  }
+
+  /**
+   * Da planilha de alunos (F2, 7.0). As turmas e as matrículas são lidas por quem sabe delas (`TurmaRepository`,
+   * `SerieRepository`, `ListaRepository`), no ano de destino e na escola do contexto: a prévia faz uma consulta de turmas e
+   * duas de matrículas, qualquer que seja o número de linhas.
+   */
+  turmasDoAno(anoLetivoId: string): Promise<TurmaDoAno[]> {
+    requireEscolaId()
+    return new TurmaRepository(this.banco).doAnoComSerie(anoLetivoId)
+  }
+
+  /** Das matrículas dadas, as que já são de alguém da escola neste ano (na lista ou com credencial). */
+  matriculasEmUso(anoLetivoId: string, matriculas: readonly string[]): Promise<Set<string>> {
+    requireEscolaId()
+    return new ListaRepository(this.banco).emUsoNoAno(anoLetivoId, matriculas)
+  }
+
+  /** Trava as turmas do ano em `FOR NO KEY UPDATE`, em ordem de id e num comando só (passo (3) da planilha de alunos). */
+  travarTurmas(anoLetivoId: string, ids: readonly string[]): Promise<void> {
+    requireEscolaId()
+    return new TurmaRepository(this.banco).travarNoAno(anoLetivoId, ids)
+  }
+
+  /** As séries da escola, numa consulta só. */
+  seriesDaEscola(): Promise<Serie[]> {
+    requireEscolaId()
+    return new SerieRepository(this.banco).todas()
+  }
+
+  /** Cria a série que a planilha de alunos tirou do nome da turma e a escola ainda não tinha. */
+  async criarSerie(pedido: CriarSerieRequest): Promise<string> {
+    requireEscolaId()
+    return (await new SerieRepository(this.banco).criar(pedido)).id
+  }
+
+  /** Cria a turma nova no ano de destino, com a `chave` do nome. */
+  criarTurma(anoLetivoId: string, nova: { readonly serieId: string; readonly nome: string }): Promise<string> {
+    requireEscolaId()
+    return new TurmaRepository(this.banco).criarNoAno(anoLetivoId, nova)
+  }
+
+  /** Grava os nomes `livre` na turma de cada um, em lotes de `TAMANHO_DO_LOTE`, com a coordenação que gravou a planilha como autora. */
+  async inserirNomes(anoLetivoId: string, nomes: ReadonlyArray<{ readonly turmaId: string; readonly nome: string; readonly matricula: string }>): Promise<void> {
+    const lista = new ListaRepository(this.banco)
+    const { usuarioId } = requestIdentity()
+    for (let inicio = 0; inicio < nomes.length; inicio += TAMANHO_DO_LOTE) await lista.inserirNoAno(anoLetivoId, usuarioId, nomes.slice(inicio, inicio + TAMANHO_DO_LOTE))
   }
 }

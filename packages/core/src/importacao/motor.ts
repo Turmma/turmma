@@ -23,18 +23,19 @@ import type { JobOutbox } from '../queue/job-outbox.js'
 import { DiferencaNaPlanilhaError } from './erros.js'
 import { ImportacaoRepository, type AnoDeDestino, type ImportacaoParaExecutar } from './importacao.repository.js'
 import type { ContasDoJob, PlanoDaImportacao, PreviaDoTipo, TipoDoMotor } from './tipo.js'
+import { tipoAlunos } from './tipos/alunos.js'
 import { tipoCalendario } from './tipos/calendario.js'
 import { tipoProfessores } from './tipos/professores.js'
 
 /**
  * O motor das planilhas (F2, 4.0; Tech Spec, seção 5): a prévia classifica, o gravar a refaz e enfileira, e o job a refaz de
- * novo e grava em três passos. Cada tipo de planilha (calendário na 4.0, professores na 6.0; alunos e grade nas seguintes) entrega só
+ * novo e grava em três passos. Cada tipo de planilha (calendário na 4.0, professores na 6.0, alunos na 7.0; a grade na seguinte) entrega só
  * o que é dele: ler o texto, dizer o que faria no ano (`planejar`) e escrever (`aplicar`). A trava, a assinatura, os estados e
  * a auditoria são do motor, e valem igual para os quatro.
  */
 
 /** Os tipos que o motor já sabe gravar. Os outros respondem `NAO_ENCONTRADO` até a tarefa deles chegar. */
-const TIPOS_DO_MOTOR: Readonly<Partial<Record<TipoDePlanilha, TipoDoMotor>>> = { calendario: tipoCalendario, professores: tipoProfessores }
+const TIPOS_DO_MOTOR: Readonly<Partial<Record<TipoDePlanilha, TipoDoMotor>>> = { alunos: tipoAlunos, calendario: tipoCalendario, professores: tipoProfessores }
 
 /** `lock_not_available` (o `lock_timeout` do passo 3), `deadlock_detected` e `serialization_failure`: o que se tenta de novo, com espera. */
 const SQLSTATE_DE_TRAVA = new Set(['55P03', '40P01', '40001'])
@@ -255,6 +256,7 @@ async function planejarSobTrava(gravacao: ImportacaoRepository, tx: DatabaseTran
   }
   const ano = anoLetivoId === null ? undefined : await gravacao.anoPorId(anoLetivoId, true)
   if (ano === undefined || ano.situacao === 'encerrado') return 'encerrado'
+  await tipo.travar?.(gravacao, ano, linhas)
   const plano = await tipo.planejar(gravacao, ano, linhas)
   if (plano === undefined) throw new ImportacaoIlegivelError()
   return plano

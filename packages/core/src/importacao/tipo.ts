@@ -42,6 +42,11 @@ interface TipoBase {
 export interface TipoDeImportacao extends TipoBase {
   readonly usaAno: true
   previa(repositorio: ImportacaoRepository, ano: AnoDeDestino, texto: string): Promise<PreviaDoTipo>
+  /**
+   * A trava do passo (3) que o tipo pede depois do ano e antes de o `planejar` ler (a planilha de alunos trava as turmas que as
+   * linhas tocam, em ordem de id e num comando, na ordem global da Tech Spec, seção 5). O calendário não tem.
+   */
+  travar?(repositorio: ImportacaoRepository, ano: AnoDeDestino, guardado: unknown): Promise<void>
   /** `undefined` quando o que o gravar guardou não tem a forma do tipo: o job falha de vez, sem repetir. */
   planejar(repositorio: ImportacaoRepository, ano: AnoDeDestino, guardado: unknown): Promise<PlanoDaImportacao | undefined>
 }

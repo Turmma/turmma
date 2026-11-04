@@ -14,6 +14,7 @@ numa tarefa do `tasks.md`, que diz qual. I = integração com Postgres real e re
   - [U] XLSX real na biblioteca real: `00123` em célula de texto chega `00123`; em célula numérica chega `123` e o
     comportamento está escrito no teste.
   - [I] Consultas da prévia constantes entre 30 e 3.000 linhas (contadas, nunca cronometradas).
+  - [I] Matrícula que a escola já tem no ano (na lista ou com credencial): "já existe", sem gravar nada e sem criar a turma que só ela pedia; a de outro ano ou de outra escola não conta.
   - [C] Prévia e gravar com 3.000 linhas: p95 até 2 s com a rajada de login em paralelo.
   - [C] Job de 3.000 linhas com transferências em várias turmas junto com o gerar acesso e a decisão nessas turmas, e o
     de professores junto com o login deles: zero 503 no gerar acesso, na decisão e no login; espera de trava com p95 abaixo de 300 ms; passo (3) do job abaixo de 1 s.
@@ -36,8 +37,8 @@ numa tarefa do `tasks.md`, que diz qual. I = integração com Postgres real e re
   - [I] Matrícula repetida na mesma planilha: erro nas duas linhas.
   - [P] Aluno novo de matrícula M na planilha e, com barreira entre o (2) e o (3), nome avulso lançado à mão na mesma
     escola com a matrícula M: `desatualizada`, nunca `falhou`; zero `lista_nome` da planilha gravadas; a avulsa intacta.
-  - [P] O mesmo com a matrícula M de um aluno **aprovado** lançado entre o (2) e o (3), que viola o único da
-    `credencial_matricula`: `desatualizada`, nunca `falhou`.
+  - [P] O mesmo com a matrícula M de um aluno **aprovado** lançado entre o (2) e o (3): o (3) relê a
+    `credencial_matricula` sob a trava e a assinatura muda (não há único entre ela e a `lista_nome`): `desatualizada`, nunca `falhou`.
   - Nos [P] de único violado (matrícula, as duas `chave`, vínculo à mão com a mesma tripla) o `desatualizada` sai **na
     mesma execução**: o processor é chamado uma vez (tentativa 1), e o teste não chega ao estado final pelo BullMQ, que
     passaria com "único violado vira nova tentativa".

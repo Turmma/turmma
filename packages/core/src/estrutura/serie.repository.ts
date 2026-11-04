@@ -30,6 +30,11 @@ export class SerieRepository {
       .limit(limite + 1)
   }
 
+  /** Todas as séries da escola (no máximo sete: o recorte é 6º ao 9º e 1º ao 3º), numa consulta só e em ordem de id. */
+  todas(): Promise<Serie[]> {
+    return this.banco.select(colunas).from(serie).where(eq(serie.escolaId, requireEscolaId())).orderBy(asc(serie.id))
+  }
+
   /** A série da escola com esse id; a de outra escola não é achada. */
   async porId(id: string): Promise<Serie | undefined> {
     const [linha] = await this.banco

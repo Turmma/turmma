@@ -103,7 +103,7 @@ a auditoria precisa de autor humano e a rotina não assina `planilha.gravada` (`
 Importação parada: o `retencao.expurgar-escola` (1h, por escola, com escopo); a importação final de 90 dias: o
 `sistema.expurgar-acesso`. Os dois com `skip locked`.
 
-**Gravar.** Alunos: turma (com a `chave`) e série novas; `lista_nome` nova; nome corrigido no `usuario.nome` do aprovado
+**Gravar.** Alunos (7.0): turma (com a `chave`, na série que o nome diz, criada se faltar) e série novas, com a ação `turma.criada` (série e origem `planilha`); `lista_nome` nova de quem tem matrícula que a escola ainda não tem neste ano; a matrícula que já está na lista do ano ou tem credencial na escola é "já existe" e não grava nada, nem cria a turma que só ela pedia (nome e turma dela são da 8.0, 9.0 e 10.0); o tipo trava as turmas que as linhas tocam pelo gancho `travar`, que o motor chama no (3) depois de conferir o ano; nome corrigido no `usuario.nome` do aprovado
 (`usuario.nome_corrigido`) ou na `lista_nome` (`lista.nome_corrigido`), sem nome; transferência pelo `encerrar` (`realocacao`), vínculo confirmado na nova,
 `lista_nome` na nova turma, pedido pendente encerrado pelo `fechar('encerrada')`, que grava só o estado e anula os
 segredos, sem `decidida*` (o `virarSala` usa a mesma função); desligar o aprovado pelo `desativar`; o não
