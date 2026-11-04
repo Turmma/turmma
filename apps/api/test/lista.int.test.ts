@@ -1,17 +1,23 @@
-import { ErrorCode, listaDaTurmaResponseSchema, previaDaListaResponseSchema, MENSAGENS_DE_ERRO } from '@educa/shared'
+import { createDatabase, createPool, executarPlanilha, runInContext, SchoolSemaphore, type Database, type DatabasePool } from '@educa/core'
+import { ErrorCode, LIMITE_DA_PLANILHA_POR_MINUTO, listaDaTurmaResponseSchema, previaDaPlanilhaResponseSchema, MAXIMO_DE_BYTES_DA_LISTA, MAXIMO_DE_LINHAS_DA_LISTA, MENSAGENS_DE_ERRO, VAGAS_DA_PLANILHA_POR_ESCOLA } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
+import { VAGAS_DA_PLANILHA } from '../src/rate-limit.module.js'
 import { chamar, subirApi, type TestApi, type RespostaHttp } from './test-api.js'
 import { esperarNaTrava, WriteBlockTrigger } from './write-block-trigger.js'
 import { SessaoFixtures, type TestSessao } from './sessao.fixture.js'
 
 /**
- * A lista de nomes da turma (A1, tarefa 2.0; `tasks/prd-apresentacao-escola/cenarios.md`): E4, E5, E6 e E7 (sem o
- * aprovado nem o reivindicado de verdade, que chegam na 6.0 e na 8.0), a parte da lista do E2, o check da `lista_nome`,
- * o conteúdo de A1 e A2, C8, C9, a gravação ao mesmo tempo em duas turmas, a matrícula com forma de documento (G2), e
- * o log. As varreduras I3, P1, A1, A3 e A4 das
- * cinco rotas moram em `escola-montada.int.test.ts`, e o E3 (a leitura do texto) em `lista-reader.test.ts`.
+ * A lista de nomes da turma (A1, tarefa 2.0; `tasks/prd-apresentacao-escola/cenarios.md`): E4, E5, E6 e E7, a parte da
+ * lista do E2, o check da `lista_nome`, o conteúdo de A1 e A2, C8, C9, a gravação ao mesmo tempo em duas turmas, a matrícula
+ * com forma de documento (G2), e o log. Desde a tarefa 8.0 da F2 (`tasks/prd-onboarding-por-convite/`, "A1 que muda de
+ * regra") a prévia e a gravação do texto seguem a planilha de alunos: o contrato da importação (as linhas só com número,
+ * resultado e código; as contagens; os candidatos), a gravação responde 202 e o job `estrutura.gravar-planilha` grava (aqui
+ * rodado pelo `executarPlanilha`, como o worker o roda), o teto é o da planilha (3.000 linhas, 512 KB), e a matrícula que a
+ * escola já tem deixa de ser `CONFLITO`: é "já existe", "nome corrigido" ou "muda de turma". As varreduras I3, P1, A1, A3 e A4
+ * das cinco rotas moram em `escola-montada.int.test.ts`, e o E3 (a leitura do texto) em `lista-reader.test.ts`.
  * Postgres real do compose de teste; nomes e matrículas gerados.
  */
 
@@ -50,13 +56,19 @@ describe('lista de nomes da turma (A1, tarefa 2.0): prévia, gravação, avulso,
   const medidor = new MedidorDeTeste()
   const linhasDeLog: string[] = []
   let api: TestApi
+  /** O pool dos jobs e das paradas: o da bancada tem 2 conexões, e a parada segura uma e o job outra. */
+  let apoio: DatabasePool
+  let bancoDoJob: Database
 
   beforeAll(async () => {
     api = await subirApi(medidor.medidor, {}, linhasDeLog)
+    apoio = createPool({ url: urlDoBancoDeTeste(), maximoConexoes: 8, timeoutConexaoMs: 5_000, timeoutConsultaMs: 30_000 }, () => undefined)
+    bancoDoJob = createDatabase(apoio)
   })
 
   afterAll(async () => {
     await api.app.close()
+    await apoio.end()
     await bancada.fechar()
     await medidor.encerrar()
   })
@@ -92,11 +104,30 @@ describe('lista de nomes da turma (A1, tarefa 2.0): prévia, gravação, avulso,
     return { escolaId, coordenacao, anoId, serieId, t1: await turmaNova(coordenacao, serieId), t2: await turmaNova(coordenacao, serieId) }
   }
 
-  /** Grava a lista e confere o 201 e as contagens. */
-  async function gravada(e: EscolaComTurmas, turma: string, linhas: ReadonlyArray<readonly [string, string]>, contagens = { gravados: linhas.length, jaExistentes: 0 }) {
+  /** Roda o job uma vez (tentativa 1), no contexto da escola do job, como o executor do worker o abre. */
+  const rodar = (escolaId: string, importacaoId: string) => runInContext({ requisicaoId: randomUUID(), escolaId }, () => executarPlanilha(bancoDoJob, importacaoId))
+
+  /** O estado e o resumo da importação, como ficaram no banco. */
+  async function importacaoDe(id: string): Promise<{ estado: string; resumo: Record<string, number> | null }> {
+    const { rows } = await bancada.pool.query<{ estado: string; resumo: Record<string, number> | null }>('select estado, resumo from importacao_planilha where id = $1', [id])
+    return rows[0] ?? { estado: 'inexistente', resumo: null }
+  }
+
+  /** Grava a lista (202), roda o job e confere que concluiu com essas contagens (as que o resumo guarda, `entram` e `ja_existem` por padrão). Devolve o id da importação. */
+  async function gravada(
+    e: EscolaComTurmas,
+    turma: string,
+    linhas: ReadonlyArray<readonly [string, string]>,
+    contagens: Record<string, number> = { entram: linhas.length, ja_existem: 0 },
+  ): Promise<string> {
     const resposta = await gravar(e, turma, texto(linhas))
-    expect(resposta.status).toBe(201)
-    expect(resposta.corpo).toEqual(contagens)
+    expect(resposta.status).toBe(202)
+    const id = resposta.corpo['id'] as string
+    expect(await rodar(e.escolaId, id)).toBe('concluida')
+    const { estado, resumo } = await importacaoDe(id)
+    expect(estado).toBe('concluida')
+    expect(resumo).toMatchObject(contagens)
+    return id
   }
 
   interface LinhaNoBanco {
@@ -156,11 +187,12 @@ describe('lista de nomes da turma (A1, tarefa 2.0): prévia, gravação, avulso,
     return { usuarioId, matricula: qual }
   }
 
-  describe('E4 (RF4): erro por linha, e nada gravado', () => {
-    it('a prévia aponta cada linha ruim com o código, entre as boas; a gravação com erro do texto é ENTRADA_INVALIDA, com matrícula em uso é CONFLITO, e nenhuma grava nada', async () => {
+  describe('E4 (RF4): erro por linha, e nada gravado; a matrícula que a escola já tem deixa de ser conflito (F2, 8.0)', () => {
+    it('a prévia aponta cada linha ruim com o código, entre as boas; a matrícula na lista de outra turma é "muda de turma" (candidato a marca) e a de aluno da escola, "já existe"; a gravação com erro do texto é ENTRADA_INVALIDA e não grava nada', async () => {
       const e = await escolaComTurmas()
       const naOutraTurma = matricula()
-      await gravada(e, e.t2, [[nome(), naOutraTurma]])
+      const nomeDaOutraTurma = nome()
+      await gravada(e, e.t2, [[nomeDaOutraTurma, naOutraTurma]])
       const deAluno = (await alunoComMatricula(e.escolaId)).matricula
       const boas: Array<[string, string]> = [
         [nome(), matricula()],
@@ -176,46 +208,111 @@ describe('lista de nomes da turma (A1, tarefa 2.0): prévia, gravação, avulso,
 
       const lida = await previa(e, e.t1, texto(linhas))
       expect(lida.status).toBe(200)
-      expect(previaDaListaResponseSchema.parse(lida.corpo)).toEqual({
+      expect(previaDaPlanilhaResponseSchema.parse(lida.corpo)).toEqual({
         linhas: [
-          { linha: 1, nome: b0[0], matricula: b0[1], resultado: 'entra' },
-          { linha: 2, nome: '', matricula: semNome, resultado: 'erro', erro: 'sem_nome' },
-          { linha: 3, nome: b1[0], matricula: b1[1], resultado: 'entra' },
-          { linha: 4, nome: semMatricula, matricula: '', resultado: 'erro', erro: 'sem_matricula' },
-          { linha: 5, nome: `${PREFIXO} Rep A`, matricula: repetida, resultado: 'erro', erro: 'matricula_repetida' },
-          { linha: 6, nome: b2[0], matricula: b2[1], resultado: 'entra' },
-          { linha: 7, nome: `${PREFIXO} Rep B`, matricula: repetida, resultado: 'erro', erro: 'matricula_repetida' },
-          { linha: 8, nome: `${PREFIXO} Outra`, matricula: naOutraTurma, resultado: 'erro', erro: 'matricula_em_uso' },
-          { linha: 9, nome: `${PREFIXO} Aluno`, matricula: deAluno, resultado: 'erro', erro: 'matricula_em_uso' },
-          { linha: 10, nome: b3[0], matricula: b3[1], resultado: 'entra' },
+          { linha: 1, resultado: 'entra' },
+          { linha: 2, resultado: 'erro', erro: 'sem_nome' },
+          { linha: 3, resultado: 'entra' },
+          { linha: 4, resultado: 'erro', erro: 'sem_matricula' },
+          { linha: 5, resultado: 'erro', erro: 'matricula_repetida' },
+          { linha: 6, resultado: 'entra' },
+          { linha: 7, resultado: 'erro', erro: 'matricula_repetida' },
+          { linha: 8, resultado: 'muda_de_turma' },
+          { linha: 9, resultado: 'ja_existe' },
+          { linha: 10, resultado: 'entra' },
         ],
-        entram: 4,
-        jaExistem: 0,
-        comErro: 6,
+        contagens: { entram: 4, ja_existem: 1, turmas_novas: 0 },
+        candidatos: [{ id: await idDaMatricula(e.escolaId, naOutraTurma), acao: 'transferir', rotulo: `${nomeDaOutraTurma} (${naOutraTurma})` }],
       })
 
       const antes = await retrato(e.escolaId)
       expect(semRequisicao(await gravar(e, e.t1, texto(linhas)))).toEqual(ENTRADA_INVALIDA)
-      // Sem erro do texto, a matrícula em uso, na lista da outra turma ou de aluno da escola, segura a gravação inteira.
-      expect(semRequisicao(await gravar(e, e.t1, texto([...boas, [`${PREFIXO} Outra`, naOutraTurma]])))).toEqual(CONFLITO)
-      expect(semRequisicao(await gravar(e, e.t1, texto([...boas, [`${PREFIXO} Aluno`, deAluno]])))).toEqual(CONFLITO)
       expect(await retrato(e.escolaId)).toEqual(antes)
 
-      // As boas, sozinhas, gravam: o que segurou foi a linha ruim.
-      await gravada(e, e.t1, boas)
+      // Sem erro do texto, a matrícula da outra turma e a do aluno da escola não seguram a gravação (antes eram CONFLITO): sem marca, nada muda de turma.
+      const importacao = await gravada(e, e.t1, [...boas, [`${PREFIXO} Outra`, naOutraTurma], [`${PREFIXO} Aluno`, deAluno]], { entram: 4, ja_existem: 1 })
+      expect(importacao).toEqual(expect.any(String))
+      expect((await linhasDa(e.escolaId)).filter((linha) => linha.matricula === naOutraTurma).map((linha) => linha.turma_id)).toEqual([e.t2])
+      expect((await linhasDa(e.escolaId)).filter((linha) => linha.turma_id === e.t1).map((linha) => linha.matricula).sort()).toEqual(boas.map(([, qual]) => qual).sort())
     })
 
-    it('201 linhas ou 64 KB + 1 byte na prévia e na gravação: ENTRADA_INVALIDA, e nada gravado; 200 linhas gravam', async () => {
+    it('o teto da planilha, 3.000 linhas e 512 KB, vale na prévia e na gravação: 3.001 linhas ou 512 KB + 1 byte são ENTRADA_INVALIDA e nada é gravado; 3.000 linhas gravam (202)', async () => {
+      expect(MAXIMO_DE_LINHAS_DA_LISTA).toBe(3000)
+      expect(MAXIMO_DE_BYTES_DA_LISTA).toBe(512 * 1024)
       const e = await escolaComTurmas()
-      const linhas = Array.from({ length: 201 }, (): [string, string] => [nome(), matricula()])
-      const grande = texto([[nome(), 'x'.repeat(64 * 1024)]])
+      const linhas = Array.from({ length: MAXIMO_DE_LINHAS_DA_LISTA + 1 }, (_, posicao): [string, string] => [`${PREFIXO} Aluno ${String(posicao)}`, `${PREFIXO}-${String(posicao)}`])
+      // Cabe nas 3.000 linhas, mas passa de 512 KB por uma matrícula só.
+      const grande = texto([[nome(), 'x'.repeat(MAXIMO_DE_BYTES_DA_LISTA)]])
       const antes = await retrato(e.escolaId)
       for (const lista of [texto(linhas), grande]) {
         expect(semRequisicao(await previa(e, e.t1, lista))).toEqual(ENTRADA_INVALIDA)
         expect(semRequisicao(await gravar(e, e.t1, lista))).toEqual(ENTRADA_INVALIDA)
       }
       expect(await retrato(e.escolaId)).toEqual(antes)
-      await gravada(e, e.t1, linhas.slice(0, 200))
+      expect(await bancada.pool.query('select 1 from importacao_planilha where escola_id = $1', [e.escolaId]).then((r) => r.rows)).toEqual([])
+
+      // As 201 linhas que o teto antigo (200) recusava passam; as 3.000, de uns 110 KB (acima dos 100 KB das outras rotas), leem e gravam.
+      const dentro = texto(linhas.slice(0, MAXIMO_DE_LINHAS_DA_LISTA))
+      expect(Buffer.byteLength(dentro, 'utf8')).toBeGreaterThan(100 * 1024)
+      const lida = previaDaPlanilhaResponseSchema.parse((await previa(e, e.t1, dentro)).corpo)
+      expect(lida.contagens).toEqual({ entram: MAXIMO_DE_LINHAS_DA_LISTA, ja_existem: 0, turmas_novas: 0 })
+      const resposta = await gravar(e, e.t1, dentro)
+      expect(resposta.status).toBe(202)
+      expect(await rodar(e.escolaId, resposta.corpo['id'] as string)).toBe('concluida')
+      expect(await linhasDa(e.escolaId)).toHaveLength(MAXIMO_DE_LINHAS_DA_LISTA)
+    })
+
+    it('a gravação responde 202 com o id da importação, na fila e sem gravar nada antes do job; o job a conclui, e a leitura da importação mostra as contagens', async () => {
+      const e = await escolaComTurmas()
+      const linhas: Array<[string, string]> = [
+        [nome(), matricula()],
+        [nome(), matricula()],
+      ]
+      const resposta = await gravar(e, e.t1, texto(linhas))
+      expect(resposta.status).toBe(202)
+      expect(resposta.corpo).toEqual({ id: expect.any(String) })
+      const id = resposta.corpo['id'] as string
+      expect(await linhasDa(e.escolaId)).toEqual([])
+      expect((await pedir(e.coordenacao, 'GET', `/v1/importacoes/${id}`)).corpo).toMatchObject({ id, tipo: 'alunos', estado: 'na_fila', resumo: null })
+
+      expect(await rodar(e.escolaId, id)).toBe('concluida')
+      expect((await pedir(e.coordenacao, 'GET', `/v1/importacoes/${id}`)).corpo).toMatchObject({ estado: 'concluida', resumo: { entram: 2, ja_existem: 0 } })
+      expect((await linhasDa(e.escolaId)).map((linha) => [linha.nome, linha.matricula, linha.turma_id, linha.estado]).sort()).toEqual(linhas.map(([quem, qual]) => [quem, qual, e.t1, 'livre']).sort())
+    })
+  })
+
+  describe('isolamento (regra 10) e ano (RF4, 8.0): o `turmaId` da prévia e da gravação é conferido na escola e no ano', () => {
+    it('a turma da escola B, a de um id sorteado e a de um ano encerrado respondem a mesma coisa na prévia e na gravação: NAO_ENCONTRADO, sem importação, sem job, sem nome e sem leitura auditada', async () => {
+      const a = await escolaComTurmas()
+      const b = await escolaComTurmas()
+      const emB = matricula()
+      await gravada(b, b.t1, [[nome(), emB]])
+      // A t1 de A fica no ano que encerra; a lista dela não se lê nem se grava (e o ano 2027 abre para a escola seguir).
+      await criado(pedir(a.coordenacao, 'POST', `/v1/anos-letivos/${a.anoId}/encerrar`), 200)
+      await anoAberto(a.coordenacao, 2027)
+      const antesDeA = await retrato(a.escolaId)
+      const antesDeB = await retrato(b.escolaId)
+      const importacoesDeB = (await bancada.pool.query('select id from importacao_planilha where escola_id = $1 order by id', [b.escolaId])).rows
+      const lista = texto([[nome(), matricula()], [nome(), emB]])
+
+      const respostas = [b.t1, randomUUID(), a.t1]
+      // Uma de cada vez: a escola tem duas vagas de classificação ao mesmo tempo.
+      const previas: RespostaHttp[] = []
+      const gravacoes: RespostaHttp[] = []
+      for (const turma of respostas) {
+        previas.push(await previa(a, turma, lista))
+        gravacoes.push(await gravar(a, turma, lista))
+      }
+      // O inexistente é o parâmetro de comparação: as três respostas são a mesma, só o `requisicaoId` muda.
+      for (const resposta of [...previas, ...gravacoes]) expect(semRequisicao(resposta)).toEqual(NAO_ENCONTRADO)
+
+      expect(await retrato(a.escolaId)).toEqual(antesDeA)
+      expect(await retrato(b.escolaId)).toEqual(antesDeB)
+      expect((await bancada.pool.query('select 1 from importacao_planilha where escola_id = $1', [a.escolaId])).rows).toEqual([])
+      expect((await bancada.pool.query('select id from importacao_planilha where escola_id = $1 order by id', [b.escolaId])).rows).toEqual(importacoesDeB)
+      expect((await bancada.pool.query('select 1 from job_registro where escola_id = $1', [a.escolaId])).rows).toEqual([])
+      expect(await auditoriaDa(a.escolaId, 'turma.alunos_lidos')).toEqual([])
+      expect(await auditoriaDa(b.escolaId, 'turma.alunos_lidos')).toEqual([])
     })
   })
 
@@ -231,14 +328,14 @@ describe('lista de nomes da turma (A1, tarefa 2.0): prévia, gravação, avulso,
       ])
       const lidaEmB = await previa(b, b.t1, texto([[nome(), naListaDeA]]))
       expect(lidaEmB.status).toBe(200)
-      expect(lidaEmB.corpo['linhas']).toEqual([expect.objectContaining({ matricula: naListaDeA, resultado: 'entra' })])
+      expect(lidaEmB.corpo['linhas']).toEqual([{ linha: 1, resultado: 'entra' }])
       await gravada(b, b.t1, [[nome(), naListaDeA]])
       expect((await avulso(b, b.t1, { nome: nome(), matricula: outraNaListaDeA })).status).toBe(201)
 
       const deAlunoDeB = (await alunoComMatricula(b.escolaId)).matricula
       const outraDeAlunoDeB = (await alunoComMatricula(b.escolaId)).matricula
       const lidaEmA = await previa(a, a.t1, texto([[nome(), deAlunoDeB]]))
-      expect(lidaEmA.corpo['linhas']).toEqual([expect.objectContaining({ matricula: deAlunoDeB, resultado: 'entra' })])
+      expect(lidaEmA.corpo['linhas']).toEqual([{ linha: 1, resultado: 'entra' }])
       await gravada(a, a.t1, [[nome(), deAlunoDeB]])
       expect((await avulso(a, a.t1, { nome: nome(), matricula: outraDeAlunoDeB })).status).toBe(201)
 
@@ -262,7 +359,7 @@ describe('lista de nomes da turma (A1, tarefa 2.0): prévia, gravação, avulso,
       const de2027 = await turmaNova(e.coordenacao, e.serieId)
 
       const lida = await previa(e, de2027, texto([[nome(), de2026]]))
-      expect(lida.corpo['linhas']).toEqual([expect.objectContaining({ matricula: de2026, resultado: 'entra' })])
+      expect(lida.corpo['linhas']).toEqual([{ linha: 1, resultado: 'entra' }])
       await gravada(e, de2027, [[nome(), de2026]])
       expect((await avulso(e, de2027, { nome: nome(), matricula: outraDe2026 })).status).toBe(201)
 
@@ -283,8 +380,8 @@ describe('lista de nomes da turma (A1, tarefa 2.0): prévia, gravação, avulso,
     })
   })
 
-  describe('E6 (RF5): reenviar acrescenta só o que falta, pela matrícula', () => {
-    it('a mesma lista duas vezes não muda a contagem; o que já está na lista da turma sai `ja_existe`, mesmo com outro nome; um nome novo acrescenta só ele', async () => {
+  describe('E6 (RF5, RF4): reenviar acrescenta só o que falta, pela matrícula; o nome diferente é "nome corrigido" (F2, 8.0)', () => {
+    it('a mesma lista duas vezes é tudo "já existe" e o banco não muda; a mesma matrícula com outro nome é "nome corrigido" e a linha da lista ganha o nome novo; um nome novo acrescenta só ele', async () => {
       const e = await escolaComTurmas()
       const linhas: Array<[string, string]> = [
         [nome(), matricula()],
@@ -292,17 +389,43 @@ describe('lista de nomes da turma (A1, tarefa 2.0): prévia, gravação, avulso,
         [nome(), matricula()],
       ]
       await gravada(e, e.t1, linhas)
-      await gravada(e, e.t1, linhas, { gravados: 0, jaExistentes: 3 })
-      expect(await linhasDa(e.escolaId)).toHaveLength(3)
+      const depoisDaPrimeira = await linhasDa(e.escolaId)
+      expect(depoisDaPrimeira).toHaveLength(3)
 
+      // A mesma lista: a prévia diz "já existe" nas três, e o banco fica como estava.
+      const repetida = previaDaPlanilhaResponseSchema.parse((await previa(e, e.t1, texto(linhas))).corpo)
+      expect(repetida).toEqual({
+        linhas: [1, 2, 3].map((linha) => ({ linha, resultado: 'ja_existe' })),
+        contagens: { entram: 0, ja_existem: 3, turmas_novas: 0 },
+        candidatos: [],
+      })
+      const antesDaSegunda = await retrato(e.escolaId)
+      await gravada(e, e.t1, linhas, { entram: 0, ja_existem: 3 })
+      expect((await retrato(e.escolaId)).lista).toEqual(antesDaSegunda.lista)
+      expect((await auditoriaDa(e.escolaId, 'lista.nome_corrigido'))).toEqual([])
+
+      // A mesma matrícula com outro nome: "nome corrigido", e não mais "já existe com o nome de antes".
       const [primeira] = linhas as [[string, string]]
-      const comOutroNome: Array<[string, string]> = [...linhas.slice(1), [`${PREFIXO} Outro Nome`, primeira[1]]]
-      const lida = await previa(e, e.t1, texto(comOutroNome))
-      expect(lida.corpo['linhas']).toEqual(comOutroNome.map(([quem, qual]) => expect.objectContaining({ nome: quem, matricula: qual, resultado: 'ja_existe' })))
-      expect(lida.corpo).toEqual(expect.objectContaining({ entram: 0, jaExistem: 3, comErro: 0 }))
+      const corrigido = `${PREFIXO} Nome Corrigido`
+      const comOutroNome: Array<[string, string]> = [...linhas.slice(1), [corrigido, primeira[1]]]
+      const lida = previaDaPlanilhaResponseSchema.parse((await previa(e, e.t1, texto(comOutroNome))).corpo)
+      expect(lida.linhas).toEqual([
+        { linha: 1, resultado: 'ja_existe' },
+        { linha: 2, resultado: 'ja_existe' },
+        { linha: 3, resultado: 'nome_corrigido' },
+      ])
+      expect(lida.contagens).toEqual({ entram: 0, ja_existem: 2, nomes_corrigidos: 1, turmas_novas: 0 })
+      expect(lida.candidatos).toEqual([])
 
       const nova = matricula()
-      await gravada(e, e.t1, [...comOutroNome, [nome(), nova]], { gravados: 1, jaExistentes: 3 })
+      const novoNome = nome()
+      await gravada(e, e.t1, [...comOutroNome, [novoNome, nova]], { entram: 1, ja_existem: 2, nomes_corrigidos: 1 })
+      const naT1 = (await linhasDa(e.escolaId)).filter((linha) => linha.turma_id === e.t1)
+      expect(naT1).toHaveLength(4)
+      // O nome da linha que já existia mudou para o da planilha; as outras seguem; a nova entra livre.
+      expect(naT1.find((linha) => linha.matricula === primeira[1])).toEqual(expect.objectContaining({ nome: corrigido, estado: 'livre', id: depoisDaPrimeira.find((linha) => linha.matricula === primeira[1])?.id }))
+      expect(naT1.find((linha) => linha.matricula === nova)).toEqual(expect.objectContaining({ nome: novoNome, estado: 'livre', usuario_id: null, criado_por: e.coordenacao.usuarioId, ano_letivo_id: e.anoId }))
+      for (const linha of naT1) expect(linha).toEqual(expect.objectContaining({ turma_id: e.t1, ano_letivo_id: e.anoId, estado: 'livre', usuario_id: null }))
 
       // Dois alunos com o mesmo nome e matrículas diferentes entram os dois: só a matrícula decide.
       const homonimo = nome()
@@ -310,16 +433,42 @@ describe('lista de nomes da turma (A1, tarefa 2.0): prévia, gravação, avulso,
         [homonimo, matricula()],
         [homonimo, matricula()],
       ]
-      const lidaHomonimos = await previa(e, e.t2, texto(homonimos))
-      expect(lidaHomonimos.corpo).toEqual(expect.objectContaining({ entram: 2, jaExistem: 0, comErro: 0 }))
+      const lidaHomonimos = previaDaPlanilhaResponseSchema.parse((await previa(e, e.t2, texto(homonimos))).corpo)
+      expect(lidaHomonimos.contagens).toEqual({ entram: 2, ja_existem: 0, turmas_novas: 0 })
       await gravada(e, e.t2, homonimos)
       const daT2 = (await linhasDa(e.escolaId)).filter((linha) => linha.turma_id === e.t2)
       expect(daT2.map((linha) => [linha.nome, linha.matricula]).sort()).toEqual([...homonimos].sort())
-      const gravadas = (await linhasDa(e.escolaId)).filter((linha) => linha.turma_id === e.t1)
-      expect(gravadas).toHaveLength(4)
-      for (const linha of gravadas) expect(linha).toEqual(expect.objectContaining({ turma_id: e.t1, ano_letivo_id: e.anoId, estado: 'livre', usuario_id: null, criado_por: e.coordenacao.usuarioId }))
-      // O nome da linha que já existia não muda: a matrícula decide.
-      expect(gravadas.find((linha) => linha.matricula === primeira[1])?.nome).toBe(primeira[0])
+    })
+
+    it('"muda de turma" e "fora da planilha" sem marca gravam sem efeito: o nome fica na turma de antes, e o que a lista não traz não sai', async () => {
+      const e = await escolaComTurmas()
+      const daT1 = matricula()
+      const daT2 = matricula()
+      const ausente = matricula()
+      const nomeDaT1 = nome()
+      const nomeDaT2 = nome()
+      await gravada(e, e.t1, [
+        [nomeDaT1, daT1],
+        [nome(), ausente],
+      ])
+      await gravada(e, e.t2, [[nomeDaT2, daT2]])
+      const antes = await retrato(e.escolaId)
+
+      // Na lista da t1: a matrícula da t2 ("muda de turma") e o ausente da t1 ("fora da planilha"), que só aparecem como candidatos.
+      const lida = previaDaPlanilhaResponseSchema.parse((await previa(e, e.t1, texto([[nomeDaT1, daT1], [nomeDaT2, daT2]]))).corpo)
+      expect(lida.linhas).toEqual([
+        { linha: 1, resultado: 'ja_existe' },
+        { linha: 2, resultado: 'muda_de_turma' },
+      ])
+      expect(lida.candidatos.map(({ id, acao }) => [id, acao]).sort()).toEqual(
+        [
+          [await idDaMatricula(e.escolaId, daT2), 'transferir'],
+          [await idDaMatricula(e.escolaId, ausente), 'desligar'],
+        ].sort(),
+      )
+
+      await gravada(e, e.t1, [[nomeDaT1, daT1], [nomeDaT2, daT2]], { entram: 0, ja_existem: 1 })
+      expect((await retrato(e.escolaId)).lista).toEqual(antes.lista)
     })
   })
 
@@ -438,14 +587,13 @@ describe('lista de nomes da turma (A1, tarefa 2.0): prévia, gravação, avulso,
 
         const lida = await previa(e, e.t1, lista)
         expect(lida.status, documento).toBe(200)
-        expect(previaDaListaResponseSchema.parse(lida.corpo), documento).toEqual({
+        expect(previaDaPlanilhaResponseSchema.parse(lida.corpo), documento).toEqual({
           linhas: [
-            { linha: 1, nome: boa[0], matricula: boa[1], resultado: 'entra' },
-            { linha: 2, nome: suspeita[0], matricula: documento, resultado: 'erro', erro: 'matricula_parece_documento' },
+            { linha: 1, resultado: 'entra' },
+            { linha: 2, resultado: 'erro', erro: 'matricula_parece_documento' },
           ],
-          entram: 1,
-          jaExistem: 0,
-          comErro: 1,
+          contagens: { entram: 1, ja_existem: 0, turmas_novas: 0 },
+          candidatos: [],
         })
 
         const antes = await retrato(e.escolaId)
@@ -472,14 +620,14 @@ describe('lista de nomes da turma (A1, tarefa 2.0): prévia, gravação, avulso,
       ]
       const lida = await previa(e, e.t1, texto(linhas))
       expect(lida.status).toBe(200)
-      const resposta = previaDaListaResponseSchema.parse(lida.corpo)
-      expect(resposta.linhas.map((linha) => [linha.matricula, linha.resultado, linha.erro])).toEqual([
-        [a, 'erro', 'matricula_parece_documento'],
-        [b, 'erro', 'matricula_parece_documento'],
-        [outra, 'entra', undefined],
-        [c, 'erro', 'matricula_parece_documento'],
+      const resposta = previaDaPlanilhaResponseSchema.parse(lida.corpo)
+      expect(resposta.linhas.map((linha) => [linha.linha, linha.resultado, linha.erro])).toEqual([
+        [1, 'erro', 'matricula_parece_documento'],
+        [2, 'erro', 'matricula_parece_documento'],
+        [3, 'entra', undefined],
+        [4, 'erro', 'matricula_parece_documento'],
       ])
-      expect({ entram: resposta.entram, comErro: resposta.comErro }).toEqual({ entram: 1, comErro: 3 })
+      expect(resposta.contagens.entram).toBe(1)
 
       const antes = await retrato(e.escolaId)
       expect(semRequisicao(await gravar(e, e.t1, texto(linhas)))).toEqual(ENTRADA_INVALIDA)
@@ -494,8 +642,8 @@ describe('lista de nomes da turma (A1, tarefa 2.0): prévia, gravação, avulso,
         [nome(), matricula()],
         [nome(), matricula()],
       ]
-      const lida = previaDaListaResponseSchema.parse((await previa(e, e.t1, texto(linhas))).corpo)
-      expect(lida.comErro).toBe(0)
+      const lida = previaDaPlanilhaResponseSchema.parse((await previa(e, e.t1, texto(linhas))).corpo)
+      expect(lida.linhas.filter((linha) => linha.resultado === 'erro')).toEqual([])
       await gravada(e, e.t1, linhas)
       expect((await avulso(e, e.t1, { nome: nome(), matricula: b })).status).toBe(201)
     })
@@ -572,22 +720,28 @@ describe('lista de nomes da turma (A1, tarefa 2.0): prévia, gravação, avulso,
   })
 
   describe('A1 e A2: a auditoria da lista, só com ids e contagens', () => {
-    it('`lista.gravada` leva os ids que entraram e as contagens, com o autor, também no avulso; `lista_nome.retirado` leva a turma do nome', async () => {
+    it('o texto gravado audita `planilha.gravada` (a importação, as contagens, a coordenação como autora); `lista.gravada` é só do avulso, com o id, e `lista_nome.retirado` leva a turma do nome', async () => {
       const e = await escolaComTurmas()
       const jaNaLista = matricula()
-      await gravada(e, e.t1, [[nome(), jaNaLista]])
+      const nomeDela = nome()
+      const primeira = await gravada(e, e.t1, [[nomeDela, jaNaLista]])
       const nova = matricula()
-      await gravada(e, e.t1, [
-        [nome(), jaNaLista],
-        [nome(), nova],
-      ], { gravados: 1, jaExistentes: 1 })
+      const segunda = await gravada(
+        e,
+        e.t1,
+        [
+          [nomeDela, jaNaLista],
+          [nome(), nova],
+        ],
+        { entram: 1, ja_existem: 1 },
+      )
       const idNova = await idDaMatricula(e.escolaId, nova)
       const doAvulso = await avulso(e, e.t1, { nome: nome(), matricula: matricula() })
       expect(doAvulso.status).toBe(201)
 
-      const gravadas = await auditoriaDa(e.escolaId, 'lista.gravada')
-      expect(gravadas.slice(1)).toEqual([
-        { entidade_id: e.t1, autor_usuario_id: e.coordenacao.usuarioId, antes: null, depois: { ids: [idNova], gravados: 1, jaExistentes: 1 }, finalidade: null },
+      const daPlanilha = (importacao: string, contagens: Record<string, number>) => ({ entidade_id: importacao, autor_usuario_id: e.coordenacao.usuarioId, antes: null, depois: { tipo: 'alunos', contagens }, finalidade: null })
+      expect(await auditoriaDa(e.escolaId, 'planilha.gravada')).toEqual([daPlanilha(primeira, { entram: 1, ja_existem: 0, turmas_novas: 0 }), daPlanilha(segunda, { entram: 1, ja_existem: 1, turmas_novas: 0 })])
+      expect(await auditoriaDa(e.escolaId, 'lista.gravada')).toEqual([
         { entidade_id: e.t1, autor_usuario_id: e.coordenacao.usuarioId, antes: null, depois: { ids: [doAvulso.corpo['id']], gravados: 1, jaExistentes: 0 }, finalidade: null },
       ])
 
@@ -595,6 +749,55 @@ describe('lista de nomes da turma (A1, tarefa 2.0): prévia, gravação, avulso,
       expect(await auditoriaDa(e.escolaId, 'lista_nome.retirado')).toEqual([
         { entidade_id: idNova, autor_usuario_id: e.coordenacao.usuarioId, antes: { turmaId: e.t1, estado: 'livre' }, depois: null, finalidade: null },
       ])
+    })
+
+    it('`lista.nome_corrigido` leva o id da linha e a coordenação, sem o nome (antes e depois nulos) e sem o nome em parte alguma da auditoria; sem nome corrigido, não há registro', async () => {
+      const e = await escolaComTurmas()
+      const qual = matricula()
+      const antigo = nome()
+      const corrigido = nome()
+      await gravada(e, e.t1, [[antigo, qual]])
+      expect(await auditoriaDa(e.escolaId, 'lista.nome_corrigido')).toEqual([])
+      await gravada(e, e.t1, [[corrigido, qual]], { entram: 0, ja_existem: 0, nomes_corrigidos: 1 })
+
+      expect(await auditoriaDa(e.escolaId, 'lista.nome_corrigido')).toEqual([
+        { entidade_id: await idDaMatricula(e.escolaId, qual), autor_usuario_id: e.coordenacao.usuarioId, antes: null, depois: null, finalidade: null },
+      ])
+      const { rows } = await bancada.pool.query('select antes::text as antes, depois::text as depois from auditoria where escola_id = $1', [e.escolaId])
+      for (const sentinela of [antigo, corrigido, qual, PREFIXO]) expect(JSON.stringify(rows), sentinela).not.toContain(sentinela)
+    })
+
+    it('a prévia que mostra nome do banco (o rótulo do candidato) grava `turma.alunos_lidos` com a finalidade e a quantidade, por turma de onde o nome saiu; a que não mostra, não grava; a recusada, não grava', async () => {
+      const e = await escolaComTurmas()
+      const b = await escolaComTurmas()
+      const daT1 = matricula()
+      const daT2 = matricula()
+      const nomeDaT2 = nome()
+      await gravada(e, e.t1, [
+        [nome(), daT1],
+        [nome(), matricula()],
+      ])
+      await gravada(e, e.t2, [[nomeDaT2, daT2]])
+      expect(await auditoriaDa(e.escolaId, 'turma.alunos_lidos')).toEqual([])
+
+      // Só "entra" e "ja_existe" sem ausente: nenhum nome do banco aparece, nada é lido.
+      const quem = nome()
+      await previa(e, e.t1, texto([[quem, matricula()]]))
+      const antesDaLeitura = await auditoriaDa(e.escolaId, 'turma.alunos_lidos')
+      // O rótulo dos dois ausentes da t1 e o da matrícula que veio da t2: dois nomes da t1 e um da t2.
+      const lida = await previa(e, e.t1, texto([[quem, daT2]]))
+      expect(lida.status).toBe(200)
+      const registro = (turma: string, quantidade: number) => ({ entidade_id: turma, autor_usuario_id: e.coordenacao.usuarioId, antes: null, depois: { quantidade }, finalidade: FINALIDADE })
+      const lidas = (await auditoriaDa(e.escolaId, 'turma.alunos_lidos')).slice(antesDaLeitura.length)
+      expect(lidas).toHaveLength(2)
+      expect(lidas).toEqual(expect.arrayContaining([registro(e.t1, 2), registro(e.t2, 1)]))
+      expect(JSON.stringify(lidas)).not.toContain(nomeDaT2)
+
+      // A prévia recusada (turma de outra escola, id sorteado) não grava nada.
+      const antes = await retrato(e.escolaId)
+      for (const turma of [b.t1, randomUUID()]) expect(semRequisicao(await previa(e, turma, texto([[quem, daT2]])))).toEqual(NAO_ENCONTRADO)
+      expect(await retrato(e.escolaId)).toEqual(antes)
+      expect(await auditoriaDa(b.escolaId, 'turma.alunos_lidos')).toEqual([])
     })
 
     it('A2: cada leitura da lista grava `turma.lista_lida` com a finalidade e a quantidade, também a repetida; sem finalidade, ENTRADA_INVALIDA igual para a turma dela, a de outra escola e um id sorteado, e nada é gravado', async () => {
@@ -639,11 +842,53 @@ describe('lista de nomes da turma (A1, tarefa 2.0): prévia, gravação, avulso,
     })
   })
 
+  describe('limites da prévia e do gravar da lista (regra 80, itens 1 e 3; F2, 8.0)', () => {
+    const LIMITE_EXCEDIDO = { status: 429, codigo: ErrorCode.LIMITE_EXCEDIDO }
+    const erroDe = (resposta: RespostaHttp) => ({ status: resposta.status, codigo: (resposta.corpo.erro as { codigo?: string } | undefined)?.codigo })
+    const vagasDaApi = () => api.app.get<SchoolSemaphore>(VAGAS_DA_PLANILHA, { strict: false })
+    const importacoesDe = async (escolaId: string) => (await bancada.pool.query('select id from importacao_planilha where escola_id = $1', [escolaId])).rows
+
+    it('20 pedidos por minuto por usuário, no mesmo balde de `/v1/importacoes`: o 21º recebe 429 na prévia e no gravar da lista e na prévia da planilha, e outro usuário da escola segue', async () => {
+      const e = await escolaComTurmas()
+      expect(LIMITE_DA_PLANILHA_POR_MINUTO).toBe(20)
+      const lista = texto([[nome(), matricula()]])
+      const status: number[] = []
+      for (let i = 0; i < 20; i += 1) status.push((await previa(e, e.t1, lista)).status)
+      expect(status).toEqual(Array<number>(20).fill(200))
+
+      expect(erroDe(await previa(e, e.t1, lista))).toEqual(LIMITE_EXCEDIDO)
+      expect(erroDe(await gravar(e, e.t1, lista))).toEqual(LIMITE_EXCEDIDO)
+      expect(erroDe(await pedir(e.coordenacao, 'POST', '/v1/importacoes/alunos/previa', { texto: `turma;nome;matricula\n7A;${nome()};${matricula()}` }))).toEqual(LIMITE_EXCEDIDO)
+      expect(await importacoesDe(e.escolaId)).toEqual([])
+
+      const outra = await bancada.sessao(e.escolaId, 'coordenador')
+      expect((await pedir(outra, 'POST', `/v1/turmas/${e.t1}/lista/previa`, { texto: lista })).status).toBe(200)
+    })
+
+    it('[P] duas vagas da escola ocupadas: a prévia e o gravar da lista recebem 429 sem gravar nada, a outra escola segue, e a vaga solta volta', async () => {
+      const e = await escolaComTurmas()
+      const outra = await escolaComTurmas()
+      const lista = texto([[nome(), matricula()]])
+      const ocupadas = [await vagasDaApi().ocupar(e.escolaId), await vagasDaApi().ocupar(e.escolaId)]
+      expect(VAGAS_DA_PLANILHA_POR_ESCOLA).toBe(2)
+      try {
+        expect(ocupadas.every((vaga) => vaga !== undefined)).toBe(true)
+        expect(erroDe(await previa(e, e.t1, lista))).toEqual(LIMITE_EXCEDIDO)
+        expect(erroDe(await gravar(e, e.t1, lista))).toEqual(LIMITE_EXCEDIDO)
+        expect((await previa(outra, outra.t1, lista)).status).toBe(200)
+      } finally {
+        await Promise.all(ocupadas.map((vaga) => vaga?.liberar()))
+      }
+      expect((await previa(e, e.t1, lista)).status).toBe(200)
+      expect(await importacoesDe(e.escolaId)).toEqual([])
+    })
+  })
+
   describe('concorrência (regra 80, item 7)', () => {
     /** Para a gravação na turma depois do `insert` dela, antes do commit. */
     const pararNaTurma = (turma: string) => new WriteBlockTrigger(bancada.pool, { tabela: 'lista_nome', evento: 'insert', quando: `new.turma_id = '${turma}'::uuid` })
 
-    it('C8: a mesma lista gravada duas vezes em paralelo entra uma vez; as duas respondem 201, e a segunda conta tudo como já existente', async () => {
+    it('C8: a mesma lista gravada duas vezes em paralelo entra uma vez: a primeira responde 202 e a segunda, CONFLITO (uma importação na fila por escola); depois do job, a mesma lista conta tudo como já existente', async () => {
       const e = await escolaComTurmas()
       // A turma já tem um nome, fora da lista: a segunda gravação confere só as matrículas dela.
       await gravada(e, e.t1, [[nome(), matricula()]])
@@ -652,61 +897,64 @@ describe('lista de nomes da turma (A1, tarefa 2.0): prévia, gravação, avulso,
         [nome(), matricula()],
         [nome(), matricula()],
       ]
-      const gatilho = pararNaTurma(e.t1)
-      await gatilho.armar()
-      try {
-        const ambas = Promise.all([gravar(e, e.t1, texto(linhas)), gravar(e, e.t1, texto(linhas))])
-        // Uma parou depois do `insert`, sem commit; a outra leu a lista antes dele e espera no índice único.
-        await gatilho.esperarParadas(1)
-        await esperarNaTrava(bancada.pool, '%insert into "lista_nome"%', 2)
-        await gatilho.soltar()
-        const respostas = await ambas
-        expect(respostas.map((resposta) => resposta.status)).toEqual([201, 201])
-        expect(respostas.map((resposta) => resposta.corpo).sort((x, y) => Number(y['gravados']) - Number(x['gravados']))).toEqual([
-          { gravados: 3, jaExistentes: 0 },
-          { gravados: 0, jaExistentes: 3 },
-        ])
-      } finally {
-        await gatilho.desarmar()
-      }
+      const respostas = await Promise.all([gravar(e, e.t1, texto(linhas)), gravar(e, e.t1, texto(linhas))])
+      expect(respostas.map((resposta) => resposta.status).sort()).toEqual([202, 409])
+      const aceita = respostas.find((resposta) => resposta.status === 202)
+      expect(semRequisicao(respostas.find((resposta) => resposta.status === 409) as RespostaHttp)).toEqual(CONFLITO)
+      expect(await rodar(e.escolaId, aceita?.corpo['id'] as string)).toBe('concluida')
+      expect(await linhasDa(e.escolaId)).toHaveLength(4)
+      await gravada(e, e.t1, linhas, { entram: 0, ja_existem: 3 })
       expect(await linhasDa(e.escolaId)).toHaveLength(4)
     })
 
-    it('a mesma matrícula gravada ao mesmo tempo em duas turmas: uma grava; a outra, que leu a lista antes, responde CONFLITO e não grava nada', async () => {
+    it('a matrícula do avulso que chega enquanto o job grava a mesma na lista: o avulso espera o commit do job e responde CONFLITO; o job conclui', async () => {
       const e = await escolaComTurmas()
-      const linhas: Array<[string, string]> = [
-        [nome(), matricula()],
-        [nome(), matricula()],
-      ]
+      const qual = matricula()
+      const resposta = await gravar(e, e.t1, texto([[nome(), qual]]))
+      expect(resposta.status).toBe(202)
       const gatilho = pararNaTurma(e.t1)
       await gatilho.armar()
       try {
-        const naT1 = gravar(e, e.t1, texto(linhas))
+        const rodando = rodar(e.escolaId, resposta.corpo['id'] as string)
         await gatilho.esperarParadas(1)
-        const naT2 = gravar(e, e.t2, texto(linhas))
+        const doAvulso = avulso(e, e.t2, { nome: nome(), matricula: qual })
         await esperarNaTrava(bancada.pool, '%insert into "lista_nome"%', 2)
         await gatilho.soltar()
-        expect((await naT1).status).toBe(201)
-        expect(semRequisicao(await naT2)).toEqual(CONFLITO)
+        expect(await rodando).toBe('concluida')
+        expect(semRequisicao(await doAvulso)).toEqual(CONFLITO)
       } finally {
         await gatilho.desarmar()
       }
-      expect((await linhasDa(e.escolaId)).map((linha) => linha.turma_id)).toEqual([e.t1, e.t1])
-      expect((await auditoriaDa(e.escolaId, 'lista.gravada')).map((registro) => registro.entidade_id)).toEqual([e.t1])
+      expect((await linhasDa(e.escolaId)).map((linha) => [linha.matricula, linha.turma_id])).toEqual([[qual, e.t1]])
+      expect((await auditoriaDa(e.escolaId, 'lista.gravada')).map((registro) => registro.entidade_id)).toEqual([])
     })
 
-    it('C9: excluir a turma enquanto a lista grava: a lista grava, e o excluir recebe CONFLITO', async () => {
+    it('o avulso com a mesma matrícula que entra entre a gravação e o job: o job sai `desatualizada` (a classificação mudou), e nada do texto é gravado', async () => {
       const e = await escolaComTurmas()
+      const qual = matricula()
+      const outra = matricula()
+      const resposta = await gravar(e, e.t1, texto([[nome(), qual], [nome(), outra]]))
+      expect(resposta.status).toBe(202)
+      expect((await avulso(e, e.t2, { nome: nome(), matricula: qual })).status).toBe(201)
+      expect(await rodar(e.escolaId, resposta.corpo['id'] as string)).toBe('desatualizada')
+      expect((await linhasDa(e.escolaId)).map((linha) => [linha.matricula, linha.turma_id])).toEqual([[qual, e.t2]])
+      expect((await importacaoDe(resposta.corpo['id'] as string)).estado).toBe('desatualizada')
+    })
+
+    it('C9: excluir a turma enquanto o job grava a lista: a lista grava, e o excluir recebe CONFLITO', async () => {
+      const e = await escolaComTurmas()
+      const resposta = await gravar(e, e.t1, texto([[nome(), matricula()]]))
+      expect(resposta.status).toBe(202)
       const gatilho = pararNaTurma(e.t1)
       await gatilho.armar()
       try {
-        const gravacao = gravar(e, e.t1, texto([[nome(), matricula()]]))
+        const rodando = rodar(e.escolaId, resposta.corpo['id'] as string)
         await gatilho.esperarParadas(1)
         const exclusao = pedir(e.coordenacao, 'DELETE', `/v1/turmas/${e.t1}`)
         // Desde a 4.0 o excluir trava a turma em `for update` num comando próprio, antes do `delete`: é nele que espera.
         await esperarNaTrava(bancada.pool, '%from "turma"%for update%')
         await gatilho.soltar()
-        expect((await gravacao).status).toBe(201)
+        expect(await rodando).toBe('concluida')
         expect(semRequisicao(await exclusao)).toEqual(CONFLITO)
       } finally {
         await gatilho.desarmar()
@@ -714,22 +962,31 @@ describe('lista de nomes da turma (A1, tarefa 2.0): prévia, gravação, avulso,
       expect((await linhasDa(e.escolaId)).map((linha) => linha.turma_id)).toEqual([e.t1])
     })
 
-    it('C9: a turma que sai enquanto a lista espera por ela: a gravação e o avulso recebem NAO_ENCONTRADO, e nada é gravado', async () => {
+    it('C9: a turma que sai antes da lista: a prévia e a gravação recebem NAO_ENCONTRADO; a que sai entre a gravação e o job faz o job sair `desatualizada`; o avulso que espera por ela recebe NAO_ENCONTRADO; nada é gravado', async () => {
       const e = await escolaComTurmas()
-      const escritas = [(turma: string) => gravar(e, turma, texto([[nome(), matricula()]])), (turma: string) => avulso(e, turma, { nome: nome(), matricula: matricula() })]
-      for (const escrever of escritas) {
-        const turma = await turmaNova(e.coordenacao, e.serieId)
-        const exclusao = await bancada.pool.connect()
-        try {
-          await exclusao.query('begin')
-          await exclusao.query('delete from turma where id = $1', [turma])
-          const escrita = escrever(turma)
-          await esperarNaTrava(bancada.pool, '%from "turma"%for key share%')
-          await exclusao.query('commit')
-          expect(semRequisicao(await escrita)).toEqual(NAO_ENCONTRADO)
-        } finally {
-          exclusao.release()
-        }
+      const foi = await turmaNova(e.coordenacao, e.serieId)
+      await bancada.pool.query('delete from turma where id = $1', [foi])
+      for (const resposta of [await previa(e, foi, texto([[nome(), matricula()]])), await gravar(e, foi, texto([[nome(), matricula()]])), await avulso(e, foi, { nome: nome(), matricula: matricula() })]) {
+        expect(semRequisicao(resposta)).toEqual(NAO_ENCONTRADO)
+      }
+
+      const saiNoMeio = await turmaNova(e.coordenacao, e.serieId)
+      const aceita = await gravar(e, saiNoMeio, texto([[nome(), matricula()]]))
+      expect(aceita.status).toBe(202)
+      await bancada.pool.query('delete from turma where id = $1', [saiNoMeio])
+      expect(await rodar(e.escolaId, aceita.corpo['id'] as string)).toBe('desatualizada')
+
+      const turma = await turmaNova(e.coordenacao, e.serieId)
+      const exclusao = await bancada.pool.connect()
+      try {
+        await exclusao.query('begin')
+        await exclusao.query('delete from turma where id = $1', [turma])
+        const escrita = avulso(e, turma, { nome: nome(), matricula: matricula() })
+        await esperarNaTrava(bancada.pool, '%from "turma"%for key share%')
+        await exclusao.query('commit')
+        expect(semRequisicao(await escrita)).toEqual(NAO_ENCONTRADO)
+      } finally {
+        exclusao.release()
       }
       expect(await linhasDa(e.escolaId)).toEqual([])
     })
@@ -741,24 +998,33 @@ describe('lista de nomes da turma (A1, tarefa 2.0): prévia, gravação, avulso,
     const quem = `${PREFIXO} Sentinela ${randomUUID().slice(0, 8)}`
     const qual = `${PREFIXO}-sentinela-${randomUUID().slice(0, 8)}`
     linhasDeLog.length = 0
+    const comErro = await previa(e, e.t1, texto([[quem, qual], ['', qual]]))
+    const gravadaComErro = await gravar(e, e.t1, texto([[quem, qual], ['', qual]]))
+    const naT1 = await gravar(e, e.t1, texto([[quem, qual]]))
+    expect(await rodar(e.escolaId, naT1.corpo['id'] as string)).toBe('concluida')
+    // A matrícula que a lista já tem em outra turma é "muda de turma", sem marca: grava sem efeito, e o avulso da mesma é CONFLITO.
+    const naT2 = await gravar(e, e.t2, texto([[quem, qual]]))
+    expect(await rodar(e.escolaId, naT2.corpo['id'] as string)).toBe('concluida')
     const respostas = [
-      await previa(e, e.t1, texto([[quem, qual], ['', qual]])),
-      await gravar(e, e.t1, texto([[quem, qual], ['', qual]])),
-      await gravar(e, e.t1, texto([[quem, qual]])),
-      await gravar(e, e.t2, texto([[quem, qual]])),
+      comErro,
+      gravadaComErro,
+      naT1,
+      naT2,
       await avulso(e, e.t2, { nome: quem, matricula: qual }),
       await avulso(e, e.t2, { nome: quem }),
       // G2: a matrícula com forma de documento recusada não vai ao log, nem a linha dela na prévia.
       await avulso(e, e.t2, { nome: quem, matricula: CPF_SENTINELA }),
       await previa(e, e.t1, texto([[quem, CPF_SENTINELA]])),
+      // O nome corrigido e o candidato (o rótulo traz o nome do banco) saem na resposta, nunca no log.
+      await previa(e, e.t1, texto([[`${quem} Corrigido`, qual]])),
       await ler(e, e.t1),
       await ler(e, e.t1, ''),
       await retirar(e, await idDaMatricula(e.escolaId, qual)),
       await retirar(e, randomUUID()),
     ]
-    expect(respostas.map((resposta) => resposta.status)).toEqual([200, 400, 201, 409, 409, 400, 400, 200, 200, 400, 204, 404])
+    expect(respostas.map((resposta) => resposta.status)).toEqual([200, 400, 202, 202, 409, 400, 400, 200, 200, 200, 400, 204, 404])
     const linhas = linhasDeLog.map((linha) => JSON.parse(linha) as Record<string, unknown>)
-    expect(linhas.filter((linha) => linha['evento'] === 'http.erro')).toHaveLength(7)
+    expect(linhas.filter((linha) => linha['evento'] === 'http.erro')).toHaveLength(6)
     const todoOLog = linhasDeLog.join('\n')
     for (const sentinela of [quem, qual, PREFIXO, CPF_SENTINELA]) expect(todoOLog).not.toContain(sentinela)
   })

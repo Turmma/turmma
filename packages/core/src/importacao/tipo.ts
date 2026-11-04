@@ -16,6 +16,24 @@ export interface PreviaDoTipo {
   /** O que o gravar guarda em `importacao_planilha.linhas`: já lido e validado, para o job não ler o texto de novo. */
   readonly guardado: unknown
   readonly assinatura: string
+  /**
+   * Os nomes que a prévia leu do banco e mostrou à coordenação (os rótulos das marcas), por turma de onde saíram: cada turma vira
+   * um `turma.alunos_lidos` na auditoria (regra 20, item 10), que o motor grava na prévia (não no gravar, que não mostra nome).
+   */
+  readonly leituras?: ReadonlyArray<{ readonly turmaId: string; readonly quantidade: number }>
+}
+
+/** Uma linha da lista de uma turma (A1), já separada do texto: o número dela no texto, o nome e a matrícula, sem espaço nas pontas. */
+export interface ListaRow {
+  readonly linha: number
+  readonly nome: string
+  readonly matricula: string
+}
+
+/** O pedido da lista de uma turma: a turma do caminho e as linhas que a API leu do texto (o formato da lista é o da A1, sem coluna de turma). */
+export interface DaLista {
+  readonly turmaId: string
+  readonly linhas: readonly ListaRow[]
 }
 
 /** O que o `aplicar` usa além do repository: a transação do passo (3) e o ciclo de vida, para desativar na mesma transação. */
@@ -34,7 +52,7 @@ export interface PlanoDaImportacao {
 
 interface TipoBase {
   readonly tipo: TipoDePlanilha
-  /** Só a lista por turma (7.0) usa o `turmaId` do corpo; nos outros tipos ele não existe, e vale como turma que não se acha. */
+  /** O `turmaId` do corpo de `/v1/importacoes/:tipo` não existe em nenhum tipo (a lista por turma tem rota e entrada próprias); com ele, a resposta é a da turma que não se acha. */
   readonly usaTurma: boolean
 }
 
@@ -49,6 +67,11 @@ export interface TipoDeImportacao extends TipoBase {
   travar?(repositorio: ImportacaoRepository, ano: AnoDeDestino, guardado: unknown): Promise<void>
   /** `undefined` quando o que o gravar guardou não tem a forma do tipo: o job falha de vez, sem repetir. */
   planejar(repositorio: ImportacaoRepository, ano: AnoDeDestino, guardado: unknown): Promise<PlanoDaImportacao | undefined>
+  /**
+   * A prévia da lista de uma turma (A1, 8.0): as mesmas linhas, o mesmo gravar e o mesmo job, com a turma já dada em vez de achada
+   * pelo nome. Só a planilha de alunos a tem. A turma que não é da escola e do ano de destino é `NAO_ENCONTRADO`.
+   */
+  previaDaLista?(repositorio: ImportacaoRepository, ano: AnoDeDestino, lista: DaLista): Promise<PreviaDoTipo>
 }
 
 /** As contas que o passo (1) achou ou criou, pelo e-mail normalizado: o `id` de cada uma. */

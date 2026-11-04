@@ -3,9 +3,10 @@ import { requireEscolaId } from '../context/context-escola.js'
 import type { Database, DatabaseTransaction } from '../db/database.js'
 import { credencialMatricula } from '../db/schema/credencial-matricula.js'
 import { listaNome } from '../db/schema/lista-nome.js'
+import { usuario } from '../db/schema/usuario.js'
 import { requestSessao } from '../identidade/auth.guard.js'
 import type { PaginationQuery, NomeDaLista } from '@educa/shared'
-import { and, asc, eq, gt, inArray, sql } from 'drizzle-orm'
+import { and, asc, eq, gt, inArray, isNull, ne, or, sql, type SQL } from 'drizzle-orm'
 import { InvariantException } from '@educa/shared'
 
 /** Um nome a gravar: nome e matrícula já conferidos, sem espaço nas pontas. */
@@ -14,10 +15,34 @@ export interface NomeNovo {
   readonly matricula: string
 }
 
-/** Onde a matrícula está na lista da escola neste ano. */
-export interface MatriculaNaLista {
-  readonly matricula: string
+/** Um nome ainda não aprovado, como a reimportação o compara: o `estado` é o que a escrita confere (`livre` ou `reivindicado`). */
+export interface NomeNaoAprovado {
+  readonly id: string
   readonly turmaId: string
+  readonly nome: string
+  readonly matricula: string
+  readonly estado: 'livre' | 'reivindicado'
+}
+
+/** Um aluno aprovado e ativo com linha na lista deste ano: o nome é o do `usuario`, e a matrícula, a da credencial. */
+export interface AlunoAprovado {
+  readonly usuarioId: string
+  readonly turmaId: string
+  readonly nome: string
+  readonly matricula: string
+}
+
+/** O que a escola já tem de aluno neste ano, para as matrículas da planilha e para as turmas que ela cita. */
+export interface AlunosParaReimportar {
+  readonly naoAprovados: readonly NomeNaoAprovado[]
+  readonly aprovados: readonly AlunoAprovado[]
+}
+
+/** Um nome a corrigir na lista: o `estado` lido é a condição da escrita (a aprovação do mesmo nome muda o estado e a deixa sem linha). */
+export interface CorrecaoDeNomeNaLista {
+  readonly id: string
+  readonly estadoLido: 'livre' | 'reivindicado'
+  readonly nome: string
 }
 
 const colunas = { id: listaNome.id, nome: listaNome.nome, matricula: listaNome.matricula, estado: listaNome.estado }
@@ -36,15 +61,6 @@ const matriculaDoIndice = sql<string>`btrim(${listaNome.matricula})`
 export class ListaRepository {
   constructor(private readonly banco: Database | DatabaseTransaction) {}
 
-  /** Das matrículas dadas, as que já estão na lista de alguma turma da escola neste ano, com a turma. */
-  async naLista(matriculas: readonly string[]): Promise<MatriculaNaLista[]> {
-    if (matriculas.length === 0) return []
-    return this.banco
-      .select({ matricula: matriculaDoIndice, turmaId: listaNome.turmaId })
-      .from(listaNome)
-      .where(and(eq(listaNome.escolaId, requireEscolaId()), eq(listaNome.anoLetivoId, requireAnoEmCurso()), inArray(matriculaDoIndice, [...matriculas])))
-  }
-
   /**
    * Das matrículas dadas, as que são de um aluno da escola (`credencial_matricula`, de qualquer ano, também a do aluno
    * desativado, que continua com ela). Só da escola do contexto: a matrícula de outra escola é outra matrícula (regra 60,
@@ -56,30 +72,6 @@ export class ListaRepository {
       .select({ matricula: credencialMatricula.matricula })
       .from(credencialMatricula)
       .where(and(eq(credencialMatricula.escolaId, requireEscolaId()), inArray(credencialMatricula.matricula, [...matriculas])))
-    return linhas.map((linha) => linha.matricula)
-  }
-
-  /**
-   * Das matrículas dadas, as de aluno aprovado **nesta** turma no ano em curso (A1, 8.0, E6): a credencial dele, pelo
-   * usuário da linha da lista da turma, que só a linha `aprovado` tem (check `lista_nome_aprovado_sem_nome`) e que já não
-   * guarda a matrícula. Reenviar a lista não as acusa de em uso: saem `ja_existe`, como a matrícula que ainda está na
-   * lista da turma. Tudo na escola do contexto; o ano é a segunda camada, porque a turma é de um ano só.
-   */
-  async aprovadasNaTurma(turmaId: string, matriculas: readonly string[]): Promise<string[]> {
-    if (matriculas.length === 0) return []
-    const escolaId = requireEscolaId()
-    const linhas = await this.banco
-      .select({ matricula: credencialMatricula.matricula })
-      .from(credencialMatricula)
-      .innerJoin(listaNome, and(eq(listaNome.escolaId, credencialMatricula.escolaId), eq(listaNome.usuarioId, credencialMatricula.usuarioId)))
-      .where(
-        and(
-          eq(credencialMatricula.escolaId, escolaId),
-          inArray(credencialMatricula.matricula, [...matriculas]),
-          eq(listaNome.anoLetivoId, requireAnoEmCurso()),
-          eq(listaNome.turmaId, turmaId),
-        ),
-      )
     return linhas.map((linha) => linha.matricula)
   }
 
@@ -107,6 +99,59 @@ export class ListaRepository {
   }
 
   /**
+   * O que a escola já tem de aluno no ano de destino da planilha (F2, 8.0), em duas consultas, qualquer que seja o número de
+   * linhas: os nomes ainda não aprovados e os alunos aprovados e ativos com linha na lista do ano, cuja matrícula é a de uma
+   * linha da planilha ou cuja turma a planilha cita (os ausentes dessas turmas). O aprovado desativado, ou sem linha na lista deste
+   * ano (o que a virada de ano trata), não entra: a reimportação não o corrige nem o muda de turma. Só da escola do contexto.
+   */
+  async paraReimportar(anoLetivoId: string, matriculas: readonly string[], turmaIds: readonly string[]): Promise<AlunosParaReimportar> {
+    if (matriculas.length === 0 && turmaIds.length === 0) return { naoAprovados: [], aprovados: [] }
+    const escolaId = requireEscolaId()
+    const daNaoAprovada: SQL[] = []
+    const daAprovada: SQL[] = []
+    if (matriculas.length > 0) {
+      daNaoAprovada.push(inArray(matriculaDoIndice, [...matriculas]))
+      daAprovada.push(inArray(credencialMatricula.matricula, [...matriculas]))
+    }
+    if (turmaIds.length > 0) {
+      daNaoAprovada.push(inArray(listaNome.turmaId, [...turmaIds]))
+      daAprovada.push(inArray(listaNome.turmaId, [...turmaIds]))
+    }
+    const naoAprovados = await this.banco
+      .select({ id: listaNome.id, turmaId: listaNome.turmaId, nome: listaNome.nome, matricula: listaNome.matricula, estado: listaNome.estado })
+      .from(listaNome)
+      .where(and(eq(listaNome.escolaId, escolaId), eq(listaNome.anoLetivoId, anoLetivoId), ne(listaNome.estado, 'aprovado'), or(...daNaoAprovada)))
+    const aprovados = await this.banco
+      .select({ usuarioId: usuario.id, turmaId: listaNome.turmaId, nome: usuario.nome, matricula: credencialMatricula.matricula })
+      .from(listaNome)
+      .innerJoin(usuario, and(eq(usuario.escolaId, listaNome.escolaId), eq(usuario.id, listaNome.usuarioId)))
+      .innerJoin(credencialMatricula, and(eq(credencialMatricula.escolaId, usuario.escolaId), eq(credencialMatricula.usuarioId, usuario.id)))
+      .where(and(eq(listaNome.escolaId, escolaId), eq(listaNome.anoLetivoId, anoLetivoId), eq(listaNome.estado, 'aprovado'), eq(usuario.papel, 'aluno'), isNull(usuario.desativadoEm), or(...daAprovada)))
+    return {
+      naoAprovados: naoAprovados.flatMap(({ nome, matricula, estado, ...resto }) => (nome === null || matricula === null || estado === 'aprovado' ? [] : [{ ...resto, nome, matricula, estado }])),
+      aprovados,
+    }
+  }
+
+  /**
+   * Corrige o nome de quem ainda não foi aprovado (F2, 8.0), em lote: cada linha só muda se continua no estado que a planilha
+   * leu e não está aprovada (a aprovação passa o nome ao `usuario` e o apaga da lista). Devolve quantas mudou; menos que as
+   * pedidas é diferença, e o motor fecha a importação `desatualizada`. O isolamento entre escolas desta escrita depende de o
+   * `anoLetivoId` vir sempre do `anoDeDestino` ou do `anoPorId` do motor (ano já conferido na escola), e nunca do cliente: a chave
+   * composta prende o ano à escola, e por isso tirar o `escola_id` do `where` não muda resultado (ele fica por escopo explícito).
+   */
+  async corrigirNomes(anoLetivoId: string, correcoes: readonly CorrecaoDeNomeNaLista[]): Promise<number> {
+    if (correcoes.length === 0) return 0
+    const valores = sql.join(correcoes.map(({ id, estadoLido, nome }) => sql`(${id}::uuid, ${estadoLido}, ${nome})`), sql`, `)
+    const corrigidas = await this.banco.execute(sql`
+      update lista_nome as l set nome = v.nome
+      from (values ${valores}) as v(id, estado, nome)
+      where l.escola_id = ${requireEscolaId()} and l.ano_letivo_id = ${anoLetivoId} and l.id = v.id and l.estado = v.estado and l.estado <> 'aprovado'
+      returning l.id`)
+    return corrigidas.rows.length
+  }
+
+  /**
    * Grava os nomes na turma de cada um, `livre`, no ano de destino da planilha e com quem a gravou (F2, 7.0). Sem `on conflict`: a
    * matrícula que entrou na lista entre a prévia e a gravação viola o índice único (23505), e o motor fecha a importação
    * `desatualizada` com a transação desfeita.
@@ -115,40 +160,6 @@ export class ListaRepository {
     if (nomes.length === 0) return
     const escolaId = requireEscolaId()
     await this.banco.insert(listaNome).values(nomes.map(({ turmaId, nome, matricula }) => ({ escolaId, anoLetivoId, turmaId, nome, matricula, criadoPor })))
-  }
-
-  /**
-   * Grava os nomes na turma, `livre`, com quem gravou, e devolve os que entraram. A matrícula que já está na lista da
-   * escola neste ano não entra de novo nem falha (`on conflict do nothing`, C8): a mesma lista gravada duas vezes ao
-   * mesmo tempo entra uma vez.
-   */
-  inserirSemRepetir(turmaId: string, nomes: readonly NomeNovo[]): Promise<Array<{ readonly id: string; readonly matricula: string | null }>> {
-    if (nomes.length === 0) return Promise.resolve([])
-    const escolaId = requireEscolaId()
-    const anoLetivoId = requireAnoEmCurso()
-    const criadoPor = requestSessao().usuarioId
-    return this.banco
-      .insert(listaNome)
-      .values(nomes.map(({ nome, matricula }) => ({ escolaId, anoLetivoId, turmaId, nome, matricula, criadoPor })))
-      .onConflictDoNothing()
-      .returning({ id: listaNome.id, matricula: listaNome.matricula })
-  }
-
-  /** Quantas das matrículas dadas estão na lista desta turma. */
-  async quantasNaTurma(turmaId: string, matriculas: readonly string[]): Promise<number> {
-    if (matriculas.length === 0) return 0
-    const [linha] = await this.banco
-      .select({ total: sql<number>`count(*)::int` })
-      .from(listaNome)
-      .where(
-        and(
-          eq(listaNome.escolaId, requireEscolaId()),
-          eq(listaNome.anoLetivoId, requireAnoEmCurso()),
-          eq(listaNome.turmaId, turmaId),
-          inArray(matriculaDoIndice, [...matriculas]),
-        ),
-      )
-    return linha?.total ?? 0
   }
 
   /**

@@ -1443,7 +1443,7 @@ describe('ciclo de vida da conta: desativação, limpeza da conta global e elimi
       const marcador = `marcador${randomUUID().slice(0, 8)}`
       const nomeDoAluno = `Aluna ${marcador}`
       const matricula = `${marcador}-m`
-      expect((await chamar(api.url, 'POST', `/v1/turmas/${s.turma}/lista`, s.coordenacao.token, { texto: `${nomeDoAluno};${matricula}` })).status).toBe(201)
+      expect((await chamar(api.url, 'POST', `/v1/turmas/${s.turma}/lista/nome`, s.coordenacao.token, { nome: nomeDoAluno, matricula })).status).toBe(201)
       const { rows } = await bancada.pool.query<{ id: string }>('select id from lista_nome where escola_id = $1 and matricula = $2', [s.escolaId, matricula])
       const nome: NomeDaLista = { id: rows[0]?.id ?? '', nome: nomeDoAluno, matricula }
       // Alguém pede o nome antes e é recusado; depois o aluno pede e é aprovado: os dois pedidos apontam para a linha.

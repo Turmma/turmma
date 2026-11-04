@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { TurmaDoAno } from '../../estrutura/turma.repository.js'
-import { classificar } from './alunos.js'
+import type { ImportacaoRepository } from '../importacao.repository.js'
+import { DiferencaNaPlanilhaError } from '../erros.js'
+import { classificar, tipoAlunos } from './alunos.js'
 
 const ANO = 'ano-2026'
 const SEM_USO: ReadonlySet<string> = new Set()
@@ -115,5 +117,171 @@ describe('classificar (planilha de alunos)', () => {
     expect(classificar(ANO, lidas, [turma('t1', '8A', '8a'), turma('t2', '8º A', null)], SEM_USO).assinatura).not.toBe(base)
     expect(classificar(ANO, lidas, [turma('t9', '8A', '8a')], SEM_USO).assinatura).not.toBe(base)
     expect(classificar(ANO, [lida(2, '8A', 'Ana', 'm1'), lida(3, '8A', 'Bia', 'm1')], [turma('t1', '8A', '8a')], SEM_USO).assinatura).not.toBe(base)
+  })
+})
+
+describe('classificar, a reimportação pela matrícula (F2, 8.0, RF4)', () => {
+  const t1 = turma('t1', '8A', '8a')
+  const t2 = turma('t2', '8B', '8b')
+  const naLista = (id: string, matricula: string, nome: string, turmaId = 't1', estado: 'livre' | 'reivindicado' = 'livre') => ({ id, turmaId, nome, matricula, estado })
+  const aprovado = (usuarioId: string, matricula: string, nome: string, turmaId = 't1') => ({ usuarioId, turmaId, nome, matricula })
+  const alunos = (naoAprovados: ReturnType<typeof naLista>[], aprovados: ReturnType<typeof aprovado>[] = []) => ({ naoAprovados, aprovados })
+  const emUso = (...matriculas: string[]) => new Set(matriculas)
+
+  it('a mesma matrícula na mesma turma é "já existe" com o mesmo nome e "nome corrigido" com outro, no aprovado e no não aprovado', () => {
+    const lidas = [lida(2, '8A', 'Ana Souza', 'm1'), lida(3, '8A', 'Bia Lima', 'm2'), lida(4, '8A', 'Carla Dias Corrigida', 'm3'), lida(5, '8A', 'Davi Rocha Corrigido', 'm4')]
+    const achados = alunos([naLista('l1', 'm1', 'Ana Souza'), naLista('l2', 'm2', 'Bia Lima Antiga', 't1', 'reivindicado')], [aprovado('u3', 'm3', 'Carla Dias'), aprovado('u4', 'm4', 'Davi Rocha Corrigido')])
+
+    const { linhas, resumo } = classificar(ANO, lidas, [t1], emUso('m1', 'm2', 'm3', 'm4'), achados)
+
+    expect(linhas.map((l) => [l.resultado, l.alvo?.tipo, l.alvo?.id])).toEqual([
+      ['ja_existe', 'lista', 'l1'],
+      ['nome_corrigido', 'lista', 'l2'],
+      ['nome_corrigido', 'usuario', 'u3'],
+      ['ja_existe', 'usuario', 'u4'],
+    ])
+    expect(resumo).toEqual({ entram: 0, ja_existem: 2, nomes_corrigidos: 2, turmas_novas: 0 })
+  })
+
+  it('a matrícula de outra turma é "muda de turma": candidata a transferir com o nome do banco, e sem criar a turma nova que só ela pedia', () => {
+    const lidas = [lida(2, '8A', 'Ana Nome Novo', 'm1'), lida(3, '9C', 'Bia', 'm2'), lida(4, '8B', 'Carla', 'm3')]
+    const achados = alunos([naLista('l1', 'm1', 'Ana Souza', 't2')], [aprovado('u2', 'm2', 'Bia Lima', 't1')])
+
+    const { linhas, novas, candidatos, resumo } = classificar(ANO, lidas, [t1, t2], emUso('m1', 'm2'), achados)
+
+    expect(linhas.map((l) => l.resultado)).toEqual(['muda_de_turma', 'muda_de_turma', 'entra'])
+    expect(novas).toEqual([])
+    expect(candidatos.filter((c) => c.acao === 'transferir')).toEqual([
+      { id: 'l1', acao: 'transferir', rotulo: 'Ana Souza (m1)', turmaId: 't2' },
+      { id: 'u2', acao: 'transferir', rotulo: 'Bia Lima (m2)', turmaId: 't1' },
+    ])
+    // Mudar de turma não corrige o nome junto: o nome só muda com a marca (9.0).
+    expect(resumo).toEqual({ entram: 1, ja_existem: 0, turmas_novas: 0 })
+  })
+
+  it('quem é da turma que a planilha cita e não está nela é candidato a desligar; o de turma que ela não cita, e o que está em outra linha, não', () => {
+    const lidas = [lida(2, '8A', 'Ana', 'm1'), lida(3, '8A', 'Carla', 'm3'), lida(4, '8A', 'Gil', 'm7')]
+    const achados = alunos([naLista('l1', 'm1', 'Ana'), naLista('l2', 'm2', 'Bia Ausente'), naLista('l9', 'm9', 'Outra Turma', 't2'), naLista('l3', 'm3', 'Carla', 't2')], [aprovado('u5', 'm5', 'Eva Ausente'), aprovado('u6', 'm6', 'Fábio Outra Turma', 't2'), aprovado('u7', 'm7', 'Gil')])
+
+    const { candidatos } = classificar(ANO, lidas, [t1, t2], emUso('m7'), achados)
+
+    expect(candidatos.filter((c) => c.acao === 'desligar').map(({ id, rotulo, turmaId }) => [id, rotulo, turmaId])).toEqual([
+      ['l2', 'Bia Ausente (m2)', 't1'],
+      ['u5', 'Eva Ausente (m5)', 't1'],
+    ])
+  })
+
+  it('a turma ambígua ou com erro não oferece os alunos dela como ausentes', () => {
+    const { candidatos } = classificar(ANO, [lida(2, '8A', 'Ana', 'm1'), lida(3, '8B', '', 'm2')], [t1, turma('t3', '8º A', null)], emUso(), alunos([naLista('l5', 'm5', 'Ausente')], [aprovado('u6', 'm6', 'Ausente Aprovada')]))
+
+    expect(candidatos).toEqual([])
+  })
+
+  it('a assinatura muda com o que a matrícula é no banco: o estado do nome (a reivindicação), o nome, a turma e o aprovado no lugar do nome', () => {
+    const lidas = [lida(2, '8A', 'Ana Nova', 'm1')]
+    const base = classificar(ANO, lidas, [t1], emUso('m1'), alunos([naLista('l1', 'm1', 'Ana')])).assinatura
+
+    expect(classificar(ANO, lidas, [t1], emUso('m1'), alunos([naLista('l1', 'm1', 'Ana')])).assinatura).toBe(base)
+    expect(classificar(ANO, lidas, [t1], emUso('m1'), alunos([naLista('l1', 'm1', 'Ana', 't1', 'reivindicado')])).assinatura).not.toBe(base)
+    expect(classificar(ANO, lidas, [t1], emUso('m1'), alunos([naLista('l1', 'm1', 'Ana Renomeada')])).assinatura).not.toBe(base)
+    expect(classificar(ANO, lidas, [t1], emUso('m1'), alunos([], [aprovado('u1', 'm1', 'Ana')])).assinatura).not.toBe(base)
+  })
+
+  it('o aprovado vale mais que o nome da lista para a mesma matrícula, e a matrícula só na credencial (sem linha neste ano) segue "já existe"', () => {
+    const { linhas } = classificar(ANO, [lida(2, '8A', 'Ana', 'm1'), lida(3, '8A', 'Bia', 'm2')], [t1], emUso('m1', 'm2'), alunos([naLista('l1', 'm1', 'Ana Antiga')], [aprovado('u1', 'm1', 'Ana')]))
+
+    expect(linhas.map((l) => [l.resultado, l.alvo?.id])).toEqual([
+      ['ja_existe', 'u1'],
+      ['ja_existe', undefined],
+    ])
+  })
+})
+
+describe('classificar, a lista de uma turma (A1, 8.0): a turma dada e os erros do texto', () => {
+  const t1 = turma('t1', 'Turma 1a2b3c', null)
+  const daLista = (linha: number, nome: string, matricula: string, turmaId = 't1') => ({ linha, turma: '', turmaId, nome, matricula })
+
+  it('a linha vai para a turma dada, sem coluna de turma; a turma que a escola não tem mais é erro `turma_invalida`', () => {
+    const { linhas } = classificar(ANO, [daLista(1, 'Ana', 'm1'), daLista(2, 'Bia', 'm2', 'sumiu')], [t1], SEM_USO)
+
+    expect(linhas.map((l) => [l.resultado, l.erro, l.destino])).toEqual([
+      ['entra', undefined, { tipo: 'existente', turmaId: 't1' }],
+      ['erro', 'turma_invalida', undefined],
+    ])
+  })
+
+  it('sem nome, nome longo ou com caractere de controle, sem matrícula, matrícula longa ou com controle: o erro da linha, na ordem', () => {
+    const lidas = [
+      daLista(1, '', '101'),
+      daLista(2, 'a'.repeat(201), '102'),
+      daLista(3, 'Ana\u0007', '103'),
+      daLista(4, 'Bruno', ''),
+      daLista(5, 'Carla', 'm'.repeat(41)),
+      daLista(6, 'Davi', 'm\u0001'),
+      daLista(7, 'a'.repeat(200), 'm'.repeat(40)),
+      daLista(8, '', ''),
+    ]
+
+    const { linhas } = classificar(ANO, lidas, [t1], SEM_USO)
+
+    expect(linhas.map((l) => l.erro)).toEqual(['sem_nome', 'nome_invalido', 'nome_invalido', 'sem_matricula', 'matricula_invalida', 'matricula_invalida', undefined, 'sem_nome'])
+  })
+
+  it('a matrícula repetida no texto aponta todas as linhas dela, e a linha com outro erro conta na repetição e mostra o dela', () => {
+    const { linhas } = classificar(ANO, [daLista(1, 'Ana', '101'), daLista(2, 'Bruno', '102'), daLista(3, 'Carla', '101'), daLista(4, '', '102')], [t1], SEM_USO)
+
+    expect(linhas.map((l) => l.erro)).toEqual(['matricula_repetida', 'matricula_repetida', 'matricula_repetida', 'sem_nome'])
+  })
+
+  it('G2: a matrícula com forma de documento é erro da linha, antes da repetição; o CPF sem pontuação só pela maioria', () => {
+    const erros = (...pares: Array<[string, string]>) => classificar(ANO, pares.map(([nome, matricula], posicao) => daLista(posicao + 1, nome, matricula)), [t1], SEM_USO).linhas.map((l) => l.erro)
+
+    expect(erros(['Ana', '123.456.789-09'], ['Bia', '01/02/2012'], ['Caio', '01/02/2012'], ['', '2012-02-01'], ['Davi', '104'])).toEqual([
+      'matricula_parece_documento',
+      'matricula_parece_documento',
+      'matricula_parece_documento',
+      'sem_nome',
+      undefined,
+    ])
+    expect(erros(['Ana', '12345678909'], ['Bia', '52998224725'], ['Caio', '103'])).toEqual(['matricula_parece_documento', 'matricula_parece_documento', undefined])
+    expect(erros(['Ana', '12345678909'], ['Bia', '102'], ['Caio', '103'])).toEqual([undefined, undefined, undefined])
+  })
+})
+
+describe('o plano da reimportação: a escrita condicional que muda menos linhas que o pedido é diferença (F2, 8.0, RF4)', () => {
+  const t1 = turma('t1', '8A', '8a')
+  const guardado = [
+    { linha: 2, turma: '8A', nome: 'Ana Corrigida', matricula: 'm1' },
+    { linha: 3, turma: '8A', nome: 'Bia Corrigida', matricula: 'm2' },
+  ]
+
+  /** O repository só com o que o `planejar` lê: as turmas, as matrículas em uso e o que a escola já tem de aluno. */
+  const leitura = (comAprovado: boolean) =>
+    ({
+      turmasDoAno: () => Promise.resolve([t1]),
+      matriculasEmUso: () => Promise.resolve(new Set(['m1', 'm2'])),
+      alunosParaReimportar: () =>
+        Promise.resolve({
+          naoAprovados: comAprovado ? [] : [{ id: 'l1', turmaId: 't1', nome: 'Ana', matricula: 'm1', estado: 'livre' as const }],
+          aprovados: comAprovado ? [{ usuarioId: 'u2', turmaId: 't1', nome: 'Bia', matricula: 'm2' }] : [],
+        }),
+    }) as unknown as ImportacaoRepository
+
+  /** A gravação que diz ter mudado `mudadasNaLista` linhas da lista e `mudadosAlunos` alunos. */
+  const gravacaoQueMuda = (mudadasNaLista: number, mudadosAlunos: number) =>
+    ({ corrigirNomesNaLista: () => Promise.resolve(mudadasNaLista), corrigirNomesDosAlunos: () => Promise.resolve(mudadosAlunos), seriesDaEscola: () => Promise.resolve([]), inserirNomes: () => Promise.resolve() }) as unknown as ImportacaoRepository
+
+  async function aplicar(comAprovado: boolean, mudadasNaLista: number, mudadosAlunos: number) {
+    const plano = await tipoAlunos.planejar?.(leitura(comAprovado), { id: ANO } as never, guardado)
+    if (plano === undefined) throw new Error('sem plano')
+    await plano.aplicar(gravacaoQueMuda(mudadasNaLista, mudadosAlunos), { tx: {} as never, ciclo: {} as never })
+  }
+
+  it('o nome do não aprovado que a escrita não achou mais como a planilha leu (zero linhas mudadas) é `DiferencaNaPlanilhaError`, e não correção parcial', async () => {
+    await expect(aplicar(false, 0, 0)).rejects.toBeInstanceOf(DiferencaNaPlanilhaError)
+  })
+
+  it('o nome do aprovado que a escrita não achou mais como a planilha leu (desativado, ou com o nome trocado) é `DiferencaNaPlanilhaError`', async () => {
+    await expect(aplicar(true, 0, 0)).rejects.toBeInstanceOf(DiferencaNaPlanilhaError)
   })
 })

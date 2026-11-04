@@ -34,6 +34,14 @@ describe('limitarCorpoForaDaPlanilha (F2, tarefa 5.0)', () => {
     for (const url of ['/v1/importacoes', '/v1/importacoes/calendario/previa', '/v1/importacoes/calendario', '/v1/importacoes?x=1']) expect(seguiu(url, GRANDE), url).toBe(true)
   })
 
+  it('a prévia e a gravação da lista da turma seguem com o corpo grande, com ou sem consulta (F2, 8.0); o avulso, a leitura e o id fora do formato, não', () => {
+    const turma = '0197c1a2-3b4c-7d5e-8f60-123456789abc'
+    for (const url of [`/v1/turmas/${turma}/lista`, `/v1/turmas/${turma}/lista/previa`, `/v1/turmas/${turma}/lista?x=1`]) expect(seguiu(url, GRANDE), url).toBe(true)
+    for (const url of [`/v1/turmas/${turma}/lista/nome`, `/v1/turmas/${turma}`, `/v1/turmas/${turma}/lista/previa/x`, `/v1/turmas/${turma}/listas`, '/v1/turmas/abc/lista', `/v1/turmas/${turma.toUpperCase()}/lista`, `/x/v1/turmas/${turma}/lista`]) {
+      expect(seguiu(url, LIMITE_DO_CORPO_FORA_DA_PLANILHA_BYTES + 1), url).toBe(false)
+    }
+  })
+
   it('qualquer outra rota recusa o corpo declarado acima de 100 KB, mesmo as que só começam com o prefixo', () => {
     for (const url of ['/v1/series', '/v1/importacoesx', '/v1/importacoes-antigas/previa', '/V1/IMPORTACOES/calendario', '/']) expect(seguiu(url, LIMITE_DO_CORPO_FORA_DA_PLANILHA_BYTES + 1), url).toBe(false)
   })

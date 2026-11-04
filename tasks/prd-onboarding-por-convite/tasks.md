@@ -59,7 +59,7 @@ cenários foram distribuídos pelo `test-engineer`; cada linha do `cenarios.md` 
   - [ ] 7.4 Consultas constantes
   - [ ] 7.5 Testes: corridas da turma e da matrícula, teto, isolamento
 
-- [ ] **8.0 — Reimportar a planilha de alunos atualiza sem duplicar, e a lista da turma segue a mesma regra**
+- [x] **8.0 — Reimportar a planilha de alunos atualiza sem duplicar, e a lista da turma segue a mesma regra**
   - [ ] 8.1 Já existe, nome corrigido, candidatos à marca
   - [ ] 8.2 Nome corrigido gravado e auditado; pedidos relidos
   - [ ] 8.3 A lista por turma da A1 no contrato da importação

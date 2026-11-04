@@ -133,8 +133,8 @@ describe('salas/abrir (A1, tarefa 5.0): o aluno abre a turma pelo link ou pelo c
 
   /** Grava a lista da turma pela coordenação, uma linha por nome, e devolve o id de cada nome pela matrícula. */
   async function comLista(sala: Sala, turmaId: string, linhas: ReadonlyArray<{ readonly nome: string; readonly matricula: string }>): Promise<Map<string, string>> {
-    const gravada = await post(sala.coordenacao, `/v1/turmas/${turmaId}/lista`, { texto: linhas.map((linha) => `${linha.nome};${linha.matricula}`).join('\n') })
-    expect(gravada.status).toBe(201)
+    // Pelo nome avulso, que grava na hora: a gravação do texto responde 202 e grava no job (F2, 8.0), e este teste não roda job.
+    for (const linha of linhas) expect((await post(sala.coordenacao, `/v1/turmas/${turmaId}/lista/nome`, linha)).status).toBe(201)
     const { rows } = await bancada.pool.query<{ id: string; matricula: string }>('select id, matricula from lista_nome where escola_id = $1 and turma_id = $2', [sala.escolaId, turmaId])
     return new Map(rows.map((linha) => [linha.matricula, linha.id]))
   }

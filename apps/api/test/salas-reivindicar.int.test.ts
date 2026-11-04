@@ -159,8 +159,8 @@ describe('salas/reivindicar (A1, tarefa 6.0): o aluno pede o próprio nome, e o 
   async function nomes(sala: Sala, turmaId: string, quantos: number, nome?: string): Promise<Nome[]> {
     const sufixo = randomUUID().slice(0, 8)
     const linhas = Array.from({ length: quantos }, (_, posicao) => ({ nome: nome ?? `Aluno ${String(posicao + 1)} ${sufixo}`, matricula: `sala-${sufixo}-${String(posicao + 1)}` }))
-    const gravada = await post(sala.coordenacao, `/v1/turmas/${turmaId}/lista`, { texto: linhas.map((linha) => `${linha.nome};${linha.matricula}`).join('\n') })
-    expect(gravada.status).toBe(201)
+    // Pelo nome avulso, que grava na hora: a gravação do texto responde 202 e grava no job (F2, 8.0), e este teste não roda job.
+    for (const linha of linhas) expect((await post(sala.coordenacao, `/v1/turmas/${turmaId}/lista/nome`, linha)).status).toBe(201)
     const { rows } = await bancada.pool.query<{ id: string; matricula: string }>('select id, matricula from lista_nome where escola_id = $1 and turma_id = $2', [sala.escolaId, turmaId])
     return linhas.map((linha) => {
       const id = rows.find((gravado) => gravado.matricula === linha.matricula)?.id

@@ -74,7 +74,7 @@ export {
 } from './queue/publishing.js'
 export type { QueuedJobData, PublishedJobOptions } from './queue/publishing.js'
 export { CalendarioRepository, ContaDaPlanilhaPerdidaError, ehFalhaDeTrava, executarPlanilha, ImportacaoIlegivelError, ImportacaoRepository, MotorDePlanilha, TENTATIVAS_DO_JOB } from './importacao/index.js'
-export type { ImportacaoLida, ResultadoDaExecucao } from './importacao/index.js'
+export type { DaLista, ImportacaoLida, ListaRow, ResultadoDaExecucao } from './importacao/index.js'
 export { DomainException, HTTP_STATUS_BY_CODE, DEFAULT_RETRY_AFTER_SECONDS } from './error/domain.exception.js'
 export { AllExceptionsFilter } from './error/all-exceptions.filter.js'
 export { mapPostgresError } from './error/map-postgres-error.js'

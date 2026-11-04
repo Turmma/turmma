@@ -273,6 +273,227 @@ describe('estrutura.gravar-planilha, planilha de alunos', () => {
     expect((await importacao(terceira)).resumo).toEqual({ entram: 1, ja_existem: 1, turmas_novas: 1 })
   })
 
+  interface AlunosDaReimportacao {
+    readonly turmaA: string
+    readonly turmaB: string
+    readonly livre: { id: string; matricula: string }
+    readonly reivindicado: { id: string; matricula: string }
+    readonly aprovado: { usuarioId: string; matricula: string; listaId: string }
+    readonly ausente: { id: string; matricula: string }
+    readonly deOutraTurma: { id: string; matricula: string }
+  }
+
+  /**
+   * A escola de uma reimportação (8.0): a 8A com um nome livre, um reivindicado, um aprovado e um que a planilha não traz, e a 8B com
+   * um nome que a planilha põe na 8A. Os nomes de antes são "Antigo ..."; o aprovado tem `usuario`, credencial e a linha dele na
+   * lista (sem nome nem matrícula, como o check exige).
+   */
+  async function escolaDeReimportacao(): Promise<{ escola: Escola; a: AlunosDaReimportacao }> {
+    const escola = await escolaNova()
+    const serie = await serieDe(escola, 'ef_anos_finais', 8)
+    const turmaA = await turmaNoBanco(escola, serie, '8A', '8a')
+    const turmaB = await turmaNoBanco(escola, serie, '8B', '8b')
+    const nomeNaLista = async (turma: string, quem: string, estado: 'livre' | 'reivindicado') => {
+      const m = matricula()
+      const { rows } = await bancada.pool.query<{ id: string }>('insert into lista_nome (escola_id, ano_letivo_id, turma_id, nome, matricula, estado) values ($1, $2, $3, $4, $5, $6) returning id', [escola.escolaId, escola.anoId, turma, quem, m, estado])
+      return { id: rows[0]?.id ?? '', matricula: m }
+    }
+    const livre = await nomeNaLista(turmaA, 'Antigo Livre', 'livre')
+    const reivindicado = await nomeNaLista(turmaA, 'Antigo Reivindicado', 'reivindicado')
+    const ausente = await nomeNaLista(turmaA, 'Antigo Ausente', 'livre')
+    const deOutraTurma = await nomeNaLista(turmaB, 'Antigo Da Oitava B', 'livre')
+    const mAprovado = matricula()
+    const { rows: alunos } = await bancada.pool.query<{ id: string }>("insert into usuario (escola_id, papel, nome) values ($1, 'aluno', 'Antigo Aprovado') returning id", [escola.escolaId])
+    const usuarioId = alunos[0]?.id ?? ''
+    await bancada.pool.query('insert into credencial_matricula (escola_id, usuario_id, matricula) values ($1, $2, $3)', [escola.escolaId, usuarioId, mAprovado])
+    const { rows: daLista } = await bancada.pool.query<{ id: string }>("insert into lista_nome (escola_id, ano_letivo_id, turma_id, estado, usuario_id) values ($1, $2, $3, 'aprovado', $4) returning id", [escola.escolaId, escola.anoId, turmaA, usuarioId])
+    return { escola, a: { turmaA, turmaB, livre, reivindicado, ausente, deOutraTurma, aprovado: { usuarioId, matricula: mAprovado, listaId: daLista[0]?.id ?? '' } } }
+  }
+
+  const doBanco = async (escolaId: string) =>
+    (await bancada.pool.query<{ matricula: string | null; nome: string | null; estado: string; turma: string; usuario_id: string | null }>(
+      'select l.matricula, l.nome, l.estado, t.nome as turma, l.usuario_id from lista_nome l join turma t on t.id = l.turma_id where l.escola_id = $1 order by l.id',
+      [escolaId],
+    )).rows
+  const nomeDoUsuario = async (id: string): Promise<string | undefined> => (await bancada.pool.query<{ nome: string }>('select nome from usuario where id = $1', [id])).rows[0]?.nome
+
+  it('nome corrigido: o do aprovado vai ao `usuario.nome` e o do não aprovado (livre e reivindicado) à `lista_nome`, o mesmo nome para um aprovado e um não aprovado na mesma planilha, sem esbarrar no check; "muda de turma" e "fora da planilha" sem marca não mudam nada; a auditoria leva o id e não o nome', async () => {
+    const { escola, a } = await escolaDeReimportacao()
+    const planilha = texto(`8A;Nome Corrigido;${a.livre.matricula}`, `8A;Bia Nova;${a.reivindicado.matricula}`, `8A;Nome Corrigido;${a.aprovado.matricula}`, `8A;Antigo Da Oitava B;${a.deOutraTurma.matricula}`)
+    const id = await gravar(escola, planilha)
+    const antes = await doBanco(escola.escolaId)
+
+    await tentar(escola.escolaId, id)
+
+    expect(await importacao(id)).toMatchObject({ estado: 'concluida', erro: null, resumo: { entram: 0, ja_existem: 0, nomes_corrigidos: 3, turmas_novas: 0 } })
+    const depois = await doBanco(escola.escolaId)
+    expect(depois.map(({ matricula: m, nome, estado, turma }) => [m, nome, estado, turma])).toEqual([
+      [a.livre.matricula, 'Nome Corrigido', 'livre', '8A'],
+      [a.reivindicado.matricula, 'Bia Nova', 'reivindicado', '8A'],
+      [a.ausente.matricula, 'Antigo Ausente', 'livre', '8A'],
+      [a.deOutraTurma.matricula, 'Antigo Da Oitava B', 'livre', '8B'],
+      [null, null, 'aprovado', '8A'],
+    ])
+    // O que não é nome (estado, turma, quem é o aluno) fica como estava; o aprovado segue sem nome nem matrícula na lista.
+    expect(depois.map(({ estado, turma, usuario_id: dono }) => [estado, turma, dono])).toEqual(antes.map(({ estado, turma, usuario_id: dono }) => [estado, turma, dono]))
+    expect(await nomeDoUsuario(a.aprovado.usuarioId)).toBe('Nome Corrigido')
+
+    const dasLinhas = await auditoriaDa(escola.escolaId, 'lista.nome_corrigido')
+    expect(dasLinhas.map((registro) => registro.entidade_id).sort()).toEqual([a.livre.id, a.reivindicado.id].sort())
+    expect(await auditoriaDa(escola.escolaId, 'usuario.nome_corrigido')).toEqual([{ entidade_id: a.aprovado.usuarioId, autor_usuario_id: escola.coordenadorId, depois: null }])
+    for (const registro of dasLinhas) expect(registro).toMatchObject({ autor_usuario_id: escola.coordenadorId, depois: null })
+    const { rows: gravadas } = await bancada.pool.query<{ antes: unknown; depois: unknown }>('select antes, depois from auditoria where escola_id = $1', [escola.escolaId])
+    for (const nome of ['Nome Corrigido', 'Bia Nova', 'Antigo']) expect(JSON.stringify(gravadas), nome).not.toContain(nome)
+    expect((await auditoriaDa(escola.escolaId, 'planilha.gravada'))[0]?.depois).toEqual({ tipo: 'alunos', contagens: { entram: 0, ja_existem: 0, turmas_novas: 0, corrigidos: 3 } })
+
+    // A mesma planilha de novo: agora tudo é "já existe", e não há correção nem auditoria a mais.
+    const segunda = await gravar(escola, planilha)
+    await tentar(escola.escolaId, segunda)
+    expect(await importacao(segunda)).toMatchObject({ estado: 'concluida', resumo: { entram: 0, ja_existem: 3, turmas_novas: 0 } })
+    expect((await importacao(segunda)).resumo).not.toHaveProperty('nomes_corrigidos')
+    expect((await auditoriaDa(escola.escolaId, 'lista.nome_corrigido')).length).toBe(2)
+    expect((await auditoriaDa(escola.escolaId, 'usuario.nome_corrigido')).length).toBe(1)
+  })
+
+  it('o aluno aprovado desativado, ou com a linha só na lista de outro ano, não é corrigido nem candidato: a matrícula dele segue "já existe", e o nome do `usuario` não muda', async () => {
+    const { escola, a } = await escolaDeReimportacao()
+    // Desativado: a coordenação o desligou antes. Sem linha neste ano: o aluno do ano passado, que a virada de ano trata.
+    await bancada.pool.query('update usuario set desativado_em = now() where id = $1', [a.aprovado.usuarioId])
+    const mDoAnoPassado = matricula()
+    const { rows } = await bancada.pool.query<{ id: string }>("insert into usuario (escola_id, papel, nome) values ($1, 'aluno', 'Antigo Do Ano Passado') returning id", [escola.escolaId])
+    await bancada.pool.query('insert into credencial_matricula (escola_id, usuario_id, matricula) values ($1, $2, $3)', [escola.escolaId, rows[0]?.id, mDoAnoPassado])
+    // A linha aprovada dele está no outro ano da escola (o planejado): nesta planilha, do ano em curso, ele não conta.
+    const serieDoOutroAno = await serieDe(escola, 'em', 1)
+    const turmaDoOutroAno = await turmaNoBanco(escola, serieDoOutroAno, '1A', '1a', escola.planejadoId)
+    await bancada.pool.query("insert into lista_nome (escola_id, ano_letivo_id, turma_id, estado, usuario_id) values ($1, $2, $3, 'aprovado', $4)", [escola.escolaId, escola.planejadoId, turmaDoOutroAno, rows[0]?.id])
+    const id = await gravar(escola, texto(`8A;Nome Corrigido;${a.aprovado.matricula}`, `8A;Nome Corrigido;${mDoAnoPassado}`, `8A;Antigo Livre;${a.livre.matricula}`))
+
+    await tentar(escola.escolaId, id)
+
+    expect(await importacao(id)).toMatchObject({ estado: 'concluida', resumo: { entram: 0, ja_existem: 3, turmas_novas: 0 } })
+    expect((await importacao(id)).resumo).not.toHaveProperty('nomes_corrigidos')
+    expect(await nomeDoUsuario(a.aprovado.usuarioId)).toBe('Antigo Aprovado')
+    expect(await nomeDoUsuario(rows[0]?.id ?? '')).toBe('Antigo Do Ano Passado')
+    expect(await auditoriaDa(escola.escolaId, 'usuario.nome_corrigido')).toEqual([])
+  })
+
+  it('isolamento da reimportação: o aprovado e o não aprovado da escola B com a matrícula da planilha da A não são corrigidos, não mudam de turma e não viram candidatos; a A grava as matrículas dela como novas', async () => {
+    const a = await escolaNova()
+    const serieA = await serieDe(a, 'ef_anos_finais', 8)
+    await turmaNoBanco(a, serieA, '8A', '8a')
+    const { escola: b, a: daB } = await escolaDeReimportacao()
+    const antesDeB = { nomes: await doBanco(b.escolaId), aluno: await nomeDoUsuario(daB.aprovado.usuarioId) }
+    // As matrículas da B (o aprovado, o livre e o reivindicado) numa planilha da A, para a "8A" da A, com outros nomes.
+    const id = await gravar(a, texto(`8A;Nome Da A 1;${daB.aprovado.matricula}`, `8A;Nome Da A 2;${daB.livre.matricula}`, `8A;Nome Da A 3;${daB.reivindicado.matricula}`))
+
+    // A prévia da A não oferece ninguém: nem os alunos da B como "muda de turma", nem a lista da B como ausente.
+    const motor = new MotorDePlanilha(bancada.banco, { enfileirar: () => Promise.resolve(randomUUID()) })
+    const contexto = { requisicaoId: randomUUID(), escolaId: a.escolaId, usuarioId: a.coordenadorId, papel: 'coordenador' as const, sessaoId: randomUUID(), ...(a.anoId === undefined ? {} : { anoLetivoId: a.anoId }) }
+    const previa = await runInContext(contexto, () => motor.previa('alunos', { texto: texto(`8A;Nome Da A 1;${daB.aprovado.matricula}`, `8A;Nome Da A 2;${daB.livre.matricula}`, `8A;Nome Da A 3;${daB.reivindicado.matricula}`) }))
+    expect(previa.candidatos).toEqual([])
+    expect(previa.linhas.map((l) => l.resultado)).toEqual(['entra', 'entra', 'entra'])
+
+    await tentar(a.escolaId, id)
+
+    expect(await importacao(id)).toMatchObject({ estado: 'concluida', resumo: { entram: 3, ja_existem: 0, turmas_novas: 0 } })
+    expect({ nomes: await doBanco(b.escolaId), aluno: await nomeDoUsuario(daB.aprovado.usuarioId) }).toEqual(antesDeB)
+    expect((await doBanco(a.escolaId)).map((linha) => [linha.matricula, linha.nome, linha.estado, linha.turma]).sort()).toEqual(
+      [
+        [daB.aprovado.matricula, 'Nome Da A 1', 'livre', '8A'],
+        [daB.livre.matricula, 'Nome Da A 2', 'livre', '8A'],
+        [daB.reivindicado.matricula, 'Nome Da A 3', 'livre', '8A'],
+      ].sort(),
+    )
+    expect(await auditoriaDa(b.escolaId, 'usuario.nome_corrigido')).toEqual([])
+    expect(await auditoriaDa(b.escolaId, 'lista.nome_corrigido')).toEqual([])
+  })
+
+  it('mais nomes corrigidos do que cabem num lote (500): 501 aprovados e 501 não aprovados, todos corrigidos, e a soma das linhas mudadas por lote fecha a conta sem `desatualizada`', async () => {
+    const { escola, a } = await escolaDeReimportacao()
+    const quantos = 501
+    const prefixo = `lote-${randomUUID().slice(0, 6)}`
+    await bancada.pool.query(
+      `with u as (insert into usuario (escola_id, papel, nome) select $1, 'aluno', 'Antigo Aprovado ' || g from generate_series(1, $2::int) g returning id, nome),
+            c as (insert into credencial_matricula (escola_id, usuario_id, matricula) select $1, id, $3 || '-ap-' || substr(nome, 17) from u returning usuario_id)
+       insert into lista_nome (escola_id, ano_letivo_id, turma_id, estado, usuario_id) select $1, $4, $5, 'aprovado', usuario_id from c`,
+      [escola.escolaId, quantos, prefixo, escola.anoId, a.turmaA],
+    )
+    await bancada.pool.query(
+      `insert into lista_nome (escola_id, ano_letivo_id, turma_id, nome, matricula, estado) select $1, $2, $3, 'Antigo Livre ' || g, $4 || '-li-' || g, 'livre' from generate_series(1, $5::int) g`,
+      [escola.escolaId, escola.anoId, a.turmaA, prefixo, quantos],
+    )
+    const linhasDaPlanilha = Array.from({ length: quantos }, (_, i) => [`8A;Corrigido Aprovado ${String(i + 1)};${prefixo}-ap-${String(i + 1)}`, `8A;Corrigido Livre ${String(i + 1)};${prefixo}-li-${String(i + 1)}`]).flat()
+    // Os quatro alunos de `escolaDeReimportacao` ficam fora da planilha (candidatos a desligar, sem marca: nada muda neles).
+    const id = await gravar(escola, texto(...linhasDaPlanilha))
+
+    await tentar(escola.escolaId, id)
+
+    expect(await importacao(id)).toMatchObject({ estado: 'concluida', erro: null, resumo: { nomes_corrigidos: quantos * 2 } })
+    const contar = async (consulta: string) => (await bancada.pool.query<{ total: number }>(consulta, [escola.escolaId])).rows[0]?.total
+    expect(await contar("select count(*)::int as total from usuario where escola_id = $1 and nome like 'Corrigido Aprovado %'")).toBe(quantos)
+    expect(await contar("select count(*)::int as total from lista_nome where escola_id = $1 and nome like 'Corrigido Livre %'")).toBe(quantos)
+    expect(await contar("select count(*)::int as total from lista_nome where escola_id = $1 and nome like 'Antigo Livre %'")).toBe(0)
+    expect((await auditoriaDa(escola.escolaId, 'planilha.gravada'))[0]?.depois).toMatchObject({ contagens: { corrigidos: quantos * 2 } })
+  })
+
+  it('[P] o nome do não aprovado trocado à mão entre o passo (2) e o (3): `desatualizada`, e o nome da planilha não sobrescreve o da troca', async () => {
+    const { escola, a } = await escolaDeReimportacao()
+    const id = await gravar(escola, texto(`8A;Nome Corrigido;${a.livre.matricula}`))
+
+    await entreOs2e3(escola, id, async () => {
+      await bancada.pool.query("update lista_nome set nome = 'Trocado à mão' where id = $1", [a.livre.id])
+    })
+
+    expect(await importacao(id)).toMatchObject({ estado: 'desatualizada', erro: null })
+    expect((await doBanco(escola.escolaId)).find((linha) => linha.matricula === a.livre.matricula)?.nome).toBe('Trocado à mão')
+    expect(await auditoriaDa(escola.escolaId, 'lista.nome_corrigido')).toEqual([])
+  })
+
+  it('[P] o aprovado desativado ou com o nome trocado entre o passo (2) e o (3): `desatualizada`, e o nome da planilha não chega ao `usuario`', async () => {
+    const { escola, a } = await escolaDeReimportacao()
+    const id = await gravar(escola, texto(`8A;Nome Corrigido;${a.aprovado.matricula}`))
+
+    await entreOs2e3(escola, id, async () => {
+      await bancada.pool.query("update usuario set nome = 'Trocado à mão' where id = $1", [a.aprovado.usuarioId])
+    })
+
+    expect(await importacao(id)).toMatchObject({ estado: 'desatualizada', erro: null })
+    expect(await nomeDoUsuario(a.aprovado.usuarioId)).toBe('Trocado à mão')
+    expect(await auditoriaDa(escola.escolaId, 'usuario.nome_corrigido')).toEqual([])
+
+    // O mesmo aprovado, agora desativado no lugar da troca do nome: a matrícula deixa de ser dele ("já existe"), a assinatura muda e o nome fica.
+    await bancada.pool.query("update usuario set nome = 'Antigo Aprovado' where id = $1", [a.aprovado.usuarioId])
+    const segunda = await gravar(escola, texto(`8A;Nome Corrigido;${a.aprovado.matricula}`))
+    await entreOs2e3(escola, segunda, async () => {
+      await bancada.pool.query('update usuario set desativado_em = now() where id = $1', [a.aprovado.usuarioId])
+    })
+
+    expect(await importacao(segunda)).toMatchObject({ estado: 'desatualizada', erro: null })
+    expect(await nomeDoUsuario(a.aprovado.usuarioId)).toBe('Antigo Aprovado')
+    expect(await auditoriaDa(escola.escolaId, 'usuario.nome_corrigido')).toEqual([])
+  })
+
+  it('o passo (3) trava, nesta ordem, o ano, os usuários cujo nome muda, as turmas tocadas e os pedidos pendentes delas, tudo antes de escrever o primeiro nome', async () => {
+    const { escola, a } = await escolaDeReimportacao()
+    const id = await gravar(escola, texto(`8A;Nome Corrigido;${a.aprovado.matricula}`, `8A;Outro Nome;${a.livre.matricula}`))
+    const sqlDoJob: string[] = []
+    const espiado = drizzle({ client: apoio, schema, casing: 'snake_case', logger: { logQuery: (consulta: string) => void sqlDoJob.push(consulta.toLowerCase()) } }) as unknown as Database
+    const espiao = criarGravacaoDaPlanilha({ banco: espiado, logger: log.logger })
+
+    await runInContext({ requisicaoId: randomUUID(), escolaId: escola.escolaId }, () => espiao({ importacaoId: id }, jobExecution(randomUUID(), 1)))
+
+    const posicao = (padrao: RegExp): number => sqlDoJob.findIndex((consulta) => padrao.test(consulta))
+    const ano = posicao(/^select .*from "ano_letivo".* for share$/)
+    const usuarios = posicao(/^select .*from "usuario".* for no key update$/)
+    const turmas = posicao(/^select .*from "turma".* for no key update$/)
+    const pedidos = posicao(/^select .*from "reivindicacao".* for update$/)
+    const primeiraEscrita = posicao(/^\s*update "?(usuario|lista_nome)"?/)
+    for (const [nome, indice] of [['usuários', usuarios], ['turmas', turmas], ['pedidos', pedidos], ['escrita', primeiraEscrita]] as const) expect(indice, nome).toBeGreaterThanOrEqual(0)
+    expect([ano, usuarios, turmas, pedidos, primeiraEscrita]).toEqual([ano, usuarios, turmas, pedidos, primeiraEscrita].toSorted((x, y) => x - y))
+    expect(sqlDoJob.filter((consulta) => /^select .*from "reivindicacao".* for update$/.test(consulta))).toHaveLength(1)
+    expect(await importacao(id)).toMatchObject({ estado: 'concluida' })
+  })
+
   it('isolamento: a matrícula e a turma da escola B não alteram nada na B quando a planilha é da A; a A grava a matrícula "da B" na turma "8A" dela, e a "8A" da B segue como estava', async () => {
     const a = await escolaNova()
     const b = await escolaNova()

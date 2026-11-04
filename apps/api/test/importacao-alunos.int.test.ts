@@ -230,9 +230,11 @@ describe('planilha de alunos (F2, tarefa 7.0): prévia, gravar e as corridas da 
     const deOutroAno = matricula()
     await bancada.pool.query('insert into lista_nome (escola_id, ano_letivo_id, turma_id, nome, matricula) values ($1, $2, $3, $4, $5)', [e.escolaId, e.planejado, noPlanejado.rows[0]?.id, 'Aluno Do Ano Seguinte', deOutroAno])
     const planilha = texto(linha('8A', 'Aluno Deste Ano', deOutroAno))
+    // Com o mesmo nome do banco: o nome diferente seria "nome corrigido" (8.0), e aqui o que se prova é só que a matrícula casa no ano dela.
+    const doPlanejado = texto(linha('8A', 'Aluno Do Ano Seguinte', deOutroAno))
 
     expect(lida(await previa(e, planilha)).contagens).toEqual({ entram: 1, ja_existem: 0, turmas_novas: 1 })
-    expect(lida(await previa(e, planilha, { anoLetivoId: e.planejado })).contagens).toEqual({ entram: 0, ja_existem: 1, turmas_novas: 0 })
+    expect(lida(await previa(e, doPlanejado, { anoLetivoId: e.planejado })).contagens).toEqual({ entram: 0, ja_existem: 1, turmas_novas: 0 })
   })
 
   it('o nome fora do padrão só casa com turma de mesmo nome: "Turma Azul" existente recebe a linha, "Turma Verde" que a escola não tem é erro', async () => {
@@ -302,7 +304,7 @@ describe('planilha de alunos (F2, tarefa 7.0): prévia, gravar e as corridas da 
     const turmaA = await turmaNoBanco(a, serieA, '8B', '8b')
     await bancada.pool.query('insert into lista_nome (escola_id, ano_letivo_id, turma_id, nome, matricula) values ($1, $2, $3, $4, $5)', [a.escolaId, a.emCurso, turmaA, 'Aluno da A', daA])
 
-    const resposta = lida(await previa(a, texto(linha('8A', 'Outro Nome', daB), linha('8A', 'Mais Um', credencialDaB), linha('8B', 'Ainda Outro', daA))))
+    const resposta = lida(await previa(a, texto(linha('8A', 'Outro Nome', daB), linha('8A', 'Mais Um', credencialDaB), linha('8B', 'Aluno da A', daA))))
 
     expect(resposta.linhas.map((l) => l.resultado)).toEqual(['entra', 'entra', 'ja_existe'])
     expect(resposta.contagens).toEqual({ entram: 2, ja_existem: 1, turmas_novas: 1 })
@@ -323,6 +325,29 @@ describe('planilha de alunos (F2, tarefa 7.0): prévia, gravar e as corridas da 
 
     expect(resposta.linhas.map((l) => l.resultado)).toEqual(['ja_existe', 'ja_existe', 'entra'])
     expect(resposta.contagens).toEqual({ entram: 1, ja_existem: 2, turmas_novas: 0 })
+  })
+
+  it('a prévia que mostra nome do banco (o rótulo do candidato a desligar) grava `turma.alunos_lidos` com a finalidade e a quantidade, sem nome; a que não mostra nenhum, não grava', async () => {
+    const e = await escolaComAnos()
+    const serie = await serieNova(e, 'ef_anos_finais', 7)
+    const turma = await turmaNoBanco(e, serie, '7A', '7a')
+    for (const nome of ['Aluno Ausente Um', 'Aluno Ausente Dois']) {
+      await bancada.pool.query('insert into lista_nome (escola_id, ano_letivo_id, turma_id, nome, matricula) values ($1, $2, $3, $4, $5)', [e.escolaId, e.emCurso, turma, nome, matricula()])
+    }
+    const lidas = async () => (await bancada.pool.query<{ entidade_id: string; autor_usuario_id: string; antes: unknown; depois: unknown; finalidade: string }>(
+      "select entidade_id, autor_usuario_id, antes, depois, finalidade from auditoria where escola_id = $1 and acao = 'turma.alunos_lidos' order by em, id",
+      [e.escolaId],
+    )).rows
+
+    // Só linhas de turma que a escola não tem: nenhum aluno do banco aparece, nada é lido.
+    expect(lida(await previa(e, texto(linha('7B')))).candidatos).toEqual([])
+    expect(await lidas()).toEqual([])
+
+    // A planilha cita a 7A e traz outra matrícula: os dois nomes da 7A viram candidatos a desligar, com o rótulo, e a leitura é auditada.
+    const resposta = lida(await previa(e, texto(linha('7A'))))
+    expect(resposta.candidatos.map((c) => c.acao)).toEqual(['desligar', 'desligar'])
+    expect(await lidas()).toEqual([{ entidade_id: turma, autor_usuario_id: e.coordenacao.usuarioId, antes: null, depois: { quantidade: 2 }, finalidade: 'conferencia_de_cadastro' }])
+    expect(JSON.stringify(await lidas())).not.toContain('Aluno Ausente')
   })
 
   it('3.001 linhas ou mais de 512 KB: ENTRADA_INVALIDA na prévia e no gravar, sem importação; 3.000 linhas entram, em 32 turmas, e o job as grava', async () => {

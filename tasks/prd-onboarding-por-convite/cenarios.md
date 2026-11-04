@@ -55,6 +55,10 @@ numa tarefa do `tasks.md`, que diz qual. I = integração com Postgres real e re
   - [P] Pedido criado e aprovado durante o passo (3): os pedidos são relidos sob a trava; o desfecho é `desatualizada` ou
     a reivindicação recusada, nunca o nome antigo com `concluida`.
   - [I] Ausente na planilha segue ativo sem marca; com marca, desliga.
+  - [I] Só é candidato a desligar quem é de turma que a planilha cita (linha sem erro, turma única): a turma ambígua ou com erro não oferece ninguém, e quem está na planilha, aprovado ou não, nunca é candidato.
+  - [I] A matrícula em outra turma é "muda de turma" mesmo com o nome diferente: o nome não é corrigido junto, e o candidato a transferir traz o nome do banco.
+  - [I] `nomes_corrigidos` e `corrigidos` ausentes valem zero: nada de nome corrigido, nada na resposta nem na `planilha.gravada`.
+  - [I] A lista da turma (texto, sem coluna de turma) segue as mesmas regras: 202, `turmaId` conferido na escola e no ano, e o corpo grande (3.000 linhas) passa.
   - [I] Matrícula da escola B na planilha da A sai "entra", nunca "nome corrigido" com o nome da B.
 - **RF5.**
   - [I] Transferido: alcança a nova, não a antiga; a resposta de atividade continua presa à turma antiga.
@@ -221,7 +225,7 @@ Cada linha é um cenário [I]; o semáforo, [P].
 | Prévias simultâneas | 2 por escola, no Redis, com o gravar ocupando vaga e prazo de validade de 30 s | recusada; a outra escola segue; a vaga volta quando o processo morre |
 | Importação `na_fila` | 1 por escola | `CONFLITO` |
 | Texto da planilha | 512 KB e 3.000 linhas, só nessas rotas | `ENTRADA_INVALIDA` |
-| Corpo JSON de outra rota | 100 KB pelo `Content-Length`, fora de `/v1/importacoes`; o multipart (material) não entra | `ENTRADA_INVALIDA` |
+| Corpo JSON de outra rota | 100 KB pelo `Content-Length`, fora de `/v1/importacoes` e de `/v1/turmas/:id/lista` e `/lista/previa` (que têm o teto da planilha); o multipart (material) não entra | `ENTRADA_INVALIDA` |
 
 ## Auditoria (RF17)
 

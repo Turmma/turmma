@@ -1,5 +1,5 @@
-import { DomainException, ImportacaoRepository, MotorDePlanilha, requireEscolaId, type Database, type SchoolSemaphore } from '@educa/core'
-import { ErrorCode, gravarPlanilhaResponseSchema, importacaoSchema, type GravarPlanilhaRequest, type GravarPlanilhaResponse, type Importacao, type PreviaDaPlanilhaRequest, type PreviaDaPlanilhaResponse, type TipoDePlanilha } from '@educa/shared'
+import { DomainException, ImportacaoRepository, MotorDePlanilha, requireEscolaId, type Database, type ListaRow, type SchoolSemaphore } from '@educa/core'
+import { ErrorCode, gravarPlanilhaResponseSchema, importacaoSchema, type GravarPlanilhaRequest, type GravarPlanilhaResponse, type Importacao, type MarcasDaPlanilha, type PreviaDaPlanilhaRequest, type PreviaDaPlanilhaResponse, type TipoDePlanilha } from '@educa/shared'
 
 /** Quanto tempo o cliente espera para tentar de novo quando as vagas da escola estão cheias: a prévia de 3.000 linhas leva até 2 s. */
 const ESPERA_QUANDO_CHEIO_SEGUNDOS = 2
@@ -23,6 +23,16 @@ export class ImportacaoService {
 
   gravar(tipo: TipoDePlanilha, pedido: GravarPlanilhaRequest): Promise<GravarPlanilhaResponse> {
     return this.comVaga(async () => gravarPlanilhaResponseSchema.parse(await this.motor.gravar(tipo, pedido)))
+  }
+
+  /** A prévia da lista de uma turma (A1, 8.0): a planilha de alunos com a turma dada, na mesma vaga e no mesmo motor. */
+  previaDaLista(turmaId: string, texto: string, linhas: readonly ListaRow[]): Promise<PreviaDaPlanilhaResponse> {
+    return this.comVaga(() => this.motor.previa('alunos', { texto }, { turmaId, linhas }))
+  }
+
+  /** O gravar da lista de uma turma (A1, 8.0): o mesmo job da planilha de alunos, responde o id da importação. */
+  gravarDaLista(turmaId: string, texto: string, marcas: MarcasDaPlanilha, linhas: readonly ListaRow[]): Promise<GravarPlanilhaResponse> {
+    return this.comVaga(async () => gravarPlanilhaResponseSchema.parse(await this.motor.gravar('alunos', { texto, marcas }, { turmaId, linhas })))
   }
 
   /** `GET /v1/importacoes/:id`: o estado e as contagens da importação da escola da sessão. Id de outra escola é igual a inexistente. */

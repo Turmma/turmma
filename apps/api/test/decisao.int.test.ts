@@ -1,17 +1,18 @@
-import { runInContext } from '@educa/core'
+import { createDatabase, createPool, executarPlanilha, runInContext, type Database, type DatabasePool } from '@educa/core'
 import {
   ErrorCode,
   alunosDaTurmaResponseSchema,
   decisaoResponseSchema,
   loginResponseSchema,
   pedidosDaTurmaResponseSchema,
-  previaDaListaResponseSchema,
+  previaDaPlanilhaResponseSchema,
   salaAbertaResponseSchema,
   MENSAGENS_DE_ERRO,
   type ResultadoDaDecisao,
 } from '@educa/shared'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { DecisaoRepository } from '@educa/core/estrutura'
 import { ListaLivreRepository } from '../src/sala/reivindicacao/lista-livre.repository.js'
@@ -41,20 +42,34 @@ describe('decisão dos pedidos (A1, tarefa 8.0): uma pessoa aprova ou recusa, e 
   const medidor = new MedidorDeTeste()
   let api: TestApi
   let sala: FerramentasDaSala
+  /** O pool do job da planilha (F2, 8.0): a gravação do texto da lista é do job, e ele roda aqui como o worker o roda. */
+  let apoio: DatabasePool
+  let bancoDoJob: Database
 
   beforeAll(async () => {
     api = await subirApi(medidor.medidor, { ambiente: AMBIENTE })
     sala = new FerramentasDaSala(api, bancada)
+    apoio = createPool({ url: urlDoBancoDeTeste(), maximoConexoes: 4, timeoutConexaoMs: 5_000, timeoutConsultaMs: 30_000 }, () => undefined)
+    bancoDoJob = createDatabase(apoio)
   })
 
   afterAll(async () => {
     await api.app.close()
+    await apoio.end()
     await bancada.fechar()
     await medidor.encerrar()
   })
 
   const post = (sessao: TestSessao, caminho: string, corpo?: unknown) => chamar(api.url, 'POST', caminho, sessao.token, corpo)
   const decidir = (sessao: TestSessao, ids: readonly string[], decisao: 'aprovar' | 'recusar' = 'aprovar') => post(sessao, '/v1/reivindicacoes/decidir', { ids, decisao })
+  /** Roda o job da importação uma vez, no contexto da escola dela, como o executor do worker o abre. */
+  const rodar = (escolaId: string, importacaoId: string) => runInContext({ requisicaoId: randomUUID(), escolaId }, () => executarPlanilha(bancoDoJob, importacaoId))
+  /** Grava o texto na lista da turma pela coordenação (202) e roda o job; devolve como ele terminou. */
+  async function gravarTexto(s: TestSala, turmaId: string, texto: string): Promise<string> {
+    const gravada = await post(s.coordenacao, `/v1/turmas/${turmaId}/lista`, { texto })
+    expect(gravada.status).toBe(202)
+    return rodar(s.escolaId, gravada.corpo['id'] as string)
+  }
   const lerPedidos = (sessao: TestSessao, turmaId: string, consulta = '') => chamar(api.url, 'GET', `/v1/turmas/${turmaId}/reivindicacoes${consulta}`, sessao.token)
 
   /** O resultado de cada id, na ordem do pedido, de uma decisão que respondeu 200. */
@@ -128,7 +143,7 @@ describe('decisão dos pedidos (A1, tarefa 8.0): uma pessoa aprova ou recusa, e 
       const s = await sala.montar()
       const nome = `Aluna ${randomUUID().slice(0, 8)}`
       // A lista grava a matrícula sem os espaços das pontas, e o aluno a digita com eles.
-      expect((await post(s.coordenacao, `/v1/turmas/${s.turma}/lista`, { texto: `${nome}; 123 ` })).status).toBe(201)
+      expect(await gravarTexto(s, s.turma, `${nome}; 123 `)).toBe('concluida')
       const { rows } = await bancada.pool.query<{ id: string; matricula: string }>('select id, matricula from lista_nome where escola_id = $1', [s.escolaId])
       const linha = rows[0]
       if (linha === undefined) throw new Error('nome não gravado')
@@ -308,7 +323,7 @@ describe('decisão dos pedidos (A1, tarefa 8.0): uma pessoa aprova ou recusa, e 
       const s = await sala.montar()
       const nome = `Ana Souza ${randomUUID().slice(0, 8)}`
       const [primeira, segunda] = [`ana-1-${randomUUID().slice(0, 8)}`, `ana-2-${randomUUID().slice(0, 8)}`]
-      expect((await post(s.coordenacao, `/v1/turmas/${s.turma}/lista`, { texto: `${nome};${primeira}\n${nome};${segunda}` })).status).toBe(201)
+      expect(await gravarTexto(s, s.turma, `${nome};${primeira}\n${nome};${segunda}`)).toBe('concluida')
       const { rows } = await bancada.pool.query<{ id: string; matricula: string }>('select id, matricula from lista_nome where escola_id = $1', [s.escolaId])
       const idDa = (matricula: string) => rows.find((linha) => linha.matricula === matricula)?.id ?? ''
       const daPrimeira = await pedir(s, { id: idDa(primeira), nome, matricula: primeira })
@@ -624,23 +639,30 @@ describe('decisão dos pedidos (A1, tarefa 8.0): uma pessoa aprova ou recusa, e 
       return { nome, alunoId }
     }
 
-    it('E6: a matrícula do aprovado nesta turma sai ja_existe na prévia e não entra de novo na gravação; em outra turma, matricula_em_uso', async () => {
+    it('E6: a matrícula do aprovado nesta turma sai ja_existe na prévia e não entra de novo na gravação; em outra turma é "muda de turma" (candidato a marca), sem efeito sem a marca; com outro nome é "nome corrigido" e muda o `usuario.nome`', async () => {
       const s = await sala.montar()
-      const { nome } = await aprovado(s)
+      const { nome, alunoId } = await aprovado(s)
       const nova = `nova-${randomUUID().slice(0, 8)}`
-      const previa = previaDaListaResponseSchema.parse((await post(s.coordenacao, `/v1/turmas/${s.turma}/lista/previa`, { texto: `${nome.nome};${nome.matricula}\nNova;${nova}` })).corpo)
-      expect(previa.linhas.map((linha) => [linha.matricula, linha.resultado, linha.erro])).toEqual([
-        [nome.matricula, 'ja_existe', undefined],
-        [nova, 'entra', undefined],
+      const previa = previaDaPlanilhaResponseSchema.parse((await post(s.coordenacao, `/v1/turmas/${s.turma}/lista/previa`, { texto: `${nome.nome};${nome.matricula}\nNova;${nova}` })).corpo)
+      expect(previa.linhas).toEqual([
+        { linha: 1, resultado: 'ja_existe' },
+        { linha: 2, resultado: 'entra' },
       ])
-      const naOutra = previaDaListaResponseSchema.parse((await post(s.coordenacao, `/v1/turmas/${s.outraTurma}/lista/previa`, { texto: `${nome.nome};${nome.matricula}` })).corpo)
-      expect(naOutra.linhas.map((linha) => [linha.resultado, linha.erro])).toEqual([['erro', 'matricula_em_uso']])
+      const naOutra = previaDaPlanilhaResponseSchema.parse((await post(s.coordenacao, `/v1/turmas/${s.outraTurma}/lista/previa`, { texto: `${nome.nome};${nome.matricula}` })).corpo)
+      expect(naOutra.linhas).toEqual([{ linha: 1, resultado: 'muda_de_turma' }])
+      expect(naOutra.candidatos).toEqual(expect.arrayContaining([{ id: alunoId, acao: 'transferir', rotulo: `${nome.nome} (${nome.matricula})` }]))
 
-      const gravada = await post(s.coordenacao, `/v1/turmas/${s.turma}/lista`, { texto: `${nome.nome};${nome.matricula}` })
-      expect(gravada.status).toBe(201)
-      expect(gravada.corpo).toEqual({ gravados: 0, jaExistentes: 1 })
-      const { rows } = await bancada.pool.query('select id from lista_nome where escola_id = $1', [s.escolaId])
-      expect(rows).toHaveLength(1)
+      const gravar = async (turma: string, texto: string) => expect(await gravarTexto(s, turma, texto)).toBe('concluida')
+      await gravar(s.turma, `${nome.nome};${nome.matricula}`)
+      await gravar(s.outraTurma, `${nome.nome};${nome.matricula}`)
+      const { rows } = await bancada.pool.query<{ turma_id: string; usuario_id: string | null }>('select turma_id, usuario_id from lista_nome where escola_id = $1', [s.escolaId])
+      expect(rows).toEqual([{ turma_id: s.turma, usuario_id: alunoId }])
+
+      const corrigido = `${nome.nome} Corrigido`
+      await gravar(s.turma, `${corrigido};${nome.matricula}`)
+      const { rows: alunos } = await bancada.pool.query<{ nome: string }>('select nome from usuario where id = $1', [alunoId])
+      expect(alunos).toEqual([{ nome: corrigido }])
+      expect((await bancada.pool.query('select entidade_id from auditoria where escola_id = $1 and acao = $2', [s.escolaId, 'usuario.nome_corrigido'])).rows).toEqual([{ entidade_id: alunoId }])
     })
 
     it('E7: retirar o nome aprovado dá CONFLITO e não apaga; o avulso com a matrícula do aprovado dá CONFLITO sem gravar; R2: reivindicar o nome aprovado é recusado sem gravar', async () => {
@@ -676,7 +698,7 @@ describe('decisão dos pedidos (A1, tarefa 8.0): uma pessoa aprova ou recusa, e 
   })
 
   describe('C12 (herdado da 2.0): a lista e a aprovação da mesma matrícula ao mesmo tempo', () => {
-    it('o avulso com a matrícula que está sendo aprovada espera o commit e sai CONFLITO; a gravação a acha na lista e não a grava', async () => {
+    it('o avulso com a matrícula que está sendo aprovada espera o commit e sai CONFLITO; a gravação do texto, em outra turma, não a grava, e na turma dela, depois do commit, acha o aluno e não a grava de novo', async () => {
       const s = await sala.montar()
       const [avulso, gravacao] = (await sala.nomes(s, s.turma, 2)) as [NomeDaLista, NomeDaLista]
       for (const nome of [avulso, gravacao]) {
@@ -696,13 +718,13 @@ describe('decisão dos pedidos (A1, tarefa 8.0): uma pessoa aprova ou recusa, e 
             expect(acrescentado.status).toBe(409)
             expect(acrescentado.corpo.erro?.codigo).toBe(ErrorCode.CONFLITO)
           } else {
-            // A lista é lida antes da credencial: a matrícula ainda está na lista, sem o commit da aprovação.
-            const naOutra = await post(s.coordenacao, `/v1/turmas/${s.outraTurma}/lista`, { texto: `Outro;${nome.matricula}` })
-            expect(naOutra.status).toBe(409)
-            const naMesma = await post(s.coordenacao, `/v1/turmas/${s.turma}/lista`, { texto: `${nome.nome};${nome.matricula}` })
-            expect(naMesma.corpo).toEqual({ gravados: 0, jaExistentes: 1 })
+            // A lista é lida antes da credencial: a matrícula ainda está na lista, sem o commit da aprovação. Na outra turma é "muda de
+            // turma" (sem marca, sem efeito), e o job conclui sem esperar a aprovação, que está na turma do nome.
+            expect(await gravarTexto(s, s.outraTurma, `Outro;${nome.matricula}`)).toBe('concluida')
             await gatilho.soltar()
             expect(resultados(await aprovando)).toEqual(['decidida'])
+            // Depois do commit, a matrícula é do aluno aprovado: a mesma lista na turma dele é "já existe", e não a grava de novo.
+            expect(await gravarTexto(s, s.turma, `${nome.nome};${nome.matricula}`)).toBe('concluida')
           }
         } finally {
           await gatilho.desarmar()
@@ -712,6 +734,168 @@ describe('decisão dos pedidos (A1, tarefa 8.0): uma pessoa aprova ou recusa, e 
         const { rows: credenciais } = await bancada.pool.query('select id from credencial_matricula where escola_id = $1 and matricula = $2', [s.escolaId, nome.matricula])
         expect(credenciais).toHaveLength(1)
       }
+    })
+  })
+
+  /**
+   * O nome corrigido pela planilha contra a decisão do professor (F2, 8.0; `cenarios.md`, "Corridas", "Nome corrigido contra
+   * aprovação"). A decisão trava o pedido antes de ler o nome da lista; o passo (3) da planilha trava turma e, por último, os pedidos
+   * pendentes da turma (a ordem global da Tech Spec, seção 5): quem chega primeiro segue, o outro vê o estado final, e nunca há
+   * `40P01` nem o nome de antes no `usuario` de uma importação `concluida`.
+   */
+  describe('nome corrigido × aprovação do mesmo nome (F2, 8.0)', () => {
+    /** Um nome da lista com pedido pendente e a planilha que o corrige já enfileirada (202), e o id do aluno (depois da aprovação). */
+    async function comCorrecaoNaFila() {
+      const s = await sala.montar()
+      const nome = await sala.umNome(s)
+      const corrigido = `${nome.nome} Corrigido`
+      const pedidoId = await pedir(s, nome)
+      const gravada = await post(s.coordenacao, `/v1/turmas/${s.turma}/lista`, { texto: `${corrigido};${nome.matricula}` })
+      expect(gravada.status).toBe(202)
+      return { s, nome, corrigido, pedidoId, importacaoId: gravada.corpo['id'] as string }
+    }
+
+    const nomeDoAluno = async (nomeId: string): Promise<string | undefined> => {
+      const alunoId = (await nomeNoBanco(nomeId))?.usuario_id
+      if (alunoId == null) return undefined
+      return (await bancada.pool.query<{ nome: string }>('select nome from usuario where id = $1', [alunoId])).rows[0]?.nome
+    }
+    const estadoDaImportacao = async (id: string): Promise<string | undefined> => (await bancada.pool.query<{ estado: string }>('select estado from importacao_planilha where id = $1', [id])).rows[0]?.estado
+
+    it('[P] a aprovação do mesmo nome entre o passo (2) e o (3): a importação sai `desatualizada` (nunca `falhou`), e o aluno nasce com o nome de antes, sem correção', async () => {
+      const { s, nome, pedidoId, importacaoId } = await comCorrecaoNaFila()
+      const segurador = await bancada.pool.connect()
+      let rodando: Promise<string>
+      try {
+        await segurador.query('begin')
+        await segurador.query('select id from importacao_planilha where id = $1 for update', [importacaoId])
+        rodando = rodar(s.escolaId, importacaoId)
+        await esperarNaTrava(bancada.pool, '%importacao_planilha%for update%')
+        expect(resultados(await decidir(s.professor, [pedidoId]))).toEqual(['decidida'])
+        await segurador.query('commit')
+      } finally {
+        segurador.release()
+      }
+      expect(await rodando).toBe('desatualizada')
+      expect(await estadoDaImportacao(importacaoId)).toBe('desatualizada')
+      expect(await nomeDoAluno(nome.id)).toBe(nome.nome)
+      expect((await bancada.pool.query('select 1 from auditoria where escola_id = $1 and acao in ($2, $3)', [s.escolaId, 'lista.nome_corrigido', 'usuario.nome_corrigido'])).rows).toEqual([])
+    })
+
+    it('[P] a aprovação parada depois de travar o pedido, com o job no passo (3): o job espera o pedido, vê o aluno aprovado e sai `desatualizada`, sem `40P01` e sem nome corrigido', async () => {
+      const { s, nome, pedidoId, importacaoId } = await comCorrecaoNaFila()
+      const gatilho = new WriteBlockTrigger(bancada.pool, { tabela: 'lista_nome', evento: 'update', quando: `new.id = '${nome.id}'::uuid and new.estado = 'aprovado'` })
+      await gatilho.armar()
+      try {
+        const aprovando = decidir(s.professor, [pedidoId])
+        await gatilho.esperarParadas()
+        const rodando = rodar(s.escolaId, importacaoId)
+        // O job chega à última trava da ordem, a dos pedidos pendentes da turma, e espera a aprovação, que já a tem.
+        await esperarNaTrava(bancada.pool, '%"reivindicacao"%for update%')
+        await gatilho.soltar()
+        expect(resultados(await aprovando)).toEqual(['decidida'])
+        expect(await rodando).toBe('desatualizada')
+      } finally {
+        await gatilho.desarmar()
+      }
+      expect(await estadoDaImportacao(importacaoId)).toBe('desatualizada')
+      expect(await nomeDoAluno(nome.id)).toBe(nome.nome)
+    })
+
+    it('[P] o inverso, o job parado depois de corrigir o nome com o pedido travado: a aprovação espera o pedido, e o aluno nasce com o nome corrigido, nunca o de antes; sem `40P01`', async () => {
+      const { s, nome, corrigido, pedidoId, importacaoId } = await comCorrecaoNaFila()
+      const gatilho = new WriteBlockTrigger(bancada.pool, { tabela: 'lista_nome', evento: 'update', quando: `new.id = '${nome.id}'::uuid and new.nome = '${corrigido}'` })
+      await gatilho.armar()
+      try {
+        const rodando = rodar(s.escolaId, importacaoId)
+        await gatilho.esperarParadas()
+        const aprovando = decidir(s.professor, [pedidoId])
+        await esperarNaTrava(bancada.pool, '%"reivindicacao"%for update%')
+        await gatilho.soltar()
+        expect(await rodando).toBe('concluida')
+        expect(resultados(await aprovando)).toEqual(['decidida'])
+      } finally {
+        await gatilho.desarmar()
+      }
+      expect(await estadoDaImportacao(importacaoId)).toBe('concluida')
+      expect(await nomeDoAluno(nome.id)).toBe(corrigido)
+    })
+
+    it('[P] o pedido criado e aprovado durante o passo (3): o nome do `usuario` é o corrigido, nunca o antigo com a importação `concluida`', async () => {
+      const s = await sala.montar()
+      const nome = await sala.umNome(s)
+      const corrigido = `${nome.nome} Corrigido`
+      const gravada = await post(s.coordenacao, `/v1/turmas/${s.turma}/lista`, { texto: `${corrigido};${nome.matricula}` })
+      expect(gravada.status).toBe(202)
+      const importacaoId = gravada.corpo['id'] as string
+      const gatilho = new WriteBlockTrigger(bancada.pool, { tabela: 'lista_nome', evento: 'update', quando: `new.id = '${nome.id}'::uuid and new.nome = '${corrigido}'` })
+      await gatilho.armar()
+      try {
+        const rodando = rodar(s.escolaId, importacaoId)
+        await gatilho.esperarParadas()
+        // O aluno pede o nome durante o passo (3): o pedido espera a linha da lista, que o job tem, e nasce depois do commit.
+        const reivindicando = sala.reivindicar(pedidoDaSala(s, nome))
+        await esperarNaTrava(bancada.pool, '%lista_nome%', 2)
+        await gatilho.soltar()
+        expect(await rodando).toBe('concluida')
+        expect((await reivindicando).status).toBe(200)
+      } finally {
+        await gatilho.desarmar()
+      }
+      const { rows } = await bancada.pool.query<{ id: string }>(`select id from reivindicacao where escola_id = $1 and lista_nome_id = $2 and estado = 'pendente'`, [s.escolaId, nome.id])
+      const pedidoId = rows[0]?.id ?? ''
+      expect(pedidoId).not.toBe('')
+      expect(resultados(await decidir(s.professor, [pedidoId]))).toEqual(['decidida'])
+      expect(await nomeDoAluno(nome.id)).toBe(corrigido)
+    })
+
+    /**
+     * O job parado no `insert` de uma linha que entra da mesma lista, depois de reler o plano e antes de corrigir o nome: nessa janela
+     * o pedido nasce (e, se `aprovar`, é aprovado) sem que o job o tenha trancado. Só a escrita condicional de `corrigirNomes` o pega.
+     */
+    async function pedidoNaJanelaDaEscrita(aprovar: boolean) {
+      const s = await sala.montar()
+      const nome = await sala.umNome(s)
+      const corrigido = `${nome.nome} Corrigido`
+      const matriculaNova = `m-${randomBytes(4).toString('hex')}`
+      const gravada = await post(s.coordenacao, `/v1/turmas/${s.turma}/lista`, { texto: `${corrigido};${nome.matricula}\nAluno Novo da Janela;${matriculaNova}` })
+      expect(gravada.status).toBe(202)
+      const importacaoId = gravada.corpo['id'] as string
+      const gatilho = new WriteBlockTrigger(bancada.pool, { tabela: 'lista_nome', evento: 'insert', quando: `new.matricula = '${matriculaNova}'` })
+      await gatilho.armar()
+      let desfecho: string
+      try {
+        const rodando = rodar(s.escolaId, importacaoId)
+        await gatilho.esperarParadas()
+        expect((await sala.reivindicar(pedidoDaSala(s, nome))).status).toBe(200)
+        if (aprovar) {
+          const { rows } = await bancada.pool.query<{ id: string }>(`select id from reivindicacao where escola_id = $1 and lista_nome_id = $2 and estado = 'pendente'`, [s.escolaId, nome.id])
+          expect(resultados(await decidir(s.professor, [rows[0]?.id ?? '']))).toEqual(['decidida'])
+        }
+        await gatilho.soltar()
+        desfecho = await rodando
+      } finally {
+        await gatilho.desarmar()
+      }
+      return { s, nome, corrigido, importacaoId, desfecho }
+    }
+    const semAuditoriaDeCorrecao = async (escolaId: string) =>
+      (await bancada.pool.query('select 1 from auditoria where escola_id = $1 and acao in ($2, $3)', [escolaId, 'lista.nome_corrigido', 'usuario.nome_corrigido'])).rows
+
+    it('[P] o nome reivindicado entre a releitura e a escrita: a importação sai `desatualizada` (nunca `falhou`), e a lista guarda o nome de antes', async () => {
+      const { s, nome, importacaoId, desfecho } = await pedidoNaJanelaDaEscrita(false)
+      expect(desfecho).toBe('desatualizada')
+      expect(await estadoDaImportacao(importacaoId)).toBe('desatualizada')
+      expect((await nomeNoBanco(nome.id))?.nome).toBe(nome.nome)
+      expect(await semAuditoriaDeCorrecao(s.escolaId)).toEqual([])
+    })
+
+    it('[P] o nome reivindicado e aprovado entre a releitura e a escrita: a importação sai `desatualizada` (nunca `falhou`), o aluno nasce com o nome de antes, sem correção', async () => {
+      const { s, nome, importacaoId, desfecho } = await pedidoNaJanelaDaEscrita(true)
+      expect(desfecho).toBe('desatualizada')
+      expect(await estadoDaImportacao(importacaoId)).toBe('desatualizada')
+      expect(await nomeDoAluno(nome.id)).toBe(nome.nome)
+      expect(await semAuditoriaDeCorrecao(s.escolaId)).toEqual([])
     })
   })
 

@@ -63,13 +63,20 @@ O corpo de 512 KB de texto, escapado em JSON, passa do limite padrão do servido
 (`LIMITE_DO_CORPO_JSON`, em `configure-app.ts`), e cada contrato continua limitando o próprio campo. O leitor é um só: o teto de
 512 KB e de 3.000 linhas é do contrato da prévia e do gravar, e, fora de `/v1/importacoes`, um middleware antes do leitor recusa
 pelo `Content-Length` o corpo **JSON** (`Content-Type: application/json`) de mais de 100 KB
-(`LIMITE_DO_CORPO_FORA_DA_PLANILHA_BYTES`) com `ENTRADA_INVALIDA`. O corpo que não é JSON não passa por esse teto: o multipart do
+(`LIMITE_DO_CORPO_FORA_DA_PLANILHA_BYTES`) com `ENTRADA_INVALIDA`. Têm o teto da planilha, e não o de 100 KB, as duas rotas da lista da
+turma, `POST /v1/turmas/:id/lista/previa` e `POST /v1/turmas/:id/lista` (`ROTA_DA_LISTA_DA_TURMA`, em `configure-app.ts`, 8.0): elas
+recebem o mesmo texto de até 512 KB e 3.000 linhas (perto de 110 KB escapado), com ou sem consulta; o avulso (`/lista/nome`), a
+leitura e o id fora do formato seguem no teto de 100 KB. Prova: `configure-app.test.ts › a prévia e a gravação da lista da turma
+seguem com o corpo grande`. O corpo que não é JSON não passa por esse teto: o multipart do
 envio de material (até 20 MB) tem o limite do próprio `FileInterceptor`. Exceção sabida: o corpo JSON sem `Content-Length` (enviado
 em pedaços) passa pelo middleware e fica preso só ao leitor de 1 MB, em qualquer rota.
 `GET /v1/calendario` não é paginado: o tamanho é limitado porque a importação do calendário substitui os eventos do ano (até 3.000
 linhas). Quem acrescentar escrita incremental de evento precisa paginar a leitura no mesmo passo.
 `/v1/turmas/:id/lista/previa` e `/lista` ficam, com o contrato da importação
-(202). O "Copiar link" do professor cadastrado pela planilha faz o `convite/refazer` (linha nova).
+(202), com o `turmaId` conferido na escola e no ano (outro valor, `NAO_ENCONTRADO`). A API lê o texto (`lerTextoDaLista`, sem cabeçalho
+`nome;matricula`) e o entrega ao motor como `DaLista` (`{ turmaId, linhas }`, no `tipo.ts`), que o tipo `alunos` classifica sem coluna de
+turma (`previaDaLista`). O nome avulso (`POST /lista/nome`) segue síncrono (201); a gravação do texto é 202 e o job grava
+`planilha.gravada`, e não `lista.gravada`, que fica só com o avulso. O "Copiar link" do professor cadastrado pela planilha faz o `convite/refazer` (linha nova).
 
 ## 5. Fluxo
 
@@ -102,6 +109,8 @@ a auditoria precisa de autor humano e a rotina não assina `planilha.gravada` (`
 
 Importação parada: o `retencao.expurgar-escola` (1h, por escola, com escopo); a importação final de 90 dias: o
 `sistema.expurgar-acesso`. Os dois com `skip locked`.
+
+**Reimportar alunos (8.0).** A matrícula que já existe é classificada pelo que ela é no banco: "já existe" (mesma turma, mesmo nome), "nome corrigido" (mesma turma, nome diferente) ou "muda de turma" (outra turma). *"Muda de turma" vale mais que "nome corrigido"*: a matrícula que a planilha põe em outra turma não corrige o nome junto, e o nome só muda com a marca (9.0). O aprovado só entra se tem linha `lista_nome` aprovada no ano, ativo e com `credencial_matricula`; sem linha ou desativado, é "já existe". *Quem pode ser candidato a desligar ("fora da planilha")*: só o aluno de turma que alguma linha sem erro cita e que o nome da planilha acha em uma turma só; a turma ambígua ou com erro não oferece ninguém. Sem marca, "muda de turma" e "fora da planilha" não gravam nada. *A contagem ausente vale zero*: `nomes_corrigidos` (no `resumo`) e `corrigidos` (em `planilha.gravada`) só aparecem quando são maiores que zero.
 
 **Gravar.** Alunos (7.0): turma (com a `chave`, na série que o nome diz, criada se faltar) e série novas, com a ação `turma.criada` (série e origem `planilha`); `lista_nome` nova de quem tem matrícula que a escola ainda não tem neste ano; a matrícula que já está na lista do ano ou tem credencial na escola é "já existe" e não grava nada, nem cria a turma que só ela pedia (nome e turma dela são da 8.0, 9.0 e 10.0); o tipo trava as turmas que as linhas tocam pelo gancho `travar`, que o motor chama no (3) depois de conferir o ano; nome corrigido no `usuario.nome` do aprovado
 (`usuario.nome_corrigido`) ou na `lista_nome` (`lista.nome_corrigido`), sem nome; transferência pelo `encerrar` (`realocacao`), vínculo confirmado na nova,

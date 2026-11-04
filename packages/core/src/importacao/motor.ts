@@ -22,7 +22,7 @@ import { postgresErrorIn } from '../error/summarize-error.js'
 import type { JobOutbox } from '../queue/job-outbox.js'
 import { DiferencaNaPlanilhaError } from './erros.js'
 import { ImportacaoRepository, type AnoDeDestino, type ImportacaoParaExecutar } from './importacao.repository.js'
-import type { ContasDoJob, PlanoDaImportacao, PreviaDoTipo, TipoDoMotor } from './tipo.js'
+import type { ContasDoJob, DaLista, PlanoDaImportacao, PreviaDoTipo, TipoDoMotor } from './tipo.js'
 import { tipoAlunos } from './tipos/alunos.js'
 import { tipoCalendario } from './tipos/calendario.js'
 import { tipoProfessores } from './tipos/professores.js'
@@ -68,9 +68,22 @@ export class MotorDePlanilha {
    * que não é o em curso nem um planejado da escola, e o tipo que o motor ainda não grava, respondem `NAO_ENCONTRADO`, como o id
    * de outra escola (regra 10, item 6); cabeçalho errado ou planilha sem linha, `ENTRADA_INVALIDA`.
    */
-  async previa(tipo: TipoDePlanilha, pedido: PreviaDaPlanilhaRequest): Promise<PreviaDaPlanilhaResponse> {
-    const { previa } = await this.preparar(tipo, pedido)
+  async previa(tipo: TipoDePlanilha, pedido: PreviaDaPlanilhaRequest, daLista?: DaLista): Promise<PreviaDaPlanilhaResponse> {
+    const { previa } = await this.preparar(tipo, pedido, daLista)
+    await this.auditarLeituras(previa)
     return previaDaPlanilhaResponseSchema.parse({ linhas: previa.linhas, contagens: previa.contagens, candidatos: previa.candidatos })
+  }
+
+  /**
+   * Os nomes que a prévia leu do banco e mostrou (os rótulos das marcas) ficam na auditoria, um `turma.alunos_lidos` por turma de
+   * onde saíram, com a finalidade de conferir o cadastro (regra 20, item 10): sem registro, sem rótulo. Só a prévia mostra nome do
+   * banco; o gravar devolve um id.
+   */
+  private async auditarLeituras({ leituras }: PreviaDoTipo): Promise<void> {
+    if (leituras === undefined || leituras.length === 0) return
+    await this.banco.transaction(async (tx) => {
+      for (const { turmaId, quantidade } of leituras) await registro.gravar(tx, 'turma.alunos_lidos', { entidadeId: turmaId, depois: { quantidade }, finalidade: 'conferencia_de_cadastro' })
+    })
   }
 
   /**
@@ -78,8 +91,8 @@ export class MotorDePlanilha {
    * fecha `falhou` a `na_fila` de mais de 1 h e enfileira o job `estrutura.gravar-planilha`, na mesma transação da importação.
    * Já há uma `na_fila` na escola (o único parcial), ou a velha está sob um job que roda: `CONFLITO`, sem esperar.
    */
-  async gravar(tipo: TipoDePlanilha, pedido: GravarPlanilhaRequest): Promise<{ readonly id: string }> {
-    const { ano, previa } = await this.preparar(tipo, pedido)
+  async gravar(tipo: TipoDePlanilha, pedido: GravarPlanilhaRequest, daLista?: DaLista): Promise<{ readonly id: string }> {
+    const { ano, previa } = await this.preparar(tipo, pedido, daLista)
     if (previa.linhas.some((linha) => linha.resultado === 'erro')) throw new DomainException(ErrorCode.ENTRADA_INVALIDA)
     const candidatos = new Set(previa.candidatos.map((candidato) => candidato.id))
     const marcadas = [...pedido.marcas.transferir, ...pedido.marcas.desligar, ...pedido.marcas.encerrar]
@@ -98,7 +111,7 @@ export class MotorDePlanilha {
    * O tipo de um ano (calendário, grade, alunos) grava no ano em curso ou no planejado que a coordenação escolheu; o de professores
    * não é de um ano: funciona com a escola sem ano em curso, e um `anoLetivoId` no corpo responde como o inexistente.
    */
-  private async preparar(tipo: TipoDePlanilha, pedido: PreviaDaPlanilhaRequest): Promise<{ ano: AnoDeDestino | undefined; previa: PreviaDoTipo }> {
+  private async preparar(tipo: TipoDePlanilha, pedido: PreviaDaPlanilhaRequest, daLista?: DaLista): Promise<{ ano: AnoDeDestino | undefined; previa: PreviaDoTipo }> {
     const doTipo = tipoDoMotor(tipo)
     if (pedido.turmaId !== undefined && !doTipo.usaTurma) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     const repositorio = new ImportacaoRepository(this.banco)
@@ -108,7 +121,9 @@ export class MotorDePlanilha {
     }
     const ano = await repositorio.anoDeDestino(pedido.anoLetivoId)
     if (ano === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
-    return { ano, previa: await doTipo.previa(repositorio, ano, pedido.texto) }
+    if (daLista === undefined) return { ano, previa: await doTipo.previa(repositorio, ano, pedido.texto) }
+    if (doTipo.previaDaLista === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+    return { ano, previa: await doTipo.previaDaLista(repositorio, ano, daLista) }
   }
 }
 

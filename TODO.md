@@ -2621,3 +2621,27 @@ repetem aqui.
 - [ ] Da lista fechada (privacy-guardian, test-engineer e revisor-geral, 1ª): avisar junto de `METRICS_WITH_ESCOLA` (`packages/core/src/telemetry/metrics.ts`) ou no
       `docs/guia-do-desenvolvedor.md` que cada métrica nova com escola muda `metrics.ts`, `metrics.test.ts` e `infra/test/metricas.int.test.ts`. Não montar a lista esperada
       só pelo código: a duplicação à mão obriga a olhar a cardinalidade (privacy-guardian)
+
+## Da tarefa 8.0 do onboarding-por-convite (reimportação de alunos e lista da turma), fora dela
+
+- [ ] Do `ImportacaoRepository.corrigirNomesDosAlunos` (tenancy-guardian, 1ª): o UPDATE em `usuario` com SQL cru deveria ficar no repository dono da tabela; mover o método muda de
+      repository, de chamador e de bloco de mutação, sem mudar comportamento (o escopo está provado)
+- [ ] De `turma.alunos_lidos` (privacy-guardian, 1ª): registrar na linha do dossiê de conformidade (`docs/conformidade-mec.md` seção 5) que a leitura diz quantos nomes foram lidos por
+      turma, e não quais alunos
+- [ ] Dos schemas `previaDaListaResponseSchema`, `gravacaoDaListaResponseSchema` e `PreviaDaListaResponse` (privacy-guardian, infra-guardian e revisor-geral, 1ª): seguem exportados
+      porque a tela da lista os lê até a 13.0; a 13.0 troca a lista pelo `ImportarPlanilha` e tira os três junto de `apps/web/src/areas/coordenacao/estrutura/api/lista.ts`
+- [ ] De `ListaRepository.paraReimportar` (infra-guardian, 1ª): a consulta dos aprovados junta `credencial_matricula.matricula` e `lista_nome.turma_id` num `or(...)` sem índice próprio;
+      anexar o `EXPLAIN` com 3.000 linhas ou trocar por duas consultas unidas (custo medido como limitado: milhares de linhas por escola e ano)
+- [ ] Da 9.0, da 10.0 e da 13.0 (conformidade-reviewer, 1ª): os candidatos a `transferir` e `desligar` chegam à tela desmarcados, sem "marcar todos" vindo marcado, e com teste de que gravar
+      sem marca não muda ninguém; na 13.0, o rótulo diz que é conferência feita a partir da planilha
+- [ ] Da 9.0 e da 10.0 (revisor-geral, 1ª): o gravar aceita `marcas.transferir` e `marcas.desligar` e o job conclui sem efeito até lá; a spec não pousa com a marca sem efeito (9.0 e 10.0
+      ficam antes do pouso)
+- [ ] Do `ImportacaoRepository.corrigirNomesDosAlunos` (revisor-geral e test-engineer, 2ª), junto da linha acima que o move para o repository de `usuario`: reescrever o comentário e o motivo (6) da 8.0
+      dizendo que as cláusulas de `usuario` dependem de `travarUsuarios` vir antes da releitura, e a brecha ABA (aluno lido como "já existe" e renomeado de volta antes da releitura), ou travar
+      também os aprovados de "já existe" (muda a ordem das travas do passo (3))
+- [ ] Da spec do onboarding (revisor-geral, 2ª): escrever na `techspec.md` §4 e na tabela "Limites" do `cenarios.md` que as duas rotas da lista têm o mesmo limite de 20 por minuto por
+      usuário de `/v1/importacoes` e ocupam as duas vagas da escola (já provado em `lista.int.test.ts`); é do Arquiteto, na revisão da spec ou na retro
+- [ ] Da 9.0 (tenancy-guardian, 2ª): o caso de isolamento da prévia em `gravar-planilha-alunos.int.test.ts` chama `motor.previa` direto; refazê-lo pela rota `/v1/importacoes/alunos/previa` com o
+      token da escola A, quando a 9.0 mexer na rota e no motor da marca
+- [ ] Do teste `[P] duas vagas da escola ocupadas` de `lista.int.test.ts` (test-engineer, 2ª): o título sugere chamadas em paralelo e o teste ocupa as vagas pelo `SchoolSemaphore`; renomear
+- [ ] De `turma.alunos_lidos` em `importacao-alunos.int.test.ts` (privacy-guardian, 2ª): procurar também a matrícula das duas linhas no registro, além do nome

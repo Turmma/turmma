@@ -348,8 +348,9 @@ export const ACOES_DE_AUDITORIA = {
     finalidade: z.enum(FINALIDADES_DA_LEITURA_DE_ALUNOS),
   },
   /**
-   * A coordenação gravou a lista de nomes da turma, pelo texto ou pelo nome avulso (A1, 2.0, RF16). `entidadeId` é a
-   * turma; `ids`, as linhas que entraram (as que já estavam na lista não entram de novo); `gravados` e `jaExistentes`,
+   * A coordenação gravou um nome avulso na lista da turma (`POST /lista/nome`, A1, 2.0, RF16). A gravação pelo texto passou ao
+   * job da planilha (F2, 8.0) e grava `planilha.gravada`, não esta ação: quem monta o arquivo do titular procura o texto lá.
+   * `entidadeId` é a turma; `ids`, as linhas que entraram (as que já estavam na lista não entram de novo); `gravados` e `jaExistentes`,
    * as contagens. Nunca o nome nem a matrícula.
    */
   'lista.gravada': {
@@ -380,6 +381,26 @@ export const ACOES_DE_AUDITORIA = {
     entidade: 'turma',
     antes: null,
     depois: z.strictObject({ serie: z.strictObject({ etapa: z.enum(ETAPAS), ano: z.number().int() }), origem: z.literal('planilha') }),
+    finalidade: null,
+  },
+  /**
+   * A planilha de alunos corrigiu o nome de um aluno aprovado (F2, 8.0, RF4 e RF17): `entidadeId` é o usuário. Sem `antes` nem
+   * `depois`: nenhum campo da auditoria leva nome, e o que mudou é só o nome. O autor é a coordenação que gravou a planilha.
+   */
+  'usuario.nome_corrigido': {
+    entidade: 'usuario',
+    antes: null,
+    depois: null,
+    finalidade: null,
+  },
+  /**
+   * A planilha de alunos corrigiu o nome de quem ainda não foi aprovado (F2, 8.0, RF4 e RF17): `entidadeId` é a linha da lista,
+   * `livre` ou `reivindicado`. Sem nome, antes nem depois. O autor é a coordenação que gravou a planilha.
+   */
+  'lista.nome_corrigido': {
+    entidade: 'lista_nome',
+    antes: null,
+    depois: null,
     finalidade: null,
   },
   /**

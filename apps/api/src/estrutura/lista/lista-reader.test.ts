@@ -1,7 +1,7 @@
 import { DomainException } from '@educa/core'
 import { ErrorCode, MAXIMO_DE_BYTES_DA_LISTA, MAXIMO_DE_LINHAS_DA_LISTA } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
-import { errosDasLinhas, lerTextoDaLista } from './lista-reader.js'
+import { lerTextoDaLista } from './lista-reader.js'
 
 /** O código do `DomainException` que a leitura lançou, ou `undefined` se ela não lançou. */
 function codigoDaRecusa(texto: string): string | undefined {
@@ -20,7 +20,7 @@ const pares = (texto: string) => lerTextoDaLista(texto).map(({ nome, matricula }
 /** `quantas` linhas de aluno distintas, com o separador. */
 const linhasDeAluno = (quantas: number, separador = ';') => Array.from({ length: quantas }, (_, posicao) => `Aluno ${String(posicao)}${separador}m-${String(posicao)}`)
 
-describe('E3: a leitura do texto da lista (A1, 2.0)', () => {
+describe('E3: a leitura do texto da lista (A1, 2.0, e o teto da planilha, 8.0)', () => {
   it('lê `;`, `,` e tabulação, uma linha por aluno, com nome e matrícula', () => {
     for (const separador of [';', ',', '\t']) {
       expect(pares(`Ana Souza${separador}101\nBruno Lima${separador}102`), JSON.stringify(separador)).toEqual([
@@ -120,14 +120,14 @@ describe('E3: a leitura do texto da lista (A1, 2.0)', () => {
     ])
   })
 
-  it('200 linhas de aluno passam; 201 recusam com ENTRADA_INVALIDA; o cabeçalho e a linha em branco não contam', () => {
-    expect(MAXIMO_DE_LINHAS_DA_LISTA).toBe(200)
-    expect(lerTextoDaLista(['Nome;Matrícula', '', ...linhasDeAluno(200), ''].join('\n'))).toHaveLength(200)
-    expect(codigoDaRecusa(linhasDeAluno(201).join('\n'))).toBe(ErrorCode.ENTRADA_INVALIDA)
+  it('3.000 linhas de aluno passam; 3.001 recusam com ENTRADA_INVALIDA; o cabeçalho e a linha em branco não contam (o teto da planilha, F2, 8.0)', () => {
+    expect(MAXIMO_DE_LINHAS_DA_LISTA).toBe(3000)
+    expect(lerTextoDaLista(['Nome;Matrícula', '', ...linhasDeAluno(3000), ''].join('\n'))).toHaveLength(3000)
+    expect(codigoDaRecusa(linhasDeAluno(3001).join('\n'))).toBe(ErrorCode.ENTRADA_INVALIDA)
   })
 
-  it('64 KB em UTF-8 passam; 64 KB + 1 byte recusam com ENTRADA_INVALIDA, contando o acento como dois bytes', () => {
-    expect(MAXIMO_DE_BYTES_DA_LISTA).toBe(65_536)
+  it('512 KB em UTF-8 passam; 512 KB + 1 byte recusam com ENTRADA_INVALIDA, contando o acento como dois bytes', () => {
+    expect(MAXIMO_DE_BYTES_DA_LISTA).toBe(524_288)
     const nome = 'á'.repeat(99)
     const linha = `${nome};m-000000`
     // Cada linha tem 198 + 9 bytes e o `\n`: 208 bytes, e 199 linhas dão 41.392. O resto vai numa linha de preenchimento.
@@ -142,53 +142,5 @@ describe('E3: a leitura do texto da lista (A1, 2.0)', () => {
 
   it('texto sem nenhuma linha de aluno recusa com ENTRADA_INVALIDA: vazio, só em branco, só separadores, só o cabeçalho', () => {
     for (const texto of ['', '\n\n  \n', ';;\n ; ;', ',,', '\uFEFF', 'Nome;Matrícula\n\n']) expect(codigoDaRecusa(texto), JSON.stringify(texto)).toBe(ErrorCode.ENTRADA_INVALIDA)
-  })
-})
-
-describe('E4: o erro de cada linha que o texto sozinho mostra (A1, 2.0)', () => {
-  const linha = (nome: string, matricula: string, numero = 1) => ({ linha: numero, nome, matricula })
-
-  it('sem nome, nome longo ou com caractere de controle, sem matrícula, matrícula longa ou com controle', () => {
-    expect(
-      errosDasLinhas([
-        linha('', '101'),
-        linha('a'.repeat(201), '102'),
-        linha('Ana\u0007', '103'),
-        linha('Bruno', ''),
-        linha('Carla', 'm'.repeat(41)),
-        linha('Davi', 'm\u0001'),
-        linha('a'.repeat(200), 'm'.repeat(40)),
-      ]),
-    ).toEqual(['sem_nome', 'nome_invalido', 'nome_invalido', 'sem_matricula', 'matricula_invalida', 'matricula_invalida', undefined])
-  })
-
-  it('a matrícula repetida no texto aponta todas as linhas dela; a linha com outro erro conta na repetição e mostra o dela', () => {
-    expect(errosDasLinhas([linha('Ana', '101'), linha('Bruno', '102'), linha('Carla', '101'), linha('', '102')])).toEqual([
-      'matricula_repetida',
-      'matricula_repetida',
-      'matricula_repetida',
-      'sem_nome',
-    ])
-  })
-
-  it('o nome é conferido antes da matrícula: sem os dois, `sem_nome`', () => {
-    expect(errosDasLinhas([linha('', '')])).toEqual(['sem_nome'])
-  })
-
-  it('G2: a matrícula com forma de documento é erro da linha, antes da repetição; o CPF sem pontuação só pela maioria', () => {
-    // CPFs sintéticos, com o dígito verificador calculado.
-    expect(errosDasLinhas([linha('Ana', '123.456.789-09'), linha('Bia', '01/02/2012'), linha('Caio', '01/02/2012'), linha('', '2012-02-01'), linha('Davi', '104')])).toEqual([
-      'matricula_parece_documento',
-      'matricula_parece_documento',
-      'matricula_parece_documento',
-      'sem_nome',
-      undefined,
-    ])
-    expect(errosDasLinhas([linha('Ana', '12345678909'), linha('Bia', '52998224725'), linha('Caio', '103')])).toEqual([
-      'matricula_parece_documento',
-      'matricula_parece_documento',
-      undefined,
-    ])
-    expect(errosDasLinhas([linha('Ana', '12345678909'), linha('Bia', '102'), linha('Caio', '103')])).toEqual([undefined, undefined, undefined])
   })
 })

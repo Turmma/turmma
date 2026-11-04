@@ -38,7 +38,7 @@ import { VinculoService } from './vinculo/vinculo.service.js'
     { provide: SerieService, useFactory: (banco: Database) => new SerieService(banco), inject: [DB] },
     { provide: DisciplinaService, useFactory: (banco: Database) => new DisciplinaService(banco), inject: [DB] },
     { provide: TurmaService, useFactory: (banco: Database) => new TurmaService(banco), inject: [DB] },
-    { provide: ListaService, useFactory: (banco: Database) => new ListaService(banco), inject: [DB] },
+    { provide: ListaService, useFactory: (banco: Database, importacoes: ImportacaoService) => new ListaService(banco, importacoes), inject: [DB, ImportacaoService] },
     { provide: JobOutboxRepository, useFactory: (banco: Database) => new JobOutboxRepository(banco), inject: [DB] },
     {
       provide: ImportacaoService,

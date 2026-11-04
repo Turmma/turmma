@@ -1,20 +1,5 @@
-import { DomainException } from '@educa/core'
-import {
-  ErrorCode,
-  matriculaDigitadaSchema,
-  nomeDigitadoSchema,
-  MAXIMO_DE_BYTES_DA_LISTA,
-  MAXIMO_DE_LINHAS_DA_LISTA,
-  matriculasQueParecemDocumento,
-  type ErroDaLinhaDaLista,
-} from '@educa/shared'
-
-/** Uma linha de aluno do texto: o número dela no texto (a partir de 1) e o nome e a matrícula, sem espaço nas pontas. */
-export interface ParsedRow {
-  readonly linha: number
-  readonly nome: string
-  readonly matricula: string
-}
+import { DomainException, type ListaRow } from '@educa/core'
+import { ErrorCode, MAXIMO_DE_BYTES_DA_LISTA, MAXIMO_DE_LINHAS_DA_LISTA } from '@educa/shared'
 
 /** Os separadores aceitos, na ordem em que um vence o outro quando a primeira linha tem mais de um. */
 const SEPARADORES = ['\t', ';', ','] as const
@@ -78,7 +63,8 @@ function colunasDoCabecalho(campos: readonly string[]): { readonly nome: number;
  * Lê o texto da lista de nomes (A1, 2.0, E3; Tech Spec da A1, seção 4): colado ou lido do arquivo, uma linha por aluno,
  * com nome e matrícula.
  *
- * - Acima de 64 KB em UTF-8, `ENTRADA_INVALIDA` antes de qualquer leitura; acima de 200 linhas de aluno, também. Sem
+ * - Acima de 512 KB em UTF-8, `ENTRADA_INVALIDA` antes de qualquer leitura; acima de 3.000 linhas de aluno, também (o teto da planilha de
+ *   alunos, F2, 8.0). O erro de cada linha (nome, matrícula, documento, repetida) é o da classificação do core, igual ao da planilha. Sem
  *   nenhuma linha de aluno (texto vazio, só cabeçalho, só linha em branco), também: não há o que gravar.
  * - O BOM do começo, que o Excel grava, sai com o espaço das pontas: o `trim` do JavaScript o conta como espaço.
  * - Linhas separadas por `\n`, `\r\n` ou `\r`. Linha em branco, ou só com separadores e espaço (a linha vazia do Excel,
@@ -88,9 +74,9 @@ function colunasDoCabecalho(campos: readonly string[]): { readonly nome: number;
  *   separador em linha nenhuma, cada linha é um campo só.
  * - O cabeçalho é reconhecido e ignorado; a ordem das colunas vem dele. Coluna a mais é ignorada.
  * - Nome e matrícula sem espaço nas pontas. Campo que falta vira vazio, e a conferência de cada linha
- *   (`errosDasLinhas`) aponta.
+ *   (a classificação) aponta.
  */
-export function lerTextoDaLista(texto: string): ParsedRow[] {
+export function lerTextoDaLista(texto: string): ListaRow[] {
   if (Buffer.byteLength(texto, 'utf8') > MAXIMO_DE_BYTES_DA_LISTA) throw new DomainException(ErrorCode.ENTRADA_INVALIDA)
   const fisicas = texto.split(/\r\n|\r|\n/)
   let separador: Separador | undefined
@@ -106,29 +92,4 @@ export function lerTextoDaLista(texto: string): ParsedRow[] {
   if (deAlunos.length === 0 || deAlunos.length > MAXIMO_DE_LINHAS_DA_LISTA) throw new DomainException(ErrorCode.ENTRADA_INVALIDA)
   const colunas = cabecalho ?? { nome: 0, matricula: 1 }
   return deAlunos.map(({ linha, campos }) => ({ linha, nome: campos[colunas.nome] ?? '', matricula: campos[colunas.matricula] ?? '' }))
-}
-
-/**
- * O erro de cada linha que se confere sem o banco, na posição dela, ou `undefined` (A1, 2.0, E4): primeiro o nome
- * (`sem_nome`, `nome_invalido`), depois a matrícula (`sem_matricula`, `matricula_invalida`), depois a forma de
- * documento (`matricula_parece_documento`: CPF pontuado ou data, ou CPF sem pontuação na lista que é uma coluna de CPF,
- * `matriculasQueParecemDocumento` de `packages/shared`, a mesma que a tela usa; regra 20, item 2), depois a repetição no
- * texto (`matricula_repetida`, em cada linha da matrícula que aparece mais de uma vez; a linha que tem outro erro conta
- * na repetição, e mostra o erro dela). O nome e a matrícula seguem as regras do nome avulso (`nomeDigitadoSchema`, `matriculaDigitadaSchema`): as duas entradas gravam a mesma coisa.
- */
-export function errosDasLinhas(linhas: readonly ParsedRow[]): Array<ErroDaLinhaDaLista | undefined> {
-  // A maioria da coluna de CPF conta todas as matrículas preenchidas, também as de linha com outro erro: é a coluna do
-  // texto que se julga, e a linha errada por outro motivo continua sendo uma linha daquela coluna.
-  const parecemDocumento = matriculasQueParecemDocumento(linhas.map((linha) => linha.matricula))
-  const doCampo = linhas.map(({ nome, matricula }, posicao): ErroDaLinhaDaLista | undefined => {
-    if (nome === '') return 'sem_nome'
-    if (!nomeDigitadoSchema.safeParse(nome).success) return 'nome_invalido'
-    if (matricula === '') return 'sem_matricula'
-    if (!matriculaDigitadaSchema.safeParse(matricula).success) return 'matricula_invalida'
-    if (parecemDocumento[posicao] === true) return 'matricula_parece_documento'
-    return undefined
-  })
-  const vezes = new Map<string, number>()
-  for (const { matricula } of linhas) vezes.set(matricula, (vezes.get(matricula) ?? 0) + 1)
-  return linhas.map(({ matricula }, posicao) => doCampo[posicao] ?? ((vezes.get(matricula) ?? 0) > 1 ? 'matricula_repetida' : undefined))
 }

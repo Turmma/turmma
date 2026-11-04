@@ -6,7 +6,7 @@ import { reivindicacao } from '../db/schema/reivindicacao.js'
 import { vinculo } from '../db/schema/vinculo.js'
 import { requestSessao } from '../identidade/auth.guard.js'
 import type { PaginationQuery, DecisorDaReivindicacao } from '@educa/shared'
-import { and, asc, eq, exists, gt, sql, type SQL } from 'drizzle-orm'
+import { and, asc, eq, exists, gt, inArray, sql, type SQL } from 'drizzle-orm'
 import { InvariantException } from '@educa/shared'
 
 /**
@@ -120,6 +120,24 @@ export class DecisaoRepository {
     // O check `reivindicacao_segredo_so_pendente` e o `reivindicacao_pendente_com_nome` garantem os dois no pendente.
     if (listaNomeId === null || senhaHash === null) throw new InvariantException('pedido pendente sem nome ou sem hash')
     return { turmaId, listaNomeId, senhaHash }
+  }
+
+  /**
+   * Trava em `FOR UPDATE` os pedidos `pendente` das turmas do ano dado, em ordem de id e num comando só (passo (3) da planilha de
+   * alunos, F2, 8.0; Tech Spec do onboarding, seção 5, última trava da ordem global). A decisão do professor trava o pedido antes de
+   * ler o nome da lista: com o pedido preso pela planilha, a aprovação espera o fim do passo e lê o nome já corrigido; com a
+   * aprovação na frente, a planilha espera, relê e sai `desatualizada`. O ano é o de destino da planilha, que não é
+   * necessariamente o do contexto (o planejado também recebe planilha), e por isso vem de argumento: quem chama só pode passar um
+   * ano já conferido na escola (o `anoDeDestino` do motor, como o `inserirNoAno` da 7.0), nunca um id vindo do cliente.
+   */
+  async travarPendentesDasTurmas(anoLetivoId: string, turmaIds: readonly string[]): Promise<void> {
+    if (turmaIds.length === 0) return
+    await this.banco
+      .select({ id: reivindicacao.id })
+      .from(reivindicacao)
+      .where(and(eq(reivindicacao.escolaId, requireEscolaId()), eq(reivindicacao.anoLetivoId, anoLetivoId), eq(reivindicacao.estado, 'pendente'), inArray(reivindicacao.turmaId, [...turmaIds])))
+      .orderBy(asc(reivindicacao.id))
+      .for('update')
   }
 
   /**

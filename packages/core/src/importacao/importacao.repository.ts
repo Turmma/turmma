@@ -13,7 +13,8 @@ import { usuario } from '../db/schema/usuario.js'
 import { DomainException } from '../error/domain.exception.js'
 import { postgresErrorIn } from '../error/summarize-error.js'
 import { requestIdentity } from '../identidade/auth.guard.js'
-import { ListaRepository } from '../estrutura/lista.repository.js'
+import { DecisaoRepository } from '../estrutura/decisao.repository.js'
+import { ListaRepository, type AlunosParaReimportar, type CorrecaoDeNomeNaLista } from '../estrutura/lista.repository.js'
 import { SerieRepository } from '../estrutura/serie.repository.js'
 import { TurmaRepository, type TurmaDoAno } from '../estrutura/turma.repository.js'
 
@@ -341,6 +342,49 @@ export class ImportacaoRepository {
   travarTurmas(anoLetivoId: string, ids: readonly string[]): Promise<void> {
     requireEscolaId()
     return new TurmaRepository(this.banco).travarNoAno(anoLetivoId, ids)
+  }
+
+  /**
+   * O que a escola já tem de aluno no ano de destino, para as matrículas da planilha e as turmas que ela cita (planilha de alunos,
+   * 8.0): os nomes ainda não aprovados e os alunos aprovados e ativos com linha na lista do ano.
+   */
+  alunosParaReimportar(anoLetivoId: string, matriculas: readonly string[], turmaIds: readonly string[]): Promise<AlunosParaReimportar> {
+    requireEscolaId()
+    return new ListaRepository(this.banco).paraReimportar(anoLetivoId, matriculas, turmaIds)
+  }
+
+  /** Trava os pedidos pendentes das turmas do ano (`FOR UPDATE`, por id num comando): a última trava da ordem global do passo (3). */
+  travarPedidosPendentes(anoLetivoId: string, turmaIds: readonly string[]): Promise<void> {
+    requireEscolaId()
+    return new DecisaoRepository(this.banco).travarPendentesDasTurmas(anoLetivoId, turmaIds)
+  }
+
+  /** Corrige, em lotes de `TAMANHO_DO_LOTE`, o nome de quem ainda não foi aprovado; devolve quantos mudaram (menos que os pedidos é diferença). */
+  async corrigirNomesNaLista(anoLetivoId: string, correcoes: readonly CorrecaoDeNomeNaLista[]): Promise<number> {
+    requireEscolaId()
+    const lista = new ListaRepository(this.banco)
+    let corrigidas = 0
+    for (let inicio = 0; inicio < correcoes.length; inicio += TAMANHO_DO_LOTE) corrigidas += await lista.corrigirNomes(anoLetivoId, correcoes.slice(inicio, inicio + TAMANHO_DO_LOTE))
+    return corrigidas
+  }
+
+  /**
+   * Corrige o nome do aluno aprovado (planilha de alunos, 8.0), em lotes: a linha só muda se o aluno segue ativo e com o nome que a
+   * planilha leu. O usuário foi travado antes (`travarUsuarios`); devolve quantos mudaram, e menos que os pedidos é diferença.
+   */
+  async corrigirNomesDosAlunos(correcoes: ReadonlyArray<{ readonly usuarioId: string; readonly nomeLido: string; readonly nome: string }>): Promise<number> {
+    const escolaId = requireEscolaId()
+    let corrigidos = 0
+    for (let inicio = 0; inicio < correcoes.length; inicio += TAMANHO_DO_LOTE) {
+      const valores = sql.join(correcoes.slice(inicio, inicio + TAMANHO_DO_LOTE).map(({ usuarioId, nomeLido, nome }) => sql`(${usuarioId}::uuid, ${nomeLido}, ${nome})`), sql`, `)
+      const mudados = await this.banco.execute(sql`
+        update usuario as u set nome = v.nome
+        from (values ${valores}) as v(id, nome_lido, nome)
+        where u.escola_id = ${escolaId} and u.id = v.id and u.papel = 'aluno' and u.desativado_em is null and u.nome = v.nome_lido
+        returning u.id`)
+      corrigidos += mudados.rows.length
+    }
+    return corrigidos
   }
 
   /** As séries da escola, numa consulta só. */

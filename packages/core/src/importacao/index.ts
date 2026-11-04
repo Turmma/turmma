@@ -5,4 +5,4 @@ export type { AnoDeDestino, EventoGravado, EventoNovo, ImportacaoLida, Importaca
 export { ContaDaPlanilhaPerdidaError, DiferencaNaPlanilhaError } from './erros.js'
 export { ehFalhaDeTrava, executarPlanilha, ImportacaoIlegivelError, MotorDePlanilha, TENTATIVAS_DO_JOB } from './motor.js'
 export type { ExecucaoOptions, ResultadoDaExecucao } from './motor.js'
-export type { PlanoDaImportacao, PreviaDoTipo, TipoDeImportacao } from './tipo.js'
+export type { DaLista, ListaRow, PlanoDaImportacao, PreviaDoTipo, TipoDeImportacao } from './tipo.js'
