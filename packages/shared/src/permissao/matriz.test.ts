@@ -124,11 +124,18 @@ describe('MATRIZ de permissão', () => {
   })
 
   it('F2: as planilhas são só da coordenação, na escola inteira; professor, aluno e rede, `nunca`', () => {
-    expect(RECURSOS.importacao_planilha).toEqual(['previa', 'gravar'])
+    expect(RECURSOS.importacao_planilha).toEqual(['previa', 'gravar', 'ler'])
     for (const acao of RECURSOS.importacao_planilha) {
       expect(alcanceDe('coordenador', 'importacao_planilha', acao), acao).toBe('unidade')
       for (const papel of ['professor', 'aluno', 'rede'] as const) expect(alcanceDe(papel, 'importacao_planilha', acao), `${papel} importacao_planilha.${acao}`).toBe('nunca')
     }
+  })
+
+  it('F2, 5.0: o calendário é da coordenação (a escola inteira) e do professor (só com vínculo confirmado); aluno e rede, `nunca`', () => {
+    expect(RECURSOS.calendario).toEqual(['ler'])
+    expect(alcanceDe('coordenador', 'calendario', 'ler')).toBe('unidade')
+    expect(alcanceDe('professor', 'calendario', 'ler')).toBe('turma_vinculada')
+    for (const papel of ['aluno', 'rede'] as const) expect(alcanceDe(papel, 'calendario', 'ler'), papel).toBe('nunca')
   })
 
   // MVP de apresentação (D77; `docs/mvp-rapido.md`, seção 7): uma célula por rota. A comparação com a expectativa pega a

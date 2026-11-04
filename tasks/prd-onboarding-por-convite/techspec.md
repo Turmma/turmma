@@ -60,7 +60,14 @@ dia, início); a `Aula` da F2b aponta para ela. Glossário: "Grade horária" sã
 com ele, só o `planejado` da escola da sessão; outro valor, `NAO_ENCONTRADO`, como o `turmaId` fora da escola ou do ano.
 A planilha de professores não é de um ano: ela grava com a escola sem ano em curso, e um `anoLetivoId` no corpo dela é `NAO_ENCONTRADO`, como o `turmaId` num tipo que não usa turma (a 15.0 não o manda para esse tipo).
 O corpo de 512 KB de texto, escapado em JSON, passa do limite padrão do servidor (100 KB): a API lê corpo JSON de até 1 MB
-(`LIMITE_DO_CORPO_JSON`, em `configure-app.ts`), e cada contrato continua limitando o próprio campo.
+(`LIMITE_DO_CORPO_JSON`, em `configure-app.ts`), e cada contrato continua limitando o próprio campo. O leitor é um só: o teto de
+512 KB e de 3.000 linhas é do contrato da prévia e do gravar, e, fora de `/v1/importacoes`, um middleware antes do leitor recusa
+pelo `Content-Length` o corpo **JSON** (`Content-Type: application/json`) de mais de 100 KB
+(`LIMITE_DO_CORPO_FORA_DA_PLANILHA_BYTES`) com `ENTRADA_INVALIDA`. O corpo que não é JSON não passa por esse teto: o multipart do
+envio de material (até 20 MB) tem o limite do próprio `FileInterceptor`. Exceção sabida: o corpo JSON sem `Content-Length` (enviado
+em pedaços) passa pelo middleware e fica preso só ao leitor de 1 MB, em qualquer rota.
+`GET /v1/calendario` não é paginado: o tamanho é limitado porque a importação do calendário substitui os eventos do ano (até 3.000
+linhas). Quem acrescentar escrita incremental de evento precisa paginar a leitura no mesmo passo.
 `/v1/turmas/:id/lista/previa` e `/lista` ficam, com o contrato da importação
 (202). O "Copiar link" do professor cadastrado pela planilha faz o `convite/refazer` (linha nova).
 
@@ -147,10 +154,11 @@ Sem IA.
 |---|---|
 | Caminho quente | o passo (3) do job trava turmas contra o gerar acesso e a decisão em sala |
 | Fila | `normal`: `estrutura.gravar-planilha` |
-| Limites e corridas | tabelas do `cenarios.md`; limite por usuário, escola ou conta, nunca só por IP |
+| Limites e corridas | tabelas do `cenarios.md`; limite por usuário, escola ou conta, nunca só por IP. A vaga de planilha por escola vale 30 s se o processo morrer antes de devolvê-la (`VALIDADE_DA_VAGA_DA_PLANILHA_MS`: bem acima do p95 de 2 s, e curto para a escola não ficar presa) |
+| Semáforo da planilha | `SchoolSemaphore` (`packages/core/src/rate-limit/`): conjunto no Redis de cache, um script atômico (`TIME`, limpa o vencido, confere, grava), seguro em memória com máximo ÷ instâncias se o Redis cai. Convive com o `EscolaConcurrencyLimiter` (`packages/core/src/queue/`) porque são outra coisa: o da fila limita job em execução, no Redis de fila, com o limite da escola e renovação pelo worker; este limita requisição da API, no Redis de cache, sem renovação e sem nunca recusar por falha do Redis |
 | Tempo | prévia e gravar com 3.000 linhas: p95 até 2 s com a rajada em paralelo; nenhum statement acima de 1,5 s |
 | Dependência cai | Redis: o job espera no Postgres |
-| Métrica e alerta | job por resultado, e o passo (3); alerta com runbook: `falhou` acima de 20% em 1 h, `na_fila` há 30 min, passo (3) acima de 1 s |
+| Métrica e alerta | job por resultado, e o passo (3); alerta com runbook: `falhou` acima de 20% em 1 h, `na_fila` há 30 min, passo (3) acima de 1 s. O alerta da fila lê `importacao.minutos_na_fila`, por `escola_id`: minutos desde o `criado_em` da `na_fila` mais antiga da escola, medida pelo worker de lote a cada 5 min (`ImportacaoGauge`); a escola sem importação na fila não tem série. Com o `for: 1m`, o alerta dispara entre 31 e 36 min |
 
 ## 9. Frontend
 

@@ -92,6 +92,9 @@ export interface EliminacoesEnfileiradas {
 /** Quanto tempo o registro do próprio expurgo (`expurgo_execucao`) fica: 5 anos, o prazo fixo dos registros de prestação de contas. */
 export const RETENCAO_EXPURGO_EXECUCAO_MESES = 60
 
+/** Quanto tempo a importação de planilha pode ficar `na_fila` antes de o expurgo da escola a fechar `falhou` (F2, 5.0; Tech Spec, seção 5). */
+export const HORAS_DA_IMPORTACAO_NA_FILA = 1
+
 /** Um lote: quantas linhas saíram ou foram anonimizadas, e se o lote veio cheio (há mais no prazo vencido). */
 export interface LoteDoExpurgo {
   readonly linhas: number
@@ -439,6 +442,30 @@ export class ExpurgoDaEscolaRepository {
       }
     }
     return { linhas: eliminadas, cheio: escolhidos.rows.length >= limite }
+  }
+
+  /**
+   * Fecha `falhou` (`expirou`) a importação de planilha da escola do contexto que passou de `HORAS_DA_IMPORTACAO_NA_FILA` hora `na_fila`,
+   * e apaga as `linhas` e as `marcas` dela (F2, 5.0; Tech Spec, seção 5): é o dado de aluno que ficaria parado se o job se perdesse e
+   * ninguém gravasse de novo. O prazo conta do `agora` do job, e não do `now()` do banco, e o corte é estrito (com 60 minutos
+   * ela fica, com mais, fecha). `for update skip locked`: a importação que um job segura agora não faz o expurgo esperar, e fica
+   * para a noite seguinte; o `update` repete `estado = 'na_fila'`, e a que o job fechou entre a escolha e a escrita não é tocada.
+   * Devolve quantas fechou.
+   */
+  async fecharImportacoesParadas(agora: Date): Promise<number> {
+    const escolaId = requireEscolaId()
+    const resultado = await this.banco.execute(sql`
+      update importacao_planilha
+      set estado = 'falhou', erro = 'expirou', linhas = null, marcas = null, concluida_em = ${agora.toISOString()}::timestamptz
+      where escola_id = ${escolaId} and estado = 'na_fila' and id = any(array(
+        select id from importacao_planilha
+        where escola_id = ${escolaId} and estado = 'na_fila'
+          and criado_em < ${agora.toISOString()}::timestamptz - make_interval(hours => ${HORAS_DA_IMPORTACAO_NA_FILA})
+        order by criado_em
+        for update skip locked
+      ))
+    `)
+    return resultado.rowCount ?? 0
   }
 
   /**

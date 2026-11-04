@@ -95,6 +95,7 @@ export const NOMES_NO_PROMETHEUS = {
   horasDoIncidenteSemConfirmacao: ['incidente_horas_sem_confirmacao'],
   horasDoArquivoEmPreparacao: ['arquivo_horas_em_preparacao'],
   horasDaEliminacaoVencida: ['eliminacao_horas_vencida'],
+  minutosDaImportacaoNaFila: ['importacao_minutos_na_fila'],
   importacaoPorResultado: ['importacao_job_total'],
   duracaoDoPasso3DaImportacao: ['importacao_passo3_duracao_seconds_bucket', 'importacao_passo3_duracao_seconds_count', 'importacao_passo3_duracao_seconds_sum'],
 } as const satisfies Record<keyof typeof METRICS, readonly string[]>

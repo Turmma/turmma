@@ -1,4 +1,4 @@
-import { DomainException, RequirePermissao, ZodValidationPipe } from '@educa/core'
+import { DomainException, IdPipe, ImportacaoRateLimit, RequirePermissao, ZodValidationPipe } from '@educa/core'
 import {
   ErrorCode,
   TIPOS_DE_PLANILHA,
@@ -6,11 +6,12 @@ import {
   previaDaPlanilhaRequestSchema,
   type GravarPlanilhaRequest,
   type GravarPlanilhaResponse,
+  type Importacao,
   type PreviaDaPlanilhaRequest,
   type PreviaDaPlanilhaResponse,
   type TipoDePlanilha,
 } from '@educa/shared'
-import { Body, Controller, HttpCode, HttpStatus, Param, Post, type PipeTransform } from '@nestjs/common'
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, type PipeTransform } from '@nestjs/common'
 import { ImportacaoService } from './importacao.service.js'
 
 /**
@@ -26,8 +27,9 @@ class TipoDePlanilhaPipe implements PipeTransform<unknown, TipoDePlanilha> {
 }
 
 /**
- * As planilhas da escola (F2, 4.0; Tech Spec, seção 4), só da coordenação, na escola e no ano da sessão: a prévia, que classifica
- * na hora, e o gravar, que responde 202 e deixa o job `estrutura.gravar-planilha` gravar. O corpo passa pelo contrato estrito
+ * As planilhas da escola (F2, 4.0 e 5.0; Tech Spec, seção 4), só da coordenação, na escola e no ano da sessão: a prévia, que classifica
+ * na hora, o gravar, que responde 202 e deixa o job `estrutura.gravar-planilha` gravar, e a leitura do estado da importação. A prévia e
+ * o gravar contam no mesmo balde de 20 por minuto por usuário (`@ImportacaoRateLimit`). O corpo passa pelo contrato estrito
  * de `packages/shared` (campo a mais, como `escolaId`, é `ENTRADA_INVALIDA`).
  */
 @Controller('v1')
@@ -35,6 +37,7 @@ export class ImportacaoController {
   constructor(private readonly importacoes: ImportacaoService) {}
 
   @Post('importacoes/:tipo/previa')
+  @ImportacaoRateLimit()
   @RequirePermissao('importacao_planilha', 'previa')
   @HttpCode(HttpStatus.OK)
   previa(@Param('tipo', new TipoDePlanilhaPipe()) tipo: TipoDePlanilha, @Body(new ZodValidationPipe(previaDaPlanilhaRequestSchema)) pedido: PreviaDaPlanilhaRequest): Promise<PreviaDaPlanilhaResponse> {
@@ -42,9 +45,16 @@ export class ImportacaoController {
   }
 
   @Post('importacoes/:tipo')
+  @ImportacaoRateLimit()
   @RequirePermissao('importacao_planilha', 'gravar')
   @HttpCode(HttpStatus.ACCEPTED)
   gravar(@Param('tipo', new TipoDePlanilhaPipe()) tipo: TipoDePlanilha, @Body(new ZodValidationPipe(gravarPlanilhaRequestSchema)) pedido: GravarPlanilhaRequest): Promise<GravarPlanilhaResponse> {
     return this.importacoes.gravar(tipo, pedido)
+  }
+
+  @Get('importacoes/:id')
+  @RequirePermissao('importacao_planilha', 'ler')
+  ler(@Param('id', IdPipe) id: string): Promise<Importacao> {
+    return this.importacoes.ler(id)
   }
 }

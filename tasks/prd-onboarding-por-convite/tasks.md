@@ -37,7 +37,7 @@ cenários foram distribuídos pelo `test-engineer`; cada linha do `cenarios.md` 
   - [ ] 4.5 Auditoria `planilha.gravada`
   - [ ] 4.6 Testes: estados, job duas vezes, falha no lote, trava, isolamento, ano
 
-- [ ] **5.0 — A importação tem limites, expira parada, e o calendário se lê**
+- [x] **5.0 — A importação tem limites, expira parada, e o calendário se lê**
   - [ ] 5.1 Limites (20/min, prévias simultâneas, tamanho)
   - [ ] 5.2 Expurgos de 1 h e de 90 dias
   - [ ] 5.3 `GET /v1/importacoes/:id`

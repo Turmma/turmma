@@ -1,0 +1,63 @@
+# Alerta "Importação de planilha com falha acima de 20% em 1 h" (F2, tarefa 5.0; runbook: docs/runbook.md#importação-de-planilha-com-falha-acima-de-20-em-1-h).
+# Provisionado por arquivo no Grafana da observabilidade local (infra/compose.yml monta esta pasta em provisioning/alerting).
+#
+# `importacao.job{resultado}` é contada pelo job `estrutura.gravar-planilha` a cada execução. A razão é das importações que terminaram na
+# última hora: `falhou` sobre `concluida`, `desatualizada` e `falhou`. A `ignorada` (outra execução já fechou) e a `nova_tentativa` (trava no
+# passo 3, a fila repete) não são desfecho e ficam fora da conta. Soma as réplicas do worker-normal e não leva escola: a escola vai no log
+# do job, só com ids.
+#
+# Sem importação na hora é normal: a condição `and` só deixa série quando houve ao menos uma, e sem série o estado é normal.
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: importacao-falhou
+    folder: Educa.ia alertas
+    interval: 10s
+    rules:
+      - uid: educa-importacao-falhou
+        title: Importação de planilha com falha acima de 20% em 1 h
+        condition: C
+        for: 5m
+        noDataState: OK
+        execErrState: Error
+        isPaused: false
+        labels:
+          area: importacao
+        annotations:
+          summary: 'Mais de 20% das importações de planilha terminaram falhou na última hora'
+          description: Mais de uma em cada cinco importações que terminaram na última hora saiu falhou. Siga o runbook.
+          runbook_url: https://github.com/Turmma/turmma/blob/main/docs/runbook.md#importação-de-planilha-com-falha-acima-de-20-em-1-h
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              datasource:
+                type: prometheus
+                uid: prometheus
+              expr: '(sum (increase(importacao_job_total{job="educa/worker", resultado="falhou"}[1h])) / sum (increase(importacao_job_total{job="educa/worker", resultado=~"concluida|desatualizada|falhou"}[1h]))) and on () (sum (increase(importacao_job_total{job="educa/worker", resultado=~"concluida|desatualizada|falhou"}[1h])) > 0)'
+              instant: true
+              range: false
+              intervalMs: 10000
+              maxDataPoints: 43200
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params: [0.2]

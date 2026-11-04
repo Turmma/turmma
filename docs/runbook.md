@@ -663,6 +663,100 @@ escola de que a eliminação atrasou, sem mandar o nome nem o pedido por mensage
 **Depois:** registre no `TODO.md` a escola (id), o pedido (id), o `eliminar_em` e a causa, só com ids e datas. Causa nova vira
 tarefa com teste que a reproduz.
 
+## Importação de planilha com falha acima de 20% em 1 h
+
+**Dispara quando:** mais de 20% das importações de planilha que terminaram na última hora saíram `falhou`, por 5 min
+(`(sum(increase(importacao_job_total{resultado="falhou"}[1h])) / sum(increase(importacao_job_total{resultado=~"concluida|desatualizada|falhou"}[1h]))) > 0.2`,
+regra `infra/grafana/alertas/importacao-falhou.yaml`; Tech Spec do onboarding, seção 7c). A métrica é do job
+`estrutura.gravar-planilha`, somadas as réplicas do worker de fila normal; a `ignorada` e a `nova_tentativa` não contam como
+desfecho. A série não leva escola: a escola vem do log do job e de `importacao_planilha`.
+
+**Impacto:** a coordenação gravou a planilha, viu "gravando" e a importação terminou `falhou`: a turma, o professor, a grade ou o
+calendário não entraram, e ela precisa gravar de novo. Nada fica pela metade (o passo 3 é uma transação só); o dado da planilha
+(`linhas` e `marcas`) já foi apagado.
+
+**Primeiro olhar:** as importações `falhou` da hora, só com ids, tipo, código e datas (nunca a planilha, que já foi apagada):
+`docker compose exec postgres psql -U educa -c "select id, escola_id, tipo, erro, criado_em, concluida_em from importacao_planilha where estado = 'falhou' and concluida_em > now() - interval '1 hour' order by concluida_em"`.
+O log do worker traz `importacao.job_falhou` com `importacaoId`, `tentativa` e `codigo`, e `importacao.job_repetira` com o erro resumido.
+
+**Causas prováveis:**
+1. `erro = 'trava_esgotada'` em várias escolas → o passo 3 não conseguiu a trava em 1 s em todas as tentativas: outra escrita segura o ano, a
+   importação ou as turmas (o gerar acesso das 7h30, a decisão em sala, um `desativar`). Veja "Passo 3 da importação acima de 1 s" e o
+   `pg_locks` da hora; a coordenação grava de novo fora do pico.
+2. `erro = 'expirou'` → a `na_fila` passou de 1 h sem o job pegá-la e o gravar seguinte, ou o expurgo da escola, a fechou. O job não está rodando:
+   veja "Importação de planilha parada na fila" e "Job interativo esperando" (a fila é a `normal`).
+3. `erro = 'erro_interno'` → falha definitiva ou tentativas esgotadas com outro erro: o log do worker traz `importacao.job_falhou` e
+   `job.tentativa_falhou` com o código de erro (`sqlstate`, nunca o valor da linha). Erro de SQL que se repete em toda escola é defeito de
+   código: abra correção com o `sqlstate`, o tipo da planilha e a versão, nunca a planilha.
+4. Poucas importações na hora → uma ou duas falhas bastam para passar de 20%. Confira o número de importações da hora antes de escalar.
+
+**Se nada disso resolver:** a importação não se conserta à mão: `importacao_planilha` não se altera por `update`, a coordenação grava de
+novo pela tela. Avise a coordenação das escolas afetadas de que a planilha não entrou e pode ser enviada outra vez, sem pedir a planilha por
+mensagem.
+
+**Depois:** registre no `TODO.md` as escolas (ids), o tipo da planilha, o código do erro e a hora, só com ids e datas. Causa nova vira
+tarefa com teste que a reproduz.
+
+## Importação de planilha parada na fila
+
+**Dispara quando:** a importação `na_fila` mais antiga de uma escola foi gravada há mais de 30 minutos, por 1 min
+(`max by (escola_id) (importacao_minutos_na_fila{job="educa/worker"}) > 30`, regra `infra/grafana/alertas/importacao-parada.yaml`;
+Tech Spec do onboarding, seção 7c). A métrica é o número de minutos desde o `criado_em` da `na_fila` mais antiga da escola em
+`importacao_planilha`; o worker-lote a mede a cada 5 min, e o alerta traz o `escola_id`, nunca a importação nem quem a gravou. A escola
+sem importação na fila não tem série, e ela some quando o job termina ou o expurgo a fecha. Com a medição a cada 5 min e o `for: 1m`, o alerta dispara entre 31 e 36 minutos depois da gravação.
+
+**Impacto:** a coordenação gravou a planilha e a tela segue em "gravando". Uma escola só tem uma `na_fila`, então ela não consegue gravar
+outra até esta terminar. Com 1 h, o gravar seguinte, ou o expurgo da escola à 1h, a fecha `falhou` e apaga as linhas: o dado de aluno da
+planilha não fica parado por mais de cerca de 25 h.
+
+**Primeiro olhar:** a importação e o job dela, só com ids, estados e datas:
+`docker compose exec postgres psql -U educa -c "select i.id, i.tipo, i.criado_em, j.estado as job, j.codigo_falha from importacao_planilha i left join job_registro j on j.escola_id = i.escola_id and j.tipo = 'estrutura.gravar-planilha' and j.dados->>'importacaoId' = i.id::text where i.escola_id = '<escola_id>' and i.estado = 'na_fila' order by i.criado_em"`.
+
+**Causas prováveis:**
+1. O job está esperando vaga ou não foi despachado (`job_registro.estado` em `aguardando`, `reservado` ou `publicado`) → o worker da fila
+   `normal` ou o `despachante` está parado; veja "Job interativo esperando" e "Job que falhou de vez". Com o worker de volta, o job conclui sozinho.
+2. O Redis de fila se perdeu → o despachante republica o job pelo outbox (D49); confira o log do `despachante`.
+3. O job está tentando de novo com a trava esgotada (`importacao.job_repetira` no log) → outra escrita segura o ano ou as turmas; veja
+   "Passo 3 da importação acima de 1 s". Na última tentativa a importação sai `falhou` com `trava_esgotada`.
+4. A importação já terminou e a série continua → o `estado` já não é `na_fila`: a medição está atrasada, ou o worker-lote não mede (log
+   `worker.medicao_da_importacao_indisponivel`). A série some na volta seguinte de 5 min.
+
+**Se nada disso resolver:** a importação não se fecha à mão: o expurgo da escola (à 1h) e o gravar seguinte fecham a de mais de 1 h
+`falhou`. Avise a coordenação de que a planilha não entrou e pode ser enviada de novo depois disso, sem pedir a planilha por mensagem.
+
+**Depois:** registre no `TODO.md` a escola (id), a importação (id), quando foi gravada e a causa, só com ids e datas. Causa nova vira
+tarefa com teste que a reproduz.
+
+## Passo 3 da importação acima de 1 s
+
+**Dispara quando:** o p95 do passo 3 do job da planilha passa de 1 s, por 5 min
+(`histogram_quantile(0.95, sum by (le) (rate(importacao_passo3_duracao_seconds_bucket{job="educa/worker"}[5m]))) > 1`, regra
+`infra/grafana/alertas/importacao-passo3-lento.yaml`; Tech Spec do onboarding, seção 7c). O passo 3 é a transação curta que trava a
+importação, o ano, os usuários, as contas e as turmas na ordem global e grava em lotes de 500. A série não leva escola.
+
+**Impacto:** a planilha demora a entrar, e o passo 3 trava as turmas contra o gerar acesso das 7h30 e a decisão do professor em sala:
+com ele acima de 1 s, essas duas esperam. O `lock_timeout` de 1 s e o `statement_timeout` de 1,5 s cortam o passo, a tentativa volta
+inteira e o job repete; nada fica pela metade.
+
+**Primeiro olhar:** o painel "Passo 3 da planilha (p95)" e a fila `normal` por escola; e as travas que seguram a transação:
+`docker compose exec postgres psql -U educa -c "select a.pid, a.state, a.wait_event_type, a.wait_event, now() - a.xact_start as aberta_ha, left(a.query, 80) as comeco from pg_stat_activity a where a.wait_event_type = 'Lock' order by a.xact_start"`.
+
+**Causas prováveis:**
+1. Uma planilha grande de alunos com muitas turmas tocadas, junto com o gerar acesso → o passo trava as turmas em ordem de id num comando só;
+   a espera é do gerar acesso, e termina quando o passo fecha. Se repetir toda segunda às 7h30, a coordenação deve gravar a planilha fora
+   do pico; a regra da Tech Spec (seção 13) manda a spec voltar à revisão se o cenário [C] falhar.
+2. Um `desativar` ou `eliminar` longo segurando a conta ou o usuário → `pg_stat_activity` mostra a transação aberta há muito tempo; ela não
+   se mata à mão, e a tentativa do job repete sozinha.
+3. O banco está lento em geral → veja "Taxa de erro 5xx" e "Login lento": o passo 3 é só o primeiro a sentir.
+4. O índice de uma tabela que o passo lê se perdeu (plano com `Seq Scan` na `lista_nome`, no `vinculo` ou na `turma`) → `explain` da
+   consulta do log do Postgres; abra correção com o plano, nunca com os valores.
+
+**Se nada disso resolver:** não suba o `statement_timeout` nem o `lock_timeout` do passo (regra 80, item 3): o corte é o que protege o gerar
+acesso. Escale ao dono do produto e peça à coordenação que grave fora do horário letivo enquanto isso.
+
+**Depois:** registre no `TODO.md` o horário, o tipo da planilha, o número de linhas e a causa, sem planilha. Causa nova vira tarefa com
+teste que a reproduz.
+
 ## Voltar o código com eliminação agendada em curso (rollback)
 
 *Procedimento, não alerta: não há regra em `infra/grafana/alertas/`. Vale para qualquer volta de versão que passe pela migration

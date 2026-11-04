@@ -8,6 +8,7 @@ import {
   importacaoSchema,
   linhaDaPreviaDaPlanilhaSchema,
   MAXIMO_DE_BYTES_DA_PLANILHA,
+  MAXIMO_DE_LINHAS_DA_PLANILHA,
   previaDaPlanilhaRequestSchema,
   resumoDaImportacaoSchema,
   TIPOS_DE_PLANILHA,
@@ -70,6 +71,23 @@ describe('o texto da planilha, até 512 KB em UTF-8', () => {
     expect(previaDaPlanilhaRequestSchema.safeParse({ texto: '€'.repeat(Math.floor(MAXIMO_DE_BYTES_DA_PLANILHA / 3) + 1) }).success).toBe(false)
     expect(previaDaPlanilhaRequestSchema.safeParse({ texto: '😀'.repeat(MAXIMO_DE_BYTES_DA_PLANILHA / 4) }).success).toBe(true)
     expect(previaDaPlanilhaRequestSchema.safeParse({ texto: `${'😀'.repeat(MAXIMO_DE_BYTES_DA_PLANILHA / 4)}a` }).success).toBe(false)
+  })
+
+  it('3.000 linhas de dado entram; 3.001, não, na prévia e no gravar, com qualquer quebra de linha', () => {
+    // O número escrito por extenso: com a constante dos dois lados, o teste mudaria junto com o teto.
+    expect(MAXIMO_DE_LINHAS_DA_PLANILHA).toBe(3_000)
+    const planilha = (linhas: number, quebra: string): string => ['a;b', ...Array.from({ length: linhas }, () => 'x;y')].join(quebra)
+    for (const quebra of ['\n', '\r\n', '\r']) {
+      expect(previaDaPlanilhaRequestSchema.safeParse({ texto: planilha(3_000, quebra) }).success).toBe(true)
+      expect(previaDaPlanilhaRequestSchema.safeParse({ texto: planilha(3_001, quebra) }).success).toBe(false)
+      expect(gravarPlanilhaRequestSchema.safeParse({ texto: planilha(3_001, quebra) }).success).toBe(false)
+    }
+  })
+
+  it('o cabeçalho e as linhas vazias não contam para o teto', () => {
+    const linhas = Array.from({ length: MAXIMO_DE_LINHAS_DA_PLANILHA }, () => 'x;y')
+    expect(previaDaPlanilhaRequestSchema.safeParse({ texto: ['a;b', '', ...linhas, '', '  ', ''].join('\n') }).success).toBe(true)
+    expect(previaDaPlanilhaRequestSchema.safeParse({ texto: ['a;b', ...linhas, 'x;y'].join('\n') }).success).toBe(false)
   })
 
   it('a escola não vem do corpo: `escolaId` é recusado, na prévia e no gravar', () => {

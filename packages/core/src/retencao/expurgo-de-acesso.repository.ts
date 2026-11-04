@@ -18,18 +18,24 @@ export const RETENCAO_CONVITE_DIAS = 30
 /** Por quantos dias o acesso da turma fica depois de vencido ou revogado (`docs/lgpd.md`, "Acesso da turma"; A1). */
 export const RETENCAO_ACESSO_TURMA_DIAS = 30
 
+/**
+ * Por quantos dias a importação de planilha já terminada (`concluida`, `desatualizada` ou `falhou`) fica: só o estado, as
+ * contagens e o código do erro, sem linha da planilha (F2, 5.0; `docs/lgpd.md`, "Planilha em gravação"). A auditoria da gravação fica.
+ */
+export const RETENCAO_IMPORTACAO_DIAS = 90
+
 /** Por quantos anos o incidente fica depois de registrado (Resolução CD/ANPD 15/2024, art. 10; `docs/lgpd.md`, seção 8). */
 export const RETENCAO_INCIDENTE_ANOS = 5
 
 /**
- * As oito tabelas que o `sistema.expurgar-acesso` apaga por prazo, na ordem em que ele passa; a conta vem depois. As
- * quatro primeiras são das escolas: registro de acesso, sessão e convite (tarefa 17.0), e o acesso da turma (A1, tarefa
- * 10.0); as três seguintes, da operação Turmma (A0, tarefa 9.0), com os mesmos prazos; a última, o incidente de segurança
+ * As nove tabelas que o `sistema.expurgar-acesso` apaga por prazo, na ordem em que ele passa; a conta vem depois. As
+ * cinco primeiras são das escolas: registro de acesso, sessão e convite (tarefa 17.0), o acesso da turma (A1, tarefa
+ * 10.0) e a importação de planilha terminada (F2, tarefa 5.0); as três seguintes, da operação Turmma (A0, tarefa 9.0), com os mesmos prazos; a última, o incidente de segurança
  * (F3, tarefa 9.0), que é da operação mas leva as seções das escolas em cascata. A `auditoria_operacao` (vigência + 5
  * anos) e o `operador` (o dado pessoal sai no `desativar`) nunca são alvo, nem os pedidos de reivindicação (vigência + 5
  * anos, sem expurgo na A1).
  */
-export const ALVOS_DO_EXPURGO_DE_ACESSO = ['registro_acesso', 'sessao', 'convite', 'acesso_turma', 'acesso_operacao', 'sessao_operador', 'convite_operador', 'incidente'] as const
+export const ALVOS_DO_EXPURGO_DE_ACESSO = ['registro_acesso', 'sessao', 'convite', 'acesso_turma', 'importacao_planilha', 'acesso_operacao', 'sessao_operador', 'convite_operador', 'incidente'] as const
 export type AlvoDoExpurgoDeAcesso = (typeof ALVOS_DO_EXPURGO_DE_ACESSO)[number]
 
 /**
@@ -50,6 +56,10 @@ export type AlvoDoExpurgoDeAcesso = (typeof ALVOS_DO_EXPURGO_DE_ACESSO)[number]
  * - **Acesso da turma** (A1, tarefa 10.0): 30 dias depois de vencer ou ser revogado, o que veio primeiro, pelo mesmo
  *   `least`, com `order by` por ele. Um acesso não revogado por turma, e os revogados saem em 30 dias: a tabela fica na
  *   ordem das turmas da escola vezes os "Gerar novo" de um mês, sem índice próprio, como o convite.
+ * - **Importação de planilha** (F2, tarefa 5.0): 90 dias depois de terminada, a que não está `na_fila`, pelo `concluida_em` (que toda
+ *   troca de estado grava), com `order by` por ele: o lote que não cabe inteiro leva as mais antigas. A `na_fila` nunca é alvo: a
+ *   parada fecha `falhou` pelo `retencao.expurgar-escola` (1 h) e só então entra nesta conta. Uma importação por escola de cada vez e
+ *   poucas por ano, sem índice próprio, como o convite.
  * - **Acesso à operação:** entrada, falha de entrada e saída do painel da equipe, com 6 meses como o registro de acesso
  *   (Marco Civil, art. 15), inclusive a falha sem operador reconhecido. Desce por `acesso_operacao_em_idx`.
  * - **Sessão de operador:** 30 dias depois de encerrada ou, sem encerramento, de expirada, pela expressão do índice
@@ -98,6 +108,16 @@ const APAGAR_LOTE: Record<AlvoDoExpurgoDeAcesso, (agora: Date, limite: number) =
       select id from acesso_turma
       where least(revogado_em, expira_em) < ${agora.toISOString()}::timestamptz - make_interval(days => ${RETENCAO_ACESSO_TURMA_DIAS})
       order by least(revogado_em, expira_em)
+      limit ${limite}
+      for update skip locked
+    ))
+  `,
+  importacao_planilha: (agora, limite) => sql`
+    delete from importacao_planilha
+    where id = any(array(
+      select id from importacao_planilha
+      where estado <> 'na_fila' and concluida_em < ${agora.toISOString()}::timestamptz - make_interval(days => ${RETENCAO_IMPORTACAO_DIAS})
+      order by concluida_em
       limit ${limite}
       for update skip locked
     ))
@@ -217,7 +237,8 @@ export class ExpurgoDeAcessoRepository {
    */
   @Unscoped(
     'o expurgo é rotina nossa e aplica o mesmo prazo de registro de acesso, sessão, convite (de coordenador e de professor) ' +
-      'e acesso da turma (link e código da sala) a todas as escolas (e à falha de login sem escola), e às tabelas de acesso, ' +
+      'e acesso da turma (link e código da sala) a todas as escolas (e à falha de login sem escola), à importação de planilha ' +
+      'terminada (90 dias, sem a que está na fila), e às tabelas de acesso, ' +
       'sessão e convite da operação Turmma, que são da equipe e não têm escola, e ao incidente de segurança, que também não tem ' +
       'escola e leva as seções delas em cascata; não devolve linha, só a quantidade apagada, ' +
       'e não atende requisição de escola nenhuma',

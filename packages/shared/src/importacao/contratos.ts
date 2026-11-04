@@ -11,6 +11,8 @@ import { z } from 'zod'
  * tipo com nota ("notas do bimestre" vindas de outro sistema) reabre a regra 70, item 1: a nota só nasce pela construção de `Nota`, com
  * `lancadaPor` humano, e o tipo ganha teste próprio.
  */
+// Nenhum tipo grava nota. Se um dia houver planilha de notas, ela reabre a regra 70, item 1: a importação em lote precisa gravar
+// `lancadaPor` com autor humano e passar pela validação registrada da D56. Não entra por aqui sem esse desenho.
 export const TIPOS_DE_PLANILHA = ['alunos', 'professores', 'grade', 'calendario'] as const
 export type TipoDePlanilha = (typeof TIPOS_DE_PLANILHA)[number]
 
@@ -50,8 +52,35 @@ function bytesEmUtf8(texto: string): number {
   return bytes
 }
 
-/** O texto como o navegador o leu, dentro do teto de bytes. */
-const textoDaPlanilhaSchema = z.string().refine((texto) => bytesEmUtf8(texto) <= MAXIMO_DE_BYTES_DA_PLANILHA)
+/**
+ * Quantas vezes por minuto o mesmo usuário pode pedir a prévia ou o gravar de uma planilha (F2, 5.0; `cenarios.md`, "Limites"): os
+ * dois contam no mesmo balde, porque o gravar refaz a prévia. Acima disso, `LIMITE_EXCEDIDO` (429).
+ */
+export const LIMITE_DA_PLANILHA_POR_MINUTO = 20
+
+/** Quantas prévias ou gravares de planilha a mesma escola classifica ao mesmo tempo (F2, 5.0). A terceira é recusada com `LIMITE_EXCEDIDO`. */
+export const VAGAS_DA_PLANILHA_POR_ESCOLA = 2
+
+/** Os minutos que a importação pode esperar `na_fila` antes de o alerta "Importação de planilha parada na fila" disparar (F2, 5.0). */
+export const MINUTOS_DA_IMPORTACAO_NA_FILA_PARA_ALERTAR = 30
+
+/** O texto da planilha, até 3.000 linhas de dado, fora o cabeçalho (Tech Spec, seção 4; regra 80, item 3). Acima disso, `ENTRADA_INVALIDA`. */
+export const MAXIMO_DE_LINHAS_DA_PLANILHA = 3000
+
+/**
+ * Quantas linhas de dado o texto tem: as não vazias, menos o cabeçalho. Conta quebra de linha, e não registro de CSV: uma
+ * célula entre aspas com quebra dentro conta mais de uma, e o teto fica do lado seguro (a leitura não fica mais cara que isto).
+ */
+function linhasDeDado(texto: string): number {
+  let linhas = 0
+  for (const linha of texto.split(/\r\n|\r|\n/)) {
+    if (linha.trim() !== '') linhas += 1
+  }
+  return Math.max(0, linhas - 1)
+}
+
+/** O texto como o navegador o leu, dentro dos tetos de bytes e de linhas. */
+const textoDaPlanilhaSchema = z.string().refine((texto) => bytesEmUtf8(texto) <= MAXIMO_DE_BYTES_DA_PLANILHA && linhasDeDado(texto) <= MAXIMO_DE_LINHAS_DA_PLANILHA)
 
 /**
  * Corpo de `POST /v1/importacoes/:tipo/previa`: o texto, a turma (só na lista por turma) e o ano que a coordenação escolhe, o
@@ -200,6 +229,13 @@ export const eventoDoCalendarioSchema = z.strictObject({
   descricao: z.string().min(1).max(TAMANHO_MAXIMO_DA_DESCRICAO_DO_EVENTO),
 })
 export type EventoDoCalendario = z.infer<typeof eventoDoCalendarioSchema>
+
+/**
+ * Consulta de `GET /v1/calendario`: o ano planejado que a coordenação escolhe (Tech Spec, seção 4). Sem ele, o ano em curso. Estrita:
+ * a escola vem da sessão, nunca da consulta (regra 10, item 3).
+ */
+export const calendarioQuerySchema = z.strictObject({ anoLetivoId: z.uuid().optional() })
+export type CalendarioQuery = z.infer<typeof calendarioQuerySchema>
 
 /** Resposta de `GET /v1/calendario`: os eventos do ano, por data. */
 export const calendarioResponseSchema = z.strictObject({ eventos: z.array(eventoDoCalendarioSchema) })

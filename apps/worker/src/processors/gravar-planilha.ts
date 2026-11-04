@@ -24,7 +24,7 @@ export interface GravarPlanilhaDependencies {
 }
 
 /** Os limites do histograma do passo (3), em segundos: o alerta dispara acima de 1 s, e o `statement_timeout` corta em 1,5 s. */
-const LIMITES_DO_PASSO_3_S = [0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 0.75, 1, 1.5, 3]
+export const LIMITES_DO_PASSO_3_S = [0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 0.75, 1, 1.5, 3]
 
 /**
  * `estrutura.gravar-planilha` (F2, tarefa 4.0; Tech Spec, seção 5, "O job"): no contexto da escola do outbox, lê a importação

@@ -10,6 +10,7 @@ import { operacaoMarker } from '../identidade/operacao-markers.js'
 import { isRouteWithoutSessao } from '../identidade/route-without-sessao.js'
 import { requestToken } from '../identidade/request-token.js'
 import { extractBearerToken, verifyOperadorToken, type VerifiedOperadorToken } from '../identidade/verify-token.js'
+import { IMPORTACAO_RATE_LIMIT_KEY } from './importacao-rate-limit.decorator.js'
 import { clientIp, retryAfterSeconds } from './keys.js'
 import type { RateLimiter } from './rate-limiter.js'
 import { TITULAR_SEARCH_RATE_LIMIT_KEY } from './titular-search-rate-limit.decorator.js'
@@ -92,6 +93,15 @@ export class RateLimitGuard implements CanActivate {
       const daBusca = await this.limitador.consumirDaBuscaDeTitulares(token.usuarioId)
       if (!daBusca.aceita) {
         throw new DomainException(ErrorCode.LIMITE_EXCEDIDO, undefined, retryAfterSeconds(daBusca.msAteLiberar))
+      }
+    }
+    // A prévia e o gravar de planilha (`@ImportacaoRateLimit`) contam no balde próprio `rl:importacao`, por usuário, os dois juntos.
+    if (!anonima && this.reflector.getAllAndOverride<boolean | undefined>(IMPORTACAO_RATE_LIMIT_KEY, alvos) === true) {
+      const token = requestToken(requisicao)
+      if (token === undefined) throw new DomainException(ErrorCode.NAO_AUTENTICADO)
+      const daImportacao = await this.limitador.consumirDaImportacao(token.usuarioId)
+      if (!daImportacao.aceita) {
+        throw new DomainException(ErrorCode.LIMITE_EXCEDIDO, undefined, retryAfterSeconds(daImportacao.msAteLiberar))
       }
     }
     return true

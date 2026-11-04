@@ -23,7 +23,7 @@ import { JobFailureError } from '../job-failure.error.js'
 export const LOTE_DOS_ARQUIVOS_DO_TITULAR = 100
 
 export interface ExpurgoDaEscolaDependencies {
-  repositorio: Pick<ExpurgoDaEscolaRepository, 'expurgarLote' | 'expurgarRegistroDoExpurgo' | 'registrar' | 'categoriaPendente' | 'enfileirarEliminacoes'>
+  repositorio: Pick<ExpurgoDaEscolaRepository, 'expurgarLote' | 'expurgarRegistroDoExpurgo' | 'registrar' | 'categoriaPendente' | 'enfileirarEliminacoes' | 'fecharImportacoesParadas'>
   /** A porta de entrada do trabalho demorado: o job `titular.eliminar` de cada pedido de eliminação vencido sai por ela (F3, tarefa 15.0). */
   enfileirador: Pick<JobOutbox, 'enfileirarUmaVez'>
   /** Os arquivos do titular vencidos ou marcados `apagado_em` (F3, tarefa 13.0): o objeto sai do storage, e só então a linha. */
@@ -59,6 +59,8 @@ export interface ExpurgoDaEscolaDependencies {
  * - **Primeiro, as eliminações vencidas** (F3, tarefa 15.0): o pedido `agendado` com `eliminar_em` passado, ainda sem job ou com o
  *   job enfileirado há mais de 20 h, vira um `titular.eliminar` na fila de lote, não urgente, na transação que marca
  *   `eliminacao_enfileirada_em` (a trava do cancelamento). O trabalho em si é do job `titular.eliminar`.
+ * - **Depois, a importação de planilha parada** (F2, 5.0): a `na_fila` da escola de mais de 1 h fecha `falhou` (`expirou`), com `linhas` e
+ *   `marcas` nulas, contada do relógio do job e com `skip locked`. A final sai 90 dias depois, pelo `sistema.expurgar-acesso`.
  * - Loga só a categoria (sob `tipo`) e as contagens; a escola vai pelo contexto, nunca uma linha.
  */
 export function criarExpurgoDaEscola({ repositorio, arquivos, armazem, retencao, janelaDaEscola, enfileirador, relogio, logger, lote = LOTE_DO_EXPURGO }: ExpurgoDaEscolaDependencies): JobProcessor<typeof TIPO_EXPURGAR_ESCOLA> {
@@ -69,6 +71,8 @@ export function criarExpurgoDaEscola({ repositorio, arquivos, armazem, retencao,
     // `titular.eliminar` na fila de lote, na mesma transação da marca `eliminacao_enfileirada_em`. É só gravar linhas: o
     // job faz o trabalho pesado, e a janela letiva já o segura (não urgente). Falhar aqui falha o job da escola, e a fila repete.
     const { enfileirados: eliminacoesTotal, jaEnfileirados: eliminacoesJaEnfileiradasTotal } = await repositorio.enfileirarEliminacoes(enfileirador)
+    // A importação de planilha parada na fila por mais de 1 h (F2, 5.0): fecha `falhou` e perde as linhas e as marcas, antes de o dia de 90 dias contar.
+    const importacoesFechadasTotal = await repositorio.fecharImportacoesParadas(agora)
     const prazos = new Map(retencaoDaEscola(await retencao.ajustes()).map(({ categoria, meses }) => [categoria, meses]))
     const janela = await janelaDaEscola.daEscola()
     // Primeiro os arquivos do titular (F3, tarefa 13.0): o objeto sai do storage e só então a linha. O que o storage não
@@ -133,6 +137,7 @@ export function criarExpurgoDaEscola({ repositorio, arquivos, armazem, retencao,
       arquivosNaoApagadosTotal,
       eliminacoesTotal,
       eliminacoesJaEnfileiradasTotal,
+      importacoesFechadasTotal,
     })
   }
 }
