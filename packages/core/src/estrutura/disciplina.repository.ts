@@ -34,6 +34,15 @@ export class DisciplinaRepository {
       .limit(limite + 1)
   }
 
+  /** Todas as disciplinas da escola numa consulta só, em ordem de id: a planilha da grade as compara com as linhas (onboarding-por-convite, 11.0). */
+  todas(): Promise<Array<{ readonly id: string; readonly nome: string }>> {
+    return this.banco
+      .select({ id: disciplina.id, nome: disciplina.nome })
+      .from(disciplina)
+      .where(eq(disciplina.escolaId, requireEscolaId()))
+      .orderBy(asc(disciplina.id))
+  }
+
   /**
    * Troca o nome da disciplina da escola com esse id e devolve a disciplina renomeada; a de outra escola ou inexistente
    * não é achada (`undefined`), e nada muda. O nome de outra disciplina da escola é barrado pelo mesmo índice único do

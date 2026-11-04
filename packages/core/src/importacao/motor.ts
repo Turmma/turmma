@@ -25,17 +25,18 @@ import { ImportacaoRepository, type AnoDeDestino, type ImportacaoParaExecutar } 
 import type { ContasDoJob, DaLista, PlanoDaImportacao, PreviaDoTipo, TipoDoMotor } from './tipo.js'
 import { tipoAlunos } from './tipos/alunos.js'
 import { tipoCalendario } from './tipos/calendario.js'
+import { tipoGrade } from './tipos/grade.js'
 import { tipoProfessores } from './tipos/professores.js'
 
 /**
  * O motor das planilhas (F2, 4.0; Tech Spec, seção 5): a prévia classifica, o gravar a refaz e enfileira, e o job a refaz de
- * novo e grava em três passos. Cada tipo de planilha (calendário na 4.0, professores na 6.0, alunos na 7.0; a grade na seguinte) entrega só
+ * novo e grava em três passos. Cada tipo de planilha (calendário na 4.0, professores na 6.0, alunos na 7.0, grade na 11.0) entrega só
  * o que é dele: ler o texto, dizer o que faria no ano (`planejar`) e escrever (`aplicar`). A trava, a assinatura, os estados e
  * a auditoria são do motor, e valem igual para os quatro.
  */
 
 /** Os tipos que o motor já sabe gravar. Os outros respondem `NAO_ENCONTRADO` até a tarefa deles chegar. */
-const TIPOS_DO_MOTOR: Readonly<Partial<Record<TipoDePlanilha, TipoDoMotor>>> = { alunos: tipoAlunos, calendario: tipoCalendario, professores: tipoProfessores }
+const TIPOS_DO_MOTOR: Readonly<Partial<Record<TipoDePlanilha, TipoDoMotor>>> = { alunos: tipoAlunos, calendario: tipoCalendario, grade: tipoGrade, professores: tipoProfessores }
 
 /** `lock_not_available` (o `lock_timeout` do passo 3), `deadlock_detected` e `serialization_failure`: o que se tenta de novo, com espera. */
 const SQLSTATE_DE_TRAVA = new Set(['55P03', '40P01', '40001'])
@@ -65,8 +66,8 @@ export class MotorDePlanilha {
 
   /**
    * `POST /v1/importacoes/:tipo/previa`: o que cada linha faria, sem gravar nada. O `turmaId` num tipo que não usa turma, o ano
-   * que não é o em curso nem um planejado da escola, e o tipo que o motor ainda não grava, respondem `NAO_ENCONTRADO`, como o id
-   * de outra escola (regra 10, item 6); cabeçalho errado ou planilha sem linha, `ENTRADA_INVALIDA`.
+   * que não é o em curso nem um planejado da escola respondem `NAO_ENCONTRADO`, como o id de outra escola (regra 10, item 6);
+   * cabeçalho errado ou planilha sem linha, `ENTRADA_INVALIDA`.
    */
   async previa(tipo: TipoDePlanilha, pedido: PreviaDaPlanilhaRequest, daLista?: DaLista): Promise<PreviaDaPlanilhaResponse> {
     const { previa } = await this.preparar(tipo, pedido, daLista)
@@ -175,7 +176,7 @@ export async function executarPlanilha(banco: Database, importacaoId: string, op
   const lida = await repositorio.paraExecutar(importacaoId)
   if (lida?.estado !== 'na_fila') return 'ignorada'
   const alvo = alvoDe(lida)
-  const contas = await passo1(banco, alvo, lida.linhas, opcoes)
+  const contas = await passo1(banco, repositorio, alvo, lida.linhas, opcoes)
   if (!(await passo2(repositorio, alvo, lida.linhas, contas))) return desatualizar(repositorio, importacaoId)
   const inicio = performance.now()
   try {
@@ -201,16 +202,19 @@ function lerMarcas(guardadas: unknown): MarcasDaPlanilha {
   return lidas.data
 }
 
-/** Passo (1): as contas dos e-mails do tipo sem ano, uma transação curta cada e na ordem do e-mail (duas escolas com os mesmos professores não se esperam em cruz). */
-async function passo1(banco: Database, { tipo }: Alvo, linhas: unknown, opcoes: ExecucaoOptions): Promise<ContasDoJob> {
-  if (tipo.usaAno) return new Map()
-  const emails = tipo.emailsDasContas(linhas)
+/**
+ * Passo (1): as contas dos e-mails do tipo que cadastra professor (a planilha de professores e a grade, para o professor que a escola ainda
+ * não tem), uma transação curta cada e na ordem do e-mail (duas escolas com os mesmos professores não se esperam em cruz).
+ */
+async function passo1(banco: Database, repositorio: ImportacaoRepository, { tipo }: Alvo, linhas: unknown, opcoes: ExecucaoOptions): Promise<ContasDoJob> {
+  if (tipo.usaAno && tipo.emailsDasContas === undefined) return new Map()
+  const emails = tipo.usaAno ? await tipo.emailsDasContas?.(repositorio, linhas) : tipo.emailsDasContas(linhas)
   const achar = opcoes.acharConta
   const travar = opcoes.travarContas
   if (emails === undefined) throw new ImportacaoIlegivelError()
-  if (achar === undefined || travar === undefined) throw new InvariantException('a planilha de professores precisa do achar-ou-criar conta e da trava das contas do worker')
+  if (achar === undefined || travar === undefined) throw new InvariantException('a planilha que cadastra professor precisa do achar-ou-criar conta e da trava das contas do worker')
   const contas = new Map<string, string>()
-  for (const email of emails) contas.set(email, (await banco.transaction((tx) => achar(tx, email))).id)
+  for (const email of [...emails].sort()) contas.set(email, (await banco.transaction((tx) => achar(tx, email))).id)
   return contas
 }
 
@@ -220,7 +224,7 @@ async function passo2(repositorio: ImportacaoRepository, alvo: Alvo, linhas: unk
   if (tipo.usaAno) {
     const ano = anoLetivoId === null ? undefined : await repositorio.anoPorId(anoLetivoId)
     if (ano === undefined || ano.situacao === 'encerrado') return false
-    const vista = await tipo.planejar(repositorio, ano, linhas, marcas)
+    const vista = await tipo.planejar(repositorio, ano, linhas, marcas, contas)
     if (vista === undefined) throw new ImportacaoIlegivelError()
     return vista.assinatura === assinatura
   }
@@ -270,10 +274,13 @@ async function planejarSobTrava(gravacao: ImportacaoRepository, tx: DatabaseTran
     if (plano === undefined) throw new ImportacaoIlegivelError()
     return plano
   }
+  // O tipo que cadastra professor pega a trava do convite da escola antes do ano: a ordem global do passo (3), a mesma do `desativar` e do `convidar`.
+  if (tipo.cadastraProfessores === true) await gravacao.travarConviteDaEscola()
   const ano = anoLetivoId === null ? undefined : await gravacao.anoPorId(anoLetivoId, true)
   if (ano === undefined || ano.situacao === 'encerrado') return 'encerrado'
-  await tipo.travar?.(gravacao, ano, linhas, marcas, tx)
-  const plano = await tipo.planejar(gravacao, ano, linhas, marcas)
+  const travarContas = opcoes.travarContas
+  await tipo.travar?.(gravacao, ano, linhas, marcas, { contas, travarContas: (daVez) => (travarContas === undefined ? Promise.resolve(true) : travarContas(tx, daVez)) }, tx)
+  const plano = await tipo.planejar(gravacao, ano, linhas, marcas, contas)
   if (plano === undefined) throw new ImportacaoIlegivelError()
   return plano
 }

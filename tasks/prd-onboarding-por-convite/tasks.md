@@ -79,7 +79,7 @@ cenários foram distribuídos pelo `test-engineer`; cada linha do `cenarios.md` 
   - [ ] 10.3 A volta na virada
   - [ ] 10.4 Testes: ordem global contra `desativar` e `eliminar`
 
-- [ ] **11.0 — Gravar a grade gera a alocação e os vínculos que o professor confirma**
+- [x] **11.0 — Gravar a grade gera a alocação e os vínculos que o professor confirma**
   - [ ] 11.1 Tipo grade: erros e avisos
   - [ ] 11.2 Alocação e vínculos pendentes
   - [ ] 11.3 O planejado só confirma em curso

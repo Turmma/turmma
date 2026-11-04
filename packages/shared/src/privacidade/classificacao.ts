@@ -61,10 +61,9 @@ export const CLASSIFICACAO_DAS_TABELAS: Readonly<Record<string, ClassificacaoDaT
   vinculo: categoria(['vinculo_encerrado'], 'usuario_id'),
   usuario: categoria(['pessoa_desativada'], 'id'),
   // A aula da grade (F2, 2.0) é do professor pelo vínculo e sai com ele, em cascata: o vínculo encerrado vai pelo prazo de
-  // `vinculo_encerrado`, e a eliminação do professor apaga o vínculo. Ela não tem coluna de pessoa, e a leitura do arquivo do titular
-  // liga por coluna de pessoa: por isso fica fora do arquivo, e o professor recebe o vínculo (turma e disciplina), não o dia, o
-  // horário nem a sala. Entrar no arquivo pede a leitura pelo vínculo, que é da 11.0 (a tarefa que grava a `alocacao`; regra 20, item 19).
-  alocacao: { classe: 'categoria', categorias: ['vinculo_encerrado'], arquivo: FORA },
+  // `vinculo_encerrado`, e a eliminação do professor apaga o vínculo. Ela não tem coluna de pessoa, e liga ao titular pelo `vinculo_id`: a
+  // 11.0, que a grava, a põe no arquivo do professor (dia, horário e sala; regra 20, item 19), pela leitura das aulas dos vínculos dele.
+  alocacao: { classe: 'categoria', categorias: ['vinculo_encerrado'], arquivo: { entra: true, ligacao: ['vinculo_id'] } },
 
   // Prazo fixo, com quem aplica.
   registro_acesso: fixo('registro_acesso', EXPURGO_DE_ACESSO, 'usuario_id'),

@@ -269,6 +269,40 @@ export class VinculoRepository {
   }
 
   /**
+   * Os vínculos de professor do ano que ainda não estão `encerrado` (F2, 11.0): o que a planilha da grade reaproveita no lugar de criar
+   * um pendente. O `contestado` também é aberto, e é por isso que reimportar nunca o reabre. O ano é o de destino da planilha, já
+   * conferido pelo motor (o em curso ou um planejado da escola); a escola vem do contexto. Em ordem de id.
+   */
+  async professoresAbertosDoAno(
+    anoLetivoId: string,
+  ): Promise<Array<{ readonly id: string; readonly usuarioId: string; readonly turmaId: string; readonly disciplinaId: string | null; readonly estado: EstadoDeVinculo }>> {
+    return this.banco
+      .select({ id: vinculo.id, usuarioId: vinculo.usuarioId, turmaId: vinculo.turmaId, disciplinaId: vinculo.disciplinaId, estado: vinculo.estado })
+      .from(vinculo)
+      .where(and(eq(vinculo.escolaId, requireEscolaId()), eq(vinculo.anoLetivoId, anoLetivoId), eq(vinculo.papel, 'professor'), ne(vinculo.estado, 'encerrado')))
+      .orderBy(asc(vinculo.id))
+  }
+
+  /**
+   * Os vínculos de professor que a planilha da grade cria (F2, 11.0; RF8): nascem `pendente`, com `origem = grade` e a coordenação que gravou
+   * em `criado_por`, no ano dado: o professor confirma ou contesta (A1), e só o confirmado dá acesso à turma. O vínculo aberto da mesma
+   * tripla viola o único (`vinculo_ativo_unico`, 23505), e o motor fecha a importação `desatualizada`. Só aceita ano já conferido na
+   * escola (o `anoDeDestino` do motor); a escola vem do contexto.
+   */
+  async criarProfessoresDaGrade(
+    anoLetivoId: string,
+    novos: ReadonlyArray<{ readonly usuarioId: string; readonly turmaId: string; readonly disciplinaId: string }>,
+  ): Promise<Array<{ readonly id: string; readonly usuarioId: string; readonly turmaId: string; readonly disciplinaId: string | null }>> {
+    if (novos.length === 0) return []
+    const escolaId = requireEscolaId()
+    const { usuarioId: criadoPor } = requestIdentity()
+    return this.banco
+      .insert(vinculo)
+      .values(novos.map(({ usuarioId, turmaId, disciplinaId }) => ({ escolaId, anoLetivoId, usuarioId, turmaId, disciplinaId, papel: 'professor' as const, estado: 'pendente' as const, origem: 'grade' as const, criadoPor })))
+      .returning({ id: vinculo.id, usuarioId: vinculo.usuarioId, turmaId: vinculo.turmaId, disciplinaId: vinculo.disciplinaId })
+  }
+
+  /**
    * A virada do ano (10.0; Tech Spec, seção 5, "Vínculo"): os vínculos do ano, de professor e de aluno, que não estavam
    * encerrados vão a `encerrado` por `fim_do_ano`; depois, o `complemento` sai de todo vínculo do ano, inclusive do
    * encerrado antes por `desligamento` ou `realocacao`. Roda na transação do encerramento do ano, e devolve as contagens
