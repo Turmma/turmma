@@ -2613,3 +2613,11 @@ repetem aqui.
       contar os bytes no fluxo
 - [ ] Do caso "[P] dez pedidos ao mesmo tempo" de `apps/api/test/importacao.int.test.ts` (test-engineer, 2ª): conferir com `ZCARD` da chave da escola igual a 2 que a conta passou
       pelo Redis; com o cliente fora de `ready`, o seguro em memória daria o mesmo resultado
+
+## Da correção metrica-escola-id-fora-da-lista (lista fechada de métricas com `escola_id`), fora dela
+
+- [ ] Da `importacao_minutos_na_fila` (test-engineer, 1ª): caso em `infra/test/metricas.int.test.ts` que deixe uma importação parada em `na_fila` e veja a série com o
+      `escola_id` certo no Prometheus (o caso de permissão só confere que a métrica não vaza); exige subir o gauge no cenário de infra
+- [ ] Da lista fechada (privacy-guardian, test-engineer e revisor-geral, 1ª): avisar junto de `METRICS_WITH_ESCOLA` (`packages/core/src/telemetry/metrics.ts`) ou no
+      `docs/guia-do-desenvolvedor.md` que cada métrica nova com escola muda `metrics.ts`, `metrics.test.ts` e `infra/test/metricas.int.test.ts`. Não montar a lista esperada
+      só pelo código: a duplicação à mão obriga a olhar a cardinalidade (privacy-guardian)

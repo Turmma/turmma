@@ -216,7 +216,7 @@ describe('métricas na observabilidade local, por rota, fila e escola', () => {
     }
   }, 120_000)
 
-  it('permissão: nenhuma série tem rótulo de usuário nem o id do usuário em rótulo algum, e `escola_id` só aparece nas métricas da lista fechada (job, espera pelo hash, falhas e rebaixamento do login, noites sem expurgo, horas do incidente sem confirmação, do arquivo em preparação e da eliminação vencida)', async () => {
+  it('permissão: nenhuma série tem rótulo de usuário nem o id do usuário em rótulo algum, e `escola_id` só aparece nas métricas da lista fechada', async () => {
     const { data: rotulos } = (await (await fetch(`${PROMETHEUS}/api/v1/labels`)).json()) as { data: string[] }
     expect(rotulos.filter((rotulo) => /usuario|user/i.test(rotulo))).toEqual([])
     expect(await consultar('{usuario_id!=""}')).toEqual([])
@@ -226,8 +226,8 @@ describe('métricas na observabilidade local, por rota, fila e escola', () => {
 
     const comEscola = (await consultar('count by (__name__) ({escola_id!=""})')).map(({ metric }) => metric['__name__']).sort()
     expect(comEscola).toEqual(expect.arrayContaining(['job_espera_mais_antiga_s', 'job_pendentes', 'fila_vagas_em_uso']))
-    // A lista fechada de `METRICS_WITH_ESCOLA` (as de job, as três de login, a do expurgo, a do incidente, a do arquivo em preparação e a
-    // da eliminação vencida), com o nome do Prometheus.
+    // A lista fechada de `METRICS_WITH_ESCOLA` (as de job, as três de login, a do expurgo, a do incidente, a do arquivo em preparação, a
+    // da eliminação vencida e a da importação de planilha na fila), com o nome do Prometheus.
     const admitidas = new Set<string>(
       (Object.keys(METRICS) as Array<keyof typeof METRICS>).filter((chave) => METRICS_WITH_ESCOLA.includes(METRICS[chave])).flatMap((chave) => NOMES_NO_PROMETHEUS[chave]),
     )
@@ -249,6 +249,8 @@ describe('métricas na observabilidade local, por rota, fila e escola', () => {
         ...NOMES_NO_PROMETHEUS.horasDoArquivoEmPreparacao,
         // As horas da eliminação agendada vencida, por escola (F3, tarefa 15.0; Tech Spec do F3, seção 7c).
         ...NOMES_NO_PROMETHEUS.horasDaEliminacaoVencida,
+        // Os minutos da importação de planilha mais antiga na fila, por escola (F2, tarefa 5.0; Tech Spec do onboarding, seção 7c).
+        ...NOMES_NO_PROMETHEUS.minutosDaImportacaoNaFila,
       ].sort(),
     )
     expect(comEscola.filter((nome) => !admitidas.has(nome ?? ''))).toEqual([])
