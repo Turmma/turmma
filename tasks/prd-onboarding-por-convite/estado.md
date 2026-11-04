@@ -1,6 +1,8 @@
 # Estado da execução — onboarding-por-convite
 
 ## Agora
+- **03/11 ~22:15:** 6.0 concluída na linha 2 (`993c6734`, seis revisores aprovados na 2ª, 89 mutações), mas o encontro deu `CONFLITO` (barrels `index.ts` de `core/importacao`, `core` e `shared`, por causa da 5.0). Correção `encontro-6` na linha 2 (par reiniciado, `PEDIDO` com `revisor-geral` e `test-engineer`); depois repito o encontro. Esteira da spec em `a067ca7` (5.0) rodando. **Espero:** `/seguir RELATÓRIO` do Implementador 2 (correção encontro-6). Linha 1 ociosa (7.0 espera a 6.0). **Base:** `spec/onboarding-por-convite` em `a067ca7f`
+- **03/11 ~21:40:** tarefa 5.0 encontrada (`3ff168a2`, spec em `a067ca7f`, verificação passou, push feito; 65 mutações, seis revisores aprovados). Esteira de `a0e62a3` verde (4.0 ok); a da 5.0 roda, leio no próximo encontro. Linha 1 ociosa e nada parte (7.0 espera a 6.0). **Espero:** `/seguir RELATÓRIO` do Implementador 2 (6.0, 1ª tentativa). **Base:** `spec/onboarding-por-convite` em `a067ca7f`
 - **03/11 ~21:15:** Arquiteto triou o §5 Gravar (detalhe, sem mudar desenho; techspec, cenarios e 6_task na linha 2, sem commit). Linha 2: par reiniciado e `PEDIDO` da 6.0 enviado. **Espero:** `/seguir RELATÓRIO` do Implementador (5.0, 1ª tentativa) e do Implementador 2 (6.0, 1ª). Pendência do §5 Gravar: cumprida. **Base:** `spec/onboarding-por-convite` em `a0e62a3c`
 - **03/11 ~21:00:** tarefa 4.0 encontrada (`efece0e6`, spec em `a0e62a3c`, verificação passou, push feito; 75 mutações, seis revisores aprovados). Esteira de `0f1a454` vermelha só pelo `restos.test.ts` (já corrigido em `d4acd32d`); nova execução 41740476780 rodando, leio no próximo encontro. Linha 1 → 5.0 (par reiniciado, `PEDIDO` enviado). Linha 2: partida da 6.0 feita; Arquiteto reiniciado na linha 2 com `PEDIDO` de triagem do §5 Gravar (pendente não passa pelo desativar). **Espero:** `/seguir RELATÓRIO` do Arquiteto; depois reinicio Implementador 2 e Mesa 2 e envio o `PEDIDO` da 6.0 (a 5.0 corre na linha 1, 1ª tentativa). **Base:** `spec/onboarding-por-convite` em `a0e62a3c`
 - **03/11 ~19:45:** `DIVERGÊNCIA` (portão) do Implementador na 4.0: `tools/renomear/restos.test.ts` falha por "migrar" num comentário de `packages/core/src/db/migracao-f2.int.test.ts:12` (da 2.0; símbolo do mapa de nomes-de-mercado). Decidi sem perguntar: correção na linha 1 (Implementador e Mesa reiniciados), `PEDIDO` com guardião `revisor-geral`, trocando só a palavra do comentário; o commit dela fica na linha e segue com o da 4.0. **Espero:** `/seguir RELATÓRIO` do Implementador (4.0, 1ª tentativa).
@@ -32,6 +34,7 @@
 
 ## Esperando o Joaquim
 ## O que falhou
+- 03/11, encontro da 6.0: `CONFLITO` nos três `index.ts` (a 5.0 pousou antes); correção `encontro-6` na linha 2.
 ## O que decidi sem perguntar
 - 03/11, `DIVERGÊNCIA` (portão) da 4.0: o resto "migrar" num comentário da 2.0 deixava `restos.test.ts` vermelho; correção na linha 1, antes de retomar a 4.0, pelo Implementador reiniciado (passo 6), com `revisor-geral`. Troca só a palavra do comentário.
 - 02/11, fechamento da X8: o censo deu 25 casos acima de 2/3 do prazo em arquivos que a X8 tocou só no rename; tratei como dívida da `develop` (linha no `TODO.md`), sem correção, e disse no pedido de pouso
