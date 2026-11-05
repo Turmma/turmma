@@ -381,7 +381,9 @@ Aula               → alocacao*, data*, conteudo?, status, observacao?
 **`Alocacao` (F2, migration 0040) substitui as três tabelas da grade** que este documento desenhava (`GradeHoraria`, `TempoAula` e a
 `Alocacao` presa a elas): a aula é o vínculo (turma, disciplina e professor) num dia da semana e num horário, e a "grade horária"
 do glossário são as alocações do ano. O `id` é estável: reimportar a grade mantém a aula que continua (mesmo vínculo, dia e início)
-e apaga a que saiu, então a `Aula` concreta da F2b aponta para um id que a reimportação não troca. Sai em cascata com o vínculo
+e apaga a que saiu, então a `Aula` concreta da F2b aponta para um id que a reimportação não troca. O vínculo que ficou sem aula
+não é encerrado pela reimportação: aparece "sai da grade" na prévia (se nasceu da grade ou tinha aula) e só encerra marcado, pelo caminho do
+`encerrar` da coordenação (motivo `realocacao`). Sai em cascata com o vínculo
 (a FK composta `(escolaId, anoLetivoId, vinculoId)` é também a FK com o ano), e o `vinculo` ganhou o único `(escolaId, anoLetivoId, id)`
 que ela referencia. A aula tem `escola_id` e `ano_letivo_id` (regra 10) e nunca aponta para o vínculo de outra escola nem de outro ano.
 

@@ -966,6 +966,7 @@ export {
   TIPOS_DE_PLANILHA,
   aulaDaGradeSchema,
   calendarioQuerySchema,
+  gradeQuerySchema,
   calendarioResponseSchema,
   candidatoDaMarcaSchema,
   eventoDoCalendarioSchema,
@@ -982,6 +983,7 @@ export {
 export type {
   AulaDaGrade,
   CalendarioQuery,
+  GradeQuery,
   CalendarioResponse,
   CandidatoDaMarca,
   EventoDoCalendario,

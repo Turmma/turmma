@@ -1,5 +1,6 @@
 import { CHAVES_DE_CREDENCIAL } from '@educa/core'
 import * as shared from '@educa/shared'
+import { randomUUID } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
 
@@ -145,6 +146,15 @@ describe('contratos de saída: nenhuma resposta traz credencial, segredo ou iden
     // A varredura reprova a grade que passasse a levar o e-mail do professor, em qualquer profundidade.
     const comEmail = z.object({ aulas: z.array(z.object({ professor: z.object({ usuarioId: z.uuid(), nome: z.string(), email: z.email() }) })) })
     expect(problemasDoContrato('gradeResponseSchema', comEmail)).toEqual(['gradeResponseSchema: aulas[].professor.email (email)'])
+  })
+
+  it('F2, 12.0: a grade lida pelo professor recusa o e-mail do colega em qualquer aula, e a consulta exige a turma e não aceita a escola', () => {
+    const aula = { id: randomUUID(), turmaId: randomUUID(), disciplinaId: null, professor: { usuarioId: randomUUID(), nome: 'Colega' }, diaSemana: 1, inicio: '08:00', fim: '08:50', sala: null }
+    expect(shared.gradeResponseSchema.safeParse({ aulas: [aula] }).success).toBe(true)
+    expect(shared.gradeResponseSchema.safeParse({ aulas: [aula, { ...aula, professor: { ...aula.professor, email: 'colega@escola.invalid' } }] }).success).toBe(false)
+    expect(shared.gradeQuerySchema.safeParse({ turmaId: aula.turmaId }).success).toBe(true)
+    expect(shared.gradeQuerySchema.safeParse({}).success).toBe(false)
+    expect(shared.gradeQuerySchema.safeParse({ turmaId: aula.turmaId, escolaId: randomUUID() }).success).toBe(false)
   })
 
   it('F2: a prévia e o gravar das planilhas entram na varredura e saem sem campo proibido', () => {

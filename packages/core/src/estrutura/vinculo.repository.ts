@@ -16,6 +16,7 @@ import {
   type EstadoDeVinculo,
   type EstadoDoProfessor,
   type MotivoDeEncerramentoDeVinculo,
+  type OrigemDeVinculo,
   type PapelDeVinculo,
 } from '@educa/shared'
 import { and, asc, desc, eq, gt, inArray, isNotNull, ne, or, sql, type SQL } from 'drizzle-orm'
@@ -275,12 +276,42 @@ export class VinculoRepository {
    */
   async professoresAbertosDoAno(
     anoLetivoId: string,
-  ): Promise<Array<{ readonly id: string; readonly usuarioId: string; readonly turmaId: string; readonly disciplinaId: string | null; readonly estado: EstadoDeVinculo }>> {
+  ): Promise<Array<{ readonly id: string; readonly usuarioId: string; readonly turmaId: string; readonly disciplinaId: string | null; readonly estado: EstadoDeVinculo; readonly origem: OrigemDeVinculo }>> {
     return this.banco
-      .select({ id: vinculo.id, usuarioId: vinculo.usuarioId, turmaId: vinculo.turmaId, disciplinaId: vinculo.disciplinaId, estado: vinculo.estado })
+      .select({ id: vinculo.id, usuarioId: vinculo.usuarioId, turmaId: vinculo.turmaId, disciplinaId: vinculo.disciplinaId, estado: vinculo.estado, origem: vinculo.origem })
       .from(vinculo)
       .where(and(eq(vinculo.escolaId, requireEscolaId()), eq(vinculo.anoLetivoId, anoLetivoId), eq(vinculo.papel, 'professor'), ne(vinculo.estado, 'encerrado')))
       .orderBy(asc(vinculo.id))
+  }
+
+  /**
+   * O "sai da grade" que a coordenação marcou na reimportação da grade (F2, 12.0; Tech Spec do onboarding, seção 5, "Gravar", "Grade"): encerra, com o
+   * `motivo`, o vínculo de professor aberto de cada id no ano dado, e devolve o id, o professor, a turma e o estado de antes de cada um, para a auditoria
+   * `vinculo.encerrado` e para a revogação do acesso que o professor gerou na turma. É a escrita do `encerrar`, mas por id e num ano que não é o do
+   * contexto (o planejado também recebe grade), porque o `encerrar` da coordenação alcança só o ano em curso. Os vínculos são lidos com `FOR UPDATE`, em
+   * ordem de id e depois da trava das turmas (a ordem turma → vínculo do `encerrar`): a decisão do professor que chega no meio espera e o relê já
+   * encerrado. Menos vínculos que ids é diferença (o vínculo foi encerrado à mão), e o motor fecha a importação `desatualizada`. Só aceita ano já
+   * conferido na escola: o `anoDeDestino` do motor, nunca um id vindo do cliente; a escola vem do contexto.
+   */
+  async encerrarProfessoresDaGrade(
+    anoLetivoId: string,
+    ids: readonly string[],
+    motivo: MotivoDeEncerramentoDeVinculo,
+  ): Promise<Array<{ readonly id: string; readonly usuarioId: string; readonly turmaId: string; readonly estadoAntes: EstadoDeVinculo }>> {
+    if (ids.length === 0) return []
+    const escolaId = requireEscolaId()
+    const abertos = await this.banco
+      .select({ id: vinculo.id, usuarioId: vinculo.usuarioId, turmaId: vinculo.turmaId, estado: vinculo.estado })
+      .from(vinculo)
+      .where(and(eq(vinculo.escolaId, escolaId), eq(vinculo.anoLetivoId, anoLetivoId), eq(vinculo.papel, 'professor'), ne(vinculo.estado, 'encerrado'), inArray(vinculo.id, [...ids])))
+      .orderBy(asc(vinculo.id))
+      .for('update')
+    if (abertos.length === 0) return []
+    await this.banco
+      .update(vinculo)
+      .set({ estado: 'encerrado', motivoEncerramento: motivo, encerradoEm: sql`now()` })
+      .where(and(eq(vinculo.escolaId, escolaId), eq(vinculo.anoLetivoId, anoLetivoId), inArray(vinculo.id, abertos.map((aberto) => aberto.id))))
+    return abertos.map(({ id, usuarioId, turmaId, estado }) => ({ id, usuarioId, turmaId, estadoAntes: estado }))
   }
 
   /**

@@ -1,4 +1,5 @@
-import { previaDaPlanilhaResponseSchema, type EstadoDeVinculo, type EstadoDoProfessor, type MarcasDaPlanilha } from '@educa/shared'
+import { previaDaPlanilhaResponseSchema, type EstadoDeVinculo, type EstadoDoProfessor, type MarcasDaPlanilha, type OrigemDeVinculo } from '@educa/shared'
+import { randomUUID } from 'node:crypto'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { convidarProfessorDaPlanilha } from '../../convite/convidar-professor-da-planilha.js'
 import type { DatabaseTransaction } from '../../db/database.js'
@@ -12,6 +13,8 @@ import { classificar, tipoGrade } from './grade.js'
 const auditar = vi.hoisted(() => vi.fn())
 vi.mock('../../convite/convidar-professor-da-planilha.js', () => ({ convidarProfessorDaPlanilha: vi.fn() }))
 vi.mock('../../auditoria/auditoria-recorder.js', () => ({ AuditoriaRecorder: class { gravar = auditar } }))
+const revogar = vi.hoisted(() => vi.fn())
+vi.mock('../../ciclo-de-vida/ciclo-de-vida.repository.js', () => ({ CicloDeVidaRepository: class { revogarDeQuemSaiu = revogar } }))
 const convidar = vi.mocked(convidarProfessorDaPlanilha)
 
 const CABECALHO = 'turma;disciplina;professor;email;dia;inicio;fim;sala'
@@ -23,7 +26,7 @@ interface Dados {
   turmas?: readonly TurmaDoAno[]
   disciplinas?: ReadonlyArray<{ id: string; nome: string }>
   professores?: readonly ProfessorDaEscola[]
-  vinculos?: ReadonlyArray<{ id: string; usuarioId: string; turmaId: string; disciplinaId: string | null; estado: EstadoDeVinculo }>
+  vinculos?: ReadonlyArray<{ id: string; usuarioId: string; turmaId: string; disciplinaId: string | null; estado: EstadoDeVinculo; origem?: OrigemDeVinculo }>
   aulas?: readonly AulaGravada[]
 }
 
@@ -33,7 +36,7 @@ function repositorioCom(dados: Dados = {}): ImportacaoRepository {
     turmasDoAno: () => Promise.resolve([...(dados.turmas ?? [])]),
     disciplinasDaEscola: () => Promise.resolve([...(dados.disciplinas ?? [])]),
     professoresDaEscola: () => Promise.resolve([...(dados.professores ?? [])]),
-    vinculosDeProfessorDoAno: () => Promise.resolve([...(dados.vinculos ?? [])]),
+    vinculosDeProfessorDoAno: () => Promise.resolve((dados.vinculos ?? []).map((vinculo) => ({ ...vinculo, origem: vinculo.origem ?? ('coordenacao' as const) }))),
     aulasDoAno: () => Promise.resolve([...(dados.aulas ?? [])]),
   } as unknown as ImportacaoRepository
 }
@@ -48,6 +51,36 @@ const T8A = turma('t-8a', '8º A', '8a')
 const T8B = turma('t-8b', '8º B', '8b')
 const QUIMICA = { id: 'd-quimica', nome: 'Química' }
 const ANA = professor('u-ana', 'ana@escola.invalid', 'ativo')
+
+/** O repositório de escrita falso do `aplicar`: registra a ordem das chamadas; `apagadasAMenos` e `encerradosAMenos` simulam a diferença que o passo (3) acha. */
+function gravacaoFalsa(apagadasAMenos = 0, encerradosAMenos = 0) {
+  const chamadas: string[] = []
+  const gravacao = {
+    seriesDaEscola: () => Promise.resolve([]),
+    criarSerie: () => Promise.resolve('serie-nova'),
+    criarTurma: (_ano: string, { nome }: { nome: string }) => Promise.resolve(`turma-${nome}`),
+    criarDisciplina: (nome: string) => Promise.resolve(`disciplina-${nome}`),
+    professoresDaEscola: () => Promise.resolve([professor('u-novo', 'ana@escola.invalid', 'pendente')]),
+    criarVinculosDeProfessorDaGrade: (_ano: string, novos: ReadonlyArray<{ usuarioId: string; turmaId: string; disciplinaId: string }>) => {
+      chamadas.push(`vinculos:${String(novos.length)}`)
+      return Promise.resolve(novos.map(({ usuarioId, turmaId, disciplinaId }, posicao) => ({ id: `v-${String(posicao)}`, usuarioId, turmaId, disciplinaId })))
+    },
+    apagarAulas: (_ano: string, ids: readonly string[]) => {
+      chamadas.push(`apagadas:${ids.join(',')}`)
+      return Promise.resolve(ids.length - apagadasAMenos)
+    },
+    gravarAulas: (_ano: string, aulas: readonly unknown[]) => {
+      chamadas.push(`aulas:${String(aulas.length)}`)
+      return Promise.resolve(aulas.length)
+    },
+    encerrarVinculosDeProfessorDaGrade: (_ano: string, ids: readonly string[], motivo: string) => {
+      chamadas.push(`encerrados:${ids.join(',')}:${motivo}`)
+      return Promise.resolve(ids.slice(0, ids.length - encerradosAMenos).map((id) => ({ id, usuarioId: `u-de-${id}`, turmaId: `t-de-${id}`, estadoAntes: 'confirmado' as const })))
+    },
+  }
+  const ambiente = { tx: { insert: vi.fn() }, ciclo: {} } as unknown as AmbienteDaGravacao
+  return { gravacao: gravacao as unknown as ImportacaoRepository, ambiente, chamadas }
+}
 
 describe('tipoGrade.previa', () => {
   it('escola vazia: toda linha é "novo", e a prévia conta o que nasce ao gravar', async () => {
@@ -342,6 +375,7 @@ describe('tipoGrade.planejar e travar', () => {
   beforeEach(() => {
     convidar.mockReset()
     auditar.mockReset()
+    revogar.mockReset()
   })
 
   it('o que o gravar guardou sem a forma da grade: sem plano e sem trava', async () => {
@@ -379,27 +413,6 @@ describe('tipoGrade.planejar e travar', () => {
     expect(travarTurmas).not.toHaveBeenCalled()
   })
 
-  function gravacaoFalsa() {
-    const chamadas: string[] = []
-    const gravacao = {
-      seriesDaEscola: () => Promise.resolve([]),
-      criarSerie: () => Promise.resolve('serie-nova'),
-      criarTurma: (_ano: string, { nome }: { nome: string }) => Promise.resolve(`turma-${nome}`),
-      criarDisciplina: (nome: string) => Promise.resolve(`disciplina-${nome}`),
-      professoresDaEscola: () => Promise.resolve([professor('u-novo', 'ana@escola.invalid', 'pendente')]),
-      criarVinculosDeProfessorDaGrade: (_ano: string, novos: ReadonlyArray<{ usuarioId: string; turmaId: string; disciplinaId: string }>) => {
-        chamadas.push(`vinculos:${String(novos.length)}`)
-        return Promise.resolve(novos.map(({ usuarioId, turmaId, disciplinaId }, posicao) => ({ id: `v-${String(posicao)}`, usuarioId, turmaId, disciplinaId })))
-      },
-      gravarAulas: (_ano: string, aulas: readonly unknown[]) => {
-        chamadas.push(`aulas:${String(aulas.length)}`)
-        return Promise.resolve(aulas.length)
-      },
-    }
-    const ambiente = { tx: { insert: vi.fn() }, ciclo: {} } as unknown as AmbienteDaGravacao
-    return { gravacao: gravacao as unknown as ImportacaoRepository, ambiente, chamadas }
-  }
-
   it('professor novo sem a conta do passo (1): ContaDaPlanilhaPerdidaError; convite que não se faz: DiferencaNaPlanilhaError', async () => {
     const guardado = await guardadoDe([linha('8A', '1', '8:00', '8:50')])
     const { gravacao, ambiente } = gravacaoFalsa()
@@ -419,8 +432,137 @@ describe('tipoGrade.planejar e travar', () => {
     await plano?.aplicar(gravacao, ambiente)
     expect(convidar).toHaveBeenCalledOnce()
     expect(convidar).toHaveBeenCalledWith(expect.anything(), { contaId: 'c-1', nome: 'Ana Souza' })
-    expect(chamadas).toEqual(['vinculos:1', 'aulas:2'])
+    expect(chamadas).toEqual(['vinculos:1', 'apagadas:', 'aulas:2', 'encerrados::realocacao'])
     expect(auditar.mock.calls.map(([, acao]) => acao)).toEqual(['turma.criada', 'vinculo.criado'])
     expect(auditar.mock.calls[1]?.[2]).toMatchObject({ depois: { papel: 'professor', estado: 'pendente', origem: 'grade', disciplinaId: 'disciplina-Química' } })
+  })
+})
+
+describe('tipoGrade, reimportar substitui a grade do ano (12.0, RF9)', () => {
+  const vinculo = (id: string, extras: { turmaId?: string; usuarioId?: string; origem?: OrigemDeVinculo; estado?: EstadoDeVinculo } = {}) => ({
+    id,
+    usuarioId: extras.usuarioId ?? 'u-ana',
+    turmaId: extras.turmaId ?? 't-8a',
+    disciplinaId: 'd-quimica',
+    estado: extras.estado ?? ('confirmado' as const),
+    origem: extras.origem ?? ('coordenacao' as const),
+  })
+  const aulaGravada = (id: string, vinculoId: string, inicio: string, fim: string): AulaGravada => ({ id, vinculoId, diaSemana: 1, inicio, fim, sala: null })
+  /** A escola com a Ana na 8ºA e no 8ºB, sem nenhuma aula da planilha: o que cada vínculo e cada aula faria se a planilha não os trouxesse. */
+  const escola = (vinculos: NonNullable<Dados['vinculos']>, aulas: NonNullable<Dados['aulas']> = []): Dados => ({ turmas: [T8A, T8B], disciplinas: [QUIMICA], professores: [ANA], vinculos, aulas })
+  const daAna8A = linha('8A', '1', '8:00', '8:50')
+
+  beforeEach(() => {
+    convidar.mockReset()
+    auditar.mockReset()
+    revogar.mockReset()
+  })
+
+  it('a aula gravada que nenhuma linha traz sai do ano, e a que a linha confirma ou muda fica: a prévia conta só as que saem', async () => {
+    const dados = escola([vinculo('v-1')], [aulaGravada('a-fica', 'v-1', '08:00', '08:50'), aulaGravada('a-muda', 'v-1', '09:00', '09:50'), aulaGravada('a-sai', 'v-1', '10:00', '10:50')])
+    const lida = await previa([daAna8A, linha('8A', '1', '9:00', '9:30')], dados)
+    expect(lida.linhas.map(({ resultado }) => resultado)).toEqual(['ja_existe', 'entra'])
+    expect(lida.contagens).toEqual({ aulas: 1, ja_existem: 1, turmas_novas: 0, disciplinas_novas: 0, professores_novos: 0, vinculos_criados: 0, aulas_removidas: 1 })
+    const plano = await tipoGrade.planejar(repositorioCom(dados), ANO, lida.guardado, SEM_MARCAS)
+    const { gravacao, ambiente, chamadas } = gravacaoFalsa()
+    await plano?.aplicar(gravacao, ambiente)
+    expect(chamadas).toEqual(['vinculos:0', 'apagadas:a-sai', 'aulas:1', 'encerrados::realocacao'])
+  })
+
+  it('o vínculo que perdeu todas as aulas é candidato "sai da grade", com o rótulo de professor, turma e disciplina; o citado por alguma linha não é', async () => {
+    const id8b = randomUUID()
+    const dados = escola([vinculo('v-8a'), vinculo(id8b, { turmaId: 't-8b' })], [aulaGravada('a-8a', 'v-8a', '08:00', '08:50'), aulaGravada('a-8b', id8b, '08:00', '08:50')])
+    const lida = await previa([daAna8A], dados)
+    expect(lida.candidatos).toEqual([{ id: id8b, acao: 'encerrar', rotulo: 'Professor u-ana · 8º B · Química' }])
+    expect(lida.contagens).toMatchObject({ aulas_removidas: 1 })
+    expect(() => previaDaPlanilhaResponseSchema.parse({ linhas: lida.linhas, contagens: lida.contagens, candidatos: lida.candidatos })).not.toThrow()
+  })
+
+  it('o vínculo da grade sem aula é candidato; o feito à mão sem aula fica e não é; o feito à mão que tinha aula é candidato', async () => {
+    const dados = escola(
+      [vinculo('v-grade', { turmaId: 't-8b', origem: 'grade', estado: 'pendente' }), vinculo('v-mao', { turmaId: 't-8b', origem: 'coordenacao' }), vinculo('v-lista', { turmaId: 't-8b', origem: 'lista' }), vinculo('v-mao-com-aula', { origem: 'coordenacao' })],
+      [aulaGravada('a-1', 'v-mao-com-aula', '08:00', '08:50')],
+    )
+    const lida = await previa([linha('8A', '2', '8:00', '8:50', { disciplina: 'Química', professor: 'Bruno', email: 'bruno@escola.invalid' })], dados)
+    expect(lida.candidatos.map(({ id }) => id).sort()).toEqual(['v-grade', 'v-mao-com-aula'])
+    expect(lida.contagens).toMatchObject({ aulas_removidas: 1 })
+  })
+
+  it('planilha com erro de linha não oferece candidato nem conta aula que sai: ela não grava, e o aviso seria falso', async () => {
+    const dados = escola([vinculo('v-8b', { turmaId: 't-8b', origem: 'grade' })], [aulaGravada('a-8b', 'v-8b', '08:00', '08:50')])
+    const comErro = await previa([daAna8A, linha('8A', '1', '9:00', '8:00')], dados)
+    expect(comErro.linhas.map(({ erro }) => erro)).toEqual([undefined, 'fim_antes_do_inicio'])
+    expect(comErro.candidatos).toEqual([])
+    expect(comErro.contagens).not.toHaveProperty('aulas_removidas')
+    const semLeitura = await previa([daAna8A, '8A;Química'], dados)
+    expect(semLeitura.candidatos).toEqual([])
+    const semErro = await previa([daAna8A], dados)
+    expect(semErro.candidatos.map(({ id }) => id)).toEqual(['v-8b'])
+    // O erro da classificação (a mesma aula duas vezes), e não da leitura, também cala os candidatos e a contagem do que sai.
+    const repetida = await previa([daAna8A, daAna8A], dados)
+    expect(repetida.linhas.map(({ erro }) => erro)).toEqual([undefined, 'aula_repetida'])
+    expect(repetida.candidatos).toEqual([])
+    expect(repetida.contagens).not.toHaveProperty('aulas_removidas')
+  })
+
+  it('a assinatura muda quando entra ou sai uma aula do ano, ou um candidato, mesmo com as linhas iguais', async () => {
+    const base = escola([vinculo('v-1'), vinculo('v-2', { turmaId: 't-8b', origem: 'grade' })], [aulaGravada('a-1', 'v-1', '08:00', '08:50')])
+    const conferida = (await previa([daAna8A], base)).assinatura
+    const maisUmaAula = { ...base, aulas: [...(base.aulas ?? []), aulaGravada('a-2', 'v-1', '11:00', '11:50')] }
+    expect((await previa([daAna8A], maisUmaAula)).assinatura).not.toBe(conferida)
+    const semOCandidato = { ...base, vinculos: [vinculo('v-1')] }
+    expect((await previa([daAna8A], semOCandidato)).assinatura).not.toBe(conferida)
+  })
+
+  it('só o marcado encerra: o plano encerra os vínculos marcados por `realocacao`, grava `vinculo.encerrado` com a origem `grade` e revoga o acesso de quem saiu', async () => {
+    const dados = escola([vinculo('v-8a'), vinculo('v-8b', { turmaId: 't-8b', usuarioId: 'u-bia' })], [aulaGravada('a-8a', 'v-8a', '08:00', '08:50')])
+    const guardado = (await previa([daAna8A], dados)).guardado
+    revogar.mockResolvedValue([{ id: 'acesso-1', turmaId: 't-de-v-8b' }])
+    const semMarca = await tipoGrade.planejar(repositorioCom(dados), ANO, guardado, SEM_MARCAS)
+    expect(semMarca?.resumo).not.toHaveProperty('vinculos_encerrados')
+    const falsa = gravacaoFalsa()
+    await semMarca?.aplicar(falsa.gravacao, falsa.ambiente)
+    expect(falsa.chamadas).toContain('encerrados::realocacao')
+    expect(revogar).not.toHaveBeenCalled()
+
+    const comMarca = await tipoGrade.planejar(repositorioCom(dados), ANO, guardado, { ...SEM_MARCAS, encerrar: ['v-8b'] })
+    expect(comMarca?.resumo).toMatchObject({ vinculos_encerrados: 1 })
+    expect(comMarca?.assinatura).toBe(semMarca?.assinatura)
+    const { gravacao, ambiente, chamadas } = gravacaoFalsa()
+    auditar.mockReset()
+    await comMarca?.aplicar(gravacao, ambiente)
+    expect(chamadas).toEqual(['vinculos:0', 'apagadas:', 'aulas:0', 'encerrados:v-8b:realocacao'])
+    expect(revogar).toHaveBeenCalledWith('u-de-v-8b', 't-de-v-8b')
+    expect(auditar.mock.calls.map(([, acao, dados]) => [acao, dados])).toEqual([
+      ['vinculo.encerrado', { entidadeId: 'v-8b', antes: { estado: 'confirmado' }, depois: { estado: 'encerrado', motivo: 'realocacao', origem: 'grade' } }],
+      ['acesso_turma.revogado', { entidadeId: 'acesso-1', depois: { turmaId: 't-de-v-8b' } }],
+    ])
+  })
+
+  it('vínculo marcado que já não está aberto, ou aula que já não existe: DiferencaNaPlanilhaError, e a importação sai `desatualizada`', async () => {
+    const dados = escola([vinculo('v-8a'), vinculo('v-8b', { turmaId: 't-8b', origem: 'grade' })], [aulaGravada('a-8a', 'v-8a', '08:00', '08:50'), aulaGravada('a-8b', 'v-8b', '08:00', '08:50')])
+    const guardado = (await previa([daAna8A], dados)).guardado
+    const plano = await tipoGrade.planejar(repositorioCom(dados), ANO, guardado, { ...SEM_MARCAS, encerrar: ['v-8b'] })
+    const semOVinculo = gravacaoFalsa(0, 1)
+    await expect(plano?.aplicar(semOVinculo.gravacao, semOVinculo.ambiente)).rejects.toBeInstanceOf(DiferencaNaPlanilhaError)
+    const semAAula = gravacaoFalsa(1, 0)
+    await expect(plano?.aplicar(semAAula.gravacao, semAAula.ambiente)).rejects.toBeInstanceOf(DiferencaNaPlanilhaError)
+    expect(revogar).not.toHaveBeenCalled()
+  })
+
+  it('a trava trava também o professor e a turma de cada vínculo marcado, e só os marcados, na mesma ordem: usuários, contas, turmas por id', async () => {
+    const ordem: string[] = []
+    const dados = escola([vinculo('v-8a'), vinculo('v-9b', { turmaId: 't-9b', usuarioId: 'u-bia' }), vinculo('v-8b', { turmaId: 't-8b', usuarioId: 'u-caio' }), vinculo('v-9c', { turmaId: 't-9c', usuarioId: 'u-dani' })])
+    const repositorio = {
+      ...repositorioCom({ ...dados, professores: [ANA, professor('u-bia', 'bia@escola.invalid', 'ativo'), professor('u-caio', 'caio@escola.invalid', 'ativo'), professor('u-dani', 'dani@escola.invalid', 'ativo')] }),
+      travarUsuarios: (ids: readonly string[]) => Promise.resolve(void ordem.push(`usuarios:${[...ids].sort().join(',')}`)),
+      travarTurmas: (_ano: string, ids: readonly string[]) => Promise.resolve(void ordem.push(`turmas:${ids.join(',')}`)),
+    } as unknown as ImportacaoRepository
+    const guardado = (await previa([daAna8A], dados)).guardado
+    await tipoGrade.travar?.(repositorio, ANO, guardado, { ...SEM_MARCAS, encerrar: ['v-9b', 'v-8b'] }, { contas: new Map(), travarContas: () => Promise.resolve(true) }, TX)
+    expect(ordem).toEqual(['usuarios:u-ana,u-bia,u-caio', 'turmas:t-8a,t-8b,t-9b'])
+    ordem.length = 0
+    await tipoGrade.travar?.(repositorio, ANO, guardado, SEM_MARCAS, { contas: new Map(), travarContas: () => Promise.resolve(true) }, TX)
+    expect(ordem).toEqual(['usuarios:u-ana', 'turmas:t-8a'])
   })
 })

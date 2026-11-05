@@ -86,7 +86,7 @@ cenários foram distribuídos pelo `test-engineer`; cada linha do `cenarios.md` 
   - [ ] 11.4 Releitura no passo (3)
   - [ ] 11.5 Testes
 
-- [ ] **12.0 — Reimportar a grade a substitui sem perder o id, e a grade se lê por turma**
+- [x] **12.0 — Reimportar a grade a substitui sem perder o id, e a grade se lê por turma**
   - [ ] 12.1 Reimportação com id estável e "sai da grade"
   - [ ] 12.2 `GET /v1/grade`
   - [ ] 12.3 `docs/modelo-de-dados.md`

@@ -11,13 +11,18 @@ import {
   TAMANHO_MAXIMO_NOME_DIGITADO,
   type EstadoDeVinculo,
   type EstadoDoProfessor,
+  type MarcasDaPlanilha,
+  type OrigemDeVinculo,
   type PreviaDaPlanilhaRow,
+  type CandidatoDaMarca,
   type ResumoDaImportacao,
 } from '@educa/shared'
 import { z } from 'zod'
 import { convidarProfessorDaPlanilha } from '../../convite/convidar-professor-da-planilha.js'
 import { AuditoriaRecorder } from '../../auditoria/auditoria-recorder.js'
+import { CicloDeVidaRepository } from '../../ciclo-de-vida/ciclo-de-vida.repository.js'
 import type { TurmaDoAno } from '../../estrutura/turma.repository.js'
+import type { DatabaseTransaction } from '../../db/database.js'
 import type { AulaGravada, AulaNova } from '../alocacao.repository.js'
 import { ContaDaPlanilhaPerdidaError, DiferencaNaPlanilhaError } from '../erros.js'
 import type { ImportacaoRepository, ProfessorDaEscola } from '../importacao.repository.js'
@@ -40,8 +45,12 @@ import { criarTurmasNovas, indexarTurmas, indiceDaTurma, nomeDaTurma, type Serie
  *   nesse estado (`ESTADOS_DO_PROFESSOR_ALOCAVEIS`): ela renova o convite pela lista antes.
  * - **Professor em duas turmas no mesmo horário e turma com duas aulas no mesmo horário são aviso** (aula conjunta e turma dividida existem);
  *   horário impossível, linha sem professor e a mesma aula duas vezes são erro.
- * - **A aula que já existe para (vínculo, dia, início) muda de fim e de sala e mantém o id.** Tirar do ano a aula que a planilha não traz,
- *   e o "sai da grade", são da 12.0.
+ * - **A aula que já existe para (vínculo, dia, início) muda de fim e de sala e mantém o id** (a `Aula` da F2b aponta para ela). Reimportar
+ *   **substitui** a grade do ano (12.0, RF9): a aula gravada que nenhuma linha traz sai do ano, no gravar.
+ * - **O vínculo que perdeu as aulas é candidato a "sai da grade" e só encerra marcado** (12.0): o vínculo de professor aberto que nenhuma linha
+ *   reaproveita e que tem aula gravada ou nasceu da grade. O criado à mão sem aula fica, e não é candidato. A marca encerra pelo mesmo caminho do
+ *   `encerrar` da coordenação (motivo `realocacao`, `vinculo.encerrado` com a origem `grade`, e o acesso que o professor gerou na turma, revogado).
+ *   Com erro em alguma linha a planilha não grava, e por isso a prévia não oferece candidato nem conta aula que sai.
  * - **A prévia não mostra nome nem e-mail do banco**: o e-mail só serve para casar a linha, e nunca sai.
  */
 
@@ -120,12 +129,16 @@ interface DadosDaGrade {
   readonly turmas: readonly TurmaDoAno[]
   readonly disciplinas: ReadonlyArray<{ readonly id: string; readonly nome: string }>
   readonly professores: readonly ProfessorDaEscola[]
-  readonly vinculos: ReadonlyArray<{ readonly id: string; readonly usuarioId: string; readonly turmaId: string; readonly disciplinaId: string | null; readonly estado: EstadoDeVinculo }>
+  readonly vinculos: ReadonlyArray<{ readonly id: string; readonly usuarioId: string; readonly turmaId: string; readonly disciplinaId: string | null; readonly estado: EstadoDeVinculo; readonly origem: OrigemDeVinculo }>
   readonly aulas: readonly AulaGravada[]
 }
 
 interface Classificacao {
   readonly linhas: readonly ClassificadaRow[]
+  /** Os ids das aulas gravadas do ano que nenhuma linha traz: saem no gravar. */
+  readonly aulasQueSaem: readonly string[]
+  /** Os vínculos que perderam as aulas ("sai da grade"): só a marca da coordenação os encerra. */
+  readonly candidatos: readonly CandidatoDaMarca[]
   readonly turmasNovas: readonly TurmaNova[]
   readonly disciplinasNovas: ReadonlyArray<{ readonly chave: string; readonly nome: string }>
   readonly professoresNovos: ReadonlyArray<{ readonly email: string; readonly nome: string }>
@@ -377,6 +390,27 @@ function novosDe(linhas: readonly ClassificadaRow[]): Pick<Classificacao, 'turma
   }
 }
 
+/**
+ * O que a planilha tira do ano (12.0, RF9): as aulas gravadas que nenhuma linha traz e os vínculos que ficaram sem aula. A aula que uma linha confirma ou
+ * muda é a `gravada` dela; o vínculo que alguma linha reaproveita não sai. Candidato é o vínculo de professor aberto que nenhuma linha cita e que tem
+ * aula gravada ou veio da grade: o criado à mão sem aula não é da grade e fica. O rótulo (professor, turma e disciplina) é só para a coordenação conferir.
+ */
+function saidasDe(linhas: readonly ClassificadaRow[], dados: DadosDaGrade): Pick<Classificacao, 'aulasQueSaem' | 'candidatos'> {
+  const mantidas = new Set(linhas.flatMap(({ gravada }) => (gravada === undefined ? [] : [gravada.id])))
+  const citados = new Set(linhas.flatMap(({ vinculo }) => (vinculo?.tipo === 'existente' ? [vinculo.id] : [])))
+  const comAula = new Set(dados.aulas.map(({ vinculoId }) => vinculoId))
+  const professores = new Map(dados.professores.map(({ usuarioId, nome }) => [usuarioId, nome]))
+  const turmas = new Map(dados.turmas.map(({ id, nome }) => [id, nome]))
+  const disciplinas = new Map(dados.disciplinas.map(({ id, nome }) => [id, nome]))
+  const rotuloDe = ({ usuarioId, turmaId, disciplinaId }: DadosDaGrade['vinculos'][number]): string =>
+    [professores.get(usuarioId), turmas.get(turmaId), disciplinaId === null ? undefined : disciplinas.get(disciplinaId)].filter((parte) => parte !== undefined).join(' · ')
+  const candidatos = dados.vinculos.filter(({ id, origem }) => !citados.has(id) && (origem === 'grade' || comAula.has(id)))
+  return {
+    aulasQueSaem: dados.aulas.filter(({ id }) => !mantidas.has(id)).map(({ id }) => id),
+    candidatos: candidatos.map((vinculo) => ({ id: vinculo.id, acao: 'encerrar', rotulo: rotuloDe(vinculo) })),
+  }
+}
+
 /** A linha como a coordenação a viu: o resultado e o que cada parte é no banco. O erro e o aviso saem do resultado e da própria linha. */
 function linhaVista({ linha, resultado, turma, disciplina, professor, vinculo, gravada }: ClassificadaRow): unknown[] {
   return [
@@ -393,9 +427,11 @@ function linhaVista({ linha, resultado, turma, disciplina, professor, vinculo, g
 /**
  * O que a planilha faria neste ano contra o que a escola tem. A `assinatura` resume o que a coordenação viu (cada linha com o resultado, o
  * que cada uma das três partes é no banco, o vínculo e a aula que ela confirma ou muda): o job só grava se, no passo (3), ela é a mesma.
- * O desativar do professor, o vínculo encerrado ou criado à mão e a turma renomeada entre a prévia e o job mudam a assinatura.
+ * O desativar do professor, o vínculo encerrado ou criado à mão, a turma renomeada, a aula que entra ou sai do ano e o candidato a "sai da grade"
+ * entre a prévia e o job mudam a assinatura. `semLeitura` é quantas linhas o texto trouxe e a leitura recusou: com elas, ou com erro de classificação, a
+ * planilha não grava, e a prévia não diz o que sairia do ano.
  */
-export function classificar(anoLetivoId: string, lidas: readonly AulaLida[], dados: DadosDaGrade): Classificacao {
+export function classificar(anoLetivoId: string, lidas: readonly AulaLida[], dados: DadosDaGrade, semLeitura = 0): Classificacao {
   const indices = indexar(dados)
   const vistas = new Set<string>()
   const classificadas = lidas.map((aula) => classificarLinha(aula, indices, vistas))
@@ -405,6 +441,7 @@ export function classificar(anoLetivoId: string, lidas: readonly AulaLida[], dad
     return aviso === undefined ? linha : { ...linha, aviso }
   })
   const novos = novosDe(linhas)
+  const { aulasQueSaem, candidatos } = semLeitura === 0 && linhas.every(({ resultado }) => resultado !== 'erro') ? saidasDe(linhas, dados) : { aulasQueSaem: [], candidatos: [] }
   const resumo = {
     aulas: linhas.filter(({ resultado }) => resultado === 'novo' || resultado === 'entra').length,
     ja_existem: linhas.filter(({ resultado }) => resultado === 'ja_existe').length,
@@ -412,9 +449,10 @@ export function classificar(anoLetivoId: string, lidas: readonly AulaLida[], dad
     disciplinas_novas: novos.disciplinasNovas.length,
     professores_novos: novos.professoresNovos.length,
     vinculos_criados: novos.vinculosNovos.length,
+    ...(aulasQueSaem.length === 0 ? {} : { aulas_removidas: aulasQueSaem.length }),
   }
-  const assinatura = createHash('sha256').update(JSON.stringify({ ano: anoLetivoId, linhas: linhas.map(linhaVista) })).digest('hex')
-  return { linhas, ...novos, resumo, assinatura }
+  const assinatura = createHash('sha256').update(JSON.stringify({ ano: anoLetivoId, linhas: linhas.map(linhaVista), saem: aulasQueSaem, candidatos: candidatos.map(({ id }) => id) })).digest('hex')
+  return { linhas, aulasQueSaem, candidatos, ...novos, resumo, assinatura }
 }
 
 /** A linha como a coordenação a vê: o resultado, o erro (que a troca por `erro`) ou o aviso. */
@@ -435,10 +473,11 @@ async function lerDados(repositorio: ImportacaoRepository, anoLetivoId: string):
 }
 
 /** O plano do que o job grava, com o `aplicar` na transação do passo (3). As contas são as do passo (1): o `convidar` do professor novo usa a de cada e-mail. */
-function planoDe(anoLetivoId: string, classificacao: Classificacao, contas: ContasDoJob): PlanoDaImportacao {
+function planoDe(anoLetivoId: string, classificacao: Classificacao, contas: ContasDoJob, marcas: MarcasDaPlanilha): PlanoDaImportacao {
+  const aEncerrar = [...marcas.encerrar].sort()
   return {
     assinatura: classificacao.assinatura,
-    resumo: classificacao.resumo,
+    resumo: { ...classificacao.resumo, ...(aEncerrar.length === 0 ? {} : { vinculos_encerrados: aEncerrar.length }) },
     aplicar: async (gravacao, { tx }) => {
       const turmas = await criarTurmasNovas(gravacao, tx, anoLetivoId, classificacao.turmasNovas)
       const disciplinas = new Map<string, string>()
@@ -469,8 +508,26 @@ function planoDe(anoLetivoId: string, classificacao: Classificacao, contas: Cont
         if (aula === undefined || vinculo === undefined || resultado === 'ja_existe') return []
         return [{ vinculoId: vinculo.tipo === 'existente' ? vinculo.id : idDe(idDoVinculoNovo.get(vinculo.chave)), diaSemana: aula.dia, inicio: aula.inicio, fim: aula.fim, sala: aula.sala }]
       })
+      // A grade do ano é a da planilha: a aula que nenhuma linha traz sai antes de as outras entrarem. Menos apagadas que lidas é diferença.
+      if ((await gravacao.apagarAulas(anoLetivoId, classificacao.aulasQueSaem)) !== classificacao.aulasQueSaem.length) throw new DiferencaNaPlanilhaError()
       await gravacao.gravarAulas(anoLetivoId, aulas)
+      await encerrarOsMarcados(gravacao, tx, anoLetivoId, aEncerrar)
     },
+  }
+}
+
+/**
+ * O "sai da grade" que a coordenação marcou: o mesmo caminho do `encerrar` (Tech Spec, seção 5, "Gravar"). O vínculo vai a `encerrado` por `realocacao`
+ * (`vinculo.encerrado`, com a origem `grade`), e o acesso que o professor gerou naquela turma cai, a menos que outro vínculo confirmado dele a segure
+ * (`acesso_turma.revogado`). As turmas já estão travadas pelo `travar`. Vínculo que já não está aberto (encerrado à mão entre o (2) e o (3)) é diferença.
+ */
+async function encerrarOsMarcados(gravacao: ImportacaoRepository, tx: DatabaseTransaction, anoLetivoId: string, ids: readonly string[]): Promise<void> {
+  const encerrados = await gravacao.encerrarVinculosDeProfessorDaGrade(anoLetivoId, ids, 'realocacao')
+  if (encerrados.length !== ids.length) throw new DiferencaNaPlanilhaError()
+  const ciclo = new CicloDeVidaRepository(tx)
+  for (const { id, usuarioId, turmaId, estadoAntes } of encerrados) {
+    await registro.gravar(tx, 'vinculo.encerrado', { entidadeId: id, antes: { estado: estadoAntes }, depois: { estado: 'encerrado', motivo: 'realocacao', origem: 'grade' } })
+    for (const revogado of await ciclo.revogarDeQuemSaiu(usuarioId, turmaId)) await registro.gravar(tx, 'acesso_turma.revogado', { entidadeId: revogado.id, depois: { turmaId: revogado.turmaId } })
   }
 }
 
@@ -492,10 +549,10 @@ export const tipoGrade: TipoDeImportacao = {
     const tabela = lerTabela(texto, CABECALHOS_DA_PLANILHA.grade)
     const lidas = tabela.linhas.map(({ linha, campos }) => ({ linha, lido: campos === null ? ('linha_incompleta' as const) : lerLinha(linha, campos) }))
     const validas = lidas.flatMap(({ lido }) => (typeof lido === 'string' ? [] : [lido]))
-    const classificacao = classificar(ano.id, validas, await lerDados(repositorio, ano.id))
+    const classificacao = classificar(ano.id, validas, await lerDados(repositorio, ano.id), lidas.length - validas.length)
     const dosErros = lidas.flatMap(({ linha, lido }): PreviaDaPlanilhaRow[] => (typeof lido === 'string' ? [{ linha, resultado: 'erro', erro: lido }] : []))
     const linhas = [...dosErros, ...classificacao.linhas.map(linhaDaPrevia)].sort((a, b) => a.linha - b.linha)
-    return { linhas, contagens: classificacao.resumo, candidatos: [], guardado: validas, assinatura: classificacao.assinatura }
+    return { linhas, contagens: classificacao.resumo, candidatos: classificacao.candidatos, guardado: validas, assinatura: classificacao.assinatura }
   },
 
   /** Os professores das linhas que a escola ainda não tem, ou chama de volta (`revogado`, `desativado`): as contas que o passo (1) acha ou cria. */
@@ -513,20 +570,25 @@ export const tipoGrade: TipoDeImportacao = {
   /**
    * A trava do passo (3), depois do ano e na ordem global (o convite da escola veio antes, pelo motor): os professores que as linhas citam
    * (`FOR NO KEY UPDATE`, em ordem de id: o `desativar` e o aceite esperam), as contas dos novos (`FOR SHARE`, com o e-mail conferido) e as turmas que as
-   * linhas tocam, em ordem de id e num comando só, como o `desativar` as trava. O `planejar` lê depois, sob as travas.
+   * linhas tocam, em ordem de id e num comando só, como o `desativar` as trava. O professor e a turma de cada vínculo marcado "sai da grade" entram nas
+   * mesmas travas (a turma antes do vínculo, como o `encerrar`). O `planejar` lê depois, sob as travas.
    */
-  async travar(repositorio, ano, guardado, _marcas, { contas, travarContas }) {
+  async travar(repositorio, ano, guardado, marcas, { contas, travarContas }) {
     const lido = guardadoSchema.safeParse(guardado)
     if (!lido.success) return
     const emails = new Set(lido.data.map(({ email }) => email))
+    const marcados = new Set(marcas.encerrar)
+    const aEncerrar = marcados.size === 0 ? [] : (await repositorio.vinculosDeProfessorDoAno(ano.id)).filter(({ id }) => marcados.has(id))
     const professores = await repositorio.professoresDaEscola()
-    await repositorio.travarUsuarios(professores.filter(({ email }) => email !== null && emails.has(email)).map(({ usuarioId }) => usuarioId))
+    const usuarios = new Set([...professores.filter(({ email }) => email !== null && emails.has(email)).map(({ usuarioId }) => usuarioId), ...aEncerrar.map(({ usuarioId }) => usuarioId)])
+    await repositorio.travarUsuarios([...usuarios])
     if (contas.size > 0 && !(await travarContas(contas))) throw new ContaDaPlanilhaPerdidaError()
-    await repositorio.travarTurmas(ano.id, turmasTocadas(lido.data, await repositorio.turmasDoAno(ano.id)))
+    const turmas = new Set([...turmasTocadas(lido.data, await repositorio.turmasDoAno(ano.id)), ...aEncerrar.map(({ turmaId }) => turmaId)])
+    await repositorio.travarTurmas(ano.id, [...turmas].sort())
   },
 
-  async planejar(repositorio, ano, guardado, _marcas, contas = new Map()) {
+  async planejar(repositorio, ano, guardado, marcas, contas = new Map()) {
     const lido = guardadoSchema.safeParse(guardado)
-    return lido.success ? planoDe(ano.id, classificar(ano.id, lido.data, await lerDados(repositorio, ano.id)), contas) : undefined
+    return lido.success ? planoDe(ano.id, classificar(ano.id, lido.data, await lerDados(repositorio, ano.id)), contas, marcas) : undefined
   },
 }

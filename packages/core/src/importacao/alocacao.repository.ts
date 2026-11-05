@@ -1,4 +1,4 @@
-import { and, asc, eq, sql } from 'drizzle-orm'
+import { and, asc, eq, inArray, sql } from 'drizzle-orm'
 import { requireEscolaId } from '../context/context-escola.js'
 import type { Database, DatabaseTransaction } from '../db/database.js'
 import { alocacao } from '../db/schema/alocacao.js'
@@ -51,5 +51,19 @@ export class AlocacaoRepository {
       .onConflictDoUpdate({ target: [alocacao.vinculoId, alocacao.diaSemana, alocacao.inicio], set: { fim: sql`excluded.fim`, sala: sql`excluded.sala` }, setWhere: eq(alocacao.escolaId, escolaId) })
       .returning({ id: alocacao.id })
     return gravadas.length
+  }
+
+  /**
+   * Tira do ano as aulas que a reimportação da grade não traz (F2, 12.0; Tech Spec, seção 5, "Grade"): a grade do ano é a da planilha. Apaga por
+   * id, com a escola do contexto e o ano de destino na cláusula (a aula de outra escola, ou de outro ano, nunca sai), e devolve quantas apagou:
+   * menos que as pedidas é diferença (outra escrita as tirou depois da leitura do passo (3)), e o motor fecha a importação `desatualizada`.
+   */
+  async apagar(anoLetivoId: string, ids: readonly string[]): Promise<number> {
+    if (ids.length === 0) return 0
+    const apagadas = await this.banco
+      .delete(alocacao)
+      .where(and(eq(alocacao.escolaId, requireEscolaId()), eq(alocacao.anoLetivoId, anoLetivoId), inArray(alocacao.id, [...ids])))
+      .returning({ id: alocacao.id })
+    return apagadas.length
   }
 }

@@ -134,6 +134,8 @@ numa tarefa do `tasks.md`, que diz qual. I = integração com Postgres real e re
 - **RF9.**
   - [I] Reimportar mantém o id da alocação por (vínculo, dia, início).
   - [I] Vínculo da grade sem aulas aparece "sai da grade" e só encerra marcado; o à mão sem aula fica e não é candidato.
+  - [I] A aula que a planilha não traz sai do ano (a do outro ano e a da outra escola ficam), e o `resumo` conta `aulas_removidas`; planilha com erro de linha não oferece candidato nem conta aula que sai.
+  - [I] O vínculo encerrado à mão, ou a aula posta à mão, entre o gravar e o job: `desatualizada`, nada apagado nem encerrado.
 - **RF10.**
   - [I] Data fora do ano é erro; reimportar substitui só no ano de destino, e a prévia mostra o que entra e o que sai.
 - **Job e estados.**

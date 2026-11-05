@@ -54,7 +54,7 @@ dia, início); a `Aula` da F2b aponta para ela. Glossário: "Grade horária" sã
 | POST | `/v1/importacoes/:tipo/previa` | coordenador | `{ texto, turmaId?, anoLetivoId? }`, até 512 KB | linhas, contagens, candidatos |
 | POST | `/v1/importacoes/:tipo` | coordenador | idem + `marcas` | `{ id }`, 202 |
 | GET | `/v1/importacoes/:id` | coordenador | — | id, tipo, estado, resumo, erro, datas |
-| GET | `/v1/grade?turmaId=`, `/v1/calendario` | coordenador (com `anoLetivoId?`); professor com vínculo confirmado | — | aula (professor só com id e nome); evento |
+| GET | `/v1/grade?turmaId=`, `/v1/calendario` | coordenador (com `anoLetivoId?`); professor com vínculo confirmado (na turma, para a grade) | — | aula (professor só com id e nome); evento |
 
 `anoLetivoId` é filtro validado no servidor (como o de turma): sem ele, o ano em curso;
 com ele, só o `planejado` da escola da sessão; outro valor, `NAO_ENCONTRADO`, como o `turmaId` fora da escola ou do ano.
@@ -72,6 +72,9 @@ envio de material (até 20 MB) tem o limite do próprio `FileInterceptor`. Exce�
 em pedaços) passa pelo middleware e fica preso só ao leitor de 1 MB, em qualquer rota.
 `GET /v1/calendario` não é paginado: o tamanho é limitado porque a importação do calendário substitui os eventos do ano (até 3.000
 linhas). Quem acrescentar escrita incremental de evento precisa paginar a leitura no mesmo passo.
+`GET /v1/grade` também não é paginado, pelo mesmo motivo: a grade de uma turma é limitada pelas 3.000 linhas da planilha do ano. A aula
+de um vínculo `pendente` ou `contestado` aparece na grade lida, e só o vínculo `encerrado` a tira da leitura: a grade é da turma, e quem
+tem vínculo confirmado nela vê o nome do colega (id e nome, nunca o e-mail; `docs/lgpd.md`, linha "Aula da grade"). A 14.0 não decide isso de novo.
 `/v1/turmas/:id/lista/previa` e `/lista` ficam, com o contrato da importação
 (202), com o `turmaId` conferido na escola e no ano (outro valor, `NAO_ENCONTRADO`). A API lê o texto (`lerTextoDaLista`, sem cabeçalho
 `nome;matricula`) e o entrega ao motor como `DaLista` (`{ turmaId, linhas }`, no `tipo.ts`), que o tipo `alunos` classifica sem coluna de
@@ -127,7 +130,7 @@ sem linha no ano é erro de linha (`aluno_desativado`). No ano em curso, e com l
 alcança, `ativo` ou `aceito` pelo `estadoDoProfessor`; o ausente `pendente`, `vencido`, `revogado` ou `desativado` não é
 candidato (marcado: `ENTRADA_INVALIDA`), e o convite em aberto sai pelo "Revogar" da lista (`convite/revogar` da A1). O
 `NAO_ENCONTRADO` do `desativar` no (3) é diferença: `desatualizada`.
-Grade: linha sem professor é erro; reaproveita o vínculo aberto ou cria um pendente (`origem = grade`); encerra só o marcado. O vínculo do ano planejado só se confirma em curso. Calendário: substitui no ano.
+Grade: linha sem professor é erro; reaproveita o vínculo aberto ou cria um pendente (`origem = grade`); encerra só o marcado. *Reimportar substitui a grade do ano (12.0):* a aula gravada que nenhuma linha traz é apagada (a que continua mantém o id, por vínculo, dia e início), e o `resumo` conta `aulas_removidas` quando há. *"Sai da grade"* é o vínculo de professor aberto que nenhuma linha reaproveita e que tem aula gravada ou nasceu da grade (`origem = grade`); o criado à mão sem aula não é candidato. Com erro de linha a prévia não oferece candidato nem conta aula que sai. A marca (`encerrar`, ids de vínculo) encerra por `realocacao`, com `vinculo.encerrado` de `origem = grade` e a revogação do acesso da turma (`revogarDeQuemSaiu`), travando antes o professor e a turma do marcado; o ano planejado também recebe a marca. A `assinatura` inclui as aulas que saem e os candidatos. O vínculo do ano planejado só se confirma em curso. Calendário: substitui no ano.
 
 ## 6. Isolamento
 
