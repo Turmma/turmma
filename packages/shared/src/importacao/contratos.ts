@@ -136,6 +136,7 @@ export const CHAVES_DO_RESUMO_DA_IMPORTACAO = [
   'vinculos_criados',
   'vinculos_encerrados',
   'aulas',
+  'aulas_removidas',
   'eventos',
   'eventos_removidos',
 ] as const
@@ -218,6 +219,13 @@ export const aulaDaGradeSchema = z.strictObject({
   sala: z.string().nullable(),
 })
 export type AulaDaGrade = z.infer<typeof aulaDaGradeSchema>
+
+/**
+ * Consulta de `GET /v1/grade` (F2, 12.0; Tech Spec, seção 4): a turma, e o ano planejado que a coordenação escolhe (sem ele, o em curso).
+ * Estrita: a escola vem da sessão, nunca da consulta (regra 10, item 3).
+ */
+export const gradeQuerySchema = z.strictObject({ turmaId: z.uuid(), anoLetivoId: z.uuid().optional() })
+export type GradeQuery = z.infer<typeof gradeQuerySchema>
 
 /** Resposta de `GET /v1/grade?turmaId=`: as aulas da turma no ano. */
 export const gradeResponseSchema = z.strictObject({ aulas: z.array(aulaDaGradeSchema) })

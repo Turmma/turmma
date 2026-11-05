@@ -99,6 +99,12 @@ export const RECURSOS = {
    * ela escolhe; o professor lê o do ano em curso, só com vínculo confirmado nele. O aluno e a rede não o leem.
    */
   calendario: ['ler'],
+  /**
+   * A grade da turma (F2, 12.0), `GET /v1/grade?turmaId=`: as aulas da turma no ano, com o id e o nome do professor de cada uma, nunca o e-mail.
+   * A coordenação lê a de qualquer turma da escola, no ano em curso ou no planejado; o professor lê a da turma em que tem vínculo `confirmado`,
+   * no ano em curso. O aluno e a rede não a leem. Não há leitura por professor: a grade é da turma, e não medida de quem a dá (regra 70, item 8).
+   */
+  grade: ['ler'],
   /** `GET /v1/time` (MVP, A2): os agentes, as funções, a autonomia e a suspensão na escola. Catálogo, sem dado de pessoa. */
   time: ['ler'],
   /**
@@ -226,6 +232,7 @@ export const MATRIZ: { readonly [P in Papel]: CelulasDoPapel } = {
     material: { enviar: 'nunca', listar: 'nunca', ler: 'nunca', excluir: 'nunca', buscar: 'nunca' },
     importacao_planilha: { previa: 'nunca', gravar: 'nunca', ler: 'nunca' },
     calendario: { ler: 'nunca' },
+    grade: { ler: 'nunca' },
     time: { ler: 'nunca' },
     assistente: { ler_conversa: 'nunca', enviar_mensagem: 'nunca' },
     execucao: { ler: 'nunca' },
@@ -270,6 +277,7 @@ export const MATRIZ: { readonly [P in Papel]: CelulasDoPapel } = {
     material: { enviar: 'unidade', listar: 'unidade', ler: 'unidade', excluir: 'unidade', buscar: 'unidade' },
     importacao_planilha: { previa: 'unidade', gravar: 'unidade', ler: 'unidade' },
     calendario: { ler: 'unidade' },
+    grade: { ler: 'unidade' },
     time: { ler: 'unidade' },
     assistente: { ler_conversa: 'nunca', enviar_mensagem: 'nunca' },
     execucao: { ler: 'proprio' },
@@ -314,6 +322,7 @@ export const MATRIZ: { readonly [P in Papel]: CelulasDoPapel } = {
     material: { enviar: 'nunca', listar: 'turma_vinculada', ler: 'turma_vinculada', excluir: 'nunca', buscar: 'turma_vinculada' },
     importacao_planilha: { previa: 'nunca', gravar: 'nunca', ler: 'nunca' },
     calendario: { ler: 'turma_vinculada' },
+    grade: { ler: 'turma_vinculada' },
     time: { ler: 'unidade' },
     assistente: { ler_conversa: 'proprio', enviar_mensagem: 'proprio' },
     execucao: { ler: 'proprio' },
@@ -358,6 +367,7 @@ export const MATRIZ: { readonly [P in Papel]: CelulasDoPapel } = {
     material: { enviar: 'nunca', listar: 'nunca', ler: 'nunca', excluir: 'nunca', buscar: 'nunca' },
     importacao_planilha: { previa: 'nunca', gravar: 'nunca', ler: 'nunca' },
     calendario: { ler: 'nunca' },
+    grade: { ler: 'nunca' },
     time: { ler: 'nunca' },
     assistente: { ler_conversa: 'nunca', enviar_mensagem: 'nunca' },
     execucao: { ler: 'proprio' },

@@ -10,6 +10,8 @@ import { EscolaSessaoController } from './escola-sessao/escola-sessao.controller
 import { EscolaSessaoService } from './escola-sessao/escola-sessao.service.js'
 import { CalendarioController } from './grade/calendario.controller.js'
 import { CalendarioService } from './grade/calendario.service.js'
+import { GradeController } from './grade/grade.controller.js'
+import { GradeService } from './grade/grade.service.js'
 import { ImportacaoController } from './importacao/importacao.controller.js'
 import { ImportacaoService } from './importacao/importacao.service.js'
 import { ListaController } from './lista/lista.controller.js'
@@ -27,10 +29,10 @@ import { VinculoService } from './vinculo/vinculo.service.js'
  * A estrutura da escola que a coordenação configura pela API: a inatividade da sessão (5.0), os domínios e tenants do
  * login pela conta da escola (13.0), e o ano letivo, as
  * séries, as disciplinas e as turmas (8.0), e o vínculo, com a turma e os alunos que ele abre (9.0); na A1, a lista de nomes
- * da turma (2.0); no F2, as planilhas da escola (4.0), o estado delas e o calendário (5.0).
+ * da turma (2.0); no F2, as planilhas da escola (4.0), o estado delas e o calendário (5.0), e a grade da turma (12.0).
  */
 @Module({
-  controllers: [EscolaSessaoController, ProvedoresDaEscolaController, AnoLetivoController, SerieController, DisciplinaController, TurmaController, ListaController, ImportacaoController, CalendarioController, VinculoController, MeusVinculosController],
+  controllers: [EscolaSessaoController, ProvedoresDaEscolaController, AnoLetivoController, SerieController, DisciplinaController, TurmaController, ListaController, ImportacaoController, CalendarioController, GradeController, VinculoController, MeusVinculosController],
   providers: [
     { provide: EscolaSessaoService, useFactory: (banco: Database) => new EscolaSessaoService(banco), inject: [DB] },
     { provide: ProvedoresDaEscolaService, useFactory: (banco: Database) => new ProvedoresDaEscolaService(banco), inject: [DB] },
@@ -46,6 +48,7 @@ import { VinculoService } from './vinculo/vinculo.service.js'
       inject: [DB, JobOutboxRepository, VAGAS_DA_PLANILHA],
     },
     { provide: CalendarioService, useFactory: (banco: Database) => new CalendarioService(banco), inject: [DB] },
+    { provide: GradeService, useFactory: (banco: Database) => new GradeService(banco), inject: [DB] },
     { provide: VinculoService, useFactory: (banco: Database) => new VinculoService(banco), inject: [DB] },
   ],
 })

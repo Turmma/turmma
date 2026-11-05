@@ -138,6 +138,13 @@ describe('MATRIZ de permissão', () => {
     for (const papel of ['aluno', 'rede'] as const) expect(alcanceDe(papel, 'calendario', 'ler'), papel).toBe('nunca')
   })
 
+  it('F2, 12.0: a grade da turma é da coordenação (a escola inteira) e do professor (só a turma em que tem vínculo confirmado); aluno e rede, `nunca`', () => {
+    expect(RECURSOS.grade).toEqual(['ler'])
+    expect(alcanceDe('coordenador', 'grade', 'ler')).toBe('unidade')
+    expect(alcanceDe('professor', 'grade', 'ler')).toBe('turma_vinculada')
+    for (const papel of ['aluno', 'rede'] as const) expect(alcanceDe(papel, 'grade', 'ler'), papel).toBe('nunca')
+  })
+
   // MVP de apresentação (D77; `docs/mvp-rapido.md`, seção 7): uma célula por rota. A comparação com a expectativa pega a
   // célula trocada; estes testes dizem a regra de cada grupo.
   const RECURSOS_DO_MVP = ['material', 'time', 'assistente', 'execucao', 'ferramenta', 'artefato', 'entrega', 'atividade_aplicada', 'minha_atividade', 'correcao', 'desempenho_da_turma', 'tutor', 'sinal', 'uso_do_tutor', 'governanca', 'analista'] as const

@@ -526,6 +526,28 @@ export class ImportacaoRepository {
     return gravadas
   }
 
+  /** Tira do ano as aulas que a grade reimportada não traz, em lotes de `TAMANHO_DO_LOTE`. Devolve quantas apagou. */
+  async apagarAulas(anoLetivoId: string, ids: readonly string[]): Promise<number> {
+    requireEscolaId()
+    const alocacoes = new AlocacaoRepository(this.banco)
+    let apagadas = 0
+    for (let inicio = 0; inicio < ids.length; inicio += TAMANHO_DO_LOTE) apagadas += await alocacoes.apagar(anoLetivoId, ids.slice(inicio, inicio + TAMANHO_DO_LOTE))
+    return apagadas
+  }
+
+  /** Encerra o vínculo de professor de cada id marcado como "sai da grade", em lotes; devolve o que encerrou, com o estado de antes. */
+  async encerrarVinculosDeProfessorDaGrade(
+    anoLetivoId: string,
+    ids: readonly string[],
+    motivo: MotivoDeEncerramentoDeVinculo,
+  ): Promise<Array<{ readonly id: string; readonly usuarioId: string; readonly turmaId: string; readonly estadoAntes: EstadoDeVinculo }>> {
+    requireEscolaId()
+    const vinculos = new VinculoRepository(this.banco)
+    const encerrados: Array<{ readonly id: string; readonly usuarioId: string; readonly turmaId: string; readonly estadoAntes: EstadoDeVinculo }> = []
+    for (let inicio = 0; inicio < ids.length; inicio += TAMANHO_DO_LOTE) encerrados.push(...(await vinculos.encerrarProfessoresDaGrade(anoLetivoId, ids.slice(inicio, inicio + TAMANHO_DO_LOTE), motivo)))
+    return encerrados
+  }
+
   /** As séries da escola, numa consulta só. */
   seriesDaEscola(): Promise<Serie[]> {
     requireEscolaId()
