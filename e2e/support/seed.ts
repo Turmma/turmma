@@ -563,6 +563,22 @@ export async function montarEstruturaNoBanco(escolaId: string, turmas: readonly 
 }
 
 /**
+ * Uma turma do ano em curso com o **nome exato** dado, na série do ano dado (6 a 9 do Ensino Fundamental): a planilha de alunos acha a
+ * turma pelo nome ("8º A"), e a que `montarEstruturaNoBanco` cria leva uma marca no nome e não é achada. Devolve a turma no formato de
+ * `colocarAlunoNaTurma`, para pôr um aluno nela.
+ */
+export async function criarTurmaComNomeNoBanco(escolaId: string, nome: string, anoDaSerie: 6 | 7 | 8 | 9): Promise<TurmaDoAlunoDeTeste> {
+  return comBanco(async (banco) => {
+    const { rows: anos } = await banco.query<{ id: string }>("select id from ano_letivo where escola_id = $1 and situacao = 'em_curso'", [escolaId])
+    const anoLetivoId = anos[0]?.id
+    if (anoLetivoId === undefined) throw new Error('a escola do e2e não tem ano letivo em curso')
+    const serieId = await id(banco, "insert into serie (escola_id, etapa, ano) values ($1, 'ef_anos_finais', $2) on conflict (escola_id, etapa, ano) do update set ano = excluded.ano returning id", [escolaId, anoDaSerie])
+    const turmaId = await id(banco, 'insert into turma (escola_id, ano_letivo_id, serie_id, nome) values ($1, $2, $3, $4) returning id', [escolaId, anoLetivoId, serieId, nome])
+    return { turmaId, turmaNome: nome, serieNome: `${String(anoDaSerie)}º ano do Ensino Fundamental` }
+  })
+}
+
+/**
  * Nomes na lista da turma, livres como a gravação da lista (2.0) os deixa ou já reivindicados (o aluno pediu o nome, 6.0),
  * na ordem dada. Nome e matrícula inventados pelo teste.
  */
@@ -970,6 +986,19 @@ export async function porAprovadosNaListaDaTurma(escolaId: string, turmaId: stri
       const usuarioId = await id(banco, "insert into usuario (escola_id, papel, nome, introducao_vista_em) values ($1, 'aluno', $2, now()) returning id", [escolaId, `Aluno aprovado sintético ${randomUUID().slice(0, 8)}`])
       await banco.query("insert into lista_nome (escola_id, ano_letivo_id, turma_id, estado, usuario_id) values ($1, $2, $3, 'aprovado', $4)", [escolaId, anoLetivoId, turmaId, usuarioId])
     }
+  })
+}
+
+/**
+ * A linha `aprovado` da lista da turma para um aluno que já existe (com vínculo, de `colocarAlunoNaTurma`): é por ela que a planilha
+ * de alunos o acha "em outra turma" ou "fora da planilha" (13.0). A lista guarda o aprovado só com o estado e o usuário.
+ */
+export async function aprovarNaListaDaTurma(aluno: Pick<AlunoDeTeste, 'escolaId' | 'usuarioId'>, turmaId: string): Promise<void> {
+  await comBanco(async (banco) => {
+    const { rows } = await banco.query<{ ano_letivo_id: string }>('select ano_letivo_id from turma where escola_id = $1 and id = $2', [aluno.escolaId, turmaId])
+    const anoLetivoId = rows[0]?.ano_letivo_id
+    if (anoLetivoId === undefined) throw new Error('turma do e2e não encontrada')
+    await banco.query("insert into lista_nome (escola_id, ano_letivo_id, turma_id, estado, usuario_id) values ($1, $2, $3, 'aprovado', $4)", [aluno.escolaId, anoLetivoId, turmaId, aluno.usuarioId])
   })
 }
 

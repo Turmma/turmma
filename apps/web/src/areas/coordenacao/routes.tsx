@@ -68,7 +68,7 @@ export default function RotasDaCoordenacao() {
         </Route>
         {/*
           A `key` pela turma: outra turma é outra tela. Sem ela, ir de uma turma já aberta para outra pelo histórico
-          manteria o texto colado e a prévia da anterior, e "Gravar lista" os mandaria para a turma nova.
+          manteria o arquivo lido e a prévia da anterior, e "Gravar lista" os mandaria para a turma nova.
         */}
         <Route path={COORDENACAO_ROUTES.turma}>{(parametros) => <ListaDaTurma key={parametros.turmaId} turmaId={parametros.turmaId} />}</Route>
         <Route path={COORDENACAO_ROUTES.professores}>

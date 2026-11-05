@@ -23,7 +23,7 @@ o gravar e o job de 3.000 linhas não derrubam o login, o gerar acesso nem a dec
 
 - [ ] 16.1 — `e2e/escola-por-planilha.spec.ts`: escola vazia → quatro planilhas (a de alunos suja) → o professor aceita o convite copiado e confirma o que a grade definiu → um aluno reivindica com matrícula → aprovação; casos com seed compartilhado
 - [ ] 16.2 — O modelo servido pela tela, preenchido, entra sem erro
-- [ ] 16.3 — Cenário k6 `importacao-7h30.js`: prévia e gravar com 3.000 linhas junto da rajada de login; job com transferências contra o gerar acesso e a decisão nessas turmas; job de professores contra o login deles
+- [ ] 16.3 — Cenário k6 `importacao-7h30.js`: prévia e gravar com 3.000 linhas junto da rajada de login; job com transferências contra o gerar acesso e a decisão nessas turmas; job com desligamentos e com a virada; job de professores contra o login deles
 - [ ] 16.4 — `docs/roteiro-da-demonstracao.md` conferido passo a passo contra `e2e/roteiro-da-demonstracao.spec.ts` (a lista da turma mudou de contrato na 8.0 e de tela na 13.0)
 - [ ] 16.5 — Testes
 
@@ -47,6 +47,7 @@ o gravar e o job de 3.000 linhas não derrubam o login, o gerar acesso nem a dec
 | O modelo servido pela tela, preenchido, entra sem erro | e2e | RF1 | |
 | Prévia e gravar com 3.000 linhas e a rajada de login: p95 até 2 s | carga | RF15 | |
 | Job de 3.000 linhas com transferências contra o gerar acesso e a decisão: zero 503, espera de trava com p95 abaixo de 300 ms, passo (3) abaixo de 1 s | carga | §13 | |
+| Job de 100 a 300 desligamentos e a virada de 900 alunos (`vinculo.criado` um por um): passo (3) abaixo de 1 s; teto nas marcas ou comandos em grupo só se passar | carga | §7c (10.0) | |
 | Job de professores contra o login deles: zero 503 no login | carga | §7c | |
 | O cenário de carga tem as contas e as linhas que diz ter (modo seco) | unidade | o cenário não mente | |
 | O teste de carga não chama provedor pago | unidade | regra 80, item 11 | |

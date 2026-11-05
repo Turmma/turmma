@@ -77,6 +77,9 @@ linhas). Quem acrescentar escrita incremental de evento precisa paginar a leitur
 `nome;matricula`) e o entrega ao motor como `DaLista` (`{ turmaId, linhas }`, no `tipo.ts`), que o tipo `alunos` classifica sem coluna de
 turma (`previaDaLista`). O nome avulso (`POST /lista/nome`) segue síncrono (201); a gravação do texto é 202 e o job grava
 `planilha.gravada`, e não `lista.gravada`, que fica só com o avulso. O "Copiar link" do professor cadastrado pela planilha faz o `convite/refazer` (linha nova).
+As duas rotas da lista do texto (`/lista/previa` e `/lista`) têm o limite de `/v1/importacoes` (`@ImportacaoRateLimit`): 20 pedidos por minuto por
+usuário, no mesmo balde da prévia e do gravar da planilha, e ocupam as duas vagas da escola (`SchoolSemaphore`); prova em `lista.int.test.ts`
+("limites da prévia e do gravar da lista", 8.0).
 
 ## 5. Fluxo
 

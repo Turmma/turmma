@@ -92,7 +92,7 @@ cenários foram distribuídos pelo `test-engineer`; cada linha do `cenarios.md` 
   - [ ] 12.3 `docs/modelo-de-dados.md`
   - [ ] 12.4 Testes
 
-- [ ] **13.0 — A coordenação sobe a planilha de alunos com prévia, na aba Turmas**
+- [x] **13.0 — A coordenação sobe a planilha de alunos com prévia, na aba Turmas**
   - [ ] 13.1 Leitor CSV e XLSX no navegador
   - [ ] 13.2 `ImportarPlanilha`
   - [ ] 13.3 Na aba Turmas e na lista da turma

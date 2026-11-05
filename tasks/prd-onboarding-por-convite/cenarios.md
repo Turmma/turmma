@@ -225,8 +225,8 @@ Cada linha é um cenário [I]; o semáforo, [P].
 
 | Limite | Valor | Ao passar |
 |---|---|---|
-| Prévia e gravar | 20/min por usuário, no mesmo balde | 429 |
-| Prévias simultâneas | 2 por escola, no Redis, com o gravar ocupando vaga e prazo de validade de 30 s | recusada; a outra escola segue; a vaga volta quando o processo morre |
+| Prévia e gravar, da planilha e da lista da turma (`/v1/turmas/:id/lista/previa` e `/lista`) | 20/min por usuário, no mesmo balde | 429 |
+| Prévias simultâneas | 2 por escola, no Redis, com o gravar (o da lista da turma também) ocupando vaga e prazo de validade de 30 s | recusada; a outra escola segue; a vaga volta quando o processo morre |
 | Importação `na_fila` | 1 por escola | `CONFLITO` |
 | Texto da planilha | 512 KB e 3.000 linhas, só nessas rotas | `ENTRADA_INVALIDA` |
 | Corpo JSON de outra rota | 100 KB pelo `Content-Length`, fora de `/v1/importacoes` e de `/v1/turmas/:id/lista` e `/lista/previa` (que têm o teto da planilha); o multipart (material) não entra | `ENTRADA_INVALIDA` |

@@ -224,14 +224,13 @@ test.describe('o roteiro da demonstração, de ponta a ponta', () => {
       for (const [turma, alunos] of [[turmaA, [ana, bruno, carla]], [turmaB, doB]] as const) {
         if (turma === turmaB) await irPelaCoordenacao(coordenacao, 'Turmas', hasTouch)
         await principal(coordenacao).getByRole('link', { name: `Lista de nomes da turma ${turma}` }).click({ timeout: SIGN_IN_TIMEOUT_MS })
-        await principal(coordenacao).getByLabel('Lista colada').fill(`nome;matrícula\n${alunos.map((aluno) => `${aluno.nome};${aluno.matricula}`).join('\n')}\n`, { timeout: SIGN_IN_TIMEOUT_MS })
-        await botao(principal(coordenacao), 'Ver a prévia').click()
+        await principal(coordenacao)
+          .getByLabel('Arquivo da planilha (Excel ou CSV)')
+          .setInputFiles({ name: 'lista.csv', mimeType: 'text/csv', buffer: Buffer.from(`nome;matrícula\n${alunos.map((aluno) => `${aluno.nome};${aluno.matricula}`).join('\n')}\n`, 'utf8') }, { timeout: SIGN_IN_TIMEOUT_MS })
         const previa = principal(coordenacao).getByRole('region', { name: 'Prévia' })
-        await expect(previa.getByRole('status')).toHaveText(`${String(alunos.length)} nomes entram · 0 já estão na lista · 0 linhas com erro`, { timeout: SIGN_IN_TIMEOUT_MS })
+        await expect(previa.getByRole('status')).toHaveText(`${String(alunos.length)} linhas lidas · 0 com erro · 0 com aviso`, { timeout: SIGN_IN_TIMEOUT_MS })
         await botao(previa, 'Gravar lista').click()
-        await expect(principal(coordenacao).getByRole('region', { name: 'Nomes da turma' }).getByRole('status').filter({ hasText: `${String(alunos.length)} nomes gravados na lista.` })).toBeVisible({
-          timeout: SIGN_IN_TIMEOUT_MS,
-        })
+        await expect(principal(coordenacao).getByRole('region', { name: 'Planilha gravada' })).toContainText(`${String(alunos.length)} alunos entraram.`, { timeout: SIGN_IN_TIMEOUT_MS })
       }
 
       // Três professores, cada um com o convite de cópia única.

@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
 import { setupScreen, fakeNetwork, renderScreen, type FakeNetwork, type FakeResponse } from '../../../__fixtures__/render-screen'
+import { TEXTO_DA_IMPORTACAO_DESATUALIZADA } from '../importacao/previa-da-planilha'
 import ListaDaTurma from './ListaDaTurma'
 
 /**
@@ -254,6 +255,8 @@ describe('os estados da lista de nomes', () => {
     await montarEEsperar()
 
     expect(await nomes().findByText('Nenhum nome nesta turma ainda')).toBeTruthy()
+    // O convite aponta para a seção de cima (o campo de colar não existe mais), e não para um "campo acima".
+    expect(nomes().getByText(/um por linha, na seção acima\./)).toBeTruthy()
     expect(nomes().queryByRole('table')).toBeNull()
   })
 
@@ -468,13 +471,19 @@ describe('o foco depois de cada ação', () => {
     return estado
   }
 
-  it('gravar a lista leva o foco ao título dos nomes, com o anúncio, e os nomes gravados já na tabela', async () => {
+  /** Escolhe o arquivo da lista, como a coordenação faz: a prévia chega sozinha, sem botão de "ver a prévia". */
+  async function escolher(usuario: ReturnType<typeof userEvent.setup>, texto: string): Promise<void> {
+    const campo = screen.getByLabelText('Arquivo da planilha (Excel ou CSV)')
+    await usuario.upload(campo, new File([texto], 'lista.csv', { type: 'text/csv' }))
+  }
+
+  it('gravar a lista leva o foco ao resultado, que diz quantos entraram, e os nomes gravados já estão na tabela', async () => {
     const usuario = userEvent.setup()
     const rede = fakeNetwork()
     const estado = listaQueMuda(rede, [])
     rede.responderPor(`/v1/turmas/${TURMA.id}/lista/previa`, {
       status: 200,
-      corpo: { linhas: [{ linha: 1, resultado: 'entra' }], contagens: { entram: 1 }, candidatos: [] },
+      corpo: { linhas: [{ linha: 2, resultado: 'entra' }], contagens: { entram: 1 }, candidatos: [] },
     })
     rede.responderPor(new RegExp(`^/v1/turmas/${TURMA.id}/lista$`), () => {
       estado.itens = [NOME(1, 'livre', 'Ana Souza', '2026001')]
@@ -488,19 +497,18 @@ describe('o foco depois de cada ação', () => {
     await montarEEsperar()
     expect(await nomes().findByText('Nenhum nome nesta turma ainda')).toBeTruthy()
 
-    await usuario.type(screen.getByLabelText('Lista colada'), 'Ana Souza;2026001')
-    await usuario.click(screen.getByRole('button', { name: 'Ver a prévia' }))
+    await escolher(usuario, 'nome;matricula\nAna Souza;2026001')
     await usuario.click(await screen.findByRole('button', { name: 'Gravar lista' }))
 
-    expect(await nomes().findByText('1 nome gravado na lista.')).toBeTruthy()
-    expect(document.activeElement).toBe(nomes().getByRole('heading', { name: 'Nomes da turma' }))
-    expect(linhasDosNomes()).toHaveLength(1)
+    const resultado = await screen.findByRole('heading', { name: 'Planilha gravada' })
+    expect(resultado.parentElement?.textContent).toContain('1 aluno entrou. Nenhuma linha ficou de fora.')
+    await waitFor(() => expect(document.activeElement).toBe(resultado))
+    await waitFor(() => expect(linhasDosNomes()).toHaveLength(1))
     expect(linhasDosNomes()[0]?.textContent).toContain('Ana Souza')
-    expect((screen.getByLabelText('Lista colada') as HTMLTextAreaElement).value).toBe('')
+    // A prévia e o botão saíram: gravar de novo exige escolher o arquivo de novo.
+    expect(screen.queryByRole('button', { name: 'Gravar lista' })).toBeNull()
   })
 
-  const CONFLITO_DA_GRAVACAO =
-    'Uma das matrículas passou a ser usada em outra turma ou por um aluno depois da prévia, e essa linha não foi gravada. A lista de nomes da turma mostra o que entrou: veja a prévia de novo.'
   const CONCLUIDA = (resumo: Record<string, number>) => ({
     id: id(900),
     tipo: 'alunos',
@@ -513,23 +521,17 @@ describe('o foco depois de cada ação', () => {
 
   it.each([
     {
-      caso: 'parcial',
+      caso: 'parcial: uma entrou e a outra não',
       texto: 'Ana Souza;2026001\nBia Lima;2026002',
       linhas: [1, 2],
       poeNaLista: [NOME(1, 'livre', 'Ana Souza', '2026001')],
       importacao: CONCLUIDA({ entram: 1 }),
+      diz: '1 aluno entrou. 1 linha ficou de fora: a escola mudou entre a prévia e o gravar (a matrícula passou a ser de outra turma ou de outro aluno). Veja a lista e envie a planilha de novo, se precisar.',
     },
-    { caso: 'nada', texto: 'Bia Lima;2026002', linhas: [1], poeNaLista: [], importacao: CONCLUIDA({}) },
-    {
-      caso: 'envelheceu',
-      texto: 'Bia Lima;2026002',
-      linhas: [1],
-      poeNaLista: [],
-      importacao: { ...CONCLUIDA({}), estado: 'desatualizada', resumo: null, concluidaEm: null },
-    },
+    { caso: 'nada entrou', texto: 'Bia Lima;2026002', linhas: [1], poeNaLista: [], importacao: CONCLUIDA({}), diz: '0 alunos entraram. 1 linha ficou de fora: a escola mudou entre a prévia e o gravar (a matrícula passou a ser de outra turma ou de outro aluno). Veja a lista e envie a planilha de novo, se precisar.' },
   ])(
-    'a gravação que deixou linha de fora diz que essa linha não foi gravada e aponta a lista, que mostra o que entrou: parcial, nada e prévia que envelheceu ($caso)',
-    async ({ texto, linhas, poeNaLista, importacao }) => {
+    'a gravação conclui e a lista de nomes mostra o que entrou: $caso',
+    async ({ texto, linhas, poeNaLista, importacao, diz }) => {
       const usuario = userEvent.setup()
       const rede = fakeNetwork()
       const estado = listaQueMuda(rede, [])
@@ -545,24 +547,42 @@ describe('o foco depois de cada ação', () => {
       await montarEEsperar()
       expect(await nomes().findByText('Nenhum nome nesta turma ainda')).toBeTruthy()
 
-      const campo = screen.getByLabelText('Lista colada') as HTMLTextAreaElement
-      await usuario.click(campo)
-      await usuario.paste(texto)
-      await usuario.click(screen.getByRole('button', { name: 'Ver a prévia' }))
+      await escolher(usuario, texto)
       await usuario.click(await screen.findByRole('button', { name: 'Gravar lista' }))
 
-      const alerta = await screen.findByRole('alert')
-      expect(alerta.textContent).toBe(CONFLITO_DA_GRAVACAO)
+      const resultado = await screen.findByRole('heading', { name: 'Planilha gravada' })
+      // A frase inteira, inclusive a parte de quem ficou de fora: a linha que a prévia dava como gravada não vira "nenhuma ficou de fora".
+      expect(within(resultado.parentElement as HTMLElement).getByText(diz)).toBeTruthy()
       if (poeNaLista.length === 0) {
         expect(await nomes().findByText('Nenhum nome nesta turma ainda')).toBeTruthy()
       } else {
         await waitFor(() => expect(linhasDosNomes()).toHaveLength(1))
         expect(linhasDosNomes()[0]?.textContent).toContain('Ana Souza')
       }
-      expect(screen.queryByRole('button', { name: 'Gravar lista' })).toBeNull()
-      expect(campo.value).toBe(texto)
     },
   )
+
+  it('a escola que mudou desde a prévia (importação desatualizada) diz que nada foi gravado e tira a prévia, com o Gravar junto', async () => {
+    const usuario = userEvent.setup()
+    const rede = fakeNetwork()
+    listaQueMuda(rede, [])
+    rede.responderPor(`/v1/turmas/${TURMA.id}/lista/previa`, {
+      status: 200,
+      corpo: { linhas: [{ linha: 2, resultado: 'entra' }], contagens: { entram: 1 }, candidatos: [] },
+    })
+    rede.responderPor(new RegExp(`^/v1/turmas/${TURMA.id}/lista$`), { status: 202, corpo: { id: id(900) } })
+    rede.responderPor(`/v1/importacoes/${id(900)}`, { status: 200, corpo: { ...CONCLUIDA({}), estado: 'desatualizada', resumo: null, concluidaEm: null } })
+    await montarEEsperar()
+    expect(await nomes().findByText('Nenhum nome nesta turma ainda')).toBeTruthy()
+
+    await escolher(usuario, 'nome;matricula\nBia Lima;2026002')
+    await usuario.click(await screen.findByRole('button', { name: 'Gravar lista' }))
+
+    const alerta = await screen.findByRole('alert')
+    expect(alerta.textContent).toBe(TEXTO_DA_IMPORTACAO_DESATUALIZADA)
+    expect(screen.queryByRole('button', { name: 'Gravar lista' })).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'Planilha gravada' })).toBeNull()
+  })
 
   it('acrescentar um nome fecha o diálogo, anuncia na seção dos nomes e devolve o foco ao botão que o abriu', async () => {
     const usuario = userEvent.setup()

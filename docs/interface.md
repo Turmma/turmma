@@ -485,7 +485,12 @@ Professores e Material de hoje. Grade horária e calendário entram pelo menu de
   refazer e revogar. O roteiro da Estrutura e o vazio da Alocação levam a ela. Dentro da turma aberta, embaixo da lista
   de nomes, a coordenação também decide os **pedidos de nome** (tarefa 16.0), com a mesma peça do professor: a lista só é
   lida no clique em "Atualizar", porque cada consulta fica na auditoria em nome dela, e a tela diz isso. Os alunos já
-  aprovados aparecem na lista de nomes como uma contagem, sem o nome
+  aprovados aparecem na lista de nomes como uma contagem, sem o nome. A lista de nomes e a escola inteira entram pela **mesma peça de planilha** (F2, 13.0): a coordenação
+  escolhe o CSV ou o Excel (.xlsx) pelo botão "Escolher arquivo" (em português, com "Nenhum arquivo escolhido"; o campo do navegador fica escondido, porque ele escreve no idioma do computador), a tela lê o arquivo no navegador e manda o texto à API, e a **prévia** (linhas lidas, com erro e
+  com aviso; os erros primeiro, de cem em cem, em frase com o que fazer) vem antes de qualquer gravação. Não há campo para colar
+  texto. "Importar alunos" é um botão secundário da aba Turmas e abre um painel lateral; o que a planilha põe em outra turma ou deixa
+  de fora chega **desmarcado**, em "Você decide", e só muda quem a coordenação marca (regra 70); perto de "Gravar planilha" uma linha diz o que as marcas escolhidas vão fazer, e o resultado diz quantas linhas ficaram de fora e por quê. O leitor de Excel só é baixado
+  quando alguém escolhe um .xlsx, e a gravação, enfileirada, é acompanhada até concluir, sem desistir (regra 80)
 - **Material**: **só a coordenação sobe material para a base da escola**; professor e aluno não
   sobem (D75). Fontes com titularidade e licença, upload, estado da ingestão com o que entrou,
   o que falhou, o que está pendente e o que foi recusado por falta de licença (F4,

@@ -828,12 +828,13 @@ test.describe('W12: a Estrutura a 360 px e só com teclado', () => {
 
     // A turma aberta, com a prévia de uma linha longa, também cabe.
     await abrirTurma(page, turma.nome, hasTouch)
-    await principal(page).getByLabel('Lista colada').fill(`${'Nome'.repeat(30)};${'9'.repeat(40)}`)
-    await activate(principal(page).getByRole('button', { name: 'Ver a prévia' }), hasTouch)
+    await principal(page)
+      .getByLabel('Arquivo da planilha (Excel ou CSV)')
+      .setInputFiles({ name: 'longa.csv', mimeType: 'text/csv', buffer: Buffer.from(`${'Nome'.repeat(30)};${'9'.repeat(40)}`, 'utf8') })
     await expect(principal(page).getByRole('region', { name: 'Prévia' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     expect(await horizontalOverflow(page)).toBe(0)
     await alvoDeToque(principal(page).getByRole('button', { name: 'Gravar lista' }), 'Gravar lista')
-    await alvoDeToque(principal(page).getByRole('button', { name: 'Ver a prévia' }), 'Ver a prévia')
+    await alvoDeToque(principal(page).getByRole('button', { name: 'Baixar modelo' }), 'Baixar modelo')
     expect(await seriousViolations(page)).toEqual([])
   })
 })
@@ -851,6 +852,13 @@ test.describe('recomeço da Estrutura', () => {
     await entrarComoCoordenacaoNaMesmaAba(page, deA, hasTouch)
     await abrirEstrutura(page, hasTouch)
     await expect(principal(page).getByRole('region', { name: 'Turmas de 2026' })).toContainText(turmaDeA.nome, { timeout: SIGN_IN_TIMEOUT_MS })
+    // A prévia da planilha de A fica aberta no painel de importar e é fechada: a de B não pode herdá-la na mesma aba.
+    await activate(principal(page).getByRole('button', { name: 'Importar alunos' }), hasTouch)
+    const importarDeA = dialogo(page, 'Importar alunos')
+    await importarDeA.getByLabel('Arquivo da planilha (Excel ou CSV)').setInputFiles({ name: 'alunos-de-a.csv', mimeType: 'text/csv', buffer: Buffer.from(`turma;nome;matricula\n8º A;${nomeDeA};550002\n`, 'utf8') })
+    await expect(importarDeA.getByRole('heading', { name: 'Prévia' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+    await page.keyboard.press('Escape')
+    await expect(importarDeA).toHaveCount(0)
     await abrirTurma(page, turmaDeA.nome, hasTouch)
     await expect(principal(page)).toContainText(nomeDeA, { timeout: SIGN_IN_TIMEOUT_MS })
     await abrirNavegacao(page, hasTouch)
@@ -904,6 +912,15 @@ test.describe('recomeço da Estrutura', () => {
     await expect(painel).toHaveCount(0)
     await expect(principal(page).getByRole('heading', { name: 'Turmas de 2026' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await nadaDeA()
+    // O painel de importar da coordenação de B abre vazio: nem a prévia nem o arquivo de A.
+    await activate(principal(page).getByRole('button', { name: 'Importar alunos' }), hasTouch)
+    const importarDeB = dialogo(page, 'Importar alunos')
+    await expect(importarDeB.getByText('Nenhuma planilha escolhida')).toBeVisible()
+    await expect(importarDeB.getByRole('heading', { name: 'Prévia' })).toHaveCount(0)
+    await expect(importarDeB).not.toContainText('alunos-de-a.csv')
+    await nadaDeA()
+    await page.keyboard.press('Escape')
+    await expect(importarDeB).toHaveCount(0)
 
     // Nem pelo endereço da turma de A: a API responde como inexistente, e nada de A aparece.
     await page.evaluate((destino) => {
