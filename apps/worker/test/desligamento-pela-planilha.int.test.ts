@@ -2,7 +2,7 @@ import 'reflect-metadata'
 import { createDatabase, createPool, DomainException, MotorDePlanilha, runInContext, schema, type Database, type DatabasePool } from '@educa/core'
 import { CicloDeVidaService } from '@educa/core/ciclo-de-vida'
 import { ListaRepository } from '@educa/core/estrutura'
-import { ErrorCode } from '@educa/shared'
+import { ErrorCode, MAXIMO_DE_DESLIGAMENTOS_POR_GRAVAR } from '@educa/shared'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -449,14 +449,18 @@ describe('estrutura.gravar-planilha, desligamento e virada de ano de aluno', () 
       expect(await usuarioDe(c.ausente.usuarioId)).toBe(false)
     })
 
-    it('mais nomes do que cabem num lote (500): 501 nomes livres ausentes saem da lista, e a soma das linhas retiradas por lote fecha a conta sem `desatualizada`', async () => {
-      const c = await cenario()
-      const quantos = 501
-      await consulta(
+    /** `quantos` nomes livres da 8A que a planilha não cita (todos começam por "Nome Do Lote"). */
+    const nomesDoLote = (c: Cenario, quantos: number): Promise<unknown> =>
+      consulta(
         `insert into lista_nome (escola_id, ano_letivo_id, turma_id, nome, matricula, estado)
          select $1, $2, $3, 'Nome Do Lote ' || g, $4 || '-' || g, 'livre' from generate_series(1, $5::int) g`,
         [c.escola.escolaId, c.escola.anoId, c.t1, `lote-${randomUUID().slice(0, 6)}`, quantos],
       )
+
+    it('o teto de um gravar (100): 100 nomes livres ausentes saem da lista, e a soma das linhas retiradas fecha a conta sem `desatualizada`', async () => {
+      const c = await cenario()
+      const quantos = MAXIMO_DE_DESLIGAMENTOS_POR_GRAVAR
+      await nomesDoLote(c, quantos)
       const id = await gravar(c.escola, planilhaDe(c), quemSe('Nome Do Lote'))
 
       await tentar(c.escola.escolaId, id)
@@ -464,6 +468,22 @@ describe('estrutura.gravar-planilha, desligamento e virada de ano de aluno', () 
       expect(await importacao(id)).toMatchObject({ estado: 'concluida', erro: null, resumo: { retirados: quantos } })
       expect((await consulta<{ total: number }>("select count(*)::int as total from lista_nome where escola_id = $1 and nome like 'Nome Do Lote %'", [c.escola.escolaId]))[0]?.total).toBe(0)
       expect((await auditoriaDa(c.escola.escolaId, 'lista_nome.retirado')).length).toBe(quantos)
+    })
+
+    it('um a mais que o teto (101), marcado pelo motor sem a rota: `ENTRADA_INVALIDA` na hora, sem importação na fila, em vez de uma importação que o job fecha `falhou`', async () => {
+      const c = await cenario()
+      await nomesDoLote(c, MAXIMO_DE_DESLIGAMENTOS_POR_GRAVAR + 1)
+      const planilha = planilhaDe(c)
+      const marcados = (await candidatosDe(c.escola, planilha)).filter(quemSe('Nome Do Lote')).map(({ id }) => id)
+      expect(marcados).toHaveLength(MAXIMO_DE_DESLIGAMENTOS_POR_GRAVAR + 1)
+
+      const resposta = await runInContext(contextoDe(c.escola), () => motor().gravar('alunos', { texto: planilha, marcas: { transferir: [], desligar: marcados, encerrar: [] } })).then(
+        () => 'gravou',
+        (erro: unknown) => (erro instanceof DomainException ? erro.codigo : 'outro erro'),
+      )
+
+      expect(resposta).toBe(ErrorCode.ENTRADA_INVALIDA)
+      expect(await consulta('select id from importacao_planilha where escola_id = $1', [c.escola.escolaId])).toEqual([])
     })
   })
 

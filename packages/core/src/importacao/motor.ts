@@ -93,17 +93,22 @@ export class MotorDePlanilha {
    * Já há uma `na_fila` na escola (o único parcial), ou a velha está sob um job que roda: `CONFLITO`, sem esperar.
    */
   async gravar(tipo: TipoDePlanilha, pedido: GravarPlanilhaRequest, daLista?: DaLista): Promise<{ readonly id: string }> {
+    // As marcas passam pelo schema que o job relê (`lerMarcas`), com o teto de desligamentos: quem chama o motor
+    // sem o pipe da rota recebe `ENTRADA_INVALIDA` aqui, e não uma importação que o job fecha `falhou`.
+    const lidas = marcasDaPlanilhaSchema.safeParse(pedido.marcas)
+    if (!lidas.success) throw new DomainException(ErrorCode.ENTRADA_INVALIDA)
+    const marcas = lidas.data
     const { ano, previa } = await this.preparar(tipo, pedido, daLista)
     if (previa.linhas.some((linha) => linha.resultado === 'erro')) throw new DomainException(ErrorCode.ENTRADA_INVALIDA)
     // Cada marca vale para a ação do candidato: o id de quem sai da planilha, marcado em `transferir`, não transfere nem desliga ninguém.
     const candidatos = new Set(previa.candidatos.map((candidato) => `${candidato.acao}:${candidato.id}`))
-    const marcadas = [...pedido.marcas.transferir.map((id) => `transferir:${id}`), ...pedido.marcas.desligar.map((id) => `desligar:${id}`), ...pedido.marcas.encerrar.map((id) => `encerrar:${id}`)]
+    const marcadas = [...marcas.transferir.map((id) => `transferir:${id}`), ...marcas.desligar.map((id) => `desligar:${id}`), ...marcas.encerrar.map((id) => `encerrar:${id}`)]
     if (marcadas.some((marca) => !candidatos.has(marca))) throw new DomainException(ErrorCode.ENTRADA_INVALIDA)
     // Já há `na_fila` na escola: o único parcial viola `23505`, que o filtro global de erros responde como `CONFLITO`.
     return this.banco.transaction(async (tx) => {
       const importacoes = new ImportacaoRepository(tx)
       await importacoes.fecharAExpirada()
-      const id = await importacoes.criar({ tipo, anoLetivoId: ano?.id ?? null, linhas: previa.guardado, marcas: pedido.marcas, assinatura: previa.assinatura })
+      const id = await importacoes.criar({ tipo, anoLetivoId: ano?.id ?? null, linhas: previa.guardado, marcas, assinatura: previa.assinatura })
       await this.enfileirador.enfileirar(tx, TIPO_GRAVAR_PLANILHA, { importacaoId: id })
       return { id }
     })
