@@ -1,18 +1,26 @@
 ## 9. Vigia e contexto
 
-A rotina `Vigia do processo` manda **`/vigia`** a cada 30 minutos. A skill da vigia é própria e curta
-(`.claude/skills/vigia/SKILL.md`), e o primeiro passo dela é o filtro `tools/processo/vigia.ts`, que não
-imprime nada com o time trabalhando: aí a vigia responde em uma linha. O filtro já foi o `--pre-run` da
-rotina, mas no Maestri do Windows (desde 05/11/2026) o `--pre-run` não roda (todo disparo sai
-`skippedByScript`, em `routine_history.json`) e a vigia ficaria muda. **Não ligue o `--pre-run`.** Ligue a
-rotina enquanto houver trabalho correndo e desligue-a no fim e em toda parada em que nenhuma tarefa segue
-(passo 7). Só a crie se `maestri routine list` não a mostrar, para não ficar com duas:
+A rotina `Vigia do processo` roda a cada 30 minutos e só manda **`/vigia`** quando há o que olhar:
+antes de acordar você, o `--pre-run` dela roda o filtro `tools/processo/vigia.ts` e o quadro das linhas,
+e com o time trabalhando não manda nada. A skill da vigia é própria e curta (`.claude/skills/vigia/SKILL.md`).
+Ligue a rotina enquanto houver trabalho correndo e desligue-a no fim e em toda parada em que nenhuma tarefa
+segue (passo 7). Só a crie se `maestri routine list` não a mostrar, para não ficar com duas:
 
 ```bash
-maestri routine show "Vigia do processo"         # o comando é /vigia, sem --pre-run?
+maestri routine show "Vigia do processo"         # o comando é {{output}}, com o --pre-run abaixo?
 maestri routine enable "Vigia do processo"       # e disable ao parar
-maestri routine create "Vigia do processo" --command "/vigia" --every 30m --no-notify   # só se não existir
+maestri routine create "Vigia do processo" --command "{{output}}" --pre-run "wsl.exe -d Ubuntu-24.04 -e /home/joaquimdp/.local/bin/vigia-pre-run" --every 30m --no-notify   # só se não existir
 ```
+
+**No Maestri do Windows (desde 05/11/2026)** o pre-run roda no `cmd.exe`, fora do WSL, e por isso chama o
+`vigia-pre-run` (`~/.local/bin`, fora do repositório): ele acha o socket do Maestri e o terminal do Orquestrador,
+roda o filtro e o quadro, imprime `/vigia` e sai 0 quando há o que olhar, e sai 1 sem imprimir quando não há
+(com código 0 e saída vazia, o Maestri digitaria `{{output}}` literal). A pasta de trabalho do `cmd.exe` é o
+caminho do workspace, que é do Linux: sem a pasta `C:\home\joaquimdp\Documents\git\Educa.ia` no Windows, o
+pre-run não nasce, e todo disparo sai `skippedByScript` (foi o que calou a vigia de 05/11 a 06/11). Para
+conferir: `routine_history.json` em `C:\Users\joaqu\.maestri` (`skippedByScript` com o time trabalhando,
+`sentToTerminal` com `/vigia` quando acorda) e uma linha por disparo em `~/.local/state/vigia-pre-run.log`; sem
+linha nova no log depois de um disparo, o script não rodou. `vigia-pre-run --teste` imprime a decisão e sai 0.
 
 **O seu contexto é limpo a cada tarefa** (D78). O time recomeça
 a sessão a cada tarefa, e você também. Você não consegue digitar `/clear`: quem digita é a rotina
