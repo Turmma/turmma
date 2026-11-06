@@ -32,15 +32,40 @@ export const TEXTO_DO_ERRO_DA_LINHA: Readonly<Record<string, string>> = {
   matricula_repetida: 'Esta matrícula aparece em mais de uma linha da planilha. Cada aluno tem uma só: corrija ou tire as repetidas.',
   aluno_desativado: 'Este aluno está desligado da escola, e a planilha não o traz de volta. Tire esta linha da planilha.',
   linha_incompleta: 'Esta linha não tem as colunas do modelo. Confira se cada dado está na sua coluna, sem ponto e vírgula dentro do nome.',
+  // A grade (F2, 14.0): cada código é o primeiro erro da linha, na ordem em que se corrige (turma, disciplina, professor, dia, horário e sala).
+  disciplina_vazia: 'Falta a disciplina. Preencha a coluna "disciplina".',
+  disciplina_invalida: 'A disciplina passa de 80 caracteres ou tem um caractere que não é texto. Confira o nome da disciplina.',
+  disciplina_ambigua: 'Duas disciplinas da escola têm este nome. Renomeie uma delas e envie a planilha de novo.',
+  sem_professor: 'Falta o professor. Preencha o nome e o e-mail do professor desta aula.',
+  nome_vazio: 'Falta o nome do professor. Preencha a coluna "professor".',
+  email_invalido: 'O e-mail do professor não parece um e-mail. Confira a coluna "email".',
+  professor_com_convite_vencido: 'O convite deste professor venceu. Refaça o convite dele na aba Professores e envie a planilha de novo.',
+  dia_invalido: 'Não entendi o dia. Escreva o dia da semana, como "segunda" ou "seg", ou o número de 1 (segunda) a 7 (domingo).',
+  horario_invalido: 'Não entendi o horário. Escreva como "08:50" ou "8h50", em início e fim.',
+  fim_antes_do_inicio: 'O fim vem antes do início, ou no mesmo horário. Confira as duas colunas.',
+  sala_longa: 'O nome da sala passa de 40 caracteres. Escreva um nome mais curto, como "Lab 2".',
+  aula_repetida: 'Esta aula aparece mais de uma vez na planilha (mesma turma, disciplina, professor, dia e início). Tire a repetida.',
+  // O calendário: o período, o tipo e a descrição.
+  data_invalida: 'Não entendi a data. Escreva como "15/11/2026" ou "2026-11-15", de um dia que existe.',
+  fora_do_ano: 'A data cai fora do ano letivo. Confira o ano: o calendário vale para o ano letivo da escola, do primeiro ao último dia dele.',
+  tipo_invalido: 'O tipo não é um dos três do modelo. Escreva "feriado", "recesso" ou "evento".',
+  descricao_vazia: 'Falta a descrição. Preencha a coluna "descricao", com até 120 caracteres.',
+  descricao_longa: 'A descrição passa de 120 caracteres. Escreva uma mais curta.',
+  repetida: 'Este evento aparece mais de uma vez na planilha (mesmo período, tipo e descrição). Tire o repetido.',
 }
 
 /** O texto de um erro que a tela ainda não sabe dizer: a linha segura a gravação, e o texto manda conferi-la. */
 export const TEXTO_DO_ERRO_DESCONHECIDO = 'Esta linha tem um problema que a tela ainda não sabe dizer. Confira os dados dela e envie a planilha de novo.'
 
-export const textoDoErro = (codigo: string | undefined): string => (codigo === undefined ? undefined : TEXTO_DO_ERRO_DA_LINHA[codigo]) ?? TEXTO_DO_ERRO_DESCONHECIDO
+/** O texto de um erro de linha. A planilha que diz o mesmo código de outro jeito (o calendário, no fim antes do início) leva os textos dela em `proprios`. */
+export const textoDoErro = (codigo: string | undefined, proprios?: Readonly<Record<string, string>>): string =>
+  (codigo === undefined ? undefined : (proprios?.[codigo] ?? TEXTO_DO_ERRO_DA_LINHA[codigo])) ?? TEXTO_DO_ERRO_DESCONHECIDO
 
 /** O aviso de uma linha que grava assim mesmo (professor em duas turmas no mesmo horário, na grade). Código desconhecido cai no último. */
-export const TEXTO_DO_AVISO_DA_LINHA: Readonly<Record<string, string>> = {}
+export const TEXTO_DO_AVISO_DA_LINHA: Readonly<Record<string, string>> = {
+  professor_em_duas_turmas: 'O mesmo professor tem aula em duas turmas neste horário. Pode ser aula conjunta, e a grade é gravada assim; confira se não é engano.',
+  turma_com_duas_aulas: 'A mesma turma tem duas aulas neste horário. Pode ser turma dividida, e a grade é gravada assim; confira se não é engano.',
+}
 export const TEXTO_DO_AVISO_DESCONHECIDO = 'Confira esta linha: ela é gravada como está, mas parece fora do comum.'
 
 export const textoDoAviso = (codigo: string | undefined): string => (codigo === undefined ? undefined : TEXTO_DO_AVISO_DA_LINHA[codigo]) ?? TEXTO_DO_AVISO_DESCONHECIDO
@@ -62,6 +87,23 @@ const FRASE_DO_RESULTADO: Readonly<Record<Exclude<ResultadoDaLinhaDaPlanilha, 'e
 }
 
 const ORDEM_DAS_FRASES = ['entra', 'volta', 'novo', 'nome_corrigido', 'muda_de_turma', 'fora_da_planilha', 'sai_da_grade', 'ja_existe'] as const satisfies readonly Exclude<ResultadoDaLinhaDaPlanilha, 'erro'>[]
+
+/**
+ * O que a gravação faria além de gravar as linhas, em uma frase por contagem da prévia (a turma, a disciplina e o professor que nascem
+ * com a grade, e o que a planilha nova **tira**: as aulas e os eventos que ela não traz). Contagem zero ou ausente não tem frase.
+ */
+const FRASE_DA_CONTAGEM = [
+  ['turmas_novas', 'turma nova será criada', 'turmas novas serão criadas'],
+  ['disciplinas_novas', 'disciplina nova será criada', 'disciplinas novas serão criadas'],
+  ['professores_novos', 'professor novo será cadastrado, com convite para copiar', 'professores novos serão cadastrados, com convite para copiar'],
+  ['vinculos_criados', 'vínculo de professor será criado e espera a confirmação dele', 'vínculos de professor serão criados e esperam a confirmação deles'],
+  ['aulas_removidas', 'aula já gravada sai do ano, porque a planilha não a traz', 'aulas já gravadas saem do ano, porque a planilha não as traz'],
+  ['eventos_removidos', 'evento já gravado sai do ano, porque a planilha não o traz', 'eventos já gravados saem do ano, porque a planilha não os traz'],
+] as const satisfies readonly (readonly [keyof ResumoDaImportacao, string, string])[]
+
+export function frasesDasContagens(contagens: ResumoDaImportacao): string[] {
+  return FRASE_DA_CONTAGEM.flatMap(([chave, singular, plural]) => ((contagens[chave] ?? 0) === 0 ? [] : [`${formatQuantity(contagens[chave] ?? 0, singular, plural)}.`]))
+}
 
 /** Quantas linhas de cada resultado a prévia tem. */
 export function contarPorResultado(linhas: readonly PreviaDaPlanilhaRow[]): Readonly<Partial<Record<ResultadoDaLinhaDaPlanilha, number>>> {
@@ -173,11 +215,13 @@ export const MOTIVO_DE_NADA_NOVO = 'Nada novo para gravar: tudo o que a planilha
  * A gravação que a tela oferece: sem linha de erro (a API recusaria), com algo a fazer (uma linha que grava, ou ao menos uma marca).
  * Se todo erro é de coluna que parece documento, o motivo é o da coluna (regra 20, item 2), sem repetir o texto de cada linha.
  */
-export function podeGravar(previa: Pick<PreviaDaPlanilhaResponse, 'linhas'>, marcas: number): { readonly pode: true } | { readonly pode: false; readonly motivo: string } {
+export function podeGravar(previa: Pick<PreviaDaPlanilhaResponse, 'linhas'> & { readonly contagens?: ResumoDaImportacao }, marcas: number): { readonly pode: true } | { readonly pode: false; readonly motivo: string } {
   const erros = previa.linhas.filter((linha) => linha.resultado === 'erro')
   if (erros.length > 0) return { pode: false, motivo: erros.every((linha) => linha.erro === 'matricula_parece_documento') ? MOTIVO_DO_DOCUMENTO : MOTIVO_DO_ERRO_NA_PLANILHA }
   const grava = previa.linhas.some((linha) => linha.resultado === 'entra' || linha.resultado === 'nome_corrigido' || linha.resultado === 'volta' || linha.resultado === 'novo')
-  if (!grava && marcas === 0) return { pode: false, motivo: MOTIVO_DE_NADA_NOVO }
+  // A planilha que só tira (a grade ou o calendário sem o que já estava gravado) também grava: ela substitui o ano.
+  const tira = (previa.contagens?.aulas_removidas ?? 0) + (previa.contagens?.eventos_removidos ?? 0) > 0
+  if (!grava && !tira && marcas === 0) return { pode: false, motivo: MOTIVO_DE_NADA_NOVO }
   return { pode: true }
 }
 
@@ -267,7 +311,7 @@ const TEXTO_DA_IMPORTACAO_QUE_FALHOU: Readonly<Record<ErroDaImportacao, string>>
 }
 
 export const TEXTO_DA_IMPORTACAO_DESATUALIZADA =
-  'A escola mudou desde a prévia: alguém mexeu nos alunos enquanto você conferia. Nada foi gravado. Escolha o arquivo de novo para ver a prévia de agora.'
+  'A escola mudou desde a prévia: alguém mexeu nos dados da escola enquanto você conferia. Nada foi gravado. Escolha o arquivo de novo para ver a prévia de agora.'
 
 /** O `CONFLITO` do gravar: outra importação da escola ainda não terminou. A prévia continua valendo. */
 export const TEXTO_DO_CONFLITO_DO_GRAVAR = 'Outra importação desta escola ainda está em andamento. Nada foi gravado: espere ela terminar e grave de novo.'

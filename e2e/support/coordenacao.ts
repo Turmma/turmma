@@ -18,6 +18,7 @@ export type TelaDaCoordenacao =
   | 'Turmas'
   | 'Professores'
   | 'Material'
+  | 'Grade e calendário'
   | 'IA'
   | 'Agentes'
   | 'Pedidos'
@@ -47,6 +48,7 @@ const CAMINHO: Readonly<Record<TelaDaCoordenacao, Caminho>> = {
   Turmas: { lugar: 'Escola' },
   Professores: { lugar: 'Escola', aba: 'Professores' },
   Material: { lugar: 'Escola', aba: 'Material' },
+  'Grade e calendário': { lugar: 'Escola', aba: 'Grade e calendário' },
   IA: { lugar: 'Registros' },
   Agentes: { lugar: 'Registros', link: 'Como cada IA trabalha' },
   Pedidos: { lugar: 'Registros', aba: 'Pedidos' },

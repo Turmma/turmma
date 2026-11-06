@@ -1,12 +1,12 @@
-import type { CandidatoDaMarca, ErrorCode, PreviaDaPlanilhaResponse, PreviaDaPlanilhaRow } from '@educa/shared'
+import type { CandidatoDaMarca, ErrorCode, PreviaDaPlanilhaResponse, PreviaDaPlanilhaRow, ResumoDaImportacao } from '@educa/shared'
 import { useMutation } from '@tanstack/react-query'
 import { useCallback, useEffect, useId, useRef, useState, type ChangeEvent, type RefObject } from 'react'
 import { Button } from '../../../components/ui/Button'
 import { SECONDARY_BUTTON_CLASSES } from '../../../components/ui/button-variants'
 import { useSingleSubmit } from '../../../components/dialogs'
-import { downloadFromUrl } from '../../../components/download-from-url'
 import { EmptyState, LoadingState } from '../../../components/states/index'
 import { formatNumber, formatQuantity } from '../../../format'
+import { baixarModelo } from '../grade/modelos-de-planilha'
 import { acompanharImportacao, gravarPlanilha, lerImportacao, previaDaPlanilha, type RotasDaPlanilha } from './api/importacao'
 import { lerPlanilha, type MotivoDaPlanilhaRecusada } from './ler-planilha'
 import {
@@ -15,6 +15,7 @@ import {
   alternarTodos,
   candidatosDa,
   fatiaDaLista,
+  frasesDasContagens,
   frasesDoResto,
   itensEscondidos,
   linhasDeErroEDeAviso,
@@ -66,6 +67,13 @@ export interface PlanilhaConfig {
   /** Os textos da tela para um código de erro da API, no lugar dos gerais (a lista da turma diz "esta turma"). */
   readonly textosDaFalhaDaPrevia?: Partial<Record<ErrorCode, string>>
   readonly textosDaFalhaDoGravar?: Partial<Record<ErrorCode, string>>
+  /** Os textos de erro de linha que a planilha diz do jeito dela, no lugar dos gerais (o calendário: o evento de um dia só é válido). */
+  readonly textosDoErroDaLinha?: Readonly<Record<string, string>>
+  /**
+   * O que a tela diz ao terminar, quando não é a conclusão da planilha de alunos (a grade e o calendário contam aulas e eventos, e não
+   * "alunos que entraram"). Sem ela, vale a dos alunos, que conta também as linhas que ficaram de fora.
+   */
+  readonly textoDaConclusao?: (resumo: ResumoDaImportacao | null) => string
 }
 
 type AlvoDoFoco = 'previa' | 'alerta' | 'conclusao'
@@ -90,13 +98,6 @@ interface PlanilhaState {
 const PLANILHA_NOVA: PlanilhaState = { escolha: undefined, recusa: undefined, previa: undefined, marcas: SEM_MARCAS, conclusao: undefined, demorando: false }
 
 type Mudar = (parcial: Partial<PlanilhaState>) => void
-
-/** A planilha pronta para baixar: o cabeçalho do modelo e mais nada, para o modelo preenchido entrar sem erro. O BOM faz o Excel abrir em UTF-8. */
-function baixarModelo(cabecalhos: readonly string[], nome: string): void {
-  const url = URL.createObjectURL(new Blob(['\uFEFF', cabecalhos.join(';'), '\r\n'], { type: 'text/csv;charset=utf-8' }))
-  downloadFromUrl(url, nome)
-  URL.revokeObjectURL(url)
-}
 
 /**
  * O foco vai para a resposta quando ela chega. O pedido fica numa `ref` e o efeito não tem lista de dependências, de propósito: o alvo só
@@ -147,7 +148,11 @@ function useGravacao(configuracao: PlanilhaConfig, aoConcluir: () => unknown, mu
       return acompanharImportacao((sinal) => lerImportacao(id, sinal), { sinal: controle.current?.signal, aoDemorar: () => mudar({ demorando: true }) })
     },
     onSuccess: async (importacao, { linhas, marcadas }) => {
-      mudar({ demorando: false, previa: undefined, conclusao: textoDaConclusao(importacao.resumo, linhasDeFora(linhas, marcadas, importacao.resumo)) })
+      mudar({
+        demorando: false,
+        previa: undefined,
+        conclusao: configuracao.textoDaConclusao?.(importacao.resumo) ?? textoDaConclusao(importacao.resumo, linhasDeFora(linhas, marcadas, importacao.resumo)),
+      })
       foco.pedir('conclusao')
       await aoConcluir()
     },
@@ -259,6 +264,7 @@ function PreviaDaEscolha({ configuracao, estado, mudar, foco, gravar, gravando }
       previa={previa.resposta}
       tituloRef={foco.previa}
       rotuloDoGravar={configuracao.rotuloDoGravar}
+      textosDoErroDaLinha={configuracao.textosDoErroDaLinha}
       gravando={gravando}
       demorando={estado.demorando}
       marcas={marcas}
@@ -401,10 +407,11 @@ interface PropsDaPrevia {
   readonly gravando: boolean
   readonly demorando: boolean
   readonly rotuloDoGravar: string
+  readonly textosDoErroDaLinha: Readonly<Record<string, string>> | undefined
   readonly aoGravar: () => void
 }
 
-function PreviaDaPlanilha({ previa, tituloRef, marcas, aoMarcar, aoMarcarTodos, gravando, demorando, rotuloDoGravar, aoGravar }: PropsDaPrevia) {
+function PreviaDaPlanilha({ previa, tituloRef, marcas, aoMarcar, aoMarcarTodos, gravando, demorando, rotuloDoGravar, textosDoErroDaLinha, aoGravar }: PropsDaPrevia) {
   const idDoTitulo = useId()
   const { erros, avisos } = linhasDeErroEDeAviso(previa.linhas)
   return (
@@ -415,27 +422,32 @@ function PreviaDaPlanilha({ previa, tituloRef, marcas, aoMarcar, aoMarcarTodos, 
       <p role="status" className="text-apoio">
         {formatQuantity(previa.linhas.length, 'linha lida', 'linhas lidas')} · {formatQuantity(erros.length, 'com erro', 'com erro')} · {formatQuantity(avisos.length, 'com aviso', 'com aviso')}
       </p>
-      {erros.length > 0 && <ListaDeLinhas titulo="Linhas com erro" linhas={erros} textoDe={(linha) => textoDoErro(linha.erro)} tom="erro" />}
+      {erros.length > 0 && <ListaDeLinhas titulo="Linhas com erro" linhas={erros} textoDe={(linha) => textoDoErro(linha.erro, textosDoErroDaLinha)} tom="erro" />}
       {avisos.length > 0 && <ListaDeLinhas titulo="Linhas com aviso" linhas={avisos} textoDe={(linha) => textoDoAviso(linha.aviso)} tom="aviso" />}
       {previa.candidatos.length > 0 && <MarcasDaPrevia candidatos={previa.candidatos} marcas={marcas} aoMarcar={aoMarcar} aoMarcarTodos={aoMarcarTodos} />}
-      <RestoDaPlanilha linhas={previa.linhas} turmasNovas={previa.contagens.turmas_novas ?? 0} />
+      <RestoDaPlanilha linhas={previa.linhas} contagens={previa.contagens} />
       <GravarDaPrevia gravacao={podeGravar(previa, totalDeMarcas(marcas))} resumoDasMarcas={resumoDasMarcas(marcas)} rotulo={rotuloDoGravar} gravando={gravando} demorando={demorando} aoGravar={aoGravar} />
     </section>
   )
 }
 
 /** O resto da planilha em contagem, sem nome nem matrícula: o que entra, o que já existe, o que só muda com a marca. */
-function RestoDaPlanilha({ linhas, turmasNovas }: { linhas: readonly PreviaDaPlanilhaRow[]; turmasNovas: number }) {
+function RestoDaPlanilha({ linhas, contagens }: { linhas: readonly PreviaDaPlanilhaRow[]; contagens: ResumoDaImportacao }) {
   const idDoTitulo = useId()
   const resto = frasesDoResto(linhas)
-  if (resto.length === 0 && turmasNovas === 0) return null
+  const efeitos = frasesDasContagens(contagens)
+  if (resto.length === 0 && efeitos.length === 0) return null
   return (
     <section aria-labelledby={idDoTitulo} className="flex min-w-0 flex-col gap-1">
       <h4 id={idDoTitulo} className="font-medium text-tinta">
         O resto da planilha
       </h4>
       {resto.length > 0 && <p className="break-words text-apoio">{resto.join(' · ')}</p>}
-      {turmasNovas > 0 && <p className="text-apoio">{formatQuantity(turmasNovas, 'turma nova será criada', 'turmas novas serão criadas')}.</p>}
+      {efeitos.map((frase) => (
+        <p key={frase} className="text-apoio">
+          {frase}
+        </p>
+      ))}
     </section>
   )
 }

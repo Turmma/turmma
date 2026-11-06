@@ -99,7 +99,7 @@ cenários foram distribuídos pelo `test-engineer`; cada linha do `cenarios.md` 
   - [ ] 13.4 `docs/interface.md` §3; busca pelos nomes antigos
   - [ ] 13.5 Testes
 
-- [ ] **14.0 — Escola ganha a aba Grade e calendário**
+- [x] **14.0 — Escola ganha a aba Grade e calendário**
   - [ ] 14.1 Rota e aba
   - [ ] 14.2 Modelos para baixar
   - [ ] 14.3 Importar grade e calendário

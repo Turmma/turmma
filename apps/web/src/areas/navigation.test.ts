@@ -82,8 +82,8 @@ describe('navegação por papel', () => {
     expect(Object.keys(lugares)).toEqual(['Painel', 'Analista', 'Escola', 'Registros'])
     expect(acesos('/coordenacao/painel')).toEqual(['Painel'])
     expect(acesos('/coordenacao/analista')).toEqual(['Analista'])
-    // Escola: as três abas e a lista da turma, que é a Estrutura aberta.
-    for (const caminho of ['/coordenacao/estrutura', `/coordenacao/estrutura/turmas/${ID}`, '/coordenacao/professores', '/coordenacao/material']) expect(acesos(caminho), caminho).toEqual(['Escola'])
+    // Escola: as quatro abas e a lista da turma, que é a Estrutura aberta.
+    for (const caminho of ['/coordenacao/estrutura', `/coordenacao/estrutura/turmas/${ID}`, '/coordenacao/professores', '/coordenacao/material', '/coordenacao/grade']) expect(acesos(caminho), caminho).toEqual(['Escola'])
     // Registros: a IA, os agentes, os pedidos, o detalhe do pedido e as três telas da Privacidade.
     for (const caminho of [
       '/coordenacao/governanca',

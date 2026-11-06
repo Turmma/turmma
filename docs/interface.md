@@ -471,8 +471,20 @@ de hoje (A5), que o F12 completa:
 em agregado; recorte com um professor só conta como nominal (D32 e D45 revistas). Hoje existe o
 resumo (A5); a X2 o põe na página de conversa, sem perguntas livres.
 
-**Escola** tem três abas, **Turmas, Professores e Material**, que recebem os itens Estrutura,
-Professores e Material de hoje. Grade horária e calendário entram pelo menu de Escola, com o F2.
+**Escola** tem quatro abas, **Turmas, Professores, Material e Grade e calendário**, que recebem os
+itens Estrutura, Professores e Material de hoje; a quarta nasce com o F2 (D73), no endereço
+`/coordenacao/grade`, e acende Escola na lateral.
+
+**Grade e calendário** (F2, 14.0) tem três blocos, de cima para baixo: os **modelos das quatro
+planilhas** para baixar (alunos, professores, grade e calendário, com o cabeçalho de
+`packages/shared` e mais nada); a **grade horária**, uma turma por vez, em tabela com os dias nas
+colunas e os horários nas linhas (cabeçalho de coluna e de linha; a tela mostra o nome do professor,
+nunca o e-mail), que rola dentro do cartão a 360 px; e o **calendário do ano em curso**, com o
+seletor do ano **planejado**, que só se lê. "Importar grade" e "Importar calendário" abrem o painel da
+planilha (`?painel=importar-grade` e `?painel=importar-calendario`), o mesmo de "Importar alunos": a
+prévia traz os avisos de horário (professor em duas turmas, turma com duas aulas, que gravam assim) e
+o que a planilha **tira** do ano, e a grade e o calendário gravam no ano em curso. Cada leitura tem
+os quatro estados; o vazio da grade convida a "Baixar modelo".
 
 - **Estrutura**: séries, turmas, listas de nomes, grade horária e calendário importados,
   alocação de professor × turma × disciplina, convites de professor e conexão opcional com

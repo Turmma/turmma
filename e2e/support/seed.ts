@@ -1354,3 +1354,60 @@ export async function auditoriaDoPedidoNoBanco(escolaId: string, pedidoId: strin
     return rows
   })
 }
+
+/** Uma aula da grade, como a planilha a grava: o dia de 1 (segunda) a 7, e o horário em `HH:MM`. */
+export interface AulaDeTeste {
+  readonly dia: number
+  readonly inicio: string
+  readonly fim: string
+  readonly sala?: string
+}
+
+/**
+ * Aulas na grade de um vínculo, direto no banco (F2, 14.0): é o que a tela Grade e calendário lê. O ano e a escola saem do próprio
+ * vínculo, e a FK composta do banco prende a aula a eles.
+ */
+export async function criarAulasNoBanco(escolaId: string, vinculoId: string, aulas: readonly AulaDeTeste[]): Promise<void> {
+  await comBanco(async (banco) => {
+    for (const aula of aulas) {
+      await banco.query(
+        'insert into alocacao (escola_id, ano_letivo_id, vinculo_id, dia_semana, inicio, fim, sala) select escola_id, ano_letivo_id, id, $3, $4, $5, $6 from vinculo where escola_id = $1 and id = $2',
+        [escolaId, vinculoId, aula.dia, aula.inicio, aula.fim, aula.sala ?? null],
+      )
+    }
+  })
+}
+
+/** Um evento no calendário do ano em curso ou do planejado da escola, direto no banco (F2, 14.0). */
+export async function criarEventoDoCalendarioNoBanco(
+  escolaId: string,
+  situacao: 'em_curso' | 'planejado',
+  evento: { readonly tipo: 'feriado' | 'recesso' | 'evento'; readonly inicio: string; readonly fim: string; readonly descricao: string },
+): Promise<void> {
+  await comBanco(async (banco) => {
+    await banco.query('insert into evento_calendario (escola_id, ano_letivo_id, tipo, inicio, fim, descricao) select escola_id, id, $3, $4, $5, $6 from ano_letivo where escola_id = $1 and situacao = $2', [
+      escolaId,
+      situacao,
+      evento.tipo,
+      evento.inicio,
+      evento.fim,
+      evento.descricao,
+    ])
+  })
+}
+
+/** Quantas aulas a escola tem na grade, no banco: a prova de que a prévia não gravou e de que o gravar gravou. */
+export async function aulasDaEscolaNoBanco(escolaId: string): Promise<number> {
+  return comBanco(async (banco) => {
+    const { rows } = await banco.query<{ total: string }>('select count(*)::text as total from alocacao where escola_id = $1', [escolaId])
+    return Number(rows[0]?.total ?? 0)
+  })
+}
+
+/** Quantos eventos o calendário do ano em curso da escola tem, no banco. */
+export async function eventosDaEscolaNoBanco(escolaId: string): Promise<number> {
+  return comBanco(async (banco) => {
+    const { rows } = await banco.query<{ total: string }>('select count(*)::text as total from evento_calendario where escola_id = $1', [escolaId])
+    return Number(rows[0]?.total ?? 0)
+  })
+}

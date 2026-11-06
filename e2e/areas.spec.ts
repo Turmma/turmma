@@ -362,14 +362,21 @@ test.describe('W2: a navegação de cada papel e a guarda de papel', () => {
     await expect(page).toHaveURL(/\/aluno\/inicio$/, { timeout: SIGN_IN_TIMEOUT_MS })
   })
 
-  test('os endereços de hoje do aluno abrem as telas de hoje, e Tutor e Privacidade acendem Início e Eu', async ({ page, hasTouch }) => {
+  // Eram um caso só (entrada, três endereços): passava de metade do prazo na máquina (15,2 s) e o portão da correção
+  // `2026-11-05-nona-fatia-do-e2e-e-restos-da-13` o recusou. Dois casos, a mesma prova: o lugar aceso é o de Início para o Tutor
+  // e o de Eu para Privacidade, e Tarefas acende Tarefas.
+  test('o endereço de hoje do Tutor abre a tela de hoje e acende Início', async ({ page, hasTouch }) => {
     await entrarComoAlunoDaTurma(page, hasTouch)
 
-    // O lugar aceso é o de Início para o Tutor e o de Eu para Privacidade.
     await navegarSemRecarregar(page, '/aluno/tutor')
     await expect(page).toHaveTitle('Tutor · Turmma', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(naoEncontrada(page)).toHaveCount(0)
     await expect(secoes(page).getByRole('link', { name: 'Início', exact: true })).toHaveAttribute('aria-current', 'page')
+  })
+
+  test('os endereços de hoje de Privacidade e das Tarefas abrem as telas de hoje, e Privacidade acende Eu', async ({ page, hasTouch }) => {
+    await entrarComoAlunoDaTurma(page, hasTouch)
+
     await navegarSemRecarregar(page, '/aluno/privacidade')
     await expect(page).toHaveTitle('Privacidade · Turmma', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(secoes(page).getByRole('link', { name: 'Eu', exact: true })).toHaveAttribute('aria-current', 'page')
@@ -389,6 +396,7 @@ test.describe('W2: a navegação de cada papel e a guarda de papel', () => {
     { tela: 'Turmas', endereco: '/coordenacao/estrutura', lugar: 'Escola' },
     { tela: 'Professores', endereco: '/coordenacao/professores', lugar: 'Escola' },
     { tela: 'Material', endereco: '/coordenacao/material', lugar: 'Escola' },
+    { tela: 'Grade e calendário', endereco: '/coordenacao/grade', lugar: 'Escola' },
     { tela: 'IA', endereco: '/coordenacao/governanca', lugar: 'Registros' },
     { tela: 'Agentes', endereco: '/coordenacao/agentes', lugar: 'Registros' },
     { tela: 'Pedidos', endereco: '/coordenacao/privacidade/pedidos', lugar: 'Registros' },
@@ -398,7 +406,7 @@ test.describe('W2: a navegação de cada papel e a guarda de papel', () => {
   ]
 
   test('a coordenação abre no Painel, vê Painel, Analista, Escola e Registros (na barra de baixo a 360 px), e cada tela de hoje fica a até dois cliques; Empresas e Incidentes, a três', async ({ page, hasTouch }) => {
-    // O caso entra com segundo fator, percorre os quatro lugares e, depois, as onze telas, e em cada uma `paginaNaoRola` espera a
+    // O caso entra com segundo fator, percorre os quatro lugares e, depois, as doze telas, e em cada uma `paginaNaoRola` espera a
     // leitura terminar (de 0,8 a 1,3 s na rede e na CPU do perfil). Na esteira isso soma mais que os 30 s do relógio padrão, sem
     // que nenhuma tela trave (trace da esteira 39062201162): é o tempo da medida verdadeira, não da tela. Por isso o relógio é o triplo.
     test.slow()

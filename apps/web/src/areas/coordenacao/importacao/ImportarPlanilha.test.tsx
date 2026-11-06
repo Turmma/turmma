@@ -560,4 +560,42 @@ describe('a prévia longa e as faixas que só aparecem com o que mostrar', () =>
     expect(within(screen.getByRole('region', { name: 'O resto da planilha' })).getByText('1 linha entra')).toBeTruthy()
     expect(screen.queryByText(/turma nova será criada|turmas novas serão criadas/)).toBeNull()
   })
+
+  it('14.0: a grade que só tira aula pode ser gravada, a prévia diz o que sai, e ao terminar vale o texto que a tela da grade dá, e não o dos alunos', async () => {
+    const usuario = userEvent.setup()
+    const rede = fakeNetwork()
+    rede.responderPor('/v1/importacoes/grade/previa', {
+      status: 200,
+      corpo: { linhas: [{ linha: 2, resultado: 'ja_existe', aviso: 'professor_em_duas_turmas' }], contagens: { ja_existem: 1, aulas_removidas: 2, disciplinas_novas: 1 }, candidatos: [] },
+    })
+    rede.responderPor('/v1/importacoes/grade', { status: 202, corpo: { id: id(901) } })
+    rede.responderPor(`/v1/importacoes/${id(901)}`, { status: 200, corpo: { ...CONCLUIDA, id: id(901), tipo: 'grade', resumo: { aulas: 0, aulas_removidas: 2 } } })
+    const grade: PlanilhaConfig = { ...CONFIGURACAO, rotas: rotasDaPlanilha('grade'), rotuloDoGravar: 'Gravar grade', textoDaConclusao: (resumo) => `${String(resumo?.aulas_removidas ?? 0)} aulas saíram da grade.` }
+    renderScreen(<ImportarPlanilha configuracao={grade} />)
+    await escolher(usuario)
+
+    const avisos = await screen.findByRole('region', { name: 'Linhas com aviso (1)' })
+    expect(within(avisos).getByRole('listitem').textContent).toContain('aula conjunta')
+    expect(screen.getByText('2 aulas já gravadas saem do ano, porque a planilha não as traz.')).toBeTruthy()
+    expect(screen.getByText('1 disciplina nova será criada.')).toBeTruthy()
+    await usuario.click(screen.getByRole('button', { name: 'Gravar grade' }))
+    await screen.findByRole('heading', { name: 'Planilha gravada' })
+    expect(screen.getByText('2 aulas saíram da grade.')).toBeTruthy()
+    expect(screen.queryByText(/alunos? (entrou|entraram)/)).toBeNull()
+  })
+
+  it('14.0: o erro que a planilha diz do jeito dela usa o texto dela, e os outros seguem os gerais', async () => {
+    const usuario = userEvent.setup()
+    const rede = fakeNetwork()
+    rede.responderPor('/v1/importacoes/calendario/previa', {
+      status: 200,
+      corpo: { linhas: [{ linha: 2, resultado: 'erro', erro: 'fim_antes_do_inicio' }, { linha: 3, resultado: 'erro', erro: 'turma_invalida' }], contagens: {}, candidatos: [] },
+    })
+    const calendario: PlanilhaConfig = { ...CONFIGURACAO, rotas: rotasDaPlanilha('calendario'), textosDoErroDaLinha: { fim_antes_do_inicio: 'Texto do calendário.' } }
+    renderScreen(<ImportarPlanilha configuracao={calendario} />)
+    await escolher(usuario)
+
+    const erros = within(await screen.findByRole('region', { name: 'Linhas com erro (2)' }))
+    expect(erros.getAllByRole('listitem').map((item) => item.textContent)).toEqual([expect.stringContaining('Linha 2: Texto do calendário.'), expect.stringContaining('Linha 3: Não achei esta turma.')])
+  })
 })

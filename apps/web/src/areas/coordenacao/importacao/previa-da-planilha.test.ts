@@ -8,6 +8,7 @@ import {
   alternarTodos,
   candidatosDa,
   fatiaDaLista,
+  frasesDasContagens,
   frasesDoResto,
   itensEscondidos,
   ITENS_POR_PAGINA,
@@ -23,6 +24,7 @@ import {
   SEM_MARCAS,
   TEXTO_DA_CONFERENCIA,
   TEXTO_DA_IMPORTACAO_DESATUALIZADA,
+  TEXTO_DO_AVISO_DA_LINHA,
   TEXTO_DO_AVISO_DESCONHECIDO,
   TEXTO_DO_CONFLITO_DO_GRAVAR,
   TEXTO_DO_ERRO_DA_LINHA,
@@ -54,6 +56,26 @@ describe('13.0 (unidade): a prévia da planilha em texto', () => {
       matricula_repetida: /corrija ou tire as repetidas/,
       aluno_desativado: /Tire esta linha da planilha/,
       linha_incompleta: /Confira se cada dado está na sua coluna/,
+      // A grade (14.0).
+      disciplina_vazia: /Preencha a coluna "disciplina"/,
+      disciplina_invalida: /Confira o nome da disciplina/,
+      disciplina_ambigua: /Renomeie uma delas/,
+      sem_professor: /Preencha o nome e o e-mail do professor/,
+      nome_vazio: /Preencha a coluna "professor"/,
+      email_invalido: /Confira a coluna "email"/,
+      professor_com_convite_vencido: /Refaça o convite dele/,
+      dia_invalido: /Escreva o dia da semana/,
+      horario_invalido: /Escreva como "08:50"/,
+      fim_antes_do_inicio: /Confira as duas colunas/,
+      sala_longa: /Escreva um nome mais curto/,
+      aula_repetida: /Tire a repetida/,
+      // O calendário (14.0).
+      data_invalida: /Escreva como "15\/11\/2026"/,
+      fora_do_ano: /Confira o ano/,
+      tipo_invalido: /Escreva "feriado", "recesso" ou "evento"/,
+      descricao_vazia: /Preencha a coluna "descricao"/,
+      descricao_longa: /Escreva uma mais curta/,
+      repetida: /Tire o repetido/,
     }
     expect(Object.keys(TEXTO_DO_ERRO_DA_LINHA).sort()).toEqual(Object.keys(oQueFazer).sort())
     for (const [codigo, texto] of Object.entries(TEXTO_DO_ERRO_DA_LINHA)) {
@@ -65,6 +87,14 @@ describe('13.0 (unidade): a prévia da planilha em texto', () => {
     )
     expect(textoDoErro('codigo_que_a_tela_nao_conhece')).toBe(TEXTO_DO_ERRO_DESCONHECIDO)
     expect(textoDoErro(undefined)).toBe(TEXTO_DO_ERRO_DESCONHECIDO)
+  })
+
+  it('a planilha que diz um código do jeito dela usa o texto dela; o código que ela não troca segue o geral, e o desconhecido segue desconhecido', () => {
+    const proprios = { fim_antes_do_inicio: 'Texto do calendário.' }
+    expect(textoDoErro('fim_antes_do_inicio', proprios)).toBe('Texto do calendário.')
+    expect(textoDoErro('fim_antes_do_inicio')).toBe(TEXTO_DO_ERRO_DA_LINHA['fim_antes_do_inicio'])
+    expect(textoDoErro('sala_longa', proprios)).toBe(TEXTO_DO_ERRO_DA_LINHA['sala_longa'])
+    expect(textoDoErro('codigo_que_a_tela_nao_conhece', proprios)).toBe(TEXTO_DO_ERRO_DESCONHECIDO)
   })
 
   it('o aviso de uma linha que grava assim mesmo nunca some em branco: o código que a tela não conhece cai no texto de conferir', () => {
@@ -246,5 +276,42 @@ describe('13.0 (unidade): o que a tela diz ao terminar e ao falhar', () => {
     expect(textoDaFalhaDaGravacao(new ImportacaoNaoConcluidaError('falhou', null))).toContain('Nada foi gravado')
     expect(textoDaFalhaDaGravacao(new ImportacaoNaoConcluidaError('falhou', null))).toBe(textoDaFalhaDaGravacao(new ImportacaoNaoConcluidaError('falhou', 'erro_interno')))
     expect(textoDaFalhaDaGravacao(new ImportacaoNaoConcluidaError('falhou', 'expirou'))).not.toBe(textoDaFalhaDaGravacao(new ImportacaoNaoConcluidaError('falhou', 'trava_esgotada')))
+  })
+})
+
+describe('14.0 (unidade): a grade e o calendário na prévia', () => {
+  it('os dois avisos de horário têm frase própria, dizem que a grade é gravada assim e mandam conferir', () => {
+    expect(Object.keys(TEXTO_DO_AVISO_DA_LINHA).sort()).toEqual(['professor_em_duas_turmas', 'turma_com_duas_aulas'])
+    expect(textoDoAviso('professor_em_duas_turmas')).toMatch(/duas turmas.*aula conjunta.*gravada assim.*confira/)
+    expect(textoDoAviso('turma_com_duas_aulas')).toMatch(/duas aulas.*turma dividida.*gravada assim.*confira/)
+    expect(textoDoAviso('professor_em_duas_turmas')).not.toBe(textoDoAviso('turma_com_duas_aulas'))
+  })
+
+  it('as contagens dizem o que nasce e o que sai, na ordem da tela, e a que vale zero ou falta não tem frase', () => {
+    expect(frasesDasContagens({})).toEqual([])
+    expect(frasesDasContagens({ aulas: 40, ja_existem: 3, turmas_novas: 0, aulas_removidas: 0 })).toEqual([])
+    expect(
+      frasesDasContagens({ turmas_novas: 1, disciplinas_novas: 2, professores_novos: 1, vinculos_criados: 5, aulas_removidas: 1, eventos_removidos: 4 }),
+    ).toEqual([
+      '1 turma nova será criada.',
+      '2 disciplinas novas serão criadas.',
+      '1 professor novo será cadastrado, com convite para copiar.',
+      '5 vínculos de professor serão criados e esperam a confirmação deles.',
+      '1 aula já gravada sai do ano, porque a planilha não a traz.',
+      '4 eventos já gravados saem do ano, porque a planilha não os traz.',
+    ])
+  })
+
+  it('a planilha que só tira aula ou evento do ano pode ser gravada; a que não muda nada, não', () => {
+    const jaExiste = [linha(2, 'ja_existe'), linha(3, 'ja_existe')]
+    expect(podeGravar({ linhas: jaExiste, contagens: { ja_existem: 2 } }, 0).pode).toBe(false)
+    expect(podeGravar({ linhas: jaExiste, contagens: { ja_existem: 2, aulas_removidas: 1 } }, 0).pode).toBe(true)
+    expect(podeGravar({ linhas: jaExiste, contagens: { ja_existem: 2, eventos_removidos: 3 } }, 0).pode).toBe(true)
+    expect(podeGravar({ linhas: jaExiste, contagens: { ja_existem: 2, aulas_removidas: 0, eventos_removidos: 0 } }, 0).pode).toBe(false)
+    // Sem contagens (a lista da turma), vale o que valia: só as linhas e as marcas.
+    expect(podeGravar({ linhas: jaExiste }, 0).pode).toBe(false)
+    expect(podeGravar({ linhas: jaExiste }, 1).pode).toBe(true)
+    // Com erro, nada grava, tire o que tirar.
+    expect(podeGravar({ linhas: [linha(2, 'erro', { erro: 'dia_invalido' })], contagens: { aulas_removidas: 2 } }, 0).pode).toBe(false)
   })
 })
