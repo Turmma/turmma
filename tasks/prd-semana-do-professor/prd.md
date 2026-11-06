@@ -48,10 +48,10 @@ nada, com feriado e recesso já fora e nada de outra escola na tela.
 | RF9 | Só a escola ativa (P12). Trocar de escola troca a semana inteira, e nada da anterior fica na tela nem no cache, nem o painel aberto | e2e: professora de duas escolas troca e não vê aula da primeira |
 | RF10 | Aula, registro e item de outra escola, de outro professor ou de outro ano respondem igual ao inexistente, na leitura e na gravação | integração, isolamento: id de outra escola, de colega da mesma escola e inexistente dão a mesma resposta, e nada é gravado |
 | RF11 | Só a professora dona do vínculo da aula lê e grava o texto. Nenhuma rota da coordenação ou da rede devolve o texto ou contagem de aulas preenchidas | integração: a coordenação não alcança o texto; a matriz de permissão não tem célula da coordenação para ele |
-| RF12 | Quatro estados: carregando; erro com "Tentar de novo"; vazio que diz por quê ("A coordenação ainda não importou a grade", "Sem aulas nesta semana", "Semana de recesso"); com dado. Sem calendário importado, as aulas aparecem com o aviso de que ele falta. No celular, um dia por vez, em botões, sem rolagem horizontal a 360 px | e2e nos projetos `chromebook` e `celular` |
+| RF12 | Quatro estados: carregando; erro com "Tentar de novo"; vazio que diz por quê ("A coordenação ainda não importou a grade", "Sem aulas nesta semana", "Semana de recesso", "O ano letivo ainda não começou"); com dado. Sem calendário importado, as aulas aparecem com o aviso de que ele falta. No celular, um dia por vez, em botões, sem rolagem horizontal a 360 px | e2e nos projetos `chromebook` e `celular` |
 | RF13 | Reimportar o **calendário** não apaga texto: a aula coberta por feriado novo some e volta com o texto se o feriado sair | integração: texto, feriado importado, feriado retirado, texto de volta |
 | RF14 | Reimportar a **grade** respeita o texto: a aula que continua (mesmo vínculo, dia e início) fica com ele; a que muda só o horário, no mesmo vínculo e dia, leva o texto das datas futuras (a escola que passa o turno das 7h30 para as 7h40 não apaga o planejamento); a que sai da grade some das datas futuras junto com o texto delas; e a aula passada com texto continua na semana dela, mesmo fora da grade | integração: os quatro casos, com a reimportação real do F2 |
-| RF15 | Gravar duas vezes (clique duplo, duas abas) deixa um registro por aula e data, com o último texto | integração: duas gravações simultâneas, uma linha |
+| RF15 | Gravar duas vezes (clique duplo, duas abas) deixa um registro por aula e data, com um dos dois textos | integração: duas gravações simultâneas, uma linha |
 
 ## 6. Regras de negócio
 
@@ -84,7 +84,7 @@ nada, com feriado e recesso já fora e nada de outra escola na tela.
 | Dado | Titular | Finalidade | Retenção | Já está em `docs/lgpd.md`? |
 |---|---|---|---|---|
 | Aula da grade (turma, disciplina, professor pelo vínculo, dia, horário, sala) | professor | derivar a semana dele | a da alocação | sim ("Aula da grade") |
-| Registro da aula (até 500 caracteres, por aula e data) | professor | ela planejar e lembrar o que deu; na F11, o "seu dia e sua semana", para ela | o do vínculo, no prazo de `vinculo_encerrado` | **não: entra nesta fase**, com o arquivo do titular (regra 20, item 19) e a exportação aberta (D63) |
+| Registro da aula (até 500 caracteres, por aula e data) | professor | ela planejar e lembrar o que deu; na F11, o "seu dia e sua semana", para ela | até a virada do ano letivo, como o texto da contestação (o nome de aluno eliminado não fica anos) | **não: entra nesta fase**, e no arquivo do titular só na versão dela (regra 20, item 19) |
 | Evento do calendário | — | dia sem aula | a do calendário | sim |
 
 ## 8b. Risco regulatório
@@ -98,7 +98,6 @@ segue o caminho que já existe (regra 70, item 3). A Semana não mede o professo
 - Na escola piloto, a professora acha a aula de amanhã e o que pretendia dar sem ajuda (observação, não telemetria
   por pessoa)
 - Nenhum chamado de "minha aula não aparece" que não seja grade importada errada
-- A leitura da Semana dentro do orçamento da regra 80 às 7h de segunda, com a escola inteira abrindo junto
 
 ## 10. Perguntas em aberto
 
