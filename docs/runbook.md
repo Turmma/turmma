@@ -1001,6 +1001,16 @@ uma tarefa mexer no login, no semáforo, no rebaixamento, na renovação ou no h
 Para depurar uma fase sem esperar o cenário inteiro: `npm run carga:login -- --fases rajada` (a base roda sempre). O
 resultado parcial não vale como registro.
 
+**Resultado de referência (06/11/2026, 15 min, passou):** prévia e gravar com 3.000 linhas, p95 de 319 ms e 196 ms (máximo da prévia 1,7 s,
+no primeiro encontro com a rajada), com a rajada de login em p95 107 ms e zero 5xx; transferências: passo (3) 12 vezes, todas até 1 s
+(a maior, entre 0,25 e 0,5 s), e a espera de trava **+4 ms** no gerar acesso e **+6 ms** na decisão, zero 503; desligamentos e virada:
+passo (3) 5 vezes, todas até 0,75 s (100 desligamentos, 3 × 100 e a virada de 900); professores: 11 jobs e 181 logins, zero 503, passo (3)
+sempre até 0,25 s. Sem teto, a primeira medição dos desligamentos foi 100 abaixo de 0,75 s, 200 entre 1 e 1,5 s e 300 entre 1,5 e 3 s.
+
+**Cuidado ao mexer no driver:** o token de acesso da coordenação vale 10 min (`VALIDADE_TOKEN_ACESSO_SEGUNDOS`) e é emitido quando a escola
+da fase é criada. O que demora (semear as 2.100 contas da rajada, que leva minutos) vem **antes** de criar a escola, e nunca depois: na
+primeira tentativa a ordem era a inversa, e três prévias do fim da fase voltaram 401.
+
 Se reprovar, a saída diz a fase e o critério:
 - **p95 do login na rajada acima de 1 s, ou conta que não entrou:** o hash custa mais do que a CPU de referência aguenta.
   Confira `LOGIN_ARGON2_ITERACOES` em `infra/carga.env` contra a calibração da Tech Spec da identidade (seção 5, "Hash").
@@ -1047,6 +1057,53 @@ Se reprovar, a saída diz a fase e o critério:
   lote (`apps/api/src/sala/decisao/decisao.service.ts`).
 - **login da outra escola acima de 1 s:** a sala está tirando a vez do login no semáforo. Confira a espera por balde no
   painel.
+
+## Rodar o cenário da importação
+
+`npm run carga:importacao` roda o cenário "a escola inteira entra de uma vez" (F2, tarefa 16.0 de `onboarding-por-convite`; Tech Spec,
+seções 7c e 13; PRD, RF15) no mesmo projeto compose (`educa-carga`) dos outros cenários, e o derruba no fim. Leva uns 25 min, mais a
+construção das imagens. Não rode junto com o portão, com os testes nem com os outros cenários (`flock /tmp/educa-carga.lock`): os quatro
+sobem o mesmo projeto, e a medição depende da CPU livre. Cada fase monta pela API uma escola nova, como a coordenação e a professora
+fariam, e roda `infra/k6/importacao-7h30.js`:
+
+- **previa_e_gravar**: a prévia e o gravar de uma planilha de 3.000 linhas (100 turmas de 30), de duas coordenações da mesma
+  escola (as duas vagas da planilha), de um container, enquanto a rajada de login do F1 entra com 2.100 contas, de outro. Passa com o p95
+  da prévia e o do gravar abaixo de 2 s (PRD, RF15; o PRD admite 10 s, o teto da Tech Spec é 2 s) e a rajada dentro dos limites dela;
+- **transferencias_base** e **transferencias**: as 3.000 linhas já gravadas, 180 pedidos de nome pendentes em 60 turmas de dez
+  professoras, e a carga que o passo (3) disputa: cada professora gera o acesso das turmas dela (8 por segundo) e decide os pedidos em
+  lotes de cinco. A base roda **sem o job**; a segunda roda **com** um job atrás do outro, cada um com 300 transferências (a mesma
+  matrícula e o mesmo nome em outra turma, de ida e de volta). É o critério [C] da seção 13;
+- **desligamentos_e_virada**: três escolas, uma depois da outra: 100 desligamentos de alunos aprovados num gravar (a conta é desativada
+  um por um), 300 em **três gravares de 100** (o teto por gravar, `MAXIMO_DE_DESLIGAMENTOS_POR_GRAVAR`; a planilha é enviada de novo e a
+  prévia mostra quem ainda falta) e a virada de 900 alunos para o ano planejado (o `vinculo.criado` de cada um). Foi esta fase que
+  criou o teto: na primeira medição, sem ele, 100 desligamentos ficaram abaixo de 0,75 s, 200 entre 1 e 1,5 s e 300 entre 1,5 e 3 s;
+- **professores**: a planilha de 300 professores (200 que já têm conta e 100 novos a cada volta) contra o login dos 200 que já existem.
+
+**A espera de trava não tem métrica própria.** O `lock_timeout` do passo (3) corta em 300 ms, mas quem espera é o gerar acesso e a
+decisão, e o que o produto promete é que eles não esperem. O cenário a mede por diferença: o p95 do gerar acesso e o da decisão **com** o
+job menos o p95 deles na fase `transferencias_base` (a mesma carga, sem o job). A diferença precisa ficar abaixo de 300 ms
+(`LIMITE_DA_ESPERA_DE_TRAVA_MS`). O passo (3) é medido pelo histograma `importacao.passo3.duracao` no Prometheus: o cenário confere que
+ele rodou ao menos o número de vezes que a fase pede (o job chegou ao passo (3), e a planilha tem transferências nas turmas onde o gerar
+acesso roda) e que nenhuma observação passou do balde de 1 s.
+
+Passa quando: nenhum 5xx (o 503 do semáforo do hash entra) nas rotas do cenário, nenhuma resposta fora do esperado, nenhum job `falhou`
+nem parado em `na_fila`, as marcas que a prévia oferece são as que o cenário diz (300 transferências, 100 desligamentos por gravar), o passo
+(3) abaixo de 1 s, e a espera de trava abaixo de 300 ms sobre a base. Rode de novo quando uma tarefa mexer no motor da planilha, nas travas
+do passo (3), no gerar acesso, na decisão dos pedidos ou no login. Para depurar uma fase: `npm run carga:importacao -- --fases
+transferencias` (a base entra junto). O resultado parcial não vale como registro. Se o [C] falhar, a Tech Spec manda a spec de volta à
+revisão (seção 13): o remédio é teto nas marcas ou comando em grupo, e só se este cenário o pedir. O teto nas marcas já entrou (100
+desligamentos por gravar); o comando em grupo só se uma escola real precisar de mais que isso por gravar.
+
+Se reprovar, a saída diz a fase e o critério:
+- **prévia ou gravar acima de 2 s:** a classificação de 3.000 linhas está lenta com a rajada em paralelo. Confira a espera pelo semáforo da
+  planilha e os statements do `pg_stat_statements` (a prévia lê a lista inteira da escola).
+- **espera de trava acima de 300 ms:** o passo (3) segura as turmas por tempo demais. Confira a ordem das travas (Tech Spec, seção 5) e o
+  tamanho da transação do job.
+- **passo (3) acima de 1 s:** o laço de `vinculo.criado` um por um (a virada) ou o `desativar` um por um (os desligamentos) é o que cresce
+  com a escola. Se foi um desligamento, confira se o teto por gravar (100) ainda vale e se `desativar` ganhou trabalho por pessoa; se foi a
+  virada (sem marca, 900 alunos), é ela que precisa do comando em grupo, porque não há marca para limitar.
+- **503 no login dos professores:** o job de professores achou ou criou a conta global enquanto eles entravam e tomou a vez do hash.
+- **passo (3) rodou menos do que a fase pede:** o job saiu `desatualizada` ou não chegou ao passo (3); a fase não mediu o [C].
 
 ## Esteira vermelha no e2e
 

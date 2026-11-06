@@ -975,6 +975,7 @@ export {
   gravarPlanilhaResponseSchema,
   importacaoSchema,
   linhaDaPreviaDaPlanilhaSchema,
+  MAXIMO_DE_DESLIGAMENTOS_POR_GRAVAR,
   marcasDaPlanilhaSchema,
   previaDaPlanilhaRequestSchema,
   previaDaPlanilhaResponseSchema,

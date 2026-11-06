@@ -97,13 +97,21 @@ export const previaDaPlanilhaRequestSchema = z.strictObject({
 export type PreviaDaPlanilhaRequest = z.infer<typeof previaDaPlanilhaRequestSchema>
 
 /**
+ * Quantas pessoas se desligam num mesmo gravar (F2, 16.0). O desligamento corre um a um dentro da transação do passo (3), que segura as
+ * travas da escola; a medida da 16.0 (`docs/runbook.md`, "Rodar o cenário da importação") mostrou 100 desligamentos abaixo de 0,75 s, 200
+ * entre 1 e 1,5 s e 300 entre 1,5 e 3 s, contra o alerta de 1 s do passo (3). Acima do teto, `ENTRADA_INVALIDA`: quem tem mais a
+ * desligar repete a planilha, e a prévia mostra de novo quem ainda falta.
+ */
+export const MAXIMO_DE_DESLIGAMENTOS_POR_GRAVAR = 100
+
+/**
  * O que a coordenação marcou na prévia: só com a marca dela a reimportação transfere, desliga ou encerra (PRD, seção 6). São
  * ids, nunca nome nem matrícula (`docs/lgpd.md`); o que cada id é depende do tipo (o aluno que muda de turma, o aluno ou o
  * professor ausente, o vínculo que saiu da grade).
  */
 export const marcasDaPlanilhaSchema = z.strictObject({
   transferir: z.array(z.uuid()).default([]),
-  desligar: z.array(z.uuid()).default([]),
+  desligar: z.array(z.uuid()).max(MAXIMO_DE_DESLIGAMENTOS_POR_GRAVAR).default([]),
   encerrar: z.array(z.uuid()).default([]),
 })
 export type MarcasDaPlanilha = z.infer<typeof marcasDaPlanilhaSchema>

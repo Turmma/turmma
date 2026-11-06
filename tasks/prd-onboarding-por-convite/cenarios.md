@@ -18,6 +18,8 @@ numa tarefa do `tasks.md`, que diz qual. I = integração com Postgres real e re
   - [C] Prévia e gravar com 3.000 linhas: p95 até 2 s com a rajada de login em paralelo.
   - [C] Job de 3.000 linhas com transferências em várias turmas junto com o gerar acesso e a decisão nessas turmas, e o
     de professores junto com o login deles: zero 503 no gerar acesso, na decisão e no login; espera de trava com p95 abaixo de 300 ms; passo (3) do job abaixo de 1 s.
+  - [C] Desligamentos: 100 em um gravar e 300 em três de 100 (o teto por gravar, 16.0), e a virada de 900 alunos: passo (3) abaixo de 1 s em cada job.
+  - [I] Gravar com 101 marcas de desligar: `ENTRADA_INVALIDA`, sem importação nem job; com 100, o job desliga as 100 (`apps/api/test/importacao-alunos.int.test.ts`).
   - Os limites, um cenário por linha, estão na tabela "Limites" no fim.
   - [I] `/v1/importacoes/alunos` com 3.001 linhas ou mais de 512 KB: recusado; 3.000 entram.
 - **RF3.**

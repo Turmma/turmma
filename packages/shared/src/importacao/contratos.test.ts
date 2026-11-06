@@ -8,6 +8,7 @@ import {
   importacaoSchema,
   linhaDaPreviaDaPlanilhaSchema,
   MAXIMO_DE_BYTES_DA_PLANILHA,
+  MAXIMO_DE_DESLIGAMENTOS_POR_GRAVAR,
   MAXIMO_DE_LINHAS_DA_PLANILHA,
   previaDaPlanilhaRequestSchema,
   resumoDaImportacaoSchema,
@@ -105,6 +106,21 @@ describe('gravar traz as marcas da coordenação', () => {
     expect(gravarPlanilhaRequestSchema.safeParse({ texto: 'x', marcas: { desligar: [UM_UUID, OUTRO_UUID] } }).success).toBe(true)
     expect(gravarPlanilhaRequestSchema.safeParse({ texto: 'x', marcas: { desligar: ['2026001'] } }).success).toBe(false)
     expect(gravarPlanilhaRequestSchema.safeParse({ texto: 'x', marcas: { excluir: [UM_UUID] } }).success).toBe(false)
+  })
+})
+
+describe('o teto de desligamentos por gravar (16.0)', () => {
+  const ids = (quantos: number): string[] => Array.from({ length: quantos }, (_, i) => `0191f3a6-6b9e-7c1a-8f35-${String(i).padStart(12, '0')}`)
+
+  it('até o teto passa, e um a mais é recusado: quem tem mais a desligar repete a planilha', () => {
+    expect(MAXIMO_DE_DESLIGAMENTOS_POR_GRAVAR).toBe(100)
+    expect(gravarPlanilhaRequestSchema.safeParse({ texto: 'x', marcas: { desligar: ids(MAXIMO_DE_DESLIGAMENTOS_POR_GRAVAR) } }).success).toBe(true)
+    expect(gravarPlanilhaRequestSchema.safeParse({ texto: 'x', marcas: { desligar: ids(MAXIMO_DE_DESLIGAMENTOS_POR_GRAVAR + 1) } }).success).toBe(false)
+  })
+
+  it('o teto é só do desligamento: transferir e encerrar passam dele', () => {
+    const muitos = ids(MAXIMO_DE_DESLIGAMENTOS_POR_GRAVAR + 50)
+    expect(gravarPlanilhaRequestSchema.safeParse({ texto: 'x', marcas: { transferir: muitos, encerrar: muitos } }).success).toBe(true)
   })
 })
 

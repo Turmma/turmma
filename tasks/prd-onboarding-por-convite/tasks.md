@@ -113,7 +113,7 @@ cenários foram distribuídos pelo `test-engineer`; cada linha do `cenarios.md` 
   - [ ] 15.3 `docs/interface.md` §3
   - [ ] 15.4 Testes
 
-- [ ] **16.0 — A escola inteira entra de uma vez, provada de ponta a ponta e sob carga**
+- [x] **16.0 — A escola inteira entra de uma vez, provada de ponta a ponta e sob carga**
   - [ ] 16.1 E2E do RF18
   - [ ] 16.2 O modelo servido entra sem erro
   - [ ] 16.3 Cenário k6

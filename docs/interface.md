@@ -501,7 +501,8 @@ os quatro estados; o vazio da grade convida a "Baixar modelo".
   nenhum: o link se pega **depois**, abrindo o professor na lista e usando "Refazer convite" (o `convite/refazer`), que mostra o link
   uma vez, com "Copiar link"; o texto do resultado diz isso. Quem está na escola e não está na planilha **continua**, e só sai com a
   marca de desligar: "Estão na escola, mas não aparecem na planilha", desmarcada, com "Marcar todos para desligar" também desmarcado
-  (regra 70), e a marca é rotulada **só com o nome** que a escola já tem, sem e-mail (a API não o manda, E11; Tech Spec, seção 9),
+  (regra 70; cada gravação desliga **até 100** pessoas: acima disso o rótulo vira "Marcar os primeiros 100 para desligar", a tela diz
+  que é para gravar e enviar a planilha de novo, e a lista mostra quem ainda falta), e a marca é rotulada **só com o nome** que a escola já tem, sem e-mail (a API não o manda, E11; Tech Spec, seção 9),
   e só `ativo` e `aceito` são candidatos. Perto de "Gravar professores" uma linha diz o que a marca vai fazer ("1 professor será
   desligado e perde o acesso"). "Cadastrar professor" segue a única ação cheia da tela. Dentro da turma aberta, embaixo da lista
   de nomes, a coordenação também decide os **pedidos de nome** (tarefa 16.0), com a mesma peça do professor: a lista só é
@@ -510,7 +511,7 @@ os quatro estados; o vazio da grade convida a "Baixar modelo".
   escolhe o CSV ou o Excel (.xlsx) pelo botão "Escolher arquivo" (em português, com "Nenhum arquivo escolhido"; o campo do navegador fica escondido, porque ele escreve no idioma do computador), a tela lê o arquivo no navegador e manda o texto à API, e a **prévia** (linhas lidas, com erro e
   com aviso; os erros primeiro, de cem em cem, em frase com o que fazer) vem antes de qualquer gravação. Não há campo para colar
   texto. "Importar alunos" é um botão secundário da aba Turmas e abre um painel lateral; o que a planilha põe em outra turma ou deixa
-  de fora chega **desmarcado**, em "Você decide", e só muda quem a coordenação marca (regra 70); perto de "Gravar planilha" uma linha diz o que as marcas escolhidas vão fazer, e o resultado diz quantas linhas ficaram de fora e por quê. O leitor de Excel só é baixado
+  de fora chega **desmarcado**, em "Você decide", e só muda quem a coordenação marca (regra 70); cada gravação desliga **até 100** pessoas: com mais candidatos a desligar que isso, o rótulo vira "Marcar os primeiros 100 para desligar", os demais ficam sem marcar até alguém ser desmarcado, e a tela diz que é para gravar e enviar a planilha de novo, porque a prévia seguinte mostra quem ainda falta; perto de "Gravar planilha" uma linha diz o que as marcas escolhidas vão fazer, e o resultado diz quantas linhas ficaram de fora e por quê. O leitor de Excel só é baixado
   quando alguém escolhe um .xlsx, e a gravação, enfileirada, é acompanhada até concluir, sem desistir (regra 80)
 - **Material**: **só a coordenação sobe material para a base da escola**; professor e aluno não
   sobem (D75). Fontes com titularidade e licença, upload, estado da ingestão com o que entrou,

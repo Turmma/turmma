@@ -1,11 +1,13 @@
 import type { CandidatoDaMarca, PreviaDaPlanilhaRow } from '@educa/shared'
-import { ErrorCode } from '@educa/shared'
+import { ErrorCode, MAXIMO_DE_DESLIGAMENTOS_POR_GRAVAR } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import { ApiError } from '../../../api/client'
 import { ImportacaoNaoConcluidaError } from './api/importacao'
 import {
   alternarMarca,
   alternarTodos,
+  AVISO_DO_TETO_ATINGIDO,
+  AVISO_DO_TETO_DE_DESLIGAR,
   candidatosDa,
   fatiaDaLista,
   frasesDasContagens,
@@ -18,9 +20,11 @@ import {
   MOTIVO_DE_NADA_NOVO,
   MOTIVO_DO_DOCUMENTO,
   MOTIVO_DO_ERRO_NA_PLANILHA,
+  passaDoTeto,
   podeGravar,
   previaEnvelheceu,
   resumoDasMarcas,
+  rotuloDoTodosDoGrupo,
   SEM_MARCAS,
   textoDoGrupoDeMarca,
   TEXTO_DO_GRUPO_DE_MARCA,
@@ -35,7 +39,9 @@ import {
   textoDaFalhaDaGravacao,
   textoDaFalhaDaPrevia,
   textoDoAviso,
+  tetoDeMarcas,
   textoDoErro,
+  todosMarcados,
   totalDeMarcas,
 } from './previa-da-planilha'
 
@@ -338,5 +344,53 @@ describe('15.0 (unidade): a planilha de professores na prévia', () => {
     expect(resumoDasMarcas(alternarMarca(SEM_MARCAS, 'desligar', 'c'), proprias)).toBe('Ao gravar, com as suas marcas: 1 professor será desligado.')
     const duas = alternarMarca(alternarMarca(SEM_MARCAS, 'transferir', 'a'), 'desligar', 'c')
     expect(resumoDasMarcas(duas, proprias)).toBe('Ao gravar, com as suas marcas: 1 aluno mudará de turma; 1 professor será desligado.')
+  })
+})
+
+describe('16.0, unidade: o desligamento tem teto por gravar, e a tela não deixa marcar o que a API recusaria', () => {
+  const muitos = (quantos: number, acao: CandidatoDaMarca['acao']): CandidatoDaMarca[] => Array.from({ length: quantos }, (_, i) => candidato(`${acao}-${String(i)}`, acao))
+  const TETO = MAXIMO_DE_DESLIGAMENTOS_POR_GRAVAR
+
+  it('só o desligamento tem teto', () => {
+    expect(tetoDeMarcas('desligar')).toBe(TETO)
+    expect(tetoDeMarcas('transferir')).toBe(Number.POSITIVE_INFINITY)
+    expect(tetoDeMarcas('encerrar')).toBe(Number.POSITIVE_INFINITY)
+  })
+
+  it('"marcar todos" do desligamento marca os primeiros até o teto, na ordem da API, e marcado isso desmarca', () => {
+    const candidatos = muitos(TETO + 30, 'desligar')
+    const marcado = alternarTodos(SEM_MARCAS, 'desligar', candidatos)
+    expect(marcado.desligar.size).toBe(TETO)
+    expect(marcasParaEnviar(marcado).desligar).toEqual(candidatos.slice(0, TETO).map(({ id }) => id))
+    expect(todosMarcados(marcado, 'desligar', candidatos)).toBe(true)
+    expect(alternarTodos(marcado, 'desligar', candidatos).desligar.size).toBe(0)
+  })
+
+  it('marcar um a um para no teto, e desmarcar abre vaga', () => {
+    const candidatos = muitos(TETO + 5, 'desligar')
+    const cheio = candidatos.slice(0, TETO).reduce((marcas, { id }) => alternarMarca(marcas, 'desligar', id), SEM_MARCAS)
+    expect(cheio.desligar.size).toBe(TETO)
+    const alemDoTeto = candidatos[TETO]?.id ?? ''
+    expect(alternarMarca(cheio, 'desligar', alemDoTeto).desligar.has(alemDoTeto)).toBe(false)
+    const aberta = alternarMarca(cheio, 'desligar', candidatos[0]?.id ?? '')
+    expect(alternarMarca(aberta, 'desligar', alemDoTeto).desligar.has(alemDoTeto)).toBe(true)
+  })
+
+  it('transferir e encerrar passam do teto: "marcar todos" marca todos', () => {
+    const candidatos = [...muitos(TETO + 20, 'transferir'), ...muitos(TETO + 20, 'encerrar')]
+    expect(alternarTodos(SEM_MARCAS, 'transferir', candidatos).transferir.size).toBe(TETO + 20)
+    expect(alternarTodos(SEM_MARCAS, 'encerrar', candidatos).encerrar.size).toBe(TETO + 20)
+    // Grupo sem candidato nunca está "todo marcado".
+    expect(todosMarcados(SEM_MARCAS, 'desligar', candidatos)).toBe(false)
+  })
+
+  it('o grupo com até o teto não ganha aviso nem muda o rótulo; acima dele, a tela diz quantos marca', () => {
+    expect(passaDoTeto('desligar', TETO)).toBe(false)
+    expect(passaDoTeto('desligar', TETO + 1)).toBe(true)
+    expect(passaDoTeto('transferir', TETO + 1000)).toBe(false)
+    expect(rotuloDoTodosDoGrupo('desligar', 'Marcar todos para desligar', TETO)).toBe('Marcar todos para desligar')
+    expect(rotuloDoTodosDoGrupo('desligar', 'Marcar todos para desligar', TETO + 1)).toBe(`Marcar os primeiros ${String(TETO)} para desligar`)
+    expect(AVISO_DO_TETO_DE_DESLIGAR).toContain(`até ${String(TETO)} pessoas`)
+    expect(AVISO_DO_TETO_ATINGIDO).toContain('envie a planilha de novo')
   })
 })

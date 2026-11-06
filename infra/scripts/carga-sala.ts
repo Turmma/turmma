@@ -233,7 +233,7 @@ export function descreverFase(fase: FaseDaSala, resumo: ResumoDaFase): string[] 
 // A montagem da escola, pela API
 // ---------------------------------------------------------------------------------------------------------------------
 
-interface ModulosDaApi {
+export interface ModulosDaApi {
   nucleo: { createDatabase: typeof createDatabase; createPool: typeof createPool }
   escolas: { criarRede: typeof criarRede; criarEscola: typeof criarEscola }
   sessoes: { criarAlunosComMatricula: typeof criarAlunosComMatricula; createSyntheticSessions: typeof createSyntheticSessions }
@@ -241,7 +241,7 @@ interface ModulosDaApi {
 }
 
 /** Os módulos já compilados da API (o `npm run carga:sala` compila antes), como o `carga:login`. */
-async function importarDaApi(): Promise<ModulosDaApi> {
+export async function importarDaApi(): Promise<ModulosDaApi> {
   const importar = <T>(caminho: string) => import(pathToFileURL(join(raizRepositorio, caminho)).href) as Promise<T>
   return {
     nucleo: await importar('packages/core/dist/index.js'),
@@ -252,7 +252,7 @@ async function importarDaApi(): Promise<ModulosDaApi> {
 }
 
 /** Uma chamada à API pela borda, com o token; no 429, espera o `Retry-After` e repete. Devolve o corpo, ou falha. */
-async function chamarApi(url: string, token: string, metodo: 'POST' | 'GET', caminho: string, corpo?: unknown): Promise<Record<string, unknown>> {
+export async function chamarApi(url: string, token: string, metodo: 'POST' | 'GET', caminho: string, corpo?: unknown): Promise<Record<string, unknown>> {
   for (let tentativa = 0; tentativa < 10; tentativa++) {
     const resposta = await fetch(`${url}${caminho}`, {
       method: metodo,

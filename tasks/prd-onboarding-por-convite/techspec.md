@@ -207,3 +207,11 @@ Um teste por cláusula, no `cenarios.md`; e2e em `chromebook` e `celular`, com a
 
 - O passo (3) do job trava turmas contra o gerar acesso das 7h30: o critério do cenário [C]; falhando, a spec volta à
   revisão
+- **Teto de desligamentos por gravar (16.0).** O desligamento do aluno corre um a um (`ciclo.desativar`) dentro do passo (3), com as
+  travas da escola seguradas. A medida da 16.0 (`docs/runbook.md`, "Rodar o cenário da importação") ficou assim: 100 desligamentos abaixo
+  de 0,75 s; 200, entre 1 e 1,5 s; 300, entre 1,5 e 3 s, contra o alerta de 1 s. A saída que o próprio critério autorizava era o teto
+  nas marcas, e é a que entrou: `marcas.desligar` aceita até `MAXIMO_DE_DESLIGAMENTOS_POR_GRAVAR` (100) ids, e mais que isso é
+  `ENTRADA_INVALIDA` (contrato em `packages/shared`). A tela já não deixa marcar além do teto: "Marcar todos" marca os primeiros 100,
+  e ela diz o que fazer (gravar e enviar a planilha de novo: a prévia seguinte mostra quem ainda falta). Comandos em grupo no ciclo de
+  vida ficam para quando uma escola real precisar de mais por gravar. Vale também para a planilha de professores. A virada de 900
+  alunos (sem marca) fica abaixo de 1 s e não tem teto.

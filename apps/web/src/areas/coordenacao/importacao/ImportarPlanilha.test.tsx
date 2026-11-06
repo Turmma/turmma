@@ -223,6 +223,36 @@ describe('as marcas são da coordenação (regra 70, item 2)', () => {
     expect((screen.getByRole('checkbox', { name: 'Marcar todos para desligar' }) as HTMLInputElement).checked).toBe(false)
   })
 
+  it('com mais gente a desligar do que cabe num gravar, "marcar todos" marca só o teto, o resto fica travado e a tela diz por quê (16.0)', async () => {
+    const usuario = userEvent.setup()
+    const rede = fakeNetwork()
+    const sairam = Array.from({ length: 105 }, (_, i) => ({ id: id(1000 + i), acao: 'desligar', rotulo: `Aluno ${String(i)} (${String(2027000 + i)})` }))
+    rede.responderPor('/v1/importacoes/alunos/previa', { status: 200, corpo: { linhas: [{ linha: 2, resultado: 'entra' }], contagens: { entram: 1 }, candidatos: sairam } })
+    prepararGravar(rede)
+    montar()
+    await escolher(usuario)
+
+    const grupo = await screen.findByRole('group', { name: /Estão nas turmas da planilha, mas não aparecem nela \(105\)/ })
+    expect(within(grupo).getByText(/Cada gravação desliga até 100 pessoas/)).toBeTruthy()
+    await usuario.click(within(grupo).getByRole('checkbox', { name: 'Marcar os primeiros 100 para desligar' }))
+    expect(screen.getByText('Ao gravar, com as suas marcas: 100 alunos serão desligados e perdem o acesso.')).toBeTruthy()
+    expect(within(grupo).getByText(/Você marcou 100, o máximo de cada gravação/)).toBeTruthy()
+    // Os que ficaram de fora não se marcam: a API recusaria o gravar com 101.
+    expect((within(grupo).getByRole('checkbox', { name: 'Aluno 0 (2027000)' }) as HTMLInputElement).checked).toBe(true)
+    await usuario.click(await within(grupo).findByRole('button', { name: /Ver mais/ }))
+    expect((within(grupo).getByRole('checkbox', { name: 'Aluno 104 (2027104)' }) as HTMLInputElement).disabled).toBe(true)
+    // Desmarcar um abre a vaga.
+    await usuario.click(within(grupo).getByRole('checkbox', { name: 'Aluno 0 (2027000)' }))
+    expect(within(grupo).queryByText(/Você marcou 100/)).toBeNull()
+    expect((within(grupo).getByRole('checkbox', { name: 'Aluno 104 (2027104)' }) as HTMLInputElement).disabled).toBe(false)
+
+    await usuario.click(within(grupo).getByRole('checkbox', { name: 'Aluno 104 (2027104)' }))
+    await usuario.click(await screen.findByRole('button', { name: 'Gravar planilha' }))
+    await screen.findByRole('heading', { name: 'Planilha gravada' })
+    const gravar = corposEnviados().find(({ caminho }) => caminho === '/v1/importacoes/alunos')
+    expect((gravar?.corpo as { marcas: { desligar: string[] } }).marcas.desligar).toHaveLength(100)
+  })
+
   it('perto do "Gravar planilha" a tela diz o que as marcas vão fazer, e some sem marca', async () => {
     const usuario = userEvent.setup()
     const rede = fakeNetwork()

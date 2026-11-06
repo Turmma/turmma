@@ -13,6 +13,8 @@ import {
   ACOES_DE_MARCA,
   alternarMarca,
   alternarTodos,
+  AVISO_DO_TETO_ATINGIDO,
+  AVISO_DO_TETO_DE_DESLIGAR,
   candidatosDa,
   fatiaDaLista,
   frasesDasContagens,
@@ -21,9 +23,11 @@ import {
   linhasDeErroEDeAviso,
   linhasDeFora,
   marcasParaEnviar,
+  passaDoTeto,
   podeGravar,
   resumoDasMarcas,
   previaEnvelheceu,
+  rotuloDoTodosDoGrupo,
   SEM_MARCAS,
   TEXTO_DA_CONFERENCIA,
   TEXTO_DA_PLANILHA_RECUSADA,
@@ -32,7 +36,9 @@ import {
   textoDaFalhaDaGravacao,
   textoDaFalhaDaPrevia,
   textoDoAviso,
+  tetoDeMarcas,
   textoDoErro,
+  todosMarcados,
   totalDeMarcas,
   type AcaoDeMarca,
   type FrasesDoResumoDeMarcas,
@@ -493,7 +499,9 @@ function GravarDaPrevia({ gravacao, resumoDasMarcas, rotulo, gravando, demorando
   if (!gravacao.pode) return <p className="break-words text-apoio">{gravacao.motivo}</p>
   return (
     <div className="flex min-w-0 flex-col gap-2">
-      {resumoDasMarcas !== undefined && <p className="break-words font-medium text-tinta">{resumoDasMarcas}</p>}
+      <p aria-live="polite" className="break-words font-medium text-tinta empty:hidden">
+        {resumoDasMarcas}
+      </p>
       <div>
         <Button onClick={aoGravar} disabled={gravando}>
           {gravando ? 'Gravando…' : rotulo}
@@ -585,7 +593,8 @@ function GrupoDeMarca({
   aoMarcarTodos: (acao: AcaoDeMarca) => void
 }) {
   const [paginas, definirPaginas] = useState(1)
-  const todos = candidatos.every(({ id }) => escolhidos.has(id))
+  const todos = todosMarcados({ ...SEM_MARCAS, [acao]: escolhidos }, acao, candidatos)
+  const noTeto = escolhidos.size >= tetoDeMarcas(acao)
   const escondidos = itensEscondidos(candidatos.length, paginas)
   return (
     <fieldset className="flex min-w-0 flex-col gap-2 rounded-controle border border-linha p-3">
@@ -593,15 +602,19 @@ function GrupoDeMarca({
         {texto.titulo} ({formatNumber(candidatos.length)})
       </legend>
       <p className="text-sm break-words text-apoio">{texto.explicacao}</p>
+      {passaDoTeto(acao, candidatos.length) && <p className="text-sm break-words text-apoio">{AVISO_DO_TETO_DE_DESLIGAR}</p>}
       <label className="flex min-h-11 items-center gap-3">
         <input type="checkbox" checked={todos} onChange={() => aoMarcarTodos(acao)} className="size-5 shrink-0" />
-        <span>{texto.rotuloDoTodos}</span>
+        <span>{rotuloDoTodosDoGrupo(acao, texto.rotuloDoTodos, candidatos.length)}</span>
       </label>
+      <p aria-live="polite" className="text-sm break-words text-apoio empty:hidden">
+        {noTeto && passaDoTeto(acao, candidatos.length) ? AVISO_DO_TETO_ATINGIDO : ''}
+      </p>
       <ul className="flex flex-col">
         {fatiaDaLista(candidatos, paginas).map((candidato) => (
           <li key={candidato.id}>
             <label className="flex min-h-11 items-center gap-3 break-words">
-              <input type="checkbox" checked={escolhidos.has(candidato.id)} onChange={() => aoMarcar(acao, candidato.id)} className="size-5 shrink-0" />
+              <input type="checkbox" checked={escolhidos.has(candidato.id)} disabled={noTeto && !escolhidos.has(candidato.id)} onChange={() => aoMarcar(acao, candidato.id)} className="size-5 shrink-0" />
               <span className="min-w-0">{candidato.rotulo}</span>
             </label>
           </li>

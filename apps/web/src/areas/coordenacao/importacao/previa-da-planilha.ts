@@ -1,4 +1,4 @@
-import { ErrorCode, type CandidatoDaMarca, type ErroDaImportacao, type MarcasDaPlanilha, type PreviaDaPlanilhaResponse, type PreviaDaPlanilhaRow, type ResultadoDaLinhaDaPlanilha, type ResumoDaImportacao } from '@educa/shared'
+import { ErrorCode, MAXIMO_DE_DESLIGAMENTOS_POR_GRAVAR, type CandidatoDaMarca, type ErroDaImportacao, type MarcasDaPlanilha, type PreviaDaPlanilhaResponse, type PreviaDaPlanilhaRow, type ResultadoDaLinhaDaPlanilha, type ResumoDaImportacao } from '@educa/shared'
 import { ApiError } from '../../../api/client'
 import { errorText } from '../../../components/error-text'
 import { formatQuantity } from '../../../format'
@@ -203,16 +203,43 @@ export const totalDeMarcas = (escolhidas: MarcasEscolhidas): number => escolhida
 export function alternarMarca(escolhidas: MarcasEscolhidas, acao: AcaoDeMarca, id: string): MarcasEscolhidas {
   const doGrupo = new Set(escolhidas[acao])
   if (doGrupo.has(id)) doGrupo.delete(id)
-  else doGrupo.add(id)
+  else if (doGrupo.size < tetoDeMarcas(acao)) doGrupo.add(id)
   return { ...escolhidas, [acao]: doGrupo }
 }
 
-/** "Marcar todos" de uma ação: marca todos os candidatos dela, inclusive os de páginas que a tela ainda não abriu; marcado todos, desmarca todos. */
-export function alternarTodos(escolhidas: MarcasEscolhidas, acao: AcaoDeMarca, candidatos: readonly CandidatoDaMarca[]): MarcasEscolhidas {
-  const doGrupo = candidatosDa(candidatos, acao)
-  const todos = doGrupo.length > 0 && doGrupo.every(({ id }) => escolhidas[acao].has(id))
-  return { ...escolhidas, [acao]: todos ? new Set<string>() : new Set(doGrupo.map(({ id }) => id)) }
+/**
+ * Quantas marcas de uma ação cabem num gravar. Só o desligamento tem teto (16.0): a API recusa mais que isso, e a tela não deixa
+ * marcar o que ela recusaria. As outras ações não têm.
+ */
+export const tetoDeMarcas = (acao: AcaoDeMarca): number => (acao === 'desligar' ? MAXIMO_DE_DESLIGAMENTOS_POR_GRAVAR : Number.POSITIVE_INFINITY)
+
+/** Os candidatos que "marcar todos" alcança: todos do grupo, e no desligamento os primeiros até o teto, na ordem em que a API os deu. */
+const marcaveisDe = (candidatos: readonly CandidatoDaMarca[], acao: AcaoDeMarca): CandidatoDaMarca[] => candidatosDa(candidatos, acao).slice(0, tetoDeMarcas(acao))
+
+/** O grupo está todo marcado, no que "marcar todos" alcança: é o que o botão do grupo mostra. */
+export function todosMarcados(escolhidas: MarcasEscolhidas, acao: AcaoDeMarca, candidatos: readonly CandidatoDaMarca[]): boolean {
+  const marcaveis = marcaveisDe(candidatos, acao)
+  return marcaveis.length > 0 && marcaveis.every(({ id }) => escolhidas[acao].has(id))
 }
+
+/** "Marcar todos" de uma ação: marca todos os candidatos dela, inclusive os de páginas que a tela ainda não abriu, até o teto do gravar; marcado todos, desmarca todos. */
+export function alternarTodos(escolhidas: MarcasEscolhidas, acao: AcaoDeMarca, candidatos: readonly CandidatoDaMarca[]): MarcasEscolhidas {
+  const marcaveis = marcaveisDe(candidatos, acao)
+  return { ...escolhidas, [acao]: todosMarcados(escolhidas, acao, candidatos) ? new Set<string>() : new Set(marcaveis.map(({ id }) => id)) }
+}
+
+/** O grupo tem mais candidatos do que cabe num gravar: a tela avisa antes de a coordenação marcar. */
+export const passaDoTeto = (acao: AcaoDeMarca, quantos: number): boolean => quantos > tetoDeMarcas(acao)
+
+/** O aviso do teto do desligamento, que fica no grupo quando ele tem mais candidatos do que cabe num gravar. */
+export const AVISO_DO_TETO_DE_DESLIGAR = `Cada gravação desliga até ${String(MAXIMO_DE_DESLIGAMENTOS_POR_GRAVAR)} pessoas. Marque quem sai agora e grave; depois envie a planilha de novo, e esta lista mostra quem ainda falta.`
+
+/** O que a tela diz quando as marcas do desligamento chegaram ao teto: o motivo de não deixar marcar mais. */
+export const AVISO_DO_TETO_ATINGIDO = `Você marcou ${String(MAXIMO_DE_DESLIGAMENTOS_POR_GRAVAR)}, o máximo de cada gravação. Grave e envie a planilha de novo para desligar os demais.`
+
+/** O rótulo de "marcar todos": no grupo que passa do teto ele diz quantos de fato marca. */
+export const rotuloDoTodosDoGrupo = (acao: AcaoDeMarca, rotulo: string, quantos: number): string =>
+  passaDoTeto(acao, quantos) ? `Marcar os primeiros ${String(MAXIMO_DE_DESLIGAMENTOS_POR_GRAVAR)} para desligar` : rotulo
 
 /** O motivo que a tela dá quando a prévia não pode ser gravada. */
 export const MOTIVO_DO_ERRO_NA_PLANILHA = 'Corrija as linhas com erro na planilha e escolha o arquivo de novo: nada é gravado enquanto houver erro.'

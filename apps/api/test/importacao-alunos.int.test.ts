@@ -1,5 +1,5 @@
 import { createDatabase, createPool, executarPlanilha, MotorDePlanilha, runInContext, schema, type Database, type DatabasePool } from '@educa/core'
-import { ErrorCode, MAXIMO_DE_BYTES_DA_PLANILHA, MAXIMO_DE_LINHAS_DA_PLANILHA, previaDaPlanilhaResponseSchema } from '@educa/shared'
+import { ErrorCode, MAXIMO_DE_BYTES_DA_PLANILHA, MAXIMO_DE_DESLIGAMENTOS_POR_GRAVAR, MAXIMO_DE_LINHAS_DA_PLANILHA, previaDaPlanilhaResponseSchema } from '@educa/shared'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -349,6 +349,39 @@ describe('planilha de alunos (F2, tarefa 7.0): prévia, gravar e as corridas da 
     expect(await lidas()).toEqual([{ entidade_id: turma, autor_usuario_id: e.coordenacao.usuarioId, antes: null, depois: { quantidade: 2 }, finalidade: 'conferencia_de_cadastro' }])
     expect(JSON.stringify(await lidas())).not.toContain('Aluno Ausente')
   })
+
+  it('o desligamento tem teto por gravar (16.0): 101 marcas são ENTRADA_INVALIDA, sem importação nem job; 100 passam, o job desliga as 100 e a que ficou sem marca continua na lista', async () => {
+    const e = await escolaComAnos()
+    const serie = await serieNova(e, 'ef_anos_finais', 7)
+    const turma = await turmaNoBanco(e, serie, '7A', '7a')
+    const ausentes = MAXIMO_DE_DESLIGAMENTOS_POR_GRAVAR + 1
+    await bancada.pool.query(
+      "insert into lista_nome (escola_id, ano_letivo_id, turma_id, nome, matricula) select $1, $2, $3, 'Ausente Sintético ' || n, $4 || n from generate_series(1, $5) as n",
+      [e.escolaId, e.emCurso, turma, `${PREFIXO}-aus-`, ausentes],
+    )
+    const planilha = texto(linha('7A'))
+    const candidatos = lida(await previa(e, planilha)).candidatos.filter((c) => c.acao === 'desligar')
+    expect(candidatos).toHaveLength(ausentes)
+    const ids = candidatos.map((c) => c.id)
+
+    expect(erroDe(await gravar(e, planilha, { marcas: { desligar: ids } }))).toEqual(ENTRADA_INVALIDA)
+    expect(await importacoesDe(e.escolaId)).toEqual([])
+    expect(await jobsDe(e.escolaId)).toBe(0)
+
+    const id = await criado(gravar(e, planilha, { marcas: { desligar: ids.slice(0, MAXIMO_DE_DESLIGAMENTOS_POR_GRAVAR) } }), 202)
+    expect(await rodar(e.escolaId, id)).toBe('concluida')
+    // Na turma da planilha ficam o nome que ela trouxe e o único ausente sem marca (o 101º candidato), pelo id: a conta não depende do nome.
+    const naTurma = (await bancada.pool.query<{ id: string }>('select id from lista_nome where escola_id = $1 and turma_id = $2', [e.escolaId, turma])).rows.map((linha) => linha.id)
+    expect(naTurma).toHaveLength(2)
+    expect(naTurma).toContain(ids[MAXIMO_DE_DESLIGAMENTOS_POR_GRAVAR])
+    expect(await nomesDaLista(e.escolaId)).toBe(2)
+    // "A sua escolha fica registrada": a auditoria diz quem desligou cada um e quando (regra 20, item 10), e só os marcados estão nela.
+    const retirados = (await bancada.pool.query<{ entidade_id: string; autor_usuario_id: string; em: Date }>("select entidade_id, autor_usuario_id, em from auditoria where escola_id = $1 and acao = 'lista_nome.retirado'", [e.escolaId])).rows
+    expect(retirados).toHaveLength(MAXIMO_DE_DESLIGAMENTOS_POR_GRAVAR)
+    expect(new Set(retirados.map((linha) => linha.entidade_id))).toEqual(new Set(ids.slice(0, MAXIMO_DE_DESLIGAMENTOS_POR_GRAVAR)))
+    expect(new Set(retirados.map((linha) => linha.autor_usuario_id))).toEqual(new Set([e.coordenacao.usuarioId]))
+    expect(retirados.every((linha) => linha.em instanceof Date)).toBe(true)
+  }, 60_000)
 
   it('3.001 linhas ou mais de 512 KB: ENTRADA_INVALIDA na prévia e no gravar, sem importação; 3.000 linhas entram, em 32 turmas, e o job as grava', async () => {
     const e = await escolaComAnos()
