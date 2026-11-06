@@ -252,7 +252,7 @@ export async function importarDaApi(): Promise<ModulosDaApi> {
 }
 
 /** Uma chamada à API pela borda, com o token; no 429, espera o `Retry-After` e repete. Devolve o corpo, ou falha. */
-export async function chamarApi(url: string, token: string, metodo: 'POST' | 'GET', caminho: string, corpo?: unknown): Promise<Record<string, unknown>> {
+export async function callApi(url: string, token: string, metodo: 'POST' | 'GET', caminho: string, corpo?: unknown): Promise<Record<string, unknown>> {
   for (let tentativa = 0; tentativa < 10; tentativa++) {
     const resposta = await fetch(`${url}${caminho}`, {
       method: metodo,
@@ -322,7 +322,7 @@ async function montarEscola(modulos: ModulosDaApi, banco: ReturnType<typeof crea
   const turmasDeCada = turmasDosProfessores(ESCALA[fase].turmas)
   const professores = await modulos.sessoes.createSyntheticSessions(banco, doArquivo, { escolaId, papel: 'professor', quantidade: turmasDeCada.length })
   let vez = 0
-  const coordenacao = (metodo: 'POST' | 'GET', caminho: string, corpo?: unknown) => chamarApi(url, coordenacoes[vez++ % coordenacoes.length]?.token ?? '', metodo, caminho, corpo)
+  const coordenacao = (metodo: 'POST' | 'GET', caminho: string, corpo?: unknown) => callApi(url, coordenacoes[vez++ % coordenacoes.length]?.token ?? '', metodo, caminho, corpo)
 
   const ano = await coordenacao('POST', '/v1/anos-letivos', { ano: 2026, inicio: '2026-02-01', fim: '2026-12-15' })
   await coordenacao('POST', `/v1/anos-letivos/${String(ano['id'])}/abrir`)
@@ -337,8 +337,8 @@ async function montarEscola(modulos: ModulosDaApi, banco: ReturnType<typeof crea
       const turmaId = String(turma['id'])
       await gravarListaEEsperar(coordenacao, turmaId, textoDaLista(alunos, indice))
       const vinculo = await coordenacao('POST', '/v1/vinculos', { usuarioId: professor.usuarioId, turmaId, disciplinaId: disciplina['id'], papel: 'professor' })
-      await chamarApi(url, professor.token, 'POST', `/v1/vinculos/${String(vinculo['id'])}/confirmar`)
-      const acesso = await chamarApi(url, professor.token, 'POST', `/v1/turmas/${turmaId}/acesso`, { validadeDias: 7 })
+      await callApi(url, professor.token, 'POST', `/v1/vinculos/${String(vinculo['id'])}/confirmar`)
+      const acesso = await callApi(url, professor.token, 'POST', `/v1/turmas/${turmaId}/acesso`, { validadeDias: 7 })
       const matriculas = Object.fromEntries(alunos.filter((aluno) => aluno.turma === indice).map((aluno) => [aluno.nome, aluno.matricula]))
       turmas[indice] = { id: turmaId, token: String(acesso['token']), codigo: String(acesso['codigo']), matriculas }
     }

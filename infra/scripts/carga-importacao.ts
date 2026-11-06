@@ -8,7 +8,7 @@ import pg from 'pg'
 import { CABECALHOS_DA_PLANILHA } from '../../packages/shared/src/importacao/modelos.ts'
 import { argumentosDoCompose, CODIGO_THRESHOLD_CRUZADO, lerAmbienteDeCarga, rodar } from './carga.ts'
 import { argumentosDoK6DeLogin, lerResumoDaFase, semearContas, type ResumoDaFase } from './carga-login.ts'
-import { chamarApi, importarDaApi, type ModulosDaApi } from './carga-sala.ts'
+import { callApi, importarDaApi, type ModulosDaApi } from './carga-sala.ts'
 import { urlDoBancoDoAmbiente } from './conferir-carga.ts'
 import {
   conferirCenarioDaImportacao,
@@ -340,7 +340,7 @@ async function gravarEEsperar(chamar: Chamar, tipo: string, texto: string, anoLe
   throw new Error(`a importação de ${tipo} do seed não terminou no prazo`)
 }
 
-interface SessaoSintetica {
+interface LoadSession {
   readonly usuarioId: string
   readonly token: string
 }
@@ -348,7 +348,7 @@ interface SessaoSintetica {
 interface EscolaBase {
   readonly escolaId: string
   readonly slug: string
-  readonly coordenacoes: readonly SessaoSintetica[]
+  readonly coordenacoes: readonly LoadSession[]
   /** Uma chamada da coordenação, em rodízio entre as sessões (cada uma fica abaixo do limite por usuário). */
   readonly coordenacao: Chamar
   readonly url: string
@@ -373,7 +373,7 @@ async function criarEscola(contexto: Contexto, rotulo: string, comAno = true): P
   const url = `http://127.0.0.1:${contexto.doArquivo['BORDA_PORTA_HOST'] ?? ''}`
   const coordenacoes = await contexto.modulos.sessoes.createSyntheticSessions(contexto.banco, contexto.doArquivo, { escolaId, papel: 'coordenador', quantidade: COORDENACOES_DA_MONTAGEM })
   let vez = 0
-  const coordenacao: Chamar = (metodo, caminho, corpo) => chamarApi(url, coordenacoes[vez++ % coordenacoes.length]?.token ?? '', metodo, caminho, corpo)
+  const coordenacao: Chamar = (metodo, caminho, corpo) => callApi(url, coordenacoes[vez++ % coordenacoes.length]?.token ?? '', metodo, caminho, corpo)
   let anoEmCursoId = ''
   if (comAno) {
     const ano = await coordenacao('POST', '/v1/anos-letivos', { ano: 2026, inicio: '2026-02-01', fim: '2026-12-15' })
@@ -449,10 +449,10 @@ async function montarTransferencias(contexto: Contexto, fase: 'transferencias_ba
  * Uma turma da professora: o vínculo que a coordenação define e ela confirma, o acesso da turma e os pedidos pendentes (os nomes que a
  * planilha da carga não cita, reivindicados como os alunos fazem, pelo link da turma). Devolve os ids dos pedidos que a professora vai decidir.
  */
-async function prepararTurmaDaProfessora(contexto: Contexto, escola: EscolaBase, professora: SessaoSintetica, disciplinaId: string, turma: number, turmaId: string): Promise<string[]> {
+async function prepararTurmaDaProfessora(contexto: Contexto, escola: EscolaBase, professora: LoadSession, disciplinaId: string, turma: number, turmaId: string): Promise<string[]> {
   const vinculo = await escola.coordenacao('POST', '/v1/vinculos', { usuarioId: professora.usuarioId, turmaId, disciplinaId, papel: 'professor' })
-  await chamarApi(escola.url, professora.token, 'POST', `/v1/vinculos/${String(vinculo['id'])}/confirmar`)
-  const acesso = await chamarApi(escola.url, professora.token, 'POST', `/v1/turmas/${turmaId}/acesso`, { validadeDias: 7 })
+  await callApi(escola.url, professora.token, 'POST', `/v1/vinculos/${String(vinculo['id'])}/confirmar`)
+  const acesso = await callApi(escola.url, professora.token, 'POST', `/v1/turmas/${turmaId}/acesso`, { validadeDias: 7 })
   const aberta = await chamarSemToken(escola.url, '/v1/salas/abrir', { slug: escola.slug, token: acesso['token'] })
   const nomes = new Map(((aberta['nomes'] ?? []) as Array<{ id: string; nome: string }>).map((item) => [item.nome, item.id]))
   for (let pedido = 0; pedido < PEDIDOS_POR_TURMA; pedido++) {
@@ -460,7 +460,7 @@ async function prepararTurmaDaProfessora(contexto: Contexto, escola: EscolaBase,
     if (listaNomeId === undefined) throw new Error('o nome do pedido não está na lista da turma')
     await chamarSemToken(escola.url, '/v1/salas/reivindicar', { slug: escola.slug, token: acesso['token'], listaNomeId, matricula: matriculaDaPedido(turma, pedido), senha: contexto.senha, chaveEnvio: randomUUID() })
   }
-  const lista = await chamarApi(escola.url, professora.token, 'GET', `/v1/turmas/${turmaId}/reivindicacoes?limite=100`)
+  const lista = await callApi(escola.url, professora.token, 'GET', `/v1/turmas/${turmaId}/reivindicacoes?limite=100`)
   return ((lista['itens'] ?? []) as Array<{ id: string }>).map((item) => item.id)
 }
 

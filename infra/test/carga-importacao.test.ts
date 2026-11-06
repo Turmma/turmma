@@ -57,7 +57,7 @@ import { julgarImportacoes, julgarPasso3, TETO_DO_PASSO_3_S, type ConferenciaDaI
 const lerArquivo = (caminho: string) => readFileSync(join(raizRepositorio, caminho), 'utf8')
 
 /** O texto sem os comentários: o cabeçalho do cenário diz o que ele *não* chama, e isso não é chamada. */
-const semComentarios = (texto: string) => texto.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+const stripComments = (texto: string) => texto.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
 
 const limpo = (valores: Record<string, number> = {}): ResumoDaFase => ({ codigo: 0, cruzados: [], valores })
 const cruzado = (...metricas: string[]): ResumoDaFase => ({ codigo: CODIGO_THRESHOLD_CRUZADO, cruzados: metricas.map((metrica) => ({ metrica, criterio: 'x' })), valores: {} })
@@ -314,8 +314,8 @@ describe('o que o k6 do cenário chama e exige', () => {
     const script = lerArquivo('infra/k6/importacao-7h30.js')
     const rotas = new Set([...script.matchAll(/['"`](\/v1\/[^`'"?]*)/g)].map((achado) => achado[1]))
     expect([...rotas].sort()).toEqual(['/v1/importacoes/${id}', '/v1/importacoes/${trabalho.tipo}', '/v1/importacoes/${trabalho.tipo}/previa', '/v1/turmas/${turma.id}/acesso'].concat(['/v1/reivindicacoes/decidir', '/v1/sessao/email']).sort())
-    expect(semComentarios(script)).not.toMatch(/openai|anthropic|gemini|maritaca|googleapis|api\.groq|oidc|\/v1\/tutor|\/v1\/assistente|\/v1\/ia\//i)
-    expect(semComentarios(lerArquivo('infra/scripts/carga-importacao.ts'))).not.toMatch(/openai|anthropic|gemini|maritaca|oidc-falso/i)
+    expect(stripComments(script)).not.toMatch(/openai|anthropic|gemini|maritaca|googleapis|api\.groq|oidc|\/v1\/tutor|\/v1\/assistente|\/v1\/ia\//i)
+    expect(stripComments(lerArquivo('infra/scripts/carga-importacao.ts'))).not.toMatch(/openai|anthropic|gemini|maritaca|oidc-falso/i)
   })
 
   it('os thresholds são os do cenário: p95 de 2 s na prévia e no gravar, zero 5xx e zero resposta fora do esperado, job concluído e nenhum parado na fila', () => {
