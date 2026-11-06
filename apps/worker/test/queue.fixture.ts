@@ -344,7 +344,25 @@ export class QueueFixtures<Registro extends JobRegistry = typeof JOB_DEFINITIONS
    * que o teste deveria pegar passaria em silêncio. O prazo sobe dos dois lados: o `statement_timeout` do
    * servidor e o `query_timeout` do cliente, que o `pg` herda do pool (2 s + 2 s de conexão) e cortaria sozinho.
    */
-  async semear(texto: string, valores: unknown[] = []): Promise<void> {
+  async semear<Row extends object = Record<string, unknown>>(texto: string, valores: unknown[] = []): Promise<Row[]> {
+    return this.#comPrazoDaPreparacao<Row>(texto, valores, 'commit')
+  }
+
+  /**
+   * O plano de uma instrução que o repository mandou (`EXPLAIN ANALYZE`), com o prazo da preparação e numa transação
+   * desfeita: a instrução roda de verdade, e se for escrita não deixa efeito. O que o teste lê é a forma do plano
+   * (índice usado, linhas descartadas), e não a pressa da máquina: pelo pool normal, os 2 s de produção cortariam o
+   * diagnóstico quando a suíte inteira disputa o mesmo banco, e o teste cairia por um motivo que não é a regra.
+   *
+   * Só aceita a instrução que o repository mandou, capturada do pool com os valores à parte: o texto entra na instrução
+   * por junção (`explain ... ${texto}`), e por isso nunca recebe texto montado com dado de fora. Valor vai em `valores`.
+   */
+  async explicar<No extends object>(texto: string, valores: unknown[] = []): Promise<No | undefined> {
+    const [linha] = await this.#comPrazoDaPreparacao<{ 'QUERY PLAN': Array<{ Plan: No }> }>(`explain (analyze, buffers, format json) ${texto}`, valores, 'rollback')
+    return linha?.['QUERY PLAN'][0]?.Plan
+  }
+
+  async #comPrazoDaPreparacao<Row extends object>(texto: string, valores: unknown[], aoFinal: 'commit' | 'rollback'): Promise<Row[]> {
     const cliente = await this.pool.connect()
     let conexaoPerdida: Error | undefined
     try {
@@ -353,8 +371,9 @@ export class QueueFixtures<Registro extends JobRegistry = typeof JOB_DEFINITIONS
       // O cliente espera um pouco mais que o servidor: quem corta é o Postgres, com o 57014 legível, e a
       // consulta não fica rodando no servidor depois de o cliente desistir.
       const consulta: ConsultaComPrazoDoCliente = { text: texto, values: valores, query_timeout: PRAZO_DA_PREPARACAO_MS + 5_000 }
-      await cliente.query(consulta)
-      await cliente.query('commit')
+      const { rows } = await cliente.query<Row>(consulta)
+      await cliente.query(aoFinal)
+      return rows
     } catch (erro) {
       // Com a conexão perdida o rollback também falharia: o erro que vale é o da preparação, e a conexão sai do pool.
       await cliente.query('rollback').catch((erroDoRollback: unknown) => {

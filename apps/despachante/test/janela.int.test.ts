@@ -247,12 +247,14 @@ describe('lote não urgente segurado no horário letivo da escola', () => {
   })
 
   it('com 5.000 não urgentes segurados, a reserva dos urgentes desce pelo índice deles, sem atravessar os segurados', async () => {
-    await bancada.pool.query(
-      `insert into job_registro (escola_id, fila, prioridade, tipo, nao_urgente) select $1, 'lote', $2, 'sintetico', true from generate_series(1, 5000)`,
-      [ESCOLA_A, QUEUE_PRIORITY.lote],
-    )
+    // Preparação e diagnóstico pelo prazo da bancada (`semear`, `explicar`), e não pelos 2 s do pool: o ANALYZE da tabela
+    // compartilhada espera o de outro arquivo da suíte, e o teste caía por isso, e não pelo plano que prova.
+    await bancada.semear(`insert into job_registro (escola_id, fila, prioridade, tipo, nao_urgente) select $1, 'lote', $2, 'sintetico', true from generate_series(1, 5000)`, [
+      ESCOLA_A,
+      QUEUE_PRIORITY.lote,
+    ])
     const urgente = await enfileirar(ESCOLA_A, 'lote', false)
-    await bancada.pool.query('analyze job_registro')
+    await bancada.semear('analyze job_registro')
 
     // O banco do teste registra a instrução que o repository manda, para o EXPLAIN ser da consulta de verdade.
     const pool = createPool(configuracaoDoBanco(), () => undefined)
@@ -263,7 +265,6 @@ describe('lote não urgente segurado no horário letivo da escola', () => {
       enviadas.push(typeof instrucao === 'string' ? { text: instrucao, values: valores ?? [] } : { text: instrucao.text, values: instrucao.values ?? valores ?? [] })
       return consultar(...argumentos)
     }) as typeof pool.query
-    const cliente = await bancada.pool.connect()
     try {
       const repositorio = new DispatchRepository(createDatabase(pool))
       const reservados = await runInContext({ requisicaoId: randomUUID(), escolaId: ESCOLA_A }, () => repositorio.reservarDaEscola('lote', 2, { soUrgentes: true }))
@@ -273,15 +274,11 @@ describe('lote não urgente segurado no horário letivo da escola', () => {
 
       // A reserva já aconteceu; o EXPLAIN ANALYZE da mesma instrução roda numa transação desfeita.
       await bancada.pool.query(`update job_registro set estado = 'aguardando', reservado_ate = null where id = $1`, [urgente])
-      await cliente.query('begin')
-      const { rows } = await cliente.query<{ 'QUERY PLAN': Array<{ Plan: NoDoPlano }> }>(`explain (analyze, buffers, format json) ${consulta.text}`, consulta.values)
-      await cliente.query('rollback')
-      const nos = nosDoPlano(rows[0]?.['QUERY PLAN'][0]?.Plan)
+      const nos = nosDoPlano(await bancada.explicar<NoDoPlano>(consulta.text, consulta.values))
       expect(nos.map((no) => no['Index Name'])).toContain('job_registro_pendentes_urgentes_idx')
       // Pelo índice de pendentes, os 5.000 segurados sairiam no filtro a cada rodada da manhã.
       expect(nos.reduce((soma, no) => soma + (no['Rows Removed by Filter'] ?? 0), 0)).toBeLessThanOrEqual(1)
     } finally {
-      cliente.release()
       await pool.end()
     }
   }, 60_000)

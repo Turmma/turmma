@@ -127,7 +127,8 @@ describe('vagas por escola e filas por prioridade', () => {
 
   /** Muitos jobs de uma vez, numa instrução só, como o fim de uma transação que enfileirou uma apostila inteira. */
   async function inserirJobs(escolaId: string, fila: QueueName, quantidade: number, rotulo: string): Promise<string[]> {
-    const { rows } = await bancada.pool.query<{ id: string }>(
+    // Pelo prazo da preparação: com 5.000 linhas e a FK da escola, o pool de 2 s cortaria o dado de teste na suíte inteira.
+    const rows = await bancada.semear<{ id: string }>(
       `insert into job_registro (escola_id, fila, prioridade, tipo, dados)
        select $1, $2, $3, 'sintetico', jsonb_build_object('rotulo', $4::text) from generate_series(1, $5)
        returning id`,
@@ -463,7 +464,7 @@ describe('vagas por escola e filas por prioridade', () => {
     const emExecucao = aguardando.slice(0, 2)
     await bancada.pool.query(`update job_registro set estado = 'ativo' where id = any($1)`, [emExecucao])
     await bancada.vagas.tomar('lote', ESCOLA_A, 2, emExecucao)
-    await bancada.pool.query('analyze job_registro')
+    await bancada.semear('analyze job_registro')
 
     // O banco do teste registra a instrução que o repository manda, para o EXPLAIN ser da consulta de verdade.
     const pool = createPool(configuracaoDoBanco(), () => undefined)
@@ -481,8 +482,7 @@ describe('vagas por escola e filas por prioridade', () => {
       const [consulta] = enviadas
       if (consulta === undefined) throw new Error('o repository não consultou o banco')
 
-      const { rows } = await bancada.pool.query<{ 'QUERY PLAN': Array<{ Plan: NoDoPlano }> }>(`explain (analyze, buffers, format json) ${consulta.text}`, consulta.values)
-      const nos = nosDoPlano(rows[0]?.['QUERY PLAN'][0]?.Plan)
+      const nos = nosDoPlano(await bancada.explicar<NoDoPlano>(consulta.text, consulta.values))
       expect(nos.map((no) => no['Index Name'])).toContain('job_registro_pkey')
       // Só as linhas com vaga passam pelo filtro; varrer a fila da escola descartaria milhares.
       expect(nos.reduce((soma, no) => soma + (no['Rows Removed by Filter'] ?? 0), 0)).toBeLessThanOrEqual(membros.length)
