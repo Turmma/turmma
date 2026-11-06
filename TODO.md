@@ -2751,5 +2751,29 @@ repetem aqui.
 - [ ] (Orquestrador, 06/11/2026) `10_task.md` e `16_task.md` do onboarding-por-convite: a seção "Revisões" sem as linhas da 1ª rodada; o histórico está em `achados/` (Validador, rodada 1)
 - [ ] (Implementador, 06/11/2026) `apps/despachante/test/slots.int.test.ts:384`: "no caso das 1.000 lotes da A" → "no caso dos 1.000 lotes da A", na próxima correção do arquivo (Validador, rodada 3)
 - [ ] (Implementador, 06/11/2026) `apps/worker/test/queue-fixtures.int.test.ts:31`: o caso do `explicar` com `update` deixa no banco de teste a rede e a escola sintéticas de `bancada.escola()`; para a retrospectiva, se a tabela de escolas do banco de teste pesar (Validador, rodada 3)
-- [ ] (Arquiteto, 06/11/2026) Para a retrospectiva da F2: `lista.transferida` (e `aluno.transferido`, `usuario.nome_corrigido`, `lista.nome_corrigido`) não entram no arquivo do titular, que traz só a auditoria de que ele é autor (`leitura-do-titular.ts:392`, desenho do F3); abrir em `docs/decisoes-em-aberto.md` "o arquivo do titular traz os atos de terceiros sobre ele?" (dono Arquiteto, decide o Joaquim). `lista_nome.retirado` não tem titular futuro: o nome sai de fato (`lista.repository.ts:263`). Triagem do Arquiteto antes do pouso, opção (b)
+- [x] (Arquiteto, 06/11/2026) Para a retrospectiva da F2: `lista.transferida` (e `aluno.transferido`, `usuario.nome_corrigido`, `lista.nome_corrigido`) não entram no arquivo do titular, que traz só a auditoria de que ele é autor (`leitura-do-titular.ts:392`, desenho do F3); abrir em `docs/decisoes-em-aberto.md` "o arquivo do titular traz os atos de terceiros sobre ele?" (dono Arquiteto, decide o Joaquim). `lista_nome.retirado` não tem titular futuro: o nome sai de fato (`lista.repository.ts:263`). Triagem do Arquiteto antes do pouso, opção (b) — *decidido em 06/11/2026: D85 (sim, por alvo, sem quem fez, sem as leituras); o código vai na F2c, item "(F2, retro, D85)" abaixo.*
 - Já estavam aqui, e seguem (Validador, rodadas 2 e 3): o laço em lotes de `retirarNomes`, a linha do guia sobre a integração do worker, o leitor de tela nos `aria-live` da `ImportarPlanilha.tsx`, a medida de 1.000 e 3.000 transferências e da virada de 3.000, e a renovação de 500 ms do worker em `slots.int.test.ts`
+
+## Da retrospectiva da F2 (onboarding-por-convite, 06/11/2026)
+
+`tasks/prd-onboarding-por-convite/retro.md`. M1, M3 e M4 mudam código de processo (`tools/`, `.claude/`): entram por correção.
+
+- [ ] (F2, retro, M1) **O `restos` vê o arquivo novo.** `tools/renomear/arvore.ts:29` lista só `git ls-files --cached`: o arquivo que a
+      tarefa cria não está no índice quando o portão roda, e o resto do mapa da X8 só cai no portão seguinte ou na esteira (2.0, 9.0, 11.0,
+      13.0 e 16.0; 4 dos 7 vermelhos da esteira da F2). Só no `restos`, a varredura soma `--others --exclude-standard`; o `aplicar` e o
+      `conferir` seguem só com os versionados. Caso novo em `tools/renomear/restos.test.ts` (resto num arquivo criado e não adicionado deixa
+      o comando vermelho) e bloco de mutação da opção. Guardiões: `revisor-geral`, `test-engineer`
+- [ ] (F2, retro, M3) **Write não apaga a seção "Revisões".** Hook PreToolUse em `Write` (`.claude/settings.json` e `.claude/hooks/`) que
+      recusa sobrescrever um `tasks/**/*.md` que já existe e tem `## Revisões`, com a mensagem "use Edit: Write apaga a seção Revisões
+      (protocolo, item 5)". Teste com o arquivo com e sem a seção. A 10.0 e a 16.0 da F2 (e duas da X1) perderam rodadas assim
+- [ ] (F2, retro, M4) **O ano esconde a escola, no `tenancy-guardian`.** Em `.claude/agents/tenancy-guardian.md`, "O que verificar", item 4,
+      depois de "o teste quebra?", e na cópia gravada `tools/processo/harness/__fixtures__/revisores-antes/tenancy-guardian.verificar.md`
+      (RF21; o `revisores.test.ts` exige as duas iguais): "Repository que filtra por escola e por ano: confira que o caso passa ao
+      repository o ano e a turma da B, no contexto da A. Com o ano da A, o filtro de ano esconde a falta do de escola (validação da F2,
+      `GradeRepository.aulasDaTurma`)." Aceita pelo Joaquim em 06/11/2026; o commit de documento foi recusado porque a cópia conta como
+      código. Guardiões: `revisor-geral`, `test-engineer`
+- [ ] (F2, retro, D85) **O arquivo do titular traz os atos de terceiros sobre ele**, por alvo e sem quem fez (D85). Vai na F2c, que já
+      constrói o "por alvo" de `senha_provisoria.gerada` e `.usada` (`tasks/prd-acesso-e-convites/techspec.md`, §5): a Tech Spec dela,
+      escrita antes da D85, ganha as quatro ações da F2 (`aluno.transferido`, `lista.transferida`, `usuario.nome_corrigido`,
+      `lista.nome_corrigido`), o caminho de cada uma até o titular (`lista_nome` só depois de aprovado o nome) e o caso em
+      `apps/api/test/arquivo-do-titular.int.test.ts` que prova o papel sem o id de quem fez. Dono: Arquiteto, na conferência da F2c

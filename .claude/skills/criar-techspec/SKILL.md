@@ -90,7 +90,10 @@ são exatamente os quatro lugares onde este produto pode morrer:
 - **Carga e falha** — em que ponto do modelo de carga de `docs/infra.md` esta funcionalidade
   entra, o que ela faz na manhã de segunda, qual fila e prioridade usa, que limite por escola
   aplica, onde há corrida de concorrência, e o que o usuário vê quando cada dependência cai
-  (`rules/80`). Funcionalidade fora do caminho quente declara isso em uma linha
+  (`rules/80`). Funcionalidade fora do caminho quente declara isso em uma linha. Limite de corpo,
+  de linhas ou de taxa diz em quais rotas vale e o que o middleware global já cobre
+  (`apps/api/src/configure-app.ts`): teto novo no global muda as outras rotas (na F2, o da 5.0
+  quebrou o envio de material)
 
 Se a funcionalidade chama modelo, uma quarta: **perfis de IA e custo estimado**.
 
@@ -139,6 +142,12 @@ implementador e os revisores lerem pedaços dela. Acima do teto:
   não para a Tech Spec;
 - se ainda passar, proponha dividir a funcionalidade e pergunte. Subir o teto só com o usuário
   aceitando, e o motivo escrito no topo do documento.
+
+Conte também as tarefas que a Tech Spec vai pedir, pelo critério do `criar-tasks` (um comportamento
+por tarefa, até três guardiões com veto, uma tela por tarefa). Passou de 12, a pergunta do corte em
+duas specs vai ao Joaquim aqui, antes da revisão: a revisão de cada spec cobre só a parte dela. Na
+F2, o corte veio depois de oito rodadas da revisão, e pelo menos 13 das 27 não aprovadas eram sobre
+o que foi para a F2c.
 
 ### 8. Próximo passo
 

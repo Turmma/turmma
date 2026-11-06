@@ -124,9 +124,15 @@ rodada nova; o caso que originou cada pergunta está em `docs/processo-licoes.md
     a corrida entre duas operações diferentes, ou a resposta que chega fora de ordem, tem a ordem forçada?** No banco,
     `WriteBlockTrigger` e `esperarNaTrava` (`apps/api/test/write-block-trigger.ts`); na tela, a resposta segurada com
     `page.route` ou o relógio parado com `page.clock.pauseAt`, como a correção `2026-10-03-decididos-continuam-marcados`.
-    `Promise.all` solto prova a ordem que sair, e vira intermitente no banco carregado da esteira.
+    `Promise.all` solto prova a ordem que sair, e vira intermitente no banco carregado da esteira. Contra o job que grava
+    em passos: (a) a direção é a que o cenário nomeia (quem vai primeiro), e cada direção é um caso; (b) `esperarNaTrava`
+    conta também quem segura a trava: espere o número de processos certo, ou um padrão que só o lado esperado casa; (c) com
+    o job parado dentro de um passo de `lock_timeout` curto, o outro lado vai por SQL, ou para antes de o job entrar no passo.
 11. **O teste de isolamento quebraria sem a cláusula de escopo do repository, e cada linha da tabela de testes tem o caso na
     coluna "Caso", um para cada coisa que a linha diz?** Remova mentalmente a cláusula e pergunte se algo ficaria vermelho.
+    Repository que filtra por escola e por ano: o ano de cada escola já separa, e a escola tirada fica verde se o caso usa
+    o ano da A. No caso de isolamento, todo id que o repository recebe é da B (o ano, a turma), lido no contexto da A, como
+    `apps/api/test/calendario.int.test.ts:152`.
     "Fecha e volta", "em endereço, cabeçalho ou corpo" são dois ou três casos, ou asserções que o nome do caso diz: na X4, a
     1.0, a 2.0, a 5.0, a 8.0, a 9.0 e a 10.0 reprovaram por linha sem caso ou com metade.
 12. **Onde o plano atende cada item de "O que verificar" dos guardiões marcados (`.claude/agents/<nome>.md`), e o que o

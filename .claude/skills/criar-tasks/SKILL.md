@@ -154,8 +154,10 @@ infere o porte pela contagem de guardiões e avisa que inferiu.
   autorizadas correm ao mesmo tempo, em linhas (`/seguir`, passo 3), e é o que mais encurta a spec.
   Autorize o par que não depende um do outro nem toca o mesmo arquivo. `tools/processo/linhas.ts`
   confere pelos "Arquivos previstos" das duas, que por isso levam **caminho de verdade**, com o
-  arquivo de registro que as duas editariam (rotas, navegação, módulo): sem caminho, a tarefa corre
-  sozinha. Duas tarefas com migration, schema ou `packages/shared` não correm juntas: ponha o tronco
+  arquivo de registro que as duas editariam (rotas, navegação, módulo, e o barril `index.ts` de cada
+  pacote em que a tarefa exporta peça nova): sem caminho, a tarefa corre sozinha. Tarefa que muda a
+  assinatura de uma peça que outra também estende (o motor, uma porta, um tipo base) não corre em
+  paralelo com ela (na F2, os encontros da 6.0 e da 10.0 deram conflito nos barris e no `travar` do motor). Duas tarefas com migration, schema ou `packages/shared` não correm juntas: ponha o tronco
   cedo, em poucas tarefas, e deixe as telas e os endpoints de folha para o paralelo
 
 ## Tarefas geradas antes

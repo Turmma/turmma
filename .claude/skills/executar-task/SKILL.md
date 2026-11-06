@@ -222,6 +222,15 @@ Se entrar na lista parece contrariar a regra que o teste cita, não atualize: é
 `Motivo: desenho`. Os que costumam ficar vermelhos: `apps/api/test/retencao.int.test.ts`,
 `apps/api/src/assistente/assistente.int.test.ts` e `infra/test/metricas.int.test.ts`.
 
+**Quem usa o que mudou.** Mudou contrato de rota, esquema ou constante de `packages/shared`, a assinatura de uma peça do
+`core` ou um limite que outro caminho alcança: procure quem a usa e rode isolados os testes achados que você não alterou.
+O portão só roda os que a árvore alterou. Na F2, a 8.0 trocou o contrato da lista e derrubou quatro specs de e2e que sobem a
+lista pela tela, e o teto de 100 da 16.0 quebrou o caso de 501 da 10.0, que a validação pegou.
+
+```bash
+grep -rl "<o nome que mudou>" --include='*.test.ts' --include='*.test.tsx' --include='*.spec.ts' apps packages infra e2e
+```
+
 O e2e inteiro e a suíte de infra inteira **não** rodam no portão da tarefa. Rodam na esteira do
 GitHub, que o push do seu commit dispara e ninguém espera (D79): o que a tarefa quebrar fora dos alvos
 aparece ali uma tarefa depois, e volta como correção. A consequência é sua: antes do commit, a regra
@@ -256,6 +265,11 @@ tarefa tem**, marcados ou não.
 **Quem chama os revisores é a Mesa de revisão, não você**
 (`.claude/skills/revisar-tarefa/SKILL.md`). Ela monta o prompt de cada um a partir da árvore, chama
 na ordem certa e devolve o resultado. Quem implementa não escreve o prompt de quem o revisa (D78).
+
+Antes de pedir, para cada linha de "Divergências resolvidas", procure a palavra do código no `techspec.md` e no
+`cenarios.md` (`grep -n`). Não achou: a decisão entra lá agora, na seção que a coluna "Onde está na spec" cita (o aviso
+crítico do passo 2). Na F2, a 3.0, a 5.0, a 8.0 (quatro linhas) e a 10.0 reprovaram no `revisor-geral` por divergência que só
+existia no documento da tarefa.
 
 Com o portão local verde, peça a rodada e **encerre o turno**
 (`.claude/skills/seguir/protocolo.md`, item 2). O nome da Mesa veio no pedido do Orquestrador:
