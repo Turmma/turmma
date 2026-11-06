@@ -8,6 +8,7 @@ import {
   InvariantException,
   ESTADOS_DE_MATERIAL,
   ESTADOS_DE_VINCULO,
+  ETAPAS,
   ESTADOS_DO_PEDIDO,
   ESTADOS_EM_DECISAO,
   FINALIDADE_DA_REDEFINICAO_PELO_OPERADOR,
@@ -26,11 +27,14 @@ import {
   MOTIVOS_DE_ENCERRAMENTO_PELA_COORDENACAO,
   MOTIVOS_DE_SUSPENSAO,
   ORIGENS_DA_RETENCAO,
+  ORIGENS_DE_VINCULO,
   PAPEIS_DE_USUARIO,
   PAPEIS_DE_VINCULO,
   PAPEIS_DO_TITULAR,
   RISCOS_DO_INCIDENTE,
+  CHAVES_DO_RESUMO_DA_IMPORTACAO,
   SOLICITANTES_DO_PEDIDO,
+  TIPOS_DE_PLANILHA,
   TIPOS_DE_CONVITE,
   TIPOS_DE_ENTREGA,
   TIPOS_DE_PEDIDO_DO_TITULAR,
@@ -69,6 +73,14 @@ export interface DefinicaoDeAcao {
    */
   readonly finalidade: z.ZodEnum | null
 }
+
+/**
+ * As contagens do `resumo` da importação que a auditoria `planilha.gravada` leva: as mesmas chaves, com `nomes_corrigidos`
+ * escrito `corrigidos` (nenhum campo da auditoria tem "nome" no nome, por mais que seja só um número).
+ */
+const contagensDaPlanilhaGravada = z.strictObject(
+  Object.fromEntries(CHAVES_DO_RESUMO_DA_IMPORTACAO.map((chave) => [chave === 'nomes_corrigidos' ? 'corrigidos' : chave, z.number().int().nonnegative().optional()])),
+)
 
 /**
  * Toda ação que a auditoria aceita, com a lista fechada de `antes`, `depois` e `finalidade`. Cada tarefa
@@ -267,8 +279,8 @@ export const ACOES_DE_AUDITORIA = {
     finalidade: null,
   },
   /**
-   * A coordenação criou o vínculo (9.0, RF3, RF19): de quem, em que turma e disciplina, com que papel. Nasce pendente.
-   * `entidadeId` é o vínculo.
+   * A coordenação criou o vínculo (9.0, RF3, RF19): de quem, em que turma e disciplina, com que papel. Nasce pendente. A planilha
+   * de alunos (F2, 9.0) abre o do aluno transferido já `confirmado` e diz a `origem` (`lista`). `entidadeId` é o vínculo.
    */
   'vinculo.criado': {
     entidade: 'vinculo',
@@ -278,7 +290,8 @@ export const ACOES_DE_AUDITORIA = {
       turmaId: z.uuid(),
       disciplinaId: z.uuid().nullable(),
       papel: z.enum(PAPEIS_DE_VINCULO),
-      estado: z.literal('pendente'),
+      estado: z.enum(['pendente', 'confirmado']),
+      origem: z.enum(ORIGENS_DE_VINCULO).optional(),
     }),
     finalidade: null,
   },
@@ -299,11 +312,11 @@ export const ACOES_DE_AUDITORIA = {
     depois: z.strictObject({ estado: z.literal('contestado'), contestacao: z.enum(CONTESTACOES_DE_VINCULO) }),
     finalidade: null,
   },
-  /** A coordenação encerrou o vínculo (9.0, RF5, RF19): o acesso cai na requisição seguinte. */
+  /** A coordenação encerrou o vínculo (9.0, RF5, RF19): o acesso cai na requisição seguinte. A planilha de alunos (F2, 9.0) o encerra por `realocacao` e diz a `origem` (`lista`). */
   'vinculo.encerrado': {
     entidade: 'vinculo',
     antes: z.strictObject({ estado: z.enum(ESTADOS_DE_VINCULO) }),
-    depois: z.strictObject({ estado: z.literal('encerrado'), motivo: z.enum(MOTIVOS_DE_ENCERRAMENTO_PELA_COORDENACAO) }),
+    depois: z.strictObject({ estado: z.literal('encerrado'), motivo: z.enum(MOTIVOS_DE_ENCERRAMENTO_PELA_COORDENACAO), origem: z.enum(ORIGENS_DE_VINCULO).optional() }),
     finalidade: null,
   },
   /**
@@ -337,8 +350,9 @@ export const ACOES_DE_AUDITORIA = {
     finalidade: z.enum(FINALIDADES_DA_LEITURA_DE_ALUNOS),
   },
   /**
-   * A coordenação gravou a lista de nomes da turma, pelo texto ou pelo nome avulso (A1, 2.0, RF16). `entidadeId` é a
-   * turma; `ids`, as linhas que entraram (as que já estavam na lista não entram de novo); `gravados` e `jaExistentes`,
+   * A coordenação gravou um nome avulso na lista da turma (`POST /lista/nome`, A1, 2.0, RF16). A gravação pelo texto passou ao
+   * job da planilha (F2, 8.0) e grava `planilha.gravada`, não esta ação: quem monta o arquivo do titular procura o texto lá.
+   * `entidadeId` é a turma; `ids`, as linhas que entraram (as que já estavam na lista não entram de novo); `gravados` e `jaExistentes`,
    * as contagens. Nunca o nome nem a matrícula.
    */
   'lista.gravada': {
@@ -348,12 +362,78 @@ export const ACOES_DE_AUDITORIA = {
     finalidade: null,
   },
   /**
-   * A coordenação retirou um nome livre da lista (A1, 2.0, RF5): a linha sai de fato, porque é pré-cadastro, sem conta
-   * nem histórico (Tech Spec da A1, seção 7). `entidadeId` é a linha que saiu; fica a turma dela. Nunca o nome.
+   * O job `estrutura.gravar-planilha` concluiu uma planilha (F2, 4.0, RF17): `entidadeId` é a `importacao_planilha`; leva o tipo e
+   * as contagens do `resumo` (só números, de chaves de lista fechada; `corrigidos` é o `nomes_corrigidos` do resumo, sem a palavra
+   * que o mapa proíbe em campo). Nunca o nome, a matrícula, o e-mail nem a descrição de um
+   * evento. O autor é a coordenação que gravou; a importação de quem já saiu não grava nem é auditada (sai `desatualizada`),
+   * porque a rotina não assina esta ação (`auditoria_rotina_so_nas_acoes`).
+   */
+  'planilha.gravada': {
+    entidade: 'importacao_planilha',
+    antes: null,
+    depois: z.strictObject({ tipo: z.enum(TIPOS_DE_PLANILHA), contagens: contagensDaPlanilhaGravada }),
+    finalidade: null,
+  },
+  /**
+   * A planilha de alunos criou uma turma que a escola ainda não tinha (F2, 7.0, RF17): `entidadeId` é a turma; `depois` leva a
+   * série dela, que a planilha tirou do nome ("8ºA" é o 8º ano do Ensino Fundamental), e a origem. Nunca o nome da turma nem de
+   * aluno. O autor é a coordenação que gravou a planilha.
+   */
+  'turma.criada': {
+    entidade: 'turma',
+    antes: null,
+    depois: z.strictObject({ serie: z.strictObject({ etapa: z.enum(ETAPAS), ano: z.number().int() }), origem: z.literal('planilha') }),
+    finalidade: null,
+  },
+  /**
+   * A planilha de alunos corrigiu o nome de um aluno aprovado (F2, 8.0, RF4 e RF17): `entidadeId` é o usuário. Sem `antes` nem
+   * `depois`: nenhum campo da auditoria leva nome, e o que mudou é só o nome. O autor é a coordenação que gravou a planilha.
+   */
+  'usuario.nome_corrigido': {
+    entidade: 'usuario',
+    antes: null,
+    depois: null,
+    finalidade: null,
+  },
+  /**
+   * A planilha de alunos corrigiu o nome de quem ainda não foi aprovado (F2, 8.0, RF4 e RF17): `entidadeId` é a linha da lista,
+   * `livre` ou `reivindicado`. Sem nome, antes nem depois. O autor é a coordenação que gravou a planilha.
+   */
+  'lista.nome_corrigido': {
+    entidade: 'lista_nome',
+    antes: null,
+    depois: null,
+    finalidade: null,
+  },
+  /**
+   * A planilha de alunos passou o aluno aprovado de turma (F2, 9.0, RF5 e RF17): `entidadeId` é o usuário; `depois` leva só as duas
+   * turmas, a de origem e a de destino. Nunca o nome nem a matrícula. O autor é a coordenação que gravou a planilha e marcou a transferência.
+   */
+  'aluno.transferido': {
+    entidade: 'usuario',
+    antes: null,
+    depois: z.strictObject({ turmaOrigemId: z.uuid(), turmaDestinoId: z.uuid() }),
+    finalidade: null,
+  },
+  /**
+   * A planilha de alunos passou de turma o nome de quem ainda não foi aprovado (F2, 9.0, RF5 e RF17): `entidadeId` é a linha da lista,
+   * que volta `livre` na turma nova (o pedido pendente dela, se havia, é encerrado sem decisão). Só as duas turmas; nunca o nome.
+   */
+  'lista.transferida': {
+    entidade: 'lista_nome',
+    antes: null,
+    depois: z.strictObject({ turmaOrigemId: z.uuid(), turmaDestinoId: z.uuid() }),
+    finalidade: null,
+  },
+  /**
+   * A coordenação retirou um nome da lista (A1, 2.0, RF5): a linha sai de fato, porque é pré-cadastro, sem conta nem histórico
+   * (Tech Spec da A1, seção 7). `entidadeId` é a linha que saiu; ficam a turma dela e o estado que tinha: `livre` pela rota, e também
+   * `reivindicado` pela planilha de alunos, que marca o ausente a desligar (F2, 10.0; o pedido pendente dele é encerrado antes, sem decisão).
+   * Nunca o nome.
    */
   'lista_nome.retirado': {
     entidade: 'lista_nome',
-    antes: z.strictObject({ turmaId: z.uuid(), estado: z.literal('livre') }),
+    antes: z.strictObject({ turmaId: z.uuid(), estado: z.enum(['livre', 'reivindicado']) }),
     depois: null,
     finalidade: null,
   },

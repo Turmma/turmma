@@ -10,13 +10,19 @@ const metodosDe = (classe: { prototype: object }) => Object.getOwnPropertyNames(
  * (F3, tarefa 1.0): a conta global continua com as mesmas três exceções, cada uma com a justificativa dela, e as escritas
  * da desativação e da eliminação continuam todas na escola do contexto.
  */
+/** As duas que nasceram com o cadastro do professor (onboarding-por-convite, 1.0 e 6.0) dizem outra coisa: a conta é global, e o que o job faz com ela. */
+const JUSTIFICATIVA_POR_METODO: Readonly<Record<string, RegExp>> = {
+  contaParaConvite: /a conta é global: acha ou cria pelo e-mail/,
+  travarEConferir: /a conta é global: o passo \(3\) da planilha de professores trava/,
+}
+
 describe('ciclo de vida no nucleo: as exceções ao escopo são só as da conta global', () => {
-  it('a ContaGlobalRepository tem só os três métodos da conta global, cada um com @SemEscopo e a justificativa da credencial global', () => {
-    expect(metodosDe(ContaGlobalRepository)).toEqual(['encerrarSessoesDaConta', 'limparContaSemUso', 'travarConta'])
+  it('a ContaGlobalRepository tem só os cinco métodos da conta global, cada um com @SemEscopo e a justificativa de que a conta é global', () => {
+    expect(metodosDe(ContaGlobalRepository)).toEqual(['contaParaConvite', 'encerrarSessoesDaConta', 'limparContaSemUso', 'travarConta', 'travarEConferir'])
     for (const metodo of metodosDe(ContaGlobalRepository)) {
       const justificativa = unscopedJustification(ContaGlobalRepository, metodo)
       expect(justificativa?.length ?? 0, metodo).toBeGreaterThanOrEqual(TAMANHO_MINIMO_JUSTIFICATIVA_SEM_ESCOPO)
-      expect(justificativa, metodo).toMatch(/credencial da equipe é global/)
+      expect(justificativa, metodo).toMatch(JUSTIFICATIVA_POR_METODO[metodo] ?? /credencial da equipe é global/)
     }
   })
 

@@ -15,6 +15,7 @@ import {
   ExpurgoDeAcessoRepository,
   ExpurgoDeJobsRepository,
   IncidenteDaEscolaRepository,
+  ImportacaoRepository,
   JobOutboxRepository,
   METRICS,
   bullmqQueueName,
@@ -45,6 +46,7 @@ import {
   TIPO_EXPURGAR_DADO_PESSOAL,
   TIPO_EXPURGAR_ESCOLA,
   TIPO_EXPURGAR_JOBS,
+  TIPO_GRAVAR_PLANILHA,
   TIPO_JOB_SINTETICO,
   TIPO_MONTAR_ARQUIVO,
   type QueueName,
@@ -64,8 +66,10 @@ import { criarEliminacaoDoTitular } from './processors/eliminar-titular.js'
 import { criarExpurgoDaEscola } from './processors/expurgar-escola.js'
 import { EliminacaoGauge } from './eliminacao-gauge.js'
 import { ArquivoGauge } from './arquivo-gauge.js'
+import { ImportacaoGauge } from './importacao-gauge.js'
 import { ExpurgoGauge } from './expurgo-gauge.js'
 import { IncidenteGauge } from './incidente-gauge.js'
+import { criarGravacaoDaPlanilha } from './processors/gravar-planilha.js'
 import { criarMontagemDoArquivo } from './processors/montar-arquivo.js'
 import { createSyntheticProcessor, CpuSandbox, type CpuBurner } from './processors/synthetic.js'
 import { criarClienteS3, StorageSizeReader } from './storage/storage-size-reader.js'
@@ -275,12 +279,33 @@ export function createProcessors(config: Pick<WorkerConfig, 'pools' | 'storage' 
     config.pools.lote === undefined || config.storage === undefined || config.janelaPadrao === undefined || armazem === undefined
       ? undefined
       : createRoutines(config.storage, config.janelaPadrao, banco, uso, relogio, logger, medidor, armazem)
-  const montagemDoArquivo =
-    config.pools.normal === undefined || armazem === undefined ? undefined : { [TIPO_MONTAR_ARQUIVO]: criarMontagemDoArquivo({ banco, armazem, relogio, logger }) }
   return {
-    processadores: { [TIPO_JOB_SINTETICO]: createSyntheticProcessor(pecas.cpu, pecas.efeitos), ...rotinas?.processadores, ...montagemDoArquivo },
+    processadores: { [TIPO_JOB_SINTETICO]: createSyntheticProcessor(pecas.cpu, pecas.efeitos), ...rotinas?.processadores, ...(config.pools.normal === undefined ? {} : processadoresDaNormal(pecas)) },
     ...(rotinas === undefined ? {} : { rotinas }),
   }
+}
+
+/**
+ * Os processadores da fila `normal`: o arquivo do titular, que precisa do armazém, e a planilha da escola (F2, 4.0), que não
+ * precisa dele.
+ */
+function processadoresDaNormal({ banco, relogio, logger, medidor, armazem }: ProcessorParts): JobProcessors {
+  return {
+    ...(armazem === undefined ? {} : { [TIPO_MONTAR_ARQUIVO]: criarMontagemDoArquivo({ banco, armazem, relogio, logger }) }),
+    [TIPO_GRAVAR_PLANILHA]: criarGravacaoDaPlanilha({ banco, logger, ...(medidor === undefined ? {} : { medidor }) }),
+  }
+}
+
+/**
+ * Liga a medição dos minutos da importação de planilha na fila (F2, tarefa 5.0) e devolve como encerrá-la. Sem medidor não há o que
+ * medir, e o encerrar não faz nada. Fica fora de `createRoutines` para a catraca de complexidade dela não subir.
+ */
+function iniciarMedicaoDaImportacao(dependencias: { escolas: CronEscolasRepository; banco: Database; relogio: Clock; logger: LoggerBase; medidor: Meter | undefined }): () => Promise<void> {
+  const { escolas, banco, relogio, logger, medidor } = dependencias
+  if (medidor === undefined) return () => Promise.resolve()
+  const medicao = new ImportacaoGauge({ escolas, repositorio: new ImportacaoRepository(banco), relogio, logger, medidor })
+  medicao.iniciar()
+  return () => medicao.encerrar()
 }
 
 /**
@@ -316,6 +341,7 @@ function createRoutines(
   medicaoDoArquivo?.iniciar()
   const medicaoDaEliminacao = medidor === undefined ? undefined : new EliminacaoGauge({ escolas, repositorio: expurgoDaEscola, relogio, logger, medidor })
   medicaoDaEliminacao?.iniciar()
+  const encerrarMedicaoDaImportacao = iniciarMedicaoDaImportacao({ escolas, banco, relogio, logger, medidor })
   return {
     processadores: {
       [TIPO_CONSOLIDAR_USO]: criarConsolidacaoDeUso({
@@ -346,6 +372,7 @@ function createRoutines(
       await medicaoDoIncidente?.encerrar()
       await medicaoDoArquivo?.encerrar()
       await medicaoDaEliminacao?.encerrar()
+      await encerrarMedicaoDaImportacao()
       s3.destroy()
     },
   }

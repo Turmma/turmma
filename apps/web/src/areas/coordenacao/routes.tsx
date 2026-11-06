@@ -15,6 +15,8 @@ const Estrutura = lazy(() => import('./estrutura/Estrutura'))
 const ListaDaTurma = lazy(() => import('./estrutura/ListaDaTurma'))
 const Professores = lazy(() => import('./professores/Professores'))
 const Material = lazy(() => import('./material/Material'))
+/** A quarta aba de Escola (F2, 14.0): a grade por turma, o calendário do ano e os modelos das planilhas. */
+const GradeECalendario = lazy(() => import('./grade/GradeECalendario'))
 /** Governança (a aba IA de Registros), Agentes e Analista (MVP, A5). */
 const Governanca = lazy(() => import('./governanca/Governanca'))
 const Agentes = lazy(() => import('./governanca/Agentes'))
@@ -60,7 +62,7 @@ export default function RotasDaCoordenacao() {
         <Route path={COORDENACAO_ROUTES.painel} component={Painel} />
         <Route path={COORDENACAO_ROUTES.bemVindo} component={BemVindo} />
         <Route path={COORDENACAO_ROUTES.analista} component={Analista} />
-        {/* Escola: as três abas. */}
+        {/* Escola: as quatro abas. */}
         <Route path={COORDENACAO_ROUTES.estrutura}>
           <Escola aba="turmas">
             <Estrutura />
@@ -68,7 +70,7 @@ export default function RotasDaCoordenacao() {
         </Route>
         {/*
           A `key` pela turma: outra turma é outra tela. Sem ela, ir de uma turma já aberta para outra pelo histórico
-          manteria o texto colado e a prévia da anterior, e "Gravar lista" os mandaria para a turma nova.
+          manteria o arquivo lido e a prévia da anterior, e "Gravar lista" os mandaria para a turma nova.
         */}
         <Route path={COORDENACAO_ROUTES.turma}>{(parametros) => <ListaDaTurma key={parametros.turmaId} turmaId={parametros.turmaId} />}</Route>
         <Route path={COORDENACAO_ROUTES.professores}>
@@ -79,6 +81,11 @@ export default function RotasDaCoordenacao() {
         <Route path={COORDENACAO_ROUTES.material}>
           <Escola aba="material">
             <Material />
+          </Escola>
+        </Route>
+        <Route path={COORDENACAO_ROUTES.grade}>
+          <Escola aba="grade">
+            <GradeECalendario />
           </Escola>
         </Route>
         {/* Registros › IA, e os Agentes, que ficam abaixo dele. */}

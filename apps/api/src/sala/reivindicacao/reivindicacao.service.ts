@@ -1,6 +1,6 @@
 import { DomainException, postgresErrorIn, METRICS, type Database, type Meter } from '@educa/core'
 import { ErrorCode, reivindicacaoResponseSchema, type ReivindicarSalaRequest, type ReivindicacaoResponse } from '@educa/shared'
-import { TurmaRepository } from '../../estrutura/turma/turma.repository.js'
+import { TurmaRepository } from '@educa/core/estrutura'
 import type { AcessoDaSala } from '../../sessao/index.js'
 import { escolaBucket, type PasswordHasher, type HashBulkhead } from '../../credencial/index.js'
 import type { SalaRateLimits } from '../sala-rate-limits.js'

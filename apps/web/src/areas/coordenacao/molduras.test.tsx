@@ -39,11 +39,12 @@ function dentro(texto: string): ReactNode {
 }
 
 describe('Escola', () => {
-  it('as três abas, na ordem, cada uma no endereço de hoje da tela dela', () => {
+  it('as quatro abas, na ordem, cada uma no endereço de hoje da tela dela', () => {
     expect(ABAS_DE_ESCOLA.map(({ id, rotulo, caminho }) => ({ id, rotulo, caminho }))).toEqual([
       { id: 'turmas', rotulo: 'Turmas', caminho: '/estrutura' },
       { id: 'professores', rotulo: 'Professores', caminho: '/professores' },
       { id: 'material', rotulo: 'Material', caminho: '/material' },
+      { id: 'grade', rotulo: 'Grade e calendário', caminho: '/grade' },
     ])
   })
 
@@ -51,6 +52,7 @@ describe('Escola', () => {
     ['turmas', 'Turmas', 'Escola: turmas'],
     ['professores', 'Professores', 'Escola: professores'],
     ['material', 'Material', 'Escola: material'],
+    ['grade', 'Grade e calendário', 'Escola: grade e calendário'],
   ] as const satisfies readonly (readonly [AbaDeEscola, string, string])[])('a aba do endereço (%s) é a única selecionada, o `h1` é "Escola" e a aba do navegador diz "%s"', (aba, rotulo, titulo) => {
     const { tela } = noEndereco('/', (
       <Escola aba={aba}>{dentro('a tela de dentro')}</Escola>
@@ -58,7 +60,7 @@ describe('Escola', () => {
     render(tela)
 
     const abas = screen.getAllByRole('tab')
-    expect(abas.map((candidata) => candidata.textContent)).toEqual(['Turmas', 'Professores', 'Material'])
+    expect(abas.map((candidata) => candidata.textContent)).toEqual(['Turmas', 'Professores', 'Material', 'Grade e calendário'])
     expect(abas.filter((candidata) => candidata.getAttribute('aria-selected') === 'true').map((candidata) => candidata.textContent)).toEqual([rotulo])
     expect(screen.getAllByRole('heading', { level: 1 }).map((h1) => h1.textContent)).toEqual(['Escola'])
     expect(document.title).toBe(`${titulo} · Turmma`)
@@ -79,6 +81,8 @@ describe('Escola', () => {
     expect(local.history?.at(-1)).toBe(ENDERECO_DA_ABA(ABAS_DE_ESCOLA, 'professores'))
     await usuario.click(screen.getByRole('tab', { name: 'Material' }))
     expect(local.history?.at(-1)).toBe(ENDERECO_DA_ABA(ABAS_DE_ESCOLA, 'material'))
+    await usuario.click(screen.getByRole('tab', { name: 'Grade e calendário' }))
+    expect(local.history?.at(-1)).toBe(ENDERECO_DA_ABA(ABAS_DE_ESCOLA, 'grade'))
   })
 
   it('só o miolo rola a partir de 768 px: o painel da aba tem a altura da janela menos o que a moldura gasta, e a página abaixo disso rola', () => {

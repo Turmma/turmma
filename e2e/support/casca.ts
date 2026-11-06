@@ -243,6 +243,22 @@ export async function entrarPelaApiSemMedirAPrimeiraCarga(
   })
 }
 
+/**
+ * Recarrega a página (`page.reload()`) com a **primeira carga** da nova página, e o que `aguardar` espera dela, sem a rede do perfil
+ * (`loadUnthrottled`): a mesma receita da entrada pela API (`entrarPelaApiSemMedirAPrimeiraCarga`), para o caso cujo assunto é o que a tela
+ * mostra depois da recarga, e não quanto ela leva para baixar. A CPU do perfil continua, e a rede do perfil volta quando a função devolve.
+ *
+ * **O que ele não mede:** quanto a aplicação leva para baixar e abrir na rede lenta. Isso fica para o orçamento do build e para os specs
+ * cujo assunto é a carga; um caso que afirma o tempo de abrir não usa este ajudante. `aguardar` deve esperar a primeira tela que o caso
+ * afirma, e não só o `load`: o pedaço da tela (`import()`) e as leituras vêm depois dele.
+ */
+export async function recarregarSemMedirAPrimeiraCarga(page: Page, aguardar: () => Promise<void>): Promise<void> {
+  await loadUnthrottled(page, async () => {
+    await page.reload()
+    await aguardar()
+  })
+}
+
 /** `entrarComoProfessora` sem pagar a entrada pela tela nem a rede lenta na primeira carga: para o caso cujo assunto vem depois da entrada. */
 export async function entrarComoProfessoraPelaApi(page: Page): Promise<EquipeDeTeste> {
   const professora = await criarEquipeComSenha()

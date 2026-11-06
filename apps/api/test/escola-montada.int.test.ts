@@ -7,12 +7,12 @@ import {
   conviteDeProfessorResponseSchema,
   decisaoResponseSchema,
   disciplinaResponseSchema,
-  gravacaoDaListaResponseSchema,
+  gravarPlanilhaResponseSchema,
   listaDaTurmaResponseSchema,
   listaDeProfessoresResponseSchema,
   minhaTurmaResponseSchema,
   pedidosDaTurmaResponseSchema,
-  previaDaListaResponseSchema,
+  previaDaPlanilhaResponseSchema,
   reivindicacaoResponseSchema,
   salaAbertaResponseSchema,
   turmaResponseSchema,
@@ -183,7 +183,7 @@ interface RotaDaA1 {
   /** Outros corpos que dão o mesmo sucesso da rota (a página da sala pelo link, além do código): o A3 e o A4 passam por eles. */
   readonly outrosSucessos?: (escola: EscolaMontada) => ReadonlyArray<Record<string, unknown>>
   /** O status do sucesso, pela coordenação, com o `alvo` e o `corpo`. */
-  readonly sucesso: 200 | 201 | 204
+  readonly sucesso: 200 | 201 | 202 | 204
   /** O contrato estrito da resposta de sucesso; sem ele, o corpo é vazio (204). */
   readonly resposta?: z.ZodType
   /** O pedido da mesma rota que dá `CONFLITO` na escola montada, se a rota tem um (o alvo, se a rota tem parâmetro). */
@@ -235,7 +235,8 @@ function reivindicacao(escola: EscolaMontada, nome: NomeParaReivindicar, caminho
  * `acesso_turma.gerado`, e o revogar `acesso_turma.revogado`. 1.0: renomear e excluir disciplina e turma. Renomear e excluir não gravam
  * auditoria: o RF16 não pede (1_task.md, "Fora do escopo"). 3.0: cadastrar e listar professores, e refazer e revogar o
  * convite de professor; a lista não grava auditoria (são professores, não aluno). 2.0: a prévia, a gravação, o nome
- * avulso, a leitura e a retirada da lista de nomes; a prévia não grava nada, e a leitura grava `turma.lista_lida`. 8.0:
+ * avulso, a leitura e a retirada da lista de nomes; a prévia não grava nada, e a leitura grava `turma.lista_lida`. F2, 8.0: a
+ * gravação do texto responde 202 e enfileira, sem auditoria na requisição. 8.0:
  * os pedidos da turma, que a coordenação lê gravando `turma.reivindicacoes_lidas`; a decisão, que grava
  * `reivindicacao.decidida`; e a turma do aluno, sem auditoria.
  */
@@ -313,7 +314,7 @@ const ROTAS_DA_A1: readonly RotaDaA1[] = [
     alvoDoProfessor: (escola) => escola.turmaComVinculo,
     corpo: () => ({ texto: `${NOME_NA_LISTA};${matriculaNova()}` }),
     sucesso: 200,
-    resposta: previaDaListaResponseSchema,
+    resposta: previaDaPlanilhaResponseSchema,
     auditoria: [],
   },
   {
@@ -321,10 +322,12 @@ const ROTAS_DA_A1: readonly RotaDaA1[] = [
     alvo: (escola) => escola.turma,
     alvoDoProfessor: (escola) => escola.turmaComVinculo,
     corpo: () => ({ texto: `${NOME_NA_LISTA};${matriculaNova()}` }),
-    sucesso: 201,
-    resposta: gravacaoDaListaResponseSchema,
-    conflito: (escola) => ({ alvo: escola.turma, corpo: { texto: `${NOME_NA_LISTA};${escola.lista.matriculaLivre}` } }),
-    auditoria: ['lista.gravada'],
+    // F2, 8.0: grava o job, não a requisição. Responde 202 e não grava auditoria aqui (a `planilha.gravada` é do job). Sem `conflito`: a
+    // matrícula que a escola já tem deixou de ser CONFLITO, e o 409 que sobra (uma importação na fila por escola) precisa de uma
+    // importação na fila antes do sucesso, que esta varredura não monta: está em `lista.int.test.ts` (C8).
+    sucesso: 202,
+    resposta: gravarPlanilhaResponseSchema,
+    auditoria: [],
   },
   {
     rota: 'POST /v1/turmas/:id/lista/nome',
@@ -489,7 +492,11 @@ describe('escola montada (A1): as varreduras transversais sobre as rotas novas',
       `${nomes.nomeReivindicado};${matriculaReivindicada}`,
       ...matriculasParaReivindicar.map((matricula) => `${NOME_NA_LISTA};${matricula}`),
     ]
-    await criado(post(`/v1/turmas/${turmaComVinculo}/lista`, { texto: linhas.join('\n') }))
+    // Pelo nome avulso, que grava na hora: a gravação do texto responde 202 e grava no job (F2, 8.0), e esta montagem não roda job.
+    for (const linha of linhas) {
+      const [nome, matricula] = linha.split(';') as [string, string]
+      await criado(post(`/v1/turmas/${turmaComVinculo}/lista/nome`, { nome, matricula }))
+    }
     const { rows: daLista } = await bancada.pool.query<{ id: string; matricula: string }>('select id, matricula from lista_nome where escola_id = $1', [escolaId])
     const idDa = (matricula: string): string => {
       const id = daLista.find((linha) => linha.matricula === matricula)?.id

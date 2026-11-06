@@ -172,8 +172,7 @@ describe('medição das filas por escola, no despachante', () => {
       const [consulta] = enviadas
       if (consulta === undefined) throw new Error('o repository não consultou o banco')
 
-      const { rows } = await bancada.pool.query<{ 'QUERY PLAN': Array<{ Plan: NoDoPlano }> }>(`explain (analyze, format json) ${consulta.text}`, consulta.values)
-      const nos = nosDoPlano(rows[0]?.['QUERY PLAN'][0]?.Plan)
+      const nos = nosDoPlano(await bancada.explicar<NoDoPlano>(consulta.text, consulta.values))
       expect(nos.filter((no) => no['Node Type'] === 'Seq Scan' && no['Relation Name'] === 'job_registro')).toEqual([])
       expect(nos.map((no) => no['Index Name'])).toContain('job_registro_pendentes_urgentes_idx')
     } finally {
@@ -277,8 +276,7 @@ describe('medição das filas por escola, no despachante', () => {
       ])
       const [consulta] = enviadas
       if (consulta === undefined) throw new Error('o repository não consultou o banco')
-      const { rows } = await bancada.pool.query<{ 'QUERY PLAN': Array<{ Plan: NoDoPlano }> }>(`explain (analyze, format json) ${consulta.text}`, consulta.values)
-      const nos = nosDoPlano(rows[0]?.['QUERY PLAN'][0]?.Plan)
+      const nos = nosDoPlano(await bancada.explicar<NoDoPlano>(consulta.text, consulta.values))
       expect(nos.filter((no) => no['Node Type'] === 'Seq Scan' && no['Relation Name'] === 'job_registro')).toEqual([])
       expect(nos.map((no) => no['Index Name'])).toContain('job_registro_falhos_idx')
       expect(nos.map((no) => no['Index Name'])).not.toContain('job_registro_finalizados_idx')

@@ -18,6 +18,7 @@ export const TIPO_CONSOLIDAR_USO = 'sistema.consolidar-uso'
 export const TIPO_EXPURGAR_ACESSO = 'sistema.expurgar-acesso'
 export const TIPO_EXPURGAR_JOBS = 'sistema.expurgar-jobs'
 export const TIPO_EXPURGAR_DADO_PESSOAL = 'sistema.expurgar-dado-pessoal'
+export const TIPO_GRAVAR_PLANILHA = 'estrutura.gravar-planilha'
 export const TIPO_JOB_SINTETICO = 'sintetico'
 
 /**
@@ -94,9 +95,11 @@ const RETENTATIVA_DE_HOJE: JobRetry = { tentativas: 5, recuoMs: 2_000, jitter: 0
 
 const pedidoSchema = z.strictObject({ pedidoId: z.uuid() })
 const semDados = z.strictObject({})
+/** O job da planilha leva só o id da importação: a escola vem da linha do outbox, e o texto, o ano e as marcas, da `importacao_planilha`. */
+const importacaoSchema = z.strictObject({ importacaoId: z.uuid() })
 
 /**
- * Os 8 tipos de hoje. `prazoMs` é o maior tempo que o tipo leva, arredondado para cima, e a 43.0 o confere.
+ * Os 9 tipos de hoje. `prazoMs` é o maior tempo que o tipo leva, arredondado para cima, e a 43.0 o confere.
  */
 export const JOB_DEFINITIONS = {
   [TIPO_MONTAR_ARQUIVO]: defineJob({
@@ -162,6 +165,17 @@ export const JOB_DEFINITIONS = {
     retentativa: RETENTATIVA_DE_HOJE,
     prazoMs: 600_000,
     naoUrgente: true,
+  }),
+  // A planilha que a coordenação gravou (F2, tarefa 4.0): a fila `normal` e urgente (`naoUrgente: false`), porque a coordenação espera o fim na tela
+  // (RF15). O prazo cobre os três passos de uma planilha de 3.000 linhas, com as esperas de trava do passo (3).
+  [TIPO_GRAVAR_PLANILHA]: defineJob({
+    filas: ['normal'],
+    escopo: 'escola',
+    executor: 'worker',
+    dados: importacaoSchema,
+    retentativa: RETENTATIVA_DE_HOJE,
+    prazoMs: 300_000,
+    naoUrgente: false,
   }),
   // O sintético é o job de teste de carga: a fila e o não urgente vêm do corpo do `POST`, e o prazo cobre o teto de CPU dele.
   [TIPO_JOB_SINTETICO]: defineJob({

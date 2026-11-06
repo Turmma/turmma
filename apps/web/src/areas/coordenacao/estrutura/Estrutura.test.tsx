@@ -204,8 +204,17 @@ describe('os quatro estados da tela', () => {
     expect(within(regiao).getByText(/As turmas nascem no ano letivo em curso/)).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Ano letivo e disciplinas' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Nova turma' })).toBeNull()
+    // Sem ano em curso não há turma para a planilha: sem o botão dela.
+    expect(screen.queryByRole('button', { name: 'Importar alunos' })).toBeNull()
     expect(screen.queryByRole('radiogroup', { name: 'Situação' })).toBeNull()
     expect(caminhosDe(rede).filter((caminho) => caminho === '/v1/turmas' || caminho === '/v1/vinculos')).toEqual([])
+  })
+
+  it('sem ano em curso, o endereço do painel da planilha não abre nada', async () => {
+    instalar(fakeNetwork(), { anos: ok([ANO_PLANEJADO]) })
+    montar('/estrutura?painel=importar')
+    await screen.findByRole('region', { name: 'Turmas' })
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 
   it('o ano sem turma: o vazio das turmas, sem tabela', async () => {
@@ -475,6 +484,8 @@ describe('o painel "Ano letivo e disciplinas"', () => {
     await usuario.click(screen.getByRole('button', { name: 'Ano letivo e disciplinas' }))
     expect(localizacao.history?.at(-1)).toBe('/estrutura?painel=ano')
     const painel = await screen.findByRole('dialog', { name: 'Ano letivo e disciplinas' })
+    // O painel da planilha só abre com o endereço dele.
+    expect(screen.queryByRole('dialog', { name: 'Importar alunos' })).toBeNull()
     for (const nome of ['Ano letivo', 'Séries', 'Disciplinas']) expect(within(painel).getByRole('region', { name: nome })).toBeTruthy()
     expect(within(painel).getByRole('button', { name: 'Novo ano letivo' })).toBeTruthy()
     expect(within(painel).getByRole('button', { name: 'Nova série' })).toBeTruthy()
@@ -489,6 +500,32 @@ describe('o painel "Ano letivo e disciplinas"', () => {
     expect(screen.queryByRole('dialog', { name: 'Ano letivo e disciplinas' })).toBeNull()
     // Abrir é um passo no histórico; fechar troca o endereço, sem passo novo: o Voltar não reabre o painel.
     expect(localizacao.history).toEqual(['/estrutura', '/estrutura'])
+  })
+
+  it('"Importar alunos" abre o painel no endereço; ao gravar, as turmas são lidas de novo e o anúncio diz que já estão atualizadas', async () => {
+    const usuario = userEvent.setup()
+    const rede = fakeNetwork()
+    instalar(rede)
+    const importacao = id(900)
+    rede.responderPor('/v1/importacoes/alunos/previa', { status: 200, corpo: { linhas: [{ linha: 2, resultado: 'entra' }], contagens: { entram: 1 }, candidatos: [] } })
+    rede.responderPor('/v1/importacoes/alunos', { status: 202, corpo: { id: importacao } })
+    rede.responderPor(`/v1/importacoes/${importacao}`, {
+      status: 200,
+      corpo: { id: importacao, tipo: 'alunos', estado: 'concluida', resumo: { entram: 1 }, erro: null, criadoEm: '2026-11-04T10:00:00-03:00', concluidaEm: '2026-11-04T10:00:01-03:00' },
+    })
+    const localizacao = await montarEEsperar()
+    const leiturasAntes = caminhosDe(rede).filter((caminho) => caminho === '/v1/turmas').length
+    await usuario.click(screen.getByRole('button', { name: 'Importar alunos' }))
+    expect(localizacao.history?.at(-1)).toBe('/estrutura?painel=importar')
+    const painel = await screen.findByRole('dialog', { name: 'Importar alunos' })
+    await usuario.upload(within(painel).getByLabelText('Arquivo da planilha (Excel ou CSV)'), new File(['turma;nome;matricula\n7ºA;Ana Souza;2026001\n'], 'alunos.csv', { type: 'text/csv' }))
+    await usuario.click(await within(painel).findByRole('button', { name: 'Gravar planilha' }))
+    await within(painel).findByRole('heading', { name: 'Planilha gravada' })
+
+    await waitFor(() => expect(caminhosDe(rede).filter((caminho) => caminho === '/v1/turmas').length).toBeGreaterThan(leiturasAntes))
+    expect(screen.getByText('Planilha gravada. As turmas abaixo já estão atualizadas.')).toBeTruthy()
+    await usuario.click(within(painel).getByRole('button', { name: 'Fechar' }))
+    expect(localizacao.history?.at(-1)).toBe('/estrutura')
   })
 
   it('pelo endereço, abre já com o painel; parâmetro desconhecido não abre nada', async () => {

@@ -47,29 +47,39 @@ function arquivosDoRepositorio(): Arquivo[] {
  */
 const ZONAS_DAS_CLASSES_CERCADAS: readonly { classe: string; uso: RegExp; zona: readonly string[] }[] = [
   { classe: 'TenantResolutionRepository', uso: /\bTenantResolutionRepository\b|tenant-resolution\.repository/, zona: ['apps/api/src/sessao/'] },
-  { classe: 'ContaGlobalRepository', uso: /\bContaGlobalRepository\b|conta-global\.repository|@educa\/core\/conta-global/, zona: ['apps/api/src/sessao/', 'packages/core/src/ciclo-de-vida/'] },
+  { classe: 'ContaGlobalRepository', uso: /\bContaGlobalRepository\b|conta-global\.repository|@educa\/core\/conta-global/, zona: ['apps/api/src/sessao/', 'packages/core/src/ciclo-de-vida/', 'packages/core/src/estrutura/cadastro-de-professor.ts'] },
   // A zona do painel é o arquivo do service e o do repository, e não a pasta `operacao/painel/`.
   { classe: 'PainelRepository', uso: /\bPainelRepository\b|painel\.repository/, zona: ['apps/api/src/operacao/painel/painel.service.ts', 'apps/api/src/operacao/painel/painel.repository.ts'] },
+  // O cadastro do professor acha ou cria a conta global pelo e-mail, sem escopo: só `sessao/` o chama. Cercar a classe não basta, porque a função a repassa (onboarding-por-convite, 1.0, tenancy-guardian).
+  { classe: 'contaDoProfessor', uso: /\bcontaDoProfessor\b|cadastro-de-professor|@educa\/core\/cadastro-de-professor/, zona: ['apps/api/src/sessao/', 'apps/worker/src/processors/gravar-planilha.ts', 'packages/core/src/estrutura/cadastro-de-professor.ts'] },
 ]
+
+/** A entrada da zona que termina em `/` é uma pasta (o caminho começa por ela); a outra é um arquivo, e só ele (`cadastro-de-professor.tsx` e `.ts.bak` não são a zona). */
+function dentroDaEntrada(caminho: string, entrada: string): boolean {
+  return entrada.endsWith('/') ? caminho.startsWith(entrada) : caminho === entrada
+}
 
 /** `classe: caminho`, de cada arquivo de produção fora da zona dela que a cita no código (comentário não conta). */
 function usosForaDaZona(arquivos: readonly Arquivo[]): string[] {
   return ZONAS_DAS_CLASSES_CERCADAS.flatMap(({ classe, uso, zona }) =>
     arquivos
       .filter((arquivo) => !deTeste(arquivo.caminho) && !arquivo.caminho.includes('/__fixtures__/'))
-      .filter((arquivo) => !zona.some((permitido) => arquivo.caminho.startsWith(permitido)))
+      .filter((arquivo) => !zona.some((permitido) => dentroDaEntrada(arquivo.caminho, permitido)))
       .filter((arquivo) => uso.test(semComentarios(arquivo.texto)))
       .map((arquivo) => `${classe}: ${arquivo.caminho}`),
   )
 }
 
 describe('arquitetura: o nome das classes cercadas só aparece dentro da zona de cada uma, também pelo reexport (X5, 12.0)', () => {
-  it('a varredura enxerga o código: acha as três classes dentro da zona delas', () => {
+  it('a varredura enxerga o código: acha as três classes dentro da zona delas, e cada entrada da zona, arquivo ou pasta, tem quem use a classe', () => {
     const arquivos = arquivosDoRepositorio()
     expect(arquivos.length).toBeGreaterThan(100)
     for (const { classe, uso, zona } of ZONAS_DAS_CLASSES_CERCADAS) {
-      const dentro = arquivos.filter((arquivo) => zona.some((permitido) => arquivo.caminho.startsWith(permitido)) && uso.test(semComentarios(arquivo.texto)))
-      expect(dentro.length, classe).toBeGreaterThan(0)
+      // Uma a uma: a zona por arquivo que some ou muda de lugar (o cadastro do professor) deixa de achar a classe e o caso cai, em vez de a cerca olhar o vazio.
+      for (const permitido of zona) {
+        const dentro = arquivos.filter((arquivo) => dentroDaEntrada(arquivo.caminho, permitido) && uso.test(semComentarios(arquivo.texto)))
+        expect(dentro.length, `${classe}: ${permitido}`).toBeGreaterThan(0)
+      }
     }
   })
 
@@ -84,6 +94,21 @@ describe('arquitetura: o nome das classes cercadas só aparece dentro da zona de
       { caminho: 'packages/core/src/retencao/vaza.ts', texto: "import { ContaGlobalRepository } from '../ciclo-de-vida/ponte.js'" },
       { caminho: 'tools/vaza.ts', texto: "import { TenantResolutionRepository } from '../apps/api/src/sessao/login/ponte.js'" },
       { caminho: 'infra/vaza.ts', texto: "import { ContaGlobalRepository } from '../apps/api/src/sessao/login/ponte.js'" },
+      // A cerca da conta global em `estrutura/` é o arquivo do cadastro do professor, e não a pasta: o vizinho é acusado, por qualquer forma de chegar à classe.
+      { caminho: 'packages/core/src/estrutura/vizinho.ts', texto: "import { ContaGlobalRepository } from '../ciclo-de-vida/conta-global.repository.js'" },
+      { caminho: 'packages/core/src/estrutura/vizinho-reexporta.ts', texto: "export { ContaGlobalRepository as Conta } from '../ciclo-de-vida/ponte.js'" },
+      { caminho: 'packages/core/src/estrutura/vizinho-dinamico.ts', texto: "export const carregar = () => import('../ciclo-de-vida/conta-global.repository.js')" },
+      { caminho: 'packages/core/src/estrutura/vizinho-require.ts', texto: "export const carregada = require('../ciclo-de-vida/conta-global.repository')" },
+      { caminho: 'packages/core/src/estrutura/vizinho-subcaminho.ts', texto: "export const carregar = () => import('@educa/core/conta-global')" },
+      { caminho: 'packages/core/src/estrutura/vizinho-texto.ts', texto: "export const caminho = '../ciclo-de-vida/conta-global.repository.js'" },
+      { caminho: 'packages/core/src/estrutura/cadastro-de-professor-2.ts', texto: "import { ContaGlobalRepository } from '../ciclo-de-vida/conta-global.repository.js'" },
+      // A zona é o arquivo, e só ele: o mesmo nome com outra extensão ou com sufixo é vizinho.
+      { caminho: 'packages/core/src/estrutura/cadastro-de-professor.tsx', texto: "import { ContaGlobalRepository } from '../ciclo-de-vida/conta-global.repository.js'" },
+      { caminho: 'packages/core/src/estrutura/cadastro-de-professor.ts.bak', texto: "import { ContaGlobalRepository } from '../ciclo-de-vida/conta-global.repository.js'" },
+      // O cadastro em si é cercado também: o barril da estrutura que o reexporta, um service de fora de `sessao/` que o chama pelo subcaminho, e o caminho como texto.
+      { caminho: 'packages/core/src/estrutura/index.ts', texto: "export { contaDoProfessor } from './cadastro-de-professor.js'" },
+      { caminho: 'apps/api/src/estrutura/turma/vaza-cadastro.ts', texto: "import { contaDoProfessor } from '@educa/core/cadastro-de-professor'" },
+      { caminho: 'apps/worker/src/vaza-texto.ts', texto: "export const carregar = () => import('@educa/core/cadastro-de-professor')" },
       // Outro arquivo da pasta do painel não é a zona.
       { caminho: 'apps/api/src/operacao/painel/relatorio.ts', texto: "import { PainelRepository } from './painel.repository.js'" },
     ]
@@ -91,6 +116,8 @@ describe('arquitetura: o nome das classes cercadas só aparece dentro da zona de
       { caminho: 'apps/api/src/sessao/login/ponte.ts', texto: "export { TenantResolutionRepository } from '../tenant/tenant-resolution.repository.js'" },
       { caminho: 'packages/core/src/ciclo-de-vida/ponte.ts', texto: "export { ContaGlobalRepository } from './conta-global.repository.js'" },
       { caminho: 'apps/api/src/operacao/painel/painel.service.ts', texto: "import { PainelRepository } from './painel.repository.js'" },
+      { caminho: 'packages/core/src/estrutura/cadastro-de-professor.ts', texto: "import { ContaGlobalRepository } from '../ciclo-de-vida/conta-global.repository.js'\nexport async function contaDoProfessor() {}" },
+      { caminho: 'apps/api/src/sessao/convite/convite.service.ts', texto: "import { contaDoProfessor } from '@educa/core/cadastro-de-professor'" },
     ]
     const inocentes = [
       { caminho: 'apps/api/test/painel-leitura.int.test.ts', texto: "import { PainelRepository } from '../src/operacao/painel/painel.repository.js'" },
@@ -102,8 +129,20 @@ describe('arquitetura: o nome das classes cercadas só aparece dentro da zona de
       'TenantResolutionRepository: tools/vaza.ts',
       'ContaGlobalRepository: packages/core/src/retencao/vaza.ts',
       'ContaGlobalRepository: infra/vaza.ts',
+      'ContaGlobalRepository: packages/core/src/estrutura/vizinho.ts',
+      'ContaGlobalRepository: packages/core/src/estrutura/vizinho-reexporta.ts',
+      'ContaGlobalRepository: packages/core/src/estrutura/vizinho-dinamico.ts',
+      'ContaGlobalRepository: packages/core/src/estrutura/vizinho-require.ts',
+      'ContaGlobalRepository: packages/core/src/estrutura/vizinho-subcaminho.ts',
+      'ContaGlobalRepository: packages/core/src/estrutura/vizinho-texto.ts',
+      'ContaGlobalRepository: packages/core/src/estrutura/cadastro-de-professor-2.ts',
+      'ContaGlobalRepository: packages/core/src/estrutura/cadastro-de-professor.tsx',
+      'ContaGlobalRepository: packages/core/src/estrutura/cadastro-de-professor.ts.bak',
       'PainelRepository: apps/api/src/estrutura/turma/vaza.ts',
       'PainelRepository: apps/api/src/operacao/painel/relatorio.ts',
+      'contaDoProfessor: packages/core/src/estrutura/index.ts',
+      'contaDoProfessor: apps/api/src/estrutura/turma/vaza-cadastro.ts',
+      'contaDoProfessor: apps/worker/src/vaza-texto.ts',
     ])
   })
 })
@@ -117,18 +156,28 @@ describe('arquitetura: o nome das classes cercadas só aparece dentro da zona de
  * `guarda:camadas` (X5, 12.0), por import direto; o que os barris trazem em execução, o reexport que ela não vê, é conferido aqui.
  */
 describe('arquitetura: a conta global só pelo módulo sessao e pelo ciclo de vida (F3, tarefa 1.0)', () => {
-  it('nem o barrel do @educa/nucleo nem o subcaminho do ciclo de vida exportam a ContaGlobalRepository, com o nome dela ou outro', async () => {
+  it('nem o barrel do @educa/nucleo nem os subcaminhos do ciclo de vida, da estrutura e do cadastro do professor exportam a ContaGlobalRepository, com o nome dela ou outro', async () => {
     const { ContaGlobalRepository } = await import('@educa/core/conta-global')
     const cicloDeVida = await import('@educa/core/ciclo-de-vida')
+    const estrutura = await import('@educa/core/estrutura')
+    const cadastro = await import('@educa/core/cadastro-de-professor')
     for (const [nome, modulo] of [
       ['@educa/core', nucleo],
       ['@educa/core/ciclo-de-vida', cicloDeVida],
+      ['@educa/core/estrutura', estrutura],
+      ['@educa/core/cadastro-de-professor', cadastro],
     ] as const) {
       expect(Object.keys(modulo), nome).not.toContain('ContaGlobalRepository')
       expect(Object.values(modulo), nome).not.toContain(ContaGlobalRepository)
     }
     // O subcaminho do ciclo de vida é o que a API e o worker usam: o serviço sai por ele.
     expect(Object.keys(cicloDeVida)).toContain('CicloDeVidaService')
+    // O barril da estrutura é lido de verdade (os repositories saem por ele) e não repassa o cadastro: o `contaDoProfessor` tem o subcaminho próprio, cercado.
+    expect(Object.keys(estrutura)).toContain('TurmaRepository')
+    expect(Object.keys(estrutura)).not.toContain('contaDoProfessor')
+    expect(Object.keys(estrutura)).not.toContain('travarContasDoProfessor')
+    // O subcaminho do cadastro entrega as duas funções que repassam a conta sem escopo (6.0): achar ou criar, e travar as do passo (3).
+    expect(Object.keys(cadastro).sort()).toEqual(['contaDoProfessor', 'travarContasDoProfessor'])
   })
 
   it('nem o barrel de credencial/ exporta a ResolucaoDeTenantRepository nem a ContaGlobalRepository, com o nome dela ou outro (33.0)', async () => {
@@ -1331,6 +1380,7 @@ const QUEM_USA_A_ROTINA = [
   'apps/worker/src/arquivo-gauge.ts',
   'apps/worker/src/expurgo-gauge.ts',
   'apps/worker/src/incidente-gauge.ts',
+  'apps/worker/src/importacao-gauge.ts',
   'apps/worker/src/escola-gauge.ts',
   'apps/worker/src/composition.ts',
   'apps/worker/src/processors/expurgar-dado-pessoal.ts',
@@ -1369,7 +1419,7 @@ describe('arquitetura: o que a auditoria diz de outra pessoa não entra no arqui
    * rotina** assinam, mais `usuario.ativado_por_convite`, em que quem assina é a própria pessoa e o id é o dela. Ação nova com
    * `entidade: 'usuario'` obriga a quem a cria a ler este comentário e a decidir quem a assina.
    */
-  const COORDENACAO_OPERACAO_E_ROTINA = ['professor.cadastrado', 'usuario.desativado', 'usuario.eliminado', 'usuario.mfa_redefinicao_recusada', 'usuario.mfa_redefinido']
+  const COORDENACAO_OPERACAO_E_ROTINA = ['aluno.transferido', 'professor.cadastrado', 'usuario.desativado', 'usuario.eliminado', 'usuario.mfa_redefinicao_recusada', 'usuario.mfa_redefinido', 'usuario.nome_corrigido']
   const A_PROPRIA_PESSOA = ['usuario.ativado_por_convite']
 
   it('as ações sobre `usuario` são exatamente estas, e nenhuma é de professor ou aluno sobre outra pessoa', () => {

@@ -84,8 +84,8 @@ export function agruparPorSerie(turmas: readonly TurmaDaTabela[]): GrupoDeSerie[
   return grupos
 }
 
-/** O que abre por cima da tela, no endereço: `?painel=ano` ou `?painel=falta`. Valor desconhecido é ignorado. */
-export const PAINEIS_DA_ESTRUTURA = ['ano', 'falta'] as const
+/** O que abre por cima da tela, no endereço: `?painel=ano`, `?painel=falta` ou `?painel=importar`. Valor desconhecido é ignorado. */
+export const PAINEIS_DA_ESTRUTURA = ['ano', 'falta', 'importar'] as const
 export type PainelDaEstrutura = (typeof PAINEIS_DA_ESTRUTURA)[number]
 
 export function painelDoEndereco(busca: string): PainelDaEstrutura | undefined {

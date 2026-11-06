@@ -1,4 +1,5 @@
-import { acessoTurma, anoLetivo, requireEscolaId, listaNome, reivindicacao, type Database, type DatabaseTransaction } from '@educa/core'
+import { acessoTurma, anoLetivo, requireEscolaId, listaNome, type Database, type DatabaseTransaction } from '@educa/core'
+import { DecisaoRepository } from '@educa/core/estrutura'
 import type { AnoLetivo, PaginationQuery, CriarAnoLetivoRequest, SituacaoDoAnoLetivo } from '@educa/shared'
 import { and, asc, eq, gt, inArray, isNull, sql } from 'drizzle-orm'
 import { InvariantException } from '@educa/shared'
@@ -65,9 +66,9 @@ export class AnoLetivoRepository {
    * do `encerrar` e depois de o ano ter mudado para `encerrado`. Três escritas, nesta ordem:
    *
    * 1. Revoga todo acesso da turma do ano ainda não revogado, vencido ou não: nenhum link nem código do ano sobra aberto.
-   * 2. Fecha os pedidos `pendente` do ano como `encerrada`, sem o hash, a chave e a marca de matrícula errada (check
-   *    `reivindicacao_segredo_so_pendente`). Não é decisão (regra 70, item 2): `decidida_por`, `decidida_em` e
-   *    `decidida_como` continuam nulos.
+   * 2. Fecha os pedidos `pendente` do ano como `encerrada` pelo `DecisaoRepository.fechar(…, 'encerrada')`, a mesma função da
+   *    transferência pela planilha: sem o hash, a chave e a marca de matrícula errada (check `reivindicacao_segredo_so_pendente`).
+   *    Não é decisão (regra 70, item 2): `decidida_por`, `decidida_em` e `decidida_como` continuam nulos.
    * 3. Apaga os nomes `livre` e `reivindicado` do ano (a minimização vence a exclusão lógica; `docs/lgpd.md`). O `set null`
    *    da FK deixa sem nome os pedidos que apontavam para eles (o recusado, o encerrado); o `aprovado` fica.
    *
@@ -82,11 +83,7 @@ export class AnoLetivoRepository {
       .set({ revogadoEm: sql`now()` })
       .where(and(eq(acessoTurma.escolaId, escolaId), eq(acessoTurma.anoLetivoId, anoLetivoId), isNull(acessoTurma.revogadoEm)))
       .returning({ id: acessoTurma.id })
-    const encerrados = await this.banco
-      .update(reivindicacao)
-      .set({ estado: 'encerrada', senhaHash: null, chaveEnvio: null, teveMatriculaErrada: null })
-      .where(and(eq(reivindicacao.escolaId, escolaId), eq(reivindicacao.anoLetivoId, anoLetivoId), eq(reivindicacao.estado, 'pendente')))
-      .returning({ id: reivindicacao.id })
+    const encerrados = await new DecisaoRepository(this.banco).fechar({ anoLetivoId }, 'encerrada')
     const apagadas = await this.banco
       .delete(listaNome)
       .where(and(eq(listaNome.escolaId, escolaId), eq(listaNome.anoLetivoId, anoLetivoId), inArray(listaNome.estado, ['livre', 'reivindicado'])))

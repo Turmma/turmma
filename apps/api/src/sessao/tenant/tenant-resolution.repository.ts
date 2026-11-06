@@ -1,5 +1,5 @@
-import { acessoTurma, anoLetivo, codigoRecuperacao, conta, convite, DomainException, escola, rede, registroAcesso, Unscoped, sessao, usuario, type Database, type EstadoDaSessao, type MotivoDeEncerramento, type TipoDeConvite, type DatabaseTransaction } from '@educa/core'
-import { ErrorCode, type PapelDeUsuario } from '@educa/shared'
+import { acessoTurma, anoLetivo, codigoRecuperacao, conta, convite, escola, rede, registroAcesso, Unscoped, sessao, usuario, type Database, type EstadoDaSessao, type MotivoDeEncerramento, type TipoDeConvite, type DatabaseTransaction } from '@educa/core'
+import type { PapelDeUsuario } from '@educa/shared'
 import { and, eq, gt, gte, isNotNull, isNull, lt, ne, or, sql, type SQL } from 'drizzle-orm'
 
 /**
@@ -435,28 +435,6 @@ export class TenantResolutionRepository {
   async escolaPorSlug(slug: string): Promise<string | undefined> {
     const [linha] = await this.banco.select({ id: escola.id }).from(escola).where(eq(escola.slug, slug)).limit(1)
     return linha?.id
-  }
-
-  /**
-   * Acha ou cria a conta do e-mail, para o convite do coordenador (7.0) e o do professor (A1, tarefa 3.0): conta nova
-   * nasce sem senha. Não lê nada da conta existente além do id, e quem chama não diz ao operador nem à coordenação se ela
-   * já existia.
-   *
-   * A conta existente fica travada (`FOR NO KEY UPDATE`) até o fim da transação do convite (17.0): a limpeza da conta
-   * sem uso, na desativação ou no expurgo da madrugada, não apaga o e-mail de uma conta que está recebendo convite (o
-   * expurgo a pula, com `skip locked`, e a desativação espera). Se a limpeza travou antes, esta leitura espera o commit
-   * dela, relê a linha, e a conta sem e-mail não é achada: o convite cria outra conta, com o e-mail.
-   */
-  @Unscoped('a conta é global e não tem escola: o convite da coordenação, pelo comando ou pelo painel, e o do professor, pela coordenação da escola, acham ou criam a conta pelo e-mail, travando a existente, sem ler nada dela, e devolvem só o id e se ela é nova')
-  async contaParaConvite(email: string): Promise<{ id: string; nova: boolean }> {
-    for (let tentativa = 0; tentativa < 3; tentativa++) {
-      const [criada] = await this.banco.insert(conta).values({ email }).onConflictDoNothing({ target: conta.email }).returning({ id: conta.id })
-      if (criada !== undefined) return { id: criada.id, nova: true }
-      const [existente] = await this.banco.select({ id: conta.id }).from(conta).where(eq(conta.email, email)).limit(1).for('no key update')
-      if (existente !== undefined) return { id: existente.id, nova: false }
-    }
-    // Três limpezas seguidas da mesma conta no meio de um convite não acontecem: se acontecer, o operador tenta de novo.
-    throw new DomainException(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
   }
 
   /**

@@ -471,8 +471,20 @@ de hoje (A5), que o F12 completa:
 em agregado; recorte com um professor só conta como nominal (D32 e D45 revistas). Hoje existe o
 resumo (A5); a X2 o põe na página de conversa, sem perguntas livres.
 
-**Escola** tem três abas, **Turmas, Professores e Material**, que recebem os itens Estrutura,
-Professores e Material de hoje. Grade horária e calendário entram pelo menu de Escola, com o F2.
+**Escola** tem quatro abas, **Turmas, Professores, Material e Grade e calendário**, que recebem os
+itens Estrutura, Professores e Material de hoje; a quarta nasce com o F2 (D73), no endereço
+`/coordenacao/grade`, e acende Escola na lateral.
+
+**Grade e calendário** (F2, 14.0) tem três blocos, de cima para baixo: os **modelos das quatro
+planilhas** para baixar (alunos, professores, grade e calendário, com o cabeçalho de
+`packages/shared` e mais nada); a **grade horária**, uma turma por vez, em tabela com os dias nas
+colunas e os horários nas linhas (cabeçalho de coluna e de linha; a tela mostra o nome do professor,
+nunca o e-mail), que rola dentro do cartão a 360 px; e o **calendário do ano em curso**, com o
+seletor do ano **planejado**, que só se lê. "Importar grade" e "Importar calendário" abrem o painel da
+planilha (`?painel=importar-grade` e `?painel=importar-calendario`), o mesmo de "Importar alunos": a
+prévia traz os avisos de horário (professor em duas turmas, turma com duas aulas, que gravam assim) e
+o que a planilha **tira** do ano, e a grade e o calendário gravam no ano em curso. Cada leitura tem
+os quatro estados; o vazio da grade convida a "Baixar modelo".
 
 - **Estrutura**: séries, turmas, listas de nomes, grade horária e calendário importados,
   alocação de professor × turma × disciplina, convites de professor e conexão opcional com
@@ -482,10 +494,25 @@ Professores e Material de hoje. Grade horária e calendário entram pelo menu de
   por turma, alocação e convite ao professor; grade horária e calendário vêm com o F2 (D71
   revista). Na A1 o cadastro e o convite do professor têm tela própria, **Professores**, item da lateral ao lado de
   Estrutura (tarefa 14.0; Tech Spec da A1, seção 9): cadastrar com nome e e-mail, copiar o link que aparece uma vez,
-  refazer e revogar. O roteiro da Estrutura e o vazio da Alocação levam a ela. Dentro da turma aberta, embaixo da lista
+  refazer e revogar. O roteiro da Estrutura e o vazio da Alocação levam a ela. **"Importar professores"** (F2, 15.0) é um botão
+  secundário ao lado de "Cadastrar professor", e também no vazio, que abre o painel `?painel=importar` com a **mesma peça de planilha**
+  dos alunos: a prévia vem antes de gravar (até 300 linhas; os erros em frase com o que fazer, e o e-mail repetido, em qualquer caixa,
+  é uma pessoa só, com aviso), e quem a planilha traz é cadastrado `pendente`, com o convite em aberto. A gravação não mostra link
+  nenhum: o link se pega **depois**, abrindo o professor na lista e usando "Refazer convite" (o `convite/refazer`), que mostra o link
+  uma vez, com "Copiar link"; o texto do resultado diz isso. Quem está na escola e não está na planilha **continua**, e só sai com a
+  marca de desligar: "Estão na escola, mas não aparecem na planilha", desmarcada, com "Marcar todos para desligar" também desmarcado
+  (regra 70; cada gravação desliga **até 100** pessoas: acima disso o rótulo vira "Marcar os primeiros 100 para desligar", a tela diz
+  que é para gravar e enviar a planilha de novo, e a lista mostra quem ainda falta), e a marca é rotulada **só com o nome** que a escola já tem, sem e-mail (a API não o manda, E11; Tech Spec, seção 9),
+  e só `ativo` e `aceito` são candidatos. Perto de "Gravar professores" uma linha diz o que a marca vai fazer ("1 professor será
+  desligado e perde o acesso"). "Cadastrar professor" segue a única ação cheia da tela. Dentro da turma aberta, embaixo da lista
   de nomes, a coordenação também decide os **pedidos de nome** (tarefa 16.0), com a mesma peça do professor: a lista só é
   lida no clique em "Atualizar", porque cada consulta fica na auditoria em nome dela, e a tela diz isso. Os alunos já
-  aprovados aparecem na lista de nomes como uma contagem, sem o nome
+  aprovados aparecem na lista de nomes como uma contagem, sem o nome. A lista de nomes e a escola inteira entram pela **mesma peça de planilha** (F2, 13.0): a coordenação
+  escolhe o CSV ou o Excel (.xlsx) pelo botão "Escolher arquivo" (em português, com "Nenhum arquivo escolhido"; o campo do navegador fica escondido, porque ele escreve no idioma do computador), a tela lê o arquivo no navegador e manda o texto à API, e a **prévia** (linhas lidas, com erro e
+  com aviso; os erros primeiro, de cem em cem, em frase com o que fazer) vem antes de qualquer gravação. Não há campo para colar
+  texto. "Importar alunos" é um botão secundário da aba Turmas e abre um painel lateral; o que a planilha põe em outra turma ou deixa
+  de fora chega **desmarcado**, em "Você decide", e só muda quem a coordenação marca (regra 70); cada gravação desliga **até 100** pessoas: com mais candidatos a desligar que isso, o rótulo vira "Marcar os primeiros 100 para desligar", os demais ficam sem marcar até alguém ser desmarcado, e a tela diz que é para gravar e enviar a planilha de novo, porque a prévia seguinte mostra quem ainda falta; perto de "Gravar planilha" uma linha diz o que as marcas escolhidas vão fazer, e o resultado diz quantas linhas ficaram de fora e por quê. O leitor de Excel só é baixado
+  quando alguém escolhe um .xlsx, e a gravação, enfileirada, é acompanhada até concluir, sem desistir (regra 80)
 - **Material**: **só a coordenação sobe material para a base da escola**; professor e aluno não
   sobem (D75). Fontes com titularidade e licença, upload, estado da ingestão com o que entrou,
   o que falhou, o que está pendente e o que foi recusado por falta de licença (F4,

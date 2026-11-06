@@ -14,7 +14,7 @@ import { usuario } from './usuario.js'
  *   estado e o usuário: o nome e a matrícula passam a viver no `usuario` e na `credencial_matricula`
  *   (`docs/lgpd.md`, "Lista de nomes da turma"); o livre e o reivindicado têm os dois, e nenhum usuário.
  * - FK composta `(escola_id, ano_letivo_id, turma_id)` para a turma, sem ação: a turma com nome na lista não se exclui
- *   (o 23503 vira `CONFLITO` em `apps/api/src/estrutura/exclusao.ts`), e a linha nunca aponta para a turma de outra
+ *   (o 23503 vira `CONFLITO` em `packages/core/src/estrutura/exclusao.ts`), e a linha nunca aponta para a turma de outra
  *   escola nem de outro ano.
  * - `usuario_id` por FK composta com a escola, sem ação: a eliminação do aluno apaga antes a linha dele (10.0).
  * - `criado_por` por FK composta com a escola, `on delete set null (criado_por)` (escrito à mão na 0019): a eliminação

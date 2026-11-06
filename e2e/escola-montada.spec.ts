@@ -22,7 +22,6 @@ const SENHA_DA_ALUNA = 'a frase que só a aluna sabe'
 const principal = (page: Page) => page.getByRole('main')
 /** O diálogo de formulário ou de confirmação, e não o painel (o painel do ano letivo guarda o diálogo que abre por cima dele). */
 const dialogo = (page: Page) => page.locator('dialog[open]:not([data-painel-lado])')
-const anuncio = (lugar: Locator, texto: string) => lugar.getByRole('status').filter({ hasText: texto })
 
 async function activate(alvo: Locator, hasTouch: boolean): Promise<void> {
   if (hasTouch) await alvo.tap()
@@ -112,15 +111,16 @@ test('W1: da escola vazia à aluna aprovada, só pela tela — a coordenação m
   await expect(principal(page).getByRole('region', { name: 'Turmas de 2026' })).toContainText(turma)
   await conferirTela(page)
 
-  // A lista de nomes da turma, colada.
+  // A lista de nomes da turma, pelo arquivo.
   await activate(principal(page).getByRole('link', { name: `Lista de nomes da turma ${turma}` }), hasTouch)
   await expect(principal(page).getByRole('heading', { level: 1, name: `Turma ${turma}` })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
-  await principal(page).getByLabel('Lista colada').fill(`nome;matrícula\n${aluna.nome};${aluna.matricula}\n${colega.nome};${colega.matricula}\n`)
-  await activate(botao(principal(page), 'Ver a prévia'), hasTouch)
+  await principal(page)
+    .getByLabel('Arquivo da planilha (Excel ou CSV)')
+    .setInputFiles({ name: 'lista.csv', mimeType: 'text/csv', buffer: Buffer.from(`nome;matrícula\n${aluna.nome};${aluna.matricula}\n${colega.nome};${colega.matricula}\n`, 'utf8') })
   const previa = principal(page).getByRole('region', { name: 'Prévia' })
-  await expect(previa.getByRole('status')).toHaveText('2 nomes entram · 0 já estão na lista · 0 linhas com erro', { timeout: SIGN_IN_TIMEOUT_MS })
+  await expect(previa.getByRole('status')).toHaveText('2 linhas lidas · 0 com erro · 0 com aviso', { timeout: SIGN_IN_TIMEOUT_MS })
   await activate(botao(previa, 'Gravar lista'), hasTouch)
-  await expect(anuncio(principal(page).getByRole('region', { name: 'Nomes da turma' }), '2 nomes gravados na lista.')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+  await expect(principal(page).getByRole('region', { name: 'Planilha gravada' })).toContainText('2 alunos entraram.', { timeout: SIGN_IN_TIMEOUT_MS })
 
   // O professor, com o convite de cópia única.
   await irPelaCoordenacao(page, 'Professores', hasTouch)

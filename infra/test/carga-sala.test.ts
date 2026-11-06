@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { errosDasLinhas, lerTextoDaLista } from '../../apps/api/src/estrutura/lista/lista-reader.ts'
+import { lerTextoDaLista } from '../../apps/api/src/estrutura/lista/lista-reader.ts'
+import { classificar } from '../../packages/core/src/importacao/tipos/alunos.ts'
 import { raizRepositorio } from '../../tools/ci/executar.ts'
 import { CODIGO_THRESHOLD_CRUZADO } from '../scripts/carga.ts'
 import type { ResumoDaFase } from '../scripts/carga-login.ts'
@@ -75,7 +76,10 @@ describe('os alunos do cenário "reivindicação em sala"', () => {
       const alunos = montarAlunos(ESCALA[fase])
       const linhas = lerTextoDaLista(textoDaLista(alunos, 3))
       expect(linhas, fase).toHaveLength(ALUNOS_POR_TURMA)
-      expect(errosDasLinhas(linhas).filter((erro) => erro !== undefined), fase).toEqual([])
+      // A classificação da planilha de alunos, com a turma dada: nenhuma linha da lista da carga tem erro.
+      const turma = { id: 'turma-da-carga', nome: 'Turma 04', chave: null, serie: { id: 'serie-da-carga', etapa: 'em' as const, ano: 1 } }
+      const classificada = classificar('ano-da-carga', linhas.map((linha) => ({ ...linha, turma: '', turmaId: turma.id })), [turma], new Set())
+      expect(classificada.linhas.filter((linha) => linha.resultado === 'erro'), fase).toEqual([])
       expect(linhas.map((linha) => linha.matricula), fase).toEqual(alunos.filter((aluno) => aluno.turma === 3).map((aluno) => aluno.matricula))
     }
   })

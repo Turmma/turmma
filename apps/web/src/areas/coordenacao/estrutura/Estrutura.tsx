@@ -56,6 +56,7 @@ import {
   type TipoDeDialogoDoPainel,
 } from './AnoEDisciplinas'
 import { enderecoComParametro } from '../comum/endereco-da-tela'
+import { PainelDaImportacaoDeAlunos } from '../importacao/PainelDaImportacaoDeAlunos'
 import { textoDaListaCurta } from './lista-curta'
 import { NOME_DO_TURNO } from './nome-do-turno'
 import { oQueFaltaDaEscola, passosDoRoteiro } from './o-que-falta-da-escola'
@@ -272,6 +273,11 @@ export default function Estrutura() {
                 <button type="button" onClick={() => abrirPainel('ano')} className={SECONDARY_BUTTON_CLASSES}>
                   Ano letivo e disciplinas
                 </button>
+                {anoEmCurso !== undefined && (
+                  <button type="button" onClick={() => abrirPainel('importar')} className={SECONDARY_BUTTON_CLASSES}>
+                    Importar alunos
+                  </button>
+                )}
                 {anoEmCurso !== undefined && <Button onClick={() => abrir('turma')}>Nova turma</Button>}
               </div>
             }
@@ -308,6 +314,16 @@ export default function Estrutura() {
               tituloDoAno={tituloDoAno}
               tituloDasSeries={tituloDasSeries}
               tituloDasDisciplinas={tituloDasDisciplinas}
+              aoFechar={fecharPainel}
+              focoDeReserva={focoNoTituloDasTurmas}
+            />
+          )}
+          {painel === 'importar' && anoEmCurso !== undefined && (
+            <PainelDaImportacaoDeAlunos
+              aoConcluir={() => {
+                anunciar('turmas', 'Planilha gravada. As turmas abaixo já estão atualizadas.')
+                return recarregar()
+              }}
               aoFechar={fecharPainel}
               focoDeReserva={focoNoTituloDasTurmas}
             />

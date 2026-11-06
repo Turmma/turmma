@@ -1826,6 +1826,153 @@
           "range": true
         }
       ]
+    },
+    {
+      "id": 40,
+      "type": "timeseries",
+      "title": "Planilhas da escola gravadas, por resultado",
+      "description": "Execuções do job que grava a planilha (calendário, professores, alunos e grade), por resultado: concluída, desatualizada (o que a coordenação viu mudou antes do job), ignorada (a importação já estava fechada, a execução repetida), nova tentativa (trava ou deadlock no passo 3; nada foi gravado) e falhou (a última tentativa ou falha definitiva). Sem escola nem pessoa no rótulo. Muitas novas tentativas ou falhas juntas apontam trava longa no Postgres: o runbook de banco lento vale.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 131
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (resultado) (increase(importacao_job_total[1m]))",
+          "legendFormat": "{{resultado}}",
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 41,
+      "type": "timeseries",
+      "title": "Passo 3 da planilha (p95)",
+      "description": "Quanto o passo 3 do job da planilha leva, da trava ao commit: a transação curta que grava na escola. O tempo esgota em 1 s de trava ou 1,5 s por comando (a tentativa volta inteira e o job repete). Acima de 1 s por muito tempo, a planilha está disputando o ano ou a importação com outra escrita.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 139
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(importacao_passo3_duracao_seconds_bucket[1m])))",
+          "legendFormat": "p95",
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 42,
+      "type": "timeseries",
+      "title": "Importação de planilha na fila (minutos, por escola)",
+      "description": "Há quantos minutos a importação de planilha mais antiga de cada escola espera o job. O alerta dispara acima de 30 min. A escola sem importação na fila não tem linha; a linha some quando o job termina ou o expurgo da 1h a fecha falhou.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 139
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "m",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max by (escola_id) (importacao_minutos_na_fila)",
+          "legendFormat": "{{escola_id}}",
+          "range": true
+        }
+      ]
     }
   ]
 }

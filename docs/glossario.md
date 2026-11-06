@@ -100,12 +100,14 @@ professor e link de sala.
 
 ## Aulas e material
 
-**Grade horária** — A tabela de tempos de aula da escola.
+**Grade horária** — As alocações do ano: quem dá qual disciplina a qual turma, em que dia da semana e em que horário. A
+coordenação a importa por planilha (F2); não existe tabela de tempos de aula à parte.
 
-**Tempo de aula** — Um slot: segunda, 3º tempo, 09h20 às 10h10.
+**Alocação** — Uma aula da grade: turma, disciplina e professor (pelo vínculo) num dia da semana e num horário, como
+segunda, das 09h20 às 10h10. É o que gera o calendário do professor, e tem id estável: reimportar a grade mantém a que continua.
 
-**Alocação** — Turma, disciplina e professor em um tempo de aula. É o que gera o calendário
-do professor.
+**Chave da turma** — O nome da turma sem acento, caixa e enfeite: "8ºA", "8º A", "8A" e "8º ano A" são a chave `8a`. É o que faz a
+planilha de alunos achar a turma que já existe.
 
 **Aula** — A instância concreta de uma alocação numa data, onde o professor registra o que
 deu.

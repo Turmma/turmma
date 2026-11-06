@@ -1,21 +1,11 @@
-import {
-  nomeDaListaSchema,
-  gravacaoDaListaResponseSchema,
-  listaDaTurmaResponseSchema,
-  previaDaListaResponseSchema,
-  type FinalidadeDaLeituraDeAlunos,
-  type NomeDaLista,
-  type NomeAvulsoRequest,
-  type GravacaoDaListaResponse,
-  type PreviaDaListaResponse,
-} from '@educa/shared'
+import { nomeDaListaSchema, listaDaTurmaResponseSchema, type FinalidadeDaLeituraDeAlunos, type NomeDaLista, type NomeAvulsoRequest } from '@educa/shared'
 import { infiniteQueryOptions } from '@tanstack/react-query'
 import { EMPTY_BODY } from '../../../../api/client'
 import { ESTRUTURA_QUERY_KEY } from '../../../../api/estrutura'
 import { authedGet, authedRequest } from '../../../../api/sessao'
 
 /**
- * A lista de nomes da turma pela coordenação (A1, 2.0 e 13.0; RF4 e RF5). Nome e matrícula só passam por aqui no corpo da
+ * A lista de nomes da turma pela coordenação (A1, 2.0 e 13.0; RF4 e RF5). A prévia e o gravar da lista são da peça `ImportarPlanilha` (`importacao/`). Nome e matrícula só passam por aqui no corpo da
  * requisição e na memória da página: nunca no endereço, em `localStorage` ou em `sessionStorage` (regra 20; regra 50,
  * item 7).
  */
@@ -26,7 +16,7 @@ import { authedGet, authedRequest } from '../../../../api/sessao'
  */
 export const FINALIDADE_DA_LISTA_NA_ESTRUTURA: FinalidadeDaLeituraDeAlunos = 'conferencia_de_cadastro'
 
-/** Nomes por página: o teto da lista de um envio (200) cabe em duas. */
+/** Nomes por página. */
 const NOMES_POR_PAGINA = 100
 
 /**
@@ -46,16 +36,6 @@ export function listaDaTurmaQueryOptions(turmaId: string) {
     getNextPageParam: (ultima) => ultima.proxima,
     staleTime: Number.POSITIVE_INFINITY,
   })
-}
-
-/** `POST /v1/turmas/:id/lista/previa`: o que aconteceria com cada linha, sem gravar nada. */
-export function previaDaLista(turmaId: string, texto: string): Promise<PreviaDaListaResponse> {
-  return authedRequest(`/v1/turmas/${encodeURIComponent(turmaId)}/lista/previa`, previaDaListaResponseSchema, { metodo: 'POST', corpo: { texto } })
-}
-
-/** `POST /v1/turmas/:id/lista`: grava só se nenhuma linha tiver erro; reenviar acrescenta só o que falta (RF5). */
-export function gravarLista(turmaId: string, texto: string): Promise<GravacaoDaListaResponse> {
-  return authedRequest(`/v1/turmas/${encodeURIComponent(turmaId)}/lista`, gravacaoDaListaResponseSchema, { metodo: 'POST', corpo: { texto } })
 }
 
 /** `POST /v1/turmas/:id/lista/nome`: o nome avulso, o aluno que chega em maio. */

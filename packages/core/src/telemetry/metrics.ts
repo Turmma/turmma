@@ -151,12 +151,27 @@ export const METRICS = {
    * alerta "Eliminação do titular agendada há mais de 48 h do prazo" dispara acima de 48.
    */
   horasDaEliminacaoVencida: 'eliminacao.horas_vencida',
+  /**
+   * Execuções do job `estrutura.gravar-planilha` (F2, tarefa 4.0), por `resultado`: `concluida`,
+   * `desatualizada`, `ignorada` (a importação já não estava `na_fila`: outra execução a fechou), `nova_tentativa` (trava ou
+   * deadlock no passo 3, a fila repete) e `falhou`. Sem escola: a escola vai no log do job. O alerta "importação `falhou` acima
+   * de 20% em 1 h" lê esta série.
+   */
+  importacaoPorResultado: 'importacao.job',
+  /**
+   * Minutos desde que a importação de planilha `na_fila` mais antiga da escola foi gravada (F2, tarefa 5.0), por `escola_id`: medida
+   * pelo worker-lote a partir de `importacao_planilha`. Só a escola com importação na fila tem série; ao terminar, a série some. O
+   * alerta "Importação de planilha parada na fila" dispara acima de 30.
+   */
+  minutosDaImportacaoNaFila: 'importacao.minutos_na_fila',
+  /** Histograma, em segundos, do passo (3) do job da planilha (a transação com as travas e a escrita). O alerta dispara acima de 1 s. */
+  duracaoDoPasso3DaImportacao: 'importacao.passo3.duracao',
 } as const
 
 /**
  * As únicas métricas que levam `escola_id`: as de job e, fora de job, as três de login da Tech Spec da identidade (seção
  * 7c), com cardinalidade de uma série por escola: a espera pelo hash, as falhas e o rebaixamento; e as noites sem
- * expurgo (F3, tarefa 3.0) as horas do incidente sem confirmação (F3, tarefa 9.0) as do arquivo em preparação (F3, tarefa 13.0) e as da eliminação vencida (F3, tarefa 15.0). Nenhuma outra pode levar escola, e nenhuma leva usuário.
+ * expurgo (F3, tarefa 3.0) as horas do incidente sem confirmação (F3, tarefa 9.0) as do arquivo em preparação (F3, tarefa 13.0), as da eliminação vencida (F3, tarefa 15.0) e os minutos da importação de planilha na fila (F2, tarefa 5.0). Nenhuma outra pode levar escola, e nenhuma leva usuário.
  */
 export const METRICS_WITH_ESCOLA: readonly string[] = [
   METRICS.esperaMaisAntiga,
@@ -170,6 +185,7 @@ export const METRICS_WITH_ESCOLA: readonly string[] = [
   METRICS.horasDoIncidenteSemConfirmacao,
   METRICS.horasDoArquivoEmPreparacao,
   METRICS.horasDaEliminacaoVencida,
+  METRICS.minutosDaImportacaoNaFila,
 ]
 
 /** O rótulo da escola nas métricas de job. Rotina do sistema, sem escola, aparece como `sistema`, como na chave da vaga. */

@@ -125,10 +125,19 @@ export const LEITURAS_DO_ARQUIVO: Readonly<Record<string, LeituraDaTabela>> = {
   },
   vinculo: {
     descricao: 'Os seus vínculos com turmas e disciplinas',
-    colunas: ['id', 'ano_letivo_id', 'turma_id', 'disciplina_id', 'papel', 'estado', 'contestacao', 'complemento', 'motivo_encerramento', 'criado_em', 'decidido_em', 'encerrado_em'],
+    colunas: ['id', 'ano_letivo_id', 'turma_id', 'disciplina_id', 'papel', 'estado', 'origem', 'contestacao', 'complemento', 'motivo_encerramento', 'criado_em', 'decidido_em', 'encerrado_em'],
     fora: { escola_id: ESCOPO, usuario_id: 'o próprio titular', criado_por: OUTRA_PESSOA },
     consultas: ({ escolaId, titularId }) => [
-      sql`select ${selectColumns('id', 'ano_letivo_id', 'turma_id', 'disciplina_id', 'papel', 'estado', 'contestacao', 'complemento', 'motivo_encerramento', 'criado_em', 'decidido_em', 'encerrado_em')} from vinculo t where t.escola_id = ${escolaId} and t.usuario_id = ${titularId}`,
+      sql`select ${selectColumns('id', 'ano_letivo_id', 'turma_id', 'disciplina_id', 'papel', 'estado', 'origem', 'contestacao', 'complemento', 'motivo_encerramento', 'criado_em', 'decidido_em', 'encerrado_em')} from vinculo t where t.escola_id = ${escolaId} and t.usuario_id = ${titularId}`,
+    ],
+  },
+  alocacao: {
+    descricao: 'As suas aulas na grade horária (dia, horário e sala)',
+    colunas: ['id', 'ano_letivo_id', 'vinculo_id', 'dia_semana', 'inicio', 'fim', 'sala'],
+    fora: { escola_id: ESCOPO },
+    consultas: ({ escolaId, titularId }) => [
+      sql`select ${selectColumns('id', 'ano_letivo_id', 'vinculo_id', 'dia_semana', 'inicio', 'fim', 'sala')} from alocacao t
+          where t.escola_id = ${escolaId} and t.vinculo_id in (select v.id from vinculo v where v.escola_id = ${escolaId} and v.usuario_id = ${titularId} and v.papel = 'professor')`,
     ],
   },
   lista_nome: {
@@ -152,7 +161,7 @@ export const LEITURAS_DO_ARQUIVO: Readonly<Record<string, LeituraDaTabela>> = {
     consultas: ({ escolaId, titularId }) => [
       // O aluno: todo pedido ligado à linha dele na lista de nomes (`lista_nome.usuario_id`): o que o aprovou e também o
       // recusado antes naquele nome, que pode ter sido de outra pessoa. A recusa devolve o nome a `livre` e o pedido continua
-      // apontando para a linha (`devolverNome`, `apps/api/src/sala/decisao/decisao.repository.ts`). Entra de propósito, e não
+      // apontando para a linha (`devolverNome`, `packages/core/src/estrutura/decisao.repository.ts`). Entra de propósito, e não
       // identifica ninguém: a linha leva `id`, `ano_letivo_id`, `turma_id`, `lista_nome_id`, o estado, as datas e `decidida_como`,
       // e `decidida_por`, `chave_envio`, `senha_hash` e `teve_matricula_errada` ficam na `fora`.
       // Por isso o texto diz "feitos com o seu nome", e não "que você fez".

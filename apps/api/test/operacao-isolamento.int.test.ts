@@ -12,7 +12,7 @@ import { aguardarSaudavel, compose, composeOuFalha } from '../../../tools/testes
 import { AppModule } from '../src/app.module.js'
 import { DB } from '../src/database.module.js'
 import { configureApp } from '../src/configure-app.js'
-import { DisciplinaRepository } from '../src/estrutura/disciplina/disciplina.repository.js'
+import { DisciplinaRepository } from '@educa/core/estrutura'
 import { operadorGuardProviders, OPERADOR_SESSIONS, type OperadorSessionReader } from '../src/operacao/operador.guard.js'
 import { OperacaoRoute } from '../src/operacao/decorators.js'
 import { executarOpsOperador } from '../src/ops/operador.js'

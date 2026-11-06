@@ -1,4 +1,4 @@
-import { LIMITE_DA_BUSCA_DE_TITULARES_POR_MINUTO } from '@educa/shared'
+import { LIMITE_DA_BUSCA_DE_TITULARES_POR_MINUTO, LIMITE_DA_PLANILHA_POR_MINUTO } from '@educa/shared'
 import { Logger } from '@nestjs/common'
 import type { Redis } from 'ioredis'
 import { RateLimiterMemory, RateLimiterRedis, RateLimiterRes } from 'rate-limiter-flexible'
@@ -12,6 +12,7 @@ import {
   insuranceLimit,
   PREFIXO_LIMITE_BUSCA_TITULAR,
   PREFIXO_LIMITE_ESCOLA,
+  PREFIXO_LIMITE_IMPORTACAO,
   PREFIXO_LIMITE_IP,
   PREFIXO_LIMITE_IP_LOGIN,
   PREFIXO_LIMITE_IP_OPERACAO,
@@ -158,6 +159,7 @@ export class RateLimiter {
   readonly #ipDaOperacao: Limite
   readonly #operador: Limite
   readonly #buscaDeTitulares: Limite
+  readonly #importacao: Limite
   readonly #proporcaoDoSeguro: SlidingWindowRatio
   readonly #avisarAtivado = throttledWarn(() => this.#logger.warn('limite.seguro_ativado'))
   readonly #avisarDesativado = throttledWarn(() => this.#logger.log('limite.seguro_desativado'))
@@ -173,6 +175,7 @@ export class RateLimiter {
     this.#ipDaOperacao = criarLimite(cliente, PREFIXO_LIMITE_IP_OPERACAO, config.porIpAnonimoMin, config.instancias)
     this.#operador = criarLimite(cliente, PREFIXO_LIMITE_OPERADOR, config.porOperadorMin, config.instancias)
     this.#buscaDeTitulares = criarLimite(cliente, PREFIXO_LIMITE_BUSCA_TITULAR, LIMITE_DA_BUSCA_DE_TITULARES_POR_MINUTO, config.instancias)
+    this.#importacao = criarLimite(cliente, PREFIXO_LIMITE_IMPORTACAO, LIMITE_DA_PLANILHA_POR_MINUTO, config.instancias)
   }
 
   /** 1 enquanto a última requisição limitada foi contada pelo seguro em memória. */
@@ -250,6 +253,14 @@ export class RateLimiter {
    */
   async consumirDaBuscaDeTitulares(usuarioId: string): Promise<RateLimitResult> {
     return this.#consumirUmaChave(this.#buscaDeTitulares, usuarioId)
+  }
+
+  /**
+   * O limite da prévia e do gravar de planilha (`rl:importacao:{usuarioId}`, F2, tarefa 5.0): 20 por minuto, por usuário, no mesmo
+   * balde para as duas rotas. Conta **além** do limite do usuário e do da escola, que continuam valendo.
+   */
+  async consumirDaImportacao(usuarioId: string): Promise<RateLimitResult> {
+    return this.#consumirUmaChave(this.#importacao, usuarioId)
   }
 
   async #consumirUmaChave(limite: Limite, chave: string): Promise<RateLimitResult> {

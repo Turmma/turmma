@@ -1,15 +1,17 @@
-import { IdPipe, RequirePermissao, ZodValidationPipe } from '@educa/core'
+import { IdPipe, ImportacaoRateLimit, RequirePermissao, ZodValidationPipe } from '@educa/core'
 import {
+  gravarListaRequestSchema,
   listaDaTurmaQuerySchema,
   nomeAvulsoRequestSchema,
   textoDaListaRequestSchema,
+  type GravarListaRequest,
+  type GravarPlanilhaResponse,
   type ListaDaTurmaQuery,
   type NomeDaLista,
   type NomeAvulsoRequest,
+  type PreviaDaPlanilhaResponse,
   type TextoDaListaRequest,
-  type GravacaoDaListaResponse,
   type ListaDaTurmaResponse,
-  type PreviaDaListaResponse,
 } from '@educa/shared'
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common'
 import { ListaService } from './lista.service.js'
@@ -25,15 +27,18 @@ export class ListaController {
   constructor(private readonly lista: ListaService) {}
 
   @Post('turmas/:id/lista/previa')
+  @ImportacaoRateLimit()
   @RequirePermissao('lista_nome', 'previa')
   @HttpCode(HttpStatus.OK)
-  previa(@Param('id', IdPipe) turmaId: string, @Body(new ZodValidationPipe(textoDaListaRequestSchema)) pedido: TextoDaListaRequest): Promise<PreviaDaListaResponse> {
+  previa(@Param('id', IdPipe) turmaId: string, @Body(new ZodValidationPipe(textoDaListaRequestSchema)) pedido: TextoDaListaRequest): Promise<PreviaDaPlanilhaResponse> {
     return this.lista.previa(turmaId, pedido)
   }
 
   @Post('turmas/:id/lista')
+  @ImportacaoRateLimit()
   @RequirePermissao('lista_nome', 'gravar')
-  gravar(@Param('id', IdPipe) turmaId: string, @Body(new ZodValidationPipe(textoDaListaRequestSchema)) pedido: TextoDaListaRequest): Promise<GravacaoDaListaResponse> {
+  @HttpCode(HttpStatus.ACCEPTED)
+  gravar(@Param('id', IdPipe) turmaId: string, @Body(new ZodValidationPipe(gravarListaRequestSchema)) pedido: GravarListaRequest): Promise<GravarPlanilhaResponse> {
     return this.lista.gravar(turmaId, pedido)
   }
 

@@ -1,0 +1,62 @@
+# Alerta "Importação de planilha parada na fila" (F2, tarefa 5.0; runbook: docs/runbook.md#importação-de-planilha-parada-na-fila).
+# Provisionado por arquivo no Grafana da observabilidade local (infra/compose.yml monta esta pasta em provisioning/alerting).
+#
+# `importacao.minutos_na_fila{escola_id}` é medida pelo worker-lote a cada 5 min, de `importacao_planilha`: os minutos desde que a
+# importação `na_fila` mais antiga da escola foi gravada. Dispara por escola acima de 30 min, em qualquer réplica, por 1 min. O alerta traz
+# a escola, nunca a importação, a planilha nem quem a gravou.
+#
+# Sem dado é normal: só a escola com importação `na_fila` tem série, e ela some quando o job termina ou o expurgo da 1h a fecha `falhou`.
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: importacao-parada
+    folder: Educa.ia alertas
+    interval: 10s
+    rules:
+      - uid: educa-importacao-parada
+        title: Importação de planilha parada na fila
+        condition: C
+        for: 1m
+        noDataState: OK
+        execErrState: Error
+        isPaused: false
+        labels:
+          area: importacao
+        annotations:
+          summary: 'A importação de planilha da escola {{ $labels.escola_id }} espera na fila há mais de 30 min'
+          description: A importação gravada não foi pega pelo job em 30 min. Siga o runbook.
+          runbook_url: https://github.com/Turmma/turmma/blob/main/docs/runbook.md#importação-de-planilha-parada-na-fila
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              datasource:
+                type: prometheus
+                uid: prometheus
+              expr: max by (escola_id) (importacao_minutos_na_fila{job="educa/worker"})
+              instant: true
+              range: false
+              intervalMs: 10000
+              maxDataPoints: 43200
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params: [30]

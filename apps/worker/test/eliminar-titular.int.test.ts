@@ -633,6 +633,47 @@ describe('titular.eliminar', () => {
   // ---- A etapa 3 -------------------------------------------------------------------------------------------------------
 
   describe('a eliminação', () => {
+    it('F2, RF17: o professor que gravou planilha e tem aula na grade é eliminado: a aula sai com o vínculo dele, a planilha fica sem o autor e as outras aulas ficam', async () => {
+      const c = await cenario()
+      const outroProfessorId = await pessoaDaEquipe(c.escolaId, 'professor', 'Outro professor sintético')
+      const vinculo = (professorId: string) =>
+        um("insert into vinculo (escola_id, ano_letivo_id, usuario_id, turma_id, disciplina_id, papel, origem, criado_por) values ($1, $2, $3, $4, $5, 'professor', 'grade', $6) returning id", [
+          c.escolaId,
+          c.anoId,
+          professorId,
+          c.turmaId,
+          c.disciplinaId,
+          c.coordenadoraId,
+        ])
+      const [vinculoDele, vinculoDoOutro] = [await vinculo(c.professorId), await vinculo(outroProfessorId)]
+      const aula = (vinculoId: string) =>
+        um("insert into alocacao (escola_id, ano_letivo_id, vinculo_id, dia_semana, inicio, fim) values ($1, $2, $3, 1, '07:30', '08:20') returning id", [c.escolaId, c.anoId, vinculoId])
+      const [aulaDele, aulaDoOutro] = [await aula(vinculoDele), await aula(vinculoDoOutro)]
+      // O professor gravou a planilha de grade, e a coordenação, a de calendário.
+      const planilhaDele = await um(
+        `insert into importacao_planilha (escola_id, ano_letivo_id, tipo, estado, assinatura, resumo, criado_por) values ($1, $2, 'grade', 'concluida', 'a', '{"aulas": 2}', $3) returning id`,
+        [c.escolaId, c.anoId, c.professorId],
+      )
+      const planilhaDaCoordenacao = await um(
+        `insert into importacao_planilha (escola_id, ano_letivo_id, tipo, estado, assinatura, resumo, criado_por) values ($1, $2, 'calendario', 'concluida', 'b', '{"eventos": 1}', $3) returning id`,
+        [c.escolaId, c.anoId, c.coordenadoraId],
+      )
+
+      const pedidoId = await agendar(c, c.professorId, { papel: 'professor' })
+      await rodar(c.escolaId, { pedidoId })
+
+      expect(await pedido(pedidoId)).toMatchObject({ estado: 'concluido' })
+      expect(await existeUsuario(c.professorId)).toBe(false)
+      const { rows: aulas } = await bancada.pool.query<{ id: string }>('select id from alocacao where escola_id = $1', [c.escolaId])
+      expect(aulas.map((linha) => linha.id)).toEqual([aulaDoOutro])
+      expect(aulas.map((linha) => linha.id)).not.toContain(aulaDele)
+      const { rows: planilhas } = await bancada.pool.query<{ id: string; criado_por: string | null; estado: string }>('select id, criado_por, estado from importacao_planilha where escola_id = $1 order by tipo', [c.escolaId])
+      expect(planilhas).toEqual([
+        { id: planilhaDaCoordenacao, criado_por: c.coordenadoraId, estado: 'concluida' },
+        { id: planilhaDele, criado_por: null, estado: 'concluida' },
+      ])
+    })
+
     it('conclui o pedido, apaga a pessoa e deixa o que a IA gerou sem ela: execução anonimizada, texto do modelo sem entrada nem saída, arquivo marcado', async () => {
       const c = await cenario()
       // A execução que o aluno pediu (o Tutor) e o consumo dela, que guarda o aluno e o provedor.

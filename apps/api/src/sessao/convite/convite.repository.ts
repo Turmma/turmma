@@ -1,80 +1,23 @@
-import { convite, DomainException, postgresErrorIn, escola, requireEscolaId, usuario, type Database, type DadosDaCoordenacao, type DadosDoProfessor, type TipoDeConvite, type DatabaseTransaction } from '@educa/core'
-import { ErrorCode, InvariantException } from '@educa/shared'
+import { CHAVE_DA_TRAVA_DO_CONVITE_DA_ESCOLA, convite, ConviteDaEscolaRepository, escola, requireEscolaId, usuario, type Database, type DatabaseTransaction, type DadosDaCoordenacao, type DadosDoProfessor, type TipoDeConvite } from '@educa/core'
 import { and, desc, eq, exists, gte, isNotNull, isNull, sql } from 'drizzle-orm'
 
-/**
- * A primeira metade da chave do `pg_advisory_xact_lock` que põe em fila, por escola, o que mexe no convite da coordenação
- * dela (Tech Spec da A0b, seção 7c, "Convite da escola" e "Ativação por convite"): gerar, refazer e revogar pelo painel e
- * pelo `ops:*`, e a ativação pelo convite (o aceite, e o login com o bilhete, com ou sem MFA). O convite do professor usa a
- * mesma trava (A1, tarefa 3.0): cadastrar, refazer e revogar pela coordenação da escola. A segunda
- * metade é `hashtext` do id da escola, e escolas diferentes não esperam uma pela outra. As outras chaves do código são
- * 7_000_001 (migração) e 7_000_002 (operadores).
- */
-export const CHAVE_DA_TRAVA_DO_CONVITE_DA_ESCOLA = 7_000_003
+/** A chave da trava do convite da escola mora no core (a 6.0 a subiu com o resto que o job da planilha usa); a API a reexporta para os testes. */
+export { CHAVE_DA_TRAVA_DO_CONVITE_DA_ESCOLA }
 
 /**
  * O convite e o usuário convidado dentro da escola do contexto (tarefa 7.0). O que atravessa escolas (achar o convite
  * pelo hash do token, a conta global) fica na resolução de tenant; aqui tudo leva a escola do contexto.
  */
-export class ConviteRepository {
-  constructor(private readonly banco: Database | DatabaseTransaction) {}
+export class ConviteRepository extends ConviteDaEscolaRepository {
+  /** O banco é o da base; declarado aqui de novo para a guarda de escopo dos repositories (`escopo-dos-repositories.ts`) o enxergar nesta classe. */
+  constructor(protected override readonly banco: Database | DatabaseTransaction) {
+    super(banco)
+  }
 
   /** O nome da escola do contexto, que o `consultar` mostra. */
   async nomeDaEscola(): Promise<string | undefined> {
     const [linha] = await this.banco.select({ nome: escola.nome }).from(escola).where(eq(escola.id, requireEscolaId())).limit(1)
     return linha?.nome
-  }
-
-  /**
-   * O usuário convidado, com o papel do convite (o coordenador, pelo operador; o professor, pela coordenação da escola,
-   * A1), inativo até o aceite (`desativado_em = now()`). Se a conta já tem usuário inativo desse papel nesta escola
-   * (convite revogado ou aceito sem a primeira entrada, ou usuário desativado que a escola chama de volta), ele volta a
-   * esperar o convite novo, com `desativado_em` de agora e o nome digitado agora: revogar e gerar (ou cadastrar de novo)
-   * com o mesmo e-mail é como se corrige o nome (Tech Spec da A0b, seção 5). O `desativado_em` novo, posterior ao aceite
-   * antigo, faz o convite antigo já usado deixar de ativar. Se o usuário está ativo, não devolve nada e não muda nada, nem
-   * o nome: não há o que convidar.
-   */
-  async usuarioConvidado(contaId: string, nome: string, papel: TipoDeConvite): Promise<string | undefined> {
-    const [linha] = await this.banco
-      .insert(usuario)
-      .values({ escolaId: requireEscolaId(), contaId, papel, nome, desativadoEm: sql`now()` })
-      .onConflictDoUpdate({
-        target: [usuario.escolaId, usuario.contaId, usuario.papel],
-        set: { desativadoEm: sql`now()`, nome },
-        setWhere: isNotNull(usuario.desativadoEm),
-      })
-      .returning({ id: usuario.id })
-    return linha?.id
-  }
-
-  /**
-   * Grava o convite do tipo pedido. Se o usuário já tem convite em aberto nesta escola, o índice
-   * `convite_pendente_unico` recusa, e a recusa sai como `CONFLITO`: é a rede de segurança da trava da escola.
-   */
-  async criarConvite(dados: { tipo: TipoDeConvite; tokenHash: string; usuarioId: string; expiraEm: Date }): Promise<string> {
-    let criado: { id: string } | undefined
-    try {
-      ;[criado] = await this.banco
-        .insert(convite)
-        .values({ escolaId: requireEscolaId(), tokenHash: dados.tokenHash, tipo: dados.tipo, usuarioId: dados.usuarioId, expiraEm: dados.expiraEm })
-        .returning({ id: convite.id })
-    } catch (erro) {
-      const doPostgres = postgresErrorIn(erro)
-      if (doPostgres?.code === '23505' && doPostgres.constraint === 'convite_pendente_unico') throw new DomainException(ErrorCode.CONFLITO)
-      throw erro
-    }
-    if (criado === undefined) throw new InvariantException('convite não devolvido pelo insert')
-    return criado.id
-  }
-
-  /**
-   * Põe a transação na fila da trava do convite da escola do contexto (`pg_advisory_xact_lock(7_000_003,
-   * hashtext(escola_id::text))`); solta sozinha no commit ou no rollback. Quem gera, refaz ou revoga pega a trava antes
-   * de ler o estado da coordenação, e quem ativa pelo convite a pega como primeira instrução da transação: dois pedidos
-   * na mesma escola decidem um depois do outro, cada um vendo o que o anterior gravou.
-   */
-  async travarEscola(): Promise<void> {
-    await this.banco.execute(sql`select pg_advisory_xact_lock(${CHAVE_DA_TRAVA_DO_CONVITE_DA_ESCOLA}, hashtext(${requireEscolaId()}::uuid::text))`)
   }
 
   /**

@@ -10,6 +10,7 @@
 export const TABELAS_DO_NUCLEO = [
   'acessoOperacao',
   'acessoTurma',
+  'alocacao',
   'anoLetivo',
   'arquivoTitular',
   'artefato',
@@ -28,8 +29,10 @@ export const TABELAS_DO_NUCLEO = [
   'disciplina',
   'entrega',
   'escola',
+  'eventoCalendario',
   'execucaoAgente',
   'expurgoExecucao',
+  'importacaoPlanilha',
   'incidente',
   'incidenteEscola',
   'jobRegistro',

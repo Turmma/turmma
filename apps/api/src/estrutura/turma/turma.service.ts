@@ -18,8 +18,7 @@ import {
   type TurmaAbertaResponse,
 } from '@educa/shared'
 import { paginar, paginarPor } from '../../http/pagination.js'
-import { SerieRepository } from '../serie/serie.repository.js'
-import { TurmaRepository, type AlcanceDaTurma } from './turma.repository.js'
+import { type AlcanceDaTurma, SerieRepository, TurmaRepository } from '@educa/core/estrutura'
 
 const registro = new AuditoriaRecorder()
 

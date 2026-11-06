@@ -83,6 +83,8 @@ export const COORDENACAO_ROUTES = {
   professores: '/professores',
   /** O material da escola: enviar o PDF com a licença declarada e acompanhar a leitura (MVP, A2; D75). */
   material: '/material',
+  /** A grade horária por turma, o calendário do ano e os modelos das quatro planilhas: a quarta aba de Escola (F2, 14.0; RF1). */
+  grade: '/grade',
   /** "Seus dados e a lei", no grupo Conformidade: as abas da Privacidade ficam no endereço (F3, 6.0; `docs/interface.md` 3). */
   privacidade: '/privacidade',
   /** Os pedidos de titular, a aba Pedidos de Registros (X2, 3.0). Sem este caminho, `/privacidade` redireciona para ele. */
@@ -220,6 +222,8 @@ export const ROUTES = {
   professores: `${AREA_BASE_PATH.coordenador}${COORDENACAO_ROUTES.professores}`,
   /** Material da coordenação, pela raiz: é o endereço que a navegação usa (MVP, A2). */
   material: `${AREA_BASE_PATH.coordenador}${COORDENACAO_ROUTES.material}`,
+  /** Grade e calendário da coordenação, pela raiz: acende "Escola" na lateral (F2, 14.0). */
+  grade: `${AREA_BASE_PATH.coordenador}${COORDENACAO_ROUTES.grade}`,
   /** Privacidade da coordenação, pela raiz: é o endereço que a navegação usa (F3, 6.0). */
   privacidade: `${AREA_BASE_PATH.coordenador}${COORDENACAO_ROUTES.privacidade}`,
   /** "Início" do aluno, pela raiz: é onde ele abre (telas do aluno e primeiro acesso, 2.0), e o endereço que a navegação usa. As chaves do aluno levam `DoAluno`: `inicio` já é a raiz `/`. */

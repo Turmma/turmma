@@ -65,7 +65,7 @@ realtime, despachante, worker, web.
 | `@Configuration` + `@Bean` | `@Module` do NestJS; o módulo que recebe configuração usa `static forRoot(config): DynamicModule` | `apps/api/src/app.module.ts`, `estrutura/estrutura.module.ts` |
 | `@RestController` + `@RequestMapping("/v1/x")` | `@Controller('v1/x')` | `apps/api/src/estrutura/disciplina/disciplina.controller.ts` |
 | `@Service` | classe de service, criada pelo módulo com `useFactory` | `estrutura/disciplina/disciplina.service.ts` |
-| `@Repository` + filtro de tenant do Hibernate | repository do Drizzle que lê a escola por `requireEscolaId()` | `estrutura/disciplina/disciplina.repository.ts` |
+| `@Repository` + filtro de tenant do Hibernate | repository do Drizzle que lê a escola por `requireEscolaId()` | `packages/core/src/estrutura/disciplina.repository.ts` |
 | Entidade JPA | tabela do Drizzle, sem lazy loading e sem entidade gerenciada | `packages/core/src/db/schema/disciplina.ts` |
 | Flyway | migrations do `drizzle-kit`, aplicadas pelo serviço `migrar` do compose | `packages/core/drizzle/` |
 | Bean Validation (`@Valid` no `@RequestBody`) | esquema zod de `shared` com o `ZodValidationPipe` do NestJS | §5.1 |
@@ -227,7 +227,7 @@ Exemplo: a disciplina (`apps/api/src/estrutura/`, `packages/shared/src/estrutura
      - **Linha com disciplina** (artefato, atividade aplicada, entrega): o vínculo precisa ser também naquela
        disciplina. Use o `comVinculoConfirmadoDoProfessor` de `apps/api/src/assistente/turma-do-professor.repository.ts`.
      - **Linha sem disciplina** (a própria turma e os alunos dela): basta o vínculo na turma, em qualquer disciplina.
-       Veja o `#comVinculoDoProfessor` de `apps/api/src/estrutura/turma/turma.repository.ts`.
+       Veja o `#comVinculoDoProfessor` de `packages/core/src/estrutura/turma.repository.ts`.
      - **Linha com disciplina e sem turma** (o material): basta o vínculo confirmado naquela disciplina no ano em
        curso, sem olhar a turma (`#noAlcance` de `apps/api/src/material/material.repository.ts`).
      - No ano em curso, vínculo pendente, contestado ou encerrado não dá alcance. Na leitura de um ano encerrado, a

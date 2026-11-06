@@ -1,11 +1,14 @@
-import { DomainException, runInContext, type DatabaseTransaction } from '@educa/core'
+import { DomainException, createDatabase, createPool, runInContext, schema, type DatabaseTransaction } from '@educa/core'
 import { CicloDeVidaRepository, CicloDeVidaService } from '@educa/core/ciclo-de-vida'
-import { ErrorCode, decisaoResponseSchema, type PapelDeUsuario } from '@educa/shared'
+import { ErrorCode, conviteDeProfessorResponseSchema, decisaoResponseSchema, listaDeProfessoresResponseSchema, type PapelDeUsuario } from '@educa/shared'
 import { sql } from 'drizzle-orm'
+import { drizzle } from 'drizzle-orm/node-postgres'
 import type { Redis } from 'ioredis'
-import { randomBytes, randomUUID } from 'node:crypto'
+import { createHash, randomBytes, randomUUID } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 import { Secret, TOTP } from 'otpauth'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { SecretCipher, REDIS_LOGIN_CLIENT, gerarCodigosDeRecuperacao, gerarSegredo, PasswordHasher, hmacDaRecuperacao } from '../src/credencial/index.js'
 import { chamar, subirApi, type TestApi } from './test-api.js'
@@ -13,6 +16,7 @@ import { testConfig } from './test-config.js'
 import { montarEscolaComTurma, type EscolaComTurma } from './escola-turma.fixture.js'
 import { FerramentasDaSala, pedidoDaSala, type NomeDaLista, type TestSala } from './sala.fixture.js'
 import { SessaoFixtures, type TestSessao } from './sessao.fixture.js'
+import { esperarNaTrava, WriteBlockTrigger } from './write-block-trigger.js'
 
 /** Senha sintética das contas e dos alunos deste teste: nenhuma é de pessoa real. */
 const SENHA = 'senha-sintetica-correta-1'
@@ -680,6 +684,720 @@ describe('ciclo de vida da conta: desativação, limpeza da conta global e elimi
     expect(await contar('usuario', escolaA, coordenacao.usuarioId)).toBe(1)
   })
 
+  describe('onboarding-por-convite, tarefa 3.0: desativar encerra os vínculos, revoga o acesso e o convite, na ordem global', () => {
+    let sala: FerramentasDaSala
+    // Um pool próprio: o da bancada tem duas conexões, e nas corridas uma fica com a trava do gatilho.
+    const poolDoCiclo = createPool({ url: urlDoBancoDeTeste(), maximoConexoes: 6, timeoutConexaoMs: 5_000, timeoutConsultaMs: 30_000 }, () => undefined)
+    const sqlDaTransacao: string[] = []
+    const bancoDoCiclo = createDatabase(poolDoCiclo)
+    const cicloDoPool = new CicloDeVidaService(bancoDoCiclo)
+    // O mesmo ciclo de vida, com o texto de cada instrução registrado: o espião no SQL da ordem das travas.
+    const cicloEspiado = new CicloDeVidaService(drizzle({ client: poolDoCiclo, schema, casing: 'snake_case', logger: { logQuery: (consulta: string) => void sqlDaTransacao.push(consulta) } }))
+
+    beforeAll(() => {
+      sala = new FerramentasDaSala(api, bancada)
+    })
+
+    afterAll(async () => {
+      await poolDoCiclo.end()
+    })
+
+    interface VinculoNoBanco {
+      readonly id: string
+      readonly papel: string
+      readonly estado: string
+      readonly motivo: string | null
+      readonly ano_letivo_id: string
+      readonly turma_id: string
+    }
+
+    async function vinculosDe(escolaId: string, usuarioId: string): Promise<VinculoNoBanco[]> {
+      const { rows } = await bancada.pool.query<VinculoNoBanco>(
+        'select id, papel, estado, motivo_encerramento as motivo, ano_letivo_id, turma_id from vinculo where escola_id = $1 and usuario_id = $2 order by id',
+        [escolaId, usuarioId],
+      )
+      return rows
+    }
+
+    const abertosDe = async (escolaId: string, usuarioId: string) => (await vinculosDe(escolaId, usuarioId)).filter((vinculo) => vinculo.estado !== 'encerrado')
+
+    /** O ano de 2027, planejado, pela API, com uma turma pelo banco (a turma só nasce no ano em curso). */
+    async function anoPlanejado(escola: EscolaComTurma): Promise<{ readonly anoId: string; readonly turmaId: string }> {
+      const criado = await chamar(api.url, 'POST', '/v1/anos-letivos', escola.coordenacao.token, { ano: 2027, inicio: '2027-02-01', fim: '2027-12-15' })
+      expect(criado.status).toBe(201)
+      const anoId = String(criado.corpo['id'])
+      const { rows } = await bancada.pool.query<{ id: string }>('insert into turma (escola_id, ano_letivo_id, serie_id, nome) values ($1, $2, $3, $4) returning id', [
+        escola.coordenacao.escolaId,
+        anoId,
+        escola.serieId,
+        '2ºB de 2027',
+      ])
+      return { anoId, turmaId: rows[0]?.id ?? '' }
+    }
+
+    /** Um vínculo gravado à mão (a grade do planejado e o vínculo do aluno ainda não têm rota): de professor com Física, ou de aluno sem disciplina. */
+    async function vinculoNaMao(
+      escola: EscolaComTurma,
+      anoId: string,
+      usuarioId: string,
+      turmaId: string,
+      estado: 'pendente' | 'confirmado',
+      papel: 'professor' | 'aluno' = 'professor',
+    ): Promise<string> {
+      const { rows } = await bancada.pool.query<{ id: string }>(
+        `insert into vinculo (escola_id, ano_letivo_id, usuario_id, turma_id, disciplina_id, papel, estado, criado_por, decidido_em)
+         values ($1, $2, $3, $4, $5, $6, $7::text, $8, case when $7::text = 'confirmado' then now() end) returning id`,
+        [escola.coordenacao.escolaId, anoId, usuarioId, turmaId, papel === 'professor' ? escola.fisica : null, papel, estado, escola.coordenacao.usuarioId],
+      )
+      return rows[0]?.id ?? ''
+    }
+
+    async function auditoriaDa(escolaId: string, acao: string): Promise<Array<{ entidade_id: string; autor_usuario_id: string | null; autor_operador: string | null; antes: unknown; depois: unknown }>> {
+      const { rows } = await bancada.pool.query<{ entidade_id: string; autor_usuario_id: string | null; autor_operador: string | null; antes: unknown; depois: unknown }>(
+        'select entidade_id, autor_usuario_id, autor_operador, antes, depois from auditoria where escola_id = $1 and acao = $2 order by id',
+        [escolaId, acao],
+      )
+      return rows
+    }
+
+    /** A ordem em que as travas do ciclo de vida aparecem no SQL, cada uma na primeira vez em que aparece. */
+    function ordemDasTravas(): string[] {
+      const regras: ReadonlyArray<readonly [string, RegExp]> = [
+        ['ano', /^select .*from "ano_letivo".* for share$/],
+        ['usuario', /^select .*from "usuario".* for no key update$/],
+        ['conta', /^select .*from "conta".* for update$/],
+        ['turma', /^select .*from "turma".* for no key update$/],
+        ['vinculo', /^(select .*from "vinculo".* for update|update "vinculo"|delete from "vinculo")/],
+        ['pedidos', /^delete from "reivindicacao"/],
+      ]
+      const rotulos = sqlDaTransacao.flatMap((consulta) => regras.filter(([, regra]) => regra.test(consulta.toLowerCase())).map(([nome]) => nome))
+      return [...new Set(rotulos)]
+    }
+
+    /** Uma professora com conta, vínculo em duas turmas do ano em curso (um confirmado, um pendente) e em uma do planejado. */
+    async function professoraEmDoisAnos(escola: EscolaComTurma): Promise<{ readonly quem: Pessoa; readonly planejado: { readonly anoId: string; readonly turmaId: string } }> {
+      const quem = await pessoa(escola.coordenacao.escolaId)
+      const planejado = await anoPlanejado(escola)
+      await vinculoNaMao(escola, escola.anoLetivoId, quem.usuarioId, escola.turma, 'confirmado')
+      await vinculoNaMao(escola, escola.anoLetivoId, quem.usuarioId, escola.outraTurma, 'pendente')
+      await vinculoNaMao(escola, planejado.anoId, quem.usuarioId, planejado.turmaId, 'pendente')
+      return { quem, planejado }
+    }
+
+    it('caminho feliz de RF5 e da regra 20 item 18: os vínculos do professor desativado na escola são encerrados por desligamento, com a auditoria da coordenação, e o colega de turma segue com o dele', async () => {
+      const s = await sala.montar()
+      const colega = await bancada.sessao(s.escolaId, 'professor')
+      const doColega = await vinculoConfirmado(s, colega.usuarioId, colega.token)
+      const antes = await vinculosDe(s.escolaId, s.professor.usuarioId)
+      expect(antes.map((vinculo) => vinculo.estado)).toEqual(['confirmado', 'confirmado'])
+      expect(await statusDoEu(s.professor.token)).toBe(200)
+
+      await pela(s.coordenacao, () => cicloDoPool.desativar(s.professor.usuarioId))
+
+      expect(await vinculosDe(s.escolaId, s.professor.usuarioId)).toEqual(antes.map((vinculo) => ({ ...vinculo, estado: 'encerrado', motivo: 'desligamento' })))
+      expect(await statusDoEu(s.professor.token)).toBe(401)
+      expect((await bancada.pool.query('select estado from vinculo where id = $1', [doColega])).rows).toEqual([{ estado: 'confirmado' }])
+      const encerrados = await auditoriaDa(s.escolaId, 'vinculo.encerrado')
+      expect(encerrados.map((linha) => linha.entidade_id).sort()).toEqual(antes.map((vinculo) => vinculo.id).sort())
+      for (const linha of encerrados) {
+        expect(linha).toMatchObject({ autor_usuario_id: s.coordenacao.usuarioId, antes: { estado: 'confirmado' }, depois: { estado: 'encerrado', motivo: 'desligamento' } })
+      }
+      // Regra 20, item 9: o registro leva ids, nunca o nome nem o e-mail da pessoa.
+      const { rows: nomes } = await bancada.pool.query<{ nome: string }>('select nome from usuario where id = $1', [s.professor.usuarioId])
+      expect(nomes[0]?.nome).toBeTruthy()
+      expect(JSON.stringify(encerrados)).not.toContain(nomes[0]?.nome)
+      expect(JSON.stringify(encerrados)).not.toContain('@')
+    })
+
+    it('defesa do N1 da A1 com o estado montado no banco: o desativar do usuário ativo com convite aberto o revoga, e o aceite depois é recusado, sem reativá-lo', async () => {
+      const escolaId = await bancada.escola()
+      const coordenacao = await bancada.sessao(escolaId, 'coordenador')
+      const professor = await pessoa(escolaId)
+      const token = randomBytes(32).toString('base64url')
+      const { rows } = await bancada.pool.query<{ id: string }>(
+        "insert into convite (escola_id, token_hash, tipo, usuario_id, expira_em) values ($1, $2, 'professor', $3, now() + interval '72 hours') returning id",
+        [escolaId, createHash('sha256').update(token).digest('hex'), professor.usuarioId],
+      )
+      const conviteId = rows[0]?.id ?? ''
+      expect((await postar('/v1/convites/consultar', { token })).status).toBe(200)
+
+      await pela(coordenacao, () => cicloDoPool.desativar(professor.usuarioId))
+
+      const { rows: convites } = await bancada.pool.query<{ revogado: boolean; usado: boolean }>('select revogado_em is not null as revogado, usado_em is not null as usado from convite where id = $1', [conviteId])
+      expect(convites).toEqual([{ revogado: true, usado: false }])
+      expect((await postar('/v1/convites/aceitar', { token })).status).toBe(404)
+      expect((await bancada.pool.query('select desativado_em is not null as desativado from usuario where id = $1', [professor.usuarioId])).rows).toEqual([{ desativado: true }])
+      expect((await bancada.pool.query('select usado_em from convite where id = $1', [conviteId])).rows).toEqual([{ usado_em: null }])
+      expect(await auditoriaDa(escolaId, 'convite.revogado')).toEqual([
+        expect.objectContaining({ entidade_id: conviteId, autor_usuario_id: coordenacao.usuarioId, depois: { tipo: 'professor' } }),
+      ])
+    })
+
+    it('o acesso da turma que o professor gerou é revogado pela desativação, que encerra os vínculos antes; o gerado por outro professor fica', async () => {
+      const s = await sala.montar()
+      const colega = await bancada.sessao(s.escolaId, 'professor')
+      const criado = await chamar(api.url, 'POST', '/v1/vinculos', s.coordenacao.token, { usuarioId: colega.usuarioId, turmaId: s.outraTurma, disciplinaId: s.fisica, papel: 'professor' })
+      expect(criado.status).toBe(201)
+      expect((await chamar(api.url, 'POST', `/v1/vinculos/${String(criado.corpo['id'])}/confirmar`, colega.token)).status).toBe(200)
+      // O professor da sala já gerou o da turma; o colega gera o da outra, onde o professor também tem vínculo.
+      const doColega = await sala.gerar({ professor: colega }, s.outraTurma)
+      const acessoDele = (await bancada.pool.query<{ id: string }>('select id from acesso_turma where escola_id = $1 and turma_id = $2 and criado_por = $3', [s.escolaId, s.turma, s.professor.usuarioId])).rows[0]?.id
+      expect((await sala.abrir({ slug: s.slug, token: s.token })).status).toBe(200)
+
+      await pela(s.coordenacao, () => cicloDoPool.desativar(s.professor.usuarioId))
+
+      expect((await sala.abrir({ slug: s.slug, token: s.token })).status).toBe(404)
+      expect((await sala.abrir({ slug: s.slug, codigo: s.codigo })).status).toBe(404)
+      expect((await sala.abrir({ slug: s.slug, token: doColega.token })).status).toBe(200)
+      expect(await auditoriaDa(s.escolaId, 'acesso_turma.revogado')).toEqual([
+        expect.objectContaining({ entidade_id: acessoDele, autor_usuario_id: s.coordenacao.usuarioId, depois: { turmaId: s.turma } }),
+      ])
+      const { rows } = await bancada.pool.query<{ turma_id: string; revogado: boolean }>('select turma_id, revogado_em is not null as revogado from acesso_turma where escola_id = $1 order by turma_id', [s.escolaId])
+      expect(rows.sort((a, b) => a.turma_id.localeCompare(b.turma_id))).toEqual([s.turma, s.outraTurma].sort().map((turmaId) => ({ turma_id: turmaId, revogado: turmaId === s.turma })))
+    })
+
+    it('ano: os vínculos do ano em curso e os do planejado são todos encerrados, em qualquer estado; o que já estava encerrado mantém o motivo e não ganha registro', async () => {
+      const escola = await montarEscolaComTurma(api, bancada)
+      const escolaId = escola.coordenacao.escolaId
+      const { quem, planejado } = await professoraEmDoisAnos(escola)
+      const { rows: encerrados } = await bancada.pool.query<{ id: string }>(
+        `insert into vinculo (escola_id, ano_letivo_id, usuario_id, turma_id, disciplina_id, papel, estado, motivo_encerramento, encerrado_em, criado_por)
+         values ($1, $2, $3, $4, $5, 'professor', 'encerrado', 'realocacao', now(), $6) returning id`,
+        [escolaId, escola.anoLetivoId, quem.usuarioId, escola.turma, escola.quimica, escola.coordenacao.usuarioId],
+      )
+      const jaEncerrado = encerrados[0]?.id ?? ''
+      const aluno = await alunoComMatricula(escolaId, `RA${randomBytes(4).toString('hex')}`)
+      await vinculoNaMao(escola, escola.anoLetivoId, aluno, escola.turma, 'confirmado', 'aluno')
+      expect((await abertosDe(escolaId, quem.usuarioId)).map((vinculo) => vinculo.ano_letivo_id).sort()).toEqual([escola.anoLetivoId, escola.anoLetivoId, planejado.anoId].sort())
+
+      await pela(escola.coordenacao, () => cicloDoPool.desativar(quem.usuarioId))
+
+      const depois = await vinculosDe(escolaId, quem.usuarioId)
+      expect(depois).toHaveLength(4)
+      expect(depois.every((vinculo) => vinculo.estado === 'encerrado')).toBe(true)
+      expect(depois.map((vinculo) => vinculo.motivo).sort()).toEqual(['desligamento', 'desligamento', 'desligamento', 'realocacao'])
+      expect(depois.find((vinculo) => vinculo.id === jaEncerrado)?.motivo).toBe('realocacao')
+      expect((await auditoriaDa(escolaId, 'vinculo.encerrado')).map((linha) => linha.entidade_id)).not.toContain(jaEncerrado)
+      expect(await auditoriaDa(escolaId, 'vinculo.encerrado')).toHaveLength(3)
+      // O vínculo de outra pessoa na mesma escola, o do aluno, não é tocado.
+      expect((await abertosDe(escolaId, aluno)).map((vinculo) => vinculo.papel)).toEqual(['aluno'])
+    })
+
+    it('o aluno desativado também tem o vínculo encerrado, por desligamento', async () => {
+      const escola = await montarEscolaComTurma(api, bancada)
+      const escolaId = escola.coordenacao.escolaId
+      const aluno = await alunoComMatricula(escolaId, `RA${randomBytes(4).toString('hex')}`)
+      await vinculoNaMao(escola, escola.anoLetivoId, aluno, escola.turma, 'confirmado', 'aluno')
+
+      await pela(escola.coordenacao, () => cicloDoPool.desativar(aluno))
+
+      expect(await vinculosDe(escolaId, aluno)).toEqual([expect.objectContaining({ papel: 'aluno', estado: 'encerrado', motivo: 'desligamento' })])
+    })
+
+    it('ano: escola sem ano em curso, o vínculo do ano planejado é encerrado, e o do ano que a virada já encerrou mantém fim_do_ano', async () => {
+      const escola = await montarEscolaComTurma(api, bancada)
+      const escolaId = escola.coordenacao.escolaId
+      const { quem, planejado } = await professoraEmDoisAnos(escola)
+      expect((await chamar(api.url, 'POST', `/v1/anos-letivos/${escola.anoLetivoId}/encerrar`, escola.coordenacao.token)).status).toBe(200)
+      expect((await abertosDe(escolaId, quem.usuarioId)).map((vinculo) => vinculo.ano_letivo_id)).toEqual([planejado.anoId])
+
+      await pela(escola.coordenacao, () => cicloDoPool.desativar(quem.usuarioId))
+
+      const depois = await vinculosDe(escolaId, quem.usuarioId)
+      expect(depois.filter((vinculo) => vinculo.ano_letivo_id === planejado.anoId)).toEqual([expect.objectContaining({ estado: 'encerrado', motivo: 'desligamento' })])
+      expect(depois.filter((vinculo) => vinculo.ano_letivo_id === escola.anoLetivoId).map((vinculo) => vinculo.motivo)).toEqual(['fim_do_ano', 'fim_do_ano'])
+    })
+
+    it('trava num comando só: um único for no key update com order by id sobre todas as turmas dele, nos dois anos', async () => {
+      const escola = await montarEscolaComTurma(api, bancada)
+      const { quem } = await professoraEmDoisAnos(escola)
+      sqlDaTransacao.length = 0
+
+      await pela(escola.coordenacao, () => cicloEspiado.desativar(quem.usuarioId))
+
+      const travas = sqlDaTransacao.filter((consulta) => /from "turma"/.test(consulta) && /for no key update$/.test(consulta))
+      expect(travas).toHaveLength(1)
+      expect(travas[0]).toMatch(/order by "turma"\."id" asc for no key update$/)
+      expect(await abertosDe(escola.coordenacao.escolaId, quem.usuarioId)).toEqual([])
+    })
+
+    it('ordem global no desativar: o ano em FOR SHARE, o usuário, a conta, as turmas, e só então o vínculo', async () => {
+      const escola = await montarEscolaComTurma(api, bancada)
+      const { quem } = await professoraEmDoisAnos(escola)
+      sqlDaTransacao.length = 0
+
+      await pela(escola.coordenacao, () => cicloEspiado.desativar(quem.usuarioId))
+
+      expect(ordemDasTravas()).toEqual(['ano', 'usuario', 'conta', 'turma', 'vinculo'])
+    })
+
+    it('ordem global no eliminar, sem ano no contexto: o ano em FOR SHARE, o usuário, a conta, as turmas, o vínculo e, por fim, os pedidos', async () => {
+      const escola = await montarEscolaComTurma(api, bancada)
+      const { quem } = await professoraEmDoisAnos(escola)
+      sqlDaTransacao.length = 0
+
+      await peloOperador(escola.coordenacao.escolaId, () => cicloEspiado.eliminar(quem.usuarioId, { autorOperador: OPERADOR }))
+
+      expect(ordemDasTravas()).toEqual(['ano', 'usuario', 'conta', 'turma', 'vinculo', 'pedidos'])
+      // Os dois anos em que ela tinha vínculo estão na trava, num comando só e em ordem de id.
+      const anos = sqlDaTransacao.filter((consulta) => /from "ano_letivo"/.test(consulta) && /for share$/.test(consulta))
+      expect(anos).toHaveLength(1)
+      expect(anos[0]).toMatch(/order by "ano_letivo"\."id" asc for share$/)
+      expect(await contar('usuario', escola.coordenacao.escolaId, quem.usuarioId)).toBe(0)
+    })
+
+    // O `virarAno` e o `virarSala` rodam juntos, na mesma transação do encerramento do ano (`POST /v1/anos-letivos/:id/encerrar`): os dois [P]
+    // abaixo só mudam o ponto em que a barreira para a virada.
+    it('[P] desativar contra o virarAno (encerrar o ano), com barreira: o desativar espera o ano, zero 40P01, e nenhum vínculo fica aberto', async () => {
+      const escola = await montarEscolaComTurma(api, bancada)
+      const escolaId = escola.coordenacao.escolaId
+      const { quem } = await professoraEmDoisAnos(escola)
+      // A virada para na primeira linha de vínculo que encerra por `fim_do_ano`, com o ano e as outras linhas ainda por escrever.
+      const gatilho = new WriteBlockTrigger(bancada.pool, { tabela: 'vinculo', evento: 'update', quando: `new.escola_id = '${escolaId}'::uuid and new.motivo_encerramento = 'fim_do_ano'` })
+      await gatilho.armar()
+      try {
+        const encerrando = chamar(api.url, 'POST', `/v1/anos-letivos/${escola.anoLetivoId}/encerrar`, escola.coordenacao.token)
+        await gatilho.esperarParadas()
+        const desativando = pela(escola.coordenacao, () => cicloDoPool.desativar(quem.usuarioId)).then(
+          () => 'desativado',
+          (erro: unknown) => erro,
+        )
+        await esperarNaTrava(bancada.pool, '%"ano_letivo"%for share%')
+        await gatilho.soltar()
+        const [encerrado, desativado] = await Promise.all([encerrando, desativando])
+        expect(encerrado.status).toBe(200)
+        expect(desativado).toBe('desativado')
+      } finally {
+        await gatilho.desarmar()
+      }
+      expect(await abertosDe(escolaId, quem.usuarioId)).toEqual([])
+      expect((await bancada.pool.query('select desativado_em is not null as desativado from usuario where id = $1', [quem.usuarioId])).rows).toEqual([{ desativado: true }])
+    })
+
+    it('[P] desativar contra o virarSala na mesma turma, com barreira: o desativar espera, zero 40P01, e o acesso da turma sai revogado uma vez só', async () => {
+      const s = await sala.montar()
+      const gatilho = new WriteBlockTrigger(bancada.pool, { tabela: 'acesso_turma', evento: 'update', quando: `new.turma_id = '${s.turma}'::uuid and new.revogado_em is not null` })
+      await gatilho.armar()
+      try {
+        const encerrando = chamar(api.url, 'POST', `/v1/anos-letivos/${s.anoLetivoId}/encerrar`, s.coordenacao.token)
+        await gatilho.esperarParadas()
+        const desativando = pela(s.coordenacao, () => cicloDoPool.desativar(s.professor.usuarioId)).then(
+          () => 'desativado',
+          (erro: unknown) => erro,
+        )
+        await esperarNaTrava(bancada.pool, '%"ano_letivo"%for share%')
+        await gatilho.soltar()
+        const [encerrado, desativado] = await Promise.all([encerrando, desativando])
+        expect(encerrado.status).toBe(200)
+        expect(desativado).toBe('desativado')
+      } finally {
+        await gatilho.desarmar()
+      }
+      expect(await abertosDe(s.escolaId, s.professor.usuarioId)).toEqual([])
+      expect((await bancada.pool.query('select revogado_em is not null as revogado from acesso_turma where escola_id = $1 and turma_id = $2', [s.escolaId, s.turma])).rows).toEqual([{ revogado: true }])
+      // Quem revogou foi a virada: o desativar espera no `FOR SHARE` do ano até a virada terminar (a barreira garante a ordem), e
+      // depois não acha acesso vigente a revogar.
+      expect(await auditoriaDa(s.escolaId, 'acesso_turma.revogado')).toEqual([])
+    })
+
+    it('isolamento (RF16): a professora desligada na escola A segue entrando e vendo as turmas na B, e o acesso que ela gerou lá segue aberto', async () => {
+      const a = await montarEscolaComTurma(api, bancada)
+      const b = await sala.montar()
+      const quem = await pessoa(a.coordenacao.escolaId)
+      const emB = await naOutraEscola(quem, b.escolaId)
+      await vinculoNaMao(a, a.anoLetivoId, quem.usuarioId, a.turma, 'confirmado')
+      const criado = await chamar(api.url, 'POST', '/v1/vinculos', b.coordenacao.token, { usuarioId: emB, turmaId: b.outraTurma, disciplinaId: b.fisica, papel: 'professor' })
+      expect(criado.status).toBe(201)
+      const tokenEmB = await entrarComo(quem, emB)
+      expect((await chamar(api.url, 'POST', `/v1/vinculos/${String(criado.corpo['id'])}/confirmar`, tokenEmB)).status).toBe(200)
+      const doAcessoEmB = await sala.gerar({ professor: { ...b.professor, token: tokenEmB } }, b.outraTurma)
+
+      await pela(a.coordenacao, () => cicloDoPool.desativar(quem.usuarioId))
+
+      expect(await abertosDe(a.coordenacao.escolaId, quem.usuarioId)).toEqual([])
+      expect(await abertosDe(b.escolaId, emB)).toEqual([expect.objectContaining({ estado: 'confirmado', turma_id: b.outraTurma })])
+      expect(await statusDoEu(await entrarComo(quem, emB))).toBe(200)
+      const meus = await chamar(api.url, 'GET', '/v1/meus-vinculos', tokenEmB)
+      expect(meus.status).toBe(200)
+      expect((meus.corpo['itens'] as Array<{ estado: string }>).map((vinculo) => vinculo.estado)).toEqual(['confirmado'])
+      // O acesso gerado por ela em B não é tocado; o que é de A, nem existe em B.
+      expect((await sala.abrir({ slug: b.slug, token: doAcessoEmB.token })).status).toBe(200)
+      expect((await bancada.pool.query('select count(*)::int as total from acesso_turma where escola_id = $1 and revogado_em is not null', [b.escolaId])).rows).toEqual([{ total: 0 }])
+    })
+
+    it('isolamento: a coordenação de B não desativa a pessoa de A, com a mesma resposta do id inexistente, e nada dela muda', async () => {
+      const a = await sala.montar()
+      const coordenacaoDeB = await bancada.sessao(await bancada.escola(), 'coordenador')
+      const antes = await vinculosDe(a.escolaId, a.professor.usuarioId)
+      const token = randomBytes(32).toString('base64url')
+      await bancada.pool.query("insert into convite (escola_id, token_hash, tipo, usuario_id, expira_em) values ($1, $2, 'professor', $3, now() + interval '72 hours')", [
+        a.escolaId,
+        createHash('sha256').update(token).digest('hex'),
+        a.professor.usuarioId,
+      ])
+
+      await esperarNaoEncontrado(pela(coordenacaoDeB, () => cicloDoPool.desativar(a.professor.usuarioId)))
+      await esperarNaoEncontrado(pela(coordenacaoDeB, () => cicloDoPool.desativar(randomUUID())))
+
+      expect(await vinculosDe(a.escolaId, a.professor.usuarioId)).toEqual(antes)
+      expect((await bancada.pool.query('select count(*)::int as total from convite where escola_id = $1 and revogado_em is not null', [a.escolaId])).rows).toEqual([{ total: 0 }])
+      expect((await sala.abrir({ slug: a.slug, token: a.token })).status).toBe(200)
+    })
+
+    it('o ano em que ela só tem vínculo encerrado, ou em que só a colega tem vínculo aberto, não entra na trava do desativar; na do eliminar, o ano em que ela tem vínculo encerrado entra', async () => {
+      const escola = await montarEscolaComTurma(api, bancada)
+      const escolaId = escola.coordenacao.escolaId
+      const { quem, planejado } = await professoraEmDoisAnos(escola)
+      await bancada.pool.query("update vinculo set estado = 'encerrado', motivo_encerramento = 'realocacao', encerrado_em = now() where escola_id = $1 and usuario_id = $2 and ano_letivo_id = $3", [
+        escolaId,
+        quem.usuarioId,
+        planejado.anoId,
+      ])
+      const colega = await pessoa(escolaId)
+      await vinculoNaMao(escola, planejado.anoId, colega.usuarioId, planejado.turmaId, 'pendente')
+      /** Roda a ação na transação de quem chama, com o ano planejado travado por outra transação (a virada dele), esperando no máximo 1 s por qualquer trava. */
+      const comOAnoTravado = async (acao: (tx: DatabaseTransaction) => Promise<void>): Promise<void> => {
+        const outra = await bancada.pool.connect()
+        try {
+          await outra.query('begin')
+          await outra.query('select id from ano_letivo where id = $1 for no key update', [planejado.anoId])
+          await pela(escola.coordenacao, () =>
+            bancoDoCiclo.transaction(async (tx) => {
+              await tx.execute(sql`set local lock_timeout = '1s'`)
+              await acao(tx)
+            }),
+          )
+        } finally {
+          await outra.query('rollback')
+          outra.release()
+        }
+      }
+
+      await comOAnoTravado((tx) => cicloDoPool.desativar(quem.usuarioId, {}, tx))
+      expect(await abertosDe(escolaId, quem.usuarioId)).toEqual([])
+      await expect(comOAnoTravado((tx) => cicloDoPool.eliminar(quem.usuarioId, {}, tx))).rejects.toMatchObject({ cause: expect.objectContaining({ code: '55P03' }) })
+      expect(await contar('usuario', escolaId, quem.usuarioId)).toBe(1)
+    })
+
+    it('o convite já usado e o já revogado ficam como estão, e o convite aberto de outra pessoa da escola não é tocado', async () => {
+      const escolaId = await bancada.escola()
+      const coordenacao = await bancada.sessao(escolaId, 'coordenador')
+      const quem = await pessoa(escolaId)
+      const colega = await pessoa(escolaId)
+      const gravar = async (usuarioId: string, estado: 'usado' | 'revogado' | 'aberto'): Promise<string> => {
+        const { rows } = await bancada.pool.query<{ id: string }>(
+          `insert into convite (escola_id, token_hash, tipo, usuario_id, expira_em, usado_em, revogado_em)
+           values ($1, $2, 'professor', $3, now() + interval '72 hours', $4, $5) returning id`,
+          [
+            escolaId,
+            createHash('sha256').update(randomBytes(32)).digest('hex'),
+            usuarioId,
+            estado === 'usado' ? new Date(Date.now() - 2 * 60 * 60 * 1000) : null,
+            estado === 'revogado' ? new Date(Date.now() - 60 * 60 * 1000) : null,
+          ],
+        )
+        return rows[0]?.id ?? ''
+      }
+      const usado = await gravar(quem.usuarioId, 'usado')
+      const revogado = await gravar(quem.usuarioId, 'revogado')
+      const doColega = await gravar(colega.usuarioId, 'aberto')
+      const lerConvites = async () =>
+        (await bancada.pool.query<{ id: string; usado: string | null; revogado: string | null }>('select id, usado_em::text as usado, revogado_em::text as revogado from convite where escola_id = $1 order by id', [escolaId])).rows
+      const antes = await lerConvites()
+
+      await pela(coordenacao, () => cicloDoPool.desativar(quem.usuarioId))
+
+      expect(await lerConvites()).toEqual(antes)
+      expect(antes.find((convite) => convite.id === doColega)?.revogado).toBeNull()
+      expect(antes.find((convite) => convite.id === usado)?.revogado).toBeNull()
+      expect(antes.find((convite) => convite.id === revogado)?.revogado).not.toBeNull()
+      expect(await auditoriaDa(escolaId, 'convite.revogado')).toEqual([])
+    })
+
+    it('isolamento no repository: no contexto da escola A, encerrar os vínculos e revogar o convite da pessoa de B não alcança nada; no de B, alcança', async () => {
+      const a = await montarEscolaComTurma(api, bancada)
+      const b = await montarEscolaComTurma(api, bancada)
+      const quemEmB = await pessoa(b.coordenacao.escolaId)
+      const vinculoEmB = await vinculoNaMao(b, b.anoLetivoId, quemEmB.usuarioId, b.turma, 'confirmado')
+      const { rows } = await bancada.pool.query<{ id: string }>(
+        "insert into convite (escola_id, token_hash, tipo, usuario_id, expira_em) values ($1, $2, 'professor', $3, now() + interval '72 hours') returning id",
+        [b.coordenacao.escolaId, createHash('sha256').update(randomBytes(32)).digest('hex'), quemEmB.usuarioId],
+      )
+      const conviteEmB = rows[0]?.id ?? ''
+      const no = <T>(escolaId: string, acao: (repositorio: CicloDeVidaRepository) => Promise<T>): Promise<T> =>
+        runInContext({ requisicaoId: randomUUID(), escolaId }, () => bancada.banco.transaction((tx) => acao(new CicloDeVidaRepository(tx))))
+
+      expect(await no(a.coordenacao.escolaId, (repositorio) => repositorio.encerrarVinculosDaPessoa(quemEmB.usuarioId, 'desligamento'))).toEqual([])
+      expect(await no(a.coordenacao.escolaId, (repositorio) => repositorio.revogarConviteAberto(quemEmB.usuarioId))).toBeUndefined()
+      expect(await abertosDe(b.coordenacao.escolaId, quemEmB.usuarioId)).toHaveLength(1)
+      expect((await bancada.pool.query('select revogado_em from convite where id = $1', [conviteEmB])).rows).toEqual([{ revogado_em: null }])
+
+      expect(await no(b.coordenacao.escolaId, (repositorio) => repositorio.encerrarVinculosDaPessoa(quemEmB.usuarioId, 'desligamento'))).toEqual([{ id: vinculoEmB, estadoAntes: 'confirmado' }])
+      expect(await no(b.coordenacao.escolaId, (repositorio) => repositorio.revogarConviteAberto(quemEmB.usuarioId))).toEqual({ id: conviteEmB, tipo: 'professor' })
+    })
+
+    it('professor pendente, cadastrado por POST /v1/professores: o desativar responde NAO_ENCONTRADO, igual ao inexistente, e não toca o convite nem o vínculo', async () => {
+      const escola = await montarEscolaComTurma(api, bancada)
+      const escolaId = escola.coordenacao.escolaId
+      const cadastro = await chamar(api.url, 'POST', '/v1/professores', escola.coordenacao.token, { nome: `Professor Sintético ${randomUUID().slice(0, 8)}`, email: `pendente-${randomUUID()}@escola.invalid` })
+      expect(cadastro.status).toBe(201)
+      const { usuarioId, conviteId, token } = conviteDeProfessorResponseSchema.parse(cadastro.corpo)
+      const alocado = await chamar(api.url, 'POST', '/v1/vinculos', escola.coordenacao.token, { usuarioId, turmaId: escola.turma, disciplinaId: escola.quimica, papel: 'professor' })
+      expect(alocado.status).toBe(201)
+      const vinculosAntes = await vinculosDe(escolaId, usuarioId)
+      expect(vinculosAntes.map((vinculo) => vinculo.estado)).toEqual(['pendente'])
+      const auditoriaAntes = await auditoriaDa(escolaId, 'usuario.desativado')
+
+      await esperarNaoEncontrado(pela(escola.coordenacao, () => cicloDoPool.desativar(usuarioId)))
+      await esperarNaoEncontrado(pela(escola.coordenacao, () => cicloDoPool.desativar(randomUUID())))
+
+      expect(await vinculosDe(escolaId, usuarioId)).toEqual(vinculosAntes)
+      expect((await bancada.pool.query('select revogado_em, usado_em from convite where id = $1', [conviteId])).rows).toEqual([{ revogado_em: null, usado_em: null }])
+      expect(await auditoriaDa(escolaId, 'usuario.desativado')).toEqual(auditoriaAntes)
+      expect(await auditoriaDa(escolaId, 'convite.revogado')).toEqual([])
+      // O convite segue valendo: quem o tira é o `convite/revogar` da A1, não a desativação.
+      expect((await postar('/v1/convites/consultar', { token })).status).toBe(200)
+    })
+
+    /**
+     * O professor que aceitou o convite com a conta que já tinha senha (usuário ativo em outra escola) e ainda não entrou: o
+     * `aceito` da A1 (E11). Inativo, com o convite da escola usado, e com o bilhete na mão. Cadastrado e aceito pelas rotas reais.
+     */
+    async function aceitoSemEntrar(escola: EscolaComTurma, comVinculo = true): Promise<{ readonly quem: Pessoa; readonly usuarioId: string; readonly conviteId: string; readonly bilhete: string }> {
+      const quem = await pessoa(await bancada.escola())
+      const cadastro = await chamar(api.url, 'POST', '/v1/professores', escola.coordenacao.token, { nome: quem.nome, email: quem.email })
+      expect(cadastro.status).toBe(201)
+      const { usuarioId, conviteId, token } = conviteDeProfessorResponseSchema.parse(cadastro.corpo)
+      if (comVinculo) {
+        const alocado = await chamar(api.url, 'POST', '/v1/vinculos', escola.coordenacao.token, { usuarioId, turmaId: escola.turma, disciplinaId: escola.quimica, papel: 'professor' })
+        expect(alocado.status).toBe(201)
+      }
+      const aceite = await postar('/v1/convites/aceitar', { token })
+      expect(aceite.status).toBe(200)
+      expect(aceite.corpo['etapa']).toBe('entrar')
+      return { quem, usuarioId, conviteId, bilhete: String(aceite.corpo['bilhete']) }
+    }
+
+    /** O professor cadastrado pela rota real e ainda sem aceitar: o `pendente`. */
+    async function cadastrado(escola: EscolaComTurma, email = `pendente-${randomUUID()}@escola.invalid`): Promise<{ readonly usuarioId: string; readonly conviteId: string; readonly token: string }> {
+      const cadastro = await chamar(api.url, 'POST', '/v1/professores', escola.coordenacao.token, { nome: `Professor Sintético ${randomUUID().slice(0, 8)}`, email })
+      expect(cadastro.status).toBe(201)
+      const { usuarioId, conviteId, token } = conviteDeProfessorResponseSchema.parse(cadastro.corpo)
+      return { usuarioId, conviteId, token }
+    }
+
+    /** O estado do professor na lista da coordenação (`GET /v1/professores`). */
+    async function estadoNaLista(escola: EscolaComTurma, usuarioId: string): Promise<string | undefined> {
+      const lista = await chamar(api.url, 'GET', '/v1/professores', escola.coordenacao.token)
+      expect(lista.status).toBe(200)
+      return listaDeProfessoresResponseSchema.parse(lista.corpo).itens.find((professor) => professor.usuarioId === usuarioId)?.estado
+    }
+
+    const entrarComBilhete = (email: string, bilhete: string) => postar('/v1/sessao/email', { email, senha: SENHA, bilhete })
+
+    const desativadoNoBanco = async (usuarioId: string) =>
+      (await bancada.pool.query<{ desativado: boolean }>('select desativado_em is not null as desativado from usuario where id = $1', [usuarioId])).rows[0]?.desativado
+
+    it('[I] o professor que aceitou com a conta que já tinha senha e não entrou: o desativar responde como ao ativo, encerra os vínculos, a lista diz desativado e o login com o bilhete não o ativa', async () => {
+      const escola = await montarEscolaComTurma(api, bancada)
+      const escolaId = escola.coordenacao.escolaId
+      const { quem, usuarioId, conviteId, bilhete } = await aceitoSemEntrar(escola)
+      expect(await estadoNaLista(escola, usuarioId)).toBe('aceito')
+      expect((await vinculosDe(escolaId, usuarioId)).map((vinculo) => vinculo.estado)).toEqual(['pendente'])
+
+      await pela(escola.coordenacao, () => cicloDoPool.desativar(usuarioId))
+
+      expect(await vinculosDe(escolaId, usuarioId)).toEqual([expect.objectContaining({ estado: 'encerrado', motivo: 'desligamento' })])
+      expect(await estadoNaLista(escola, usuarioId)).toBe('desativado')
+      expect(await auditoriaDa(escolaId, 'usuario.desativado')).toEqual([expect.objectContaining({ entidade_id: usuarioId, autor_usuario_id: escola.coordenacao.usuarioId })])
+      // O convite usado fica como está: quem barra o login é o `desativado_em` posterior a ele.
+      expect((await bancada.pool.query('select revogado_em, usado_em is not null as usado from convite where id = $1', [conviteId])).rows).toEqual([{ revogado_em: null, usado: true }])
+
+      // Senha certa e bilhete do aceite: a pessoa entra na outra escola, e o usuário daqui segue desativado, sem vínculo aberto.
+      const entrada = await entrarComBilhete(quem.email, bilhete)
+      expect(entrada.status).toBe(200)
+      expect(await statusDoEu(String(entrada.corpo['token']))).toBe(200)
+      expect(await desativadoNoBanco(usuarioId)).toBe(true)
+      expect(await abertosDe(escolaId, usuarioId)).toEqual([])
+      expect(await auditoriaDa(escolaId, 'usuario.ativado_por_convite')).toEqual([])
+      expect(await estadoNaLista(escola, usuarioId)).toBe('desativado')
+      // Já desativado, não é mais ativável: o segundo desativar responde como ao inexistente.
+      await esperarNaoEncontrado(pela(escola.coordenacao, () => cicloDoPool.desativar(usuarioId)))
+    })
+
+    it('o pendente, o aceito que teve o convite revogado e o desativado não são "à espera": o desativar responde NAO_ENCONTRADO, mesmo com o convite aceito de outra pessoa da escola', async () => {
+      const escola = await montarEscolaComTurma(api, bancada)
+      const escolaId = escola.coordenacao.escolaId
+      const pendente = await cadastrado(escola)
+      const revogado = await aceitoSemEntrar(escola)
+      // O estado montado no banco: o convite aceito e depois revogado (o `gerar` do operador faz isso).
+      await bancada.pool.query('update convite set revogado_em = now() where id = $1', [revogado.conviteId])
+      // O aceito de outra pessoa, depois dos dois: o convite dele, usado e não revogado, não pode valer para o pendente nem para o revogado.
+      const aceito = await aceitoSemEntrar(escola, false)
+      expect(await estadoNaLista(escola, aceito.usuarioId)).toBe('aceito')
+      const auditoriaAntes = await auditoriaDa(escolaId, 'usuario.desativado')
+      const vinculosAntes = await vinculosDe(escolaId, revogado.usuarioId)
+
+      await esperarNaoEncontrado(pela(escola.coordenacao, () => cicloDoPool.desativar(pendente.usuarioId)))
+      await esperarNaoEncontrado(pela(escola.coordenacao, () => cicloDoPool.desativar(revogado.usuarioId)))
+
+      expect(await vinculosDe(escolaId, revogado.usuarioId)).toEqual(vinculosAntes)
+      expect(await auditoriaDa(escolaId, 'usuario.desativado')).toEqual(auditoriaAntes)
+      expect(await estadoNaLista(escola, pendente.usuarioId)).toBe('pendente')
+      expect(await estadoNaLista(escola, revogado.usuarioId)).toBe('revogado')
+      expect(await estadoNaLista(escola, aceito.usuarioId)).toBe('aceito')
+    })
+
+    it('[P] desativar × aceite, a desativação começa antes: zero 40P01, o aceite ativa, a desativação vem depois dele (usado_em < desativado_em) e o bilhete não reativa', async () => {
+      const escola = await montarEscolaComTurma(api, bancada)
+      const outra = await montarEscolaComTurma(api, bancada)
+      const email = `sem-senha-${randomUUID()}@escola.invalid`
+      await bancada.pool.query('insert into conta (email) values ($1)', [email])
+      const emA = await cadastrado(escola, email)
+      // Outro convite válido da mesma conta, em outra escola (RF16): a desativação não limpa a conta.
+      await cadastrado(outra, email)
+      const alocado = await chamar(api.url, 'POST', '/v1/vinculos', escola.coordenacao.token, { usuarioId: emA.usuarioId, turmaId: escola.turma, disciplinaId: escola.quimica, papel: 'professor' })
+      expect(alocado.status).toBe(201)
+
+      // A conexão que segura o ano é do pool do ciclo: o da bancada tem duas, e o gatilho e as conferências usam as duas.
+      const segurador = await poolDoCiclo.connect()
+      const gatilho = new WriteBlockTrigger(bancada.pool, { tabela: 'usuario', evento: 'update', quando: `new.desativado_em is null and new.id = '${emA.usuarioId}'::uuid` })
+      let desfechos: [unknown, Resposta]
+      try {
+        await segurador.query('begin')
+        await segurador.query('select id from ano_letivo where id = $1 for no key update', [escola.anoLetivoId])
+        await gatilho.armar()
+        // A desativação abre a transação (o `now()` dela fica aqui) e para no `FOR SHARE` do ano.
+        const desativando = pela(escola.coordenacao, () => cicloDoPool.desativar(emA.usuarioId)).then(
+          () => 'desativado',
+          (erro: unknown) => erro,
+        )
+        await esperarNaTrava(bancada.pool, '%"ano_letivo"%for share%')
+        // O aceite chega depois: grava a senha, ativa o usuário e para no `update` do usuário, com a linha dele travada.
+        const aceitando = postar('/v1/convites/aceitar', { token: emA.token, senha: SENHA })
+        await gatilho.esperarParadas()
+        await segurador.query('rollback')
+        await esperarNaTrava(bancada.pool, '%"usuario"%for no key update%')
+        await gatilho.soltar()
+        desfechos = await Promise.all([desativando, aceitando])
+      } finally {
+        await segurador.query('rollback').catch(() => undefined)
+        segurador.release()
+        await gatilho.desarmar()
+      }
+
+      const [desativacao, aceite] = desfechos
+      expect(aceite.status).toBe(200)
+      expect(desativacao).toBe('desativado')
+      expect((await bancada.pool.query('select c.usado_em < u.desativado_em as depois from convite c join usuario u on u.id = c.usuario_id where c.id = $1', [emA.conviteId])).rows).toEqual([{ depois: true }])
+      // Sem outro usuário ativo na conta, o bilhete do aceite não ativa ninguém: a recusa de convite que já não ativa.
+      const entrada = await entrarComBilhete(email, String(aceite.corpo['bilhete']))
+      expect(entrada.status).toBe(404)
+      expect(await desativadoNoBanco(emA.usuarioId)).toBe(true)
+      expect(await auditoriaDa(escola.coordenacao.escolaId, 'usuario.ativado_por_convite')).toEqual([])
+    })
+
+    it('[P] desativar × aceite, a desativação pega o usuário primeiro: o pendente é recusado antes da conta, zero 40P01, o aceite ativa e um segundo desativar tem sucesso', async () => {
+      const escola = await montarEscolaComTurma(api, bancada)
+      const email = `sem-senha-${randomUUID()}@escola.invalid`
+      const { rows: contas } = await bancada.pool.query<{ id: string }>('insert into conta (email) values ($1) returning id', [email])
+      const contaId = contas[0]?.id ?? ''
+      const pendente = await cadastrado(escola, email)
+      const gatilho = new WriteBlockTrigger(bancada.pool, { tabela: 'conta', evento: 'update', quando: `new.id = '${contaId}'::uuid and new.senha_hash is not null` })
+      await gatilho.armar()
+      let desfecho: unknown
+      let aceitando: Promise<Resposta> | undefined
+      let desativando: Promise<unknown> | undefined
+      try {
+        // O aceite grava a senha e para segurando a conta, antes de chegar ao usuário.
+        aceitando = postar('/v1/convites/aceitar', { token: pendente.token, senha: SENHA })
+        await gatilho.esperarParadas()
+        desativando = pela(escola.coordenacao, () => cicloDoPool.desativar(pendente.usuarioId)).then(
+          () => 'desativado',
+          (erro: unknown) => erro,
+        )
+        // Recusado logo depois de travar o usuário, sem pedir a conta: responde com o aceite ainda parado.
+        desfecho = await Promise.race([desativando, new Promise((resolver) => setTimeout(() => resolver('esperou a conta que o aceite segura'), 5_000))])
+      } finally {
+        await gatilho.desarmar()
+        await Promise.allSettled([aceitando, desativando])
+      }
+
+      expect(desfecho).toBeInstanceOf(DomainException)
+      expect((desfecho as DomainException).codigo).toBe(ErrorCode.NAO_ENCONTRADO)
+      expect((await aceitando)?.status).toBe(200)
+      expect(await desativadoNoBanco(pendente.usuarioId)).toBe(false)
+      await pela(escola.coordenacao, () => cicloDoPool.desativar(pendente.usuarioId))
+      expect(await desativadoNoBanco(pendente.usuarioId)).toBe(true)
+    })
+
+    it('[P] desativar × ativar do login, para o à espera: o login que espera a linha do usuário não reativa quem acabou de ser desativado', async () => {
+      const escola = await montarEscolaComTurma(api, bancada)
+      const escolaId = escola.coordenacao.escolaId
+      const { quem, usuarioId, bilhete } = await aceitoSemEntrar(escola)
+      const gatilho = new WriteBlockTrigger(bancada.pool, { tabela: 'usuario', evento: 'update', quando: `new.desativado_em is not null and new.id = '${usuarioId}'::uuid` })
+      await gatilho.armar()
+      let desfechos: [unknown, Resposta]
+      try {
+        // A desativação para com o usuário travado.
+        const desativando = pela(escola.coordenacao, () => cicloDoPool.desativar(usuarioId)).then(
+          () => 'desativado',
+          (erro: unknown) => erro,
+        )
+        await gatilho.esperarParadas()
+        // O login com a senha e o bilhete chega ao `ativarPorConvite` e espera a linha. São dois na fila de trava com este texto: a
+        // desativação parada no gatilho e o login.
+        const entrando = entrarComBilhete(quem.email, bilhete)
+        await esperarNaTrava(bancada.pool, '%update "usuario"%', 2)
+        await gatilho.soltar()
+        desfechos = await Promise.all([desativando, entrando])
+      } finally {
+        await gatilho.desarmar()
+      }
+
+      const [desativacao, entrada] = desfechos
+      expect(desativacao).toBe('desativado')
+      expect(entrada.status).toBe(200)
+      expect(await desativadoNoBanco(usuarioId)).toBe(true)
+      expect(await abertosDe(escolaId, usuarioId)).toEqual([])
+      expect(await auditoriaDa(escolaId, 'usuario.ativado_por_convite')).toEqual([])
+      expect(await estadoNaLista(escola, usuarioId)).toBe('desativado')
+    })
+
+    it('isolamento: a coordenação de A que desativa a pessoa de B, com o ano de B travado pela virada dele, recebe NAO_ENCONTRADO, e não espera nem 55P03', async () => {
+      const a = await montarEscolaComTurma(api, bancada)
+      const b = await montarEscolaComTurma(api, bancada)
+      const quemEmB = await pessoa(b.coordenacao.escolaId)
+      await vinculoNaMao(b, b.anoLetivoId, quemEmB.usuarioId, b.turma, 'confirmado')
+      const outra = await bancada.pool.connect()
+      try {
+        await outra.query('begin')
+        await outra.query('select id from ano_letivo where id = $1 for no key update', [b.anoLetivoId])
+        const desativarComPrazo = (alvo: string) =>
+          pela(a.coordenacao, () =>
+            bancoDoCiclo.transaction(async (tx) => {
+              await tx.execute(sql`set local lock_timeout = '1s'`)
+              await cicloDoPool.desativar(alvo, {}, tx)
+            }),
+          )
+        await esperarNaoEncontrado(desativarComPrazo(quemEmB.usuarioId))
+        // A mesma resposta do id que não existe, na mesma condição: nada diz que o id de B existe.
+        await esperarNaoEncontrado(desativarComPrazo(randomUUID()))
+      } finally {
+        await outra.query('rollback')
+        outra.release()
+      }
+      expect(await abertosDe(b.coordenacao.escolaId, quemEmB.usuarioId)).toHaveLength(1)
+    })
+
+    it('regra 20, item 9: o ciclo de vida não registra log, só auditoria com ids', () => {
+      for (const arquivo of ['ciclo-de-vida.service.ts', 'ciclo-de-vida.repository.ts']) {
+        const texto = readFileSync(new URL(`../../../packages/core/src/ciclo-de-vida/${arquivo}`, import.meta.url), 'utf8')
+        expect(texto).not.toMatch(/logger|console\./i)
+      }
+    })
+  })
+
   describe('V3 e V4 (A1, tarefa 10.0): a eliminação alcança a lista de nomes e os pedidos', () => {
     let sala: FerramentasDaSala
 
@@ -725,7 +1443,7 @@ describe('ciclo de vida da conta: desativação, limpeza da conta global e elimi
       const marcador = `marcador${randomUUID().slice(0, 8)}`
       const nomeDoAluno = `Aluna ${marcador}`
       const matricula = `${marcador}-m`
-      expect((await chamar(api.url, 'POST', `/v1/turmas/${s.turma}/lista`, s.coordenacao.token, { texto: `${nomeDoAluno};${matricula}` })).status).toBe(201)
+      expect((await chamar(api.url, 'POST', `/v1/turmas/${s.turma}/lista/nome`, s.coordenacao.token, { nome: nomeDoAluno, matricula })).status).toBe(201)
       const { rows } = await bancada.pool.query<{ id: string }>('select id from lista_nome where escola_id = $1 and matricula = $2', [s.escolaId, matricula])
       const nome: NomeDaLista = { id: rows[0]?.id ?? '', nome: nomeDoAluno, matricula }
       // Alguém pede o nome antes e é recusado; depois o aluno pede e é aprovado: os dois pedidos apontam para a linha.

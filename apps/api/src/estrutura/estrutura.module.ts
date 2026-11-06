@@ -1,12 +1,19 @@
-import type { Database } from '@educa/core'
+import { JobOutbox, JobOutboxRepository, MotorDePlanilha, type Database, type SchoolSemaphore } from '@educa/core'
 import { Module } from '@nestjs/common'
 import { DB } from '../database.module.js'
+import { VAGAS_DA_PLANILHA } from '../rate-limit.module.js'
 import { AnoLetivoController } from './ano-letivo/ano-letivo.controller.js'
 import { AnoLetivoService } from './ano-letivo/ano-letivo.service.js'
 import { DisciplinaController } from './disciplina/disciplina.controller.js'
 import { DisciplinaService } from './disciplina/disciplina.service.js'
 import { EscolaSessaoController } from './escola-sessao/escola-sessao.controller.js'
 import { EscolaSessaoService } from './escola-sessao/escola-sessao.service.js'
+import { CalendarioController } from './grade/calendario.controller.js'
+import { CalendarioService } from './grade/calendario.service.js'
+import { GradeController } from './grade/grade.controller.js'
+import { GradeService } from './grade/grade.service.js'
+import { ImportacaoController } from './importacao/importacao.controller.js'
+import { ImportacaoService } from './importacao/importacao.service.js'
 import { ListaController } from './lista/lista.controller.js'
 import { ListaService } from './lista/lista.service.js'
 import { ProvedoresDaEscolaController } from './provedores-da-escola/provedores-da-escola.controller.js'
@@ -22,10 +29,10 @@ import { VinculoService } from './vinculo/vinculo.service.js'
  * A estrutura da escola que a coordenação configura pela API: a inatividade da sessão (5.0), os domínios e tenants do
  * login pela conta da escola (13.0), e o ano letivo, as
  * séries, as disciplinas e as turmas (8.0), e o vínculo, com a turma e os alunos que ele abre (9.0); na A1, a lista de nomes
- * da turma (2.0).
+ * da turma (2.0); no F2, as planilhas da escola (4.0), o estado delas e o calendário (5.0), e a grade da turma (12.0).
  */
 @Module({
-  controllers: [EscolaSessaoController, ProvedoresDaEscolaController, AnoLetivoController, SerieController, DisciplinaController, TurmaController, ListaController, VinculoController, MeusVinculosController],
+  controllers: [EscolaSessaoController, ProvedoresDaEscolaController, AnoLetivoController, SerieController, DisciplinaController, TurmaController, ListaController, ImportacaoController, CalendarioController, GradeController, VinculoController, MeusVinculosController],
   providers: [
     { provide: EscolaSessaoService, useFactory: (banco: Database) => new EscolaSessaoService(banco), inject: [DB] },
     { provide: ProvedoresDaEscolaService, useFactory: (banco: Database) => new ProvedoresDaEscolaService(banco), inject: [DB] },
@@ -33,7 +40,15 @@ import { VinculoService } from './vinculo/vinculo.service.js'
     { provide: SerieService, useFactory: (banco: Database) => new SerieService(banco), inject: [DB] },
     { provide: DisciplinaService, useFactory: (banco: Database) => new DisciplinaService(banco), inject: [DB] },
     { provide: TurmaService, useFactory: (banco: Database) => new TurmaService(banco), inject: [DB] },
-    { provide: ListaService, useFactory: (banco: Database) => new ListaService(banco), inject: [DB] },
+    { provide: ListaService, useFactory: (banco: Database, importacoes: ImportacaoService) => new ListaService(banco, importacoes), inject: [DB, ImportacaoService] },
+    { provide: JobOutboxRepository, useFactory: (banco: Database) => new JobOutboxRepository(banco), inject: [DB] },
+    {
+      provide: ImportacaoService,
+      useFactory: (banco: Database, repositorio: JobOutboxRepository, vagas: SchoolSemaphore) => new ImportacaoService(new MotorDePlanilha(banco, new JobOutbox(repositorio)), banco, vagas),
+      inject: [DB, JobOutboxRepository, VAGAS_DA_PLANILHA],
+    },
+    { provide: CalendarioService, useFactory: (banco: Database) => new CalendarioService(banco), inject: [DB] },
+    { provide: GradeService, useFactory: (banco: Database) => new GradeService(banco), inject: [DB] },
     { provide: VinculoService, useFactory: (banco: Database) => new VinculoService(banco), inject: [DB] },
   ],
 })

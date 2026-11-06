@@ -233,7 +233,7 @@ export function descreverFase(fase: FaseDaSala, resumo: ResumoDaFase): string[] 
 // A montagem da escola, pela API
 // ---------------------------------------------------------------------------------------------------------------------
 
-interface ModulosDaApi {
+export interface ModulosDaApi {
   nucleo: { createDatabase: typeof createDatabase; createPool: typeof createPool }
   escolas: { criarRede: typeof criarRede; criarEscola: typeof criarEscola }
   sessoes: { criarAlunosComMatricula: typeof criarAlunosComMatricula; createSyntheticSessions: typeof createSyntheticSessions }
@@ -241,7 +241,7 @@ interface ModulosDaApi {
 }
 
 /** Os módulos já compilados da API (o `npm run carga:sala` compila antes), como o `carga:login`. */
-async function importarDaApi(): Promise<ModulosDaApi> {
+export async function importarDaApi(): Promise<ModulosDaApi> {
   const importar = <T>(caminho: string) => import(pathToFileURL(join(raizRepositorio, caminho)).href) as Promise<T>
   return {
     nucleo: await importar('packages/core/dist/index.js'),
@@ -252,7 +252,7 @@ async function importarDaApi(): Promise<ModulosDaApi> {
 }
 
 /** Uma chamada à API pela borda, com o token; no 429, espera o `Retry-After` e repete. Devolve o corpo, ou falha. */
-async function chamarApi(url: string, token: string, metodo: 'POST' | 'GET', caminho: string, corpo?: unknown): Promise<Record<string, unknown>> {
+export async function callApi(url: string, token: string, metodo: 'POST' | 'GET', caminho: string, corpo?: unknown): Promise<Record<string, unknown>> {
   for (let tentativa = 0; tentativa < 10; tentativa++) {
     const resposta = await fetch(`${url}${caminho}`, {
       method: metodo,
@@ -269,6 +269,26 @@ async function chamarApi(url: string, token: string, metodo: 'POST' | 'GET', cam
     return texto === '' ? {} : (JSON.parse(texto) as Record<string, unknown>)
   }
   throw new Error(`${metodo} ${caminho.replace(/[0-9a-f-]{36}/g, ':id')}: 429 depois de 10 tentativas`)
+}
+
+/** Quanto a montagem espera uma importação de lista terminar: o job normal de 40 nomes leva segundos, e 60 s é só o prazo da espera: passado ele, a montagem falha. */
+const ESPERA_MAXIMA_DA_LISTA_MS = 60_000
+
+/**
+ * Grava a lista da turma (A1, F2 8.0: a gravação responde 202 e o job `estrutura.gravar-planilha` grava) e espera a importação
+ * terminar, porque o vínculo e o acesso da turma, que vêm logo depois, e a reivindicação da carga precisam do nome na lista. A
+ * escola só tem uma importação na fila por vez, então a montagem grava uma turma e espera.
+ */
+async function gravarListaEEsperar(coordenacao: (metodo: 'POST' | 'GET', caminho: string, corpo?: unknown) => Promise<Record<string, unknown>>, turmaId: string, texto: string): Promise<void> {
+  const { id } = await coordenacao('POST', `/v1/turmas/${turmaId}/lista`, { texto })
+  const limite = Date.now() + ESPERA_MAXIMA_DA_LISTA_MS
+  while (Date.now() < limite) {
+    const { estado } = await coordenacao('GET', `/v1/importacoes/${String(id)}`)
+    if (estado === 'concluida') return
+    if (estado !== 'na_fila') throw new Error(`a lista de uma turma terminou ${String(estado)}`)
+    await esperar(250)
+  }
+  throw new Error('a lista de uma turma não terminou no prazo')
 }
 
 export interface TurmaMontada {
@@ -302,7 +322,7 @@ async function montarEscola(modulos: ModulosDaApi, banco: ReturnType<typeof crea
   const turmasDeCada = turmasDosProfessores(ESCALA[fase].turmas)
   const professores = await modulos.sessoes.createSyntheticSessions(banco, doArquivo, { escolaId, papel: 'professor', quantidade: turmasDeCada.length })
   let vez = 0
-  const coordenacao = (metodo: 'POST' | 'GET', caminho: string, corpo?: unknown) => chamarApi(url, coordenacoes[vez++ % coordenacoes.length]?.token ?? '', metodo, caminho, corpo)
+  const coordenacao = (metodo: 'POST' | 'GET', caminho: string, corpo?: unknown) => callApi(url, coordenacoes[vez++ % coordenacoes.length]?.token ?? '', metodo, caminho, corpo)
 
   const ano = await coordenacao('POST', '/v1/anos-letivos', { ano: 2026, inicio: '2026-02-01', fim: '2026-12-15' })
   await coordenacao('POST', `/v1/anos-letivos/${String(ano['id'])}/abrir`)
@@ -315,10 +335,10 @@ async function montarEscola(modulos: ModulosDaApi, banco: ReturnType<typeof crea
     for (const indice of indices) {
       const turma = await coordenacao('POST', '/v1/turmas', { serieId: serie['id'], nome: `Turma ${String(indice + 1).padStart(2, '0')}` })
       const turmaId = String(turma['id'])
-      await coordenacao('POST', `/v1/turmas/${turmaId}/lista`, { texto: textoDaLista(alunos, indice) })
+      await gravarListaEEsperar(coordenacao, turmaId, textoDaLista(alunos, indice))
       const vinculo = await coordenacao('POST', '/v1/vinculos', { usuarioId: professor.usuarioId, turmaId, disciplinaId: disciplina['id'], papel: 'professor' })
-      await chamarApi(url, professor.token, 'POST', `/v1/vinculos/${String(vinculo['id'])}/confirmar`)
-      const acesso = await chamarApi(url, professor.token, 'POST', `/v1/turmas/${turmaId}/acesso`, { validadeDias: 7 })
+      await callApi(url, professor.token, 'POST', `/v1/vinculos/${String(vinculo['id'])}/confirmar`)
+      const acesso = await callApi(url, professor.token, 'POST', `/v1/turmas/${turmaId}/acesso`, { validadeDias: 7 })
       const matriculas = Object.fromEntries(alunos.filter((aluno) => aluno.turma === indice).map((aluno) => [aluno.nome, aluno.matricula]))
       turmas[indice] = { id: turmaId, token: String(acesso['token']), codigo: String(acesso['codigo']), matriculas }
     }

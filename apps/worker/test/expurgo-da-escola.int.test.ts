@@ -86,6 +86,7 @@ const CHAVES_DO_LOG = new Set([
   'arquivosNaoApagadosTotal',
   'eliminacoesTotal',
   'eliminacoesJaEnfileiradasTotal',
+  'importacoesFechadasTotal',
   'categoriasTotal',
   'escolasTotal',
   'enfileiradosTotal',
@@ -635,6 +636,99 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
       expect(await existe('mensagem_tutor', deA)).toBe(false)
       expect(await quantas('mensagem_tutor', a.escolaId)).toBe(0)
       expect(await existe('mensagem_tutor', deB)).toBe(true)
+    })
+  })
+
+  describe('importação de planilha parada (F2, tarefa 5.0)', () => {
+    interface LinhaDaImportacao {
+      readonly estado: string
+      readonly erro: string | null
+      readonly linhas: unknown
+      readonly marcas: unknown
+      readonly concluidaEm: Date | null
+    }
+
+    /** Uma importação do tipo `professores` (o único sem ano), gravada `minutosAtras` antes da quarta 1h, com as linhas e as marcas em trânsito. */
+    async function importacaoDe(escolaId: string, estado: 'na_fila' | 'concluida' | 'falhou', minutosAtras: number): Promise<string> {
+      const { rows } = await bancada.pool.query<{ id: string }>(
+        `insert into importacao_planilha (escola_id, tipo, estado, assinatura, linhas, marcas, erro, criado_em, concluida_em)
+         values ($1, 'professores', $2::text, 'assinatura-sintetica', case when $2::text = 'na_fila' then '[{"linha": 2}]'::jsonb end, case when $2::text = 'na_fila' then '{"desligar": []}'::jsonb end,
+                 case when $2::text = 'falhou' then 'erro_interno' end, $3::timestamptz - $4::numeric * interval '1 minute', case when $2::text = 'na_fila' then null else $3::timestamptz end)
+         returning id`,
+        [escolaId, estado, QUARTA_1H.toISOString(), minutosAtras],
+      )
+      const id = rows[0]?.id
+      if (id === undefined) throw new Error('importação de teste não criada')
+      return id
+    }
+
+    async function importacao(id: string): Promise<LinhaDaImportacao> {
+      const { rows } = await bancada.pool.query<LinhaDaImportacao>('select estado, erro, linhas, marcas, concluida_em as "concluidaEm" from importacao_planilha where id = $1', [id])
+      const linha = rows[0]
+      if (linha === undefined) throw new Error('importação de teste sumiu')
+      return linha
+    }
+
+    it('relógio falso: com 59 min a `na_fila` fica; com 61 min fecha `falhou` (`expirou`), com `linhas` e `marcas` nulas; a de B, na mesma idade, e a `concluida` de A, também com 61 min, ficam', async () => {
+      const a = await escolaNova()
+      const b = await escolaNova()
+      const nova = await importacaoDe(a.escolaId, 'na_fila', 59)
+      const deB = await importacaoDe(b.escolaId, 'na_fila', 61)
+      const concluidaVelha = await importacaoDe(a.escolaId, 'concluida', 61)
+
+      await rodar(a.escolaId, expurgo(relogioEm(QUARTA_1H)))
+      expect(await importacao(nova)).toMatchObject({ estado: 'na_fila', erro: null, linhas: [{ linha: 2 }], marcas: { desligar: [] }, concluidaEm: null })
+      // O dado de B só sai pelo job de B (regra 10): o de A nunca o alcança.
+      expect(await importacao(deB)).toMatchObject({ estado: 'na_fila', linhas: [{ linha: 2 }] })
+      expect(await importacao(concluidaVelha)).toMatchObject({ estado: 'concluida', erro: null, linhas: null })
+
+      // Dois minutos depois, a mesma importação tem 61 min: fecha, e só ela.
+      const depois = relogioEm(new Date(QUARTA_1H.getTime() + 2 * 60_000))
+      await rodar(a.escolaId, expurgo(depois))
+      expect(await importacao(nova)).toMatchObject({ estado: 'falhou', erro: 'expirou', linhas: null, marcas: null, concluidaEm: depois.atual })
+      expect(await importacao(deB)).toMatchObject({ estado: 'na_fila', linhas: [{ linha: 2 }] })
+      expect(await importacao(concluidaVelha)).toMatchObject({ estado: 'concluida', erro: null, linhas: null, concluidaEm: QUARTA_1H })
+
+      await rodar(b.escolaId, expurgo(relogioEm(QUARTA_1H)))
+      expect(await importacao(deB)).toMatchObject({ estado: 'falhou', erro: 'expirou', linhas: null, marcas: null })
+    })
+
+    it('borda: com exatamente 60 min a `na_fila` fica, e a `falhou` que já estava fechada não é tocada', async () => {
+      const a = await escolaNova()
+      const noLimite = await importacaoDe(a.escolaId, 'na_fila', 60)
+      const jaFalhou = await importacaoDe(a.escolaId, 'falhou', 600)
+      const antes = await importacao(jaFalhou)
+      await rodar(a.escolaId, expurgo(relogioEm(QUARTA_1H)))
+      expect(await importacao(noLimite)).toMatchObject({ estado: 'na_fila', linhas: [{ linha: 2 }] })
+      expect(await importacao(jaFalhou)).toEqual(antes)
+    })
+
+    it('[P] com o job segurando a linha, o expurgo pula (`skip locked`) e não espera; solta a trava, a noite seguinte a fecha', async () => {
+      const a = await escolaNova()
+      const parada = await importacaoDe(a.escolaId, 'na_fila', 120)
+      const segurador = await bancada.pool.connect()
+      try {
+        await segurador.query('begin')
+        await segurador.query('select id from importacao_planilha where id = $1 for update', [parada])
+        const inicio = Date.now()
+        await rodar(a.escolaId, expurgo(relogioEm(QUARTA_1H)))
+        // Esperar a trava levaria o tempo do `statement_timeout`; pular leva milissegundos.
+        expect(Date.now() - inicio).toBeLessThan(10_000)
+        expect(await importacao(parada)).toMatchObject({ estado: 'na_fila', linhas: [{ linha: 2 }] })
+      } finally {
+        await segurador.query('rollback')
+        segurador.release()
+      }
+      await rodar(a.escolaId, expurgo(relogioEm(QUARTA_1H)))
+      expect(await importacao(parada)).toMatchObject({ estado: 'falhou', erro: 'expirou', linhas: null, marcas: null })
+    })
+
+    it('a contagem das fechadas vai ao log, e nenhuma linha da planilha: só `importacoesFechadasTotal`', async () => {
+      const a = await escolaNova()
+      await importacaoDe(a.escolaId, 'na_fila', 120)
+      await rodar(a.escolaId, expurgo(relogioEm(QUARTA_1H)))
+      const finais = log.doEvento('retencao.expurgada').filter((linha) => linha['escolaId'] === a.escolaId)
+      expect(finais).toEqual([expect.objectContaining({ importacoesFechadasTotal: 1 })])
     })
   })
 

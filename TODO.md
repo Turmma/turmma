@@ -2247,6 +2247,11 @@ repetem aqui.
 - [ ] **(X4, retro) O push da branch da spec no pouso roda a esteira no mesmo commit que a da `develop`**: `40365404286` vermelha
       (seis casos do celular a 30–32 s) e `40365440626` verde, as duas em `83f1c6d8`, e ninguém lê a primeira. Se voltar a confundir,
       o pouso não empurra a spec (dono: Orquestrador)
+- [ ] **(F2, censo do fechamento, 06/11/2026) 9 casos de fora da spec entre 2/3 e 90% do prazo** na execução 42222849837 (`19f8e2c`), dívida da develop,
+      já cobertos pelos grupos do item abaixo, nenhum acima de 90%: `alocacao.spec.ts:85` (77,3 e 76,1 s de 90), `mfa.spec.ts:14` (24,8 e 22,6 de 30),
+      `escola-e-vinculos.spec.ts:211` (24,4 e 21,6) e `:271` (21,4), `operacao.spec.ts:45` (22,6 e 21,1) e `:125` (64,5 e 63,6 de 90), `convite.spec.ts:154`
+      (22,2 e 21,8), `titulo-da-tela.spec.ts:138` (21,6) e `components-ai.spec.ts:205` (20,5). Os quatro da spec viraram a correção
+      `2026-11-06-e2e-perto-do-prazo-da-f2` (dono: Orquestrador)
 - [ ] **(X4, censo do e2e) 36 casos entre 2/3 e 90% do prazo, de antes da X4** (dívida da develop, decisão A do Joaquim em
       26/10/2026; detalhe em `.processo/ordens/diagnostico-censo.md` do andar da X4, §3), em três correções sem arquivo em duas:
       (1) **material**: `e2e/material.spec.ts`, 10 casos; (2) **entrada e sessão**: `convite`, `entrar`, `inatividade`, `areas`,
@@ -2580,3 +2585,171 @@ repetem aqui.
       "Mutações", não fala da linha `falha:`
 - [ ] Da correção `2026-11-02-mutacao-diz-o-expect` (revisor-geral, 1ª), dono: Arquiteto, na próxima retrospectiva: `docs/processo-licoes.md:42` ainda diz que a defesa da X8 é
       "ler a linha do `expect` que caiu"
+
+## Da tarefa 6.0 do onboarding-por-convite (a planilha de professores), fora dela
+
+- [ ] Da 6.0 (privacy-guardian, 1ª): o `desativar` do job passa `{}` como autoria (`tipos/professores.ts`, o `aplicar`); uma marca de origem na auditoria depende de a
+      `AutoriaDoCicloDeVida` aceitá-la, o que muda o contrato do ciclo de vida (3.0)
+- [ ] Da 6.0 (infra-guardian, 1ª): a conta do desligado é travada em `FOR UPDATE` depois das turmas, fora da ordem global (`motor.ts`); muda a ordem de trava do `desativar` da 3.0, e o
+      revisor não achou ciclo possível
+- [ ] Da 6.0 (infra-guardian, 1ª): os anos dos vínculos dos marcados são travados um por vez (`tipos/professores.ts`, o `travar`); sem conflito hoje (trava compartilhada), é uniformidade
+- [ ] Da 6.0 (infra-guardian, 1ª e 2ª): `acharConta` e `travarContas` ausentes lançam `InvariantException` (`motor.ts`, o passo (1)), que o processor repete até esgotar as tentativas;
+      quando o processor da 4.0 tratar o erro, os dois saem juntos para terminal
+- [ ] Da 6.0 (infra-guardian, 1ª): `travar` e `planejar` leem `professoresDaEscola()` duas vezes (`tipos/professores.ts`); otimização que muda a forma do `travar`, sem efeito de resultado
+- [ ] Da 6.0 (revisor-geral, 1ª): o convite do professor tem dois corpos (`convidar-professor-da-planilha.ts` e os serviços da API); o corpo único toca
+      `convite-de-professor.service.ts` e `convite.service.ts`, fora da 6.0
+- [ ] Da 6.0 (infra-guardian, 2ª; tenancy-guardian, 2ª): o docblock da `ContaGlobalRepository` (`conta-global.repository.ts:12-24`) diz "qualquer outra aqui é mudança de spec" e lista só
+      `sessao`, `ciclo-de-vida` e `cadastro-de-professor.ts` como importadores; citar a 6.0 como a mudança de spec da quinta exceção e dizer que o processor alcança a classe por
+      `travarContasDoProfessor` (texto de comentário)
+- [ ] Da 6.0 (tenancy-guardian, 2ª; privacy-guardian, 2ª), também na retro da funcionalidade: a `ContaGlobalRepository` tem cinco métodos `@Unscoped`, e a regra 10, item 9 chama de sinal de
+      desenho errado já na terceira; revisar o desenho da conta global (um repository por finalidade) antes de entrar uma sexta
+- [ ] Da 6.0 (revisor-geral, 2ª): o comentário de cabeçalho de `ciclo-de-vida.repository.test.ts:8-11` diz "as mesmas três exceções", e o teste afirma cinco métodos
+- [ ] Da 6.0 (revisor-geral, 2ª): `docs/modelo-de-dados.md:111`, a frase das "quatro primeiras" e da "quinta" exceção ficou longa e emendada; partir em duas
+- [ ] Da 6.0 (conformidade-reviewer, 2ª): um teste unitário que afirme que quem pode ser desligado sai só de `ESTADOS_QUE_SAEM` e da ausência na planilha, para fixar a D64 (hoje a garantia é
+      o comentário de `professores.ts` e o código não ler métrica; teste de guarda, sem mudar comportamento)
+- [ ] Da 6.0 (privacy-guardian, 2ª), junto do teste do expurgo (limpeza da conta, F1 17.0): a frase nova de `docs/lgpd.md:65` promete a limpeza da conta que nasceu sem usuário, e nenhum
+      teste a prova (`expurgo-de-acesso.int.test.ts` só semeia conta com usuário desativado); caso com `conta` sem nenhum `usuario`, limpa pelo `limparLoteDeContasSemUso`
+- [ ] Da 6.0 (privacy-guardian, 2ª): a mesma frase de `docs/lgpd.md:65` cita só o job que termina `desatualizada`; o que termina `falhou` depois do passo (1) também deixa a conta sem usuário
+- [ ] Da 6.0 (test-engineer, 2ª): o caso "o motor sem o achar-ou-criar conta do worker" (`gravar-planilha-professores.int.test.ts`) tem comentário que diz "nenhuma conta nasce" sem asserção; acrescentar a
+      contagem ou tirar a frase
+- [ ] Da 6.0 (test-engineer, 2ª): os casos de borda (mesmo nome, `desativado` com e-mail, `desativado` com a conta limpa) não estão na tabela de "Testes que provam a regra" nem num bloco de mutação
+      do `ESTADOS_QUE_ENTRAM`
+- [ ] Da 6.0 (test-engineer, 2ª): o nome do caso de isolamento ("o job não espera a trava dele") promete mais que o caso prova: só a linha do `usuario` da B é travada, e não
+      `travarAnosDosVinculos` nem `travarContraOGerarDosProfessores`; o `segurador` poderia travar também uma turma da B
+## Da tarefa 5.0 do onboarding-por-convite (limites, expurgos e calendário), fora dela
+
+- [ ] Do `sistema.expurgar-acesso` (infra-guardian, 1ª): índice parcial em `importacao_planilha (concluida_em) where estado <> 'na_fila'` para o `delete` dos 90 dias; migration
+      em tabela que hoje é pequena, vale quando o volume crescer
+- [ ] Do balde `rl:importacao` (test-engineer, 1ª): cobrir o seguro em memória com o Redis fora, como o teste de `school-semaphore.test.ts` faz com o semáforo
+- [ ] Da medição `importacao.minutos_na_fila` (test-engineer, 1ª): caso em `apps/worker/test/importacao-gauge.int.test.ts` com 30 e 31 minutos, a borda do alerta da importação parada
+- [ ] Do teto de 100 KB em `apps/api/src/configure-app.ts` (tenancy-guardian, revisor-geral e infra-guardian, 2ª): a regex do `Content-Type` só reconhece `application/json` no
+      começo; se o leitor de JSON passar a aceitar `+json` (ou valor com espaço), o teto acompanha. Se aparecer abuso com JSON em pedaços (sem `Content-Length`), o caminho é
+      contar os bytes no fluxo
+- [ ] Do caso "[P] dez pedidos ao mesmo tempo" de `apps/api/test/importacao.int.test.ts` (test-engineer, 2ª): conferir com `ZCARD` da chave da escola igual a 2 que a conta passou
+      pelo Redis; com o cliente fora de `ready`, o seguro em memória daria o mesmo resultado
+
+## Da correção metrica-escola-id-fora-da-lista (lista fechada de métricas com `escola_id`), fora dela
+
+- [ ] Da `importacao_minutos_na_fila` (test-engineer, 1ª): caso em `infra/test/metricas.int.test.ts` que deixe uma importação parada em `na_fila` e veja a série com o
+      `escola_id` certo no Prometheus (o caso de permissão só confere que a métrica não vaza); exige subir o gauge no cenário de infra
+- [ ] Da lista fechada (privacy-guardian, test-engineer e revisor-geral, 1ª): avisar junto de `METRICS_WITH_ESCOLA` (`packages/core/src/telemetry/metrics.ts`) ou no
+      `docs/guia-do-desenvolvedor.md` que cada métrica nova com escola muda `metrics.ts`, `metrics.test.ts` e `infra/test/metricas.int.test.ts`. Não montar a lista esperada
+      só pelo código: a duplicação à mão obriga a olhar a cardinalidade (privacy-guardian)
+
+## Da tarefa 8.0 do onboarding-por-convite (reimportação de alunos e lista da turma), fora dela
+
+- [ ] Do `ImportacaoRepository.corrigirNomesDosAlunos` (tenancy-guardian, 1ª): o UPDATE em `usuario` com SQL cru deveria ficar no repository dono da tabela; mover o método muda de
+      repository, de chamador e de bloco de mutação, sem mudar comportamento (o escopo está provado)
+- [ ] De `turma.alunos_lidos` (privacy-guardian, 1ª): registrar na linha do dossiê de conformidade (`docs/conformidade-mec.md` seção 5) que a leitura diz quantos nomes foram lidos por
+      turma, e não quais alunos
+- [x] *(resolvido na tarefa 13.0 do onboarding-por-convite: a tela deixou de ler os três e saíram de `apps/web/.../api/lista.ts`; em `packages/shared` seguem porque `apps/api` e `packages/core` os usam, e sair deles é tarefa do back.)* Dos schemas `previaDaListaResponseSchema`, `gravacaoDaListaResponseSchema` e `PreviaDaListaResponse` (privacy-guardian, infra-guardian e revisor-geral, 1ª): seguem exportados
+      porque a tela da lista os lê até a 13.0; a 13.0 troca a lista pelo `ImportarPlanilha` e tira os três junto de `apps/web/src/areas/coordenacao/estrutura/api/lista.ts`
+- [ ] De `ListaRepository.paraReimportar` (infra-guardian, 1ª): a consulta dos aprovados junta `credencial_matricula.matricula` e `lista_nome.turma_id` num `or(...)` sem índice próprio;
+      anexar o `EXPLAIN` com 3.000 linhas ou trocar por duas consultas unidas (custo medido como limitado: milhares de linhas por escola e ano)
+- [x] *(resolvido na tarefa 13.0 do onboarding-por-convite: `ImportarPlanilha.test.tsx › chegam todas desmarcadas…` e `e2e/importar-alunos.spec.ts`; o texto da conferência está em `TEXTO_DA_CONFERENCIA`.)* Da 9.0, da 10.0 e da 13.0 (conformidade-reviewer, 1ª): os candidatos a `transferir` e `desligar` chegam à tela desmarcados, sem "marcar todos" vindo marcado, e com teste de que gravar
+      sem marca não muda ninguém; na 13.0, o rótulo diz que é conferência feita a partir da planilha
+- [ ] Da 9.0 e da 10.0 (revisor-geral, 1ª): o gravar aceita `marcas.transferir` e `marcas.desligar` e o job conclui sem efeito até lá; a spec não pousa com a marca sem efeito (a `transferir` ganhou efeito na 9.0;
+      a 10.0 fica antes do pouso por causa da `desligar`)
+- [ ] Do `ImportacaoRepository.corrigirNomesDosAlunos` (revisor-geral e test-engineer, 2ª), junto da linha acima que o move para o repository de `usuario`: reescrever o comentário e o motivo (6) da 8.0
+      dizendo que as cláusulas de `usuario` dependem de `travarUsuarios` vir antes da releitura, e a brecha ABA (aluno lido como "já existe" e renomeado de volta antes da releitura), ou travar
+      também os aprovados de "já existe" (muda a ordem das travas do passo (3))
+- [ ] Da spec do onboarding (revisor-geral, 2ª): escrever na `techspec.md` §4 e na tabela "Limites" do `cenarios.md` que as duas rotas da lista têm o mesmo limite de 20 por minuto por
+      usuário de `/v1/importacoes` e ocupam as duas vagas da escola (já provado em `lista.int.test.ts`); é do Arquiteto, na revisão da spec ou na retro
+- [ ] Da 9.0 (tenancy-guardian, 2ª): o caso de isolamento da prévia em `gravar-planilha-alunos.int.test.ts` chama `motor.previa` direto; refazê-lo pela rota `/v1/importacoes/alunos/previa` com o
+      token da escola A, quando a 9.0 mexer na rota e no motor da marca (a 9.0 mexeu só no motor da marca, e provou a marca de outra escola em `transferencia-pela-planilha.int.test.ts`; a rota segue sem o caso)
+- [ ] Da 9.0 (revisor-geral, 2ª): ajustar o texto do `9_task.md` (Objetivo, subtarefas 9.1 e 9.3 e a linha da tabela de testes do `encerrar`) e o da `techspec.md` §5 ("`encerrar` que devolve `false`"):
+      a transferência passa por `encerrarDosAlunos`, sem acesso a revogar, e a diferença vem da contagem; a tabela "Divergências resolvidas" e o `cenarios.md` já dizem o que vale (retrospectiva da spec)
+- [ ] Da 9.0 (revisor-geral e test-engineer, 2ª): `transferencia-pela-planilha.int.test.ts` importa o `DecisaoService` de `apps/api` (se ele subir para `packages/core`, o import vai junto); o `rollback` do `finally`
+      dos auxiliares roda depois de um `commit` que deu certo (inofensivo, o Postgres avisa); no caso do job parado depois de encerrar o pedido, asserir que a 8A não tem vínculo novo e comentar que o
+      `Promise.all` garante zero `40P01`; comentar que a mutação do `doPar` só é pega pela contagem devolvida (`vinculos: 0`); dizer nos dois blocos de `eq(reivindicacao.escolaId, …)` que são a mesma linha por dois caminhos
+- [ ] Da 9.0 (tenancy-guardian, 1ª): `fechar({ listaNomeIds }, 'encerrada')` sem `anoLetivoId` no `where` (muda o contrato; a 10.0 chama o `fechar` pelos mesmos nomes); e a sobrecarga do `fechar` (decidir e encerrar num método só) e o
+      `?? ''` do `vinculo.criado` (`alunos.ts`), que esconde uma invariante (revisor-geral, 1ª)
+- [ ] Da 9.0 (revisor-geral, 1ª): unificar `encerrarDosAlunos` com `CicloDeVidaRepository.encerrarVinculosDaPessoa` (retrospectiva da spec); (privacy-guardian, 1ª) `lista.transferida` com `entidade: 'lista_nome'` não entra no arquivo do
+      titular que aprovar o nome depois (como `lista.nome_corrigido`; pergunta para a retrospectiva)
+- [ ] *(16.0 do onboarding-por-convite mediu o passo (3) com 300 transferências e o `importacao-7h30.js` e ficou abaixo de 1 s, sem gravar em lote; ficam abertos, sem tarefa na spec, o `EXPLAIN` do `or()` e o job de transferência duplicado em paralelo: vão para a validação da spec.)* Da 9.0 (infra-guardian, 1ª), para a 16.0: auditoria linha por linha no passo (3) com as turmas travadas (gravar em lote só se a medida do `importacao-7h30.js` passar de 1 s); `EXPLAIN` do `or()` com 500 pares em
+      `vinculo_usuario_idx`; o caso dos 501 transferidos não mede a duração do passo (3). (test-engineer, 1ª) duas tentativas do mesmo job de transferência em paralelo (D49), teste novo com a barreira
+- [ ] Da 9.0 (conformidade-reviewer, 1ª), para a 10.0 ou a 13.0: provar que a sessão de tutor aberta na turma antiga deixa de ser alcançável pelo aluno transferido e que registro e resumo seguem visíveis ao professor da turma antiga
+- [ ] Do teste `[P] duas vagas da escola ocupadas` de `lista.int.test.ts` (test-engineer, 2ª): o título sugere chamadas em paralelo e o teste ocupa as vagas pelo `SchoolSemaphore`; renomear
+- [ ] De `turma.alunos_lidos` em `importacao-alunos.int.test.ts` (privacy-guardian, 2ª): procurar também a matrícula das duas linhas no registro, além do nome
+
+## Da correção `e2e-contrato-da-lista-8` (esteira da 8.0), fora dela
+
+- [x] *(resolvido na tarefa 13.0 do onboarding-por-convite: a ponte, o `previa-da-lista.ts` e o `api/lista.test.ts` saíram, a lista da turma usa a peça `ImportarPlanilha`, e os casos longos de `lista-da-turma.spec.ts` foram divididos em casos curtos. Os três esquemas antigos da lista em `packages/shared` seguem porque `apps/api` e `packages/core` ainda os usam: sair deles é tarefa do back.)* Da 13.0: apagar `apps/web/src/areas/coordenacao/estrutura/ponte-da-lista.ts` e `api/lista.test.ts` junto de `api/lista.ts` e dos três esquemas antigos da lista (a linha da 8.0 acima); a tela nova aceita as 3.000 linhas do teto da planilha no Chromebook, dentro do prazo, com e2e do teto
+      (colar 3.002 linhas no campo da tela antiga leva uns 27 s, e por isso `e2e/lista-da-turma.spec.ts:214` só confere o arquivo acima de 512 KB; as 3.000 linhas já têm prova em
+      `lista-reader.test.ts:123` e em `importacao.int.test.ts:724`). O que a ponte deixa para a tela nova (revisores da 1ª rodada): o leitor da ponte (`ponte-da-lista.ts`, a função `camposDa` e a leitura do cabeçalho) é cópia de
+      `apps/api/src/estrutura/lista/lista-reader.ts`: se o da API mudar antes da 13.0, a ponte põe o nome na linha errada sem dar sinal; as duas cópias têm de andar juntas (revisor-geral, test-engineer,
+      privacy-guardian). O prazo da ponte (60 s) é menor que o do job (300 s): a tela nova mostra o estado da importação em vez de desistir (infra-guardian). O texto "Até 200 nomes por vez"
+      (`ListaDaTurma.tsx:476` e `:439`) está desatualizado, o teto é 3.000 linhas (frontend-reviewer, conformidade-reviewer, revisor-geral, test-engineer). O `CONFLITO` do POST também acontece com outra
+      importação já na fila, e a tela diz "Uma das matrículas passou a ser usada…" (test-engineer). Ao apagar a ponte, conferir que a tela nova não mostra o `rotulo` dos `candidatos` de outra turma sem a
+      marca da coordenação (privacy-guardian), e pedir a auditoria da regra 70 nessa tarefa (conformidade-reviewer). A prévia nova também mostra `nome_corrigido` (a ponte o recusa, porque a tela da A1 não sabe
+      dizer que o nome será corrigido) e `muda_de_turma` por extenso. O caso `o erro da leitura da lista com "Tentar de novo"…` (`e2e/lista-da-turma.spec.ts`, o antigo 516) leva 56-60 s no celular, acima da metade do
+      prazo dele, e só não é cobrado porque o diff da correção não o toca: a 13.0, que reescreve esses casos com a tela nova, o encurta (2ª triagem do Arquiteto).
+      Da 2ª rodada: a prévia com uma linha `nome_corrigido` falha inteira com a mensagem genérica de erro, e tentar de novo não resolve; na reimportação, um acento corrigido trava a lista inteira até a 13.0;
+      a tela nova diz o que fazer, e o texto do caso tem teste (test-engineer, frontend-reviewer, revisor-geral). O `Retry-After` do 429 (`esperaSegundos` do `ApiError`) como piso da próxima espera, e o
+      `AbortSignal` no polling (`authedGet` já aceita um sinal, `apps/web/src/api/sessao.ts`) (infra-guardian). Ao apagar a ponte, pedir também a auditoria do `tenancy-guardian` nessa tarefa:
+      `candidatos` e `rotulo` têm de vir só da escola da sessão (tenancy-guardian). Incluir `ponte-da-lista.ts` e `api/lista.test.ts` nos arquivos previstos do `13_task.md`, para o leitor copiado não
+      sobreviver à tela nova (privacy-guardian; é do Arquiteto). O caso da lista paginada de `lista-da-turma.spec.ts` (o 214 no HEAD) leva 43,3 s no celular contra os 45 s da metade do prazo, e no runner,
+      que leva perto do dobro, chega a uns 87 de 90 s: entra no lote de e2e perto do prazo, ou a 13.0 o encurta (test-engineer).
+      Da 3ª rodada: o texto do `CONFLITO` da gravação diz "essa linha", no singular; com mais de uma linha de fora fica imprecisa, e a tela nova diz quantas entraram e quantas ficaram de fora
+      (revisor-geral, frontend-reviewer, test-engineer, conformidade-reviewer). A prévia `desatualizada` e o `CONFLITO` do POST com outra importação na fila usam o texto de "matrícula em outra
+      turma", e a causa real pode ser outra: separar "a lista mudou desde a prévia" de "uma matrícula passou a outra turma" (revisor-geral, test-engineer).
+- [ ] Da integração (infra-guardian): o job passou a `timeout-minutes: 30` porque levava de 15 a 20 min no runner; se passar de uns 25, dividir a suíte em fatias como o e2e (`rate-limit` 141 s,
+      `password-attack` 97 s, `sessao-guard` 55 s e `job-execution` 53 s são os maiores)
+
+## Da tarefa 10.0 do onboarding-por-convite (desligar pela planilha e a virada do ano), fora dela
+
+- [ ] Da 10.0 (privacy-guardian, 1ª e 2ª): a volta (`daVirada`, `linhaDeQuemTemConta`, em `packages/core/src/estrutura/lista.repository.ts` e `packages/core/src/importacao/tipos/alunos.ts`) olha só `desativadoEm`, e não `eliminacaoAgendadaEm`: o aluno com eliminação na carência "volta" para a turma nova. A transferência da 9.0 tem a mesma lacuna. Decidir o comportamento (erro de linha novo, ou `aluno_desativado` com outro código), que muda contrato, e corrigir as duas planilhas juntas, com teste do aluno com eliminação agendada (regra 20, itens 15 e 18)
+- [ ] Da 10.0 (infra-guardian, 1ª; revisor-geral, 1ª): `travarAnosDosVinculos` roda um comando por aluno desligado em `travar` (`alunos.ts`); trava dos anos num comando só, em ordem de id (e o ano de destino fora da ordem de id). Muda a ordem global das travas, que é contrato da `techspec.md` §5 passo (3) e vale também para a planilha de professores; fazer com a retro
+- [x] *(resolvido na tarefa 16.0 do onboarding-por-convite: `infra/k6/importacao-7h30.js`, fase `desligamentos_e_virada`; 200 e 300 desligamentos passaram de 1 s, e o teto de 100 por gravar entrou: `MAXIMO_DE_DESLIGAMENTOS_POR_GRAVAR`, `docs/runbook.md` e Tech Spec, seção 13.)* Da 10.0 (infra-guardian, 1ª e 2ª), para a 16.0: medir 100 a 300 desligamentos (`desativar` um por vez na transação curta) e a virada de 900 alunos (o laço de `vinculo.criado` um por um) contra o alerta de 1 s do passo (3); a linha 49 do `16_task.md` cobre só transferências. Teto nas marcas ou agrupar os comandos só se a medida passar. O Arquiteto leva ao documento da 16.0
+- [x] *(resolvido na tarefa 13.0 do onboarding-por-convite: `TEXTO_DA_CONFERENCIA` e `previa-da-planilha.test.ts › o texto diz que a lista é uma conferência`.)* Da 10.0 (conformidade-reviewer, 1ª e 2ª), para a 13.0: a tela das marcas deve deixar claro que "volta" e "desligar" são escolha da coordenação, e não o resultado automático da planilha
+- [ ] Da 10.0 (conformidade-reviewer, 2ª; test-engineer, 2ª): o nome do teste de `packages/core/src/importacao/tipos/alunos.test.ts` ("o aluno da mesma turma do ano anterior vai para a 9ºA…") promete mais do que prova: a entrada da virada não traz turma nem série do ano anterior. Renomear para "a turma de quem volta vem só da coluna turma da linha" na próxima tarefa que tocar `alunos.test.ts`
+
+## Da tarefa 13.0 do onboarding-por-convite (a planilha de alunos na tela), fora dela
+
+- [ ] Da 13.0 (privacy-guardian, 1ª), minimização no navegador: `ler-planilha.ts` (`:46-53`) manda todas as colunas da primeira aba; cortar as colunas fora do modelo, ou recusar o cabeçalho errado já no navegador. A API já recusa o arquivo inteiro com coluna fora do modelo, então é cuidado a mais, e muda o que a tela envia
+- [ ] Da 13.0 (infra-guardian, 1ª): a leitura da importação (`api/importacao.ts`, `acompanharImportacao`) não tem fim; passado o prazo do job (300 s), ler bem menos vezes, ou parar e oferecer "verificar de novo"; também vale não ler com a aba escondida. Muda a cadência de leitura que a 13.0 provou (prazo de 60 s e 429), e pede teste próprio
+- [ ] Da 13.0 (infra-guardian, 1ª): o teto do XLSX de 8 MB (`ler-planilha.ts:15` e `:65`): baixar para 1 ou 2 MB, ou ler num Web Worker. O teto é contrato da spec, e o Web Worker é desenho novo; o Arquiteto decide
+- [ ] Da 13.0 (tenancy-guardian, 1ª): um caso de backend em `apps/api/test/importacao-alunos.int.test.ts` que monte um candidato a desligar com aluno da escola B e afirme que o rótulo dele não aparece na prévia da A (tarefa de backend; a 13.0 não toca `apps/api`)
+- [ ] Da 13.0 (revisor-geral, 1ª), para o Arquiteto antes do pouso: o RF16 diz "ou o planejado que a coordenação escolhe", e o painel "Importar alunos" não manda `anoLetivoId` e some sem ano em curso; a volta do aluno na virada não tem caminho pela tela (`prd.md` RF16; a `14_task.md` traz o seletor do planejado só para o calendário). Vale também para a grade e para o calendário da 14.0 (`PaineisDeImportacao.tsx`): os dois painéis gravam só no ano em curso e somem sem ele, e o `cenarios.md` ("Isolamento e ano letivo") diz que a prévia e o gravar aceitam o filtro do planejado sem ano em curso (revisor-geral, 1ª da 14.0): o Arquiteto decide as três planilhas de uma vez. Se ele liberar `anoLetivoId` na prévia e no gravar da grade e do calendário, o repository precisa conferir que o ano é da escola do token, e a tarefa de backend leva um caso de integração com o ano de outra escola, que responde 404 e nunca 403 (tenancy-guardian, 2ª da 14.0). Se o Arquiteto entender que é divergência de desenho, o Orquestrador a abre
+- [x] *(resolvido na tarefa 16.0 do onboarding-por-convite: `apps/api/test/importacao-alunos.int.test.ts › o desligamento tem teto por gravar` lê `lista_nome.retirado` na auditoria, com autor e hora.)* Da 13.0 (conformidade-reviewer, 1ª), para a 16.0: o texto promete que "a sua escolha fica registrada" (`TEXTO_DA_CONFERENCIA`), e nenhum teste da 13.0 liga a frase à auditoria do que foi marcado; um caso de integração que leia, pela auditoria, quem marcou cada desligamento e quando (`16_task.md`)
+- [x] *(resolvido na tarefa 16.0 do onboarding-por-convite: 16.4, `docs/roteiro-da-demonstracao.md` sem "Lista colada".)* Da 13.0 (revisor-geral, 1ª), para a 16.0: `docs/roteiro-da-demonstracao.md` ainda diz "Lista colada"; a 16.4 confere esse documento (`16_task.md`)
+- [ ] Da 13.0 (revisor-geral, 1ª), para a 14.0: `previa-da-planilha.ts` já traz os textos de `encerrar` e `sai_da_grade`, que são da 14.0; a 14.0 os revisa no contexto da grade (`14_task.md`). A 14.0 e a 15.0 também dizem as chaves do `resumo` dos tipos delas em `linhasDeFora` (hoje só as do tipo `alunos`)
+- [ ] Da 13.0 (tenancy-guardian, 2ª): se o painel "Importar alunos" passar a mandar `anoLetivoId` (RF16, o planejado), o backend verifica que o ano é da escola do token e responde igual a ano de outra escola e a ano que não existe; volta à auditoria de isolamento (junto do item do RF16 acima)
+- [ ] Da 13.0 (frontend-reviewer, 2ª), para o Validador: a frase "Ao gravar, com as suas marcas…" (`GravarDaPrevia`, `font-medium text-tinta`) pode pesar mais que o botão; olhar a hierarquia na foto do fim da spec
+- [x] *(resolvido na tarefa 16.0 do onboarding-por-convite: o resumo das marcas está em `aria-live="polite"` em `GravarDaPrevia`; o teste com leitor de tela segue para a validação da spec.)* Da 13.0 (conformidade-reviewer, 2ª), para a 16.0: o resumo das marcas (`GravarDaPrevia`) muda a cada marca e não está em região anunciada; `aria-live="polite"` ou `aria-describedby` do botão, junto do teste com leitor de tela
+- [ ] Da 13.0 (revisor-geral e test-engineer, 2ª): o comentário do caso em `StrictMode` de `ImportarPlanilha.test.tsx` diz que o provider não monta duas vezes; o que falta no `renderScreen` é o `StrictMode`. Corrigir o texto na próxima tarefa que tocar o arquivo
+- [ ] Da 13.0 (revisor-geral, 2ª): `linhasDeFora` põe a linha que vira `ja_existe` entre a prévia e o gravar em "a matrícula passou a ser de outra turma ou de outro aluno", causa que pode não ser a real; trocar por "a escola mudou entre a prévia e o gravar. Veja a lista…" (texto de tela)
+- [ ] Da 13.0 (test-engineer, 2ª): `e2e/importar-alunos.spec.ts:380` e `:403` conferem a conclusão por prefixo (`toContainText`); usar `toHaveText` com a frase inteira, em lote com os e2e perto de 90% do prazo
+- [ ] Da 13.0 (test-engineer, 2ª): `linhasDeFora`: a transferência marcada que deixa de valer entre a prévia e o gravar não entra em nenhuma das duas contas; contar `muda_de_turma` marcadas menos `transferidos` (caso raro, com teste próprio)
+- [ ] Da 13.0 (test-engineer, 2ª), para o Arquiteto ou o Implementador antes da validação: acrescentar à tabela "Testes que provam a regra" do `13_task.md` o seletor em português, o resumo das marcas e a gravação em `StrictMode` (os três casos existem nos testes)
+- [ ] Da 13.0 (test-engineer, 2ª): `escolhido={escolha !== undefined}` sem bloco próprio de mutação (o caso do seletor já pega as duas trocas)
+- [ ] Da 14.0 (frontend-reviewer, 1ª): a 360 px as quatro abas de Escola quebram em duas linhas, e o traço da aba selecionada fica só na segunda (`TabbedPage`, compartilhado); o componente é das outras áreas e mexer nele muda todas as telas com abas
+- [ ] Da 14.0 (frontend-reviewer, 1ª): as linhas da grade no celular passam de 170 px nas colunas fora de vista (`GradeECalendario.tsx`, a tabela da turma); ajuste visual que pede ver a foto de novo em várias larguras
+- [ ] Da 14.0 (conformidade-reviewer, 1ª): a prévia da grade não anuncia `vinculos_encerrados` (a conclusão anuncia, em `textos-da-grade.ts`): o coordenador não vê antes de gravar que um professor perde a turma; depende de o resumo da prévia trazer essa contagem (core, 12.0); o Arquiteto vê se é divergência
+- [ ] Da 14.0 (infra-guardian, 1ª): depois de gravar, recarregar só `[...ESTRUTURA_QUERY_KEY, 'grade']` e `'calendario'`, e não toda a estrutura (`GradeECalendario.tsx`, `recarregar`); custo baixo hoje (só a coordenação usa a chave), passa a valer quando outra tela usar a mesma chave
+- [ ] Da 14.0 (revisor-geral, 1ª): `ImportarPlanilha.tsx` importa `baixarModelo` de `../grade/modelos-de-planilha`, e a peça genérica passa a depender da aba Grade; mover `baixarModelo` e `textoDoModelo` para `importacao/` ou `comum/` mexe nos imports dos testes da 13.0 e da 14.0
+- [ ] Da 14.0 (revisor-geral, 1ª), para a 15.0: a frase "professor novo será cadastrado, com convite para copiar" (`previa-da-planilha.ts`) descreve o que só chega com a 15.2 ("Copiar link"); a 15.0 a confere ao entregar
+- [ ] Da 14.0 (revisor-geral, 2ª): `e2e/grade-e-calendario.spec.ts` repete a função `gate()` que já existe em `e2e/support/assistente.ts`; ajuste de e2e sem efeito de comportamento, para a próxima tarefa que tocar esse spec
+- [ ] Da 14.0 (test-engineer, 2ª): no caso da resposta atrasada de `e2e/grade-e-calendario.spec.ts`, esperar dois quadros de renderização depois da entrega de B funciona na prática, mas não é garantia formal; uma prova sem tempo leria um marcador na página (o cache da chave de B preenchido). O teste passou 3 vezes seguidas com 2 trabalhadores: endurecer só se aparecer intermitência
+- [ ] Da 14.0 (privacy-guardian, 2ª), só se a escola pedir: nada no servidor impede "Sala da Prof. Ana" na sala ou nome de pessoa na descrição do evento (a tela só pede, regra 20, item 1); uma garantia mais forte seria um aviso na prévia quando a sala ou a descrição parecer nome de pessoa (tarefa de backend futura)
+- [ ] Da 16.0 (frontend-reviewer e revisor-geral, 1ª), para a validação: os dois `<p aria-live="polite">` de `ImportarPlanilha.tsx` (resumo das marcas e aviso do teto) usam `empty:hidden`, que vira `display:none` enquanto vazios, e o leitor de tela pode não anunciar a primeira mudança; ouvir com leitor de tela antes de trocar o DOM
+- [ ] Da 16.0 (frontend-reviewer e conformidade-reviewer, 1ª), para o Validador: fotografar o estado do teto de desligamentos (mais de 100 a desligar, "Marcar os primeiros 100" e o aviso de 100 marcados), a 360 px e a 1366 px; a vitrine não tem escola com mais de 100 ausentes
+- [ ] Da 16.0 (conformidade-reviewer e revisor-geral, 1ª), para a validação: "Marcar os primeiros 100 para desligar" segue a ordem da API e parte dos marcados fica em "Ver mais"; e descarta as marcas feitas à mão no grupo com mais de 100. Muda texto de tela e comportamento: decisão de interface (D80, `docs/interface.md`)
+- [ ] Da 16.0 (infra-guardian, 1ª), para a validação: transferência sem teto (a medida foi 300, a planilha aceita 3.000) e virada medida com 900 (aceita 3.000); medir 1.000 e 3.000 transferências e a virada de 3.000 uma vez antes do pouso; passando de 1 s, aplicar o teto ou gravar a auditoria em lote
+- [ ] Da 16.0 (privacy-guardian, 1ª): a pasta da execução da carga (`infra/scripts/carga-importacao.ts`) fica com 0777 e arquivos 0644 para o k6 do container ler; hoje só há o comentário de que é sintético e de que é apagada no `finally`; guarda que recuse rodar fora de `AMBIENTE` de carga muda o comportamento do script
+- [ ] Da 16.0 (test-engineer, 1ª): modo seco de `infra/test/carga-importacao.test.ts`: exportar `PROFESSORES_QUE_JA_EXISTEM` e `PROFESSORES_NOVOS_POR_VOLTA` e comparar as constantes; a conta 36 não prova "cada lote de uma professora só" (toca `infra/scripts/carga-importacao.ts`, que caduca todos os revisores)
+- [ ] Da correção 2026-11-06-teto-de-desligamentos-fora-da-rota (test-engineer, infra-guardian, privacy-guardian, tenancy-guardian e conformidade-reviewer, 1ª): o laço em lotes de `ImportacaoRepository.retirarNomes` (`packages/core/src/importacao/importacao.repository.ts`, `TAMANHO_DO_LOTE` de 500) ficou sem prova de mais de um lote, porque o teto de 100 desligamentos por gravar (`MAXIMO_DE_DESLIGAMENTOS_POR_GRAVAR`) o tornou inalcançável pelo desligamento; provar direto no repository com 501 retiradas, ou reduzir o laço a um lote ligado ao teto (a segunda saída muda o repository)
+- [ ] Da correção 2026-11-06-teto-de-desligamentos-fora-da-rota (test-engineer, 1ª): uma linha em `docs/guia-do-desenvolvedor.md` dizendo que o teste de integração do worker se roda pela config da raiz (`npx vitest run --project integracao …`), e não de dentro de `apps/worker`, que usa o `dist` velho do `@educa/core`
+- [ ] Da correção 2026-11-06-slots-vaga-sem-depender-do-relogio (test-engineer, 1ª): o caso "o worker renova a vaga enquanto o job roda…" de `apps/despachante/test/slots.int.test.ts` espera 500 ms de parede contra renovação a cada 200 ms, a mesma fragilidade sob carga que a correção tirou do caso da vaga dos publicados; passar para o relógio do Redis ou para a renovação acionada à mão, se aparecer vermelho na esteira
+- [ ] Da correção 2026-11-06-e2e-perto-do-prazo-da-f2 (frontend-reviewer, 1ª): o rótulo "Ferramentas" da barra de baixo do professor sai cortado como "FERRAME…" a 360 px (`apps/web/src/components/BarraDeBaixo.tsx:83`, `truncate`; `BarraDeBaixo.test.tsx:142` exige a classe). Já era assim antes da correção, que só mexeu em `e2e/`; é tarefa de produto (reduzir o `tracking`, a caixa-alta ou o corpo do rótulo), junto do item "(a) Barra de baixo a 360 px corta FERRAMEN…" da X3
+
+## Da validação do onboarding-por-convite (rodadas 1 a 3, 06/11/2026), menores que não seguraram o pouso
+
+- [ ] (Implementador, 06/11/2026) `apps/web/src/areas/coordenacao/grade/GradeECalendario.tsx:129` mostra "Sala Sala 12": mostrar a sala sem o prefixo "Sala " (Validador, rodada 1)
+- [ ] (Arquiteto, 06/11/2026) `tasks/prd-onboarding-por-convite/techspec.md:204`: a premissa do `read-excel-file` segue "⚠️ NÃO VERIFICADO" e já está verificada por `ler-planilha.test.ts:9` (Validador, rodada 1)
+- [ ] (Implementador, 06/11/2026) `apps/worker/test/gravar-planilha.int.test.ts:244`: o nome do caso ainda diz que a grade "chega na 8.0"; renomear para o que o caso prova (Validador, rodada 1)
+- [ ] (Orquestrador, 06/11/2026) `10_task.md` e `16_task.md` do onboarding-por-convite: a seção "Revisões" sem as linhas da 1ª rodada; o histórico está em `achados/` (Validador, rodada 1)
+- [ ] (Implementador, 06/11/2026) `apps/despachante/test/slots.int.test.ts:384`: "no caso das 1.000 lotes da A" → "no caso dos 1.000 lotes da A", na próxima correção do arquivo (Validador, rodada 3)
+- [ ] (Implementador, 06/11/2026) `apps/worker/test/queue-fixtures.int.test.ts:31`: o caso do `explicar` com `update` deixa no banco de teste a rede e a escola sintéticas de `bancada.escola()`; para a retrospectiva, se a tabela de escolas do banco de teste pesar (Validador, rodada 3)
+- [ ] (Arquiteto, 06/11/2026) Para a retrospectiva da F2: `lista.transferida` (e `aluno.transferido`, `usuario.nome_corrigido`, `lista.nome_corrigido`) não entram no arquivo do titular, que traz só a auditoria de que ele é autor (`leitura-do-titular.ts:392`, desenho do F3); abrir em `docs/decisoes-em-aberto.md` "o arquivo do titular traz os atos de terceiros sobre ele?" (dono Arquiteto, decide o Joaquim). `lista_nome.retirado` não tem titular futuro: o nome sai de fato (`lista.repository.ts:263`). Triagem do Arquiteto antes do pouso, opção (b)
+- Já estavam aqui, e seguem (Validador, rodadas 2 e 3): o laço em lotes de `retirarNomes`, a linha do guia sobre a integração do worker, o leitor de tela nos `aria-live` da `ImportarPlanilha.tsx`, a medida de 1.000 e 3.000 transferências e da virada de 3.000, e a renovação de 500 ms do worker em `slots.int.test.ts`

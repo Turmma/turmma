@@ -14,10 +14,8 @@ import {
   type ResultadoDaDecisao,
 } from '@educa/shared'
 import { paginar } from '../../http/pagination.js'
-import { TurmaRepository } from '../../estrutura/turma/turma.repository.js'
-import { VinculoRepository } from '../../estrutura/vinculo/vinculo.repository.js'
+import { type AlcanceDoPedido, DecisaoRepository, TurmaRepository, VinculoRepository } from '@educa/core/estrutura'
 import { type LoginLockout, CredencialMatriculaRepository, SessaoCreateRepository, identificadorDoAluno } from '../../credencial/index.js'
-import { DecisaoRepository, type AlcanceDoPedido } from './decisao.repository.js'
 
 const registro = new AuditoriaRecorder()
 

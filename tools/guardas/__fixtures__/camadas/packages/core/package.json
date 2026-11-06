@@ -8,6 +8,9 @@
     },
     "./conta-global": {
       "source": "./src/ciclo-de-vida/conta-global.repository.ts"
+    },
+    "./cadastro-de-professor": {
+      "source": "./src/estrutura/cadastro-de-professor.ts"
     }
   }
 }

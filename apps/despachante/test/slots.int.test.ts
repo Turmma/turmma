@@ -127,7 +127,8 @@ describe('vagas por escola e filas por prioridade', () => {
 
   /** Muitos jobs de uma vez, numa instrução só, como o fim de uma transação que enfileirou uma apostila inteira. */
   async function inserirJobs(escolaId: string, fila: QueueName, quantidade: number, rotulo: string): Promise<string[]> {
-    const { rows } = await bancada.pool.query<{ id: string }>(
+    // Pelo prazo da preparação: com 5.000 linhas e a FK da escola, o pool de 2 s cortaria o dado de teste na suíte inteira.
+    const rows = await bancada.semear<{ id: string }>(
       `insert into job_registro (escola_id, fila, prioridade, tipo, dados)
        select $1, $2, $3, 'sintetico', jsonb_build_object('rotulo', $4::text) from generate_series(1, $5)
        returning id`,
@@ -156,8 +157,8 @@ describe('vagas por escola e filas por prioridade', () => {
    * `zscore` dela com o job em execução, antes de esperar o fim: uma chave errada aqui ficaria vazia lá.
    */
   const aguardarVagaVazia = (fila: QueueName, escolaId: string, timeout = 5_000) => {
-    // O verde tem de vir da liberação, nunca do vencimento: num teste com validade curta (há um com
-    // 1 s), esperar mais que ela deixaria a vaga sumir sozinha e a asserção passar sem o worker.
+    // O verde tem de vir da liberação, nunca do vencimento: esperar mais que a validade deixaria a vaga sumir sozinha
+    // e a asserção passar sem o worker.
     expect(timeout).toBeLessThan(VALIDADE_DA_VAGA_MS / 2)
     return expect.poll(() => membrosDaVaga(fila, escolaId), { timeout, interval: 20 }).toEqual([])
   }
@@ -352,22 +353,40 @@ describe('vagas por escola e filas por prioridade', () => {
   })
 
   it('job publicado e parado na fila (pool cheio, réplica fora) segura a vaga além da validade: a escola não ganha publicados acima do teto', async () => {
-    // Validade de 1 s: três validades passam com os dois lotes da A publicados e nenhum worker de pé.
-    const validadeDaVagaMs = 1_000
+    // Sem relógio de parede: a validade que passa sem worker é escrita no ZSET (a vaga a 5 s de vencer) e a rodada é chamada à mão. O que
+    // se prova é que cada rodada renova a vaga dos publicados parados; uma vaga vencida não volta (o teste da vaga do worker morto), então
+    // a escola só fica no teto se a renovação chega antes do vencimento, e é essa renovação que se mede, não a velocidade da máquina.
+    const FALTA_PARA_VENCER_MS = 5_000
     const daEscolaA = await inserirJobs(ESCOLA_A, 'lote', 10, 'A')
-    bancada.despachante(new InMemoryLog('despachante'), { validadeDaVagaMs }).despachante.iniciar()
-    await expect.poll(() => bancada.filas.lote.getJobCounts('waiting'), { timeout: 5_000, interval: 50 }).toEqual({ waiting: 2 })
-    for (let conferencia = 0; conferencia < 7; conferencia++) {
-      await esperar(500)
-      expect(await bancada.filas.lote.getJobCounts('waiting'), `${conferencia * 500} ms`).toEqual({ waiting: 2 })
+    const despachante = bancada.despachante(new InMemoryLog('despachante')).despachante
+    expect(await despachante.rodada()).toBe(2)
+    const chave = bancada.vagas.chave('lote', ESCOLA_A)
+    const publicados = await membrosDaVaga('lote', ESCOLA_A)
+    expect(publicados).toHaveLength(2)
+
+    for (let validade = 1; validade <= 3; validade++) {
+      const [segundos, microssegundos] = await bancada.redis.time()
+      const agoraMs = Number(segundos) * 1_000 + Math.floor(Number(microssegundos) / 1_000)
+      for (const jobId of publicados) await bancada.redis.zadd(chave, 'XX', String(agoraMs + FALTA_PARA_VENCER_MS), jobId)
+
+      expect(await despachante.rodada(), `validade ${validade}`).toBe(0)
+      // A renovação é provada aqui: sem o `manter`, a vaga ainda vale 5 s e as duas asserções de baixo (`waiting: 2` e 2 `publicado`) passariam do
+      // mesmo jeito. Elas conferem que nada vazou acima do teto, e não substituem esta.
+      for (const jobId of publicados) {
+        const vencimento = Number(await bancada.redis.zscore(chave, jobId))
+        expect(vencimento - agoraMs, `validade ${validade}`).toBeGreaterThanOrEqual(VALIDADE_DA_VAGA_MS)
+      }
+      expect(await bancada.filas.lote.getJobCounts('waiting'), `validade ${validade}`).toEqual({ waiting: 2 })
       expect(await contarEstado(ESCOLA_A, 'publicado')).toBe(2)
     }
 
-    // A réplica volta: a A segue com duas por vez, e a B entra sem esperar a pilha da A.
+    // A réplica volta: a A segue com duas por vez. O que este trecho guarda é o teto (`maximo('A') === 2`) e que todos concluem; o prazo de 10 s é só
+    // folga para a máquina carregada, não prova a latência da B. Que a B passa na frente da pilha da A está provado no caso das 1.000 lotes da A.
     const processador = contado(300)
-    bancada.worker(new InMemoryLog('worker-lote'), { pools: { lote: 10 }, processadores: { sintetico: processador.processar }, validadeDaVagaMs, intervaloRenovacaoDaVagaMs: 200 })
+    bancada.worker(new InMemoryLog('worker-lote'), { pools: { lote: 10 }, processadores: { sintetico: processador.processar } })
+    despachante.iniciar()
     const [daEscolaB = ''] = await inserirJobs(ESCOLA_B, 'lote', 1, 'B')
-    await expect.poll(() => processador.iniciados('B'), { timeout: 3_000, interval: 20 }).toBe(1)
+    await expect.poll(() => processador.iniciados('B'), { timeout: 10_000, interval: 20 }).toBe(1)
     await aguardarEstado(daEscolaB, 'concluido')
     for (const id of daEscolaA) await aguardarEstado(id, 'concluido', 20_000)
     expect(processador.maximo('A')).toBe(2)
@@ -445,7 +464,7 @@ describe('vagas por escola e filas por prioridade', () => {
     const emExecucao = aguardando.slice(0, 2)
     await bancada.pool.query(`update job_registro set estado = 'ativo' where id = any($1)`, [emExecucao])
     await bancada.vagas.tomar('lote', ESCOLA_A, 2, emExecucao)
-    await bancada.pool.query('analyze job_registro')
+    await bancada.semear('analyze job_registro')
 
     // O banco do teste registra a instrução que o repository manda, para o EXPLAIN ser da consulta de verdade.
     const pool = createPool(configuracaoDoBanco(), () => undefined)
@@ -463,8 +482,7 @@ describe('vagas por escola e filas por prioridade', () => {
       const [consulta] = enviadas
       if (consulta === undefined) throw new Error('o repository não consultou o banco')
 
-      const { rows } = await bancada.pool.query<{ 'QUERY PLAN': Array<{ Plan: NoDoPlano }> }>(`explain (analyze, buffers, format json) ${consulta.text}`, consulta.values)
-      const nos = nosDoPlano(rows[0]?.['QUERY PLAN'][0]?.Plan)
+      const nos = nosDoPlano(await bancada.explicar<NoDoPlano>(consulta.text, consulta.values))
       expect(nos.map((no) => no['Index Name'])).toContain('job_registro_pkey')
       // Só as linhas com vaga passam pelo filtro; varrer a fila da escola descartaria milhares.
       expect(nos.reduce((soma, no) => soma + (no['Rows Removed by Filter'] ?? 0), 0)).toBeLessThanOrEqual(membros.length)

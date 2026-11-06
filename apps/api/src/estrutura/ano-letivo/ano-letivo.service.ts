@@ -12,7 +12,7 @@ import {
 } from '@educa/shared'
 import { AnoLetivoRepository } from './ano-letivo.repository.js'
 import { paginar } from '../../http/pagination.js'
-import { VinculoRepository } from '../vinculo/vinculo.repository.js'
+import { VinculoRepository } from '@educa/core/estrutura'
 
 const registro = new AuditoriaRecorder()
 

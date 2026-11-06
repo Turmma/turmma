@@ -84,6 +84,11 @@ describe('LEITURAS_DO_ARQUIVO: a forma das leituras', () => {
     }
   })
 
+  it('a aula da grade (`alocacao`) entra no arquivo do professor pelo vínculo dele, e tem a leitura que a lê (F2, 11.0)', () => {
+    expect(CLASSIFICACAO_DAS_TABELAS.alocacao?.arquivo).toEqual({ entra: true, ligacao: ['vinculo_id'] })
+    expect(LEITURAS_DO_ARQUIVO.alocacao?.consultas({ ...alvo, versao: 'completa' }).length).toBeGreaterThan(0)
+  })
+
   it('as respostas do aluno saem com a `sequencia` da escolha: a coluna está na lista que o arquivo descreve e no `select` que o lê (51.0, regra 20, item 19)', () => {
     const leitura = LEITURAS_DO_ARQUIVO.resposta_atividade
     expect(leitura?.colunas).toContain('sequencia')

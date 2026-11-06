@@ -10,7 +10,7 @@ Rede*            nome, tipo (prefeitura | grupo | independente), ipsSaida (IP p�
 Escola*          → rede*, nome, slug*, inatividadeAlunoMin (30), inatividadeEquipeMin (120)
 AnoLetivo*       → escola*, ano, inicio, fim, situacao (planejado | em_curso | encerrado)
 Serie*           → escola*, etapa (ef_anos_finais | em), ano (6–9 | 1–3)
-Turma*           → escola*, anoLetivo*, serie*, nome (2ºB), turno?
+Turma*           → escola*, anoLetivo*, serie*, nome (2ºB), turno?, chave? (F2: o nome normalizado, "2b")
 Disciplina*      → escola*, nome, area? (área da BNCC)
 ```
 
@@ -48,6 +48,7 @@ Vinculo*         → escola*, anoLetivo*, usuario*, turma*, disciplina?, papel*,
                    estado* (pendente | confirmado | contestado | encerrado),
                    contestacao? (nao_leciono | turma_errada | disciplina_errada | outro),
                    complemento?, motivoEncerramento? (fim_do_ano | desligamento | realocacao),
+                   origem* (coordenacao | grade | lista; F2, padrão coordenacao),
                    criadoPor*, decididoEm?, encerradoEm?
 Sessao*          → escola*, conta?, usuario*, metodo* (email | matricula | externo), familia*,
                    refreshHash*, ultimoUsoEm*, expiraEm*, encerradaEm?, motivo?
@@ -93,21 +94,28 @@ não tem `escolaId` porque é o login; `Usuario` é a pessoa *naquela* escola, c
 Um professor em duas escolas é uma `Conta` com dois `Usuario`, e o escopo de tenant continua
 inteiro na regra 10: toda tabela de domínio tem `escolaId`, e quem resolve a fronteira é a
 `TenantResolutionRepository`, com `@Unscoped` e teste de arquitetura que prova que só `sessao`
-a importa. Ela não é mais a única a alcançar a `Conta` sem escopo: as três operações sobre a
-`Conta` global que o ciclo de vida faz (travar, limpar a conta sem uso e encerrar as sessões dela) moram
-na `ContaGlobalRepository`, em `packages/core/src/ciclo-de-vida`, desde que o ciclo de vida foi
-para o `core` (F3, tarefa 1.0): ela não sai pelo barrel do pacote, só pelo subcaminho
+a importa. Ela não é mais a única a alcançar a `Conta` sem escopo: as operações sobre a
+`Conta` global que o ciclo de vida faz (travar, limpar a conta sem uso e encerrar as sessões dela) e o achar ou criar
+a conta pelo e-mail do convite (`contaParaConvite`, que veio do `TenantResolutionRepository` na tarefa 1.0 do
+onboarding-por-convite) moram na `ContaGlobalRepository`, em `packages/core/src/ciclo-de-vida`, desde que o ciclo de
+vida foi para o `core` (F3, tarefa 1.0): ela não sai pelo barrel do pacote, só pelo subcaminho
 `@educa/core/conta-global`, e o teste de arquitetura lista quem a importa — o
-`CicloDeVidaService` e o `sessao` (a redefinição do MFA), e os testes deles. As três são exceções antigas que mudaram
-de lugar, mas já estão no ponto que a regra 10, item 9 aponta como sinal de desenho errado (a
-terceira no mesmo módulo): qualquer outra ali é mudança de spec, discutida antes, e não acréscimo
-de tarefa. A única leitura nova (F3, tarefa 13.0) é a do e-mail da `Conta` pelo arquivo do titular
+`CicloDeVidaService`, o `sessao` (a redefinição do MFA e o convite do coordenador), e **o arquivo**
+`packages/core/src/estrutura/cadastro-de-professor.ts` (o cadastro do professor, que descarta o `nova`), e os testes
+deles. O cadastro, que repassa a conta sem escopo, tem o subcaminho próprio `@educa/core/cadastro-de-professor` (fora do
+barril `@educa/core/estrutura`), e quem o chama também é cercado: só o `sessao` da API e o **arquivo** do processor do job da
+planilha (`apps/worker/src/processors/gravar-planilha.ts`, que o chama no passo (1) e passa a função ao motor; onboarding-por-convite,
+6.0), pela entrada `contaDoProfessor` do `architecture.test.ts` e pela regra `cerca-cadastro-de-professor` do `camadas.cjs`. A cerca de `estrutura/` é o arquivo, e não a pasta: um vizinho que a importe, por import, reexport, `import()`,
+`require` ou o caminho como texto, reprova o `architecture.test.ts` e o `cerca-conta-global` de
+`tools/guardas/camadas.cjs`. As quatro primeiras são exceções antigas que mudaram de lugar, e a quinta (a trava das contas do passo (3) da planilha de professores, `travarEConferir`, `@Unscoped`, que o processor injeta no motor por `travarContasDoProfessor`, onboarding-por-convite, 6.0) está no mesmo arquivo cercado; já estão no ponto que a regra 10,
+item 9 aponta como sinal de desenho errado: qualquer outra ali é mudança de spec, discutida antes, e não acréscimo de
+tarefa. A única leitura nova (F3, tarefa 13.0) é a do e-mail da `Conta` pelo arquivo do titular
 (`LeituraDoTitular`, tabela `conta`, que a Tech Spec do F3, seção 3, manda levar "só o e-mail, nas duas
 versões"): ela **não é consulta sem escopo**, porque junta o `Usuario` da escola do contexto pelo id do
 titular e devolve só `id` e `email` da conta dele; a conta de outra pessoa, ou a de quem não é usuário desta
 escola, nunca chega. Por isso não passa pela `ContaGlobalRepository`, e o teste de arquitetura do arquivo
 (`o arquivo do titular lê as tabelas da classificação`) confere que a leitura declara toda coluna da `Conta`
-como entra ou fora (`senha_hash`, `mfa_*`).
+como entra ou fora (`senha_hash`, `mfa_*`). A segunda leitura do mesmo desenho (onboarding-por-convite, 6.0) é a do `ImportacaoRepository.professoresDaEscola`, que lê o e-mail da `Conta` pelo `leftJoin` de `usuario.conta_id` filtrado pela escola do contexto e papel `professor`, só para casar a linha da planilha com o professor da escola: o e-mail não sai do repository nem vai à resposta, e a conta de quem não é professor desta escola nunca chega (`packages/core/src/importacao/importacao.repository.ts`).
 
 **O aluno é `Usuario` sem `Conta`**, com `CredencialMatricula`. Não tem e-mail (regra 20).
 Matrícula é única por `(escolaId, matricula)`, nunca globalmente: dois alunos em escolas
@@ -344,7 +352,7 @@ código:
 | `PainelRepository.escolas` | a lista de escolas, com o estado da coordenação e as contagens do ano em curso | só id, nome, endereço e número, sem pessoa |
 | `PainelRepository.uso` | o uso de infra de cada escola no último dia fechado e no mês dele | só id, nome e número, sem pessoa |
 | `RedeEEscolaRepository.criarRede`, `criarEscola` | cria, ou lê pelo id o pedido repetido | a rede fica acima do tenant, e a escola é o próprio tenant, que nasce ali; só o comando ou o painel cria, e devolve só o id |
-| `TenantResolutionRepository.contaParaConvite` | acha ou cria a conta pelo e-mail no convite da coordenação | a conta é global e não tem escola; não lê nada dela e devolve só o id e se é nova |
+| `ContaGlobalRepository.contaParaConvite` | acha ou cria a conta pelo e-mail no convite da coordenação e no cadastro do professor | a conta é global e não tem escola; não lê nada dela e devolve só o id e se é nova (o cadastro do professor descarta o `nova`) |
 | `TenantResolutionRepository.escolaDoConviteParaOperador` | a escola do convite de coordenação | recebe só o id do convite, e a escola dele vira o contexto, nunca o argumento |
 
 O `PainelRepository` é o único lugar da leitura entre escolas: os três métodos dele são todos
@@ -361,12 +369,39 @@ todos os repositories que a lista toca.
 ## Grade horária e calendário
 
 ```
-GradeHoraria*    → escola*, anoLetivo*, nome
-TempoAula*       → gradeHoraria*, diaSemana*, ordem*, inicio*, fim*
-Alocacao*        → tempoAula*, turma*, disciplina*, professor*, sala?
-EventoCalendario → escola*, tipo (feriado | recesso | evento), inicio, fim
-Aula             → alocacao*, data*, conteudo?, status, observacao?
+Alocacao*          → escola*, anoLetivo*, vinculo* (FK composta com o ano, cascata), diaSemana* (1–7),
+                     inicio*, fim* (inicio < fim), sala?; único (vinculo, diaSemana, inicio)
+EventoCalendario*  → escola*, anoLetivo*, tipo (feriado | recesso | evento), inicio, fim, descricao (≤ 120)
+ImportacaoPlanilha* → escola*, anoLetivo? (nulo só no tipo professores), tipo (alunos | professores | grade | calendario),
+                     estado (na_fila | concluida | desatualizada | falhou), linhas?, marcas?, assinatura*,
+                     resumo? (só contagens), erro? (expirou | trava_esgotada | erro_interno), criadoPor?, criadoEm*, concluidaEm?
+Aula               → alocacao*, data*, conteudo?, status, observacao?
 ```
+
+**`Alocacao` (F2, migration 0040) substitui as três tabelas da grade** que este documento desenhava (`GradeHoraria`, `TempoAula` e a
+`Alocacao` presa a elas): a aula é o vínculo (turma, disciplina e professor) num dia da semana e num horário, e a "grade horária"
+do glossário são as alocações do ano. O `id` é estável: reimportar a grade mantém a aula que continua (mesmo vínculo, dia e início)
+e apaga a que saiu, então a `Aula` concreta da F2b aponta para um id que a reimportação não troca. O vínculo que ficou sem aula
+não é encerrado pela reimportação: aparece "sai da grade" na prévia (se nasceu da grade ou tinha aula) e só encerra marcado, pelo caminho do
+`encerrar` da coordenação (motivo `realocacao`). Sai em cascata com o vínculo
+(a FK composta `(escolaId, anoLetivoId, vinculoId)` é também a FK com o ano), e o `vinculo` ganhou o único `(escolaId, anoLetivoId, id)`
+que ela referencia. A aula tem `escola_id` e `ano_letivo_id` (regra 10) e nunca aponta para o vínculo de outra escola nem de outro ano.
+
+**`EventoCalendario`** é o calendário do ano; reimportar substitui os do ano. A descrição é texto livre de até 120 caracteres, e o
+modelo da planilha pede para não escrever nome de pessoa.
+
+**`ImportacaoPlanilha`** é a fila e o rastro das planilhas (alunos, professores, grade, calendário): uma importação `na_fila` por
+escola (único parcial). `linhas` e `marcas` são o dado em trânsito, apagadas em toda troca de estado; o que fica (tipo, estado,
+contagens, código do erro, sem nome nem matrícula) sai em 90 dias (`docs/lgpd.md`). O autor (`criadoPor`) vira nulo na eliminação.
+Quem grava `Alocacao`, `EventoCalendario` e `ImportacaoPlanilha` é o job `estrutura.gravar-planilha` (F2, 4.0 em diante).
+
+**`Turma.chave`** (F2) é o nome normalizado ("8ºA", "8º A", "8A", "8a" e "8º ano A" dão `8a`; "Turma Azul" e "10A" ficam sem chave), que
+faz a planilha casar a turma que já existe. Nasce na criação e é recalculada na renomeação, no mesmo `update`. O único parcial
+`(escolaId, anoLetivoId, chave)` onde a chave não é nula faz duas turmas "8A" e "8º A" resultarem em uma só (a outra recebe `CONFLITO`); a
+migration preencheu só as turmas cuja chave era única no ano. A conta mora em `packages/shared/src/importacao/normalizador.ts` e a
+migration a repete em SQL.
+
+**`Vinculo.origem`** (F2) diz de onde o vínculo veio: `coordenacao` (à mão, o padrão das linhas que já existiam), `grade` ou `lista`.
 
 `Aula` é a instância concreta gerada a partir de `Alocacao` mais o calendário escolar. É a
 camada onde o professor registra o que deu e é a fonte do "seu dia e sua semana", função do
@@ -747,7 +782,7 @@ liga a decisão sobre o professor (D45, regra 70 item 8). Os dois estão no mapa
    - o próprio tenant: `Escola` e a `Rede` acima dela — ver "Estrutura institucional";
    - tabela pública sem dono (habilidades da BNCC, banco de questões público);
    - a identidade de login (`Conta`, `CodigoRecuperacao`), que é global por desenho e só é
-     alcançada pelo módulo `sessao` e pelo `core/ciclo-de-vida` (a `ContaGlobalRepository`),
+     alcançada pelo módulo `sessao`, pelo `core/ciclo-de-vida` e pelo arquivo `core/estrutura/cadastro-de-professor.ts` (a `ContaGlobalRepository`),
      além da limpeza noturna do expurgo de acesso — ver "Pessoas e vínculos";
    - as tabelas da operação Turmma (`Operador`, `CodigoRecuperacaoOperador`, `ConviteOperador`,
      `SessaoOperador`, `AcessoOperacao`, `AuditoriaOperacao`), da nossa equipe e não de escola,

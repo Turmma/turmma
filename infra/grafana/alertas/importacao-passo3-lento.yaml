@@ -1,0 +1,61 @@
+# Alerta "Passo 3 da importação acima de 1 s" (F2, tarefa 5.0; runbook: docs/runbook.md#passo-3-da-importação-acima-de-1-s).
+# Provisionado por arquivo no Grafana da observabilidade local (infra/compose.yml monta esta pasta em provisioning/alerting).
+#
+# `importacao.passo3.duracao` é o histograma, em segundos, do passo 3 do job da planilha (a transação com as travas e a escrita). O p95 dos
+# últimos 5 min, somadas as réplicas, e só com execução na janela: sem tráfego, sem série. O limiar de 1 s é fronteira de balde do
+# histograma (LIMITES_DO_PASSO_3_S), então o p95 acima dele não é interpolação. O `lock_timeout` de 1 s e o `statement_timeout` de 1,5 s
+# cortam o passo antes de ele passar muito disso.
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: importacao-passo3-lento
+    folder: Educa.ia alertas
+    interval: 10s
+    rules:
+      - uid: educa-importacao-passo3-lento
+        title: Passo 3 da importação acima de 1 s
+        condition: C
+        for: 5m
+        noDataState: OK
+        execErrState: Error
+        isPaused: false
+        labels:
+          area: importacao
+        annotations:
+          summary: 'O passo 3 do job da planilha está acima de 1 s no p95'
+          description: 'A transação que grava a planilha passa de 1 s, porque disputa o ano ou as turmas com outra escrita. Siga o runbook.'
+          runbook_url: https://github.com/Turmma/turmma/blob/main/docs/runbook.md#passo-3-da-importação-acima-de-1-s
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              datasource:
+                type: prometheus
+                uid: prometheus
+              expr: 'histogram_quantile(0.95, sum by (le) (rate(importacao_passo3_duracao_seconds_bucket{job="educa/worker"}[5m]))) and on () (sum (rate(importacao_passo3_duracao_seconds_count{job="educa/worker"}[5m])) > 0)'
+              instant: true
+              range: false
+              intervalMs: 10000
+              maxDataPoints: 43200
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params: [1]

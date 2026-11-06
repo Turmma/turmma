@@ -21,7 +21,7 @@ apps/despachante  Node + TS           lê o outbox (job_registro) e publica no B
 apps/worker       BullMQ              executa os jobs: expurgo, retenção, pedidos do titular, rotinas
 apps/realtime     socket.io           hoje só o canal /sistema; a sala ao vivo por turma é do F10
 packages/shared   zod                 contrato de pedido e resposta, códigos de erro, matriz de permissão
-packages/core   TS                  contexto, guardas, erro, schema e migrations, fila, IA, limite, log
+packages/core   TS                  contexto, guardas, erro, schema e migrations, fila, IA, limite, log, e os repositories da estrutura e da decisão (`estrutura/`, subcaminho `@educa/core/estrutura`), que a API e o worker usam
 
 Postgres 18 · Redis (fila e cache) · S3-compatível · LLMProvider (falso | OpenAI-compatível)
 ```
@@ -135,6 +135,11 @@ que o expurgo enfileira quando o prazo de 7 dias vence) são lote não urgente; 
 vencidas e uma troca de nome na escola A, que nada disso atrasa o interativo da B nem o turno do Tutor dela (pela rota, com o
 adaptador falso de latência simulada) e que nenhum statement chega a 1,5 s nem é cancelado pelo `statement_timeout` de 2 s
 (`docs/infra.md`, seção 10).
+
+No F2, a planilha da coordenação (`POST /v1/importacoes/:tipo`) responde 202 e enfileira `estrutura.gravar-planilha`, da fila
+`normal`, com só o id da importação no payload. O job lê a importação pela escola da linha do outbox e grava em três passos: o
+(3) é uma transação curta (`lock_timeout` de 1 s, `statement_timeout` de 1,5 s) que trava a importação, depois o ano letivo, e
+só então escreve. Trava esgotada repete com espera crescente; na última tentativa a importação sai `falhou`.
 
 A entrega é **pelo menos uma vez** (D49): o job nasce no Postgres, o despachante publica no
 BullMQ quando a escola tem vaga, e a reconciliação republica o que o Redis perdeu. Por isso

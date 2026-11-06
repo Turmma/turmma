@@ -1,8 +1,9 @@
 import { MAXIMO_DE_BYTES_DA_LISTA, MAXIMO_DE_LINHAS_DA_LISTA } from '@educa/shared'
 
 /**
- * O arquivo da lista de nomes, lido como texto no navegador (A1, 13.0; Tech Spec, seções 9 e 12). A API recebe sempre o
- * texto, nunca o arquivo: nada de upload nem de storage para uma lista de 64 KB.
+ * O arquivo CSV ou TXT da planilha, lido como texto no navegador (A1, 13.0; F2, 13.0; Tech Spec, seções 1, 9 e 12). A API recebe sempre o
+ * texto, nunca o arquivo: nada de upload nem de storage para uma planilha de 512 KB. O XLSX é lido por `ler-planilha.ts`, que chama
+ * este para tudo o que não é planilha de Excel.
  *
  * O Excel brasileiro grava o CSV em windows-1252, com `;` (premissa não verificada da seção 12 da Tech Spec), e o Google
  * Planilhas e o LibreOffice, em UTF-8, às vezes com BOM. A leitura tenta UTF-8 estrito primeiro: um arquivo em
@@ -18,24 +19,17 @@ import { MAXIMO_DE_BYTES_DA_LISTA, MAXIMO_DE_LINHAS_DA_LISTA } from '@educa/shar
  */
 export const MAXIMO_DE_BYTES_DO_ARQUIVO = MAXIMO_DE_BYTES_DA_LISTA + 3
 
-/** O maior arquivo em UTF-16: dois bytes por caractere e o BOM. Acima disso, o texto não cabe em 64 KB de UTF-8. */
+/** O maior arquivo em UTF-16: dois bytes por caractere e o BOM. Acima disso, o texto não cabe em 512 KB de UTF-8. */
 export const MAXIMO_DE_BYTES_DO_ARQUIVO_EM_UTF16 = 2 * MAXIMO_DE_BYTES_DA_LISTA + 2
 
 /**
- * Por que o arquivo não virou texto. `planilha` é o arquivo de planilha em si (`.xlsx` e `.ods`, que são zip, e o `.xls`
- * antigo): não é texto, e lido como tal encheria o campo de lixo; a tela diz para salvar como CSV. `ilegivel` é o
- * arquivo que o navegador não conseguiu ler (apagado ou movido depois de escolhido, sem permissão).
+ * Por que o arquivo não virou texto. `grande` é o que passa do teto de bytes; `ilegivel` é o arquivo que o navegador não
+ * conseguiu ler (apagado ou movido depois de escolhido, sem permissão).
  */
-export const MOTIVOS_DO_ARQUIVO_RECUSADO = ['grande', 'planilha', 'ilegivel'] as const
+export const MOTIVOS_DO_ARQUIVO_RECUSADO = ['grande', 'ilegivel'] as const
 export type MotivoDoArquivoRecusado = (typeof MOTIVOS_DO_ARQUIVO_RECUSADO)[number]
 
 export type ArquivoLido = { readonly ok: true; readonly texto: string } | { readonly ok: false; readonly motivo: MotivoDoArquivoRecusado }
-
-/** O começo de todo zip ("PK", 3, 4), que é o do `.xlsx` e do `.ods`, e o do `.xls` antigo (`D0 CF 11 E0`). */
-const COMECOS_DE_PLANILHA = [
-  [0x50, 0x4b, 0x03, 0x04],
-  [0xd0, 0xcf, 0x11, 0xe0],
-]
 
 export async function lerArquivoDaLista(arquivo: Blob): Promise<ArquivoLido> {
   try {
@@ -47,9 +41,6 @@ export async function lerArquivoDaLista(arquivo: Blob): Promise<ArquivoLido> {
 }
 
 async function lerComoTexto(arquivo: Blob): Promise<ArquivoLido> {
-  // Só o começo, antes do teto: uma planilha passa fácil de 128 KB, e "grande demais" não diria o que fazer com ela.
-  const comeco = new Uint8Array(await arquivo.slice(0, 4).arrayBuffer())
-  if (COMECOS_DE_PLANILHA.some((assinatura) => assinatura.every((byte, posicao) => comeco[posicao] === byte))) return { ok: false, motivo: 'planilha' }
   if (arquivo.size > MAXIMO_DE_BYTES_DO_ARQUIVO_EM_UTF16) return { ok: false, motivo: 'grande' }
   const bytes = new Uint8Array(await arquivo.arrayBuffer())
   const utf16 = bytes[0] === 0xff && bytes[1] === 0xfe ? 'utf-16le' : bytes[0] === 0xfe && bytes[1] === 0xff ? 'utf-16be' : undefined
@@ -63,17 +54,8 @@ async function lerComoTexto(arquivo: Blob): Promise<ArquivoLido> {
 }
 
 /**
- * As quebras de linha do arquivo (o `\r\n` do Excel, o `\r` sozinho de arquivo antigo) viram as do campo de texto, que só
- * guarda `\n`: o texto que a tela mostra é o mesmo que o campo devolve quando a pessoa mexe nele, e a prévia de um texto
- * vale para ele depois de uma tecla errada e apagada.
- */
-export function comQuebrasDoCampo(texto: string): string {
-  return texto.replace(/\r\n?/g, '\n')
-}
-
-/**
- * O que a tela já sabe que a API recusaria, antes de enviar (regra 80, item 3): mais de 64 KB em UTF-8, ou mais linhas
- * preenchidas que as 200 de aluno e um cabeçalho. Entre os dois, quem decide é a API, que sabe qual linha é cabeçalho.
+ * O que a tela já sabe que a API recusaria, antes de enviar (regra 80, item 3): mais de 512 KB em UTF-8, ou mais linhas
+ * preenchidas que as 3.000 de dado e um cabeçalho. Entre os dois, quem decide é a API, que sabe qual linha é cabeçalho.
  */
 export function tetoPassado(texto: string): 'bytes' | 'linhas' | undefined {
   if (new TextEncoder().encode(texto).length > MAXIMO_DE_BYTES_DA_LISTA) return 'bytes'

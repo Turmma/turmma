@@ -563,6 +563,22 @@ export async function montarEstruturaNoBanco(escolaId: string, turmas: readonly 
 }
 
 /**
+ * Uma turma do ano em curso com o **nome exato** dado, na série do ano dado (6 a 9 do Ensino Fundamental): a planilha de alunos acha a
+ * turma pelo nome ("8º A"), e a que `montarEstruturaNoBanco` cria leva uma marca no nome e não é achada. Devolve a turma no formato de
+ * `colocarAlunoNaTurma`, para pôr um aluno nela.
+ */
+export async function criarTurmaComNomeNoBanco(escolaId: string, nome: string, anoDaSerie: 6 | 7 | 8 | 9): Promise<TurmaDoAlunoDeTeste> {
+  return comBanco(async (banco) => {
+    const { rows: anos } = await banco.query<{ id: string }>("select id from ano_letivo where escola_id = $1 and situacao = 'em_curso'", [escolaId])
+    const anoLetivoId = anos[0]?.id
+    if (anoLetivoId === undefined) throw new Error('a escola do e2e não tem ano letivo em curso')
+    const serieId = await id(banco, "insert into serie (escola_id, etapa, ano) values ($1, 'ef_anos_finais', $2) on conflict (escola_id, etapa, ano) do update set ano = excluded.ano returning id", [escolaId, anoDaSerie])
+    const turmaId = await id(banco, 'insert into turma (escola_id, ano_letivo_id, serie_id, nome) values ($1, $2, $3, $4) returning id', [escolaId, anoLetivoId, serieId, nome])
+    return { turmaId, turmaNome: nome, serieNome: `${String(anoDaSerie)}º ano do Ensino Fundamental` }
+  })
+}
+
+/**
  * Nomes na lista da turma, livres como a gravação da lista (2.0) os deixa ou já reivindicados (o aluno pediu o nome, 6.0),
  * na ordem dada. Nome e matrícula inventados pelo teste.
  */
@@ -973,6 +989,19 @@ export async function porAprovadosNaListaDaTurma(escolaId: string, turmaId: stri
   })
 }
 
+/**
+ * A linha `aprovado` da lista da turma para um aluno que já existe (com vínculo, de `colocarAlunoNaTurma`): é por ela que a planilha
+ * de alunos o acha "em outra turma" ou "fora da planilha" (13.0). A lista guarda o aprovado só com o estado e o usuário.
+ */
+export async function aprovarNaListaDaTurma(aluno: Pick<AlunoDeTeste, 'escolaId' | 'usuarioId'>, turmaId: string): Promise<void> {
+  await comBanco(async (banco) => {
+    const { rows } = await banco.query<{ ano_letivo_id: string }>('select ano_letivo_id from turma where escola_id = $1 and id = $2', [aluno.escolaId, turmaId])
+    const anoLetivoId = rows[0]?.ano_letivo_id
+    if (anoLetivoId === undefined) throw new Error('turma do e2e não encontrada')
+    await banco.query("insert into lista_nome (escola_id, ano_letivo_id, turma_id, estado, usuario_id) values ($1, $2, $3, 'aprovado', $4)", [aluno.escolaId, anoLetivoId, turmaId, aluno.usuarioId])
+  })
+}
+
 /** Um aluno que o teste pôs na turma: o id que a lista de nomes devolve é o `usuarioId`, e o mesmo que o desempenho chama de `alunoId`. */
 export interface AlunoNaTurmaDeTeste {
   readonly usuarioId: string
@@ -1323,5 +1352,62 @@ export async function auditoriaDoPedidoNoBanco(escolaId: string, pedidoId: strin
       [escolaId, pedidoId],
     )
     return rows
+  })
+}
+
+/** Uma aula da grade, como a planilha a grava: o dia de 1 (segunda) a 7, e o horário em `HH:MM`. */
+export interface AulaDeTeste {
+  readonly dia: number
+  readonly inicio: string
+  readonly fim: string
+  readonly sala?: string
+}
+
+/**
+ * Aulas na grade de um vínculo, direto no banco (F2, 14.0): é o que a tela Grade e calendário lê. O ano e a escola saem do próprio
+ * vínculo, e a FK composta do banco prende a aula a eles.
+ */
+export async function criarAulasNoBanco(escolaId: string, vinculoId: string, aulas: readonly AulaDeTeste[]): Promise<void> {
+  await comBanco(async (banco) => {
+    for (const aula of aulas) {
+      await banco.query(
+        'insert into alocacao (escola_id, ano_letivo_id, vinculo_id, dia_semana, inicio, fim, sala) select escola_id, ano_letivo_id, id, $3, $4, $5, $6 from vinculo where escola_id = $1 and id = $2',
+        [escolaId, vinculoId, aula.dia, aula.inicio, aula.fim, aula.sala ?? null],
+      )
+    }
+  })
+}
+
+/** Um evento no calendário do ano em curso ou do planejado da escola, direto no banco (F2, 14.0). */
+export async function criarEventoDoCalendarioNoBanco(
+  escolaId: string,
+  situacao: 'em_curso' | 'planejado',
+  evento: { readonly tipo: 'feriado' | 'recesso' | 'evento'; readonly inicio: string; readonly fim: string; readonly descricao: string },
+): Promise<void> {
+  await comBanco(async (banco) => {
+    await banco.query('insert into evento_calendario (escola_id, ano_letivo_id, tipo, inicio, fim, descricao) select escola_id, id, $3, $4, $5, $6 from ano_letivo where escola_id = $1 and situacao = $2', [
+      escolaId,
+      situacao,
+      evento.tipo,
+      evento.inicio,
+      evento.fim,
+      evento.descricao,
+    ])
+  })
+}
+
+/** Quantas aulas a escola tem na grade, no banco: a prova de que a prévia não gravou e de que o gravar gravou. */
+export async function aulasDaEscolaNoBanco(escolaId: string): Promise<number> {
+  return comBanco(async (banco) => {
+    const { rows } = await banco.query<{ total: string }>('select count(*)::text as total from alocacao where escola_id = $1', [escolaId])
+    return Number(rows[0]?.total ?? 0)
+  })
+}
+
+/** Quantos eventos o calendário do ano em curso da escola tem, no banco. */
+export async function eventosDaEscolaNoBanco(escolaId: string): Promise<number> {
+  return comBanco(async (banco) => {
+    const { rows } = await banco.query<{ total: string }>('select count(*)::text as total from evento_calendario where escola_id = $1', [escolaId])
+    return Number(rows[0]?.total ?? 0)
   })
 }

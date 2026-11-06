@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { nomeDigitadoSchema } from '../operacao/painel.js'
 import { pareceDocumento } from './documento-na-matricula.js'
 import { TAMANHO_MAXIMO_MATRICULA } from '../sessao/matricula.js'
+import { MAXIMO_DE_BYTES_DA_PLANILHA, MAXIMO_DE_LINHAS_DA_PLANILHA, marcasDaPlanilhaSchema } from '../importacao/contratos.js'
 import { paginationQuerySchema, pageSchema } from './pagination.js'
 import { FINALIDADES_DA_LEITURA_DE_ALUNOS } from './turma.js'
 
@@ -15,12 +16,12 @@ export const ESTADOS_DO_NOME_DA_LISTA = ['livre', 'reivindicado', 'aprovado'] as
 export type EstadoDoNomeDaLista = (typeof ESTADOS_DO_NOME_DA_LISTA)[number]
 
 /**
- * O teto de um envio, colado ou em arquivo (Tech Spec da A1, seção 4; regra 80, item 3): 200 linhas de aluno e 64 KB
- * em UTF-8. É o que deixa a lista rodar dentro da requisição, sem fila (seção 11, regra 00; `docs/infra.md` 3.5). Acima
- * de qualquer um dos dois, `ENTRADA_INVALIDA`, e nada é lido.
+ * O teto de um envio, colado ou em arquivo: o da planilha de alunos, 3.000 linhas de aluno e 512 KB em UTF-8 (F2, 8.0: a lista da
+ * turma segue o contrato da importação; Tech Spec do onboarding, seção 4; regra 80, item 3). Antes, 200 linhas e 64 KB, porque a
+ * A1 gravava dentro da requisição; agora grava o job. Acima de qualquer um dos dois, `ENTRADA_INVALIDA`, e nada é lido.
  */
-export const MAXIMO_DE_LINHAS_DA_LISTA = 200
-export const MAXIMO_DE_BYTES_DA_LISTA = 64 * 1024
+export const MAXIMO_DE_LINHAS_DA_LISTA = MAXIMO_DE_LINHAS_DA_PLANILHA
+export const MAXIMO_DE_BYTES_DA_LISTA = MAXIMO_DE_BYTES_DA_PLANILHA
 
 /** A matrícula digitada: uma linha, sem caractere de controle e sem espaço nas pontas, até 40 (a do login). */
 export const matriculaDigitadaSchema = z
@@ -33,10 +34,13 @@ export const matriculaDigitadaSchema = z
 /**
  * Corpo de `POST /v1/turmas/:id/lista/previa` e de `POST /v1/turmas/:id/lista`: o texto como a coordenação colou ou
  * como o arquivo foi lido, uma linha por aluno, com nome e matrícula separados por `;`, `,` ou tabulação. O teto de
- * linhas e de bytes é conferido na leitura do texto. Estrito: a turma vem do caminho, a escola e o ano, da sessão.
+ * linhas e de bytes é conferido na leitura do texto. Estrito: a turma vem do caminho, a escola e o ano, da sessão. O gravar
+ * leva também as marcas da prévia, como o da importação (F2, 8.0).
  */
 export const textoDaListaRequestSchema = z.strictObject({ texto: z.string() })
 export type TextoDaListaRequest = z.infer<typeof textoDaListaRequestSchema>
+export const gravarListaRequestSchema = textoDaListaRequestSchema.extend({ marcas: marcasDaPlanilhaSchema.default({ transferir: [], desligar: [], encerrar: [] }) })
+export type GravarListaRequest = z.infer<typeof gravarListaRequestSchema>
 
 /**
  * Corpo de `POST /v1/turmas/:id/lista/nome`: o nome avulso, com as regras de cada linha do texto. A matrícula com forma

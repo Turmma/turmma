@@ -73,6 +73,8 @@ export {
   RETENCAO_JOB_FALHO_SEGUNDOS,
 } from './queue/publishing.js'
 export type { QueuedJobData, PublishedJobOptions } from './queue/publishing.js'
+export { CalendarioRepository, ContaDaPlanilhaPerdidaError, ehFalhaDeTrava, executarPlanilha, GradeRepository, ImportacaoIlegivelError, ImportacaoRepository, MotorDePlanilha, TENTATIVAS_DO_JOB } from './importacao/index.js'
+export type { DaLista, ImportacaoLida, ListaRow, ResultadoDaExecucao } from './importacao/index.js'
 export { DomainException, HTTP_STATUS_BY_CODE, DEFAULT_RETRY_AFTER_SECONDS } from './error/domain.exception.js'
 export { AllExceptionsFilter } from './error/all-exceptions.filter.js'
 export { mapPostgresError } from './error/map-postgres-error.js'
@@ -125,6 +127,8 @@ export {
   JANELA_LIMITE_SEGUNDOS,
   insuranceLimit,
   PREFIXO_LIMITE_BUSCA_TITULAR,
+  PREFIXO_LIMITE_IMPORTACAO,
+  PREFIXO_VAGAS_DA_IMPORTACAO,
   PREFIXO_LIMITE_ESCOLA,
   PREFIXO_LIMITE_IP,
   PREFIXO_LIMITE_IP_LOGIN,
@@ -138,6 +142,9 @@ export { RateLimiter, loadRateLimitConfig } from './rate-limit/rate-limiter.js'
 export type { RateLimitConfig, RateLimitResult } from './rate-limit/rate-limiter.js'
 export { TrustedProxies } from './rate-limit/trusted-proxies.js'
 export { AcceptsChallenge, DowngradeRateLimit, IS_PUBLIC_KEY, Public, SkipRateLimit } from './rate-limit/route-markers.decorator.js'
+export { ImportacaoRateLimit, IMPORTACAO_RATE_LIMIT_KEY } from './rate-limit/importacao-rate-limit.decorator.js'
+export { SchoolSemaphore, VALIDADE_DA_VAGA_DA_PLANILHA_MS } from './rate-limit/school-semaphore.js'
+export type { Vaga, SchoolSemaphoreOptions } from './rate-limit/school-semaphore.js'
 export { TitularSearchRateLimit, TITULAR_SEARCH_RATE_LIMIT_KEY } from './rate-limit/titular-search-rate-limit.decorator.js'
 export { createApiRedisClient, createQueueRedisClient, TIMEOUT_COMANDO_REDIS_API_MS, TIMEOUT_COMANDO_REDIS_FILA_MS } from './redis/clients.js'
 export { usoInfraDiario } from './db/schema/uso-infra-diario.js'
@@ -173,6 +180,7 @@ export {
   ExpurgoDeAcessoRepository,
   expurgoAccessBatchStatement,
   RETENCAO_CONVITE_DIAS,
+  RETENCAO_IMPORTACAO_DIAS,
   RETENCAO_INCIDENTE_ANOS,
   RETENCAO_REGISTRO_ACESSO_MESES,
   RETENCAO_SESSAO_DIAS,
@@ -196,6 +204,9 @@ export { listaNome } from './db/schema/lista-nome.js'
 export { acessoTurma } from './db/schema/acesso-turma.js'
 export { reivindicacao } from './db/schema/reivindicacao.js'
 export { retencaoEscola } from './db/schema/retencao-escola.js'
+export { importacaoPlanilha } from './db/schema/importacao-planilha.js'
+export { alocacao } from './db/schema/alocacao.js'
+export { eventoCalendario } from './db/schema/evento-calendario.js'
 export { suboperador, suboperadorEscola } from './db/schema/suboperador.js'
 export { SuboperadorDaEscolaRepository } from './titular/suboperador-da-escola.repository.js'
 export type { SuboperadorLidoPelaEscola } from './titular/suboperador-da-escola.repository.js'
@@ -245,6 +256,8 @@ export { provedorEscola } from './db/schema/provedor-escola.js'
 export { convite, TIPOS_DE_CONVITE, VALIDADE_DO_CONVITE_HORAS, VALIDADE_DO_CONVITE_HORAS_POR_TIPO } from './db/schema/convite.js'
 export { estadoDaCoordenacao } from './convite/estado-da-coordenacao.js'
 export type { DadosDaCoordenacao, UltimoConviteDaCoordenacao } from './convite/estado-da-coordenacao.js'
+export { CHAVE_DA_TRAVA_DO_CONVITE_DA_ESCOLA, ConviteDaEscolaRepository } from './convite/convite-da-escola.repository.js'
+export { convidarProfessorDaPlanilha } from './convite/convidar-professor-da-planilha.js'
 export { estadoDoProfessor } from './convite/estado-do-professor.js'
 export type { DadosDoProfessor, UltimoConviteDoProfessor } from './convite/estado-do-professor.js'
 export type { TipoDeConvite } from './db/schema/convite.js'

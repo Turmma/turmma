@@ -169,6 +169,19 @@ describe('sistema.expurgar-acesso', () => {
   }
 
   /**
+   * A importação de planilha de uma escola (F2, tarefa 5.0), do tipo `professores` (o único sem ano). `concluidaHa` nulo é a que
+   * ainda não terminou; `criadaHa` é a idade da linha. Uma `na_fila` por escola (`importacao_planilha_uma_na_fila_por_escola`).
+   */
+  const importacao = (escolaId: string, estado: 'na_fila' | 'concluida' | 'desatualizada' | 'falhou', concluidaHa: string | null, criadaHa = '200 days') =>
+    inserir(
+      `insert into importacao_planilha (escola_id, tipo, estado, assinatura, erro, criado_em, concluida_em)
+       values ($1, 'professores', $2::text, 'assinatura-sintetica', case when $2::text = 'falhou' then 'expirou' end,
+               $3::timestamptz - $4::interval, case when $5::interval is null then null else $3::timestamptz - $5::interval end)
+       returning id`,
+      [escolaId, estado, AGORA.toISOString(), criadaHa, concluidaHa],
+    )
+
+  /**
    * Um operador sintético, criado há 10 anos: ativo (com nome e e-mail em `.invalid`) ou desativado há 5 anos, já sem
    * dado pessoal, como o `desativar` o deixa.
    */
@@ -364,6 +377,19 @@ describe('sistema.expurgar-acesso', () => {
         // Revogado há 10 dias, mas vencido há 31 ("Gerar novo" também revoga o vencido): vale o que veio primeiro.
         await acessoTurma(escolaId, { revogadoHa: '10 days', expiraHa: '31 days' }),
       )
+      // A importação de planilha (F2, tarefa 5.0): 90 dias depois de terminada, em qualquer um dos três estados finais.
+      fica.importacao_planilha.push(
+        await importacao(escolaId, 'concluida', '89 days'),
+        await importacao(escolaId, 'desatualizada', '89 days 23 hours'),
+        await importacao(escolaId, 'falhou', '1 day'),
+        // A `na_fila` velha, de 200 dias, não terminou: não é alvo de prazo (a parada fecha pelo expurgo da escola). Uma por escola.
+        await importacao(escolaId, 'na_fila', null),
+      )
+      sai.importacao_planilha.push(
+        await importacao(escolaId, 'concluida', '91 days'),
+        await importacao(escolaId, 'desatualizada', '90 days 1 hour'),
+        await importacao(escolaId, 'falhou', '200 days'),
+      )
     }
     // A falha por e-mail, antes de haver escola: sem escola onde aplicar retenção própria, sai pelo mesmo prazo.
     resultado.sai.registro_acesso.push(await registro(null, null, 'login_falho', '6 months 1 day'))
@@ -454,7 +480,7 @@ describe('sistema.expurgar-acesso', () => {
     const eventos = log.doEvento('acesso.expurgado')
     expect(eventos).toHaveLength(1)
     const [linha] = eventos
-    for (const chave of ['registrosDeAcessoTotal', 'sessoesTotal', 'convitesTotal', 'acessosDaTurmaTotal', 'acessosDaOperacaoTotal', 'sessoesDeOperadorTotal', 'convitesDeOperadorTotal', 'incidentesTotal']) {
+    for (const chave of ['registrosDeAcessoTotal', 'sessoesTotal', 'convitesTotal', 'acessosDaTurmaTotal', 'importacoesTotal', 'acessosDaOperacaoTotal', 'sessoesDeOperadorTotal', 'convitesDeOperadorTotal', 'incidentesTotal']) {
       expect(linha?.[chave], chave).toEqual(expect.any(Number))
     }
     const texto = log.linhas.join('\n')
@@ -478,6 +504,7 @@ describe('sistema.expurgar-acesso', () => {
       sessoesTotal: porAlvo.sessao,
       convitesTotal: porAlvo.convite,
       acessosDaTurmaTotal: porAlvo.acesso_turma,
+      importacoesTotal: porAlvo.importacao_planilha,
       acessosDaOperacaoTotal: porAlvo.acesso_operacao,
       sessoesDeOperadorTotal: porAlvo.sessao_operador,
       convitesDeOperadorTotal: porAlvo.convite_operador,
@@ -488,7 +515,7 @@ describe('sistema.expurgar-acesso', () => {
 
   it('alvo sem total (A0b, tarefa 9.0): o objeto dos totais do processador é conferido alvo a alvo pelo compilador', () => {
     // @ts-expect-error falta o total de `incidente` (F3, 9.0): sem a afirmação `as Record`, o compilador recusa o objeto.
-    const semUmAlvo: TotaisDoExpurgoDeAcesso = { registro_acesso: 0, sessao: 0, convite: 0, acesso_turma: 0, acesso_operacao: 0, sessao_operador: 0, convite_operador: 0 }
+    const semUmAlvo: TotaisDoExpurgoDeAcesso = { registro_acesso: 0, sessao: 0, convite: 0, acesso_turma: 0, importacao_planilha: 0, acesso_operacao: 0, sessao_operador: 0, convite_operador: 0 }
     expect(Object.keys(semUmAlvo)).toHaveLength(ALVOS_DO_EXPURGO_DE_ACESSO.length - 1)
   })
 
@@ -624,6 +651,49 @@ describe('sistema.expurgar-acesso', () => {
     expect(await restantes('acesso_turma', semeado.fica.acesso_turma)).toEqual([...semeado.fica.acesso_turma].sort())
   })
 
+  it('importação de planilha (F2, tarefa 5.0): sai 90 dias depois de terminada, contados do relógio injetado e em qualquer estado final; com 89 dias, e a `na_fila` de qualquer idade, ficam', async () => {
+    await expurgar()
+    expect(await restantes('importacao_planilha', semeado.sai.importacao_planilha), 'vencidas').toEqual([])
+    expect(await restantes('importacao_planilha', semeado.fica.importacao_planilha), 'no prazo e na fila').toEqual([...semeado.fica.importacao_planilha].sort())
+    // Só as contagens vão ao log.
+    expect(log.doEvento('acesso.expurgado')[0]?.['importacoesTotal']).toBeGreaterThanOrEqual(semeado.sai.importacao_planilha.length)
+  })
+
+  it('importação de planilha (F2, tarefa 5.0): a linha que um job segura não faz o lote esperar (`skip locked`), e o lote leva as mais antigas primeiro', async () => {
+    const [escolaId] = [await bancada.escola()]
+    // Muito além de qualquer linha semeada, inseridas fora da ordem do prazo: a mais antiga por último.
+    const duzentos = await importacao(escolaId, 'concluida', '200 years')
+    const cem = await importacao(escolaId, 'desatualizada', '100 years')
+    const trezentos = await importacao(escolaId, 'falhou', '300 years')
+    semeado.sai.importacao_planilha.push(duzentos, cem, trezentos)
+    const repositorio = new ExpurgoDeAcessoRepository(bancada.banco)
+    const existem = async () => (await restantes('importacao_planilha', [duzentos, cem, trezentos])).sort()
+
+    const segurador = await bancada.pool.connect()
+    try {
+      await segurador.query('begin')
+      await segurador.query('select id from importacao_planilha where id = $1 for update', [trezentos])
+      // A mais antiga está presa por outra transação: o lote de 1 pula para a seguinte, sem esperar.
+      expect(await repositorio.apagarLoteVencido('importacao_planilha', AGORA, 1)).toBe(1)
+      expect(await existem()).toEqual([trezentos, cem].sort())
+    } finally {
+      await segurador.query('rollback')
+      segurador.release()
+    }
+    expect(await repositorio.apagarLoteVencido('importacao_planilha', AGORA, 1)).toBe(1)
+    expect(await existem()).toEqual([cem])
+    expect(await repositorio.apagarLoteVencido('importacao_planilha', AGORA, 1)).toBe(1)
+    expect(await existem()).toEqual([])
+  })
+
+  it('importação de planilha (F2, tarefa 5.0): a linha `na_fila` com data de término (estado inconsistente) nunca sai pelo prazo', async () => {
+    const escolaId = await bancada.escola()
+    const naFila = await importacao(escolaId, 'na_fila', '400 days')
+    semeado.fica.importacao_planilha.push(naFila)
+    await expurgar()
+    expect(await restantes('importacao_planilha', [naFila])).toEqual([naFila])
+  })
+
   it('idempotência (D49): rodar de novo depois do fim não apaga nada além do prazo', async () => {
     await expurgar()
     const segunda: Array<[Passo, number]> = []
@@ -633,6 +703,7 @@ describe('sistema.expurgar-acesso', () => {
       ['sessao', 0],
       ['convite', 0],
       ['acesso_turma', 0],
+      ['importacao_planilha', 0],
       ['acesso_operacao', 0],
       ['sessao_operador', 0],
       ['convite_operador', 0],
@@ -648,7 +719,7 @@ describe('sistema.expurgar-acesso', () => {
     await Promise.all([expurgar(primeira), expurgar(segunda)])
     await conferir()
     // Juntas, as duas apagaram pelo menos os vencidos semeados (o banco de teste pode ter outros), e nenhuma falhou.
-    for (const alvo of ['registro_acesso', 'sessao', 'convite', 'acesso_turma', 'incidente'] as const) {
+    for (const alvo of ['registro_acesso', 'sessao', 'convite', 'acesso_turma', 'importacao_planilha', 'incidente'] as const) {
       const soma = [...primeira, ...segunda].filter(([deQual]) => deQual === alvo).reduce((total, [, apagadas]) => total + apagadas, 0)
       expect(soma, alvo).toBeGreaterThanOrEqual(semeado.sai[alvo].length)
     }
@@ -720,6 +791,7 @@ describe('sistema.expurgar-acesso', () => {
       'sessao',
       'convite',
       'acesso_turma',
+      'importacao_planilha',
       'acesso_operacao',
       'sessao_operador',
       'convite_operador',

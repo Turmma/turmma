@@ -37,6 +37,16 @@ export const PREFIXO_LIMITE_IP_OPERACAO = 'rl:ip:op'
  */
 export const PREFIXO_LIMITE_BUSCA_TITULAR = 'rl:busca-titular'
 
+/**
+ * O limite da prévia e do gravar de planilha (`rl:importacao`, F2, tarefa 5.0; `cenarios.md`, "Limites"): 20 por minuto **por
+ * usuário**, os dois no mesmo balde, além do limite de usuário e de escola do F0. Por usuário e nunca por IP (regra 80, item 1):
+ * duas coordenações atrás do mesmo IP têm 20 cada.
+ */
+export const PREFIXO_LIMITE_IMPORTACAO = 'rl:importacao'
+
+/** O semáforo das prévias e gravares simultâneos de uma escola (`sem:importacao:{escolaId}`, F2, tarefa 5.0). */
+export const PREFIXO_VAGAS_DA_IMPORTACAO = 'sem:importacao'
+
 /** Janela de todo limite. Os limites da configuração são "por minuto". */
 export const JANELA_LIMITE_SEGUNDOS = 60
 

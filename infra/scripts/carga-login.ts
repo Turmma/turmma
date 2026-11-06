@@ -415,7 +415,7 @@ async function semearTurmasEAtividades(banco: Pick<pg.Pool, 'query'>, { escolaId
  * `ops:sessao-sintetica` (só com `AMBIENTE=local`). O hash é gerado uma vez, com os parâmetros calibrados do ambiente
  * da carga, e vale para todas as contas.
  */
-async function semearContas(doArquivo: Record<string, string>): Promise<ContasDoCenario> {
+export async function semearContas(doArquivo: Record<string, string>): Promise<ContasDoCenario> {
   const { nucleo, escolas: ops, sessoes, hash } = await importarDaApi()
   const pool = nucleo.createPool({ url: urlDoBancoDoAmbiente(doArquivo), maximoConexoes: 2, timeoutConexaoMs: 5_000, timeoutConsultaMs: 120_000 }, () => undefined)
   const banco = nucleo.createDatabase(pool)

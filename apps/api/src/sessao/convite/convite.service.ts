@@ -1,3 +1,5 @@
+import { ContaGlobalRepository } from '@educa/core/conta-global'
+import { contaDoProfessor } from '@educa/core/cadastro-de-professor'
 import {
   currentContext,
   DomainException,
@@ -192,24 +194,52 @@ async function coordenacaoSobATrava(convites: ConviteRepository): Promise<{ esta
 
 /**
  * O corpo comum de quem convida (A0b; A1, tarefa 3.0), dentro da transação de quem chama, na escola do contexto e depois
- * da trava dela: acha ou cria a conta do e-mail (conta nova nasce sem senha), acha ou cria o usuário do papel do
- * convite, inativo até o aceite (`usuarioConvidado`), e grava o convite com o SHA-256 do token. Usuário do papel já
+ * da trava dela, com a conta do e-mail já achada ou criada (conta nova nasce sem senha): acha ou cria o usuário do papel
+ * do convite, inativo até o aceite (`usuarioConvidado`), e grava o convite com o SHA-256 do token. Usuário do papel já
  * ativo na escola, ou com convite em aberto (o índice `convite_pendente_unico`): `CONFLITO`, e a transação volta atrás.
- * Devolve o convite, o usuário e se a conta é nova, que só o convite do coordenador leva à auditoria.
+ */
+async function convidarConta(
+  tx: DatabaseTransaction,
+  convites: ConviteRepository,
+  tipo: TipoDeConvite,
+  { contaId, nome }: { readonly contaId: string; readonly nome: string },
+  token: string,
+  expiraEm: Date,
+): Promise<{ conviteId: string; usuarioId: string }> {
+  const usuarioId = await convites.usuarioConvidado(contaId, nome, tipo)
+  if (usuarioId === undefined) throw new DomainException(ErrorCode.CONFLITO)
+  const conviteId = await convites.criarConvite({ tipo, tokenHash: hashDoToken(token), usuarioId, expiraEm })
+  return { conviteId, usuarioId }
+}
+
+/**
+ * Quem convida a coordenação (o operador): a conta pelo `ContaGlobalRepository`, e devolve também se ela é nova, que só o
+ * convite do coordenador leva à auditoria.
  */
 export async function convidar(
   tx: DatabaseTransaction,
   convites: ConviteRepository,
-  tipo: TipoDeConvite,
   pessoa: { readonly email: string; readonly nome: string },
   token: string,
   expiraEm: Date,
 ): Promise<{ conviteId: string; usuarioId: string; contaNova: boolean }> {
-  const conta = await new TenantResolutionRepository(tx).contaParaConvite(normalizarEmail(pessoa.email))
-  const usuarioId = await convites.usuarioConvidado(conta.id, pessoa.nome, tipo)
-  if (usuarioId === undefined) throw new DomainException(ErrorCode.CONFLITO)
-  const conviteId = await convites.criarConvite({ tipo, tokenHash: hashDoToken(token), usuarioId, expiraEm })
-  return { conviteId, usuarioId, contaNova: conta.nova }
+  const conta = await new ContaGlobalRepository(tx).contaParaConvite(normalizarEmail(pessoa.email))
+  return { ...(await convidarConta(tx, convites, 'coordenador', { contaId: conta.id, nome: pessoa.nome }, token, expiraEm)), contaNova: conta.nova }
+}
+
+/**
+ * Quem convida o professor (a coordenação da escola): a conta pelo cadastro do professor, do core, que descarta o `nova`
+ * (E11 da A1: nada diz à coordenação se o e-mail tinha conta em outra escola).
+ */
+export async function convidarProfessor(
+  tx: DatabaseTransaction,
+  convites: ConviteRepository,
+  pessoa: { readonly email: string; readonly nome: string },
+  token: string,
+  expiraEm: Date,
+): Promise<{ conviteId: string; usuarioId: string }> {
+  const conta = await contaDoProfessor(tx, normalizarEmail(pessoa.email))
+  return convidarConta(tx, convites, 'professor', { contaId: conta.id, nome: pessoa.nome }, token, expiraEm)
 }
 
 /**
@@ -274,7 +304,7 @@ export async function criarConviteDeCoordenador(banco: Database, autor: AuthorCh
           await registro.gravar(tx, 'convite.revogado', { entidadeId: ultimoConviteId, depois: { tipo: 'coordenador' }, autorOperador })
         }
         // Sem coordenador ativo na escola (o estado não é `ativa`), o da conta também não está: `convidar` não recusa aqui.
-        const { conviteId: criado, usuarioId, contaNova } = await convidar(tx, convites, 'coordenador', pedido, token, expiraEm)
+        const { conviteId: criado, usuarioId, contaNova } = await convidar(tx, convites, pedido, token, expiraEm)
         await registro.gravar(tx, 'convite.criado', { entidadeId: criado, depois: { tipo: 'coordenador', usuarioId, expiraEm: expiraEm.toISOString(), contaNova }, autorOperador })
         return criado
       })

@@ -53,7 +53,7 @@ export const NAVIGATION: Readonly<Record<PapelDeUsuario, readonly NavItem[]>> = 
   coordenador: [
     { rotulo: 'Painel', caminho: ROUTES.painel, icone: { lugar: 'painel' } },
     { rotulo: 'Analista', caminho: ROUTES.analista, icone: { lugar: 'ia' } },
-    { rotulo: 'Escola', caminho: ROUTES.estrutura, icone: { lugar: 'escola' }, tambemEm: [ROUTES.professores, ROUTES.material] },
+    { rotulo: 'Escola', caminho: ROUTES.estrutura, icone: { lugar: 'escola' }, tambemEm: [ROUTES.professores, ROUTES.material, ROUTES.grade] },
     { rotulo: 'Registros', caminho: ROUTES.governanca, icone: { lugar: 'registros' }, tambemEm: [ROUTES.agentes, ROUTES.privacidade] },
   ],
   // A2 (D73): Início, Turmas e Ferramentas. Calendário nasce com a grade (F8) e Histórico, com o F5: nenhum aparece antes da

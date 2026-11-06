@@ -663,6 +663,100 @@ escola de que a eliminação atrasou, sem mandar o nome nem o pedido por mensage
 **Depois:** registre no `TODO.md` a escola (id), o pedido (id), o `eliminar_em` e a causa, só com ids e datas. Causa nova vira
 tarefa com teste que a reproduz.
 
+## Importação de planilha com falha acima de 20% em 1 h
+
+**Dispara quando:** mais de 20% das importações de planilha que terminaram na última hora saíram `falhou`, por 5 min
+(`(sum(increase(importacao_job_total{resultado="falhou"}[1h])) / sum(increase(importacao_job_total{resultado=~"concluida|desatualizada|falhou"}[1h]))) > 0.2`,
+regra `infra/grafana/alertas/importacao-falhou.yaml`; Tech Spec do onboarding, seção 7c). A métrica é do job
+`estrutura.gravar-planilha`, somadas as réplicas do worker de fila normal; a `ignorada` e a `nova_tentativa` não contam como
+desfecho. A série não leva escola: a escola vem do log do job e de `importacao_planilha`.
+
+**Impacto:** a coordenação gravou a planilha, viu "gravando" e a importação terminou `falhou`: a turma, o professor, a grade ou o
+calendário não entraram, e ela precisa gravar de novo. Nada fica pela metade (o passo 3 é uma transação só); o dado da planilha
+(`linhas` e `marcas`) já foi apagado.
+
+**Primeiro olhar:** as importações `falhou` da hora, só com ids, tipo, código e datas (nunca a planilha, que já foi apagada):
+`docker compose exec postgres psql -U educa -c "select id, escola_id, tipo, erro, criado_em, concluida_em from importacao_planilha where estado = 'falhou' and concluida_em > now() - interval '1 hour' order by concluida_em"`.
+O log do worker traz `importacao.job_falhou` com `importacaoId`, `tentativa` e `codigo`, e `importacao.job_repetira` com o erro resumido.
+
+**Causas prováveis:**
+1. `erro = 'trava_esgotada'` em várias escolas → o passo 3 não conseguiu a trava em 1 s em todas as tentativas: outra escrita segura o ano, a
+   importação ou as turmas (o gerar acesso das 7h30, a decisão em sala, um `desativar`). Veja "Passo 3 da importação acima de 1 s" e o
+   `pg_locks` da hora; a coordenação grava de novo fora do pico.
+2. `erro = 'expirou'` → a `na_fila` passou de 1 h sem o job pegá-la e o gravar seguinte, ou o expurgo da escola, a fechou. O job não está rodando:
+   veja "Importação de planilha parada na fila" e "Job interativo esperando" (a fila é a `normal`).
+3. `erro = 'erro_interno'` → falha definitiva ou tentativas esgotadas com outro erro: o log do worker traz `importacao.job_falhou` e
+   `job.tentativa_falhou` com o código de erro (`sqlstate`, nunca o valor da linha). Erro de SQL que se repete em toda escola é defeito de
+   código: abra correção com o `sqlstate`, o tipo da planilha e a versão, nunca a planilha.
+4. Poucas importações na hora → uma ou duas falhas bastam para passar de 20%. Confira o número de importações da hora antes de escalar.
+
+**Se nada disso resolver:** a importação não se conserta à mão: `importacao_planilha` não se altera por `update`, a coordenação grava de
+novo pela tela. Avise a coordenação das escolas afetadas de que a planilha não entrou e pode ser enviada outra vez, sem pedir a planilha por
+mensagem.
+
+**Depois:** registre no `TODO.md` as escolas (ids), o tipo da planilha, o código do erro e a hora, só com ids e datas. Causa nova vira
+tarefa com teste que a reproduz.
+
+## Importação de planilha parada na fila
+
+**Dispara quando:** a importação `na_fila` mais antiga de uma escola foi gravada há mais de 30 minutos, por 1 min
+(`max by (escola_id) (importacao_minutos_na_fila{job="educa/worker"}) > 30`, regra `infra/grafana/alertas/importacao-parada.yaml`;
+Tech Spec do onboarding, seção 7c). A métrica é o número de minutos desde o `criado_em` da `na_fila` mais antiga da escola em
+`importacao_planilha`; o worker-lote a mede a cada 5 min, e o alerta traz o `escola_id`, nunca a importação nem quem a gravou. A escola
+sem importação na fila não tem série, e ela some quando o job termina ou o expurgo a fecha. Com a medição a cada 5 min e o `for: 1m`, o alerta dispara entre 31 e 36 minutos depois da gravação.
+
+**Impacto:** a coordenação gravou a planilha e a tela segue em "gravando". Uma escola só tem uma `na_fila`, então ela não consegue gravar
+outra até esta terminar. Com 1 h, o gravar seguinte, ou o expurgo da escola à 1h, a fecha `falhou` e apaga as linhas: o dado de aluno da
+planilha não fica parado por mais de cerca de 25 h.
+
+**Primeiro olhar:** a importação e o job dela, só com ids, estados e datas:
+`docker compose exec postgres psql -U educa -c "select i.id, i.tipo, i.criado_em, j.estado as job, j.codigo_falha from importacao_planilha i left join job_registro j on j.escola_id = i.escola_id and j.tipo = 'estrutura.gravar-planilha' and j.dados->>'importacaoId' = i.id::text where i.escola_id = '<escola_id>' and i.estado = 'na_fila' order by i.criado_em"`.
+
+**Causas prováveis:**
+1. O job está esperando vaga ou não foi despachado (`job_registro.estado` em `aguardando`, `reservado` ou `publicado`) → o worker da fila
+   `normal` ou o `despachante` está parado; veja "Job interativo esperando" e "Job que falhou de vez". Com o worker de volta, o job conclui sozinho.
+2. O Redis de fila se perdeu → o despachante republica o job pelo outbox (D49); confira o log do `despachante`.
+3. O job está tentando de novo com a trava esgotada (`importacao.job_repetira` no log) → outra escrita segura o ano ou as turmas; veja
+   "Passo 3 da importação acima de 1 s". Na última tentativa a importação sai `falhou` com `trava_esgotada`.
+4. A importação já terminou e a série continua → o `estado` já não é `na_fila`: a medição está atrasada, ou o worker-lote não mede (log
+   `worker.medicao_da_importacao_indisponivel`). A série some na volta seguinte de 5 min.
+
+**Se nada disso resolver:** a importação não se fecha à mão: o expurgo da escola (à 1h) e o gravar seguinte fecham a de mais de 1 h
+`falhou`. Avise a coordenação de que a planilha não entrou e pode ser enviada de novo depois disso, sem pedir a planilha por mensagem.
+
+**Depois:** registre no `TODO.md` a escola (id), a importação (id), quando foi gravada e a causa, só com ids e datas. Causa nova vira
+tarefa com teste que a reproduz.
+
+## Passo 3 da importação acima de 1 s
+
+**Dispara quando:** o p95 do passo 3 do job da planilha passa de 1 s, por 5 min
+(`histogram_quantile(0.95, sum by (le) (rate(importacao_passo3_duracao_seconds_bucket{job="educa/worker"}[5m]))) > 1`, regra
+`infra/grafana/alertas/importacao-passo3-lento.yaml`; Tech Spec do onboarding, seção 7c). O passo 3 é a transação curta que trava a
+importação, o ano, os usuários, as contas e as turmas na ordem global e grava em lotes de 500. A série não leva escola.
+
+**Impacto:** a planilha demora a entrar, e o passo 3 trava as turmas contra o gerar acesso das 7h30 e a decisão do professor em sala:
+com ele acima de 1 s, essas duas esperam. O `lock_timeout` de 1 s e o `statement_timeout` de 1,5 s cortam o passo, a tentativa volta
+inteira e o job repete; nada fica pela metade.
+
+**Primeiro olhar:** o painel "Passo 3 da planilha (p95)" e a fila `normal` por escola; e as travas que seguram a transação:
+`docker compose exec postgres psql -U educa -c "select a.pid, a.state, a.wait_event_type, a.wait_event, now() - a.xact_start as aberta_ha, left(a.query, 80) as comeco from pg_stat_activity a where a.wait_event_type = 'Lock' order by a.xact_start"`.
+
+**Causas prováveis:**
+1. Uma planilha grande de alunos com muitas turmas tocadas, junto com o gerar acesso → o passo trava as turmas em ordem de id num comando só;
+   a espera é do gerar acesso, e termina quando o passo fecha. Se repetir toda segunda às 7h30, a coordenação deve gravar a planilha fora
+   do pico; a regra da Tech Spec (seção 13) manda a spec voltar à revisão se o cenário [C] falhar.
+2. Um `desativar` ou `eliminar` longo segurando a conta ou o usuário → `pg_stat_activity` mostra a transação aberta há muito tempo; ela não
+   se mata à mão, e a tentativa do job repete sozinha.
+3. O banco está lento em geral → veja "Taxa de erro 5xx" e "Login lento": o passo 3 é só o primeiro a sentir.
+4. O índice de uma tabela que o passo lê se perdeu (plano com `Seq Scan` na `lista_nome`, no `vinculo` ou na `turma`) → `explain` da
+   consulta do log do Postgres; abra correção com o plano, nunca com os valores.
+
+**Se nada disso resolver:** não suba o `statement_timeout` nem o `lock_timeout` do passo (regra 80, item 3): o corte é o que protege o gerar
+acesso. Escale ao dono do produto e peça à coordenação que grave fora do horário letivo enquanto isso.
+
+**Depois:** registre no `TODO.md` o horário, o tipo da planilha, o número de linhas e a causa, sem planilha. Causa nova vira tarefa com
+teste que a reproduz.
+
 ## Voltar o código com eliminação agendada em curso (rollback)
 
 *Procedimento, não alerta: não há regra em `infra/grafana/alertas/`. Vale para qualquer volta de versão que passe pela migration
@@ -694,6 +788,46 @@ quando".
 
 **Depois:** registre no `TODO.md` a janela (de quando a quando), as escolas avisadas e quantos pedidos `agendado` estavam em curso,
 só com ids e datas.
+
+## Voltar o código depois da chave da turma (rollback)
+
+*Procedimento, não alerta: não há regra em `infra/grafana/alertas/`. Vale para qualquer volta de versão que passe pela migration
+`0040_f2_planilhas` (F2, tarefa 2.0; Tech Spec do F2, seção 3).*
+
+**O que a migration deixou:** as tabelas `importacao_planilha`, `alocacao` e `evento_calendario`, a coluna `turma.chave` (com o único
+parcial `turma_chave_no_ano_unica`), a coluna `vinculo.origem` (padrão `coordenacao`) e o único `vinculo_escola_ano_id_unico`. Tudo só
+expande: o código anterior roda sobre isso sem erro. **Não reverta a 0040**: apagar `turma.chave` ou o índice desfaz a única coisa
+que impede "8º A" e "8A" de virarem duas turmas depois que o código novo voltar.
+
+**O que o código anterior faz com elas:** ignora tudo. Ele cria e renomeia turma **sem calcular a `chave`**: a turma criada nesse
+tempo fica com a chave nula, e a renomeada fica com a chave **do nome antigo**. A planilha de alunos só chega com o código novo, então
+nada importa errado durante a volta; o estrago é a chave desatualizada quando o código novo voltar.
+
+**Na volta para a versão nova (roll-forward), antes de liberar a planilha:** recalcule a chave de todas as turmas, na mesma conta
+da migration, só onde ela é única no ano. Duas turmas do mesmo ano que o código anterior deixou com a mesma chave ficam as duas sem
+chave (a prévia as acusa como erro e a coordenação renomeia uma delas):
+
+```
+docker compose exec postgres psql -U educa -1 -c "update turma set chave = null where chave is not null;
+with calculada as (
+  select id, escola_id, ano_letivo_id,
+    regexp_match(lower(translate(btrim(nome), 'áàâãäÁÀÂÃÄéèêëÉÈÊËíìîïÍÌÎÏóòôõöÓÒÔÕÖúùûüÚÙÛÜçÇ', 'aaaaaaaaaaeeeeeeeeiiiiiiiioooooooooouuuuuuuucc')), '^(\d)\s*[ºo°ª]?\s*(ano)?\s*([a-z])$') as achado
+  from turma
+), com_chave as (
+  select id, escola_id, ano_letivo_id, achado[1] || achado[3] as chave from calculada where achado is not null
+), unica as (
+  select id, chave from (select id, chave, count(*) over (partition by escola_id, ano_letivo_id, chave) as total from com_chave) contada where total = 1
+)
+update turma set chave = unica.chave from unica where turma.id = unica.id"
+```
+
+O `-1` roda tudo numa transação: o `update` que zera e o que recalcula entram juntos, ou nenhum entra. Confira depois, só com contagens:
+`select count(*) filter (where chave is null) as sem_chave, count(*) as total from turma`.
+
+**Não faça:** escrever `chave` à mão, nem apagar o índice para "passar" uma duplicata: a duplicata é erro de planilha, e o lugar de
+resolvê-la é a coordenação, renomeando a turma.
+
+**Depois:** registre no `TODO.md` a janela (de quando a quando) e quantas turmas ficaram sem chave por repetição, só contagens.
 
 ## Rotina do sistema sem rodar (consolidação de uso, expurgo de jobs, expurgo do acesso)
 
@@ -867,6 +1001,16 @@ uma tarefa mexer no login, no semáforo, no rebaixamento, na renovação ou no h
 Para depurar uma fase sem esperar o cenário inteiro: `npm run carga:login -- --fases rajada` (a base roda sempre). O
 resultado parcial não vale como registro.
 
+**Resultado de referência (06/11/2026, 15 min, passou):** prévia e gravar com 3.000 linhas, p95 de 319 ms e 196 ms (máximo da prévia 1,7 s,
+no primeiro encontro com a rajada), com a rajada de login em p95 107 ms e zero 5xx; transferências: passo (3) 12 vezes, todas até 1 s
+(a maior, entre 0,25 e 0,5 s), e a espera de trava **+4 ms** no gerar acesso e **+6 ms** na decisão, zero 503; desligamentos e virada:
+passo (3) 5 vezes, todas até 0,75 s (100 desligamentos, 3 × 100 e a virada de 900); professores: 11 jobs e 181 logins, zero 503, passo (3)
+sempre até 0,25 s. Sem teto, a primeira medição dos desligamentos foi 100 abaixo de 0,75 s, 200 entre 1 e 1,5 s e 300 entre 1,5 e 3 s.
+
+**Cuidado ao mexer no driver:** o token de acesso da coordenação vale 10 min (`VALIDADE_TOKEN_ACESSO_SEGUNDOS`) e é emitido quando a escola
+da fase é criada. O que demora (semear as 2.100 contas da rajada, que leva minutos) vem **antes** de criar a escola, e nunca depois: na
+primeira tentativa a ordem era a inversa, e três prévias do fim da fase voltaram 401.
+
 Se reprovar, a saída diz a fase e o critério:
 - **p95 do login na rajada acima de 1 s, ou conta que não entrou:** o hash custa mais do que a CPU de referência aguenta.
   Confira `LOGIN_ARGON2_ITERACOES` em `infra/carga.env` contra a calibração da Tech Spec da identidade (seção 5, "Hash").
@@ -914,10 +1058,57 @@ Se reprovar, a saída diz a fase e o critério:
 - **login da outra escola acima de 1 s:** a sala está tirando a vez do login no semáforo. Confira a espera por balde no
   painel.
 
+## Rodar o cenário da importação
+
+`npm run carga:importacao` roda o cenário "a escola inteira entra de uma vez" (F2, tarefa 16.0 de `onboarding-por-convite`; Tech Spec,
+seções 7c e 13; PRD, RF15) no mesmo projeto compose (`educa-carga`) dos outros cenários, e o derruba no fim. Leva uns 25 min, mais a
+construção das imagens. Não rode junto com o portão, com os testes nem com os outros cenários (`flock /tmp/educa-carga.lock`): os quatro
+sobem o mesmo projeto, e a medição depende da CPU livre. Cada fase monta pela API uma escola nova, como a coordenação e a professora
+fariam, e roda `infra/k6/importacao-7h30.js`:
+
+- **previa_e_gravar**: a prévia e o gravar de uma planilha de 3.000 linhas (100 turmas de 30), de duas coordenações da mesma
+  escola (as duas vagas da planilha), de um container, enquanto a rajada de login do F1 entra com 2.100 contas, de outro. Passa com o p95
+  da prévia e o do gravar abaixo de 2 s (PRD, RF15; o PRD admite 10 s, o teto da Tech Spec é 2 s) e a rajada dentro dos limites dela;
+- **transferencias_base** e **transferencias**: as 3.000 linhas já gravadas, 180 pedidos de nome pendentes em 60 turmas de dez
+  professoras, e a carga que o passo (3) disputa: cada professora gera o acesso das turmas dela (8 por segundo) e decide os pedidos em
+  lotes de cinco. A base roda **sem o job**; a segunda roda **com** um job atrás do outro, cada um com 300 transferências (a mesma
+  matrícula e o mesmo nome em outra turma, de ida e de volta). É o critério [C] da seção 13;
+- **desligamentos_e_virada**: três escolas, uma depois da outra: 100 desligamentos de alunos aprovados num gravar (a conta é desativada
+  um por um), 300 em **três gravares de 100** (o teto por gravar, `MAXIMO_DE_DESLIGAMENTOS_POR_GRAVAR`; a planilha é enviada de novo e a
+  prévia mostra quem ainda falta) e a virada de 900 alunos para o ano planejado (o `vinculo.criado` de cada um). Foi esta fase que
+  criou o teto: na primeira medição, sem ele, 100 desligamentos ficaram abaixo de 0,75 s, 200 entre 1 e 1,5 s e 300 entre 1,5 e 3 s;
+- **professores**: a planilha de 300 professores (200 que já têm conta e 100 novos a cada volta) contra o login dos 200 que já existem.
+
+**A espera de trava não tem métrica própria.** O `lock_timeout` do passo (3) corta em 300 ms, mas quem espera é o gerar acesso e a
+decisão, e o que o produto promete é que eles não esperem. O cenário a mede por diferença: o p95 do gerar acesso e o da decisão **com** o
+job menos o p95 deles na fase `transferencias_base` (a mesma carga, sem o job). A diferença precisa ficar abaixo de 300 ms
+(`LIMITE_DA_ESPERA_DE_TRAVA_MS`). O passo (3) é medido pelo histograma `importacao.passo3.duracao` no Prometheus: o cenário confere que
+ele rodou ao menos o número de vezes que a fase pede (o job chegou ao passo (3), e a planilha tem transferências nas turmas onde o gerar
+acesso roda) e que nenhuma observação passou do balde de 1 s.
+
+Passa quando: nenhum 5xx (o 503 do semáforo do hash entra) nas rotas do cenário, nenhuma resposta fora do esperado, nenhum job `falhou`
+nem parado em `na_fila`, as marcas que a prévia oferece são as que o cenário diz (300 transferências, 100 desligamentos por gravar), o passo
+(3) abaixo de 1 s, e a espera de trava abaixo de 300 ms sobre a base. Rode de novo quando uma tarefa mexer no motor da planilha, nas travas
+do passo (3), no gerar acesso, na decisão dos pedidos ou no login. Para depurar uma fase: `npm run carga:importacao -- --fases
+transferencias` (a base entra junto). O resultado parcial não vale como registro. Se o [C] falhar, a Tech Spec manda a spec de volta à
+revisão (seção 13): o remédio é teto nas marcas ou comando em grupo, e só se este cenário o pedir. O teto nas marcas já entrou (100
+desligamentos por gravar); o comando em grupo só se uma escola real precisar de mais que isso por gravar.
+
+Se reprovar, a saída diz a fase e o critério:
+- **prévia ou gravar acima de 2 s:** a classificação de 3.000 linhas está lenta com a rajada em paralelo. Confira a espera pelo semáforo da
+  planilha e os statements do `pg_stat_statements` (a prévia lê a lista inteira da escola).
+- **espera de trava acima de 300 ms:** o passo (3) segura as turmas por tempo demais. Confira a ordem das travas (Tech Spec, seção 5) e o
+  tamanho da transação do job.
+- **passo (3) acima de 1 s:** o laço de `vinculo.criado` um por um (a virada) ou o `desativar` um por um (os desligamentos) é o que cresce
+  com a escola. Se foi um desligamento, confira se o teto por gravar (100) ainda vale e se `desativar` ganhou trabalho por pessoa; se foi a
+  virada (sem marca, 900 alunos), é ela que precisa do comando em grupo, porque não há marca para limitar.
+- **503 no login dos professores:** o job de professores achou ou criou a conta global enquanto eles entravam e tomou a vez do hash.
+- **passo (3) rodou menos do que a fase pede:** o job saiu `desatualizada` ou não chegou ao passo (3); a fase não mediu o [C].
+
 ## Esteira vermelha no e2e
 
-O e2e roda em **oito fatias**, cada uma num job próprio (`e2e 1/8` a `e2e 8/8`), com o seu compose e
-o seu `--shard=<i>/8` do Playwright; uma fatia vermelha não cancela as outras. A quinta entrou em
+O e2e roda em **nove fatias**, cada uma num job próprio (`e2e 1/9` a `e2e 9/9`), com o seu compose e
+o seu `--shard=<i>/9` do Playwright; uma fatia vermelha não cancela as outras. A quinta entrou em
 13/10/2026, com a suíte em 776 casos commitados e 818 com os 42 do e2e da 6.0 da X1: em quatro fatias eram
 194 por fatia (uns 27 min, no limite de 27) e 205 (uns 28 min, acima dele); em cinco, 156 e 164 (uns 23 e 24 min;
 `tasks/correcoes/2026-10-13-quinta-fatia-do-e2e.md`). A sexta entrou em 16/10/2026, com a suíte em 990 casos
@@ -928,8 +1119,11 @@ na linha 3 de `telas-do-professor` e 1196 com a spec somada a ela: em seis fatia
 linha (uns 27 min, no limite) e 200 com a soma (uns 28 min, acima dele); em sete, 169 e 171 (uns 24 min nos dois;
 `tasks/correcoes/2026-10-19-setima-fatia-do-e2e.md`). A oitava entrou em 25/10/2026, com a suíte em 1384 casos: em sete
 fatias eram 198 por fatia (uns 28 min, acima do limite de 27); em oito, 173 (uns 25 min;
-`tasks/correcoes/2026-10-25-oitava-fatia-do-e2e.md`). Em oito fatias o limite continua 197 casos por fatia, 1576 no
-total, cerca de 190 a mais que os 1384 de hoje: é o ponto em que a nona fatia passa a ser pedida. O total de fatias está
+`tasks/correcoes/2026-10-25-oitava-fatia-do-e2e.md`). A nona entrou em 05/11/2026, com a suíte em 1562 casos commitados e 1580
+com os 18 do e2e da 14.0 de `onboarding-por-convite` (9 casos nos dois projetos): em oito fatias eram 196 por fatia só com o
+commitado (uns 27 min, no limite) e 198 com a 14.0 (uns 28 min, acima dele); em nove, 176 (uns 25 min;
+`tasks/correcoes/2026-11-05-nona-fatia-do-e2e-e-restos-da-13.md`). Em nove fatias o limite continua 197 casos por fatia, 1773 no
+total, cerca de 190 a mais que os 1580 de hoje: é o ponto em que a décima fatia passa a ser pedida. O total de fatias está
 escrito em quatro lugares: a matriz, o `name` do job e o `--shard` do passo em `.github/workflows/ci.yml`, e
 `FATIAS_DO_E2E` em `tools/processo/esteira.ts`, que o censo lê. Cada fatia publica o
 diretório de saída do Playwright quando falha ou é cancelada: artefato **`traco-do-e2e-<i>`**, com o
@@ -947,7 +1141,7 @@ serviços no próprio job.
 
 Vermelho de e2e que não reproduz na máquina segura a tarefa seguinte (regra 40, D52): trate como
 defeito pela correção (`corrigir`), com a causa achada no traço, e não repetindo a execução até passar. Para
-repetir só a fatia na máquina: `node tools/ci/e2e.ts --shard=<i>/8`, que sobe o compose limpo como a
+repetir só a fatia na máquina: `node tools/ci/e2e.ts --shard=<i>/9`, que sobe o compose limpo como a
 esteira. A fatia começa com o banco vazio e roda só a parte dela: caso que passa na suíte inteira e
 falha na fatia depende de outro spec ter rodado antes, e isso é o defeito.
 
@@ -963,7 +1157,7 @@ Dois sinais chegam antes do cancelamento. `tools/ci/esteira.test.ts` refaz a con
 fatia e reprova no portão local e no job `verificar` quando uma delas passa de 60% do teto, mesmo pela
 média. E `tools/ci/e2e.ts` mede a etapa de testes de cada fatia e, quando ela passa desse limiar (60% do
 teto menos o custo fixo), deixa a anotação **"e2e perto do teto"** no resumo da execução, mesmo verde.
-Qualquer um dos dois pede mais fatias: acrescentar o número à `matrix.fatia` e trocar o total (hoje `/8`)
+Qualquer um dos dois pede mais fatias: acrescentar o número à `matrix.fatia` e trocar o total (hoje `/9`)
 pelo novo no `name` do job e no passo `npm run ci:e2e`, e acrescentar o número a `FATIAS_DO_E2E`; a guarda confere
 os três contra o tamanho da matriz. Subir o `timeout-minutes` ou baixar as
 constantes de `tools/ci/prazo-do-e2e.ts` para o teste passar não é saída.

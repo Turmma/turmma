@@ -102,7 +102,7 @@ afterAll(() => {
   if (pastaDaFixture !== undefined) rmSync(pastaDaFixture, { recursive: true, force: true })
 })
 
-const REGRAS = (createRequire(import.meta.url)('./camadas.cjs') as { forbidden: { name: string; severity: string; to: { path?: string } }[] }).forbidden
+const REGRAS = (createRequire(import.meta.url)('./camadas.cjs') as { forbidden: { name: string; severity: string; from: { pathNot?: string[] }; to: { path?: string } }[] }).forbidden
 
 /** Cada regra e as violações que a fixture marca, `de -> para`. O que não está aqui é o controle: tem de passar. */
 const ESPERADAS: Readonly<Record<string, readonly string[]>> = {
@@ -151,8 +151,20 @@ const ESPERADAS: Readonly<Record<string, readonly string[]>> = {
     'infra/conta-global-import.ts -> packages/core/src/ciclo-de-vida/conta-global.repository.ts',
     'infra/conta-global-reexporta.ts -> packages/core/src/ciclo-de-vida/conta-global.repository.ts',
     'infra/subcaminho.ts -> packages/core/src/ciclo-de-vida/conta-global.repository.ts',
+    'packages/core/src/estrutura/vizinho-dinamico.ts -> packages/core/src/ciclo-de-vida/conta-global.repository.ts',
+    'packages/core/src/estrutura/vizinho-reexporta.ts -> packages/core/src/ciclo-de-vida/conta-global.repository.ts',
+    'packages/core/src/estrutura/vizinho-require.ts -> packages/core/src/ciclo-de-vida/conta-global.repository.ts',
+    'packages/core/src/estrutura/vizinho.ts -> packages/core/src/ciclo-de-vida/conta-global.repository.ts',
     'packages/core/src/retencao/atalho.ts -> packages/core/src/ciclo-de-vida/conta-global.repository.ts',
     'tools/conta-global.ts -> packages/core/src/ciclo-de-vida/conta-global.repository.ts',
+  ],
+  // O cadastro do professor acha ou cria a conta global: só `sessao/` e o processor da planilha (o arquivo, e não a pasta `processors/`) o importam (os controles `sessao/login/usa-cadastro.ts` e `processors/gravar-planilha.ts` passam). O barril `estrutura/index.ts` que o reexporta é acusado.
+  'cerca-cadastro-de-professor': [
+    'apps/api/src/estrutura/turma/vaza-cadastro.ts -> packages/core/src/estrutura/cadastro-de-professor.ts',
+    'apps/worker/src/processors/vizinho-do-cadastro.ts -> packages/core/src/estrutura/cadastro-de-professor.ts',
+    'infra/cadastro-dinamico.ts -> packages/core/src/estrutura/cadastro-de-professor.ts',
+    'packages/core/src/estrutura/index.ts -> packages/core/src/estrutura/cadastro-de-professor.ts',
+    'tools/cadastro-reexporta.ts -> packages/core/src/estrutura/cadastro-de-professor.ts',
   ],
   'cerca-painel-repository': [
     'apps/api/src/operacao/eu/eu.service.ts -> apps/api/src/operacao/painel/painel.repository.ts',
@@ -220,7 +232,41 @@ describe('a guarda de camadas no repositório de hoje', () => {
     expect(importa(/^apps\/api\/src\/operacao\/painel\/painel\.service\.ts$/, 'apps/api/src/operacao/painel/painel.repository.ts')).toBe(true)
     expect(importa(/^apps\/api\/src\/sessao\//, 'apps/api/src/sessao/tenant/tenant-resolution.repository.ts')).toBe(true)
     expect(importa(/^apps\/api\/src\/sessao\//, 'packages/core/src/ciclo-de-vida/conta-global.repository.ts')).toBe(true)
+    // O arquivo do cadastro do professor é a exceção de `estrutura/`: se ele some ou muda de lugar, esta aresta some e o caso cai, em vez de a cerca ficar olhando o vazio.
+    expect(importa(/^packages\/core\/src\/estrutura\/cadastro-de-professor\.ts$/, 'packages/core/src/ciclo-de-vida/conta-global.repository.ts')).toBe(true)
   }, 120_000)
+
+  it('real: só o módulo sessao e o processor da planilha importam o cadastro do professor, e o barril estrutura/index.ts não o reexporta', () => {
+    const modulos = repositorio().relatorio.modules
+    const alvo = 'packages/core/src/estrutura/cadastro-de-professor.ts'
+    const quemImporta = modulos.filter((modulo) => modulo.dependencies.some((dependencia) => dependencia.resolved === alvo)).map((modulo) => modulo.source)
+    // O subcaminho `@educa/core/cadastro-de-professor` resolve para o arquivo (a aresta existe), e quem o importa, fora teste, é só `sessao/` e o processor da planilha.
+    const deProducao = quemImporta.filter((fonte) => !/\.(?:test|spec)\.ts$/.test(fonte))
+    expect(deProducao.length).toBeGreaterThan(0)
+    expect(deProducao).toContain('apps/worker/src/processors/gravar-planilha.ts')
+    expect(deProducao.filter((fonte) => !fonte.startsWith('apps/api/src/sessao/') && fonte !== 'apps/worker/src/processors/gravar-planilha.ts')).toEqual([])
+    expect(quemImporta).not.toContain('packages/core/src/estrutura/index.ts')
+  }, 120_000)
+
+  it('real: só o arquivo do cadastro do professor, e nenhum outro de produção de estrutura/, importa a conta global', () => {
+    const daPasta = repositorio().relatorio.modules.filter((modulo) => modulo.source.startsWith('packages/core/src/estrutura/') && !/\.(?:test|spec)\.ts$/.test(modulo.source) && modulo.dependencies.some((dependencia) => dependencia.resolved === 'packages/core/src/ciclo-de-vida/conta-global.repository.ts'))
+    expect(daPasta.map((modulo) => modulo.source)).toEqual(['packages/core/src/estrutura/cadastro-de-professor.ts'])
+  }, 120_000)
+
+  it('real: o exclude da configuração não esconde o arquivo do cadastro do professor, e esconde a fixture', () => {
+    const exclude = new RegExp(((createRequire(import.meta.url)('./camadas.cjs') as { options: { exclude: { path: string } } }).options.exclude.path))
+    expect(exclude.test('packages/core/src/estrutura/cadastro-de-professor.ts')).toBe(false)
+    expect(exclude.test('tools/guardas/__fixtures__/camadas/packages/core/src/estrutura/cadastro-de-professor.ts')).toBe(true)
+  })
+
+  it('real: a cerca é por arquivo: o mesmo import, feito de um vizinho do cadastro do professor, é violação, e do arquivo no lugar novo, não', () => {
+    const regra = REGRAS.find((candidata) => candidata.name === 'cerca-conta-global')
+    const permitido = (caminho: string): boolean => (regra?.from.pathNot ?? []).some((padrao) => new RegExp(padrao).test(caminho))
+    expect(permitido('packages/core/src/estrutura/cadastro-de-professor.ts')).toBe(true)
+    for (const caminho of ['packages/core/src/estrutura/vizinho.ts', 'packages/core/src/estrutura/index.ts', 'packages/core/src/estrutura/cadastro-de-professor-2.ts', 'packages/core/src/cadastro-de-professor.ts', 'packages/core/src/estrutura/sub/cadastro-de-professor.ts']) {
+      expect(permitido(caminho), caminho).toBe(false)
+    }
+  })
 
   it('real: a aresta da redefinição de MFA até a conta global está no relatório', () => {
     const modulo = repositorio().relatorio.modules.find((candidato) => candidato.source === 'apps/api/src/sessao/mfa/redefinicao-de-mfa.ts')

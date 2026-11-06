@@ -60,6 +60,10 @@ export const CLASSIFICACAO_DAS_TABELAS: Readonly<Record<string, ClassificacaoDaT
   material: categoria(['material_excluido'], 'enviado_por', 'excluido_por'),
   vinculo: categoria(['vinculo_encerrado'], 'usuario_id'),
   usuario: categoria(['pessoa_desativada'], 'id'),
+  // A aula da grade (F2, 2.0) é do professor pelo vínculo e sai com ele, em cascata: o vínculo encerrado vai pelo prazo de
+  // `vinculo_encerrado`, e a eliminação do professor apaga o vínculo. Ela não tem coluna de pessoa, e liga ao titular pelo `vinculo_id`: a
+  // 11.0, que a grava, a põe no arquivo do professor (dia, horário e sala; regra 20, item 19), pela leitura das aulas dos vínculos dele.
+  alocacao: { classe: 'categoria', categorias: ['vinculo_encerrado'], arquivo: { entra: true, ligacao: ['vinculo_id'] } },
 
   // Prazo fixo, com quem aplica.
   registro_acesso: fixo('registro_acesso', EXPURGO_DE_ACESSO, 'usuario_id'),
@@ -71,6 +75,10 @@ export const CLASSIFICACAO_DAS_TABELAS: Readonly<Record<string, ClassificacaoDaT
   credencial_matricula: fixo('credencial', 'desativação e eliminação', 'usuario_id'),
   conta_externa: fixo('credencial', 'desativação e eliminação', 'usuario_id'),
   lista_nome: fixo('lista_de_nomes', 'virada do ano (A1) e eliminação', 'usuario_id'),
+  // A planilha gravada (F2, 2.0): o texto em trânsito (`linhas` e `marcas`, com nome e matrícula) é apagado em toda troca de estado e,
+  // na pior hipótese, some em ~25 h; a linha que fica (tipo, estado, contagens, código do erro, sem pessoa) sai em 90 dias pelo
+  // `sistema.expurgar-acesso` (5.0). O autor é da coordenação, que não é titular de pedido: a tabela fica fora do arquivo.
+  importacao_planilha: fixo('planilha_importada', EXPURGO_DE_ACESSO),
   operador: fixo('equipe_turmma', 'desativação do operador (A0)'),
   convite_operador: fixo('equipe_turmma', EXPURGO_DE_ACESSO),
   sessao_operador: fixo('equipe_turmma', EXPURGO_DE_ACESSO),
@@ -111,6 +119,8 @@ export const CLASSIFICACAO_DAS_TABELAS: Readonly<Record<string, ClassificacaoDaT
   serie: SEM_PESSOA,
   disciplina: SEM_PESSOA,
   turma: SEM_PESSOA,
+  // O calendário do ano (F2, 2.0): tipo, datas e descrição de até 120 caracteres, sem nome de pessoa por desenho.
+  evento_calendario: SEM_PESSOA,
   provedor_escola: SEM_PESSOA,
   configuracao_operacional_escola: SEM_PESSOA,
   uso_infra_diario: SEM_PESSOA,

@@ -25,7 +25,7 @@ import {
 } from './support/casca.ts'
 import { cliquesAte, irPelaCoordenacao, paginaNaoRola, type TelaDaCoordenacao } from './support/coordenacao.ts'
 import { loadUnthrottled, expect, test } from './support/profiles.ts'
-import { configurarSegundoFatorPelaApi } from './support/mfa.ts'
+import { abrirPelaApiSemMedirAPrimeiraCarga, configurarSegundoFatorPelaApi } from './support/mfa.ts'
 import { colocarAlunoNaTurma, criarAlocacaoDoProfessor, criarAlunoComMatricula, criarEquipeComSenha, criarUsuarioEmOutraEscola, type EquipeDeTeste } from './support/seed.ts'
 import { rawCodePattern, horizontalOverflow, seriousViolations } from './support/checks.ts'
 
@@ -275,10 +275,11 @@ test.describe('W2: a navegação de cada papel e a guarda de papel', () => {
 
   // Separado dos casos acima só pelo prazo: as cinco entradas de página por `page.goto`, no perfil de rede lenta e com o
   // servidor do e2e sem compressão nem cache, passavam dos 30 s juntas (esteira `37245636814`). As asserções são as
-  // mesmas de antes; cada teste começa da entrada da professora.
+  // mesmas de antes; cada teste começa da entrada da professora, que agora é pela API (a entrada pela tela tem os casos dela, em `entrar.spec.ts`).
   test('o endereço que não existe na área do professor responde igual ao de outro papel, e "página inicial" volta ao Início', async ({ page, hasTouch }) => {
     const pedidos = registrarChunks(page)
-    const professora = await entrarComoProfessora(page, hasTouch)
+    // Entra pela API: o assunto vem depois da entrada, que tem os casos dela (`entrar.spec.ts`).
+    const professora = await entrarComoProfessoraPelaApi(page)
 
     // Um endereço que não existe dentro da própria área responde igual: a tela não confirma o que é de outro papel.
     await page.goto('/professor/qualquer')
@@ -362,14 +363,21 @@ test.describe('W2: a navegação de cada papel e a guarda de papel', () => {
     await expect(page).toHaveURL(/\/aluno\/inicio$/, { timeout: SIGN_IN_TIMEOUT_MS })
   })
 
-  test('os endereços de hoje do aluno abrem as telas de hoje, e Tutor e Privacidade acendem Início e Eu', async ({ page, hasTouch }) => {
+  // Eram um caso só (entrada, três endereços): passava de metade do prazo na máquina (15,2 s) e o portão da correção
+  // `2026-11-05-nona-fatia-do-e2e-e-restos-da-13` o recusou. Dois casos, a mesma prova: o lugar aceso é o de Início para o Tutor
+  // e o de Eu para Privacidade, e Tarefas acende Tarefas.
+  test('o endereço de hoje do Tutor abre a tela de hoje e acende Início', async ({ page, hasTouch }) => {
     await entrarComoAlunoDaTurma(page, hasTouch)
 
-    // O lugar aceso é o de Início para o Tutor e o de Eu para Privacidade.
     await navegarSemRecarregar(page, '/aluno/tutor')
     await expect(page).toHaveTitle('Tutor · Turmma', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(naoEncontrada(page)).toHaveCount(0)
     await expect(secoes(page).getByRole('link', { name: 'Início', exact: true })).toHaveAttribute('aria-current', 'page')
+  })
+
+  test('os endereços de hoje de Privacidade e das Tarefas abrem as telas de hoje, e Privacidade acende Eu', async ({ page, hasTouch }) => {
+    await entrarComoAlunoDaTurma(page, hasTouch)
+
     await navegarSemRecarregar(page, '/aluno/privacidade')
     await expect(page).toHaveTitle('Privacidade · Turmma', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(secoes(page).getByRole('link', { name: 'Eu', exact: true })).toHaveAttribute('aria-current', 'page')
@@ -389,6 +397,7 @@ test.describe('W2: a navegação de cada papel e a guarda de papel', () => {
     { tela: 'Turmas', endereco: '/coordenacao/estrutura', lugar: 'Escola' },
     { tela: 'Professores', endereco: '/coordenacao/professores', lugar: 'Escola' },
     { tela: 'Material', endereco: '/coordenacao/material', lugar: 'Escola' },
+    { tela: 'Grade e calendário', endereco: '/coordenacao/grade', lugar: 'Escola' },
     { tela: 'IA', endereco: '/coordenacao/governanca', lugar: 'Registros' },
     { tela: 'Agentes', endereco: '/coordenacao/agentes', lugar: 'Registros' },
     { tela: 'Pedidos', endereco: '/coordenacao/privacidade/pedidos', lugar: 'Registros' },
@@ -398,7 +407,7 @@ test.describe('W2: a navegação de cada papel e a guarda de papel', () => {
   ]
 
   test('a coordenação abre no Painel, vê Painel, Analista, Escola e Registros (na barra de baixo a 360 px), e cada tela de hoje fica a até dois cliques; Empresas e Incidentes, a três', async ({ page, hasTouch }) => {
-    // O caso entra com segundo fator, percorre os quatro lugares e, depois, as onze telas, e em cada uma `paginaNaoRola` espera a
+    // O caso entra com segundo fator, percorre os quatro lugares e, depois, as doze telas, e em cada uma `paginaNaoRola` espera a
     // leitura terminar (de 0,8 a 1,3 s na rede e na CPU do perfil). Na esteira isso soma mais que os 30 s do relógio padrão, sem
     // que nenhuma tela trave (trace da esteira 39062201162): é o tempo da medida verdadeira, não da tela. Por isso o relógio é o triplo.
     test.slow()
@@ -480,13 +489,16 @@ test.describe('W5: a fronteira do import() de cada área', () => {
     await expect(page).toHaveTitle('Turmma')
   })
 
-  test('a área da coordenação que não chega mostra a mesma fronteira, e a nova tentativa carrega', async ({ page, hasTouch }) => {
+  test('a área da coordenação que não chega mostra a mesma fronteira, e a nova tentativa carrega', async ({ page, hasTouch, request }) => {
     const coordenadora = await criarEquipeComSenha('coordenador')
-    // A coordenação abre no Painel (X2): a área é pedida já na entrada, e é ali que ela não chega.
+    // A coordenação abre no Painel (X2): a área é pedida já na entrada, e é ali que ela não chega. A entrada é pela API, com o segundo
+    // fator já configurado, e a primeira carga (o endereço da raiz, que leva ao Painel) sem a rede do perfil: o assunto é a falha da
+    // área, e a entrada pela tela tem os casos dela (`mfa.spec.ts`).
     const abortar = (rota: Route) => rota.abort('internetdisconnected')
     await page.route(CHUNK_DA_COORDENACAO, abortar)
-    await page.goto('/entrar')
-    await entrarComoCoordenacaoNaMesmaAba(page, coordenadora, hasTouch)
+    await abrirPelaApiSemMedirAPrimeiraCarga(page, request, coordenadora, '/', () =>
+      expect(page).toHaveURL(/\/coordenacao\/painel$/, { timeout: SIGN_IN_TIMEOUT_MS }),
+    )
     await expect(page.getByRole('alert')).toContainText('Confira a conexão e tente de novo', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page).toHaveTitle('Não foi possível carregar · Turmma')
     await expect(page.getByRole('heading', { name: TITULO_DA_FALHA })).toBeFocused()

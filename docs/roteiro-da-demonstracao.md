@@ -116,7 +116,8 @@ vale 72 horas. O painel da operação não mostra dado de aluno nem de professor
    letivo 2026**.
 4. **Nova série** → `2º ano do Ensino Médio` → **Criar série**. **Nova disciplina** → `Química`; de novo → `Física`.
    **Nova turma** → `2ºA`; de novo → `2ºB`.
-5. Em **Turmas de 2026**, **Lista de nomes da turma 2ºA** → em "Lista colada", cole:
+5. Em **Turmas de 2026**, **Lista de nomes da turma 2ºA** → em **Arquivo da planilha (Excel ou CSV)**, escolha um arquivo
+   `lista-2a.csv` (salve num bloco de notas; **Baixar modelo** dá o cabeçalho) com:
 
    ```
    nome;matrícula
@@ -125,20 +126,23 @@ vale 72 horas. O painel da operação não mostra dado de aluno nem de professor
    Carla Demo;D26-003
    ```
 
-   **Ver a prévia** ("3 nomes entram") → **Gravar lista**. Volte a **Estrutura** e faça o mesmo no **2ºB**, com
-   `Elisa Demo;D26-004` e `Fábio Demo;D26-005`. **Diga:** "A escola sobe só nome e matrícula. Aluno não tem
-   e-mail, CPF, foto nem data de nascimento no sistema."
+   **Aparece:** a **Prévia**, com "3 linhas lidas · 0 com erro · 0 com aviso" → **Gravar lista** → "3 alunos entraram."
+   Volte a **Turmas** e faça o mesmo no **2ºB**, com `Elisa Demo;D26-004` e `Fábio Demo;D26-005`. **Diga:** "A escola sobe só
+   nome e matrícula. Aluno não tem e-mail, CPF, foto nem data de nascimento no sistema. Planilha com erro não grava: a
+   prévia mostra a linha e o que fazer." (Para a escola inteira de uma vez, **Estrutura** → **Importar alunos** lê uma
+   planilha com `turma;nome;matricula`, e **Professores** e **Grade e calendário** têm a deles: é o caminho do F2.)
 6. **Professores** → **Cadastrar professor** → Helena Demo, `helena@demo.invalid` → **Revisar** → **Cadastrar e gerar o
    link** → copie o link (cole num bloco de notas, com o nome) → **Fechar**. Repita para Marta Demo e Davi Demo.
-7. **Estrutura** → **Alocação**: Helena → 2ºA → Química → **Alocar**; Marta → 2ºB → Química; Davi → 2ºA → Física.
+7. **Professores** → clique no nome da Helena → **Acrescentar turma**: Turma 2ºA, Disciplina Química → **Acrescentar** → **Fechar**;
+   Marta → 2ºB → Química; Davi → 2ºA → Física.
    **Aparece:** "Esperando o professor confirmar". **Diga:** "O vínculo é definido pela escola; o professor só confirma.
    Ninguém se declara professor de uma turma."
 8. Os três professores aceitam (no perfil **Professora**, um de cada vez; Marta e Davi podem ser feitos na véspera em
    qualquer perfil livre): abrir o link → **Aceitar o convite** → senha → **Definir a senha e continuar** → entrar com
    e-mail e senha → a introdução do professor, de quatro passos (**Continuar** em cada um, ou **Pular**) → **Turmas** →
    em "Confirme suas turmas", **Confirmar**. Termine com a **Helena** entrada no perfil Professora.
-9. A Helena gera o acesso dos alunos: **Turmas** → **Abrir a turma 2ºA** → aba **Alunos** → **Gerar acesso** → **Gerar
-   acesso**. **Aparece:** o código da turma, para projetar na lousa. Feche.
+9. A Helena gera o acesso dos alunos: **Turmas** → **Abrir a turma 2ºA** → aba **Alunos** → **Convidar alunos** → **Gerar
+   acesso**. **Aparece:** o código da turma, para projetar na lousa. **Fechar** e **Fechar sem copiar**.
 10. No perfil **Aluno**: `http://127.0.0.1:58080/e/lago-azul-demo/turma` → digite o código → **Abrir a turma** →
     escolha **Ana Demo** → matrícula `D26-001` → crie a senha → **Enviar pedido**. Faça o mesmo com Bruno e Carla nos
     perfis Aluno 2 e Aluno 3.

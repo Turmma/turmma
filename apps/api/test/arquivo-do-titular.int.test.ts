@@ -315,6 +315,12 @@ describe('arquivo do titular (F3, tarefa 13.0): do pedido ao download', () => {
     ids['sessao'] = professor.sessao.sessaoId
     const { rows: vinculos } = await bancada.pool.query<{ id: string }>("select id from vinculo where usuario_id = $1 and escola_id = $2 and papel = 'professor'", [professor.id, escolaId])
     ids['vinculo'] = vinculos[0]?.id ?? ''
+    // A aula da grade (F2, 11.0): dia, horário e sala do vínculo dele, que o arquivo leva pela ligação do vínculo.
+    textos['alocacao.sala'] = sentinela('sala-da-aula')
+    ids['alocacao'] = await inserir(
+      `insert into alocacao (escola_id, ano_letivo_id, vinculo_id, dia_semana, inicio, fim, sala) values ($1, $2, $3, 3, '08:50', '09:40', $4) returning id`,
+      [escolaId, anoLetivoId, ids['vinculo'], textos['alocacao.sala']],
+    )
 
     // O que ele pediu à IA: o tema, o texto do modelo, a conversa e o material gerado.
     textos['execucao_agente.entrada'] = sentinela('tema-da-aula')
@@ -527,12 +533,15 @@ describe('arquivo do titular (F3, tarefa 13.0): do pedido ao download', () => {
       const arquivo = documento(cenario.escolaId, pedidoId, 'completa')
       const tabelas = arquivo['tabelas'] as Record<string, Array<{ id: string }>>
       const tabelasDoProfessor = [
-        'usuario', 'conta', 'credencial_matricula', 'conta_externa', 'vinculo', 'sessao', 'registro_acesso', 'thread_agente', 'mensagem_agente', 'execucao_agente', 'consumo_ia', 'artefato',
+        'usuario', 'conta', 'credencial_matricula', 'conta_externa', 'vinculo', 'alocacao', 'sessao', 'registro_acesso', 'thread_agente', 'mensagem_agente', 'execucao_agente', 'consumo_ia', 'artefato',
         'entrega', 'atividade_aplicada', 'validacao_do_lote', 'correcao', 'reivindicacao', 'material', 'suspensao_de_funcao', 'auditoria',
       ]
       for (const tabela of tabelasDoProfessor) expect(tabelas[tabela]?.map(({ id }) => id), `${tabela} sem a linha do professor`).toContain(semeado.ids[tabela])
       const texto = textoDoObjeto(cenario.escolaId, pedidoId, 'completa')
       expect(texto).toContain(semeado.textos['conta.email'])
+      // A sala da aula dele entra; a do colega, não (a ligação é o vínculo do titular).
+      expect(texto).toContain(semeado.textos['alocacao.sala'])
+      expect(texto).not.toContain(doColega.textos['alocacao.sala'])
       // O nome do dono do direito do material é de terceiro e não é do titular.
       expect(texto).not.toContain(semeado.textos['material.licenciante'])
       for (const id of Object.values(doColega.ids)) expect(texto, 'linha do colega no arquivo').not.toContain(id)

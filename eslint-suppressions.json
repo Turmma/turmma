@@ -292,10 +292,10 @@
   },
   "apps/web/src/areas/coordenacao/estrutura/ListaDaTurma.tsx": {
     "complexity": {
-      "count": 3
+      "count": 2
     },
     "max-lines-per-function": {
-      "count": 2
+      "count": 1
     }
   },
   "apps/web/src/areas/coordenacao/governanca/Agentes.tsx": {

@@ -2,8 +2,9 @@ import { readFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import type { Locator, Page, Request, Route } from '@playwright/test'
 import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
-import { abrirNavegacao, entrarComoCoordenacaoNaMesmaAba, abrirEstrutura, esperarPainel, lateral, SIGN_IN_TIMEOUT_MS, secoes as secoesDaNavegacao } from './support/casca.ts'
+import { abrirNavegacao, entrarComoCoordenacaoNaMesmaAba, abrirEstrutura, esperarEstrutura, esperarPainel, lateral, recarregarSemMedirAPrimeiraCarga, SIGN_IN_TIMEOUT_MS, secoes as secoesDaNavegacao } from './support/casca.ts'
 import { abrirAnoEDisciplinas, comOQueFalta, fecharPainel, irPelaCoordenacao, linhasDaTabela, paginaNaoRola, painelDoAno } from './support/coordenacao.ts'
+import { abrirPelaApiSemMedirAPrimeiraCarga } from './support/mfa.ts'
 import { expect, test } from './support/profiles.ts'
 import {
   apagarDisciplinaNoBanco,
@@ -311,12 +312,15 @@ test.describe('W4 (Estrutura): do vazio ao roteiro, montando a escola pela tela'
     expect(criacoes).toEqual(['/v1/anos-letivos', '/v1/anos-letivos', '/v1/turmas', '/v1/disciplinas', '/v1/disciplinas'])
   })
 
-  test('depois da virada, só o ano planejado se abre, e os anos vêm do mais novo ao mais antigo; o ano que outra pessoa abriu; erro: a leitura da estrutura cai, a tela diz o que fazer, e "Tentar de novo" traz a estrutura; o carregando e o erro de cada seção', async ({
+  // Dividido em três casos só pelo prazo (a entrada pela tela com o segundo fator e três recargas sob a rede e a CPU do perfil, 66 a
+  // 71 s de 90 na esteira `42210626815`): a virada e o erro da estrutura, o carregando e o erro de cada seção, e a nova tentativa dessas
+  // seções. As asserções são as de antes. Todos entram pela API (a entrada pela tela tem os casos dela, em `mfa.spec.ts` e
+  // `casca.spec.ts`) e recarregam a página sem a rede do perfil (`recarregarSemMedirAPrimeiraCarga`).
+  test('depois da virada, só o ano planejado se abre, e os anos vêm do mais novo ao mais antigo; o ano que outra pessoa abriu; erro: a leitura da estrutura cai, a tela diz o que fazer, e "Tentar de novo" traz a estrutura', async ({
     page,
     hasTouch,
+    request,
   }) => {
-    // Três recargas com a rede e a CPU do perfil: sem isto o teste encosta nos 30 s do prazo e falha de vez em quando.
-    test.slow()
     let falhar = false
     await page.route(ROTA_ANOS, (rota: Route) => (falhar ? rota.fulfill({ status: 503, contentType: 'application/json', body: INDISPONIVEL }) : rota.continue()))
     // A escola depois da virada: 2025 encerrado, 2026 planejado, nenhum em curso. O encerrado foi criado antes, e a API
@@ -324,9 +328,7 @@ test.describe('W4 (Estrutura): do vazio ao roteiro, montando a escola pela tela'
     const coordenadora = await criarEquipeComSenha('coordenador', { semAnoLetivo: true })
     await criarAnoLetivoNoBanco(coordenadora.escolaId, 2025, 'encerrado')
     await criarAnoLetivoNoBanco(coordenadora.escolaId, 2026, 'planejado')
-    await page.goto('/entrar')
-    await entrarComoCoordenacaoNaMesmaAba(page, coordenadora, hasTouch)
-    await abrirEstrutura(page, hasTouch)
+    await abrirPelaApiSemMedirAPrimeiraCarga(page, request, coordenadora, '/coordenacao/estrutura', () => esperarEstrutura(page))
     await expect(principal(page).getByRole('button', { name: 'Ano letivo e disciplinas' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(principal(page).getByRole('region', { name: 'Turmas' })).toContainText('Abra o ano letivo acima para criar as turmas')
     const doPainel = await abrirAnoEDisciplinas(page, hasTouch)
@@ -346,8 +348,9 @@ test.describe('W4 (Estrutura): do vazio ao roteiro, montando a escola pela tela'
 
     await fecharPainel(page, doPainel, hasTouch)
     falhar = true
-    await page.reload()
-    await expect(principal(page).getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: SIGN_IN_TIMEOUT_MS })
+    await recarregarSemMedirAPrimeiraCarga(page, () =>
+      expect(principal(page).getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: SIGN_IN_TIMEOUT_MS }),
+    )
     for (const proibido of [rawCodePattern('503'), 'INDISPONIVEL']) await expect(page.locator('body')).not.toContainText(proibido)
     expect(await seriousViolations(page)).toEqual([])
 
@@ -355,17 +358,30 @@ test.describe('W4 (Estrutura): do vazio ao roteiro, montando a escola pela tela'
     await activate(principal(page).getByRole('button', { name: 'Tentar de novo' }), hasTouch)
     await expect(principal(page).getByRole('heading', { name: 'Turmas de 2027' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(principal(page).getByRole('alert')).toHaveCount(0)
+  })
+
+  test('o carregando e o erro de cada seção: a tela continua em pé quando uma falha, e "Tentar de novo" traz cada uma, sem o roteiro dizer "falta" do que não leu', async ({
+    page,
+    hasTouch,
+    request,
+  }) => {
+    // O ponto de partida do caso anterior, depois de ele abrir o ano de 2027: 2025 encerrado, 2026 planejado e 2027 em curso.
+    const coordenadora = await criarEquipeComSenha('coordenador', { semAnoLetivo: true })
+    await criarAnoLetivoNoBanco(coordenadora.escolaId, 2025, 'encerrado')
+    await criarAnoLetivoNoBanco(coordenadora.escolaId, 2026, 'planejado')
+    await criarAnoLetivoNoBanco(coordenadora.escolaId, 2027, 'em_curso')
+    await abrirPelaApiSemMedirAPrimeiraCarga(page, request, coordenadora, '/coordenacao/estrutura', () => esperarEstrutura(page))
+    await expect(principal(page).getByRole('heading', { name: 'Turmas de 2027' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
 
     // Cada seção tem o seu carregando e o seu erro, e a tela continua em pé quando uma delas falha: as leituras das
     // séries, das disciplinas e das turmas seguradas, e depois recusadas.
     const seguradas = gate()
-    let falharSecoes = true
     for (const rota of ROTAS_DAS_SECOES)
       await page.route(rota, async (pedido: Route) => {
         await seguradas.aberta
-        await (falharSecoes ? pedido.fulfill({ status: 503, contentType: 'application/json', body: INDISPONIVEL }) : pedido.continue())
+        await pedido.fulfill({ status: 503, contentType: 'application/json', body: INDISPONIVEL })
       })
-    await page.reload()
+    await recarregarSemMedirAPrimeiraCarga(page, () => esperarEstrutura(page))
     // As séries e as disciplinas moram no painel do ano letivo; as turmas, na página.
     const turmasDaPagina = { regiao: principal(page).getByRole('region', { name: 'Turmas de 2027' }), carregando: 'Carregando as turmas…', vazio: 'Nenhuma turma ainda' }
     const doPainelDasSecoes = await abrirAnoEDisciplinas(page, hasTouch)
@@ -393,8 +409,31 @@ test.describe('W4 (Estrutura): do vazio ao roteiro, montando a escola pela tela'
       for (const passo of semLeitura) await expect(oQueFalta).not.toContainText(passo)
     })
     expect(await seriousViolations(page)).toEqual([])
-    falharSecoes = false
+  })
+
+  test('as seções que falharam se tentam de novo uma a uma, e a tela relida marca o que a escola de fato não tem', async ({ page, hasTouch, request }) => {
+    // O ponto de partida do caso anterior, com as leituras das séries, das disciplinas e das turmas já recusadas: 2025 encerrado, 2026
+    // planejado e 2027 em curso.
+    const coordenadora = await criarEquipeComSenha('coordenador', { semAnoLetivo: true })
+    await criarAnoLetivoNoBanco(coordenadora.escolaId, 2025, 'encerrado')
+    await criarAnoLetivoNoBanco(coordenadora.escolaId, 2026, 'planejado')
+    await criarAnoLetivoNoBanco(coordenadora.escolaId, 2027, 'em_curso')
+    await abrirPelaApiSemMedirAPrimeiraCarga(page, request, coordenadora, '/coordenacao/estrutura', () => esperarEstrutura(page))
+    await expect(principal(page).getByRole('heading', { name: 'Turmas de 2027' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+    // O roteiro não diz "falta" do que ainda não leu: mandaria a coordenação criar o que a escola pode já ter.
+    const semLeitura = ['Séries · falta', 'Disciplinas · falta', 'Turmas · falta', 'Professores · falta']
+    let falharSecoes = true
+    for (const rota of ROTAS_DAS_SECOES)
+      await page.route(rota, (pedido: Route) => (falharSecoes ? pedido.fulfill({ status: 503, contentType: 'application/json', body: INDISPONIVEL }) : pedido.continue()))
+    const turmasDaPagina = { regiao: principal(page).getByRole('region', { name: 'Turmas de 2027' }), vazio: 'Nenhuma turma ainda' }
+    await recarregarSemMedirAPrimeiraCarga(page, () => expect(turmasDaPagina.regiao.getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: SIGN_IN_TIMEOUT_MS }))
     const painelParaTentar = await abrirAnoEDisciplinas(page, hasTouch)
+    const secoesDoPainel = [
+      { regiao: painelParaTentar.getByRole('region', { name: 'Séries' }), vazio: 'Nenhuma série ainda' },
+      { regiao: painelParaTentar.getByRole('region', { name: 'Disciplinas' }), vazio: 'Nenhuma disciplina ainda' },
+    ]
+    for (const { regiao } of secoesDoPainel) await expect(regiao.getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: SIGN_IN_TIMEOUT_MS })
+    falharSecoes = false
     for (const { regiao, vazio } of secoesDoPainel) {
       await activate(regiao.getByRole('button', { name: 'Tentar de novo' }), hasTouch)
       await expect(regiao).toContainText(vazio, { timeout: SIGN_IN_TIMEOUT_MS })
@@ -406,8 +445,7 @@ test.describe('W4 (Estrutura): do vazio ao roteiro, montando a escola pela tela'
     await expect(turmasDaPagina.regiao.getByRole('alert')).toHaveCount(0)
     // A leitura dos professores só alimenta o roteiro, e não tem "Tentar de novo" nesta tela: a tela relida, com as leituras de volta,
     // marca o que a escola de fato não tem.
-    await page.reload()
-    await expect(turmasDaPagina.regiao).toContainText(turmasDaPagina.vazio, { timeout: SIGN_IN_TIMEOUT_MS })
+    await recarregarSemMedirAPrimeiraCarga(page, () => expect(turmasDaPagina.regiao).toContainText(turmasDaPagina.vazio, { timeout: SIGN_IN_TIMEOUT_MS }))
     await comOQueFalta(page, hasTouch, async (oQueFalta) => {
       for (const passo of semLeitura) await expect(oQueFalta).toContainText(passo)
     })
@@ -828,12 +866,13 @@ test.describe('W12: a Estrutura a 360 px e só com teclado', () => {
 
     // A turma aberta, com a prévia de uma linha longa, também cabe.
     await abrirTurma(page, turma.nome, hasTouch)
-    await principal(page).getByLabel('Lista colada').fill(`${'Nome'.repeat(30)};${'9'.repeat(40)}`)
-    await activate(principal(page).getByRole('button', { name: 'Ver a prévia' }), hasTouch)
+    await principal(page)
+      .getByLabel('Arquivo da planilha (Excel ou CSV)')
+      .setInputFiles({ name: 'longa.csv', mimeType: 'text/csv', buffer: Buffer.from(`${'Nome'.repeat(30)};${'9'.repeat(40)}`, 'utf8') })
     await expect(principal(page).getByRole('region', { name: 'Prévia' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     expect(await horizontalOverflow(page)).toBe(0)
     await alvoDeToque(principal(page).getByRole('button', { name: 'Gravar lista' }), 'Gravar lista')
-    await alvoDeToque(principal(page).getByRole('button', { name: 'Ver a prévia' }), 'Ver a prévia')
+    await alvoDeToque(principal(page).getByRole('button', { name: 'Baixar modelo' }), 'Baixar modelo')
     expect(await seriousViolations(page)).toEqual([])
   })
 })
@@ -851,6 +890,13 @@ test.describe('recomeço da Estrutura', () => {
     await entrarComoCoordenacaoNaMesmaAba(page, deA, hasTouch)
     await abrirEstrutura(page, hasTouch)
     await expect(principal(page).getByRole('region', { name: 'Turmas de 2026' })).toContainText(turmaDeA.nome, { timeout: SIGN_IN_TIMEOUT_MS })
+    // A prévia da planilha de A fica aberta no painel de importar e é fechada: a de B não pode herdá-la na mesma aba.
+    await activate(principal(page).getByRole('button', { name: 'Importar alunos' }), hasTouch)
+    const importarDeA = dialogo(page, 'Importar alunos')
+    await importarDeA.getByLabel('Arquivo da planilha (Excel ou CSV)').setInputFiles({ name: 'alunos-de-a.csv', mimeType: 'text/csv', buffer: Buffer.from(`turma;nome;matricula\n8º A;${nomeDeA};550002\n`, 'utf8') })
+    await expect(importarDeA.getByRole('heading', { name: 'Prévia' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+    await page.keyboard.press('Escape')
+    await expect(importarDeA).toHaveCount(0)
     await abrirTurma(page, turmaDeA.nome, hasTouch)
     await expect(principal(page)).toContainText(nomeDeA, { timeout: SIGN_IN_TIMEOUT_MS })
     await abrirNavegacao(page, hasTouch)
@@ -904,6 +950,15 @@ test.describe('recomeço da Estrutura', () => {
     await expect(painel).toHaveCount(0)
     await expect(principal(page).getByRole('heading', { name: 'Turmas de 2026' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await nadaDeA()
+    // O painel de importar da coordenação de B abre vazio: nem a prévia nem o arquivo de A.
+    await activate(principal(page).getByRole('button', { name: 'Importar alunos' }), hasTouch)
+    const importarDeB = dialogo(page, 'Importar alunos')
+    await expect(importarDeB.getByText('Nenhuma planilha escolhida')).toBeVisible()
+    await expect(importarDeB.getByRole('heading', { name: 'Prévia' })).toHaveCount(0)
+    await expect(importarDeB).not.toContainText('alunos-de-a.csv')
+    await nadaDeA()
+    await page.keyboard.press('Escape')
+    await expect(importarDeB).toHaveCount(0)
 
     // Nem pelo endereço da turma de A: a API responde como inexistente, e nada de A aparece.
     await page.evaluate((destino) => {

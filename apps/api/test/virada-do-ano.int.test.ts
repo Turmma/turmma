@@ -1,10 +1,11 @@
-import { runInContext } from '@educa/core'
+import { createDatabase, createPool, executarPlanilha, runInContext, type Database, type DatabasePool } from '@educa/core'
 import { ErrorCode, decisaoResponseSchema, MENSAGENS_DE_ERRO, type ResultadoDaDecisao } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { AnoLetivoRepository } from '../src/estrutura/ano-letivo/ano-letivo.repository.js'
-import { VinculoRepository } from '../src/estrutura/vinculo/vinculo.repository.js'
+import { DecisaoRepository, VinculoRepository } from '@educa/core/estrutura'
 import { chamar, subirApi, type TestApi, type RespostaHttp } from './test-api.js'
 import { alunosNaTurma, montarEscolaComTurma, type EscolaComTurma } from './escola-turma.fixture.js'
 import { aguardar, WriteBlockTrigger } from './write-block-trigger.js'
@@ -50,13 +51,19 @@ describe('virada do ano: encerrar o ano letivo encerra os vínculos por `fim_do_
   /** O log da API montada, para o log novo do `encerrar` (10.0): só ids. */
   const linhasDeLog: string[] = []
   let api: TestApi
+  /** O pool do job da planilha (F2, 8.0): a gravação do texto da lista é do job, e ele roda aqui como o worker o roda. */
+  let apoio: DatabasePool
+  let bancoDoJob: Database
 
   beforeAll(async () => {
     api = await subirApi(medidor.medidor, { ambiente: AMBIENTE }, linhasDeLog)
+    apoio = createPool({ url: urlDoBancoDeTeste(), maximoConexoes: 4, timeoutConexaoMs: 5_000, timeoutConsultaMs: 30_000 }, () => undefined)
+    bancoDoJob = createDatabase(apoio)
   })
 
   afterAll(async () => {
     await api.app.close()
+    await apoio.end()
     await bancada.fechar()
     await medidor.encerrar()
   })
@@ -357,7 +364,15 @@ describe('virada do ano: encerrar o ano letivo encerra os vínculos por `fim_do_
       const aprovadoAntes = await pedidoNoBanco(pedidoAprovado)
       linhasDeLog.length = 0
 
-      const resposta = await encerrar(s)
+      // O encerramento do pendente é a função da transferência pela planilha (F2, 9.0), `fechar(…, 'encerrada')`: uma só escrita para os dois caminhos.
+      const fechar = vi.spyOn(DecisaoRepository.prototype, 'fechar')
+      let resposta: Awaited<ReturnType<typeof encerrar>>
+      try {
+        resposta = await encerrar(s)
+        expect(fechar).toHaveBeenCalledWith({ anoLetivoId: s.anoLetivoId }, 'encerrada')
+      } finally {
+        fechar.mockRestore()
+      }
       expect(resposta.status).toBe(200)
 
       const { rows: acessos } = await bancada.pool.query<{ id: string; revogado: boolean }>('select id, revogado_em is not null as revogado from acesso_turma where escola_id = $1 and ano_letivo_id = $2', [
@@ -609,7 +624,7 @@ describe('virada do ano: encerrar o ano letivo encerra os vínculos por `fim_do_
       expect(await estadoDoNome(nome.id)).toBeUndefined()
     })
 
-    for (const caminho of ['nome avulso', 'gravação da lista'] as const) {
+    for (const [caminho, desfecho] of [['nome avulso', 201], ['gravação da lista', 'concluida']] as const) {
       it(`C10 (decidido na 10.0): \`encerrar\` × ${caminho}, parado depois do \`insert\`: o \`encerrar\` espera o ano e apaga o nome livre; nenhum sobra no ano encerrado`, async () => {
         const s = await sala.montar()
         const matricula = `virada-${randomUUID().slice(0, 8)}`
@@ -617,14 +632,20 @@ describe('virada do ano: encerrar o ano letivo encerra os vínculos por `fim_do_
         await parada.armar()
         try {
           const nome = `Aluna ${randomUUID().slice(0, 8)}`
-          const gravando =
-            caminho === 'nome avulso' ? post(s.coordenacao, `/v1/turmas/${s.turma}/lista/nome`, { nome, matricula }) : post(s.coordenacao, `/v1/turmas/${s.turma}/lista`, { texto: `${nome};${matricula}` })
+          // A gravação do texto responde 202 e grava no job (F2, 8.0): o job é que fica parado depois do `insert`.
+          const gravando: Promise<number | string> =
+            caminho === 'nome avulso'
+              ? post(s.coordenacao, `/v1/turmas/${s.turma}/lista/nome`, { nome, matricula }).then((resposta) => resposta.status)
+              : post(s.coordenacao, `/v1/turmas/${s.turma}/lista`, { texto: `${nome};${matricula}` }).then((resposta) => {
+                  expect(resposta.status).toBe(202)
+                  return runInContext({ requisicaoId: randomUUID(), escolaId: s.escolaId }, () => executarPlanilha(bancoDoJob, resposta.corpo['id'] as string))
+                })
           await parada.esperarParadas()
           const encerrando = encerrar(s)
           await terminarOuTravar(encerrando, ['%update "ano_letivo"%', '%delete from "lista_nome"%'])
           await parada.soltar()
           const [gravado, encerrado] = await Promise.all([gravando, encerrando])
-          expect(gravado.status).toBe(201)
+          expect(gravado).toBe(desfecho)
           expect(encerrado.status).toBe(200)
         } finally {
           await parada.desarmar()
