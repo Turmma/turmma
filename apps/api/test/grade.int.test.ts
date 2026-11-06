@@ -613,6 +613,11 @@ describe('grade: reimportar substitui o ano, e a grade se lê por turma (F2, tar
 
     expect(await ler((grade) => grade.turmaExiste(e.emCurso, t8a))).toBe(true)
     expect(await ler((grade) => grade.turmaExiste(e.emCurso, outra.t8a))).toBe(false)
+    // O ano e a turma da outra escola, juntos, lidos pelo contexto da A: é a única leitura em que só o `escolaId` do contexto separa as duas, e vale
+    // para os dois métodos (`turmaExiste` e `aulasDaTurma`). Com o ano da A, o filtro de ano esconde a falta do de escola (a turma e a aula da B são de
+    // um ano que a A não tem), e tirar a cláusula de escola de qualquer um dos dois deixava o caso verde.
+    expect(await ler((grade) => grade.turmaExiste(outra.e.emCurso, outra.t8a))).toBe(false)
+    expect(await ler((grade) => grade.aulasDaTurma(outra.e.emCurso, outra.t8a))).toEqual([])
     expect(await ler((grade) => grade.turmaExiste(e.planejado, t8a))).toBe(false)
     expect((await ler((grade) => grade.aulasDaTurma(e.emCurso, t8a))).map(({ diaSemana }) => diaSemana)).toEqual([1, 2])
     expect(await ler((grade) => grade.aulasDaTurma(e.emCurso, outra.t8a))).toEqual([])
