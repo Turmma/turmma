@@ -19,6 +19,22 @@ Só nestas você para e espera o Joaquim:
 E duas que são limite, não decisão: três reprovações seguidas do mesmo revisor na mesma tarefa, e
 a terceira falha seguida da mesma tarefa, já com o diagnóstico do Arquiteto aplicado.
 
+**Máquina não é parada** (05/11/2026). Docker parado, terminal sem sessão, socket morto, contêiner caído,
+relógio da VM, rede: nada disso está na lista acima, e o time não espera o Joaquim por isso. Na ordem:
+
+1. **Conserte daqui o que dá.** Docker: `powershell.exe -NoProfile -Command "Start-Process 'C:\Program Files\Docker\Docker\Docker Desktop.exe'"`.
+   Terminal sem sessão ou morto: reinício (passo 3) e `PEDIDO de retomada`.
+2. **Teste que cai por causa da máquina é defeito do teste.** É a `DIVERGÊNCIA` de portão de sempre (passo 6):
+   correção na linha, que torna o teste independente da máquina sem afrouxar o que ele prova. Em 05/11/2026 a VM
+   passou a contar o tempo de CPU 9% adiantado; o time esperou cinco horas por um `wsl --shutdown`, o reinício não
+   consertou, e o conserto do teste levou minutos. Caso de e2e lento demais é o mesmo: encurte ou divida, sem
+   rodar de novo esperando a sorte.
+3. **Só o que pede a mão do Joaquim** (senha, `sudo`, reiniciar o Windows) vira pergunta, uma vez, pelo `blocked`
+   do andar. Ela segura só o que depende dela, e a outra linha segue. Se nada segue, desligue a vigia, como em
+   toda parada.
+
+Nunca peça reinício da máquina ou do WSL sem ter esgotado 1 e 2, e nunca escreva a mesma pergunta duas vezes.
+
 **Quatro avisos, que não são parada** (D79, revista em 23/10/2026): a Tech Spec, a lista de tarefas, a
 proposta da retrospectiva que só muda skill, papel ou modelo de documento, e a ressalva menor da
 validação.

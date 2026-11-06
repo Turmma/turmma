@@ -125,7 +125,9 @@ do Maestri:
     tarefa fica na árvore, e por isso o `PEDIDO` da correção (passo 10) leva a linha
     `Arquivos da tarefa em curso: <a saída de git status --short de agora>`: a Mesa os deixa fora da
     revisão, e o commit da correção leva só os arquivos dela. Ela não tem encontro próprio: o
-    commit fica na linha e segue com o da tarefa. Registre em "O que decidi sem perguntar".
+    commit fica na linha e segue com o da tarefa. Registre em "O que decidi sem perguntar". Vale também
+    quando a causa é a máquina (relógio, Docker, lentidão): o remédio é o teste não depender dela, e
+    não esperar o Joaquim (passo 7, "Máquina não é parada").
 
 **Não mande uma linha esperar a outra com
 laço de `pgrep`**: ele casa com a própria linha de comando e não sai. O andar da spec e o térreo dividem o ambiente 0: um por vez.

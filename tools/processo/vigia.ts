@@ -1,11 +1,11 @@
-// O que a rotina `Vigia do processo` roda antes de acordar o Orquestrador (D79, revista em 11/10/2026).
+// O filtro da vigia: diz ao Orquestrador se há o que olhar (D79, revista em 11/10/2026).
 //
 //   node tools/processo/vigia.ts        imprime `/vigia` quando há o que olhar, e nada quando não há
 //
-// É o `--pre-run` da rotina, cujo comando é `{{output}}`: com o time trabalhando, a saída é vazia e o modelo não
-// acorda. No F3, 96 de 100 vigias acordaram o Orquestrador para responder "nada a fazer", cada uma relendo o contexto
-// dele. Na dúvida, acorda: erro ao falar com o Maestri, terminal que não se reconhece ou tela que não se lê imprimem
-// `/vigia`, que é o que a rotina fazia antes de este arquivo existir.
+// Foi o `--pre-run` da rotina, cujo comando era `{{output}}`. No Maestri do Windows (05/11/2026) o `--pre-run` não roda,
+// e o filtro passou a ser o primeiro passo da skill da vigia: com a saída vazia, ela responde em uma linha, sem reler o
+// estado nem os terminais. No F3, 96 de 100 vigias acordaram para responder "nada a fazer". Na dúvida, imprime: erro ao
+// falar com o Maestri, terminal que não se reconhece ou tela que não se lê imprimem `/vigia`.
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -19,9 +19,23 @@ export function nomesDoTime(saidaDoList: string): string[] {
   return [...ligados.matchAll(/^\s*- name: "([^"]+)"/gm)].map((achado) => achado[1] ?? '').filter((nome) => TERMINAL_DO_TIME.test(nome))
 }
 
-/** O Claude Code mostra "esc to interrupt" enquanto o turno corre, e só então. */
+/**
+ * O rodapé do Claude Code com comando em segundo plano: `⏵⏵ bypass permissions on · 1 shell · ↓ to manage`. É o portão que o
+ * Implementador solta e espera: o turno acaba, e o aviso de fim acorda o terminal sozinho. Só o rodapé conta, e não o
+ * `· 1 shell still running` que fica no histórico depois de o comando acabar (05/11/2026).
+ */
+const RODAPE_COM_COMANDO = /· \d+ shells? ·/
+
+/** Quantas linhas do fim da tela são o rodapé: a caixa de entrada e a barra de baixo. */
+const LINHAS_DO_RODAPE = 4
+
+/** O Claude Code mostra "esc to interrupt" enquanto o turno corre, e o rodapé conta o comando que roda em segundo plano. */
 export function estaTrabalhando(tela: string): boolean {
-  return tela.split('\n').slice(-25).some((linha) => linha.includes('esc to interrupt'))
+  const linhas = tela.trimEnd().split('\n')
+  return (
+    linhas.slice(-25).some((linha) => linha.includes('esc to interrupt')) ||
+    linhas.slice(-LINHAS_DO_RODAPE).some((linha) => RODAPE_COM_COMANDO.test(linha))
+  )
 }
 
 /** Quanto um terminal trabalha sem a vigia olhar: o prazo da tarefa pequena (`.claude/skills/vigia/SKILL.md`). */

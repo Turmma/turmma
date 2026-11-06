@@ -40,6 +40,26 @@ describe('quem é do time', () => {
     expect(estaTrabalhando(PARADO)).toBe(false)
     expect(estaTrabalhando(`${TRABALHANDO}\n${'linha\n'.repeat(30)}${PARADO}`)).toBe(false)
   })
+
+  it('trabalha quem espera o portão em segundo plano: o rodapé conta o comando, e não o "still running" que ficou no histórico', () => {
+    // Telas de 05/11/2026: o Implementador solta o portão, encerra o turno e espera o aviso de fim.
+    const esperandoOPortao = [
+      '● Estou à espera do portão. O aviso de fim chega sozinho.',
+      '',
+      '✻ Worked for 1m 58s · done 11:12 PM · 1 shell still running',
+      '',
+      '───── implementador ─',
+      '❯ ',
+      '─────',
+      '  ⏵⏵ bypass permissions on · 1 shell · ↓ to manage',
+      '',
+    ].join('\n')
+    expect(estaTrabalhando(esperandoOPortao)).toBe(true)
+    expect(estaTrabalhando(esperandoOPortao.replace('· 1 shell ·', '· 2 shells ·'))).toBe(true)
+    // O comando acabou: o rodapé volta ao normal, e a linha "still running" do turno antigo não conta.
+    expect(estaTrabalhando(esperandoOPortao.replace('on · 1 shell · ↓ to manage', 'on (shift+tab to cycle)'))).toBe(false)
+    expect(estaTrabalhando(`● Ran 1 shell command\n${PARADO}`)).toBe(false)
+  })
 })
 
 describe('acordar ou não', () => {

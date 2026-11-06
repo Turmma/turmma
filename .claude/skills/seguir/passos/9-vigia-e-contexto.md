@@ -1,21 +1,18 @@
 ## 9. Vigia e contexto
 
-A rotina `Vigia do processo` roda a cada 30 minutos e só manda **`/vigia`** quando há o que olhar:
-antes de acordar você, ela roda `tools/processo/vigia.ts`, que não imprime nada com o time
-trabalhando. A skill da vigia é própria e curta (`.claude/skills/vigia/SKILL.md`). Ligue a rotina
-enquanto houver trabalho correndo e desligue-a no fim e em toda parada em que nenhuma tarefa segue
+A rotina `Vigia do processo` manda **`/vigia`** a cada 30 minutos. A skill da vigia é própria e curta
+(`.claude/skills/vigia/SKILL.md`), e o primeiro passo dela é o filtro `tools/processo/vigia.ts`, que não
+imprime nada com o time trabalhando: aí a vigia responde em uma linha. O filtro já foi o `--pre-run` da
+rotina, mas no Maestri do Windows (desde 05/11/2026) o `--pre-run` não roda (todo disparo sai
+`skippedByScript`, em `routine_history.json`) e a vigia ficaria muda. **Não ligue o `--pre-run`.** Ligue a
+rotina enquanto houver trabalho correndo e desligue-a no fim e em toda parada em que nenhuma tarefa segue
 (passo 7). Só a crie se `maestri routine list` não a mostrar, para não ficar com duas:
 
 ```bash
-maestri routine show "Vigia do processo"         # o comando é {{output}}, com o --pre-run abaixo?
-maestri routine edit "Vigia do processo" --command "{{output}}" --pre-run "node $PWD/tools/processo/vigia.ts"
+maestri routine show "Vigia do processo"         # o comando é /vigia, sem --pre-run?
 maestri routine enable "Vigia do processo"       # e disable ao parar
-maestri routine create "Vigia do processo" --command "{{output}}" --pre-run "node $PWD/tools/processo/vigia.ts" --every 30m --no-notify   # só se não existir
+maestri routine create "Vigia do processo" --command "/vigia" --every 30m --no-notify   # só se não existir
 ```
-
-Na primeira vez com o `--pre-run`, dispare-a com alguém trabalhando (`maestri routine run`): nada
-pode chegar ao seu terminal. Se chegar texto que não é `/vigia`, volte o comando para `/vigia`, sem
-`--pre-run`, e registre em "O que falhou".
 
 **O seu contexto é limpo a cada tarefa** (D78). O time recomeça
 a sessão a cada tarefa, e você também. Você não consegue digitar `/clear`: quem digita é a rotina
@@ -31,8 +28,8 @@ d="$(git rev-parse --git-common-dir)/../.processo" && mkdir -p "$d" && date -u +
 Depois dele, encerre o turno em uma linha, sem rodar mais nada: se o turno durar mais de 25 segundos,
 a rotina encontra o terminal ocupado e pula. O comando grava `pedida` em
 `.processo/limpeza.json` do térreo, de onde quer que rode (pelo `git`); o início da sessão limpa (`source: clear`, sem papel, no térreo) acrescenta
-`feita`. **Pedida há mais de 10 minutos sem `feita` depois dela, a limpeza se perdeu e a vigia
-(`tools/processo/vigia.ts`) acorda você**, mesmo com o time trabalhando: grave o "Agora" e refaça o
+`feita`. **Pedida há mais de 10 minutos sem `feita` depois dela, a limpeza se perdeu e o filtro da vigia
+(`tools/processo/vigia.ts`) manda você olhar**, mesmo com o time trabalhando: grave o "Agora" e refaça o
 comando no fim do turno, que grava uma `pedida` nova.
 
 - **Quando:** depois de pedir uma tarefa nova (passo 6, item 6) ou a validação (passo 8), e depois
