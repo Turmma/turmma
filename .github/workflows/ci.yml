@@ -91,7 +91,7 @@ jobs:
     # Em fatias, cada uma no seu runner e com o seu compose: o job único chegou ao teto de 45 min com 394 casos, e foi
     # cancelado duas vezes seguidas com a suíte verde (tasks/correcoes/2026-10-03-e2e-em-fatias.md). O Playwright
     # reparte os casos por contagem (`fullyParallel`), e nenhum spec depende de outro ter rodado antes.
-    name: e2e ${{ matrix.fatia }}/8 (compose completo e Playwright)
+    name: e2e ${{ matrix.fatia }}/9 (compose completo e Playwright)
     runs-on: ubuntu-24.04
     strategy:
       # Uma fatia vermelha não cancela as outras: o vermelho de cada uma, e o traço dela, continuam aparecendo. A
@@ -100,7 +100,7 @@ jobs:
       # O número de fatias é o tamanho desta lista, e o total do `--shard` do passo `npm run ci:e2e`, o do `name` do job e a
       # lista `FATIAS_DO_E2E` de `tools/processo/esteira.ts` (que o censo lê) têm de acompanhá-lo.
       matrix:
-        fatia: [1, 2, 3, 4, 5, 6, 7, 8]
+        fatia: [1, 2, 3, 4, 5, 6, 7, 8, 9]
     # O teto é de cada fatia. Ela custa uns 4 min fixos (navegador, build, subir e derrubar o compose) e até 7 s de
     # relógio por caso, com os 2 trabalhadores do runner. `tools/ci/esteira.test.ts` refaz a conta com os casos de cada
     # fatia e reprova quando uma passa de 60% do teto; `tools/ci/e2e.ts` avisa no log quando os testes de uma fatia
@@ -118,7 +118,7 @@ jobs:
       - run: npm ci
       # `EDUCA_RELATORIO_DO_E2E` liga o repórter `json` do `playwright.config.ts`: a duração e o prazo de cada caso da fatia,
       # que o passo do censo (abaixo) publica.
-      - run: npm run ci:e2e -- --shard=${{ matrix.fatia }}/8
+      - run: npm run ci:e2e -- --shard=${{ matrix.fatia }}/9
         env:
           EDUCA_RELATORIO_DO_E2E: censo-do-e2e.json
       # O `trace: 'retain-on-failure'` do `playwright.config.ts` já escreve o traço e o contexto do erro

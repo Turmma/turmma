@@ -40,11 +40,11 @@ function textoDaCelula(celula: unknown): string {
 }
 
 /** A célula como a biblioteca entrega: texto, número, booleano, `Date` ou nulo (o tipo dela diz `typeof Date`, e por isso aqui é `unknown`). */
-type Linha = readonly unknown[]
+type CelulasDaLinha = readonly unknown[]
 
 /** As linhas da aba em texto: todas com o mesmo número de colunas (a do cabeçalho), as em branco no fim fora. */
-export function linhasEmTexto(linhas: readonly Linha[]): string {
-  const vazia = (linha: Linha): boolean => linha.every((celula) => celula === null || celula === undefined || celula === '')
+export function linhasEmTexto(linhas: readonly CelulasDaLinha[]): string {
+  const vazia = (linha: CelulasDaLinha): boolean => linha.every((celula) => celula === null || celula === undefined || celula === '')
   let fim = linhas.length
   while (fim > 0 && vazia(linhas[fim - 1] ?? [])) fim -= 1
   const aproveitadas = linhas.slice(0, fim)
@@ -60,7 +60,7 @@ async function lerXlsx(arquivo: Blob): Promise<PlanilhaLida> {
   } catch {
     return { ok: false, motivo: 'leitor' }
   }
-  let linhas: readonly Linha[]
+  let linhas: readonly CelulasDaLinha[]
   try {
     linhas = await leitor.readSheet(arquivo)
   } catch {

@@ -5,6 +5,14 @@ import { createSyntheticProcessor, CpuSandbox } from './synthetic.js'
 
 const abertos: CpuSandbox[] = []
 
+/**
+ * O que a asserção de parede exige, em fração do nominal. A sandbox queima tempo de CPU e o teste mede parede, e a razão entre os dois
+ * é do hipervisor, não do código: 80% cobre essa diferença com folga e ainda separa a espera de verdade (um laço que não esperasse
+ * daria perto de zero) e a fila. As medidas estão em `tasks/correcoes/2026-11-05-nona-fatia-do-e2e-e-restos-da-13.md`. A asserção de
+ * CPU do processo não ganha folga: ela segue exata.
+ */
+const FOLGA_DA_PAREDE = 0.8
+
 function sandbox(threadsMaximo: number, arquivo?: URL): CpuSandbox {
   const criado = arquivo === undefined ? new CpuSandbox(threadsMaximo) : new CpuSandbox(threadsMaximo, arquivo)
   abertos.push(criado)
@@ -33,7 +41,8 @@ describe('SandboxDeCpu: o job sintético queima CPU de verdade, fora do event lo
     await cpu.queimar(300)
     const gasto = process.cpuUsage(antes)
     expect((gasto.user + gasto.system) / 1_000).toBeGreaterThanOrEqual(300)
-    expect(performance.now() - inicio).toBeGreaterThanOrEqual(290)
+    // Não é redundante com a de CPU: a CPU certa com parede curta é a queima repartida entre várias threads, e só esta linha a pega.
+    expect(performance.now() - inicio).toBeGreaterThanOrEqual(300 * FOLGA_DA_PAREDE)
   })
 
   it('o event loop segue girando enquanto a thread queima: o worker renova lock e vaga no meio do job', async () => {
@@ -61,8 +70,10 @@ describe('SandboxDeCpu: o job sintético queima CPU de verdade, fora do event lo
     clearInterval(amostra)
     expect(maximoVisto).toBe(2)
     expect(cpu.threads).toBe(2)
-    // Duas threads e quatro pedidos de 200 ms de CPU: o terceiro e o quarto só começam depois de um dos dois primeiros.
-    expect(Math.max(...terminos)).toBeGreaterThanOrEqual(390)
+    // Duas threads e quatro pedidos de 200 ms de CPU: o terceiro e o quarto só começam depois de um dos dois primeiros (400 de CPU
+    // em duas threads, 200 em parede cada rodada). Quem prova o teto de duas threads é o `maximoVisto`, acima: a parede só prova que
+    // a fila esperou, e com poucos núcleos até quatro threads passariam de 320. Não tire o `maximoVisto` achando que a parede o cobre.
+    expect(Math.max(...terminos)).toBeGreaterThanOrEqual(2 * 200 * FOLGA_DA_PAREDE)
   })
 
   it('cpuMs zero não ocupa thread nenhuma', async () => {

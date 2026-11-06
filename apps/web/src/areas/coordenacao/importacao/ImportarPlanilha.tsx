@@ -70,7 +70,7 @@ export interface PlanilhaConfig {
 
 type AlvoDoFoco = 'previa' | 'alerta' | 'conclusao'
 
-interface Escolha {
+interface ArquivoEscolhido {
   readonly numero: number
   readonly nome: string
   /** Sem texto, o arquivo ainda está sendo lido no navegador. */
@@ -79,7 +79,7 @@ interface Escolha {
 
 /** Tudo o que a tela sabe do arquivo escolhido. Um arquivo novo (ou o mesmo de novo) volta a `PLANILHA_NOVA`. */
 interface PlanilhaState {
-  readonly escolha: Escolha | undefined
+  readonly escolha: ArquivoEscolhido | undefined
   readonly recusa: MotivoDaPlanilhaRecusada | undefined
   readonly previa: { readonly numero: number; readonly resposta: PreviaDaPlanilhaResponse } | undefined
   readonly marcas: MarcasEscolhidas
@@ -270,7 +270,7 @@ function PreviaDaEscolha({ configuracao, estado, mudar, foco, gravar, gravando }
 }
 
 /** A falha da prévia só vale para o arquivo de agora: a de um arquivo anterior não aparece. */
-function falhaDaPreviaDe(pedido: { isError: boolean; error: Error | null; variables: { numero: number } | undefined }, escolha: Escolha | undefined): Error | null {
+function falhaDaPreviaDe(pedido: { isError: boolean; error: Error | null; variables: { numero: number } | undefined }, escolha: ArquivoEscolhido | undefined): Error | null {
   return pedido.isError && pedido.variables?.numero === escolha?.numero ? pedido.error : null
 }
 
