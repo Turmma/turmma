@@ -146,6 +146,7 @@ algo que dependa dela.** Nova decisão ou revisão entra lá e aqui, pela skill 
 | D84 | A fatia do piloto: professor, coordenação e família, com o Tutor pronto e liberado por escola |
 | D85 | O arquivo do titular traz os atos sobre ele, sem o autor |
 | D86 | Retro em paralelo e curta |
+| D87 | A Semana do professor mostra só a escola ativa |
 
 ## Conflitos já resolvidos e decisões em aberto
 

@@ -102,9 +102,9 @@ existe e onde nasce o que falta: a **X1** troca a pele e a casca com os itens de
   lista do sino leva às duas telas que ele tinha, **"O que o Assistente fez"** e **"O que o Tutor
   viu"**, nos mesmos endereços de antes. Elas não são lugar da lateral, e o Tutor continua
   à vista do professor, pelo sino, de qualquer tela (regra 70, item 4)
-- **O Calendário deixa de ser lugar** (D73 revista). Quando o F8 existir, ele é a visão **Semana**
+- **O Calendário deixa de ser lugar** (D73 revista). Com a F2b, ele é a visão **Semana**
   de Turmas: aulas, avaliações, entregas e o que o Assistente concluiu, por escola e turma. Deriva
-  da estrutura da escola: o professor não monta nem move aula (regra 60, item 8; P12)
+  da estrutura da escola: o professor não monta nem move aula (regra 60, item 8), e só a escola ativa aparece (D87)
 - **Meu uso**, o espelho da D45, sai de Turmas e vai para a **conta do professor** (D69 revista): é
   dele primeiro, o que a coordenação vê dele é agregado, e o nominal só abre com auditoria. A tela
   diz isso em português comum. Nasce no F12; a conta já tem "Meus dados", do F3

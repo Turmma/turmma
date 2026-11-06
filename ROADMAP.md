@@ -487,7 +487,7 @@ a grade e o calendário importados geram a alocação; e a reimportação não d
 A visão **Semana** em Turmas, que era o F8: a rotina por escola e turma, saída da grade e do calendário do F2,
 ligada a avaliações, entregas e ao que os agentes concluíram, e a `Aula` concreta, com "O que vou dar". O "seu
 dia e sua semana" do Assistente continua no F11, lendo o que esta fase gera. O professor não cria nem move aula
-(regra 60, item 8). Fecha no PRD dela a decisão em aberto do calendário de duas escolas (P12).
+(regra 60, item 8). A P12 fechou no PRD dela: só a escola ativa, sem aviso da outra (D87).
 
 **Pronto quando:** o professor abre a semana e vê o que precisa fazer sem cadastrar nada; feriado e recesso do
 calendário tiram a aula do dia; e nenhuma tela mostra dado de outra escola.

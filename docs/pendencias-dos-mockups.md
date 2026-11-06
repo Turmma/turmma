@@ -440,11 +440,11 @@ por evento; a semana tem uma coluna por dia com as aulas em cartões empilhados,
 horas**, e "A preencher" onde falta o conteúdo; o dia tem os mesmos cartões e o painel "Falta
 preencher". **A visão Lista saiu.** Criar e mover aula continuam proibidos.
 
-**Em aberto, e é de tenancy.** O mockup mostra **as aulas das duas escolas da professora no mesmo
+**Era de tenancy.** O mockup mostra **as aulas das duas escolas da professora no mesmo
 calendário**. A regra 10 diz que o token carrega **a escola ativa** e que o seletor do topo
 filtra tudo. Juntar duas escolas numa tela pede duas consultas, cada uma no seu escopo, somadas
 no cliente — ou o calendário mostra só a escola ativa, com um aviso de que há aula na outra.
-**Recomendação: só a escola ativa.** Decidir no PRD do F8, com o `tenancy-guardian`.
+**Decidido (D87, 06/11/2026): só a escola ativa, sem aviso de aula na outra.** No PRD da F2b, que recebeu o F8.
 
 **Front.** O calendário é rota carregada sob demanda (10.4); o template foi reescrito sem
 `date-fns` e sem `uuid`. **Onde entra:** F8, fora do MVP. **Dono:** Joaquim.
@@ -866,5 +866,5 @@ dress do caminho. O Gabriel precisa ser avisado: a oitava rodada pedia o contrá
    novas** do P22. Nada disso entra no
    MVP de apresentação sem decisão; o Planejamento do período e o Projeto ainda dependem do F8, e o
    Plano de recuperação, do F6
-6. **Com a fase de cada um:** P09 (seção por seção) e P12 (F8)
+6. **Com a fase de cada um:** P09 (seção por seção); a P12 fechou na D87
 7. **Antes de qualquer código vindo do 21st.dev:** P20
