@@ -20,7 +20,7 @@ cadastrados `pendente`, cada um com o convite para copiar (o `convite/refazer`).
 
 ## Subtarefas
 
-- [ ] 15.1 — "Importar professores" na aba, com a marca de desligar rotulada com nome e e-mail
+- [ ] 15.1 — "Importar professores" na aba, com a marca de desligar rotulada com o nome que a API devolve (o `rotulo` do candidato, sem e-mail: E11, 6.0; `techspec.md` §9)
 - [ ] 15.2 — O cadastrado pela planilha aparece `pendente`, com "Copiar link" pelo `convite/refazer`
 - [ ] 15.3 — `docs/interface.md` §3 (Professores)
 - [ ] 15.4 — Testes
@@ -38,7 +38,7 @@ cadastrados `pendente`, cada um com o convite para copiar (o `convite/refazer`).
 | Cenário | Tipo | O que prova | Caso |
 |---|---|---|---|
 | Importar a planilha de professores com prévia e gravar | e2e | caminho feliz (RF6) | |
-| A marca de desligar é rotulada com nome e e-mail, e sem marca ninguém sai | e2e | RF4 | |
+| A marca de desligar é rotulada com o nome, sem e-mail na tela, e sem marca ninguém sai | e2e | RF4 | |
 | O cadastrado aparece `pendente` sem recarregar a página | e2e | | |
 | "Copiar link" do cadastrado faz o `convite/refazer` | e2e | §4 | |
 | Carregando | e2e | estados | |

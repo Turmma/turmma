@@ -182,7 +182,7 @@ Sem IA.
 
 `ImportarPlanilha` em Turmas, Professores e na aba nova **Grade e calendário** de
 `Escola.tsx`; o XLSX carrega sob demanda (`docs/interface.md` 10.4). Prévia: erros, avisos e marcas primeiro, o resto em
-contagem, paginado de 100; marca rotulada com nome e matrícula. Vazio com "Baixar
+contagem, paginado de 100; marca rotulada com nome e matrícula (aluno) ou só com o nome (professor: o candidato sai sem e-mail, E11, 6.0). Vazio com "Baixar
 modelo"; falha com "Tentar de novo"; código de erro vira frase com o que fazer. A grade, tabela com cabeçalhos, rola no
 cartão a 360 px. Professores mostra o convite para copiar do professor que a planilha cadastrou. Cada tela
 atualiza o `docs/interface.md`.
