@@ -144,6 +144,7 @@ algo que dependa dela.** Nova decisão ou revisão entra lá e aqui, pela skill 
 | D82 | A produção roda em VPS em região Brasil, não na VM de casa |
 | D83 | A prova no papel é a F6b: folha lida por foto, sem IA, versões escolhidas pelo professor |
 | D84 | A fatia do piloto: professor, coordenação e família, com o Tutor pronto e liberado por escola |
+| D85 | O arquivo do titular traz os atos sobre ele, sem o autor |
 
 ## Conflitos já resolvidos e decisões em aberto
 

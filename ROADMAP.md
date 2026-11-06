@@ -500,6 +500,9 @@ Saiu do F2 no corte das tarefas de 03/11/2026 (Joaquim), com o PRD, a Tech Spec 
 e-mail; a senha provisória do aluno, dada pela coordenação ou pelo professor da turma; e a entrada do aluno pela conta
 da escola (o login Google e Microsoft existe, mas aluno sem ligação não entra; D48). Precisa pousar antes da primeira
 escola real: sem ela, o aceite entre escolas pelo link copiado fica sem prova de posse do e-mail (`docs/lgpd.md`).
+Leva também a D85: o arquivo do titular passa a trazer, por alvo e sem quem fez, os atos de terceiros sobre ele, com as
+quatro ações da F2 (`aluno.transferido`, `lista.transferida`, `usuario.nome_corrigido`, `lista.nome_corrigido`) junto da
+senha provisória.
 
 **Pronto quando:** o professor recebe o convite por e-mail; a equipe redefine a senha sozinha; o coordenador ou o
 professor da turma dá ao aluno uma senha provisória, com auditoria; e o aluno entra pela conta da escola depois da
