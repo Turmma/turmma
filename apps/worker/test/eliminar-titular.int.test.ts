@@ -603,6 +603,26 @@ describe('titular.eliminar', () => {
       expect(await texto('execucao_agente', 'entrada', execucaoId)).toContain(REMOVIDO)
     })
 
+    it('F2b: o registro da aula da professora, com o nome do aluno eliminado no texto, fica como está: a troca de nome não o alcança, e o texto sai na virada do ano', async () => {
+      const c = await cenario()
+      const vinculoId = await um(
+        "insert into vinculo (escola_id, ano_letivo_id, usuario_id, turma_id, disciplina_id, papel, criado_por) values ($1, $2, $3, $4, $5, 'professor', $6) returning id",
+        [c.escolaId, c.anoId, c.professorId, c.turmaId, c.disciplinaId, c.coordenadoraId],
+      )
+      const conteudo = `Reforço com ${c.nome} na prova`
+      const aulaId = await um(
+        "insert into aula (escola_id, ano_letivo_id, vinculo_id, data, inicio, fim, conteudo) values ($1, $2, $3, '2026-03-10', '07:30', '08:20', $4) returning id",
+        [c.escolaId, c.anoId, vinculoId, conteudo],
+      )
+      const execucaoId = await execucaoDoProfessor(c, { tarefa: 'gerar_plano_de_aula', parametros: { tema: `Reforço para ${c.nome}` } })
+      const pedidoId = await agendar(c, c.alunoId)
+      await rodar(c.escolaId, { pedidoId })
+      // O controle: a troca aconteceu nas colunas que ela alcança, e só nelas.
+      expect(await pedido(pedidoId)).toMatchObject({ estado: 'concluido', nomeTrocado: true, homonimo: false })
+      expect(await texto('execucao_agente', 'entrada', execucaoId)).toContain(REMOVIDO)
+      expect(await texto('aula', 'conteudo', aulaId)).toBe(conteudo)
+    })
+
     it('o homônimo desativado não impede a troca', async () => {
       const c = await cenario()
       const outro = await um("insert into usuario (escola_id, papel, nome) values ($1, 'aluno', $2) returning id", [c.escolaId, c.nome])
@@ -649,6 +669,10 @@ describe('titular.eliminar', () => {
       const aula = (vinculoId: string) =>
         um("insert into alocacao (escola_id, ano_letivo_id, vinculo_id, dia_semana, inicio, fim) values ($1, $2, $3, 1, '07:30', '08:20') returning id", [c.escolaId, c.anoId, vinculoId])
       const [aulaDele, aulaDoOutro] = [await aula(vinculoDele), await aula(vinculoDoOutro)]
+      // O texto da aula de cada um (F2b): o dele sai com o vínculo, o do outro fica.
+      const registro = (vinculoId: string) =>
+        um("insert into aula (escola_id, ano_letivo_id, vinculo_id, data, inicio, fim, conteudo) values ($1, $2, $3, '2026-03-10', '07:30', '08:20', 'Texto sintético da aula') returning id", [c.escolaId, c.anoId, vinculoId])
+      const [registroDele, registroDoOutro] = [await registro(vinculoDele), await registro(vinculoDoOutro)]
       // O professor gravou a planilha de grade, e a coordenação, a de calendário.
       const planilhaDele = await um(
         `insert into importacao_planilha (escola_id, ano_letivo_id, tipo, estado, assinatura, resumo, criado_por) values ($1, $2, 'grade', 'concluida', 'a', '{"aulas": 2}', $3) returning id`,
@@ -667,6 +691,9 @@ describe('titular.eliminar', () => {
       const { rows: aulas } = await bancada.pool.query<{ id: string }>('select id from alocacao where escola_id = $1', [c.escolaId])
       expect(aulas.map((linha) => linha.id)).toEqual([aulaDoOutro])
       expect(aulas.map((linha) => linha.id)).not.toContain(aulaDele)
+      const { rows: registros } = await bancada.pool.query<{ id: string }>('select id from aula where escola_id = $1', [c.escolaId])
+      expect(registros.map((linha) => linha.id)).toEqual([registroDoOutro])
+      expect(registros.map((linha) => linha.id)).not.toContain(registroDele)
       const { rows: planilhas } = await bancada.pool.query<{ id: string; criado_por: string | null; estado: string }>('select id, criado_por, estado from importacao_planilha where escola_id = $1 order by tipo', [c.escolaId])
       expect(planilhas).toEqual([
         { id: planilhaDaCoordenacao, criado_por: c.coordenadoraId, estado: 'concluida' },

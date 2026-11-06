@@ -46,6 +46,23 @@ describe('a migration do F2 sobre dado da A1', () => {
     return pasta
   }
 
+  /**
+   * A pasta de migrations só até a 0040: o teste mede o que a migration do F2 mudou, e as seguintes (a 0041, F2b) criam tabelas que
+   * ele não conhece. Copia a do repositório e tira do diário (e da pasta) o que vem depois da 0040.
+   */
+  function pastaAteA0040(): string {
+    const pasta = mkdtempSync(join(tmpdir(), 'educa-migrar-f2-'))
+    pastas.push(pasta)
+    cpSync(PASTA_MIGRACOES, pasta, { recursive: true })
+    const diario = JSON.parse(readFileSync(join(pasta, 'meta', '_journal.json'), 'utf8')) as { entries: Array<{ tag: string }> }
+    const indice = diario.entries.findIndex((entrada) => entrada.tag === PRIMEIRA_DO_F2)
+    expect(indice, 'a migration do F2 está no diário').toBeGreaterThan(0)
+    const depoisDoF2 = diario.entries.slice(indice + 1)
+    writeFileSync(join(pasta, 'meta', '_journal.json'), JSON.stringify({ ...diario, entries: diario.entries.slice(0, indice + 1) }))
+    for (const entrada of depoisDoF2) rmSync(join(pasta, `${entrada.tag}.sql`))
+    return pasta
+  }
+
   async function id(instrucao: string, valores: unknown[]): Promise<string> {
     const { rows } = await scratch.query<{ id: string }>(instrucao, valores)
     const linha = rows[0]
@@ -129,7 +146,7 @@ describe('a migration do F2 sobre dado da A1', () => {
     await scratch.connect()
     dados = await semearDadoDaA1()
     antes = await retrato()
-    await migrate(configuracao(PASTA_MIGRACOES), logger)
+    await migrate(configuracao(pastaAteA0040()), logger)
     depois = await retrato()
   }, 240_000)
 
@@ -253,7 +270,7 @@ describe('a migration do F2 sobre dado da A1', () => {
   })
 
   it('a migration aplicada de novo não muda nada, e o único da chave já vale sobre o que ficou', async () => {
-    await migrate(configuracao(PASTA_MIGRACOES), logger)
+    await migrate(configuracao(pastaAteA0040()), logger)
     const { rows } = await scratch.query<{ chave: string | null }>("select t.chave from turma t where t.nome in ('6ºA', '6 a')")
     expect(rows).toEqual([{ chave: null }, { chave: null }])
     const { rows: base } = await scratch.query<{ escola_id: string; ano_letivo_id: string; serie_id: string }>("select escola_id, ano_letivo_id, serie_id from turma where nome = '8ºA' and chave = '8a' and ano_letivo_id in (select id from ano_letivo where ano = 2026)")

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { ajusteDeRetencaoCabe, CATEGORIAS_DE_RETENCAO, CHAVES_DE_PRAZO_FIXO, CHAVES_DE_RETENCAO, retencaoDaEscola, TRAVAS_DE_RETENCAO } from './retencao.js'
+import { CLASSIFICACAO_DAS_TABELAS } from './classificacao.js'
+import { ajusteDeRetencaoCabe, CATEGORIAS_DE_RETENCAO, CHAVES_DE_PRAZO_FIXO, CHAVES_DE_RETENCAO, PRAZOS_FIXOS, retencaoDaEscola, TRAVAS_DE_RETENCAO } from './retencao.js'
 
 describe('catálogo da retenção (F3, Tech Spec, seção 3)', () => {
   it('os valores aprovados em 05/10/2026: padrão, piso e teto de cada categoria, em meses', () => {
@@ -22,6 +23,14 @@ describe('catálogo da retenção (F3, Tech Spec, seção 3)', () => {
   it('as travas são as três da Tech Spec, e o padrão de cada categoria travada cabe na trava pelo padrão da mãe', () => {
     expect(TRAVAS_DE_RETENCAO).toEqual({ execucao_agente: 'conversa_professor', texto_do_modelo: 'conversa_professor', consumo_por_aluno: 'conversa_tutor' })
     for (const categoria of CHAVES_DE_RETENCAO) expect(ajusteDeRetencaoCabe(categoria, CATEGORIAS_DE_RETENCAO[categoria].padrao, []), categoria).toBe(true)
+  })
+
+  it('F2b: o registro da aula tem prazo fixo próprio, que acaba no encerramento do ano letivo, e todo prazo fixo da classificação está no catálogo', () => {
+    expect(CHAVES_DE_PRAZO_FIXO).toContain('registro_da_aula')
+    expect(PRAZOS_FIXOS.registro_da_aula.prazo).toMatch(/^até o encerramento do ano letivo/)
+    for (const [tabela, classificada] of Object.entries(CLASSIFICACAO_DAS_TABELAS)) {
+      if (classificada.classe === 'prazo_fixo') expect(CHAVES_DE_PRAZO_FIXO, tabela).toContain(classificada.prazo)
+    }
   })
 
   it('nenhum prazo fixo tem o nome de uma categoria ajustável', () => {

@@ -109,8 +109,8 @@ segunda, das 09h20 às 10h10. É o que gera o calendário do professor, e tem id
 **Chave da turma** — O nome da turma sem acento, caixa e enfeite: "8ºA", "8º A", "8A" e "8º ano A" são a chave `8a`. É o que faz a
 planilha de alunos achar a turma que já existe.
 
-**Aula** — A instância concreta de uma alocação numa data, onde o professor registra o que
-deu.
+**Aula** — O registro do que o professor vai dar, ou deu, numa aula da grade numa data: só o texto, ligado ao vínculo, ao dia e ao
+horário, sem apontar para a alocação (reimportar a grade não o apaga). Só o professor o lê, e ele sai na virada do ano.
 
 **Fonte de material** — De onde o conteúdo vem: um adaptador de scraper ou upload manual.
 Toda fonte tem autorização escrita da escola registrada e declara a titularidade do

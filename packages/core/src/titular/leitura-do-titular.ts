@@ -29,7 +29,8 @@ import { CompartilhamentoRepository } from './compartilhamento.repository.js'
  * 5. **A versão da coordenação** (`coordenacao`, do titular sem conta ativa) nunca traz a conversa do professor com o
  *    Assistente (`thread_agente`, `mensagem_agente`), a `entrada` das execuções que ele pediu, a `entrada` e a `saida` do
  *    consumo de IA, nem a `justificativa` das entregas (regra 70, item 8). Traz a conversa do Tutor, pela exceção
- *    declarada no PRD, seção 6. Também não traz a `introducao_vista_em` do professor (D64); a do aluno vai nas duas.
+ *    declarada no PRD, seção 6. Também não traz a `introducao_vista_em` do professor (D64); a do aluno vai nas duas. **Nem o
+ *    registro da aula** (`aula.conteudo`, F2b): é o texto da professora sobre o que deu, e pode trazer nome de aluno.
  */
 
 /** Uma tabela do arquivo: a descrição que o resumo mostra e as leituras, que dependem da versão. */
@@ -137,6 +138,17 @@ export const LEITURAS_DO_ARQUIVO: Readonly<Record<string, LeituraDaTabela>> = {
     fora: { escola_id: ESCOPO },
     consultas: ({ escolaId, titularId }) => [
       sql`select ${selectColumns('id', 'ano_letivo_id', 'vinculo_id', 'dia_semana', 'inicio', 'fim', 'sala')} from alocacao t
+          where t.escola_id = ${escolaId} and t.vinculo_id in (select v.id from vinculo v where v.escola_id = ${escolaId} and v.usuario_id = ${titularId} and v.papel = 'professor')`,
+    ],
+  },
+  aula: {
+    descricao: 'O que você escreveu sobre o que vai dar ou deu em cada aula da sua semana',
+    // O texto é da professora (critério 5): a versão da coordenação não o traz, nem a tabela.
+    naVersao: (versao) => versao === 'completa',
+    colunas: ['id', 'ano_letivo_id', 'vinculo_id', 'data', 'inicio', 'fim', 'conteudo', 'atualizado_em'],
+    fora: { escola_id: ESCOPO },
+    consultas: ({ escolaId, titularId }) => [
+      sql`select ${selectColumns('id', 'ano_letivo_id', 'vinculo_id', 'data', 'inicio', 'fim', 'conteudo', 'atualizado_em')} from aula t
           where t.escola_id = ${escolaId} and t.vinculo_id in (select v.id from vinculo v where v.escola_id = ${escolaId} and v.usuario_id = ${titularId} and v.papel = 'professor')`,
     ],
   },

@@ -75,6 +75,11 @@ export const CLASSIFICACAO_DAS_TABELAS: Readonly<Record<string, ClassificacaoDaT
   credencial_matricula: fixo('credencial', 'desativação e eliminação', 'usuario_id'),
   conta_externa: fixo('credencial', 'desativação e eliminação', 'usuario_id'),
   lista_nome: fixo('lista_de_nomes', 'virada do ano (A1) e eliminação', 'usuario_id'),
+  // O registro da aula (F2b, 1.0): o texto do professor sobre o que vai dar ou deu, preso ao vínculo dele. Sai na virada do ano, na
+  // transação do encerramento (`VinculoRepository.virarAno`), e antes dela em cascata com o vínculo. Entra no arquivo do titular só
+  // na versão `completa` (`naVersao`, critério 5), pelo `vinculo_id`; nunca vira categoria nem contagem da prévia (D64), e fica fora da
+  // troca de nome (o nome de aluno eliminado não passa da virada). O texto pode trazer nome de aluno.
+  aula: fixo('registro_da_aula', 'virada do ano (F2b)', 'vinculo_id'),
   // A planilha gravada (F2, 2.0): o texto em trânsito (`linhas` e `marcas`, com nome e matrícula) é apagado em toda troca de estado e,
   // na pior hipótese, some em ~25 h; a linha que fica (tipo, estado, contagens, código do erro, sem pessoa) sai em 90 dias pelo
   // `sistema.expurgar-acesso` (5.0). O autor é da coordenação, que não é titular de pedido: a tabela fica fora do arquivo.

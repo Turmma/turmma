@@ -89,6 +89,18 @@ describe('LEITURAS_DO_ARQUIVO: a forma das leituras', () => {
     expect(LEITURAS_DO_ARQUIVO.alocacao?.consultas({ ...alvo, versao: 'completa' }).length).toBeGreaterThan(0)
   })
 
+  it('o registro da aula (`aula`, F2b) só entra na versão completa: a da coordenação não o lê nem o descreve (R6, critério 5)', () => {
+    const leitura = LEITURAS_DO_ARQUIVO.aula
+    expect(leitura?.naVersao?.('completa')).toBe(true)
+    expect(leitura?.naVersao?.('coordenacao')).toBe(false)
+    // A tabela é classificada, entra no arquivo pelo vínculo do professor e tem prazo fixo: a virada do ano.
+    expect(CLASSIFICACAO_DAS_TABELAS.aula).toMatchObject({ classe: 'prazo_fixo', prazo: 'registro_da_aula', arquivo: { entra: true, ligacao: ['vinculo_id'] } })
+    // O texto é lido; a ligação pelo vínculo de professor do titular e o escopo de escola estão provados pelo resultado, no teste de integração.
+    const instrucao = new PgDialect().sqlToQuery((leitura?.consultas({ ...alvo, versao: 'completa' }) ?? [])[0] ?? ({} as never)).sql
+    expect(instrucao).toMatch(/\bt\.conteudo\b/)
+    expect(instrucao).toMatch(/from aula t\b/)
+  })
+
   it('as respostas do aluno saem com a `sequencia` da escolha: a coluna está na lista que o arquivo descreve e no `select` que o lê (51.0, regra 20, item 19)', () => {
     const leitura = LEITURAS_DO_ARQUIVO.resposta_atividade
     expect(leitura?.colunas).toContain('sequencia')

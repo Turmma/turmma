@@ -42,7 +42,9 @@ export interface ColunaDaTroca {
  * **Ficam de fora, de propósito:** `incidente` e `incidente_escola` (o texto é da nossa equipe, e a regra "nenhum dado de
  * titular" é disciplina de quem escreve: runbook, "Ao registrar o incidente"); a conversa do Tutor e os sinais (a
  * conversa do aluno sai por inteiro com o `on delete cascade` da eliminação dele); a lista de nomes e a matrícula (saem
- * pelo ciclo de vida); o texto livre da contestação do vínculo (sai no encerramento do ano); e o complemento do pedido
+ * pelo ciclo de vida); o texto livre da contestação do vínculo (sai no encerramento do ano); o registro da aula
+ * (`aula.conteudo`, F2b: a professora pode ter escrito o nome de um aluno, e o texto sai na virada do ano, na mesma transação que
+ * encerra o ano, como o da contestação: o nome eliminado não passa dela); e o complemento do pedido
  * (nunca existe). **O nome anterior a uma correção não é procurado** (Tech Spec, seção 13).
  */
 export const COLUNAS_DA_TROCA_DE_NOME: readonly ColunaDaTroca[] = [

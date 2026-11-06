@@ -5,7 +5,7 @@
 
 ## Lista
 
-- [ ] **1.0 — O registro da aula existe, só a professora o alcança, e sai na virada do ano**
+- [x] **1.0 — O registro da aula existe, só a professora o alcança, e sai na virada do ano**
   - [ ] 1.1 Tabela `aula` e migration só de criação, com a FK composta para o vínculo e os checks
   - [ ] 1.2 Matriz `aula: ['ler', 'gravar']`, classificação e arquivo do titular só na versão `completa`
   - [ ] 1.3 `virarAno` apaga as linhas de `aula` do ano; comentário da troca de nome

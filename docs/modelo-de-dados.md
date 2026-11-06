@@ -375,7 +375,8 @@ EventoCalendario*  → escola*, anoLetivo*, tipo (feriado | recesso | evento), i
 ImportacaoPlanilha* → escola*, anoLetivo? (nulo só no tipo professores), tipo (alunos | professores | grade | calendario),
                      estado (na_fila | concluida | desatualizada | falhou), linhas?, marcas?, assinatura*,
                      resumo? (só contagens), erro? (expirou | trava_esgotada | erro_interno), criadoPor?, criadoEm*, concluidaEm?
-Aula               → alocacao*, data*, conteudo?, status, observacao?
+Aula*              → escola*, anoLetivo*, vinculo* (FK composta com o ano, cascata), data*, inicio*, fim* (inicio < fim),
+                     conteudo* (1–500 depois do btrim), atualizadoEm*; único (vinculo, data, inicio)
 ```
 
 **`Alocacao` (F2, migration 0040) substitui as três tabelas da grade** que este documento desenhava (`GradeHoraria`, `TempoAula` e a
@@ -403,9 +404,15 @@ migration a repete em SQL.
 
 **`Vinculo.origem`** (F2) diz de onde o vínculo veio: `coordenacao` (à mão, o padrão das linhas que já existiam), `grade` ou `lista`.
 
-`Aula` é a instância concreta gerada a partir de `Alocacao` mais o calendário escolar. É a
-camada onde o professor registra o que deu e é a fonte do "seu dia e sua semana", função do
-Assistente de ensino (`docs/agentes.md`).
+**`Aula` (F2b, migration 0041) é só o texto**: o que a professora vai dar, ou deu, numa aula da grade numa data. A semana dela é
+**calculada na leitura** (as alocações dos vínculos confirmados, menos feriado e recesso, mais o registro), e a `Aula` casa com a
+`Alocacao` por (vínculo, dia da semana da `data`, `inicio`), **sem FK para ela**: a reimportação da grade apaga e recria a alocação, e
+o texto passado precisa sobreviver à saída da grade e ao feriado. Por isso o desenho antigo (`alocacao*`, `status`, `observacao?`)
+caiu: sem `status` nem "não houve aula" (o PRD tirou), e `fim` é cópia, só para o registro que saiu da grade ("fora da grade"). Só existe
+com texto (texto vazio apaga a linha). Tem `escola_id` e `ano_letivo_id` (regra 10), sai em cascata com o vínculo e na virada do ano
+(`VinculoRepository.virarAno`), só a professora do vínculo o lê, e o texto, que pode citar aluno, não vai a log, a auditoria, à
+coordenação nem a IA (`docs/lgpd.md`, "Registro da aula"). Quem o grava é a rota `PUT /v1/aulas` (F2b, 2.0), e o job da grade o
+acompanha (F2b, 5.0). É a fonte do "seu dia e sua semana" da professora, função do Assistente de ensino (`docs/agentes.md`), que usa a grade e o calendário e **não** lê o `conteudo`: o texto não vai a IA até a F11 reabrir a linha (`docs/lgpd.md`, "Registro da aula").
 
 ## Conteúdo
 

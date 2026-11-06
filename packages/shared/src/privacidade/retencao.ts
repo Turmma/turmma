@@ -73,6 +73,7 @@ export const CHAVES_DE_PRAZO_FIXO = [
   'convite_e_acesso_da_turma',
   'credencial',
   'lista_de_nomes',
+  'registro_da_aula',
   'planilha_importada',
   'registro_de_decisao',
   'tarefa_em_segundo_plano',
@@ -94,6 +95,10 @@ export const PRAZOS_FIXOS: Readonly<Record<ChaveDePrazoFixo, DefinicaoDoPrazoFix
   convite_e_acesso_da_turma: { descricao: 'Convites e links de entrada nas turmas', prazo: '30 dias depois de usados, revogados ou vencidos' },
   credencial: { descricao: 'Senha, segundo fator e ligação com a conta Google ou Microsoft da escola', prazo: 'até a pessoa ser desativada' },
   lista_de_nomes: { descricao: 'Lista de nomes das turmas, antes de o aluno entrar', prazo: 'até o encerramento do ano letivo' },
+  registro_da_aula: {
+    descricao: 'O que o professor escreveu sobre o que vai dar ou deu em cada aula da semana dele',
+    prazo: 'até o encerramento do ano letivo; só o professor o lê',
+  },
   planilha_importada: {
     descricao: 'Registro das planilhas que a coordenação importou: o tipo, o estado e as contagens, sem nome nem matrícula',
     prazo: '90 dias depois de concluída; o texto da planilha só até o fim da importação',

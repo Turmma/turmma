@@ -15,6 +15,7 @@ import { convite } from './schema/convite.js'
 import { disciplina } from './schema/disciplina.js'
 import { escola } from './schema/escola.js'
 import { alocacao } from './schema/alocacao.js'
+import { aula } from './schema/aula.js'
 import { eventoCalendario } from './schema/evento-calendario.js'
 import { importacaoPlanilha } from './schema/importacao-planilha.js'
 import { jobRegistro } from './schema/job-registro.js'
@@ -37,7 +38,7 @@ import { vinculo } from './schema/vinculo.js'
 // operação (`db/schema/operador.ts`), pelo mesmo motivo: só o `OperadorRepository` as toca, e a consulta relacional
 // (`banco.query.*`) não as alcançaria de fora sem passar por um `import` que o teste de arquitetura vê.
 // As dezessete tabelas do MVP de apresentação (migration 0022) entram juntas, por `mvpTables`.
-export const schema = { jobRegistro, configuracaoOperacionalEscola, usoInfraDiario, rede, escola, anoLetivo, conta, codigoRecuperacao, usuario, sessao, registroAcesso, convite, serie, disciplina, turma, vinculo, credencialMatricula, contaExterna, provedorEscola, listaNome, acessoTurma, reivindicacao, retencaoEscola, importacaoPlanilha, alocacao, eventoCalendario, ...mvpTables }
+export const schema = { jobRegistro, configuracaoOperacionalEscola, usoInfraDiario, rede, escola, anoLetivo, conta, codigoRecuperacao, usuario, sessao, registroAcesso, convite, serie, disciplina, turma, vinculo, credencialMatricula, contaExterna, provedorEscola, listaNome, acessoTurma, reivindicacao, retencaoEscola, importacaoPlanilha, alocacao, aula, eventoCalendario, ...mvpTables }
 export type Schema = typeof schema
 
 export type Database = NodePgDatabase<Schema>

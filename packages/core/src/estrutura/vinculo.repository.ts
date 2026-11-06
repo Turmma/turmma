@@ -2,6 +2,7 @@ import { requireAnoEmCurso } from '../context/ano-em-curso.js'
 import { requireEscolaId } from '../context/context-escola.js'
 import { estadoDoProfessor } from '../convite/estado-do-professor.js'
 import type { Database, DatabaseTransaction } from '../db/database.js'
+import { aula } from '../db/schema/aula.js'
 import { convite } from '../db/schema/convite.js'
 import { disciplina } from '../db/schema/disciplina.js'
 import { turma } from '../db/schema/turma.js'
@@ -336,8 +337,10 @@ export class VinculoRepository {
   /**
    * A virada do ano (10.0; Tech Spec, seção 5, "Vínculo"): os vínculos do ano, de professor e de aluno, que não estavam
    * encerrados vão a `encerrado` por `fim_do_ano`; depois, o `complemento` sai de todo vínculo do ano, inclusive do
-   * encerrado antes por `desligamento` ou `realocacao`. Roda na transação do encerramento do ano, e devolve as contagens
-   * para a auditoria.
+   * encerrado antes por `desligamento` ou `realocacao`; por fim, as linhas de `aula` do ano saem, todas, também as de um
+   * vínculo encerrado antes (o registro da aula, F2b: texto da professora, que pode trazer nome de aluno e não passa da virada).
+   * Roda na transação do encerramento do ano, e devolve as contagens para a auditoria; as aulas apagadas não entram nela, que não
+   * guarda nada do registro (Tech Spec da semana-do-professor, seção 11).
    *
    * O ano é o que o `AnoLetivoRepository` acabou de passar a `encerrado` na mesma transação, com a escola do contexto,
    * nunca o id do cliente. A escola vem do contexto aqui também: um ano de outra escola não acha vínculo nenhum.
@@ -354,6 +357,9 @@ export class VinculoRepository {
       .set({ complemento: null })
       .where(and(doAno, isNotNull(vinculo.complemento)))
       .returning({ id: vinculo.id })
+    // As aulas do ano, de qualquer vínculo dele: o ano de outra escola não as alcança (escola do contexto), e o ano planejado, que
+    // ainda não é o que encerra, não as perde.
+    await this.banco.delete(aula).where(and(eq(aula.escolaId, requireEscolaId()), eq(aula.anoLetivoId, anoLetivoId)))
     return { vinculosEncerrados: encerrados.length, textosDeContestacaoApagados: apagados.length }
   }
 

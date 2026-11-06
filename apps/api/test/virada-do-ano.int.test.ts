@@ -1,5 +1,6 @@
 import { createDatabase, createPool, executarPlanilha, runInContext, type Database, type DatabasePool } from '@educa/core'
 import { ErrorCode, decisaoResponseSchema, MENSAGENS_DE_ERRO, type ResultadoDaDecisao } from '@educa/shared'
+import { sql } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
@@ -235,6 +236,42 @@ describe('virada do ano: encerrar o ano letivo encerra os vínculos por `fim_do_
     expect([200, 404, 409]).toContain(contestado.status)
     const depois = await vinculosDoAno(escola.anoLetivoId)
     expect(depois.every((linha) => linha.estado === 'encerrado' && linha.complemento === null)).toBe(true)
+  })
+
+  /** Uma linha de `aula` (F2b), escrita direto: o registro da aula ainda não tem rota (2.0). Devolve o id. */
+  async function registrarAula(escolaId: string, anoLetivoId: string, vinculoId: string, data = '2026-03-10'): Promise<string> {
+    const { rows } = await bancada.pool.query<{ id: string }>(
+      "insert into aula (escola_id, ano_letivo_id, vinculo_id, data, inicio, fim, conteudo) values ($1, $2, $3, $4, '07:30', '08:20', $5) returning id",
+      [escolaId, anoLetivoId, vinculoId, data, `sentinela da aula ${randomUUID()}`],
+    )
+    return rows[0]?.id ?? ''
+  }
+
+  const aulasDaEscola = async (...escolas: readonly string[]): Promise<string[]> => {
+    const { rows } = await bancada.pool.query<{ id: string }>('select id from aula where escola_id = any($1::uuid[]) order by id', [escolas])
+    return rows.map((linha) => linha.id)
+  }
+
+  it('S7: a virada apaga as aulas do ano, também a do vínculo encerrado antes por desligamento; a do ano planejado da mesma escola e a de outra escola continuam', async () => {
+    const [a, b] = [await montar(), await montar()]
+    const escolaA = a.coordenacao.escolaId
+    const doConfirmado = await registrarAula(escolaA, a.anoLetivoId, a.confirmado)
+    const doDesligado = await registrarAula(escolaA, a.anoLetivoId, a.desligado, '2026-03-11')
+    // O ano planejado da A, com um vínculo e um registro dele: a virada do ano em curso não o alcança.
+    const { rows: planejado } = await bancada.pool.query<{ id: string }>("insert into ano_letivo (escola_id, ano, inicio, fim, situacao) values ($1, 2027, '2027-02-01', '2027-12-15', 'planejado') returning id", [escolaA])
+    const planejadoId = planejado[0]?.id ?? ''
+    const { rows: turmas } = await bancada.pool.query<{ id: string }>("insert into turma (escola_id, ano_letivo_id, serie_id, nome) select escola_id, $2, serie_id, nome from turma where id = $1 returning id", [a.turma, planejadoId])
+    const { rows: vinculos } = await bancada.pool.query<{ id: string }>(
+      "insert into vinculo (escola_id, ano_letivo_id, usuario_id, turma_id, disciplina_id, papel, criado_por) values ($1, $2, $3, $4, $5, 'professor', $6) returning id",
+      [escolaA, planejadoId, a.professorConfirmado.usuarioId, turmas[0]?.id, a.quimica, a.coordenacao.usuarioId],
+    )
+    const doPlanejado = await registrarAula(escolaA, planejadoId, vinculos[0]?.id ?? '', '2027-03-10')
+    const deB = await registrarAula(b.coordenacao.escolaId, b.anoLetivoId, b.confirmado)
+    expect((await aulasDaEscola(escolaA, b.coordenacao.escolaId)).sort()).toEqual([doConfirmado, doDesligado, doPlanejado, deB].sort())
+
+    expect((await post(a.coordenacao, `/v1/anos-letivos/${a.anoLetivoId}/encerrar`)).status).toBe(200)
+
+    expect((await aulasDaEscola(escolaA, b.coordenacao.escolaId)).sort()).toEqual([doPlanejado, deB].sort())
   })
 
   describe('V1, C10 e o log (A1, tarefa 10.0): a virada alcança a sala das turmas', () => {
@@ -675,6 +712,27 @@ describe('virada do ano: encerrar o ano letivo encerra os vínculos por `fim_do_
       expect(await vinculosDoAno(b.anoLetivoId)).toEqual(antesEmB)
       expect(await situacaoDoAno(b.anoLetivoId)).toBe('em_curso')
       expect(await auditoriasDaVirada(b.coordenacao.escolaId)).toEqual([])
+    })
+
+    it('o escopo de escola vale sozinho nas aulas: num contexto de A, `virarAno` com o ano de B não apaga a aula de B, e com a escola de B no contexto apaga', async () => {
+      const aulaDeB = await registrarAula(b.coordenacao.escolaId, b.anoLetivoId, b.confirmado)
+      const forjado = { requisicaoId: randomUUID(), escolaId: a.coordenacao.escolaId, usuarioId: a.coordenacao.usuarioId, papel: 'coordenador' as const, sessaoId: randomUUID(), anoLetivoId: b.anoLetivoId }
+      await runInContext(forjado, () => new VinculoRepository(bancada.banco).virarAno(b.anoLetivoId))
+      expect(await aulasDaEscola(b.coordenacao.escolaId)).toEqual([aulaDeB])
+
+      // O controle: com a escola de B no contexto, a mesma chamada alcança a aula de B. A transação é desfeita.
+      const desfeita = new Error('desfazer o controle')
+      const restantes = await runInContext({ ...forjado, escolaId: b.coordenacao.escolaId }, () =>
+        bancada.banco
+          .transaction(async (tx) => {
+            await new VinculoRepository(tx).virarAno(b.anoLetivoId)
+            const { rows } = await tx.execute<{ id: string }>(sql`select id from aula where escola_id = ${b.coordenacao.escolaId}`)
+            throw Object.assign(desfeita, { restantes: rows.map((linha) => linha.id) })
+          })
+          .catch((erro: unknown) => (erro === desfeita ? (desfeita as Error & { restantes?: string[] }).restantes : Promise.reject(erro))),
+      )
+      expect(restantes).toEqual([])
+      expect(await aulasDaEscola(b.coordenacao.escolaId)).toEqual([aulaDeB])
     })
 
     it('o escopo de escola vale sozinho na virada: num contexto de A, `virarAno` com o ano de B não muda nada em B', async () => {

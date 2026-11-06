@@ -321,6 +321,12 @@ describe('arquivo do titular (F3, tarefa 13.0): do pedido ao download', () => {
       `insert into alocacao (escola_id, ano_letivo_id, vinculo_id, dia_semana, inicio, fim, sala) values ($1, $2, $3, 3, '08:50', '09:40', $4) returning id`,
       [escolaId, anoLetivoId, ids['vinculo'], textos['alocacao.sala']],
     )
+    // O registro da aula (F2b): o texto da professora, que pode trazer nome de aluno. Só a versão completa o leva.
+    textos['aula.conteudo'] = sentinela('o-que-dei-na-aula')
+    ids['aula'] = await inserir(
+      `insert into aula (escola_id, ano_letivo_id, vinculo_id, data, inicio, fim, conteudo) values ($1, $2, $3, '2026-03-04', '08:50', '09:40', $4) returning id`,
+      [escolaId, anoLetivoId, ids['vinculo'], textos['aula.conteudo']],
+    )
 
     // O que ele pediu à IA: o tema, o texto do modelo, a conversa e o material gerado.
     textos['execucao_agente.entrada'] = sentinela('tema-da-aula')
@@ -533,7 +539,7 @@ describe('arquivo do titular (F3, tarefa 13.0): do pedido ao download', () => {
       const arquivo = documento(cenario.escolaId, pedidoId, 'completa')
       const tabelas = arquivo['tabelas'] as Record<string, Array<{ id: string }>>
       const tabelasDoProfessor = [
-        'usuario', 'conta', 'credencial_matricula', 'conta_externa', 'vinculo', 'alocacao', 'sessao', 'registro_acesso', 'thread_agente', 'mensagem_agente', 'execucao_agente', 'consumo_ia', 'artefato',
+        'usuario', 'conta', 'credencial_matricula', 'conta_externa', 'vinculo', 'alocacao', 'aula', 'sessao', 'registro_acesso', 'thread_agente', 'mensagem_agente', 'execucao_agente', 'consumo_ia', 'artefato',
         'entrega', 'atividade_aplicada', 'validacao_do_lote', 'correcao', 'reivindicacao', 'material', 'suspensao_de_funcao', 'auditoria',
       ]
       for (const tabela of tabelasDoProfessor) expect(tabelas[tabela]?.map(({ id }) => id), `${tabela} sem a linha do professor`).toContain(semeado.ids[tabela])
@@ -542,6 +548,10 @@ describe('arquivo do titular (F3, tarefa 13.0): do pedido ao download', () => {
       // A sala da aula dele entra; a do colega, não (a ligação é o vínculo do titular).
       expect(texto).toContain(semeado.textos['alocacao.sala'])
       expect(texto).not.toContain(doColega.textos['alocacao.sala'])
+      // O registro da aula dele entra; o do colega, não (R5): a ligação é o vínculo do titular, e o escopo é a escola.
+      expect(texto).toContain(semeado.textos['aula.conteudo'])
+      expect(texto).not.toContain(doColega.textos['aula.conteudo'])
+      expect(texto).not.toContain(String(doColega.ids['aula']))
       // O nome do dono do direito do material é de terceiro e não é do titular.
       expect(texto).not.toContain(semeado.textos['material.licenciante'])
       for (const id of Object.values(doColega.ids)) expect(texto, 'linha do colega no arquivo').not.toContain(id)
@@ -571,6 +581,49 @@ describe('arquivo do titular (F3, tarefa 13.0): do pedido ao download', () => {
         // O ato entra: o professor sabe que abriu o destaque.
         expect(texto, versao).toContain('correcao.destaque_aberto')
       }
+    })
+
+    it('R5: a aula plantada num vínculo de aluno não vai ao arquivo do aluno: a ligação é o vínculo de professor do titular', async () => {
+      const cenario = await novaEscola()
+      const aluno = await pessoa(cenario, 'aluno', 'Aluno')
+      const { rows: vinculos } = await bancada.pool.query<{ id: string }>("select id from vinculo where usuario_id = $1 and escola_id = $2 and papel = 'aluno'", [aluno.id, cenario.escolaId])
+      const plantada = sentinela('aula-no-vinculo-do-aluno')
+      await inserir(`insert into aula (escola_id, ano_letivo_id, vinculo_id, data, inicio, fim, conteudo) values ($1, $2, $3, '2026-03-04', '08:50', '09:40', $4) returning id`, [
+        cenario.escolaId,
+        cenario.escola.anoLetivoId,
+        vinculos[0]?.id,
+        plantada,
+      ])
+      const pedidoId = await pedidoPronto(cenario, aluno)
+      // O controle: o arquivo do aluno existe e traz o vínculo dele; só a aula plantada não vem.
+      const tabelas = documento(cenario.escolaId, pedidoId, 'completa')['tabelas'] as Record<string, unknown[]>
+      expect(tabelas['vinculo']).toHaveLength(1)
+      expect(tabelas['aula'] ?? []).toEqual([])
+      expect(textoDoObjeto(cenario.escolaId, pedidoId, 'completa')).not.toContain(plantada)
+    })
+
+    it('R5: o registro da aula não ganha categoria nem contagem na prévia do professor: a resposta é a mesma com e sem o texto', async () => {
+      const cenario = await novaEscola()
+      const professor = await pessoa(cenario, 'professor', 'Professor')
+      const { rows: vinculos } = await bancada.pool.query<{ id: string }>("select id from vinculo where usuario_id = $1 and escola_id = $2 and papel = 'professor'", [professor.id, cenario.escolaId])
+      const vinculoId = vinculos[0]?.id ?? ''
+      const daPrevia = async () => {
+        const resposta = await pedir(cenario.coordenacao, 'GET', `/v1/privacidade/titulares/${professor.id}/previa`)
+        expect(resposta.status).toBe(200)
+        return resposta.corpo
+      }
+      const sem = await daPrevia()
+      await inserir(`insert into aula (escola_id, ano_letivo_id, vinculo_id, data, inicio, fim, conteudo) values ($1, $2, $3, '2026-03-04', '08:50', '09:40', $4) returning id`, [
+        cenario.escolaId,
+        cenario.escola.anoLetivoId,
+        vinculoId,
+        sentinela('texto-fora-da-previa'),
+      ])
+      const com = await daPrevia()
+      expect(com).toEqual(sem)
+      expect(com['categorias']).toEqual(['pessoa_desativada', 'vinculo_encerrado'])
+      // Sem categoria nova e sem campo novo: as chaves da resposta são as de antes do texto.
+      expect(Object.keys(com).sort()).toEqual(Object.keys(sem).sort())
     })
 
     it('a data da introdução vista sai no arquivo do próprio titular; a versão da coordenação não traz a do professor (D64), e traz a do aluno', async () => {
@@ -727,10 +780,18 @@ describe('arquivo do titular (F3, tarefa 13.0): do pedido ao download', () => {
         doProfessor.textos['entrega.justificativa'],
         doProfessor.ids['mensagem_agente'],
         doProfessor.ids['thread_agente'],
+        // O registro da aula (F2b, R5): o texto da professora e a linha, só na completa.
+        doProfessor.textos['aula.conteudo'],
+        doProfessor.ids['aula'],
       ]) {
         expect(daEscola, `a versão da escola traz ${String(proibido)}`).not.toContain(String(proibido))
         expect(completa, `a completa não traz ${String(proibido)}`).toContain(String(proibido))
       }
+      // A tabela não vem na versão da escola (a chave nem existe), e vem na completa (R5).
+      const tabelasDaEscola = documento(cenario.escolaId, pedidoDoProfessor, 'coordenacao')['tabelas'] as Record<string, unknown>
+      const tabelasCompletas = documento(cenario.escolaId, pedidoDoProfessor, 'completa')['tabelas'] as Record<string, unknown>
+      expect(Object.keys(tabelasDaEscola)).not.toContain('aula')
+      expect(Object.keys(tabelasCompletas)).toContain('aula')
       // O registro de uso (execução, consumo sem texto e artefato) fica, por exceção declarada no PRD (D64).
       for (const tabela of ['execucao_agente', 'consumo_ia', 'artefato'] as const) expect(daEscola, tabela).toContain(String(doProfessor.ids[tabela]))
 

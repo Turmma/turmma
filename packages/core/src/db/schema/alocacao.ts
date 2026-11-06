@@ -5,8 +5,8 @@ import { vinculo } from './vinculo.js'
 
 /**
  * Uma aula da grade horária: o vínculo (turma, disciplina e professor) num dia da semana e num horário (glossário, "Grade horária";
- * F2, tarefa 2.0; Tech Spec, seção 3). Substitui as três tabelas da grade que o `docs/modelo-de-dados.md` desenhava, e a `Aula`
- * concreta da F2b aponta para ela. Quem grava é o job da grade (11.0).
+ * F2, tarefa 2.0; Tech Spec, seção 3). Substitui as três tabelas da grade que o `docs/modelo-de-dados.md` desenhava. A `Aula` da F2b (`aula.ts`)
+ * é só o texto da professora e **não** aponta para ela: tem o próprio vínculo, data e início. Quem grava é o job da grade (11.0).
  *
  * - `vinculo_id` por FK composta `(escola_id, ano_letivo_id, vinculo_id)` com o ano do vínculo, `on delete cascade`: a aula nunca
  *   aponta para o vínculo de outra escola nem de outro ano, e sai com ele (a eliminação do professor, o prazo do vínculo encerrado).

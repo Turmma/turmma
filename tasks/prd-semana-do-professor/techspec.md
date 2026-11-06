@@ -24,7 +24,7 @@ saiu da grade ("fora da grade"). O texto sai na virada do ano.
 | `packages/shared/src/permissao/matriz.ts` | alterado | `aula: ['ler', 'gravar']`: professor `proprio`, os outros `nunca` |
 | `apps/api/src/semana/` | novo | controller e service |
 | `apps/web/src/areas/professor/turmas/` | alterado e novo | abas em `Turmas.tsx`; `semana/`; link no `TurmaHoje.tsx` |
-| `docs/lgpd.md`, `docs/modelo-de-dados.md`, `docs/interface.md` | alterado | o registro, a `Aula`, a seção 1.8 |
+| `docs/lgpd.md`, `docs/modelo-de-dados.md`, `docs/glossario.md`, `docs/interface.md` | alterado | o registro, a `Aula` (no glossário, o texto sem apontar para a alocação), a seção 1.8 |
 
 ## 3. Modelo de dados
 
@@ -112,7 +112,7 @@ D64: nenhuma contagem; "Falta preencher" é selo por aula, sem total. Item 7: it
 | Carga na manhã de segunda | um `GET` por professor ao abrir (`docs/infra.md` 3.1), cinco consultas indexadas; `EXPLAIN` da dos itens na tarefa |
 | Fila, limite e rate limit | nenhuma fila nova (o passo roda no job do F2); `statement_timeout`, corpo de 100 KB, texto de 500; a guarda global por usuário e por escola |
 | Corridas de concorrência | Ordem global: ano (`for share`) → trava consultiva do vínculo → linha do vínculo (o `FOR UPDATE` de `encerrarOsMarcados` vem depois do passo; J16). A chave composta isola as escolas; a ordem "confere, depois trava" protege o colega (R1). (1) Gravação × gravação: uma linha (G6). (2) Gravação × saída da aula, nas duas ordens (J11a, J11b). (3) Gravação do fora da grade × re-chaveamento: nada sobrescrito nem duplicado (J12). (4) Gravação × virada: o `for share` no ano espera o encerramento, e a gravação responde `NAO_ENCONTRADO` (J14). `lock_timeout` de 2 s (J13). Encerramento avulso do vínculo: aceito, sai na virada |
-| Índices e migration | o da `aula`, numa migration só de criação; os outros já começam pelo escopo |
+| Índices e migration | o da `aula`, numa migration só de criação (a 0041); os outros já começam pelo escopo. O teste que mede o que a 0040 mudou (`migracao-f2.int.test.ts`) migra só até ela: a 0041 não entra na comparação de colunas dele |
 | Dependência que cai, métrica, carga | seção 5, "Falhas"; nada novo: fora do caminho quente |
 
 ## 8. Uso de IA
