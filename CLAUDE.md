@@ -4,12 +4,11 @@
 > construindo e para quem. Este aqui lista o que já foi decidido (o texto e o porquê estão em
 > `docs/decisoes.md`), para não rediscutirmos a mesma coisa toda semana.
 >
-> **O produto se chama Turmma** (D54). A marca, a paleta e a landing page existem em
-> `turmma.com`; o registro no INPI e o do domínio seguem pendentes (`TODO.md`). O
-> repositório, os pacotes, o banco, o compose e os comandos continuam `educa`: a renomeação
-> técnica é trabalho próprio e não vale o risco no meio do F1.
-> Repositório: https://github.com/Turmma/turmma (na organização `Turmma` desde 29/10/2026; é **público**. O antigo,
-> `LitzGab/Turmma.ai`, não recebe mais push)
+> **O produto se chama Turmma** (D54). Marca, paleta e landing page existem em `turmma.com`;
+> o registro no INPI e o do domínio seguem pendentes (`TODO.md`). Repositório, pacotes, banco,
+> compose e comandos continuam `educa`: a renomeação técnica é trabalho próprio.
+> Repositório: https://github.com/Turmma/turmma (organização `Turmma`; é **público**). O antigo,
+> `LitzGab/Turmma.ai`, não recebe mais push.
 
 ---
 
@@ -150,11 +149,9 @@ algo que dependa dela.** Nova decisão ou revisão entra lá e aqui, pela skill 
 
 ## Conflitos já resolvidos e decisões em aberto
 
-**Conflitos já resolvidos** (login do aluno, notificação à família, importação por planilha, scraper,
-discursiva e redação, nome do produto, tutor e aprovação, fila de jobs, processo de construção, nome de
-peça técnica, nome e lista de agentes, medir o professor, adaptar sem gerar o PEI, MVP, pele, vigiar a
-navegação, escola particular ou rede pública, Chromebook, celular): no topo de `docs/decisoes.md`.
-Cada um já voltou uma vez; leia antes de reabrir o assunto.
+**Conflitos já resolvidos** (login do aluno, discursiva e redação, tutor e aprovação, medir o professor,
+vigiar a navegação, escola particular ou rede pública, MVP, pele e outros): no topo de
+`docs/decisoes.md`. Cada um já voltou uma vez; leia antes de reabrir o assunto.
 
 **Decisões em aberto:** `docs/decisoes-em-aberto.md`, cada uma com dono e momento. Para fechar uma,
 peça ao Orquestrador (`/seguir`).
@@ -169,8 +166,7 @@ e responsivo, do computador fraco de escola (Chromebook como referência) ao cel
 com adaptadores Ollama e OpenAI-compatível. **Testes** Vitest e Playwright. **Infra**
 Docker Compose.
 
-O critério que guiou tudo isso: nada pode impedir que o sistema inteiro suba em um servidor
-no Brasil, se um contrato exigir.
+Critério: nada impede o sistema inteiro de subir em um servidor no Brasil, se um contrato exigir.
 
 ---
 
@@ -195,14 +191,13 @@ no Brasil, se um contrato exigir.
 
 **Para entender o produto:** `docs/visao-produto.md`, `docs/fluxos.md`, `docs/glossario.md`
 **Para entender a interface:** `docs/interface.md`
-**Para consultar a interface desenhada, como referência:** o mockup de outubro, em `mockups/` (origem e versão
-de setembro no `mockups/README.md`). Desde 30/10/2026 ele não é o alvo: vale o `docs/interface.md`, e diferença em
-relação ao mockup não é defeito. **Nada de mockup é copiado** para o `apps/web` nem para os `packages/`, salvo o traço
-da onça, em `apps/web/src/components/ui/onca/`, guardado por teste (D80 e revisões)
+**Para consultar a interface desenhada, só como referência:** o mockup de outubro, em `mockups/` (origem no
+`mockups/README.md`). Desde 30/10/2026 vale o `docs/interface.md`, e diferença em relação ao mockup não é
+defeito. **Nada de mockup é copiado** para o `apps/web` nem para os `packages/`, salvo o traço da onça, em
+`apps/web/src/components/ui/onca/`, guardado por teste (D80 e revisões)
 **Para saber o que a revisão dos mockups mudou e ainda não virou decisão:**
 `docs/pendencias-dos-mockups.md` (31 itens, cada um com tela, API, dado, regra e teste)
-**Para entender o negócio:** `docs/negocio.md`. Não é leitura
-obrigatória para implementar
+**Para entender o negócio:** `docs/negocio.md` (leitura não obrigatória)
 **Para não quebrar a lei:** `docs/lgpd.md`, `docs/regulacao.md`
 **Para responder ao que a escola pergunta na compra:** `docs/conformidade-mec.md` (os dois
 documentos do MEC virados em requisito, o dossiê de conformidade e a AIA)
