@@ -12,6 +12,10 @@ dentro do terminal, reiniciada já apontada para o checkout do andar.
 | `Implementador` | uma tarefa ou correção | `claude --dangerously-skip-permissions --agent implementador --model sonnet --effort high` |
 | `Mesa` | rodadas de revisão | `claude --dangerously-skip-permissions --agent mesa-de-revisao --effort high` |
 | `Validador` | validação | `claude --dangerously-skip-permissions --agent validador --effort high` |
+| `Arquiteto 2` | a retro, ao lado do PRD da spec seguinte (D86, passo 8) | o do `Arquiteto` |
+
+O `Arquiteto 2` é o quinto: recrutado no térreo na primeira retro que corre ao lado de uma spec, fica no lugar dele,
+parado entre uma retro e a próxima.
 
 O papel vem de `.claude/agents/`, **nunca de responsabilidade do Maestri** (`protocolo.md`, item 1). O que o time é, os
 revisores, o hook do commit e a lista das skills estão em `.claude/skills/seguir/time.md`: leia-o ao montar o time.
@@ -36,7 +40,7 @@ maestri check "<Terminal>"
 checkout certo, sem `.maestri/roles`. Terminal apontado para o lugar errado editaria o checkout
 errado; fora da raiz, nenhum hook dispara. Se o cabeçalho não bate, reinicie de novo.
 
-Quando reiniciar: o `Implementador` e a `Mesa`, a cada tarefa e a cada correção ; o `Arquiteto`, a cada pedido; o `Validador`, **sempre** antes
+Quando reiniciar: o `Implementador` e a `Mesa`, a cada tarefa e a cada correção ; o `Arquiteto` e o `Arquiteto 2`, a cada pedido; o `Validador`, **sempre** antes
 de validar ou revalidar, porque ele precisa chegar sem nada da rodada anterior. Terminal que não é
 da fase fica parado, e não gasta nada.
 

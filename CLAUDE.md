@@ -145,6 +145,7 @@ algo que dependa dela.** Nova decisão ou revisão entra lá e aqui, pela skill 
 | D83 | A prova no papel é a F6b: folha lida por foto, sem IA, versões escolhidas pelo professor |
 | D84 | A fatia do piloto: professor, coordenação e família, com o Tutor pronto e liberado por escola |
 | D85 | O arquivo do titular traz os atos sobre ele, sem o autor |
+| D86 | Retro em paralelo e curta |
 
 ## Conflitos já resolvidos e decisões em aberto
 
@@ -199,7 +200,7 @@ relação ao mockup não é defeito. **Nada de mockup é copiado** para o `apps/
 da onça, em `apps/web/src/components/ui/onca/`, guardado por teste (D80 e revisões)
 **Para saber o que a revisão dos mockups mudou e ainda não virou decisão:**
 `docs/pendencias-dos-mockups.md` (31 itens, cada um com tela, API, dado, regra e teste)
-**Para entender o negócio:** `docs/negocio.md` (mercado, preço, concorrência). Não é leitura
+**Para entender o negócio:** `docs/negocio.md`. Não é leitura
 obrigatória para implementar
 **Para não quebrar a lei:** `docs/lgpd.md`, `docs/regulacao.md`
 **Para responder ao que a escola pergunta na compra:** `docs/conformidade-mec.md` (os dois

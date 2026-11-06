@@ -2777,3 +2777,8 @@ repetem aqui.
       escrita antes da D85, ganha as quatro ações da F2 (`aluno.transferido`, `lista.transferida`, `usuario.nome_corrigido`,
       `lista.nome_corrigido`), o caminho de cada uma até o titular (`lista_nome` só depois de aprovado o nome) e o caso em
       `apps/api/test/arquivo-do-titular.int.test.ts` que prova o papel sem o id de quem fez. Dono: Arquiteto, na conferência da F2c
+- [ ] (F2, retro, D86) **O `estado.ts` mostra a retro pendente ao lado da spec da vez.** Hoje, sem andar, `funcionalidadeDaVez`
+      põe a concluída sem `retro.md` antes da primeira pendente, e o Orquestrador abre a seguinte pelo nome (passo 8, "A retro").
+      Correção: a pendente vem antes, e o relatório ganha a linha `Retro pendente: <funcionalidade>`; na fase `sem-tarefas` com a
+      retro pendente na árvore, o próximo passo diz "trazer a develop com a retro antes do criar-tasks". Casos novos em
+      `tools/processo/estado.test.ts`. Não trava nada: o texto do `/seguir` já cobre. Guardiões: `revisor-geral`, `test-engineer`

@@ -98,7 +98,7 @@ documento, é o arquivo de número N. Por tarefa, bastam este arquivo, o `protoc
 | `validacao-com-ressalvas` | — | parada ou aviso (passo 7) |
 | `validada` | você | fechamento e pedido de pouso (passo 8) |
 | `aguardando-pouso` | — | parada (passo 7) |
-| `sem-retro` | `Arquiteto`, no térreo | `PEDIDO` de retrospectiva; ele apresenta as propostas ao Joaquim no terminal dele |
+| `sem-retro` | `Arquiteto 2`, no térreo | a retro e a próxima spec, juntas (passo 8, "A retro"; D86) |
 | `concluida` | — | diga o que o roadmap libera em seguida |
 
 Enquanto o `Arquiteto` conversa com o Joaquim, você não tem nada a fazer: registre no `estado.md`

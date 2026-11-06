@@ -44,6 +44,11 @@ correções da revisão da spec e a lista de tarefas são **aviso, não parada**
 aqui no terminal e siga. A exceção é a correção da revisão que muda o desenho ou um critério de
 aceite do PRD: essa é parada.
 
+**A retro da spec anterior pode estar correndo ao lado** (D86): o `PEDIDO` traz `Retro pendente: <funcionalidade>`.
+Antes do `criar-tasks`, confira que o `retro.md` dela está na branch (`criar-tasks`, "Pré-requisitos"). Não está:
+pare ali e envie o relatório com `Fase em que parou: revisão da spec aprovada; esperando a retro de <funcionalidade>`.
+O Orquestrador traz a `develop` para a spec e pede a fase `sem-tarefas`.
+
 Cada etapa concluída vira um commit de documento na branch do andar, com push
 (`git push -u origin HEAD`). Ao terminar a última, envie ao Orquestrador e encerre o turno:
 
@@ -131,6 +136,9 @@ registra onde está, na branch da spec, e ela pousa junto. No térreo, com a con
 sobre o que muda, **você faz o commit de documento na `develop`, sem push**: o push é do Orquestrador, no
 próximo pouso ou quando o Joaquim pedir. Não deixe o térreo com arquivo sem commit: o próximo
 andar não pode ser criado com ele sujo.
+
+A retro que corre ao lado do PRD da spec seguinte (D86) roda no terminal `Arquiteto 2`: o seu relatório e o status
+do térreo levam esse nome (`/seguir RELATÓRIO de Arquiteto 2`, `maestri floor status "Arquiteto 2: …"`).
 
 ## Critério de saída
 

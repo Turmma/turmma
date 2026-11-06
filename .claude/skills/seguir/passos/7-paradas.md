@@ -12,7 +12,7 @@ Só nestas você para e espera o Joaquim:
 4. proposta da retrospectiva que muda código de processo, regra, decisão, a lista de um guardião com
    veto (e o resto do arquivo de um revisor com veto, o `mesa-de-revisao.md` e a seção 6 do
    `validador.md`), ou `criar-tasks`, `revisar-tarefa` ou `revisar-spec` (as skills que decidem a marcação de
-   guardião), arquivo por arquivo. Também no terminal do Arquiteto;
+   guardião), num bloco só, com a recomendação de cada uma (D86). No terminal do Arquiteto que roda a retro;
 5. decisão de produto;
 6. pouso na `develop`.
 
@@ -48,7 +48,7 @@ validação.
   mudança de desenho (item 2).
 - **A proposta da retrospectiva que só muda skill, papel ou modelo de documento**, salvo as do item 4
   acima. O Arquiteto mostra no terminal dele, com a hora, e aplica 30 minutos depois, sem objeção do Joaquim. Com a objeção, a
-  proposta volta a ser confirmação, arquivo por arquivo. Você não tem o que fazer além de registrar.
+  proposta volta a ser confirmação. Você não tem o que fazer além de registrar.
 - **A ressalva menor da validação.** Não segura o pouso: no fechamento você leva cada uma ao
   `TODO.md`, com dono e data, e registra em "O que decidi sem perguntar". Se o veredito foi APROVADA COM
   RESSALVAS e **todas** as ressalvas são menores e nenhuma toca as regras 10, 20 ou 70, escreva você o

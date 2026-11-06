@@ -90,7 +90,7 @@ notifica.
 | Arquiteto | branch do andar | PRD, Tech Spec, revisão da spec e tarefas, um commit por etapa, com push |
 | Arquiteto | `develop`, no térreo | a retrospectiva e a decisão tomada fora de uma spec: commit de documento, **sem push**. Decisão que nasce dentro de uma spec entra na branch dela |
 | Orquestrador | branch do andar | os commits de documento de `passos/4-documentos.md`, com push |
-| Orquestrador | branch do andar | o merge da `develop`, antes do pouso, quando ela andou |
+| Orquestrador | branch do andar | o merge da `develop`: antes do pouso, quando ela andou, e o da retro (D86) |
 | Orquestrador | `develop` | o pouso e o push, só com a palavra do Joaquim |
 
 **O arquivo existe antes do comando do commit.** O hook lê a árvore antes de o comando rodar: não

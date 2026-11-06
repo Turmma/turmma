@@ -70,4 +70,19 @@ que roda `node tools/renomear/reaplicar.ts` e, quando existirem (são da tarefa 
 `node tools/renomear/restos.ts`; o commit dela diz que veio do merge. Sem a correção, o nome antigo pousa na `develop` junto com a spec.
 
 Esteira da `develop` vermelha depois do pouso: correção em andar próprio (`correcao/<slug>`).
-Verde: peça a retrospectiva ao `Arquiteto` e notifique o fim.
+Verde: notifique o fim e siga para a retrospectiva e a próxima spec, juntas (abaixo).
+
+**A retro, ao lado da próxima spec** (D86). A retro não trava a spec seguinte: só precisa estar pronta antes do
+`criar-tasks` dela. Na ordem:
+
+1. Abra a próxima spec, a primeira pendente do `ROADMAP.md` (`node tools/processo/estado.ts <nome>`; sem o nome, o
+   script devolve a concluída em `sem-retro`): o andar (passo 3) e o `PEDIDO` ao `Arquiteto` com a fase de partida,
+   mais a linha `Retro pendente: <funcionalidade que pousou>`.
+2. Com o andar criado e o térreo limpo, reinicie o `Arquiteto 2` no térreo (passo 3) e peça a retrospectiva. Quem
+   conversa com o Joaquim sobre ela é ele, no terminal dele.
+3. Com o `RELATÓRIO` da retro e o commit dela na `develop`, traga a `develop` para a spec:
+   `git -C <andar> merge develop` e o push, com `git -C <andar> status --short` vazio. Com o andar sujo (o `Arquiteto`
+   no meio de uma etapa), o merge espera o próximo `RELATÓRIO` dele. Se `git -C <andar> diff --name-only HEAD...develop` só
+   lista `.md` fora de `docs/runbook.md`, o merge não leva código e dispensa a correção do `reaplicar` (acima).
+4. O `Arquiteto` da spec para antes do `criar-tasks` enquanto o `retro.md` não está na branch, e diz isso no `RELATÓRIO`.
+   Feito o merge, peça a ele a fase `sem-tarefas`.

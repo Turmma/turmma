@@ -196,8 +196,9 @@ Implementador (Sonnet) e Mesa de revisão (Sonnet)
 Validador (Opus), isolado de quem implementou
     validar          a funcionalidade inteira contra o PRD, RF a RF → validacao.md
 
-Depois do pouso
-    retro            mede rodadas e reprovações, por revisor e por modelo, e propõe ajustes
+Depois do pouso, ao lado do PRD da spec seguinte (D86)
+    retro            mede rodadas e reprovações, por revisor e por modelo, e propõe ajustes;
+                     curta, sem propostas, quando a spec foi bem
 
 Orquestrador (Opus), enquanto o time trabalha
     vigia            a cada 30 minutos, confere se alguém está preso, sumiu ou espera resposta
@@ -207,7 +208,7 @@ Cada spec vive num **andar** do Maestri, com a branch `spec/<funcionalidade>`, e
 `develop` por pouso, com a sua palavra. As tarefas correm em **linhas**, cada uma num andar próprio:
 as que o Arquiteto autorizou em paralelo, até três ao mesmo tempo, e as outras uma por vez (D79). A
 esteira roda em todo push da branch. O Orquestrador para em seis decisões: aprovação do PRD; mudança
-de desenho ou de critério de aceite; ressalva da validação; propostas da retrospectiva; decisão de
+de desenho ou de critério de aceite; ressalva da validação; propostas da retrospectiva, num bloco só; decisão de
 produto; e o pouso. A Tech Spec e a lista de tarefas são aviso: a construção começa 30 minutos
 depois da lista, sem objeção sua. O que espera você aparece no terminal do Orquestrador, com o andar marcado como bloqueado.
 

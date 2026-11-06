@@ -13,12 +13,17 @@ tarefa seguinte aprender com a anterior. Cada reprovação evitada é uma rodada
 revisores a menos.
 
 <critical>Proponha, não aplique. Mudança em código de processo, regra, decisão, na lista de um guardião com
-veto ou em `criar-tasks`, `revisar-tarefa` e `revisar-spec` só com confirmação do usuário, arquivo por
-arquivo. A que muda só skill, papel ou modelo de documento é aviso (seção 5).</critical>
+veto ou em `criar-tasks`, `revisar-tarefa` e `revisar-spec` só com confirmação do usuário, num bloco só
+com a recomendação de cada uma. A que muda só skill, papel ou modelo de documento é aviso (seção 5).</critical>
 <critical>Regra 10, 20 e 70 não são afrouxadas por retrospectiva. Se o achado é "o guardião é
 rigoroso demais", a proposta é deixar o requisito mais claro para quem implementa, não tirá-lo.</critical>
 
 Funcionalidade: `$ARGUMENTS`
+
+**Você corre ao lado da spec seguinte** (D86). A retro roda no térreo, no terminal `Arquiteto 2`, enquanto o
+`Arquiteto` escreve o PRD da próxima spec no andar dela. Ela não espera você até o `criar-tasks`, que lê o seu
+`retro.md`: o Arquiteto de lá para antes dele até o seu commit chegar à branch da spec (o Orquestrador faz o merge).
+Ao perguntar, o status do térreo leva o nome do seu terminal: `maestri floor status "Arquiteto 2: <a pergunta>" --state blocked`.
 
 ## 1. Ler
 
@@ -66,6 +71,12 @@ caso de borda que o revisor cobrou", "Tech Spec não dizia o índice". Para cada
 
 ## 4. Propor
 
+**Curta ou completa** (D86). A retro é **curta** quando a spec foi bem: a taxa de reprovação da seção 2 ficou abaixo
+da retro anterior **e** nenhum grupo da seção 3 tem duas ou mais ocorrências. Aí você só mede e registra: pula o resto
+desta seção e a seção 5, sem proposta e sem pergunta, e salva (seção 6) com a linha
+`**Retro curta** (D86): <taxa de agora> contra <taxa da anterior>, nenhuma causa repetida`. Sem retro anterior, ou
+com uma das duas condições falhando, ela é **completa**: siga daqui.
+
 Uma proposta por grupo com duas ou mais ocorrências, no formato:
 
 ```
@@ -96,8 +107,13 @@ Separe as propostas em dois grupos (D79, revista em 23/10/2026):
   veto, o `mesa-de-revisao.md` e a seção 6 do `validador.md` (os revisores com veto são os de `REVISORES_COM_VETO`, em
   `tools/processo/documento-de-revisao.ts`: `tenancy-guardian`, `privacy-guardian`,
   `conformidade-reviewer`, `infra-guardian`, `test-engineer` e `revisor-geral`) e as skills que decidem a marcação de
-  guardião (`criar-tasks`, `revisar-tarefa`, `revisar-spec`). Mostre e pergunte quais aplicar, arquivo
-  por arquivo; aplique só as aceitas.
+  guardião (`criar-tasks`, `revisar-tarefa`, `revisar-spec`). Pergunte uma vez só (D86).
+
+**O bloco.** Uma mensagem, no terminal, com todas as propostas numeradas: primeiro os avisos, com a hora; depois as
+confirmações, cada uma com o arquivo, a mudança e a sua recomendação (aplicar ou não, e por quê). O Joaquim responde
+"aprovo", que vale a recomendação de cada uma, ou os números que recusa ou muda. Aplique só as aceitas. A confirmação de
+regra e de guardião com veto não muda: quem aplica é a palavra dele, e o "aprovo" sobre o bloco, com a recomendação
+de cada uma escrita, é essa palavra.
 
 Proposta que afrouxa a regra 10, a 20 ou a 70 não existe (aviso crítico acima). Na dúvida de qual grupo,
 é confirmação.
@@ -108,13 +124,13 @@ Proposta que afrouxa a regra 10, a 20 ou a 70 não existe (aviso crítico acima)
 recusado (com o motivo), marcando as que foram aviso. O `criar-tasks` da próxima funcionalidade lê esse arquivo.
 
 Commit na `develop`, no térreo, depois do pouso da funcionalidade (D78), sem push (o push é do
-Orquestrador): `Faz a retrospectiva de <funcionalidade> e ajusta o processo`,
+Orquestrador), e antes de a spec seguinte chegar ao `criar-tasks` (D86): `Faz a retrospectiva de <funcionalidade> e ajusta o processo`,
 só com `retro.md` e os arquivos de processo alterados.
 
 ## 7. Relatório
 
 ```
-Retro — <funcionalidade>
+Retro — <funcionalidade> (curta | completa)
 
 Reprovações: <n de n rodadas (%)> · antes: <% da retro anterior ou "primeira">
 Maior causa: <grupo, n ocorrências>

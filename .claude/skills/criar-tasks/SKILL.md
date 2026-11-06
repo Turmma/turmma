@@ -26,7 +26,12 @@ skill `revisar-spec`: erro na Tech Spec contamina todas as tarefas, e é o momen
 mais barato de achá-lo.
 
 Leia também o `achados/indice.md` e o `retro.md` das funcionalidades anteriores, se existirem: o
-que os revisores exigiram lá vira cenário de teste ou subtarefa aqui. O índice é uma linha por
+que os revisores exigiram lá vira cenário de teste ou subtarefa aqui. A retro da anterior corre ao lado desta spec
+(D86) e precisa estar na branch: este comando não lista nada quando está. Listou: pare e avise o Orquestrador.
+
+```bash
+for d in tasks/prd-*/; do [ "$d" != "tasks/prd-$ARGUMENTS/" ] && [ -f "$d/estado.md" ] && [ ! -f "$d/retro.md" ] && echo "$d"; done
+``` O índice é uma linha por
 rodada; abra o bloco inteiro só das que interessam a esta funcionalidade.
 
 ## O que é uma boa tarefa
