@@ -1004,3 +1004,31 @@ export type {
   TipoDeEventoDoCalendario,
   TipoDePlanilha,
 } from './importacao/contratos.js'
+export {
+  ESTADOS_DE_ITEM_DO_DIA,
+  ROTULOS_DA_SEMANA,
+  TAMANHO_MAXIMO_DO_TEXTO_DA_AULA,
+  TIPOS_DE_ITEM_DO_DIA,
+  aulaDaSemanaSchema,
+  diaDaSemanaSchema,
+  ehSegundaFeira,
+  eventoDoDiaSchema,
+  gravarAulaRequestSchema,
+  gravarAulaResponseSchema,
+  itemDoDiaSchema,
+  rotuloDoItem,
+  semanaQuerySchema,
+  semanaResponseSchema,
+} from './semana/semana.js'
+export type {
+  AulaDaSemana,
+  DiaDaSemana,
+  EstadoDeItemDoDia,
+  EventoDoDia,
+  GravarAulaRequest,
+  GravarAulaResponse,
+  ItemDoDia,
+  SemanaQuery,
+  SemanaResponse,
+  TipoDeItemDoDia,
+} from './semana/semana.js'

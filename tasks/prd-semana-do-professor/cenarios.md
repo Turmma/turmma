@@ -22,6 +22,7 @@ numa tarefa do `tasks.md`. I = integração com Postgres real e relógio injetad
 - **S14** [U] Montagem dos dias: feriado, recesso, evento, fora do ano, fora da grade passado (aparece), de hoje e futuro (não); "Falta preencher" na aula de hoje e futura sem texto, nenhum selo na passada; "O que vou dar" até o dia, "O que foi dado" depois
 - **S16** [I] Aula dupla (duas alocações seguidas do mesmo vínculo no dia): o `GET` traz cada aula com o próprio texto, e o `PUT` numa não altera a outra
 - **S15** [U] Rótulos em português dos tipos e estados dos itens, numa tabela só, e as datas no formato local
+- **S17** [I] `gradeImportada` e `calendarioImportado` são da escola e do ano em curso, e não da professora: a professora sem aula, numa escola com grade, vê `true` e a semana vazia; a escola sem grade nem calendário, com a B completa, vê `false` nos dois
 - [I] `EXPLAIN` da consulta dos itens usa `atividade_aplicada_turma_idx` e `entrega_turma_idx`
 
 ## Gravação (RF5, RF10, RF11, RF15)

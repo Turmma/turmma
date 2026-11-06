@@ -2782,3 +2782,20 @@ repetem aqui.
       Correção: a pendente vem antes, e o relatório ganha a linha `Retro pendente: <funcionalidade>`; na fase `sem-tarefas` com a
       retro pendente na árvore, o próximo passo diz "trazer a develop com a retro antes do criar-tasks". Casos novos em
       `tools/processo/estado.test.ts`. Não trava nada: o texto do `/seguir` já cobre. Guardiões: `revisor-geral`, `test-engineer`
+
+## Da semana-do-professor, tarefa 2.0 (`GET /v1/semana`), fora dela
+
+- [ ] (semana-do-professor, 2.0, infra-guardian, 1ª e 2ª) **A rota da Semana entra no cenário de carga das 7h30.** `GET /v1/semana` como passo do
+      professor em `infra/scripts/carga-login.ts` (ou no cenário `rajada`), medido no k6 antes de a tela da 6.0 entrar: o professor abre a Semana
+      na manhã de segunda, junto com a rajada de login, e o limite da espera do pool é de 100 ms (R40). A rota roda as cinco consultas em sequência,
+      uma conexão por vez. Dono: a tarefa 6.0 (a tela que chama a rota)
+- [ ] (semana-do-professor, 2.0, infra-guardian, 1ª) **Índice `(escola_id, ano_letivo_id, vinculo_id)` na `alocacao`, só se o `EXPLAIN` pedir.**
+      `SemanaRepository.alocacoesDosVinculos` filtra `vinculo_id` em cima do `alocacao_ano_idx (escola_id, ano_letivo_id)`. Se o `EXPLAIN` no
+      staging, com a grade de uma escola grande, mostrar varredura da escola toda, o índice novo resolve (migration só de criação, regra 80,
+      item 9). O `EXPLAIN` ainda não existe: o staging não tem a grade
+- [ ] (semana-do-professor, 2.0, revisor-geral, 1ª) **Uma só função para o `HH:MM:SS` → `HH:MM` do `time` do Postgres.** O `horario = (valor) =>
+      valor.slice(0, 5)` existe em `grade.repository.ts`, `alocacao.repository.ts` e `semana.repository.ts`: uma função comum no `core`, com nome que
+      não colida com o `horario` de `packages/shared/src/semana/semana.ts`. Mexe em dois arquivos que a 2.0 não toca
+- [ ] (semana-do-professor, 2.0, revisor-geral, 1ª) **`horaDeUso` ao lado do `diaDeUso`.** O `horaDeUso` de `apps/api/src/semana/semana.service.ts`
+      (o `HH:MM` de Brasília) faz par com o `diaDeUso` de `packages/core/src/usage/usage-day.ts`; mover para lá, junto com o item anterior. Mexe no
+      `usage-day.ts`, que a 2.0 não toca

@@ -112,6 +112,13 @@ planilha de alunos achar a turma que já existe.
 **Aula** — O registro do que o professor vai dar, ou deu, numa aula da grade numa data: só o texto, ligado ao vínculo, ao dia e ao
 horário, sem apontar para a alocação (reimportar a grade não o apaga). Só o professor o lê, e ele sai na virada do ano.
 
+**Semana (do professor)** — As aulas do professor numa semana, de segunda a domingo, calculadas na leitura (`GET /v1/semana`): as
+alocações dos vínculos confirmados dele no ano em curso, menos feriado e recesso, com o texto da aula de cada uma. Só os dias do ano
+letivo entram, e sábado e domingo só quando a grade tem aula neles ou há registro passado fora da grade. Sem ano em curso, não há semana.
+
+**Fora da grade** — A aula passada que a professora registrou e que já não está na grade (a reimportação a tirou, ou mudou o horário e
+o texto ficou). Aparece no dia dela com o texto; a de hoje ou futura sem alocação não aparece.
+
 **Fonte de material** — De onde o conteúdo vem: um adaptador de scraper ou upload manual.
 Toda fonte tem autorização escrita da escola registrada e declara a titularidade do
 material; material de terceiro só entra com licença do dono (D5 revista).

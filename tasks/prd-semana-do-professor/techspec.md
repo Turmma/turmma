@@ -59,6 +59,10 @@ de um dos vínculos, aplicada ou encerrada na semana, e a `entrega` `lote_de_cor
 estado de hoje. O service monta os dias: fora do ano, nada; dia de `feriado` ou `recesso`, nenhuma aula; senão, uma aula
 por alocação do dia da semana, com o registro de mesmo (vínculo, data, início), mais os registros **passados** sem
 alocação, `foraDaGrade`. Registro futuro sem alocação é ignorado. Data e hora em `FUSO_DO_USO`.
+`hoje` é `AAAA-MM-DD` e `agora` é `HH:MM`, ambos de Brasília; "passado" é data menor que `hoje`. `dias` traz só os dias que caem no ano em curso:
+de segunda a sexta sempre, e sábado e domingo só quando a grade tem alocação neles (ou há registro passado fora da grade), contada antes de o feriado
+tirá-la. `gradeImportada` é "a escola tem alguma alocação no ano em curso" e `calendarioImportado`, "a escola tem algum evento no ano em curso": são da
+escola, e não da professora (uma professora sem aula, numa escola com grade, vê `true` e a semana vazia). Sem ano em curso, os dois são `false`.
 
 **Gravar** (uma transação, `lock_timeout` de 2 s), nesta ordem, que é a do job: (1) `travarAnoEmCurso()` (`for share`;
 ordena com a virada); (2) o vínculo é dela, `confirmado`, da escola e do ano do contexto, lido sem trava de linha (nunca `VinculoRepository.travar`); (3) só então a **trava do

@@ -38,6 +38,7 @@ import { PrivacidadeModule } from './privacidade/privacidade.module.js'
 import { ProfessoresModule } from './professores/professores.module.js'
 import type { SorteioDoCodigo } from './sala/codigo-da-sala.js'
 import { SalaModule } from './sala/sala.module.js'
+import { SemanaModule } from './semana/semana.module.js'
 import { SessaoModule } from './sessao/index.js'
 import { ReadinessController } from './system/readiness.controller.js'
 import { SystemModule } from './system/system.module.js'
@@ -62,6 +63,8 @@ export interface AppModuleOptions {
   readonly armazemDeArquivos?: FileStorage
   /** O relógio do arquivo do titular (validade de 7 dias e da URL), que o teste injeta. Nunca vem do ambiente. */
   readonly relogioDaPrivacidade?: Clock
+  /** O relógio da Semana do professor (`hoje` e `agora` no fuso da escola), que o teste injeta. Nunca vem do ambiente. */
+  readonly relogioDaSemana?: Clock
 }
 
 @Module({})
@@ -91,6 +94,7 @@ export class AppModule {
           ...(opcoes.prazoDoRedisDeLoginMs === undefined ? {} : { prazoDoRedisMs: opcoes.prazoDoRedisDeLoginMs }),
         }),
         EstruturaModule,
+        SemanaModule.forRoot(opcoes.relogioDaSemana === undefined ? {} : { relogio: opcoes.relogioDaSemana }),
         ProfessoresModule,
         MaterialModule.forRoot(opcoes.logger ?? createLogger({ servico: 'api' })),
         IaModule.forRoot({ config: config.ia, ...(opcoes.logger === undefined ? {} : { logger: opcoes.logger }) }),

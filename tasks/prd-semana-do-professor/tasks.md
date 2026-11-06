@@ -12,7 +12,7 @@
   - [ ] 1.4 `docs/lgpd.md` e `docs/modelo-de-dados.md`
   - [ ] 1.5 Testes: checks, FK e cascata; R5, R6; o `virarAno` do S7 e o isolamento dele
 
-- [ ] **2.0 — A professora vê a semana dela (`GET /v1/semana`)**
+- [x] **2.0 — A professora vê a semana dela (`GET /v1/semana`)**
   - [ ] 2.1 Contrato das duas rotas em `packages/shared`, com o limite de 500 e os rótulos dos itens
   - [ ] 2.2 `SemanaRepository` (vínculos, alocações, eventos, registros) e a montagem dos dias
   - [ ] 2.3 Controller, service e módulo; `itens` vazio até a 3.0
