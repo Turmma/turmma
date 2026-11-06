@@ -1,13 +1,14 @@
 # Estado da execução — semana-do-professor
 
 ## Agora
-- **Espero:** linha 1: o `RELATÓRIO` da 1.0 (porte grande, 1ª tentativa, pedida em 06/11 14:15), retomada em 06/11 ~14:50 para repetir o portão depois da correção `base-fixa-acima-do-limite` (`8ca3d1da`, na linha, segue com o commit da tarefa)
-- **Devo ainda:** nada. A retro da F2 já está na `develop` (`8a92ef06`) e veio na base desta branch
-- **Base:** `spec/semana-do-professor` em `b9b05fec`
+- **Espero:** linha 1: o `RELATÓRIO` da 2.0 (porte grande, 1ª tentativa), pedida em 06/11 ~15:25
+- **Devo ainda:** no fechamento, escrever no `TODO.md` os quatro destinos da ordem r1 da 1.0 que ninguém escreveu (`.processo/ordens/1_task-r2.md` da linha 1): volume do `delete` no encerramento do ano (Infra e operação), reserva do expurgo da `aula` (LGPD e conformidade), rótulo "Registro da aula" em `Retencao.tsx` (para o Validador), S7 do `cenarios.md` (para a retro). A esteira vermelha em `b9b05fe` é a base fixa, já corrigida em `8ca3d1da`
+- **Base:** `spec/semana-do-professor` em `63fc7f1d`
 
 ## Concluídas
 | Tarefa | Commit | Modelo | Rodadas | Observação |
 |---|---|---|---|---|
+| 1.0 | `7732c208` | Sonnet 5.5 | 2 | antes, a correção `base-fixa-acima-do-limite` (`8ca3d1da`) por `DIVERGÊNCIA` de portão |
 
 ## Esperando o Joaquim
 ## O que falhou
