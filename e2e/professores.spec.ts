@@ -1,7 +1,7 @@
 import type { APIRequestContext, Browser, BrowserContextOptions, Locator, Page, Request, Route } from '@playwright/test'
 import { AVISO_DO_CONVITE_COM_SENHA_NOVA, MENSAGENS_DE_ERRO, mensagemDoConvite } from '../packages/shared/src/errors/messages.ts'
 import type { ConviteDeProfessorResponse } from '../packages/shared/src/professores/professores.ts'
-import { abrirNavegacao, entrarComoCoordenacaoNaMesmaAba, entrarPelaTelaComSegundoFator, abrirEstrutura, irPelaNavegacao, lateral, SIGN_IN_TIMEOUT_MS, passarPelaIntroducaoDoProfessor, secoes } from './support/casca.ts'
+import { abrirNavegacao, entrarComoCoordenacaoNaMesmaAba, entrarPelaTelaComSegundoFator, abrirEstrutura, esperarEstrutura, irPelaNavegacao, lateral, recarregarSemMedirAPrimeiraCarga, SIGN_IN_TIMEOUT_MS, passarPelaIntroducaoDoProfessor, secoes } from './support/casca.ts'
 import { abrirOQueFalta, irPelaCoordenacao, linhasDaTabela, paginaNaoRola } from './support/coordenacao.ts'
 import { abrirPelaApiSemMedirAPrimeiraCarga, configurarSegundoFatorPelaApi } from './support/mfa.ts'
 import { expect, test } from './support/profiles.ts'
@@ -247,32 +247,27 @@ function vigiarAba(page: Page) {
 }
 
 test.describe('W4 (Professores): os quatro estados', () => {
-  test('carregando; o vazio "Nenhum professor ainda" com o Cadastrar; o erro com "Tentar de novo"; e com dado, pelo nome, o estado de cada convite e só as ações que ele permite', async ({
+  // Dividido em três casos só pelo prazo (a entrada pela tela com o segundo fator, duas recargas e o cadastro, sob a rede e a CPU do
+  // perfil: 60 e 62 s de 90 na esteira `42210626815`): o carregando, o vazio e o erro com a lista vazia; o erro com dado e o estado
+  // de cada convite; e o refazer, o revogar com erro e a lista que não acaba. As asserções são as de antes. Todos entram pela API (a
+  // entrada pela tela tem os casos dela, em `mfa.spec.ts` e `casca.spec.ts`) e recarregam sem a rede do perfil
+  // (`recarregarSemMedirAPrimeiraCarga`); os dois últimos semeiam no banco o professor que o primeiro cadastra pela tela.
+  test('carregando; o vazio "Nenhum professor ainda" com o Cadastrar; o erro com "Tentar de novo" com a lista ainda vazia', async ({
     page,
     hasTouch,
+    request,
   }) => {
-    test.slow()
     const coordenadora = await criarEquipeComSenha('coordenador')
     // A leitura da lista, segurada na primeira vez (o carregando) e depois recusada quando o teste pede (o erro).
     const segurada = gate()
     let falhar = false
-    // E, no fim, a lista que não acaba: cada página com um professor só e a marca de que há outra.
-    let semFim = false
-    let paginasSemFim = 0
     await page.route(ehALista, async (rota: Route) => {
       if (rota.request().method() !== 'GET') return rota.fallback()
       await segurada.aberta
       if (falhar) return rota.fulfill({ status: 503, contentType: 'application/json', body: INDISPONIVEL })
-      if (semFim) {
-        paginasSemFim++
-        const item = { usuarioId: crypto.randomUUID(), nome: `Professor da página ${String(paginasSemFim)}`, estado: 'ativo' }
-        return rota.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ itens: [item], proxima: crypto.randomUUID() }) })
-      }
       return rota.fallback()
     })
-    await page.goto('/entrar')
-    await entrarComoCoordenacaoNaMesmaAba(page, coordenadora, hasTouch)
-    await abrirEstrutura(page, hasTouch)
+    await abrirPelaApiSemMedirAPrimeiraCarga(page, request, coordenadora, '/coordenacao/estrutura', () => esperarEstrutura(page))
 
     // W2: o item da lateral leva à tela, com o título dela na aba e as pistas do selecionado.
     await irPelaCoordenacao(page, 'Professores', hasTouch)
@@ -320,15 +315,33 @@ test.describe('W4 (Professores): os quatro estados', () => {
     await activate(principal(page).getByRole('button', { name: 'Tentar de novo' }), hasTouch)
     await expect(linhaDe(page, primeira)).toContainText(TEXTO_DO_ESTADO.pendente, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(principal(page).getByRole('alert')).toHaveCount(0)
+  })
 
+  test('o erro com "Tentar de novo" traz a lista; com dado, pelo nome, o estado de cada convite e só as ações que ele permite', async ({
+    page,
+    hasTouch,
+    request,
+  }) => {
+    const coordenadora = await criarEquipeComSenha('coordenador')
+    // A leitura da lista, recusada quando o teste pede (o erro).
+    let falhar = false
+    await page.route(ehALista, async (rota: Route) => {
+      if (rota.request().method() !== 'GET') return rota.fallback()
+      if (falhar) return rota.fulfill({ status: 503, contentType: 'application/json', body: INDISPONIVEL })
+      return rota.fallback()
+    })
+    // A Yara do primeiro cadastro, que o caso anterior faz pela tela, aqui já cadastrada.
+    const { nome: primeira } = await convidarProfessorNoBanco(coordenadora.escolaId, 'pendente', 'Yara do primeiro cadastro')
     // Erro: a leitura cai, a tela diz o que fazer, e "Tentar de novo" traz a lista. Um professor em cada estado do
     // convite, criados fora da ordem do nome.
     const nomes: Readonly<Record<EstadoDoProfessorDeTeste, string>> = { pendente: 'Zuleica', vencido: 'Bia', revogado: 'Caio', aceito: 'Ana', ativo: 'Érica', desativado: 'Davi' }
     const professores = {} as Record<EstadoDoProfessorDeTeste, ProfessorDeTeste>
     for (const estado of Object.keys(nomes) as EstadoDoProfessorDeTeste[]) professores[estado] = await convidarProfessorNoBanco(coordenadora.escolaId, estado, nomes[estado])
+    await abrirPelaApiSemMedirAPrimeiraCarga(page, request, coordenadora, '/coordenacao/professores', () => expect(linhasDaLista(page)).toHaveCount(7, { timeout: SIGN_IN_TIMEOUT_MS }))
     falhar = true
-    await page.reload()
-    await expect(principal(page).getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: SIGN_IN_TIMEOUT_MS })
+    await recarregarSemMedirAPrimeiraCarga(page, () =>
+      expect(principal(page).getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: SIGN_IN_TIMEOUT_MS }),
+    )
     await expect(linhasDaLista(page)).toHaveCount(0)
     await expect(principal(page).getByText('Nenhum professor ainda')).toHaveCount(0)
     expect(await seriousViolations(page)).toEqual([])
@@ -353,6 +366,7 @@ test.describe('W4 (Professores): os quatro estados', () => {
       await fecharPainel(page, hasTouch)
     }
     // Com dado, o Cadastrar fica no topo da lista, um só.
+    const cadastrar = principal(page).getByRole('button', { name: 'Cadastrar professor' })
     await expect(cadastrar).toHaveCount(1)
     await alvoDeToque(cadastrar, 'Cadastrar professor')
     // A lista não mostra o e-mail de ninguém (E11).
@@ -362,6 +376,35 @@ test.describe('W4 (Professores): os quatro estados', () => {
     // A página não rola a partir de 768 px: só o miolo da moldura (RF23). A tabela com sete linhas e o painel por cima não a fazem crescer.
     await paginaNaoRola(page)
     expect(await seriousViolations(page)).toEqual([])
+  })
+
+  test('o convite vencido se refaz pelo painel; o erro depois de revogar mantém a lista; e a lista que não acaba para no teto', async ({
+    page,
+    hasTouch,
+    request,
+  }) => {
+    const coordenadora = await criarEquipeComSenha('coordenador')
+    // A leitura da lista, recusada quando o teste pede (o erro) e, no fim, a que não acaba: cada página com um professor só e a marca
+    // de que há outra.
+    let falhar = false
+    let semFim = false
+    let paginasSemFim = 0
+    await page.route(ehALista, async (rota: Route) => {
+      if (rota.request().method() !== 'GET') return rota.fallback()
+      if (falhar) return rota.fulfill({ status: 503, contentType: 'application/json', body: INDISPONIVEL })
+      if (semFim) {
+        paginasSemFim++
+        const item = { usuarioId: crypto.randomUUID(), nome: `Professor da página ${String(paginasSemFim)}`, estado: 'ativo' }
+        return rota.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ itens: [item], proxima: crypto.randomUUID() }) })
+      }
+      return rota.fallback()
+    })
+    // A lista do caso anterior: a Yara do primeiro cadastro e um professor em cada estado do convite.
+    await convidarProfessorNoBanco(coordenadora.escolaId, 'pendente', 'Yara do primeiro cadastro')
+    const nomes: Readonly<Record<EstadoDoProfessorDeTeste, string>> = { pendente: 'Zuleica', vencido: 'Bia', revogado: 'Caio', aceito: 'Ana', ativo: 'Érica', desativado: 'Davi' }
+    const professores = {} as Record<EstadoDoProfessorDeTeste, ProfessorDeTeste>
+    for (const estado of Object.keys(nomes) as EstadoDoProfessorDeTeste[]) professores[estado] = await convidarProfessorNoBanco(coordenadora.escolaId, estado, nomes[estado])
+    await abrirPelaApiSemMedirAPrimeiraCarga(page, request, coordenadora, '/coordenacao/professores', () => expect(linhasDaLista(page)).toHaveCount(7, { timeout: SIGN_IN_TIMEOUT_MS }))
 
     // O convite vencido se refaz pelo painel: o link novo aparece, e a linha passa a convite em aberto. O painel continua aberto, com a situação nova.
     const daBia = linhaDe(page, professores.vencido.nome)
@@ -400,8 +443,9 @@ test.describe('W4 (Professores): os quatro estados', () => {
     // A lista maior do que a tela lê: toda página diz que há outra, a tela para no teto de dez e avisa que mostra só os
     // primeiros.
     semFim = true
-    await page.reload()
-    await expect(principal(page)).toContainText('A lista é maior do que esta tela mostra: aparecem só os primeiros.', { timeout: SIGN_IN_TIMEOUT_MS })
+    await recarregarSemMedirAPrimeiraCarga(page, () =>
+      expect(principal(page)).toContainText('A lista é maior do que esta tela mostra: aparecem só os primeiros.', { timeout: SIGN_IN_TIMEOUT_MS }),
+    )
     await expect(linhasDaLista(page)).toHaveCount(10)
     expect(paginasSemFim).toBe(10)
   })

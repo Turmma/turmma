@@ -25,7 +25,7 @@ import {
 } from './support/casca.ts'
 import { cliquesAte, irPelaCoordenacao, paginaNaoRola, type TelaDaCoordenacao } from './support/coordenacao.ts'
 import { loadUnthrottled, expect, test } from './support/profiles.ts'
-import { configurarSegundoFatorPelaApi } from './support/mfa.ts'
+import { abrirPelaApiSemMedirAPrimeiraCarga, configurarSegundoFatorPelaApi } from './support/mfa.ts'
 import { colocarAlunoNaTurma, criarAlocacaoDoProfessor, criarAlunoComMatricula, criarEquipeComSenha, criarUsuarioEmOutraEscola, type EquipeDeTeste } from './support/seed.ts'
 import { rawCodePattern, horizontalOverflow, seriousViolations } from './support/checks.ts'
 
@@ -275,10 +275,11 @@ test.describe('W2: a navegação de cada papel e a guarda de papel', () => {
 
   // Separado dos casos acima só pelo prazo: as cinco entradas de página por `page.goto`, no perfil de rede lenta e com o
   // servidor do e2e sem compressão nem cache, passavam dos 30 s juntas (esteira `37245636814`). As asserções são as
-  // mesmas de antes; cada teste começa da entrada da professora.
+  // mesmas de antes; cada teste começa da entrada da professora, que agora é pela API (a entrada pela tela tem os casos dela, em `entrar.spec.ts`).
   test('o endereço que não existe na área do professor responde igual ao de outro papel, e "página inicial" volta ao Início', async ({ page, hasTouch }) => {
     const pedidos = registrarChunks(page)
-    const professora = await entrarComoProfessora(page, hasTouch)
+    // Entra pela API: o assunto vem depois da entrada, que tem os casos dela (`entrar.spec.ts`).
+    const professora = await entrarComoProfessoraPelaApi(page)
 
     // Um endereço que não existe dentro da própria área responde igual: a tela não confirma o que é de outro papel.
     await page.goto('/professor/qualquer')
@@ -488,13 +489,16 @@ test.describe('W5: a fronteira do import() de cada área', () => {
     await expect(page).toHaveTitle('Turmma')
   })
 
-  test('a área da coordenação que não chega mostra a mesma fronteira, e a nova tentativa carrega', async ({ page, hasTouch }) => {
+  test('a área da coordenação que não chega mostra a mesma fronteira, e a nova tentativa carrega', async ({ page, hasTouch, request }) => {
     const coordenadora = await criarEquipeComSenha('coordenador')
-    // A coordenação abre no Painel (X2): a área é pedida já na entrada, e é ali que ela não chega.
+    // A coordenação abre no Painel (X2): a área é pedida já na entrada, e é ali que ela não chega. A entrada é pela API, com o segundo
+    // fator já configurado, e a primeira carga (o endereço da raiz, que leva ao Painel) sem a rede do perfil: o assunto é a falha da
+    // área, e a entrada pela tela tem os casos dela (`mfa.spec.ts`).
     const abortar = (rota: Route) => rota.abort('internetdisconnected')
     await page.route(CHUNK_DA_COORDENACAO, abortar)
-    await page.goto('/entrar')
-    await entrarComoCoordenacaoNaMesmaAba(page, coordenadora, hasTouch)
+    await abrirPelaApiSemMedirAPrimeiraCarga(page, request, coordenadora, '/', () =>
+      expect(page).toHaveURL(/\/coordenacao\/painel$/, { timeout: SIGN_IN_TIMEOUT_MS }),
+    )
     await expect(page.getByRole('alert')).toContainText('Confira a conexão e tente de novo', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page).toHaveTitle('Não foi possível carregar · Turmma')
     await expect(page.getByRole('heading', { name: TITULO_DA_FALHA })).toBeFocused()
