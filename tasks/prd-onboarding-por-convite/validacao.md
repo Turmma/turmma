@@ -1,5 +1,134 @@
 # Validação — onboarding-por-convite (F2, "A escola inteira entra de uma vez")
 
+## Rodada 3 — 06/11/2026 (revalidação)
+
+**Escopo:** funcionalidade completa
+**Commit validado:** `205cb0f1`
+**Veredito: APROVADA**
+
+O que mudou desde a rodada 2 (`d53ee9ac..205cb0f1`), lido por inteiro: duas correções e dois commits de estado. **Nenhum código de
+produção mudou**, e nada mudou em `apps/web`, `e2e/` nem `docs/` (`git diff --stat d53ee9ac..205cb0f1 -- apps/web e2e docs` vazio).
+
+- `41bb4136` (correção `2026-11-06-slots-vaga-sem-depender-do-relogio`): só `apps/despachante/test/slots.int.test.ts`. O caso "job publicado e
+  parado na fila … segura a vaga além da validade" deixa a parede de 1 s: escreve no ZSET a vaga a 5 s de vencer, chama `rodada()` à mão e
+  confere o vencimento contra o `TIME` do Redis (`:356-381`). A segunda metade usa a validade padrão, e o prazo da B sobe de 3 s para 10 s. A
+  regra "a B começa sem esperar a pilha da A" continua provada em `:189`.
+- `c9cf6be7` (correção `2026-11-06-despachante-sem-prazo-sob-carga`): `apps/worker/test/queue.fixture.ts` (`semear` devolve as linhas;
+  `explicar` novo, com `EXPLAIN ANALYZE` numa transação desfeita e o prazo de 60 s da preparação), `queue-fixtures.int.test.ts` (dois casos
+  novos do `explicar`), e `janela`, `slots` e `queue-gauge` do despachante, que preparam e diagnosticam pela bancada, e não pelo pool de 2 s. A
+  instrução medida segue pelo pool com o prazo de produção.
+- A fixture é a mesma dos testes de integração do worker da F2 (`gravar-planilha-*`, `desligamento-`, `transferencia-pela-planilha`). Nenhum
+  deles usa o retorno do `semear` (`grep`: só `expurgo-da-escola` e o despachante o chamam, e nenhum lia o retorno, salvo o teste da própria
+  fixture, já ajustado). Rodei os F2 de novo para conferir (seção 3).
+
+`node_modules` em dia com o `package-lock.json`: não precisei rodar `npm ci`. A árvore terminou como começou: só a linha do `estado.md` que o
+Orquestrador escreveu no andar durante a rodada, que não é minha nem foi tocada. `git status` sem outra mudança depois de cada mutação.
+
+### 1. RF a RF
+
+O código dos 15 RF não mudou desde a rodada 2. Cada RF mantém a evidência da tabela da rodada 2, e os arquivos de integração do worker que
+dependem da fixture alterada ficaram verdes nesta rodada.
+
+| RF | Situação | Código | Teste | Observação |
+|---|---|---|---|---|
+| RF1 | ATENDIDO | como na rodada 2 | como na rodada 2 | Fotos relidas nesta rodada: `.processo/vitrine/coordenacao--coordenacao-grade--computador.png` (aba "Grade e calendário" ao lado de Turmas, Professores e Material; os quatro "Baixar modelo"; "Importar grade") e `vazia--coordenacao--coordenacao-grade--celular-1.png` (os mesmos modelos a 360 px; estado vazio da grade e do calendário de 2026). A barra de baixo no meio da foto do celular é a barra fixa capturada na altura da primeira tela, na foto da página inteira. Não é defeito. A web não mudou desde a rodada 1 |
+| RF2 | ATENDIDO | como na rodada 2 | como na rodada 2 | `gravar-planilha.int.test.ts` verde nesta rodada |
+| RF3 | ATENDIDO | como na rodada 2 | como na rodada 2 | Foto: rodada 2 (`coordenacao--coordenacao-estrutura--computador.png`), web sem mudança |
+| RF4 | ATENDIDO | como na rodada 2 | `gravar-planilha-alunos.int.test.ts`, `desligamento-pela-planilha.int.test.ts`, `transferencia-pela-planilha.int.test.ts` verdes nesta rodada | |
+| RF5 | ATENDIDO | como na rodada 2 (`motor.ts:96-111`, teto no `gravar`) | `desligamento-pela-planilha.int.test.ts` e `transferencia-pela-planilha.int.test.ts` verdes nesta rodada | |
+| RF6 | ATENDIDO | como na rodada 2 | `gravar-planilha-professores.int.test.ts` verde nesta rodada | Foto: rodada 2 (`coordenacao--coordenacao-professores--celular.png`) |
+| RF7 | ATENDIDO | como na rodada 2 | `gravar-planilha-grade.int.test.ts` verde nesta rodada | |
+| RF8 | ATENDIDO | como na rodada 2 | `gravar-planilha-grade.int.test.ts:416` verde nesta rodada | |
+| RF9 | ATENDIDO | como na rodada 2 | `apps/api/test/grade.int.test.ts` verde nesta rodada | |
+| RF10 | ATENDIDO | como na rodada 2 | como na rodada 2 (`importacao.int.test.ts`, `e2e/grade-e-calendario.spec.ts:463`) | Não rodei de novo: nada no caminho mudou |
+| RF15 | ATENDIDO | como na rodada 2 | `importacao-gauge.int.test.ts` verde nesta rodada; carga da rodada 1 | |
+| RF16 | ATENDIDO | `packages/core/src/importacao/grade.repository.ts:27`, `:54` | `apps/api/test/grade.int.test.ts:619-620` verde; mutação 2 desta rodada vermelha | |
+| RF17 | ATENDIDO | como na rodada 2 | os casos de auditoria nos arquivos do worker acima, verdes nesta rodada | |
+| RF18 | ATENDIDO | como na rodada 2 | `e2e/escola-por-planilha.spec.ts` (26 verdes na rodada 1) | Não rodei de novo: web e e2e sem mudança desde a rodada 1. A esteira de `205cb0f` roda o e2e (conferida no fechamento) |
+
+Provas de mutação (rodada 3):
+
+| Alvo | Cláusula removida | Teste que ficou vermelho |
+|---|---|---|
+| Correção do `slots` (a mutação que ela declara) | `await vagas.manter(fila, escolaId, publicados)` em `apps/despachante/src/outbox-relay.ts:171` | `apps/despachante/test/slots.int.test.ts` "… segura a vaga além da validade": `validade 1: expected 5000 to be greater than or equal to 60000`. O caso novo, sem parede, ainda pega a falta da renovação |
+| RF16 | `eq(alocacao.escolaId, escolaId)` em `packages/core/src/importacao/grade.repository.ts:54` (`aulasDaTurma`) | `apps/api/test/grade.int.test.ts` "a leitura da grade só alcança a turma da escola do contexto …": `expected [ {…}, {…} ] to deeply equal []`. A garantia da rodada 2 se mantém em `205cb0f1` |
+
+Cada mutação rodou só o caso que deveria pegar (`-t`) e foi restaurada com `git checkout -- <arquivo>`.
+
+### 2. Regras de negócio, casos de borda e critério de pronto
+
+As regras, os casos de borda e o critério de pronto são os da rodada 2, todos cumpridos ou cobertos. Nenhum código deles mudou, e os
+arquivos de integração do worker que os provam ficaram verdes nesta rodada.
+
+| Item | Situação | Evidência |
+|---|---|---|
+| Regras de negócio do PRD | cumpridas | como na rodada 2; arquivos do worker verdes nesta rodada |
+| Casos de borda do PRD | cobertos | como na rodada 2 |
+| Pronto: RF1 a RF10 e RF15 a RF18 | cumprido | seção 1: 15 ATENDIDOS |
+| Pronto: o [C] do RF2 | cumprido | relatório da 16.0 e a carga da rodada 1. As correções não tocam o caminho medido |
+| Pronto: `docs/` diz o que o código faz | cumprido | `docs/` não mudou e o código de produção também não |
+| Pronto: a esteira verde no último commit que alterou código | esteira: conferida no fechamento | o último commit com código (teste) é `c9cf6be7`. O push foi feito (`origin/spec/onboarding-por-convite` = `205cb0f1`), e a esteira de `205cb0f` roda no GitHub |
+
+### 3. Portão
+
+| Portão | Resultado |
+|---|---|
+| `npm run typecheck`, `npm run lint`, suítes inteiras, e2e, infra | não rodados: escopo da funcionalidade completa, e a esteira de `205cb0f` roda (D79) |
+| Os quatro arquivos das correções (`apps/despachante/test/janela.int.test.ts`, `queue-gauge.int.test.ts`, `slots.int.test.ts`, `apps/worker/test/queue-fixtures.int.test.ts`) | ✅ 44 passaram (35,1 s) |
+| Integração da F2 que usa a fixture alterada (`gravar-planilha-alunos`, `gravar-planilha-grade`, `desligamento-pela-planilha`, `transferencia-pela-planilha`, `gravar-planilha-professores`, `gravar-planilha`, `importacao-gauge`) e `apps/api/test/grade.int.test.ts` | ✅ 180 passaram, 8 arquivos (34,2 s) |
+| Esteira do GitHub | conferida no fechamento (D79). Não entra no veredito |
+| Revisões com veto registradas e aprovadas | ✅ `slots-vaga-sem-depender-do-relogio`: os cinco revisores obrigatórios com rodada e a última APROVADO (revisor-geral na 2ª). `despachante-sem-prazo-sob-carga`: os seis obrigatórios, com a 1ª rodada de infra-guardian, revisor-geral, conformidade-reviewer e test-engineer REPROVADA (o teste da própria fixture quebrado pelo novo retorno do `semear`) e a 2ª APROVADA. tenancy-guardian e privacy-guardian só têm a 1ª, APROVADO, e o hook a deu por válida para o código do commit. Os dois commits de código levam `(correção <slug>)`, e os de estado só tocam `tasks/`. Nenhum `Fora do processo:` entre `origin/develop` e `205cb0f1` |
+
+### 4. Achados
+
+**Críticos**
+
+- Nenhum.
+
+**Maiores**
+
+- Nenhum.
+
+**Menores** (o Orquestrador leva ao `TODO.md` no fechamento; dono e arquivo em cada um)
+
+- Os sete menores da rodada 2 seguem abertos, sem mudança (o laço de lotes de `retirarNomes`, "Sala Sala 12", a premissa do `read-excel-file`
+  na Tech Spec, o nome do caso de `gravar-planilha.int.test.ts:244`, as "Revisões" da 10.0 e da 16.0, o leitor de tela e a medida das
+  transferências, e a linha do guia). Destinos como na rodada 2.
+- Implementador · `apps/despachante/test/slots.int.test.ts:384`: "no caso das 1.000 lotes da A" deveria ser "no caso dos 1.000 lotes da A"
+  (revisor-geral, 2ª rodada da correção do `slots`, sem destino além de "a próxima correção que tocar o arquivo"). Correção: trocar a palavra
+  na próxima correção desse arquivo.
+- Implementador · `apps/despachante/test/slots.int.test.ts` (o caso "o worker renova a vaga enquanto o job roda…"): espera 500 ms de parede
+  contra renovação a cada 200 ms, a mesma fragilidade que a correção tirou do caso vizinho. Já está no `TODO.md:2729` (test-engineer da
+  correção). Correção: relógio do Redis ou renovação acionada à mão.
+- Implementador · `apps/worker/test/queue-fixtures.int.test.ts:31`: o caso do `explicar` com `update` deixa no banco de teste a rede e a escola
+  sintéticas de `bancada.escola()` (infra-guardian, 2ª, recusada por ser o padrão da bancada). Destino: retro, se a tabela de escolas do
+  banco de teste pesar.
+
+**Positivos**
+
+- As duas correções trocam o relógio de parede por um estado escrito e uma rodada chamada à mão, com a mutação declarada no documento. A
+  mutação 1 desta rodada confirma que o caso sem parede ainda pega a falta da renovação. É o caminho para os próximos testes de temporização
+  que caírem sob carga.
+- A correção do despachante separou, por escrito, a preparação (pelo prazo da bancada) da instrução medida (pelo pool de produção), e listou os
+  limites de parede que são promessa do produto e por isso ficaram.
+
+### 5. Conclusão
+
+APROVADA. Entre `d53ee9ac` e `205cb0f1` só mudaram testes do despachante e a bancada de fila do worker. Nenhum código de produção mudou, e
+web, e2e e `docs/` também não. Os 15 RF seguem ATENDIDOS, com a evidência da rodada 2. Os arquivos de integração da F2 que usam a fixture
+alterada ficaram verdes, 180 casos, mais os 44 dos arquivos das correções. As duas mutações ficaram vermelhas: a que a correção do `slots`
+declara e o escopo de escola de `aulasDaTurma` (RF16). Ficam só menores, para o `TODO.md`. A esteira de `205cb0f` é conferida no fechamento.
+
+### 6. Pendências herdadas
+
+- **`lista.transferida` e `lista_nome.retirado` fora do arquivo do titular**: a mesma da rodada 1 e da 2. Destino: o Orquestrador leva ao
+  Arquiteto antes do pouso.
+- **Commits `Fora do processo:`**: nenhum entre `origin/develop` e `205cb0f1`.
+- **Medida de 1.000 e 3.000 transferências e da virada de 3.000** (`TODO.md:2724`) e **leitor de tela nos `aria-live`** (`TODO.md:2721`): como na
+  rodada 2, sem verificação.
+- **Logs desta rodada**: `/tmp/claude-1000/-home-joaquimdp-Documents-git--maestri-floors-educaia--speconboarding-por-convite/8953149f-03f5-4929-8fed-9da5a336b911/scratchpad/`
+  (`correcoes.log`, `f2.log`, `mut1.log`, `mut2.log`).
+
 ## Rodada 2 — 06/11/2026 (revalidação)
 
 **Escopo:** funcionalidade completa
