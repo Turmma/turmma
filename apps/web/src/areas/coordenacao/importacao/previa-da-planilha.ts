@@ -65,6 +65,8 @@ export const textoDoErro = (codigo: string | undefined, proprios?: Readonly<Reco
 export const TEXTO_DO_AVISO_DA_LINHA: Readonly<Record<string, string>> = {
   professor_em_duas_turmas: 'O mesmo professor tem aula em duas turmas neste horário. Pode ser aula conjunta, e a grade é gravada assim; confira se não é engano.',
   turma_com_duas_aulas: 'A mesma turma tem duas aulas neste horário. Pode ser turma dividida, e a grade é gravada assim; confira se não é engano.',
+  // A planilha de professores (15.0): o mesmo e-mail é uma pessoa só, e a primeira linha vale.
+  email_repetido: 'Este e-mail já apareceu mais acima na planilha: é a mesma pessoa, e vale a primeira linha. Esta é deixada de lado.',
 }
 export const TEXTO_DO_AVISO_DESCONHECIDO = 'Confira esta linha: ela é gravada como está, mas parece fora do comum.'
 
@@ -170,6 +172,12 @@ export const TEXTO_DO_GRUPO_DE_MARCA: Readonly<Record<AcaoDeMarca, TextoDoGrupoD
   },
 }
 
+/** Os textos de um grupo de marca que a planilha diz do jeito dela: a de professores diz "professor", e não "aluno" (15.0). */
+export type TextosDosGruposDeMarca = Readonly<Partial<Record<AcaoDeMarca, TextoDoGrupoDeMarca>>>
+
+/** O texto do grupo: o da planilha, se ela tem o seu, e senão o geral. */
+export const textoDoGrupoDeMarca = (acao: AcaoDeMarca, proprios?: TextosDosGruposDeMarca): TextoDoGrupoDeMarca => proprios?.[acao] ?? TEXTO_DO_GRUPO_DE_MARCA[acao]
+
 /**
  * Por que a lista de marcas existe. Aparece em todo grupo: o rótulo de cada pessoa vem do que a escola já tem cadastrado, comparado
  * com a planilha, e a decisão é de quem confere (regra 70, itens 2 e 3; D44).
@@ -272,17 +280,25 @@ export function linhasDeFora(linhas: readonly PreviaDaPlanilhaRow[], marcas: Mar
   }
 }
 
+/** A frase do resumo de cada marca, no singular e no plural: o que acontece com quem a coordenação marcou. */
+export type FrasesDoResumoDeMarcas = Readonly<Partial<Record<AcaoDeMarca, readonly [string, string]>>>
+
+const FRASE_DO_RESUMO_DE_MARCA: Readonly<Record<AcaoDeMarca, readonly [string, string]>> = {
+  transferir: ['aluno mudará de turma', 'alunos mudarão de turma'],
+  desligar: ['aluno será desligado e perde o acesso', 'alunos serão desligados e perdem o acesso'],
+  encerrar: ['vínculo de professor será encerrado', 'vínculos de professor serão encerrados'],
+}
+
 /**
  * O que as marcas escolhidas vão fazer ao gravar, em uma frase, para a coordenação ler antes de confirmar (regra 50, item 8): o "marcar
- * todos" também marca quem a tela ainda não abriu. Sem marca, não há frase.
+ * todos" também marca quem a tela ainda não abriu. Sem marca, não há frase. A planilha que diz uma marca do jeito dela (a de professores
+ * desliga professor) leva as frases em `proprias`.
  */
-export function resumoDasMarcas(marcas: MarcasEscolhidas): string | undefined {
-  const frases = [
-    [marcas.transferir.size, 'aluno mudará de turma', 'alunos mudarão de turma'],
-    [marcas.desligar.size, 'aluno será desligado e perde o acesso', 'alunos serão desligados e perdem o acesso'],
-    [marcas.encerrar.size, 'vínculo de professor será encerrado', 'vínculos de professor serão encerrados'],
-  ] as const
-  const ditas = frases.flatMap(([quantos, um, varios]) => (quantos === 0 ? [] : [formatQuantity(quantos, um, varios)]))
+export function resumoDasMarcas(marcas: MarcasEscolhidas, proprias?: FrasesDoResumoDeMarcas): string | undefined {
+  const ditas = ACOES_DE_MARCA.flatMap((acao) => {
+    const [um, varios] = proprias?.[acao] ?? FRASE_DO_RESUMO_DE_MARCA[acao]
+    return marcas[acao].size === 0 ? [] : [formatQuantity(marcas[acao].size, um, varios)]
+  })
   return ditas.length === 0 ? undefined : `Ao gravar, com as suas marcas: ${ditas.join('; ')}.`
 }
 

@@ -1,8 +1,9 @@
-import type { Browser, BrowserContextOptions, Locator, Page, Route } from '@playwright/test'
+import type { APIRequestContext, Browser, BrowserContextOptions, Locator, Page, Request, Route } from '@playwright/test'
 import { AVISO_DO_CONVITE_COM_SENHA_NOVA, MENSAGENS_DE_ERRO, mensagemDoConvite } from '../packages/shared/src/errors/messages.ts'
 import type { ConviteDeProfessorResponse } from '../packages/shared/src/professores/professores.ts'
-import { abrirNavegacao, entrarComoCoordenacaoNaMesmaAba, abrirEstrutura, irPelaNavegacao, lateral, SIGN_IN_TIMEOUT_MS, passarPelaIntroducaoDoProfessor, secoes } from './support/casca.ts'
+import { abrirNavegacao, entrarComoCoordenacaoNaMesmaAba, entrarPelaTelaComSegundoFator, abrirEstrutura, irPelaNavegacao, lateral, SIGN_IN_TIMEOUT_MS, passarPelaIntroducaoDoProfessor, secoes } from './support/casca.ts'
 import { abrirOQueFalta, irPelaCoordenacao, linhasDaTabela, paginaNaoRola } from './support/coordenacao.ts'
+import { abrirPelaApiSemMedirAPrimeiraCarga, configurarSegundoFatorPelaApi } from './support/mfa.ts'
 import { expect, test } from './support/profiles.ts'
 import {
   convidarProfessorNoBanco,
@@ -1128,5 +1129,462 @@ test.describe('o painel do professor', () => {
     await expect(paineisAbertos(page)).toHaveCount(0)
     await expect(page.locator('body')).not.toContainText(deOutra.nome)
     expect(await seriousViolations(page)).toEqual([])
+  })
+})
+
+/**
+ * A planilha de professores da equipe, na aba Professores (F2, 15.0; RF4 e RF6): o painel "Importar professores" (`?painel=importar`), a
+ * prévia, a marca de desligar, o gravar e o cadastrado que aparece `pendente`, com o convite para copiar pelo `convite/refazer`. A peça
+ * é a da 13.0 (`e2e/importar-alunos.spec.ts`); aqui se prova o que é dos professores. Cada caso entra pela API e abre o painel pelo
+ * endereço (o login pela tela não cabe nos 15 s do portão junto com a prévia e o gravar), e a planilha entra sempre por `setInputFiles`
+ * com `buffer`, como a coordenação escolhe o arquivo. Nomes e e-mails são inventados pelo teste.
+ */
+const ENDERECO_DA_PLANILHA = '/coordenacao/professores?painel=importar'
+const CAMPO_DO_ARQUIVO = 'Arquivo da planilha (Excel ou CSV)'
+const ROTA_DA_PREVIA = '**/v1/importacoes/professores/previa'
+
+const painelDaPlanilha = (page: Page): Locator => page.getByRole('dialog', { name: 'Importar professores' })
+/** Uma planilha no modelo: o cabeçalho e as linhas. */
+const planilha = (...linhas: string[]): string => ['nome;email', ...linhas].join('\n') + '\n'
+const resumoDaPrevia = (dialogo: Locator, texto: string): Locator => dialogo.getByRole('status').filter({ hasText: texto })
+const tituloDaPrevia = (dialogo: Locator): Locator => dialogo.getByRole('heading', { name: 'Prévia' })
+const restoDaPlanilha = (dialogo: Locator): Locator => dialogo.getByRole('region', { name: 'O resto da planilha' })
+const conclusaoDaPlanilha = (dialogo: Locator): Locator => dialogo.getByRole('region', { name: 'Planilha gravada' })
+const marcasDaPlanilha = (dialogo: Locator): Locator => dialogo.getByRole('region', { name: 'Você decide' })
+
+/** A coordenação entra pela API e cai direto no painel da planilha, com o convite do começo à vista. */
+async function abrirAPlanilha(page: Page, request: APIRequestContext, coordenadora: EquipeDeTeste): Promise<Locator> {
+  await abrirPelaApiSemMedirAPrimeiraCarga(page, request, coordenadora, ENDERECO_DA_PLANILHA, () =>
+    expect(painelDaPlanilha(page).getByRole('button', { name: 'Baixar modelo' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS }),
+  )
+  return painelDaPlanilha(page)
+}
+
+/** Escolhe o arquivo no campo do painel, como o navegador o entrega. */
+async function escolherPlanilha(page: Page, nome: string, conteudo: string): Promise<void> {
+  await painelDaPlanilha(page).getByLabel(CAMPO_DO_ARQUIVO).setInputFiles({ name: nome, mimeType: 'text/csv', buffer: Buffer.from(conteudo, 'utf8') })
+}
+
+/** Os POST de prévia e de gravar que a página mandou, para contar. */
+function pedidosDaPlanilha(page: Page): { readonly gravacoes: Request[]; readonly previas: Request[] } {
+  const gravacoes: Request[] = []
+  const previas: Request[] = []
+  page.on('request', (pedido) => {
+    if (pedido.method() !== 'POST') return
+    const caminho = new URL(pedido.url()).pathname
+    if (caminho === '/v1/importacoes/professores') gravacoes.push(pedido)
+    if (caminho === '/v1/importacoes/professores/previa') previas.push(pedido)
+  })
+  return { gravacoes, previas }
+}
+
+async function alvoMinimo(alvo: Locator, descricao: string, minimo: number): Promise<void> {
+  const caixa = await alvo.boundingBox()
+  expect(caixa, `${descricao} sem caixa`).not.toBeNull()
+  expect(caixa?.height ?? 0, descricao).toBeGreaterThanOrEqual(minimo)
+}
+
+/** Uma escola com um professor ativo que a planilha traz, e três ausentes: um ativo, um que aceitou e um com o convite em aberto. */
+async function escolaComEquipe(coordenadora: EquipeDeTeste) {
+  const traz = await convidarProfessorNoBanco(coordenadora.escolaId, 'ativo', 'Helena')
+  const ausente = await convidarProfessorNoBanco(coordenadora.escolaId, 'ativo', 'Igor')
+  const aceito = await convidarProfessorNoBanco(coordenadora.escolaId, 'aceito', 'Joana')
+  const pendente = await convidarProfessorNoBanco(coordenadora.escolaId, 'pendente', 'Kléber')
+  return { traz, ausente, aceito, pendente }
+}
+
+test.describe('RF6 (15.0): subir a planilha de professores, ver a prévia e gravar', () => {
+  test('o caminho feliz: o vazio com "Baixar modelo", o carregando, a prévia só em contagem, gravar uma vez só, e o cadastrado aparece pendente na lista, sem recarregar a página nem foco perdido', async ({
+    page,
+    request,
+    hasTouch,
+  }) => {
+    const coordenadora = await criarEquipeComSenha('coordenador')
+    const marca = crypto.randomUUID().slice(0, 8)
+    const nina = { nome: `Nina Nova ${marca}`, email: emailSintetico('nina') }
+    const otavio = { nome: `Otávio Novo ${marca}`, email: emailSintetico('otavio') }
+    const { gravacoes } = pedidosDaPlanilha(page)
+    const dialogo = await abrirAPlanilha(page, request, coordenadora)
+
+    // O vazio convida a baixar o modelo: o arquivo com o cabeçalho da planilha de professores, e a lista por trás ainda está vazia.
+    await expect(dialogo.getByText('Nenhuma planilha escolhida')).toBeVisible()
+    await expect(dialogo).toContainText('até 300 linhas')
+    await expect(principal(page).getByText('Nenhum professor ainda')).toBeVisible()
+    const baixando = page.waitForEvent('download')
+    await activate(dialogo.getByRole('button', { name: 'Baixar modelo' }), hasTouch)
+    expect((await baixando).suggestedFilename()).toBe('modelo-professores.csv')
+
+    // Carregando: a prévia segurada, e a tela diz que está conferindo.
+    const segurada = gate()
+    await page.route(ROTA_DA_PREVIA, async (rota: Route) => {
+      await segurada.aberta
+      await rota.continue()
+    })
+    await escolherPlanilha(page, 'professores.csv', planilha(`${nina.nome};${nina.email}`, `${otavio.nome};${otavio.email}`))
+    await expect(dialogo.getByRole('status').filter({ hasText: 'Conferindo a planilha com a escola…' })).toBeVisible()
+    segurada.abrir()
+
+    // A prévia chega com o foco no título; o resto é contagem, sem nome nem e-mail.
+    await expect(resumoDaPrevia(dialogo, '2 linhas lidas · 0 com erro · 0 com aviso')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(tituloDaPrevia(dialogo)).toBeFocused()
+    await expect(restoDaPlanilha(dialogo)).toContainText('2 linhas entram')
+    await expect(restoDaPlanilha(dialogo)).not.toContainText(nina.nome)
+    await expect(restoDaPlanilha(dialogo)).not.toContainText(nina.email)
+
+    // O clique duplo manda um pedido só; o resultado diz quantos foram cadastrados e onde pegar o link, e leva o foco.
+    await page.evaluate(() => {
+      ;(window as unknown as { __mesmaPagina: boolean }).__mesmaPagina = true
+    })
+    await dialogo.getByRole('button', { name: 'Gravar professores' }).dblclick()
+    const resultado = dialogo.getByRole('heading', { name: 'Planilha gravada' })
+    await expect(resultado).toBeFocused({ timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(conclusaoDaPlanilha(dialogo)).toContainText('2 professores cadastrados, com o convite em aberto.')
+    await expect(conclusaoDaPlanilha(dialogo)).toContainText('abra o professor na lista e use “Refazer convite”')
+    expect(gravacoes).toHaveLength(1)
+    await expect(tituloDaPrevia(dialogo)).toHaveCount(0)
+
+    // A lista de trás foi lida de novo, com o painel aberto: os dois cadastrados já estão nela, pendentes, e o foco continua no resultado.
+    await expect(linhaDe(page, nina.nome)).toContainText(TEXTO_DO_ESTADO.pendente, { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(linhaDe(page, otavio.nome)).toContainText(TEXTO_DO_ESTADO.pendente)
+    await expect(resultado).toBeFocused()
+    expect(await convitesDeProfessorEmAberto(coordenadora.escolaId)).toBe(2)
+
+    // Sem rastro: nome e e-mail não vão para o armazenamento do navegador nem para o endereço, e a lista não mostra e-mail (E11).
+    const guardado = await page.evaluate(async () => ({
+      texto: JSON.stringify([Object.entries(localStorage), Object.entries(sessionStorage), location.href]),
+      bancos: (await indexedDB.databases()).map((banco) => banco.name),
+      caches: await caches.keys(),
+    }))
+    for (const dado of [nina.nome, nina.email, otavio.nome, otavio.email]) expect(guardado.texto).not.toContain(dado)
+    expect(guardado.bancos).toEqual([])
+    expect(guardado.caches).toEqual([])
+    expect(await page.content()).not.toContain(nina.email)
+
+    // Fechado o painel, o endereço volta à tela, a página é a mesma (nada recarregou) e o foco vai ao título da lista.
+    await page.keyboard.press('Escape')
+    await expect(dialogo).toHaveCount(0)
+    await expect(page).toHaveURL(/\/coordenacao\/professores$/)
+    expect(await page.evaluate(() => (window as unknown as { __mesmaPagina?: boolean }).__mesmaPagina)).toBe(true)
+    await expect(tituloDaLista(page)).toBeFocused()
+    await expect(principal(page).getByText('2 professores', { exact: true })).toBeVisible()
+  })
+
+  test('o "Copiar link" do cadastrado pela planilha é o `convite/refazer`: o link novo aparece uma vez, com o token no fragmento, e nenhum cadastro avulso sai', async ({ page, request, hasTouch }) => {
+    await page.context().grantPermissions(['clipboard-read', 'clipboard-write'])
+    const coordenadora = await criarEquipeComSenha('coordenador')
+    const marca = crypto.randomUUID().slice(0, 8)
+    const nina = { nome: `Nina Nova ${marca}`, email: emailSintetico('nina') }
+    const escritas: URL[] = []
+    page.on('request', (pedido) => {
+      const endereco = new URL(pedido.url())
+      if (pedido.method() === 'POST' && endereco.pathname.startsWith('/v1/professores')) escritas.push(endereco)
+    })
+    const dialogo = await abrirAPlanilha(page, request, coordenadora)
+    await escolherPlanilha(page, 'professores.csv', planilha(`${nina.nome};${nina.email}`))
+    await expect(tituloDaPrevia(dialogo)).toBeFocused({ timeout: SIGN_IN_TIMEOUT_MS })
+    await activate(dialogo.getByRole('button', { name: 'Gravar professores' }), hasTouch)
+    await expect(conclusaoDaPlanilha(dialogo)).toContainText('1 professor cadastrado, com o convite em aberto.', { timeout: SIGN_IN_TIMEOUT_MS })
+    await page.keyboard.press('Escape')
+    await expect(dialogo).toHaveCount(0)
+
+    // O cadastrado está pendente, com o convite em aberto e o token descartado: o painel dele tem as ações do convite em aberto.
+    await expect(linhaDe(page, nina.nome)).toContainText(TEXTO_DO_ESTADO.pendente, { timeout: SIGN_IN_TIMEOUT_MS })
+    expect(await convitesDeProfessorEmAberto(coordenadora.escolaId)).toBe(1)
+    const painel = await abrirPainel(page, nina.nome, hasTouch)
+    await expect(acoesDoPainel(painel)).toHaveText([...ACOES_DO_ESTADO.pendente])
+    expect(escritas).toEqual([])
+
+    // O link sai pelo refazer: um POST em `/v1/professores/<usuário>/convite/refazer`, e o link vem na resposta, uma vez.
+    const refazendo = page.waitForRequest((pedido) => pedido.method() === 'POST' && ROTA_DO_REFAZER(new URL(pedido.url())))
+    await tocar(painel, 'Refazer convite', hasTouch)
+    await tocar(noDialogo(page), 'Refazer convite', hasTouch)
+    const pedido = new URL((await refazendo).url())
+    expect(pedido.pathname).toMatch(/^\/v1\/professores\/[0-9a-f-]{36}\/convite\/refazer$/)
+    await expect(etapaDoLink(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+    const link = await linkNaTela(page)
+    expect(tokenDo(link)).toMatch(/^[A-Za-z0-9_-]{43}$/)
+    await expect(noDialogo(page)).toContainText(`Mande o link a ${nina.nome}.`)
+    await tocar(noDialogo(page), 'Copiar link', hasTouch)
+    await expect(noDialogo(page).getByRole('status').filter({ hasText: 'Link copiado.' })).toBeVisible()
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(link)
+    // A única escrita em professores foi o refazer, e o convite em aberto é um só: o anterior parou de valer.
+    expect(escritas.map((endereco) => endereco.pathname)).toEqual([pedido.pathname])
+    expect(await convitesDeProfessorEmAberto(coordenadora.escolaId)).toBe(1)
+    expect(await page.content()).not.toContain(nina.email)
+  })
+})
+
+test.describe('RF4 e regra 70 (15.0): a marca de desligar é escolha da coordenação', () => {
+  test('a marca chega desmarcada e rotulada só com o nome, sem e-mail; quem não está na planilha e está `ativo` ou `aceito` é candidato, e o convite em aberto não; gravar sem marca não desliga ninguém; a tela cabe, tem alvos e uma ação cheia', async ({
+    page,
+    request,
+  }) => {
+    const coordenadora = await criarEquipeComSenha('coordenador')
+    const equipe = await escolaComEquipe(coordenadora)
+    const nina = { nome: `Nina Nova ${crypto.randomUUID().slice(0, 8)}`, email: emailSintetico('nina') }
+    const dialogo = await abrirAPlanilha(page, request, coordenadora)
+    await escolherPlanilha(page, 'professores.csv', planilha(`${equipe.traz.nome};${equipe.traz.email}`, `${nina.nome};${nina.email}`))
+
+    const marcas = marcasDaPlanilha(dialogo)
+    await expect(marcas).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(marcas).toContainText('conferência feita a partir da planilha, não um resultado automático')
+    // Só os dois ausentes que o desligar alcança, e a marca diz o nome que a escola já tem: nenhum e-mail, nenhum "aluno".
+    await expect(marcas.getByRole('group', { name: 'Estão na escola, mas não aparecem na planilha (2)' })).toBeVisible()
+    await expect(marcas.getByRole('checkbox', { name: equipe.ausente.nome, exact: true })).not.toBeChecked()
+    await expect(marcas.getByRole('checkbox', { name: equipe.aceito.nome, exact: true })).not.toBeChecked()
+    await expect(marcas.getByRole('checkbox', { name: 'Marcar todos para desligar' })).not.toBeChecked()
+    await expect(marcas.getByRole('checkbox', { name: equipe.pendente.nome })).toHaveCount(0)
+    await expect(marcas.getByRole('checkbox', { name: equipe.traz.nome })).toHaveCount(0)
+    await expect(marcas).toContainText('o professor desligado perde o acesso')
+    await expect(marcas).not.toContainText(/aluno/i)
+    const conteudo = await page.content()
+    for (const professor of [equipe.traz, equipe.ausente, equipe.aceito, equipe.pendente]) expect(conteudo).not.toContain(professor.email)
+    // O resto é contagem: a nova entra, e quem já está na escola não muda.
+    await expect(restoDaPlanilha(dialogo)).toContainText('1 linha entra')
+    await expect(restoDaPlanilha(dialogo)).toContainText('1 linha já existe, e nada muda')
+    await expect(restoDaPlanilha(dialogo)).not.toContainText(equipe.traz.nome)
+
+    // A tela cabe, tem uma só ação cheia, o gravar tem 44 px, as caixas de marca e os botões do painel têm mais de 24 px, e o axe não acha nada.
+    await expect(tituloDaPrevia(dialogo)).toBeVisible()
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await larguraExcedenteDoDialogo(page)).toBe(0)
+    await paginaNaoRola(page)
+    await expect(dialogo.locator('button.bg-laranja:visible')).toHaveCount(1)
+    await alvoMinimo(dialogo.getByRole('button', { name: 'Gravar professores' }), 'Gravar professores', ALVO_DE_TOQUE_PRINCIPAL_PX)
+    await alvoMinimo(marcas.getByRole('checkbox', { name: equipe.ausente.nome, exact: true }).locator('xpath=ancestor::label'), 'marca de desligar', 24)
+    await alvoMinimo(marcas.getByRole('checkbox', { name: 'Marcar todos para desligar' }).locator('xpath=ancestor::label'), 'marcar todos para desligar', 24)
+    await alvoMinimo(dialogo.getByRole('button', { name: 'Baixar modelo' }), 'Baixar modelo', 24)
+    await alvoMinimo(dialogo.getByRole('button', { name: 'Trocar arquivo' }), 'Trocar arquivo', 24)
+    expect(await seriousViolations(page)).toEqual([])
+
+    // Antes de gravar a tela diz o que a marca vai fazer; sem marca, não diz nada.
+    const aoGravar = dialogo.getByText(/^Ao gravar, com as suas marcas:/)
+    await expect(aoGravar).toHaveCount(0)
+    await marcas.getByRole('checkbox', { name: 'Marcar todos para desligar' }).check()
+    await expect(aoGravar).toHaveText('Ao gravar, com as suas marcas: 2 professores serão desligados e perdem o acesso.')
+    await marcas.getByRole('checkbox', { name: 'Marcar todos para desligar' }).uncheck()
+    await expect(aoGravar).toHaveCount(0)
+
+    // Gravar sem marcar ninguém: a nova é cadastrada, e ninguém sai.
+    await dialogo.getByRole('button', { name: 'Gravar professores' }).click()
+    await expect(conclusaoDaPlanilha(dialogo)).toContainText('1 professor cadastrado, com o convite em aberto. 1 professor já estava na escola, e nada mudou.', { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(conclusaoDaPlanilha(dialogo)).not.toContainText('desligado')
+    await page.keyboard.press('Escape')
+    await expect(dialogo).toHaveCount(0)
+    await expect(linhaDe(page, nina.nome)).toContainText(TEXTO_DO_ESTADO.pendente, { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(linhaDe(page, equipe.ausente.nome)).toContainText(TEXTO_DO_ESTADO.ativo)
+    await expect(linhaDe(page, equipe.aceito.nome)).toContainText(TEXTO_DO_ESTADO.aceito)
+    await expect(linhaDe(page, equipe.pendente.nome)).toContainText(TEXTO_DO_ESTADO.pendente)
+    // Com a lista, "Cadastrar professor" continua a única ação cheia da tela, e o "Importar professores" ao lado é secundário, de 44 px.
+    await expect(principal(page).locator('button.bg-laranja:visible')).toHaveCount(1)
+    await alvoDeToque(principal(page).getByRole('button', { name: 'Importar professores' }), 'Importar professores')
+    await paginaNaoRola(page)
+  })
+
+  test('só sai quem a coordenação marcou: um professor desligado, o outro ausente segue, e o resultado diz isso', async ({ page, request, hasTouch }) => {
+    const coordenadora = await criarEquipeComSenha('coordenador')
+    const equipe = await escolaComEquipe(coordenadora)
+    const dialogo = await abrirAPlanilha(page, request, coordenadora)
+    await escolherPlanilha(page, 'professores.csv', planilha(`${equipe.traz.nome};${equipe.traz.email}`))
+    const marcas = marcasDaPlanilha(dialogo)
+    await expect(marcas).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+
+    await activate(marcas.getByRole('checkbox', { name: equipe.ausente.nome, exact: true }), hasTouch)
+    await expect(marcas.getByRole('checkbox', { name: equipe.ausente.nome, exact: true })).toBeChecked()
+    await expect(marcas.getByRole('checkbox', { name: 'Marcar todos para desligar' })).not.toBeChecked()
+    await expect(dialogo.getByText(/^Ao gravar, com as suas marcas:/)).toHaveText('Ao gravar, com as suas marcas: 1 professor será desligado e perde o acesso.')
+    await activate(dialogo.getByRole('button', { name: 'Gravar professores' }), hasTouch)
+
+    await expect(conclusaoDaPlanilha(dialogo)).toContainText('0 professores cadastrados, com o convite em aberto. 1 professor já estava na escola, e nada mudou. 1 professor foi desligado.', {
+      timeout: SIGN_IN_TIMEOUT_MS,
+    })
+    await page.keyboard.press('Escape')
+    await expect(dialogo).toHaveCount(0)
+    // O marcado saiu; quem não foi marcado, mesmo ausente, ficou como estava.
+    await expect(linhaDe(page, equipe.ausente.nome)).toContainText(TEXTO_DO_ESTADO.desativado, { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(linhaDe(page, equipe.aceito.nome)).toContainText(TEXTO_DO_ESTADO.aceito)
+    await expect(linhaDe(page, equipe.traz.nome)).toContainText(TEXTO_DO_ESTADO.ativo)
+  })
+})
+
+test.describe('a prévia da planilha de professores diz o que fazer (15.0)', () => {
+  test('o erro e o aviso saem em frase com o que fazer, o e-mail repetido é uma pessoa só, e com erro não há como gravar', async ({ page, request, hasTouch }) => {
+    const coordenadora = await criarEquipeComSenha('coordenador')
+    const marca = crypto.randomUUID().slice(0, 8)
+    const { gravacoes } = pedidosDaPlanilha(page)
+    const dialogo = await abrirAPlanilha(page, request, coordenadora)
+    const email = emailSintetico('repetida')
+    await escolherPlanilha(
+      page,
+      'com-erro.csv',
+      planilha(`Ana ${marca};sem-arroba`, `;${emailSintetico('sem-nome')}`, `Bia ${marca};${email}`, `Bia Repetida ${marca};${email.toUpperCase()}`, `Caio ${marca};${emailSintetico('caio')}`),
+    )
+
+    const erros = dialogo.getByRole('region', { name: 'Linhas com erro (2)' })
+    await expect(erros).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(tituloDaPrevia(dialogo)).toBeFocused()
+    await expect(resumoDaPrevia(dialogo, '5 linhas lidas · 2 com erro · 1 com aviso')).toBeVisible()
+    await expect(erros.getByRole('listitem').nth(0)).toHaveText('Linha 2: O e-mail do professor não parece um e-mail. Confira a coluna "email".')
+    await expect(erros.getByRole('listitem').nth(1)).toHaveText('Linha 3: Falta o nome do professor. Preencha a coluna "nome".')
+    // O mesmo e-mail duas vezes, em qualquer caixa, é uma pessoa só: a primeira linha vale, e a outra é aviso, não erro.
+    const avisos = dialogo.getByRole('region', { name: 'Linhas com aviso (1)' })
+    await expect(avisos.getByRole('listitem')).toHaveText('Linha 5: Este e-mail já apareceu mais acima na planilha: é a mesma pessoa, e vale a primeira linha. Esta é deixada de lado.')
+    await expect(restoDaPlanilha(dialogo)).toContainText('2 linhas entram · 1 linha já existe, e nada muda')
+    // Com erro, o botão nem aparece: o motivo está no lugar dele, e nada foi enviado para gravar.
+    await expect(dialogo.getByRole('button', { name: 'Gravar professores' })).toHaveCount(0)
+    await expect(dialogo).toContainText('nada é gravado enquanto houver erro')
+    expect(gravacoes).toHaveLength(0)
+    expect(await seriousViolations(page)).toEqual([])
+    // "Trocar arquivo" abre a escolha de novo, e a planilha certa tira o erro, o aviso e a prévia anterior: agora há como gravar.
+    const escolha = page.waitForEvent('filechooser')
+    await activate(dialogo.getByRole('button', { name: 'Trocar arquivo' }), hasTouch)
+    await (await escolha).setFiles({ name: 'certa.csv', mimeType: 'text/csv', buffer: Buffer.from(planilha(`Dara ${marca};${emailSintetico('dara')}`), 'utf8') })
+    await expect(dialogo.getByRole('button', { name: 'Gravar professores' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(dialogo.getByRole('region', { name: 'Linhas com erro (2)' })).toHaveCount(0)
+    await expect(dialogo.getByRole('region', { name: 'Linhas com aviso (1)' })).toHaveCount(0)
+    expect(gravacoes).toHaveLength(0)
+  })
+
+  test('a prévia que falha diz o que fazer, com "Tentar de novo"; o arquivo novo tira o aviso e o foco do anterior', async ({ page, request, hasTouch }) => {
+    const coordenadora = await criarEquipeComSenha('coordenador')
+    const marca = crypto.randomUUID().slice(0, 8)
+    const dialogo = await abrirAPlanilha(page, request, coordenadora)
+    let falhar = true
+    await page.route(ROTA_DA_PREVIA, (rota: Route) => (falhar ? rota.fulfill({ status: 503, contentType: 'application/json', body: INDISPONIVEL }) : rota.continue()))
+
+    await escolherPlanilha(page, 'professores.csv', planilha(`Ana ${marca};${emailSintetico('ana')}`))
+    const alerta = dialogo.getByRole('alert')
+    await expect(alerta).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(alerta).toBeFocused()
+    await expect(dialogo.getByRole('status').filter({ hasText: 'Conferindo a planilha com a escola…' })).toHaveCount(0)
+    await alvoMinimo(dialogo.getByRole('button', { name: 'Tentar de novo' }), 'Tentar de novo', 24)
+    expect(await seriousViolations(page)).toEqual([])
+    // "Tentar de novo" manda o mesmo texto de novo, e com o servidor de volta a prévia chega e o aviso sai.
+    falhar = false
+    await activate(dialogo.getByRole('button', { name: 'Tentar de novo' }), hasTouch)
+    await expect(tituloDaPrevia(dialogo)).toBeFocused({ timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(alerta).toHaveCount(0)
+    // Uma falha nova, depois um arquivo bom: o aviso da tentativa anterior sai com o arquivo novo, e o foco não volta a ele.
+    falhar = true
+    await escolherPlanilha(page, 'outro.csv', planilha(`Bia ${marca};${emailSintetico('bia')}`))
+    await expect(alerta).toBeFocused({ timeout: SIGN_IN_TIMEOUT_MS })
+    falhar = false
+    await escolherPlanilha(page, 'terceiro.csv', planilha(`Caio ${marca};${emailSintetico('caio')}`))
+    await expect(tituloDaPrevia(dialogo)).toBeFocused({ timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(alerta).toHaveCount(0)
+  })
+})
+
+test.describe('recomeço da planilha de professores (15.0)', () => {
+  test('a resposta atrasada da prévia anterior não aparece no lugar da nova; o mesmo arquivo escolhido de novo pede uma prévia nova', async ({ page, request }) => {
+    const coordenadora = await criarEquipeComSenha('coordenador')
+    const marca = crypto.randomUUID().slice(0, 8)
+    const { previas } = pedidosDaPlanilha(page)
+    const dialogo = await abrirAPlanilha(page, request, coordenadora)
+    const segurada = gate()
+    // O pedido segurado terminou: o fim dele, e não um tempo qualquer, é o que o caso espera antes de olhar a tela.
+    const terminou = gate()
+    let primeira = true
+    await page.route(ROTA_DA_PREVIA, async (rota: Route) => {
+      const seguro = primeira
+      primeira = false
+      if (seguro) await segurada.aberta
+      await rota.continue().catch(() => undefined)
+      if (seguro) terminou.abrir()
+    })
+
+    // O primeiro arquivo (3 linhas) fica no ar; o segundo (1 linha) chega primeiro e é o que a tela mostra.
+    await escolherPlanilha(page, 'antigo.csv', planilha(`Ana ${marca};${emailSintetico('ana')}`, `Bia ${marca};${emailSintetico('bia')}`, `Caio ${marca};${emailSintetico('caio')}`))
+    await expect.poll(() => previas.length).toBe(1)
+    await escolherPlanilha(page, 'novo.csv', planilha(`Duda ${marca};${emailSintetico('duda')}`))
+    await expect(resumoDaPrevia(dialogo, '1 linha lida · 0 com erro · 0 com aviso')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+    segurada.abrir()
+    await terminou.aberta
+    // Dois quadros depois do fim do pedido: a página já teve onde desenhar a resposta antiga, se ela fosse desenhada.
+    await page.evaluate(() => new Promise<void>((resolver) => requestAnimationFrame(() => requestAnimationFrame(() => resolver()))))
+    await expect(resumoDaPrevia(dialogo, '1 linha lida · 0 com erro · 0 com aviso')).toBeVisible()
+    await expect(dialogo).not.toContainText('3 linhas lidas')
+
+    // O mesmo arquivo de novo (a planilha corrigida com o mesmo nome): outra leitura, outra prévia, e o foco volta ao título.
+    await dialogo.getByRole('heading', { name: 'Escolher a planilha' }).focus()
+    await escolherPlanilha(page, 'novo.csv', planilha(`Duda ${marca};${emailSintetico('duda')}`))
+    await expect.poll(() => previas.length).toBe(3)
+    await expect(tituloDaPrevia(dialogo)).toBeFocused({ timeout: SIGN_IN_TIMEOUT_MS })
+  })
+
+  test('a lista que se recarrega com o painel aberto, e que cai, não tira o resultado nem o foco dele; fechado o painel, o erro tem "Tentar de novo" e a lista traz o cadastrado', async ({
+    page,
+    request,
+    hasTouch,
+  }) => {
+    const coordenadora = await criarEquipeComSenha('coordenador')
+    const nina = { nome: `Nina Nova ${crypto.randomUUID().slice(0, 8)}`, email: emailSintetico('nina') }
+    let falhar = false
+    await page.route(ehALista, (rota: Route) => (rota.request().method() === 'GET' && falhar ? rota.fulfill({ status: 503, contentType: 'application/json', body: INDISPONIVEL }) : rota.fallback()))
+    const dialogo = await abrirAPlanilha(page, request, coordenadora)
+    await escolherPlanilha(page, 'professores.csv', planilha(`${nina.nome};${nina.email}`))
+    await expect(tituloDaPrevia(dialogo)).toBeFocused({ timeout: SIGN_IN_TIMEOUT_MS })
+
+    // A leitura da lista, que o gravar pede ao terminar, cai: o resultado continua à vista, com o foco, e a prévia não volta.
+    falhar = true
+    await activate(dialogo.getByRole('button', { name: 'Gravar professores' }), hasTouch)
+    const resultado = dialogo.getByRole('heading', { name: 'Planilha gravada' })
+    await expect(resultado).toBeFocused({ timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(principal(page).getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(resultado).toBeFocused()
+    await expect(tituloDaPrevia(dialogo)).toHaveCount(0)
+    await expect(principal(page).getByText('Nenhum professor ainda')).toHaveCount(0)
+
+    // Fechado o painel, a tela não afirma o vazio que o cadastro acabou de negar: mostra o erro, e "Tentar de novo" traz o cadastrado.
+    await page.keyboard.press('Escape')
+    await expect(dialogo).toHaveCount(0)
+    falhar = false
+    await activate(principal(page).getByRole('button', { name: 'Tentar de novo' }), hasTouch)
+    await expect(linhaDe(page, nina.nome)).toContainText(TEXTO_DO_ESTADO.pendente, { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(principal(page).getByRole('alert')).toHaveCount(0)
+  })
+
+  test('a pessoa seguinte na mesma aba não vê a prévia, o arquivo nem os nomes da coordenação anterior, sem recarregar a página', async ({ page, request, hasTouch }) => {
+    const primeira = await criarEquipeComSenha('coordenador')
+    const segunda = await criarEquipeComSenha('coordenador')
+    const equipe = await escolaComEquipe(primeira)
+    const dialogo = await abrirAPlanilha(page, request, primeira)
+    await escolherPlanilha(page, 'da-primeira.csv', planilha(`${equipe.traz.nome};${equipe.traz.email}`))
+    // A marca mostra o nome do professor ausente da escola da primeira, que a segunda nunca pode ver.
+    await expect(marcasDaPlanilha(dialogo).getByRole('checkbox', { name: equipe.ausente.nome, exact: true })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+
+    // O painel é modal: a primeira o fecha e sai, e a aba continua a mesma.
+    await page.keyboard.press('Escape')
+    await expect(dialogo).toHaveCount(0)
+    await activate(page.getByRole('button', { name: 'Sair' }).first(), hasTouch)
+    await expect(page).toHaveURL(/\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
+    // Da entrada da seguinte em diante, qualquer momento em que a tela traz o nome ou o arquivo da anterior é registrado.
+    await page.evaluate(
+      ({ nomes, arquivo }) => {
+        const vazamentos: string[] = []
+        ;(window as unknown as { __vazamentos: string[] }).__vazamentos = vazamentos
+        const ler = () => {
+          const texto = document.body.textContent ?? ''
+          for (const dado of [...nomes, arquivo]) if (texto.includes(dado)) vazamentos.push(dado)
+        }
+        new MutationObserver(ler).observe(document.body, { subtree: true, childList: true, characterData: true })
+      },
+      { nomes: [equipe.traz.nome, equipe.ausente.nome, equipe.aceito.nome], arquivo: 'da-primeira.csv' },
+    )
+
+    // O segundo fator é configurado pela API: o caso é sobre o que a aba mostra da pessoa anterior, e o login pela tela continua.
+    const { segredo } = await configurarSegundoFatorPelaApi(request, segunda)
+    await entrarPelaTelaComSegundoFator(page, segunda, segredo, hasTouch)
+    await abrirEstrutura(page, hasTouch)
+    await irPelaCoordenacao(page, 'Professores', hasTouch)
+    await expect(principal(page).getByText('Nenhum professor ainda')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+    await activate(principal(page).getByRole('button', { name: 'Importar professores' }), hasTouch)
+    await expect(painelDaPlanilha(page).getByRole('button', { name: 'Baixar modelo' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(painelDaPlanilha(page).getByText('Nenhuma planilha escolhida')).toBeVisible()
+    await expect(tituloDaPrevia(painelDaPlanilha(page))).toHaveCount(0)
+    await expect(painelDaPlanilha(page)).not.toContainText('da-primeira.csv')
+    const conteudo = await page.content()
+    for (const professor of [equipe.traz, equipe.ausente, equipe.aceito]) expect(conteudo).not.toContain(professor.nome)
+    expect(await page.evaluate(() => (window as unknown as { __vazamentos: string[] }).__vazamentos)).toEqual([])
   })
 })

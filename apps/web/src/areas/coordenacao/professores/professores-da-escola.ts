@@ -68,6 +68,14 @@ export function professorDoEndereco(busca: string, professores: readonly Profess
   return professores.find((professor) => professor.usuarioId === usuarioId)
 }
 
+/**
+ * O painel de importar a planilha está aberto no endereço (`?painel=importar`, F2, 15.0). Valor de lista fechada: só a palavra vai ao
+ * endereço, nunca nome nem arquivo (regra 20, item 9), e qualquer outro valor não abre nada.
+ */
+export function importacaoAbertaNoEndereco(busca: string): boolean {
+  return new URLSearchParams(busca).get('painel') === 'importar'
+}
+
 /** A contagem ao lado do botão: "1 professor", "31 professores". */
 export function contagemDeProfessores(quantos: number): string {
   return quantos === 1 ? '1 professor' : `${String(quantos)} professores`

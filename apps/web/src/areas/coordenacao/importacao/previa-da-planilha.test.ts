@@ -22,6 +22,8 @@ import {
   previaEnvelheceu,
   resumoDasMarcas,
   SEM_MARCAS,
+  textoDoGrupoDeMarca,
+  TEXTO_DO_GRUPO_DE_MARCA,
   TEXTO_DA_CONFERENCIA,
   TEXTO_DA_IMPORTACAO_DESATUALIZADA,
   TEXTO_DO_AVISO_DA_LINHA,
@@ -281,7 +283,7 @@ describe('13.0 (unidade): o que a tela diz ao terminar e ao falhar', () => {
 
 describe('14.0 (unidade): a grade e o calendário na prévia', () => {
   it('os dois avisos de horário têm frase própria, dizem que a grade é gravada assim e mandam conferir', () => {
-    expect(Object.keys(TEXTO_DO_AVISO_DA_LINHA).sort()).toEqual(['professor_em_duas_turmas', 'turma_com_duas_aulas'])
+    expect(Object.keys(TEXTO_DO_AVISO_DA_LINHA).sort()).toEqual(['email_repetido', 'professor_em_duas_turmas', 'turma_com_duas_aulas'])
     expect(textoDoAviso('professor_em_duas_turmas')).toMatch(/duas turmas.*aula conjunta.*gravada assim.*confira/)
     expect(textoDoAviso('turma_com_duas_aulas')).toMatch(/duas aulas.*turma dividida.*gravada assim.*confira/)
     expect(textoDoAviso('professor_em_duas_turmas')).not.toBe(textoDoAviso('turma_com_duas_aulas'))
@@ -313,5 +315,28 @@ describe('14.0 (unidade): a grade e o calendário na prévia', () => {
     expect(podeGravar({ linhas: jaExiste }, 1).pode).toBe(true)
     // Com erro, nada grava, tire o que tirar.
     expect(podeGravar({ linhas: [linha(2, 'erro', { erro: 'dia_invalido' })], contagens: { aulas_removidas: 2 } }, 0).pode).toBe(false)
+  })
+})
+
+describe('15.0 (unidade): a planilha de professores na prévia', () => {
+  it('o e-mail repetido é aviso com frase própria: é a mesma pessoa, vale a primeira linha, e a repetida é deixada de lado', () => {
+    expect(textoDoAviso('email_repetido')).toMatch(/mesma pessoa.*primeira linha.*deixada de lado/)
+    expect(textoDoAviso('email_repetido')).not.toBe(TEXTO_DO_AVISO_DESCONHECIDO)
+  })
+
+  it('o grupo de marca é o da planilha, se ela tem o seu, e senão o geral; a marca que ela não troca segue a dos alunos', () => {
+    const proprio = { titulo: 'Do professor', explicacao: 'Explicação do professor.', rotuloDoTodos: 'Marcar todos' }
+    expect(textoDoGrupoDeMarca('desligar', { desligar: proprio })).toBe(proprio)
+    expect(textoDoGrupoDeMarca('desligar')).toBe(TEXTO_DO_GRUPO_DE_MARCA.desligar)
+    expect(textoDoGrupoDeMarca('transferir', { desligar: proprio })).toBe(TEXTO_DO_GRUPO_DE_MARCA.transferir)
+  })
+
+  it('o resumo das marcas usa a frase da planilha onde ela tem a sua, e a geral no resto', () => {
+    const proprias = { desligar: ['professor será desligado', 'professores serão desligados'] } as const
+    const desligar = alternarTodos(SEM_MARCAS, 'desligar', [candidato('c', 'desligar'), candidato('e', 'desligar')])
+    expect(resumoDasMarcas(desligar, proprias)).toBe('Ao gravar, com as suas marcas: 2 professores serão desligados.')
+    expect(resumoDasMarcas(alternarMarca(SEM_MARCAS, 'desligar', 'c'), proprias)).toBe('Ao gravar, com as suas marcas: 1 professor será desligado.')
+    const duas = alternarMarca(alternarMarca(SEM_MARCAS, 'transferir', 'a'), 'desligar', 'c')
+    expect(resumoDasMarcas(duas, proprias)).toBe('Ao gravar, com as suas marcas: 1 aluno mudará de turma; 1 professor será desligado.')
   })
 })

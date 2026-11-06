@@ -27,15 +27,18 @@ import {
   SEM_MARCAS,
   TEXTO_DA_CONFERENCIA,
   TEXTO_DA_PLANILHA_RECUSADA,
-  TEXTO_DO_GRUPO_DE_MARCA,
   textoDaConclusao,
+  textoDoGrupoDeMarca,
   textoDaFalhaDaGravacao,
   textoDaFalhaDaPrevia,
   textoDoAviso,
   textoDoErro,
   totalDeMarcas,
   type AcaoDeMarca,
+  type FrasesDoResumoDeMarcas,
   type MarcasEscolhidas,
+  type TextoDoGrupoDeMarca,
+  type TextosDosGruposDeMarca,
 } from './previa-da-planilha'
 
 /**
@@ -74,6 +77,10 @@ export interface PlanilhaConfig {
    * "alunos que entraram"). Sem ela, vale a dos alunos, que conta também as linhas que ficaram de fora.
    */
   readonly textoDaConclusao?: (resumo: ResumoDaImportacao | null) => string
+  /** Os textos dos grupos de marca que a planilha diz do jeito dela, no lugar dos de aluno (a de professores desliga professor, e não aluno). */
+  readonly textosDosGruposDeMarca?: TextosDosGruposDeMarca
+  /** As frases do resumo das marcas ("Ao gravar, com as suas marcas: …") que a planilha diz do jeito dela. */
+  readonly frasesDoResumoDeMarcas?: FrasesDoResumoDeMarcas
 }
 
 type AlvoDoFoco = 'previa' | 'alerta' | 'conclusao'
@@ -265,6 +272,8 @@ function PreviaDaEscolha({ configuracao, estado, mudar, foco, gravar, gravando }
       tituloRef={foco.previa}
       rotuloDoGravar={configuracao.rotuloDoGravar}
       textosDoErroDaLinha={configuracao.textosDoErroDaLinha}
+      textosDosGruposDeMarca={configuracao.textosDosGruposDeMarca}
+      frasesDoResumoDeMarcas={configuracao.frasesDoResumoDeMarcas}
       gravando={gravando}
       demorando={estado.demorando}
       marcas={marcas}
@@ -408,10 +417,25 @@ interface PropsDaPrevia {
   readonly demorando: boolean
   readonly rotuloDoGravar: string
   readonly textosDoErroDaLinha: Readonly<Record<string, string>> | undefined
+  readonly textosDosGruposDeMarca: TextosDosGruposDeMarca | undefined
+  readonly frasesDoResumoDeMarcas: FrasesDoResumoDeMarcas | undefined
   readonly aoGravar: () => void
 }
 
-function PreviaDaPlanilha({ previa, tituloRef, marcas, aoMarcar, aoMarcarTodos, gravando, demorando, rotuloDoGravar, textosDoErroDaLinha, aoGravar }: PropsDaPrevia) {
+function PreviaDaPlanilha({
+  previa,
+  tituloRef,
+  marcas,
+  aoMarcar,
+  aoMarcarTodos,
+  gravando,
+  demorando,
+  rotuloDoGravar,
+  textosDoErroDaLinha,
+  textosDosGruposDeMarca,
+  frasesDoResumoDeMarcas,
+  aoGravar,
+}: PropsDaPrevia) {
   const idDoTitulo = useId()
   const { erros, avisos } = linhasDeErroEDeAviso(previa.linhas)
   return (
@@ -424,9 +448,11 @@ function PreviaDaPlanilha({ previa, tituloRef, marcas, aoMarcar, aoMarcarTodos, 
       </p>
       {erros.length > 0 && <ListaDeLinhas titulo="Linhas com erro" linhas={erros} textoDe={(linha) => textoDoErro(linha.erro, textosDoErroDaLinha)} tom="erro" />}
       {avisos.length > 0 && <ListaDeLinhas titulo="Linhas com aviso" linhas={avisos} textoDe={(linha) => textoDoAviso(linha.aviso)} tom="aviso" />}
-      {previa.candidatos.length > 0 && <MarcasDaPrevia candidatos={previa.candidatos} marcas={marcas} aoMarcar={aoMarcar} aoMarcarTodos={aoMarcarTodos} />}
+      {previa.candidatos.length > 0 && (
+        <MarcasDaPrevia candidatos={previa.candidatos} marcas={marcas} textos={textosDosGruposDeMarca} aoMarcar={aoMarcar} aoMarcarTodos={aoMarcarTodos} />
+      )}
       <RestoDaPlanilha linhas={previa.linhas} contagens={previa.contagens} />
-      <GravarDaPrevia gravacao={podeGravar(previa, totalDeMarcas(marcas))} resumoDasMarcas={resumoDasMarcas(marcas)} rotulo={rotuloDoGravar} gravando={gravando} demorando={demorando} aoGravar={aoGravar} />
+      <GravarDaPrevia gravacao={podeGravar(previa, totalDeMarcas(marcas))} resumoDasMarcas={resumoDasMarcas(marcas, frasesDoResumoDeMarcas)} rotulo={rotuloDoGravar} gravando={gravando} demorando={demorando} aoGravar={aoGravar} />
     </section>
   )
 }
@@ -511,10 +537,23 @@ function ListaDeLinhas({ titulo, linhas, textoDe, tom }: { titulo: string; linha
 }
 
 /**
- * As marcas: cada candidato com o nome e a matrícula que a escola já tem, para a coordenação conferir. Chegam desmarcados, e o "marcar
- * todos" também (regra 70, item 2). O rótulo só aparece aqui, nunca na contagem do resto.
+ * As marcas: cada candidato com o rótulo que a API devolve, para a coordenação conferir: nome e matrícula no aluno, só o nome no
+ * professor (o e-mail dele não sai da API, E11). Quem usa esta peça não acrescenta matrícula nem e-mail ao rótulo. Chegam desmarcados,
+ * e o "marcar todos" também (regra 70, item 2). O rótulo só aparece aqui, nunca na contagem do resto.
  */
-function MarcasDaPrevia({ candidatos, marcas, aoMarcar, aoMarcarTodos }: { candidatos: readonly CandidatoDaMarca[]; marcas: MarcasEscolhidas; aoMarcar: (acao: AcaoDeMarca, id: string) => void; aoMarcarTodos: (acao: AcaoDeMarca) => void }) {
+function MarcasDaPrevia({
+  candidatos,
+  marcas,
+  textos,
+  aoMarcar,
+  aoMarcarTodos,
+}: {
+  candidatos: readonly CandidatoDaMarca[]
+  marcas: MarcasEscolhidas
+  textos: TextosDosGruposDeMarca | undefined
+  aoMarcar: (acao: AcaoDeMarca, id: string) => void
+  aoMarcarTodos: (acao: AcaoDeMarca) => void
+}) {
   const idDoTitulo = useId()
   return (
     <section aria-labelledby={idDoTitulo} className="flex min-w-0 flex-col gap-3">
@@ -524,7 +563,7 @@ function MarcasDaPrevia({ candidatos, marcas, aoMarcar, aoMarcarTodos }: { candi
       <p className="text-sm break-words text-apoio">{TEXTO_DA_CONFERENCIA}</p>
       {ACOES_DE_MARCA.map((acao) => {
         const doGrupo = candidatosDa(candidatos, acao)
-        return doGrupo.length === 0 ? null : <GrupoDeMarca key={acao} acao={acao} candidatos={doGrupo} escolhidos={marcas[acao]} aoMarcar={aoMarcar} aoMarcarTodos={aoMarcarTodos} />
+        return doGrupo.length === 0 ? null : <GrupoDeMarca key={acao} acao={acao} texto={textoDoGrupoDeMarca(acao, textos)} candidatos={doGrupo} escolhidos={marcas[acao]} aoMarcar={aoMarcar} aoMarcarTodos={aoMarcarTodos} />
       })}
     </section>
   )
@@ -532,19 +571,20 @@ function MarcasDaPrevia({ candidatos, marcas, aoMarcar, aoMarcarTodos }: { candi
 
 function GrupoDeMarca({
   acao,
+  texto,
   candidatos,
   escolhidos,
   aoMarcar,
   aoMarcarTodos,
 }: {
   acao: AcaoDeMarca
+  texto: TextoDoGrupoDeMarca
   candidatos: readonly CandidatoDaMarca[]
   escolhidos: ReadonlySet<string>
   aoMarcar: (acao: AcaoDeMarca, id: string) => void
   aoMarcarTodos: (acao: AcaoDeMarca) => void
 }) {
   const [paginas, definirPaginas] = useState(1)
-  const texto = TEXTO_DO_GRUPO_DE_MARCA[acao]
   const todos = candidatos.every(({ id }) => escolhidos.has(id))
   const escondidos = itensEscondidos(candidatos.length, paginas)
   return (

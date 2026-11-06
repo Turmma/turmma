@@ -590,3 +590,111 @@ describe('revogar e refazer, pelo painel', () => {
     expect(screen.getAllByRole('dialog')).toHaveLength(1)
   })
 })
+
+describe('importar a planilha da equipe (15.0; RF4 e RF6)', () => {
+  const importar = () => screen.getByRole('button', { name: 'Importar professores' })
+  const cheios = () =>
+    screen
+      .getAllByRole('button')
+      .filter((botao) => botao.className.includes('bg-laranja'))
+      .map((botao) => botao.textContent)
+
+  it('com a tabela, "Importar professores" é um botão secundário ao lado do cadastro, que continua o único cheio', async () => {
+    instalar(fakeNetwork())
+    await montarEEsperar()
+    expect(screen.getAllByRole('button', { name: 'Importar professores' })).toHaveLength(1)
+    expect(importar().className).not.toContain('bg-laranja')
+    expect(cheios()).toEqual(['Cadastrar professor'])
+  })
+
+  it('o vazio também convida a importar, com o cadastro como única ação cheia, e o botão abre o painel', async () => {
+    const usuario = userEvent.setup()
+    instalar(fakeNetwork(), { professores: ok([]), vinculos: ok([]) })
+    const localizacao = montar()
+    await screen.findByText('Nenhum professor ainda')
+    expect(screen.getAllByRole('button', { name: 'Importar professores' })).toHaveLength(1)
+    expect(cheios()).toEqual(['Cadastrar professor'])
+    await usuario.click(importar())
+    expect(localizacao.history?.at(-1)).toBe('/professores?painel=importar')
+    expect(await screen.findByRole('dialog', { name: 'Importar professores' })).toBeTruthy()
+  })
+
+  it('o botão abre o painel no endereço, com a prévia por vir; "Fechar" tira o parâmetro sem passo novo no histórico', async () => {
+    const usuario = userEvent.setup()
+    instalar(fakeNetwork())
+    const localizacao = await montarEEsperar()
+    await usuario.click(importar())
+    expect(localizacao.history?.at(-1)).toBe('/professores?painel=importar')
+    const painel = await screen.findByRole('dialog', { name: 'Importar professores' })
+    expect(within(painel).getByText('Nenhuma planilha escolhida')).toBeTruthy()
+    expect(within(painel).getByRole('button', { name: 'Baixar modelo' })).toBeTruthy()
+    // O painel de importar não abre o de nenhum professor.
+    expect(screen.getAllByRole('dialog')).toHaveLength(1)
+    await usuario.click(within(painel).getByRole('button', { name: 'Fechar' }))
+    expect(localizacao.history?.at(-1)).toBe('/professores')
+    // Abrir é um passo no histórico; fechar troca o endereço (o da planilha vira o da tela), sem passo novo: o Voltar não a reabre.
+    expect(localizacao.history).toEqual(['/professores', '/professores'])
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('pelo endereço, abre já com o painel, e fechado o foco vai ao título da lista; outro valor de `painel` não abre nada', async () => {
+    const usuario = userEvent.setup()
+    instalar(fakeNetwork())
+    await montarEEsperar('/professores?painel=importar')
+    const painel = await screen.findByRole('dialog', { name: 'Importar professores' })
+    const titulo = screen.getByRole('heading', { name: 'Professores da escola' })
+    expect(document.activeElement).not.toBe(titulo)
+    await usuario.click(within(painel).getByRole('button', { name: 'Fechar' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(document.activeElement).toBe(titulo)
+    cleanup()
+    for (const busca of ['painel=ano', 'painel=', 'painel=importar-grade']) {
+      instalar(fakeNetwork())
+      await montarEEsperar(`/professores?${busca}`)
+      expect(screen.queryByRole('dialog'), busca).toBeNull()
+      cleanup()
+    }
+  })
+
+  it('o endereço que pede a planilha e um professor ao mesmo tempo abre só a planilha', async () => {
+    instalar(fakeNetwork())
+    await montarEEsperar(`/professores?painel=importar&professor=${BRUNO.usuarioId}`)
+    expect(await screen.findByRole('dialog', { name: 'Importar professores' })).toBeTruthy()
+    expect(screen.getAllByRole('dialog')).toHaveLength(1)
+    expect(screen.queryByRole('dialog', { name: BRUNO.nome })).toBeNull()
+  })
+
+  it('a planilha pede a prévia e o gravar de professores, sem ano nem turma; ao gravar, a lista é lida de novo e o cadastrado aparece pendente na tabela', async () => {
+    const usuario = userEvent.setup()
+    const rede = fakeNetwork()
+    const estados: Record<string, string> = {}
+    const NOVA = professor(9, 'Nina Nova', 'pendente')
+    instalar(rede, { professores: () => ok(estados[NOVA.usuarioId] === undefined ? [ANA] : [ANA, NOVA]) })
+    rede.responderPor('/v1/importacoes/professores/previa', { status: 200, corpo: { linhas: [{ linha: 2, resultado: 'entra' }], contagens: { entram: 1 }, candidatos: [] } })
+    rede.responderPor('/v1/importacoes/professores', () => {
+      estados[NOVA.usuarioId] = 'pendente'
+      return { status: 202, corpo: { id: id(900) } }
+    })
+    rede.responderPor(`/v1/importacoes/${id(900)}`, {
+      status: 200,
+      corpo: { id: id(900), tipo: 'professores', estado: 'concluida', resumo: { entram: 1, ja_existem: 0 }, erro: null, criadoEm: '2026-11-06T10:00:00-03:00', concluidaEm: '2026-11-06T10:00:01-03:00' },
+    })
+    await montarEEsperar('/professores?painel=importar')
+    const painel = await screen.findByRole('dialog', { name: 'Importar professores' })
+    const antes = vezes(rede, '/v1/professores')
+    await usuario.upload(within(painel).getByLabelText('Arquivo da planilha (Excel ou CSV)'), new File(['nome;email\nNina Nova;nina@escola.invalid\n'], 'professores.csv', { type: 'text/csv' }))
+    await usuario.click(await within(painel).findByRole('button', { name: 'Gravar professores' }))
+    expect(await within(painel).findByText(/1 professor cadastrado, com o convite em aberto/)).toBeTruthy()
+    // A lista foi lida de novo, com o painel ainda aberto: o cadastrado já está na tabela por trás, pendente, sem recarregar a página.
+    await waitFor(() => expect(vezes(rede, '/v1/professores')).toBeGreaterThan(antes))
+    await waitFor(() => expect(document.body.textContent).toContain('Nina Nova'))
+    const pedidos = rede.chamadas.filter((chamada) => chamada.caminho.startsWith('/v1/importacoes'))
+    expect(pedidos.map((pedido) => pedido.caminho)).toEqual(['/v1/importacoes/professores/previa', '/v1/importacoes/professores', `/v1/importacoes/${id(900)}`])
+    // O corpo da prévia e o do gravar levam o texto e as marcas, e nada de ano letivo nem de turma: a planilha de professores não é de um ano.
+    const corpos = vi
+      .mocked(fetch)
+      .mock.calls.filter(([caminho, opcoes]) => opcoes?.method === 'POST' && String(caminho).startsWith('/v1/importacoes/professores'))
+      .map(([, opcoes]) => Object.keys(JSON.parse(String(opcoes?.body)) as object).sort())
+    expect(corpos).toEqual([['texto'], ['marcas', 'texto']])
+  })
+})

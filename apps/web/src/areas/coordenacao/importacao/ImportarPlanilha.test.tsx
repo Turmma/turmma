@@ -160,12 +160,12 @@ describe('as marcas são da coordenação (regra 70, item 2)', () => {
 
     await screen.findByRole('heading', { name: 'Você decide' })
     expect(screen.getByText(TEXTO_DA_CONFERENCIA)).toBeTruthy()
-    for (const caixa of screen.getAllByRole('checkbox')) expect((caixa as HTMLInputElement).checked, caixa.getAttribute('id') ?? '').toBe(false)
-    expect(screen.getByRole('checkbox', { name: 'Caio Pires (2026010)' })).toBeTruthy()
     // Só os grupos que têm candidato aparecem: ninguém sai da grade nesta planilha.
     expect(screen.getByRole('group', { name: 'Aparecem em outra turma na planilha (2)' })).toBeTruthy()
     expect(screen.getByRole('group', { name: 'Estão nas turmas da planilha, mas não aparecem nela (1)' })).toBeTruthy()
     expect(screen.queryByRole('group', { name: /Saem da grade nova/ })).toBeNull()
+    for (const caixa of screen.getAllByRole('checkbox')) expect((caixa as HTMLInputElement).checked, caixa.getAttribute('id') ?? '').toBe(false)
+    expect(screen.getByRole('checkbox', { name: 'Caio Pires (2026010)' })).toBeTruthy()
     // O resto da planilha é contagem: nenhum nome fora das marcas.
     expect(within(screen.getByRole('region', { name: 'O resto da planilha' })).queryByText(/Caio|Ana|2026/)).toBeNull()
   })
@@ -597,5 +597,31 @@ describe('a prévia longa e as faixas que só aparecem com o que mostrar', () =>
 
     const erros = within(await screen.findByRole('region', { name: 'Linhas com erro (2)' }))
     expect(erros.getAllByRole('listitem').map((item) => item.textContent)).toEqual([expect.stringContaining('Linha 2: Texto do calendário.'), expect.stringContaining('Linha 3: Não achei esta turma.')])
+  })
+  it('15.0: a planilha que diz as marcas do jeito dela usa os textos dela no grupo e no resumo, e o rótulo é o que a API mandou, sem e-mail', async () => {
+    const usuario = userEvent.setup()
+    const rede = fakeNetwork()
+    rede.responderPor('/v1/importacoes/professores/previa', {
+      status: 200,
+      corpo: { linhas: [{ linha: 2, resultado: 'entra' }], contagens: { entram: 1 }, candidatos: [{ id: id(7), acao: 'desligar', rotulo: 'Helena Prado' }] },
+    })
+    const professores: PlanilhaConfig = {
+      ...CONFIGURACAO,
+      rotas: rotasDaPlanilha('professores'),
+      rotuloDoGravar: 'Gravar professores',
+      textosDosGruposDeMarca: { desligar: { titulo: 'Estão na escola, mas não aparecem na planilha', explicacao: 'Marque só quem saiu.', rotuloDoTodos: 'Marcar todos para desligar' } },
+      frasesDoResumoDeMarcas: { desligar: ['professor será desligado e perde o acesso', 'professores serão desligados e perdem o acesso'] },
+    }
+    renderScreen(<ImportarPlanilha configuracao={professores} />)
+    await escolher(usuario)
+
+    const grupo = await screen.findByRole('group', { name: 'Estão na escola, mas não aparecem na planilha (1)' })
+    expect(screen.queryByRole('group', { name: /Estão nas turmas da planilha/ })).toBeNull()
+    expect(within(grupo).getByText('Marque só quem saiu.')).toBeTruthy()
+    const marca = within(grupo).getByRole('checkbox', { name: 'Helena Prado' }) as HTMLInputElement
+    expect(marca.checked).toBe(false)
+    expect(screen.queryByText(/Ao gravar, com as suas marcas/)).toBeNull()
+    await usuario.click(marca)
+    expect(screen.getByText('Ao gravar, com as suas marcas: 1 professor será desligado e perde o acesso.')).toBeTruthy()
   })
 })

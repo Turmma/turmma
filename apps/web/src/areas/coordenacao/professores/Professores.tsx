@@ -9,6 +9,7 @@ import { aoTrocarDeSessao } from '../../../api/sessao'
 import { PROFESSOR_PARAM } from '../../../paths'
 import { Alert } from '../../../components/ui/Alert'
 import { Button } from '../../../components/ui/Button'
+import { SECONDARY_BUTTON_CLASSES } from '../../../components/ui/button-variants'
 import { Dialog } from '../../../components/ui/overlays/Dialog'
 import { useDialogState } from '../../../components/ui/overlays/dialog-state'
 import { DialogoDeConviteNovo, DialogoDeConviteRefeito } from '../../../components/DialogoDoConvite'
@@ -33,8 +34,9 @@ import { enderecoComParametro } from '../comum/endereco-da-tela'
 import { textoDaListaCurta } from '../estrutura/lista-curta'
 import { useFocusPageHeading } from '../comum/moldura'
 import { AvisoDeListaIncompleta, CLASSES_DO_BOTAO_DA_LINHA } from '../comum/pecas-da-lista'
+import { PainelDaImportacaoDeProfessores } from './PainelDaImportacaoDeProfessores'
 import { PainelDoProfessor } from './PainelDoProfessor'
-import { contagemDeProfessores, professorAlocavel, professorDoEndereco, professoresDaTabela, type ProfessorDaTabela } from './professores-da-escola'
+import { contagemDeProfessores, importacaoAbertaNoEndereco, professorAlocavel, professorDoEndereco, professoresDaTabela, type ProfessorDaTabela } from './professores-da-escola'
 
 /** Os diálogos da tela, um por vez. O refazer, o revogar e o acrescentar turma levam o professor da linha, fotografado na abertura. */
 type TipoDeDialogo = 'cadastrar' | 'refazer' | 'revogar' | 'acrescentar'
@@ -127,7 +129,9 @@ export default function Professores() {
   const tituloDasTurmas = useRef<HTMLHeadingElement>(null)
 
   const dados = professores.data
-  const doPainel = dados === undefined ? undefined : professorDoEndereco(busca, dados.itens)
+  // A planilha ao lado e o painel de um professor não convivem: se o endereço pede os dois, vale a planilha.
+  const importando = importacaoAbertaNoEndereco(busca)
+  const doPainel = dados === undefined || importando ? undefined : professorDoEndereco(busca, dados.itens)
   const painelAberto = doPainel !== undefined
 
   const recarregar = useCallback(() => cliente.invalidateQueries({ queryKey: professoresQueryOptions.queryKey }), [cliente])
@@ -144,7 +148,8 @@ export default function Professores() {
   useEffect(() => aoTrocarDeSessao(fechar), [fechar])
 
   // O painel aberto já pelo endereço (o link do sino, ou o Voltar do histórico) não tem botão que o tenha aberto: o foco devolvido a
-  // "quem abriu" cai no `body`. Quando o painel fecha e o foco está no `body`, vai ao título da lista, e não se perde.
+  // "quem abriu" cai no `body`. Quando o painel fecha e o foco está no `body`, vai ao título da lista, e não se perde. O da planilha
+  // não precisa deste efeito: ele devolve o foco pelo `focoDeReserva`.
   useEffect(() => {
     const titulo = tituloDaLista.current
     return () => {
@@ -160,6 +165,9 @@ export default function Professores() {
 
   const abrirPainel = (usuarioId: string): void => navegar(enderecoComParametro(caminho, busca, PROFESSOR_PARAM, usuarioId))
   const fecharPainel = (): void => navegar(enderecoComParametro(caminho, busca, PROFESSOR_PARAM, undefined), { replace: true })
+  // A planilha ao lado: abrir é um passo no histórico, e fechar troca o endereço, como o painel do professor.
+  const abrirImportacao = (): void => navegar(enderecoComParametro(caminho, busca, 'painel', 'importar'))
+  const fecharImportacao = (): void => navegar(enderecoComParametro(caminho, busca, 'painel', undefined), { replace: true })
 
   const erroDaLeitura = <ErrorState erro={professores.error} tentando={professores.isFetching} aoTentarDeNovo={() => void professores.refetch({ cancelRefetch: false })} />
   // Os anos ou os vínculos que não vieram: a tabela continua com o que tem, e o aviso diz por que as células de turma e disciplina estão em "—".
@@ -183,11 +191,18 @@ export default function Professores() {
         professores.isError ? (
           erroDaLeitura
         ) : (
-          <EmptyState
-            titulo="Nenhum professor ainda"
-            descricao="Cadastre cada professor com o nome e o e-mail dele. O link do convite aparece uma vez, para você copiar e mandar; a pessoa abre o link e cria a senha."
-            acao={{ rotulo: 'Cadastrar professor', aoAcionar: () => abrir('cadastrar') }}
-          />
+          <>
+            <EmptyState
+              titulo="Nenhum professor ainda"
+              descricao="Cadastre cada professor com o nome e o e-mail dele, ou importe a planilha da equipe. O link do convite aparece uma vez, para você copiar e mandar; a pessoa abre o link e cria a senha."
+              acao={{ rotulo: 'Cadastrar professor', aoAcionar: () => abrir('cadastrar') }}
+            />
+            <div>
+              <button type="button" onClick={abrirImportacao} className={SECONDARY_BUTTON_CLASSES}>
+                Importar professores
+              </button>
+            </div>
+          </>
         )
       ) : (
         <>
@@ -198,7 +213,12 @@ export default function Professores() {
               </h2>
               <p className="t-apoio text-sutil">{contagemDeProfessores(dados.itens.length)}</p>
             </div>
-            <Button onClick={() => abrir('cadastrar')}>Cadastrar professor</Button>
+            <div className="flex flex-wrap items-center gap-3">
+              <button type="button" onClick={abrirImportacao} className={SECONDARY_BUTTON_CLASSES}>
+                Importar professores
+              </button>
+              <Button onClick={() => abrir('cadastrar')}>Cadastrar professor</Button>
+            </div>
           </div>
           {professores.isError && erroDaLeitura}
           {turmasComFalha && (
@@ -232,6 +252,9 @@ export default function Professores() {
           focoDeReserva={focarNaLista}
         />
       )}
+
+      {/* A planilha fica fora dos estados da lista: a lista que recarrega, ou cai, não remonta a prévia que a coordenação está conferindo. */}
+      {importando && <PainelDaImportacaoDeProfessores aoConcluir={recarregarAEstrutura} aoFechar={fecharImportacao} focoDeReserva={focarNaLista} />}
 
       {/* O cadastro e o refazer não fecham sozinhos: a resposta deles só preenche o diálogo que a pediu. */}
       {aberta?.tipo === 'cadastrar' && (

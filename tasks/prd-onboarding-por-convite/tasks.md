@@ -107,7 +107,7 @@ cenários foram distribuídos pelo `test-engineer`; cada linha do `cenarios.md` 
   - [ ] 14.5 `docs/interface.md` §3; roteiro da demonstração
   - [ ] 14.6 Testes
 
-- [ ] **15.0 — Professores importa a planilha da equipe**
+- [x] **15.0 — Professores importa a planilha da equipe**
   - [ ] 15.1 "Importar professores" com marca
   - [ ] 15.2 Cadastrado `pendente` com "Copiar link"
   - [ ] 15.3 `docs/interface.md` §3

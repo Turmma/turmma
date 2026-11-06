@@ -494,7 +494,16 @@ os quatro estados; o vazio da grade convida a "Baixar modelo".
   por turma, alocação e convite ao professor; grade horária e calendário vêm com o F2 (D71
   revista). Na A1 o cadastro e o convite do professor têm tela própria, **Professores**, item da lateral ao lado de
   Estrutura (tarefa 14.0; Tech Spec da A1, seção 9): cadastrar com nome e e-mail, copiar o link que aparece uma vez,
-  refazer e revogar. O roteiro da Estrutura e o vazio da Alocação levam a ela. Dentro da turma aberta, embaixo da lista
+  refazer e revogar. O roteiro da Estrutura e o vazio da Alocação levam a ela. **"Importar professores"** (F2, 15.0) é um botão
+  secundário ao lado de "Cadastrar professor", e também no vazio, que abre o painel `?painel=importar` com a **mesma peça de planilha**
+  dos alunos: a prévia vem antes de gravar (até 300 linhas; os erros em frase com o que fazer, e o e-mail repetido, em qualquer caixa,
+  é uma pessoa só, com aviso), e quem a planilha traz é cadastrado `pendente`, com o convite em aberto. A gravação não mostra link
+  nenhum: o link se pega **depois**, abrindo o professor na lista e usando "Refazer convite" (o `convite/refazer`), que mostra o link
+  uma vez, com "Copiar link"; o texto do resultado diz isso. Quem está na escola e não está na planilha **continua**, e só sai com a
+  marca de desligar: "Estão na escola, mas não aparecem na planilha", desmarcada, com "Marcar todos para desligar" também desmarcado
+  (regra 70), e a marca é rotulada **só com o nome** que a escola já tem, sem e-mail (a API não o manda, E11; Tech Spec, seção 9),
+  e só `ativo` e `aceito` são candidatos. Perto de "Gravar professores" uma linha diz o que a marca vai fazer ("1 professor será
+  desligado e perde o acesso"). "Cadastrar professor" segue a única ação cheia da tela. Dentro da turma aberta, embaixo da lista
   de nomes, a coordenação também decide os **pedidos de nome** (tarefa 16.0), com a mesma peça do professor: a lista só é
   lida no clique em "Atualizar", porque cada consulta fica na auditoria em nome dela, e a tela diz isso. Os alunos já
   aprovados aparecem na lista de nomes como uma contagem, sem o nome. A lista de nomes e a escola inteira entram pela **mesma peça de planilha** (F2, 13.0): a coordenação
