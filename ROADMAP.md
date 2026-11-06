@@ -454,7 +454,8 @@ ranking (D59; regra 50, item 9); a introdução aparece uma vez por pessoa, pode
 é aviso obrigatório e pode ser revista; o aviso de privacidade está em linguagem de 11 anos; e o e2e
 do aluno e das páginas públicas continua provando as mesmas regras.
 
-## F2 — `onboarding-por-convite` [~]
+## F2 — `onboarding-por-convite` [x]
+Concluída em 06/11/2026, validada em tasks/prd-onboarding-por-convite/validacao.md.
 **Depende de:** F1
 
 Conferido contra o código em 24/10/2026. **Já existe** (A1): séries, turmas e disciplinas na tela; a lista de nomes por turma, colada ou em CSV,

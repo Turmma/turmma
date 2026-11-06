@@ -2238,6 +2238,11 @@ repetem aqui.
 - [ ] **(X4, retro) O push da branch da spec no pouso roda a esteira no mesmo commit que a da `develop`**: `40365404286` vermelha
       (seis casos do celular a 30–32 s) e `40365440626` verde, as duas em `83f1c6d8`, e ninguém lê a primeira. Se voltar a confundir,
       o pouso não empurra a spec (dono: Orquestrador)
+- [ ] **(F2, censo do fechamento, 06/11/2026) 9 casos de fora da spec entre 2/3 e 90% do prazo** na execução 42222849837 (`19f8e2c`), dívida da develop,
+      já cobertos pelos grupos do item abaixo, nenhum acima de 90%: `alocacao.spec.ts:85` (77,3 e 76,1 s de 90), `mfa.spec.ts:14` (24,8 e 22,6 de 30),
+      `escola-e-vinculos.spec.ts:211` (24,4 e 21,6) e `:271` (21,4), `operacao.spec.ts:45` (22,6 e 21,1) e `:125` (64,5 e 63,6 de 90), `convite.spec.ts:154`
+      (22,2 e 21,8), `titulo-da-tela.spec.ts:138` (21,6) e `components-ai.spec.ts:205` (20,5). Os quatro da spec viraram a correção
+      `2026-11-06-e2e-perto-do-prazo-da-f2` (dono: Orquestrador)
 - [ ] **(X4, censo do e2e) 36 casos entre 2/3 e 90% do prazo, de antes da X4** (dívida da develop, decisão A do Joaquim em
       26/10/2026; detalhe em `.processo/ordens/diagnostico-censo.md` do andar da X4, §3), em três correções sem arquivo em duas:
       (1) **material**: `e2e/material.spec.ts`, 10 casos; (2) **entrada e sessão**: `convite`, `entrar`, `inatividade`, `areas`,
@@ -2728,3 +2733,14 @@ repetem aqui.
 - [ ] Da correção 2026-11-06-teto-de-desligamentos-fora-da-rota (test-engineer, 1ª): uma linha em `docs/guia-do-desenvolvedor.md` dizendo que o teste de integração do worker se roda pela config da raiz (`npx vitest run --project integracao …`), e não de dentro de `apps/worker`, que usa o `dist` velho do `@educa/core`
 - [ ] Da correção 2026-11-06-slots-vaga-sem-depender-do-relogio (test-engineer, 1ª): o caso "o worker renova a vaga enquanto o job roda…" de `apps/despachante/test/slots.int.test.ts` espera 500 ms de parede contra renovação a cada 200 ms, a mesma fragilidade sob carga que a correção tirou do caso da vaga dos publicados; passar para o relógio do Redis ou para a renovação acionada à mão, se aparecer vermelho na esteira
 - [ ] Da correção 2026-11-06-e2e-perto-do-prazo-da-f2 (frontend-reviewer, 1ª): o rótulo "Ferramentas" da barra de baixo do professor sai cortado como "FERRAME…" a 360 px (`apps/web/src/components/BarraDeBaixo.tsx:83`, `truncate`; `BarraDeBaixo.test.tsx:142` exige a classe). Já era assim antes da correção, que só mexeu em `e2e/`; é tarefa de produto (reduzir o `tracking`, a caixa-alta ou o corpo do rótulo), junto do item "(a) Barra de baixo a 360 px corta FERRAMEN…" da X3
+
+## Da validação do onboarding-por-convite (rodadas 1 a 3, 06/11/2026), menores que não seguraram o pouso
+
+- [ ] (Implementador, 06/11/2026) `apps/web/src/areas/coordenacao/grade/GradeECalendario.tsx:129` mostra "Sala Sala 12": mostrar a sala sem o prefixo "Sala " (Validador, rodada 1)
+- [ ] (Arquiteto, 06/11/2026) `tasks/prd-onboarding-por-convite/techspec.md:204`: a premissa do `read-excel-file` segue "⚠️ NÃO VERIFICADO" e já está verificada por `ler-planilha.test.ts:9` (Validador, rodada 1)
+- [ ] (Implementador, 06/11/2026) `apps/worker/test/gravar-planilha.int.test.ts:244`: o nome do caso ainda diz que a grade "chega na 8.0"; renomear para o que o caso prova (Validador, rodada 1)
+- [ ] (Orquestrador, 06/11/2026) `10_task.md` e `16_task.md` do onboarding-por-convite: a seção "Revisões" sem as linhas da 1ª rodada; o histórico está em `achados/` (Validador, rodada 1)
+- [ ] (Implementador, 06/11/2026) `apps/despachante/test/slots.int.test.ts:384`: "no caso das 1.000 lotes da A" → "no caso dos 1.000 lotes da A", na próxima correção do arquivo (Validador, rodada 3)
+- [ ] (Implementador, 06/11/2026) `apps/worker/test/queue-fixtures.int.test.ts:31`: o caso do `explicar` com `update` deixa no banco de teste a rede e a escola sintéticas de `bancada.escola()`; para a retrospectiva, se a tabela de escolas do banco de teste pesar (Validador, rodada 3)
+- [ ] (Arquiteto, 06/11/2026) Para a retrospectiva da F2: `lista.transferida` (e `aluno.transferido`, `usuario.nome_corrigido`, `lista.nome_corrigido`) não entram no arquivo do titular, que traz só a auditoria de que ele é autor (`leitura-do-titular.ts:392`, desenho do F3); abrir em `docs/decisoes-em-aberto.md` "o arquivo do titular traz os atos de terceiros sobre ele?" (dono Arquiteto, decide o Joaquim). `lista_nome.retirado` não tem titular futuro: o nome sai de fato (`lista.repository.ts:263`). Triagem do Arquiteto antes do pouso, opção (b)
+- Já estavam aqui, e seguem (Validador, rodadas 2 e 3): o laço em lotes de `retirarNomes`, a linha do guia sobre a integração do worker, o leitor de tela nos `aria-live` da `ImportarPlanilha.tsx`, a medida de 1.000 e 3.000 transferências e da virada de 3.000, e a renovação de 500 ms do worker em `slots.int.test.ts`

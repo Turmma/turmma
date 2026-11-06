@@ -1,8 +1,8 @@
 # Tech Spec — A escola inteira entra de uma vez
 
 **PRD:** `tasks/prd-onboarding-por-convite/prd.md`
-**Status:** aprovada na revisão da spec (rodada 8, 03/11/2026); no corte em duas specs (Joaquim, 03/11/2026), e-mail,
-senha e conta da escola foram para `tasks/prd-acesso-e-convites/techspec.md`, sem mudar regra
+**Status:** implementada em 06/11/2026 (aprovada na revisão da spec, rodada 8, 03/11/2026; no corte em duas specs (Joaquim, 03/11/2026), e-mail,
+senha e conta da escola foram para `tasks/prd-acesso-e-convites/techspec.md`, sem mudar regra)
 **Teto:** 2.700 palavras (Joaquim, 03/11/2026)
 **Cenários:** `tasks/prd-onboarding-por-convite/cenarios.md`: testes, limites, corridas e auditoria
 
