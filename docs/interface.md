@@ -412,8 +412,12 @@ texto não leva selo. O toque abre a aula (`?aula=`, abaixo).
 **Os itens do dia (8.0).** Embaixo dos cartões, o que aconteceu ali naquele dia para a turma e a disciplina da professora: "Atividade
 aplicada", "Atividade encerrada" e "Correção do Assistente", com o estado de hoje da correção ("Para revisar", "Aprovada",
 "Rejeitada"), nos rótulos de `packages/shared`. Cada item é um link: o painel da atividade (`?aba=atividades&atividade=<id>`) ou a
-revisão da correção (o endereço do sino). Sem nota, média, acerto nem nome de aluno. Em **Hoje**, a aba da turma aberta, um link
-"Ver a semana desta turma" leva à Semana já filtrada pela turma e disciplina.
+revisão da correção (o endereço do sino). Sem nota, média, acerto nem nome de aluno. Em **Hoje**, a aba da turma aberta, sai **um link
+por vínculo confirmado com disciplina** naquela turma (a turma aberta não tem disciplina, e o filtro é `?turma=<turmaId>.<disciplinaId>`),
+cada um levando à Semana já filtrada pela turma e por aquela disciplina. Com um vínculo, o texto é "Ver a semana desta turma"; com dois
+ou mais, cada link mostra a disciplina no texto visível, "Ver a semana desta turma · Química" (dois links com o mesmo texto e destinos
+diferentes não passam no 2.4.4). Sem vínculo confirmado, ou com a leitura dos vínculos carregando ou em erro, nenhum link, e o Hoje não
+ganha estado novo.
 
 **O painel da aula (7.0).** Abre ao lado no computador e como folha de baixo a 360 px (o `Sheet`), por `?aula=<vinculoId>.<data>.<HHMM>`.
 Dia, horário, turma, disciplina e sala; o `Textarea` **"O que vou dar"** até o dia da aula e **"O que foi dado"** depois, com o contador
