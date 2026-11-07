@@ -2821,3 +2821,41 @@ repetem aqui.
       e um título qualquer; afirmar `[data-dia="${cena.anterior}"]` ou o título da semana anterior. A mudança da semana na tela já tem caso em
       `Semana.test.tsx`
 - [ ] (semana-do-professor, 6.0, revisor-geral, 2ª) **P30: `page.unroute` depois do `liberar()`.** A rota segurada vive até o fim do caso, que não tem mais passos
+## Da semana-do-professor, tarefa 4.0 (`PUT /v1/aulas`), fora dela
+
+- [ ] (semana-do-professor, 4.0, privacy-guardian, 1ª) **Comentário no schema da `aula`: o `trim()` do JS apara mais que o `btrim` da checagem.** O
+      `aula_conteudo_preenchido` usa `btrim` (só espaço), e o contrato de `gravarAulaRequestSchema` usa o `trim()` do JS (também tab, quebra de linha e
+      espaços Unicode): o texto só de tabs é vazio para a rota e preenchido para o banco. Uma linha em `packages/core/src/db/schema/aula.ts` dizendo
+      isso. Dono: o schema é da 1.0; quem voltar a ele (a 5.0, que escreve na `aula`)
+- [ ] (semana-do-professor, 4.0, infra-guardian, 1ª) **Runbook: a virada do ano em horário de aula gera uma onda de `INDISPONIVEL_TENTE_DE_NOVO` na
+      Semana.** O `PUT /v1/aulas` espera o `for share` do ano (até 2 s de `lock_timeout`) enquanto o encerramento do ano o segura; quem passa do prazo
+      recebe `INDISPONIVEL_TENTE_DE_NOVO`. Um parágrafo em `docs/runbook.md` (o que a professora vê e quando virar o ano). `docs/runbook.md` caduca
+      carimbo e rodada, por isso não é desta tarefa. Dono: o Arquiteto, na retro da funcionalidade
+- [ ] (semana-do-professor, 4.0, revisor-geral, 1ª) **Uma só constante para o `55P03` (`lock_not_available`) em `packages/core/src/db`.** A cópia local
+      `TRAVA_NAO_DISPONIVEL` de `apps/api/src/semana/aulas.service.ts` é a quarta (as outras estão em `migrate.ts`, `motor.ts` e
+      `importacao.repository.ts`): uma exportação do `core` e as quatro passam a importá-la. Mexe em arquivos que a 4.0 não toca. Dono: a tarefa que
+      tocar `migrate.ts`, `motor.ts` ou `importacao.repository.ts`
+- [ ] (semana-do-professor, 4.0, test-engineer, 1ª) **Caso da professora com duas disciplinas na mesma turma (dois vínculos confirmados) no `PUT`.**
+      Em `apps/api/test/aulas.int.test.ts`: dois vínculos confirmados dela na mesma turma, e o `PUT` de cada um grava só a aula do seu `vinculoId`. Pede
+      fixture nova (o segundo vínculo na mesma turma); a chave `vinculo_id` já é provada pela colega e pelos vínculos dos outros estados. Dono: a
+      tarefa 5.0, que mexe em mais de um vínculo por professora
+
+## Da semana-do-professor, tarefa 3.0 (os itens do dia), fora dela
+
+- [ ] (semana-do-professor, encontro-4-semana, conformidade-reviewer e infra-guardian, 1ª) **O comentário da classe em `apps/api/src/semana/semana.module.ts`
+      (linha 14) ainda diz que "os itens do dia entram na 3.0".** Trocar por "a leitura (2.0), os itens do dia (3.0) e a gravação do texto da aula (4.0)".
+      Dono: a próxima tarefa da spec que tocar `semana.module.ts`; mudar só o comentário de um `.ts` caduca o `revisor-geral`
+- [ ] (semana-do-professor, 3.0, tenancy-guardian, 1ª) **`itensDaSemana` e `consultasDosItens` leem o `anoLetivoId` do contexto.** Hoje recebem o ano por
+      argumento (como os métodos da 2.0); ler de `currentContext()` ou recusar ano diferente do contexto. Muda a assinatura dos métodos da 2.0 e da 3.0 e
+      do `semana.service.ts`. A origem do ano hoje é segura (`anoEmCurso()` lê o contexto) e o R2 prova que ano trocado volta vazio
+- [ ] (semana-do-professor, 3.0, infra-guardian e revisor-geral, 1ª) **`diaNoFuso` filtra por instante, e o fuso entra como parâmetro.** O `naSemana` aplica
+      `to_char(... at time zone ...)` em cada linha; filtrar a semana pelo instante (`>= segunda 00h`, `< segunda seguinte 00h`, no fuso) e deixar o
+      `to_char` só no `select`. Na mesma linha, tirar o `sql.raw` do `FUSO_DO_USO` e passá-lo como parâmetro. Reescreve os blocos de "Mutações" de período
+      e de fuso. Sem ganho hoje: centenas de linhas por turma no ano
+- [ ] (semana-do-professor, 3.0, privacy-guardian, 1ª) **O comentário de `aula` em `packages/shared/src/permissao/matriz.ts` (linhas 109 a 113) diz alcance
+      `proprio`**; anotar que os itens do dia seguem `turma_vinculada`. Para a próxima tarefa que tocar `matriz.ts`: a 3.0 não toca `packages/shared`
+- [ ] (semana-do-professor, 3.0, conformidade-reviewer, 1ª) **A barreira do `entrega.tipo` quando outra função de entrega entrar na Semana.** Se entrar uma
+      `entrega` de outra função (a devolutiva formativa de discursiva, D46), o `eq(entrega.tipo, 'lote_de_correcao')` vira a única barreira e precisa de
+      teste próprio. Hoje o `check` `entrega_funcao_do_tipo` e o `inner join` com `atividade_aplicada` a deixam de fora
+- [ ] (semana-do-professor, 3.0, revisor-geral, 2ª) **Quebrar a primeira linha do JSDoc de `consultasDosItens`** no comprimento das vizinhas, em
+      `packages/core/src/semana/semana.repository.ts`. Cosmético: para a próxima tarefa que tocar o arquivo

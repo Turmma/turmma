@@ -17,6 +17,7 @@ const base: EntradaDaMontagem = {
   alocacoes: [],
   eventos: [],
   registros: [],
+  itens: [],
 }
 const montar = (parcial: Partial<EntradaDaMontagem>) => montarDias({ ...base, ...parcial })
 const aloc = (vinculoId: string, diaSemana: number, inicio: string, fim = '08:20', sala: string | null = null) => ({ vinculoId, diaSemana, inicio, fim, sala })
@@ -136,7 +137,72 @@ describe('a montagem dos dias da Semana (F2b, tarefa 2.0; S14)', () => {
     expect(dias.map((dia) => dia.data)).not.toContain('2026-11-08')
   })
 
-  it('os itens do dia vão vazios até a 3.0', () => {
-    expect(montar({ alocacoes: [aloc(V1, 1, '07:30')] }).every((dia) => dia.itens.length === 0)).toBe(true)
+  describe('os itens do dia (F2b, tarefa 3.0; S9, S10)', () => {
+    const turmaId = '0199b0a0-0000-7000-8000-0000000000a1'
+    const disciplinaId = '0199b0a0-0000-7000-8000-0000000000b1'
+    const A1 = '0199b0a0-0000-7000-8000-0000000000c1'
+    const A2 = '0199b0a0-0000-7000-8000-0000000000c2'
+    const item = (data: string, tipo: 'aplicada' | 'encerrada' | 'correcao', titulo: string, atividadeAplicadaId = A1, estado?: 'pendente' | 'aprovada' | 'rejeitada') => ({
+      data,
+      tipo,
+      turmaId,
+      disciplinaId,
+      atividadeAplicadaId,
+      titulo,
+      ...(estado === undefined ? {} : { estado }),
+    })
+    const itensDe = (dias: ReturnType<typeof montar>, data: string) => dias.find((dia) => dia.data === data)?.itens
+
+    it('sem item, o dia traz a lista vazia', () => {
+      expect(montar({ alocacoes: [aloc(V1, 1, '07:30')] }).every((dia) => dia.itens.length === 0)).toBe(true)
+    })
+
+    it('cada item cai no dia dele, e no contrato só ficam as chaves dele (sem o `data`)', () => {
+      const dias = montar({ itens: [item('2026-11-04', 'aplicada', 'Lista 1'), item('2026-11-05', 'encerrada', 'Lista 2', A2)] })
+      expect(itensDe(dias, '2026-11-04')).toEqual([{ tipo: 'aplicada', turmaId, disciplinaId, atividadeAplicadaId: A1, titulo: 'Lista 1' }])
+      expect(itensDe(dias, '2026-11-05')).toEqual([{ tipo: 'encerrada', turmaId, disciplinaId, atividadeAplicadaId: A2, titulo: 'Lista 2' }])
+      expect(itensDe(dias, '2026-11-03')).toEqual([])
+    })
+
+    it('S10: o dia de feriado e o de recesso perdem a aula e mantêm o item', () => {
+      const eventos = [
+        { tipo: 'feriado' as const, inicio: '2026-11-04', fim: '2026-11-04', descricao: 'Feriado' },
+        { tipo: 'recesso' as const, inicio: '2026-11-05', fim: '2026-11-05', descricao: 'Recesso' },
+      ]
+      const dias = montar({ alocacoes: [aloc(V1, 3, '07:30'), aloc(V1, 4, '07:30')], eventos, itens: [item('2026-11-04', 'aplicada', 'Prova no feriado'), item('2026-11-05', 'aplicada', 'Prova no recesso', A2)] })
+      for (const data of ['2026-11-04', '2026-11-05']) {
+        expect(dias.find((dia) => dia.data === data)?.aulas).toEqual([])
+        expect(itensDe(dias, data)).toHaveLength(1)
+      }
+    })
+
+    it('o `estado` só vai na correção: a aplicada e a encerrada nunca o levam, mesmo que a leitura o traga', () => {
+      const dias = montar({ itens: [item('2026-11-04', 'aplicada', 'A', A1, 'aprovada'), item('2026-11-04', 'encerrada', 'B', A1, 'rejeitada'), item('2026-11-04', 'correcao', 'C', A1, 'pendente')] })
+      expect(itensDe(dias, '2026-11-04')?.map((i) => [i.tipo, Object.keys(i).includes('estado'), i.estado])).toEqual([
+        ['aplicada', false, undefined],
+        ['encerrada', false, undefined],
+        ['correcao', true, 'pendente'],
+      ])
+      const semEstado = itensDe(montar({ itens: [item('2026-11-04', 'correcao', 'D')] }), '2026-11-04')
+      expect(semEstado?.map((i) => Object.keys(i).includes('estado'))).toEqual([false])
+    })
+
+    it('a ordem do dia é aplicada, encerrada, correção, depois o título e, no empate, a atividade', () => {
+      const dias = montar({
+        itens: [item('2026-11-04', 'correcao', 'A', A1, 'pendente'), item('2026-11-04', 'encerrada', 'A'), item('2026-11-04', 'aplicada', 'B', A2), item('2026-11-04', 'aplicada', 'A', A2), item('2026-11-04', 'aplicada', 'A', A1)],
+      })
+      expect(itensDe(dias, '2026-11-04')?.map((i) => [i.tipo, i.titulo, i.atividadeAplicadaId])).toEqual([
+        ['aplicada', 'A', A1],
+        ['aplicada', 'A', A2],
+        ['aplicada', 'B', A2],
+        ['encerrada', 'A', A1],
+        ['correcao', 'A', A1],
+      ])
+    })
+
+    it('o item de um dia que a semana não traz (sábado sem grade, fora do ano) não aparece', () => {
+      const dias = montar({ ano: { inicio: '2026-11-03', fim: '2026-12-18' }, itens: [item('2026-11-02', 'aplicada', 'Antes do ano'), item('2026-11-07', 'aplicada', 'No sábado', A2)] })
+      expect(dias.flatMap((dia) => dia.itens)).toEqual([])
+    })
   })
 })

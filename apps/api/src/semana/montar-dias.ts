@@ -1,5 +1,5 @@
-import type { AlocacaoDaSemana, AnoDaSemana, EventoDaSemana, RegistroDaSemana, VinculoDaSemana } from '@educa/core'
-import type { AulaDaSemana, DiaDaSemana } from '@educa/shared'
+import type { AlocacaoDaSemana, AnoDaSemana, EventoDaSemana, ItemDaSemana, RegistroDaSemana, VinculoDaSemana } from '@educa/core'
+import type { AulaDaSemana, DiaDaSemana, ItemDoDia, TipoDeItemDoDia } from '@educa/shared'
 
 /** `AAAA-MM-DD` mais `n` dias. Aritmética de calendário, sem fuso: `2026-12-30` + 3 = `2027-01-02`. */
 export function somarDias(dia: string, n: number): string {
@@ -24,6 +24,8 @@ export interface EntradaDaMontagem {
   readonly alocacoes: readonly AlocacaoDaSemana[]
   readonly eventos: readonly EventoDaSemana[]
   readonly registros: readonly RegistroDaSemana[]
+  /** Os itens da semana inteira, cada um com o seu dia: a montagem põe cada um no dia dele. */
+  readonly itens: readonly ItemDaSemana[]
 }
 
 /** Uma aula do dia antes de ganhar o formato do contrato: o vínculo que a dá e o que a distingue das outras. */
@@ -41,6 +43,16 @@ const chaveDaAula = (vinculoId: string, inicio: string): string => `${vinculoId}
 const naOrdemDoDia = (a: Candidata, b: Candidata): number =>
   a.inicio.localeCompare(b.inicio) || a.vinculo.turma.localeCompare(b.vinculo.turma) || a.vinculo.disciplina.localeCompare(b.vinculo.disciplina)
 
+/** A ordem dos itens no dia: o que foi aplicado, o que foi encerrado e a correção; dentro do tipo, pelo título e, no empate, pela atividade. */
+const ORDEM_DOS_ITENS: Record<TipoDeItemDoDia, number> = { aplicada: 0, encerrada: 1, correcao: 2 }
+
+const naOrdemDosItens = (a: ItemDaSemana, b: ItemDaSemana): number =>
+  ORDEM_DOS_ITENS[a.tipo] - ORDEM_DOS_ITENS[b.tipo] || a.titulo.localeCompare(b.titulo) || a.atividadeAplicadaId.localeCompare(b.atividadeAplicadaId)
+
+/** O item no formato do contrato, com as chaves exatas dele: sem o `data`, que só serve para achar o dia, e com o `estado` só na correção. */
+const comoItem = ({ tipo, turmaId, disciplinaId, atividadeAplicadaId, titulo, estado }: ItemDaSemana): ItemDoDia =>
+  tipo === 'correcao' && estado !== undefined ? { tipo, turmaId, disciplinaId, atividadeAplicadaId, titulo, estado } : { tipo, turmaId, disciplinaId, atividadeAplicadaId, titulo }
+
 const comoAula = ({ vinculo, ...resto }: Candidata): AulaDaSemana => ({
   vinculoId: vinculo.id,
   turmaId: vinculo.turmaId,
@@ -55,7 +67,8 @@ const comoAula = ({ vinculo, ...resto }: Candidata): AulaDaSemana => ({
  * domingo, só quando a grade tem aula neles (ou há registro passado fora da grade). Dia de `feriado` ou `recesso` não traz aula (nem a fora
  * da grade); `evento` aparece e não tira a aula. Cada alocação do dia da semana é uma aula, com o texto do registro de mesmo (vínculo, data,
  * início); o registro **passado** sem alocação entra como `foraDaGrade`, e o de hoje ou futuro sem alocação é ignorado. Só entra o que é de
- * um dos vínculos recebidos. Os itens do dia entram na 3.0: aqui vão vazios.
+ * um dos vínculos recebidos. Os itens do dia (RF7) entram no dia do seu `data`, **também no feriado e no recesso**: a atividade aplicada no dia da prova fica, mesmo
+ * sem aula. Item de dia que a semana não traz (fim de semana sem grade, fora do ano) não aparece: o contrato só tem os dias que a Tech Spec lista.
  */
 export function montarDias(entrada: EntradaDaMontagem): DiaDaSemana[] {
   const vinculos = new Map(entrada.vinculos.map((vinculo) => [vinculo.id, vinculo]))
@@ -93,7 +106,7 @@ export function montarDias(entrada: EntradaDaMontagem): DiaDaSemana[] {
       })),
       ...foraDaGrade.map(({ vinculo, registro }) => ({ vinculo, inicio: registro.inicio, fim: registro.fim, sala: null, texto: registro.conteudo, foraDaGrade: true })),
     ]
-    dias.push({ data, eventos: eventos.map(({ tipo, descricao }) => ({ tipo, descricao })), aulas: semAula ? [] : candidatas.sort(naOrdemDoDia).map(comoAula), itens: [] })
+    dias.push({ data, eventos: eventos.map(({ tipo, descricao }) => ({ tipo, descricao })), aulas: semAula ? [] : candidatas.sort(naOrdemDoDia).map(comoAula), itens: entrada.itens.filter((item) => item.data === data).sort(naOrdemDosItens).map(comoItem) })
   }
   return dias
 }
