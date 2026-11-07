@@ -2792,6 +2792,24 @@ repetem aqui.
       retro pendente na árvore, o próximo passo diz "trazer a develop com a retro antes do criar-tasks". Casos novos em
       `tools/processo/estado.test.ts`. Não trava nada: o texto do `/seguir` já cobre. Guardiões: `revisor-geral`, `test-engineer`
 
+## Da retrospectiva da F2b (semana-do-professor, 07/11/2026)
+
+`tasks/prd-semana-do-professor/retro.md`. Aceitas pelo Joaquim em 07/11/2026 ("aprovei a retro"). P1 a P5 já aplicadas; M1 e C1 mudam código:
+entram por correção.
+
+- [ ] (F2b, retro, M1) **O prazo da verificação do encontro.** `tools/processo/linhas.ts:49-50`: `PRAZO_DA_VERIFICACAO_MS` de 3 para 9 min e o
+      com `npm ci` de 6 para 12, com o comentário do porquê (três linhas dividem 12 núcleos; tipagem e lint passam de 180 s com carga de 14 a 25).
+      Muda junto o caso de `tools/processo/linhas.test.ts:1378` que fixa os padrões. Cinco encontros da F2b foram recusados sem defeito (3.0, 6.0,
+      `e2e-conflito-do-gerar`, 5.0, 8.0); com 540 s a verificação passou com carga 25. Guardiões: `revisor-geral`, `test-engineer`
+- [ ] (F2b, retro, C1) **O painel da aula com rascunho** (`apps/web/src/areas/professor/turmas/semana/`, `PainelDaAula.tsx` e `Semana.tsx`):
+      (a) a dica do painel cobre os dois botões: "Fechar e Preparar deixam de lado o que não foi salvo", sem pergunta nova; (c) a semana relida
+      sem a aula não fecha o painel: ele fica aberto com a frase "Esta aula saiu da grade; o texto não foi salvo" e o "Salvar" desligado, para a
+      professora copiar o que escreveu. (b) Esc ou "Fechar" durante "Salvando…" fica como está (Tech Spec). A `docs/interface.md` 1.8 muda junto.
+      Caso em `Semana.test.tsx` para (c). Guardiões: `frontend-reviewer`, `revisor-geral`, `test-engineer`
+- [ ] (F2b, retro) **Abrir a "(F2, retro, M1)" (o `restos` vê o arquivo novo) antes das tarefas da próxima spec.** Aceita em 06/11 e aberta,
+      custou de novo na F2b: a 3.0 entrou na spec com o portão vermelho (`Linha` em `semana-itens.int.test.ts`), a esteira de `0cd5dd46` caiu e a
+      `encontro-4-semana` levou o conserto (dono: Orquestrador)
+
 ## Da semana-do-professor, tarefa 2.0 (`GET /v1/semana`), fora dela
 
 - [x] *(resolvido na correção `2026-11-07-carga-da-semana`: `GET /v1/semana` no cenário `rajada` de `infra/k6/login-7h30.js`, com o seed de vínculos, grade, texto de aulas e calendário em `infra/scripts/carga-login.ts`; medido em 07/11 com load 4: p95 de 47 ms, 60 de 60 leituras com aula, limite de 1 s.)* (semana-do-professor, 2.0, infra-guardian, 1ª e 2ª) **A rota da Semana entra no cenário de carga das 7h30.** `GET /v1/semana` como passo do
@@ -2873,7 +2891,8 @@ repetem aqui.
 - [ ] (semana-do-professor, 4.0, infra-guardian, 1ª) **Runbook: a virada do ano em horário de aula gera uma onda de `INDISPONIVEL_TENTE_DE_NOVO` na
       Semana.** O `PUT /v1/aulas` espera o `for share` do ano (até 2 s de `lock_timeout`) enquanto o encerramento do ano o segura; quem passa do prazo
       recebe `INDISPONIVEL_TENTE_DE_NOVO`. Um parágrafo em `docs/runbook.md` (o que a professora vê e quando virar o ano). `docs/runbook.md` caduca
-      carimbo e rodada, por isso não é desta tarefa. Dono: o Arquiteto, na retro da funcionalidade
+      carimbo e rodada, por isso não é desta tarefa. Retro da F2b: entra por correção (a guarda `alerta-tem-runbook` lê o runbook), não por commit de
+      documento; dono: o Orquestrador, na próxima correção que tocar `docs/runbook.md`
 - [ ] (semana-do-professor, 4.0, revisor-geral, 1ª) **Uma só constante para o `55P03` (`lock_not_available`) em `packages/core/src/db`.** A cópia local
       `TRAVA_NAO_DISPONIVEL` de `apps/api/src/semana/aulas.service.ts` é a quarta (as outras estão em `migrate.ts`, `motor.ts` e
       `importacao.repository.ts`): uma exportação do `core` e as quatro passam a importá-la. Mexe em arquivos que a 4.0 não toca. Dono: a tarefa que
@@ -2893,8 +2912,8 @@ repetem aqui.
       `erro_interno` (`apps/worker/src/processors/gravar-planilha.ts:66`). Muda comportamento em arquivo que a 5.0 não toca. Dono: a próxima tarefa ou
       correção que tocar `gravar-planilha.ts`
 - [ ] (semana-do-professor, 5.0, conformidade-reviewer, 1ª) **Avisar só a professora, na Semana, que o texto das datas futuras de uma aula que saiu da grade
-      foi apagado, sem contagem para a coordenação.** Pergunta de produto: D45 e D64 limitam o que a coordenação vê. Dono: o Arquiteto, antes da tarefa da tela
-      da Semana
+      foi apagado, sem contagem para a coordenação.** Pergunta de produto: D45 e D64 limitam o que a coordenação vê. Retro da F2b: vai junto do m1 da validação (o pareamento da aula dupla), no PRD
+      da próxima fase que mexer na reimportação; as duas são o que a reimportação faz com o texto (dono: Arquiteto)
 
 ## Da semana-do-professor, tarefa 3.0 (os itens do dia), fora dela
 
@@ -2923,7 +2942,7 @@ repetem aqui.
       `['semana', segunda]` da semana na tela. Muda o que é relido; hoje só a semana na tela é relida e o caso (`NAO_ENCONTRADO`) é raro
 - [ ] (semana-do-professor, 7.0, frontend-reviewer, 1ª) **A semana relida sem a aula fecha o painel sozinho, com o rascunho dentro e sem frase.**
       `Semana.tsx`, `useAulaAberta` (`semDono`): o refetch ao voltar à janela que não traz mais a aula tira o `?aula=` e desmonta o painel. Muda
-      comportamento: **decisão do Arquiteto** sobre manter o painel aberto, com a frase de "esta aula saiu da grade", quando há rascunho
+      comportamento. *Decidido na retro da F2b (C1, c): vai na correção "(F2b, retro, C1)" abaixo.*
 - [ ] (semana-do-professor, 7.0, revisor-geral, 1ª) **Aula fora da grade apagada pelo painel: o foco pode cair no `body`.** O cartão some e o
       `focoDeReserva` não acha o `[data-aula]` (o título da semana é o reserva seguinte). O revisor não confirmou o defeito: conferir no navegador na
       validação e, se for real, corrigir com caso próprio
@@ -2947,16 +2966,16 @@ Menores da validação (`tasks/prd-semana-do-professor/validacao.md`, seção 4)
       7h30 e 8h20 passam a 8h20 e 9h10, e a das 8h20 fica com o texto da segunda aula. É o que o RF14 escreve e nenhum texto se perde, mas o
       planejamento fica na ordem trocada. Decidir no PRD da próxima fase que mexer na reimportação se o pareamento de vínculo e dia que muda mais de
       uma aula é por posição (dono: Arquiteto e Joaquim, produto)
-- [ ] (F2b, validação, m2) **A prop `contadorAnunciado` do `Textarea` (7.0) não está no catálogo** (`docs/interface.md` 10.2). Também está no `estado.md`
+- [x] *(feito na retro da F2b, 07/11/2026: linha dos campos da 10.2)* (F2b, validação, m2) **A prop `contadorAnunciado` do `Textarea` (7.0) não está no catálogo** (`docs/interface.md` 10.2). Também está no `estado.md`
       para a retro (dono: Arquiteto)
-- [ ] (F2b, validação, m3) **`docs/modelo-de-dados.md`, parágrafo da `Aula`:** "a rota `PUT /v1/aulas` (F2b, 2.0)" é da 4.0 (dono: Arquiteto)
+- [x] *(feito na retro da F2b, 07/11/2026)* (F2b, validação, m3) **`docs/modelo-de-dados.md`, parágrafo da `Aula`:** "a rota `PUT /v1/aulas` (F2b, 2.0)" é da 4.0 (dono: Arquiteto)
 - [ ] (F2b, validação, m4) **T8 sem e2e para "Semana de recesso" e "O ano letivo ainda não começou"** (`e2e/professor-semana.spec.ts:288`): só unidade e
       jsdom. Já listado no grupo da 6.0; fica aqui para não sumir (dono: test-engineer)
 - [ ] (F2b, validação, m6) **`--clicar` da vitrine espera o clique nos dois tamanhos** (`tools/vitrine/foto.ts:234`): controle que só existe no celular (o
       `DaySelector`) estoura o prazo no computador e a chamada morre. A vitrine sem grade já está no grupo da 8.0 (dono: Orquestrador, processo)
 - [ ] (F2b, validação, m7) **"Sala {sala}" vira "Sala Laboratório de Ciências"** (`CartaoDaAula.tsx:50`, `PainelDaAula.tsx:101`) quando a planilha traz o
       nome do ambiente. Gosto, não defeito (dono: frontend-reviewer, na próxima tarefa que tocar esses arquivos)
-- [ ] (F2b, 1.0, revisor-geral, 1ª) **O S7 do `cenarios.md` fala de vínculo "encerrado antes por realocação", e o caso usa o vínculo desligado.** O teste
+- [x] *(feito na retro da F2b, 07/11/2026: "por desligamento ou realocação")* (F2b, 1.0, revisor-geral, 1ª) **O S7 do `cenarios.md` fala de vínculo "encerrado antes por realocação", e o caso usa o vínculo desligado.** O teste
       cobre os dois; o texto é da spec (dono: Arquiteto, para a retro)
 
 O m5 (os quatro destinos da ordem r1 da 1.0) está nas linhas acima e nos grupos "Infra e operação" e "LGPD e conformidade"; o quarto, o rótulo "Registro da

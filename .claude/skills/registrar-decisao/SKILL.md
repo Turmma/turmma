@@ -65,6 +65,10 @@ Formato da decisão, igual às existentes:
 O texto completo vai em `docs/decisoes.md`. No índice do `CLAUDE.md`, uma linha só, com o título curto:
 `| D<n> | <título, sem o motivo> |`.
 
+Antes do commit, rode `npx vitest run tools/processo/harness/base-fixa.test.ts`. Passou do limite: enxugue o `CLAUDE.md` (o
+título da linha, ou um parágrafo que repete um documento), nunca suba o limite. Na F2b, a linha da D87 deixou a base 6 B
+acima, e a 1.0 parou numa `DIVERGÊNCIA` de portão que não era dela.
+
 Numeração: a próxima depois da maior D existente em `docs/decisoes.md`. Nunca reaproveite número.
 
 ## 5. Reportar

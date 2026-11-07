@@ -231,6 +231,10 @@ lista pela tela, e o teto de 100 da 16.0 quebrou o caso de 501 da 10.0, que a va
 grep -rl "<o nome que mudou>" --include='*.test.ts' --include='*.test.tsx' --include='*.spec.ts' apps packages infra e2e
 ```
 
+**O catálogo.** Peça de `components/ui` nova, ou com prop nova, ganha a linha na `docs/interface.md` 10.2 no commit da
+tarefa, como o `DaySelector` na 6.0 da F2b. O "não edite" do Contexto vale para a seção da tela, não para o catálogo da peça
+que você mudou (na 7.0 da F2b, o `contadorAnunciado` do `Textarea` ficou fora e voltou como menor da validação).
+
 O e2e inteiro e a suíte de infra inteira **não** rodam no portão da tarefa. Rodam na esteira do
 GitHub, que o push do seu commit dispara e ninguém espera (D79): o que a tarefa quebrar fora dos alvos
 aparece ali uma tarefa depois, e volta como correção. A consequência é sua: antes do commit, a regra

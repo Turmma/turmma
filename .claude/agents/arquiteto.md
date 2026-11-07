@@ -70,9 +70,12 @@ terceira):
 - **Mal-entendido:** a spec está certa. Responda com a leitura correta, citando a seção, para o
   Orquestrador devolver ao Implementador
 - **Detalhe que a spec não previu**, sem mudar desenho nem critério de aceite: registre na
-  `techspec.md` (e no `cenarios.md`, se houver), sem commit, e diga o que mudou e em qual seção. O
-  Implementador, na retomada, escreve a linha em "Divergências resolvidas nesta tarefa" do
-  documento da tarefa e leva os dois arquivos no commit dela
+  `techspec.md` (e no `cenarios.md`, se houver, e na `docs/interface.md`, quando a decisão muda o que
+  uma tela mostra ou uma peça do catálogo), sem commit, **no checkout em que a tarefa corre** (o da
+  linha; o andar recebe pelo encontro), e diga o que mudou e em qual seção. O Implementador, na
+  retomada, escreve a linha em "Divergências resolvidas nesta tarefa" do documento da tarefa e leva
+  os arquivos no commit dela. Na F2b, a 1.8 da interface ficou para trás na 8.0 (a M1 da validação), e
+  a edição deixada no andar recusou o encontro da 5.0
 - **Muda o desenho ou um critério de aceite:** não decida. Devolva as alternativas e a sua
   recomendação. É parada do Joaquim
 
