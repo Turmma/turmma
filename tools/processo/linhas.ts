@@ -30,6 +30,7 @@ import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { MARCA_DE_CORRECAO, MARCA_DE_TAREFA } from './comando-git.ts'
+import { garantirFilaDeCarga } from '../ci/fila-de-carga.ts'
 import { lerDependencias, lerParalelismo, lerTarefas, PREFIXO_DA_BRANCH_DE_SPEC } from './estado.ts'
 
 /**
@@ -41,13 +42,19 @@ export const MAXIMO_DE_LINHAS = 3
 export const CAMINHO_DO_QUADRO = '.processo/linhas.json'
 export const CAMINHO_DA_TRAVA = '.processo/linhas.lock'
 /** Quanto quem espera a trava espera antes de desistir com "encontro em curso". */
-export const PRAZO_DA_TRAVA_MS = 7 * 60 * 1000
+export const PRAZO_DA_TRAVA_MS = 15 * 60 * 1000
 /** O que o encontro roda no checkout da linha, depois do merge e antes de avançar a spec. */
 export const COMANDO_DA_VERIFICACAO = 'npm run typecheck && npm run lint'
 export const COMANDO_DE_INSTALACAO = 'npm ci'
-/** O prazo da verificação, e o dela com o `npm ci` na frente (o lock mudou). Quem espera a trava espera mais que isto. */
-export const PRAZO_DA_VERIFICACAO_MS = 3 * 60 * 1000
-export const PRAZO_DA_VERIFICACAO_COM_NPM_CI_MS = 6 * 60 * 1000
+/**
+ * O prazo da verificação, e o dela com o `npm ci` na frente (o lock mudou). Quem espera a trava espera mais que isto.
+ * Três linhas dividem 12 núcleos: com carga de 14 a 25, `npm run typecheck && npm run lint` do monorepo passa de 180 s, e com 540 s
+ * passou na carga 25 (retro da F2b, M1; encontros recusados sem defeito em 07/11).
+ * O encontro espera a vez na fila de carga antes de tudo (`garantirFilaDeCarga`, no CLI), e o relógio só corre depois, com a
+ * verificação rodando de fato: o que trava de verdade ainda é morto no prazo.
+ */
+export const PRAZO_DA_VERIFICACAO_MS = 9 * 60 * 1000
+export const PRAZO_DA_VERIFICACAO_COM_NPM_CI_MS = 12 * 60 * 1000
 /** Do SIGTERM ao SIGKILL no grupo da verificação. */
 export const ESPERA_ATE_SIGKILL_MS = 5_000
 /** Depois do SIGKILL, quanto esperar o grupo sumir antes de mexer na árvore: o sinal chega, e o processo morre um instante depois. */
@@ -887,6 +894,12 @@ async function executar(raiz: string, comando: string | undefined, primeiro: str
 
 if (import.meta.filename === process.argv[1]) {
   const [comando, primeiro = '', segundo = ''] = process.argv.slice(2)
+  // O encontro roda typecheck e lint do monorepo inteiro: como o portão, espera a vez na fila de carga da máquina, e espera
+  // antes de pegar a trava do quadro (quem espera a fila não segura o quadro das outras linhas) e antes de o prazo correr.
+  // A espera pela fila não tem limite, de propósito, como no portão: quem chega imprime "fila de carga" e espera a sua vez.
+  // A ordem é sempre fila, depois quadro. Não a inverta: o encontro relançado segura a fila enquanto espera a trava do quadro
+  // (até `PRAZO_DA_TRAVA_MS`), e quem pegasse o quadro e então esperasse a fila travaria as duas linhas uma na outra.
+  if (comando === 'encontro') await garantirFilaDeCarga()
   const aviso = avisoDoAmbiente(process.env)
   if (aviso !== null) process.stderr.write(`${aviso}\n`)
   const resultado = await executar(process.cwd(), comando, primeiro, segundo)

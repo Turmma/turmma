@@ -2800,10 +2800,15 @@ repetem aqui.
 `tasks/prd-semana-do-professor/retro.md`. Aceitas pelo Joaquim em 07/11/2026 ("aprovei a retro"). P1 a P5 já aplicadas; M1 e C1 mudam código:
 entram por correção.
 
-- [ ] (F2b, retro, M1) **O prazo da verificação do encontro.** `tools/processo/linhas.ts:49-50`: `PRAZO_DA_VERIFICACAO_MS` de 3 para 9 min e o
+- [x] *(feito na correção `2026-11-07-encontro-na-fila-de-carga`, 07/11/2026)* (F2b, retro, M1) **O prazo da verificação do encontro.** `tools/processo/linhas.ts:49-50`: `PRAZO_DA_VERIFICACAO_MS` de 3 para 9 min e o
       com `npm ci` de 6 para 12, com o comentário do porquê (três linhas dividem 12 núcleos; tipagem e lint passam de 180 s com carga de 14 a 25).
       Muda junto o caso de `tools/processo/linhas.test.ts:1378` que fixa os padrões. Cinco encontros da F2b foram recusados sem defeito (3.0, 6.0,
       `e2e-conflito-do-gerar`, 5.0, 8.0); com 540 s a verificação passou com carga 25. Guardiões: `revisor-geral`, `test-engineer`
+- [ ] (encontro na fila de carga, correção `2026-11-07-encontro-na-fila-de-carga`, 1ª rodada) **`linhas.ts encontro`: dois ajustes de CLI.**
+      (a) o `encontro` com argumento inválido também espera a fila antes de recusar; validar os argumentos antes da fila (muda a ordem do CLI;
+      a tarefa que tocar o CLI de `linhas.ts`). (b) o encontro agora soma a espera da fila (o portão inteiro de outra linha) com até 9 ou 12 min
+      de verificação, e pode passar do teto de 10 min de um comando Bash em primeiro plano do Orquestrador; o `6-tarefa.md` não comporta a
+      frase (orçamento de 24000 B), então o aviso do próprio comando (ou rodar em segundo plano) é a opção, em correção própria
 - [ ] (F2b, retro, C1) **O painel da aula com rascunho** (`apps/web/src/areas/professor/turmas/semana/`, `PainelDaAula.tsx` e `Semana.tsx`):
       (a) a dica do painel cobre os dois botões: "Fechar e Preparar deixam de lado o que não foi salvo", sem pergunta nova; (c) a semana relida
       sem a aula não fecha o painel: ele fica aberto com a frase "Esta aula saiu da grade; o texto não foi salvo" e o "Salvar" desligado, para a
