@@ -80,6 +80,7 @@ interface Quem {
   sinais?: FakeResponse | (() => FakeResponse | Promise<FakeResponse>)
   uso?: FakeResponse | (() => FakeResponse | Promise<FakeResponse>)
   desempenho?: FakeResponse | (() => FakeResponse | Promise<FakeResponse>)
+  vinculos?: FakeResponse
 }
 
 function instalar(rede: FakeNetwork, quem: Quem = {}): void {
@@ -89,6 +90,7 @@ function instalar(rede: FakeNetwork, quem: Quem = {}): void {
   rede.responderPor('/v1/atividades-aplicadas', ok({ itens: [APLICADA] }))
   rede.responderPor('/v1/time', ok(montarTime(new Set())))
   rede.responderPor('/v1/materiais', ok({ itens: [] }))
+  rede.responderPor('/v1/meus-vinculos', quem.vinculos ?? ok({ itens: [] }))
 }
 
 const semConsulta = (caminho: string) => caminho.split('?')[0] ?? caminho
@@ -599,5 +601,82 @@ describe('Hoje: o acerto por habilidade é só de correção aprovada, em barra 
     await waitFor(() => expect(regiao.textContent).toContain('Ainda não há correção aprovada nesta turma'))
     expect(regiao.textContent).toContain('Correção que ainda espera você não entra na conta.')
     expect(regiao.querySelector('svg rect')).toBeNull()
+  })
+})
+
+describe('Hoje: "Ver a semana desta turma" leva à Semana filtrada (F2b, 8.0; RF4, T5)', () => {
+  const DISCIPLINA_QUIMICA = { id: id(501), nome: 'Química' }
+  const DISCIPLINA_FISICA = { id: id(502), nome: 'Física' }
+  const vinculo = (n: number, estado: string, turma: { id: string; nome: string }, disciplina: { id: string; nome: string } | undefined) => ({
+    id: id(600 + n),
+    turma,
+    estado,
+    ...(disciplina === undefined ? {} : { disciplina }),
+  })
+  const DESTA = { id: TURMA, nome: '2ºB' }
+  const OUTRA = { id: id(101), nome: '3ºA' }
+  const links = () => screen.queryAllByRole('link', { name: /^Ver a semana desta turma/ })
+  // Os blocos de Hoje que não têm nada dentro e não são a região do aviso (`aria-live`): a fileira dos links, sem link, seria um deles.
+  const fileirasVazias = () => {
+    const raiz = screen.getByRole('region', { name: 'Sinais da turma' }).parentElement
+    return [...(raiz?.children ?? [])].filter((filho) => filho.tagName === 'DIV' && !filho.hasAttribute('aria-live') && filho.children.length === 0)
+  }
+
+  it('uma disciplina confirmada nesta turma: um link só, com o texto sem disciplina, para `?ver=semana&turma=<turmaId>.<disciplinaId>`', async () => {
+    const rede = fakeNetwork()
+    instalar(rede, { vinculos: ok({ itens: [vinculo(1, 'confirmado', DESTA, DISCIPLINA_QUIMICA)] }) })
+    montar()
+    const link = await screen.findByRole('link', { name: 'Ver a semana desta turma' })
+    expect(link.getAttribute('href')).toBe(`/turmas?ver=semana&turma=${TURMA}.${DISCIPLINA_QUIMICA.id}`)
+    expect(links()).toHaveLength(1)
+  })
+
+  it('duas disciplinas confirmadas na turma: dois links, cada um com a disciplina no texto e o destino dela', async () => {
+    const rede = fakeNetwork()
+    instalar(rede, { vinculos: ok({ itens: [vinculo(1, 'confirmado', DESTA, DISCIPLINA_QUIMICA), vinculo(2, 'confirmado', DESTA, DISCIPLINA_FISICA)] }) })
+    montar()
+    const quimica = await screen.findByRole('link', { name: 'Ver a semana desta turma · Química' })
+    const fisica = screen.getByRole('link', { name: 'Ver a semana desta turma · Física' })
+    expect(quimica.getAttribute('href')).toBe(`/turmas?ver=semana&turma=${TURMA}.${DISCIPLINA_QUIMICA.id}`)
+    expect(fisica.getAttribute('href')).toBe(`/turmas?ver=semana&turma=${TURMA}.${DISCIPLINA_FISICA.id}`)
+    expect(links()).toHaveLength(2)
+  })
+
+  it('o vínculo de outra turma, o pendente e o sem disciplina não geram link', async () => {
+    const rede = fakeNetwork()
+    instalar(rede, {
+      vinculos: ok({
+        itens: [
+          vinculo(1, 'confirmado', DESTA, DISCIPLINA_QUIMICA),
+          vinculo(2, 'confirmado', OUTRA, DISCIPLINA_FISICA),
+          vinculo(3, 'pendente', DESTA, DISCIPLINA_FISICA),
+          vinculo(4, 'confirmado', DESTA, undefined),
+        ],
+      }),
+    })
+    montar()
+    await screen.findByRole('link', { name: 'Ver a semana desta turma' })
+    expect(links().map((link) => link.getAttribute('href'))).toEqual([`/turmas?ver=semana&turma=${TURMA}.${DISCIPLINA_QUIMICA.id}`])
+  })
+
+  it('sem vínculo confirmado, ou com a leitura em erro, não há link, e o resto de Hoje continua', async () => {
+    const semVinculo = fakeNetwork()
+    instalar(semVinculo, { vinculos: ok({ itens: [vinculo(1, 'pendente', DESTA, DISCIPLINA_QUIMICA)] }) })
+    const primeira = montar()
+    await screen.findByRole('region', { name: 'Sinais da turma' })
+    await waitFor(() => expect(semVinculo.chamadas.some((chamada) => semConsulta(chamada.caminho) === '/v1/meus-vinculos')).toBe(true))
+    expect(links()).toHaveLength(0)
+    // Sem link não sobra o espaço vazio da fileira.
+    expect(fileirasVazias()).toHaveLength(0)
+    primeira.unmount()
+
+    const comErro = fakeNetwork()
+    instalar(comErro, { vinculos: FALHA })
+    montar()
+    await screen.findByRole('region', { name: 'Sinais da turma' })
+    await waitFor(() => expect(comErro.chamadas.some((chamada) => semConsulta(chamada.caminho) === '/v1/meus-vinculos')).toBe(true))
+    expect(links()).toHaveLength(0)
+    expect(fileirasVazias()).toHaveLength(0)
+    expect(screen.queryByRole('alert')).toBeNull()
   })
 })

@@ -55,7 +55,7 @@ numa tarefa do `tasks.md`. I = integração com Postgres real e relógio injetad
 - **J5** [I] Aula dupla: o pareamento por ordem leva cada texto à sua aula
 - **J6** [I] O passo da escola A não toca registro da escola B de mesmo dia e início
 - **J7** [I] A mesma grade reimportada duas vezes mantém todos os textos
-- **J8** [I] Relógio às 22h de Brasília: o "data ≥ hoje" do passo usa o dia de Brasília
+- **J8** [I] Relógio às 22h de Brasília: o "data ≥ hoje" do passo usa o dia de Brasília (o relógio do job é injetado, `ExecucaoOptions.relogio`)
 - **J9** [I] Resumo, prévia e auditoria da reimportação não trazem contagem nem menção a registro de aula
 - **J10** [I] Reimportar o calendário com feriado novo esconde a aula e, retirado, ela volta com o texto
 - **J11a** [P] Corrida 2, job primeiro: o job pausa depois de apagar os registros de data ≥ hoje e antes do commit (a pausa solta ao ver o `PUT` esperando em `pg_stat_activity`, nunca com `sleep`, antes dos 2 s do `lock_timeout`); o `PUT` daquela aula futura espera; o job confirma; o `PUT` responde `NAO_ENCONTRADO` e não sobra registro futuro sem alocação. Tirada a trava, vermelho
@@ -72,8 +72,8 @@ numa tarefa do `tasks.md`. I = integração com Postgres real e relógio injetad
 - **T2** [E] Abrir a aula, escrever, salvar, reabrir e achar o texto; o selo "Falta preencher" some ao salvar; o aviso de não escrever nome de aluno está no painel
 - **T3** [E] Falha ao salvar: a frase de erro e o texto guardado; aula que saiu da grade com o painel aberto: a frase diz que a aula saiu e que o texto não foi salvo
 - **T4** [E] "Preparar esta aula" abre o Início com a turma marcada, e o número de conversas é o mesmo antes e depois
-- **T5** [E] "Ver a semana desta turma", no Hoje, leva à Semana filtrada
-- **T6** [E] Item do dia abre o painel da atividade e a revisão da correção
+- **T5** [E] "Ver a semana desta turma", no Hoje, leva à Semana filtrada por turma e disciplina; com duas disciplinas confirmadas na turma, dois links, "Ver a semana desta turma · <disciplina>", cada um leva à Semana com a sua, e o `Select` do filtro mostra a opção dela (techspec §9, divergência da 8.0)
+- **T6** [E] Item do dia abre o painel da atividade e a revisão da correção; o `?turma=` corta os itens junto das aulas, e a semana só com item, sem aula, não é vazia [U]
 - **T7** [E] Painel aberto com `?aula=` e rascunho digitado, troca de escola: o painel fecha, nenhuma aula e nenhum rascunho da escola anterior ficam; o mesmo na saída da conta; o rascunho nunca está em `localStorage` nem `sessionStorage`
 - **T8** [E] O carregando, os vazios ("A coordenação ainda não importou a grade", "Sem aulas nesta semana", "Semana de recesso", "O ano letivo ainda não começou"), o aviso de calendário não importado e o erro com "Tentar de novo"
 - **T9** [E] `celular`: um dia por vez, o dia inicial é hoje (ou a segunda, fora da semana de hoje), sem rolagem horizontal a 360 px (asserção na largura de rolagem); alvos de toque da regra 50, item 2a

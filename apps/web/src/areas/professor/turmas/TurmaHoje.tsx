@@ -1,8 +1,8 @@
 import type { Sinal } from '@educa/shared'
-import { useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { ChartNoAxesColumn, ChevronRight, HeartHandshake } from 'lucide-react'
 import { useEffect, useId, useRef } from 'react'
-import { useLocation, useSearch } from 'wouter'
+import { Link, useLocation, useSearch } from 'wouter'
 import { atividadesAplicadasQueryOptions, desempenhoDaTurmaQueryOptions } from '../atividades/api/atividades'
 import { errorMessage } from '../../../api/client'
 import { agenteDoTime, timeQueryOptions } from '../assistente/api/time'
@@ -10,6 +10,8 @@ import { titulosDosMateriaisQueryOptions } from '../artefatos/api/titulos-dos-ma
 import { sinaisQueryOptions, usoDoTutorQueryOptions } from './api/tutor-da-turma'
 import { ProgressBar } from '../../../components/ui/ProgressBar'
 import { Button } from '../../../components/ui/Button'
+import { SECONDARY_LINK_CLASSES } from '../../../components/ui/button-variants'
+import { meusVinculosQueryOptions } from '../comum/api/vinculos'
 import { LoadingState, ErrorState, EmptyState } from '../../../components/states/index'
 import { AgentSignature } from '../../../components/ui/ai/AgentSignature'
 import { Conversation, AIMessage } from '../../../components/ui/ai/Message'
@@ -21,6 +23,7 @@ import { formatDayAndTime } from '../../../format'
 import { textoDeAlunos } from '../atividades/aprovar'
 import { turmaIndisponivel } from './acesso/acesso-da-turma'
 import { enderecoComOPainelDoTutor, painelDoTutorPedido } from './endereco-da-turma'
+import { enderecoDaSemanaDaTurma, turmasEDisciplinasDosVinculos } from './semana/semana'
 import {
   emQueEstava,
   falaDoGrupo,
@@ -57,6 +60,9 @@ type SinalDeTrabalho = Exclude<Sinal, { tipo: 'atencao_humana' }>
  *   escondida a pausa (`refetchIntervalInBackground: false`). O aviso que chega entra sem piscar, sem som e sem mover o foco,
  *   em `aria-live="polite"` (D59).
  * - **O 404 da releitura** (o vínculo encerrado com a aba aberta) tira a página da turma, como a aba Alunos faz.
+ * - **"Ver a semana desta turma"** (F2b, RF4): um link por turma e disciplina de vínculo confirmado nesta turma, para a Semana já filtrada. A turma
+ *   aberta não tem disciplina, e o filtro é `<turmaId>.<disciplinaId>`: com uma disciplina o texto é "Ver a semana desta turma"; com duas ou mais, cada
+ *   link diz a sua ("… · Matemática"), porque dois links iguais com destinos diferentes não se distinguem. Sem vínculo lido (carregando ou erro), nenhum link.
  * - **O acerto por habilidade** é só de lotes aprovados. As barras são neutras: nenhuma fica vermelha, e o número está no
  *   texto (D46, D69).
  */
@@ -68,6 +74,8 @@ export default function TurmaHoje({ turmaId, aoPerderATurma }: { turmaId: string
   const desempenho = useQuery(desempenhoDaTurmaQueryOptions(turmaId))
   const atividades = useQuery(atividadesAplicadasQueryOptions(turmaId))
   const time = useQuery(timeQueryOptions)
+  const vinculos = useInfiniteQuery(meusVinculosQueryOptions)
+  const semanasDaTurma = turmasEDisciplinasDosVinculos(vinculos.data?.pages.flatMap((pagina) => pagina.itens) ?? []).filter((opcao) => opcao.turmaId === turmaId)
   const idDosSinais = useId()
   const idDasHabilidades = useId()
   const botaoDoPainel = useRef<HTMLButtonElement>(null)
@@ -123,6 +131,16 @@ export default function TurmaHoje({ turmaId, aoPerderATurma }: { turmaId: string
           </section>
         )}
       </div>
+
+      {semanasDaTurma.length > 0 && (
+        <div className="flex min-w-0 flex-wrap gap-x-4 gap-y-2">
+          {semanasDaTurma.map((opcao) => (
+            <Link key={opcao.valor} to={enderecoDaSemanaDaTurma(opcao.valor)} className={`${SECONDARY_LINK_CLASSES} text-center`}>
+              {semanasDaTurma.length === 1 ? 'Ver a semana desta turma' : `Ver a semana desta turma · ${opcao.disciplina}`}
+            </Link>
+          ))}
+        </div>
+      )}
 
       <section aria-labelledby={idDosSinais} className="flex min-w-0 flex-col gap-3">
         <SectionHeader

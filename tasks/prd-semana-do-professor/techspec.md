@@ -15,8 +15,8 @@ saiu da grade ("fora da grade"). O texto sai na virada do ano.
 | Módulo | Novo ou alterado | O quê |
 |---|---|---|
 | `packages/core/src/db/schema/aula.ts` + migration | novo | a tabela (seção 3) |
-| `packages/core/src/semana/` | novo | `SemanaRepository` (leitura, com os itens do dia e o tipo `ItemDaSemana`, que o `index.ts` do `core` exporta) e `AulaRepository` (gravação, trava, passo da grade) |
-| `packages/core/src/importacao/tipos/grade.ts` | alterado | o passo "o texto acompanha a grade", entre `gravarAulas` e `encerrarOsMarcados` |
+| `packages/core/src/semana/` | novo | `SemanaRepository` (leitura, com os itens do dia e o tipo `ItemDaSemana`, que o `index.ts` do `core` exporta) e `AulaRepository` (gravação, trava) e `TextoAcompanhaAGradeRepository` (`texto-acompanha-a-grade.repository.ts`, o passo da grade) |
+| `packages/core/src/importacao/tipos/grade.ts`, `importacao.repository.ts`, `tipo.ts`, `motor.ts` | alterado | o passo "o texto acompanha a grade", entre `gravarAulas` e `encerrarOsMarcados`; o `ImportacaoRepository` o entrega à transação do passo (3), e o relógio do job (`ExecucaoOptions.relogio`, no `AmbienteDaGravacao`) dá o "hoje" |
 | `packages/core/src/estrutura/vinculo.repository.ts` | alterado | `virarAno` apaga as linhas de `aula` do ano |
 | `packages/core/src/titular/leitura-do-titular.ts`, `troca-de-nome.ts` | alterado | `aula` só na versão `completa` (`naVersao`, critério 5); no comentário da troca, por que fica fora (seção 11) |
 | `packages/shared/src/privacidade/classificacao.ts` | alterado | `aula`: chave nova de prazo fixo (a virada), ligação `vinculo_id`; não vira categoria da prévia |
@@ -80,7 +80,10 @@ a trava dos vínculos que já existiam e têm aula que sai ou entra; só então 
 os registros do início velho para o início e o fim novos, em todas as datas; na data em que um registro fora da grade já
 ocupa o início novo, aquele não se move e fica fora da grade (nenhum texto passado se apaga). A aula que sai sem par
 **apaga os registros de data ≥ hoje**; os passados ficam fora da grade. Prévia, resumo, assinatura e auditoria do F2 não
-mudam.
+mudam. O "hoje" é o dia de Brasília do relógio do job (`ExecucaoOptions.relogio`, padrão o do sistema, entregue no `AmbienteDaGravacao`: o teste injeta o dele). A classificação
+entrega ao passo as aulas que saem como estavam gravadas (`aulasQueSaemGravadas`, fora da assinatura) e as linhas que entram (as que não confirmam nem mudam uma aula gravada), só
+as dos vínculos que já existiam; o vínculo que a planilha cria não toma trava nem tem aula para ler. O passo é um `update` e um `delete` por lote de 500 pares, e a leitura da `aula`
+é a do próprio comando, de depois da trava.
 
 **Falhas.** Banco fora: erro na tela, texto guardado no painel. O job que falha desfaz grade e registros juntos.
 
@@ -101,7 +104,7 @@ mudam.
 | Novos campos | `aula.conteudo`: finalidade "a professora planejar e lembrar o que deu", até a virada do ano, execução de contrato; pode trazer nome de aluno; não vai a IA na F2b (a F11 reabre a linha); entra no `docs/lgpd.md` na tarefa da tabela |
 | O que vai para log | só ids e data; nunca o texto (regra 20, item 9) |
 | O que entra em auditoria | nada (seção 11) |
-| Retenção e expurgo | `virarAno` apaga as do ano; antes, cascata com o vínculo. Fica fora da troca de nome pelo mesmo motivo da contestação: o nome de aluno eliminado não passa da virada |
+| Retenção e expurgo | `virarAno` apaga as do ano; antes, cascata com o vínculo, e a reimportação da grade apaga, de fato, o texto das datas de hoje em diante (dia de Brasília) da aula que sai sem par (seção 5; as datas passadas ficam até a virada). Fica fora da troca de nome pelo mesmo motivo da contestação: o nome de aluno eliminado não passa da virada |
 | Autorização por objeto | o vínculo é do usuário da sessão, confirmado, no ano em curso |
 | DTO de saída | o da seção 4, sem e-mail, nome de aluno, acerto nem autor. Arquivo do titular: só na versão `completa`; a `coordenacao` não traz a tabela, e nenhuma contagem da prévia a soma |
 | Rascunho na web | em memória, nunca em `localStorage` nem `sessionStorage`; sai na troca de escola e na saída |
@@ -149,7 +152,14 @@ Medidas e textos: `docs/interface.md` 1.8, escrita pela tarefa da aba.
   da grade, e o texto não foi salvo. Dois cliques mandam uma gravação. "Preparar" guarda a
   turma em `CONTEXTO_ESCOLHIDO` e vai ao Início, sem criar conversa
 - **Itens** levam ao painel da atividade (`?aba=atividades&atividade=<id>`) e à revisão da correção (o endereço do sino);
-  **Hoje** ganha "Ver a semana desta turma"
+  **Hoje** ganha "Ver a semana desta turma". A turma aberta não tem disciplina, e o filtro continua só
+  `?turma=<turmaId>.<disciplinaId>` (sem formato novo): sai **um link por vínculo confirmado com disciplina** naquela turma,
+  da leitura `meus-vinculos` e com a mesma regra das opções do filtro, numa função só (`turmasEDisciplinasDosVinculos`, de `semana.ts`, que `useOpcoesDoFiltro` e o Hoje usam). Com um vínculo, o
+  texto é "Ver a semana desta turma"; com dois ou mais, cada link mostra a disciplina no texto visível, "Ver a semana desta
+  turma · Matemática" (dois links com o mesmo texto e destinos diferentes não passam no 2.4.4). Sem vínculo confirmado, ou
+  com a leitura carregando ou em erro, nenhum link, e o Hoje não ganha estado novo (divergência da 8.0, 06/11/2026).
+  O filtro `?turma=` corta as aulas e os itens do dia juntos (`diasFiltrados`), e a semana sem aula mas com item não é
+  vazia (`vazioDaSemana` conta os itens): o vazio "Sem aulas nesta semana" não esconde o que aconteceu num dia
 - TanStack Query, chave `['semana', segunda]`; a troca de escola já descarta o cache (P30), o rascunho e o painel
 
 ## 10. Testes
@@ -164,6 +174,7 @@ Regras atendidas nas seções 6 a 10. Desvios:
 |---|---|---|---|
 | 20, item 10 | auditoria nas leituras e escritas da lista | a gravação do texto não é auditada: dado da própria professora, sem aluno, nota nem permissão | esta seção |
 | 20, item 15 | eliminação apaga de fato | `aula.conteudo` fora da troca de nome: sai na virada do ano, como o texto da contestação | `troca-de-nome.ts`, comentário da lista |
+| 20, item 15 | eliminação apaga de fato | o `delete` do passo da reimportação da grade apaga de fato o texto das datas de hoje em diante da aula que sai sem par, e não é auditado linha a linha nem contado: é dado da própria professora, sem aluno, nota nem permissão (como a linha do item 10), e resumo, prévia e auditoria do F2 não mudam (J9; a prévia não ganha contagem, D64) | esta seção, e `cenarios.md` (J9) |
 | `docs/modelo-de-dados.md` | a `Aula` vira a `aula` da seção 3 | sem FK para a alocação, sem `status` nem `observacao`: o PRD tirou "não houve aula", e o texto sobrevive à saída da grade | `docs/modelo-de-dados.md`, na tarefa da tabela |
 
 ## 12. Premissas não verificadas

@@ -20,6 +20,7 @@ import { ListaRepository, type AlunoDaVirada, type AlunosParaReimportar, type Co
 import { SerieRepository } from '../estrutura/serie.repository.js'
 import { TurmaRepository, type TurmaDoAno } from '../estrutura/turma.repository.js'
 import { VinculoRepository } from '../estrutura/vinculo.repository.js'
+import { TextoAcompanhaAGradeRepository, type MudancaDaGrade } from '../semana/texto-acompanha-a-grade.repository.js'
 import { AlocacaoRepository, type AulaGravada, type AulaNova } from './alocacao.repository.js'
 
 /** O ano em que a planilha grava: o em curso da sessão, ou o planejado que a coordenação escolheu. */
@@ -533,6 +534,16 @@ export class ImportacaoRepository {
     let apagadas = 0
     for (let inicio = 0; inicio < ids.length; inicio += TAMANHO_DO_LOTE) apagadas += await alocacoes.apagar(anoLetivoId, ids.slice(inicio, inicio + TAMANHO_DO_LOTE))
     return apagadas
+  }
+
+  /**
+   * O texto da aula acompanha a grade (F2b, tarefa 5.0): depois de `gravarAulas` e antes de `encerrarOsMarcados`, pela mesma transação. Re-chaveia o
+   * texto da aula que só mudou de horário e apaga o das datas de hoje em diante da que saiu sem par; `hoje` é o dia de Brasília (`diaDeUso`).
+   */
+  async acompanharOTextoDaAula(anoLetivoId: string, mudanca: MudancaDaGrade, hoje: string): Promise<void> {
+    // Só a prova do contexto que a guarda dos repositories pede: o escopo (escola do job) o `acompanhar` resolve sozinho, de novo, em `requireEscolaId()`.
+    requireEscolaId()
+    await new TextoAcompanhaAGradeRepository(this.banco).acompanhar(anoLetivoId, mudanca, hoje)
   }
 
   /** Encerra o vínculo de professor de cada id marcado como "sai da grade", em lotes; devolve o que encerrou, com o estado de antes. */

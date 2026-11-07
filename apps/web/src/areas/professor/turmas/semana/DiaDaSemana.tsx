@@ -1,6 +1,7 @@
 import type { AulaDaSemana, DiaDaSemana as Dia } from '@educa/shared'
 import { useId } from 'react'
 import { CartaoDaAula } from './CartaoDaAula'
+import { ItensDoDia } from './ItensDoDia'
 import { diaEMes, emAndamento, nomeDoDia, rotuloDoEvento } from './semana'
 
 interface Props {
@@ -14,6 +15,7 @@ interface Props {
  * Um dia da semana (RF1, RF3): o nome e a data, o evento ou feriado que cai nele e os cartões das aulas em ordem de horário (a API já as
  * entrega ordenadas; não há régua de horas, que dependeria da métrica da fonte, D72). **Feriado e recesso** mostram o tipo e a descrição, e a API
  * não manda aula nesses dias; **evento** aparece junto das aulas, sem tirar nenhuma. Hoje é texto ("Hoje"), e não só o destaque.
+ * Embaixo das aulas vêm os itens do dia (RF7, `ItensDoDia`): o que aconteceu ali na turma e na disciplina dela, também no dia sem aula.
  */
 export function DiaDaSemana({ dia, hoje, agora, aoAbrirAula }: Props) {
   const idDoTitulo = useId()
@@ -50,6 +52,7 @@ export function DiaDaSemana({ dia, hoje, agora, aoAbrirAula }: Props) {
       ) : (
         <p className="text-sm text-sutil">Sem aulas</p>
       )}
+      {dia.itens.length > 0 && <ItensDoDia itens={dia.itens} />}
     </section>
   )
 }

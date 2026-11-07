@@ -2821,6 +2821,26 @@ repetem aqui.
       e um título qualquer; afirmar `[data-dia="${cena.anterior}"]` ou o título da semana anterior. A mudança da semana na tela já tem caso em
       `Semana.test.tsx`
 - [ ] (semana-do-professor, 6.0, revisor-geral, 2ª) **P30: `page.unroute` depois do `liberar()`.** A rota segurada vive até o fim do caso, que não tem mais passos
+
+## Da semana-do-professor, tarefa 8.0 (os itens do dia e "Ver a semana desta turma"), fora dela
+
+- [ ] (semana-do-professor, 8.0, infra-guardian, 1ª) **Hoje e o filtro da Semana leem só a primeira página de `GET /v1/meus-vinculos`, sem `fetchNextPage`.**
+      A professora com mais vínculos que a página não vê o link "Ver a semana desta turma" nem a opção do filtro das turmas que ficaram para trás. O
+      problema é o da 6.0 (o filtro), e a 8.0 passou a depender dele no Hoje: resolver os dois juntos, na função `turmasEDisciplinasDosVinculos`
+- [ ] (semana-do-professor, 8.0, privacy-guardian, 1ª) **Aviso no campo de título da atividade: "não escreva nome de aluno".** O título da atividade aparece
+      nos itens do dia (`ItensDoDia`), e o campo é de outra tarefa (a ferramenta que gera a atividade), igual ao aviso que o painel da aula (7.0) já tem. Levar à retro
+- [ ] (semana-do-professor, 8.0, test-engineer, 1ª) **O e2e dos itens depende do relógio real.** Se o caso cruzar a meia-noite, principalmente de domingo para
+      segunda, a semana muda entre criar a atividade e abrir a Semana, e o item cai em outro dia. Levar à retro: relógio parado com `page.clock`, ou semana com folga
+- [ ] (semana-do-professor, 8.0, test-engineer, 1ª) **A chave do item, `${item.tipo}-${item.atividadeAplicadaId}`, assume uma correção por atividade por dia.**
+      Confirmar no contrato da 3.0 (`montar-dias.ts`) se o lote refeito no mesmo dia pode mandar duas correções da mesma atividade; se puder, a chave repete
+- [ ] (semana-do-professor, 8.0, test-engineer, 2ª) **`fileirasVazias()` de `TurmaHoje.test.tsx` passa sem testar nada se a estrutura mudar.** O helper
+      confere que não há link dentro do bloco `aria-live`; se o bloco sair do lugar, o caso passa vazio. Afirmar antes que `raiz` contém o `div[aria-live]`.
+      Dono: a próxima tarefa que tocar `TurmaHoje.test.tsx`. No mesmo spec, `e2e/professor-semana-itens.spec.ts`: o comentário do caso T5 de duas disciplinas
+      fala só do celular, e o caso roda nos dois projetos
+- [ ] (semana-do-professor, 8.0, frontend-reviewer, 2ª) **Fotografar a Semana com itens do dia.** A escola cheia da vitrine (`tools/vitrine/`) não tem grade nem
+      atividade aplicada, e a tela com itens foi vista só pelo e2e. Quando houver grade importada na vitrine, fotografar a Semana com itens; a 7.0 (painel da
+      aula) e o Validador dependem do mesmo dado
+
 ## Da semana-do-professor, tarefa 4.0 (`PUT /v1/aulas`), fora dela
 
 - [ ] (semana-do-professor, 4.0, privacy-guardian, 1ª) **Comentário no schema da `aula`: o `trim()` do JS apara mais que o `btrim` da checagem.** O
@@ -2838,7 +2858,20 @@ repetem aqui.
 - [ ] (semana-do-professor, 4.0, test-engineer, 1ª) **Caso da professora com duas disciplinas na mesma turma (dois vínculos confirmados) no `PUT`.**
       Em `apps/api/test/aulas.int.test.ts`: dois vínculos confirmados dela na mesma turma, e o `PUT` de cada um grava só a aula do seu `vinculoId`. Pede
       fixture nova (o segundo vínculo na mesma turma); a chave `vinculo_id` já é provada pela colega e pelos vínculos dos outros estados. Dono: a
-      tarefa 5.0, que mexe em mais de um vínculo por professora
+      tarefa 5.0, que mexe em mais de um vínculo por professora. A 5.0 (test-engineer, 1ª) pediu o mesmo caso de novo para o texto que acompanha a
+      reimportação; ela não tem `PUT` novo, e o caso segue aberto aqui, sem linha nova
+
+## Da semana-do-professor, tarefa 5.0 (o texto acompanha a reimportação), fora dela
+
+- [ ] (semana-do-professor, 5.0, infra-guardian, 1ª) **Teto de vínculos por reimportação da grade, na Tech Spec.** O passo toma uma trava consultiva por
+      vínculo mexido, todas na mesma transação; o número que cabe em `max_locks_per_transaction` é decisão de capacidade, não da tarefa. Dono: o
+      Arquiteto, antes do portão da primeira escola de rede pública
+- [ ] (semana-do-professor, 5.0, infra-guardian, 1ª) **Classificar o `57014` (`statement_timeout`) do passo como falha de trava.** Hoje o último erro grava
+      `erro_interno` (`apps/worker/src/processors/gravar-planilha.ts:66`). Muda comportamento em arquivo que a 5.0 não toca. Dono: a próxima tarefa ou
+      correção que tocar `gravar-planilha.ts`
+- [ ] (semana-do-professor, 5.0, conformidade-reviewer, 1ª) **Avisar só a professora, na Semana, que o texto das datas futuras de uma aula que saiu da grade
+      foi apagado, sem contagem para a coordenação.** Pergunta de produto: D45 e D64 limitam o que a coordenação vê. Dono: o Arquiteto, antes da tarefa da tela
+      da Semana
 
 ## Da semana-do-professor, tarefa 3.0 (os itens do dia), fora dela
 

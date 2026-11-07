@@ -1,5 +1,6 @@
 import type { CandidatoDaMarca, MarcasDaPlanilha, PreviaDaPlanilhaRow, ResumoDaImportacao, TipoDePlanilha } from '@educa/shared'
 import type { CicloDeVidaService } from '../ciclo-de-vida/ciclo-de-vida.service.js'
+import type { Clock } from '../clock.js'
 import type { DatabaseTransaction } from '../db/database.js'
 import type { AnoDeDestino, ImportacaoRepository } from './importacao.repository.js'
 
@@ -36,10 +37,15 @@ export interface DaLista {
   readonly linhas: readonly ListaRow[]
 }
 
-/** O que o `aplicar` usa além do repository: a transação do passo (3) e o ciclo de vida, para desativar na mesma transação. */
+/**
+ * O que o `aplicar` usa além do repository: a transação do passo (3), o ciclo de vida, para desativar na mesma transação, e o relógio do job, de onde
+ * a grade tira o "hoje" do fuso da escola (o texto da aula de hoje em diante é o que sai com a aula que sai; F2b, tarefa 5.0).
+ */
 export interface AmbienteDaGravacao {
   readonly tx: DatabaseTransaction
   readonly ciclo: CicloDeVidaService
+  /** Sem ele, o relógio do sistema: o motor sempre o entrega, e só o teste de unidade de um tipo que não o usa o deixa de fora. */
+  readonly relogio?: Clock
 }
 
 /** O que a planilha fará no ano, na leitura de agora: a `assinatura` do que foi visto, as contagens e a escrita. */
