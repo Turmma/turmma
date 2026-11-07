@@ -31,7 +31,7 @@
   - [x] 5.1 O passo entre `gravarAulas` e `encerrarOsMarcados`: travas, pareamento, re-chaveamento, apagar o futuro
   - [x] 5.2 Testes: J1 a J16
 
-- [ ] **6.0 — Turmas ganha a aba Semana**
+- [x] **6.0 — Turmas ganha a aba Semana**
   - [ ] 6.1 As abas "Turmas · Semana" e a leitura sob demanda
   - [ ] 6.2 A semana: dias, cartões, navegação, filtro, estados, celular
   - [ ] 6.3 `docs/interface.md` 1.8 inteira e o roteiro da demonstração conferido

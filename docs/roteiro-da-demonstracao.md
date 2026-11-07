@@ -140,7 +140,9 @@ vale 72 horas. O painel da operação não mostra dado de aluno nem de professor
 8. Os três professores aceitam (no perfil **Professora**, um de cada vez; Marta e Davi podem ser feitos na véspera em
    qualquer perfil livre): abrir o link → **Aceitar o convite** → senha → **Definir a senha e continuar** → entrar com
    e-mail e senha → a introdução do professor, de quatro passos (**Continuar** em cada um, ou **Pular**) → **Turmas** →
-   em "Confirme suas turmas", **Confirmar**. Termine com a **Helena** entrada no perfil Professora.
+   em "Confirme suas turmas", **Confirmar**. Termine com a **Helena** entrada no perfil Professora. (Turmas passou a ter duas
+   abas, **Turmas** e **Semana** (F2b); ela abre em **Turmas**, e os passos deste roteiro ficam todos nela. A **Semana** entra no
+   roteiro quando a tarefa 8.0 fechar a spec.)
 9. A Helena gera o acesso dos alunos: **Turmas** → **Abrir a turma 2ºA** → aba **Alunos** → **Convidar alunos** → **Gerar
    acesso**. **Aparece:** o código da turma, para projetar na lousa. **Fechar** e **Fechar sem copiar**.
 10. No perfil **Aluno**: `http://127.0.0.1:58080/e/lago-azul-demo/turma` → digite o código → **Abrir a turma** →

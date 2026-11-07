@@ -2,9 +2,9 @@
 
 ## Agora
 - **Pausa** de 16:30 a 20:20 (06/11), a pedido do Joaquim; os três Implementadores reiniciados com `PEDIDO de retomada` às 20:20, vigia religada.
-- **Espero:** linha 1: o `RELATÓRIO` da correção `e2e-conflito-do-gerar` (esteira vermelha em `b388f260`, execução 42277176677, e2e `acesso-da-turma.spec.ts:972`), pedida às 21:30; a esteira de `0cd5dd46` (execução 42318323952) ainda roda, ler no próximo encontro; linha 2: o da correção `encontro-4` (o encontro da 4.0, `71738c89`, deu CONFLITO em `packages/core/src/index.ts` com a 3.0), pedida às ~21:55 ao par reiniciado; linha 3: o da 6.0 (as três de porte grande, 1ª tentativa), pedidas em 06/11 ~16:10. A 6.0 parou em DIVERGÊNCIA de desenho (SegmentedControl da seção 9 da techspec × interface.md 10.2 e R3); parada respondida (A, `DaySelector`); retomada pedida ao Implementador 3, reiniciado, com a techspec §9 atualizada pelo Arquiteto sem commit no checkout da linha 3
-- **Devo ainda:** no fechamento, escrever no `TODO.md` os quatro destinos da ordem r1 da 1.0 que ninguém escreveu (`.processo/ordens/1_task-r2.md` da linha 1): volume do `delete` no encerramento do ano (Infra e operação), reserva do expurgo da `aula` (LGPD e conformidade), rótulo "Registro da aula" em `Retencao.tsx` (para o Validador), S7 do `cenarios.md` (para a retro).
-- **Base:** `spec/semana-do-professor` em `0cd5dd46`
+- **Espero:** linha 1: o `RELATÓRIO` da correção `e2e-conflito-do-gerar` (esteira vermelha em `b388f260`, e2e `acesso-da-turma.spec.ts:972`), pedida às 21:30; depois da DIVERGÊNCIA de portão (`restos.test.ts`), mandei trazer a spec, ~22:38. Linha 2: o da 5.0 (porte grande, 1ª tentativa), pedida às ~22:50. Linha 3: o da 7.0 (porte grande, 1ª tentativa), pedida às ~23:10 ao par reiniciado
+- **Devo ainda:** no fechamento, escrever no `TODO.md` os quatro destinos da ordem r1 da 1.0 que ninguém escreveu (`.processo/ordens/1_task-r2.md` da linha 1): volume do `delete` no encerramento do ano (Infra e operação), reserva do expurgo da `aula` (LGPD e conformidade), rótulo "Registro da aula" em `Retencao.tsx` (para o Validador), S7 do `cenarios.md` (para a retro). Correção `carga-da-semana` na próxima linha ociosa: o `TODO.md` (2.0) dava à 6.0 o `GET /v1/semana` no cenário de carga das 7h30, e ela não fez nem revisor cobrou (relatório do Implementador 3).
+- **Base:** `spec/semana-do-professor` em `803eef9a`. Esteira: VERMELHA em `0cd5dd4` (`restos.test.ts`), já corrigida pelo `16df729`; a execução sobre `803eef9` roda: ler no próximo encontro
 
 ## Concluídas
 | Tarefa | Commit | Modelo | Rodadas | Observação |
@@ -12,6 +12,8 @@
 | 1.0 | `7732c208` | Sonnet 5.5 | 2 | antes, a correção `base-fixa-acima-do-limite` (`8ca3d1da`) por `DIVERGÊNCIA` de portão |
 | 2.0 | `63b88c11` | Sonnet 5.5 | 2 | esteira verde em `63fc7f1`; depois dela, abertas as linhas 2 e 3 |
 | 3.0 | `c37cba8e` | Sonnet 5.5 | 2 | linha 1; encontro na 2ª tentativa (a 1ª caiu por prazo da máquina, load 20); spec em `0cd5dd46` |
+| 4.0 | `71738c89` | Sonnet 5.5 | — | linha 2; CONFLITO no encontro, correção `encontro-4-semana` (`c3101bb9`); spec em `16df7293` |
+| 6.0 | `346fc1f6` | Sonnet 5.5 | 2 | linha 3; DIVERGÊNCIA de desenho (`DaySelector`, Joaquim escolheu A); encontro na 2ª tentativa (a 1ª caiu por prazo, load 14); spec em `803eef9a`; não fez o item de carga do `TODO.md` (2.0) |
 
 ## Esperando o Joaquim
 
@@ -26,6 +28,8 @@ Seguem sem depender: a 3.0 (linha 1) e a 4.0 (linha 2), que são de API e não t
 - 06/11 ~21:55: o encontro da 4.0 (linha 2, `71738c89`, aprovada pela Mesa) deu CONFLITO em `packages/core/src/index.ts`, que a 3.0 também mexeu. Correção `encontro-4` na linha 2
 - 06/11 ~14:40: na 1.0, o portão parou em `tools/processo/harness/base-fixa.test.ts`: a base fixa tem 40.006 B, acima de 40.000 B, desde a D87 (`8d624453`, nesta branch). Não vem da tarefa
 ## O que decidi sem perguntar
+- 06/11 ~22:55: encontro da 6.0 (linha 3) recusado por prazo com load 14 (e2e da linha 1 rodando); repito quando a carga cair, como no da 3.0. A pendência de carga da 6.0 vira correção `carga-da-semana` numa linha ociosa, sem segurar a 7.0. Para a retro: dono de item do `TODO.md` posto numa tarefa não chega aos revisores dela
+- 06/11 ~22:48: o Implementador 2 deixou o `TODO.md` e o documento da `encontro-4-semana` sem commit depois do encontro; o commit deles (`f64232d9`) deixou a linha com commit que a spec não tinha, e o `linhas.ts` recusou a partida ("falta o encontro") e o encontro ("sem trabalho em curso"). Como era só documento, juntei à mão no andar da spec (`git merge --no-ff`, `5b43da40`, push). Para a retro: o `linhas.ts` não tem caminho para commit depois do encontro
 - 06/11 ~22:05: DIVERGÊNCIA de portão na correção `encontro-4` (doc `tasks/correcoes/encontro-4-semana.md`): `tools/renomear/restos.test.ts:350` pega o nome `Linha` em `apps/api/test/semana-itens.int.test.ts:41`, da 3.0, já vermelho na spec. Mandei corrigir dentro da própria `encontro-4`, porque o merge em curso não deixa commit separado e o resto entra com ele. Para a retro: a 3.0 entrou na spec com o portão vermelho nesse teste. A linha 1 vai bater nele também até o encontro da 4.0
 - 06/11 ~21:25: o encontro da 3.0 (linha 1, `c37cba8e`) deu VERIFICAÇÃO RECUSADA por prazo (tipagem e lint passaram de 180 s com load 20 em 12 núcleos, por causa da mutação da linha 3). A spec não tinha andado desde `b388f260`, então não havia o que consertar: em vez da correção `encontro-3`, repito o encontro quando a carga cair. Se cair de novo por prazo com a máquina calma, aí é correção. Refeito às 21:25 com load 8: passou.
 - 06/11 12:12: abri a F2b, e não a F2c, embora o `estado.ts` sem nome escolha a F2c (que já tem PRD e Tech Spec): o Joaquim pediu "depois do pouso já abre a F2b", e ela é a primeira pendente do roadmap
