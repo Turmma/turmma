@@ -2818,3 +2818,19 @@ repetem aqui.
       Em `apps/api/test/aulas.int.test.ts`: dois vínculos confirmados dela na mesma turma, e o `PUT` de cada um grava só a aula do seu `vinculoId`. Pede
       fixture nova (o segundo vínculo na mesma turma); a chave `vinculo_id` já é provada pela colega e pelos vínculos dos outros estados. Dono: a
       tarefa 5.0, que mexe em mais de um vínculo por professora
+## Da semana-do-professor, tarefa 3.0 (os itens do dia), fora dela
+
+- [ ] (semana-do-professor, 3.0, tenancy-guardian, 1ª) **`itensDaSemana` e `consultasDosItens` leem o `anoLetivoId` do contexto.** Hoje recebem o ano por
+      argumento (como os métodos da 2.0); ler de `currentContext()` ou recusar ano diferente do contexto. Muda a assinatura dos métodos da 2.0 e da 3.0 e
+      do `semana.service.ts`. A origem do ano hoje é segura (`anoEmCurso()` lê o contexto) e o R2 prova que ano trocado volta vazio
+- [ ] (semana-do-professor, 3.0, infra-guardian e revisor-geral, 1ª) **`diaNoFuso` filtra por instante, e o fuso entra como parâmetro.** O `naSemana` aplica
+      `to_char(... at time zone ...)` em cada linha; filtrar a semana pelo instante (`>= segunda 00h`, `< segunda seguinte 00h`, no fuso) e deixar o
+      `to_char` só no `select`. Na mesma linha, tirar o `sql.raw` do `FUSO_DO_USO` e passá-lo como parâmetro. Reescreve os blocos de "Mutações" de período
+      e de fuso. Sem ganho hoje: centenas de linhas por turma no ano
+- [ ] (semana-do-professor, 3.0, privacy-guardian, 1ª) **O comentário de `aula` em `packages/shared/src/permissao/matriz.ts` (linhas 109 a 113) diz alcance
+      `proprio`**; anotar que os itens do dia seguem `turma_vinculada`. Para a próxima tarefa que tocar `matriz.ts`: a 3.0 não toca `packages/shared`
+- [ ] (semana-do-professor, 3.0, conformidade-reviewer, 1ª) **A barreira do `entrega.tipo` quando outra função de entrega entrar na Semana.** Se entrar uma
+      `entrega` de outra função (a devolutiva formativa de discursiva, D46), o `eq(entrega.tipo, 'lote_de_correcao')` vira a única barreira e precisa de
+      teste próprio. Hoje o `check` `entrega_funcao_do_tipo` e o `inner join` com `atividade_aplicada` a deixam de fora
+- [ ] (semana-do-professor, 3.0, revisor-geral, 2ª) **Quebrar a primeira linha do JSDoc de `consultasDosItens`** no comprimento das vizinhas, em
+      `packages/core/src/semana/semana.repository.ts`. Cosmético: para a próxima tarefa que tocar o arquivo
