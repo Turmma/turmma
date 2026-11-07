@@ -1,4 +1,5 @@
-import type { AulaDaSemana, DiaDaSemana, SemanaResponse } from '@educa/shared'
+import { rotuloDoItem, type AulaDaSemana, type DiaDaSemana, type ItemDoDia, type SemanaResponse, type VinculoResponse } from '@educa/shared'
+import { caminhoDaCorrecaoDoProfessor, caminhoDaTurmaDoProfessor, PROFESSOR_ROUTES } from '../../../../paths'
 
 /**
  * As contas da Semana da professora que não precisam de tela (Tech Spec de semana-do-professor, seção 9): o endereço, as datas,
@@ -203,10 +204,53 @@ export function faltaOCalendario(resposta: SemanaResponse | undefined): boolean 
 
 /* ───────────────────────────── o que a tela mostra ───────────────────────────── */
 
-/** Os dias da resposta só com as aulas do filtro; sem filtro, como vieram. */
+/** Os dias da resposta só com as aulas e os itens do filtro (a mesma turma e a mesma disciplina); sem filtro, como vieram. */
 export function diasFiltrados(dias: readonly DiaDaSemana[], filtro: FiltroDaSemana | undefined): readonly DiaDaSemana[] {
   if (filtro === undefined) return dias
-  return dias.map((dia) => ({ ...dia, aulas: dia.aulas.filter((aula) => aula.turmaId === filtro.turmaId && aula.disciplinaId === filtro.disciplinaId) }))
+  const doFiltro = (alvo: { readonly turmaId: string; readonly disciplinaId: string }) => alvo.turmaId === filtro.turmaId && alvo.disciplinaId === filtro.disciplinaId
+  return dias.map((dia) => ({ ...dia, aulas: dia.aulas.filter(doFiltro), itens: dia.itens.filter(doFiltro) }))
+}
+
+/**
+ * Uma turma e disciplina de vínculo **confirmado**, que é o que dá aula (RF4): o valor do filtro da Semana (`<turmaId>.<disciplinaId>`) e o
+ * rótulo "7ºA · Matemática". É a fonte única das opções do filtro e dos links "Ver a semana desta turma" de Hoje.
+ */
+export interface TurmaEDisciplina {
+  readonly valor: string
+  readonly turmaId: string
+  readonly disciplina: string
+  readonly rotulo: string
+}
+
+/** Os vínculos confirmados e com disciplina, na ordem em que vieram. Pendente, contestado e sem disciplina não dão aula e ficam de fora. */
+export function turmasEDisciplinasDosVinculos(vinculos: readonly VinculoResponse[]): readonly TurmaEDisciplina[] {
+  return vinculos.flatMap((vinculo) =>
+    vinculo.estado === 'confirmado' && vinculo.disciplina !== undefined
+      ? [{ valor: `${vinculo.turma.id}.${vinculo.disciplina.id}`, turmaId: vinculo.turma.id, disciplina: vinculo.disciplina.nome, rotulo: `${vinculo.turma.nome} · ${vinculo.disciplina.nome}` }]
+      : [],
+  )
+}
+
+/** O endereço da Semana filtrada por uma turma e disciplina, **relativo à área**: o "Ver a semana desta turma" de Hoje. A semana é a de hoje. */
+export function enderecoDaSemanaDaTurma(valorDoFiltro: string): string {
+  return enderecoDaSemana(PROFESSOR_ROUTES.turmas, '', { turma: valorDoFiltro })
+}
+
+/**
+ * O nome acessível do item: o rótulo da tabela de `packages/shared` e o título, "Atividade aplicada: <título>". A correção do Assistente diz também que é
+ * gerada por IA, como o selo "IA" que ela leva (regra 70, item 4a): o `aria-label` do link substitui o conteúdo dele, e o leitor de tela não ouviria o selo.
+ */
+export function nomeDoItem(item: Pick<ItemDoDia, 'tipo' | 'estado' | 'titulo'>): string {
+  return `${rotuloDoItem(item)}${item.tipo === 'correcao' ? ', gerado por inteligência artificial' : ''}: ${item.titulo}`
+}
+
+/**
+ * Onde cada item do dia leva (RF7): a atividade aplicada e a encerrada, ao painel da atividade na turma dela (`?aba=atividades&atividade=<id>`);
+ * a correção, à revisão (o endereço do "Revisar" do sino). Só ids no endereço, nunca título nem nome (regra 20, item 9).
+ */
+export function enderecoDoItem(item: Pick<ItemDoDia, 'tipo' | 'turmaId' | 'atividadeAplicadaId'>): string {
+  if (item.tipo === 'correcao') return caminhoDaCorrecaoDoProfessor(item.atividadeAplicadaId)
+  return `${caminhoDaTurmaDoProfessor(item.turmaId)}?${new URLSearchParams({ aba: 'atividades', atividade: item.atividadeAplicadaId }).toString()}`
 }
 
 export interface VazioDaSemana {
@@ -242,7 +286,7 @@ export function vazioDaSemana(resposta: SemanaResponse, dias: readonly DiaDaSema
   if (dias.length === 0) return vazioForaDoAno(resposta.ano, resposta.hoje)
   const recesso = vazioDeRecesso(dias)
   if (recesso !== undefined) return recesso
-  if (dias.some((dia) => dia.aulas.length > 0 || dia.eventos.length > 0)) return undefined
+  if (dias.some((dia) => dia.aulas.length > 0 || dia.eventos.length > 0 || dia.itens.length > 0)) return undefined
   return { titulo: 'Sem aulas nesta semana', descricao: 'Nenhuma aula sua cai nesta semana. Use "Semana anterior" ou "Semana seguinte" para ver as outras.' }
 }
 

@@ -149,7 +149,14 @@ Medidas e textos: `docs/interface.md` 1.8, escrita pela tarefa da aba.
   da grade, e o texto não foi salvo. Dois cliques mandam uma gravação. "Preparar" guarda a
   turma em `CONTEXTO_ESCOLHIDO` e vai ao Início, sem criar conversa
 - **Itens** levam ao painel da atividade (`?aba=atividades&atividade=<id>`) e à revisão da correção (o endereço do sino);
-  **Hoje** ganha "Ver a semana desta turma"
+  **Hoje** ganha "Ver a semana desta turma". A turma aberta não tem disciplina, e o filtro continua só
+  `?turma=<turmaId>.<disciplinaId>` (sem formato novo): sai **um link por vínculo confirmado com disciplina** naquela turma,
+  da leitura `meus-vinculos` e com a mesma regra das opções do filtro, numa função só (`turmasEDisciplinasDosVinculos`, de `semana.ts`, que `useOpcoesDoFiltro` e o Hoje usam). Com um vínculo, o
+  texto é "Ver a semana desta turma"; com dois ou mais, cada link mostra a disciplina no texto visível, "Ver a semana desta
+  turma · Matemática" (dois links com o mesmo texto e destinos diferentes não passam no 2.4.4). Sem vínculo confirmado, ou
+  com a leitura carregando ou em erro, nenhum link, e o Hoje não ganha estado novo (divergência da 8.0, 06/11/2026).
+  O filtro `?turma=` corta as aulas e os itens do dia juntos (`diasFiltrados`), e a semana sem aula mas com item não é
+  vazia (`vazioDaSemana` conta os itens): o vazio "Sem aulas nesta semana" não esconde o que aconteceu num dia
 - TanStack Query, chave `['semana', segunda]`; a troca de escola já descarta o cache (P30), o rascunho e o painel
 
 ## 10. Testes

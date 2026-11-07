@@ -128,8 +128,8 @@ export class ProfessoraApiClient {
     return (await this.chamar<{ id: string }>('POST', '/v1/atividades-aplicadas', { artefatoId, turmaId, avaliativa })).id
   }
 
-  /** Encerra a atividade, espera a correção montar o lote, abre os destaques e aprova: é daí que o aluno alcança o diagnóstico. */
-  async encerrarEAprovar(atividadeAplicadaId: string): Promise<void> {
+  /** Encerra a atividade e espera a correção montar o lote, que fica pendente, esperando a professora. */
+  async encerrar(atividadeAplicadaId: string): Promise<void> {
     const encerrada = await this.chamar<{ execucaoId: string | null; atividade: { entrega: { id: string } | null } }>('POST', `/v1/atividades-aplicadas/${atividadeAplicadaId}/encerrar`, {})
     // A correção de objetiva é uma conta, feita no próprio encerramento: o lote já vem na resposta. Se um dia ela for para
     // a fila, a execução vem aqui, e o teste a espera.
@@ -140,6 +140,11 @@ export class ProfessoraApiClient {
       await new Promise((resolver) => setTimeout(resolver, 500))
     }
     if (encerrada.execucaoId === null && encerrada.atividade.entrega === null) throw new Error('a correção não rodou: a função está suspensa?')
+  }
+
+  /** Encerra, abre os destaques e aprova o lote: é daí que o aluno alcança o diagnóstico. */
+  async encerrarEAprovar(atividadeAplicadaId: string): Promise<void> {
+    await this.encerrar(atividadeAplicadaId)
     const correcao = await this.chamar<{ entrega: { id: string }; destaques: { alunoId: string }[] }>('GET', `/v1/atividades-aplicadas/${atividadeAplicadaId}/correcao`)
     for (const destaque of correcao.destaques) await this.chamar('POST', `/v1/atividades-aplicadas/${atividadeAplicadaId}/correcao/destaques/${destaque.alunoId}/abrir`, {})
     await this.chamar('POST', `/v1/entregas/${correcao.entrega.id}/aprovar-lote`, {})

@@ -2821,6 +2821,26 @@ repetem aqui.
       e um título qualquer; afirmar `[data-dia="${cena.anterior}"]` ou o título da semana anterior. A mudança da semana na tela já tem caso em
       `Semana.test.tsx`
 - [ ] (semana-do-professor, 6.0, revisor-geral, 2ª) **P30: `page.unroute` depois do `liberar()`.** A rota segurada vive até o fim do caso, que não tem mais passos
+
+## Da semana-do-professor, tarefa 8.0 (os itens do dia e "Ver a semana desta turma"), fora dela
+
+- [ ] (semana-do-professor, 8.0, infra-guardian, 1ª) **Hoje e o filtro da Semana leem só a primeira página de `GET /v1/meus-vinculos`, sem `fetchNextPage`.**
+      A professora com mais vínculos que a página não vê o link "Ver a semana desta turma" nem a opção do filtro das turmas que ficaram para trás. O
+      problema é o da 6.0 (o filtro), e a 8.0 passou a depender dele no Hoje: resolver os dois juntos, na função `turmasEDisciplinasDosVinculos`
+- [ ] (semana-do-professor, 8.0, privacy-guardian, 1ª) **Aviso no campo de título da atividade: "não escreva nome de aluno".** O título da atividade aparece
+      nos itens do dia (`ItensDoDia`), e o campo é de outra tarefa (a ferramenta que gera a atividade), igual ao aviso que o painel da aula (7.0) já tem. Levar à retro
+- [ ] (semana-do-professor, 8.0, test-engineer, 1ª) **O e2e dos itens depende do relógio real.** Se o caso cruzar a meia-noite, principalmente de domingo para
+      segunda, a semana muda entre criar a atividade e abrir a Semana, e o item cai em outro dia. Levar à retro: relógio parado com `page.clock`, ou semana com folga
+- [ ] (semana-do-professor, 8.0, test-engineer, 1ª) **A chave do item, `${item.tipo}-${item.atividadeAplicadaId}`, assume uma correção por atividade por dia.**
+      Confirmar no contrato da 3.0 (`montar-dias.ts`) se o lote refeito no mesmo dia pode mandar duas correções da mesma atividade; se puder, a chave repete
+- [ ] (semana-do-professor, 8.0, test-engineer, 2ª) **`fileirasVazias()` de `TurmaHoje.test.tsx` passa sem testar nada se a estrutura mudar.** O helper
+      confere que não há link dentro do bloco `aria-live`; se o bloco sair do lugar, o caso passa vazio. Afirmar antes que `raiz` contém o `div[aria-live]`.
+      Dono: a próxima tarefa que tocar `TurmaHoje.test.tsx`. No mesmo spec, `e2e/professor-semana-itens.spec.ts`: o comentário do caso T5 de duas disciplinas
+      fala só do celular, e o caso roda nos dois projetos
+- [ ] (semana-do-professor, 8.0, frontend-reviewer, 2ª) **Fotografar a Semana com itens do dia.** A escola cheia da vitrine (`tools/vitrine/`) não tem grade nem
+      atividade aplicada, e a tela com itens foi vista só pelo e2e. Quando houver grade importada na vitrine, fotografar a Semana com itens; a 7.0 (painel da
+      aula) e o Validador dependem do mesmo dado
+
 ## Da semana-do-professor, tarefa 4.0 (`PUT /v1/aulas`), fora dela
 
 - [ ] (semana-do-professor, 4.0, privacy-guardian, 1ª) **Comentário no schema da `aula`: o `trim()` do JS apara mais que o `btrim` da checagem.** O

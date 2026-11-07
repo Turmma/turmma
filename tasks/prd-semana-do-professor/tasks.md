@@ -41,7 +41,7 @@
   - [ ] 7.1 O `Sheet` com o texto, o contador, o aviso e as duas ações
   - [ ] 7.2 Testes: T2, T3, T4, T7, o painel no celular, o recomeço
 
-- [ ] **8.0 — Os itens do dia na Semana e "Ver a semana desta turma"**
+- [x] **8.0 — Os itens do dia na Semana e "Ver a semana desta turma"**
   - [ ] 8.1 Os itens com os rótulos de `packages/shared` e os links
   - [ ] 8.2 O link no Hoje da turma aberta
   - [ ] 8.3 Testes: T5, T6, o vocabulário

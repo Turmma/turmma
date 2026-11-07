@@ -29,6 +29,7 @@ import {
   semanaDoEndereco,
   somarDias,
   tituloDaSemana,
+  turmasEDisciplinasDosVinculos,
   valorDoFiltro,
   vazioDaSemana,
   type FiltroDaSemana,
@@ -99,10 +100,8 @@ function UmDiaPorVez({ dias, hoje, agora, aoAbrirAula }: { dias: readonly Dia[];
 /** As opções do filtro: "Todas as turmas" e uma por turma e disciplina de vínculo confirmado (só ele dá aula). */
 function useOpcoesDoFiltro(): readonly SelectOption[] {
   const vinculos = useInfiniteQuery(meusVinculosQueryOptions)
-  const confirmados = (vinculos.data?.pages.flatMap((pagina) => pagina.itens) ?? []).flatMap((vinculo) =>
-    vinculo.estado === 'confirmado' && vinculo.disciplina !== undefined ? [{ valor: `${vinculo.turma.id}.${vinculo.disciplina.id}`, rotulo: `${vinculo.turma.nome} · ${vinculo.disciplina.nome}` }] : [],
-  )
-  return [{ valor: '', rotulo: 'Todas as turmas' }, ...confirmados]
+  const confirmados = turmasEDisciplinasDosVinculos(vinculos.data?.pages.flatMap((pagina) => pagina.itens) ?? [])
+  return [{ valor: '', rotulo: 'Todas as turmas' }, ...confirmados.map(({ valor, rotulo }) => ({ valor, rotulo }))]
 }
 
 interface CorpoProps {

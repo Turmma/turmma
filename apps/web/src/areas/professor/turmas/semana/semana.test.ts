@@ -1,4 +1,4 @@
-import type { AulaDaSemana, DiaDaSemana, SemanaResponse } from '@educa/shared'
+import type { AulaDaSemana, DiaDaSemana, ItemDoDia, SemanaResponse, VinculoResponse } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import {
   abaDeTurmasDoEndereco,
@@ -10,6 +10,8 @@ import {
   enderecoDaAbaDeTurmas,
   enderecoDaAula,
   enderecoDaSemana,
+  enderecoDaSemanaDaTurma,
+  enderecoDoItem,
   faltaOCalendario,
   faltaPreencher,
   filtroDoEndereco,
@@ -19,12 +21,14 @@ import {
   horaDaAula,
   nomeCompletoDoDia,
   nomeDaAula,
+  nomeDoItem,
   rotuloDoTexto,
   segundaDe,
   semanaDoEndereco,
   semanaToca,
   somarDias,
   tituloDaSemana,
+  turmasEDisciplinasDosVinculos,
   vazioDaSemana,
 } from './semana'
 
@@ -44,6 +48,7 @@ const aula = (extra: Partial<AulaDaSemana> = {}): AulaDaSemana => ({
   foraDaGrade: false,
   ...extra,
 })
+const item = (extra: Partial<ItemDoDia> = {}): ItemDoDia => ({ tipo: 'aplicada', turmaId: id(2), disciplinaId: id(3), atividadeAplicadaId: id(40), titulo: 'Atividade de estequiometria', ...extra })
 const dia = (data: string, extra: Partial<DiaDaSemana> = {}): DiaDaSemana => ({ data, eventos: [], aulas: [], itens: [], ...extra })
 const resposta = (extra: Partial<SemanaResponse> = {}): SemanaResponse => ({ ano: ANO, hoje: '2026-11-10', agora: '09:00', gradeImportada: true, calendarioImportado: true, dias: [], ...extra })
 
@@ -185,6 +190,55 @@ describe('o filtro corta o que a API devolveu', () => {
     expect(diasFiltrados(dias, { turmaId: id(77), disciplinaId: id(3) })[0]?.aulas).toEqual([])
     expect(diasFiltrados(dias, undefined)).toBe(dias)
   })
+
+  it('os itens do dia seguem o mesmo filtro: os de outra turma, ou de outra disciplina da mesma turma, somem', () => {
+    const doFiltro = item()
+    const deOutraTurma = item({ turmaId: id(9), atividadeAplicadaId: id(41) })
+    const deOutraDisciplina = item({ disciplinaId: id(8), atividadeAplicadaId: id(42) })
+    const dias = [dia('2026-11-10', { itens: [doFiltro, deOutraTurma, deOutraDisciplina] })]
+    expect(diasFiltrados(dias, { turmaId: id(2), disciplinaId: id(3) })[0]?.itens).toEqual([doFiltro])
+    expect(diasFiltrados(dias, { turmaId: id(2), disciplinaId: id(8) })[0]?.itens).toEqual([deOutraDisciplina])
+    expect(diasFiltrados(dias, { turmaId: id(9), disciplinaId: id(3) })[0]?.itens).toEqual([deOutraTurma])
+  })
+})
+
+describe('as turmas e disciplinas do filtro e do "Ver a semana desta turma"', () => {
+  const vinculo = (n: number, estado: VinculoResponse['estado'], disciplina: { id: string; nome: string } | undefined): VinculoResponse =>
+    ({ id: id(600 + n), turma: { id: id(2), nome: '7ºA' }, estado, ...(disciplina === undefined ? {} : { disciplina }) }) as VinculoResponse
+
+  it('só o vínculo confirmado e com disciplina entra, com o valor `<turmaId>.<disciplinaId>` e o rótulo "turma · disciplina"', () => {
+    const lista = turmasEDisciplinasDosVinculos([
+      vinculo(1, 'confirmado', { id: id(3), nome: 'Matemática' }),
+      vinculo(2, 'pendente', { id: id(8), nome: 'História' }),
+      vinculo(3, 'confirmado', undefined),
+      vinculo(4, 'confirmado', { id: id(9), nome: 'Física' }),
+    ])
+    expect(lista).toEqual([
+      { valor: `${id(2)}.${id(3)}`, turmaId: id(2), disciplina: 'Matemática', rotulo: '7ºA · Matemática' },
+      { valor: `${id(2)}.${id(9)}`, turmaId: id(2), disciplina: 'Física', rotulo: '7ºA · Física' },
+    ])
+  })
+
+  it('o endereço da semana da turma leva só `ver` e `turma`, na Semana de hoje', () => {
+    expect(enderecoDaSemanaDaTurma(`${id(2)}.${id(3)}`)).toBe(`/turmas?ver=semana&turma=${id(2)}.${id(3)}`)
+  })
+})
+
+describe('o nome acessível do item do dia', () => {
+  it('"tipo: título" na atividade, "tipo · estado, gerado por inteligência artificial: título" na correção do Assistente (regra 70, item 4a)', () => {
+    expect(nomeDoItem(item({ tipo: 'aplicada' }))).toBe('Atividade aplicada: Atividade de estequiometria')
+    expect(nomeDoItem(item({ tipo: 'encerrada' }))).toBe('Atividade encerrada: Atividade de estequiometria')
+    expect(nomeDoItem(item({ tipo: 'correcao', estado: 'aprovada' }))).toBe('Correção do Assistente · Aprovada, gerado por inteligência artificial: Atividade de estequiometria')
+  })
+})
+
+describe('para onde cada item do dia leva (RF7)', () => {
+  it('a atividade aplicada e a encerrada abrem o painel dela na aba Atividades da turma; a correção abre a revisão', () => {
+    const painel = `/turmas/${id(2)}?aba=atividades&atividade=${id(40)}`
+    expect(enderecoDoItem(item({ tipo: 'aplicada' }))).toBe(painel)
+    expect(enderecoDoItem(item({ tipo: 'encerrada' }))).toBe(painel)
+    expect(enderecoDoItem(item({ tipo: 'correcao', estado: 'pendente' }))).toBe(`/aprovar/${id(40)}`)
+  })
 })
 
 describe('o vazio que diz por quê (RF12)', () => {
@@ -210,6 +264,9 @@ describe('o vazio que diz por quê (RF12)', () => {
     expect(vazioDaSemana(resposta(), semana.map((d) => dia(d)))?.titulo).toBe('Sem aulas nesta semana')
     const comAula = semana.map((d, i) => dia(d, i === 1 ? { aulas: [aula()] } : {}))
     expect(vazioDaSemana(resposta(), comAula)).toBeUndefined()
+    // Semana sem aula, mas com o que aconteceu num dia (uma atividade aplicada): os itens aparecem, e o vazio não os esconde.
+    const comItem = semana.map((d, i) => dia(d, i === 2 ? { itens: [item()] } : {}))
+    expect(vazioDaSemana(resposta(), comItem)).toBeUndefined()
   })
 
   it('o aviso do calendário só aparece com a grade importada e o calendário não', () => {

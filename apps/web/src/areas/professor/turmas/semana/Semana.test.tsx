@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import type { AulaDaSemana, DiaDaSemana, SemanaResponse } from '@educa/shared'
+import { ROTULOS_DA_SEMANA, type AulaDaSemana, type DiaDaSemana, type ItemDoDia, type SemanaResponse } from '@educa/shared'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -37,6 +37,8 @@ const aula = (extra: Partial<AulaDaSemana> = {}): AulaDaSemana => ({
   foraDaGrade: false,
   ...extra,
 })
+
+const itemDoDia = (extra: Partial<ItemDoDia> = {}): ItemDoDia => ({ tipo: 'aplicada', turmaId: TURMA_A.id, disciplinaId: MATEMATICA.id, atividadeAplicadaId: id(700), titulo: 'Atividade de frações', ...extra })
 
 /** Os cinco dias úteis da semana da segunda dada, com as aulas por data. */
 const semanaDe = (segunda: string, aulas: Readonly<Record<string, readonly AulaDaSemana[]>> = {}): DiaDaSemana[] =>
@@ -436,5 +438,69 @@ describe('Semana: o filtro por turma e disciplina', () => {
     expect(endereco()).toBe(`/professor/turmas?ver=semana&turma=${TURMA_A.id}.${MATEMATICA.id}`)
     expect(screen.getByRole('button', { name: 'Terça, 7h30, 7ºA, Matemática' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Terça, 8h20, 7ºA, História' })).toBeNull()
+  })
+})
+
+describe('Semana: os itens do dia (F2b, 8.0; RF7)', () => {
+  const comItens = (itens: readonly ItemDoDia[], aulas: readonly AulaDaSemana[] = []) =>
+    resposta({ dias: semanaDe(SEGUNDA, { [HOJE]: aulas }).map((dia) => (dia.data === HOJE ? { ...dia, itens: [...itens] } : dia)) })
+
+  it('os itens ficam no dia deles, embaixo das aulas, e cada um é link para o lugar dele', async () => {
+    computador()
+    const rede = criarRede()
+    const correcao = itemDoDia({ tipo: 'correcao', estado: 'pendente', atividadeAplicadaId: id(701), titulo: 'Atividade de frações' })
+    instalar(rede, { [SEGUNDA]: comItens([itemDoDia(), correcao], [aula()]) })
+    montar()
+    const doDia = await screen.findByRole('list', { name: 'O que aconteceu neste dia' })
+    const dia = document.querySelector(`[data-dia="${HOJE}"]`) as HTMLElement
+    expect(dia.contains(doDia)).toBe(true)
+    // Embaixo das aulas: o cartão vem antes da lista dos itens.
+    expect(screen.getByRole('button', { name: 'Terça, 7h30, 7ºA, Matemática' }).compareDocumentPosition(doDia) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(within(doDia).getByRole('link', { name: `${ROTULOS_DA_SEMANA.item.aplicada}: Atividade de frações` }).getAttribute('href')).toBe(`/turmas/${TURMA_A.id}?aba=atividades&atividade=${id(700)}`)
+    expect(within(doDia).getByRole('link', { name: `${ROTULOS_DA_SEMANA.item.correcao} · ${ROTULOS_DA_SEMANA.estado.pendente}, gerado por inteligência artificial: Atividade de frações` }).getAttribute('href')).toBe(`/aprovar/${id(701)}`)
+    // Os outros dias não ganham lista.
+    expect(document.querySelectorAll('ul[aria-label="O que aconteceu neste dia"]')).toHaveLength(1)
+  })
+
+  it('a semana sem aula nenhuma, mas com um item, mostra o item, e não o vazio da semana', async () => {
+    computador()
+    const rede = criarRede()
+    instalar(rede, { [SEGUNDA]: comItens([itemDoDia()]) })
+    montar()
+    expect(await screen.findByRole('link', { name: `${ROTULOS_DA_SEMANA.item.aplicada}: Atividade de frações` })).toBeTruthy()
+    expect(screen.queryByText('Sem aulas nesta semana')).toBeNull()
+  })
+
+  it('com `?turma=`, os itens de outra turma e de outra disciplina somem junto das aulas', async () => {
+    computador()
+    const rede = criarRede()
+    const deHistoria = itemDoDia({ disciplinaId: HISTORIA.id, atividadeAplicadaId: id(702), titulo: 'Atividade de história' })
+    const deOutraTurma = itemDoDia({ turmaId: id(102), atividadeAplicadaId: id(703), titulo: 'Atividade da outra turma' })
+    instalar(rede, { [SEGUNDA]: comItens([itemDoDia(), deHistoria, deOutraTurma], [aula()]) }, [vinculo(1, MATEMATICA, 'confirmado')])
+    window.history.replaceState(null, '', `/professor/turmas?ver=semana&turma=${TURMA_A.id}.${MATEMATICA.id}`)
+    montar()
+    expect(await screen.findByRole('link', { name: `${ROTULOS_DA_SEMANA.item.aplicada}: Atividade de frações` })).toBeTruthy()
+    expect(screen.queryByRole('link', { name: /Atividade de história/ })).toBeNull()
+    expect(screen.queryByRole('link', { name: /Atividade da outra turma/ })).toBeNull()
+  })
+
+  it('no celular o item aparece só no dia mostrado, e escolher outro dia troca os itens junto com as aulas', async () => {
+    celular()
+    const usuario = userEvent.setup()
+    const rede = criarRede()
+    const quarta = somarDias(HOJE, 1)
+    const dias = semanaDe(SEGUNDA).map((dia) => {
+      if (dia.data === HOJE) return { ...dia, itens: [itemDoDia()] }
+      if (dia.data === quarta) return { ...dia, itens: [itemDoDia({ atividadeAplicadaId: id(702), titulo: 'Atividade de história' })] }
+      return dia
+    })
+    instalar(rede, { [SEGUNDA]: resposta({ dias }) })
+    montar()
+    expect(await screen.findByRole('link', { name: `${ROTULOS_DA_SEMANA.item.aplicada}: Atividade de frações` })).toBeTruthy()
+    expect(screen.queryByRole('link', { name: /Atividade de história/ })).toBeNull()
+
+    await usuario.click(screen.getByRole('radio', { name: 'Quarta, 11 de novembro' }))
+    expect(screen.getByRole('link', { name: `${ROTULOS_DA_SEMANA.item.aplicada}: Atividade de história` })).toBeTruthy()
+    expect(screen.queryByRole('link', { name: /Atividade de frações/ })).toBeNull()
   })
 })
