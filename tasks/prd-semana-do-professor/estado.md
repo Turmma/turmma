@@ -39,6 +39,7 @@ Decisão: pousar `spec/semana-do-professor` na `develop` (e o push)?
 Contexto: validada (`validacao.md`, M1 corrigida, menores no `TODO.md`), esteira verde, linhas fechadas. Nenhum commit `Fora do processo:`.
 Opções: pousar | esperar
 Recomendo: pousar.
+**Respondida em 07/11/2026: o Joaquim disse "pode pousar"** (no terminal do Orquestrador).
 
 ## O que falhou
 - 07/11 ~00:48, encontro da 8.0: VERIFICAÇÃO RECUSADA por estouro dos 180 s (carga 16, linha 3 em e2e); o 2º passou. É a segunda vez na noite: o prazo fixo do `linhas.ts encontro` não aguenta a máquina com outra linha testando.
