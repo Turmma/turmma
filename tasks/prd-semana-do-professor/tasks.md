@@ -22,10 +22,10 @@
   - [ ] 3.1 A consulta dos itens pela (turma, disciplina) dos vínculos, no fuso da escola, com `EXPLAIN`
   - [ ] 3.2 Testes: S9, S10, R2 dos itens, a consulta com os índices
 
-- [ ] **4.0 — A professora grava o que vai dar (`PUT /v1/aulas`)**
-  - [ ] 4.1 `AulaRepository.gravar`: ano `for share`, conferência, trava consultiva do vínculo, upsert, `lock_timeout`
-  - [ ] 4.2 Controller e service da rota
-  - [ ] 4.3 Testes: G1 a G6, R1, R1b, R4, R7 e S16 da gravação, S6, J13, J14
+- [x] **4.0 — A professora grava o que vai dar (`PUT /v1/aulas`)**
+  - [x] 4.1 `AulaRepository.gravar`: ano `for share`, conferência, trava consultiva do vínculo, upsert, `lock_timeout`
+  - [x] 4.2 Controller e service da rota
+  - [x] 4.3 Testes: G1 a G6, R1, R1b, R4, R7 e S16 da gravação, S6, J13, J14
 
 - [ ] **5.0 — O texto acompanha a reimportação da grade e do calendário**
   - [ ] 5.1 O passo entre `gravarAulas` e `encerrarOsMarcados`: travas, pareamento, re-chaveamento, apagar o futuro

@@ -2799,3 +2799,22 @@ repetem aqui.
 - [ ] (semana-do-professor, 2.0, revisor-geral, 1ª) **`horaDeUso` ao lado do `diaDeUso`.** O `horaDeUso` de `apps/api/src/semana/semana.service.ts`
       (o `HH:MM` de Brasília) faz par com o `diaDeUso` de `packages/core/src/usage/usage-day.ts`; mover para lá, junto com o item anterior. Mexe no
       `usage-day.ts`, que a 2.0 não toca
+
+## Da semana-do-professor, tarefa 4.0 (`PUT /v1/aulas`), fora dela
+
+- [ ] (semana-do-professor, 4.0, privacy-guardian, 1ª) **Comentário no schema da `aula`: o `trim()` do JS apara mais que o `btrim` da checagem.** O
+      `aula_conteudo_preenchido` usa `btrim` (só espaço), e o contrato de `gravarAulaRequestSchema` usa o `trim()` do JS (também tab, quebra de linha e
+      espaços Unicode): o texto só de tabs é vazio para a rota e preenchido para o banco. Uma linha em `packages/core/src/db/schema/aula.ts` dizendo
+      isso. Dono: o schema é da 1.0; quem voltar a ele (a 5.0, que escreve na `aula`)
+- [ ] (semana-do-professor, 4.0, infra-guardian, 1ª) **Runbook: a virada do ano em horário de aula gera uma onda de `INDISPONIVEL_TENTE_DE_NOVO` na
+      Semana.** O `PUT /v1/aulas` espera o `for share` do ano (até 2 s de `lock_timeout`) enquanto o encerramento do ano o segura; quem passa do prazo
+      recebe `INDISPONIVEL_TENTE_DE_NOVO`. Um parágrafo em `docs/runbook.md` (o que a professora vê e quando virar o ano). `docs/runbook.md` caduca
+      carimbo e rodada, por isso não é desta tarefa. Dono: o Arquiteto, na retro da funcionalidade
+- [ ] (semana-do-professor, 4.0, revisor-geral, 1ª) **Uma só constante para o `55P03` (`lock_not_available`) em `packages/core/src/db`.** A cópia local
+      `TRAVA_NAO_DISPONIVEL` de `apps/api/src/semana/aulas.service.ts` é a quarta (as outras estão em `migrate.ts`, `motor.ts` e
+      `importacao.repository.ts`): uma exportação do `core` e as quatro passam a importá-la. Mexe em arquivos que a 4.0 não toca. Dono: a tarefa que
+      tocar `migrate.ts`, `motor.ts` ou `importacao.repository.ts`
+- [ ] (semana-do-professor, 4.0, test-engineer, 1ª) **Caso da professora com duas disciplinas na mesma turma (dois vínculos confirmados) no `PUT`.**
+      Em `apps/api/test/aulas.int.test.ts`: dois vínculos confirmados dela na mesma turma, e o `PUT` de cada um grava só a aula do seu `vinculoId`. Pede
+      fixture nova (o segundo vínculo na mesma turma); a chave `vinculo_id` já é provada pela colega e pelos vínculos dos outros estados. Dono: a
+      tarefa 5.0, que mexe em mais de um vínculo por professora

@@ -64,7 +64,7 @@ de segunda a sexta sempre, e sábado e domingo só quando a grade tem alocação
 tirá-la. `gradeImportada` é "a escola tem alguma alocação no ano em curso" e `calendarioImportado`, "a escola tem algum evento no ano em curso": são da
 escola, e não da professora (uma professora sem aula, numa escola com grade, vê `true` e a semana vazia). Sem ano em curso, os dois são `false`.
 
-**Gravar** (uma transação, `lock_timeout` de 2 s), nesta ordem, que é a do job: (1) `travarAnoEmCurso()` (`for share`;
+**Gravar** (uma transação, `lock_timeout` de 2 s e `statement_timeout` de 3 s, os dois `set local`: o da API, 2 s, cortaria a espera da trava antes do `lock_timeout`, com `TEMPO_ESGOTADO` no lugar do `INDISPONIVEL_TENTE_DE_NOVO`), nesta ordem, que é a do job: (1) `travarAnoEmCurso()` (`for share`;
 ordena com a virada); (2) o vínculo é dela, `confirmado`, da escola e do ano do contexto, lido sem trava de linha (nunca `VinculoRepository.travar`); (3) só então a **trava do
 vínculo**, `pg_advisory_xact_lock(<classe própria>, hashtext(escolaId‖vinculoId))`; (4) a data cai no ano, num dia sem
 feriado nem recesso, e há a alocação (vínculo, dia, início) **ou** um registro passado já gravado (o fora da grade se
@@ -115,7 +115,7 @@ D64: nenhuma contagem; "Falta preencher" é selo por aula, sem total. Item 7: it
 | Está no caminho quente? | nenhum |
 | Carga na manhã de segunda | um `GET` por professor ao abrir (`docs/infra.md` 3.1), cinco consultas indexadas; `EXPLAIN` da dos itens na tarefa |
 | Fila, limite e rate limit | nenhuma fila nova (o passo roda no job do F2); `statement_timeout`, corpo de 100 KB, texto de 500; a guarda global por usuário e por escola |
-| Corridas de concorrência | Ordem global: ano (`for share`) → trava consultiva do vínculo → linha do vínculo (o `FOR UPDATE` de `encerrarOsMarcados` vem depois do passo; J16). A chave composta isola as escolas; a ordem "confere, depois trava" protege o colega (R1). (1) Gravação × gravação: uma linha (G6). (2) Gravação × saída da aula, nas duas ordens (J11a, J11b). (3) Gravação do fora da grade × re-chaveamento: nada sobrescrito nem duplicado (J12). (4) Gravação × virada: o `for share` no ano espera o encerramento, e a gravação responde `NAO_ENCONTRADO` (J14). `lock_timeout` de 2 s (J13). Encerramento avulso do vínculo: aceito, sai na virada |
+| Corridas de concorrência | Ordem global: ano (`for share`) → trava consultiva do vínculo → linha do vínculo (o `FOR UPDATE` de `encerrarOsMarcados` vem depois do passo; J16). A chave composta isola as escolas; a ordem "confere, depois trava" protege o colega (R1). (1) Gravação × gravação: uma linha (G6). (2) Gravação × saída da aula, nas duas ordens (J11a, J11b). (3) Gravação do fora da grade × re-chaveamento: nada sobrescrito nem duplicado (J12). (4) Gravação × virada: o `for share` no ano espera o encerramento, e a gravação responde `NAO_ENCONTRADO` (J14). `lock_timeout` de 2 s, com o `statement_timeout` da transação em 3 s para o `lock_timeout` ser o que corta a espera (J13). Encerramento avulso do vínculo: aceito, sai na virada |
 | Índices e migration | o da `aula`, numa migration só de criação (a 0041); os outros já começam pelo escopo. O teste que mede o que a 0040 mudou (`migracao-f2.int.test.ts`) migra só até ela: a 0041 não entra na comparação de colunas dele |
 | Dependência que cai, métrica, carga | seção 5, "Falhas"; nada novo: fora do caminho quente |
 
