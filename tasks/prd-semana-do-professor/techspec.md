@@ -136,8 +136,13 @@ Medidas e textos: `docs/interface.md` 1.8, escrita pela tarefa da aba.
   da fonte, D72); cada cartão é botão com nome acessível ("Terça, 7h30, 7ºA, Matemática"), com o texto em duas linhas ou
   "Falta preencher" (neutro, D59); os itens do dia embaixo, com rótulos de `packages/shared`. Hoje e "agora" em texto.
   Feriado e recesso mostram tipo e descrição. `?semana=` e `?turma=<turmaId>.<disciplinaId>`, só ids e
-  datas; navegação presa ao `ano`. Abaixo de 768 px, `SegmentedControl` com os dias, abrindo em hoje (ou na segunda, fora
-  da semana de hoje)
+  datas; navegação presa ao `ano`. Abaixo de 768 px, um dia por vez, escolhido no `DaySelector`, abrindo em hoje (ou na
+  segunda, fora da semana de hoje). O `SegmentedControl` vai até quatro opções e a semana tem de 5 a 7 dias, por isso a peça
+  é nova, do catálogo (decisão do Joaquim, 06/11/2026, divergência da 6.0): `components/ui/fields/DaySelector.tsx` com teste
+  de componente, uma linha (N) na 10.2 do `docs/interface.md`, logo abaixo do `SegmentedControl`, e uma entrada na galeria.
+  Desenho: um `radiogroup` de 5 a 7 opções numa linha só, sem rolagem a 360 px, com alvo de 44 px, setas, Home e End e uma
+  parada só no Tab, nos tokens do `SegmentedControl` (ativa em `azul-claro`, `azul-borda`, `azul-texto`). O rótulo tem três
+  letras ("Seg") com o dia do mês embaixo, e o nome acessível é o inteiro ("Terça, 10 de novembro"). Hoje é marcado em texto
 - **O painel** é o `Sheet` (`?aula=<vinculoId>.<data>.<HHMM>`): `Textarea` rotulado, contador de `text-limits` com
   `aria-live="polite"`, aviso de não escrever nome de aluno, "Salvar" e "Preparar esta aula"; o foco volta ao cartão ao
   fechar. Falha: "Não foi possível salvar. Tente de novo em instantes", texto guardado; `NAO_ENCONTRADO`: a aula saiu

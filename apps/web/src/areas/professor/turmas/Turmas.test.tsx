@@ -2,7 +2,7 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AVISO_DO_COMPLEMENTO, EFEITO_DA_CONTESTACAO, NOME_DA_CONTESTACAO, NOME_DO_ESTADO_DE_VINCULO } from '@educa/shared'
 import { createQueryClient } from '../../../api/query-client'
 import { meusVinculosQueryOptions } from '../comum/api/vinculos'
@@ -548,5 +548,68 @@ describe('Turmas: o que espera em cada turma', () => {
     montar()
     await screen.findByRole('region', { name: 'Suas turmas' })
     await waitFor(() => expect(cartaoDe('Matemática').textContent).toContain('Em dia'))
+  })
+})
+
+describe('Turmas: as abas Turmas e Semana (F2b, RF1)', () => {
+  const hoje = '2026-11-10'
+  const semanaVazia = { ano: { inicio: '2026-02-02', fim: '2026-12-18' }, hoje, agora: '09:00', gradeImportada: false, calendarioImportado: false, dias: [] }
+  const lidasDaSemana = (rede: FakeNetwork) => caminhosDe(rede).filter((caminho) => caminho === '/v1/semana')
+
+  beforeEach(() => {
+    // A Semana pergunta a largura (colunas no computador, um dia por vez no celular); o `jsdom` não a conhece. Aqui, computador.
+    vi.stubGlobal('matchMedia', (consulta: string) => ({ matches: consulta === '(min-width: 768px)', media: consulta, addEventListener: () => undefined, removeEventListener: () => undefined }))
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe(): void {}
+        unobserve(): void {}
+        disconnect(): void {}
+      },
+    )
+  })
+  afterEach(() => window.history.replaceState(null, '', '/'))
+
+  it('sem `?ver=`, abre em Turmas e a Semana nem é lida: a aba fechada não paga a leitura', async () => {
+    window.history.replaceState(null, '', '/professor/turmas')
+    const rede = fakeNetwork()
+    instalar(rede, { vinculos: ok([vinculo(1, TURMA_A, MATEMATICA, 'confirmado')]), pedidos: { [TURMA_A.id]: ok([]) } })
+    rede.responderPor('/v1/semana', { status: 200, corpo: semanaVazia })
+    montar()
+    await screen.findByRole('region', { name: 'Suas turmas' })
+    expect(within(screen.getByRole('tablist', { name: 'Seções de Turmas' })).getAllByRole('tab').map((aba) => aba.textContent)).toEqual(['Turmas', 'Semana'])
+    expect(screen.getByRole('tab', { name: 'Turmas', selected: true })).toBeTruthy()
+    expect(lidasDaSemana(rede)).toEqual([])
+  })
+
+  it('tocar em Semana guarda `?ver=semana` no endereço sem empilhar histórico, e só então lê a semana', async () => {
+    window.history.replaceState(null, '', '/professor/turmas')
+    const empilhadas = window.history.length
+    const usuario = userEvent.setup()
+    const rede = fakeNetwork()
+    instalar(rede, { vinculos: ok([vinculo(1, TURMA_A, MATEMATICA, 'confirmado')]), pedidos: { [TURMA_A.id]: ok([]) } })
+    rede.responderPor('/v1/semana', { status: 200, corpo: semanaVazia })
+    montar()
+    await screen.findByRole('region', { name: 'Suas turmas' })
+    await usuario.click(screen.getByRole('tab', { name: 'Semana' }))
+    expect(await screen.findByText('A coordenação ainda não importou a grade')).toBeTruthy()
+    expect(window.location.pathname + window.location.search).toBe('/professor/turmas?ver=semana')
+    expect(window.history.length).toBe(empilhadas)
+    expect(lidasDaSemana(rede)).toHaveLength(1)
+    // A lista de turmas sai da tela com a aba: só a aba à vista existe.
+    expect(screen.queryByRole('region', { name: 'Suas turmas' })).toBeNull()
+  })
+
+  it('voltar a Turmas tira da lista o que a Semana pôs no endereço: leva só o caminho', async () => {
+    window.history.replaceState(null, '', '/professor/turmas?ver=semana&turma=x.y')
+    const usuario = userEvent.setup()
+    const rede = fakeNetwork()
+    instalar(rede, { vinculos: ok([vinculo(1, TURMA_A, MATEMATICA, 'confirmado')]), pedidos: { [TURMA_A.id]: ok([]) } })
+    rede.responderPor('/v1/semana', { status: 200, corpo: semanaVazia })
+    montar()
+    await screen.findByText('A coordenação ainda não importou a grade')
+    await usuario.click(screen.getByRole('tab', { name: 'Turmas' }))
+    expect(await screen.findByRole('region', { name: 'Suas turmas' })).toBeTruthy()
+    expect(window.location.pathname + window.location.search).toBe('/professor/turmas')
   })
 })

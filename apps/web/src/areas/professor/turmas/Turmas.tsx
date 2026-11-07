@@ -1,7 +1,7 @@
 import { NOME_DA_CONTESTACAO, NOME_DO_ESTADO_DE_VINCULO, type ContestacaoDeVinculo, type Vinculo } from '@educa/shared'
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { Link } from 'wouter'
+import { lazy, Suspense, useEffect, useRef, useState, type FormEvent } from 'react'
+import { Link, useLocation, useSearch } from 'wouter'
 import { errorMessage } from '../../../api/client'
 import { confirmarVinculo, meusVinculosQueryOptions, contestarVinculo } from '../comum/api/vinculos'
 import { caminhoDaTurmaDoProfessor } from '../../../paths'
@@ -10,12 +10,18 @@ import { Button } from '../../../components/ui/Button'
 import { SECONDARY_LINK_CLASSES } from '../../../components/ui/button-variants'
 import { LoadingState, ErrorState, EmptyState } from '../../../components/states/index'
 import { StatusBadge } from '../../../components/ui/StatusBadge'
+import { Tabs } from '../../../components/ui/Tabs'
 import { Page } from '../../../components/ui/Page'
 import { usePageTitle } from '../../../document-title'
 import { enderecoDoConvite } from './acesso/acesso-da-turma'
 import { esperaNaTurma, useFilaDoProfessor, type EsperaNaTurma } from '../inicio/fila-do-professor'
+import { O_MIOLO_DO_DOCUMENTO, useTopoDoPainel } from '../artefatos/miolo-do-documento'
 import PainelDaContestacao, { type ContestacaoEmAndamento } from './PainelDaContestacao'
 import { LadrilhoDoVinculo, nomeDoVinculo } from './vinculo-na-tela'
+import { ABAS_DE_TURMAS, abaDeTurmasDoEndereco, enderecoDaAbaDeTurmas } from './semana/semana'
+
+/** A Semana só é baixada com a aba aberta, no pedaço dela (`tela-professor-Semana-*.js`): quem só confere as turmas não a paga. */
+const Semana = lazy(() => import('./semana/Semana'))
 
 /**
  * O selo do que espera a professora numa turma: o número, ou "Em dia" só quando a turma foi lida inteira. Turma que o sino não leu
@@ -42,6 +48,10 @@ function SeloDoQueEspera({ espera }: { readonly espera: EsperaNaTurma }) {
  *
  * É aba de navegação: o `<h1>`, visível, é o título da tela, na `Page` (RF12; `docs/interface.md` 11.2).
  *
+ * **Duas abas, "Turmas" e "Semana"** (F2b, RF1), guardadas no endereço (`?ver=semana`, com `replace`): Turmas é a de sempre, e a Semana
+ * (`semana/Semana.tsx`) só é baixada e lida com ela aberta. Na Semana, do `md` para cima a página não rola e rola o painel da aba (RF22, o
+ * mesmo miolo da turma aberta); a lista de turmas continua a rolar a página.
+ *
  * - **O estado aparece em texto**, e não só em cor (regra 50, item 11). **A série não entra no cartão**: o `Vinculo` não a traz
  *   (divergência da 9.0, Tech Spec, seção 9).
  * - **O que espera vem da fila do sino** (`useFilaDoProfessor`): as mesmas consultas, pelas mesmas chaves, e nenhuma leitura a mais.
@@ -55,6 +65,9 @@ function SeloDoQueEspera({ espera }: { readonly espera: EsperaNaTurma }) {
 export default function Turmas() {
   usePageTitle('Turmas')
   const cliente = useQueryClient()
+  const [caminho, navegar] = useLocation()
+  const aba = abaDeTurmasDoEndereco(useSearch())
+  const topoDoPainel = useTopoDoPainel(true)
   const vinculos = useInfiniteQuery(meusVinculosQueryOptions)
   const fila = useFilaDoProfessor()
   const [contestacao, definirContestacao] = useState<ContestacaoEmAndamento | undefined>(undefined)
@@ -167,56 +180,73 @@ export default function Turmas() {
     )
   }
 
+  const listaDeTurmas = (
+    <div className="flex min-w-0 flex-col gap-6">
+      {/* A região existe antes do texto, para o leitor de tela anunciar a turma confirmada quando o aviso aparece. */}
+      <div role="status" className="empty:hidden">
+        {confirmada !== undefined && (
+          <Alert
+            tom="certo"
+            titulo={`Turma ${confirmada.nome} confirmada`}
+            acao={
+              // Relativo à área, como o link do cartão. O endereço leva só a aba e o pedido do diálogo.
+              <Link to={enderecoDoConvite(caminhoDaTurmaDoProfessor(confirmada.id))} className={SECONDARY_LINK_CLASSES}>
+                Gerar o acesso
+              </Link>
+            }
+          >
+            Agora os alunos podem entrar nela: gere o link e o código para eles pedirem o nome.
+          </Alert>
+        )}
+      </div>
+      {vinculos.isPending && <LoadingState rotulo="Carregando as suas turmas…" />}
+      {vinculos.isError && <ErrorState erro={vinculos.error} tentando={vinculos.isFetching} aoTentarDeNovo={() => void vinculos.refetch({ cancelRefetch: false })} />}
+      {!vinculos.isPending && !vinculos.isError && itens.length === 0 && (
+        <EmptyState titulo="A coordenação ainda não alocou você" descricao="Quem aloca o professor nas turmas é a coordenação. Quando ela alocar você, a turma aparece aqui para você confirmar; se você já deveria ter turmas neste ano, fale com ela." />
+      )}
+
+      {paraConfirmar.length > 0 && (
+        <section className="flex min-w-0 flex-col gap-3" aria-labelledby="titulo-para-confirmar">
+          <h2 id="titulo-para-confirmar" className="t-secao text-tinta">
+            Confirme suas turmas
+          </h2>
+          <p className="text-apoio">A coordenação alocou você nestas turmas. Até você confirmar, a turma não abre para você; se algo estiver errado, conteste.</p>
+          <ul className="flex flex-col gap-3">{paraConfirmar.map(faixa)}</ul>
+        </section>
+      )}
+
+      {decididas.length > 0 && (
+        <section className="flex min-w-0 flex-col gap-3" aria-labelledby="titulo-decididas">
+          <h2 id="titulo-decididas" ref={tituloDasTurmas} tabIndex={-1} className="t-secao text-tinta">
+            Suas turmas
+          </h2>
+          <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">{decididas.map(cartao)}</ul>
+        </section>
+      )}
+
+      {vinculos.hasNextPage && (
+        <Button onClick={() => void vinculos.fetchNextPage()} disabled={vinculos.isFetchingNextPage} className="self-start">
+          {vinculos.isFetchingNextPage ? 'Carregando…' : 'Ver mais turmas'}
+        </Button>
+      )}
+    </div>
+  )
+
   return (
     <Page titulo="Turmas" idDoTitulo="titulo-turmas" refDoTitulo={tituloDaTela}>
       <section className="flex min-w-0 flex-col gap-6" aria-labelledby="titulo-turmas">
-        {/* A região existe antes do texto, para o leitor de tela anunciar a turma confirmada quando o aviso aparece. */}
-        <div role="status" className="empty:hidden">
-          {confirmada !== undefined && (
-            <Alert
-              tom="certo"
-              titulo={`Turma ${confirmada.nome} confirmada`}
-              acao={
-                // Relativo à área, como o link do cartão. O endereço leva só a aba e o pedido do diálogo.
-                <Link to={enderecoDoConvite(caminhoDaTurmaDoProfessor(confirmada.id))} className={SECONDARY_LINK_CLASSES}>
-                  Gerar o acesso
-                </Link>
-              }
-            >
-              Agora os alunos podem entrar nela: gere o link e o código para eles pedirem o nome.
-            </Alert>
-          )}
+        <div ref={topoDoPainel} className="min-w-0">
+          <Tabs rotulo="Seções de Turmas" abas={ABAS_DE_TURMAS} ativa={aba} aoMudar={(id) => navegar(enderecoDaAbaDeTurmas(caminho, id), { replace: true })} classeDoPainel={aba === 'semana' ? O_MIOLO_DO_DOCUMENTO : ''}>
+            {/* Só a aba à vista existe: a Semana não é baixada nem lida com a lista aberta. */}
+            {aba === 'semana' ? (
+              <Suspense fallback={<LoadingState rotulo="Carregando a semana…" />}>
+                <Semana />
+              </Suspense>
+            ) : (
+              listaDeTurmas
+            )}
+          </Tabs>
         </div>
-        {vinculos.isPending && <LoadingState rotulo="Carregando as suas turmas…" />}
-        {vinculos.isError && <ErrorState erro={vinculos.error} tentando={vinculos.isFetching} aoTentarDeNovo={() => void vinculos.refetch({ cancelRefetch: false })} />}
-        {!vinculos.isPending && !vinculos.isError && itens.length === 0 && (
-          <EmptyState titulo="A coordenação ainda não alocou você" descricao="Quem aloca o professor nas turmas é a coordenação. Quando ela alocar você, a turma aparece aqui para você confirmar; se você já deveria ter turmas neste ano, fale com ela." />
-        )}
-
-        {paraConfirmar.length > 0 && (
-          <section className="flex min-w-0 flex-col gap-3" aria-labelledby="titulo-para-confirmar">
-            <h2 id="titulo-para-confirmar" className="t-secao text-tinta">
-              Confirme suas turmas
-            </h2>
-            <p className="text-apoio">A coordenação alocou você nestas turmas. Até você confirmar, a turma não abre para você; se algo estiver errado, conteste.</p>
-            <ul className="flex flex-col gap-3">{paraConfirmar.map(faixa)}</ul>
-          </section>
-        )}
-
-        {decididas.length > 0 && (
-          <section className="flex min-w-0 flex-col gap-3" aria-labelledby="titulo-decididas">
-            <h2 id="titulo-decididas" ref={tituloDasTurmas} tabIndex={-1} className="t-secao text-tinta">
-              Suas turmas
-            </h2>
-            <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">{decididas.map(cartao)}</ul>
-          </section>
-        )}
-
-        {vinculos.hasNextPage && (
-          <Button onClick={() => void vinculos.fetchNextPage()} disabled={vinculos.isFetchingNextPage} className="self-start">
-            {vinculos.isFetchingNextPage ? 'Carregando…' : 'Ver mais turmas'}
-          </Button>
-        )}
       </section>
 
       {contestacao !== undefined && doPainel !== undefined && (

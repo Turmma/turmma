@@ -61,6 +61,17 @@ O merge se fecha com o commit `(correção encontro-4-semana)`.
 
 **Sem mutação:** a correção só une exports num arquivo de barril e troca o nome de um parâmetro de tipo num teste; não escreve cláusula nova, e o código que veio do merge tem as mutações e os testes da tarefa 3.0.
 
+## Recomendações sem aplicar
+
+| Revisor e rodada | Recomendação | Destino ou motivo |
+|---|---|---|
+| conformidade-reviewer (1ª), infra-guardian (1ª) | `apps/api/src/semana/semana.module.ts:14`: o comentário da classe ainda diz "os itens do dia entram na 3.0"; infra sugere "a leitura (2.0), os itens do dia (3.0) e a gravação do texto da aula (4.0)" | A correção não toca `semana.module.ts` (arquivo da 4.0, igual ao HEAD), e mudar só o comentário de um `.ts` caduca o `revisor-geral`. Os dois revisores mandam corrigir "na próxima tarefa que tocar o módulo". Destino: item no `TODO.md`, na seção "Da semana-do-professor, tarefa 3.0 (os itens do dia), fora dela", para a próxima tarefa da spec que tocar `semana.module.ts` |
+| test-engineer (1ª) | `tasks/prd-semana-do-professor/achados/indice.md`: as oito linhas da `3_task` ficaram depois das da `4_task`; intercalar por data | Recusada: `achados/` é escrito só pelo hook (`protocolo.md`, item 5); editar à mão não é permitido a ninguém |
+| test-engineer (1ª) | `tasks/prd-semana-do-professor/tasks.md`: a 3.0 está `[x]` e as subtarefas 3.1 e 3.2 seguem `[ ]`, enquanto as da 4.0 estão marcadas | Recusada: o próprio revisor diz que veio da spec, não desta correção; `tasks.md` é documento de estado do Orquestrador (`passos/4-documentos.md`); e o arquivo já segue esse padrão na 1.0 e na 2.0 (tarefa `[x]`, subtarefas `[ ]`) |
+
+Aplicada: a linha em branco que faltava no `TODO.md` antes do título "Da semana-do-professor, tarefa 3.0 (os itens do dia), fora dela" (privacy-guardian,
+conformidade-reviewer e test-engineer, 1ª). O item do `semana.module.ts` entrou no `TODO.md`, como a primeira linha da seção.
+
 ## Revisões
 
 Preenchida pelo hook `tools/processo/revisoes.ts` quando cada revisor termina. Não edite à mão:

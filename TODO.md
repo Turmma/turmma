@@ -2800,6 +2800,27 @@ repetem aqui.
       (o `HH:MM` de Brasília) faz par com o `diaDeUso` de `packages/core/src/usage/usage-day.ts`; mover para lá, junto com o item anterior. Mexe no
       `usage-day.ts`, que a 2.0 não toca
 
+## Da semana-do-professor, tarefa 6.0 (a aba Semana), fora dela
+
+- [ ] (semana-do-professor, 6.0, infra-guardian, 1ª) **O filtro "Turma e disciplina" só oferece os vínculos das páginas já no cache.** Montar as opções
+      a partir das aulas da semana (ou de uma leitura própria dos vínculos), ou registrar o limite em `docs/interface.md` 1.8. Muda o que o filtro
+      lista; leva junto a medida dos alvos de toque do seletor e do botão "Ver todas as turmas" no celular (test-engineer, 1ª)
+- [ ] (semana-do-professor, 6.0, revisor-geral, 1ª) **O filtro e o histórico do navegador.** (a) `?turma=` de turma que não é dela: o `<select>`
+      mostra "Todas as turmas" enquanto a tela mostra o vazio do filtro; (b) "Ver todas as turmas" navega sem `replace` e a troca de filtro usa
+      `replace`; (c) o botão "Ver todas as turmas" aparece nos vazios "grade não importada" e "ano não começou", onde tirar o filtro não muda
+      nada. Cada um muda comportamento e pede caso e2e próprio
+- [ ] (semana-do-professor, 6.0, revisor-geral, 1ª) **`useTopoDoPainel(true)` em `Turmas.tsx` mede também na aba Turmas.** Passar `aba === 'semana'`;
+      a medida do topo é da casca da aba, e a mudança pede o caso de altura da aba Turmas
+- [ ] (semana-do-professor, 6.0, test-engineer, 1ª) **T8 em e2e para os vazios que só têm unidade e jsdom:** recesso, ano ainda não começou, semana
+      fora do ano sem aula. Cada razão tem caso em `semana.test.ts` e `Semana.test.tsx`; o e2e pede cena com ano e evento próprios
+- [ ] (semana-do-professor, 6.0, conformidade-reviewer, 1ª) **Se a coordenação um dia alcançar a grade ou os registros de aula:** nominal só com
+      auditoria, e nunca contagem de "falta preencher" por professor (D64). Entra no PRD da tela da coordenação que vier a ler a `aula`
+- [ ] (semana-do-professor, 6.0, test-engineer e revisor-geral, 2ª) **Uma só grade padrão no e2e da Semana.** `GRADE_DE_T1` (`e2e/professor-semana.spec.ts`)
+      copia à mão o `GRADE_PADRAO` de `e2e/support/professor/semana.ts`: exportar o `GRADE_PADRAO` e estendê-lo. Junto com a 7.0, que toca o suporte
+- [ ] (semana-do-professor, 6.0, test-engineer, 2ª) **T1 em e2e: afirmar a semana anterior na tela.** Depois de "Semana anterior" o caso olha o endereço
+      e um título qualquer; afirmar `[data-dia="${cena.anterior}"]` ou o título da semana anterior. A mudança da semana na tela já tem caso em
+      `Semana.test.tsx`
+- [ ] (semana-do-professor, 6.0, revisor-geral, 2ª) **P30: `page.unroute` depois do `liberar()`.** A rota segurada vive até o fim do caso, que não tem mais passos
 ## Da semana-do-professor, tarefa 4.0 (`PUT /v1/aulas`), fora dela
 
 - [ ] (semana-do-professor, 4.0, privacy-guardian, 1ª) **Comentário no schema da `aula`: o `trim()` do JS apara mais que o `btrim` da checagem.** O
@@ -2818,8 +2839,12 @@ repetem aqui.
       Em `apps/api/test/aulas.int.test.ts`: dois vínculos confirmados dela na mesma turma, e o `PUT` de cada um grava só a aula do seu `vinculoId`. Pede
       fixture nova (o segundo vínculo na mesma turma); a chave `vinculo_id` já é provada pela colega e pelos vínculos dos outros estados. Dono: a
       tarefa 5.0, que mexe em mais de um vínculo por professora
+
 ## Da semana-do-professor, tarefa 3.0 (os itens do dia), fora dela
 
+- [ ] (semana-do-professor, encontro-4-semana, conformidade-reviewer e infra-guardian, 1ª) **O comentário da classe em `apps/api/src/semana/semana.module.ts`
+      (linha 14) ainda diz que "os itens do dia entram na 3.0".** Trocar por "a leitura (2.0), os itens do dia (3.0) e a gravação do texto da aula (4.0)".
+      Dono: a próxima tarefa da spec que tocar `semana.module.ts`; mudar só o comentário de um `.ts` caduca o `revisor-geral`
 - [ ] (semana-do-professor, 3.0, tenancy-guardian, 1ª) **`itensDaSemana` e `consultasDosItens` leem o `anoLetivoId` do contexto.** Hoje recebem o ano por
       argumento (como os métodos da 2.0); ler de `currentContext()` ou recusar ano diferente do contexto. Muda a assinatura dos métodos da 2.0 e da 3.0 e
       do `semana.service.ts`. A origem do ano hoje é segura (`anoEmCurso()` lê o contexto) e o R2 prova que ano trocado volta vazio
