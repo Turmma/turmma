@@ -4,7 +4,7 @@
 
 **Escopo:** funcionalidade completa
 **Commit validado:** `04041af2`
-**Veredito: APROVADA COM RESSALVAS**
+**Veredito: APROVADA COM RESSALVAS** — a maior M1 corrigida em `5749137d` (só `docs/interface.md`), por decisão do Joaquim em 07/11/2026; ressalvas menores aceitas por Orquestrador (aviso da D79) em 07/11/2026: vão ao `TODO.md` no fechamento, com dono e data
 
 Fotos: `.processo/vitrine/` (fora do git), tiradas na vitrine montada às 02:13 de 07/11. A escola cheia da vitrine não tem grade
 (TODO.md, 8.0). Para ver a Semana com dado, gravei **só no banco de teste**, na escola cheia, dois vínculos confirmados a mais para a
