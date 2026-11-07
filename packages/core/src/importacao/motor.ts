@@ -17,6 +17,7 @@ import { runInContext, currentContext } from '../context/context.js'
 import type { Database, DatabaseTransaction } from '../db/database.js'
 import { AuditoriaRecorder } from '../auditoria/auditoria-recorder.js'
 import { CicloDeVidaService } from '../ciclo-de-vida/ciclo-de-vida.service.js'
+import { systemClock, type Clock } from '../clock.js'
 import { DomainException } from '../error/domain.exception.js'
 import { postgresErrorIn } from '../error/summarize-error.js'
 import type { JobOutbox } from '../queue/job-outbox.js'
@@ -138,6 +139,8 @@ export class MotorDePlanilha {
 export type ResultadoDaExecucao = 'concluida' | 'desatualizada' | 'ignorada'
 
 export interface ExecucaoOptions {
+  /** De onde o job lê a hora (o "hoje" da grade, F2b). Em produção é o relógio do sistema; o teste injeta o dele. */
+  readonly relogio?: Clock
   /** Quanto durou o passo (3), da trava ao commit, em segundos. Só a execução que chegou a ele mede. */
   readonly aoMedirOPasso3?: (segundos: number) => void
   /**
@@ -263,7 +266,7 @@ async function passo3(banco: Database, gravacao: ImportacaoRepository, tx: Datab
   const plano = await planejarSobTrava(gravacao, tx, alvo, travada.linhas, lerMarcas(travada.marcas), contas, opcoes)
   if (plano === 'encerrado') return desatualizar(gravacao, importacaoId)
   if (plano.assinatura !== assinatura) return desatualizar(gravacao, importacaoId)
-  await comAutora(autor, () => plano.aplicar(gravacao, { tx, ciclo: new CicloDeVidaService(banco) }))
+  await comAutora(autor, () => plano.aplicar(gravacao, { tx, ciclo: new CicloDeVidaService(banco), relogio: opcoes.relogio ?? systemClock }))
   if (!(await gravacao.concluir(importacaoId, plano.resumo))) throw new DomainException(ErrorCode.ERRO_INTERNO)
   await auditar(tx, importacaoId, travada.tipo, plano.resumo, autor)
   return 'concluida'
