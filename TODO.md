@@ -2992,3 +2992,18 @@ aula" em `Retencao.tsx`, o Validador conferiu: a tela já o mostra pela descriç
       contra os 3 do padrão do Vitest; a esteira fica um pouco mais lenta, nada quebra) (dono: Implementador, na próxima correção da esteira)
 - [ ] (unidade-independente-da-carga, revisor-geral, 2ª) **Repetir o comentário dos "três `describe` com prazo próprio" nos outros dois `describe` de
       `tools/guardas/guardas.test.ts`** (`guarda desligada por comentário` e `configuração das guardas`); só comentário (dono: Implementador)
+
+## Da correção 2026-11-07-restos-ve-arquivo-novo (o `restos` e o arquivo não adicionado), fora dela
+
+- [ ] (restos-ve-arquivo-novo, revisor-geral e test-engineer, 2ª) **Nomes dos casos de `tools/renomear/restos.test.ts`.** O caso `o nome antigo num arquivo criado e não
+      adicionado deixa o comando vermelho` só confere `sobras`: renomear para "aparece" e pôr o mesmo nome no bloco de mutação 1 (hoje ele casa dois casos por
+      substring). O caso `não derrubam o comando` confere a carga, não o processo: "não derrubam a carga" (dono: Implementador)
+- [ ] (restos-ve-arquivo-novo, privacy-guardian e test-engineer, 2ª) **`ehArquivo` segue o link.** `statSync` lê o link não adicionado que aponta para um arquivo fora do
+      repositório; `lstatSync(...).isFile()` não o seguiria e resolve também o link para pasta. Escrever o caso (link para arquivo com nome antigo fora da árvore, que
+      não pode ser lido) e decidir; muda o que o `restos` lê (dono: Arquiteto, para decidir; Implementador)
+- [ ] (restos-ve-arquivo-novo, revisor-geral, 2ª) **Uma frase no documento da correção:** `ehArquivo` também muda o que o `aplicar` e o `reaplicar` fazem com um link
+      versionado para pasta (antes parava com `EISDIR`, agora o link fica fora da árvore); a árvore de hoje não tem nenhum
+- [ ] (restos-ve-arquivo-novo, privacy-guardian, 2ª) **Comentário de `restos na árvore`:** lembrar que o rascunho solto nunca deve ser dump ou export real (regra 20, item 17)
+- [ ] (restos-ve-arquivo-novo, revisor-geral, 1ª) **A Tech Spec da X8** (`tasks/prd-nomes-de-mercado/techspec.md:208`) diz "rodado depois do `git add` (a `Arvore` lê o índice)", e o `restos`
+      lê também o que não está no índice: atualizar o parêntese na próxima mudança de `tasks/prd-nomes-de-mercado/`
+- [ ] (restos-ve-arquivo-novo, infra-guardian, 1ª) **`tools/renomear/aplicar.test.ts:470` roda processo sem prazo próprio:** entra junto com a próxima correção que tocar o arquivo

@@ -52,6 +52,7 @@ describe('quem sobe processo ou build declara o próprio prazo', () => {
     ['tools/guardas/guardas.test.ts', 'guarda desligada por comentário'],
     ['tools/guardas/guardas.test.ts', 'configuração das guardas'],
     ['tools/renomear/conferir.test.ts', 'conferir: a linha de comando'],
+    ['tools/renomear/restos.test.ts', 'restos: a linha de comando'],
     ['tools/processo/revisoes.test.ts', 'achados separados por documento, com índice'],
   ]
 

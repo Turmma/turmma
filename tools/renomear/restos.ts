@@ -149,7 +149,7 @@ function textoDoResultado(restos: readonly Resto[], mapas: number): string {
 
 export function restos(raiz: string): ResultadoDosRestos {
   const mapas = lerTodosOsMapas(raiz)
-  const arvore = Arvore.carregar(raiz)
+  const arvore = Arvore.carregar(raiz, { incluirNaoVersionados: true })
   const existe13 = arvore.existe(MAPA_DOS_DOCUMENTOS)
   const todas = mapas.flatMap((mapa) => mapa.entradas)
   const fica = ocorrenciasNoLugarDeHoje(mapas).filter((ocorrencia) => ocorrencia.classe === 'fica')

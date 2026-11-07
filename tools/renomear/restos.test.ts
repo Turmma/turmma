@@ -1,7 +1,8 @@
-import { spawnSync } from 'node:child_process'
-import { readdirSync } from 'node:fs'
+import { execFileSync, spawnSync } from 'node:child_process'
+import { readdirSync, symlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
+import { Arvore } from './arvore.ts'
 import { PASTA_DO_PROTOTIPO } from './ast.ts'
 import { PASTA_DOS_MAPAS } from './reaplicar.ts'
 import { apagarRepositoriosDeTeste, montarRepositorio, type RepositorioDeTeste } from './repositorio-de-teste.ts'
@@ -300,6 +301,38 @@ describe('restos: o arquivo que uma onda seguinte moveu', () => {
   })
 })
 
+describe('restos: arquivo ainda não adicionado', () => {
+  it('o nome antigo num arquivo criado e não adicionado deixa o comando vermelho', () => {
+    const repo = aposAOnda({ 'apps/api/src/a.ts': 'export const a = 1\n' })
+    repo.escrever('apps/api/src/novo.ts', "export const b = 'Banco'\n")
+    expect(repo.git('ls-files', '--', 'apps/api/src/novo.ts')).toBe('')
+    expect(sobras(repo)).toEqual(['apps/api/src/novo.ts:1 texto Banco'])
+  })
+
+  it('o arquivo que o .gitignore exclui não conta', () => {
+    const repo = aposAOnda({ 'apps/api/src/a.ts': 'export const a = 1\n' })
+    repo.escrever('node_modules/pacote/index.ts', "export const b = 'Banco'\n")
+    repo.escrever('apps/api/src/ignorado.ts', "export const b = 'Banco'\n")
+    repo.escrever('.gitignore', 'node_modules/\napps/api/src/ignorado.ts\n')
+    expect(sobras(repo)).toEqual([])
+  })
+
+  it('a pasta não adicionada que é outro repositório, e o link para pasta, não derrubam o comando', () => {
+    const repo = aposAOnda({ 'apps/api/src/a.ts': 'export const a = 1\n' })
+    repo.escrever('aninhado/dentro.ts', "export const b = 'Banco'\n")
+    execFileSync('git', ['init', '-q'], { cwd: join(repo.raiz, 'aninhado') })
+    symlinkSync(join(repo.raiz, 'apps'), join(repo.raiz, 'ligacao'))
+    expect(sobras(repo)).toEqual([])
+  })
+
+  it('a carga padrão da árvore segue só com os versionados: o aplicar e o reaplicar não leem o que não foi adicionado', () => {
+    const repo = aposAOnda({ 'apps/api/src/a.ts': 'export const a = 1\n' })
+    repo.escrever('apps/api/src/novo.ts', 'export const b = 2\n')
+    expect(Arvore.carregar(repo.raiz).existe('apps/api/src/novo.ts')).toBe(false)
+    expect(Arvore.carregar(repo.raiz, { incluirNaoVersionados: true }).existe('apps/api/src/novo.ts')).toBe(true)
+  })
+})
+
 describe('restos: a tabela do relatório', () => {
   it('lê o arquivo e o nome de cada linha, e para na próxima seção', () => {
     const relatorio = ['## Troca à mão', '', '| Arquivo | Nome | Linhas |', '|---|---|---|', '| a.md | Fila | 1, 2 |', '| b.md | Banco | 3 |', '|solto|', '', '## Outra', '| c.md | Tela | 1 |'].join('\n')
@@ -319,9 +352,17 @@ describe('restos: o alvo não existe', () => {
   })
 })
 
-describe('restos: a linha de comando', () => {
+// Cada caso sobe o `restos.ts` num repositório de teste; o prazo próprio é o de um travamento, não o da velocidade da máquina.
+describe('restos: a linha de comando', { timeout: 60_000 }, () => {
   const SCRIPT = join(import.meta.dirname, 'restos.ts')
   const rodarComando = (repo: RepositorioDeTeste) => spawnSync('node', [SCRIPT], { cwd: repo.raiz, encoding: 'utf8' })
+
+  it('o nome antigo num arquivo criado e não adicionado deixa o comando vermelho, com o arquivo e a linha na saída', () => {
+    const repo = aposAOnda({ 'apps/api/src/a.ts': 'export const a = 1\n' })
+    repo.escrever('apps/api/src/novo.ts', "export const b = 'Banco'\n")
+    const comando = rodarComando(repo)
+    expect([comando.status, comando.stdout]).toEqual([1, expect.stringContaining('apps/api/src/novo.ts:1')])
+  })
 
   it('sai 0 limpa, 1 com resto e 2 sem mapa', () => {
     const limpo = rodarComando(aposAOnda({ 'apps/api/src/a.ts': 'export const a = 1\n' }))
@@ -332,6 +373,8 @@ describe('restos: a linha de comando', () => {
   })
 })
 
+// Lê também o que não foi adicionado na pasta de quem roda (`incluirNaoVersionados`): um rascunho solto com um nome antigo deixa este teste vermelho,
+// e o caminho está na mensagem.
 describe('restos na árvore', () => {
   it('a árvore não tem resto dos mapas aplicados', { timeout: 180_000 }, () => {
     let mapas: string[]
