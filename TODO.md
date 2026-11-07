@@ -2818,8 +2818,12 @@ repetem aqui.
       Em `apps/api/test/aulas.int.test.ts`: dois vínculos confirmados dela na mesma turma, e o `PUT` de cada um grava só a aula do seu `vinculoId`. Pede
       fixture nova (o segundo vínculo na mesma turma); a chave `vinculo_id` já é provada pela colega e pelos vínculos dos outros estados. Dono: a
       tarefa 5.0, que mexe em mais de um vínculo por professora
+
 ## Da semana-do-professor, tarefa 3.0 (os itens do dia), fora dela
 
+- [ ] (semana-do-professor, encontro-4-semana, conformidade-reviewer e infra-guardian, 1ª) **O comentário da classe em `apps/api/src/semana/semana.module.ts`
+      (linha 14) ainda diz que "os itens do dia entram na 3.0".** Trocar por "a leitura (2.0), os itens do dia (3.0) e a gravação do texto da aula (4.0)".
+      Dono: a próxima tarefa da spec que tocar `semana.module.ts`; mudar só o comentário de um `.ts` caduca o `revisor-geral`
 - [ ] (semana-do-professor, 3.0, tenancy-guardian, 1ª) **`itensDaSemana` e `consultasDosItens` leem o `anoLetivoId` do contexto.** Hoje recebem o ano por
       argumento (como os métodos da 2.0); ler de `currentContext()` ou recusar ano diferente do contexto. Muda a assinatura dos métodos da 2.0 e da 3.0 e
       do `semana.service.ts`. A origem do ano hoje é segura (`anoEmCurso()` lê o contexto) e o R2 prova que ano trocado volta vazio
