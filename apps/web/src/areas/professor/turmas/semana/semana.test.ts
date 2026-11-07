@@ -2,6 +2,11 @@ import type { AulaDaSemana, DiaDaSemana, SemanaResponse } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import {
   abaDeTurmasDoEndereco,
+  acharAula,
+  aulaDoEndereco,
+  chaveDaAula,
+  comTextoGravado,
+  enderecoSemAula,
   descricaoDaAula,
   deveAbrirAdeHoje,
   diasFiltrados,
@@ -231,5 +236,81 @@ describe('as abas de Turmas guardam só `ver`', () => {
   it('trocar de aba leva só o `ver`: o que a Semana pôs por cima não vai à lista', () => {
     expect(enderecoDaAbaDeTurmas('/professor/turmas', 'semana')).toBe('/professor/turmas?ver=semana')
     expect(enderecoDaAbaDeTurmas('/professor/turmas', 'turmas')).toBe('/professor/turmas')
+  })
+})
+
+const UUID_A = '0197a1c0-0000-7000-8000-000000000401'
+
+describe('o endereço da aula (`?aula=`, 7.0)', () => {
+  it('lê o vínculo, a data e o início; o que não tem essa forma, ou tem hora ou data que não existem, não é aula', () => {
+    expect(aulaDoEndereco(`ver=semana&aula=${UUID_A}.2026-11-10.0730`)).toEqual({ vinculoId: UUID_A, data: '2026-11-10', inicio: '07:30' })
+    expect(aulaDoEndereco('ver=semana')).toBeUndefined()
+    expect(aulaDoEndereco(`aula=${UUID_A}.2026-11-10`)).toBeUndefined()
+    expect(aulaDoEndereco(`aula=${UUID_A}.2026-11-10.0730.x`)).toBeUndefined()
+    expect(aulaDoEndereco('aula=1837.2026-11-10.0730')).toBeUndefined()
+    expect(aulaDoEndereco(`aula=${UUID_A}.2026-02-30.0730`)).toBeUndefined()
+    expect(aulaDoEndereco(`aula=${UUID_A}.2026-11-10.2561`)).toBeUndefined()
+    expect(aulaDoEndereco(`aula=${UUID_A}.2026-11-10.2400`)).toBeUndefined()
+    expect(aulaDoEndereco(`aula=${UUID_A}.2026-11-10.730`)).toBeUndefined()
+  })
+
+  it('a chave da aula é a mesma do endereço, e `enderecoSemAula` tira só o `aula`', () => {
+    expect(chaveDaAula(UUID_A, '2026-11-10', '07:30')).toBe(`${UUID_A}.2026-11-10.0730`)
+    expect(enderecoSemAula('/turmas', `ver=semana&semana=2026-11-09&aula=${UUID_A}.2026-11-10.0730&turma=x`)).toBe('/turmas?ver=semana&semana=2026-11-09&turma=x')
+    expect(enderecoSemAula('/turmas', 'ver=semana')).toBe('/turmas?ver=semana')
+  })
+})
+
+describe('achar a aula e pôr nela o texto gravado (7.0)', () => {
+  const aula = (extra: Partial<AulaDaSemana> = {}): AulaDaSemana => ({
+    vinculoId: UUID_A,
+    turmaId: '0197a1c0-0000-7000-8000-000000000101',
+    turma: '7ºA',
+    disciplinaId: '0197a1c0-0000-7000-8000-000000000500',
+    disciplina: 'Matemática',
+    inicio: '07:30',
+    fim: '08:20',
+    sala: null,
+    texto: null,
+    foraDaGrade: false,
+    ...extra,
+  })
+  const dia = (data: string, aulas: AulaDaSemana[]): DiaDaSemana => ({ data, eventos: [], aulas, itens: [] })
+  const resposta = (dias: DiaDaSemana[]): SemanaResponse => ({ ano: { inicio: '2026-02-02', fim: '2026-12-18' }, hoje: '2026-11-10', agora: '09:00', gradeImportada: true, calendarioImportado: true, dias })
+
+  it('acha pela data, pelo vínculo e pelo início; a aula de outro vínculo, de outro início ou de outro dia não é a pedida', () => {
+    const dias = [dia('2026-11-10', [aula(), aula({ inicio: '08:20', fim: '09:10' })]), dia('2026-11-11', [aula()])]
+    expect(acharAula(dias, { vinculoId: UUID_A, data: '2026-11-10', inicio: '08:20' })?.fim).toBe('09:10')
+    expect(acharAula(dias, { vinculoId: UUID_A, data: '2026-11-10', inicio: '09:10' })).toBeUndefined()
+    expect(acharAula(dias, { vinculoId: '0197a1c0-0000-7000-8000-000000000999', data: '2026-11-10', inicio: '07:30' })).toBeUndefined()
+    expect(acharAula(dias, { vinculoId: UUID_A, data: '2026-11-12', inicio: '07:30' })).toBeUndefined()
+  })
+
+  it('o texto gravado entra só na aula da gravação: a aula dupla, o outro dia e a outra disciplina ficam como estavam', () => {
+    const outra = aula({ vinculoId: '0197a1c0-0000-7000-8000-000000000402', texto: 'de outra disciplina' })
+    const lida = resposta([dia('2026-11-10', [aula(), aula({ inicio: '08:20', fim: '09:10' }), outra]), dia('2026-11-11', [aula()])])
+    const nova = comTextoGravado(lida, { vinculoId: UUID_A, data: '2026-11-10', inicio: '07:30', texto: 'Frações' })
+    expect(nova.dias[0]?.aulas.map((a) => a.texto)).toEqual(['Frações', null, 'de outra disciplina'])
+    expect(nova.dias[1]?.aulas[0]?.texto).toBeNull()
+    expect(lida.dias[0]?.aulas[0]?.texto).toBeNull()
+  })
+
+  it('a gravação de uma escola não entra na semana de outra: o mesmo dia e o mesmo horário, com outro vínculo, ficam como estavam', () => {
+    const daEscolaB = aula({ vinculoId: '0197a1c0-0000-7000-8000-0000000009b2', texto: 'da escola B' })
+    const lida = resposta([dia('2026-11-10', [daEscolaB])])
+    const nova = comTextoGravado(lida, { vinculoId: UUID_A, data: '2026-11-10', inicio: '07:30', texto: 'gravado na escola A' })
+    expect(nova).toEqual(lida)
+  })
+
+  it('apagar o texto: a aula da grade fica sem texto; a que saiu da grade deixa de existir', () => {
+    const lida = resposta([dia('2026-11-10', [aula({ texto: 'x' }), aula({ inicio: '10:00', fim: '10:50', texto: 'y', foraDaGrade: true })])])
+    const apagada = comTextoGravado(comTextoGravado(lida, { vinculoId: UUID_A, data: '2026-11-10', inicio: '07:30', texto: null }), { vinculoId: UUID_A, data: '2026-11-10', inicio: '10:00', texto: null })
+    expect(apagada.dias[0]?.aulas.map((a) => [a.inicio, a.texto])).toEqual([['07:30', null]])
+  })
+
+  it('a aula fora da grade que ganha texto fica, com o texto novo', () => {
+    const lida = resposta([dia('2026-11-10', [aula({ texto: 'y', foraDaGrade: true })])])
+    const nova = comTextoGravado(lida, { vinculoId: UUID_A, data: '2026-11-10', inicio: '07:30', texto: 'novo' })
+    expect(nova.dias[0]?.aulas.map((a) => [a.texto, a.foraDaGrade])).toEqual([['novo', true]])
   })
 })

@@ -15,6 +15,11 @@ interface TextareaProps extends TextLimits {
   /** Quantas linhas o campo mostra de início. Sem ele, 3. */
   readonly linhas?: number
   readonly desligado?: boolean
+  /**
+   * O contador é uma região `aria-live="polite"`: o leitor de tela o anuncia quando a pessoa para de digitar, e não só ao chegar no campo.
+   * Sem ele, o contador é lido uma vez, ao entrar. Quem precisa de limite apertado (500 caracteres) e quer que se ouça o quanto falta liga.
+   */
+  readonly contadorAnunciado?: boolean
   readonly ref?: Ref<HTMLTextAreaElement>
 }
 
@@ -33,7 +38,7 @@ interface TextareaProps extends TextLimits {
  * **Não é campo de ferramenta.** O `SchemaForm` não tem texto longo, e a Adaptação não tem texto nenhum: texto
  * livre sobre aluno é onde o diagnóstico entraria no sistema (D35, D67).
  */
-export function Textarea({ rotulo, valor, aoMudar, dica, erro, obrigatorio = false, linhas = 3, desligado = false, minimo, maximo, ref }: TextareaProps) {
+export function Textarea({ rotulo, valor, aoMudar, dica, erro, obrigatorio = false, linhas = 3, desligado = false, contadorAnunciado = false, minimo, maximo, ref }: TextareaProps) {
   const campo = useId()
   const idDaDica = useId()
   const idDoContador = useId()
@@ -64,7 +69,7 @@ export function Textarea({ rotulo, valor, aoMudar, dica, erro, obrigatorio = fal
       />
       <div className="flex min-w-0 flex-wrap items-start justify-between gap-x-3 gap-y-1">
         {erro !== undefined && <FieldError id={idDoErro}>{erro}</FieldError>}
-        <p id={idDoContador} className="ml-auto shrink-0 text-sm text-sutil tabular-nums">
+        <p id={idDoContador} {...(contadorAnunciado ? { 'aria-live': 'polite' as const } : {})} className="ml-auto shrink-0 text-sm text-sutil tabular-nums">
           {textoDoContador(valor, minimo === undefined ? { maximo } : { minimo, maximo })}
           <span className="sr-only"> caracteres</span>
         </p>

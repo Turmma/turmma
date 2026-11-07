@@ -1,7 +1,7 @@
 import type { AulaDaSemana } from '@educa/shared'
 import { useId } from 'react'
 import { StatusBadge } from '../../../../components/ui/StatusBadge'
-import { descricaoDaAula, faltaPreencher, horarioDaAula, nomeDaAula } from './semana'
+import { chaveDaAula, descricaoDaAula, faltaPreencher, horarioDaAula, nomeDaAula } from './semana'
 
 interface Props {
   readonly aula: AulaDaSemana
@@ -32,6 +32,7 @@ export function CartaoDaAula({ aula, data, hoje, emAndamento, aoAbrir }: Props) 
         type="button"
         aria-label={nomeDaAula(data, aula)}
         aria-describedby={idDaDescricao}
+        data-aula={chaveDaAula(aula.vinculoId, data, aula.inicio)}
         onClick={aoAbrir}
         className={`flex w-full min-w-0 flex-col items-start gap-1 rounded-controle border-2 p-3 text-left hover:bg-fundo-suave ${emAndamento ? 'border-azul-borda bg-azul-claro' : 'border-borda bg-superficie'}`}
       >

@@ -2859,3 +2859,26 @@ repetem aqui.
       teste próprio. Hoje o `check` `entrega_funcao_do_tipo` e o `inner join` com `atividade_aplicada` a deixam de fora
 - [ ] (semana-do-professor, 3.0, revisor-geral, 2ª) **Quebrar a primeira linha do JSDoc de `consultasDosItens`** no comprimento das vizinhas, em
       `packages/core/src/semana/semana.repository.ts`. Cosmético: para a próxima tarefa que tocar o arquivo
+
+## Da semana-do-professor, tarefa 7.0 (o painel da aula e "Preparar esta aula"), fora dela
+
+- [ ] (semana-do-professor, 7.0, infra-guardian, 1ª) **`fechar` do painel invalida só a chave da semana aberta.** Em `apps/web/src/areas/professor/turmas/semana/Semana.tsx`,
+      `useAulaAberta` › `fechar`: hoje `invalidateQueries({ queryKey: SEMANA_QUERY_KEY })` marca todas as semanas em cache; passar a invalidar
+      `['semana', segunda]` da semana na tela. Muda o que é relido; hoje só a semana na tela é relida e o caso (`NAO_ENCONTRADO`) é raro
+- [ ] (semana-do-professor, 7.0, frontend-reviewer, 1ª) **A semana relida sem a aula fecha o painel sozinho, com o rascunho dentro e sem frase.**
+      `Semana.tsx`, `useAulaAberta` (`semDono`): o refetch ao voltar à janela que não traz mais a aula tira o `?aula=` e desmonta o painel. Muda
+      comportamento: **decisão do Arquiteto** sobre manter o painel aberto, com a frase de "esta aula saiu da grade", quando há rascunho
+- [ ] (semana-do-professor, 7.0, revisor-geral, 1ª) **Aula fora da grade apagada pelo painel: o foco pode cair no `body`.** O cartão some e o
+      `focoDeReserva` não acha o `[data-aula]` (o título da semana é o reserva seguinte). O revisor não confirmou o defeito: conferir no navegador na
+      validação e, se for real, corrigir com caso próprio
+- [ ] (semana-do-professor, 7.0, test-engineer, 1ª) **T3 do `NAO_ENCONTRADO` sem `page.route`.** Em `e2e/professor-semana-painel.spec.ts`, tirar a aula da grade
+      no banco com o painel aberto, em vez de responder 404 pela rota. O `NAO_ENCONTRADO` do servidor está provado em `apps/api/test/aulas.int.test.ts`
+      (G1, R4 e J14) e o sumiço do cartão na unidade: o ponta a ponta é ganho, não lacuna de RF
+- [ ] (semana-do-professor, 7.0, test-engineer, 2ª) **Os menores do `PainelDaAula.test.tsx` e do `semana.test.ts`:** (a) `expect(CONTEXTO_ESCOLHIDO.ler()).not.toContain('Fra')`
+      nunca falha, porque a linha de cima já exige o valor exato de `valorDoContexto(...)`: tirar a repetida; (b) `{ ...localStorage, ...sessionStorage }`
+      lê o armazenamento de forma indireta: ler com `Object.keys` e `getItem` em cada área; (c) a comparação de `vinculoId` em `comTextoGravado`
+      (`semana.ts`) não tem bloco ` ```mutacao ` próprio, e o caso "a gravação de uma escola não entra na semana de outra" a prova só à mão. Para a
+      próxima tarefa que tocar esses arquivos
+- [ ] (semana-do-professor, 7.0, revisor-geral, 2ª) **O comentário de `preparar` em `PainelDaAula.tsx` é longo e fala do futuro (F11).** A orientação
+      ("o texto da aula não vai ao Assistente sem revisão de privacidade") cabe melhor ao lado do item da F11 e em `docs/lgpd.md`; o comentário foi
+      pedido pelo `privacy-guardian` na 1ª rodada e fica até lá. `docs/lgpd.md` não se edita nesta tarefa: dono, o Arquiteto, quando a F11 reabrir a ligação

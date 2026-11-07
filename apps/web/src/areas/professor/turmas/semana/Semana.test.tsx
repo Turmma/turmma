@@ -90,6 +90,15 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(new Date('2026-11-10T15:00:00Z'))
   window.history.replaceState(null, '', '/professor/turmas?ver=semana')
+  // O clique no cartão abre o painel da aula (7.0), um `dialog` modal que o `jsdom` não implementa.
+  HTMLDialogElement.prototype.showModal = function showModal(this: HTMLDialogElement) {
+    this.setAttribute('open', '')
+  }
+  HTMLDialogElement.prototype.close = function close(this: HTMLDialogElement) {
+    if (!this.hasAttribute('open')) return
+    this.removeAttribute('open')
+    this.dispatchEvent(new Event('close'))
+  }
 })
 afterEach(() => {
   cleanup()

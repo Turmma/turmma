@@ -37,7 +37,7 @@
   - [ ] 6.3 `docs/interface.md` 1.8 inteira e o roteiro da demonstração conferido
   - [ ] 6.4 Testes: T1, T8, T9, T10, T11, o selo do S14, o recomeço
 
-- [ ] **7.0 — O painel da aula e "Preparar esta aula"**
+- [x] **7.0 — O painel da aula e "Preparar esta aula"**
   - [ ] 7.1 O `Sheet` com o texto, o contador, o aviso e as duas ações
   - [ ] 7.2 Testes: T2, T3, T4, T7, o painel no celular, o recomeço
 

@@ -164,9 +164,80 @@ export function enderecoDaSemana(caminho: string, busca: string, mudanca: { read
 export function enderecoDaAula(caminho: string, busca: string, aula: Pick<AulaDaSemana, 'vinculoId' | 'inicio'>, data: string): string {
   const parametros = new URLSearchParams(busca)
   parametros.set('ver', 'semana')
-  parametros.set('aula', `${aula.vinculoId}.${data}.${aula.inicio.replace(':', '')}`)
+  parametros.set('aula', chaveDaAula(aula.vinculoId, data, aula.inicio))
   return `${caminho}?${parametros.toString()}`
 }
+
+/** A aula do `?aula=`: o vínculo, a data e o início (`HH:MM`). Só ids e hora, nunca texto (regra 20, item 9). */
+export interface AulaDoEndereco {
+  readonly vinculoId: string
+  readonly data: string
+  readonly inicio: string
+}
+
+/** O `?aula=<vinculoId>.<data>.<HHMM>`, ou `undefined` para o que não tem essa forma (e para a hora que não existe: `2561`). */
+export function aulaDoEndereco(busca: string): AulaDoEndereco | undefined {
+  const partes = (new URLSearchParams(busca).get('aula') ?? '').split('.')
+  const [vinculoId, data, hora] = partes
+  if (partes.length !== 3 || vinculoId === undefined || data === undefined || hora === undefined) return undefined
+  if (!UUID.test(vinculoId) || !ehDataValida(data) || !/^([01]\d|2[0-3])[0-5]\d$/.test(hora)) return undefined
+  return { vinculoId, data, inicio: `${hora.slice(0, 2)}:${hora.slice(2)}` }
+}
+
+/** O endereço sem o `?aula=`: fechar o painel. O resto (semana, filtro) fica como estava. */
+export function enderecoSemAula(caminho: string, busca: string): string {
+  const parametros = new URLSearchParams(busca)
+  parametros.delete('aula')
+  return `${caminho}?${parametros.toString()}`
+}
+
+/** A identidade de uma aula na tela: a mesma que o `?aula=` leva. Marca o cartão (`data-aula`), para o foco voltar a ele ao fechar o painel. */
+export function chaveDaAula(vinculoId: string, data: string, inicio: string): string {
+  return `${vinculoId}.${data}.${inicio.replace(':', '')}`
+}
+
+/**
+ * A aula que o `?aula=` pede, entre as da semana lida. O que não está lá (de outra professora, de outra escola, de outra semana ou que
+ * nunca existiu) não abre painel e não diz nada: a tela não confirma que a aula existe (regra 10, item 6).
+ */
+export function acharAula(dias: readonly DiaDaSemana[], pedida: AulaDoEndereco): AulaDaSemana | undefined {
+  return dias.find((dia) => dia.data === pedida.data)?.aulas.find((aula) => aula.vinculoId === pedida.vinculoId && aula.inicio === pedida.inicio)
+}
+
+/** O que a API devolveu ao gravar o texto de uma aula (`PUT /v1/aulas`). `texto: null` é o registro apagado. */
+export interface TextoGravado {
+  readonly vinculoId: string
+  readonly data: string
+  readonly inicio: string
+  readonly texto: string | null
+}
+
+/**
+ * A semana lida com o texto gravado já nela: o cartão mostra o que a professora salvou sem uma leitura nova. Só a aula da gravação muda; a aula
+ * que saiu da grade e ficou sem texto deixa de existir (o servidor apagou o registro, e era só ele que a mantinha).
+ *
+ * **A premissa de isolamento (regra 10, itens 3 e 7):** a resposta atrasada de uma gravação da escola A só não entra na semana da escola B porque o
+ * `vinculoId` é um UUID e não se repete entre escolas. A data e o horário sozinhos não identificam a aula. Se o id um dia deixar de ser único por
+ * escola, esta função passa a precisar da escola na comparação.
+ */
+export function comTextoGravado(resposta: SemanaResponse, gravado: TextoGravado): SemanaResponse {
+  const dias = resposta.dias.map((dia) => {
+    if (dia.data !== gravado.data) return dia
+    const aulas = dia.aulas.flatMap((aula) => {
+      if (aula.vinculoId !== gravado.vinculoId || aula.inicio !== gravado.inicio) return [aula]
+      return gravado.texto === null && aula.foraDaGrade ? [] : [{ ...aula, texto: gravado.texto }]
+    })
+    return { ...dia, aulas }
+  })
+  return { ...resposta, dias }
+}
+
+/** O que o painel diz quando a gravação falha (RF5), e quando a aula saiu da grade no meio. O texto escrito fica no campo nos dois casos. */
+export const FRASE_DA_FALHA_AO_SALVAR = 'Não foi possível salvar. Tente de novo em instantes.'
+export const FRASE_DA_AULA_QUE_SAIU = 'Esta aula saiu da grade e o texto não foi salvo. Copie o que você escreveu, se quiser guardar.'
+
+/** A dica do campo do painel: o aviso de não escrever nome de aluno (regra 20, item 3) e o que o "Fechar" faz com o que não foi salvo. */
+export const DICA_DO_TEXTO_DA_AULA = 'Não escreva o nome de nenhum aluno. Fechar sem salvar descarta o que você escreveu.'
 
 /* ───────────────────────────── o ano ───────────────────────────── */
 

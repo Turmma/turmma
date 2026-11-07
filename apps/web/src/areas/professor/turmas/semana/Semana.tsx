@@ -12,13 +12,18 @@ import { EmptyState, ErrorState, LoadingState } from '../../../../components/sta
 import { meusVinculosQueryOptions } from '../../comum/api/vinculos'
 import { semanaQueryOptions } from '../api/semana'
 import { DiaDaSemana } from './DiaDaSemana'
+import { PainelDaAula } from './PainelDaAula'
 import {
+  acharAula,
+  aulaDoEndereco,
+  chaveDaAula,
   deveAbrirAdeHoje,
   diasFiltrados,
   faltaOCalendario,
   diaDoMes,
   enderecoDaAula,
   enderecoDaSemana,
+  enderecoSemAula,
   filtroDoEndereco,
   haSemanaAnterior,
   haSemanaSeguinte,
@@ -103,6 +108,38 @@ function useOpcoesDoFiltro(): readonly SelectOption[] {
     vinculo.estado === 'confirmado' && vinculo.disciplina !== undefined ? [{ valor: `${vinculo.turma.id}.${vinculo.disciplina.id}`, rotulo: `${vinculo.turma.nome} · ${vinculo.disciplina.nome}` }] : [],
   )
   return [{ valor: '', rotulo: 'Todas as turmas' }, ...confirmados]
+}
+
+/** O painel da aula do `?aula=`: a aula achada na semana lida, a chave dela e como fechá-lo. */
+interface AulaAberta {
+  readonly aula: AulaDaSemana
+  readonly data: string
+  readonly chave: string
+  readonly fechar: (atualizar: boolean) => void
+}
+
+/**
+ * A aula que o `?aula=` abre (`undefined` sem painel). Achada entre as da semana lida inteira, sem o filtro: a aula aberta não some porque o filtro
+ * a esconde. Lida a semana e sem essa aula (de outra professora, de outra escola, de outra semana, que nunca existiu, ou um endereço mal formado), o
+ * endereço perde o parâmetro, calado: a tela não diz se a aula existe (RF9, regra 10, item 6). Fechar tira o `?aula=` com `replace`; a aula que saiu da
+ * grade no meio pede a semana de novo ao fechar (`atualizar`), e o cartão dela some.
+ */
+function useAulaAberta(dados: SemanaResponse | undefined): AulaAberta | undefined {
+  const [caminho, navegar] = useLocation()
+  const busca = useSearch()
+  const cliente = useQueryClient()
+  const pedida = aulaDoEndereco(busca)
+  const aula = pedida === undefined || dados === undefined ? undefined : acharAula(dados.dias, pedida)
+  const semDono = new URLSearchParams(busca).has('aula') && dados !== undefined && aula === undefined
+  useEffect(() => {
+    if (semDono) navegar(enderecoSemAula(caminho, busca), { replace: true })
+  }, [semDono, navegar, caminho, busca])
+  if (pedida === undefined || aula === undefined) return undefined
+  const fechar = (atualizar: boolean): void => {
+    navegar(enderecoSemAula(caminho, busca), { replace: true })
+    if (atualizar) void cliente.invalidateQueries({ queryKey: SEMANA_QUERY_KEY })
+  }
+  return { aula, data: pedida.data, chave: chaveDaAula(pedida.vinculoId, pedida.data, pedida.inicio), fechar }
 }
 
 interface CorpoProps {
@@ -192,7 +229,8 @@ function BarraDaSemana({ segunda, titulo, botaoAnterior, botaoSeguinte, podeAnte
  * (`GET /v1/semana`) sai daqui, uma por semana, com a chave `['semana', segunda]`.
  *
  * - **O endereço** leva só datas e ids: `?semana=` (a segunda da semana; inválido ou fora do ano, abre a de hoje) e `?turma=<turmaId>.<disciplinaId>`.
- *   O clique no cartão põe `?aula=<vinculoId>.<data>.<HHMM>`; o painel da aula é da tarefa 7.0.
+ *   O clique no cartão põe `?aula=<vinculoId>.<data>.<HHMM>`, que abre o painel da aula (`PainelDaAula`, 7.0): recarregar o reabre, e fechar o tira do
+ *   endereço. O `?aula=` que não é aula dela, ou que não está na semana lida, não abre painel e some do endereço, sem dizer se a aula existe.
  * - **A navegação é presa ao ano** (RF2): "Semana anterior" fica desligada na semana do começo dele e "Semana seguinte" na do fim.
  * - **Os quatro estados** (RF12): carregando; erro com "Tentar de novo", e o foco vai ao título da semana quando a nova leitura dá certo; vazio
  *   que diz por quê; com dado. Sem calendário importado, as aulas aparecem com o aviso de que ele falta.
@@ -212,6 +250,7 @@ export default function Semana() {
   const focos = useFocosDaSemana(segunda, dados !== undefined, podeAnterior, podeSeguinte)
   // A semana do endereço que não toca o ano abre a de hoje (RF2).
   const irParaHoje = deveAbrirAdeHoje(pedida, segunda, dados)
+  const painel = useAulaAberta(dados)
 
   useEffect(() => {
     if (irParaHoje) navegar(enderecoDaSemana(caminho, busca, { semana: undefined }), { replace: true })
@@ -244,6 +283,16 @@ export default function Semana() {
         aoVerTodas={() => navegar(enderecoDaSemana(caminho, busca, { turma: undefined }))}
         aoAbrirAula={(aula, data) => navegar(enderecoDaAula(caminho, busca, aula, data))}
       />
+      {painel !== undefined && dados !== undefined && (
+        <PainelDaAula
+          key={painel.chave}
+          aula={painel.aula}
+          data={painel.data}
+          hoje={dados.hoje}
+          aoFechar={painel.fechar}
+          focoDeReserva={() => (document.querySelector<HTMLElement>(`[data-aula="${painel.chave}"]`) ?? focos.titulo.current)?.focus()}
+        />
+      )}
     </div>
   )
 }
