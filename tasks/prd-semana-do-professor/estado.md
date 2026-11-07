@@ -2,7 +2,7 @@
 
 ## Agora
 - **Pausa** de 16:30 a 20:20 (06/11), a pedido do Joaquim; os três Implementadores reiniciados com `PEDIDO de retomada` às 20:20, vigia religada.
-- **Validação recebida** em 07/11 02:20: APROVADA COM RESSALVAS sobre `04041af2`, 15 de 15 RF, uma maior (M1, documento) e sete menores. **Parada do passo 7, item 3**: espero o Joaquim decidir a M1 (corrigir ou aceitar), no meu terminal. Vigia desligada. Depois: correção da M1 (se for o caso), esteira de fechamento (`esteira.ts --fechamento`), censo do e2e, `linhas.ts fechar`, commit de fechamento e pedido de pouso.
+- **Validação recebida** em 07/11 02:20: APROVADA COM RESSALVAS sobre `04041af2`, 15 de 15 RF, uma maior (M1, documento) e sete menores. O Joaquim mandou corrigir a M1 (opção A). **Espero:** o `RELATÓRIO` do `Arquiteto` (andar da spec) com o commit de documento que traz a frase da Tech Spec §9 para a `docs/interface.md` 1.8; não pede nova validação (não muda código). Vigia religada. Depois: correção da M1 (se for o caso), esteira de fechamento (`esteira.ts --fechamento`), censo do e2e, `linhas.ts fechar`, commit de fechamento e pedido de pouso.
 - **Devo ainda:** No fechamento, escrever no `TODO.md` os quatro destinos da ordem r1 da 1.0 que ninguém escreveu (`.processo/ordens/1_task-r2.md` da linha 1): volume do `delete` no encerramento do ano (Infra e operação), reserva do expurgo da `aula` (LGPD e conformidade), rótulo "Registro da aula" em `Retencao.tsx` (para o Validador), S7 do `cenarios.md` (para a retro).
 - **Base:** `spec/semana-do-professor` em `bb5e0c3c` (encontro da correção `carga-da-semana`, 07/11 02:04; 8 de 8 tarefas). Esteira: verde em `d7af410` (42336344465); a de `bb5e0c3` roda: ler no fechamento
 
@@ -27,6 +27,7 @@ Decisão: a M1 (a `docs/interface.md` 1.8 diz um link "Ver a semana desta turma"
 Contexto: `tasks/prd-semana-do-professor/validacao.md`, seção 4. É só documento: a Tech Spec §9 e o `cenarios.md` T5 já dizem o certo. Não toca as regras 10, 20 nem 70. As sete menores vão ao `TODO.md` no fechamento, sem parada.
 Opções: A) corrigir: o Arquiteto traz a frase da §9 para a 1.8, num commit de documento, sem nova validação (não muda código) | B) aceitar e levar ao `TODO.md`
 Recomendo: A, porque é uma frase, e a 1.8 é o que vale para quem desenhar a próxima tela.
+**Respondida em 07/11/2026: o Joaquim escolheu A** (no terminal do Orquestrador). `PEDIDO` ao `Arquiteto`, reiniciado no andar da spec.
 
 ## 06/11/2026 ~16:40 — F2b tarefa 6.0 (linha 3)
 Decisão: no celular, a aba Semana mostra os dias com qual peça, já que o `SegmentedControl` da techspec §9 vai só até 4 opções e a semana tem de 5 a 7 dias?
