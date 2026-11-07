@@ -2983,3 +2983,12 @@ Menores da validação (`tasks/prd-semana-do-professor/validacao.md`, seção 4)
 
 O m5 (os quatro destinos da ordem r1 da 1.0) está nas linhas acima e nos grupos "Infra e operação" e "LGPD e conformidade"; o quarto, o rótulo "Registro da
 aula" em `Retencao.tsx`, o Validador conferiu: a tela já o mostra pela descrição de `PRAZOS_FIXOS`, e o item fecha sem código.
+
+## Da correção 2026-11-07-unidade-independente-da-carga (a unidade sob carga), fora dela
+
+- [ ] (unidade-independente-da-carga, revisor-geral e test-engineer, 2ª) **Conferir quantos núcleos tem o runner da esteira.** `runs-on: ubuntu-24.04` em
+      repositório público costuma ter 4 vCPU, e o 2 só aparece num comentário de `.github/workflows/ci.yml:59`. Imprimir `availableParallelism()` no log de
+      uma corrida da esteira e, se forem 4, corrigir o texto de `tools/testes/limite-de-trabalhadores.ts` e da seção "Correção" do documento (o limite dá 2
+      contra os 3 do padrão do Vitest; a esteira fica um pouco mais lenta, nada quebra) (dono: Implementador, na próxima correção da esteira)
+- [ ] (unidade-independente-da-carga, revisor-geral, 2ª) **Repetir o comentário dos "três `describe` com prazo próprio" nos outros dois `describe` de
+      `tools/guardas/guardas.test.ts`** (`guarda desligada por comentário` e `configuração das guardas`); só comentário (dono: Implementador)

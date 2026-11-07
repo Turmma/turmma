@@ -203,5 +203,5 @@ describe('a supressão sem uso reprova o lint (eslint . --prune-suppressions é 
   it('npm run lint está verde com a linha de base (a catraca nasce sem quebrar nada)', () => {
     const resultado = spawnSync('npm', ['run', 'lint'], { cwd: raizRepositorio, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
     expect(resultado.status, resultado.stdout + resultado.stderr).toBe(0)
-  }, 240_000)
+  }, 600_000)
 })

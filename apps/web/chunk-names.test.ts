@@ -333,7 +333,8 @@ function importadosJunto(chunks: readonly Chunk[], chunk: Chunk): Chunk[] {
   return [...vistos.values()]
 }
 
-describe('o build de verdade da web', () => {
+// Cada caso monta o build de verdade da web (de 1 a 3 s com a máquina livre); o prazo próprio é o de um travamento, não o da velocidade.
+describe('o build de verdade da web', { timeout: 60_000 }, () => {
   it('B2: a entrada da escola não leva nenhum módulo de src/operacao/, e a área sai num chunk operacao-* só por import()', async () => {
     const chunks = await chunksDoBuild({ raiz: raizDaWeb, configFile: join(raizDaWeb, 'vite.config.ts') })
     const entrada = chunks.find((chunk) => chunk.isEntry)

@@ -62,7 +62,8 @@ function arquivosDoRepositorio(): string[] {
   return resultado.stdout.split('\n').filter(Boolean)
 }
 
-describe('processadores do worker: nenhuma afirmação de tipo (totais do expurgo, A0b)', () => {
+// Os três `describe` com prazo próprio deste arquivo sobem o `eslint` ou um script de `tools/guardas/` por caso (alguns segundos livre); o prazo é o de um travamento.
+describe('processadores do worker: nenhuma afirmação de tipo (totais do expurgo, A0b)', { timeout: 60_000 }, () => {
   it('reprova `{} as T` e o `Partial<T>` afirmado no fim; o objeto literal tipado e o `as const` passam', async () => {
     const fixture = 'afirmacao-de-tipo-no-processador.ts'
     const regras = new Set(['@typescript-eslint/consistent-type-assertions'])
@@ -739,7 +740,7 @@ describe('guarda de nome de mercado (RF8; regra 60; D81)', () => {
   }, 240_000)
 })
 
-describe('guarda desligada por comentário', () => {
+describe('guarda desligada por comentário', { timeout: 60_000 }, () => {
   it.each(['desabilitar-na-linha.ts', 'desabilitar-tudo.ts'])(
     'o ESLint reprova a diretiva que desliga uma guarda: %s',
     async (fixture) => {
@@ -912,7 +913,7 @@ describe('tamanho com catraca (RF11, R37)', () => {
   })
 })
 
-describe('configuração das guardas', () => {
+describe('configuração das guardas', { timeout: 60_000 }, () => {
   it('as únicas exceções são o SDK nos adaptadores, a tabela no repository, no teste e no db/ do núcleo, a própria guarda de tabela, o erro tipado em teste, em __fixtures__ e no main.tsx da web, o teste do redact e a mensagem repassada pelo LoggerDoNest', () => {
     expect(EXCECOES_DAS_GUARDAS).toEqual([
       { files: ['packages/core/src/ia/*-adapter.ts'], regras: REGRAS_DE_SDK_DE_IA },

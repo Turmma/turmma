@@ -1,5 +1,11 @@
 import { defaultServerConditions } from 'vite'
+import { availableParallelism } from 'node:os'
 import { defineConfig } from 'vitest/config'
+import { limiteDeTrabalhadores } from './tools/testes/limite-de-trabalhadores.ts'
+
+// Os projetos que rodam em paralelo (`unidade` e `processo`) usam o mesmo limite: o Vitest 5 recusa projetos de `maxWorkers` diferentes no
+// mesmo `sequence.groupOrder`, e o `npm test` junta os dois. `tools/ci/unidade-sob-carga.test.ts` prova.
+const LIMITE_DE_TRABALHADORES = limiteDeTrabalhadores(availableParallelism())
 
 // `.claude/worktrees/` guarda checkouts inteiros do repositório (os de subagente): sem isto, cada teste rodaria de novo
 // para cada worktree aberto, com o código de outra árvore.
@@ -55,6 +61,12 @@ export default defineConfig({
           // da tarefa, a esteira e as mutações (`tipoDoTeste`) já o alcançam, sem suíte nova.
           include: ['**/*.test.{ts,tsx}'],
           exclude: [...ignorados, '**/*.int.test.ts'],
+          // Metade dos núcleos, e não os 11 do padrão. Parte da unidade sobe processo e build de verdade (o build da web, o `npm run lint`,
+          // o `size-limit`, os CLIs de `tools/`), e cada um já usa vários núcleos: com um trabalhador por núcleo a carga chegou a 40 em 12
+          // núcleos, e os casos que passam de 5 s com a máquina livre caíam em `Test timed out` (15 casos, em conjuntos que mudavam a cada
+          // corrida). Com 6 a mesma suíte passou inteira e levou menos tempo (240 s contra 330 a 455 s), porque a disputa também custava.
+          // `tools/ci/unidade-sob-carga.test.ts` prova o limite.
+          maxWorkers: LIMITE_DE_TRABALHADORES,
         },
       },
       {
@@ -83,6 +95,8 @@ export default defineConfig({
           // Cada caso faz commits e pushes de verdade, cada um com um `node` que carrega o hook: com a máquina carregada
           // passa dos 5 s do padrão.
           testTimeout: 60_000,
+          // O mesmo limite da unidade: cada caso sobe `git` e `node`, e os dois projetos rodam juntos no `npm test`.
+          maxWorkers: LIMITE_DE_TRABALHADORES,
         },
       },
     ],

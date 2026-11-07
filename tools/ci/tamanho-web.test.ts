@@ -89,7 +89,8 @@ function jsComBrotliDe(bytesEmBrotli: number): string {
   throw new Error(`não achei um JS de ${String(bytesEmBrotli)} bytes em brotli`)
 }
 
-describe('teto do bundle da web (.size-limit.json)', () => {
+// Cada caso roda o `size-limit` sobre um build montado (até 2 s com a máquina livre); o prazo próprio é o de um travamento.
+describe('teto do bundle da web (.size-limit.json)', { timeout: 60_000 }, () => {
   it('declara 150 kB em brotli sobre a entrada sozinha, 60 kB sobre a operação, um teto por área da escola e 40 kB sobre as peças', () => {
     const verificacoes = JSON.parse(readFileSync(join(raizRepositorio, '.size-limit.json'), 'utf8')) as Verificacao[]
     expect(verificacoes.map(({ path, limit, brotli }) => ({ path, limit, brotli }))).toEqual([

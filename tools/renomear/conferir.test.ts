@@ -521,7 +521,8 @@ describe('conferir: o alvo não existe', () => {
   })
 })
 
-describe('conferir: a linha de comando', () => {
+// Cada caso sobe o `conferir.ts` num repositório de teste (uns 7 s o arquivo, com a máquina livre); o prazo próprio é o de um travamento.
+describe('conferir: a linha de comando', { timeout: 60_000 }, () => {
   const SCRIPT = join(import.meta.dirname, 'conferir.ts')
   const rodarComando = (repo: RepositorioDeTeste, ...argumentos: string[]) => spawnSync('node', [SCRIPT, ...argumentos], { cwd: repo.raiz, encoding: 'utf8' })
 

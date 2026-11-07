@@ -486,7 +486,7 @@ describe('esteira do GitHub (.github/workflows/ci.yml)', () => {
     // As fatias juntas são a suíte. Quase tautológico, porque é o próprio Playwright quem reparte; o que pega a fatia
     // esquecida de fato são a matriz `1..n` (`fatiasDoE2e`) e o `/n` do passo, no teste dos comandos.
     expect(somados).toBe(total)
-  }, 60_000)
+  }, 180_000)
 
   it('nenhum outro job publica artefato: só o e2e produz traço, e artefato de esteira é superfície a mais', () => {
     for (const [nome, job] of Object.entries(workflow.jobs)) {
