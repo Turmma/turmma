@@ -333,7 +333,9 @@ function importadosJunto(chunks: readonly Chunk[], chunk: Chunk): Chunk[] {
   return [...vistos.values()]
 }
 
-describe('o build de verdade da web', () => {
+// Cada caso faz um build de verdade do Vite: o maior leva uns 2 s com a máquina livre, e sob a unidade inteira em paralelo do
+// portão passou dos 5 s da unidade (correção 2026-11-07-testes-sob-carga). Sob 36 laços de CPU, 4 a 5 dos 14 casos caíram.
+describe('o build de verdade da web', { timeout: 60_000 }, () => {
   it('B2: a entrada da escola não leva nenhum módulo de src/operacao/, e a área sai num chunk operacao-* só por import()', async () => {
     const chunks = await chunksDoBuild({ raiz: raizDaWeb, configFile: join(raizDaWeb, 'vite.config.ts') })
     const entrada = chunks.find((chunk) => chunk.isEntry)

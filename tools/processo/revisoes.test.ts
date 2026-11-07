@@ -755,6 +755,11 @@ describe('hooks sobre um repositório de verdade', () => {
     const conferir = () => spawnSync('node', [script, 'conferir', 'tasks/correcoes/2026-09-25-x.md'], { env: { ...process.env, CLAUDE_PROJECT_DIR: limpo.raiz }, encoding: 'utf8' })
     expect(conferir().status).toBe(0)
     writeFileSync(join(limpo.raiz, 'apps/codigo.ts'), '// comentário novo, e só ele\nexport const a = 1\n')
+    // O `mtime` vem do relógio grosso do kernel, que sob carga pode ficar mais de um segundo atrás do
+    // `Date.now()` do `inicio` do carimbo: o arquivo escrito logo depois do portão ficava com `mtime` anterior ao
+    // início e o `conferir` o deixava passar (correção 2026-11-07-testes-sob-carga). Fixar o instante tira o caso do relógio.
+    const depoisDoInicio = new Date(Date.now() + 3_600_000)
+    utimesSync(join(limpo.raiz, 'apps/codigo.ts'), depoisDoInicio, depoisDoInicio)
     const soComentario = conferir()
     expect(soComentario.status).toBe(1)
     expect(soComentario.stdout).toMatch(/apps\/codigo.ts mudou em/)

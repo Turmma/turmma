@@ -1112,6 +1112,15 @@ código"), com o destino de cada uma. As pequenas foram fechadas na correção `
 - [ ] **A vitrine não fotografa troca do Tutor do aluno** (validação da X1, rodada 1): ela não digita, e a escola
       sintética não tem troca do Tutor, então o balão com a assinatura não sai em foto. Destino: antes da X4, que mexe
       na tela do Tutor do aluno
+- [ ] (correção 2026-11-07-testes-sob-carga, infra-guardian e test-engineer, 1ª) **Teste que sobe processo ou faz build compete com a unidade
+      inteira por CPU.** A correção só subiu o prazo de dois describes para 60 s (`tools/ci/tamanho-web.test.ts`, `apps/web/chunk-names.test.ts`) e
+      isso também esconde uma regressão de tempo do build. Se o portão local passar a demorar, a saída é um projeto do vitest para os testes que sobem
+      processo, com paralelismo limitado, e não subir o prazo de novo; vale decidir antes que o quarto teste dessa família apareça
+      (dono: Arquiteto, na retro da spec)
+- [ ] (correção 2026-11-07-testes-sob-carga, infra-guardian e test-engineer, 1ª) **`avaliarCarimbo` compara o `mtime` com o `inicio` do carimbo
+      (`tools/processo/portao.ts:164`, `quando >= inicio`), e o `mtime` do kernel chega a ficar 1,5 s atrás do `Date.now()`** (medido nesta
+      máquina). No uso real uma edição feita logo depois do portão pode passar; hoje o portão leva minutos e a premissa é frágil só se ele
+      encurtar. Fora da correção, que corrigiu só o teste (dono: Arquiteto, na retro da spec)
 
 ## Regulação educacional
 

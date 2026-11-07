@@ -89,7 +89,10 @@ function jsComBrotliDe(bytesEmBrotli: number): string {
   throw new Error(`não achei um JS de ${String(bytesEmBrotli)} bytes em brotli`)
 }
 
-describe('teto do bundle da web (.size-limit.json)', () => {
+// Cada caso sobe de 1 a 5 processos `npx size-limit`. O prazo de 5 s da unidade cobre um caso sozinho (o maior leva uns 2 s),
+// mas não o portão com a unidade inteira em paralelo: o caso das peças (5 processos) e o da tela estouraram o prazo sob carga
+// (correção 2026-11-07-testes-sob-carga). O prazo é o dos outros testes que sobem processo (`revisoes.test.ts`).
+describe('teto do bundle da web (.size-limit.json)', { timeout: 60_000 }, () => {
   it('declara 150 kB em brotli sobre a entrada sozinha, 60 kB sobre a operação, um teto por área da escola e 40 kB sobre as peças', () => {
     const verificacoes = JSON.parse(readFileSync(join(raizRepositorio, '.size-limit.json'), 'utf8')) as Verificacao[]
     expect(verificacoes.map(({ path, limit, brotli }) => ({ path, limit, brotli }))).toEqual([
