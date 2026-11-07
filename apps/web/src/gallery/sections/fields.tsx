@@ -5,6 +5,7 @@ import { SearchInput } from '../../components/ui/fields/SearchInput'
 import { FormField } from '../../components/ui/fields/FormField'
 import { PasswordInput } from '../../components/ui/fields/PasswordInput'
 import { Textarea } from '../../components/ui/fields/Textarea'
+import { DaySelector, type DiaDoSeletor } from '../../components/ui/fields/DaySelector'
 import { Switch } from '../../components/ui/fields/Switch'
 import { Menu } from '../../components/ui/overlays/Menu'
 import { OptionCard } from '../../components/ui/fields/OptionCard'
@@ -121,6 +122,30 @@ function Interruptores() {
   )
 }
 
+/** Uma semana de segunda a sábado, com a quarta como "hoje": o seletor de dia da Semana do professor (`docs/interface.md` 10.2). */
+const DIAS_DA_SEMANA: readonly DiaDoSeletor[] = [
+  { valor: '2026-11-09', rotulo: 'Seg', diaDoMes: '9', nome: 'Segunda, 9 de novembro' },
+  { valor: '2026-11-10', rotulo: 'Ter', diaDoMes: '10', nome: 'Terça, 10 de novembro' },
+  { valor: '2026-11-11', rotulo: 'Qua', diaDoMes: '11', nome: 'Quarta, 11 de novembro', hoje: true },
+  { valor: '2026-11-12', rotulo: 'Qui', diaDoMes: '12', nome: 'Quinta, 12 de novembro' },
+  { valor: '2026-11-13', rotulo: 'Sex', diaDoMes: '13', nome: 'Sexta, 13 de novembro' },
+  { valor: '2026-11-14', rotulo: 'Sáb', diaDoMes: '14', nome: 'Sábado, 14 de novembro' },
+]
+
+function SeletorDeDia() {
+  const [dia, definirDia] = useState('2026-11-11')
+  return (
+    <Secao nome="seletor-de-dia" titulo="Seletor de dia">
+      <div className="flex max-w-sm min-w-0 flex-col gap-3">
+        <DaySelector rotulo="Dia da semana" dias={DIAS_DA_SEMANA} valor={dia} aoMudar={definirDia} />
+        <p role="status" data-dia-escolhido="" className="text-sm text-sutil">
+          Escolhido: {dia}
+        </p>
+      </div>
+    </Secao>
+  )
+}
+
 function Opcoes() {
   const [entrega, definirEntrega] = useState<string>('papel')
   const [colunas, definirColunas] = useState<readonly string[]>(['turma'])
@@ -187,6 +212,7 @@ export default function SecoesDeCampos() {
       <CamposDeTexto />
       <CampoDeBusca />
       <Interruptores />
+      <SeletorDeDia />
       <Opcoes />
     </>
   )

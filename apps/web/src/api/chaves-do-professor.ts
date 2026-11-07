@@ -12,3 +12,4 @@ export const CORRECAO_QUERY_KEY = ['correcao'] as const
 export const DESEMPENHO_QUERY_KEY = ['desempenho'] as const
 export const SINAIS_QUERY_KEY = ['sinais'] as const
 export const USO_DO_TUTOR_QUERY_KEY = ['uso-do-tutor'] as const
+export const SEMANA_QUERY_KEY = ['semana'] as const

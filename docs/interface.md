@@ -382,6 +382,59 @@ diálogo dentro de diálogo:
 O envio é único (dois cliques mandam um pedido só), e a sessão que vence com o diálogo aberto leva embora o
 link e o código. O endereço nunca leva token, link nem código.
 
+### 1.8 A Semana: a aba de Turmas com as aulas (F2b, tarefas 6.0 a 8.0)
+
+**As abas.** `/professor/turmas` ganha as `Tabs` **"Turmas · Semana"** (duas, R3), guardadas no endereço (`?ver=semana`; sem o
+parâmetro, ou com outro valor, abre Turmas). Trocar de aba usa `replace`, não empilha histórico, e leva **só** o `ver`: o que a
+Semana põe no endereço não acompanha a professora à lista. A aba é **sob demanda**: a Semana é um pedaço baixado só quando
+aberta, e `GET /v1/semana` só sai com ela à vista; quem só confere as turmas não paga a leitura. O `h1` continua "Turmas". A
+altura é a da turma aberta (RF22): do `md` para cima a página não rola e rola o painel da aba (o miolo, `miolo-do-documento.ts`);
+a aba Turmas continua a rolar a página. Nenhuma tela calcula a própria altura com `calc(100dvh − …)`.
+
+**A barra da semana.** O `h2` "Semana de 9 a 15 de novembro" (ou "30 de novembro a 6 de dezembro", quando atravessa o mês),
+"Semana anterior", "Hoje" e "Semana seguinte" (`Button` secundário compacto), e o filtro "Turma e disciplina" (`Select`, com "Todas as
+turmas" e uma opção por vínculo confirmado). A navegação é **presa ao ano letivo**: "Semana anterior" fica desligada na semana que
+contém o começo dele e "Semana seguinte" na que contém o fim; quando a pessoa estava no botão e ele se desliga, o foco vai ao título.
+
+**Os dias.** De segunda a domingo, mas sábado e domingo **só quando têm aula**; assim a semana tem de 5 a 7 dias. No computador
+(768 px ou mais), **uma coluna por dia**, lado a lado, com o nome do dia e a data ("Terça 10 de novembro"), a palavra **"Hoje"** em
+texto no dia de hoje (mais a borda `azul-borda`) e os cartões empilhados por horário, **sem régua de horas** (ela dependeria da
+métrica da fonte, D72). Dia sem aula diz "Sem aulas". **Feriado e recesso** mostram o tipo e a descrição ("Feriado · Finados") e o dia
+fica sem aula; o **evento** aparece junto das aulas, sem tirar nenhuma. No celular, **um dia por vez**, escolhido no `DaySelector`
+(10.2), que abre em hoje (ou no primeiro dia da semana mostrada, quando hoje não está nela).
+
+**O cartão da aula** é um botão: horário ("7h30 às 8h20"), turma, disciplina, sala quando há e o texto da professora **em duas linhas**
+(`line-clamp-2`). O nome acessível é só **"Terça, 7h30, 7ºA, Matemática"**; o resto é descrição. A aula de hoje que está no ar leva
+**"Agora"** em texto; a que saiu da grade leva **"Fora da grade"**. A aula de hoje ou futura **sem texto** leva o selo **"Falta
+preencher"** em cinza (`info`), por aula: **nenhuma conta soma quantas faltam**, em lugar nenhum (D59, D64). A aula passada sem
+texto não leva selo. O toque abre a aula (`?aula=`, abaixo).
+
+**Os itens do dia (8.0).** Embaixo dos cartões, o que aconteceu ali naquele dia para a turma e a disciplina da professora: "Atividade
+aplicada", "Atividade encerrada" e "Correção do Assistente", com o estado de hoje da correção ("Para revisar", "Aprovada",
+"Rejeitada"), nos rótulos de `packages/shared`. Cada item é um link: o painel da atividade (`?aba=atividades&atividade=<id>`) ou a
+revisão da correção (o endereço do sino). Sem nota, média, acerto nem nome de aluno. Em **Hoje**, a aba da turma aberta, um link
+"Ver a semana desta turma" leva à Semana já filtrada pela turma e disciplina.
+
+**O painel da aula (7.0).** Abre ao lado no computador e como folha de baixo a 360 px (o `Sheet`), por `?aula=<vinculoId>.<data>.<HHMM>`.
+Dia, horário, turma, disciplina e sala; o `Textarea` **"O que vou dar"** até o dia da aula e **"O que foi dado"** depois, com o contador
+(`aria-live="polite"`, até 500 caracteres) e o aviso de **não escrever nome de aluno**; "Salvar" e "Preparar esta aula". Dois cliques
+mandam uma gravação. A falha diz "Não foi possível salvar. Tente de novo em instantes" e **guarda o texto**; a aula que saiu da grade
+no meio diz isso, e o texto não foi salvo. "Preparar esta aula" leva ao Início com a turma marcada, sem criar conversa nem escrever o
+texto. O foco volta ao cartão ao fechar.
+
+**O endereço** leva só ids e datas, nunca texto de aula nem nome (regra 50, item 7; regra 20, item 9): `?ver=semana`, `?semana=` (a
+segunda-feira; data inválida, ou semana que não toca o ano, abre a de hoje), `?turma=<turmaId>.<disciplinaId>` (formato errado é como
+sem filtro; turma que não é dela mostra o vazio) e `?aula=`. Trocar de semana ou de filtro tira o `?aula=`.
+
+**Os quatro estados (RF12).** Carregando ("Carregando a semana…"); erro com "Tentar de novo", e o foco vai ao título da semana quando a
+nova leitura dá certo; vazio que diz por quê, e **só depois da leitura** (nunca durante o carregamento): "A coordenação ainda não
+importou a grade", "O ano letivo ainda não começou", "Semana de recesso", "Sem aulas nesta semana" (com "Ver todas as turmas" quando há
+filtro); com dado. Com a grade importada e sem calendário, as aulas aparecem com o aviso "O calendário da escola ainda não foi
+importado". Feriado ou evento sem aula não é vazio: a tela mostra os dias com o que cai neles.
+
+**Recomeço.** A chave é `['semana', segunda]`: cada semana é uma consulta, e a resposta lenta de uma não ocupa o lugar da outra. A
+troca de escola e a pessoa seguinte na mesma aba esvaziam o cache; nada da escola anterior fica na tela da outra.
+
 ---
 
 ## 2. Área do aluno (F9)
@@ -1688,6 +1741,7 @@ prova isso (RF6 da X1).
 | `OptionCard` (N) | Um `<label>` com o `<input>` de verdade: degrau, canto 12, mínimo de 64 px. Texto em `t-cartao`; à direita, um círculo de 24 com o visto. Marcada em `azul-claro`, `azul-borda`, `azul-texto`. Desligada: `borda`, `fundo-suave`, texto `apoio` (4,5:1), sem degrau; o círculo, marcado ou não, sem cor de ação (o visto fica, em `apoio`) | Teclado nativo. Quem usa põe o `fieldset` e a `legend` |
 | `Switch` (N) | Trilho de 52 × 32 px, com alvo de toque de 44 px de altura abaixo de 768. Desligado: `borda`, com borda `borda-campo` (produto). Ligado: `azul`, com borda `azul-degrau`. Bolinha de 24 em `fundo` (produto). Fora de uso: `fundo-suave` com borda `borda` e bolinha `borda-campo`, sem opacidade (produto); a posição da bolinha continua dizendo o estado | `role="switch"`. Muda na hora |
 | `SegmentedControl` (N) | Grupo de 44 px, borda 2, canto 12. A opção ativa em `azul-claro`, `azul-borda`, `azul-texto`. Até quatro; com quatro rótulos longos, `emDuasColunasNoCelular` põe as opções duas por linha abaixo de 768 px (o filtro "Estado" de Registros › IA). Troca o jeito de ver; não é aba | `radiogroup`, com as setas, Home e End |
+| `DaySelector` (N) | Um dia entre cinco e sete, numa linha só e sem rolar a 360 px (328 px ÷ 7 dias, perto de 46 px cada). Alvo de 44 px de altura (`min-h-14`), borda 2 e canto 12, nos tokens do `SegmentedControl`: o dia ativo em `azul-claro`, `azul-borda`, `azul-texto`. O rótulo tem três letras ("Seg") com o dia do mês embaixo; o dia de hoje leva "hoje" escrito no botão, e a cor não é a única pista. O nome acessível é o inteiro ("Terça, 10 de novembro"). Existe porque o `SegmentedControl` vai até quatro opções e a semana tem de cinco a sete (a Semana do professor, 1.8) | `radiogroup` com uma parada só no Tab (o dia marcado). As quatro setas, Home e End escolhem e levam o foco junto, como num rádio nativo |
 | `ThemePreference` (N) | O `SegmentedControl` Sistema · Claro · Escuro, em "Sua conta" | Só a escolha explícita grava; voltar a Sistema apaga a chave. Sem armazenamento, vale o sistema, calado |
 | `TextSize` (N) | `components/settings/TextSize` (numa pasta própria: `components/` já está no teto de 25 arquivos de produção). Três `OptionCard` de rádio (Padrão · Grande · Maior) num `fieldset` "Tamanho da letra", e a prévia "Assim fica a minha letra." no tamanho de agora. Em Eu › Ajustes, com a `ThemePreference` | Setas trocam a escolha, uma parada de Tab. Só a escolha grava; Padrão apaga a chave. Sem armazenamento, vale na sessão, calado |
 
