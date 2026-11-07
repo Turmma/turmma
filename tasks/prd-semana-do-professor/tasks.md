@@ -18,7 +18,7 @@
   - [ ] 2.3 Controller, service e módulo; `itens` vazio até a 3.0
   - [ ] 2.4 Testes: S1 a S8, S11 a S16 do lado do servidor, G7, R2, R3, R4 e R7 da leitura
 
-- [ ] **3.0 — Os itens do dia entram na semana (RF7)**
+- [x] **3.0 — Os itens do dia entram na semana (RF7)**
   - [ ] 3.1 A consulta dos itens pela (turma, disciplina) dos vínculos, no fuso da escola, com `EXPLAIN`
   - [ ] 3.2 Testes: S9, S10, R2 dos itens, a consulta com os índices
 

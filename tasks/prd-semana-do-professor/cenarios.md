@@ -14,7 +14,7 @@ numa tarefa do `tasks.md`. I = integração com Postgres real e relógio injetad
 - **S6** [I] Escola sem ano em curso (só `planejado` ou `encerrado`): `GET` responde `ano: null` e nenhum dia; `PUT` dá `NAO_ENCONTRADO` e não grava
 - **S7** [I] Virada do ano: com o ano novo em curso, o `GET` não traz o registro do ano anterior; o `virarAno` apagou as linhas de `aula` do ano, inclusive a de um vínculo encerrado antes por realocação, e a `aula` da escola B continua
 - **S8** [I] Registro só dos vínculos confirmados: o registro passado de um vínculo encerrado não volta como fora da grade
-- **S9** [I] Itens (RF7): atividade aplicada na quarta aparece na quarta da turma e disciplina; a do colega de outra disciplina na mesma turma não; correção nos três estados; o item não traz nota, acerto, nome de aluno nem autor (contrato com as chaves exatas)
+- **S9** [I] Itens (RF7): atividade aplicada na quarta aparece na quarta da turma e disciplina; a do colega de outra disciplina na mesma turma não; correção nos três estados; o item não traz nota, acerto, nome de aluno nem autor (contrato com as chaves exatas); a aplicada às 22h de domingo em Brasília fica no domingo; a de turma e disciplina de vínculo `pendente` não aparece; quem tem as duas disciplinas confirmadas na turma vê as duas atividades, uma vez cada; no dia, a ordem é aplicada, encerrada e correção, depois o título e, no empate, a atividade [U]; o item de um dia que a semana não traz (fim de semana sem grade, fora do ano) não aparece [U]; a correção criada fora da semana não aparece, e a aprovada depois dela mostra `aprovada`
 - **S10** [I] Feriado no dia da prova: a aula sai, e o item da atividade aplicada naquele dia fica
 - **S11** [I] Duas disciplinas na mesma turma: o texto de uma não aparece na outra
 - **S12** [I] Turma sem professor alocado não aparece na Semana de ninguém
@@ -23,7 +23,7 @@ numa tarefa do `tasks.md`. I = integração com Postgres real e relógio injetad
 - **S16** [I] Aula dupla (duas alocações seguidas do mesmo vínculo no dia): o `GET` traz cada aula com o próprio texto, e o `PUT` numa não altera a outra
 - **S15** [U] Rótulos em português dos tipos e estados dos itens, numa tabela só, e as datas no formato local
 - **S17** [I] `gradeImportada` e `calendarioImportado` são da escola e do ano em curso, e não da professora: a professora sem aula, numa escola com grade, vê `true` e a semana vazia; a escola sem grade nem calendário, com a B completa, vê `false` nos dois
-- [I] `EXPLAIN` da consulta dos itens usa `atividade_aplicada_turma_idx` e `entrega_turma_idx`
+- [I] `EXPLAIN` da consulta dos itens usa um índice que começa pela escola e pela turma, na atividade aplicada (`atividade_aplicada_escola_ano_turma_id_unico`, que o planejador prefere ao `atividade_aplicada_turma_idx`) e na entrega (`entrega_turma_idx`); a condição do índice cita `turma_id`, e nenhuma das duas tabelas é lida em varredura
 
 ## Gravação (RF5, RF10, RF11, RF15)
 

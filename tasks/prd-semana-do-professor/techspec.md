@@ -15,7 +15,7 @@ saiu da grade ("fora da grade"). O texto sai na virada do ano.
 | Módulo | Novo ou alterado | O quê |
 |---|---|---|
 | `packages/core/src/db/schema/aula.ts` + migration | novo | a tabela (seção 3) |
-| `packages/core/src/semana/` | novo | `SemanaRepository` (leitura) e `AulaRepository` (gravação, trava, passo da grade) |
+| `packages/core/src/semana/` | novo | `SemanaRepository` (leitura, com os itens do dia e o tipo `ItemDaSemana`, que o `index.ts` do `core` exporta) e `AulaRepository` (gravação, trava, passo da grade) |
 | `packages/core/src/importacao/tipos/grade.ts` | alterado | o passo "o texto acompanha a grade", entre `gravarAulas` e `encerrarOsMarcados` |
 | `packages/core/src/estrutura/vinculo.repository.ts` | alterado | `virarAno` apaga as linhas de `aula` do ano |
 | `packages/core/src/titular/leitura-do-titular.ts`, `troca-de-nome.ts` | alterado | `aula` só na versão `completa` (`naVersao`, critério 5); no comentário da troca, por que fica fora (seção 11) |
@@ -54,11 +54,14 @@ dela ou não existe: `NAO_ENCONTRADO`. Trava esgotada: `INDISPONIVEL_TENTE_DE_NO
 
 **Ler** (escola do token, ano em curso, professora do `usuarioId` da sessão): (1) os vínculos `confirmado` de professor
 dela, com nomes de turma e disciplina; (2) as alocações deles; (3) os eventos com `fim ≥ segunda` e `inicio ≤ domingo`;
-(4) os registros **desses vínculos** na semana; (5) os itens: `atividade_aplicada` cujo `artefato` tem (turma, disciplina)
-de um dos vínculos, aplicada ou encerrada na semana, e a `entrega` `lote_de_correcao` delas criada na semana, com o
-estado de hoje. O service monta os dias: fora do ano, nada; dia de `feriado` ou `recesso`, nenhuma aula; senão, uma aula
+(4) os registros **desses vínculos** na semana; (5) os itens: `atividade_aplicada` da turma de um dos vínculos e cujo
+`artefato` tem a disciplina **desse mesmo** vínculo (a turma é a da aplicação, e a disciplina, a do artefato, como em
+`AtividadeAplicadaRepository`), aplicada ou encerrada na semana, e a `entrega` `lote_de_correcao` delas criada na semana, com o
+estado de hoje. O dia de cada item é o do instante, em `FUSO_DO_USO` (a aplicada às 22h de domingo em Brasília é de domingo). O service monta os dias: fora do ano, nada; dia de `feriado` ou `recesso`, nenhuma aula; senão, uma aula
 por alocação do dia da semana, com o registro de mesmo (vínculo, data, início), mais os registros **passados** sem
-alocação, `foraDaGrade`. Registro futuro sem alocação é ignorado. Data e hora em `FUSO_DO_USO`.
+alocação, `foraDaGrade`. Registro futuro sem alocação é ignorado. O item cai no dia dele, também no dia de `feriado` ou `recesso`
+(a prova do dia do feriado fica); o dia que a semana não traz (sábado e domingo sem grade, fora do ano) não mostra item. Dentro do dia, a
+ordem é aplicada, encerrada e correção, depois o título e, no empate, a atividade. Data e hora em `FUSO_DO_USO`.
 `hoje` é `AAAA-MM-DD` e `agora` é `HH:MM`, ambos de Brasília; "passado" é data menor que `hoje`. `dias` traz só os dias que caem no ano em curso:
 de segunda a sexta sempre, e sábado e domingo só quando a grade tem alocação neles (ou há registro passado fora da grade), contada antes de o feriado
 tirá-la. `gradeImportada` é "a escola tem alguma alocação no ano em curso" e `calendarioImportado`, "a escola tem algum evento no ano em curso": são da
@@ -113,7 +116,7 @@ D64: nenhuma contagem; "Falta preencher" é selo por aula, sem total. Item 7: it
 | Item | Resposta |
 |---|---|
 | Está no caminho quente? | nenhum |
-| Carga na manhã de segunda | um `GET` por professor ao abrir (`docs/infra.md` 3.1), cinco consultas indexadas; `EXPLAIN` da dos itens na tarefa |
+| Carga na manhã de segunda | um `GET` por professor ao abrir (`docs/infra.md` 3.1), dez consultas indexadas, em sequência (sete da leitura da 2.0 e as três dos itens); `EXPLAIN` da dos itens na tarefa 3.0: a atividade aplicada desce pelo `atividade_aplicada_escola_ano_turma_id_unico` (o planejador o prefere ao `atividade_aplicada_turma_idx`) e a entrega, pelo `entrega_turma_idx`, os dois com a escola e a turma na condição |
 | Fila, limite e rate limit | nenhuma fila nova (o passo roda no job do F2); `statement_timeout`, corpo de 100 KB, texto de 500; a guarda global por usuário e por escola |
 | Corridas de concorrência | Ordem global: ano (`for share`) → trava consultiva do vínculo → linha do vínculo (o `FOR UPDATE` de `encerrarOsMarcados` vem depois do passo; J16). A chave composta isola as escolas; a ordem "confere, depois trava" protege o colega (R1). (1) Gravação × gravação: uma linha (G6). (2) Gravação × saída da aula, nas duas ordens (J11a, J11b). (3) Gravação do fora da grade × re-chaveamento: nada sobrescrito nem duplicado (J12). (4) Gravação × virada: o `for share` no ano espera o encerramento, e a gravação responde `NAO_ENCONTRADO` (J14). `lock_timeout` de 2 s (J13). Encerramento avulso do vínculo: aceito, sai na virada |
 | Índices e migration | o da `aula`, numa migration só de criação (a 0041); os outros já começam pelo escopo. O teste que mede o que a 0040 mudou (`migracao-f2.int.test.ts`) migra só até ela: a 0041 não entra na comparação de colunas dele |

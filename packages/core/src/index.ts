@@ -356,4 +356,4 @@ export {
 } from './ia/tasks/turno-do-tutor.js'
 export type { ClassificacaoDoTurno, TutorInput, TutorOutput } from './ia/tasks/turno-do-tutor.js'
 export { SemanaRepository } from './semana/index.js'
-export type { AlocacaoDaSemana, AnoDaSemana, EventoDaSemana, RegistroDaSemana, VinculoDaSemana } from './semana/index.js'
+export type { AlocacaoDaSemana, AnoDaSemana, EventoDaSemana, ItemDaSemana, RegistroDaSemana, VinculoDaSemana } from './semana/index.js'

@@ -13,7 +13,7 @@ function horaDeUso(instante: Date): string {
  * A Semana da professora (F2b, tarefa 2.0; Tech Spec da semana-do-professor, seções 4 e 5): as aulas dos vínculos `confirmado` dela, no ano em
  * curso da escola do token, sem feriado e recesso, com o registro de texto e o que saiu da grade. Escola e professora vêm do contexto e da sessão;
  * a consulta só diz qual semana. Sem ano em curso responde `ano: null` e nenhum dia (e não `NAO_ENCONTRADO`). `hoje` e `agora` são do fuso da
- * escola, lidos do relógio que o teste injeta. Os itens do dia entram na 3.0.
+ * escola, lidos do relógio que o teste injeta. Os itens do dia (a atividade aplicada, a encerrada e a correção do Assistente) vêm do repository.
  */
 export class SemanaService {
   constructor(
@@ -39,7 +39,8 @@ export class SemanaService {
     const registros = await repositorio.registrosDosVinculos(ano.id, ids, consulta.segunda, domingo)
     const gradeImportada = await repositorio.gradeImportada(ano.id)
     const calendarioImportado = await repositorio.calendarioImportado(ano.id)
-    const dias = montarDias({ segunda: consulta.segunda, ano, hoje, vinculos, alocacoes, eventos, registros })
+    const itens = await repositorio.itensDaSemana(ano.id, consulta.segunda, domingo)
+    const dias = montarDias({ segunda: consulta.segunda, ano, hoje, vinculos, alocacoes, eventos, registros, itens })
     return semanaResponseSchema.parse({ ano: { inicio: ano.inicio, fim: ano.fim }, hoje, agora, gradeImportada, calendarioImportado, dias })
   }
 }
