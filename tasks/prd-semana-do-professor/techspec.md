@@ -1,7 +1,7 @@
 # Tech Spec — Semana do professor
 
 **PRD:** `tasks/prd-semana-do-professor/prd.md` · **Cenários:** `tasks/prd-semana-do-professor/cenarios.md`
-**Status:** revisada (`revisao-spec.md`, rodada 5 APROVADA)
+**Status:** implementada em 07/11/2026 (revisada: `revisao-spec.md`, rodada 5 APROVADA)
 
 ## 1. Resumo da abordagem
 

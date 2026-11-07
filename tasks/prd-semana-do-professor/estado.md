@@ -1,10 +1,8 @@
 # Estado da execução — semana-do-professor
 
 ## Agora
-- **Pausa** de 16:30 a 20:20 (06/11), a pedido do Joaquim; os três Implementadores reiniciados com `PEDIDO de retomada` às 20:20, vigia religada.
-- **Validação recebida** em 07/11 02:20: APROVADA COM RESSALVAS sobre `04041af2`, 15 de 15 RF, uma maior (M1, documento) e sete menores. O Joaquim mandou corrigir a M1 (opção A). **Espero:** o `RELATÓRIO` do `Arquiteto` (andar da spec) com o commit de documento que traz a frase da Tech Spec §9 para a `docs/interface.md` 1.8; não pede nova validação (não muda código). Vigia religada. Depois: correção da M1 (se for o caso), esteira de fechamento (`esteira.ts --fechamento`), censo do e2e, `linhas.ts fechar`, commit de fechamento e pedido de pouso.
-- **Devo ainda:** No fechamento, escrever no `TODO.md` os quatro destinos da ordem r1 da 1.0 que ninguém escreveu (`.processo/ordens/1_task-r2.md` da linha 1): volume do `delete` no encerramento do ano (Infra e operação), reserva do expurgo da `aula` (LGPD e conformidade), rótulo "Registro da aula" em `Retencao.tsx` (para o Validador), S7 do `cenarios.md` (para a retro).
-- **Base:** `spec/semana-do-professor` em `bb5e0c3c` (encontro da correção `carga-da-semana`, 07/11 02:04; 8 de 8 tarefas). Esteira: verde em `d7af410` (42336344465); a de `bb5e0c3` roda: ler no fechamento
+- **Fechada** em 07/11/2026: M1 corrigida pelo `Arquiteto` (`5749137d`, só `docs/interface.md`), menores aceitas por mim (aviso da D79) e levadas ao `TODO.md`, com os quatro destinos da ordem r1 da 1.0 (o rótulo de `Retencao.tsx` fechou sem código, conferido pelo Validador). Esteira verde em `1ff830c` (42342337210); de lá à ponta só documento. Censo: 11 casos de fora da spec entre 2/3 e 90%, nenhum nos e2e da F2b: linha no `TODO.md`, sem correção. `linhas.ts fechar`: as três linhas sem nada fora da spec.
+- **Espero:** a palavra do Joaquim para o pouso (parada do passo 7, item 6). Vigia desligada. Depois do pouso: push da `develop`, esteira da `develop`, `maestri floor delete` das três linhas, e a retro ao lado da próxima spec (D86).
 
 ## Concluídas
 - 7.0 (linha 3), 07/11 ~00:56: `e1cbf49c`, uma tentativa; os sete revisores aprovaram na 2ª rodada. `Textarea.tsx` ganhou `contadorAnunciado` fora dos Arquivos previstos; para a retro e o Arquiteto: a linha 10.2 da interface para essa prop e três itens da tabela Sem aplicar (dica de Fechar sem salvar vs Preparar, Esc durante Salvando…, painel que fecha sozinho com rascunho).
@@ -36,6 +34,12 @@ Opções: A) peça nova `DaySelector` no catálogo (`components/ui`, linha na in
 Recomendo: A, porque mostra a semana inteira em botões, como o RF12 pede, e a peça volta a servir no calendário e no aluno.
 **Respondida em 06/11/2026 ~16:55: o Joaquim escolheu A** (no terminal do Arquiteto, confirmado no do Orquestrador). O Arquiteto reescreveu a §9 sem commit; vai no commit da 6.0, com a linha do `DaySelector` na interface 10.2.
 Seguem sem depender: a 3.0 (linha 1) e a 4.0 (linha 2), que são de API e não tocam a §9. A vigia continua ligada. A pergunta está aberta na sessão do Arquiteto, que não deve ser reiniciada até a resposta.
+## 07/11/2026 — F2b pouso
+Decisão: pousar `spec/semana-do-professor` na `develop` (e o push)?
+Contexto: validada (`validacao.md`, M1 corrigida, menores no `TODO.md`), esteira verde, linhas fechadas. Nenhum commit `Fora do processo:`.
+Opções: pousar | esperar
+Recomendo: pousar.
+
 ## O que falhou
 - 07/11 ~00:48, encontro da 8.0: VERIFICAÇÃO RECUSADA por estouro dos 180 s (carga 16, linha 3 em e2e); o 2º passou. É a segunda vez na noite: o prazo fixo do `linhas.ts encontro` não aguenta a máquina com outra linha testando.
 - 07/11 ~00:00, encontro da 5.0: 1º RECUSADO porque o andar tinha a techspec §9 e o cenarios T5 sem commit (a triagem da divergência da 8.0) e a 5.0 mexia nos mesmos arquivos; descartei a cópia do andar, que a linha 1 já tinha. 2º: VERIFICAÇÃO RECUSADA por estouro dos 180 s com carga 18 (linhas 1 e 3 em e2e), depois de a mesma verificação passar; o 3º passou. Para a retro: a edição sem commit do Arquiteto no andar trava o encontro de outra linha, e o prazo fixo da verificação cai com a máquina cheia.

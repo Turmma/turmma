@@ -481,7 +481,8 @@ foram para a F2c.
 **Pronto quando:** uma escola inteira entra sem ninguém ser cadastrado individualmente, professor incluído;
 a grade e o calendário importados geram a alocação; e a reimportação não duplica nem tira ninguém sozinha.
 
-## F2b — `semana-do-professor` [~]
+## F2b — `semana-do-professor` [x]
+Concluída em 07/11/2026, validada em tasks/prd-semana-do-professor/validacao.md.
 **Depende de:** F2
 
 A visão **Semana** em Turmas, que era o F8: a rotina por escola e turma, saída da grade e do calendário do F2,

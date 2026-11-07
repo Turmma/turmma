@@ -4,6 +4,8 @@ O que trava o projeto e não se resolve programando. Vários têm prazo externo.
 
 ## LGPD e conformidade — prioridade máxima
 
+- [ ] (semana-do-professor, 1.0, privacy-guardian, 1ª) **Reserva no expurgo da `aula`.** A escola que nunca encerra o ano guarda o texto da aula, e com ele
+      algum nome de aluno, sem limite. Rotina de reserva no expurgo, como a da `lista_nome`; muda retenção (dono: Arquiteto; fechamento da F2b, 07/11/2026)
 - [ ] Contrato de tratamento de dados escola↔nós, com advogado (escola controladora)
 - [ ] Contrato com provedor de IA vedando treinamento com nosso dado
 - [ ] Política de privacidade e termos, com seção de menor de idade
@@ -182,6 +184,9 @@ O que trava o projeto e não se resolve programando. Vários têm prazo externo.
 
 ## Infra e operação
 
+- [ ] (semana-do-professor, 1.0, infra-guardian, 1ª) **O `delete` da `aula` no encerramento do ano roda no request síncrono.** Dezenas de milhares de
+      linhas sob `statement_timeout`, e a gravação do `PUT /v1/aulas` espera no `for share` do ano. Escrever o cenário ou o parágrafo do runbook do
+      encerramento e conferir `BANCO_TIMEOUT_CONSULTA_MS` em produção (dono: Joaquim; anotado pelo Orquestrador no fechamento da F2b, 07/11/2026)
 - [ ] **(Telas do aluno, 3.0) A carga da rajada de login, passada pelo seed** (`revisor-geral` e `infra-guardian`, 1ª rodada): em
       `infra/scripts/carga-login.ts` o ano letivo e as datas do seed são fixos em 2026 (`matriculaSintetica` também); só importa
       quando a carga rodar depois de 2026. `semearTurmasEAtividades` recebe `pool` e o resto usa `banco` (duas conexões no mesmo seed);
@@ -2252,6 +2257,10 @@ repetem aqui.
       `escola-e-vinculos.spec.ts:211` (24,4 e 21,6) e `:271` (21,4), `operacao.spec.ts:45` (22,6 e 21,1) e `:125` (64,5 e 63,6 de 90), `convite.spec.ts:154`
       (22,2 e 21,8), `titulo-da-tela.spec.ts:138` (21,6) e `components-ai.spec.ts:205` (20,5). Os quatro da spec viraram a correção
       `2026-11-06-e2e-perto-do-prazo-da-f2` (dono: Orquestrador)
+- [ ] **(F2b, censo do fechamento, 07/11/2026) 11 casos de fora da spec entre 2/3 e 90% do prazo** na execução 42342337210 (`1ff830c`), dívida da develop,
+      os mesmos do item da F2 acima, nenhum acima de 90% e nenhum em arquivo de e2e da F2b: `alocacao.spec.ts:85` (77,8 e 70,5 s de 90), `mfa.spec.ts:14`
+      (24,9 e 23,6 de 30), `escola-e-vinculos.spec.ts:211` (24,0 e 21,6) e `:271` (20,3), `operacao.spec.ts:45` (21,6) e `:125` (62,2 de 90),
+      `titulo-da-tela.spec.ts:138` (21,4) e `convite.spec.ts:154` (20,2) (dono: Orquestrador)
 - [ ] **(X4, censo do e2e) 36 casos entre 2/3 e 90% do prazo, de antes da X4** (dívida da develop, decisão A do Joaquim em
       26/10/2026; detalhe em `.processo/ordens/diagnostico-censo.md` do andar da X4, §3), em três correções sem arquivo em duas:
       (1) **material**: `e2e/material.spec.ts`, 10 casos; (2) **entrada e sessão**: `convite`, `entrar`, `inatividade`, `areas`,
@@ -2929,3 +2938,26 @@ repetem aqui.
 - [ ] (semana-do-professor, 7.0, revisor-geral, 2ª) **O comentário de `preparar` em `PainelDaAula.tsx` é longo e fala do futuro (F11).** A orientação
       ("o texto da aula não vai ao Assistente sem revisão de privacidade") cabe melhor ao lado do item da F11 e em `docs/lgpd.md`; o comentário foi
       pedido pelo `privacy-guardian` na 1ª rodada e fica até lá. `docs/lgpd.md` não se edita nesta tarefa: dono, o Arquiteto, quando a F11 reabrir a ligação
+
+## Do fechamento da semana-do-professor (F2b), fora dela
+
+Menores da validação (`tasks/prd-semana-do-professor/validacao.md`, seção 4), anotados pelo Orquestrador em 07/11/2026; não seguram o pouso (D79).
+
+- [ ] (F2b, validação, m1) **A aula dupla que anda um horário inteiro troca os textos de lugar** (`texto-acompanha-a-grade.repository.ts:45`, `parear`):
+      7h30 e 8h20 passam a 8h20 e 9h10, e a das 8h20 fica com o texto da segunda aula. É o que o RF14 escreve e nenhum texto se perde, mas o
+      planejamento fica na ordem trocada. Decidir no PRD da próxima fase que mexer na reimportação se o pareamento de vínculo e dia que muda mais de
+      uma aula é por posição (dono: Arquiteto e Joaquim, produto)
+- [ ] (F2b, validação, m2) **A prop `contadorAnunciado` do `Textarea` (7.0) não está no catálogo** (`docs/interface.md` 10.2). Também está no `estado.md`
+      para a retro (dono: Arquiteto)
+- [ ] (F2b, validação, m3) **`docs/modelo-de-dados.md`, parágrafo da `Aula`:** "a rota `PUT /v1/aulas` (F2b, 2.0)" é da 4.0 (dono: Arquiteto)
+- [ ] (F2b, validação, m4) **T8 sem e2e para "Semana de recesso" e "O ano letivo ainda não começou"** (`e2e/professor-semana.spec.ts:288`): só unidade e
+      jsdom. Já listado no grupo da 6.0; fica aqui para não sumir (dono: test-engineer)
+- [ ] (F2b, validação, m6) **`--clicar` da vitrine espera o clique nos dois tamanhos** (`tools/vitrine/foto.ts:234`): controle que só existe no celular (o
+      `DaySelector`) estoura o prazo no computador e a chamada morre. A vitrine sem grade já está no grupo da 8.0 (dono: Orquestrador, processo)
+- [ ] (F2b, validação, m7) **"Sala {sala}" vira "Sala Laboratório de Ciências"** (`CartaoDaAula.tsx:50`, `PainelDaAula.tsx:101`) quando a planilha traz o
+      nome do ambiente. Gosto, não defeito (dono: frontend-reviewer, na próxima tarefa que tocar esses arquivos)
+- [ ] (F2b, 1.0, revisor-geral, 1ª) **O S7 do `cenarios.md` fala de vínculo "encerrado antes por realocação", e o caso usa o vínculo desligado.** O teste
+      cobre os dois; o texto é da spec (dono: Arquiteto, para a retro)
+
+O m5 (os quatro destinos da ordem r1 da 1.0) está nas linhas acima e nos grupos "Infra e operação" e "LGPD e conformidade"; o quarto, o rótulo "Registro da
+aula" em `Retencao.tsx`, o Validador conferiu: a tela já o mostra pela descrição de `PRAZOS_FIXOS`, e o item fecha sem código.
