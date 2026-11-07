@@ -1,7 +1,7 @@
 # Estado da execução — acesso-e-convites
 
 ## Agora
-- **Espero:** o `RELATÓRIO` do `Implementador` (linha 1) da correção `2026-11-07-restos-ve-arquivo-novo`, 1ª tentativa, guardiões `revisor-geral` e `test-engineer`. **Tarefas prontas** (`8d34c1a2`, 16, lista mostrada às 07/11 11:24): aviso enviado; **a construção começa às 11:54**, na primeira vigia depois da hora sem palavra do Joaquim, e só depois do encontro da correção na linha 1 (as outras linhas podem partir antes).
+- **Espero:** o `RELATÓRIO` do `Implementador` (linha 1) da correção `2026-11-07-restos-ve-arquivo-novo`, 1ª tentativa, desde 11:04, guardiões `revisor-geral` e `test-engineer`. O `RELATÓRIO` do `Implementador 2` (linha 2) da **tarefa 1.0** (porte grande), 1ª tentativa, desde 07/11 11:30. A construção começou às 07/11 11:30 pela palavra do Joaquim ("pode começar a construção agora"), antes das 11:54 do aviso.
 - **Devo ainda:** o provedor de e-mail segue aberto: segura o portão, não as tarefas. Com a lista de tarefas, o aviso das 30 min (passo 7); a construção começa depois do encontro da correção.
 - **Base:** `spec/acesso-e-convites` em `6c1d43c9`
 
