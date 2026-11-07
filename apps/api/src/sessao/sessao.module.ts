@@ -2,6 +2,7 @@ import {
   throttledWarn,
   createApiRedisClient,
   TokenIssuer,
+  SecretCipher,
   globalMeter,
   type Database,
   type AuthConfig,
@@ -26,7 +27,6 @@ import { RegistroDeAtividade } from './atividade/atividade.service.js'
 import { AlunosAtivosRepository } from './atividade/alunos-ativos.repository.js'
 import { LoginLockout } from '../credencial/login-lockout.js'
 import { DeviceCookie } from '../credencial/device-cookie.js'
-import { SecretCipher } from '../credencial/secret-cipher.js'
 import { REDIS_LOGIN_CLIENT } from '../credencial/login-redis-client.js'
 import { ConclusaoDeLogin } from './completion/login-completion.js'
 import { ConviteTicket } from './convite/convite-ticket.js'

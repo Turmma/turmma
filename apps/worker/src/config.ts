@@ -3,10 +3,12 @@ import {
   loadDatabaseConfig,
   lerJanelaPadrao,
   loadTelemetryConfig,
+  loadEmailConfig,
   lerVagasPadrao,
   isEscolaConcurrencyLimitDisabled,
   validateEnvironment,
   type DatabaseConfig,
+  type EmailConfig,
   type TelemetryConfig,
   type JanelaLetiva,
   type ConcurrencyByQueue,
@@ -87,6 +89,11 @@ export interface WorkerConfig {
    * do fuso da escola a data local da chave (F3, tarefa 3.0).
    */
   janelaPadrao?: JanelaLetiva
+  /**
+   * Só na réplica que atende a fila `normal`, onde sai o e-mail do convite (acesso-e-convites, 1.0): o adaptador, a chave que
+   * decifra o token e o endereço, e o endereço público da web. As outras réplicas não mandam e-mail e não precisam dela.
+   */
+  email?: EmailConfig
   /** Para onde e de quanto em quanto tempo as métricas vão. */
   telemetria: TelemetryConfig
 }
@@ -115,6 +122,8 @@ export function loadConfig(ambiente: Record<string, string | undefined>): Worker
   const atendeStorage = atendeLote || filas?.FILAS.includes('normal') === true
   const storage = atendeStorage ? ler(() => validateEnvironment(storageSchema, ambiente)) : undefined
   const janelaPadrao = atendeLote ? ler(() => lerJanelaPadrao(ambiente)) : undefined
+  const atendeEmail = filas?.FILAS.includes('normal') === true
+  const email = atendeEmail ? ler(() => loadEmailConfig(ambiente)) : undefined
   const telemetria = ler(() => loadTelemetryConfig(ambiente))
   if (
     telemetria === undefined ||
@@ -125,6 +134,7 @@ export function loadConfig(ambiente: Record<string, string | undefined>): Worker
     vagasPadrao === undefined ||
     vagasDesligadas === undefined ||
     (atendeStorage && storage === undefined) ||
+    (atendeEmail && email === undefined) ||
     (atendeLote && janelaPadrao === undefined)
   ) {
     throw new InvalidConfigError(problemas.flatMap((erro) => erro.variaveis).sort(), problemas.flatMap((erro) => erro.motivos))
@@ -138,6 +148,7 @@ export function loadConfig(ambiente: Record<string, string | undefined>): Worker
     ...(vagasDesligadas ? { vagasPorEscolaDesligadas: true as const } : {}),
     telemetria,
     ...(janelaPadrao === undefined ? {} : { janelaPadrao }),
+    ...(email === undefined ? {} : { email }),
     ...(storage === undefined
       ? {}
       : {

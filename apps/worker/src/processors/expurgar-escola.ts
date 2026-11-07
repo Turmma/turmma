@@ -23,7 +23,7 @@ import { JobFailureError } from '../job-failure.error.js'
 export const LOTE_DOS_ARQUIVOS_DO_TITULAR = 100
 
 export interface ExpurgoDaEscolaDependencies {
-  repositorio: Pick<ExpurgoDaEscolaRepository, 'expurgarLote' | 'expurgarRegistroDoExpurgo' | 'registrar' | 'categoriaPendente' | 'enfileirarEliminacoes' | 'fecharImportacoesParadas'>
+  repositorio: Pick<ExpurgoDaEscolaRepository, 'expurgarLote' | 'expurgarRegistroDoExpurgo' | 'registrar' | 'categoriaPendente' | 'enfileirarEliminacoes' | 'fecharImportacoesParadas' | 'fecharEnviosParados'>
   /** A porta de entrada do trabalho demorado: o job `titular.eliminar` de cada pedido de eliminação vencido sai por ela (F3, tarefa 15.0). */
   enfileirador: Pick<JobOutbox, 'enfileirarUmaVez'>
   /** Os arquivos do titular vencidos ou marcados `apagado_em` (F3, tarefa 13.0): o objeto sai do storage, e só então a linha. */
@@ -61,6 +61,8 @@ export interface ExpurgoDaEscolaDependencies {
  *   `eliminacao_enfileirada_em` (a trava do cancelamento). O trabalho em si é do job `titular.eliminar`.
  * - **Depois, a importação de planilha parada** (F2, 5.0): a `na_fila` da escola de mais de 1 h fecha `falhou` (`expirou`), com `linhas` e
  *   `marcas` nulas, contada do relógio do job e com `skip locked`. A final sai 90 dias depois, pelo `sistema.expurgar-acesso`.
+ * - **Depois, o envio de e-mail do convite parado** (acesso-e-convites, 1.0): o envio `na_fila` ou `enviando` de mais de 24 h, contadas do `criado_em` do
+ *   convite e do relógio do job, fecha `falhou` e perde o token e o endereço cifrados. Na pior hipótese isso leva cerca de 48 h (a noite seguinte).
  * - Loga só a categoria (sob `tipo`) e as contagens; a escola vai pelo contexto, nunca uma linha.
  */
 export function criarExpurgoDaEscola({ repositorio, arquivos, armazem, retencao, janelaDaEscola, enfileirador, relogio, logger, lote = LOTE_DO_EXPURGO }: ExpurgoDaEscolaDependencies): JobProcessor<typeof TIPO_EXPURGAR_ESCOLA> {
@@ -73,6 +75,8 @@ export function criarExpurgoDaEscola({ repositorio, arquivos, armazem, retencao,
     const { enfileirados: eliminacoesTotal, jaEnfileirados: eliminacoesJaEnfileiradasTotal } = await repositorio.enfileirarEliminacoes(enfileirador)
     // A importação de planilha parada na fila por mais de 1 h (F2, 5.0): fecha `falhou` e perde as linhas e as marcas, antes de o dia de 90 dias contar.
     const importacoesFechadasTotal = await repositorio.fecharImportacoesParadas(agora)
+    // O e-mail do convite que ficou 24 h sem sair (acesso-e-convites, 1.0): fecha `falhou` e perde o token e o endereço cifrados.
+    const enviosFechadosTotal = await repositorio.fecharEnviosParados(agora)
     const prazos = new Map(retencaoDaEscola(await retencao.ajustes()).map(({ categoria, meses }) => [categoria, meses]))
     const janela = await janelaDaEscola.daEscola()
     // Primeiro os arquivos do titular (F3, tarefa 13.0): o objeto sai do storage e só então a linha. O que o storage não
@@ -138,6 +142,7 @@ export function criarExpurgoDaEscola({ repositorio, arquivos, armazem, retencao,
       eliminacoesTotal,
       eliminacoesJaEnfileiradasTotal,
       importacoesFechadasTotal,
+      enviosFechadosTotal,
     })
   }
 }

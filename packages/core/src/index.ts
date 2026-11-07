@@ -24,6 +24,31 @@ export {
   validateEnvironment,
 } from './config/validate-config.js'
 export type { Environment, AuthConfig } from './config/validate-config.js'
+export { SecretCipher, SecretDecryptionError } from './cripto/secret-cipher.js'
+export type { CipheredSecret } from './cripto/secret-cipher.js'
+export {
+  ADAPTADORES_DE_EMAIL,
+  BYTES_DA_CHAVE_DO_TOKEN_DE_EMAIL,
+  emailEnvSchema,
+  loadEmailConfig,
+  MOTIVO_EMAIL_FALSO_EM_PRODUCAO,
+  MOTIVO_EMAIL_NO_MAILPIT,
+  MOTIVO_EMAIL_SEM_PROVEDOR_ID,
+  MOTIVO_EMAIL_SEM_SERVIDOR,
+  MOTIVO_EMAIL_SEM_TLS,
+  VERSAO_DA_CHAVE_DO_TOKEN_DE_EMAIL,
+} from './email/email-config.js'
+export type { EmailAdapterKind, EmailConfig } from './email/email-config.js'
+export { EmailSendError } from './email/email-sender.js'
+export type { EmailSender, MensagemDeEmail, NaturezaDaFalhaDeEmail } from './email/email-sender.js'
+export { criarEmailSender } from './email/criar-email-sender.js'
+export { EnvioRepository, MINUTOS_DA_RESERVA_DO_ENVIO } from './email/envio.repository.js'
+export type { ReservaDoEnvio } from './email/envio.repository.js'
+export { FakeEmailSender } from './email/fake-email-sender.js'
+export { mensagemDoConvite } from './email/mensagem-do-convite.js'
+export { opcoesDoTransporte, PRAZO_DO_ENVIO_SMTP_MS, SmtpEmailSender } from './email/smtp-email-sender.js'
+export type { SmtpConfig } from './email/smtp-email-sender.js'
+export { CANCELAR_O_ENVIO_DO_CONVITE } from './convite/cancelar-envio.js'
 export { pingDatabase, createPool, isConnectionError } from './db/pool.js'
 export type { DatabaseConfig, DatabasePool } from './db/pool.js'
 export { createDatabase, loadDatabaseConfig, schema } from './db/database.js'

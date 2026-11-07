@@ -15,6 +15,13 @@ export const TICKET_TYPE = 'convite+jwt'
 export const TICKET_AUDIENCE = 'sessao'
 /** A pessoa aceita o link e entra logo em seguida: meia hora cobre o caminho, e o bilhete não vira porta dias depois. */
 export const TICKET_TTL_SECONDS = 30 * 60
+/**
+ * A folga do relógio entre emitir e conferir: o `jose` recusa o `iat` que está no futuro (e só com `maxTokenAge`, sem
+ * folga nenhuma), e dois relógios que diferem de 1 s (duas instâncias da API, ou o relógio que recua depois do aceite)
+ * bastavam para o bilhete ser descartado em silêncio e o login seguir sem ativar o usuário. A idade é conferida aqui, em
+ * segundos: até 30 min depois do `iat` e até esta folga antes dele. O `exp`, exato, continua com o `jose`.
+ */
+export const TICKET_CLOCK_TOLERANCE_SECONDS = 30
 
 export interface VerifiedConviteTicket {
   readonly contaId: string
@@ -47,17 +54,19 @@ export class ConviteTicket {
    */
   async verificar(bilhete: string): Promise<VerifiedConviteTicket | undefined> {
     let claims: unknown
+    const agora = this.relogio.agora()
     try {
       const verificado = await jwtVerify(bilhete, this.chaveAssinatura, {
         algorithms: ['HS256'],
         typ: TICKET_TYPE,
         issuer: EMISSOR_TOKEN,
         audience: TICKET_AUDIENCE,
-        requiredClaims: ['exp'],
-        maxTokenAge: TICKET_TTL_SECONDS,
-        currentDate: this.relogio.agora(),
+        requiredClaims: ['exp', 'iat'],
+        currentDate: agora,
       })
       claims = verificado.payload
+      const idade = Math.floor(agora.getTime() / 1_000) - (verificado.payload.iat ?? 0)
+      if (idade > TICKET_TTL_SECONDS || idade < -TICKET_CLOCK_TOLERANCE_SECONDS) return undefined
     } catch (erro) {
       if (erro instanceof errors.JOSEError) return undefined
       throw erro

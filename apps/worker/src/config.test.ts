@@ -10,8 +10,18 @@ const storageValido = {
   STORAGE_CHAVE_SECRETA: 'segredo_sintetico_xyz',
 }
 
+/** O e-mail do convite (acesso-e-convites, tarefa 1.0): só a chave e o endereço da web são obrigatórios; o adaptador padrão é o falso. */
+const emailValido = {
+  EMAIL_TOKEN_KEY: 'chave-sintetica-do-email-com-32-caracteres',
+  EMAIL_URL_DA_WEB: 'http://web.teste:8080/',
+}
+
+/** O e-mail que o worker aceita em produção: SMTP de provedor contratado, com TLS e o id do suboperador. */
+const emailDeProducao = { EMAIL_ADAPTADOR: 'smtp', EMAIL_SMTP_HOST: 'smtp.provedor.example', EMAIL_SMTP_TLS: 'true', EMAIL_PROVEDOR_ID: 'provedor-sintetico' }
+
 const ambienteValido = {
   ...storageValido,
+  ...emailValido,
   AMBIENTE: 'local',
   VAGAS_POR_ESCOLA_DESLIGADAS: 'false',
   WORKER_THREADS_MAXIMO: '2',
@@ -53,7 +63,9 @@ function erroDe(ambiente: Record<string, string | undefined>): InvalidConfigErro
 
 describe('lerConfiguracao do worker', () => {
   it('converte o ambiente: só as filas de FILAS, cada uma com o próprio pool', () => {
-    expect(loadConfig(ambienteValido)).toEqual({
+    const { email, ...configuracao } = loadConfig(ambienteValido)
+    expect(email).toMatchObject({ adaptador: 'falso', urlDaWeb: 'http://web.teste:8080' })
+    expect(configuracao).toEqual({
       banco: { url: ambienteValido.BANCO_URL, maximoConexoes: 80, timeoutConexaoMs: 2000, timeoutConsultaMs: 2000 },
       redisFilaUrl: 'redis://redis-fila:6379',
       pools: { interativa: 50, normal: 30 },
@@ -62,6 +74,24 @@ describe('lerConfiguracao do worker', () => {
       telemetria: { otlpUrl: 'http://observabilidade:4318', intervaloMs: 5000 },
       storage: { url: 'http://storage:8333', regiao: 'us-east-1', bucket: 'educa-local', chaveAcesso: 'chave_sintetica', chaveSecreta: 'segredo_sintetico_xyz' },
     })
+  })
+
+  it.each(Object.keys(emailValido))('quem atende a fila normal não sobe sem %s: o e-mail do convite sai dela (acesso-e-convites, tarefa 1.0)', (variavel) => {
+    expect(erroDe({ ...ambienteValido, [variavel]: undefined }).variaveis).toEqual([variavel])
+  })
+
+  it('quem atende só a interativa ou só o lote sobe sem nenhuma variável do e-mail, e a configuração não a leva', () => {
+    const semEmail = Object.fromEntries(Object.keys(emailValido).map((variavel) => [variavel, undefined]))
+    expect(loadConfig({ ...ambienteValido, ...semEmail, ...soInterativa })).not.toHaveProperty('email')
+    // Com as variáveis do e-mail presentes, a réplica que não manda e-mail também não as lê.
+    expect(loadConfig({ ...ambienteValido, ...soInterativa })).not.toHaveProperty('email')
+    expect(loadConfig({ ...ambienteValido, ...semEmail, ...janelaValida, FILAS: 'lote', WORKER_POOL_LOTE: '10' })).not.toHaveProperty('email')
+  })
+
+  it('o worker da fila normal recusa a partida com o e-mail falso em produção, e a mensagem cita só a variável', () => {
+    const erro = erroDe({ ...ambienteValido, AMBIENTE: 'producao', EMAIL_ADAPTADOR: 'falso' })
+    expect(erro.variaveis).toEqual(['EMAIL_ADAPTADOR'])
+    expect(erro.message).not.toContain(emailValido.EMAIL_TOKEN_KEY)
   })
 
   it('o worker-lote atende só o lote, e o pool de outra fila no ambiente não liga a fila', () => {
@@ -127,7 +157,7 @@ describe('lerConfiguracao do worker', () => {
   })
 
   it('recusa subir com VAGAS_POR_ESCOLA_DESLIGADAS=true e AMBIENTE=producao: a flag de teste não vira porta aberta', () => {
-    const erro = erroDe({ ...ambienteValido, AMBIENTE: 'producao', VAGAS_POR_ESCOLA_DESLIGADAS: 'true' })
+    const erro = erroDe({ ...ambienteValido, ...emailDeProducao, AMBIENTE: 'producao', VAGAS_POR_ESCOLA_DESLIGADAS: 'true' })
     expect(erro.variaveis).toEqual(['VAGAS_POR_ESCOLA_DESLIGADAS'])
     expect(erro.motivos).toEqual([MOTIVO_VAGAS_DESLIGADAS_EM_PRODUCAO])
   })

@@ -1,4 +1,4 @@
-import { DomainException, createDatabase, createPool, runInContext, schema, type DatabaseTransaction } from '@educa/core'
+import { DomainException, createDatabase, createPool, runInContext, schema, SecretCipher, type DatabaseTransaction } from '@educa/core'
 import { CicloDeVidaRepository, CicloDeVidaService } from '@educa/core/ciclo-de-vida'
 import { ErrorCode, conviteDeProfessorResponseSchema, decisaoResponseSchema, listaDeProfessoresResponseSchema, type PapelDeUsuario } from '@educa/shared'
 import { sql } from 'drizzle-orm'
@@ -10,7 +10,8 @@ import { Secret, TOTP } from 'otpauth'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
-import { SecretCipher, REDIS_LOGIN_CLIENT, gerarCodigosDeRecuperacao, gerarSegredo, PasswordHasher, hmacDaRecuperacao } from '../src/credencial/index.js'
+import { REDIS_LOGIN_CLIENT, gerarCodigosDeRecuperacao, gerarSegredo, PasswordHasher, hmacDaRecuperacao } from '../src/credencial/index.js'
+import { anteciparODesativado } from './relogio-que-recua.js'
 import { chamar, subirApi, type TestApi } from './test-api.js'
 import { testConfig } from './test-config.js'
 import { montarEscolaComTurma, type EscolaComTurma } from './escola-turma.fixture.js'
@@ -191,7 +192,7 @@ describe('ciclo de vida da conta: desativação, limpeza da conta global e elimi
   async function auditoriaDoCiclo(escolaId: string): Promise<Array<Record<string, unknown>>> {
     const { rows } = await bancada.pool.query(
       `select acao, entidade, entidade_id, autor_usuario_id, autor_operador, antes, depois, finalidade, em from auditoria
-       where escola_id = $1 and acao in ('usuario.desativado', 'usuario.eliminado', 'conta_externa.desligada') order by em, id`,
+       where escola_id = $1 and acao in ('usuario.desativado', 'usuario.eliminado', 'conta_externa.desligada') order by xmin::text::bigint, id`,
       [escolaId],
     )
     return rows
@@ -833,6 +834,47 @@ describe('ciclo de vida da conta: desativação, limpeza da conta global e elimi
       ])
     })
 
+    it.each(['na_fila', 'enviando'] as const)(
+      'defesa do desativar com o convite aberto por e-mail em `%s`: o convite é revogado e o envio vira `cancelado`, sem o token e o endereço cifrados nem a reserva (acesso-e-convites, 1.0)',
+      async (envio) => {
+        const escolaId = await bancada.escola()
+        const coordenacao = await bancada.sessao(escolaId, 'coordenador')
+        const professor = await pessoa(escolaId)
+        const token = randomBytes(32).toString('base64url')
+        const { rows } = await bancada.pool.query<{ id: string }>(
+          `insert into convite (escola_id, token_hash, tipo, usuario_id, expira_em, canal, envio, token_cifrado, destino_cifrado, envio_reservado_em)
+           values ($1, $2, 'professor', $3, now() + interval '72 hours', 'email', $4::text, $5, $6, case when $4::text = 'enviando' then now() end) returning id`,
+          [escolaId, createHash('sha256').update(token).digest('hex'), professor.usuarioId, envio, Buffer.from('token-cifrado'), Buffer.from('destino-cifrado')],
+        )
+        const conviteId = rows[0]?.id ?? ''
+
+        await pela(coordenacao, () => cicloDoPool.desativar(professor.usuarioId))
+
+        expect(
+          (await bancada.pool.query('select envio, token_cifrado, destino_cifrado, envio_reservado_em, enviado_em, revogado_em is not null as revogado from convite where id = $1', [conviteId])).rows,
+        ).toEqual([{ envio: 'cancelado', token_cifrado: null, destino_cifrado: null, envio_reservado_em: null, enviado_em: null, revogado: true }])
+        expect((await postar('/v1/convites/aceitar', { token })).status).toBe(404)
+      },
+    )
+
+    it('professor pendente com o envio `na_fila`: o desativar responde NAO_ENCONTRADO, igual ao inexistente, e o envio fica como estava, com os cifrados (acesso-e-convites, 1.0)', async () => {
+      const escola = await montarEscolaComTurma(api, bancada)
+      const escolaId = escola.coordenacao.escolaId
+      const { usuarioId, conviteId } = await cadastrado(escola)
+      await bancada.pool.query(
+        "update convite set canal = 'email', envio = 'na_fila', token_cifrado = $2, destino_cifrado = $3 where id = $1",
+        [conviteId, Buffer.from('token-cifrado'), Buffer.from('destino-cifrado')],
+      )
+      const antes = (await bancada.pool.query('select envio, token_cifrado, destino_cifrado, revogado_em from convite where id = $1', [conviteId])).rows
+
+      await esperarNaoEncontrado(pela(escola.coordenacao, () => cicloDoPool.desativar(usuarioId)))
+      await esperarNaoEncontrado(pela(escola.coordenacao, () => cicloDoPool.desativar(randomUUID())))
+
+      expect((await bancada.pool.query('select envio, token_cifrado, destino_cifrado, revogado_em from convite where id = $1', [conviteId])).rows).toEqual(antes)
+      expect(antes).toEqual([{ envio: 'na_fila', token_cifrado: Buffer.from('token-cifrado'), destino_cifrado: Buffer.from('destino-cifrado'), revogado_em: null }])
+      expect(await auditoriaDa(escolaId, 'convite.revogado')).toEqual([])
+    })
+
     it('o acesso da turma que o professor gerou é revogado pela desativação, que encerra os vínculos antes; o gerado por outro professor fica', async () => {
       const s = await sala.montar()
       const colega = await bancada.sessao(s.escolaId, 'professor')
@@ -1168,6 +1210,7 @@ describe('ciclo de vida da conta: desativação, limpeza da conta global e elimi
       const cadastro = await chamar(api.url, 'POST', '/v1/professores', escola.coordenacao.token, { nome: quem.nome, email: quem.email })
       expect(cadastro.status).toBe(201)
       const { usuarioId, conviteId, token } = conviteDeProfessorResponseSchema.parse(cadastro.corpo)
+      await anteciparODesativado(bancada.pool, usuarioId)
       if (comVinculo) {
         const alocado = await chamar(api.url, 'POST', '/v1/vinculos', escola.coordenacao.token, { usuarioId, turmaId: escola.turma, disciplinaId: escola.quimica, papel: 'professor' })
         expect(alocado.status).toBe(201)
@@ -1183,6 +1226,7 @@ describe('ciclo de vida da conta: desativação, limpeza da conta global e elimi
       const cadastro = await chamar(api.url, 'POST', '/v1/professores', escola.coordenacao.token, { nome: `Professor Sintético ${randomUUID().slice(0, 8)}`, email })
       expect(cadastro.status).toBe(201)
       const { usuarioId, conviteId, token } = conviteDeProfessorResponseSchema.parse(cadastro.corpo)
+      await anteciparODesativado(bancada.pool, usuarioId)
       return { usuarioId, conviteId, token }
     }
 

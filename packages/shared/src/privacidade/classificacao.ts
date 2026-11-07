@@ -142,7 +142,8 @@ export const CLASSIFICACAO_DAS_TABELAS: Readonly<Record<string, ClassificacaoDaT
 /**
  * Colunas que nunca entram no arquivo do titular, em nenhuma versão (Tech Spec do F3, seção 3): todo hash de senha, de
  * token e de cookie, o segredo do segundo fator e o que o acompanha, os códigos de recuperação, a chave de envio e o
- * identificador opaco da conta externa (`sujeito` e `tenant`). Como `tabela.coluna`; o teste de arquitetura confere que
+ * identificador opaco da conta externa (`sujeito` e `tenant`), mais o token e o endereço cifrados do convite que espera o e-mail
+ * (`convite.token_cifrado` e `convite.destino_cifrado`, acesso-e-convites 1.0). Como `tabela.coluna`; o teste de arquitetura confere que
  * cada uma existe, e que toda coluna com nome de segredo (inclusive o estado do segundo fator, `mfa_*`, menos a data de
  * ativação) está aqui. A `chave_objeto` do arquivo (13.0) e a `chave_envio` do pedido (11.0) entraram com as tabelas deles.
  */
@@ -158,6 +159,8 @@ export const COLUNAS_FORA_DO_ARQUIVO: readonly string[] = [
   'sessao.refresh_hash',
   'sessao.refresh_hash_anterior',
   'convite.token_hash',
+  'convite.token_cifrado',
+  'convite.destino_cifrado',
   'acesso_turma.token_hash',
   'acesso_turma.codigo_hmac',
   'reivindicacao.senha_hash',

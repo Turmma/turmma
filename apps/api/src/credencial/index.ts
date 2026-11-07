@@ -1,7 +1,6 @@
 // A porta de `credencial/`: o que serve a todo login (hash, cifra, cookie, contador, desafio e os repositories que gravam a sessão).
 // Fora de `credencial/` e de `sessao/`, só se importa daqui, e cada símbolo é exportado pelo nome (nunca `export *`).
 export { AcessoDaEscolaRepository } from './acesso-publico.repository.js'
-export { SecretCipher, SecretDecryptionError } from './secret-cipher.js'
 export { REDIS_LOGIN_CLIENT } from './login-redis-client.js'
 export { MOTIVO_PRAZO_DO_REDIS_DO_LOGIN, PRAZO_MINIMO_DO_REDIS_DO_LOGIN_MS, loadLoginConfig } from './login-config.js'
 export type { LoginConfig } from './login-config.js'

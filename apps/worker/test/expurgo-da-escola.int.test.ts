@@ -87,6 +87,7 @@ const CHAVES_DO_LOG = new Set([
   'eliminacoesTotal',
   'eliminacoesJaEnfileiradasTotal',
   'importacoesFechadasTotal',
+  'enviosFechadosTotal',
   'categoriasTotal',
   'escolasTotal',
   'enfileiradosTotal',
@@ -729,6 +730,96 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
       await rodar(a.escolaId, expurgo(relogioEm(QUARTA_1H)))
       const finais = log.doEvento('retencao.expurgada').filter((linha) => linha['escolaId'] === a.escolaId)
       expect(finais).toEqual([expect.objectContaining({ importacoesFechadasTotal: 1 })])
+    })
+  })
+
+  describe('envio de convite parado (acesso-e-convites, tarefa 1.0)', () => {
+    interface LinhaDoEnvio {
+      readonly envio: string | null
+      readonly token: Buffer | null
+      readonly destino: Buffer | null
+      readonly reservadoEm: Date | null
+    }
+
+    /** Um convite de professor por e-mail, criado `horasAtras` antes da quarta 1h, no estado de envio pedido, com os cifrados que esse estado carrega. */
+    async function envioDe(escolaId: string, envio: 'na_fila' | 'enviando' | 'enviado' | 'cancelado', horasAtras: number): Promise<string> {
+      const { rows: contas } = await bancada.pool.query<{ id: string }>('insert into conta (email) values ($1) returning id', [`convidada-${randomUUID()}@expurgo.invalid`])
+      const { rows: usuarios } = await bancada.pool.query<{ id: string }>(
+        "insert into usuario (escola_id, conta_id, papel, nome, desativado_em) values ($1, $2, 'professor', 'Professora sintética do envio', now()) returning id",
+        [escolaId, contas[0]?.id],
+      )
+      const aberto = envio === 'na_fila' || envio === 'enviando'
+      const { rows } = await bancada.pool.query<{ id: string }>(
+        `insert into convite (escola_id, token_hash, tipo, usuario_id, expira_em, canal, envio, token_cifrado, destino_cifrado, envio_reservado_em, criado_em)
+         values ($1, $2, 'professor', $3, now() + interval '7 days', 'email', $4::text, $5, $6, case when $4::text = 'enviando' then now() end, $7::timestamptz - $8::numeric * interval '1 hour')
+         returning id`,
+        [escolaId, randomUUID().replaceAll('-', '').repeat(2), usuarios[0]?.id, envio, aberto ? Buffer.from('token-cifrado') : null, aberto ? Buffer.from('destino-cifrado') : null, QUARTA_1H.toISOString(), horasAtras],
+      )
+      const id = rows[0]?.id
+      if (id === undefined) throw new Error('convite de teste não criado')
+      return id
+    }
+
+    async function envioDoConvite(id: string): Promise<LinhaDoEnvio> {
+      const { rows } = await bancada.pool.query<LinhaDoEnvio>('select envio, token_cifrado as token, destino_cifrado as destino, envio_reservado_em as "reservadoEm" from convite where id = $1', [id])
+      const linha = rows[0]
+      if (linha === undefined) throw new Error('convite de teste sumiu')
+      return linha
+    }
+
+    it('relógio falso: com 23 h o `na_fila` e o `enviando` ficam; com 25 h fecham `falhou` sem os cifrados e sem a reserva; a mesma idade na escola B fica', async () => {
+      const a = await escolaNova()
+      const b = await escolaNova()
+      const naFilaNova = await envioDe(a.escolaId, 'na_fila', 23)
+      const enviandoNovo = await envioDe(a.escolaId, 'enviando', 23)
+      const naFilaVelho = await envioDe(a.escolaId, 'na_fila', 25)
+      const enviandoVelho = await envioDe(a.escolaId, 'enviando', 25)
+      const deB = await envioDe(b.escolaId, 'na_fila', 25)
+
+      await rodar(a.escolaId, expurgo(relogioEm(QUARTA_1H)))
+
+      expect(await envioDoConvite(naFilaNova)).toMatchObject({ envio: 'na_fila', token: expect.any(Buffer) as Buffer, destino: expect.any(Buffer) as Buffer })
+      expect(await envioDoConvite(enviandoNovo)).toMatchObject({ envio: 'enviando', token: expect.any(Buffer) as Buffer })
+      expect(await envioDoConvite(naFilaVelho)).toEqual({ envio: 'falhou', token: null, destino: null, reservadoEm: null })
+      expect(await envioDoConvite(enviandoVelho)).toEqual({ envio: 'falhou', token: null, destino: null, reservadoEm: null })
+      expect(await envioDoConvite(deB)).toMatchObject({ envio: 'na_fila', token: expect.any(Buffer) as Buffer })
+    })
+
+    it('o convite já `enviado` ou `cancelado`, com 48 h, não é tocado', async () => {
+      const a = await escolaNova()
+      const enviado = await envioDe(a.escolaId, 'enviado', 48)
+      const cancelado = await envioDe(a.escolaId, 'cancelado', 48)
+      await rodar(a.escolaId, expurgo(relogioEm(QUARTA_1H)))
+      expect(await envioDoConvite(enviado)).toMatchObject({ envio: 'enviado' })
+      expect(await envioDoConvite(cancelado)).toMatchObject({ envio: 'cancelado' })
+    })
+
+    it('[P] com outra conexão segurando a linha (`for update`), o expurgo pula (`skip locked`) e não espera; solta a trava, a noite seguinte a fecha', async () => {
+      const a = await escolaNova()
+      const parado = await envioDe(a.escolaId, 'na_fila', 30)
+      const segurador = await bancada.pool.connect()
+      try {
+        await segurador.query('begin')
+        await segurador.query('select id from convite where id = $1 for update', [parado])
+        const inicio = Date.now()
+        await rodar(a.escolaId, expurgo(relogioEm(QUARTA_1H)))
+        expect(Date.now() - inicio).toBeLessThan(10_000)
+        expect(await envioDoConvite(parado)).toMatchObject({ envio: 'na_fila', token: expect.any(Buffer) as Buffer })
+      } finally {
+        await segurador.query('rollback')
+        segurador.release()
+      }
+      await rodar(a.escolaId, expurgo(relogioEm(QUARTA_1H)))
+      expect(await envioDoConvite(parado)).toEqual({ envio: 'falhou', token: null, destino: null, reservadoEm: null })
+    })
+
+    it('a contagem vai ao log como `enviosFechadosTotal`, e nenhuma linha do convite', async () => {
+      const a = await escolaNova()
+      await envioDe(a.escolaId, 'na_fila', 30)
+      await envioDe(a.escolaId, 'enviando', 30)
+      await rodar(a.escolaId, expurgo(relogioEm(QUARTA_1H)))
+      const finais = log.doEvento('retencao.expurgada').filter((linha) => linha['escolaId'] === a.escolaId)
+      expect(finais).toEqual([expect.objectContaining({ enviosFechadosTotal: 2 })])
     })
   })
 

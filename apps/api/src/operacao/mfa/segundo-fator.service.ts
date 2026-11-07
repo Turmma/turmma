@@ -1,4 +1,4 @@
-import { currentContext, DomainException, runInContext, systemClock, type Environment, type Database, type OperadorTokenIssuer, type Clock } from '@educa/core'
+import { currentContext, DomainException, runInContext, SecretDecryptionError, systemClock, type SecretCipher, type Environment, type Database, type OperadorTokenIssuer, type Clock } from '@educa/core'
 import {
   ErrorCode,
   type ConfigurarSegundoFatorDeOperadorRequest,
@@ -8,7 +8,7 @@ import {
 } from '@educa/shared'
 import { Logger } from '@nestjs/common'
 import { randomBytes } from 'node:crypto'
-import { BYTES_DO_REFRESH, type SecretCipher, type LoginLockout, type DeviceCookie, gerarCodigosDeRecuperacao, gerarSegredo, hashDoRefresh, hmacDaRecuperacao, ipParaRegistro, lerCookie, normalizarEmail, normalizarRecuperacao, passoDoCodigo, ROTULO_TOTP_DA_OPERACAO, SecretDecryptionError } from '../../credencial/index.js'
+import { BYTES_DO_REFRESH, type LoginLockout, type DeviceCookie, gerarCodigosDeRecuperacao, gerarSegredo, hashDoRefresh, hmacDaRecuperacao, ipParaRegistro, lerCookie, normalizarEmail, normalizarRecuperacao, passoDoCodigo, ROTULO_TOTP_DA_OPERACAO } from '../../credencial/index.js'
 import { cookiesDaSessaoDeOperador } from '../cookie-de-operador.js'
 import { verifyOperadorChallenge, type OperadorChallengeConsumer, type VerifiedOperadorChallenge, type OperadorChallengeIssuer } from '../operador-challenge.js'
 import { OPERADOR_DEVICE_COOKIE } from '../operador-device-cookie.js'

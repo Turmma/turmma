@@ -132,7 +132,7 @@ describe('.env.example e compose', () => {
     const teste = parseEnv(lerArquivo('infra/teste.env'))
     expect(Object.keys(teste).length).toBeGreaterThan(0)
     for (const [chave, valor] of Object.entries(teste)) {
-      expect(chave, 'a sobreposição de teste é só de porta, e do endereço que carrega uma').toMatch(/(_PORTA_HOST|_URL)$/)
+      expect(chave, 'a sobreposição de teste é só de porta, e do endereço que carrega uma').toMatch(/(_PORTA_HOST|_URL|_URL_DA_WEB)$/)
       expect(exemplo[chave], `${chave} não existe em .env.example`).toBeDefined()
       expect(valor).not.toBe(exemplo[chave])
     }

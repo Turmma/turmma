@@ -1,6 +1,5 @@
-import { DomainException, METRICS, systemClock, type Database, type Meter, type Clock } from '@educa/core'
+import { DomainException, METRICS, systemClock, type SecretCipher, type Database, type Meter, type Clock } from '@educa/core'
 import { ErrorCode, type EtapaComDesafio, type MfaRequest, type AtivarMfaResponse, type ConfigurarMfaResponse } from '@educa/shared'
-import type { SecretCipher } from '../../credencial/secret-cipher.js'
 import type { ConclusaoDeLogin } from '../completion/login-completion.js'
 import type { LoginLockout } from '../../credencial/login-lockout.js'
 import type { AtivacaoPorConvite } from '../convite/convite.service.js'

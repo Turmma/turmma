@@ -170,8 +170,10 @@ rodada 1) acrescentou os casos marcados (F2c) e as seções "Arquivo do titular"
 
 - [I] Escola A contra B em: `convites/enviar` com `usuarioIds` da B (igual a inexistente, nada na fila), provisória,
   ligação de conta, os dois jobs de e-mail.
-- [I] Os dois alvos novos do `retencao.expurgar-escola` (envio de convite de mais de 24 h, provisória vencida) entram no
-  `it.each(CATEGORIAS_DO_EXPURGO)`: a linha da outra escola, com a mesma idade, fica. (F2c)
+- [I] Os dois alvos novos do `retencao.expurgar-escola` (envio de convite de mais de 24 h, provisória vencida) têm prazo fixo
+  em código, e não categoria de retenção da escola (`CATEGORIAS_DO_EXPURGO` tem prazo em meses, ajustável por escola, e o
+  `it.each` semeia por ele): cada um tem o bloco próprio em `expurgo-da-escola.int.test.ts`, como a importação parada, e a linha
+  da outra escola, com a mesma idade, fica. (F2c)
 - [I] Com o contexto da escola A, a credencial e a auditoria do aluno da B: a troca atualiza zero linhas (recusa) e
   `/trocas` lê zero. (F2c)
 - [I] Requisição pede outro `sistema.*` ao `JobOutboxRepository.inserir`: recusado; a que enfileira o envio da conta não

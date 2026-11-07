@@ -95,6 +95,13 @@ export const RETENCAO_EXPURGO_EXECUCAO_MESES = 60
 /** Quanto tempo a importação de planilha pode ficar `na_fila` antes de o expurgo da escola a fechar `falhou` (F2, 5.0; Tech Spec, seção 5). */
 export const HORAS_DA_IMPORTACAO_NA_FILA = 1
 
+/**
+ * Quanto tempo o envio do convite pode ficar `na_fila` ou `enviando` antes de o expurgo da escola o fechar `falhou`, contado do
+ * `criado_em` do convite (acesso-e-convites, 1.0; Tech Spec, seção 5). O e-mail de um convite que ninguém conseguiu enviar em um dia não
+ * deve sair dias depois, com o link já velho.
+ */
+export const HORAS_DO_ENVIO_DE_CONVITE_NA_FILA = 24
+
 /** Um lote: quantas linhas saíram ou foram anonimizadas, e se o lote veio cheio (há mais no prazo vencido). */
 export interface LoteDoExpurgo {
   readonly linhas: number
@@ -464,6 +471,31 @@ export class ExpurgoDaEscolaRepository {
         order by criado_em
         for update skip locked
       ))
+    `)
+    return resultado.rowCount ?? 0
+  }
+
+  /**
+   * Fecha `falhou` o envio de e-mail do convite da escola do contexto que está `na_fila` ou `enviando` há mais de
+   * `HORAS_DO_ENVIO_DE_CONVITE_NA_FILA`, contadas do `criado_em` do convite e do relógio do job, e anula o token e o endereço
+   * cifrados (acesso-e-convites, 1.0). Quem chegou a 24 h sem sair é o job perdido, o servidor fora do ar por um dia ou o Redis
+   * que não o devolveu; a coordenação o vê `falhou` e reenvia. Com `skip locked`: a linha que um job reserva agora fica para
+   * a noite seguinte, e dois jobs da escola levam linhas diferentes. A escola entra uma vez só, na seleção; o `update` junta
+   * pelo id da linha escolhida. Devolve quantos fechou.
+   */
+  async fecharEnviosParados(agora: Date): Promise<number> {
+    const resultado = await this.banco.execute(sql`
+      with parados as (
+        select id from convite
+        where escola_id = ${requireEscolaId()} and envio in ('na_fila', 'enviando')
+          and criado_em < ${agora.toISOString()}::timestamptz - make_interval(hours => ${HORAS_DO_ENVIO_DE_CONVITE_NA_FILA})
+        order by criado_em
+        for update skip locked
+      )
+      update convite
+      set envio = 'falhou', token_cifrado = null, destino_cifrado = null, envio_reservado_em = null
+      from parados
+      where convite.id = parados.id
     `)
     return resultado.rowCount ?? 0
   }

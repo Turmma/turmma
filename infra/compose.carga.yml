@@ -45,6 +45,9 @@ services:
   # Ninguém entra pela conta da escola no cenário: só o teto, para ele não disputar CPU com as APIs.
   oidc-falso:
     cpus: 0.25
+  # O cenário não manda e-mail: o Mailpit só existe porque o compose o tem, e o teto o impede de disputar CPU com as APIs.
+  mailpit:
+    cpus: 0.25
   migrar:
     cpus: 0.5
   api-1:

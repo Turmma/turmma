@@ -1,9 +1,9 @@
-import { InMemoryFileStorage, UsageMeter, createDatabase, createLogger, createPool, type JanelaLetiva } from '@educa/core'
+import { EnvioRepository, FakeEmailSender, InMemoryFileStorage, SecretCipher, UsageMeter, createDatabase, createLogger, createPool, type JanelaLetiva } from '@educa/core'
 import { JOB_DEFINITIONS, QUEUE_NAMES, type QueueName, type JobRegistry } from '@educa/shared'
 import { Redis } from 'ioredis'
 import { afterAll, describe, expect, it } from 'vitest'
 import type { StorageConfig } from './config.js'
-import { createProcessors } from './composition.js'
+import { createProcessors, pecasDoEmail } from './composition.js'
 
 // A ligação entre o registro de jobs (`JOB_DEFINITIONS`, em `packages/shared`) e o que cada réplica do worker sabe executar
 // (reengenharia, 19.0): tipo, fila e processador. As peças são as de verdade, sem ninguém conectado: o pool do Postgres e o
@@ -23,11 +23,13 @@ afterAll(async () => {
 })
 
 /** Os tipos que a réplica de uma só fila leva, com a credencial de storage que as réplicas de `normal` e de `lote` recebem. */
-async function tiposDaReplicaDa(fila: QueueName): Promise<string[]> {
+async function tiposDaReplicaDa(fila: QueueName, comEmail = true): Promise<string[]> {
+  const banco = createDatabase(pool)
   const montados = createProcessors(
     { pools: { [fila]: 1 }, storage: STORAGE, janelaPadrao: JANELA },
     {
-      banco: createDatabase(pool),
+      banco,
+      ...(comEmail ? { email: { envios: new EnvioRepository(banco), emissor: new FakeEmailSender(), cifra: new SecretCipher(1, new Map([[1, new Uint8Array(32)]])), urlDaWeb: 'http://web.teste' } } : {}),
       uso: new UsageMeter(redis),
       relogio: { agora: () => new Date('2026-10-22T10:00:00-03:00') },
       logger: createLogger({ servico: 'worker-teste', nivel: 'silent' }),
@@ -60,9 +62,21 @@ describe('a réplica de cada fila contra o registro de jobs', () => {
     }
   })
 
-  it('o arquivo do titular e a planilha só na `normal`, as rotinas só no `lote` e o sintético nas três', async () => {
+  it('as peças do e-mail só existem com a configuração do e-mail e com o banco: a réplica que não manda e-mail não monta adaptador', () => {
+    const banco = createDatabase(pool)
+    const email = { adaptador: 'falso', urlDaWeb: 'http://web.teste', chaveDoToken: new Uint8Array(32) } as const
+    expect(pecasDoEmail({}, banco)).toBeUndefined()
+    expect(pecasDoEmail({ email }, undefined)).toBeUndefined()
+    expect(pecasDoEmail({ email }, banco)).toMatchObject({ urlDaWeb: 'http://web.teste', emissor: expect.any(FakeEmailSender) as FakeEmailSender })
+  })
+
+  it('a réplica sem a configuração do e-mail sobe sem o job do convite, e as outras continuam', async () => {
+    expect(await tiposDaReplicaDa('normal', false)).toEqual(['estrutura.gravar-planilha', 'sintetico', 'titular.montar-arquivo'])
+  })
+
+  it('o arquivo do titular, a planilha e o e-mail do convite só na `normal`, as rotinas só no `lote` e o sintético nas três', async () => {
     expect(await tiposDaReplicaDa('interativa')).toEqual(['sintetico'])
-    expect(await tiposDaReplicaDa('normal')).toEqual(['estrutura.gravar-planilha', 'sintetico', 'titular.montar-arquivo'])
+    expect(await tiposDaReplicaDa('normal')).toEqual(['email.enviar-convite', 'estrutura.gravar-planilha', 'sintetico', 'titular.montar-arquivo'])
     expect(await tiposDaReplicaDa('lote')).toEqual([
       'retencao.expurgar-escola',
       'sintetico',

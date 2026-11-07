@@ -1,4 +1,4 @@
-import { createLogger, type Meter, type DatabasePool } from '@educa/core'
+import { createLogger, SecretCipher, type Meter, type DatabasePool } from '@educa/core'
 import { ErrorCode, configurarSegundoFatorDeOperadorResponseSchema, MENSAGENS_DE_ERRO, type ConfigurarSegundoFatorDeOperadorResponse } from '@educa/shared'
 import type { INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
@@ -10,7 +10,7 @@ import { AppModule } from '../src/app.module.js'
 import type { ApiConfig } from '../src/config.js'
 import { configureApp } from '../src/configure-app.js'
 import { OperadorChallengeIssuer, type OperadorChallengeStep } from '../src/operacao/operador-challenge.js'
-import { SecretCipher, gerarCodigosDeRecuperacao, gerarSegredo, hmacDaRecuperacao, PERIODO_TOTP_SEGUNDOS } from '../src/credencial/index.js'
+import { gerarCodigosDeRecuperacao, gerarSegredo, hmacDaRecuperacao, PERIODO_TOTP_SEGUNDOS } from '../src/credencial/index.js'
 import { testConfig, TEST_APP_OPTIONS } from './test-config.js'
 
 /**

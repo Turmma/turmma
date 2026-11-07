@@ -1121,6 +1121,21 @@ código"), com o destino de cada uma. As pequenas foram fechadas na correção `
       (`tools/processo/portao.ts:164`, `quando >= inicio`), e o `mtime` do kernel chega a ficar 1,5 s atrás do `Date.now()`** (medido nesta
       máquina). No uso real uma edição feita logo depois do portão pode passar; hoje o portão leva minutos e a premissa é frágil só se ele
       encurtar. Fora da correção, que corrigiu só o teste (dono: Arquiteto, na retro da spec)
+- [ ] (acesso-e-convites, 1.0, revisor-geral, infra-guardian e test-engineer, 2ª) **`challenge.ts` e `operador-challenge.ts` usam o `maxTokenAge` do `jose` sem folga de relógio**
+      (`apps/api/src/credencial/challenge.ts:105`, `apps/api/src/operacao/operador-challenge.ts:84`): o `iat` no futuro é recusado, e dois relógios 1 s fora (duas
+      instâncias da API, ou o relógio que recua) derrubam o desafio do segundo fator, com 401. O `challenge.test.ts` já caiu uma vez por isso no portão. A 1.0 deu
+      a folga só ao bilhete do convite (`TICKET_CLOCK_TOLERANCE_SECONDS`, `convite-ticket.ts`); o mesmo vale aqui, com a idade conferida em segundos para o prazo
+      seguir exato. Muda login com segundo fator, caminho quente (dono: Arquiteto)
+- [ ] (acesso-e-convites, 1.0, privacy-guardian, infra-guardian, test-engineer, tenancy-guardian e revisor-geral, 2ª) **O relógio de parede em `usado_em >= desativado_em`**
+      (`apps/api/src/sessao/convite/convite.repository.ts:77`, `packages/core/src/ciclo-de-vida/ciclo-de-vida.repository.ts:247`, `tenant-resolution.repository.ts:409`): a
+      ativação por convite compara duas horas do relógio do banco. Se o relógio recuar entre o aceite e uma desativação feita logo em seguida, o bilhete ainda válido (30 min)
+      reativaria a pessoa desativada (janela de ~1,7 s, só com relógio desregulado). Em desenvolvimento o relógio da máquina recua 0,8 a 1,7 s a cada uns 15 s
+      (`systemd-timesyncd`, offset de -1,75 s). Falta: uma linha no `docs/runbook.md` exigindo NTP disciplinado na VPS de produção, e, melhor, uma checagem que não dependa do
+      relógio (um contador de desativações no usuário). Junto: (a) a borda do convite vencido passou de 72 h + 1 s para 72 h + 10 s (`convite.int.test.ts`) e ficou menos
+      fina; um caso com o `expira_em` gravado em relação ao `now()` do banco prova o segundo exato sem depender da máquina; (b) `ciclo-de-vida.int.test.ts:524` ainda usa
+      `desativado_em = now()` direto; (c) `xmin::text::bigint` nos dois helpers de auditoria (`convite.int.test.ts`, `ciclo-de-vida.int.test.ts`) só serve para ordenar em teste, nunca em
+      produção; (d) `anteciparODesativado` (`apps/api/test/relogio-que-recua.ts`) vale só para usuário recém-convidado: depois de uma desativação real esconderia o caso "convite
+      antigo não reativa" (dono: Arquiteto, na retro da spec)
 
 ## Regulação educacional
 

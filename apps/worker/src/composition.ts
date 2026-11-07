@@ -7,6 +7,10 @@ import {
   createDatabase,
   DONO_DAS_VAGAS_DO_SISTEMA,
   createQueueRedisClient,
+  criarEmailSender,
+  EnvioRepository,
+  SecretCipher,
+  VERSAO_DA_CHAVE_DO_TOKEN_DE_EMAIL,
   createPool,
   SyntheticEffectRepository,
   JobOutbox,
@@ -31,6 +35,7 @@ import {
   UsageRepository,
   EscolaConcurrencyLimiter,
   type FileStorage,
+  type EmailSender,
   type Database,
   type Heartbeat,
   type QueuedJobData,
@@ -42,6 +47,7 @@ import {
 import {
   TIPO_CONSOLIDAR_USO,
   TIPO_ELIMINAR_TITULAR,
+  TIPO_ENVIAR_CONVITE,
   TIPO_EXPURGAR_ACESSO,
   TIPO_EXPURGAR_DADO_PESSOAL,
   TIPO_EXPURGAR_ESCOLA,
@@ -59,6 +65,7 @@ import { JOB_SCHEDULES, createScheduleProcessor, SCHEDULES_QUEUE, registerJobSch
 import type { StorageConfig, WorkerConfig } from './config.js'
 import { SlotReleasedNotifier, JobExecutor, type JobProcessors } from './job-executor.js'
 import { criarConsolidacaoDeUso } from './processors/consolidar-uso.js'
+import { criarEnvioDoConvite } from './processors/enviar-email.js'
 import { criarExpurgoDeAcesso } from './processors/expurgar-acesso.js'
 import { criarExpurgoDeJobs } from './processors/expurgar-jobs.js'
 import { criarRotinaDeExpurgo } from './processors/expurgar-dado-pessoal.js'
@@ -165,6 +172,7 @@ export function createWorker(config: Omit<WorkerConfig, 'telemetria'>, logger: L
     cpu: sandbox,
     efeitos: new SyntheticEffectRepository(banco),
     armazem: armazemS3?.armazem,
+    email: pecasDoEmail(config, banco),
   })
   const avisoDeVagaLivre = new SlotReleasedNotifier(() => repositorio.avisarVagaLivre(), throttledWarn(() => logger.warn({ evento: 'worker.aviso_de_vaga_indisponivel' })))
   const executor = new JobExecutor({
@@ -259,6 +267,16 @@ export interface ProcessorParts {
   efeitos: Pick<SyntheticEffectRepository, 'gravar'>
   /** O armazém do storage; sem credencial de storage (`config.storage`), não há. */
   armazem: FileStorage | undefined
+  /** O e-mail do convite; só a réplica que atende a fila `normal` o recebe (`config.email`). */
+  email?: PecasDoEmail | undefined
+}
+
+/** As peças do job do e-mail do convite: o repositório do envio, o adaptador, a cifra do token e o endereço da web. */
+export interface PecasDoEmail {
+  envios: EnvioRepository
+  emissor: EmailSender
+  cifra: SecretCipher
+  urlDaWeb: string
 }
 
 export interface ProcessorSet {
@@ -286,11 +304,28 @@ export function createProcessors(config: Pick<WorkerConfig, 'pools' | 'storage' 
 }
 
 /**
- * Os processadores da fila `normal`: o arquivo do titular, que precisa do armazém, e a planilha da escola (F2, 4.0), que não
- * precisa dele.
+ * As peças do e-mail do convite, da configuração da réplica: o adaptador que ela escolheu (SMTP, ou o falso do teste), a cifra do
+ * token e do endereço com a chave da fila de envio, e o repositório do envio sobre o banco da réplica. Sem `config.email`, a réplica
+ * não manda e-mail.
  */
-function processadoresDaNormal({ banco, relogio, logger, medidor, armazem }: ProcessorParts): JobProcessors {
+export function pecasDoEmail(config: Pick<WorkerConfig, 'email'>, banco?: Database): PecasDoEmail | undefined {
+  const { email } = config
+  if (email === undefined || banco === undefined) return undefined
   return {
+    envios: new EnvioRepository(banco),
+    emissor: criarEmailSender(email),
+    cifra: new SecretCipher(VERSAO_DA_CHAVE_DO_TOKEN_DE_EMAIL, new Map([[VERSAO_DA_CHAVE_DO_TOKEN_DE_EMAIL, email.chaveDoToken]])),
+    urlDaWeb: email.urlDaWeb,
+  }
+}
+
+/**
+ * Os processadores da fila `normal`: o arquivo do titular, que precisa do armazém, a planilha da escola (F2, 4.0), que não
+ * precisa dele, e o e-mail do convite (acesso-e-convites, 1.0), que precisa da configuração de e-mail.
+ */
+function processadoresDaNormal({ banco, relogio, logger, medidor, armazem, email }: ProcessorParts): JobProcessors {
+  return {
+    ...(email === undefined ? {} : { [TIPO_ENVIAR_CONVITE]: criarEnvioDoConvite({ ...email, logger }) }),
     ...(armazem === undefined ? {} : { [TIPO_MONTAR_ARQUIVO]: criarMontagemDoArquivo({ banco, armazem, relogio, logger }) }),
     [TIPO_GRAVAR_PLANILHA]: criarGravacaoDaPlanilha({ banco, logger, ...(medidor === undefined ? {} : { medidor }) }),
   }

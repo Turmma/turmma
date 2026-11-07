@@ -54,7 +54,7 @@ const IPV6_DA_NOSSA_REDE = /^(::1$|f[cd][0-9a-f]{2}:|fe[89ab][0-9a-f]:)/i
  * O nome de um rótulo só (`http://ai/v1`) passa como local porque quem o resolve é o DNS da nossa rede (o do compose, o
  * da máquina): a garantia vale enquanto esse DNS for nosso. Em rede que resolve nome curto para fora, use o IP.
  */
-function enderecoDaNossaRede(endereco: string): boolean {
+export function enderecoDaNossaRede(endereco: string): boolean {
   // Endereço que nem é URL já foi apontado pelo próprio campo: aqui não há o que conferir.
   if (!URL.canParse(endereco)) return true
   const host = new URL(endereco).hostname.replace(/^\[|\]$/g, '')

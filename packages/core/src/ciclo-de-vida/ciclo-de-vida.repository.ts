@@ -4,6 +4,7 @@ import { requireEscolaId } from '../context/context-escola.js'
 import type { DatabaseTransaction } from '../db/database.js'
 import { acessoTurma } from '../db/schema/acesso-turma.js'
 import { anoLetivo } from '../db/schema/ano-letivo.js'
+import { CANCELAR_O_ENVIO_DO_CONVITE } from '../convite/cancelar-envio.js'
 import { convite } from '../db/schema/convite.js'
 import { contaExterna, type ProvedorExterno } from '../db/schema/conta-externa.js'
 import { credencialMatricula } from '../db/schema/credencial-matricula.js'
@@ -131,7 +132,7 @@ export class CicloDeVidaRepository {
   async revogarConviteAberto(usuarioId: string): Promise<{ readonly id: string; readonly tipo: TipoDeConvite } | undefined> {
     const [revogado] = await this.tx
       .update(convite)
-      .set({ revogadoEm: sql`now()` })
+      .set({ revogadoEm: sql`now()`, ...CANCELAR_O_ENVIO_DO_CONVITE })
       .where(and(eq(convite.escolaId, requireEscolaId()), eq(convite.usuarioId, usuarioId), isNull(convite.usadoEm), isNull(convite.revogadoEm)))
       .returning({ id: convite.id, tipo: convite.tipo })
     return revogado

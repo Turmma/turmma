@@ -19,6 +19,7 @@ export const TIPO_EXPURGAR_ACESSO = 'sistema.expurgar-acesso'
 export const TIPO_EXPURGAR_JOBS = 'sistema.expurgar-jobs'
 export const TIPO_EXPURGAR_DADO_PESSOAL = 'sistema.expurgar-dado-pessoal'
 export const TIPO_GRAVAR_PLANILHA = 'estrutura.gravar-planilha'
+export const TIPO_ENVIAR_CONVITE = 'email.enviar-convite'
 export const TIPO_JOB_SINTETICO = 'sintetico'
 
 /**
@@ -97,9 +98,11 @@ const pedidoSchema = z.strictObject({ pedidoId: z.uuid() })
 const semDados = z.strictObject({})
 /** O job da planilha leva só o id da importação: a escola vem da linha do outbox, e o texto, o ano e as marcas, da `importacao_planilha`. */
 const importacaoSchema = z.strictObject({ importacaoId: z.uuid() })
+/** O job do e-mail do convite leva só o id do convite: a escola vem da linha do outbox, e o token e o endereço, da linha do convite, cifrados. */
+const conviteSchema = z.strictObject({ conviteId: z.uuid() })
 
 /**
- * Os 9 tipos de hoje. `prazoMs` é o maior tempo que o tipo leva, arredondado para cima, e a 43.0 o confere.
+ * Os 10 tipos de hoje. `prazoMs` é o maior tempo que o tipo leva, arredondado para cima, e a 43.0 o confere.
  */
 export const JOB_DEFINITIONS = {
   [TIPO_MONTAR_ARQUIVO]: defineJob({
@@ -175,6 +178,17 @@ export const JOB_DEFINITIONS = {
     dados: importacaoSchema,
     retentativa: RETENTATIVA_DE_HOJE,
     prazoMs: 300_000,
+    naoUrgente: false,
+  }),
+  // O e-mail do convite (acesso-e-convites, tarefa 1.0): a fila `normal` e urgente, porque a coordenação espera ver "enviado" na lista. O prazo
+  // cobre os 10 s do SMTP, a reserva e a gravação do desfecho; a retentativa é a de hoje, e o 4xx do servidor usa as cinco.
+  [TIPO_ENVIAR_CONVITE]: defineJob({
+    filas: ['normal'],
+    escopo: 'escola',
+    executor: 'worker',
+    dados: conviteSchema,
+    retentativa: RETENTATIVA_DE_HOJE,
+    prazoMs: 60_000,
     naoUrgente: false,
   }),
   // O sintético é o job de teste de carga: a fila e o não urgente vêm do corpo do `POST`, e o prazo cobre o teto de CPU dele.

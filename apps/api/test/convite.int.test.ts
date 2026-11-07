@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { createLogger } from '@educa/core'
+import { createLogger, SecretCipher } from '@educa/core'
 import { ErrorCode } from '@educa/shared'
 import type { INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
@@ -17,8 +17,9 @@ import { AppModule } from '../src/app.module.js'
 import { configureApp } from '../src/configure-app.js'
 import { executarOpsConviteCoordenador } from '../src/ops/convite-coordenador.js'
 import { executarOpsRevogarConvite } from '../src/ops/revogar-convite.js'
-import { SecretCipher, REDIS_LOGIN_CLIENT, gerarSegredo, PasswordHasher } from '../src/credencial/index.js'
+import { REDIS_LOGIN_CLIENT, gerarSegredo, PasswordHasher } from '../src/credencial/index.js'
 import { criarConviteDeCoordenador } from '../src/sessao/index.js'
+import { anteciparODesativado, desativarDepoisDoUltimoAceite } from './relogio-que-recua.js'
 import { testConfig, TEST_APP_OPTIONS } from './test-config.js'
 import { SessaoFixtures } from './sessao.fixture.js'
 
@@ -126,13 +127,17 @@ describe('convite do primeiro coordenador: o operador gera, a pessoa consulta e 
     expect(execucao.codigo).toBe(0)
     const { conviteId } = JSON.parse(execucao.saida) as { conviteId: string }
     const token = (await readFile(arquivo, 'utf8')).trim()
-    return { conviteId, token, email, arquivo, saida: execucao.saida, ...(await alvoDoConvite(conviteId)) }
+    const alvo = await alvoDoConvite(conviteId)
+    await anteciparODesativado(bancada.pool, alvo.usuarioId)
+    return { conviteId, token, email, arquivo, saida: execucao.saida, ...alvo }
   }
 
   /** O convite pelo serviço que o comando chama, com o relógio escolhido: é como se ele tivesse sido gerado naquela hora. */
   async function convidarEm(escolaId: string, agora: Date, email = `convidada-${randomUUID()}@escola.invalid`): Promise<Convite> {
     const { conviteId, token } = await criarConviteDeCoordenador(bancada.banco, async () => OPERADOR, { slug: await slugDe(escolaId), email, nome: NOME_DO_CONVIDADO }, { agora: () => agora })
-    return { conviteId, token, email, ...(await alvoDoConvite(conviteId)) }
+    const alvo = await alvoDoConvite(conviteId)
+    await anteciparODesativado(bancada.pool, alvo.usuarioId)
+    return { conviteId, token, email, ...alvo }
   }
 
   async function post(caminho: string, corpo: unknown, cabecalhos: Record<string, string> = {}): Promise<Resposta> {
@@ -175,9 +180,11 @@ describe('convite do primeiro coordenador: o operador gera, a pessoa consulta e 
     return Number(rows[0]?.total)
   }
 
+  // Na ordem das transações (`xmin`), e não do `em`: o `em` é o relógio, que nesta máquina recua até ~1,7 s (`relogio-que-recua.ts`)
+  // e inverte duas linhas gravadas uma depois da outra.
   async function auditoriaDoConvite(escolaId: string): Promise<Array<Record<string, unknown>>> {
     const { rows } = await bancada.pool.query(
-      "select acao, entidade, entidade_id, autor_usuario_id, autor_operador, antes, depois, finalidade from auditoria where escola_id = $1 and (entidade = 'convite' or acao = 'usuario.ativado_por_convite') order by em, id",
+      "select acao, entidade, entidade_id, autor_usuario_id, autor_operador, antes, depois, finalidade from auditoria where escola_id = $1 and (entidade = 'convite' or acao = 'usuario.ativado_por_convite') order by xmin::text::bigint, id",
       [escolaId],
     )
     return rows
@@ -337,10 +344,12 @@ describe('convite do primeiro coordenador: o operador gera, a pessoa consulta e 
     expect(await usuarioAtivo(deB.usuarioId)).toBe(valeB)
   })
 
-  it('borda: expirado (72 h + 1 s), revogado, já usado e inexistente dão a mesma resposta em consultar e em aceitar; 72 h menos um minuto ainda vale', async () => {
+  it('borda: expirado (72 h + 10 s), revogado, já usado e inexistente dão a mesma resposta em consultar e em aceitar; 72 h menos um minuto ainda vale', async () => {
     // Uma escola por convite: com convite em aberto, a escola não recebe outro (A0b, a matriz da seção 5).
     const agora = Date.now()
-    const expirado = await convidarEm(await bancada.escola(), new Date(agora - 72 * HORA_MS - 1_000))
+    // 10 s e não 1 s: o relógio do computador de desenvolvimento recua até ~1,7 s de tempos em tempos (`relogio-que-recua.ts`),
+    // e com 1 s de folga o `now()` do banco podia voltar para antes do `expira_em` e o convite vencido responder 200.
+    const expirado = await convidarEm(await bancada.escola(), new Date(agora - 72 * HORA_MS - 10_000))
     const quaseVencido = await convidarEm(await bancada.escola(), new Date(agora - 72 * HORA_MS + 60_000))
     const escolaId = await bancada.escola()
     const revogado = await convidarEm(escolaId, new Date(agora))
@@ -495,7 +504,7 @@ describe('convite do primeiro coordenador: o operador gera, a pessoa consulta e 
     await expect(stat(arquivo)).rejects.toThrow()
 
     // Desativado depois de ter entrado: o convite antigo, usado, não o reativa no login, nem com o bilhete dele.
-    await bancada.pool.query('update usuario set desativado_em = now() where id = $1', [primeiro.usuarioId])
+    await desativarDepoisDoUltimoAceite(bancada.pool, primeiro.usuarioId)
     expect((await entrar(pessoa.email, SENHA_DE_B, bilhete)).corpo['etapa']).toBe('pronta')
     expect(await usuarioAtivo(primeiro.usuarioId)).toBe(false)
 

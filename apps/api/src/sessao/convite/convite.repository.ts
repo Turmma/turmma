@@ -1,4 +1,4 @@
-import { CHAVE_DA_TRAVA_DO_CONVITE_DA_ESCOLA, convite, ConviteDaEscolaRepository, escola, requireEscolaId, usuario, type Database, type DatabaseTransaction, type DadosDaCoordenacao, type DadosDoProfessor, type TipoDeConvite } from '@educa/core'
+import { CANCELAR_O_ENVIO_DO_CONVITE, CHAVE_DA_TRAVA_DO_CONVITE_DA_ESCOLA, convite, ConviteDaEscolaRepository, escola, requireEscolaId, usuario, type Database, type DatabaseTransaction, type DadosDaCoordenacao, type DadosDoProfessor, type TipoDeConvite } from '@educa/core'
 import { and, desc, eq, exists, gte, isNotNull, isNull, sql } from 'drizzle-orm'
 
 /** A chave da trava do convite da escola mora no core (a 6.0 a subiu com o resto que o job da planilha usa); a API a reexporta para os testes. */
@@ -96,7 +96,7 @@ export class ConviteRepository extends ConviteDaEscolaRepository {
   async revogarParaRefazer(conviteId: string, tipo: TipoDeConvite): Promise<string | undefined> {
     const [revogado] = await this.banco
       .update(convite)
-      .set({ revogadoEm: sql`now()` })
+      .set({ revogadoEm: sql`now()`, ...CANCELAR_O_ENVIO_DO_CONVITE })
       .where(and(eq(convite.escolaId, requireEscolaId()), eq(convite.id, conviteId), eq(convite.tipo, tipo), isNull(convite.usadoEm), isNull(convite.revogadoEm)))
       .returning({ usuarioId: convite.usuarioId })
     return revogado?.usuarioId
@@ -106,7 +106,7 @@ export class ConviteRepository extends ConviteDaEscolaRepository {
   async revogar(conviteId: string, tipo: TipoDeConvite): Promise<boolean> {
     const revogados = await this.banco
       .update(convite)
-      .set({ revogadoEm: sql`now()` })
+      .set({ revogadoEm: sql`now()`, ...CANCELAR_O_ENVIO_DO_CONVITE })
       .where(and(eq(convite.escolaId, requireEscolaId()), eq(convite.id, conviteId), eq(convite.tipo, tipo), isNull(convite.revogadoEm)))
       .returning({ id: convite.id })
     return revogados.length === 1

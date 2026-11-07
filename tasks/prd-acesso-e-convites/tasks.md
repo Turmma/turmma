@@ -5,7 +5,7 @@
 
 ## Lista
 
-- [ ] **1.0 — A porta de e-mail e o envio do convite pelo worker**
+- [x] **1.0 — A porta de e-mail e o envio do convite pelo worker**
   - [ ] 1.1 Migration que só expande `convite` (`canal`, cifrados, `envio`, `envioReservadoEm`, `enviadoEm`) e o check dos cifrados
   - [ ] 1.2 `SecretCipher` em `packages/core/src/cripto/`, com cada chamador trocado
   - [ ] 1.3 `EmailSender`, `SmtpEmailSender`, `FakeEmailSender` com barreira e a trava de configuração; Mailpit no compose em `127.0.0.1`

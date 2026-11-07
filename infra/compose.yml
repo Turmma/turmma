@@ -112,6 +112,23 @@ services:
       retries: 30
       start_period: 5s
 
+  # O servidor de e-mail do desenvolvimento e do teste (acesso-e-convites, tarefa 1.0): recebe o que o worker manda pelo SMTP e o mostra
+  # numa interface, sem entregar a ninguém (regra 00, item 8: o projeto roda inteiro sem conta em serviço externo). A porta do SMTP
+  # fica só na rede do compose; a interface e a API de leitura (que o e2e consulta) publicam só em 127.0.0.1. Fora de
+  # AMBIENTE=local o worker recusa a partida com o host dele (`EMAIL_SMTP_HOST`): produção usa o provedor contratado.
+  mailpit:
+    image: axllent/mailpit:v1.32.0@sha256:0790692be935ea4420d085694f7985b1f692ca6a8771ab0e0bd8ba75ac180498
+    environment:
+      MP_MAX_MESSAGES: '500'
+    ports:
+      - 127.0.0.1:${MAILPIT_PORTA_HOST:?defina MAILPIT_PORTA_HOST}:8025
+    healthcheck:
+      test: [CMD, /mailpit, readyz]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 3s
+
   # Aplica as migrations e sai. Roda antes de toda instância que usa o banco, só expande, e desiste do
   # lock em 5 s, com 3 tentativas (packages/core/src/db/migrate.ts). Mesma imagem da API.
   migrar:
@@ -374,6 +391,16 @@ services:
       STORAGE_BUCKET: ${STORAGE_BUCKET:?defina STORAGE_BUCKET}
       STORAGE_CHAVE_ACESSO: ${STORAGE_CHAVE_ACESSO:?defina STORAGE_CHAVE_ACESSO}
       STORAGE_CHAVE_SECRETA: ${STORAGE_CHAVE_SECRETA:?defina STORAGE_CHAVE_SECRETA}
+      # A fila normal manda o e-mail do convite (acesso-e-convites, tarefa 1.0). Sem depends_on: servidor fora do ar faz o job
+      # tentar de novo, com o envio `na_fila`, e só. Este compose é o do desenvolvimento e do teste (AMBIENTE=local, Mailpit): fora dele o worker
+      # exige também EMAIL_PROVEDOR_ID e EMAIL_SMTP_TLS=true, aceita EMAIL_SMTP_USUARIO e EMAIL_SMTP_SENHA, e recusa o host do Mailpit.
+      EMAIL_ADAPTADOR: ${EMAIL_ADAPTADOR:?defina EMAIL_ADAPTADOR}
+      EMAIL_SMTP_HOST: ${EMAIL_SMTP_HOST:?defina EMAIL_SMTP_HOST}
+      EMAIL_SMTP_PORTA: ${EMAIL_SMTP_PORTA:?defina EMAIL_SMTP_PORTA}
+      EMAIL_SMTP_TLS: ${EMAIL_SMTP_TLS:?defina EMAIL_SMTP_TLS}
+      EMAIL_REMETENTE: ${EMAIL_REMETENTE:?defina EMAIL_REMETENTE}
+      EMAIL_TOKEN_KEY: ${EMAIL_TOKEN_KEY:?defina EMAIL_TOKEN_KEY}
+      EMAIL_URL_DA_WEB: ${EMAIL_URL_DA_WEB:?defina EMAIL_URL_DA_WEB}
       # Métricas OTLP para a observabilidade local. Sem depends_on: fora do ar, perde-se a métrica, e só.
       TELEMETRIA_OTLP_URL: http://observabilidade:4318
       TELEMETRIA_INTERVALO_MS: ${TELEMETRIA_INTERVALO_MS:?defina TELEMETRIA_INTERVALO_MS}

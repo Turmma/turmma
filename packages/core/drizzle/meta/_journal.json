@@ -295,6 +295,13 @@
       "when": 1793985468928,
       "tag": "0041_registro_da_aula",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1794062143647,
+      "tag": "0042_envio_de_email",
+      "breakpoints": true
     }
   ]
 }

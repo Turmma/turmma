@@ -15,11 +15,13 @@ linha.
 | Módulo | Novo ou alterado | O quê |
 |---|---|---|
 | `packages/core/src/cripto/` | movido | o `SecretCipher`, de `apps/api/src/credencial/` |
+| `packages/core/src/convite/cancelar-envio.ts` | novo | o valor único (`CANCELAR_O_ENVIO_DO_CONVITE`) que a revogação, o refazer (`ConviteRepository`, da API) e a defesa do `desativar` gravam junto de `revogado_em`: o envio `na_fila` ou `enviando` vira `cancelado`, sem cifrados nem reserva; as outras três cópias da regra não existem |
 | `packages/core/src/email/` | novo | porta `EmailSender`, adaptadores `SmtpEmailSender` (`nodemailer`, sem `logger` nem `debug`) e `FakeEmailSender`; `EnvioRepository`; fora do ambiente local, `EMAIL_PROVEDOR_ID` e TLS obrigatórios, e o Mailpit recusado (como a `IA_PROVEDOR_ID`) |
 | `apps/api/src/professores/`, `sessao/`, `sala/`, `credencial/` | alterado | rotas; seção 5. A provisória mora em `credencial/` |
 | `packages/core/src/queue/` | alterado | o job de sistema que nasce de requisição (seção 6) |
 | `apps/worker/src/processors/`, `apps/worker/src/job-executor.ts` | alterado | `enviar-email.ts`, os dois expurgos, a saída de adiar (seção 5) |
 | `packages/core/src/titular/leitura-do-titular.ts` | alterado | a leitura por alvo da D85 (seção 5, "Arquivo do titular") |
+| `apps/api/src/sessao/convite/convite-ticket.ts` | alterado | o bilhete do convite aceito tolera até `TICKET_CLOCK_TOLERANCE_SECONDS` (30 s) de relógio atrasado em quem confere, e o prazo de 30 min segue exato: o `jose` recusa o `iat` no futuro, e o login seguia sem ativar o usuário (achado ao estabilizar os testes de integração da tarefa 1.0, que o recuo do relógio da máquina de desenvolvimento derrubava) |
 | `packages/core/src/ciclo-de-vida/` | alterado | o `desativar` anula a provisória; a cláusula de defesa (`revogarConviteAberto`) também cancela o envio |
 | `packages/shared/`; `apps/web`, `compose.yaml` | alterado | contratos novos e alterados (seção 4) e os códigos `ENTRA_PELA_CONTA_DA_ESCOLA` e `VERIFICACAO_PENDENTE`; seção 9; `mailpit`, com a interface só em `127.0.0.1` |
 
@@ -29,7 +31,8 @@ linha.
 link_da_conta        id uuidv7, contaId* (on delete cascade), finalidade (redefinir|verificar), tokenHash único, tokenCifrado?,
                      destinoCifrado?, expiraEm, usadoEm?, envio, criadoEm; único parcial (contaId, finalidade) aberto;
                      índice (coalesce(usadoEm, expiraEm))
-convite              + canal text not null default 'copiado' (check copiado|email), tokenCifrado?, destinoCifrado?, envio?, enviadoEm?
+convite              + canal text not null default 'copiado' (check copiado|email), tokenCifrado?, destinoCifrado?, envio?, envioReservadoEm?,
+                     enviadoEm?, criadoEm timestamptz not null default now(); índice parcial (escolaId, criadoEm) onde envio na_fila|enviando
 conta                + emailVerificadoEm?
 credencial_matricula + provisoriaHash?, provisoriaExpiraEm?, provisoriaGeradaPor? (set null); índice parcial (escolaId, provisoriaExpiraEm)
 reivindicacao        + contaExterna jsonb? (provedor, tenant, sujeito); único parcial (escolaId, provedor, tenant, sujeito) onde pendente
@@ -37,7 +40,8 @@ auditoria            + índice parcial (escolaId, entidadeId, em) nas ações da
 ```
 
 `envio`: `na_fila|enviando|enviado|falhou|cancelado`, com `envioReservadoEm`. Cifrados: AES-GCM, chave `EMAIL_TOKEN_KEY`, o
-id da linha como dado autenticado, nulos fora de `na_fila` e `enviando`. O check `reivindicacao_segredo_so_pendente` vira
+id da linha como dado autenticado, presentes em `na_fila` e `enviando` e nulos fora deles (o check `convite_cifrados_so_no_envio_aberto`, escrito
+com `case when`: um `or` com `envio` nulo deixaria o convite `copiado` passar com cifrados). `criadoEm` conta as 24 h do expurgo do envio parado. O check `reivindicacao_segredo_so_pendente` vira
 (`not valid` + `validate`): pendente ⇔ chave e marca presentes e exatamente uma de senha ou `contaExterna`; fora do
 pendente, as quatro nulas; o `fechar('encerrada')` do F2 passa a anular também a `contaExterna`. Migrations só expandem;
 voltar a versão: o runbook recusa os pedidos de conta pendentes.

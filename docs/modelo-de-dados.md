@@ -303,6 +303,15 @@ alcança o de coordenador, e a coordenação só o de professor, com o filtro no
 Cadastrar, refazer e revogar o de professor pegam a mesma trava por escola do de coordenador. O
 convite `sala` não existe: o aluno entra pelo acesso da turma (`AcessoTurma`, A1).
 
+**O envio por e-mail (acesso-e-convites, tarefa 1.0).** O convite ganha `canal` (`copiado`, o padrão, ou `email`) e, só no de canal
+`email`, o `envio` (`na_fila`, `enviando`, `enviado`, `falhou`, `cancelado`), o `envio_reservado_em` (a marca de quem reservou o envio, só
+em `enviando`) e o `enviado_em`. O token e o endereço ficam em `token_cifrado` e `destino_cifrado` (AES-256-GCM, o id do convite como dado
+autenticado) **só enquanto o envio está `na_fila` ou `enviando`**: o check `convite_cifrados_so_no_envio_aberto` exige os dois nesses
+estados e os mantém nulos em qualquer outro, inclusive no convite `copiado`. `criado_em` conta as 24 h do envio parado, que o
+`retencao.expurgar-escola` fecha como `falhou`; o índice parcial `convite_envio_aberto_idx (escola_id, criado_em)` o serve. A revogação, o
+refazer e a defesa do `desativar` gravam `cancelado` no mesmo `update` que revoga (`CANCELAR_O_ENVIO_DO_CONVITE`), e o job só termina
+`enviado` ou `falhou` se a linha ainda tem a reserva dele. Quem escreve o envio é o `EnvioRepository` (`packages/core/src/email/`), no worker.
+
 Na A0b o convite da primeira coordenação também nasce pelo painel da operação, pelo mesmo caso de
 uso do comando, e o painel também o refaz. Gerar, refazer e revogar pegam uma trava por escola (`pg_advisory_xact_lock(7_000_003,
 hashtext(escola_id))`) e só então leem o estado da coordenação (`estadoDaCoordenacao`), que decide

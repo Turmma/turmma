@@ -141,6 +141,14 @@ No F2, a planilha da coordenação (`POST /v1/importacoes/:tipo`) responde 202 e
 (3) é uma transação curta (`lock_timeout` de 1 s, `statement_timeout` de 1,5 s) que trava a importação, depois o ano letivo, e
 só então escreve. Trava esgotada repete com espera crescente; na última tentativa a importação sai `falhou`.
 
+No acesso-e-convites (F2c), o e-mail do convite sai pelo job `email.enviar-convite`, também da fila `normal`, com só o id do convite no payload
+(a escola é a da linha do outbox, nunca a do payload). O job reserva a linha do convite num `update` só, manda a mensagem pela porta
+`EmailSender` (SMTP em produção, o Mailpit no compose, o falso no teste) **fora de qualquer transação**, com o prazo de 10 s, e grava o
+desfecho só se a linha ainda tem a reserva dele: o convite revogado no meio do caminho fica `cancelado`, e o `enviado` que chega tarde não o
+sobrescreve. A recusa do servidor (5xx) fecha o envio como `falhou`; o pedido de tentar depois (4xx) ou a queda devolve a linha a `na_fila` e o
+job repete, até a quinta tentativa. O token e o endereço ficam cifrados (AES-256-GCM, o id do convite como dado autenticado) só enquanto o envio
+espera, e o `retencao.expurgar-escola` fecha como `falhou` o que passa de 24 h parado.
+
 A entrega é **pelo menos uma vez** (D49): o job nasce no Postgres, o despachante publica no
 BullMQ quando a escola tem vaga, e a reconciliação republica o que o Redis perdeu. Por isso
 todo processador recebe chave de idempotência e precisa tolerar reexecução sem duplicar
