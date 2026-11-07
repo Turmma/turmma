@@ -2,18 +2,18 @@
 
 ## Agora
 - **Pausa** de 16:30 a 20:20 (06/11), a pedido do Joaquim; os três Implementadores reiniciados com `PEDIDO de retomada` às 20:20, vigia religada.
-- **Espero:** linha 1: o `RELATÓRIO` da correção `e2e-conflito-do-gerar` (esteira vermelha em `b388f260`, execução 42277176677, e2e `acesso-da-turma.spec.ts:972`), pedida às 21:30; a esteira de `0cd5dd46` (execução 42318323952) ainda roda, ler no próximo encontro; linha 2: o da 5.0 (porte grande, 1ª tentativa), pedida às ~22:50 ao par reiniciado; linha 1: depois da DIVERGÊNCIA de portão (o mesmo `restos.test.ts`), mandei trazer a spec em vez de renomear, ~22:38; linha 3: o da 6.0 (as três de porte grande, 1ª tentativa), pedidas em 06/11 ~16:10. A 6.0 parou em DIVERGÊNCIA de desenho (SegmentedControl da seção 9 da techspec × interface.md 10.2 e R3); parada respondida (A, `DaySelector`); retomada pedida ao Implementador 3, reiniciado, com a techspec §9 atualizada pelo Arquiteto sem commit no checkout da linha 3
-- **Linha 3:** RELATÓRIO da 6.0 com SUCESSO (`346fc1f6`, ~22:52); o encontro deu VERIFICAÇÃO RECUSADA por prazo (load 14, e2e da linha 1); repito quando a carga cair, como às 21:25
+- **Espero:** linha 1: o `RELATÓRIO` da correção `e2e-conflito-do-gerar` (esteira vermelha em `b388f260`, e2e `acesso-da-turma.spec.ts:972`), pedida às 21:30; depois da DIVERGÊNCIA de portão (`restos.test.ts`), mandei trazer a spec, ~22:38. Linha 2: o da 5.0 (porte grande, 1ª tentativa), pedida às ~22:50. Linha 3: o da 7.0 (porte grande, 1ª tentativa), pedida às ~23:10 ao par reiniciado
 - **Devo ainda:** no fechamento, escrever no `TODO.md` os quatro destinos da ordem r1 da 1.0 que ninguém escreveu (`.processo/ordens/1_task-r2.md` da linha 1): volume do `delete` no encerramento do ano (Infra e operação), reserva do expurgo da `aula` (LGPD e conformidade), rótulo "Registro da aula" em `Retencao.tsx` (para o Validador), S7 do `cenarios.md` (para a retro). Correção `carga-da-semana` na próxima linha ociosa: o `TODO.md` (2.0) dava à 6.0 o `GET /v1/semana` no cenário de carga das 7h30, e ela não fez nem revisor cobrou (relatório do Implementador 3).
-- **Base:** `spec/semana-do-professor` em `5b43da40`. Esteira: VERMELHA em `0cd5dd4` (execução 42318323952, `restos.test.ts`), já corrigida pelo `16df729`, que ainda roda: ler no próximo encontro
+- **Base:** `spec/semana-do-professor` em `803eef9a`. Esteira: VERMELHA em `0cd5dd4` (`restos.test.ts`), já corrigida pelo `16df729`; a execução sobre `803eef9` roda: ler no próximo encontro
 
 ## Concluídas
-- 4.0 (linha 2): `71738c89` + correção `encontro-4-semana` `c3101bb9`; encontro às 22:35, spec em `16df7293`
 | Tarefa | Commit | Modelo | Rodadas | Observação |
 |---|---|---|---|---|
 | 1.0 | `7732c208` | Sonnet 5.5 | 2 | antes, a correção `base-fixa-acima-do-limite` (`8ca3d1da`) por `DIVERGÊNCIA` de portão |
 | 2.0 | `63b88c11` | Sonnet 5.5 | 2 | esteira verde em `63fc7f1`; depois dela, abertas as linhas 2 e 3 |
 | 3.0 | `c37cba8e` | Sonnet 5.5 | 2 | linha 1; encontro na 2ª tentativa (a 1ª caiu por prazo da máquina, load 20); spec em `0cd5dd46` |
+| 4.0 | `71738c89` | Sonnet 5.5 | — | linha 2; CONFLITO no encontro, correção `encontro-4-semana` (`c3101bb9`); spec em `16df7293` |
+| 6.0 | `346fc1f6` | Sonnet 5.5 | 2 | linha 3; DIVERGÊNCIA de desenho (`DaySelector`, Joaquim escolheu A); encontro na 2ª tentativa (a 1ª caiu por prazo, load 14); spec em `803eef9a`; não fez o item de carga do `TODO.md` (2.0) |
 
 ## Esperando o Joaquim
 
