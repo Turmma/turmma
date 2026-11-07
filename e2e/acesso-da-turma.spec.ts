@@ -67,6 +67,13 @@ const SERIE_DA_TURMA = '7º ano do Ensino Fundamental'
 const ehOAcesso = (url: URL) => /^\/v1\/turmas\/[^/]+\/acesso$/.test(url.pathname)
 const ehORevogar = (url: URL) => /^\/v1\/turmas\/[^/]+\/acesso\/revogar$/.test(url.pathname)
 const ehATurma = (url: URL) => /^\/v1\/turmas\/[^/]+$/.test(url.pathname)
+/**
+ * As leituras da turma que não são do acesso: a turma, os alunos, o desempenho e os pedidos (`GET /v1/turmas/:id…`). Vale só para a aba
+ * Alunos, a única que o caso abre: a aba Hoje relê também os sinais (`TurmaHoje.tsx`). A lista **acompanha as releituras da tela**
+ * (o relógio de 15 s e a volta da aba, em `atualizacao-dos-pedidos.ts`): tela que ganhe outra leitura que ache a turma perdida entra aqui,
+ * senão a corrida de `Turma.tsx` (a página inteira troca pelo aviso e leva o diálogo) volta.
+ */
+const ehUmaLeituraDaTurma = (url: URL) => /^\/v1\/turmas\/[^/]+(\/(alunos|desempenho|reivindicacoes))?$/.test(url.pathname)
 const ehOEu = (url: URL) => url.pathname === '/v1/eu'
 const ehOsMeusVinculos = (url: URL) => url.pathname === '/v1/meus-vinculos'
 const ehOGerar = (pedido: Request) => pedido.method() === 'POST' && ehOAcesso(new URL(pedido.url()))
@@ -1062,11 +1069,30 @@ test.describe('recomeço da tela do acesso', () => {
 
     // A coordenação encerra o vínculo com a tela aberta (o professor realocado em março): o gerar responde como a turma
     // que não existe, o diálogo diz a quem recorrer e só oferece "Fechar", e a seção deixa de oferecer o que a API recusa.
+    // As outras leituras da turma (a turma, os alunos, o desempenho e os pedidos, que se relê de 15 em 15 s) ficam no ar até o fim
+    // do caso: a que acha a turma perdida troca a página inteira pelo aviso e leva o diálogo (caso "a releitura que cai com o código
+    // projetado…"), e a hora em que ela chega não pode decidir o que este caso vê. No fim, soltas, é isso que acontece.
+    const leiturasDaTurma = gate()
+    let pedidosSegurosNoAr = 0
+    const segurarAsLeituras = async (rota: Route) => {
+      if (rota.request().method() !== 'GET') return rota.fallback()
+      if (new URL(rota.request().url()).pathname.endsWith('/reivindicacoes')) pedidosSegurosNoAr += 1
+      await leiturasDaTurma.aberta
+      // A página pode ter fechado com a leitura ainda no ar (o caso acaba, ou falha): o `fallback` então recusa, e não há o que fazer.
+      await rota.fallback().catch(() => undefined)
+    }
+    await page.route(ehUmaLeituraDaTurma, segurarAsLeituras)
     await encerrarVinculosNoBanco(professora.escolaId, turma.turmaId, professora.usuarioId)
     await abrirOConvite(page, hasTouch)
     await tocar(noDialogo(page), 'Gerar acesso', hasTouch)
     await expect(noDialogo(page).getByRole('alert')).toHaveText(TEXTO_DA_TURMA_INDISPONIVEL, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(noDialogo(page).getByRole('alert')).toBeFocused()
+    // A releitura cai no pior momento: o aviso já está no diálogo (a volta da aba relê na hora, como o relógio de 15 s). Ela chega
+    // ao servidor e fica segurada: o diálogo continua com o aviso e só o "Fechar". Conta só a leitura dos pedidos, que é a da lista; se o
+    // relógio já deixou uma segurada, a releitura do disparo não abre outra (`cancelRefetch: false`), e ainda assim há uma no ar.
+    await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange', { bubbles: true })))
+    await expect.poll(() => pedidosSegurosNoAr).toBeGreaterThan(0)
+    await expect(noDialogo(page).getByRole('alert')).toHaveText(TEXTO_DA_TURMA_INDISPONIVEL)
     await expect(noDialogo(page).getByRole('button')).toHaveText(['Fechar'])
     await tocar(noDialogo(page), 'Fechar', hasTouch)
     await expect(dialogosDaTela(page)).toHaveCount(0)
@@ -1075,6 +1101,11 @@ test.describe('recomeço da tela do acesso', () => {
     await expect(acessoAtivo(page)).toHaveCount(0)
     await expect(tituloDaSecao(page)).toBeFocused()
     expect(await seriousViolations(page)).toEqual([])
+
+    // Soltas, as leituras da turma acham que ela saiu do alcance: a página inteira troca pelo aviso, e a seção sai com ela.
+    leiturasDaTurma.abrir()
+    await expect(tituloDaSecao(page)).toHaveCount(0, { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(principal(page).getByRole('status').filter({ hasText: 'Esta turma não está disponível' })).toHaveText(TEXTO_DA_TURMA_INDISPONIVEL)
   })
 
   test('resposta atrasada: o gerar anterior que responde depois do gerar seguinte não troca o código novo, e a validade na seção é a do servidor', async ({
