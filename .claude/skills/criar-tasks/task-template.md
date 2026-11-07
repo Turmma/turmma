@@ -128,6 +128,10 @@ rodada nova; o caso que originou cada pergunta está em `docs/processo-licoes.md
     em passos: (a) a direção é a que o cenário nomeia (quem vai primeiro), e cada direção é um caso; (b) `esperarNaTrava`
     conta também quem segura a trava: espere o número de processos certo, ou um padrão que só o lado esperado casa; (c) com
     o job parado dentro de um passo de `lock_timeout` curto, o outro lado vai por SQL, ou para antes de o job entrar no passo.
+    Caso de e2e que olha "hoje", a semana ou o mês correntes: a cena tem dado no dia da semana de hoje (como o T9 da F2b,
+    `grade: () => [{ dia: diaDeHoje, … }]`), ou o relógio parado com `page.clock`; o caso passa num sábado, num domingo e às
+    23h59 de domingo. Na F2b, a 6.0 reprovou com três casos que caíam todo fim de semana, e a 8.0 criava o item antes da
+    virada da semana.
 11. **O teste de isolamento quebraria sem a cláusula de escopo do repository, e cada linha da tabela de testes tem o caso na
     coluna "Caso", um para cada coisa que a linha diz?** Remova mentalmente a cláusula e pergunte se algo ficaria vermelho.
     Repository que filtra por escola e por ano: o ano de cada escola já separa, e a escola tirada fica verde se o caso usa

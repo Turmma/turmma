@@ -51,6 +51,7 @@ isolamento serão escritos. Referência: `.claude/rules/10-multitenancy.md`.
 | O que entra em auditoria | |
 | O que é enviado a provedor externo | |
 | Retenção e expurgo | |
+| Arquivo do titular | a tabela nova com dado de pessoa entra em qual versão (`packages/core/src/titular/leitura-do-titular.ts`, critério do cabeçalho), e quem mais a lê por ele (a coordenação que pede o arquivo). Na F2b, três guardiões reprovaram a 1ª rodada da revisão da spec por isso |
 | Autorização por objeto | como é feita |
 | DTO de saída | campos expostos |
 
@@ -70,7 +71,7 @@ o nível de autonomia do agente. Referência: `.claude/rules/70-conformidade-cne
 | Fila e prioridade | interativa, normal, lote |
 | Limite por escola | concorrência, tamanho, quantidade |
 | Rate limit | por usuário e por escola; **por rota nova**: qual contador, se ele recusa ou só rebaixa, e o teste do 429 |
-| Corridas de concorrência | **uma linha por trava**: a instrução com todas as condições de estado (o dono ativo, o convite não revogado), o que fica na mesma transação, o que o perdedor recebe, e o cenário em paralelo que a prova; quando a mesma escrita pode violar duas restrições únicas (a chave de idempotência e a regra de negócio), qual delas decide, e que a resposta ao perdedor não depende da ordem em que o Postgres as confere |
+| Corridas de concorrência | **uma linha por trava**: a instrução com todas as condições de estado (o dono ativo, o convite não revogado), o que fica na mesma transação, o que o perdedor recebe, e o cenário em paralelo que a prova; o cenário diz a ordem forçada (quem segura a trava, quem chega depois, com `esperarNaTrava` ou `WriteBlockTrigger`) e a troca que o deixa vermelho (a ordem antiga das travas, a trava tirada, o passo antes de outro): cenário que passa nas duas ordens não prova a trava (na F2b, R1, J16 e G1 caíram na revisão da spec por isso); quando a mesma escrita pode violar duas restrições únicas (a chave de idempotência e a regra de negócio), qual delas decide, e que a resposta ao perdedor não depende da ordem em que o Postgres as confere |
 | Índices novos | começando pelo escopo |
 | Migration | compatível com o código anterior? |
 | Quando cada dependência cai | banco, Redis, provedor de IA, storage: o que o usuário vê |

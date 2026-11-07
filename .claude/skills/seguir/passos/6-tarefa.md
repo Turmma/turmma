@@ -117,7 +117,8 @@ do Maestri:
   linha, e a tarefa volta a pendente; a branch e o checkout ficam, e a próxima partida exige a árvore limpa e nenhum commit que
   a spec não tenha. Abertura que morreu: o comando tira a linha do quadro, e você reabre com `abrir`.
 - **`DIVERGÊNCIA`**, com a linha `Motivo:`:
-  - `desenho` ou `ordem`: reinicie o `Arquiteto` no andar e envie um `PEDIDO` de triagem com o
+  - `desenho` ou `ordem`: reinicie o `Arquiteto` no checkout da linha da tarefa (sem linhas, no andar;
+    edição sem commit no andar recusa o encontro de outra linha) e envie um `PEDIDO` de triagem com o
     documento e a seção. A resposta dele volta ao Implementador como observação de um
     `PEDIDO de retomada`, ou vira parada, se ele devolver `BLOQUEIO`;
   - `portão`: o portão local falha por algo fora dos arquivos da tarefa. É correção (`corrigir`) na

@@ -411,7 +411,7 @@ o texto passado precisa sobreviver à saída da grade e ao feriado. Por isso o d
 caiu: sem `status` nem "não houve aula" (o PRD tirou), e `fim` é cópia, só para o registro que saiu da grade ("fora da grade"). Só existe
 com texto (texto vazio apaga a linha). Tem `escola_id` e `ano_letivo_id` (regra 10), sai em cascata com o vínculo e na virada do ano
 (`VinculoRepository.virarAno`), só a professora do vínculo o lê, e o texto, que pode citar aluno, não vai a log, a auditoria, à
-coordenação nem a IA (`docs/lgpd.md`, "Registro da aula"). Quem o grava é a rota `PUT /v1/aulas` (F2b, 2.0), e o job da grade o
+coordenação nem a IA (`docs/lgpd.md`, "Registro da aula"). Quem o grava é a rota `PUT /v1/aulas` (F2b, 4.0), e o job da grade o
 acompanha (F2b, 5.0). É a fonte do "seu dia e sua semana" da professora, função do Assistente de ensino (`docs/agentes.md`), que usa a grade e o calendário e **não** lê o `conteudo`: o texto não vai a IA até a F11 reabrir a linha (`docs/lgpd.md`, "Registro da aula").
 
 ## Conteúdo
