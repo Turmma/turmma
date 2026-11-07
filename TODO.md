@@ -2824,10 +2824,15 @@ repetem aqui.
 `tasks/prd-semana-do-professor/retro.md`. Aceitas pelo Joaquim em 07/11/2026 ("aprovei a retro"). P1 a P5 já aplicadas; M1 e C1 mudam código:
 entram por correção.
 
-- [ ] (F2b, retro, M1) **O prazo da verificação do encontro.** `tools/processo/linhas.ts:49-50`: `PRAZO_DA_VERIFICACAO_MS` de 3 para 9 min e o
+- [x] *(feito na correção `2026-11-07-encontro-na-fila-de-carga`, 07/11/2026)* (F2b, retro, M1) **O prazo da verificação do encontro.** `tools/processo/linhas.ts:49-50`: `PRAZO_DA_VERIFICACAO_MS` de 3 para 9 min e o
       com `npm ci` de 6 para 12, com o comentário do porquê (três linhas dividem 12 núcleos; tipagem e lint passam de 180 s com carga de 14 a 25).
       Muda junto o caso de `tools/processo/linhas.test.ts:1378` que fixa os padrões. Cinco encontros da F2b foram recusados sem defeito (3.0, 6.0,
       `e2e-conflito-do-gerar`, 5.0, 8.0); com 540 s a verificação passou com carga 25. Guardiões: `revisor-geral`, `test-engineer`
+- [ ] (encontro na fila de carga, correção `2026-11-07-encontro-na-fila-de-carga`, 1ª rodada) **`linhas.ts encontro`: dois ajustes de CLI.**
+      (a) o `encontro` com argumento inválido também espera a fila antes de recusar; validar os argumentos antes da fila (muda a ordem do CLI;
+      a tarefa que tocar o CLI de `linhas.ts`). (b) o encontro agora soma a espera da fila (o portão inteiro de outra linha) com até 9 ou 12 min
+      de verificação, e pode passar do teto de 10 min de um comando Bash em primeiro plano do Orquestrador; o `6-tarefa.md` não comporta a
+      frase (orçamento de 24000 B), então o aviso do próprio comando (ou rodar em segundo plano) é a opção, em correção própria
 - [ ] (F2b, retro, C1) **O painel da aula com rascunho** (`apps/web/src/areas/professor/turmas/semana/`, `PainelDaAula.tsx` e `Semana.tsx`):
       (a) a dica do painel cobre os dois botões: "Fechar e Preparar deixam de lado o que não foi salvo", sem pergunta nova; (c) a semana relida
       sem a aula não fecha o painel: ele fica aberto com a frase "Esta aula saiu da grade; o texto não foi salvo" e o "Salvar" desligado, para a
@@ -3007,3 +3012,27 @@ Menores da validação (`tasks/prd-semana-do-professor/validacao.md`, seção 4)
 
 O m5 (os quatro destinos da ordem r1 da 1.0) está nas linhas acima e nos grupos "Infra e operação" e "LGPD e conformidade"; o quarto, o rótulo "Registro da
 aula" em `Retencao.tsx`, o Validador conferiu: a tela já o mostra pela descrição de `PRAZOS_FIXOS`, e o item fecha sem código.
+
+## Da correção 2026-11-07-unidade-independente-da-carga (a unidade sob carga), fora dela
+
+- [ ] (unidade-independente-da-carga, revisor-geral e test-engineer, 2ª) **Conferir quantos núcleos tem o runner da esteira.** `runs-on: ubuntu-24.04` em
+      repositório público costuma ter 4 vCPU, e o 2 só aparece num comentário de `.github/workflows/ci.yml:59`. Imprimir `availableParallelism()` no log de
+      uma corrida da esteira e, se forem 4, corrigir o texto de `tools/testes/limite-de-trabalhadores.ts` e da seção "Correção" do documento (o limite dá 2
+      contra os 3 do padrão do Vitest; a esteira fica um pouco mais lenta, nada quebra) (dono: Implementador, na próxima correção da esteira)
+- [ ] (unidade-independente-da-carga, revisor-geral, 2ª) **Repetir o comentário dos "três `describe` com prazo próprio" nos outros dois `describe` de
+      `tools/guardas/guardas.test.ts`** (`guarda desligada por comentário` e `configuração das guardas`); só comentário (dono: Implementador)
+
+## Da correção 2026-11-07-restos-ve-arquivo-novo (o `restos` e o arquivo não adicionado), fora dela
+
+- [ ] (restos-ve-arquivo-novo, revisor-geral e test-engineer, 2ª) **Nomes dos casos de `tools/renomear/restos.test.ts`.** O caso `o nome antigo num arquivo criado e não
+      adicionado deixa o comando vermelho` só confere `sobras`: renomear para "aparece" e pôr o mesmo nome no bloco de mutação 1 (hoje ele casa dois casos por
+      substring). O caso `não derrubam o comando` confere a carga, não o processo: "não derrubam a carga" (dono: Implementador)
+- [ ] (restos-ve-arquivo-novo, privacy-guardian e test-engineer, 2ª) **`ehArquivo` segue o link.** `statSync` lê o link não adicionado que aponta para um arquivo fora do
+      repositório; `lstatSync(...).isFile()` não o seguiria e resolve também o link para pasta. Escrever o caso (link para arquivo com nome antigo fora da árvore, que
+      não pode ser lido) e decidir; muda o que o `restos` lê (dono: Arquiteto, para decidir; Implementador)
+- [ ] (restos-ve-arquivo-novo, revisor-geral, 2ª) **Uma frase no documento da correção:** `ehArquivo` também muda o que o `aplicar` e o `reaplicar` fazem com um link
+      versionado para pasta (antes parava com `EISDIR`, agora o link fica fora da árvore); a árvore de hoje não tem nenhum
+- [ ] (restos-ve-arquivo-novo, privacy-guardian, 2ª) **Comentário de `restos na árvore`:** lembrar que o rascunho solto nunca deve ser dump ou export real (regra 20, item 17)
+- [ ] (restos-ve-arquivo-novo, revisor-geral, 1ª) **A Tech Spec da X8** (`tasks/prd-nomes-de-mercado/techspec.md:208`) diz "rodado depois do `git add` (a `Arvore` lê o índice)", e o `restos`
+      lê também o que não está no índice: atualizar o parêntese na próxima mudança de `tasks/prd-nomes-de-mercado/`
+- [ ] (restos-ve-arquivo-novo, infra-guardian, 1ª) **`tools/renomear/aplicar.test.ts:470` roda processo sem prazo próprio:** entra junto com a próxima correção que tocar o arquivo

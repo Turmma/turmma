@@ -1,9 +1,9 @@
-// A fila de carga da máquina: um `flock` que o portão local e o e2e tomam sozinhos.
+// A fila de carga da máquina: um `flock` que o portão local, o e2e e o encontro das linhas tomam sozinhos.
 //
 // Cada linha da spec tem o seu ambiente de teste, mas a máquina é uma só: o e2e de duas linhas ao mesmo tempo estoura os
 // 30 s do runner (X2, carga de 9 a 24). A fila existia só no texto das skills (`flock /tmp/educa-carga.lock <comando>`),
-// e dependia de quem digitava o comando. Aqui ela é do comando: `portao-local.ts` e `tools/ci/e2e.ts` chamam
-// `garantirFilaDeCarga()` antes de qualquer etapa e, sem o lugar, se relançam por dentro do `flock`.
+// e dependia de quem digitava o comando. Aqui ela é do comando: `portao-local.ts`, `tools/ci/e2e.ts` e `tools/processo/linhas.ts encontro`
+// chamam `garantirFilaDeCarga()` antes de qualquer etapa e, sem o lugar, se relançam por dentro do `flock`.
 //
 // - Quem já está na fila não entra de novo. O fd da trava vive no processo que o `flock` executa, mas não passa aos
 //   filhos que o Node inicia (o libuv não o deixa herdar: medido com `npm exec -- node` sob `flock`), e é um filho assim

@@ -1,13 +1,13 @@
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
 /**
  * A árvore do repositório na memória (Tech Spec da X8, §5: "só grava depois de calcular tudo"). O `aplicar` calcula cada passo
  * sobre ela, e a recusa descarta a árvore: nada foi escrito. Só `gravar` toca o disco, e é o único lugar que chama o git.
  *
- * Só os arquivos versionados entram. O conteúdo é texto, ou `null` para o que não se lê como texto (imagem, fonte, PDF): esses
- * ainda mudam de lugar, mas ninguém os edita.
+ * Só os arquivos versionados entram (o `restos` pede também os ainda não adicionados: `OpcoesDaCarga`). O conteúdo é texto, ou `null`
+ * para o que não se lê como texto (imagem, fonte, PDF): esses ainda mudam de lugar, mas ninguém os edita.
  */
 
 const BINARIOS = /\.(png|jpe?g|gif|ico|webp|woff2?|ttf|otf|pdf|zip|gz)$/i
@@ -25,9 +25,33 @@ export const executarDeVerdade: Executor = (comando, argumentos, cwd) => {
   execFileSync(comando, [...argumentos], { cwd, stdio: ['ignore', 'pipe', 'pipe'] })
 }
 
-function listarVersionados(raiz: string): string[] {
-  const saida = execFileSync('git', ['ls-files', '-z', '--cached'], { cwd: raiz, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 })
-  return saida.split('\0').filter((caminho) => caminho !== '')
+export interface OpcoesDaCarga {
+  /**
+   * Soma os arquivos que estão na pasta e não no índice (`--others --exclude-standard`: o que o `.gitignore` exclui continua fora, e por
+   * isso a soma só é tão boa quanto o `.gitignore`: um arquivo de dado fora dele, na pasta de quem roda, passa a ser lido).
+   * É a opção do `restos`, que vê o arquivo que a tarefa criou antes do `git add`; o `aplicar` e o `reaplicar` gravam com `git mv`
+   * e seguem só com os versionados.
+   */
+  incluirNaoVersionados?: boolean
+}
+
+function listarArquivos(raiz: string, opcoes: OpcoesDaCarga): string[] {
+  const listar = (...filtros: string[]): string[] =>
+    execFileSync('git', ['ls-files', '-z', ...filtros], { cwd: raiz, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 })
+      .split('\0')
+      .filter((caminho) => caminho !== '')
+  const versionados = listar('--cached')
+  if (opcoes.incluirNaoVersionados !== true) return versionados
+  return [...new Set([...versionados, ...listar('--others', '--exclude-standard')])]
+}
+
+/** `statSync` segue o link e lança no link quebrado e no que sumiu: nos dois casos não há arquivo para ler. */
+function ehArquivo(absoluto: string): boolean {
+  try {
+    return statSync(absoluto).isFile()
+  } catch {
+    return false
+  }
 }
 
 export class Arvore {
@@ -48,12 +72,13 @@ export class Arvore {
     this.atualPorCaminho = conteudos
   }
 
-  static carregar(raiz: string): Arvore {
+  static carregar(raiz: string, opcoes: OpcoesDaCarga = {}): Arvore {
     const conteudos = new Map<string, string | null>()
-    for (const caminho of listarVersionados(raiz)) {
+    for (const caminho of listarArquivos(raiz, opcoes)) {
       const absoluto = join(raiz, caminho)
-      // Apagado no disco e ainda no índice: não é arquivo da árvore.
-      if (!existsSync(absoluto)) continue
+      // Apagado no disco e ainda no índice, ou pasta (um repositório aninhado não adicionado sai do `git ls-files --others` como `pasta/`, e um
+      // link para pasta como o link): não é arquivo da árvore.
+      if (!ehArquivo(absoluto)) continue
       conteudos.set(caminho, BINARIOS.test(caminho) ? null : readFileSync(absoluto, 'utf8'))
     }
     return new Arvore(raiz, conteudos)

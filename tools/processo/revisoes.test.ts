@@ -1176,7 +1176,8 @@ describe('alterações com um merge em curso', () => {
   })
 })
 
-describe('achados separados por documento, com índice', () => {
+// O caso do índice registra 100 rodadas, cada uma com o hook em um processo; o prazo próprio é o de um travamento, não o da velocidade da máquina.
+describe('achados separados por documento, com índice', { timeout: 60_000 }, () => {
   // O arquivo único da pasta chegou a 646 KB / 158 rodadas no F1, e o passo 2 do /executar-task
   // manda lê-lo antes de cada tarefa. Ou não era lido, ou consumia a janela antes de começar.
 

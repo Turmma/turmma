@@ -1,4 +1,4 @@
-import { type ChildProcess, execFileSync, spawn } from 'node:child_process'
+import { type ChildProcess, execFileSync, spawn, spawnSync } from 'node:child_process'
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -705,9 +705,13 @@ describe('partida, encontro e fechamento, em repositórios de verdade', () => {
       for (const filho of filhos.splice(0)) filho.kill('SIGKILL')
     })
 
-    /** O comando como o Orquestrador o roda: `node tools/processo/linhas.ts …` no andar da spec, em outro processo. */
+    /**
+     * O comando como o Orquestrador o roda: `node tools/processo/linhas.ts …` no andar da spec, em outro processo. Com `CI=true`
+     * o encontro não entra na fila de carga (a de verdade é a que o portão que roda este teste segura); o caso da fila liga
+     * `CI=false` e põe uma trava própria em `EDUCA_FILA_DE_CARGA`.
+     */
     function rodar(raiz: string, argumentos: string[], ambiente: Record<string, string | undefined> = {}) {
-      const filho = spawn(process.execPath, [CLI, ...argumentos], { cwd: raiz, env: { ...process.env, EDUCA_ENCONTRO_SOB_A_TRAVA: 'true', ...ambiente }, stdio: ['ignore', 'pipe', 'pipe'] })
+      const filho = spawn(process.execPath, [CLI, ...argumentos], { cwd: raiz, env: { ...process.env, CI: 'true', EDUCA_ENCONTRO_SOB_A_TRAVA: 'true', ...ambiente }, stdio: ['ignore', 'pipe', 'pipe'] })
       filhos.push(filho)
       let texto = ''
       const estado: { saida: Saida | null } = { saida: null }
@@ -1091,7 +1095,7 @@ describe('partida, encontro e fechamento, em repositórios de verdade', () => {
         expect((await encontro(spec, 1)).codigo).toBe(0)
         const passou = await encontro(spec, 2, { comandoSobATrava: comandoDaLinha2 })
         expect(passou.codigo, passou.texto).toBe(0)
-        expect(passou.texto).toContain(`Verificação do merge: passou (${comandoDaLinha2}), com prazo de 180 s.`)
+        expect(passou.texto).toContain(`Verificação do merge: passou (${comandoDaLinha2}), com prazo de 540 s.`)
         expect(git(spec, 'rev-parse', 'HEAD')).toBe(git(l2, 'rev-parse', 'HEAD'))
         expect(git(spec, 'log', '--merges', '--format=%s', '-1')).toMatch(/^Merge branch 'spec\/exemplo' into spec\/exemplo--l2/)
         expect(linhaDoQuadro(spec, 2)).toMatchObject({ tarefa: null })
@@ -1108,7 +1112,7 @@ describe('partida, encontro e fechamento, em repositórios de verdade', () => {
           }
         }
 
-        it('lock alterado pela spec: o npm ci roda antes da verificação, com o prazo de 6 min; lock igual: não roda, com o de 3', async () => {
+        it('lock alterado pela spec: o npm ci roda antes da verificação, com o prazo de 12 min; lock igual: não roda, com o de 8', async () => {
           const { base, spec, entregar } = await andaresComOrigem()
           await partida(spec, 1, '2')
           await partida(spec, 2, '3')
@@ -1119,12 +1123,12 @@ describe('partida, encontro e fechamento, em repositórios de verdade', () => {
           const semLock = await encontro(spec, 1, injetados)
           expect(semLock.codigo, semLock.texto).toBe(0)
           expect(lido()).toEqual(['verificacao'])
-          expect(semLock.texto).toContain('com prazo de 180 s')
+          expect(semLock.texto).toContain('com prazo de 540 s')
           // Na linha 2 a spec traz o lock da linha 1: o ambiente da linha 2 não o tem.
           const comLock = await encontro(spec, 2, injetados)
           expect(comLock.codigo, comLock.texto).toBe(0)
           expect(lido()).toEqual(['verificacao', 'npm-ci', 'verificacao'])
-          expect(comLock.texto).toContain('com prazo de 360 s')
+          expect(comLock.texto).toContain('com prazo de 720 s')
           expect(comLock.texto).toContain(`Verificação do merge: passou ((${injetados.comandoDeInstalacao}) && (${injetados.comandoSobATrava}))`)
         })
 
@@ -1190,7 +1194,7 @@ describe('partida, encontro e fechamento, em repositórios de verdade', () => {
           const passou = await comNpm(bin, () => encontroDeVerdade(spec, 1, { push: false }))
           expect(passou.codigo, passou.texto).toBe(0)
           expect(lido()).toEqual(['run typecheck', 'run lint'])
-          expect(passou.texto).toContain(`Verificação do merge: passou (${COMANDO_DA_VERIFICACAO}), com prazo de 180 s.`)
+          expect(passou.texto).toContain(`Verificação do merge: passou (${COMANDO_DA_VERIFICACAO}), com prazo de 540 s.`)
           expect(git(spec, 'log', '-1', '--format=%s', '--', 'apps/web/a.ts')).toBe('Entrega (tarefa 2.0)')
         })
 
@@ -1374,16 +1378,48 @@ describe('partida, encontro e fechamento, em repositórios de verdade', () => {
         }
       })
 
-      it('o prazo da verificação é de 3 min, ou 6 com o npm ci, e quem espera a trava espera mais que isso e o SIGKILL', () => {
-        expect([PRAZO_DA_VERIFICACAO_MS, PRAZO_DA_VERIFICACAO_COM_NPM_CI_MS, ESPERA_ATE_SIGKILL_MS]).toEqual([3 * 60_000, 6 * 60_000, 5_000])
+      it('o encontro espera a vez na fila de carga, sem segurar o quadro, e o prazo da verificação só corre depois dela', async () => {
+        const { base, spec, git, checkouts, entregar } = await andaresComOrigem()
+        const l1 = checkouts.get(1) ?? ''
+        await partida(spec, 1, '2')
+        entregar(1, 2, { 'apps/web/a.ts': 'a\n' })
+        const [fila, liberar, pronta, chegou] = ['fila.lock', 'fila.liberar', 'fila.pronta', 'verificou'].map((nome) => join(base, nome)) as [string, string, string, string]
+        // A outra linha, com o portão na mão: segura a fila até o arquivo-sinal aparecer (e desiste sozinha em 30 s).
+        const dona = spawn('flock', [fila, 'sh', '-c', `: > '${pronta}'; n=0; while [ ! -e '${liberar}' ] && [ $n -lt 1500 ]; do sleep 0.02; n=$((n+1)); done`], { stdio: 'ignore' })
+        filhos.push(dona)
+        await aguardarArquivo(pronta)
+        const execucao = rodar(spec, ['encontro', '1'], {
+          CI: 'false',
+          EDUCA_FILA_DE_CARGA: fila,
+          EDUCA_ENCONTRO_SOB_A_TRAVA: `: > '${chegou}'`,
+          // Menor que a espera (3 s): se o relógio corresse na fila, a verificação, que é instantânea, já nasceria vencida.
+          EDUCA_ENCONTRO_PRAZO_DA_VERIFICACAO_MS: '2000',
+        })
+        await dormir(3_000)
+        expect(execucao.jaSaiu()).toBe(false)
+        expect(existsSync(chegou)).toBe(false)
+        // Esperando a fila, o encontro não tem a trava do quadro: o `partida` das outras linhas não espera por ele.
+        expect(spawnSync('flock', ['-n', join(spec, CAMINHO_DA_TRAVA), 'true']).status).toBe(0)
+        writeFileSync(liberar, '')
+        const saida = await execucao.terminou
+        expect(saida.codigo, saida.texto).toBe(0)
+        expect(saida.texto).toContain('fila de carga')
+        expect(existsSync(chegou)).toBe(true)
+        // Avançou de verdade: a spec está na ponta da linha e a linha ficou livre.
+        expect(git(spec, 'rev-parse', 'HEAD')).toBe(git(l1, 'rev-parse', 'HEAD'))
+        expect(linhaDoQuadro(spec, 1)).toMatchObject({ tarefa: null })
+      })
+
+      it('o prazo da verificação é de 9 min, ou 12 com o npm ci, e quem espera a trava espera mais que isso e o SIGKILL', () => {
+        expect([PRAZO_DA_VERIFICACAO_MS, PRAZO_DA_VERIFICACAO_COM_NPM_CI_MS, ESPERA_ATE_SIGKILL_MS]).toEqual([9 * 60_000, 12 * 60_000, 5_000])
         expect([prazoDaVerificacao(false), prazoDaVerificacao(true)]).toEqual([PRAZO_DA_VERIFICACAO_MS, PRAZO_DA_VERIFICACAO_COM_NPM_CI_MS])
         expect([prazoDaVerificacao(false, { prazoDaVerificacaoMs: 400 }), prazoDaVerificacao(true, { prazoDaVerificacaoMs: 400 })]).toEqual([400, 400])
         expect(PRAZO_DA_TRAVA_MS).toBeGreaterThan(PRAZO_DA_VERIFICACAO_COM_NPM_CI_MS + ESPERA_ATE_SIGKILL_MS)
       })
     })
 
-    it('o prazo da trava é o de 7 min, e o ambiente só o troca por um número', () => {
-      expect(PRAZO_DA_TRAVA_MS).toBe(7 * 60 * 1000)
+    it('o prazo da trava é o de 15 min, e o ambiente só o troca por um número', () => {
+      expect(PRAZO_DA_TRAVA_MS).toBe(15 * 60 * 1000)
       expect(
         opcoesDoAmbiente({
           EDUCA_QUADRO_PRAZO_DA_TRAVA_MS: '300',

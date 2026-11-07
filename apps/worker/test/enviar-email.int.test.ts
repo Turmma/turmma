@@ -87,7 +87,7 @@ describe('email.enviar-convite', () => {
     return { escolaId, conviteId, usuarioId, token, endereco }
   }
 
-  interface Linha {
+  interface LinhaDoConvite {
     envio: string | null
     token: Buffer | null
     destino: Buffer | null
@@ -96,8 +96,8 @@ describe('email.enviar-convite', () => {
     revogadoEm: Date | null
   }
 
-  async function linha(conviteId: string): Promise<Linha> {
-    const { rows } = await bancada.pool.query<Linha>(
+  async function linha(conviteId: string): Promise<LinhaDoConvite> {
+    const { rows } = await bancada.pool.query<LinhaDoConvite>(
       `select envio, token_cifrado as token, destino_cifrado as destino, envio_reservado_em as "reservadoEm", enviado_em as "enviadoEm", revogado_em as "revogadoEm" from convite where id = $1`,
       [conviteId],
     )
