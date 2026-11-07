@@ -1,7 +1,7 @@
 # Estado da execução — acesso-e-convites
 
 ## Agora
-- **Espero:** (07/11 11:04) o `RELATÓRIO` do `Arquiteto` com a lista de tarefas (fase `sem-tarefas`; a retro da F2b, `524d9852`, entrou na spec pelo merge `6c1d43c9`). E o `RELATÓRIO` do `Implementador` (linha 1) da correção `2026-11-07-restos-ve-arquivo-novo` (a "(F2, retro, M1)" do `TODO.md`), 1ª tentativa, guardiões `revisor-geral` e `test-engineer`.
+- **Espero:** o `RELATÓRIO` do `Implementador` (linha 1) da correção `2026-11-07-restos-ve-arquivo-novo`, 1ª tentativa, guardiões `revisor-geral` e `test-engineer`. **Tarefas prontas** (`8d34c1a2`, 16, lista mostrada às 07/11 11:24): aviso enviado; **a construção começa às 11:54**, na primeira vigia depois da hora sem palavra do Joaquim, e só depois do encontro da correção na linha 1 (as outras linhas podem partir antes).
 - **Devo ainda:** o provedor de e-mail segue aberto: segura o portão, não as tarefas. Com a lista de tarefas, o aviso das 30 min (passo 7); a construção começa depois do encontro da correção.
 - **Base:** `spec/acesso-e-convites` em `6c1d43c9`
 
