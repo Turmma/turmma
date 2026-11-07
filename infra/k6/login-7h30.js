@@ -5,7 +5,8 @@
 //   FASE=base           só B e C: login e requisições autenticadas, sem ataque. O p95 das autenticadas vira a base.
 //   FASE=rajada         2.100 contas de A, B e C em 5 min, 40% no primeiro minuto e 30% errando a senha uma vez antes
 //                       de acertar, cada uma seguida de requisições autenticadas. O aluno lê também o que o Início dele
-//                       lê (GET /v1/eu e a primeira página de GET /v1/minhas-atividades, telas do aluno 3.0).
+//                       lê (GET /v1/eu e a primeira página de GET /v1/minhas-atividades, telas do aluno 3.0), e o professor
+//                       abre a Semana (GET /v1/semana, F2b), com a grade, o texto das aulas e os itens do dia semeados.
 //   FASE=renovacao      600 contas entram e renovam a sessão em duas abas ao mesmo tempo, como no pior caso da web. Em
 //                       vez de esperar o token curto vencer, a renovação vem logo depois do login: a disputa é a mesma.
 //   FASE=preparacao     sem ataque, as contas "com cookie" entram uma vez, e o `educa_dispositivo` que o login grava vai
@@ -45,6 +46,9 @@ export const P95_MAXIMO_DO_LOGIN_MS = 1_000
 /** O nome (a tag `name`) das duas leituras do Início do aluno, e o da rota que ganha limite próprio na rajada. */
 export const ROTA_DO_EU = 'GET /v1/eu'
 export const ROTA_DAS_TAREFAS = 'GET /v1/minhas-atividades'
+/** O nome (a tag `name`) da Semana do professor, que ganha limite próprio na rajada, e quantos professores a leem: 20 por escola, 3 escolas. */
+export const ROTA_DA_SEMANA = 'GET /v1/semana'
+export const PROFESSORES_NA_RAJADA = 60
 /** Margem declarada sobre o p95 das requisições autenticadas da B e da C na base. */
 export const MARGEM_SOBRE_A_BASE_MS = 250
 /** Quanto a web repete sozinha no 503 antes de mostrar erro (Tech Spec, seção 5, "Hash"; 18.0). */
@@ -90,6 +94,8 @@ const respostas429 = new Counter('respostas_429')
 const respostas503 = new Counter('respostas_503')
 const erroFinal = new Counter('login_erro_final')
 const entraram = new Counter('contas_que_entraram')
+/** As leituras da Semana que voltaram 200 e completas: aula, texto de aula, evento e item do dia. */
+const semanasLidas = new Counter('semanas_lidas')
 const inesperadas = new Counter('respostas_inesperadas')
 const renovacaoRecusada = new Counter('renovacao_recusada')
 const renovacaoConcorrente = new Counter('renovacao_409')
@@ -236,6 +242,11 @@ function configuracao() {
           // média das outras rotas.
           'autenticada_duracao{grupo:rajada}': [`p(95)<${P95_MAXIMO_DO_LOGIN_MS}`],
           [`autenticada_duracao{grupo:rajada,name:${ROTA_DAS_TAREFAS}}`]: [`p(95)<${P95_MAXIMO_DO_LOGIN_MS}`],
+          // O professor abre a Semana depois do login (F2b): a rota roda as consultas da semana em sequência, uma conexão por vez, e tem o
+          // mesmo limite sozinha. As 60 leituras vieram com 200 e completas (aula, texto, evento e item do dia): parte vazia quer dizer que o seed
+          // falhou, e que a consulta que a Semana paga nem rodou de verdade.
+          [`autenticada_duracao{grupo:rajada,name:${ROTA_DA_SEMANA}}`]: [`p(95)<${P95_MAXIMO_DO_LOGIN_MS}`],
+          semanas_lidas: [`count==${PROFESSORES_NA_RAJADA}`],
           // As 2.100 entraram: nenhuma iteração perdida por falta de VU, nenhuma conta que desistiu.
           'contas_que_entraram{grupo:rajada}': [`count==${CONTAS_NA_RAJADA}`],
           dropped_iterations: ['count==0'],
@@ -367,6 +378,35 @@ function leituraDoInicio(token, grupo) {
   inesperadas.add(tarefas.status !== 200 || (Array.isArray(itens) && itens.length > 0) ? 0 : 1, { grupo, status: 'pagina_vazia' })
 }
 
+/**
+ * A segunda-feira (`AAAA-MM-DD`) da semana de hoje em Brasília (UTC-3, sem horário de verão), a que a Semana do professor abre. O seed grava a dele com o
+ * relógio do banco na hora em que roda: se o seed rodar na madrugada de domingo e o k6 já na segunda, as duas semanas diferem, e o cenário reprova (falha segura).
+ */
+function segundaDaSemana() {
+  const hoje = new Date(Date.now() - 3 * 3_600_000)
+  return new Date(hoje.getTime() - ((hoje.getUTCDay() + 6) % 7) * 86_400_000).toISOString().slice(0, 10)
+}
+
+/**
+ * O que o professor lê ao abrir a Semana depois do login: a semana de hoje. A leitura só conta quando volta 200 **e completa**: com aula, com o texto de ao
+ * menos uma aula, com evento de calendário em algum dia e com item em algum dia. A escola da carga dá a cada professor vínculos, grade, texto, calendário e
+ * atividades aplicadas na semana (`semearASemanaDosProfessores`); a que falta uma dessas partes quer dizer que o seed ou o vínculo falhou, e que a consulta
+ * correspondente da Semana nem rodou de verdade.
+ */
+function leituraDaSemana(token, grupo) {
+  const caminho = '/v1/semana'
+  const resposta = autenticada(token, grupo, `${caminho}?segunda=${segundaDaSemana()}`, ROTA_DA_SEMANA)
+  const dias = resposta.status === 200 ? resposta.json('dias') : undefined
+  const lista = Array.isArray(dias) ? dias : []
+  const comAula = lista.some((dia) => dia.aulas.length > 0)
+  const comTexto = lista.some((dia) => dia.aulas.some((aula) => aula.texto !== null))
+  const comEvento = lista.some((dia) => dia.eventos.length > 0)
+  const comItem = lista.some((dia) => dia.itens.length > 0)
+  const completa = comAula && comTexto && comEvento && comItem
+  semanasLidas.add(completa ? 1 : 0)
+  inesperadas.add(resposta.status !== 200 || completa ? 0 : 1, { grupo, status: 'semana_incompleta' })
+}
+
 /** Um navegador novo: sem cookie nenhum, ou só com o `educa_dispositivo` de quem já entrou nele. */
 function navegador(dispositivo) {
   return { jar: new http.CookieJar(), cookies: dispositivo === undefined ? {} : { educa_dispositivo: { value: dispositivo, replace: true } } }
@@ -432,8 +472,9 @@ export function rajada() {
   if (conta === undefined) return
   const token = entrar(conta, 'rajada', navegador(), conta.erra)
   if (token === undefined) return
-  // Só o aluno tem Início: a equipe da rajada continua nas autenticadas de sempre.
+  // O aluno abre o Início, e o professor abre a Semana: a equipe da rajada é só de professores.
   if (conta.matricula !== undefined) leituraDoInicio(token, 'rajada')
+  if (conta.email !== undefined) leituraDaSemana(token, 'rajada')
   for (let vez = 0; vez < 3; vez++) {
     sleep(1)
     autenticada(token, 'rajada')

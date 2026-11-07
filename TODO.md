@@ -2785,10 +2785,24 @@ repetem aqui.
 
 ## Da semana-do-professor, tarefa 2.0 (`GET /v1/semana`), fora dela
 
-- [ ] (semana-do-professor, 2.0, infra-guardian, 1ª e 2ª) **A rota da Semana entra no cenário de carga das 7h30.** `GET /v1/semana` como passo do
-      professor em `infra/scripts/carga-login.ts` (ou no cenário `rajada`), medido no k6 antes de a tela da 6.0 entrar: o professor abre a Semana
-      na manhã de segunda, junto com a rajada de login, e o limite da espera do pool é de 100 ms (R40). A rota roda as cinco consultas em sequência,
-      uma conexão por vez. Dono: a tarefa 6.0 (a tela que chama a rota)
+- [x] *(resolvido na correção `2026-11-07-carga-da-semana`: `GET /v1/semana` no cenário `rajada` de `infra/k6/login-7h30.js`, com o seed de vínculos, grade, texto de aulas e calendário em `infra/scripts/carga-login.ts`; medido em 07/11 com load 4: p95 de 47 ms, 60 de 60 leituras com aula, limite de 1 s.)* (semana-do-professor, 2.0, infra-guardian, 1ª e 2ª) **A rota da Semana entra no cenário de carga das 7h30.** `GET /v1/semana` como passo do
+      professor em `infra/scripts/carga-login.ts` (ou no cenário `rajada`), medido no k6 antes de a tela da 6.0 entrar. Dono: a tarefa 6.0, que não o fez
+- [ ] (semana-do-professor, correção `carga-da-semana`, infra-guardian) **Exportar a espera do pool de conexões do banco.** O limite de 100 ms (R40) para a espera do pool não é
+      mensurável: `observeDatabasePool` (`packages/core/src/telemetry/metrics.ts`) publica só `db_pool_em_uso` e as descartadas. Acrescentar a espera (tempo entre pedir e receber a conexão)
+      e lê-la na conferência do `carga:login`, ao lado do p95 da rota. Mexe em `packages/core`, que a correção não tocou
+      Quando a métrica existir, pôr o threshold de 100 ms (R40) na `rajada` do `login-7h30.js`, ao lado do p95 de `GET /v1/semana` (infra-guardian, 1ª)
+- [ ] (semana-do-professor, correção `carga-da-semana`, test-engineer, 1ª) **Rodar o `carga:importacao` (fase `previa_e_gravar`) uma vez.** O cenário herda o seed da Semana e o threshold
+      `semanas_lidas == 60` da `rajada` (`semearContas` e a fase `rajada` do k6 são os mesmos); a correção só rodou o `carga:login`. Registrar o resultado
+- [ ] (semana-do-professor, correção `carga-da-semana`, test-engineer, 1ª) **Uma leitura da Semana que não volta 200 soma duas vezes em `respostas_inesperadas`** (a de `autenticada` e a `semana_incompleta`
+      de `leituraDaSemana`). O threshold continua certo, só a contagem infla; tirar a segunda soma muda a métrica e o bloco de mutação dela
+- [ ] (semana-do-professor, correção `carga-da-semana`, test-engineer, 1ª) **Professor com duas disciplinas na mesma turma no seed da carga.** O seed dá a cada professor um vínculo por turma;
+      a Semana trata o professor de duas disciplinas na mesma turma (dois vínculos, itens por disciplina) e o cenário não a exercita. Cobertura extra, não defeito da medida
+- [ ] (semana-do-professor, correção `carga-da-semana`, test-engineer, 2ª) **Cobertura do seed e do critério da Semana na carga.** (a) `leituraDaSemana`: `const lista = Array.isArray(dias) ? dias : []`
+      não tem `toContain` nem bloco (a falha já é segura: com `[]` o cenário reprova); (b) as tuplas dos eventos do seed (`'feriado', 4, 4` e `'evento', 2, 3`) não são conferidas uma a uma, e `comEvento` passa com um
+      evento só: cobrir o caminho do feriado (sexta sem aula) e a semana de avaliações. Não é defeito da medida
+- [ ] (semana-do-professor, correção `carga-da-semana`, infra-guardian, 2ª) **Uma corrida de controle negativo por parte do seed da Semana.** Só sem texto, só sem evento e só sem item do dia, de `--fases rajada`
+      (8 min cada). Hoje valem a corrida sem grade e a sem as três partes juntas. Na mesma ocasião da corrida do `carga:importacao` (item acima), conferir que nada da fase `previa_e_gravar` depende de
+      `aplicada_em` ser o instante do seed, porque o `update atividade_aplicada` da Semana vale lá também
 - [ ] (semana-do-professor, 2.0, infra-guardian, 1ª) **Índice `(escola_id, ano_letivo_id, vinculo_id)` na `alocacao`, só se o `EXPLAIN` pedir.**
       `SemanaRepository.alocacoesDosVinculos` filtra `vinculo_id` em cima do `alocacao_ano_idx (escola_id, ano_letivo_id)`. Se o `EXPLAIN` no
       staging, com a grade de uma escola grande, mostrar varredura da escola toda, o índice novo resolve (migration só de criação, regra 80,

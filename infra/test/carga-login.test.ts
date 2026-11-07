@@ -14,6 +14,7 @@ import {
   ATIVIDADES_NOVAS_COM_TENTATIVA,
   ATIVIDADES_NOVAS_ENVIADAS,
   ATIVIDADES_POR_TURMA,
+  AULAS_POR_VINCULO_NA_SEMANA,
   argumentosDoK6DeLogin,
   autenticadaBaseP95,
   codigoDeSaidaDoLogin,
@@ -27,6 +28,7 @@ import {
   juntarAtacante,
   lerResumoDaFase,
   montarContas,
+  TURMAS_POR_PROFESSOR,
   turmasDaEscola,
   type FaseDoCenario,
   type ResumoDaFase,
@@ -371,11 +373,11 @@ describe('ambiente do cenário "login às 7h30"', () => {
     expect(doExemplo['LOGIN_PROTECAO_DESLIGADA']).toBe('false')
   })
 
-  it('o cenário só chama as rotas do login por matrícula e e-mail, a renovação e as autenticadas, as do Início do aluno entre elas: nem o login externo (oidc-falso), nem provedor pago (regra 80, item 11)', () => {
+  it('o cenário só chama as rotas do login por matrícula e e-mail, a renovação e as autenticadas, as do Início do aluno e a Semana do professor entre elas: nem o login externo (oidc-falso), nem provedor pago (regra 80, item 11)', () => {
     const script = lerArquivo('infra/k6/login-7h30.js')
     // A rota vem depois de `${API}` ou como texto entre aspas (o `caminho` das autenticadas); `GET /v1/...` é o nome da tag, e não entra.
     const rotas = new Set([...script.matchAll(/(?:\$\{API\}|['"`])(\/v1\/[^`'"$]*)/g)].map((achado) => achado[1]))
-    expect([...rotas].sort()).toEqual(['/v1/eu', '/v1/minhas-atividades', '/v1/sessao/email', '/v1/sessao/matricula', '/v1/sessao/renovar', '/v1/sistema/contexto'])
+    expect([...rotas].sort()).toEqual(['/v1/eu', '/v1/minhas-atividades', '/v1/semana', '/v1/sessao/email', '/v1/sessao/matricula', '/v1/sessao/renovar', '/v1/sistema/contexto'])
     expect(argumentosDoK6DeLogin('atacante')).toContain('API_URL=http://borda:8080')
   })
 })
@@ -407,5 +409,64 @@ describe('o Início do aluno na rajada do cenário "login às 7h30"', () => {
     expect(script).toContain("itens.length > 0) ? 0 : 1, { grupo, status: 'pagina_vazia' }")
     // Só o aluno tem Início: a conta de matrícula lê as duas rotas, e a da equipe, não.
     expect(script).toContain("if (conta.matricula !== undefined) leituraDoInicio(token, 'rajada')")
+  })
+})
+
+describe('a Semana do professor na rajada do cenário "login às 7h30"', () => {
+  const script = lerArquivo('infra/k6/login-7h30.js')
+
+  it('o professor da carga dá aula em turmas da escola, com grade e texto de aulas: a rota não responde o vazio de "grade não importada"', () => {
+    expect(TURMAS_POR_PROFESSOR).toBeGreaterThan(1)
+    expect(TURMAS_POR_PROFESSOR).toBeLessThanOrEqual(turmasDaEscola(ALUNOS_POR_ESCOLA))
+    expect(AULAS_POR_VINCULO_NA_SEMANA).toBeGreaterThan(1)
+    expect(TURMAS_POR_PROFESSOR * AULAS_POR_VINCULO_NA_SEMANA).toBeGreaterThanOrEqual(15)
+  })
+
+  it('só o professor lê a Semana, uma vez, depois do login, e a conta de matrícula continua só no Início do aluno', () => {
+    expect(script).toContain("if (conta.email !== undefined) leituraDaSemana(token, 'rajada')")
+    expect(script).toContain("if (conta.matricula !== undefined) leituraDoInicio(token, 'rajada')")
+    expect(script).toContain("export const ROTA_DA_SEMANA = 'GET /v1/semana'")
+    expect(script).toContain('`${caminho}?segunda=${segundaDaSemana()}`, ROTA_DA_SEMANA)')
+  })
+
+  it('a rajada julga o p95 da Semana sozinho, no limite de 1 s do login, e exige as leituras de todos os professores', () => {
+    expect(script).toContain('[`autenticada_duracao{grupo:rajada,name:${ROTA_DA_SEMANA}}`]: [`p(95)<${P95_MAXIMO_DO_LOGIN_MS}`]')
+    expect(script).toContain('semanas_lidas: [`count==${PROFESSORES_NA_RAJADA}`]')
+    expect(script).toContain('export const PROFESSORES_NA_RAJADA = 60')
+    expect(contas.rajada.filter((conta) => 'email' in conta)).toHaveLength(60)
+  })
+
+  it('a semana sem aula, ou sem 200, conta como resposta inesperada e não como leitura', () => {
+    expect(script).toContain("const semanasLidas = new Counter('semanas_lidas')")
+    expect(script).toContain('semanasLidas.add(completa ? 1 : 0)')
+    expect(script).toContain("inesperadas.add(resposta.status !== 200 || completa ? 0 : 1, { grupo, status: 'semana_incompleta' })")
+    expect(script).toContain("const dias = resposta.status === 200 ? resposta.json('dias') : undefined")
+  })
+
+  it('a leitura só é completa com aula, texto de aula, evento de calendário e item do dia: cada parte do seed tem a sua conferência', () => {
+    expect(script).toContain('const comAula = lista.some((dia) => dia.aulas.length > 0)')
+    expect(script).toContain('const comTexto = lista.some((dia) => dia.aulas.some((aula) => aula.texto !== null))')
+    expect(script).toContain('const comEvento = lista.some((dia) => dia.eventos.length > 0)')
+    expect(script).toContain('const comItem = lista.some((dia) => dia.itens.length > 0)')
+    expect(script).toContain('const completa = comAula && comTexto && comEvento && comItem')
+  })
+
+  it('o calendário e os itens do dia do seed caem na semana em curso de Brasília, e não em data fixa', () => {
+    const seed = lerArquivo('infra/scripts/carga-login.ts')
+    expect(seed).toContain('semana.segunda + evento.de, semana.segunda + evento.ate')
+    expect(seed).toContain("update atividade_aplicada set aplicada_em = date_trunc('week', timezone('America/Sao_Paulo', now())) at time zone 'America/Sao_Paulo'")
+  })
+
+  it('a segunda pedida é a de Brasília, a mesma que o seed grava', () => {
+    expect(script).toContain('const hoje = new Date(Date.now() - 3 * 3_600_000)')
+    expect(script).toContain('((hoje.getUTCDay() + 6) % 7) * 86_400_000')
+    expect(script).toContain('.toISOString().slice(0, 10)')
+    expect(lerArquivo('infra/scripts/carga-login.ts')).toContain("date_trunc('week', timezone('America/Sao_Paulo', now()))::date + dia_semana - 1")
+  })
+
+  it('o registro da fase mostra quantos professores leram a Semana e o p95 dela', () => {
+    const linhas = descreverFase('rajada', limpo({ 'semanas_lidas count': 60, 'autenticada_duracao{grupo:rajada,name:GET /v1/semana} p(95)': 47 }))
+    expect(linhas).toContain('  rajada: semanas_lidas count = 60')
+    expect(linhas).toContain('  rajada: autenticada_duracao{grupo:rajada,name:GET /v1/semana} p(95) = 47')
   })
 })

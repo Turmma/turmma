@@ -136,6 +136,19 @@ export const ATIVIDADES_POR_TURMA = 60
 /** As atividades mais novas de cada turma, que caem na primeira página, ganham tentativa dos alunos (as duas mais novas, enviadas) e duas respostas. */
 export const ATIVIDADES_NOVAS_COM_TENTATIVA = 5
 export const ATIVIDADES_NOVAS_ENVIADAS = 2
+/**
+ * A Semana do professor (F2b; `GET /v1/semana`), que o professor abre na manhã de segunda junto com a rajada: cada professor da carga dá aula em
+ * `TURMAS_POR_PROFESSOR` turmas (um vínculo `confirmado` de professor por turma, na disciplina das atividades semeadas), cada vínculo tem
+ * `AULAS_POR_VINCULO_NA_SEMANA` aulas na grade (uma grade cheia: 18 aulas na semana), as aulas dos dias até `ULTIMO_DIA_COM_REGISTRO` já têm o registro de
+ * texto da semana em curso, o calendário da escola tem, nessa mesma semana, um feriado e um evento, e as atividades semeadas foram aplicadas na segunda dela:
+ * cada turma do professor leva a esse dia as `ATIVIDADES_POR_TURMA` atividades aplicadas, o pior caso dos itens do dia. Tudo relativo à semana em curso em Brasília
+ * (a mesma segunda que o k6 pede), para a cobertura não se perder com o calendário. Sem isto a rota respondia o vazio de "grade não importada", que não paga as
+ * consultas da Semana. O ano letivo semeado é o de 2026 (de 01/02 a 18/12): a corrida fora dele recebe a semana sem dia e reprova, e não passa em silêncio.
+ */
+export const TURMAS_POR_PROFESSOR = 6
+export const AULAS_POR_VINCULO_NA_SEMANA = 3
+/** Os dias da grade (1 = segunda) cujas aulas já têm o texto da semana em curso. */
+export const ULTIMO_DIA_COM_REGISTRO = 2
 /** As questões do artefato sintético: o repository só conta `conteudo.questoes`. */
 const QUESTOES_SINTETICAS = Array.from({ length: 3 }, (_, posicao) => ({
   enunciado: `Enunciado sintético da questão ${String(posicao + 1)}`,
@@ -346,7 +359,10 @@ async function importarDaApi(): Promise<ModulosDaApi> {
  * turma e, nas mais novas, tentativa e resposta dos alunos. Os alunos já viram a introdução. Tudo sintético, direto no banco
  * da carga (como o e2e): o professor sintético é quem criou e aplicou.
  */
-async function semearTurmasEAtividades(banco: Pick<pg.Pool, 'query'>, { escolaId, alunoIds, professorId }: { escolaId: string; alunoIds: readonly string[]; professorId: string }): Promise<void> {
+async function semearTurmasEAtividades(
+  banco: Pick<pg.Pool, 'query'>,
+  { escolaId, alunoIds, professorId, equipeIds }: { escolaId: string; alunoIds: readonly string[]; professorId: string; equipeIds: readonly string[] },
+): Promise<void> {
   const um = async (texto: string, valores: unknown[]): Promise<string> => {
     const { rows } = await banco.query<{ id: string }>(texto, valores)
     const [linha] = rows
@@ -408,6 +424,53 @@ async function semearTurmasEAtividades(banco: Pick<pg.Pool, 'query'>, { escolaId
       where tentativa.escola_id = $1 and tentativa.ano_letivo_id = $2`,
     [escolaId, anoLetivoId],
   )
+
+  await semearASemanaDosProfessores(banco, { escolaId, anoLetivoId, turmaIds, disciplinaId, professorId, equipeIds })
+}
+
+/**
+ * Dá a cada professor da escola o que a Semana lê (ver `TURMAS_POR_PROFESSOR`): os vínculos, a grade, o texto de parte das aulas da semana em curso (a
+ * segunda de Brasília, a mesma que o k6 pede) e o calendário. Todo texto é sintético.
+ */
+async function semearASemanaDosProfessores(
+  banco: Pick<pg.Pool, 'query'>,
+  { escolaId, anoLetivoId, turmaIds, disciplinaId, professorId, equipeIds }: { escolaId: string; anoLetivoId: string; turmaIds: readonly string[]; disciplinaId: string; professorId: string; equipeIds: readonly string[] },
+): Promise<void> {
+  await banco.query(
+    `insert into vinculo (escola_id, ano_letivo_id, usuario_id, turma_id, disciplina_id, papel, estado, criado_por, decidido_em)
+     select $1, $2, professor.id, ($3::uuid[])[((professor.posicao - 1 + volta) % cardinality($3::uuid[]))::int + 1], $4, 'professor', 'confirmado', $5, now()
+       from unnest($6::uuid[]) with ordinality as professor(id, posicao) cross join generate_series(0, $7::int - 1) as volta`,
+    [escolaId, anoLetivoId, turmaIds, disciplinaId, professorId, equipeIds, TURMAS_POR_PROFESSOR],
+  )
+  await banco.query(
+    `insert into alocacao (escola_id, ano_letivo_id, vinculo_id, dia_semana, inicio, fim, sala)
+     select vinculo.escola_id, vinculo.ano_letivo_id, vinculo.id, 1 + ((vinculo.ordem + aula * 2) % 5),
+            time '07:30' + (vinculo.ordem % 6) * interval '50 minutes', time '07:30' + ((vinculo.ordem % 6) + 1) * interval '50 minutes', 'Sala ' || (1 + vinculo.ordem % 20)
+       from (select id, escola_id, ano_letivo_id, row_number() over (partition by usuario_id order by id) as ordem
+               from vinculo where escola_id = $1 and ano_letivo_id = $2 and papel = 'professor') vinculo
+            cross join generate_series(0, $3::int - 1) as aula`,
+    [escolaId, anoLetivoId, AULAS_POR_VINCULO_NA_SEMANA],
+  )
+  await banco.query(
+    `insert into aula (escola_id, ano_letivo_id, vinculo_id, data, inicio, fim, conteudo)
+     select escola_id, ano_letivo_id, vinculo_id, date_trunc('week', timezone('America/Sao_Paulo', now()))::date + dia_semana - 1, inicio, fim, 'Aula sintética: revisão do conteúdo'
+       from alocacao where escola_id = $1 and ano_letivo_id = $2 and dia_semana <= $3::int`,
+    [escolaId, anoLetivoId, ULTIMO_DIA_COM_REGISTRO],
+  )
+  // Os eventos caem nesta semana: o feriado na sexta e a semana de avaliações de quarta a quinta. Os itens do dia (as atividades aplicadas) ficam na segunda dela:
+  // dia útil que sempre vem na resposta (o fim de semana só vem com aula), e que já passou ou é hoje. A ordem da lista do aluno é pelo id, e não por este instante.
+  await banco.query(
+    `insert into evento_calendario (escola_id, ano_letivo_id, tipo, inicio, fim, descricao)
+     select $1, $2, evento.tipo, semana.segunda + evento.de, semana.segunda + evento.ate, evento.descricao
+       from (select date_trunc('week', timezone('America/Sao_Paulo', now()))::date as segunda) semana
+            cross join (values ('feriado', 4, 4, 'Feriado sintético'), ('evento', 2, 3, 'Semana de avaliações sintética')) as evento(tipo, de, ate, descricao)`,
+    [escolaId, anoLetivoId],
+  )
+  await banco.query(
+    `update atividade_aplicada set aplicada_em = date_trunc('week', timezone('America/Sao_Paulo', now())) at time zone 'America/Sao_Paulo'
+      where escola_id = $1 and ano_letivo_id = $2`,
+    [escolaId, anoLetivoId],
+  )
 }
 
 /**
@@ -436,7 +499,7 @@ export async function semearContas(doArquivo: Record<string, string>): Promise<C
       const equipe = await sessoes.createSyntheticSessions(banco, doArquivo, { escolaId, papel: 'professor', quantidade: EQUIPE_POR_ESCOLA })
       const [professor] = equipe
       if (professor === undefined) throw new Error('a escola da carga precisa de professor')
-      await semearTurmasEAtividades(pool, { escolaId, alunoIds, professorId: professor.usuarioId })
+      await semearTurmasEAtividades(pool, { escolaId, alunoIds, professorId: professor.usuarioId, equipeIds: equipe.map((cada) => cada.usuarioId) })
       // O professor sintético nasce com conta sem senha: a senha da carga entra aqui, e o e-mail (`.invalid`) sai para o k6.
       const { rows } = await pool.query<{ email: string }>(
         `update conta set senha_hash = $1
@@ -586,7 +649,7 @@ async function derrubarRedisDeFila(compose: (...argumentos: string[]) => Promise
  */
 export function descreverFase(fase: FaseDoCenario, resumo: ResumoDaFase): string[] {
   const linhas = Object.entries(resumo.valores)
-    .filter(([chave]) => /^(atacante:)?(login_duracao\{grupo:[^}]+\} (p\(95\)|max)|ate_entrar_[a-z_]+ (p\(95\)|max)|autenticada_duracao\{grupo:[^}]+\} p\(95\)|(respostas_429|respostas_503|login_erro_final|contas_que_entraram|renovacao_409|renovacao_recusada|ataque_enviado)(\{grupo:[^}]+\})? count|dropped_iterations count)$/.test(chave))
+    .filter(([chave]) => /^(atacante:)?(login_duracao\{grupo:[^}]+\} (p\(95\)|max)|ate_entrar_[a-z_]+ (p\(95\)|max)|autenticada_duracao\{grupo:[^}]+\} p\(95\)|(respostas_429|respostas_503|login_erro_final|contas_que_entraram|semanas_lidas|renovacao_409|renovacao_recusada|ataque_enviado)(\{grupo:[^}]+\})? count|dropped_iterations count)$/.test(chave))
     .map(([chave, valor]) => `  ${fase}: ${chave} = ${Math.round(valor)}`)
   return [`\n${fase}:`, ...linhas]
 }
