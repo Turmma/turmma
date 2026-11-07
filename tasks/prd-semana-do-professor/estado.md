@@ -2,11 +2,12 @@
 
 ## Agora
 - **Pausa** de 16:30 a 20:20 (06/11), a pedido do Joaquim; os três Implementadores reiniciados com `PEDIDO de retomada` às 20:20, vigia religada.
-- **Espero:** linha 1: ociosa (8.0 encontrada). Linha 2: ociosa; nada a partir (só 7.0 e 8.0 restam). Linha 3: o da 7.0 (porte grande, 1ª tentativa), pedida às ~23:10 ao par reiniciado
-- **Devo ainda:** No fechamento, escrever no `TODO.md` os quatro destinos da ordem r1 da 1.0 que ninguém escreveu (`.processo/ordens/1_task-r2.md` da linha 1): volume do `delete` no encerramento do ano (Infra e operação), reserva do expurgo da `aula` (LGPD e conformidade), rótulo "Registro da aula" em `Retencao.tsx` (para o Validador), S7 do `cenarios.md` (para a retro). Correção `carga-da-semana` na próxima linha ociosa **com a máquina calma** (é medida de k6): o `TODO.md` (2.0) dava à 6.0 o `GET /v1/semana` no cenário de carga das 7h30, e ela não fez nem revisor cobrou (relatório do Implementador 3).
-- **Base:** `spec/semana-do-professor` em `69a98f27` (encontro da 8.0). Esteira: verde em `5e6da27`; a de `69a98f2` roda: ler no próximo encontro
+- **Espero:** linha 1: o `RELATÓRIO` da correção `carga-da-semana` (o `GET /v1/semana` no cenário de carga das 7h30, medido no k6; é da 6.0), pedida às ~01:00 com a máquina calma, guardião infra-guardian. Linhas 2 e 3: ociosas. Depois dela: commit "antes da validação" e o Validador no andar (passo 8).
+- **Devo ainda:** No fechamento, escrever no `TODO.md` os quatro destinos da ordem r1 da 1.0 que ninguém escreveu (`.processo/ordens/1_task-r2.md` da linha 1): volume do `delete` no encerramento do ano (Infra e operação), reserva do expurgo da `aula` (LGPD e conformidade), rótulo "Registro da aula" em `Retencao.tsx` (para o Validador), S7 do `cenarios.md` (para a retro).
+- **Base:** `spec/semana-do-professor` em `d7af4109` (encontro da 7.0; 8 de 8 tarefas). Esteira: verde em `5e6da27`; a de `d7af410` roda (42336344465): ler no fechamento
 
 ## Concluídas
+- 7.0 (linha 3), 07/11 ~00:56: `e1cbf49c`, uma tentativa; os sete revisores aprovaram na 2ª rodada. `Textarea.tsx` ganhou `contadorAnunciado` fora dos Arquivos previstos; para a retro e o Arquiteto: a linha 10.2 da interface para essa prop e três itens da tabela Sem aplicar (dica de Fechar sem salvar vs Preparar, Esc durante Salvando…, painel que fecha sozinho com rascunho).
 - 8.0 (linha 1), 07/11 ~00:50: `237648ea`, uma tentativa e uma divergência de desenho (opção (a) do Arquiteto, techspec §9 e cenarios T5/T6 no commit); os sete revisores aprovaram na 2ª rodada. A Semana com itens só foi vista pelo e2e: a vitrine não tem grade (no `TODO.md`).
 - 5.0 (linha 2), 07/11 ~00:00: `0328c254`, uma tentativa; test-engineer e revisor-geral aprovaram na 2ª rodada, os outros na 1ª. Três destinos novos no `TODO.md`; a constante única do 55P03 (TODO da 4.0) segue aberta, porque a ordem mandou não ampliar.
 | Tarefa | Commit | Modelo | Rodadas | Observação |
