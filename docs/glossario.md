@@ -59,6 +59,9 @@ pelo professor, nunca autodeclarado (D3 revista).
 **Matrícula** — O identificador do aluno dentro da escola, e o login dele. Única por escola,
 nunca globalmente.
 
+**Senha provisória** — A senha de 24 horas que a coordenação ou o professor da turma gera para o aluno que esqueceu a
+dele (F2c). Aparece uma vez e só serve para o aluno criar a nova; nunca vira a senha dele.
+
 **Lista de nomes** — A lista que a coordenação sobe por turma, antes de os alunos entrarem.
 Cada nome tem estado: livre, reivindicado, aprovado.
 
