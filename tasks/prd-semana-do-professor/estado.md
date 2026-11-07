@@ -2,9 +2,9 @@
 
 ## Agora
 - **Pausa** de 16:30 a 20:20 (06/11), a pedido do Joaquim; os três Implementadores reiniciados com `PEDIDO de retomada` às 20:20, vigia religada.
-- **Espero:** linha 1: o `RELATÓRIO` da correção `carga-da-semana` (o `GET /v1/semana` no cenário de carga das 7h30, medido no k6; é da 6.0), pedida às ~01:00 com a máquina calma, guardião infra-guardian. Linhas 2 e 3: ociosas. Depois dela: commit "antes da validação" e o Validador no andar (passo 8).
+- **Espero:** o `RELATÓRIO` do `Validador` (funcionalidade completa, commit `bb5e0c3c`), pedido em 07/11 02:06. Linhas 1, 2 e 3 ociosas; ninguém usa o ambiente de teste 0 enquanto ele valida. Depois: esteira de fechamento (`esteira.ts --fechamento`), censo do e2e, `linhas.ts fechar`, commit de fechamento e pedido de pouso.
 - **Devo ainda:** No fechamento, escrever no `TODO.md` os quatro destinos da ordem r1 da 1.0 que ninguém escreveu (`.processo/ordens/1_task-r2.md` da linha 1): volume do `delete` no encerramento do ano (Infra e operação), reserva do expurgo da `aula` (LGPD e conformidade), rótulo "Registro da aula" em `Retencao.tsx` (para o Validador), S7 do `cenarios.md` (para a retro).
-- **Base:** `spec/semana-do-professor` em `d7af4109` (encontro da 7.0; 8 de 8 tarefas). Esteira: verde em `5e6da27`; a de `d7af410` roda (42336344465): ler no fechamento
+- **Base:** `spec/semana-do-professor` em `bb5e0c3c` (encontro da correção `carga-da-semana`, 07/11 02:04; 8 de 8 tarefas). Esteira: verde em `d7af410` (42336344465); a de `bb5e0c3` roda: ler no fechamento
 
 ## Concluídas
 - 7.0 (linha 3), 07/11 ~00:56: `e1cbf49c`, uma tentativa; os sete revisores aprovaram na 2ª rodada. `Textarea.tsx` ganhou `contadorAnunciado` fora dos Arquivos previstos; para a retro e o Arquiteto: a linha 10.2 da interface para essa prop e três itens da tabela Sem aplicar (dica de Fechar sem salvar vs Preparar, Esc durante Salvando…, painel que fecha sozinho com rascunho).
@@ -18,6 +18,7 @@
 | 4.0 | `71738c89` | Sonnet 5.5 | — | linha 2; CONFLITO no encontro, correção `encontro-4-semana` (`c3101bb9`); spec em `16df7293` |
 | 6.0 | `346fc1f6` | Sonnet 5.5 | 2 | linha 3; DIVERGÊNCIA de desenho (`DaySelector`, Joaquim escolheu A); encontro na 2ª tentativa (a 1ª caiu por prazo, load 14); spec em `803eef9a`; não fez o item de carga do `TODO.md` (2.0) |
 | correção `e2e-conflito-do-gerar` | `055464f7` | Sonnet 5.5 | 2 | linha 1; e2e dependia da releitura de 15 s; encontro na 2ª tentativa (a 1ª caiu por prazo, load 25), refeito com prazo de 540 s; spec em `fd031679` |
+| correção `carga-da-semana` | `d5160609` | Sonnet 5.5 | 2 | linha 1, pendência de carga da 6.0; p95 do `GET /v1/semana` 26 ms no k6, 60/60 leituras; test-engineer, infra-guardian e privacy-guardian aprovaram na 2ª rodada; encontro na 1ª tentativa (load 3,7); spec em `bb5e0c3c`. Três destinos novos no `TODO.md` (métrica de espera do pool, corrida do `carga:importacao`, cobertura extra) |
 
 ## Esperando o Joaquim
 
