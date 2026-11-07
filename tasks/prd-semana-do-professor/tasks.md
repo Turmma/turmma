@@ -27,9 +27,9 @@
   - [x] 4.2 Controller e service da rota
   - [x] 4.3 Testes: G1 a G6, R1, R1b, R4, R7 e S16 da gravação, S6, J13, J14
 
-- [ ] **5.0 — O texto acompanha a reimportação da grade e do calendário**
-  - [ ] 5.1 O passo entre `gravarAulas` e `encerrarOsMarcados`: travas, pareamento, re-chaveamento, apagar o futuro
-  - [ ] 5.2 Testes: J1 a J16
+- [x] **5.0 — O texto acompanha a reimportação da grade e do calendário**
+  - [x] 5.1 O passo entre `gravarAulas` e `encerrarOsMarcados`: travas, pareamento, re-chaveamento, apagar o futuro
+  - [x] 5.2 Testes: J1 a J16
 
 - [x] **6.0 — Turmas ganha a aba Semana**
   - [ ] 6.1 As abas "Turmas · Semana" e a leitura sob demanda

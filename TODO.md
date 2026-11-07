@@ -2858,7 +2858,20 @@ repetem aqui.
 - [ ] (semana-do-professor, 4.0, test-engineer, 1ª) **Caso da professora com duas disciplinas na mesma turma (dois vínculos confirmados) no `PUT`.**
       Em `apps/api/test/aulas.int.test.ts`: dois vínculos confirmados dela na mesma turma, e o `PUT` de cada um grava só a aula do seu `vinculoId`. Pede
       fixture nova (o segundo vínculo na mesma turma); a chave `vinculo_id` já é provada pela colega e pelos vínculos dos outros estados. Dono: a
-      tarefa 5.0, que mexe em mais de um vínculo por professora
+      tarefa 5.0, que mexe em mais de um vínculo por professora. A 5.0 (test-engineer, 1ª) pediu o mesmo caso de novo para o texto que acompanha a
+      reimportação; ela não tem `PUT` novo, e o caso segue aberto aqui, sem linha nova
+
+## Da semana-do-professor, tarefa 5.0 (o texto acompanha a reimportação), fora dela
+
+- [ ] (semana-do-professor, 5.0, infra-guardian, 1ª) **Teto de vínculos por reimportação da grade, na Tech Spec.** O passo toma uma trava consultiva por
+      vínculo mexido, todas na mesma transação; o número que cabe em `max_locks_per_transaction` é decisão de capacidade, não da tarefa. Dono: o
+      Arquiteto, antes do portão da primeira escola de rede pública
+- [ ] (semana-do-professor, 5.0, infra-guardian, 1ª) **Classificar o `57014` (`statement_timeout`) do passo como falha de trava.** Hoje o último erro grava
+      `erro_interno` (`apps/worker/src/processors/gravar-planilha.ts:66`). Muda comportamento em arquivo que a 5.0 não toca. Dono: a próxima tarefa ou
+      correção que tocar `gravar-planilha.ts`
+- [ ] (semana-do-professor, 5.0, conformidade-reviewer, 1ª) **Avisar só a professora, na Semana, que o texto das datas futuras de uma aula que saiu da grade
+      foi apagado, sem contagem para a coordenação.** Pergunta de produto: D45 e D64 limitam o que a coordenação vê. Dono: o Arquiteto, antes da tarefa da tela
+      da Semana
 
 ## Da semana-do-professor, tarefa 3.0 (os itens do dia), fora dela
 

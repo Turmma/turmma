@@ -55,7 +55,7 @@ numa tarefa do `tasks.md`. I = integração com Postgres real e relógio injetad
 - **J5** [I] Aula dupla: o pareamento por ordem leva cada texto à sua aula
 - **J6** [I] O passo da escola A não toca registro da escola B de mesmo dia e início
 - **J7** [I] A mesma grade reimportada duas vezes mantém todos os textos
-- **J8** [I] Relógio às 22h de Brasília: o "data ≥ hoje" do passo usa o dia de Brasília
+- **J8** [I] Relógio às 22h de Brasília: o "data ≥ hoje" do passo usa o dia de Brasília (o relógio do job é injetado, `ExecucaoOptions.relogio`)
 - **J9** [I] Resumo, prévia e auditoria da reimportação não trazem contagem nem menção a registro de aula
 - **J10** [I] Reimportar o calendário com feriado novo esconde a aula e, retirado, ela volta com o texto
 - **J11a** [P] Corrida 2, job primeiro: o job pausa depois de apagar os registros de data ≥ hoje e antes do commit (a pausa solta ao ver o `PUT` esperando em `pg_stat_activity`, nunca com `sleep`, antes dos 2 s do `lock_timeout`); o `PUT` daquela aula futura espera; o job confirma; o `PUT` responde `NAO_ENCONTRADO` e não sobra registro futuro sem alocação. Tirada a trava, vermelho

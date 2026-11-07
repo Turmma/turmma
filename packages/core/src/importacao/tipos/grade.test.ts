@@ -5,6 +5,7 @@ import { convidarProfessorDaPlanilha } from '../../convite/convidar-professor-da
 import type { DatabaseTransaction } from '../../db/database.js'
 import type { TurmaDoAno } from '../../estrutura/turma.repository.js'
 import type { AulaGravada } from '../alocacao.repository.js'
+import type { MudancaDaGrade } from '../../semana/texto-acompanha-a-grade.repository.js'
 import { ContaDaPlanilhaPerdidaError, DiferencaNaPlanilhaError } from '../erros.js'
 import type { AnoDeDestino, ImportacaoRepository, ProfessorDaEscola } from '../importacao.repository.js'
 import type { AmbienteDaGravacao } from '../tipo.js'
@@ -73,12 +74,17 @@ function gravacaoFalsa(apagadasAMenos = 0, encerradosAMenos = 0) {
       chamadas.push(`aulas:${String(aulas.length)}`)
       return Promise.resolve(aulas.length)
     },
+    acompanharOTextoDaAula: (_ano: string, { saem, entram }: MudancaDaGrade, hoje: string) => {
+      chamadas.push(`texto:saem=${saem.map(({ vinculoId, inicio }) => `${vinculoId}@${inicio}`).join(',')};entram=${entram.map(({ vinculoId, inicio, fim }) => `${vinculoId}@${inicio}-${fim}`).join(',')};hoje=${hoje}`)
+      return Promise.resolve()
+    },
     encerrarVinculosDeProfessorDaGrade: (_ano: string, ids: readonly string[], motivo: string) => {
       chamadas.push(`encerrados:${ids.join(',')}:${motivo}`)
       return Promise.resolve(ids.slice(0, ids.length - encerradosAMenos).map((id) => ({ id, usuarioId: `u-de-${id}`, turmaId: `t-de-${id}`, estadoAntes: 'confirmado' as const })))
     },
   }
-  const ambiente = { tx: { insert: vi.fn() }, ciclo: {} } as unknown as AmbienteDaGravacao
+  // 01:00 UTC de 04/11 são 22h de 03/11 em Brasília: o "hoje" do passo do texto é o dia de lá.
+  const ambiente = { tx: { insert: vi.fn() }, ciclo: {}, relogio: { agora: () => new Date('2026-11-04T01:00:00Z') } } as unknown as AmbienteDaGravacao
   return { gravacao: gravacao as unknown as ImportacaoRepository, ambiente, chamadas }
 }
 
@@ -432,7 +438,7 @@ describe('tipoGrade.planejar e travar', () => {
     await plano?.aplicar(gravacao, ambiente)
     expect(convidar).toHaveBeenCalledOnce()
     expect(convidar).toHaveBeenCalledWith(expect.anything(), { contaId: 'c-1', nome: 'Ana Souza' })
-    expect(chamadas).toEqual(['vinculos:1', 'apagadas:', 'aulas:2', 'encerrados::realocacao'])
+    expect(chamadas).toEqual(['vinculos:1', 'apagadas:', 'aulas:2', 'texto:saem=;entram=;hoje=2026-11-03', 'encerrados::realocacao'])
     expect(auditar.mock.calls.map(([, acao]) => acao)).toEqual(['turma.criada', 'vinculo.criado'])
     expect(auditar.mock.calls[1]?.[2]).toMatchObject({ depois: { papel: 'professor', estado: 'pendente', origem: 'grade', disciplinaId: 'disciplina-Química' } })
   })
@@ -466,7 +472,16 @@ describe('tipoGrade, reimportar substitui a grade do ano (12.0, RF9)', () => {
     const plano = await tipoGrade.planejar(repositorioCom(dados), ANO, lida.guardado, SEM_MARCAS)
     const { gravacao, ambiente, chamadas } = gravacaoFalsa()
     await plano?.aplicar(gravacao, ambiente)
-    expect(chamadas).toEqual(['vinculos:0', 'apagadas:a-sai', 'aulas:1', 'encerrados::realocacao'])
+    expect(chamadas).toEqual(['vinculos:0', 'apagadas:a-sai', 'aulas:1', 'texto:saem=v-1@10:00;entram=;hoje=2026-11-03', 'encerrados::realocacao'])
+  })
+
+  it('o passo do texto recebe a aula que sai e a que entra no vínculo que já existia; a que só muda de fim e a que já existe não entram', async () => {
+    const dados = escola([vinculo('v-1')], [aulaGravada('a-fica', 'v-1', '08:00', '08:50'), aulaGravada('a-muda', 'v-1', '09:00', '09:50'), aulaGravada('a-sai', 'v-1', '10:00', '10:50')])
+    const lida = await previa([daAna8A, linha('8A', '1', '9:00', '9:30'), linha('8A', '1', '11:00', '11:50')], dados)
+    const plano = await tipoGrade.planejar(repositorioCom(dados), ANO, lida.guardado, SEM_MARCAS)
+    const { gravacao, ambiente, chamadas } = gravacaoFalsa()
+    await plano?.aplicar(gravacao, ambiente)
+    expect(chamadas.filter((chamada) => chamada.startsWith('texto:'))).toEqual(['texto:saem=v-1@10:00;entram=v-1@11:00-11:50;hoje=2026-11-03'])
   })
 
   it('o vínculo que perdeu todas as aulas é candidato "sai da grade", com o rótulo de professor, turma e disciplina; o citado por alguma linha não é', async () => {
@@ -531,7 +546,7 @@ describe('tipoGrade, reimportar substitui a grade do ano (12.0, RF9)', () => {
     const { gravacao, ambiente, chamadas } = gravacaoFalsa()
     auditar.mockReset()
     await comMarca?.aplicar(gravacao, ambiente)
-    expect(chamadas).toEqual(['vinculos:0', 'apagadas:', 'aulas:0', 'encerrados:v-8b:realocacao'])
+    expect(chamadas).toEqual(['vinculos:0', 'apagadas:', 'aulas:0', 'texto:saem=;entram=;hoje=2026-11-03', 'encerrados:v-8b:realocacao'])
     expect(revogar).toHaveBeenCalledWith('u-de-v-8b', 't-de-v-8b')
     expect(auditar.mock.calls.map(([, acao, dados]) => [acao, dados])).toEqual([
       ['vinculo.encerrado', { entidadeId: 'v-8b', antes: { estado: 'confirmado' }, depois: { estado: 'encerrado', motivo: 'realocacao', origem: 'grade' } }],

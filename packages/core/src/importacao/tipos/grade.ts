@@ -21,6 +21,9 @@ import { z } from 'zod'
 import { convidarProfessorDaPlanilha } from '../../convite/convidar-professor-da-planilha.js'
 import { AuditoriaRecorder } from '../../auditoria/auditoria-recorder.js'
 import { CicloDeVidaRepository } from '../../ciclo-de-vida/ciclo-de-vida.repository.js'
+import { systemClock } from '../../clock.js'
+import { diaDeUso } from '../../usage/usage-day.js'
+import type { AulaDaGrade, MudancaDaGrade } from '../../semana/texto-acompanha-a-grade.repository.js'
 import type { TurmaDoAno } from '../../estrutura/turma.repository.js'
 import type { DatabaseTransaction } from '../../db/database.js'
 import type { AulaGravada, AulaNova } from '../alocacao.repository.js'
@@ -137,6 +140,8 @@ interface Classificacao {
   readonly linhas: readonly ClassificadaRow[]
   /** Os ids das aulas gravadas do ano que nenhuma linha traz: saem no gravar. */
   readonly aulasQueSaem: readonly string[]
+  /** As mesmas aulas como estavam gravadas (vínculo, dia, horário): o passo do texto da aula precisa delas depois que a `alocacao` perdeu as linhas. Fora da assinatura. */
+  readonly aulasQueSaemGravadas: readonly AulaGravada[]
   /** Os vínculos que perderam as aulas ("sai da grade"): só a marca da coordenação os encerra. */
   readonly candidatos: readonly CandidatoDaMarca[]
   readonly turmasNovas: readonly TurmaNova[]
@@ -395,7 +400,7 @@ function novosDe(linhas: readonly ClassificadaRow[]): Pick<Classificacao, 'turma
  * muda é a `gravada` dela; o vínculo que alguma linha reaproveita não sai. Candidato é o vínculo de professor aberto que nenhuma linha cita e que tem
  * aula gravada ou veio da grade: o criado à mão sem aula não é da grade e fica. O rótulo (professor, turma e disciplina) é só para a coordenação conferir.
  */
-function saidasDe(linhas: readonly ClassificadaRow[], dados: DadosDaGrade): Pick<Classificacao, 'aulasQueSaem' | 'candidatos'> {
+function saidasDe(linhas: readonly ClassificadaRow[], dados: DadosDaGrade): Pick<Classificacao, 'aulasQueSaem' | 'aulasQueSaemGravadas' | 'candidatos'> {
   const mantidas = new Set(linhas.flatMap(({ gravada }) => (gravada === undefined ? [] : [gravada.id])))
   const citados = new Set(linhas.flatMap(({ vinculo }) => (vinculo?.tipo === 'existente' ? [vinculo.id] : [])))
   const comAula = new Set(dados.aulas.map(({ vinculoId }) => vinculoId))
@@ -405,8 +410,10 @@ function saidasDe(linhas: readonly ClassificadaRow[], dados: DadosDaGrade): Pick
   const rotuloDe = ({ usuarioId, turmaId, disciplinaId }: DadosDaGrade['vinculos'][number]): string =>
     [professores.get(usuarioId), turmas.get(turmaId), disciplinaId === null ? undefined : disciplinas.get(disciplinaId)].filter((parte) => parte !== undefined).join(' · ')
   const candidatos = dados.vinculos.filter(({ id, origem }) => !citados.has(id) && (origem === 'grade' || comAula.has(id)))
+  const queSaem = dados.aulas.filter(({ id }) => !mantidas.has(id))
   return {
-    aulasQueSaem: dados.aulas.filter(({ id }) => !mantidas.has(id)).map(({ id }) => id),
+    aulasQueSaem: queSaem.map(({ id }) => id),
+    aulasQueSaemGravadas: queSaem,
     candidatos: candidatos.map((vinculo) => ({ id: vinculo.id, acao: 'encerrar', rotulo: rotuloDe(vinculo) })),
   }
 }
@@ -441,7 +448,7 @@ export function classificar(anoLetivoId: string, lidas: readonly AulaLida[], dad
     return aviso === undefined ? linha : { ...linha, aviso }
   })
   const novos = novosDe(linhas)
-  const { aulasQueSaem, candidatos } = semLeitura === 0 && linhas.every(({ resultado }) => resultado !== 'erro') ? saidasDe(linhas, dados) : { aulasQueSaem: [], candidatos: [] }
+  const { aulasQueSaem, aulasQueSaemGravadas, candidatos } = semLeitura === 0 && linhas.every(({ resultado }) => resultado !== 'erro') ? saidasDe(linhas, dados) : { aulasQueSaem: [], aulasQueSaemGravadas: [], candidatos: [] }
   const resumo = {
     aulas: linhas.filter(({ resultado }) => resultado === 'novo' || resultado === 'entra').length,
     ja_existem: linhas.filter(({ resultado }) => resultado === 'ja_existe').length,
@@ -452,7 +459,7 @@ export function classificar(anoLetivoId: string, lidas: readonly AulaLida[], dad
     ...(aulasQueSaem.length === 0 ? {} : { aulas_removidas: aulasQueSaem.length }),
   }
   const assinatura = createHash('sha256').update(JSON.stringify({ ano: anoLetivoId, linhas: linhas.map(linhaVista), saem: aulasQueSaem, candidatos: candidatos.map(({ id }) => id) })).digest('hex')
-  return { linhas, aulasQueSaem, candidatos, ...novos, resumo, assinatura }
+  return { linhas, aulasQueSaem, aulasQueSaemGravadas, candidatos, ...novos, resumo, assinatura }
 }
 
 /** A linha como a coordenação a vê: o resultado, o erro (que a troca por `erro`) ou o aviso. */
@@ -478,7 +485,7 @@ function planoDe(anoLetivoId: string, classificacao: Classificacao, contas: Cont
   return {
     assinatura: classificacao.assinatura,
     resumo: { ...classificacao.resumo, ...(aEncerrar.length === 0 ? {} : { vinculos_encerrados: aEncerrar.length }) },
-    aplicar: async (gravacao, { tx }) => {
+    aplicar: async (gravacao, { tx, relogio = systemClock }) => {
       const turmas = await criarTurmasNovas(gravacao, tx, anoLetivoId, classificacao.turmasNovas)
       const disciplinas = new Map<string, string>()
       for (const nova of classificacao.disciplinasNovas) disciplinas.set(nova.chave, await gravacao.criarDisciplina(nova.nome))
@@ -511,9 +518,22 @@ function planoDe(anoLetivoId: string, classificacao: Classificacao, contas: Cont
       // A grade do ano é a da planilha: a aula que nenhuma linha traz sai antes de as outras entrarem. Menos apagadas que lidas é diferença.
       if ((await gravacao.apagarAulas(anoLetivoId, classificacao.aulasQueSaem)) !== classificacao.aulasQueSaem.length) throw new DiferencaNaPlanilhaError()
       await gravacao.gravarAulas(anoLetivoId, aulas)
+      // O texto da aula acompanha a grade depois de a `alocacao` mudar e antes de o vínculo marcado encerrar: a ordem global (trava do vínculo, depois a linha dele; Tech Spec da semana-do-professor, seção 7c; o caso J16 de `apps/api/test/semana-reimportacao.int.test.ts` a prova).
+      await gravacao.acompanharOTextoDaAula(anoLetivoId, mudancaDaGrade(classificacao), diaDeUso(relogio.agora()))
       await encerrarOsMarcados(gravacao, tx, anoLetivoId, aEncerrar)
     },
   }
+}
+
+/**
+ * As aulas que saem e as que entram nos vínculos que a escola já tinha, para o texto da aula acompanhar. Sai a aula gravada que nenhuma linha traz; entra a
+ * linha que não confirma nem muda nenhuma aula gravada (mesmo vínculo, dia e início). O vínculo que a planilha cria não existe para a gravação do texto e fica fora.
+ */
+function mudancaDaGrade({ aulasQueSaemGravadas, linhas }: Classificacao): MudancaDaGrade {
+  const entram = linhas.flatMap(({ aula, vinculo, gravada }): AulaDaGrade[] =>
+    aula === undefined || vinculo?.tipo !== 'existente' || gravada !== undefined ? [] : [{ vinculoId: vinculo.id, diaSemana: aula.dia, inicio: aula.inicio, fim: aula.fim }],
+  )
+  return { saem: aulasQueSaemGravadas.map(({ vinculoId, diaSemana, inicio, fim }) => ({ vinculoId, diaSemana, inicio, fim })), entram }
 }
 
 /**
