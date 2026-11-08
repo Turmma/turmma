@@ -115,6 +115,8 @@ export {
   COOKIE_SESSAO_DE_OPERADOR,
   operadorCookie,
   extractBearerToken,
+  FOLGA_DE_RELOGIO_DO_DESAFIO_SEGUNDOS,
+  iatDoDesafioConfere,
   TIPO_DESAFIO,
   TIPO_DESAFIO_DE_OPERADOR,
   TIPO_TOKEN,

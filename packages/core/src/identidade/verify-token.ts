@@ -40,6 +40,24 @@ export const TIPO_TOKEN = 'JWT'
 export const TIPO_DESAFIO = 'desafio+jwt'
 
 /**
+ * A folga de relógio dos desafios de login (da escola e do operador): quanto o `iat` pode estar **à frente** do relógio de quem o confere. Com duas
+ * instâncias da API, ou com o relógio de uma máquina que recua, o desafio recém-emitido chega a uma que ainda não alcançou o `iat`; o `maxTokenAge` do
+ * `jose` não tem folga e o recusa com o 401 do segundo fator (visto em até 2 s no portão da 4.0). Poucos segundos bastam e custam pouco: o prazo do
+ * desafio é de 5 min e continua exato, pela idade e pelo `exp`.
+ */
+export const FOLGA_DE_RELOGIO_DO_DESAFIO_SEGUNDOS = 10
+
+/**
+ * Se o `iat` do desafio está dentro do que vale: não mais velho que o prazo (`ttlSegundos`) e não mais à frente do relógio de `agora` que a folga.
+ * Em segundos inteiros, como o `iat`, para o prazo seguir exato. O `jwtVerify` confere o `exp`, sem folga.
+ */
+export function iatDoDesafioConfere(iat: number | undefined, agora: Date, ttlSegundos: number): boolean {
+  if (iat === undefined) return false
+  const idade = Math.floor(agora.getTime() / 1_000) - iat
+  return idade <= ttlSegundos && idade >= -FOLGA_DE_RELOGIO_DO_DESAFIO_SEGUNDOS
+}
+
+/**
  * Prazo máximo que um token pode ter pela frente. Vale na verificação, e não só no emissor: um
  * token assinado com validade de anos é recusado mesmo com assinatura certa.
  */

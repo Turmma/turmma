@@ -1,4 +1,4 @@
-import { EMISSOR_TOKEN, DomainException, TIPO_DESAFIO_DE_OPERADOR, verifyToken, verifyOperadorToken } from '@educa/core'
+import { EMISSOR_TOKEN, FOLGA_DE_RELOGIO_DO_DESAFIO_SEGUNDOS, DomainException, TIPO_DESAFIO_DE_OPERADOR, verifyToken, verifyOperadorToken } from '@educa/core'
 import { ErrorCode } from '@educa/shared'
 import { decodeJwt, decodeProtectedHeader, SignJWT, type JWTPayload } from 'jose'
 import { randomUUID } from 'node:crypto'
@@ -66,6 +66,21 @@ describe('desafio do operador (tarefa 5.0)', () => {
     for (const [caso, desafio] of Object.entries(recusados)) {
       expect(await recusa(verifyOperadorChallenge(desafio, CHAVE, 'configurar_mfa')), caso).toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
     }
+  })
+
+  it('folga de relógio: o iat à frente de quem confere passa até a folga e é recusado além dela; o desafio sem iat, ou mais velho que o prazo, é recusado', async () => {
+    const aprovado = (desafio: string) => expect(verifyOperadorChallenge(desafio, CHAVE, 'configurar_mfa')).resolves.toMatchObject({ operadorId: OPERADOR })
+    const comIat = (deslocamento: number, validade = OPERADOR_CHALLENGE_TTL_SECONDS) => assinar({ claims: { iat: agora() + deslocamento, exp: agora() + deslocamento + validade } })
+    await aprovado(await comIat(3))
+    // A borda exata (10 s) fica em `verify-token.test.ts`; aqui o relógio é o real, e a folga menos 2 s não encosta nela.
+    await aprovado(await comIat(FOLGA_DE_RELOGIO_DO_DESAFIO_SEGUNDOS - 2))
+    // Além da folga (2 s a mais, para a virada do segundo não encostar na borda): a recusa de sempre.
+    await expect(verifyOperadorChallenge(await comIat(FOLGA_DE_RELOGIO_DO_DESAFIO_SEGUNDOS + 2), CHAVE, 'configurar_mfa')).rejects.toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
+    // O prazo não ganha folga: vencido há 1 s é recusado, com 10 s de vida passa, e sem `iat` ou com mais de 5 min de idade e `exp` longe, não.
+    expect(await recusa(verifyOperadorChallenge(await comIat(-(OPERADOR_CHALLENGE_TTL_SECONDS + 1)), CHAVE, 'configurar_mfa'))).toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
+    await aprovado(await comIat(-(OPERADOR_CHALLENGE_TTL_SECONDS - 10)))
+    expect(await recusa(verifyOperadorChallenge(await assinar({ semClaims: ['iat'] }), CHAVE, 'configurar_mfa'))).toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
+    expect(await recusa(verifyOperadorChallenge(await comIat(-(OPERADOR_CHALLENGE_TTL_SECONDS + 60), 24 * 60 * 60), CHAVE, 'configurar_mfa'))).toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
   })
 
   it('não vale nas outras portas: nem como desafio da escola, nem como acesso da escola ou do operador; e o desafio da escola não vale aqui', async () => {

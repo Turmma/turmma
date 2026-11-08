@@ -1121,7 +1121,7 @@ código"), com o destino de cada uma. As pequenas foram fechadas na correção `
       (`tools/processo/portao.ts:164`, `quando >= inicio`), e o `mtime` do kernel chega a ficar 1,5 s atrás do `Date.now()`** (medido nesta
       máquina). No uso real uma edição feita logo depois do portão pode passar; hoje o portão leva minutos e a premissa é frágil só se ele
       encurtar. Fora da correção, que corrigiu só o teste (dono: Arquiteto, na retro da spec)
-- [ ] (acesso-e-convites, 1.0, revisor-geral, infra-guardian e test-engineer, 2ª) **`challenge.ts` e `operador-challenge.ts` usam o `maxTokenAge` do `jose` sem folga de relógio**
+- [x] (acesso-e-convites, 1.0, revisor-geral, infra-guardian e test-engineer, 2ª) **`challenge.ts` e `operador-challenge.ts` usam o `maxTokenAge` do `jose` sem folga de relógio** (feito: correção `2026-11-08-desafio-com-folga-de-relogio`, folga de 10 s na idade em segundos)
       (`apps/api/src/credencial/challenge.ts:105`, `apps/api/src/operacao/operador-challenge.ts:84`): o `iat` no futuro é recusado, e dois relógios 1 s fora (duas
       instâncias da API, ou o relógio que recua) derrubam o desafio do segundo fator, com 401. O `challenge.test.ts` já caiu uma vez por isso no portão. A 1.0 deu
       a folga só ao bilhete do convite (`TICKET_CLOCK_TOLERANCE_SECONDS`, `convite-ticket.ts`); o mesmo vale aqui, com a idade conferida em segundos para o prazo
@@ -3087,3 +3087,13 @@ aula" em `Retencao.tsx`, o Validador conferiu: a tela já o mostra pela descriç
       a ação com outro `entidadeId` (dono: Implementador)
 - [ ] (acesso-e-convites 3.0, test-engineer, 2ª) **Bloco de mutação para o endereço de outro professor do lote** (`email` do vizinho em `entram`); o teste já fica vermelho, falta o bloco que o portão
       prova (dono: Implementador)
+
+## Da correção 2026-11-08-desafio-com-folga-de-relogio (a folga de relógio do desafio de login), fora dela
+
+- [ ] (correção 2026-11-08-desafio-com-folga-de-relogio, privacy-guardian, infra-guardian, test-engineer e revisor-geral, 1ª) **Os verificadores do desafio leem o relógio por dentro, e a conta de idade com folga existe em três cópias.**
+      `verifyChallenge` e `verifyOperadorChallenge` tiram `agora` de `new Date()`: receber o `Clock` injetado, como os emissores, tornaria determinísticos os testes de borda. Junto: a conta
+      de idade com folga está em `iatDoDesafioConfere` (10 s fixos), em `convite-ticket.ts:68-69` (30 s) e em `exigirIdadeDoDesafio`, repetida em `challenge.ts` e `operador-challenge.ts`; passar a
+      folga como parâmetro da função do core junta as três. E o lugar: a função e a constante estão em `verify-token.ts`, que trata do token de acesso, e um arquivo próprio do desafio no core seria
+      mais fácil de achar. Muda a assinatura dos verificadores e da função exportada, e toca `convite-ticket.ts`, fora da correção (dono: Implementador)
+- [ ] (correção 2026-11-08-desafio-com-folga-de-relogio, infra-guardian, 1ª) **NTP nas instâncias da API, com um limite de diferença, em `docs/infra.md`.** A folga de 10 s parte desse pressuposto: o `jti`
+      no Redis dura `exp - agora` no relógio de quem o consumiu. O limite de diferença entre relógios é decisão de operação (dono: Arquiteto, na retro da spec)
