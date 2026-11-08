@@ -45,6 +45,8 @@ export const HTTP_STATUS_BY_CODE: Readonly<Record<ErrorCode, number>> = {
   ACESSO_SUSPENSO: 403,
   // Acesso-e-convites, 7.0: o pedido é bem formado, mas o aceite espera a posse do e-mail; o convite continua valendo.
   VERIFICACAO_PENDENTE: 409,
+  // Acesso-e-convites, 9.0: o aluno entra pela conta da escola; a senha provisória não tem o que fazer e a dele não muda.
+  ENTRA_PELA_CONTA_DA_ESCOLA: 409,
 }
 
 /**

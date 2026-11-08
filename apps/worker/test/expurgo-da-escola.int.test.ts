@@ -88,6 +88,7 @@ const CHAVES_DO_LOG = new Set([
   'eliminacoesJaEnfileiradasTotal',
   'importacoesFechadasTotal',
   'enviosFechadosTotal',
+  'provisoriasAnuladasTotal',
   'categoriasTotal',
   'escolasTotal',
   'enfileiradosTotal',
@@ -820,6 +821,109 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
       await rodar(a.escolaId, expurgo(relogioEm(QUARTA_1H)))
       const finais = log.doEvento('retencao.expurgada').filter((linha) => linha['escolaId'] === a.escolaId)
       expect(finais).toEqual([expect.objectContaining({ enviosFechadosTotal: 2 })])
+    })
+  })
+
+  describe('senha provisória vencida (acesso-e-convites, tarefa 9.0)', () => {
+    interface ProvisoriaNoBanco {
+      readonly hash: string | null
+      readonly expiraEm: Date | null
+      readonly geradaPor: string | null
+    }
+
+    /**
+     * Um aluno com credencial e a provisória que vence `venceEmHoras` depois da quarta 1h (negativo: já venceu), gerada pelo professor `geradaPor`. A
+     * auditoria `senha_provisoria.gerada` dela é gravada junto, para provar que o expurgo não a toca.
+     */
+    async function alunoComProvisoria(escolaId: string, geradaPor: string, venceEmHoras: number): Promise<{ alunoId: string; credencialId: string }> {
+      const { rows: alunos } = await bancada.pool.query<{ id: string }>("insert into usuario (escola_id, papel, nome) values ($1, 'aluno', 'Aluno sintético da provisória') returning id", [escolaId])
+      const alunoId = alunos[0]?.id
+      if (alunoId === undefined) throw new Error('aluno de teste não criado')
+      const { rows } = await bancada.pool.query<{ id: string }>(
+        `insert into credencial_matricula (escola_id, usuario_id, matricula, provisoria_hash, provisoria_expira_em, provisoria_gerada_por)
+         values ($1, $2, $3, '$argon2id$provisoria-sintetica', $4::timestamptz + $5::numeric * interval '1 hour', $6) returning id`,
+        [escolaId, alunoId, `prov-${randomUUID().slice(0, 18)}`, QUARTA_1H.toISOString(), venceEmHoras, geradaPor],
+      )
+      await bancada.pool.query(
+        `insert into auditoria (escola_id, autor_usuario_id, acao, entidade, entidade_id, depois, requisicao_id) values ($1, $2, 'senha_provisoria.gerada', 'usuario', $3, '{"papel":"professor"}'::jsonb, $4)`,
+        [escolaId, geradaPor, alunoId, randomUUID()],
+      )
+      return { alunoId, credencialId: rows[0]?.id ?? '' }
+    }
+
+    async function provisoriaDe(credencialId: string): Promise<ProvisoriaNoBanco> {
+      const { rows } = await bancada.pool.query<ProvisoriaNoBanco>(
+        'select provisoria_hash as hash, provisoria_expira_em as "expiraEm", provisoria_gerada_por as "geradaPor" from credencial_matricula where id = $1',
+        [credencialId],
+      )
+      const linha = rows[0]
+      if (linha === undefined) throw new Error('credencial de teste sumiu')
+      return linha
+    }
+
+    async function auditoriasDaProvisoria(escolaId: string): Promise<number> {
+      const { rows } = await bancada.pool.query<{ total: number }>("select count(*)::int as total from auditoria where escola_id = $1 and acao = 'senha_provisoria.gerada'", [escolaId])
+      return rows[0]?.total ?? 0
+    }
+
+    it('relógio falso: a que vence daqui a 1 h (23 h depois de gerada) fica; a que venceu há 1 h (25 h depois) perde as três colunas, e a auditoria fica; a da escola B, com a mesma idade, também fica', async () => {
+      const a = await escolaNova()
+      const b = await escolaNova()
+      const professorA = await professorNovo(a)
+      const professorB = await professorNovo(b)
+      const valida = await alunoComProvisoria(a.escolaId, professorA, 1)
+      const vencida = await alunoComProvisoria(a.escolaId, professorA, -1)
+      const vencidaDeB = await alunoComProvisoria(b.escolaId, professorB, -1)
+
+      await rodar(a.escolaId, expurgo(relogioEm(QUARTA_1H)))
+
+      expect(await provisoriaDe(valida.credencialId)).toEqual({ hash: '$argon2id$provisoria-sintetica', expiraEm: expect.any(Date) as Date, geradaPor: professorA })
+      expect(await provisoriaDe(vencida.credencialId)).toEqual({ hash: null, expiraEm: null, geradaPor: null })
+      expect(await provisoriaDe(vencidaDeB.credencialId)).toMatchObject({ hash: '$argon2id$provisoria-sintetica', geradaPor: professorB })
+      expect(await auditoriasDaProvisoria(a.escolaId)).toBe(2)
+    })
+
+    it('borda: a que vence exatamente agora fica, e um segundo depois sai', async () => {
+      const a = await escolaNova()
+      const professor = await professorNovo(a)
+      const noLimite = await alunoComProvisoria(a.escolaId, professor, 0)
+
+      await rodar(a.escolaId, expurgo(relogioEm(QUARTA_1H)))
+      expect(await provisoriaDe(noLimite.credencialId)).toMatchObject({ hash: '$argon2id$provisoria-sintetica' })
+
+      await rodar(a.escolaId, expurgo(relogioEm(new Date(QUARTA_1H.getTime() + 1_000))))
+      expect(await provisoriaDe(noLimite.credencialId)).toEqual({ hash: null, expiraEm: null, geradaPor: null })
+    })
+
+    it('[P] com a credencial travada por outra conexão (`for update`), o expurgo pula (`skip locked`) e não espera; solta a trava, a noite seguinte a anula', async () => {
+      const a = await escolaNova()
+      const professor = await professorNovo(a)
+      const parada = await alunoComProvisoria(a.escolaId, professor, -2)
+      const segurador = await bancada.pool.connect()
+      try {
+        await segurador.query('begin')
+        await segurador.query('select id from credencial_matricula where id = $1 for update', [parada.credencialId])
+        const inicio = Date.now()
+        await rodar(a.escolaId, expurgo(relogioEm(QUARTA_1H)))
+        expect(Date.now() - inicio).toBeLessThan(10_000)
+        expect(await provisoriaDe(parada.credencialId)).toMatchObject({ hash: '$argon2id$provisoria-sintetica' })
+      } finally {
+        await segurador.query('rollback')
+        segurador.release()
+      }
+      await rodar(a.escolaId, expurgo(relogioEm(QUARTA_1H)))
+      expect(await provisoriaDe(parada.credencialId)).toEqual({ hash: null, expiraEm: null, geradaPor: null })
+    })
+
+    it('a contagem vai ao log como `provisoriasAnuladasTotal`, e nenhum hash nem aluno', async () => {
+      const a = await escolaNova()
+      const professor = await professorNovo(a)
+      await alunoComProvisoria(a.escolaId, professor, -1)
+      await alunoComProvisoria(a.escolaId, professor, -3)
+      await rodar(a.escolaId, expurgo(relogioEm(QUARTA_1H)))
+      const finais = log.doEvento('retencao.expurgada').filter((linha) => linha['escolaId'] === a.escolaId)
+      expect(finais).toEqual([expect.objectContaining({ provisoriasAnuladasTotal: 2 })])
+      expect(JSON.stringify(finais)).not.toContain('argon2')
     })
   })
 

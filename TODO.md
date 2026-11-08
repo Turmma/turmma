@@ -3094,3 +3094,22 @@ aula" em `Retencao.tsx`, o Validador conferiu: a tela já o mostra pela descriç
       `apps/api/test/convite.int.test.ts` conta as rotas do Express cujo caminho cita "convite"; a 3.0 acrescentou uma e o portão dela não o rodou (o arquivo não estava entre os
       alterados), então a falha só apareceu na esteira. Para a retro de acesso-e-convites, duas saídas: levar a lista para um teste de unidade, que o portão roda sempre, ou fazer o
       portão rodar `convite.int.test.ts` quando um controller ganha rota com "convite" no caminho (mexe em `tools/processo/`; dono: Arquiteto, para decidir na retro)
+
+## Da tarefa 9.0 de acesso-e-convites (a senha provisória do aluno), fora dela
+
+- [ ] (acesso-e-convites 9.0, tenancy-guardian, 1ª e 2ª) **O `repository` derivar o `alcance` do token.** `travarAlunoParaProvisoria` e `alcancaAluno` recebem o alcance do service
+      (`alcanceDaGeracao`, tirado da matriz); derivá-lo no repository (`alcanceDe(requestSessao().papel, …)`) muda a assinatura e os testes dele. Junto do "ligar" da 15.0, que usa a mesma trava (dono: Arquiteto)
+- [ ] (acesso-e-convites 9.0, tenancy-guardian, 2ª, test-engineer, 3ª) **Docblock de `estadoDaProvisoria`** (`credencial-matricula.repository.ts`): diz "o aluno que acabou de ser travado" e
+      "Só chamar depois de `travarAlunoParaProvisoria`", e o service também o chama depois de `alcancaAluno`, sem trava (dono: Implementador)
+- [ ] (acesso-e-convites 9.0, infra-guardian, 1ª) **Rótulo `resultado` na métrica `senha_provisoria.gerada`** (gerada, conflito, limite, indisponivel): muda o nome da série, o painel
+      `fundacao.json` e `infra/test/metricas.int.test.ts` (dono: Implementador)
+- [ ] (acesso-e-convites 9.0, infra-guardian, 1ª) **Limite de linhas por noite em `anularProvisoriasVencidas`**, com o `lote` dos irmãos (`expurgo-da-escola.repository.ts`). O volume é uma linha por
+      aluno com provisória vencida e o `skip locked` já isola as escolas; muda o comportamento do expurgo (dono: Implementador)
+- [ ] (acesso-e-convites 9.0, infra-guardian, 2ª) **O caso do 503 conferir também o contador de 60 por hora** de quem gera: continua zerado depois das recusas, ou chegar ao 429 da hora
+      (`apps/api/test/senha-provisoria.int.test.ts`) (dono: Implementador)
+- [ ] (acesso-e-convites 9.0, infra-guardian, 2ª) **Ler as cotas sem gastar antes do hash**, para o 429 não custar um hash de argon2 às 7h30. Muda a ordem e o comportamento do 429 que a Tech Spec §5
+      descreve (dono: Arquiteto)
+- [ ] (acesso-e-convites 9.0, revisor-geral, 2ª) **O parâmetro booleano `travar` de `#conferir`** (`senha-provisoria.service.ts`) escolhe entre dois métodos do repository; passar a função
+      de alcance, ou dois chamadores explícitos (dono: Implementador)
+- [ ] (acesso-e-convites 9.0, test-engineer e revisor-geral, 3ª) **O caso "o hash espera o semáforo fora da transação" prova a linha livre, não o pool livre**: uma transação aberta sem trava antes do hash
+      passaria. Contar, dentro do espião, as conexões da API em `idle in transaction` em `pg_stat_activity` (`apps/api/test/senha-provisoria.int.test.ts`) (dono: Implementador)

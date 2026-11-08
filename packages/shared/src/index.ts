@@ -94,6 +94,19 @@ export {
 export type { AceitarConviteRequest, ConsultarConviteRequest, AceitarConviteResponse, ConsultarConviteResponse, TipoDeConvite } from './sessao/convite.js'
 export { esqueciSenhaRequestSchema, redefinirSenhaRequestSchema, verificarContaRequestSchema } from './sessao/senha.js'
 export type { EsqueciSenhaRequest, RedefinirSenhaRequest, VerificarContaRequest } from './sessao/senha.js'
+export {
+  ALFABETO_DA_SENHA_PROVISORIA,
+  CARACTERES_POR_GRUPO_DA_SENHA_PROVISORIA,
+  JANELA_DO_CONFLITO_DA_SENHA_PROVISORIA_SEGUNDOS,
+  LIMITE_DE_PROVISORIAS_POR_DIA_E_ALUNO,
+  LIMITE_DE_PROVISORIAS_POR_HORA_E_USUARIO,
+  PAPEIS_QUE_GERAM_A_SENHA_PROVISORIA,
+  TAMANHO_DA_SENHA_PROVISORIA,
+  VALIDADE_DA_SENHA_PROVISORIA_HORAS,
+  formatarSenhaProvisoria,
+  senhaProvisoriaResponseSchema,
+} from './sessao/senha-provisoria.js'
+export type { PapelQueGeraASenhaProvisoria, SenhaProvisoriaResponse } from './sessao/senha-provisoria.js'
 export { loginMatriculaRequestSchema, TAMANHO_MAXIMO_MATRICULA, TAMANHO_MAXIMO_SLUG_NO_LOGIN } from './sessao/matricula.js'
 export type { LoginMatriculaRequest } from './sessao/matricula.js'
 export { acessoDaEscolaResponseSchema, PROVEDORES_DE_CONTA_DA_ESCOLA } from './sessao/acesso-da-escola.js'

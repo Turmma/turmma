@@ -114,7 +114,14 @@ export const LEITURAS_DO_ARQUIVO: Readonly<Record<string, LeituraDaTabela>> = {
   credencial_matricula: {
     descricao: 'A sua matrícula de acesso',
     colunas: ['id', 'matricula', 'criada_em'],
-    fora: { escola_id: ESCOPO, usuario_id: 'o próprio titular', senha_hash: SEGREDO },
+    fora: {
+      escola_id: ESCOPO,
+      usuario_id: 'o próprio titular',
+      senha_hash: SEGREDO,
+      provisoria_hash: SEGREDO,
+      provisoria_expira_em: 'estado transitório da senha provisória (24 h): o fato de ela ter sido gerada chega ao titular pelo registro `senha_provisoria.gerada` da auditoria, por alvo (D85, tarefa 11.0)',
+      provisoria_gerada_por: OUTRA_PESSOA,
+    },
     consultas: ({ escolaId, titularId }) => [
       sql`select ${selectColumns('id', 'matricula', 'criada_em')} from credencial_matricula t where t.escola_id = ${escolaId} and t.usuario_id = ${titularId}`,
     ],
@@ -401,8 +408,10 @@ export const LEITURAS_DO_ARQUIVO: Readonly<Record<string, LeituraDaTabela>> = {
       depois: 'pode levar o id e o motivo de outra pessoa (o aluno de um destaque, o usuário de um convite)',
     },
     consultas: ({ escolaId, titularId }) => [
-      // Só o ato: a ação, a entidade, a finalidade e o instante (critério 2).
-      sql`select ${selectColumns('id', 'acao', 'entidade', 'entidade_id', 'finalidade', 'em')} from auditoria t where t.escola_id = ${escolaId} and t.autor_usuario_id = ${titularId}`,
+      // Só o ato: a ação, a entidade, a finalidade e o instante (critério 2). `senha_provisoria.gerada` fica de fora: o professor a assina, e o `entidade_id`
+      // dela é o do aluno (outra pessoa). Ela chega ao aluno, sem o autor, pela leitura por alvo (D85, tarefa 11.0).
+      sql`select ${selectColumns('id', 'acao', 'entidade', 'entidade_id', 'finalidade', 'em')} from auditoria t
+          where t.escola_id = ${escolaId} and t.autor_usuario_id = ${titularId} and t.acao <> 'senha_provisoria.gerada'`,
     ],
   },
   pedido_titular: {

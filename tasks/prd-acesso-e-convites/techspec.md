@@ -111,7 +111,7 @@ confere o token antes do argon2, troca a senha com a conta travada, encerra as s
 **Senha provisória.** Oito caracteres de `23456789ABCDEFGHJKMNPQRSTUVWXYZ`, em dois grupos. Gerar trava a linha do usuário do aluno
 (a mesma do "ligar"; na aprovação, decide a `conta_externa` única), confere o escopo e a conta ligada, e só então apaga `senha_hash` e a
 provisória anterior, encerra as sessões e audita (papel de quem gerou no `depois`); conta da escola ligada:
-`ENTRA_PELA_CONTA_DA_ESCOLA` (PRD §7). Provisória não usada de menos de 10 s, de qualquer autor: `CONFLITO`. O hash passa pelo semáforo do argon2. O login com a provisória devolve
+`ENTRA_PELA_CONTA_DA_ESCOLA` (PRD §7). Provisória não usada de menos de 10 s, de qualquer autor: `CONFLITO` (a hora da geração é `provisoria_expira_em` menos 24 h, pelo relógio do banco; as sessões caem com o motivo `senha_redefinida`). O hash passa pelo semáforo do argon2. O login com a provisória devolve
 `{ etapa: 'trocar_senha', bilhete }`: JWT assinado (`jose`, `aud` própria, não o desafio), de 10 min, com a escola, o aluno e a
 `provisoriaExpiraEm` (identifica a provisória sem ser segredo); vai no `Authorization`, nunca na URL. `trocar-senha`
 e `/trocas` rodam em `naEscolaSemUsuario` com a escola do bilhete, com escopo no repository; qualquer outra falha, inclusive aluno só com conta externa (contra um hash fixo, no mesmo tempo), é a credencial
@@ -123,7 +123,7 @@ zero linhas, recusa. A troca e o `desativar` anulam as três colunas.
 `usuario.nome_corrigido`, `lista.nome_corrigido` (o `lista_nome` só com o nome aprovado, pelo `alunoId` da decisão),
 `senha_provisoria.gerada` e `.usada`: ação, entidade, finalidade, data e o papel de quem fez; nunca o id nem o nome do
 autor, o `antes` ou o `depois`, nem as leituras. O papel é fixo por ação nas quatro da F2 (coordenação) e vem do `depois` na
-`.gerada`; a `.usada` sai uma vez.
+`.gerada`; a `.usada` sai uma vez. A leitura do arquivo de quem **assina** (`auditoria`, `autor_usuario_id`) deixa a `senha_provisoria.gerada` de fora: o professor a assina e o `entidade_id` é o do aluno.
 
 **Auditoria.** `convite.enviado` é gravado no pedido ("Enviar", "Reenviar"), autora a coordenação; o job só muda o `envio`. `senha.redefinida` e `conta.email_verificado` vindos de rota anônima gravam um registro por escola em que
 a conta tem usuário ativo, com esse usuário como autor e alvo, na mesma transação, no contexto montado no próprio fluxo pelo `usuariosAtivosDaConta`

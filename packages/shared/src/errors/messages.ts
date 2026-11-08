@@ -40,6 +40,7 @@ export const MENSAGENS_DE_ERRO: Readonly<Record<ErrorCode, string>> = {
   PEDIDO_EM_ESTADO_INVALIDO: 'Este pedido não aceita mais esta ação. Atualize a tela para ver como ele ficou.',
   ACESSO_SUSPENSO: 'Seu acesso está suspenso a pedido. Fale com a coordenação da escola.',
   VERIFICACAO_PENDENTE: 'Mandamos um link para o seu e-mail. Abra-o e volte a este convite. Pode levar alguns minutos; se não chegar, abra o convite de novo para outro link.',
+  ENTRA_PELA_CONTA_DA_ESCOLA: 'Este aluno entra pela conta da escola. Não precisa de senha.',
 }
 
 /**

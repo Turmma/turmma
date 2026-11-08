@@ -158,6 +158,7 @@ export const COLUNAS_FORA_DO_ARQUIVO: readonly string[] = [
   'conta.mfa_ultimo_passo',
   'codigo_recuperacao.hmac',
   'credencial_matricula.senha_hash',
+  'credencial_matricula.provisoria_hash',
   'conta_externa.sujeito',
   'conta_externa.tenant',
   'sessao.refresh_hash',

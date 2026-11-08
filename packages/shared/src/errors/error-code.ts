@@ -114,6 +114,11 @@ export const ErrorCode = {
    * 3 por hora), e depois de abri-lo o mesmo convite vale. A resposta não traz id, nome nem quantidade da outra escola.
    */
   VERIFICACAO_PENDENTE: 'VERIFICACAO_PENDENTE',
+  /**
+   * O aluno tem a conta da escola ligada (acesso-e-convites, tarefa 9.0, RF13; 409): quem pede a senha provisória é avisado de que ele entra pela conta e não precisa
+   * de senha. A senha dele não muda. Só sai a quem alcança o aluno: o professor de outra turma recebe o `NAO_ENCONTRADO` de quem não existe.
+   */
+  ENTRA_PELA_CONTA_DA_ESCOLA: 'ENTRA_PELA_CONTA_DA_ESCOLA',
 } as const
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode]

@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm'
-import { check, foreignKey, pgTable, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core'
+import { check, foreignKey, index, pgTable, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core'
 import { escola } from './escola.js'
 import { usuario } from './usuario.js'
 
@@ -13,6 +13,11 @@ import { usuario } from './usuario.js'
  * - `(escola_id, usuario_id)` é FK composta para `usuario (escola_id, id)`: a credencial nunca aponta para usuário de
  *   outra escola. Sai com o usuário (`on delete cascade`), que é de quem ela é.
  * - `senha_hash` é argon2id e fica nulo quando a escola desativa o aluno (17.0). Nunca sai em resposta nem em log.
+ * - `provisoria_hash`, `provisoria_expira_em` e `provisoria_gerada_por` são a senha provisória (acesso-e-convites, tarefa 9.0;
+ *   Tech Spec, seção 5): o hash (argon2id, nunca a senha), a validade de 24 h e quem a gerou. As três nascem e saem juntas, exceto
+ *   `provisoria_gerada_por`, que a eliminação de quem gerou anula (a FK composta `set null` só dessa coluna: o `set null` inteiro
+ *   anularia também a escola; a autoria fica na auditoria). A troca, o vencimento (o `retencao.expurgar-escola`) e a desativação
+ *   anulam as três. O índice parcial é o do expurgo do vencimento.
  * - A matrícula é dado pessoal (`docs/lgpd.md`): nunca em log, em auditoria nem em métrica.
  */
 export const credencialMatricula = pgTable(
@@ -25,6 +30,9 @@ export const credencialMatricula = pgTable(
     usuarioId: uuid().notNull(),
     matricula: text().notNull(),
     senhaHash: text(),
+    provisoriaHash: text(),
+    provisoriaExpiraEm: timestamp({ withTimezone: true }),
+    provisoriaGeradaPor: uuid(),
     criadaEm: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (tabela) => [
@@ -32,6 +40,14 @@ export const credencialMatricula = pgTable(
     unique('credencial_matricula_matricula_unica').on(tabela.escolaId, tabela.matricula),
     unique('credencial_matricula_usuario_unico').on(tabela.escolaId, tabela.usuarioId),
     foreignKey({ name: 'credencial_matricula_usuario_da_escola_fk', columns: [tabela.escolaId, tabela.usuarioId], foreignColumns: [usuario.escolaId, usuario.id] }).onDelete('cascade'),
+    // A migration escreve `on delete set null ("provisoria_gerada_por")`: o `set null` inteiro anularia também a escola.
+    foreignKey({
+      name: 'credencial_matricula_provisoria_gerada_por_da_escola_fk',
+      columns: [tabela.escolaId, tabela.provisoriaGeradaPor],
+      foreignColumns: [usuario.escolaId, usuario.id],
+    }).onDelete('set null'),
+    check('credencial_matricula_provisoria_completa', sql`(${tabela.provisoriaHash} is null) = (${tabela.provisoriaExpiraEm} is null)`),
+    index('credencial_matricula_provisoria_vence_idx').on(tabela.escolaId, tabela.provisoriaExpiraEm).where(sql`${tabela.provisoriaExpiraEm} is not null`),
     // 40 é `TAMANHO_MAXIMO_MATRICULA` do contrato (`packages/shared`), o mesmo que o login aceita.
     check('credencial_matricula_formato', sql`char_length(${tabela.matricula}) between 1 and 40 and ${tabela.matricula} = btrim(${tabela.matricula})`),
   ],

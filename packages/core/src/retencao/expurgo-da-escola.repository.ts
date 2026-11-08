@@ -501,6 +501,31 @@ export class ExpurgoDaEscolaRepository {
   }
 
   /**
+   * Anula as três colunas da senha provisória (`provisoria_hash`, `provisoria_expira_em`, `provisoria_gerada_por`) da credencial da
+   * escola do contexto cuja validade passou antes do `agora` do job (acesso-e-convites, tarefa 9.0; Tech Spec, seção 5, "Senha
+   * provisória"). **Prazo fixo em código** (a validade de 24 h já correu; o corte é o `provisoria_expira_em`, estrito: a que vence
+   * exatamente agora fica), e não categoria de retenção da escola: o hash de uma senha vencida não serve a ninguém, e o dado não é
+   * ajustável. Na pior hipótese a linha sai cerca de 24 h depois do vencimento (a noite seguinte); o login confere a validade e
+   * recusa a vencida antes disso. A auditoria (`senha_provisoria.gerada`) fica. O índice parcial `(escola_id, provisoria_expira_em)`
+   * serve a seleção. `for update skip locked`: a credencial que a troca ou a geração seguram agora fica para a noite seguinte, e o
+   * `update` repete a condição do vencimento. Devolve quantas anulou.
+   */
+  async anularProvisoriasVencidas(agora: Date): Promise<number> {
+    const escolaId = requireEscolaId()
+    const resultado = await this.banco.execute(sql`
+      update credencial_matricula
+      set provisoria_hash = null, provisoria_expira_em = null, provisoria_gerada_por = null
+      where escola_id = ${escolaId} and provisoria_expira_em < ${agora.toISOString()}::timestamptz and id = any(array(
+        select id from credencial_matricula
+        where escola_id = ${escolaId} and provisoria_expira_em < ${agora.toISOString()}::timestamptz
+        order by provisoria_expira_em
+        for update skip locked
+      ))
+    `)
+    return resultado.rowCount ?? 0
+  }
+
+  /**
    * Enfileira a eliminação de cada pedido **vencido** da escola do contexto (F3, tarefa 15.0; Tech Spec do F3, seção 5): o
    * pedido `agendado` com `eliminar_em <= now()` cujo `eliminacao_enfileirada_em` é nulo ou tem mais de
    * `HORAS_PARA_REENFILEIRAR_A_ELIMINACAO` (20 h: o job que a janela letiva interrompeu, ou que se perdeu, volta na noite

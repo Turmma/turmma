@@ -175,12 +175,17 @@ export const METRICS = {
   emailPorResultado: 'email.envio',
   /** Vezes que um job de e-mail foi adiado sem gastar tentativa, por `motivo`: `limite` (o `EMAIL_POR_MINUTO`), `redis` e `reserva_alheia`. */
   emailAdiado: 'email.adiado',
+  /**
+   * Senhas provisórias de aluno geradas (acesso-e-convites, tarefa 9.0; RF13), por `escola_id`: um contador somado depois do commit da geração. É o sinal de que uma
+   * escola está usando o recurso em volume, ou de que alguém está tentando esgotar a cota de 60 por hora. Nenhum rótulo além da escola: nunca o aluno, quem gerou nem o papel.
+   */
+  senhaProvisoriaGerada: 'senha_provisoria.gerada',
 } as const
 
 /**
  * As únicas métricas que levam `escola_id`: as de job e, fora de job, as três de login da Tech Spec da identidade (seção
  * 7c), com cardinalidade de uma série por escola: a espera pelo hash, as falhas e o rebaixamento; e as noites sem
- * expurgo (F3, tarefa 3.0) as horas do incidente sem confirmação (F3, tarefa 9.0) as do arquivo em preparação (F3, tarefa 13.0), as da eliminação vencida (F3, tarefa 15.0) e os minutos da importação de planilha na fila (F2, tarefa 5.0). Nenhuma outra pode levar escola, e nenhuma leva usuário.
+ * expurgo (F3, tarefa 3.0) as horas do incidente sem confirmação (F3, tarefa 9.0) as do arquivo em preparação (F3, tarefa 13.0), as da eliminação vencida (F3, tarefa 15.0) os minutos da importação de planilha na fila (F2, tarefa 5.0) e as senhas provisórias geradas (acesso-e-convites, tarefa 9.0). Nenhuma outra pode levar escola, e nenhuma leva usuário.
  */
 export const METRICS_WITH_ESCOLA: readonly string[] = [
   METRICS.esperaMaisAntiga,
@@ -195,6 +200,7 @@ export const METRICS_WITH_ESCOLA: readonly string[] = [
   METRICS.horasDoArquivoEmPreparacao,
   METRICS.horasDaEliminacaoVencida,
   METRICS.minutosDaImportacaoNaFila,
+  METRICS.senhaProvisoriaGerada,
 ]
 
 /** O rótulo da escola nas métricas de job. Rotina do sistema, sem escola, aparece como `sistema`, como na chave da vaga. */

@@ -41,6 +41,8 @@ import { MeController } from './eu/eu.controller.js'
 import { MeRepository } from './eu/eu.repository.js'
 import { MeService } from './eu/eu.service.js'
 import { PasswordHasher } from '../credencial/password-hasher.js'
+import { SenhaProvisoriaController } from '../credencial/senha-provisoria.controller.js'
+import { SenhaProvisoriaService } from '../credencial/senha-provisoria.service.js'
 import { LoginEmailController } from './login/login-email.controller.js'
 import { LoginService } from './login/login.service.js'
 import { LoginMatriculaController } from './login/matricula.controller.js'
@@ -127,6 +129,7 @@ export class SessaoModule implements OnApplicationShutdown {
         ExternalLoginController,
         SenhaController,
         ContaController,
+        SenhaProvisoriaController,
       ],
       providers: [
         { provide: REDIS_LOGIN_CLIENT, useFactory: () => createApiRedisClient(opcoes.redisFilaUrl, 'api-login', avisar, opcoes.prazoDoRedisMs ?? opcoes.login.prazoDoRedisMs) },
@@ -306,6 +309,21 @@ export class SessaoModule implements OnApplicationShutdown {
               ...(opcoes.pisoDoEsqueci ?? {}),
             }),
           inject: [DB, TenantResolutionRepository, PasswordHasher, HashBulkhead, WindowCounter, REDIS_LOGIN_CLIENT],
+        },
+        {
+          provide: SenhaProvisoriaService,
+          useFactory: (banco: Database, hash: PasswordHasher, semaforo: HashBulkhead, cliente: Redis) =>
+            new SenhaProvisoriaService({
+              banco,
+              hash,
+              semaforo,
+              // As cotas da provisória (60 por hora por quem gera, 5 por dia por aluno) contam em janelas de 1 h e de 24 h, com a mesma chave de HMAC do contador de tentativas: o Redis nunca vê o id.
+              porHora: new WindowCounter(cliente, opcoes.login.chaveContador, { janelaMs: 60 * 60 * 1000, avisarSeguro: avisar }),
+              porDia: new WindowCounter(cliente, opcoes.login.chaveContador, { janelaMs: 24 * 60 * 60 * 1000, avisarSeguro: avisar }),
+              instancias: opcoes.instancias,
+              medidor: opcoes.medidor ?? globalMeter(),
+            }),
+          inject: [DB, PasswordHasher, HashBulkhead, REDIS_LOGIN_CLIENT],
         },
         { provide: RedefinicaoDeMfa, useFactory: (banco: Database) => new RedefinicaoDeMfa(banco), inject: [DB] },
         {

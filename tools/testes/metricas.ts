@@ -100,4 +100,5 @@ export const NOMES_NO_PROMETHEUS = {
   duracaoDoPasso3DaImportacao: ['importacao_passo3_duracao_seconds_bucket', 'importacao_passo3_duracao_seconds_count', 'importacao_passo3_duracao_seconds_sum'],
   emailPorResultado: ['email_envio_total'],
   emailAdiado: ['email_adiado_total'],
+  senhaProvisoriaGerada: ['senha_provisoria_gerada_total'],
 } as const satisfies Record<keyof typeof METRICS, readonly string[]>

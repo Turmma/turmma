@@ -317,14 +317,21 @@ export class CicloDeVidaRepository {
   }
 
   /**
-   * Apaga o hash da senha da matrícula (regra 20, item 18): a linha fica, com a matrícula, que é registro escolar, e o
-   * login responde como senha errada. Devolve se havia hash.
+   * Apaga o hash da senha da matrícula **e a senha provisória** (as três colunas dela), regra 20, item 18: a linha fica, com a
+   * matrícula, que é registro escolar, e o login responde como senha errada. A provisória vai junto (acesso-e-convites, tarefa 9.0):
+   * sem isso o aluno desativado entraria com a provisória gerada antes de sair da escola. Devolve se havia hash de senha ou provisória.
    */
   async apagarSenhaDaMatricula(usuarioId: string): Promise<boolean> {
     const apagadas = await this.tx
       .update(credencialMatricula)
-      .set({ senhaHash: null })
-      .where(and(eq(credencialMatricula.escolaId, requireEscolaId()), eq(credencialMatricula.usuarioId, usuarioId), isNotNull(credencialMatricula.senhaHash)))
+      .set({ senhaHash: null, provisoriaHash: null, provisoriaExpiraEm: null, provisoriaGeradaPor: null })
+      .where(
+        and(
+          eq(credencialMatricula.escolaId, requireEscolaId()),
+          eq(credencialMatricula.usuarioId, usuarioId),
+          or(isNotNull(credencialMatricula.senhaHash), isNotNull(credencialMatricula.provisoriaHash)),
+        ),
+      )
       .returning({ id: credencialMatricula.id })
     return apagadas.length > 0
   }

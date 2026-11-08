@@ -23,7 +23,7 @@ import { JobFailureError } from '../job-failure.error.js'
 export const LOTE_DOS_ARQUIVOS_DO_TITULAR = 100
 
 export interface ExpurgoDaEscolaDependencies {
-  repositorio: Pick<ExpurgoDaEscolaRepository, 'expurgarLote' | 'expurgarRegistroDoExpurgo' | 'registrar' | 'categoriaPendente' | 'enfileirarEliminacoes' | 'fecharImportacoesParadas' | 'fecharEnviosParados'>
+  repositorio: Pick<ExpurgoDaEscolaRepository, 'expurgarLote' | 'expurgarRegistroDoExpurgo' | 'registrar' | 'categoriaPendente' | 'enfileirarEliminacoes' | 'fecharImportacoesParadas' | 'fecharEnviosParados' | 'anularProvisoriasVencidas'>
   /** A porta de entrada do trabalho demorado: o job `titular.eliminar` de cada pedido de eliminação vencido sai por ela (F3, tarefa 15.0). */
   enfileirador: Pick<JobOutbox, 'enfileirarUmaVez'>
   /** Os arquivos do titular vencidos ou marcados `apagado_em` (F3, tarefa 13.0): o objeto sai do storage, e só então a linha. */
@@ -63,6 +63,8 @@ export interface ExpurgoDaEscolaDependencies {
  *   `marcas` nulas, contada do relógio do job e com `skip locked`. A final sai 90 dias depois, pelo `sistema.expurgar-acesso`.
  * - **Depois, o envio de e-mail do convite parado** (acesso-e-convites, 1.0): o envio `na_fila` ou `enviando` de mais de 24 h, contadas do `criado_em` do
  *   convite e do relógio do job, fecha `falhou` e perde o token e o endereço cifrados. Na pior hipótese isso leva cerca de 48 h (a noite seguinte).
+ * - **Depois, a senha provisória vencida** (acesso-e-convites, 9.0): a credencial cuja `provisoria_expira_em` passou do relógio do job perde o hash, a
+ *   validade e quem a gerou, com `skip locked`; a auditoria fica. Prazo fixo em código, e não categoria de retenção.
  * - Loga só a categoria (sob `tipo`) e as contagens; a escola vai pelo contexto, nunca uma linha.
  */
 export function criarExpurgoDaEscola({ repositorio, arquivos, armazem, retencao, janelaDaEscola, enfileirador, relogio, logger, lote = LOTE_DO_EXPURGO }: ExpurgoDaEscolaDependencies): JobProcessor<typeof TIPO_EXPURGAR_ESCOLA> {
@@ -77,6 +79,8 @@ export function criarExpurgoDaEscola({ repositorio, arquivos, armazem, retencao,
     const importacoesFechadasTotal = await repositorio.fecharImportacoesParadas(agora)
     // O e-mail do convite que ficou 24 h sem sair (acesso-e-convites, 1.0): fecha `falhou` e perde o token e o endereço cifrados.
     const enviosFechadosTotal = await repositorio.fecharEnviosParados(agora)
+    // A senha provisória vencida (acesso-e-convites, 9.0): perde o hash, a validade e quem a gerou; a auditoria fica.
+    const provisoriasAnuladasTotal = await repositorio.anularProvisoriasVencidas(agora)
     const prazos = new Map(retencaoDaEscola(await retencao.ajustes()).map(({ categoria, meses }) => [categoria, meses]))
     const janela = await janelaDaEscola.daEscola()
     // Primeiro os arquivos do titular (F3, tarefa 13.0): o objeto sai do storage e só então a linha. O que o storage não
@@ -143,6 +147,7 @@ export function criarExpurgoDaEscola({ repositorio, arquivos, armazem, retencao,
       eliminacoesJaEnfileiradasTotal,
       importacoesFechadasTotal,
       enviosFechadosTotal,
+      provisoriasAnuladasTotal,
     })
   }
 }

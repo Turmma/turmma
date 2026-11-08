@@ -2071,6 +2071,55 @@
           "range": true
         }
       ]
+    },
+    {
+      "id": 45,
+      "type": "timeseries",
+      "title": "Senhas provisórias de aluno geradas por semana, por escola",
+      "description": "Senhas provisórias geradas (acesso-e-convites, tarefa 9.0), por escola, nos últimos 7 dias (a métrica do PRD §9, por semana por escola). É o sinal de que uma escola usa o recurso em volume, ou de que alguém tenta esgotar a cota de 60 por hora de quem gera; a cota por aluno (5 por dia) é recusada com 429 e não soma. Nunca leva o aluno, quem gerou nem o papel. Não gera alerta: o volume é da escola.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 147
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (escola_id) (increase(senha_provisoria_gerada_total{job=\"educa/api\"}[7d]))",
+          "legendFormat": "{{escola_id}}",
+          "range": true
+        }
+      ]
     }
   ]
 }

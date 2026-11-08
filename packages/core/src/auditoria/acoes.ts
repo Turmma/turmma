@@ -30,6 +30,7 @@ import {
   ORIGENS_DE_VINCULO,
   PAPEIS_DE_USUARIO,
   PAPEIS_DE_VINCULO,
+  PAPEIS_QUE_GERAM_A_SENHA_PROVISORIA,
   PAPEIS_DO_TITULAR,
   RISCOS_DO_INCIDENTE,
   CHAVES_DO_RESUMO_DA_IMPORTACAO,
@@ -182,6 +183,17 @@ export const ACOES_DE_AUDITORIA = {
     entidade: 'usuario',
     antes: null,
     depois: null,
+    finalidade: null,
+  },
+  /**
+   * A coordenação ou o professor da turma gerou a senha provisória de um aluno (acesso-e-convites, tarefa 9.0, RF13, RF17): `entidadeId` é o aluno, o autor é quem gerou, e o
+   * `depois` leva o papel dele (`coordenador` ou `professor`), que o arquivo do titular mostra ao aluno no lugar do nome do autor (D85). Nunca a senha, o hash, o nome nem a
+   * matrícula. O uso dela (`senha_provisoria.usada`) é da tarefa 10.0.
+   */
+  'senha_provisoria.gerada': {
+    entidade: 'usuario',
+    antes: null,
+    depois: z.strictObject({ papel: z.enum(PAPEIS_QUE_GERAM_A_SENHA_PROVISORIA) }),
     finalidade: null,
   },
   /**

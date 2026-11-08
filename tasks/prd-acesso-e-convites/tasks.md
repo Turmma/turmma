@@ -62,11 +62,11 @@
   - [ ] 8.4 O `docs/roteiro-da-demonstracao.md` (seção 2, passo 8) conferido contra `e2e/roteiro-da-demonstracao.spec.ts`
   - [ ] 8.5 Testes: verificar pelo Mailpit, aviso no aceite, recomeço, 360 px
 
-- [ ] **9.0 — Gerar a senha provisória (API)**
-  - [ ] 9.1 Migration que só expande `credencial_matricula` (`provisoriaHash`, `provisoriaExpiraEm`, `provisoriaGeradaPor` com `set null`, índice parcial do expurgo)
-  - [ ] 9.2 A rota em `credencial/`: trava da linha do usuário do aluno, escopo (vínculo confirmado ou coordenação), conta ligada, `CONFLITO` de 10 s; só então as cotas (60/h por usuário, 5/dia por aluno), a senha, as sessões e `senha_provisoria.gerada` com o papel no `depois`
-  - [ ] 9.3 O `desativar` anula as três colunas; o alvo novo no `retencao.expurgar-escola`; a métrica de provisórias por escola
-  - [ ] 9.4 Testes: quem gera, `ENTRA_PELA_CONTA_DA_ESCOLA`, cotas, semáforo, expurgo, auditoria, dois "gerar"
+- [x] **9.0 — Gerar a senha provisória (API)**
+  - [x] 9.1 Migration que só expande `credencial_matricula` (`provisoriaHash`, `provisoriaExpiraEm`, `provisoriaGeradaPor` com `set null`, índice parcial do expurgo)
+  - [x] 9.2 A rota em `credencial/`: trava da linha do usuário do aluno, escopo (vínculo confirmado ou coordenação), conta ligada, `CONFLITO` de 10 s; só então as cotas (60/h por usuário, 5/dia por aluno), a senha, as sessões e `senha_provisoria.gerada` com o papel no `depois`
+  - [x] 9.3 O `desativar` anula as três colunas; o alvo novo no `retencao.expurgar-escola`; a métrica de provisórias por escola
+  - [x] 9.4 Testes: quem gera, `ENTRA_PELA_CONTA_DA_ESCOLA`, cotas, semáforo, expurgo, auditoria, dois "gerar"
 
 - [ ] **10.0 — O aluno entra com a provisória e troca a senha (API)**
   - [ ] 10.1 O bilhete (`jose`, `typ` e `aud` próprios, 10 min, escola, aluno, `provisoriaExpiraEm`), só no `Authorization`

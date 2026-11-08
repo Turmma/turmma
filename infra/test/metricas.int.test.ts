@@ -251,6 +251,8 @@ describe('métricas na observabilidade local, por rota, fila e escola', () => {
         ...NOMES_NO_PROMETHEUS.horasDaEliminacaoVencida,
         // Os minutos da importação de planilha mais antiga na fila, por escola (F2, tarefa 5.0; Tech Spec do onboarding, seção 7c).
         ...NOMES_NO_PROMETHEUS.minutosDaImportacaoNaFila,
+        // As senhas provisórias de aluno geradas, por escola (acesso-e-convites, tarefa 9.0; Tech Spec, seção 7c).
+        ...NOMES_NO_PROMETHEUS.senhaProvisoriaGerada,
       ].sort(),
     )
     expect(comEscola.filter((nome) => !admitidas.has(nome ?? ''))).toEqual([])

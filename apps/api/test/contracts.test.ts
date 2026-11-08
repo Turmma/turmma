@@ -32,6 +32,8 @@ const CONTRATOS_SO_DA_EQUIPE: readonly string[] = []
 const EXCECOES_NOMINAIS: Readonly<Record<string, readonly string[]>> = {
   configurarMfaResponseSchema: ['segredo'],
   configurarSegundoFatorDeOperadorResponseSchema: ['segredo'],
+  // A senha provisória do aluno: mostrada uma vez, na resposta de quem a gera (acesso-e-convites, tarefa 9.0). Nenhuma leitura a devolve.
+  senhaProvisoriaResponseSchema: ['senha'],
 }
 
 /** Os caminhos de todo campo do esquema, em qualquer profundidade (`itens[].aluno.nome`). */
@@ -167,6 +169,6 @@ describe('contratos de saída: nenhuma resposta traz credencial, segredo ou iden
     const comEmail = z.object({ itens: z.array(z.object({ usuarioId: z.uuid(), email: z.email() })) })
     expect(problemasDoContrato('alunosDaTurmaResponseSchema', comEmail)).toEqual(['alunosDaTurmaResponseSchema: itens[].email (email)'])
     expect(CONTRATOS_SO_DA_EQUIPE).toEqual([])
-    expect(EXCECOES_NOMINAIS).toEqual({ configurarMfaResponseSchema: ['segredo'], configurarSegundoFatorDeOperadorResponseSchema: ['segredo'] })
+    expect(EXCECOES_NOMINAIS).toEqual({ configurarMfaResponseSchema: ['segredo'], configurarSegundoFatorDeOperadorResponseSchema: ['segredo'], senhaProvisoriaResponseSchema: ['senha'] })
   })
 })

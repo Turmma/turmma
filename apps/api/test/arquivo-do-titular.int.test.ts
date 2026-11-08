@@ -415,8 +415,9 @@ describe('arquivo do titular (F3, tarefa 13.0): do pedido ao download', () => {
     await bancada.pool.query(
       `insert into auditoria (escola_id, autor_usuario_id, acao, entidade, entidade_id, requisicao_id, depois) values
          ($1, $2, 'correcao.destaque_aberto', 'entrega', $3, $5, jsonb_build_object('atividadeAplicadaId', $4::text, 'alunoId', $6::text, 'motivos', jsonb_build_array('em_branco'))),
-         ($1, $2, 'reivindicacao.decidida', 'reivindicacao', $7, $8, jsonb_build_object('turmaId', $9::text, 'estado', 'aprovada', 'decididaComo', 'professor', 'alunoId', $6::text))`,
-      [escolaId, professor.id, loteAprovado, aplicadaDoLoteAprovado, randomUUID(), aluno.id, ids['reivindicacao'], randomUUID(), turma],
+         ($1, $2, 'reivindicacao.decidida', 'reivindicacao', $7, $8, jsonb_build_object('turmaId', $9::text, 'estado', 'aprovada', 'decididaComo', 'professor', 'alunoId', $6::text)),
+         ($1, $2, 'senha_provisoria.gerada', 'usuario', $6::text::uuid, $10, jsonb_build_object('papel', 'professor'))`,
+      [escolaId, professor.id, loteAprovado, aplicadaDoLoteAprovado, randomUUID(), aluno.id, ids['reivindicacao'], randomUUID(), turma, randomUUID()],
     )
     return { ids, textos }
   }

@@ -128,7 +128,7 @@ rodada 1) acrescentou os casos marcados (F2c) e as seções "Arquivo do titular"
 - [E] Tela de troca: primeira troca mostra a frase "primeira vez", sem tabela vazia; falha da lista mostra aviso com
   "Tentar de novo" e não bloqueia o campo de senha; bilhete vencido: "peça a senha de novo ao professor"; datas em
   português ("Gerada pela coordenação em 12/11/2026 às 14:05").
-- [I] `senha_provisoria.gerada` e `.usada` aparecem no arquivo do titular do aluno; `.usada` tem o aluno como autor.
+- [I] `senha_provisoria.gerada` e `.usada` aparecem no arquivo do titular do aluno; `.usada` tem o aluno como autor. A `.gerada` não entra no arquivo de quem a assinou (o professor): o id do aluno ficaria lá (`apps/api/test/arquivo-do-titular.int.test.ts`, o ato do professor sobre outro aluno).
 - [I] Trocar-senha conta no contador de falhas da conta.
 - [I] Provisória vencida, relógio falso: com 23 h o `retencao.expurgar-escola` a mantém; com 25 h anula hash, validade e
   quem gerou; a auditoria fica. A troca e o `desativar` do aluno também anulam as três colunas.

@@ -316,6 +316,13 @@
       "when": 1794120557670,
       "tag": "0044_email_verificado",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1794133614279,
+      "tag": "0045_senha_provisoria",
+      "breakpoints": true
     }
   ]
 }

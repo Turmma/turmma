@@ -1433,13 +1433,19 @@ describe('arquitetura: o que a auditoria diz de outra pessoa não entra no arqui
    */
   const COORDENACAO_OPERACAO_E_ROTINA = ['aluno.transferido', 'professor.cadastrado', 'usuario.desativado', 'usuario.eliminado', 'usuario.mfa_redefinicao_recusada', 'usuario.mfa_redefinido', 'usuario.nome_corrigido']
   const A_PROPRIA_PESSOA = ['usuario.ativado_por_convite', 'senha.redefinida', 'conta.email_verificado']
+  /**
+   * `senha_provisoria.gerada` (acesso-e-convites, 9.0) é assinada pela coordenação **e pelo professor da turma** e tem o aluno como alvo. É a única exceção à
+   * regra acima, e só porque a leitura do arquivo do autor a deixa de fora (`LEITURAS_DO_ARQUIVO.auditoria`, `t.acao <> 'senha_provisoria.gerada'`, com o caso em
+   * `arquivo-do-titular.int.test.ts`): o id do aluno nunca chega ao arquivo do professor. Ao aluno ela chega sem o autor, pela leitura por alvo (D85, tarefa 11.0).
+   */
+  const ASSINADA_TAMBEM_PELO_PROFESSOR_FORA_DO_ARQUIVO_DELE = ['senha_provisoria.gerada']
 
   it('as ações sobre `usuario` são exatamente estas, e nenhuma é de professor ou aluno sobre outra pessoa', () => {
     const doUsuario = Object.entries(nucleo.ACOES_DE_AUDITORIA)
       .filter(([, definicao]) => definicao.entidade === 'usuario')
       .map(([acao]) => acao)
       .sort()
-    expect(doUsuario).toEqual([...COORDENACAO_OPERACAO_E_ROTINA, ...A_PROPRIA_PESSOA].sort())
+    expect(doUsuario).toEqual([...COORDENACAO_OPERACAO_E_ROTINA, ...A_PROPRIA_PESSOA, ...ASSINADA_TAMBEM_PELO_PROFESSOR_FORA_DO_ARQUIVO_DELE].sort())
   })
 })
 
