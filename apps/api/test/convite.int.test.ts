@@ -569,6 +569,8 @@ describe('convite do primeiro coordenador: o operador gera, a pessoa consulta e 
       // `ops:operador`. As do painel (A0b) geram, refazem e revogam o convite da coordenação, e são `@OperacaoRoute` (C41, C46).
       // As dos professores (A1, 3.0) refazem e revogam só o convite de professor (I7, `professores.int.test.ts`), e o
       // `POST /v1/professores`, que cadastra, só gera convite de professor: nenhuma delas alcança o de coordenação.
+      // O "Enviar convites" (acesso-e-convites, 3.0) também só refaz o convite de quem já o espera, com o canal email
+      // (`convites-enviar.int.test.ts`): o corpo só restringe dentro da escola da sessão, e o id de outra escola ou desconhecido é ignorado.
       expect(rotas.filter((rota) => /convite/i.test(rota)).sort()).toEqual([
         'POST /v1/convites/aceitar',
         'POST /v1/convites/consultar',
@@ -579,6 +581,7 @@ describe('convite do primeiro coordenador: o operador gera, a pessoa consulta e 
         'POST /v1/operacao/escolas/:id/convite-coordenacao',
         'POST /v1/professores/:usuarioId/convite/refazer',
         'POST /v1/professores/:usuarioId/convite/revogar',
+        'POST /v1/professores/convites/enviar',
       ])
 
       const coordenacao = await bancada.escolaComSessao('coordenador')

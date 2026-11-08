@@ -3087,3 +3087,10 @@ aula" em `Retencao.tsx`, o Validador conferiu: a tela já o mostra pela descriç
       a ação com outro `entidadeId` (dono: Implementador)
 - [ ] (acesso-e-convites 3.0, test-engineer, 2ª) **Bloco de mutação para o endereço de outro professor do lote** (`email` do vizinho em `entram`); o teste já fica vermelho, falta o bloco que o portão
       prova (dono: Implementador)
+
+## Da correção 2026-11-08-rota-de-envio-no-teste-de-convite (a lista de rotas com "convite"), fora dela
+
+- [ ] (acesso-e-convites, correção 2026-11-08-rota-de-envio-no-teste-de-convite, privacy-guardian, infra-guardian e test-engineer, 1ª) **A lista de rotas com "convite" só roda na esteira.**
+      `apps/api/test/convite.int.test.ts` conta as rotas do Express cujo caminho cita "convite"; a 3.0 acrescentou uma e o portão dela não o rodou (o arquivo não estava entre os
+      alterados), então a falha só apareceu na esteira. Para a retro de acesso-e-convites, duas saídas: levar a lista para um teste de unidade, que o portão roda sempre, ou fazer o
+      portão rodar `convite.int.test.ts` quando um controller ganha rota com "convite" no caminho (mexe em `tools/processo/`; dono: Arquiteto, para decidir na retro)
