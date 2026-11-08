@@ -85,8 +85,14 @@ rodada 1) acrescentou os casos marcados (F2c) e as seções "Arquivo do titular"
     envio do link antigo ainda `na_fila` vira `cancelado`, com os cifrados nulos, e não sai.
   - [P] Dois aceites que precisam de verificação ao mesmo tempo: os dois `VERIFICACAO_PENDENTE`, nunca 500, um link
     aberto. A resposta não traz id, nome nem quantidade da outra escola.
-  - [I] Conta nova criada pelo próprio convite copiado: aceita sem verificação (não tinha senha).
+  - [I] Conta nova criada pelo próprio convite copiado: aceita sem verificação (não tinha senha). Dois convites copiados da
+    mesma conta nova, aceitos ao mesmo tempo: um define a senha, e o que perdeu a corrida desfaz o uso e responde
+    `VERIFICACAO_PENDENTE`.
   - [I] Redefinir pelo "esqueci" grava `emailVerificadoEm`.
+  - [I] Professor desativado na A, com o convite copiado da B já emitido (a conta tem senha e não provou o e-mail):
+    `VERIFICACAO_PENDENTE`, o link de verificar abre em `/v1/conta/verificar` (a conta serve enquanto o convite vale), e o
+    aceite segue. Sem o convite válido, o link é inválido.
+  - [I] O teto de 3 por hora por conta com o Redis fora: rebaixa para o seguro em memória, nunca 500.
 - **RF12.**
   - [I] Resposta igual para e-mail com e sem conta, com o piso provado por relógio falso, nunca cronômetro.
   - [I] O link vence em 1 h e não serve duas vezes; redefinir derruba as sessões; o MFA continua exigido.
@@ -190,8 +196,10 @@ rodada 1) acrescentou os casos marcados (F2c) e as seções "Arquivo do titular"
   `conta.email_verificado` em cada escola, autor e alvo o usuário dela; com o usuário da B desativado, só na A. O
   mesmo pelo `/v1/conta/verificar`. O registro da A não traz no `antes`, no `depois` nem na finalidade nada da B. (F2c)
 - [I] Conta com usuário na A aceita por e-mail um convite da B: o `conta.email_verificado` sai só na B. (F2c)
-- [I] Usuário desativado entre o link e o redefinir ou o verificar, sem outro usuário ativo na conta: recusado como link
-  inválido, sem registro, nunca 500. (F2c)
+- [I] Usuário desativado entre o link e o redefinir, sem outro usuário ativo na conta: recusado como link inválido, sem
+  registro, nunca 500. O mesmo no verificar, sem usuário ativo e sem convite válido à espera. Com um convite válido à
+  espera (o professor desativado na A com o convite copiado da B): o verificar grava a posse, sem registro, e o aceite
+  segue. (F2c)
 - [I] As métricas novas (e-mail por resultado, adiamento, provisórias por escola) são lidas como no
   `apps/realtime/test/metrics.int.test.ts`, e o `sistema.enviar-email-da-conta` ocupa a `vaga:normal:sistema`. (F2c)
 - [I] Eliminar o professor que gerou provisória: a eliminação passa.
@@ -219,6 +227,9 @@ rodada 1) acrescentou os casos marcados (F2c) e as seções "Arquivo do titular"
 
 - `apps/api/test/convite.int.test.ts`: os casos em que uma conta de outra escola aceita convite por link copiado (linhas 320,
   377 e 447) passam a exigir o e-mail verificado.
+- `e2e/convite.spec.ts` (os casos de `:211`, `:229` e `:355`) e `e2e/entrar-convite-revogado.spec.ts` (`:20` e `:59`): a
+  conta de equipe do `e2e/support/seed.ts` (e a da `tools/vitrine/escola.ts`) nasce com o e-mail verificado; os casos
+  seguem pelo caminho do aceite, sem passar pelo `VERIFICACAO_PENDENTE`.
 - O caso do RF6 do F2 (`tasks/prd-onboarding-por-convite/cenarios.md`, "conta de outra escola cliente ganha o segundo
   vínculo no aceite"), escrito com o link copiado: passa a exigir o e-mail verificado, com a regra nova no nome.
 

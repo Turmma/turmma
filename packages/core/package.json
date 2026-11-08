@@ -29,6 +29,11 @@
       "types": "./dist/ciclo-de-vida/conta-global.repository.d.ts",
       "default": "./dist/ciclo-de-vida/conta-global.repository.js"
     },
+    "./envio": {
+      "source": "./src/email/envio.repository.ts",
+      "types": "./dist/email/envio.repository.d.ts",
+      "default": "./dist/email/envio.repository.js"
+    },
     "./s3-file-storage": {
       "source": "./src/titular/s3-file-storage.ts",
       "types": "./dist/titular/s3-file-storage.d.ts",

@@ -29,6 +29,12 @@ const CADASTRO_DE_PROFESSOR = String.raw`^packages/core/src/estrutura/cadastro-d
 /** O único arquivo do worker que acha ou cria a conta do professor: o processor do job da planilha, passo (1) (onboarding-por-convite, 6.0; Tech Spec, seção 6). */
 const PROCESSOR_DA_PLANILHA = String.raw`^apps/worker/src/processors/gravar-planilha\.ts$`
 
+/** O único arquivo do worker que conhece o `EnvioRepository`: o processor do e-mail, do convite e do link da conta (acesso-e-convites, 5.0; Tech Spec, seção 6). */
+const PROCESSOR_DO_EMAIL = String.raw`^apps/worker/src/processors/enviar-email\.ts$`
+
+/** O subcaminho `@educa/core/envio` resolve para este arquivo pela condição `source` (`conditionNames`, abaixo). */
+const ENVIO_REPOSITORY = String.raw`^packages/core/src/email/envio\.repository\.ts$`
+
 /** O subcaminho `@educa/core/conta-global` resolve para este arquivo pela condição `source` (`conditionNames`, abaixo). */
 const CONTA_GLOBAL = String.raw`^packages/core/src/ciclo-de-vida/conta-global\.repository\.ts$`
 
@@ -169,6 +175,13 @@ module.exports = {
       severity: 'error',
       from: { path: TODO_O_CODIGO, pathNot: [SESSAO, PROCESSOR_DA_PLANILHA, TESTE] },
       to: { path: CADASTRO_DE_PROFESSOR },
+    },
+    {
+      name: 'cerca-envio',
+      comment: 'O `EnvioRepository` lê e grava o `link_da_conta` (conta global, sem escola) pelo id do job, com `@Unscoped`: só o **arquivo** do processor do e-mail o importa, e não a pasta `processors/` do worker, a composição nem o barril do `core` (acesso-e-convites, 5.0).',
+      severity: 'error',
+      from: { path: TODO_O_CODIGO, pathNot: [PROCESSOR_DO_EMAIL, TESTE] },
+      to: { path: ENVIO_REPOSITORY },
     },
     {
       name: 'cerca-painel-repository',

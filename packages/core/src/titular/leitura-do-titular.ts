@@ -105,6 +105,7 @@ export const LEITURAS_DO_ARQUIVO: Readonly<Record<string, LeituraDaTabela>> = {
       mfa_chave_versao: SEGREDO,
       mfa_ativado_em: 'estado do segundo fator: configuração de segurança, não dado do titular',
       mfa_ultimo_passo: SEGREDO,
+      email_verificado_em: 'estado de segurança da conta (a posse do e-mail), como o do segundo fator: configuração, não dado do titular. O fato e o instante chegam ao titular pelo registro `conta.email_verificado` da auditoria, que o arquivo já leva; a Tech Spec do F3 leva só o e-mail',
     },
     consultas: ({ escolaId, titularId }) => [
       sql`select ${selectColumns('id', 'email')} from conta t join usuario u on u.conta_id = t.id where u.escola_id = ${escolaId} and u.id = ${titularId}`,

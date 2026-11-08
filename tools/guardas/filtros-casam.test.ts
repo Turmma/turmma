@@ -220,7 +220,7 @@ function fontesDaArvore(): Fonte[] {
     carregarFonte('ESCOPO_DO_ERRO_TIPADO', 2, () => globs(ESCOPO_DO_ERRO_TIPADO)),
     carregarFonte('ESCOPO_DO_NOME', 3, () => globs(ESCOPO_DO_NOME)),
     carregarFonte('ARQUIVOS_DE_TESTE', 2, () => globs(ARQUIVOS_DE_TESTE)),
-    carregarFonte('camadas.cjs', 35, () => pathsDoCamadas(requerer(join(RAIZ, 'tools/guardas/camadas.cjs')) as Camadas)),
+    carregarFonte('camadas.cjs', 39, () => pathsDoCamadas(requerer(join(RAIZ, 'tools/guardas/camadas.cjs')) as Camadas)),
     carregarFonte('guardioes-por-caminho.ts', 45, () => prefixos([...EXCECOES_DO_CODIGO.map((e) => e.prefixo), ...REGRAS_DO_RF16.map((r) => r.prefixo), ...RESTO_DO_PROCESSO])),
     carregarFonte('eslint.config.mjs, files', 25, () => filesDoEslint(configuracaoDoEslint)),
     carregarFonte('eslint.config.mjs, ignores', 8, () => ignoresDoEslint(configuracaoDoEslint)),

@@ -3,9 +3,13 @@ import {
   createApiRedisClient,
   TokenIssuer,
   SecretCipher,
+  JobOutbox,
+  JobOutboxRepository,
+  VERSAO_DA_CHAVE_DO_TOKEN_DE_EMAIL,
   globalMeter,
   type Database,
   type AuthConfig,
+  type LoggerBase,
   type Meter,
 } from '@educa/core'
 import { Inject, Logger, Module, type DynamicModule, type OnApplicationShutdown } from '@nestjs/common'
@@ -58,6 +62,9 @@ import { LogoutService } from './logout/saida.service.js'
 import { LoginFallbackTracker } from '../credencial/login-fallback.js'
 import { TrocaDeEscolaController } from './troca-de-escola/troca-de-escola.controller.js'
 import { TrocaDeEscolaService } from './troca-de-escola/troca-de-escola.service.js'
+import { ContaController } from './senha/conta.controller.js'
+import { SenhaController } from './senha/senha.controller.js'
+import { SenhaService, type PisoDoEsqueci } from './senha/senha.service.js'
 
 /** A porta do login pela conta da escola (13.0): o adaptador `openid-client`. */
 export const EXTERNAL_PROVIDER = Symbol('EXTERNAL_PROVIDER')
@@ -68,6 +75,12 @@ export interface SessaoModuleOptions {
   /** O login pela conta Google ou Microsoft da escola (13.0), desligado sem as variáveis de um provedor. */
   readonly loginExterno: ExternalLoginConfig
   readonly redisFilaUrl: string
+  /** A chave que cifra o token e o endereço do link da conta na fila de envio (`EMAIL_TOKEN_KEY`), a mesma do convite. */
+  readonly chaveDoEmail: Uint8Array
+  /** O logger JSON do processo, o mesmo do `configureApp`: o `senha.link_na_fila` leva o `linkId`, que o `Logger` do Nest não carrega. */
+  readonly logger: LoggerBase
+  /** O relógio e a espera do piso do "esqueci a senha", quando o teste precisa prová-lo sem cronômetro. Sem ela, o relógio do sistema e `setTimeout`. */
+  readonly pisoDoEsqueci?: PisoDoEsqueci
   /** Quantas instâncias da API dividem os limites de login quando o Redis de fila está fora (`LIMITE_INSTANCIAS_API`). */
   readonly instancias: number
   /** O medidor da telemetria; sem ele, o global (que o `main.ts` liga antes de montar a aplicação). */
@@ -81,7 +94,7 @@ export interface SessaoModuleOptions {
 }
 
 /**
- * O módulo de sessão: login (por e-mail e, na 11.0, do aluno por matrícula no endereço da escola), renovação, MFA (com a redefinição pela coordenação), convite do coordenador, troca de
+ * O módulo de sessão: login (por e-mail e, na 11.0, do aluno por matrícula no endereço da escola), o "esqueci a senha" e o redefinir da equipe (acesso-e-convites, 5.0), renovação, MFA (com a redefinição pela coordenação), convite do coordenador, troca de
  * escola e saída (tarefas 4.0 em diante). É o único que tem a
  * `TenantResolutionRepository`, e não a exporta: a fronteira da resolução de tenant fica dentro dele (Tech Spec,
  * seção 6).
@@ -112,6 +125,8 @@ export class SessaoModule implements OnApplicationShutdown {
         ConviteController,
         TrocaDeEscolaController,
         ExternalLoginController,
+        SenhaController,
+        ContaController,
       ],
       providers: [
         { provide: REDIS_LOGIN_CLIENT, useFactory: () => createApiRedisClient(opcoes.redisFilaUrl, 'api-login', avisar, opcoes.prazoDoRedisMs ?? opcoes.login.prazoDoRedisMs) },
@@ -230,9 +245,9 @@ export class SessaoModule implements OnApplicationShutdown {
         },
         {
           provide: ConviteService,
-          useFactory: (banco: Database, resolucao: TenantResolutionRepository, hash: PasswordHasher, bilhetes: ConviteTicket) =>
-            new ConviteService({ banco, resolucao, hash, bilhetes, emissorDeDesafio: new ChallengeIssuer(opcoes.identidade.chaveAssinatura) }),
-          inject: [DB, TenantResolutionRepository, PasswordHasher, ConviteTicket],
+          useFactory: (banco: Database, resolucao: TenantResolutionRepository, hash: PasswordHasher, bilhetes: ConviteTicket, verificacao: SenhaService) =>
+            new ConviteService({ banco, resolucao, hash, bilhetes, verificacao, emissorDeDesafio: new ChallengeIssuer(opcoes.identidade.chaveAssinatura) }),
+          inject: [DB, TenantResolutionRepository, PasswordHasher, ConviteTicket, SenhaService],
         },
         {
           provide: MfaService,
@@ -272,6 +287,25 @@ export class SessaoModule implements OnApplicationShutdown {
               chaveAssinatura: opcoes.identidade.chaveAssinatura,
             }),
           inject: [DB, TenantResolutionRepository, ConclusaoDeLogin, ChallengeConsumer],
+        },
+        {
+          provide: SenhaService,
+          useFactory: (banco: Database, resolucao: TenantResolutionRepository, hash: PasswordHasher, semaforo: HashBulkhead, porMinuto: WindowCounter, cliente: Redis) =>
+            new SenhaService({
+              banco,
+              resolucao,
+              hash,
+              semaforo,
+              porMinuto,
+              // O "esqueci" por e-mail digitado conta numa janela de 1 hora, com a mesma chave de HMAC do contador de tentativas: o Redis nunca vê o e-mail.
+              porHora: new WindowCounter(cliente, opcoes.login.chaveContador, { janelaMs: 60 * 60 * 1000, avisarSeguro: avisar }),
+              instancias: opcoes.instancias,
+              logger: opcoes.logger,
+              cifra: new SecretCipher(VERSAO_DA_CHAVE_DO_TOKEN_DE_EMAIL, new Map([[VERSAO_DA_CHAVE_DO_TOKEN_DE_EMAIL, opcoes.chaveDoEmail]])),
+              fila: new JobOutbox(new JobOutboxRepository(banco)),
+              ...(opcoes.pisoDoEsqueci ?? {}),
+            }),
+          inject: [DB, TenantResolutionRepository, PasswordHasher, HashBulkhead, WindowCounter, REDIS_LOGIN_CLIENT],
         },
         { provide: RedefinicaoDeMfa, useFactory: (banco: Database) => new RedefinicaoDeMfa(banco), inject: [DB] },
         {

@@ -151,10 +151,13 @@ describe('professores (A1, tarefa 3.0): a coordenação cadastra, o professor ac
     return lista.itens.find((item) => item.usuarioId === usuarioId)?.estado
   }
 
-  /** Uma conta com senha e um professor ativo nela na escola: a pessoa que já trabalha em outra escola cliente. */
+  /**
+   * Uma conta com senha e um professor ativo nela na escola: a pessoa que já trabalha em outra escola cliente. Com o e-mail **verificado** (acesso-e-convites, 7.0): o convite
+   * copiado de outra escola só segue com a posse do endereço provada, e a conta sem ela recebe `VERIFICACAO_PENDENTE` (`posse-do-email.int.test.ts`).
+   */
   async function professoraDe(escolaId: string): Promise<{ email: string; contaId: string; usuarioId: string }> {
     const email = `professora-${randomUUID()}@escola.invalid`
-    const { rows: contas } = await bancada.pool.query<{ id: string }>('insert into conta (email, senha_hash) values ($1, $2) returning id', [email, await hash.gerar(SENHA_DE_A)])
+    const { rows: contas } = await bancada.pool.query<{ id: string }>('insert into conta (email, senha_hash, email_verificado_em) values ($1, $2, now()) returning id', [email, await hash.gerar(SENHA_DE_A)])
     const contaId = contas[0]?.id ?? ''
     const { rows } = await bancada.pool.query<{ id: string }>("insert into usuario (escola_id, conta_id, papel, nome) values ($1, $2, 'professor', 'Pessoa sintética') returning id", [
       escolaId,
@@ -914,7 +917,7 @@ describe('professores (A1, tarefa 3.0): a coordenação cadastra, o professor ac
       expect(comConta.corpo).toEqual({ linhas: [{ linha: 2, resultado: 'entra' }], contagens: { entram: 1, ja_existem: 0 }, candidatos: [] })
     })
 
-    it('RF6: o professor de uma conta de outra escola cliente ganha o segundo vínculo no aceite do link copiado, sem conta nova', async () => {
+    it('RF6: o professor de uma conta de outra escola cliente, com o e-mail verificado (7.0), ganha o segundo vínculo no aceite do link copiado, sem conta nova', async () => {
       const escolaA = await bancada.escola()
       const deA = await professoraDe(escolaA)
       const { escolaId: escolaB, coordenacao } = await escolaComCoordenacao()

@@ -39,7 +39,7 @@ import { ProfessoresModule } from './professores/professores.module.js'
 import type { SorteioDoCodigo } from './sala/codigo-da-sala.js'
 import { SalaModule } from './sala/sala.module.js'
 import { SemanaModule } from './semana/semana.module.js'
-import { SessaoModule } from './sessao/index.js'
+import { SessaoModule, type PisoDoEsqueci } from './sessao/index.js'
 import { ReadinessController } from './system/readiness.controller.js'
 import { SystemModule } from './system/system.module.js'
 import { TutorModule } from './tutor/tutor.module.js'
@@ -65,6 +65,8 @@ export interface AppModuleOptions {
   readonly relogioDaPrivacidade?: Clock
   /** O relógio da validade do convite de professor e da janela da cota de 300/h do "Enviar convites", que o teste injeta. Nunca vem do ambiente. */
   readonly relogioDosConvites?: Clock
+  /** O relógio e a espera do piso de 400 ms do "esqueci a senha", que o teste injeta para provar o piso sem cronômetro. Nunca vem do ambiente. */
+  readonly pisoDoEsqueci?: PisoDoEsqueci
   /** O relógio da Semana do professor (`hoje` e `agora` no fuso da escola), que o teste injeta. Nunca vem do ambiente. */
   readonly relogioDaSemana?: Clock
 }
@@ -91,6 +93,9 @@ export class AppModule {
           login: config.login,
           loginExterno: config.loginExterno,
           redisFilaUrl: config.redisFilaUrl,
+          chaveDoEmail: config.email.chaveDoToken,
+          logger: opcoes.logger ?? createLogger({ servico: 'api' }),
+          ...(opcoes.pisoDoEsqueci === undefined ? {} : { pisoDoEsqueci: opcoes.pisoDoEsqueci }),
           instancias: config.limite.instancias,
           ...(opcoes.medidor === undefined ? {} : { medidor: opcoes.medidor }),
           ...(opcoes.prazoDoRedisDeLoginMs === undefined ? {} : { prazoDoRedisMs: opcoes.prazoDoRedisDeLoginMs }),

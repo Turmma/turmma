@@ -11,6 +11,7 @@ import {
   type Database,
   type Clock,
   type TipoDeConvite,
+  type CanalDeConvite,
   type DatabaseTransaction,
 } from '@educa/core'
 import {
@@ -30,7 +31,7 @@ import type { ChallengeIssuer } from '../../credencial/challenge.js'
 import { BYTES_DO_TOKEN_DE_CONVITE, hashDoToken } from '../../credencial/token-hash.js'
 import type { PasswordHasher } from '../../credencial/password-hasher.js'
 import { normalizarEmail } from '../../credencial/login-identifiers.js'
-import { TenantResolutionRepository, type UsuarioComConviteAceito } from '../tenant/tenant-resolution.repository.js'
+import { TenantResolutionRepository, type PosseDaConta, type UsuarioComConviteAceito } from '../tenant/tenant-resolution.repository.js'
 import type { AuthorCheck } from '../author-check.js'
 
 const registro = new AuditoriaRecorder()
@@ -44,13 +45,31 @@ export const tokenNovo = (): string => randomBytes(BYTES_DO_TOKEN_DE_CONVITE).to
 /** Até quando vale o convite do tipo gerado agora: 72 h o do coordenador, 7 dias o do professor (`@educa/shared`). */
 export const expiraEmDo = (tipo: TipoDeConvite, relogio: Clock): Date => new Date(relogio.agora().getTime() + VALIDADE_DO_CONVITE_HORAS_POR_TIPO[tipo] * 60 * 60 * 1_000)
 
+/** O que o aceite pede ao `SenhaService` (que importa este arquivo): só o pedido do link de verificar, sem importar a classe de volta. */
+export interface PedidoDeVerificacao {
+  pedirVerificacao(contaId: string): Promise<void>
+}
+
 export interface ConviteDependencies {
   readonly banco: Database
   readonly resolucao: TenantResolutionRepository
   readonly hash: PasswordHasher
   readonly emissorDeDesafio: ChallengeIssuer
   readonly bilhetes: ConviteTicket
+  /** O pedido do link de verificar o e-mail da conta, que o aceite do convite copiado de outra escola faz (acesso-e-convites, tarefa 7.0). */
+  readonly verificacao: PedidoDeVerificacao
 }
+
+/**
+ * O aceite do convite **copiado** de outra escola pede antes a posse do e-mail (acesso-e-convites, tarefa 7.0; Tech Spec, seção 5, "Posse do e-mail"): a conta já tem senha
+ * (a conta nova define a dela no próprio aceite, e não tem o que proteger), o link veio por um canal que não prova o endereço, o e-mail ainda não foi verificado, e a conta tem
+ * usuário em outra escola. O convite enviado por e-mail prova a posse no aceite e nunca cai aqui.
+ */
+const exigeVerificacao = (convite: { readonly canal: CanalDeConvite; readonly contaTemSenha: boolean } & PosseDaConta): boolean =>
+  convite.canal === 'copiado' && convite.contaTemSenha && !convite.emailVerificado && convite.cruzaEscolas
+
+/** O aceite que perdeu a corrida da senha para o convite de outra escola da mesma conta e agora cruza escolas sem a posse provada: desfaz a transação inteira. */
+class PosseNaoProvada extends Error {}
 
 /**
  * As rotas anônimas do convite do primeiro coordenador (RF1, RF12; Tech Spec, seção 5, "Convite"), com o token sempre
@@ -66,6 +85,10 @@ export interface ConviteDependencies {
  *   quando a pessoa entra com a senha e o segundo fator que a conta já tem **e** com esse bilhete
  *   (`AtivacaoPorConvite`): o login rotineiro da conta, sem o link, nunca ativa. O link nunca troca a senha de uma
  *   conta existente.
+ * - **Posse do e-mail** (acesso-e-convites, tarefa 7.0): o convite enviado por e-mail grava `emailVerificadoEm` no aceite (e `conta.email_verificado`, na escola do convite).
+ *   A conta com senha, sem a posse provada, que aceita um convite **copiado** tendo usuário em outra escola recebe `VERIFICACAO_PENDENTE`: o convite não é usado, o link de
+ *   verificar (24 h, 3 por hora por conta) vai ao e-mail da conta, e depois de abri-lo o mesmo convite vale (`exigeVerificacao`). Vale também para o aceite que perde a
+ *   corrida da senha para o convite de outra escola da mesma conta: a transação desfaz e a resposta é a mesma.
  * - **Uso único no banco:** o aceite é o `update … where usado_em is null and revogado_em is null and expira_em > now()`,
  *   e a senha só é gravada `where senha_hash is null`, na mesma transação.
  * - **Sob a trava da escola** (Tech Spec da A0b, seção 7c, "Ativação por convite"): a primeira instrução da transação é
@@ -93,6 +116,7 @@ export class ConviteService {
     const tokenHash = hashDoToken(pedido.token)
     const valido = await resolucao.conviteValidoPorHash(tokenHash)
     if (valido === undefined) throw conviteInvalido()
+    if (exigeVerificacao(valido)) return this.#pedirVerificacao(valido.contaId)
     if (!valido.contaTemSenha && pedido.senha === undefined) throw new DomainException(ErrorCode.ENTRADA_INVALIDA)
     // O hash sai antes da transação, para ela não segurar a linha do convite durante o argon2.
     const senhaHash = !valido.contaTemSenha && pedido.senha !== undefined ? await hash.gerar(pedido.senha) : undefined
@@ -109,20 +133,37 @@ export class ConviteService {
         // Se outro convite da mesma conta definiu a senha entre a leitura e aqui, esta não é gravada: vale o caminho da
         // conta que já tem senha.
         const senhaDefinida = senhaHash !== undefined && (await resolucaoNaTransacao.definirSenhaNoAceite(valido.contaId, senhaHash))
+        // A senha que esta conta ia definir já foi definida pelo link de outra escola (a corrida da conta convidada por duas): agora ela tem senha, e a posse do e-mail decide.
+        if (senhaHash !== undefined && !senhaDefinida) {
+          const posse = await resolucaoNaTransacao.posseDaConta(valido.contaId, usado.escolaId)
+          if (posse !== undefined && exigeVerificacao({ canal: valido.canal, contaTemSenha: true, ...posse })) throw new PosseNaoProvada()
+        }
         await runInContext({ requisicaoId, escolaId: usado.escolaId, usuarioId: usado.usuarioId }, async () => {
           // O usuário que não ativa desfaz o uso do convite e a senha: a resposta é a de convite inválido.
           if (senhaDefinida && !(await new ConviteRepository(tx).ativarPorConvite(usado.usuarioId, usado.id))) throw conviteInvalido()
+          // O link veio por e-mail: abri-lo prova a posse do endereço. Só a passagem de não verificada a verificada é fato novo.
+          if (valido.canal === 'email' && (await resolucaoNaTransacao.marcarEmailVerificado(valido.contaId))) await registro.gravar(tx, 'conta.email_verificado', { entidadeId: usado.usuarioId })
           await registro.gravar(tx, 'convite.aceito', { entidadeId: usado.id, depois: { tipo: valido.tipo, usuarioId: usado.usuarioId, usuarioAtivo: senhaDefinida } })
         })
         return { senhaDefinida, conviteId: usado.id }
       }),
-    )
+    ).catch((erro: unknown) => {
+      if (erro instanceof PosseNaoProvada) return 'posse_pendente' as const
+      throw erro
+    })
+    if (aceite === 'posse_pendente') return this.#pedirVerificacao(valido.contaId)
     if (aceite === undefined) throw conviteInvalido()
     // O coordenador com a conta nova vai direto ao MFA; o professor, e quem já tinha senha, vão à entrada com o bilhete.
     if (aceite.senhaDefinida && valido.tipo === 'coordenador') {
       return { etapa: 'configurar_mfa', desafio: await emissorDeDesafio.emitir({ contaId: valido.contaId, etapa: 'configurar_mfa', mfaCumprido: false }) }
     }
     return { etapa: 'entrar', bilhete: await bilhetes.emitir({ contaId: valido.contaId, conviteId: aceite.conviteId }) }
+  }
+
+  /** Pede o link de verificar e recusa o aceite com `VERIFICACAO_PENDENTE`, igual com link novo ou sem ele (teto de 3 por hora, ou a corrida do índice único). */
+  async #pedirVerificacao(contaId: string): Promise<never> {
+    await this.dependencias.verificacao.pedirVerificacao(contaId)
+    throw new DomainException(ErrorCode.VERIFICACAO_PENDENTE)
   }
 }
 

@@ -302,6 +302,20 @@
       "when": 1794062143647,
       "tag": "0042_envio_de_email",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1794105175905,
+      "tag": "0043_link_da_conta",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1794120557670,
+      "tag": "0044_email_verificado",
+      "breakpoints": true
     }
   ]
 }

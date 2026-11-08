@@ -11,6 +11,9 @@
     },
     "./cadastro-de-professor": {
       "source": "./src/estrutura/cadastro-de-professor.ts"
+    },
+    "./envio": {
+      "source": "./src/email/envio.repository.ts"
     }
   }
 }

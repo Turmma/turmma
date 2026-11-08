@@ -3142,3 +3142,9 @@ aula" em `Retencao.tsx`, o Validador conferiu: a tela já o mostra pela descriç
       `falha: findByText(/^1 convite entrou na fila/)` deixaria o motivo explícito (dono: Implementador)
 - [ ] (acesso-e-convites 4.0, infra-guardian, 2ª) **Se o envio falhar e a lista for relida para zero pendentes, o diálogo mostra o texto "ninguém espera" e o aviso de erro antigo juntos.** Esconder o
       `ErrorAlert` nesse estado; muda o comportamento da tela e não bloqueia (nenhum pedido sai, sem efeito na carga) (dono: Implementador)
+## Da correção 2026-11-08-rota-de-envio-no-teste-de-convite (a lista de rotas com "convite"), fora dela
+
+- [ ] (acesso-e-convites, correção 2026-11-08-rota-de-envio-no-teste-de-convite, privacy-guardian, infra-guardian e test-engineer, 1ª) **A lista de rotas com "convite" só roda na esteira.**
+      `apps/api/test/convite.int.test.ts` conta as rotas do Express cujo caminho cita "convite"; a 3.0 acrescentou uma e o portão dela não o rodou (o arquivo não estava entre os
+      alterados), então a falha só apareceu na esteira. Para a retro de acesso-e-convites, duas saídas: levar a lista para um teste de unidade, que o portão roda sempre, ou fazer o
+      portão rodar `convite.int.test.ts` quando um controller ganha rota com "convite" no caminho (mexe em `tools/processo/`; dono: Arquiteto, para decidir na retro)

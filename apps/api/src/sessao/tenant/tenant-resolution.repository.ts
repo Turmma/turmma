@@ -1,6 +1,6 @@
-import { acessoTurma, anoLetivo, codigoRecuperacao, conta, convite, escola, rede, registroAcesso, Unscoped, sessao, usuario, type Database, type EstadoDaSessao, type MotivoDeEncerramento, type TipoDeConvite, type DatabaseTransaction } from '@educa/core'
-import type { PapelDeUsuario } from '@educa/shared'
-import { and, eq, gt, gte, isNotNull, isNull, lt, ne, or, sql, type SQL } from 'drizzle-orm'
+import { acessoTurma, anoLetivo, codigoRecuperacao, conta, convite, escola, linkDaConta, postgresErrorIn, rede, registroAcesso, Unscoped, sessao, usuario, type Database, type EstadoDaSessao, type MotivoDeEncerramento, type FinalidadeDoLinkDaConta, type TipoDeConvite, type CanalDeConvite, type DatabaseTransaction } from '@educa/core'
+import { InvariantException, type PapelDeUsuario } from '@educa/shared'
+import { and, eq, gt, gte, isNotNull, isNull, lt, ne, or, sql, type SQL, type SQLWrapper } from 'drizzle-orm'
 
 /**
  * A sessão achada pelo hash do cookie, travada para a renovação decidir (tarefa 5.0): só ids, estado, datas, o papel
@@ -49,12 +49,23 @@ export interface UsuarioAtivoDaConta {
  * O convite válido (não usado, não revogado, no prazo) achado pelo hash do token: os ids, o tipo (o aceite do professor
  * não leva ao segundo fator, A1) e se a conta do convidado já tem senha. Nunca o nome nem o e-mail.
  */
-export interface ConviteValido {
+export interface ConviteValido extends PosseDaConta {
   readonly escolaId: string
   readonly usuarioId: string
   readonly contaId: string
   readonly tipo: TipoDeConvite
   readonly contaTemSenha: boolean
+  /** Como o link chegou: `email` prova a posse do endereço no próprio aceite; `copiado` não prova nada (acesso-e-convites, 7.0). */
+  readonly canal: CanalDeConvite
+}
+
+/**
+ * O que decide se o aceite do convite copiado cruza escolas sem provar o e-mail (acesso-e-convites, tarefa 7.0; Tech Spec, seção 5, "Posse do e-mail"): se a posse do
+ * endereço já foi provada, e se a conta tem usuário em **outra** escola que a do convite. Só dois sim ou não, nunca o id nem o nome da outra escola.
+ */
+export interface PosseDaConta {
+  readonly emailVerificado: boolean
+  readonly cruzaEscolas: boolean
 }
 
 /** O convite que o aceite acabou de marcar como usado: só os ids. */
@@ -136,8 +147,10 @@ export class TenantResolutionRepository {
   /**
    * Os usuários com que a conta entra: ativos e **sem eliminação agendada** (F3, 14.0). A escola em que a pessoa tem a
    * eliminação agendada não é escolha nem destino do login por e-mail, da troca de escola e do segundo fator, e a pessoa
-   * continua entrando nas outras. `comSuspensos` devolve também os agendados: só a redefinição do MFA pelo operador o usa, para
-   * que a coordenação de cada escola da conta saiba que o segundo fator foi redefinido.
+   * continua entrando nas outras. `comSuspensos` devolve também os agendados, e dois usos o pedem: a redefinição do MFA pelo operador, para
+   * que a coordenação de cada escola da conta saiba que o segundo fator foi redefinido, e o "esqueci a senha" com o "redefinir" da equipe (5.0), em que a senha
+   * é da conta e não de uma escola: quem tem a eliminação agendada numa escola e é ativo em outra, ou só nela, ainda é dono da conta, ganha o link e tem o
+   * `senha.redefinida` gravado também na escola da eliminação (só ids). O login continua barrado ali, pelo `ACESSO_SUSPENSO`.
    */
   @Unscoped('a credencial da equipe é global: depois da senha verificada, lista em que escolas a conta tem usuário ativo, só com id, escola e papel')
   usuariosAtivosDaConta(contaId: string, opcoes: { readonly comSuspensos?: boolean } = {}): Promise<UsuarioAtivoDaConta[]> {
@@ -348,13 +361,100 @@ export class TenantResolutionRepository {
   @Unscoped('o link do convite não diz a escola: o convite válido é achado pelo hash do token, e só depois a escola dele vira contexto; devolve só ids, o tipo e se a conta tem senha')
   async conviteValidoPorHash(tokenHash: string): Promise<ConviteValido | undefined> {
     const [linha] = await this.banco
-      .select({ escolaId: convite.escolaId, usuarioId: convite.usuarioId, contaId: conta.id, tipo: convite.tipo, senhaHash: conta.senhaHash })
+      .select({
+        escolaId: convite.escolaId,
+        usuarioId: convite.usuarioId,
+        contaId: conta.id,
+        tipo: convite.tipo,
+        canal: convite.canal,
+        senhaHash: conta.senhaHash,
+        emailVerificadoEm: conta.emailVerificadoEm,
+        cruzaEscolas: this.#cruzaEscolas(conta.id, convite.escolaId),
+      })
       .from(convite)
       .innerJoin(usuario, and(eq(usuario.escolaId, convite.escolaId), eq(usuario.id, convite.usuarioId)))
       .innerJoin(conta, eq(conta.id, usuario.contaId))
       .where(and(eq(convite.tokenHash, tokenHash), isNull(convite.usadoEm), isNull(convite.revogadoEm), gt(convite.expiraEm, sql`now()`)))
       .limit(1)
-    return linha === undefined ? undefined : { escolaId: linha.escolaId, usuarioId: linha.usuarioId, contaId: linha.contaId, tipo: linha.tipo, contaTemSenha: linha.senhaHash !== null }
+    return linha === undefined
+      ? undefined
+      : {
+          escolaId: linha.escolaId,
+          usuarioId: linha.usuarioId,
+          contaId: linha.contaId,
+          tipo: linha.tipo,
+          canal: linha.canal,
+          contaTemSenha: linha.senhaHash !== null,
+          emailVerificado: linha.emailVerificadoEm !== null,
+          cruzaEscolas: linha.cruzaEscolas,
+        }
+  }
+
+  /**
+   * A conta serve a alguma escola: tem usuário ativo, ou (`comConvite`, o link de verificar) um usuário que espera um convite ainda válido (não usado, não revogado e no prazo).
+   * É o critério da limpeza da conta (`limparContaSemUso`): enquanto a conta não é limpa, quem tem o convite copiado de outra escola precisa poder provar o e-mail para aceitá-lo, e o
+   * professor que saiu de uma escola com o convite da nova já emitido não pode ficar com um link que nunca funciona.
+   */
+  #contaEmUso(contaId: SQLWrapper, comConvite: boolean): SQL<boolean> {
+    const esperaConvite = sql`exists (select 1 from ${convite} where ${convite.escolaId} = ${usuario.escolaId} and ${convite.usuarioId} = ${usuario.id} and ${convite.usadoEm} is null and ${convite.revogadoEm} is null and ${convite.expiraEm} > now())`
+    const serve = comConvite ? sql`(${usuario.desativadoEm} is null or ${esperaConvite})` : sql`${usuario.desativadoEm} is null`
+    return sql<boolean>`exists (select 1 from ${usuario} where ${usuario.contaId} = ${contaId} and ${serve})`
+  }
+
+  /**
+   * Se a conta tem usuário em escola diferente da dada, qualquer que seja o estado dele (ativo, desativado ou esperando o convite): o usuário nasce no convite, e é ele que
+   * faz a conta "cruzar" escolas. Um `exists` na mesma consulta, para o aceite decidir sem uma leitura a mais.
+   */
+  #cruzaEscolas(contaId: SQLWrapper, escolaDoConvite: SQLWrapper): SQL<boolean> {
+    // O `outro` é raw de propósito: em consulta de uma tabela só o drizzle escreve a coluna sem a tabela, e `"id"` lido no `exists` seria o do próprio `usuario`. Quem chama sem junção passa o parâmetro, não a coluna.
+    return sql<boolean>`exists (select 1 from usuario as outro where outro.conta_id = ${contaId} and outro.escola_id <> ${escolaDoConvite})`
+  }
+
+  /**
+   * A posse do e-mail da conta, lida de novo dentro da transação do aceite (acesso-e-convites, tarefa 7.0): o aceite que perdeu a corrida da senha para o convite de outra escola
+   * da mesma conta precisa saber se agora ele cruza escolas sem a posse provada. Só dois sim ou não.
+   */
+  @Unscoped('a credencial da equipe é global: o aceite do convite lê, pelo conta_id do convite e pela escola dele, se a posse do e-mail foi provada e se a conta tem usuário em outra escola; devolve só dois sim ou não')
+  async posseDaConta(contaId: string, escolaDoConvite: string): Promise<PosseDaConta | undefined> {
+    const [linha] = await this.banco
+      .select({ emailVerificadoEm: conta.emailVerificadoEm, cruzaEscolas: this.#cruzaEscolas(sql`${contaId}::uuid`, sql`${escolaDoConvite}::uuid`) })
+      .from(conta)
+      .where(eq(conta.id, contaId))
+      .limit(1)
+    return linha === undefined ? undefined : { emailVerificado: linha.emailVerificadoEm !== null, cruzaEscolas: linha.cruzaEscolas }
+  }
+
+  /**
+   * Com o `banco` sendo a transação do verificar e a conta já travada: a conta ainda serve a alguma escola (usuário ativo, ou usuário que espera convite válido)? Só o sim ou não.
+   */
+  @Unscoped('a credencial da equipe é global: o verificar confere, com a conta travada, se ela ainda tem usuário ativo ou convite válido em alguma escola, pelo conta_id do link; devolve só se tem')
+  async contaEmUso(contaId: string): Promise<boolean> {
+    const [linha] = await this.banco.select({ emUso: this.#contaEmUso(sql`${contaId}::uuid`, true) }).from(conta).where(eq(conta.id, contaId)).limit(1)
+    return linha?.emUso ?? false
+  }
+
+  /**
+   * Grava a posse do e-mail uma vez só (`update … where email_verificado_em is null`) e devolve se foi esta chamada que a gravou: quem chama só audita a passagem de não verificada a
+   * verificada, e dois links ao mesmo tempo gravam um registro por escola, não dois.
+   */
+  @Unscoped('a credencial da equipe é global: o aceite por e-mail, o verificar e o redefinir gravam a posse do e-mail na conta do convite ou do link usado, uma vez só, e devolvem só se gravaram')
+  async marcarEmailVerificado(contaId: string): Promise<boolean> {
+    const gravadas = await this.banco
+      .update(conta)
+      .set({ emailVerificadoEm: sql`now()` })
+      .where(and(eq(conta.id, contaId), isNull(conta.emailVerificadoEm)))
+      .returning({ id: conta.id })
+    return gravadas.length === 1
+  }
+
+  /**
+   * O endereço da conta, só para o link de verificar do aceite cifrá-lo na fila de envio: o destino é o e-mail **da conta**, nunca o que a pessoa digitou. Conta limpa (sem
+   * e-mail) não é achada. Nunca sai em resposta nem em log.
+   */
+  @Unscoped('a credencial da equipe é global: o link de verificar do aceite lê o e-mail da conta do convite para cifrá-lo na fila de envio; não sai em resposta nem em log')
+  async emailDaConta(contaId: string): Promise<string | undefined> {
+    const [linha] = await this.banco.select({ email: conta.email }).from(conta).where(eq(conta.id, contaId)).limit(1)
+    return linha?.email ?? undefined
   }
 
   /**
@@ -370,6 +470,101 @@ export class TenantResolutionRepository {
       .where(and(eq(convite.tokenHash, tokenHash), isNull(convite.usadoEm), isNull(convite.revogadoEm), gt(convite.expiraEm, sql`now()`)))
       .returning({ id: convite.id, escolaId: convite.escolaId, usuarioId: convite.usuarioId })
     return usado
+  }
+
+  /**
+   * Com o `banco` sendo a transação que abre um link novo: segura a conta em `FOR KEY SHARE` antes de tocar o link. O redefinir e o verificar travam a conta em `FOR UPDATE` e depois
+   * o link; quem cancelasse o link primeiro e só então inserisse o novo (a FK da conta pede `KEY SHARE`) esperaria o `FOR UPDATE` segurando a linha que ele quer: 40P01. Com a conta
+   * primeiro, a ordem é a mesma nos dois, e dois pedidos de link da mesma conta seguem sem esperar um ao outro (`KEY SHARE` é compartilhado): quem perde o índice único é o 23505.
+   */
+  @Unscoped('o link da conta é da conta global: o pedido de link segura a conta, pelo conta_id lido do e-mail ou do convite, na ordem do redefinir e do verificar, e não devolve nada')
+  async segurarContaParaLink(contaId: string): Promise<void> {
+    await this.banco.select({ id: conta.id }).from(conta).where(eq(conta.id, contaId)).for('key share')
+  }
+
+  /**
+   * Encerra o link aberto da conta, da finalidade dada (acesso-e-convites, tarefa 5.0): `usado_em` marca o fim (o link substituído já não vale) e o envio que
+   * ainda esperava (`na_fila` ou `enviando`) vira `cancelado` na hora, com os cifrados nulos: o e-mail que ainda saísse não leva um link que vale, e o `enviado`
+   * do job, condicional à reserva, não casa mais. O envio já terminado fica como está.
+   */
+  @Unscoped('o link da conta é da conta global: o "esqueci" cancela o link aberto dela, pelo conta_id lido do e-mail e pela finalidade, e não devolve nada')
+  async cancelarLinksAbertos(contaId: string, finalidade: FinalidadeDoLinkDaConta): Promise<void> {
+    await this.banco
+      .update(linkDaConta)
+      .set({
+        usadoEm: sql`now()`,
+        envio: sql`case when ${linkDaConta.envio} in ('na_fila', 'enviando') then 'cancelado' else ${linkDaConta.envio} end`,
+        tokenCifrado: null,
+        destinoCifrado: null,
+        envioReservadoEm: null,
+      })
+      .where(and(eq(linkDaConta.contaId, contaId), eq(linkDaConta.finalidade, finalidade), isNull(linkDaConta.usadoEm)))
+  }
+
+  /**
+   * Grava o link novo, `na_fila`, com o token e o endereço cifrados: a cifra leva o **id da linha** como dado autenticado, e por isso o id (`uuidv7()`) sai do banco
+   * antes do insert, como no convite. Devolve o id. Se outro pedido da mesma conta abriu o link primeiro, o `link_da_conta_aberto_unico` recusa com 23505 (`linkJaAberto`):
+   * quem chama desfaz a transação e responde igual a quem ganhou. O erro não é engolido aqui porque o Postgres já abortou a transação.
+   */
+  @Unscoped('o link da conta é da conta global: o "esqueci" grava o link novo da conta lida pelo e-mail, só com o hash do token e os cifrados do envio, e devolve só o id')
+  async criarLinkDaConta(dados: {
+    contaId: string
+    finalidade: FinalidadeDoLinkDaConta
+    tokenHash: string
+    expiraEm: Date
+    cifrarParaEnvio: (linkId: string) => { tokenCifrado: Buffer; destinoCifrado: Buffer }
+  }): Promise<string> {
+    const { rows } = await this.banco.execute<{ id: string }>(sql`select uuidv7() as id`)
+    const id = rows[0]?.id
+    if (id === undefined) throw new InvariantException('uuidv7 não devolvido pelo banco')
+    await this.banco
+      .insert(linkDaConta)
+      .values({ id, contaId: dados.contaId, finalidade: dados.finalidade, tokenHash: dados.tokenHash, expiraEm: dados.expiraEm, envio: 'na_fila', ...dados.cifrarParaEnvio(id) })
+    return id
+  }
+
+  /**
+   * O link que ainda vale, pelo hash do token: não usado, no prazo, da finalidade pedida, de uma conta que ainda tem e-mail e ainda serve a alguma escola (`#contaEmUso`: usuário ativo, ou, no verificar, um usuário que espera convite válido). Vencido, usado,
+   * substituído, de outra finalidade e inexistente dão todos `undefined`, e quem chama responde a mesma coisa. Só ids: nunca o e-mail.
+   */
+  @Unscoped('o link da conta não diz a conta: o link válido é achado pelo hash do token, e só depois a conta dele é travada; devolve só ids')
+  async linkValidoPorHash(tokenHash: string, finalidade: FinalidadeDoLinkDaConta): Promise<{ readonly id: string; readonly contaId: string } | undefined> {
+    const [linha] = await this.banco
+      .select({ id: linkDaConta.id, contaId: linkDaConta.contaId })
+      .from(linkDaConta)
+      .innerJoin(conta, eq(conta.id, linkDaConta.contaId))
+      .where(
+        and(
+          eq(linkDaConta.tokenHash, tokenHash),
+          eq(linkDaConta.finalidade, finalidade),
+          isNull(linkDaConta.usadoEm),
+          gt(linkDaConta.expiraEm, sql`now()`),
+          isNotNull(conta.email),
+          this.#contaEmUso(conta.id, finalidade === 'verificar'),
+        ),
+      )
+      .limit(1)
+    return linha
+  }
+
+  /**
+   * Com o `banco` sendo a transação do redefinir e a conta já travada: marca o link como usado, uma vez só (`update … where usado_em is null and expira_em > now()`).
+   * Dois redefinir com o mesmo token passam um: o segundo espera a trava da conta e, relendo, já não acha o link (regra 80, item 7).
+   */
+  @Unscoped('o link da conta não diz a conta: o redefinir marca como usado o link do hash do token, uma vez só, e devolve só os ids')
+  async usarLinkPorHash(tokenHash: string, finalidade: FinalidadeDoLinkDaConta): Promise<{ readonly id: string; readonly contaId: string } | undefined> {
+    const [usado] = await this.banco
+      .update(linkDaConta)
+      .set({ usadoEm: sql`now()` })
+      .where(and(eq(linkDaConta.tokenHash, tokenHash), eq(linkDaConta.finalidade, finalidade), isNull(linkDaConta.usadoEm), gt(linkDaConta.expiraEm, sql`now()`)))
+      .returning({ id: linkDaConta.id, contaId: linkDaConta.contaId })
+    return usado
+  }
+
+  /** Troca a senha da conta. O link do redefinir é o único que a troca sem a senha antiga; o MFA fica como está. */
+  @Unscoped('a credencial da equipe é global: o redefinir grava o hash da senha nova na conta do link usado, com a conta já travada')
+  async trocarSenha(contaId: string, senhaHash: string): Promise<void> {
+    await this.banco.update(conta).set({ senhaHash }).where(eq(conta.id, contaId))
   }
 
   /**
@@ -484,4 +679,10 @@ export class TenantResolutionRepository {
       .limit(1)
     return linha
   }
+}
+
+/** Se o erro é o do `link_da_conta_aberto_unico`: outro pedido da mesma conta abriu o link primeiro. */
+export function linkJaAberto(erro: unknown): boolean {
+  const doPostgres = postgresErrorIn(erro)
+  return doPostgres?.code === '23505' && doPostgres.constraint === 'link_da_conta_aberto_unico'
 }

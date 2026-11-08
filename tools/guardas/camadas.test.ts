@@ -166,6 +166,15 @@ const ESPERADAS: Readonly<Record<string, readonly string[]>> = {
     'packages/core/src/estrutura/index.ts -> packages/core/src/estrutura/cadastro-de-professor.ts',
     'tools/cadastro-reexporta.ts -> packages/core/src/estrutura/cadastro-de-professor.ts',
   ],
+  // O envio lê e grava o link da conta global pelo id do job: só o arquivo do processor do e-mail o importa (o controle `processors/enviar-email.ts` passa). O vizinho do processor, a composição do worker, o barril do `core` e o `export *` de fora são acusados.
+  'cerca-envio': [
+    'apps/worker/src/composition.ts -> packages/core/src/email/envio.repository.ts',
+    'apps/worker/src/processors/vizinho-do-envio.ts -> packages/core/src/email/envio.repository.ts',
+    'infra/envio-dinamico.ts -> packages/core/src/email/envio.repository.ts',
+    'packages/core/src/index.ts -> packages/core/src/email/envio.repository.ts',
+    'packages/core/src/retencao/vizinho-do-envio.ts -> packages/core/src/email/envio.repository.ts',
+    'tools/envio-reexporta.ts -> packages/core/src/email/envio.repository.ts',
+  ],
   'cerca-painel-repository': [
     'apps/api/src/operacao/eu/eu.service.ts -> apps/api/src/operacao/painel/painel.repository.ts',
     'apps/api/src/operacao/eu/reexporta-painel.ts -> apps/api/src/operacao/painel/painel.repository.ts',
@@ -232,6 +241,8 @@ describe('a guarda de camadas no repositório de hoje', () => {
     expect(importa(/^apps\/api\/src\/operacao\/painel\/painel\.service\.ts$/, 'apps/api/src/operacao/painel/painel.repository.ts')).toBe(true)
     expect(importa(/^apps\/api\/src\/sessao\//, 'apps/api/src/sessao/tenant/tenant-resolution.repository.ts')).toBe(true)
     expect(importa(/^apps\/api\/src\/sessao\//, 'packages/core/src/ciclo-de-vida/conta-global.repository.ts')).toBe(true)
+    // O processor do e-mail é o único que importa o `EnvioRepository`: se ele some ou muda de lugar, esta aresta some e o caso cai.
+    expect(importa(/^apps\/worker\/src\/processors\/enviar-email\.ts$/, 'packages/core/src/email/envio.repository.ts')).toBe(true)
     // O arquivo do cadastro do professor é a exceção de `estrutura/`: se ele some ou muda de lugar, esta aresta some e o caso cai, em vez de a cerca ficar olhando o vazio.
     expect(importa(/^packages\/core\/src\/estrutura\/cadastro-de-professor\.ts$/, 'packages/core/src/ciclo-de-vida/conta-global.repository.ts')).toBe(true)
   }, 120_000)

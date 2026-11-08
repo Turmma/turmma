@@ -8,7 +8,7 @@ export const METODOS_DE_SESSAO = ['email', 'matricula', 'externo'] as const
 export type MetodoDeSessao = (typeof METODOS_DE_SESSAO)[number]
 
 /** Por que a sessão terminou antes de expirar. As tarefas de saída, troca e desativação acrescentam os delas. */
-export const MOTIVOS_DE_ENCERRAMENTO = ['saida', 'troca_de_escola', 'reuso_de_refresh', 'desativacao', 'mfa_redefinido', 'conta_limpa', 'eliminacao_agendada'] as const
+export const MOTIVOS_DE_ENCERRAMENTO = ['saida', 'troca_de_escola', 'reuso_de_refresh', 'desativacao', 'mfa_redefinido', 'conta_limpa', 'eliminacao_agendada', 'senha_redefinida'] as const
 export type MotivoDeEncerramento = (typeof MOTIVOS_DE_ENCERRAMENTO)[number]
 
 /** Duração absoluta de uma sessão, renovada ou não (Tech Spec, seção 3). */
@@ -58,7 +58,7 @@ export const sessao = pgTable(
     // desce por aqui: só as abertas e só as que têm conta, então o índice fica pequeno.
     index('sessao_conta_aberta_idx').on(tabela.contaId).where(sql`conta_id is not null and encerrada_em is null`),
     check('sessao_metodo_valido', sql`${tabela.metodo} in ('email', 'matricula', 'externo')`),
-    check('sessao_motivo_valido', sql`${tabela.motivo} is null or ${tabela.motivo} in ('saida', 'troca_de_escola', 'reuso_de_refresh', 'desativacao', 'mfa_redefinido', 'conta_limpa', 'eliminacao_agendada')`),
+    check('sessao_motivo_valido', sql`${tabela.motivo} is null or ${tabela.motivo} in ('saida', 'troca_de_escola', 'reuso_de_refresh', 'desativacao', 'mfa_redefinido', 'conta_limpa', 'eliminacao_agendada', 'senha_redefinida')`),
     check('sessao_motivo_so_encerrada', sql`${tabela.motivo} is null or ${tabela.encerradaEm} is not null`),
   ],
 )

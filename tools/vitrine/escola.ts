@@ -213,7 +213,8 @@ async function montarEscolaVazia(url: string, ativarMfa: boolean): Promise<Acess
     const serieId = await id(banco, "insert into serie (escola_id, etapa, ano) values ($1, 'em', 2) returning id", [escolaId])
     const disciplinaId = await id(banco, 'insert into disciplina (escola_id, nome) values ($1, $2) returning id', [escolaId, 'Química'])
     const turmaId = await id(banco, 'insert into turma (escola_id, ano_letivo_id, serie_id, nome) values ($1, $2, $3, $4) returning id', [escolaId, anoLetivoId, serieId, turma])
-    const contaId = await id(banco, 'insert into conta (email, senha_hash) values ($1, $2) returning id', [professora.email, hashDaProfessora])
+    // Com o e-mail já verificado (acesso-e-convites, 7.0): a professora da vitrine aceita convite de outra escola sem passar pela verificação.
+    const contaId = await id(banco, 'insert into conta (email, senha_hash, email_verificado_em) values ($1, $2, now()) returning id', [professora.email, hashDaProfessora])
     const professoraId = await id(banco, "insert into usuario (escola_id, conta_id, papel, nome, introducao_vista_em) values ($1, $2, 'professor', $3, now()) returning id", [escolaId, contaId, professora.nome])
     const alunoId = await id(banco, "insert into usuario (escola_id, papel, nome, introducao_vista_em) values ($1, 'aluno', $2, now()) returning id", [escolaId, aluno.nome])
     await banco.query('insert into credencial_matricula (escola_id, usuario_id, matricula, senha_hash) values ($1, $2, $3, $4)', [escolaId, alunoId, aluno.matricula, hashDoAluno])

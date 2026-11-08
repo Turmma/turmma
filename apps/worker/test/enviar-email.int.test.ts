@@ -1,7 +1,6 @@
 import 'reflect-metadata'
 import {
   EmailSendError,
-  EnvioRepository,
   FakeEmailSender,
   LimiteDeEmailPorMinuto,
   runInContext,
@@ -16,7 +15,7 @@ import { compose, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
 import { ConviteRepository } from '../../api/src/sessao/convite/convite.repository.js'
 import { JobAdiadoError } from '../src/job-adiado.error.js'
 import { JobFailureError } from '../src/job-failure.error.js'
-import { criarEnvioDoConvite, TENTATIVAS_DO_ENVIO_DE_EMAIL } from '../src/processors/enviar-email.js'
+import { criarEnvioDoConvite, criarEnvios, TENTATIVAS_DO_ENVIO_DE_EMAIL } from '../src/processors/enviar-email.js'
 import { jobExecution } from './job-execution.fixture.js'
 import { InMemoryLog, QueueFixtures } from './queue.fixture.js'
 
@@ -37,7 +36,7 @@ describe('email.enviar-convite', () => {
   const log = new InMemoryLog('worker-teste')
   const emissor = new FakeEmailSender()
   const escolas: string[] = []
-  const envios = new EnvioRepository(bancada.banco)
+  const envios = criarEnvios(bancada.banco)
   // O teto do minuto aqui não é o assunto (é o do `enviar-email-adiamento.int.test.ts`): alto, para nenhum caso esperar por ele.
   const limite = new LimiteDeEmailPorMinuto(bancada.redis, 100_000, { prefixo: bancada.prefixo })
   const processador = criarEnvioDoConvite({ envios, emissor, cifra, limite, urlDaWeb: URL_DA_WEB, logger: log.logger })

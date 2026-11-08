@@ -85,10 +85,13 @@ export class ActivationScenario {
     }
   }
 
-  /** A conta que já existe, com senha e, se pedido, com MFA ativo; sem usuário em escola nenhuma. */
+  /**
+   * A conta que já existe, com senha e, se pedido, com MFA ativo; sem usuário em escola nenhuma. Com o e-mail **verificado** (acesso-e-convites, 7.0): o convite copiado de
+   * outra escola só segue com a posse do endereço provada, e a conta sem ela recebe `VERIFICACAO_PENDENTE` (`posse-do-email.int.test.ts`).
+   */
   async conta({ mfa }: { mfa: boolean }): Promise<TestConta> {
     const email = `convidada-${randomUUID()}@escola.invalid`
-    const { rows } = await this.pool.query<{ id: string }>('insert into conta (email, senha_hash) values ($1, $2) returning id', [email, await this.#hash.gerar(SENHA_DA_CONTA)])
+    const { rows } = await this.pool.query<{ id: string }>('insert into conta (email, senha_hash, email_verificado_em) values ($1, $2, now()) returning id', [email, await this.#hash.gerar(SENHA_DA_CONTA)])
     const contaId = rows[0]?.id ?? ''
     if (!mfa) return { email, contaId, base32: undefined }
     const novo = gerarSegredo()
