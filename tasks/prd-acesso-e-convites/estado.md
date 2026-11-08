@@ -1,13 +1,14 @@
 # Estado da execução — acesso-e-convites
 
 ## Agora
-- **Espero:** o `RELATÓRIO` do `Implementador` (linha 1) da **correção `2026-11-07-servico-novo-no-compose`** (1ª tentativa, desde 07/11 21:50): esteira VERMELHA em `933177ce` (execução 42425078992), `tools/ci/compose.int.test.ts` › "nenhum serviço declara `logging`" espera 16 serviços e acha 17, provável serviço novo da tarefa 1.0. Depois dela parte a 3.0 (linha 1). Esteira de `85489d32` (depois da 2.0, execução 42431137279) rodando: ler no próximo encontro.
+- **Espero:** o `RELATÓRIO` do `Implementador` (linha 1) da **tarefa 3.0** (porte grande, 1ª tentativa, desde 07/11 ~22:40). Linha 2 ociosa: nada mais liberado (4.0 espera a 3.0). Esteira de `85489d32` (execução 42431137279) caiu só no mesmo `compose.int` › "nenhum serviço declara `logging`", já consertado em `fe773262`; ler a de `3c793791` no próximo encontro.
 - **Devo ainda:** Para o `Arquiteto`, da Mesa da 2.0 (TODO.md, "Da tarefa 2.0"): a §7c da Tech Spec ("adiamento longo: o alerta de idade da fila") só existe para a fila interativa; levar na próxima triagem ou no fechamento. O provedor de e-mail segue aberto: segura o portão, não as tarefas. Com a lista de tarefas, o aviso das 30 min (passo 7). Candidata a correção quando a máquina estiver livre: `vigia.test.ts` › "grava a feita agora" intermitente (1 de 6 isolado, ressalva do `Implementador` em 07/11). Ressalvas da 1.0 no TODO.md: `challenge.ts` e `operador-challenge.ts` com `maxTokenAge` sem folga de relógio; relógio de parede em `usado_em >= desativado_em`. Segue ~15% de intermitência residual nos alvos de integração da 1.0 sob carga pelo relógio do WSL (timesyncd); o remédio é o teste não depender do relógio, não parar o timesyncd. Candidatas a correção de dependência da carga (aviso da `encontro-1`, passam isoladas): `revisoes.test.ts` › "índice compartilhado" (trava de 10 s em `comTrava`, 6 processos) e `fila-de-carga.test.ts` › "na esteira não há fila" (dois processos de 2,5 s têm de se sobrepor); vão ao TODO.md no fechamento.
-- **Base:** `spec/acesso-e-convites` em `85489d32`
+- **Base:** `spec/acesso-e-convites` em `3c793791`
 
 ## Concluídas
 | Tarefa | Commit | Modelo | Rodadas | Observação |
 |---|---|---|---|---|
+| correção `2026-11-07-servico-novo-no-compose` | `fe773262` | Sonnet 5.5 | 2 | linha 1; serviço `mailpit` da 1.0 faltava na lista de `tools/ci/compose.int.test.ts`; infra-guardian, test-engineer e revisor-geral aprovados; spec em `3c793791` |
 | 2.0 | `f1600ac0` | Sonnet 5.5 | 2 | linha 1; seis revisores aprovados na 2ª rodada; nove linhas da Mesa no TODO.md; spec em `85489d32` |
 | 1.0 | `dcdf4423` (merge `bfc164bc`) | Sonnet 5.5 | 2 | linha 2; correções `testes-sob-carga` (`99eb1347`) e `encontro-1` (conflito de comentário com a linha 1 e resto do `restos` em `enviar-email.int.test.ts`); spec em `933177ce` |
 
