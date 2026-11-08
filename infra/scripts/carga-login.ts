@@ -1,10 +1,11 @@
-import { randomBytes, randomUUID } from 'node:crypto'
+import { randomBytes, randomInt, randomUUID } from 'node:crypto'
 import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { setTimeout as esperar } from 'node:timers/promises'
 import { pathToFileURL } from 'node:url'
 import pg from 'pg'
+import { ALFABETO_DA_SENHA_PROVISORIA, TAMANHO_DA_SENHA_PROVISORIA } from '@educa/shared'
 import type { criarEscola, criarRede } from '../../apps/api/src/operacao/escola/escola.ts'
 import type { PasswordHasher } from '../../apps/api/src/credencial/password-hasher.ts'
 import type { criarAlunosComMatricula, createSyntheticSessions } from '../../apps/api/src/sessao/tenant/synthetic-sessions.ts'
@@ -90,9 +91,15 @@ export const CRITERIOS_DA_PROTECAO = [
 // As contas do cenário
 // ---------------------------------------------------------------------------------------------------------------------
 
+/**
+ * Como a conta de aluno entra na rajada (acesso-e-convites, tarefa 10.0; Tech Spec, 7c): sem `tipo`, com a senha da carga; `provisoria`, com a senha provisória, que devolve o
+ * bilhete e pede a troca (o k6 troca e segue); `conta_externa`, a conta que só entra pela conta da escola, sem senha: a matrícula dela dá o 401 de quem não existe, e ela não entra.
+ */
+export type TipoDeContaDeAluno = 'provisoria' | 'conta_externa'
 export interface ContaDeMatricula {
   readonly escola: NomeDeEscola
   readonly matricula: string
+  readonly tipo?: TipoDeContaDeAluno
 }
 export interface ContaDeEmail {
   readonly escola: NomeDeEscola
@@ -104,6 +111,9 @@ export type ContaDoCenario = (ContaDeMatricula | ContaDeEmail) & { readonly erra
 export interface ContasDoCenario {
   readonly senha: string
   readonly senhaErrada: string
+  /** A provisória das contas `provisoria`, como a tela a mostra, e a senha nova que o k6 grava na troca. */
+  readonly provisoria: string
+  readonly senhaNova: string
   readonly slugs: Record<NomeDeEscola, string>
   readonly rajada: readonly ContaDoCenario[]
   readonly renovacao: readonly ContaDoCenario[]
@@ -122,6 +132,21 @@ export const ALUNOS_DA_A_COM_COOKIE = 40
 export const ALUNOS_DA_A_ALVO_DO_ATAQUE = 80
 /** Os professores de cada escola que o ataque tenta, que nenhuma conta legítima usa (os últimos da lista). */
 export const EQUIPE_ALVO_DO_ATAQUE_POR_ESCOLA = 5
+/**
+ * Os últimos alunos de cada escola na rajada, que nenhuma outra fase usa fora o ataque: `ALUNOS_COM_PROVISORIA_POR_ESCOLA` entram com a senha provisória e trocam a senha, e
+ * `ALUNOS_SO_COM_CONTA_EXTERNA_POR_ESCOLA` só têm a conta da escola e recebem o 401 (o hash fixo, o mesmo custo de quem não existe). Essas só somam à rajada: o `contas_que_entraram`
+ * dela desconta as que só têm a conta externa.
+ */
+export const ALUNOS_COM_PROVISORIA_POR_ESCOLA = 20
+export const ALUNOS_SO_COM_CONTA_EXTERNA_POR_ESCOLA = 10
+
+/** Em que posição da lista de alunos da escola está o aluno, para o seed e a lista do k6 concordarem. */
+export function tipoDaPosicao(posicao: number): TipoDeContaDeAluno | undefined {
+  const primeiraExterna = ALUNOS_POR_ESCOLA - ALUNOS_SO_COM_CONTA_EXTERNA_POR_ESCOLA
+  if (posicao >= primeiraExterna && posicao < ALUNOS_POR_ESCOLA) return 'conta_externa'
+  if (posicao >= primeiraExterna - ALUNOS_COM_PROVISORIA_POR_ESCOLA && posicao < primeiraExterna) return 'provisoria'
+  return undefined
+}
 
 /**
  * O que o Início do aluno lê depois do login (telas do aluno e primeiro acesso, 3.0; Tech Spec, 7c): `/v1/eu` e a primeira
@@ -166,13 +191,25 @@ export function turmasDaEscola(alunos: number): number {
  * 10 contas para errar a senha uma vez; as listas dos ataques e as das contas legítimas não se cruzam: o ataque que
  * segura uma conta não pode ser confundido com a conta legítima recusada.
  */
-export function montarContas(senha: string, senhaErrada: string, slugs: Record<NomeDeEscola, string>, emails: Record<NomeDeEscola, readonly string[]>): ContasDoCenario {
+export function montarContas(
+  senha: string,
+  senhaErrada: string,
+  slugs: Record<NomeDeEscola, string>,
+  emails: Record<NomeDeEscola, readonly string[]>,
+  segredos: { readonly provisoria: string; readonly senhaNova: string } = { provisoria: '', senhaNova: '' },
+): ContasDoCenario {
   const alunos = (escola: NomeDeEscola, de: number, ate: number): ContaDeMatricula[] =>
     Array.from({ length: ate - de }, (_, posicao) => ({ escola, matricula: matriculaSintetica(de + posicao) }))
+  /** Os alunos da rajada: os últimos de cada escola levam o tipo (a provisória ou só a conta da escola). */
+  const alunosDaRajada = (escola: NomeDeEscola): ContaDeMatricula[] =>
+    alunos(escola, 0, ALUNOS_POR_ESCOLA).map((conta, posicao) => {
+      const tipo = tipoDaPosicao(posicao)
+      return tipo === undefined ? conta : { ...conta, tipo }
+    })
   const equipe = (escola: NomeDeEscola): ContaDeEmail[] => emails[escola].map((email) => ({ escola, email }))
 
   const todas: ContaDoCenario[] = []
-  const porEscola = NOMES_DAS_ESCOLAS.map((escola) => [...alunos(escola, 0, ALUNOS_POR_ESCOLA), ...equipe(escola)])
+  const porEscola = NOMES_DAS_ESCOLAS.map((escola) => [...alunosDaRajada(escola), ...equipe(escola)])
   const maior = Math.max(...porEscola.map((lista) => lista.length))
   for (let posicao = 0; posicao < maior; posicao++) {
     for (const lista of porEscola) {
@@ -189,6 +226,8 @@ export function montarContas(senha: string, senhaErrada: string, slugs: Record<N
   return {
     senha,
     senhaErrada,
+    provisoria: segredos.provisoria,
+    senhaNova: segredos.senhaNova,
     slugs,
     rajada,
     renovacao: NOMES_DAS_ESCOLAS.flatMap((escola) => alunos(escola, 0, 200)),
@@ -485,7 +524,12 @@ export async function semearContas(doArquivo: Record<string, string>): Promise<C
   try {
     const senha = randomBytes(18).toString('base64url')
     const senhaErrada = randomBytes(18).toString('base64url')
-    const senhaHash = await (await hash.PasswordHasher.criar({ memoriaKib: Number(doArquivo['LOGIN_ARGON2_MEMORIA_KIB']), iteracoes: Number(doArquivo['LOGIN_ARGON2_ITERACOES']) })).gerar(senha)
+    const hasher = await hash.PasswordHasher.criar({ memoriaKib: Number(doArquivo['LOGIN_ARGON2_MEMORIA_KIB']), iteracoes: Number(doArquivo['LOGIN_ARGON2_ITERACOES']) })
+    const senhaHash = await hasher.gerar(senha)
+    // A provisória como a tela a mostra, e a senha nova da troca: geradas agora, só na pasta temporária da execução.
+    const provisoria = sortearProvisoria()
+    const senhaNova = randomBytes(18).toString('base64url')
+    const provisoriaHash = await hasher.gerar(provisoria)
     // A carga não é o comando nem o painel: o autor é fixo, sem conferir operador ativo.
     const autor = async () => OPERADOR_DA_CARGA_DE_LOGIN
     const { id: redeId } = await ops.criarRede(banco, autor, { id: randomUUID(), nome: 'Rede sintética do login', tipo: 'independente' })
@@ -496,6 +540,7 @@ export async function semearContas(doArquivo: Record<string, string>): Promise<C
       const { id: escolaId } = await ops.criarEscola(banco, autor, { id: randomUUID(), redeId, nome: `Escola sintética ${nome}`, slug })
       slugs[nome] = slug
       const alunoIds = await sessoes.criarAlunosComMatricula(banco, doArquivo, escolaId, Array.from({ length: ALUNOS_POR_ESCOLA }, (_, posicao) => ({ matricula: matriculaSintetica(posicao), senhaHash })))
+      await semearAsContasDoTipo(pool, { escolaId, alunoIds, provisoriaHash })
       const equipe = await sessoes.createSyntheticSessions(banco, doArquivo, { escolaId, papel: 'professor', quantidade: EQUIPE_POR_ESCOLA })
       const [professor] = equipe
       if (professor === undefined) throw new Error('a escola da carga precisa de professor')
@@ -510,10 +555,39 @@ export async function semearContas(doArquivo: Record<string, string>): Promise<C
       )
       emails[nome] = rows.map((linha) => linha.email).sort()
     }
-    return montarContas(senha, senhaErrada, slugs, emails)
+    return montarContas(senha, senhaErrada, slugs, emails, { provisoria, senhaNova })
   } finally {
     await pool.end()
   }
+}
+
+/** A senha provisória sorteada como a da API (`sortearSenhaProvisoria`): 8 caracteres do alfabeto sem confusão, sem hífen. */
+export function sortearProvisoria(): string {
+  return Array.from({ length: TAMANHO_DA_SENHA_PROVISORIA }, () => ALFABETO_DA_SENHA_PROVISORIA.charAt(randomInt(ALFABETO_DA_SENHA_PROVISORIA.length))).join('')
+}
+
+/**
+ * Dá aos últimos alunos de cada escola o jeito de entrar que a rajada exercita (`tipoDaPosicao`): a senha provisória de 24 h no lugar da senha (o login devolve o bilhete), ou só a conta
+ * da escola, sem senha (o login dá o 401 e passa pelo hash fixo). Direto no banco da carga, como o resto do seed; nada disso é dado de pessoa.
+ */
+async function semearAsContasDoTipo(
+  banco: Pick<pg.Pool, 'query'>,
+  { escolaId, alunoIds, provisoriaHash }: { escolaId: string; alunoIds: readonly string[]; provisoriaHash: string },
+): Promise<void> {
+  const deTipo = (tipo: TipoDeContaDeAluno) => alunoIds.filter((_, posicao) => tipoDaPosicao(posicao) === tipo)
+  await banco.query(
+    `update credencial_matricula
+        set senha_hash = null, provisoria_hash = $3, provisoria_expira_em = now() + interval '24 hours'
+      where escola_id = $1 and usuario_id = any($2::uuid[])`,
+    [escolaId, deTipo('provisoria'), provisoriaHash],
+  )
+  const externas = deTipo('conta_externa')
+  await banco.query('update credencial_matricula set senha_hash = null where escola_id = $1 and usuario_id = any($2::uuid[])', [escolaId, externas])
+  await banco.query(
+    `insert into conta_externa (escola_id, usuario_id, provedor, sujeito)
+     select $1, id, 'google', 'carga-' || id::text from unnest($2::uuid[]) as id`,
+    [escolaId, externas],
+  )
 }
 
 /**

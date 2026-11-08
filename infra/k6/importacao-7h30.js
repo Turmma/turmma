@@ -14,7 +14,11 @@
 //                                enviada de novo, e a prévia mostra quem ainda falta) e a virada de 900 alunos para o ano planejado
 //                                (`vinculo.criado` um por um). Quem mede o passo (3) é o Prometheus; o k6 mede o job.
 //   FASE=professores             a planilha de 300 professores (200 que já têm conta e 100 novos, que nascem a cada volta) contra o
-//                                login dos que já existem: zero 503.
+//                                login dos que já existem, com a rajada de login do F1 no outro container (com a provisória e a conta
+//                                externa) e o redefinir da senha dos mesmos professores (acesso-e-convites, 10.0; Tech Spec, 7c):
+//                                zero 503 no login e no redefinir, e todo redefinir em 204. O token de cada redefinir vem de um
+//                                `link_da_conta` que o script de carga semeou pelo banco, e a senha nova é a da carga, para o login
+//                                deles seguir valendo.
 //
 // A coordenação e a professora imitam a tela: a prévia primeiro, as marcas que a coordenação aceitou (todas as do tipo pedido), o gravar
 // e a espera do job até sair de `na_fila`. Toda resposta soma no contador do seu grupo (1 no caso, 0 fora dele), para nenhum
@@ -53,8 +57,8 @@ const PRAZO_DO_JOB_S = 120
 
 const conteudo = () => JSON.parse(open(ARQUIVO_DAS_CONTAS))
 const [GERAL] = new SharedArray('geral', () => {
-  const { senha, duracaoS, taxaDeAcessosPorSegundo, intervaloDoLoteS, taxaDeLoginsPorSegundo } = conteudo()
-  return [{ senha, duracaoS, taxaDeAcessosPorSegundo, intervaloDoLoteS, taxaDeLoginsPorSegundo }]
+  const { senha, duracaoS, taxaDeAcessosPorSegundo, intervaloDoLoteS, taxaDeLoginsPorSegundo, taxaDeRedefinicoesPorSegundo } = conteudo()
+  return [{ senha, duracaoS, taxaDeAcessosPorSegundo, intervaloDoLoteS, taxaDeLoginsPorSegundo, taxaDeRedefinicoesPorSegundo }]
 })
 // Uma cópia para todos os VUs, e não uma por VU.
 const COORDENACOES = new SharedArray('coordenacoes', () => conteudo().coordenacoes ?? [])
@@ -65,7 +69,16 @@ const TRABALHOS = new SharedArray('trabalhos', () => conteudo().trabalhos ?? [])
 /** Quantos gravares a fase faz: um por trabalho, e a rodada a mais de quem passa do teto de desligamentos por gravar. */
 const GRAVARES = TRABALHOS.reduce((soma, trabalho) => soma + (trabalho.rodadas ?? 1), 0)
 const LOGINS = new SharedArray('logins', () => conteudo().logins ?? [])
-const { senha: SENHA, duracaoS: DURACAO_S, taxaDeAcessosPorSegundo: TAXA_DE_ACESSOS, intervaloDoLoteS: INTERVALO_DO_LOTE_S, taxaDeLoginsPorSegundo: TAXA_DE_LOGINS } = GERAL
+/** Um token de `redefinir` por professor, semeado pelo script de carga: cada um vale uma vez. */
+const REDEFINICOES = new SharedArray('redefinicoes', () => conteudo().redefinicoes ?? [])
+const {
+  senha: SENHA,
+  duracaoS: DURACAO_S,
+  taxaDeAcessosPorSegundo: TAXA_DE_ACESSOS,
+  intervaloDoLoteS: INTERVALO_DO_LOTE_S,
+  taxaDeLoginsPorSegundo: TAXA_DE_LOGINS,
+  taxaDeRedefinicoesPorSegundo: TAXA_DE_REDEFINICOES,
+} = GERAL
 
 const duracaoDaPrevia = new Trend('previa_duracao', true)
 const duracaoDoGravar = new Trend('gravar_duracao', true)
@@ -73,6 +86,7 @@ const duracaoDoAcesso = new Trend('gerar_acesso_duracao', true)
 const duracaoDaDecisao = new Trend('decidir_duracao', true)
 const duracaoDoLogin = new Trend('login_duracao', true)
 const duracaoDoJob = new Trend('job_duracao', true)
+const duracaoDoRedefinir = new Trend('redefinir_duracao', true)
 const respostas5xx = new Counter('respostas_5xx')
 // Informativo: o 503 também soma em `respostas_5xx`, que precisa ficar em zero.
 const respostas503 = new Counter('respostas_503')
@@ -85,6 +99,8 @@ const jobsDesatualizados = new Counter('jobs_desatualizados')
 const acessosGerados = new Counter('acessos_gerados')
 const decisoes = new Counter('decisoes_feitas')
 const loginsFeitos = new Counter('logins_feitos')
+/** Os redefinir que voltaram 204: todos os tokens semeados, cada um uma vez. */
+const redefinicoesFeitas = new Counter('redefinicoes_feitas')
 const marcasForaDoEsperado = new Counter('marcas_fora_do_esperado')
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -164,13 +180,16 @@ function configuracao() {
   return {
     cenarios: {
       logins: { executor: 'constant-arrival-rate', exec: 'loginDoProfessor', rate: TAXA_DE_LOGINS, timeUnit: '1s', duration: `${DURACAO_S}s`, preAllocatedVUs: 20, maxVUs: 60 },
+      redefinir: { executor: 'constant-arrival-rate', exec: 'redefinirSenha', rate: TAXA_DE_REDEFINICOES, timeUnit: '1s', duration: `${DURACAO_S}s`, preAllocatedVUs: 5, maxVUs: 20 },
       trabalho: { executor: 'constant-vus', exec: 'professoresEmVolta', vus: 1, duration: `${DURACAO_S}s`, gracefulStop: `${PRAZO_DO_JOB_S}s` },
     },
     thresholds: {
       ...SEM_ERRO,
-      // Zero 503 no login deles (o semáforo do hash) enquanto o job grava as contas globais.
+      // Zero 503 no login deles (o semáforo do hash) enquanto o job grava as contas globais, e no redefinir dos mesmos professores.
       respostas_503: ['count==0'],
       logins_feitos: ['count>0'],
+      // Todo redefinir volta 204 (qualquer outro status soma em `respostas_inesperadas`): os tokens semeados foram todos usados, uma vez cada.
+      redefinicoes_feitas: [`count==${REDEFINICOES.length}`],
       jobs_concluidos: ['count>=3'],
       jobs_nao_concluidos: ['count==0'],
     },
@@ -365,6 +384,17 @@ export function loginDoProfessor() {
   duracaoDoLogin.add(resposta.timings.duration)
   contar(resposta, [200, 503])
   if (resposta.status === 200) loginsFeitos.add(1)
+}
+
+/** O professor redefine a senha com o link do e-mail (o token vem semeado), e a senha nova é a da carga: o login dele segue valendo. */
+export function redefinirSenha() {
+  const volta = exec.scenario.iterationInTest
+  // A taxa constante pode dar uma iteração a mais no fim: ela não repete o token do começo.
+  if (volta >= REDEFINICOES.length) return
+  const resposta = chamar('POST', '/v1/senha/redefinir', { token: REDEFINICOES[volta].token, senha: SENHA }, 'POST /v1/senha/redefinir')
+  duracaoDoRedefinir.add(resposta.timings.duration)
+  contar(resposta, [204])
+  if (resposta.status === 204) redefinicoesFeitas.add(1)
 }
 
 /** A coordenação importa a equipe: os 200 que já têm conta mais 100 novos a cada volta (e-mail que ainda não existe). */

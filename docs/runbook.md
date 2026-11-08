@@ -1127,7 +1127,7 @@ fariam, e roda `infra/k6/importacao-7h30.js`:
   um por um), 300 em **três gravares de 100** (o teto por gravar, `MAXIMO_DE_DESLIGAMENTOS_POR_GRAVAR`; a planilha é enviada de novo e a
   prévia mostra quem ainda falta) e a virada de 900 alunos para o ano planejado (o `vinculo.criado` de cada um). Foi esta fase que
   criou o teto: na primeira medição, sem ele, 100 desligamentos ficaram abaixo de 0,75 s, 200 entre 1 e 1,5 s e 300 entre 1,5 e 3 s;
-- **professores**: a planilha de 300 professores (200 que já têm conta e 100 novos a cada volta) contra o login dos 200 que já existem.
+- **professores**: a planilha de 300 professores (200 que já têm conta e 100 novos a cada volta) contra o login dos 200 que já existem, com a rajada de login do F1 ao lado (com os alunos da senha provisória, que trocam a senha pelo bilhete, e os que só têm a conta da escola, que recebem o 401) e o redefinir da senha de 90 desses professores, um por segundo, cada um com o `link_da_conta` que o script semeou pelo banco (o token só sai por e-mail) e a senha da carga como senha nova. Critério (acesso-e-convites, tarefa 10.0): zero 503 no login, na troca da provisória e no redefinir, todo redefinir em 204, passo (3) abaixo de 1 s.
 
 **A espera de trava não tem métrica própria.** O `lock_timeout` do passo (3) corta em 300 ms, mas quem espera é o gerar acesso e a
 decisão, e o que o produto promete é que eles não esperem. O cenário a mede por diferença: o p95 do gerar acesso e o da decisão **com** o

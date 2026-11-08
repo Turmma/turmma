@@ -1,5 +1,5 @@
 import { IP_DESCONHECIDO } from '@educa/core'
-import type { LoginResponse } from '@educa/shared'
+import type { LoginMatriculaResponse, LoginResponse } from '@educa/shared'
 
 /** O que o controller tira da requisição HTTP: o IP (o da borda, quando vem dela) e o cabeçalho `Cookie`. */
 export interface RequestOrigin {
@@ -15,6 +15,12 @@ export interface RequestOrigin {
 /** A resposta do login e os `Set-Cookie` que vão com ela. */
 export interface ResultadoDoLogin {
   readonly resposta: LoginResponse
+  readonly cookies: readonly string[]
+}
+
+/** A resposta do login de matrícula: a do login comum ou, com a senha provisória certa, a etapa `trocar_senha` (acesso-e-convites, tarefa 10.0). */
+export interface ResultadoDoLoginDeMatricula {
+  readonly resposta: LoginMatriculaResponse
   readonly cookies: readonly string[]
 }
 

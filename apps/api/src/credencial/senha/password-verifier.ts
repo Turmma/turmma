@@ -21,6 +21,11 @@ export interface PasswordAttempt<Credencial extends { readonly senhaHash: string
   readonly senha: string
   /** A leitura da credencial, dentro da vez: `undefined` quando não existe, e aí o hash é o fixo. */
   readonly lerCredencial: () => Promise<Credencial>
+  /**
+   * Como a senha digitada vira a que o hash lido confere, quando a credencial pede (a provisória se digita com o hífen da tela e em minúsculas: acesso-e-convites, tarefa 10.0). Sem ele,
+   * a senha vai como veio. Roda dentro da vez, depois de a credencial ser lida, e uma vez só.
+   */
+  readonly senhaParaConferir?: (senha: string, credencial: Credencial) => string
   /** O que mais toda falha conta antes da resposta: na matrícula, a falha do IP naquela escola (15.1). */
   readonly aoFalhar?: () => Promise<void>
 }
@@ -61,7 +66,8 @@ export class PasswordVerifier {
       const reserva = await contador.reservar(tentativa.chave)
       if (!reserva.liberada) return { seguradaPorMs: reserva.esperaMs }
       const credencial = await tentativa.lerCredencial()
-      return { reserva, credencial, confere: await hash.verificar(credencial?.senhaHash, tentativa.senha) }
+      const senha = tentativa.senhaParaConferir?.(tentativa.senha, credencial) ?? tentativa.senha
+      return { reserva, credencial, confere: await hash.verificar(credencial?.senhaHash, senha) }
     })
     if ('seguradaPorMs' in resultado) return this.#falhar(tentativa, resultado.seguradaPorMs)
     return resultado

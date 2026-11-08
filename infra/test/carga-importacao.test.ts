@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { hashDoToken } from '../../apps/api/src/credencial/token-hash.ts'
 import { NOME_SINTETICO } from '../../apps/api/src/sessao/tenant/synthetic-sessions.ts'
 import { indiceDaTurma, nomeDaTurma } from '../../packages/core/src/importacao/tipos/alunos.ts'
 import { lerTabela } from '../../packages/core/src/importacao/leitor.ts'
@@ -13,11 +14,13 @@ import {
   ACESSOS_POR_SEGUNDO,
   ALUNOS_DA_VIRADA,
   argumentosDoK6DaImportacao,
+  chaveDaRajada,
   DESLIGAMENTOS,
   DESLIGAMENTOS_POR_GRAVAR,
   gravaresParaDesligar,
   descreverFase,
   DURACAO_DA_FASE_S,
+  FASES_COM_RAJADA,
   FASES_DO_CENARIO,
   fasesPedidas,
   julgarCenarioDaImportacao,
@@ -36,7 +39,11 @@ import {
   PEDIDOS_POR_LOTE,
   PEDIDOS_POR_TURMA,
   PROFESSORAS,
+  PROFESSORES_QUE_JA_EXISTEM,
+  REDEFINICOES_DA_FASE,
+  REDEFINICOES_POR_SEGUNDO,
   resumosDaFase,
+  semearLinksDeRedefinir,
   TRANSFERENCIAS_POR_VOLTA,
   turmaDaCarga,
   TURMAS_COM_PROFESSORA,
@@ -65,7 +72,7 @@ const conferencia = (...reprovacoes: string[]): ConferenciaDaImportacao => ({ li
 /** A base e o job da espera de trava: p95 do gerar acesso e da decisão. */
 const espera = (acesso: number, decisao: number): ResumoDaFase => limpo({ 'gerar_acesso_duracao p(95)': acesso, 'decidir_duracao p(95)': decisao })
 function todosOsResumos(trocas: Record<string, ResumoDaFase> = {}): Map<string, ResumoDaFase> {
-  const padrao: Record<string, ResumoDaFase> = { previa_e_gravar: limpo(), rajada: limpo(), transferencias_base: espera(40, 50), transferencias: espera(120, 140), desligamentos_e_virada: limpo(), professores: limpo() }
+  const padrao: Record<string, ResumoDaFase> = { previa_e_gravar: limpo(), rajada: limpo(), rajada_professores: limpo(), transferencias_base: espera(40, 50), transferencias: espera(120, 140), desligamentos_e_virada: limpo(), professores: limpo() }
   return new Map(Object.entries({ ...padrao, ...trocas }))
 }
 
@@ -227,7 +234,20 @@ describe('o veredito do cenário "a escola inteira entra de uma vez"', () => {
     semFase.delete('professores')
     expect(julgarCenarioDaImportacao(['professores'], semFase, conferencia()).reprovacoes.map((item) => item.criterio)).toEqual(['professores:k6'])
     expect(resumosDaFase('previa_e_gravar')).toEqual(['previa_e_gravar', 'rajada'])
-    expect(resumosDaFase('professores')).toEqual(['professores'])
+    expect(resumosDaFase('professores')).toEqual(['professores', 'rajada_professores'])
+    expect(resumosDaFase('transferencias')).toEqual(['transferencias'])
+  })
+
+  it('a fase dos professores sem a rajada de login ao lado reprova, e a rajada dela não apaga a da prévia: cada uma tem a sua chave', () => {
+    const semRajada = todosOsResumos()
+    semRajada.delete('rajada_professores')
+    expect(julgarCenarioDaImportacao(['professores'], semRajada, conferencia()).reprovacoes.map((item) => item.criterio)).toEqual(['rajada_professores:k6'])
+    expect(julgarCenarioDaImportacao(['professores'], todosOsResumos({ rajada_professores: cruzado('login_erro_final{grupo:rajada}') }), conferencia()).reprovacoes.map((item) => item.criterio)).toEqual([
+      'rajada_professores:login_erro_final{grupo:rajada}',
+    ])
+    expect(FASES_COM_RAJADA).toEqual(['previa_e_gravar', 'professores'])
+    expect(chaveDaRajada('previa_e_gravar')).toBe('rajada')
+    expect(chaveDaRajada('professores')).toBe('rajada_professores')
   })
 
   it('o threshold cruzado de uma fase reprova com o nome da métrica, e o código de saída que não concorda com o resumo também', () => {
@@ -294,7 +314,7 @@ describe('a conferência do cenário "a escola inteira entra de uma vez"', () =>
 
   it('o 5xx da API é medido nas rotas que o cenário chama, com o login por e-mail e o por matrícula entre elas', () => {
     const conferir = lerArquivo('infra/scripts/conferir-carga-importacao.ts')
-    expect(conferir).toContain("ROTAS_DO_CENARIO = '/v1/importacoes.*|/v1/turmas/:id/acesso|/v1/reivindicacoes/decidir|/v1/sessao/(email|matricula)'")
+    expect(conferir).toContain("ROTAS_DO_CENARIO = '/v1/importacoes.*|/v1/turmas/:id/acesso|/v1/reivindicacoes/decidir|/v1/sessao/(email|matricula(/trocar-senha)?)|/v1/senha/redefinir'")
     expect(conferir).toContain('http_response_status_code=~"5.."')
   })
 })
@@ -310,10 +330,10 @@ describe('o que o k6 do cenário chama e exige', () => {
     }
   })
 
-  it('o cenário só chama a prévia, o gravar, a leitura da importação, o gerar acesso, o decidir e o login por e-mail: nada de provedor pago (regra 80, item 11)', () => {
+  it('o cenário só chama a prévia, o gravar, a leitura da importação, o gerar acesso, o decidir, o login por e-mail e o redefinir: nada de provedor pago (regra 80, item 11)', () => {
     const script = lerArquivo('infra/k6/importacao-7h30.js')
     const rotas = new Set([...script.matchAll(/['"`](\/v1\/[^`'"?]*)/g)].map((achado) => achado[1]))
-    expect([...rotas].sort()).toEqual(['/v1/importacoes/${id}', '/v1/importacoes/${trabalho.tipo}', '/v1/importacoes/${trabalho.tipo}/previa', '/v1/turmas/${turma.id}/acesso'].concat(['/v1/reivindicacoes/decidir', '/v1/sessao/email']).sort())
+    expect([...rotas].sort()).toEqual(['/v1/importacoes/${id}', '/v1/importacoes/${trabalho.tipo}', '/v1/importacoes/${trabalho.tipo}/previa', '/v1/turmas/${turma.id}/acesso'].concat(['/v1/reivindicacoes/decidir', '/v1/sessao/email', '/v1/senha/redefinir']).sort())
     expect(stripComments(script)).not.toMatch(/openai|anthropic|gemini|maritaca|googleapis|api\.groq|oidc|\/v1\/tutor|\/v1\/assistente|\/v1\/ia\//i)
     expect(stripComments(lerArquivo('infra/scripts/carga-importacao.ts'))).not.toMatch(/openai|anthropic|gemini|maritaca|oidc-falso/i)
   })
@@ -330,6 +350,46 @@ describe('o que o k6 do cenário chama e exige', () => {
     expect(script).toContain('jobs_concluidos: [`count==${GRAVARES}`]')
     expect(script).toContain("marcas_fora_do_esperado: ['count==0']")
     expect(script).toMatch(/export const LINHAS_DA_PLANILHA = 3_000/)
+  })
+
+  it('o redefinir dos professores: um token semeado por redefinir, o SHA-256 que a API procura, usado uma vez, 204 em todos e zero 503 (acesso-e-convites, 10.0)', async () => {
+    const consultas: Array<{ texto: string; valores: unknown[] }> = []
+    const banco = {
+      query: (texto: string, valores: unknown[]) => {
+        consultas.push({ texto, valores })
+        return Promise.resolve({ rows: [], rowCount: 0 })
+      },
+    }
+    const contaIds = Array.from({ length: 3 }, (_, posicao) => `0190f5a0-0000-7000-8000-00000000000${String(posicao)}`)
+    const redefinicoes = await semearLinksDeRedefinir(banco as never, contaIds)
+    expect(redefinicoes).toHaveLength(3)
+    expect(new Set(redefinicoes.map(({ token }) => token)).size).toBe(3)
+    const [consulta] = consultas
+    expect(consulta?.valores[0]).toEqual(contaIds)
+    // O banco guarda o hash que a API procura, e nunca o token.
+    expect(consulta?.valores[1]).toEqual(redefinicoes.map(({ token }) => hashDoToken(token)))
+    expect(JSON.stringify(consulta?.valores)).not.toContain(redefinicoes[0]?.token ?? 'x')
+    expect(consulta?.texto).toContain("'redefinir'")
+    expect(consulta?.texto).toContain("'enviado'")
+
+    // A fase gasta um token por segundo e semeia exatamente os que gasta; os professores que redefinem são dos que já têm conta.
+    expect(REDEFINICOES_DA_FASE).toBe(REDEFINICOES_POR_SEGUNDO * DURACAO_DA_FASE_S.professores)
+    expect(REDEFINICOES_DA_FASE).toBeLessThanOrEqual(PROFESSORES_QUE_JA_EXISTEM)
+    const k6 = lerArquivo('infra/k6/importacao-7h30.js')
+    expect(k6).toContain('redefinicoes_feitas: [`count==${REDEFINICOES.length}`]')
+    expect(k6).toContain("contar(resposta, [204])")
+    expect(k6).toContain("if (volta >= REDEFINICOES.length) return")
+    expect(k6).toContain("respostas_503: ['count==0']")
+    expect(argumentosDoK6DaImportacao('professores').join(' ')).not.toMatch(/token/i)
+    expect(descreverFase('professores', limpo({ 'redefinicoes_feitas count': 90, 'redefinir_duracao p(95)': 120 })).join('\n')).toContain('redefinicoes_feitas count = 90')
+  })
+
+  it('a fase dos professores roda ao lado da rajada de login, do outro container, e o driver a prepara antes de montar a escola', () => {
+    const driver = lerArquivo('infra/scripts/carga-importacao.ts')
+    expect(driver).toContain("FASES_COM_RAJADA.includes(fase) ? iniciarARajada(compose, pasta)")
+    expect(driver).toContain("if (FASES_COM_RAJADA.includes(fase)) await prepararARajada(pasta, contexto.doArquivo)")
+    expect(driver).toContain("FASES_COM_RAJADA.includes(fase) ? 'k6-atacante' : 'k6'")
+    expect(DURACAO_DA_FASE_S.professores).toBeLessThanOrEqual(300)
   })
 
   it('a rajada de login do F1 corre ao lado da prévia: o driver a chama pelo mesmo k6 do login, com as 2.100 contas', () => {

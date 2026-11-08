@@ -188,12 +188,23 @@ export const ACOES_DE_AUDITORIA = {
   /**
    * A coordenação ou o professor da turma gerou a senha provisória de um aluno (acesso-e-convites, tarefa 9.0, RF13, RF17): `entidadeId` é o aluno, o autor é quem gerou, e o
    * `depois` leva o papel dele (`coordenador` ou `professor`), que o arquivo do titular mostra ao aluno no lugar do nome do autor (D85). Nunca a senha, o hash, o nome nem a
-   * matrícula. O uso dela (`senha_provisoria.usada`) é da tarefa 10.0.
+   * matrícula. O uso dela é `senha_provisoria.usada`.
    */
   'senha_provisoria.gerada': {
     entidade: 'usuario',
     antes: null,
     depois: z.strictObject({ papel: z.enum(PAPEIS_QUE_GERAM_A_SENHA_PROVISORIA) }),
+    finalidade: null,
+  },
+  /**
+   * O aluno trocou a senha provisória pela dele (acesso-e-convites, tarefa 10.0, RF13, RF17): `entidadeId` é o aluno e o autor é ele mesmo, que a prova com a provisória e cria a
+   * nova antes de qualquer tela. Um registro por troca, na mesma transação que grava a senha nova. Nunca a senha, o hash, o nome nem a matrícula; o arquivo do titular o mostra
+   * uma vez só, com o aluno como autor (D85).
+   */
+  'senha_provisoria.usada': {
+    entidade: 'usuario',
+    antes: null,
+    depois: null,
     finalidade: null,
   },
   /**

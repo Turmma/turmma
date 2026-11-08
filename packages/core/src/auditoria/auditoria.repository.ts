@@ -1,7 +1,9 @@
-import { desc, eq } from 'drizzle-orm'
+import { PAPEIS_QUE_GERAM_A_SENHA_PROVISORIA, MAXIMO_DE_PROVISORIAS_ANTERIORES_NA_TROCA, type PapelQueGeraASenhaProvisoria } from '@educa/shared'
+import { and, desc, eq, inArray } from 'drizzle-orm'
 import type { NodePgQueryResultHKT } from 'drizzle-orm/node-postgres'
 import type { PgDatabase } from 'drizzle-orm/pg-core'
 import { currentContext } from '../context/context.js'
+import { requireEscolaId } from '../context/context-escola.js'
 import type { Schema } from '../db/database.js'
 import { auditoria } from '../db/schema/auditoria.js'
 import { AuditoriaRejectedError } from './auditoria-rejected.error.js'
@@ -23,6 +25,16 @@ export interface RegistroAuditado {
   requisicaoId: string
   em: Date
 }
+
+/** Uma provisória que o aluno ainda não conhecia quando usou a de agora: quando foi gerada, por qual papel, e se alguém a usou. Nunca o nome nem o id de quem gerou. */
+export interface ProvisoriaAnterior {
+  readonly geradaEm: Date
+  readonly papel: PapelQueGeraASenhaProvisoria
+  readonly usada: boolean
+}
+
+/** Quantos registros de `gerada` e `usada` do aluno a leitura olha: cada geração tem no máximo um uso, e as cotas (5 por dia) deixam isto bem acima das 11 gerações que ela precisa. */
+const REGISTROS_LIDOS_POR_ALUNO = 60
 
 export const LIMITE_PADRAO_DA_LISTAGEM = 100
 export const LIMITE_MAXIMO_DA_LISTAGEM = 500
@@ -46,4 +58,36 @@ export class AuditoriaRepository {
       .orderBy(desc(auditoria.em), desc(auditoria.id))
       .limit(Math.min(Math.max(1, Math.trunc(limite)), LIMITE_MAXIMO_DA_LISTAGEM))
   }
+
+  /**
+   * As provisórias que a coordenação ou o professor geraram para o aluno **antes da última**, da mais nova à mais antiga, até `MAXIMO_DE_PROVISORIAS_ANTERIORES_NA_TROCA`
+   * (acesso-e-convites, tarefa 10.0, RF13): a tela de troca mostra ao aluno quem gerou uma senha para ele e se ela foi usada. A última gerada é a que ele acabou de usar, e fica de
+   * fora. Uma geração conta como usada quando há um `senha_provisoria.usada` do aluno depois dela e antes da geração seguinte. O papel vem do `depois` do registro, e não do usuário
+   * que gerou: o autor eliminado continua com o papel. Na escola do contexto (regra 10, item 3); sem escola, `requireEscolaId` recusa.
+   */
+  async provisoriasAnterioresDoAluno(alunoId: string): Promise<ProvisoriaAnterior[]> {
+    const escolaId = requireEscolaId()
+    const registros = await this.banco
+      .select({ acao: auditoria.acao, em: auditoria.em, depois: auditoria.depois })
+      .from(auditoria)
+      .where(and(eq(auditoria.escolaId, escolaId), eq(auditoria.entidadeId, alunoId), inArray(auditoria.acao, ['senha_provisoria.gerada', 'senha_provisoria.usada'])))
+      .orderBy(desc(auditoria.em), desc(auditoria.id))
+      .limit(REGISTROS_LIDOS_POR_ALUNO)
+    const geracoes = registros.filter((registro) => registro.acao === 'senha_provisoria.gerada')
+    const usos = registros.filter((registro) => registro.acao === 'senha_provisoria.usada')
+    // Da mais nova à mais antiga: a primeira é a de agora; o uso de cada uma é o que cai entre ela e a seguinte (a mais nova que veio depois).
+    return geracoes.slice(1, 1 + MAXIMO_DE_PROVISORIAS_ANTERIORES_NA_TROCA).map((geracao, indice) => {
+      const seguinte = geracoes[indice]
+      const usada = usos.some((uso) => uso.em >= geracao.em && (seguinte === undefined || uso.em < seguinte.em))
+      return { geradaEm: geracao.em, papel: papelDaGeracao(geracao.depois), usada }
+    })
+  }
+}
+
+/** O papel que a geração guardou no `depois`; registro fora do formato (impossível pela porta única) nunca vira o papel de outro. */
+function papelDaGeracao(depois: Record<string, unknown> | null): PapelQueGeraASenhaProvisoria {
+  const papel = depois?.['papel']
+  const conhecido = PAPEIS_QUE_GERAM_A_SENHA_PROVISORIA.find((candidato) => candidato === papel)
+  if (conhecido === undefined) throw new AuditoriaRejectedError('dados_fora_do_schema')
+  return conhecido
 }

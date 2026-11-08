@@ -1,4 +1,4 @@
-import { randomBytes, randomUUID } from 'node:crypto'
+import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -37,7 +37,10 @@ import {
  *                             base, passo (3) abaixo de 1 s, zero 503 (o critério [C], seção 13)
  *   `desligamentos_e_virada`  100 e 300 desligamentos (o de 300 em três gravares de 100, o teto por gravar) e a virada de 900 alunos:
  *                             passo (3) abaixo de 1 s em cada job
- *   `professores`             300 professores contra o login dos que já têm conta: zero 503 no login
+ *   `professores`             300 professores contra o login dos que já têm conta, a rajada de login do F1 ao lado (com a provisória e a
+ *                             conta externa de `carga-login.ts`) e o redefinir da senha dos mesmos professores, com o `link_da_conta`
+ *                             semeado pelo banco (o token só sai por e-mail, que a carga não lê): zero 503 no login e no redefinir, todo
+ *                             redefinir em 204 (acesso-e-convites, tarefa 10.0; Tech Spec, 7c, "Onde roda o [C]")
  *
  * **A espera de trava** não tem métrica própria (o `lock_timeout` do passo (3) corta em 300 ms, mas quem espera é o gerar acesso e a
  * decisão): é a diferença entre o p95 do gerar acesso e o da decisão **com o job** e o p95 **sem ele**, na mesma carga. A diferença
@@ -95,6 +98,12 @@ export const DURACAO_DA_FASE_S: Record<FaseDaImportacao, number> = { previa_e_gr
 export const ACESSOS_POR_SEGUNDO = 8
 export const SEGUNDOS_ENTRE_LOTES = 2
 export const LOGINS_POR_SEGUNDO = 2
+/** O redefinir dos professores que já têm conta, durante o job e o login deles (acesso-e-convites, 10.0): um por segundo, cada um com o link semeado e usado uma vez. */
+export const REDEFINICOES_POR_SEGUNDO = 1
+export const REDEFINICOES_DA_FASE = REDEFINICOES_POR_SEGUNDO * DURACAO_DA_FASE_S.professores
+/** As fases com a rajada de login do F1 ao lado, e a chave do resumo dela em cada uma: a segunda não apaga a primeira. */
+export const FASES_COM_RAJADA: readonly FaseDaImportacao[] = ['previa_e_gravar', 'professores']
+export const chaveDaRajada = (fase: FaseDaImportacao): string => (fase === 'previa_e_gravar' ? 'rajada' : `rajada_${fase}`)
 
 // ---------------------------------------------------------------------------------------------------------------------
 // As planilhas do cenário (texto puro, sem pessoa)
@@ -242,9 +251,9 @@ export function julgarEsperaDeTrava(base: ResumoDaFase | undefined, comJob: Resu
   return { reprovacoes, espera }
 }
 
-/** O que cada fase precisa ter rodado no k6: a fase em si e, na primeira, a rajada de login do F1 que corre ao lado. */
+/** O que cada fase precisa ter rodado no k6: a fase em si e, na prévia e nos professores, a rajada de login do F1 que corre ao lado. */
 export function resumosDaFase(fase: FaseDaImportacao): readonly string[] {
-  return fase === 'previa_e_gravar' ? [fase, 'rajada'] : [fase]
+  return FASES_COM_RAJADA.includes(fase) ? [fase, chaveDaRajada(fase)] : [fase]
 }
 
 /** O que reprova num resumo do k6: a fase que não rodou, o threshold cruzado, e o código de saída que não concorda com o resumo. */
@@ -284,7 +293,7 @@ export function fasesPedidas(argumentos: readonly string[]): readonly FaseDaImpo
 export function descreverFase(fase: string, resumo: ResumoDaFase): string[] {
   const linhas = Object.entries(resumo.valores)
     .filter(([chave]) =>
-      /^((previa_duracao|gravar_duracao|gerar_acesso_duracao|decidir_duracao|login_duracao|job_duracao(\{trabalho:[a-z_0-9]+\})?) (p\(95\)|max)|(respostas_5xx|respostas_503|respostas_inesperadas|previas_com_3000_linhas|gravares_aceitos|jobs_concluidos|jobs_desatualizados|jobs_nao_concluidos|acessos_gerados|decisoes_feitas|logins_feitos|marcas_fora_do_esperado|dropped_iterations) count|login_duracao\{grupo:[a-z_]+\} p\(95\))$/.test(chave),
+      /^((previa_duracao|gravar_duracao|gerar_acesso_duracao|decidir_duracao|login_duracao|redefinir_duracao|job_duracao(\{trabalho:[a-z_0-9]+\})?) (p\(95\)|max)|(respostas_5xx|respostas_503|respostas_inesperadas|previas_com_3000_linhas|gravares_aceitos|jobs_concluidos|jobs_desatualizados|jobs_nao_concluidos|acessos_gerados|decisoes_feitas|logins_feitos|redefinicoes_feitas|marcas_fora_do_esperado|dropped_iterations) count|login_duracao\{grupo:[a-z_]+\} p\(95\))$/.test(chave),
     )
     .map(([chave, valor]) => `  ${fase}: ${chave} = ${String(Math.round(valor))}`)
   return [`\n${fase}:`, ...linhas]
@@ -400,6 +409,7 @@ const ritmo = (fase: FaseDaImportacao) => ({
   taxaDeAcessosPorSegundo: ACESSOS_POR_SEGUNDO,
   intervaloDoLoteS: SEGUNDOS_ENTRE_LOTES,
   taxaDeLoginsPorSegundo: LOGINS_POR_SEGUNDO,
+  taxaDeRedefinicoesPorSegundo: REDEFINICOES_POR_SEGUNDO,
 })
 
 /** A fase `previa_e_gravar`: a escola só com o ano, e a planilha de 3.000 linhas para as duas coordenações repetirem. */
@@ -508,16 +518,36 @@ async function montarDesligamentosEVirada(contexto: Contexto): Promise<EscolaMon
   return montadas
 }
 
+/**
+ * Um `link_da_conta` de `redefinir` por conta, aberto e já `enviado`, e o token de cada um (acesso-e-convites, tarefa 10.0): o token só sai por e-mail, que a carga não lê, e por isso
+ * o script o gera e grava o SHA-256 dele (o mesmo `hashDoToken` da API). O k6 usa cada token uma vez, com a senha da carga, para o login dos professores seguir valendo.
+ */
+export async function semearLinksDeRedefinir(banco: Pick<pg.Pool, 'query'>, contaIds: readonly string[]): Promise<Array<{ token: string }>> {
+  const tokens = contaIds.map(() => randomBytes(32).toString('base64url'))
+  await banco.query(
+    `insert into link_da_conta (conta_id, finalidade, token_hash, expira_em, envio)
+     select conta_id, 'redefinir', token_hash, now() + interval '1 hour', 'enviado' from unnest($1::uuid[], $2::text[]) as link(conta_id, token_hash)`,
+    [contaIds, tokens.map((token) => createHash('sha256').update(token).digest('hex'))],
+  )
+  return tokens.map((token) => ({ token }))
+}
+
 /** A fase dos professores: a equipe que já tem conta e senha (o login do k6) e a planilha dela, que cada volta acrescenta de novos. */
 async function montarProfessores(contexto: Contexto): Promise<EscolaMontada> {
   const escola = await criarEscola(contexto, 'professores', false)
   const equipe = await contexto.modulos.sessoes.createSyntheticSessions(contexto.banco, contexto.doArquivo, { escolaId: escola.escolaId, papel: 'professor', quantidade: PROFESSORES_QUE_JA_EXISTEM })
   // O professor sintético nasce com conta sem senha: a senha da carga entra aqui, e o e-mail (`.invalid`) sai para o k6.
-  const { rows } = await contexto.pool.query<{ email: string }>(
-    `update conta set senha_hash = $1 from usuario where usuario.conta_id = conta.id and usuario.id = any($2::uuid[]) returning conta.email`,
+  const { rows } = await contexto.pool.query<{ id: string; email: string }>(
+    `update conta set senha_hash = $1 from usuario where usuario.conta_id = conta.id and usuario.id = any($2::uuid[]) returning conta.id, conta.email`,
     [contexto.senhaHash, equipe.map((professor) => professor.usuarioId)],
   )
-  const emails = rows.map((linha) => linha.email).sort()
+  const contas = [...rows].sort((a, b) => a.email.localeCompare(b.email))
+  const emails = contas.map((conta) => conta.email)
+  // O redefinir é dos mesmos professores que entram pelo login: os primeiros da lista, um link para cada.
+  const redefinicoes = await semearLinksDeRedefinir(
+    contexto.pool,
+    contas.slice(0, REDEFINICOES_DA_FASE).map((conta) => conta.id),
+  )
   const trabalhos: TrabalhoDoK6[] = [{ nome: 'professores', tipo: 'professores', token: escola.coordenacoes[0]?.token ?? '', marcar: [] }]
   return {
     escola: { fase: 'professores', slug: escola.slug, concluidasMinimas: 3 },
@@ -528,6 +558,7 @@ async function montarProfessores(contexto: Contexto): Promise<EscolaMontada> {
       planilhas: { professores: montarPlanilhaDaEquipe(emails), novosPorVolta: PROFESSORES_NOVOS_POR_VOLTA },
       trabalhos,
       logins: emails.map((email) => ({ email })),
+      redefinicoes,
     },
   }
 }
@@ -593,7 +624,7 @@ function iniciarARajada(compose: Compose, pasta: string): Promise<ResumoDaFase> 
 async function rodarFase(contexto: Contexto, compose: Compose, pasta: string, fase: FaseDaImportacao, registro: RegistroDasFases): Promise<void> {
   // As contas da rajada primeiro: semear 2.100 contas leva minutos, e o token de acesso de quem monta a escola vale 10 min
   // (`VALIDADE_TOKEN_ACESSO_SEGUNDOS`). Semeadas depois da montagem, as sessões da coordenação venciam no fim dos 240 s da fase.
-  if (fase === 'previa_e_gravar') await prepararARajada(pasta, contexto.doArquivo)
+  if (FASES_COM_RAJADA.includes(fase)) await prepararARajada(pasta, contexto.doArquivo)
   escrever(`\n▶ ${fase}: a escola montada pela API`)
   const montadas = await montarDaFase(contexto, fase)
   const [primeira] = montadas
@@ -603,13 +634,13 @@ async function rodarFase(contexto: Contexto, compose: Compose, pasta: string, fa
   writeFileSync(arquivo, JSON.stringify(primeira.arquivo))
   chmodSync(arquivo, 0o644)
 
-  const rajada = fase === 'previa_e_gravar' ? iniciarARajada(compose, pasta) : undefined
+  const rajada = FASES_COM_RAJADA.includes(fase) ? iniciarARajada(compose, pasta) : undefined
   // A montagem também grava planilha: a última exportação das métricas dela chega antes de a janela abrir, para não entrar nela.
   await esperar(3 * Number(contexto.doArquivo['TELEMETRIA_INTERVALO_MS'] ?? '5000'))
   escrever(`\n▶ k6, fase ${fase}`)
   const comeco = new Date()
-  registro.resumos.set(fase, await rodarK6(compose, pasta, fase === 'previa_e_gravar' ? 'k6-atacante' : 'k6', argumentosDoK6DaImportacao(fase), `resumo-${fase}`))
-  if (rajada !== undefined) registro.resumos.set('rajada', await rajada)
+  registro.resumos.set(fase, await rodarK6(compose, pasta, FASES_COM_RAJADA.includes(fase) ? 'k6-atacante' : 'k6', argumentosDoK6DaImportacao(fase), `resumo-${fase}`))
+  if (rajada !== undefined) registro.resumos.set(chaveDaRajada(fase), await rajada)
   // A última exportação das métricas chega até `TELEMETRIA_INTERVALO_MS` depois do último job: a janela só fecha depois dela, e a montagem da
   // fase seguinte (que também grava planilha) só começa depois, para as observações dela não entrarem nesta janela.
   await esperar(3 * Number(contexto.doArquivo['TELEMETRIA_INTERVALO_MS'] ?? '5000'))

@@ -50,7 +50,7 @@ export interface EntradaDaConferencia {
 }
 
 /** As rotas do cenário, como aparecem no rótulo `http_route`. */
-export const ROTAS_DO_CENARIO = '/v1/importacoes.*|/v1/turmas/:id/acesso|/v1/reivindicacoes/decidir|/v1/sessao/(email|matricula)'
+export const ROTAS_DO_CENARIO = '/v1/importacoes.*|/v1/turmas/:id/acesso|/v1/reivindicacoes/decidir|/v1/sessao/(email|matricula(/trocar-senha)?)|/v1/senha/redefinir'
 
 /** O que reprova na contagem do passo (3) de uma janela: poucas observações (o job não chegou lá) ou alguma acima do teto. */
 export function julgarPasso3(fase: string, minimo: number, total: number, ateOTeto: number): string[] {

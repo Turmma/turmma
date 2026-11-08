@@ -115,9 +115,9 @@ provisória anterior, encerra as sessões e audita (papel de quem gerou no `depo
 `{ etapa: 'trocar_senha', bilhete }`: JWT assinado (`jose`, `aud` própria, não o desafio), de 10 min, com a escola, o aluno e a
 `provisoriaExpiraEm` (identifica a provisória sem ser segredo); vai no `Authorization`, nunca na URL. `trocar-senha`
 e `/trocas` rodam em `naEscolaSemUsuario` com a escola do bilhete, com escopo no repository; qualquer outra falha, inclusive aluno só com conta externa (contra um hash fixo, no mesmo tempo), é a credencial
-inválida. `/trocas` lista as 10 provisórias mais recentes: data, papel de quem
-gerou, se usada. A troca é `update … where id = … and provisoria_expira_em = :doBilhete and provisoria_expira_em > now()`;
-zero linhas, recusa. A troca e o `desativar` anulam as três colunas.
+inválida. `/trocas` lista as 10 provisórias anteriores à que o aluno acabou de usar (a mais recente, a de agora, fica de fora): data, papel de quem
+gerou, se usada. A troca é `update … where id = … and provisoria_expira_em = :doBilhete and provisoria_expira_em > clock_timestamp()` (o relógio do banco no instante da gravação, não o da transação) e o aluno ainda ativo, sem desativação nem eliminação agendada (`exists` no próprio `update`, além da conferência anterior);
+zero linhas, recusa. A troca e o `desativar` anulam as três colunas. A provisória se digita como a tela a mostra: o login de matrícula tira o hífen e os espaços e põe em maiúsculas antes de comparar, e só quando o hash que confere é o da provisória (a senha comum vai como veio). `trocar-senha` conta no mesmo contador de falhas da conta que o login (chave `escola|matrícula`, `conhecido` ou `outro` pelo cookie do dispositivo): a tentativa conta antes de a senha nova ser aceita, a troca certa zera, e o hash da senha nova só se faz para bilhete que vale. O `senha_provisoria.usada` (autor o aluno, sem `depois`) é gravado na mesma transação da troca. `/trocas` lê a auditoria do aluno (60 registros no máximo) pelo índice da escola até a 11.1 criar o índice parcial por alvo.
 
 **Arquivo do titular (D85).** A leitura por alvo traz, numa lista fechada, `aluno.transferido`, `lista.transferida`,
 `usuario.nome_corrigido`, `lista.nome_corrigido` (o `lista_nome` só com o nome aprovado, pelo `alunoId` da decisão),
@@ -170,6 +170,7 @@ Sem IA.
 | Item | Resposta |
 |---|---|
 | Caminho quente | login: provisória e conta externa na rajada (`cenarios.md`) |
+| Onde roda o [C] | na fase `professores` de `infra/scripts/carga-importacao.ts` (`infra/k6/importacao-7h30.js`), que já tem o job de 300 professores, o login deles e o passo (3): a fase ganha a rajada do F1 ao lado (`iniciarARajada`, como na `previa_e_gravar`, já com a provisória e a conta externa de `carga-login.ts`) e um cenário `redefinir`: o script semeia, pelo banco, um `link_da_conta` (`redefinir`, `hashDoToken`) por professor que já tem conta (o token só sai por e-mail, que a carga não lê) e o k6 usa cada um uma vez, com a senha da carga, para o login deles seguir valendo. O job, o login da equipe e o redefinir ficam dentro da janela da rajada. Critério: zero 503 no login (rajada e equipe) e no redefinir, todo redefinir em 204, passo (3) abaixo de 1 s; `carga-login.ts` e `carga-importacao.ts` com o teste de cada um |
 | Fila | `normal`: `email.enviar-convite`, `sistema.enviar-email-da-conta` (na vaga `vaga:normal:sistema`) |
 | Limites e corridas | tabelas do `cenarios.md`; limite por usuário, escola ou conta, nunca só por IP; o que manda e-mail rebaixa |
 | Dependência cai | SMTP: `falhou`, "Reenviar"; Redis: o job fica no Postgres e é retomado, sem `falhou` |
