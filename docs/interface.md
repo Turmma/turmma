@@ -1955,6 +1955,24 @@ A entrada, o convite, a reivindicação de nome e a verificação em duas etapas
 - **Textos, ordem de campo e mensagens não mudam** (RF20 da X1), e as proteções ficam: a entrada
   responde igual para matrícula errada e pedido pendente, o convite não mostra e-mail, e o segundo
   fator mostra o segredo em texto, além do QR (D80, item 7; regra 50, item 2)
+- **"Esqueci a senha" e "Redefinir"** (acesso-e-convites, 6.0; RF12). Só a entrada da equipe (e-mail e senha) leva o link
+  **"Esqueci a senha"**, um link `secundario` de 44 px logo abaixo do "Entrar"; a do aluno, que não tem e-mail, não o leva.
+  - **Esqueci a senha** (`/esqueci`): um campo, "E-mail", o `primario` "Enviar o link" (que vira "Enviando…", desligado, com o
+    mesmo texto num `status` para o leitor de tela), a linha "Aluno: peça a senha provisória ao professor." e o link
+    "Voltar para Entrar". **Enviado**, a tela troca o formulário por uma frase só, igual para quem tem conta e para quem não
+    tem, e não repete o e-mail: "Se houver conta com este e-mail, mandamos um link. Ele vale 1 hora." O foco vai para a frase.
+    **Rede**: o aviso da peça `ErrorState` com "Tentar de novo", que repete o pedido com o e-mail que ficou no campo
+  - **Redefinir** (`/redefinir#<token>`, o endereço do link do e-mail): um campo, "Senha nova", com a regra à vista ("Pelo
+    menos 12 caracteres. Use uma frase que só você saiba."), o "Mostrar" (`aria-pressed`) e `autocomplete="new-password"`, e o
+    `primario` "Definir a senha" (que vira "Salvando…"). O token sai da barra antes de qualquer chamada e vai no corpo, nunca na
+    URL. **Senha recusada**: "A senha precisa ter pelo menos 12 caracteres." embaixo do campo, que fica `aria-invalid` e
+    recebe o foco. **Link vencido, usado ou inventado** (a API só diz quando a senha chega) ou **sem token**: "Este link não
+    vale mais. Peça outro em Esqueci a senha." e o link "Esqueci a senha". **Rede**: o aviso com "Tentar de novo", e a senha
+    digitada fica. **Certo**: volta à entrada com "Senha trocada. Entre com a nova.", **sem login automático** (o segundo
+    fator da coordenação continua exigido)
+  - **Recomeço do Redefinir.** Outro link colado na aba (inclusive o mesmo) muda só o `#`: o formulário é montado de novo, com
+    o campo vazio e o foco nele, o aviso e o "Tentar de novo" saem, o token sai da barra outra vez, e a resposta do envio do
+    link anterior que chegue depois é descartada. As duas telas são anônimas: não há segunda pessoa no mesmo computador
 
 ### 11.4 A operação
 

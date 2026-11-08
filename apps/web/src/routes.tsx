@@ -17,8 +17,10 @@ import { Convite } from './pages/Convite'
 import { Entrar } from './pages/Entrar'
 import { EntrarNaEscola } from './pages/EntrarNaEscola'
 import { EscolherEscola } from './pages/EscolherEscola'
+import { EsqueciASenha } from './pages/EsqueciASenha'
 import { Inicio } from './pages/Inicio'
 import { Mfa } from './pages/Mfa'
+import { RedefinirSenha } from './pages/RedefinirSenha'
 import { TurmaPublica } from './pages/TurmaPublica'
 import { tituloDaEscola, tituloDaOperacao } from './document-title'
 
@@ -224,6 +226,9 @@ export function AppRoutes() {
       <Route path={ROUTES.mfa} component={Mfa} />
       <Route path={ROUTES.configurarMfa} component={ConfigurarMfa} />
       <Route path={ROUTES.convite} component={Convite} />
+      {/* O "esqueci a senha" da equipe e o link do e-mail (6.0): telas anônimas, na entrada, como o convite. */}
+      <Route path={ROUTES.esqueci} component={EsqueciASenha} />
+      <Route path={ROUTES.redefinir} component={RedefinirSenha} />
       <Route path={ROUTES.escolherEscola} component={EscolherEscola} />
       <Route path={CAMINHOS_COM_SESSAO} component={AreaAutenticada} />
       <Route component={NotFoundPage} />

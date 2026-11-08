@@ -1,16 +1,54 @@
 import { ErrorCode, mensagemDaEntrada, TAMANHO_MAXIMO_EMAIL, TAMANHO_MAXIMO_SENHA } from '@educa/shared'
 import { useState, type FormEvent } from 'react'
-import { useLocation } from 'wouter'
+import { Link, useLocation } from 'wouter'
 import { ApiError } from '../api/client'
 import { avisoDaEntrada, definirAvisoDaEntrada, entrarPorEmail, saidaPendente } from '../api/sessao'
 import { Button } from '../components/ui/Button'
+import { SECONDARY_LINK_CLASSES } from '../components/ui/button-variants'
 import { FormField } from '../components/ui/fields/FormField'
 import { CascaPublica } from '../components/CascaPublica'
-import { LOGIN_STEP_ROUTE } from '../paths'
+import { LOGIN_STEP_ROUTE, ROUTES } from '../paths'
 
 /** A mensagem que a tela mostra para uma falha da entrada, sempre pelo código e nunca pelo status (regra 50, item 12). */
 function mensagemDaFalha(erro: unknown): string {
   return erro instanceof ApiError ? mensagemDaEntrada(erro.codigo, erro.esperaSegundos) : mensagemDaEntrada(ErrorCode.ERRO_INTERNO)
+}
+
+/** O que traz a pessoa de volta a esta tela e ainda vale dizer: a saída que a API não confirmou e o aviso da etapa anterior. */
+function AvisosDaEntrada() {
+  return (
+    <>
+      {/* A saída que a API não confirmou não pode passar por saída feita: o cookie de renovação ainda vale, e quem
+          ficar neste computador volta à sessão anterior. */}
+      {saidaPendente() && (
+        <p role="alert" className="rounded-controle border border-pendente bg-pendente-cx p-4 text-pendente">
+          Não foi possível encerrar a sessão anterior neste computador. Entre e saia de novo, ou feche o navegador antes
+          de deixar a máquina.
+        </p>
+      )}
+      {/* O que trouxe a pessoa de volta para cá: o segundo fator que gastou o desafio, ou o convite aceito por uma
+          conta que já existe. Vive só em memória, como o aviso de saída não confirmada. */}
+      {avisoDaEntrada() !== undefined && (
+        <p role="alert" className="rounded-controle border border-pendente bg-pendente-cx p-4 text-pendente">
+          {avisoDaEntrada()}
+        </p>
+      )}
+    </>
+  )
+}
+
+/**
+ * A saída de quem perdeu a senha (acesso-e-convites, 6.0; RF12): a equipe pede o link por e-mail. O aluno não tem e-mail e entra
+ * pelo endereço da escola, então a tela dele não leva este link.
+ */
+function LinkEsqueciASenha() {
+  return (
+    <div>
+      <Link className={SECONDARY_LINK_CLASSES} to={ROUTES.esqueci}>
+        Esqueci a senha
+      </Link>
+    </div>
+  )
 }
 
 /**
@@ -51,21 +89,7 @@ export function Entrar() {
 
   return (
     <CascaPublica titulo="Entrar">
-      {/* A saída que a API não confirmou não pode passar por saída feita: o cookie de renovação ainda vale, e quem
-          ficar neste computador volta à sessão anterior. */}
-      {saidaPendente() && (
-        <p role="alert" className="rounded-controle border border-pendente bg-pendente-cx p-4 text-pendente">
-          Não foi possível encerrar a sessão anterior neste computador. Entre e saia de novo, ou feche o navegador antes
-          de deixar a máquina.
-        </p>
-      )}
-      {/* O que trouxe a pessoa de volta para cá: o segundo fator que gastou o desafio, ou o convite aceito por uma
-          conta que já existe. Vive só em memória, como o aviso de saída não confirmada. */}
-      {avisoDaEntrada() !== undefined && (
-        <p role="alert" className="rounded-controle border border-pendente bg-pendente-cx p-4 text-pendente">
-          {avisoDaEntrada()}
-        </p>
-      )}
+      <AvisosDaEntrada />
       <p className="text-apoio">Use o e-mail e a senha que a sua escola cadastrou.</p>
       <form className="flex flex-col gap-4" onSubmit={(evento) => void enviar(evento)}>
         <FormField
@@ -104,6 +128,7 @@ export function Entrar() {
           {entrando ? 'Entrando…' : ''}
         </span>
       </form>
+      <LinkEsqueciASenha />
     </CascaPublica>
   )
 }

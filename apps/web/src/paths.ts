@@ -240,6 +240,10 @@ export const ROUTES = {
   bemVindoDoAluno: `${AREA_BASE_PATH.aluno}${ALUNO_ROUTES.bemVindo}`,
   bemVindoDoProfessor: `${AREA_BASE_PATH.professor}${PROFESSOR_ROUTES.bemVindo}`,
   bemVindoDaCoordenacao: `${AREA_BASE_PATH.coordenador}${COORDENACAO_ROUTES.bemVindo}`,
+  /** "Esqueci a senha": a equipe pede o link por e-mail. O link da entrada da equipe leva para cá (acesso-e-convites, 6.0; RF12). */
+  esqueci: '/esqueci',
+  /** "Redefinir": a senha nova pelo link do e-mail. O token vai no fragmento `#`, e nunca no caminho nem na consulta (6.0). */
+  redefinir: '/redefinir',
   /** O convite da coordenação e o do professor. O token vai no fragmento `#`, e nunca no caminho nem na consulta. */
   convite: '/convite',
   /** Estado do sistema, público: é a tela que se abre justamente quando não se consegue entrar. */

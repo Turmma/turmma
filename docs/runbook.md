@@ -1157,8 +1157,8 @@ Se reprovar, a saída diz a fase e o critério:
 
 ## Esteira vermelha no e2e
 
-O e2e roda em **nove fatias**, cada uma num job próprio (`e2e 1/9` a `e2e 9/9`), com o seu compose e
-o seu `--shard=<i>/9` do Playwright; uma fatia vermelha não cancela as outras. A quinta entrou em
+O e2e roda em **dez fatias**, cada uma num job próprio (`e2e 1/10` a `e2e 10/10`), com o seu compose e
+o seu `--shard=<i>/10` do Playwright; uma fatia vermelha não cancela as outras. A quinta entrou em
 13/10/2026, com a suíte em 776 casos commitados e 818 com os 42 do e2e da 6.0 da X1: em quatro fatias eram
 194 por fatia (uns 27 min, no limite de 27) e 205 (uns 28 min, acima dele); em cinco, 156 e 164 (uns 23 e 24 min;
 `tasks/correcoes/2026-10-13-quinta-fatia-do-e2e.md`). A sexta entrou em 16/10/2026, com a suíte em 990 casos
@@ -1172,8 +1172,11 @@ fatias eram 198 por fatia (uns 28 min, acima do limite de 27); em oito, 173 (uns
 `tasks/correcoes/2026-10-25-oitava-fatia-do-e2e.md`). A nona entrou em 05/11/2026, com a suíte em 1562 casos commitados e 1580
 com os 18 do e2e da 14.0 de `onboarding-por-convite` (9 casos nos dois projetos): em oito fatias eram 196 por fatia só com o
 commitado (uns 27 min, no limite) e 198 com a 14.0 (uns 28 min, acima dele); em nove, 176 (uns 25 min;
-`tasks/correcoes/2026-11-05-nona-fatia-do-e2e-e-restos-da-13.md`). Em nove fatias o limite continua 197 casos por fatia, 1773 no
-total, cerca de 190 a mais que os 1580 de hoje: é o ponto em que a décima fatia passa a ser pedida. O total de fatias está
+`tasks/correcoes/2026-11-05-nona-fatia-do-e2e-e-restos-da-13.md`). A décima entrou em 08/11/2026, com a suíte em 1762 casos
+commitados e 1800 com os 38 do e2e da 6.0 de `acesso-e-convites` (19 casos nos dois projetos): em nove fatias eram 196 por
+fatia só com o commitado (uns 27 min, no limite) e 200 com a 6.0 (uns 28 min, acima dele); em dez, 180 (uns 25 min;
+`tasks/correcoes/2026-11-08-e2e-decima-fatia.md`). Em dez fatias o limite continua 197 casos por fatia, 1970 no
+total, cerca de 170 a mais que os 1800 de hoje: é o ponto em que a décima primeira fatia passa a ser pedida. O total de fatias está
 escrito em quatro lugares: a matriz, o `name` do job e o `--shard` do passo em `.github/workflows/ci.yml`, e
 `FATIAS_DO_E2E` em `tools/processo/esteira.ts`, que o censo lê. Cada fatia publica o
 diretório de saída do Playwright quando falha ou é cancelada: artefato **`traco-do-e2e-<i>`**, com o
@@ -1191,7 +1194,7 @@ serviços no próprio job.
 
 Vermelho de e2e que não reproduz na máquina segura a tarefa seguinte (regra 40, D52): trate como
 defeito pela correção (`corrigir`), com a causa achada no traço, e não repetindo a execução até passar. Para
-repetir só a fatia na máquina: `node tools/ci/e2e.ts --shard=<i>/9`, que sobe o compose limpo como a
+repetir só a fatia na máquina: `node tools/ci/e2e.ts --shard=<i>/10`, que sobe o compose limpo como a
 esteira. A fatia começa com o banco vazio e roda só a parte dela: caso que passa na suíte inteira e
 falha na fatia depende de outro spec ter rodado antes, e isso é o defeito.
 
@@ -1207,7 +1210,7 @@ Dois sinais chegam antes do cancelamento. `tools/ci/esteira.test.ts` refaz a con
 fatia e reprova no portão local e no job `verificar` quando uma delas passa de 60% do teto, mesmo pela
 média. E `tools/ci/e2e.ts` mede a etapa de testes de cada fatia e, quando ela passa desse limiar (60% do
 teto menos o custo fixo), deixa a anotação **"e2e perto do teto"** no resumo da execução, mesmo verde.
-Qualquer um dos dois pede mais fatias: acrescentar o número à `matrix.fatia` e trocar o total (hoje `/9`)
+Qualquer um dos dois pede mais fatias: acrescentar o número à `matrix.fatia` e trocar o total (hoje `/10`)
 pelo novo no `name` do job e no passo `npm run ci:e2e`, e acrescentar o número a `FATIAS_DO_E2E`; a guarda confere
 os três contra o tamanho da matriz. Subir o `timeout-minutes` ou baixar as
 constantes de `tools/ci/prazo-do-e2e.ts` para o teste passar não é saída.
