@@ -220,12 +220,12 @@ describe('ambiente do compose', () => {
     for (const [nome, servico] of Object.entries(servicos)) {
       expect(servico.logging, `${nome} declara logging: o despejo da falha deixa de ser confiável`).toBeUndefined()
     }
-    // Os 19 pelo nome, e não "mais de um" nem uma contagem: um `config` que devolvesse dois serviços
-    // deixaria dezessete sem checar e o laço acima passaria, e uma contagem não pega serviço renomeado
+    // Os 20 pelo nome, e não "mais de um" nem uma contagem: um `config` que devolvesse dois serviços
+    // deixaria dezoito sem checar e o laço acima passaria, e uma contagem não pega serviço renomeado
     // nem trocado um por um. Com os nomes, o vermelho ainda diz qual apareceu ou sumiu.
     expect(Object.keys(servicos).sort()).toEqual([
-      'api-1', 'api-2', 'borda', 'despachante-1', 'despachante-2', 'migrar', 'observabilidade',
-      'oidc-falso', 'postgres', 'realtime-1', 'realtime-2', 'redis-cache', 'redis-fila', 'storage',
+      'api-1', 'api-2', 'borda', 'despachante-1', 'despachante-2', 'mailpit', 'migrar',
+      'observabilidade', 'oidc-falso', 'postgres', 'realtime-1', 'realtime-2', 'redis-cache', 'redis-fila', 'storage',
       'web', 'worker-interativo-1', 'worker-interativo-2', 'worker-lote-1', 'worker-lote-2',
     ])
   })
