@@ -68,12 +68,12 @@
   - [x] 9.3 O `desativar` anula as três colunas; o alvo novo no `retencao.expurgar-escola`; a métrica de provisórias por escola
   - [x] 9.4 Testes: quem gera, `ENTRA_PELA_CONTA_DA_ESCOLA`, cotas, semáforo, expurgo, auditoria, dois "gerar"
 
-- [ ] **10.0 — O aluno entra com a provisória e troca a senha (API)**
-  - [ ] 10.1 O bilhete (`jose`, `typ` e `aud` próprios, 10 min, escola, aluno, `provisoriaExpiraEm`), só no `Authorization`
-  - [ ] 10.2 A etapa `trocar_senha` no login de matrícula; o aluno sem `senha_hash` contra o hash fixo
-  - [ ] 10.3 `trocar-senha` e `/trocas` em `naEscolaSemUsuario` com a escola do bilhete; o `update` condicionado; `.usada`; `no-store`
-  - [ ] 10.4 O roteiro de carga com a provisória e a conta externa na rajada (`infra/scripts/carga-login.ts`)
-  - [ ] 10.5 Testes: bilhete, troca condicionada, `/trocas`, isolamento, duas trocas, o [C] de carga
+- [x] **10.0 — O aluno entra com a provisória e troca a senha (API)**
+  - [x] 10.1 O bilhete (`jose`, `typ` e `aud` próprios, 10 min, escola, aluno, `provisoriaExpiraEm`), só no `Authorization`
+  - [x] 10.2 A etapa `trocar_senha` no login de matrícula; o aluno sem `senha_hash` contra o hash fixo
+  - [x] 10.3 `trocar-senha` e `/trocas` em `naEscolaSemUsuario` com a escola do bilhete; o `update` condicionado; `.usada`; `no-store`
+  - [x] 10.4 O roteiro de carga com a provisória e a conta externa na rajada (`infra/scripts/carga-login.ts`, e a fase `professores` de `carga-importacao.ts` com o `redefinir`)
+  - [x] 10.5 Testes: bilhete, troca condicionada, `/trocas`, isolamento, duas trocas, o [C] de carga
 
 - [ ] **11.0 — O arquivo do titular traz os atos sobre ele (D85)**
   - [ ] 11.1 Migration do índice parcial `auditoria (escolaId, entidadeId, em)` nas seis ações

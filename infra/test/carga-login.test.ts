@@ -24,10 +24,14 @@ import {
   FASES_DO_CENARIO,
   FASES_DO_CONTROLE_NEGATIVO,
   fasesPedidas,
+  ALUNOS_COM_PROVISORIA_POR_ESCOLA,
+  ALUNOS_SO_COM_CONTA_EXTERNA_POR_ESCOLA,
   julgarCenarioDeLogin,
   juntarAtacante,
   lerResumoDaFase,
   montarContas,
+  sortearProvisoria,
+  tipoDaPosicao,
   TURMAS_POR_PROFESSOR,
   turmasDaEscola,
   type FaseDoCenario,
@@ -63,10 +67,40 @@ const EMAILS = Object.fromEntries(
   ]),
 ) as Record<'A' | 'B' | 'C', string[]>
 const SLUGS = { A: 'login-a-x', B: 'login-b-x', C: 'login-c-x' }
-const contas = montarContas('senha-gerada-na-hora', 'outra-senha-gerada-na-hora', SLUGS, EMAILS)
+const contas = montarContas('senha-gerada-na-hora', 'outra-senha-gerada-na-hora', SLUGS, EMAILS, { provisoria: 'ABCD2345', senhaNova: 'senha-nova-gerada-na-hora' })
 const chave = (conta: { escola: string; matricula?: string; email?: string }) => `${conta.escola}|${conta.matricula ?? conta.email ?? ''}`
 
 describe('as contas do cenário "login às 7h30"', () => {
+  it('a rajada leva a provisória e a conta só da escola (10.0): 20 e 10 alunos por escola, os últimos, que o k6 trata e o seed arma do mesmo jeito', () => {
+    const doTipo = (tipo: string) => contas.rajada.filter((conta) => 'tipo' in conta && conta.tipo === tipo)
+    expect(doTipo('provisoria')).toHaveLength(3 * ALUNOS_COM_PROVISORIA_POR_ESCOLA)
+    expect(doTipo('conta_externa')).toHaveLength(3 * ALUNOS_SO_COM_CONTA_EXTERNA_POR_ESCOLA)
+    expect(contas.rajada.filter((conta) => 'tipo' in conta)).toHaveLength(90)
+    // Só aluno, e a posição da matrícula é a que o seed arma (`tipoDaPosicao`): a lista do k6 e o banco concordam.
+    for (const conta of contas.rajada.filter((cada) => 'tipo' in cada)) {
+      expect('matricula' in conta).toBe(true)
+      const posicao = Number((conta as { matricula: string }).matricula.slice(4))
+      expect(tipoDaPosicao(posicao)).toBe((conta as { tipo: string }).tipo)
+    }
+    expect(tipoDaPosicao(ALUNOS_POR_ESCOLA - 31)).toBeUndefined()
+    expect(tipoDaPosicao(ALUNOS_POR_ESCOLA - 30)).toBe('provisoria')
+    expect(tipoDaPosicao(ALUNOS_POR_ESCOLA - 11)).toBe('provisoria')
+    expect(tipoDaPosicao(ALUNOS_POR_ESCOLA - 10)).toBe('conta_externa')
+    expect(tipoDaPosicao(ALUNOS_POR_ESCOLA - 1)).toBe('conta_externa')
+    expect(contas.provisoria).toBe('ABCD2345')
+    expect(contas.senhaNova).not.toBe(contas.senha)
+  })
+
+  it('nenhuma outra lista do k6 usa os alunos da provisória nem da conta só da escola (a base, a renovação e as contas com cookie)', () => {
+    const doTipo = new Set(contas.rajada.filter((conta) => 'tipo' in conta).map(chave))
+    for (const lista of [contas.renovacao, contas.aComCookie, contas.aSemCookie, contas.bFundo, contas.cFundo])
+      for (const conta of lista) expect(doTipo.has(chave(conta)), chave(conta)).toBe(false)
+  })
+
+  it('a provisória sorteada tem 8 caracteres do alfabeto sem confusão, sem hífen', () => {
+    for (let vez = 0; vez < 50; vez++) expect(sortearProvisoria()).toMatch(/^[2-9A-HJKMNP-Z]{8}$/)
+  })
+
   it('a rajada tem as 2.100 contas das três escolas, cada uma uma vez, e 30% delas erram a senha uma vez', () => {
     expect(contas.rajada).toHaveLength(2_100)
     expect(new Set(contas.rajada.map(chave)).size).toBe(2_100)
@@ -373,11 +407,11 @@ describe('ambiente do cenário "login às 7h30"', () => {
     expect(doExemplo['LOGIN_PROTECAO_DESLIGADA']).toBe('false')
   })
 
-  it('o cenário só chama as rotas do login por matrícula e e-mail, a renovação e as autenticadas, as do Início do aluno e a Semana do professor entre elas: nem o login externo (oidc-falso), nem provedor pago (regra 80, item 11)', () => {
+  it('o cenário só chama as rotas do login por matrícula e e-mail, a troca da provisória, a renovação e as autenticadas, as do Início do aluno e a Semana do professor entre elas: nem o login externo (oidc-falso), nem provedor pago (regra 80, item 11)', () => {
     const script = lerArquivo('infra/k6/login-7h30.js')
     // A rota vem depois de `${API}` ou como texto entre aspas (o `caminho` das autenticadas); `GET /v1/...` é o nome da tag, e não entra.
     const rotas = new Set([...script.matchAll(/(?:\$\{API\}|['"`])(\/v1\/[^`'"$]*)/g)].map((achado) => achado[1]))
-    expect([...rotas].sort()).toEqual(['/v1/eu', '/v1/minhas-atividades', '/v1/semana', '/v1/sessao/email', '/v1/sessao/matricula', '/v1/sessao/renovar', '/v1/sistema/contexto'])
+    expect([...rotas].sort()).toEqual(['/v1/eu', '/v1/minhas-atividades', '/v1/semana', '/v1/sessao/email', '/v1/sessao/matricula', '/v1/sessao/matricula/trocar-senha', '/v1/sessao/renovar', '/v1/sistema/contexto'])
     expect(argumentosDoK6DeLogin('atacante')).toContain('API_URL=http://borda:8080')
   })
 })

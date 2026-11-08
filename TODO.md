@@ -3167,3 +3167,18 @@ aula" em `Retencao.tsx`, o Validador conferiu: a tela já o mostra pela descriç
       de alcance, ou dois chamadores explícitos (dono: Implementador)
 - [ ] (acesso-e-convites 9.0, test-engineer e revisor-geral, 3ª) **O caso "o hash espera o semáforo fora da transação" prova a linha livre, não o pool livre**: uma transação aberta sem trava antes do hash
       passaria. Contar, dentro do espião, as conexões da API em `idle in transaction` em `pg_stat_activity` (`apps/api/test/senha-provisoria.int.test.ts`) (dono: Implementador)
+
+## Da tarefa 10.0 de acesso-e-convites (o aluno entra com a provisória e troca a senha), fora dela
+
+- [ ] (acesso-e-convites 10.0, infra-guardian, 1ª, e privacy-guardian, 1ª e 2ª) **Incluir `GET /v1/sessao/matricula/trocas` no fluxo da provisória de `infra/k6/login-7h30.js`** e dar
+      limite por usuário (o `usuario_id` do bilhete) a `trocar-senha` e `/trocas`, que hoje contam só no balde por IP (`rl:ip`, 3.000 por minuto); ou o tratamento do login (só rebaixa).
+      Quando a 13.0 ligar a tela (dono: Arquiteto)
+- [ ] (acesso-e-convites 10.0, revisor-geral, 1ª) **Ajudante comum para a reserva dentro do semáforo, o `contaSegurada` e o `falhou`** que `troca-da-provisoria.service.ts` repete do `PasswordVerifier`.
+      Refator que mexe em duas rotas de login com testes verdes (dono: Implementador)
+- [ ] (acesso-e-convites 10.0, test-engineer, 1ª e 2ª) **Corrida de verdade entre gerar e trocar**, com barreira entre `paraATroca` e o `update` (`apps/api/test/troca-da-provisoria.int.test.ts`).
+      Hoje a substituída está provada em sequência no repository e no service (dono: Implementador)
+- [ ] (acesso-e-convites 10.0, tenancy-guardian, 2ª) **Prender a escola do `exists` de `trocarProvisoria` também a `requireEscolaId()`**, em vez de só à coluna da linha externa
+      (`credencial-matricula.repository.ts`). Não muda resultado: a linha externa já está presa à escola (dono: Implementador)
+- [ ] (acesso-e-convites 10.0, test-engineer, 2ª) **O caso do gatilho que recusa o `.usada`** (`troca-da-provisoria.int.test.ts:361`): trocar `toBeGreaterThanOrEqual(500)` por 500, com código tipado e sem stack
+      (dono: Implementador)
+- [ ] (acesso-e-convites 10.0, test-engineer, 2ª) **O `create trigger` em `auditoria` pega trava na tabela compartilhada**: se o caso oscilar na esteira, isolá-lo num arquivo próprio (dono: Implementador)

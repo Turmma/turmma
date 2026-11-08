@@ -97,16 +97,29 @@ export type { EsqueciSenhaRequest, RedefinirSenhaRequest, VerificarContaRequest 
 export {
   ALFABETO_DA_SENHA_PROVISORIA,
   CARACTERES_POR_GRUPO_DA_SENHA_PROVISORIA,
+  ETAPA_TROCAR_SENHA,
   JANELA_DO_CONFLITO_DA_SENHA_PROVISORIA_SEGUNDOS,
   LIMITE_DE_PROVISORIAS_POR_DIA_E_ALUNO,
   LIMITE_DE_PROVISORIAS_POR_HORA_E_USUARIO,
+  MAXIMO_DE_PROVISORIAS_ANTERIORES_NA_TROCA,
   PAPEIS_QUE_GERAM_A_SENHA_PROVISORIA,
   TAMANHO_DA_SENHA_PROVISORIA,
   VALIDADE_DA_SENHA_PROVISORIA_HORAS,
+  VALIDADE_DO_BILHETE_DA_TROCA_MINUTOS,
   formatarSenhaProvisoria,
+  loginMatriculaResponseSchema,
+  normalizarSenhaProvisoria,
   senhaProvisoriaResponseSchema,
+  trocarSenhaProvisoriaRequestSchema,
+  trocasDaProvisoriaResponseSchema,
 } from './sessao/senha-provisoria.js'
-export type { PapelQueGeraASenhaProvisoria, SenhaProvisoriaResponse } from './sessao/senha-provisoria.js'
+export type {
+  LoginMatriculaResponse,
+  PapelQueGeraASenhaProvisoria,
+  SenhaProvisoriaResponse,
+  TrocarSenhaProvisoriaRequest,
+  TrocasDaProvisoriaResponse,
+} from './sessao/senha-provisoria.js'
 export { loginMatriculaRequestSchema, TAMANHO_MAXIMO_MATRICULA, TAMANHO_MAXIMO_SLUG_NO_LOGIN } from './sessao/matricula.js'
 export type { LoginMatriculaRequest } from './sessao/matricula.js'
 export { acessoDaEscolaResponseSchema, PROVEDORES_DE_CONTA_DA_ESCOLA } from './sessao/acesso-da-escola.js'

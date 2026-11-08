@@ -3,10 +3,25 @@ import { JANELA_DO_CONFLITO_DA_SENHA_PROVISORIA_SEGUNDOS, VALIDADE_DA_SENHA_PROV
 import { and, eq, exists, isNull, sql, type SQL } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 
+/**
+ * A hora do vencimento da provisória como texto ISO em UTC, com os microssegundos do banco: é o que o bilhete da troca leva e o que a troca compara por igualdade (o `Date` do
+ * JavaScript só guarda milissegundos, e a igualdade com a coluna falharia).
+ */
+const VALIDADE_DA_PROVISORIA_EM_TEXTO = sql<string>`to_char(${credencialMatricula.provisoriaExpiraEm} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`
+
+/** A provisória do aluno ainda vale, pelo relógio do banco. */
+const PROVISORIA_VIGENTE = sql`${credencialMatricula.provisoriaExpiraEm} > clock_timestamp()`
+
 /** A credencial achada pela matrícula: o usuário e o hash, nunca a matrícula nem o nome. */
 export interface CredencialDoAluno {
   readonly usuarioId: string
+  /**
+   * O hash que a senha digitada deve conferir: o da senha do aluno, ou, quando ele não tem senha (a provisória a apagou), o da provisória **que ainda vale**. Sem nenhum dos dois
+   * (conta só com a conta da escola, provisória vencida), `null`, e quem confere usa o hash fixo.
+   */
   readonly senhaHash: string | null
+  /** Preenchido só quando `senhaHash` é o da provisória: o vencimento dela, que o bilhete da troca leva. Com ele, a senha certa não abre sessão, abre a troca. */
+  readonly provisoriaExpiraEm: string | null
   /** A eliminação está agendada (F3, 14.0): com a senha certa, a resposta é `ACESSO_SUSPENSO`, e nada é emitido. */
   readonly suspenso: boolean
 }
@@ -22,6 +37,15 @@ export interface EstadoDaProvisoria {
   readonly contaLigada: boolean
   /** Há provisória não usada gerada há menos de `JANELA_DO_CONFLITO_DA_SENHA_PROVISORIA_SEGUNDOS`, de qualquer autor. */
   readonly recente: boolean
+}
+
+/** O aluno do bilhete da troca, lido na escola do contexto: a matrícula (a chave do contador de tentativas) e se a provisória do bilhete ainda é a que vale. */
+export interface AlunoDaTroca {
+  readonly matricula: string
+  /** A provisória do bilhete é a gravada hoje e não venceu. */
+  readonly provisoriaVale: boolean
+  /** A eliminação do aluno está agendada: nada é emitido para ele (F3, 14.0). */
+  readonly suspenso: boolean
 }
 
 /** A provisória gravada: só a validade. A senha nunca volta do banco. */
@@ -46,12 +70,82 @@ export class CredencialMatriculaRepository {
   async doAlunoAtivo(matricula: string): Promise<CredencialDoAluno | undefined> {
     const escolaId = requireEscolaId()
     const [linha] = await this.banco
-      .select({ usuarioId: credencialMatricula.usuarioId, senhaHash: credencialMatricula.senhaHash, eliminacaoAgendadaEm: usuario.eliminacaoAgendadaEm })
+      .select({
+        usuarioId: credencialMatricula.usuarioId,
+        senhaHash: credencialMatricula.senhaHash,
+        provisoriaHash: sql<string | null>`case when ${PROVISORIA_VIGENTE} then ${credencialMatricula.provisoriaHash} end`,
+        provisoriaExpiraEm: sql<string | null>`case when ${PROVISORIA_VIGENTE} then ${VALIDADE_DA_PROVISORIA_EM_TEXTO} end`,
+        eliminacaoAgendadaEm: usuario.eliminacaoAgendadaEm,
+      })
       .from(credencialMatricula)
       .innerJoin(usuario, and(eq(usuario.escolaId, credencialMatricula.escolaId), eq(usuario.id, credencialMatricula.usuarioId)))
       .where(and(eq(credencialMatricula.escolaId, escolaId), eq(credencialMatricula.matricula, matricula), eq(usuario.papel, 'aluno'), isNull(usuario.desativadoEm)))
       .limit(1)
-    return linha === undefined ? undefined : { usuarioId: linha.usuarioId, senhaHash: linha.senhaHash, suspenso: linha.eliminacaoAgendadaEm !== null }
+    if (linha === undefined) return undefined
+    // A senha do aluno vale sozinha; a provisória só confere quando ele não tem senha (gerar a apagou), e só enquanto vale (a vencida já veio `null` do `case`).
+    const pelaProvisoria = linha.senhaHash === null
+    return {
+      usuarioId: linha.usuarioId,
+      senhaHash: pelaProvisoria ? linha.provisoriaHash : linha.senhaHash,
+      provisoriaExpiraEm: pelaProvisoria ? linha.provisoriaExpiraEm : null,
+      suspenso: linha.eliminacaoAgendadaEm !== null,
+    }
+  }
+
+  /**
+   * O aluno do bilhete da troca, na escola do contexto (acesso-e-convites, tarefa 10.0): a matrícula, que dá a chave do contador de tentativas, se a provisória do bilhete é a que
+   * vale e se a eliminação está agendada. `undefined` para o que não é aluno ativo da escola do contexto: o usuário de outra escola, o desativado e o que não existe respondem igual.
+   * `doBilhete` é o vencimento em texto, como o `doAlunoAtivo` o devolveu.
+   */
+  async paraATroca(usuarioId: string, doBilhete: string): Promise<AlunoDaTroca | undefined> {
+    const escolaId = requireEscolaId()
+    const [linha] = await this.banco
+      .select({
+        matricula: credencialMatricula.matricula,
+        provisoriaVale: sql<boolean>`coalesce(${credencialMatricula.provisoriaExpiraEm} = ${doBilhete}::timestamptz and ${PROVISORIA_VIGENTE}, false)`,
+        eliminacaoAgendadaEm: usuario.eliminacaoAgendadaEm,
+      })
+      .from(credencialMatricula)
+      .innerJoin(usuario, and(eq(usuario.escolaId, credencialMatricula.escolaId), eq(usuario.id, credencialMatricula.usuarioId)))
+      .where(and(eq(credencialMatricula.escolaId, escolaId), eq(credencialMatricula.usuarioId, usuarioId), eq(usuario.papel, 'aluno'), isNull(usuario.desativadoEm)))
+      .limit(1)
+    return linha === undefined ? undefined : { matricula: linha.matricula, provisoriaVale: linha.provisoriaVale, suspenso: linha.eliminacaoAgendadaEm !== null }
+  }
+
+  /**
+   * Grava a senha nova no lugar da provisória e anula as três colunas dela, **só se** a provisória gravada é a do bilhete e ainda não venceu: um `update` condicionado, que é a
+   * trava da corrida (duas trocas com o mesmo bilhete, uma provisória já substituída) sem ler antes (acesso-e-convites, tarefa 10.0; Tech Spec, seção 5). Devolve se gravou; zero
+   * linhas (outra troca chegou antes, a provisória foi substituída, venceu, o aluno é de outra escola, foi desativado ou teve a eliminação agendada) é `false`, e quem chama recusa com a credencial inválida.
+   */
+  async trocarProvisoria(usuarioId: string, doBilhete: string, senhaHash: string): Promise<boolean> {
+    const gravadas = await this.banco
+      .update(credencialMatricula)
+      .set({ senhaHash, provisoriaHash: null, provisoriaExpiraEm: null, provisoriaGeradaPor: null })
+      .where(
+        and(
+          eq(credencialMatricula.escolaId, requireEscolaId()),
+          eq(credencialMatricula.usuarioId, usuarioId),
+          sql`${credencialMatricula.provisoriaExpiraEm} = ${doBilhete}::timestamptz`,
+          PROVISORIA_VIGENTE,
+          // O aluno ainda é aluno ativo e sem eliminação agendada no instante da gravação: fecha a janela entre o `paraATroca` e o `update` (regra 10, item 4).
+          exists(
+            this.banco
+              .select({ um: sql`1` })
+              .from(usuario)
+              .where(
+                and(
+                  eq(usuario.escolaId, credencialMatricula.escolaId),
+                  eq(usuario.id, credencialMatricula.usuarioId),
+                  eq(usuario.papel, 'aluno'),
+                  isNull(usuario.desativadoEm),
+                  isNull(usuario.eliminacaoAgendadaEm),
+                ),
+              ),
+          ),
+        ),
+      )
+      .returning({ id: credencialMatricula.id })
+    return gravadas.length === 1
   }
 
   /** Grava credenciais de alunos da escola do contexto: o seed sintético (e, no F2, a reivindicação). */

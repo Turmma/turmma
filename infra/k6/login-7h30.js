@@ -7,6 +7,9 @@
 //                       de acertar, cada uma seguida de requisições autenticadas. O aluno lê também o que o Início dele
 //                       lê (GET /v1/eu e a primeira página de GET /v1/minhas-atividades, telas do aluno 3.0), e o professor
 //                       abre a Semana (GET /v1/semana, F2b), com a grade, o texto das aulas e os itens do dia semeados.
+//                       Os últimos alunos de cada escola entram de outro jeito (acesso-e-convites, 10.0): 20 com a senha provisória, que
+//                       devolve o bilhete e pede a troca (o script troca a senha e segue), e 10 que só têm a conta da escola, sem
+//                       senha, e recebem o 401 de quem não existe. Essas 30 não entram, e o `contas_que_entraram` as desconta.
 //   FASE=renovacao      600 contas entram e renovam a sessão em duas abas ao mesmo tempo, como no pior caso da web. Em
 //                       vez de esperar o token curto vencer, a renovação vem logo depois do login: a disputa é a mesma.
 //   FASE=preparacao     sem ataque, as contas "com cookie" entram uma vez, e o `educa_dispositivo` que o login grava vai
@@ -64,6 +67,9 @@ const DURACAO_DOS_LEGITIMOS = '150s'
 const DURACAO_DA_BASE = '2m'
 /** A rajada (Tech Spec, 7c): 2.100 contas em 5 min, 40% (840) no primeiro minuto, 1.260 nos quatro seguintes. */
 export const CONTAS_NA_RAJADA = 2_100
+/** Dos 2.100, quantos só têm a conta da escola (10 por escola, 3 escolas): recebem o 401 e não entram. E as com a provisória, que trocam a senha (20 por escola). */
+export const CONTAS_EXTERNAS_NA_RAJADA = 30
+export const PROVISORIAS_NA_RAJADA = 60
 const NO_PRIMEIRO_MINUTO = 840
 const CONTAS_NA_RENOVACAO = 600
 
@@ -71,8 +77,8 @@ const CONTAS_NA_RENOVACAO = 600
 // meio da rajada não param para ler as 2.100 contas de novo.
 const lista = (nome) => new SharedArray(nome, () => JSON.parse(open(ARQUIVO_DAS_CONTAS))[nome])
 const [contas] = new SharedArray('geral', () => {
-  const { senha, senhaErrada, slugs, equipeAlvo } = JSON.parse(open(ARQUIVO_DAS_CONTAS))
-  return [{ senha, senhaErrada, slugs, equipeAlvo }]
+  const { senha, senhaErrada, slugs, equipeAlvo, provisoria, senhaNova } = JSON.parse(open(ARQUIVO_DAS_CONTAS))
+  return [{ senha, senhaErrada, slugs, equipeAlvo, provisoria, senhaNova }]
 })
 const RAJADA = lista('rajada')
 const RENOVACAO = lista('renovacao')
@@ -83,7 +89,7 @@ const C_FUNDO = lista('cFundo')
 const EQUIPE_SEM_COOKIE = lista('equipeSemCookie')
 const ALVOS_MATRICULA = lista('alvosAtaqueMatricula')
 const ALVOS_EMAIL = lista('alvosAtaqueEmail')
-const { senha: SENHA, senhaErrada: SENHA_ERRADA, slugs: SLUGS, equipeAlvo: EQUIPE_ALVO } = contas
+const { senha: SENHA, senhaErrada: SENHA_ERRADA, slugs: SLUGS, equipeAlvo: EQUIPE_ALVO, provisoria: PROVISORIA, senhaNova: SENHA_NOVA } = contas
 /** O `educa_dispositivo` de cada conta "com cookie", por matrícula ou e-mail, obtido na preparação. */
 const [DISPOSITIVOS] = FASES_SOB_ATAQUE.includes(FASE) ? new SharedArray('dispositivos', () => [JSON.parse(open('/execucao/dispositivos.json'))]) : [{}]
 
@@ -94,6 +100,9 @@ const respostas429 = new Counter('respostas_429')
 const respostas503 = new Counter('respostas_503')
 const erroFinal = new Counter('login_erro_final')
 const entraram = new Counter('contas_que_entraram')
+/** As contas só com a conta da escola que receberam o 401 esperado, e as provisórias que trocaram a senha e abriram a sessão (10.0). */
+const externasRecusadas = new Counter('contas_externas_recusadas')
+const provisoriasTrocadas = new Counter('provisorias_trocadas')
 /** As leituras da Semana que voltaram 200 e completas: aula, texto de aula, evento e item do dia. */
 const semanasLidas = new Counter('semanas_lidas')
 const inesperadas = new Counter('respostas_inesperadas')
@@ -248,7 +257,10 @@ function configuracao() {
           [`autenticada_duracao{grupo:rajada,name:${ROTA_DA_SEMANA}}`]: [`p(95)<${P95_MAXIMO_DO_LOGIN_MS}`],
           semanas_lidas: [`count==${PROFESSORES_NA_RAJADA}`],
           // As 2.100 entraram: nenhuma iteração perdida por falta de VU, nenhuma conta que desistiu.
-          'contas_que_entraram{grupo:rajada}': [`count==${CONTAS_NA_RAJADA}`],
+          'contas_que_entraram{grupo:rajada}': [`count==${CONTAS_NA_RAJADA - CONTAS_EXTERNAS_NA_RAJADA}`],
+          // As 60 provisórias trocaram a senha pelo bilhete, e as 30 só com a conta da escola receberam o 401 (nenhuma entrou, nenhuma deu 503).
+          'provisorias_trocadas{grupo:rajada}': [`count==${PROVISORIAS_NA_RAJADA}`],
+          'contas_externas_recusadas{grupo:rajada}': [`count==${CONTAS_EXTERNAS_NA_RAJADA}`],
           dropped_iterations: ['count==0'],
         },
       }
@@ -329,23 +341,94 @@ function enviarLogin(conta, senha, grupo, navegador) {
 }
 
 /**
+ * O aluno que só tem a conta da escola digita uma senha (a da carga) e recebe o 401 de quem não existe, sem sessão: é a resposta esperada, e não conta como erro final nem como
+ * conta que entrou. O 503 repetido até o prazo é o erro final.
+ */
+function recusarContaExterna(conta, grupo, navegador) {
+  const resposta = enviarLogin(conta, SENHA, grupo, navegador)
+  const esperado = resposta !== undefined && resposta.status === 401
+  externasRecusadas.add(esperado ? 1 : 0, { grupo })
+  erroFinal.add(esperado ? 0 : 1, { grupo })
+  inesperadas.add(esperado || resposta === undefined ? 0 : 1, { grupo, status: String(resposta?.status ?? 503) })
+  return undefined
+}
+
+/** O bilhete que o login com a provisória devolveu no lugar da sessão, ou `undefined` se o login não pediu a troca. */
+function bilheteDoLogin(login) {
+  const pediuATroca = login !== undefined && login.status === 200 && login.json('etapa') === 'trocar_senha'
+  const bilhete = pediuATroca ? login.json('bilhete') : undefined
+  return typeof bilhete === 'string' ? bilhete : undefined
+}
+
+/** Quanto esperar no 503: o `Retry-After`, ou 2 s sem ele. */
+function esperaDoRetryAfter(resposta) {
+  const espera = Number(resposta.headers['Retry-After'])
+  return Number.isFinite(espera) && espera > 0 ? espera : 2
+}
+
+/** Um envio da senha nova com o bilhete: a duração entra no p95 do login, e o 429 e o 503 somam no contador do grupo. */
+function enviarATroca(bilhete, grupo, navegador) {
+  const resposta = http.post(`${API}/v1/sessao/matricula/trocar-senha`, JSON.stringify({ senha: SENHA_NOVA }), {
+    headers: { ...JSON_, Authorization: `Bearer ${bilhete}` },
+    jar: navegador.jar,
+    cookies: navegador.cookies,
+    tags: { name: 'POST /v1/sessao/matricula/trocar-senha', grupo },
+  })
+  duracaoDoLogin.add(resposta.timings.duration, { grupo })
+  respostas429.add(resposta.status === 429 ? 1 : 0, { grupo })
+  respostas503.add(resposta.status === 503 ? 1 : 0, { grupo })
+  return resposta
+}
+
+/**
+ * O login com a provisória devolveu o bilhete: o aluno cria a senha nova, como a tela, e a sessão vem da troca. O 503 espera o `Retry-After` e repete, como a web. Devolve o token, ou
+ * `undefined` se o login não pediu a troca ou a troca não abriu a sessão.
+ */
+function trocarAProvisoria(login, grupo, navegador) {
+  const bilhete = bilheteDoLogin(login)
+  if (bilhete === undefined) return undefined
+  const inicio = Date.now()
+  for (;;) {
+    const resposta = enviarATroca(bilhete, grupo, navegador)
+    if (resposta.status !== 503) {
+      const token = resposta.status === 200 ? resposta.json('token') : undefined
+      provisoriasTrocadas.add(typeof token === 'string' ? 1 : 0, { grupo })
+      return token
+    }
+    const esperaS = esperaDoRetryAfter(resposta)
+    if (Date.now() - inicio + esperaS * 1_000 > PRAZO_DA_WEB_MS) return undefined
+    sleep(esperaS)
+  }
+}
+
+/**
+ * A senha errada que a conta digita antes de acertar (30% da rajada): o 401 é o esperado. Devolve se a conta segue para a senha certa; o prazo da web acabado em 503 é erro final, e não
+ * resposta inesperada.
+ */
+function errarAntes(conta, grupo, navegador) {
+  const errada = enviarLogin(conta, SENHA_ERRADA, grupo, navegador)
+  const esperado = errada !== undefined && errada.status === 401
+  inesperadas.add(errada === undefined || esperado ? 0 : 1, { grupo, status: String(errada?.status ?? 503) })
+  if (!esperado) erroFinal.add(1, { grupo })
+  return esperado
+}
+
+/** O token da conta com a senha certa: o do login, ou, na provisória, o da troca que o bilhete do login abre. */
+function tokenDoLogin(conta, resposta, grupo, navegador) {
+  if (conta.tipo === 'provisoria') return trocarAProvisoria(resposta, grupo, navegador)
+  return resposta?.status === 200 ? resposta.json('token') : undefined
+}
+
+/**
  * A conta entra, errando a senha uma vez antes se `erra`. Conta erro final (a tela mostraria erro) e resposta fora do
  * esperado; devolve o token, ou `undefined`.
  */
 function entrar(conta, grupo, navegador, erra = false) {
+  if (conta.tipo === 'conta_externa') return recusarContaExterna(conta, grupo, navegador)
   const inicio = Date.now()
-  if (erra) {
-    const errada = enviarLogin(conta, SENHA_ERRADA, grupo, navegador)
-    const esperado = errada !== undefined && errada.status === 401
-    // O prazo da web acabado em 503 é erro final, e não resposta inesperada.
-    inesperadas.add(errada === undefined || esperado ? 0 : 1, { grupo, status: String(errada?.status ?? 503) })
-    if (!esperado) {
-      erroFinal.add(1, { grupo })
-      return undefined
-    }
-  }
-  const resposta = enviarLogin(conta, SENHA, grupo, navegador)
-  const token = resposta?.status === 200 ? resposta.json('token') : undefined
+  if (erra && !errarAntes(conta, grupo, navegador)) return undefined
+  const resposta = enviarLogin(conta, conta.tipo === 'provisoria' ? PROVISORIA : SENHA, grupo, navegador)
+  const token = tokenDoLogin(conta, resposta, grupo, navegador)
   const entrou = typeof token === 'string'
   erroFinal.add(entrou ? 0 : 1, { grupo })
   inesperadas.add(entrou || resposta === undefined ? 0 : 1, { grupo, status: String(resposta?.status ?? 503) })

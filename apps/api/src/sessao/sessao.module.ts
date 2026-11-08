@@ -45,8 +45,10 @@ import { SenhaProvisoriaController } from '../credencial/senha-provisoria.contro
 import { SenhaProvisoriaService } from '../credencial/senha-provisoria.service.js'
 import { LoginEmailController } from './login/login-email.controller.js'
 import { LoginService } from './login/login.service.js'
-import { LoginMatriculaController } from './login/matricula.controller.js'
+import { LoginMatriculaController, TrocaDaProvisoriaController } from './login/matricula.controller.js'
 import { LoginPorMatricula } from './login/matricula.service.js'
+import { TrocaDaProvisoria } from './login/troca-da-provisoria.service.js'
+import { BilheteDaTroca } from '../credencial/bilhete-da-troca.js'
 import { ContaMfaController, SessaoMfaController } from './mfa/mfa.controller.js'
 import { MfaService } from './mfa/mfa.service.js'
 import { RedefinicaoDeMfa } from './mfa/redefinicao-de-mfa.js'
@@ -116,6 +118,7 @@ export class SessaoModule implements OnApplicationShutdown {
       controllers: [
         LoginEmailController,
         LoginMatriculaController,
+        TrocaDaProvisoriaController,
         AcessoDaEscolaController,
         SessaoMfaController,
         ContaMfaController,
@@ -219,8 +222,17 @@ export class SessaoModule implements OnApplicationShutdown {
             rebaixamento: EscolaIpThrottle,
             dispositivo: DeviceCookie,
             conclusao: ConclusaoDeLogin,
-          ) => new LoginPorMatricula({ banco, resolucao, conferencia, contador, rebaixamento, dispositivo, conclusao, medidor: opcoes.medidor ?? globalMeter() }),
-          inject: [DB, TenantResolutionRepository, PasswordVerifier, LoginLockout, EscolaIpThrottle, DeviceCookie, ConclusaoDeLogin],
+            bilhetes: BilheteDaTroca,
+          ) => new LoginPorMatricula({ banco, resolucao, conferencia, contador, rebaixamento, dispositivo, conclusao, bilhetes, medidor: opcoes.medidor ?? globalMeter() }),
+          inject: [DB, TenantResolutionRepository, PasswordVerifier, LoginLockout, EscolaIpThrottle, DeviceCookie, ConclusaoDeLogin, BilheteDaTroca],
+        },
+        // O bilhete da troca da senha provisória (acesso-e-convites, tarefa 10.0): a mesma chave de assinatura dos outros JWT, com `typ` e `aud` só dele.
+        { provide: BilheteDaTroca, useFactory: () => new BilheteDaTroca(opcoes.identidade.chaveAssinatura) },
+        {
+          provide: TrocaDaProvisoria,
+          useFactory: (banco: Database, bilhetes: BilheteDaTroca, hash: PasswordHasher, semaforo: HashBulkhead, contador: LoginLockout, dispositivo: DeviceCookie, conclusao: ConclusaoDeLogin) =>
+            new TrocaDaProvisoria({ banco, bilhetes, hash, semaforo, contador, dispositivo, conclusao }),
+          inject: [DB, BilheteDaTroca, PasswordHasher, HashBulkhead, LoginLockout, DeviceCookie, ConclusaoDeLogin],
         },
         {
           provide: AcessoDaEscolaService,

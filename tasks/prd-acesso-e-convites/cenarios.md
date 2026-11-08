@@ -132,6 +132,9 @@ rodada 1) acrescentou os casos marcados (F2c) e as seções "Arquivo do titular"
   português ("Gerada pela coordenação em 12/11/2026 às 14:05").
 - [I] `senha_provisoria.gerada` e `.usada` aparecem no arquivo do titular do aluno; `.usada` tem o aluno como autor. A `.gerada` não entra no arquivo de quem a assinou (o professor): o id do aluno ficaria lá (`apps/api/test/arquivo-do-titular.int.test.ts`, o ato do professor sobre outro aluno).
 - [I] Trocar-senha conta no contador de falhas da conta.
+- [I] A provisória se digita como a tela a mostra: com o hífen, em minúsculas ou com espaços, o login a normaliza antes de comparar; a senha comum do aluno vai como veio, e a que ele
+  tem vale sozinha (com senha e provisória vigente gravadas juntas, a senha entra e a provisória não). (F2c)
+- [I] A conta segurada pelo contador de quem não tem o cookie do dispositivo não segura o aluno que já entrou naquele navegador, também na troca. (F2c)
 - [I] Provisória vencida, relógio falso: com 23 h o `retencao.expurgar-escola` a mantém; com 25 h anula hash, validade e
   quem gerou; a auditoria fica. A troca e o `desativar` do aluno também anulam as três colunas.
 - [P] Duas trocas com o mesmo bilhete: uma sessão. Bilhete de provisória já substituída: recusado.
@@ -221,7 +224,8 @@ rodada 1) acrescentou os casos marcados (F2c) e as seções "Arquivo do titular"
 ## Carga
 
 - [C] Job de professores do F2 com 300 linhas junto da rajada de login (com provisória e conta externa) e do redefinir
-  dos mesmos professores: zero 503 no login e no redefinir; passo (3) do job abaixo de 1 s.
+  dos mesmos professores: zero 503 no login e no redefinir; passo (3) do job abaixo de 1 s. Roda na fase `professores` da
+  carga da importação (Tech Spec, 7c, "Onde roda o [C]").
 
 ## A1 e F2 que mudam de regra
 
