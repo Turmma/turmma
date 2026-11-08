@@ -48,6 +48,14 @@ function iniciar(comando: string, argumentos: string[], extra: Record<string, st
   return { filho, saida: () => texto, terminou }
 }
 
+/** Os eventos do diário na ordem em que foram escritos, `<nome> <evento>`: a ordem das linhas, que não depende do relógio. */
+function ordemDoDiario(): string[] {
+  return readFileSync(diario, 'utf8')
+    .split('\n')
+    .filter(Boolean)
+    .map((linha) => linha.split(' ').slice(0, 2).join(' '))
+}
+
 function lerDiario(): Map<string, number> {
   const marcas = new Map<string, number>()
   for (const linha of readFileSync(diario, 'utf8').split('\n').filter(Boolean)) {
@@ -121,13 +129,20 @@ describe('fila de carga (tools/ci/fila-de-carga.ts)', () => {
   }, 30_000)
 
   it('na esteira (CI=true) não há fila: cada job tem a máquina inteira', async () => {
-    const a = iniciar(process.execPath, [FIXTURE, diario, 'a', '2500'], { CI: 'true' })
-    const b = iniciar(process.execPath, [FIXTURE, diario, 'b', '2500'], { CI: 'true' })
+    // Cada um só sai depois de ver o outro entrar, e o segundo chega 3 s depois do primeiro: se houvesse fila, o primeiro seguraria o lugar,
+    // o segundo nunca entraria e o primeiro sairia com 4. A sobreposição vale por construção, e não por os dois estarem vivos no mesmo
+    // instante, que dependia de o processo do segundo subir antes de o primeiro soltar o lugar (e de o relógio de parede, que recua, concordar).
+    const a = iniciar(process.execPath, [FIXTURE, diario, 'a', '0', '--espera-por=b'], { CI: 'true' })
+    await new Promise((resolver) => setTimeout(resolver, 3_000))
+    const b = iniciar(process.execPath, [FIXTURE, diario, 'b', '0', '--espera-por=a'], { CI: 'true' })
     expect(await Promise.all([a.terminou, b.terminou])).toEqual([0, 0])
-    const marcas = lerDiario()
-    // Sobrepostos: cada um entrou antes de o outro sair.
-    expect(marcas.get('a entrou')).toBeLessThan(marcas.get('b saiu') ?? 0)
-    expect(marcas.get('b entrou')).toBeLessThan(marcas.get('a saiu') ?? 0)
+    // A ordem é a das linhas do diário (o que cada um escreveu depois do outro), e não a das horas que elas levam.
+    const ordem = ordemDoDiario()
+    expect([...ordem].sort()).toEqual(['a entrou', 'a saiu', 'b entrou', 'b saiu'])
+    // Sobrepostos: cada um entrou antes de o outro sair. As duas ordens abaixo valem por construção sempre que os dois saem com 0 (cada um só escreve
+    // `saiu` depois de ver o `entrou` do outro): quem prova a regra é o `[0, 0]` acima, e esta checagem não o substitui.
+    expect(ordem.indexOf('a entrou')).toBeLessThan(ordem.indexOf('b saiu'))
+    expect(ordem.indexOf('b entrou')).toBeLessThan(ordem.indexOf('a saiu'))
   }, 30_000)
 
   it('quem falha lá dentro devolve o mesmo código ao shell: o portão vermelho continua vermelho', async () => {
