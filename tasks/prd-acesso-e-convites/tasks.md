@@ -42,11 +42,11 @@
   - [x] 5.5 O expurgo de acesso (30 dias; `falhou` de 24 h, `@Unscoped` próprio)
   - [x] 5.6 Testes: resposta igual com piso, limites, link de 1 h, auditoria por escola, a cerca, expurgo, as três corridas
 
-- [ ] **6.0 — As telas "Esqueci a senha" e "Redefinir"**
-  - [ ] 6.1 A tela "Esqueci a senha" e o link na entrada da equipe
-  - [ ] 6.2 A tela "Redefinir", que lê o token do fragmento e o tira da barra
-  - [ ] 6.3 `docs/interface.md`: as duas telas e a entrada
-  - [ ] 6.4 Testes: esqueci → redefinir pelo Mailpit, estados, recomeço, 360 px
+- [x] **6.0 — As telas "Esqueci a senha" e "Redefinir"**
+  - [x] 6.1 A tela "Esqueci a senha" e o link na entrada da equipe
+  - [x] 6.2 A tela "Redefinir", que lê o token do fragmento e o tira da barra
+  - [x] 6.3 `docs/interface.md`: as duas telas e a entrada
+  - [x] 6.4 Testes: esqueci → redefinir pelo Mailpit, estados, recomeço, 360 px
 
 - [x] **7.0 — Posse do e-mail: verificar antes de a conta cruzar escolas (API)**
   - [ ] 7.1 Migration `conta.emailVerificadoEm`
