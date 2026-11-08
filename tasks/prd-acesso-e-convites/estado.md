@@ -1,13 +1,14 @@
 # Estado da execução — acesso-e-convites
 
 ## Agora
-- **Espero:** o `RELATÓRIO` do `Implementador 2` (linha 2) da correção `2026-11-07-encontro-1` (sessão nova, pedida em 07/11 19:50): o encontro da 1.0 (`dcdf4423`, aprovada na 2ª rodada por todos) deu `CONFLITO` com a spec em `apps/web/chunk-names.test.ts` e `tools/ci/tamanho-web.test.ts`; ele faz o merge da spec, portão, Mesa 2 e commit do merge. Depois, o encontro 2 de novo, e aí a 1.0 entra em "Concluídas". Esteira da spec em `c9bfcabe`: ler no próximo encontro feito.
-- **Devo ainda:** O provedor de e-mail segue aberto: segura o portão, não as tarefas. Com a lista de tarefas, o aviso das 30 min (passo 7). Candidata a correção quando a máquina estiver livre: `vigia.test.ts` › "grava a feita agora" intermitente (1 de 6 isolado, ressalva do `Implementador` em 07/11). Ressalvas da 1.0 no TODO.md: `challenge.ts` e `operador-challenge.ts` com `maxTokenAge` sem folga de relógio; relógio de parede em `usado_em >= desativado_em`. Segue ~15% de intermitência residual nos alvos de integração da 1.0 sob carga pelo relógio do WSL (timesyncd); o remédio é o teste não depender do relógio, não parar o timesyncd.
-- **Base:** `spec/acesso-e-convites` em `c9bfcabe`
+- **Espero:** o `RELATÓRIO` do `Implementador` (linha 1) da **tarefa 2.0** (porte grande, 1ª tentativa, desde 07/11 19:58). Linha 2 ociosa: o quadro não libera outra tarefa junto da 2.0. Esteira da spec rodando em `933177ce` (execução 42425078992): ler no próximo encontro.
+- **Devo ainda:** O provedor de e-mail segue aberto: segura o portão, não as tarefas. Com a lista de tarefas, o aviso das 30 min (passo 7). Candidata a correção quando a máquina estiver livre: `vigia.test.ts` › "grava a feita agora" intermitente (1 de 6 isolado, ressalva do `Implementador` em 07/11). Ressalvas da 1.0 no TODO.md: `challenge.ts` e `operador-challenge.ts` com `maxTokenAge` sem folga de relógio; relógio de parede em `usado_em >= desativado_em`. Segue ~15% de intermitência residual nos alvos de integração da 1.0 sob carga pelo relógio do WSL (timesyncd); o remédio é o teste não depender do relógio, não parar o timesyncd. Candidatas a correção de dependência da carga (aviso da `encontro-1`, passam isoladas): `revisoes.test.ts` › "índice compartilhado" (trava de 10 s em `comTrava`, 6 processos) e `fila-de-carga.test.ts` › "na esteira não há fila" (dois processos de 2,5 s têm de se sobrepor); vão ao TODO.md no fechamento.
+- **Base:** `spec/acesso-e-convites` em `933177ce`
 
 ## Concluídas
 | Tarefa | Commit | Modelo | Rodadas | Observação |
 |---|---|---|---|---|
+| 1.0 | `dcdf4423` (merge `bfc164bc`) | Sonnet 5.5 | 2 | linha 2; correções `testes-sob-carga` (`99eb1347`) e `encontro-1` (conflito de comentário com a linha 1 e resto do `restos` em `enviar-email.int.test.ts`); spec em `933177ce` |
 
 ## Esperando o Joaquim
 ## O que falhou
