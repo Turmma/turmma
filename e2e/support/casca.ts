@@ -1,4 +1,4 @@
-import type { Locator, Page } from '@playwright/test'
+import type { Locator, Page, Response } from '@playwright/test'
 import { mensagemDoSegundoFator } from '../../packages/shared/src/errors/messages.ts'
 import { loadUnthrottled, expect } from './profiles.ts'
 import { campoCodigo } from './mfa.ts'
@@ -158,8 +158,28 @@ export async function esperarATelaDepoisDaRecarga(page: Page): Promise<void> {
   }
 }
 
-/** A ativação do segundo fator tenta duas vezes: a segunda cobre o Redis de fila que parou por um instante na esteira. */
-const TENTATIVAS_DA_ATIVACAO = 2
+/**
+ * Quanto esperar antes de cada repetição de um passo do login da coordenação que a API recusou com o 401 de sempre (`NAO_AUTENTICADO`), e portanto
+ * quantas repetições há: a primeira tentativa não espera, a segunda espera 3 s e a terceira, 5 s. A recusa tem duas causas que a tela não distingue, e as
+ * duas passam com o tempo: o Redis de fila que parou por um instante (a API recusa o desafio sem a marca, antes de gastar o código) e o desafio emitido
+ * com o `iat` à frente do relógio da API que o confere (`jwtVerify` com `maxTokenAge` e sem tolerância recusa o `iat` no futuro), que só vale quando o
+ * relógio dela passa dele. Repetir na hora, como esta fixture fazia, bate na mesma recusa: no portão da 4.0 o desafio saiu com `iat` 05:54:49 e a API
+ * o conferiu às 05:54:47,69 e às 05:54:48,41, as duas vezes recusando.
+ *
+ * **A espera é pelo relógio de parede** (`Date.now()`), o mesmo que a API lê para conferir o `iat`, e não por um `setTimeout`: nesta máquina o relógio de
+ * parede chega a andar na metade da velocidade do dos timers (2,6 s entre as ações do teste foram 1,1 s entre os pedidos no traço), e 3 s de timer podem
+ * ser 1,5 s do relógio que decide a recusa. Uma recusa depois das esperas é do código ou da API, e falha dizendo o que a tela mostrava.
+ */
+const ESPERAS_ENTRE_TENTATIVAS_MS = [3_000, 5_000] as const
+const TENTATIVAS_DO_PASSO = ESPERAS_ENTRE_TENTATIVAS_MS.length + 1
+
+/** A espera que antecede a `tentativa` (a partir de 1): nenhuma na primeira, e nas outras até o relógio de parede andar o tempo da tabela. */
+async function esperarParaRepetir(page: Page, tentativa: number): Promise<void> {
+  const espera = ESPERAS_ENTRE_TENTATIVAS_MS[tentativa - 2]
+  if (espera === undefined) return
+  const ate = Date.now() + espera
+  while (Date.now() < ate) await page.waitForTimeout(100)
+}
 
 async function activate(alvo: Locator, hasTouch: boolean): Promise<void> {
   if (hasTouch) await alvo.tap()
@@ -293,26 +313,28 @@ export async function abrirEstrutura(page: Page, hasTouch: boolean): Promise<voi
 }
 
 /** O aviso que a tela de ativação mostra quando a API recusa o código: o do código errado, o do já usado e o do Redis de fila parado são o mesmo. */
-const RECUSA_DA_ATIVACAO = mensagemDoSegundoFator('NAO_AUTENTICADO')
+const RECUSA_DO_SEGUNDO_FATOR = mensagemDoSegundoFator('NAO_AUTENTICADO')
 
 /**
  * Digita o código e ativa o segundo fator, e espera a tela dizer o que aconteceu: o link "Ir para a entrada" (ativou) ou o aviso de recusa.
  *
  * Com o disco da esteira ocupado, o Redis de fila pode passar dos 2 s do compose de teste, e a API recusa o desafio sem a marca dele
  * (`login.desafio_sem_redis`, de propósito) **antes de gastar o código e o desafio**: a tela mostra o aviso do código errado, e o mesmo
- * código, no mesmo desafio, vale na tentativa seguinte. Por isso a recusa tem uma segunda tentativa, com o código do passo de agora. Uma recusa
- * que se repete é do código ou da API, e falha aqui, dizendo o que a tela mostrava, em vez de esperar o link até o fim do relógio do teste.
+ * código, no mesmo desafio, vale na tentativa seguinte. O desafio com o `iat` à frente do relógio da API dá a mesma recusa, também antes do código
+ * (ver `ESPERAS_ENTRE_TENTATIVAS_MS`). Por isso a recusa tem novas tentativas, com espera e o código do passo de agora. Uma recusa que se repete
+ * é do código ou da API, e falha aqui, dizendo o que a tela mostrava, em vez de esperar o link até o fim do relógio do teste.
  */
 async function ativarOSegundoFator(page: Page, segredo: string, hasTouch: boolean): Promise<void> {
   const ativou = page.getByRole('link', { name: 'Ir para a entrada' })
-  const recusa = page.getByRole('alert').filter({ hasText: RECUSA_DA_ATIVACAO })
-  for (let tentativa = 1; tentativa <= TENTATIVAS_DA_ATIVACAO; tentativa += 1) {
+  const recusa = page.getByRole('alert').filter({ hasText: RECUSA_DO_SEGUNDO_FATOR })
+  for (let tentativa = 1; tentativa <= TENTATIVAS_DO_PASSO; tentativa += 1) {
+    await esperarParaRepetir(page, tentativa)
     await campoCodigo(page).fill(codigoDoAutenticador(segredo))
     await activate(page.getByRole('button', { name: /Ativar o segundo fator|Ativando/ }), hasTouch)
     await expect(ativou.or(recusa)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     if (await ativou.isVisible()) return
   }
-  throw new Error(`A API recusou a ativação do segundo fator ${String(TENTATIVAS_DA_ATIVACAO)} vezes seguidas, com o código do passo de agora: "${RECUSA_DA_ATIVACAO}"`)
+  throw new Error(`A API recusou a ativação do segundo fator ${String(TENTATIVAS_DO_PASSO)} vezes seguidas, com o código do passo de agora: "${RECUSA_DO_SEGUNDO_FATOR}"`)
 }
 
 /**
@@ -322,17 +344,61 @@ async function ativarOSegundoFator(page: Page, segredo: string, hasTouch: boolea
  * abre; quem precisa da tela chama `esperarPainel`, e quem vai montar a escola, `abrirEstrutura`.
  */
 export async function entrarComoCoordenacaoNaMesmaAba(page: Page, coordenadora: EquipeDeTeste, hasTouch: boolean): Promise<void> {
-  const respostaDoSegredo = page.waitForResponse((resposta) => new URL(resposta.url()).pathname === '/v1/conta/mfa/configurar')
-  await entrarPorEmail(page, coordenadora, hasTouch)
-  await expect(page.getByRole('heading', { name: 'Configurar o segundo fator' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
-  const { segredo } = (await (await respostaDoSegredo).json()) as { segredo: string }
+  const segredo = await pedirOSegredo(page, () => entrarPorEmail(page, coordenadora, hasTouch), hasTouch)
   await ativarOSegundoFator(page, segredo, hasTouch)
   await activate(page.getByRole('link', { name: 'Ir para a entrada' }), hasTouch)
   await entrarPorEmail(page, coordenadora, hasTouch)
   await expect(page.getByRole('heading', { name: 'Segundo fator' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
-  await campoCodigo(page).fill(codigoDoAutenticador(segredo, PASSO_SEGUINTE_SEGUNDOS))
-  await activate(page.getByRole('button', { name: /^Entrar$/ }), hasTouch)
+  await digitarOCodigoDaEntrada(page, segredo, hasTouch)
   await expect(page).toHaveURL(/\/coordenacao\/painel$/, { timeout: SIGN_IN_TIMEOUT_MS })
+}
+
+/**
+ * O primeiro passo do segundo fator: `entrar` leva a pessoa à tela "Configurar o segundo fator", e o segredo é o da primeira
+ * resposta de `/v1/conta/mfa/configurar` **que o trouxe**.
+ *
+ * É a mesma recusa da ativação (ver `ativarOSegundoFator` e `ESPERAS_ENTRE_TENTATIVAS_MS`): a API recusa o desafio com 401 antes de gravar
+ * segredo nenhum, e a tela mostra o aviso e o botão "Tentar de novo". Ler o corpo da primeira resposta qualquer, como a fixture
+ * fazia, dava `segredo` indefinido e um código recusado dois passos depois. Agora a recusa é lida pelo status; o botão, depois da espera, pede
+ * **outro** segredo (o recusado nunca foi gravado, então não há dois) e a tela é a que o mostra. A recusa depois das esperas falha aqui, dizendo os status.
+ */
+export async function pedirOSegredo(page: Page, entrar: () => Promise<void>, hasTouch: boolean): Promise<string> {
+  const ehDaConfiguracao = (resposta: Response) => new URL(resposta.url()).pathname === '/v1/conta/mfa/configurar'
+  const statusDasRecusas: number[] = []
+  for (let tentativa = 1; tentativa <= TENTATIVAS_DO_PASSO; tentativa += 1) {
+    await esperarParaRepetir(page, tentativa)
+    const resposta = page.waitForResponse(ehDaConfiguracao, { timeout: SIGN_IN_TIMEOUT_MS })
+    if (tentativa === 1) await entrar()
+    else await activate(page.getByRole('button', { name: 'Tentar de novo' }), hasTouch)
+    const recebida = await resposta
+    if (recebida.ok()) {
+      const { segredo } = (await recebida.json()) as { segredo: string }
+      await expect(page.getByRole('heading', { name: 'Configurar o segundo fator' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+      return segredo
+    }
+    statusDasRecusas.push(recebida.status())
+  }
+  throw new Error(`A API recusou o segredo do segundo fator ${String(TENTATIVAS_DO_PASSO)} vezes seguidas: status ${statusDasRecusas.join(', ')}`)
+}
+
+/**
+ * O código da tela "Segundo fator", digitado e enviado, e espera a tela dizer o que aconteceu: sair de `/mfa` (entrou) ou o aviso de recusa.
+ * É o terceiro passo que a recusa alcança (`ativarOSegundoFator`, `ESPERAS_ENTRE_TENTATIVAS_MS`): a API a dá antes do contador e do passo gravado, o
+ * código não se gasta e o mesmo vale na tentativa seguinte, que espera e gera o do passo de agora. Recusa que se repete é do código ou da API, e falha
+ * aqui, sem esperar o Painel até o fim do relógio do teste.
+ */
+export async function digitarOCodigoDaEntrada(page: Page, segredo: string, hasTouch: boolean): Promise<void> {
+  const recusa = page.getByRole('alert').filter({ hasText: RECUSA_DO_SEGUNDO_FATOR })
+  for (let tentativa = 1; tentativa <= TENTATIVAS_DO_PASSO; tentativa += 1) {
+    await esperarParaRepetir(page, tentativa)
+    await campoCodigo(page).fill(codigoDoAutenticador(segredo, PASSO_SEGUINTE_SEGUNDOS))
+    await activate(page.getByRole('button', { name: /^Entrar$/ }), hasTouch)
+    await expect
+      .poll(async () => ((await recusa.isVisible()) ? 'recusa' : /\/mfa$/.test(page.url()) ? 'esperando' : 'entrou'), { timeout: SIGN_IN_TIMEOUT_MS })
+      .not.toBe('esperando')
+    if (!(await recusa.isVisible())) return
+  }
+  throw new Error(`A API recusou o código da entrada ${String(TENTATIVAS_DO_PASSO)} vezes seguidas, com o código do passo de agora: "${RECUSA_DO_SEGUNDO_FATOR}"`)
 }
 
 /**
@@ -342,8 +408,7 @@ export async function entrarComoCoordenacaoNaMesmaAba(page: Page, coordenadora: 
 export async function entrarPelaTelaComSegundoFator(page: Page, coordenadora: Pick<EquipeDeTeste, 'email' | 'senha'>, segredo: string, hasTouch: boolean): Promise<void> {
   await entrarPorEmail(page, coordenadora, hasTouch)
   await expect(page.getByRole('heading', { name: 'Segundo fator' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
-  await campoCodigo(page).fill(codigoDoAutenticador(segredo, PASSO_SEGUINTE_SEGUNDOS))
-  await activate(page.getByRole('button', { name: /^Entrar$/ }), hasTouch)
+  await digitarOCodigoDaEntrada(page, segredo, hasTouch)
 }
 
 /**
@@ -356,16 +421,12 @@ export async function entrarComoCoordenacaoPeloConvite(page: Page, convite: Conv
   await expect(page.getByRole('main')).toContainText(convite.escolaNome, { timeout: SIGN_IN_TIMEOUT_MS })
   await activate(page.getByRole('button', { name: /Aceitar o convite|Aceitando/ }), hasTouch)
   await page.getByLabel('Senha nova').fill(senha, { timeout: SIGN_IN_TIMEOUT_MS })
-  const respostaDoSegredo = page.waitForResponse((resposta) => new URL(resposta.url()).pathname === '/v1/conta/mfa/configurar')
-  await activate(page.getByRole('button', { name: /Definir a senha e continuar|Salvando/ }), hasTouch)
-  await expect(page.getByRole('heading', { name: 'Configurar o segundo fator' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
-  const { segredo } = (await (await respostaDoSegredo).json()) as { segredo: string }
+  const segredo = await pedirOSegredo(page, () => activate(page.getByRole('button', { name: /Definir a senha e continuar|Salvando/ }), hasTouch), hasTouch)
   await ativarOSegundoFator(page, segredo, hasTouch)
   await activate(page.getByRole('link', { name: 'Ir para a entrada' }), hasTouch)
   await entrarPorEmail(page, { email: convite.email, senha }, hasTouch)
   await expect(page.getByRole('heading', { name: 'Segundo fator' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
-  await campoCodigo(page).fill(codigoDoAutenticador(segredo, PASSO_SEGUINTE_SEGUNDOS))
-  await activate(page.getByRole('button', { name: /^Entrar$/ }), hasTouch)
+  await digitarOCodigoDaEntrada(page, segredo, hasTouch)
 }
 
 /** O título da aba na tela em que o aluno abre. */
