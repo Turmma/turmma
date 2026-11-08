@@ -11,6 +11,7 @@ import { REDIS_LOGIN_CLIENT, PasswordHasher } from '../src/credencial/index.js'
 import { chamar, subirApi, type TestApi } from './test-api.js'
 import { autorDaBancada, SessaoFixtures, type TestSessao } from './sessao.fixture.js'
 import { emOrdemNaTrava } from './escola-lock.js'
+import { anteciparODesativado, desativarDepoisDoUltimoAceite } from './relogio-que-recua.js'
 
 /**
  * O professor cadastrado pela coordenação (A1, tarefa 3.0; `tasks/prd-apresentacao-escola/cenarios.md`): E8, E9, E10,
@@ -81,7 +82,21 @@ describe('professores (A1, tarefa 3.0): a coordenação cadastra, o professor ac
   }
 
   const pessoa = () => ({ nome: `Professor Sintético ${randomUUID().slice(0, 8)}`, email: `professor-${randomUUID()}@escola.invalid` })
-  const cadastrar = (coordenacao: TestSessao, corpo: unknown) => pedir('POST', '/v1/professores', coordenacao.token, corpo)
+  /**
+   * Cadastra. O professor nasce inativo, com `desativado_em = now()` do convidar, e o aceite só o ativa se `convite.usado_em >= desativado_em`: com o
+   * relógio de parede recuado entre os dois (0,8 a 1,7 s a cada uns 15 s nesta máquina), o aceite não ativa e o caso falha por um motivo que não é o dele
+   * (`relogio-que-recua.ts`). Por isso todo cadastro feito aqui já volta com o `desativado_em` um minuto no passado.
+   *
+   * O que isso deixa de fora: um caso que precise do `desativado_em` exato do convidar chama `pedir('POST', '/v1/professores', …)` direto, e não este. E o
+   * cadastro de quem já existe (outro 201 para o mesmo usuário) recua mais um minuto: não atrapalha hoje, mas o caso que cadastrar de novo um professor
+   * desligado **depois do aceite** pode contar um aceite antigo como ativação e passar sem provar nada; esse caso desativa com `desativarDepoisDoUltimoAceite`.
+   */
+  const cadastrar = async (coordenacao: TestSessao, corpo: unknown) => {
+    const resposta = await pedir('POST', '/v1/professores', coordenacao.token, corpo)
+    const usuarioId = resposta.status === 201 ? resposta.corpo['usuarioId'] : undefined
+    if (typeof usuarioId === 'string') await anteciparODesativado(bancada.pool, usuarioId)
+    return resposta
+  }
   const listar = (coordenacao: TestSessao, consulta = '') => pedir('GET', `/v1/professores${consulta}`, coordenacao.token)
   const refazer = (coordenacao: TestSessao, usuarioId: string) => pedir('POST', `/v1/professores/${usuarioId}/convite/refazer`, coordenacao.token, {})
   const revogar = (coordenacao: TestSessao, usuarioId: string) => pedir('POST', `/v1/professores/${usuarioId}/convite/revogar`, coordenacao.token, {})
@@ -121,10 +136,12 @@ describe('professores (A1, tarefa 3.0): a coordenação cadastra, o professor ac
     return { convites: convites.rows, usuarios: usuarios.rows, auditoria: auditoria.rows }
   }
 
+  // Na ordem das transações (`xmin`), e não do `id`: o id v7 segue o relógio, que nesta máquina recua até ~1,7 s (`relogio-que-recua.ts`) e desordena duas linhas seguidas.
+  // Supõe que a tabela `auditoria` só recebe INSERT: o `xmin` é o da última escrita da linha, e com um UPDATE ele deixaria de ser a ordem da inserção. Não copie esta ordem para uma tabela que se atualiza.
   const auditoriaDe = async (escolaId: string, acao: string) =>
     (
       await bancada.pool.query<{ entidade: string; entidade_id: string; autor_usuario_id: string | null; antes: unknown; depois: Record<string, unknown> | null }>(
-        'select entidade, entidade_id, autor_usuario_id, antes, depois from auditoria where escola_id = $1 and acao = $2 order by id',
+        'select entidade, entidade_id, autor_usuario_id, antes, depois from auditoria where escola_id = $1 and acao = $2 order by xmin::text::bigint, id',
         [escolaId, acao],
       )
     ).rows
@@ -574,7 +591,7 @@ describe('professores (A1, tarefa 3.0): a coordenação cadastra, o professor ac
       expect((await revogar(coordenacao, revogado.usuarioId)).status).toBe(204)
       const desligado = await cadastrado(coordenacao)
       expect((await aceitar(desligado.token, SENHA_NOVA)).status).toBe(200)
-      await bancada.pool.query("update usuario set desativado_em = now() + interval '1 second' where id = $1", [desligado.usuarioId])
+      await desativarDepoisDoUltimoAceite(bancada.pool, desligado.usuarioId)
 
       // A outra escola: um professor com convite em aberto e um ativo. Quem prova a escola na consulta do usuário é o
       // ativo: sem ela, o pendente ainda sairia como `desativado`, porque o convite dele não é desta escola.
