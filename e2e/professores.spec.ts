@@ -6,10 +6,12 @@ import { abrirOQueFalta, irPelaCoordenacao, linhasDaTabela, paginaNaoRola } from
 import { abrirPelaApiSemMedirAPrimeiraCarga, configurarSegundoFatorPelaApi } from './support/mfa.ts'
 import { expect, test } from './support/profiles.ts'
 import {
+  anteciparOsConvitesDaPessoa,
   convidarProfessorNoBanco,
   convitesDeProfessorEmAberto,
   criarEquipeComSenha,
   definirInatividadeDaEscola,
+  definirOEnvioDoConvite,
   montarEstruturaNoBanco,
   revogarConvite,
   type EquipeDeTeste,
@@ -791,6 +793,7 @@ test.describe('clique duplo', () => {
     await expect(noDialogo(page).getByRole('alert')).toHaveCount(0)
     expect(pedidos).toBe(1)
     await page.unroute(ehALista, segurar)
+    await anteciparOsConvitesDaPessoa(coordenadora.escolaId, nome)
     await tocar(noDialogo(page), 'Fechar', hasTouch)
     await tocar(noDialogo(page), 'Fechar sem copiar', hasTouch)
     await expect(linhasDaLista(page)).toHaveCount(1, { timeout: SIGN_IN_TIMEOUT_MS })
@@ -1065,11 +1068,14 @@ test.describe('recomeço da tela Professores', () => {
     expect(await page.content()).not.toContain(token)
   })
 
-  test('segunda pessoa: a coordenação de B entra na aba da de A, e não vê a lista nem o diálogo dela', async ({ page, hasTouch }) => {
+  test('segunda pessoa: a coordenação de B entra na aba da de A, e não vê a lista nem o diálogo dela', async ({ page, request, hasTouch }) => {
     test.slow()
     const deA = await criarEquipeComSenha('coordenador')
     const professorDeA = await convidarProfessorNoBanco(deA.escolaId, 'pendente')
+    // O envio por e-mail de A (acesso-e-convites, 4.0): a hora do envio é dele, e a pessoa seguinte na aba não a vê.
+    await definirOEnvioDoConvite(professorDeA.usuarioId, 'enviado', '2026-11-12T17:05:00.000Z')
     await abrirProfessores(page, deA, hasTouch)
+    await expect(linhaDe(page, professorDeA.nome)).toContainText('Enviado em 12/11 às 14:05', { timeout: SIGN_IN_TIMEOUT_MS })
     const token = tokenDo(await refazerPelaTela(page, professorDeA.nome, hasTouch))
     await tocar(noDialogo(page), 'Fechar', hasTouch)
     await tocar(noDialogo(page), 'Fechar sem copiar', hasTouch)
@@ -1089,20 +1095,31 @@ test.describe('recomeço da tela Professores', () => {
       if (rota.request().method() === 'GET') await segurada.aberta
       return rota.fallback()
     })
-    await entrarComoCoordenacaoNaMesmaAba(page, deB, hasTouch)
+    // O segundo fator de B é configurado pela API: o caso é sobre o que a aba mostra da pessoa anterior, e o login pela tela continua.
+    const { segredo } = await configurarSegundoFatorPelaApi(request, deB)
+    await entrarPelaTelaComSegundoFator(page, deB, segredo, hasTouch)
+    await expect(page).toHaveURL(/\/coordenacao\/painel$/, { timeout: SIGN_IN_TIMEOUT_MS })
     await irPelaCoordenacao(page, 'Professores', hasTouch)
     await expect(principal(page).getByRole('status').filter({ hasText: 'Carregando os professores…' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.locator('body')).not.toContainText(professorDeA.nome)
+    await expect(page.locator('body')).not.toContainText('Enviado em')
     await expect(dialogosAbertos(page)).toHaveCount(0)
     segurada.abrir()
     await expect(linhaDe(page, professorDeB.nome)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(linhasDaLista(page)).toHaveCount(1)
     await expect(page.locator('body')).not.toContainText(professorDeA.nome)
+    await expect(page.locator('body')).not.toContainText('Enviado em')
     await expect(dialogosAbertos(page)).toHaveCount(0)
     expect(await page.content()).not.toContain(token)
 
     // O endereço do professor de A, aberto na sessão de B: a lista de B não o tem, e a tela não abre painel nem diz que ele existe.
-    await page.goto(`/coordenacao/professores?professor=${professorDeA.usuarioId}`)
+    // O endereço entra no histórico da aba e o roteador o lê, sem recarregar a página: a recarga custa uns 12 s neste caso (a sessão volta
+    // por `/v1/sessao/renovar` e os pacotes da tela descem de novo), e o caso, com ela, passava de metade do prazo no portão.
+    await page.evaluate((endereco) => {
+      window.history.pushState(window.history.state, '', endereco)
+      window.dispatchEvent(new PopStateEvent('popstate', { state: window.history.state }))
+    }, `/coordenacao/professores?professor=${professorDeA.usuarioId}`)
+    await expect(page).toHaveURL(new RegExp(`professor=${professorDeA.usuarioId}`))
     await expect(linhaDe(page, professorDeB.nome)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(paineisAbertos(page)).toHaveCount(0)
     await expect(page.locator('body')).not.toContainText(professorDeA.nome)
@@ -1337,6 +1354,7 @@ test.describe('RF6 (15.0): subir a planilha de professores, ver a prévia e grav
     const painel = await abrirPainel(page, nina.nome, hasTouch)
     await expect(acoesDoPainel(painel)).toHaveText([...ACOES_DO_ESTADO.pendente])
     expect(escritas).toEqual([])
+    await anteciparOsConvitesDaPessoa(coordenadora.escolaId, nina.nome)
 
     // O link sai pelo refazer: um POST em `/v1/professores/<usuário>/convite/refazer`, e o link vem na resposta, uma vez.
     const refazendo = page.waitForRequest((pedido) => pedido.method() === 'POST' && ROTA_DO_REFAZER(new URL(pedido.url())))

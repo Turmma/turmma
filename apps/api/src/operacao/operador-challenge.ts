@@ -1,4 +1,4 @@
-import { throttledWarn, EMISSOR_TOKEN, DomainException, systemClock, DEFAULT_RETRY_AFTER_SECONDS, TIPO_DESAFIO_DE_OPERADOR, type Clock } from '@educa/core'
+import { throttledWarn, EMISSOR_TOKEN, DomainException, iatDoDesafioConfere, systemClock, DEFAULT_RETRY_AFTER_SECONDS, TIPO_DESAFIO_DE_OPERADOR, type Clock } from '@educa/core'
 import { ErrorCode, InvariantException } from '@educa/shared'
 import { Logger } from '@nestjs/common'
 import type { Redis } from 'ioredis'
@@ -67,6 +67,11 @@ export class OperadorChallengeIssuer {
   }
 }
 
+/** Recusa, com o `NAO_AUTENTICADO` de qualquer desafio inválido, o `iat` fora do que vale: mais velho que o prazo, ou à frente do relógio além da folga. */
+function exigirIdadeDoDesafio(iat: number | undefined, agora: Date): void {
+  if (!iatDoDesafioConfere(iat, agora, OPERADOR_CHALLENGE_TTL_SECONDS)) throw new DomainException(ErrorCode.NAO_AUTENTICADO)
+}
+
 /**
  * Confere o desafio do operador para a etapa da rota. Toda recusa é `NAO_AUTENTICADO`, sem dizer o que falhou: outro
  * `typ` (o token de acesso, o desafio da escola), outra audiência, vencido, de outra etapa ou com assinatura que não
@@ -74,15 +79,18 @@ export class OperadorChallengeIssuer {
  */
 export async function verifyOperadorChallenge(desafio: string, chaveAssinatura: Uint8Array, etapa: OperadorChallengeStep): Promise<VerifiedOperadorChallenge> {
   let claims: unknown
+  const agora = new Date()
   try {
     const verificado = await jwtVerify(desafio, chaveAssinatura, {
       algorithms: ['HS256'],
       typ: TIPO_DESAFIO_DE_OPERADOR,
       issuer: EMISSOR_TOKEN,
       audience: OPERADOR_CHALLENGE_AUDIENCE,
-      requiredClaims: ['exp', 'jti', 'sub'],
-      maxTokenAge: OPERADOR_CHALLENGE_TTL_SECONDS,
+      requiredClaims: ['exp', 'jti', 'sub', 'iat'],
+      currentDate: agora,
     })
+    // A idade com folga de relógio, e não o `maxTokenAge` do `jose`: ver `verifyChallenge`. O prazo segue exato.
+    exigirIdadeDoDesafio(verificado.payload.iat, agora)
     claims = verificado.payload
   } catch (erro) {
     if (erro instanceof errors.JOSEError) throw new DomainException(ErrorCode.NAO_AUTENTICADO)

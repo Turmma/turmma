@@ -18,6 +18,8 @@ rodada 1) acrescentou os casos marcados (F2c) e as seções "Arquivo do titular"
     entram na fila, a contagem diz quantos, nunca 409 pelo lote. Com 2 pontos restantes na cota, a seleção de 6 (2
     pendentes ou vencidos, 4 aceitos, revogados ou desativados) passa e a cota zera (um "Enviar" de 1 pendente logo depois recebe 429): conta o que entra, não a seleção. (F2c)
   - [I] Cota esgotada, relógio falso: com 59 min, 429; com 61 min, passa (janela de 1 h). (F2c)
+  - [I] `GET /v1/professores`: `enviadoEm` com a hora gravada pelo job só no envio `enviado`; nulo em `na_fila`, `enviando`,
+    `falhou`, `cancelado` e no convite copiado; o professor da B não aparece com o `enviadoEm` dele na lista da A. (F2c, divergência da 4.0)
   - [I] 40 pendentes com o `FakeEmailSender` (o mesmo da API e do worker) preso numa barreira: 40 na fila, e a resposta
     volta antes de a barreira abrir. (F2c)
   - [I] Lote maior que o que resta da cota de 300/h: 429 inteiro, nada na fila nem na auditoria; lote de 40 com 30

@@ -78,12 +78,44 @@ describe('os professores da escola (A1, 14.0)', () => {
   })
 
   it('a lista vem da rota paginada, com a sessão, e fica na chave da estrutura, que a troca de escola esvazia', async () => {
-    const item = { usuarioId: USUARIO, nome: pedido.nome, estado: 'pendente', envio: null }
+    const item = { usuarioId: USUARIO, nome: pedido.nome, estado: 'pendente', envio: null, enviadoEm: null }
     fila.push({ status: 200, corpo: { itens: [item] } })
     const cliente = new QueryClient()
     expect(await cliente.fetchQuery(m.professores.professoresQueryOptions)).toEqual({ itens: [item], completa: true })
     expect(chamadas).toEqual([{ caminho: '/v1/professores?limite=100', metodo: 'GET', corpo: undefined, autorizacao: 'Bearer token-de-acesso' }])
     expect(m.professores.professoresQueryOptions.queryKey).toEqual(['estrutura', 'professores'])
+  })
+})
+
+describe('o envio do convite por e-mail (acesso-e-convites, 4.0)', () => {
+  const OUTRO = '0192a4c0-5b1e-7c3d-8e4f-a0b1c2d3e4f7'
+
+  it('vai à rota do envio com a sessão: sem lista o corpo é vazio (todos os que esperam), com lista leva só os ids, e a resposta é a contagem', async () => {
+    fila.push({ status: 200, corpo: { quantidade: 3 } }, { status: 200, corpo: { quantidade: 2 } })
+    expect(await m.professores.enviarConvites()).toEqual({ quantidade: 3 })
+    expect(await m.professores.enviarConvites([USUARIO, OUTRO])).toEqual({ quantidade: 2 })
+    expect(chamadas).toEqual([
+      { caminho: '/v1/professores/convites/enviar', metodo: 'POST', corpo: {}, autorizacao: 'Bearer token-de-acesso' },
+      { caminho: '/v1/professores/convites/enviar', metodo: 'POST', corpo: { usuarioIds: [USUARIO, OUTRO] }, autorizacao: 'Bearer token-de-acesso' },
+    ])
+  })
+
+  it('a resposta fora do contrato (o link na resposta) não chega ao diálogo', async () => {
+    fila.push({ status: 200, corpo: { quantidade: 1, token: TOKEN } })
+    await expect(m.professores.enviarConvites([USUARIO])).rejects.toBeDefined()
+  })
+
+  it('o pedido sai do cache (`gcTime: 0`), e o recarregar da lista roda quando ele termina, dê certo ou não', async () => {
+    const recarregar = vi.fn(async () => undefined)
+    expect(m.professores.mutacaoDoEnvioDeConvites([USUARIO]).gcTime).toBe(0)
+    expect(m.professores.mutacaoDoEnvioDeConvites([USUARIO]).onSettled).toBeUndefined()
+    fila.push({ status: 429, corpo: { erro: { codigo: 'LIMITE_EXCEDIDO', mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } }, { status: 200, corpo: { quantidade: 1 } })
+    const cliente = new QueryClient()
+    await expect(new MutationObserver(cliente, m.professores.mutacaoDoEnvioDeConvites([USUARIO], recarregar)).mutate()).rejects.toMatchObject({ codigo: 'LIMITE_EXCEDIDO' })
+    expect(recarregar).toHaveBeenCalledTimes(1)
+    await new MutationObserver(cliente, m.professores.mutacaoDoEnvioDeConvites([USUARIO], recarregar)).mutate()
+    expect(recarregar).toHaveBeenCalledTimes(2)
+    expect(chamadas.map((chamada) => chamada.corpo)).toEqual([{ usuarioIds: [USUARIO] }, { usuarioIds: [USUARIO] }])
   })
 })
 

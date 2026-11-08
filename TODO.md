@@ -1121,7 +1121,7 @@ código"), com o destino de cada uma. As pequenas foram fechadas na correção `
       (`tools/processo/portao.ts:164`, `quando >= inicio`), e o `mtime` do kernel chega a ficar 1,5 s atrás do `Date.now()`** (medido nesta
       máquina). No uso real uma edição feita logo depois do portão pode passar; hoje o portão leva minutos e a premissa é frágil só se ele
       encurtar. Fora da correção, que corrigiu só o teste (dono: Arquiteto, na retro da spec)
-- [ ] (acesso-e-convites, 1.0, revisor-geral, infra-guardian e test-engineer, 2ª) **`challenge.ts` e `operador-challenge.ts` usam o `maxTokenAge` do `jose` sem folga de relógio**
+- [x] (acesso-e-convites, 1.0, revisor-geral, infra-guardian e test-engineer, 2ª) **`challenge.ts` e `operador-challenge.ts` usam o `maxTokenAge` do `jose` sem folga de relógio** (feito: correção `2026-11-08-desafio-com-folga-de-relogio`, folga de 10 s na idade em segundos)
       (`apps/api/src/credencial/challenge.ts:105`, `apps/api/src/operacao/operador-challenge.ts:84`): o `iat` no futuro é recusado, e dois relógios 1 s fora (duas
       instâncias da API, ou o relógio que recua) derrubam o desafio do segundo fator, com 401. O `challenge.test.ts` já caiu uma vez por isso no portão. A 1.0 deu
       a folga só ao bilhete do convite (`TICKET_CLOCK_TOLERANCE_SECONDS`, `convite-ticket.ts`); o mesmo vale aqui, com a idade conferida em segundos para o prazo
@@ -3088,6 +3088,60 @@ aula" em `Retencao.tsx`, o Validador conferiu: a tela já o mostra pela descriç
 - [ ] (acesso-e-convites 3.0, test-engineer, 2ª) **Bloco de mutação para o endereço de outro professor do lote** (`email` do vizinho em `entram`); o teste já fica vermelho, falta o bloco que o portão
       prova (dono: Implementador)
 
+## Da correção 2026-11-08-desafio-com-folga-de-relogio (a folga de relógio do desafio de login), fora dela
+
+- [ ] (correção 2026-11-08-desafio-com-folga-de-relogio, privacy-guardian, infra-guardian, test-engineer e revisor-geral, 1ª) **Os verificadores do desafio leem o relógio por dentro, e a conta de idade com folga existe em três cópias.**
+      `verifyChallenge` e `verifyOperadorChallenge` tiram `agora` de `new Date()`: receber o `Clock` injetado, como os emissores, tornaria determinísticos os testes de borda. Junto: a conta
+      de idade com folga está em `iatDoDesafioConfere` (10 s fixos), em `convite-ticket.ts:68-69` (30 s) e em `exigirIdadeDoDesafio`, repetida em `challenge.ts` e `operador-challenge.ts`; passar a
+      folga como parâmetro da função do core junta as três. E o lugar: a função e a constante estão em `verify-token.ts`, que trata do token de acesso, e um arquivo próprio do desafio no core seria
+      mais fácil de achar. Muda a assinatura dos verificadores e da função exportada, e toca `convite-ticket.ts`, fora da correção (dono: Implementador)
+- [ ] (correção 2026-11-08-desafio-com-folga-de-relogio, infra-guardian, 1ª) **NTP nas instâncias da API, com um limite de diferença, em `docs/infra.md`.** A folga de 10 s parte desse pressuposto: o `jti`
+      no Redis dura `exp - agora` no relógio de quem o consumiu. O limite de diferença entre relógios é decisão de operação (dono: Arquiteto, na retro da spec)
+
+## Da correção 2026-11-08-professores-e2e-sem-relogio (o "último convite" e o relógio de parede), fora dela
+
+- [ ] (correção 2026-11-08-professores-e2e-sem-relogio, Mesa) **O repository escolhe o último convite do professor por `desc(expiraEm)`, que segue o relógio de parede.** Em `apps/api/src/professores/professores.repository.ts` a ordem é
+      `asc(usuarioId), desc(expiraEm), desc(id)`: quando o relógio recua entre dois convites do mesmo professor (o cadastro e o "Refazer" logo depois), o novo sai com validade menor que a do velho e
+      a lista passa a mostrar o velho. A correção só antecipa o convite existente nos dois casos de `e2e/professores.spec.ts` que refazem logo depois do cadastro (`:745`, `:1331`); o `W14` (`:457`) refaz uns segundos depois e ficou sem ele. A correção não toca o repository. A regra do "último convite" (criação,
+      ordem pelo `id` v7 ou por contador, ou a validade só como desempate) é decisão de desenho que muda o produto em mais de um lugar (dono: Arquiteto)
+      **Também é furo de produto, não só de teste (regra 20, item 8).** Com o relógio recuado entre o cadastro e o "Refazer", a coordenação vê o convite velho como "Convite revogado" e perde o botão "Revogar
+      convite"; o novo, válido e com link já emitido, fica ativo sem poder ser revogado pela tela até expirar. Não depende da máquina de desenvolvimento: duas instâncias da API com relógios um pouco diferentes,
+      ou duas coordenadoras refazendo em instâncias diferentes, caem na mesma inversão. Tratar junto com o item do NTP e do limite de diferença entre relógios (correção `2026-11-08-desafio-com-folga-de-relogio`),
+      e dar a prioridade pelo risco de revogação. Quando a regra mudar: o `escola_id` fica no `where` e no desempate da subconsulta; um teste de integração com o relógio falso recuando entre os dois convites prova
+      que o último é o mais novo mesmo com validade menor; e um teste de isolamento prova que o convite de outra escola não entra na escolha, ainda que um usuário da escola B tenha validade maior
+      (test-engineer, tenancy-guardian, privacy-guardian e infra-guardian, 1ª; dono: Arquiteto)
+
+## Da tarefa 4.0 de acesso-e-convites (Professores mostra o envio e o diálogo "Enviar convites"), fora dela
+
+- [ ] (acesso-e-convites 4.0, tenancy-guardian, 1ª) **O `eq(convite.escolaId, escolaId)` em `professores.repository.ts:45` não tem teste próprio.** É defesa em profundidade: nenhum teste quebra se só essa
+      cláusula sair. Exige montar um convite de outra escola apontando para o `usuario_id` de um professor da A, se o banco aceitar essa combinação (dono: Implementador, junto com a próxima mudança do arquivo)
+- [ ] (acesso-e-convites 4.0, tenancy-guardian, 1ª) **`definirOEnvioDoConvite` (`e2e/support/seed.ts`) atualiza só por `usuario_id`, sem a escola.** É ajudante de teste; filtrar por escola muda a assinatura e os
+      chamadores (dono: Implementador)
+- [ ] (acesso-e-convites 4.0, frontend-reviewer, 1ª e 2ª, e conformidade-reviewer, 2ª) **Foto do diálogo e dos estados de envio a 360 px e a 1366 px.** A vitrine não monta professor esperando convite (nenhum dos
+      dois colégios sintéticos tem um), então nenhum revisor viu o botão, o diálogo nem os rótulos em foto; o alinhamento do rótulo `items-start` com o selo é o ponto. O Validador fotografa com um professor pendente (dono: Validador)
+- [ ] (acesso-e-convites 4.0, privacy-guardian, 1ª) **O arquivo do titular (`packages/core/src/titular/leitura-do-titular.ts`) não lê a tabela `convite`.** Vem da 3.0, em arquivo que a 4.0 não toca. Ligar ao pedido do
+      titular, ou escrever em `docs/lgpd.md` por que o convite fica de fora (regra 20, item 19) (dono: Arquiteto, para decidir)
+- [ ] (acesso-e-convites 4.0, privacy-guardian e revisor-geral, 1ª) **`FUSO_DA_ESCOLA` é a terceira cópia de `'America/Sao_Paulo'` no `apps/web`** (`envio-do-convite.ts:11`; as outras em `semana.ts:12` e
+      `textos-dos-pedidos.ts:203`). O ideal é uma constante única em `packages/shared`, e dizer a premissa de que a tela não lê o fuso por escola (dono: Implementador)
+- [ ] (acesso-e-convites 4.0, infra-guardian, 1ª) **A releitura usa `lerPaginas` e lê a lista inteira (até 10 páginas de 100).** Escola com mais de 100 professores e duas abas chega perto de 120 leituras por
+      minuto por usuário. Reler só quem está em envio, ou um intervalo que cresça com as páginas, para a rede pública grande; muda o contrato da releitura (dono: Arquiteto, para decidir)
+- [ ] (acesso-e-convites 4.0, revisor-geral, 1ª) **Com `dados.completa === false`, a contagem e os ids do "Enviar convites" cobrem só quem foi carregado, e o diálogo não avisa.** Só acontece acima de 1000
+      professores (o teto de 10 páginas de 100); pede um aviso novo, com texto novo (dono: Arquiteto, para decidir)
+- [ ] (acesso-e-convites 4.0, test-engineer, 1ª) **O e2e "o professor abre o link do e-mail, cria a senha e aceita" para no aviso de `/entrar`.** Poderia conferir, na lista da coordenação, que o professor saiu de
+      "pendente"; pede uma segunda sessão da coordenação dentro do caso (dono: Implementador)
+- [ ] (acesso-e-convites 4.0, test-engineer, 1ª) **A releitura do primeiro e2e (`e2e/professores-envio.spec.ts:164`) espera a entrega do worker mais a releitura de 5 s no relógio de parede,** perto da metade
+      do prazo. Instalar `page.clock` e usar `runFor` tira a margem, mas o ganho ainda precisa ser medido (dono: Implementador)
+- [ ] (acesso-e-convites 4.0, revisor-geral, 2ª) **O texto novo "Ninguém espera o convite agora: a lista mudou. Confira a situação de cada professor." não está em `cenarios.md` (RF11) nem em
+      `docs/interface.md`.** Registrá-lo lá, junto do "Nenhum convite entrou na fila"; quem confere texto de tela contra o PRD é o Validador (dono: Arquiteto)
+- [ ] (acesso-e-convites 4.0, revisor-geral, 2ª) **`TextoDaEtapa` (`DialogoDeEnviarConvites.tsx`): o segundo ramo testa `feito !== undefined` em vez de `etapa === 'feito'`.** Usar a etapa nos três ramos
+      deixa uma só fonte de verdade; sem mudança de comportamento (dono: Implementador, junto com a próxima mudança do arquivo)
+- [ ] (acesso-e-convites 4.0, revisor-geral, 2ª) **O comentário novo em `e2e/professores-envio.spec.ts` (linhas 416-417) descreve o `clock.install()`;** melhor dizer só o que garante a prova (dono: Implementador)
+- [ ] (acesso-e-convites 4.0, frontend-reviewer, 2ª) **Comentário de uma linha em `DialogoDeEnviarConvites.tsx`:** a etapa `sem_destinatario` não alcança o "Reenviar", que não recebe `semDestinatario`
+      (dono: Implementador, junto com a próxima mudança do arquivo)
+- [ ] (acesso-e-convites 4.0, test-engineer, 2ª) **O bloco de mutação "o diálogo diz 2 professores e o servidor devolve outra contagem" fica vermelho já na primeira asserção:** um
+      `falha: findByText(/^1 convite entrou na fila/)` deixaria o motivo explícito (dono: Implementador)
+- [ ] (acesso-e-convites 4.0, infra-guardian, 2ª) **Se o envio falhar e a lista for relida para zero pendentes, o diálogo mostra o texto "ninguém espera" e o aviso de erro antigo juntos.** Esconder o
+      `ErrorAlert` nesse estado; muda o comportamento da tela e não bloqueia (nenhum pedido sai, sem efeito na carga) (dono: Implementador)
 ## Da correção 2026-11-08-rota-de-envio-no-teste-de-convite (a lista de rotas com "convite"), fora dela
 
 - [ ] (acesso-e-convites, correção 2026-11-08-rota-de-envio-no-teste-de-convite, privacy-guardian, infra-guardian e test-engineer, 1ª) **A lista de rotas com "convite" só roda na esteira.**

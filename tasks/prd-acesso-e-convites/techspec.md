@@ -58,7 +58,7 @@ voltar a versão: o runbook recusa os pedidos de conta pendentes.
 | GET | `/v1/sessao/externa/:provedor/iniciar?intencao=reivindicar\|ligar` | a rota que existe | — | redirecionamento |
 
 Mudam: login de matrícula (`trocar_senha`), aceite (`VERIFICACAO_PENDENTE`), `GET /v1/professores`
-(`envio`), `externa/iniciar` (`intencao`), pedido de nome (conta provada).
+(`envio` e `enviadoEm`, ISO nulável, sempre no corpo e só não nulo com `envio = 'enviado'`: o "Enviado em 12/11 às 14:05" da tela, no fuso da escola; divergência da 4.0), `externa/iniciar` (`intencao`), pedido de nome (conta provada).
 "Enviar", "Reenviar" e o "Copiar link" fazem o `convite/refazer` (linha nova). Links com o token no fragmento; provisória,
 troca e `/trocas` com `no-store`.
 

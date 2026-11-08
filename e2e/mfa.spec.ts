@@ -1,6 +1,7 @@
+import type { Route } from '@playwright/test'
 import { AVISO_DO_SEGUNDO_FATOR_CONSUMIDO, mensagemDoSegundoFator } from '../packages/shared/src/errors/messages.ts'
 import { QUANTIDADE_DE_CODIGOS_DE_RECUPERACAO } from '../packages/shared/src/sessao/mfa.ts'
-import { entrarComoCoordenacaoNaMesmaAba, esperarPainel } from './support/casca.ts'
+import { digitarOCodigoDaEntrada, entrarComoCoordenacaoNaMesmaAba, entrarPelaTelaComSegundoFator, entrarPorEmail, esperarPainel, pedirOSegredo } from './support/casca.ts'
 import { expect, test } from './support/profiles.ts'
 import { campoCodigo, setUpMfa, configurarSegundoFatorPelaApi, entrarComSenha, gastarCodigoDeRecuperacaoPelaApi } from './support/mfa.ts'
 import { codigoDoAutenticador, criarEquipeComSenha } from './support/seed.ts'
@@ -9,9 +10,36 @@ import { ALVO_DE_TOQUE_PRINCIPAL_PX, horizontalOverflow, seriousViolations } fro
 const SIGN_IN_TIMEOUT_MS = 20_000
 /** Um passo do TOTP à frente: a ativação grava o passo usado, e só um passo maior entra depois (6.0). */
 const PASSO_SEGUINTE_SEGUNDOS = 30
+/** O corpo da recusa que a API dá ao desafio sem a marca do Redis de fila: o mesmo `NAO_AUTENTICADO` de qualquer código errado. */
+const RECUSA_DA_API = { erro: { codigo: 'NAO_AUTENTICADO', mensagem: 'texto da API que a tela não usa', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } }
+
+/**
+ * A rota que recusa com o 401 do desafio por `DURACAO_DA_RECUSA_MS` a partir do primeiro pedido e depois deixa passar: o relógio da API que confere o
+ * desafio atrás do que o emitiu recusa até alcançá-lo (até 2 s no portão da 4.0). Conta os pedidos, para o caso afirmar que houve uma repetição só: a
+ * repetição na hora cairia dentro da recusa e daria três.
+ *
+ * A recusa é medida no relógio **monotônico** (`performance.now()`), e a espera da fixture, no de parede (`Date.now()`), que é o que a API lê. O de parede
+ * desta máquina recua e avança aos saltos (0,8 a 2 s, `timesyncd`): medindo a recusa por ele, um recuo entre o primeiro pedido e a repetição a mantinha
+ * dentro da recusa, e o caso contava três pedidos (visto duas vezes: 1 de 84 e 1 de 36, na repetição às 4,9 s e 8,2 s do relógio do teste). A espera de 3 s de parede
+ * dura pelo menos 1,3 s de monotônico mesmo com um avanço de 1,7 s do relógio, e a recusa é de 1 s.
+ */
+const DURACAO_DA_RECUSA_MS = 1_000
+function recusarPorUmTempo() {
+  let primeiroPedidoEm: number | undefined
+  let pedidos = 0
+  return {
+    pedidos: () => pedidos,
+    rota: async (rota: Route) => {
+      pedidos += 1
+      primeiroPedidoEm ??= performance.now()
+      if (performance.now() - primeiroPedidoEm >= DURACAO_DA_RECUSA_MS) return rota.continue()
+      return rota.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify(RECUSA_DA_API) })
+    },
+  }
+}
 
 test.describe('segundo fator da coordenação, sem celular', () => {
-  test('configura copiando o segredo em texto, ativa, vê os códigos uma vez e entra com o código do aplicativo', async ({ page, hasTouch }) => {
+  test('configura: o segredo aparece em texto, copia-se, nada dele fica no navegador, e a tela cabe, passa no axe e tem alvo de 44 px', async ({ page, hasTouch }) => {
     await page.context().grantPermissions(['clipboard-read', 'clipboard-write'])
     const renata = await criarEquipeComSenha('coordenador')
 
@@ -35,12 +63,22 @@ test.describe('segundo fator da coordenação, sem celular', () => {
     expect(guardado.url).not.toContain(segredo)
     expect(await horizontalOverflow(page)).toBe(0)
     expect(await seriousViolations(page)).toEqual([])
+    const caixa = await page.getByRole('button', { name: /Ativar o segundo fator|Ativando/ }).boundingBox()
+    expect(caixa?.height ?? 0).toBeGreaterThanOrEqual(ALVO_DE_TOQUE_PRINCIPAL_PX)
+  })
+
+  test('ativa com o código do segredo, vê os códigos uma vez, e a conta passa a pedir o código desse segredo', async ({ page, hasTouch }) => {
+    await page.context().grantPermissions(['clipboard-read', 'clipboard-write'])
+    const renata = await criarEquipeComSenha('coordenador')
+
+    const respostaDoSegredo = page.waitForResponse((resposta) => new URL(resposta.url()).pathname === '/v1/conta/mfa/configurar')
+    await entrarComSenha(page, renata)
+    await expect(page.getByRole('heading', { name: 'Configurar o segundo fator' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+    const { segredo } = (await (await respostaDoSegredo).json()) as { segredo: string }
 
     const respostaDosCodigos = page.waitForResponse((resposta) => new URL(resposta.url()).pathname === '/v1/conta/mfa/ativar')
     await campoCodigo(page).fill(codigoDoAutenticador(segredo))
     const botaoAtivar = page.getByRole('button', { name: /Ativar o segundo fator|Ativando/ })
-    const caixa = await botaoAtivar.boundingBox()
-    expect(caixa?.height ?? 0).toBeGreaterThanOrEqual(ALVO_DE_TOQUE_PRINCIPAL_PX)
     if (hasTouch) await botaoAtivar.tap()
     else await botaoAtivar.click()
 
@@ -66,19 +104,35 @@ test.describe('segundo fator da coordenação, sem celular', () => {
     await expect(page.getByRole('alert')).toContainText('entre de novo', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.locator('body')).not.toContainText(segredo)
 
-    // E o segundo fator agora vale: a senha sozinha para na tela do código.
+    // E o segundo fator agora vale, o que a tela mostrou: a API aceita, para a senha desta conta, o código do passo seguinte desse segredo (a ativação gastou o de agora).
+    const pedidos = page.context().request
+    const entrada = await pedidos.post('/v1/sessao/email', { data: { email: renata.email, senha: renata.senha } })
+    const { etapa, desafio } = (await entrada.json()) as { etapa?: string; desafio?: string }
+    expect(etapa).toBe('mfa')
+    const segundo = await pedidos.post('/v1/sessao/mfa', { headers: { Authorization: `Bearer ${desafio ?? ''}` }, data: { codigo: codigoDoAutenticador(segredo, PASSO_SEGUINTE_SEGUNDOS) } })
+    expect(((await segundo.json()) as { etapa?: string }).etapa).toBe('pronta')
+  })
+
+  // O que o primeiro caso fazia depois da ativação, em dois casos: a conta já nasce com o segundo fator, pela API, e a tela de configuração é provada no caso de cima.
+  test('o segundo fator ativado: a senha sozinha para na tela do código, que cabe em 360 px, passa no axe e tem alvo de 44 px', async ({ page, request }) => {
+    const renata = await criarEquipeComSenha('coordenador')
+    await configurarSegundoFatorPelaApi(request, renata)
     await entrarComSenha(page, renata)
     await expect(page.getByRole('heading', { name: 'Segundo fator' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(campoCodigo(page)).toHaveAttribute('autocomplete', 'one-time-code')
     await expect(campoCodigo(page)).toHaveAttribute('inputmode', 'numeric')
-    // A tela do código é uma tela como outra qualquer: cabe em 360 px, passa no axe e tem alvo de 44 px.
     expect(await horizontalOverflow(page)).toBe(0)
     expect(await seriousViolations(page)).toEqual([])
     const caixaDoEntrar = await page.getByRole('button', { name: /^Entrar$/ }).boundingBox()
     expect(caixaDoEntrar?.height ?? 0).toBeGreaterThanOrEqual(ALVO_DE_TOQUE_PRINCIPAL_PX)
-    await campoCodigo(page).fill(codigoDoAutenticador(segredo, PASSO_SEGUINTE_SEGUNDOS))
-    await page.getByRole('button', { name: /^Entrar$/ }).click()
-    // A coordenação abre em Governança (A5).
+  })
+
+  test('o segundo fator ativado: o código do aplicativo, do passo seguinte, entra e a coordenação abre no Painel', async ({ page, request, hasTouch }) => {
+    const renata = await criarEquipeComSenha('coordenador')
+    const { segredo } = await configurarSegundoFatorPelaApi(request, renata)
+    await page.goto('/entrar')
+    await entrarPelaTelaComSegundoFator(page, renata, segredo, hasTouch)
+    // A coordenação abre no Painel (A5).
     await esperarPainel(page)
   })
 
@@ -135,17 +189,44 @@ test.describe('segundo fator da coordenação, sem celular', () => {
       async (rota) => {
         pedidosDeAtivacao += 1
         if (pedidosDeAtivacao > 1) return rota.continue()
-        return rota.fulfill({
-          status: 401,
-          contentType: 'application/json',
-          body: JSON.stringify({ erro: { codigo: 'NAO_AUTENTICADO', mensagem: 'texto da API que a tela não usa', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } }),
-        })
+        return rota.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify(RECUSA_DA_API) })
       },
     )
     await page.goto('/entrar')
     await entrarComoCoordenacaoNaMesmaAba(page, renata, hasTouch)
     await esperarPainel(page)
     expect(pedidosDeAtivacao).toBe(2)
+  })
+
+  test('a configuração com o desafio recusado por um tempo: o passo da entrada do teste espera e pede o segredo de novo, e a tela mostra o que ele devolveu', async ({ page, hasTouch }) => {
+    const renata = await criarEquipeComSenha('coordenador')
+    // A recusa do desafio no primeiro passo (o Redis de fila sem resposta, ou o `iat` do desafio à frente do relógio da API que o confere): a resposta não
+    // traz o segredo e a tela oferece "Tentar de novo". Ela dura mais que uma repetição na hora, como o relógio atrás: só a que espera passa.
+    // Só o passo do segredo, e não a entrada inteira (que passaria de metade do prazo do caso com a espera).
+    const recusa = recusarPorUmTempo()
+    await page.route((url) => url.pathname === '/v1/conta/mfa/configurar', recusa.rota)
+    await page.goto('/entrar')
+    const segredo = await pedirOSegredo(page, () => entrarPorEmail(page, renata, hasTouch), hasTouch)
+    expect(recusa.pedidos()).toBe(2)
+    // O segredo é o da tela, e a conta guarda só um: o recusado nunca foi gravado.
+    await expect(page.getByRole('main')).toContainText(segredo)
+  })
+
+  test('o código da entrada com o desafio recusado por um tempo: o passo da entrada do teste espera, digita o código de novo e a coordenação entra', async ({ page, request, hasTouch }) => {
+    const renata = await criarEquipeComSenha('coordenador')
+    // A recusa vem antes de gastar o código e o desafio (`MfaService.entrar`: `#desafioLivre` antes do contador e do passo): a tela fica em
+    // `/mfa` com o aviso do código errado, e o mesmo código vale na tentativa seguinte. Dura mais que uma repetição na hora (o `iat` do desafio à
+    // frente do relógio da API): só a que espera passa. O segundo fator vem pela API, e só este passo é pela tela.
+    const { segredo } = await configurarSegundoFatorPelaApi(request, renata)
+    const recusa = recusarPorUmTempo()
+    await page.route((url) => url.pathname === '/v1/sessao/mfa', recusa.rota)
+    await page.goto('/entrar')
+    await entrarPorEmail(page, renata, hasTouch)
+    await expect(page.getByRole('heading', { name: 'Segundo fator' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+    await digitarOCodigoDaEntrada(page, segredo, hasTouch)
+    // Entrou: a aba saiu de `/mfa` para o endereço do Painel. O Painel carregado inteiro é de outros casos e passaria de metade do prazo deste.
+    await expect(page).toHaveURL(/\/coordenacao\/painel$/, { timeout: SIGN_IN_TIMEOUT_MS })
+    expect(recusa.pedidos()).toBe(2)
   })
 
   test('cinco códigos errados gastam o desafio: a tela volta à entrada explicando, e o código certo não entra sem refazer a senha', async ({ page }) => {

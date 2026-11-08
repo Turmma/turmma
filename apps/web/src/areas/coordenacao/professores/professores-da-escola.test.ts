@@ -8,9 +8,9 @@ import { contagemDeProfessores, MOTIVO_DO_ENCERRAMENTO, porQueNaoRecebeTurma, pr
  */
 
 const id = (n: number) => `0197a1c0-0000-7000-8000-${String(n).padStart(12, '0')}`
-const CAMILA: ProfessorDaEscola = { usuarioId: id(502), nome: 'Camila', estado: 'ativo', envio: null }
-const RAFAEL: ProfessorDaEscola = { usuarioId: id(501), nome: 'Rafael', estado: 'pendente', envio: null }
-const BEATRIZ: ProfessorDaEscola = { usuarioId: id(503), nome: 'Beatriz', estado: 'vencido', envio: null }
+const CAMILA: ProfessorDaEscola = { usuarioId: id(502), nome: 'Camila', estado: 'ativo', envio: null, enviadoEm: null }
+const RAFAEL: ProfessorDaEscola = { usuarioId: id(501), nome: 'Rafael', estado: 'pendente', envio: null, enviadoEm: null }
+const BEATRIZ: ProfessorDaEscola = { usuarioId: id(503), nome: 'Beatriz', estado: 'vencido', envio: null, enviadoEm: null }
 const TURMA = (n: number, nome: string) => ({ id: id(100 + n), nome })
 const T7A = TURMA(1, '7ºA')
 const T7B = TURMA(2, '7ºB')

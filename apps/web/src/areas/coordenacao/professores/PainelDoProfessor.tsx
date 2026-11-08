@@ -8,6 +8,7 @@ import { LoadingState, ErrorState, EmptyState } from '../../../components/states
 import { Sheet } from '../../../components/ui/overlays/Sheet'
 import { StatusBadge } from '../../../components/ui/StatusBadge'
 import { acoesDoConviteDeProfessor, FAMILIA_DO_ESTADO_DO_PROFESSOR, TEXTO_DO_ESTADO_DO_PROFESSOR } from './convite-de-professor'
+import { podeReenviar, rotuloDoEnvio } from './envio-do-convite'
 import { descricaoDoQueFalta, oQueFaltaParaAlocar, tituloDoQueFalta } from './o-que-falta-para-alocar'
 import { AvisoDeListaIncompleta } from '../comum/pecas-da-lista'
 import { MOTIVO_DO_ENCERRAMENTO, porQueNaoRecebeTurma, professorAlocavel, vinculosDoProfessor } from './professores-da-escola'
@@ -50,6 +51,8 @@ interface Props {
   readonly professor: ProfessorDaEscola
   readonly aoFechar: () => void
   readonly aoRefazer: () => void
+  /** Abre o diálogo "Reenviar o convite" deste professor: um e-mail novo, com um link novo. */
+  readonly aoReenviar: () => void
   readonly aoRevogar: () => void
   /** Abre o diálogo "Acrescentar turma" deste professor. */
   readonly aoAcrescentar: () => void
@@ -66,7 +69,7 @@ interface Props {
 /**
  * O painel do professor (X2, 6.0 e 7.0; RF13, RF14; `?professor=<usuarioId>`): o nome no título, a situação do convite em texto,
  * as turmas dele e, no rodapé, **só as ações que o estado permite** — as matrizes de `@educa/shared`, as mesmas do servidor
- * (`acoesDoConviteDeProfessor`) — e "Acrescentar turma" para quem pode receber turma (`professorAlocavel`). Quem não pode vê por quê,
+ * (`acoesDoConviteDeProfessor`) —, "Reenviar" para quem espera o convite e já teve um envio por e-mail (`podeReenviar`; acesso-e-convites, 4.0) e "Acrescentar turma" para quem pode receber turma (`professorAlocavel`). O envio do último convite aparece em texto na situação, sem `aria-live`: a região que anuncia a mudança é a da linha da lista. Quem não pode vê por quê,
  * na seção das turmas. Estado sem ação nenhuma (o revogado, o desativado) não tem rodapé. Cadastrar não é daqui: é da tela, e cadastra
  * outra pessoa.
  *
@@ -81,11 +84,13 @@ interface Props {
  * é texto do professor para a coordenação (`docs/lgpd.md`): é mostrado como texto, aqui, e não vai a log nem a endereço. Os diálogos
  * de refazer, de revogar e de acrescentar são os da tela, abertos por cima do painel, que fica onde está.
  */
-export function PainelDoProfessor({ professor, aoFechar, aoRefazer, aoRevogar, aoAcrescentar, anuncio, tituloDaSituacao, tituloDasTurmas, focoDeReserva }: Props) {
+export function PainelDoProfessor({ professor, aoFechar, aoRefazer, aoReenviar, aoRevogar, aoAcrescentar, anuncio, tituloDaSituacao, tituloDasTurmas, focoDeReserva }: Props) {
   const acoes = acoesDoConviteDeProfessor(professor.estado)
   const idDaSituacao = useId()
   const idDasTurmas = useId()
   const alocavel = professorAlocavel(professor.estado)
+  const reenviar = podeReenviar(professor)
+  const envio = rotuloDoEnvio(professor)
 
   const anos = useQuery(anosLetivosQueryOptions)
   const anoEmCurso = anos.data?.itens.some((ano) => ano.situacao === 'em_curso') === true
@@ -146,6 +151,11 @@ export function PainelDoProfessor({ professor, aoFechar, aoRefazer, aoRevogar, a
       rodape={
         acoes.length === 0 && !podeAcrescentar ? undefined : (
           <>
+            {reenviar && (
+              <Button variante="secundario" onClick={aoReenviar}>
+                Reenviar
+              </Button>
+            )}
             {acoes.map((acao) =>
               acao === 'refazer' ? (
                 <Button key={acao} variante="secundario" onClick={aoRefazer}>
@@ -174,6 +184,7 @@ export function PainelDoProfessor({ professor, aoFechar, aoRefazer, aoRevogar, a
           <div>
             <StatusBadge familia={FAMILIA_DO_ESTADO_DO_PROFESSOR[professor.estado]}>{TEXTO_DO_ESTADO_DO_PROFESSOR[professor.estado]}</StatusBadge>
           </div>
+          {envio !== '' && <p className={`break-words ${professor.envio === 'falhou' ? 'text-erro' : 'text-apoio'}`}>{envio}</p>}
         </section>
         <section aria-labelledby={idDasTurmas} className="flex min-w-0 flex-col gap-3">
           <h3 ref={tituloDasTurmas} id={idDasTurmas} tabIndex={-1} className="t-selo text-sutil">

@@ -26,13 +26,13 @@
   - [x] 3.4 `convite.enviado`, gravado no pedido
   - [x] 3.5 Testes: filtro, cota de 300/h atômica, `convite.enviado`, isolamento, as duas corridas
 
-- [ ] **4.0 — Professores mostra o envio, e o diálogo "Enviar convites"**
-  - [ ] 4.1 O rótulo de cada um dos cinco estados, com `aria-live="polite"`
-  - [ ] 4.2 O diálogo "Enviar convites" (contagem, aviso, 429) e o aviso no "Reenviar" e no "Copiar link"
-  - [ ] 4.3 A releitura de 5 s, só com a aba visível e linha `na_fila`/`enviando`, parando em 5 min
-  - [ ] 4.4 `docs/interface.md` (Parte A de Professores) e a busca dos textos novos em `e2e/`
-  - [ ] 4.5 O `docs/roteiro-da-demonstracao.md` (seção 2, passos 6 e 7) conferido contra `e2e/roteiro-da-demonstracao.spec.ts`
-  - [ ] 4.6 Testes: estados do envio, diálogo e avisos, releitura de 5 s, recomeço, 360 px e 1366 × 768
+- [x] **4.0 — Professores mostra o envio, e o diálogo "Enviar convites"**
+  - [x] 4.1 O rótulo de cada um dos cinco estados, com `aria-live="polite"`
+  - [x] 4.2 O diálogo "Enviar convites" (contagem, aviso, 429) e o aviso no "Reenviar" e no "Copiar link"
+  - [x] 4.3 A releitura de 5 s, só com a aba visível e linha `na_fila`/`enviando`, parando em 5 min
+  - [x] 4.4 `docs/interface.md` (Parte A de Professores) e a busca dos textos novos em `e2e/`
+  - [x] 4.5 O `docs/roteiro-da-demonstracao.md` (seção 2, passos 6 e 7) conferido contra `e2e/roteiro-da-demonstracao.spec.ts`
+  - [x] 4.6 Testes: estados do envio, diálogo e avisos, releitura de 5 s, recomeço, 360 px e 1366 × 768
 
 - [x] **5.0 — O link da conta e o "esqueci a senha" (API e worker)**
   - [x] 5.1 Migration `link_da_conta` e a exceção no `docs/modelo-de-dados.md`

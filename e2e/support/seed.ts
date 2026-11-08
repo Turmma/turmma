@@ -3,7 +3,7 @@ import { createHmac, randomBytes, randomInt, randomUUID } from 'node:crypto'
 import { Secret, TOTP } from 'otpauth'
 import { Client } from 'pg'
 import { BYTES_DO_TOKEN_DE_CONVITE, hashDoToken } from '../../apps/api/src/credencial/token-hash.ts'
-import type { EstadoDoProfessor } from '../../packages/shared/src/professores/professores.ts'
+import type { EstadoDoEnvio, EstadoDoProfessor } from '../../packages/shared/src/professores/professores.ts'
 import { ALFABETO_DO_CODIGO_DA_TURMA, normalizarCodigoDaTurma, TAMANHO_DO_CODIGO_DA_TURMA } from '../../packages/shared/src/sala/acesso.ts'
 import { lerAmbienteDeTeste, urlDoBancoDeTeste, valorObrigatorio } from '../../tools/ci/compose.ts'
 
@@ -734,6 +734,43 @@ export async function convitesDeProfessorEmAberto(escolaId: string): Promise<num
     const { rows } = await banco.query<{ total: string }>("select count(*) as total from convite where escola_id = $1 and tipo = 'professor' and usado_em is null and revogado_em is null", [escolaId])
     return Number(rows[0]?.total ?? 0)
   })
+}
+
+/**
+ * O envio do último convite de um professor, como o worker o deixaria (acesso-e-convites, 4.0): o convite passa a ser de canal `email`, com os
+ * cifrados só no envio em aberto (`na_fila`, `enviando`) e a reserva só no `enviando`, como os checks da tabela `convite` pedem. `enviadoEm` só vale no
+ * `enviado`; nos outros estados a hora fica nula.
+ *
+ * O convite que já teve o envio é mais velho que o que o "Reenviar" cria agora, e a lista mostra o de validade maior: a validade dele recua uma
+ * hora, porque a semeadura grava a validade com o relógio da máquina de teste e o "Reenviar", com o da API, e a diferença entre os dois, de
+ * centenas de milissegundos, deixava o velho à frente do novo em um caso a cada 25.
+ */
+export async function definirOEnvioDoConvite(usuarioId: string, envio: EstadoDoEnvio, enviadoEm: string | null = null): Promise<void> {
+  const aberto = envio === 'na_fila' || envio === 'enviando'
+  await comBanco(async (banco) => {
+    await banco.query(
+      `update convite set canal = 'email', envio = $2, enviado_em = $3::timestamptz, expira_em = expira_em - interval '1 hour',
+              envio_reservado_em = ${envio === 'enviando' ? 'now()' : 'null'},
+              token_cifrado = ${aberto ? "decode('00', 'hex')" : 'null'}, destino_cifrado = ${aberto ? "decode('00', 'hex')" : 'null'}
+        where usuario_id = $1 and tipo = 'professor'`,
+      [usuarioId, envio, envio === 'enviado' ? enviadoEm : null],
+    )
+  })
+}
+
+/**
+ * Recua uma hora a validade dos convites de professor da pessoa, para o que um "Refazer" logo depois criar ser o último que a lista mostra, ainda que o relógio de parede
+ * recue entre os dois. Falha se não achar a pessoa: sem nenhuma linha alterada o caso voltaria a ser intermitente sem aviso.
+ */
+export async function anteciparOsConvitesDaPessoa(escolaId: string, nome: string): Promise<void> {
+  const alteradas = await comBanco(async (banco) => {
+    const resultado = await banco.query(
+      "update convite set expira_em = expira_em - interval '1 hour' where escola_id = $1 and tipo = 'professor' and usuario_id in (select id from usuario where escola_id = $1 and nome = $2)",
+      [escolaId, nome],
+    )
+    return resultado.rowCount ?? 0
+  })
+  if (alteradas < 1) throw new Error('anteciparOsConvitesDaPessoa: nenhum convite de professor com esse nome na escola')
 }
 
 /** O convite em aberto do professor passa do prazo, com a tela da coordenação aberta: ele deixa de ser alocável (13.0). */

@@ -1,4 +1,4 @@
-import { TokenIssuer, DomainException, verifyToken } from '@educa/core'
+import { FOLGA_DE_RELOGIO_DO_DESAFIO_SEGUNDOS, TokenIssuer, DomainException, verifyToken } from '@educa/core'
 import { ErrorCode } from '@educa/shared'
 import { decodeJwt, decodeProtectedHeader, SignJWT } from 'jose'
 import { randomUUID } from 'node:crypto'
@@ -70,6 +70,37 @@ describe('desafio de login', () => {
   it('permissão: o desafio de uma etapa não vale em outra', async () => {
     const desafio = await new ChallengeIssuer(CHAVE).emitir({ contaId: CONTA, etapa: 'configurar_mfa', mfaCumprido: false })
     await recusado(verifyChallenge(desafio, CHAVE, ['mfa']))
+  })
+
+  it('folga de relógio: o iat à frente de quem confere passa até a folga, que cobre a outra instância e o relógio que recua, e é recusado além dela; o prazo segue exato', async () => {
+    const emitidoComRelogio = (deslocamentoSegundos: number) =>
+      new ChallengeIssuer(CHAVE, { agora: () => new Date(Date.now() + deslocamentoSegundos * 1_000) }).emitir({ contaId: CONTA, etapa: 'mfa', mfaCumprido: false })
+    // Na folga passa; os até 2 s do portão da 4.0 estão dentro dela. A borda exata (10 s) fica em `verify-token.test.ts`, que não lê o relógio:
+    // aqui o `verifyChallenge` lê o `new Date()` por dentro, e um relógio que recua entre emitir e conferir derrubaria o caso na borda.
+    await expect(verifyChallenge(await emitidoComRelogio(3), CHAVE, ['mfa'])).resolves.toMatchObject({ contaId: CONTA, etapa: 'mfa' })
+    await expect(verifyChallenge(await emitidoComRelogio(FOLGA_DE_RELOGIO_DO_DESAFIO_SEGUNDOS - 2), CHAVE, ['mfa'])).resolves.toMatchObject({ contaId: CONTA })
+    // Além dela (2 s a mais, para a virada do segundo entre emitir e conferir não encostar na borda), a recusa de sempre.
+    await expect(verifyChallenge(await emitidoComRelogio(FOLGA_DE_RELOGIO_DO_DESAFIO_SEGUNDOS + 2), CHAVE, ['mfa'])).rejects.toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
+    // O prazo não ganha folga: o de 5 min + 1 s atrás vence, e o que ainda tem 10 s de vida passa.
+    await recusado(verifyChallenge(await emitidoComRelogio(-(CHALLENGE_TTL_SECONDS + 1)), CHAVE, ['mfa']))
+    await expect(verifyChallenge(await emitidoComRelogio(-(CHALLENGE_TTL_SECONDS - 10)), CHAVE, ['mfa'])).resolves.toMatchObject({ contaId: CONTA })
+  })
+
+  it('borda: o desafio sem iat, ou com a validade maior que o prazo do desafio, é recusado', async () => {
+    const assinado = (iat: number | undefined, exp: number) => {
+      const jwt = new SignJWT({ conta_id: CONTA, etapa: 'mfa', mfa_cumprido: false })
+        .setProtectedHeader({ alg: 'HS256', typ: TIPO_DESAFIO })
+        .setIssuer('educa')
+        .setAudience(CHALLENGE_AUDIENCE)
+        .setJti(randomUUID())
+        .setExpirationTime(exp)
+      return (iat === undefined ? jwt : jwt.setIssuedAt(iat)).sign(CHAVE)
+    }
+    const agora = Math.floor(Date.now() / 1_000)
+    await expect(verifyChallenge(await assinado(agora, agora + CHALLENGE_TTL_SECONDS), CHAVE, ['mfa'])).resolves.toMatchObject({ contaId: CONTA })
+    await recusado(verifyChallenge(await assinado(undefined, agora + CHALLENGE_TTL_SECONDS), CHAVE, ['mfa']))
+    // Emitido há 6 min com `exp` de um dia: o `exp` sozinho o deixaria passar, a idade não.
+    await recusado(verifyChallenge(await assinado(agora - (CHALLENGE_TTL_SECONDS + 60), agora + 24 * 60 * 60), CHAVE, ['mfa']))
   })
 
   it('borda: vencido, com outra chave, ou com typ certo e sem aud, é recusado', async () => {

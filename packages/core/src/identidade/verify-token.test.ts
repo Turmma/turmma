@@ -3,7 +3,7 @@ import { SignJWT, UnsecuredJWT, type JWTPayload } from 'jose'
 import { describe, expect, it } from 'vitest'
 import { EMISSOR_TOKEN, type AuthConfig } from '../config/validate-config.js'
 import { DomainException } from '../error/domain.exception.js'
-import { extractBearerToken, VALIDADE_MAXIMA_TOKEN_SEGUNDOS, verifyToken } from './verify-token.js'
+import { extractBearerToken, FOLGA_DE_RELOGIO_DO_DESAFIO_SEGUNDOS, iatDoDesafioConfere, VALIDADE_MAXIMA_TOKEN_SEGUNDOS, verifyToken } from './verify-token.js'
 
 const ESCOLA_A = '0190f5a0-0000-7000-8000-00000000000a'
 const USUARIO = '0190f5a0-0000-7000-8000-0000000000c1'
@@ -127,5 +127,29 @@ describe('extrairTokenBearer', () => {
     ['repetido', ['Bearer aaa.bbb.ccc', 'Bearer ddd.eee.fff']],
   ])('recusa cabeçalho %s com NAO_AUTENTICADO', (_caso, cabecalho) => {
     expect(() => extractBearerToken(cabecalho)).toThrow(expect.objectContaining({ codigo: ErrorCode.NAO_AUTENTICADO }))
+  })
+})
+
+describe('iatDoDesafioConfere', () => {
+  const AGORA = new Date('2026-11-08T12:00:00.500Z')
+  const iat = Math.floor(AGORA.getTime() / 1_000)
+  const TTL = 300
+
+  it('aceita o iat de agora, o de até o prazo atrás e o de até a folga à frente, em segundos inteiros', () => {
+    expect(iatDoDesafioConfere(iat, AGORA, TTL)).toBe(true)
+    expect(iatDoDesafioConfere(iat - TTL, AGORA, TTL)).toBe(true)
+    expect(iatDoDesafioConfere(iat + FOLGA_DE_RELOGIO_DO_DESAFIO_SEGUNDOS, AGORA, TTL)).toBe(true)
+  })
+
+  it('a folga é de 10 s, e não mais: 30 s à frente já é recusado', () => {
+    expect(FOLGA_DE_RELOGIO_DO_DESAFIO_SEGUNDOS).toBe(10)
+    expect(iatDoDesafioConfere(iat + 10, AGORA, TTL)).toBe(true)
+    expect(iatDoDesafioConfere(iat + 30, AGORA, TTL)).toBe(false)
+  })
+
+  it('recusa o iat um segundo além da folga, um segundo além do prazo, e o que não existe', () => {
+    expect(iatDoDesafioConfere(iat + FOLGA_DE_RELOGIO_DO_DESAFIO_SEGUNDOS + 1, AGORA, TTL)).toBe(false)
+    expect(iatDoDesafioConfere(iat - TTL - 1, AGORA, TTL)).toBe(false)
+    expect(iatDoDesafioConfere(undefined, AGORA, TTL)).toBe(false)
   })
 })
