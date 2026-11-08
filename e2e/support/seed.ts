@@ -735,6 +735,21 @@ export async function convitesDeProfessorEmAberto(escolaId: string): Promise<num
   })
 }
 
+/**
+ * Recua uma hora a validade dos convites de professor da pessoa, para o que um "Refazer" logo depois criar ser o último que a lista mostra, ainda que o relógio de parede
+ * recue entre os dois. Falha se não achar a pessoa: sem nenhuma linha alterada o caso voltaria a ser intermitente sem aviso.
+ */
+export async function anteciparOsConvitesDaPessoa(escolaId: string, nome: string): Promise<void> {
+  const alteradas = await comBanco(async (banco) => {
+    const resultado = await banco.query(
+      "update convite set expira_em = expira_em - interval '1 hour' where escola_id = $1 and tipo = 'professor' and usuario_id in (select id from usuario where escola_id = $1 and nome = $2)",
+      [escolaId, nome],
+    )
+    return resultado.rowCount ?? 0
+  })
+  if (alteradas < 1) throw new Error('anteciparOsConvitesDaPessoa: nenhum convite de professor com esse nome na escola')
+}
+
 /** O convite em aberto do professor passa do prazo, com a tela da coordenação aberta: ele deixa de ser alocável (13.0). */
 export async function vencerConviteNoBanco(usuarioId: string): Promise<void> {
   await comBanco(async (banco) => {

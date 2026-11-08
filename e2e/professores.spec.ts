@@ -6,6 +6,7 @@ import { abrirOQueFalta, irPelaCoordenacao, linhasDaTabela, paginaNaoRola } from
 import { abrirPelaApiSemMedirAPrimeiraCarga, configurarSegundoFatorPelaApi } from './support/mfa.ts'
 import { expect, test } from './support/profiles.ts'
 import {
+  anteciparOsConvitesDaPessoa,
   convidarProfessorNoBanco,
   convitesDeProfessorEmAberto,
   criarEquipeComSenha,
@@ -791,6 +792,7 @@ test.describe('clique duplo', () => {
     await expect(noDialogo(page).getByRole('alert')).toHaveCount(0)
     expect(pedidos).toBe(1)
     await page.unroute(ehALista, segurar)
+    await anteciparOsConvitesDaPessoa(coordenadora.escolaId, nome)
     await tocar(noDialogo(page), 'Fechar', hasTouch)
     await tocar(noDialogo(page), 'Fechar sem copiar', hasTouch)
     await expect(linhasDaLista(page)).toHaveCount(1, { timeout: SIGN_IN_TIMEOUT_MS })
@@ -1337,6 +1339,7 @@ test.describe('RF6 (15.0): subir a planilha de professores, ver a prévia e grav
     const painel = await abrirPainel(page, nina.nome, hasTouch)
     await expect(acoesDoPainel(painel)).toHaveText([...ACOES_DO_ESTADO.pendente])
     expect(escritas).toEqual([])
+    await anteciparOsConvitesDaPessoa(coordenadora.escolaId, nina.nome)
 
     // O link sai pelo refazer: um POST em `/v1/professores/<usuário>/convite/refazer`, e o link vem na resposta, uma vez.
     const refazendo = page.waitForRequest((pedido) => pedido.method() === 'POST' && ROTA_DO_REFAZER(new URL(pedido.url())))

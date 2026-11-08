@@ -3097,3 +3097,16 @@ aula" em `Retencao.tsx`, o Validador conferiu: a tela já o mostra pela descriç
       mais fácil de achar. Muda a assinatura dos verificadores e da função exportada, e toca `convite-ticket.ts`, fora da correção (dono: Implementador)
 - [ ] (correção 2026-11-08-desafio-com-folga-de-relogio, infra-guardian, 1ª) **NTP nas instâncias da API, com um limite de diferença, em `docs/infra.md`.** A folga de 10 s parte desse pressuposto: o `jti`
       no Redis dura `exp - agora` no relógio de quem o consumiu. O limite de diferença entre relógios é decisão de operação (dono: Arquiteto, na retro da spec)
+
+## Da correção 2026-11-08-professores-e2e-sem-relogio (o "último convite" e o relógio de parede), fora dela
+
+- [ ] (correção 2026-11-08-professores-e2e-sem-relogio, Mesa) **O repository escolhe o último convite do professor por `desc(expiraEm)`, que segue o relógio de parede.** Em `apps/api/src/professores/professores.repository.ts` a ordem é
+      `asc(usuarioId), desc(expiraEm), desc(id)`: quando o relógio recua entre dois convites do mesmo professor (o cadastro e o "Refazer" logo depois), o novo sai com validade menor que a do velho e
+      a lista passa a mostrar o velho. A correção só antecipa o convite existente nos dois casos de `e2e/professores.spec.ts` que refazem logo depois do cadastro (`:745`, `:1331`); o `W14` (`:457`) refaz uns segundos depois e ficou sem ele. A correção não toca o repository. A regra do "último convite" (criação,
+      ordem pelo `id` v7 ou por contador, ou a validade só como desempate) é decisão de desenho que muda o produto em mais de um lugar (dono: Arquiteto)
+      **Também é furo de produto, não só de teste (regra 20, item 8).** Com o relógio recuado entre o cadastro e o "Refazer", a coordenação vê o convite velho como "Convite revogado" e perde o botão "Revogar
+      convite"; o novo, válido e com link já emitido, fica ativo sem poder ser revogado pela tela até expirar. Não depende da máquina de desenvolvimento: duas instâncias da API com relógios um pouco diferentes,
+      ou duas coordenadoras refazendo em instâncias diferentes, caem na mesma inversão. Tratar junto com o item do NTP e do limite de diferença entre relógios (correção `2026-11-08-desafio-com-folga-de-relogio`),
+      e dar a prioridade pelo risco de revogação. Quando a regra mudar: o `escola_id` fica no `where` e no desempate da subconsulta; um teste de integração com o relógio falso recuando entre os dois convites prova
+      que o último é o mais novo mesmo com validade menor; e um teste de isolamento prova que o convite de outra escola não entra na escolha, ainda que um usuário da escola B tenha validade maior
+      (test-engineer, tenancy-guardian, privacy-guardian e infra-guardian, 1ª; dono: Arquiteto)
