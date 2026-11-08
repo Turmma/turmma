@@ -1237,7 +1237,7 @@ describe('arquitetura: toda tabela das migrations está classificada para a rete
 
   it('a leitura das colunas enxerga as migrations: a criação, o ADD COLUMN do MVP e a tabela da retenção', () => {
     expect([...colunas.keys()].toSorted()).toEqual([...TABELAS_FISICAS].toSorted())
-    expect(colunas.get('conta')).toEqual(new Set(['id', 'email', 'senha_hash', 'mfa_segredo_cifrado', 'mfa_chave_versao', 'mfa_ativado_em', 'mfa_ultimo_passo']))
+    expect(colunas.get('conta')).toEqual(new Set(['id', 'email', 'senha_hash', 'mfa_segredo_cifrado', 'mfa_chave_versao', 'mfa_ativado_em', 'mfa_ultimo_passo', 'email_verificado_em']))
     expect(colunas.get('mensagem_tutor')?.has('pagina')).toBe(true)
     expect(colunas.get('retencao_escola')).toEqual(new Set(['escola_id', 'categoria', 'meses', 'referencia_contrato', 'alterada_em', 'alterada_por']))
   })
@@ -1428,11 +1428,11 @@ describe('arquitetura: o que a auditoria diz de outra pessoa não entra no arqui
    * O arquivo do titular (13.0) lista a auditoria em que ele é o autor. A ação com `entidade: 'usuario'` tem como `entidade_id` o
    * id de **outra pessoa** (a desativada, a eliminada, a que teve o segundo fator redefinido): se um professor ou um aluno a
    * assinasse, o arquivo dele carregaria o id de outra pessoa. A lista é a das ações que **só a coordenação, a operação e a
-   * rotina** assinam, mais `usuario.ativado_por_convite` e `senha.redefinida`, em que quem assina é a própria pessoa e o id é o dela. Ação nova com
+   * rotina** assinam, mais `usuario.ativado_por_convite`, `senha.redefinida` e `conta.email_verificado`, em que quem assina é a própria pessoa e o id é o dela. Ação nova com
    * `entidade: 'usuario'` obriga a quem a cria a ler este comentário e a decidir quem a assina.
    */
   const COORDENACAO_OPERACAO_E_ROTINA = ['aluno.transferido', 'professor.cadastrado', 'usuario.desativado', 'usuario.eliminado', 'usuario.mfa_redefinicao_recusada', 'usuario.mfa_redefinido', 'usuario.nome_corrigido']
-  const A_PROPRIA_PESSOA = ['usuario.ativado_por_convite', 'senha.redefinida']
+  const A_PROPRIA_PESSOA = ['usuario.ativado_por_convite', 'senha.redefinida', 'conta.email_verificado']
 
   it('as ações sobre `usuario` são exatamente estas, e nenhuma é de professor ou aluno sobre outra pessoa', () => {
     const doUsuario = Object.entries(nucleo.ACOES_DE_AUDITORIA)

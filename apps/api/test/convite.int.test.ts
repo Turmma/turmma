@@ -190,10 +190,13 @@ describe('convite do primeiro coordenador: o operador gera, a pessoa consulta e 
     return rows
   }
 
-  /** A pessoa que já coordena B, com senha e MFA ativo: o convite de A chega a uma conta que já existe. */
+  /**
+   * A pessoa que já coordena B, com senha e MFA ativo: o convite de A chega a uma conta que já existe. Com o e-mail **verificado** (acesso-e-convites, 7.0): o convite
+   * copiado de outra escola só segue com a posse do endereço provada; a conta sem ela recebe `VERIFICACAO_PENDENTE`, e isso é de `posse-do-email.int.test.ts`.
+   */
   async function coordenadoraDeB(escolaB: string): Promise<{ email: string; contaId: string; usuarioId: string; base32: string }> {
     const email = `coordenadora-b-${randomUUID()}@escola.invalid`
-    const { rows: contas } = await bancada.pool.query<{ id: string }>('insert into conta (email, senha_hash) values ($1, $2) returning id', [email, await hash.gerar(SENHA_DE_B)])
+    const { rows: contas } = await bancada.pool.query<{ id: string }>('insert into conta (email, senha_hash, email_verificado_em) values ($1, $2, now()) returning id', [email, await hash.gerar(SENHA_DE_B)])
     const contaId = contas[0]?.id ?? ''
     const { rows: usuarios } = await bancada.pool.query<{ id: string }>("insert into usuario (escola_id, conta_id, papel, nome) values ($1, $2, 'coordenador', 'Pessoa sintética') returning id", [
       escolaB,
@@ -205,10 +208,10 @@ describe('convite do primeiro coordenador: o operador gera, a pessoa consulta e 
     return { email, contaId, usuarioId: usuarios[0]?.id ?? '', base32: novo.base32 }
   }
 
-  /** A professora de B, com senha e sem MFA. */
+  /** A professora de B, com senha, sem MFA e com o e-mail verificado (7.0): ver `coordenadoraDeB`. */
   async function professoraDeB(escolaB: string): Promise<{ email: string; contaId: string; usuarioId: string }> {
     const email = `professora-b-${randomUUID()}@escola.invalid`
-    const { rows: contas } = await bancada.pool.query<{ id: string }>('insert into conta (email, senha_hash) values ($1, $2) returning id', [email, await hash.gerar(SENHA_DE_B)])
+    const { rows: contas } = await bancada.pool.query<{ id: string }>('insert into conta (email, senha_hash, email_verificado_em) values ($1, $2, now()) returning id', [email, await hash.gerar(SENHA_DE_B)])
     const contaId = contas[0]?.id ?? ''
     const { rows: usuarios } = await bancada.pool.query<{ id: string }>("insert into usuario (escola_id, conta_id, papel, nome) values ($1, $2, 'professor', 'Pessoa sintética') returning id", [
       escolaB,
@@ -324,7 +327,7 @@ describe('convite do primeiro coordenador: o operador gera, a pessoa consulta e 
     expect((await auditoriaDoConvite(escolaId)).filter((linha) => linha['acao'] === 'convite.aceito')).toHaveLength(1)
   })
 
-  it('concorrência: a mesma conta nova convidada por A e por B, aceitando os dois ao mesmo tempo com senhas diferentes, fica com uma senha só; o outro aceite vira entrar', async () => {
+  it('concorrência: a mesma conta nova convidada por A e por B, aceitando os dois ao mesmo tempo com senhas diferentes, fica com uma senha só; o outro aceite, de conta que agora tem senha e não provou o e-mail, é VERIFICACAO_PENDENTE e não usa o convite (7.0)', async () => {
     const [escolaA, escolaB] = [await bancada.escola(), await bancada.escola()]
     const email = `convidada-${randomUUID()}@escola.invalid`
     const deA = await convidarEm(escolaA, new Date(), email)
@@ -332,9 +335,11 @@ describe('convite do primeiro coordenador: o operador gera, a pessoa consulta e 
     expect(deB.contaId).toBe(deA.contaId)
 
     const [emA, emB] = await Promise.all([aceitar(deA.token, 'senha-escolhida-em-a-1'), aceitar(deB.token, 'senha-escolhida-em-b-2')])
-    expect([emA.corpo['etapa'], emB.corpo['etapa']].sort()).toEqual(['configurar_mfa', 'entrar'])
-    // O aceite que perdeu a corrida não define senha: devolve o bilhete, e aquele usuário espera o login.
-    expect([emA, emB].find((resposta) => resposta.corpo['etapa'] === 'entrar')?.corpo['bilhete']).toEqual(expect.any(String))
+    expect([emA, emB].map((resposta) => resposta.corpo['etapa'] ?? resposta.corpo.erro?.codigo).sort()).toEqual(['VERIFICACAO_PENDENTE', 'configurar_mfa'])
+    // O aceite que perdeu a corrida não define senha e, copiado de outra escola numa conta que ainda não provou o e-mail, desfaz o uso do convite: o link de verificar sai por e-mail.
+    const perdedor = emA.status === 409 ? deA : deB
+    const { rows: usadoDoPerdedor } = await bancada.pool.query<{ usado: boolean }>('select usado_em is not null as usado from convite where id = $1', [perdedor.conviteId])
+    expect(usadoDoPerdedor).toEqual([{ usado: false }])
     const senhaGravada = await senhaDaConta(deA.contaId)
     const valeA = await hash.verificar(senhaGravada, 'senha-escolhida-em-a-1')
     const valeB = await hash.verificar(senhaGravada, 'senha-escolhida-em-b-2')

@@ -48,7 +48,7 @@
   - [ ] 6.3 `docs/interface.md`: as duas telas e a entrada
   - [ ] 6.4 Testes: esqueci → redefinir pelo Mailpit, estados, recomeço, 360 px
 
-- [ ] **7.0 — Posse do e-mail: verificar antes de a conta cruzar escolas (API)**
+- [x] **7.0 — Posse do e-mail: verificar antes de a conta cruzar escolas (API)**
   - [ ] 7.1 Migration `conta.emailVerificadoEm`
   - [ ] 7.2 O aceite: verifica pelo canal `email`; `VERIFICACAO_PENDENTE` e o link (24 h, 3/h por conta) no copiado de outra escola
   - [ ] 7.3 `POST /v1/conta/verificar`; o redefinir também verifica; `conta.email_verificado` por escola

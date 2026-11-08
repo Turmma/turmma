@@ -62,6 +62,7 @@ import { LogoutService } from './logout/saida.service.js'
 import { LoginFallbackTracker } from '../credencial/login-fallback.js'
 import { TrocaDeEscolaController } from './troca-de-escola/troca-de-escola.controller.js'
 import { TrocaDeEscolaService } from './troca-de-escola/troca-de-escola.service.js'
+import { ContaController } from './senha/conta.controller.js'
 import { SenhaController } from './senha/senha.controller.js'
 import { SenhaService, type PisoDoEsqueci } from './senha/senha.service.js'
 
@@ -125,6 +126,7 @@ export class SessaoModule implements OnApplicationShutdown {
         TrocaDeEscolaController,
         ExternalLoginController,
         SenhaController,
+        ContaController,
       ],
       providers: [
         { provide: REDIS_LOGIN_CLIENT, useFactory: () => createApiRedisClient(opcoes.redisFilaUrl, 'api-login', avisar, opcoes.prazoDoRedisMs ?? opcoes.login.prazoDoRedisMs) },
@@ -243,9 +245,9 @@ export class SessaoModule implements OnApplicationShutdown {
         },
         {
           provide: ConviteService,
-          useFactory: (banco: Database, resolucao: TenantResolutionRepository, hash: PasswordHasher, bilhetes: ConviteTicket) =>
-            new ConviteService({ banco, resolucao, hash, bilhetes, emissorDeDesafio: new ChallengeIssuer(opcoes.identidade.chaveAssinatura) }),
-          inject: [DB, TenantResolutionRepository, PasswordHasher, ConviteTicket],
+          useFactory: (banco: Database, resolucao: TenantResolutionRepository, hash: PasswordHasher, bilhetes: ConviteTicket, verificacao: SenhaService) =>
+            new ConviteService({ banco, resolucao, hash, bilhetes, verificacao, emissorDeDesafio: new ChallengeIssuer(opcoes.identidade.chaveAssinatura) }),
+          inject: [DB, TenantResolutionRepository, PasswordHasher, ConviteTicket, SenhaService],
         },
         {
           provide: MfaService,

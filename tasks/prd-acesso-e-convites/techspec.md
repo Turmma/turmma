@@ -95,7 +95,15 @@ em memória, 300 ÷ instâncias.
 **Posse do e-mail.** O aceite de convite por e-mail grava `emailVerificadoEm`. Conta com senha e sem verificação que
 aceita convite copiado de outra escola (o do painel também): `VERIFICACAO_PENDENTE` e link de `verificar` (24 h) no lugar
 do aberto, como no "esqueci", com teto de 3 por hora por conta, que rebaixa. Verificada, o aceite segue. Redefinir
-também verifica.
+também verifica. "De outra escola" é a conta ter usuário, em qualquer estado (o convite o cria inativo), em escola diferente
+da do convite; a conta nova, que define a senha no próprio aceite, não cruza nada. O aceite que perde a corrida da senha
+para o convite de outra escola da mesma conta relê a posse dentro da transação e, se agora cruza sem ela, desfaz o uso do
+convite e responde `VERIFICACAO_PENDENTE`. O pedido do link é do `SenhaService.pedirVerificacao`, fora da transação do
+aceite (o 23505 do índice único aborta a transação em que cai), e a resposta é a mesma com link novo ou sem ele. O link de
+verificar vale também para a conta cujo único usuário espera um convite válido (o professor que saiu da A com o convite da
+B já emitido): enquanto o convite vale a conta não é limpa (`limparContaSemUso`), e o `/v1/conta/verificar` usa o mesmo
+critério de "a conta serve", grava a posse e, sem usuário ativo, nenhum `conta.email_verificado` (ver "Auditoria"). Sem
+usuário ativo nem convite válido: link inválido.
 
 **Esqueci.** 202 igual, piso de 400 ms, também no perdedor do índice único; conta ativa ganha link (1 h). Redefinir
 confere o token antes do argon2, troca a senha com a conta travada, encerra as sessões e verifica o e-mail; o MFA fica.
@@ -193,4 +201,4 @@ verificar, trocar a provisória (depois do login), conta da escola na sala e em 
 ## 13. Riscos técnicos
 
 - Quem gera a provisória pode entrar na conta do aluno. Mitigação: o aluno a vê na troca seguinte; auditoria; D81
-- `VERIFICACAO_PENDENTE` revela a quem tem o link copiado que o e-mail tem conta: aceito
+- `VERIFICACAO_PENDENTE` revela a quem tem o link copiado, inclusive à coordenação da escola que o gerou, que a conta daquele e-mail tem senha, não provou o e-mail e já tem usuário em outra escola; o nome e o id dessa escola não saem. Dado de adulto: aceito

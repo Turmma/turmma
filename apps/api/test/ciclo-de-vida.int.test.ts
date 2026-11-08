@@ -40,6 +40,8 @@ interface Pessoa {
 interface ContaNoBanco {
   email: string | null
   senha: boolean
+  /** `email_verificado_em` preenchido (acesso-e-convites, 7.0): a conta limpa não guarda a posse de um endereço que ela já não tem. */
+  verificada: boolean
   mfaAtivo: boolean
   segredo: boolean
   codigos: number
@@ -91,10 +93,11 @@ describe('ciclo de vida da conta: desativação, limpeza da conta global e elimi
     expect((erro as DomainException).codigo).toBe(ErrorCode.NAO_ENCONTRADO)
   }
 
+  /** A conta nasce com o e-mail verificado (acesso-e-convites, 7.0): o convite copiado de outra escola só segue com a posse provada, e aqui o que se prova é o desativar. */
   async function pessoa(escolaId: string, papel: PapelDeUsuario = 'professor'): Promise<Pessoa> {
     const email = `equipe-${randomUUID()}@escola.invalid`
     const nome = `Pessoa sintética ${randomUUID().slice(0, 8)}`
-    const { rows: contas } = await bancada.pool.query<{ id: string }>('insert into conta (email, senha_hash) values ($1, $2) returning id', [email, hashDaSenha])
+    const { rows: contas } = await bancada.pool.query<{ id: string }>('insert into conta (email, senha_hash, email_verificado_em) values ($1, $2, now()) returning id', [email, hashDaSenha])
     const contaId = contas[0]?.id ?? ''
     const { rows } = await bancada.pool.query<{ id: string }>('insert into usuario (escola_id, conta_id, papel, nome) values ($1, $2, $3, $4) returning id', [escolaId, contaId, papel, nome])
     return { email, nome, contaId, usuarioId: rows[0]?.id ?? '', escolaId }
@@ -164,15 +167,15 @@ describe('ciclo de vida da conta: desativação, limpeza da conta global e elimi
   const statusDoEu = async (token: string) => (await chamar(api.url, 'GET', '/v1/eu', token)).status
 
   async function contaNoBanco(contaId: string): Promise<ContaNoBanco> {
-    const { rows } = await bancada.pool.query<{ email: string | null; senha: boolean; mfa_ativo: boolean; segredo: boolean; codigos: string }>(
-      `select email, senha_hash is not null as senha, mfa_ativado_em is not null as mfa_ativo, mfa_segredo_cifrado is not null as segredo,
+    const { rows } = await bancada.pool.query<{ email: string | null; senha: boolean; verificada: boolean; mfa_ativo: boolean; segredo: boolean; codigos: string }>(
+      `select email, senha_hash is not null as senha, email_verificado_em is not null as verificada, mfa_ativado_em is not null as mfa_ativo, mfa_segredo_cifrado is not null as segredo,
               (select count(*) from codigo_recuperacao c where c.conta_id = conta.id) as codigos
        from conta where id = $1`,
       [contaId],
     )
     const [linha] = rows
     if (linha === undefined) throw new Error('conta não encontrada')
-    return { email: linha.email, senha: linha.senha, mfaAtivo: linha.mfa_ativo, segredo: linha.segredo, codigos: Number(linha.codigos) }
+    return { email: linha.email, senha: linha.senha, verificada: linha.verificada, mfaAtivo: linha.mfa_ativo, segredo: linha.segredo, codigos: Number(linha.codigos) }
   }
 
   async function sessoesDe(escolaId: string, usuarioId: string): Promise<Array<{ encerrada: boolean; motivo: string | null }>> {
@@ -276,7 +279,7 @@ describe('ciclo de vida da conta: desativação, limpeza da conta global e elimi
     expect(await sessoesDe(escolaA, camila.usuarioId)).toEqual([{ encerrada: true, motivo: 'desativacao' }])
     // A sessão que ela já tinha aberta em B não cai: a conta ainda serve a B.
     expect(await statusDoEu(tokenAbertoEmB)).toBe(200)
-    expect(await contaNoBanco(camila.contaId)).toEqual({ email: camila.email, senha: true, mfaAtivo: false, segredo: false, codigos: 0 })
+    expect(await contaNoBanco(camila.contaId)).toEqual({ email: camila.email, senha: true, verificada: true, mfaAtivo: false, segredo: false, codigos: 0 })
     // Com um usuário ativo só, o login vai direto a B.
     const tokenEmB = await entrarComo(camila, camilaEmB)
     expect((await chamar(api.url, 'GET', '/v1/eu', tokenEmB)).corpo).toMatchObject({ usuarioId: camilaEmB, escola: { id: escolaB } })
@@ -286,7 +289,7 @@ describe('ciclo de vida da conta: desativação, limpeza da conta global e elimi
     expect(await contaNoBanco(camila.contaId)).toMatchObject({ mfaAtivo: true, segredo: true, codigos: 10 })
     await pela(coordenacaoDeB, () => servico.desativar(camilaEmB))
 
-    expect(await contaNoBanco(camila.contaId)).toEqual({ email: null, senha: false, mfaAtivo: false, segredo: false, codigos: 0 })
+    expect(await contaNoBanco(camila.contaId)).toEqual({ email: null, senha: false, verificada: false, mfaAtivo: false, segredo: false, codigos: 0 })
     for (const token of [tokenEmB, tokenAbertoEmB]) expect(await statusDoEu(token)).toBe(401)
     const { rows: abertas } = await bancada.pool.query('select 1 from sessao where conta_id = $1 and encerrada_em is null', [camila.contaId])
     expect(abertas).toEqual([])
@@ -435,7 +438,7 @@ describe('ciclo de vida da conta: desativação, limpeza da conta global e elimi
 
     // O último usuário da conta eliminado, agora em B: a mesma limpeza da desativação.
     await pela(b.coordenacao, () => servico.eliminar(camilaEmB))
-    expect(await contaNoBanco(camila.contaId)).toEqual({ email: null, senha: false, mfaAtivo: false, segredo: false, codigos: 0 })
+    expect(await contaNoBanco(camila.contaId)).toEqual({ email: null, senha: false, verificada: false, mfaAtivo: false, segredo: false, codigos: 0 })
     expect((await auditoriaDoCiclo(escolaB)).map((linha) => linha['depois'])).toEqual([
       { sessoesApagadas: 2, vinculosApagados: 1, credencialApagada: false, contaExternaApagada: true, linhaDaListaApagada: false, pedidosApagados: 0, contaLimpa: true },
     ])

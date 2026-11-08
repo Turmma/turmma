@@ -1,6 +1,6 @@
-import { AuditoriaRecorder, currentContext, DomainException, insuranceLimit, runInContext, systemClock, type Clock, type Database, type JobOutbox, type LoggerBase, type SecretCipher } from '@educa/core'
+import { AuditoriaRecorder, currentContext, DomainException, insuranceLimit, runInContext, systemClock, type Clock, type Database, type DatabaseTransaction, type FinalidadeDoLinkDaConta, type JobOutbox, type LoggerBase, type SecretCipher } from '@educa/core'
 import { ContaGlobalRepository } from '@educa/core/conta-global'
-import { ErrorCode, TIPO_ENVIAR_EMAIL_DA_CONTA, type EsqueciSenhaRequest, type RedefinirSenhaRequest } from '@educa/shared'
+import { ErrorCode, TIPO_ENVIAR_EMAIL_DA_CONTA, type EsqueciSenhaRequest, type RedefinirSenhaRequest, type VerificarContaRequest } from '@educa/shared'
 import { Logger } from '@nestjs/common'
 import { randomUUID } from 'node:crypto'
 import type { PasswordHasher } from '../../credencial/password-hasher.js'
@@ -10,7 +10,7 @@ import type { WindowCounter } from '../../credencial/senha/window-counter.js'
 import { normalizarEmail } from '../../credencial/login-identifiers.js'
 import { hashDoToken } from '../../credencial/token-hash.js'
 import { tokenNovo } from '../convite/convite.service.js'
-import { linkJaAberto, TenantResolutionRepository } from '../tenant/tenant-resolution.repository.js'
+import { linkJaAberto, TenantResolutionRepository, type UsuarioAtivoDaConta } from '../tenant/tenant-resolution.repository.js'
 
 const registro = new AuditoriaRecorder()
 
@@ -24,6 +24,14 @@ export const LIMITE_DO_ESQUECI_POR_IP_MIN = 10
 /** O "esqueci" por e-mail digitado: 3 por hora, pelo HMAC do e-mail (alcança também e-mail sem conta). */
 export const PREFIXO_DO_ESQUECI_POR_EMAIL = 'rl:senha:email'
 export const LIMITE_DO_ESQUECI_POR_EMAIL_HORA = 3
+/** Quanto vale o link de verificar o e-mail (acesso-e-convites, tarefa 7.0): 24 horas, uso único. */
+export const VALIDADE_DO_LINK_DE_VERIFICAR_MS = 24 * 60 * 60 * 1000
+/** O pedido de verificação do aceite por conta: 3 por hora, pelo HMAC do id da conta. Acima dele o aceite segue pendente, mas nenhum link novo sai. */
+export const PREFIXO_DA_VERIFICACAO_POR_CONTA = 'rl:verificar:conta'
+export const LIMITE_DA_VERIFICACAO_POR_CONTA_HORA = 3
+
+/** As duas ações que o redefinir e o verificar gravam, uma por escola em que a conta tem usuário ativo. */
+type AcaoPorEscola = 'senha.redefinida' | 'conta.email_verificado'
 
 /** O relógio e a espera do piso: o teste os troca para provar os 400 ms por relógio falso. */
 export interface PisoDoEsqueci {
@@ -74,6 +82,15 @@ const esperarDeVerdade = (ms: number): Promise<void> => new Promise((resolve) =>
  * - Na transação, com a conta travada (a ordem da redefinição do MFA e da desativação: conta, depois sessão): o link é marcado como usado, uma vez só (`usado_em is null`),
  *   a senha é trocada, todas as sessões da conta são encerradas (`senha_redefinida`) e `senha.redefinida` é gravado em cada escola em que a conta tem usuário ativo, com esse
  *   usuário como autor e alvo. O MFA fica como está. Conta sem usuário ativo no momento (desativado entre o link e o redefinir): nada é gravado e a resposta é a do link inválido.
+ *   O link veio ao e-mail da conta, então o redefinir também prova a posse dele: grava `emailVerificadoEm` e, se a conta ainda não era verificada, `conta.email_verificado` por escola.
+ *
+ * **Verificar** (`POST /v1/conta/verificar`, 204; acesso-e-convites, tarefa 7.0, RF12): o link de verificar (24 h, uso único) prova a posse do e-mail. Token inválido, vencido, usado ou
+ * substituído é `NAO_ENCONTRADO`. Na transação, com a conta travada como no redefinir, o link é marcado como usado uma vez só, a posse é gravada e `conta.email_verificado` sai em
+ * cada escola em que a conta tem usuário ativo; sem usuário ativo (desativado entre o link e o verificar) nada é gravado e a resposta é a do link inválido.
+ *
+ * **Pedir a verificação** (`pedirVerificacao`, chamado pelo aceite do convite copiado de outra escola): conta o pedido (3 por hora, por conta), e dentro do teto cancela o link de verificar
+ * aberto, grava o novo (`na_fila`, 24 h) e enfileira o `sistema.enviar-email-da-conta`, tudo numa transação. Acima do teto, ou perdendo o índice único para outro pedido da mesma conta,
+ * nada sai e o aceite responde igual: quem aceita nunca vê a diferença.
  */
 export class SenhaService {
   readonly #logger = new Logger('senha')
@@ -100,7 +117,7 @@ export class SenhaService {
     const achada = await resolucao.contaPorEmail(email)
     if (achada === undefined) return
     if ((await resolucao.usuariosAtivosDaConta(achada.id, { comSuspensos: true })).length === 0) return
-    await this.#abrirLink(achada.id, email)
+    await this.#abrirLink('redefinir', achada.id, email, VALIDADE_DO_LINK_DE_REDEFINIR_MS)
   }
 
   /** Soma um no contador e diz se o pedido passou do limite dele (dividido pelas instâncias no seguro em memória). */
@@ -110,10 +127,21 @@ export class SenhaService {
     return valor > (doSeguro ? insuranceLimit(limite, this.dependencias.instancias) : limite)
   }
 
-  async #abrirLink(contaId: string, email: string): Promise<void> {
+  /**
+   * Pede o link de verificar o e-mail da conta, a pedido do aceite do convite copiado (acesso-e-convites, tarefa 7.0). Não responde nada a quem aceita: o teto de 3 por hora, a conta
+   * sem e-mail e a corrida do índice único terminam todos sem link novo, e o aceite diz o mesmo `VERIFICACAO_PENDENTE`.
+   */
+  async pedirVerificacao(contaId: string): Promise<void> {
+    if (await this.#contar('porHora', PREFIXO_DA_VERIFICACAO_POR_CONTA, contaId, LIMITE_DA_VERIFICACAO_POR_CONTA_HORA)) return
+    const email = await this.dependencias.resolucao.emailDaConta(contaId)
+    if (email === undefined) return
+    await this.#abrirLink('verificar', contaId, email, VALIDADE_DO_LINK_DE_VERIFICAR_MS)
+  }
+
+  async #abrirLink(finalidade: FinalidadeDoLinkDaConta, contaId: string, email: string, validadeMs: number): Promise<void> {
     const { banco, cifra, fila } = this.dependencias
     const token = tokenNovo()
-    const expiraEm = new Date(this.#relogio.agora().getTime() + VALIDADE_DO_LINK_DE_REDEFINIR_MS)
+    const expiraEm = new Date(this.#relogio.agora().getTime() + validadeMs)
     const cifrarParaEnvio = (linkId: string) => ({
       tokenCifrado: cifra.cifrar(Buffer.from(token, 'utf8'), linkId).cifrado,
       destinoCifrado: cifra.cifrar(Buffer.from(email, 'utf8'), linkId).cifrado,
@@ -121,8 +149,10 @@ export class SenhaService {
     try {
       const linkId = await banco.transaction(async (tx) => {
         const resolucao = new TenantResolutionRepository(tx)
-        await resolucao.cancelarLinksAbertos(contaId, 'redefinir')
-        const id = await resolucao.criarLinkDaConta({ contaId, finalidade: 'redefinir', tokenHash: hashDoToken(token), expiraEm, cifrarParaEnvio })
+        // A conta primeiro, na ordem do redefinir e do verificar: ver `segurarContaParaLink`.
+        await resolucao.segurarContaParaLink(contaId)
+        await resolucao.cancelarLinksAbertos(contaId, finalidade)
+        const id = await resolucao.criarLinkDaConta({ contaId, finalidade, tokenHash: hashDoToken(token), expiraEm, cifrarParaEnvio })
         await fila.enfileirar(tx, TIPO_ENVIAR_EMAIL_DA_CONTA, { linkId: id })
         return id
       })
@@ -153,13 +183,40 @@ export class SenhaService {
       if (usuarios.length === 0) throw linkInvalido()
       await naTransacao.trocarSenha(valido.contaId, senhaHash)
       await new ContaGlobalRepository(tx).encerrarSessoesDaConta(valido.contaId, 'senha_redefinida')
-      // Uma escola, um registro: o primeiro usuário ativo da conta nela, por id, é o autor e o alvo.
-      const porEscola = new Map<string, string>()
-      for (const ativo of usuarios) if (!porEscola.has(ativo.escolaId)) porEscola.set(ativo.escolaId, ativo.usuarioId)
-      for (const [escolaId, usuarioId] of porEscola) {
-        await runInContext({ requisicaoId, escolaId, usuarioId }, () => registro.gravar(tx, 'senha.redefinida', { entidadeId: usuarioId }))
-      }
+      await this.#auditarPorEscola(tx, requisicaoId, usuarios, 'senha.redefinida')
+      // O link foi para o e-mail da conta: abri-lo prova a posse dele. Só a passagem de não verificada a verificada é fato novo.
+      if (await naTransacao.marcarEmailVerificado(valido.contaId)) await this.#auditarPorEscola(tx, requisicaoId, usuarios, 'conta.email_verificado')
     })
     this.#logger.log('senha.redefinida')
+  }
+
+  async verificar(pedido: VerificarContaRequest): Promise<void> {
+    const { banco, resolucao } = this.dependencias
+    const tokenHash = hashDoToken(pedido.token)
+    const valido = await resolucao.linkValidoPorHash(tokenHash, 'verificar')
+    if (valido === undefined) throw linkInvalido()
+    const requisicaoId = currentContext()?.requisicaoId ?? randomUUID()
+    await banco.transaction(async (tx) => {
+      const naTransacao = new TenantResolutionRepository(tx)
+      // A conta primeiro, na ordem do redefinir: dois verificar da mesma conta, e a desativação de um usuário dela, esperam uns pelos outros.
+      if ((await naTransacao.travarContaParaRedefinir(valido.contaId)) === undefined) throw linkInvalido()
+      const usado = await naTransacao.usarLinkPorHash(tokenHash, 'verificar')
+      if (usado === undefined || usado.contaId !== valido.contaId) throw linkInvalido()
+      const usuarios = await naTransacao.usuariosAtivosDaConta(valido.contaId, { comSuspensos: true })
+      // Sem usuário ativo a conta serve enquanto um usuário dela espera convite válido (o professor que saiu da A com o convite da B já emitido): o e-mail se prova e o aceite
+      // segue; só não há escola a registrar. Sem uma coisa nem outra, não há para que provar a posse.
+      if (usuarios.length === 0 && !(await naTransacao.contaEmUso(valido.contaId))) throw linkInvalido()
+      if (await naTransacao.marcarEmailVerificado(valido.contaId)) await this.#auditarPorEscola(tx, requisicaoId, usuarios, 'conta.email_verificado')
+    })
+    this.#logger.log('conta.email_verificado')
+  }
+
+  /** Uma escola, um registro: o primeiro usuário ativo da conta nela, por id, é o autor e o alvo (a rota é anônima e a conta é global). */
+  async #auditarPorEscola(tx: DatabaseTransaction, requisicaoId: string, usuarios: readonly UsuarioAtivoDaConta[], acao: AcaoPorEscola): Promise<void> {
+    const porEscola = new Map<string, string>()
+    for (const ativo of usuarios) if (!porEscola.has(ativo.escolaId)) porEscola.set(ativo.escolaId, ativo.usuarioId)
+    for (const [escolaId, usuarioId] of porEscola) {
+      await runInContext({ requisicaoId, escolaId, usuarioId }, () => registro.gravar(tx, acao, { entidadeId: usuarioId }))
+    }
   }
 }

@@ -5,6 +5,7 @@ import { esperarNovaConversa } from './support/casca.ts'
 import { expect, test } from './support/profiles.ts'
 import { ALVO_DE_TOQUE_PRINCIPAL_PX, horizontalOverflow, seriousViolations } from './support/checks.ts'
 
+// Acesso-e-convites, 7.0: a conta de equipe do `support/seed.ts` já nasce com o e-mail verificado, senão o convite copiado de outra escola devolveria `VERIFICACAO_PENDENTE` antes da tela do aceite.
 const ROTA_CONSULTAR = '**/v1/convites/consultar'
 const ROTA_ACEITAR = '**/v1/convites/aceitar'
 const INDISPONIVEL = JSON.stringify({ erro: { codigo: 'INDISPONIVEL_TENTE_DE_NOVO', mensagem: 'texto que a tela não usa', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } })

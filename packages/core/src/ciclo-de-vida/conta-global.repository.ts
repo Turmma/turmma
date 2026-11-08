@@ -52,7 +52,7 @@ export class ContaGlobalRepository {
 
   /**
    * Com a conta já travada (`travarConta`), limpa a conta que deixou de servir a qualquer escola (17.0; regra 20, item
-   * 18): apaga e-mail, senha, segredo e passo do TOTP e os códigos de recuperação, e encerra as sessões ainda abertas
+   * 18): apaga e-mail (e a posse dele), senha, segredo e passo do TOTP e os códigos de recuperação, e encerra as sessões ainda abertas
    * dela (motivo `conta_limpa`), que saem com o expurgo de 30 dias. A linha fica só com o id, que os usuários desativados ainda apontam.
    *
    * A conta serve enquanto tem um usuário ativo em alguma escola, ou um usuário que espera um convite ainda válido (não
@@ -73,7 +73,7 @@ export class ContaGlobalRepository {
     if (emUso !== undefined) return false
     const limpas = await this.banco
       .update(conta)
-      .set({ email: null, senhaHash: null, mfaSegredoCifrado: null, mfaChaveVersao: null, mfaAtivadoEm: null, mfaUltimoPasso: null })
+      .set({ email: null, emailVerificadoEm: null, senhaHash: null, mfaSegredoCifrado: null, mfaChaveVersao: null, mfaAtivadoEm: null, mfaUltimoPasso: null })
       .where(and(eq(conta.id, contaId), isNotNull(conta.email)))
       .returning({ id: conta.id })
     await this.banco.delete(codigoRecuperacao).where(eq(codigoRecuperacao.contaId, contaId))

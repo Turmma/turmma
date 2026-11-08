@@ -102,7 +102,8 @@ export async function criarEquipeComSenha(papel: 'professor' | 'coordenador' = '
     // Sem ano letivo é a escola como o painel da operação a cria: a coordenação começa por ele (Estrutura, 13.0).
     if (opcoes.semAnoLetivo !== true)
       await banco.query("insert into ano_letivo (escola_id, ano, inicio, fim, situacao) values ($1, 2026, '2026-02-01', '2026-12-18', 'em_curso')", [escolaId])
-    const contaId = await id(banco, 'insert into conta (email, senha_hash) values ($1, $2) returning id', [email, senhaHash])
+    // A conta de equipe já provou o e-mail (acesso-e-convites, 7.0): sem isso, o convite copiado de outra escola pede a verificação antes do aceite.
+    const contaId = await id(banco, 'insert into conta (email, senha_hash, email_verificado_em) values ($1, $2, now()) returning id', [email, senhaHash])
     const usuarioId = await id(banco, `insert into usuario (escola_id, conta_id, papel, nome, introducao_vista_em) values ($1, $2, $3, $4, ${introducaoVistaEm(opcoes.introducao)}) returning id`, [escolaId, contaId, papel, nome])
     return { escolaId, escolaNome, redeNome, slug, contaId, usuarioId, nome, email, senha }
   })
@@ -854,7 +855,8 @@ async function criarPessoaNaEscola(escola: Pick<EquipeDeTeste, 'escolaId' | 'esc
   const senha = `senha-sintetica-${marca}`
   const senhaHash = await hashDaSenha(senha)
   return comBanco(async (banco) => {
-    const contaId = await id(banco, 'insert into conta (email, senha_hash) values ($1, $2) returning id', [email, senhaHash])
+    // A conta de equipe já provou o e-mail (acesso-e-convites, 7.0): sem isso, o convite copiado de outra escola pede a verificação antes do aceite.
+    const contaId = await id(banco, 'insert into conta (email, senha_hash, email_verificado_em) values ($1, $2, now()) returning id', [email, senhaHash])
     const usuarioId = await id(banco, `insert into usuario (escola_id, conta_id, papel, nome, introducao_vista_em) values ($1, $2, $3, $4, ${introducaoVistaEm(opcoes.introducao)}) returning id`, [escola.escolaId, contaId, papel, nome])
     return { escolaId: escola.escolaId, escolaNome: escola.escolaNome, redeNome: escola.redeNome, slug: escola.slug, contaId, usuarioId, nome, email, senha }
   })

@@ -4,6 +4,7 @@ import { campoCodigo, setUpMfa } from './support/mfa.ts'
 import { codigoDoAutenticador, criarConviteDeCoordenador, criarEquipeComSenha, desativarUsuario, revogarConvite } from './support/seed.ts'
 import { rawCodePattern, horizontalOverflow, seriousViolations } from './support/checks.ts'
 
+// Acesso-e-convites, 7.0: a conta de equipe do `support/seed.ts` já nasce com o e-mail verificado, senão o convite copiado de outra escola devolveria `VERIFICACAO_PENDENTE` antes da tela do aceite.
 const SCREEN_TIMEOUT_MS = 20_000
 
 /** Um passo do TOTP à frente: a ativação do segundo fator gravou o passo de agora. */

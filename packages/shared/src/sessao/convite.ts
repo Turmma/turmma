@@ -69,6 +69,10 @@ export type AceitarConviteRequest = z.infer<typeof aceitarConviteRequestSchema>
  * - `entrar`: a conta já tinha senha; a web leva ao `/entrar` com o `bilhete` (30 min), que vai no corpo do login por
  *   e-mail. O usuário da escola só é ativado pelo login com a senha e o segundo fator que a conta já tem e com esse
  *   bilhete: sem ele, o login da conta nunca ativa o convite.
+ *
+ * Não é resposta de sucesso, e por isso não entra na união: a conta com senha que ainda não provou o e-mail e aceita um convite
+ * **copiado** de outra escola recebe o erro `VERIFICACAO_PENDENTE` (409, acesso-e-convites, tarefa 7.0), sem usar o convite, e o link
+ * de verificar sai por e-mail. O convite enviado por e-mail prova a posse no próprio aceite.
  */
 export const aceitarConviteResponseSchema = z.discriminatedUnion('etapa', [
   z.object({ etapa: z.literal('configurar_mfa'), desafio: z.string().min(1) }).strict(),

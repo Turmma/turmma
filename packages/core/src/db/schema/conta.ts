@@ -33,6 +33,12 @@ export const conta = pgTable(
     mfaChaveVersao: smallint(),
     mfaAtivadoEm: timestamp({ withTimezone: true }),
     mfaUltimoPasso: bigint({ mode: 'number' }),
+    /**
+     * Quando a posse do e-mail foi provada (acesso-e-convites, tarefa 7.0; Tech Spec, seção 5, "Posse do e-mail"): o aceite de um convite
+     * enviado por e-mail, o link de verificar e o link do "esqueci a senha" a gravam. Nula enquanto ninguém provou, e nunca volta a nula
+     * senão pela limpeza da conta. A conta com senha e sem ela não aceita convite copiado de outra escola.
+     */
+    emailVerificadoEm: timestamp({ withTimezone: true }),
   },
   (tabela) => [check('conta_email_formato', sql`char_length(${tabela.email}) between 3 and 254 and position('@' in ${tabela.email}) > 1`)],
 )

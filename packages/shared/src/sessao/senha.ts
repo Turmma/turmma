@@ -22,3 +22,11 @@ export const redefinirSenhaRequestSchema = z
   .strict()
 
 export type RedefinirSenhaRequest = z.infer<typeof redefinirSenhaRequestSchema>
+
+/**
+ * Corpo de `POST /v1/conta/verificar` (acesso-e-convites, tarefa 7.0; RF12): só o token do link de verificar, que a web lê do fragmento e manda aqui, nunca na URL da
+ * API. A resposta é 204, e token vencido, usado, substituído ou de outro formato é `NAO_ENCONTRADO`, igual para todos. Não há senha: o link prova a posse do e-mail.
+ */
+export const verificarContaRequestSchema = z.object({ token: z.string().min(1).max(TAMANHO_MAXIMO_TOKEN_DE_CONVITE) }).strict()
+
+export type VerificarContaRequest = z.infer<typeof verificarContaRequestSchema>

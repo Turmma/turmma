@@ -35,8 +35,10 @@ Implementado no F1. A forma exata das tabelas, com unicidades, índices e checks
 seção 3 da Tech Spec do F1 (`tasks/prd-identidade-e-tenancy/techspec.md`); aqui fica o desenho.
 
 ```
-Conta            email?, senhaHash?, mfaSegredoCifrado?, mfaAtivadoEm?, mfaUltimoPasso?
-                 (global, sem escola: é a identidade de login da equipe)
+Conta            email?, emailVerificadoEm?, senhaHash?, mfaSegredoCifrado?, mfaAtivadoEm?, mfaUltimoPasso?
+                 (global, sem escola: é a identidade de login da equipe. acesso-e-convites, 7.0: o emailVerificadoEm é a
+                 posse do endereço provada pelo aceite de convite enviado por e-mail, pelo link de verificar ou pelo
+                 "esqueci a senha"; sem ele, a conta com senha não aceita convite copiado de outra escola)
 CodigoRecuperacao* → conta*, hmac*, usadoEm?
 LinkDaConta*     → conta*, finalidade* (redefinir | verificar), tokenHash* (único), tokenCifrado?, destinoCifrado?,
                    expiraEm*, usadoEm?, envio* (na_fila | enviando | enviado | falhou | cancelado), envioReservadoEm?

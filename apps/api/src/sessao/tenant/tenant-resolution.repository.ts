@@ -1,6 +1,6 @@
-import { acessoTurma, anoLetivo, codigoRecuperacao, conta, convite, escola, linkDaConta, postgresErrorIn, rede, registroAcesso, Unscoped, sessao, usuario, type Database, type EstadoDaSessao, type MotivoDeEncerramento, type FinalidadeDoLinkDaConta, type TipoDeConvite, type DatabaseTransaction } from '@educa/core'
+import { acessoTurma, anoLetivo, codigoRecuperacao, conta, convite, escola, linkDaConta, postgresErrorIn, rede, registroAcesso, Unscoped, sessao, usuario, type Database, type EstadoDaSessao, type MotivoDeEncerramento, type FinalidadeDoLinkDaConta, type TipoDeConvite, type CanalDeConvite, type DatabaseTransaction } from '@educa/core'
 import { InvariantException, type PapelDeUsuario } from '@educa/shared'
-import { and, eq, gt, gte, isNotNull, isNull, lt, ne, or, sql, type SQL } from 'drizzle-orm'
+import { and, eq, gt, gte, isNotNull, isNull, lt, ne, or, sql, type SQL, type SQLWrapper } from 'drizzle-orm'
 
 /**
  * A sessão achada pelo hash do cookie, travada para a renovação decidir (tarefa 5.0): só ids, estado, datas, o papel
@@ -49,12 +49,23 @@ export interface UsuarioAtivoDaConta {
  * O convite válido (não usado, não revogado, no prazo) achado pelo hash do token: os ids, o tipo (o aceite do professor
  * não leva ao segundo fator, A1) e se a conta do convidado já tem senha. Nunca o nome nem o e-mail.
  */
-export interface ConviteValido {
+export interface ConviteValido extends PosseDaConta {
   readonly escolaId: string
   readonly usuarioId: string
   readonly contaId: string
   readonly tipo: TipoDeConvite
   readonly contaTemSenha: boolean
+  /** Como o link chegou: `email` prova a posse do endereço no próprio aceite; `copiado` não prova nada (acesso-e-convites, 7.0). */
+  readonly canal: CanalDeConvite
+}
+
+/**
+ * O que decide se o aceite do convite copiado cruza escolas sem provar o e-mail (acesso-e-convites, tarefa 7.0; Tech Spec, seção 5, "Posse do e-mail"): se a posse do
+ * endereço já foi provada, e se a conta tem usuário em **outra** escola que a do convite. Só dois sim ou não, nunca o id nem o nome da outra escola.
+ */
+export interface PosseDaConta {
+  readonly emailVerificado: boolean
+  readonly cruzaEscolas: boolean
 }
 
 /** O convite que o aceite acabou de marcar como usado: só os ids. */
@@ -350,13 +361,100 @@ export class TenantResolutionRepository {
   @Unscoped('o link do convite não diz a escola: o convite válido é achado pelo hash do token, e só depois a escola dele vira contexto; devolve só ids, o tipo e se a conta tem senha')
   async conviteValidoPorHash(tokenHash: string): Promise<ConviteValido | undefined> {
     const [linha] = await this.banco
-      .select({ escolaId: convite.escolaId, usuarioId: convite.usuarioId, contaId: conta.id, tipo: convite.tipo, senhaHash: conta.senhaHash })
+      .select({
+        escolaId: convite.escolaId,
+        usuarioId: convite.usuarioId,
+        contaId: conta.id,
+        tipo: convite.tipo,
+        canal: convite.canal,
+        senhaHash: conta.senhaHash,
+        emailVerificadoEm: conta.emailVerificadoEm,
+        cruzaEscolas: this.#cruzaEscolas(conta.id, convite.escolaId),
+      })
       .from(convite)
       .innerJoin(usuario, and(eq(usuario.escolaId, convite.escolaId), eq(usuario.id, convite.usuarioId)))
       .innerJoin(conta, eq(conta.id, usuario.contaId))
       .where(and(eq(convite.tokenHash, tokenHash), isNull(convite.usadoEm), isNull(convite.revogadoEm), gt(convite.expiraEm, sql`now()`)))
       .limit(1)
-    return linha === undefined ? undefined : { escolaId: linha.escolaId, usuarioId: linha.usuarioId, contaId: linha.contaId, tipo: linha.tipo, contaTemSenha: linha.senhaHash !== null }
+    return linha === undefined
+      ? undefined
+      : {
+          escolaId: linha.escolaId,
+          usuarioId: linha.usuarioId,
+          contaId: linha.contaId,
+          tipo: linha.tipo,
+          canal: linha.canal,
+          contaTemSenha: linha.senhaHash !== null,
+          emailVerificado: linha.emailVerificadoEm !== null,
+          cruzaEscolas: linha.cruzaEscolas,
+        }
+  }
+
+  /**
+   * A conta serve a alguma escola: tem usuário ativo, ou (`comConvite`, o link de verificar) um usuário que espera um convite ainda válido (não usado, não revogado e no prazo).
+   * É o critério da limpeza da conta (`limparContaSemUso`): enquanto a conta não é limpa, quem tem o convite copiado de outra escola precisa poder provar o e-mail para aceitá-lo, e o
+   * professor que saiu de uma escola com o convite da nova já emitido não pode ficar com um link que nunca funciona.
+   */
+  #contaEmUso(contaId: SQLWrapper, comConvite: boolean): SQL<boolean> {
+    const esperaConvite = sql`exists (select 1 from ${convite} where ${convite.escolaId} = ${usuario.escolaId} and ${convite.usuarioId} = ${usuario.id} and ${convite.usadoEm} is null and ${convite.revogadoEm} is null and ${convite.expiraEm} > now())`
+    const serve = comConvite ? sql`(${usuario.desativadoEm} is null or ${esperaConvite})` : sql`${usuario.desativadoEm} is null`
+    return sql<boolean>`exists (select 1 from ${usuario} where ${usuario.contaId} = ${contaId} and ${serve})`
+  }
+
+  /**
+   * Se a conta tem usuário em escola diferente da dada, qualquer que seja o estado dele (ativo, desativado ou esperando o convite): o usuário nasce no convite, e é ele que
+   * faz a conta "cruzar" escolas. Um `exists` na mesma consulta, para o aceite decidir sem uma leitura a mais.
+   */
+  #cruzaEscolas(contaId: SQLWrapper, escolaDoConvite: SQLWrapper): SQL<boolean> {
+    // O `outro` é raw de propósito: em consulta de uma tabela só o drizzle escreve a coluna sem a tabela, e `"id"` lido no `exists` seria o do próprio `usuario`. Quem chama sem junção passa o parâmetro, não a coluna.
+    return sql<boolean>`exists (select 1 from usuario as outro where outro.conta_id = ${contaId} and outro.escola_id <> ${escolaDoConvite})`
+  }
+
+  /**
+   * A posse do e-mail da conta, lida de novo dentro da transação do aceite (acesso-e-convites, tarefa 7.0): o aceite que perdeu a corrida da senha para o convite de outra escola
+   * da mesma conta precisa saber se agora ele cruza escolas sem a posse provada. Só dois sim ou não.
+   */
+  @Unscoped('a credencial da equipe é global: o aceite do convite lê, pelo conta_id do convite e pela escola dele, se a posse do e-mail foi provada e se a conta tem usuário em outra escola; devolve só dois sim ou não')
+  async posseDaConta(contaId: string, escolaDoConvite: string): Promise<PosseDaConta | undefined> {
+    const [linha] = await this.banco
+      .select({ emailVerificadoEm: conta.emailVerificadoEm, cruzaEscolas: this.#cruzaEscolas(sql`${contaId}::uuid`, sql`${escolaDoConvite}::uuid`) })
+      .from(conta)
+      .where(eq(conta.id, contaId))
+      .limit(1)
+    return linha === undefined ? undefined : { emailVerificado: linha.emailVerificadoEm !== null, cruzaEscolas: linha.cruzaEscolas }
+  }
+
+  /**
+   * Com o `banco` sendo a transação do verificar e a conta já travada: a conta ainda serve a alguma escola (usuário ativo, ou usuário que espera convite válido)? Só o sim ou não.
+   */
+  @Unscoped('a credencial da equipe é global: o verificar confere, com a conta travada, se ela ainda tem usuário ativo ou convite válido em alguma escola, pelo conta_id do link; devolve só se tem')
+  async contaEmUso(contaId: string): Promise<boolean> {
+    const [linha] = await this.banco.select({ emUso: this.#contaEmUso(sql`${contaId}::uuid`, true) }).from(conta).where(eq(conta.id, contaId)).limit(1)
+    return linha?.emUso ?? false
+  }
+
+  /**
+   * Grava a posse do e-mail uma vez só (`update … where email_verificado_em is null`) e devolve se foi esta chamada que a gravou: quem chama só audita a passagem de não verificada a
+   * verificada, e dois links ao mesmo tempo gravam um registro por escola, não dois.
+   */
+  @Unscoped('a credencial da equipe é global: o aceite por e-mail, o verificar e o redefinir gravam a posse do e-mail na conta do convite ou do link usado, uma vez só, e devolvem só se gravaram')
+  async marcarEmailVerificado(contaId: string): Promise<boolean> {
+    const gravadas = await this.banco
+      .update(conta)
+      .set({ emailVerificadoEm: sql`now()` })
+      .where(and(eq(conta.id, contaId), isNull(conta.emailVerificadoEm)))
+      .returning({ id: conta.id })
+    return gravadas.length === 1
+  }
+
+  /**
+   * O endereço da conta, só para o link de verificar do aceite cifrá-lo na fila de envio: o destino é o e-mail **da conta**, nunca o que a pessoa digitou. Conta limpa (sem
+   * e-mail) não é achada. Nunca sai em resposta nem em log.
+   */
+  @Unscoped('a credencial da equipe é global: o link de verificar do aceite lê o e-mail da conta do convite para cifrá-lo na fila de envio; não sai em resposta nem em log')
+  async emailDaConta(contaId: string): Promise<string | undefined> {
+    const [linha] = await this.banco.select({ email: conta.email }).from(conta).where(eq(conta.id, contaId)).limit(1)
+    return linha?.email ?? undefined
   }
 
   /**
@@ -372,6 +470,16 @@ export class TenantResolutionRepository {
       .where(and(eq(convite.tokenHash, tokenHash), isNull(convite.usadoEm), isNull(convite.revogadoEm), gt(convite.expiraEm, sql`now()`)))
       .returning({ id: convite.id, escolaId: convite.escolaId, usuarioId: convite.usuarioId })
     return usado
+  }
+
+  /**
+   * Com o `banco` sendo a transação que abre um link novo: segura a conta em `FOR KEY SHARE` antes de tocar o link. O redefinir e o verificar travam a conta em `FOR UPDATE` e depois
+   * o link; quem cancelasse o link primeiro e só então inserisse o novo (a FK da conta pede `KEY SHARE`) esperaria o `FOR UPDATE` segurando a linha que ele quer: 40P01. Com a conta
+   * primeiro, a ordem é a mesma nos dois, e dois pedidos de link da mesma conta seguem sem esperar um ao outro (`KEY SHARE` é compartilhado): quem perde o índice único é o 23505.
+   */
+  @Unscoped('o link da conta é da conta global: o pedido de link segura a conta, pelo conta_id lido do e-mail ou do convite, na ordem do redefinir e do verificar, e não devolve nada')
+  async segurarContaParaLink(contaId: string): Promise<void> {
+    await this.banco.select({ id: conta.id }).from(conta).where(eq(conta.id, contaId)).for('key share')
   }
 
   /**
@@ -416,7 +524,7 @@ export class TenantResolutionRepository {
   }
 
   /**
-   * O link que ainda vale, pelo hash do token: não usado, no prazo, da finalidade pedida, de uma conta que ainda tem e-mail e ao menos um usuário ativo. Vencido, usado,
+   * O link que ainda vale, pelo hash do token: não usado, no prazo, da finalidade pedida, de uma conta que ainda tem e-mail e ainda serve a alguma escola (`#contaEmUso`: usuário ativo, ou, no verificar, um usuário que espera convite válido). Vencido, usado,
    * substituído, de outra finalidade e inexistente dão todos `undefined`, e quem chama responde a mesma coisa. Só ids: nunca o e-mail.
    */
   @Unscoped('o link da conta não diz a conta: o link válido é achado pelo hash do token, e só depois a conta dele é travada; devolve só ids')
@@ -432,7 +540,7 @@ export class TenantResolutionRepository {
           isNull(linkDaConta.usadoEm),
           gt(linkDaConta.expiraEm, sql`now()`),
           isNotNull(conta.email),
-          sql`exists (select 1 from ${usuario} where ${usuario.contaId} = ${conta.id} and ${usuario.desativadoEm} is null)`,
+          this.#contaEmUso(conta.id, finalidade === 'verificar'),
         ),
       )
       .limit(1)

@@ -1,7 +1,7 @@
 import { runInContext, ExpurgoDeAcessoRepository, sessao } from '@educa/core'
 import { ContaGlobalRepository } from '@educa/core/conta-global'
 import { and, eq, isNull, sql } from 'drizzle-orm'
-import { randomUUID } from 'node:crypto'
+import { randomBytes, randomUUID } from 'node:crypto'
 import pg from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { urlDoBancoDeTeste } from '../../../../../tools/testes/integracao.setup.ts'
@@ -292,6 +292,58 @@ describe('ResolucaoDeTenantRepository: a resolução antes de haver escola devol
       } finally {
         await limpeza.end()
       }
+    })
+  })
+  describe('a posse do e-mail (acesso-e-convites, 7.0) é lida da conta do convite', () => {
+    const contaComUsuarioEm = async (escolaId: string, verificada: boolean) => {
+      const email = `posse-${randomUUID()}@escola.invalid`
+      const { rows } = await bancada.pool.query<{ id: string }>(`insert into conta (email, email_verificado_em) values ($1, ${verificada ? 'now()' : 'null'}) returning id`, [email])
+      const contaId = rows[0]?.id ?? ''
+      await bancada.pool.query("insert into usuario (escola_id, conta_id, papel, nome, desativado_em) values ($1, $2, 'professor', 'Pessoa sintética', now())", [escolaId, contaId])
+      return { email, contaId }
+    }
+
+    it('duas contas no banco: cada uma devolve a própria posse, o próprio cruzamento e o próprio e-mail, e a conta que não existe devolve nada', async () => {
+      const [escolaA, escolaB] = [await bancada.escola(), await bancada.escola()]
+      const verificada = await contaComUsuarioEm(escolaA, true)
+      const pendente = await contaComUsuarioEm(escolaA, false)
+
+      // O usuário em A, mesmo inativo, é "outra escola" para o convite de B; para o convite de A não há outra.
+      expect(await repositorio.posseDaConta(verificada.contaId, escolaB)).toEqual({ emailVerificado: true, cruzaEscolas: true })
+      expect(await repositorio.posseDaConta(pendente.contaId, escolaB)).toEqual({ emailVerificado: false, cruzaEscolas: true })
+      expect(await repositorio.posseDaConta(pendente.contaId, escolaA)).toEqual({ emailVerificado: false, cruzaEscolas: false })
+      expect(await repositorio.posseDaConta(randomUUID(), escolaB)).toBeUndefined()
+      expect(await repositorio.emailDaConta(verificada.contaId)).toBe(verificada.email)
+      expect(await repositorio.emailDaConta(pendente.contaId)).toBe(pendente.email)
+      expect(await repositorio.emailDaConta(randomUUID())).toBeUndefined()
+    })
+
+    it('contaEmUso: usuário ativo serve; usuário desativado só serve esperando convite válido (não usado, não revogado, no prazo); sem nada, a conta não serve', async () => {
+      const escola = await bancada.escola()
+      // Cada estado do convite é uma coluna a mais: o vencido nasce no prazo (o check do convite pede prazo no futuro) e é vencido depois.
+      const estados = {
+        valido: { usado: 'null', revogado: 'null', vencido: false, serve: true },
+        usado: { usado: 'now()', revogado: 'null', vencido: false, serve: false },
+        revogado: { usado: 'null', revogado: 'now()', vencido: false, serve: false },
+        vencido: { usado: 'null', revogado: 'null', vencido: true, serve: false },
+      } as const
+      for (const [nome, estado] of Object.entries(estados)) {
+        const { contaId } = await contaComUsuarioEm(escola, false)
+        const { rows } = await bancada.pool.query<{ id: string }>('select id from usuario where conta_id = $1 and escola_id = $2', [contaId, escola])
+        const usuarioId = rows[0]?.id ?? ''
+        await bancada.pool.query(
+          `insert into convite (escola_id, token_hash, tipo, usuario_id, expira_em, usado_em, revogado_em) values ($1, $2, 'professor', $3, now() + interval '7 days', ${estado.usado}, ${estado.revogado})`,
+          [escola, randomBytes(32).toString('hex'), usuarioId],
+        )
+        if (estado.vencido) await bancada.pool.query("update convite set expira_em = now() - interval '1 second' where usuario_id = $1", [usuarioId])
+        expect(await repositorio.contaEmUso(contaId), nome).toBe(estado.serve)
+      }
+      const semConvite = await contaComUsuarioEm(escola, false)
+      expect(await repositorio.contaEmUso(semConvite.contaId)).toBe(false)
+      const ativa = await contaComUsuarioEm(escola, false)
+      await bancada.pool.query('update usuario set desativado_em = null where conta_id = $1', [ativa.contaId])
+      expect(await repositorio.contaEmUso(ativa.contaId)).toBe(true)
+      expect(await repositorio.contaEmUso(randomUUID())).toBe(false)
     })
   })
 })

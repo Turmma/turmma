@@ -173,6 +173,18 @@ export const ACOES_DE_AUDITORIA = {
     finalidade: null,
   },
   /**
+   * A posse do e-mail da conta foi provada (acesso-e-convites, tarefa 7.0, RF12, RF17): pelo aceite de um convite enviado por e-mail (um registro, na escola do
+   * convite), pelo link de verificar ou pelo link do "esqueci a senha" (um registro **em cada escola** em que a conta tem usuário ativo, com esse usuário como autor e
+   * como alvo, na mesma transação, como o `senha.redefinida`). Grava só quando a conta passa de não verificada a verificada: o segundo link não é fato novo. Nada traz
+   * o e-mail, o token nem a outra escola.
+   */
+  'conta.email_verificado': {
+    entidade: 'usuario',
+    antes: null,
+    depois: null,
+    finalidade: null,
+  },
+  /**
    * O convite nasceu, com o `tipo` (A1, tarefa 3.0): o do coordenador, gerado pelo operador (7.0, RF1, RF19) com
    * `ops:convite-coordenador` ou pelo painel da operação (A0b); o do professor, gerado pela coordenação no cadastro dele
    * (A1, RF6). O usuário convidado, ainda inativo, e até quando o convite vale. Só o do coordenador leva `contaNova`, se

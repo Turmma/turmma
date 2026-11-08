@@ -39,6 +39,7 @@ export const MENSAGENS_DE_ERRO: Readonly<Record<ErrorCode, string>> = {
   RETENCAO_FORA_DO_LIMITE: 'Este prazo não pode ser usado nesta categoria. Confira o mínimo e o máximo dela, e o prazo da categoria que a limita.',
   PEDIDO_EM_ESTADO_INVALIDO: 'Este pedido não aceita mais esta ação. Atualize a tela para ver como ele ficou.',
   ACESSO_SUSPENSO: 'Seu acesso está suspenso a pedido. Fale com a coordenação da escola.',
+  VERIFICACAO_PENDENTE: 'Mandamos um link para o seu e-mail. Abra-o e volte a este convite. Pode levar alguns minutos; se não chegar, abra o convite de novo para outro link.',
 }
 
 /**

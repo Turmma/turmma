@@ -43,6 +43,8 @@ export const HTTP_STATUS_BY_CODE: Readonly<Record<ErrorCode, number>> = {
   PEDIDO_EM_ESTADO_INVALIDO: 409,
   // F3, RF14: a credencial está certa, mas a eliminação da pessoa está agendada. 403, e não 401: a web não tenta renovar nem deslogar em laço.
   ACESSO_SUSPENSO: 403,
+  // Acesso-e-convites, 7.0: o pedido é bem formado, mas o aceite espera a posse do e-mail; o convite continua valendo.
+  VERIFICACAO_PENDENTE: 409,
 }
 
 /**

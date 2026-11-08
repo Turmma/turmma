@@ -108,6 +108,12 @@ export const ErrorCode = {
    * resposta é a da matrícula que não existe, e quem não tem a credencial nunca sabe que há pedido (regra 10, item 6).
    */
   ACESSO_SUSPENSO: 'ACESSO_SUSPENSO',
+  /**
+   * O aceite do convite copiado de outra escola pede antes a posse do e-mail (acesso-e-convites, tarefa 7.0, RF12; 409): a conta já tem senha, ainda não provou
+   * que o e-mail é de quem a usa, e já tem usuário em outra escola. O convite **não** foi usado; o link de verificar foi para o e-mail da conta (no máximo
+   * 3 por hora), e depois de abri-lo o mesmo convite vale. A resposta não traz id, nome nem quantidade da outra escola.
+   */
+  VERIFICACAO_PENDENTE: 'VERIFICACAO_PENDENTE',
 } as const
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode]
