@@ -3110,3 +3110,35 @@ aula" em `Retencao.tsx`, o Validador conferiu: a tela já o mostra pela descriç
       e dar a prioridade pelo risco de revogação. Quando a regra mudar: o `escola_id` fica no `where` e no desempate da subconsulta; um teste de integração com o relógio falso recuando entre os dois convites prova
       que o último é o mais novo mesmo com validade menor; e um teste de isolamento prova que o convite de outra escola não entra na escolha, ainda que um usuário da escola B tenha validade maior
       (test-engineer, tenancy-guardian, privacy-guardian e infra-guardian, 1ª; dono: Arquiteto)
+
+## Da tarefa 4.0 de acesso-e-convites (Professores mostra o envio e o diálogo "Enviar convites"), fora dela
+
+- [ ] (acesso-e-convites 4.0, tenancy-guardian, 1ª) **O `eq(convite.escolaId, escolaId)` em `professores.repository.ts:45` não tem teste próprio.** É defesa em profundidade: nenhum teste quebra se só essa
+      cláusula sair. Exige montar um convite de outra escola apontando para o `usuario_id` de um professor da A, se o banco aceitar essa combinação (dono: Implementador, junto com a próxima mudança do arquivo)
+- [ ] (acesso-e-convites 4.0, tenancy-guardian, 1ª) **`definirOEnvioDoConvite` (`e2e/support/seed.ts`) atualiza só por `usuario_id`, sem a escola.** É ajudante de teste; filtrar por escola muda a assinatura e os
+      chamadores (dono: Implementador)
+- [ ] (acesso-e-convites 4.0, frontend-reviewer, 1ª e 2ª, e conformidade-reviewer, 2ª) **Foto do diálogo e dos estados de envio a 360 px e a 1366 px.** A vitrine não monta professor esperando convite (nenhum dos
+      dois colégios sintéticos tem um), então nenhum revisor viu o botão, o diálogo nem os rótulos em foto; o alinhamento do rótulo `items-start` com o selo é o ponto. O Validador fotografa com um professor pendente (dono: Validador)
+- [ ] (acesso-e-convites 4.0, privacy-guardian, 1ª) **O arquivo do titular (`packages/core/src/titular/leitura-do-titular.ts`) não lê a tabela `convite`.** Vem da 3.0, em arquivo que a 4.0 não toca. Ligar ao pedido do
+      titular, ou escrever em `docs/lgpd.md` por que o convite fica de fora (regra 20, item 19) (dono: Arquiteto, para decidir)
+- [ ] (acesso-e-convites 4.0, privacy-guardian e revisor-geral, 1ª) **`FUSO_DA_ESCOLA` é a terceira cópia de `'America/Sao_Paulo'` no `apps/web`** (`envio-do-convite.ts:11`; as outras em `semana.ts:12` e
+      `textos-dos-pedidos.ts:203`). O ideal é uma constante única em `packages/shared`, e dizer a premissa de que a tela não lê o fuso por escola (dono: Implementador)
+- [ ] (acesso-e-convites 4.0, infra-guardian, 1ª) **A releitura usa `lerPaginas` e lê a lista inteira (até 10 páginas de 100).** Escola com mais de 100 professores e duas abas chega perto de 120 leituras por
+      minuto por usuário. Reler só quem está em envio, ou um intervalo que cresça com as páginas, para a rede pública grande; muda o contrato da releitura (dono: Arquiteto, para decidir)
+- [ ] (acesso-e-convites 4.0, revisor-geral, 1ª) **Com `dados.completa === false`, a contagem e os ids do "Enviar convites" cobrem só quem foi carregado, e o diálogo não avisa.** Só acontece acima de 1000
+      professores (o teto de 10 páginas de 100); pede um aviso novo, com texto novo (dono: Arquiteto, para decidir)
+- [ ] (acesso-e-convites 4.0, test-engineer, 1ª) **O e2e "o professor abre o link do e-mail, cria a senha e aceita" para no aviso de `/entrar`.** Poderia conferir, na lista da coordenação, que o professor saiu de
+      "pendente"; pede uma segunda sessão da coordenação dentro do caso (dono: Implementador)
+- [ ] (acesso-e-convites 4.0, test-engineer, 1ª) **A releitura do primeiro e2e (`e2e/professores-envio.spec.ts:164`) espera a entrega do worker mais a releitura de 5 s no relógio de parede,** perto da metade
+      do prazo. Instalar `page.clock` e usar `runFor` tira a margem, mas o ganho ainda precisa ser medido (dono: Implementador)
+- [ ] (acesso-e-convites 4.0, revisor-geral, 2ª) **O texto novo "Ninguém espera o convite agora: a lista mudou. Confira a situação de cada professor." não está em `cenarios.md` (RF11) nem em
+      `docs/interface.md`.** Registrá-lo lá, junto do "Nenhum convite entrou na fila"; quem confere texto de tela contra o PRD é o Validador (dono: Arquiteto)
+- [ ] (acesso-e-convites 4.0, revisor-geral, 2ª) **`TextoDaEtapa` (`DialogoDeEnviarConvites.tsx`): o segundo ramo testa `feito !== undefined` em vez de `etapa === 'feito'`.** Usar a etapa nos três ramos
+      deixa uma só fonte de verdade; sem mudança de comportamento (dono: Implementador, junto com a próxima mudança do arquivo)
+- [ ] (acesso-e-convites 4.0, revisor-geral, 2ª) **O comentário novo em `e2e/professores-envio.spec.ts` (linhas 416-417) descreve o `clock.install()`;** melhor dizer só o que garante a prova (dono: Implementador)
+- [ ] (acesso-e-convites 4.0, frontend-reviewer, 2ª) **Comentário de uma linha em `DialogoDeEnviarConvites.tsx`:** a etapa `sem_destinatario` não alcança o "Reenviar", que não recebe `semDestinatario`
+      (dono: Implementador, junto com a próxima mudança do arquivo)
+- [ ] (acesso-e-convites 4.0, test-engineer, 2ª) **O bloco de mutação "o diálogo diz 2 professores e o servidor devolve outra contagem" fica vermelho já na primeira asserção:** um
+      `falha: findByText(/^1 convite entrou na fila/)` deixaria o motivo explícito (dono: Implementador)
+- [ ] (acesso-e-convites 4.0, infra-guardian, 2ª) **Se o envio falhar e a lista for relida para zero pendentes, o diálogo mostra o texto "ninguém espera" e o aviso de erro antigo juntos.** Esconder o
+      `ErrorAlert` nesse estado; muda o comportamento da tela e não bloqueia (nenhum pedido sai, sem efeito na carga) (dono: Implementador)

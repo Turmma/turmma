@@ -132,10 +132,12 @@ describe('acesso-e-convites, 3.0: a coordenação envia os convites por e-mail',
     return { usuarioId, conviteId: rows[0]?.id, email }
   }
 
+  // A ordem das linhas (`criado_em`, `id`) segue o relógio de parede, que nesta máquina recua: nenhuma asserção deve depender dela para dizer qual convite é qual.
+  // Cada caso acha o seu pelo canal, pelo id que já tem ou pelo estado (`aberto`, `revogado`, `envio`).
   const convitesDe = async (usuarioId: string) =>
     (
-      await bancada.pool.query<{ id: string; canal: string; envio: string | null; cifrado: boolean; destino: boolean; aberto: boolean; criado_ha_s: number }>(
-        `select id, canal, envio, token_cifrado is not null as cifrado, destino_cifrado is not null as destino, usado_em is null and revogado_em is null as aberto,
+      await bancada.pool.query<{ id: string; canal: string; envio: string | null; cifrado: boolean; destino: boolean; aberto: boolean; revogado: boolean; criado_ha_s: number }>(
+        `select id, canal, envio, token_cifrado is not null as cifrado, destino_cifrado is not null as destino, usado_em is null and revogado_em is null as aberto, revogado_em is not null as revogado,
                 extract(epoch from now() - criado_em)::int as criado_ha_s
            from convite where usuario_id = $1 order by criado_em, id`,
         [usuarioId],
@@ -183,7 +185,8 @@ describe('acesso-e-convites, 3.0: a coordenação envia os convites por e-mail',
       for (const professor of [pendente, vencido]) {
         const convites = await convitesDe(professor.usuarioId)
         expect(convites).toHaveLength(2)
-        const [antigo, novo] = convites
+        const antigo = convites.find((convite) => convite.canal === 'copiado')
+        const novo = convites.find((convite) => convite.canal === 'email')
         expect(antigo).toMatchObject({ id: professor.conviteId, canal: 'copiado', envio: null, aberto: false })
         expect(novo).toMatchObject({ canal: 'email', envio: 'na_fila', cifrado: true, destino: true, aberto: true })
         novos.push(novo?.id ?? '')
@@ -539,7 +542,7 @@ describe('acesso-e-convites, 3.0: a coordenação envia os convites por e-mail',
       const um = await semear(escolaId, 'pendente')
       const dois = await semear(escolaId, 'vencido')
       await enviar(coordenacao)
-      const novos = (await Promise.all([um, dois].map((professor) => convitesDe(professor.usuarioId)))).map((convites) => convites.at(-1)?.id)
+      const novos = (await Promise.all([um, dois].map((professor) => convitesDe(professor.usuarioId)))).map((convites) => convites.find((convite) => convite.canal === 'email')?.id)
       const enviados = await auditoriaDe(escolaId, 'convite.enviado')
       expect(enviados).toHaveLength(2)
       expect(enviados.map((registro) => registro.entidade_id).sort()).toEqual([...novos].sort())
@@ -596,7 +599,9 @@ describe('acesso-e-convites, 3.0: a coordenação envia os convites por e-mail',
       expect(await enviar(coordenacao, { usuarioIds: [doReenviar.usuarioId] })).toMatchObject({ status: 200, corpo: { quantidade: 1 } })
 
       for (const copiado of [doEnviar, doReenviar]) {
-        const [antigo, novo] = await convitesDe(copiado.usuarioId)
+        const convitesDoCopiado = await convitesDe(copiado.usuarioId)
+        const antigo = convitesDoCopiado.find((convite) => convite.canal === 'copiado')
+        const novo = convitesDoCopiado.find((convite) => convite.canal === 'email')
         expect(antigo?.id).toBe(copiado.conviteId)
         expect(novo?.id).not.toBe(copiado.conviteId)
         expect(novo).toMatchObject({ canal: 'email', envio: 'na_fila', aberto: true })
@@ -605,16 +610,20 @@ describe('acesso-e-convites, 3.0: a coordenação envia os convites por e-mail',
       }
 
       // Outro "Reenviar", agora sobre o envio que ainda estava na fila: o anterior termina `cancelado`, e há um convite aberto só.
-      const tokenDoPrimeiroEnvio = await tokenDoEnvio((await convitesDe(doEnviar.usuarioId))[1]?.id ?? '')
+      const primeiroEnvio = (await convitesDe(doEnviar.usuarioId)).find((convite) => convite.canal === 'email')?.id ?? ''
+      const tokenDoPrimeiroEnvio = await tokenDoEnvio(primeiroEnvio)
       expect(await enviar(coordenacao, { usuarioIds: [doEnviar.usuarioId] })).toMatchObject({ status: 200, corpo: { quantidade: 1 } })
       const convites = await convitesDe(doEnviar.usuarioId)
-      expect(convites.map((convite) => convite.envio)).toEqual([null, 'cancelado', 'na_fila'])
+      // Cada estado preso ao envio que o produziu, e não à ordem das linhas: o primeiro envio, pelo id que ele já tinha, termina `cancelado`; o copiado não tem envio; o outro está na fila.
+      expect(convites.find((convite) => convite.id === primeiroEnvio)?.envio).toBe('cancelado')
+      expect(convites.find((convite) => convite.canal === 'copiado')?.envio).toBeNull()
+      expect(convites.filter((convite) => convite.canal === 'email' && convite.id !== primeiroEnvio).map((convite) => convite.envio)).toEqual(['na_fila'])
       expect(convites.filter((convite) => convite.aberto)).toHaveLength(1)
       expect((await consultar(tokenDoPrimeiroEnvio)).status).toBe(404)
 
       // O expurgo da noite: os envios de agora não são parados (contar do convite copiado de 2 dias os fecharia); 25 h depois, são.
       expect(await expurgar(new Date())).toBe(0)
-      expect((await convitesDe(doReenviar.usuarioId))[1]).toMatchObject({ envio: 'na_fila', cifrado: true, destino: true })
+      expect((await convitesDe(doReenviar.usuarioId)).find((convite) => convite.canal === 'email')).toMatchObject({ envio: 'na_fila', cifrado: true, destino: true })
       expect(await expurgar(new Date(Date.now() + 25 * 60 * MINUTO_MS))).toBe(2)
       for (const copiado of [doEnviar, doReenviar]) {
         const aberto = (await convitesDe(copiado.usuarioId)).find((convite) => convite.aberto)
@@ -644,7 +653,13 @@ describe('acesso-e-convites, 3.0: a coordenação envia os convites por e-mail',
       for (const professor of professores) {
         const convites = await convitesDe(professor.usuarioId)
         expect(convites.filter((convite) => convite.aberto)).toEqual([expect.objectContaining({ canal: 'email', envio: 'na_fila' })])
-        expect(convites.filter((convite) => convite.canal === 'email').map((convite) => convite.envio)).toEqual(['cancelado', 'na_fila'])
+        // Os dois "Enviar" respondem a mesma contagem, e o caso não vê qual dos dois produziu qual convite; o que fica é o que cada convite é: o que o segundo
+        // revogou termina `cancelado` e sem cifrado, e o que ficou é o aberto, na fila. O estado de cada um vem da linha, e não da ordem delas (o relógio recua).
+        const porEnvio = (envio: string) => convites.filter((convite) => convite.canal === 'email' && convite.envio === envio)
+        // Os dois e só os dois: um terceiro convite por e-mail, em outro estado, não passa pelas duas buscas abaixo.
+        expect(convites.filter((convite) => convite.canal === 'email')).toHaveLength(2)
+        expect(porEnvio('na_fila')).toEqual([expect.objectContaining({ aberto: true, revogado: false })])
+        expect(porEnvio('cancelado')).toEqual([expect.objectContaining({ aberto: false, revogado: true, cifrado: false, destino: false })])
         expect(convites.filter((convite) => convite.envio === 'cancelado' && (convite.cifrado || convite.destino))).toEqual([])
       }
     })
@@ -673,6 +688,39 @@ describe('acesso-e-convites, 3.0: a coordenação envia os convites por e-mail',
       for (const [estado, usuarioId] of porEstado) expect(envioDe(usuarioId), estado).toBe(estado)
     })
 
+    it('4.0: `enviadoEm` é a hora que o job gravou, só no envio `enviado`; nos outros quatro estados e no convite copiado é nulo, mesmo com hora no banco, e a lista da A não traz a hora do professor da B', async () => {
+      const { escolaId, coordenacao } = await escolaComCoordenacao()
+      const outra = await escolaComCoordenacao()
+      const copiado = await semear(escolaId, 'pendente')
+      const porEstado = new Map<EstadoDoEnvio, string>()
+      for (const estado of ESTADOS_DO_ENVIO) {
+        const professor = await semear(escolaId, 'pendente')
+        porEstado.set(estado, professor.usuarioId)
+        const aberto = estado === 'na_fila' || estado === 'enviando'
+        await bancada.pool.query(
+          `update convite set canal = 'email', envio = $2, envio_reservado_em = ${estado === 'enviando' ? 'now()' : 'null'}, enviado_em = timestamptz '2026-11-12 17:05:00+00',
+                  token_cifrado = ${aberto ? "decode('00', 'hex')" : 'null'}, destino_cifrado = ${aberto ? "decode('00', 'hex')" : 'null'} where id = $1`,
+          [professor.conviteId, estado],
+        )
+      }
+      // O banco não proíbe a hora fora do `enviado` (um convite copiado, ou um envio que mudou de estado depois): a lista só a mostra no `enviado`.
+      await bancada.pool.query("update convite set enviado_em = timestamptz '2026-11-12 17:05:00+00' where id = $1", [copiado.conviteId])
+      // O `enviado` sem hora (o banco não obriga a hora): a lista diz `null`, e não quebra.
+      const semHora = await semear(escolaId, 'pendente')
+      await bancada.pool.query("update convite set canal = 'email', envio = 'enviado', enviado_em = null where id = $1", [semHora.conviteId])
+      // O professor da B tem um envio com hora própria: ele não aparece na lista da A.
+      const daB = await semear(outra.escolaId, 'pendente')
+      await bancada.pool.query(`update convite set canal = 'email', envio = 'enviado', enviado_em = timestamptz '2026-10-01 10:00:00+00' where id = $1`, [daB.conviteId])
+      const itens = await listar(coordenacao)
+      const horaDe = (usuarioId: string) => itens.find((item) => item.usuarioId === usuarioId)?.enviadoEm
+      expect(horaDe(porEstado.get('enviado') ?? '')).toBe('2026-11-12T17:05:00.000Z')
+      for (const estado of ESTADOS_DO_ENVIO.filter((candidato) => candidato !== 'enviado')) expect(horaDe(porEstado.get(estado) ?? ''), estado).toBeNull()
+      expect(horaDe(copiado.usuarioId)).toBeNull()
+      expect(horaDe(semHora.usuarioId)).toBeNull()
+      expect(itens.find((item) => item.usuarioId === daB.usuarioId)).toBeUndefined()
+      expect(itens.map((item) => item.enviadoEm).filter((hora) => hora !== null)).toEqual(['2026-11-12T17:05:00.000Z'])
+    })
+
     it('depois de o envio falhar (5xx, ou 4xx esgotado), o professor continua pendente e a lista mostra `falhou`; o texto da lista não traz cifrado nem endereço', async () => {
       const { escolaId, coordenacao } = await escolaComCoordenacao()
       const pendente = await semear(escolaId, 'pendente')
@@ -680,7 +728,7 @@ describe('acesso-e-convites, 3.0: a coordenação envia os convites por e-mail',
       const novo = (await convitesDe(pendente.usuarioId)).find((convite) => convite.canal === 'email')
       await bancada.pool.query("update convite set envio = 'falhou', token_cifrado = null, destino_cifrado = null, envio_reservado_em = null where id = $1", [novo?.id])
       const lista = await pedir('GET', '/v1/professores?limite=100', coordenacao.token)
-      expect(listaDeProfessoresResponseSchema.parse(lista.corpo).itens).toEqual([{ usuarioId: pendente.usuarioId, nome: 'Professor sintético', estado: 'pendente', envio: 'falhou' }])
+      expect(listaDeProfessoresResponseSchema.parse(lista.corpo).itens).toEqual([{ usuarioId: pendente.usuarioId, nome: 'Professor sintético', estado: 'pendente', envio: 'falhou', enviadoEm: null }])
       expect(lista.texto).not.toMatch(/cifrado|escola\.invalid/)
     })
   })

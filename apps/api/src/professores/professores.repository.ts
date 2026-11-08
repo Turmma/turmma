@@ -10,6 +10,8 @@ export interface ProfessorLido extends DadosDoProfessor {
   readonly usuarioId: string
   readonly nome: string
   readonly envio: EstadoDoEnvio | null
+  /** Quando o job entregou o e-mail do último convite: só com `envio = 'enviado'`, `null` nos outros estados. */
+  readonly enviadoEm: Date | null
 }
 
 /**
@@ -36,7 +38,7 @@ export class ProfessoresRepository {
       .limit(limite + 1)
     if (professores.length === 0) return []
     const convites = await this.banco
-      .select({ usuarioId: convite.usuarioId, id: convite.id, expiraEm: convite.expiraEm, usadoEm: convite.usadoEm, revogadoEm: convite.revogadoEm, envio: convite.envio })
+      .select({ usuarioId: convite.usuarioId, id: convite.id, expiraEm: convite.expiraEm, usadoEm: convite.usadoEm, revogadoEm: convite.revogadoEm, envio: convite.envio, enviadoEm: convite.enviadoEm })
       .from(convite)
       .where(
         and(
@@ -49,11 +51,11 @@ export class ProfessoresRepository {
         ),
       )
       .orderBy(asc(convite.usuarioId), desc(convite.expiraEm), desc(convite.id))
-    const ultimo = new Map<string, { readonly convite: UltimoConviteDoProfessor; readonly envio: EstadoDoEnvio | null }>()
-    for (const { usuarioId, envio, ...lido } of convites) if (!ultimo.has(usuarioId)) ultimo.set(usuarioId, { convite: lido, envio })
+    const ultimo = new Map<string, { readonly convite: UltimoConviteDoProfessor; readonly envio: EstadoDoEnvio | null; readonly enviadoEm: Date | null }>()
+    for (const { usuarioId, envio, enviadoEm, ...lido } of convites) if (!ultimo.has(usuarioId)) ultimo.set(usuarioId, { convite: lido, envio, enviadoEm })
     return professores.map(({ usuarioId, nome, desativadoEm, agora }) => {
       const doUltimo = ultimo.get(usuarioId)
-      return { usuarioId, nome, desativadoEm, agora, ultimoConvite: doUltimo?.convite, envio: doUltimo?.envio ?? null }
+      return { usuarioId, nome, desativadoEm, agora, ultimoConvite: doUltimo?.convite, envio: doUltimo?.envio ?? null, enviadoEm: doUltimo?.enviadoEm ?? null }
     })
   }
 }

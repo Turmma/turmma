@@ -42,7 +42,7 @@ export class ProfessoresService {
     const pagina = paginarPor(lidos, consulta.limite, (lido) => lido.usuarioId)
     return listaDeProfessoresResponseSchema.parse({
       ...pagina,
-      itens: pagina.itens.map((lido) => ({ usuarioId: lido.usuarioId, nome: lido.nome, estado: estadoDoProfessor(lido), envio: lido.envio })),
+      itens: pagina.itens.map((lido) => ({ usuarioId: lido.usuarioId, nome: lido.nome, estado: estadoDoProfessor(lido), envio: lido.envio, enviadoEm: lido.envio === 'enviado' ? (lido.enviadoEm?.toISOString() ?? null) : null })),
     })
   }
 

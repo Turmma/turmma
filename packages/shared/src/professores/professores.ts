@@ -133,13 +133,15 @@ export const REVOGAR_CONVITE_DE_PROFESSOR_POR_ESTADO: Readonly<Record<EstadoDoPr
 
 /**
  * Um professor na lista da coordenação: o usuário, o nome, o estado do convite e o envio dele por e-mail (`null` quando o último convite foi copiado, e
- * `falhou` quando o servidor recusou ou o prazo esgotou). A API sempre o manda; quem lê uma resposta sem ele (a de antes desta tarefa) o recebe `null`. Nem e-mail, nem token, nem link, nem nada que diga se a conta do e-mail era nova (E8, E11).
+ * `falhou` quando o servidor recusou ou o prazo esgotou), e `enviadoEm`, a hora em que o job entregou o e-mail (ISO; só com `envio = 'enviado'`, `null` nos
+ * outros quatro estados e no convite copiado). A API sempre manda os dois; quem lê uma resposta sem eles (a de antes) os recebe `null`. Nem e-mail, nem token, nem link, nem nada que diga se a conta do e-mail era nova (E8, E11).
  */
 export const professorDaEscolaSchema = z.strictObject({
   usuarioId: z.uuid(),
   nome: z.string().min(1).max(TAMANHO_MAXIMO_NOME_DIGITADO),
   estado: z.enum(ESTADOS_DO_PROFESSOR),
   envio: z.enum(ESTADOS_DO_ENVIO).nullable().default(null),
+  enviadoEm: z.iso.datetime().nullable().default(null),
 })
 
 export type ProfessorDaEscola = z.infer<typeof professorDaEscolaSchema>

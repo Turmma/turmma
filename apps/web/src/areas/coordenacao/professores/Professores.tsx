@@ -4,7 +4,7 @@ import { ChevronRight } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useSearch } from 'wouter'
 import { ESTRUTURA_QUERY_KEY, anosLetivosQueryOptions, vinculosQueryOptions } from '../../../api/estrutura'
-import { professoresQueryOptions, mutacaoDoCadastroDeProfessor, mutacaoDoRefazerConviteDoProfessor, revogarConviteDoProfessor } from './api/professores'
+import { professoresQueryOptions, mutacaoDoCadastroDeProfessor, mutacaoDoEnvioDeConvites, mutacaoDoRefazerConviteDoProfessor, revogarConviteDoProfessor } from './api/professores'
 import { aoTrocarDeSessao } from '../../../api/sessao'
 import { PROFESSOR_PARAM } from '../../../paths'
 import { Alert } from '../../../components/ui/Alert'
@@ -30,6 +30,8 @@ import {
   TEXTOS_DO_CONVITE_QUE_MUDOU,
 } from './convite-de-professor'
 import { DialogoDeAlocacao } from '../estrutura/Alocacao'
+import { DialogoDeEnviarConvites } from './DialogoDeEnviarConvites'
+import { haEnvioEmAberto, iniciarReleituraDoEnvio, professoresQueEsperamOConvite, rotuloDoEnvio, textoDoEnvioEmLote, textoDoReenvio } from './envio-do-convite'
 import { enderecoComParametro } from '../comum/endereco-da-tela'
 import { textoDaListaCurta } from '../estrutura/lista-curta'
 import { useFocusPageHeading } from '../comum/moldura'
@@ -38,8 +40,8 @@ import { PainelDaImportacaoDeProfessores } from './PainelDaImportacaoDeProfessor
 import { PainelDoProfessor } from './PainelDoProfessor'
 import { contagemDeProfessores, importacaoAbertaNoEndereco, professorAlocavel, professorDoEndereco, professoresDaTabela, type ProfessorDaTabela } from './professores-da-escola'
 
-/** Os diálogos da tela, um por vez. O refazer, o revogar e o acrescentar turma levam o professor da linha, fotografado na abertura. */
-type TipoDeDialogo = 'cadastrar' | 'refazer' | 'revogar' | 'acrescentar'
+/** Os diálogos da tela, um por vez. O refazer, o reenviar, o revogar e o acrescentar turma levam o professor da linha, fotografado na abertura; o enviar é o lote. */
+type TipoDeDialogo = 'cadastrar' | 'enviar' | 'reenviar' | 'refazer' | 'revogar' | 'acrescentar'
 type ProfessorDaLinha = Pick<ProfessorDaEscola, 'usuarioId' | 'nome'>
 
 /** A etapa do link e a pergunta de fechar, com quem entra pelo convite da coordenação. */
@@ -81,15 +83,26 @@ function colunasDosProfessores(aoAbrir: (usuarioId: string) => void): readonly [
     {
       chave: 'situacao',
       titulo: 'Situação',
-      celula: ({ professor }) => <StatusBadge familia={FAMILIA_DO_ESTADO_DO_PROFESSOR[professor.estado]}>{TEXTO_DO_ESTADO_DO_PROFESSOR[professor.estado]}</StatusBadge>,
+      celula: ({ professor }) => (
+        <div className="flex min-w-0 flex-col items-start">
+          <StatusBadge familia={FAMILIA_DO_ESTADO_DO_PROFESSOR[professor.estado]}>{TEXTO_DO_ESTADO_DO_PROFESSOR[professor.estado]}</StatusBadge>
+          {/* O envio do e-mail muda sem a pessoa fazer nada (a lista se relê): a região está sempre na árvore, vazia ou não (sem `display: none`, que a
+              tiraria dela), para a mudança de "" para "Enviando" ser anunciada sem tirar o foco. Vazia, não ocupa o espaço da margem. */}
+          <span aria-live="polite" className={`mt-1 t-apoio break-words empty:mt-0 ${professor.envio === 'falhou' ? 'text-erro' : 'text-sutil'}`}>
+            {rotuloDoEnvio(professor)}
+          </span>
+        </div>
+      ),
     },
   ]
 }
 
 /**
- * Escola › Professores (A1, 14.0; X2, 6.0; `docs/interface.md` 3 e 11.1; RF6, RF13 e RF22): a coordenação cadastra o professor com o
- * nome e o e-mail de login, copia o link do convite, que aparece uma vez, e refaz ou revoga o convite em aberto. Não há envio de
- * e-mail: o link sai da escola pela mão da coordenação.
+ * Escola › Professores (A1, 14.0; X2, 6.0; acesso-e-convites, 4.0; `docs/interface.md` 3 e 11.1; RF6, RF11, RF13 e RF22): a coordenação
+ * cadastra o professor com o nome e o e-mail de login e **envia os convites por e-mail** ("Enviar convites", em lote, e "Reenviar" no painel),
+ * ou copia o link do convite, que aparece uma vez ("Refazer convite"), e revoga o convite em aberto. Enviar, reenviar e copiar o link
+ * refazem o convite: o link de antes, enviado ou copiado, deixa de valer. Cada linha mostra o envio em texto (`envio-do-convite.ts`), e a
+ * lista se relê sozinha enquanto há e-mail por sair.
  *
  * Os professores estão numa tabela (Nome, Disciplinas, Turmas e Situação), pelo nome, e a linha inteira abre o painel dele ao lado
  * (`?professor=<usuarioId>`), onde ficam a situação, as turmas dele e as ações que o estado permite — entre elas "Acrescentar turma", que
@@ -124,6 +137,8 @@ export default function Professores() {
   // O anúncio é de um professor só: o painel de outro não repete o que a coordenação fez com este.
   const [anuncio, definirAnuncio] = useState<{ usuarioId: string; texto: string } | undefined>(undefined)
   const focarOTituloDaMoldura = useFocusPageHeading()
+  // Cada "Enviar" ou "Reenviar" recomeça os 5 minutos da releitura, mesmo com a lista ainda em envio.
+  const [rodadaDoEnvio, definirRodadaDoEnvio] = useState(0)
   const tituloDaLista = useRef<HTMLHeadingElement>(null)
   const tituloDaSituacao = useRef<HTMLHeadingElement>(null)
   const tituloDasTurmas = useRef<HTMLHeadingElement>(null)
@@ -135,6 +150,26 @@ export default function Professores() {
   const painelAberto = doPainel !== undefined
 
   const recarregar = useCallback(() => cliente.invalidateQueries({ queryKey: professoresQueryOptions.queryKey }), [cliente])
+  // O envio muda a lista (o rótulo de cada um) e recomeça a releitura. `invalidateQueries` cancela a leitura que estava no ar: a resposta atrasada
+  // de antes do pedido não devolve o rótulo velho.
+  const recarregarDepoisDoEnvio = useCallback(() => {
+    definirRodadaDoEnvio((rodada) => rodada + 1)
+    return recarregar()
+  }, [recarregar])
+  const haEnvio = dados !== undefined && haEnvioEmAberto(dados.itens)
+  const haEnvioAgora = useRef(haEnvio)
+  useEffect(() => {
+    haEnvioAgora.current = haEnvio
+  }, [haEnvio])
+  // A lista se relê a cada 5 s enquanto há e-mail por sair, só com a aba à vista, e para depois de 5 minutos. Não cancela a leitura que uma ação pediu.
+  useEffect(() => {
+    if (!haEnvio) return undefined
+    return iniciarReleituraDoEnvio({
+      reler: () => void cliente.refetchQueries({ queryKey: professoresQueryOptions.queryKey, exact: true }, { cancelRefetch: false }),
+      haEnvio: () => haEnvioAgora.current,
+      visivel: () => document.visibilityState === 'visible',
+    })
+  }, [cliente, haEnvio, rodadaDoEnvio])
   // Acrescentar uma turma muda os vínculos, e a falha dela diz que a turma, a disciplina ou o convite mudou: a estrutura toda relê.
   const recarregarAEstrutura = useCallback(() => cliente.invalidateQueries({ queryKey: ESTRUTURA_QUERY_KEY }), [cliente])
   // O foco quando o botão que abriu o diálogo saiu da tela: o "Cadastrar" do vazio, ou a ação que o estado novo não tem.
@@ -178,6 +213,8 @@ export default function Professores() {
   // venceu com o diálogo aberto tira o envio.
   const alvoAgora = alvo === undefined ? undefined : dados?.itens.find((candidato) => candidato.usuarioId === alvo.usuarioId)
   const alvoRecebeTurma = alvoAgora !== undefined && professorAlocavel(alvoAgora.estado)
+  // Quem o "Enviar convites" alcança, da lista de agora: a contagem do diálogo é a de quem recebe, e não a de uma abertura anterior.
+  const quemEspera = dados === undefined ? [] : professoresQueEsperamOConvite(dados.itens)
 
   return (
     <section className="flex min-w-0 flex-col gap-6" aria-label="Professores">
@@ -217,6 +254,11 @@ export default function Professores() {
               <button type="button" onClick={abrirImportacao} className={SECONDARY_BUTTON_CLASSES}>
                 Importar professores
               </button>
+              {quemEspera.length > 0 && (
+                <button type="button" onClick={() => abrir('enviar')} className={SECONDARY_BUTTON_CLASSES}>
+                  Enviar convites
+                </button>
+              )}
               <Button onClick={() => abrir('cadastrar')}>Cadastrar professor</Button>
             </div>
           </div>
@@ -244,6 +286,7 @@ export default function Professores() {
           professor={doPainel}
           aoFechar={fecharPainel}
           aoRefazer={() => abrir('refazer', doPainel)}
+          aoReenviar={() => abrir('reenviar', doPainel)}
           aoRevogar={() => abrir('revogar', doPainel)}
           aoAcrescentar={() => abrir('acrescentar', doPainel)}
           anuncio={anuncio?.usuarioId === doPainel.usuarioId ? anuncio.texto : ''}
@@ -283,6 +326,34 @@ export default function Professores() {
           focoDeReserva={focarNaLista}
         />
       )}
+      {aberta?.tipo === 'enviar' && (
+        <DialogoDeEnviarConvites
+          key={aberta.numero}
+          titulo="Enviar convites"
+          quemRecebe={textoDoEnvioEmLote(quemEspera.length)}
+          rotuloDaAcao="Enviar convites"
+          rotuloEmAndamento="Enviando…"
+          mutacao={mutacaoDoEnvioDeConvites(
+            quemEspera.map((professor) => professor.usuarioId),
+            recarregarDepoisDoEnvio,
+          )}
+          semDestinatario={quemEspera.length === 0}
+          aoFechar={fechar}
+          focoDeReserva={focarNaLista}
+        />
+      )}
+      {aberta?.tipo === 'reenviar' && alvo !== undefined && (
+        <DialogoDeEnviarConvites
+          key={aberta.numero}
+          titulo="Reenviar o convite"
+          quemRecebe={textoDoReenvio(alvo.nome)}
+          rotuloDaAcao="Reenviar"
+          rotuloEmAndamento="Reenviando…"
+          mutacao={mutacaoDoEnvioDeConvites([alvo.usuarioId], recarregarDepoisDoEnvio)}
+          aoFechar={fechar}
+          focoDeReserva={focarNoPainel}
+        />
+      )}
       {aberta?.tipo === 'refazer' && alvo !== undefined && (
         <DialogoDeConviteRefeito
           key={aberta.numero}
@@ -290,7 +361,8 @@ export default function Professores() {
           titulo="Refazer o convite"
           confirmacao={
             <>
-              Um link novo para <span className="font-medium text-tinta wrap-anywhere">{alvo.nome}</span>. O link mandado antes para de valer na hora.
+              Um link novo para <span className="font-medium text-tinta wrap-anywhere">{alvo.nome}</span>. O link mandado antes para de valer na hora. Isso vale para o link enviado por
+              e-mail e para o copiado.
             </>
           }
           avisos={[TEXTO_DA_VALIDADE_DO_CONVITE, TEXTO_DO_LINK_UMA_VEZ]}

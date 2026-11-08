@@ -28,4 +28,13 @@ describe('o contrato do "Enviar convites" (acesso-e-convites, 3.0)', () => {
     expect(CONVITES_POR_HORA_POR_ESCOLA).toBe(300)
     expect(professorDaEscolaSchema.parse({ usuarioId: uuid(100_000), nome: 'Professor sintético', estado: 'pendente' }).envio).toBeNull()
   })
+
+  it('a hora do envio (4.0) é uma data ISO ou `null`: sem ela a resposta antiga vale `null`, e texto que não é data não passa', () => {
+    const base = { usuarioId: uuid(100_001), nome: 'Professor sintético', estado: 'pendente' as const, envio: 'enviado' as const }
+    expect(professorDaEscolaSchema.parse(base).enviadoEm).toBeNull()
+    expect(professorDaEscolaSchema.parse({ ...base, enviadoEm: null }).enviadoEm).toBeNull()
+    expect(professorDaEscolaSchema.parse({ ...base, enviadoEm: '2026-11-12T17:05:00.000Z' }).enviadoEm).toBe('2026-11-12T17:05:00.000Z')
+    expect(professorDaEscolaSchema.safeParse({ ...base, enviadoEm: '12/11 às 14:05' }).success).toBe(false)
+    expect(professorDaEscolaSchema.safeParse({ ...base, enviadoEm: 1_794_000_000_000 }).success).toBe(false)
+  })
 })

@@ -3,7 +3,7 @@ import { createHmac, randomBytes, randomInt, randomUUID } from 'node:crypto'
 import { Secret, TOTP } from 'otpauth'
 import { Client } from 'pg'
 import { BYTES_DO_TOKEN_DE_CONVITE, hashDoToken } from '../../apps/api/src/credencial/token-hash.ts'
-import type { EstadoDoProfessor } from '../../packages/shared/src/professores/professores.ts'
+import type { EstadoDoEnvio, EstadoDoProfessor } from '../../packages/shared/src/professores/professores.ts'
 import { ALFABETO_DO_CODIGO_DA_TURMA, normalizarCodigoDaTurma, TAMANHO_DO_CODIGO_DA_TURMA } from '../../packages/shared/src/sala/acesso.ts'
 import { lerAmbienteDeTeste, urlDoBancoDeTeste, valorObrigatorio } from '../../tools/ci/compose.ts'
 
@@ -732,6 +732,28 @@ export async function convitesDeProfessorEmAberto(escolaId: string): Promise<num
   return comBanco(async (banco) => {
     const { rows } = await banco.query<{ total: string }>("select count(*) as total from convite where escola_id = $1 and tipo = 'professor' and usado_em is null and revogado_em is null", [escolaId])
     return Number(rows[0]?.total ?? 0)
+  })
+}
+
+/**
+ * O envio do último convite de um professor, como o worker o deixaria (acesso-e-convites, 4.0): o convite passa a ser de canal `email`, com os
+ * cifrados só no envio em aberto (`na_fila`, `enviando`) e a reserva só no `enviando`, como os checks da tabela `convite` pedem. `enviadoEm` só vale no
+ * `enviado`; nos outros estados a hora fica nula.
+ *
+ * O convite que já teve o envio é mais velho que o que o "Reenviar" cria agora, e a lista mostra o de validade maior: a validade dele recua uma
+ * hora, porque a semeadura grava a validade com o relógio da máquina de teste e o "Reenviar", com o da API, e a diferença entre os dois, de
+ * centenas de milissegundos, deixava o velho à frente do novo em um caso a cada 25.
+ */
+export async function definirOEnvioDoConvite(usuarioId: string, envio: EstadoDoEnvio, enviadoEm: string | null = null): Promise<void> {
+  const aberto = envio === 'na_fila' || envio === 'enviando'
+  await comBanco(async (banco) => {
+    await banco.query(
+      `update convite set canal = 'email', envio = $2, enviado_em = $3::timestamptz, expira_em = expira_em - interval '1 hour',
+              envio_reservado_em = ${envio === 'enviando' ? 'now()' : 'null'},
+              token_cifrado = ${aberto ? "decode('00', 'hex')" : 'null'}, destino_cifrado = ${aberto ? "decode('00', 'hex')" : 'null'}
+        where usuario_id = $1 and tipo = 'professor'`,
+      [usuarioId, envio, envio === 'enviado' ? enviadoEm : null],
+    )
   })
 }
 

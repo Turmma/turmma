@@ -1,12 +1,21 @@
 // @vitest-environment jsdom
 import { cleanup, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
 import { setupScreen, fakeNetwork, renderScreen, type FakeNetwork, type FakeResponse } from '../../../__fixtures__/render-screen'
 import { TEXTO_DO_ESTADO_DO_PROFESSOR } from './convite-de-professor'
+import type * as EnvioDoConvite from './envio-do-convite'
+import { iniciarReleituraDoEnvio } from './envio-do-convite'
 import Professores from './Professores'
+
+// A releitura do envio é uma peça com teste de unidade próprio (`envio-do-convite.test.ts`): aqui ela vira um espião que, fora do bloco do envio,
+// segue sendo a peça de verdade, e o que se prova é a ligação da tela com ela.
+vi.mock('./envio-do-convite', async (importarOriginal) => {
+  const original = await importarOriginal<typeof EnvioDoConvite>()
+  return { ...original, iniciarReleituraDoEnvio: vi.fn(original.iniciarReleituraDoEnvio) }
+})
 
 /**
  * Escola › Professores (telas da coordenação, 6.0; RF13 e RF22): os estados da tela, a tabela com o estado de cada convite em texto, as
@@ -696,5 +705,336 @@ describe('importar a planilha da equipe (15.0; RF4 e RF6)', () => {
       .mock.calls.filter(([caminho, opcoes]) => opcoes?.method === 'POST' && String(caminho).startsWith('/v1/importacoes/professores'))
       .map(([, opcoes]) => Object.keys(JSON.parse(String(opcoes?.body)) as object).sort())
     expect(corpos).toEqual([['texto'], ['marcas', 'texto']])
+  })
+})
+
+describe('o envio do convite por e-mail (acesso-e-convites, 4.0; RF11)', () => {
+  const ENVIAR = '/v1/professores/convites/enviar'
+  const HORA = '2026-11-12T17:05:00.000Z'
+  const ENVIO_LONGO = 'Muitos convites enviados em pouco tempo. Espere alguns minutos e envie de novo.'
+  const parar = vi.fn()
+
+  /** A região do envio de uma linha: a que anuncia a mudança. */
+  function regiaoDe(nome: string): Element | null {
+    const linha = linhas().find((candidata) => within(candidata).queryByRole('button', { name: nome }) !== null)
+    if (linha === undefined) throw new Error(`sem a linha de ${nome}`)
+    return linha.querySelector('[aria-live="polite"]')
+  }
+  /** Vazia ou não, a região não some da árvore de acessibilidade (`display: none`): é o que deixa o leitor de tela anunciar a primeira mudança. */
+  function semDisplayNone(donos: readonly { readonly nome: string }[]): void {
+    for (const dono of donos) expect(regiaoDe(dono.nome)?.className, dono.nome).not.toContain('hidden')
+  }
+  const enviarConvites = () => screen.getByRole('button', { name: 'Enviar convites' })
+  /** Os corpos dos pedidos de envio, na ordem. */
+  const corposDoEnvio = () =>
+    vi
+      .mocked(fetch)
+      .mock.calls.filter(([caminho, opcoes]) => String(caminho) === ENVIAR && opcoes?.method === 'POST')
+      .map(([, opcoes]) => JSON.parse(String(opcoes?.body)) as unknown)
+  /** As opções da releitura que a tela pediu na n-ésima vez. */
+  const releituraPedida = (vez: number) => {
+    const opcoes = vi.mocked(iniciarReleituraDoEnvio).mock.calls[vez]?.[0]
+    if (opcoes === undefined) throw new Error('a tela não pediu a releitura')
+    return opcoes
+  }
+
+  beforeEach(() => {
+    parar.mockClear()
+    vi.mocked(iniciarReleituraDoEnvio).mockClear()
+    vi.mocked(iniciarReleituraDoEnvio).mockImplementation(() => parar)
+  })
+  afterEach(async () => {
+    const real = await vi.importActual<typeof EnvioDoConvite>('./envio-do-convite')
+    vi.mocked(iniciarReleituraDoEnvio).mockImplementation(real.iniciarReleituraDoEnvio)
+    Reflect.deleteProperty(document, 'visibilityState')
+  })
+
+  it('cada linha tem a região `aria-live="polite"` e o envio em texto: a hora da escola, "Enviando", o falhou em erro e nada no cancelado nem no sem envio', async () => {
+    instalar(fakeNetwork(), {
+      professores: ok([
+        { ...ANA, envio: 'enviado', enviadoEm: HORA },
+        { ...BRUNO, envio: 'na_fila' },
+        { ...CAIO, envio: 'falhou' },
+        { ...DAVI, envio: 'cancelado' },
+        ELIS,
+      ]),
+    })
+    await montarEEsperar()
+    for (const dono of [ANA, BRUNO, CAIO, DAVI, ELIS]) expect(regiaoDe(dono.nome)?.getAttribute('aria-live'), dono.nome).toBe('polite')
+    expect(regiaoDe(ANA.nome)?.textContent).toBe('Enviado em 12/11 às 14:05')
+    expect(regiaoDe(BRUNO.nome)?.textContent).toBe('Enviando')
+    expect(regiaoDe(CAIO.nome)?.textContent).toBe('Não chegou. Confira o e-mail e reenvie, ou copie o link')
+    expect(regiaoDe(DAVI.nome)?.textContent).toBe('')
+    expect(regiaoDe(ELIS.nome)?.textContent).toBe('')
+    expect(regiaoDe(CAIO.nome)?.className).toContain('text-erro')
+    semDisplayNone([ANA, BRUNO, CAIO, DAVI, ELIS])
+    expect(regiaoDe(BRUNO.nome)?.className).not.toContain('text-erro')
+  })
+
+  it('sem ninguém esperando o convite, a tela não oferece "Enviar convites"', async () => {
+    instalar(fakeNetwork(), { professores: ok([ANA, DAVI, ELIS, FABIO]) })
+    await montarEEsperar()
+    expect(screen.queryByRole('button', { name: 'Enviar convites' })).toBeNull()
+  })
+
+  it('"Enviar convites" diz quantos recebem, manda os ids de quem espera, diz quantos entraram e relê a lista', async () => {
+    const usuario = userEvent.setup()
+    const rede = fakeNetwork()
+    instalar(rede)
+    rede.responderPor(ENVIAR, { status: 200, corpo: { quantidade: 2 } })
+    await montarEEsperar()
+    await usuario.click(enviarConvites())
+    const dialogo = await screen.findByRole('dialog', { name: 'Enviar convites' })
+    expect(dialogo.textContent).toContain('Enviar o convite por e-mail a 2 professores.')
+    expect(dialogo.textContent).toContain('Os links enviados ou copiados antes deixam de valer na hora.')
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Enviar convites' }))
+    expect(await within(dialogo).findByText(/2 convites entraram na fila/)).toBeTruthy()
+    expect(within(dialogo).queryByRole('button', { name: 'Enviar convites' })).toBeNull()
+    expect(within(dialogo).getByRole('button', { name: 'Fechar' })).toBeTruthy()
+    expect(corposDoEnvio()).toEqual([{ usuarioIds: [CAIO.usuarioId, BRUNO.usuarioId] }])
+    await waitFor(() => expect(vezes(rede, '/v1/professores')).toBe(2))
+  })
+
+  it('com o pedido no ar o botão desliga e diz "Enviando…"; o clique duplo manda um pedido só', async () => {
+    const usuario = userEvent.setup()
+    const rede = fakeNetwork()
+    instalar(rede)
+    let liberar: (resposta: FakeResponse) => void = () => undefined
+    rede.responderPor(ENVIAR, () => new Promise<FakeResponse>((resolver) => (liberar = resolver)))
+    await montarEEsperar()
+    await usuario.click(enviarConvites())
+    const dialogo = await screen.findByRole('dialog', { name: 'Enviar convites' })
+    await usuario.dblClick(within(dialogo).getByRole('button', { name: 'Enviar convites' }))
+    const enviando = await within(dialogo).findByRole('button', { name: 'Enviando…' })
+    expect((enviando as HTMLButtonElement).disabled).toBe(true)
+    expect(within(dialogo).getByRole('status').textContent).toBe('Enviando…')
+    expect(corposDoEnvio()).toHaveLength(1)
+    liberar({ status: 200, corpo: { quantidade: 2 } })
+    expect(await within(dialogo).findByText(/2 convites entraram na fila/)).toBeTruthy()
+  })
+
+  it('a cota da hora (429) aparece no diálogo com o texto de esperar; a nova tentativa tira o aviso', async () => {
+    const usuario = userEvent.setup()
+    const rede = fakeNetwork()
+    instalar(rede)
+    let tentativa = 0
+    rede.responderPor(ENVIAR, () => {
+      tentativa += 1
+      return tentativa === 1 ? ERRO('LIMITE_EXCEDIDO', 429) : { status: 200, corpo: { quantidade: 2 } }
+    })
+    await montarEEsperar()
+    await usuario.click(enviarConvites())
+    const dialogo = await screen.findByRole('dialog', { name: 'Enviar convites' })
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Enviar convites' }))
+    const aviso = await within(dialogo).findByRole('alert')
+    expect(aviso.textContent).toBe(ENVIO_LONGO)
+    expect(document.activeElement).toBe(aviso)
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Enviar convites' }))
+    expect(await within(dialogo).findByText(/2 convites entraram na fila/)).toBeTruthy()
+    expect(within(dialogo).queryByRole('alert')).toBeNull()
+  })
+
+  it('a cota da hora (429) ainda na tela: fechar o diálogo e abri-lo de novo recomeça sem o aviso', async () => {
+    const usuario = userEvent.setup()
+    const rede = fakeNetwork()
+    instalar(rede)
+    rede.responderPor(ENVIAR, ERRO('LIMITE_EXCEDIDO', 429))
+    await montarEEsperar()
+    await usuario.click(enviarConvites())
+    const dialogo = await screen.findByRole('dialog', { name: 'Enviar convites' })
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Enviar convites' }))
+    expect((await within(dialogo).findByRole('alert')).textContent).toBe(ENVIO_LONGO)
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Cancelar' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Enviar convites' })).toBeNull())
+    await usuario.click(enviarConvites())
+    const outra = await screen.findByRole('dialog', { name: 'Enviar convites' })
+    expect(within(outra).queryByRole('alert')).toBeNull()
+    expect(within(outra).getByRole('button', { name: 'Enviar convites' })).toBeTruthy()
+  })
+
+  it('o diálogo diz 2 professores e o servidor devolve outra contagem (alguém foi revogado entre abrir e confirmar): vale a do servidor', async () => {
+    const usuario = userEvent.setup()
+    const rede = fakeNetwork()
+    instalar(rede)
+    let quantidade = 1
+    rede.responderPor(ENVIAR, () => ({ status: 200, corpo: { quantidade } }))
+    await montarEEsperar()
+    await usuario.click(enviarConvites())
+    const dialogo = await screen.findByRole('dialog', { name: 'Enviar convites' })
+    expect(dialogo.textContent).toContain('a 2 professores')
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Enviar convites' }))
+    expect(await within(dialogo).findByText(/^1 convite entrou na fila/)).toBeTruthy()
+    expect(dialogo.textContent).not.toContain('2 convites')
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Fechar' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Enviar convites' })).toBeNull())
+    quantidade = 0
+    await usuario.click(enviarConvites())
+    const zero = await screen.findByRole('dialog', { name: 'Enviar convites' })
+    await usuario.click(within(zero).getByRole('button', { name: 'Enviar convites' }))
+    expect(await within(zero).findByText(/^Nenhum convite entrou na fila/)).toBeTruthy()
+  })
+
+  it('a lista relida para zero pendentes com o diálogo aberto: o texto diz que ninguém espera, só sobra "Fechar", e nenhum pedido sai', async () => {
+    const usuario = userEvent.setup()
+    const rede = fakeNetwork()
+    let leituras = 0
+    instalar(rede, {
+      professores: () => (++leituras === 1 ? ok([{ ...BRUNO, envio: 'na_fila' }, CAIO]) : ok([{ ...BRUNO, estado: 'aceito', envio: 'enviado', enviadoEm: HORA }, { ...CAIO, estado: 'revogado' }])),
+    })
+    rede.responderPor(ENVIAR, { status: 200, corpo: { quantidade: 0 } })
+    await montarEEsperar()
+    await usuario.click(enviarConvites())
+    const dialogo = await screen.findByRole('dialog', { name: 'Enviar convites' })
+    expect(dialogo.textContent).toContain('a 2 professores')
+    releituraPedida(0).reler()
+    expect(await within(dialogo).findByText('Ninguém espera o convite agora: a lista mudou. Confira a situação de cada professor.')).toBeTruthy()
+    expect(dialogo.textContent).not.toContain('a 0 professores')
+    expect(within(dialogo).queryByRole('button', { name: 'Enviar convites' })).toBeNull()
+    expect(within(dialogo).queryByRole('button', { name: 'Cancelar' })).toBeNull()
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Fechar' }))
+    expect(corposDoEnvio()).toEqual([])
+  })
+
+  it('com o pedido no ar e a lista relida para zero pendentes, o diálogo segue com "Enviando…" até a resposta chegar', async () => {
+    const usuario = userEvent.setup()
+    const rede = fakeNetwork()
+    let leituras = 0
+    instalar(rede, {
+      professores: () => (++leituras === 1 ? ok([{ ...BRUNO, envio: 'na_fila' }, CAIO]) : ok([{ ...BRUNO, estado: 'aceito', envio: 'enviado', enviadoEm: HORA }, { ...CAIO, estado: 'revogado' }])),
+    })
+    let liberar: (resposta: FakeResponse) => void = () => undefined
+    rede.responderPor(ENVIAR, () => new Promise<FakeResponse>((resolver) => (liberar = resolver)))
+    await montarEEsperar()
+    await usuario.click(enviarConvites())
+    const dialogo = await screen.findByRole('dialog', { name: 'Enviar convites' })
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Enviar convites' }))
+    await within(dialogo).findByRole('button', { name: 'Enviando…' })
+    releituraPedida(0).reler()
+    await waitFor(() => expect(vezes(rede, '/v1/professores')).toBe(2))
+    expect(within(dialogo).getByRole('button', { name: 'Enviando…' })).toBeTruthy()
+    expect(within(dialogo).queryByText(/Ninguém espera o convite agora/)).toBeNull()
+    liberar({ status: 200, corpo: { quantidade: 2 } })
+    expect(await within(dialogo).findByText(/2 convites entraram na fila/)).toBeTruthy()
+  })
+
+  it('o painel de quem espera o convite e já teve envio ganha "Reenviar" e o texto do envio; quem nunca teve envio, ou já entrou, não', async () => {
+    const usuario = userEvent.setup()
+    instalar(fakeNetwork(), { professores: ok([{ ...BRUNO, envio: 'falhou' }, CAIO, { ...ANA, envio: 'enviado', enviadoEm: HORA }]) })
+    await montarEEsperar()
+    await usuario.click(botaoDe(BRUNO.nome))
+    const doBruno = await painelDe(BRUNO.nome)
+    expect(within(doBruno).getByRole('button', { name: 'Reenviar' })).toBeTruthy()
+    const situacaoDoBruno = within(doBruno).getByRole('heading', { name: 'Situação do convite' }).parentElement
+    expect(situacaoDoBruno?.textContent).toContain('Não chegou. Confira o e-mail e reenvie, ou copie o link')
+    expect(situacaoDoBruno?.querySelector('p')?.className).toContain('text-erro')
+    await usuario.click(within(doBruno).getByRole('button', { name: 'Fechar' }))
+    await usuario.click(botaoDe(CAIO.nome))
+    const doCaio = await painelDe(CAIO.nome)
+    expect(within(doCaio).queryByRole('button', { name: 'Reenviar' })).toBeNull()
+    expect(within(doCaio).getByRole('heading', { name: 'Situação do convite' }).parentElement?.querySelector('p')).toBeNull()
+    await usuario.click(within(doCaio).getByRole('button', { name: 'Fechar' }))
+    await usuario.click(botaoDe(ANA.nome))
+    const daAna = await painelDe(ANA.nome)
+    expect(within(daAna).queryByRole('button', { name: 'Reenviar' })).toBeNull()
+    expect(within(daAna).getByRole('heading', { name: 'Situação do convite' }).parentElement?.querySelector('p')?.className).toContain('text-apoio')
+  })
+
+  it('"Reenviar" abre o diálogo com o nome e o aviso dos links, e manda só o professor do painel', async () => {
+    const usuario = userEvent.setup()
+    const rede = fakeNetwork()
+    instalar(rede, { professores: ok([{ ...BRUNO, envio: 'falhou' }, { ...CAIO, envio: 'falhou' }]) })
+    rede.responderPor(ENVIAR, { status: 200, corpo: { quantidade: 1 } })
+    await montarEEsperar()
+    await usuario.click(botaoDe(BRUNO.nome))
+    const painel = await painelDe(BRUNO.nome)
+    await usuario.click(within(painel).getByRole('button', { name: 'Reenviar' }))
+    const dialogo = await screen.findByRole('dialog', { name: 'Reenviar o convite' })
+    expect(dialogo.textContent).toContain(`Um e-mail novo, com um link novo, para ${BRUNO.nome}.`)
+    expect(dialogo.textContent).toContain('Os links enviados ou copiados antes deixam de valer na hora.')
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Reenviar' }))
+    expect(await within(dialogo).findByText(/1 convite entrou na fila/)).toBeTruthy()
+    expect(corposDoEnvio()).toEqual([{ usuarioIds: [BRUNO.usuarioId] }])
+  })
+
+  it('o aviso do "Refazer convite" (o "Copiar link") diz que vale para o link enviado por e-mail e para o copiado', async () => {
+    const usuario = userEvent.setup()
+    instalar(fakeNetwork())
+    await montarEEsperar()
+    await usuario.click(botaoDe(BRUNO.nome))
+    const painel = await painelDe(BRUNO.nome)
+    await usuario.click(within(painel).getByRole('button', { name: 'Refazer convite' }))
+    const refazer = await screen.findByRole('dialog', { name: 'Refazer o convite' })
+    expect(refazer.textContent).toContain('O link mandado antes para de valer na hora. Isso vale para o link enviado por e-mail e para o copiado.')
+  })
+
+  it('a releitura só começa com linha em `na_fila` ou `enviando`, e para quando a tela sai', async () => {
+    instalar(fakeNetwork(), { professores: ok([{ ...BRUNO, envio: 'enviando' }, ANA]) })
+    await montarEEsperar()
+    await waitFor(() => expect(iniciarReleituraDoEnvio).toHaveBeenCalledTimes(1))
+    expect(parar).not.toHaveBeenCalled()
+    cleanup()
+    expect(parar).toHaveBeenCalledTimes(1)
+  })
+
+  it('sem nenhuma linha em envio, a tela não pede a releitura', async () => {
+    instalar(fakeNetwork(), { professores: ok([{ ...BRUNO, envio: 'enviado', enviadoEm: HORA }, { ...CAIO, envio: 'falhou' }, { ...DAVI, envio: 'cancelado' }, ANA]) })
+    await montarEEsperar()
+    expect(iniciarReleituraDoEnvio).not.toHaveBeenCalled()
+  })
+
+  it('a aba oculta não conta como visível: `visivel` segue o `document.visibilityState`', async () => {
+    instalar(fakeNetwork(), { professores: ok([{ ...BRUNO, envio: 'na_fila' }]) })
+    await montarEEsperar()
+    const { visivel } = releituraPedida(0)
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' })
+    expect(visivel()).toBe(true)
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' })
+    expect(visivel()).toBe(false)
+  })
+
+  it('cada releitura lê a lista de novo, sem cancelar a que já está no ar', async () => {
+    const rede = fakeNetwork()
+    let leituras = 0
+    instalar(rede, {
+      professores: () => {
+        leituras += 1
+        return leituras === 1 ? ok([{ ...BRUNO, envio: 'na_fila' }]) : nuncaResponde()
+      },
+    })
+    await montarEEsperar()
+    const { reler } = releituraPedida(0)
+    reler()
+    await waitFor(() => expect(vezes(rede, '/v1/professores')).toBe(2))
+    reler()
+    await new Promise((resolver) => setTimeout(resolver, 30))
+    expect(vezes(rede, '/v1/professores')).toBe(2)
+  })
+
+  it('`haEnvio` acompanha a lista de agora: quando o último envio termina, ele diz que não há, e a releitura para', async () => {
+    const rede = fakeNetwork()
+    let leituras = 0
+    instalar(rede, { professores: () => (++leituras === 1 ? ok([{ ...BRUNO, envio: 'na_fila' }]) : ok([{ ...BRUNO, envio: 'enviado', enviadoEm: HORA }])) })
+    await montarEEsperar()
+    const { reler, haEnvio } = releituraPedida(0)
+    expect(haEnvio()).toBe(true)
+    reler()
+    await waitFor(() => expect(haEnvio()).toBe(false))
+    await waitFor(() => expect(parar).toHaveBeenCalledTimes(1))
+    expect(regiaoDe(BRUNO.nome)?.textContent).toBe('Enviado em 12/11 às 14:05')
+  })
+
+  it('um novo "Enviar" recomeça a releitura, mesmo com a lista ainda em envio', async () => {
+    const usuario = userEvent.setup()
+    const rede = fakeNetwork()
+    instalar(rede, { professores: ok([{ ...BRUNO, envio: 'na_fila' }, CAIO]) })
+    rede.responderPor(ENVIAR, { status: 200, corpo: { quantidade: 2 } })
+    await montarEEsperar()
+    await waitFor(() => expect(iniciarReleituraDoEnvio).toHaveBeenCalledTimes(1))
+    await usuario.click(enviarConvites())
+    const dialogo = await screen.findByRole('dialog', { name: 'Enviar convites' })
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Enviar convites' }))
+    expect(await within(dialogo).findByText(/2 convites entraram na fila/)).toBeTruthy()
+    await waitFor(() => expect(iniciarReleituraDoEnvio).toHaveBeenCalledTimes(2))
+    expect(parar).toHaveBeenCalledTimes(1)
   })
 })

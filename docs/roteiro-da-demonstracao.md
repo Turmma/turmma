@@ -133,6 +133,8 @@ vale 72 horas. O painel da operação não mostra dado de aluno nem de professor
    planilha com `turma;nome;matricula`, e **Professores** e **Grade e calendário** têm a deles: é o caminho do F2.)
 6. **Professores** → **Cadastrar professor** → Helena Demo, `helena@demo.invalid` → **Revisar** → **Cadastrar e gerar o
    link** → copie o link (cole num bloco de notas, com o nome) → **Fechar**. Repita para Marta Demo e Davi Demo.
+   (A lista também tem **Enviar convites**, que manda o convite por e-mail a quem espera, e **Reenviar** no painel de quem já teve
+   envio. No ambiente local o e-mail vai ao Mailpit, e não à caixa da pessoa: o roteiro segue pelo link copiado.)
 7. **Professores** → clique no nome da Helena → **Acrescentar turma**: Turma 2ºA, Disciplina Química → **Acrescentar** → **Fechar**;
    Marta → 2ºB → Química; Davi → 2ºA → Física.
    **Aparece:** "Esperando o professor confirmar". **Diga:** "O vínculo é definido pela escola; o professor só confirma.

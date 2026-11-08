@@ -1,4 +1,12 @@
-import { conviteDeProfessorResponseSchema, listaDeProfessoresResponseSchema, type CadastrarProfessorRequest, type ProfessorDaEscola, type ConviteDeProfessorResponse } from '@educa/shared'
+import {
+  conviteDeProfessorResponseSchema,
+  enviarConvitesResponseSchema,
+  listaDeProfessoresResponseSchema,
+  type CadastrarProfessorRequest,
+  type ConviteDeProfessorResponse,
+  type EnviarConvitesResponse,
+  type ProfessorDaEscola,
+} from '@educa/shared'
 import { mutationOptions, queryOptions } from '@tanstack/react-query'
 import { EMPTY_BODY } from '../../../../api/client'
 import { ESTRUTURA_QUERY_KEY, lerPaginas } from '../../../../api/estrutura'
@@ -29,6 +37,17 @@ export function refazerConviteDoProfessor(usuarioId: string): Promise<ConviteDeP
   return authedRequest(`${CAMINHO_DOS_PROFESSORES}/${encodeURIComponent(usuarioId)}/convite/refazer`, conviteDeProfessorResponseSchema, { metodo: 'POST', corpo: {} })
 }
 
+/**
+ * `POST /v1/professores/convites/enviar` (acesso-e-convites, 3.0): enfileira o e-mail do convite de cada professor de `usuarioIds` que espera o
+ * convite, e de todos os que esperam quando a lista não vai. A resposta é a contagem de quem entrou na fila; o link nunca sai por aqui.
+ */
+export function enviarConvites(usuarioIds?: readonly string[]): Promise<EnviarConvitesResponse> {
+  return authedRequest(`${CAMINHO_DOS_PROFESSORES}/convites/enviar`, enviarConvitesResponseSchema, {
+    metodo: 'POST',
+    corpo: usuarioIds === undefined ? {} : { usuarioIds },
+  })
+}
+
 /** `POST /v1/professores/:usuarioId/convite/revogar`: 204, sem corpo. */
 export function revogarConviteDoProfessor(usuarioId: string): Promise<void> {
   return authedRequest(`${CAMINHO_DOS_PROFESSORES}/${encodeURIComponent(usuarioId)}/convite/revogar`, EMPTY_BODY, { metodo: 'POST', corpo: {} })
@@ -54,6 +73,18 @@ export function mutacaoDoCadastroDeProfessor(aoTerminar?: () => Promise<void>) {
 export function mutacaoDoRefazerConviteDoProfessor(usuarioId: string, aoTerminar?: () => Promise<void>) {
   return mutationOptions({
     mutationFn: () => refazerConviteDoProfessor(usuarioId),
+    gcTime: 0,
+    ...(aoTerminar === undefined ? {} : { onSettled: aoTerminar }),
+  })
+}
+
+/**
+ * O envio por e-mail, em lote ou de um professor só (4.0). Não leva token: a resposta é a contagem, e o `gcTime: 0` tira do cache também o
+ * pedido, que traz os ids de quem foi escolhido. `aoTerminar` (reler a lista, dê certo ou não) é o único acréscimo.
+ */
+export function mutacaoDoEnvioDeConvites(usuarioIds?: readonly string[], aoTerminar?: () => Promise<void>) {
+  return mutationOptions({
+    mutationFn: () => enviarConvites(usuarioIds),
     gcTime: 0,
     ...(aoTerminar === undefined ? {} : { onSettled: aoTerminar }),
   })

@@ -551,7 +551,19 @@ os quatro estados; o vazio da grade convida a "Baixar modelo".
   por turma, alocação e convite ao professor; grade horária e calendário vêm com o F2 (D71
   revista). Na A1 o cadastro e o convite do professor têm tela própria, **Professores**, item da lateral ao lado de
   Estrutura (tarefa 14.0; Tech Spec da A1, seção 9): cadastrar com nome e e-mail, copiar o link que aparece uma vez,
-  refazer e revogar. O roteiro da Estrutura e o vazio da Alocação levam a ela. **"Importar professores"** (F2, 15.0) é um botão
+  refazer e revogar. O roteiro da Estrutura e o vazio da Alocação levam a ela. **O envio por e-mail** (acesso-e-convites, 4.0; RF11)
+  acrescenta três coisas, sem mudar as de cima: **(1)** cada linha mostra, embaixo da situação do convite, o estado do envio em texto, numa
+  região `aria-live="polite"` que já existe na página (a mudança é anunciada sem tirar o foco): "Enviando" (`na_fila` e `enviando`),
+  "Enviado em 12/11 às 14:05" (a hora no fuso da escola) e "Não chegou. Confira o e-mail e reenvie, ou copie o link" (`falhou`, em
+  `erro`, sem culpar o professor); o `cancelado` e o convite copiado não dizem nada, porque vale a situação do convite, e o painel do
+  professor repete o texto; **(2)** o botão secundário **"Enviar convites"**, ao lado de "Importar professores" e só quando alguém espera o
+  convite (pendente ou vencido), abre o diálogo que diz **quantos recebem** ("Enviar o convite por e-mail a 3 professores") e que "os links
+  enviados ou copiados antes deixam de valer na hora", com o foco no texto, "Cancelar" do tamanho de "Enviar convites"; depois de enfileirar ele diz
+  quantos entraram e sobra "Fechar"; a rede que cai e a cota de 300 convites por hora (429) aparecem dentro do diálogo, com o foco no aviso, e a
+  tentativa seguinte apaga o aviso; **(3)** o painel de quem já teve envio ganha **"Reenviar"** (o mesmo diálogo, para uma pessoa: "Um e-mail novo,
+  com um link novo, para …") e o aviso de "Refazer convite", que é o "Copiar link", passa a dizer que o link de antes **enviado por e-mail ou
+  copiado** deixa de valer. A lista se relê sozinha a cada 5 s enquanto alguma linha está em `na_fila` ou `enviando`, só com a aba à vista, e para
+  depois de 5 minutos; um novo "Enviar" ou "Reenviar" recomeça a conta. **"Importar professores"** (F2, 15.0) é um botão
   secundário ao lado de "Cadastrar professor", e também no vazio, que abre o painel `?painel=importar` com a **mesma peça de planilha**
   dos alunos: a prévia vem antes de gravar (até 300 linhas; os erros em frase com o que fazer, e o e-mail repetido, em qualquer caixa,
   é uma pessoa só, com aviso), e quem a planilha traz é cadastrado `pendente`, com o convite em aberto. A gravação não mostra link
