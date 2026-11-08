@@ -1,5 +1,6 @@
 import { InvariantException, type PapelDoTitular, type VersaoDoArquivo } from '@educa/shared'
 import { sql, type SQL } from 'drizzle-orm'
+import { ACOES_DA_LISTA_POR_ALVO, ACOES_DO_USUARIO_POR_ALVO, PAPEL_NO_ARQUIVO_DA_GERACAO, literaisDeSql } from '../auditoria/acoes-por-alvo.js'
 import { requireEscolaId } from '../context/context-escola.js'
 import type { Database, DatabaseTransaction } from '../db/database.js'
 import { CompartilhamentoRepository } from './compartilhamento.repository.js'
@@ -77,6 +78,15 @@ const porVersao = (versao: VersaoDoArquivo, sempre: readonly string[], soNaCompl
 const OUTRA_PESSOA = 'id de outra pessoa da escola: fica na auditoria da escola'
 const SEGREDO = 'segredo ou chave de envio: nunca entra, em nenhuma versão'
 const ESCOPO = 'a escola do contexto: o arquivo é todo dela'
+
+/** As listas da leitura por alvo da auditoria (D85) e o papel de quem gerou a provisória, como literais de SQL: a fonte é `auditoria/acoes-por-alvo.ts`, a mesma do índice. */
+const AS_DO_USUARIO = sql.raw(literaisDeSql(ACOES_DO_USUARIO_POR_ALVO))
+const AS_DA_LISTA = sql.raw(literaisDeSql(ACOES_DA_LISTA_POR_ALVO))
+const PAPEL_DA_GERACAO = sql.raw(
+  Object.entries(PAPEL_NO_ARQUIVO_DA_GERACAO)
+    .map(([papel, texto]) => `when '${papel}' then '${texto}'`)
+    .join(' '),
+)
 
 /**
  * As leituras, na ordem do arquivo. A chave é o nome da tabela. Cada `consultas` recebe a escola, o titular e a versão, e
@@ -405,13 +415,35 @@ export const LEITURAS_DO_ARQUIVO: Readonly<Record<string, LeituraDaTabela>> = {
       autor_operador: 'só existe em ato da nossa equipe',
       requisicao_id: 'identificador técnico da requisição',
       antes: 'pode levar o id e o motivo de outra pessoa (o aluno de um destaque, o usuário de um convite)',
-      depois: 'pode levar o id e o motivo de outra pessoa (o aluno de um destaque, o usuário de um convite)',
+      depois: 'pode levar o id e o motivo de outra pessoa (o aluno de um destaque, o usuário de um convite); na leitura por alvo só o `papel` da `senha_provisoria.gerada` sai dele, como `papel` (D85)',
     },
+    derivadas: ['papel'],
     consultas: ({ escolaId, titularId }) => [
-      // Só o ato: a ação, a entidade, a finalidade e o instante (critério 2). `senha_provisoria.gerada` fica de fora: o professor a assina, e o `entidade_id`
-      // dela é o do aluno (outra pessoa). Ela chega ao aluno, sem o autor, pela leitura por alvo (D85, tarefa 11.0).
+      // Só o ato: a ação, a entidade, a finalidade e o instante (critério 2). `senha_provisoria.gerada` fica de fora: o professor a assina, e o `entidade_id` dela é o do aluno (outra
+      // pessoa). Ela chega ao aluno, sem o autor, pela leitura por alvo abaixo (D85, tarefa 11.0). A `senha_provisoria.usada` o aluno assina e é o alvo: as duas leituras a trazem, e
+      // a segunda (a por alvo, com o `papel`) vence na junção por `id`, então ela sai uma vez.
       sql`select ${selectColumns('id', 'acao', 'entidade', 'entidade_id', 'finalidade', 'em')} from auditoria t
           where t.escola_id = ${escolaId} and t.autor_usuario_id = ${titularId} and t.acao <> 'senha_provisoria.gerada'`,
+      // Por alvo (D85): o ato de **outra pessoa** sobre o titular, numa lista fechada de seis ações (o índice parcial `auditoria_por_alvo_idx` tem a mesma lista). Sai a ação, a
+      // entidade, a finalidade, a data e o **papel** de quem fez, nunca o id nem o nome dele (`autor_usuario_id`, `autor_operador`), nem o `antes` e o `depois`. O papel é fixo nas
+      // ações da planilha de alunos (a coordenação grava a planilha), vem do `depois` na `.gerada` e é o próprio aluno na `.usada`. Leitura auditada (quem abriu o dado dele) não está
+      // na lista. Escopo: a escola e o `entidade_id` do titular; a linha de outra escola com o mesmo `entidade_id` não casa.
+      sql`select ${selectColumns('id', 'acao', 'entidade', 'entidade_id', 'finalidade', 'em')},
+            case t.acao
+              when 'senha_provisoria.gerada' then case t.depois->>'papel' ${PAPEL_DA_GERACAO} end
+              when 'senha_provisoria.usada' then 'aluno'
+              else 'coordenação'
+            end as papel
+          from auditoria t
+          where t.escola_id = ${escolaId} and t.entidade_id = ${titularId}
+            and t.acao in (${AS_DO_USUARIO})`,
+      // As duas ações da lista de nomes têm por `entidade_id` a linha da lista, e não o aluno: a linha só é dele depois de aprovada (`lista_nome.usuario_id`, que a decisão grava).
+      // Nome ainda livre ou reivindicado não tem titular, e o ato sobre ele não chega a arquivo nenhum.
+      // O `l.escola_id` da subconsulta não muda resultado, e quem o garante é o banco: a FK composta `lista_nome_usuario_da_escola_fk` `(escola_id, usuario_id)` amarra o `usuario_id` à escola da
+      // linha, e o `titularId` é de um usuário só. Se essa FK deixar de ser composta, o filtro passa a valer e ganha o seu bloco de mutação. O escopo da leitura é o `t.escola_id` de fora.
+      sql`select ${selectColumns('id', 'acao', 'entidade', 'entidade_id', 'finalidade', 'em')}, 'coordenação' as papel from auditoria t
+          where t.escola_id = ${escolaId} and t.acao in (${AS_DA_LISTA})
+            and t.entidade_id in (select l.id from lista_nome l where l.escola_id = ${escolaId} and l.usuario_id = ${titularId})`,
     ],
   },
   pedido_titular: {

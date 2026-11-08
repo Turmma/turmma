@@ -75,10 +75,10 @@
   - [x] 10.4 O roteiro de carga com a provisória e a conta externa na rajada (`infra/scripts/carga-login.ts`, e a fase `professores` de `carga-importacao.ts` com o `redefinir`)
   - [x] 10.5 Testes: bilhete, troca condicionada, `/trocas`, isolamento, duas trocas, o [C] de carga
 
-- [ ] **11.0 — O arquivo do titular traz os atos sobre ele (D85)**
-  - [ ] 11.1 Migration do índice parcial `auditoria (escolaId, entidadeId, em)` nas seis ações
-  - [ ] 11.2 A leitura por alvo: o papel fixo por ação nas quatro da F2, do `depois` na `.gerada`; o `lista_nome` só aprovado, pelo `alunoId` da decisão
-  - [ ] 11.3 Testes: as seis ações por alvo, sem autor, nome não aprovado fora, linha da B fora
+- [x] **11.0 — O arquivo do titular traz os atos sobre ele (D85)**
+  - [x] 11.1 Migration do índice parcial `auditoria (escolaId, entidadeId, em)` nas seis ações
+  - [x] 11.2 A leitura por alvo: o papel fixo por ação nas quatro da F2, do `depois` na `.gerada`; o `lista_nome` só aprovado, pelo `alunoId` da decisão
+  - [x] 11.3 Testes: as seis ações por alvo, sem autor, nome não aprovado fora, linha da B fora
 
 - [ ] **12.0 — A tela "Gerar senha provisória"**
   - [ ] 12.1 O item no menu da linha e o diálogo de confirmação

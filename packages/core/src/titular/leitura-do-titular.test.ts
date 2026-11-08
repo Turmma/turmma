@@ -1,6 +1,7 @@
-import { CLASSIFICACAO_DAS_TABELAS, InvariantException } from '@educa/shared'
+import { CLASSIFICACAO_DAS_TABELAS, COLUNAS_FORA_DO_ARQUIVO, InvariantException, PAPEIS_QUE_GERAM_A_SENHA_PROVISORIA } from '@educa/shared'
 import { PgDialect } from 'drizzle-orm/pg-core'
 import { describe, expect, it } from 'vitest'
+import { ACOES_DO_ARQUIVO_POR_ALVO, PAPEL_NO_ARQUIVO_DA_GERACAO } from '../auditoria/acoes-por-alvo.js'
 import { selectColumns, LEITURAS_DO_ARQUIVO } from './leitura-do-titular.js'
 
 const texto = (instrucao: ReturnType<typeof selectColumns>): string => new PgDialect().sqlToQuery(instrucao).sql
@@ -109,5 +110,55 @@ describe('LEITURAS_DO_ARQUIVO: a forma das leituras', () => {
     // O `select` lê exatamente as colunas que a lista declara, na mesma ordem: nenhuma a mais, nenhuma a menos.
     expect(instrucoes[0]).toMatch(/^select (.+) from resposta_atividade t /)
     expect((instrucoes[0]?.match(/^select (.+) from resposta_atividade t /)?.[1] ?? '').split(', ')).toEqual((leitura?.colunas ?? []).map((coluna) => `t.${coluna}`))
+  })
+  describe('a leitura por alvo da auditoria (D85, acesso-e-convites 11.0)', () => {
+    const AS_SEIS = ['aluno.transferido', 'lista.transferida', 'usuario.nome_corrigido', 'lista.nome_corrigido', 'senha_provisoria.gerada', 'senha_provisoria.usada']
+    const dialeto = new PgDialect()
+    const [, ...porAlvo] = (LEITURAS_DO_ARQUIVO['auditoria']?.consultas({ ...alvo, versao: 'completa' }) ?? []).map((consulta) => dialeto.sqlToQuery(consulta).sql)
+
+    it('são duas leituras por alvo, além da dos atos do titular, e juntas citam exatamente as seis ações da lista fechada', () => {
+      expect(porAlvo).toHaveLength(2)
+      const citadas = porAlvo.flatMap((instrucao) => [...(instrucao.match(/\bt\.acao in \(([^)]+)\)/)?.[1] ?? '').matchAll(/'([^']+)'/g)].map(([, acao]) => acao))
+      expect([...citadas].sort()).toEqual([...AS_SEIS].sort())
+    })
+
+    it('a lista fechada é a da D85, escrita uma vez no código: a constante que o índice e as leituras usam tem as seis ações, e só como literal de SQL', () => {
+      expect([...ACOES_DO_ARQUIVO_POR_ALVO].sort()).toEqual([...AS_SEIS].sort())
+      // Os valores vão ao SQL entre aspas: nada de aspas, espaço ou ponto e vírgula entre eles.
+      for (const acao of ACOES_DO_ARQUIVO_POR_ALVO) expect(acao).toMatch(/^[a-z_]+\.[a-z_]+$/)
+    })
+
+    /** Os nomes de saída da lista do `select`: o da coluna, ou o que vem depois do `as` (o papel calculado). */
+    const nomesDeSaida = (lista: string): string[] => lista.split(',').map((trecho) => trecho.trim().replace(/^t\./, '').replace(/^[\s\S]* as /, ''))
+    const listaDoSelect = (instrucao: string): string => instrucao.match(/^select (.+?) from auditoria t\b/s)?.[1] ?? ''
+
+    it('nenhuma coluna de COLUNAS_FORA_DO_ARQUIVO nem do `fora` da auditoria sai no `select`: o autor, o `antes` e o `depois` ficam no banco, e só o `papel` é lido do `depois`', () => {
+      const leitura = LEITURAS_DO_ARQUIVO['auditoria']
+      const daAuditoria = COLUNAS_FORA_DO_ARQUIVO.filter((coluna) => coluna.startsWith('auditoria.')).map((coluna) => coluna.replace('auditoria.', ''))
+      const proibidas = [...Object.keys(leitura?.fora ?? {}), ...daAuditoria]
+      for (const instrucao of porAlvo) {
+        const lista = listaDoSelect(instrucao)
+        // O que a leitura entrega, pelo nome de saída: as colunas da lista permitida da auditoria mais o `papel` calculado, e nada mais.
+        expect(nomesDeSaida(lista), instrucao).toEqual([...(leitura?.colunas ?? []), ...(leitura?.derivadas ?? [])])
+        // O `depois` só aparece como a origem do papel da geração da provisória: tirada essa leitura, nenhuma coluna proibida resta na lista.
+        const semOPapel = lista.replace(/t\.depois->>'papel'/g, '')
+        for (const coluna of proibidas) expect(semOPapel, coluna).not.toMatch(new RegExp(`\\bt\\.${coluna}\\b`))
+      }
+    })
+
+    it('o papel é fixo nas ações da lista e da planilha, vem do `depois` só na geração e é o aluno na troca', () => {
+      const [dosUsuarios = '', dasListas = ''] = porAlvo
+      expect(dasListas).toMatch(/'coordenação' as papel/)
+      expect(dosUsuarios).toMatch(/when 'senha_provisoria\.gerada' then case t\.depois->>'papel' when 'coordenador' then 'coordenação' when 'professor' then 'professor' end/)
+      expect(dosUsuarios).toMatch(/when 'senha_provisoria\.usada' then 'aluno'/)
+      expect(dosUsuarios).toMatch(/else 'coordenação'/)
+    })
+
+    it('o papel de quem gerou a provisória tem uma entrada por papel que gera, e cada uma vai ao `case` do SQL', () => {
+      // O `Record` do tipo já recusa papel sem entrada; este caso prende o mesmo à lista em execução e ao texto do SQL (papel novo não vira `null` no arquivo).
+      expect(Object.keys(PAPEL_NO_ARQUIVO_DA_GERACAO).sort()).toEqual([...PAPEIS_QUE_GERAM_A_SENHA_PROVISORIA].sort())
+      const [dosUsuarios = ''] = porAlvo
+      for (const papel of PAPEIS_QUE_GERAM_A_SENHA_PROVISORIA) expect(dosUsuarios, papel).toContain(`when '${papel}' then '${PAPEL_NO_ARQUIVO_DA_GERACAO[papel]}'`)
+    })
   })
 })

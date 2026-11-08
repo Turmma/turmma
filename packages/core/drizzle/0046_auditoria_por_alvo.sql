@@ -1,0 +1,1 @@
+CREATE INDEX "auditoria_por_alvo_idx" ON "auditoria" USING btree ("escola_id","entidade_id","em") WHERE "auditoria"."acao" in ('aluno.transferido', 'usuario.nome_corrigido', 'senha_provisoria.gerada', 'senha_provisoria.usada', 'lista.transferida', 'lista.nome_corrigido');

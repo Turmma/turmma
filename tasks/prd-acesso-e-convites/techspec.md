@@ -123,7 +123,7 @@ zero linhas, recusa. A troca e o `desativar` anulam as três colunas. A provisó
 `usuario.nome_corrigido`, `lista.nome_corrigido` (o `lista_nome` só com o nome aprovado, pelo `alunoId` da decisão),
 `senha_provisoria.gerada` e `.usada`: ação, entidade, finalidade, data e o papel de quem fez; nunca o id nem o nome do
 autor, o `antes` ou o `depois`, nem as leituras. O papel é fixo por ação nas quatro da F2 (coordenação) e vem do `depois` na
-`.gerada`; a `.usada` sai uma vez. A leitura do arquivo de quem **assina** (`auditoria`, `autor_usuario_id`) deixa a `senha_provisoria.gerada` de fora: o professor a assina e o `entidade_id` é o do aluno.
+`.gerada`; a `.usada` sai uma vez, com o papel `aluno` (ele a assina e é o alvo: as duas leituras a trazem, e a por alvo vence pelo `id`). O papel sai escrito como o aluno o lê: `coordenação`, `professor` ou `aluno`. A leitura do arquivo de quem **assina** (`auditoria`, `autor_usuario_id`) deixa a `senha_provisoria.gerada` de fora: o professor a assina e o `entidade_id` é o do aluno.
 
 **Auditoria.** `convite.enviado` é gravado no pedido ("Enviar", "Reenviar"), autora a coordenação; o job só muda o `envio`. `senha.redefinida` e `conta.email_verificado` vindos de rota anônima gravam um registro por escola em que
 a conta tem usuário ativo, com esse usuário como autor e alvo, na mesma transação, no contexto montado no próprio fluxo pelo `usuariosAtivosDaConta`

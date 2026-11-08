@@ -1,10 +1,11 @@
-import { InMemoryFileStorage, ArquivoDoTitularRepository, createLogger, type Database, diaDeUso, runInContext, alunoTrailStatement, LEITURAS_DO_ARQUIVO, type Clock } from '@educa/core'
+import { InMemoryFileStorage, ArquivoDoTitularRepository, LeituraDoTitular, createLogger, type Database, diaDeUso, runInContext, alunoTrailStatement, LEITURAS_DO_ARQUIVO, type Clock } from '@educa/core'
 import {
   ErrorCode,
   COLUNAS_FORA_DO_ARQUIVO,
   CLASSIFICACAO_DAS_TABELAS,
   FINALIDADE_DO_ARQUIVO_DO_PROPRIO_TITULAR,
   MENSAGENS_DE_ERRO,
+  PAPEIS_QUE_GERAM_A_SENHA_PROVISORIA,
   TIPO_MONTAR_ARQUIVO,
   VALIDADE_DA_URL_DO_ARQUIVO_SEGUNDOS,
   VALIDADE_DO_ARQUIVO_DIAS,
@@ -670,6 +671,307 @@ describe('arquivo do titular (F3, tarefa 13.0): do pedido ao download', () => {
         expect(texto, versao).not.toContain(cenario.coordenacao.usuarioId)
         expect(texto, versao).not.toContain('titular.previa_lida')
         expect(texto, versao).not.toContain('pedido.lido')
+      }
+    })
+  })
+
+  describe('D85: o arquivo do aluno traz o que a escola fez sobre ele, sem dizer quem fez (acesso-e-convites, tarefa 11.0)', () => {
+    type Autor = 'coordenacao' | 'professor' | 'aluno'
+    interface Ato {
+      readonly acao: string
+      readonly entidade: 'usuario' | 'lista_nome'
+      readonly autor: Autor
+      readonly papel: string
+      readonly depois: Record<string, unknown> | null
+    }
+    const DUAS_TURMAS = (): Record<string, unknown> => ({ turmaOrigemId: randomUUID(), turmaDestinoId: randomUUID() })
+    const ATOS = (): readonly Ato[] => [
+      { acao: 'aluno.transferido', entidade: 'usuario', autor: 'coordenacao', papel: 'coordenação', depois: DUAS_TURMAS() },
+      { acao: 'lista.transferida', entidade: 'lista_nome', autor: 'coordenacao', papel: 'coordenação', depois: DUAS_TURMAS() },
+      { acao: 'usuario.nome_corrigido', entidade: 'usuario', autor: 'coordenacao', papel: 'coordenação', depois: null },
+      { acao: 'lista.nome_corrigido', entidade: 'lista_nome', autor: 'coordenacao', papel: 'coordenação', depois: null },
+      { acao: 'senha_provisoria.gerada', entidade: 'usuario', autor: 'professor', papel: 'professor', depois: { papel: 'professor' } },
+      { acao: 'senha_provisoria.usada', entidade: 'usuario', autor: 'aluno', papel: 'aluno', depois: null },
+    ]
+
+    interface Alvo {
+      readonly aluno: Pessoa
+      readonly listaId: string
+    }
+
+    /** Um aluno com a linha aprovada na lista da turma, como a decisão a deixa: só o estado e o usuário. */
+    async function alunoComLista(cenario: Cenario, rotulo: string): Promise<Alvo> {
+      const aluno = await pessoa(cenario, 'aluno', rotulo)
+      const listaId = await inserir(`insert into lista_nome (escola_id, ano_letivo_id, turma_id, estado, usuario_id, criado_por) values ($1, $2, $3, 'aprovado', $4, $5) returning id`, [
+        cenario.escolaId,
+        cenario.escola.anoLetivoId,
+        cenario.escola.turma,
+        aluno.id,
+        cenario.coordenacao.usuarioId,
+      ])
+      return { aluno, listaId }
+    }
+
+    /** O `antes` que as seis ações de verdade nunca gravam (`antes: null`): plantado, prova que o arquivo não leva a coluna, e não só que o `toEqual` das chaves a esconde. */
+    const ANTES_PLANTADO = `antes-plantado-${MARCA}`
+
+    /** Uma linha da auditoria como a porta única a grava, direto no banco, com o autor que o caso quer e um `antes` marcado. */
+    async function ato(escolaId: string, autorId: string, acao: string, entidade: string, entidadeId: string, depois: Record<string, unknown> | null = null): Promise<string> {
+      return inserir(
+        `insert into auditoria (escola_id, autor_usuario_id, acao, entidade, entidade_id, requisicao_id, antes, depois) values ($1, $2, $3, $4, $5, $6, jsonb_build_object('marca', $8::text), $7::jsonb) returning id`,
+        [escolaId, autorId, acao, entidade, entidadeId, randomUUID(), depois === null ? null : JSON.stringify(depois), ANTES_PLANTADO],
+      )
+    }
+
+    /** As seis ações sobre um aluno, cada uma com o autor do caso; devolve o id da linha por ação. */
+    async function plantar(cenario: Cenario, alvo: Alvo, autores: Record<Autor, string>, atos: readonly Ato[] = ATOS()): Promise<Record<string, string>> {
+      const ids: Record<string, string> = {}
+      for (const { acao, entidade, autor, depois } of atos) {
+        ids[acao] = await ato(cenario.escolaId, autores[autor], acao, entidade, entidade === 'usuario' ? alvo.aluno.id : alvo.listaId, depois)
+      }
+      return ids
+    }
+
+    /** O que o arquivo do aluno leva da auditoria, lido como o job o lê (a versão completa, na escola do contexto). */
+    async function auditoriaDoArquivo(cenario: Cenario, titularId: string): Promise<Array<Record<string, unknown>>> {
+      const documentoLido = await runInContext({ requisicaoId: randomUUID(), escolaId: cenario.escolaId }, () =>
+        new LeituraDoTitular(bancada.banco).montar({ titularId, papel: 'aluno', versao: 'completa', compartilhamento: [], geradoEm: new Date() }),
+      )
+      return [...(documentoLido.tabelas['auditoria'] ?? [])]
+    }
+
+    const AS_SEIS = ATOS().map(({ acao }) => acao)
+
+    /** A eliminação da pessoa como o banco a vê para quem tem sessão e vínculo: some o usuário, e a auditoria que ele assinou fica pela retenção legal, com o id dele. */
+    async function eliminar(usuarioId: string): Promise<void> {
+      await bancada.pool.query('delete from sessao where usuario_id = $1', [usuarioId])
+      await bancada.pool.query('delete from vinculo where usuario_id = $1', [usuarioId])
+      await bancada.pool.query('delete from usuario where id = $1', [usuarioId])
+    }
+
+    it.each(ATOS().map((a) => [a.acao, a] as const))('D85: %s aparece no arquivo do alvo com o papel de quem fez, sem o autor, o antes nem o depois, e não no de outro aluno', async (acao, esperado) => {
+      const cenario = await novaEscola()
+      const alvo = await alunoComLista(cenario, 'Alvo')
+      const outro = await alunoComLista(cenario, 'Outro')
+      const professor = await pessoa(cenario, 'professor', 'Professora')
+      // A coordenação também tem nome, e ele é um dos textos que o arquivo não pode levar.
+      const nomeDaCoordenacao = `Coordenadora-${MARCA}-${randomUUID().slice(0, 6)}`
+      await bancada.pool.query('update usuario set nome = $1 where id = $2', [nomeDaCoordenacao, cenario.coordenacao.usuarioId])
+      const autores: Record<Autor, string> = { coordenacao: cenario.coordenacao.usuarioId, professor: professor.id, aluno: alvo.aluno.id }
+      const doAlvo = await plantar(cenario, alvo, autores)
+      // O mesmo ato sobre o outro aluno, feito pelas mesmas pessoas (o `.usada` dele é dele): não entra no arquivo do primeiro.
+      const doOutro = await plantar(cenario, outro, { ...autores, aluno: outro.aluno.id })
+
+      // O fluxo inteiro: o pedido, o job e o JSON gravado.
+      const pedidoId = await pedidoPronto(cenario, alvo.aluno)
+      const tabelas = documento(cenario.escolaId, pedidoId, 'completa')['tabelas'] as Record<string, Array<Record<string, unknown>>>
+      const linhas = (tabelas['auditoria'] ?? []).filter((linha) => linha['acao'] === acao)
+      expect(linhas).toEqual([
+        {
+          id: doAlvo[acao],
+          acao,
+          entidade: esperado.entidade,
+          entidade_id: esperado.entidade === 'usuario' ? alvo.aluno.id : alvo.listaId,
+          finalidade: null,
+          em: expect.any(String),
+          papel: esperado.papel,
+        },
+      ])
+      const texto = textoDoObjeto(cenario.escolaId, pedidoId, 'completa')
+      // Nem o id nem o nome de quem fez, nem o `depois` (as duas turmas), nem o ato sobre o outro aluno.
+      for (const proibido of [cenario.coordenacao.usuarioId, nomeDaCoordenacao, professor.id, professor.nome, ANTES_PLANTADO, ...Object.values(doOutro)]) expect(texto, proibido).not.toContain(proibido)
+      // O `depois` das duas turmas não chega (o da geração só tem o papel, que a leitura devolve como `papel`, e não como `depois`: o `toEqual` acima prova as chaves).
+      for (const turma of [esperado.depois?.['turmaOrigemId'], esperado.depois?.['turmaDestinoId']]) if (typeof turma === 'string') expect(texto, turma).not.toContain(turma)
+    })
+
+    it('D85: a lista fechada tem as seis ações, e o arquivo traz as seis do aluno de uma vez, sem nenhuma outra ação sobre ele', async () => {
+      const cenario = await novaEscola()
+      const alvo = await alunoComLista(cenario, 'Alvo')
+      const professor = await pessoa(cenario, 'professor', 'Professora')
+      const ids = await plantar(cenario, alvo, { coordenacao: cenario.coordenacao.usuarioId, professor: professor.id, aluno: alvo.aluno.id })
+      // Outros atos sobre o mesmo aluno, fora da lista: a leitura que a coordenação fez dele e a retirada de um nome.
+      await ato(cenario.escolaId, cenario.coordenacao.usuarioId, 'titular.previa_lida', 'titular', alvo.aluno.id)
+      await ato(cenario.escolaId, cenario.coordenacao.usuarioId, 'lista.nome_retirado', 'lista_nome', alvo.listaId)
+      const doAluno = await auditoriaDoArquivo(cenario, alvo.aluno.id)
+      const dosAtos = doAluno.filter((linha) => AS_SEIS.includes(String(linha['acao'])))
+      expect(dosAtos.map((linha) => linha['id']).sort()).toEqual(Object.values(ids).sort())
+      expect(doAluno.map((linha) => linha['acao'])).not.toContain('titular.previa_lida')
+      expect(doAluno.map((linha) => linha['acao'])).not.toContain('lista.nome_retirado')
+    })
+
+    it('D85: a leitura auditada, a coordenação que abriu o dado do aluno, não entra em arquivo nenhum', async () => {
+      const cenario = await novaEscola()
+      const alvo = await alunoComLista(cenario, 'Alvo')
+      const lida = await ato(cenario.escolaId, cenario.coordenacao.usuarioId, 'titular.previa_lida', 'titular', alvo.aluno.id)
+      const doAluno = await auditoriaDoArquivo(cenario, alvo.aluno.id)
+      expect(doAluno.map((linha) => linha['id'])).not.toContain(lida)
+      // O controle: o aluno tem um ato da lista, e a leitura da mesma pessoa sobre o mesmo aluno fica de fora.
+      const transferido = await ato(cenario.escolaId, cenario.coordenacao.usuarioId, 'aluno.transferido', 'usuario', alvo.aluno.id, DUAS_TURMAS())
+      expect((await auditoriaDoArquivo(cenario, alvo.aluno.id)).map((linha) => linha['id'])).toEqual([transferido])
+      // E o arquivo de quem leu, a coordenação, traz o que ela fez (a leitura é ato dela), nunca o do aluno.
+      const daCoordenacao = await runInContext({ requisicaoId: randomUUID(), escolaId: cenario.escolaId }, () =>
+        new LeituraDoTitular(bancada.banco).montar({ titularId: cenario.coordenacao.usuarioId, papel: 'professor', versao: 'completa', compartilhamento: [], geradoEm: new Date() }),
+      )
+      expect((daCoordenacao.tabelas['auditoria'] ?? []).map((linha) => linha['id'])).toContain(lida)
+    })
+
+    it('D85: lista.nome_corrigido e lista.transferida de nome não aprovado não entram em arquivo nenhum; aprovado, entram no do aluno', async () => {
+      const cenario = await novaEscola()
+      const aluno = await pessoa(cenario, 'aluno', 'Alvo')
+      const outro = await alunoComLista(cenario, 'Outro')
+      const marca = randomUUID().slice(0, 8)
+      // Dois nomes ainda sem dono: um livre e um reivindicado. A planilha corrigiu e transferiu os dois.
+      const [livre, reivindicado] = await Promise.all(
+        ['livre', 'reivindicado'].map((estado, indice) =>
+          inserir(`insert into lista_nome (escola_id, ano_letivo_id, turma_id, estado, nome, matricula, criado_por) values ($1, $2, $3, $4, $5, $6, $7) returning id`, [
+            cenario.escolaId,
+            cenario.escola.anoLetivoId,
+            cenario.escola.turma,
+            estado,
+            `Nome ${estado} ${marca}`,
+            `m-${marca}-${indice}`,
+            cenario.coordenacao.usuarioId,
+          ]),
+        ),
+      )
+      const atosDosNomes: string[] = []
+      for (const nome of [livre, reivindicado]) {
+        atosDosNomes.push(await ato(cenario.escolaId, cenario.coordenacao.usuarioId, 'lista.nome_corrigido', 'lista_nome', String(nome)))
+        atosDosNomes.push(await ato(cenario.escolaId, cenario.coordenacao.usuarioId, 'lista.transferida', 'lista_nome', String(nome), DUAS_TURMAS()))
+      }
+      for (const titular of [aluno.id, outro.aluno.id]) {
+        const ids = (await auditoriaDoArquivo(cenario, titular)).map((linha) => linha['id'])
+        for (const registro of atosDosNomes) expect(ids, `antes da aprovação, ${registro}`).not.toContain(registro)
+      }
+      // A decisão aprova o primeiro nome para o aluno: a linha vira dele (sem nome nem matrícula) e os atos sobre ela passam a ser sobre ele.
+      await bancada.pool.query(`update lista_nome set estado = 'aprovado', usuario_id = $2, nome = null, matricula = null where id = $1`, [livre, aluno.id])
+      const depois = await auditoriaDoArquivo(cenario, aluno.id)
+      expect(depois.map((linha) => linha['id']).sort()).toEqual([atosDosNomes[0], atosDosNomes[1]].sort())
+      expect(depois.map((linha) => linha['papel'])).toEqual(['coordenação', 'coordenação'])
+      // O outro aluno continua sem nenhum deles, e o nome ainda reivindicado também.
+      const doOutro = (await auditoriaDoArquivo(cenario, outro.aluno.id)).map((linha) => linha['id'])
+      for (const registro of atosDosNomes) expect(doOutro).not.toContain(registro)
+    })
+
+    it('D85: o autor das quatro ações da planilha eliminado, o papel continua: ele é fixo por ação, e não vem da pessoa', async () => {
+      const cenario = await novaEscola()
+      const alvo = await alunoComLista(cenario, 'Alvo')
+      const [sessaoDaAutora] = await bancada.sessoes(cenario.escolaId, { papel: 'coordenador', quantidade: 1 })
+      const autora = sessaoDaAutora?.usuarioId ?? ''
+      const ids = await plantar(
+        cenario,
+        alvo,
+        { coordenacao: autora, professor: autora, aluno: alvo.aluno.id },
+        ATOS().filter(({ acao }) => acao !== 'senha_provisoria.gerada' && acao !== 'senha_provisoria.usada'),
+      )
+      // A eliminação apaga a pessoa e deixa a auditoria pela retenção legal, com o id dela.
+      await eliminar(autora)
+      expect((await bancada.pool.query('select 1 from usuario where id = $1', [autora])).rowCount).toBe(0)
+      const doAluno = await auditoriaDoArquivo(cenario, alvo.aluno.id)
+      expect(doAluno.map((linha) => [linha['id'], linha['papel']]).sort()).toEqual(Object.values(ids).map((id) => [id, 'coordenação']).sort())
+    })
+
+    it('D85: a senha_provisoria.gerada feita pelo professor mostra "professor", e a feita pela coordenação, "coordenação", mesmo com o autor eliminado', async () => {
+      const cenario = await novaEscola()
+      const alvo = await alunoComLista(cenario, 'Alvo')
+      const professor = await pessoa(cenario, 'professor', 'Professora')
+      const geradaPeloProfessor = await ato(cenario.escolaId, professor.id, 'senha_provisoria.gerada', 'usuario', alvo.aluno.id, { papel: 'professor' })
+      const geradaPelaCoordenacao = await ato(cenario.escolaId, cenario.coordenacao.usuarioId, 'senha_provisoria.gerada', 'usuario', alvo.aluno.id, { papel: 'coordenador' })
+      const papeis = async (): Promise<Array<[unknown, unknown]>> => (await auditoriaDoArquivo(cenario, alvo.aluno.id)).map((linha): [unknown, unknown] => [linha['id'], linha['papel']]).sort()
+      const esperado = [[geradaPeloProfessor, 'professor'], [geradaPelaCoordenacao, 'coordenação']].sort()
+      expect(await papeis()).toEqual(esperado)
+      // A professora saiu da escola: a pessoa é apagada e o papel, que está no `depois`, continua.
+      await eliminar(professor.id)
+      expect(await papeis()).toEqual(esperado)
+      // O arquivo de quem gerou não leva a geração: é ato dele sobre outra pessoa, e o `entidade_id` é o do aluno.
+      const daCoordenacao = await runInContext({ requisicaoId: randomUUID(), escolaId: cenario.escolaId }, () =>
+        new LeituraDoTitular(bancada.banco).montar({ titularId: cenario.coordenacao.usuarioId, papel: 'professor', versao: 'completa', compartilhamento: [], geradoEm: new Date() }),
+      )
+      expect((daCoordenacao.tabelas['auditoria'] ?? []).map((linha) => linha['id'])).not.toContain(geradaPelaCoordenacao)
+    })
+
+    it.each(PAPEIS_QUE_GERAM_A_SENHA_PROVISORIA.map((papel) => [papel] as const))('D85: a senha_provisoria.gerada com o papel %s, que a geração grava, sai com um papel escrito para o aluno, e nunca sem papel', async (papel) => {
+      const cenario = await novaEscola()
+      const alvo = await alunoComLista(cenario, 'Alvo')
+      const gerada = await ato(cenario.escolaId, cenario.coordenacao.usuarioId, 'senha_provisoria.gerada', 'usuario', alvo.aluno.id, { papel })
+      const [linha] = (await auditoriaDoArquivo(cenario, alvo.aluno.id)).filter((registro) => registro['id'] === gerada)
+      expect(typeof linha?.['papel'], `o papel ${papel} chegou ao aluno sem papel`).toBe('string')
+      expect(linha?.['papel']).not.toBe('')
+    })
+
+    it('D85: a senha_provisoria.usada, que o aluno assina e é o alvo, aparece uma vez, com o papel de aluno', async () => {
+      const cenario = await novaEscola()
+      const alvo = await alunoComLista(cenario, 'Alvo')
+      const usada = await ato(cenario.escolaId, alvo.aluno.id, 'senha_provisoria.usada', 'usuario', alvo.aluno.id)
+      const doAluno = await auditoriaDoArquivo(cenario, alvo.aluno.id)
+      expect(doAluno).toEqual([{ id: usada, acao: 'senha_provisoria.usada', entidade: 'usuario', entidade_id: alvo.aluno.id, finalidade: null, em: expect.any(String), papel: 'aluno' }])
+      // O resumo do arquivo conta a linha uma vez.
+      const pedidoId = await pedidoPronto(cenario, alvo.aluno)
+      const resumo = (documento(cenario.escolaId, pedidoId, 'completa')['resumo'] as Array<{ conteudo: string; registros: number }>).find(({ conteudo }) => conteudo === 'O registro do que você fez no sistema')
+      expect(resumo?.registros).toBe(1)
+    })
+
+    it('D85: isolamento: a linha da escola B com o entidade_id do aluno da A, e com o da linha da lista dele, fica fora do arquivo da A', async () => {
+      const cenario = await novaEscola()
+      const alvo = await alunoComLista(cenario, 'Alvo')
+      const professor = await pessoa(cenario, 'professor', 'Professora')
+      const proprios = await plantar(cenario, alvo, { coordenacao: cenario.coordenacao.usuarioId, professor: professor.id, aluno: alvo.aluno.id })
+      // A escola B, com a mesma pessoa-alvo no `entidade_id`, plantada direto no banco, com o autor da própria escola.
+      const escolaB = await novaEscola()
+      const deB: string[] = []
+      for (const { acao, entidade, depois } of ATOS()) {
+        deB.push(await ato(escolaB.escolaId, escolaB.coordenacao.usuarioId, acao, entidade, entidade === 'usuario' ? alvo.aluno.id : alvo.listaId, depois))
+      }
+      const doAluno = (await auditoriaDoArquivo(cenario, alvo.aluno.id)).map((linha) => linha['id'])
+      expect(doAluno.sort()).toEqual(Object.values(proprios).sort())
+      for (const registro of deB) expect(doAluno).not.toContain(registro)
+      // Lido no contexto da B, o arquivo do mesmo id não traz o da A: a escola do contexto é que escopa.
+      const naB = (await auditoriaDoArquivo(escolaB, alvo.aluno.id)).map((linha) => linha['id'])
+      for (const registro of Object.values(proprios)) expect(naB).not.toContain(registro)
+    })
+
+    it('D85: o índice parcial por alvo tem as seis ações e as duas leituras por alvo descem por ele (regra 80, item 8)', async () => {
+      const { rows: indices } = await bancada.pool.query<{ definicao: string }>(`select pg_get_indexdef(indexrelid) as definicao from pg_index where indexrelid = 'auditoria_por_alvo_idx'::regclass`)
+      const definicao = indices[0]?.definicao ?? ''
+      expect(definicao).toMatch(/\(escola_id, entidade_id, em\)/)
+      for (const acao of AS_SEIS) expect(definicao, acao).toContain(`'${acao}'`)
+
+      const cenario = await novaEscola()
+      const alvo = await alunoComLista(cenario, 'Alvo')
+      const cliente = await bancada.pool.connect()
+      try {
+        await cliente.query('begin')
+        // Volume de auditoria da escola, nas seis ações, sobre 30 alunos; o alvo tem 5 linhas entre elas.
+        const alunos = (
+          await cliente.query<{ id: string }>("insert into usuario (escola_id, papel, nome) select $1, 'aluno', 'Aluno sintético ' || n from generate_series(1, 30) as n returning id", [cenario.escolaId])
+        ).rows.map(({ id }) => id)
+        await cliente.query(
+          `insert into auditoria (escola_id, autor_usuario_id, acao, entidade, entidade_id, requisicao_id, em)
+           select $1, $2, acao, 'usuario', alvo, gen_random_uuid(), now() - n * interval '1 minute'
+           from unnest($3::uuid[]) as alvo cross join unnest($4::text[]) as acao cross join generate_series(1, 20) as n`,
+          [cenario.escolaId, cenario.coordenacao.usuarioId, [...alunos, alvo.aluno.id], AS_SEIS],
+        )
+        await cliente.query('analyze auditoria')
+        await cliente.query('set local enable_seqscan = off')
+        await cliente.query('set local enable_bitmapscan = off')
+        const consultas = LEITURAS_DO_ARQUIVO['auditoria']?.consultas({ escolaId: cenario.escolaId, titularId: alvo.aluno.id, versao: 'completa' }) ?? []
+        expect(consultas).toHaveLength(3)
+        for (const consulta of consultas.slice(1)) {
+          const { sql: texto, params } = new PgDialect({ casing: 'snake_case' }).sqlToQuery(consulta)
+          const { rows } = await cliente.query<{ 'QUERY PLAN': Array<{ Plan: Record<string, unknown> }> }>(`explain (format json) select to_jsonb(x) from (${texto}) x`, params)
+          const nos: Array<Record<string, unknown>> = []
+          const andar = (no: Record<string, unknown> | undefined): void => {
+            if (no === undefined) return
+            nos.push(no)
+            for (const filho of (no['Plans'] as Array<Record<string, unknown>> | undefined) ?? []) andar(filho)
+          }
+          andar(rows[0]?.['QUERY PLAN'][0]?.Plan)
+          const resumo = nos.map((no) => `${String(no['Node Type'])} ${String(no['Index Name'] ?? '-')}`).join(' > ')
+          expect(nos.map((no) => no['Index Name']).filter(Boolean), resumo).toContain('auditoria_por_alvo_idx')
+        }
+      } finally {
+        await cliente.query('rollback')
+        cliente.release()
       }
     })
   })

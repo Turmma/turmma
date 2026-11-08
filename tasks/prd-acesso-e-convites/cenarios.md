@@ -216,7 +216,7 @@ rodada 1) acrescentou os casos marcados (F2c) e as seções "Arquivo do titular"
   o papel de quem fez, sem o id nem o nome dele e sem `antes` nem `depois` (`apps/api/test/arquivo-do-titular.int.test.ts`).
 - [I] `lista.nome_corrigido` e `lista.transferida` de nome ainda não aprovado não entram em arquivo nenhum; aprovado,
   entram no do aluno.
-- [I] Autor das quatro ações da F2 eliminado: o papel continua (fixo por ação). `.usada` aparece uma vez só. A `.gerada`
+- [I] Autor das quatro ações da F2 eliminado: o papel continua (fixo por ação). `.usada` aparece uma vez só, com o papel "aluno". A `.gerada`
   feita por professor mostra "professor", e a feita pela coordenação, "coordenação".
 - [I] Linha de auditoria da escola B inserida com o `entidade_id` do aluno da A: não entra no arquivo da A.
 - [I] Leitura auditada do dado do aluno (a coordenação abriu) não entra.
