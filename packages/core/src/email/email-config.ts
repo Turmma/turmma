@@ -63,6 +63,19 @@ export const emailEnvSchema = z
     if (enderecoDaNossaRede(`smtp://${valores.EMAIL_SMTP_HOST}`)) problema('EMAIL_SMTP_HOST', MOTIVO_EMAIL_NO_MAILPIT)
   })
 
+/** O que a API lê do e-mail: só a chave que cifra o token e o endereço do convite na fila de envio. Quem fala com o provedor é o worker. */
+const chaveDoTokenEnvSchema = z.object({ EMAIL_TOKEN_KEY: z.string().min(TAMANHO_MINIMO_DA_CHAVE_DO_TOKEN_DE_EMAIL) })
+
+/** A chave AES-256 do texto da variável, pelo HKDF: a mesma para quem cifra (a API) e para quem decifra (o worker). */
+function derivarChaveDoToken(texto: string): Uint8Array {
+  return new Uint8Array(hkdfSync('sha256', texto, new Uint8Array(0), ROTULO_DA_CHAVE_DO_TOKEN_DE_EMAIL, BYTES_DA_CHAVE_DO_TOKEN_DE_EMAIL))
+}
+
+/** A configuração de e-mail da API (acesso-e-convites, tarefa 3.0): a chave do token, que precisa ser a do worker. Nunca vai para log nem para erro. */
+export function loadChaveDoTokenDeEmail(ambiente: Record<string, string | undefined>): Uint8Array {
+  return derivarChaveDoToken(validateEnvironment(chaveDoTokenEnvSchema, ambiente).EMAIL_TOKEN_KEY)
+}
+
 export interface EmailConfig {
   readonly adaptador: EmailAdapterKind
   /** Só com `smtp`. */
@@ -79,7 +92,7 @@ export interface EmailConfig {
 
 export function loadEmailConfig(ambiente: Record<string, string | undefined>): EmailConfig {
   const valores = validateEnvironment(emailEnvSchema, ambiente)
-  const chaveDoToken = new Uint8Array(hkdfSync('sha256', valores.EMAIL_TOKEN_KEY, new Uint8Array(0), ROTULO_DA_CHAVE_DO_TOKEN_DE_EMAIL, BYTES_DA_CHAVE_DO_TOKEN_DE_EMAIL))
+  const chaveDoToken = derivarChaveDoToken(valores.EMAIL_TOKEN_KEY)
   const base = {
     adaptador: valores.EMAIL_ADAPTADOR,
     urlDaWeb: valores.EMAIL_URL_DA_WEB.replace(/\/+$/, ''),

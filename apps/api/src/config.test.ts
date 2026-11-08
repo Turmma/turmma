@@ -1,7 +1,7 @@
 import { hkdfSync } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import { lerAmbienteDeCarga, lerAmbienteDeTeste, lerAmbienteExemplo } from '../../../tools/ci/compose.ts'
-import { MOTIVO_ADAPTADOR_FALSO_EM_PRODUCAO, TIMEOUT_COMANDO_REDIS_API_MS, TIMEOUT_COMANDO_REDIS_FILA_MS } from '@educa/core'
+import { loadEmailConfig, MOTIVO_ADAPTADOR_FALSO_EM_PRODUCAO, TIMEOUT_COMANDO_REDIS_API_MS, TIMEOUT_COMANDO_REDIS_FILA_MS } from '@educa/core'
 import { InvalidConfigError, loadConfig, MOTIVO_AVISOS_SEM_JSON, MOTIVO_ROTAS_SINTETICAS_EM_PRODUCAO } from './config.js'
 import { MOTIVO_CHAVE_DA_SALA_REPETIDA } from './sala/sala-config.js'
 import { loadLoginConfig, MOTIVO_PRAZO_DO_REDIS_DO_LOGIN, PRAZO_MINIMO_DO_REDIS_DO_LOGIN_MS } from './credencial/index.js'
@@ -43,6 +43,7 @@ const ambienteValido = {
   IDENTIDADE_CHAVE_CIFRA_V1: 'chave_sintetica_da_cifra_do_mfa_com_32_caracteres',
   IDENTIDADE_CHAVE_RECUPERACAO: 'chave_sintetica_da_recuperacao_com_32_caracteres',
   SALA_CHAVE_CODIGO: 'chave_sintetica_do_codigo_da_turma_com_32_caracteres',
+  EMAIL_TOKEN_KEY: 'chave-sintetica-do-email-com-32-caracteres',
   STORAGE_URL: 'http://storage:8333',
   STORAGE_REGIAO: 'us-east-1',
   STORAGE_BUCKET: 'educa-local',
@@ -128,6 +129,7 @@ describe('lerConfiguracao', () => {
       // Sem as variáveis de provedor, o login pela conta da escola fica desligado, e a API sobe igual (13.0).
       loginExterno: { provedores: new Map(), retorno: undefined, chaveDoCookie: undefined, aceitaEmissorSemTls: true },
       sala: { chaveCodigo: new TextEncoder().encode(ambienteValido.SALA_CHAVE_CODIGO) },
+      email: { chaveDoToken: loadEmailConfig({ ...ambienteValido, EMAIL_URL_DA_WEB: 'http://web.teste' }).chaveDoToken },
       // Sem nenhuma variável de IA, o adaptador falso, com os padrões do prazo e das vagas.
       ia: { adaptador: 'falso', prazosMs: { rapido: 20_000, padrao: 60_000, complexo: 60_000, visao: 60_000 }, recuoMs: 500, executor: { vagasPorEscola: 2, vagasNoTotal: 8, timeoutMs: 150_000 } },
       // O storage do arquivo do titular (F3, tarefa 13.0): sem `STORAGE_URL_PUBLICA`, a assinatura vale o endereço interno.
@@ -191,6 +193,16 @@ describe('lerConfiguracao', () => {
     const erro = erroDe({ ...ambienteValido, [variavel]: valor })
     expect(erro.variaveis).toEqual([variavel])
     expect(erro.message).not.toContain(valor)
+  })
+
+  it('e-mail do convite (acesso-e-convites, 3.0): a API cifra com a chave que o worker decifra, e não sobe sem ela, nem com ela curta, nem mostrando o valor', () => {
+    const doWorker = loadEmailConfig({ ...ambienteValido, EMAIL_URL_DA_WEB: 'http://web.teste' }).chaveDoToken
+    expect(Buffer.from(loadConfig(ambienteValido).email.chaveDoToken).equals(Buffer.from(doWorker))).toBe(true)
+    for (const valor of [undefined, '', 'curta_sintetica']) {
+      const erro = erroDe({ ...ambienteValido, EMAIL_TOKEN_KEY: valor })
+      expect(erro.variaveis, String(valor)).toEqual(['EMAIL_TOKEN_KEY'])
+      if (valor !== undefined && valor !== '') expect(erro.message).not.toContain(valor)
+    }
   })
 
   it('semáforo do hash: LOGIN_HASH_CONCORRENCIA e UV_THREADPOOL_SIZE são obrigatórias, sem padrão no código, e a falta aponta só o nome', () => {

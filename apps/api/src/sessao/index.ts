@@ -1,7 +1,8 @@
 // A porta de `sessao/`: os fluxos de entrada, renovação, saída, convite e troca de escola, e o que o resto da API usa deles.
 // Fora de `sessao/` e de `credencial/`, só se importa daqui; a `tenant/` só entra aqui pelo `AcessoDaSala` e pelas sessões sintéticas, e cada símbolo é exportado pelo nome (nunca `export *`).
 export type { AuthorCheck } from './author-check.js'
-export { cadastrarProfessor, refazerConviteDeProfessor, revogarConviteDeProfessor } from './convite/convite-de-professor.service.js'
+export { cadastrarProfessor, enviarConvitesDeProfessores, refazerConviteDeProfessor, revogarConviteDeProfessor } from './convite/convite-de-professor.service.js'
+export type { EnvioDeConvites } from './convite/convite-de-professor.service.js'
 export { CHAVE_DA_TRAVA_DO_CONVITE_DA_ESCOLA, ConviteRepository } from './convite/convite.repository.js'
 export { criarConviteDeCoordenador, refazerConviteDaCoordenacao, revogarConvitePeloOperador } from './convite/convite.service.js'
 export type { PedidoDeConvite } from './convite/convite.service.js'

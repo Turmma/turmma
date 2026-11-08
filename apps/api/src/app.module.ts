@@ -63,6 +63,8 @@ export interface AppModuleOptions {
   readonly armazemDeArquivos?: FileStorage
   /** O relógio do arquivo do titular (validade de 7 dias e da URL), que o teste injeta. Nunca vem do ambiente. */
   readonly relogioDaPrivacidade?: Clock
+  /** O relógio da validade do convite de professor e da janela da cota de 300/h do "Enviar convites", que o teste injeta. Nunca vem do ambiente. */
+  readonly relogioDosConvites?: Clock
   /** O relógio da Semana do professor (`hoje` e `agora` no fuso da escola), que o teste injeta. Nunca vem do ambiente. */
   readonly relogioDaSemana?: Clock
 }
@@ -95,7 +97,7 @@ export class AppModule {
         }),
         EstruturaModule,
         SemanaModule.forRoot(opcoes.relogioDaSemana === undefined ? {} : { relogio: opcoes.relogioDaSemana }),
-        ProfessoresModule,
+        ProfessoresModule.forRoot({ chaveDoToken: config.email.chaveDoToken, instancias: config.limite.instancias, relogio: opcoes.relogioDosConvites }),
         MaterialModule.forRoot(opcoes.logger ?? createLogger({ servico: 'api' })),
         IaModule.forRoot({ config: config.ia, ...(opcoes.logger === undefined ? {} : { logger: opcoes.logger }) }),
         AssistenteModule.forRoot({ chaveContador: config.login.chaveContador, instancias: config.limite.instancias, logger: opcoes.logger ?? createLogger({ servico: 'api' }) }),

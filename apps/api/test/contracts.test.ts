@@ -12,7 +12,7 @@ import { z } from 'zod'
  */
 
 /** Nomes que nenhum campo de resposta pode ter, nem como parte do nome (`senhaHash`, `refreshToken`). */
-const CHAVES_PROIBIDAS = ['senha', 'hash', 'segredo', 'sujeito', 'refresh'] as const
+const CHAVES_PROIBIDAS = ['senha', 'hash', 'segredo', 'sujeito', 'refresh', 'cifrado'] as const
 
 /** As chaves de credencial que o redact do log remove em qualquer nível (`authorization`, `cookie`, `set-cookie`): também nunca vão num corpo. */
 const CHAVES_DE_CREDENCIAL_DO_REDACT: readonly string[] = CHAVES_DE_CREDENCIAL

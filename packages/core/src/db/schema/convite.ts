@@ -1,4 +1,4 @@
-import { TIPOS_DE_CONVITE, VALIDADE_DO_CONVITE_HORAS, VALIDADE_DO_CONVITE_HORAS_POR_TIPO, type TipoDeConvite } from '@educa/shared'
+import { ESTADOS_DO_ENVIO, TIPOS_DE_CONVITE, VALIDADE_DO_CONVITE_HORAS, VALIDADE_DO_CONVITE_HORAS_POR_TIPO, type EstadoDoEnvio, type TipoDeConvite } from '@educa/shared'
 import { sql } from 'drizzle-orm'
 import { check, customType, foreignKey, index, pgTable, text, timestamp, unique, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
 import { escola } from './escola.js'
@@ -10,9 +10,8 @@ const bytea = customType<{ data: Buffer }>({ dataType: () => 'bytea' })
 export const CANAIS_DE_CONVITE = ['copiado', 'email'] as const
 export type CanalDeConvite = (typeof CANAIS_DE_CONVITE)[number]
 
-/** A vida do envio por e-mail (Tech Spec do acesso-e-convites, seção 3). Só o convite de canal `email` tem envio. */
-export const ESTADOS_DO_ENVIO = ['na_fila', 'enviando', 'enviado', 'falhou', 'cancelado'] as const
-export type EstadoDoEnvio = (typeof ESTADOS_DO_ENVIO)[number]
+/** A vida do envio por e-mail (Tech Spec do acesso-e-convites, seção 3) mora em `@educa/shared`, que a lista de professores e a web também leem. */
+export { ESTADOS_DO_ENVIO, type EstadoDoEnvio }
 
 /** Os tipos e a validade de cada um moram em `@educa/shared`, que a web também lê (A1, tarefa 3.0). */
 export { TIPOS_DE_CONVITE, VALIDADE_DO_CONVITE_HORAS, VALIDADE_DO_CONVITE_HORAS_POR_TIPO, type TipoDeConvite }

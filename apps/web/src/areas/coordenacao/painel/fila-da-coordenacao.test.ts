@@ -16,7 +16,7 @@ const T1 = turma(1, '7º A')
 const T2 = turma(2, '7º B')
 const T3 = turma(3, '8º A')
 
-const professor = (n: number, nome: string, estado: ProfessorDaEscola['estado'] = 'ativo'): ProfessorDaEscola => ({ usuarioId: id(300 + n), nome, estado })
+const professor = (n: number, nome: string, estado: ProfessorDaEscola['estado'] = 'ativo'): ProfessorDaEscola => ({ usuarioId: id(300 + n), nome, estado, envio: null })
 const CAMILA = professor(1, 'Camila Sintética')
 const PAULO = professor(2, 'Paulo Sintético')
 

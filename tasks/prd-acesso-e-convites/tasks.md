@@ -19,12 +19,12 @@
   - [ ] 2.3 Métricas de e-mail por resultado e de adiamento; alerta `falhou` acima de 20% em 1 h, com o parágrafo do `docs/runbook.md`
   - [ ] 2.4 Testes: adiamento sem tentativa, Redis fora, vaga liberada, sorteio, ponto devolvido, teto entre workers, métrica e alerta
 
-- [ ] **3.0 — A coordenação envia os convites por e-mail (API)**
-  - [ ] 3.1 Contrato em `packages/shared` e a rota
-  - [ ] 3.2 O filtro (pendente e vencido), o refazer em lote e o enfileiramento; "Copiar link" e "Reenviar" cancelam o envio antigo
-  - [ ] 3.3 A cota de 300/h: limitador novo no Redis de fila, N pontos atômicos, devolvidos no 429 e no rollback; Redis fora, 300 ÷ instâncias em memória
-  - [ ] 3.4 `convite.enviado`, gravado no pedido
-  - [ ] 3.5 Testes: filtro, cota de 300/h atômica, `convite.enviado`, isolamento, as duas corridas
+- [x] **3.0 — A coordenação envia os convites por e-mail (API)**
+  - [x] 3.1 Contrato em `packages/shared` e a rota
+  - [x] 3.2 O filtro (pendente e vencido), o refazer em lote e o enfileiramento; "Copiar link" e "Reenviar" cancelam o envio antigo
+  - [x] 3.3 A cota de 300/h: limitador novo no Redis de fila, N pontos atômicos, devolvidos no 429 e no rollback; Redis fora, 300 ÷ instâncias em memória
+  - [x] 3.4 `convite.enviado`, gravado no pedido
+  - [x] 3.5 Testes: filtro, cota de 300/h atômica, `convite.enviado`, isolamento, as duas corridas
 
 - [ ] **4.0 — Professores mostra o envio, e o diálogo "Enviar convites"**
   - [ ] 4.1 O rótulo de cada um dos cinco estados, com `aria-live="polite"`

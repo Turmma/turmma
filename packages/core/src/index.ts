@@ -30,6 +30,7 @@ export {
   ADAPTADORES_DE_EMAIL,
   BYTES_DA_CHAVE_DO_TOKEN_DE_EMAIL,
   emailEnvSchema,
+  loadChaveDoTokenDeEmail,
   loadEmailConfig,
   MOTIVO_EMAIL_FALSO_EM_PRODUCAO,
   MOTIVO_EMAIL_NO_MAILPIT,
@@ -164,6 +165,8 @@ export {
   PREFIXO_LIMITE_USUARIO,
   retryAfterSeconds,
 } from './rate-limit/keys.js'
+export { CotaPorHora, MS_DA_JANELA_DA_COTA } from './rate-limit/cota-por-hora.js'
+export type { ConsumoDaCota, CotaPorHoraOpcoes, PontosGastos } from './rate-limit/cota-por-hora.js'
 export { isOverIpLimit, RateLimitGuard, requestIp } from './rate-limit/rate-limit.guard.js'
 export { RateLimiter, loadRateLimitConfig } from './rate-limit/rate-limiter.js'
 export type { RateLimitConfig, RateLimitResult } from './rate-limit/rate-limiter.js'

@@ -51,14 +51,33 @@ export class ConviteDaEscolaRepository {
   /**
    * Grava o convite do tipo pedido. Se o usuário já tem convite em aberto nesta escola, o índice
    * `convite_pendente_unico` recusa, e a recusa sai como `CONFLITO`: é a rede de segurança da trava da escola.
+   *
+   * Com `cifrarParaEnvio`, o convite nasce de canal `email`, com o envio `na_fila` e o token e o endereço cifrados (acesso-e-convites, tarefa 3.0): a
+   * cifra leva o **id da linha** como dado autenticado, e por isso o id (`uuidv7()`, o mesmo do padrão da coluna, que ordena o desempate do "último
+   * convite") sai do banco antes do insert. Sem ele, o convite é o `copiado` de sempre.
    */
-  async criarConvite(dados: { tipo: TipoDeConvite; tokenHash: string; usuarioId: string; expiraEm: Date }): Promise<string> {
+  async criarConvite(dados: {
+    tipo: TipoDeConvite
+    tokenHash: string
+    usuarioId: string
+    expiraEm: Date
+    cifrarParaEnvio?: (conviteId: string) => { tokenCifrado: Buffer; destinoCifrado: Buffer }
+  }): Promise<string> {
     let criado: { id: string } | undefined
+    const escolaId = requireEscolaId()
+    const base = { escolaId, tokenHash: dados.tokenHash, tipo: dados.tipo, usuarioId: dados.usuarioId, expiraEm: dados.expiraEm }
     try {
-      ;[criado] = await this.banco
-        .insert(convite)
-        .values({ escolaId: requireEscolaId(), tokenHash: dados.tokenHash, tipo: dados.tipo, usuarioId: dados.usuarioId, expiraEm: dados.expiraEm })
-        .returning({ id: convite.id })
+      if (dados.cifrarParaEnvio === undefined) {
+        ;[criado] = await this.banco.insert(convite).values(base).returning({ id: convite.id })
+      } else {
+        const { rows } = await this.banco.execute<{ id: string }>(sql`select uuidv7() as id`)
+        const id = rows[0]?.id
+        if (id === undefined) throw new InvariantException('uuidv7 não devolvido pelo banco')
+        ;[criado] = await this.banco
+          .insert(convite)
+          .values({ ...base, id, canal: 'email', envio: 'na_fila', ...dados.cifrarParaEnvio(id) })
+          .returning({ id: convite.id })
+      }
     } catch (erro) {
       const doPostgres = postgresErrorIn(erro)
       if (doPostgres?.code === '23505' && doPostgres.constraint === 'convite_pendente_unico') throw new DomainException(ErrorCode.CONFLITO)

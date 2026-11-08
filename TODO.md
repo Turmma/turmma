@@ -3058,3 +3058,32 @@ aula" em `Retencao.tsx`, o Validador conferiu: a tela já o mostra pela descriç
       perto da virada do minuto; aceitar a janela seguinte nas asserções, ou aumentar o prazo. Só se pesar na esteira (cabe no prazo de 60 s) (dono: Implementador)
 - [ ] (acesso-e-convites 2.0, tenancy-guardian e privacy-guardian, 2ª) **Comentários do teste de log** (`enviar-email-adiamento.int.test.ts`, o do adiamento) falam em "nunca o
       endereço nem o token", e a asserção só cobre o endereço: incluir o token decifrado na checagem, ou deixar o comentário falar só do endereço. O código não loga o token (dono: Implementador)
+
+## Da tarefa 3.0 de acesso-e-convites (o "Enviar convites" e a cota de 300 por hora), fora dela
+
+- [ ] (acesso-e-convites 3.0, tenancy-guardian e privacy-guardian, 1ª) **`cota-por-hora.ts`: o mapa `#seguro` nunca apaga a entrada de janela vencida.** Limpar ao consultar. A entrada é o id
+      da escola e dois números, até dez escolas (D25); a limpeza não tem mutação vermelha (dono: Implementador, junto com a próxima mudança do arquivo)
+- [ ] (acesso-e-convites 3.0, tenancy-guardian, 1ª) **`professoresParaEnvio` repete a lógica de "último convite" de `ProfessoresRepository.pagina`.** Extrair uma peça só, com o escopo
+      duplo nas duas consultas (dono: Implementador)
+- [ ] (acesso-e-convites 3.0, privacy-guardian e test-engineer, 1ª) **Log do 429, da transação desfeita e do seguro em memória.** Capturar o log da API nesses caminhos; o aviso
+      `convites.cota_no_seguro_em_memoria` já tem teste de que só leva ids. A linha nova não traz escola nem pessoa além do contexto (dono: Implementador)
+- [ ] (acesso-e-convites 3.0, revisor-geral e infra-guardian, 1ª) **A cota é consumida no Redis dentro da transação, com a trava da escola presa.** Consumir antes de abrir a transação, ou
+      prazo curto para o `EVALSHA`. Muda a ordem do consumo e do rollback (dono: Implementador)
+- [ ] (acesso-e-convites 3.0, infra-guardian, 1ª) **Cerca de 6 idas ao banco por convite, até 1.800 numa transação com o lote de 300.** Medir contra os 2 s e gravar em lote
+      (dono: Implementador)
+- [ ] (acesso-e-convites 3.0, infra-guardian, 1ª) **Clique duplo no "Enviar" gasta a cota em dobro.** O botão desabilitado é da 4.0; a chave de idempotência no pedido fica aqui (dono: Arquiteto, para decidir)
+- [ ] (acesso-e-convites 3.0, infra-guardian, 1ª) **Contador `convites_cota_total{resultado=…}`** (concedido, recusado, seguro), com o parágrafo do runbook (dono: Implementador)
+- [ ] (acesso-e-convites 3.0, infra-guardian, 1ª) **Índice parcial `(escola_id) where papel = 'professor'` em `usuario`.** A varredura de cerca de 1.000 linhas é a que a A1 já fazia;
+      migration nova (dono: Implementador, quando a medição pedir)
+- [ ] (acesso-e-convites 3.0, test-engineer, 1ª) **Teste [P] de "Enviar" e "Copiar link" ao mesmo tempo.** Caso paralelo novo, com a ordem forçada (dono: Implementador)
+- [ ] (acesso-e-convites 3.0, privacy-guardian e infra-guardian, 2ª) **Caso das 3 instâncias com o Redis de fila fora:** conferir as chaves de todas as linhas do aviso `convites.cota_no_seguro_em_memoria`,
+      não só a primeira, e que `escolaId` e `usuarioId` são UUIDs (dono: Implementador)
+- [ ] (acesso-e-convites 3.0, infra-guardian, 2ª) **Mesmo caso:** os 101 professores são semeados um por vez; semear em lote para a suíte não ficar lenta (dono: Implementador)
+- [ ] (acesso-e-convites 3.0, infra-guardian, 2ª) **`convite-de-professor.service.ts`:** o `.filter` que tira o `undefined` depende da dedução do TypeScript; declarar o tipo guarda
+      `(p): p is {...} => p !== undefined` (dono: Implementador)
+- [ ] (acesso-e-convites 3.0, revisor-geral, 2ª) **`convite-de-professor.service.ts`:** o parâmetro de `.filter((pedido) => …)` esconde o `pedido` de fora; trocar o nome (dono: Implementador)
+- [ ] (acesso-e-convites 3.0, revisor-geral, 2ª) **`quemEsperaOConvitePorEmail`:** o ternário de três condições numa linha; retornos antecipados (dono: Implementador)
+- [ ] (acesso-e-convites 3.0, test-engineer, 2ª) **`apps/worker/test/enviar-email.int.test.ts`:** contar `convite.enviado` só por `escola_id`, sem o filtro `entidade_id = $2`, para pegar um job que grave
+      a ação com outro `entidadeId` (dono: Implementador)
+- [ ] (acesso-e-convites 3.0, test-engineer, 2ª) **Bloco de mutação para o endereço de outro professor do lote** (`email` do vizinho em `entram`); o teste já fica vermelho, falta o bloco que o portão
+      prova (dono: Implementador)

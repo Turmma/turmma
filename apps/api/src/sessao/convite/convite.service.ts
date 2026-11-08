@@ -246,7 +246,8 @@ export async function convidarProfessor(
  * O refazer comum (A0b; A1, tarefa 3.0), depois da trava da escola e da matriz de quem chama: revoga o convite de origem
  * pelo `update` condicional (só em aberto e só do tipo) e cria outro para o **mesmo usuário**, com `convite.refeito`
  * (o tipo, a origem, o usuário e a validade). Se o `update` não revoga (o convite deixou de estar em aberto no meio),
- * `CONFLITO`.
+ * `CONFLITO`. Com `cifrarParaEnvio`, o convite novo nasce de canal `email`, `na_fila`, com o token e o endereço cifrados (o "Enviar convites", tarefa 3.0 do
+ * acesso-e-convites); o `revogarParaRefazer` cancela, no mesmo `update`, o envio do convite de origem que ainda não saiu.
  */
 export async function refazerSobATrava(
   tx: DatabaseTransaction,
@@ -256,10 +257,11 @@ export async function refazerSobATrava(
   token: string,
   expiraEm: Date,
   autorOperador?: string,
+  cifrarParaEnvio?: (conviteId: string) => { tokenCifrado: Buffer; destinoCifrado: Buffer },
 ): Promise<{ conviteId: string; usuarioId: string }> {
   const usuarioId = await convites.revogarParaRefazer(origemId, tipo)
   if (usuarioId === undefined) throw new DomainException(ErrorCode.CONFLITO)
-  const conviteId = await convites.criarConvite({ tipo, tokenHash: hashDoToken(token), usuarioId, expiraEm })
+  const conviteId = await convites.criarConvite({ tipo, tokenHash: hashDoToken(token), usuarioId, expiraEm, ...(cifrarParaEnvio === undefined ? {} : { cifrarParaEnvio }) })
   const depois = { tipo, origemId, usuarioId, expiraEm: expiraEm.toISOString() }
   await registro.gravar(tx, 'convite.refeito', autorOperador === undefined ? { entidadeId: conviteId, depois } : { entidadeId: conviteId, depois, autorOperador })
   return { conviteId, usuarioId }

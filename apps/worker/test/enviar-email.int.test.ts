@@ -133,6 +133,9 @@ describe('email.enviar-convite', () => {
       expect(`${mensagem?.assunto}\n${mensagem?.texto}`).not.toContain('Professora sintética do envio')
       expect(await linha(c.conviteId)).toMatchObject({ envio: 'enviado', token: null, destino: null, reservadoEm: null, enviadoEm: expect.any(Date) as Date })
       expect(log.doEvento('email.convite_enviado')).toContainEqual(expect.objectContaining({ conviteId: c.conviteId, estado: 'gravado' }))
+      // O `convite.enviado` é o pedido da coordenação, gravado pela API; o job só muda o `envio` e não é autor de nada (regra 20, item 10).
+      const { rows: auditados } = await bancada.pool.query<{ total: number }>("select count(*)::int as total from auditoria where escola_id = $1 and entidade_id = $2 and acao = 'convite.enviado'", [escolaId, c.conviteId])
+      expect(auditados[0]?.total).toBe(0)
     })
   })
 

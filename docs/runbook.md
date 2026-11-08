@@ -695,6 +695,11 @@ tentativa), e `email.convite_nao_decifra` com a tentativa. Nenhum deles traz o e
 `email_adiado_total{motivo}`), sem gastar tentativa e sem virar `falhou`; ele volta sozinho no minuto seguinte (ou em 30 s, com o Redis fora). Adiamento
 que não termina é visto na idade da fila `normal` ("Job interativo esperando" cobre a interativa; para a normal, veja `job_espera_mais_antiga_s`).
 
+**A cota do "Enviar convites" não é falha do envio.** A coordenação que recebe 429 gastou os 300 convites por hora da escola (`CONVITES_POR_HORA_POR_ESCOLA`); o
+`Retry-After` diz quando a janela fecha, e o "Copiar link" segue valendo nesse meio-tempo. Com o Redis de fila fora, cada instância da API passa a valer
+`300 ÷ instâncias` e o log traz `convites.cota_no_seguro_em_memoria` (só com os ids da requisição): trate como o Redis fora, não como abuso. A API também precisa da
+`EMAIL_TOKEN_KEY` (a mesma do worker); sem ela a API não sobe.
+
 **Se nada disso resolver:** avise a coordenação das escolas afetadas de que o e-mail não saiu e que o "Copiar link" entrega o mesmo convite pelo
 canal que ela preferir. Não reenvie em massa enquanto o provedor estiver recusando: cada tentativa gasta um ponto do `EMAIL_POR_MINUTO`.
 

@@ -321,6 +321,14 @@ revogado_em is null` é a rede de segurança da trava, e a recusa dele sai como 
 revoga o convite de origem por um `update` condicional (só em aberto) e cria outro para o mesmo
 usuário, com `convite.refeito` na auditoria (a origem, o usuário e a validade).
 
+O "Enviar convites" da coordenação (acesso-e-convites, 3.0) é o mesmo refazer, em lote, com `canal = 'email'`: sob a mesma trava da escola, filtra por
+`estadoDoProfessor` (só pendente e vencido entram; o resto é ignorado e a resposta conta quantos entraram), cifra o token e o endereço no convite novo
+(`token_cifrado` e `destino_cifrado`, com o id da linha como dado autenticado), deixa `envio = 'na_fila'` e põe um job `email.enviar-convite` na fila `normal`
+pelo outbox, na mesma transação. Cada convite novo grava `convite.enviado` (autora a coordenação; `depois` com o tipo e o canal, sem nome nem endereço). O
+"Copiar link" e o "Reenviar" revogam o convite anterior e cancelam o envio que ainda estava aberto. A cota é de 300 convites por hora por escola, no Redis de
+fila (`cota:hora:<escolaId>`, janela de uma hora aberta no primeiro ponto): o lote que não cabe é recusado inteiro (429 com `Retry-After`), e o que foi gasto e
+não virou convite volta se a transação se desfaz. Com o Redis fora vale `300 ÷ instâncias` em memória, e o log traz `convites.cota_no_seguro_em_memoria`.
+
 A lista do painel lê o mesmo estado para as escolas da página, e por isso `Usuario` ganhou o índice
 parcial `usuario_coordenador_ativo_idx (escola_id) where papel = 'coordenador' and desativado_em is
 null` (A0b, tarefa 5.0): sem ele, a pergunta "há coordenador ativo?" varre os usuários de todas as

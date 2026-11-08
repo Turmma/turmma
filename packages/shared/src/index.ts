@@ -312,6 +312,11 @@ export type {
 } from './operacao/painel.js'
 export {
   cadastrarProfessorRequestSchema,
+  CONVITES_POR_HORA_POR_ESCOLA,
+  ESTADOS_DO_ENVIO,
+  MAXIMO_DE_PROFESSORES_NO_ENVIO,
+  enviarConvitesRequestSchema,
+  enviarConvitesResponseSchema,
   conviteDeProfessorEmptyBodyRequestSchema,
   professorDaEscolaSchema,
   conviteDeProfessorResponseSchema,
@@ -321,7 +326,16 @@ export {
   REFAZER_CONVITE_DE_PROFESSOR_POR_ESTADO,
   REVOGAR_CONVITE_DE_PROFESSOR_POR_ESTADO,
 } from './professores/professores.js'
-export type { EstadoDoProfessor, CadastrarProfessorRequest, ProfessorDaEscola, ConviteDeProfessorResponse, ListaDeProfessoresResponse } from './professores/professores.js'
+export type {
+  EstadoDoEnvio,
+  EstadoDoProfessor,
+  CadastrarProfessorRequest,
+  EnviarConvitesRequest,
+  EnviarConvitesResponse,
+  ProfessorDaEscola,
+  ConviteDeProfessorResponse,
+  ListaDeProfessoresResponse,
+} from './professores/professores.js'
 export {
   ALFABETO_DO_CODIGO_DA_TURMA,
   codigoDaTurmaValido,

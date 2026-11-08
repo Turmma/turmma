@@ -198,6 +198,17 @@ export const ACOES_DE_AUDITORIA = {
     finalidade: null,
   },
   /**
+   * A coordenação mandou o convite por e-mail (acesso-e-convites, tarefa 3.0, RF11, RF17): um registro por convite que entrou na fila, gravado no
+   * pedido ("Enviar", "Reenviar") e na mesma transação do convite novo, com a coordenação como autora. `entidadeId` é o convite novo. O job do worker só
+   * muda o `envio` e não grava nada aqui. Leva o canal e o tipo; nunca o nome, o e-mail nem o token.
+   */
+  'convite.enviado': {
+    entidade: 'convite',
+    antes: null,
+    depois: z.strictObject({ tipo: z.enum(TIPOS_DE_CONVITE), canal: z.literal('email') }),
+    finalidade: null,
+  },
+  /**
    * A pessoa abriu o link e aceitou o convite (7.0), com o `tipo` (A1, tarefa 3.0). `usuarioAtivo` diz se o aceite já
    * ativou o usuário (conta nova, que definiu a senha ali) ou se ele espera o login com a senha que a conta já tem (conta
    * de outra escola).

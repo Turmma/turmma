@@ -1,6 +1,14 @@
-import { DomainException, estadoDoProfessor, AuditoriaRecorder, systemClock, type Database, type Clock } from '@educa/core'
-import { ErrorCode, REFAZER_CONVITE_DE_PROFESSOR_POR_ESTADO, REVOGAR_CONVITE_DE_PROFESSOR_POR_ESTADO, type CadastrarProfessorRequest } from '@educa/shared'
-import { ConviteRepository } from './convite.repository.js'
+import { DomainException, estadoDoProfessor, AuditoriaRecorder, requireEscolaId, retryAfterSeconds, systemClock, type Database, type Clock, type CotaPorHora, type JobOutbox, type PontosGastos, type SecretCipher } from '@educa/core'
+import {
+  ErrorCode,
+  REFAZER_CONVITE_DE_PROFESSOR_POR_ESTADO,
+  REVOGAR_CONVITE_DE_PROFESSOR_POR_ESTADO,
+  TIPO_ENVIAR_CONVITE,
+  type CadastrarProfessorRequest,
+  type EnviarConvitesRequest,
+  type EnviarConvitesResponse,
+} from '@educa/shared'
+import { ConviteRepository, type ProfessorParaEnvio } from './convite.repository.js'
 import { convidarProfessor, expiraEmDo, refazerSobATrava, tokenNovo } from './convite.service.js'
 
 /**
@@ -94,4 +102,69 @@ export async function revogarConviteDeProfessor(banco: Database, usuarioId: stri
     if (!(await convites.revogar(conviteId, 'professor'))) throw new DomainException(ErrorCode.CONFLITO)
     await registro.gravar(tx, 'convite.revogado', { entidadeId: conviteId, depois: { tipo: 'professor' } })
   })
+}
+
+/** O que o "Enviar convites" usa fora do banco: a cota da escola, a cifra do token e do endereço na fila de envio, e a porta do job. */
+export interface EnvioDeConvites {
+  readonly cota: Pick<CotaPorHora, 'consumir' | 'devolver'>
+  readonly cifra: Pick<SecretCipher, 'cifrar'>
+  readonly fila: JobOutbox
+}
+
+/**
+ * A regra de quem o "Enviar convites" alcança: o professor que a matriz manda refazer (`pendente` e `vencido`, também o copiado e o da planilha ou da grade),
+ * com um convite de origem e um endereço na conta. Devolve o endereço e o convite que o refazer revoga, ou `undefined` para quem fica de fora.
+ */
+function quemEsperaOConvitePorEmail({ email, dados }: ProfessorParaEnvio): { email: string; origemId: string } | undefined {
+  return REFAZER_CONVITE_DE_PROFESSOR_POR_ESTADO[estadoDoProfessor(dados)] === 'refazer' && dados.ultimoConvite !== undefined && email !== null ? { email, origemId: dados.ultimoConvite.id } : undefined
+}
+
+/**
+ * O "Enviar convites" da coordenação (`POST /v1/professores/convites/enviar`; acesso-e-convites, tarefa 3.0, RF11, RF17; Tech Spec, seção 5, "Enviar"): refaz o
+ * convite de cada professor que o espera, com canal `email`, e põe o envio na fila. Tudo no contexto da sessão: a escola e a autora vêm dele, nunca do corpo.
+ *
+ * - **Sob a trava da escola**, como o refazer, o revogar e o aceite: dois "Enviar" ao mesmo tempo, ou um "Enviar" e um "Copiar link", decidem um depois do
+ *   outro, cada um vendo o que o anterior gravou. O que o primeiro enfileirou e o segundo refez termina `cancelado`: um convite aberto e um e-mail por professor.
+ * - **O filtro é o estado do professor**, pela mesma matriz do refazer (`REFAZER_CONVITE_DE_PROFESSOR_POR_ESTADO`): só `pendente` e `vencido` entram, também o
+ *   copiado e o da planilha ou da grade. Aceito, ativo, desativado, revogado, id de outra escola e id que não existe ficam de fora, sem recusa: a resposta é
+ *   a contagem do que entrou, e zero não é erro. Sem seleção, são todos os que esperam.
+ * - **A cota de 300/h gasta um ponto por convite que entra**, não por item da seleção, de uma vez e atomicamente. Lote que não cabe: `LIMITE_EXCEDIDO` com
+ *   `Retry-After`, nada na fila nem na auditoria. A transação que se desfaz depois do gasto devolve os pontos.
+ * - **O convite novo carrega o token e o endereço cifrados** (o id da linha é o dado autenticado) e o job só leva o id dele. O envio não acontece na requisição:
+ *   a resposta volta com os convites `na_fila`.
+ * - **`convite.enviado` é gravado aqui**, um por convite, com a coordenação como autora; o job só muda o `envio`.
+ *
+ * Não exige ano letivo em curso: o convite é da escola. Nunca o token, o nome ou o e-mail em log.
+ */
+export async function enviarConvitesDeProfessores(banco: Database, envio: EnvioDeConvites, pedido: EnviarConvitesRequest, relogio: Clock = systemClock): Promise<EnviarConvitesResponse> {
+  const escolaId = requireEscolaId()
+  const expiraEm = expiraEmDo('professor', relogio)
+  let gasto: PontosGastos | undefined
+  try {
+    return await banco.transaction(async (tx) => {
+      const convites = new ConviteRepository(tx)
+      await convites.travarEscola()
+      const lidos = await convites.professoresParaEnvio(pedido.usuarioIds === undefined ? undefined : [...new Set(pedido.usuarioIds)])
+      const entram = lidos.map(quemEsperaOConvitePorEmail).filter((pedido) => pedido !== undefined)
+      if (entram.length === 0) return { quantidade: 0 }
+      const consumo = await envio.cota.consumir(escolaId, entram.length)
+      if (consumo.resultado === 'recusado') throw new DomainException(ErrorCode.LIMITE_EXCEDIDO, undefined, retryAfterSeconds(consumo.msAteLiberar))
+      gasto = consumo.gasto
+      for (const { email, origemId } of entram) {
+        const token = tokenNovo()
+        const cifrarParaEnvio = (conviteId: string) => ({
+          tokenCifrado: envio.cifra.cifrar(Buffer.from(token, 'utf8'), conviteId).cifrado,
+          destinoCifrado: envio.cifra.cifrar(Buffer.from(email, 'utf8'), conviteId).cifrado,
+        })
+        const refeito = await refazerSobATrava(tx, convites, 'professor', origemId, token, expiraEm, undefined, cifrarParaEnvio)
+        await envio.fila.enfileirar(tx, TIPO_ENVIAR_CONVITE, { conviteId: refeito.conviteId })
+        await registro.gravar(tx, 'convite.enviado', { entidadeId: refeito.conviteId, depois: { tipo: 'professor', canal: 'email' } })
+      }
+      return { quantidade: entram.length }
+    })
+  } catch (erro) {
+    // A transação se desfez (ou a recusa veio depois do gasto): os pontos que não viraram convite voltam, só na janela em que foram gastos.
+    if (gasto !== undefined) await envio.cota.devolver(gasto)
+    throw erro
+  }
 }

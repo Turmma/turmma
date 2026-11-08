@@ -157,7 +157,7 @@ describe('professores (A1, tarefa 3.0): a coordenação cadastra, o professor ac
 
     const lista = await listar(coordenacao)
     expect(lista.status).toBe(200)
-    expect(listaDeProfessoresResponseSchema.parse(lista.corpo).itens).toEqual([{ usuarioId: primeiro.usuarioId, nome: expect.any(String), estado: 'pendente' }])
+    expect(listaDeProfessoresResponseSchema.parse(lista.corpo).itens).toEqual([{ usuarioId: primeiro.usuarioId, nome: expect.any(String), estado: 'pendente', envio: null }])
     for (const segredo of [primeiro.token, primeiro.conviteId, '@escola.invalid']) expect(lista.texto).not.toContain(segredo)
 
     // Refazer: o anterior responde como o inexistente, na hora; o novo vale, para o mesmo usuário.
@@ -922,7 +922,7 @@ describe('professores (A1, tarefa 3.0): a coordenação cadastra, o professor ac
       const usuarioId = (await usuarioDoEmail(escolaId, email)) ?? ''
 
       const lista = await listar(coordenacao, '?limite=100')
-      expect(listaDeProfessoresResponseSchema.parse(lista.corpo).itens).toEqual([{ usuarioId, nome: 'Cadastrada Pela Planilha', estado: 'pendente' }])
+      expect(listaDeProfessoresResponseSchema.parse(lista.corpo).itens).toEqual([{ usuarioId, nome: 'Cadastrada Pela Planilha', estado: 'pendente', envio: null }])
       expect(lista.texto).not.toContain(email)
 
       const copiado = await refazer(coordenacao, usuarioId)

@@ -1,11 +1,15 @@
 import { convite, requireEscolaId, usuario, type Database, type DadosDoProfessor, type DatabaseTransaction, type UltimoConviteDoProfessor } from '@educa/core'
-import type { PaginationQuery } from '@educa/shared'
+import type { EstadoDoEnvio, PaginationQuery } from '@educa/shared'
 import { and, asc, desc, eq, gt, inArray, sql } from 'drizzle-orm'
 
-/** Um professor da página, com o que decide o estado dele (`estadoDoProfessor`): nunca o e-mail nem a conta. */
+/**
+ * Um professor da página, com o que decide o estado dele (`estadoDoProfessor`) e o envio do último convite por e-mail (`null` no convite copiado ou sem
+ * convite): nunca o e-mail nem a conta.
+ */
 export interface ProfessorLido extends DadosDoProfessor {
   readonly usuarioId: string
   readonly nome: string
+  readonly envio: EstadoDoEnvio | null
 }
 
 /**
@@ -19,7 +23,7 @@ export class ProfessoresRepository {
   /**
    * Uma página dos usuários `professor` da escola, em ordem de id (`limite + 1`, para o `paginar` saber se há próxima), e
    * o último convite `tipo = 'professor'` de cada um (maior `expira_em`, depois maior `id`, a mesma ordem de
-   * `ConviteRepository.dadosDoProfessor`), com a hora do banco. Os convites são lidos só para os ids da página, com a
+   * `ConviteRepository.dadosDoProfessor`), com a hora do banco e o `envio` dele. Os convites são lidos só para os ids da página, com a
    * escola no `where` das duas consultas, pelo índice `convite_escola_usuario_idx`.
    */
   async pagina({ pagina, limite }: PaginationQuery): Promise<ProfessorLido[]> {
@@ -32,7 +36,7 @@ export class ProfessoresRepository {
       .limit(limite + 1)
     if (professores.length === 0) return []
     const convites = await this.banco
-      .select({ usuarioId: convite.usuarioId, id: convite.id, expiraEm: convite.expiraEm, usadoEm: convite.usadoEm, revogadoEm: convite.revogadoEm })
+      .select({ usuarioId: convite.usuarioId, id: convite.id, expiraEm: convite.expiraEm, usadoEm: convite.usadoEm, revogadoEm: convite.revogadoEm, envio: convite.envio })
       .from(convite)
       .where(
         and(
@@ -45,8 +49,11 @@ export class ProfessoresRepository {
         ),
       )
       .orderBy(asc(convite.usuarioId), desc(convite.expiraEm), desc(convite.id))
-    const ultimo = new Map<string, UltimoConviteDoProfessor>()
-    for (const { usuarioId, ...lido } of convites) if (!ultimo.has(usuarioId)) ultimo.set(usuarioId, lido)
-    return professores.map(({ usuarioId, nome, desativadoEm, agora }) => ({ usuarioId, nome, desativadoEm, agora, ultimoConvite: ultimo.get(usuarioId) }))
+    const ultimo = new Map<string, { readonly convite: UltimoConviteDoProfessor; readonly envio: EstadoDoEnvio | null }>()
+    for (const { usuarioId, envio, ...lido } of convites) if (!ultimo.has(usuarioId)) ultimo.set(usuarioId, { convite: lido, envio })
+    return professores.map(({ usuarioId, nome, desativadoEm, agora }) => {
+      const doUltimo = ultimo.get(usuarioId)
+      return { usuarioId, nome, desativadoEm, agora, ultimoConvite: doUltimo?.convite, envio: doUltimo?.envio ?? null }
+    })
   }
 }

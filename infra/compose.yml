@@ -187,6 +187,9 @@ services:
       IDENTIDADE_CHAVE_CIFRA_V1: ${IDENTIDADE_CHAVE_CIFRA_V1:?defina IDENTIDADE_CHAVE_CIFRA_V1}
       IDENTIDADE_CHAVE_RECUPERACAO: ${IDENTIDADE_CHAVE_RECUPERACAO:?defina IDENTIDADE_CHAVE_RECUPERACAO}
       SALA_CHAVE_CODIGO: ${SALA_CHAVE_CODIGO:?defina SALA_CHAVE_CODIGO}
+      # A chave que cifra o token e o endereço do convite enquanto o envio espera na fila (acesso-e-convites, tarefa 3.0): a mesma do worker, que
+      # decifra. A API não fala com o provedor de e-mail e não leva as outras EMAIL_*.
+      EMAIL_TOKEN_KEY: ${EMAIL_TOKEN_KEY:?defina EMAIL_TOKEN_KEY}
       # Login pela conta da escola contra o oidc-falso. Sem depends_on: fora do ar, só esse botão falha, com
       # `?falha=provedor`, e a matrícula e o e-mail seguem (regra 80, item 4).
       LOGIN_EXTERNO_RETORNO_URL: ${LOGIN_EXTERNO_RETORNO_URL:?defina LOGIN_EXTERNO_RETORNO_URL}

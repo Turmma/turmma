@@ -3,8 +3,11 @@ import {
   paginationQuerySchema,
   cadastrarProfessorRequestSchema,
   conviteDeProfessorEmptyBodyRequestSchema,
+  enviarConvitesRequestSchema,
   type PaginationQuery,
   type CadastrarProfessorRequest,
+  type EnviarConvitesRequest,
+  type EnviarConvitesResponse,
   type ConviteDeProfessorResponse,
   type ListaDeProfessoresResponse,
 } from '@educa/shared'
@@ -35,6 +38,18 @@ export class ProfessoresController {
   @RequirePermissao('professor', 'listar')
   listar(@Query(new ZodValidationPipe(paginationQuerySchema)) consulta: PaginationQuery): Promise<ListaDeProfessoresResponse> {
     return this.professores.listar(consulta)
+  }
+
+  /**
+   * O "Enviar convites" (acesso-e-convites, tarefa 3.0, RF11): refaz o convite e enfileira o e-mail de todos os que esperam, ou só dos `usuarioIds`. Reusa a
+   * permissão de refazer o convite, que é da coordenação e de mais ninguém. Sem corpo vale `{}`: todos. A resposta é a contagem, e o link não sai por aqui.
+   */
+  @Post('convites/enviar')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissao('professor', 'refazer_convite')
+  @Header('Cache-Control', 'no-store')
+  enviarConvites(@Body(new ZodValidationPipe(enviarConvitesRequestSchema.default({}))) pedido: EnviarConvitesRequest): Promise<EnviarConvitesResponse> {
+    return this.professores.enviarConvites(pedido)
   }
 
   @Post(':usuarioId/convite/refazer')

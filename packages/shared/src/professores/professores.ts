@@ -4,6 +4,25 @@ import { emailConvidadoSchema, nomeDigitadoSchema, TAMANHO_MAXIMO_NOME_DIGITADO 
 import { tokenDeLinkSchema } from '../sessao/token.js'
 
 /**
+ * A vida do envio do convite por e-mail (acesso-e-convites, tarefa 1.0; Tech Spec, seção 3). Só o convite de canal `email` tem envio: o copiado
+ * tem `null`. Mora aqui porque a lista de professores (`GET /v1/professores`) e a web o leem; o schema do banco o reexporta.
+ */
+export const ESTADOS_DO_ENVIO = ['na_fila', 'enviando', 'enviado', 'falhou', 'cancelado'] as const
+
+export type EstadoDoEnvio = (typeof ESTADOS_DO_ENVIO)[number]
+
+/**
+ * Quantos convites por e-mail uma escola manda por hora (acesso-e-convites, tarefa 3.0; Tech Spec, seção 5, "Enviar"): conta o convite que entra na
+ * fila, não a seleção. Acima disso, `LIMITE_EXCEDIDO` (429) com `Retry-After`, e nada é enfileirado.
+ */
+export const CONVITES_POR_HORA_POR_ESCOLA = 300
+
+/**
+ * Quantos professores um "Enviar" aceita na seleção: o dobro da cota, para a seleção da escola inteira caber e a lista nunca virar um corpo sem fim.
+ */
+export const MAXIMO_DE_PROFESSORES_NO_ENVIO = 1_000
+
+/**
  * Corpo de `POST /v1/professores` (A1, RF6): o nome e o e-mail de login do professor, com as regras do convite da
  * coordenação (nome de uma linha, até 200; e-mail sem espaço nas pontas e em minúsculas). Estrito: campo a mais, como
  * `escolaId` ou `papel`, é `ENTRADA_INVALIDA`. A escola vem da sessão; o papel é sempre `professor`.
@@ -20,6 +39,27 @@ export type CadastrarProfessorRequest = z.infer<typeof cadastrarProfessorRequest
  * convite é sempre o último de professor daquele usuário na escola da sessão, nunca um id vindo do corpo.
  */
 export const conviteDeProfessorEmptyBodyRequestSchema = z.strictObject({})
+
+/**
+ * Corpo de `POST /v1/professores/convites/enviar` (acesso-e-convites, tarefa 3.0, RF11): os professores selecionados, ou nenhum campo para mandar a todos
+ * os que esperam o convite. Estrito: campo a mais, como `escolaId`, é `ENTRADA_INVALIDA`. Ids que não são de professor da escola, ou que não esperam o
+ * convite (revogado, aceito, ativo, desativado), não entram e não são recusados: a contagem diz quantos entraram. A escola vem da sessão.
+ */
+export const enviarConvitesRequestSchema = z.strictObject({
+  usuarioIds: z.array(z.uuid()).min(1).max(MAXIMO_DE_PROFESSORES_NO_ENVIO).optional(),
+})
+
+export type EnviarConvitesRequest = z.infer<typeof enviarConvitesRequestSchema>
+
+/**
+ * Resposta de `POST /v1/professores/convites/enviar`: quantos convites entraram na fila. Zero é resposta válida (ninguém esperava o convite), nunca 409.
+ * O e-mail sai depois, pelo worker: a resposta não espera o envio.
+ */
+export const enviarConvitesResponseSchema = z.strictObject({
+  quantidade: z.int().min(0).max(MAXIMO_DE_PROFESSORES_NO_ENVIO),
+})
+
+export type EnviarConvitesResponse = z.infer<typeof enviarConvitesResponseSchema>
 
 /**
  * Resposta do cadastro (`POST /v1/professores`) e do refazer (`POST /v1/professores/:usuarioId/convite/refazer`): o
@@ -92,13 +132,14 @@ export const REVOGAR_CONVITE_DE_PROFESSOR_POR_ESTADO: Readonly<Record<EstadoDoPr
 }
 
 /**
- * Um professor na lista da coordenação: o usuário, o nome e o estado do convite. Nem e-mail, nem token, nem link, nem
- * nada que diga se a conta do e-mail era nova (E8, E11).
+ * Um professor na lista da coordenação: o usuário, o nome, o estado do convite e o envio dele por e-mail (`null` quando o último convite foi copiado, e
+ * `falhou` quando o servidor recusou ou o prazo esgotou). A API sempre o manda; quem lê uma resposta sem ele (a de antes desta tarefa) o recebe `null`. Nem e-mail, nem token, nem link, nem nada que diga se a conta do e-mail era nova (E8, E11).
  */
 export const professorDaEscolaSchema = z.strictObject({
   usuarioId: z.uuid(),
   nome: z.string().min(1).max(TAMANHO_MAXIMO_NOME_DIGITADO),
   estado: z.enum(ESTADOS_DO_PROFESSOR),
+  envio: z.enum(ESTADOS_DO_ENVIO).nullable().default(null),
 })
 
 export type ProfessorDaEscola = z.infer<typeof professorDaEscolaSchema>

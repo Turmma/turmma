@@ -2,6 +2,7 @@ import {
   InvalidConfigError,
   loadDatabaseConfig,
   loadLLMConfig,
+  loadChaveDoTokenDeEmail,
   loadGracefulShutdownConfig,
   loadAuthConfig,
   loadRateLimitConfig,
@@ -101,6 +102,11 @@ export interface ApiConfig {
    * download de 5 minutos. O worker grava e apaga; a API só assina e confere.
    */
   armazem: FileStorageApiConfig
+  /**
+   * O e-mail do convite (acesso-e-convites, tarefa 3.0): a chave AES-256 que cifra o token e o endereço do convite enquanto o envio espera na fila. É a
+   * mesma do worker (`EMAIL_TOKEN_KEY`), que decifra; a API não fala com o provedor de e-mail. Nunca vai para log nem para erro.
+   */
+  email: { chaveDoToken: Uint8Array }
 }
 
 /** Executa a leitura e devolve o erro de configuração em vez de lançar, para somar os problemas. */
@@ -129,8 +135,9 @@ export function loadConfig(ambiente: Record<string, string | undefined>): ApiCon
   const telemetria = tentar(() => loadTelemetryConfig(ambiente))
   const ia = tentar(() => loadLLMConfig(ambiente))
   const armazem = tentar(() => loadFileStorageConfig(ambiente))
-  if ('erro' in api || 'erro' in banco || 'erro' in identidade || 'erro' in login || 'erro' in loginExterno || 'erro' in sala || 'erro' in drenagem || 'erro' in limite || 'erro' in telemetria || 'erro' in ia || 'erro' in armazem) {
-    const erros = [api, banco, identidade, login, loginExterno, sala, drenagem, limite, telemetria, ia, armazem].flatMap((leitura) => ('erro' in leitura ? [leitura.erro] : []))
+  const chaveDoEmail = tentar(() => loadChaveDoTokenDeEmail(ambiente))
+  if ('erro' in api || 'erro' in banco || 'erro' in identidade || 'erro' in login || 'erro' in loginExterno || 'erro' in sala || 'erro' in drenagem || 'erro' in limite || 'erro' in telemetria || 'erro' in ia || 'erro' in armazem || 'erro' in chaveDoEmail) {
+    const erros = [api, banco, identidade, login, loginExterno, sala, drenagem, limite, telemetria, ia, armazem, chaveDoEmail].flatMap((leitura) => ('erro' in leitura ? [leitura.erro] : []))
     throw new InvalidConfigError(
       // Sem repetir: o `AMBIENTE` é validado pela identidade e de novo pela IA, que o lê para a trava de produção.
       [...new Set(erros.flatMap((erro) => erro.variaveis))].sort(),
@@ -153,5 +160,6 @@ export function loadConfig(ambiente: Record<string, string | undefined>): ApiCon
     telemetria: telemetria.valor,
     ia: ia.valor,
     armazem: armazem.valor,
+    email: { chaveDoToken: chaveDoEmail.valor },
   }
 }

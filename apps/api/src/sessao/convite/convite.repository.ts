@@ -1,5 +1,5 @@
-import { CANCELAR_O_ENVIO_DO_CONVITE, CHAVE_DA_TRAVA_DO_CONVITE_DA_ESCOLA, convite, ConviteDaEscolaRepository, escola, requireEscolaId, usuario, type Database, type DatabaseTransaction, type DadosDaCoordenacao, type DadosDoProfessor, type TipoDeConvite } from '@educa/core'
-import { and, desc, eq, exists, gte, isNotNull, isNull, sql } from 'drizzle-orm'
+import { CANCELAR_O_ENVIO_DO_CONVITE, CHAVE_DA_TRAVA_DO_CONVITE_DA_ESCOLA, conta, convite, ConviteDaEscolaRepository, escola, requireEscolaId, usuario, type Database, type DatabaseTransaction, type DadosDaCoordenacao, type DadosDoProfessor, type TipoDeConvite, type UltimoConviteDoProfessor } from '@educa/core'
+import { and, asc, desc, eq, exists, gte, inArray, isNotNull, isNull, sql } from 'drizzle-orm'
 
 /** A chave da trava do convite da escola mora no core (a 6.0 a subiu com o resto que o job da planilha usa); a API a reexporta para os testes. */
 export { CHAVE_DA_TRAVA_DO_CONVITE_DA_ESCOLA }
@@ -138,4 +138,45 @@ export class ConviteRepository extends ConviteDaEscolaRepository {
     const { desativadoEm, agora, ...ultimoConvite } = linha
     return { desativadoEm, ultimoConvite, agora }
   }
+
+  /**
+   * Os professores da escola do contexto que o "Enviar convites" pode alcançar (acesso-e-convites, tarefa 3.0), todos ou só os `usuarioIds` pedidos, em ordem de id: o
+   * que decide o estado (`estadoDoProfessor`: o `desativado_em`, o último convite de professor e a hora do banco) e o endereço da conta, para a cifra do envio.
+   * A conta entra só pelo `usuario.conta_id` da escola: id de professor de outra escola, de outro papel ou inexistente não volta, e o `where` leva o escopo nas duas
+   * consultas (regra 10, item 3). O endereço nunca sai daqui para uma resposta, e sem conta (a conta já foi limpa) vem `null`.
+   */
+  async professoresParaEnvio(usuarioIds?: readonly string[]): Promise<ProfessorParaEnvio[]> {
+    const escolaId = requireEscolaId()
+    const professores = await this.banco
+      .select({ usuarioId: usuario.id, email: conta.email, desativadoEm: usuario.desativadoEm, agora: sql<Date>`now()`.mapWith(usuario.desativadoEm) })
+      .from(usuario)
+      .leftJoin(conta, eq(conta.id, usuario.contaId))
+      .where(and(eq(usuario.escolaId, escolaId), eq(usuario.papel, 'professor'), usuarioIds === undefined ? undefined : inArray(usuario.id, [...usuarioIds])))
+      .orderBy(asc(usuario.id))
+    if (professores.length === 0) return []
+    const convites = await this.banco
+      .select({ usuarioId: convite.usuarioId, id: convite.id, expiraEm: convite.expiraEm, usadoEm: convite.usadoEm, revogadoEm: convite.revogadoEm })
+      .from(convite)
+      .where(
+        and(
+          eq(convite.escolaId, escolaId),
+          eq(convite.tipo, 'professor'),
+          inArray(
+            convite.usuarioId,
+            professores.map((professor) => professor.usuarioId),
+          ),
+        ),
+      )
+      .orderBy(asc(convite.usuarioId), desc(convite.expiraEm), desc(convite.id))
+    const ultimo = new Map<string, UltimoConviteDoProfessor>()
+    for (const { usuarioId, ...lido } of convites) if (!ultimo.has(usuarioId)) ultimo.set(usuarioId, lido)
+    return professores.map(({ usuarioId, email, desativadoEm, agora }) => ({ usuarioId, email, dados: { desativadoEm, agora, ultimoConvite: ultimo.get(usuarioId) } }))
+  }
+}
+
+/** Um professor que o "Enviar convites" pode alcançar: o usuário, o endereço da conta (para a cifra, nunca para a resposta) e o que decide o estado dele. */
+export interface ProfessorParaEnvio {
+  readonly usuarioId: string
+  readonly email: string | null
+  readonly dados: DadosDoProfessor
 }

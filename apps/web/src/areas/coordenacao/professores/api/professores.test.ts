@@ -78,7 +78,7 @@ describe('os professores da escola (A1, 14.0)', () => {
   })
 
   it('a lista vem da rota paginada, com a sessão, e fica na chave da estrutura, que a troca de escola esvazia', async () => {
-    const item = { usuarioId: USUARIO, nome: pedido.nome, estado: 'pendente' }
+    const item = { usuarioId: USUARIO, nome: pedido.nome, estado: 'pendente', envio: null }
     fila.push({ status: 200, corpo: { itens: [item] } })
     const cliente = new QueryClient()
     expect(await cliente.fetchQuery(m.professores.professoresQueryOptions)).toEqual({ itens: [item], completa: true })
