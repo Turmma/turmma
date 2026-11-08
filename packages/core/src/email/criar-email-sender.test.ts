@@ -4,7 +4,7 @@ import { criarEmailSender } from './criar-email-sender.js'
 import { FakeEmailSender } from './fake-email-sender.js'
 import { SmtpEmailSender } from './smtp-email-sender.js'
 
-const base = { urlDaWeb: 'http://web.teste', chaveDoToken: new Uint8Array(32) }
+const base = { urlDaWeb: 'http://web.teste', chaveDoToken: new Uint8Array(32), porMinuto: 60 }
 const smtp = { host: 'mailpit', porta: 1025, tls: false, remetente: 'Turmma <nao-responda@turmma.invalid>' }
 
 describe('criarEmailSender', () => {

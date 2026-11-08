@@ -43,6 +43,13 @@ describe('loadEmailConfig', () => {
     expect(config.chaveDoToken).toHaveLength(BYTES_DA_CHAVE_DO_TOKEN_DE_EMAIL)
   })
 
+  it('o teto de mensagens por minuto é o 60 de partida, vale o da variável, e zero, fração ou texto são recusados (também vazio vale o de partida)', () => {
+    expect(loadEmailConfig(BASE).porMinuto).toBe(60)
+    expect(loadEmailConfig({ ...BASE, EMAIL_POR_MINUTO: '' }).porMinuto).toBe(60)
+    expect(loadEmailConfig({ ...BASE, EMAIL_POR_MINUTO: '240' }).porMinuto).toBe(240)
+    for (const invalido of ['0', '-3', '1.5', 'muitos', '100001']) expect(erroDe({ ...BASE, EMAIL_POR_MINUTO: invalido }).variaveis, invalido).toEqual(['EMAIL_POR_MINUTO'])
+  })
+
   it.each(['EMAIL_TOKEN_KEY', 'EMAIL_URL_DA_WEB'])('não sobe sem %s, nem com ela vazia', (variavel) => {
     expect(erroDe({ ...BASE, [variavel]: undefined }).variaveis).toEqual([variavel])
     expect(erroDe({ ...BASE, [variavel]: '' }).variaveis).toEqual([variavel])
@@ -122,7 +129,7 @@ describe('loadEmailConfig', () => {
     const raiz = fileURLToPath(new URL('../../../../', import.meta.url))
     const exemplo = parseEnv(readFileSync(`${raiz}.env.example`, 'utf8'))
     const teste = { ...exemplo, ...parseEnv(readFileSync(`${raiz}infra/teste.env`, 'utf8')) }
-    expect(loadEmailConfig(exemplo)).toMatchObject({ adaptador: 'smtp', smtp: { host: 'mailpit', porta: 1025, tls: false }, urlDaWeb: exemplo['EMAIL_URL_DA_WEB'] })
+    expect(loadEmailConfig(exemplo)).toMatchObject({ adaptador: 'smtp', porMinuto: 60, smtp: { host: 'mailpit', porta: 1025, tls: false }, urlDaWeb: exemplo['EMAIL_URL_DA_WEB'] })
     expect(loadEmailConfig(teste).urlDaWeb).toBe(teste['EMAIL_URL_DA_WEB'])
   })
 })

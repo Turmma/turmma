@@ -1,0 +1,64 @@
+# Alerta "E-mail com falha acima de 20% em 1 h" (acesso-e-convites, tarefa 2.0; runbook: docs/runbook.md#e-mail-com-falha-acima-de-20-em-1-h).
+# Provisionado por arquivo no Grafana da observabilidade local (infra/compose.yml monta esta pasta em provisioning/alerting).
+#
+# `email.envio{resultado}` é contada pelo job `email.enviar-convite` a cada execução que chegou a uma conclusão. A razão é dos e-mails que terminaram na
+# última hora: `falhou` (a recusa do servidor, a última tentativa do 4xx, a cifra que não decifra) sobre `enviado` e `falhou`. A `nova_tentativa`
+# (o 4xx que a fila repete), a `reserva_perdida` (a revogação venceu o envio) e o `ignorado` (o envio já tinha terminado) não são desfecho de
+# envio e ficam fora da conta. O adiamento (`email.adiado`) também não conta: adiar não é falhar, e o adiamento longo aparece no alerta de idade
+# da fila. Soma as réplicas do worker-normal e não leva escola nem convite: a escola vai no log do job, só com ids.
+#
+# Sem e-mail na hora é normal: a condição `and` só deixa série quando houve ao menos um desfecho, e sem série o estado é normal.
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: email-falhou
+    folder: Educa.ia alertas
+    interval: 10s
+    rules:
+      - uid: educa-email-falhou
+        title: E-mail com falha acima de 20% em 1 h
+        condition: C
+        for: 5m
+        noDataState: OK
+        execErrState: Error
+        isPaused: false
+        labels:
+          area: email
+        annotations:
+          summary: 'Mais de 20% dos e-mails de convite terminaram falhou na última hora'
+          description: Mais de um em cada cinco e-mails que terminaram na última hora saiu falhou. Siga o runbook.
+          runbook_url: https://github.com/Turmma/turmma/blob/main/docs/runbook.md#e-mail-com-falha-acima-de-20-em-1-h
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              datasource:
+                type: prometheus
+                uid: prometheus
+              expr: '(sum (increase(email_envio_total{job="educa/worker", resultado="falhou"}[1h])) / sum (increase(email_envio_total{job="educa/worker", resultado=~"enviado|falhou"}[1h]))) and on () (sum (increase(email_envio_total{job="educa/worker", resultado=~"enviado|falhou"}[1h])) > 0)'
+              instant: true
+              range: false
+              intervalMs: 10000
+              maxDataPoints: 43200
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params: [0.2]

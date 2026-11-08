@@ -1,4 +1,4 @@
-import { EnvioRepository, FakeEmailSender, InMemoryFileStorage, SecretCipher, UsageMeter, createDatabase, createLogger, createPool, type JanelaLetiva } from '@educa/core'
+import { EnvioRepository, FakeEmailSender, LimiteDeEmailPorMinuto, InMemoryFileStorage, SecretCipher, UsageMeter, createDatabase, createLogger, createPool, type JanelaLetiva } from '@educa/core'
 import { JOB_DEFINITIONS, QUEUE_NAMES, type QueueName, type JobRegistry } from '@educa/shared'
 import { Redis } from 'ioredis'
 import { afterAll, describe, expect, it } from 'vitest'
@@ -29,7 +29,7 @@ async function tiposDaReplicaDa(fila: QueueName, comEmail = true): Promise<strin
     { pools: { [fila]: 1 }, storage: STORAGE, janelaPadrao: JANELA },
     {
       banco,
-      ...(comEmail ? { email: { envios: new EnvioRepository(banco), emissor: new FakeEmailSender(), cifra: new SecretCipher(1, new Map([[1, new Uint8Array(32)]])), urlDaWeb: 'http://web.teste' } } : {}),
+      ...(comEmail ? { email: { envios: new EnvioRepository(banco), emissor: new FakeEmailSender(), cifra: new SecretCipher(1, new Map([[1, new Uint8Array(32)]])), limite: new LimiteDeEmailPorMinuto(redis, 60), urlDaWeb: 'http://web.teste' } } : {}),
       uso: new UsageMeter(redis),
       relogio: { agora: () => new Date('2026-10-22T10:00:00-03:00') },
       logger: createLogger({ servico: 'worker-teste', nivel: 'silent' }),
@@ -64,10 +64,15 @@ describe('a réplica de cada fila contra o registro de jobs', () => {
 
   it('as peças do e-mail só existem com a configuração do e-mail e com o banco: a réplica que não manda e-mail não monta adaptador', () => {
     const banco = createDatabase(pool)
-    const email = { adaptador: 'falso', urlDaWeb: 'http://web.teste', chaveDoToken: new Uint8Array(32) } as const
-    expect(pecasDoEmail({}, banco)).toBeUndefined()
-    expect(pecasDoEmail({ email }, undefined)).toBeUndefined()
-    expect(pecasDoEmail({ email }, banco)).toMatchObject({ urlDaWeb: 'http://web.teste', emissor: expect.any(FakeEmailSender) as FakeEmailSender })
+    const email = { adaptador: 'falso', urlDaWeb: 'http://web.teste', chaveDoToken: new Uint8Array(32), porMinuto: 60 } as const
+    expect(pecasDoEmail({}, banco, { redis })).toBeUndefined()
+    expect(pecasDoEmail({ email }, undefined, { redis })).toBeUndefined()
+    expect(pecasDoEmail({ email }, banco)).toBeUndefined()
+    expect(pecasDoEmail({ email }, banco, { redis })).toMatchObject({
+      urlDaWeb: 'http://web.teste',
+      emissor: expect.any(FakeEmailSender) as FakeEmailSender,
+      limite: expect.any(LimiteDeEmailPorMinuto) as LimiteDeEmailPorMinuto,
+    })
   })
 
   it('a réplica sem a configuração do e-mail sobe sem o job do convite, e as outras continuam', async () => {

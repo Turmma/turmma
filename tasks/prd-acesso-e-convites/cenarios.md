@@ -50,7 +50,7 @@ rodada 1) acrescentou os casos marcados (F2c) e as seções "Arquivo do titular"
     `msBeforeNext` (ou o prazo da reserva) e ele mais 5 s, nunca 1 s fixo. (F2c)
   - [U] Espera do adiamento com o sorteio injetado: no mínimo, o `msBeforeNext`; no máximo, ele mais 5 s; dois sorteios
     diferentes, esperas diferentes; o mesmo com o prazo da reserva e com o Redis fora (30 s). (F2c)
-  - [I] Com `EMAIL_POR_MINUTO` = 1, ponto consumido e a linha com reserva alheia, `enviado` ou `cancelado`: o ponto volta,
+  - [I] Com `EMAIL_POR_MINUTO` = 1, ponto consumido e a linha com reserva alheia, `enviado` ou `cancelado` (também o convite de outra escola, a cifra que não decifra e o banco que falha na reserva): o ponto volta,
     e o envio seguinte sai no mesmo minuto; o mesmo no `sistema.enviar-email-da-conta`, na metade reservada. Ponto
     consumido no segundo 59 e devolvido no minuto seguinte (relógio falso): não volta (só se devolve na mesma janela). A
     tentativa recusada pelo SMTP (4xx, 5xx) ou caída conta como envio: o ponto não volta. (F2c)
@@ -284,7 +284,7 @@ Cada linha é um cenário [I]; o semáforo, [P].
 | Verificar no aceite | 3/h por conta | `VERIFICACAO_PENDENTE` sem envio |
 | Provisória | 60/h por usuário e 5/dia por aluno, contadas depois do escopo | 429 |
 | Trocar-senha | o contador de falhas da conta | o bloqueio do login |
-| `EMAIL_POR_MINUTO` | global, abaixo da do provedor, com metade reservada ao link da conta | o job adia sem gastar tentativa e solta a vaga (o link que vem depois sai no mesmo minuto); com os convites enchendo a metade deles, um link da conta ainda sai no minuto e um convite a mais é adiado |
+| `EMAIL_POR_MINUTO` | global (padrão 60), abaixo da do provedor, em janelas fixas de um minuto; o convite usa `N − ⌊N/2⌋` e o resto é reservado ao link da conta | o job adia sem gastar tentativa e solta a vaga (o link que vem depois sai no mesmo minuto); com os convites enchendo a metade deles, um link da conta ainda sai no minuto e um convite a mais é adiado |
 
 ## Auditoria (RF17)
 

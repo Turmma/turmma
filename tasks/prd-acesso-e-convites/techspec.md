@@ -69,7 +69,13 @@ troca e `/trocas` com `no-store`.
 `@Unscoped` (conta global, lida pelo id do job). Os dois consomem o `EMAIL_POR_MINUTO` (global, com metade
 reservada ao link da conta), atômico no Redis de fila, sem o seguro em memória; estourado ou Redis fora, adia, nunca
 envia sem contar. Adiar libera a vaga, volta a `publicado`, não conta tentativa nem uso, e espera o `msBeforeNext` ou o
-prazo da reserva (Redis fora: 30 s), mais até 5 s sorteados. Ponto sem envio volta. Depois reservam a linha numa transação curta (`enviando`, hora,
+prazo da reserva (Redis fora: 30 s), mais até 5 s sorteados. Ponto sem envio volta. O teto é `EMAIL_POR_MINUTO` (padrão 60),
+em janelas fixas de um minuto de calendário, lidas do `TIME` do Redis; o convite usa até `N − ⌊N/2⌋` por minuto e o resto
+fica ao link da conta; o ponto volta só na janela em que foi gasto (`LimiteDeEmailPorMinuto.devolver`). O job gasta o ponto
+**antes** de reservar a linha, e o devolve se a reserva é alheia, o envio já terminou, o convite não é da escola, a cifra não
+decifra ou o banco falha; a tentativa que falou com o servidor (aceita, recusada ou caída) o gastou. A saída de adiar é do
+`JobExecutor` (`JobAdiadoError`; `devolverAoPublicado`, `ativo` → `publicado`), e o uso (`jobs`) passa a ser contado **ao
+fim** da tentativa, salvo a adiada, que não fez o trabalho. `devolverAoPublicado` entra em `REPOSITORIES_SEM_ESCOPO` (`tools/guardas/escopo-dos-repositories.ts`) como os irmãos `concluir` e `registrarFalha`. O alerta `educa-email-falhou` entra em `REGRAS_PROVISIONADAS` (`infra/scripts/ensaio-alertas.ts`), e `email.envio` e `email.adiado` têm um gráfico cada no painel `fundacao.json`. Depois reservam a linha numa transação curta (`enviando`, hora,
 cifrados); reserva alheia vigente: adia até o prazo. Enviam fora dela (timeout de 10 s) e
 gravam `enviado`, cifrados nulos, `where envio = 'enviando' and envioReservadoEm = :minha`. Revogação, link novo (refazer,
 "esqueci", verificar) e a defesa do `desativar` gravam `cancelado` na hora: o link que sair não vale. SMTP 5xx: `falhou`; 4xx ou queda: devolve a linha a

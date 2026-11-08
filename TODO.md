@@ -3036,3 +3036,25 @@ aula" em `Retencao.tsx`, o Validador conferiu: a tela já o mostra pela descriç
 - [ ] (restos-ve-arquivo-novo, revisor-geral, 1ª) **A Tech Spec da X8** (`tasks/prd-nomes-de-mercado/techspec.md:208`) diz "rodado depois do `git add` (a `Arvore` lê o índice)", e o `restos`
       lê também o que não está no índice: atualizar o parêntese na próxima mudança de `tasks/prd-nomes-de-mercado/`
 - [ ] (restos-ve-arquivo-novo, infra-guardian, 1ª) **`tools/renomear/aplicar.test.ts:470` roda processo sem prazo próprio:** entra junto com a próxima correção que tocar o arquivo
+
+## Da tarefa 2.0 de acesso-e-convites (o `EMAIL_POR_MINUTO` e a saída de adiar), fora dela
+
+- [ ] (acesso-e-convites 2.0, tenancy-guardian, 1ª) **Aviso quando `devolverAoPublicado` não acha a linha.** `job-executor.ts` ignora o `false` (a linha fora de `ativo`);
+      um `job.adiado_sem_linha` no log, só com ids, mostraria o caso. Cria evento de log novo, que pede teste e bloco próprios; não muda o isolamento (dono: Implementador)
+- [ ] (acesso-e-convites 2.0, privacy-guardian, 1ª) **`docs/lgpd.md`: uma linha sobre o contador global `EMAIL_POR_MINUTO`**, ao lado dos "Contadores do acesso". Não é
+      campo pessoal (regra 20, item 1 não se aplica), mas o mapa de dados é onde a escola procura (dono: Implementador, junto com a próxima tarefa que tocar o `lgpd.md`)
+- [ ] (acesso-e-convites 2.0, revisor-geral e infra-guardian, 1ª) **Alerta de idade da fila `normal`.** A Tech Spec §7c diz "adiamento longo: o alerta de idade da fila", e ele só
+      existe para a `interativa` (`job-interativo-esperando.yaml`); o runbook manda olhar `job_espera_mais_antiga_s` à mão. Ou o Arquiteto corrige o texto da §7c, ou uma
+      tarefa de infra abre a regra de `job_espera_mais_antiga_s{fila="normal"}` (dono: Arquiteto, para decidir)
+- [ ] (acesso-e-convites 2.0, revisor-geral, 1ª) **`enviar-email.ts`, a cifra que não decifra:** o `concluir(..., 'falhou')` ignora o booleano e conta sempre `falhou`; usar
+      `resultadoGravado`. Muda o rótulo de uma métrica que o alerta lê, e só aparece com a revogação vencendo o envio justo na cifra que não decifra (dono: Implementador)
+- [ ] (acesso-e-convites 2.0, revisor-geral, 1ª) **`enviar-email.ts`, o `concluir` de `montarMensagem` que lança erro do banco:** o ponto não volta (um ponto perdido até o
+      fim do minuto). Muda comportamento e pede caso e bloco novos (dono: Implementador)
+- [ ] (acesso-e-convites 2.0, infra-guardian, 1ª) **O script Lua monta as chaves fora de `KEYS`:** quebra em Redis gerenciado em modo cluster. Passar as chaves por `KEYS`
+      com hash tag, na migração da D26/D42 (dono: Arquiteto, na migração)
+- [ ] (acesso-e-convites 2.0, infra-guardian, 1ª) **Nota na D14:** o uso (`jobs`) é contado ao fim da tentativa; a que morre com o processo não entra. A diferença é pequena e a
+      nota é da decisão, não da tarefa (dono: Arquiteto, `registrar-decisao`)
+- [ ] (acesso-e-convites 2.0, test-engineer, infra-guardian e revisor-geral, 2ª) **O caso "o limite com o relógio do Redis"** espera até ~10 s do relógio de verdade quando cai
+      perto da virada do minuto; aceitar a janela seguinte nas asserções, ou aumentar o prazo. Só se pesar na esteira (cabe no prazo de 60 s) (dono: Implementador)
+- [ ] (acesso-e-convites 2.0, tenancy-guardian e privacy-guardian, 2ª) **Comentários do teste de log** (`enviar-email-adiamento.int.test.ts`, o do adiamento) falam em "nunca o
+      endereço nem o token", e a asserção só cobre o endereço: incluir o token decifrado na checagem, ou deixar o comentário falar só do endereço. O código não loga o token (dono: Implementador)

@@ -663,6 +663,43 @@ escola de que a eliminação atrasou, sem mandar o nome nem o pedido por mensage
 **Depois:** registre no `TODO.md` a escola (id), o pedido (id), o `eliminar_em` e a causa, só com ids e datas. Causa nova vira
 tarefa com teste que a reproduz.
 
+## E-mail com falha acima de 20% em 1 h
+
+**Dispara quando:** mais de 20% dos e-mails de convite que terminaram na última hora saíram `falhou`, por 5 min
+(`(sum(increase(email_envio_total{resultado="falhou"}[1h])) / sum(increase(email_envio_total{resultado=~"enviado|falhou"}[1h]))) > 0.2`,
+regra `infra/grafana/alertas/email-falhou.yaml`; Tech Spec de acesso-e-convites, seção 7c). A métrica é do job `email.enviar-convite`,
+somadas as réplicas do worker de fila normal; a `nova_tentativa` (o 4xx que a fila repete), a `reserva_perdida` (a revogação venceu o envio),
+o `ignorado` e o adiamento (`email_adiado_total`) não contam como desfecho. A série não leva escola nem convite: a escola vem do log do job.
+
+**Impacto:** a coordenação clicou em "Enviar" e o professor não recebe o convite: a lista mostra "falhou" na linha, e ela pode usar "Reenviar" ou
+"Copiar link" (o link copiado continua valendo). Nada fica pela metade: o convite `falhou` já não guarda o token nem o endereço cifrados.
+
+**Primeiro olhar:** os convites `falhou` ainda não expurgados, só com ids e datas (nunca o endereço, que já foi apagado). O convite não guarda a hora em que virou
+`falhou`, e um que falha agora pode ter sido criado horas antes (a fila repete o 4xx por até 24 h, o prazo do expurgo do envio parado); por isso a consulta olha as últimas
+25 h pela criação, e o `criado_em` mais recente é o que o alerta contou:
+`docker compose exec postgres psql -U educa -c "select id, escola_id, canal, envio, enviado_em, criado_em from convite where envio = 'falhou' and criado_em > now() - interval '25 hours' order by criado_em"`.
+O `escola_id` da consulta é só para o time: não vai para mensagem fora dele (a coordenação é avisada pela tela, sem o id).
+O log do worker traz `email.convite_falhou` com `conviteId`, `tentativa` e `tipo` (`permanente` é a recusa 5xx; `transitoria` é o 4xx ou a queda na última
+tentativa), e `email.convite_nao_decifra` com a tentativa. Nenhum deles traz o endereço, o token nem a resposta do servidor.
+
+**Causas prováveis:**
+1. `tipo = permanente` em várias escolas → o provedor recusa o remetente, a credencial ou o domínio (SPF/DKIM): confira `EMAIL_SMTP_*` e `EMAIL_REMETENTE`
+   no ambiente do worker e o painel do provedor. Corrigida a configuração, a coordenação reenvia pela tela.
+2. `tipo = transitoria` na última tentativa → o provedor está lento ou fora (4xx, queda de conexão, 10 s estourados). Confira o status dele; o que o
+   alerta mostra é o esgotamento das cinco tentativas, não uma só.
+3. `email.convite_nao_decifra` → a `EMAIL_TOKEN_KEY` mudou com convites ainda na fila: a cifra não abre com a chave nova. Volte a chave anterior ou
+   deixe os convites `falhou` e peça o reenvio; troca de chave recomeça o envio.
+4. Poucos e-mails na hora → um ou dois `falhou` bastam para passar de 20%. Confira o número de envios da hora antes de escalar.
+
+**Adiamento não é falha.** Com o teto `EMAIL_POR_MINUTO` gasto, o Redis de fila fora ou a reserva de outro processo vigente, o job é adiado (métrica
+`email_adiado_total{motivo}`), sem gastar tentativa e sem virar `falhou`; ele volta sozinho no minuto seguinte (ou em 30 s, com o Redis fora). Adiamento
+que não termina é visto na idade da fila `normal` ("Job interativo esperando" cobre a interativa; para a normal, veja `job_espera_mais_antiga_s`).
+
+**Se nada disso resolver:** avise a coordenação das escolas afetadas de que o e-mail não saiu e que o "Copiar link" entrega o mesmo convite pelo
+canal que ela preferir. Não reenvie em massa enquanto o provedor estiver recusando: cada tentativa gasta um ponto do `EMAIL_POR_MINUTO`.
+
+**Depois:** registre no `TODO.md` as escolas (ids), o `tipo` e a hora, só com ids e datas. Causa nova vira tarefa com teste que a reproduz.
+
 ## Importação de planilha com falha acima de 20% em 1 h
 
 **Dispara quando:** mais de 20% das importações de planilha que terminaram na última hora saíram `falhou`, por 5 min

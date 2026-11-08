@@ -3,6 +3,7 @@ import {
   EmailSendError,
   EnvioRepository,
   FakeEmailSender,
+  LimiteDeEmailPorMinuto,
   runInContext,
   SecretCipher,
   VERSAO_DA_CHAVE_DO_TOKEN_DE_EMAIL,
@@ -13,6 +14,7 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { compose, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
 import { ConviteRepository } from '../../api/src/sessao/convite/convite.repository.js'
+import { JobAdiadoError } from '../src/job-adiado.error.js'
 import { JobFailureError } from '../src/job-failure.error.js'
 import { criarEnvioDoConvite, TENTATIVAS_DO_ENVIO_DE_EMAIL } from '../src/processors/enviar-email.js'
 import { jobExecution } from './job-execution.fixture.js'
@@ -36,7 +38,9 @@ describe('email.enviar-convite', () => {
   const emissor = new FakeEmailSender()
   const escolas: string[] = []
   const envios = new EnvioRepository(bancada.banco)
-  const processador = criarEnvioDoConvite({ envios, emissor, cifra, urlDaWeb: URL_DA_WEB, logger: log.logger })
+  // O teto do minuto aqui não é o assunto (é o do `enviar-email-adiamento.int.test.ts`): alto, para nenhum caso esperar por ele.
+  const limite = new LimiteDeEmailPorMinuto(bancada.redis, 100_000, { prefixo: bancada.prefixo })
+  const processador = criarEnvioDoConvite({ envios, emissor, cifra, limite, urlDaWeb: URL_DA_WEB, logger: log.logger })
 
   afterAll(async () => {
     await bancada.pool.query('delete from convite where escola_id = any($1::uuid[])', [escolas])
@@ -216,6 +220,7 @@ describe('email.enviar-convite', () => {
           },
         },
         cifra,
+        limite,
         urlDaWeb: URL_DA_WEB,
         logger: log.logger,
       })
@@ -252,7 +257,7 @@ describe('email.enviar-convite', () => {
     it('a queda que não é uma recusa do servidor (erro sem natureza) vale como 4xx: a linha volta a `na_fila` e o job repete', async () => {
       const escolaId = await escolaNova()
       const c = await conviteNaFila(escolaId)
-      const quedas = criarEnvioDoConvite({ envios, emissor: { enviar: () => Promise.reject(new Error('conexão caiu')) }, cifra, urlDaWeb: URL_DA_WEB, logger: log.logger })
+      const quedas = criarEnvioDoConvite({ envios, emissor: { enviar: () => Promise.reject(new Error('conexão caiu')) }, cifra, limite, urlDaWeb: URL_DA_WEB, logger: log.logger })
       const rodarCaindo = () => runInContext({ requisicaoId: randomUUID(), escolaId }, () => quedas({ conviteId: c.conviteId }, jobExecution(randomUUID(), 1), new AbortController().signal))
       await expect(rodarCaindo()).rejects.toBeInstanceOf(JobFailureError)
       expect(await linha(c.conviteId)).toMatchObject({ envio: 'na_fila', token: expect.any(Buffer) as Buffer })
@@ -273,7 +278,7 @@ describe('email.enviar-convite', () => {
   })
 
   describe('a reserva', () => {
-    it('reserva morta há mais de 2 min: outro processo retoma e envia; vigente há 1 min: não retoma, o job repete e nada sai', async () => {
+    it('reserva morta há mais de 2 min: outro processo retoma e envia; vigente há 1 min: não retoma, o job é adiado e nada sai', async () => {
       const escolaId = await escolaNova()
       const morta = await conviteNaFila(escolaId, { envio: 'enviando', reservadoHa: '3 minutes' })
       const vigente = await conviteNaFila(escolaId, { envio: 'enviando', reservadoHa: '1 minute' })
@@ -283,7 +288,7 @@ describe('email.enviar-convite', () => {
       expect(await linha(morta.conviteId)).toMatchObject({ envio: 'enviado' })
 
       const antes = await linha(vigente.conviteId)
-      await expect(rodar(escolaId, vigente.conviteId)).rejects.toMatchObject({ codigo: JobFailureCode.ERRO_INTERNO })
+      await expect(rodar(escolaId, vigente.conviteId)).rejects.toBeInstanceOf(JobAdiadoError)
       expect(enviadasPara(vigente.endereco)).toEqual([])
       expect(await linha(vigente.conviteId)).toEqual(antes)
     })
@@ -295,7 +300,7 @@ describe('email.enviar-convite', () => {
       const primeira = rodar(escolaId, c.conviteId)
       await barreira.chegou
 
-      await expect(rodar(escolaId, c.conviteId)).rejects.toBeInstanceOf(JobFailureError)
+      await expect(rodar(escolaId, c.conviteId)).rejects.toBeInstanceOf(JobAdiadoError)
       expect(enviadasPara(c.endereco)).toEqual([])
       barreira.soltar()
       await primeira
@@ -428,7 +433,7 @@ describe('email.enviar-convite', () => {
     it('o erro que não é de decifração sobe como veio, e a linha não vira `falhou`: a reserva vence e o job repete', async () => {
       const escolaId = await escolaNova()
       const c = await conviteNaFila(escolaId)
-      const quebrada = criarEnvioDoConvite({ envios, emissor, cifra: { decifrar: () => { throw new Error('defeito da cifra') } }, urlDaWeb: URL_DA_WEB, logger: log.logger })
+      const quebrada = criarEnvioDoConvite({ envios, emissor, cifra: { decifrar: () => { throw new Error('defeito da cifra') } }, limite, urlDaWeb: URL_DA_WEB, logger: log.logger })
       await expect(runInContext({ requisicaoId: randomUUID(), escolaId }, () => quebrada({ conviteId: c.conviteId }, jobExecution(randomUUID(), 1), new AbortController().signal))).rejects.toThrow('defeito da cifra')
       expect(await linha(c.conviteId)).toMatchObject({ envio: 'enviando', token: expect.any(Buffer) as Buffer })
       expect(enviadasPara(c.endereco)).toEqual([])

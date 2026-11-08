@@ -14,6 +14,7 @@ import {
 import { ErrorCode, JobFailureCode, JOB_DEFINITIONS, InvariantException, type ParsedJobData, type QueueName, type JobRegistry, type JobType } from '@educa/shared'
 import { DelayedError, UnrecoverableError, type Job } from 'bullmq'
 import { randomUUID } from 'node:crypto'
+import { JobAdiadoError } from './job-adiado.error.js'
 import { JobFailureError } from './job-failure.error.js'
 
 /**
@@ -98,8 +99,11 @@ export class SlotReleasedNotifier {
 /** Espera mínima de um job que chegou ao worker sem vaga, antes de a fila o entregar de novo. */
 export const ESPERA_POR_VAGA_MS = 1_000
 
+/** O que se soma, sorteado, à espera do job que o processador adiou: os jobs adiados pelo mesmo teto não acordam juntos. */
+export const SORTEIO_DO_ADIAMENTO_MS = 5_000
+
 export interface JobExecutorDependencies {
-  repositorio: Pick<JobOutboxRepository, 'localizarParaExecucao' | 'iniciarExecucao' | 'concluir' | 'registrarFalha'>
+  repositorio: Pick<JobOutboxRepository, 'localizarParaExecucao' | 'iniciarExecucao' | 'concluir' | 'registrarFalha' | 'devolverAoPublicado'>
   processadores: JobProcessors
   /** O registro de jobs que valida os dados, confere o escopo e dá o prazo de cada tipo. Só o teste troca o de produção. */
   definicoes?: JobRegistry
@@ -117,6 +121,8 @@ export interface JobExecutorDependencies {
   /** Conta o job que chegou sem vaga e voltou a esperar, na fila e na escola da linha (métrica `job.aguardando_vaga`). */
   aoAguardarVaga?: (fila: QueueName, escolaId: string | null) => void
   intervaloRenovacaoMs?: number
+  /** O sorteio, de 0 (inclusive) a 1 (exclusive), da espera do job adiado. Só o teste troca, para ver os limites sem esperar o acaso. */
+  sortear?: () => number
 }
 
 /** A vaga do job: fila e escola da linha persistida, nunca do `data` do job na fila. */
@@ -209,11 +215,13 @@ export class JobExecutor {
   readonly #definicoes: JobRegistry
   readonly #processadores: Readonly<Record<string, UntypedJobProcessor | undefined>>
   readonly #emAndamento = new Set<InFlightAttempt>()
+  readonly #sortear: () => number
 
   constructor(private readonly dependencias: JobExecutorDependencies) {
     this.#intervaloRenovacaoMs = dependencias.intervaloRenovacaoMs ?? INTERVALO_RENOVACAO_DA_VAGA_MS
     this.#definicoes = dependencias.definicoes ?? JOB_DEFINITIONS
     this.#processadores = dependencias.processadores
+    this.#sortear = dependencias.sortear ?? Math.random
   }
 
   processar(job: QueuedJob, token?: string): Promise<void> {
@@ -267,8 +275,6 @@ export class JobExecutor {
       return
     }
     const tentativa = job.attemptsMade + 1
-    // Cada tentativa que começa conta: é execução que ocupou worker e banco. Job do sistema não tem escola e não conta.
-    this.dependencias.uso.marcar('jobs')
     logger.info({ evento: 'job.iniciado', jobId, tentativa })
     const renovacao = new SlotRenewal(() => this.renovarVaga(vaga), this.#intervaloRenovacaoMs)
     const emAndamento: InFlightAttempt = { vaga, contexto, controle: new AbortController(), ultimaTentativa: esgotouAsTentativas(job), interrompida: false }
@@ -277,19 +283,16 @@ export class JobExecutor {
       try {
         // A tentativa deixa de ser interrompível assim que o processador termina: o `finally` roda antes de a continuação ver o desfecho,
         // então o `interromper` não acha uma tentativa que está em `concluir` ou em `falhar` e não grava uma segunda falha sobre o desfecho dela.
-        await this.rodarProcessador(inicio.tipo, inicio.dados, vaga, { jobId, tentativa, chaveIdempotencia: jobId }, emAndamento.controle).finally(() => {
-          this.#emAndamento.delete(emAndamento)
-        })
+        await this.rodarProcessador(inicio.tipo, inicio.dados, vaga, { jobId, tentativa, chaveIdempotencia: jobId }, emAndamento.controle).then(
+          () => this.terminarTentativa(emAndamento, true),
+          (erro: unknown) => {
+            this.terminarTentativa(emAndamento, !(erro instanceof JobAdiadoError))
+            throw erro
+          },
+        )
       } catch (erro) {
-        // O `interromper` já gravou a falha da última tentativa e liberou a vaga; com tentativa sobrando, o job fica `ativo` para outra réplica (D49).
-        if (emAndamento.interrompida) throw new QueueFacingError(JobFailureCode.EXECUCAO_INTERROMPIDA)
-        const falha = await this.falhar(job, jobId, erro)
-        // O estouro libera a vaga também quando a fila vai repetir: o processador que ignora o `sinal` não segura a escola.
-        if (falha instanceof UnrecoverableError || erro instanceof JobTimeoutError) {
-          await renovacao.parar()
-          await this.liberarVaga(vaga)
-        }
-        throw falha
+        await this.aoNaoConcluir(job, vaga, token, erro, emAndamento, renovacao)
+        return
       }
       // Conclui antes de liberar: se o Postgres falhar aqui, o job volta a tentar ainda dono da vaga.
       await repositorio.concluir(jobId)
@@ -299,6 +302,35 @@ export class JobExecutor {
       await renovacao.parar()
     }
     logger.info({ evento: 'job.concluido', jobId, tentativa })
+  }
+
+  /**
+   * O processador não concluiu. Interrompido pelo desligamento: a falha já foi gravada pelo `interromper`, e com tentativa sobrando o job fica
+   * `ativo` para outra réplica (D49). Adiado: volta à espera da fila (`adiar`). Qualquer outra coisa é falha da tentativa (`falhar`), e o estouro
+   * do prazo libera a vaga também quando a fila vai repetir: o processador que ignora o `sinal` não segura a escola. Sempre lança.
+   */
+  private async aoNaoConcluir(job: QueuedJob, vaga: JobSlot, token: string | undefined, erro: unknown, emAndamento: InFlightAttempt, renovacao: SlotRenewal): Promise<never> {
+    if (emAndamento.interrompida) throw new QueueFacingError(JobFailureCode.EXECUCAO_INTERROMPIDA)
+    if (erro instanceof JobAdiadoError) {
+      await renovacao.parar()
+      return this.adiar(job, vaga, token, erro)
+    }
+    const falha = await this.falhar(job, vaga.jobId, erro)
+    if (falha instanceof UnrecoverableError || erro instanceof JobTimeoutError) {
+      await renovacao.parar()
+      await this.liberarVaga(vaga)
+    }
+    throw falha
+  }
+
+  /**
+   * A tentativa deixa de ser interrompível assim que o processador termina: o `interromper` não acha uma tentativa que está em `concluir` ou
+   * em `falhar` e não grava uma segunda falha sobre o desfecho dela. Cada tentativa que ocupou worker e banco conta no uso da escola (D30), e a
+   * adiada não conta: ela não fez o trabalho. Job do sistema não tem escola e não conta.
+   */
+  private terminarTentativa(emAndamento: InFlightAttempt, contar: boolean): void {
+    this.#emAndamento.delete(emAndamento)
+    if (contar) this.dependencias.uso.marcar('jobs')
   }
 
   /**
@@ -397,6 +429,23 @@ export class JobExecutor {
     // encheria o log sem dizer mais que a contagem por escola.
     this.dependencias.aoAguardarVaga?.(fila, escolaId)
     const esperaMs = ESPERA_POR_VAGA_MS + Math.floor(Math.random() * (ESPERA_POR_VAGA_MS / 2))
+    await job.moveToDelayed(Date.now() + esperaMs, token)
+    throw new DelayedError()
+  }
+
+  /**
+   * O processador não pôde trabalhar agora (o teto de e-mail do minuto, o Redis de fila fora, a reserva de outro processo): o job volta à
+   * espera da fila sem gastar tentativa, **solta a vaga da escola** (o adiado não segura o `normal` dela enquanto espera) e a linha volta a
+   * `publicado`. A espera é a pedida pelo processador mais um sorteio de até `SORTEIO_DO_ADIAMENTO_MS`, e nunca um valor fixo.
+   *
+   * A vaga sai antes da linha: se o banco falhar aqui, a vaga já está livre, e o job segue o caminho do erro interno.
+   */
+  private async adiar(job: QueuedJob, vaga: JobSlot, token: string | undefined, { baseMs, motivo: tipo }: JobAdiadoError): Promise<never> {
+    if (token === undefined) throw new InvariantException('job sem token do BullMQ não pode ser adiado')
+    await this.liberarVaga(vaga)
+    await this.dependencias.repositorio.devolverAoPublicado(vaga.jobId)
+    const esperaMs = baseMs + Math.floor(this.#sortear() * SORTEIO_DO_ADIAMENTO_MS)
+    this.dependencias.logger.info({ evento: 'job.adiado', jobId: vaga.jobId, tipo, esperaMs })
     await job.moveToDelayed(Date.now() + esperaMs, token)
     throw new DelayedError()
   }

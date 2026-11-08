@@ -166,6 +166,15 @@ export const METRICS = {
   minutosDaImportacaoNaFila: 'importacao.minutos_na_fila',
   /** Histograma, em segundos, do passo (3) do job da planilha (a transação com as travas e a escrita). O alerta dispara acima de 1 s. */
   duracaoDoPasso3DaImportacao: 'importacao.passo3.duracao',
+  /**
+   * Execuções do job `email.enviar-convite` (acesso-e-convites, tarefa 2.0), por `resultado`: `enviado`, `falhou` (a recusa do servidor,
+   * a última tentativa do 4xx, a cifra que não decifra), `nova_tentativa` (o 4xx ou a queda que a fila repete), `reserva_perdida` (o
+   * desfecho não gravou: a revogação ou outro processo ficou com a linha) e `ignorado` (o envio já tinha terminado, ou o convite não é da
+   * escola). Sem escola nem convite: a escola vai no log do job. O alerta "E-mail com falha acima de 20% em 1 h" lê esta série.
+   */
+  emailPorResultado: 'email.envio',
+  /** Vezes que um job de e-mail foi adiado sem gastar tentativa, por `motivo`: `limite` (o `EMAIL_POR_MINUTO`), `redis` e `reserva_alheia`. */
+  emailAdiado: 'email.adiado',
 } as const
 
 /**

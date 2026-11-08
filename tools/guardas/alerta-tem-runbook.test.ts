@@ -27,6 +27,7 @@ describe('guarda: alerta tem runbook', () => {
     expect(arquivos.map((arquivo) => arquivo.caminho)).toEqual([
       'infra/grafana/alertas/arquivo-em-preparacao.yaml',
       'infra/grafana/alertas/eliminacao-vencida.yaml',
+      'infra/grafana/alertas/email-falhou.yaml',
       'infra/grafana/alertas/expurgo-noites-incompletas.yaml',
       'infra/grafana/alertas/importacao-falhou.yaml',
       'infra/grafana/alertas/importacao-parada.yaml',
@@ -47,6 +48,7 @@ describe('guarda: alerta tem runbook', () => {
     expect(arquivos.flatMap(regrasDoArquivo).map((regra) => regra.titulo)).toEqual([
       'Arquivo do titular em preparação há mais de 2 h',
       'Eliminação do titular agendada há mais de 48 h do prazo',
+      'E-mail com falha acima de 20% em 1 h',
       'Expurgo incompleto por duas noites numa escola',
       'Importação de planilha com falha acima de 20% em 1 h',
       'Importação de planilha parada na fila',

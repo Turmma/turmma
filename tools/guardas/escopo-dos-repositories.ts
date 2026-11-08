@@ -93,7 +93,7 @@ export const REPOSITORIES_SEM_ESCOPO: readonly EntradaSemEscopo[] = [
   {
     arquivo: 'packages/core/src/queue/job-outbox.repository.ts',
     motivo: 'a escola, ou a falta dela nos jobs sistema.*, vem de contextoAtual() e do escopoDoJobNoContexto definido neste arquivo, que a guarda só conta quando importado',
-    metodos: ['inserir', 'inserirUmaVez', 'buscarDaEscola', 'localizarParaExecucao', 'iniciarExecucao', 'concluir', 'avisarVagaLivre', 'registrarFalha'],
+    metodos: ['inserir', 'inserirUmaVez', 'buscarDaEscola', 'localizarParaExecucao', 'iniciarExecucao', 'concluir', 'devolverAoPublicado', 'avisarVagaLivre', 'registrarFalha'],
   },
   {
     arquivo: 'packages/core/src/identidade/sessao.repository.ts',

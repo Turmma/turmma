@@ -185,6 +185,19 @@ export class JobOutboxRepository {
   }
 
   /**
+   * `ativo` → `publicado`: o processador adiou o job (o teto de e-mail do minuto, o Redis fora), e ele volta à espera da fila sem terminar
+   * nem falhar. O `iniciado_em` fica com o primeiro início. Devolve `false` se o job não estava ativo nesta escola.
+   */
+  async devolverAoPublicado(id: string): Promise<boolean> {
+    const alteradas = await this.banco
+      .update(jobRegistro)
+      .set({ estado: 'publicado' })
+      .where(and(eq(jobRegistro.id, id), jobScopeInContext(), eq(jobRegistro.estado, 'ativo')))
+      .returning({ id: jobRegistro.id })
+    return alteradas.length === 1
+  }
+
+  /**
    * Acorda o despachante porque uma vaga ficou livre, no mesmo canal do job novo. Sem isto, a escola no teto só
    * publica o próximo job na sondagem seguinte (até 500 ms por vaga): com cinco vagas e jobs de 100 ms, a fila
    * dela andaria a uns 10 jobs por segundo, e não a 50. Não lê nem grava linha: não tem escopo a aplicar.

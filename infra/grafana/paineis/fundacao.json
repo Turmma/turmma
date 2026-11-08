@@ -1973,6 +1973,104 @@
           "range": true
         }
       ]
+    },
+    {
+      "id": 43,
+      "type": "timeseries",
+      "title": "E-mails de convite enviados, por resultado",
+      "description": "Execuções do job que envia o e-mail do convite (acesso-e-convites, tarefa 2.0), por resultado: enviado, falhou (a recusa do servidor, a última tentativa do 4xx, a cifra que não decifra), nova tentativa (o 4xx que a fila repete), reserva perdida (a revogação venceu o envio) e ignorado (o envio já tinha terminado). O alerta \"E-mail com falha acima de 20% em 1 h\" olha a razão de falhou sobre enviado e falhou. Sem escola, convite nem endereço no rótulo. O que fazer está no runbook.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 139
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (resultado) (increase(email_envio_total{job=\"educa/worker\"}[1m]))",
+          "legendFormat": "{{resultado}}",
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 44,
+      "type": "timeseries",
+      "title": "E-mails de convite adiados, por motivo",
+      "description": "Vezes em que o job do e-mail do convite voltou à fila sem enviar nada, por motivo: limite (o teto do EMAIL_POR_MINUTO estava gasto), redis (o Redis de fila não respondeu; espera 30 s) e reserva alheia (outro processo estava enviando o mesmo convite). Adiar não é falha e não gasta tentativa. Muitos adiamentos por limite seguidos dizem que o teto está abaixo da demanda da manhã; por redis, que o Redis de fila está fora.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 147
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (motivo) (increase(email_adiado_total{job=\"educa/worker\"}[1m]))",
+          "legendFormat": "{{motivo}}",
+          "range": true
+        }
+      ]
     }
   ]
 }

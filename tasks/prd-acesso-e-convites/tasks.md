@@ -13,7 +13,7 @@
   - [ ] 1.5 `cancelado` na revogação, no refazer e na defesa do `desativar`; o expurgo de 24 h
   - [ ] 1.6 Testes: envio único, cancelamento, 4xx/5xx, expurgo, isolamento do job, as duas corridas
 
-- [ ] **2.0 — O envio adia sem prender a fila: `EMAIL_POR_MINUTO` e a saída de adiar**
+- [x] **2.0 — O envio adia sem prender a fila: `EMAIL_POR_MINUTO` e a saída de adiar**
   - [ ] 2.1 O limitador do `EMAIL_POR_MINUTO` no Redis de fila, com a metade reservada ao link da conta, sem seguro em memória; o ponto sem envio volta só na mesma janela
   - [ ] 2.2 A saída de adiar no `job-executor`: para a renovação, libera a vaga, linha a `publicado`, sem `uso.marcar('jobs')`, espera com o sorteio injetado
   - [ ] 2.3 Métricas de e-mail por resultado e de adiamento; alerta `falhou` acima de 20% em 1 h, com o parágrafo do `docs/runbook.md`

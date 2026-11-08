@@ -3,7 +3,8 @@ import { ErrorCode, JobFailureCode, defineJob, JOB_DEFINITIONS, TIPO_CONSOLIDAR_
 import { DelayedError, UnrecoverableError } from 'bullmq'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
-import { SlotReleasedNotifier, ESPERA_POR_VAGA_MS, JobExecutor, type JobExecutorDependencies, type QueuedJob, type JobProcessor, type JobProcessors } from './job-executor.js'
+import { SlotReleasedNotifier, ESPERA_POR_VAGA_MS, SORTEIO_DO_ADIAMENTO_MS, JobExecutor, type JobExecutorDependencies, type QueuedJob, type JobProcessor, type JobProcessors } from './job-executor.js'
+import { JobAdiadoError, type MotivoDoAdiamento } from './job-adiado.error.js'
 import { JobFailureError } from './job-failure.error.js'
 
 const ESCOLA_A = '0190f5a0-0000-7000-8000-00000000000a'
@@ -24,6 +25,7 @@ function montar({
   prazoMs,
   concluir = () => Promise.resolve(true),
   registrarFalha = () => Promise.resolve(true),
+  sortear,
 }: {
   /** `null`: a linha não existe na escola do contexto. */
   alvo?: JobToRun | null
@@ -45,6 +47,8 @@ function montar({
   concluir?: () => Promise<boolean>
   /** A gravação da falha, depois de o código entrar em `falhas`: devolve `false` quando a linha já tinha terminado. */
   registrarFalha?: () => Promise<boolean>
+  /** O sorteio da espera do job adiado, de 0 a 1: o do teste é fixo, para ver os limites. */
+  sortear?: () => number
 }) {
   const eventos: string[] = []
   /** O código de cada falha definitiva que o executor gravou na linha. */
@@ -69,6 +73,10 @@ function montar({
       concluir: () => {
         eventos.push('concluir')
         return concluir()
+      },
+      devolverAoPublicado: () => {
+        eventos.push('publicado')
+        return Promise.resolve(true)
       },
       registrarFalha: (_id, codigo) => {
         falhas.push(codigo)
@@ -100,6 +108,7 @@ function montar({
     uso: { marcar: (metrica) => marcacoes.push(`${metrica}:${currentContext()?.escolaId ?? 'sem escola'}`) },
     aoLiberarVaga: () => eventos.push('avisou_vaga_livre'),
     intervaloRenovacaoMs: 100,
+    ...(sortear === undefined ? {} : { sortear }),
   }
   const moveToDelayed = vi.fn<QueuedJob['moveToDelayed']>(() => Promise.resolve())
   const job = { id: JOB_ID, data: { escolaId: alvo === null ? ESCOLA_A : alvo.escolaId, requisicaoId: null }, attemptsMade: 0, opts: { attempts: tentativas }, moveToDelayed } as unknown as QueuedJob
@@ -503,7 +512,7 @@ describe('ExecutorDeJobs e a vaga', () => {
   })
 
   describe('uso da escola', () => {
-    it('cada tentativa que começa conta um job na escola do job, inclusive a que falha e vai ser tentada de novo', async () => {
+    it('cada tentativa que roda conta um job na escola do job, inclusive a que falha e vai ser tentada de novo', async () => {
       let falhar = true
       const { executor, marcacoes, job } = montar({ processador: () => (falhar ? Promise.reject(new Error('instável')) : Promise.resolve()) })
       await expect(executor.processar(job, 'token')).rejects.toThrow()
@@ -520,6 +529,91 @@ describe('ExecutorDeJobs e a vaga', () => {
       const finalizado = montar({ alvo: { fila: 'lote', escolaId: ESCOLA_A, finalizado: true } })
       await finalizado.executor.processar(finalizado.job, 'token')
       expect([...semVaga.marcacoes, ...deOutraEscola.marcacoes, ...finalizado.marcacoes]).toEqual([])
+    })
+
+    it('a tentativa adiada pelo processador não conta: ela não fez o trabalho (o contador `jobs` da escola não muda)', async () => {
+      const { executor, marcacoes, job } = montar({ processador: () => Promise.reject(new JobAdiadoError(1_000, 'limite')) })
+      await expect(executor.processar(job, 'token')).rejects.toBeInstanceOf(DelayedError)
+      expect(marcacoes).toEqual([])
+    })
+  })
+
+  describe('o processador adia o job', () => {
+    const adiando = (baseMs: number, motivo: MotivoDoAdiamento = 'limite') => (): Promise<void> => Promise.reject(new JobAdiadoError(baseMs, motivo))
+
+    it('volta à espera da fila sem gastar tentativa nem falhar: solta a vaga, devolve a linha a `publicado` e não conclui, nem na última tentativa', async () => {
+      const { executor, eventos, falhas, job, moveToDelayed } = montar({ processador: adiando(12_345), tentativas: 1 })
+      await expect(executor.processar(job, 'token')).rejects.toBeInstanceOf(DelayedError)
+      expect(eventos).toEqual([`localizar:${ESCOLA_A}`, 'tomar', 'iniciar', 'liberar', 'avisou_vaga_livre', 'publicado'])
+      expect(falhas).toEqual([])
+      expect(moveToDelayed).toHaveBeenCalledTimes(1)
+      expect(moveToDelayed.mock.calls[0]?.[1]).toBe('token')
+    })
+
+    it.each<[MotivoDoAdiamento, number]>([
+      ['limite', 41_000],
+      ['reserva_alheia', 87_000],
+      ['redis', 30_000],
+    ])('[U] a espera é a pedida (%s, %i ms) mais o sorteio: no mínimo ela, no máximo ela mais 5 s', async (motivo, baseMs) => {
+      vi.setSystemTime(2_000_000)
+      const esperaCom = async (sorteio: number): Promise<number> => {
+        const { executor, job, moveToDelayed } = montar({ processador: adiando(baseMs, motivo), sortear: () => sorteio })
+        await expect(executor.processar(job, 'token')).rejects.toBeInstanceOf(DelayedError)
+        return Number(moveToDelayed.mock.calls[0]?.[0]) - 2_000_000
+      }
+      expect(await esperaCom(0)).toBe(baseMs)
+      const maxima = await esperaCom(0.999999)
+      expect(maxima).toBeGreaterThan(baseMs + SORTEIO_DO_ADIAMENTO_MS - 10)
+      expect(maxima).toBeLessThan(baseMs + SORTEIO_DO_ADIAMENTO_MS)
+    })
+
+    it('[U] dois sorteios diferentes dão esperas diferentes, e o sorteio padrão não é um valor fixo', async () => {
+      vi.setSystemTime(2_000_000)
+      const esperas: number[] = []
+      for (const sorteio of [0.1, 0.8]) {
+        const { executor, job, moveToDelayed } = montar({ processador: adiando(10_000), sortear: () => sorteio })
+        await expect(executor.processar(job, 'token')).rejects.toBeInstanceOf(DelayedError)
+        esperas.push(Number(moveToDelayed.mock.calls[0]?.[0]))
+      }
+      expect(esperas[0]).not.toBe(esperas[1])
+      const sorteadas = new Set<number>()
+      for (let volta = 0; volta < 8; volta += 1) {
+        const { executor, job, moveToDelayed } = montar({ processador: adiando(10_000) })
+        await expect(executor.processar(job, 'token')).rejects.toBeInstanceOf(DelayedError)
+        sorteadas.add(Number(moveToDelayed.mock.calls[0]?.[0]))
+      }
+      expect(sorteadas.size).toBeGreaterThan(1)
+    })
+
+    it('adiado com a renovação do intervalo em andamento: a vaga só é liberada depois dela, e nenhuma renovação vem depois (o `ZADD` dela devolveria a vaga ao job adiado)', async () => {
+      let responderRenovacao: () => void = () => undefined
+      const { executor, eventos, job } = montar({
+        processador: () => new Promise<void>((_resolver, rejeitar) => setTimeout(() => rejeitar(new JobAdiadoError(10_000, 'limite')), 150)),
+        renovar: (registro) =>
+          new Promise<void>((resolver) => {
+            responderRenovacao = () => {
+              registro.push('renovou')
+              resolver()
+            }
+          }),
+      })
+      const execucao = executor.processar(job, 'token')
+      const rejeitada = expect(execucao).rejects.toBeInstanceOf(DelayedError)
+      await vi.advanceTimersByTimeAsync(160)
+      expect(eventos.filter((evento) => evento === 'renovar')).toHaveLength(1)
+      expect(eventos).not.toContain('liberar')
+
+      responderRenovacao()
+      await rejeitada
+      await vi.advanceTimersByTimeAsync(1_000)
+      expect(eventos.slice(eventos.indexOf('renovar'))).toEqual(['renovar', 'renovou', 'liberar', 'avisou_vaga_livre', 'publicado'])
+    })
+
+    it('job sem token do BullMQ não pode ser adiado: o executor recusa em vez de seguir sem poder devolvê-lo à fila', async () => {
+      const { executor, job, moveToDelayed, eventos } = montar({ processador: adiando(1_000) })
+      await expect(executor.processar(job, undefined)).rejects.toMatchObject({ message: JobFailureCode.ERRO_INTERNO })
+      expect(moveToDelayed).not.toHaveBeenCalled()
+      expect(eventos).not.toContain('publicado')
     })
   })
 })

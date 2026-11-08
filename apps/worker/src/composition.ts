@@ -9,6 +9,7 @@ import {
   createQueueRedisClient,
   criarEmailSender,
   EnvioRepository,
+  LimiteDeEmailPorMinuto,
   SecretCipher,
   VERSAO_DA_CHAVE_DO_TOKEN_DE_EMAIL,
   createPool,
@@ -36,6 +37,7 @@ import {
   EscolaConcurrencyLimiter,
   type FileStorage,
   type EmailSender,
+  type LimiteDeEmail,
   type Database,
   type Heartbeat,
   type QueuedJobData,
@@ -172,7 +174,7 @@ export function createWorker(config: Omit<WorkerConfig, 'telemetria'>, logger: L
     cpu: sandbox,
     efeitos: new SyntheticEffectRepository(banco),
     armazem: armazemS3?.armazem,
-    email: pecasDoEmail(config, banco),
+    email: pecasDoEmail(config, banco, { redis: redisDasVagas, prefixo: opcoes.prefixo }),
   })
   const avisoDeVagaLivre = new SlotReleasedNotifier(() => repositorio.avisarVagaLivre(), throttledWarn(() => logger.warn({ evento: 'worker.aviso_de_vaga_indisponivel' })))
   const executor = new JobExecutor({
@@ -276,6 +278,8 @@ export interface PecasDoEmail {
   envios: EnvioRepository
   emissor: EmailSender
   cifra: SecretCipher
+  /** O `EMAIL_POR_MINUTO`, no Redis de fila das vagas. */
+  limite: LimiteDeEmail
   urlDaWeb: string
 }
 
@@ -308,13 +312,14 @@ export function createProcessors(config: Pick<WorkerConfig, 'pools' | 'storage' 
  * token e do endereço com a chave da fila de envio, e o repositório do envio sobre o banco da réplica. Sem `config.email`, a réplica
  * não manda e-mail.
  */
-export function pecasDoEmail(config: Pick<WorkerConfig, 'email'>, banco?: Database): PecasDoEmail | undefined {
+export function pecasDoEmail(config: Pick<WorkerConfig, 'email'>, banco?: Database, fila?: { redis: Redis; prefixo?: string | undefined }): PecasDoEmail | undefined {
   const { email } = config
-  if (email === undefined || banco === undefined) return undefined
+  if (email === undefined || banco === undefined || fila === undefined) return undefined
   return {
     envios: new EnvioRepository(banco),
     emissor: criarEmailSender(email),
     cifra: new SecretCipher(VERSAO_DA_CHAVE_DO_TOKEN_DE_EMAIL, new Map([[VERSAO_DA_CHAVE_DO_TOKEN_DE_EMAIL, email.chaveDoToken]])),
+    limite: new LimiteDeEmailPorMinuto(fila.redis, email.porMinuto, { prefixo: fila.prefixo }),
     urlDaWeb: email.urlDaWeb,
   }
 }
@@ -325,7 +330,7 @@ export function pecasDoEmail(config: Pick<WorkerConfig, 'email'>, banco?: Databa
  */
 function processadoresDaNormal({ banco, relogio, logger, medidor, armazem, email }: ProcessorParts): JobProcessors {
   return {
-    ...(email === undefined ? {} : { [TIPO_ENVIAR_CONVITE]: criarEnvioDoConvite({ ...email, logger }) }),
+    ...(email === undefined ? {} : { [TIPO_ENVIAR_CONVITE]: criarEnvioDoConvite({ ...email, logger, medidor }) }),
     ...(armazem === undefined ? {} : { [TIPO_MONTAR_ARQUIVO]: criarMontagemDoArquivo({ banco, armazem, relogio, logger }) }),
     [TIPO_GRAVAR_PLANILHA]: criarGravacaoDaPlanilha({ banco, logger, ...(medidor === undefined ? {} : { medidor }) }),
   }

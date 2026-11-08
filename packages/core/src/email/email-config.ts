@@ -40,6 +40,8 @@ export const emailEnvSchema = z
     /** Nunca vai para log, erro nem registro. */
     EMAIL_SMTP_SENHA: opcional(z.string().min(1).optional()),
     EMAIL_REMETENTE: opcional(z.string().min(3).max(200).default('Turmma <nao-responda@turmma.invalid>')),
+    /** O teto global de mensagens por minuto (convite e link da conta), abaixo do que o provedor aceita; a metade de baixo é do link da conta. */
+    EMAIL_POR_MINUTO: opcional(z.coerce.number().int().min(1).max(100_000).default(60)),
     /** Quem recebe o e-mail: a chave do suboperador. Não é segredo. */
     EMAIL_PROVEDOR_ID: opcional(z.string().regex(FORMATO_DO_PROVEDOR_ID).optional()),
     /** A chave que cifra o token e o endereço enquanto o envio espera: pelo menos 32 caracteres. */
@@ -69,6 +71,8 @@ export interface EmailConfig {
   readonly urlDaWeb: string
   /** A chave AES-256 do token e do endereço cifrados na fila de envio. Nunca vai para log. */
   readonly chaveDoToken: Uint8Array
+  /** O `EMAIL_POR_MINUTO`: o teto global de mensagens por minuto, que o job de e-mail consome antes de enviar. */
+  readonly porMinuto: number
   /** O id do provedor que recebe o e-mail (`EMAIL_PROVEDOR_ID`); o do desenvolvimento não tem. */
   readonly provedorId?: string
 }
@@ -80,6 +84,7 @@ export function loadEmailConfig(ambiente: Record<string, string | undefined>): E
     adaptador: valores.EMAIL_ADAPTADOR,
     urlDaWeb: valores.EMAIL_URL_DA_WEB.replace(/\/+$/, ''),
     chaveDoToken,
+    porMinuto: valores.EMAIL_POR_MINUTO,
     ...(valores.EMAIL_PROVEDOR_ID === undefined ? {} : { provedorId: valores.EMAIL_PROVEDOR_ID }),
   }
   if (valores.EMAIL_ADAPTADOR !== 'smtp' || valores.EMAIL_SMTP_HOST === undefined) return base

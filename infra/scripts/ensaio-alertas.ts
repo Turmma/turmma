@@ -68,6 +68,7 @@ export const REGRAS_PROVISIONADAS = {
   importacaoFalhou: 'educa-importacao-falhou',
   importacaoParada: 'educa-importacao-parada',
   importacaoPasso3Lento: 'educa-importacao-passo3-lento',
+  emailFalhou: 'educa-email-falhou',
 } as const
 
 export const WORKERS_INTERATIVOS = ['worker-interativo-1', 'worker-interativo-2'] as const

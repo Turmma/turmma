@@ -399,6 +399,7 @@ services:
       EMAIL_SMTP_PORTA: ${EMAIL_SMTP_PORTA:?defina EMAIL_SMTP_PORTA}
       EMAIL_SMTP_TLS: ${EMAIL_SMTP_TLS:?defina EMAIL_SMTP_TLS}
       EMAIL_REMETENTE: ${EMAIL_REMETENTE:?defina EMAIL_REMETENTE}
+      EMAIL_POR_MINUTO: ${EMAIL_POR_MINUTO:?defina EMAIL_POR_MINUTO}
       EMAIL_TOKEN_KEY: ${EMAIL_TOKEN_KEY:?defina EMAIL_TOKEN_KEY}
       EMAIL_URL_DA_WEB: ${EMAIL_URL_DA_WEB:?defina EMAIL_URL_DA_WEB}
       # Métricas OTLP para a observabilidade local. Sem depends_on: fora do ar, perde-se a métrica, e só.
