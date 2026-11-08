@@ -23,7 +23,7 @@ describe('CredencialMatriculaRepository: a matrícula é lida só na escola do c
     const [alunoDeB] = await bancada.alunosComMatricula(escolaB, [{ matricula, senhaHash: HASH_SINTETICO }])
     const repositorio = new CredencialMatriculaRepository(bancada.banco)
     expect(await naEscola(escolaA, () => repositorio.doAlunoAtivo(matricula))).toBeUndefined()
-    expect(await naEscola(escolaB, () => repositorio.doAlunoAtivo(matricula))).toEqual({ usuarioId: alunoDeB, senhaHash: HASH_SINTETICO, suspenso: false })
+    expect(await naEscola(escolaB, () => repositorio.doAlunoAtivo(matricula))).toEqual({ usuarioId: alunoDeB, senhaHash: HASH_SINTETICO, provisoriaExpiraEm: null, suspenso: false })
     await expect(runInContext({ requisicaoId: randomUUID() }, () => repositorio.doAlunoAtivo(matricula))).rejects.toThrow('consulta com escopo sem escola no contexto')
   })
 
@@ -36,8 +36,31 @@ describe('CredencialMatriculaRepository: a matrícula é lida só na escola do c
     await bancada.pool.query('update usuario set eliminacao_agendada_em = now() where escola_id = $1 and id = $2', [escola, agendado])
     const repositorio = new CredencialMatriculaRepository(bancada.banco)
 
-    expect(await naEscola(escola, () => repositorio.doAlunoAtivo('3333'))).toEqual({ usuarioId: agendado, senhaHash: HASH_SINTETICO, suspenso: true })
-    expect(await naEscola(escola, () => repositorio.doAlunoAtivo('4444'))).toEqual({ usuarioId: comum, senhaHash: HASH_SINTETICO, suspenso: false })
+    expect(await naEscola(escola, () => repositorio.doAlunoAtivo('3333'))).toEqual({ usuarioId: agendado, senhaHash: HASH_SINTETICO, provisoriaExpiraEm: null, suspenso: true })
+    expect(await naEscola(escola, () => repositorio.doAlunoAtivo('4444'))).toEqual({ usuarioId: comum, senhaHash: HASH_SINTETICO, provisoriaExpiraEm: null, suspenso: false })
+  })
+
+  it('provisória (10.0): sem senha, o aluno vem com o hash e o vencimento da provisória que vale; com a provisória vencida, os dois vêm `null`', async () => {
+    const escola = await bancada.escola()
+    const [vigente, vencida] = await bancada.alunosComMatricula(escola, [
+      { matricula: '5555', senhaHash: HASH_SINTETICO },
+      { matricula: '6666', senhaHash: HASH_SINTETICO },
+    ])
+    const hashDaProvisoria = '$argon2id$v=19$m=19456,t=2,p=1$cHJvdmlzb3JpYQ$cHJvdmlzb3JpYXByb3Zpc29yaWE'
+    // Gerar a provisória apaga a senha do aluno (`gravarProvisoria`): o estado aqui é o mesmo, com o vencimento escolhido.
+    const gravar = (usuarioId: string | undefined, intervalo: string) =>
+      bancada.pool.query<{ texto: string }>(
+        `update credencial_matricula set senha_hash = null, provisoria_hash = $3, provisoria_expira_em = now() + $4::interval
+         where escola_id = $1 and usuario_id = $2
+         returning to_char(provisoria_expira_em at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as texto`,
+        [escola, usuarioId, hashDaProvisoria, intervalo],
+      )
+    const { rows } = await gravar(vigente, '1 hour')
+    await gravar(vencida, '-1 minute')
+    const repositorio = new CredencialMatriculaRepository(bancada.banco)
+
+    expect(await naEscola(escola, () => repositorio.doAlunoAtivo('5555'))).toEqual({ usuarioId: vigente, senhaHash: hashDaProvisoria, provisoriaExpiraEm: rows[0]?.texto, suspenso: false })
+    expect(await naEscola(escola, () => repositorio.doAlunoAtivo('6666'))).toEqual({ usuarioId: vencida, senhaHash: null, provisoriaExpiraEm: null, suspenso: false })
   })
 
   it('borda: aluno desativado e credencial de usuário que não é aluno não são achados', async () => {
