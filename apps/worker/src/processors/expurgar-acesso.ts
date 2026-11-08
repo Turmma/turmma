@@ -7,7 +7,7 @@ import { JobFailureError } from '../job-failure.error.js'
 export type TotaisDoExpurgoDeAcesso = Record<AlvoDoExpurgoDeAcesso, number>
 
 export interface ExpurgoDeAcessoDependencies {
-  repositorio: Pick<ExpurgoDeAcessoRepository, 'apagarLoteVencido' | 'limparLoteDeContasSemUso'>
+  repositorio: Pick<ExpurgoDeAcessoRepository, 'apagarLoteVencido' | 'fecharEnviosDeLinkParados' | 'limparLoteDeContasSemUso'>
   relogio: Clock
   logger: LoggerBase
   /** Linhas por lote. Só o teste troca. */
@@ -17,7 +17,7 @@ export interface ExpurgoDeAcessoDependencies {
 /**
  * `sistema.expurgar-acesso` (tarefa 17.0): apaga o registro de acesso com mais de 6 meses, a sessão encerrada ou
  * expirada há mais de 30 dias, o convite usado, revogado ou expirado há mais de 30 dias e o acesso da turma vencido ou
- * revogado há mais de 30 dias (A1, tarefa 10.0), a importação de planilha terminada há mais de 90 dias (F2, tarefa 5.0), e, com os mesmos prazos, o
+ * revogado há mais de 30 dias (A1, tarefa 10.0), o link da conta (o do "esqueci a senha") usado, substituído ou vencido há mais de 30 dias, depois de fechar `falhou` o envio dele parado há mais de 24 h (acesso-e-convites, tarefa 5.0), a importação de planilha terminada há mais de 90 dias (F2, tarefa 5.0), e, com os mesmos prazos, o
  * acesso, a sessão e o convite da operação Turmma (tarefa 9.0), e o incidente de segurança com mais de 5 anos, com as seções
  * das escolas em cascata (F3, tarefa 9.0), um lote de 5.000 por
  * instrução, tabela por tabela, até sobrar lote incompleto. Depois limpa a conta da equipe que ficou sem usuário ativo
@@ -43,6 +43,15 @@ export function criarExpurgoDeAcesso({ repositorio, relogio, logger, lote = LOTE
         if (doLote < lote) return total
       }
     }
+    // O envio do link da conta parado há mais de 24 h vira `falhou` e perde os cifrados antes do apagar, que olha só o prazo de uso ou de validade.
+    const fecharLinksParados = async (): Promise<number> => {
+      let total = 0
+      for (;;) {
+        const doLote = await repositorio.fecharEnviosDeLinkParados(agora, lote)
+        total += doLote
+        if (doLote < lote) return total
+      }
+    }
     const limparContas = async (): Promise<number> => {
       let total = 0
       for (;;) {
@@ -54,10 +63,12 @@ export function criarExpurgoDeAcesso({ repositorio, relogio, logger, lote = LOTE
     // Uma tabela depois da outra, na ordem de `ALVOS_DO_EXPURGO_DE_ACESSO` (as propriedades avaliam na ordem em que estão
     // escritas, e o teste "lotes" confere a ordem), e a conta por último: nunca dois lotes do mesmo job ao mesmo tempo.
     // Objeto literal com o tipo declarado, sem afirmação: alvo novo sem total é erro de compilação (tarefa 9.0 da A0b).
+    const enviosDeLinkFechadosTotal = await fecharLinksParados()
     const totais: TotaisDoExpurgoDeAcesso = {
       registro_acesso: await apagar('registro_acesso'),
       sessao: await apagar('sessao'),
       convite: await apagar('convite'),
+      link_da_conta: await apagar('link_da_conta'),
       acesso_turma: await apagar('acesso_turma'),
       importacao_planilha: await apagar('importacao_planilha'),
       acesso_operacao: await apagar('acesso_operacao'),
@@ -70,6 +81,7 @@ export function criarExpurgoDeAcesso({ repositorio, relogio, logger, lote = LOTE
       registro_acesso: registrosDeAcessoTotal,
       sessao: sessoesTotal,
       convite: convitesTotal,
+      link_da_conta: linksDaContaTotal,
       acesso_turma: acessosDaTurmaTotal,
       importacao_planilha: importacoesTotal,
       acesso_operacao: acessosDaOperacaoTotal,
@@ -83,6 +95,8 @@ export function criarExpurgoDeAcesso({ repositorio, relogio, logger, lote = LOTE
       registrosDeAcessoTotal,
       sessoesTotal,
       convitesTotal,
+      linksDaContaTotal,
+      enviosDeLinkFechadosTotal,
       acessosDaTurmaTotal,
       importacoesTotal,
       acessosDaOperacaoTotal,

@@ -2,7 +2,6 @@ import 'reflect-metadata'
 import {
   createQueueRedisClient,
   EmailSendError,
-  EnvioRepository,
   FakeEmailSender,
   LimiteDeEmailPorMinuto,
   METRICS,
@@ -23,7 +22,7 @@ import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { JobAdiadoError } from '../src/job-adiado.error.js'
 import { JobExecutor, SORTEIO_DO_ADIAMENTO_MS, type JobProcessors, type QueuedJob } from '../src/job-executor.js'
 import { JobFailureError } from '../src/job-failure.error.js'
-import { criarEnvioDoConvite, TENTATIVAS_DO_ENVIO_DE_EMAIL } from '../src/processors/enviar-email.js'
+import { criarEnvioDoConvite, criarEnvios, TENTATIVAS_DO_ENVIO_DE_EMAIL } from '../src/processors/enviar-email.js'
 import { jobExecution } from './job-execution.fixture.js'
 import { InMemoryLog, QueueFixtures, urlRedisDeFila } from './queue.fixture.js'
 
@@ -56,7 +55,7 @@ describe('email.enviar-convite: o EMAIL_POR_MINUTO e a saída de adiar', () => {
   const bancada = new QueueFixtures()
   const log = new InMemoryLog('worker-teste')
   const escolas: string[] = []
-  const envios = new EnvioRepository(bancada.banco)
+  const envios = criarEnvios(bancada.banco)
   /** Outra conexão ao mesmo Redis de fila: o segundo worker. */
   const outroWorker = new Redis(urlRedisDeFila(), { maxRetriesPerRequest: null })
   outroWorker.on('error', () => undefined)

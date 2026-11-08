@@ -35,6 +35,7 @@ export {
   TIPO_CONSOLIDAR_USO,
   TIPO_ELIMINAR_TITULAR,
   TIPO_ENVIAR_CONVITE,
+  TIPO_ENVIAR_EMAIL_DA_CONTA,
   TIPO_EXPURGAR_ACESSO,
   TIPO_EXPURGAR_DADO_PESSOAL,
   TIPO_EXPURGAR_ESCOLA,
@@ -91,6 +92,8 @@ export {
   VALIDADE_DO_CONVITE_HORAS_POR_TIPO,
 } from './sessao/convite.js'
 export type { AceitarConviteRequest, ConsultarConviteRequest, AceitarConviteResponse, ConsultarConviteResponse, TipoDeConvite } from './sessao/convite.js'
+export { esqueciSenhaRequestSchema, redefinirSenhaRequestSchema } from './sessao/senha.js'
+export type { EsqueciSenhaRequest, RedefinirSenhaRequest } from './sessao/senha.js'
 export { loginMatriculaRequestSchema, TAMANHO_MAXIMO_MATRICULA, TAMANHO_MAXIMO_SLUG_NO_LOGIN } from './sessao/matricula.js'
 export type { LoginMatriculaRequest } from './sessao/matricula.js'
 export { acessoDaEscolaResponseSchema, PROVEDORES_DE_CONTA_DA_ESCOLA } from './sessao/acesso-da-escola.js'

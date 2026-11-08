@@ -20,6 +20,7 @@ export const TIPO_EXPURGAR_JOBS = 'sistema.expurgar-jobs'
 export const TIPO_EXPURGAR_DADO_PESSOAL = 'sistema.expurgar-dado-pessoal'
 export const TIPO_GRAVAR_PLANILHA = 'estrutura.gravar-planilha'
 export const TIPO_ENVIAR_CONVITE = 'email.enviar-convite'
+export const TIPO_ENVIAR_EMAIL_DA_CONTA = 'sistema.enviar-email-da-conta'
 export const TIPO_JOB_SINTETICO = 'sintetico'
 
 /**
@@ -100,9 +101,11 @@ const semDados = z.strictObject({})
 const importacaoSchema = z.strictObject({ importacaoId: z.uuid() })
 /** O job do e-mail do convite leva só o id do convite: a escola vem da linha do outbox, e o token e o endereço, da linha do convite, cifrados. */
 const conviteSchema = z.strictObject({ conviteId: z.uuid() })
+/** O job do e-mail da conta leva só o id do link: a conta global não tem escola, e o token e o endereço vêm da linha do `link_da_conta`, cifrados. */
+const linkDaContaSchema = z.strictObject({ linkId: z.uuid() })
 
 /**
- * Os 10 tipos de hoje. `prazoMs` é o maior tempo que o tipo leva, arredondado para cima, e a 43.0 o confere.
+ * Os 11 tipos de hoje. `prazoMs` é o maior tempo que o tipo leva, arredondado para cima, e a 43.0 o confere.
  */
 export const JOB_DEFINITIONS = {
   [TIPO_MONTAR_ARQUIVO]: defineJob({
@@ -187,6 +190,18 @@ export const JOB_DEFINITIONS = {
     escopo: 'escola',
     executor: 'worker',
     dados: conviteSchema,
+    retentativa: RETENTATIVA_DE_HOJE,
+    prazoMs: 60_000,
+    naoUrgente: false,
+  }),
+  // O e-mail da conta (acesso-e-convites, tarefa 5.0): o link do "esqueci a senha". Escopo `sistema` (a conta é global e o job não tem escola) mas nasce de
+  // requisição anônima, pela lista fechada `SISTEMA_DA_REQUISICAO` do `JobOutboxRepository`. A fila `normal` e urgente, porque quem pediu o link espera o e-mail;
+  // ocupa a `vaga:normal:sistema`. O prazo cobre os 10 s do SMTP, a reserva e a gravação do desfecho.
+  [TIPO_ENVIAR_EMAIL_DA_CONTA]: defineJob({
+    filas: ['normal'],
+    escopo: 'sistema',
+    executor: 'worker',
+    dados: linkDaContaSchema,
     retentativa: RETENTATIVA_DE_HOJE,
     prazoMs: 60_000,
     naoUrgente: false,

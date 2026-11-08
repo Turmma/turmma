@@ -38,6 +38,11 @@ seção 3 da Tech Spec do F1 (`tasks/prd-identidade-e-tenancy/techspec.md`); aqu
 Conta            email?, senhaHash?, mfaSegredoCifrado?, mfaAtivadoEm?, mfaUltimoPasso?
                  (global, sem escola: é a identidade de login da equipe)
 CodigoRecuperacao* → conta*, hmac*, usadoEm?
+LinkDaConta*     → conta*, finalidade* (redefinir | verificar), tokenHash* (único), tokenCifrado?, destinoCifrado?,
+                   expiraEm*, usadoEm?, envio* (na_fila | enviando | enviado | falhou | cancelado), envioReservadoEm?
+                   (acesso-e-convites, 5.0: o link que a conta global recebe por e-mail. Global, sem escola, como o
+                   CodigoRecuperacao. Um aberto por (conta, finalidade). Os cifrados só existem com o envio na_fila ou
+                   enviando. Sai 30 dias depois do uso ou do vencimento, ou com a conta)
 Usuario*         → escola*, conta? (nulo no aluno), papel*, nome*, desativadoEm?,
                    eliminacaoAgendadaEm? (F3: a data do registro da eliminação; o acesso fica suspenso)
                    introducaoVistaEm? (telas do aluno, 1.0: quando a pessoa viu a introdução do papel dela; sem anoLetivoId)
@@ -808,6 +813,11 @@ liga a decisão sobre o professor (D45, regra 70 item 8). Os dois estão no mapa
    - a identidade de login (`Conta`, `CodigoRecuperacao`), que é global por desenho e só é
      alcançada pelo módulo `sessao`, pelo `core/ciclo-de-vida` e pelo arquivo `core/estrutura/cadastro-de-professor.ts` (a `ContaGlobalRepository`),
      além da limpeza noturna do expurgo de acesso — ver "Pessoas e vínculos";
+   - o `LinkDaConta` (acesso-e-convites, 5.0), o link de redefinir a senha (e, na 7.0, de verificar o e-mail), que é da `Conta` e
+     não de escola: na API só a `TenantResolutionRepository` o toca (pelo hash do token e pela conta); no worker, o
+     `EnvioRepository`, só pelo arquivo do processor do e-mail (`apps/worker/src/processors/enviar-email.ts`, cercado pela
+     regra `cerca-envio`), pelo id do job; e o expurgo de acesso, que o apaga por prazo e fecha o envio parado há mais de 24 h
+     — ver "Pessoas e vínculos";
    - as tabelas da operação Turmma (`Operador`, `CodigoRecuperacaoOperador`, `ConviteOperador`,
      `SessaoOperador`, `AcessoOperacao`, `AuditoriaOperacao`), da nossa equipe e não de escola,
      só alcançadas pelo `OperadorRepository` e pelo expurgo — ver "Operação Turmma";

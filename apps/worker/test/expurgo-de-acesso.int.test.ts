@@ -132,6 +132,28 @@ describe('sistema.expurgar-acesso', () => {
       [escolaId, randomBytes(32).toString('hex'), usuarioId, AGORA.toISOString(), datas.expiraHa, datas.usadoHa ?? null, datas.revogadoHa ?? null, tipo],
     )
 
+  /** As contas sem e-mail que os links semeados seguram: saem no fim de cada caso, com o que o `delete` por alvo deixou. */
+  const contasDosLinks: string[] = []
+
+  /**
+   * O link da conta (acesso-e-convites, 5.0), numa conta só dele: um aberto por conta e finalidade (`link_da_conta_aberto_unico`). A conta não tem e-mail, para a
+   * limpeza da conta sem uso não a tocar. Como o `convite`: `expiraHa` negativo é futuro, e `usadoHa` nulo é o nunca usado. Com `envioAberto`, a linha está
+   * `na_fila` ou `enviando` com os cifrados, criada `criadaHa` antes do `AGORA`.
+   */
+  const linkDaConta = async (datas: { usadoHa?: string; expiraHa: string; envioAberto?: { estado: 'na_fila' | 'enviando'; criadaHa: string } }) => {
+    const contaId = await inserir('insert into conta default values returning id', [])
+    contasDosLinks.push(contaId)
+    const aberto = datas.envioAberto
+    return inserir(
+      `insert into link_da_conta (conta_id, finalidade, token_hash, token_cifrado, destino_cifrado, expira_em, usado_em, envio, envio_reservado_em, criado_em)
+       values ($1, 'redefinir', $2, case when $8::text is null then null else '\\x0102'::bytea end, case when $8::text is null then null else '\\x0304'::bytea end,
+               $3::timestamptz - $4::interval, case when $5::interval is null then null else $3::timestamptz - $5::interval end,
+               coalesce($8::text, 'enviado'), case when $8::text = 'enviando' then $3::timestamptz - $6::interval end, $3::timestamptz - coalesce($7::interval, interval '0 seconds'))
+       returning id`,
+      [contaId, randomBytes(32).toString('hex'), AGORA.toISOString(), datas.expiraHa, datas.usadoHa ?? null, aberto?.criadaHa ?? '0 seconds', aberto?.criadaHa ?? null, aberto?.estado ?? null],
+    )
+  }
+
   /** O ano e a série sintéticos de cada escola, criados na primeira turma dela. */
   const estruturas = new Map<string, { anoId: string; serieId: string }>()
 
@@ -395,6 +417,23 @@ describe('sistema.expurgar-acesso', () => {
     resultado.sai.registro_acesso.push(await registro(null, null, 'login_falho', '6 months 1 day'))
     resultado.fica.registro_acesso.push(await registro(null, null, 'login_falho', '6 months -1 day'))
     await semearOperacao(resultado)
+    // O link da conta (acesso-e-convites, 5.0), que é da conta global e não de escola: 30 dias depois de usado ou, sem uso, de vencido.
+    resultado.fica.link_da_conta.push(
+      await linkDaConta({ usadoHa: '29 days', expiraHa: '28 days' }),
+      await linkDaConta({ expiraHa: '29 days' }),
+      // A borda do vencido sem uso é de uma hora, como a do uso: 30 dias menos 1 h fica, 30 dias mais 1 h sai.
+      await linkDaConta({ expiraHa: '29 days 23 hours' }),
+      // Aberto e dentro da hora de validade: nem usado nem vencido.
+      await linkDaConta({ expiraHa: '-1 hour' }),
+      // Usado há 10 dias, mas vencido há 31 (o "esqueci" seguinte também o encerra): vale o uso, que foi há 10 dias, e não o vencimento.
+      await linkDaConta({ usadoHa: '10 days', expiraHa: '31 days' }),
+    )
+    resultado.sai.link_da_conta.push(
+      await linkDaConta({ usadoHa: '31 days', expiraHa: '29 days' }),
+      await linkDaConta({ expiraHa: '31 days' }),
+      await linkDaConta({ expiraHa: '30 days 1 hour' }),
+      await linkDaConta({ usadoHa: '30 days 1 hour', expiraHa: '29 days' }),
+    )
     // O incidente de segurança (F3, 9.0): 5 anos do registro, com uma seção em cada uma das duas escolas.
     resultado.fica.incidente.push(await incidente('5 years -1 day', escolas), await incidente('5 years -1 hour', escolas), await incidente('1 day', escolas))
     resultado.sai.incidente.push(await incidente('5 years 1 day', escolas), await incidente('5 years 1 hour', escolas), await incidente('50 years', escolas))
@@ -447,6 +486,7 @@ describe('sistema.expurgar-acesso', () => {
           lotes.push(['conta', limpas])
           return limpas
         },
+        fecharEnviosDeLinkParados: (agora, limite) => repositorio.fecharEnviosDeLinkParados(agora, limite),
       },
       relogio,
       logger: log.logger,
@@ -468,6 +508,7 @@ describe('sistema.expurgar-acesso', () => {
     const todos = (alvo: AlvoDoExpurgoDeAcesso) => [...semeado.sai[alvo], ...semeado.fica[alvo]]
     // As tabelas do expurgo, pelo nome do alvo; a falha de entrada sem operador só sai por aqui.
     for (const alvo of ALVOS_DO_EXPURGO_DE_ACESSO) await bancada.pool.query(`delete from ${alvo} where id = any($1::uuid[])`, [todos(alvo)])
+    await bancada.pool.query('delete from conta where id = any($1::uuid[])', [contasDosLinks.splice(0)])
     await limparOperadores(bancada.pool)
     await bancada.limparRegistro()
     await bancada.fechar()
@@ -480,7 +521,7 @@ describe('sistema.expurgar-acesso', () => {
     const eventos = log.doEvento('acesso.expurgado')
     expect(eventos).toHaveLength(1)
     const [linha] = eventos
-    for (const chave of ['registrosDeAcessoTotal', 'sessoesTotal', 'convitesTotal', 'acessosDaTurmaTotal', 'importacoesTotal', 'acessosDaOperacaoTotal', 'sessoesDeOperadorTotal', 'convitesDeOperadorTotal', 'incidentesTotal']) {
+    for (const chave of ['registrosDeAcessoTotal', 'sessoesTotal', 'convitesTotal', 'acessosDaTurmaTotal', 'importacoesTotal', 'acessosDaOperacaoTotal', 'sessoesDeOperadorTotal', 'convitesDeOperadorTotal', 'linksDaContaTotal', 'enviosDeLinkFechadosTotal', 'incidentesTotal']) {
       expect(linha?.[chave], chave).toEqual(expect.any(Number))
     }
     const texto = log.linhas.join('\n')
@@ -489,11 +530,40 @@ describe('sistema.expurgar-acesso', () => {
     expect(texto.includes(PREFIXO_DO_OPERADOR)).toBe(false)
   })
 
+  it('envio do link da conta parado: com 23 h o `na_fila` e o `enviando` ficam com os cifrados; com mais de 24 h viram `falhou` e os cifrados saem; o enviado fica como está', async () => {
+    // O banco da corrida guarda envios parados de outros testes, e o expurgo fecha todos os parados contra o `AGORA` deste arquivo: o total esperado é o que já havia mais os dois semeados aqui.
+    const jaParados = Number((await bancada.pool.query<{ total: string }>("select count(*) as total from link_da_conta where envio in ('na_fila', 'enviando') and criado_em < $1::timestamptz - interval '24 hours'", [AGORA.toISOString()])).rows[0]?.total)
+    const ficam = [
+      await linkDaConta({ expiraHa: '-1 hour', envioAberto: { estado: 'na_fila', criadaHa: '23 hours' } }),
+      await linkDaConta({ expiraHa: '-1 hour', envioAberto: { estado: 'enviando', criadaHa: '23 hours' } }),
+    ]
+    const fecham = [
+      await linkDaConta({ expiraHa: '-1 hour', envioAberto: { estado: 'na_fila', criadaHa: '24 hours 1 minute' } }),
+      await linkDaConta({ expiraHa: '-1 hour', envioAberto: { estado: 'enviando', criadaHa: '25 hours' } }),
+    ]
+    const enviado = await linkDaConta({ expiraHa: '-1 hour' })
+    semeado.fica.link_da_conta.push(...ficam, ...fecham, enviado)
+
+    await expurgar()
+    const estado = async (ids: readonly string[]) =>
+      (await bancada.pool.query<{ envio: string; cifrados: boolean }>('select envio, token_cifrado is not null or destino_cifrado is not null as cifrados from link_da_conta where id = any($1::uuid[]) order by id', [ids])).rows
+    expect(await estado(ficam)).toEqual([
+      { envio: expect.stringMatching(/^(?:na_fila|enviando)$/), cifrados: true },
+      { envio: expect.stringMatching(/^(?:na_fila|enviando)$/), cifrados: true },
+    ])
+    expect(await estado(fecham)).toEqual([
+      { envio: 'falhou', cifrados: false },
+      { envio: 'falhou', cifrados: false },
+    ])
+    expect(await estado([enviado])).toEqual([{ envio: 'enviado', cifrados: false }])
+    expect(log.doEvento('acesso.expurgado')[0]).toMatchObject({ enviosDeLinkFechadosTotal: jaParados + 2 })
+  })
+
   it('log: cada contagem da linha acesso.expurgado é a da sua tabela, nunca a de outra', async () => {
     // Uma contagem diferente por tabela, menor que o lote: a troca de duas chaves no log fica visível.
     const porAlvo = Object.fromEntries(ALVOS_DO_EXPURGO_DE_ACESSO.map((alvo, posicao) => [alvo, posicao + 11])) as Record<AlvoDoExpurgoDeAcesso, number>
     const processador = criarExpurgoDeAcesso({
-      repositorio: { apagarLoteVencido: async (alvo) => porAlvo[alvo], limparLoteDeContasSemUso: async () => 7 },
+      repositorio: { apagarLoteVencido: async (alvo) => porAlvo[alvo], limparLoteDeContasSemUso: async () => 7, fecharEnviosDeLinkParados: async () => 5 },
       relogio,
       logger: log.logger,
     })
@@ -508,6 +578,8 @@ describe('sistema.expurgar-acesso', () => {
       acessosDaOperacaoTotal: porAlvo.acesso_operacao,
       sessoesDeOperadorTotal: porAlvo.sessao_operador,
       convitesDeOperadorTotal: porAlvo.convite_operador,
+      linksDaContaTotal: porAlvo.link_da_conta,
+      enviosDeLinkFechadosTotal: 5,
       incidentesTotal: porAlvo.incidente,
       contasLimpasTotal: 7,
     })
@@ -515,7 +587,7 @@ describe('sistema.expurgar-acesso', () => {
 
   it('alvo sem total (A0b, tarefa 9.0): o objeto dos totais do processador é conferido alvo a alvo pelo compilador', () => {
     // @ts-expect-error falta o total de `incidente` (F3, 9.0): sem a afirmação `as Record`, o compilador recusa o objeto.
-    const semUmAlvo: TotaisDoExpurgoDeAcesso = { registro_acesso: 0, sessao: 0, convite: 0, acesso_turma: 0, importacao_planilha: 0, acesso_operacao: 0, sessao_operador: 0, convite_operador: 0 }
+    const semUmAlvo: TotaisDoExpurgoDeAcesso = { registro_acesso: 0, sessao: 0, convite: 0, acesso_turma: 0, importacao_planilha: 0, acesso_operacao: 0, sessao_operador: 0, convite_operador: 0, link_da_conta: 0 }
     expect(Object.keys(semUmAlvo)).toHaveLength(ALVOS_DO_EXPURGO_DE_ACESSO.length - 1)
   })
 
@@ -702,6 +774,7 @@ describe('sistema.expurgar-acesso', () => {
       ['registro_acesso', 0],
       ['sessao', 0],
       ['convite', 0],
+      ['link_da_conta', 0],
       ['acesso_turma', 0],
       ['importacao_planilha', 0],
       ['acesso_operacao', 0],
@@ -790,6 +863,7 @@ describe('sistema.expurgar-acesso', () => {
       'registro_acesso',
       'sessao',
       'convite',
+      'link_da_conta',
       'acesso_turma',
       'importacao_planilha',
       'acesso_operacao',

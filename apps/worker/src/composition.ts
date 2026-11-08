@@ -8,7 +8,6 @@ import {
   DONO_DAS_VAGAS_DO_SISTEMA,
   createQueueRedisClient,
   criarEmailSender,
-  EnvioRepository,
   LimiteDeEmailPorMinuto,
   SecretCipher,
   VERSAO_DA_CHAVE_DO_TOKEN_DE_EMAIL,
@@ -50,6 +49,7 @@ import {
   TIPO_CONSOLIDAR_USO,
   TIPO_ELIMINAR_TITULAR,
   TIPO_ENVIAR_CONVITE,
+  TIPO_ENVIAR_EMAIL_DA_CONTA,
   TIPO_EXPURGAR_ACESSO,
   TIPO_EXPURGAR_DADO_PESSOAL,
   TIPO_EXPURGAR_ESCOLA,
@@ -67,7 +67,7 @@ import { JOB_SCHEDULES, createScheduleProcessor, SCHEDULES_QUEUE, registerJobSch
 import type { StorageConfig, WorkerConfig } from './config.js'
 import { SlotReleasedNotifier, JobExecutor, type JobProcessors } from './job-executor.js'
 import { criarConsolidacaoDeUso } from './processors/consolidar-uso.js'
-import { criarEnvioDoConvite } from './processors/enviar-email.js'
+import { criarEnvioDoConvite, criarEnvioDoLinkDaConta, criarEnvios, type EnviosDoEmail } from './processors/enviar-email.js'
 import { criarExpurgoDeAcesso } from './processors/expurgar-acesso.js'
 import { criarExpurgoDeJobs } from './processors/expurgar-jobs.js'
 import { criarRotinaDeExpurgo } from './processors/expurgar-dado-pessoal.js'
@@ -273,9 +273,9 @@ export interface ProcessorParts {
   email?: PecasDoEmail | undefined
 }
 
-/** As peças do job do e-mail do convite: o repositório do envio, o adaptador, a cifra do token e o endereço da web. */
+/** As peças dos jobs do e-mail (o do convite e o do link da conta): o repositório do envio, o adaptador, a cifra do token e o endereço da web. */
 export interface PecasDoEmail {
-  envios: EnvioRepository
+  envios: EnviosDoEmail
   emissor: EmailSender
   cifra: SecretCipher
   /** O `EMAIL_POR_MINUTO`, no Redis de fila das vagas. */
@@ -316,7 +316,7 @@ export function pecasDoEmail(config: Pick<WorkerConfig, 'email'>, banco?: Databa
   const { email } = config
   if (email === undefined || banco === undefined || fila === undefined) return undefined
   return {
-    envios: new EnvioRepository(banco),
+    envios: criarEnvios(banco),
     emissor: criarEmailSender(email),
     cifra: new SecretCipher(VERSAO_DA_CHAVE_DO_TOKEN_DE_EMAIL, new Map([[VERSAO_DA_CHAVE_DO_TOKEN_DE_EMAIL, email.chaveDoToken]])),
     limite: new LimiteDeEmailPorMinuto(fila.redis, email.porMinuto, { prefixo: fila.prefixo }),
@@ -330,7 +330,7 @@ export function pecasDoEmail(config: Pick<WorkerConfig, 'email'>, banco?: Databa
  */
 function processadoresDaNormal({ banco, relogio, logger, medidor, armazem, email }: ProcessorParts): JobProcessors {
   return {
-    ...(email === undefined ? {} : { [TIPO_ENVIAR_CONVITE]: criarEnvioDoConvite({ ...email, logger, medidor }) }),
+    ...(email === undefined ? {} : { [TIPO_ENVIAR_CONVITE]: criarEnvioDoConvite({ ...email, logger, medidor }), [TIPO_ENVIAR_EMAIL_DA_CONTA]: criarEnvioDoLinkDaConta({ ...email, logger, medidor }) }),
     ...(armazem === undefined ? {} : { [TIPO_MONTAR_ARQUIVO]: criarMontagemDoArquivo({ banco, armazem, relogio, logger }) }),
     [TIPO_GRAVAR_PLANILHA]: criarGravacaoDaPlanilha({ banco, logger, ...(medidor === undefined ? {} : { medidor }) }),
   }

@@ -37,6 +37,7 @@ export const TABELAS_DO_NUCLEO = [
   'incidente',
   'incidenteEscola',
   'jobRegistro',
+  'linkDaConta',
   'listaNome',
   'material',
   'mensagemAgente',

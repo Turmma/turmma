@@ -1,10 +1,19 @@
-import { InvariantException, type JobFailureCode, type JobState, type QueueName } from '@educa/shared'
+import { InvariantException, TIPO_ENVIAR_EMAIL_DA_CONTA, type JobFailureCode, type JobState, type JobType, type QueueName } from '@educa/shared'
 import { and, eq, inArray, isNull, like, notInArray, sql, type SQL } from 'drizzle-orm'
 import { currentContext } from '../context/context.js'
 import type { Database, DatabaseTransaction } from '../db/database.js'
 import { jobRegistro } from '../db/schema/job-registro.js'
 
 export const PREFIXO_TIPO_SISTEMA = 'sistema.'
+
+/**
+ * Os únicos tipos `sistema.*` que uma requisição pode enfileirar sem ser rotina do sistema (acesso-e-convites, tarefa 5.0; Tech Spec,
+ * seção 6): o e-mail do link da conta nasce do "esqueci a senha", que é anônimo e não tem escola. Lista fechada: tipo novo aqui é mudança
+ * de spec. O job nasce sempre com escola nula, mesmo no aceite de convite, que tem escola no contexto; a requisição não ganha `rotinaDoSistema`.
+ * A lista fecha a porta por tipo, não por assunto: tipo novo que lide com IA, nota ou decisão sobre aluno passa pelo `conformidade-reviewer` (regra 70) antes de entrar aqui.
+ * Tipada com `JobType`: o nome errado, ou removido da definição dos jobs, deixa de compilar.
+ */
+export const SISTEMA_DA_REQUISICAO = [TIPO_ENVIAR_EMAIL_DA_CONTA] as const satisfies readonly JobType[]
 
 /** Canal do `pg_notify` que acorda o despachante logo depois do commit de quem enfileirou. */
 export const CANAL_NOTIFICACAO_JOB = 'job'
@@ -72,13 +81,14 @@ export class JobOutboxRepository {
   async inserir(tx: DatabaseTransaction, linha: NewJobRow): Promise<string> {
     const contexto = currentContext()
     const doSistema = linha.tipo.startsWith(PREFIXO_TIPO_SISTEMA)
+    const daRequisicao = SISTEMA_DA_REQUISICAO.some((tipo) => tipo === linha.tipo)
     if (!doSistema && contexto?.escolaId === undefined) throw new InvariantException('job de escola sem escola no contexto')
-    if (doSistema && (contexto?.rotinaDoSistema !== true || contexto.escolaId !== undefined)) {
+    if (doSistema && !daRequisicao && (contexto?.rotinaDoSistema !== true || contexto.escolaId !== undefined)) {
       throw new InvariantException('job de sistema só nasce de rotina do sistema')
     }
     const [inserida] = await tx
       .insert(jobRegistro)
-      .values({ ...linha, escolaId: contexto?.escolaId ?? null, requisicaoId: contexto?.requisicaoId ?? null })
+      .values({ ...linha, escolaId: doSistema ? null : (contexto?.escolaId ?? null), requisicaoId: contexto?.requisicaoId ?? null })
       .returning({ id: jobRegistro.id })
     if (inserida === undefined) throw new InvariantException('insert em job_registro não devolveu linha')
     await tx.execute(sql`select pg_notify(${CANAL_NOTIFICACAO_JOB}, '')`)

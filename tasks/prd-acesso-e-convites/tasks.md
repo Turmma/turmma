@@ -34,13 +34,13 @@
   - [ ] 4.5 O `docs/roteiro-da-demonstracao.md` (seção 2, passos 6 e 7) conferido contra `e2e/roteiro-da-demonstracao.spec.ts`
   - [ ] 4.6 Testes: estados do envio, diálogo e avisos, releitura de 5 s, recomeço, 360 px e 1366 × 768
 
-- [ ] **5.0 — O link da conta e o "esqueci a senha" (API e worker)**
-  - [ ] 5.1 Migration `link_da_conta` e a exceção no `docs/modelo-de-dados.md`
-  - [ ] 5.2 `SISTEMA_DA_REQUISICAO` no `JobOutboxRepository.inserir`; `sistema.enviar-email-da-conta`, escola nula, no `EnvioRepository`
-  - [ ] 5.3 `cerca-envio` em `camadas.cjs` e a zona no `architecture.test.ts`, com as fixtures
-  - [ ] 5.4 As rotas: `rl:ip:senha`, 3/h pelo HMAC do e-mail, piso de 400 ms, link novo cancela o antigo; `senha.redefinida` por escola
-  - [ ] 5.5 O expurgo de acesso (30 dias; `falhou` de 24 h, `@Unscoped` próprio)
-  - [ ] 5.6 Testes: resposta igual com piso, limites, link de 1 h, auditoria por escola, a cerca, expurgo, as três corridas
+- [x] **5.0 — O link da conta e o "esqueci a senha" (API e worker)**
+  - [x] 5.1 Migration `link_da_conta` e a exceção no `docs/modelo-de-dados.md`
+  - [x] 5.2 `SISTEMA_DA_REQUISICAO` no `JobOutboxRepository.inserir`; `sistema.enviar-email-da-conta`, escola nula, no `EnvioRepository`
+  - [x] 5.3 `cerca-envio` em `camadas.cjs` e a zona no `architecture.test.ts`, com as fixtures
+  - [x] 5.4 As rotas: `rl:ip:senha`, 3/h pelo HMAC do e-mail, piso de 400 ms, link novo cancela o antigo; `senha.redefinida` por escola
+  - [x] 5.5 O expurgo de acesso (30 dias; `falhou` de 24 h, `@Unscoped` próprio)
+  - [x] 5.6 Testes: resposta igual com piso, limites, link de 1 h, auditoria por escola, a cerca, expurgo, as três corridas
 
 - [ ] **6.0 — As telas "Esqueci a senha" e "Redefinir"**
   - [ ] 6.1 A tela "Esqueci a senha" e o link na entrada da equipe

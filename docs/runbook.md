@@ -695,6 +695,14 @@ tentativa), e `email.convite_nao_decifra` com a tentativa. Nenhum deles traz o e
 `email_adiado_total{motivo}`), sem gastar tentativa e sem virar `falhou`; ele volta sozinho no minuto seguinte (ou em 30 s, com o Redis fora). Adiamento
 que não termina é visto na idade da fila `normal` ("Job interativo esperando" cobre a interativa; para a normal, veja `job_espera_mais_antiga_s`).
 
+**O link da conta (o "esqueci a senha") entra na mesma métrica e no mesmo alerta.** O job `sistema.enviar-email-da-conta` não tem escola: a fila é a `normal`, a
+vaga é a `vaga:normal:sistema`, e o log traz `email.link_da_conta_enviado`, `_adiado`, `_repetira`, `_falhou`, `_nao_enviado` e `_nao_decifra`, todos com `linkId` e
+a tentativa, nunca o endereço, o token nem a resposta do servidor. O `falhou` do link não aparece em tela: a pessoa pede o link de novo, e o primeiro "esqueci"
+da hora ainda vale 3 pedidos. A consulta é a mesma do convite, na outra tabela:
+`docker compose exec postgres psql -U educa -c "select id, conta_id, finalidade, envio, criado_em from link_da_conta where envio = 'falhou' and criado_em > now() - interval '25 hours' order by criado_em"`.
+O "esqueci" responde 202 igual a qualquer pedido; um pico de pedidos sem envio (`senha.link_na_fila` rarefeito no log) é o balde `rl:ip:senha` (10 por minuto por IP) ou o
+teto de 3 por hora por e-mail fazendo o trabalho dele, e nunca vira 429.
+
 **A cota do "Enviar convites" não é falha do envio.** A coordenação que recebe 429 gastou os 300 convites por hora da escola (`CONVITES_POR_HORA_POR_ESCOLA`); o
 `Retry-After` diz quando a janela fecha, e o "Copiar link" segue valendo nesse meio-tempo. Com o Redis de fila fora, cada instância da API passa a valer
 `300 ÷ instâncias` e o log traz `convites.cota_no_seguro_em_memoria` (só com os ids da requisição): trate como o Redis fora, não como abuso. A API também precisa da

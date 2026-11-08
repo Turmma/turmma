@@ -1,6 +1,7 @@
 import { sql, type SQL } from 'drizzle-orm'
 import type { Database } from '../db/database.js'
 import { Unscoped } from '../db/unscoped.decorator.js'
+import { HORAS_DO_ENVIO_DE_CONVITE_NA_FILA } from './expurgo-da-escola.repository.js'
 import { LOTE_DO_EXPURGO } from './expurgo-de-jobs.repository.js'
 
 /** Por quantos meses o registro de acesso fica (Marco Civil, art. 15; `docs/lgpd.md`). */
@@ -15,6 +16,12 @@ export const RETENCAO_SESSAO_DIAS = 30
  */
 export const RETENCAO_CONVITE_DIAS = 30
 
+/**
+ * Por quantos dias o link da conta (o do "esqueci a senha", e o de verificar o e-mail) fica depois de usado, substituído por um link novo ou vencido
+ * (acesso-e-convites, tarefa 5.0; `docs/lgpd.md`, "Link da conta").
+ */
+export const RETENCAO_LINK_DA_CONTA_DIAS = 30
+
 /** Por quantos dias o acesso da turma fica depois de vencido ou revogado (`docs/lgpd.md`, "Acesso da turma"; A1). */
 export const RETENCAO_ACESSO_TURMA_DIAS = 30
 
@@ -28,14 +35,14 @@ export const RETENCAO_IMPORTACAO_DIAS = 90
 export const RETENCAO_INCIDENTE_ANOS = 5
 
 /**
- * As nove tabelas que o `sistema.expurgar-acesso` apaga por prazo, na ordem em que ele passa; a conta vem depois. As
- * cinco primeiras são das escolas: registro de acesso, sessão e convite (tarefa 17.0), o acesso da turma (A1, tarefa
+ * As dez tabelas que o `sistema.expurgar-acesso` apaga por prazo, na ordem em que ele passa; a conta vem depois. As
+ * seis primeiras são das escolas ou da conta: registro de acesso, sessão e convite (tarefa 17.0), o link da conta (acesso-e-convites, tarefa 5.0, que é global), o acesso da turma (A1, tarefa
  * 10.0) e a importação de planilha terminada (F2, tarefa 5.0); as três seguintes, da operação Turmma (A0, tarefa 9.0), com os mesmos prazos; a última, o incidente de segurança
  * (F3, tarefa 9.0), que é da operação mas leva as seções das escolas em cascata. A `auditoria_operacao` (vigência + 5
  * anos) e o `operador` (o dado pessoal sai no `desativar`) nunca são alvo, nem os pedidos de reivindicação (vigência + 5
  * anos, sem expurgo na A1).
  */
-export const ALVOS_DO_EXPURGO_DE_ACESSO = ['registro_acesso', 'sessao', 'convite', 'acesso_turma', 'importacao_planilha', 'acesso_operacao', 'sessao_operador', 'convite_operador', 'incidente'] as const
+export const ALVOS_DO_EXPURGO_DE_ACESSO = ['registro_acesso', 'sessao', 'convite', 'link_da_conta', 'acesso_turma', 'importacao_planilha', 'acesso_operacao', 'sessao_operador', 'convite_operador', 'incidente'] as const
 export type AlvoDoExpurgoDeAcesso = (typeof ALVOS_DO_EXPURGO_DE_ACESSO)[number]
 
 /**
@@ -53,6 +60,9 @@ export type AlvoDoExpurgoDeAcesso = (typeof ALVOS_DO_EXPURGO_DE_ACESSO)[number]
  *   expirar (`least` ignora os nulos), com `order by` por essa expressão (A1, tarefa 10.0): o lote que não cabe inteiro
  *   leva os mais antigos. Um convite por pessoa da equipe convidada de cada vez, e os vencidos saem em 30 dias: sem
  *   índice próprio, a ordenação é a de uma tabela pequena.
+ * - **Link da conta** (acesso-e-convites, tarefa 5.0): 30 dias depois de usado, substituído ou vencido, pelo `coalesce(usado_em, expira_em)` do índice
+ *   `link_da_conta_fim_idx`, com `order by` por ele. Não tem escola: é da conta global. O envio que não saiu (`na_fila` ou `enviando`) com mais de 24 h é
+ *   fechado `falhou` antes (`fecharEnviosDeLinkParados`), então nenhum link com cifrado chega a este prazo.
  * - **Acesso da turma** (A1, tarefa 10.0): 30 dias depois de vencer ou ser revogado, o que veio primeiro, pelo mesmo
  *   `least`, com `order by` por ele. Um acesso não revogado por turma, e os revogados saem em 30 dias: a tabela fica na
  *   ordem das turmas da escola vezes os "Gerar novo" de um mês, sem índice próprio, como o convite.
@@ -98,6 +108,16 @@ const APAGAR_LOTE: Record<AlvoDoExpurgoDeAcesso, (agora: Date, limite: number) =
       select id from convite
       where least(usado_em, revogado_em, expira_em) < ${agora.toISOString()}::timestamptz - make_interval(days => ${RETENCAO_CONVITE_DIAS})
       order by least(usado_em, revogado_em, expira_em)
+      limit ${limite}
+      for update skip locked
+    ))
+  `,
+  link_da_conta: (agora, limite) => sql`
+    delete from link_da_conta
+    where id = any(array(
+      select id from link_da_conta
+      where coalesce(usado_em, expira_em) < ${agora.toISOString()}::timestamptz - make_interval(days => ${RETENCAO_LINK_DA_CONTA_DIAS})
+      order by coalesce(usado_em, expira_em)
       limit ${limite}
       for update skip locked
     ))
@@ -238,13 +258,41 @@ export class ExpurgoDeAcessoRepository {
   @Unscoped(
     'o expurgo é rotina nossa e aplica o mesmo prazo de registro de acesso, sessão, convite (de coordenador e de professor) ' +
       'e acesso da turma (link e código da sala) a todas as escolas (e à falha de login sem escola), à importação de planilha ' +
-      'terminada (90 dias, sem a que está na fila), e às tabelas de acesso, ' +
+      'terminada (90 dias, sem a que está na fila), ao link da conta (30 dias, que é da conta global e não tem escola), e às tabelas de acesso, ' +
       'sessão e convite da operação Turmma, que são da equipe e não têm escola, e ao incidente de segurança, que também não tem ' +
       'escola e leva as seções delas em cascata; não devolve linha, só a quantidade apagada, ' +
       'e não atende requisição de escola nenhuma',
   )
   async apagarLoteVencido(alvo: AlvoDoExpurgoDeAcesso, agora: Date, limite: number = LOTE_DO_EXPURGO): Promise<number> {
     const resultado = await this.banco.execute(APAGAR_LOTE[alvo](agora, limite))
+    return resultado.rowCount ?? 0
+  }
+
+  /**
+   * Fecha `falhou`, até `limite` por vez, o envio do link da conta que está `na_fila` ou `enviando` há mais de `HORAS_DO_ENVIO_DE_CONVITE_NA_FILA` (24 h),
+   * contadas do `criado_em` da linha e do relógio do job, e anula o token e o endereço cifrados (acesso-e-convites, tarefa 5.0; Tech Spec, seção 5).
+   * Quem chegou a 24 h sem sair é o job perdido ou o servidor fora do ar por um dia: o e-mail não deve sair dias depois, com o link vencido, e o cifrado
+   * não fica na tabela. Com `skip locked`: a linha que um job reserva agora fica para a noite seguinte. Devolve quantos fechou.
+   */
+  @Unscoped(
+    'o expurgo é rotina nossa: o link da conta é da conta global e não tem escola, e o envio parado há mais de 24 horas ' +
+      'em qualquer conta é fechado falhou e perde os cifrados; não devolve linha, só a quantidade, e não atende requisição de escola nenhuma',
+  )
+  async fecharEnviosDeLinkParados(agora: Date, limite: number = LOTE_DO_EXPURGO): Promise<number> {
+    const resultado = await this.banco.execute(sql`
+      with parados as (
+        select id from link_da_conta
+        where envio in ('na_fila', 'enviando')
+          and criado_em < ${agora.toISOString()}::timestamptz - make_interval(hours => ${HORAS_DO_ENVIO_DE_CONVITE_NA_FILA})
+        order by criado_em
+        limit ${limite}
+        for update skip locked
+      )
+      update link_da_conta
+      set envio = 'falhou', token_cifrado = null, destino_cifrado = null, envio_reservado_em = null
+      from parados
+      where link_da_conta.id = parados.id
+    `)
     return resultado.rowCount ?? 0
   }
 

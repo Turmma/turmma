@@ -20,9 +20,11 @@ describe('ResolucaoDeTenantRepository: toda operação sem escopo é marcada e j
       'apagarMfa',
       'ativarMfa',
       'avancarPassoDoMfa',
+      'cancelarLinksAbertos',
       'contaPorEmail',
       'conviteValidoPorHash',
       'criarContas',
+      'criarLinkDaConta',
       'definirSenhaNoAceite',
       'escolaDoConviteParaOperador',
       'escolaDoUsuarioParaOperador',
@@ -31,12 +33,15 @@ describe('ResolucaoDeTenantRepository: toda operação sem escopo é marcada e j
       'gravarFalhaDeLoginPorEmail',
       'gravarSegredoDeMfa',
       'introducaoMaisAntigaDaConta',
+      'linkValidoPorHash',
       'mfaDaConta',
       'sessaoParaRenovar',
       'temAcessoSuspenso',
       'travarContaParaRedefinir',
+      'trocarSenha',
       'usarCodigoDeRecuperacao',
       'usarConvitePorHash',
+      'usarLinkPorHash',
       'usuarioComConviteAceito',
       'usuariosAtivosDaConta',
     ])
@@ -50,6 +55,8 @@ describe('ResolucaoDeTenantRepository: toda operação sem escopo é marcada e j
     // Telas do aluno, 1.0: a data da introdução entre as escolas da conta, no mesmo papel, que não sai em `acessos` nem no login.
     expect(justificativas['introducaoMaisAntigaDaConta']).toMatch(/credencial da equipe é global.*data mais antiga.*mesmo papel.*viu a introdução.*não sai em acessos nem no login/)
     expect(justificativas['criarContas']).toMatch(/conta é global/)
+    for (const metodo of ['cancelarLinksAbertos', 'criarLinkDaConta', 'linkValidoPorHash', 'usarLinkPorHash']) expect(justificativas[metodo], metodo).toMatch(/link da conta/)
+    expect(justificativas['trocarSenha']).toMatch(/credencial da equipe é global/)
     expect(justificativas['contaPorEmail']).toMatch(/credencial da equipe é global/)
     expect(justificativas['gravarFalhaDeLoginPorEmail']).toMatch(/antes de haver escola/)
     for (const metodo of [

@@ -162,6 +162,17 @@ export const ACOES_DE_AUDITORIA = {
     finalidade: z.enum(FINALIDADES_DA_REDEFINICAO_DE_MFA),
   },
   /**
+   * A conta trocou a senha pelo link do "esqueci a senha" (acesso-e-convites, tarefa 5.0, RF12, RF17): um registro em **cada escola** em que a conta tem
+   * usuário ativo, com esse usuário como autor e como alvo (`entidadeId`), gravados na mesma transação da troca. A rota é anônima e a conta é global:
+   * o registro de uma escola não traz nada da outra, nem a senha, o e-mail, o token ou quantas sessões caíram.
+   */
+  'senha.redefinida': {
+    entidade: 'usuario',
+    antes: null,
+    depois: null,
+    finalidade: null,
+  },
+  /**
    * O convite nasceu, com o `tipo` (A1, tarefa 3.0): o do coordenador, gerado pelo operador (7.0, RF1, RF19) com
    * `ops:convite-coordenador` ou pelo painel da operação (A0b); o do professor, gerado pela coordenação no cadastro dele
    * (A1, RF6). O usuário convidado, ainda inativo, e até quando o convite vale. Só o do coordenador leva `contaNova`, se

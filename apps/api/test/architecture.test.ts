@@ -51,6 +51,8 @@ const ZONAS_DAS_CLASSES_CERCADAS: readonly { classe: string; uso: RegExp; zona: 
   // A zona do painel é o arquivo do service e o do repository, e não a pasta `operacao/painel/`.
   { classe: 'PainelRepository', uso: /\bPainelRepository\b|painel\.repository/, zona: ['apps/api/src/operacao/painel/painel.service.ts', 'apps/api/src/operacao/painel/painel.repository.ts'] },
   // O cadastro do professor acha ou cria a conta global pelo e-mail, sem escopo: só `sessao/` o chama. Cercar a classe não basta, porque a função a repassa (onboarding-por-convite, 1.0, tenancy-guardian).
+  // O `EnvioRepository` toca o `link_da_conta`, da conta global, pelo id do job: só o processor do e-mail o usa, e a composição do worker o recebe pela função dele (acesso-e-convites, 5.0).
+  { classe: 'EnvioRepository', uso: /\bEnvioRepository\b|envio\.repository|@educa\/core\/envio/, zona: ['apps/worker/src/processors/enviar-email.ts', 'packages/core/src/email/envio.repository.ts'] },
   { classe: 'contaDoProfessor', uso: /\bcontaDoProfessor\b|cadastro-de-professor|@educa\/core\/cadastro-de-professor/, zona: ['apps/api/src/sessao/', 'apps/worker/src/processors/gravar-planilha.ts', 'packages/core/src/estrutura/cadastro-de-professor.ts'] },
 ]
 
@@ -109,6 +111,11 @@ describe('arquitetura: o nome das classes cercadas só aparece dentro da zona de
       { caminho: 'packages/core/src/estrutura/index.ts', texto: "export { contaDoProfessor } from './cadastro-de-professor.js'" },
       { caminho: 'apps/api/src/estrutura/turma/vaza-cadastro.ts', texto: "import { contaDoProfessor } from '@educa/core/cadastro-de-professor'" },
       { caminho: 'apps/worker/src/vaza-texto.ts', texto: "export const carregar = () => import('@educa/core/cadastro-de-professor')" },
+      // O envio: o vizinho do processor, a composição, o barril do `core` e o caminho como texto.
+      { caminho: 'apps/worker/src/processors/vizinho-do-envio.ts', texto: "import { EnvioRepository } from '@educa/core/envio'" },
+      { caminho: 'apps/worker/src/composition.ts', texto: "import { EnvioRepository } from '@educa/core'" },
+      { caminho: 'packages/core/src/index.ts', texto: "export { EnvioRepository } from './email/envio.repository.js'" },
+      { caminho: 'apps/worker/src/vaza-envio-texto.ts', texto: "export const carregar = () => import('@educa/core/envio')" },
       // Outro arquivo da pasta do painel não é a zona.
       { caminho: 'apps/api/src/operacao/painel/relatorio.ts', texto: "import { PainelRepository } from './painel.repository.js'" },
     ]
@@ -118,6 +125,7 @@ describe('arquitetura: o nome das classes cercadas só aparece dentro da zona de
       { caminho: 'apps/api/src/operacao/painel/painel.service.ts', texto: "import { PainelRepository } from './painel.repository.js'" },
       { caminho: 'packages/core/src/estrutura/cadastro-de-professor.ts', texto: "import { ContaGlobalRepository } from '../ciclo-de-vida/conta-global.repository.js'\nexport async function contaDoProfessor() {}" },
       { caminho: 'apps/api/src/sessao/convite/convite.service.ts', texto: "import { contaDoProfessor } from '@educa/core/cadastro-de-professor'" },
+      { caminho: 'apps/worker/src/processors/enviar-email.ts', texto: "import { EnvioRepository } from '@educa/core/envio'" },
     ]
     const inocentes = [
       { caminho: 'apps/api/test/painel-leitura.int.test.ts', texto: "import { PainelRepository } from '../src/operacao/painel/painel.repository.js'" },
@@ -140,6 +148,10 @@ describe('arquitetura: o nome das classes cercadas só aparece dentro da zona de
       'ContaGlobalRepository: packages/core/src/estrutura/cadastro-de-professor.ts.bak',
       'PainelRepository: apps/api/src/estrutura/turma/vaza.ts',
       'PainelRepository: apps/api/src/operacao/painel/relatorio.ts',
+      'EnvioRepository: apps/worker/src/processors/vizinho-do-envio.ts',
+      'EnvioRepository: apps/worker/src/composition.ts',
+      'EnvioRepository: packages/core/src/index.ts',
+      'EnvioRepository: apps/worker/src/vaza-envio-texto.ts',
       'contaDoProfessor: packages/core/src/estrutura/index.ts',
       'contaDoProfessor: apps/api/src/estrutura/turma/vaza-cadastro.ts',
       'contaDoProfessor: apps/worker/src/vaza-texto.ts',
@@ -362,14 +374,14 @@ describe('arquitetura: as seis tabelas da operação só pelo OperadorRepository
     expect(quemTocaAOperacao(arquivosDoRepositorio()).sort()).toEqual([...QUEM_PODE_TOCAR_A_OPERACAO].sort())
   })
 
-  it('o expurgo toca da operação só o acesso, a sessão e o convite, e continua com dois métodos @SemEscopo (C45, tarefa 9.0)', () => {
+  it('o expurgo toca da operação só o acesso, a sessão e o convite, e continua com os métodos @Unscoped que a rotina precisa (C45, tarefa 9.0; o `fecharEnviosDeLinkParados` entra na 5.0 de acesso-e-convites)', () => {
     const expurgo = arquivosDoRepositorio().find((arquivo) => arquivo.caminho === EXPURGO_DA_OPERACAO)
     expect(expurgo && [...new Set(usosDaOperacao(expurgo.texto))].sort()).toEqual(EXPURGAVEIS_DA_OPERACAO)
     // Os alvos do job são exatamente as tabelas que o arquivo cita: nenhuma a mais passa pelo `apagarLoteVencido`.
     expect(nucleo.ALVOS_DO_EXPURGO_DE_ACESSO.filter((alvo) => FISICOS_DA_OPERACAO.has(alvo)).sort()).toEqual(EXPURGAVEIS_DA_OPERACAO)
     const metodos = Object.getOwnPropertyNames(nucleo.ExpurgoDeAcessoRepository.prototype).filter((metodo) => metodo !== 'constructor')
     const marcados = metodos.filter((metodo) => nucleo.unscopedJustification(nucleo.ExpurgoDeAcessoRepository, metodo) !== undefined)
-    expect(marcados.sort()).toEqual(['apagarLoteVencido', 'limparLoteDeContasSemUso'])
+    expect(marcados.sort()).toEqual(['apagarLoteVencido', 'fecharEnviosDeLinkParados', 'limparLoteDeContasSemUso'])
     // A justificativa do `apagarLoteVencido` cobre as tabelas da equipe, que não têm escola (9.2).
     expect(nucleo.unscopedJustification(nucleo.ExpurgoDeAcessoRepository, 'apagarLoteVencido')).toMatch(/operação Turmma.*não têm escola/)
   })
@@ -1416,11 +1428,11 @@ describe('arquitetura: o que a auditoria diz de outra pessoa não entra no arqui
    * O arquivo do titular (13.0) lista a auditoria em que ele é o autor. A ação com `entidade: 'usuario'` tem como `entidade_id` o
    * id de **outra pessoa** (a desativada, a eliminada, a que teve o segundo fator redefinido): se um professor ou um aluno a
    * assinasse, o arquivo dele carregaria o id de outra pessoa. A lista é a das ações que **só a coordenação, a operação e a
-   * rotina** assinam, mais `usuario.ativado_por_convite`, em que quem assina é a própria pessoa e o id é o dela. Ação nova com
+   * rotina** assinam, mais `usuario.ativado_por_convite` e `senha.redefinida`, em que quem assina é a própria pessoa e o id é o dela. Ação nova com
    * `entidade: 'usuario'` obriga a quem a cria a ler este comentário e a decidir quem a assina.
    */
   const COORDENACAO_OPERACAO_E_ROTINA = ['aluno.transferido', 'professor.cadastrado', 'usuario.desativado', 'usuario.eliminado', 'usuario.mfa_redefinicao_recusada', 'usuario.mfa_redefinido', 'usuario.nome_corrigido']
-  const A_PROPRIA_PESSOA = ['usuario.ativado_por_convite']
+  const A_PROPRIA_PESSOA = ['usuario.ativado_por_convite', 'senha.redefinida']
 
   it('as ações sobre `usuario` são exatamente estas, e nenhuma é de professor ou aluno sobre outra pessoa', () => {
     const doUsuario = Object.entries(nucleo.ACOES_DE_AUDITORIA)

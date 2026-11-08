@@ -1,5 +1,5 @@
-import { acessoTurma, anoLetivo, codigoRecuperacao, conta, convite, escola, rede, registroAcesso, Unscoped, sessao, usuario, type Database, type EstadoDaSessao, type MotivoDeEncerramento, type TipoDeConvite, type DatabaseTransaction } from '@educa/core'
-import type { PapelDeUsuario } from '@educa/shared'
+import { acessoTurma, anoLetivo, codigoRecuperacao, conta, convite, escola, linkDaConta, postgresErrorIn, rede, registroAcesso, Unscoped, sessao, usuario, type Database, type EstadoDaSessao, type MotivoDeEncerramento, type FinalidadeDoLinkDaConta, type TipoDeConvite, type DatabaseTransaction } from '@educa/core'
+import { InvariantException, type PapelDeUsuario } from '@educa/shared'
 import { and, eq, gt, gte, isNotNull, isNull, lt, ne, or, sql, type SQL } from 'drizzle-orm'
 
 /**
@@ -136,8 +136,10 @@ export class TenantResolutionRepository {
   /**
    * Os usuários com que a conta entra: ativos e **sem eliminação agendada** (F3, 14.0). A escola em que a pessoa tem a
    * eliminação agendada não é escolha nem destino do login por e-mail, da troca de escola e do segundo fator, e a pessoa
-   * continua entrando nas outras. `comSuspensos` devolve também os agendados: só a redefinição do MFA pelo operador o usa, para
-   * que a coordenação de cada escola da conta saiba que o segundo fator foi redefinido.
+   * continua entrando nas outras. `comSuspensos` devolve também os agendados, e dois usos o pedem: a redefinição do MFA pelo operador, para
+   * que a coordenação de cada escola da conta saiba que o segundo fator foi redefinido, e o "esqueci a senha" com o "redefinir" da equipe (5.0), em que a senha
+   * é da conta e não de uma escola: quem tem a eliminação agendada numa escola e é ativo em outra, ou só nela, ainda é dono da conta, ganha o link e tem o
+   * `senha.redefinida` gravado também na escola da eliminação (só ids). O login continua barrado ali, pelo `ACESSO_SUSPENSO`.
    */
   @Unscoped('a credencial da equipe é global: depois da senha verificada, lista em que escolas a conta tem usuário ativo, só com id, escola e papel')
   usuariosAtivosDaConta(contaId: string, opcoes: { readonly comSuspensos?: boolean } = {}): Promise<UsuarioAtivoDaConta[]> {
@@ -373,6 +375,91 @@ export class TenantResolutionRepository {
   }
 
   /**
+   * Encerra o link aberto da conta, da finalidade dada (acesso-e-convites, tarefa 5.0): `usado_em` marca o fim (o link substituído já não vale) e o envio que
+   * ainda esperava (`na_fila` ou `enviando`) vira `cancelado` na hora, com os cifrados nulos: o e-mail que ainda saísse não leva um link que vale, e o `enviado`
+   * do job, condicional à reserva, não casa mais. O envio já terminado fica como está.
+   */
+  @Unscoped('o link da conta é da conta global: o "esqueci" cancela o link aberto dela, pelo conta_id lido do e-mail e pela finalidade, e não devolve nada')
+  async cancelarLinksAbertos(contaId: string, finalidade: FinalidadeDoLinkDaConta): Promise<void> {
+    await this.banco
+      .update(linkDaConta)
+      .set({
+        usadoEm: sql`now()`,
+        envio: sql`case when ${linkDaConta.envio} in ('na_fila', 'enviando') then 'cancelado' else ${linkDaConta.envio} end`,
+        tokenCifrado: null,
+        destinoCifrado: null,
+        envioReservadoEm: null,
+      })
+      .where(and(eq(linkDaConta.contaId, contaId), eq(linkDaConta.finalidade, finalidade), isNull(linkDaConta.usadoEm)))
+  }
+
+  /**
+   * Grava o link novo, `na_fila`, com o token e o endereço cifrados: a cifra leva o **id da linha** como dado autenticado, e por isso o id (`uuidv7()`) sai do banco
+   * antes do insert, como no convite. Devolve o id. Se outro pedido da mesma conta abriu o link primeiro, o `link_da_conta_aberto_unico` recusa com 23505 (`linkJaAberto`):
+   * quem chama desfaz a transação e responde igual a quem ganhou. O erro não é engolido aqui porque o Postgres já abortou a transação.
+   */
+  @Unscoped('o link da conta é da conta global: o "esqueci" grava o link novo da conta lida pelo e-mail, só com o hash do token e os cifrados do envio, e devolve só o id')
+  async criarLinkDaConta(dados: {
+    contaId: string
+    finalidade: FinalidadeDoLinkDaConta
+    tokenHash: string
+    expiraEm: Date
+    cifrarParaEnvio: (linkId: string) => { tokenCifrado: Buffer; destinoCifrado: Buffer }
+  }): Promise<string> {
+    const { rows } = await this.banco.execute<{ id: string }>(sql`select uuidv7() as id`)
+    const id = rows[0]?.id
+    if (id === undefined) throw new InvariantException('uuidv7 não devolvido pelo banco')
+    await this.banco
+      .insert(linkDaConta)
+      .values({ id, contaId: dados.contaId, finalidade: dados.finalidade, tokenHash: dados.tokenHash, expiraEm: dados.expiraEm, envio: 'na_fila', ...dados.cifrarParaEnvio(id) })
+    return id
+  }
+
+  /**
+   * O link que ainda vale, pelo hash do token: não usado, no prazo, da finalidade pedida, de uma conta que ainda tem e-mail e ao menos um usuário ativo. Vencido, usado,
+   * substituído, de outra finalidade e inexistente dão todos `undefined`, e quem chama responde a mesma coisa. Só ids: nunca o e-mail.
+   */
+  @Unscoped('o link da conta não diz a conta: o link válido é achado pelo hash do token, e só depois a conta dele é travada; devolve só ids')
+  async linkValidoPorHash(tokenHash: string, finalidade: FinalidadeDoLinkDaConta): Promise<{ readonly id: string; readonly contaId: string } | undefined> {
+    const [linha] = await this.banco
+      .select({ id: linkDaConta.id, contaId: linkDaConta.contaId })
+      .from(linkDaConta)
+      .innerJoin(conta, eq(conta.id, linkDaConta.contaId))
+      .where(
+        and(
+          eq(linkDaConta.tokenHash, tokenHash),
+          eq(linkDaConta.finalidade, finalidade),
+          isNull(linkDaConta.usadoEm),
+          gt(linkDaConta.expiraEm, sql`now()`),
+          isNotNull(conta.email),
+          sql`exists (select 1 from ${usuario} where ${usuario.contaId} = ${conta.id} and ${usuario.desativadoEm} is null)`,
+        ),
+      )
+      .limit(1)
+    return linha
+  }
+
+  /**
+   * Com o `banco` sendo a transação do redefinir e a conta já travada: marca o link como usado, uma vez só (`update … where usado_em is null and expira_em > now()`).
+   * Dois redefinir com o mesmo token passam um: o segundo espera a trava da conta e, relendo, já não acha o link (regra 80, item 7).
+   */
+  @Unscoped('o link da conta não diz a conta: o redefinir marca como usado o link do hash do token, uma vez só, e devolve só os ids')
+  async usarLinkPorHash(tokenHash: string, finalidade: FinalidadeDoLinkDaConta): Promise<{ readonly id: string; readonly contaId: string } | undefined> {
+    const [usado] = await this.banco
+      .update(linkDaConta)
+      .set({ usadoEm: sql`now()` })
+      .where(and(eq(linkDaConta.tokenHash, tokenHash), eq(linkDaConta.finalidade, finalidade), isNull(linkDaConta.usadoEm), gt(linkDaConta.expiraEm, sql`now()`)))
+      .returning({ id: linkDaConta.id, contaId: linkDaConta.contaId })
+    return usado
+  }
+
+  /** Troca a senha da conta. O link do redefinir é o único que a troca sem a senha antiga; o MFA fica como está. */
+  @Unscoped('a credencial da equipe é global: o redefinir grava o hash da senha nova na conta do link usado, com a conta já travada')
+  async trocarSenha(contaId: string, senhaHash: string): Promise<void> {
+    await this.banco.update(conta).set({ senhaHash }).where(eq(conta.id, contaId))
+  }
+
+  /**
    * Grava a senha da conta só enquanto ela não tem senha (`where senha_hash is null`): o link do convite nunca troca a
    * senha de uma conta existente, nem na corrida com o aceite de outro convite da mesma conta. Devolve se gravou.
    */
@@ -484,4 +571,10 @@ export class TenantResolutionRepository {
       .limit(1)
     return linha
   }
+}
+
+/** Se o erro é o do `link_da_conta_aberto_unico`: outro pedido da mesma conta abriu o link primeiro. */
+export function linkJaAberto(erro: unknown): boolean {
+  const doPostgres = postgresErrorIn(erro)
+  return doPostgres?.code === '23505' && doPostgres.constraint === 'link_da_conta_aberto_unico'
 }

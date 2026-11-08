@@ -1,8 +1,9 @@
-import { EnvioRepository, FakeEmailSender, LimiteDeEmailPorMinuto, InMemoryFileStorage, SecretCipher, UsageMeter, createDatabase, createLogger, createPool, type JanelaLetiva } from '@educa/core'
+import { FakeEmailSender, LimiteDeEmailPorMinuto, InMemoryFileStorage, SecretCipher, UsageMeter, createDatabase, createLogger, createPool, type JanelaLetiva } from '@educa/core'
 import { JOB_DEFINITIONS, QUEUE_NAMES, type QueueName, type JobRegistry } from '@educa/shared'
 import { Redis } from 'ioredis'
 import { afterAll, describe, expect, it } from 'vitest'
 import type { StorageConfig } from './config.js'
+import { criarEnvios } from './processors/enviar-email.js'
 import { createProcessors, pecasDoEmail } from './composition.js'
 
 // A ligação entre o registro de jobs (`JOB_DEFINITIONS`, em `packages/shared`) e o que cada réplica do worker sabe executar
@@ -29,7 +30,7 @@ async function tiposDaReplicaDa(fila: QueueName, comEmail = true): Promise<strin
     { pools: { [fila]: 1 }, storage: STORAGE, janelaPadrao: JANELA },
     {
       banco,
-      ...(comEmail ? { email: { envios: new EnvioRepository(banco), emissor: new FakeEmailSender(), cifra: new SecretCipher(1, new Map([[1, new Uint8Array(32)]])), limite: new LimiteDeEmailPorMinuto(redis, 60), urlDaWeb: 'http://web.teste' } } : {}),
+      ...(comEmail ? { email: { envios: criarEnvios(banco), emissor: new FakeEmailSender(), cifra: new SecretCipher(1, new Map([[1, new Uint8Array(32)]])), limite: new LimiteDeEmailPorMinuto(redis, 60), urlDaWeb: 'http://web.teste' } } : {}),
       uso: new UsageMeter(redis),
       relogio: { agora: () => new Date('2026-10-22T10:00:00-03:00') },
       logger: createLogger({ servico: 'worker-teste', nivel: 'silent' }),
@@ -79,9 +80,9 @@ describe('a réplica de cada fila contra o registro de jobs', () => {
     expect(await tiposDaReplicaDa('normal', false)).toEqual(['estrutura.gravar-planilha', 'sintetico', 'titular.montar-arquivo'])
   })
 
-  it('o arquivo do titular, a planilha e o e-mail do convite só na `normal`, as rotinas só no `lote` e o sintético nas três', async () => {
+  it('o arquivo do titular, a planilha e os e-mails (o do convite e o do link da conta) só na `normal`, as rotinas só no `lote` e o sintético nas três', async () => {
     expect(await tiposDaReplicaDa('interativa')).toEqual(['sintetico'])
-    expect(await tiposDaReplicaDa('normal')).toEqual(['email.enviar-convite', 'estrutura.gravar-planilha', 'sintetico', 'titular.montar-arquivo'])
+    expect(await tiposDaReplicaDa('normal')).toEqual(['email.enviar-convite', 'estrutura.gravar-planilha', 'sintetico', 'sistema.enviar-email-da-conta', 'titular.montar-arquivo'])
     expect(await tiposDaReplicaDa('lote')).toEqual([
       'retencao.expurgar-escola',
       'sintetico',

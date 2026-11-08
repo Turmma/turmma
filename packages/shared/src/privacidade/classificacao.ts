@@ -72,6 +72,10 @@ export const CLASSIFICACAO_DAS_TABELAS: Readonly<Record<string, ClassificacaoDaT
   acesso_turma: fixo('convite_e_acesso_da_turma', EXPURGO_DE_ACESSO),
   conta: fixo('credencial', 'limpeza da conta (F1)', 'id'),
   codigo_recuperacao: fixo('credencial', 'limpeza da conta (F1)'),
+  // O link da conta (acesso-e-convites, 5.0): hash do token, finalidade, validade e uso, mais o token e o endereço cifrados enquanto o envio
+  // espera. Prazo fixo: 30 dias depois do uso ou do vencimento pelo `sistema.expurgar-acesso`, e com a conta (`on delete cascade`). É
+  // credencial da conta global e não tem coluna de pessoa: sai do arquivo do titular, como o código de recuperação.
+  link_da_conta: fixo('credencial', EXPURGO_DE_ACESSO),
   credencial_matricula: fixo('credencial', 'desativação e eliminação', 'usuario_id'),
   conta_externa: fixo('credencial', 'desativação e eliminação', 'usuario_id'),
   lista_nome: fixo('lista_de_nomes', 'virada do ano (A1) e eliminação', 'usuario_id'),
@@ -161,6 +165,9 @@ export const COLUNAS_FORA_DO_ARQUIVO: readonly string[] = [
   'convite.token_hash',
   'convite.token_cifrado',
   'convite.destino_cifrado',
+  'link_da_conta.token_hash',
+  'link_da_conta.token_cifrado',
+  'link_da_conta.destino_cifrado',
   'acesso_turma.token_hash',
   'acesso_turma.codigo_hmac',
   'reivindicacao.senha_hash',
