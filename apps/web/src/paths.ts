@@ -244,6 +244,8 @@ export const ROUTES = {
   esqueci: '/esqueci',
   /** "Redefinir": a senha nova pelo link do e-mail. O token vai no fragmento `#`, e nunca no caminho nem na consulta (6.0). */
   redefinir: '/redefinir',
+  /** "Verificar": prova o e-mail da conta pelo link que o aceite de um convite copiado mandou. O token vai no fragmento `#`, e nunca no caminho nem na consulta (acesso-e-convites, 8.0; RF12). */
+  verificar: '/verificar',
   /** O convite da coordenação e o do professor. O token vai no fragmento `#`, e nunca no caminho nem na consulta. */
   convite: '/convite',
   /** Estado do sistema, público: é a tela que se abre justamente quando não se consegue entrar. */

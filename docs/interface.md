@@ -1973,6 +1973,24 @@ A entrada, o convite, a reivindicação de nome e a verificação em duas etapas
   - **Recomeço do Redefinir.** Outro link colado na aba (inclusive o mesmo) muda só o `#`: o formulário é montado de novo, com
     o campo vazio e o foco nele, o aviso e o "Tentar de novo" saem, o token sai da barra outra vez, e a resposta do envio do
     link anterior que chegue depois é descartada. As duas telas são anônimas: não há segunda pessoa no mesmo computador
+- **"Verificar" e o aviso do aceite** (acesso-e-convites, 8.0; RF12). Quem tem senha, trabalha em outra escola e ainda não provou o
+  e-mail, ao aceitar um convite **copiado** de uma escola nova, recebe `VERIFICACAO_PENDENTE`: o convite não é gasto e o link de
+  verificar vai ao e-mail da conta.
+  - **O aviso no aceite** (`/convite`): no mesmo lugar da falha, mas no aviso **`pendente`** (borda, fundo e texto da tela do convite
+    que não vale), e não no vermelho de erro, porque não é erro de ninguém: "Mandamos um link para o seu e-mail. Abra-o e volte a
+    este convite. Pode levar alguns minutos; se não chegar, abra o convite de novo para outro link." A tela fica onde está, com o
+    "Aceitar o convite" livre para depois de verificar.
+  - **Verificar** (`/verificar#<token>`, o endereço do link do e-mail, que vale 24 horas): sem botão de confirmar, porque abrir o
+    link já é o gesto. **Carregando**: "Confirmando…" (`status`). **Certo**: "E-mail confirmado" (`status`, com o foco), "Volte ao
+    convite e aceite de novo." e o `primario` "Continuar", que leva a `/convite`; a verificação **não** aceita o convite nem abre
+    sessão. **Link vencido, usado, inventado** ou **sem token**: "Este link não vale mais. Peça outro link abrindo o convite de
+    novo." e o link "Abrir o convite". **Rede**: o aviso com "Tentar de novo", com o token que continua na memória da tela (ele
+    já saiu da barra). O token sai da barra antes de qualquer chamada e vai no corpo, nunca na URL
+  - **Recomeço do Verificar.** Outro link colado na aba muda só o `#`: a tela recomeça por "Confirmando…", o aviso e o "Tentar de novo"
+    saem, o token sai da barra outra vez, e a resposta do pedido do link anterior que chegue depois é descartada. O link é de uso
+    único: o **mesmo** link colado de novo enquanto o pedido está no ar, ou depois de confirmado, não manda outro pedido (o segundo
+    responderia "não vale mais" a quem acabou de confirmar); depois de uma falha, recomeça. A tela é anônima: não há segunda pessoa
+    no mesmo computador
 
 ### 11.4 A operação
 

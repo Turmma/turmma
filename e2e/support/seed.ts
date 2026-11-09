@@ -345,6 +345,17 @@ export async function desativarUsuario(usuarioId: string): Promise<void> {
 }
 
 /**
+ * A conta ainda não provou o e-mail (acesso-e-convites, 8.0): a conta de equipe do seed já nasce com a posse provada, e é assim que se
+ * volta ao caso de quem tem senha, trabalha em outra escola e recebe um convite copiado de uma nova. O aceite desse convite devolve
+ * `VERIFICACAO_PENDENTE` e manda o link de verificar ao e-mail da conta.
+ */
+export async function desfazerAPosseDoEmail(contaId: string): Promise<void> {
+  await comBanco(async (banco) => {
+    await banco.query('update conta set email_verificado_em = null where id = $1', [contaId])
+  })
+}
+
+/**
  * A coordenação agendou a eliminação da pessoa (F3, 14.0): a marca que a guarda e a renovação leem, posta direto no
  * banco. Sem o pedido e sem o encerramento das sessões, de propósito — é o que a API faz com a marca, e não com o
  * registro: a requisição seguinte da aba recebe 401 e a renovação, 403 `ACESSO_SUSPENSO`, com a sessão ainda aberta no
