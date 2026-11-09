@@ -18,7 +18,7 @@ import { randomBytes } from 'node:crypto'
 import { DB } from '../database.module.js'
 import type { LoginConfig } from '../credencial/login-config.js'
 import type { ExternalLoginConfig } from '../credencial/external-login-config.js'
-import { CookieOidc } from './external/cookie-oidc.js'
+import { CookieContaProvada, CookieOidc } from './external/cookie-oidc.js'
 import { ExternalLoginController } from './external/external-login.controller.js'
 import { ExternalLoginService } from './external/external-login.service.js'
 import { OpenIdClientAdapter } from './external/openid-client.adapter.js'
@@ -243,20 +243,23 @@ export class SessaoModule implements OnApplicationShutdown {
         // A porta do `sala` para a resolução (A1, tarefa 5.0): a página pública da sala acha a escola, o ano e a turma pelo
         // link ou pelo código sem importar a `TenantResolutionRepository`, que não sai deste módulo.
         { provide: AcessoDaSala, useFactory: (resolucao: TenantResolutionRepository) => new AcessoDaSala(resolucao), inject: [TenantResolutionRepository] },
+        // O cookie da conta que o aluno provou na sala (acesso-e-convites, 14.0): o login externo o grava, e o pedido do nome, no `sala`, o lê e o apaga.
+        // Sem provedor ligado não há chave configurada: uma chave sorteada no boot, que nenhum cookie decifra.
+        { provide: CookieContaProvada, useFactory: () => new CookieContaProvada(opcoes.loginExterno.chaveDoCookie ?? new Uint8Array(randomBytes(32)), opcoes.identidade.ambiente) },
         {
           provide: ExternalLoginService,
-          useFactory: (banco: Database, resolucao: TenantResolutionRepository, provedor: ExternalProviderPort, conclusao: ConclusaoDeLogin) =>
+          useFactory: (banco: Database, resolucao: TenantResolutionRepository, provedor: ExternalProviderPort, conclusao: ConclusaoDeLogin, cookieDaConta: CookieContaProvada) =>
             new ExternalLoginService({
               banco,
               resolucao,
               provedor,
-              // Sem provedor ligado não há chave configurada: uma chave sorteada no boot, que nenhum cookie decifra.
               cookie: new CookieOidc(opcoes.loginExterno.chaveDoCookie ?? new Uint8Array(randomBytes(32)), opcoes.identidade.ambiente),
+              cookieDaConta,
               conclusao,
               retorno: opcoes.loginExterno.retorno,
               medidor: opcoes.medidor ?? globalMeter(),
             }),
-          inject: [DB, TenantResolutionRepository, EXTERNAL_PROVIDER, ConclusaoDeLogin],
+          inject: [DB, TenantResolutionRepository, EXTERNAL_PROVIDER, ConclusaoDeLogin, CookieContaProvada],
         },
         {
           provide: ConviteService,
@@ -358,7 +361,7 @@ export class SessaoModule implements OnApplicationShutdown {
       // na sala (A1, tarefa 6.0): o semáforo é um só por instância, porque o teto que ele guarda é o das threads do processo. Global, como o `DatabaseModule` e o
       // `RateLimitModule`, para o `OperacaoModule` receber a mesma instância sem montar outra.
       global: true,
-      exports: [REDIS_LOGIN_CLIENT, LoginLockout, LoginFallbackTracker, RegistroDeAtividade, HashBulkhead, PasswordHasher, AcessoDaSala],
+      exports: [REDIS_LOGIN_CLIENT, LoginLockout, LoginFallbackTracker, RegistroDeAtividade, HashBulkhead, PasswordHasher, AcessoDaSala, CookieContaProvada],
     }
   }
 

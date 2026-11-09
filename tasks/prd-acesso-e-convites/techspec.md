@@ -44,13 +44,14 @@ id da linha como dado autenticado, presentes em `na_fila` e `enviando` e nulos f
 com `case when`: um `or` com `envio` nulo deixaria o convite `copiado` passar com cifrados). `criadoEm` conta as 24 h do expurgo do envio parado. O check `reivindicacao_segredo_so_pendente` vira
 (`not valid` + `validate`): pendente ⇔ chave e marca presentes e exatamente uma de senha ou `contaExterna`; fora do
 pendente, as quatro nulas; o `fechar('encerrada')` do F2 passa a anular também a `contaExterna`. Migrations só expandem;
-voltar a versão: o runbook recusa os pedidos de conta pendentes.
+voltar a versão: o runbook encerra, sem decisão, os pedidos de conta pendentes e devolve o nome à lista.
 
 ## 4. API
 
 | Método | Rota | Papel | Entrada | Saída |
 |---|---|---|---|---|
 | POST | `/v1/professores/convites/enviar` | coordenador | `{ usuarioIds? }` | contagem |
+| GET | `/v1/usuarios/:usuarioId/senha-provisoria` | coordenador; professor da turma | — | `{ nome, turma, matricula, entraPelaContaDaEscola }` (divergência da 12.0, opção A) |
 | POST | `/v1/usuarios/:usuarioId/senha-provisoria` | coordenador; professor da turma | — | `{ senha, expiraEm }` |
 | POST | `/v1/sessao/matricula/trocar-senha` | bilhete no `Authorization` | `{ senha }` | sessão |
 | GET | `/v1/sessao/matricula/trocas` | bilhete no `Authorization` | — | até 10 provisórias anteriores: data, papel, se usada |
@@ -59,7 +60,7 @@ voltar a versão: o runbook recusa os pedidos de conta pendentes.
 
 Mudam: login de matrícula (`trocar_senha`), aceite (`VERIFICACAO_PENDENTE`), `GET /v1/professores`
 (`envio` e `enviadoEm`, ISO nulável, sempre no corpo e só não nulo com `envio = 'enviado'`: o "Enviado em 12/11 às 14:05" da tela, no fuso da escola; divergência da 4.0), `externa/iniciar` (`intencao`), pedido de nome (conta provada).
-"Enviar", "Reenviar" e o "Copiar link" fazem o `convite/refazer` (linha nova). Links com o token no fragmento; provisória,
+"Enviar", "Reenviar" e o "Copiar link" fazem o `convite/refazer` (linha nova). Links com o token no fragmento; provisória (a leitura do alvo e a geração),
 troca e `/trocas` com `no-store`.
 
 ## 5. Fluxo
@@ -119,24 +120,41 @@ inválida. `/trocas` lista as 10 provisórias anteriores à que o aluno acabou d
 gerou, se usada. A troca é `update … where id = … and provisoria_expira_em = :doBilhete and provisoria_expira_em > clock_timestamp()` (o relógio do banco no instante da gravação, não o da transação) e o aluno ainda ativo, sem desativação nem eliminação agendada (`exists` no próprio `update`, além da conferência anterior);
 zero linhas, recusa. A troca e o `desativar` anulam as três colunas. A provisória se digita como a tela a mostra: o login de matrícula tira o hífen e os espaços e põe em maiúsculas antes de comparar, e só quando o hash que confere é o da provisória (a senha comum vai como veio). `trocar-senha` conta no mesmo contador de falhas da conta que o login (chave `escola|matrícula`, `conhecido` ou `outro` pelo cookie do dispositivo): a tentativa conta antes de a senha nova ser aceita, a troca certa zera, e o hash da senha nova só se faz para bilhete que vale. O `senha_provisoria.usada` (autor o aluno, sem `depois`) é gravado na mesma transação da troca. `/trocas` lê a auditoria do aluno (60 registros no máximo) pelo índice da escola até a 11.1 criar o índice parcial por alvo.
 
+**O alvo da provisória** (divergência da 12.0, opção A, escolhida pelo Joaquim em 09/11). A confirmação precisa da matrícula, e nenhuma
+leitura a entrega à web: `GET /v1/usuarios/:usuarioId/senha-provisoria` devolve um aluno por vez, `{ nome, turma, matricula, entraPelaContaDaEscola }`.
+Mesma célula da matriz (`senha_provisoria.gerar`) e mesmo escopo da geração, pela mesma seleção do repository (`#alunoQueAlcanca`, sem trava): quem não
+alcança o aluno, e o aluno sem credencial nem conta da escola ligada, recebe o `NAO_ENCONTRADO` do inexistente. `turma` é o nome da turma do vínculo
+`confirmado` do aluno no ano em curso (nula sem ano em curso, só para a coordenação, que alcança sem ele); `matricula` é a da `credencial_matricula`
+(nula no aluno só com a conta da escola); `entraPelaContaDaEscola` diz, antes de confirmar, o que a geração responderia com `ENTRA_PELA_CONTA_DA_ESCOLA`.
+Nunca hash, provisória, validade, quem gerou nem e-mail. Sai com `no-store`, não gasta cota nem trava linha. A leitura pela coordenação grava
+`senha_provisoria.alvo_lido` (entidade `usuario`, `entidadeId` o aluno, sem `antes` nem `depois`, finalidade fixa escrita pelo servidor,
+`FINALIDADE_DA_LEITURA_DO_ALVO`; regra 20, item 10), na mesma transação da leitura; a do professor com vínculo na turma do aluno não grava, como a leitura
+dos alunos da turma. A `.alvo_lido` é leitura, não ato sobre o titular: fica fora da lista por alvo do arquivo (sem migration) e, como a `.gerada`, fora do arquivo de
+quem a assina (o `entidade_id` é o do aluno).
+
 **Arquivo do titular (D85).** A leitura por alvo traz, numa lista fechada, `aluno.transferido`, `lista.transferida`,
 `usuario.nome_corrigido`, `lista.nome_corrigido` (o `lista_nome` só com o nome aprovado, pelo `alunoId` da decisão),
 `senha_provisoria.gerada` e `.usada`: ação, entidade, finalidade, data e o papel de quem fez; nunca o id nem o nome do
 autor, o `antes` ou o `depois`, nem as leituras. O papel é fixo por ação nas quatro da F2 (coordenação) e vem do `depois` na
-`.gerada`; a `.usada` sai uma vez. A leitura do arquivo de quem **assina** (`auditoria`, `autor_usuario_id`) deixa a `senha_provisoria.gerada` de fora: o professor a assina e o `entidade_id` é o do aluno.
+`.gerada`; a `.usada` sai uma vez, com o papel `aluno` (ele a assina e é o alvo: as duas leituras a trazem, e a por alvo vence pelo `id`). O papel sai escrito como o aluno o lê: `coordenação`, `professor` ou `aluno`. A leitura do arquivo de quem **assina** (`auditoria`, `autor_usuario_id`) deixa a `senha_provisoria.gerada` de fora: o professor a assina e o `entidade_id` é o do aluno.
 
 **Auditoria.** `convite.enviado` é gravado no pedido ("Enviar", "Reenviar"), autora a coordenação; o job só muda o `envio`. `senha.redefinida` e `conta.email_verificado` vindos de rota anônima gravam um registro por escola em que
 a conta tem usuário ativo, com esse usuário como autor e alvo, na mesma transação, no contexto montado no próprio fluxo pelo `usuariosAtivosDaConta`
 da conta do token; sem usuário ativo, nenhum. O aceite
 de convite grava só na escola do convite.
 
-**Conta da escola do aluno.** `intencao=reivindicar` resolve o acesso pelo token ou código da sala,
-na `TenantResolutionRepository`, na escola do slug e no ano em curso, e o guarda no cookie OIDC. No retorno, com domínio
-liberado e conta sem ligação, grava `educa_conta_provada` (como o `educa_oidc`, mais `Path=/v1/salas` e 15 min; escola,
-acesso e conta, sem e-mail). O pedido confere escola e acesso (senão, cookie inválido), grava `contaExterna` no lugar do
-hash (a invariante do `travarPendente` passa a senha ou conta) e apaga o cookie. Aprovar cria o usuário sem senha e a
-`conta_externa`, na decisão; conta já ligada a outro aluno: `CONFLITO` sem nome, a transação desfaz e o pedido segue
-pendente. `intencao=ligar` exige sessão de aluno.
+**Conta da escola do aluno.** `intencao=reivindicar`, com o `token` do link ou o `codigo` da sala na query (a `intencao` de outro valor, ou o
+token ou código sem ela, responde como o inexistente), resolve o acesso pela porta `SALA_PARA_A_CONTA`, que o `sala` implementa sobre o
+`AcessoDaSala` (a `TenantResolutionRepository`, na escola do slug e no ano em curso, com o limite de código errado por escola do `salas/abrir`), e
+o guarda no cookie OIDC (`acessoDaSalaId`). No retorno, com domínio liberado e conta sem ligação, ninguém é ligado, nem o professor pelo e-mail: grava
+`educa_conta_provada` (como o `educa_oidc`, com dado autenticado próprio, mais `Path=/v1/salas` e 15 min; escola, acesso e conta, sem e-mail) e volta
+a `/e/:slug/turma?conta=provada`; a conta ligada a usuário ativo entra como sempre, e o domínio não liberado, a conta pessoal e a ligada a desativado
+são recusados como sempre. O pedido sem `senha` (o contrato a torna opcional) lê o cookie, confere escola e acesso contra os do acesso vigente (ausente,
+vencido, adulterado, de outra escola ou de outro acesso: a mesma `ENTRADA_INVALIDA`, antes de qualquer contador), grava `contaExterna` no lugar do hash
+(a invariante do `travarPendente` passa a senha ou conta) sem calcular hash, e responde apagando o cookie, também no reenvio; com `senha`, o cookie não é
+lido. O pedido de conta recusado não conta no teto de hashes da turma. Aprovar cria o usuário sem senha e a `conta_externa`, na decisão, com a
+auditoria `conta_externa.ligada` de quem aprova; conta já ligada a outro aluno: `CONFLITO` sem nome, a transação desfaz e o pedido segue pendente.
+`intencao=ligar` exige sessão de aluno (15.0).
 
 ## 6. Isolamento
 
@@ -180,7 +198,12 @@ Sem IA.
 
 Estados e textos: `cenarios.md`, "Telas"; cada tela atualiza o `docs/interface.md` na sua tarefa.
 Professores relê o envio a cada 5 s, só com a aba visível e linha `na_fila` ou `enviando`, e para depois de 5 min. A provisória fica no
-menu da linha do aluno aprovado, na aba Alunos da turma. Novas: esqueci (link na entrada da equipe), redefinir,
+menu da linha do aluno aprovado, na aba Alunos da turma. A confirmação lê o alvo (`GET …/senha-provisoria`, seção 5) ao abrir, fora do cache de
+consultas, e o descarta ao fechar, com a senha; enquanto lê, "Gerar" fica ocupado, e o alvo que sumiu (404) fecha a confirmação com o aviso. O aluno que
+entra pela conta da escola já mostra o aviso na confirmação, sem "Gerar". Na coordenação, a turma aberta (`ListaDaTurma`) ganha a seção **"Alunos
+aprovados"**, lida de `GET /v1/turmas/:id/alunos?finalidade=conferencia_de_cadastro` (já auditada com `turma.alunos_lidos`) só no clique em "Mostrar
+alunos aprovados", paginada como os pedidos; cada linha tem o menu com "Gerar senha provisória". A contagem de aprovados da lista de nomes (F2, 16.0)
+sai. Novas: esqueci (link na entrada da equipe), redefinir,
 verificar, trocar a provisória (depois do login), conta da escola na sala e em "Eu".
 
 ## 10. Testes

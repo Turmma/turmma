@@ -68,7 +68,7 @@ export const METRICS = {
   rebaixadoPorIp: 'login.rebaixado_ip',
   /**
    * Retornos do login pela conta Google ou Microsoft da escola, por `resultado`: `entrou`, `recusado` (domínio, tenant
-   * ou ligação que não valem, a mesma recusa para todos) e `provedor` (erro, prazo ou cookie do início ausente). Sem
+   * ou ligação que não valem, a mesma recusa para todos), `conta_provada` (14.0: a conta da escola do aluno que pede o nome, sem ligar ninguém) e `provedor` (erro, prazo ou cookie do início ausente). Sem
    * escola e sem motivo mais fino: o motivo fino diria, a quem lê o painel, qual conta existe.
    */
   loginExterno: 'login.externo',
@@ -112,8 +112,8 @@ export const METRICS = {
   escolaIgnoradaNoUso: 'uso.escola_ignorada',
   /**
    * Pedidos de `salas/reivindicar` (A1, tarefa 7.0), por `resultado`: `enviado` (pedido novo), `reenvio` (a chave já
-   * gravada), `recusada`, `limite` (o nome travado), `sem_acesso` (link ou código que não vale), `indisponivel` (o 503 do
-   * semáforo) e `erro`. Sem escola: a série por escola seria a contagem pública de quem entrou, e o id vai só no log.
+   * gravada), `recusada`, `limite` (o nome travado), `sem_acesso` (link ou código que não vale), `conta_invalida` (14.0: o pedido sem senha
+   * cujo cookie da conta não vale), `indisponivel` (o 503 do semáforo) e `erro`. Sem escola: a série por escola seria a contagem pública de quem entrou, e o id vai só no log.
    */
   reivindicacaoNaSala: 'sala.reivindicacao',
   /**

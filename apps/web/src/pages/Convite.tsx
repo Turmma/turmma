@@ -19,6 +19,10 @@ import { CascaPublica } from '../components/CascaPublica'
 import { LoadingState, ErrorState } from '../components/states'
 import { clearFragment, readFragmentToken } from './url-fragment'
 
+/** O aviso `pendente` (o convite que não vale, a verificação pendente) e o vermelho da falha: dois desenhos, e a tela escolhe pelo código. */
+const CLASSES_DO_AVISO_PENDENTE = 'rounded-controle border border-pendente bg-pendente-cx p-4 text-pendente'
+const CLASSES_DO_AVISO_DE_ERRO = 'rounded-controle border border-erro bg-erro-cx p-4 text-erro'
+
 type Etapa =
   | { readonly nome: 'sem-token' }
   | { readonly nome: 'consultando' }
@@ -40,6 +44,11 @@ type Etapa =
  *
  * Quem já tem conta (trabalha em outra escola cliente) nunca vê campo de senha nova: o link não troca a senha de uma
  * conta existente, e o que falta é entrar com a senha que ela já tem.
+ *
+ * A conta com senha que ainda não provou o e-mail, ao aceitar um convite **copiado** de outra escola, recebe `VERIFICACAO_PENDENTE`
+ * (acesso-e-convites, 8.0; RF12): o convite não foi gasto, o link de verificar saiu por e-mail (`VerificarEmail`) e a tela fica
+ * onde está, com o botão livre e o aviso `pendente` (não é erro de ninguém) que diz o que fazer. Depois de verificar, a pessoa volta
+ * a esta aba e aceita de novo.
  *
  * O convite que não vale — usado, vencido, revogado, refeito ou inexistente — mostra o mesmo texto, com a quem pedir
  * outro, e nunca o nome da escola. A consulta que cai por rede ou servidor tem "Tentar de novo", com o token que continua
@@ -175,7 +184,9 @@ export function Convite() {
         Você foi convidado para entrar em <span className="font-medium break-words text-tinta">{escolaNome}</span>.
       </p>
       {falha !== undefined && (
-        <p role="alert" className="rounded-controle border border-erro bg-erro-cx p-4 text-erro">
+        // A verificação pendente não é erro de ninguém: o convite não foi gasto e o link de verificar já saiu por e-mail. O aviso
+        // é o `pendente` da tela do convite que não vale, e não o vermelho da falha (acesso-e-convites, 8.0; RF12).
+        <p role="alert" className={falhaPedeVerificacao(falha) ? CLASSES_DO_AVISO_PENDENTE : CLASSES_DO_AVISO_DE_ERRO}>
           {falha instanceof ApiError ? mensagemDoConvite(falha.codigo) : mensagemDoConvite(ErrorCode.ERRO_INTERNO)}
         </p>
       )}
@@ -193,6 +204,11 @@ export function Convite() {
       )}
     </CascaPublica>
   )
+}
+
+/** A conta com senha que ainda não provou o e-mail aceitou um convite copiado de outra escola: o convite não foi usado e o link de verificar saiu. */
+function falhaPedeVerificacao(falha: unknown): boolean {
+  return falha instanceof ApiError && falha.codigo === ErrorCode.VERIFICACAO_PENDENTE
 }
 
 /** A senha nova, pedida só depois de a API dizer que a conta é nova. */

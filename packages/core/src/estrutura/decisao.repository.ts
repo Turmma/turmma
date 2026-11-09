@@ -2,7 +2,7 @@ import { requireAnoEmCurso } from '../context/ano-em-curso.js'
 import { requireEscolaId } from '../context/context-escola.js'
 import type { Database, DatabaseTransaction } from '../db/database.js'
 import { listaNome } from '../db/schema/lista-nome.js'
-import { reivindicacao } from '../db/schema/reivindicacao.js'
+import { reivindicacao, type ContaProvadaDoPedido } from '../db/schema/reivindicacao.js'
 import { vinculo } from '../db/schema/vinculo.js'
 import { requestSessao } from '../identidade/auth.guard.js'
 import type { PaginationQuery, DecisorDaReivindicacao } from '@educa/shared'
@@ -23,12 +23,14 @@ export interface PedidoPendente {
   readonly teveMatriculaErrada: boolean | null
 }
 
-/** O pedido pendente travado para a decisão: a turma, o nome da lista e o hash da senha, que a aprovação leva à credencial. */
-export interface PedidoTravado {
-  readonly turmaId: string
-  readonly listaNomeId: string
-  readonly senhaHash: string
-}
+/**
+ * O pedido pendente travado para a decisão: a turma, o nome da lista e **uma** de duas coisas, que a aprovação leva ao aluno — o hash da
+ * senha, que vai à credencial, ou a conta da escola que ele provou (14.0), que vira a `conta_externa`. O check do banco garante uma só.
+ */
+export type PedidoTravado = { readonly turmaId: string; readonly listaNomeId: string } & (
+  | { readonly senhaHash: string; readonly contaExterna: null }
+  | { readonly senhaHash: null; readonly contaExterna: ContaProvadaDoPedido }
+)
 
 /** Os pedidos `pendente` que `fechar(…, 'encerrada')` fecha: os dos nomes dados, ou todos os de um ano. */
 export type PedidosParaEncerrar = { readonly listaNomeIds: readonly string[] } | { readonly anoLetivoId: string }
@@ -114,15 +116,17 @@ export class DecisaoRepository {
    */
   async travarPendente(id: string, alcance: AlcanceDoPedido): Promise<PedidoTravado | undefined> {
     const [linha] = await this.banco
-      .select({ turmaId: reivindicacao.turmaId, listaNomeId: reivindicacao.listaNomeId, senhaHash: reivindicacao.senhaHash })
+      .select({ turmaId: reivindicacao.turmaId, listaNomeId: reivindicacao.listaNomeId, senhaHash: reivindicacao.senhaHash, contaExterna: reivindicacao.contaExterna })
       .from(reivindicacao)
       .where(and(this.#noAlcance(alcance), eq(reivindicacao.id, id), eq(reivindicacao.estado, 'pendente')))
       .for('update')
     if (linha === undefined) return undefined
-    const { turmaId, listaNomeId, senhaHash } = linha
-    // O check `reivindicacao_segredo_so_pendente` e o `reivindicacao_pendente_com_nome` garantem os dois no pendente.
-    if (listaNomeId === null || senhaHash === null) throw new InvariantException('pedido pendente sem nome ou sem hash')
-    return { turmaId, listaNomeId, senhaHash }
+    const { turmaId, listaNomeId, senhaHash, contaExterna } = linha
+    // O check `reivindicacao_segredo_so_pendente` e o `reivindicacao_pendente_com_nome` garantem, no pendente, o nome e uma só de senha ou conta.
+    if (listaNomeId === null) throw new InvariantException('pedido pendente sem nome')
+    if (senhaHash !== null && contaExterna === null) return { turmaId, listaNomeId, senhaHash, contaExterna: null }
+    if (senhaHash === null && contaExterna !== null) return { turmaId, listaNomeId, senhaHash: null, contaExterna }
+    throw new InvariantException('pedido pendente sem senha nem conta, ou com as duas')
   }
 
   /**
@@ -160,7 +164,7 @@ export class DecisaoRepository {
 
   /**
    * Fecha o pedido que `travarPendente` travou nesta transação: o estado, quando, quem e como decidiu, e o hash, a chave e
-   * a marca de matrícula errada apagados na mesma escrita (check `reivindicacao_segredo_so_pendente`; `docs/lgpd.md`). A
+   * a conta da escola (14.0) e a marca de matrícula errada apagados na mesma escrita (check `reivindicacao_segredo_so_pendente`; `docs/lgpd.md`). A
    * escola do contexto é a segunda camada: o id já veio da linha travada.
    *
    * Com `'encerrada'` (F2, 9.0; Tech Spec do onboarding, seção 5, "Gravar"), fecha os pedidos `pendente` dos nomes dados, ou do ano
@@ -175,7 +179,7 @@ export class DecisaoRepository {
     if (typeof alvo !== 'string') {
       const fechados = await this.banco
         .update(reivindicacao)
-        .set({ estado: 'encerrada', senhaHash: null, chaveEnvio: null, teveMatriculaErrada: null })
+        .set({ estado: 'encerrada', senhaHash: null, contaExterna: null, chaveEnvio: null, teveMatriculaErrada: null })
         .where(
           and(
             eq(reivindicacao.escolaId, requireEscolaId()),
@@ -194,6 +198,7 @@ export class DecisaoRepository {
         decididaPor: requestSessao().usuarioId,
         decididaComo,
         senhaHash: null,
+        contaExterna: null,
         chaveEnvio: null,
         teveMatriculaErrada: null,
       })

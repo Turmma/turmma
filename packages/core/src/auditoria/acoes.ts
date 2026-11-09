@@ -122,8 +122,9 @@ export const ACOES_DE_AUDITORIA = {
   },
   /**
    * A conta Google ou Microsoft de um professor foi ligada a ele no primeiro login por ela (13.0, RF9, RF19): o
-   * e-mail verificado batia com o da conta dele na escola. `entidadeId` é a ligação (`conta_externa`); leva o usuário e
-   * o provedor, nunca o e-mail nem o identificador da conta externa.
+   * e-mail verificado batia com o da conta dele na escola. Ou a de um aluno, ligada na aprovação do pedido do nome (14.0,
+   * RF14): o autor é quem aprovou (professor ou coordenação), na mesma transação que cria o aluno. `entidadeId` é a ligação
+   * (`conta_externa`); leva o usuário e o provedor, nunca o e-mail nem o identificador da conta externa.
    */
   'conta_externa.ligada': {
     entidade: 'conta_externa',

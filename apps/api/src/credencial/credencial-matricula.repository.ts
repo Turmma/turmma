@@ -148,8 +148,12 @@ export class CredencialMatriculaRepository {
     return gravadas.length === 1
   }
 
-  /** Grava credenciais de alunos da escola do contexto: o seed sintético (e, no F2, a reivindicação). */
-  async criar(novas: ReadonlyArray<{ usuarioId: string; matricula: string; senhaHash: string }>): Promise<void> {
+  /**
+   * Grava credenciais de alunos da escola do contexto: o seed sintético (e, no F2, a reivindicação). `senhaHash` nulo é o aluno que
+   * entra só pela conta da escola (acesso-e-convites, 14.0): a credencial guarda a matrícula, e o login por matrícula o recusa como
+   * qualquer credencial sem senha.
+   */
+  async criar(novas: ReadonlyArray<{ usuarioId: string; matricula: string; senhaHash: string | null }>): Promise<void> {
     if (novas.length === 0) return
     const escolaId = requireEscolaId()
     await this.banco.insert(credencialMatricula).values(novas.map((nova) => ({ ...nova, escolaId })))

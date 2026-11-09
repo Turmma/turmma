@@ -42,11 +42,11 @@
   - [x] 5.5 O expurgo de acesso (30 dias; `falhou` de 24 h, `@Unscoped` próprio)
   - [x] 5.6 Testes: resposta igual com piso, limites, link de 1 h, auditoria por escola, a cerca, expurgo, as três corridas
 
-- [ ] **6.0 — As telas "Esqueci a senha" e "Redefinir"**
-  - [ ] 6.1 A tela "Esqueci a senha" e o link na entrada da equipe
-  - [ ] 6.2 A tela "Redefinir", que lê o token do fragmento e o tira da barra
-  - [ ] 6.3 `docs/interface.md`: as duas telas e a entrada
-  - [ ] 6.4 Testes: esqueci → redefinir pelo Mailpit, estados, recomeço, 360 px
+- [x] **6.0 — As telas "Esqueci a senha" e "Redefinir"**
+  - [x] 6.1 A tela "Esqueci a senha" e o link na entrada da equipe
+  - [x] 6.2 A tela "Redefinir", que lê o token do fragmento e o tira da barra
+  - [x] 6.3 `docs/interface.md`: as duas telas e a entrada
+  - [x] 6.4 Testes: esqueci → redefinir pelo Mailpit, estados, recomeço, 360 px
 
 - [x] **7.0 — Posse do e-mail: verificar antes de a conta cruzar escolas (API)**
   - [ ] 7.1 Migration `conta.emailVerificadoEm`
@@ -55,7 +55,7 @@
   - [ ] 7.4 Os casos da A1 (`convite.int.test.ts:320`, `:377`, `:447`) e o do RF6 do F2 (`professores.int.test.ts:900`) com a regra nova, e o nome do caso trocado
   - [ ] 7.5 Testes: verificação no aceite e no verificar, teto de 3/h, auditoria por escola, os casos da A1 e do F2, as duas corridas
 
-- [ ] **8.0 — A tela "Verificar" e o aviso de `VERIFICACAO_PENDENTE` no aceite**
+- [x] **8.0 — A tela "Verificar" e o aviso de `VERIFICACAO_PENDENTE` no aceite**
   - [ ] 8.1 A tela "Verificar"
   - [ ] 8.2 O aviso no aceite
   - [ ] 8.3 `docs/interface.md`
@@ -75,13 +75,13 @@
   - [x] 10.4 O roteiro de carga com a provisória e a conta externa na rajada (`infra/scripts/carga-login.ts`, e a fase `professores` de `carga-importacao.ts` com o `redefinir`)
   - [x] 10.5 Testes: bilhete, troca condicionada, `/trocas`, isolamento, duas trocas, o [C] de carga
 
-- [ ] **11.0 — O arquivo do titular traz os atos sobre ele (D85)**
-  - [ ] 11.1 Migration do índice parcial `auditoria (escolaId, entidadeId, em)` nas seis ações
-  - [ ] 11.2 A leitura por alvo: o papel fixo por ação nas quatro da F2, do `depois` na `.gerada`; o `lista_nome` só aprovado, pelo `alunoId` da decisão
-  - [ ] 11.3 Testes: as seis ações por alvo, sem autor, nome não aprovado fora, linha da B fora
+- [x] **11.0 — O arquivo do titular traz os atos sobre ele (D85)**
+  - [x] 11.1 Migration do índice parcial `auditoria (escolaId, entidadeId, em)` nas seis ações
+  - [x] 11.2 A leitura por alvo: o papel fixo por ação nas quatro da F2, do `depois` na `.gerada`; o `lista_nome` só aprovado, pelo `alunoId` da decisão
+  - [x] 11.3 Testes: as seis ações por alvo, sem autor, nome não aprovado fora, linha da B fora
 
 - [ ] **12.0 — A tela "Gerar senha provisória"**
-  - [ ] 12.1 O item no menu da linha e o diálogo de confirmação
+  - [ ] 12.1 O item no menu da linha e o diálogo de confirmação, que lê o alvo (17.0); a seção "Alunos aprovados" da coordenação, no lugar da contagem
   - [ ] 12.2 A senha fora do cache de consultas, da URL, do log e do armazenamento; "fechar sem copiar" pergunta antes
   - [ ] 12.3 `docs/interface.md`
   - [ ] 12.4 O `docs/roteiro-da-demonstracao.md` (seção 2, passos 9 e 11) conferido contra `e2e/roteiro-da-demonstracao.spec.ts`
@@ -94,12 +94,12 @@
   - [ ] 13.4 O `docs/roteiro-da-demonstracao.md` (seção 2, passo 12) conferido contra `e2e/roteiro-da-demonstracao.spec.ts`
   - [ ] 13.5 Testes: troca de ponta a ponta, lista e falhas, recomeço, 360 px
 
-- [ ] **14.0 — A conta da escola no pedido do nome (API)**
-  - [ ] 14.1 Migration `reivindicacao.contaExterna`, o único parcial e o check novo (`not valid` + `validate`)
-  - [ ] 14.2 `intencao=reivindicar` no `externa/iniciar` (o acesso na `TenantResolutionRepository`) e o cookie `educa_conta_provada`
-  - [ ] 14.3 O pedido com a conta; aprovar cria o usuário sem senha e a `conta_externa`, com `CONFLITO` que desfaz; `conta_externa.ligada`
-  - [ ] 14.4 O `fechar('encerrada')` anula a `contaExterna`; `contaExterna` em `COLUNAS_FORA_DO_ARQUIVO`; `docs/lgpd.md` (o cookie); o runbook recusa os pedidos de conta na volta de versão
-  - [ ] 14.5 Testes: cookie e escola, pedido com a conta, aprovação com `CONFLITO`, check, encerramento, corridas
+- [x] **14.0 — A conta da escola no pedido do nome (API)**
+  - [x] 14.1 Migration `reivindicacao.contaExterna`, o único parcial e o check novo (`not valid` + `validate`)
+  - [x] 14.2 `intencao=reivindicar` no `externa/iniciar` (o acesso na `TenantResolutionRepository`) e o cookie `educa_conta_provada`
+  - [x] 14.3 O pedido com a conta; aprovar cria o usuário sem senha e a `conta_externa`, com `CONFLITO` que desfaz; `conta_externa.ligada`
+  - [x] 14.4 O `fechar('encerrada')` anula a `contaExterna`; `contaExterna` em `COLUNAS_FORA_DO_ARQUIVO`; `docs/lgpd.md` (o cookie); o runbook recusa os pedidos de conta na volta de versão
+  - [x] 14.5 Testes: cookie e escola, pedido com a conta, aprovação com `CONFLITO`, check, encerramento, corridas
 
 - [ ] **15.0 — Ligar a conta da escola em "Eu" (API e tela)**
   - [ ] 15.1 `intencao=ligar` com sessão de aluno, na trava da linha do usuário
@@ -113,6 +113,13 @@
   - [ ] 16.3 `docs/interface.md`
   - [ ] 16.4 O `docs/roteiro-da-demonstracao.md` (seção 2, passo 10) conferido contra `e2e/roteiro-da-demonstracao.spec.ts`
   - [ ] 16.5 Testes: reivindicar com o `oidc-falso` até entrar, estados, recomeço, 360 px
+
+- [ ] **17.0 — A leitura do alvo da senha provisória (API)** (a "12a" da divergência da 12.0; vem antes dela)
+  - [ ] 17.1 O contrato e a finalidade fixa em `packages/shared`
+  - [ ] 17.2 A leitura no repository, pela seleção do alcance da geração, sem trava
+  - [ ] 17.3 A rota, `no-store`, 404 igual; `senha_provisoria.alvo_lido` só para a coordenação
+  - [ ] 17.4 A ação fora da lista por alvo e fora do arquivo de quem assina
+  - [ ] 17.5 Testes: quem lê, escopo, conta da escola, sem ano, auditoria, sem cota nem trava, arquivo do titular
 
 ## Dependências e paralelismo
 
@@ -129,13 +136,14 @@
 | 9.0 | — | 4.0, 6.0, 8.0, 16.0 |
 | 10.0 | 9.0 | 2.0, 4.0, 6.0, 8.0, 12.0, 15.0, 16.0 |
 | 11.0 | 10.0 | 2.0, 4.0, 6.0, 8.0, 12.0, 13.0, 15.0, 16.0 |
-| 12.0 | 9.0 | 1.0, 2.0, 3.0, 5.0, 7.0, 10.0, 11.0, 14.0 |
-| 13.0 | 10.0 | 1.0, 2.0, 3.0, 5.0, 7.0, 11.0, 14.0 |
+| 12.0 | 9.0, 17.0 | 1.0, 2.0, 3.0, 5.0, 7.0, 10.0, 11.0, 14.0 |
+| 13.0 | 10.0 | 1.0, 2.0, 3.0, 5.0, 7.0, 11.0, 14.0, 17.0 |
 | 14.0 | — | 4.0, 6.0, 8.0, 12.0, 13.0 |
 | 15.0 | 9.0, 14.0 | 1.0, 2.0, 3.0, 5.0, 7.0, 10.0, 11.0 |
-| 16.0 | 14.0 | 1.0, 2.0, 3.0, 5.0, 7.0, 9.0, 10.0, 11.0 |
+| 16.0 | 14.0 | 1.0, 2.0, 3.0, 5.0, 7.0, 9.0, 10.0, 11.0, 17.0 |
+| 17.0 | 9.0 | 13.0, 16.0 |
 
-Migration, schema e `packages/shared` (1.0, 3.0, 5.0, 7.0, 9.0, 10.0, 11.0 e 14.0) correm uma de cada vez; as telas, uma de cada vez, porque todas editam a `docs/interface.md`. A 9.0 e a 14.0 não dependem do e-mail e podem partir cedo, entre as do tronco.
+Migration, schema e `packages/shared` (1.0, 3.0, 5.0, 7.0, 9.0, 10.0, 11.0, 14.0 e 17.0; a 17.0 e a 15.0 mexem em `packages/shared` e na API) correm uma de cada vez; as telas, uma de cada vez, porque todas editam a `docs/interface.md`. A 9.0 e a 14.0 não dependem do e-mail e podem partir cedo, entre as do tronco.
 
 ## Subagentes por tarefa
 
@@ -157,6 +165,7 @@ Migration, schema e `packages/shared` (1.0, 3.0, 5.0, 7.0, 9.0, 10.0, 11.0 e 14.
 | 14.0 | `tenancy-guardian`, `privacy-guardian`, `infra-guardian`, `test-engineer` | grande |
 | 15.0 | `tenancy-guardian`, `privacy-guardian`, `infra-guardian`, `frontend-reviewer`, `test-engineer` | grande |
 | 16.0 | `frontend-reviewer`, `privacy-guardian`, `test-engineer` | pequeno |
+| 17.0 | `tenancy-guardian`, `privacy-guardian`, `test-engineer` | pequeno |
 
 ## Critério de pronto da funcionalidade
 
@@ -164,7 +173,7 @@ Do `ROADMAP.md`: o professor recebe o convite por e-mail; a equipe redefine a se
 
 - O convite sai uma vez pelo worker, com o estado do envio na tela Professores; revogar ou refazer o cancela na hora, e o limite por minuto adia sem gastar tentativa (1.0 a 4.0)
 - "Esqueci a senha" e "Redefinir" funcionam sem dizer se o e-mail tem conta; a conta só cruza escolas pelo link copiado com o e-mail verificado (5.0 a 8.0)
-- A provisória é gerada só por quem alcança o aluno, vence em 24 h, obriga a troca, e o aluno vê quem a gerou; o arquivo do titular traz os atos sobre ele sem o autor (D85) (9.0 a 13.0)
+- A provisória é gerada só por quem alcança o aluno, vence em 24 h, obriga a troca, e o aluno vê quem a gerou; o arquivo do titular traz os atos sobre ele sem o autor (D85) (9.0 a 13.0 e 17.0)
 - O aluno pede o nome com a conta da escola e entra por ela depois da aprovação, ou a liga em "Eu" (14.0 a 16.0)
 - Os e2e do RF18 passam, a 360 px e em 1366 × 768; o `docs/roteiro-da-demonstracao.md` conferido nas telas que ele percorre; esteira verde no último commit que alterou código
 - Antes do portão de produção: o provedor de e-mail escolhido pelo Joaquim e registrado como suboperador (`techspec.md` §12)

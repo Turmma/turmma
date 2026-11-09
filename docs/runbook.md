@@ -839,6 +839,40 @@ quando".
 **Depois:** registre no `TODO.md` a janela (de quando a quando), as escolas avisadas e quantos pedidos `agendado` estavam em curso,
 só com ids e datas.
 
+## Voltar o código com pedidos de conta da escola pendentes (rollback)
+
+*Procedimento, não alerta: não há regra em `infra/grafana/alertas/`. Vale para qualquer volta de versão que passe pela migration
+`0047_reivindicacao_conta` (acesso-e-convites, tarefa 14.0; Tech Spec, seção 3).*
+
+**O que a migration deixou:** a coluna `reivindicacao.conta_externa`, o único parcial `reivindicacao_conta_pendente_unica` e o check
+`reivindicacao_segredo_so_pendente` trocado (pendente tem hash **ou** conta). Tudo só expande: o código anterior roda sobre isso sem
+erro. **Não reverta a 0047**: o check antigo exige `senha_hash` no pendente, e o pedido de conta que já está lá o violaria.
+
+**O que o código anterior faz com eles:** ele lê o pedido pendente esperando o hash da senha. O pedido de conta não tem hash, e a
+aprovação dele cai no `InvariantException` (5xx) em vez de criar o aluno. O aluno que já foi aprovado pela conta não é afetado: entra
+pelo login externo, que não mudou.
+
+**Antes de liberar a versão anterior:** encerre os pedidos de conta pendentes, sem decisão (encerrar não é decidir, regra 70, item 2),
+e devolva o nome à lista para o aluno pedir de novo, agora com senha. Numa transação só:
+
+```
+docker compose exec postgres psql -U educa -1 -c "with encerrados as (
+  update reivindicacao set estado = 'encerrada', conta_externa = null, chave_envio = null, teve_matricula_errada = null
+  where estado = 'pendente' and conta_externa is not null
+  returning escola_id, lista_nome_id
+)
+update lista_nome l set estado = 'livre' from encerrados e where l.escola_id = e.escola_id and l.id = e.lista_nome_id"
+```
+
+Confira depois, só com contagens: `select count(*) from reivindicacao where estado = 'pendente' and conta_externa is not null` volta zero.
+
+**Na volta para a versão nova (roll-forward):** nada a refazer. O aluno cujo pedido foi encerrado abre a página da sala e prova a conta de
+novo, ou pede com senha.
+
+**Não faça:** apagar o check ou a coluna para "passar" a versão anterior, nem aprovar à mão o pedido de conta.
+
+**Depois:** registre no `TODO.md` a janela (de quando a quando) e quantos pedidos foram encerrados, só contagens.
+
 ## Voltar o código depois da chave da turma (rollback)
 
 *Procedimento, não alerta: não há regra em `infra/grafana/alertas/`. Vale para qualquer volta de versão que passe pela migration
@@ -1157,8 +1191,8 @@ Se reprovar, a saída diz a fase e o critério:
 
 ## Esteira vermelha no e2e
 
-O e2e roda em **nove fatias**, cada uma num job próprio (`e2e 1/9` a `e2e 9/9`), com o seu compose e
-o seu `--shard=<i>/9` do Playwright; uma fatia vermelha não cancela as outras. A quinta entrou em
+O e2e roda em **dez fatias**, cada uma num job próprio (`e2e 1/10` a `e2e 10/10`), com o seu compose e
+o seu `--shard=<i>/10` do Playwright; uma fatia vermelha não cancela as outras. A quinta entrou em
 13/10/2026, com a suíte em 776 casos commitados e 818 com os 42 do e2e da 6.0 da X1: em quatro fatias eram
 194 por fatia (uns 27 min, no limite de 27) e 205 (uns 28 min, acima dele); em cinco, 156 e 164 (uns 23 e 24 min;
 `tasks/correcoes/2026-10-13-quinta-fatia-do-e2e.md`). A sexta entrou em 16/10/2026, com a suíte em 990 casos
@@ -1172,8 +1206,11 @@ fatias eram 198 por fatia (uns 28 min, acima do limite de 27); em oito, 173 (uns
 `tasks/correcoes/2026-10-25-oitava-fatia-do-e2e.md`). A nona entrou em 05/11/2026, com a suíte em 1562 casos commitados e 1580
 com os 18 do e2e da 14.0 de `onboarding-por-convite` (9 casos nos dois projetos): em oito fatias eram 196 por fatia só com o
 commitado (uns 27 min, no limite) e 198 com a 14.0 (uns 28 min, acima dele); em nove, 176 (uns 25 min;
-`tasks/correcoes/2026-11-05-nona-fatia-do-e2e-e-restos-da-13.md`). Em nove fatias o limite continua 197 casos por fatia, 1773 no
-total, cerca de 190 a mais que os 1580 de hoje: é o ponto em que a décima fatia passa a ser pedida. O total de fatias está
+`tasks/correcoes/2026-11-05-nona-fatia-do-e2e-e-restos-da-13.md`). A décima entrou em 08/11/2026, com a suíte em 1762 casos
+commitados e 1800 com os 38 do e2e da 6.0 de `acesso-e-convites` (19 casos nos dois projetos): em nove fatias eram 196 por
+fatia só com o commitado (uns 27 min, no limite) e 200 com a 6.0 (uns 28 min, acima dele); em dez, 180 (uns 25 min;
+`tasks/correcoes/2026-11-08-e2e-decima-fatia.md`). Em dez fatias o limite continua 197 casos por fatia, 1970 no
+total, cerca de 170 a mais que os 1800 de hoje: é o ponto em que a décima primeira fatia passa a ser pedida. O total de fatias está
 escrito em quatro lugares: a matriz, o `name` do job e o `--shard` do passo em `.github/workflows/ci.yml`, e
 `FATIAS_DO_E2E` em `tools/processo/esteira.ts`, que o censo lê. Cada fatia publica o
 diretório de saída do Playwright quando falha ou é cancelada: artefato **`traco-do-e2e-<i>`**, com o
@@ -1191,7 +1228,7 @@ serviços no próprio job.
 
 Vermelho de e2e que não reproduz na máquina segura a tarefa seguinte (regra 40, D52): trate como
 defeito pela correção (`corrigir`), com a causa achada no traço, e não repetindo a execução até passar. Para
-repetir só a fatia na máquina: `node tools/ci/e2e.ts --shard=<i>/9`, que sobe o compose limpo como a
+repetir só a fatia na máquina: `node tools/ci/e2e.ts --shard=<i>/10`, que sobe o compose limpo como a
 esteira. A fatia começa com o banco vazio e roda só a parte dela: caso que passa na suíte inteira e
 falha na fatia depende de outro spec ter rodado antes, e isso é o defeito.
 
@@ -1207,7 +1244,7 @@ Dois sinais chegam antes do cancelamento. `tools/ci/esteira.test.ts` refaz a con
 fatia e reprova no portão local e no job `verificar` quando uma delas passa de 60% do teto, mesmo pela
 média. E `tools/ci/e2e.ts` mede a etapa de testes de cada fatia e, quando ela passa desse limiar (60% do
 teto menos o custo fixo), deixa a anotação **"e2e perto do teto"** no resumo da execução, mesmo verde.
-Qualquer um dos dois pede mais fatias: acrescentar o número à `matrix.fatia` e trocar o total (hoje `/9`)
+Qualquer um dos dois pede mais fatias: acrescentar o número à `matrix.fatia` e trocar o total (hoje `/10`)
 pelo novo no `name` do job e no passo `npm run ci:e2e`, e acrescentar o número a `FATIAS_DO_E2E`; a guarda confere
 os três contra o tamanho da matriz. Subir o `timeout-minutes` ou baixar as
 constantes de `tools/ci/prazo-do-e2e.ts` para o teste passar não é saída.

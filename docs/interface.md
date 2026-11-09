@@ -576,7 +576,10 @@ os quatro estados; o vazio da grade convida a "Baixar modelo".
   desligado e perde o acesso"). "Cadastrar professor" segue a única ação cheia da tela. Dentro da turma aberta, embaixo da lista
   de nomes, a coordenação também decide os **pedidos de nome** (tarefa 16.0), com a mesma peça do professor: a lista só é
   lida no clique em "Atualizar", porque cada consulta fica na auditoria em nome dela, e a tela diz isso. Os alunos já
-  aprovados aparecem na lista de nomes como uma contagem, sem o nome. A lista de nomes e a escola inteira entram pela **mesma peça de planilha** (F2, 13.0): a coordenação
+  aprovados **não** aparecem na lista de nomes: ficam na seção **"Alunos aprovados"** da turma aberta (acesso-e-convites, 12.0; divergência da
+  12.0), lida só no clique em "Mostrar alunos aprovados", porque cada leitura fica na auditoria em nome dela, e a tela diz isso; paginada como os
+  pedidos, com nome por linha e o menu da linha com "Gerar senha provisória", na mesma confirmação do professor (nome, turma e matrícula, lidos
+  só ao abrir). A contagem de aprovados da F2 (16.0) saiu. A lista de nomes e a escola inteira entram pela **mesma peça de planilha** (F2, 13.0): a coordenação
   escolhe o CSV ou o Excel (.xlsx) pelo botão "Escolher arquivo" (em português, com "Nenhum arquivo escolhido"; o campo do navegador fica escondido, porque ele escreve no idioma do computador), a tela lê o arquivo no navegador e manda o texto à API, e a **prévia** (linhas lidas, com erro e
   com aviso; os erros primeiro, de cem em cem, em frase com o que fazer) vem antes de qualquer gravação. Não há campo para colar
   texto. "Importar alunos" é um botão secundário da aba Turmas e abre um painel lateral; o que a planilha põe em outra turma ou deixa
@@ -1955,6 +1958,42 @@ A entrada, o convite, a reivindicação de nome e a verificação em duas etapas
 - **Textos, ordem de campo e mensagens não mudam** (RF20 da X1), e as proteções ficam: a entrada
   responde igual para matrícula errada e pedido pendente, o convite não mostra e-mail, e o segundo
   fator mostra o segredo em texto, além do QR (D80, item 7; regra 50, item 2)
+- **"Esqueci a senha" e "Redefinir"** (acesso-e-convites, 6.0; RF12). Só a entrada da equipe (e-mail e senha) leva o link
+  **"Esqueci a senha"**, um link `secundario` de 44 px logo abaixo do "Entrar"; a do aluno, que não tem e-mail, não o leva.
+  - **Esqueci a senha** (`/esqueci`): um campo, "E-mail", o `primario` "Enviar o link" (que vira "Enviando…", desligado, com o
+    mesmo texto num `status` para o leitor de tela), a linha "Aluno: peça a senha provisória ao professor." e o link
+    "Voltar para Entrar". **Enviado**, a tela troca o formulário por uma frase só, igual para quem tem conta e para quem não
+    tem, e não repete o e-mail: "Se houver conta com este e-mail, mandamos um link. Ele vale 1 hora." O foco vai para a frase.
+    **Rede**: o aviso da peça `ErrorState` com "Tentar de novo", que repete o pedido com o e-mail que ficou no campo
+  - **Redefinir** (`/redefinir#<token>`, o endereço do link do e-mail): um campo, "Senha nova", com a regra à vista ("Pelo
+    menos 12 caracteres. Use uma frase que só você saiba."), o "Mostrar" (`aria-pressed`) e `autocomplete="new-password"`, e o
+    `primario` "Definir a senha" (que vira "Salvando…"). O token sai da barra antes de qualquer chamada e vai no corpo, nunca na
+    URL. **Senha recusada**: "A senha precisa ter pelo menos 12 caracteres." embaixo do campo, que fica `aria-invalid` e
+    recebe o foco. **Link vencido, usado ou inventado** (a API só diz quando a senha chega) ou **sem token**: "Este link não
+    vale mais. Peça outro em Esqueci a senha." e o link "Esqueci a senha". **Rede**: o aviso com "Tentar de novo", e a senha
+    digitada fica. **Certo**: volta à entrada com "Senha trocada. Entre com a nova.", **sem login automático** (o segundo
+    fator da coordenação continua exigido)
+  - **Recomeço do Redefinir.** Outro link colado na aba (inclusive o mesmo) muda só o `#`: o formulário é montado de novo, com
+    o campo vazio e o foco nele, o aviso e o "Tentar de novo" saem, o token sai da barra outra vez, e a resposta do envio do
+    link anterior que chegue depois é descartada. As duas telas são anônimas: não há segunda pessoa no mesmo computador
+- **"Verificar" e o aviso do aceite** (acesso-e-convites, 8.0; RF12). Quem tem senha, trabalha em outra escola e ainda não provou o
+  e-mail, ao aceitar um convite **copiado** de uma escola nova, recebe `VERIFICACAO_PENDENTE`: o convite não é gasto e o link de
+  verificar vai ao e-mail da conta.
+  - **O aviso no aceite** (`/convite`): no mesmo lugar da falha, mas no aviso **`pendente`** (borda, fundo e texto da tela do convite
+    que não vale), e não no vermelho de erro, porque não é erro de ninguém: "Mandamos um link para o seu e-mail. Abra-o e volte a
+    este convite. Pode levar alguns minutos; se não chegar, abra o convite de novo para outro link." A tela fica onde está, com o
+    "Aceitar o convite" livre para depois de verificar.
+  - **Verificar** (`/verificar#<token>`, o endereço do link do e-mail, que vale 24 horas): sem botão de confirmar, porque abrir o
+    link já é o gesto. **Carregando**: "Confirmando…" (`status`). **Certo**: "E-mail confirmado" (`status`, com o foco), "Volte ao
+    convite e aceite de novo." e o `primario` "Continuar", que leva a `/convite`; a verificação **não** aceita o convite nem abre
+    sessão. **Link vencido, usado, inventado** ou **sem token**: "Este link não vale mais. Peça outro link abrindo o convite de
+    novo." e o link "Abrir o convite". **Rede**: o aviso com "Tentar de novo", com o token que continua na memória da tela (ele
+    já saiu da barra). O token sai da barra antes de qualquer chamada e vai no corpo, nunca na URL
+  - **Recomeço do Verificar.** Outro link colado na aba muda só o `#`: a tela recomeça por "Confirmando…", o aviso e o "Tentar de novo"
+    saem, o token sai da barra outra vez, e a resposta do pedido do link anterior que chegue depois é descartada. O link é de uso
+    único: o **mesmo** link colado de novo enquanto o pedido está no ar, ou depois de confirmado, não manda outro pedido (o segundo
+    responderia "não vale mais" a quem acabou de confirmar); depois de uma falha, recomeça. A tela é anônima: não há segunda pessoa
+    no mesmo computador
 
 ### 11.4 A operação
 

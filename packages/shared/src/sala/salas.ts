@@ -69,7 +69,11 @@ export type DecisorDaReivindicacao = (typeof DECISORES_DA_REIVINDICACAO)[number]
 const camposDaReivindicacao = {
   listaNomeId: z.uuid(),
   matricula: matriculaDigitadaSchema,
-  senha: z.string().min(TAMANHO_MINIMO_SENHA_NOVA).max(TAMANHO_MAXIMO_SENHA),
+  /**
+   * A senha que o aluno cria. **Sem ela**, o pedido vale com a conta da escola que ele provou (acesso-e-convites, 14.0): o
+   * servidor lê a conta do cookie `educa_conta_provada`, nunca do corpo; sem senha e sem cookie válido, `ENTRADA_INVALIDA`.
+   */
+  senha: z.string().min(TAMANHO_MINIMO_SENHA_NOVA).max(TAMANHO_MAXIMO_SENHA).optional(),
   chaveEnvio: z.uuid(),
 }
 

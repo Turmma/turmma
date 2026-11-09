@@ -1,12 +1,16 @@
-import { requireAnoEmCurso, requireEscolaId, reivindicacao, type Database, type DatabaseTransaction } from '@educa/core'
+import { requireAnoEmCurso, requireEscolaId, reivindicacao, type ContaProvadaDoPedido, type Database, type DatabaseTransaction } from '@educa/core'
 import { and, eq } from 'drizzle-orm'
 
-/** O pedido novo: a turma do acesso, o nome escolhido, a chave do envio e o hash da senha, já calculado fora da transação. */
+/**
+ * O pedido novo: a turma do acesso, o nome escolhido, a chave do envio e **uma** de duas coisas — o hash da senha, já calculado fora da
+ * transação, ou a conta da escola que o aluno provou (14.0). O check do banco recusa o pedido com as duas ou com nenhuma.
+ */
 export interface NovoPedido {
   readonly turmaId: string
   readonly listaNomeId: string
   readonly chaveEnvio: string
-  readonly senhaHash: string
+  readonly senhaHash: string | null
+  readonly contaExterna: ContaProvadaDoPedido | null
   /** Se o nome teve matrícula errada pelo mesmo acesso na janela do contador (7.0): só sim ou não. */
   readonly teveMatriculaErrada: boolean
 }
@@ -17,7 +21,7 @@ export interface NovoPedido {
  * a da linha, aqui só filtro. As FKs compostas com a escola são a segunda camada: o nome e a turma de outra escola não
  * entram.
  *
- * Nada daqui devolve o hash, a chave nem a matrícula, e nada daqui vai a log.
+ * Nada daqui devolve o hash, a conta, a chave nem a matrícula, e nada daqui vai a log.
  */
 export class ReivindicacaoRepository {
   constructor(private readonly banco: Database | DatabaseTransaction) {}
@@ -59,6 +63,7 @@ export class ReivindicacaoRepository {
       listaNomeId: novo.listaNomeId,
       chaveEnvio: novo.chaveEnvio,
       senhaHash: novo.senhaHash,
+      contaExterna: novo.contaExterna,
       teveMatriculaErrada: novo.teveMatriculaErrada,
     })
   }

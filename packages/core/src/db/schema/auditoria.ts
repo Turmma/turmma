@@ -1,6 +1,7 @@
 import { FORMATO_OPERADOR } from '@educa/shared'
 import { sql } from 'drizzle-orm'
 import { check, index, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
+import { ACOES_DO_ARQUIVO_POR_ALVO, literaisDeSql } from '../../auditoria/acoes-por-alvo.js'
 import { escola } from './escola.js'
 
 /**
@@ -51,6 +52,12 @@ export const auditoria = pgTable(
     index('auditoria_escola_autor_idx')
       .on(tabela.escolaId, tabela.autorUsuarioId, tabela.em)
       .where(sql`${tabela.autorUsuarioId} is not null`),
+    // O que o arquivo do titular lê "por alvo" (D85, acesso-e-convites 11.0): os atos de outra pessoa sobre ele, pela escola e pelo `entidade_id` (o aluno, ou a linha da lista que
+    // virou o aluno). Parcial nas seis ações da lista fechada: a auditoria cresce com tudo o que a escola faz, e o índice só guarda o que o arquivo procura. A lista mora em
+    // `auditoria/acoes-por-alvo.ts`, e a leitura (`titular/leitura-do-titular.ts`) usa a mesma; a migration 0046 leva o texto, e `auditoria-por-alvo.int.test.ts` o confere.
+    index('auditoria_por_alvo_idx')
+      .on(tabela.escolaId, tabela.entidadeId, tabela.em)
+      .where(sql`${tabela.acao} in (${sql.raw(literaisDeSql(ACOES_DO_ARQUIVO_POR_ALVO))})`),
     // Sem escola, só o que a operação faz acima do tenant: a rede criada e o suboperador cadastrado ou encerrado (F3, 8.0).
     check('auditoria_escola_ou_operacao_global', sql`escola_id is not null or (autor_operador is not null and entidade in ('rede', 'suboperador'))`),
     // Um autor e só um: a pessoa da escola, ou alguém da nossa equipe em rotina de operador.

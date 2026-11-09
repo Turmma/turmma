@@ -2811,6 +2811,25 @@ repetem aqui.
       `lista.nome_corrigido`), o caminho de cada uma até o titular (`lista_nome` só depois de aprovado o nome) e o caso em
       `apps/api/test/arquivo-do-titular.int.test.ts` que prova o papel sem o id de quem fez. Dono: Arquiteto, na conferência da F2c
       — *levado em 07/11/2026 à Tech Spec da F2c (§5, "Arquivo do titular") e ao `cenarios.md` ("Arquivo do titular"); fecha com a tarefa*
+- [ ] (acesso-e-convites, 11.0, privacy-guardian, 1ª) **O arquivo de quem fez o ato leva o `entidade_id` do aluno.** A leitura do arquivo por autor
+      (`LEITURAS_DO_ARQUIVO.auditoria`, primeira consulta, que a 11.0 não alterou) devolve ao autor, por exemplo à coordenadora, as linhas
+      `aluno.transferido` e `usuario.nome_corrigido` com o `entidade_id` igual ao id do aluno. Tirar o `entidade_id` dessas linhas, ou excluir as
+      seis ações da leitura por autor quando o titular não é o alvo, muda o conteúdo do arquivo de outra pessoa: decisão de produto antes do
+      código. Dono: Arquiteto
+- [ ] (acesso-e-convites, 11.0, tenancy-guardian, 1ª) **O `else 'coordenação'` do `papel` atribui coordenação a qualquer ação sem ramo próprio.** Hoje só
+      as duas ações da planilha de alunos caem nele, porque o `in (...)` da leitura é a lista fechada (`auditoria/acoes-por-alvo.ts`) e o caso
+      "a lista fechada tem as seis ações" a prende. Se a lista crescer, trocar o `else` por um ramo por ação, ou por `else null` com teste, junto da ação
+      nova. Dono: quem acrescentar a sétima ação
+- [ ] (acesso-e-convites, 11.0, test-engineer, 1ª) **Virada de ano letivo na leitura da lista de nomes por alvo.** A leitura de `lista.transferida` e
+      `lista.nome_corrigido` casa pela linha aprovada do aluno (`lista_nome.usuario_id`) e não filtra por ano letivo, o que acerta (o ato é do aluno em
+      qualquer ano). Falta o caso com o aluno aprovado na lista de dois anos: semear um segundo ano letivo e duas linhas de lista. Dono: quem tocar a virada do ano
+- [ ] (acesso-e-convites, 11.0, infra-guardian, 1ª) **A `auditoria_por_alvo_idx` (migration 0046) entra na pendência "antes do staging".** É o mesmo caso dos
+      índices da 0025 e da 0026 (item "Migrations 0025, 0026 e 0027… antes do staging", acima): `create index` sem `concurrently` em `auditoria`, a tabela que mais
+      cresce; a partir do staging vai com `concurrently`, fora de transação e fora do horário letivo, e o `migrar` roda com o `statement_timeout` de 2 s da consulta
+      (`packages/core/src/db/migrate.ts`), que um índice em `auditoria` com volume real passa. Dono: quem abrir o staging
+- [ ] (acesso-e-convites, 11.0, revisor-geral, 2ª) **`auditoria/acoes-por-alvo.ts` só pode importar tipo.** O `db/schema/auditoria.ts` o importa, e é o primeiro arquivo de `db/schema/` que
+      importa módulo de fora do schema; o `drizzle-kit` o carrega pelo próprio carregador, que não resolve tudo o que o código resolve. Hoje funciona (`drizzle-kit generate`
+      responde "No schema changes"). Avisar no topo do arquivo que ali só entra `import type` e constante, ou levá-lo para `db/schema/`. Dono: quem tocar o arquivo
 - [ ] (F2c) **Devolução tardia do e-mail.** O "falhou" da F2c é só a recusa na entrega SMTP; o e-mail que volta depois
       espera o webhook do provedor de produção (`docs/decisoes-em-aberto.md`). Dono: Arquiteto, quando o provedor fechar
 - [ ] (F2, retro, D86) **O `estado.ts` mostra a retro pendente ao lado da spec da vez.** Hoje, sem andar, `funcionalidadeDaVez`
@@ -3191,3 +3210,44 @@ aula" em `Retencao.tsx`, o Validador conferiu: a tela já o mostra pela descriç
       por `errors.TimeoutError` em vez de `/Timeout 1000ms/` (dono: Implementador)
 - [ ] (correção 2026-11-08-incidente-ao-entrar-de-novo, revisor-geral, 3ª) **Mesmo nome para duas coisas em `e2e/support/profiles.ts`**: o parâmetro do fixture `avisoDaEsteira` esconde a função
       exportada de mesmo nome. Renomear a fábrica ou o parâmetro (dono: Implementador)
+- [ ] (acesso-e-convites 8.0, tenancy-guardian, 1ª) **Teste de contrato na API fixando que token de verificar vencido, usado e de formato inválido chegam todos em `NAO_ENCONTRADO`**
+      (`/v1/conta/verificar`). Toca a API da 7.0, fora da 8.0 (dono: Implementador)
+- [ ] (acesso-e-convites 8.0, infra-guardian, 1ª) **Registrar que o `/v1/conta/verificar` não tem limite pelo hash do token, só por IP** (`conta.controller.ts`). É da 7.0, fora da 8.0 (dono: Arquiteto)
+- [ ] (acesso-e-convites 8.0, revisor-geral, 1ª) **O que `/convite` sem token mostra a quem vem de "Verificar"**: hoje "O endereço do convite está incompleto…", a quem acabou de confirmar o e-mail e clicou em "Continuar".
+      A 8.0 segue o `cenarios.md` "Telas" (Verificar: "Continuar" para o convite) (dono: Arquiteto)
+- [ ] (acesso-e-convites 8.0, revisor-geral, 1ª) **Juntar o `corDaPaleta` de `e2e/verificar-email.spec.ts` ao `corDoToken` de `e2e/support/checks.ts`** quando a renomeação (X8) fechar; o motivo da cópia está escrito no spec
+      (dono: Implementador)
+
+## Da correção 2026-11-08-credencial-matricula-campo-a-mais (o contrato de `doAlunoAtivo`), fora dela
+
+- [ ] (acesso-e-convites, correção `2026-11-08-credencial-matricula-campo-a-mais`, revisor-geral e test-engineer, 1ª) **Mudar o contrato de um repository devia arrastar para o portão os `*.int.test.ts` vizinhos.**
+      O portão da 10.0 só rodou os testes de integração que o diff alterou, e o `credencial-matricula.repository.int.test.ts` só caiu na esteira. Muda `tools/processo/portao-local.ts`
+      (dono: Arquiteto, na retro da acesso-e-convites)
+- [ ] (acesso-e-convites 10.0, test-engineer, 2ª) **Gerar a provisória vigente do caso `provisória (10.0)` pelo `gravarProvisoria`** (`credencial-matricula.repository.int.test.ts`), em vez do `update`
+      direto, para o caso perceber se o método deixar de apagar `senha_hash`; a vencida segue com o `update`, porque o método fixa o vencimento sozinho (dono: Implementador)
+- [ ] (acesso-e-convites 10.0, test-engineer e revisor-geral, 2ª) **Caso do aluno com senha própria e provisória vigente ao mesmo tempo:** "a provisória não entra quando o aluno tem senha"
+      (`credencial-matricula.repository.ts`, `pelaProvisoria`). É um estado que `gravarProvisoria` não produz; cobertura a mais, não bloqueia (dono: Implementador)
+
+## Da tarefa 14.0 da acesso-e-convites (a conta da escola no pedido do nome), fora dela
+
+- [ ] (acesso-e-convites 14.0, tenancy-guardian e infra-guardian, 1ª) **Conferir o provedor ligado e liberado antes do `sala.achar` no `externa/iniciar`**
+      (`external-login.controller.ts`), para código errado sob escola sem o provedor não gastar o limite de código errado da escola. Muda a ordem de duas
+      checagens e a assinatura do `iniciar`; não vaza dado, só gasta tentativa (dono: Implementador)
+- [ ] (acesso-e-convites 14.0, infra-guardian, 1ª) **Cenário de carga com pedidos sem senha e o `oidc-falso`** em `infra/k6/reivindicacao-em-sala.js`. A Tech Spec não pede,
+      e o caminho da conta é mais leve que o do hash (dono: Implementador)
+- [ ] (acesso-e-convites 14.0, revisor-geral, 1ª) **O barril `apps/api/src/sessao/index.ts` exporta `ExternalLoginService` só para o `api.app.get(...)` do teste**
+      `reivindicacao-com-conta.int.test.ts`. Achar outro jeito de o teste chegar ao serviço, sem alargar a API do módulo (dono: Implementador)
+- [ ] (acesso-e-convites 14.0, test-engineer, 1ª) **O cookie `educa_conta_provada` reaproveitado depois da aprovação abre outro pedido**: o `reivindicar` não confere se a conta já
+      está ligada na escola. Duas saídas: recusar no pedido, ou restringir o texto do `cenarios.md`. Muda comportamento ou texto de spec; decisão do Arquiteto, antes da 15.0 (dono: Arquiteto)
+- [ ] (acesso-e-convites 14.0, test-engineer, 1ª) **A transferência provada pelo job da planilha**, e não por `DecisaoRepository.fechar` direto, no caso da transferência e da virada de
+      `reivindicacao-com-conta.int.test.ts`. O check do banco já prova a anulação; trocar o caminho é refatoração (dono: Implementador)
+- [ ] (acesso-e-convites 14.0, privacy-guardian, 1ª) **O professor com domínio liberado e sem ligação, entrando com `intencao=reivindicar`, vira "conta provada" e pode pedir um nome**:
+      a aprovação humana segura o caso; falta só a nota na Tech Spec e no `cenarios.md` (dono: Arquiteto)
+- [ ] (acesso-e-convites 14.0, conformidade-reviewer, 1ª) **O SQL de volta de versão do `docs/runbook.md` não grava auditoria por pedido encerrado.** Encerrar não é decidir sobre o aluno
+      (regra 70 item 2); avaliar um registro de operação para o procedimento (dono: Arquiteto)
+- [ ] (acesso-e-convites 14.0, tenancy-guardian e privacy-guardian, 2ª) **Token ou código do link na query do GET `iniciar` fica no histórico do navegador** do computador da escola
+      (`docs/lgpd.md`, linha do acesso da turma). Na 15.0, avaliar se a tela mantém o token fora da URL, com um POST de formulário que redireciona (dono: Implementador, na 15.0)
+- [ ] (acesso-e-convites 14.0, infra-guardian e revisor-geral, 2ª) **Separar o `VALIDATE` e o índice da `0047_reivindicacao_conta.sql` em passo próprio** (índice `CONCURRENTLY`), porque o migrador
+      roda a migration numa transação e os dois seguram o lock do `ADD`. Gatilho: o tamanho da tabela `reivindicacao` (dono: Implementador)
+- [ ] (acesso-e-convites 14.0, test-engineer, 2ª) **O caso do código errado pelo `iniciar`** (`reivindicacao-com-conta.int.test.ts`, "o código errado pelo início"): para o código certo, conferir também que
+      o `Location` aponta para o authorize do `oidc-falso`; e excluir `a.codigo` do laço dos códigos sorteados, para o caso ser determinístico (dono: Implementador)

@@ -1,7 +1,7 @@
-import { DomainException, postgresErrorIn, METRICS, type Database, type Meter } from '@educa/core'
+import { DomainException, postgresErrorIn, METRICS, type ContaProvadaDoPedido, type Database, type Meter } from '@educa/core'
 import { ErrorCode, reivindicacaoResponseSchema, type ReivindicarSalaRequest, type ReivindicacaoResponse } from '@educa/shared'
 import { TurmaRepository } from '@educa/core/estrutura'
-import type { AcessoDaSala } from '../../sessao/index.js'
+import type { AcessoDaSala, ContaProvada } from '../../sessao/index.js'
 import { escolaBucket, type PasswordHasher, type HashBulkhead } from '../../credencial/index.js'
 import type { SalaRateLimits } from '../sala-rate-limits.js'
 import { ListaLivreRepository } from './lista-livre.repository.js'
@@ -21,12 +21,13 @@ export interface ReivindicacaoDependencies {
 }
 
 /** Os valores de `resultado` em `sala.reivindicacao` (7.0): fechados, para a série não crescer com texto de erro. */
-export type ResultadoDaReivindicacao = 'enviado' | 'reenvio' | 'recusada' | 'limite' | 'sem_acesso' | 'indisponivel' | 'erro'
+export type ResultadoDaReivindicacao = 'enviado' | 'reenvio' | 'recusada' | 'limite' | 'sem_acesso' | 'conta_invalida' | 'indisponivel' | 'erro'
 
 const RESULTADO_DO_ERRO: Partial<Record<ErrorCode, ResultadoDaReivindicacao>> = {
   [ErrorCode.REIVINDICACAO_RECUSADA]: 'recusada',
   [ErrorCode.LIMITE_EXCEDIDO]: 'limite',
   [ErrorCode.NAO_ENCONTRADO]: 'sem_acesso',
+  [ErrorCode.ENTRADA_INVALIDA]: 'conta_invalida',
   [ErrorCode.INDISPONIVEL_TENTE_DE_NOVO]: 'indisponivel',
 }
 
@@ -44,6 +45,16 @@ const VOLTA_E_RELE = new Set(['23503', '23505'])
 class NotWrittenError extends Error {}
 
 const ENVIADO: ReivindicacaoResponse = reivindicacaoResponseSchema.parse({ resultado: 'enviado' })
+
+/**
+ * A conta da escola do pedido sem senha (14.0): a do cookie `educa_conta_provada`, se ele vale **para esta sala** — a escola e o acesso
+ * dele são os do acesso vigente que o `AcessoDaSala` achou. Cookie ausente, vencido, adulterado, de outra escola ou de outro acesso:
+ * a mesma `ENTRADA_INVALIDA`, que a tela lê como "prove a conta de novo". O cookie nunca diz a escola: ela sai do acesso.
+ */
+function contaDoPedido(provada: ContaProvada | undefined, escolaId: string, acessoId: string): ContaProvadaDoPedido {
+  if (provada === undefined || provada.escolaId !== escolaId || provada.acessoId !== acessoId) throw new DomainException(ErrorCode.ENTRADA_INVALIDA)
+  return { provedor: provada.provedor, tenant: provada.tenant, sujeito: provada.sujeito }
+}
 
 /** O que o pedido virou, para a resposta (sempre o mesmo `enviado`) e para a métrica. */
 type Desfecho = 'enviado' | 'reenvio'
@@ -85,11 +96,14 @@ export class ReivindicacaoService {
     this.#pedidos = dependencias.medidor.createCounter(METRICS.reivindicacaoNaSala, { description: 'Pedidos de reivindicação de nome na página da sala, por resultado' })
   }
 
-  /** `POST /v1/salas/reivindicar`: o pedido fica pendente e o nome sai da lista, ou a recusa única. */
-  async reivindicar(pedido: ReivindicarSalaRequest): Promise<ReivindicacaoResponse> {
+  /**
+   * `POST /v1/salas/reivindicar`: o pedido fica pendente e o nome sai da lista, ou a recusa única. Sem `senha` no corpo, o pedido vale com a
+   * conta da escola que o aluno provou (`provada`, lida do cookie pelo controller): sem hash, e a conta no lugar dele.
+   */
+  async reivindicar(pedido: ReivindicarSalaRequest, provada?: ContaProvada): Promise<ReivindicacaoResponse> {
     let resultado: ResultadoDaReivindicacao = 'erro'
     try {
-      resultado = await this.#reivindicar(pedido)
+      resultado = await this.#reivindicar(pedido, provada)
       return ENVIADO
     } catch (erro) {
       resultado = (erro instanceof DomainException ? RESULTADO_DO_ERRO[erro.codigo] : undefined) ?? 'erro'
@@ -99,29 +113,38 @@ export class ReivindicacaoService {
     }
   }
 
-  async #reivindicar(pedido: ReivindicarSalaRequest): Promise<Desfecho> {
-    const { banco, acessoDaSala, semaforo, hash, chaveCodigo, limites } = this.dependencias
+  /** O argon2id da senha no semáforo, no balde da escola; sem senha (o pedido com a conta), nenhum hash. */
+  async #hashDaSenha(senha: string | undefined, escolaId: string, rebaixado: boolean): Promise<string | null> {
+    if (senha === undefined) return null
+    return this.dependencias.semaforo.executar(escolaBucket(escolaId, rebaixado), () => this.dependencias.hash.gerar(senha))
+  }
+
+  async #reivindicar(pedido: ReivindicarSalaRequest, provada: ContaProvada | undefined): Promise<Desfecho> {
+    const { banco, acessoDaSala, chaveCodigo, limites } = this.dependencias
     const { listaNomeId, matricula, senha, chaveEnvio } = pedido
     return acessoDaSala.naSala(
       entradaDaSala(pedido, chaveCodigo),
       async ({ acessoId, escolaId, turmaId }) => {
         const pedidos = new ReivindicacaoRepository(banco)
         if (await pedidos.chaveGravada(turmaId, chaveEnvio)) return 'reenvio'
+        // Sem senha, a conta provada: conferida antes de qualquer contador, para o cookie inválido não gastar o limite do nome.
+        const contaExterna = senha === undefined ? contaDoPedido(provada, escolaId, acessoId) : null
         const nome = { acessoId, listaNomeId }
         const matriculaErrada = await new ListaLivreRepository(banco).livreComOutraMatricula({ turmaId, listaNomeId, matricula })
         const { rebaixado } = await limites.antesDoHash(nome, turmaId, escolaId, matriculaErrada)
-        const senhaHash = await semaforo.executar(escolaBucket(escolaId, rebaixado), () => hash.gerar(senha))
+        // Com a conta, não há senha a calcular: nada de hash, e por isso o pedido recusado não conta no teto de hashes da turma.
+        const senhaHash = await this.#hashDaSenha(senha, escolaId, rebaixado)
         const teveMatriculaErrada = await limites.teveMatriculaErrada(nome)
         try {
           await banco.transaction(async (tx) => {
             if (!(await new TurmaRepository(tx).travarAnoEmCurso())) throw new NotWrittenError()
-            await new ReivindicacaoRepository(tx).inserirPendente({ turmaId, listaNomeId, chaveEnvio, senhaHash, teveMatriculaErrada })
+            await new ReivindicacaoRepository(tx).inserirPendente({ turmaId, listaNomeId, chaveEnvio, senhaHash, contaExterna, teveMatriculaErrada })
             if (!(await new ListaLivreRepository(tx).tomar({ turmaId, listaNomeId, matricula }))) throw new NotWrittenError()
           })
         } catch (erro) {
           if (!(erro instanceof NotWrittenError) && !VOLTA_E_RELE.has(postgresErrorIn(erro)?.code ?? '')) throw erro
           if (await pedidos.chaveGravada(turmaId, chaveEnvio)) return 'reenvio'
-          await limites.hashSemPedido(turmaId)
+          if (senhaHash !== null) await limites.hashSemPedido(turmaId)
           throw new DomainException(ErrorCode.REIVINDICACAO_RECUSADA)
         }
         return 'enviado'
