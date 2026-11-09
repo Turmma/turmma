@@ -115,11 +115,19 @@ describe('cookie educa_conta_provada da conta da escola que o aluno provou na sa
   })
 
   it('byte alterado, outra chave, valor ausente, vazio ou sem sentido não valem', () => {
-    const valor = valorDaConta(daConta().gravar(CONTA))
-    for (let posicao = 0; posicao < valor.length; posicao++) {
-      const alterado = `${valor.slice(0, posicao)}${valor[posicao] === 'A' ? 'B' : 'A'}${valor.slice(posicao + 1)}`
-      expect(daConta().ler(alterado), `byte ${String(posicao)}`).toBeUndefined()
+    // O byte, não o caractere: o último caractere do base64url leva bits de enchimento que o decodificador ignora, e trocá-lo
+    // às vezes (1 cookie em 16, pelo IV aleatório) devolve os mesmos bytes. Vários cookies, cada um com IV novo, para o
+    // resultado não depender de qual saiu.
+    for (let amostra = 0; amostra < 50; amostra++) {
+      const bytes = Buffer.from(valorDaConta(daConta().gravar(CONTA)), 'base64url')
+      expect(daConta().ler(bytes.toString('base64url'))).toEqual(CONTA)
+      for (let posicao = 0; posicao < bytes.length; posicao++) {
+        const alterado = Buffer.from(bytes)
+        alterado[posicao] = (alterado[posicao] ?? 0) ^ 0x01
+        expect(daConta().ler(alterado.toString('base64url')), `amostra ${String(amostra)}, byte ${String(posicao)}`).toBeUndefined()
+      }
     }
+    const valor = valorDaConta(daConta().gravar(CONTA))
     expect(daConta(AGORA, OUTRA_CHAVE).ler(valor)).toBeUndefined()
     for (const sem of [undefined, '', 'x', 'não-é-base64!']) expect(daConta().ler(sem)).toBeUndefined()
   })
