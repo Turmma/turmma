@@ -114,12 +114,12 @@
   - [ ] 16.4 O `docs/roteiro-da-demonstracao.md` (seção 2, passo 10) conferido contra `e2e/roteiro-da-demonstracao.spec.ts`
   - [ ] 16.5 Testes: reivindicar com o `oidc-falso` até entrar, estados, recomeço, 360 px
 
-- [ ] **17.0 — A leitura do alvo da senha provisória (API)** (a "12a" da divergência da 12.0; vem antes dela)
-  - [ ] 17.1 O contrato e a finalidade fixa em `packages/shared`
-  - [ ] 17.2 A leitura no repository, pela seleção do alcance da geração, sem trava
-  - [ ] 17.3 A rota, `no-store`, 404 igual; `senha_provisoria.alvo_lido` só para a coordenação
-  - [ ] 17.4 A ação fora da lista por alvo e fora do arquivo de quem assina
-  - [ ] 17.5 Testes: quem lê, escopo, conta da escola, sem ano, auditoria, sem cota nem trava, arquivo do titular
+- [x] **17.0 — A leitura do alvo da senha provisória (API)** (a "12a" da divergência da 12.0; vem antes dela)
+  - [x] 17.1 O contrato e a finalidade fixa em `packages/shared`
+  - [x] 17.2 A leitura no repository, pela seleção do alcance da geração, sem trava
+  - [x] 17.3 A rota, `no-store`, 404 igual; `senha_provisoria.alvo_lido` só para a coordenação
+  - [x] 17.4 A ação fora da lista por alvo e fora do arquivo de quem assina
+  - [x] 17.5 Testes: quem lê, escopo, conta da escola, sem ano, auditoria, sem cota nem trava, arquivo do titular
 
 ## Dependências e paralelismo
 

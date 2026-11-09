@@ -3,12 +3,15 @@ import { CicloDeVidaRepository } from '@educa/core/ciclo-de-vida'
 import {
   alcanceDe,
   ALFABETO_DA_SENHA_PROVISORIA,
+  alvoDaSenhaProvisoriaResponseSchema,
   ErrorCode,
+  FINALIDADE_DA_LEITURA_DO_ALVO,
   formatarSenhaProvisoria,
   LIMITE_DE_PROVISORIAS_POR_DIA_E_ALUNO,
   LIMITE_DE_PROVISORIAS_POR_HORA_E_USUARIO,
   senhaProvisoriaResponseSchema,
   TAMANHO_DA_SENHA_PROVISORIA,
+  type AlvoDaSenhaProvisoriaResponse,
   type PapelQueGeraASenhaProvisoria,
   type SenhaProvisoriaResponse,
 } from '@educa/shared'
@@ -81,6 +84,23 @@ export class SenhaProvisoriaService {
   constructor(private readonly dependencias: SenhaProvisoriaDependencies) {
     this.#geradas = dependencias.medidor.createCounter(METRICS.senhaProvisoriaGerada, { description: 'Senhas provisórias de aluno geradas, por escola' })
     this.#sortear = dependencias.sortear ?? randomInt
+  }
+
+  /**
+   * `GET /v1/usuarios/:usuarioId/senha-provisoria` (tarefa 17.0, divergência da 12.0; Tech Spec, seção 5, "O alvo da provisória"): o aluno que a confirmação mostra antes de gerar, pelo
+   * mesmo escopo da geração e sem trava, sem cota e sem semáforo. Quem não o alcança, e o aluno sem credencial nem conta da escola, recebe o `NAO_ENCONTRADO` do inexistente. A coordenação
+   * (`unidade`) grava `senha_provisoria.alvo_lido` na mesma transação da leitura (regra 20, item 10): sem registro, sem leitura; o professor com vínculo na turma do aluno não grava.
+   * O registro leva o aluno como alvo e a finalidade fixa, nunca o nome nem a matrícula.
+   */
+  async lerAlvo(alunoId: string): Promise<AlvoDaSenhaProvisoriaResponse> {
+    const alcance = alcanceDaGeracao(requestSessao().papel)
+    const alvo = await this.dependencias.banco.transaction(async (tx) => {
+      const achado = await new CredencialMatriculaRepository(tx).lerAlvo(alunoId, alcance)
+      if (achado === undefined) throw naoEncontrado()
+      if (alcance === 'unidade') await registro.gravar(tx, 'senha_provisoria.alvo_lido', { entidadeId: alunoId, finalidade: FINALIDADE_DA_LEITURA_DO_ALVO })
+      return achado
+    })
+    return alvoDaSenhaProvisoriaResponseSchema.parse(alvo)
   }
 
   async gerar(alunoId: string): Promise<SenhaProvisoriaResponse> {

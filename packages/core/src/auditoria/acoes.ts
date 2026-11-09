@@ -11,6 +11,7 @@ import {
   ETAPAS,
   ESTADOS_DO_PEDIDO,
   ESTADOS_EM_DECISAO,
+  FINALIDADE_DA_LEITURA_DO_ALVO,
   FINALIDADE_DA_REDEFINICAO_PELO_OPERADOR,
   FINALIDADE_DO_ATENDIMENTO_DO_TITULAR,
   FINALIDADE_DO_AJUSTE_DE_RETENCAO,
@@ -196,6 +197,17 @@ export const ACOES_DE_AUDITORIA = {
     antes: null,
     depois: z.strictObject({ papel: z.enum(PAPEIS_QUE_GERAM_A_SENHA_PROVISORIA) }),
     finalidade: null,
+  },
+  /**
+   * A coordenação abriu a confirmação da senha provisória e leu o aluno (acesso-e-convites, tarefa 17.0, regra 20, item 10): `entidadeId` é o aluno, o autor é a coordenação e a finalidade
+   * é fixa, escrita pelo servidor. Um registro por leitura, na mesma transação dela; o professor da turma não grava. Nunca o nome nem a matrícula que a leitura devolveu. É leitura, não ato
+   * sobre o titular: fica fora do arquivo do titular, nas duas leituras (por alvo e por autor).
+   */
+  'senha_provisoria.alvo_lido': {
+    entidade: 'usuario',
+    antes: null,
+    depois: null,
+    finalidade: z.enum([FINALIDADE_DA_LEITURA_DO_ALVO]),
   },
   /**
    * O aluno trocou a senha provisória pela dele (acesso-e-convites, tarefa 10.0, RF13, RF17): `entidadeId` é o aluno e o autor é ele mesmo, que a prova com a provisória e cria a

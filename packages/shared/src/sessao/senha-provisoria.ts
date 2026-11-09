@@ -55,6 +55,25 @@ export const senhaProvisoriaResponseSchema = z
 
 export type SenhaProvisoriaResponse = z.infer<typeof senhaProvisoriaResponseSchema>
 
+/** A finalidade fixa, escrita pelo servidor, da leitura do alvo da provisória pela coordenação (regra 20, item 10): confirmar de quem é a senha antes de gerá-la. */
+export const FINALIDADE_DA_LEITURA_DO_ALVO = 'confirmar_o_aluno_da_senha_provisoria'
+
+/**
+ * Resposta de `GET /v1/usuarios/:usuarioId/senha-provisoria` (acesso-e-convites, tarefa 17.0; Tech Spec, seção 5, "O alvo da provisória"): o aluno que a confirmação mostra antes de gerar,
+ * um por vez. `turma` é a do vínculo confirmado no ano em curso (nula sem ano em curso, para a coordenação); `matricula`, a da credencial (nula no aluno só com a conta da escola);
+ * `entraPelaContaDaEscola` diz o que a geração responderia com `ENTRA_PELA_CONTA_DA_ESCOLA`. Nunca hash, provisória, validade, quem gerou nem e-mail. Sai com `Cache-Control: no-store`.
+ */
+export const alvoDaSenhaProvisoriaResponseSchema = z
+  .object({
+    nome: z.string().min(1),
+    turma: z.string().min(1).nullable(),
+    matricula: z.string().min(1).nullable(),
+    entraPelaContaDaEscola: z.boolean(),
+  })
+  .strict()
+
+export type AlvoDaSenhaProvisoriaResponse = z.infer<typeof alvoDaSenhaProvisoriaResponseSchema>
+
 /** Quanto vale o bilhete da troca, contado do login com a provisória: 10 minutos (acesso-e-convites, tarefa 10.0; Tech Spec, seção 5, "Senha provisória"). */
 export const VALIDADE_DO_BILHETE_DA_TROCA_MINUTOS = 10
 

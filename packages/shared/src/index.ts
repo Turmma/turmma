@@ -98,6 +98,7 @@ export {
   ALFABETO_DA_SENHA_PROVISORIA,
   CARACTERES_POR_GRUPO_DA_SENHA_PROVISORIA,
   ETAPA_TROCAR_SENHA,
+  FINALIDADE_DA_LEITURA_DO_ALVO,
   JANELA_DO_CONFLITO_DA_SENHA_PROVISORIA_SEGUNDOS,
   LIMITE_DE_PROVISORIAS_POR_DIA_E_ALUNO,
   LIMITE_DE_PROVISORIAS_POR_HORA_E_USUARIO,
@@ -106,6 +107,7 @@ export {
   TAMANHO_DA_SENHA_PROVISORIA,
   VALIDADE_DA_SENHA_PROVISORIA_HORAS,
   VALIDADE_DO_BILHETE_DA_TROCA_MINUTOS,
+  alvoDaSenhaProvisoriaResponseSchema,
   formatarSenhaProvisoria,
   loginMatriculaResponseSchema,
   normalizarSenhaProvisoria,
@@ -114,6 +116,7 @@ export {
   trocasDaProvisoriaResponseSchema,
 } from './sessao/senha-provisoria.js'
 export type {
+  AlvoDaSenhaProvisoriaResponse,
   LoginMatriculaResponse,
   PapelQueGeraASenhaProvisoria,
   SenhaProvisoriaResponse,

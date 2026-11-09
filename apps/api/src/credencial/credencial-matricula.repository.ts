@@ -1,6 +1,6 @@
-import { contaExterna, credencialMatricula, requireAnoEmCurso, requireEscolaId, requestSessao, usuario, vinculo, type Database, type DatabaseTransaction } from '@educa/core'
+import { contaExterna, credencialMatricula, requireAnoEmCurso, requireEscolaId, requestSessao, turma, usuario, vinculo, type Database, type DatabaseTransaction } from '@educa/core'
 import { JANELA_DO_CONFLITO_DA_SENHA_PROVISORIA_SEGUNDOS, VALIDADE_DA_SENHA_PROVISORIA_HORAS } from '@educa/shared'
-import { and, eq, exists, isNull, sql, type SQL } from 'drizzle-orm'
+import { and, asc, eq, exists, isNull, sql, type SQL } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 
 /**
@@ -46,6 +46,16 @@ export interface AlunoDaTroca {
   readonly provisoriaVale: boolean
   /** A eliminação do aluno está agendada: nada é emitido para ele (F3, 14.0). */
   readonly suspenso: boolean
+}
+
+/** O aluno que a confirmação da provisória mostra (tarefa 17.0): nunca hash, provisória, validade nem quem gerou. */
+export interface AlvoDaProvisoria {
+  readonly nome: string
+  /** O nome da turma do vínculo `confirmado` do aluno no ano em curso; nulo sem ano em curso (só a coordenação chega aqui sem ele). */
+  readonly turma: string | null
+  /** A matrícula da credencial; nula no aluno só com a conta da escola. */
+  readonly matricula: string | null
+  readonly entraPelaContaDaEscola: boolean
 }
 
 /** A provisória gravada: só a validade. A senha nunca volta do banco. */
@@ -185,23 +195,69 @@ export class CredencialMatriculaRepository {
     return travado !== undefined
   }
 
-  /** A seleção do aluno do escopo de quem gera, a mesma da leitura e da trava. A coordenação não tem condição de turma (`sql\`true\``, dito, e não um `undefined` que o `and` ignora). */
-  #alunoQueAlcanca(usuarioId: string, alcance: AlcanceDaProvisoria) {
+  /** As condições do escopo de quem gera, a mesma da leitura do alvo, da conferência e da trava. A coordenação não tem condição de turma (`sql\`true\``, dito, e não um `undefined` que o `and` ignora). */
+  #condicoesDoAlcance(usuarioId: string, alcance: AlcanceDaProvisoria): SQL | undefined {
     const escolaId = requireEscolaId()
-    return this.banco
-      .select({ id: usuario.id })
+    return and(
+      eq(usuario.escolaId, escolaId),
+      eq(usuario.id, usuarioId),
+      eq(usuario.papel, 'aluno'),
+      isNull(usuario.desativadoEm),
+      isNull(usuario.eliminacaoAgendadaEm),
+      alcance === 'unidade' ? sql`true` : this.#aTurmaEDoProfessor(usuarioId, escolaId),
+    )
+  }
+
+  /** A seleção do aluno do escopo de quem gera, a mesma da leitura e da trava. */
+  #alunoQueAlcanca(usuarioId: string, alcance: AlcanceDaProvisoria) {
+    return this.banco.select({ id: usuario.id }).from(usuario).where(this.#condicoesDoAlcance(usuarioId, alcance)).limit(1)
+  }
+
+  /**
+   * O aluno que a confirmação da provisória mostra (acesso-e-convites, tarefa 17.0; Tech Spec, seção 5, "O alvo da provisória"), **sem travar nada**, pelo mesmo escopo da geração
+   * (`#condicoesDoAlcance`). Além do escopo, o aluno precisa ter credencial ou conta da escola ligada: sem nenhuma das duas, `undefined`, como a geração (`NAO_ENCONTRADO`). O professor,
+   * o coordenador, o aluno de outra escola, o de outra turma e o id que não existe dão o mesmo `undefined`. A turma é a do vínculo `confirmado` do aluno no ano em curso; sem ano em curso
+   * (só a coordenação chega aqui sem ele), `null`. Devolve o nome e a matrícula, que quem chama nunca grava em log nem em auditoria.
+   */
+  async lerAlvo(usuarioId: string, alcance: AlcanceDaProvisoria): Promise<AlvoDaProvisoria | undefined> {
+    const escolaId = requireEscolaId()
+    const { anoLetivoId } = requestSessao()
+    const doAluno = alias(vinculo, 'vinculo_do_alvo')
+    const ligada = this.banco
+      .select({ um: sql`1` })
+      .from(contaExterna)
+      .where(and(eq(contaExterna.escolaId, usuario.escolaId), eq(contaExterna.usuarioId, usuario.id)))
+    const [linha] = await this.banco
+      .select({
+        nome: usuario.nome,
+        turma:
+          anoLetivoId === null
+            ? sql<string | null>`null`
+            : sql<string | null>`(${this.banco
+                .select({ nome: turma.nome })
+                .from(doAluno)
+                .innerJoin(turma, and(eq(turma.escolaId, doAluno.escolaId), eq(turma.anoLetivoId, doAluno.anoLetivoId), eq(turma.id, doAluno.turmaId)))
+                .where(
+                  and(
+                    eq(doAluno.escolaId, escolaId),
+                    eq(doAluno.anoLetivoId, anoLetivoId),
+                    eq(doAluno.usuarioId, usuario.id),
+                    eq(doAluno.papel, 'aluno'),
+                    eq(doAluno.estado, 'confirmado'),
+                  ),
+                )
+                // O `vinculo_ativo_unico` admite dois `confirmado` do aluno no ano (turmas diferentes): a turma mostrada é a primeira por nome, e não a que a ordem física devolver.
+                .orderBy(asc(turma.nome), asc(turma.id))
+                .limit(1)})`,
+        matricula: credencialMatricula.matricula,
+        contaLigada: sql<boolean>`exists (${ligada})`,
+      })
       .from(usuario)
-      .where(
-        and(
-          eq(usuario.escolaId, escolaId),
-          eq(usuario.id, usuarioId),
-          eq(usuario.papel, 'aluno'),
-          isNull(usuario.desativadoEm),
-          isNull(usuario.eliminacaoAgendadaEm),
-          alcance === 'unidade' ? sql`true` : this.#aTurmaEDoProfessor(usuarioId, escolaId),
-        ),
-      )
+      .leftJoin(credencialMatricula, and(eq(credencialMatricula.escolaId, usuario.escolaId), eq(credencialMatricula.usuarioId, usuario.id)))
+      .where(and(this.#condicoesDoAlcance(usuarioId, alcance), sql`(${credencialMatricula.id} is not null or exists (${ligada}))`))
       .limit(1)
+    if (linha === undefined) return undefined
+    return { nome: linha.nome, turma: linha.turma, matricula: linha.matricula, entraPelaContaDaEscola: linha.contaLigada }
   }
 
   /** Existe turma do ano em curso em que o aluno e o professor da sessão têm vínculo `confirmado`: o `exists` do alcance do professor, nunca um `join` que repita a linha. */

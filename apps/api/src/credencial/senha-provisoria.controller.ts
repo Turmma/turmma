@@ -1,6 +1,6 @@
 import { IdPipe, RequirePermissao } from '@educa/core'
-import type { SenhaProvisoriaResponse } from '@educa/shared'
-import { Controller, Header, HttpCode, HttpStatus, Param, Post } from '@nestjs/common'
+import type { AlvoDaSenhaProvisoriaResponse, SenhaProvisoriaResponse } from '@educa/shared'
+import { Controller, Get, Header, HttpCode, HttpStatus, Param, Post } from '@nestjs/common'
 import { SenhaProvisoriaService } from './senha-provisoria.service.js'
 
 /**
@@ -11,6 +11,17 @@ import { SenhaProvisoriaService } from './senha-provisoria.service.js'
 @Controller('v1/usuarios')
 export class SenhaProvisoriaController {
   constructor(private readonly senhas: SenhaProvisoriaService) {}
+
+  /**
+   * `GET /v1/usuarios/:usuarioId/senha-provisoria` (tarefa 17.0): o aluno que a confirmação mostra, `{ nome, turma, matricula, entraPelaContaDaEscola }`, com a mesma célula da matriz e o
+   * mesmo escopo da geração. Não gasta cota nem trava a linha; sai com `no-store`, porque leva a matrícula.
+   */
+  @Get(':usuarioId/senha-provisoria')
+  @RequirePermissao('senha_provisoria', 'gerar')
+  @Header('Cache-Control', 'no-store')
+  alvo(@Param('usuarioId', IdPipe) alunoId: string): Promise<AlvoDaSenhaProvisoriaResponse> {
+    return this.senhas.lerAlvo(alunoId)
+  }
 
   @Post(':usuarioId/senha-provisoria')
   @RequirePermissao('senha_provisoria', 'gerar')

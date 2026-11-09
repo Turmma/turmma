@@ -2,7 +2,9 @@ import { DomainException, runInContext } from '@educa/core'
 import { CicloDeVidaService } from '@educa/core/ciclo-de-vida'
 import {
   ALFABETO_DA_SENHA_PROVISORIA,
+  alvoDaSenhaProvisoriaResponseSchema,
   ErrorCode,
+  FINALIDADE_DA_LEITURA_DO_ALVO,
   LIMITE_DE_PROVISORIAS_POR_DIA_E_ALUNO,
   LIMITE_DE_PROVISORIAS_POR_HORA_E_USUARIO,
   senhaProvisoriaResponseSchema,
@@ -679,6 +681,280 @@ describe('senha provisória (acesso-e-convites, tarefa 9.0): a coordenação e o
           await recuar(aluno.usuarioId)
           resposta(await gerar(s.coordenacao, aluno.usuarioId))
         }
+      } finally {
+        await parada.desarmar()
+      }
+    })
+  })
+
+  describe('a leitura do alvo (tarefa 17.0): quem vai gerar vê de quem é a senha, um aluno por vez', () => {
+    const ler = (quem: TestSessao, alunoId: string) => chamar(api.url, 'GET', `/v1/usuarios/${alunoId}/senha-provisoria`, quem.token)
+
+    async function lerBruto(quem: TestSessao, alunoId: string): Promise<{ status: number; cabecalhos: Headers; texto: string }> {
+      const lida = await fetch(`${api.url}/v1/usuarios/${alunoId}/senha-provisoria`, { headers: { Authorization: `Bearer ${quem.token}` } })
+      return { status: lida.status, cabecalhos: lida.headers, texto: await lida.text() }
+    }
+
+    async function nomear(alunoId: string, nome: string): Promise<void> {
+      await bancada.pool.query('update usuario set nome = $2 where id = $1', [alunoId, nome])
+    }
+
+    async function matriculaDe(alunoId: string): Promise<string> {
+      const { rows } = await bancada.pool.query<{ matricula: string }>('select matricula from credencial_matricula where usuario_id = $1', [alunoId])
+      return rows[0]?.matricula ?? ''
+    }
+
+    async function nomeDaTurma(turmaId: string): Promise<string> {
+      const { rows } = await bancada.pool.query<{ nome: string }>('select nome from turma where id = $1', [turmaId])
+      return rows[0]?.nome ?? ''
+    }
+
+    async function alvoLidoDe(alunoId: string): Promise<Array<{ autor_usuario_id: string; entidade: string; antes: unknown; depois: unknown; finalidade: string | null; linha: string }>> {
+      const { rows } = await bancada.pool.query<{ autor_usuario_id: string; entidade: string; antes: unknown; depois: unknown; finalidade: string | null; linha: string }>(
+        "select autor_usuario_id, entidade, antes, depois, finalidade, row_to_json(a)::text as linha from auditoria a where acao = 'senha_provisoria.alvo_lido' and entidade_id = $1 order by em",
+        [alunoId],
+      )
+      return rows
+    }
+
+    it('a coordenação e o professor da turma recebem só as quatro chaves, com `no-store`: dois alunos de mesmo nome se distinguem pela matrícula', async () => {
+      const s = await sala.montar()
+      // Um colega na primeira turma, criado antes: sem o filtro pelo aluno, ou sem a junção pela turma do vínculo, a turma lida seria a primeira da escola, e não a dos alunos lidos.
+      await novoAluno(s, s.turma)
+      const aluno = await novoAluno(s, s.outraTurma)
+      const homonimo = await novoAluno(s, s.outraTurma)
+      await nomear(aluno.usuarioId, 'Maria Sintética')
+      await nomear(homonimo.usuarioId, 'Maria Sintética')
+      const turma = await nomeDaTurma(s.outraTurma)
+
+      for (const quem of [s.coordenacao, s.professor]) {
+        for (const alvo of [aluno, homonimo]) {
+          const lida = await lerBruto(quem, alvo.usuarioId)
+          expect(lida.status).toBe(200)
+          expect(lida.cabecalhos.get('cache-control')).toBe('no-store')
+          const corpo: unknown = JSON.parse(lida.texto)
+          expect(Object.keys(corpo as object).sort()).toEqual(['entraPelaContaDaEscola', 'matricula', 'nome', 'turma'])
+          expect(alvoDaSenhaProvisoriaResponseSchema.parse(corpo)).toEqual({ nome: 'Maria Sintética', turma, matricula: await matriculaDe(alvo.usuarioId), entraPelaContaDaEscola: false })
+        }
+      }
+      expect(await matriculaDe(aluno.usuarioId)).not.toBe(await matriculaDe(homonimo.usuarioId))
+      // A leitura não mexe na credencial: nenhuma provisória, a senha antiga de pé.
+      expect(await credencialDe(aluno.usuarioId)).toEqual({ senha_hash: hashAntigo, provisoria_hash: null, provisoria_expira_em: null, provisoria_gerada_por: null })
+    })
+
+    it('depois de gerada, a leitura segue sem trazer a senha, o hash, a validade nem quem gerou', async () => {
+      const s = await sala.montar()
+      const aluno = await novoAluno(s, s.turma)
+      const gerada = resposta(await gerar(s.coordenacao, aluno.usuarioId))
+
+      const lida = await lerBruto(s.professor, aluno.usuarioId)
+
+      expect(lida.status).toBe(200)
+      expect(lida.texto).not.toContain(crua(gerada.senha))
+      expect(lida.texto).not.toContain('argon2')
+      expect(lida.texto).not.toContain(gerada.expiraEm)
+      expect(lida.texto).not.toContain(s.coordenacao.usuarioId)
+      expect(Object.keys(JSON.parse(lida.texto) as object).sort()).toEqual(['entraPelaContaDaEscola', 'matricula', 'nome', 'turma'])
+    })
+
+    it('a turma é a do vínculo confirmado: o aluno transferido mostra a nova, e o professor da antiga recebe 404', async () => {
+      const s = await sala.montar()
+      const aluno = await novoAluno(s, null)
+      await vincularAluno(s, aluno.usuarioId, s.turma, 'encerrado')
+      await vincularAluno(s, aluno.usuarioId, s.outraTurma)
+      const daAntiga = await professorNaTurma(s, s.turma)
+      const daNova = await professorNaTurma(s, s.outraTurma)
+      const inexistente = semRequisicao(await ler(s.coordenacao, randomUUID()))
+      expect(inexistente.status).toBe(404)
+
+      expect(semRequisicao(await ler(daAntiga, aluno.usuarioId))).toEqual(inexistente)
+      for (const quem of [s.coordenacao, daNova]) {
+        const lida = await ler(quem, aluno.usuarioId)
+        expect(lida.status).toBe(200)
+        expect(lida.corpo['turma']).toBe(await nomeDaTurma(s.outraTurma))
+      }
+    })
+
+    it('o aluno com dois vínculos confirmados no ano em curso (três turmas) mostra sempre a primeira turma por nome, e não a primeira criada nem a de menor id', async () => {
+      const s = await sala.montar()
+      const aluno = await novoAluno(s, null)
+      // Uma terceira turma, criada depois das da fixture: o nome dela é o primeiro ("2ºA") e o id é o maior (UUID v7).
+      const criada = await chamar(api.url, 'POST', '/v1/turmas', s.coordenacao.token, { serieId: s.serieId, nome: '2ºA' })
+      expect(criada.status).toBe(201)
+      const primeiraPorNome = criada.corpo['id'] as string
+      // Os vínculos entram na ordem 2ºC, 2ºA, 2ºB: a primeira linha física é a 2ºC, o menor id é a 2ºB, e só o nome dá a 2ºA.
+      await vincularAluno(s, aluno.usuarioId, s.outraTurma)
+      await vincularAluno(s, aluno.usuarioId, primeiraPorNome)
+      await vincularAluno(s, aluno.usuarioId, s.turma)
+      const { rows: [menorId] } = await bancada.pool.query<{ id: string }>('select id from turma where id = any($1::uuid[]) order by id limit 1', [[s.turma, s.outraTurma, primeiraPorNome]])
+
+      const lida = await ler(s.coordenacao, aluno.usuarioId)
+
+      // As premissas: se a fixture ou o gerador de id mudarem, o caso falha aqui, e não passa sem provar nada.
+      expect(menorId?.id).toBe(s.turma)
+      expect(await nomeDaTurma(s.outraTurma)).toBe('2ºC')
+      expect(lida.status).toBe(200)
+      expect(lida.corpo['turma']).toBe('2ºA')
+    })
+
+    it('a turma é a do ano em curso: o aluno só com vínculo confirmado numa turma de um ano encerrado mostra `turma` nula, e não a antiga', async () => {
+      const s = await sala.montar()
+      const aluno = await novoAluno(s, null)
+      const { rows: anos } = await bancada.pool.query<{ id: string }>("insert into ano_letivo (escola_id, ano, inicio, fim, situacao) values ($1, 2025, '2025-02-01', '2025-12-15', 'encerrado') returning id", [s.escolaId])
+      const { rows: turmas } = await bancada.pool.query<{ id: string }>("insert into turma (escola_id, ano_letivo_id, serie_id, nome) values ($1, $2, $3, '2ºB de 2025') returning id", [s.escolaId, anos[0]?.id ?? '', s.serieId])
+      await bancada.pool.query(
+        `insert into vinculo (escola_id, ano_letivo_id, usuario_id, turma_id, papel, estado, criado_por, decidido_em) values ($1, $2, $3, $4, 'aluno', 'confirmado', $5, now())`,
+        [s.escolaId, anos[0]?.id ?? '', aluno.usuarioId, turmas[0]?.id ?? '', s.coordenacao.usuarioId],
+      )
+
+      const lida = await ler(s.coordenacao, aluno.usuarioId)
+
+      expect(lida.status).toBe(200)
+      expect(lida.corpo['turma']).toBeNull()
+    })
+
+    it('escopo: quem não alcança o aluno recebe o 404 do inexistente, com o mesmo corpo, e a leitura não grava nada', async () => {
+      const s = await sala.montar()
+      const aluno = await novoAluno(s, s.turma)
+      const b = await sala.montar()
+      const deB = await novoAluno(b, b.turma)
+      const outroProfessor = await bancada.sessao(s.escolaId, 'professor')
+      const outraCoordenacao = await bancada.sessao(s.escolaId, 'coordenador')
+      const desativado = await novoAluno(s, s.turma)
+      const suspenso = await novoAluno(s, s.turma)
+      await bancada.pool.query('update usuario set desativado_em = now() where id = $1', [desativado.usuarioId])
+      await bancada.pool.query('update usuario set eliminacao_agendada_em = now() where id = $1', [suspenso.usuarioId])
+      // Mesmo com credencial por matrícula (que o sistema não grava para quem não é aluno), o papel do alvo decide: só aluno.
+      for (const quem of [outroProfessor, outraCoordenacao]) {
+        await bancada.pool.query('insert into credencial_matricula (escola_id, usuario_id, matricula, senha_hash) values ($1, $2, $3, $4)', [s.escolaId, quem.usuarioId, `prov-${randomUUID().slice(0, 18)}`, hashAntigo])
+      }
+      const inexistente = semRequisicao(await ler(s.coordenacao, randomUUID()))
+      expect(inexistente.status).toBe(404)
+
+      const deOutraTurma = await professorNaTurma(s, s.outraTurma)
+      const nao: Array<[string, TestSessao, string]> = [
+        ['B pelo contexto da A (coordenação)', s.coordenacao, deB.usuarioId],
+        ['B pelo contexto da A (professor)', s.professor, deB.usuarioId],
+        ['professor de outra turma', deOutraTurma, aluno.usuarioId],
+        ['desativado', s.coordenacao, desativado.usuarioId],
+        ['eliminação agendada', s.coordenacao, suspenso.usuarioId],
+        ['professor como alvo, pela coordenação', s.coordenacao, outroProfessor.usuarioId],
+        ['coordenador como alvo, pela coordenação', s.coordenacao, outraCoordenacao.usuarioId],
+        ['si mesma como alvo', s.coordenacao, s.coordenacao.usuarioId],
+        ['professor como alvo, pelo professor', s.professor, outroProfessor.usuarioId],
+        ['o aluno lendo o colega', aluno, desativado.usuarioId],
+      ]
+      for (const [descricao, quem, alvo] of nao) expect(semRequisicao(await ler(quem, alvo)), descricao).toEqual(inexistente)
+      for (const estado of ['pendente', 'contestado', 'encerrado'] as const) {
+        expect(semRequisicao(await ler(await professorNaTurma(s, s.turma, estado), aluno.usuarioId)), estado).toEqual(inexistente)
+      }
+      expect(semRequisicao(await chamar(api.url, 'GET', '/v1/usuarios/nao-e-um-uuid/senha-provisoria', s.coordenacao.token))).toEqual(inexistente)
+      expect((await chamar(api.url, 'GET', `/v1/usuarios/${aluno.usuarioId}/senha-provisoria`, undefined)).status).toBe(401)
+      // A de B, lida por quem a alcança, vale: não é o aluno que não existe.
+      expect((await ler(b.coordenacao, deB.usuarioId)).status).toBe(200)
+      // Só a leitura da coordenação de B, a única que alcançou o aluno dela, gravou.
+      expect(await alvoLidoDe(deB.usuarioId)).toHaveLength(1)
+      expect(await alvoLidoDe(aluno.usuarioId)).toEqual([])
+      expect(await alvoLidoDe(desativado.usuarioId)).toEqual([])
+      expect(await alvoLidoDe(suspenso.usuarioId)).toEqual([])
+    })
+
+    it('conta da escola: só a conta dá matrícula nula e `entraPelaContaDaEscola`; conta e senha dá a matrícula e verdadeiro; sem credencial nem conta, 404', async () => {
+      const s = await sala.montar()
+      const comSenha = await novoAluno(s, s.turma)
+      // Só a conta: aprovado pela conta da escola, sem credencial por matrícula (a matrícula vem da credencial, e sem ela é nula).
+      const soConta = await bancada.sessao(s.escolaId, 'aluno')
+      await vincularAluno(s, soConta.usuarioId, s.turma)
+      const semNada = await bancada.sessao(s.escolaId, 'aluno')
+      await vincularAluno(s, semNada.usuarioId, s.turma)
+      const soCredencialSemSenha = await novoAluno(s, s.turma)
+      for (const alvo of [comSenha, soConta]) {
+        await bancada.pool.query("insert into conta_externa (escola_id, usuario_id, provedor, sujeito) values ($1, $2, 'google', $3)", [s.escolaId, alvo.usuarioId, `sujeito-${randomUUID()}`])
+      }
+      const inexistente = semRequisicao(await ler(s.coordenacao, randomUUID()))
+      expect(inexistente.status).toBe(404)
+
+      for (const quem of [s.coordenacao, s.professor]) {
+        const so = await ler(quem, soConta.usuarioId)
+        expect(so.status).toBe(200)
+        expect(so.corpo).toMatchObject({ matricula: null, entraPelaContaDaEscola: true })
+        const com = await ler(quem, comSenha.usuarioId)
+        expect(com.corpo).toMatchObject({ matricula: await matriculaDe(comSenha.usuarioId), entraPelaContaDaEscola: true })
+        const semConta = await ler(quem, soCredencialSemSenha.usuarioId)
+        expect(semConta.corpo).toMatchObject({ matricula: await matriculaDe(soCredencialSemSenha.usuarioId), entraPelaContaDaEscola: false })
+        expect(semRequisicao(await ler(quem, semNada.usuarioId))).toEqual(inexistente)
+      }
+      // A conta ligada é do aluno, não da escola: o outro aluno segue com `false`.
+      expect((await ler(s.coordenacao, soCredencialSemSenha.usuarioId)).corpo['entraPelaContaDaEscola']).toBe(false)
+    })
+
+    it('sem ano em curso: a coordenação lê com `turma` nula, e o professor recebe 404', async () => {
+      const escolaId = await bancada.escola()
+      const coordenacao = await bancada.sessao(escolaId, 'coordenador')
+      const professor = await bancada.sessao(escolaId, 'professor')
+      const aluno = await bancada.sessao(escolaId, 'aluno')
+      await bancada.pool.query('insert into credencial_matricula (escola_id, usuario_id, matricula, senha_hash) values ($1, $2, $3, $4)', [escolaId, aluno.usuarioId, `prov-${randomUUID().slice(0, 18)}`, hashAntigo])
+      const inexistente = semRequisicao(await ler(coordenacao, randomUUID()))
+      expect(inexistente.status).toBe(404)
+
+      expect(semRequisicao(await ler(professor, aluno.usuarioId))).toEqual(inexistente)
+      const lida = await ler(coordenacao, aluno.usuarioId)
+      expect(lida.status).toBe(200)
+      expect(lida.corpo).toMatchObject({ turma: null, matricula: await matriculaDe(aluno.usuarioId), entraPelaContaDaEscola: false })
+    })
+
+    it('auditoria: a coordenação grava um `.alvo_lido` por leitura, com o aluno como alvo e a finalidade fixa, sem nome nem matrícula; o professor e o 404 não gravam', async () => {
+      const s = await sala.montar()
+      const aluno = await novoAluno(s, s.turma)
+      await nomear(aluno.usuarioId, 'Joana Sintética')
+      const matricula = await matriculaDe(aluno.usuarioId)
+
+      expect((await ler(s.coordenacao, aluno.usuarioId)).status).toBe(200)
+      expect((await ler(s.coordenacao, aluno.usuarioId)).status).toBe(200)
+      expect((await ler(s.professor, aluno.usuarioId)).status).toBe(200)
+      expect((await ler(s.coordenacao, randomUUID())).status).toBe(404)
+      expect((await ler(await professorNaTurma(s, s.outraTurma), aluno.usuarioId)).status).toBe(404)
+
+      const lidas = await alvoLidoDe(aluno.usuarioId)
+      expect(lidas).toHaveLength(2)
+      for (const lida of lidas) {
+        expect(lida).toMatchObject({ autor_usuario_id: s.coordenacao.usuarioId, entidade: 'usuario', antes: null, depois: null, finalidade: FINALIDADE_DA_LEITURA_DO_ALVO })
+        expect(lida.linha).not.toContain('Joana')
+        expect(lida.linha).not.toContain(matricula)
+      }
+      const { rows } = await bancada.pool.query<{ total: number }>("select count(*)::int as total from auditoria where acao = 'senha_provisoria.alvo_lido' and escola_id = $1", [s.escolaId])
+      expect(rows[0]?.total).toBe(2)
+    })
+
+    it('sem efeito: não gasta cota (as cinco gerações do dia ainda valem), não toca a credencial e não espera a trava de uma geração em curso', async () => {
+      const s = await sala.montar()
+      const aluno = await novoAluno(s, s.turma)
+      const semaforo = api.app.get(HashBulkhead, { strict: false })
+      const espiao = vi.spyOn(semaforo, 'executar')
+      for (let vez = 0; vez < LIMITE_DE_PROVISORIAS_POR_DIA_E_ALUNO + 2; vez++) expect((await ler(s.coordenacao, aluno.usuarioId)).status).toBe(200)
+      expect((await ler(s.professor, aluno.usuarioId)).status).toBe(200)
+      expect(espiao).not.toHaveBeenCalled()
+      expect(await credencialDe(aluno.usuarioId)).toEqual({ senha_hash: hashAntigo, provisoria_hash: null, provisoria_expira_em: null, provisoria_gerada_por: null })
+
+      for (let vez = 0; vez < LIMITE_DE_PROVISORIAS_POR_DIA_E_ALUNO; vez++) {
+        if (vez > 0) await recuar(aluno.usuarioId)
+        resposta(await gerar(s.coordenacao, aluno.usuarioId))
+      }
+      await recuar(aluno.usuarioId)
+      expect((await gerar(s.coordenacao, aluno.usuarioId)).status).toBe(429)
+
+      // Uma geração parada no meio da transação segura a linha do aluno: a leitura responde sem esperar.
+      const outro = await novoAluno(s, s.turma)
+      const parada = new WriteBlockTrigger(bancada.pool, { tabela: 'credencial_matricula', evento: 'update', quando: `new.escola_id = '${s.escolaId}'::uuid and new.usuario_id = '${outro.usuarioId}'::uuid and new.provisoria_hash is not null` })
+      await parada.armar()
+      try {
+        const emCurso = gerar(s.coordenacao, outro.usuarioId)
+        await parada.esperarParadas(1)
+        const lida = await ler(s.professor, outro.usuarioId)
+        expect(lida.status).toBe(200)
+        expect(lida.corpo['entraPelaContaDaEscola']).toBe(false)
+        await parada.soltar()
+        resposta(await emCurso)
       } finally {
         await parada.desarmar()
       }

@@ -3242,3 +3242,15 @@ aula" em `Retencao.tsx`, o Validador conferiu: a tela já o mostra pela descriç
       roda a migration numa transação e os dois seguram o lock do `ADD`. Gatilho: o tamanho da tabela `reivindicacao` (dono: Implementador)
 - [ ] (acesso-e-convites 14.0, test-engineer, 2ª) **O caso do código errado pelo `iniciar`** (`reivindicacao-com-conta.int.test.ts`, "o código errado pelo início"): para o código certo, conferir também que
       o `Location` aponta para o authorize do `oidc-falso`; e excluir `a.codigo` do laço dos códigos sorteados, para o caso ser determinístico (dono: Implementador)
+
+## Da tarefa 17.0 da acesso-e-convites (a leitura do alvo da senha provisória), fora dela
+
+- [ ] (acesso-e-convites 17.0, privacy-guardian, 1ª) **Falha intermitente em `arquivo-do-titular.int.test.ts:1338`** (o caso "Meus dados"…, "no máximo 50"): passou nas duas reexecuções e está fora da
+      17.0; descobrir a ordem ou o dado de outro caso que a faz oscilar (dono: Implementador)
+- [ ] (acesso-e-convites 17.0, test-engineer, 1ª) **Os blocos de `9_task.md:109-117` não acham mais o contexto** depois que a 17.0 extraiu `#condicoesDoAlcance` (`.where(`/`and(` viraram
+      `return and(`). O `9_task.md` é de tarefa encerrada e não se edita; atualizar o contexto desses blocos se algo voltar a aplicá-los (dono: Implementador)
+- [ ] (acesso-e-convites 17.0, privacy-guardian, 2ª) **A turma da leitura do alvo para o professor, com o aluno em duas turmas no ano.** Hoje a `turma` é a primeira por nome; para o professor
+      poderia ser a dele. Muda o contrato (a turma passaria a depender de quem lê); a validação decide, e o caso da turma ganha a variante do professor (dono: Implementador)
+- [ ] (acesso-e-convites 17.0, revisor-geral e test-engineer, 3ª) **O caso das três turmas** (`senha-provisoria.int.test.ts`, "o aluno com dois vínculos confirmados no ano em curso (três turmas)…"):
+      o título diz "dois" e o caso cria três (trocar o título e o `teste:` dos dois blocos de mutação da 17.0 juntos), e incluir
+      `expect(await nomeDaTurma(s.turma)).toBe('2ºB')` entre as premissas, para a dependência da fixture ficar escrita (dono: Implementador)

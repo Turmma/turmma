@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  alvoDaSenhaProvisoriaResponseSchema,
   ETAPA_TROCAR_SENHA,
   MAXIMO_DE_PROVISORIAS_ANTERIORES_NA_TROCA,
   loginMatriculaResponseSchema,
@@ -39,5 +40,22 @@ describe('a senha provisória na troca (acesso-e-convites, tarefa 10.0)', () => 
     expect(trocasDaProvisoriaResponseSchema.safeParse(lista(MAXIMO_DE_PROVISORIAS_ANTERIORES_NA_TROCA)).success).toBe(true)
     expect(trocasDaProvisoriaResponseSchema.safeParse(lista(MAXIMO_DE_PROVISORIAS_ANTERIORES_NA_TROCA + 1)).success).toBe(false)
     expect(trocasDaProvisoriaResponseSchema.safeParse({ anteriores: [{ ...item, aluno: 'x' }] }).success).toBe(false)
+  })
+})
+
+describe('o alvo da senha provisória (acesso-e-convites, tarefa 17.0)', () => {
+  const alvo = { nome: 'Aluno Sintético', turma: '7ºA', matricula: 'm-1', entraPelaContaDaEscola: false }
+
+  it('leva as quatro chaves, e a turma e a matrícula podem ser nulas', () => {
+    expect(alvoDaSenhaProvisoriaResponseSchema.safeParse(alvo).success).toBe(true)
+    expect(alvoDaSenhaProvisoriaResponseSchema.safeParse({ ...alvo, turma: null, matricula: null, entraPelaContaDaEscola: true }).success).toBe(true)
+    expect(alvoDaSenhaProvisoriaResponseSchema.safeParse({ ...alvo, nome: null }).success).toBe(false)
+    expect(alvoDaSenhaProvisoriaResponseSchema.safeParse({ ...alvo, entraPelaContaDaEscola: null }).success).toBe(false)
+  })
+
+  it('não aceita chave a mais: hash, provisória, validade, quem gerou e e-mail não passam pelo contrato', () => {
+    for (const extra of ['senhaHash', 'provisoriaHash', 'expiraEm', 'geradaPor', 'email']) {
+      expect(alvoDaSenhaProvisoriaResponseSchema.safeParse({ ...alvo, [extra]: 'x' }).success, extra).toBe(false)
+    }
   })
 })

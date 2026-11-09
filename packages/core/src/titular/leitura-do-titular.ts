@@ -420,11 +420,11 @@ export const LEITURAS_DO_ARQUIVO: Readonly<Record<string, LeituraDaTabela>> = {
     },
     derivadas: ['papel'],
     consultas: ({ escolaId, titularId }) => [
-      // Só o ato: a ação, a entidade, a finalidade e o instante (critério 2). `senha_provisoria.gerada` fica de fora: o professor a assina, e o `entidade_id` dela é o do aluno (outra
-      // pessoa). Ela chega ao aluno, sem o autor, pela leitura por alvo abaixo (D85, tarefa 11.0). A `senha_provisoria.usada` o aluno assina e é o alvo: as duas leituras a trazem, e
+      // Só o ato: a ação, a entidade, a finalidade e o instante (critério 2). `senha_provisoria.gerada` e `.alvo_lido` ficam de fora: quem as assina é o professor ou a coordenação, e o `entidade_id` delas é o do aluno (outra
+      // pessoa; a segunda é leitura, não ato sobre o titular, e não está na lista por alvo). Só a `.gerada` chega ao aluno, sem o autor, pela leitura por alvo abaixo (D85, tarefa 11.0); a `.alvo_lido` não chega ao arquivo de ninguém, nem ao de quem a fez: fica só na auditoria da escola. A `senha_provisoria.usada` o aluno assina e é o alvo: as duas leituras a trazem, e
       // a segunda (a por alvo, com o `papel`) vence na junção por `id`, então ela sai uma vez.
       sql`select ${selectColumns('id', 'acao', 'entidade', 'entidade_id', 'finalidade', 'em')} from auditoria t
-          where t.escola_id = ${escolaId} and t.autor_usuario_id = ${titularId} and t.acao <> 'senha_provisoria.gerada'`,
+          where t.escola_id = ${escolaId} and t.autor_usuario_id = ${titularId} and t.acao not in ('senha_provisoria.gerada', 'senha_provisoria.alvo_lido')`,
       // Por alvo (D85): o ato de **outra pessoa** sobre o titular, numa lista fechada de seis ações (o índice parcial `auditoria_por_alvo_idx` tem a mesma lista). Sai a ação, a
       // entidade, a finalidade, a data e o **papel** de quem fez, nunca o id nem o nome dele (`autor_usuario_id`, `autor_operador`), nem o `antes` e o `depois`. O papel é fixo nas
       // ações da planilha de alunos (a coordenação grava a planilha), vem do `depois` na `.gerada` e é o próprio aluno na `.usada`. Leitura auditada (quem abriu o dado dele) não está

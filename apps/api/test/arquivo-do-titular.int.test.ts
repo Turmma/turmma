@@ -3,6 +3,7 @@ import {
   ErrorCode,
   COLUNAS_FORA_DO_ARQUIVO,
   CLASSIFICACAO_DAS_TABELAS,
+  FINALIDADE_DA_LEITURA_DO_ALVO,
   FINALIDADE_DO_ARQUIVO_DO_PROPRIO_TITULAR,
   MENSAGENS_DE_ERRO,
   PAPEIS_QUE_GERAM_A_SENHA_PROVISORIA,
@@ -909,6 +910,22 @@ describe('arquivo do titular (F3, tarefa 13.0): do pedido ao download', () => {
       const pedidoId = await pedidoPronto(cenario, alvo.aluno)
       const resumo = (documento(cenario.escolaId, pedidoId, 'completa')['resumo'] as Array<{ conteudo: string; registros: number }>).find(({ conteudo }) => conteudo === 'O registro do que você fez no sistema')
       expect(resumo?.registros).toBe(1)
+    })
+
+    it('a senha_provisoria.alvo_lido (a leitura da confirmação pela coordenação, tarefa 17.0) não aparece no arquivo do aluno, que é o alvo, nem no do coordenador, que a assina', async () => {
+      const cenario = await novaEscola()
+      const alvo = await alunoComLista(cenario, 'Alvo')
+      const lida = await inserir(
+        `insert into auditoria (escola_id, autor_usuario_id, acao, entidade, entidade_id, requisicao_id, finalidade) values ($1, $2, 'senha_provisoria.alvo_lido', 'usuario', $3, $4, $5) returning id`,
+        [cenario.escolaId, cenario.coordenacao.usuarioId, alvo.aluno.id, randomUUID(), FINALIDADE_DA_LEITURA_DO_ALVO],
+      )
+      // Um ato da coordenação que o arquivo dela traz, para o caso provar que a leitura do arquivo do autor funciona e que só a `.alvo_lido` fica de fora.
+      const doProprioAutor = await ato(cenario.escolaId, cenario.coordenacao.usuarioId, 'teste.sentinela', 'escola', cenario.escolaId)
+
+      expect((await auditoriaDoArquivo(cenario, alvo.aluno.id)).map((linha) => linha['id'])).not.toContain(lida)
+      const daCoordenacao = (await auditoriaDoArquivo(cenario, cenario.coordenacao.usuarioId)).map((linha) => linha['id'])
+      expect(daCoordenacao).toContain(doProprioAutor)
+      expect(daCoordenacao).not.toContain(lida)
     })
 
     it('D85: isolamento: a linha da escola B com o entidade_id do aluno da A, e com o da linha da lista dele, fica fora do arquivo da A', async () => {
