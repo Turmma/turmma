@@ -947,7 +947,7 @@
       "id": 22,
       "type": "timeseries",
       "title": "Login pela conta da escola",
-      "description": "Retornos do login pela conta Google ou Microsoft da escola, por minuto e por resultado: entrou, recusado (domínio, tenant ou conta sem ligação), conta_provada (o aluno que prova a conta na sala para pedir o nome, sem ligar ninguém) e provedor (erro, prazo de 5 s ou início perdido). Muitos de provedor juntos é o Google ou a Microsoft fora, ou a escola que revogou o app; a matrícula e o e-mail seguem funcionando.",
+      "description": "Retornos do login pela conta Google ou Microsoft da escola, por minuto e por resultado: entrou, recusado (domínio, tenant ou conta sem ligação), conta_provada (o aluno que prova a conta na sala para pedir o nome, sem ligar ninguém), ligacao_ligada, ligacao_conflito e ligacao_recusada (o aluno que liga a conta em \"Eu\") e provedor (erro, prazo de 5 s ou início perdido). Muitos de provedor juntos é o Google ou a Microsoft fora, ou a escola que revogou o app; a matrícula e o e-mail seguem funcionando.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"

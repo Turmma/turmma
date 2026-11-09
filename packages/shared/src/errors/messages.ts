@@ -1,4 +1,4 @@
-import type { FalhaDoLoginExterno } from '../sessao/externa.js'
+import type { FalhaDoLoginExterno, ResultadoDaLigacao } from '../sessao/externa.js'
 import type { ErrorCode } from './error-code.js'
 
 /**
@@ -163,6 +163,25 @@ export function mensagemDaFalhaExterna(valor: string): string {
   if (valor === 'conta_externa_nao_ligada') return MENSAGENS_DA_FALHA_EXTERNA.conta_externa_nao_ligada
   if (valor === 'acesso_suspenso') return MENSAGENS_DA_FALHA_EXTERNA.acesso_suspenso
   return MENSAGENS_DA_FALHA_EXTERNA.provedor
+}
+
+/**
+ * O que "Eu" diz depois de o aluno ligar a conta da escola (acesso-e-convites, 15.0; `cenarios.md`, "Telas"). Toda recusa diz o próximo passo, e nenhuma diz a quem a
+ * conta está ligada. `provedor` é a queda no meio do caminho: o botão "Tentar de novo" é da tela.
+ */
+export const MENSAGENS_DA_LIGACAO: Readonly<Record<ResultadoDaLigacao, string>> = {
+  ligada: 'Conta da escola ligada',
+  conflito: 'Esta conta já está ligada a outro aluno. Fale com o professor',
+  recusada: 'Esta conta não é da escola. Escolha a conta da escola e tente de novo',
+  provedor: 'Não foi possível ligar a conta agora. Tente de novo',
+}
+
+/** A mensagem do parâmetro `?ligacao=` de "Eu"; valor desconhecido é a queda do provedor, e a tela nunca fica sem explicação. */
+export function mensagemDaLigacao(valor: string): string {
+  if (valor === 'ligada') return MENSAGENS_DA_LIGACAO.ligada
+  if (valor === 'conflito') return MENSAGENS_DA_LIGACAO.conflito
+  if (valor === 'recusada') return MENSAGENS_DA_LIGACAO.recusada
+  return MENSAGENS_DA_LIGACAO.provedor
 }
 
 /**

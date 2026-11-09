@@ -68,7 +68,7 @@ export const METRICS = {
   rebaixadoPorIp: 'login.rebaixado_ip',
   /**
    * Retornos do login pela conta Google ou Microsoft da escola, por `resultado`: `entrou`, `recusado` (domínio, tenant
-   * ou ligação que não valem, a mesma recusa para todos), `conta_provada` (14.0: a conta da escola do aluno que pede o nome, sem ligar ninguém) e `provedor` (erro, prazo ou cookie do início ausente). Sem
+   * ou ligação que não valem, a mesma recusa para todos), `conta_provada` (14.0: a conta da escola do aluno que pede o nome, sem ligar ninguém), `ligacao_ligada`, `ligacao_conflito` e `ligacao_recusada` (15.0: o aluno que liga a conta em "Eu") e `provedor` (erro, prazo ou cookie do início ausente). Sem
    * escola e sem motivo mais fino: o motivo fino diria, a quem lê o painel, qual conta existe.
    */
   loginExterno: 'login.externo',

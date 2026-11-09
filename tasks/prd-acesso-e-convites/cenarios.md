@@ -184,6 +184,12 @@ rodada 1) acrescentou os casos marcados (F2c) e as seções "Arquivo do titular"
 - [I] Conta ligada a outro: `CONFLITO` sem nome nem id; `ligar` com sessão de professor: recusado.
 - [I] O banco não guarda e-mail nem foto do provedor (`reivindicacao` e `conta_externa` conferidas coluna a coluna).
 - [I] Aluno entrou por matrícula, liga a conta em "Eu" e passa a entrar por ela.
+- [I] A volta do "ligar" é `/aluno/eu?ligacao=ligada|conflito|recusada|provedor`: o domínio não liberado, a conta pessoal e a sessão que acabou entre o início e o retorno são `recusada`
+  (nada ligado); a queda do provedor, `provedor`; o mesmo aluno ligando a mesma conta de novo, `ligada` sem segundo registro. O `iniciar` com sessão de coordenador, de professor, de
+  outra escola ou sem sessão responde como o inexistente, sem cookie. (F2c, 15.0)
+- [I] A ligação em "Eu" pede ao provedor a prova da conta de novo: o endereço do `iniciar` com `intencao=ligar` leva `max_age=0` e o `prompt` do provedor (`select_account` no Google, `login`
+  na Microsoft), e o `iniciar` do login comum não leva nenhum dos dois; o retorno com `auth_time` de mais de 120 s é `recusada`, nada ligado, e o de agora liga. `intencao=ligar` com `token` ou
+  `codigo` responde como o inexistente. (F2c, 15.0)
 - [I] Ano sem curso: `externa/iniciar` responde como hoje, sem abrir pedido.
 - [I] Pedido de conta pendente encerrado pela transferência no job e pela virada do ano: `contaExterna` nula, sem
   `decididaEm`, `decididaPor` nem `decididaComo`.
@@ -284,7 +290,7 @@ termo técnico.
 | Aceite com `VERIFICACAO_PENDENTE` | — | — | "Mandamos um link para o seu e-mail. Abra-o e volte a este convite. Pode levar alguns minutos; se não chegar, abra o convite de novo para outro link." | — |
 | Trocar a provisória | lista: esqueleto | primeira vez: "É a primeira vez que você troca a senha", sem tabela | lista falhou: aviso com "Tentar de novo", o campo segue; bilhete vencido: "Peça a senha de novo ao professor" | "Gerada pela coordenação em 12/11/2026 às 14:05 · usada" |
 | Conta da escola na sala | "Entrando…" | botão "Entrar com a conta da escola" | domínio não liberado: "Esta conta não é da escola. Use a conta da escola ou a matrícula"; cookie vencido: "Comece de novo pelo link da sala"; `CONFLITO`: "Esta conta já está ligada a outro aluno. Fale com o professor"; rede: "Tentar de novo" | "Pedido enviado. Espere o professor aprovar" |
-| Conta da escola em "Eu" | botão ocupado | "Ligar a conta da escola" | `CONFLITO`: como na sala; rede: "Tentar de novo" | "Conta da escola ligada" |
+| Conta da escola em "Eu" | botão ocupado ("Ligando…") | "Ligar a conta da escola" | `CONFLITO`: como na sala; domínio não liberado ou conta pessoal: "Esta conta não é da escola. Escolha a conta da escola e tente de novo"; queda do provedor: "Não foi possível ligar a conta agora. Tente de novo", com o botão "Tentar de novo" (com os dois provedores, "Tentar de novo com a conta Google" e "…com a conta Microsoft"); rede (a leitura dos provedores): "Tentar de novo" | "Conta da escola ligada", na volta do provedor (o `/v1/eu` não diz se há conta ligada, e o botão reaparece numa visita seguinte) |
 | Professores, envio | — | — | `falhou`: "Não chegou. Confira o e-mail e reenvie, ou copie o link" (sem sugerir que o professor errou) | `na_fila` e `enviando`: "Enviando"; `enviado`: "Enviado em 12/11 às 14:05"; `cancelado`: vale o estado do convite. Mudança anunciada em `aria-live="polite"` |
 | Gerar provisória | confirmação: "Carregando…" com "Gerar" ocupado, enquanto lê o alvo; geração: botão ocupado | confirmação: nome, turma (sem turma: a linha some), matrícula e "a senha atual deixa de valer, e ela sai da conta em todo lugar" | `ENTRA_PELA_CONTA_DA_ESCOLA` (na leitura do alvo ou na geração): "Este aluno entra pela conta da escola. Não precisa de senha", sem "Gerar"; alvo que sumiu (404 na leitura ou na geração): "Este aluno não está mais na turma. A lista foi atualizada", a confirmação fecha; leitura falhou: "Tentar de novo"; `CONFLITO`: "Acabou de ser gerada. Espere alguns segundos"; 429: "Muitas tentativas. Espere alguns minutos e tente de novo" | a senha em dois grupos, grande como o código da turma, lida grupo a grupo pelo leitor de tela, com "Copiar" e a validade; fora do cache de consultas, da URL, do log e do armazenamento do navegador, e sai da tela ao fechar |
 

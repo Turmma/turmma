@@ -1,5 +1,5 @@
-import { conta, contaExterna, requireEscolaId, provedorEscola, usuario, type Database, type ProvedorExterno, type DatabaseTransaction } from '@educa/core'
-import { and, eq, isNull, sql } from 'drizzle-orm'
+import { conta, contaExterna, escola, requireEscolaId, provedorEscola, sessao, sessaoAindaVale, usuario, type Database, type ProvedorExterno, type DatabaseTransaction } from '@educa/core'
+import { and, eq, isNull, sql, type SQL } from 'drizzle-orm'
 
 /** A chave da conta externa: o provedor, o tenant (só na Microsoft) e o identificador estável. */
 export interface ChaveDaContaExterna {
@@ -23,6 +23,12 @@ export interface ProfessorPeloEmail {
   readonly contaId: string
   readonly jaLigado: boolean
   readonly suspenso: boolean
+}
+
+/** A sessão de aluno que vale agora: só os ids, nunca o refresh nem o hash. */
+export interface SessaoDoAluno {
+  readonly sessaoId: string
+  readonly usuarioId: string
 }
 
 /**
@@ -112,5 +118,58 @@ export class ContaExternalRepository {
       .onConflictDoNothing()
       .returning({ id: contaExterna.id })
     return criada?.id
+  }
+
+  /**
+   * A sessão de aluno aberta cujo refresh atual tem o hash do cookie, **na escola do contexto** (acesso-e-convites, 15.0): o `iniciar` do `intencao=ligar` sabe quem liga pelo
+   * `educa_sessao`, que vai à navegação da própria web. Só o refresh atual vale (o anterior, de uma rotação, não), e só se a sessão ainda vale agora (`sessaoAindaVale`, a mesma
+   * conferência da guarda e da renovação). Sessão de professor, de coordenador, de outra escola, vencida, encerrada ou de usuário desativado ou com a eliminação agendada: `undefined`.
+   */
+  async sessaoDoAluno(refreshHash: string): Promise<SessaoDoAluno | undefined> {
+    const [linha] = await this.#estadoDaSessao(eq(sessao.refreshHash, refreshHash))
+    return linha !== undefined && linha.papel === 'aluno' && sessaoAindaVale(linha) ? { sessaoId: linha.sessaoId, usuarioId: linha.usuarioId } : undefined
+  }
+
+  /**
+   * Trava o usuário do aluno (`FOR NO KEY UPDATE`: a mesma trava da geração da senha provisória e da aprovação com conta, que se serializam com a ligação) e, **com a linha travada**,
+   * confere que a sessão em que o `iniciar` o achou ainda vale e é dele (15.0; Tech Spec, seção 5, "Senha provisória"). É a conferência que separa "ligar" de "gerar": quem gerou a
+   * provisória primeiro encerrou as sessões dele, e a ligação que esperava a trava as vê encerradas e não liga. `sessaoAindaVale` já recusa o aluno desativado ou com a eliminação
+   * agendada. O usuário e a sessão vêm do cookie cifrado do `iniciar`, e a escola é a do contexto: o cookie com o aluno de uma escola e a escola de outra não acha linha nenhuma.
+   * A sessão em si não tem trava: a saída do aluno não pega a do usuário, e pode encerrá-la entre esta conferência e o `insert`, caso em que a conta liga do mesmo jeito. A corrida é
+   * aceita: é ato do próprio aluno, e a provisória, que é o que a trava protege, segue serializada com a ligação. Só dentro da transação da ligação.
+   */
+  async travarAlunoDaSessao(usuarioId: string, sessaoId: string): Promise<boolean> {
+    const escolaId = requireEscolaId()
+    await this.banco
+      .select({ id: usuario.id })
+      .from(usuario)
+      .where(and(eq(usuario.escolaId, escolaId), eq(usuario.id, usuarioId)))
+      .limit(1)
+      .for('no key update')
+    const [linha] = await this.#estadoDaSessao(and(eq(sessao.id, sessaoId), eq(sessao.usuarioId, usuarioId)))
+    return linha !== undefined && sessaoAindaVale(linha)
+  }
+
+  /** A sessão e o que decide se ela vale, na escola do contexto, pela condição: a leitura que a `SessaoGuard` faz, sem o ano letivo e sem trava. */
+  #estadoDaSessao(condicao: SQL | undefined) {
+    return this.banco
+      .select({
+        sessaoId: sessao.id,
+        usuarioId: sessao.usuarioId,
+        papel: usuario.papel,
+        desativadoEm: usuario.desativadoEm,
+        eliminacaoAgendadaEm: usuario.eliminacaoAgendadaEm,
+        encerradaEm: sessao.encerradaEm,
+        expiraEm: sessao.expiraEm,
+        ultimoUsoEm: sessao.ultimoUsoEm,
+        inatividadeAlunoMin: escola.inatividadeAlunoMin,
+        inatividadeEquipeMin: escola.inatividadeEquipeMin,
+        agora: sql<Date>`now()`.mapWith(sessao.expiraEm),
+      })
+      .from(sessao)
+      .innerJoin(usuario, and(eq(usuario.escolaId, sessao.escolaId), eq(usuario.id, sessao.usuarioId)))
+      .innerJoin(escola, eq(escola.id, sessao.escolaId))
+      .where(and(eq(sessao.escolaId, requireEscolaId()), condicao))
+      .limit(1)
   }
 }

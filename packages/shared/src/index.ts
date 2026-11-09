@@ -9,10 +9,12 @@ export {
   AVISO_DO_SEGUNDO_FATOR_CONSUMIDO,
   formatarEspera,
   MENSAGENS_DA_ENTRADA,
+  MENSAGENS_DA_LIGACAO,
   MENSAGENS_DE_ERRO,
   mensagemDaEntrada,
   mensagemDaEntradaPorMatricula,
   mensagemDaFalhaExterna,
+  mensagemDaLigacao,
   mensagemDoAcessoDaEscola,
   mensagemDoConvite,
   mensagemDoSegundoFator,
@@ -127,8 +129,16 @@ export { loginMatriculaRequestSchema, TAMANHO_MAXIMO_MATRICULA, TAMANHO_MAXIMO_S
 export type { LoginMatriculaRequest } from './sessao/matricula.js'
 export { acessoDaEscolaResponseSchema, PROVEDORES_DE_CONTA_DA_ESCOLA } from './sessao/acesso-da-escola.js'
 export type { ProvedorDeContaDaEscola, AcessoDaEscolaResponse } from './sessao/acesso-da-escola.js'
-export { FALHAS_DO_LOGIN_EXTERNO, PARAMETRO_DA_CONTA_PROVADA, PARAMETRO_DA_FALHA_DO_LOGIN_EXTERNO, VALOR_DA_CONTA_PROVADA } from './sessao/externa.js'
-export type { FalhaDoLoginExterno } from './sessao/externa.js'
+export {
+  ENDERECO_DO_EU_DO_ALUNO,
+  FALHAS_DO_LOGIN_EXTERNO,
+  PARAMETRO_DA_CONTA_PROVADA,
+  PARAMETRO_DA_FALHA_DO_LOGIN_EXTERNO,
+  PARAMETRO_DA_LIGACAO,
+  RESULTADOS_DA_LIGACAO,
+  VALOR_DA_CONTA_PROVADA,
+} from './sessao/externa.js'
+export type { FalhaDoLoginExterno, ResultadoDaLigacao } from './sessao/externa.js'
 export {
   provedoresDaEscolaRequestSchema,
   provedorDaEscolaSchema,

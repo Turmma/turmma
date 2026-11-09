@@ -33,6 +33,20 @@ const COM_TURMA = {
     serie: { id: '0192a4c0-5b1e-7c3d-8e4f-a0b1c2d3e4f6', etapa: 'ef_anos_finais', ano: 7 },
   },
 } as const
+/** O `/v1/eu` do aluno e a escola sem conta Google nem Microsoft liberada: "Conta da escola" (15.0) pergunta os dois para saber se mostra o botão, e aqui não mostra. */
+const EU_DO_ALUNO = {
+  status: 200,
+  corpo: {
+    usuarioId: '0192a4c0-5b1e-7c3d-8e4f-a0b1c2d3e4f7',
+    papel: 'aluno',
+    nome: 'Aluno sintético',
+    escola: { id: '0192a4c0-5b1e-7c3d-8e4f-a0b1c2d3e4f8', nome: 'Escola sintética', slug: 'escola-sintetica' },
+    inatividadeMin: 30,
+    introducaoVistaEm: null,
+    acessos: [],
+  },
+} as const
+const ACESSO_SEM_PROVEDOR = { status: 200, corpo: { nome: 'Escola sintética', provedores: [] } } as const
 const SEM_TURMA_NO_ANO = 'Você ainda não está em uma turma neste ano letivo. Fale com quem dá a aula ou com a coordenação.'
 const MEMORIA_VAZIA = { status: 200, corpo: { trabalhos: [], sinais: [] } } as const
 const LIMITANTE = { codigo: 'EF09CI01', descricao: 'Reconhecer o reagente limitante' }
@@ -264,8 +278,10 @@ describe('Eu: "Como estou indo"', () => {
     expect(document.body.textContent).not.toMatch(/resposta_pronta|travou|duvida_repetida|resposta pronta/i)
   })
 
-  it('nada de colega, média, posição, sequência de dias, ponto ou meta (RF10), e a rede vê só a turma e a memória', async () => {
+  it('nada de colega, média, posição, sequência de dias, ponto ou meta (RF10), e a rede vê só a turma, a memória e o que a "Conta da escola" pergunta (quem sou eu e os provedores da escola)', async () => {
     const rede = fakeNetwork()
+    rede.responderPor('/v1/eu', EU_DO_ALUNO)
+    rede.responderPor('/v1/escolas/escola-sintetica/acesso', ACESSO_SEM_PROVEDOR)
     rede.responderPor('/v1/minha-turma', COM_TURMA)
     rede.responderPor('/v1/tutor/memoria', { status: 200, corpo: memoriaDoAluno([trabalhoNaMemoria({ resultado: resultadoAprovado({ aReforcar: [LIMITANTE] }) })]) })
     montar()
@@ -273,7 +289,7 @@ describe('Eu: "Como estou indo"', () => {
     await within(comoEstouIndo()).findByText('7 de 8 certas')
 
     expect(document.body.textContent ?? '').not.toMatch(/colega|média|posição|ranking|sequência|pontos|meta\b|prêmio/i)
-    expect(rede.chamadas.map((chamada) => chamada.caminho).sort()).toEqual(['/v1/minha-turma', '/v1/tutor/memoria'])
+    expect(rede.chamadas.map((chamada) => chamada.caminho).sort()).toEqual(['/v1/escolas/escola-sintetica/acesso', '/v1/eu', '/v1/minha-turma', '/v1/tutor/memoria'])
   })
 
   it('a leitura dura 5 minutos e não é refeita ao voltar para a aba, nem ao abrir Eu de novo', async () => {

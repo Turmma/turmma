@@ -21,6 +21,7 @@ export interface InicioNoProvedor extends ConferenciasDoRetorno {
  * - `email`: só para ligar o professor no primeiro login, na memória desta requisição. Nunca vai ao banco, ao log nem
  *   a uma exceção. Com `emailVerificado`, que no Google é a claim `email_verified`; na Microsoft, o `tid` conferido
  *   contra a escola é o que o valida (Tech Spec, seção 5).
+ * - `autenticadaEm`: a claim `auth_time`, em segundos desde 1970, quando o provedor a traz (15.0). Só a ligação da conta em "Eu" a olha: a conta que o provedor não reautenticou agora não se liga.
  */
 export interface ContaNoProvedor {
   readonly provedor: ProvedorExterno
@@ -29,6 +30,7 @@ export interface ContaNoProvedor {
   readonly dominio: string | undefined
   readonly email: string | undefined
   readonly emailVerificado: boolean
+  readonly autenticadaEm: number | undefined
 }
 
 /** O provedor não respondeu a tempo, respondeu com erro, ou a resposta não conferiu. Sem detalhe: nada do provedor sai daqui. */
@@ -46,8 +48,12 @@ export class ExternalProviderError extends Error {
 export interface ExternalProviderPort {
   /** Os provedores ligados na configuração. */
   readonly ligados: readonly ProvedorExterno[]
-  /** Gera `state`, `nonce` e o verificador do PKCE e monta o endereço do provedor. Falha com `ExternalProviderError`. */
-  iniciar(provedor: ProvedorExterno): Promise<InicioNoProvedor>
+  /**
+   * Gera `state`, `nonce` e o verificador do PKCE e monta o endereço do provedor. Falha com `ExternalProviderError`.
+   * `reautenticar` (a ligação da conta em "Eu", 15.0): o endereço pede ao provedor que a pessoa prove a conta de novo e escolha qual, em vez de entrar calada na que o
+   * computador compartilhado deixou aberta. O login comum não pede.
+   */
+  iniciar(provedor: ProvedorExterno, reautenticar?: boolean): Promise<InicioNoProvedor>
   /**
    * Troca o código do retorno pelos tokens, confere a assinatura, o emissor, o público, o `state`, o `nonce` e o PKCE, e
    * devolve só o que o login usa. Falha com `ExternalProviderError`.

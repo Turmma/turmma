@@ -8,10 +8,12 @@ import {
   mensagemDaEntrada,
   mensagemDaEntradaPorMatricula,
   mensagemDaFalhaExterna,
+  mensagemDaLigacao,
   mensagemDoAcessoDaEscola,
   mensagemDoConvite,
   mensagemDoSegundoFator,
   MENSAGENS_DA_FALHA_EXTERNA,
+  MENSAGENS_DA_LIGACAO,
   MENSAGENS_DE_ERRO,
 } from './messages.js'
 
@@ -153,6 +155,22 @@ describe('mensagemDaFalhaExterna', () => {
       expect(mensagem.length, falha).toBeGreaterThan(0)
       expect(mensagem, falha).not.toContain(falha)
       expect(mensagem, falha).not.toMatch(/\b[45]\d{2}\b/)
+    }
+  })
+})
+
+describe('mensagemDaLigacao', () => {
+  it('cada resultado da ligação em "Eu" tem o seu texto, e toda recusa diz o próximo passo sem dizer a quem a conta está ligada', () => {
+    expect(mensagemDaLigacao('ligada')).toBe('Conta da escola ligada')
+    expect(mensagemDaLigacao('conflito')).toBe('Esta conta já está ligada a outro aluno. Fale com o professor')
+    expect(mensagemDaLigacao('recusada')).toBe('Esta conta não é da escola. Escolha a conta da escola e tente de novo')
+    expect(mensagemDaLigacao('provedor')).toBe('Não foi possível ligar a conta agora. Tente de novo')
+    expect(new Set(Object.values(MENSAGENS_DA_LIGACAO)).size).toBe(4)
+  })
+
+  it('valor que ninguém escreveu na barra é a queda do provedor: a tela nunca fica sem explicação', () => {
+    for (const valor of ['', 'LIGADA', 'valor-que-ninguem-escreveu']) {
+      expect(mensagemDaLigacao(valor), valor).toBe(MENSAGENS_DA_LIGACAO.provedor)
     }
   })
 })

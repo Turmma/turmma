@@ -12,6 +12,7 @@ import { ListItem } from '../../components/ui/ListItem'
 import { Page } from '../../components/ui/Page'
 import { usePageTitle } from '../../document-title'
 import { ComoEstouIndo } from './ComoEstouIndo'
+import { ContaDaEscola } from './ContaDaEscola'
 import { DialogoDeAjustes } from './DialogoDeAjustes'
 
 /**
@@ -85,6 +86,8 @@ function LinhasDaConta({ aoAbrirAjustes }: { readonly aoAbrirAjustes: () => void
  * e, à parte, o aluno sem turma no ano, que não é erro de ninguém e diz o que fazer. **As linhas existem em todos os
  * estados**: o "Sair" nunca depende de a leitura da turma ter dado certo (D59).
  *
+ * **Conta da escola** (`ContaDaEscola`, acesso-e-convites, 15.0; RF14): só se a escola liberou o Google ou a Microsoft, entre "Como estou indo" e as linhas, com o botão que liga a conta.
+ *
  * O "Sair" é o da casca, pelo contexto (`SignOutContext`): a mesma saída do botão da lateral, a um clique.
  */
 export default function Eu() {
@@ -119,6 +122,7 @@ export default function Eu() {
       <section className="flex min-w-0 flex-col gap-4" aria-labelledby="titulo-eu">
         {avisoDaTurma()}
         <ComoEstouIndo />
+        <ContaDaEscola />
         <LinhasDaConta aoAbrirAjustes={() => definirAjustesAbertos(true)} />
       </section>
       {ajustesAbertos && <DialogoDeAjustes aoFechar={() => definirAjustesAbertos(false)} />}

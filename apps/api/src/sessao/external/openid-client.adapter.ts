@@ -15,6 +15,15 @@ const ESCOPOS: Readonly<Record<ProvedorExterno, string>> = {
   microsoft: 'openid email profile',
 }
 
+/**
+ * Como a ligação da conta em "Eu" pede a prova da conta (15.0): o provedor reautentica (`max_age=0`) e, no endereço, a pessoa escolhe a conta. A Microsoft entende `prompt=login`, que
+ * pede a credencial de novo; o Google, `select_account`, que mostra a lista e não entra calado na conta que o colega deixou aberta.
+ */
+const PROMPT_DA_LIGACAO: Readonly<Record<ProvedorExterno, string>> = {
+  google: 'select_account',
+  microsoft: 'login',
+}
+
 function texto(valor: unknown): string | undefined {
   return typeof valor === 'string' && valor !== '' ? valor : undefined
 }
@@ -57,7 +66,7 @@ export class OpenIdClientAdapter implements ExternalProviderPort {
     this.ligados = [...configuracao.provedores.keys()]
   }
 
-  async iniciar(provedor: ProvedorExterno): Promise<InicioNoProvedor> {
+  async iniciar(provedor: ProvedorExterno, reautenticar = false): Promise<InicioNoProvedor> {
     const { retorno } = this.configuracao
     if (retorno === undefined) throw new ExternalProviderError()
     return comPrazo(
@@ -74,6 +83,7 @@ export class OpenIdClientAdapter implements ExternalProviderPort {
           code_challenge_method: 'S256',
           state,
           nonce,
+          ...(reautenticar ? { max_age: '0', prompt: PROMPT_DA_LIGACAO[provedor] } : {}),
         })
         return { endereco, state, nonce, verificador }
       })().catch(() => {
@@ -105,16 +115,17 @@ export class OpenIdClientAdapter implements ExternalProviderPort {
   #conta(provedor: ProvedorExterno, claims: oidc.IDToken | undefined): ContaNoProvedor {
     if (claims === undefined) throw new ExternalProviderError()
     const email = texto(claims['email'])
+    const autenticadaEm = typeof claims['auth_time'] === 'number' ? claims['auth_time'] : undefined
     if (provedor === 'google') {
       const sujeito = texto(claims.sub)
       if (sujeito === undefined) throw new ExternalProviderError()
-      return { provedor, sujeito, tenant: null, dominio: texto(claims['hd'])?.toLowerCase(), email, emailVerificado: claims['email_verified'] === true }
+      return { provedor, sujeito, tenant: null, dominio: texto(claims['hd'])?.toLowerCase(), email, emailVerificado: claims['email_verified'] === true, autenticadaEm }
     }
     const sujeito = texto(claims['oid'])?.toLowerCase()
     const tenant = texto(claims['tid'])?.toLowerCase()
     if (sujeito === undefined || tenant === undefined) throw new ExternalProviderError()
     // Na Microsoft não há `email_verified`: o que valida o e-mail é o tenant conferido contra a lista da escola.
-    return { provedor, sujeito, tenant, dominio: tenant, email, emailVerificado: false }
+    return { provedor, sujeito, tenant, dominio: tenant, email, emailVerificado: false, autenticadaEm }
   }
 
   #configuracaoDe(provedor: ProvedorExterno): Promise<oidc.Configuration> {

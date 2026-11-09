@@ -145,6 +145,17 @@ export class SessaoFixtures {
     return (await syntheticTokenIssuer(this.#ambiente).emitir({ escolaId, ...criada })).token
   }
 
+  /** Uma segunda sessão aberta do mesmo usuário (o aluno que entrou também pelo celular, em casa), que não é a de ninguém mais; devolve o id dela. */
+  async outraSessaoDoUsuario(escolaId: string, usuarioId: string): Promise<string> {
+    return runInContext({ requisicaoId: randomUUID(), escolaId }, () =>
+      this.banco.transaction(async (tx) => {
+        const [sessao] = await new SessaoCreateRepository(tx).criarSessoes([{ usuarioId, contaId: null, metodo: 'matricula', refreshHash: randomUUID(), duracaoHoras: DURACAO_DA_SESSAO_HORAS }])
+        if (sessao === undefined) throw new Error('sessão não criada')
+        return sessao.id
+      }),
+    )
+  }
+
   /** Alunos com credencial por matrícula na escola, pelo seed sintético da 11.0; os ids voltam na ordem pedida. */
   async alunosComMatricula(escolaId: string, alunos: readonly AlunoComMatriculaSintetico[]): Promise<string[]> {
     return criarAlunosComMatricula(this.banco, this.#ambiente, escolaId, alunos)

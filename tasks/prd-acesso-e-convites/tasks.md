@@ -101,7 +101,7 @@
   - [x] 14.4 O `fechar('encerrada')` anula a `contaExterna`; `contaExterna` em `COLUNAS_FORA_DO_ARQUIVO`; `docs/lgpd.md` (o cookie); o runbook recusa os pedidos de conta na volta de versão
   - [x] 14.5 Testes: cookie e escola, pedido com a conta, aprovação com `CONFLITO`, check, encerramento, corridas
 
-- [ ] **15.0 — Ligar a conta da escola em "Eu" (API e tela)**
+- [x] **15.0 — Ligar a conta da escola em "Eu" (API e tela)**
   - [ ] 15.1 `intencao=ligar` com sessão de aluno, na trava da linha do usuário
   - [ ] 15.2 O botão e os estados em "Eu"
   - [ ] 15.3 `docs/interface.md`

@@ -14,13 +14,14 @@ const slugDigitadoSchema = z.string().trim().pipe(slugDaEscolaSchema)
 
 /**
  * A query do `iniciar`: o slug e, só para o pedido do nome (acesso-e-convites, 14.0), `intencao=reivindicar` com o token do link **ou**
- * o código da sala. Token ou código sem `intencao`, a `intencao` sem um deles ou com os dois, e qualquer outra `intencao` respondem como o
+ * o código da sala; ou, para o aluno que já entrou ligar a conta em "Eu" (15.0), `intencao=ligar`, sem token nem código. Token ou código sem
+ * `intencao`, a `intencao` `reivindicar` sem um deles ou com os dois, `ligar` com um deles e qualquer outra `intencao` respondem como o
  * inexistente. Campo a mais é ignorado, como sempre foi.
  */
 const consultaDoIniciarSchema = z
   .object({
     slug: slugDigitadoSchema,
-    intencao: z.literal('reivindicar').optional(),
+    intencao: z.enum(['reivindicar', 'ligar']).optional(),
     token: z.string().min(1).max(TAMANHO_MAXIMO_TOKEN_DE_CONVITE).optional(),
     codigo: z.string().min(1).max(TAMANHO_MAXIMO_CODIGO_DIGITADO).optional(),
   })
@@ -53,15 +54,17 @@ export class ExternalLoginController {
   /**
    * `GET /v1/sessao/externa/:provedor/iniciar?slug=`: vai ao provedor, ou 404 se o provedor ou o slug não têm o formato, ou se a escola não o oferece.
    * Com `&intencao=reivindicar&token=` (ou `&codigo=`), o aluno prova a conta para pedir o nome: a sala é achada aqui, pelo link ou pelo código na escola
-   * do slug, e o login fica preso ao acesso dela (14.0).
+   * do slug, e o login fica preso ao acesso dela (14.0). Com `&intencao=ligar`, o aluno que já entrou liga a conta da escola em "Eu": a sessão dele vem do cookie de renovação (15.0).
    */
   @Get(':provedor/iniciar')
   async iniciar(
     @Param('provedor', new ZodValidationPipe(provedorSchema, COMO_INEXISTENTE)) provedor: ProvedorExterno,
     @Query(new ZodValidationPipe(consultaDoIniciarSchema, COMO_INEXISTENTE)) consulta: z.infer<typeof consultaDoIniciarSchema>,
+    @Req() requisicao: IncomingMessage,
     @Res() resposta: ServerResponse,
   ): Promise<void> {
     if (consulta.intencao === undefined) return redirecionar(resposta, await this.login.iniciar(provedor, consulta.slug))
+    if (consulta.intencao === 'ligar') return redirecionar(resposta, await this.login.iniciarParaLigar(provedor, consulta.slug, requisicao.headers.cookie))
     const { slug, token, codigo } = consulta
     const entrada = token !== undefined ? { slug, token } : codigo !== undefined ? { slug, codigo } : undefined
     if (entrada === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)

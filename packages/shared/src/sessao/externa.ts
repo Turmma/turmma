@@ -24,3 +24,21 @@ export const PARAMETRO_DA_FALHA_DO_LOGIN_EXTERNO = 'falha'
  */
 export const PARAMETRO_DA_CONTA_PROVADA = 'conta'
 export const VALOR_DA_CONTA_PROVADA = 'provada'
+
+/**
+ * O aluno que já entrou liga a conta da escola em "Eu" (acesso-e-convites, 15.0; `externa/iniciar?intencao=ligar`). Como o login, termina num
+ * redirecionamento: o `retorno` leva o navegador a `/aluno/eu?ligacao=<resultado>` e a tela diz o que fazer.
+ *
+ * - `ligada`: a conta ficou ligada a ele, ou já estava (ligar a mesma conta duas vezes dá uma ligação só).
+ * - `conflito`: a conta está ligada a outro aluno, ou ele já tem outra conta ligada (uma conta por aluno). Nunca diz a quem.
+ * - `recusada`: a conta não é de um domínio ou tenant da escola, ou a sessão dele já não vale no retorno.
+ * - `provedor`: o Google ou a Microsoft responderam com erro, não responderam a tempo ou o retorno chegou sem o cookie.
+ */
+export const RESULTADOS_DA_LIGACAO = ['ligada', 'conflito', 'recusada', 'provedor'] as const
+export type ResultadoDaLigacao = (typeof RESULTADOS_DA_LIGACAO)[number]
+
+/** O parâmetro de `/aluno/eu` que leva o resultado da ligação da conta da escola. */
+export const PARAMETRO_DA_LIGACAO = 'ligacao'
+
+/** A página "Eu" do aluno na web, para onde o retorno do `intencao=ligar` volta. */
+export const ENDERECO_DO_EU_DO_ALUNO = '/aluno/eu'

@@ -42,6 +42,16 @@
         },
         {
           "requestParam": "subject",
+          "match": "google-aluna-a-sessao-antiga",
+          "claims": { "sub": "google-sub-aluna-a-sessao-antiga", "hd": "escola-a.educa-sintetica.test", "email": "aluna.ficticia.a@escola-a.educa-sintetica.test", "email_verified": true, "auth_time": 1 }
+        },
+        {
+          "requestParam": "subject",
+          "match": "google-aluna-a-reautenticada",
+          "claims": { "sub": "google-sub-aluna-a-reautenticada", "hd": "escola-a.educa-sintetica.test", "email": "aluna.ficticia.a@escola-a.educa-sintetica.test", "email_verified": true, "auth_time": 4102444800 }
+        },
+        {
+          "requestParam": "subject",
           "match": "google-professor-escola-b",
           "claims": { "sub": "google-sub-professor-escola-b", "hd": "escola-b.educa-sintetica.test", "email": "professor.b@escola-b.educa-sintetica.test", "email_verified": true }
         },

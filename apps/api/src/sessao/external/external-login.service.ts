@@ -8,10 +8,21 @@ import {
   type Meter,
   type ProvedorExterno,
 } from '@educa/core'
-import { ErrorCode, PARAMETRO_DA_CONTA_PROVADA, PARAMETRO_DA_FALHA_DO_LOGIN_EXTERNO, TENANT_DE_CONTA_PESSOAL_MICROSOFT, VALOR_DA_CONTA_PROVADA, type FalhaDoLoginExterno } from '@educa/shared'
+import {
+  ENDERECO_DO_EU_DO_ALUNO,
+  ErrorCode,
+  PARAMETRO_DA_CONTA_PROVADA,
+  PARAMETRO_DA_FALHA_DO_LOGIN_EXTERNO,
+  PARAMETRO_DA_LIGACAO,
+  TENANT_DE_CONTA_PESSOAL_MICROSOFT,
+  VALOR_DA_CONTA_PROVADA,
+  type FalhaDoLoginExterno,
+  type ResultadoDaLigacao,
+} from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import type { ConclusaoDeLogin } from '../completion/login-completion.js'
-import { lerCookie } from '../../credencial/cookies.js'
+import { lerCookie, SESSAO_COOKIE } from '../../credencial/cookies.js'
+import { hashDoRefresh } from '../../credencial/login-identifiers.js'
 import { naEscolaSemUsuario } from '../tenant/escola-sem-usuario.js'
 import { ipParaRegistro, type RequestOrigin } from '../../credencial/request-origin.js'
 import { RegistroDeAcessoRepository } from '../../credencial/registro-de-acesso.repository.js'
@@ -43,6 +54,12 @@ export interface ExternalLoginDependencies {
 /** Para onde a web vai depois de entrar: a casca, que renova a sessão pelo cookie e lê `/v1/eu` (18.0). */
 export const DESTINO_DEPOIS_DE_ENTRAR = '/'
 
+/**
+ * Quanto o `auth_time` do ID token pode ser antigo na volta da ligação da conta em "Eu" (15.0): o `iniciar` pediu a prova de novo (`max_age=0`), e a folga cobre a senha digitada e o
+ * relógio do provedor. O Google só traz a claim com um ajuste do console dele, e a Microsoft a traz como opcional: sem ela, vale o que o endereço pediu (`prompt`); com ela, ela precisa ser recente.
+ */
+export const IDADE_MAXIMA_DA_AUTENTICACAO_S = 120
+
 /** A sala a que o `iniciar` com `intencao=reivindicar` prende o login: o acesso vigente, achado pelo link ou pelo código na escola do slug. */
 export interface SalaDoLogin {
   readonly escolaId: string
@@ -58,6 +75,14 @@ export function enderecoDaSala(slug: string): string {
 export function enderecoDaFalha(slug: string | undefined, falha: FalhaDoLoginExterno): string {
   const consulta = `?${PARAMETRO_DA_FALHA_DO_LOGIN_EXTERNO}=${falha}`
   return slug === undefined ? `/${consulta}` : `/e/${encodeURIComponent(slug)}${consulta}`
+}
+
+/** O que o retorno da ligação decide sozinho: a queda do provedor (`provedor`) não passa por aqui, e por isso a métrica `ligacao_<resultado>` só tem estes três. */
+type ResultadoDoRetornoDaLigacao = Exclude<ResultadoDaLigacao, 'provedor'>
+
+/** O endereço de "Eu" do aluno na web com o resultado da ligação (15.0), que a tela mostra e tira da barra. */
+export function enderecoDaLigacao(resultado: ResultadoDaLigacao): string {
+  return `${ENDERECO_DO_EU_DO_ALUNO}?${PARAMETRO_DA_LIGACAO}=${resultado}`
 }
 
 type Decisao =
@@ -97,6 +122,8 @@ function entrarSeNaoSuspensa(ligacao: Pick<LigacaoDaContaExterna, 'usuarioId' | 
  *   No retorno, a conta de domínio liberado **sem ligação** não liga ninguém (nem o professor pelo e-mail): vira o cookie
  *   `educa_conta_provada`, e o aluno volta à página da sala. A conta ligada a usuário ativo entra como sempre; a ligada a
  *   desativado e o domínio não liberado são recusados como sempre.
+ * - **`intencao=ligar`** (acesso-e-convites, 15.0): o aluno com sessão liga a conta da escola em "Eu". O `iniciar` o acha pelo `educa_sessao` e o prende no cookie `educa_oidc`; o retorno
+ *   liga na trava da linha do usuário (a da senha provisória), com a auditoria `conta_externa.ligada`, e volta a `/aluno/eu?ligacao=…`. Não abre sessão nem grava `login_falho`.
  * - **Provedor:** `error` no retorno, prazo de 5 s, resposta que não confere ou cookie ausente dão `?falha=provedor`.
  *   O login por matrícula e por e-mail não passa por aqui, e continua.
  * - **Nada de pessoa guardado:** o e-mail do provedor só é comparado, na memória desta requisição; nome, foto, tokens e
@@ -124,25 +151,40 @@ export class ExternalLoginService {
     if (!this.ligados.includes(provedor)) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     const escolaId = await this.dependencias.resolucao.escolaPorSlug(slug)
     if (escolaId === undefined || (sala !== undefined && sala.escolaId !== escolaId)) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+    return this.#aoProvedor(provedor, slug, escolaId, sala === undefined ? {} : { acessoDaSalaId: sala.acessoId })
+  }
+
+  /**
+   * O `iniciar` com `intencao=ligar` (acesso-e-convites, 15.0): o aluno que já entrou liga a conta da escola em "Eu". Quem liga é a sessão de aluno que o cookie de renovação
+   * `educa_sessao` (que vai à navegação da própria web) traz, achada na escola do slug: sem o cookie, vencida, encerrada, de professor ou coordenador, ou de outra escola, responde
+   * como o inexistente (regra 10, item 6). O aluno e a sessão vão no cookie `educa_oidc`, porque o retorno vem de outro site e o `educa_sessao` (`Strict`) não vai nele.
+   */
+  async iniciarParaLigar(provedor: ProvedorExterno, slug: string, cabecalhoCookie: string | undefined): Promise<Redirect> {
+    if (!this.ligados.includes(provedor)) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+    const escolaId = await this.dependencias.resolucao.escolaPorSlug(slug)
+    if (escolaId === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+    const refresh = lerCookie(cabecalhoCookie, SESSAO_COOKIE)
+    const aluno =
+      refresh === undefined
+        ? undefined
+        : await naEscolaSemUsuario({ escolaId }, () => new ContaExternalRepository(this.dependencias.banco).sessaoDoAluno(hashDoRefresh(refresh)))
+    if (aluno === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+    return this.#aoProvedor(provedor, slug, escolaId, { ligarAoAluno: { usuarioId: aluno.usuarioId, sessaoId: aluno.sessaoId } })
+  }
+
+  /** A escola liberou o provedor? Então manda o navegador a ele, com o login em andamento (e o que a intenção prende) no cookie cifrado. */
+  async #aoProvedor(provedor: ProvedorExterno, slug: string, escolaId: string, prende: Pick<LoginExternoEmAndamento, 'acessoDaSalaId' | 'ligarAoAluno'>): Promise<Redirect> {
     const liberado = await naEscolaSemUsuario({ escolaId }, () => new ContaExternalRepository(this.dependencias.banco).provedorLiberado(provedor))
     if (!liberado) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
 
     try {
-      const inicio = await this.dependencias.provedor.iniciar(provedor)
-      const emAndamento: LoginExternoEmAndamento = {
-        escolaId,
-        slug,
-        provedor,
-        state: inicio.state,
-        nonce: inicio.nonce,
-        verificador: inicio.verificador,
-        ...(sala === undefined ? {} : { acessoDaSalaId: sala.acessoId }),
-      }
+      const inicio = await this.dependencias.provedor.iniciar(provedor, prende.ligarAoAluno !== undefined)
+      const emAndamento: LoginExternoEmAndamento = { escolaId, slug, provedor, state: inicio.state, nonce: inicio.nonce, verificador: inicio.verificador, ...prende }
       return { endereco: inicio.endereco.href, cookies: [this.dependencias.cookie.gravar(emAndamento)] }
     } catch (erro) {
       if (!(erro instanceof ExternalProviderError)) throw erro
       this.#resultados.add(1, { resultado: 'provedor' })
-      return { endereco: enderecoDaFalha(slug, 'provedor'), cookies: [] }
+      return { endereco: prende.ligarAoAluno === undefined ? enderecoDaFalha(slug, 'provedor') : enderecoDaLigacao('provedor'), cookies: [] }
     }
   }
 
@@ -156,7 +198,7 @@ export class ExternalLoginService {
     const emAndamento = cookie.ler(lerCookie(origem.cabecalhoCookie, COOKIE_OIDC))
     if (emAndamento === undefined || retorno === undefined) return this.#falhaDoProvedor(undefined, apagar)
     const parametros = new URLSearchParams(consulta)
-    if (parametros.has('error')) return this.#falhaDoProvedor(emAndamento.slug, apagar)
+    if (parametros.has('error')) return this.#falhaDoProvedor(emAndamento, apagar)
 
     return naEscolaSemUsuario({ escolaId: emAndamento.escolaId }, async () => {
       let contaNoProvedor: ContaNoProvedor
@@ -164,8 +206,9 @@ export class ExternalLoginService {
         contaNoProvedor = await this.dependencias.provedor.concluir(emAndamento.provedor, new URL(`${CAMINHO_DO_RETORNO}?${parametros.toString()}`, retorno), emAndamento)
       } catch (erro) {
         if (!(erro instanceof ExternalProviderError)) throw erro
-        return this.#falhaDoProvedor(emAndamento.slug, apagar)
+        return this.#falhaDoProvedor(emAndamento, apagar)
       }
+      if (emAndamento.ligarAoAluno !== undefined) return this.#ligarAoAluno(emAndamento.escolaId, emAndamento.ligarAoAluno, contaNoProvedor, apagar)
       const decisao = await this.#decidir(emAndamento.escolaId, contaNoProvedor, emAndamento.acessoDaSalaId)
       if (decisao.tipo === 'provada') {
         const provada = this.dependencias.cookieDaConta.gravar(decisao.conta)
@@ -183,9 +226,46 @@ export class ExternalLoginService {
     })
   }
 
-  #falhaDoProvedor(slug: string | undefined, apagar: string): Redirect {
+  /** A queda do provedor: a tela da escola, ou "Eu" do aluno que ligava a conta, onde ele já está entrado. */
+  #falhaDoProvedor(emAndamento: LoginExternoEmAndamento | undefined, apagar: string): Redirect {
     this.#resultados.add(1, { resultado: 'provedor' })
-    return { endereco: enderecoDaFalha(slug, 'provedor'), cookies: [apagar] }
+    return { endereco: emAndamento?.ligarAoAluno === undefined ? enderecoDaFalha(emAndamento?.slug, 'provedor') : enderecoDaLigacao('provedor'), cookies: [apagar] }
+  }
+
+  /**
+   * A volta do `intencao=ligar` (15.0): liga a conta ao aluno que a pediu, ou diz por que não. Nada de login aqui: não abre sessão, não grava `login_falho` e não olha o e-mail. O
+   * domínio ou o tenant precisa estar liberado pela escola, como no login. Numa transação, trava a linha do usuário (a mesma da geração da senha provisória e da aprovação com conta) e
+   * **só então** confere que o aluno e a sessão em que a ligação nasceu ainda valem: a provisória gerada antes encerrou as sessões, e a ligação que esperava a trava não liga. O banco
+   * decide o resto, pelos índices únicos: a conta ligada a outro aluno, ou o aluno que já tem outra conta, dão `conflito`, sem dizer a quem; a mesma conta já ligada a ele é `ligada`,
+   * sem segundo registro. A auditoria `conta_externa.ligada` tem o aluno como autor, na mesma transação.
+   */
+  async #ligarAoAluno(escolaId: string, aluno: NonNullable<LoginExternoEmAndamento['ligarAoAluno']>, conta: ContaNoProvedor, apagar: string): Promise<Redirect> {
+    const resultado = await this.#resultadoDaLigacao(escolaId, aluno, conta)
+    this.#resultados.add(1, { resultado: `ligacao_${resultado}` })
+    return { endereco: enderecoDaLigacao(resultado), cookies: [apagar] }
+  }
+
+  async #resultadoDaLigacao(escolaId: string, aluno: NonNullable<LoginExternoEmAndamento['ligarAoAluno']>, conta: ContaNoProvedor): Promise<ResultadoDoRetornoDaLigacao> {
+    if (conta.dominio === undefined || (conta.provedor === 'microsoft' && conta.dominio === TENANT_DE_CONTA_PESSOAL_MICROSOFT)) return 'recusada'
+    if (conta.autenticadaEm !== undefined && conta.autenticadaEm < Date.now() / 1_000 - IDADE_MAXIMA_DA_AUTENTICACAO_S) return 'recusada'
+    if (!(await new ContaExternalRepository(this.dependencias.banco).dominioLiberado(conta.provedor, conta.dominio))) return 'recusada'
+
+    const chave: ChaveDaContaExterna = { provedor: conta.provedor, tenant: conta.tenant, sujeito: conta.sujeito }
+    const requisicaoId = currentContext()?.requisicaoId ?? randomUUID()
+    return runInContext({ requisicaoId, escolaId, usuarioId: aluno.usuarioId }, () =>
+      this.dependencias.banco.transaction(async (tx): Promise<ResultadoDoRetornoDaLigacao> => {
+        const repositorio = new ContaExternalRepository(tx)
+        if (!(await repositorio.travarAlunoDaSessao(aluno.usuarioId, aluno.sessaoId))) return 'recusada'
+        const ligacaoId = await repositorio.ligar(aluno.usuarioId, chave)
+        if (ligacaoId !== undefined) {
+          await this.#auditoria.gravar(tx, 'conta_externa.ligada', { entidadeId: ligacaoId, depois: { usuarioId: aluno.usuarioId, provedor: chave.provedor } })
+          return 'ligada'
+        }
+        // O banco recusou: ou esta mesma conta já é dele (clique duplo, outra aba), ou ela é de outro aluno, ou ele já tem outra conta. Só a primeira é `ligada`.
+        const relida = await repositorio.ligacao(chave)
+        return relida?.usuarioId === aluno.usuarioId ? 'ligada' : 'conflito'
+      }),
+    )
   }
 
   /** Entra ou recusa, na escola do contexto (a do cookie). Com `acessoDaSalaId` (a intenção de reivindicar), a conta sem ligação vira `provada` e nada se liga. */

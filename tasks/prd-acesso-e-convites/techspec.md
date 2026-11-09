@@ -154,7 +154,17 @@ vencido, adulterado, de outra escola ou de outro acesso: a mesma `ENTRADA_INVALI
 (a invariante do `travarPendente` passa a senha ou conta) sem calcular hash, e responde apagando o cookie, também no reenvio; com `senha`, o cookie não é
 lido. O pedido de conta recusado não conta no teto de hashes da turma. Aprovar cria o usuário sem senha e a `conta_externa`, na decisão, com a
 auditoria `conta_externa.ligada` de quem aprova; conta já ligada a outro aluno: `CONFLITO` sem nome, a transação desfaz e o pedido segue pendente.
-`intencao=ligar` exige sessão de aluno (15.0).
+`intencao=ligar` exige sessão de aluno (15.0): o `iniciar` acha o aluno pelo cookie de renovação `educa_sessao` (só o refresh atual de uma sessão de aluno aberta na escola do slug;
+sem cookie, vencido, encerrado, de professor, de coordenador ou de outra escola, responde como o inexistente) e o leva no cookie OIDC (`ligarAoAluno`, usuário e sessão), porque o
+`educa_sessao` (`SameSite=Strict`) não vai na navegação que volta do Google. O retorno trava a linha do `usuario` (a mesma trava da provisória e da aprovação com conta), confere de novo
+que a sessão vale (a provisória gerada antes a encerrou) e deixa os índices únicos de `conta_externa` decidirem: `ligada` (também a mesma conta já ligada a ele), `conflito` (conta de
+outro aluno, ou aluno que já tem outra), `recusada` (domínio não liberado, conta pessoal ou sessão que acabou) ou `provedor` (a queda do provedor). Não abre sessão nem grava `login_falho`;
+volta a `/aluno/eu?ligacao=<resultado>`, e a tela mostra o resultado e o tira da barra. A auditoria `conta_externa.ligada` tem o aluno por autor. **A conta é a de quem clicou:** o computador
+compartilhado deixa a conta do colega aberta no Google ou na Microsoft, e a ligação não passa por professor, como a reivindicação (D4). Por isso, só no `intencao=ligar`, o endereço do
+provedor pede a prova de novo, com `max_age=0` e `prompt` (`select_account` no Google, que mostra a lista de contas; `login` na Microsoft, que pede a credencial), e o login comum não leva
+nenhum dos dois. Na volta, o `auth_time` do ID token, quando o provedor o traz, precisa ter até 120 s (`IDADE_MAXIMA_DA_AUTENTICACAO_S`); mais velho que isso é `recusada`. Limite conhecido: o
+Google só traz `auth_time` com um ajuste do console dele, e nenhum dos dois provedores documenta o `max_age` com certeza; a claim ausente não recusa (o `prompt` do endereço é o que vale),
+e exigi-la deixaria a ligação sem funcionar onde ela não vem. O dia em que a escola conferir que o provedor a traz, a claim passa a ser exigida (`TODO.md`).
 
 ## 6. Isolamento
 

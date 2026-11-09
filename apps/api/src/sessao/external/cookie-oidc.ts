@@ -31,6 +31,11 @@ export interface LoginExternoEmAndamento {
   readonly verificador: string
   /** O acesso vigente da sala, só no `iniciar` com `intencao=reivindicar` (14.0): é ele que o cookie da conta provada prende. */
   readonly acessoDaSalaId?: string | undefined
+  /**
+   * O aluno com sessão que liga a conta da escola em "Eu" (`intencao=ligar`, 15.0): o usuário e a sessão que o `iniciar` achou pelo cookie de renovação. O retorno
+   * volta de outro site, e o `educa_sessao` (`SameSite=Strict`) não vai nele: é por aqui que ele sabe quem liga, e confere de novo que a sessão vale.
+   */
+  readonly ligarAoAluno?: { readonly usuarioId: string; readonly sessaoId: string } | undefined
 }
 
 const aleatorio = z.string().regex(/^[\w-]{16,128}$/)
@@ -44,6 +49,7 @@ const conteudoSchema = z
     nonce: aleatorio,
     verificador: aleatorio,
     acessoDaSalaId: z.uuid().optional(),
+    ligarAoAluno: z.strictObject({ usuarioId: z.uuid(), sessaoId: z.uuid() }).optional(),
     emitidoEm: z.number().int().nonnegative(),
   })
   .strict()

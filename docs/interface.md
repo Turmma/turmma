@@ -496,7 +496,8 @@ uma linha de Eu, e o "Sair" fica à vista na casca em todo lugar e também é um
   Corrigidas, e a tarefa aberta, no endereço de Atividades (X4). O desenho das duas está na 11.5
 - **Eu** é **"Como estou indo"**, só do próprio aluno: uma linha por tarefa de correção aprovada,
   com "N de M certas" e as habilidades a rever; as linhas **Privacidade** ("Meus dados", do F3),
-  **Ajustes** (aparência e tamanho da letra), **Rever a introdução** e **Sair**; e, com o F9, **o que o Tutor lembra**: tudo que o aluno já fez no sistema —
+  **Ajustes** (aparência e tamanho da letra), **Rever a introdução** e **Sair**; a seção **Conta da escola** (F2c, tarefa 15.0), só quando a escola liberou o Google ou a
+  Microsoft, com o botão que liga a conta da escola; e, com o F9, **o que o Tutor lembra**: tudo que o aluno já fez no sistema —
   atividades, trabalhos, avaliações e sessões (D66) —, que ele consegue ver e contestar. Toma o
   lugar de "Minha turma"
 - **Avisar um adulto** é o caminho para avisar sobre algo errado no sistema: o canal de notificação
@@ -2153,6 +2154,13 @@ seção 1.3, a fila.
   Rever a introdução, Sair) em duas colunas e em grade 2 × 2 a partir de 1024 px, numa coluna abaixo. As linhas existem
   em todo estado: o "Sair" nunca depende da leitura da turma (D59). "Ajustes" abre um diálogo com a aparência e o tamanho
   da letra, que só grava ao escolher. Cabe em 1366 × 768 com duas tarefas corrigidas
+- **Conta da escola em Eu** (F2c, 15.0; RF14): entre "Como estou indo" e as linhas, só se a escola liberou um provedor (sem ele, a seção não existe, e a espera pela
+  leitura dos provedores não mostra nada). Um cartão com o título "Conta da escola", uma frase ("Ligue a conta da escola e entre por ela, sem digitar a matrícula.") e o botão
+  secundário **"Ligar a conta da escola"** (com os dois provedores, um botão por provedor, "Ligar a conta Google da escola"), de 44 px. O botão é navegação ao provedor e fica
+  ocupado ("Ligando…") até o navegador sair; voltar pelo botão do navegador o desocupa. A volta traz o resultado em `?ligacao=`, que a tela lê e tira da barra: "Conta da escola
+  ligada" (num status, e some o botão); "Esta conta já está ligada a outro aluno. Fale com o professor" (a conta de outro, ou o aluno que já tem uma), nunca a quem; "Esta conta não
+  é da escola. Escolha a conta da escola e tente de novo"; e, na queda do provedor, o aviso com o botão "Tentar de novo" (com os dois provedores, "Tentar de novo com a conta Google" e "…com a conta Microsoft", para os botões não ficarem iguais). O aviso sai quando ele tenta de novo, e a leitura dos
+  provedores que falha mostra o erro com "Tentar de novo". O resultado vive só no estado da tela: o colega que abre Eu no mesmo computador não o vê
 - **Faixa fixa no alto do Início e do Tutor**: "Quem dá a aula acompanha como você usa o Tutor." Não fecha (D8)
 - **A caixa de pedido é só texto e enviar.** Sem seletor, sem anexo, sem texto de exemplo que
   troca sozinho, e sem atalho. A conversa é a de uma tarefa atribuída pelo professor: o caminho

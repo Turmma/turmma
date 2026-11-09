@@ -29,6 +29,14 @@ export function enderecoDoLoginExterno(provedor: ProvedorDeContaDaEscola, slug: 
   return `/v1/sessao/externa/${provedor}/iniciar?slug=${encodeURIComponent(slug)}`
 }
 
+/**
+ * Para onde o botão "Ligar a conta da escola" de "Eu" leva (acesso-e-convites, 15.0): o mesmo `iniciar`, com `intencao=ligar`. O aluno já está entrado, e é o cookie de renovação, que
+ * vai nesta navegação da própria web, que diz quem liga: nada de sessão na URL.
+ */
+export function enderecoParaLigarAConta(provedor: ProvedorDeContaDaEscola, slug: string): string {
+  return `/v1/sessao/externa/${provedor}/iniciar?slug=${encodeURIComponent(slug)}&intencao=ligar`
+}
+
 /** O nome de cada provedor como a escola o chama, para o rótulo do botão. */
 export const NOME_DO_PROVEDOR: Readonly<Record<ProvedorDeContaDaEscola, string>> = {
   google: 'Google',

@@ -3280,3 +3280,32 @@ aula" em `Retencao.tsx`, o Validador conferiu: a tela já o mostra pela descriç
       Ajuste de acessibilidade com texto novo (dono: Implementador)
 - [ ] (acesso-e-convites 13.0, privacy-guardian, 2ª) **O título do caso "o bilhete vencido na hora de trocar"** em `TrocarSenhaProvisoria.test.tsx` diz "a senha digitada sai da tela" e a
       asserção que restou prova que o campo da senha sai; trocar o título na próxima vez que o arquivo for tocado (dono: Implementador)
+- [ ] (acesso-e-convites 15.0, divergência 3) **"Eu" mostra a conta já ligada.** Hoje "Conta da escola ligada" aparece só na volta do provedor; numa visita seguinte o botão reaparece (ligar a mesma conta
+      de novo é `ligada`, sem segundo registro). Mostrar o estado exige o `/v1/eu` (ou uma rota de leitura) dizer se há conta ligada, com o provedor e sem e-mail, e o arquivo do titular
+      acompanhar (dono: Arquiteto, com a tela)
+- [ ] (acesso-e-convites 15.0, privacy-guardian, 1ª) **Exigir o `auth_time` na ligação da conta em "Eu".** Hoje o `iniciar` do `intencao=ligar` pede a prova de novo (`max_age=0` e `prompt`) e o retorno recusa
+      um `auth_time` de mais de 120 s, mas a claim ausente não recusa: o Google só a traz com um ajuste do console dele, e a Microsoft a traz como opcional. Quando a escola piloto conferir que o
+      provedor a traz, exigi-la no `OpenIdClientAdapter.concluir` (`maxAge` do `openid-client`) e trocar a claim ausente por `recusada` (dono: Arquiteto, com o provedor da escola)
+- [ ] (acesso-e-convites 15.0, frontend-reviewer, 1ª) **Reservar a altura da seção "Conta da escola" enquanto os provedores carregam** (esqueleto ou "Carregando…"), para a página não descer quando a seção
+      aparece. O caso "carregando: nada até saber a escola" fixa hoje o contrário; mudar pede a spec (dono: Arquiteto, com a tela)
+- [ ] (acesso-e-convites 15.0, frontend-reviewer e privacy-guardian, 1ª) **Texto de `conflito` e de `recusada` para o aluno que já tem outra conta e para a sessão que acabou.** Os textos são os de
+      `cenarios.md` RF14, "Telas"; mudá-los passa pela spec (dono: Arquiteto)
+- [ ] (acesso-e-convites 15.0, frontend-reviewer, 1ª) **Mover o foco para o aviso depois de "ligada"**, com teste de foco: muda o comportamento da tela (dono: Validador, na validação da spec)
+- [ ] (acesso-e-convites 15.0, frontend-reviewer, 1ª) **Fotografar a seção "Conta da escola" quando a vitrine liberar um provedor.** A vitrine não libera provedor hoje, e a foto da tarefa saiu de uma
+      linha inserida à mão no banco de teste (dono: Validador, que fotografa a seção no fim da spec)
+- [ ] (acesso-e-convites 15.0, privacy-guardian, 1ª) **Guardar na auditoria se a ligação nasceu em "Eu" ou na aprovação do pedido.** Muda o dado da `conta_externa.ligada`, e a tarefa não prevê
+      (dono: Arquiteto, junto do item "Eu mostra a conta já ligada")
+- [ ] (acesso-e-convites 15.0, infra-guardian, 1ª) **Contar o `iniciarParaLigar` também no limite do usuário e da escola**, na próxima rodada sobre o login externo. Muda o limite, e o vetor vale para o
+      `iniciar` simples desde a 13.0 (dono: Implementador)
+- [ ] (acesso-e-convites 15.0, infra-guardian, 2ª) **A recusa por `auth_time` antigo entra no mesmo `ligacao_recusada` do domínio.** Dar a ela um rótulo próprio ou um log com o motivo, e pôr a checagem de NTP no
+      runbook (a folga é de 120 s). Rótulo novo pede o painel e o runbook (dono: Implementador)
+- [ ] (acesso-e-convites 15.0, infra-guardian, 2ª) **O `staleTime` da lista de provedores dentro de `acessoDaEscolaQueryOptions`**, para `EntrarNaEscola.tsx` também usar; hoje só "Eu" o define em
+      `ContaDaEscola.tsx`. Muda a tela de entrada (dono: Implementador)
+- [ ] (acesso-e-convites 15.0, privacy-guardian e test-engineer, 2ª) **Endurecer o `auth_time` da ligação**, junto do item de exigir a claim: recusar um valor no futuro (hoje passa; o token é assinado), provar
+      a janela de 120 s com um unitário de `#resultadoDaLigacao` e relógio falso (119 s e 121 s), e trocar "mais de 120 s" por "muito antigo" na tabela de testes do `15_task.md` (dono: Implementador)
+- [ ] (acesso-e-convites 15.0, revisor-geral, 2ª) **Os comentários do `staleTime`** (`ContaDaEscola.tsx`, o docblock de `PRAZO_DOS_PROVEDORES_MS`, e `ContaDaEscola.test.tsx`) prometem mais do que o código entrega: o ganho
+      vale para o mesmo aluno voltando a "Eu" na mesma sessão, e o `gcTime` padrão é de 5 min. Só comentário (dono: Implementador)
+- [ ] (acesso-e-convites 15.0, revisor-geral, 2ª) **Registrar na `techspec.md` §5, junto da trava, que a corrida da sessão que acaba depois da conferência é aceita.** Hoje a decisão está no docblock de
+      `travarAlunoDaSessao` (dono: Arquiteto)
+- [ ] (acesso-e-convites 15.0, test-engineer, 2ª) **O caso "o aluno com duas sessões" só mata a mutação de `sessao.id` pela ordem física das linhas** (`.limit(1)` sem `ORDER BY`): criar a sessão aberta
+      do mesmo aluno **antes** da sessão do `iniciar`, para a prova não oscilar (dono: Implementador)
