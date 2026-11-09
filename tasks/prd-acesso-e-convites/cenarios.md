@@ -152,6 +152,15 @@ rodada 1) acrescentou os casos marcados (F2c) e as seções "Arquivo do titular"
 - [I] `:usuarioId` de professor ou de coordenador da mesma escola: 404 igual ao inexistente. (F2c)
 - [I] A senha provisória não volta por nenhuma leitura: só a resposta da geração a traz, com `no-store`; a troca e
   `/trocas` também saem com `no-store`. (F2c)
+- [I] Leitura do alvo (`GET …/senha-provisoria`; divergência da 12.0): a coordenação e o professor com vínculo confirmado na turma do aluno recebem
+  nome, turma, matrícula e `entraPelaContaDaEscola`, e nada mais (o contrato `.strict()`, sem hash, provisória, validade, quem gerou nem e-mail), com
+  `no-store`. Com o mesmo escopo da geração: aluno da escola B pelo contexto da A, professor de outra turma, vínculo pendente ou contestado, aluno
+  transferido para a turma do outro professor, desativado, eliminação agendada, `:usuarioId` de professor ou coordenador, id inexistente e id fora do
+  formato: 404 igual, mesmo corpo. Aluno só com a conta da escola: `matricula` nula e `entraPelaContaDaEscola` verdadeiro; com conta e senha: a matrícula e
+  verdadeiro. Escola sem ano em curso: a coordenação lê com `turma` nula; o professor recebe 404. (F2c)
+- [I] A leitura do alvo pela coordenação grava um `senha_provisoria.alvo_lido` por leitura (o aluno como alvo, a finalidade fixa, sem nome nem matrícula);
+  a do professor não grava; a recusada (404) não grava. Não gasta ponto das cotas de 60/h e 5/dia nem trava a linha do aluno (uma geração em curso, com
+  barreira na trava, não segura a leitura). A `.alvo_lido` não aparece no arquivo do titular do aluno nem no do coordenador que a assina. (F2c)
 
 ## Conta da escola do aluno (RF14)
 
@@ -244,7 +253,9 @@ rodada 1) acrescentou os casos marcados (F2c) e as seções "Arquivo do titular"
 - [E] Convites pelo Mailpit → professor aceita; esqueci → redefinir; verificar; um aluno reivindica com a conta da escola
   (o `oidc-falso`) → aprovação; provisória → troca; conta da escola em "Eu": a 360 px sem rolagem horizontal, alvo de
   44 px nas ações principais e de 24 px em todo o resto.
-- [E] Gerar provisória para aluno com conta da escola: a tela diz que ele entra pela conta.
+- [E] Gerar provisória para aluno com conta da escola: a confirmação já diz que ele entra pela conta, sem "Gerar".
+- [E] Coordenação, turma aberta: "Mostrar alunos aprovados" lê a seção só no clique (a leitura vai à auditoria, e a tela diz isso); cada linha tem o menu
+  com "Gerar senha provisória", com a mesma confirmação do professor; a contagem de aprovados da lista de nomes não aparece mais. (F2c)
 - [E] O diálogo do "Enviar convites" diz quantos recebem e que os links enviados ou copiados antes deixam de valer;
   "Reenviar" e "Copiar link" dizem o mesmo do link anterior. (F2c)
 - [E] Dois alunos de mesmo nome na mesma turma: a confirmação da provisória mostra nome, turma, matrícula e a
@@ -271,7 +282,7 @@ termo técnico.
 | Conta da escola na sala | "Entrando…" | botão "Entrar com a conta da escola" | domínio não liberado: "Esta conta não é da escola. Use a conta da escola ou a matrícula"; cookie vencido: "Comece de novo pelo link da sala"; `CONFLITO`: "Esta conta já está ligada a outro aluno. Fale com o professor"; rede: "Tentar de novo" | "Pedido enviado. Espere o professor aprovar" |
 | Conta da escola em "Eu" | botão ocupado | "Ligar a conta da escola" | `CONFLITO`: como na sala; rede: "Tentar de novo" | "Conta da escola ligada" |
 | Professores, envio | — | — | `falhou`: "Não chegou. Confira o e-mail e reenvie, ou copie o link" (sem sugerir que o professor errou) | `na_fila` e `enviando`: "Enviando"; `enviado`: "Enviado em 12/11 às 14:05"; `cancelado`: vale o estado do convite. Mudança anunciada em `aria-live="polite"` |
-| Gerar provisória | botão ocupado | confirmação: nome, turma, matrícula e "a senha atual deixa de valer, e ela sai da conta em todo lugar" | `ENTRA_PELA_CONTA_DA_ESCOLA`: "Este aluno entra pela conta da escola. Não precisa de senha"; `CONFLITO`: "Acabou de ser gerada. Espere alguns segundos"; 429: "Muitas tentativas. Espere alguns minutos e tente de novo" | a senha em dois grupos, grande como o código da turma, lida grupo a grupo pelo leitor de tela, com "Copiar" e a validade; fora do cache de consultas, da URL, do log e do armazenamento do navegador, e sai da tela ao fechar |
+| Gerar provisória | confirmação: "Carregando…" com "Gerar" ocupado, enquanto lê o alvo; geração: botão ocupado | confirmação: nome, turma (sem turma: a linha some), matrícula e "a senha atual deixa de valer, e ela sai da conta em todo lugar" | `ENTRA_PELA_CONTA_DA_ESCOLA` (na leitura do alvo ou na geração): "Este aluno entra pela conta da escola. Não precisa de senha", sem "Gerar"; alvo que sumiu (404 na leitura ou na geração): "Este aluno não está mais na turma. A lista foi atualizada", a confirmação fecha; leitura falhou: "Tentar de novo"; `CONFLITO`: "Acabou de ser gerada. Espere alguns segundos"; 429: "Muitas tentativas. Espere alguns minutos e tente de novo" | a senha em dois grupos, grande como o código da turma, lida grupo a grupo pelo leitor de tela, com "Copiar" e a validade; fora do cache de consultas, da URL, do log e do armazenamento do navegador, e sai da tela ao fechar |
 
 ## Corridas
 
@@ -314,6 +325,7 @@ Cada linha é um cenário [I]: a ação gera um registro com autor e data, e o r
 | `convite.enviado` | pedido ("Enviar", "Reenviar"), autora a coordenação | canal |
 | `senha_provisoria.gerada` | gerar | papel de quem gerou no `depois`; aluno como alvo |
 | `senha_provisoria.usada` | troca | autor: o aluno |
+| `senha_provisoria.alvo_lido` | a coordenação abre a confirmação (leitura do alvo) | aluno como alvo; finalidade fixa; o professor da turma não grava |
 | `senha.redefinida` | redefinir | um por escola com usuário ativo da conta, autor e alvo esse usuário |
 | `conta.email_verificado` | aceite por e-mail (na escola do convite), verificar, redefinir | como o `senha.redefinida` |
 | `conta_externa.ligada` | aprovar com conta, ligar em "Eu" | — |

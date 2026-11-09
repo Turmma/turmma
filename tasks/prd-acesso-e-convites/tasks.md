@@ -81,7 +81,7 @@
   - [x] 11.3 Testes: as seis ações por alvo, sem autor, nome não aprovado fora, linha da B fora
 
 - [ ] **12.0 — A tela "Gerar senha provisória"**
-  - [ ] 12.1 O item no menu da linha e o diálogo de confirmação
+  - [ ] 12.1 O item no menu da linha e o diálogo de confirmação, que lê o alvo (17.0); a seção "Alunos aprovados" da coordenação, no lugar da contagem
   - [ ] 12.2 A senha fora do cache de consultas, da URL, do log e do armazenamento; "fechar sem copiar" pergunta antes
   - [ ] 12.3 `docs/interface.md`
   - [ ] 12.4 O `docs/roteiro-da-demonstracao.md` (seção 2, passos 9 e 11) conferido contra `e2e/roteiro-da-demonstracao.spec.ts`
@@ -114,6 +114,13 @@
   - [ ] 16.4 O `docs/roteiro-da-demonstracao.md` (seção 2, passo 10) conferido contra `e2e/roteiro-da-demonstracao.spec.ts`
   - [ ] 16.5 Testes: reivindicar com o `oidc-falso` até entrar, estados, recomeço, 360 px
 
+- [ ] **17.0 — A leitura do alvo da senha provisória (API)** (a "12a" da divergência da 12.0; vem antes dela)
+  - [ ] 17.1 O contrato e a finalidade fixa em `packages/shared`
+  - [ ] 17.2 A leitura no repository, pela seleção do alcance da geração, sem trava
+  - [ ] 17.3 A rota, `no-store`, 404 igual; `senha_provisoria.alvo_lido` só para a coordenação
+  - [ ] 17.4 A ação fora da lista por alvo e fora do arquivo de quem assina
+  - [ ] 17.5 Testes: quem lê, escopo, conta da escola, sem ano, auditoria, sem cota nem trava, arquivo do titular
+
 ## Dependências e paralelismo
 
 | Tarefa | Depende de | Pode correr em paralelo com |
@@ -129,13 +136,14 @@
 | 9.0 | — | 4.0, 6.0, 8.0, 16.0 |
 | 10.0 | 9.0 | 2.0, 4.0, 6.0, 8.0, 12.0, 15.0, 16.0 |
 | 11.0 | 10.0 | 2.0, 4.0, 6.0, 8.0, 12.0, 13.0, 15.0, 16.0 |
-| 12.0 | 9.0 | 1.0, 2.0, 3.0, 5.0, 7.0, 10.0, 11.0, 14.0 |
-| 13.0 | 10.0 | 1.0, 2.0, 3.0, 5.0, 7.0, 11.0, 14.0 |
+| 12.0 | 9.0, 17.0 | 1.0, 2.0, 3.0, 5.0, 7.0, 10.0, 11.0, 14.0 |
+| 13.0 | 10.0 | 1.0, 2.0, 3.0, 5.0, 7.0, 11.0, 14.0, 17.0 |
 | 14.0 | — | 4.0, 6.0, 8.0, 12.0, 13.0 |
 | 15.0 | 9.0, 14.0 | 1.0, 2.0, 3.0, 5.0, 7.0, 10.0, 11.0 |
-| 16.0 | 14.0 | 1.0, 2.0, 3.0, 5.0, 7.0, 9.0, 10.0, 11.0 |
+| 16.0 | 14.0 | 1.0, 2.0, 3.0, 5.0, 7.0, 9.0, 10.0, 11.0, 17.0 |
+| 17.0 | 9.0 | 13.0, 16.0 |
 
-Migration, schema e `packages/shared` (1.0, 3.0, 5.0, 7.0, 9.0, 10.0, 11.0 e 14.0) correm uma de cada vez; as telas, uma de cada vez, porque todas editam a `docs/interface.md`. A 9.0 e a 14.0 não dependem do e-mail e podem partir cedo, entre as do tronco.
+Migration, schema e `packages/shared` (1.0, 3.0, 5.0, 7.0, 9.0, 10.0, 11.0, 14.0 e 17.0; a 17.0 e a 15.0 mexem em `packages/shared` e na API) correm uma de cada vez; as telas, uma de cada vez, porque todas editam a `docs/interface.md`. A 9.0 e a 14.0 não dependem do e-mail e podem partir cedo, entre as do tronco.
 
 ## Subagentes por tarefa
 
@@ -157,6 +165,7 @@ Migration, schema e `packages/shared` (1.0, 3.0, 5.0, 7.0, 9.0, 10.0, 11.0 e 14.
 | 14.0 | `tenancy-guardian`, `privacy-guardian`, `infra-guardian`, `test-engineer` | grande |
 | 15.0 | `tenancy-guardian`, `privacy-guardian`, `infra-guardian`, `frontend-reviewer`, `test-engineer` | grande |
 | 16.0 | `frontend-reviewer`, `privacy-guardian`, `test-engineer` | pequeno |
+| 17.0 | `tenancy-guardian`, `privacy-guardian`, `test-engineer` | pequeno |
 
 ## Critério de pronto da funcionalidade
 
@@ -164,7 +173,7 @@ Do `ROADMAP.md`: o professor recebe o convite por e-mail; a equipe redefine a se
 
 - O convite sai uma vez pelo worker, com o estado do envio na tela Professores; revogar ou refazer o cancela na hora, e o limite por minuto adia sem gastar tentativa (1.0 a 4.0)
 - "Esqueci a senha" e "Redefinir" funcionam sem dizer se o e-mail tem conta; a conta só cruza escolas pelo link copiado com o e-mail verificado (5.0 a 8.0)
-- A provisória é gerada só por quem alcança o aluno, vence em 24 h, obriga a troca, e o aluno vê quem a gerou; o arquivo do titular traz os atos sobre ele sem o autor (D85) (9.0 a 13.0)
+- A provisória é gerada só por quem alcança o aluno, vence em 24 h, obriga a troca, e o aluno vê quem a gerou; o arquivo do titular traz os atos sobre ele sem o autor (D85) (9.0 a 13.0 e 17.0)
 - O aluno pede o nome com a conta da escola e entra por ela depois da aprovação, ou a liga em "Eu" (14.0 a 16.0)
 - Os e2e do RF18 passam, a 360 px e em 1366 × 768; o `docs/roteiro-da-demonstracao.md` conferido nas telas que ele percorre; esteira verde no último commit que alterou código
 - Antes do portão de produção: o provedor de e-mail escolhido pelo Joaquim e registrado como suboperador (`techspec.md` §12)

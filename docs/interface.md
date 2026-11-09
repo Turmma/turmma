@@ -576,7 +576,10 @@ os quatro estados; o vazio da grade convida a "Baixar modelo".
   desligado e perde o acesso"). "Cadastrar professor" segue a única ação cheia da tela. Dentro da turma aberta, embaixo da lista
   de nomes, a coordenação também decide os **pedidos de nome** (tarefa 16.0), com a mesma peça do professor: a lista só é
   lida no clique em "Atualizar", porque cada consulta fica na auditoria em nome dela, e a tela diz isso. Os alunos já
-  aprovados aparecem na lista de nomes como uma contagem, sem o nome. A lista de nomes e a escola inteira entram pela **mesma peça de planilha** (F2, 13.0): a coordenação
+  aprovados **não** aparecem na lista de nomes: ficam na seção **"Alunos aprovados"** da turma aberta (acesso-e-convites, 12.0; divergência da
+  12.0), lida só no clique em "Mostrar alunos aprovados", porque cada leitura fica na auditoria em nome dela, e a tela diz isso; paginada como os
+  pedidos, com nome por linha e o menu da linha com "Gerar senha provisória", na mesma confirmação do professor (nome, turma e matrícula, lidos
+  só ao abrir). A contagem de aprovados da F2 (16.0) saiu. A lista de nomes e a escola inteira entram pela **mesma peça de planilha** (F2, 13.0): a coordenação
   escolhe o CSV ou o Excel (.xlsx) pelo botão "Escolher arquivo" (em português, com "Nenhum arquivo escolhido"; o campo do navegador fica escondido, porque ele escreve no idioma do computador), a tela lê o arquivo no navegador e manda o texto à API, e a **prévia** (linhas lidas, com erro e
   com aviso; os erros primeiro, de cem em cem, em frase com o que fazer) vem antes de qualquer gravação. Não há campo para colar
   texto. "Importar alunos" é um botão secundário da aba Turmas e abre um painel lateral; o que a planilha põe em outra turma ou deixa
