@@ -130,8 +130,8 @@ function OsQuatroNumeros() {
       <LoadingState rotulo="Carregando os números da IA…" />
     )
   }
-  // Os números vêm em toda página: o Painel lê só a primeira (`primeiraPaginaDoResumoQueryOptions`), e vale a mais recente que o cache tiver.
-  const numeros = resumo.data.pages.at(-1)?.numeros ?? { geradoPorIa: 0, aprovadoPorPessoa: 0, rejeitado: 0, esperando: 0 }
+  // Os números vêm em toda página: o Painel lê só a primeira (`primeiraPaginaDoResumoQueryOptions`), na consulta dele.
+  const { numeros } = resumo.data
   return (
     <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
       <StatCard rotulo="Gerado por IA" valor={numeros.geradoPorIa} apoio="Atividades, planos, versões adaptadas e correções" />

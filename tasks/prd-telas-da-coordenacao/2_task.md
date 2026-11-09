@@ -35,7 +35,7 @@ Em `/coordenacao/painel`, a coordenação vê os números da IA na escola, o con
 | `apps/web/src/caminhos.ts`, `apps/web/src/caminhos.test.ts` | alterado |
 | `e2e/painel-da-coordenacao.spec.ts` | novo |
 | `apps/web/src/areas/coordenacao/fila-da-coordenacao.ts` | alterado (só exporta `SEM_LEITURA_SOZINHA`, para o Painel usar as mesmas opções de leitura) |
-| `apps/web/src/api/governanca.ts` | alterado (`consultaPrimeiraPaginaDoResumo`: a primeira página do resumo na mesma chave da consulta infinita; a §7c conta o resumo como uma requisição) |
+| `apps/web/src/api/governanca.ts` | alterado (`consultaPrimeiraPaginaDoResumo`: a primeira página do resumo, hoje numa chave só do Painel; a §7c conta o resumo como uma requisição) |
 | `e2e/areas.spec.ts` | alterado (o professor em `/coordenacao/painel` cai em "Página não encontrada") |
 
 ## Testes que provam a regra
@@ -57,7 +57,7 @@ Em `/coordenacao/painel`, a coordenação vê os números da IA na escola, o con
 - Componente: a rede falsa por caminho da 1.0
 - e2e: `e2e/governanca.spec.ts › a coordenação abre em Governança…` (`montarEscolaComEntregas`); a guarda de papel, em `e2e/areas.spec.ts`
 - Rodar: `npx vitest run --project unidade apps/web/src/areas/coordenacao/Painel.test.tsx`; `node tools/ci/e2e.ts --manter-ambiente e2e/painel-da-coordenacao.spec.ts`
-- O resumo é consulta infinita: use a mesma chave e só a primeira página
+- O resumo da Governança é consulta infinita: o Painel lê só a primeira página, numa chave só dele (`['governanca', 'resumo', 'primeira-pagina']`), porque consulta simples e infinita não dividem chave (Tech Spec, seção 9, Registros › IA; correção 2026-11-09-recomeco-na-mesma-aba-no-celular)
 - Telas: `coordenacao`, `/coordenacao/painel`; também com `--vazia`; mockup `/coordenacao`
 
 ## Fora do escopo desta tarefa

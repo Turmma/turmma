@@ -73,14 +73,17 @@ const CONSULTAS_POR_ESTADO = {
 export const resumoPorEstadoQueryOptions = (estado: EstadoDeEntrega) => CONSULTAS_POR_ESTADO[estado]
 
 /**
- * Só a primeira página do resumo, na **mesma chave** da consulta infinita (Tech Spec, seção 7c, "Carga na manhã de segunda"):
- * para quem só quer os quatro números, que vêm em toda página. Um observador de consulta infinita releria todas as páginas que
- * a Governança já paginou (uma requisição por página); este lê uma, e guarda o dado no formato da infinita, que a Governança
- * continua lendo (`pages` e `pageParams`).
+ * Só a primeira página do resumo, para quem só quer os quatro números, que vêm em toda página. Um observador de consulta infinita
+ * releria todas as páginas que a Governança já paginou (uma requisição por página); este lê uma.
+ *
+ * **Consulta simples e consulta infinita não dividem chave**: o tipo da consulta é fixado quando a chave nasce, e a que nasce
+ * infinita embrulha em página o dado de toda busca da chave. Por isso esta tem a chave dela, dentro de `resumo` só para ficar junto
+ * das outras do resumo. Esse prefixo não aceita `setQueriesData`: a mesma função de atualização cairia em dois formatos de dado, a
+ * página daqui e a lista da Governança.
  */
 export const primeiraPaginaDoResumoQueryOptions = queryOptions({
-  queryKey: resumoDaGovernancaQueryOptions.queryKey,
-  queryFn: async ({ signal }) => ({ pages: [await lerPaginaDoResumo(undefined, signal)], pageParams: [undefined] }),
+  queryKey: [...GOVERNANCA_QUERY_KEY, 'resumo', 'primeira-pagina'],
+  queryFn: ({ signal }) => lerPaginaDoResumo(undefined, signal),
 })
 
 /** O consumo do mês corrente, somado por função. */

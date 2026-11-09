@@ -8,7 +8,7 @@ import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
 import { createQueryClient } from '../../../api/query-client'
 import { anosLetivosQueryOptions, seriesQueryOptions } from '../../../api/estrutura'
-import { resumoDaGovernancaQueryOptions } from '../governanca/api/governanca'
+import { primeiraPaginaDoResumoQueryOptions, resumoDaGovernancaQueryOptions } from '../governanca/api/governanca'
 import { listaDaTurmaQueryOptions } from '../estrutura/api/lista'
 import { materiaisQueryOptions } from '../material/api/material'
 import { pedidosDaTurmaQueryOptions } from '../../../api/pedidos'
@@ -817,31 +817,30 @@ describe('o Painel não relê sozinho (regra 80)', () => {
     largar()
   })
 
-  it('o resumo que a Governança paginou, velho: o Painel relê uma página só, a primeira, e deixa a chave com essa página', async () => {
+  it('com a lista que a Governança paginou no cache, o Painel lê uma página só, na consulta dele, e não escreve na lista da Governança', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     const rede = fakeNetwork()
     instalar(rede, TUDO_EM_DIA)
     const cliente = clienteQueGuarda()
     // O cache como a Governança o deixa depois de três páginas "Ver mais": uma requisição por página se o Painel as relesse.
     const antigos = { geradoPorIa: 99, aprovadoPorPessoa: 99, rejeitado: 99, esperando: 99 }
-    cliente.setQueryData(resumoDaGovernancaQueryOptions.queryKey, {
+    const paginado = {
       pages: [
         { numeros: antigos, itens: [], proxima: 'segunda' },
         { numeros: antigos, itens: [], proxima: 'terceira' },
         { numeros: antigos, itens: [] },
       ],
       pageParams: [undefined, 'segunda', 'terceira'],
-    })
-    await avancar(CINCO_MINUTOS_E_UM)
+    }
+    cliente.setQueryData(resumoDaGovernancaQueryOptions.queryKey, paginado)
     montar({ cliente })
     await esperarTudoLido()
     const leituras = rede.chamadas.filter((chamada) => semConsulta(chamada.caminho) === '/v1/governanca/resumo')
     expect(leituras.map((chamada) => chamada.caminho)).toEqual(['/v1/governanca/resumo'])
-    // Os números são os de agora, e a chave guarda a primeira página no formato da infinita, que a Governança continua lendo.
+    // Os números são os de agora, e a lista da Governança continua com as três páginas dela: o Painel não escreve na consulta infinita.
     expect(bloco(REGIOES.ia).getByText('Gerado por IA').nextElementSibling?.textContent).toBe('7')
-    const guardado = cliente.getQueryData<{ pages: unknown[]; pageParams: unknown[] }>(resumoDaGovernancaQueryOptions.queryKey)
-    expect(guardado?.pages).toHaveLength(1)
-    expect(guardado?.pageParams).toEqual([undefined])
+    expect(cliente.getQueryData(resumoDaGovernancaQueryOptions.queryKey)).toEqual(paginado)
+    expect(cliente.getQueryData(primeiraPaginaDoResumoQueryOptions.queryKey)).toMatchObject({ numeros: { geradoPorIa: 7 } })
   })
 
   it('com o dado velho (mais de 5 min), o foco sai e volta: nenhuma leitura, de nenhuma consulta', async () => {
