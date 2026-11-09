@@ -3201,3 +3201,10 @@ aula" em `Retencao.tsx`, o Validador conferiu: a tela já o mostra pela descriç
 - [ ] (acesso-e-convites 10.0, test-engineer, 2ª) **O caso do gatilho que recusa o `.usada`** (`troca-da-provisoria.int.test.ts:361`): trocar `toBeGreaterThanOrEqual(500)` por 500, com código tipado e sem stack
       (dono: Implementador)
 - [ ] (acesso-e-convites 10.0, test-engineer, 2ª) **O `create trigger` em `auditoria` pega trava na tabela compartilhada**: se o caso oscilar na esteira, isolá-lo num arquivo próprio (dono: Implementador)
+- [ ] (acesso-e-convites 8.0, tenancy-guardian, 1ª) **Teste de contrato na API fixando que token de verificar vencido, usado e de formato inválido chegam todos em `NAO_ENCONTRADO`**
+      (`/v1/conta/verificar`). Toca a API da 7.0, fora da 8.0 (dono: Implementador)
+- [ ] (acesso-e-convites 8.0, infra-guardian, 1ª) **Registrar que o `/v1/conta/verificar` não tem limite pelo hash do token, só por IP** (`conta.controller.ts`). É da 7.0, fora da 8.0 (dono: Arquiteto)
+- [ ] (acesso-e-convites 8.0, revisor-geral, 1ª) **O que `/convite` sem token mostra a quem vem de "Verificar"**: hoje "O endereço do convite está incompleto…", a quem acabou de confirmar o e-mail e clicou em "Continuar".
+      A 8.0 segue o `cenarios.md` "Telas" (Verificar: "Continuar" para o convite) (dono: Arquiteto)
+- [ ] (acesso-e-convites 8.0, revisor-geral, 1ª) **Juntar o `corDaPaleta` de `e2e/verificar-email.spec.ts` ao `corDoToken` de `e2e/support/checks.ts`** quando a renomeação (X8) fechar; o motivo da cópia está escrito no spec
+      (dono: Implementador)

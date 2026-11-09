@@ -55,7 +55,7 @@
   - [ ] 7.4 Os casos da A1 (`convite.int.test.ts:320`, `:377`, `:447`) e o do RF6 do F2 (`professores.int.test.ts:900`) com a regra nova, e o nome do caso trocado
   - [ ] 7.5 Testes: verificação no aceite e no verificar, teto de 3/h, auditoria por escola, os casos da A1 e do F2, as duas corridas
 
-- [ ] **8.0 — A tela "Verificar" e o aviso de `VERIFICACAO_PENDENTE` no aceite**
+- [x] **8.0 — A tela "Verificar" e o aviso de `VERIFICACAO_PENDENTE` no aceite**
   - [ ] 8.1 A tela "Verificar"
   - [ ] 8.2 O aviso no aceite
   - [ ] 8.3 `docs/interface.md`
