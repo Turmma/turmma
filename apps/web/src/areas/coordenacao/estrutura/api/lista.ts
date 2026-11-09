@@ -1,4 +1,4 @@
-import { nomeDaListaSchema, listaDaTurmaResponseSchema, type FinalidadeDaLeituraDeAlunos, type NomeDaLista, type NomeAvulsoRequest } from '@educa/shared'
+import { alunosDaTurmaResponseSchema, nomeDaListaSchema, listaDaTurmaResponseSchema, type FinalidadeDaLeituraDeAlunos, type NomeDaLista, type NomeAvulsoRequest } from '@educa/shared'
 import { infiniteQueryOptions } from '@tanstack/react-query'
 import { EMPTY_BODY } from '../../../../api/client'
 import { ESTRUTURA_QUERY_KEY } from '../../../../api/estrutura'
@@ -35,6 +35,30 @@ export function listaDaTurmaQueryOptions(turmaId: string) {
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (ultima) => ultima.proxima,
     staleTime: Number.POSITIVE_INFINITY,
+  })
+}
+
+/** O começo da chave dos alunos aprovados da turma: fora da chave da Estrutura e da lista dos professores, para nenhuma decisão de pedido a releia sozinha (cada leitura é auditada). */
+export const ALUNOS_APROVADOS_QUERY_KEY = ['alunos-aprovados-da-turma'] as const
+
+/**
+ * Os alunos aprovados da turma, como a coordenação os lê (acesso-e-convites, 12.0; RF18): `GET /v1/turmas/:id/alunos?finalidade=conferencia_de_cadastro`, cem de cada vez, que a API já audita
+ * (`turma.alunos_lidos`). **A leitura só sai no clique em "Mostrar alunos aprovados"** (quem usa liga `enabled`): cada leitura fica na auditoria, em nome de quem clicou. Não envelhece sozinha
+ * (`staleTime` infinito, sem reler ao voltar para a aba) e sai do cache ao fechar a tela (`gcTime: 0`), com os nomes.
+ */
+export function alunosAprovadosDaTurmaQueryOptions(turmaId: string) {
+  return infiniteQueryOptions({
+    queryKey: [...ALUNOS_APROVADOS_QUERY_KEY, turmaId],
+    queryFn: ({ pageParam, signal }) => {
+      const consulta = new URLSearchParams({ finalidade: FINALIDADE_DA_LISTA_NA_ESTRUTURA, limite: String(NOMES_POR_PAGINA) })
+      if (pageParam !== undefined) consulta.set('pagina', pageParam)
+      return authedGet(`/v1/turmas/${encodeURIComponent(turmaId)}/alunos?${consulta.toString()}`, alunosDaTurmaResponseSchema, signal)
+    },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (ultima) => ultima.proxima,
+    staleTime: Number.POSITIVE_INFINITY,
+    gcTime: 0,
+    refetchOnWindowFocus: false,
   })
 }
 

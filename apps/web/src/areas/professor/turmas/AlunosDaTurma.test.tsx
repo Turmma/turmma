@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '../../../api/query-client'
@@ -197,8 +197,9 @@ describe('Alunos: a lista de nomes da turma', () => {
 
     expect(nomesNaTela()).toEqual([ANA.nome, BRUNO.nome, CAIO.nome])
     const secao = screen.getByRole('region', { name: 'Por aluno' })
-    expect(within(secao).queryAllByRole('button').map((botao) => botao.textContent)).toEqual([])
-    expect(within(secao).queryAllByRole('columnheader').map((cabecalho) => cabecalho.querySelector('button'))).toEqual([null, null, null])
+    // O único controle da seção é o menu "Ações" de cada linha (a senha provisória, 12.0): nada ordena, filtra nem abre a conversa.
+    expect(within(secao).queryAllByRole('button').map((botao) => botao.textContent)).toEqual([`${ANA.nome}: Ações`, `${BRUNO.nome}: Ações`, `${CAIO.nome}: Ações`])
+    expect(within(secao).queryAllByRole('columnheader').map((cabecalho) => cabecalho.querySelector('button'))).toEqual([null, null, null, null])
     expect(screen.queryByRole('searchbox')).toBeNull()
     expect(screen.queryByRole('combobox')).toBeNull()
     const texto = document.body.textContent ?? ''
@@ -627,5 +628,101 @@ describe('AlunosDaTurma: o acesso é um resumo, e "Convidar alunos" abre o diál
     rede.responder(ok({ expiraEm: null }))
     await usuario.click(within(secao()).getByRole('button', { name: 'Convidar alunos' }))
     expect(within(secao()).queryByText('Acesso revogado. O link e o código não valem mais.')).toBeNull()
+  })
+})
+
+describe('Alunos: o menu da linha e a senha provisória (acesso-e-convites, 12.0)', () => {
+  const CAMINHO_DO_ALVO = (n: number) => `/v1/usuarios/${id(n)}/senha-provisoria`
+  const ALVO_DA_ANA = { nome: ANA.nome, turma: '7º A', matricula: '2026003', entraPelaContaDaEscola: false }
+  // O nome do botão é o do aluno e "Ações" (o prefixo é só do leitor de tela); a pontuação entre os dois depende de como o nome acessível junta os nós.
+  const menuDe = (nome: string) => screen.getByRole('button', { name: new RegExp(`^${nome}:?\\s*Ações$`) })
+
+  it('cada aluno que está na turma tem o menu "Ações" com "Gerar senha provisória"; quem saiu da turma não tem', async () => {
+    const usuario = userEvent.setup()
+    const rede = fakeNetwork()
+    // A Duda está no desempenho e não na lista de nomes (lida até o fim): saiu da turma.
+    instalar(rede, { desempenho: desempenho([desempenhoDe(1, BRUNO.nome, 1, 2), desempenhoDe(9, 'Duda Sintética', 1, 2)]) })
+    montar()
+
+    await screen.findByRole('region', { name: 'Por aluno' })
+    await waitFor(() => expect(within(linhaDe('Duda Sintética')).getByText('Saiu da turma')).toBeTruthy())
+    expect(within(screen.getByRole('region', { name: 'Por aluno' })).getAllByRole('button').map((botao) => botao.textContent)).toEqual([`${ANA.nome}: Ações`, `${BRUNO.nome}: Ações`, `${CAIO.nome}: Ações`])
+    expect(within(linhaDe('Duda Sintética')).queryByRole('button')).toBeNull()
+    await usuario.click(menuDe(ANA.nome))
+    expect(screen.getByRole('menuitem', { name: 'Gerar senha provisória' })).toBeTruthy()
+  })
+
+  it('escolher "Gerar senha provisória" abre a confirmação do aluno da linha, lido pelo id dele, e nada é pedido antes da escolha', async () => {
+    const usuario = userEvent.setup()
+    const rede = fakeNetwork()
+    instalar(rede)
+    rede.responderPor(CAMINHO_DO_ALVO(3), ok(ALVO_DA_ANA))
+    montar()
+    await screen.findByRole('region', { name: 'Por aluno' })
+    expect(rede.chamadas.filter((chamada) => chamada.caminho.includes('/senha-provisoria'))).toHaveLength(0)
+
+    await usuario.click(menuDe(ANA.nome))
+    await usuario.click(screen.getByRole('menuitem', { name: 'Gerar senha provisória' }))
+
+    const dialogoDaSenha = within(await screen.findByRole('dialog', { name: 'Gerar senha provisória' }))
+    expect(await dialogoDaSenha.findByText('2026003')).toBeTruthy()
+    expect(rede.chamadas.filter((chamada) => chamada.caminho.includes('/senha-provisoria')).map((chamada) => chamada.caminho)).toEqual([CAMINHO_DO_ALVO(3)])
+  })
+
+  it('o aluno que sumiu da turma (404 na confirmação): o diálogo fecha, o aviso fica na tela e a lista é lida de novo', async () => {
+    const usuario = userEvent.setup()
+    const rede = fakeNetwork()
+    instalar(rede)
+    rede.responderPor(CAMINHO_DO_ALVO(3), erro(404, 'NAO_ENCONTRADO'))
+    montar()
+    await screen.findByRole('region', { name: 'Por aluno' })
+    const leiturasDaLista = () => chamadasA(rede, 'alunos').length
+
+    await usuario.click(menuDe(ANA.nome))
+    await usuario.click(screen.getByRole('menuitem', { name: 'Gerar senha provisória' }))
+
+    expect(await screen.findByText('Este aluno não está mais na turma. A lista foi atualizada.')).toBeTruthy()
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Gerar senha provisória' })).toBeNull())
+    await waitFor(() => expect(leiturasDaLista()).toBe(2))
+  })
+
+  it('o aluno cuja linha saiu da lista com o diálogo aberto: ao fechar, o foco vai para o fim da lista, e não se perde com a linha', async () => {
+    const usuario = userEvent.setup()
+    const rede = fakeNetwork()
+    let leituras = 0
+    instalar(rede, { alunos: () => ok({ itens: ++leituras === 1 ? [BRUNO, CAIO, ANA] : [BRUNO, CAIO] }) })
+    rede.responderPor(CAMINHO_DO_ALVO(3), ok(ALVO_DA_ANA))
+    const { cliente } = montar()
+    await screen.findByRole('region', { name: 'Por aluno' })
+    await usuario.click(menuDe(ANA.nome))
+    await usuario.click(screen.getByRole('menuitem', { name: 'Gerar senha provisória' }))
+    const dialogoDaSenha = within(await screen.findByRole('dialog', { name: 'Gerar senha provisória' }))
+    await dialogoDaSenha.findByText('2026003')
+
+    await act(async () => {
+      await cliente.invalidateQueries()
+    })
+    await waitFor(() => expect(screen.queryByRole('rowheader', { name: ANA.nome })).toBeNull())
+    await usuario.click(dialogoDaSenha.getByRole('button', { name: 'Cancelar' }))
+
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByText(MENSAGEM_DO_FIM)))
+  })
+
+  it('abrir a confirmação de outro aluno apaga o aviso do que sumiu', async () => {
+    const usuario = userEvent.setup()
+    const rede = fakeNetwork()
+    instalar(rede)
+    rede.responderPor(CAMINHO_DO_ALVO(3), erro(404, 'NAO_ENCONTRADO'))
+    rede.responderPor(CAMINHO_DO_ALVO(1), ok({ ...ALVO_DA_ANA, nome: BRUNO.nome }))
+    montar()
+    await screen.findByRole('region', { name: 'Por aluno' })
+    await usuario.click(menuDe(ANA.nome))
+    await usuario.click(screen.getByRole('menuitem', { name: 'Gerar senha provisória' }))
+    await screen.findByText('Este aluno não está mais na turma. A lista foi atualizada.')
+
+    await usuario.click(menuDe(BRUNO.nome))
+    await usuario.click(screen.getByRole('menuitem', { name: 'Gerar senha provisória' }))
+
+    expect(screen.queryByText('Este aluno não está mais na turma. A lista foi atualizada.')).toBeNull()
   })
 })

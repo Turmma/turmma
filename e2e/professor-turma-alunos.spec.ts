@@ -134,8 +134,10 @@ test.describe('Alunos na turma aberta: a lista de nomes e os acertos', () => {
     await expect(regiaoDosAlunos(page)).not.toContainText('0 de 0')
     await expect(regiaoDosAlunos(page)).toContainText('7 alunos, em ordem de nome')
 
-    // Não é ranking: nenhum controle na região, nenhuma palavra de nota, de média ou de posição na aba.
-    await expect(regiaoDosAlunos(page).getByRole('button')).toHaveCount(0)
+    // Não é ranking: o único controle da região é o menu "Ações" de cada aluno que está na turma (a senha provisória, 12.0), nenhum de ordem, busca ou filtro, e nenhuma palavra de nota, de média ou de posição na aba.
+    await expect(regiaoDosAlunos(page).getByRole('button')).toHaveCount(6)
+    await expect(regiaoDosAlunos(page).getByRole('button', { name: /Ações$/ })).toHaveCount(6)
+    await expect(linhaDe(page, `Dora Sintética ${marca}`).getByRole('button')).toHaveCount(0)
     await expect(principal(page)).not.toContainText(VOCABULARIO_DE_NOTA)
     await expect(principal(page)).not.toContainText(PALAVRAS_DE_RANKING)
     expect(await horizontalOverflow(page)).toBe(0)

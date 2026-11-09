@@ -156,10 +156,14 @@ vale 72 horas. O painel da operação não mostra dado de aluno nem de professor
 11. A Helena, na aba **Alunos**, recarrega: em **Pedidos de nome**, marca os três → **Aprovar 3 pedidos** → confirma.
     **Diga:** "O aluno não se cadastra sozinho: ele reivindica o próprio nome na lista da escola, e quem dá a aula
     confere e aprova."
+    (Depois da aprovação, em **Por aluno**, cada aluno que está na turma ganha o menu **Ações**, com **Gerar senha provisória**; ver a nota do
+    passo 12. O roteiro não o usa, e `e2e/roteiro-da-demonstracao.spec.ts` confere só os passos 9 e 11 como estão aqui.)
 12. Cada aluno entra em `http://127.0.0.1:58080/e/lago-azul-demo` com matrícula e senha e cai na introdução de quatro passos
     (**Continuar** nos quatro: os três primeiros não se pulam, e o quarto pergunta o tamanho da letra). Depois dela, o aluno
     está no **Início**.
-    (Aluno que esqueceu a senha: o professor da turma ou a coordenação gera a **senha provisória**, de 24 horas. O aluno a digita no lugar da
+    (Aluno que esqueceu a senha: o professor da turma (aba **Alunos** → **Por aluno** → **Ações** → **Gerar senha provisória**) ou a coordenação (turma aberta →
+    **Mostrar alunos aprovados** → **Ações**) confere o aluno (nome, turma e matrícula) e gera a **senha provisória**, de 24 horas, que aparece uma vez só, em dois
+    grupos, com **Copiar** (`e2e/senha-provisoria.spec.ts`). O aluno a digita no lugar da
     senha e cai em **Crie a sua senha**, antes de qualquer tela: "Senhas provisórias de antes" mostra quem gerou e se foi usada, e **Criar a
     senha e entrar** abre a sessão dele em **Início**. Recarregar essa tela pede para entrar de novo com a provisória: `e2e/troca-da-provisoria.spec.ts`.
     O roteiro de hoje não gera provisória, e o passo 12 segue só com matrícula e senha.)

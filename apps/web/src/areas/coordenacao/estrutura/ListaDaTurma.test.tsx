@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { nomeDaSerie } from '@educa/shared'
-import { cleanup, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Router } from 'wouter'
@@ -274,17 +274,18 @@ describe('os estados da lista de nomes', () => {
     expect(bruno?.textContent).toContain('O aluno pediu o nome: esperando a decisão')
     expect(within(ana as HTMLElement).getByRole('button', { name: /^Retirar\s*Ana Souza, matrícula 2026001 da lista$/ })).toBeTruthy()
     expect(within(bruno as HTMLElement).queryByRole('button')).toBeNull()
-    // O aprovado não tem nome nem matrícula na lista: entra na contagem, e não vira linha.
-    expect(nomes().getByText(/Aprovados nesta turma: 1\./)).toBeTruthy()
+    // O aprovado não tem nome nem matrícula na lista: não vira linha, e a contagem de aprovados saiu (12.0): eles estão na seção "Alunos aprovados".
+    expect(screen.queryByText(/Aprovados nesta turma/)).toBeNull()
     expect(nomes().getByText('3 nomes na lista')).toBeTruthy()
   })
 
-  it('só aprovados: a contagem diz tudo, e a tabela não aparece só com o cabeçalho', async () => {
+  it('só aprovados: a tabela não aparece só com o cabeçalho, e nenhuma contagem de aprovados', async () => {
     instalar(fakeNetwork(), { lista: ok([NOME(1, 'aprovado'), NOME(2, 'aprovado')]) })
     await montarEEsperar()
 
-    expect(await nomes().findByText(/Aprovados nesta turma: 2\./)).toBeTruthy()
+    expect(await nomes().findByText('2 nomes na lista')).toBeTruthy()
     expect(nomes().queryByRole('table')).toBeNull()
+    expect(screen.queryByText(/Aprovados (nesta turma|entre os primeiros)/)).toBeNull()
   })
 
   it('no celular a tabela vira lista, com o nome de cada valor dito em texto', async () => {
@@ -628,5 +629,149 @@ describe('o foco depois de cada ação', () => {
     await waitFor(() => expect(nomes().queryByText('Ana Souza')).toBeNull())
     expect(nomes().getByText('Bruno Lima')).toBeTruthy()
     await waitFor(() => expect(document.activeElement).toBe(nomes().getByRole('heading', { name: 'Nomes da turma' })))
+  })
+})
+
+describe('a seção "Alunos aprovados" (acesso-e-convites, 12.0)', () => {
+  const ALUNO = (n: number, nome: string) => ({ usuarioId: id(800 + n), nome })
+  const CAMINHO_DOS_ALUNOS = new RegExp(`^/v1/turmas/${TURMA.id}/alunos\\?`)
+  const secao = () => within(screen.getByRole('region', { name: 'Alunos aprovados' }))
+  const leiturasDosAlunos = (rede: FakeNetwork) => rede.chamadas.filter((chamada) => chamada.caminho.startsWith(`/v1/turmas/${TURMA.id}/alunos`))
+  const menuDe = (nome: string) => secao().getByRole('button', { name: new RegExp(`^${nome}:?\\s*Ações$`) })
+
+  async function mostrar(rede: FakeNetwork, resposta: FakeResponse | ((caminho: string) => FakeResponse | Promise<FakeResponse>) = ok([ALUNO(1, 'Bruno Lima'), ALUNO(2, 'Ana Souza')])) {
+    instalar(rede)
+    rede.responderPor(CAMINHO_DOS_ALUNOS, resposta)
+    await montarEEsperar()
+    await userEvent.click(secao().getByRole('button', { name: 'Mostrar alunos aprovados' }))
+  }
+
+  it('antes do clique nada é lido: a seção diz que a consulta fica na auditoria, e o botão é o único controle', async () => {
+    const rede = fakeNetwork()
+    instalar(rede)
+    await montarEEsperar()
+
+    expect(secao().getByText(/Cada consulta fica registrada na auditoria, em seu nome\./)).toBeTruthy()
+    expect(secao().getAllByRole('button').map((botao) => botao.textContent)).toEqual(['Mostrar alunos aprovados'])
+    expect(leiturasDosAlunos(rede)).toHaveLength(0)
+  })
+
+  it('o clique lê uma vez, com a finalidade de conferência e cem por página, e mostra os alunos em ordem de nome, cada um com o menu "Ações"', async () => {
+    const rede = fakeNetwork()
+    await mostrar(rede)
+
+    expect(await secao().findByText('Ana Souza')).toBeTruthy()
+    expect(leiturasDosAlunos(rede).map((chamada) => chamada.caminho)).toEqual([`/v1/turmas/${TURMA.id}/alunos?finalidade=conferencia_de_cadastro&limite=100`])
+    const linhas = within(secao().getByRole('table')).getAllByRole('row').slice(1)
+    expect(linhas.map((linha) => within(linha).getByRole('rowheader').textContent)).toEqual(['Ana Souza', 'Bruno Lima'])
+    expect(secao().getByText('2 alunos aprovados')).toBeTruthy()
+    expect(secao().queryByRole('button', { name: 'Mostrar alunos aprovados' })).toBeNull()
+    expect(menuDe('Ana Souza')).toBeTruthy()
+    // A contagem antiga saiu da lista de nomes.
+    expect(screen.queryByText(/Aprovados nesta turma/)).toBeNull()
+  })
+
+  it('"Gerar senha provisória" no menu da linha abre a confirmação do aluno, lido pelo id dele', async () => {
+    const rede = fakeNetwork()
+    await mostrar(rede)
+    rede.responderPor(`/v1/usuarios/${id(802)}/senha-provisoria`, { status: 200, corpo: { nome: 'Ana Souza', turma: '7º A', matricula: '2026001', entraPelaContaDaEscola: false } })
+    await secao().findByText('Ana Souza')
+
+    await userEvent.click(menuDe('Ana Souza'))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Gerar senha provisória' }))
+
+    const dialogo = within(await screen.findByRole('dialog', { name: 'Gerar senha provisória' }))
+    expect(await dialogo.findByText('2026001')).toBeTruthy()
+  })
+
+  it('sem aluno aprovado: o vazio convida a aprovar pedidos, sem tabela', async () => {
+    await mostrar(fakeNetwork(), ok([]))
+
+    expect(await secao().findByText('Nenhum aluno aprovado ainda')).toBeTruthy()
+    expect(secao().queryByRole('table')).toBeNull()
+  })
+
+  it('a leitura que falha: o erro com "Tentar de novo", que lê de novo e mostra os alunos', async () => {
+    const rede = fakeNetwork()
+    let leituras = 0
+    await mostrar(rede, () => (++leituras === 1 ? FALHA : ok([ALUNO(1, 'Ana Souza')])))
+
+    await userEvent.click(await secao().findByRole('button', { name: 'Tentar de novo' }))
+
+    expect(await secao().findByText('Ana Souza')).toBeTruthy()
+    expect(leiturasDosAlunos(rede)).toHaveLength(2)
+  })
+
+  it('havendo mais páginas: "Ver mais alunos" lê a seguinte com o cursor, e a contagem diz "os primeiros"', async () => {
+    const rede = fakeNetwork()
+    await mostrar(rede, (caminho) => (caminho.includes('pagina=') ? ok([ALUNO(3, 'Caio Dias')]) : ok([ALUNO(1, 'Ana Souza')], { proxima: id(999) })))
+
+    expect(await secao().findByText('Mostrando os primeiros 1 aluno')).toBeTruthy()
+    await userEvent.click(secao().getByRole('button', { name: 'Ver mais alunos' }))
+
+    expect(await secao().findByText('Caio Dias')).toBeTruthy()
+    expect(leiturasDosAlunos(rede).at(-1)?.caminho).toBe(`/v1/turmas/${TURMA.id}/alunos?finalidade=conferencia_de_cadastro&limite=100&pagina=${id(999)}`)
+    expect(secao().queryByRole('button', { name: 'Ver mais alunos' })).toBeNull()
+  })
+
+  it('um aluno só: a contagem diz "1 aluno aprovado", no singular', async () => {
+    const rede = fakeNetwork()
+    await mostrar(rede, ok([ALUNO(1, 'Ana Souza')]))
+
+    expect(await secao().findByText('1 aluno aprovado')).toBeTruthy()
+  })
+
+  it('dois alunos de mesmo nome são duas linhas, na ordem do id, e não na da chegada', async () => {
+    const rede = fakeNetwork()
+    await mostrar(rede, ok([ALUNO(2, 'Ana Souza'), ALUNO(1, 'Ana Souza')]))
+    await secao().findByRole('table')
+
+    const menus = secao().getAllByRole('button', { name: /^Ana Souza:?\s*Ações$/ })
+    expect(menus).toHaveLength(2)
+    rede.responderPor(`/v1/usuarios/${id(801)}/senha-provisoria`, { status: 200, corpo: { nome: 'Ana Souza', turma: '7º A', matricula: '2026001', entraPelaContaDaEscola: false } })
+    await userEvent.click(menus[0] as HTMLElement)
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Gerar senha provisória' }))
+    expect(await within(await screen.findByRole('dialog', { name: 'Gerar senha provisória' })).findByText('2026001')).toBeTruthy()
+  })
+
+  it('"Ver mais alunos" vira "Carregando…" enquanto a página seguinte vem', async () => {
+    const rede = fakeNetwork()
+    let liberar: (resposta: FakeResponse) => void = () => undefined
+    const seguinte = new Promise<FakeResponse>((resolver) => (liberar = resolver))
+    await mostrar(rede, (caminho) => (caminho.includes('pagina=') ? seguinte : ok([ALUNO(1, 'Ana Souza')], { proxima: id(999) })))
+    await secao().findByText('Ana Souza')
+
+    await userEvent.click(secao().getByRole('button', { name: 'Ver mais alunos' }))
+
+    expect(await secao().findByRole('button', { name: 'Carregando…' })).toBeTruthy()
+    await act(async () => {
+      liberar(ok([ALUNO(3, 'Caio Dias')]))
+      await Promise.resolve()
+    })
+    expect(await secao().findByText('Caio Dias')).toBeTruthy()
+  })
+
+  it('o aluno que sumiu na confirmação (404): o aviso fica na seção, o diálogo fecha e a lista é lida de novo', async () => {
+    const rede = fakeNetwork()
+    await mostrar(rede)
+    rede.responderPor(`/v1/usuarios/${id(802)}/senha-provisoria`, ERRO('NAO_ENCONTRADO', 404))
+    await secao().findByText('Ana Souza')
+
+    await userEvent.click(menuDe('Ana Souza'))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Gerar senha provisória' }))
+
+    expect(await secao().findByText('Este aluno não está mais na turma. A lista foi atualizada.')).toBeTruthy()
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Gerar senha provisória' })).toBeNull())
+    await waitFor(() => expect(leiturasDosAlunos(rede)).toHaveLength(2))
+  })
+
+  it('"Atualizar" lê a lista de novo, e só depois do clique em "Mostrar"', async () => {
+    const rede = fakeNetwork()
+    await mostrar(rede)
+    await secao().findByText('Ana Souza')
+
+    await userEvent.click(secao().getByRole('button', { name: /^Atualizar/ }))
+
+    await waitFor(() => expect(leiturasDosAlunos(rede)).toHaveLength(2))
   })
 })

@@ -3,6 +3,7 @@ import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
 import type { PedidosDaTurmaResponse } from '../packages/shared/src/sala/pedidos.ts'
 import { abrirNavegacao, entrarComoCoordenacaoNaMesmaAba, entrarPorEmail, abrirEstrutura, irPelaNavegacao, lateral, SIGN_IN_TIMEOUT_MS, esperarNovaConversa, abrirAbaAlunos } from './support/casca.ts'
 import { linhasDaTabela } from './support/coordenacao.ts'
+import { abrirPelaApiSemMedirAPrimeiraCarga } from './support/mfa.ts'
 import { expect, test } from './support/profiles.ts'
 import {
   alunosDaTurmaNoBanco,
@@ -54,7 +55,7 @@ const DEPOIS_DA_FALHA_DO_PROFESSOR = 'Alguns pedidos podem já ter sido decidido
 const DEPOIS_DA_FALHA_DA_COORDENACAO = 'Alguns pedidos podem já ter sido decididos. Feche e clique em Atualizar para ver os que continuam esperando.'
 const TEXTO_DA_TURMA_INDISPONIVEL =
   'Esta turma não está disponível para você agora: o seu vínculo com ela pode não estar confirmado, ou ela saiu do ano letivo em curso. Volte para Turmas; se ela deveria estar lá, fale com a coordenação.'
-const DOS_APROVADOS = 'Eles contam entre os nomes da lista, mas não aparecem pelo nome: já entram com a matrícula e a senha.'
+const CONTAGEM_DOS_APROVADOS = /Aprovados (nesta turma|entre os primeiros)/
 const TEXTO_DA_TURMA_FORA_DO_ANO = 'Esta turma não está no ano letivo em curso: ela pode ter sido excluída. Volte para Escola › Turmas e abra a turma de novo.'
 
 /** O grafite da decisão oficial (`--color-grafite`, #333333) e o texto do `perigo` (`--color-vermelho-texto`, #b84045). */
@@ -411,15 +412,13 @@ test.describe('W4 (Pedidos) e W6, pela coordenação', () => {
     await tocar(noDialogo(page), 'Fechar', hasTouch)
     await expect(dialogosDaTela(page)).toHaveCount(0)
     await expect(tituloDaSecao(page)).toBeFocused()
-    // Os aprovados saíram da lista dos pedidos sem leitura nova, e a lista de nomes da turma os conta, sem o nome.
+    // Os aprovados saíram da lista dos pedidos sem leitura nova, e a lista de nomes da turma não os conta mais: eles vivem na seção "Alunos aprovados" (12.0).
     await expect(linhas(page)).toHaveText([new RegExp(`^${carla.nome}`)])
     expect(leituras).toHaveLength(2)
     expect(await alunosDaTurmaNoBanco(coordenadora.escolaId, turma.id)).toBe(2)
     const nomesDaTurma = principal(page).getByRole('region', { name: 'Nomes da turma' })
-    await expect(nomesDaTurma).toContainText(`Aprovados nesta turma: 2. ${DOS_APROVADOS}`, {
-      timeout: SIGN_IN_TIMEOUT_MS,
-    })
-    await expect(linhasDaTabela(nomesDaTurma)).toHaveCount(2)
+    await expect(linhasDaTabela(nomesDaTurma)).toHaveCount(2, { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(nomesDaTurma).not.toContainText(CONTAGEM_DOS_APROVADOS)
     await expect(nomesDaTurma).not.toContainText('Aluno aprovado')
     for (const { nome } of [ana, bruno]) await expect(nomesDaTurma).not.toContainText(nome)
 
@@ -971,7 +970,7 @@ test.describe('recomeço da tela dos pedidos', () => {
 })
 
 test.describe('os aprovados na lista de nomes da coordenação', () => {
-  test('com mais de uma página de nomes, a contagem dos aprovados diz que é dos nomes mostrados, e o total só com a lista inteira', async ({ page, hasTouch }) => {
+  test('com mais de uma página de nomes, a lista não traz contagem de aprovados nem na primeira página nem na lista inteira', async ({ page, request, hasTouch }) => {
     test.setTimeout(180_000)
     const coordenadora = await criarEquipeComSenha('coordenador')
     const estrutura = await montarEstruturaNoBanco(coordenadora.escolaId)
@@ -981,18 +980,16 @@ test.describe('os aprovados na lista de nomes da coordenação', () => {
     await porAprovadosNaListaDaTurma(coordenadora.escolaId, turma.id, 1)
     await porNaListaDaTurma(coordenadora.escolaId, turma.id, nomesDeTeste(100, 'Livre'))
     await porAprovadosNaListaDaTurma(coordenadora.escolaId, turma.id, 1)
-    await page.goto('/entrar')
-    await entrarComoCoordenacaoNaMesmaAba(page, coordenadora, hasTouch)
-    await abrirEstrutura(page, hasTouch)
-    await activate(principal(page).getByRole('link', { name: `Lista de nomes da turma ${turma.nome}` }), hasTouch)
     const nomesDaTurma = principal(page).getByRole('region', { name: 'Nomes da turma' })
-    await expect(nomesDaTurma).toContainText('Mostrando os primeiros 100 nomes', { timeout: SIGN_IN_TIMEOUT_MS })
-    await expect(nomesDaTurma).toContainText(`Aprovados entre os primeiros 100 nomes: 1. ${DOS_APROVADOS}`)
-    await expect(nomesDaTurma).not.toContainText('Aprovados nesta turma')
+    // A turma aberta direto, sem a rede lenta na primeira carga: o assunto é a lista de nomes, e não o caminho até ela.
+    await abrirPelaApiSemMedirAPrimeiraCarga(page, request, coordenadora, `/coordenacao/estrutura/turmas/${turma.id}`, () =>
+      expect(nomesDaTurma).toContainText('Mostrando os primeiros 100 nomes', { timeout: SIGN_IN_TIMEOUT_MS }),
+    )
+    await expect(nomesDaTurma).not.toContainText(CONTAGEM_DOS_APROVADOS)
     await expect(linhasDaTabela(nomesDaTurma)).toHaveCount(99)
     await tocar(nomesDaTurma, 'Ver mais nomes', hasTouch)
     await expect(nomesDaTurma).toContainText('102 nomes na lista', { timeout: SIGN_IN_TIMEOUT_MS })
-    await expect(nomesDaTurma).toContainText(`Aprovados nesta turma: 2. ${DOS_APROVADOS}`)
+    await expect(nomesDaTurma).not.toContainText(CONTAGEM_DOS_APROVADOS)
     await expect(linhasDaTabela(nomesDaTurma)).toHaveCount(100)
   })
 })

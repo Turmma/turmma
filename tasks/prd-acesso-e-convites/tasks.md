@@ -80,12 +80,12 @@
   - [x] 11.2 A leitura por alvo: o papel fixo por ação nas quatro da F2, do `depois` na `.gerada`; o `lista_nome` só aprovado, pelo `alunoId` da decisão
   - [x] 11.3 Testes: as seis ações por alvo, sem autor, nome não aprovado fora, linha da B fora
 
-- [ ] **12.0 — A tela "Gerar senha provisória"**
-  - [ ] 12.1 O item no menu da linha e o diálogo de confirmação, que lê o alvo (17.0); a seção "Alunos aprovados" da coordenação, no lugar da contagem
-  - [ ] 12.2 A senha fora do cache de consultas, da URL, do log e do armazenamento; "fechar sem copiar" pergunta antes
-  - [ ] 12.3 `docs/interface.md`
-  - [ ] 12.4 O `docs/roteiro-da-demonstracao.md` (seção 2, passos 9 e 11) conferido contra `e2e/roteiro-da-demonstracao.spec.ts`
-  - [ ] 12.5 Testes: confirmação com matrícula, senha fora do navegador, recusas, recomeço, 360 px e 1366 × 768
+- [x] **12.0 — A tela "Gerar senha provisória"**
+  - [x] 12.1 O item no menu da linha e o diálogo de confirmação, que lê o alvo (17.0); a seção "Alunos aprovados" da coordenação, no lugar da contagem
+  - [x] 12.2 A senha fora do cache de consultas, da URL, do log e do armazenamento; "fechar sem copiar" pergunta antes
+  - [x] 12.3 `docs/interface.md`
+  - [x] 12.4 O `docs/roteiro-da-demonstracao.md` (seção 2, passos 9 e 11) conferido contra `e2e/roteiro-da-demonstracao.spec.ts`
+  - [x] 12.5 Testes: confirmação com matrícula, senha fora do navegador, recusas, recomeço, 360 px e 1366 × 768
 
 - [x] **13.0 — A tela "Trocar a senha provisória"**
   - [x] 13.1 A tela, com o bilhete só em memória

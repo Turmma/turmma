@@ -1,18 +1,22 @@
-import { ErrorCode, MAXIMO_DE_LINHAS_DA_LISTA, nomeDaSerie, pareceDocumento, TAMANHO_MAXIMO_MATRICULA, TAMANHO_MAXIMO_NOME_DIGITADO, type EstadoDoNomeDaLista, type NomeDaLista } from '@educa/shared'
-import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query'
+import { ErrorCode, MAXIMO_DE_LINHAS_DA_LISTA, nomeDaSerie, pareceDocumento, TAMANHO_MAXIMO_MATRICULA, TAMANHO_MAXIMO_NOME_DIGITADO, type AlunoDaTurma, type AlunosDaTurmaResponse, type EstadoDoNomeDaLista, type NomeDaLista } from '@educa/shared'
+import { useInfiniteQuery, useQuery, useQueryClient, type InfiniteData, type UseInfiniteQueryResult } from '@tanstack/react-query'
 import { ArrowLeft } from 'lucide-react'
 import { useCallback, useId, useMemo, useRef, useState } from 'react'
 import { Link } from 'wouter'
 import { ApiError } from '../../../api/client'
 import { turmaAbertaQueryOptions, turmasQueryOptions } from '../../../api/estrutura'
-import { acrescentarNome, listaDaTurmaQueryOptions, retirarNome } from './api/lista'
+import { TEXTO_DO_ALUNO_QUE_SAIU_DA_TURMA } from '../../../api/senha-provisoria/senha-provisoria'
+import { acrescentarNome, alunosAprovadosDaTurmaQueryOptions, listaDaTurmaQueryOptions, retirarNome } from './api/lista'
 import { ImportarPlanilha, type PlanilhaConfig } from '../importacao/ImportarPlanilha'
 import { COORDENACAO_ROUTES } from '../../../paths'
 import { DANGER_BUTTON_CLASSES, SECONDARY_BUTTON_CLASSES } from '../../../components/ui/button-variants'
 import { FormField } from '../../../components/ui/fields/FormField'
 import { useDialogState } from '../../../components/ui/overlays/dialog-state'
 import { StatusAnnouncement, DangerConfirmDialog, FormDialog, useSingleSubmit } from '../../../components/dialogs'
+import { DialogoDaSenhaProvisoria } from '../../../components/senha-provisoria/DialogoDaSenhaProvisoria'
+import { ITENS_DA_LINHA_DA_SENHA_PROVISORIA } from '../../../components/senha-provisoria/itens-do-menu'
 import { LoadingState, ErrorState, EmptyState } from '../../../components/states/index'
+import { Menu } from '../../../components/ui/overlays/Menu'
 import { MEDIA_MD, useMediaQuery } from '../../../components/ui/media-query'
 import { ListaDePedidos } from '../../../components/pedidos/ListaDePedidos'
 import { StatusBadge } from '../../../components/ui/StatusBadge'
@@ -27,9 +31,9 @@ import { NOME_DO_TURNO } from './nome-do-turno'
 import { ProfessoresDaTurma } from './ProfessoresDaTurma'
 
 /**
- * O estado do nome em texto, para a coordenação (regra 50, item 11). O aprovado não tem linha: a lista o traz sem nome nem
- * matrícula, que passaram a viver no usuário, e trinta cartões "Aluno aprovado" iguais não diriam nada. Eles viram uma
- * contagem (16.0, nota da 13.0).
+ * O estado do nome em texto, para a coordenação (regra 50, item 11). O aprovado não tem linha na lista de nomes: a lista o traz sem
+ * nome nem matrícula, que passaram a viver no usuário. Ele aparece na seção "Alunos aprovados", lida no clique (acesso-e-convites, 12.0),
+ * onde cada linha tem o menu da senha provisória.
  */
 const ESTADO_DO_NOME: Readonly<Record<Exclude<EstadoDoNomeDaLista, 'aprovado'>, string>> = {
   livre: 'Livre: esperando o aluno pedir o nome',
@@ -41,15 +45,6 @@ const ESTADO_DO_NOME: Readonly<Record<Exclude<EstadoDoNomeDaLista, 'aprovado'>, 
  * `lista_nome_aprovado_sem_nome` só os tira do aprovado).
  */
 type NomeAindaNaLista = NomeDaLista & { readonly estado: Exclude<EstadoDoNomeDaLista, 'aprovado'>; readonly nome: string; readonly matricula: string }
-
-/**
- * O que a lista diz dos aprovados, que contam entre os nomes dela e não têm cartão. A lista é paginada: com páginas ainda
- * por ler, a contagem é só dos nomes mostrados, e a tela diz isso, em vez de afirmar o total da turma.
- */
-function textoDosAprovados(aprovados: number, mostrados: number, haMais: boolean): string {
-  const quantos = haMais ? `Aprovados entre os primeiros ${formatNumber(mostrados)} nomes: ${formatNumber(aprovados)}.` : `Aprovados nesta turma: ${formatNumber(aprovados)}.`
-  return `${quantos} Eles contam entre os nomes da lista, mas não aparecem pelo nome: já entram com a matrícula e a senha.`
-}
 
 /** A turma que a API não acha para a coordenação: saiu do ano em curso, ou foi excluída por outra pessoa. */
 const TEXTO_DA_TURMA_FORA_DO_ANO = 'Esta turma não está no ano letivo em curso: ela pode ter sido excluída. Volte para Escola › Turmas e abra a turma de novo.'
@@ -165,9 +160,8 @@ function ConteudoDaLista({ turmaId, turmaNome, aoPerderATurma }: { turmaId: stri
 
   const recarregarNomes = () => cliente.invalidateQueries({ queryKey: listaDaTurmaQueryOptions(turmaId).queryKey })
   const itens = nomes.data?.pages.flatMap((pagina) => pagina.itens) ?? []
-  // Os aprovados vêm sem nome nem matrícula: entram na contagem, e não na tabela.
+  // Os aprovados vêm sem nome nem matrícula: não são linha desta tabela, e a seção "Alunos aprovados" os lê pelo nome.
   const semAprovados = itens.filter((nome): nome is NomeAindaNaLista => nome.estado !== 'aprovado' && nome.nome !== null && nome.matricula !== null)
-  const aprovados = itens.length - semAprovados.length
 
   function abrir(tipo: 'acrescentar' | 'retirar', item?: NomeDaLista): void {
     definirAnuncio('')
@@ -206,10 +200,7 @@ function ConteudoDaLista({ turmaId, turmaNome, aoPerderATurma }: { turmaId: stri
                 <p className="text-sm text-sutil">
                   {nomes.hasNextPage ? `Mostrando os primeiros ${formatQuantity(itens.length, 'nome', 'nomes')}` : `${formatQuantity(itens.length, 'nome', 'nomes')} na lista`}
                 </p>
-                {aprovados > 0 && (
-                  <p className="rounded-cartao border border-ok bg-ok-cx p-4 break-words text-ok">{textoDosAprovados(aprovados, itens.length, nomes.hasNextPage)}</p>
-                )}
-                {/* Só aprovados: a tabela ficaria só com o cabeçalho, e a contagem acima já diz tudo o que há para dizer. */}
+                {/* Só aprovados: a tabela ficaria só com o cabeçalho, e os aprovados estão na seção própria. */}
                 {semAprovados.length > 0 && (
                   <Table rotulo="Cada nome com a matrícula e a situação" colunas={colunasDosNomes((nome) => abrir('retirar', nome))} linhas={semAprovados} chaveDaLinha={(nome) => nome.id} />
                 )}
@@ -221,6 +212,8 @@ function ConteudoDaLista({ turmaId, turmaNome, aoPerderATurma }: { turmaId: stri
               </>
             )}
           </section>
+
+          <AlunosAprovados turmaId={turmaId} />
         </div>
 
         <div className="flex min-w-0 flex-col gap-6">
@@ -278,6 +271,113 @@ function ConteudoDaLista({ turmaId, turmaNome, aoPerderATurma }: { turmaId: stri
         />
       )}
     </>
+  )
+}
+
+/** O que a seção diz antes do clique: nada foi lido, e cada leitura fica na auditoria em nome de quem lê (regra 20, item 10). */
+const TEXTO_ANTES_DOS_APROVADOS =
+  'Os alunos aprovados entram com a matrícula e a senha. Clique em Mostrar alunos aprovados para ver o nome deles e gerar uma senha provisória. Cada consulta fica registrada na auditoria, em seu nome.'
+
+/** Em ordem de nome, no português do Brasil; o id desempata dois alunos de mesmo nome. */
+function porNome(a: AlunoDaTurma, b: AlunoDaTurma): number {
+  return a.nome.localeCompare(b.nome, 'pt-BR') || (a.usuarioId < b.usuarioId ? -1 : a.usuarioId > b.usuarioId ? 1 : 0)
+}
+
+type LeituraDosAprovados = UseInfiniteQueryResult<InfiniteData<AlunosDaTurmaResponse>>
+
+/** A tabela dos aprovados lidos, com o menu de cada linha, e o "Ver mais alunos" quando a leitura tem mais páginas. */
+function ListaDosAprovados({ alunos, lidos, aoGerarASenha }: { alunos: LeituraDosAprovados; lidos: readonly AlunoDaTurma[]; aoGerarASenha: (usuarioId: string) => void }) {
+  return (
+    <>
+      <p className="text-sm text-sutil">{alunos.hasNextPage ? `Mostrando os primeiros ${formatQuantity(lidos.length, 'aluno', 'alunos')}` : formatQuantity(lidos.length, 'aluno aprovado', 'alunos aprovados')}</p>
+      <Table
+        rotulo="Alunos aprovados da turma"
+        colunas={[
+          { chave: 'nome', titulo: 'Aluno', celula: (aluno) => <span className="font-medium break-words">{aluno.nome}</span> },
+          {
+            chave: 'acoes',
+            titulo: 'Ações',
+            celula: (aluno) => <Menu rotulo="Ações" prefixo={aluno.nome} itens={ITENS_DA_LINHA_DA_SENHA_PROVISORIA} aoEscolher={() => aoGerarASenha(aluno.usuarioId)} />,
+          },
+        ]}
+        linhas={lidos}
+        chaveDaLinha={(aluno) => aluno.usuarioId}
+      />
+      {alunos.hasNextPage && (
+        <button type="button" onClick={() => void alunos.fetchNextPage()} disabled={alunos.isFetchingNextPage} className={`${SECONDARY_BUTTON_CLASSES} self-start`}>
+          {alunos.isFetchingNextPage ? 'Carregando…' : 'Ver mais alunos'}
+        </button>
+      )}
+    </>
+  )
+}
+
+/** O que a seção mostra depois do clique: carregando, a falha, o vazio ou os alunos. */
+function CorpoDosAprovados({ alunos, aoGerarASenha }: { alunos: LeituraDosAprovados; aoGerarASenha: (usuarioId: string) => void }) {
+  if (alunos.data === undefined)
+    return alunos.isError ? (
+      <ErrorState erro={alunos.error} tentando={alunos.isFetching} aoTentarDeNovo={() => void alunos.refetch({ cancelRefetch: false })} />
+    ) : (
+      <LoadingState rotulo="Carregando os alunos aprovados…" />
+    )
+  const lidos = alunos.data.pages.flatMap((pagina) => pagina.itens).sort(porNome)
+  if (lidos.length === 0)
+    return <EmptyState titulo="Nenhum aluno aprovado ainda" descricao="Os alunos aparecem aqui quando o pedido de nome deles é aprovado, pela coordenação ou pelo professor da turma." />
+  return <ListaDosAprovados alunos={alunos} lidos={lidos} aoGerarASenha={aoGerarASenha} />
+}
+
+/**
+ * A seção "Alunos aprovados" da turma aberta (acesso-e-convites, 12.0; RF13, RF18; Tech Spec, seção 9): os alunos que já entram, lidos de `GET /v1/turmas/:id/alunos` **só no clique** em "Mostrar
+ * alunos aprovados", porque cada leitura é auditada em nome de quem a faz. No lugar da contagem de aprovados que a lista de nomes mostrava, cada linha tem o menu "Ações" com "Gerar senha provisória",
+ * a mesma confirmação do professor (`DialogoDaSenhaProvisoria`). O nome e a matrícula só passam pela memória da página: nunca no endereço nem no armazenamento (regra 20; regra 50, item 7).
+ * O aluno que a confirmação descobre fora da turma (404) fecha o diálogo, diz o aviso e lê a lista de novo.
+ */
+function AlunosAprovados({ turmaId }: { turmaId: string }) {
+  const [mostrando, definirMostrando] = useState(false)
+  const [aviso, definirAviso] = useState('')
+  const alunos = useInfiniteQuery({ ...alunosAprovadosDaTurmaQueryOptions(turmaId), enabled: mostrando })
+  const dialogo = useDialogState<'provisoria', string>()
+  const aberta = dialogo.aberta
+  const tituloDaSecao = useRef<HTMLHeadingElement>(null)
+  const idDoTitulo = useId()
+
+  function abrirProvisoria(usuarioId: string): void {
+    definirAviso('')
+    dialogo.abrir('provisoria', usuarioId)
+  }
+
+  return (
+    <section aria-labelledby={idDoTitulo} className="flex min-w-0 flex-col gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 ref={tituloDaSecao} id={idDoTitulo} tabIndex={-1} className="text-lg font-semibold text-tinta">
+          Alunos aprovados
+        </h2>
+        {mostrando ? (
+          <button type="button" onClick={() => void alunos.refetch({ cancelRefetch: false })} disabled={alunos.isFetching} className={SECONDARY_BUTTON_CLASSES}>
+            Atualizar<span className="sr-only"> os alunos aprovados</span>
+          </button>
+        ) : (
+          <button type="button" onClick={() => definirMostrando(true)} className={SECONDARY_BUTTON_CLASSES}>
+            Mostrar alunos aprovados
+          </button>
+        )}
+      </div>
+      <StatusAnnouncement texto={aviso} />
+      {mostrando ? <CorpoDosAprovados alunos={alunos} aoGerarASenha={abrirProvisoria} /> : <p className="text-sm text-sutil">{TEXTO_ANTES_DOS_APROVADOS}</p>}
+      {aberta?.tipo === 'provisoria' && aberta.alvo !== undefined && (
+        <DialogoDaSenhaProvisoria
+          key={aberta.numero}
+          usuarioId={aberta.alvo}
+          aoFechar={dialogo.fechar}
+          aoPerderOAluno={() => {
+            definirAviso(TEXTO_DO_ALUNO_QUE_SAIU_DA_TURMA)
+            dialogo.fecharSeAinda(aberta)
+            void alunos.refetch({ cancelRefetch: false })
+          }}
+          focoDeReserva={() => tituloDaSecao.current?.focus()}
+        />
+      )}
+    </section>
   )
 }
 

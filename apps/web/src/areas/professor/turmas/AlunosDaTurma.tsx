@@ -2,8 +2,14 @@ import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { useEffect, useId, useRef, useState } from 'react'
 import { useLocation, useSearch } from 'wouter'
 import { alunosDaTurmaQueryOptions } from '../../../api/alunos-da-turma'
+import { TEXTO_DO_ALUNO_QUE_SAIU_DA_TURMA } from '../../../api/senha-provisoria/senha-provisoria'
 import { desempenhoDaTurmaQueryOptions } from '../atividades/api/atividades'
 import { Button } from '../../../components/ui/Button'
+import { StatusAnnouncement } from '../../../components/dialogs'
+import { DialogoDaSenhaProvisoria } from '../../../components/senha-provisoria/DialogoDaSenhaProvisoria'
+import { ITENS_DA_LINHA_DA_SENHA_PROVISORIA } from '../../../components/senha-provisoria/itens-do-menu'
+import { Menu } from '../../../components/ui/overlays/Menu'
+import { useDialogState } from '../../../components/ui/overlays/dialog-state'
 import { LoadingState, ErrorState, EmptyState } from '../../../components/states/index'
 import { ListaDePedidos } from '../../../components/pedidos/ListaDePedidos'
 import { Table } from '../../../components/ui/Table'
@@ -39,6 +45,9 @@ interface PropsDosAlunos {
  *   sem número, e só quando a lista foi lida até o fim: antes disso ele pode estar numa página que não chegou.
  * - **Não é ranking, e a tela não ordena por acerto**: não há controle de ordem, nem situação, nem média, nem busca por nome, nem
  *   selo de adaptação por aluno, nem a conversa dele (F6, D35, D64, D70).
+ * - **O menu da linha** ("Ações") tem "Gerar senha provisória" para o aluno que está na turma (acesso-e-convites, 12.0; RF13, RF18): ele abre a confirmação, que lê o aluno
+ *   (nome, turma, matrícula) fora do cache de consultas e mostra a senha uma vez (`DialogoDaSenhaProvisoria`). O aluno que saiu da turma não tem o menu. A confirmação que
+ *   descobre que o aluno não está mais na turma fecha, diz o aviso e lê a lista de novo.
  * - A falha dos acertos não tira os nomes da tela: a lista é o que a professora veio ver, e o erro dos acertos vem sozinho, com o
  *   seu "Tentar de novo".
  */
@@ -49,6 +58,10 @@ export default function AlunosDaTurma({ turmaId, turmaNome, escola, aoPerderATur
   const alunos = useInfiniteQuery(alunosDaTurmaQueryOptions(turmaId))
   const desempenho = useQuery(desempenhoDaTurmaQueryOptions(turmaId))
   const idDosAlunos = useId()
+  // A senha provisória: o diálogo aberto leva o id do aluno, fotografado na abertura, e o aviso do aluno que saiu da turma enquanto a confirmação estava aberta.
+  const dialogo = useDialogState<'provisoria', string>()
+  const aberta = dialogo.aberta
+  const [aviso, definirAviso] = useState('')
   const botaoDeVerMais = useRef<HTMLButtonElement>(null)
   const fimDaLista = useRef<HTMLParagraphElement>(null)
   // "Ver mais" já está no ar: o segundo clique no mesmo instante, antes de o botão desligar, não pede a mesma página outra vez.
@@ -74,6 +87,11 @@ export default function AlunosDaTurma({ turmaId, turmaNome, escola, aoPerderATur
     if (document.activeElement !== null && document.activeElement !== document.body) return
     ;(botaoDeVerMais.current ?? fimDaLista.current)?.focus()
   }, [pedidoDeFoco])
+
+  function abrirProvisoria(usuarioId: string): void {
+    definirAviso('')
+    dialogo.abrir('provisoria', usuarioId)
+  }
 
   async function verMais(): Promise<void> {
     if (lendoMais.current) return
@@ -111,6 +129,8 @@ export default function AlunosDaTurma({ turmaId, turmaNome, escola, aoPerderATur
         aoPerderATurma={aoPerderATurma}
       />
 
+      {/* O aviso fica fora da seção da lista: a leitura que o aluno que saiu dispara pode esvaziar a seção, e a região viva precisa existir antes do texto. */}
+      <StatusAnnouncement texto={aviso} />
       {alunos.isPending && <LoadingState rotulo="Carregando os alunos da turma…" />}
       {alunos.isError && !listaLida && <ErrorState erro={alunos.error} tentando={alunos.isFetching} aoTentarDeNovo={() => void alunos.refetch({ cancelRefetch: false })} />}
       {vazio && (
@@ -137,6 +157,17 @@ export default function AlunosDaTurma({ turmaId, turmaNome, escola, aoPerderATur
               // O aluno que ainda não tem correção aprovada vem sem número: a tela diz isso, em vez de "0 de 0".
               { chave: 'acertos', titulo: 'Acertos', celula: (linha) => textoDosAcertos(linha, leituraDosAcertos) },
               { chave: 'habilidades', titulo: 'Por habilidade', celula: (linha) => textoPorHabilidade(linha) },
+              {
+                chave: 'acoes',
+                titulo: 'Ações',
+                // Quem saiu da turma não tem o que fazer aqui: a API não o alcança mais.
+                celula: (linha) =>
+                  linha.situacao === 'na_turma' ? (
+                    <Menu rotulo="Ações" prefixo={linha.nome} itens={ITENS_DA_LINHA_DA_SENHA_PROVISORIA} aoEscolher={() => abrirProvisoria(linha.usuarioId)} />
+                  ) : (
+                    <span className="text-sutil">—</span>
+                  ),
+              },
             ]}
             linhas={linhas}
             chaveDaLinha={(linha) => linha.usuarioId}
@@ -153,6 +184,20 @@ export default function AlunosDaTurma({ turmaId, turmaNome, escola, aoPerderATur
           )}
           {alunos.isFetchNextPageError && <ErrorState erro={alunos.error} tentando={alunos.isFetchingNextPage} aoTentarDeNovo={() => void verMais()} />}
         </section>
+      )}
+
+      {aberta?.tipo === 'provisoria' && aberta.alvo !== undefined && (
+        <DialogoDaSenhaProvisoria
+          key={aberta.numero}
+          usuarioId={aberta.alvo}
+          aoFechar={dialogo.fechar}
+          aoPerderOAluno={() => {
+            definirAviso(TEXTO_DO_ALUNO_QUE_SAIU_DA_TURMA)
+            dialogo.fecharSeAinda(aberta)
+            void alunos.refetch({ cancelRefetch: false })
+          }}
+          focoDeReserva={() => (botaoDeVerMais.current ?? fimDaLista.current ?? tituloDoAcesso.current)?.focus()}
+        />
       )}
     </div>
   )

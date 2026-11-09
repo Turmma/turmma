@@ -55,6 +55,7 @@ export function CloseConfirmation({
   rotuloDeVoltar,
   aoVoltar,
   aoFecharDeVez,
+  pergunta = 'Fechar sem copiar o link?',
 }: {
   titulo: RefObject<HTMLHeadingElement | null>
   /** O que se perde ao fechar agora, e como se consegue outro: muda com o que o diálogo gera, e com o pedido ainda no ar. */
@@ -63,11 +64,13 @@ export function CloseConfirmation({
   rotuloDeVoltar: string
   aoVoltar: () => void
   aoFecharDeVez: () => void
+  /** O título da pergunta, que muda com o que se perde: o link, ou a senha provisória (12.0). */
+  pergunta?: string
 }) {
   return (
     <div className="mt-4 flex flex-col gap-4">
       <h3 ref={titulo} tabIndex={-1} className="t-cartao">
-        Fechar sem copiar o link?
+        {pergunta}
       </h3>
       <p className="text-apoio">{texto}</p>
       <div className="flex flex-wrap justify-end gap-3">

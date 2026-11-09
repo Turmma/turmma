@@ -362,9 +362,27 @@ atividade", leva a Criados já filtrado pela turma e pelo tipo; sem atividade, o
   em cem, com "Ver mais", e as colunas "Acertos" ("12 de 20") e "Por habilidade", só de correção aprovada. O
   aluno sem correção aprovada diz "Sem correção aprovada", e não "0 de 0"; quem saiu da turma (transferido, ou
   com o acesso desativado) diz "Saiu da turma", sem número. A falha dos acertos não tira os nomes. A lista não
-  fica no cache nem em armazenamento do navegador
+  fica no cache nem em armazenamento do navegador. Cada aluno que **está na turma** tem a coluna **"Ações"**, um menu (`Menu`, nome
+  acessível "<nome>: Ações") com **"Gerar senha provisória"**; quem saiu da turma mostra "—" (acesso-e-convites, 12.0; RF13)
 - **Não há** ordem por acerto, situação do aluno, média, busca por nome, selo de Adaptação por aluno nem
   "Abrir a conversa" (D35, D64, D69)
+
+**Gerar senha provisória** (acesso-e-convites, 12.0; RF13, RF18) é o mesmo diálogo (520 px) na aba Alunos do professor e na seção "Alunos aprovados" da
+coordenação (turma aberta, em Escola › Turmas). Duas etapas, e a pergunta de fechar:
+
+- **Confirmação.** "Confira quem é o aluno antes de gerar a senha provisória." O aluno é lido ao abrir (`GET /v1/usuarios/:id/senha-provisoria`, fora do cache
+  de consultas): nome, turma e **matrícula** (a matrícula só aparece aqui, um aluno por vez; regra 20), e a consequência em duas linhas: "A senha atual deixa de
+  valer, e o aluno sai da conta em todo lugar." e "A senha provisória vale 24 horas, aparece uma vez só e o aluno a troca na primeira entrada." Enquanto lê:
+  "Carregando…" e "Gerar senha provisória" ocupado. Dois alunos de mesmo nome se distinguem pela matrícula. Cancelar não gera nada. O aluno que entra pela conta
+  da escola mostra "Este aluno entra pela conta da escola. Não precisa de senha." já aqui, e só "Fechar" (sem "Gerar"). Aluno que saiu da turma (404 na leitura ou
+  na geração): o diálogo fecha, a tela diz "Este aluno não está mais na turma. A lista foi atualizada." e a lista é lida de novo.
+- **A senha.** "Senha provisória de <nome>", a validade ("Ela vale até 10/11/2026 às 09:30 e aparece uma vez só, aqui"), a senha **grande, em dois grupos** (`ABCD-2345`,
+  monoespaçada; para o leitor de tela, "A B C D, 2 3 4 5") e **"Copiar"** ("Senha copiada."; sem área de transferência, "Não foi possível copiar. Anote a senha que
+  está na tela."). Falhas no lugar da geração: `CONFLITO` ("Esta senha acabou de ser gerada. Espere alguns segundos para gerar outra.") e 429 ("Muitas tentativas.
+  Espere alguns minutos e tente de novo."); o aviso sai na nova tentativa.
+- **Fechar sem copiar** pergunta antes ("Fechar sem copiar a senha?", "Voltar à senha" e "Fechar sem copiar", do mesmo tamanho; D59), também com a geração no ar. Copiada, fecha direto.
+- **Nada fica**: a senha vive só no estado do diálogo (a mutação sai do cache na hora, `gcTime: 0`), nunca em `localStorage`, `sessionStorage`, endereço, cache de consultas ou
+  log; fechar, trocar de aluno ou trocar de sessão a descarta, e a resposta atrasada de uma abertura anterior não chega à seguinte.
 
 **Convidar alunos** é o acesso (gerar, gerar novo, revogar) num diálogo de 520 px, aberto pelo botão da aba
 Alunos ou por `?convidar=1`; fechar tira o parâmetro (`replace`). Os passos trocam o conteúdo, e nunca há
