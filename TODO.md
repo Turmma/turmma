@@ -3065,6 +3065,8 @@ aula" em `Retencao.tsx`, o Validador conferiu: a tela já o mostra pela descriç
 - [ ] (acesso-e-convites 2.0, revisor-geral e infra-guardian, 1ª) **Alerta de idade da fila `normal`.** A Tech Spec §7c diz "adiamento longo: o alerta de idade da fila", e ele só
       existe para a `interativa` (`job-interativo-esperando.yaml`); o runbook manda olhar `job_espera_mais_antiga_s` à mão. Ou o Arquiteto corrige o texto da §7c, ou uma
       tarefa de infra abre a regra de `job_espera_mais_antiga_s{fila="normal"}` (dono: Arquiteto, para decidir)
+      — *decidido em 09/11/2026 (triagem da 16.0): o texto da §7c foi corrigido (sem alerta próprio; `email.adiado` no painel e a idade da `normal` lida pelo runbook). A regra
+      de alerta da fila `normal` não entra na F2c; fica para a retro dizer se vale uma tarefa de infra*
 - [ ] (acesso-e-convites 2.0, revisor-geral, 1ª) **`enviar-email.ts`, a cifra que não decifra:** o `concluir(..., 'falhou')` ignora o booleano e conta sempre `falhou`; usar
       `resultadoGravado`. Muda o rótulo de uma métrica que o alerta lê, e só aparece com a revogação vencendo o envio justo na cifra que não decifra (dono: Implementador)
 - [ ] (acesso-e-convites 2.0, revisor-geral, 1ª) **`enviar-email.ts`, o `concluir` de `montarMensagem` que lança erro do banco:** o ponto não volta (um ponto perdido até o
@@ -3215,6 +3217,9 @@ aula" em `Retencao.tsx`, o Validador conferiu: a tela já o mostra pela descriç
 - [ ] (acesso-e-convites 8.0, infra-guardian, 1ª) **Registrar que o `/v1/conta/verificar` não tem limite pelo hash do token, só por IP** (`conta.controller.ts`). É da 7.0, fora da 8.0 (dono: Arquiteto)
 - [ ] (acesso-e-convites 8.0, revisor-geral, 1ª) **O que `/convite` sem token mostra a quem vem de "Verificar"**: hoje "O endereço do convite está incompleto…", a quem acabou de confirmar o e-mail e clicou em "Continuar".
       A 8.0 segue o `cenarios.md` "Telas" (Verificar: "Continuar" para o convite) (dono: Arquiteto)
+      — *decidido em 09/11/2026 (triagem da 16.0): o Verificar não leva a `/convite` sem token. Confirmado: "E-mail confirmado. Volte à aba do convite e aceite de novo; se a
+      fechou, abra o link do convite outra vez", sem "Continuar"; link que não vale: o texto de hoje, sem o link "Abrir o convite" (`cenarios.md`, "Telas", Verificar). O código
+      (`VerificarEmail.tsx`, o teste dele, `e2e/verificar-email.spec.ts` e `docs/interface.md`) vai numa correção (`corrigir`), dono Orquestrador*
 - [ ] (acesso-e-convites 8.0, revisor-geral, 1ª) **Juntar o `corDaPaleta` de `e2e/verificar-email.spec.ts` ao `corDoToken` de `e2e/support/checks.ts`** quando a renomeação (X8) fechar; o motivo da cópia está escrito no spec
       (dono: Implementador)
 

@@ -202,7 +202,7 @@ Sem IA.
 | Fila | `normal`: `email.enviar-convite`, `sistema.enviar-email-da-conta` (na vaga `vaga:normal:sistema`) |
 | Limites e corridas | tabelas do `cenarios.md`; limite por usuário, escola ou conta, nunca só por IP; o que manda e-mail rebaixa |
 | Dependência cai | SMTP: `falhou`, "Reenviar"; Redis: o job fica no Postgres e é retomado, sem `falhou` |
-| Métrica e alerta | e-mail por resultado e adiamento; provisórias por escola; alerta com runbook: `falhou` acima de 20% em 1 h; adiamento longo: o alerta de idade da fila |
+| Métrica e alerta | e-mail por resultado e adiamento; provisórias por escola; alerta com runbook: `falhou` acima de 20% em 1 h; adiamento longo: sem alerta próprio, visto no gráfico `email.adiado` do `fundacao.json` e na idade da fila `normal` (`job_espera_mais_antiga_s`), que o runbook manda ler (o alerta de idade, "Job interativo esperando", cobre só a `interativa`; regra da `normal` fica fora da F2c, Mesa da 2.0) |
 
 ## 9. Frontend
 
@@ -215,8 +215,14 @@ aprovados"**, lida de `GET /v1/turmas/:id/alunos?finalidade=conferencia_de_cadas
 alunos aprovados", paginada como os pedidos; cada linha tem o menu com "Gerar senha provisória". A contagem de aprovados da lista de nomes (F2, 16.0)
 sai. Novas: esqueci (link na entrada da equipe), redefinir,
 verificar, trocar a provisória (depois do login), conta da escola na sala e em "Eu". A troca da provisória fica em `/e/:slug/trocar-senha`: o login de matrícula com a provisória devolve o
-bilhete, que a web guarda só em memória (`api/sessao.ts`), nunca na URL, no armazenamento do navegador nem no cache de consultas; a lista de `/trocas` leva na chave o número do aluno do bilhete,
-não o bilhete, sai do cache ao fechar a tela e não se refaz ao voltar o foco. O diálogo "Sua sessão expirou" do aluno, que também entra pela matrícula, leva à mesma tela quando recebe `trocar_senha`.
+bilhete, que a web guarda só em memória (`api/sessao.ts`), nunca na URL nem no armazenamento do navegador, e nunca na chave do cache de consultas; a lista de `/trocas` leva na chave o número de ordem do bilhete nesta aba
+(`numeroDoUltimoBilhete`, um contador da aba, não dado do aluno), não o bilhete, sai do cache ao fechar a tela e não se refaz ao voltar o foco. O diálogo "Sua sessão expirou" do aluno, que também entra pela matrícula, leva à mesma tela quando recebe `trocar_senha`.
+A conta da escola na sala (divergência da 16.0) trata o que a API da 14.0 devolve: o domínio não liberado, a conta pessoal, a ligada a desativado e a
+queda do provedor voltam à entrada da escola com o texto dela (seção 5), e a sala nunca os vê; a sala trata `ENTRADA_INVALIDA`, `REIVINDICACAO_RECUSADA`,
+o limite, 503 e rede (`cenarios.md`, "Telas"). O token do link sai no `#` e não volta do provedor, e o pedido sem senha ainda exige `token` ou `codigo`: a
+tela guarda o caminho no `sessionStorage` da aba antes de sair (slug e hora, 15 min, a validade do `educa_conta_provada`) e o lê e apaga na primeira
+renderização da sala, usando-o só com `?conta=provada` no mesmo slug. É o token da sala, que a turma toda recebe, e não o bilhete da troca, que segue fora
+de todo armazenamento (`cenarios.md`, "Conta da escola do aluno").
 
 ## 10. Testes
 
