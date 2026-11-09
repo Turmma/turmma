@@ -14,7 +14,7 @@ import { useLocation } from 'wouter'
 import { ApiError } from '../api/client'
 import { acessoDaEscolaQueryOptions, enderecoDoLoginExterno, NOME_DO_PROVEDOR } from '../api/escola'
 import { entrarPorMatricula } from '../api/sessao'
-import { LOGIN_STEP_ROUTE } from '../paths'
+import { caminhoDaEtapaDaEntrada } from '../paths'
 import { Button } from '../components/ui/Button'
 import { FormField } from '../components/ui/fields/FormField'
 import { CascaPublica } from '../components/CascaPublica'
@@ -110,7 +110,7 @@ function FormularioDaMatricula({ slug }: { slug: string }) {
       // O endereço vai no corpo: é ele que diz a escola, e a mesma matrícula em outra escola é outra conta (RF7).
       const resposta = await entrarPorMatricula({ slug, matricula, senha })
       definirSenha('')
-      navegar(LOGIN_STEP_ROUTE[resposta.etapa])
+      navegar(caminhoDaEtapaDaEntrada(resposta.etapa, slug))
     } catch (erro) {
       definirFalha(erro)
     } finally {

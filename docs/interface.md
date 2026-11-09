@@ -1995,6 +1995,32 @@ A entrada, o convite, a reivindicação de nome e a verificação em duas etapas
     responderia "não vale mais" a quem acabou de confirmar); depois de uma falha, recomeça. A tela é anônima: não há segunda pessoa
     no mesmo computador
 
+- **"Crie a sua senha"** (acesso-e-convites, 13.0; RF13). O aluno que entra pelo endereço da escola com a **senha provisória** não abre sessão:
+  o login devolve um bilhete, e a tela cai em `/e/<escola>/trocar-senha`, antes de qualquer tela da área. O bilhete mora **só na memória** da
+  aba: nunca na URL, em `localStorage` nem `sessionStorage`, em cookie legível ou no cache de consultas, e vai só no `Authorization`. Recarregar a
+  tela o perde de propósito, e ela diz "Entre de novo com a sua matrícula e a senha provisória. Se ela não valer mais, peça a senha de novo ao
+  professor." com o link "Voltar à entrada". A provisória ainda vale por 24 h, e o aluno entra de novo com ela.
+  - **O formulário** vem primeiro: uma frase ("Você entrou com uma senha provisória. Ela serve só para isto: criar a sua senha. Depois você entra
+    com a nova."), o campo "Senha nova" (peça `PasswordInput`, com a regra à vista, "Mostrar" e `autocomplete="new-password"`, e o foco nele ao
+    abrir) e o `primario` "Criar a senha e entrar" (44 px, que vira "Salvando…" desligado, com o mesmo texto num `status`; um segundo envio antes
+    de o botão desligar é descartado). Certo, a sessão abre e o aluno cai em "Início". **Senha curta**: "A senha precisa ter pelo menos 12
+    caracteres." embaixo do campo, que fica `aria-invalid`, recebe o foco e **mantém** o que foi digitado. **Conta segurada** (senha errada demais):
+    o aviso com o tempo de espera, sem "Tentar de novo". **Rede**: o aviso da peça `ErrorState` com "Tentar de novo", que repete a troca com a
+    senha que ficou no campo.
+  - **"Senhas provisórias de antes"**, embaixo: uma linha por provisória gerada antes da que o aluno usou (as 10 mais novas, da mais nova à mais
+    antiga), "Gerada pela coordenação em 12/11/2026 às 14:05 · usada" ou "Gerada pelo professor em 10/11/2026 às 12:30 · não usada": o papel de
+    quem gerou, nunca o nome. É o aviso ao aluno de que alguém gerou uma senha para ele e ela não foi usada. Os quatro estados: **carregando**, duas
+    barras paradas no lugar das linhas (sem pulso nem giro, D59), com o texto "Carregando as senhas provisórias de antes…" só para o leitor de tela;
+    **vazio**, "É a primeira vez que você troca a senha.", sem tabela e sem lista vazia; **erro**, o aviso com "Tentar de novo" lendo a lista de
+    novo, e o campo de senha **segue livre** (a lista é informação, e não porta); **com dado**, a lista. A lista sai do cache de consultas assim
+    que a tela sai e não se refaz ao voltar o foco.
+  - **Bilhete que não vale** (vencido, ou a provisória já usada ou trocada por outra), na lista ou na troca: a tela vira só o aviso "Esta senha
+    provisória não vale mais. Peça a senha de novo ao professor." e o link "Voltar à entrada"; a API responde igual a tudo isso (regra 10, item 6).
+  - **Recomeço.** "Voltar à entrada" esquece o bilhete. O colega que entra em seguida no mesmo computador, com a provisória dele, recebe uma tela
+    limpa: a senha digitada, o aviso de erro e a lista de quem saiu não passam; a chave da lista leva o número de ordem do bilhete nesta aba (nunca o
+    bilhete), e a resposta de uma lista que chega depois de o aluno ter saído não troca a lista de quem entrou. O diálogo "Sua sessão expirou" do
+    aluno, se receber a provisória, leva à mesma tela
+
 ### 11.4 A operação
 
 Uma tela só, sem lateral (seção 5a).

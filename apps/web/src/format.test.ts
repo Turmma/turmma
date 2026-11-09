@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatDate, formatDateTime, formatDayOfInstant, formatDayAndTime, formatQuantity } from './format'
+import { formatDate, formatDateTime, formatDayAtTime, formatDayOfInstant, formatDayAndTime, formatQuantity } from './format'
 
 describe('formatação pt-BR', () => {
   it('data sem hora não volta um dia por causa do fuso', () => {
@@ -31,6 +31,14 @@ describe('formatação pt-BR', () => {
     expect(formatDayAndTime('2026-09-19T13:42:00.000Z', { fuso: 'America/Sao_Paulo', agora })).toBe('19/09/2026, 10h42')
     // A virada do ano é a do fuso: 01h de 1º de janeiro em UTC ainda é 31 de dezembro em São Paulo.
     expect(formatDayAndTime('2027-01-01T01:00:00.000Z', { fuso: 'America/Sao_Paulo', agora: new Date('2027-01-01T01:30:00.000Z') })).toBe('31/12, 22h00')
+  })
+
+  it('a data com o ano e a hora por extenso, como a lista das senhas provisórias de antes a escreve', () => {
+    expect(formatDayAtTime('2026-11-12T17:05:00.000Z', { fuso: 'America/Sao_Paulo' })).toBe('12/11/2026 às 14:05')
+    // Perto da meia-noite o fuso muda o dia, e a meia-noite é 00:05, e não 24:05.
+    expect(formatDayAtTime('2026-11-13T03:05:00.000Z', { fuso: 'America/Sao_Paulo' })).toBe('13/11/2026 às 00:05')
+    // Sem o fuso declarado vale o do navegador (o da unidade é Tóquio, +9): 17:05 de UTC já é 02:05 do dia seguinte.
+    expect(formatDayAtTime('2026-11-12T17:05:00.000Z')).toBe('13/11/2026 às 02:05')
   })
 
   it('quantidade com separador de milhar e plural', () => {

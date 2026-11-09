@@ -3263,3 +3263,20 @@ aula" em `Retencao.tsx`, o Validador conferiu: a tela já o mostra pela descriç
 - [ ] (acesso-e-convites 17.0, revisor-geral e test-engineer, 3ª) **O caso das três turmas** (`senha-provisoria.int.test.ts`, "o aluno com dois vínculos confirmados no ano em curso (três turmas)…"):
       o título diz "dois" e o caso cria três (trocar o título e o `teste:` dos dois blocos de mutação da 17.0 juntos), e incluir
       `expect(await nomeDaTurma(s.turma)).toBe('2ºB')` entre as premissas, para a dependência da fixture ficar escrita (dono: Implementador)
+
+## Da tarefa 13.0 da acesso-e-convites (a tela de trocar a senha provisória), fora dela
+
+- [ ] (acesso-e-convites 13.0, privacy-guardian, 1ª e 2ª) **O bilhete da troca sobrevive ao botão "voltar" do navegador**: só o link "Voltar à entrada", um novo login ou recarregar o apagam.
+      Sugestão: `esquecerBilheteDaTroca()` ao montar `EntrarNaEscola`, com caso de e2e e ajuste do `docs/interface.md`. Muda comportamento; o bilhete vale 10 min, na mesma aba (dono: Arquiteto)
+- [ ] (acesso-e-convites 13.0, infra-guardian, 1ª) **Reenvio depois de falha de rede com a troca já gravada mostra "Peça a senha de novo ao professor"**; sugestão de acrescentar "Se você já
+      criou a sua senha, entre com ela". Muda o texto e o fluxo da tela, e o texto é do `cenarios.md`: decisão de produto (dono: Arquiteto)
+- [ ] (acesso-e-convites 13.0, frontend-reviewer, 1ª) **Frase "Não reconhece alguma? Avise o professor" sob o título da lista de provisórias anteriores.** Texto de produto novo, que o revisor
+      mesmo condiciona a o produto querer esse caminho (dono: Arquiteto)
+- [ ] (acesso-e-convites 13.0, frontend-reviewer, 1ª) **A lista cheia rola 39 px a 1366 × 768 e o "Voltar à entrada" sai da primeira dobra.** Nenhum RF pede que a tela caiba; ajuste de layout
+      (dono: Implementador)
+- [ ] (acesso-e-convites 13.0, revisor-geral, 1ª) **Conferir `bilhete.numero !== numeroDoBilhete` → `NAO_AUTENTICADO` em `apps/web/src/api/troca-da-provisoria.ts` antes da leitura.** Hoje
+      a leitura do aluno que saiu é protegida só pelo `signal` do TanStack; a conferência fecha o caso sem depender dele (dono: Implementador)
+- [ ] (acesso-e-convites 13.0, revisor-geral, 1ª) **Dois botões "Tentar de novo" com o mesmo nome acessível** quando a lista e a troca falham juntas, em `TrocarSenhaProvisoria.tsx`.
+      Ajuste de acessibilidade com texto novo (dono: Implementador)
+- [ ] (acesso-e-convites 13.0, privacy-guardian, 2ª) **O título do caso "o bilhete vencido na hora de trocar"** em `TrocarSenhaProvisoria.test.tsx` diz "a senha digitada sai da tela" e a
+      asserção que restou prova que o campo da senha sai; trocar o título na próxima vez que o arquivo for tocado (dono: Implementador)

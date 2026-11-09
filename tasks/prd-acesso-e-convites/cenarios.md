@@ -130,6 +130,10 @@ rodada 1) acrescentou os casos marcados (F2c) e as seções "Arquivo do titular"
 - [E] Tela de troca: primeira troca mostra a frase "primeira vez", sem tabela vazia; falha da lista mostra aviso com
   "Tentar de novo" e não bloqueia o campo de senha; bilhete vencido: "peça a senha de novo ao professor"; datas em
   português ("Gerada pela coordenação em 12/11/2026 às 14:05").
+- [E] O bilhete da troca fica só em memória: a URL, o `localStorage`, o `sessionStorage` e os cookies não o levam, e ele vai só no `Authorization` de `/trocas` e de `trocar-senha`. Recarregar a tela o perde
+  e a tela manda entrar de novo com a provisória. O aluno seguinte no mesmo computador começa de uma tela limpa (sem a senha digitada, o aviso nem a lista do anterior), e a lista do aluno que saiu, chegando
+  depois, não troca a do que entrou. (F2c)
+- [U] O diálogo "Sua sessão expirou" do aluno, que recebe `trocar_senha`, leva à troca da escola dele, e o bilhete fica em memória (componente: `apps/web/src/components/ReauthDialog.test.tsx › o aluno que digita a senha provisória…`); sem o endereço da escola (o diálogo da equipe), a etapa cai na entrada (`apps/web/src/paths.test.ts › sem o endereço da escola`). (F2c)
 - [I] `senha_provisoria.gerada` e `.usada` aparecem no arquivo do titular do aluno; `.usada` tem o aluno como autor. A `.gerada` não entra no arquivo de quem a assinou (o professor): o id do aluno ficaria lá (`apps/api/test/arquivo-do-titular.int.test.ts`, o ato do professor sobre outro aluno).
 - [I] Trocar-senha conta no contador de falhas da conta.
 - [I] A provisória se digita como a tela a mostra: com o hífen, em minúsculas ou com espaços, o login a normaliza antes de comparar; a senha comum do aluno vai como veio, e a que ele

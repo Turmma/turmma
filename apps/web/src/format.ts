@@ -57,3 +57,13 @@ export function formatDayAndTime(iso: string, { fuso, agora = new Date() }: { fu
   const dia = instante.year === partesDoInstante(agora, fuso).year ? `${instante.day}/${instante.month}` : `${instante.day}/${instante.month}/${instante.year}`
   return `${dia}, ${instante.hour}h${instante.minute}`
 }
+
+/**
+ * `2026-11-12T17:05:00.000Z` → `12/11/2026 às 14:05`, no fuso do navegador: a data com o ano e a hora por extenso, como a lista das senhas
+ * provisórias de antes a escreve ("Gerada pela coordenação em 12/11/2026 às 14:05"). O ano fica sempre: quem lê é um aluno, e a senha de
+ * dezembro não pode parecer a de agora. `fuso` existe para o teste.
+ */
+export function formatDayAtTime(iso: string, { fuso }: { fuso?: string } = {}): string {
+  const { day, month, year, hour, minute } = partesDoInstante(new Date(iso), fuso)
+  return `${day}/${month}/${year} às ${hour}:${minute}`
+}

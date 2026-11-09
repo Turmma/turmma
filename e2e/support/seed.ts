@@ -4,6 +4,7 @@ import { Secret, TOTP } from 'otpauth'
 import { Client } from 'pg'
 import { BYTES_DO_TOKEN_DE_CONVITE, hashDoToken } from '../../apps/api/src/credencial/token-hash.ts'
 import type { EstadoDoEnvio, EstadoDoProfessor } from '../../packages/shared/src/professores/professores.ts'
+import { ALFABETO_DA_SENHA_PROVISORIA, formatarSenhaProvisoria, TAMANHO_DA_SENHA_PROVISORIA } from '../../packages/shared/src/sessao/senha-provisoria.ts'
 import { ALFABETO_DO_CODIGO_DA_TURMA, normalizarCodigoDaTurma, TAMANHO_DO_CODIGO_DA_TURMA } from '../../packages/shared/src/sala/acesso.ts'
 import { lerAmbienteDeTeste, urlDoBancoDeTeste, valorObrigatorio } from '../../tools/ci/compose.ts'
 
@@ -187,6 +188,59 @@ export async function criarAlunoComMatricula(opcoes: { escola?: EscolaDeTeste; m
     const usuarioId = await id(banco, `insert into usuario (escola_id, papel, nome, introducao_vista_em) values ($1, 'aluno', $2, ${introducaoVistaEm(opcoes.introducao)}) returning id`, [escola.escolaId, nome])
     await banco.query('insert into credencial_matricula (escola_id, usuario_id, matricula, senha_hash) values ($1, $2, $3, $4)', [escola.escolaId, usuarioId, matricula, senhaHash])
     return { ...escola, usuarioId, nome, matricula, senha }
+  })
+}
+
+/** Uma provisória de antes do que o aluno usa agora: quando foi gerada, por qual papel e se o aluno a usou. */
+export interface ProvisoriaAnteriorDeTeste {
+  readonly geradaEm: string
+  readonly papel: 'coordenador' | 'professor'
+  readonly usada: boolean
+}
+
+/**
+ * Dá ao aluno uma senha provisória de 24 h, como a rota de gerar a deixa (9.0): o hash no lugar da senha dele, a validade e o `senha_provisoria.gerada` do papel de quem a gerou. Devolve a
+ * senha como a tela de gerar a mostra (`ABCD-EFGH`), que é como o aluno a digita. Atalho só do e2e: grava direto no banco, sem a coordenação nem o professor da turma, que é o que a 12.0 prova
+ * pela tela. O que a troca prova (13.0) é o que vem depois do login com ela.
+ *
+ * `anteriores` são as provisórias de antes, cada uma com o `senha_provisoria.gerada` na data dela e, se `usada`, o `senha_provisoria.usada` do aluno uma hora depois; dêem mais de uma hora de
+ * distância entre elas. A geração de agora é gravada **depois** da mais nova de todas (a lista do aluno é a de antes dela), mesmo que as datas dadas estejam no futuro.
+ */
+export async function gerarProvisoriaNoBanco(aluno: Pick<AlunoDeTeste, 'escolaId' | 'usuarioId'>, anteriores: readonly ProvisoriaAnteriorDeTeste[] = []): Promise<string> {
+  // O "usada" de cada uma cai uma hora depois da geração dela: com menos de uma hora entre duas, o de uma passaria à frente da seguinte e a lista sairia fora de ordem sem ninguém perceber.
+  const datas = anteriores.map((anterior) => Date.parse(anterior.geradaEm)).sort((a, b) => a - b)
+  datas.forEach((data, i) => {
+    if (Number.isNaN(data)) throw new Error('gerarProvisoriaNoBanco: `geradaEm` precisa ser uma data ISO')
+    if (i > 0 && data - (datas[i - 1] as number) <= 3_600_000) throw new Error('gerarProvisoriaNoBanco: as provisórias de antes precisam estar a mais de uma hora uma da outra')
+  })
+  const crua = Array.from({ length: TAMANHO_DA_SENHA_PROVISORIA }, () => ALFABETO_DA_SENHA_PROVISORIA[randomInt(ALFABETO_DA_SENHA_PROVISORIA.length)]).join('')
+  const senhaHash = await hashDaSenha(crua)
+  const agoraMs = Math.max(Date.now(), ...anteriores.map((anterior) => Date.parse(anterior.geradaEm) + 2 * 3_600_000))
+  await comBanco(async (banco) => {
+    await banco.query("update credencial_matricula set senha_hash = null, provisoria_hash = $3, provisoria_expira_em = now() + interval '24 hours' where escola_id = $1 and usuario_id = $2", [
+      aluno.escolaId,
+      aluno.usuarioId,
+      senhaHash,
+    ])
+    const gravar = (acao: string, em: string | Date, papel: string | null, autor: 'aluno' | 'operador') =>
+      banco.query(
+        `insert into auditoria (escola_id, autor_usuario_id, autor_operador, acao, entidade, entidade_id, requisicao_id, depois, em)
+         values ($1, $2, $3, $4, 'usuario', $5, gen_random_uuid(), $6::jsonb, $7)`,
+        [aluno.escolaId, autor === 'aluno' ? aluno.usuarioId : null, autor === 'operador' ? 'teste-e2e' : null, acao, aluno.usuarioId, papel === null ? null : JSON.stringify({ papel }), em],
+      )
+    for (const anterior of anteriores) {
+      await gravar('senha_provisoria.gerada', anterior.geradaEm, anterior.papel, 'operador')
+      if (anterior.usada) await gravar('senha_provisoria.usada', new Date(Date.parse(anterior.geradaEm) + 3_600_000), null, 'aluno')
+    }
+    await gravar('senha_provisoria.gerada', new Date(agoraMs), 'coordenador', 'operador')
+  })
+  return formatarSenhaProvisoria(crua)
+}
+
+/** Faz a provisória do aluno vencer, como o relógio faz depois de 24 h: o bilhete que a levava deixa de valer. */
+export async function vencerAProvisoriaNoBanco(aluno: Pick<AlunoDeTeste, 'escolaId' | 'usuarioId'>): Promise<void> {
+  await comBanco(async (banco) => {
+    await banco.query("update credencial_matricula set provisoria_expira_em = now() - interval '1 minute' where escola_id = $1 and usuario_id = $2", [aluno.escolaId, aluno.usuarioId])
   })
 }
 

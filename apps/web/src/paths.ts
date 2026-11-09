@@ -1,4 +1,4 @@
-import type { EtapaDeLogin, PapelDeUsuario } from '@educa/shared'
+import { ETAPA_TROCAR_SENHA, type EtapaDeLogin, type PapelDeUsuario } from '@educa/shared'
 
 /**
  * A base da área de cada papel (`docs/interface.md` 11.1). Cada área vem num chunk próprio, por `import()`, e só depois
@@ -191,6 +191,11 @@ export const ROUTES = {
    * digitado. O token vai no fragmento, como o do convite, e nunca no caminho nem na consulta.
    */
   salaDaTurma: '/e/:slug/turma',
+  /**
+   * "Crie a sua senha": a tela que o aluno vê depois de entrar com a senha provisória (acesso-e-convites, 13.0; RF13). O endereço da escola vai no caminho, como o da sala, e serve só para
+   * o "Voltar à entrada" e para o aviso de quem recarregou a tela. O bilhete da troca **nunca** vai no endereço: fica em memória (`api/sessao.ts`).
+   */
+  trocarSenha: '/e/:slug/trocar-senha',
   mfa: '/mfa',
   configurarMfa: '/mfa/configurar',
   escolherEscola: '/escolher-escola',
@@ -282,6 +287,11 @@ export function caminhoDaEscola(slug: string): string {
   return ROUTES.escola.replace(':slug', encodeURIComponent(slug))
 }
 
+/** O endereço da troca da senha provisória na escola, onde o aluno cai depois do login com ela (RF13). */
+export function caminhoDaTrocaDaProvisoria(slug: string): string {
+  return ROUTES.trocarSenha.replace(':slug', encodeURIComponent(slug))
+}
+
 /**
  * A tela de cada etapa que o login pode devolver (Tech Spec, seção 5, "Etapas"). `pronta` já tem sessão e vai para
  * a área autenticada; as outras seguem para a tela da etapa, sem sessão nenhuma gravada.
@@ -291,4 +301,14 @@ export const LOGIN_STEP_ROUTE: Readonly<Record<EtapaDeLogin, string>> = {
   mfa: ROUTES.mfa,
   configurar_mfa: ROUTES.configurarMfa,
   escolher: ROUTES.escolherEscola,
+}
+
+/**
+ * Para onde a entrada leva depois da resposta do login (o de matrícula, que pode trazer `trocar_senha`, e o de e-mail, que não traz): a tela da etapa, ou a da troca da provisória (`trocar_senha`, RF13), que não é uma `EtapaDeLogin`
+ * porque não tem desafio nem sessão, só o bilhete em memória. Os dois chamadores são o endereço da escola e o diálogo da sessão vencida; sem o endereço da escola, o diálogo
+ * leva à entrada da equipe, onde ninguém recebe `trocar_senha`.
+ */
+export function caminhoDaEtapaDaEntrada(etapa: EtapaDeLogin | typeof ETAPA_TROCAR_SENHA, slug: string | undefined): string {
+  if (etapa !== ETAPA_TROCAR_SENHA) return LOGIN_STEP_ROUTE[etapa]
+  return slug === undefined ? ROUTES.entrar : caminhoDaTrocaDaProvisoria(slug)
 }

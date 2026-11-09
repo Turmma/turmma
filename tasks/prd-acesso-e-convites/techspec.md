@@ -204,7 +204,9 @@ entra pela conta da escola já mostra o aviso na confirmação, sem "Gerar". Na 
 aprovados"**, lida de `GET /v1/turmas/:id/alunos?finalidade=conferencia_de_cadastro` (já auditada com `turma.alunos_lidos`) só no clique em "Mostrar
 alunos aprovados", paginada como os pedidos; cada linha tem o menu com "Gerar senha provisória". A contagem de aprovados da lista de nomes (F2, 16.0)
 sai. Novas: esqueci (link na entrada da equipe), redefinir,
-verificar, trocar a provisória (depois do login), conta da escola na sala e em "Eu".
+verificar, trocar a provisória (depois do login), conta da escola na sala e em "Eu". A troca da provisória fica em `/e/:slug/trocar-senha`: o login de matrícula com a provisória devolve o
+bilhete, que a web guarda só em memória (`api/sessao.ts`), nunca na URL, no armazenamento do navegador nem no cache de consultas; a lista de `/trocas` leva na chave o número do aluno do bilhete,
+não o bilhete, sai do cache ao fechar a tela e não se refaz ao voltar o foco. O diálogo "Sua sessão expirou" do aluno, que também entra pela matrícula, leva à mesma tela quando recebe `trocar_senha`.
 
 ## 10. Testes
 

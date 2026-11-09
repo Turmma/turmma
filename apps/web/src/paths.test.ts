@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { AREA_BASE_PATH, caminhoDoPedidoDoTitular, ehTelaDeFoco, ROUTES, COORDENACAO_ROUTES, ALUNO_ROUTES } from './paths'
+import { AREA_BASE_PATH, caminhoDaEtapaDaEntrada, caminhoDaTrocaDaProvisoria, caminhoDoPedidoDoTitular, ehTelaDeFoco, ROUTES, COORDENACAO_ROUTES, ALUNO_ROUTES } from './paths'
 
 describe('o endereço do pedido de titular (F3, 17.0)', () => {
   it('leva só o id do pedido, na aba Pedidos da Privacidade, e nada além dele vira trecho do endereço', () => {
@@ -53,5 +53,24 @@ describe('ehTelaDeFoco', () => {
 
   it('é falsa em toda tela de dentro da casca, as do aluno inclusive', () => {
     for (const caminho of [ROUTES.inicio, ROUTES.inicioDoAluno, ROUTES.euDoAluno, ROUTES.atividades, ROUTES.tutor, ROUTES.privacidadeDoAluno, ROUTES.novaConversa, ROUTES.painel, ROUTES.entrar]) expect(ehTelaDeFoco(caminho), caminho).toBe(false)
+  })
+})
+
+describe('a troca da senha provisória (acesso-e-convites, 13.0)', () => {
+  it('o endereço leva a escola no caminho, codificada, e nada além dela: o bilhete nunca é parte do endereço', () => {
+    expect(ROUTES.trocarSenha).toBe('/e/:slug/trocar-senha')
+    expect(caminhoDaTrocaDaProvisoria('colegio-a')).toBe('/e/colegio-a/trocar-senha')
+    expect(caminhoDaTrocaDaProvisoria('a/b?c=1')).toBe('/e/a%2Fb%3Fc%3D1/trocar-senha')
+  })
+
+  it('o login de matrícula com a provisória leva à troca na escola; as outras etapas seguem para a tela delas', () => {
+    expect(caminhoDaEtapaDaEntrada('trocar_senha', 'colegio-a')).toBe('/e/colegio-a/trocar-senha')
+    expect(caminhoDaEtapaDaEntrada('pronta', 'colegio-a')).toBe('/')
+    expect(caminhoDaEtapaDaEntrada('mfa', 'colegio-a')).toBe('/mfa')
+  })
+
+  it('sem o endereço da escola (o diálogo da equipe), `trocar_senha` não inventa um: cai na entrada', () => {
+    expect(caminhoDaEtapaDaEntrada('trocar_senha', undefined)).toBe('/entrar')
+    expect(caminhoDaEtapaDaEntrada('pronta', undefined)).toBe('/')
   })
 })

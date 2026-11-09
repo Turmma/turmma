@@ -21,6 +21,7 @@ import { EsqueciASenha } from './pages/EsqueciASenha'
 import { Inicio } from './pages/Inicio'
 import { Mfa } from './pages/Mfa'
 import { RedefinirSenha } from './pages/RedefinirSenha'
+import { TrocarSenhaProvisoria } from './pages/TrocarSenhaProvisoria'
 import { VerificarEmail } from './pages/VerificarEmail'
 import { TurmaPublica } from './pages/TurmaPublica'
 import { tituloDaEscola, tituloDaOperacao } from './document-title'
@@ -221,6 +222,8 @@ export function AppRoutes() {
       )}
       {/* A página pública da turma, por onde o aluno pede o nome (A1, 17.0). Na entrada, e não num chunk de área: é a primeira tela do aluno. */}
       <Route path={ROUTES.salaDaTurma}>{(parametros) => <TurmaPublica slug={parametros.slug} />}</Route>
+      {/* A troca da senha provisória (13.0): o aluno que entrou com ela cria a dele, com o bilhete só em memória. */}
+      <Route path={ROUTES.trocarSenha}>{(parametros) => <TrocarSenhaProvisoria slug={parametros.slug} />}</Route>
       {/* O endereço da escola, por onde o aluno entra (RF7). Fica antes das rotas fixas por ser a única com parâmetro. */}
       <Route path={ROUTES.escola}>{(parametros) => <EntrarNaEscola slug={parametros.slug} />}</Route>
       {/* Etapas do login, sem sessão ainda. */}

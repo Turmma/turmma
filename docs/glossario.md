@@ -62,6 +62,10 @@ nunca globalmente.
 **Senha provisória** — A senha de 24 horas que a coordenação ou o professor da turma gera para o aluno que esqueceu a
 dele (F2c). Aparece uma vez e só serve para o aluno criar a nova; nunca vira a senha dele.
 
+**Bilhete da troca** — O que o login de matrícula devolve, no lugar da sessão, quando a senha certa é a provisória (F2c). Vale 10 minutos e só abre a
+troca da senha e a lista das provisórias de antes. Fica só na memória da aba do aluno, nunca na URL nem no armazenamento do navegador; recarregar a
+tela o perde, e a provisória, que vale 24 horas, serve para entrar de novo.
+
 **Lista de nomes** — A lista que a coordenação sobe por turma, antes de os alunos entrarem.
 Cada nome tem estado: livre, reivindicado, aprovado.
 

@@ -87,12 +87,12 @@
   - [ ] 12.4 O `docs/roteiro-da-demonstracao.md` (seção 2, passos 9 e 11) conferido contra `e2e/roteiro-da-demonstracao.spec.ts`
   - [ ] 12.5 Testes: confirmação com matrícula, senha fora do navegador, recusas, recomeço, 360 px e 1366 × 768
 
-- [ ] **13.0 — A tela "Trocar a senha provisória"**
-  - [ ] 13.1 A tela, com o bilhete só em memória
-  - [ ] 13.2 A lista: esqueleto, "primeira vez", "Tentar de novo"
-  - [ ] 13.3 `docs/interface.md`
-  - [ ] 13.4 O `docs/roteiro-da-demonstracao.md` (seção 2, passo 12) conferido contra `e2e/roteiro-da-demonstracao.spec.ts`
-  - [ ] 13.5 Testes: troca de ponta a ponta, lista e falhas, recomeço, 360 px
+- [x] **13.0 — A tela "Trocar a senha provisória"**
+  - [x] 13.1 A tela, com o bilhete só em memória
+  - [x] 13.2 A lista: esqueleto, "primeira vez", "Tentar de novo"
+  - [x] 13.3 `docs/interface.md`
+  - [x] 13.4 O `docs/roteiro-da-demonstracao.md` (seção 2, passo 12) conferido contra `e2e/roteiro-da-demonstracao.spec.ts`
+  - [x] 13.5 Testes: troca de ponta a ponta, lista e falhas, recomeço, 360 px
 
 - [x] **14.0 — A conta da escola no pedido do nome (API)**
   - [x] 14.1 Migration `reivindicacao.contaExterna`, o único parcial e o check novo (`not valid` + `validate`)

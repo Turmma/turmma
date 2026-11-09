@@ -3,7 +3,7 @@ import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { useLocation } from 'wouter'
 import { ApiError } from '../api/client'
 import { descartarSessaoVencida, entrarPorEmail, entrarPorMatricula, quemEstaNaSessao } from '../api/sessao'
-import { LOGIN_STEP_ROUTE, ROUTES } from '../paths'
+import { caminhoDaEtapaDaEntrada, ROUTES } from '../paths'
 import { Button } from './ui/Button'
 import { FIELD_BOX } from './ui/fields/field-styles'
 
@@ -59,7 +59,7 @@ export function ReauthDialog() {
       definirSenha('')
       // `pronta` fecha o diálogo sozinho, porque a sessão volta a estar aberta e a tela de trás continua onde estava.
       // As outras etapas (segundo fator, escolher escola) são telas próprias, e aí esta sai de cena.
-      if (resposta.etapa !== 'pronta') navegar(LOGIN_STEP_ROUTE[resposta.etapa], { replace: true })
+      if (resposta.etapa !== 'pronta') navegar(caminhoDaEtapaDaEntrada(resposta.etapa, escolaSlug), { replace: true })
     } catch (erro) {
       definirFalha(erro)
     } finally {

@@ -1,5 +1,7 @@
 import {
   ErrorCode,
+  ETAPA_TROCAR_SENHA,
+  loginMatriculaResponseSchema,
   loginResponseSchema,
   renovacaoResponseSchema,
   JANELA_DE_RENOVACAO_SIMULTANEA_MS,
@@ -18,6 +20,7 @@ export const CAMINHO_DA_SESSAO = '/v1/sessao'
 export const CAMINHO_DA_RENOVACAO = `${CAMINHO_DA_SESSAO}/renovar`
 export const CAMINHO_DA_ENTRADA_POR_EMAIL = `${CAMINHO_DA_SESSAO}/email`
 export const CAMINHO_DA_ENTRADA_POR_MATRICULA = `${CAMINHO_DA_SESSAO}/matricula`
+export const CAMINHO_DA_TROCA_DA_PROVISORIA = `${CAMINHO_DA_ENTRADA_POR_MATRICULA}/trocar-senha`
 export const CAMINHO_DO_SEGUNDO_FATOR = `${CAMINHO_DA_SESSAO}/mfa`
 export const CAMINHO_DA_ESCOLA_DA_SESSAO = `${CAMINHO_DA_SESSAO}/escola`
 export const CAMINHO_DA_ATIVIDADE = `${CAMINHO_DA_SESSAO}/atividade`
@@ -104,6 +107,15 @@ let desafio: { readonly etapa: EtapaComDesafio; readonly valor: string; readonly
  * desafio assinado pela API.
  */
 let bilheteDeConvite: string | undefined
+
+/**
+ * O bilhete da troca da senha provisória (acesso-e-convites, 13.0; 10.0 na API): o login de matrícula o devolve no lugar da sessão quando a senha certa é a provisória, e ele só
+ * vale em `trocar-senha` e em `trocas`, no `Authorization`. É credencial parcial, como o desafio, e mora só aqui, em memória: nem URL, nem `localStorage`, nem `sessionStorage`,
+ * nem cache de consultas (regra 50, item 7). Recarregar a tela o perde de propósito: o aluno entra de novo com a provisória, que vale 24 h. O `numero` sobe a cada bilhete
+ * novo e separa o aluno que está na tela do que veio antes no mesmo computador: é ele, e nunca o bilhete, que entra na chave da lista de provisórias.
+ */
+let bilheteDaTrocaGuardado: { readonly valor: string; readonly numero: number } | undefined
+let numeroDoUltimoBilhete = 0
 
 /** O que a tela de entrada precisa explicar por ter vindo de outra tela (segundo fator gasto, convite aceito). */
 let avisoParaAEntrada: string | undefined
@@ -204,6 +216,22 @@ export function guardarDesafio(etapa: EtapaComDesafio, valor: string): void {
   desafio = { etapa, valor, acessos: [] }
 }
 
+/** O bilhete da troca desta aba, ou `undefined` (um F5, ou ninguém chegou da entrada com a provisória). Quem o lê é a tela da troca. */
+export function bilheteDaTroca(): { readonly valor: string; readonly numero: number } | undefined {
+  return bilheteDaTrocaGuardado
+}
+
+/** Guarda o bilhete que o login de matrícula devolveu, com o número do aluno que chegou agora: o bilhete anterior, de quem usou o computador antes, sai. */
+function guardarBilheteDaTroca(valor: string): void {
+  numeroDoUltimoBilhete += 1
+  bilheteDaTrocaGuardado = { valor, numero: numeroDoUltimoBilhete }
+}
+
+/** Esquece o bilhete: o "Voltar à entrada" da tela da troca. Quem voltar a ela sem entrar de novo cai em "entre de novo com a provisória". */
+export function esquecerBilheteDaTroca(): void {
+  bilheteDaTrocaGuardado = undefined
+}
+
 /**
  * Os acessos que vieram com o desafio `escolher` (20.0): o nome da escola e o papel de cada usuário ativo da conta,
  * que é o que a tela da escolha lista. Some com o desafio, num F5, porque sem ele não há como escolher nada.
@@ -270,6 +298,7 @@ function guardarToken(resposta: RenovacaoResponse, sessaoNova = false): void {
   // Com a sessão aberta, o que levava até ela já foi consumido pela API e não pode sobreviver nesta aba.
   desafio = undefined
   bilheteDeConvite = undefined
+  bilheteDaTrocaGuardado = undefined
   avisoParaAEntrada = undefined
   anunciar()
   if (sessaoNova) limparDadosDaEscola()
@@ -562,10 +591,15 @@ async function enviarEtapa(caminho: string, pedido: unknown, desafioAtual?: stri
  * tentativa do contador da conta por causa de uma instância caindo.
  */
 async function etapaComFilaDoSemaforo(caminho: string, pedido: unknown): Promise<LoginResponse> {
+  return comFilaDoSemaforo(() => enviarEtapa(caminho, pedido))
+}
+
+/** A repetição do 503 do semáforo, para toda chamada que faz hash de senha: a entrada e a troca da provisória. */
+async function comFilaDoSemaforo<T>(tentar: () => Promise<T>): Promise<T> {
   const limite = Date.now() + PRAZO_DA_ENTRADA_NO_503_MS
   for (;;) {
     try {
-      return await enviarEtapa(caminho, pedido)
+      return await tentar()
     } catch (erro) {
       // Só o 503 do semáforo é atraso, e ele vem sempre com `Retry-After`. Sem o cabeçalho é queda de rede ou de
       // instância: aí a pessoa precisa saber na hora, em vez de ver "Entrando…" por trinta segundos.
@@ -591,9 +625,37 @@ export async function entrarPorEmail(pedido: LoginEmailRequest): Promise<LoginRe
   return resposta
 }
 
-/** `POST /v1/sessao/matricula` (RF7): o aluno entra pelo endereço da escola, que vai no corpo e nunca no token. */
-export function entrarPorMatricula(pedido: LoginMatriculaRequest): Promise<LoginResponse> {
-  return etapaComFilaDoSemaforo(CAMINHO_DA_ENTRADA_POR_MATRICULA, pedido)
+/**
+ * O que a entrada do aluno devolve: uma etapa do login ou, com a senha provisória certa, `trocar_senha`. O bilhete **não** vem na resposta: já está guardado aqui, em memória, e a
+ * tela só precisa saber para onde ir.
+ */
+export type EntradaPorMatricula = LoginResponse | { readonly etapa: typeof ETAPA_TROCAR_SENHA }
+
+/**
+ * `POST /v1/sessao/matricula` (RF7): o aluno entra pelo endereço da escola, que vai no corpo e nunca no token. Com a senha provisória, a resposta é o bilhete da troca (RF13), e
+ * nenhuma sessão é aberta.
+ */
+export async function entrarPorMatricula(pedido: LoginMatriculaRequest): Promise<EntradaPorMatricula> {
+  const resposta = await comFilaDoSemaforo(() => apiRequest(CAMINHO_DA_ENTRADA_POR_MATRICULA, loginMatriculaResponseSchema, { metodo: 'POST', corpo: pedido }))
+  if (resposta.etapa === ETAPA_TROCAR_SENHA) {
+    guardarBilheteDaTroca(resposta.bilhete)
+    return { etapa: ETAPA_TROCAR_SENHA }
+  }
+  guardarEtapa(resposta)
+  return resposta
+}
+
+/**
+ * `POST /v1/sessao/matricula/trocar-senha` com o bilhete no `Authorization` (RF13): cria a senha do aluno e abre a sessão dele. Sem o bilhete nesta aba (um F5, o "Voltar à entrada"),
+ * responde como o bilhete que não vale. Passa pelo semáforo do hash, como a entrada: o 503 é atraso, e a tela fica em "Salvando…". A senha vai no corpo e nunca na URL.
+ */
+export function trocarSenhaProvisoria(senha: string): Promise<LoginResponse> {
+  const guardado = bilheteDaTrocaGuardado
+  if (guardado === undefined) return Promise.reject(new ApiError(ErrorCode.NAO_AUTENTICADO))
+  return comFilaDoSemaforo(() => apiRequest(CAMINHO_DA_TROCA_DA_PROVISORIA, loginResponseSchema, { metodo: 'POST', corpo: { senha }, token: guardado.valor })).then((resposta) => {
+    guardarEtapa(resposta)
+    return resposta
+  })
 }
 
 /**
