@@ -3208,3 +3208,13 @@ aula" em `Retencao.tsx`, o Validador conferiu: a tela já o mostra pela descriç
       A 8.0 segue o `cenarios.md` "Telas" (Verificar: "Continuar" para o convite) (dono: Arquiteto)
 - [ ] (acesso-e-convites 8.0, revisor-geral, 1ª) **Juntar o `corDaPaleta` de `e2e/verificar-email.spec.ts` ao `corDoToken` de `e2e/support/checks.ts`** quando a renomeação (X8) fechar; o motivo da cópia está escrito no spec
       (dono: Implementador)
+
+## Da correção 2026-11-08-credencial-matricula-campo-a-mais (o contrato de `doAlunoAtivo`), fora dela
+
+- [ ] (acesso-e-convites, correção `2026-11-08-credencial-matricula-campo-a-mais`, revisor-geral e test-engineer, 1ª) **Mudar o contrato de um repository devia arrastar para o portão os `*.int.test.ts` vizinhos.**
+      O portão da 10.0 só rodou os testes de integração que o diff alterou, e o `credencial-matricula.repository.int.test.ts` só caiu na esteira. Muda `tools/processo/portao-local.ts`
+      (dono: Arquiteto, na retro da acesso-e-convites)
+- [ ] (acesso-e-convites 10.0, test-engineer, 2ª) **Gerar a provisória vigente do caso `provisória (10.0)` pelo `gravarProvisoria`** (`credencial-matricula.repository.int.test.ts`), em vez do `update`
+      direto, para o caso perceber se o método deixar de apagar `senha_hash`; a vencida segue com o `update`, porque o método fixa o vencimento sozinho (dono: Implementador)
+- [ ] (acesso-e-convites 10.0, test-engineer e revisor-geral, 2ª) **Caso do aluno com senha própria e provisória vigente ao mesmo tempo:** "a provisória não entra quando o aluno tem senha"
+      (`credencial-matricula.repository.ts`, `pelaProvisoria`). É um estado que `gravarProvisoria` não produz; cobertura a mais, não bloqueia (dono: Implementador)
