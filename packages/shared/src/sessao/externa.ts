@@ -16,3 +16,11 @@ export type FalhaDoLoginExterno = (typeof FALHAS_DO_LOGIN_EXTERNO)[number]
 
 /** O parâmetro do endereço da web que leva a falha do login pela conta da escola. */
 export const PARAMETRO_DA_FALHA_DO_LOGIN_EXTERNO = 'falha'
+
+/**
+ * O aluno que provou a conta da escola para pedir o nome (acesso-e-convites, 14.0) volta à página da sala em
+ * `/e/:slug/turma?conta=provada`: o cookie `educa_conta_provada` já está com ele, e a tela passa a mandar o pedido sem senha.
+ * O token do link, que o navegador não leva ao servidor no fragmento, é a tela que guarda antes de sair.
+ */
+export const PARAMETRO_DA_CONTA_PROVADA = 'conta'
+export const VALOR_DA_CONTA_PROVADA = 'provada'

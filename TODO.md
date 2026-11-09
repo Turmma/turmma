@@ -3211,3 +3211,27 @@ aula" em `Retencao.tsx`, o Validador conferiu: a tela já o mostra pela descriç
       direto, para o caso perceber se o método deixar de apagar `senha_hash`; a vencida segue com o `update`, porque o método fixa o vencimento sozinho (dono: Implementador)
 - [ ] (acesso-e-convites 10.0, test-engineer e revisor-geral, 2ª) **Caso do aluno com senha própria e provisória vigente ao mesmo tempo:** "a provisória não entra quando o aluno tem senha"
       (`credencial-matricula.repository.ts`, `pelaProvisoria`). É um estado que `gravarProvisoria` não produz; cobertura a mais, não bloqueia (dono: Implementador)
+
+## Da tarefa 14.0 da acesso-e-convites (a conta da escola no pedido do nome), fora dela
+
+- [ ] (acesso-e-convites 14.0, tenancy-guardian e infra-guardian, 1ª) **Conferir o provedor ligado e liberado antes do `sala.achar` no `externa/iniciar`**
+      (`external-login.controller.ts`), para código errado sob escola sem o provedor não gastar o limite de código errado da escola. Muda a ordem de duas
+      checagens e a assinatura do `iniciar`; não vaza dado, só gasta tentativa (dono: Implementador)
+- [ ] (acesso-e-convites 14.0, infra-guardian, 1ª) **Cenário de carga com pedidos sem senha e o `oidc-falso`** em `infra/k6/reivindicacao-em-sala.js`. A Tech Spec não pede,
+      e o caminho da conta é mais leve que o do hash (dono: Implementador)
+- [ ] (acesso-e-convites 14.0, revisor-geral, 1ª) **O barril `apps/api/src/sessao/index.ts` exporta `ExternalLoginService` só para o `api.app.get(...)` do teste**
+      `reivindicacao-com-conta.int.test.ts`. Achar outro jeito de o teste chegar ao serviço, sem alargar a API do módulo (dono: Implementador)
+- [ ] (acesso-e-convites 14.0, test-engineer, 1ª) **O cookie `educa_conta_provada` reaproveitado depois da aprovação abre outro pedido**: o `reivindicar` não confere se a conta já
+      está ligada na escola. Duas saídas: recusar no pedido, ou restringir o texto do `cenarios.md`. Muda comportamento ou texto de spec; decisão do Arquiteto, antes da 15.0 (dono: Arquiteto)
+- [ ] (acesso-e-convites 14.0, test-engineer, 1ª) **A transferência provada pelo job da planilha**, e não por `DecisaoRepository.fechar` direto, no caso da transferência e da virada de
+      `reivindicacao-com-conta.int.test.ts`. O check do banco já prova a anulação; trocar o caminho é refatoração (dono: Implementador)
+- [ ] (acesso-e-convites 14.0, privacy-guardian, 1ª) **O professor com domínio liberado e sem ligação, entrando com `intencao=reivindicar`, vira "conta provada" e pode pedir um nome**:
+      a aprovação humana segura o caso; falta só a nota na Tech Spec e no `cenarios.md` (dono: Arquiteto)
+- [ ] (acesso-e-convites 14.0, conformidade-reviewer, 1ª) **O SQL de volta de versão do `docs/runbook.md` não grava auditoria por pedido encerrado.** Encerrar não é decidir sobre o aluno
+      (regra 70 item 2); avaliar um registro de operação para o procedimento (dono: Arquiteto)
+- [ ] (acesso-e-convites 14.0, tenancy-guardian e privacy-guardian, 2ª) **Token ou código do link na query do GET `iniciar` fica no histórico do navegador** do computador da escola
+      (`docs/lgpd.md`, linha do acesso da turma). Na 15.0, avaliar se a tela mantém o token fora da URL, com um POST de formulário que redireciona (dono: Implementador, na 15.0)
+- [ ] (acesso-e-convites 14.0, infra-guardian e revisor-geral, 2ª) **Separar o `VALIDATE` e o índice da `0047_reivindicacao_conta.sql` em passo próprio** (índice `CONCURRENTLY`), porque o migrador
+      roda a migration numa transação e os dois seguram o lock do `ADD`. Gatilho: o tamanho da tabela `reivindicacao` (dono: Implementador)
+- [ ] (acesso-e-convites 14.0, test-engineer, 2ª) **O caso do código errado pelo `iniciar`** (`reivindicacao-com-conta.int.test.ts`, "o código errado pelo início"): para o código certo, conferir também que
+      o `Location` aponta para o authorize do `oidc-falso`; e excluir `a.codigo` do laço dos códigos sorteados, para o caso ser determinístico (dono: Implementador)

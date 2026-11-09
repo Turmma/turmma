@@ -839,6 +839,40 @@ quando".
 **Depois:** registre no `TODO.md` a janela (de quando a quando), as escolas avisadas e quantos pedidos `agendado` estavam em curso,
 só com ids e datas.
 
+## Voltar o código com pedidos de conta da escola pendentes (rollback)
+
+*Procedimento, não alerta: não há regra em `infra/grafana/alertas/`. Vale para qualquer volta de versão que passe pela migration
+`0047_reivindicacao_conta` (acesso-e-convites, tarefa 14.0; Tech Spec, seção 3).*
+
+**O que a migration deixou:** a coluna `reivindicacao.conta_externa`, o único parcial `reivindicacao_conta_pendente_unica` e o check
+`reivindicacao_segredo_so_pendente` trocado (pendente tem hash **ou** conta). Tudo só expande: o código anterior roda sobre isso sem
+erro. **Não reverta a 0047**: o check antigo exige `senha_hash` no pendente, e o pedido de conta que já está lá o violaria.
+
+**O que o código anterior faz com eles:** ele lê o pedido pendente esperando o hash da senha. O pedido de conta não tem hash, e a
+aprovação dele cai no `InvariantException` (5xx) em vez de criar o aluno. O aluno que já foi aprovado pela conta não é afetado: entra
+pelo login externo, que não mudou.
+
+**Antes de liberar a versão anterior:** encerre os pedidos de conta pendentes, sem decisão (encerrar não é decidir, regra 70, item 2),
+e devolva o nome à lista para o aluno pedir de novo, agora com senha. Numa transação só:
+
+```
+docker compose exec postgres psql -U educa -1 -c "with encerrados as (
+  update reivindicacao set estado = 'encerrada', conta_externa = null, chave_envio = null, teve_matricula_errada = null
+  where estado = 'pendente' and conta_externa is not null
+  returning escola_id, lista_nome_id
+)
+update lista_nome l set estado = 'livre' from encerrados e where l.escola_id = e.escola_id and l.id = e.lista_nome_id"
+```
+
+Confira depois, só com contagens: `select count(*) from reivindicacao where estado = 'pendente' and conta_externa is not null` volta zero.
+
+**Na volta para a versão nova (roll-forward):** nada a refazer. O aluno cujo pedido foi encerrado abre a página da sala e prova a conta de
+novo, ou pede com senha.
+
+**Não faça:** apagar o check ou a coluna para "passar" a versão anterior, nem aprovar à mão o pedido de conta.
+
+**Depois:** registre no `TODO.md` a janela (de quando a quando) e quantos pedidos foram encerrados, só contagens.
+
 ## Voltar o código depois da chave da turma (rollback)
 
 *Procedimento, não alerta: não há regra em `infra/grafana/alertas/`. Vale para qualquer volta de versão que passe pela migration

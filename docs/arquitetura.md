@@ -106,6 +106,11 @@ pelos leitores que a escola já usa (`docs/modelo-de-dados.md`, "A leitura da op
   senha e existe de verdade. Vínculo não confirmado não dá acesso a aluno.
 - Um usuário pode ter vínculo em mais de uma escola; o token carrega a escola ativa.
 - Convite é token único, com validade curta, uso único e revogável.
+- **O `SalaModule` é global desde a 14.0 (acesso-e-convites), e exporta uma só coisa: a porta `SALA_PARA_A_CONTA`.** O
+  controller do login pela conta da escola vive no `sessao`, que não importa o `sala`; a porta (interface no `sessao`,
+  implementada no `sala` sobre o `AcessoDaSala`) é o que atravessa. Repository, service ou contador da sala **não** se
+  exportam por esse caminho: acoplamento implícito entre módulos globais é o que a regra 00 (item 1) e a regra 10 (item 3)
+  proíbem. Quem precisar de outra peça da sala no `sessao` cria outra porta, com a interface no `sessao`.
 - **O `SessaoModule` é global desde a A0**, como o `DatabaseModule` e o `RateLimitModule`. Ele exporta o
   semáforo do hash de senha, o hash, o contador de tentativas e o cliente do Redis de fila do login
   (as classes moram em `apps/api/src/credencial/` desde a X5),

@@ -2,7 +2,7 @@ import { globalMeter, type Database, type LoggerBase, type Meter } from '@educa/
 import { Module, type DynamicModule } from '@nestjs/common'
 import type { Redis } from 'ioredis'
 import { DB } from '../database.module.js'
-import { AcessoDaSala } from '../sessao/index.js'
+import { AcessoDaSala, SALA_PARA_A_CONTA } from '../sessao/index.js'
 import { REDIS_LOGIN_CLIENT, LoginLockout, WindowCounter, PasswordHasher, HashBulkhead } from '../credencial/index.js'
 import { AcessoDaTurmaController } from './acesso-da-turma/acesso-da-turma.controller.js'
 import { AcessoDaTurmaService } from './acesso-da-turma/acesso-da-turma.service.js'
@@ -14,6 +14,7 @@ import { MinhaTurmaController } from './minha-turma/minha-turma.controller.js'
 import { MinhaTurmaService } from './minha-turma/minha-turma.service.js'
 import { PedidosController } from './decisao/pedidos.controller.js'
 import { ReivindicacaoService } from './reivindicacao/reivindicacao.service.js'
+import { SalaDoLoginPelaSala } from './salas/sala-para-a-conta.js'
 import { SalasController } from './salas/salas.controller.js'
 import { SalasService } from './salas/salas.service.js'
 
@@ -47,6 +48,10 @@ export class SalaModule {
   static forRoot({ config, chaveContador, instancias, logger, medidor, sortearCodigo = sortearCodigoDaTurma }: SalaModuleOptions): DynamicModule {
     return {
       module: SalaModule,
+      // Global só para entregar a porta da sala ao controller do login externo, que vive no `sessao` e não importa o `sala`. Só a porta
+      // sai daqui: repository, service ou contador da sala não se exportam por este caminho global (`docs/arquitetura.md`, regra 00 item 1).
+      global: true,
+      exports: [SALA_PARA_A_CONTA],
       controllers: [AcessoDaTurmaController, SalasController, PedidosController, MinhaTurmaController],
       providers: [
         { provide: AcessoDaTurmaService, useFactory: (banco: Database) => new AcessoDaTurmaService(banco, config.chaveCodigo, sortearCodigo), inject: [DB] },
@@ -65,6 +70,12 @@ export class SalaModule {
           provide: SalasService,
           useFactory: (banco: Database, acessoDaSala: AcessoDaSala, limites: SalaRateLimits) => new SalasService(banco, acessoDaSala, config.chaveCodigo, limites),
           inject: [DB, AcessoDaSala, SalaRateLimits],
+        },
+        // A porta que o login pela conta da escola usa para achar a sala pelo link ou pelo código (14.0): o `sessao` define a porta, e o `sala`, que tem a chave do código e o limite, a implementa.
+        {
+          provide: SALA_PARA_A_CONTA,
+          useFactory: (acessoDaSala: AcessoDaSala, limites: SalaRateLimits) => new SalaDoLoginPelaSala(acessoDaSala, config.chaveCodigo, limites),
+          inject: [AcessoDaSala, SalaRateLimits],
         },
         {
           provide: ReivindicacaoService,

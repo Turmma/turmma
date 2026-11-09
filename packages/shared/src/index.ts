@@ -124,7 +124,7 @@ export { loginMatriculaRequestSchema, TAMANHO_MAXIMO_MATRICULA, TAMANHO_MAXIMO_S
 export type { LoginMatriculaRequest } from './sessao/matricula.js'
 export { acessoDaEscolaResponseSchema, PROVEDORES_DE_CONTA_DA_ESCOLA } from './sessao/acesso-da-escola.js'
 export type { ProvedorDeContaDaEscola, AcessoDaEscolaResponse } from './sessao/acesso-da-escola.js'
-export { FALHAS_DO_LOGIN_EXTERNO, PARAMETRO_DA_FALHA_DO_LOGIN_EXTERNO } from './sessao/externa.js'
+export { FALHAS_DO_LOGIN_EXTERNO, PARAMETRO_DA_CONTA_PROVADA, PARAMETRO_DA_FALHA_DO_LOGIN_EXTERNO, VALOR_DA_CONTA_PROVADA } from './sessao/externa.js'
 export type { FalhaDoLoginExterno } from './sessao/externa.js'
 export {
   provedoresDaEscolaRequestSchema,

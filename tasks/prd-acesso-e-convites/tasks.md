@@ -94,12 +94,12 @@
   - [ ] 13.4 O `docs/roteiro-da-demonstracao.md` (seção 2, passo 12) conferido contra `e2e/roteiro-da-demonstracao.spec.ts`
   - [ ] 13.5 Testes: troca de ponta a ponta, lista e falhas, recomeço, 360 px
 
-- [ ] **14.0 — A conta da escola no pedido do nome (API)**
-  - [ ] 14.1 Migration `reivindicacao.contaExterna`, o único parcial e o check novo (`not valid` + `validate`)
-  - [ ] 14.2 `intencao=reivindicar` no `externa/iniciar` (o acesso na `TenantResolutionRepository`) e o cookie `educa_conta_provada`
-  - [ ] 14.3 O pedido com a conta; aprovar cria o usuário sem senha e a `conta_externa`, com `CONFLITO` que desfaz; `conta_externa.ligada`
-  - [ ] 14.4 O `fechar('encerrada')` anula a `contaExterna`; `contaExterna` em `COLUNAS_FORA_DO_ARQUIVO`; `docs/lgpd.md` (o cookie); o runbook recusa os pedidos de conta na volta de versão
-  - [ ] 14.5 Testes: cookie e escola, pedido com a conta, aprovação com `CONFLITO`, check, encerramento, corridas
+- [x] **14.0 — A conta da escola no pedido do nome (API)**
+  - [x] 14.1 Migration `reivindicacao.contaExterna`, o único parcial e o check novo (`not valid` + `validate`)
+  - [x] 14.2 `intencao=reivindicar` no `externa/iniciar` (o acesso na `TenantResolutionRepository`) e o cookie `educa_conta_provada`
+  - [x] 14.3 O pedido com a conta; aprovar cria o usuário sem senha e a `conta_externa`, com `CONFLITO` que desfaz; `conta_externa.ligada`
+  - [x] 14.4 O `fechar('encerrada')` anula a `contaExterna`; `contaExterna` em `COLUNAS_FORA_DO_ARQUIVO`; `docs/lgpd.md` (o cookie); o runbook recusa os pedidos de conta na volta de versão
+  - [x] 14.5 Testes: cookie e escola, pedido com a conta, aprovação com `CONFLITO`, check, encerramento, corridas
 
 - [ ] **15.0 — Ligar a conta da escola em "Eu" (API e tela)**
   - [ ] 15.1 `intencao=ligar` com sessão de aluno, na trava da linha do usuário

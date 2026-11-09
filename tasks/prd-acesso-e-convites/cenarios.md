@@ -157,7 +157,9 @@ rodada 1) acrescentou os casos marcados (F2c) e as seções "Arquivo do titular"
 
 - [I] Domínio não liberado: recusado; cookie vencido: recusado; cookie da sala da escola A num pedido da B, ou de outro
   acesso: a resposta do cookie inválido.
-- [I] O cookie é apagado ao gravar o pedido e não serve a um segundo.
+- [I] O cookie é apagado ao gravar o pedido (e no reenvio) e não serve a um segundo. O cookie que não vale (ausente, vencido,
+  adulterado, de outra chave, do `educa_oidc`, de outra escola ou de outro acesso) dá `ENTRADA_INVALIDA`, sem pedido. Com `senha` no corpo o
+  cookie não é lido nem apagado. O pedido de conta não calcula hash e, recusado, não conta no teto de hashes da turma. (F2c)
 - [I] Com o pedido pendente, o login pela conta da escola é recusado como credencial inválida; aprovar liga a conta e o
   aluno entra por ela; `contaExterna` nula depois de aprovar e de recusar.
 - [I] Aprovar com a conta já ligada a outro aluno (ligou em "Eu" enquanto o pedido esperava): `CONFLITO` sem nome,

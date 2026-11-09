@@ -172,6 +172,7 @@ export const COLUNAS_FORA_DO_ARQUIVO: readonly string[] = [
   'acesso_turma.token_hash',
   'acesso_turma.codigo_hmac',
   'reivindicacao.senha_hash',
+  'reivindicacao.conta_externa',
   'reivindicacao.chave_envio',
   'execucao_agente.chave_envio',
   'pedido_titular.chave_envio',

@@ -1,4 +1,4 @@
-import { DomainException, requireEscolaId, AuditoriaRecorder, requestSessao, type Database } from '@educa/core'
+import { DomainException, requireEscolaId, AuditoriaRecorder, requestSessao, type ContaProvadaDoPedido, type Database, type DatabaseTransaction } from '@educa/core'
 import {
   alcanceDe,
   ErrorCode,
@@ -16,6 +16,7 @@ import {
 import { paginar } from '../../http/pagination.js'
 import { type AlcanceDoPedido, DecisaoRepository, TurmaRepository, VinculoRepository } from '@educa/core/estrutura'
 import { type LoginLockout, CredencialMatriculaRepository, SessaoCreateRepository, identificadorDoAluno } from '../../credencial/index.js'
+import { ContaExternalRepository } from '../../sessao/index.js'
 
 const registro = new AuditoriaRecorder()
 
@@ -108,12 +109,23 @@ export class DecisaoService {
   }
 
   /**
+   * O pedido com a conta da escola (14.0): a ligação nasce junto do aluno, na mesma transação, com a auditoria de quem aprova. A conta que outro
+   * aluno ligou enquanto o pedido esperava desfaz tudo (a transação volta atrás, o pedido segue pendente) com o `CONFLITO` de sempre, sem dizer a quem.
+   */
+  async #ligarConta(tx: DatabaseTransaction, alunoId: string, conta: ContaProvadaDoPedido): Promise<void> {
+    const ligacaoId = await new ContaExternalRepository(tx).ligar(alunoId, conta)
+    if (ligacaoId === undefined) throw new DomainException(ErrorCode.CONFLITO)
+    await registro.gravar(tx, 'conta_externa.ligada', { entidadeId: ligacaoId, depois: { usuarioId: alunoId, provedor: conta.provedor } })
+  }
+
+  /**
    * A decisão de um pedido (Tech Spec da A1, seção 5, passo 6), numa transação:
    *
    * 1. Trava o ano em curso em `FOR SHARE` (10.0): encerrado no meio do lote, o pedido sai `nao_encontrada`, sem gravar.
    *    Trava o pedido se ele está no alcance de quem decide e ainda `pendente` (`travarPendente`). Sem linha, uma leitura
    *    com o mesmo alcance, aplicado antes do estado, separa `ja_decidida` de `nao_encontrada`, sem gravar nada (I6, C3).
-   * 2. **Aprovada**: o usuário `aluno` com o nome da lista, a credencial com a matrícula da lista e o hash do pedido, o
+   * 2. **Aprovada**: o usuário `aluno` com o nome da lista, a credencial com a matrícula da lista e o hash do pedido (ou, no pedido
+   *    com a conta da escola, sem hash e com a `conta_externa` ligada e auditada na mesma transação; conta já ligada a outro: `CONFLITO`), o
    *    vínculo `aluno` `confirmado` com `decidido_em`, e a linha da lista `aprovado`, sem nome nem matrícula (E18).
    *    **Recusada**: a linha da lista volta a `livre` (E25).
    * 3. O pedido fechado, sem hash, chave nem marca de matrícula errada (E21, E30), e `reivindicacao.decidida` com quem
@@ -136,6 +148,7 @@ export class DecisaoService {
         if (nome === undefined) throw new InvariantException('nome do pedido pendente não encontrado')
         const [aluno] = await new SessaoCreateRepository(tx).criarUsuarios([{ contaId: null, papel: 'aluno', nome: nome.nome }])
         if (aluno === undefined) throw new InvariantException('aluno não criado')
+        if (pedido.contaExterna !== null) await this.#ligarConta(tx, aluno.id, pedido.contaExterna)
         await new CredencialMatriculaRepository(tx).criar([{ usuarioId: aluno.id, matricula: nome.matricula, senhaHash: pedido.senhaHash }])
         await new VinculoRepository(tx).criarAlunoConfirmado(aluno.id, pedido.turmaId)
         await decisoes.aprovarNome(pedido.listaNomeId, aluno.id)

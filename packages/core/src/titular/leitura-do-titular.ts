@@ -185,6 +185,7 @@ export const LEITURAS_DO_ARQUIVO: Readonly<Record<string, LeituraDaTabela>> = {
       escola_id: ESCOPO,
       chave_envio: SEGREDO,
       senha_hash: SEGREDO,
+      conta_externa: 'identificador opaco da conta da escola no provedor, só no pedido pendente: a aprovação o leva para a ligação e a decisão o apaga; nunca entra no arquivo',
       teve_matricula_errada: 'sinal de segurança sobre tentativas de outra pessoa naquele nome, não dado do titular',
       decidida_por: OUTRA_PESSOA,
     },

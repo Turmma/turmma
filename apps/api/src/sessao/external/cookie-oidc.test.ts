@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
-import { COOKIE_OIDC, CookieOidc, VALIDADE_DO_COOKIE_OIDC_SEGUNDOS, type LoginExternoEmAndamento } from './cookie-oidc.js'
+import { COOKIE_CONTA_PROVADA, COOKIE_OIDC, CookieContaProvada, CookieOidc, VALIDADE_DO_COOKIE_CONTA_PROVADA_SEGUNDOS, VALIDADE_DO_COOKIE_OIDC_SEGUNDOS, type ContaProvada, type LoginExternoEmAndamento } from './cookie-oidc.js'
 
 const CHAVE = new Uint8Array(randomBytes(32))
 const OUTRA_CHAVE = new Uint8Array(randomBytes(32))
@@ -77,5 +77,71 @@ describe('cookie educa_oidc do login pela conta da escola', () => {
 
   it('chave que não é de 256 bits não sobe', () => {
     expect(() => new CookieOidc(new Uint8Array(16), 'local')).toThrow()
+  })
+})
+
+const CONTA: ContaProvada = {
+  escolaId: '0199a0b0-0000-7000-8000-00000000000a',
+  acessoId: '0199a0b0-0000-7000-8000-00000000000b',
+  provedor: 'microsoft',
+  tenant: 'aaaaaaaa-0000-4000-8000-00000000000a',
+  sujeito: '0a0a0a0a-1111-4111-8111-00000000000a',
+}
+
+function daConta(agora = AGORA, chave = CHAVE, ambiente: 'local' | 'staging' = 'local'): CookieContaProvada {
+  return new CookieContaProvada(chave, ambiente, () => agora)
+}
+
+function valorDaConta(setCookie: string): string {
+  return setCookie.split(';')[0]?.slice(`${COOKIE_CONTA_PROVADA}=`.length) ?? ''
+}
+
+describe('cookie educa_conta_provada da conta da escola que o aluno provou na sala (14.0)', () => {
+  it('volta a conta gravada, até os 15 minutos, e vence um instante depois', () => {
+    const valor = valorDaConta(daConta().gravar(CONTA))
+    expect(daConta(AGORA + VALIDADE_DO_COOKIE_CONTA_PROVADA_SEGUNDOS * 1_000).ler(valor)).toEqual(CONTA)
+    expect(daConta(AGORA + VALIDADE_DO_COOKIE_CONTA_PROVADA_SEGUNDOS * 1_000 + 1).ler(valor)).toBeUndefined()
+  })
+
+  it('só vai à rota da sala, HttpOnly e Lax, com 15 minutos; fora do local ganha Secure; apagar zera o Max-Age no mesmo caminho', () => {
+    expect(daConta().gravar(CONTA)).toMatch(/^educa_conta_provada=[\w-]+; Path=\/v1\/salas; HttpOnly; SameSite=Lax; Max-Age=900$/)
+    expect(daConta(AGORA, CHAVE, 'staging').gravar(CONTA)).toMatch(/; Secure; Max-Age=900$/)
+    expect(daConta().apagar()).toBe('educa_conta_provada=; Path=/v1/salas; HttpOnly; SameSite=Lax; Max-Age=0')
+  })
+
+  it('não leva nada legível: nem a escola, nem o acesso, nem o identificador da conta', () => {
+    const texto = Buffer.from(valorDaConta(daConta().gravar(CONTA)), 'base64url').toString('latin1')
+    for (const parte of [CONTA.escolaId, CONTA.acessoId, CONTA.sujeito, CONTA.tenant ?? '']) expect(texto).not.toContain(parte)
+  })
+
+  it('byte alterado, outra chave, valor ausente, vazio ou sem sentido não valem', () => {
+    const valor = valorDaConta(daConta().gravar(CONTA))
+    for (let posicao = 0; posicao < valor.length; posicao++) {
+      const alterado = `${valor.slice(0, posicao)}${valor[posicao] === 'A' ? 'B' : 'A'}${valor.slice(posicao + 1)}`
+      expect(daConta().ler(alterado), `byte ${String(posicao)}`).toBeUndefined()
+    }
+    expect(daConta(AGORA, OUTRA_CHAVE).ler(valor)).toBeUndefined()
+    for (const sem of [undefined, '', 'x', 'não-é-base64!']) expect(daConta().ler(sem)).toBeUndefined()
+  })
+
+  it('cifrado pela nossa chave mas fora do formato (provedor que não existe, sujeito vazio, campo faltando) também não vale', () => {
+    const forjado = (conta: object): string => valorDaConta(daConta().gravar(conta as unknown as ContaProvada))
+    expect(daConta().ler(forjado(CONTA))).toEqual(CONTA)
+    expect(daConta().ler(forjado({ ...CONTA, provedor: 'facebook' }))).toBeUndefined()
+    expect(daConta().ler(forjado({ ...CONTA, sujeito: '' }))).toBeUndefined()
+    expect(daConta().ler(forjado({ escolaId: CONTA.escolaId }))).toBeUndefined()
+  })
+
+  it('o do educa_oidc não vale como o da conta, nem o da conta como o do login, mesmo com a mesma chave (dado autenticado próprio)', () => {
+    const doLogin = valorDe(cookie().gravar(EM_ANDAMENTO))
+    const daProva = valorDaConta(daConta().gravar(CONTA))
+    expect(daConta().ler(doLogin)).toBeUndefined()
+    expect(cookie().ler(daProva)).toBeUndefined()
+  })
+
+  it('emitido no futuro além da tolerância de relógio não vale; chave que não tem 256 bits é recusada', () => {
+    expect(daConta().ler(valorDaConta(daConta(AGORA + 31_000).gravar(CONTA)))).toBeUndefined()
+    expect(daConta().ler(valorDaConta(daConta(AGORA + 29_000).gravar(CONTA)))).toEqual(CONTA)
+    expect(() => new CookieContaProvada(new Uint8Array(16), 'local')).toThrow('256 bits')
   })
 })

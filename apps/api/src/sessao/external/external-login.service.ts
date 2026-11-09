@@ -8,7 +8,7 @@ import {
   type Meter,
   type ProvedorExterno,
 } from '@educa/core'
-import { ErrorCode, PARAMETRO_DA_FALHA_DO_LOGIN_EXTERNO, TENANT_DE_CONTA_PESSOAL_MICROSOFT, type FalhaDoLoginExterno } from '@educa/shared'
+import { ErrorCode, PARAMETRO_DA_CONTA_PROVADA, PARAMETRO_DA_FALHA_DO_LOGIN_EXTERNO, TENANT_DE_CONTA_PESSOAL_MICROSOFT, VALOR_DA_CONTA_PROVADA, type FalhaDoLoginExterno } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import type { ConclusaoDeLogin } from '../completion/login-completion.js'
 import { lerCookie } from '../../credencial/cookies.js'
@@ -18,7 +18,7 @@ import { RegistroDeAcessoRepository } from '../../credencial/registro-de-acesso.
 import type { TenantResolutionRepository } from '../tenant/tenant-resolution.repository.js'
 import { CAMINHO_DO_RETORNO } from '../../credencial/external-login-config.js'
 import { ContaExternalRepository, type ChaveDaContaExterna, type LigacaoDaContaExterna } from './conta-externa.repository.js'
-import { COOKIE_OIDC, type CookieOidc, type LoginExternoEmAndamento } from './cookie-oidc.js'
+import { COOKIE_OIDC, type ContaProvada, type CookieContaProvada, type CookieOidc, type LoginExternoEmAndamento } from './cookie-oidc.js'
 import { ExternalProviderError, type ContaNoProvedor, type ExternalProviderPort } from './external-provider.port.js'
 
 /** O redirecionamento que o controller devolve: o `Location` e os `Set-Cookie`. */
@@ -32,6 +32,8 @@ export interface ExternalLoginDependencies {
   readonly resolucao: TenantResolutionRepository
   readonly provedor: ExternalProviderPort
   readonly cookie: CookieOidc
+  /** O cookie da conta que o aluno provou na sala (14.0): o retorno com `intencao=reivindicar` o grava. */
+  readonly cookieDaConta: CookieContaProvada
   readonly conclusao: ConclusaoDeLogin
   /** O `redirect_uri` configurado: o retorno é remontado sobre ele, com a query que chegou. */
   readonly retorno: URL | undefined
@@ -40,6 +42,17 @@ export interface ExternalLoginDependencies {
 
 /** Para onde a web vai depois de entrar: a casca, que renova a sessão pelo cookie e lê `/v1/eu` (18.0). */
 export const DESTINO_DEPOIS_DE_ENTRAR = '/'
+
+/** A sala a que o `iniciar` com `intencao=reivindicar` prende o login: o acesso vigente, achado pelo link ou pelo código na escola do slug. */
+export interface SalaDoLogin {
+  readonly escolaId: string
+  readonly acessoId: string
+}
+
+/** O endereço da página da sala na web, para onde o aluno volta com a conta provada (o token do link ele guardou antes de sair). */
+export function enderecoDaSala(slug: string): string {
+  return `/e/${encodeURIComponent(slug)}/turma?${PARAMETRO_DA_CONTA_PROVADA}=${VALOR_DA_CONTA_PROVADA}`
+}
 
 /** O endereço da escola na web com a falha, que a tela `/e/:slug` mostra (19.0). */
 export function enderecoDaFalha(slug: string | undefined, falha: FalhaDoLoginExterno): string {
@@ -52,6 +65,8 @@ type Decisao =
   | { readonly tipo: 'recusar' }
   /** A conta do provedor está certa e a pessoa tem a eliminação agendada (14.0): sem sessão e sem ligar nada. */
   | { readonly tipo: 'suspenso' }
+  /** Só com `intencao=reivindicar` (acesso-e-convites, 14.0): a conta é de domínio liberado e não está ligada a ninguém, e o aluno a prova para o pedido do nome. */
+  | { readonly tipo: 'provada'; readonly conta: ContaProvada }
 
 const RECUSA: Decisao = { tipo: 'recusar' }
 const SUSPENSO: Decisao = { tipo: 'suspenso' }
@@ -78,6 +93,10 @@ function entrarSeNaoSuspensa(ligacao: Pick<LigacaoDaContaExterna, 'usuarioId' | 
  *   mesmo professor criam uma ligação só, e os dois entram; uma segunda conta com o mesmo e-mail é recusada.
  * - **Recusa:** todo o resto, com o mesmo redirecionamento (`conta_externa_nao_ligada`) e um `login_falho` na escola,
  *   sem usuário: o aluno sem ligação, a conta de outro domínio, a segunda conta do professor, o coordenador.
+ * - **`intencao=reivindicar`** (acesso-e-convites, 14.0): o `iniciar` prende o login ao acesso vigente da sala, no cookie `educa_oidc`.
+ *   No retorno, a conta de domínio liberado **sem ligação** não liga ninguém (nem o professor pelo e-mail): vira o cookie
+ *   `educa_conta_provada`, e o aluno volta à página da sala. A conta ligada a usuário ativo entra como sempre; a ligada a
+ *   desativado e o domínio não liberado são recusados como sempre.
  * - **Provedor:** `error` no retorno, prazo de 5 s, resposta que não confere ou cookie ausente dão `?falha=provedor`.
  *   O login por matrícula e por e-mail não passa por aqui, e continua.
  * - **Nada de pessoa guardado:** o e-mail do provedor só é comparado, na memória desta requisição; nome, foto, tokens e
@@ -96,17 +115,29 @@ export class ExternalLoginService {
     return this.dependencias.provedor.ligados
   }
 
-  /** O contrato exige o `provedor` e o `slug` já validados pelo `ZodValidationPipe` do controller: outro chamador tem de conferir o formato antes. */
-  async iniciar(provedor: ProvedorExterno, slug: string): Promise<Redirect> {
+  /**
+   * O contrato exige o `provedor` e o `slug` já validados pelo `ZodValidationPipe` do controller: outro chamador tem de conferir o formato antes.
+   * `sala`, com `intencao=reivindicar`, é o acesso vigente que o controller achou pelo link ou pelo código na escola do slug; a escola dele tem de
+   * ser a do slug, senão responde como o inexistente (regra 10, item 6).
+   */
+  async iniciar(provedor: ProvedorExterno, slug: string, sala?: SalaDoLogin): Promise<Redirect> {
     if (!this.ligados.includes(provedor)) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     const escolaId = await this.dependencias.resolucao.escolaPorSlug(slug)
-    if (escolaId === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+    if (escolaId === undefined || (sala !== undefined && sala.escolaId !== escolaId)) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     const liberado = await naEscolaSemUsuario({ escolaId }, () => new ContaExternalRepository(this.dependencias.banco).provedorLiberado(provedor))
     if (!liberado) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
 
     try {
       const inicio = await this.dependencias.provedor.iniciar(provedor)
-      const emAndamento: LoginExternoEmAndamento = { escolaId, slug, provedor, state: inicio.state, nonce: inicio.nonce, verificador: inicio.verificador }
+      const emAndamento: LoginExternoEmAndamento = {
+        escolaId,
+        slug,
+        provedor,
+        state: inicio.state,
+        nonce: inicio.nonce,
+        verificador: inicio.verificador,
+        ...(sala === undefined ? {} : { acessoDaSalaId: sala.acessoId }),
+      }
       return { endereco: inicio.endereco.href, cookies: [this.dependencias.cookie.gravar(emAndamento)] }
     } catch (erro) {
       if (!(erro instanceof ExternalProviderError)) throw erro
@@ -135,7 +166,12 @@ export class ExternalLoginService {
         if (!(erro instanceof ExternalProviderError)) throw erro
         return this.#falhaDoProvedor(emAndamento.slug, apagar)
       }
-      const decisao = await this.#decidir(emAndamento.escolaId, contaNoProvedor)
+      const decisao = await this.#decidir(emAndamento.escolaId, contaNoProvedor, emAndamento.acessoDaSalaId)
+      if (decisao.tipo === 'provada') {
+        const provada = this.dependencias.cookieDaConta.gravar(decisao.conta)
+        this.#resultados.add(1, { resultado: 'conta_provada' })
+        return { endereco: enderecoDaSala(emAndamento.slug), cookies: [apagar, provada] }
+      }
       if (decisao.tipo !== 'entrar') {
         await new RegistroDeAcessoRepository(this.dependencias.banco).gravarFalha(ipParaRegistro(origem.ip))
         this.#resultados.add(1, { resultado: 'recusado' })
@@ -152,8 +188,8 @@ export class ExternalLoginService {
     return { endereco: enderecoDaFalha(slug, 'provedor'), cookies: [apagar] }
   }
 
-  /** Entra ou recusa, na escola do contexto (a do cookie). */
-  async #decidir(escolaId: string, conta: ContaNoProvedor): Promise<Decisao> {
+  /** Entra ou recusa, na escola do contexto (a do cookie). Com `acessoDaSalaId` (a intenção de reivindicar), a conta sem ligação vira `provada` e nada se liga. */
+  async #decidir(escolaId: string, conta: ContaNoProvedor, acessoDaSalaId: string | undefined): Promise<Decisao> {
     const repositorio = new ContaExternalRepository(this.dependencias.banco)
     if (conta.dominio === undefined || (conta.provedor === 'microsoft' && conta.dominio === TENANT_DE_CONTA_PESSOAL_MICROSOFT)) return RECUSA
     if (!(await repositorio.dominioLiberado(conta.provedor, conta.dominio))) return RECUSA
@@ -166,6 +202,9 @@ export class ExternalLoginService {
       // diz que o acesso está suspenso (14.0).
       return entrarSeNaoSuspensa(ligada)
     }
+
+    // Para o pedido do nome, a conta de domínio liberado e sem ligação só é provada: ninguém é ligado aqui, a aprovação humana é que liga (D4).
+    if (acessoDaSalaId !== undefined) return { tipo: 'provada', conta: { escolaId, acessoId: acessoDaSalaId, ...chave } }
 
     // Sem ligação, só o professor, pelo e-mail verificado. No Google, `email_verified`; na Microsoft, o tenant já
     // conferido contra a lista da escola é o que dá o e-mail por bom (Tech Spec, seção 5).

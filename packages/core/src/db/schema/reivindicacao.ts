@@ -1,10 +1,18 @@
 import { sql } from 'drizzle-orm'
-import { boolean, check, foreignKey, index, pgTable, text, timestamp, unique, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
+import { boolean, check, foreignKey, index, jsonb, pgTable, text, timestamp, unique, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
 import type { DecisorDaReivindicacao, EstadoDaReivindicacao } from '@educa/shared'
+import type { ProvedorExterno } from './conta-externa.js'
 import { escola } from './escola.js'
 import { listaNome } from './lista-nome.js'
 import { turma } from './turma.js'
 import { usuario } from './usuario.js'
+
+/** A conta da escola do pedido: o que identifica a conta no provedor, sem e-mail, nome nem foto. `tenant` é nulo no Google. */
+export interface ContaProvadaDoPedido {
+  readonly provedor: ProvedorExterno
+  readonly tenant: string | null
+  readonly sujeito: string
+}
 
 /**
  * O pedido de reivindicação (glossário, "Reivindicação"; A1, tarefa 6.0; Tech Spec da A1, seção 3): o aluno disse, pela
@@ -12,8 +20,12 @@ import { usuario } from './usuario.js'
  * uma pessoa decidir (8.0); só a aprovação cria o aluno (D4, regra 60, item 7).
  *
  * - `estado`: `pendente`, `aprovada`, `recusada` ou `encerrada` (a virada do ano fecha o pendente sem decisão, 10.0).
- * - Check `reivindicacao_segredo_so_pendente`: o hash da senha, a `chave_envio` e o `teve_matricula_errada` existem só
- *   no pendente, e o pendente tem os três. A decisão e o encerramento os apagam na mesma escrita (`docs/lgpd.md`).
+ * - `conta_externa` (acesso-e-convites, 14.0; Tech Spec, seções 3 e 5): a conta da escola que o aluno provou na sala, no
+ *   lugar da senha — `{ provedor, tenant, sujeito }`, o identificador opaco e nada mais (regra 20, item 2). Só o pendente a tem; a
+ *   aprovação a leva para a `conta_externa`, e a recusa, a decisão e o encerramento a apagam na mesma escrita.
+ * - Check `reivindicacao_segredo_so_pendente`: o hash da senha **ou** a conta da escola (exatamente uma das duas), a
+ *   `chave_envio` e o `teve_matricula_errada` existem só no pendente, e o pendente tem a chave, a marca e uma das duas. A
+ *   decisão e o encerramento apagam tudo na mesma escrita (`docs/lgpd.md`).
  * - Check `reivindicacao_pendente_com_nome`: o pendente sempre aponta para o nome. O `set null` da FK num pendente falha,
  *   e o caminho que apagar o nome antes de fechar o pedido (encerramento, eliminação) quebra, em vez de deixar o hash de
  *   uma senha num pedido sem nome.
@@ -45,6 +57,7 @@ export const reivindicacao = pgTable(
     listaNomeId: uuid(),
     chaveEnvio: uuid(),
     senhaHash: text(),
+    contaExterna: jsonb().$type<ContaProvadaDoPedido>(),
     teveMatriculaErrada: boolean(),
     estado: text().$type<EstadoDaReivindicacao>().notNull().default('pendente'),
     solicitadaEm: timestamp({ withTimezone: true }).notNull().defaultNow(),
@@ -65,6 +78,10 @@ export const reivindicacao = pgTable(
     foreignKey({ name: 'reivindicacao_decidida_por_da_escola_fk', columns: [tabela.escolaId, tabela.decididaPor], foreignColumns: [usuario.escolaId, usuario.id] }).onDelete('set null'),
     uniqueIndex('reivindicacao_chave_na_escola_unica').on(tabela.escolaId, tabela.chaveEnvio).where(sql`${tabela.chaveEnvio} is not null`),
     uniqueIndex('reivindicacao_pendente_por_nome').on(tabela.escolaId, tabela.listaNomeId).where(sql`${tabela.estado} = 'pendente'`),
+    // Uma conta da escola em um pedido pendente só por escola (Tech Spec, seção 3): o segundo pedido com a mesma conta recebe o 23505.
+    uniqueIndex('reivindicacao_conta_pendente_unica')
+      .on(tabela.escolaId, sql`(${tabela.contaExterna}->>'provedor')`, sql`coalesce(${tabela.contaExterna}->>'tenant', '')`, sql`(${tabela.contaExterna}->>'sujeito')`)
+      .where(sql`${tabela.estado} = 'pendente' and ${tabela.contaExterna} is not null`),
     index('reivindicacao_turma_idx').on(tabela.escolaId, tabela.turmaId, tabela.estado, tabela.solicitadaEm),
     index('reivindicacao_nome_idx').on(tabela.escolaId, tabela.listaNomeId),
     // O expurgo da `reivindicacao_decidida` (F3, tarefa 5.0): o pedido decidido ou encerrado, pela data da decisão (ou, no
@@ -77,7 +94,7 @@ export const reivindicacao = pgTable(
     check('reivindicacao_decidida_como_valida', sql`${tabela.decididaComo} is null or ${tabela.decididaComo} in ('professor', 'coordenacao')`),
     check(
       'reivindicacao_segredo_so_pendente',
-      sql`(${tabela.estado} = 'pendente') = (${tabela.senhaHash} is not null) and (${tabela.senhaHash} is not null) = (${tabela.chaveEnvio} is not null) and (${tabela.chaveEnvio} is not null) = (${tabela.teveMatriculaErrada} is not null)`,
+      sql`(${tabela.estado} = 'pendente') = (${tabela.chaveEnvio} is not null) and (${tabela.chaveEnvio} is not null) = (${tabela.teveMatriculaErrada} is not null) and (${tabela.estado} = 'pendente') = (${tabela.senhaHash} is not null or ${tabela.contaExterna} is not null) and (${tabela.senhaHash} is null or ${tabela.contaExterna} is null)`,
     ),
   ],
 )

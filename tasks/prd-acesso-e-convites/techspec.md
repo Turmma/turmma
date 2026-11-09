@@ -44,7 +44,7 @@ id da linha como dado autenticado, presentes em `na_fila` e `enviando` e nulos f
 com `case when`: um `or` com `envio` nulo deixaria o convite `copiado` passar com cifrados). `criadoEm` conta as 24 h do expurgo do envio parado. O check `reivindicacao_segredo_so_pendente` vira
 (`not valid` + `validate`): pendente ⇔ chave e marca presentes e exatamente uma de senha ou `contaExterna`; fora do
 pendente, as quatro nulas; o `fechar('encerrada')` do F2 passa a anular também a `contaExterna`. Migrations só expandem;
-voltar a versão: o runbook recusa os pedidos de conta pendentes.
+voltar a versão: o runbook encerra, sem decisão, os pedidos de conta pendentes e devolve o nome à lista.
 
 ## 4. API
 
@@ -130,13 +130,18 @@ a conta tem usuário ativo, com esse usuário como autor e alvo, na mesma transa
 da conta do token; sem usuário ativo, nenhum. O aceite
 de convite grava só na escola do convite.
 
-**Conta da escola do aluno.** `intencao=reivindicar` resolve o acesso pelo token ou código da sala,
-na `TenantResolutionRepository`, na escola do slug e no ano em curso, e o guarda no cookie OIDC. No retorno, com domínio
-liberado e conta sem ligação, grava `educa_conta_provada` (como o `educa_oidc`, mais `Path=/v1/salas` e 15 min; escola,
-acesso e conta, sem e-mail). O pedido confere escola e acesso (senão, cookie inválido), grava `contaExterna` no lugar do
-hash (a invariante do `travarPendente` passa a senha ou conta) e apaga o cookie. Aprovar cria o usuário sem senha e a
-`conta_externa`, na decisão; conta já ligada a outro aluno: `CONFLITO` sem nome, a transação desfaz e o pedido segue
-pendente. `intencao=ligar` exige sessão de aluno.
+**Conta da escola do aluno.** `intencao=reivindicar`, com o `token` do link ou o `codigo` da sala na query (a `intencao` de outro valor, ou o
+token ou código sem ela, responde como o inexistente), resolve o acesso pela porta `SALA_PARA_A_CONTA`, que o `sala` implementa sobre o
+`AcessoDaSala` (a `TenantResolutionRepository`, na escola do slug e no ano em curso, com o limite de código errado por escola do `salas/abrir`), e
+o guarda no cookie OIDC (`acessoDaSalaId`). No retorno, com domínio liberado e conta sem ligação, ninguém é ligado, nem o professor pelo e-mail: grava
+`educa_conta_provada` (como o `educa_oidc`, com dado autenticado próprio, mais `Path=/v1/salas` e 15 min; escola, acesso e conta, sem e-mail) e volta
+a `/e/:slug/turma?conta=provada`; a conta ligada a usuário ativo entra como sempre, e o domínio não liberado, a conta pessoal e a ligada a desativado
+são recusados como sempre. O pedido sem `senha` (o contrato a torna opcional) lê o cookie, confere escola e acesso contra os do acesso vigente (ausente,
+vencido, adulterado, de outra escola ou de outro acesso: a mesma `ENTRADA_INVALIDA`, antes de qualquer contador), grava `contaExterna` no lugar do hash
+(a invariante do `travarPendente` passa a senha ou conta) sem calcular hash, e responde apagando o cookie, também no reenvio; com `senha`, o cookie não é
+lido. O pedido de conta recusado não conta no teto de hashes da turma. Aprovar cria o usuário sem senha e a `conta_externa`, na decisão, com a
+auditoria `conta_externa.ligada` de quem aprova; conta já ligada a outro aluno: `CONFLITO` sem nome, a transação desfaz e o pedido segue pendente.
+`intencao=ligar` exige sessão de aluno (15.0).
 
 ## 6. Isolamento
 
