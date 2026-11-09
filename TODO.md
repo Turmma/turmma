@@ -3182,3 +3182,12 @@ aula" em `Retencao.tsx`, o Validador conferiu: a tela já o mostra pela descriç
 - [ ] (acesso-e-convites 10.0, test-engineer, 2ª) **O caso do gatilho que recusa o `.usada`** (`troca-da-provisoria.int.test.ts:361`): trocar `toBeGreaterThanOrEqual(500)` por 500, com código tipado e sem stack
       (dono: Implementador)
 - [ ] (acesso-e-convites 10.0, test-engineer, 2ª) **O `create trigger` em `auditoria` pega trava na tabela compartilhada**: se o caso oscilar na esteira, isolá-lo num arquivo próprio (dono: Implementador)
+
+## Da correção 2026-11-08-incidente-ao-entrar-de-novo (a trava da primeira carga), fora dela
+
+- [ ] (correção 2026-11-08-incidente-ao-entrar-de-novo, infra-guardian, 1ª) **Limite de ocorrências de `primeira-carga-travou` por execução da esteira**, acima do qual o job falha.
+      Fixar o número depois de algumas execuções com o aviso (`e2e/support/profiles.ts`, `avisoDaEsteira`) (dono: Orquestrador)
+- [ ] (correção 2026-11-08-incidente-ao-entrar-de-novo, infra-guardian, 1ª) **Em `e2e/guardas.spec.ts › quem passa o próprio prazo não ganha nova tentativa`**, conferir a rejeição
+      por `errors.TimeoutError` em vez de `/Timeout 1000ms/` (dono: Implementador)
+- [ ] (correção 2026-11-08-incidente-ao-entrar-de-novo, revisor-geral, 3ª) **Mesmo nome para duas coisas em `e2e/support/profiles.ts`**: o parâmetro do fixture `avisoDaEsteira` esconde a função
+      exportada de mesmo nome. Renomear a fábrica ou o parâmetro (dono: Implementador)
