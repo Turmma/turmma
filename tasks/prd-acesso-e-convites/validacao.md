@@ -1,5 +1,103 @@
 # Validação — acesso-e-convites (F2c)
 
+## Rodada 2 — 10/11/2026
+
+**Escopo:** revalidação dos itens da rodada 1 que reprovaram: o crítico 1 (o [C] da fase `professores`), com a correção
+`tasks/correcoes/2026-11-10-carga-professores.md`, e o maior 1 (a borda "E-mail que volta"), com as tarefas 18.0 e 19.0. O resto da
+rodada 1 não foi refeito, como ela mesma pediu.
+**Commit validado:** `8811171c`
+**Veredito: APROVADA**
+
+Ambiente: `node_modules` em dia com o `package-lock.json` (sem `npm ci`). Árvore limpa no início e no fim (as três mutações foram
+restauradas com `git checkout --`). Integração e e2e no ambiente de teste 0; a vitrine da rodada 1 seguia montada (`mostrar`), com os
+quatro professores semeados nela. Para a carga parei todos os contêineres `educa-teste-*`, os do ambiente 0 e os dos ambientes 1 e 2
+das linhas, que estavam paradas (`.processo/linhas.json`: as três com `tarefa: null`); os volumes ficam (menor 3).
+
+### 1. RF a RF (só o que esta rodada toca)
+
+| RF | Situação | Código | Teste | Observação |
+|---|---|---|---|---|
+| RF11 Convite por e-mail, borda "E-mail que volta" (o maior 1) | ATENDIDO | `apps/api/src/professores/professores.controller.ts:65` (`POST /v1/professores/:usuarioId/email`, `no-store`, `IdPipe`, estrito); `apps/api/src/sessao/convite/convite-de-professor.service.ts:96` (`corrigirEmailDoProfessor`: os seis passos da Tech Spec §5 na ordem, numa transação: `professorSobATrava`, a matriz, `jaEntrou`, `contaDoProfessor`, `trocarContaDoProfessor`, `refazerSobATrava`, `usuario.email_corrigido`); `apps/api/src/sessao/convite/convite.repository.ts:143` (`jaEntrou`) e `:156` (`trocarContaDoProfessor`: escola do contexto, `papel = 'professor'`, `desativado_em` não nulo, conta diferente); `packages/shared/src/professores/professores.ts` (`corrigirEmailDoProfessorRequestSchema`, `CORRIGIR_EMAIL_DO_PROFESSOR_POR_ESTADO`); `apps/web/src/areas/coordenacao/professores/PainelDoProfessor.tsx:162` (o botão só no `pendente` e no `vencido`), `DialogoDeCorrigirEmail.tsx`, `convite-de-professor.ts` (`podeCorrigirOEmail`, `falhaDaCorrecaoDoEmail`), `envio-do-convite.ts:17` ("Não chegou. Corrija o e-mail e reenvie, ou copie o link") | `apps/api/test/professores-corrigir-email.int.test.ts` (25 casos: "caminho feliz: o professor da grade, com o envio `falhou`, fica com o mesmo id, o vínculo e a aula…"; "token: o link do convite anterior é recusado…"; "`vencido`: corrige, e o convite novo vale os 7 dias…"; "envio antigo: o `na_fila` e o `enviando` terminam `cancelado`…"; "\"Enviar\" de um só logo depois: o destino decifrado é o e-mail novo…"; "estados fora" ×4; "quem já entrou…"; "e-mail de outro professor da escola…"; "o mesmo e-mail de hoje…"; "E11…"; "isolamento…"; "repository…"; as três corridas); `e2e/professores-envio.spec.ts` › "o envio falhou: a coordenação corrige o e-mail, envia pelo \"Reenviar\", o e-mail chega ao endereço certo, o professor aceita e vê a turma da grade" (Mailpit e worker de verdade; o e-mail velho não recebe nada), › "o e-mail de outro professor da escola não serve…", › "a resposta atrasada de uma correção…", › "a 1366 × 768 a página não rola e a 360 px não rola de lado, no painel e no diálogo…"; unidade: `DialogoDeCorrigirEmail.test.tsx`, `PainelDoProfessor.test.tsx`, `convite-de-professor.test.ts`, `envio-do-convite.test.ts`, `api/professores.test.ts` | As três partes da borda têm evidência: "corrigir e reenviar" (o e2e de ponta a ponta), "mantém o professor, as turmas e as aulas" (o mesmo id, o vínculo e a aula na mesma linha, na integração; o professor vê a turma da grade, no e2e) e "só para quem nunca entrou" (o caso "quem já entrou", mutação 2). Fotos: `.processo/vitrine/coordenacao--coordenacao-professores--Ana-convidado-ab26e454--computador.png` e `…--celular-1.png` (o painel do `falhou`, com o texto novo e "Corrigir o e-mail" no rodapé, secundário); `…--Ana-convidado-ab26e454-button-name-Corrigir-o-e-mail--computador.png` e `…--celular-1.png` (o diálogo com o nome, "O professor continua o mesmo, com as turmas e as aulas dele", o campo "E-mail certo" vazio e com o foco, e "O link anterior deixa de valer"). Nenhuma tela rola a 1366 × 768. O link uma vez e o `CONFLITO` pedem digitar, o que a vitrine não faz: conferidos pelo e2e e pela unidade, que olham o texto, o foco e o link. O rodapé a 360 px empilha cinco botões à direita, com larguras diferentes: já no `TODO.md` (19.0, `frontend-reviewer`, dono a tarefa do `Sheet`); não esconde nem embaralha a ação |
+| RF16 Isolamento (a rota nova) | ATENDIDO | `convite.repository.ts:143` e `:156` (as duas consultas novas com `requireEscolaId()`); a rota passa antes pelo `professorSobATrava` da escola da sessão | `professores-corrigir-email.int.test.ts` › "isolamento: o id da outra escola, o de aluno, o de coordenador e o inexistente respondem o mesmo NAO_ENCONTRADO, sem conta criada e sem `update` no usuário da B"; › "repository: `jaEntrou` e `trocarContaDoProfessor` só alcançam a escola do contexto…"; › "permissão: o professor e o aluno são recusados como o inexistente…"; `packages/shared/src/permissao/matriz.test.ts` (só a coordenação) | Mutação 1 vermelha. Como na provisória da rodada 1, a defesa tem duas camadas: sem a escola no `update`, a rota seguiria 404 pela trava do `professorSobATrava`; quem pega a remoção é o caso do repository |
+| RF17 Auditoria e arquivo do titular (a ação nova) | ATENDIDO | `packages/core/src/auditoria/acoes.ts:473` (`usuario.email_corrigido`: entidade `usuario`, sem `antes`, `depois` nem finalidade); `packages/core/src/auditoria/acoes-por-alvo.ts:12` (a sétima ação por alvo); `packages/core/drizzle/0048_auditoria_por_alvo_email.sql` (o índice parcial recriado com as sete); `packages/core/src/titular/leitura-do-titular.ts` (papel fixo "coordenação") | `professores-corrigir-email.int.test.ts` › "auditoria: um `usuario.email_corrigido` e um `convite.refeito`, autora a coordenação, sem e-mail, sem id de conta e sem nome", › "arquivo do professor: o ato chega com o papel \"coordenação\", sem o autor…", › "log novo: a rota só leva ids e código…"; `apps/api/test/arquivo-do-titular.int.test.ts:952` › "D85: usuario.email_corrigido (18.0) aparece no arquivo do professor… e não no de outro professor"; `packages/core/src/db/schema/auditoria-por-alvo.int.test.ts` (o índice com as sete) | Mutação 3 vermelha em dois casos. O PRD (RF17) ganhou "e-mail do professor corrigido" e "nem e-mail" na mesma triagem do Arquiteto (`9741b5f5`), com a escolha do Joaquim registrada |
+
+Provas de mutação (cada uma aplicada, o teste rodado sozinho, vermelho, e o arquivo restaurado com `git checkout --`):
+
+| RF | Cláusula removida | Teste que ficou vermelho |
+|---|---|---|
+| RF16 | `eq(usuario.escolaId, requireEscolaId())` no `update` de `trocarContaDoProfessor` (`apps/api/src/sessao/convite/convite.repository.ts:158`) | `professores-corrigir-email.int.test.ts` › "repository: `jaEntrou` e `trocarContaDoProfessor` só alcançam a escola do contexto…" (`expected true to be false`) |
+| RF11 (borda) | `if (await convites.jaEntrou(usuarioId)) throw new DomainException(ErrorCode.CONFLITO)` (`convite-de-professor.service.ts:103`) | › "quem já entrou: o professor desligado e chamado de volta… é CONFLITO, e o `contaId` fica" (`expected { status: 201 … } to deeply equal { status: 409 … }`) |
+| RF17 (D85) | `'usuario.email_corrigido'` de `ACOES_DO_USUARIO_POR_ALVO` (`packages/core/src/auditoria/acoes-por-alvo.ts:12`) | › "arquivo do professor: o ato chega com o papel \"coordenação\"…" e `arquivo-do-titular.int.test.ts` › "D85: usuario.email_corrigido (18.0) aparece no arquivo do professor…" (`expected [] to deeply equal [ { … } ]`) |
+
+### 2. Os dois itens da rodada 1
+
+| Item | Situação | Evidência |
+|---|---|---|
+| Crítico 1: o [C] da fase `professores` (Tech Spec 7c: zero 503 no login e no redefinir, todo redefinir em 204, passo (3) abaixo de 1 s) | **cumprido** | Duas rodadas de `npm run carga:importacao -- --fases professores` no commit validado, nas três condições de `docs/runbook.md:1202` ("Quando a carga vale como registro"), com o hash medido antes e depois e o `cpu.stat` das duas APIs amostrado a cada 5 s (a evidência bruta ficou na área temporária da sessão; os números estão aqui). **R1 (19:22–19:28 UTC):** `docker ps` vazio, nenhum vitest, Playwright, k6 ou portão de pé, load de 1 min 1,89 antes; hash (mediana / p90 / máx.) 29,6 / 35,7 / 41,5 ms antes e 34,2 / 82,0 / 102,1 ms depois; throttling `api-1` 309/3.258 (9,5%), `api-2` 351/3.266 (10,7%); load máximo durante, 4,44. **Passou:** zero 503 e zero 5xx nas rotas do cenário, redefinir 90 de 90 (`redefinicoes_feitas count==90`, nenhum 400/401/403/404/409/429), passo (3) 11 de 11 até 1 s (9 até 0,25 s), rajada `login_duracao{grupo:rajada}` p95 **176 ms** (máx. 661), login dos professores p95 232 ms, redefinir p95 295 ms. **R2 (19:28–19:35 UTC):** as mesmas condições, load 1,87 antes; hash 30,3 / 33,8 / 37,2 ms antes e 35,0 / 40,4 / 43,2 ms depois (no teto de ~35 ms, dentro); throttling `api-1` 308/3.225 (9,6%), `api-2` 309/3.273 (9,4%); load máximo durante, 3,12. **Passou:** zero 503 e zero 5xx, redefinir 90 de 90 (nenhum 400/401/403/404/409/429), passo (3) 11 de 11 até 1 s (9 até 0,25 s), rajada p95 **135 ms** (máx. 559), login dos professores p95 170 ms, redefinir p95 279 ms. O throttling das duas (9,4% a 10,7%) não passa da faixa que o runbook registra para esta fase (9,7% a 11,0%) |
+| Crítico 1, a causa da 1ª corrida da rodada 1 | **não provada, e dita assim** | O hash não foi medido naquela corrida, e nada do que ela anotou separa o host do produto. O que existe: cinco rodadas verdes da fase com o hash bom nas duas pontas (`prof1`, `prof2` e `estresse6` da correção, e as duas acima), com a rajada entre 135 e 210 ms contra o teto de 1.000 ms; e a única reprodução da assinatura (503 só em `/v1/sessao/matricula`, rajada acima de 1 s) veio com o hash a 68 ms, com 16 laços disputando 12 núcleos (`estresse16` da correção). Pelo runbook, aquela corrida não cumpria a condição 1 (o ambiente do e2e estava de pé) e por isso é medição, não defeito; ela fica escrita na rodada 1 e não se apaga. O que a correção deu ao processo é o que faltava: o próximo vermelho se separa do host pela medida do hash |
+| Crítico 1, (b) a rajada sozinha contra a rajada ao lado da fase | cumprido (pela correção) | `rajada1` da correção: a rajada sozinha, p95 102 ms e zero 503; ao lado da fase, 167 e 187 ms na correção e 135 e 176 ms aqui. A soma custa e não estoura |
+| Crítico 1, (c) a condição de máquina e o registro | cumprido | `docs/runbook.md:1202`, com o comando dos 20 hashes, o teto da mediana, o throttling e a regra de repetir uma vez; os ponteiros nos "Se reprovar" do login e da importação; `tasks/prd-acesso-e-convites/10_task.md:70` com a execução que faltava; o hash e as duas fases na VPS de produção no `TODO.md`, dono o Joaquim, antes do piloto |
+| Maior 1: a borda "E-mail que volta" | cumprido | RF11 acima: opção (b) do Joaquim (10/11), desenhada pelo Arquiteto na Tech Spec §5 "Corrigir o e-mail", §9 e §11 (linha "PRD, \"E-mail que volta\""), no PRD (a borda e o RF17), no `cenarios.md` ("Corrigir o e-mail"), no `docs/interface.md` (Professores, item (4)), no `docs/lgpd.md` e no `docs/modelo-de-dados.md`; implementada pela 18.0 e pela 19.0. O texto antigo do `falhou` não sobra em `apps/web/src`, `e2e/` nem `docs/` |
+
+### 3. Portão
+
+| Portão | Resultado |
+|---|---|
+| Testes de evidência, integração (isolados) | ✅ `apps/api/test/professores-corrigir-email.int.test.ts`: 25 de 25; `apps/api/test/arquivo-do-titular.int.test.ts` e `packages/core/src/db/schema/auditoria-por-alvo.int.test.ts`: 62 de 62 |
+| Testes de evidência, unidade (isolados) | ✅ `packages/shared/src/permissao/matriz.test.ts`, `packages/core/src/titular/leitura-do-titular.test.ts` e `apps/web/src/areas/coordenacao/professores/`: 11 arquivos, 232 casos |
+| e2e da tela (isolado) | ✅ `e2e/professores-envio.spec.ts`: 30 de 30, `chromebook` e `celular` (os quatro casos novos do "Corrigir o e-mail" nos dois projetos, de 3,9 a 10,3 s) |
+| Carga [C] `npm run carga:importacao -- --fases professores` | ✅ duas rodadas nas condições do runbook (seção 2) |
+| `npm run typecheck`, `npm run lint`, `npm run test`, `npm run test:e2e`, `npm run test:infra` inteiros | não rodados aqui (D79): esteira conferida no fechamento |
+| Esteira do GitHub | conferida no fechamento pelo Orquestrador: não entra no veredito |
+| Revisões com veto registradas e aprovadas | ✅ 18.0: os seis revisores com rodada 2 APROVADO (os quatro obrigatórios, `revisor-geral` e `conformidade-reviewer`); 19.0: `frontend-reviewer`, `privacy-guardian`, `tenancy-guardian`, `conformidade-reviewer` e `infra-guardian` APROVADO na 1ª, `test-engineer` REPROVADO na 1ª e APROVADO na 2ª, `revisor-geral` APROVADO nas duas; correção `carga-professores`: `infra-guardian`, `test-engineer` e `revisor-geral` APROVADO na 3ª (o `revisor-geral` reprovou a 2ª) |
+
+### 4. Achados
+
+**Críticos**
+- Nenhum.
+
+**Maiores**
+- Nenhum novo. O maior 2 da rodada 1 (o template da tarefa exigir a linha do resultado de todo [C]) segue com destino na retro, fora do escopo desta rodada.
+
+**Menores**
+1. `tasks/prd-acesso-e-convites/techspec.md:145` ("Corrigir o e-mail"): o desenho novo entrou na Tech Spec pela triagem do Arquiteto (`9741b5f5`) sem uma rodada de `revisar-spec`; os guardiões o leram só pela 18.0 (seis APROVADO na 2ª). O processo não pede `revisar-spec` para triagem de validação, e nada se perdeu aqui; vale a retro decidir se desenho novo com rota e migration pede a rodada da spec. Dono: retro de acesso-e-convites.
+2. `apps/web/src/areas/coordenacao/professores/envio-do-convite.ts:54` (`podeReenviar`): depois do "Corrigir o e-mail" o convite é `copiado` (envio nulo) e o "Reenviar" some do painel. Quem fecha o diálogo sem "Enviar por e-mail" só manda o e-mail a esse professor pelo "Enviar convites", que vai a todos os que esperam e refaz os links deles. Não quebra a borda (o diálogo oferece os dois caminhos na hora, e o e2e o anda), e o professor `copiado` já era assim antes. Dono: Arquiteto, na próxima mexida em Professores (`TODO.md`).
+3. Ambiente: para a carga parei os contêineres `educa-teste-*` dos ambientes 0, 1 e 2 (volumes mantidos). O próximo `node tools/ci/e2e.ts --manter-ambiente`, portão ou teste de integração os sobe de novo; `node tools/vitrine/vitrine.ts mostrar` só responde com a web de pé. Dono: Orquestrador, ao usar o ambiente.
+4. As recomendações sem aplicar da correção `carga-professores` (os scripts de carga medirem o hash e o throttling e recusarem o registro sozinhos; o laço de hashes durante a repetição) estão com destino o Arquiteto, por decisão do Orquestrador, e não estão no `TODO.md`. Dono: Orquestrador, no fechamento, para não se perderem.
+
+**Positivos**
+- A correção da carga disse o que não sabia ("a causa da validação é a melhor hipótese, não um fato") em vez de arredondar, e trocou o palpite por uma medida que o próximo a rodar repete.
+- O "Corrigir o e-mail" mantém o mesmo `usuario`, e por isso o vínculo e a aula que a grade deu ao professor sobrevivem sem migração de dado: a integração prova a mesma linha, e o e2e prova o professor vendo a turma.
+
+### 5. Conclusão
+
+Os dois itens que reprovaram a rodada 1 estão fechados. O [C] da fase `professores` passou duas vezes no commit validado, nas condições
+que o runbook agora escreve, com o hash medido nas duas pontas e o throttling na faixa da fase: zero 503 no login e no redefinir, 90
+de 90 redefinir, passo (3) 11 de 11 até 1 s e a rajada a 135 e 176 ms contra o teto de 1.000. A causa do vermelho da 1ª corrida da
+rodada 1 não está provada, e este relatório não a dá por provada: aquela corrida não cumpria a condição de máquina, fica escrita, e
+o critério para separar o host do produto passou a existir. A borda "E-mail que volta" ganhou o caminho que faltava, com as três
+partes do texto do PRD provadas por integração e e2e, três mutações vermelhas nos pontos de risco (o escopo da troca, quem já entrou
+e o arquivo do titular) e a tela vista nas fotos.
+
+Com os sete RF da rodada 1 atendidos e o que esta rodada tocou atendido, sem crítico nem maior novo e nenhum teste vermelho entre os
+que rodei, o veredito é APROVADA. Os menores vão ao `TODO.md` no fechamento, e o maior 2 da rodada 1 à retro.
+
+### 6. Pendências herdadas
+
+| Pendência | Destino |
+|---|---|
+| O "Corrigir o e-mail" com o e-mail de um coordenador da mesma escola liga o professor à conta dele, e o `CONFLITO` deixa a coordenação saber se um e-mail é de professor da escola | `TODO.md` (18.0, `tenancy-guardian`; 19.0, `privacy-guardian`), dono o Joaquim, decisão de produto |
+| O texto do e-mail que não serve fica no campo enquanto a pessoa digita outro | `TODO.md` (19.0, `revisor-geral`), dono o Joaquim |
+| Hash `t=12`, rajada e fase `professores` na VPS de produção (D82), antes do piloto | `TODO.md`, dono o Joaquim |
+| O template da tarefa exigir a linha do resultado de todo [C] (maior 2 da rodada 1) | retro de acesso-e-convites |
+| As pendências da seção 6 da rodada 1 | como lá |
+| Menores 1 a 4 desta rodada | `TODO.md` (o 1 à retro), pelo Orquestrador no fechamento |
+
+Fora do escopo desta rodada, pelo prompt: a correção `2026-11-10-alertas-503` (`f7904bfc`, `infra/scripts/ensaio-alertas.ts` e
+`infra/test/alertas*.ts`), que entrou depois da rodada 1; as quatro revisões obrigatórias dela têm rodada APROVADO. Commits fora do
+processo: nenhum (`git log origin/develop..HEAD -i --grep='^Fora do processo:'` não devolve nada); todo commit com código desde a
+rodada 1 tem `(tarefa N.0)`, `(correção <slug>)` ou é merge de linha.
+
 ## Rodada 1 — 10/11/2026
 
 **Escopo:** funcionalidade completa
