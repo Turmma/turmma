@@ -1,16 +1,18 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { lerTextoDaLista } from '../../apps/api/src/estrutura/lista/lista-reader.ts'
 import { classificar } from '../../packages/core/src/importacao/tipos/alunos.ts'
 import { raizRepositorio } from '../../tools/ci/executar.ts'
 import { CODIGO_THRESHOLD_CRUZADO, lerAmbienteDeCarga } from '../scripts/carga.ts'
 import type { ResumoDaFase } from '../scripts/carga-login.ts'
 import {
+  acompanharOBalde,
   ALUNOS_POR_TURMA,
   argumentosDoK6DaSala,
   chavesDoBaldeAnonimo,
   CICLO_DO_REDIS_MS,
+  descreverBaldeNaoLido,
   descreverFase,
   ESCALA,
   FASES_DO_CENARIO,
@@ -19,6 +21,7 @@ import {
   julgarCenarioDaSala,
   julgarPicoDoBalde,
   juntarOutraEscola,
+  type LeitorDoBalde,
   montarAlunos,
   PAUSA_DO_REDIS_MS,
   pedePelaConta,
@@ -27,6 +30,7 @@ import {
   textoDaLista,
   TURMAS_POR_PROFESSOR,
   turmasDosProfessores,
+  valoresDoBaldeAnonimo,
   type FaseDaSala,
 } from '../scripts/carga-sala.ts'
 import { julgarContagem, type ContagemDaEscola, type ConferenciaDaSala } from '../scripts/conferir-carga-sala.ts'
@@ -184,6 +188,73 @@ describe('veredito do cenário "reivindicação em sala"', () => {
     expect(reduzirLeiturasDoBalde([0])).toBe(0)
     expect(reduzirLeiturasDoBalde([120, 3_579, 800])).toBe(3_579)
     expect(reduzirLeiturasDoBalde([3_579])).toBe(3_579)
+  })
+
+  describe('o medidor do balde anônimo', () => {
+    /** Um Redis de cache falso: cada página do `SCAN` é a que o cursor aponta, e o `GET` lê dos valores; `null` é a chave que expirou entre uma chamada e a outra. */
+    function redisFalso(paginas: Record<string, readonly [string, readonly string[]]>, valores: Record<string, string | null>): LeitorDoBalde & { cursores: string[] } {
+      const cursores: string[] = []
+      return {
+        cursores,
+        scan: (cursor) => {
+          cursores.push(cursor)
+          const pagina = paginas[cursor]
+          if (pagina === undefined) throw new Error('cursor fora do script')
+          return Promise.resolve(pagina)
+        },
+        get: (chave) => Promise.resolve(valores[chave] ?? null),
+      }
+    }
+
+    it('segue o cursor até voltar a `0`: a chave do balde que só aparece na segunda página entra na leitura', async () => {
+      const redis = redisFalso(
+        { '0': ['17', ['cache:a', 'cache:b']], '17': ['0', ['rl:ip:172.20.0.5', 'cache:c']] },
+        { 'rl:ip:172.20.0.5': '3579' },
+      )
+      expect(await valoresDoBaldeAnonimo(redis)).toEqual([3_579])
+      expect(redis.cursores).toEqual(['0', '17'])
+    })
+
+    it('lê só as chaves do balde anônimo, descarta o valor que expirou ou não é número e junta as chaves de todas as páginas', async () => {
+      const redis = redisFalso(
+        { '0': ['5', ['rl:ip:10.0.0.1', 'rl:ip:op:10.0.0.1', 'rl:ip:senha:x', 'rl:ip:10.0.0.2']], '5': ['0', ['rl:ip:10.0.0.3', 'rl:ip:10.0.0.4']] },
+        { 'rl:ip:10.0.0.1': '120', 'rl:ip:op:10.0.0.1': '9999', 'rl:ip:senha:x': '9999', 'rl:ip:10.0.0.2': null, 'rl:ip:10.0.0.3': 'lixo', 'rl:ip:10.0.0.4': '800' },
+      )
+      expect(await valoresDoBaldeAnonimo(redis)).toEqual([120, 800])
+    })
+
+    it('uma única página que já volta a `0` é lida uma vez só, e sem chave do balde a leitura é vazia (não é 0)', async () => {
+      const redis = redisFalso({ '0': ['0', ['cache:a']] }, {})
+      expect(await valoresDoBaldeAnonimo(redis)).toEqual([])
+      expect(redis.cursores).toEqual(['0'])
+    })
+
+    it('o laço guarda o maior valor visto, conta a leitura que lança e o erro do cliente, e não perde o pico por causa do erro', async () => {
+      const respostas: (readonly number[] | Error)[] = [[120], new Error('conexão'), [3_579], [800]]
+      const medidor = acompanharOBalde(() => {
+        const resposta = respostas.shift()
+        return resposta instanceof Error ? Promise.reject(resposta) : Promise.resolve(resposta ?? [])
+      }, 1)
+      medidor.registrarErro()
+      await vi.waitFor(() => expect(respostas).toHaveLength(0))
+      expect(await medidor.parar()).toEqual({ pico: 3_579, erros: 2 })
+    })
+
+    it('sem nenhuma leitura que deu certo o pico é `undefined`, com os erros contados, e a linha "não foi lido" diz quantos', async () => {
+      let tentativas = 0
+      const medidor = acompanharOBalde(() => {
+        tentativas += 1
+        return Promise.reject(new Error('conexão'))
+      }, 1)
+      await vi.waitFor(() => expect(tentativas).toBeGreaterThanOrEqual(2))
+      const { pico, erros } = await medidor.parar()
+      expect(pico).toBeUndefined()
+      // `parar()` espera a leitura em curso: cada tentativa lançou e foi contada uma vez.
+      expect(erros).toBe(tentativas)
+      expect(descreverBaldeNaoLido('k2_conta', 3)).toBe('  k2_conta: o balde anônimo por IP não foi lido nenhuma vez (3 erros do Redis)')
+      expect(descreverBaldeNaoLido('k2_conta', 0)).toBe('  k2_conta: o balde anônimo por IP não foi lido nenhuma vez (0 erros do Redis)')
+      expect(descreverBaldeNaoLido('k2_conta', 1)).toBe('  k2_conta: o balde anônimo por IP não foi lido nenhuma vez (1 erro do Redis)')
+    })
   })
 
   it('o teto que a carga recebe é o do `.env.example`, e a previsão do primeiro dia pela conta (cerca de 3.400 por minuto) passa no corte de 80% dele', () => {
