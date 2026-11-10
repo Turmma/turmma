@@ -41,10 +41,15 @@ const TEXTO_DO_ESTADO: Readonly<Record<EstadoDoProfessorDeTeste, string>> = {
   desativado: 'Desativado. Para convidar de novo, cadastre o mesmo e-mail.',
 }
 
-/** As ações que cada estado oferece no painel do professor, pela matriz da Tech Spec, seção 4: só o convite em aberto refaz e revoga. */
+/**
+ * As ações que cada estado oferece no painel do professor, pelas matrizes da Tech Spec: só o convite em aberto refaz, revoga e deixa corrigir o e-mail
+ * (seção 4, e a seção 5 para o "Corrigir o e-mail", acesso-e-convites, 19.0). A lista vale para o professor semeado pelo banco, sem envio por e-mail
+ * (por isso sem o "Reenviar"), numa escola com o ano em curso e sem turma nem disciplina: o "Acrescentar turma" só aparece quando o professor é alocável
+ * (o vencido não é) e a escola já tem turma e disciplina, e `acoesDoPainel` o conta. Com turmas na escola, o `pendente` ganha esse botão no fim.
+ */
 const ACOES_DO_ESTADO: Readonly<Record<EstadoDoProfessorDeTeste, readonly string[]>> = {
-  pendente: ['Refazer convite', 'Revogar convite'],
-  vencido: ['Refazer convite', 'Revogar convite'],
+  pendente: ['Corrigir o e-mail', 'Refazer convite', 'Revogar convite'],
+  vencido: ['Corrigir o e-mail', 'Refazer convite', 'Revogar convite'],
   revogado: [],
   aceito: [],
   ativo: [],
@@ -680,6 +685,7 @@ test.describe('W12 (Professores): a 360 px e só com teclado', () => {
     await expect(painel).toBeVisible()
     const refazer = painel.getByRole('button', { name: 'Refazer convite', exact: true })
     const revogar = painel.getByRole('button', { name: 'Revogar convite', exact: true })
+    await alvoDeToque(painel.getByRole('button', { name: 'Corrigir o e-mail', exact: true }), 'Corrigir o e-mail')
     await alvoDeToque(refazer, 'Refazer convite')
     await alvoDeToque(revogar, 'Revogar convite')
     await alvoDeToque(painel.getByRole('button', { name: 'Fechar', exact: true }), 'Fechar')
