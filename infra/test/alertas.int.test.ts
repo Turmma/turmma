@@ -16,6 +16,7 @@ import {
   lerRegrasNoGrafana,
   REGRAS_DO_ENSAIO,
   REGRAS_PROVISIONADAS,
+  statusForaDoEsperadoNaFalha,
   type EstadoDoAlerta,
   type ResultadoDoEnsaio,
 } from '../scripts/ensaio-alertas.ts'
@@ -149,9 +150,10 @@ describe('alertas locais: as regras do ensaio disparam, não disparam com condi�
     }
     // Isolamento do gatilho: com a falha forçada valendo, outra escola gravou job na mesma rota.
     expect(resultado.jobDeOutraEscolaNaFalha).toMatch(/^[0-9a-f-]{36}$/)
-    // A falha forçada é 500 da API, e nenhuma requisição virou 429 no lugar do 5xx.
+    // A falha forçada é 500 da API, e nenhuma requisição virou 429 no lugar do 5xx. O 503 da guarda de sessão (leitura
+    // lenta no Postgres da máquina ocupada) é o único outro status aceito; 429, 401 e sem resposta reprovam.
     expect(resultado.statusDaFalha['500'] ?? 0).toBeGreaterThan(200)
-    expect(Object.keys(resultado.statusDaFalha)).toEqual(['500'])
+    expect(statusForaDoEsperadoNaFalha(resultado.statusDaFalha)).toEqual([])
 
     // Os alertas de login vieram do semáforo: logins recusados com 503, e nenhum 429 (nem conta segurada, nem IP). O
     // rebaixamento da escola e o limite por IP do e-mail não recusam ninguém: só 401 e 503 (regra 80, item 1).

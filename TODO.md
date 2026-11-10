@@ -184,6 +184,7 @@ O que trava o projeto e não se resolve programando. Vários têm prazo externo.
 
 ## Infra e operação
 
+- [ ] **(correção `2026-11-10-alertas-503`) Teto para a proporção de 503 na rota da falha do `ensaio:alertas`** (`infra-guardian`, `test-engineer`, `revisor-geral`, `privacy-guardian`, 1ª): `statusForaDoEsperadoNaFalha` aceita qualquer quantidade de 503, de qualquer origem; uma degradação real da sessão passaria. Um teto (ex.: abaixo de 5% da rota) pede dado de mais execuções no runner: um limiar sem medida refaria a intermitência.
 - [ ] (semana-do-professor, 1.0, infra-guardian, 1ª) **O `delete` da `aula` no encerramento do ano roda no request síncrono.** Dezenas de milhares de
       linhas sob `statement_timeout`, e a gravação do `PUT /v1/aulas` espera no `for share` do ano. Escrever o cenário ou o parágrafo do runbook do
       encerramento e conferir `BANCO_TIMEOUT_CONSULTA_MS` em produção (dono: Joaquim; anotado pelo Orquestrador no fechamento da F2b, 07/11/2026)

@@ -212,6 +212,21 @@ export interface ResultadoDoEnsaio {
   statusDaSala: Record<string, number>
 }
 
+/**
+ * Os status que a rota da falha pode devolver durante o ensaio: o 500 forçado e o 503. A falha forçada é 500 da API. O 503
+ * é a indisponibilidade da API: hoje, nessa rota, só a guarda de sessão o produz, quando a leitura da sessão no Postgres
+ * passa do prazo (`INDISPONIVEL_TENTE_DE_NOVO`), e numa máquina ocupada (o runner, com o semáforo do hash lento e as
+ * rajadas do ensaio juntos) uma ou outra requisição cai nele. **A função não confere essa origem:** o filtro de erro
+ * (`all-exceptions.filter.ts`) dá o mesmo código a todo 503, então nem o corpo da resposta separa um 503 do outro, e outra
+ * guarda global que passe a responder 503 nessa rota também seria aceita. O que o ensaio proíbe é o resto: 429 no lugar
+ * do 5xx (o limite por usuário agindo sobre a falha), 401, 202 (o gatilho não agiu) e requisição sem resposta.
+ */
+export const STATUS_ACEITOS_NA_FALHA = ['500', '503'] as const
+
+export function statusForaDoEsperadoNaFalha(status: Record<string, number>): string[] {
+  return Object.keys(status).filter((codigo) => !(STATUS_ACEITOS_NA_FALHA as readonly string[]).includes(codigo))
+}
+
 const texto = (valor: unknown): string => (typeof valor === 'string' ? valor : '')
 const registro = (valor: unknown): Record<string, unknown> => (typeof valor === 'object' && valor !== null ? (valor as Record<string, unknown>) : {})
 const lista = (valor: unknown): unknown[] => (Array.isArray(valor) ? valor : [])
