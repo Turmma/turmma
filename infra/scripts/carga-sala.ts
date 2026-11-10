@@ -461,50 +461,89 @@ function deixarRedisLento(porta: string): { parar: () => Promise<number> } {
   }
 }
 
+/** O que o medidor precisa do Redis de cache: uma página do `SCAN` e o valor de uma chave. Separado do `ioredis` para o laço do cursor ter caso unitário, com um `scan` falso de duas páginas. */
+export interface LeitorDoBalde {
+  scan: (cursor: string) => Promise<readonly [string, readonly string[]]>
+  get: (chave: string) => Promise<string | null>
+}
+
 /** Os valores do balde anônimo achados numa leitura: o `SCAN` percorre o cursor até voltar a `'0'`, porque o `MATCH` filtra depois de recolher cada página e o Redis de cache tem milhares de outras chaves. */
-async function valoresDoBaldeAnonimo(cliente: Redis): Promise<number[]> {
+export async function valoresDoBaldeAnonimo(leitor: LeitorDoBalde): Promise<number[]> {
   const valores: number[] = []
   let cursor = '0'
   do {
-    const [proximo, chaves] = await cliente.scan(cursor, 'MATCH', 'rl:ip:*', 'COUNT', 1_000)
+    const [proximo, chaves] = await leitor.scan(cursor)
     cursor = proximo
     for (const chave of chavesDoBaldeAnonimo(chaves)) {
       // `null`: a janela de 60 s expirou entre o `SCAN` e o `GET`, e a chave não conta como lida.
-      const valor = await cliente.get(chave)
+      const valor = await leitor.get(chave)
       if (valor !== null && Number.isFinite(Number(valor))) valores.push(Number(valor))
     }
   } while (cursor !== '0')
   return valores
 }
 
+/** O que o medidor entrega ao parar: o pico (`undefined` se nenhuma leitura achou a chave) e quantos erros do Redis houve, para o "não foi lido" dizer se foi o Redis ou foi a chave que não existia. */
+export interface MedicaoDoBalde {
+  readonly pico: number | undefined
+  readonly erros: number
+}
+
+/** A linha de quando o balde não foi lido nenhuma vez, com o contador de erros do Redis (a leitura que lançou e o evento de erro do cliente): 0 é "a chave não apareceu", e mais que isso é "o Redis falhou". */
+export function descreverBaldeNaoLido(fase: string, erros: number): string {
+  return `  ${fase}: o balde anônimo por IP não foi lido nenhuma vez (${String(erros)} ${erros === 1 ? 'erro do Redis' : 'erros do Redis'})`
+}
+
 /**
- * O pico do balde anônimo por IP, lido do Redis de cache (o do rate limit) a cada segundo enquanto o k6 roda: a chave `rl:ip:<ip>` é o consumo da
- * janela fixa de 60 s daquele IP, o número que dá `LIMITE_EXCEDIDO` quando passa do teto. O maior valor visto é o pico, e `undefined` quando nenhuma
- * leitura achou a chave (Redis fora do ar, porta errada): o veredito trata isso como "não medido", e não como 0%. Só o valor sai daqui: a chave, que
- * leva o IP, nunca é impressa nem guardada (regra 20). É só a rota anônima sem rebaixamento; o login por matrícula (`rl:ip-login`), a entrada da
- * operação (`rl:ip:op`) e o "esqueci a senha" (`rl:ip:senha`) ficam de fora.
+ * O laço do medidor: `ler` roda a cada `pausaMs` até `parar()`, e a leitura que lança conta como erro (a seguinte tenta de novo). Sem nenhuma leitura
+ * no fim o pico é `undefined`, e o veredito reprova na fase da conta. `registrarErro` é para o erro que o cliente emite fora de uma leitura (a conexão).
  */
-function medirOBaldeAnonimo(porta: string): { parar: () => Promise<number | undefined> } {
-  const cliente = new Redis({ host: '127.0.0.1', port: Number(porta), lazyConnect: false, maxRetriesPerRequest: 1 })
-  cliente.on('error', () => undefined)
+export function acompanharOBalde(ler: () => Promise<readonly number[]>, pausaMs: number): { parar: () => Promise<MedicaoDoBalde>; registrarErro: () => void } {
   let ativo = true
+  let erros = 0
   const leituras: number[] = []
   const laco = (async () => {
     while (ativo) {
       try {
-        leituras.push(...(await valoresDoBaldeAnonimo(cliente)))
+        leituras.push(...(await ler()))
       } catch {
-        // A leitura seguinte tenta de novo; sem nenhuma leitura no fim, `parar()` devolve `undefined`, e o veredito reprova na fase da conta.
+        erros += 1
       }
-      await esperar(1_000)
+      await esperar(pausaMs)
     }
   })()
   return {
+    registrarErro: () => {
+      erros += 1
+    },
     parar: async () => {
       ativo = false
       await laco
+      return { pico: reduzirLeiturasDoBalde(leituras), erros }
+    },
+  }
+}
+
+/**
+ * O pico do balde anônimo por IP, lido do Redis de cache (o do rate limit) a cada segundo enquanto o k6 roda: a chave `rl:ip:<ip>` é o consumo da
+ * janela fixa de 60 s daquele IP, o número que dá `LIMITE_EXCEDIDO` quando passa do teto. O maior valor visto é o pico, e `undefined` quando nenhuma
+ * leitura achou a chave (Redis fora do ar, porta errada): o veredito trata isso como "não medido", e não como 0%. Só o valor sai daqui: a chave, que
+ * leva o IP, nunca é impressa nem guardada (regra 20), e do erro sai só a contagem. É só a rota anônima sem rebaixamento; o login por matrícula
+ * (`rl:ip-login`), a entrada da operação (`rl:ip:op`) e o "esqueci a senha" (`rl:ip:senha`) ficam de fora.
+ */
+function medirOBaldeAnonimo(porta: string): { parar: () => Promise<MedicaoDoBalde> } {
+  const cliente = new Redis({ host: '127.0.0.1', port: Number(porta), lazyConnect: false, maxRetriesPerRequest: 1 })
+  const leitor: LeitorDoBalde = {
+    scan: (cursor) => cliente.scan(cursor, 'MATCH', 'rl:ip:*', 'COUNT', 1_000),
+    get: (chave) => cliente.get(chave),
+  }
+  const medidor = acompanharOBalde(() => valoresDoBaldeAnonimo(leitor), 1_000)
+  cliente.on('error', medidor.registrarErro)
+  return {
+    parar: async () => {
+      const medicao = await medidor.parar()
       cliente.disconnect()
-      return reduzirLeiturasDoBalde(leituras)
+      return medicao
     },
   }
 }
@@ -589,8 +628,8 @@ async function executar(fases: readonly FaseDaSala[]): Promise<number> {
         const [daFase, daOutra] = await Promise.all([k6(false), escala.comOutraEscola ? k6(true) : Promise.resolve(undefined)])
         if (lento !== undefined) escrever(`  Redis de fila pausado ${String(await lento.parar())} vezes`)
         const teto = Number(doArquivo['LIMITE_REQ_IP_ANONIMO_MIN'])
-        const pico = await baldeAnonimo.parar()
-        if (pico === undefined) escrever(`  ${fase}: o balde anônimo por IP não foi lido nenhuma vez`)
+        const { pico, erros } = await baldeAnonimo.parar()
+        if (pico === undefined) escrever(descreverBaldeNaoLido(fase, erros))
         else {
           picos.set(fase, { pico, teto })
           escrever(`  ${fase}: o balde anônimo por IP chegou a ${String(pico)} por minuto, de ${String(teto)} (${String(Math.round((pico / teto) * 100))}%)`)

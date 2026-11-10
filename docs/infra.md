@@ -244,7 +244,7 @@ só com `docker compose` (regra 00) tem exatamente o comportamento da esteira.
   `reivindicar`, e a entrada depois da aprovação: `iniciar`, `retorno` e `POST /v1/sessao/renovar`), mais 1 por código errado ou matrícula errada. A janela é
   fixa de 60 s, então a conta que importa é a do minuto mais cheio. A D48 faz da conta o caminho de todo dia: na escola com Workspace, a previsão do primeiro
   dia (2.100 alunos em 5 min, cerca de 85% pela conta) é de **cerca de 3.400 por minuto**, acima dos 3.000 que valiam antes. O `k2_conta` do cenário de carga
-  da sala mediu o pico do `rl:ip` no Redis, a cada segundo: **3.579 por minuto**, sem 429 e sem 5xx, 60% do teto novo. O cenário reprova acima de 80% do
+  da sala mediu o pico do `rl:ip` no Redis, a cada segundo: **3.678 por minuto**, sem 429 e sem 5xx, 61% do teto novo. O cenário reprova acima de 80% do
   teto (4.800). A mesma variável é o teto de `rl:ip-login` (que só rebaixa) e de `rl:ip:op` (entrada da operação, que tem proteção por conta e segundo fator).
   O `.env` da produção precisa do valor novo no próximo deploy. Os baldes por escola, por nome e por turma da sala, e o do login por conta, seguem como estavam:
   o `rl:ip` é o freio grosso de inundação. Se uma escola grande passar de 80%, a saída é um balde próprio da entrada pela conta, e não subir mais o número
