@@ -4,10 +4,12 @@ import {
   MENSAGENS_DA_SALA,
   mensagemDaSala,
   normalizarCodigoDaTurma,
+  PARAMETRO_DA_CONTA_PROVADA,
   TAMANHO_MAXIMO_CODIGO_DIGITADO,
   TAMANHO_MAXIMO_MATRICULA,
   TAMANHO_MAXIMO_SENHA,
   TAMANHO_MINIMO_SENHA_NOVA,
+  VALOR_DA_CONTA_PROVADA,
   type ReivindicarSalaRequest,
   type SalaAbertaResponse,
 } from '@educa/shared'
@@ -23,11 +25,10 @@ import { PasswordInput } from '../components/ui/fields/PasswordInput'
 import { CascaPublica } from '../components/CascaPublica'
 import { LoadingState } from '../components/states'
 import { usePageTitle } from '../document-title'
+import { apagarCaminhoDaSala, lerCaminhoDaSala, type Caminho } from './caminho-da-sala'
+import { ContaDaEscolaNaSala } from './ContaDaEscolaNaSala'
 import { clearFragment, readFragmentToken } from './url-fragment'
 import { enviarComReenvio } from './retry-with-backoff'
-
-/** Por onde a página chegou à turma: o link do professor, com o token, ou o código que o aluno digitou. */
-type Caminho = { readonly tipo: 'link'; readonly token: string } | { readonly tipo: 'codigo'; readonly codigo: string }
 
 type NomeLivre = SalaAbertaResponse['nomes'][number]
 
@@ -36,10 +37,11 @@ type Etapa =
   | { readonly nome: 'codigo'; readonly aviso?: string; readonly abrindo: boolean }
   /** O link abrindo a turma. */
   | { readonly nome: 'abrindo' }
-  /** O link que não abriu por rede, servidor ou limite: "Tentar de novo" usa o token que ficou na memória. */
-  | { readonly nome: 'falhou'; readonly caminho: Extract<Caminho, { tipo: 'link' }>; readonly erro: unknown }
-  | { readonly nome: 'aberta'; readonly caminho: Caminho; readonly turma: string; readonly nomes: readonly NomeLivre[] }
-  | { readonly nome: 'enviado'; readonly caminho: Caminho }
+  /** O link que não abriu por rede, servidor ou limite, ou a volta do provedor que não abriu a sala: "Tentar de novo" usa o caminho que ficou na memória. */
+  | { readonly nome: 'falhou'; readonly caminho: Caminho; readonly erro: unknown; readonly conta: boolean }
+  /** `conta`: o aluno provou a conta da escola (a volta do provedor) e o pedido do nome sai sem senha. */
+  | { readonly nome: 'aberta'; readonly caminho: Caminho; readonly turma: string; readonly nomes: readonly NomeLivre[]; readonly conta: boolean }
+  | { readonly nome: 'enviado'; readonly caminho: Caminho; readonly conta: boolean }
 
 const codigoDoErro = (erro: unknown): ErrorCode => (erro instanceof ApiError ? erro.codigo : ErrorCode.ERRO_INTERNO)
 const esperaDoErro = (erro: unknown): number | undefined => (erro instanceof ApiError ? erro.esperaSegundos : undefined)
@@ -47,8 +49,41 @@ const esperaDoErro = (erro: unknown): number | undefined => (erro instanceof Api
 /** O caminho como o contrato o leva: o token **ou** o código, nunca os dois. */
 const noPedido = (caminho: Caminho): { token: string } | { codigo: string } => (caminho.tipo === 'link' ? { token: caminho.token } : { codigo: caminho.codigo })
 
+/** Como a página começa: a tela, o foco no campo do código e a abertura que o efeito dispara (a do link, ou a da volta do provedor, com `conta`). */
+interface Comeco {
+  readonly etapa: Etapa
+  readonly foco: number
+  readonly abrir: { readonly caminho: Caminho; readonly conta: boolean } | undefined
+}
+
+/**
+ * Lê o endereço e o `sessionStorage`, sem apagar nada (a leitura da primeira renderização é pura; o efeito apaga). O link no fragmento vence: é outra sala, e a prova da conta
+ * não vale para ela. Com `?conta=provada` (que a API põe ao devolver o aluno com a conta provada), o caminho guardado antes de sair abre a sala; sem ele (vencido, de outro slug, aba
+ * nova), o aluno recomeça pelo link ou pelo código, com o aviso e o foco no campo, e a API nem é chamada.
+ */
+function comecar(slug: string): Comeco {
+  const token = readFragmentToken()
+  if (token !== undefined) return { etapa: { nome: 'abrindo' }, foco: 0, abrir: { caminho: { tipo: 'link', token }, conta: false } }
+  const voltou = new URL(window.location.href).searchParams.get(PARAMETRO_DA_CONTA_PROVADA) === VALOR_DA_CONTA_PROVADA
+  if (!voltou) return { etapa: { nome: 'codigo', abrindo: false }, foco: 0, abrir: undefined }
+  const caminho = lerCaminhoDaSala(slug)
+  if (caminho === undefined) return { etapa: { nome: 'codigo', aviso: CONTA_PERDIDA, abrindo: false }, foco: 1, abrir: undefined }
+  return { etapa: { nome: 'abrindo' }, foco: 0, abrir: { caminho, conta: true } }
+}
+
+/** Tira o `?conta=provada` da barra, sem recarregar e sem entrada nova no histórico: fica no histórico do computador compartilhado e valeria de novo a cada F5. */
+function tirarAContaDaBarra(): void {
+  const endereco = new URL(window.location.href)
+  if (!endereco.searchParams.has(PARAMETRO_DA_CONTA_PROVADA)) return
+  endereco.searchParams.delete(PARAMETRO_DA_CONTA_PROVADA)
+  window.history.replaceState(null, '', `${endereco.pathname}${endereco.search}${endereco.hash}`)
+}
+
 /** O código em branco: o aluno apertou "Abrir a turma" sem digitar. */
 const CODIGO_EM_BRANCO = 'Digite o código da turma que o professor mostrou.'
+
+/** A volta do provedor sem o caminho da sala (guardado, do mesmo slug e de até 15 min), ou o pedido que a API recusou por conta vencida: o aluno recomeça pelo link ou pelo código. */
+const CONTA_PERDIDA = 'Comece de novo pelo link ou pelo código da sala'
 
 const CLASSES_DO_AVISO = 'rounded-controle border border-erro bg-erro-cx p-4 break-words text-erro'
 
@@ -66,15 +101,19 @@ const CLASSES_DO_AVISO = 'rounded-controle border border-erro bg-erro-cx p-4 bre
  * - **Cada abertura tem a sua vez** (`vez`): a resposta de uma abertura anterior — o código de antes, o link de antes —
  *   que chega depois não troca a turma da tela. O envio do nome também confere a vez em que saiu.
  * - **O texto do `NAO_ENCONTRADO` é o do caminho usado** (W9): o servidor responde igual ao link e ao código.
+ * - **A conta da escola (acesso-e-convites, 16.0; RF14):** com o provedor liberado, o botão de `ContaDaEscolaNaSala` leva o aluno a provar a conta. A única coisa que fica no
+ *   navegador é o caminho da sala (token ou código), no `sessionStorage` da aba por até 15 min, e só na ida ao provedor (`caminho-da-sala.ts`): a volta, `?conta=provada`, o lê, e a
+ *   primeira renderização o apaga e tira o parâmetro da barra. Com a conta provada o formulário não tem senha, e o pedido sai sem ela. O domínio não liberado, a conta pessoal e
+ *   a queda do provedor não voltam aqui: a API os leva à entrada da escola (divergência da 16.0).
  */
 export function TurmaPublica({ slug }: { slug: string }) {
   usePageTitle('Entrar na turma')
-  // O token é lido na primeira renderização, e o efeito tira o fragmento da barra antes da primeira chamada sair.
-  const [tokenInicial] = useState(readFragmentToken)
-  const [etapa, definirEtapa] = useState<Etapa>(() => (tokenInicial === undefined ? { nome: 'codigo', abrindo: false } : { nome: 'abrindo' }))
+  // O token (ou a volta do provedor) é lido na primeira renderização, e o efeito tira o fragmento da barra antes da primeira chamada sair.
+  const [comeco] = useState(() => comecar(slug))
+  const [etapa, definirEtapa] = useState<Etapa>(comeco.etapa)
   const [codigoDigitado, definirCodigoDigitado] = useState('')
   // Sobe a cada vez que a tela leva o aluno ao campo do código: o campo pega o foco também quando já estava na tela.
-  const [focoNoCodigo, definirFocoNoCodigo] = useState(0)
+  const [focoNoCodigo, definirFocoNoCodigo] = useState(comeco.foco)
   const vez = useRef(0)
   const codigoNoAr = useRef(false)
 
@@ -85,14 +124,15 @@ export function TurmaPublica({ slug }: { slug: string }) {
 
   /**
    * Lê a turma pelo caminho, na vez dada: a resposta de uma vez que já passou não muda nada. `recarga` é a lista relida
-   * depois de uma recusa (o nome pode ter sido tomado): a tela continua com o formulário, e só os nomes mudam.
+   * depois de uma recusa (o nome pode ter sido tomado): a tela continua com o formulário, e só os nomes mudam. `conta` é a volta do
+   * provedor: o pedido do nome sairá sem senha, e a falha de rede oferece "Tentar de novo" também pelo código, porque o aluno não digitou nada.
    */
   const buscar = useCallback(
-    async (caminho: Caminho, minhaVez: number, recarga: boolean): Promise<void> => {
+    async (caminho: Caminho, minhaVez: number, recarga: boolean, conta: boolean): Promise<void> => {
       try {
         const resposta = await abrirSala({ slug, ...noPedido(caminho) })
         if (vez.current !== minhaVez) return
-        definirEtapa({ nome: 'aberta', caminho, turma: resposta.turma.nome, nomes: resposta.nomes })
+        definirEtapa({ nome: 'aberta', caminho, turma: resposta.turma.nome, nomes: resposta.nomes, conta })
       } catch (erro) {
         if (vez.current !== minhaVez) return
         const codigo = codigoDoErro(erro)
@@ -100,8 +140,8 @@ export function TurmaPublica({ slug }: { slug: string }) {
         if (codigo === ErrorCode.NAO_ENCONTRADO) mostrarCodigo(mensagemDaSala(codigo, { caminho: caminho.tipo }))
         // A recarga que cai por outro motivo deixa a lista de antes: o aviso da recusa já diz o que fazer.
         else if (recarga) return
-        else if (caminho.tipo === 'codigo') mostrarCodigo(mensagemDaSala(codigo, { caminho: 'codigo', esperaSegundos: esperaDoErro(erro), esgotado: true }))
-        else definirEtapa({ nome: 'falhou', caminho, erro })
+        else if (caminho.tipo === 'codigo' && !conta) mostrarCodigo(mensagemDaSala(codigo, { caminho: 'codigo', esperaSegundos: esperaDoErro(erro), esgotado: true }))
+        else definirEtapa({ nome: 'falhou', caminho, erro, conta })
       }
     },
     [slug, mostrarCodigo],
@@ -109,23 +149,27 @@ export function TurmaPublica({ slug }: { slug: string }) {
 
   /** Abre a turma numa vez nova: o que estava no ar com a vez anterior é descartado quando volta. */
   const abrir = useCallback(
-    (caminho: Caminho, recarga = false): Promise<void> => {
+    (caminho: Caminho, opcoes: { readonly recarga?: boolean; readonly conta?: boolean } = {}): Promise<void> => {
+      const { recarga = false, conta = false } = opcoes
       const minhaVez = ++vez.current
-      if (!recarga) definirEtapa(caminho.tipo === 'link' ? { nome: 'abrindo' } : { nome: 'codigo', abrindo: true })
-      return buscar(caminho, minhaVez, recarga)
+      if (!recarga) definirEtapa(caminho.tipo === 'link' || conta ? { nome: 'abrindo' } : { nome: 'codigo', abrindo: true })
+      return buscar(caminho, minhaVez, recarga, conta)
     },
     [buscar],
   )
 
-  // A primeira abertura, pelo link, com a tela já em "Abrindo a turma…"; e a página que sai descarta o que estiver no ar.
+  // A primeira abertura, pelo link ou pela volta do provedor, com a tela já em "Abrindo a turma…"; e a página que sai descarta o que estiver no ar.
+  // O fragmento, o `?conta=provada` e o caminho guardado saem aqui, volte ou não o provedor: o colega que abre a sala na mesma aba depois não herda nada.
   useEffect(() => {
     const contador = vez
     clearFragment()
-    if (tokenInicial !== undefined) void buscar({ tipo: 'link', token: tokenInicial }, ++contador.current, false)
+    tirarAContaDaBarra()
+    apagarCaminhoDaSala()
+    if (comeco.abrir !== undefined) void buscar(comeco.abrir.caminho, ++contador.current, false, comeco.abrir.conta)
     return () => {
       contador.current++
     }
-  }, [tokenInicial, buscar])
+  }, [comeco, buscar])
 
   // Outro link colado nesta aba muda só o `#`, sem recarregar: a tela recomeça por ele, e o que estava digitado sai.
   useEffect(() => {
@@ -187,35 +231,64 @@ export function TurmaPublica({ slug }: { slug: string }) {
         />
       )}
       {etapa.nome === 'abrindo' && <LoadingState rotulo="Abrindo a turma…" />}
-      {etapa.nome === 'falhou' && <FalhaDoLink erro={etapa.erro} aoTentarDeNovo={() => void abrir(etapa.caminho)} />}
+      {etapa.nome === 'falhou' && <FalhaDoLink caminho={etapa.caminho.tipo} erro={etapa.erro} aoTentarDeNovo={() => void abrir(etapa.caminho, { conta: etapa.conta })} />}
       {etapa.nome === 'aberta' && (
-        <>
-          <TituloDaTurma turma={etapa.turma} />
-          {etapa.nomes.length === 0 ? (
-            <div className="flex flex-col gap-2 rounded-cartao border border-linha bg-superficie p-4">
-              <p className="font-medium">Nenhum nome livre nesta turma.</p>
-              <p className="text-apoio">Se o seu nome não aparece, chame o professor.</p>
-            </div>
-          ) : (
-            <FormularioDoNome
-              slug={slug}
-              caminho={etapa.caminho}
-              nomes={etapa.nomes}
-              vezAgora={() => vez.current}
-              aoEnviar={() => definirEtapa({ nome: 'enviado', caminho: etapa.caminho })}
-              aoRecarregar={() => void abrir(etapa.caminho, true)}
-              aoPerderOAcesso={() => mostrarCodigo(mensagemDaSala(ErrorCode.NAO_ENCONTRADO, { caminho: etapa.caminho.tipo }))}
-            />
-          )}
-          <div>
-            <button type="button" onClick={usarOutroCodigo} className={SECONDARY_BUTTON_CLASSES}>
-              Não é a sua turma? Usar outro código
-            </button>
-          </div>
-        </>
+        <TurmaAberta
+          slug={slug}
+          etapa={etapa}
+          vezAgora={() => vez.current}
+          aoEnviar={() => definirEtapa({ nome: 'enviado', caminho: etapa.caminho, conta: etapa.conta })}
+          aoRecarregar={() => void abrir(etapa.caminho, { recarga: true, conta: etapa.conta })}
+          aoPerderOAcesso={() => mostrarCodigo(mensagemDaSala(ErrorCode.NAO_ENCONTRADO, { caminho: etapa.caminho.tipo }))}
+          aoPerderAConta={() => mostrarCodigo(CONTA_PERDIDA)}
+          aoUsarOutroCodigo={usarOutroCodigo}
+        />
       )}
-      {etapa.nome === 'enviado' && <PedidoEnviado slug={slug} aoVoltar={() => void abrir(etapa.caminho)} />}
+      {/* "Voltar à lista de nomes" abre a sala sem `conta`, de propósito: o cookie da conta provada foi apagado no envio, e a lista volta ao formulário de matrícula e senha. */}
+      {etapa.nome === 'enviado' && <PedidoEnviado slug={slug} conta={etapa.conta} aoVoltar={() => void abrir(etapa.caminho)} />}
     </CascaPublica>
+  )
+}
+
+/**
+ * A turma aberta: o título, a conta da escola (o botão que a prova, ou o aviso de que já foi provada), os nomes livres com o formulário, e a saída "Usar outro código".
+ * Sem nome livre não há formulário nem botão da conta: o aluno só pode chamar o professor.
+ */
+function TurmaAberta(props: {
+  readonly slug: string
+  readonly etapa: Extract<Etapa, { nome: 'aberta' }>
+  readonly vezAgora: () => number
+  readonly aoEnviar: () => void
+  readonly aoRecarregar: () => void
+  readonly aoPerderOAcesso: () => void
+  readonly aoPerderAConta: () => void
+  readonly aoUsarOutroCodigo: () => void
+}) {
+  const { slug, etapa, aoUsarOutroCodigo, ...formulario } = props
+  const { caminho, conta, nomes, turma } = etapa
+  return (
+    <>
+      <TituloDaTurma turma={turma} />
+      {nomes.length > 0 && !conta && <ContaDaEscolaNaSala slug={slug} caminho={caminho} />}
+      {nomes.length > 0 && conta && (
+        <p role="status" className="rounded-controle border border-pendente bg-pendente-cx p-4 text-pendente">
+          Conta da escola confirmada. Escolha o seu nome e informe a matrícula: não precisa criar senha.
+        </p>
+      )}
+      {nomes.length === 0 ? (
+        <div className="flex flex-col gap-2 rounded-cartao border border-linha bg-superficie p-4">
+          <p className="font-medium">Nenhum nome livre nesta turma.</p>
+          <p className="text-apoio">Se o seu nome não aparece, chame o professor.</p>
+        </div>
+      ) : (
+        <FormularioDoNome slug={slug} caminho={caminho} conta={conta} nomes={nomes} {...formulario} />
+      )}
+      <div>
+        <button type="button" onClick={aoUsarOutroCodigo} className={SECONDARY_BUTTON_CLASSES}>
+          Não é a sua turma? Usar outro código
+        </button>
+      </div>
+    </>
   )
 }
 
@@ -293,12 +366,12 @@ function FormularioDoCodigo({
   )
 }
 
-/** O link que não abriu por rede, servidor ou limite. O `NAO_ENCONTRADO` não chega aqui: ele leva ao código. */
-function FalhaDoLink({ erro, aoTentarDeNovo }: { erro: unknown; aoTentarDeNovo: () => void }) {
+/** O link (ou a volta do provedor) que não abriu por rede, servidor ou limite. O `NAO_ENCONTRADO` não chega aqui: ele leva ao código. */
+function FalhaDoLink({ caminho, erro, aoTentarDeNovo }: { caminho: Caminho['tipo']; erro: unknown; aoTentarDeNovo: () => void }) {
   return (
     <div className="rounded-cartao border border-erro bg-erro-cx p-4">
       <p role="alert" className="break-words text-erro">
-        {mensagemDaSala(codigoDoErro(erro), { caminho: 'link', esperaSegundos: esperaDoErro(erro), esgotado: true })}
+        {mensagemDaSala(codigoDoErro(erro), { caminho, esperaSegundos: esperaDoErro(erro), esgotado: true })}
       </p>
       <div className="mt-3">
         <Button onClick={aoTentarDeNovo}>Tentar de novo</Button>
@@ -315,13 +388,17 @@ function FalhaDoLink({ erro, aoTentarDeNovo }: { erro: unknown; aoTentarDeNovo: 
 function FormularioDoNome(props: {
   readonly slug: string
   readonly caminho: Caminho
+  /** O aluno provou a conta da escola: não há campo de senha, e o pedido sai sem ela (a conta vem do cookie, no servidor). */
+  readonly conta: boolean
   readonly nomes: readonly NomeLivre[]
   readonly vezAgora: () => number
   readonly aoEnviar: () => void
   readonly aoRecarregar: () => void
   readonly aoPerderOAcesso: () => void
+  /** A API recusou a conta (cookie vencido, ausente ou de outra sala): a prova se refaz pelo link ou pelo código. */
+  readonly aoPerderAConta: () => void
 }) {
-  const { slug, caminho, nomes, vezAgora, aoEnviar, aoRecarregar, aoPerderOAcesso } = props
+  const { slug, caminho, conta, nomes, vezAgora, aoEnviar, aoRecarregar, aoPerderOAcesso, aoPerderAConta } = props
   const [escolhido, definirEscolhido] = useState<string | undefined>(undefined)
   const [matricula, definirMatricula] = useState('')
   const [senha, definirSenha] = useState('')
@@ -358,8 +435,11 @@ function FormularioDoNome(props: {
     }
     // A matrícula vai como foi digitada: o contrato tira o espaço das pontas, como na lista (`matriculaDigitadaSchema`).
     const anterior = semResposta.current
-    const mesmoPedido = anterior !== undefined && anterior.listaNomeId === nomeEscolhido.id && anterior.matricula === matricula && anterior.senha === senha
-    const pedido: ReivindicarSalaRequest = mesmoPedido ? anterior : { slug, ...noPedido(caminho), listaNomeId: nomeEscolhido.id, matricula, senha, chaveEnvio: crypto.randomUUID() }
+    const senhaDoPedido = conta ? undefined : senha
+    const mesmoPedido = anterior !== undefined && anterior.listaNomeId === nomeEscolhido.id && anterior.matricula === matricula && anterior.senha === senhaDoPedido
+    const pedido: ReivindicarSalaRequest = mesmoPedido
+      ? anterior
+      : { slug, ...noPedido(caminho), listaNomeId: nomeEscolhido.id, matricula, ...(senhaDoPedido === undefined ? {} : { senha: senhaDoPedido }), chaveEnvio: crypto.randomUUID() }
     noAr.current = true
     definirEnviando(true)
     definirAviso(undefined)
@@ -389,6 +469,11 @@ function FormularioDoNome(props: {
     const codigo = codigoDoErro(desfecho.erro)
     if (codigo === ErrorCode.NAO_ENCONTRADO) {
       aoPerderOAcesso()
+      return
+    }
+    // Sem senha, o `ENTRADA_INVALIDA` é a conta que não vale mais para esta sala (os campos já saem conferidos daqui): provar de novo.
+    if (conta && codigo === ErrorCode.ENTRADA_INVALIDA) {
+      aoPerderAConta()
       return
     }
     definirAviso(mensagemDaSala(codigo, { caminho: caminho.tipo, esperaSegundos: esperaDoErro(desfecho.erro) }))
@@ -451,22 +536,24 @@ function FormularioDoNome(props: {
         }}
         descritoTambemPor={descritoPor}
       />
-      <PasswordInput
-        rotulo="Crie uma senha"
-        dica={`Pelo menos ${String(TAMANHO_MINIMO_SENHA_NOVA)} caracteres. Use uma frase que só você saiba: é com ela e com a matrícula que você vai entrar.`}
-        name="senha"
-        // `off`, e não `new-password`: o computador é da escola, e o navegador não pode oferecer guardar a senha do aluno
-        // para o próximo que sentar ali (W11).
-        autoComplete="off"
-        required
-        minLength={TAMANHO_MINIMO_SENHA_NOVA}
-        maxLength={TAMANHO_MAXIMO_SENHA}
-        value={senha}
-        onChange={(evento) => {
-          definirSenha(evento.target.value)
-          mudou()
-        }}
-      />
+      {!conta && (
+        <PasswordInput
+          rotulo="Crie uma senha"
+          dica={`Pelo menos ${String(TAMANHO_MINIMO_SENHA_NOVA)} caracteres. Use uma frase que só você saiba: é com ela e com a matrícula que você vai entrar.`}
+          name="senha"
+          // `off`, e não `new-password`: o computador é da escola, e o navegador não pode oferecer guardar a senha do aluno
+          // para o próximo que sentar ali (W11).
+          autoComplete="off"
+          required
+          minLength={TAMANHO_MINIMO_SENHA_NOVA}
+          maxLength={TAMANHO_MAXIMO_SENHA}
+          value={senha}
+          onChange={(evento) => {
+            definirSenha(evento.target.value)
+            mudou()
+          }}
+        />
+      )}
       {aviso !== undefined && (
         <p id={idDoAviso} role="alert" className={CLASSES_DO_AVISO}>
           {aviso}
@@ -487,7 +574,7 @@ function FormularioDoNome(props: {
  * aprovação (R5). A decisão é de uma pessoa, e a recusa devolve o nome à lista (nota da 8.0). Nada do pedido aparece
  * aqui: nem o nome, nem a matrícula — o próximo aluno pode usar o mesmo computador.
  */
-function PedidoEnviado({ slug, aoVoltar }: { slug: string; aoVoltar: () => void }) {
+function PedidoEnviado({ slug, conta, aoVoltar }: { slug: string; conta: boolean; aoVoltar: () => void }) {
   const titulo = useRef<HTMLHeadingElement>(null)
   useEffect(() => {
     titulo.current?.focus()
@@ -499,7 +586,9 @@ function PedidoEnviado({ slug, aoVoltar }: { slug: string; aoVoltar: () => void 
       </h2>
       <p>Agora o seu pedido espera o professor. Quem aprova ou recusa é uma pessoa: o professor da turma ou a coordenação.</p>
       <p className="rounded-controle border border-pendente bg-pendente-cx p-4 text-pendente">
-        Até a aprovação, a entrada da escola responde “Matrícula ou senha incorretas”. Não é erro: é só esperar o professor aprovar.
+        {conta
+          ? 'Espere o professor aprovar. Até lá, entrar com a conta da escola diz que ela não está liberada. Não é erro: depois da aprovação você entra por ela.'
+          : 'Até a aprovação, a entrada da escola responde “Matrícula ou senha incorretas”. Não é erro: é só esperar o professor aprovar.'}
       </p>
       <p className="text-apoio">Se o pedido for recusado, o seu nome volta para a lista, e você pode pedir de novo.</p>
       <Link to={caminhoDaEscola(slug)} className={SECONDARY_LINK_CLASSES}>

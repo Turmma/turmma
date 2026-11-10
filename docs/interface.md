@@ -2040,6 +2040,22 @@ A entrada, o convite, a reivindicação de nome e a verificação em duas etapas
     bilhete), e a resposta de uma lista que chega depois de o aluno ter saído não troca a lista de quem entrou. O diálogo "Sua sessão expirou" do
     aluno, se receber a provisória, leva à mesma tela
 
+- **"Entrar com a conta da escola" na sala** (`/e/<escola>/turma`; acesso-e-convites, 16.0; RF14). Na sala já aberta, com nome livre e a escola com Google ou Microsoft liberado, um
+  cartão "Tem a conta da escola?" ("Entre com ela e peça o seu nome sem criar senha.") traz o botão `secundario` **"Entrar com a conta da escola"** (com os dois provedores, um por provedor,
+  "Entrar com a conta Google da escola"), de 44 px, acima do formulário de matrícula e senha, que segue ali. Sem provedor liberado, enquanto a lista dos provedores carrega e quando a leitura dela
+  falha, o cartão não existe: o formulário é o caminho de toda escola. O botão é navegação ao provedor (o `iniciar` com `intencao=reivindicar`) e fica ocupado ("Entrando…", com o mesmo texto num
+  `status`) até o navegador sair; voltar pelo botão do navegador o desocupa. Antes de sair, a tela guarda o **caminho da sala** (o token do link ou o código digitado) no `sessionStorage` da aba, por
+  até 15 min: o token do link vive no `#` e não volta do provedor. Sem `sessionStorage`, o aluno não sai, e o aviso diz "Não foi possível entrar com a conta da escola agora. Use a matrícula e a senha."
+  - **A volta** é `/e/<escola>/turma?conta=provada`. A tela lê o caminho guardado, tira o `?conta=provada` da barra e apaga o caminho na primeira renderização, e abre a sala por ele. Com a conta
+    provada, o cartão do botão dá lugar a "Conta da escola confirmada. Escolha o seu nome e informe a matrícula: não precisa criar senha.", o formulário **não tem o campo de senha**, e o pedido sai
+    sem ela (a conta vem do cookie, no servidor). Nada do provedor aparece: nem e-mail, nem nome, nem foto.
+  - **"Pedido enviado"** é a tela de sempre, com a espera dita para a conta: "Espere o professor aprovar. Até lá, entrar com a conta da escola diz que ela não está liberada. Não é erro: depois da
+    aprovação você entra por ela." "Voltar à lista de nomes" abre a sala de novo com o formulário de matrícula e senha e o botão da conta, sem nada do aluno anterior.
+  - **Recusas.** Caminho que falta, venceu (mais de 15 min), é de outra sala, ou o servidor que não reconhece a conta (cookie vencido, ausente ou de outra sala): "Comece de novo pelo link ou pelo código
+    da sala", no campo do código, com o foco nele, sem chamar a API quando é a tela quem sabe. A recusa do nome, o limite e o servidor cheio têm os textos de sempre da sala, e a rede que cai ao abrir a
+    sala pela volta mostra "Tentar de novo", que a abre ainda com a conta provada. **O domínio não liberado, a conta pessoal, a ligada a aluno desativado e a queda do provedor não voltam à sala:** vão
+    à entrada da escola, com o texto dela (divergência da 16.0). O `CONFLITO` não chega à sala: nasce na aprovação, na tela do professor.
+
 ### 11.4 A operação
 
 Uma tela só, sem lateral (seção 5a).

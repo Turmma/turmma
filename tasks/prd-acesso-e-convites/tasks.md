@@ -107,12 +107,12 @@
   - [ ] 15.3 `docs/interface.md`
   - [ ] 15.4 Testes: ligar em "Eu", uma conta por aluno, gerar × ligar, aprovar × ligar, a tela
 
-- [ ] **16.0 — A tela "Conta da escola na sala"**
-  - [ ] 16.1 O botão e o retorno do provedor na sala
-  - [ ] 16.2 Os estados
-  - [ ] 16.3 `docs/interface.md`
-  - [ ] 16.4 O `docs/roteiro-da-demonstracao.md` (seção 2, passo 10) conferido contra `e2e/roteiro-da-demonstracao.spec.ts`
-  - [ ] 16.5 Testes: reivindicar com o `oidc-falso` até entrar, estados, recomeço, 360 px
+- [x] **16.0 — A tela "Conta da escola na sala"**
+  - [x] 16.1 O botão e o retorno do provedor na sala
+  - [x] 16.2 Os estados
+  - [x] 16.3 `docs/interface.md`
+  - [x] 16.4 O `docs/roteiro-da-demonstracao.md` (seção 2, passo 10) conferido contra `e2e/roteiro-da-demonstracao.spec.ts`
+  - [x] 16.5 Testes: reivindicar com o `oidc-falso` até entrar, estados, recomeço, 360 px
 
 - [x] **17.0 — A leitura do alvo da senha provisória (API)** (a "12a" da divergência da 12.0; vem antes dela)
   - [x] 17.1 O contrato e a finalidade fixa em `packages/shared`

@@ -237,6 +237,20 @@ só com `docker compose` (regra 00) tem exatamente o comportamento da esteira.
   atrás de um NAT
 - Proteção de força bruta no login é por conta (escola + matrícula), com espera crescente.
   Bloquear o IP da escola bloqueia 400 alunos por causa de um
+- **O teto do IP anônimo é 6.000 por minuto (`LIMITE_REQ_IP_ANONIMO_MIN`, acesso-e-convites, 16.0).** Só conta nele a rota `@Public()` sem rebaixamento
+  (`rate-limit.guard.ts`): o login por matrícula e por e-mail vai para `rl:ip-login` e nunca recusa, a entrada da operação tem o `rl:ip:op`. A sala gasta no
+  balde anônimo **3 requisições por aluno que pede pela matrícula** (`abrir`, a leitura dos provedores, `reivindicar`; a entrada depois da aprovação é o
+  login por matrícula, fora do balde) e **9 por aluno que pede e entra pela conta da escola** (`abrir`, provedores, `iniciar`, `retorno`, `abrir` de novo,
+  `reivindicar`, e a entrada depois da aprovação: `iniciar`, `retorno` e `POST /v1/sessao/renovar`), mais 1 por código errado ou matrícula errada. A janela é
+  fixa de 60 s, então a conta que importa é a do minuto mais cheio. A D48 faz da conta o caminho de todo dia: na escola com Workspace, a previsão do primeiro
+  dia (2.100 alunos em 5 min, cerca de 85% pela conta) é de **cerca de 3.400 por minuto**, acima dos 3.000 que valiam antes. O `k2_conta` do cenário de carga
+  da sala mediu o pico do `rl:ip` no Redis, a cada segundo: **3.579 por minuto**, sem 429 e sem 5xx, 60% do teto novo. O cenário reprova acima de 80% do
+  teto (4.800). A mesma variável é o teto de `rl:ip-login` (que só rebaixa) e de `rl:ip:op` (entrada da operação, que tem proteção por conta e segundo fator).
+  O `.env` da produção precisa do valor novo no próximo deploy. Os baldes por escola, por nome e por turma da sala, e o do login por conta, seguem como estavam:
+  o `rl:ip` é o freio grosso de inundação. Se uma escola grande passar de 80%, a saída é um balde próprio da entrada pela conta, e não subir mais o número
+  (pergunta aberta no `TODO.md`, antes do piloto). **O teto também governa o risco do código de turma:** quem acerta um código vigente vê os nomes livres da turma, que são de
+  menores, e o mesmo teto limita as tentativas por IP. Com 6.000 o ritmo por IP dobrou: perto de 0,4% de chance em uma semana, eram ~0,2% com os 3.000. O alerta por escola e a
+  revogação (`docs/runbook.md`) continuam sendo a resposta, e o teto não sobe sem refazer essa conta.
 
 ### 5.2 Filas por prioridade
 

@@ -253,6 +253,11 @@ rodada 1) acrescentou os casos marcados (F2c) e as seções "Arquivo do titular"
   dos mesmos professores: zero 503 no login e no redefinir; passo (3) do job abaixo de 1 s. Roda na fase `professores` da
   carga da importação (Tech Spec, 7c, "Onde roda o [C]").
 
+- [C] A sala com a conta da escola (16.0) na carga da A1: cada aluno lê os provedores da escola, e 1 em 20 pede o nome pela conta (ida ao `oidc-falso`, volta,
+  sala aberta de novo, pedido sem senha). A fase `k2_conta` é a escola da D48 (cerca de 85% pela conta; o aprovado entra pela conta: `iniciar`, `retorno`, `renovar`).
+  Zero 5xx e zero 429 nas rotas da sala, e o pico do balde anônimo por IP (`rl:ip`, lido do Redis) abaixo de 80% do `LIMITE_REQ_IP_ANONIMO_MIN` (6.000); a
+  conferência no banco fecha as contas ligadas e as sessões abertas pela conta (Tech Spec, 7c, "A sala com a conta da escola").
+
 ## A1 e F2 que mudam de regra
 
 - `apps/api/test/convite.int.test.ts`: os casos em que uma conta de outra escola aceita convite por link copiado (linhas 320,

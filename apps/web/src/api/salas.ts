@@ -1,5 +1,14 @@
-import { reivindicacaoResponseSchema, salaAbertaResponseSchema, type AbrirSalaRequest, type ReivindicarSalaRequest, type ReivindicacaoResponse, type SalaAbertaResponse } from '@educa/shared'
+import {
+  reivindicacaoResponseSchema,
+  salaAbertaResponseSchema,
+  type AbrirSalaRequest,
+  type ProvedorDeContaDaEscola,
+  type ReivindicarSalaRequest,
+  type ReivindicacaoResponse,
+  type SalaAbertaResponse,
+} from '@educa/shared'
 import { apiRequest } from './client'
+import { enderecoDoLoginExterno } from './escola'
 
 /**
  * A página pública da turma (A1, 17.0; as rotas são da 5.0 e da 6.0): sem sessão e sem token de acesso. O slug, o token
@@ -21,4 +30,15 @@ export function abrirSala(pedido: AbrirSalaRequest): Promise<SalaAbertaResponse>
  */
 export function reivindicarNome(pedido: ReivindicarSalaRequest): Promise<ReivindicacaoResponse> {
   return apiRequest('/v1/salas/reivindicar', reivindicacaoResponseSchema, { metodo: 'POST', corpo: pedido })
+}
+
+/**
+ * Para onde o botão "Entrar com a conta da escola" da sala leva (acesso-e-convites, 16.0; RF14): o `iniciar` do login externo com `intencao=reivindicar` e o token **ou** o código
+ * da sala, como o contrato o pede (14.0). É navegação do navegador, e não chamada em segundo plano: o `iniciar` responde 302 ao Google ou à Microsoft, com o cookie do login em
+ * andamento, e a volta é `/e/:slug/turma?conta=provada`. O token do link vai na consulta desta navegação porque a API precisa dele para achar a sala (`docs/lgpd.md`); a
+ * resposta sai com `Referrer-Policy: no-referrer`.
+ */
+export function enderecoParaProvarAContaNaSala(provedor: ProvedorDeContaDaEscola, slug: string, caminho: { readonly token: string } | { readonly codigo: string }): string {
+  const sala = 'token' in caminho ? `token=${encodeURIComponent(caminho.token)}` : `codigo=${encodeURIComponent(caminho.codigo)}`
+  return `${enderecoDoLoginExterno(provedor, slug)}&intencao=reivindicar&${sala}`
 }

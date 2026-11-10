@@ -393,6 +393,15 @@ lugar a quem não foi rebaixado é o rebaixado mais antigo da fila com mais reba
 Esse rebaixado pode ser alguém de verdade sem o cookie (um professor atrás do NAT da escola): a web repete o 503 e
 ele entra depois.
 
+**Quanto a sala gasta desse limite (acesso-e-convites, 16.0).** As rotas anônimas da sala entram no balde por IP da escola inteira atrás do NAT (`rl:ip`),
+e o `LIMITE_REQ_IP_ANONIMO_MIN` é **6.000 por minuto** desde a 16.0 (eram 3.000). O login por matrícula não é desse balde: é o `rl:ip-login`, que rebaixa e não
+recusa. Gasto por aluno no balde anônimo: **3 requisições pela matrícula** (abrir a sala, ler os provedores, pedir o nome), **9 pela conta da escola** (as 3, mais
+a ida ao provedor e a volta, a sala aberta de novo, e a entrada depois da aprovação: `iniciar`, `retorno` e `renovar`), e mais 1 por código errado ou matrícula
+errada. No `k2_conta` (2.100 alunos em 5 min, cerca de 85% pela conta) o pico lido do Redis foi de **3.579 por minuto**, 60% do teto, sem 429. Escola que
+reclamar de 429 no primeiro dia: veja primeiro se o `.env` da produção já tem os 6.000 (o deploy não o traz sozinho: o `infra/compose.yml` lê o valor do `.env` da VPS, que segue nos 3.000 até alguém trocá-lo; item no `TODO.md`), depois conte alunos pela conta e erros de digitação
+antes de mexer no número, e lembre que o prazo da leitura dos provedores (`PRAZO_DOS_PROVEDORES_MS`) só poupa a repetição na mesma aba, não alivia o balde da
+escola. O consumo se mede pela escola, como no resto deste runbook: o 429 por escola no log ou na métrica, sem IP, e a conta de alunos pela conta e de erros de digitação acima. Ninguém lê as chaves `rl:ip` do Redis à mão (`docs/lgpd.md`, "IP só em memória, no login"); ler o balde na produção seria finalidade nova, e entra primeiro em `docs/lgpd.md`, com prazo e quem pode ler.
+
 **Se nada disso resolver:** não há o que desligar: o rebaixamento não recusa ninguém. Nunca bloqueie o IP da escola na
 borda, nem por "só uns minutos" (regra 80, item 1). Se a escola reclamar de lentidão para entrar, oriente a entrar
 pelo navegador de sempre, que guarda a prioridade.
@@ -446,7 +455,7 @@ alguém tentando códigos. O alerta não traz escola nem IP (`METRICS_WITH_ESCOL
 também o do código certo; o link, o login e as outras escolas não sentem. A espera atrasa cada tentativa, mas não limita
 o volume do atacante: quem limita é só o limite por IP das rotas anônimas, e muitos IPs passam dele. Por isso a resposta
 é revogar, e não esperar o ataque cansar. O risco é outro: quem acerta um código vigente vê os nomes
-livres daquela turma, que são de menores. Um IP sozinho, no teto do `rl:ip`, leva uma semana para ter ~0,2% de chance;
+livres daquela turma, que são de menores. Um IP sozinho, no teto do `rl:ip` (6.000 por minuto desde a 16.0, eram 3.000), leva uma semana para ter ~0,4% de chance (eram ~0,2%);
 com muitos IPs, a chance cresce na mesma proporção, e é por isso que este alerta existe.
 
 **Primeiro olhar:** a escola, no log da API: a linha `sala.limite_atingido` com `tipo` `escola` traz o `escolaId`, que é

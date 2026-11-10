@@ -5,7 +5,7 @@ import type pg from 'pg'
  * pela API, lido no banco e no Prometheus do projeto de carga. `npm run carga:sala` chama `conferirCenarioDaSala` direto.
  *
  * - **Zero duplicidade:** em cada escola da fase, cada nome da lista aprovado uma vez só, nenhum nome com dois pedidos
- *   pendentes ou aprovados, um aluno por nome, uma credencial por aluno, nenhum aluno com dois vínculos, e nenhum pedido
+ *   pendentes ou aprovados, um aluno por nome, uma credencial por aluno (a de quem pediu pela conta da escola, sem senha, e mais a conta ligada), nenhum aluno com dois vínculos, e nenhum pedido
  *   esperando no fim.
  * - **Zero 5xx do lado da API:** nas rotas da sala, do `decidir` e do login, pela métrica HTTP, em cada fase.
  * - **Primeiro dia:** no K2, nenhum pedido segurado pelo teto de códigos errados da escola: os ~420 códigos errados da
@@ -28,6 +28,8 @@ export interface EscolaDaFase {
   readonly slug: string
   /** Quantos alunos a lista da escola tem: todos precisam terminar aprovados, uma vez cada. */
   readonly esperados: number
+  /** Quantos deles pediram pela conta da escola (16.0): aprovados sem senha, com a conta da escola ligada a eles. */
+  readonly viaConta: number
   /** A escola do primeiro dia (K2): nenhum código errado acima do teto dela. */
   readonly primeiroDia: boolean
 }
@@ -55,11 +57,15 @@ export interface ContagemDaEscola {
   readonly nomesComDoisPedidos: number
   readonly alunos: number
   readonly credenciais: number
+  /** As contas da escola ligadas a um aluno (`conta_externa`): uma por aluno que pediu pela conta. */
+  readonly contasLigadas: number
+  /** Os alunos da escola com uma sessão aberta pelo login da conta da escola (`metodo = 'externo'`): quem entrou pela conta depois de aprovado, e só quem pediu por ela. */
+  readonly entraramPelaConta: number
   readonly alunosComDoisVinculos: number
 }
 
 /** O que reprova numa escola da fase: qualquer duplicidade, e qualquer nome que não terminou aprovado uma vez. */
-export function julgarContagem(fase: string, esperados: number, contagem: ContagemDaEscola): string[] {
+export function julgarContagem(fase: string, esperados: number, contagem: ContagemDaEscola, viaConta = 0): string[] {
   const reprovacoes: string[] = []
   const igual = (campo: keyof ContagemDaEscola, valor: number, descricao: string) => {
     if (contagem[campo] !== valor) reprovacoes.push(`${fase}: ${descricao} ${String(contagem[campo])}, e o cenário pede ${String(valor)}`)
@@ -71,7 +77,11 @@ export function julgarContagem(fase: string, esperados: number, contagem: Contag
   igual('nomesComDoisPedidos', 0, 'nomes com dois pedidos pendentes ou aprovados:')
   igual('alunos', esperados, 'alunos criados:')
   igual('credenciais', esperados, 'credenciais de matrícula:')
+  igual('contasLigadas', viaConta, 'contas da escola ligadas:')
   igual('alunosComDoisVinculos', 0, 'alunos com dois vínculos:')
+  // Quem pediu pela conta entra pela conta depois de aprovado: uma sessão `externo` por aluno ligado, e nenhuma a mais.
+  igual('entraramPelaConta', viaConta, 'alunos que entraram pela conta da escola:')
+  if (viaConta > 0 && contagem.entraramPelaConta === 0) reprovacoes.push(`${fase}: nenhum aluno entrou pela conta da escola depois de aprovado`)
   return reprovacoes
 }
 
@@ -85,6 +95,8 @@ const CONTAGEM = `
                             group by r.lista_nome_id having count(*) > 1) d) as "nomesComDoisPedidos",
     (select count(*) from usuario u where u.escola_id = e.id and u.papel = 'aluno') as "alunos",
     (select count(*) from credencial_matricula c where c.escola_id = e.id) as "credenciais",
+    (select count(*) from conta_externa x where x.escola_id = e.id) as "contasLigadas",
+    (select count(distinct s.usuario_id) from sessao s where s.escola_id = e.id and s.metodo = 'externo') as "entraramPelaConta",
     (select count(*) from (select v.usuario_id from vinculo v where v.escola_id = e.id and v.papel = 'aluno'
                             group by v.usuario_id having count(*) > 1) d) as "alunosComDoisVinculos"
   from escola e where e.slug = $1`
@@ -105,7 +117,7 @@ async function aumentoNaJanela(prometheus: string, janela: JanelaDaFase, contado
 }
 
 /** As rotas do cenário, como aparecem no rótulo `http_route`. */
-export const ROTAS_DO_CENARIO = '/v1/salas/(abrir|reivindicar)|/v1/reivindicacoes/decidir|/v1/turmas/:id/reivindicacoes|/v1/sessao/matricula|/v1/sistema/contexto'
+export const ROTAS_DO_CENARIO = '/v1/salas/(abrir|reivindicar)|/v1/escolas/:slug/acesso|/v1/sessao/[a-z]+/(:provedor/iniciar|retorno)|/v1/sessao/renovar|/v1/reivindicacoes/decidir|/v1/turmas/:id/reivindicacoes|/v1/sessao/matricula|/v1/sistema/contexto'
 
 export async function conferirCenarioDaSala({ banco, prometheus, janelas, escolas }: EntradaDaConferencia): Promise<ConferenciaDaSala> {
   const linhas: string[] = []
@@ -126,10 +138,12 @@ export async function conferirCenarioDaSala({ banco, prometheus, janelas, escola
       nomesComDoisPedidos: Number(linha.nomesComDoisPedidos),
       alunos: Number(linha.alunos),
       credenciais: Number(linha.credenciais),
+      contasLigadas: Number(linha.contasLigadas),
+      entraramPelaConta: Number(linha.entraramPelaConta),
       alunosComDoisVinculos: Number(linha.alunosComDoisVinculos),
     }
     linhas.push(`${escola.fase}: ${Object.entries(contagem).map(([campo, valor]) => `${campo} ${String(valor)}`).join(', ')}`)
-    reprovacoes.push(...julgarContagem(escola.fase, escola.esperados, contagem))
+    reprovacoes.push(...julgarContagem(escola.fase, escola.esperados, contagem, escola.viaConta))
   }
 
   for (const janela of janelas) {

@@ -45,7 +45,7 @@ export const TURMAS_POR_PROFESSOR = 6
 /** A outra escola, que só faz login: as contas que o k6 dela percorre. */
 export const ALUNOS_DA_OUTRA_ESCOLA = 700
 
-export const FASES_DO_CENARIO = ['k1', 'k2', 'k2_redis_lento'] as const
+export const FASES_DO_CENARIO = ['k1', 'k2', 'k2_conta', 'k2_redis_lento'] as const
 export type FaseDaSala = (typeof FASES_DO_CENARIO)[number]
 
 export interface EscalaDaFase {
@@ -59,16 +59,23 @@ export interface EscalaDaFase {
   readonly comOutraEscola: boolean
   /** O prefixo das matrículas da fase: cada fase é uma escola, e a matrícula não se repete dentro dela. */
   readonly prefixo: string
+  /** Quem prova a conta da escola: 1 em 20 na escola sem Workspace, ou quase todos na escola da D48 (a conta da escola, quando ela existe). */
+  readonly pelaConta: 'um_em_vinte' | 'quase_todos'
+  /** Se é o primeiro dia da escola: a conferência cobra que nenhum pedido seja segurado pelo teto de códigos errados dela (`conferir-carga-sala.ts`). */
+  readonly primeiroDia: boolean
 }
 
 /**
- * K1: seis turmas de 35 em 5 min (RF19). K2: o primeiro dia da escola inteira, 2.100 em 5 min. O K2 com o Redis de fila
- * lento é menor (12 turmas em 2 min): ele mede o `decidir`, e não a rajada, que o K2 já mediu.
+ * K1: seis turmas de 35 em 5 min (RF19). K2: o primeiro dia da escola inteira, 2.100 em 5 min. O `k2_conta` é o K2 da escola que
+ * liberou a conta Google ou Microsoft (D48, acesso-e-convites, 16.0): quase todos pedem o nome pela conta, e o aprovado entra pela conta,
+ * o que põe `iniciar`, `retorno` e `renovar` no balde anônimo do IP da escola. O K2 com o Redis de fila lento é menor (12 turmas em
+ * 2 min): ele mede o `decidir`, e não a rajada, que o K2 já mediu.
  */
 export const ESCALA: Record<FaseDaSala, EscalaDaFase> = {
-  k1: { turmas: 6, chegadaS: 300, esperaDosProfessoresS: 90, comOutraEscola: true, prefixo: 'K1' },
-  k2: { turmas: 60, chegadaS: 300, esperaDosProfessoresS: 90, comOutraEscola: true, prefixo: 'K2' },
-  k2_redis_lento: { turmas: 12, chegadaS: 120, esperaDosProfessoresS: 90, comOutraEscola: false, prefixo: 'KL' },
+  k1: { turmas: 6, chegadaS: 300, esperaDosProfessoresS: 90, comOutraEscola: true, prefixo: 'K1', pelaConta: 'um_em_vinte', primeiroDia: false },
+  k2: { turmas: 60, chegadaS: 300, esperaDosProfessoresS: 90, comOutraEscola: true, prefixo: 'K2', pelaConta: 'um_em_vinte', primeiroDia: true },
+  k2_conta: { turmas: 60, chegadaS: 300, esperaDosProfessoresS: 90, comOutraEscola: true, prefixo: 'KC', pelaConta: 'quase_todos', primeiroDia: true },
+  k2_redis_lento: { turmas: 12, chegadaS: 120, esperaDosProfessoresS: 90, comOutraEscola: false, prefixo: 'KL', pelaConta: 'um_em_vinte', primeiroDia: false },
 }
 
 /** O Redis de fila "lento": os clientes dele pausados por 80 ms a cada 100 ms, perto do corte de 100 ms do cliente do login. */
@@ -92,7 +99,24 @@ export interface AlunoDoCenario {
   readonly peloCodigo: boolean
   /** Manda o pedido de dois computadores no mesmo segundo: a disputa pelo nome. */
   readonly disputa: boolean
+  /** Prova a conta da escola no `oidc-falso` e manda o pedido sem senha (acesso-e-convites, 16.0), fora a disputa. Não tem senha: depois de aprovado, entra pela conta, e não por matrícula. */
+  readonly viaConta: boolean
 }
+
+/** De quantos em quantos alunos, um prova a conta da escola em vez de criar senha, na escola sem Workspace. */
+export const UM_EM_CADA_VIA_CONTA = 20
+
+/**
+ * Quem pede o nome pela conta da escola. Na escola sem Workspace, 1 em cada 20 (fora a disputa). Na escola da D48, todos, menos quem disputa
+ * o nome (a disputa mede a corrida do nome, e não o balde) e quem erra a matrícula (o erro é de quem digita a matrícula).
+ */
+export function pedePelaConta(modo: EscalaDaFase['pelaConta'], chegada: number, ordem: number, disputa: boolean): boolean {
+  if (disputa) return false
+  return modo === 'quase_todos' ? ordem !== 2 : chegada % UM_EM_CADA_VIA_CONTA === 9
+}
+
+/** O domínio da escola de cada fase no provedor falso (`infra/oidc-falso/config.json`, o `hd` do mapeamento `google-aluna-carga-.*`). */
+export const DOMINIO_DA_CONTA_NA_CARGA = 'escola-a.educa-sintetica.test'
 
 /** As posições da turma que disputam o nome: dois alunos por turma. */
 export const POSICOES_EM_DISPUTA = [7, 21] as const
@@ -108,13 +132,15 @@ export function matriculaDaSala(prefixo: string, turma: number, posicao: number)
 
 /**
  * Os alunos da fase na ordem de chegada: as turmas chegam juntas (a 1ª posição de cada turma, depois a 2ª...). Na ordem de
- * chegada, 2 em cada 10 erram o código, 1 em cada 10 erra a matrícula e 6 em cada 10 entram pelo código.
+ * chegada, 2 em cada 10 erram o código, 1 em cada 10 erra a matrícula e 6 em cada 10 entram pelo código; quem prova a conta da escola
+ * é o que `pedePelaConta` diz.
  */
-export function montarAlunos(escala: Pick<EscalaDaFase, 'turmas' | 'prefixo'>): AlunoDoCenario[] {
+export function montarAlunos(escala: Pick<EscalaDaFase, 'turmas' | 'prefixo' | 'pelaConta'>): AlunoDoCenario[] {
   const alunos: AlunoDoCenario[] = []
   for (let posicao = 0; posicao < ALUNOS_POR_TURMA; posicao++) {
     for (let turma = 0; turma < escala.turmas; turma++) {
       const ordem = alunos.length % 10
+      const disputa = (POSICOES_EM_DISPUTA as readonly number[]).includes(posicao)
       alunos.push({
         turma,
         nome: nomeSintetico(turma, posicao),
@@ -122,7 +148,8 @@ export function montarAlunos(escala: Pick<EscalaDaFase, 'turmas' | 'prefixo'>): 
         erraCodigo: ordem < 2,
         erraMatricula: ordem === 2,
         peloCodigo: ordem < 6,
-        disputa: (POSICOES_EM_DISPUTA as readonly number[]).includes(posicao),
+        disputa,
+        viaConta: pedePelaConta(escala.pelaConta, alunos.length, ordem, disputa),
       })
     }
   }
@@ -175,6 +202,37 @@ export function juntarOutraEscola(fase: ResumoDaFase, outra: ResumoDaFase): Resu
   }
 }
 
+/** O pico do balde anônimo por IP (`rl:ip:<ip>`) que a fase atingiu, e o teto que a API da carga recebeu. */
+export interface PicoDoBalde {
+  readonly pico: number
+  readonly teto: number
+}
+
+/** Até quanto do `LIMITE_REQ_IP_ANONIMO_MIN` o pico do balde pode chegar: acima disso, a escola do primeiro dia fica a um minuto mais cheio de levar `LIMITE_EXCEDIDO`. */
+export const FRACAO_DO_TETO_DO_BALDE = 0.8
+
+/**
+ * As chaves do balde anônimo por IP: `rl:ip:<ip>`, e não o da entrada da operação (`rl:ip:op:`), o do "esqueci a senha" (`rl:ip:senha:`) nem o do
+ * login (`rl:ip-login:`), que não se somam ao anônimo.
+ */
+export function chavesDoBaldeAnonimo(chaves: readonly string[]): string[] {
+  return chaves.filter((chave) => chave.startsWith('rl:ip:') && !chave.startsWith('rl:ip:op:') && !chave.startsWith('rl:ip:senha:'))
+}
+
+/**
+ * O pico das leituras do balde: o maior valor visto, ou `undefined` quando nenhuma leitura achou a chave. Sem leitura o pico não foi medido,
+ * e "não medido" não é 0%: o veredito reprova na fase da escola com Workspace.
+ */
+export function reduzirLeiturasDoBalde(leituras: readonly number[]): number | undefined {
+  return leituras.length === 0 ? undefined : leituras.reduce((maior, leitura) => Math.max(maior, leitura))
+}
+
+/** Reprova o pico acima de 80% do teto. */
+export function julgarPicoDoBalde(fase: string, { pico, teto }: PicoDoBalde): string | undefined {
+  if (pico <= teto * FRACAO_DO_TETO_DO_BALDE) return undefined
+  return `${fase}: o balde anônimo por IP chegou a ${String(pico)} de ${String(teto)} por minuto (acima de ${String(FRACAO_DO_TETO_DO_BALDE * 100)}% do teto)`
+}
+
 export interface Reprovacao {
   readonly criterio: string
   readonly detalhe: string
@@ -185,24 +243,38 @@ export interface VereditoDaSala {
   readonly reprovacoes: readonly Reprovacao[]
 }
 
+function julgarFase(fase: FaseDaSala, resumo: ResumoDaFase, doBalde: PicoDoBalde | undefined): Reprovacao[] {
+  const reprovacoes: Reprovacao[] = resumo.cruzados.map(({ metrica, criterio }) => ({ criterio: `${fase}:${metrica}`, detalhe: `${fase}: ${metrica} ${criterio}` }))
+  const saidaEsperada = resumo.cruzados.length > 0 ? CODIGO_THRESHOLD_CRUZADO : 0
+  if (resumo.codigo !== saidaEsperada) reprovacoes.push({ criterio: `${fase}:k6`, detalhe: `${fase}: k6 saiu com ${resumo.codigo}, e o resumo pedia ${saidaEsperada}` })
+  if (ESCALA[fase].comOutraEscola && resumo.valores['outra_escola:login_duracao{grupo:outra_escola} p(95)'] === undefined) {
+    reprovacoes.push({ criterio: `${fase}:outra_escola`, detalhe: `${fase}: o login da outra escola não foi medido` })
+  }
+  // Pico 0 também é "não medido" na fase que passa quase todo mundo pelo balde: o k6 mandou milhares de pedidos, e um balde vazio é leitura que falhou.
+  const medido = doBalde !== undefined && doBalde.pico > 0
+  if (!medido && ESCALA[fase].pelaConta === 'quase_todos') reprovacoes.push({ criterio: `${fase}:balde`, detalhe: `${fase}: o pico do balde anônimo por IP não foi medido` })
+  if (doBalde === undefined) return reprovacoes
+  const acima = julgarPicoDoBalde(fase, doBalde)
+  if (acima !== undefined) reprovacoes.push({ criterio: `${fase}:balde`, detalhe: acima })
+  return reprovacoes
+}
+
 /**
  * Junta o k6 de cada fase e a conferência. Fase pedida que não rodou reprova; o código de saída do k6 e o resumo precisam
- * concordar (99 com threshold cruzado, 0 sem), e a outra escola precisa ter rodado nas fases que a têm.
+ * concordar (99 com threshold cruzado, 0 sem), e a outra escola precisa ter rodado nas fases que a têm. O pico do balde anônimo por IP,
+ * medido no Redis, reprova acima de 80% do teto; na fase da escola com Workspace (`k2_conta`), pico não medido (sem leitura, ou 0) também reprova.
  */
-export function julgarCenarioDaSala(fases: readonly FaseDaSala[], resumos: ReadonlyMap<FaseDaSala, ResumoDaFase>, conferencia: ConferenciaDaSala | undefined): VereditoDaSala {
+export function julgarCenarioDaSala(
+  fases: readonly FaseDaSala[],
+  resumos: ReadonlyMap<FaseDaSala, ResumoDaFase>,
+  conferencia: ConferenciaDaSala | undefined,
+  picos: ReadonlyMap<FaseDaSala, PicoDoBalde> = new Map(),
+): VereditoDaSala {
   const reprovacoes: Reprovacao[] = []
   for (const fase of fases) {
     const resumo = resumos.get(fase)
-    if (resumo === undefined) {
-      reprovacoes.push({ criterio: `${fase}:k6`, detalhe: `${fase}: a fase não rodou` })
-      continue
-    }
-    for (const { metrica, criterio } of resumo.cruzados) reprovacoes.push({ criterio: `${fase}:${metrica}`, detalhe: `${fase}: ${metrica} ${criterio}` })
-    const saidaEsperada = resumo.cruzados.length > 0 ? CODIGO_THRESHOLD_CRUZADO : 0
-    if (resumo.codigo !== saidaEsperada) reprovacoes.push({ criterio: `${fase}:k6`, detalhe: `${fase}: k6 saiu com ${resumo.codigo}, e o resumo pedia ${saidaEsperada}` })
-    if (ESCALA[fase].comOutraEscola && resumo.valores['outra_escola:login_duracao{grupo:outra_escola} p(95)'] === undefined) {
-      reprovacoes.push({ criterio: `${fase}:outra_escola`, detalhe: `${fase}: o login da outra escola não foi medido` })
-    }
+    if (resumo === undefined) reprovacoes.push({ criterio: `${fase}:k6`, detalhe: `${fase}: a fase não rodou` })
+    else reprovacoes.push(...julgarFase(fase, resumo, picos.get(fase)))
   }
   if (conferencia === undefined) reprovacoes.push({ criterio: 'conferencia', detalhe: 'a conferência no banco e no Prometheus não rodou' })
   else for (const motivo of conferencia.reprovacoes) reprovacoes.push({ criterio: 'conferencia', detalhe: `conferência: ${motivo}` })
@@ -223,7 +295,7 @@ export function fasesPedidas(argumentos: readonly string[]): readonly FaseDaSala
 export function descreverFase(fase: FaseDaSala, resumo: ResumoDaFase): string[] {
   const linhas = Object.entries(resumo.valores)
     .filter(([chave]) =>
-      /^(outra_escola:)?((login_duracao\{grupo:[a-z_]+\}|decidir_duracao|sala_duracao|autenticada_duracao\{grupo:[a-z_]+\}) (p\(95\)|max)|decidir_lote max|(respostas_5xx|respostas_503|respostas_inesperadas|pedidos_enviados|disputa_sem_um_vencedor|aprovados|aprovado_entrou|login_erro_final|contas_que_entraram)(\{grupo:[a-z_]+\})? count|dropped_iterations count)$/.test(chave),
+      /^(outra_escola:)?((login_duracao\{grupo:[a-z_]+\}|decidir_duracao|sala_duracao|autenticada_duracao\{grupo:[a-z_]+\}) (p\(95\)|max)|decidir_lote max|(respostas_5xx|respostas_503|respostas_429|respostas_inesperadas|pedidos_enviados|disputa_sem_um_vencedor|aprovados|aprovado_entrou|aprovado_entrou_pela_conta|login_erro_final|contas_que_entraram|contas_provadas)(\{grupo:[a-z_]+\})? count|dropped_iterations count)$/.test(chave),
     )
     .map(([chave, valor]) => `  ${fase}: ${chave} = ${Math.round(valor)}`)
   return [`\n${fase}:`, ...linhas]
@@ -297,6 +369,11 @@ export interface TurmaMontada {
   readonly codigo: string
   /** A matrícula de cada nome da lista: é o que o professor usa para o aluno aprovado entrar. */
   readonly matriculas: Record<string, string>
+  /**
+   * Os nomes que pedem pela conta da escola, cada um com o número do aluno na fase: é o sujeito dele no provedor falso
+   * (`google-aluna-carga-<fase>-<número>`), o mesmo da prova e da entrada depois de aprovado. Não têm senha, e por isso não entram por matrícula.
+   */
+  readonly viaConta: Readonly<Record<string, number>>
 }
 
 export interface EscolaMontada {
@@ -340,7 +417,8 @@ async function montarEscola(modulos: ModulosDaApi, banco: ReturnType<typeof crea
       await callApi(url, professor.token, 'POST', `/v1/vinculos/${String(vinculo['id'])}/confirmar`)
       const acesso = await callApi(url, professor.token, 'POST', `/v1/turmas/${turmaId}/acesso`, { validadeDias: 7 })
       const matriculas = Object.fromEntries(alunos.filter((aluno) => aluno.turma === indice).map((aluno) => [aluno.nome, aluno.matricula]))
-      turmas[indice] = { id: turmaId, token: String(acesso['token']), codigo: String(acesso['codigo']), matriculas }
+      const viaConta = Object.fromEntries(alunos.flatMap((aluno, numero) => (aluno.turma === indice && aluno.viaConta ? [[aluno.nome, numero] as const] : [])))
+      turmas[indice] = { id: turmaId, token: String(acesso['token']), codigo: String(acesso['codigo']), matriculas, viaConta }
     }
   }
   return { escolaId, slug, turmas, professores: professores.map((professor, indice) => ({ token: professor.token, turmas: turmasDeCada[indice] ?? [] })) }
@@ -383,6 +461,54 @@ function deixarRedisLento(porta: string): { parar: () => Promise<number> } {
   }
 }
 
+/** Os valores do balde anônimo achados numa leitura: o `SCAN` percorre o cursor até voltar a `'0'`, porque o `MATCH` filtra depois de recolher cada página e o Redis de cache tem milhares de outras chaves. */
+async function valoresDoBaldeAnonimo(cliente: Redis): Promise<number[]> {
+  const valores: number[] = []
+  let cursor = '0'
+  do {
+    const [proximo, chaves] = await cliente.scan(cursor, 'MATCH', 'rl:ip:*', 'COUNT', 1_000)
+    cursor = proximo
+    for (const chave of chavesDoBaldeAnonimo(chaves)) {
+      // `null`: a janela de 60 s expirou entre o `SCAN` e o `GET`, e a chave não conta como lida.
+      const valor = await cliente.get(chave)
+      if (valor !== null && Number.isFinite(Number(valor))) valores.push(Number(valor))
+    }
+  } while (cursor !== '0')
+  return valores
+}
+
+/**
+ * O pico do balde anônimo por IP, lido do Redis de cache (o do rate limit) a cada segundo enquanto o k6 roda: a chave `rl:ip:<ip>` é o consumo da
+ * janela fixa de 60 s daquele IP, o número que dá `LIMITE_EXCEDIDO` quando passa do teto. O maior valor visto é o pico, e `undefined` quando nenhuma
+ * leitura achou a chave (Redis fora do ar, porta errada): o veredito trata isso como "não medido", e não como 0%. Só o valor sai daqui: a chave, que
+ * leva o IP, nunca é impressa nem guardada (regra 20). É só a rota anônima sem rebaixamento; o login por matrícula (`rl:ip-login`), a entrada da
+ * operação (`rl:ip:op`) e o "esqueci a senha" (`rl:ip:senha`) ficam de fora.
+ */
+function medirOBaldeAnonimo(porta: string): { parar: () => Promise<number | undefined> } {
+  const cliente = new Redis({ host: '127.0.0.1', port: Number(porta), lazyConnect: false, maxRetriesPerRequest: 1 })
+  cliente.on('error', () => undefined)
+  let ativo = true
+  const leituras: number[] = []
+  const laco = (async () => {
+    while (ativo) {
+      try {
+        leituras.push(...(await valoresDoBaldeAnonimo(cliente)))
+      } catch {
+        // A leitura seguinte tenta de novo; sem nenhuma leitura no fim, `parar()` devolve `undefined`, e o veredito reprova na fase da conta.
+      }
+      await esperar(1_000)
+    }
+  })()
+  return {
+    parar: async () => {
+      ativo = false
+      await laco
+      cliente.disconnect()
+      return reduzirLeiturasDoBalde(leituras)
+    },
+  }
+}
+
 async function executar(fases: readonly FaseDaSala[]): Promise<number> {
   const pasta = mkdtempSync(join(tmpdir(), 'educa-carga-sala-'))
   // O k6 do container roda com outro usuário: ele lê as contas e grava o resumo nesta pasta. A pasta aberta e o arquivo
@@ -407,6 +533,7 @@ async function executar(fases: readonly FaseDaSala[]): Promise<number> {
     const pool = modulos.nucleo.createPool({ url: urlDoBancoDoAmbiente(doArquivo), maximoConexoes: 2, timeoutConexaoMs: 5_000, timeoutConsultaMs: 120_000 }, () => undefined)
     const banco = modulos.nucleo.createDatabase(pool)
     const resumos = new Map<FaseDaSala, ResumoDaFase>()
+    const picos = new Map<FaseDaSala, PicoDoBalde>()
     const janelas: JanelaDaFase[] = []
     const escolas: EscolaDaFase[] = []
     try {
@@ -425,7 +552,9 @@ async function executar(fases: readonly FaseDaSala[]): Promise<number> {
         const alunos = montarAlunos(escala)
         escrever(`\n▶ ${fase}: a escola montada pela API (${String(escala.turmas)} turmas, ${String(alunos.length)} alunos)`)
         const escola = await montarEscola(modulos, banco, doArquivo, redeId, fase, alunos)
-        escolas.push({ fase, slug: escola.slug, esperados: alunos.length, primeiroDia: fase === 'k2' })
+        // A escola libera o Google para o domínio do `oidc-falso`: é o que a coordenação faz uma vez, e o que põe o botão da conta na sala.
+        await pool.query('insert into provedor_escola (escola_id, provedor, valor) values ($1, $2, $3)', [escola.escolaId, 'google', DOMINIO_DA_CONTA_NA_CARGA])
+        escolas.push({ fase, slug: escola.slug, esperados: alunos.length, viaConta: alunos.filter((aluno) => aluno.viaConta).length, primeiroDia: escala.primeiroDia })
         const arquivo = join(pasta, `contas-${fase}.json`)
         writeFileSync(
           arquivo,
@@ -446,6 +575,7 @@ async function executar(fases: readonly FaseDaSala[]): Promise<number> {
         escrever(`\n▶ k6, fase ${fase}`)
         const comeco = new Date()
         const lento = fase === 'k2_redis_lento' ? deixarRedisLento(doArquivo['REDIS_FILA_PORTA_HOST'] ?? '') : undefined
+        const baldeAnonimo = medirOBaldeAnonimo(doArquivo['REDIS_CACHE_PORTA_HOST'] ?? '')
         const k6 = async (outra: boolean): Promise<ResumoDaFase> => {
           const { codigo } = await compose('run', '--rm', '--no-deps', outra ? 'k6-atacante' : 'k6', ...argumentosDoK6DaSala(fase, outra))
           let resumo: unknown
@@ -458,6 +588,13 @@ async function executar(fases: readonly FaseDaSala[]): Promise<number> {
         }
         const [daFase, daOutra] = await Promise.all([k6(false), escala.comOutraEscola ? k6(true) : Promise.resolve(undefined)])
         if (lento !== undefined) escrever(`  Redis de fila pausado ${String(await lento.parar())} vezes`)
+        const teto = Number(doArquivo['LIMITE_REQ_IP_ANONIMO_MIN'])
+        const pico = await baldeAnonimo.parar()
+        if (pico === undefined) escrever(`  ${fase}: o balde anônimo por IP não foi lido nenhuma vez`)
+        else {
+          picos.set(fase, { pico, teto })
+          escrever(`  ${fase}: o balde anônimo por IP chegou a ${String(pico)} por minuto, de ${String(teto)} (${String(Math.round((pico / teto) * 100))}%)`)
+        }
         resumos.set(fase, daOutra === undefined ? daFase : juntarOutraEscola(daFase, daOutra))
         janelas.push({ fase, inicio: comeco, fim: new Date() })
       }
@@ -478,7 +615,7 @@ async function executar(fases: readonly FaseDaSala[]): Promise<number> {
     }
     for (const linha of descreverConferenciaDaSala(conferencia)) escrever(linha)
     for (const [fase, resumo] of resumos) for (const linha of descreverFase(fase, resumo)) escrever(linha)
-    veredito = julgarCenarioDaSala(fases, resumos, conferencia)
+    veredito = julgarCenarioDaSala(fases, resumos, conferencia, picos)
   } catch (erro) {
     escrever(`\n✖ o cenário não terminou: ${erro instanceof Error ? erro.message : String(erro)}`)
     await compose('logs', '--no-color', '--tail', '100', 'api-1', 'api-2')

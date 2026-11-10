@@ -1180,6 +1180,39 @@ export async function pedidosPendentesDaTurma(escolaId: string, turmaId: string)
   })
 }
 
+/** Um pedido de nome como o banco o guarda: a prova de que a conta da escola entrou no lugar do hash da senha, e de que nada além do identificador opaco foi gravado. */
+export interface PedidoDaTurmaNoBanco {
+  readonly estado: string
+  readonly temSenha: boolean
+  readonly contaExterna: unknown
+}
+
+/** Os pedidos da turma, do mais antigo ao mais novo. */
+export async function pedidosDaTurmaNoBanco(escolaId: string, turmaId: string): Promise<PedidoDaTurmaNoBanco[]> {
+  return comBanco(async (banco) => {
+    const { rows } = await banco.query<{ estado: string; tem_senha: boolean; conta_externa: unknown }>(
+      'select estado, senha_hash is not null as tem_senha, conta_externa from reivindicacao where escola_id = $1 and turma_id = $2 order by id',
+      [escolaId, turmaId],
+    )
+    return rows.map((linha) => ({ estado: linha.estado, temSenha: linha.tem_senha, contaExterna: linha.conta_externa }))
+  })
+}
+
+/**
+ * O pedido pendente que a página pública da sala deixa quando o aluno prova a conta da escola (acesso-e-convites, 14.0 e 16.0): o hash da senha sai e a conta
+ * (`{ provedor, tenant, sujeito }`, o identificador opaco) entra no lugar, como o `check` do banco exige. Atalho só do e2e que decide o pedido e entra pela conta.
+ */
+export async function trocarASenhaPelaContaNoBanco(escolaId: string, pedido: Pick<PedidoDeTeste, 'id'>, conta: { readonly provedor: 'google' | 'microsoft'; readonly sujeito: string }): Promise<void> {
+  await comBanco(async (banco) => {
+    const { rowCount } = await banco.query('update reivindicacao set senha_hash = null, conta_externa = $3::jsonb where escola_id = $1 and id = $2 and estado = \'pendente\'', [
+      escolaId,
+      pedido.id,
+      JSON.stringify({ provedor: conta.provedor, tenant: null, sujeito: conta.sujeito }),
+    ])
+    if (rowCount !== 1) throw new Error('o pedido do e2e não ficou com a conta: id não encontrado ou já decidido')
+  })
+}
+
 /** Outro aluno pede o nome com a página aberta, direto no banco: o nome deixa de ser livre, e a lista relida não o traz. */
 export async function tomarNomeNoBanco(escolaId: string, listaNomeId: string): Promise<void> {
   await comBanco(async (banco) => {

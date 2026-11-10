@@ -64,6 +64,11 @@
           "requestParam": "subject",
           "match": "google-pessoal-com-email-da-professora",
           "claims": { "sub": "google-sub-pessoal-com-email-da-professora", "email": "professora.a@escola-a.educa-sintetica.test", "email_verified": true }
+        },
+        {
+          "requestParam": "subject",
+          "match": "google-aluna-carga-.*",
+          "claims": { "sub": "conta-${subject}", "hd": "escola-a.educa-sintetica.test", "email": "carga@escola-a.educa-sintetica.test", "email_verified": true }
         }
       ]
     },

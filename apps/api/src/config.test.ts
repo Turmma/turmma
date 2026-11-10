@@ -405,10 +405,10 @@ describe('lerConfiguracao', () => {
     expect(erroDe({ ...ambienteValido, [variavel]: valor }).variaveis).toEqual([variavel])
   })
 
-  it('.env.example traz os padrões da Tech Spec: 120/min por usuário, 30.000/min por escola, 3.000/min por IP anônimo, duas instâncias e a borda', () => {
+  it('.env.example traz os padrões da Tech Spec: 120/min por usuário, 30.000/min por escola, 6.000/min por IP anônimo, duas instâncias e a borda', () => {
     const exemplo = lerAmbienteExemplo()
     const { limite } = loadConfig({ ...ambienteValido, ...exemplo, API_PORTA: '3000', BANCO_URL: ambienteValido.BANCO_URL, REDIS_CACHE_URL: ambienteValido.REDIS_CACHE_URL, REDIS_FILA_URL: ambienteValido.REDIS_FILA_URL })
-    expect(limite).toMatchObject({ porUsuarioMin: 120, porEscolaMin: 30_000, porIpAnonimoMin: 3_000, porOperadorMin: 120, instancias: 2, proxiesConfiaveis: ['borda'] })
+    expect(limite).toMatchObject({ porUsuarioMin: 120, porEscolaMin: 30_000, porIpAnonimoMin: 6_000, porOperadorMin: 120, instancias: 2, proxiesConfiaveis: ['borda'] })
   })
 
   it('aceita mais de um proxy confiável, por nome ou IP, separados por vírgula', () => {
