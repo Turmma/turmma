@@ -1,5 +1,88 @@
 # Validação — acesso-e-convites (F2c)
 
+## Rodada 3 — 10/11/2026
+
+**Escopo:** a correção `2026-11-10-e2e-professores-corrigir-email` (`tasks/correcoes/2026-11-10-e2e-professores-corrigir-email.md`), que
+muda a asserção das ações do painel em `e2e/professores.spec.ts` depois de a 19.0 pôr o "Corrigir o e-mail". O resto da funcionalidade
+segue o que as rodadas 1 e 2 deram; não foi refeito.
+**Commit validado:** `83af4e44` (o HEAD `6a559578` só muda o `estado.md`)
+**Veredito: APROVADA**
+
+Ambiente: `node_modules` em dia com o `package-lock.json` (sem `npm ci`). Árvore limpa no início e no fim (as duas mutações restauradas
+com `git checkout --`, e a web reconstruída com o código do HEAD antes das fotos). Nenhum contêiner de pé no início: o ambiente de teste
+subiu com `node tools/ci/e2e.ts --manter-ambiente` e ficou de pé. O `apps/web/dist`, apagado na queda do disco, foi refeito pelo próprio
+comando. A 1ª tentativa desta rodada morreu às 17:18 com o disco e não deixou nada escrito; esta recomeçou do zero.
+
+### 1. RF a RF (só o que esta rodada toca)
+
+| RF | Situação | Código | Teste | Observação |
+|---|---|---|---|---|
+| RF11 Convite por e-mail, a borda "E-mail que volta": o painel oferece "Corrigir o e-mail" só a quem espera o convite | ATENDIDO | `apps/web/src/areas/coordenacao/professores/PainelDoProfessor.tsx:95` (`podeCorrigirOEmail(professor.estado)`) e `:162` (o botão, entre o "Reenviar" e o "Refazer convite"); `packages/shared/src/professores/professores.ts:150` (`CORRIGIR_EMAIL_DO_PROFESSOR_POR_ESTADO`: `corrigir` só em `pendente` e `vencido`, a mesma matriz do servidor) | `e2e/professores.spec.ts:50` (`ACOES_DO_ESTADO`: `pendente` e `vencido` com `['Corrigir o e-mail', 'Refazer convite', 'Revogar convite']`, os outros quatro vazios), lida em › W4 :327 "o erro com \"Tentar de novo\" traz a lista; com dado, pelo nome, o estado de cada convite e só as ações que ele permite" (`:372`, o conjunto exato dos seis estados), › "a linha inteira abre o painel, no endereço…" :1136 (`:1157` o conjunto do `vencido`, `:1161` o alvo de toque de cada ação, o novo incluído), › RF6 :1339 "o \"Copiar link\" do cadastrado pela planilha…" (`:1361`, o `pendente`); e › W12 :619 (`:688`, o alvo de toque do novo botão a 360 px) | Os três casos que a esteira 42883481508 pegou vermelhos e o W12 passaram, 8 de 8 nos dois projetos. As duas mutações abaixo provam os dois lados da regra: sem o botão, o `vencido` cai; com o botão em todo estado, o `aceito` cai. O comentário novo de `ACOES_DO_ESTADO` confere com o código: o "Reenviar" depende de envio (`envio-do-convite.ts:54`, `podeReenviar`), e o "Acrescentar turma" de estado alocável (`professores.ts:113`: `pendente`, `aceito`, `ativo`) e de turma e disciplina na escola (`PainelDoProfessor.tsx:102` a `:109`). Fotos: `.processo/vitrine/coordenacao--coordenacao-professores--Dora-convidado-4065ee92--computador.png` e `…--celular-1.png` (a Dora, `pendente` sem envio, numa escola com turma: "Corrigir o e-mail", "Refazer convite", "Revogar convite" e "Acrescentar turma" no fim, como o comentário diz; "Revogar" com a cor de perigo, os outros secundários); `coordenacao--coordenacao-professores--computador.png` (a lista: o `falhou` da Ana com "Não chegou. Corrija o e-mail e reenvie, ou copie o link"). Nenhuma tela rola a 1366 × 768. O rodapé em duas linhas desalinhadas no computador já está no `TODO.md` (frontend-reviewer, 1ª desta correção); não esconde nem embaralha ação |
+
+Provas de mutação (cada uma aplicada, o caso rodado sozinho em `chromebook` com a web reconstruída, vermelho, e o arquivo restaurado com
+`git checkout --`):
+
+| RF | Cláusula removida | Teste que ficou vermelho |
+|---|---|---|
+| RF11 (borda) | o bloco `{corrigirOEmail && (<Button …>Corrigir o e-mail</Button>)}` de `PainelDoProfessor.tsx:162` | `e2e/professores.spec.ts:327` › W4 "…só as ações que ele permite", no `vencido` (`:372`: `- "Corrigir o e-mail"`, recebido sem ele) |
+| RF11 (borda) | a matriz: `const corrigirOEmail = true \|\| podeCorrigirOEmail(professor.estado)` em `PainelDoProfessor.tsx:95` | o mesmo caso, no `aceito` (`:372`: esperado `[]`, recebido `["Corrigir o e-mail"]`) |
+
+### 2. A correção contra o que ela diz
+
+| Item | Situação | Evidência |
+|---|---|---|
+| Sintoma: os três casos de `professores.spec.ts` com o diff de `toHaveText` | resolvido | :327, :1136 e :1339 verdes em `chromebook` e `celular` (as linhas do documento, :322, :1130 e :1333, são as de antes do comentário novo) |
+| "O caso `:1130` passa a medir o alvo de toque também do \"Corrigir o e-mail\"" | cumprido | sem linha nova: o `for` de `:1161` percorre `ACOES_DO_ESTADO.vencido`, e a constante nova o leva |
+| Rodada 1: o caso do teclado no celular mede o novo botão | cumprido | `:688`, no W12, verde nos dois projetos |
+| "Os quatro estados sem ação seguem vazios" | cumprido | `:372` com `[]` em `revogado`, `aceito`, `ativo` e `desativado`; a mutação 2 o prova |
+| Outros e2e com a lista antiga | nenhum | `grep` em `e2e/`: só `professores-envio.spec.ts:456` lista botões do painel, por alvo de toque e não por conjunto exato, e o "Corrigir o e-mail" desse painel já é medido no bloco da 19.0 |
+| Prazo do caso tocado | dentro | W12 em 33,1 e 34,0 s e o painel em 19,7 e 20,4 s, os dois com `test.slow()` (prazo 90 s, metade 45 s) |
+| "Sem mutação" | justificado | o diff só toca `e2e/`, `TODO.md` e documentos; nenhum `apps/*/src` nem `packages/*/src` |
+
+### 3. Portão
+
+| Portão | Resultado |
+|---|---|
+| e2e da evidência (isolado) | ✅ `e2e/professores.spec.ts:327`, `:619`, `:1136` e `:1339`: 8 de 8, `chromebook` e `celular`; depois das mutações, `:327` de novo verde em `chromebook` com a web do HEAD |
+| `npm run typecheck`, `npm run lint`, `npm run test`, `npm run test:e2e`, `npm run test:infra` inteiros | não rodados aqui (D79): esteira conferida no fechamento |
+| Esteira do GitHub | conferida no fechamento pelo Orquestrador: não entra no veredito (o `estado.md` registra a 42893157881 caída por `npm ci` ECONNRESET no runner e o `rerun --failed` pedido) |
+| Revisões com veto registradas e aprovadas | ✅ os sete obrigatórios do documento com rodada APROVADO: `tenancy-guardian`, `infra-guardian`, `frontend-reviewer`, `conformidade-reviewer` e `privacy-guardian` na 1ª; `test-engineer` e `revisor-geral` na 1ª e na 2ª |
+| Commits | ✅ `83af4e44` marcado `(correção 2026-11-10-e2e-professores-corrigir-email)`; `6a559578` só `estado.md`; nenhum `Fora do processo:` em `origin/develop..HEAD` |
+
+### 4. Achados
+
+**Críticos**
+- Nenhum.
+
+**Maiores**
+- Nenhum.
+
+**Menores**
+1. `e2e/professores.spec.ts:48`: o comentário de `ACOES_DO_ESTADO` diz que, com turmas na escola, "o `pendente` ganha esse botão no fim";
+   o `aceito` e o `ativo` também o ganham (`professores.ts:113`), e a condição do "Reenviar" é "sem envio por e-mail", não "semeado pelo
+   banco" (o `:1361` é o cadastrado pela planilha). Já no `TODO.md` (test-engineer e revisor-geral, 2ª). Dono: Implementador.
+2. `tasks/correcoes/2026-11-10-e2e-professores-corrigir-email.md`, "Recomendações sem aplicar": a tabela só traz as da 1ª rodada; a da 2ª
+   (o item 1 acima) foi ao `TODO.md` mas não ao documento. Nada se perdeu; a retro pode lembrar que a tabela leva toda rodada. Dono:
+   retro de acesso-e-convites.
+3. Ambiente: o ambiente de teste 0 ficou de pé (`--manter-ambiente`), com a vitrine montada. Dono: Orquestrador, ao usar o ambiente.
+
+**Positivos**
+- A correção tirou a lista dos botões de uma constante lida em três casos, e por isso uma linha só trouxe os três de volta, com o conjunto
+  exato de cada estado; as duas mutações (sem o botão e com ele em todo estado) ficaram vermelhas no mesmo caso.
+
+### 5. Conclusão
+
+A correção faz o que diz: os três casos que a esteira pegou voltaram ao verde, nos dois projetos, e continuam afirmando o conjunto exato
+de botões de cada estado, o que as duas mutações provam (o `vencido` sem o botão e o `aceito` com ele ficam vermelhos). O comentário novo
+confere com o código, com a imprecisão já levada ao `TODO.md`. A tela não mudou desde a rodada 2, e as fotos de agora mostram o rodapé do
+`pendente` na ordem que a constante afirma. Sem crítico nem maior, a funcionalidade segue APROVADA; falta só a esteira verde em
+`83af4e44`, que o Orquestrador confere no fechamento.
+
+### 6. Pendências herdadas
+
+- Os menores 1 a 3 acima, com o dono de cada um; o 1 já está no `TODO.md`.
+- O que as rodadas 1 e 2 deixaram para o fechamento e a retro segue como elas escreveram.
+
 ## Rodada 2 — 10/11/2026
 
 **Escopo:** revalidação dos itens da rodada 1 que reprovaram: o crítico 1 (o [C] da fase `professores`), com a correção
