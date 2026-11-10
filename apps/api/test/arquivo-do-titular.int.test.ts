@@ -742,6 +742,8 @@ describe('arquivo do titular (F3, tarefa 13.0): do pedido ao download', () => {
     }
 
     const AS_SEIS = ATOS().map(({ acao }) => acao)
+    /** As seis do aluno mais a do professor (18.0): a lista fechada inteira, como o índice a leva. */
+    const AS_SETE = [...AS_SEIS, 'usuario.email_corrigido']
 
     /** A eliminação da pessoa como o banco a vê para quem tem sessão e vínculo: some o usuário, e a auditoria que ele assinou fica pela retenção legal, com o id dele. */
     async function eliminar(usuarioId: string): Promise<void> {
@@ -947,18 +949,35 @@ describe('arquivo do titular (F3, tarefa 13.0): do pedido ao download', () => {
       for (const registro of Object.values(proprios)) expect(naB).not.toContain(registro)
     })
 
-    it('D85: o índice parcial por alvo tem as seis ações e as duas leituras por alvo descem por ele (regra 80, item 8)', async () => {
+    it('D85: usuario.email_corrigido (18.0) aparece no arquivo do professor com o papel "coordenação", sem o autor, o antes nem o depois, e não no de outro professor', async () => {
+      const cenario = await novaEscola()
+      const professor = await pessoa(cenario, 'professor', 'Professora')
+      const outro = await pessoa(cenario, 'professor', 'Outro')
+      const nomeDaCoordenacao = `Coordenadora-${MARCA}-${randomUUID().slice(0, 6)}`
+      await bancada.pool.query('update usuario set nome = $1 where id = $2', [nomeDaCoordenacao, cenario.coordenacao.usuarioId])
+      const doProfessor = await ato(cenario.escolaId, cenario.coordenacao.usuarioId, 'usuario.email_corrigido', 'usuario', professor.id)
+      const doOutro = await ato(cenario.escolaId, cenario.coordenacao.usuarioId, 'usuario.email_corrigido', 'usuario', outro.id)
+      const pedidoId = await pedidoPronto(cenario, professor)
+      const tabelas = documento(cenario.escolaId, pedidoId, 'completa')['tabelas'] as Record<string, Array<Record<string, unknown>>>
+      expect((tabelas['auditoria'] ?? []).filter((linha) => linha['acao'] === 'usuario.email_corrigido')).toEqual([
+        { id: doProfessor, acao: 'usuario.email_corrigido', entidade: 'usuario', entidade_id: professor.id, finalidade: null, em: expect.any(String), papel: 'coordenação' },
+      ])
+      const texto = textoDoObjeto(cenario.escolaId, pedidoId, 'completa')
+      for (const proibido of [cenario.coordenacao.usuarioId, nomeDaCoordenacao, ANTES_PLANTADO, doOutro]) expect(texto, proibido).not.toContain(proibido)
+    })
+
+    it('D85: o índice parcial por alvo tem as sete ações e as duas leituras por alvo descem por ele (regra 80, item 8)', async () => {
       const { rows: indices } = await bancada.pool.query<{ definicao: string }>(`select pg_get_indexdef(indexrelid) as definicao from pg_index where indexrelid = 'auditoria_por_alvo_idx'::regclass`)
       const definicao = indices[0]?.definicao ?? ''
       expect(definicao).toMatch(/\(escola_id, entidade_id, em\)/)
-      for (const acao of AS_SEIS) expect(definicao, acao).toContain(`'${acao}'`)
+      for (const acao of AS_SETE) expect(definicao, acao).toContain(`'${acao}'`)
 
       const cenario = await novaEscola()
       const alvo = await alunoComLista(cenario, 'Alvo')
       const cliente = await bancada.pool.connect()
       try {
         await cliente.query('begin')
-        // Volume de auditoria da escola, nas seis ações, sobre 30 alunos; o alvo tem 5 linhas entre elas.
+        // Volume de auditoria da escola, nas sete ações, sobre 30 alunos; o alvo tem 5 linhas entre elas.
         const alunos = (
           await cliente.query<{ id: string }>("insert into usuario (escola_id, papel, nome) select $1, 'aluno', 'Aluno sintético ' || n from generate_series(1, 30) as n returning id", [cenario.escolaId])
         ).rows.map(({ id }) => id)
@@ -966,7 +985,7 @@ describe('arquivo do titular (F3, tarefa 13.0): do pedido ao download', () => {
           `insert into auditoria (escola_id, autor_usuario_id, acao, entidade, entidade_id, requisicao_id, em)
            select $1, $2, acao, 'usuario', alvo, gen_random_uuid(), now() - n * interval '1 minute'
            from unnest($3::uuid[]) as alvo cross join unnest($4::text[]) as acao cross join generate_series(1, 20) as n`,
-          [cenario.escolaId, cenario.coordenacao.usuarioId, [...alunos, alvo.aluno.id], AS_SEIS],
+          [cenario.escolaId, cenario.coordenacao.usuarioId, [...alunos, alvo.aluno.id], AS_SETE],
         )
         await cliente.query('analyze auditoria')
         await cliente.query('set local enable_seqscan = off')

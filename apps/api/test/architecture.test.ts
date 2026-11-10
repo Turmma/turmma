@@ -1426,12 +1426,12 @@ describe('arquitetura: a rotina noturna é a única consulta sem escopo do expur
 describe('arquitetura: o que a auditoria diz de outra pessoa não entra no arquivo de quem é só autor (F3, 13.0 e 15.0)', () => {
   /**
    * O arquivo do titular (13.0) lista a auditoria em que ele é o autor. A ação com `entidade: 'usuario'` tem como `entidade_id` o
-   * id de **outra pessoa** (a desativada, a eliminada, a que teve o segundo fator redefinido): se um professor ou um aluno a
+   * id de **outra pessoa** (a desativada, a eliminada, a que teve o segundo fator redefinido, o professor que teve o e-mail corrigido): se um professor ou um aluno a
    * assinasse, o arquivo dele carregaria o id de outra pessoa. A lista é a das ações que **só a coordenação, a operação e a
-   * rotina** assinam, mais `usuario.ativado_por_convite`, `senha.redefinida`, `conta.email_verificado` e `senha_provisoria.usada` (acesso-e-convites, 10.0), em que quem assina é a própria pessoa e o id é o dela. Ação nova com
+   * rotina** assinam, mais `usuario.ativado_por_convite`, `senha.redefinida`, `conta.email_verificado` e `senha_provisoria.usada` (acesso-e-convites, 10.0), em que quem assina é a própria pessoa e o id é o dela; `usuario.email_corrigido` (18.0) é da coordenação e o id é o do professor, como o `usuario.nome_corrigido`. Ação nova com
    * `entidade: 'usuario'` obriga a quem a cria a ler este comentário e a decidir quem a assina.
    */
-  const COORDENACAO_OPERACAO_E_ROTINA = ['aluno.transferido', 'professor.cadastrado', 'usuario.desativado', 'usuario.eliminado', 'usuario.mfa_redefinicao_recusada', 'usuario.mfa_redefinido', 'usuario.nome_corrigido']
+  const COORDENACAO_OPERACAO_E_ROTINA = ['aluno.transferido', 'professor.cadastrado', 'usuario.desativado', 'usuario.eliminado', 'usuario.mfa_redefinicao_recusada', 'usuario.mfa_redefinido', 'usuario.nome_corrigido', 'usuario.email_corrigido']
   const A_PROPRIA_PESSOA = ['usuario.ativado_por_convite', 'senha.redefinida', 'conta.email_verificado', 'senha_provisoria.usada']
   /**
    * `senha_provisoria.gerada` (acesso-e-convites, 9.0) é assinada pela coordenação **e pelo professor da turma** e tem o aluno como alvo. É a única exceção à

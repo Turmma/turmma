@@ -82,9 +82,10 @@ export const RECURSOS = {
   senha_provisoria: ['gerar'],
   /**
    * Os professores da escola (A1, 3.0), só da coordenação: `listar` e `cadastrar` são `GET` e `POST /v1/professores`;
-   * `refazer_convite` e `revogar_convite`, `POST /v1/professores/:usuarioId/convite/{refazer,revogar}`.
+   * `refazer_convite` e `revogar_convite`, `POST /v1/professores/:usuarioId/convite/{refazer,revogar}`; `corrigir_email`, `POST /v1/professores/:usuarioId/email`
+   * (acesso-e-convites, 18.0): liga o professor que nunca entrou à conta do e-mail certo.
    */
-  professor: ['listar', 'cadastrar', 'refazer_convite', 'revogar_convite'],
+  professor: ['listar', 'cadastrar', 'refazer_convite', 'revogar_convite', 'corrigir_email'],
   /** Uso e desempenho das turmas de um professor (D45): o agregado e o nominal são leituras diferentes. */
   indicador_professor: ['ler_agregado', 'ler_nominal'],
   /**
@@ -240,7 +241,7 @@ export const MATRIZ: { readonly [P in Papel]: CelulasDoPapel } = {
     vinculo: { ler: 'nunca', criar: 'nunca', encerrar: 'nunca', ler_proprios: 'nunca', confirmar: 'nunca', contestar: 'nunca' },
     usuario_mfa: { redefinir: 'nunca' },
     senha_provisoria: { gerar: 'nunca' },
-    professor: { listar: 'nunca', cadastrar: 'nunca', refazer_convite: 'nunca', revogar_convite: 'nunca' },
+    professor: { listar: 'nunca', cadastrar: 'nunca', refazer_convite: 'nunca', revogar_convite: 'nunca', corrigir_email: 'nunca' },
     indicador_professor: { ler_agregado: 'agregado', ler_nominal: 'nunca' },
     material: { enviar: 'nunca', listar: 'nunca', ler: 'nunca', excluir: 'nunca', buscar: 'nunca' },
     importacao_planilha: { previa: 'nunca', gravar: 'nunca', ler: 'nunca' },
@@ -287,7 +288,7 @@ export const MATRIZ: { readonly [P in Papel]: CelulasDoPapel } = {
     vinculo: { ler: 'unidade', criar: 'unidade', encerrar: 'unidade', ler_proprios: 'nunca', confirmar: 'nunca', contestar: 'nunca' },
     usuario_mfa: { redefinir: 'unidade' },
     senha_provisoria: { gerar: 'unidade' },
-    professor: { listar: 'unidade', cadastrar: 'unidade', refazer_convite: 'unidade', revogar_convite: 'unidade' },
+    professor: { listar: 'unidade', cadastrar: 'unidade', refazer_convite: 'unidade', revogar_convite: 'unidade', corrigir_email: 'unidade' },
     indicador_professor: { ler_agregado: 'agregado', ler_nominal: 'nominal_auditado' },
     material: { enviar: 'unidade', listar: 'unidade', ler: 'unidade', excluir: 'unidade', buscar: 'unidade' },
     importacao_planilha: { previa: 'unidade', gravar: 'unidade', ler: 'unidade' },
@@ -334,7 +335,7 @@ export const MATRIZ: { readonly [P in Papel]: CelulasDoPapel } = {
     vinculo: { ler: 'nunca', criar: 'nunca', encerrar: 'nunca', ler_proprios: 'proprio', confirmar: 'proprio', contestar: 'proprio' },
     usuario_mfa: { redefinir: 'nunca' },
     senha_provisoria: { gerar: 'turma_vinculada' },
-    professor: { listar: 'nunca', cadastrar: 'nunca', refazer_convite: 'nunca', revogar_convite: 'nunca' },
+    professor: { listar: 'nunca', cadastrar: 'nunca', refazer_convite: 'nunca', revogar_convite: 'nunca', corrigir_email: 'nunca' },
     indicador_professor: { ler_agregado: 'nunca', ler_nominal: 'proprio' },
     material: { enviar: 'nunca', listar: 'turma_vinculada', ler: 'turma_vinculada', excluir: 'nunca', buscar: 'turma_vinculada' },
     importacao_planilha: { previa: 'nunca', gravar: 'nunca', ler: 'nunca' },
@@ -381,7 +382,7 @@ export const MATRIZ: { readonly [P in Papel]: CelulasDoPapel } = {
     vinculo: { ler: 'nunca', criar: 'nunca', encerrar: 'nunca', ler_proprios: 'nunca', confirmar: 'nunca', contestar: 'nunca' },
     usuario_mfa: { redefinir: 'nunca' },
     senha_provisoria: { gerar: 'nunca' },
-    professor: { listar: 'nunca', cadastrar: 'nunca', refazer_convite: 'nunca', revogar_convite: 'nunca' },
+    professor: { listar: 'nunca', cadastrar: 'nunca', refazer_convite: 'nunca', revogar_convite: 'nunca', corrigir_email: 'nunca' },
     indicador_professor: { ler_agregado: 'nunca', ler_nominal: 'nunca' },
     material: { enviar: 'nunca', listar: 'nunca', ler: 'nunca', excluir: 'nunca', buscar: 'nunca' },
     importacao_planilha: { previa: 'nunca', gravar: 'nunca', ler: 'nunca' },

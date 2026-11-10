@@ -6,12 +6,13 @@ import {
   type PaginationQuery,
   type CadastrarProfessorRequest,
   type ConviteDeProfessorResponse,
+  type CorrigirEmailDoProfessorRequest,
   type EnviarConvitesRequest,
   type EnviarConvitesResponse,
   type ListaDeProfessoresResponse,
 } from '@educa/shared'
 import { paginarPor } from '../http/pagination.js'
-import { cadastrarProfessor, enviarConvitesDeProfessores, refazerConviteDeProfessor, revogarConviteDeProfessor, type EnvioDeConvites } from '../sessao/index.js'
+import { cadastrarProfessor, corrigirEmailDoProfessor, enviarConvitesDeProfessores, refazerConviteDeProfessor, revogarConviteDeProfessor, type EnvioDeConvites } from '../sessao/index.js'
 import { ProfessoresRepository } from './professores.repository.js'
 
 /**
@@ -53,6 +54,11 @@ export class ProfessoresService {
 
   async refazerConvite(usuarioId: string): Promise<ConviteDeProfessorResponse> {
     return conviteDeProfessorResponseSchema.parse(await refazerConviteDeProfessor(this.banco, usuarioId))
+  }
+
+  /** O "Corrigir o e-mail": o professor que nunca entrou passa à conta do e-mail certo, com o mesmo id, e ganha convite novo (caso de uso do `sessao`, que alcança a conta global). */
+  async corrigirEmail(usuarioId: string, pedido: CorrigirEmailDoProfessorRequest): Promise<ConviteDeProfessorResponse> {
+    return conviteDeProfessorResponseSchema.parse(await corrigirEmailDoProfessor(this.banco, usuarioId, pedido, this.relogio))
   }
 
   async revogarConvite(usuarioId: string): Promise<void> {

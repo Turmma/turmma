@@ -112,18 +112,18 @@ describe('LEITURAS_DO_ARQUIVO: a forma das leituras', () => {
     expect((instrucoes[0]?.match(/^select (.+) from resposta_atividade t /)?.[1] ?? '').split(', ')).toEqual((leitura?.colunas ?? []).map((coluna) => `t.${coluna}`))
   })
   describe('a leitura por alvo da auditoria (D85, acesso-e-convites 11.0)', () => {
-    const AS_SEIS = ['aluno.transferido', 'lista.transferida', 'usuario.nome_corrigido', 'lista.nome_corrigido', 'senha_provisoria.gerada', 'senha_provisoria.usada']
+    const AS_SETE = ['aluno.transferido', 'lista.transferida', 'usuario.nome_corrigido', 'lista.nome_corrigido', 'senha_provisoria.gerada', 'senha_provisoria.usada', 'usuario.email_corrigido']
     const dialeto = new PgDialect()
     const [, ...porAlvo] = (LEITURAS_DO_ARQUIVO['auditoria']?.consultas({ ...alvo, versao: 'completa' }) ?? []).map((consulta) => dialeto.sqlToQuery(consulta).sql)
 
-    it('são duas leituras por alvo, além da dos atos do titular, e juntas citam exatamente as seis ações da lista fechada', () => {
+    it('são duas leituras por alvo, além da dos atos do titular, e juntas citam exatamente as sete ações da lista fechada', () => {
       expect(porAlvo).toHaveLength(2)
       const citadas = porAlvo.flatMap((instrucao) => [...(instrucao.match(/\bt\.acao in \(([^)]+)\)/)?.[1] ?? '').matchAll(/'([^']+)'/g)].map(([, acao]) => acao))
-      expect([...citadas].sort()).toEqual([...AS_SEIS].sort())
+      expect([...citadas].sort()).toEqual([...AS_SETE].sort())
     })
 
-    it('a lista fechada é a da D85, escrita uma vez no código: a constante que o índice e as leituras usam tem as seis ações, e só como literal de SQL', () => {
-      expect([...ACOES_DO_ARQUIVO_POR_ALVO].sort()).toEqual([...AS_SEIS].sort())
+    it('a lista fechada é a da D85, escrita uma vez no código: a constante que o índice e as leituras usam tem as sete ações, e só como literal de SQL', () => {
+      expect([...ACOES_DO_ARQUIVO_POR_ALVO].sort()).toEqual([...AS_SETE].sort())
       // Os valores vão ao SQL entre aspas: nada de aspas, espaço ou ponto e vírgula entre eles.
       for (const acao of ACOES_DO_ARQUIVO_POR_ALVO) expect(acao).toMatch(/^[a-z_]+\.[a-z_]+$/)
     })

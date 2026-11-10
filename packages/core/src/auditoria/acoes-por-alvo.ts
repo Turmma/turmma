@@ -3,13 +3,13 @@ import type { PapelQueGeraASenhaProvisoria } from '@educa/shared'
 /**
  * A lista fechada do que o arquivo do titular traz "por alvo" (D85; acesso-e-convites, tarefa 11.0): os atos de outra pessoa sobre o titular, só com o papel de
  * quem fez. **É escrita aqui uma vez**: o índice parcial `auditoria_por_alvo_idx` (`db/schema/auditoria.ts`) e as duas leituras de `LEITURAS_DO_ARQUIVO.auditoria`
- * (`titular/leitura-do-titular.ts`) a leem daqui, e a migration `0046_auditoria_por_alvo.sql`, que não importa nada, leva o texto das mesmas seis (o
- * `auditoria-por-alvo.int.test.ts` confere a migration contra esta lista). Ação nova entra aqui, na migration que recria o índice e no teste que fixa a lista
+ * (`titular/leitura-do-titular.ts`) a leem daqui, e as migrations `0046_auditoria_por_alvo.sql` (as seis) e `0048_auditoria_por_alvo_email.sql` (as sete), que não importam nada, levam o texto da lista (o
+ * `auditoria-por-alvo.int.test.ts` confere a última contra esta lista). Ação nova entra aqui, na migration que recria o índice e no teste que fixa a lista
  * (`leitura-do-titular.test.ts`), e em lugar nenhum mais. Sem aspas nem espaço: os valores vão ao SQL como literal.
  */
 
 /** As ações cujo `entidade_id` é o próprio usuário titular. */
-export const ACOES_DO_USUARIO_POR_ALVO = ['aluno.transferido', 'usuario.nome_corrigido', 'senha_provisoria.gerada', 'senha_provisoria.usada'] as const
+export const ACOES_DO_USUARIO_POR_ALVO = ['aluno.transferido', 'usuario.nome_corrigido', 'senha_provisoria.gerada', 'senha_provisoria.usada', 'usuario.email_corrigido'] as const
 
 /** As ações cujo `entidade_id` é a linha da lista de nomes, que só é do titular depois de aprovada (`lista_nome.usuario_id`). */
 export const ACOES_DA_LISTA_POR_ALVO = ['lista.transferida', 'lista.nome_corrigido'] as const

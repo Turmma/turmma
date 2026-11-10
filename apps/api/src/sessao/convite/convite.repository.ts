@@ -1,5 +1,5 @@
 import { CANCELAR_O_ENVIO_DO_CONVITE, CHAVE_DA_TRAVA_DO_CONVITE_DA_ESCOLA, conta, convite, ConviteDaEscolaRepository, escola, requireEscolaId, usuario, type Database, type DatabaseTransaction, type DadosDaCoordenacao, type DadosDoProfessor, type TipoDeConvite, type UltimoConviteDoProfessor } from '@educa/core'
-import { and, asc, desc, eq, exists, gte, inArray, isNotNull, isNull, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, exists, gte, inArray, isNotNull, isNull, ne, sql } from 'drizzle-orm'
 
 /** A chave da trava do convite da escola mora no core (a 6.0 a subiu com o resto que o job da planilha usa); a API a reexporta para os testes. */
 export { CHAVE_DA_TRAVA_DO_CONVITE_DA_ESCOLA }
@@ -137,6 +137,29 @@ export class ConviteRepository extends ConviteDaEscolaRepository {
     if (linha === undefined) return undefined
     const { desativadoEm, agora, ...ultimoConvite } = linha
     return { desativadoEm, ultimoConvite, agora }
+  }
+
+  /** O passo (2) do "Corrigir o e-mail" (Tech Spec, seção 5; acesso-e-convites, 18.0): algum convite de professor do usuário, nesta escola, com `usado_em`. Quem já entrou não troca de conta. */
+  async jaEntrou(usuarioId: string): Promise<boolean> {
+    const [usado] = await this.banco
+      .select({ id: convite.id })
+      .from(convite)
+      .where(and(eq(convite.escolaId, requireEscolaId()), eq(convite.usuarioId, usuarioId), eq(convite.tipo, 'professor'), isNotNull(convite.usadoEm)))
+      .limit(1)
+    return usado !== undefined
+  }
+
+  /**
+   * O passo (4) do "Corrigir o e-mail" (Tech Spec, seção 5; acesso-e-convites, 18.0): só o `conta_id` do usuário muda. O `update` é condicional (a escola do contexto, o papel `professor`, o
+   * usuário ainda inativo e a conta diferente da de hoje) e zero linhas devolvem `false`. O 23505 do `usuario_escola_conta_papel_unico` sobe como veio, e o filtro global o traduz.
+   */
+  async trocarContaDoProfessor(usuarioId: string, contaId: string): Promise<boolean> {
+    const trocados = await this.banco
+      .update(usuario)
+      .set({ contaId })
+      .where(and(eq(usuario.escolaId, requireEscolaId()), eq(usuario.id, usuarioId), eq(usuario.papel, 'professor'), isNotNull(usuario.desativadoEm), ne(usuario.contaId, contaId)))
+      .returning({ id: usuario.id })
+    return trocados.length === 1
   }
 
   /**

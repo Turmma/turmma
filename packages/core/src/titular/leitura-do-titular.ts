@@ -425,9 +425,9 @@ export const LEITURAS_DO_ARQUIVO: Readonly<Record<string, LeituraDaTabela>> = {
       // a segunda (a por alvo, com o `papel`) vence na junção por `id`, então ela sai uma vez.
       sql`select ${selectColumns('id', 'acao', 'entidade', 'entidade_id', 'finalidade', 'em')} from auditoria t
           where t.escola_id = ${escolaId} and t.autor_usuario_id = ${titularId} and t.acao not in ('senha_provisoria.gerada', 'senha_provisoria.alvo_lido')`,
-      // Por alvo (D85): o ato de **outra pessoa** sobre o titular, numa lista fechada de seis ações (o índice parcial `auditoria_por_alvo_idx` tem a mesma lista). Sai a ação, a
+      // Por alvo (D85): o ato de **outra pessoa** sobre o titular, numa lista fechada de sete ações (o índice parcial `auditoria_por_alvo_idx` tem a mesma lista). Sai a ação, a
       // entidade, a finalidade, a data e o **papel** de quem fez, nunca o id nem o nome dele (`autor_usuario_id`, `autor_operador`), nem o `antes` e o `depois`. O papel é fixo nas
-      // ações da planilha de alunos (a coordenação grava a planilha), vem do `depois` na `.gerada` e é o próprio aluno na `.usada`. Leitura auditada (quem abriu o dado dele) não está
+      // ações da coordenação (a planilha de alunos e o `usuario.email_corrigido`, que caem no `else`), vem do `depois` na `.gerada` e é o próprio aluno na `.usada`. Leitura auditada (quem abriu o dado dele) não está
       // na lista. Escopo: a escola e o `entidade_id` do titular; a linha de outra escola com o mesmo `entidade_id` não casa.
       sql`select ${selectColumns('id', 'acao', 'entidade', 'entidade_id', 'finalidade', 'em')},
             case t.acao

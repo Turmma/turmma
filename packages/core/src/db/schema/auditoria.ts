@@ -53,8 +53,8 @@ export const auditoria = pgTable(
       .on(tabela.escolaId, tabela.autorUsuarioId, tabela.em)
       .where(sql`${tabela.autorUsuarioId} is not null`),
     // O que o arquivo do titular lê "por alvo" (D85, acesso-e-convites 11.0): os atos de outra pessoa sobre ele, pela escola e pelo `entidade_id` (o aluno, ou a linha da lista que
-    // virou o aluno). Parcial nas seis ações da lista fechada: a auditoria cresce com tudo o que a escola faz, e o índice só guarda o que o arquivo procura. A lista mora em
-    // `auditoria/acoes-por-alvo.ts`, e a leitura (`titular/leitura-do-titular.ts`) usa a mesma; a migration 0046 leva o texto, e `auditoria-por-alvo.int.test.ts` o confere.
+    // virou o aluno). Parcial nas sete ações da lista fechada: a auditoria cresce com tudo o que a escola faz, e o índice só guarda o que o arquivo procura. A lista mora em
+    // `auditoria/acoes-por-alvo.ts`, e a leitura (`titular/leitura-do-titular.ts`) usa a mesma; a migration 0048 leva o texto (recriou a 0046 com a sétima), e `auditoria-por-alvo.int.test.ts` o confere.
     index('auditoria_por_alvo_idx')
       .on(tabela.escolaId, tabela.entidadeId, tabela.em)
       .where(sql`${tabela.acao} in (${sql.raw(literaisDeSql(ACOES_DO_ARQUIVO_POR_ALVO))})`),

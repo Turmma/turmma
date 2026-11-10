@@ -360,6 +360,7 @@ export {
   enviarConvitesRequestSchema,
   enviarConvitesResponseSchema,
   conviteDeProfessorEmptyBodyRequestSchema,
+  corrigirEmailDoProfessorRequestSchema,
   professorDaEscolaSchema,
   conviteDeProfessorResponseSchema,
   listaDeProfessoresResponseSchema,
@@ -367,6 +368,7 @@ export {
   ESTADOS_DO_PROFESSOR_ALOCAVEIS,
   REFAZER_CONVITE_DE_PROFESSOR_POR_ESTADO,
   REVOGAR_CONVITE_DE_PROFESSOR_POR_ESTADO,
+  CORRIGIR_EMAIL_DO_PROFESSOR_POR_ESTADO,
 } from './professores/professores.js'
 export type {
   EstadoDoEnvio,
@@ -374,6 +376,7 @@ export type {
   CadastrarProfessorRequest,
   EnviarConvitesRequest,
   EnviarConvitesResponse,
+  CorrigirEmailDoProfessorRequest,
   ProfessorDaEscola,
   ConviteDeProfessorResponse,
   ListaDeProfessoresResponse,

@@ -466,6 +466,17 @@ export const ACOES_DE_AUDITORIA = {
     finalidade: null,
   },
   /**
+   * A coordenação corrigiu o e-mail do professor que nunca entrou (acesso-e-convites, 18.0, RF17; Tech Spec, seção 5, "Corrigir o e-mail"): `entidadeId` é o usuário do professor, que muda
+   * de conta e fica com o id. Sem `antes` nem `depois`: nenhum campo da auditoria leva e-mail, e o id da conta também não entra. O autor é a coordenação; o arquivo do professor traz
+   * o ato com o papel "coordenação", sem o autor (D85).
+   */
+  'usuario.email_corrigido': {
+    entidade: 'usuario',
+    antes: null,
+    depois: null,
+    finalidade: null,
+  },
+  /**
    * A planilha de alunos corrigiu o nome de quem ainda não foi aprovado (F2, 8.0, RF4 e RF17): `entidadeId` é a linha da lista,
    * `livre` ou `reivindicado`. Sem nome, antes nem depois. O autor é a coordenação que gravou a planilha.
    */

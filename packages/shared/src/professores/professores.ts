@@ -41,6 +41,17 @@ export type CadastrarProfessorRequest = z.infer<typeof cadastrarProfessorRequest
 export const conviteDeProfessorEmptyBodyRequestSchema = z.strictObject({})
 
 /**
+ * Corpo de `POST /v1/professores/:usuarioId/email` (acesso-e-convites, 18.0; Tech Spec, seção 5, "Corrigir o e-mail"): o e-mail certo do professor que nunca entrou, com as regras do
+ * cadastro (`emailConvidadoSchema`: sem espaço nas pontas e em minúsculas). Estrito: campo a mais, como `escolaId` ou `contaId`, é `ENTRADA_INVALIDA`. A escola vem da sessão e
+ * o professor, do endereço; o e-mail de hoje não é pedido nem devolvido (E8).
+ */
+export const corrigirEmailDoProfessorRequestSchema = z.strictObject({
+  email: emailConvidadoSchema,
+})
+
+export type CorrigirEmailDoProfessorRequest = z.infer<typeof corrigirEmailDoProfessorRequestSchema>
+
+/**
  * Corpo de `POST /v1/professores/convites/enviar` (acesso-e-convites, tarefa 3.0, RF11): os professores selecionados, ou nenhum campo para mandar a todos
  * os que esperam o convite. Estrito: campo a mais, como `escolaId`, é `ENTRADA_INVALIDA`. Ids que não são de professor da escola, ou que não esperam o
  * convite (revogado, aceito, ativo, desativado), não entram e não são recusados: a contagem diz quantos entraram. A escola vem da sessão.
@@ -126,6 +137,20 @@ export const REVOGAR_CONVITE_DE_PROFESSOR_POR_ESTADO: Readonly<Record<EstadoDoPr
   pendente: 'revogar',
   vencido: 'revogar',
   revogado: 'nao_encontrado',
+  aceito: 'conflito',
+  ativo: 'conflito',
+  desativado: 'conflito',
+}
+
+/**
+ * Corrigir o e-mail (acesso-e-convites, 18.0): a mesma matriz do refazer, por estado, escrita à parte para a tela (19.0) e o servidor lerem a regra por ela. **Tem de ficar igual à do `REFAZER_CONVITE_DE_PROFESSOR_POR_ESTADO`**: nenhum teste compara as duas hoje (a divergência só apareceria nos casos de estado da rota). Só o convite
+ * em aberto, `pendente` ou `vencido`, troca de conta. O `aceito` e o `ativo` (quem já entrou, ou entra) e o `desativado` e o `revogado` são `CONFLITO`: a coordenação
+ * revoga e cadastra o e-mail certo. Além do estado, o servidor recusa quem já entrou alguma vez (um convite de professor com `usadoEm`).
+ */
+export const CORRIGIR_EMAIL_DO_PROFESSOR_POR_ESTADO: Readonly<Record<EstadoDoProfessor, 'corrigir' | 'conflito'>> = {
+  pendente: 'corrigir',
+  vencido: 'corrigir',
+  revogado: 'conflito',
   aceito: 'conflito',
   ativo: 'conflito',
   desativado: 'conflito',

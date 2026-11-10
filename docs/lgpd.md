@@ -121,8 +121,8 @@ deveria existir.
 | Arquivo do titular (`arquivo_titular`: de qual pedido e de qual versão — `completa` ou `coordenacao` —, onde o JSON está no storage privado, o tamanho e quando ficou pronto e até quando fica; **nenhum dado do titular na linha**: o conteúdo mora no objeto, e o campo `chave_objeto` nunca sai pela API (a URL assinada leva o caminho do objeto, que só tem ids)) | aluno, professor | entregar ao titular a cópia dos dados que a escola guarda dele (LGPD, art. 18, II e V): ele baixa a versão completa em "Meus dados", e a coordenação baixa a versão da escola só quando ele não tem conta ativa | obrigação da escola (LGPD, art. 18) | 7 dias depois de pronto, ou até a eliminação do titular (`apagado_em`): a rotina da escola apaga o objeto do storage e só então a linha; a noite seguinte repete o que o storage não deixou apagar (F3, tarefa 13.0) |
 
 **O arquivo do titular (F3, tarefa 13.0).** Da auditoria, ele traz o que o titular fez e, pela D85 (F2c, tarefa 11.0), os atos de
-outra pessoa que mudaram dado dele: lista fechada de seis ações (`aluno.transferido`, `lista.transferida`, `usuario.nome_corrigido`,
-`lista.nome_corrigido`, `senha_provisoria.gerada` e `.usada`), por alvo, com a ação, a entidade, a finalidade, a data e só o papel de quem
+outra pessoa que mudaram dado dele: lista fechada de sete ações (`aluno.transferido`, `lista.transferida`, `usuario.nome_corrigido`,
+`lista.nome_corrigido`, `senha_provisoria.gerada` e `.usada`, e `usuario.email_corrigido`, a coordenação que corrigiu o e-mail do professor que não entrou, F2c, tarefa 18.0), por alvo, com a ação, a entidade, a finalidade, a data e só o papel de quem
 fez (coordenação, professor ou o próprio aluno), nunca o nome nem o id, nem o `antes` e o `depois`, e sem as leituras. Os atos sobre um nome da lista só chegam
 depois de o nome ser aprovado para o aluno. O pedido de acesso ou de portabilidade monta, fora da requisição, um JSON no storage
 privado (`titular/<escola>/<pedido>/<versao>.json`) e passa o pedido de `em_preparacao` para `pronto`. O titular o baixa em "Meus dados"

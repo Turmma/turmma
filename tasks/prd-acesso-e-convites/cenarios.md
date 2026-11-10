@@ -213,10 +213,10 @@ Tech Spec, seção 5, "Corrigir o e-mail". 18.0 (API) e 19.0 (tela).
 - [I] O token do convite anterior é recusado no aceite; o devolvido pela correção é aceito, e o aceite define a senha da conta nova.
 - [I] O envio anterior `na_fila` termina `cancelado`, cifrados nulos, zero envios; `enviando` (SMTP falso numa barreira), `cancelado`
   e o link que sai não vale.
-- [I] "Enviar" de um só logo depois: o e-mail vai ao endereço novo (o corpo capturado pelo falso), gastando 1 ponto da cota.
+- [I] "Enviar" de um só logo depois: o endereço cifrado do envio, decifrado como o worker o faz, é o e-mail novo, gastando 1 ponto da cota.
 - [I] A conta antiga não muda (e-mail, senha, `emailVerificadoEm`), nem quando tem usuário em outra escola; sem usuário, a
   limpeza da madrugada (`sistema.expurgar-acesso`, relógio injetado) a esvazia, e com o usuário da outra escola, não.
-- [I] Professor `vencido`: corrige, e o convite novo vale 72 h a partir de agora (relógio falso).
+- [I] Professor `vencido`: corrige, e o convite novo vale 7 dias a partir de agora (relógio falso; os mesmos do refazer).
 - [I] `revogado`, `aceito`, `ativo` e `desativado`: `CONFLITO`, nada gravado (conta do e-mail novo inexistente depois, sem auditoria).
   Um caso por estado.
 - [I] Professor desligado e chamado de volta (um convite usado antes, o último em aberto): `CONFLITO`, o `contaId` fica.

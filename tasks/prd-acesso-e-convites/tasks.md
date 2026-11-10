@@ -121,7 +121,7 @@
   - [x] 17.4 A ação fora da lista por alvo e fora do arquivo de quem assina
   - [x] 17.5 Testes: quem lê, escopo, conta da escola, sem ano, auditoria, sem cota nem trava, arquivo do titular
 
-- [ ] **18.0 — A coordenação corrige o e-mail do professor que não entrou (API)** (validação, maior 1; opção (b) do Joaquim, 10/11)
+- [x] **18.0 — A coordenação corrige o e-mail do professor que não entrou (API)** (validação, maior 1; opção (b) do Joaquim, 10/11)
   - [ ] 18.1 Contrato, a matriz `CORRIGIR_EMAIL_DO_PROFESSOR_POR_ESTADO` e a célula `professor.corrigir_email` em `packages/shared`
   - [ ] 18.2 `trocarContaDoProfessor` no `ConviteRepository` e o caso de uso em `convite-de-professor.service.ts`: trava, estado, "quem já entrou não troca", conta pelo `contaDoProfessor`, o `update` condicional, o 23505 como `CONFLITO`, o refazer
   - [ ] 18.3 A rota `POST /v1/professores/:usuarioId/email`, com `no-store`

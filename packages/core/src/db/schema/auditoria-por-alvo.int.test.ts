@@ -6,9 +6,9 @@ import { createLogger } from '../../log/logger.js'
 import { migrate, PASTA_MIGRACOES } from '../migrate.js'
 
 /**
- * O índice parcial da leitura "por alvo" do arquivo do titular (migration 0046, acesso-e-convites, tarefa 11.0; D85; regra 80, item 8). O teste
- * migra um banco só dele, com as migrations da pasta, como o `convite-envio.int.test.ts`: o que se prova é o texto da
- * `0046_auditoria_por_alvo.sql`, e o banco do ambiente já a aplicou antes de qualquer teste rodar.
+ * O índice parcial da leitura "por alvo" do arquivo do titular (migrations 0046, tarefa 11.0, e 0048, tarefa 18.0, que o recriou com a sétima ação; acesso-e-convites; D85; regra 80, item 8). O teste
+ * migra um banco só dele, com as migrations da pasta, como o `convite-envio.int.test.ts`: o que se prova é o resultado das duas, o texto da
+ * `0048_auditoria_por_alvo_email.sql` por último, e o banco do ambiente já a aplicou antes de qualquer teste rodar.
  */
 describe('acesso-e-convites: o índice da auditoria por alvo', () => {
   const nomeDoBanco = `auditoria_por_alvo_${Date.now()}`
@@ -58,14 +58,20 @@ describe('acesso-e-convites: o índice da auditoria por alvo', () => {
     }
   }
 
-  it('o índice começa pela escola, segue pelo alvo e pela data, e é parcial nas seis ações da lista fechada', async () => {
+  it('o índice começa pela escola, segue pelo alvo e pela data, e é parcial nas sete ações da lista fechada, e só nelas, num único índice por alvo', async () => {
     const { rows } = await cliente.query<{ definicao: string }>(`select pg_get_indexdef(indexrelid) as definicao from pg_index where indexrelid = 'auditoria_por_alvo_idx'::regclass`)
     const definicao = rows[0]?.definicao ?? ''
     expect(definicao).toMatch(/\(escola_id, entidade_id, em\)/)
     for (const acao of ACOES_DO_ARQUIVO_POR_ALVO) expect(definicao, acao).toContain(`'${acao}'`)
+    expect(ACOES_DO_ARQUIVO_POR_ALVO).toHaveLength(7)
+    expect(ACOES_DO_ARQUIVO_POR_ALVO).toContain('usuario.email_corrigido')
+    // Nem uma ação a mais do que a lista: o `in (...)` do índice tem exatamente as sete, e o índice de seis (e o provisório da migration) não sobrou.
+    expect(definicao.match(/'[a-z_]+\.[a-z_]+'/g) ?? []).toHaveLength(ACOES_DO_ARQUIVO_POR_ALVO.length)
+    const { rows: restantes } = await cliente.query<{ indexname: string }>(`select indexname from pg_indexes where tablename = 'auditoria' and indexname like 'auditoria_por_alvo%'`)
+    expect(restantes.map((linha) => linha.indexname)).toEqual(['auditoria_por_alvo_idx'])
   })
 
-  it('a leitura do titular (as quatro ações do usuário) e a da lista (as duas da linha da lista) descem pelo índice', async () => {
+  it('a leitura do titular (as cinco ações do usuário) e a da lista (as duas da linha da lista) descem pelo índice', async () => {
     expect(await indicesDoPlano(ACOES_DO_USUARIO_POR_ALVO)).toContain('auditoria_por_alvo_idx')
     expect(await indicesDoPlano(ACOES_DA_LISTA_POR_ALVO)).toContain('auditoria_por_alvo_idx')
   })

@@ -155,7 +155,7 @@ conta antes de o escopo e o estado passarem; (4) o `update` condicional do `Conv
 do contexto, `papel = 'professor'`, `desativadoEm` não nulo e `contaId` diferente da nova (o mesmo e-mail é `CONFLITO`); zero linhas,
 `CONFLITO`; o `usuario_escola_conta_papel_unico` decide o e-mail que já é de outro professor desta escola, em qualquer estado: o 23505
 vira `CONFLITO` e a transação volta, levando a conta criada; (5) o `refazerSobATrava` de sempre: o convite antigo é revogado, o envio
-dele que não saiu vira `cancelado` (`cancelar-envio.ts`), e nasce um convite `copiado` com token novo (`convite.refeito`); (6)
+dele que não saiu vira `cancelado` (`cancelar-envio.ts`), e nasce um convite `copiado` com token novo e a validade de 7 dias do professor (`convite.refeito`); (6)
 `usuario.email_corrigido`. A resposta é a do refazer: o link sai uma vez, e "Enviar por e-mail" é o `convites/enviar` de um só, com
 a cota de 300/h. Sem cota própria, como o cadastro e o refazer. **A conta antiga não é tocada**: pode ser de alguém de outra escola, e
 mudar `conta.email` a partir de uma escola seria escrita fora do tenant. Sem usuário que a segure, ela cai na limpeza da madrugada que

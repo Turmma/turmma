@@ -1,13 +1,17 @@
+import { contaDoProfessor } from '@educa/core/cadastro-de-professor'
 import { DomainException, estadoDoProfessor, AuditoriaRecorder, requireEscolaId, retryAfterSeconds, systemClock, type Database, type Clock, type CotaPorHora, type JobOutbox, type PontosGastos, type SecretCipher } from '@educa/core'
 import {
+  CORRIGIR_EMAIL_DO_PROFESSOR_POR_ESTADO,
   ErrorCode,
   REFAZER_CONVITE_DE_PROFESSOR_POR_ESTADO,
   REVOGAR_CONVITE_DE_PROFESSOR_POR_ESTADO,
   TIPO_ENVIAR_CONVITE,
   type CadastrarProfessorRequest,
+  type CorrigirEmailDoProfessorRequest,
   type EnviarConvitesRequest,
   type EnviarConvitesResponse,
 } from '@educa/shared'
+import { normalizarEmail } from '../../credencial/login-identifiers.js'
 import { ConviteRepository, type ProfessorParaEnvio } from './convite.repository.js'
 import { convidarProfessor, expiraEmDo, refazerSobATrava, tokenNovo } from './convite.service.js'
 
@@ -80,6 +84,30 @@ export async function refazerConviteDeProfessor(banco: Database, usuarioId: stri
     const { estado, conviteId } = await professorSobATrava(convites, usuarioId)
     if (REFAZER_CONVITE_DE_PROFESSOR_POR_ESTADO[estado] === 'conflito') throw new DomainException(ErrorCode.CONFLITO)
     const refeito = await refazerSobATrava(tx, convites, 'professor', conviteId, token, expiraEm)
+    return { usuarioId: refeito.usuarioId, conviteId: refeito.conviteId, token }
+  })
+}
+
+/**
+ * O "Corrigir o e-mail" do professor que nunca entrou (`POST /v1/professores/:usuarioId/email`; acesso-e-convites, 18.0). A ordem dos seis passos, e o porquê de o mesmo usuário trocar de
+ * conta, estão na Tech Spec, seção 5, "Corrigir o e-mail": a ordem é a regra (nenhuma conta nasce antes de o escopo e o estado passarem). A resposta é a do refazer, com o link uma vez.
+ * Nunca o e-mail, o nome ou o token em log.
+ */
+export async function corrigirEmailDoProfessor(banco: Database, usuarioId: string, pedido: CorrigirEmailDoProfessorRequest, relogio: Clock = systemClock): Promise<ConviteDeProfessorGerado> {
+  const token = tokenNovo()
+  const expiraEm = expiraEmDo('professor', relogio)
+  return banco.transaction(async (tx) => {
+    const convites = new ConviteRepository(tx)
+    const { estado, conviteId } = await professorSobATrava(convites, usuarioId)
+    if (CORRIGIR_EMAIL_DO_PROFESSOR_POR_ESTADO[estado] === 'conflito') throw new DomainException(ErrorCode.CONFLITO)
+    if (await convites.jaEntrou(usuarioId)) throw new DomainException(ErrorCode.CONFLITO)
+    const contaNova = await contaDoProfessor(tx, normalizarEmail(pedido.email))
+    // O e-mail que já é de outro professor da escola cai no `usuario_escola_conta_papel_unico` (23505): o `mapPostgresError` do filtro global o traduz em `CONFLITO`, e o erro que
+    // sobe desfaz a transação, com a conta que o passo (3) criou. Nada mais roda nela depois do 23505 (a transação abortada), e por isso não há `catch` aqui.
+    const trocou = await convites.trocarContaDoProfessor(usuarioId, contaNova.id)
+    if (!trocou) throw new DomainException(ErrorCode.CONFLITO)
+    const refeito = await refazerSobATrava(tx, convites, 'professor', conviteId, token, expiraEm)
+    await registro.gravar(tx, 'usuario.email_corrigido', { entidadeId: refeito.usuarioId })
     return { usuarioId: refeito.usuarioId, conviteId: refeito.conviteId, token }
   })
 }

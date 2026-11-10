@@ -3,9 +3,11 @@ import {
   paginationQuerySchema,
   cadastrarProfessorRequestSchema,
   conviteDeProfessorEmptyBodyRequestSchema,
+  corrigirEmailDoProfessorRequestSchema,
   enviarConvitesRequestSchema,
   type PaginationQuery,
   type CadastrarProfessorRequest,
+  type CorrigirEmailDoProfessorRequest,
   type EnviarConvitesRequest,
   type EnviarConvitesResponse,
   type ConviteDeProfessorResponse,
@@ -57,6 +59,17 @@ export class ProfessoresController {
   @Header('Cache-Control', 'no-store')
   refazerConvite(@Param('usuarioId', IdPipe) usuarioId: string, @Body(new ZodValidationPipe(emptyBodySchema)) _corpo: Record<string, never>): Promise<ConviteDeProfessorResponse> {
     return this.professores.refazerConvite(usuarioId)
+  }
+
+  /** O "Corrigir o e-mail" (acesso-e-convites, 18.0; Tech Spec, seção 5): a resposta é a do refazer, com o link uma vez e `no-store`. */
+  @Post(':usuarioId/email')
+  @RequirePermissao('professor', 'corrigir_email')
+  @Header('Cache-Control', 'no-store')
+  corrigirEmail(
+    @Param('usuarioId', IdPipe) usuarioId: string,
+    @Body(new ZodValidationPipe(corrigirEmailDoProfessorRequestSchema)) pedido: CorrigirEmailDoProfessorRequest,
+  ): Promise<ConviteDeProfessorResponse> {
+    return this.professores.corrigirEmail(usuarioId, pedido)
   }
 
   @Post(':usuarioId/convite/revogar')

@@ -55,6 +55,7 @@ export const EXPECTATIVA_DA_MATRIZ: ReadonlyArray<readonly [papel: string, recur
   ['rede', 'professor', 'cadastrar', 'nunca'],
   ['rede', 'professor', 'refazer_convite', 'nunca'],
   ['rede', 'professor', 'revogar_convite', 'nunca'],
+  ['rede', 'professor', 'corrigir_email', 'nunca'],
   ['rede', 'indicador_professor', 'ler_agregado', 'agregado'],
   ['rede', 'indicador_professor', 'ler_nominal', 'nunca'],
   // rede, MVP de apresentação: nenhuma rota. A rede não tem usuário nem tela nesta fatia.
@@ -172,6 +173,7 @@ export const EXPECTATIVA_DA_MATRIZ: ReadonlyArray<readonly [papel: string, recur
   ['coordenador', 'professor', 'cadastrar', 'unidade'],
   ['coordenador', 'professor', 'refazer_convite', 'unidade'],
   ['coordenador', 'professor', 'revogar_convite', 'unidade'],
+  ['coordenador', 'professor', 'corrigir_email', 'unidade'],
   ['coordenador', 'indicador_professor', 'ler_agregado', 'agregado'],
   ['coordenador', 'indicador_professor', 'ler_nominal', 'nominal_auditado'],
   // coordenador, MVP de apresentação: o material e a governança são dele; o que é do professor e do aluno, nunca. A
@@ -292,6 +294,7 @@ export const EXPECTATIVA_DA_MATRIZ: ReadonlyArray<readonly [papel: string, recur
   ['professor', 'professor', 'cadastrar', 'nunca'],
   ['professor', 'professor', 'refazer_convite', 'nunca'],
   ['professor', 'professor', 'revogar_convite', 'nunca'],
+  ['professor', 'professor', 'corrigir_email', 'nunca'],
   ['professor', 'indicador_professor', 'ler_agregado', 'nunca'],
   ['professor', 'indicador_professor', 'ler_nominal', 'proprio'],
   // professor, MVP de apresentação: a própria conversa, e o que é das turmas com vínculo confirmado dele. Não envia nem
@@ -411,6 +414,7 @@ export const EXPECTATIVA_DA_MATRIZ: ReadonlyArray<readonly [papel: string, recur
   ['aluno', 'professor', 'cadastrar', 'nunca'],
   ['aluno', 'professor', 'refazer_convite', 'nunca'],
   ['aluno', 'professor', 'revogar_convite', 'nunca'],
+  ['aluno', 'professor', 'corrigir_email', 'nunca'],
   ['aluno', 'indicador_professor', 'ler_agregado', 'nunca'],
   ['aluno', 'indicador_professor', 'ler_nominal', 'nunca'],
   // aluno, MVP de apresentação: a própria atividade, o próprio diagnóstico, a própria conversa com o Tutor e a execução
