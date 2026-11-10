@@ -1,16 +1,16 @@
 import { ErrorCode } from '@educa/shared'
 import { useEffect, useRef, useState } from 'react'
-import { Link } from 'wouter'
 import { ApiError } from '../api/client'
 import { verificarConta } from '../api/senha'
-import { buttonVariants, SECONDARY_LINK_CLASSES } from '../components/ui/button-variants'
 import { CascaPublica } from '../components/CascaPublica'
 import { ErrorState, LoadingState } from '../components/states'
-import { ROUTES } from '../paths'
 import { clearFragment, readFragmentToken } from './url-fragment'
 
 /** Vencido, usado, substituído, de outro formato ou sem token: a API responde igual, e a tela também (regra 10, item 6). */
 const LINK_DE_VERIFICAR_QUE_NAO_VALE = 'Este link não vale mais. Peça outro link abrindo o convite de novo.'
+
+/** Sem link para `/convite`: o token do convite só vive na aba que o abriu, e `/convite` sem ele só diria "endereço incompleto" (triagem da 16.0). */
+const VOLTE_AO_CONVITE = 'Volte à aba do convite e aceite de novo; se a fechou, abra o link do convite outra vez.'
 
 type Etapa =
   | { readonly nome: 'sem-token' }
@@ -23,11 +23,11 @@ type Etapa =
  * "Verificar" (acesso-e-convites, 8.0; RF12): quem aceitou um convite copiado de outra escola recebe, por e-mail, o link que prova que
  * o e-mail é dele, e ele abre em `/verificar#<token>`. O token é lido do fragmento `#` e tirado da barra antes de qualquer chamada
  * (regra 20, item 8), como no convite e no redefinir, e vai no corpo. Não há botão de confirmar: o link já é o gesto, e a tela confirma
- * ao abrir. Dá certo, a tela diz "E-mail confirmado" e leva de volta ao convite, que a pessoa aceita de novo; a verificação **não**
- * aceita o convite nem abre sessão.
+ * ao abrir. Dá certo, a tela diz "E-mail confirmado" e manda a pessoa de volta à aba do convite (ou ao link dele, se a fechou), que ela aceita de
+ * novo, sem link para `/convite`: a tela não tem o token do convite; a verificação **não** aceita o convite nem abre sessão.
  *
- * Os quatro estados: carregando é o "Confirmando…"; vazio não existe (a tela nasce confirmando); erro é o link que não vale (com a
- * saída: abrir o convite de novo, que manda outro link) e a falha de rede (com "Tentar de novo"); e "com dado" é o "E-mail confirmado".
+ * Os quatro estados: carregando é o "Confirmando…"; vazio não existe (a tela nasce confirmando); erro é o link que não vale (o aviso já diz a saída: abrir o convite de
+ * novo, que manda outro link; sem botão para `/convite`) e a falha de rede (com "Tentar de novo"); e "com dado" é o "E-mail confirmado".
  * Tela anônima, sem sessão: não há segunda pessoa no mesmo computador a considerar.
  *
  * **O link é de uso único**, e por isso a tela nunca manda o mesmo pedido duas vezes: o efeito é protegido contra a segunda execução do
@@ -69,10 +69,7 @@ export function VerificarEmail() {
         <p ref={confirmacao} role="status" tabIndex={-1} className="rounded-controle border border-ok bg-ok-cx p-4 text-ok">
           E-mail confirmado
         </p>
-        <p className="text-apoio">Volte ao convite e aceite de novo.</p>
-        <Link className={`${buttonVariants({ variante: 'primario' })} w-full`} to={ROUTES.convite}>
-          Continuar
-        </Link>
+        <p className="text-apoio">{VOLTE_AO_CONVITE}</p>
       </CascaPublica>
     )
   }
@@ -82,11 +79,6 @@ export function VerificarEmail() {
       <p role="alert" className="rounded-controle border border-pendente bg-pendente-cx p-4 text-pendente">
         {LINK_DE_VERIFICAR_QUE_NAO_VALE}
       </p>
-      <div>
-        <Link className={SECONDARY_LINK_CLASSES} to={ROUTES.convite}>
-          Abrir o convite
-        </Link>
-      </div>
     </CascaPublica>
   )
 }
