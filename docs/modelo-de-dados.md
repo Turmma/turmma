@@ -48,6 +48,8 @@ LinkDaConta*     → conta*, finalidade* (redefinir | verificar), tokenHash* (ú
 Usuario*         → escola*, conta? (nulo no aluno), papel*, nome*, desativadoEm?,
                    eliminacaoAgendadaEm? (F3: a data do registro da eliminação; o acesso fica suspenso)
                    introducaoVistaEm? (telas do aluno, 1.0: quando a pessoa viu a introdução do papel dela; sem anoLetivoId)
+                   (acesso-e-convites, 18.0: o `conta` do professor muda só no "Corrigir o e-mail", para quem tem o convite em aberto
+                   e nunca entrou; o id, os vínculos e as aulas ficam, e a conta anterior não é escrita: sem usuário, cai na limpeza)
 CredencialMatricula* → escola*, usuario*, matricula*, senhaHash*
 ContaExterna*    → escola*, usuario*, provedor* (google | microsoft), tenant?, sujeito*
 ProvedorEscola*  → escola*, provedor*, valor* (hd | tid), removidoEm?

@@ -203,6 +203,40 @@ rodada 1) acrescentou os casos marcados (F2c) e as seções "Arquivo do titular"
 - [P] Mesma conta em dois pedidos: o segundo é recusado (único por provedor, tenant e sujeito). Clique duplo em aprovar: uma `conta_externa`. Ligar a mesma conta
   duas vezes: uma.
 
+## Corrigir o e-mail (borda "E-mail que volta"; validação, maior 1)
+
+Tech Spec, seção 5, "Corrigir o e-mail". 18.0 (API) e 19.0 (tela).
+
+- [I] Professor `pendente` com o envio `falhou`, cadastrado pela grade com vínculo `pendente` de `origem = grade` e aula na `alocacao`:
+  corrigir o e-mail mantém o `usuarioId`, o vínculo e a aula; o `usuario` aponta para a conta do e-mail novo; o `GET /v1/professores`
+  mostra o mesmo id, `pendente`, sem envio.
+- [I] O token do convite anterior é recusado no aceite; o devolvido pela correção é aceito, e o aceite define a senha da conta nova.
+- [I] O envio anterior `na_fila` termina `cancelado`, cifrados nulos, zero envios; `enviando` (SMTP falso numa barreira), `cancelado`
+  e o link que sai não vale.
+- [I] "Enviar" de um só logo depois: o e-mail vai ao endereço novo (o corpo capturado pelo falso), gastando 1 ponto da cota.
+- [I] A conta antiga não muda (e-mail, senha, `emailVerificadoEm`), nem quando tem usuário em outra escola; sem usuário, a
+  limpeza da madrugada (`sistema.expurgar-acesso`, relógio injetado) a esvazia, e com o usuário da outra escola, não.
+- [I] Professor `vencido`: corrige, e o convite novo vale 72 h a partir de agora (relógio falso).
+- [I] `revogado`, `aceito`, `ativo` e `desativado`: `CONFLITO`, nada gravado (conta do e-mail novo inexistente depois, sem auditoria).
+  Um caso por estado.
+- [I] Professor desligado e chamado de volta (um convite usado antes, o último em aberto): `CONFLITO`, o `contaId` fica.
+- [I] E-mail novo que é de outro professor desta escola, em cada estado (`pendente`, `ativo`, `revogado`): `CONFLITO`, a conta
+  criada não fica (contagem de `conta` igual à de antes). O mesmo e-mail de hoje, em outra caixa: `CONFLITO`.
+- [I] E-mail novo com conta só em outra escola: corrige, a resposta e o corpo são iguais aos da conta nova (E11), e o usuário da
+  outra escola fica como estava.
+- [I] Id da B no contexto da A, id de aluno, id de coordenador, id inexistente: `NAO_ENCONTRADO` igual, nenhuma conta criada e
+  nenhum `update` em `usuario` da B. Professor e aluno sem a célula `professor.corrigir_email`: recusa da matriz.
+- [I] Corpo com campo a mais (`escolaId`, `contaId`) ou e-mail fora do formato: `ENTRADA_INVALIDA`, nada gravado.
+- [I] Auditoria: um `usuario.email_corrigido` e um `convite.refeito`, autora a coordenação, sem e-mail, sem id de conta, sem nome.
+- [I] Log da rota: só ids e código, nunca o e-mail velho nem o novo (a linha capturada).
+- [P] Corrigir × aceite do convite antigo, com `WriteBlockTrigger` (cada direção um caso): o aceite primeiro, a correção recebe
+  `CONFLITO` (aceito); a correção primeiro, o aceite recebe convite inválido.
+- [P] Duas correções do mesmo professor com e-mails diferentes, as transações abertas juntas: um convite em aberto, o `contaId` de
+  uma das duas, nunca 500.
+- [P] Correção × "Enviar" do mesmo professor: um convite em aberto, o envio que sobra é o do último, nunca dois `na_fila`.
+- [E] Professores com o envio `falhou` → "Corrigir o e-mail" → e-mail certo → "Enviar por e-mail" → o professor recebe pelo Mailpit,
+  aceita e vê a turma da grade para confirmar. Em `chromebook` e `celular`.
+
 ## Isolamento e ano letivo (RF16)
 
 - [I] Escola A contra B em: `convites/enviar` com `usuarioIds` da B (igual a inexistente, nada na fila), provisória,
@@ -238,7 +272,7 @@ rodada 1) acrescentou os casos marcados (F2c) e as seções "Arquivo do titular"
 ## Arquivo do titular (D85) (F2c)
 
 - [I] Um caso por ação da lista por alvo (`aluno.transferido`, `lista.transferida`, `usuario.nome_corrigido`,
-  `lista.nome_corrigido`, `senha_provisoria.gerada`, `.usada`): aparece no arquivo do alvo, não no de outro aluno, e traz
+  `lista.nome_corrigido`, `senha_provisoria.gerada`, `.usada`, e `usuario.email_corrigido`, no arquivo do professor, com o papel "coordenação"): aparece no arquivo do alvo, não no de outro aluno, e traz
   o papel de quem fez, sem o id nem o nome dele e sem `antes` nem `depois` (`apps/api/test/arquivo-do-titular.int.test.ts`).
 - [I] `lista.nome_corrigido` e `lista.transferida` de nome ainda não aprovado não entram em arquivo nenhum; aprovado,
   entram no do aluno.
@@ -301,7 +335,8 @@ termo técnico.
 | Trocar a provisória | lista: esqueleto | primeira vez: "É a primeira vez que você troca a senha", sem tabela | lista falhou: aviso com "Tentar de novo", o campo segue; bilhete vencido: "Peça a senha de novo ao professor" | "Gerada pela coordenação em 12/11/2026 às 14:05 · usada" |
 | Conta da escola na sala | "Entrando…" | botão "Entrar com a conta da escola" | domínio não liberado, conta pessoal ou ligada a desativado: o retorno não volta à sala, vai à entrada da escola com o texto dela (`CONTA_EXTERNA_NAO_LIGADA`, techspec §5, "recusados como sempre"), e a queda do provedor também (`provedor`); `ENTRADA_INVALIDA` (cookie vencido, ausente ou de outra sala), e o caminho guardado que falta ou venceu (aí a tela nem chama a API): "Comece de novo pelo link ou pelo código da sala"; `REIVINDICACAO_RECUSADA` (a conta já em outro pedido pendente, o nome tomado): o texto de hoje da sala; limite: o de hoje da sala; rede e 503: "Tentar de novo". O `CONFLITO` não chega à sala: nasce na aprovação, na tela do professor (divergência da 16.0) | "Pedido enviado. Espere o professor aprovar" |
 | Conta da escola em "Eu" | botão ocupado ("Ligando…") | "Ligar a conta da escola" | `CONFLITO`: "Esta conta já está ligada a outro aluno. Fale com o professor"; domínio não liberado ou conta pessoal: "Esta conta não é da escola. Escolha a conta da escola e tente de novo"; queda do provedor: "Não foi possível ligar a conta agora. Tente de novo", com o botão "Tentar de novo" (com os dois provedores, "Tentar de novo com a conta Google" e "…com a conta Microsoft"); rede (a leitura dos provedores): "Tentar de novo" | "Conta da escola ligada", na volta do provedor (o `/v1/eu` não diz se há conta ligada, e o botão reaparece numa visita seguinte) |
-| Professores, envio | — | — | `falhou`: "Não chegou. Confira o e-mail e reenvie, ou copie o link" (sem sugerir que o professor errou) | `na_fila` e `enviando`: "Enviando"; `enviado`: "Enviado em 12/11 às 14:05"; `cancelado`: vale o estado do convite. Mudança anunciada em `aria-live="polite"` |
+| Professores, envio | — | — | `falhou`: "Não chegou. Corrija o e-mail e reenvie, ou copie o link" (sem sugerir que o professor errou) | `na_fila` e `enviando`: "Enviando"; `enviado`: "Enviado em 12/11 às 14:05"; `cancelado`: vale o estado do convite. Mudança anunciada em `aria-live="polite"` |
+| Corrigir o e-mail (painel do professor `pendente` ou `vencido`) | botão ocupado | campo "E-mail certo" vazio, com `autocomplete="off"` e a linha "O link anterior deixa de valer"; o e-mail de hoje não aparece | `CONFLITO` com o professor ainda em aberto: "Este e-mail já é de um professor da escola, ou este professor já entrou antes e não troca de e-mail por aqui. Confira o e-mail, ou revogue o convite e cadastre o certo", o campo segue com o foco; `CONFLITO` com o estado mudado e `NAO_ENCONTRADO`: o texto do convite que mudou, a lista relida, o diálogo fecha; e-mail fora do formato: o texto do cadastro; rede: "Tentar de novo" | "E-mail corrigido", o link uma vez com "Copiar link", e "Enviar por e-mail", que abre o diálogo do "Reenviar"; fechar sai do link, e a lista relida mostra `pendente` sem envio |
 | Gerar provisória | confirmação: "Carregando…" com "Gerar" ocupado, enquanto lê o alvo; geração: botão ocupado | confirmação: nome, turma (sem turma: a linha some), matrícula e "a senha atual deixa de valer, e ela sai da conta em todo lugar" | `ENTRA_PELA_CONTA_DA_ESCOLA` (na leitura do alvo ou na geração): "Este aluno entra pela conta da escola. Não precisa de senha", sem "Gerar"; alvo que sumiu (404 na leitura ou na geração): "Este aluno não está mais na turma. A lista foi atualizada", a confirmação fecha; leitura falhou: "Tentar de novo"; `CONFLITO`: "Acabou de ser gerada. Espere alguns segundos"; 429: "Muitas tentativas. Espere alguns minutos e tente de novo" | a senha em dois grupos, grande como o código da turma, lida grupo a grupo pelo leitor de tela, com "Copiar" e a validade; fora do cache de consultas, da URL, do log e do armazenamento do navegador, e sai da tela ao fechar |
 
 ## Corridas
@@ -322,6 +357,9 @@ termo técnico.
 | Dois workers no `EMAIL_POR_MINUTO` | consumo atômico no Redis de fila |
 | Mesma conta em dois pedidos | único parcial `(escolaId, provedor, tenant, sujeito)` onde pendente |
 | Ligar a mesma conta duas vezes | `conta_externa` única, `CONFLITO` sem nome |
+| Corrigir o e-mail × aceite do convite antigo | a trava do convite da escola, que o aceite pega primeiro; quem chega depois lê o estado novo |
+| Duas correções, ou correção × "Enviar" | a mesma trava e o `convite_pendente_unico`; vale o último |
+| E-mail novo que já é de professor da escola | `usuario_escola_conta_papel_unico`; `CONFLITO`, a transação desfaz a conta criada |
 
 ## Limites
 
@@ -349,3 +387,4 @@ Cada linha é um cenário [I]: a ação gera um registro com autor e data, e o r
 | `senha.redefinida` | redefinir | um por escola com usuário ativo da conta, autor e alvo esse usuário |
 | `conta.email_verificado` | aceite por e-mail (na escola do convite), verificar, redefinir | como o `senha.redefinida` |
 | `conta_externa.ligada` | aprovar com conta, ligar em "Eu" | — |
+| `usuario.email_corrigido` | "Corrigir o e-mail" (18.0), autora a coordenação | entidade `usuario`, o professor como alvo; sem `antes` nem `depois`; nunca o e-mail nem o id de conta; entra na lista por alvo do arquivo |

@@ -23,6 +23,7 @@ linha.
 | `packages/core/src/titular/leitura-do-titular.ts` | alterado | a leitura por alvo da D85 (seção 5, "Arquivo do titular") |
 | `apps/api/src/sessao/convite/convite-ticket.ts` | alterado | o bilhete do convite aceito tolera até `TICKET_CLOCK_TOLERANCE_SECONDS` (30 s) de relógio atrasado em quem confere, e o prazo de 30 min segue exato: o `jose` recusa o `iat` no futuro, e o login seguia sem ativar o usuário (achado ao estabilizar os testes de integração da tarefa 1.0, que o recuo do relógio da máquina de desenvolvimento derrubava) |
 | `packages/core/src/ciclo-de-vida/` | alterado | o `desativar` anula a provisória; a cláusula de defesa (`revogarConviteAberto`) também cancela o envio |
+| `apps/api/src/sessao/convite/convite-de-professor.service.ts`, `convite.repository.ts`; `packages/core/drizzle/` | alterado | o "Corrigir o e-mail" (seção 5) e a migration que recria o `auditoria_por_alvo_idx` com sete ações (tarefa 18.0) |
 | `packages/shared/`; `apps/web`, `compose.yaml` | alterado | contratos novos e alterados (seção 4) e os códigos `ENTRA_PELA_CONTA_DA_ESCOLA` e `VERIFICACAO_PENDENTE`; seção 9; `mailpit`, com a interface só em `127.0.0.1` |
 
 ## 3. Modelo de dados
@@ -36,7 +37,9 @@ convite              + canal text not null default 'copiado' (check copiado|emai
 conta                + emailVerificadoEm?
 credencial_matricula + provisoriaHash?, provisoriaExpiraEm?, provisoriaGeradaPor? (set null); índice parcial (escolaId, provisoriaExpiraEm)
 reivindicacao        + contaExterna jsonb? (provedor, tenant, sujeito); único parcial (escolaId, provedor, tenant, sujeito) onde pendente
-auditoria            + índice parcial (escolaId, entidadeId, em) nas ações da lista por alvo (seção 5), como o 0034
+auditoria            + índice parcial (escolaId, entidadeId, em) nas ações da lista por alvo (seção 5), como o 0034; a 18.0 o recria com a sétima
+                     (`usuario.email_corrigido`): índice novo com as sete, depois o `drop` do de seis, na mesma migration, como a 0046
+usuario              sem coluna nova: o `contaId` do professor muda só no "Corrigir o e-mail" (seção 5)
 ```
 
 `envio`: `na_fila|enviando|enviado|falhou|cancelado`, com `envioReservadoEm`. Cifrados: AES-GCM, chave `EMAIL_TOKEN_KEY`, o
@@ -55,6 +58,7 @@ voltar a versão: o runbook encerra, sem decisão, os pedidos de conta pendentes
 | POST | `/v1/usuarios/:usuarioId/senha-provisoria` | coordenador; professor da turma | — | `{ senha, expiraEm }` |
 | POST | `/v1/sessao/matricula/trocar-senha` | bilhete no `Authorization` | `{ senha }` | sessão |
 | GET | `/v1/sessao/matricula/trocas` | bilhete no `Authorization` | — | até 10 provisórias anteriores: data, papel, se usada |
+| POST | `/v1/professores/:usuarioId/email` | coordenador (`professor.corrigir_email`, célula nova: `unidade` na coordenação, `nunca` nos outros) | `{ email }` (o `emailConvidadoSchema` do cadastro, estrito) | a do refazer, `{ usuarioId, conviteId, token }`, com `no-store` |
 | POST | `/v1/senha/esqueci`, `/redefinir`; `/v1/conta/verificar` | anônimo | `{ email }`; `{ token, senha }`; `{ token }` | 202; 204; 204 |
 | GET | `/v1/sessao/externa/:provedor/iniciar?intencao=reivindicar\|ligar` | a rota que existe | — | redirecionamento |
 
@@ -134,9 +138,31 @@ quem a assina (o `entidade_id` é o do aluno).
 
 **Arquivo do titular (D85).** A leitura por alvo traz, numa lista fechada, `aluno.transferido`, `lista.transferida`,
 `usuario.nome_corrigido`, `lista.nome_corrigido` (o `lista_nome` só com o nome aprovado, pelo `alunoId` da decisão),
-`senha_provisoria.gerada` e `.usada`: ação, entidade, finalidade, data e o papel de quem fez; nunca o id nem o nome do
-autor, o `antes` ou o `depois`, nem as leituras. O papel é fixo por ação nas quatro da F2 (coordenação) e vem do `depois` na
+`senha_provisoria.gerada` e `.usada`, e `usuario.email_corrigido` (18.0: muda o dado de login do professor): ação, entidade, finalidade, data e o papel de quem fez; nunca o id nem o nome do
+autor, o `antes` ou o `depois`, nem as leituras. O papel é fixo por ação nas quatro da F2 e na `usuario.email_corrigido` (coordenação) e vem do `depois` na
 `.gerada`; a `.usada` sai uma vez, com o papel `aluno` (ele a assina e é o alvo: as duas leituras a trazem, e a por alvo vence pelo `id`). O papel sai escrito como o aluno o lê: `coordenação`, `professor` ou `aluno`. A leitura do arquivo de quem **assina** (`auditoria`, `autor_usuario_id`) deixa a `senha_provisoria.gerada` de fora: o professor a assina e o `entidade_id` é o do aluno.
+
+**Corrigir o e-mail** (validação, maior 1; opção (b), escolhida pelo Joaquim em 10/11). O e-mail mora na `conta` global, e revogar e
+cadastrar de novo criaria outro `usuario`, deixando no revogado os vínculos `pendente` e as aulas que a grade ou a planilha (F2) e o
+"Acrescentar turma" deram a ele. Por isso o `usuario` **troca de conta** e fica com o id, os vínculos e as aulas. Numa transação, em
+`convite-de-professor.service.ts` (em `sessao/`, o único lugar que chama o `contaDoProfessor`), nesta ordem: (1) a trava do convite da
+escola e o estado pelo `professorSobATrava`, como o refazer: inexistente, de outra escola, de outro papel ou sem convite de professor,
+`NAO_ENCONTRADO`; fora de `pendente` e `vencido` (a matriz nova `CORRIGIR_EMAIL_DO_PROFESSOR_POR_ESTADO`, igual à do refazer),
+`CONFLITO`; (2) **quem já entrou não troca**: algum convite de professor do usuário com `usadoEm` (o professor desligado e chamado de
+volta) é `CONFLITO`, porque o usuário dele tem conversa com o chat, registro de aula e auditoria assinada, que passariam à dona do
+e-mail novo; (3) só então a conta do e-mail novo, achada ou criada pelo `contaDoProfessor`, que não diz se ela era nova (E11): nada de
+conta antes de o escopo e o estado passarem; (4) o `update` condicional do `ConviteRepository` (`trocarContaDoProfessor`), com a escola
+do contexto, `papel = 'professor'`, `desativadoEm` não nulo e `contaId` diferente da nova (o mesmo e-mail é `CONFLITO`); zero linhas,
+`CONFLITO`; o `usuario_escola_conta_papel_unico` decide o e-mail que já é de outro professor desta escola, em qualquer estado: o 23505
+vira `CONFLITO` e a transação volta, levando a conta criada; (5) o `refazerSobATrava` de sempre: o convite antigo é revogado, o envio
+dele que não saiu vira `cancelado` (`cancelar-envio.ts`), e nasce um convite `copiado` com token novo (`convite.refeito`); (6)
+`usuario.email_corrigido`. A resposta é a do refazer: o link sai uma vez, e "Enviar por e-mail" é o `convites/enviar` de um só, com
+a cota de 300/h. Sem cota própria, como o cadastro e o refazer. **A conta antiga não é tocada**: pode ser de alguém de outra escola, e
+mudar `conta.email` a partir de uma escola seria escrita fora do tenant. Sem usuário que a segure, ela cai na limpeza da madrugada que
+já existe (`SEM_USO`, do `sistema.expurgar-acesso`). O link que já tinha ido ao endereço errado morre no passo (5), e o e-mail que está
+saindo naquele instante (`enviando`) sai com um link que não vale. Nenhum dado novo é guardado, e nada entra em log além de ids.
+A grade ou a planilha reimportadas com o e-mail antigo trazem esse professor como "novo" na prévia: o e-mail certo passa a valer
+também para elas.
 
 **Auditoria.** `convite.enviado` é gravado no pedido ("Enviar", "Reenviar"), autora a coordenação; o job só muda o `envio`. `senha.redefinida` e `conta.email_verificado` vindos de rota anônima gravam um registro por escola em que
 a conta tem usuário ativo, com esse usuário como autor e alvo, na mesma transação, no contexto montado no próprio fluxo pelo `usuariosAtivosDaConta`
@@ -208,7 +234,11 @@ Sem IA.
 ## 9. Frontend
 
 Estados e textos: `cenarios.md`, "Telas"; cada tela atualiza o `docs/interface.md` na sua tarefa.
-Professores relê o envio a cada 5 s, só com a aba visível e linha `na_fila` ou `enviando`, e para depois de 5 min. A provisória fica no
+Professores relê o envio a cada 5 s, só com a aba visível e linha `na_fila` ou `enviando`, e para depois de 5 min. O painel do professor `pendente` ou
+`vencido` ganha **"Corrigir o e-mail"** (19.0): o diálogo pede o e-mail certo (o de hoje não aparece: a lista não traz e-mail, E8), e com o
+`POST …/email` aceito mostra o link uma vez, com "Copiar link" e "Enviar por e-mail", que abre o diálogo do "Reenviar" (o link mostrado deixa
+de valer). O `CONFLITO` relê a lista: se o professor saiu de `pendente` e `vencido`, vale o texto do convite que mudou; se não, o diálogo
+fica aberto com o texto do e-mail que não serve; o `NAO_ENCONTRADO`, o do convite que mudou. A provisória fica no
 menu da linha do aluno aprovado, na aba Alunos da turma. A confirmação lê o alvo (`GET …/senha-provisoria`, seção 5) ao abrir, fora do cache de
 consultas, e o descarta ao fechar, com a senha; enquanto lê, "Gerar" fica ocupado, e o alvo que sumiu (404) fecha a confirmação com o aviso. O aluno que
 entra pela conta da escola já mostra o aviso na confirmação, sem "Gerar". Na coordenação, a turma aberta (`ListaDaTurma`) ganha a seção **"Alunos
@@ -235,7 +265,8 @@ de todo armazenamento (`cenarios.md`, "Conta da escola do aluno").
 |---|---|---|
 | 10, item 1 | `link_da_conta` é da conta global, como `codigo_recuperacao` | `docs/modelo-de-dados.md` |
 | 10, item 9 | sem escopo, cercado (seção 6): `link_da_conta` | esta seção |
-| PRD, "E-mail que volta" | "falhou" é a recusa SMTP; a devolução tardia espera o webhook do provedor (`TODO.md`) | esta seção |
+| PRD, "E-mail que volta" | "falhou" é a recusa SMTP; a devolução tardia espera o webhook do provedor (`TODO.md`). "Corrigir" é o "Corrigir o e-mail" da seção 5 (18.0 e 19.0), que troca a conta do professor que nunca entrou e mantém o id, os vínculos e as aulas; quem já entrou alguma vez não troca por ali (`CONFLITO`), e a coordenação revoga e cadastra o e-mail certo | seção 5; `docs/interface.md` (Professores) |
+| 10, item 3 | o "Corrigir o e-mail" chega à conta global só pelo `contaDoProfessor`, a exceção cercada do cadastro, e só depois do escopo e do estado; a conta antiga não é escrita | seção 5; `docs/modelo-de-dados.md` |
 
 ## 12. Premissas não verificadas
 
