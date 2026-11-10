@@ -9,7 +9,8 @@ import { criarConviteDeProfessor, criarEquipeComSenha, desfazerAPosseDoEmail, ty
 /**
  * "Verificar" e o aviso do aceite com `VERIFICACAO_PENDENTE` (acesso-e-convites, tarefa 8.0; RF12 e RF18; `cenarios.md`, "Telas", linhas
  * Verificar e Aceite com `VERIFICACAO_PENDENTE`, e "E2E (RF18)"): quem tem senha, trabalha em outra escola e ainda não provou o e-mail aceita
- * um convite copiado de uma escola nova, lê no aceite que o link foi ao e-mail, abre o link, vê "E-mail confirmado" e volta ao convite.
+ * um convite copiado de uma escola nova, lê no aceite que o link foi ao e-mail, abre o link, vê "E-mail confirmado" com a orientação de voltar à
+ * aba do convite, e aceita de novo. A tela não leva a `/convite`: sem o token ele só diria "endereço incompleto".
  * Pela tela, nos projetos `chromebook` e `celular`, com o worker e o Mailpit do compose de teste. Os textos esperados estão aqui por extenso.
  *
  * "Recomeço: a 2ª pessoa" não se aplica: a tela é anônima, sem sessão, e não guarda nada de quem passou antes.
@@ -17,6 +18,7 @@ import { criarConviteDeProfessor, criarEquipeComSenha, desfazerAPosseDoEmail, ty
 
 const PENDENTE = 'Mandamos um link para o seu e-mail. Abra-o e volte a este convite. Pode levar alguns minutos; se não chegar, abra o convite de novo para outro link.'
 const CONFIRMADO = 'E-mail confirmado'
+const VOLTE_AO_CONVITE = 'Volte à aba do convite e aceite de novo; se a fechou, abra o link do convite outra vez.'
 const CONFIRMANDO = 'Confirmando…'
 const LINK_QUE_NAO_VALE = 'Este link não vale mais. Peça outro link abrindo o convite de novo.'
 /** Um token com o formato do link (43 caracteres) que a API nunca emitiu. */
@@ -26,8 +28,6 @@ const ROTA_VERIFICAR = '**/v1/conta/verificar'
 const ROTA_ACEITAR = '**/v1/convites/aceitar'
 const NAO_ENCONTRADO = JSON.stringify({ erro: { codigo: 'NAO_ENCONTRADO', mensagem: 'texto que a tela não usa', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } })
 const VERIFICACAO_PENDENTE = JSON.stringify({ erro: { codigo: 'VERIFICACAO_PENDENTE', mensagem: 'texto que a tela não usa', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } })
-/** O alvo de toque mínimo de WCAG 2.5.8 para tudo o que não é a ação principal (regra 50, item 2a). */
-const ALVO_MINIMO_PX = 24
 
 async function activate(alvo: Locator, hasTouch: boolean): Promise<void> {
   if (hasTouch) await alvo.tap()
@@ -83,7 +83,14 @@ async function pessoaComConviteDeOutraEscola(): Promise<{ equipe: EquipeDeTeste;
 const status = (page: Page) => page.getByRole('status')
 const confirmado = (page: Page) => page.getByRole('status').filter({ hasText: CONFIRMADO })
 const tentarDeNovo = (page: Page) => page.getByRole('button', { name: 'Tentar de novo' })
-const continuar = (page: Page) => page.getByRole('link', { name: 'Continuar' })
+/**
+ * Sem link nenhum dentro do `main`, depois de provar que o `main` existe: sem isso, a casca que perdesse o `main` daria zero links e um
+ * falso verde.
+ */
+async function esperarSemLinks(page: Page): Promise<void> {
+  await expect(page.getByRole('main')).toBeVisible()
+  await expect(page.getByRole('main').getByRole('link')).toHaveCount(0)
+}
 const endereco = (page: Page) => new URL(page.url())
 
 /** Cola o link de novo na aba: muda só o `#`, como quem cola outro endereço na barra sem recarregar. */
@@ -142,7 +149,7 @@ test.describe('Verificar: do aceite ao e-mail confirmado', () => {
     expect(await linkDoEmail(equipe.email)).toMatch(/^\/verificar#[A-Za-z0-9_-]{43}$/)
   })
 
-  test('verificar pelo Mailpit: "E-mail confirmado", o token fora da barra, "Continuar" leva ao convite e o aceite segue', async ({ page, request, hasTouch }) => {
+  test('verificar pelo Mailpit: "E-mail confirmado", o token fora da barra, a orientação de voltar ao convite sem link para `/convite`, e o aceite segue', async ({ page, request, hasTouch }) => {
     test.slow()
     const { equipe, convite } = await pessoaComConviteDeOutraEscola()
     // O aceite pela API: o aviso na tela é o caso de cima, e juntar os dois passa do prazo do e2e.
@@ -155,8 +162,8 @@ test.describe('Verificar: do aceite ao e-mail confirmado', () => {
     // O leitor de tela diz o resultado, e o foco não fica no "Confirmando…" que saiu; o token saiu da barra antes de qualquer chamada.
     await expect(confirmado(page)).toBeFocused()
     expect(endereco(page).hash).toBe('')
-    await activate(continuar(page), hasTouch)
-    await expect(page).toHaveURL(/\/convite$/)
+    await expect(page.getByText(VOLTE_AO_CONVITE)).toBeVisible()
+    await esperarSemLinks(page)
 
     // Verificada, o mesmo convite vale: o aceite leva à entrada, com o aviso de quem já tem conta.
     await page.goto(`/convite#${convite.token}`)
@@ -166,7 +173,7 @@ test.describe('Verificar: do aceite ao e-mail confirmado', () => {
     await expect(page.getByRole('alert')).toHaveText(AVISO_DO_CONVITE_PARA_CONTA_EXISTENTE)
   })
 
-  test('link usado: o mesmo link aberto depois de confirmar o e-mail não vale, com a saída para abrir o convite de novo', async ({ page, request, hasTouch }) => {
+  test('link usado: o mesmo link aberto depois de confirmar o e-mail não vale, e o aviso diz para abrir o convite de novo, sem link para `/convite`', async ({ page, request }) => {
     test.slow()
     const { equipe, convite } = await pessoaComConviteDeOutraEscola()
     const aceite = await request.post('/v1/convites/aceitar', { data: { token: convite.token } })
@@ -178,8 +185,7 @@ test.describe('Verificar: do aceite ao e-mail confirmado', () => {
     await page.goto(link)
     await expect(page.getByRole('alert')).toHaveText(LINK_QUE_NAO_VALE, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(confirmado(page)).toHaveCount(0)
-    await activate(page.getByRole('link', { name: 'Abrir o convite' }), hasTouch)
-    await expect(page).toHaveURL(/\/convite$/)
+    await esperarSemLinks(page)
   })
 })
 
@@ -201,12 +207,11 @@ test.describe('Verificar: os estados da tela', () => {
     expect(pedidos).toBe(1)
   })
 
-  test('link vencido, usado ou inventado: o mesmo aviso, com a saída para abrir o convite; sem token nem se tenta', async ({ page, hasTouch }) => {
+  test('link vencido, usado ou inventado: o mesmo aviso, sem link para `/convite`; sem token nem se tenta', async ({ page }) => {
     await page.goto(`/verificar#${TOKEN_QUE_NUNCA_EXISTIU}`)
     await expect(page.getByRole('alert')).toHaveText(LINK_QUE_NAO_VALE, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(confirmado(page)).toHaveCount(0)
-    await activate(page.getByRole('link', { name: 'Abrir o convite' }), hasTouch)
-    await expect(page).toHaveURL(/\/convite$/)
+    await esperarSemLinks(page)
 
     // Endereço sem o fragmento (o link colado pela metade): o aviso vem na hora, sem pedido.
     let pedidos = 0
@@ -217,6 +222,7 @@ test.describe('Verificar: os estados da tela', () => {
     await page.goto('/verificar')
     await expect(page.getByRole('alert')).toHaveText(LINK_QUE_NAO_VALE)
     await expect(confirmado(page)).toHaveCount(0)
+    await esperarSemLinks(page)
     expect(pedidos).toBe(0)
   })
 
@@ -341,23 +347,23 @@ test.describe('Verificar: o recomeço da tela', () => {
 
 /** As telas novas e a alterada, com a ação principal e o resto dos alvos de toque de cada uma. */
 test.describe('Verificar: 360 px', () => {
-  test('E-mail confirmado: sem rolagem horizontal, sem violação grave de acessibilidade, "Continuar" de 44 px', async ({ page }) => {
+  test('E-mail confirmado: sem rolagem horizontal, sem violação grave de acessibilidade e sem ação a tocar', async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 800 })
     await page.route(ROTA_VERIFICAR, (rota) => rota.fulfill({ status: 204 }))
     await page.goto(`/verificar#${TOKEN_QUE_NUNCA_EXISTIU}`)
     await expect(confirmado(page)).toBeVisible()
     expect(await horizontalOverflow(page)).toBe(0)
     expect(await seriousViolations(page)).toEqual([])
-    await esperarAlvo(continuar(page), ALVO_DE_TOQUE_PRINCIPAL_PX, 'Continuar')
+    await esperarSemLinks(page)
   })
 
-  test('o link que não vale: sem rolagem horizontal, sem violação grave e a saída de 24 px ou mais', async ({ page }) => {
+  test('o link que não vale: sem rolagem horizontal e sem violação grave', async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 800 })
     await page.goto('/verificar')
     await expect(page.getByRole('alert')).toHaveText(LINK_QUE_NAO_VALE)
+    await esperarSemLinks(page)
     expect(await horizontalOverflow(page)).toBe(0)
     expect(await seriousViolations(page)).toEqual([])
-    await esperarAlvo(page.getByRole('link', { name: 'Abrir o convite' }), ALVO_MINIMO_PX, 'Abrir o convite')
   })
 
   test('Confirmando…: sem rolagem horizontal e sem violação grave', async ({ page }) => {

@@ -2003,10 +2003,11 @@ A entrada, o convite, a reivindicação de nome e a verificação em duas etapas
     este convite. Pode levar alguns minutos; se não chegar, abra o convite de novo para outro link." A tela fica onde está, com o
     "Aceitar o convite" livre para depois de verificar.
   - **Verificar** (`/verificar#<token>`, o endereço do link do e-mail, que vale 24 horas): sem botão de confirmar, porque abrir o
-    link já é o gesto. **Carregando**: "Confirmando…" (`status`). **Certo**: "E-mail confirmado" (`status`, com o foco), "Volte ao
-    convite e aceite de novo." e o `primario` "Continuar", que leva a `/convite`; a verificação **não** aceita o convite nem abre
-    sessão. **Link vencido, usado, inventado** ou **sem token**: "Este link não vale mais. Peça outro link abrindo o convite de
-    novo." e o link "Abrir o convite". **Rede**: o aviso com "Tentar de novo", com o token que continua na memória da tela (ele
+    link já é o gesto. **Carregando**: "Confirmando…" (`status`). **Certo**: "E-mail confirmado" (`status`, com o foco) e "Volte à
+    aba do convite e aceite de novo; se a fechou, abra o link do convite outra vez.", **sem botão nem link para `/convite`**: a tela
+    não tem o token do convite, e `/convite` sem ele só diria "endereço incompleto" (triagem da 16.0); a verificação **não** aceita
+    o convite nem abre sessão. **Link vencido, usado, inventado** ou **sem token**: "Este link não vale mais. Peça outro link
+    abrindo o convite de novo.", também sem link para `/convite`. **Rede**: o aviso com "Tentar de novo", com o token que continua na memória da tela (ele
     já saiu da barra). O token sai da barra antes de qualquer chamada e vai no corpo, nunca na URL
   - **Recomeço do Verificar.** Outro link colado na aba muda só o `#`: a tela recomeça por "Confirmando…", o aviso e o "Tentar de novo"
     saem, o token sai da barra outra vez, e a resposta do pedido do link anterior que chegue depois é descartada. O link é de uso

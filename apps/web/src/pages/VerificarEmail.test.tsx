@@ -37,7 +37,32 @@ function abrirATela(): void {
   )
 }
 
+const VOLTE_AO_CONVITE = 'Volte à aba do convite e aceite de novo; se a fechou, abra o link do convite outra vez.'
+
 describe('Verificar', () => {
+  it('e-mail confirmado: diz para voltar à aba do convite e não leva a `/convite`', async () => {
+    const rede = fakeNetwork()
+    rede.responder({ status: 204 })
+    abrirOLink(TOKEN_A)
+    abrirATela()
+
+    expect(await screen.findByText('E-mail confirmado')).toBeTruthy()
+    expect(screen.getByText(VOLTE_AO_CONVITE)).toBeTruthy()
+    expect(screen.queryAllByRole('link')).toHaveLength(0)
+    expect(screen.queryByText('Continuar')).toBeNull()
+  })
+
+  it('link que não vale: o aviso diz a saída e não há link para `/convite`', async () => {
+    const rede = fakeNetwork()
+    rede.responder(LINK_QUE_NAO_VALE)
+    abrirOLink(TOKEN_A)
+    abrirATela()
+
+    expect((await screen.findByRole('alert')).textContent).toBe('Este link não vale mais. Peça outro link abrindo o convite de novo.')
+    expect(screen.queryAllByRole('link')).toHaveLength(0)
+    expect(screen.queryByText('Abrir o convite')).toBeNull()
+  })
+
   it('o pedido do link sai uma vez só, mesmo com o efeito repetido pelo StrictMode: o link é de uso único', async () => {
     const rede = fakeNetwork()
     rede.responder({ status: 204 })
