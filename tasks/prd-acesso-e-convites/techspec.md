@@ -238,7 +238,7 @@ Professores relê o envio a cada 5 s, só com a aba visível e linha `na_fila` o
 `vencido` ganha **"Corrigir o e-mail"** (19.0): o diálogo pede o e-mail certo (o de hoje não aparece: a lista não traz e-mail, E8), e com o
 `POST …/email` aceito mostra o link uma vez, com "Copiar link" e "Enviar por e-mail", que abre o diálogo do "Reenviar" (o link mostrado deixa
 de valer). O `CONFLITO` relê a lista: se o professor saiu de `pendente` e `vencido`, vale o texto do convite que mudou; se não, o diálogo
-fica aberto com o texto do e-mail que não serve; o `NAO_ENCONTRADO`, o do convite que mudou. A provisória fica no
+fica aberto com o texto do e-mail que não serve, no campo, que segue com o foco; o `NAO_ENCONTRADO`, o do convite que mudou. O texto do convite que mudou fica no diálogo, só com "Fechar" (como o do refazer), e o foco volta ao painel. A falha de rede e as de resto mostram o aviso do catálogo com o foco nele, o botão passa a "Tentar de novo" e a tentativa seguinte apaga o aviso. Fechar com o link na tela e sem cópia, ou com o pedido ainda no ar, pergunta antes ("Voltar ao e-mail" ou "Fechar sem copiar"), como o refazer. A provisória fica no
 menu da linha do aluno aprovado, na aba Alunos da turma. A confirmação lê o alvo (`GET …/senha-provisoria`, seção 5) ao abrir, fora do cache de
 consultas, e o descarta ao fechar, com a senha; enquanto lê, "Gerar" fica ocupado, e o alvo que sumiu (404) fecha a confirmação com o aviso. O aluno que
 entra pela conta da escola já mostra o aviso na confirmação, sem "Gerar". Na coordenação, a turma aberta (`ListaDaTurma`) ganha a seção **"Alunos

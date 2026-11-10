@@ -5,7 +5,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
 import { setupScreen, fakeNetwork, renderScreen, type FakeNetwork, type FakeResponse } from '../../../__fixtures__/render-screen'
-import { TEXTO_DO_ESTADO_DO_PROFESSOR } from './convite-de-professor'
+import { TEXTO_DO_CONVITE_QUE_MUDOU, TEXTO_DO_CONVITE_QUE_NAO_VALE } from '../../../components/textos-do-convite'
+import { TEXTO_DO_EMAIL_QUE_NAO_SERVE, TEXTO_DO_ESTADO_DO_PROFESSOR } from './convite-de-professor'
 import Professores from './Professores'
 
 /**
@@ -564,5 +565,159 @@ describe('"Acrescentar turma": o diálogo', () => {
     expect(within(segunda.dialogo).queryByRole('alert')).toBeNull()
     expect((within(segunda.dialogo).getByLabelText('Turma') as HTMLSelectElement).value).toBe('')
     expect((within(segunda.dialogo).getByLabelText('Disciplina') as HTMLSelectElement).value).toBe('')
+  })
+})
+
+describe('"Corrigir o e-mail", no painel (acesso-e-convites, 19.0; RF18)', () => {
+  const CORRIGIR = /^\/v1\/professores\/[^/]+\/email$/
+  const ENVIAR = '/v1/professores/convites/enviar'
+  const NOVO_TOKEN = 'AbCdEfGhIjKlMnOpQrStUvWxYz0123456789-_abcde'
+  const ACEITO: FakeResponse = { status: 200, corpo: { usuarioId: BRUNO.usuarioId, conviteId: id(900), token: NOVO_TOKEN } }
+
+  /** A lista que a rede devolve, com o estado e o envio do Bruno mudados pela escrita que o caso fez. */
+  function listaComOBruno(do_bruno: { estado: string; envio: string | null }) {
+    return () => ok(TODOS.map((dono) => (dono === BRUNO ? { ...dono, estado: do_bruno.estado, envio: do_bruno.envio } : dono)))
+  }
+
+  /**
+   * O painel do Bruno aberto e o diálogo "Corrigir o e-mail" por cima dele, com o e-mail digitado e o pedido feito. Com a rede, devolve também quantas vezes a
+   * lista tinha sido lida **imediatamente antes** do envio, com o painel aberto e as leituras de abertura terminadas: é o que a releitura da falha tem de passar.
+   */
+  async function corrigirComOEmail(email: string, rede?: FakeNetwork) {
+    const usuario = userEvent.setup()
+    const painel = await painelComTurmasLidas(BRUNO)
+    await usuario.click(within(painel).getByRole('button', { name: 'Corrigir o e-mail' }))
+    const dialogo = await screen.findByRole('dialog', { name: 'Corrigir o e-mail' })
+    await usuario.type(within(dialogo).getByLabelText(/E-mail certo/), email)
+    const leiturasAntes = rede === undefined ? 0 : vezes(rede, '/v1/professores')
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Corrigir o e-mail' }))
+    return { usuario, painel, dialogo, leiturasAntes }
+  }
+
+  it('o botão é secundário e só existe no convite em aberto: pendente e vencido têm; revogado, aceito, ativo e desativado não', async () => {
+    instalar(fakeNetwork())
+    for (const [dono, tem] of [
+      [BRUNO, true],
+      [CAIO, true],
+      [ANA, false],
+      [DAVI, false],
+      [ELIS, false],
+      [FABIO, false],
+    ] as const) {
+      abrirPainelDe(dono)
+      const painel = await painelDe(dono)
+      const botao = within(painel).queryByRole('button', { name: 'Corrigir o e-mail' })
+      expect(botao !== null, dono.nome).toBe(tem)
+      if (botao !== null) expect(botao.className, dono.nome).toContain('border-borda')
+      cleanup()
+    }
+  })
+
+  it('no professor `ativo`, com o rodapé do "Acrescentar turma" à vista, o "Corrigir o e-mail" não aparece', async () => {
+    instalar(fakeNetwork())
+    const painel = await painelComTurmasLidas(ELIS)
+    expect(await within(painel).findByRole('button', { name: 'Acrescentar turma' })).toBeTruthy()
+    expect(within(painel).queryByRole('button', { name: 'Corrigir o e-mail' })).toBeNull()
+  })
+
+  it('abre o diálogo por cima do painel, que fica onde está, e o e-mail de hoje não aparece em lugar nenhum', async () => {
+    const usuario = userEvent.setup()
+    const rede = fakeNetwork()
+    instalar(rede)
+    const painel = await painelComTurmasLidas(BRUNO)
+    await usuario.click(within(painel).getByRole('button', { name: 'Corrigir o e-mail' }))
+    const dialogo = await screen.findByRole('dialog', { name: 'Corrigir o e-mail' })
+    expect(within(painel).getByRole('heading', { name: 'Situação do convite' })).toBeTruthy()
+    expect((within(dialogo).getByLabelText(/E-mail certo/) as HTMLInputElement).value).toBe('')
+    expect(document.body.textContent).not.toMatch(/@/)
+    expect(vezes(rede, `/v1/professores/${BRUNO.usuarioId}/email`, 'POST')).toBe(0)
+  })
+
+  it('aceito: a lista é relida e mostra o professor `pendente` sem envio; o painel não guarda o link, e fechar o tira', async () => {
+    const rede = fakeNetwork()
+    const doBruno = { estado: 'pendente', envio: 'falhou' as string | null }
+    instalar(rede, { professores: listaComOBruno(doBruno) })
+    rede.responderPor(CORRIGIR, () => {
+      doBruno.envio = null
+      return ACEITO
+    })
+    const { usuario, painel, dialogo, leiturasAntes } = await corrigirComOEmail('certo@escola.invalid', rede)
+    expect(await within(dialogo).findByText('E-mail corrigido')).toBeTruthy()
+    // O envio que falhou saiu da situação do painel; o link só está no diálogo.
+    await waitFor(() => expect(within(painel).queryByText(/Não chegou/)).toBeNull())
+    expect(within(painel).getByText(TEXTO_DO_ESTADO_DO_PROFESSOR.pendente)).toBeTruthy()
+    expect(painel.textContent).not.toContain(NOVO_TOKEN)
+    await waitFor(() => expect(vezes(rede, '/v1/professores')).toBeGreaterThan(leiturasAntes))
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Copiar link' }))
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Fechar' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Corrigir o e-mail' })).toBeNull())
+    expect(document.body.textContent).not.toContain(NOVO_TOKEN)
+  })
+
+  it('"Enviar por e-mail" troca o diálogo pelo do "Reenviar" deste professor, que diz que o link mostrado caduca, e envia só a ele', async () => {
+    const rede = fakeNetwork()
+    instalar(rede, { professores: listaComOBruno({ estado: 'pendente', envio: null }) })
+    rede.responderPor(CORRIGIR, ACEITO)
+    rede.responderPor(ENVIAR, { status: 200, corpo: { quantidade: 1 } })
+    const corpos = gravarCorposDosPosts()
+    const { usuario, dialogo } = await corrigirComOEmail('certo@escola.invalid')
+    await usuario.click(await within(dialogo).findByRole('button', { name: 'Enviar por e-mail' }))
+    const reenviar = await screen.findByRole('dialog', { name: 'Reenviar o convite' })
+    expect(screen.queryByRole('dialog', { name: 'Corrigir o e-mail' })).toBeNull()
+    expect(reenviar.textContent).toContain(`Um e-mail novo, com um link novo, para ${BRUNO.nome}.`)
+    expect(reenviar.textContent).toContain('Os links enviados ou copiados antes deixam de valer na hora.')
+    await usuario.click(within(reenviar).getByRole('button', { name: 'Reenviar' }))
+    expect(await within(reenviar).findByText(/1 convite entrou na fila/)).toBeTruthy()
+    expect(corpos).toEqual([{ email: 'certo@escola.invalid' }, { usuarioIds: [BRUNO.usuarioId] }])
+  })
+
+  it('`CONFLITO` com o professor ainda `pendente` na lista relida: o e-mail que não serve, o diálogo fica, o campo segue com o foco e a lista foi lida de novo', async () => {
+    const rede = fakeNetwork()
+    instalar(rede, { professores: listaComOBruno({ estado: 'pendente', envio: 'falhou' }) })
+    rede.responderPor(CORRIGIR, ERRO('CONFLITO', 409))
+    const { dialogo, leiturasAntes } = await corrigirComOEmail('de-outro@escola.invalid', rede)
+    expect(await within(dialogo).findByText(TEXTO_DO_EMAIL_QUE_NAO_SERVE)).toBeTruthy()
+    await waitFor(() => expect(document.activeElement).toBe(within(dialogo).getByLabelText(/E-mail certo/)))
+    // A lista foi lida de novo depois do envio recusado: é a releitura que decide o texto, e não a leitura da abertura.
+    await waitFor(() => expect(vezes(rede, '/v1/professores')).toBeGreaterThan(leiturasAntes))
+    expect(within(dialogo).getByRole('button', { name: 'Corrigir o e-mail' })).toBeTruthy()
+  })
+
+  it('`CONFLITO` com o professor que saiu de `pendente` e `vencido` (outra pessoa revogou): o texto do convite que mudou, só "Fechar", e fechado o foco vai à situação no painel', async () => {
+    const rede = fakeNetwork()
+    const doBruno = { estado: 'pendente', envio: null as string | null }
+    instalar(rede, { professores: listaComOBruno(doBruno) })
+    rede.responderPor(CORRIGIR, () => {
+      doBruno.estado = 'revogado'
+      return ERRO('CONFLITO', 409)
+    })
+    const { usuario, painel, dialogo } = await corrigirComOEmail('certo@escola.invalid')
+    expect((await within(dialogo).findByRole('alert')).textContent).toBe(TEXTO_DO_CONVITE_QUE_MUDOU)
+    expect(within(dialogo).queryByLabelText(/E-mail certo/)).toBeNull()
+    expect(within(dialogo).queryByRole('button', { name: 'Corrigir o e-mail' })).toBeNull()
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Fechar' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Corrigir o e-mail' })).toBeNull())
+    expect(await within(painel).findByText(TEXTO_DO_ESTADO_DO_PROFESSOR.revogado)).toBeTruthy()
+    expect(within(painel).queryByRole('button', { name: 'Corrigir o e-mail' })).toBeNull()
+    expect(document.activeElement).toBe(within(painel).getByRole('heading', { name: 'Situação do convite' }))
+  })
+
+  it('`NAO_ENCONTRADO` (o professor saiu da escola): o texto do convite que não vale, a lista relida sem ele, e fechado o foco vai ao título da lista', async () => {
+    const rede = fakeNetwork()
+    let saiu = false
+    instalar(rede, { professores: () => ok(TODOS.filter((dono) => !(saiu && dono === BRUNO))) })
+    rede.responderPor(CORRIGIR, () => {
+      saiu = true
+      return ERRO('NAO_ENCONTRADO', 404)
+    })
+    const { usuario, dialogo, leiturasAntes } = await corrigirComOEmail('certo@escola.invalid', rede)
+    expect((await within(dialogo).findByRole('alert')).textContent).toBe(TEXTO_DO_CONVITE_QUE_NAO_VALE)
+    await waitFor(() => expect(vezes(rede, '/v1/professores')).toBeGreaterThan(leiturasAntes))
+    expect(within(dialogo).queryByRole('button', { name: 'Corrigir o e-mail' })).toBeNull()
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Fechar' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Corrigir o e-mail' })).toBeNull())
+    // O painel dele já não existe (a lista não o tem): o foco não se perde no `body`.
+    expect(screen.queryByRole('dialog', { name: BRUNO.nome })).toBeNull()
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Professores da escola' })))
   })
 })

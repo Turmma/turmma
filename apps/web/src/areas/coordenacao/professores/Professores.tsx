@@ -4,7 +4,7 @@ import { ChevronRight } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useSearch } from 'wouter'
 import { ESTRUTURA_QUERY_KEY, anosLetivosQueryOptions, vinculosQueryOptions } from '../../../api/estrutura'
-import { professoresQueryOptions, mutacaoDoCadastroDeProfessor, mutacaoDoEnvioDeConvites, mutacaoDoRefazerConviteDoProfessor, revogarConviteDoProfessor } from './api/professores'
+import { professoresQueryOptions, mutacaoDaCorrecaoDoEmail, mutacaoDoCadastroDeProfessor, mutacaoDoEnvioDeConvites, mutacaoDoRefazerConviteDoProfessor, revogarConviteDoProfessor } from './api/professores'
 import { aoTrocarDeSessao } from '../../../api/sessao'
 import { PROFESSOR_PARAM } from '../../../paths'
 import { Alert } from '../../../components/ui/Alert'
@@ -30,6 +30,7 @@ import {
   TEXTOS_DO_CONVITE_QUE_MUDOU,
 } from './convite-de-professor'
 import { DialogoDeAlocacao } from '../estrutura/Alocacao'
+import { DialogoDeCorrigirEmail } from './DialogoDeCorrigirEmail'
 import { DialogoDeEnviarConvites } from './DialogoDeEnviarConvites'
 import { haEnvioEmAberto, iniciarReleituraDoEnvio, professoresQueEsperamOConvite, rotuloDoEnvio, textoDoEnvioEmLote, textoDoReenvio } from './envio-do-convite'
 import { enderecoComParametro } from '../comum/endereco-da-tela'
@@ -40,8 +41,8 @@ import { PainelDaImportacaoDeProfessores } from './PainelDaImportacaoDeProfessor
 import { PainelDoProfessor } from './PainelDoProfessor'
 import { contagemDeProfessores, importacaoAbertaNoEndereco, professorAlocavel, professorDoEndereco, professoresDaTabela, type ProfessorDaTabela } from './professores-da-escola'
 
-/** Os diálogos da tela, um por vez. O refazer, o reenviar, o revogar e o acrescentar turma levam o professor da linha, fotografado na abertura; o enviar é o lote. */
-type TipoDeDialogo = 'cadastrar' | 'enviar' | 'reenviar' | 'refazer' | 'revogar' | 'acrescentar'
+/** Os diálogos da tela, um por vez. O refazer, o reenviar, o corrigir o e-mail, o revogar e o acrescentar turma levam o professor da linha, fotografado na abertura; o enviar é o lote. */
+type TipoDeDialogo = 'cadastrar' | 'enviar' | 'reenviar' | 'corrigir_email' | 'refazer' | 'revogar' | 'acrescentar'
 type ProfessorDaLinha = Pick<ProfessorDaEscola, 'usuarioId' | 'nome'>
 
 /** A etapa do link e a pergunta de fechar, com quem entra pelo convite da coordenação. */
@@ -287,6 +288,7 @@ export default function Professores() {
           aoFechar={fecharPainel}
           aoRefazer={() => abrir('refazer', doPainel)}
           aoReenviar={() => abrir('reenviar', doPainel)}
+          aoCorrigirEmail={() => abrir('corrigir_email', doPainel)}
           aoRevogar={() => abrir('revogar', doPainel)}
           aoAcrescentar={() => abrir('acrescentar', doPainel)}
           anuncio={anuncio?.usuarioId === doPainel.usuarioId ? anuncio.texto : ''}
@@ -350,6 +352,18 @@ export default function Professores() {
           rotuloDaAcao="Reenviar"
           rotuloEmAndamento="Reenviando…"
           mutacao={mutacaoDoEnvioDeConvites([alvo.usuarioId], recarregarDepoisDoEnvio)}
+          aoFechar={fechar}
+          focoDeReserva={focarNoPainel}
+        />
+      )}
+      {aberta?.tipo === 'corrigir_email' && alvo !== undefined && (
+        <DialogoDeCorrigirEmail
+          key={aberta.numero}
+          nome={alvo.nome}
+          estadoAgora={alvoAgora?.estado}
+          mutacao={mutacaoDaCorrecaoDoEmail(alvo.usuarioId, recarregar)}
+          // O link mostrado deixa de valer: "Enviar por e-mail" fecha este diálogo e abre o do "Reenviar" deste professor, que diz isso.
+          aoEnviarPorEmail={() => abrir('reenviar', alvo)}
           aoFechar={fechar}
           focoDeReserva={focarNoPainel}
         />

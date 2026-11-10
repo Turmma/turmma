@@ -2829,8 +2829,17 @@ repetem aqui.
       cresce; a partir do staging vai com `concurrently`, fora de transação e fora do horário letivo, e o `migrar` roda com o `statement_timeout` de 2 s da consulta
       (`packages/core/src/db/migrate.ts`), que um índice em `auditoria` com volume real passa. Dono: quem abrir o staging
 - [ ] (acesso-e-convites, 18.0, tenancy-guardian, 1ª) **O "Corrigir o e-mail" com o e-mail de um coordenador da mesma escola cria uma linha de professor na conta dele.** A unicidade
-      do `usuario` é por escola, conta e papel, e a conta do coordenador não tem professor: a rota liga o professor a ela. Não vaza entre escolas; decidir na 19.0 se deve ser
-      `CONFLITO`. Dono: a tarefa 19.0
+      do `usuario` é por escola, conta e papel, e a conta do coordenador não tem professor: a rota liga o professor a ela. Não vaza entre escolas. A 19.0 (a tela) **não decidiu**:
+      mudar a resposta é mudar o contrato da rota, e a rota é da 18.0 (a 19.0 diz em "Fora do escopo" que não a toca). A tela já serve aos dois lados: o `CONFLITO` de hoje tem o
+      texto "já é de um professor da escola…", e uma recusa futura do e-mail de coordenador voltaria com o mesmo código e o mesmo texto, sem dizer de quem é o e-mail (E11).
+      Dono: o Joaquim, na validação do F2c (decisão de produto: coordenação que também dá aula pode ter o e-mail ligado ao professor?). **Registro do `privacy-guardian` (19.0, 1ª):** o mesmo
+      `CONFLITO` deixa a coordenação descobrir se um e-mail é de algum professor da escola (enumeração dentro da mesma escola). O risco é baixo (fica dentro da escola, e quem pergunta é o
+      lado controlador), o texto não diz qual dos dois casos é (E11) e o contrato é da 18.0; a regra 20, item 6, fica atendida para fora da escola. Decidir junto com o e-mail de coordenador (se o `CONFLITO` muda).
+- [ ] (acesso-e-convites, 19.0, test-engineer, 2ª) **`corrigirComOEmail` de `PainelDoProfessor.test.tsx` devolve `leiturasAntes` 0 quando chamado sem a rede.** O caso "Enviar por e-mail" o chama sem a rede e não usa o valor; um caso futuro que o compare leria 0. Tornar o parâmetro obrigatório, ou devolver `undefined` sem a rede. Dono: quem tocar `PainelDoProfessor.test.tsx` na próxima tarefa de Professores
+- [ ] (acesso-e-convites, 19.0, revisor-geral, 1ª) **O texto do e-mail que não serve continua no campo enquanto a pessoa digita outro.** Em `DialogoDeCorrigirEmail.tsx` o erro do `CONFLITO` só sai no envio seguinte
+      (o `erro` do campo vem da falha, não do que se digita). Mudar é mudar comportamento e pede linha na tabela "Telas" do `cenarios.md`. Dono: o Joaquim, na validação do F2c (decisão de desenho)
+- [ ] (acesso-e-convites, 19.0, frontend-reviewer, 1ª) **No celular, o rodapé do painel do professor empilha quatro botões alinhados à direita, com larguras diferentes.** O rodapé é o do `Sheet`
+      (`apps/web/src/components/ui/`), componente compartilhado; o "Corrigir o e-mail" só entrou na pilha que já existia. Dono: a tarefa visual do `Sheet`
 - [ ] (acesso-e-convites, 18.0, tenancy-guardian, 2ª) **O título do caso "e-mail de outro professor da escola…" de `apps/api/test/professores-corrigir-email.int.test.ts` fala em "conta criada que a transação desfaz".** O
       `revogado` para no passo (1) e nenhum caminho real cria conta e a desfaz; trocar por "sem gravar nada e sem conta nova". Só prosa. Dono: quem abrir o teste da 18.0
 - [ ] (acesso-e-convites, 11.0, revisor-geral, 2ª) **`auditoria/acoes-por-alvo.ts` só pode importar tipo.** O `db/schema/auditoria.ts` o importa, e é o primeiro arquivo de `db/schema/` que

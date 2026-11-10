@@ -7,7 +7,7 @@ import { StatusAnnouncement } from '../../../components/dialogs'
 import { LoadingState, ErrorState, EmptyState } from '../../../components/states/index'
 import { Sheet } from '../../../components/ui/overlays/Sheet'
 import { StatusBadge } from '../../../components/ui/StatusBadge'
-import { acoesDoConviteDeProfessor, FAMILIA_DO_ESTADO_DO_PROFESSOR, TEXTO_DO_ESTADO_DO_PROFESSOR } from './convite-de-professor'
+import { acoesDoConviteDeProfessor, FAMILIA_DO_ESTADO_DO_PROFESSOR, podeCorrigirOEmail, TEXTO_DO_ESTADO_DO_PROFESSOR } from './convite-de-professor'
 import { podeReenviar, rotuloDoEnvio } from './envio-do-convite'
 import { descricaoDoQueFalta, oQueFaltaParaAlocar, tituloDoQueFalta } from './o-que-falta-para-alocar'
 import { AvisoDeListaIncompleta } from '../comum/pecas-da-lista'
@@ -53,6 +53,8 @@ interface Props {
   readonly aoRefazer: () => void
   /** Abre o diálogo "Reenviar o convite" deste professor: um e-mail novo, com um link novo. */
   readonly aoReenviar: () => void
+  /** Abre o diálogo "Corrigir o e-mail" deste professor (acesso-e-convites, 19.0): só para quem espera o convite. */
+  readonly aoCorrigirEmail: () => void
   readonly aoRevogar: () => void
   /** Abre o diálogo "Acrescentar turma" deste professor. */
   readonly aoAcrescentar: () => void
@@ -69,7 +71,7 @@ interface Props {
 /**
  * O painel do professor (X2, 6.0 e 7.0; RF13, RF14; `?professor=<usuarioId>`): o nome no título, a situação do convite em texto,
  * as turmas dele e, no rodapé, **só as ações que o estado permite** — as matrizes de `@educa/shared`, as mesmas do servidor
- * (`acoesDoConviteDeProfessor`) —, "Reenviar" para quem espera o convite e já teve um envio por e-mail (`podeReenviar`; acesso-e-convites, 4.0) e "Acrescentar turma" para quem pode receber turma (`professorAlocavel`). O envio do último convite aparece em texto na situação, sem `aria-live`: a região que anuncia a mudança é a da linha da lista. Quem não pode vê por quê,
+ * (`acoesDoConviteDeProfessor`) —, "Reenviar" para quem espera o convite e já teve um envio por e-mail (`podeReenviar`; acesso-e-convites, 4.0), "Corrigir o e-mail" para quem espera o convite, pela mesma matriz do servidor (`podeCorrigirOEmail`; 19.0), e "Acrescentar turma" para quem pode receber turma (`professorAlocavel`). O envio do último convite aparece em texto na situação, sem `aria-live`: a região que anuncia a mudança é a da linha da lista. Quem não pode vê por quê,
  * na seção das turmas. Estado sem ação nenhuma (o revogado, o desativado) não tem rodapé. Cadastrar não é daqui: é da tela, e cadastra
  * outra pessoa.
  *
@@ -84,12 +86,13 @@ interface Props {
  * é texto do professor para a coordenação (`docs/lgpd.md`): é mostrado como texto, aqui, e não vai a log nem a endereço. Os diálogos
  * de refazer, de revogar e de acrescentar são os da tela, abertos por cima do painel, que fica onde está.
  */
-export function PainelDoProfessor({ professor, aoFechar, aoRefazer, aoReenviar, aoRevogar, aoAcrescentar, anuncio, tituloDaSituacao, tituloDasTurmas, focoDeReserva }: Props) {
+export function PainelDoProfessor({ professor, aoFechar, aoRefazer, aoReenviar, aoCorrigirEmail, aoRevogar, aoAcrescentar, anuncio, tituloDaSituacao, tituloDasTurmas, focoDeReserva }: Props) {
   const acoes = acoesDoConviteDeProfessor(professor.estado)
   const idDaSituacao = useId()
   const idDasTurmas = useId()
   const alocavel = professorAlocavel(professor.estado)
   const reenviar = podeReenviar(professor)
+  const corrigirOEmail = podeCorrigirOEmail(professor.estado)
   const envio = rotuloDoEnvio(professor)
 
   const anos = useQuery(anosLetivosQueryOptions)
@@ -149,11 +152,16 @@ export function PainelDoProfessor({ professor, aoFechar, aoRefazer, aoReenviar, 
       aoFechar={aoFechar}
       focoDeReserva={focoDeReserva}
       rodape={
-        acoes.length === 0 && !podeAcrescentar ? undefined : (
+        acoes.length === 0 && !corrigirOEmail && !podeAcrescentar ? undefined : (
           <>
             {reenviar && (
               <Button variante="secundario" onClick={aoReenviar}>
                 Reenviar
+              </Button>
+            )}
+            {corrigirOEmail && (
+              <Button variante="secundario" onClick={aoCorrigirEmail}>
+                Corrigir o e-mail
               </Button>
             )}
             {acoes.map((acao) =>

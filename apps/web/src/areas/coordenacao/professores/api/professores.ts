@@ -4,6 +4,7 @@ import {
   listaDeProfessoresResponseSchema,
   type CadastrarProfessorRequest,
   type ConviteDeProfessorResponse,
+  type CorrigirEmailDoProfessorRequest,
   type EnviarConvitesResponse,
   type ProfessorDaEscola,
 } from '@educa/shared'
@@ -35,6 +36,14 @@ export function cadastrarProfessor(pedido: CadastrarProfessorRequest): Promise<C
  */
 export function refazerConviteDoProfessor(usuarioId: string): Promise<ConviteDeProfessorResponse> {
   return authedRequest(`${CAMINHO_DOS_PROFESSORES}/${encodeURIComponent(usuarioId)}/convite/refazer`, conviteDeProfessorResponseSchema, { metodo: 'POST', corpo: {} })
+}
+
+/**
+ * `POST /v1/professores/:usuarioId/email` (acesso-e-convites, 18.0 e 19.0; Tech Spec, seção 5, "Corrigir o e-mail"): o professor que nunca entrou passa ao e-mail
+ * certo, com as turmas e as aulas que tinha. A resposta é a do refazer: o convite novo, com o token que só existe nela.
+ */
+export function corrigirEmailDoProfessor(usuarioId: string, pedido: CorrigirEmailDoProfessorRequest): Promise<ConviteDeProfessorResponse> {
+  return authedRequest(`${CAMINHO_DOS_PROFESSORES}/${encodeURIComponent(usuarioId)}/email`, conviteDeProfessorResponseSchema, { metodo: 'POST', corpo: pedido })
 }
 
 /**
@@ -73,6 +82,15 @@ export function mutacaoDoCadastroDeProfessor(aoTerminar?: () => Promise<void>) {
 export function mutacaoDoRefazerConviteDoProfessor(usuarioId: string, aoTerminar?: () => Promise<void>) {
   return mutationOptions({
     mutationFn: () => refazerConviteDoProfessor(usuarioId),
+    gcTime: 0,
+    ...(aoTerminar === undefined ? {} : { onSettled: aoTerminar }),
+  })
+}
+
+/** O "Corrigir o e-mail", com a mesma regra do token do refazer (`mutacaoDoCadastroDeProfessor`); o pedido, que traz o e-mail novo, sai do cache junto. */
+export function mutacaoDaCorrecaoDoEmail(usuarioId: string, aoTerminar?: () => Promise<void>) {
+  return mutationOptions({
+    mutationFn: (pedido: CorrigirEmailDoProfessorRequest) => corrigirEmailDoProfessor(usuarioId, pedido),
     gcTime: 0,
     ...(aoTerminar === undefined ? {} : { onSettled: aoTerminar }),
   })

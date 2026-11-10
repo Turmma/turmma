@@ -87,6 +87,53 @@ describe('os professores da escola (A1, 14.0)', () => {
   })
 })
 
+describe('o "Corrigir o e-mail" (acesso-e-convites, 19.0)', () => {
+  const pedidoDoEmail = { email: 'certo@escola.invalid' }
+  const guardadoNoCache = (cliente: QueryClient) => JSON.stringify(cliente.getMutationCache().getAll().map((mutacao) => mutacao.state))
+  const depoisDoColetor = () => new Promise((resolver) => setTimeout(resolver, 5))
+
+  it('vai à rota do professor com a sessão e só o e-mail novo no corpo: o professor no endereço, a escola e a conta nunca; a resposta é a do refazer', async () => {
+    fila.push({ status: 200, corpo: resposta })
+    expect(await m.professores.corrigirEmailDoProfessor(USUARIO, pedidoDoEmail)).toEqual(resposta)
+    expect(chamadas).toEqual([{ caminho: `/v1/professores/${USUARIO}/email`, metodo: 'POST', corpo: pedidoDoEmail, autorizacao: 'Bearer token-de-acesso' }])
+    expect(chamadas[0]?.caminho).not.toContain('certo@escola.invalid')
+  })
+
+  it('a resposta fora do contrato (o e-mail ou o id da conta de volta) não chega ao diálogo', async () => {
+    fila.push({ status: 200, corpo: { ...resposta, email: pedidoDoEmail.email } })
+    await expect(m.professores.corrigirEmailDoProfessor(USUARIO, pedidoDoEmail)).rejects.toMatchObject({ codigo: 'ERRO_INTERNO' })
+  })
+
+  it('o link e o e-mail novo saem do cache de mutações (`gcTime: 0`) quando o diálogo fecha, e a lista é relida quando o pedido termina, dê certo ou não', async () => {
+    const recarregar = vi.fn(async () => undefined)
+    expect(m.professores.mutacaoDaCorrecaoDoEmail(USUARIO).gcTime).toBe(0)
+    expect(m.professores.mutacaoDaCorrecaoDoEmail(USUARIO).onSettled).toBeUndefined()
+    fila.push({ status: 409, corpo: { erro: { codigo: 'CONFLITO', mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } }, { status: 200, corpo: resposta })
+    const cliente = new QueryClient()
+    const recusado = new MutationObserver(cliente, m.professores.mutacaoDaCorrecaoDoEmail(USUARIO, recarregar))
+    const largarORecusado = recusado.subscribe(() => undefined)
+    await expect(recusado.mutate(pedidoDoEmail)).rejects.toMatchObject({ codigo: 'CONFLITO' })
+    expect(recarregar).toHaveBeenCalledTimes(1)
+    // A tentativa recusada também leva o e-mail no pedido: com o diálogo fechado (`reset` e desmonte), o `gcTime: 0` a tira.
+    expect(guardadoNoCache(cliente)).toContain(pedidoDoEmail.email)
+    recusado.reset()
+    largarORecusado()
+    await depoisDoColetor()
+    expect(cliente.getMutationCache().getAll()).toEqual([])
+    const observador = new MutationObserver(cliente, m.professores.mutacaoDaCorrecaoDoEmail(USUARIO, recarregar))
+    const desinscrever = observador.subscribe(() => undefined)
+    await observador.mutate(pedidoDoEmail)
+    expect(recarregar).toHaveBeenCalledTimes(2)
+    expect(guardadoNoCache(cliente)).toContain(TOKEN)
+    observador.reset()
+    desinscrever()
+    await depoisDoColetor()
+    expect(guardadoNoCache(cliente)).not.toContain(TOKEN)
+    expect(guardadoNoCache(cliente)).not.toContain(pedidoDoEmail.email)
+    expect(cliente.getMutationCache().getAll()).toEqual([])
+  })
+})
+
 describe('o envio do convite por e-mail (acesso-e-convites, 4.0)', () => {
   const OUTRO = '0192a4c0-5b1e-7c3d-8e4f-a0b1c2d3e4f7'
 

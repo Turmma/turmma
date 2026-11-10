@@ -128,11 +128,11 @@
   - [ ] 18.4 `usuario.email_corrigido` em `acoes.ts` e na lista por alvo (`acoes-por-alvo.ts`), com a migration 0048 que recria o `auditoria_por_alvo_idx` com sete ações
   - [ ] 18.5 Testes: vínculos e aulas ficam, token antigo recusado, envio cancelado, conta antiga intacta, estados, quem já entrou, e-mail de outro professor, isolamento, auditoria, arquivo do professor, as três corridas
 
-- [ ] **19.0 — "Corrigir o e-mail" no painel do professor**
-  - [ ] 19.1 O botão no painel do `pendente` e do `vencido`, e o diálogo, com os estados de `cenarios.md`, "Telas"
-  - [ ] 19.2 O link uma vez, "Copiar link" e "Enviar por e-mail" (o diálogo do "Reenviar"); o texto do `falhou` trocado
-  - [ ] 19.3 `docs/interface.md` (Parte A de Professores) conferido contra o que a tela faz, e a busca de "Confira o e-mail e reenvie" em `apps/web/src`, `e2e/` e `docs/`
-  - [ ] 19.4 Testes: o e2e do `falhou` → corrigir → enviar → aceitar pelo Mailpit, os estados, o recomeço, 360 px e 1366 × 768
+- [x] **19.0 — "Corrigir o e-mail" no painel do professor**
+  - [x] 19.1 O botão no painel do `pendente` e do `vencido`, e o diálogo, com os estados de `cenarios.md`, "Telas"
+  - [x] 19.2 O link uma vez, "Copiar link" e "Enviar por e-mail" (o diálogo do "Reenviar"); o texto do `falhou` trocado
+  - [x] 19.3 `docs/interface.md` (Parte A de Professores) conferido contra o que a tela faz, e a busca de "Confira o e-mail e reenvie" em `apps/web/src`, `e2e/` e `docs/`
+  - [x] 19.4 Testes: o e2e do `falhou` → corrigir → enviar → aceitar pelo Mailpit, os estados, o recomeço, 360 px e 1366 × 768
 
 ## Dependências e paralelismo
 

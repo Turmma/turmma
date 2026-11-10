@@ -13,8 +13,8 @@ export const FUSO_DA_ESCOLA = 'America/Sao_Paulo'
 /** `na_fila` e `enviando` dizem a mesma coisa à coordenação: o e-mail ainda não saiu. */
 export const TEXTO_DO_ENVIO_EM_ANDAMENTO = 'Enviando'
 
-/** O envio que não chegou: manda conferir o e-mail e oferece os dois caminhos, sem sugerir que o professor errou. */
-export const TEXTO_DO_ENVIO_QUE_FALHOU = 'Não chegou. Confira o e-mail e reenvie, ou copie o link'
+/** O envio que não chegou: manda corrigir o e-mail (o "Corrigir o e-mail" do painel) e reenviar, ou copiar o link, sem sugerir que o professor errou. */
+export const TEXTO_DO_ENVIO_QUE_FALHOU = 'Não chegou. Corrija o e-mail e reenvie, ou copie o link'
 
 const HORA_DO_ENVIO = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: FUSO_DA_ESCOLA })
 

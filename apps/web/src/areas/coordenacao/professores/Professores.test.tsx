@@ -357,7 +357,7 @@ describe('o painel do professor', () => {
     expect(localizacao.history).toEqual(['/professores', '/professores'])
   })
 
-  it('só as ações que o estado permite: o convite em aberto, pendente ou vencido, refaz e revoga; quem recebe turma tem "Acrescentar turma"; o revogado e o desativado não têm rodapé', async () => {
+  it('só as ações que o estado permite: o convite em aberto, pendente ou vencido, corrige o e-mail, refaz e revoga; quem recebe turma tem "Acrescentar turma"; o revogado e o desativado não têm rodapé', async () => {
     const usuario = userEvent.setup()
     instalar(fakeNetwork())
     await montarEEsperar()
@@ -375,9 +375,9 @@ describe('o painel do professor', () => {
       await usuario.click(within(painel).getByRole('button', { name: 'Fechar' }))
       return { botoes, temRodape: rodape !== null }
     }
-    expect(await acoesDo(BRUNO, true)).toEqual({ botoes: ['Refazer convite', 'Revogar convite', 'Acrescentar turma'], temRodape: true })
-    // O vencido tem o convite a refazer e revogar, mas não recebe turma.
-    expect(await acoesDo(CAIO, false)).toEqual({ botoes: ['Refazer convite', 'Revogar convite'], temRodape: true })
+    expect(await acoesDo(BRUNO, true)).toEqual({ botoes: ['Corrigir o e-mail', 'Refazer convite', 'Revogar convite', 'Acrescentar turma'], temRodape: true })
+    // O vencido tem o e-mail a corrigir e o convite a refazer e revogar, mas não recebe turma.
+    expect(await acoesDo(CAIO, false)).toEqual({ botoes: ['Corrigir o e-mail', 'Refazer convite', 'Revogar convite'], temRodape: true })
     for (const dono of [ANA, ELIS]) expect(await acoesDo(dono, true), dono.nome).toEqual({ botoes: ['Acrescentar turma'], temRodape: true })
     for (const dono of [DAVI, FABIO]) expect(await acoesDo(dono, false), dono.nome).toEqual({ botoes: [], temRodape: false })
   })
@@ -763,7 +763,7 @@ describe('o envio do convite por e-mail (acesso-e-convites, 4.0; RF11)', () => {
     for (const dono of [ANA, BRUNO, CAIO, DAVI, ELIS]) expect(regiaoDe(dono.nome)?.getAttribute('aria-live'), dono.nome).toBe('polite')
     expect(regiaoDe(ANA.nome)?.textContent).toBe('Enviado em 12/11 às 14:05')
     expect(regiaoDe(BRUNO.nome)?.textContent).toBe('Enviando')
-    expect(regiaoDe(CAIO.nome)?.textContent).toBe('Não chegou. Confira o e-mail e reenvie, ou copie o link')
+    expect(regiaoDe(CAIO.nome)?.textContent).toBe('Não chegou. Corrija o e-mail e reenvie, ou copie o link')
     expect(regiaoDe(DAVI.nome)?.textContent).toBe('')
     expect(regiaoDe(ELIS.nome)?.textContent).toBe('')
     expect(regiaoDe(CAIO.nome)?.className).toContain('text-erro')
@@ -925,7 +925,7 @@ describe('o envio do convite por e-mail (acesso-e-convites, 4.0; RF11)', () => {
     const doBruno = await painelDe(BRUNO.nome)
     expect(within(doBruno).getByRole('button', { name: 'Reenviar' })).toBeTruthy()
     const situacaoDoBruno = within(doBruno).getByRole('heading', { name: 'Situação do convite' }).parentElement
-    expect(situacaoDoBruno?.textContent).toContain('Não chegou. Confira o e-mail e reenvie, ou copie o link')
+    expect(situacaoDoBruno?.textContent).toContain('Não chegou. Corrija o e-mail e reenvie, ou copie o link')
     expect(situacaoDoBruno?.querySelector('p')?.className).toContain('text-erro')
     await usuario.click(within(doBruno).getByRole('button', { name: 'Fechar' }))
     await usuario.click(botaoDe(CAIO.nome))

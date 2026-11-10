@@ -1,12 +1,13 @@
+import { randomUUID } from 'node:crypto'
 import type { Browser, BrowserContextOptions, Locator, Page, Route } from '@playwright/test'
 import { AVISO_DO_CONVITE_COM_SENHA_NOVA, MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
 import type { EstadoDoEnvio } from '../packages/shared/src/professores/professores.ts'
 import { lerAmbienteDeTeste, valorObrigatorio } from '../tools/ci/compose.ts'
-import { SIGN_IN_TIMEOUT_MS } from './support/casca.ts'
+import { entrarPorEmail, esperarNovaConversa, irPelaNavegacao, SIGN_IN_TIMEOUT_MS } from './support/casca.ts'
 import { linhasDaTabela, paginaNaoRola } from './support/coordenacao.ts'
 import { abrirPelaApiSemMedirAPrimeiraCarga } from './support/mfa.ts'
 import { expect, test } from './support/profiles.ts'
-import { convidarProfessorNoBanco, criarEquipeComSenha, definirOEnvioDoConvite, type EquipeDeTeste, type ProfessorDeTeste } from './support/seed.ts'
+import { convidarProfessorNoBanco, criarAlocacaoDoProfessor, criarAulasNoBanco, criarEquipeComSenha, definirOEnvioDoConvite, revogarConvite, type EquipeDeTeste, type ProfessorDeTeste } from './support/seed.ts'
 import { ALVO_DE_TOQUE_PRINCIPAL_PX, horizontalOverflow, larguraExcedenteDoDialogo, seriousViolations } from './support/checks.ts'
 
 /**
@@ -24,6 +25,11 @@ const ENVIADO = /Enviado em \d{2}\/\d{2} às \d{2}:\d{2}/
 /** 17h05 UTC é 14h05 em São Paulo (sem horário de verão desde 2019): o "12/11 às 14:05" da tela. */
 const ENVIADO_EM_UTC = '2026-11-12T17:05:00.000Z'
 const SENHA_NOVA = 'frase-sintetica-do-professor'
+const TEXTO_DO_FALHOU = 'Não chegou. Corrija o e-mail e reenvie, ou copie o link'
+const EMAIL_QUE_NAO_SERVE =
+  'Este e-mail já é de um professor da escola, ou este professor já entrou antes e não troca de e-mail por aqui. Confira o e-mail, ou revogue o convite e cadastre o certo'
+const CONVITE_QUE_MUDOU = 'O convite mudou. A lista foi atualizada.'
+const ehACorrecao = (url: URL) => /^\/v1\/professores\/[^/]+\/email$/.test(url.pathname)
 
 const ehALista = (url: URL) => url.pathname === '/v1/professores'
 const ehOEnvio = (url: URL) => url.pathname === '/v1/professores/convites/enviar'
@@ -214,7 +220,7 @@ test.describe('Professores: o rótulo do envio de cada estado', () => {
     await expect(envioDe(page, naFila.nome)).toHaveText('Enviando')
     await expect(envioDe(page, enviando.nome)).toHaveText('Enviando')
     await expect(envioDe(page, enviado.nome)).toHaveText('Enviado em 12/11 às 14:05')
-    await expect(envioDe(page, falhou.nome)).toHaveText('Não chegou. Confira o e-mail e reenvie, ou copie o link')
+    await expect(envioDe(page, falhou.nome)).toHaveText('Não chegou. Corrija o e-mail e reenvie, ou copie o link')
     await expect(envioDe(page, falhou.nome)).not.toContainText(/professor|erro|culpa/i)
     // Cancelado vale o estado do convite, que a linha já diz; o copiado nunca teve envio.
     await expect(envioDe(page, cancelado.nome)).toHaveText('')
@@ -224,7 +230,7 @@ test.describe('Professores: o rótulo do envio de cada estado', () => {
 
     // O painel repete o envio em texto, e o "Reenviar" só existe para quem já teve envio: o copiado ainda não tem.
     const doFalhou = await abrirPainel(page, falhou.nome, hasTouch)
-    await expect(doFalhou).toContainText('Não chegou. Confira o e-mail e reenvie, ou copie o link')
+    await expect(doFalhou).toContainText('Não chegou. Corrija o e-mail e reenvie, ou copie o link')
     await expect(doFalhou.getByRole('button', { name: 'Reenviar', exact: true })).toBeVisible()
     await fecharPainel(page, hasTouch)
     const doCopiado = await abrirPainel(page, copiado.nome, hasTouch)
@@ -395,7 +401,7 @@ test.describe('Professores: o recomeço da tela', () => {
       entregou()
     })
     await abrirProfessores(page, request, coordenadora, 2)
-    await expect(envioDe(page, bia.nome)).toHaveText('Não chegou. Confira o e-mail e reenvie, ou copie o link')
+    await expect(envioDe(page, bia.nome)).toHaveText('Não chegou. Corrija o e-mail e reenvie, ou copie o link')
     armada = true
     await page.clock.runFor(5_000)
     await seguraram
@@ -467,5 +473,170 @@ test.describe('Professores: o envio a 360 px e a 1366 × 768', () => {
     await expect(tituloDaLista(page)).toBeVisible()
     await paginaNaoRola(page)
     expect(await seriousViolations(page)).toEqual([])
+  })
+})
+
+test.describe('Professores: "Corrigir o e-mail"', () => {
+  const corrigirOEmail = (page: Page) => page.getByRole('dialog', { name: 'Corrigir o e-mail' })
+  const campoDoEmail = (page: Page) => corrigirOEmail(page).getByLabel(/E-mail certo/)
+
+  test('o envio falhou: a coordenação corrige o e-mail, envia pelo "Reenviar", o e-mail chega ao endereço certo, o professor aceita e vê a turma da grade', async ({
+    page,
+    browser,
+    request,
+    hasTouch,
+  }) => {
+    const coordenadora = await criarEquipeComSenha('coordenador')
+    const ana = await convidarProfessorNoBanco(coordenadora.escolaId, 'pendente', 'Ana')
+    // A grade deu a ele uma turma e uma aula: corrigir o e-mail mantém o professor, e com ele a turma.
+    const grade = await criarAlocacaoDoProfessor(coordenadora.escolaId, ana.usuarioId, ['Matemática'])
+    await criarAulasNoBanco(coordenadora.escolaId, grade.vinculoIds[0] ?? '', [{ dia: 2, inicio: '07:30', fim: '08:20' }])
+    await definirOEnvio(ana, 'falhou')
+    await abrirProfessores(page, request, coordenadora, 1)
+    await expect(envioDe(page, ana.nome)).toHaveText(TEXTO_DO_FALHOU)
+
+    const painel = await abrirPainel(page, ana.nome, hasTouch)
+    await tocar(painel, 'Corrigir o e-mail', hasTouch)
+    await expect(campoDoEmail(page)).toBeFocused()
+    await expect(corrigirOEmail(page)).toContainText('O link anterior deixa de valer.')
+    await expect(campoDoEmail(page)).toHaveValue('')
+    const certo = `certo-${randomUUID()}@educa.invalid`
+    await campoDoEmail(page).fill(certo)
+    await tocar(corrigirOEmail(page), 'Corrigir o e-mail', hasTouch)
+    await expect(corrigirOEmail(page)).toContainText('E-mail corrigido', { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(corrigirOEmail(page).getByLabel('Link do convite')).toHaveValue(/\/convite#[A-Za-z0-9_-]{43}$/)
+    // A lista relida: o mesmo professor, pendente e sem envio (o `falhou` era do e-mail velho).
+    await expect(envioDe(page, ana.nome)).toHaveText('')
+    await expect(linhasDaLista(page)).toHaveCount(1)
+
+    // "Enviar por e-mail" é o "Reenviar" deste professor, que diz que o link mostrado deixa de valer.
+    await tocar(corrigirOEmail(page), 'Enviar por e-mail', hasTouch)
+    const reenviar = page.getByRole('dialog', { name: 'Reenviar o convite' })
+    await expect(reenviar).toBeVisible()
+    await expect(corrigirOEmail(page)).toHaveCount(0)
+    await expect(reenviar).toContainText(`Um e-mail novo, com um link novo, para ${ana.nome}.`)
+    await expect(reenviar).toContainText(LINKS_ANTERIORES)
+    await tocar(reenviar, 'Reenviar', hasTouch)
+    await expect(reenviar).toContainText('1 convite entrou na fila', { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect.poll(mensagemChegou(certo), { timeout: SIGN_IN_TIMEOUT_MS }).toBe(true)
+    expect(await mensagemDoMailpit(ana.email)).toBeUndefined()
+
+    // O professor abre o link do e-mail novo, cria a senha, entra com o e-mail certo e vê a turma da grade para confirmar.
+    const link = new URL(/https?:\/\/\S+\/convite#[A-Za-z0-9_-]{43}/.exec((await mensagemDoMailpit(certo))?.texto ?? '')?.[0] ?? '')
+    const professor = await outroNavegador(browser)
+    await professor.goto(`${link.pathname}${link.hash}`)
+    await expect(professor.getByRole('main')).toContainText(coordenadora.escolaNome, { timeout: SIGN_IN_TIMEOUT_MS })
+    await tocar(professor.getByRole('main'), 'Aceitar o convite', hasTouch)
+    await professor.getByLabel('Senha nova').fill(SENHA_NOVA, { timeout: SIGN_IN_TIMEOUT_MS })
+    await tocar(professor.getByRole('main'), 'Definir a senha e continuar', hasTouch)
+    await expect(professor).toHaveURL(/\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
+    await entrarPorEmail(professor, { email: certo, senha: SENHA_NOVA }, hasTouch)
+    // A sessão chegou (o professor é o mesmo, com o nome que a coordenação cadastrou) antes de ir às turmas: a gaveta do celular não abre sem ela.
+    await esperarNovaConversa(professor, ana.nome)
+    await irPelaNavegacao(professor, 'Turmas', hasTouch)
+    await expect(principal(professor).getByRole('region', { name: 'Confirme suas turmas', exact: true })).toContainText(grade.turmaNome, { timeout: SIGN_IN_TIMEOUT_MS })
+  })
+
+  test('o e-mail de outro professor da escola não serve e o campo segue com o foco; se o convite é revogado antes (direto no banco), o diálogo diz que o convite mudou, com a lista relida', async ({
+    page,
+    request,
+    hasTouch,
+  }) => {
+    const coordenadora = await criarEquipeComSenha('coordenador')
+    const ana = await convidarProfessorNoBanco(coordenadora.escolaId, 'pendente', 'Ana')
+    const bia = await convidarProfessorNoBanco(coordenadora.escolaId, 'pendente', 'Bia')
+    await abrirProfessores(page, request, coordenadora, 2)
+
+    const painel = await abrirPainel(page, ana.nome, hasTouch)
+    await tocar(painel, 'Corrigir o e-mail', hasTouch)
+    await campoDoEmail(page).fill(bia.email)
+    await tocar(corrigirOEmail(page), 'Corrigir o e-mail', hasTouch)
+    await expect(corrigirOEmail(page)).toContainText(EMAIL_QUE_NAO_SERVE, { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(campoDoEmail(page)).toBeFocused()
+    await expect(corrigirOEmail(page).getByRole('alert')).toHaveCount(0)
+    await expect(tituloDaLista(page)).toBeVisible()
+
+    // O convite da Ana é revogado enquanto o diálogo está aberto, direto no banco (como se outra pessoa o tivesse feito): o estado muda no servidor, sem segunda aba.
+    await revogarConvite({ escolaId: coordenadora.escolaId, usuarioId: ana.usuarioId })
+    await campoDoEmail(page).fill(`certo-${randomUUID()}@educa.invalid`)
+    await tocar(corrigirOEmail(page), 'Corrigir o e-mail', hasTouch)
+    await expect(corrigirOEmail(page).getByRole('alert')).toHaveText(CONVITE_QUE_MUDOU, { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(campoDoEmail(page)).toHaveCount(0)
+    await expect(corrigirOEmail(page).getByRole('button', { name: 'Corrigir o e-mail', exact: true })).toHaveCount(0)
+    await expect(linhaDe(page, ana.nome)).toContainText('Convite revogado.')
+    await tocar(corrigirOEmail(page), 'Fechar', hasTouch)
+    await expect(corrigirOEmail(page)).toHaveCount(0)
+    await expect(painel.getByRole('heading', { name: 'Situação do convite' })).toBeFocused()
+  })
+
+  test('a resposta atrasada de uma correção com o diálogo já fechado não reabre nada nem mostra o link, e a lista é relida', async ({ page, request, hasTouch }) => {
+    const coordenadora = await criarEquipeComSenha('coordenador')
+    const ana = await convidarProfessorNoBanco(coordenadora.escolaId, 'pendente', 'Ana')
+    await definirOEnvio(ana, 'falhou')
+    // A API corrige agora; a resposta chega à página só quando o teste abre a porta.
+    const porta = gate()
+    let segurou: () => void = () => undefined
+    const seguraram = new Promise<void>((resolver) => {
+      segurou = resolver
+    })
+    let entregou: () => void = () => undefined
+    const entregue = new Promise<void>((resolver) => {
+      entregou = resolver
+    })
+    await page.route(ehACorrecao, async (rota: Route) => {
+      const verdadeira = await rota.fetch()
+      segurou()
+      await porta.aberta
+      await rota.fulfill({ response: verdadeira })
+      entregou()
+    })
+    await abrirProfessores(page, request, coordenadora, 1)
+    const painel = await abrirPainel(page, ana.nome, hasTouch)
+    await tocar(painel, 'Corrigir o e-mail', hasTouch)
+    await campoDoEmail(page).fill(`certo-${randomUUID()}@educa.invalid`)
+    await tocar(corrigirOEmail(page), 'Corrigir o e-mail', hasTouch)
+    await expect(corrigirOEmail(page).getByRole('button', { name: 'Corrigindo…', exact: true })).toBeDisabled()
+    await seguraram
+
+    // Fechar com o pedido no ar pergunta antes; "Fechar sem copiar" fecha, e a resposta que chega depois não encontra diálogo nenhum.
+    await tocar(corrigirOEmail(page), 'Cancelar', hasTouch)
+    await expect(corrigirOEmail(page)).toContainText('O e-mail ainda está sendo corrigido')
+    await tocar(corrigirOEmail(page), 'Fechar sem copiar', hasTouch)
+    await expect(corrigirOEmail(page)).toHaveCount(0)
+    porta.abrir()
+    await entregue
+    // A lista relida: o professor está pendente e sem o envio que falhou. O link, que só existiria no diálogo, não está em lugar nenhum.
+    await expect(envioDe(page, ana.nome)).toHaveText('', { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(noDialogo(page)).toHaveCount(0)
+    await expect(page.locator('body')).not.toContainText('/convite#')
+    expect(await page.evaluate(() => `${window.location.href} ${JSON.stringify({ ...window.localStorage })} ${JSON.stringify({ ...window.sessionStorage })}`)).not.toContain('convite#')
+  })
+
+  test('a 1366 × 768 a página não rola e a 360 px não rola de lado, no painel e no diálogo; as ações principais têm 44 px e o resto 24 px', async ({ page, request, hasTouch }) => {
+    const coordenadora = await criarEquipeComSenha('coordenador')
+    // O nome longo, sem espaço: nada pode esticar a tela.
+    const ana = await convidarProfessorNoBanco(coordenadora.escolaId, 'pendente', `Ana${'a'.repeat(120)}`)
+    await definirOEnvio(ana, 'falhou')
+    await page.setViewportSize({ width: 1366, height: 768 })
+    await abrirProfessores(page, request, coordenadora, 1)
+    await paginaNaoRola(page)
+    const painel = await abrirPainel(page, ana.nome, hasTouch)
+    await tocar(painel, 'Corrigir o e-mail', hasTouch)
+    await expect(corrigirOEmail(page)).toBeVisible()
+    await paginaNaoRola(page)
+    await conferirDialogo(page)
+
+    await page.setViewportSize({ width: 360, height: 800 })
+    await alvoDeToque(painel.getByRole('button', { name: 'Corrigir o e-mail', exact: true }), 'Corrigir o e-mail no painel')
+    for (const botao of ['Corrigir o e-mail', 'Cancelar']) await alvoDeToque(corrigirOEmail(page).getByRole('button', { name: botao, exact: true }), botao)
+    await alvoDeToque(campoDoEmail(page), 'o campo do e-mail')
+    await conferirDialogo(page)
+    // O link e as três ações da etapa do sucesso, com o nome comprido no texto.
+    await campoDoEmail(page).fill(`certo-${randomUUID()}@educa.invalid`)
+    await tocar(corrigirOEmail(page), 'Corrigir o e-mail', hasTouch)
+    await expect(corrigirOEmail(page)).toContainText('E-mail corrigido', { timeout: SIGN_IN_TIMEOUT_MS })
+    for (const botao of ['Copiar link', 'Enviar por e-mail', 'Fechar']) await alvoDeToque(corrigirOEmail(page).getByRole('button', { name: botao, exact: true }), botao)
+    await conferirDialogo(page)
+    for (const alvo of await corrigirOEmail(page).getByRole('button').all()) await alvoDeToque(alvo, 'botão do diálogo', 24)
   })
 })

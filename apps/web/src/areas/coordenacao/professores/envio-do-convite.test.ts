@@ -28,7 +28,7 @@ describe('o rótulo do envio de cada professor (4.0; cenarios.md, "Telas")', () 
       na_fila: 'Enviando',
       enviando: 'Enviando',
       enviado: 'Enviado em 12/11 às 14:05',
-      falhou: 'Não chegou. Confira o e-mail e reenvie, ou copie o link',
+      falhou: 'Não chegou. Corrija o e-mail e reenvie, ou copie o link',
       cancelado: '',
     })
   })

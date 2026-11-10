@@ -1,14 +1,17 @@
 import {
   ErrorCode,
   cadastrarProfessorRequestSchema,
+  corrigirEmailDoProfessorRequestSchema,
+  CORRIGIR_EMAIL_DO_PROFESSOR_POR_ESTADO,
   REFAZER_CONVITE_DE_PROFESSOR_POR_ESTADO,
   REVOGAR_CONVITE_DE_PROFESSOR_POR_ESTADO,
   VALIDADE_DO_CONVITE_HORAS_POR_TIPO,
   type EstadoDoProfessor,
   type CadastrarProfessorRequest,
+  type CorrigirEmailDoProfessorRequest,
 } from '@educa/shared'
 import type { FalhaDoConvite } from '../../../components/DialogoDoConvite'
-import { pedidoDeConvitePelo, type ValidacaoDoConvite } from '../../../components/pedido-de-convite'
+import { pedidoDeConvitePelo, TEXTO_DO_EMAIL_INVALIDO, type ValidacaoDoConvite } from '../../../components/pedido-de-convite'
 import type { StatusFamily } from '../../../components/ui/StatusBadge'
 import { listChanged, errorText } from '../../../components/error-text'
 import { TEXTO_DO_CONVITE_QUE_MUDOU, TEXTO_DO_CONVITE_QUE_NAO_VALE } from '../../../components/textos-do-convite'
@@ -124,4 +127,43 @@ export const TEXTOS_DO_CONVITE_QUE_MUDOU: Readonly<Partial<Record<ErrorCode, str
  */
 export function falhaDoRefazerConviteDeProfessor(erro: unknown): FalhaDoConvite {
   return { texto: errorText(erro, TEXTOS_DO_CONVITE_QUE_MUDOU), listaMudou: listChanged(erro, [ErrorCode.CONFLITO, ErrorCode.NAO_ENCONTRADO]) }
+}
+
+/**
+ * O "Corrigir o e-mail" no painel (acesso-e-convites, 19.0): só o professor com o convite em aberto, pela mesma matriz do servidor
+ * (`CORRIGIR_EMAIL_DO_PROFESSOR_POR_ESTADO`). Quem já entrou alguma vez também é recusado pelo servidor, e a lista não diz quem é: o `CONFLITO`
+ * dele tem o texto abaixo.
+ */
+export function podeCorrigirOEmail(estado: EstadoDoProfessor): boolean {
+  return CORRIGIR_EMAIL_DO_PROFESSOR_POR_ESTADO[estado] === 'corrigir'
+}
+
+/** O pedido de `POST /v1/professores/:usuarioId/email`, pelo mesmo contrato estrito da API: o e-mail sai sem as pontas e em minúsculas. */
+export function pedidoDeCorrecaoDoEmail(email: string): { readonly ok: true; readonly pedido: CorrigirEmailDoProfessorRequest } | { readonly ok: false; readonly erro: string } {
+  const lido = corrigirEmailDoProfessorRequestSchema.safeParse({ email })
+  return lido.success ? { ok: true, pedido: lido.data } : { ok: false, erro: TEXTO_DO_EMAIL_INVALIDO }
+}
+
+/**
+ * O `CONFLITO` do "Corrigir o e-mail" com o professor ainda em aberto: o e-mail novo é de outro professor da escola, ou este já entrou antes e não troca
+ * de e-mail por aqui. A lista não traz e-mail nem diz qual dos dois é (E11), e o texto cobre os dois e diz o caminho.
+ */
+export const TEXTO_DO_EMAIL_QUE_NAO_SERVE =
+  'Este e-mail já é de um professor da escola, ou este professor já entrou antes e não troca de e-mail por aqui. Confira o e-mail, ou revogue o convite e cadastre o certo'
+
+/** A falha do "Corrigir o e-mail": o texto, se a lista deixou de valer (só sobra "Fechar") e se o texto é do campo do e-mail, que segue com o foco. */
+export interface FalhaDaCorrecaoDoEmail extends FalhaDoConvite {
+  readonly doCampo: boolean
+}
+
+/**
+ * O texto da falha do "Corrigir o e-mail", e o que ele faz com o diálogo. O `NAO_ENCONTRADO` é sempre o convite que mudou. O `CONFLITO` decide pelo estado
+ * que a lista relida diz agora (`estadoAgora`, `undefined` se o professor saiu dela): se ele ainda espera o convite, o e-mail é que não serve, e o diálogo
+ * segue com o campo; se saiu de `pendente` e `vencido`, o convite mudou, e a lista deixou de valer. O resto é o texto do catálogo, e o mesmo botão tenta de novo.
+ */
+export function falhaDaCorrecaoDoEmail(erro: unknown, estadoAgora: EstadoDoProfessor | undefined): FalhaDaCorrecaoDoEmail {
+  if (listChanged(erro, [ErrorCode.CONFLITO]) && estadoAgora !== undefined && podeCorrigirOEmail(estadoAgora)) {
+    return { texto: TEXTO_DO_EMAIL_QUE_NAO_SERVE, listaMudou: false, doCampo: true }
+  }
+  return { ...falhaDoRefazerConviteDeProfessor(erro), doCampo: false }
 }

@@ -4,12 +4,16 @@ import { ApiError } from '../../../api/client'
 import { TEXTO_DO_EMAIL_INVALIDO, TEXTO_DO_NOME_INVALIDO } from '../../../components/pedido-de-convite'
 import {
   acoesDoConviteDeProfessor,
+  falhaDaCorrecaoDoEmail,
   falhaDoCadastroDeProfessor,
   falhaDoRefazerConviteDeProfessor,
   FAMILIA_DO_ESTADO_DO_PROFESSOR,
+  pedidoDeCorrecaoDoEmail,
   pedidoDeProfessor,
+  podeCorrigirOEmail,
   temHomonimo,
   TEXTO_DA_VALIDADE_DO_CONVITE,
+  TEXTO_DO_EMAIL_QUE_NAO_SERVE,
   TEXTO_DO_ESTADO_DO_PROFESSOR,
   TEXTOS_DO_CONVITE_QUE_MUDOU,
   type AcaoDoConviteDeProfessor,
@@ -108,5 +112,46 @@ describe('o convite do professor na tela Professores (A1, 14.0)', () => {
     for (const codigo of Object.values(ErrorCode)) {
       for (const falha of [falhaDoCadastroDeProfessor(new ApiError(codigo)), falhaDoRefazerConviteDeProfessor(new ApiError(codigo))]) expect(falha.texto, codigo).not.toContain(codigo)
     }
+  })
+})
+
+describe('o "Corrigir o e-mail" (acesso-e-convites, 19.0)', () => {
+  const erroDe = (codigo: ErrorCode) => new ApiError(codigo)
+
+  it('só o convite em aberto, pendente ou vencido, tem o botão, pela matriz do servidor escrita aqui por extenso', () => {
+    const esperado: Readonly<Record<EstadoDoProfessor, boolean>> = { pendente: true, vencido: true, revogado: false, aceito: false, ativo: false, desativado: false }
+    for (const estado of ESTADOS_DO_PROFESSOR) expect(podeCorrigirOEmail(estado), estado).toBe(esperado[estado])
+  })
+
+  it('o pedido sai pelo contrato estrito da API: e-mail sem as pontas e em minúsculas; o que ele recusa volta com o texto do cadastro', () => {
+    expect(pedidoDeCorrecaoDoEmail('  Certo@Escola.Invalid ')).toEqual({ ok: true, pedido: { email: 'certo@escola.invalid' } })
+    for (const invalido of ['', '   ', 'sem-arroba', 'a@', '@escola.invalid', `${'a'.repeat(250)}@escola.invalid`]) {
+      expect(pedidoDeCorrecaoDoEmail(invalido), invalido).toEqual({ ok: false, erro: TEXTO_DO_EMAIL_INVALIDO })
+    }
+  })
+
+  it('`CONFLITO` com o professor ainda em aberto na lista relida é do campo do e-mail: o diálogo fica, o campo segue, e tentar de novo vale', () => {
+    for (const estado of ['pendente', 'vencido'] as const) {
+      expect(falhaDaCorrecaoDoEmail(erroDe(ErrorCode.CONFLITO), estado), estado).toEqual({ texto: TEXTO_DO_EMAIL_QUE_NAO_SERVE, listaMudou: false, doCampo: true })
+    }
+    expect(TEXTO_DO_EMAIL_QUE_NAO_SERVE).toBe(
+      'Este e-mail já é de um professor da escola, ou este professor já entrou antes e não troca de e-mail por aqui. Confira o e-mail, ou revogue o convite e cadastre o certo',
+    )
+  })
+
+  it('`CONFLITO` com o estado mudado, ou o professor fora da lista, e `NAO_ENCONTRADO` com qualquer estado são o convite que mudou: a lista deixou de valer, e não é do campo', () => {
+    for (const estado of ['revogado', 'aceito', 'ativo', 'desativado', undefined] as const) {
+      expect(falhaDaCorrecaoDoEmail(erroDe(ErrorCode.CONFLITO), estado), String(estado)).toEqual({ ...falhaDoRefazerConviteDeProfessor(erroDe(ErrorCode.CONFLITO)), doCampo: false })
+    }
+    for (const estado of ['pendente', 'revogado', undefined] as const) {
+      expect(falhaDaCorrecaoDoEmail(erroDe(ErrorCode.NAO_ENCONTRADO), estado), String(estado)).toEqual({ ...falhaDoRefazerConviteDeProfessor(erroDe(ErrorCode.NAO_ENCONTRADO)), doCampo: false })
+    }
+    expect(falhaDaCorrecaoDoEmail(erroDe(ErrorCode.NAO_ENCONTRADO), 'pendente').listaMudou).toBe(true)
+  })
+
+  it('o resto (rede, cota) é o texto do catálogo, sem a lista mudar nem o campo: o mesmo botão tenta de novo', () => {
+    const rede = new ApiError(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
+    expect(falhaDaCorrecaoDoEmail(rede, 'pendente')).toEqual({ texto: MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, listaMudou: false, doCampo: false })
+    expect(falhaDaCorrecaoDoEmail(new Error('sem rede'), 'pendente').doCampo).toBe(false)
   })
 })
