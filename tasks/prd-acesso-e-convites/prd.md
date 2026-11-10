@@ -40,7 +40,7 @@ volta com uma senha provisória, sem ninguém cadastrado um a um.
 | RF13 | **Senha provisória**: coordenação, ou professor com vínculo confirmado na turma, gera para aluno aprovado uma senha mostrada uma vez, válida por 24 horas, que só serve para o aluno criar a nova antes de qualquer tela, onde ele vê as provisórias geradas antes e se foram usadas. A antiga para de valer na geração | Aluno de outra turma ou escola responde igual a inexistente; a provisória não entra duas vezes |
 | RF14 | **Conta da escola do aluno**: pelo link da sala, ele entra com a conta de um domínio liberado, escolhe o nome, informa a matrícula, e a aprovação liga a conta; o aluno já aprovado liga a sua em "Eu". Uma conta por aluno; conta ligada a outro é recusada sem dizer a quem; guarda-se só o identificador opaco | Antes da aprovação, recusada; depois, entra; o banco não tem e-mail nem foto do provedor |
 | RF16 | Tudo alcança só a escola ativa e o ano em curso; id de outra escola responde igual a inexistente (regra 10) | Isolamento por módulo novo |
-| RF17 | Ficam na auditoria, com autor e data: envio de convite, senha redefinida, e-mail verificado, senha provisória gerada e usada, e conta ligada; nenhum registro traz nome ou matrícula. O arquivo do titular passa a trazer os atos de outra pessoa sobre ele, só com o papel de quem fez (D85, com as quatro ações da F2) | Um registro por ação; a ação aparece no arquivo do alvo, sem o autor |
+| RF17 | Ficam na auditoria, com autor e data: envio de convite, senha redefinida, e-mail verificado, senha provisória gerada e usada, conta ligada, e e-mail do professor corrigido; nenhum registro traz nome, matrícula ou e-mail. O arquivo do titular passa a trazer os atos de outra pessoa sobre ele, só com o papel de quem fez (D85, com as quatro ações da F2) | Um registro por ação; a ação aparece no arquivo do alvo, sem o autor |
 | RF18 | O e2e prova a entrada: convites pelo e-mail → professor aceita; esqueci → redefinir; um aluno reivindica com a conta da escola → aprovação; provisória → troca (regra 40) | e2e em `chromebook` e `celular` |
 
 ## 6. Regras de negócio
@@ -53,7 +53,7 @@ volta com uma senha provisória, sem ninguém cadastrado um a um.
 
 | Caso | Comportamento esperado |
 |---|---|
-| E-mail que volta | "Falhou"; corrigir e reenviar, ou copiar o link |
+| E-mail que volta | "Falhou"; corrigir e reenviar, ou copiar o link. Corrigir o e-mail mantém o professor, as turmas e as aulas dele, e vale só para quem nunca entrou |
 | Aluno com conta da escola pede senha provisória | A tela diz que ele entra pela conta |
 | Conta de link copiado aceita convite de outra escola | Só com o e-mail verificado |
 | Professor cadastrado pela grade ou pela planilha (F2) | Entra no "Enviar" seguinte |

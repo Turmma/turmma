@@ -121,6 +121,19 @@
   - [x] 17.4 A ação fora da lista por alvo e fora do arquivo de quem assina
   - [x] 17.5 Testes: quem lê, escopo, conta da escola, sem ano, auditoria, sem cota nem trava, arquivo do titular
 
+- [ ] **18.0 — A coordenação corrige o e-mail do professor que não entrou (API)** (validação, maior 1; opção (b) do Joaquim, 10/11)
+  - [ ] 18.1 Contrato, a matriz `CORRIGIR_EMAIL_DO_PROFESSOR_POR_ESTADO` e a célula `professor.corrigir_email` em `packages/shared`
+  - [ ] 18.2 `trocarContaDoProfessor` no `ConviteRepository` e o caso de uso em `convite-de-professor.service.ts`: trava, estado, "quem já entrou não troca", conta pelo `contaDoProfessor`, o `update` condicional, o 23505 como `CONFLITO`, o refazer
+  - [ ] 18.3 A rota `POST /v1/professores/:usuarioId/email`, com `no-store`
+  - [ ] 18.4 `usuario.email_corrigido` em `acoes.ts` e na lista por alvo (`acoes-por-alvo.ts`), com a migration 0048 que recria o `auditoria_por_alvo_idx` com sete ações
+  - [ ] 18.5 Testes: vínculos e aulas ficam, token antigo recusado, envio cancelado, conta antiga intacta, estados, quem já entrou, e-mail de outro professor, isolamento, auditoria, arquivo do professor, as três corridas
+
+- [ ] **19.0 — "Corrigir o e-mail" no painel do professor**
+  - [ ] 19.1 O botão no painel do `pendente` e do `vencido`, e o diálogo, com os estados de `cenarios.md`, "Telas"
+  - [ ] 19.2 O link uma vez, "Copiar link" e "Enviar por e-mail" (o diálogo do "Reenviar"); o texto do `falhou` trocado
+  - [ ] 19.3 `docs/interface.md` (Parte A de Professores) conferido contra o que a tela faz, e a busca de "Confira o e-mail e reenvie" em `apps/web/src`, `e2e/` e `docs/`
+  - [ ] 19.4 Testes: o e2e do `falhou` → corrigir → enviar → aceitar pelo Mailpit, os estados, o recomeço, 360 px e 1366 × 768
+
 ## Dependências e paralelismo
 
 | Tarefa | Depende de | Pode correr em paralelo com |
@@ -142,8 +155,10 @@
 | 15.0 | 9.0, 14.0 | 1.0, 2.0, 3.0, 5.0, 7.0, 10.0, 11.0 |
 | 16.0 | 14.0 | 1.0, 2.0, 3.0, 5.0, 7.0, 9.0, 10.0, 11.0, 17.0 |
 | 17.0 | 9.0 | 13.0, 16.0 |
+| 18.0 | 3.0, 11.0 | — |
+| 19.0 | 18.0, 4.0 | — |
 
-Migration, schema e `packages/shared` (1.0, 3.0, 5.0, 7.0, 9.0, 10.0, 11.0, 14.0 e 17.0; a 17.0 e a 15.0 mexem em `packages/shared` e na API) correm uma de cada vez; as telas, uma de cada vez, porque todas editam a `docs/interface.md`. A 9.0 e a 14.0 não dependem do e-mail e podem partir cedo, entre as do tronco.
+Migration, schema e `packages/shared` (1.0, 3.0, 5.0, 7.0, 9.0, 10.0, 11.0, 14.0, 17.0 e 18.0; a 17.0 e a 15.0 mexem em `packages/shared` e na API) correm uma de cada vez; as telas, uma de cada vez, porque todas editam a `docs/interface.md`. A 9.0 e a 14.0 não dependem do e-mail e podem partir cedo, entre as do tronco. A 18.0 e a 19.0 vêm da validação (maior 1), com as outras feitas: correm ao lado de correção que não toque `convite`, `auditoria`, `packages/shared` nem `e2e/professores-envio.spec.ts`.
 
 ## Subagentes por tarefa
 
@@ -166,6 +181,8 @@ Migration, schema e `packages/shared` (1.0, 3.0, 5.0, 7.0, 9.0, 10.0, 11.0, 14.0
 | 15.0 | `tenancy-guardian`, `privacy-guardian`, `infra-guardian`, `frontend-reviewer`, `test-engineer` | grande |
 | 16.0 | `frontend-reviewer`, `privacy-guardian`, `test-engineer` | pequeno |
 | 17.0 | `tenancy-guardian`, `privacy-guardian`, `test-engineer` | pequeno |
+| 18.0 | `tenancy-guardian`, `privacy-guardian`, `infra-guardian`, `test-engineer` | grande |
+| 19.0 | `frontend-reviewer`, `privacy-guardian`, `test-engineer` | pequeno |
 
 ## Critério de pronto da funcionalidade
 
@@ -175,5 +192,6 @@ Do `ROADMAP.md`: o professor recebe o convite por e-mail; a equipe redefine a se
 - "Esqueci a senha" e "Redefinir" funcionam sem dizer se o e-mail tem conta; a conta só cruza escolas pelo link copiado com o e-mail verificado (5.0 a 8.0)
 - A provisória é gerada só por quem alcança o aluno, vence em 24 h, obriga a troca, e o aluno vê quem a gerou; o arquivo do titular traz os atos sobre ele sem o autor (D85) (9.0 a 13.0 e 17.0)
 - O aluno pede o nome com a conta da escola e entra por ela depois da aprovação, ou a liga em "Eu" (14.0 a 16.0)
+- O convite que não chegou tem saída: a coordenação corrige o e-mail do professor que nunca entrou, sem perder as turmas e as aulas dele, e reenvia ou copia o link (18.0 e 19.0)
 - Os e2e do RF18 passam, a 360 px e em 1366 × 768; o `docs/roteiro-da-demonstracao.md` conferido nas telas que ele percorre; esteira verde no último commit que alterou código
 - Antes do portão de produção: o provedor de e-mail escolhido pelo Joaquim e registrado como suboperador (`techspec.md` §12)
