@@ -28,6 +28,7 @@ import {
   REGRAS_DO_ENSAIO,
   REGRAS_PROVISIONADAS,
   regrasDaResposta,
+  statusForaDoEsperadoNaFalha,
 } from '../scripts/ensaio-alertas.ts'
 
 interface Consulta {
@@ -365,5 +366,17 @@ describe('travas do ensaio', () => {
       // Banco inexistente: se a checagem não recusasse antes, o erro seria de conexão, e não este.
       await expect(criarGatilhoDaFalha('postgres://ninguem@127.0.0.1:1/nada', escolaId)).rejects.toThrow('escola do ensaio precisa ser um UUID')
     }
+  })
+
+  it('a falha forçada é 500, e o 503 da guarda de sessão numa máquina ocupada não reprova o ensaio; 429, 401 e requisição sem resposta reprovam', () => {
+    // O runner da esteira (run 42844286614): 500 forçado e um 503 da guarda de sessão com o Postgres lento.
+    expect(statusForaDoEsperadoNaFalha({ '500': 412, '503': 2 })).toEqual([])
+    expect(statusForaDoEsperadoNaFalha({ '500': 412 })).toEqual([])
+    // O que o ensaio proíbe: o limite agindo no lugar do 5xx, sessão recusada, e API sem resposta.
+    expect(statusForaDoEsperadoNaFalha({ '500': 412, '429': 1 })).toEqual(['429'])
+    expect(statusForaDoEsperadoNaFalha({ '500': 412, '503': 2, '401': 1 })).toEqual(['401'])
+    expect(statusForaDoEsperadoNaFalha({ '500': 412, sem_resposta: 1 })).toEqual(['sem_resposta'])
+    // O desvio mais grave: o gatilho não agiu e o job foi aceito na escola da falha.
+    expect(statusForaDoEsperadoNaFalha({ '500': 412, '202': 1 })).toEqual(['202'])
   })
 })
