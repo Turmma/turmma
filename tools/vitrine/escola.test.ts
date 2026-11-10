@@ -1,6 +1,10 @@
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { Secret, TOTP } from 'otpauth'
 import { describe, expect, it } from 'vitest'
-import { acessosDa, codigoDoPasso, comPassoGasto, passoDeAgora, proximoPasso, resumo, type Acessos, type Vitrine } from './escola.ts'
+import { raizRepositorio } from '../ci/executar.ts'
+import { acessosDa, CONTA_DO_PROVEDOR_SINTETICO, codigoDoPasso, comPassoGasto, DOMINIO_DO_PROVEDOR_SINTETICO, gravarVitrine, lerVitrine, passoDeAgora, proximoPasso, resumo, type Acessos, type Vitrine } from './escola.ts'
 
 const MEIO_MINUTO = 30_000
 // Um instante no meio de um passo, para o teste não depender de onde o relógio cai.
@@ -42,12 +46,15 @@ describe('o resumo da vitrine', () => {
     coordenacao: { nome: 'Coordenadora sintética', email: 'coordenador-abc@educa.invalid', senha: 'senha-da-coordenacao', segredo: 'JBSWY3DPEHPK3PXP', ultimoPasso: PASSO },
     professora: { nome: 'Professora Sintética Helena', email: 'professor-abc@educa.invalid', senha: 'senha-da-professora', turma: '2ºB', disciplina: 'Química' },
     aluno: { nome: 'Aluno Sintético Caio', matricula: '12345678', senha: 'senha-do-aluno', turma: '2ºB' },
+    provedor: { dominio: DOMINIO_DO_PROVEDOR_SINTETICO },
+    sala: { turma: '2ºB', codigo: 'K7M2QX', token: 'token-sintetico-da-sala' },
   }
   const vazia: Acessos = {
     escola: { id: 'e2', nome: 'Colégio sintético vazio', slug: 'vitrine-vazia-xyz' },
     coordenacao: { nome: 'Coordenadora da vazia', email: 'coordenador-xyz@educa.invalid', senha: 'senha-da-coordenacao-vazia', segredo: 'KRSXG5CTMVRXEZLU', ultimoPasso: PASSO - 9 },
     professora: { nome: 'Professora Sintética Rosa', email: 'professor-xyz@educa.invalid', senha: 'senha-da-professora-vazia', turma: '2ºA', disciplina: 'Química' },
     aluno: { nome: 'Aluno Sintético Téo', matricula: '87654321', senha: 'senha-do-aluno-vazio', turma: '2ºA' },
+    provedor: { dominio: DOMINIO_DO_PROVEDOR_SINTETICO },
   }
   const vitrine: Vitrine = { ...cheia, montadaEm: '2026-10-09T16:00:00.000Z', url: 'http://127.0.0.1:28090', vazia }
 
@@ -62,6 +69,21 @@ describe('o resumo da vitrine', () => {
     const texto = resumo(vitrine)
     expect(texto).toContain('entrada: http://127.0.0.1:28090/e/vitrine-vazia-xyz\n    matrícula: 87654321\n    senha: senha-do-aluno-vazio')
     expect(texto).toContain('vitrine.ts codigo --vazia')
+  })
+
+  it('o resumo diz onde está o botão da conta da escola, sem prometer o provedor, e só a escola com sala mostra a sala', () => {
+    const texto = resumo(vitrine)
+    const [daCheia = '', daVazia = ''] = texto.split('Escola vazia')
+    expect(daCheia).toContain(`Conta da escola — Google, domínio ${DOMINIO_DO_PROVEDOR_SINTETICO}`)
+    expect(daCheia).toContain('botão "Entrar com a conta Google da escola": http://127.0.0.1:28090/e/vitrine-abc')
+    expect(daCheia).toContain(`(assunto ${CONTA_DO_PROVEDOR_SINTETICO}), que o \`foto\` ainda não alcança`)
+    expect(daCheia).toContain('Sala da turma 2ºB (nomes livres: aqui o botão se chama "Entrar com a conta da escola")')
+    expect(daCheia).toContain('endereço: http://127.0.0.1:28090/e/vitrine-abc/turma\n    código: K7M2QX')
+    expect(daCheia).toContain('link: http://127.0.0.1:28090/e/vitrine-abc/turma#token-sintetico-da-sala')
+    // A escola vazia também libera o provedor, mas não tem nome livre: sem sala, não há o que prometer.
+    expect(daVazia).toContain(`Conta da escola — Google, domínio ${DOMINIO_DO_PROVEDOR_SINTETICO}`)
+    expect(daVazia).toContain('botão "Entrar com a conta Google da escola": http://127.0.0.1:28090/e/vitrine-vazia-xyz')
+    expect(daVazia).not.toContain('Sala da turma')
   })
 
   it('não escreve o segredo do segundo fator: manda pedir o código ao comando', () => {
@@ -87,5 +109,57 @@ describe('o resumo da vitrine', () => {
     const naCheia = comPassoGasto(vitrine, false, PASSO + 4)
     expect(naCheia.coordenacao.ultimoPasso).toBe(PASSO + 4)
     expect(naCheia.vazia.coordenacao.ultimoPasso).toBe(PASSO - 9)
+  })
+})
+
+describe('a conta do provedor sintético da vitrine', () => {
+  it('é uma conta que o `oidc-falso` conhece, e do domínio que a vitrine libera', () => {
+    const config = JSON.parse(readFileSync(join(raizRepositorio, 'infra/oidc-falso/config.json'), 'utf8')) as {
+      tokenCallbacks: { issuerId: string; requestMappings: { match: string; claims: { hd?: string } }[] }[]
+    }
+    const conta = config.tokenCallbacks.find((emissor) => emissor.issuerId === 'google')?.requestMappings.find((mapa) => mapa.match === CONTA_DO_PROVEDOR_SINTETICO)
+    expect(conta, 'a conta não está no config do oidc-falso').toBeDefined()
+    expect(conta?.claims.hd).toBe(DOMINIO_DO_PROVEDOR_SINTETICO)
+  })
+})
+
+describe('a vitrine guardada no arquivo', () => {
+  const escola = (provedor: boolean) => ({
+    escola: { id: 'e1', nome: 'Colégio sintético', slug: 'vitrine-abc' },
+    coordenacao: { nome: 'Coordenadora', email: 'coordenador-abc@educa.invalid', senha: 's', segredo: null, ultimoPasso: 0 },
+    professora: { nome: 'Professora', email: 'professor-abc@educa.invalid', senha: 's', turma: '2ºB', disciplina: 'Química' },
+    aluno: { nome: 'Aluno', matricula: '12345678', senha: 's', turma: '2ºB' },
+    ...(provedor ? { provedor: { dominio: DOMINIO_DO_PROVEDOR_SINTETICO } } : {}),
+  })
+
+  function comArquivo(vitrine: unknown, conferir: (raiz: string) => void): void {
+    const raiz = mkdtempSync(join(tmpdir(), 'vitrine-'))
+    try {
+      gravarVitrine(vitrine as Vitrine, raiz)
+      conferir(raiz)
+    } finally {
+      rmSync(raiz, { recursive: true, force: true })
+    }
+  }
+
+  it('lê a vitrine que já tem o provedor nas duas escolas', () => {
+    const vitrine = { ...escola(true), montadaEm: '2026-11-10T12:00:00.000Z', url: 'http://127.0.0.1:28090', vazia: escola(true) }
+    comArquivo(vitrine, (raiz) => expect(lerVitrine(raiz)?.vazia.provedor.dominio).toBe(DOMINIO_DO_PROVEDOR_SINTETICO))
+  })
+
+  it('trata como não montada a vitrine de antes do provedor, que não mostraria o botão da conta: o agente monta de novo', () => {
+    const antiga = { ...escola(false), montadaEm: '2026-11-09T12:00:00.000Z', url: 'http://127.0.0.1:28090', vazia: escola(false) }
+    comArquivo(antiga, (raiz) => expect(lerVitrine(raiz)).toBeNull())
+    const meia = { ...escola(true), montadaEm: '2026-11-10T12:00:00.000Z', url: 'http://127.0.0.1:28090', vazia: escola(false) }
+    comArquivo(meia, (raiz) => expect(lerVitrine(raiz)).toBeNull())
+  })
+
+  it('sem arquivo, não há vitrine', () => {
+    const raiz = mkdtempSync(join(tmpdir(), 'vitrine-'))
+    try {
+      expect(lerVitrine(raiz)).toBeNull()
+    } finally {
+      rmSync(raiz, { recursive: true, force: true })
+    }
   })
 })

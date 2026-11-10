@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { Client } from 'pg'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { urlDoBancoDeTeste } from '../ci/compose.ts'
-import { escolaExiste, montarVitrine, type Vitrine } from './escola.ts'
+import { DOMINIO_DO_PROVEDOR_SINTETICO, escolaExiste, montarVitrine, type Vitrine } from './escola.ts'
 
 // A vitrine só serve se os três logins abrem a escola montada: o que se prova aqui é que a senha entregue é a que o
 // banco guarda, e que cada pessoa está presa à escola e à turma certas. O segundo fator fica de fora: ativá-lo pede a API
@@ -115,6 +115,39 @@ describe('a escola da vitrine', () => {
       expect(naVazia[0]?.total, tabela).toBe(0)
       expect(naCheia[0]?.total, tabela).toBeGreaterThan(0)
     }
+  })
+
+  it('as duas escolas liberam o Google para o domínio do provedor sintético, e nenhuma conta de pessoa fica ligada a ele', async () => {
+    for (const acessos of [vitrine, vitrine.vazia]) {
+      const liberados = await consultar<{ provedor: string; valor: string }>('select provedor, valor from provedor_escola where escola_id = $1 and removido_em is null', [acessos.escola.id])
+      expect(liberados).toEqual([{ provedor: 'google', valor: DOMINIO_DO_PROVEDOR_SINTETICO }])
+      expect(acessos.provedor.dominio).toBe(DOMINIO_DO_PROVEDOR_SINTETICO)
+      // O provedor liberado é dado da escola: a vitrine não liga conta de ninguém, e o que o provedor devolve sobre a pessoa não tem onde ficar (regra 20, item 2).
+      const ligadas = await consultar<{ total: number }>('select count(*)::int as total from conta_externa where escola_id = $1', [acessos.escola.id])
+      expect(ligadas[0]?.total).toBe(0)
+    }
+  })
+
+  it('a escola cheia tem o acesso da sala vigente, na turma do aluno, com nome livre; a vazia não tem sala', async () => {
+    const { sala } = vitrine
+    expect(sala).toBeDefined()
+    expect(sala?.turma).toBe(vitrine.aluno.turma)
+    expect(sala?.token.length).toBeGreaterThan(20)
+    expect(sala?.codigo).toMatch(/^\S{4,}$/)
+    const vigentes = await consultar<{ turma: string; livres: number }>(
+      `select t.nome as turma,
+              (select count(*)::int from lista_nome n where n.escola_id = a.escola_id and n.turma_id = a.turma_id and n.estado = 'livre') as livres
+         from acesso_turma a join turma t on t.id = a.turma_id and t.escola_id = a.escola_id
+        where a.escola_id = $1 and a.revogado_em is null and a.expira_em > now()`,
+      [vitrine.escola.id],
+    )
+    expect(vigentes).toHaveLength(1)
+    expect(vigentes[0]?.turma).toBe(vitrine.aluno.turma)
+    expect(vigentes[0]?.livres).toBeGreaterThan(0)
+    // A escola vazia não tem nome livre: a sala não teria o que mostrar, e o botão da conta só aparece onde há nome.
+    expect(vitrine.vazia.sala).toBeUndefined()
+    const naVazia = await consultar<{ total: number }>('select count(*)::int as total from acesso_turma where escola_id = $1', [vitrine.vazia.escola.id])
+    expect(naVazia[0]?.total).toBe(0)
   })
 
   it('sabe dizer quando a escola do arquivo já não existe no banco, que o portão recria', async () => {

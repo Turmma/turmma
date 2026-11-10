@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path'
 import { Secret, TOTP } from 'otpauth'
 import { Client } from 'pg'
 import { montarEscolaComEntregas } from '../../e2e/support/governanca.ts'
-import { criarEquipeComSenha, porNaListaDaTurma, type EquipeDeTeste } from '../../e2e/support/seed.ts'
+import { criarEquipeComSenha, gerarAcessoDaSalaNoBanco, liberarProvedorDaEscola, porNaListaDaTurma, type EquipeDeTeste } from '../../e2e/support/seed.ts'
 import { lerAmbienteDeTeste, urlDoBancoDeTeste, valorObrigatorio } from '../ci/compose.ts'
 import { raizRepositorio } from '../ci/executar.ts'
 
@@ -26,6 +26,15 @@ import { raizRepositorio } from '../ci/executar.ts'
 
 export const ARQUIVO_DA_VITRINE = '.processo/vitrine.json'
 
+/**
+ * O domínio Google que as escolas da vitrine liberam e a conta do provedor sintético (`oidc-falso`, de `infra/oidc-falso/config.json`, que o
+ * ambiente de teste já sobe) que o aluno escolhe na tela do provedor. São os do e2e da conta da escola: é com eles que a tela
+ * de entrada, a da sala e a de "Eu" mostram o botão, e que a sala mostra "Conta da escola confirmada". Dado da instituição e conta
+ * inventada: nenhuma conta de pessoa é ligada aqui (regra 20, item 2).
+ */
+export const DOMINIO_DO_PROVEDOR_SINTETICO = 'escola-a.educa-sintetica.test'
+export const CONTA_DO_PROVEDOR_SINTETICO = 'google-aluna-a'
+
 /** O período do TOTP da API (`apps/api/src/credencial/totp.ts`): 30 s, com um passo de janela para cada lado. */
 const PERIODO_TOTP_MS = 30_000
 const JANELA_TOTP = 1
@@ -44,6 +53,13 @@ export interface Acessos {
   }
   readonly professora: { readonly nome: string; readonly email: string; readonly senha: string; readonly turma: string; readonly disciplina: string }
   readonly aluno: { readonly nome: string; readonly matricula: string; readonly senha: string; readonly turma: string }
+  /** O provedor que a escola liberou: é o que põe o botão "Entrar com a conta da escola" na entrada e na sala. */
+  readonly provedor: { readonly dominio: string }
+  /**
+   * O acesso vigente da turma do aluno, para a página `/e/<slug>/turma` abrir a sala com o botão da conta. Só na escola com nome livre
+   * na lista: a vazia não tem, e a sala sem nome livre não mostra o botão.
+   */
+  readonly sala?: { readonly turma: string; readonly codigo: string; readonly token: string }
 }
 
 /**
@@ -229,12 +245,14 @@ async function montarEscolaVazia(url: string, ativarMfa: boolean): Promise<Acess
       )
     }
   })
+  await liberarProvedorDaEscola(coordenadora.escolaId, 'google', DOMINIO_DO_PROVEDOR_SINTETICO)
   const segundoFator = ativarMfa ? await ativarSegundoFator(url, coordenadora.email, coordenadora.senha) : null
   return {
     escola: { id: coordenadora.escolaId, nome: coordenadora.escolaNome, slug: coordenadora.slug },
     coordenacao: { nome: coordenadora.nome, email: coordenadora.email, senha: coordenadora.senha, segredo: segundoFator?.segredo ?? null, ultimoPasso: segundoFator?.passo ?? 0 },
     professora: { ...professora, turma, disciplina: 'Química' },
     aluno: { ...aluno, turma },
+    provedor: { dominio: DOMINIO_DO_PROVEDOR_SINTETICO },
   }
 }
 
@@ -259,12 +277,18 @@ async function montarEscolaCheia(url: string, ativarMfa: boolean): Promise<Acess
   const senhaDoAluno = `senha-sintetica-${randomUUID()}`
   await darMatriculaAoAluno(coordenadora.escolaId, escola.aluno, matricula, senhaDoAluno)
 
+  // O provedor e a sala: é o que põe o botão da conta da escola na entrada e na sala, e a sala aberta onde ele aparece (a 2ºB tem nome livre na lista).
+  await liberarProvedorDaEscola(coordenadora.escolaId, 'google', DOMINIO_DO_PROVEDOR_SINTETICO)
+  const acesso = await gerarAcessoDaSalaNoBanco(coordenadora.escolaId, escola.turmas.doB.id)
+
   const segundoFator = ativarMfa ? await ativarSegundoFator(url, coordenadora.email, coordenadora.senha) : null
   return {
     escola: { id: coordenadora.escolaId, nome: coordenadora.escolaNome, slug: coordenadora.slug },
     coordenacao: { nome: coordenadora.nome, email: coordenadora.email, senha: coordenadora.senha, segredo: segundoFator?.segredo ?? null, ultimoPasso: segundoFator?.passo ?? 0 },
     professora: { nome: escola.professoras.quimicaDoB, email: emailDaProfessora, senha: senhaDaProfessora, turma: escola.turmas.doB.nome, disciplina: 'Química' },
     aluno: { nome: escola.aluno, matricula, senha: senhaDoAluno, turma: escola.turmas.doB.nome },
+    provedor: { dominio: DOMINIO_DO_PROVEDOR_SINTETICO },
+    sala: { turma: escola.turmas.doB.nome, codigo: acesso.codigo, token: acesso.token },
   }
 }
 
@@ -283,7 +307,7 @@ export async function montarVitrine(opcoes: { readonly ativarMfa?: boolean; read
 }
 
 function bloco(url: string, titulo: string, acessos: Acessos, sufixo: string): string[] {
-  const { escola, coordenacao, professora, aluno } = acessos
+  const { escola, coordenacao, professora, aluno, provedor, sala } = acessos
   const segundoFator =
     coordenacao.segredo === null
       ? 'segundo fator: ainda não configurado; a tela pede no primeiro acesso'
@@ -303,6 +327,17 @@ function bloco(url: string, titulo: string, acessos: Acessos, sufixo: string): s
     `    entrada: ${url}/e/${escola.slug}`,
     `    matrícula: ${aluno.matricula}`,
     `    senha: ${aluno.senha}`,
+    `  Conta da escola — Google, domínio ${provedor.dominio}`,
+    `    botão "Entrar com a conta Google da escola": ${url}/e/${escola.slug}`,
+    `    o botão leva ao provedor sintético (assunto ${CONTA_DO_PROVEDOR_SINTETICO}), que o \`foto\` ainda não alcança: da vitrine só se vê o botão`,
+    ...(sala === undefined
+      ? []
+      : [
+          `  Sala da turma ${sala.turma} (nomes livres: aqui o botão se chama "Entrar com a conta da escola")`,
+          `    endereço: ${url}/e/${escola.slug}/turma`,
+          `    código: ${sala.codigo}`,
+          `    link: ${url}/e/${escola.slug}/turma#${sala.token}`,
+        ]),
   ]
 }
 
@@ -330,9 +365,15 @@ export function gravarVitrine(vitrine: Vitrine, raiz = raizRepositorio): void {
   writeFileSync(caminho, `${JSON.stringify(vitrine, null, 2)}\n`)
 }
 
+/**
+ * A vitrine do arquivo, ou `null` quando não há, ou quando ela é de antes do provedor (sem `provedor` em alguma das escolas): essa escola não tem o
+ * botão da conta nem a sala, e quem a lê deve montar de novo, em vez de fotografar a tela sem eles.
+ */
 export function lerVitrine(raiz = raizRepositorio): Vitrine | null {
   const caminho = caminhoDoArquivo(raiz)
-  return existsSync(caminho) ? (JSON.parse(readFileSync(caminho, 'utf8')) as Vitrine) : null
+  if (!existsSync(caminho)) return null
+  const vitrine = JSON.parse(readFileSync(caminho, 'utf8')) as Partial<Vitrine>
+  return vitrine.provedor === undefined || vitrine.vazia?.provedor === undefined ? null : (vitrine as Vitrine)
 }
 
 /** O portão da tarefa seguinte recria o banco: a escola do arquivo pode não existir mais. */

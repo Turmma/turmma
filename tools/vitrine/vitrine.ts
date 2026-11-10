@@ -3,7 +3,8 @@ import { resolverFonteComJs } from './resolver.ts'
 // Os comandos da vitrine, a escola sintética do ambiente de teste que um agente abre para ver a tela (`./escola.ts`):
 //
 //   node tools/vitrine/vitrine.ts montar    monta as duas escolas, a cheia e a vazia, e escreve os logins em
-//                                           `.processo/vitrine.json`
+//                                           `.processo/vitrine.json`; as duas liberam o Google (o botão "Entrar com a
+//                                           conta da escola" aparece em `/e/<slug>`), e a cheia tem a sala aberta
 //   node tools/vitrine/vitrine.ts mostrar   repete os logins, ou avisa que o banco foi recriado
 //   node tools/vitrine/vitrine.ts codigo [--vazia]
 //                                           o código do segundo fator da coordenação, para a entrada de agora

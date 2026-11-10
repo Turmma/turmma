@@ -2,6 +2,7 @@ import { chromium, type Page } from '@playwright/test'
 import { existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { raizRepositorio } from '../ci/executar.ts'
+import { tirarAFoto } from './captura.ts'
 import { acessosDa, codigoDoPasso, comPassoGasto, gravarVitrine, proximoPasso, type Vitrine } from './escola.ts'
 
 // A foto da tela da vitrine: entra com o papel pedido, abre o endereço e grava a página inteira nos dois tamanhos de
@@ -247,7 +248,7 @@ export async function fotografar(
             const arquivos: string[] = []
             for (const [indice, parte] of partes.entries()) {
               const arquivo = join(pasta, nomeDaFoto(base, partes.length === 1 ? undefined : indice + 1))
-              await page.screenshot({ path: arquivo, fullPage: true, clip: { x: 0, y: parte.y, width: tela.largura, height: parte.altura } })
+              await tirarAFoto(page, arquivo, { x: 0, y: parte.y, width: tela.largura, height: parte.altura })
               arquivos.push(arquivo)
             }
             fotos.push(...fotosDaTela(medida, arquivos))
@@ -255,7 +256,7 @@ export async function fotografar(
             // A página mudou de altura entre a medida e a foto (conteúdo que chega depois): o recorte caiu fora dela. A foto
             // inteira, numa peça só, vale mais que foto nenhuma.
             const arquivo = join(pasta, nomeDaFoto(base))
-            await page.screenshot({ path: arquivo, fullPage: true })
+            await tirarAFoto(page, arquivo)
             fotos.push(...fotosDaTela(medida, [arquivo]))
           }
         }
