@@ -608,8 +608,9 @@ export async function passarPelaIntroducaoDaCoordenacao(page: Page, escolaNome: 
 export async function entrarPelaApi(page: Page, pessoa: Pick<EquipeDeTeste, 'email' | 'senha'>, endereco: string, usuarioId?: string): Promise<void> {
   const pedidos = page.context().request
   const entrada = await pedidos.post('/v1/sessao/email', { data: { email: pessoa.email, senha: pessoa.senha } })
+  if (!entrada.ok()) throw new Error(`a entrada pela API foi recusada: ${String(entrada.status())}`)
   let corpo = (await entrada.json()) as { etapa?: string; desafio?: string }
-  if (entrada.ok() && corpo.etapa === 'escolher' && usuarioId !== undefined && corpo.desafio !== undefined) {
+  if (corpo.etapa === 'escolher' && usuarioId !== undefined && corpo.desafio !== undefined) {
     const escolha = await pedidos.post('/v1/sessao/escola', { headers: { Authorization: `Bearer ${corpo.desafio}` }, data: { usuarioId } })
     corpo = (await escolha.json()) as { etapa?: string }
     if (!escolha.ok()) throw new Error(`a escolha da escola pela API falhou: ${String(escolha.status())}`)

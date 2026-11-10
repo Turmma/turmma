@@ -2,8 +2,8 @@ import type { Route } from '@playwright/test'
 import { AVISO_DO_SEGUNDO_FATOR_CONSUMIDO, mensagemDoSegundoFator } from '../packages/shared/src/errors/messages.ts'
 import { QUANTIDADE_DE_CODIGOS_DE_RECUPERACAO } from '../packages/shared/src/sessao/mfa.ts'
 import { digitarOCodigoDaEntrada, entrarComoCoordenacaoNaMesmaAba, entrarPelaTelaComSegundoFator, entrarPorEmail, esperarPainel, pedirOSegredo } from './support/casca.ts'
-import { expect, test } from './support/profiles.ts'
-import { campoCodigo, setUpMfa, configurarSegundoFatorPelaApi, entrarComSenha, gastarCodigoDeRecuperacaoPelaApi } from './support/mfa.ts'
+import { expect, loadUnthrottled, test } from './support/profiles.ts'
+import { campoCodigo, configurarSegundoFatorPelaApi, entrarComSenha, gastarCodigoDeRecuperacaoPelaApi } from './support/mfa.ts'
 import { codigoDoAutenticador, criarEquipeComSenha } from './support/seed.ts'
 import { ALVO_DE_TOQUE_PRINCIPAL_PX, horizontalOverflow, seriousViolations } from './support/checks.ts'
 
@@ -229,12 +229,16 @@ test.describe('segundo fator da coordenação, sem celular', () => {
     expect(recusa.pedidos()).toBe(2)
   })
 
-  test('cinco códigos errados gastam o desafio: a tela volta à entrada explicando, e o código certo não entra sem refazer a senha', async ({ page }) => {
+  test('cinco códigos errados gastam o desafio: a tela volta à entrada explicando, e o código certo não entra sem refazer a senha', async ({ page, request }) => {
     const renata = await criarEquipeComSenha('coordenador')
-    const { segredo } = await setUpMfa(page, renata)
+    // O segundo fator se configura pela API: a tela de configuração tem o caso dela e custava uns 8 s dos 30 deste, que prova a recusa do código.
+    const { segredo } = await configurarSegundoFatorPelaApi(request, renata)
 
-    await entrarComSenha(page, renata)
-    await expect(page.getByRole('heading', { name: 'Segundo fator' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+    // A primeira carga e a entrada com a senha rodam sem a rede do perfil (`loadUnthrottled`): o assunto do caso é a recusa dos códigos, e não quanto a aplicação leva para abrir na rede lenta.
+    await loadUnthrottled(page, async () => {
+      await entrarComSenha(page, renata)
+      await expect(page.getByRole('heading', { name: 'Segundo fator' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+    })
     for (let tentativa = 1; tentativa <= 4; tentativa++) {
       await campoCodigo(page).fill('000000')
       await page.getByRole('button', { name: /^Entrar$/ }).click()

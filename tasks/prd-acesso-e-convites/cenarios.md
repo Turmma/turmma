@@ -296,7 +296,7 @@ Tech Spec, seção 5, "Corrigir o e-mail". 18.0 (API) e 19.0 (tela).
 
 - `apps/api/test/convite.int.test.ts`: os casos em que uma conta de outra escola aceita convite por link copiado (linhas 320,
   377 e 447) passam a exigir o e-mail verificado.
-- `e2e/convite.spec.ts` (os casos de `:211`, `:229` e `:355`) e `e2e/entrar-convite-revogado.spec.ts` (`:20` e `:59`): a
+- `e2e/convite.spec.ts` (os casos de `:241`, `:259` e `:385`) e `e2e/entrar-convite-revogado.spec.ts` (`:20` e `:59`): a
   conta de equipe do `e2e/support/seed.ts` (e a da `tools/vitrine/escola.ts`) nasce com o e-mail verificado; os casos
   seguem pelo caminho do aceite, sem passar pelo `VERIFICACAO_PENDENTE`.
 - O caso do RF6 do F2 (`tasks/prd-onboarding-por-convite/cenarios.md`, "conta de outra escola cliente ganha o segundo

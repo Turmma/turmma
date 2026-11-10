@@ -1,8 +1,9 @@
 import type { Page, Route } from '@playwright/test'
 import { AVISO_DO_CONVITE_COM_SENHA_NOVA, AVISO_DO_CONVITE_PARA_CONTA_EXISTENTE, MENSAGENS_DE_ERRO, mensagemDoConvite } from '../packages/shared/src/errors/messages.ts'
 import { criarConviteDeCoordenador, criarConviteDeProfessor, criarEquipeComSenha, revogarConvite } from './support/seed.ts'
-import { esperarNovaConversa } from './support/casca.ts'
-import { expect, test } from './support/profiles.ts'
+import { entrarPelaApi, esperarNovaConversa } from './support/casca.ts'
+import { aceitarConvitePelaApi } from './support/roteiro.ts'
+import { expect, loadUnthrottled, test } from './support/profiles.ts'
 import { ALVO_DE_TOQUE_PRINCIPAL_PX, horizontalOverflow, seriousViolations } from './support/checks.ts'
 
 // Acesso-e-convites, 7.0: a conta de equipe do `support/seed.ts` já nasce com o e-mail verificado, senão o convite copiado de outra escola devolveria `VERIFICACAO_PENDENTE` antes da tela do aceite.
@@ -152,7 +153,7 @@ test.describe('aceite do convite, do coordenador e do professor', () => {
     await expect(page).toHaveURL(/\/entrar$/)
   })
 
-  test('W14: o professor com a conta nova cria a senha, vai à entrada sem segundo fator, entra e chega a Turmas', async ({ page, hasTouch }) => {
+  test('W14: o professor com a conta nova cria a senha e vai à entrada sem segundo fator, e o token do convite não passa por endereço nem por armazenamento', async ({ page, hasTouch }) => {
     const convite = await criarConviteDeProfessor()
     const enderecos = seguirEnderecos(page)
     await page.goto(`/convite#${convite.token}`)
@@ -182,30 +183,59 @@ test.describe('aceite do convite, do coordenador e do professor', () => {
     await expect(mostrar).toHaveAttribute('aria-pressed', 'true')
     await activate(page, 'Mostrar a senha', hasTouch)
     await expect(page.getByLabel('Senha nova')).toHaveAttribute('type', 'password')
+    // O aceite com a senha é o segundo pedido (o primeiro, sem ela, é o que a tela tenta antes): o que ele leva é o que foi digitado, e o "Mostrar" não o altera.
+    const aceiteComSenha = page.waitForRequest((pedido) => pedido.url().endsWith('/v1/convites/aceitar') && (pedido.postDataJSON() as { senha?: string } | null)?.senha !== undefined)
     await activate(page, /Definir a senha e continuar|Salvando/, hasTouch)
+    expect(((await aceiteComSenha).postDataJSON() as { senha: string }).senha).toBe(SENHA_NOVA)
 
     // O professor não configura segundo fator: vai à entrada, com o aviso de que a senha foi criada.
     await expect(page).toHaveURL(/\/entrar$/, { timeout: SCREEN_TIMEOUT_MS })
     await expect(page.getByRole('alert')).toHaveText(AVISO_DO_CONVITE_COM_SENHA_NOVA)
     await expect(page.getByRole('heading', { name: 'Configurar o segundo fator' })).toHaveCount(0)
     expect(await seriousViolations(page)).toEqual([])
-    await page.getByLabel('E-mail').fill(convite.email)
-    await page.getByLabel('Senha').fill(SENHA_NOVA)
-    await activate(page, /^Entrar$/, hasTouch)
-    // O professor abre em "Nova conversa" (A2), com o nome dele e o da escola na casca.
-    await esperarNovaConversa(page, convite.nome, { timeout: SCREEN_TIMEOUT_MS, escolaNome: convite.escolaNome })
-    // Sem turma confirmada, a tela em que ele abre aponta para Turmas, a um toque.
-    const paraTurmas = page.getByRole('main').getByRole('button', { name: 'Ir para Turmas' })
-    if (hasTouch) await paraTurmas.tap()
-    else await paraTurmas.click()
-    await expect(page).toHaveURL(/\/professor\/turmas$/)
-    await expect(page.getByRole('main')).toContainText('A coordenação ainda não alocou você', { timeout: SCREEN_TIMEOUT_MS })
-
     // Nem na barra, nem em chamada nenhuma, nem em armazenamento do navegador.
     for (const endereco of enderecos) expect(endereco, 'token do convite numa URL').not.toContain(convite.token)
     const guardado = await page.evaluate(() => ({ local: JSON.stringify(Object.entries(localStorage)), sessao: JSON.stringify(Object.entries(sessionStorage)) }))
     expect(guardado.local).not.toContain(convite.token)
     expect(guardado.sessao).not.toContain(convite.token)
+  })
+
+  test('W14: o professor com a conta nova entra com a senha que criou, sem segundo fator, e abre em Nova conversa', async ({ page, request, hasTouch }) => {
+    const convite = await criarConviteDeProfessor()
+    // O aceite e a senha nova têm o caso acima, pela tela; aqui o convite é aceito pela API, e o que se prova vem depois: a entrada com a senha criada.
+    await aceitarConvitePelaApi(request, convite.token, SENHA_NOVA)
+    // A primeira carga da entrada roda sem a rede do perfil (`loadUnthrottled`); o que o caso mede é a entrada e a abertura em Nova conversa, que seguem na rede do perfil.
+    await loadUnthrottled(page, async () => {
+      await page.goto('/entrar')
+      await expect(page.getByLabel('E-mail')).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
+    })
+    await page.getByLabel('E-mail').fill(convite.email)
+    await page.getByLabel('Senha').fill(SENHA_NOVA)
+    // Sem segundo fator: a entrada do professor devolve a sessão pronta, e não o desafio do segundo fator.
+    const respostaDaEntrada = page.waitForResponse((resposta) => new URL(resposta.url()).pathname === '/v1/sessao/email')
+    await activate(page, /^Entrar$/, hasTouch)
+    const entrada = await respostaDaEntrada
+    expect(entrada.ok(), 'a entrada por e-mail do professor').toBe(true)
+    expect(((await entrada.json()) as { etapa?: string }).etapa, 'o professor não tem segundo fator').toBe('pronta')
+    // O professor abre em "Nova conversa" (A2), com o nome dele e o da escola na casca.
+    await esperarNovaConversa(page, convite.nome, { timeout: SCREEN_TIMEOUT_MS, escolaNome: convite.escolaNome })
+  })
+
+  test('W14: o professor com a conta nova, sem turma confirmada, vai de Nova conversa a Turmas com um toque', async ({ page, request, hasTouch }) => {
+    const convite = await criarConviteDeProfessor()
+    await aceitarConvitePelaApi(request, convite.token, SENHA_NOVA)
+    // A entrada com a senha tem o caso acima, pela tela; aqui a sessão vem pela API (o cookie de renovação fica no contexto da aba, e a entrada falha se a etapa não é `pronta`).
+    // Sem turma confirmada, a tela em que ele abre aponta para Turmas, a um toque. O nome e a escola na casca são do caso acima.
+    const paraTurmas = page.getByRole('main').getByRole('button', { name: 'Ir para Turmas' })
+    // A primeira carga roda sem a rede do perfil (`loadUnthrottled`): o assunto do caso é o toque em Turmas, e não quanto a aplicação leva para abrir na rede lenta.
+    await loadUnthrottled(page, async () => {
+      await entrarPelaApi(page, { email: convite.email, senha: SENHA_NOVA }, '/professor/nova-conversa')
+      await expect(paraTurmas).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
+    })
+    if (hasTouch) await paraTurmas.tap()
+    else await paraTurmas.click()
+    await expect(page).toHaveURL(/\/professor\/turmas$/)
+    await expect(page.getByRole('main')).toContainText('A coordenação ainda não alocou você', { timeout: SCREEN_TIMEOUT_MS })
   })
 
   test('o professor que já tem conta em outra escola aceita sem senha nova, e o login com a senha dele abre a escolha entre as duas', async ({ page, hasTouch }) => {

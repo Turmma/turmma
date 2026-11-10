@@ -92,14 +92,18 @@ export async function tokenDaEquipe(request: APIRequestContext, email: string, s
   return corpo.token
 }
 
+/** Aceita o convite pela API (`POST /v1/convites/aceitar`), com a senha nova da conta, como a tela faz no segundo passo. O aceite não abre sessão. */
+export async function aceitarConvitePelaApi(request: APIRequestContext, token: string, senha: string): Promise<void> {
+  const aceite = await request.post('/v1/convites/aceitar', { data: { token, senha } })
+  expect(aceite.ok(), 'o aceite do convite pela API').toBe(true)
+}
+
 /**
  * Um professor de apoio faz pela API o que a demonstração faz em outro perfil: aceita o convite do link que a
  * coordenação copiou, define a senha, entra e confirma os vínculos que a coordenação alocou para ele (D3).
  */
 export async function professorAceitaEConfirmaPelaApi(request: APIRequestContext, linkDoConvite: string, email: string, senha: string): Promise<void> {
-  const token = new URL(linkDoConvite).hash.slice(1)
-  const aceite = await request.post('/v1/convites/aceitar', { data: { token, senha } })
-  expect(aceite.ok(), 'o professor de apoio aceita o convite').toBe(true)
+  await aceitarConvitePelaApi(request, new URL(linkDoConvite).hash.slice(1), senha)
   const sessao = await tokenDaEquipe(request, email, senha)
   const meus = await request.get('/v1/meus-vinculos', { headers: comToken(sessao) })
   expect(meus.ok(), 'o professor de apoio lê os vínculos dele').toBe(true)
