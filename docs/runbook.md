@@ -1107,7 +1107,8 @@ primeira tentativa a ordem era a inversa, e três prévias do fim da fase voltar
 Se reprovar, a saída diz a fase e o critério:
 - **p95 do login na rajada acima de 1 s, ou conta que não entrou:** o hash custa mais do que a CPU de referência aguenta.
   Confira `LOGIN_ARGON2_ITERACOES` em `infra/carga.env` contra a calibração da Tech Spec da identidade (seção 5, "Hash").
-  Não baixe abaixo do mínimo da OWASP (a API não sobe); a saída é mais CPU por instância, não hash mais fraco.
+  Não baixe abaixo do mínimo da OWASP (a API não sobe); a saída é mais CPU por instância, não hash mais fraco. **Antes de mexer na infra, confira se foi o host:** meça o hash e leia o
+  throttling como diz "Quando a carga vale como registro" (abaixo). Com o hash acima de ~35 ms a rodada não vale, e se repete com a máquina calma.
 - **B ou C degradadas num ataque:** o rodízio entre baldes do semáforo não está separando as escolas. Confirme com
   `npm run carga:login:controle-negativo`, que precisa continuar reprovando (sem os baldes e o rebaixamento, o cenário
   tem de quebrar).
@@ -1195,8 +1196,38 @@ Se reprovar, a saída diz a fase e o critério:
 - **passo (3) acima de 1 s:** o laço de `vinculo.criado` um por um (a virada) ou o `desativar` um por um (os desligamentos) é o que cresce
   com a escola. Se foi um desligamento, confira se o teto por gravar (100) ainda vale e se `desativar` ganhou trabalho por pessoa; se foi a
   virada (sem marca, 900 alunos), é ela que precisa do comando em grupo, porque não há marca para limitar.
-- **503 no login dos professores:** o job de professores achou ou criou a conta global enquanto eles entravam e tomou a vez do hash.
+- **503 no login dos professores:** primeiro confira o hash e a máquina ("Quando a carga vale como registro", abaixo): 503 com o hash a mais de ~35 ms é o host, e a rodada se repete. Com o hash na referência, o job de professores achou ou criou a conta global enquanto eles entravam e tomou a vez do hash.
 - **passo (3) rodou menos do que a fase pede:** o job saiu `desatualizada` ou não chegou ao passo (3); a fase não mediu o [C].
+
+## Quando a carga vale como registro
+
+Os cenários de login, da sala e da importação (`carga:login`, `carga:sala`, `carga:importacao`) medem o p95 de rotas que passam pelo hash de senha, e as duas APIs
+do compose de carga têm `cpus: 1` (`infra/compose.carga.yml`). Se o host não entrega a CPU de referência, o hash custa o dobro, o semáforo do hash
+passa do prazo e o resultado é 503 e p95 de segundos, **sem que o produto tenha mudado**. Foi assim no K2 da sala (hash a 42 ms, `decidir` a 3.047 e
+3.417 ms) e na fase `professores` da validação de `acesso-e-convites` (283 × 503, rajada a 2.123 ms numa corrida e verde na seguinte). Por isso uma rodada
+só entra como registro de tarefa, de correção ou de validação com as três condições abaixo, escritas junto do número:
+
+1. **Máquina calma antes de começar.** Nenhum outro compose de pé (`docker ps` vazio, ou só o que o cenário sobe), nenhum portão, e2e ou outro cenário de carga
+   rodando em outro andar (a fila é `flock /tmp/educa-carga.lock`, que só enxerga quem a usa), e o load de 1 minuto abaixo de ~2 em 12 núcleos. O load **durante** a
+   rodada não serve de critério: o próprio cenário leva o host a 3 ou 4 sozinho (k6, banco, as duas APIs, o worker).
+2. **O hash na CPU de referência, antes e depois.** A mediana de 20 hashes seguidos fica **até ~35 ms** (a calibração da Tech Spec da identidade, seção 5, é de ~30 ms):
+
+   ```bash
+   node -e "const {hash}=require('@node-rs/argon2');(async()=>{const t=[];for(let i=0;i<20;i++){const a=performance.now();await hash('s',{memoryCost:19456,timeCost:12,parallelism:1});t.push(performance.now()-a)}t.sort((x,y)=>x-y);console.log('mediana',t[10].toFixed(1),'ms; p90',t[18].toFixed(1),'ms')})()"
+   ```
+
+   O comando mede **no host**, sem o teto de `cpus: 1` do container da API: diz se o host está disputado, e não é o hash dentro da API. É esta a leitura que separa a falha do host da falha do
+   produto, e não o throttling do cgroup: com o host disputado por 16 laços, o throttling das APIs ficou em 6% a 8% e o hash foi a 68 ms. Mediana acima de ~35 ms antes ou depois: a rodada não
+   vale, nem verde nem vermelha; repita com a máquina calma. **Só a mediana entra no critério;** o p90 e o máximo ficam registrados (nas rodadas calmas de 10/11 o p90 foi de 30 a 44 ms, e o
+   máximo de uma delas passou de 100 ms, por um hash isolado: a tabela "O hash em cada rodada" de `tasks/correcoes/2026-11-10-carga-professores.md`). As duas leituras são **antes e depois**, nunca durante: uma disputa que só aparece no meio da rodada passa por elas. Por isso, vermelho com o
+   hash bom nas duas pontas se repete uma vez, com o `cpu.stat` amostrado a cada 5 s; só o segundo vermelho é tratado como defeito do produto.
+3. **O throttling das APIs, lido e escrito.** `cpu.stat` de `educa-carga-api-1-1` e `educa-carga-api-2-1` (`docker exec <container> cat /sys/fs/cgroup/cpu.stat`), no começo e no
+   fim da fase: a fração `nr_throttled / nr_periods` e o `throttled_usec`. Medido em 10/11/2026 com a máquina calma, por API (`api-1` / `api-2`): rajada sozinha 5,8% / 5,3%; fase `professores` 10,6% / 11,0% e 9,7% / 10,0% (duas rodadas); K2 da sala
+   27,8% / 27,0% (que passa, com folga de 135 ms no p95; origem: `tasks/correcoes/2026-11-10-k2-calmo.md`, e as outras, `tasks/correcoes/2026-11-10-carga-professores.md`). Acima da faixa do
+   cenário, o resultado vale como "passou com a CPU ainda negada" e leva o número.
+
+Vermelho com as três condições cumpridas **e repetido uma vez** (condição 2) é do produto: é defeito. Vermelho (ou verde) fora das condições é medição, e se repete; o primeiro vermelho não se apaga: fica escrito junto do segundo resultado. **Antes do piloto, a fase `professores` e a rajada rodam também na
+VPS de produção (D82), onde o hash `t=12` ainda não foi medido** (`TODO.md`).
 
 ## Esteira vermelha no e2e
 
