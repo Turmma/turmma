@@ -36,6 +36,7 @@ const ambienteValido = {
   VAGAS_ESCOLA_INTERATIVA: '5',
   VAGAS_ESCOLA_NORMAL: '5',
   VAGAS_ESCOLA_LOTE: '2',
+  VAGAS_ESCOLA_PDF: '2',
   TELEMETRIA_OTLP_URL: 'http://observabilidade:4318/',
   TELEMETRIA_INTERVALO_MS: '5000',
 }
@@ -69,7 +70,7 @@ describe('lerConfiguracao do worker', () => {
       banco: { url: ambienteValido.BANCO_URL, maximoConexoes: 80, timeoutConexaoMs: 2000, timeoutConsultaMs: 2000 },
       redisFilaUrl: 'redis://redis-fila:6379',
       pools: { interativa: 50, normal: 30 },
-      vagasPadrao: { interativa: 5, normal: 5, lote: 2 },
+      vagasPadrao: { interativa: 5, normal: 5, lote: 2, pdf: 2 },
       threadsMaximo: 2,
       telemetria: { otlpUrl: 'http://observabilidade:4318', intervaloMs: 5000 },
       storage: { url: 'http://storage:8333', regiao: 'us-east-1', bucket: 'educa-local', chaveAcesso: 'chave_sintetica', chaveSecreta: 'segredo_sintetico_xyz' },
@@ -97,6 +98,28 @@ describe('lerConfiguracao do worker', () => {
   it('o worker-lote atende só o lote, e o pool de outra fila no ambiente não liga a fila', () => {
     const lote = { ...ambienteValido, ...storageValido, ...janelaValida, FILAS: 'lote', WORKER_POOL_LOTE: '10' }
     expect(loadConfig(lote).pools).toEqual({ lote: 10 })
+  })
+
+  it('o worker-pdf atende só a fila `pdf`, com o pool de um PDF por vez, e lê o storage: o PDF sai dele e o objeto é apagado (ingestao-do-material, tarefa 1.0)', () => {
+    const pdf = { ...ambienteValido, FILAS: 'pdf', WORKER_POOL_PDF: '1' }
+    expect(loadConfig(pdf).pools).toEqual({ pdf: 1 })
+    expect(loadConfig(pdf).vagasPadrao.pdf).toBe(2)
+    expect(loadConfig(pdf).storage).toEqual(loadConfig(ambienteValido).storage)
+    // Sem e-mail e sem horário letivo: a réplica do PDF não manda e-mail nem expurga.
+    expect(loadConfig(pdf)).not.toHaveProperty('email')
+    expect(loadConfig(pdf).janelaPadrao).toBeUndefined()
+  })
+
+  it.each(Object.keys(storageValido))('o worker-pdf não sobe sem %s: sem o storage ele não leria nem apagaria o PDF', (variavel) => {
+    expect(erroDe({ ...ambienteValido, FILAS: 'pdf', WORKER_POOL_PDF: '1', [variavel]: undefined }).variaveis).toEqual([variavel])
+  })
+
+  it('o worker-pdf não sobe sem o pool da fila, e o pool não é de outra fila', () => {
+    expect(erroDe({ ...ambienteValido, FILAS: 'pdf' }).variaveis).toEqual(['WORKER_POOL_PDF'])
+  })
+
+  it.each(['0', '-2', '1.5', 'duas'])('não sobe com VAGAS_ESCOLA_PDF=%s: vaga zero pararia o PDF de toda escola sem configuração própria', (valor) => {
+    expect(erroDe({ ...ambienteValido, VAGAS_ESCOLA_PDF: valor }).variaveis).toEqual(['VAGAS_ESCOLA_PDF'])
   })
 
   it('quem atende o lote (a consolidação mede os bytes, o expurgo apaga o arquivo) ou a fila normal (monta o arquivo do titular) lê o storage; quem atende só a interativa, não', () => {

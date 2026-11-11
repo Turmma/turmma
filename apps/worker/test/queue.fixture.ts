@@ -59,6 +59,7 @@ export function vagasPadraoDoAmbiente(): ConcurrencyByQueue {
     interativa: Number(valorObrigatorio(ambiente, 'VAGAS_ESCOLA_INTERATIVA')),
     normal: Number(valorObrigatorio(ambiente, 'VAGAS_ESCOLA_NORMAL')),
     lote: Number(valorObrigatorio(ambiente, 'VAGAS_ESCOLA_LOTE')),
+    pdf: Number(valorObrigatorio(ambiente, 'VAGAS_ESCOLA_PDF')),
   }
 }
 

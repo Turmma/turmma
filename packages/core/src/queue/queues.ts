@@ -35,4 +35,7 @@ export const WORKER_POOL_OPTIONS_BY_QUEUE: Readonly<Record<QueueName, WorkerPool
   interativa: { lockDurationMs: 10_000, stalledIntervalMs: 5_000 },
   normal: { lockDurationMs: 10_000, stalledIntervalMs: 5_000 },
   lote: { lockDurationMs: 30_000, stalledIntervalMs: 30_000 },
+  // A extração do PDF é CPU contínua num pool de um só job: o lock de 60 s e a verificação a cada 20 s (abaixo dos 30 s que o BullMQ usa sem configuração, para o valor ser deste pool) devolvem o job da réplica morta em até
+  // 80 s, e a leitura devolve o event loop entre uma página e outra (`PdfExtractor`), então a renovação do lock chega a tempo.
+  pdf: { lockDurationMs: 60_000, stalledIntervalMs: 20_000 },
 }

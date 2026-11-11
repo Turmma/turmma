@@ -21,7 +21,7 @@ const indiceDe = (comandos: string[], trecho: string): number => comandos.findIn
 describe('os serviços que consomem job, lidos do compose', () => {
   it('são os despachantes e os workers do compose de teste, e nenhum outro', () => {
     // O `infra/compose.yml` real: réplica que o compose ganhar entra sozinha, e é o que a lista fixa deixaria de fazer.
-    expect(servicosDeJob()).toEqual(['despachante-1', 'despachante-2', 'worker-interativo-1', 'worker-interativo-2', 'worker-lote-1', 'worker-lote-2'])
+    expect(servicosDeJob()).toEqual(['despachante-1', 'despachante-2', 'worker-interativo-1', 'worker-interativo-2', 'worker-lote-1', 'worker-lote-2', 'worker-pdf'])
   })
 
   it('o nome tem de começar por despachante ou worker, seguido de hífen ou do fim', () => {
@@ -47,7 +47,7 @@ describe('RF7: o portão derruba os workers antes da integração', () => {
     expect(derrubar).toBeGreaterThanOrEqual(0)
     expect(indiceDe(comandos, '--project integracao')).toBeGreaterThan(derrubar)
     // O comando inteiro, do compose de teste deste checkout, e só os serviços de job: `stop` pelo projeto inteiro levaria o banco.
-    expect(comandos[derrubar]).toBe(`${DOCKER.join(' ')} stop despachante-1 despachante-2 worker-interativo-1 worker-interativo-2 worker-lote-1 worker-lote-2`)
+    expect(comandos[derrubar]).toBe(`${DOCKER.join(' ')} stop despachante-1 despachante-2 worker-interativo-1 worker-interativo-2 worker-lote-1 worker-lote-2 worker-pdf`)
     expect(comandos).toHaveLength(2)
   })
 

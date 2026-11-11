@@ -38,6 +38,7 @@ export {
   TIPO_ELIMINAR_TITULAR,
   TIPO_ENVIAR_CONVITE,
   TIPO_ENVIAR_EMAIL_DA_CONTA,
+  TIPO_EXTRAIR_PDF,
   TIPO_EXPURGAR_ACESSO,
   TIPO_EXPURGAR_DADO_PESSOAL,
   TIPO_EXPURGAR_ESCOLA,
@@ -60,6 +61,7 @@ export type {
 } from './system/job-definitions.js'
 export {
   CPU_MS_MAXIMO_SINTETICO,
+  FILAS_DO_SINTETICO,
   syntheticJobDataSchema,
   syntheticJobRequestSchema,
   jobStateResponseSchema,

@@ -68,7 +68,7 @@ describe('ambiente do compose', () => {
     const portas = Object.values(configuracao.services).flatMap((servico) => servico.ports ?? [])
     // Todo serviço com HTTP publica porta (a observabilidade, duas: Grafana e Prometheus); migrar, despachante
     // e worker não atendem ninguém e não publicam.
-    const semPorta = ['migrar', 'despachante-1', 'despachante-2', 'worker-interativo-1', 'worker-interativo-2', 'worker-lote-1', 'worker-lote-2']
+    const semPorta = ['migrar', 'despachante-1', 'despachante-2', 'worker-interativo-1', 'worker-interativo-2', 'worker-lote-1', 'worker-lote-2', 'worker-pdf']
     for (const [nome, servico] of Object.entries(configuracao.services)) {
       if (semPorta.includes(nome)) expect(servico.ports, nome).toBeUndefined()
       else expect(servico.ports?.length, nome).toBe(nome === 'observabilidade' ? 2 : 1)
@@ -145,6 +145,7 @@ describe('ambiente do compose', () => {
       'worker-interativo-2',
       'worker-lote-1',
       'worker-lote-2',
+      'worker-pdf',
     ])
     const pools = comPool.map(({ maximo }) => maximo)
     const consultar = (sql: string) =>
@@ -226,7 +227,7 @@ describe('ambiente do compose', () => {
     expect(Object.keys(servicos).sort()).toEqual([
       'api-1', 'api-2', 'borda', 'despachante-1', 'despachante-2', 'mailpit', 'migrar',
       'observabilidade', 'oidc-falso', 'postgres', 'realtime-1', 'realtime-2', 'redis-cache', 'redis-fila', 'storage',
-      'web', 'worker-interativo-1', 'worker-interativo-2', 'worker-lote-1', 'worker-lote-2',
+      'web', 'worker-interativo-1', 'worker-interativo-2', 'worker-lote-1', 'worker-lote-2', 'worker-pdf',
     ])
   })
 

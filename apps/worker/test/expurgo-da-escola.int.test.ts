@@ -2,6 +2,7 @@ import 'reflect-metadata'
 import {
   InMemoryFileStorage,
   ArquivoDoTitularRepository,
+  ExtracaoDoMaterialRepository,
   CATEGORIAS_DO_EXPURGO,
   OperationalSettings,
   currentContext,
@@ -84,6 +85,9 @@ const CHAVES_DO_LOG = new Set([
   'registroApagadoTotal',
   'arquivosApagadosTotal',
   'arquivosNaoApagadosTotal',
+  'objetosDeMaterialApagadosTotal',
+  'objetosDeMaterialNaoApagadosTotal',
+  'materialId',
   'eliminacoesTotal',
   'eliminacoesJaEnfileiradasTotal',
   'importacoesFechadasTotal',
@@ -540,6 +544,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
     return criarExpurgoDaEscola({
       repositorio: opcoes.repositorio ?? new ExpurgoDaEscolaRepository(bancada.banco),
       arquivos: new ArquivoDoTitularRepository(bancada.banco),
+      materiais: new ExtracaoDoMaterialRepository(bancada.banco),
       armazem: opcoes.armazem ?? new InMemoryFileStorage(),
       retencao: new RetencaoDaEscolaRepository(bancada.banco),
       janelaDaEscola: janelaDaEscola(),
@@ -2968,6 +2973,86 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
     })
   })
 
+  describe('PDF do material excluído (ingestao-do-material, tarefa 1.0): o objeto sai do storage e só então a linha registra', () => {
+    /** Um material `processando` da escola, com o PDF no armazém; `excluido` o marca excluído, como a coordenação o faria com o storage fora. */
+    async function materialComObjeto(escola: Escola, armazem: InMemoryFileStorage, opcoes: { excluido: boolean }): Promise<{ id: string; chave: string }> {
+      const { rows } = await bancada.pool.query<{ id: string }>(
+        `insert into material (escola_id, disciplina_id, titulo, titularidade, licenca, declaracao, sha256, tamanho_bytes, estado, excluido_em)
+         values ($1, $2, 'Apostila sintética', 'escola', 'autoria_da_escola', true, md5(random()::text) || md5(random()::text), 1000, 'processando', case when $3::boolean then now() else null end) returning id`,
+        [escola.escolaId, await disciplinaDa(escola.escolaId), opcoes.excluido],
+      )
+      const id = rows[0]?.id ?? ''
+      const chave = `material-temporario/${escola.escolaId}/${id}`
+      await armazem.guardarBytes(chave, new Uint8Array([1, 2, 3]), { prazoMs: 1_000 })
+      return { id, chave }
+    }
+
+    const objetoApagadoEm = async (id: string): Promise<Date | null> =>
+      (await bancada.pool.query<{ objeto_apagado_em: Date | null }>('select objeto_apagado_em from material where id = $1', [id])).rows[0]?.objeto_apagado_em ?? null
+
+    it('apaga o objeto do excluído da escola e registra; o excluído de B, o `processando` vigente e o excluído de A de outra noite não são tocados fora do que a regra diz', async () => {
+      const a = await escolaNova()
+      const b = await escolaNova()
+      const armazem = new InMemoryFileStorage()
+      const excluidoDeA = await materialComObjeto(a, armazem, { excluido: true })
+      const excluidoDeB = await materialComObjeto(b, armazem, { excluido: true })
+      const vigenteDeA = await materialComObjeto(a, armazem, { excluido: false })
+
+      await rodar(a.escolaId, expurgo(relogioEm(QUARTA_1H), { armazem }))
+
+      expect(armazem.bytes.has(excluidoDeA.chave)).toBe(false)
+      expect(await objetoApagadoEm(excluidoDeA.id)).toBeInstanceOf(Date)
+      // O objeto do `processando` que não foi excluído é o da extração em curso: o expurgo nunca o apaga.
+      expect(armazem.bytes.has(vigenteDeA.chave)).toBe(true)
+      expect(await objetoApagadoEm(vigenteDeA.id)).toBeNull()
+      // O de B sai no job de B, e só no dele.
+      expect(armazem.bytes.has(excluidoDeB.chave)).toBe(true)
+      expect(await objetoApagadoEm(excluidoDeB.id)).toBeNull()
+      await rodar(b.escolaId, expurgo(relogioEm(QUARTA_1H), { armazem }))
+      expect(armazem.bytes.has(excluidoDeB.chave)).toBe(false)
+      expect(await objetoApagadoEm(excluidoDeB.id)).toBeInstanceOf(Date)
+      expect(log.registros().find((linha) => linha['evento'] === 'retencao.expurgada' && linha['escolaId'] === a.escolaId)).toMatchObject({ objetosDeMaterialApagadosTotal: 1, objetosDeMaterialNaoApagadosTotal: 0 })
+    })
+
+    it('com o storage recusando, o objeto fica sem registro e o job não falha; na noite seguinte sai', async () => {
+      const a = await escolaNova()
+      const armazem = new InMemoryFileStorage()
+      const excluido = await materialComObjeto(a, armazem, { excluido: true })
+      armazem.falhaAoApagar = true
+
+      await rodar(a.escolaId, expurgo(relogioEm(QUARTA_1H), { armazem }))
+      expect(armazem.bytes.has(excluido.chave)).toBe(true)
+      expect(await objetoApagadoEm(excluido.id)).toBeNull()
+      expect((await execucoes(a.escolaId)).every(({ concluida }) => concluida)).toBe(true)
+      expect(log.registros().some((linha) => linha['evento'] === 'retencao.objeto_de_material_nao_apagado' && linha['materialId'] === excluido.id)).toBe(true)
+
+      armazem.falhaAoApagar = false
+      await rodar(a.escolaId, expurgo(relogioEm(QUINTA_1H), { armazem }))
+      expect(armazem.bytes.has(excluido.chave)).toBe(false)
+      expect(await objetoApagadoEm(excluido.id)).toBeInstanceOf(Date)
+    })
+
+    it('com a janela letiva aberta nenhum objeto é apagado: o lote não urgente espera a noite', async () => {
+      const a = await escolaNova()
+      const armazem = new InMemoryFileStorage()
+      const excluido = await materialComObjeto(a, armazem, { excluido: true })
+      await rodar(a.escolaId, expurgo(relogioEm(QUARTA_8H), { armazem }))
+      expect(armazem.bytes.has(excluido.chave)).toBe(true)
+      expect(await objetoApagadoEm(excluido.id)).toBeNull()
+    })
+
+    it('mais de um lote: 105 objetos de excluídos saem na mesma noite, em lotes de 100', async () => {
+      const a = await escolaNova()
+      const armazem = new InMemoryFileStorage()
+      const todos: Array<{ id: string; chave: string }> = []
+      for (let indice = 0; indice < 105; indice += 1) todos.push(await materialComObjeto(a, armazem, { excluido: true }))
+      await rodar(a.escolaId, expurgo(relogioEm(QUARTA_1H), { armazem }))
+      expect(armazem.bytes.size).toBe(0)
+      const { rows } = await bancada.pool.query<{ total: number }>('select count(*)::int as total from material where escola_id = $1 and objeto_apagado_em is not null', [a.escolaId])
+      expect(rows[0]?.total).toBe(todos.length)
+    })
+  })
+
   describe('arquivo do titular (F3, tarefa 13.0): o objeto sai do storage e só então a linha', () => {
     /**
      * Um pedido de acesso do aluno da escola e a versão do arquivo dele, pronta `ha` antes do `agora` (a validade é de 7 dias
@@ -3264,6 +3349,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
         'retencao.escola_nao_enfileirada',
         'retencao.expurgada',
         'retencao.expurgo_interrompido',
+        'retencao.objeto_de_material_nao_apagado',
         'retencao.registro_nao_gravado',
         'retencao.rotina_disparada',
       ])

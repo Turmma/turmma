@@ -647,9 +647,14 @@ ResumoDoAnalista*  → escola*, anoLetivo*, execucao?, conteudo*, geradoEm*
 
 O que a fatia tem de diferente do desenho definitivo, e por quê:
 
-- **`Material` junta a fonte e o material**, e o arquivo não é guardado: ficam os metadados, a titularidade, a licença e a
-  declaração, e o texto por página vai para `Trecho`, sem `embedding` (busca por texto completo em português). Não existe
-  material sem a declaração de licença (check), e a recusa não grava linha (D5, D75).
+- **`Material` junta a fonte e o material**, e o arquivo **não fica guardado**: o PDF espera no storage privado só até o worker
+  da fila `pdf` extrair o texto (`material.extrair-pdf`) e **sai dele em todo caminho** (extração, falha, exclusão, expurgo;
+  `docs/lgpd.md`). Ficam os metadados, a titularidade, a licença e a declaração, e o texto por página vai para `Trecho`, sem
+  `embedding` (busca por texto completo em português). `processado_em` guarda o instante em que a extração terminou, e
+  `objeto_apagado_em`, o instante em que o objeto saiu do storage (o que a varredura do objeto órfão, 2.0, confere); as duas
+  são nulas ao nascer e técnicas: não entram no arquivo do titular. O id do material é gerado pela aplicação (UUIDv7),
+  porque a chave do objeto o leva e o objeto é gravado antes da linha. Não existe material sem a declaração de licença
+  (check), e a recusa não grava linha (D5, D75).
 - **Não existe `Nota`** (D46). `Correcao` é o diagnóstico formativo de objetiva, por aluno e por lote; `AtividadeAplicada`,
   `TentativaAtividade` e `RespostaAtividade` são a `Avaliacao`, a `Aplicacao` e a `Resposta`, finas, só para objetiva online.
 - **A função não é tabela**: é o catálogo `FUNCOES`, em código (`packages/shared/src/time/funcoes.ts`). `Entrega`,

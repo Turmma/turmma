@@ -67,6 +67,11 @@ services:
   worker-interativo-2: *worker-interativo-carga
   worker-lote-1: *worker-lote-carga
   worker-lote-2: *worker-lote-carga
+  # A fila `pdf` (ingestao-do-material): um PDF por vez, uma thread e meio núcleo de sobra para o event loop; a corrida das 300 apostilas é a da 9.0.
+  worker-pdf:
+    cpus: 1.5
+    environment:
+      WORKER_THREADS_MAXIMO: '1'
   borda:
     cpus: 0.5
   observabilidade:

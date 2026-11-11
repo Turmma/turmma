@@ -1,3 +1,4 @@
+import { GetBucketVersioningCommand, ListObjectVersionsCommand, S3Client } from '@aws-sdk/client-s3'
 import { randomUUID } from 'node:crypto'
 import { afterAll, describe, expect, it } from 'vitest'
 import { lerAmbienteDeTeste, valorObrigatorio } from '../../../../tools/ci/compose.ts'
@@ -17,10 +18,22 @@ const { armazem, encerrar } = S3FileStorage.criar({
   chaveSecreta: valorObrigatorio(ambiente, 'STORAGE_CHAVE_SECRETA'),
 })
 
+/** Um cliente só para olhar o bucket: o armazém não expõe versão nem marcador de exclusão, e o teste precisa deles. */
+const inspetor = new S3Client({
+  endpoint: ENDERECO,
+  region: valorObrigatorio(ambiente, 'STORAGE_REGIAO'),
+  forcePathStyle: true,
+  credentials: { accessKeyId: valorObrigatorio(ambiente, 'STORAGE_CHAVE_ACESSO'), secretAccessKey: valorObrigatorio(ambiente, 'STORAGE_CHAVE_SECRETA') },
+})
+const BUCKET = valorObrigatorio(ambiente, 'STORAGE_BUCKET')
+
 const chaveNova = (): string => `titular/${randomUUID()}/${randomUUID()}/completa.json`
 
 describe('ArmazemS3 no SeaweedFS', () => {
-  afterAll(() => encerrar())
+  afterAll(() => {
+    inspetor.destroy()
+    encerrar()
+  })
 
   it('guarda, confere, baixa pela URL assinada com `no-store` e `attachment` e o nome do arquivo, e apaga', async () => {
     const chave = chaveNova()
@@ -40,6 +53,26 @@ describe('ArmazemS3 no SeaweedFS', () => {
     expect(await armazem.existe(chave)).toBe(false)
     // Apagar o que não existe não falha: a noite seguinte repete o que a anterior não terminou.
     await armazem.apagar(chave)
+  })
+
+  it('o PDF do material: `guardarBytes` e `lerBytes` devolvem os mesmos bytes, o objeto ausente é `undefined`, e depois de apagado também', async () => {
+    const chave = `material-temporario/${randomUUID()}/${randomUUID()}`
+    const bytes = new Uint8Array([37, 80, 68, 70, 45, 49, 46, 52, 10, 0, 255, 128, 7])
+    expect(await armazem.lerBytes(chave, { prazoMs: 5_000 })).toBeUndefined()
+    await armazem.guardarBytes(chave, bytes, { prazoMs: 5_000 })
+    try {
+      expect(await armazem.existe(chave)).toBe(true)
+      expect(await armazem.lerBytes(chave, { prazoMs: 5_000 })).toEqual(bytes)
+      // O bucket nunca teve versionamento (nem `Enabled`, nem `Suspended`): o status vem vazio. Depois de apagado, não sobra versão nem marcador de exclusão.
+      expect((await inspetor.send(new GetBucketVersioningCommand({ Bucket: BUCKET }))).Status).toBeUndefined()
+      await armazem.apagar(chave)
+      expect(await armazem.lerBytes(chave, { prazoMs: 5_000 })).toBeUndefined()
+      expect(await armazem.existe(chave)).toBe(false)
+      const versoes = await inspetor.send(new ListObjectVersionsCommand({ Bucket: BUCKET, Prefix: chave }))
+      expect([...(versoes.Versions ?? []), ...(versoes.DeleteMarkers ?? [])]).toEqual([])
+    } finally {
+      await armazem.apagar(chave)
+    }
   })
 
   it('a URL de uma chave não abre outra, e a que venceu não abre', async () => {

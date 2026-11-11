@@ -1,8 +1,11 @@
 import { z } from 'zod'
-import { JOB_FAILURE_CODES, JOB_STATES, QUEUE_NAMES } from './jobs.js'
+import { JOB_FAILURE_CODES, JOB_STATES } from './jobs.js'
 
 /** Teto do trabalho simulado por um job sintético: o bastante para o cenário de carga e para o teste de queda. */
 export const CPU_MS_MAXIMO_SINTETICO = 60_000
+
+/** As filas em que o job sintético nasce: a `pdf` é só da extração do material, e o job de teste não a usa. */
+export const FILAS_DO_SINTETICO = ['interativa', 'normal', 'lote'] as const
 
 /**
  * Corpo de `POST /v1/sistema/jobs-sinteticos`. Estrito: `tipo` e `escolaId` no corpo são
@@ -11,7 +14,7 @@ export const CPU_MS_MAXIMO_SINTETICO = 60_000
  */
 export const syntheticJobRequestSchema = z
   .object({
-    fila: z.enum(QUEUE_NAMES),
+    fila: z.enum(FILAS_DO_SINTETICO),
     cpuMs: z.number().int().min(0).max(CPU_MS_MAXIMO_SINTETICO),
     naoUrgente: z.boolean(),
     falhar: z.boolean().optional(),

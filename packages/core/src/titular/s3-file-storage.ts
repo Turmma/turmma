@@ -1,6 +1,6 @@
 import { DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client, S3ServiceException } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
-import { FileStorageUnavailableError, type FileStorage, type DownloadUrlOptions } from './file-storage.js'
+import { FileStorageUnavailableError, type FileStorage, type DownloadUrlOptions, type PrazoDoObjeto } from './file-storage.js'
 
 /** Tempo máximo de conexão e de cada requisição ao storage: o job de arquivo e a resposta da API não ficam pendurados. */
 export const TIMEOUT_CONEXAO_DO_ARMAZEM_MS = 2_000
@@ -79,6 +79,24 @@ export class S3FileStorage implements FileStorage {
     )
   }
 
+  async guardarBytes(chave: string, bytes: Uint8Array, { prazoMs }: PrazoDoObjeto): Promise<void> {
+    await this.#enviar(
+      new PutObjectCommand({ Bucket: this.bucket, Key: chave, Body: bytes, ContentType: 'application/pdf', CacheControl: 'no-store', ContentDisposition: 'attachment' }),
+      prazoMs,
+    )
+  }
+
+  async lerBytes(chave: string, { prazoMs }: PrazoDoObjeto): Promise<Uint8Array | undefined> {
+    try {
+      const resposta = await this.cliente.send(new GetObjectCommand({ Bucket: this.bucket, Key: chave }), { abortSignal: AbortSignal.timeout(prazoMs) })
+      // O corpo também respeita o prazo: o sinal que cortou a resposta corta a leitura dele.
+      return (await resposta.Body?.transformToByteArray()) ?? undefined
+    } catch (erro) {
+      if (erro instanceof S3ServiceException && (erro.name === 'NoSuchKey' || erro.$metadata.httpStatusCode === 404)) return undefined
+      throw new FileStorageUnavailableError()
+    }
+  }
+
   async existe(chave: string): Promise<boolean> {
     try {
       await this.cliente.send(new HeadObjectCommand({ Bucket: this.bucket, Key: chave }))
@@ -110,9 +128,9 @@ export class S3FileStorage implements FileStorage {
     }
   }
 
-  async #enviar(comando: PutObjectCommand | DeleteObjectCommand): Promise<void> {
+  async #enviar(comando: PutObjectCommand | DeleteObjectCommand, prazoMs?: number): Promise<void> {
     try {
-      await this.cliente.send(comando)
+      await this.cliente.send(comando, prazoMs === undefined ? undefined : { abortSignal: AbortSignal.timeout(prazoMs) })
     } catch {
       throw new FileStorageUnavailableError()
     }

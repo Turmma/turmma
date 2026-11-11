@@ -4,10 +4,10 @@ import { raizRepositorio } from '../ci/executar.ts'
 
 /**
  * Os processos da fila no compose: dois despachantes, duas réplicas do worker interativo (filas
- * interativa e normal) e duas do worker de lote. Teste que usa despachante e worker no próprio processo
+ * interativa e normal), duas do worker de lote e o worker da fila `pdf`. Teste que usa despachante e worker no próprio processo
  * para estes antes, para nenhum deles disputar as linhas.
  */
-export const PROCESSOS_DA_FILA = ['despachante-1', 'despachante-2', 'worker-interativo-1', 'worker-interativo-2', 'worker-lote-1', 'worker-lote-2'] as const
+export const PROCESSOS_DA_FILA = ['despachante-1', 'despachante-2', 'worker-interativo-1', 'worker-interativo-2', 'worker-lote-1', 'worker-lote-2', 'worker-pdf'] as const
 
 export interface ResultadoComando {
   codigo: number

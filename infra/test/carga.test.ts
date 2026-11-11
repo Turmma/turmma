@@ -226,7 +226,7 @@ describe('infra/compose.carga.yml', () => {
 
   it('o sandbox de cada worker tem uma thread por núcleo inteiro e sobra pelo menos meio núcleo para o event loop', () => {
     const workers = Object.keys(base).filter((nome) => nome.startsWith('worker-'))
-    expect(workers).toHaveLength(4)
+    expect(workers).toHaveLength(5)
     for (const nome of workers) {
       const threads = Number(carga[nome]?.environment?.['WORKER_THREADS_MAXIMO'])
       const cpus = carga[nome]?.cpus ?? 0

@@ -22,6 +22,7 @@ const concurrencyLimitEnvSchema = z.object({
   VAGAS_ESCOLA_INTERATIVA: vagaPositiva,
   VAGAS_ESCOLA_NORMAL: vagaPositiva,
   VAGAS_ESCOLA_LOTE: vagaPositiva,
+  VAGAS_ESCOLA_PDF: vagaPositiva,
 })
 
 /**
@@ -30,7 +31,7 @@ const concurrencyLimitEnvSchema = z.object({
  */
 export function lerVagasPadrao(ambiente: Record<string, string | undefined>): ConcurrencyByQueue {
   const valores = validateEnvironment(concurrencyLimitEnvSchema, ambiente)
-  return { interativa: valores.VAGAS_ESCOLA_INTERATIVA, normal: valores.VAGAS_ESCOLA_NORMAL, lote: valores.VAGAS_ESCOLA_LOTE }
+  return { interativa: valores.VAGAS_ESCOLA_INTERATIVA, normal: valores.VAGAS_ESCOLA_NORMAL, lote: valores.VAGAS_ESCOLA_LOTE, pdf: valores.VAGAS_ESCOLA_PDF }
 }
 
 /** Vagas da escola: a fila que ela não configurou usa o padrão do ambiente. */

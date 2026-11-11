@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { linhasDoBloco, normalizarTexto, paginaDoMaterial, PAGINAS_DO_MATERIAL, rodapeDaPagina } from '../../../../tools/demonstracao/conteudo-estequiometria.ts'
 import { CAMINHO_DO_MATERIAL } from '../../../../tools/demonstracao/gerar-material.ts'
-import { PdfExtractor, MAXIMO_DE_CARACTERES_DO_TRECHO, temAssinaturaDePdf, tirarLinhasRepetidas } from './pdf-extraction.js'
+import { PdfExtractor, MAXIMO_DE_CARACTERES_DO_TRECHO, temAssinaturaDePdf, tirarLinhasRepetidas } from './pdf-extractor.js'
 
 const extrator = new PdfExtractor()
 const demonstracao = (): Uint8Array => new Uint8Array(readFileSync(CAMINHO_DO_MATERIAL))

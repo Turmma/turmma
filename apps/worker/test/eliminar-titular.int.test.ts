@@ -2,6 +2,7 @@ import 'reflect-metadata'
 import {
   InMemoryFileStorage,
   ArquivoDoTitularRepository,
+  ExtracaoDoMaterialRepository,
   OperationalSettings,
   OperationalSettingsRepository,
   EliminacaoDoTitularRepository,
@@ -889,6 +890,7 @@ describe('titular.eliminar', () => {
         repositorio: new ExpurgoDaEscolaRepository(bancada.banco),
         enfileirador: bancada.enfileirador,
         arquivos: new ArquivoDoTitularRepository(bancada.banco),
+        materiais: new ExtracaoDoMaterialRepository(bancada.banco),
         armazem: new InMemoryFileStorage(),
         retencao: new RetencaoDaEscolaRepository(bancada.banco),
         janelaDaEscola: await janelaDaEscola(),

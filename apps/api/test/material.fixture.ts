@@ -1,7 +1,13 @@
+import { createLogger, InMemoryFileStorage, runInContext, type Database } from '@educa/core'
+import { PdfExtractor } from '@educa/core/material'
+import { JOB_DEFINITIONS, TIPO_EXTRAIR_PDF } from '@educa/shared'
+import { sql } from 'drizzle-orm'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { CAMINHO_DO_MATERIAL } from '../../../tools/demonstracao/gerar-material.ts'
-import { ExtractionQueue } from '../src/material/extraction-queue.js'
+import { DB } from '../src/database.module.js'
+import { criarExtracaoDoPdf } from '../../worker/src/processors/extrair-pdf.js'
+import { jobExecution } from '../../worker/test/job-execution.fixture.js'
 import type { TestApi, RespostaHttp } from './test-api.js'
 import type { SessaoFixtures, TestSessao } from './sessao.fixture.js'
 
@@ -92,9 +98,58 @@ export async function enviarMaterial(api: TestApi, sessao: Pick<TestSessao, 'tok
   }
 }
 
-/** Espera a fila de extração desta instância esvaziar: o material já saiu de `processando`. */
-export function esperarExtracao(api: TestApi): Promise<void> {
-  return api.app.get(ExtractionQueue).ociosa()
+const EXTRATORES = new WeakMap<TestApi, PdfExtractor>()
+
+/** O extrator que `esperarExtracao` usa nesta API: o teste o espiona (`vi.spyOn`) para contar chamadas ou segurar a leitura. */
+export function extratorDe(api: TestApi): PdfExtractor {
+  const existente = EXTRATORES.get(api)
+  if (existente !== undefined) return existente
+  const novo = new PdfExtractor()
+  EXTRATORES.set(api, novo)
+  return novo
+}
+
+const CHAVE_DO_TEMPORARIO = /^material-temporario\/([^/]+)\/([^/]+)$/
+
+/**
+ * Roda o job `material.extrair-pdf` de cada PDF que a API desta instância guardou e ainda espera no storage dela, como o worker o roda:
+ * no contexto da escola do objeto, na última tentativa (o desfecho é o final, sem repetição), com o armazém, o extrator e o log do teste.
+ *
+ * Antes, tira da fila o job que o envio gravou (só o `aguardando`: o despachante reserva só esse), para um worker de pé na pilha não
+ * rodar o mesmo job com o armazém dele. O que o job lança (falha da última tentativa) já ficou no material: aqui não é erro do teste.
+ */
+export async function esperarExtracao(api: TestApi): Promise<void> {
+  if (!(api.armazem instanceof InMemoryFileStorage)) throw new Error('esperarExtracao precisa de uma API de `subirApi`, com o armazém em memória')
+  const armazem = api.armazem
+  const banco = api.app.get<Database>(DB)
+  const logger = createLogger({
+    servico: 'worker-teste',
+    ...(api.linhasDeLog === undefined ? { nivel: 'silent' as const } : { nivel: 'trace' as const, destino: { write: (linha: string) => void api.linhasDeLog?.push(linha) } }),
+  })
+  const processador = criarExtracaoDoPdf({ banco, armazem, extrator: extratorDe(api), logger })
+  const ultimaTentativa = JOB_DEFINITIONS[TIPO_EXTRAIR_PDF].retentativa.tentativas
+  const pendentes = [...armazem.bytes.keys()].flatMap((chave) => {
+    const achado = CHAVE_DO_TEMPORARIO.exec(chave)
+    return achado?.[1] === undefined || achado[2] === undefined ? [] : [{ escolaId: achado[1], materialId: achado[2] }]
+  })
+  for (const { escolaId, materialId } of pendentes) {
+    await banco.execute(
+      sql`update job_registro set estado = 'concluido', concluido_em = now() where escola_id = ${escolaId} and tipo = ${TIPO_EXTRAIR_PDF} and dados->>'materialId' = ${materialId} and estado = 'aguardando'`,
+    )
+    await runInContext({ requisicaoId: randomUUID(), escolaId }, () => processador({ materialId }, jobExecution(randomUUID(), ultimaTentativa), new AbortController().signal)).catch(() => undefined)
+  }
+}
+
+/**
+ * Roda o job `material.extrair-pdf` de **um** material, como o worker o roda (no contexto da escola, na última tentativa), e devolve o que o
+ * processador devolve ou lança. Quem o usa escolhe o material e o que há no storage: `esperarExtracao` só alcança o que tem objeto.
+ */
+export async function extrairMaterial(api: TestApi, escolaId: string, materialId: string): Promise<void> {
+  if (!(api.armazem instanceof InMemoryFileStorage)) throw new Error('extrairMaterial precisa de uma API de `subirApi`, com o armazém em memória')
+  const logger = createLogger({ servico: 'worker-teste', nivel: 'silent' })
+  const processador = criarExtracaoDoPdf({ banco: api.app.get<Database>(DB), armazem: api.armazem, extrator: extratorDe(api), logger })
+  const ultimaTentativa = JOB_DEFINITIONS[TIPO_EXTRAIR_PDF].retentativa.tentativas
+  await runInContext({ requisicaoId: randomUUID(), escolaId }, () => processador({ materialId }, jobExecution(randomUUID(), ultimaTentativa), new AbortController().signal))
 }
 
 export interface MaterialRow {
@@ -110,12 +165,14 @@ export interface MaterialRow {
   readonly enviado_por: string | null
   readonly excluido_por: string | null
   readonly excluido_em: Date | null
+  readonly processado_em: Date | null
+  readonly objeto_apagado_em: Date | null
 }
 
 /** As linhas de `material` da escola, em ordem de envio, com as excluídas. */
 export async function materiaisDa(bancada: SessaoFixtures, escolaId: string): Promise<MaterialRow[]> {
   const { rows } = await bancada.pool.query<MaterialRow>(
-    'select id, disciplina_id, titulo, estado, falha, paginas, sha256, tamanho_bytes, declaracao, enviado_por, excluido_por, excluido_em from material where escola_id = $1 order by id',
+    'select id, disciplina_id, titulo, estado, falha, paginas, sha256, tamanho_bytes, declaracao, enviado_por, excluido_por, excluido_em, processado_em, objeto_apagado_em from material where escola_id = $1 order by id',
     [escolaId],
   )
   return rows

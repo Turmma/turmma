@@ -53,7 +53,7 @@ describe('.env.example e compose', () => {
 
   it('despachante e worker, sem HTTP, usam o healthcheck do batimento com a mesma idade máxima do código', () => {
     const { services } = parse(lerArquivo('infra/compose.yml'), { merge: true }) as { services: Record<string, Servico> }
-    for (const nome of ['despachante-1', 'despachante-2', 'worker-interativo-1', 'worker-interativo-2', 'worker-lote-1', 'worker-lote-2']) {
+    for (const nome of ['despachante-1', 'despachante-2', 'worker-interativo-1', 'worker-interativo-2', 'worker-lote-1', 'worker-lote-2', 'worker-pdf']) {
       expect(services[nome]?.healthcheck?.test, nome).toEqual(['CMD', 'node', '-e', COMANDO_HEALTHCHECK_BATIMENTO])
     }
   })
@@ -87,6 +87,7 @@ describe('.env.example e compose', () => {
       'worker-interativo-2',
       'worker-lote-1',
       'worker-lote-2',
+      'worker-pdf',
     ])
     for (const [nome, servico] of usamOBanco) {
       expect(servico.depends_on?.['migrar']?.condition, nome).toBe('service_completed_successfully')
@@ -111,10 +112,29 @@ describe('.env.example e compose', () => {
     }
   })
 
+  it('worker-pdf atende só a fila `pdf`, um PDF por vez, com `cpus` limitado, o storage e a vaga de duas extrações por escola no despachante e nos workers (ingestao-do-material, 1.0)', () => {
+    const ambiente = lerAmbienteExemplo()
+    const { services } = parse(lerArquivo('infra/compose.yml'), { merge: true }) as {
+      services: Record<string, Servico & { cpus?: number; environment?: Record<string, string> }>
+    }
+    const variaveis = services['worker-pdf']?.environment ?? {}
+    expect(variaveis['FILAS']).toBe('pdf')
+    expect(ambiente['WORKER_POOL_PDF']).toBe('1')
+    expect(variaveis['WORKER_POOL_PDF']).toMatch(/^\$\{WORKER_POOL_PDF:\?/)
+    expect(services['worker-pdf']?.cpus).toBeGreaterThan(0)
+    expect(services['worker-pdf']?.cpus).toBeLessThanOrEqual(1)
+    // Sem o storage a réplica não sobe: o processador lê o objeto e o apaga.
+    for (const variavel of ['STORAGE_URL', 'STORAGE_REGIAO', 'STORAGE_BUCKET', 'STORAGE_CHAVE_ACESSO', 'STORAGE_CHAVE_SECRETA']) expect(variaveis[variavel], variavel).toBeDefined()
+    // A vaga por escola é a mesma nos três processos que a leem, e vale 2.
+    expect(ambiente['VAGAS_ESCOLA_PDF']).toBe('2')
+    for (const nome of ['despachante-1', 'worker-interativo-1', 'worker-lote-1', 'worker-pdf']) expect(services[nome]?.environment?.['VAGAS_ESCOLA_PDF'], nome).toMatch(/^\$\{VAGAS_ESCOLA_PDF:\?/)
+  })
+
   it('as vagas padrão de dez escolas (D25) cabem nos pools das duas réplicas, e as de uma escola cabem numa réplica só', () => {
     const ambiente = lerAmbienteExemplo()
     const ESCOLAS_DO_PRIMEIRO_ANO = 10
     const REPLICAS = 2
+    // A fila `pdf` fica de fora: é uma réplica de pool 1, e a vaga de 2 por escola só impede que uma escola segure a fila inteira (ingestao-do-material, 1.0).
     for (const fila of ['INTERATIVA', 'NORMAL', 'LOTE']) {
       const vagas = Number(ambiente[`VAGAS_ESCOLA_${fila}`])
       const pool = Number(ambiente[`WORKER_POOL_${fila}`])

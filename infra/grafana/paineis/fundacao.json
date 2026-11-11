@@ -2120,6 +2120,104 @@
           "range": true
         }
       ]
+    },
+    {
+      "id": 46,
+      "type": "timeseries",
+      "title": "PDFs do material extraídos, por resultado",
+      "description": "Execuções do job que extrai o PDF do material (ingestao-do-material, tarefa 1.0), por resultado: pronto, falhou (sem texto, arquivo inválido ou a última tentativa), arquivo ausente (o objeto sumiu do storage com o material ainda em processamento), nova tentativa e sem efeito (o material já tinha sido tratado ou excluído). Sem escola, material nem arquivo no rótulo. Arquivo ausente acima de zero é objeto perdido; muitas falhas juntas apontam o storage ou o pdfjs.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 155
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (resultado) (increase(material_extracao_total[1m]))",
+          "legendFormat": "{{resultado}}",
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 47,
+      "type": "timeseries",
+      "title": "Extração do PDF do material (p95)",
+      "description": "Quanto a execução do job de extração leva, da leitura da linha ao fim do apagar do objeto. O prazo do tipo é de 10 min; p95 perto dele diz que o PDF é grande ou que o worker-pdf está sem CPU.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 155
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(material_extracao_duracao_seconds_bucket[1m])))",
+          "legendFormat": "p95",
+          "range": true
+        }
+      ]
     }
   ]
 }

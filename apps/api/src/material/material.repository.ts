@@ -1,8 +1,7 @@
-import { requireEscolaId, material, Unscoped, requestSessao, trecho, vinculo, type Database, type DatabaseTransaction } from '@educa/core'
+import { requireEscolaId, material, requestSessao, trecho, vinculo, type Database, type DatabaseTransaction } from '@educa/core'
 import type { MateriaisQuery, EstadoDeMaterial, FalhaDeMaterial, LicencaDeMaterial, TitularidadeDeMaterial } from '@educa/shared'
-import { and, asc, desc, eq, exists, gt, gte, isNull, lt, sql, type SQL } from 'drizzle-orm'
+import { and, asc, desc, eq, exists, gt, gte, isNull, sql, type SQL } from 'drizzle-orm'
 import { InvariantException } from '@educa/shared'
-import type { PaginaExtraida } from './pdf-extraction.js'
 
 /**
  * Como o material é alcançado, pela célula da `MATRIZ`: a coordenação alcança todo material da escola (`unidade`); o
@@ -27,6 +26,8 @@ export interface MaterialLido {
 }
 
 export interface NovoMaterial {
+  /** O id que a aplicação gerou antes de gravar o objeto: a chave do PDF no storage o leva. */
+  readonly id: string
   readonly disciplinaId: string
   readonly titulo: string
   readonly titularidade: TitularidadeDeMaterial
@@ -85,9 +86,6 @@ const colunas = {
 }
 
 const colunasDoTrecho = { materialId: trecho.materialId, disciplinaId: trecho.disciplinaId, titulo: material.titulo, pagina: trecho.pagina, texto: trecho.texto }
-
-/** Quantos trechos vão num `insert` só: um capítulo cabe em um, e um livro de mil páginas não vira um comando de 20 MB. */
-const TRECHOS_POR_INSERCAO = 50
 
 /**
  * O material e os trechos da escola do contexto, e só dela: nenhum método recebe escola (regra 10, item 3). A escola
@@ -150,7 +148,7 @@ export class MaterialRepository {
   }
 
   /**
-   * Grava o material, `processando`, com a declaração verdadeira (só chega aqui quem passou por
+   * Grava o material, `processando`, com o id que a aplicação gerou e a declaração verdadeira (só chega aqui quem passou por
    * `motivoDaRecusaDoMaterial`). O mesmo arquivo de novo na escola esbarra no índice único `(escola_id, sha256)` entre
    * os não excluídos e não falhos, e sai `CONFLITO` pelo filtro de erro: dois envios ao mesmo tempo gravam um.
    */
@@ -215,42 +213,6 @@ export class MaterialRepository {
   }
 
   /**
-   * `processando` → `pronto`, com o total de páginas, numa instrução só, e devolve a disciplina do material. Não acha
-   * (`undefined`) o material que foi excluído ou que a varredura já deu por falho enquanto era lido: quem recebe
-   * `undefined` não grava trecho nenhum.
-   */
-  async marcarPronto(id: string, paginas: number): Promise<string | undefined> {
-    const [pronto] = await this.banco
-      .update(material)
-      .set({ estado: 'pronto', paginas })
-      .where(and(eq(material.escolaId, requireEscolaId()), eq(material.id, id), eq(material.estado, 'processando'), isNull(material.excluidoEm)))
-      .returning({ disciplinaId: material.disciplinaId })
-    return pronto?.disciplinaId
-  }
-
-  /** `processando` → `falhou`, com o código da lista fechada. Não mexe no que já saiu de `processando`. */
-  async marcarFalhou(id: string, falha: FalhaDeMaterial): Promise<boolean> {
-    const falhos = await this.banco
-      .update(material)
-      .set({ estado: 'falhou', falha })
-      .where(and(eq(material.escolaId, requireEscolaId()), eq(material.id, id), eq(material.estado, 'processando')))
-      .returning({ id: material.id })
-    return falhos.length > 0
-  }
-
-  /** Grava um trecho por página com texto. A página repetida não entra duas vezes (`trecho_pagina_do_material_unica`). */
-  async gravarTrechos(materialId: string, disciplinaId: string, paginas: readonly PaginaExtraida[]): Promise<void> {
-    const escolaId = requireEscolaId()
-    for (let inicio = 0; inicio < paginas.length; inicio += TRECHOS_POR_INSERCAO) {
-      const lote = paginas.slice(inicio, inicio + TRECHOS_POR_INSERCAO)
-      await this.banco
-        .insert(trecho)
-        .values(lote.map(({ pagina, texto }) => ({ escolaId, disciplinaId, materialId, pagina, texto })))
-        .onConflictDoNothing({ target: [trecho.escolaId, trecho.materialId, trecho.pagina] })
-    }
-  }
-
-  /**
    * A busca por texto completo em português (`trecho.busca`), **sempre com a escola do contexto**, só em material
    * `pronto` e não excluído, e dentro do alcance de quem pede. As páginas vêm por relevância; no empate, pela ordem do
    * material e da página, para a mesma busca devolver sempre a mesma lista.
@@ -302,30 +264,5 @@ export class MaterialRepository {
       )
       .orderBy(asc(trecho.pagina))
       .limit(limite)
-  }
-}
-
-const JUSTIFICATIVA_DA_VARREDURA =
-  'Rotina nossa, sem requisição: encerra o material que ficou `processando` porque o processo que o lia caiu. O PDF não é guardado, então não há o que retomar; não lê título, texto nem pessoa, só troca o estado.'
-
-/**
- * A única consulta do módulo sem a cláusula de escola (regra 10, item 9): a varredura do que ficou para trás. Fica numa
- * classe própria para o repository que atende requisição não ter método sem escopo nenhum.
- */
-export class MaterialParadoRepository {
-  constructor(private readonly banco: Database) {}
-
-  /**
-   * Todo material `processando` enviado antes de `antesDe` vira `falhou` com `extracao_falhou`, em qualquer escola.
-   * Devolve quantos. O excluído fica como está: ninguém o vê.
-   */
-  @Unscoped(JUSTIFICATIVA_DA_VARREDURA)
-  async falharParados(antesDe: Date): Promise<number> {
-    const falhos = await this.banco
-      .update(material)
-      .set({ estado: 'falhou', falha: 'extracao_falhou' })
-      .where(and(eq(material.estado, 'processando'), lt(material.enviadoEm, antesDe), isNull(material.excluidoEm)))
-      .returning({ id: material.id })
-    return falhos.length
   }
 }

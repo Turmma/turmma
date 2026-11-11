@@ -62,6 +62,6 @@ export const jobRegistro = pgTable(
     check('job_registro_chave_so_com_escola', sql`chave_idempotencia is null or escola_id is not null`),
     check('job_registro_escola_ou_sistema', sql`escola_id is not null or tipo like 'sistema.%'`),
     check('job_registro_estado_valido', sql`estado in ('aguardando', 'reservado', 'publicado', 'ativo', 'concluido', 'falhou')`),
-    check('job_registro_fila_valida', sql`fila in ('interativa', 'normal', 'lote')`),
+    check('job_registro_fila_valida', sql`fila in ('interativa', 'normal', 'lote', 'pdf')`),
   ],
 )

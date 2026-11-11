@@ -1,0 +1,6 @@
+export { PdfExtractor, MAXIMO_DE_CARACTERES_DO_TRECHO, MINIMO_DE_PAGINAS_PARA_TIRAR_LINHA_REPETIDA, temAssinaturaDePdf, tirarLinhasRepetidas } from './pdf-extractor.js'
+export type { PaginaExtraida, ResultadoDaExtracao } from './pdf-extractor.js'
+export { ExtracaoDoMaterialRepository } from './extracao.repository.js'
+export type { MaterialParaExtrair } from './extracao.repository.js'
+export { uuidV7 } from './uuid-v7.js'
+export { chaveDoTemporario, PRAZO_DO_OBJETO_DO_MATERIAL_MS } from './temporario.js'

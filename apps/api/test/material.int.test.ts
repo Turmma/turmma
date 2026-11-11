@@ -1,12 +1,12 @@
-import { runInContext } from '@educa/core'
+import { InMemoryFileStorage, runInContext } from '@educa/core'
+import type { ResultadoDaExtracao } from '@educa/core/material'
 import { ErrorCode, buscaDeMaterialResponseSchema, listaDeMateriaisResponseSchema, materialResponseSchema, MAXIMO_DE_BYTES_DO_MATERIAL, TAMANHO_MAXIMO_DO_TRECHO_CITADO } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { linhasDoBloco, normalizarTexto, paginaDoMaterial, PAGINAS_DO_MATERIAL } from '../../../tools/demonstracao/conteudo-estequiometria.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { TrechoSearch } from '../src/material/trecho-search.js'
-import { PdfExtractor, type ResultadoDaExtracao } from '../src/material/pdf-extraction.js'
-import { ENVIOS_POR_ESCOLA_NA_JANELA, ENVIOS_POR_USUARIO_NA_JANELA, IDADE_DO_MATERIAL_PARADO_MS, MATERIAIS_EM_PROCESSAMENTO_POR_ESCOLA, MaterialService } from '../src/material/material.service.js'
+import { ENVIOS_POR_ESCOLA_NA_JANELA, ENVIOS_POR_USUARIO_NA_JANELA, MATERIAIS_EM_PROCESSAMENTO_POR_ESCOLA } from '../src/material/material.service.js'
 import { chamar, subirApi, type TestApi, type RespostaHttp } from './test-api.js'
 import { montarEscolaComTurma as montarEscola, type EscolaComTurma } from './escola-turma.fixture.js'
 import {
@@ -14,6 +14,8 @@ import {
   auditoriaDa,
   enviarMaterial,
   esperarExtracao,
+  extrairMaterial,
+  extratorDe,
   materiaisDa,
   materiaisJaEnviados,
   PDF_DE_DEMONSTRACAO,
@@ -23,6 +25,18 @@ import {
   variacaoDoPdf,
 } from './material.fixture.js'
 import { SessaoFixtures, type TestSessao } from './sessao.fixture.js'
+
+/** O armazém em memória que `subirApi` deu a esta API. */
+function armazemDe(api: TestApi): InMemoryFileStorage {
+  if (!(api.armazem instanceof InMemoryFileStorage)) throw new Error('a API do teste não tem o armazém em memória')
+  return api.armazem
+}
+
+/** A chave do PDF que espera a extração no storage (`chaveDoTemporario`). */
+const chaveDe = (escolaId: string, id: string): string => `material-temporario/${escolaId}/${id}`
+
+/** As chaves dos PDFs da escola que ainda estão no armazém desta API. */
+const objetosDaEscola = (api: TestApi, escolaId: string): string[] => [...armazemDe(api).bytes.keys()].filter((chave) => chave.startsWith(`material-temporario/${escolaId}/`))
 
 /** `quantidade` campos de texto que o contrato não tem, para encher o multipart. */
 function camposAMais(quantidade: number): Record<string, string> {
@@ -119,7 +133,7 @@ describe('material da escola', () => {
         expect(normalizarTexto(trecho?.texto ?? ''), `página ${String(numero)}`).toBe(conteudoDaPagina(numero))
       }
 
-      // O arquivo não é guardado: fica o resumo dele, o tamanho e quem declarou.
+      // O arquivo não fica depois da extração: fica o resumo dele, o tamanho e quem declarou.
       const [linha] = await materiaisDa(bancada, escola.coordenacao.escolaId)
       expect(linha).toMatchObject({ id: resposta.id, declaracao: true, tamanho_bytes: PDF_DE_DEMONSTRACAO.byteLength, enviado_por: escola.coordenacao.usuarioId, excluido_em: null })
       expect(linha?.sha256).toMatch(/^[0-9a-f]{64}$/)
@@ -145,7 +159,7 @@ describe('material da escola', () => {
 
     it('os campos ao lado do arquivo passam pelo ZodValidationPipe: o PDF válido com campo fora do contrato é `ENTRADA_INVALIDA`, e o arquivo nem chega à leitura nem vira material (17.0)', async () => {
       const escola = await montarEscolaComTurma(api, bancada)
-      const extrair = vi.spyOn(api.app.get(PdfExtractor), 'extrair')
+      const extrair = vi.spyOn(extratorDe(api), 'extrair')
       const foraDoContrato = [
         { disciplinaId: escola.quimica, extra: { escolaId: escola.coordenacao.escolaId } },
         { disciplinaId: escola.quimica, extra: { titularidade: 'ninguem' } },
@@ -189,7 +203,7 @@ describe('material da escola', () => {
       { caso: 'sem a declaração', campos: { licenca: 'autoria_da_escola', declaracao: 'false' }, motivo: 'sem_declaracao', declaracao: false },
     ])('$caso: `MATERIAL_SEM_LICENCA`, a extração não é chamada, nenhuma linha em `material`, e a auditoria fica', async ({ campos, motivo, declaracao }) => {
       const escola = await montarEscolaComTurma(api, bancada)
-      const extrair = vi.spyOn(api.app.get(PdfExtractor), 'extrair')
+      const extrair = vi.spyOn(extratorDe(api), 'extrair')
 
       // O arquivo é lixo de propósito: se alguém o abrisse antes da licença, a resposta seria a do arquivo inválido.
       const lixo = Buffer.from('isto não é um PDF')
@@ -236,7 +250,7 @@ describe('material da escola', () => {
   describe('o arquivo', () => {
     it('o que não é PDF no conteúdo é `ENTRADA_INVALIDA`, mesmo com nome e tipo de PDF, e não vira material', async () => {
       const escola = await montarEscolaComTurma(api, bancada)
-      const extrair = vi.spyOn(api.app.get(PdfExtractor), 'extrair')
+      const extrair = vi.spyOn(extratorDe(api), 'extrair')
       const planilha = Buffer.from('nome;turma\nAluno sintético;2B\n')
       const comNomeDePdf = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica }, { arquivo: planilha, nomeDoArquivo: 'apostila.pdf', tipo: 'application/pdf' })
       const vazio = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica }, { arquivo: Buffer.alloc(0) })
@@ -278,7 +292,7 @@ describe('material da escola', () => {
 
     it('acima do tamanho máximo o envio é recusado no recebimento, e nada é gravado nem lido', async () => {
       const escola = await montarEscolaComTurma(api, bancada)
-      const extrair = vi.spyOn(api.app.get(PdfExtractor), 'extrair')
+      const extrair = vi.spyOn(extratorDe(api), 'extrair')
       const grande = Buffer.concat([PDF_DE_DEMONSTRACAO, Buffer.alloc(MAXIMO_DE_BYTES_DO_MATERIAL + 1 - PDF_DE_DEMONSTRACAO.byteLength, 0x20)])
       expect(grande.byteLength).toBe(MAXIMO_DE_BYTES_DO_MATERIAL + 1)
 
@@ -314,7 +328,7 @@ describe('material da escola', () => {
       { caso: 'um campo de texto acima de 2 KiB e o arquivo acima do teto (para no campo, antes do arquivo)', campos: { titulo: 'a'.repeat(2 * 1024 + 1) }, opcoes: { arquivo: PDF_ACIMA_DO_TETO } },
     ])('$caso: `ENTRADA_INVALIDA` no recebimento, e nada é gravado nem lido', async ({ campos, opcoes }) => {
       const escola = await montarEscolaComTurma(api, bancada)
-      const extrair = vi.spyOn(api.app.get(PdfExtractor), 'extrair')
+      const extrair = vi.spyOn(extratorDe(api), 'extrair')
 
       const recusado = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica, ...campos }, opcoes)
       await esperarExtracao(api)
@@ -354,9 +368,13 @@ describe('material da escola', () => {
     it('dois envios do mesmo arquivo ao mesmo tempo gravam um', async () => {
       const escola = await montarEscolaComTurma(api, bancada)
       const respostas = await Promise.all([1, 2, 3, 4].map(() => enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica })))
-      await esperarExtracao(api)
 
       expect(respostas.map((resposta) => resposta.status).toSorted()).toEqual([201, 409, 409, 409])
+      // Os três que a transação recusou apagaram o objeto que tinham guardado: sobra o do que ficou, e um job só.
+      expect(objetosDaEscola(api, escola.coordenacao.escolaId)).toEqual([chaveDe(escola.coordenacao.escolaId, respostas.find((resposta) => resposta.status === 201)?.corpo['id'] as string)])
+      const { rows: jobs } = await bancada.pool.query<{ total: string }>(`select count(*) as total from job_registro where escola_id = $1 and tipo = 'material.extrair-pdf'`, [escola.coordenacao.escolaId])
+      expect(Number(jobs[0]?.total)).toBe(1)
+      await esperarExtracao(api)
       const materiais = await materiaisDa(bancada, escola.coordenacao.escolaId)
       expect(materiais).toHaveLength(1)
       expect(materiais[0]).toMatchObject({ estado: 'pronto', paginas: 6 })
@@ -452,7 +470,7 @@ describe('material da escola', () => {
   describe('enquanto processa, e depois de excluído', () => {
     it('material em `processando` não aparece na busca; pronto, aparece', async () => {
       const escola = await montarEscolaComTurma(api, bancada)
-      const extrator = api.app.get(PdfExtractor)
+      const extrator = extratorDe(api)
       const original = extrator.extrair.bind(extrator)
       let liberar: () => void = () => undefined
       const liberado = new Promise<void>((resolver) => {
@@ -506,7 +524,7 @@ describe('material da escola', () => {
 
     it('excluído enquanto era lido, o material não ganha trecho quando a leitura termina', async () => {
       const escola = await montarEscolaComTurma(api, bancada)
-      const extrator = api.app.get(PdfExtractor)
+      const extrator = extratorDe(api)
       const original = extrator.extrair.bind(extrator)
       let liberar: () => void = () => undefined
       const liberado = new Promise<void>((resolver) => {
@@ -516,12 +534,16 @@ describe('material da escola', () => {
         await liberado
         return original(bytes, sinal)
       })
+      const extrair = vi.spyOn(extrator, 'extrair')
       const enviado = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica })
       const id = enviado.corpo['id'] as string
 
+      // O job já leu o objeto e está no meio da extração quando a coordenação exclui.
+      const rodando = esperarExtracao(api)
+      await vi.waitFor(() => expect(extrair).toHaveBeenCalled())
       expect((await del(escola.coordenacao, `/v1/materiais/${id}`)).status).toBe(204)
       liberar()
-      await esperarExtracao(api)
+      await rodando
 
       expect(await trechosDa(bancada, escola.coordenacao.escolaId)).toEqual([])
       expect(itensDe(await buscar(escola.coordenacao, 'reagente limitante'))).toEqual([])
@@ -603,7 +625,7 @@ describe('material da escola', () => {
       const id = await materialPronto(escola)
       const professor = await professorCom(escola, escola.quimica, true)
       const aluno = await bancada.sessao(escola.coordenacao.escolaId, 'aluno')
-      const extrair = vi.spyOn(api.app.get(PdfExtractor), 'extrair')
+      const extrair = vi.spyOn(extratorDe(api), 'extrair')
       const rotaInexistente = await get(aluno, '/v1/rota-que-nao-existe')
       const igualAoInexistente = (resposta: RespostaHttp): void => {
         expect(erroDe(resposta)).toEqual({ status: 404, codigo: ErrorCode.NAO_ENCONTRADO })
@@ -691,52 +713,172 @@ describe('material da escola', () => {
     })
   })
 
-  describe('nenhum material fica preso em `processando`', () => {
-    it('a varredura dá por falho o que ficou `processando` além do prazo, e não toca no que acabou de chegar', async () => {
+  describe('o PDF espera no storage e sai dele em todo caminho (1.0; D49)', () => {
+    it('o envio guarda o PDF no storage e pede o job `material.extrair-pdf` na fila `pdf`, com o id do material como chave de idempotência; depois da extração, o objeto sai', async () => {
       const escola = await montarEscolaComTurma(api, bancada)
-      const [parado] = await materiaisJaEnviados(bancada, escola.coordenacao, escola.quimica, 1, { estado: 'processando', enviadoHaMs: IDADE_DO_MATERIAL_PARADO_MS + 5_000 })
-      const [recente] = await materiaisJaEnviados(bancada, escola.coordenacao, escola.quimica, 1, { estado: 'processando', enviadoHaMs: IDADE_DO_MATERIAL_PARADO_MS - 30_000 })
+      const enviado = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica })
+      expect(enviado.status).toBe(201)
+      const id = enviado.corpo['id'] as string
+      const chave = chaveDe(escola.coordenacao.escolaId, id)
 
-      expect(await api.app.get(MaterialService).varrerParados()).toBeGreaterThanOrEqual(1)
+      expect(await armazemDe(api).existe(chave)).toBe(true)
+      const { rows: jobs } = await bancada.pool.query<{ fila: string; estado: string; dados: unknown; chave_idempotencia: string | null }>(
+        "select fila, estado, dados, chave_idempotencia from job_registro where escola_id = $1 and tipo = 'material.extrair-pdf'",
+        [escola.coordenacao.escolaId],
+      )
+      expect(jobs).toEqual([{ fila: 'pdf', estado: 'aguardando', dados: { materialId: id }, chave_idempotencia: id }])
+      expect((await materiaisDa(bancada, escola.coordenacao.escolaId))[0]).toMatchObject({ id, estado: 'processando', processado_em: null, objeto_apagado_em: null })
 
-      const estados = new Map((await materiaisDa(bancada, escola.coordenacao.escolaId)).map((linha) => [linha.id, { estado: linha.estado, falha: linha.falha }]))
-      expect(estados.get(parado ?? '')).toEqual({ estado: 'falhou', falha: 'extracao_falhou' })
-      expect(estados.get(recente ?? '')).toEqual({ estado: 'processando', falha: null })
-      expect((await get(escola.coordenacao, `/v1/materiais/${parado ?? ''}`)).corpo).toMatchObject({ estado: 'falhou', falha: 'extracao_falhou' })
+      await esperarExtracao(api)
+      expect(await armazemDe(api).existe(chave)).toBe(false)
+      const [linha] = await materiaisDa(bancada, escola.coordenacao.escolaId)
+      expect(linha).toMatchObject({ id, estado: 'pronto' })
+      expect(linha?.processado_em).toBeInstanceOf(Date)
+      expect(linha?.objeto_apagado_em).toBeInstanceOf(Date)
     })
 
-    it('a subida do processo já varre: a API que sobe encontra o material parado e o encerra', async () => {
+    it('PDF sem texto ou corrompido também sai do storage, na falha', async () => {
       const escola = await montarEscolaComTurma(api, bancada)
-      const [parado] = await materiaisJaEnviados(bancada, escola.coordenacao, escola.quimica, 1, { estado: 'processando', enviadoHaMs: IDADE_DO_MATERIAL_PARADO_MS + 5_000 })
-      const outra = await subirApi(new MedidorDeTeste().medidor)
-      try {
-        expect((await materiaisDa(bancada, escola.coordenacao.escolaId)).find((linha) => linha.id === parado)).toMatchObject({ estado: 'falhou', falha: 'extracao_falhou' })
-      } finally {
-        await outra.app.close()
+      const semTexto = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica }, { arquivo: pdfSemTexto() })
+      const corrompido = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica }, { arquivo: pdfCorrompido() })
+      await esperarExtracao(api)
+      for (const enviado of [semTexto, corrompido]) expect(await armazemDe(api).existe(chaveDe(escola.coordenacao.escolaId, enviado.corpo['id'] as string))).toBe(false)
+      for (const linha of await materiaisDa(bancada, escola.coordenacao.escolaId)) {
+        expect(linha.estado).toBe('falhou')
+        expect(linha.objeto_apagado_em).toBeInstanceOf(Date)
       }
     })
 
-    it('o desligamento da instância que estava lendo grava a falha na hora, sem esperar a varredura', async () => {
+    it('storage fora do ar no envio: 503 `INDISPONIVEL_TENTE_DE_NOVO` com `Retry-After`, nenhuma linha, nenhum job, nenhuma auditoria de envio', async () => {
       const escola = await montarEscolaComTurma(api, bancada)
-      const outra = await subirApi(new MedidorDeTeste().medidor)
-      // Uma leitura que só termina quando o prazo, ou o desligamento, a aborta; aí devolve uma falha que só ela devolve.
-      vi.spyOn(outra.app.get(PdfExtractor), 'extrair').mockImplementation(
-        (_bytes, sinal) => new Promise<ResultadoDaExtracao>((resolver) => sinal?.addEventListener('abort', () => resolver({ falha: 'sem_texto' }), { once: true })),
-      )
-      const emLeitura = await enviarMaterial(outra, escola.coordenacao, { disciplinaId: escola.quimica })
-      const naFila = await enviarMaterial(outra, escola.coordenacao, { disciplinaId: escola.quimica }, { arquivo: variacaoDoPdf() })
-      expect([emLeitura.status, naFila.status]).toEqual([201, 201])
-      await new Promise((resolver) => setTimeout(resolver, 50))
+      const armazem = armazemDe(api)
+      armazem.fora = true
+      try {
+        const resposta = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica })
+        expect(erroDe(resposta)).toEqual({ status: 503, codigo: ErrorCode.INDISPONIVEL_TENTE_DE_NOVO })
+        expect(Number(resposta.retryAfter)).toBeGreaterThan(0)
+      } finally {
+        armazem.fora = false
+      }
+      expect(await materiaisDa(bancada, escola.coordenacao.escolaId)).toEqual([])
+      expect(await auditoriaDa(bancada, escola.coordenacao.escolaId, 'material.enviado')).toEqual([])
+      const { rows } = await bancada.pool.query("select 1 from job_registro where escola_id = $1 and tipo = 'material.extrair-pdf'", [escola.coordenacao.escolaId])
+      expect(rows).toEqual([])
+    })
 
-      await outra.app.close()
+    it('o envio que a transação recusa pelo teto de materiais em leitura, vencido na corrida, não deixa o objeto para trás', async () => {
+      const escola = await montarEscolaComTurma(api, bancada)
+      const envios = Array.from({ length: MATERIAIS_EM_PROCESSAMENTO_POR_ESCOLA + 2 }, () => enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica }, { arquivo: variacaoDoPdf() }))
 
-      // O que estava sendo lido recebeu o sinal (a falha é a que a leitura abortada devolveu aqui); o que esperava a
-      // vez nem chegou a ser lido.
-      expect((await materiaisDa(bancada, escola.coordenacao.escolaId)).map(({ id, estado, falha }) => ({ id, estado, falha }))).toEqual([
-        { id: emLeitura.corpo['id'], estado: 'falhou', falha: 'sem_texto' },
-        { id: naFila.corpo['id'], estado: 'falhou', falha: 'extracao_falhou' },
-      ])
+      const respostas = await Promise.all(envios)
+
+      // Tanto faz quem chegou primeiro: três ficam, e os dois que passaram pela conferência da entrada mas perderam na transação, ou nela, não guardam nada.
+      expect(respostas.map((resposta) => resposta.status).toSorted()).toEqual([201, 201, 201, 429, 429])
+      const ficaram = respostas.filter((resposta) => resposta.status === 201).map((resposta) => chaveDe(escola.coordenacao.escolaId, resposta.corpo['id'] as string))
+      expect(objetosDaEscola(api, escola.coordenacao.escolaId).toSorted()).toEqual(ficaram.toSorted())
+      await esperarExtracao(api)
+    })
+
+    it('o envio recusado pela transação, com o storage recusando apagar o objeto: a recusa chega, o objeto que sobrou aparece no log só pelo id, e a varredura o acha', async () => {
+      const escola = await montarEscolaComTurma(api, bancada)
+      await materialPronto(escola)
+      const armazem = armazemDe(api)
+      linhasDeLog.length = 0
+      armazem.falhaAoApagar = true
+      let resposta: RespostaHttp
+      try {
+        resposta = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica })
+      } finally {
+        armazem.falhaAoApagar = false
+      }
+
+      expect(erroDe(resposta)).toEqual({ status: 409, codigo: ErrorCode.CONFLITO })
+      const sobrou = objetosDaEscola(api, escola.coordenacao.escolaId)
+      expect(sobrou).toHaveLength(1)
+      const avisos = linhasDeLog.map((linha) => JSON.parse(linha) as Record<string, unknown>).filter((linha) => linha['evento'] === 'material.objeto_nao_apagado')
+      expect(avisos).toEqual([expect.objectContaining({ materialId: sobrou[0]?.split('/')[2] })])
+      expect(Object.keys(avisos[0] ?? {}).toSorted()).toEqual(expect.arrayContaining(['evento', 'materialId', 'erro']))
+      expect(JSON.stringify(avisos)).not.toContain('material-temporario')
+      await armazem.apagar(sobrou[0] ?? '')
+    })
+
+    it('o envio que a transação recusa pelo duplicado não deixa o objeto para trás', async () => {
+      const escola = await montarEscolaComTurma(api, bancada)
+      await materialPronto(escola)
+      const antes = armazemDe(api).bytes.size
+      expect(erroDe(await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica }))).toEqual({ status: 409, codigo: ErrorCode.CONFLITO })
+      expect(armazemDe(api).bytes.size).toBe(antes)
+      expect((await trechosDa(bancada, escola.coordenacao.escolaId)).length).toBe(6)
+    })
+
+    it('excluir um material `processando` apaga o objeto e registra', async () => {
+      const escola = await montarEscolaComTurma(api, bancada)
+      const enviado = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica })
+      const id = enviado.corpo['id'] as string
+      expect(await armazemDe(api).existe(chaveDe(escola.coordenacao.escolaId, id))).toBe(true)
+
+      expect((await del(escola.coordenacao, `/v1/materiais/${id}`)).status).toBe(204)
+
+      expect(await armazemDe(api).existe(chaveDe(escola.coordenacao.escolaId, id))).toBe(false)
+      expect((await materiaisDa(bancada, escola.coordenacao.escolaId))[0]).toMatchObject({ id, estado: 'processando' })
+      expect((await materiaisDa(bancada, escola.coordenacao.escolaId))[0]?.objeto_apagado_em).toBeInstanceOf(Date)
+    })
+
+    it('o job que chega depois da exclusão de um material `processando` não extrai nem grava nada, mesmo com o objeto de volta no storage', async () => {
+      const escola = await montarEscolaComTurma(api, bancada)
+      const enviado = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica })
+      const id = enviado.corpo['id'] as string
+      const chave = chaveDe(escola.coordenacao.escolaId, id)
+      const bytes = armazemDe(api).bytes.get(chave)
+      if (bytes === undefined) throw new Error('o envio não guardou o PDF')
+      expect((await del(escola.coordenacao, `/v1/materiais/${id}`)).status).toBe(204)
+      // O objeto volta (a exclusão o apagou): sem a conferência da exclusão, o job o extrairia.
+      armazemDe(api).bytes.set(chave, bytes)
+      const extrair = vi.spyOn(extratorDe(api), 'extrair')
+
+      try {
+        await expect(extrairMaterial(api, escola.coordenacao.escolaId, id)).resolves.toBeUndefined()
+        expect(extrair).not.toHaveBeenCalled()
+      } finally {
+        extrair.mockRestore()
+        armazemDe(api).bytes.delete(chave)
+      }
+
       expect(await trechosDa(bancada, escola.coordenacao.escolaId)).toEqual([])
+      expect((await materiaisDa(bancada, escola.coordenacao.escolaId))[0]).toMatchObject({ id, estado: 'processando', falha: null })
+    })
+
+    it('a coordenação da A que exclui o id de um material `processando` da B recebe o mesmo `NAO_ENCONTRADO`, e o objeto e a linha da B ficam', async () => {
+      const a = await montarEscolaComTurma(api, bancada)
+      const b = await montarEscolaComTurma(api, bancada)
+      const deB = (await enviarMaterial(api, b.coordenacao, { disciplinaId: b.quimica })).corpo['id'] as string
+      const inexistente = await del(a.coordenacao, `/v1/materiais/${randomUUID()}`)
+
+      const resposta = await del(a.coordenacao, `/v1/materiais/${deB}`)
+
+      expect(erroDe(resposta)).toEqual({ status: 404, codigo: ErrorCode.NAO_ENCONTRADO })
+      expect(erroDe(inexistente)).toEqual({ status: 404, codigo: ErrorCode.NAO_ENCONTRADO })
+      expect(armazemDe(api).bytes.has(chaveDe(b.coordenacao.escolaId, deB))).toBe(true)
+      expect((await materiaisDa(bancada, b.coordenacao.escolaId))[0]).toMatchObject({ id: deB, estado: 'processando', excluido_em: null, objeto_apagado_em: null })
+      await esperarExtracao(api)
+    })
+
+    it('excluir com o storage fora deixa o objeto e `objeto_apagado_em` nulo, para o expurgo; a exclusão vale', async () => {
+      const escola = await montarEscolaComTurma(api, bancada)
+      const enviado = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica })
+      const id = enviado.corpo['id'] as string
+      const armazem = armazemDe(api)
+      armazem.falhaAoApagar = true
+      try {
+        expect((await del(escola.coordenacao, `/v1/materiais/${id}`)).status).toBe(204)
+      } finally {
+        armazem.falhaAoApagar = false
+      }
+      expect(await armazemDe(api).existe(chaveDe(escola.coordenacao.escolaId, id))).toBe(true)
+      const [linha] = await materiaisDa(bancada, escola.coordenacao.escolaId)
+      expect(linha?.excluido_em).toBeInstanceOf(Date)
+      expect(linha?.objeto_apagado_em).toBeNull()
+      await armazem.apagar(chaveDe(escola.coordenacao.escolaId, id))
     })
   })
 

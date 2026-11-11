@@ -1,9 +1,10 @@
 /**
  * Filas de trabalho, da mais urgente para a menos urgente. A prioridade de um job vem da fila
- * dele: interativa (alguém esperando na tela), normal, e lote (ingestão, correção em massa,
- * rotina noturna). Regra 80, item 2.
+ * dele: interativa (alguém esperando na tela), normal, e lote (correção em massa, rotina
+ * noturna). A `pdf` é a extração do texto do material, que é CPU e tem pool e réplica próprios
+ * (`worker-pdf`): nenhuma outra fila divide processo com ela. Regra 80, item 2.
  */
-export const QUEUE_NAMES = ['interativa', 'normal', 'lote'] as const
+export const QUEUE_NAMES = ['interativa', 'normal', 'lote', 'pdf'] as const
 export type QueueName = (typeof QUEUE_NAMES)[number]
 
 /**

@@ -34,6 +34,11 @@
       "types": "./dist/email/envio.repository.d.ts",
       "default": "./dist/email/envio.repository.js"
     },
+    "./material": {
+      "source": "./src/material/index.ts",
+      "types": "./dist/material/index.d.ts",
+      "default": "./dist/material/index.js"
+    },
     "./s3-file-storage": {
       "source": "./src/titular/s3-file-storage.ts",
       "types": "./dist/titular/s3-file-storage.d.ts",
@@ -60,6 +65,7 @@
     "ioredis": "6.0.0",
     "jose": "6.2.12",
     "nodemailer": "10.2.1",
+    "pdfjs-dist": "6.4.299",
     "pg": "8.23.0",
     "pino": "10.3.1",
     "rate-limiter-flexible": "11.2.0",

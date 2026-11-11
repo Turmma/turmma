@@ -5,13 +5,13 @@
 
 ## Lista
 
-- [ ] **1.0 — O PDF é extraído no worker, na fila `pdf`, e o objeto sai do storage em todo caminho da 45.0**
-  - [ ] 1.1 `PdfExtractor` e o repository da extração em `packages/core/src/material/`; `guardarBytes` e `lerBytes`
-  - [ ] 1.2 Migration: `processado_em`, `objeto_apagado_em`; os checks de fila e de `vagas` aceitam `pdf`
-  - [ ] 1.3 Fila `pdf` (vaga 2 por escola, `lockDuration`, stalled), job `material.extrair-pdf`, réplica `worker-pdf`
-  - [ ] 1.4 Processador: transição com escopo, falhas definitivas, objeto apagado depois do commit
-  - [ ] 1.5 O envio enfileira; exclusão e expurgo apagam o objeto; métrica, log e documentos
-  - [ ] 1.6 Testes: a tabela "3. Falha" da onda 3b, as corridas de dois jobs, a vaga, isolamento
+- [x] **1.0 — O PDF é extraído no worker, na fila `pdf`, e o objeto sai do storage em todo caminho da 45.0**
+  - [x] 1.1 `PdfExtractor` e o repository da extração em `packages/core/src/material/`; `guardarBytes` e `lerBytes`
+  - [x] 1.2 Migration: `processado_em`, `objeto_apagado_em`; os checks de fila e de `vagas` aceitam `pdf`
+  - [x] 1.3 Fila `pdf` (vaga 2 por escola, `lockDuration`, stalled), job `material.extrair-pdf`, réplica `worker-pdf`
+  - [x] 1.4 Processador: transição com escopo, falhas definitivas, objeto apagado depois do commit
+  - [x] 1.5 O envio enfileira; exclusão e expurgo apagam o objeto; métrica, log e documentos
+  - [x] 1.6 Testes: a tabela "3. Falha" da onda 3b, as corridas de dois jobs, a vaga, isolamento
 
 - [ ] **2.0 — Nenhum PDF fica para trás: `envio_de_material`, objeto antes da linha, varredura horária**
   - [ ] 2.1 Migration de `envio_de_material`

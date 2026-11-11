@@ -180,6 +180,15 @@ export const METRICS = {
    * escola está usando o recurso em volume, ou de que alguém está tentando esgotar a cota de 60 por hora. Nenhum rótulo além da escola: nunca o aluno, quem gerou nem o papel.
    */
   senhaProvisoriaGerada: 'senha_provisoria.gerada',
+  /**
+   * Execuções do job `material.extrair-pdf` (ingestao-do-material, tarefa 1.0), por `resultado`: `pronto`, `falhou` (a falha definitiva: `sem_texto`,
+   * `arquivo_invalido`, a última tentativa), `arquivo_ausente` (o objeto não estava no storage de um material `processando`, à parte da falha da extração:
+   * é o sinal de um objeto perdido), `sem_efeito` (o material já não era `processando`: excluído, ou extraído por outro job) e `nova_tentativa`. Sem escola
+   * e sem material: o id vai no log.
+   */
+  extracaoDoMaterial: 'material.extracao',
+  /** Histograma, em segundos, de cada execução do job `material.extrair-pdf`, por `resultado` (os mesmos valores): da leitura da linha ao fim do apagar. */
+  duracaoDaExtracaoDoMaterial: 'material.extracao.duracao',
 } as const
 
 /**

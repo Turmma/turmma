@@ -3,7 +3,7 @@ import { check, integer, jsonb, pgTable, smallint, text, time, uuid } from 'driz
 import { escola } from './escola.js'
 
 /** Vagas por fila numa escola. Fila ausente usa o padrão do ambiente. */
-export type ConfiguredConcurrency = Partial<Record<'interativa' | 'normal' | 'lote', number>>
+export type ConfiguredConcurrency = Partial<Record<'interativa' | 'normal' | 'lote' | 'pdf', number>>
 
 /**
  * O que a escola tem de diferente do padrão do ambiente na operação: limite de requisição, vagas
@@ -11,7 +11,7 @@ export type ConfiguredConcurrency = Partial<Record<'interativa' | 'normal' | 'lo
  * nula cai no padrão do ambiente: escola sem linha nenhuma opera com o padrão inteiro. O limite é
  * configuração por escola, nunca constante no código (D41).
  *
- * - `vagas` só aceita as três filas, cada uma com inteiro positivo: o check garante no banco o que
+ * - `vagas` só aceita as quatro filas, cada uma com inteiro positivo: o check garante no banco o que
  *   o despachante lê.
  * - `fuso`, `dias_letivos`, `inicio` e `fim` são o horário letivo da escola, em que o lote não
  *   urgente fica segurado; `inicio` é incluso e `fim`, exclusivo.
@@ -51,7 +51,7 @@ export const configuracaoOperacionalEscola = pgTable(
       'configuracao_operacional_vagas_validas',
       sql`${tabela.vagas} is null or (
         jsonb_typeof(${tabela.vagas}) = 'object'
-        and ${tabela.vagas} - 'interativa' - 'normal' - 'lote' = '{}'::jsonb
+        and ${tabela.vagas} - 'interativa' - 'normal' - 'lote' - 'pdf' = '{}'::jsonb
         and not jsonb_path_exists(${tabela.vagas}, '$.* ? (@.type() != "number" || @ < 1 || @ != @.floor())')
       )`,
     ),

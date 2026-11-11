@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { createLogger, type Meter } from '@educa/core'
+import { createLogger, InMemoryFileStorage, type FileStorage, type Meter } from '@educa/core'
 import type { INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import { createHash, randomBytes } from 'node:crypto'
@@ -13,6 +13,10 @@ import type { SessaoFixtures, TestSessao } from './sessao.fixture.js'
 export interface TestApi {
   readonly app: INestApplication
   readonly url: string
+  /** O storage privado desta API: o que o teste passou em `armazemDeArquivos`, ou um em memória que só ela usa (o PDF do material espera nele). */
+  readonly armazem?: FileStorage
+  /** A lista em que o logger escreve, se o teste passou uma: o processador da extração, que o teste roda, escreve nela também. */
+  readonly linhasDeLog?: string[] | undefined
 }
 
 /**
@@ -28,10 +32,11 @@ export async function subirApi(medidor: Meter, sobreposicao: TestOverrides = {},
     linhasDeLog === undefined
       ? createLogger({ servico: 'api-teste', nivel: 'silent' })
       : createLogger({ servico: 'api-teste', nivel: 'trace', destino: { write: (linha: string) => linhasDeLog.push(linha) } })
-  const app = await NestFactory.create(AppModule.forRoot(testConfig(sobreposicao), { ...montagem, medidor, logger }), { logger: false })
+  const armazem = montagem.armazemDeArquivos ?? new InMemoryFileStorage()
+  const app = await NestFactory.create(AppModule.forRoot(testConfig(sobreposicao), { ...montagem, armazemDeArquivos: armazem, medidor, logger }), { logger: false })
   configureApp(app, logger, medidor)
   await app.listen(0, '127.0.0.1')
-  return { app, url: `http://127.0.0.1:${(app.getHttpServer().address() as AddressInfo).port}` }
+  return { app, url: `http://127.0.0.1:${(app.getHttpServer().address() as AddressInfo).port}`, armazem, linhasDeLog }
 }
 
 export interface RespostaHttp {

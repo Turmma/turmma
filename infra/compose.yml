@@ -334,6 +334,7 @@ services:
       VAGAS_ESCOLA_INTERATIVA: ${VAGAS_ESCOLA_INTERATIVA:?defina VAGAS_ESCOLA_INTERATIVA}
       VAGAS_ESCOLA_NORMAL: ${VAGAS_ESCOLA_NORMAL:?defina VAGAS_ESCOLA_NORMAL}
       VAGAS_ESCOLA_LOTE: ${VAGAS_ESCOLA_LOTE:?defina VAGAS_ESCOLA_LOTE}
+      VAGAS_ESCOLA_PDF: ${VAGAS_ESCOLA_PDF:?defina VAGAS_ESCOLA_PDF}
       # Só o controle negativo do cenário de carga liga (npm run carga:controle-negativo); não sobe em produção.
       VAGAS_POR_ESCOLA_DESLIGADAS: ${VAGAS_POR_ESCOLA_DESLIGADAS:?defina VAGAS_POR_ESCOLA_DESLIGADAS}
       JANELA_LETIVA_FUSO: ${JANELA_LETIVA_FUSO:?defina JANELA_LETIVA_FUSO}
@@ -386,6 +387,7 @@ services:
       VAGAS_ESCOLA_INTERATIVA: ${VAGAS_ESCOLA_INTERATIVA:?defina VAGAS_ESCOLA_INTERATIVA}
       VAGAS_ESCOLA_NORMAL: ${VAGAS_ESCOLA_NORMAL:?defina VAGAS_ESCOLA_NORMAL}
       VAGAS_ESCOLA_LOTE: ${VAGAS_ESCOLA_LOTE:?defina VAGAS_ESCOLA_LOTE}
+      VAGAS_ESCOLA_PDF: ${VAGAS_ESCOLA_PDF:?defina VAGAS_ESCOLA_PDF}
       VAGAS_POR_ESCOLA_DESLIGADAS: ${VAGAS_POR_ESCOLA_DESLIGADAS:?defina VAGAS_POR_ESCOLA_DESLIGADAS}
       # A fila normal monta o arquivo do titular (F3, tarefa 13.0) e o grava no storage. Sem depends_on: storage fora faz o job
       # tentar de novo, com o pedido `em_preparacao`, e só.
@@ -455,6 +457,7 @@ services:
       VAGAS_ESCOLA_INTERATIVA: ${VAGAS_ESCOLA_INTERATIVA:?defina VAGAS_ESCOLA_INTERATIVA}
       VAGAS_ESCOLA_NORMAL: ${VAGAS_ESCOLA_NORMAL:?defina VAGAS_ESCOLA_NORMAL}
       VAGAS_ESCOLA_LOTE: ${VAGAS_ESCOLA_LOTE:?defina VAGAS_ESCOLA_LOTE}
+      VAGAS_ESCOLA_PDF: ${VAGAS_ESCOLA_PDF:?defina VAGAS_ESCOLA_PDF}
       VAGAS_POR_ESCOLA_DESLIGADAS: ${VAGAS_POR_ESCOLA_DESLIGADAS:?defina VAGAS_POR_ESCOLA_DESLIGADAS}
       # Métricas OTLP para a observabilidade local. Sem depends_on: fora do ar, perde-se a métrica, e só.
       TELEMETRIA_OTLP_URL: http://observabilidade:4318
@@ -462,6 +465,38 @@ services:
 
   worker-lote-2:
     <<: *worker-lote
+
+  # A extração do PDF do material (ingestao-do-material, tarefa 1.0; onda 3b, 45.0): uma réplica só da fila `pdf`, com um PDF por vez e
+  # `cpus` limitado, para a leitura (CPU contínua) não tomar a máquina do Tutor nem do resto. Precisa do storage: lê o objeto e o apaga
+  # depois do commit. Sem depends_on do storage: fora do ar, o job tenta de novo e, na última tentativa, o material fica `falhou`. A fila
+  # cresce na vazão desta réplica; quantas réplicas as 300 apostilas do onboarding pedem é a medida da 9.0.
+  worker-pdf:
+    <<: *worker-interativo
+    cpus: 1
+    environment:
+      AMBIENTE: ${AMBIENTE:?defina AMBIENTE}
+      UV_THREADPOOL_SIZE: ${UV_THREADPOOL_SIZE:?defina UV_THREADPOOL_SIZE}
+      BANCO_URL: postgres://${POSTGRES_USUARIO}:${POSTGRES_SENHA}@postgres:5432/${POSTGRES_BANCO}
+      BANCO_POOL_MAXIMO: ${WORKER_PDF_BANCO_POOL_MAXIMO:?defina WORKER_PDF_BANCO_POOL_MAXIMO}
+      BANCO_TIMEOUT_CONEXAO_MS: ${BANCO_TIMEOUT_CONEXAO_MS:?defina BANCO_TIMEOUT_CONEXAO_MS}
+      BANCO_TIMEOUT_CONSULTA_MS: ${BANCO_TIMEOUT_CONSULTA_MS:?defina BANCO_TIMEOUT_CONSULTA_MS}
+      REDIS_FILA_URL: redis://redis-fila:6379
+      FILAS: pdf
+      WORKER_POOL_PDF: ${WORKER_POOL_PDF:?defina WORKER_POOL_PDF}
+      WORKER_THREADS_MAXIMO: ${WORKER_PDF_THREADS_MAXIMO:?defina WORKER_PDF_THREADS_MAXIMO}
+      STORAGE_URL: http://storage:8333
+      STORAGE_REGIAO: ${STORAGE_REGIAO:?defina STORAGE_REGIAO}
+      STORAGE_BUCKET: ${STORAGE_BUCKET:?defina STORAGE_BUCKET}
+      STORAGE_CHAVE_ACESSO: ${STORAGE_CHAVE_ACESSO:?defina STORAGE_CHAVE_ACESSO}
+      STORAGE_CHAVE_SECRETA: ${STORAGE_CHAVE_SECRETA:?defina STORAGE_CHAVE_SECRETA}
+      VAGAS_ESCOLA_INTERATIVA: ${VAGAS_ESCOLA_INTERATIVA:?defina VAGAS_ESCOLA_INTERATIVA}
+      VAGAS_ESCOLA_NORMAL: ${VAGAS_ESCOLA_NORMAL:?defina VAGAS_ESCOLA_NORMAL}
+      VAGAS_ESCOLA_LOTE: ${VAGAS_ESCOLA_LOTE:?defina VAGAS_ESCOLA_LOTE}
+      VAGAS_ESCOLA_PDF: ${VAGAS_ESCOLA_PDF:?defina VAGAS_ESCOLA_PDF}
+      VAGAS_POR_ESCOLA_DESLIGADAS: ${VAGAS_POR_ESCOLA_DESLIGADAS:?defina VAGAS_POR_ESCOLA_DESLIGADAS}
+      # Métricas OTLP para a observabilidade local. Sem depends_on: fora do ar, perde-se a métrica, e só.
+      TELEMETRIA_OTLP_URL: http://observabilidade:4318
+      TELEMETRIA_INTERVALO_MS: ${TELEMETRIA_INTERVALO_MS:?defina TELEMETRIA_INTERVALO_MS}
 
   # Borda local (infra/Caddyfile): balanceia as duas APIs e os dois realtimes, sem log de acesso.
   borda:

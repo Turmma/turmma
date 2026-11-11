@@ -79,8 +79,8 @@ describe('PublicacaoBullMQ', () => {
     await publicacao.consultar(daApi)
     await publicacao.consultar(JOB)
     expect(consultadas).toEqual(['api-interativa', 'interativa'])
-    // As três do worker nascem com o despachante; a da API, na primeira vez que um tipo a pede, e uma só, que a consulta reaproveita.
-    expect(criadas).toEqual(['interativa', 'normal', 'lote', 'api-interativa'])
+    // As quatro do worker nascem com o despachante; a da API, na primeira vez que um tipo a pede, e uma só, que a consulta reaproveita.
+    expect(criadas).toEqual(['interativa', 'normal', 'lote', 'pdf', 'api-interativa'])
   })
 
   it('cada job vai à fila dele: uma Queue por fila, e a prioridade é a fila', async () => {
@@ -136,8 +136,8 @@ describe('PublicacaoBullMQ', () => {
     expect(quebrada.close).toHaveBeenCalledOnce()
     await publicacao.publicar([JOB])
     expect(addBulkDaNova).toHaveBeenCalledOnce()
-    // As três da construção e a nova, só da fila que quebrou.
-    expect(criar.mock.calls.map(([fila]) => fila)).toEqual(['interativa', 'normal', 'lote', 'interativa'])
+    // As quatro da construção e a nova, só da fila que quebrou.
+    expect(criar.mock.calls.map(([fila]) => fila)).toEqual(['interativa', 'normal', 'lote', 'pdf', 'interativa'])
   })
 
   it('a Queue da API que falhou também é trocada, pelo executor: a seguinte nasce como (fila, api) e recebe o addBulk, e a do worker não é tocada', async () => {
@@ -159,6 +159,7 @@ describe('PublicacaoBullMQ', () => {
       ['interativa', 'worker'],
       ['normal', 'worker'],
       ['lote', 'worker'],
+      ['pdf', 'worker'],
       ['interativa', 'api'],
       ['interativa', 'api'],
     ])
@@ -168,7 +169,7 @@ describe('PublicacaoBullMQ', () => {
     const criar = vi.fn(() => filaFalsa({ waitUntilReady: () => new Promise(() => undefined) }))
     const publicacao = new BullMQJobPublisher(criar, 20)
     await expect(publicacao.publicar([JOB])).rejects.toBeInstanceOf(QueueTimeoutError)
-    expect(criar).toHaveBeenCalledTimes(3)
+    expect(criar).toHaveBeenCalledTimes(4)
   })
 
   describe('consultar', () => {

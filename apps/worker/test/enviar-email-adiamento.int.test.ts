@@ -158,7 +158,7 @@ describe('email.enviar-convite: o EMAIL_POR_MINUTO e a saída de adiar', () => {
       processadores,
       logger: log.logger,
       vagas: bancada.vagas,
-      vagasDaEscola: { daEscola: () => Promise.resolve({ interativa: 1, normal: 1, lote: 1 }) },
+      vagasDaEscola: { daEscola: () => Promise.resolve({ interativa: 1, normal: 1, lote: 1, pdf: 1 }) },
       uso: { marcar: (metrica) => marcacoes.push(metrica) },
     })
   }

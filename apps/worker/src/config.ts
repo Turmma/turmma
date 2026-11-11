@@ -20,7 +20,7 @@ export { InvalidConfigError }
 
 const inteiroPositivo = z.coerce.number().int().positive()
 
-/** Variável do pool de cada fila: `WORKER_POOL_INTERATIVA`, `WORKER_POOL_NORMAL`, `WORKER_POOL_LOTE`. */
+/** Variável do pool de cada fila: `WORKER_POOL_INTERATIVA`, `WORKER_POOL_NORMAL`, `WORKER_POOL_LOTE`, `WORKER_POOL_PDF`. */
 export function variavelDoPool(fila: QueueName): string {
   return `WORKER_POOL_${fila.toUpperCase()}`
 }
@@ -48,7 +48,8 @@ const storageSchema = z.object({
 
 /**
  * Acesso ao storage S3-compatível. O worker-lote lista (a consolidação de uso mede os bytes de cada escola) e apaga (o
- * expurgo remove os arquivos do titular vencidos); o que atende a fila normal grava o arquivo do titular (F3, tarefa 13.0).
+ * expurgo remove os arquivos do titular vencidos); o que atende a fila normal grava o arquivo do titular (F3, tarefa 13.0); o que
+ * atende a fila `pdf` lê o PDF do material e o apaga depois da extração (ingestao-do-material, tarefa 1.0).
  */
 export interface StorageConfig {
   url: string
@@ -119,7 +120,8 @@ export function loadConfig(ambiente: Record<string, string | undefined>): Worker
   const vagasPadrao = ler(() => lerVagasPadrao(ambiente))
   const vagasDesligadas = ler(() => isEscolaConcurrencyLimitDisabled(ambiente))
   const atendeLote = filas?.FILAS.includes('lote') === true
-  const atendeStorage = atendeLote || filas?.FILAS.includes('normal') === true
+  // A extração do PDF lê o objeto do storage e o apaga: a réplica da fila `pdf` não sobe sem as variáveis do storage.
+  const atendeStorage = atendeLote || filas?.FILAS.includes('normal') === true || filas?.FILAS.includes('pdf') === true
   const storage = atendeStorage ? ler(() => validateEnvironment(storageSchema, ambiente)) : undefined
   const janelaPadrao = atendeLote ? ler(() => lerJanelaPadrao(ambiente)) : undefined
   const atendeEmail = filas?.FILAS.includes('normal') === true

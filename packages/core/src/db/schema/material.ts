@@ -6,7 +6,7 @@ import { escola } from './escola.js'
 import { usuario } from './usuario.js'
 
 /**
- * O material que a coordenação sobe (glossário, "Material"; MVP, A2; D5, D22, D75). **O arquivo não é guardado**: aqui
+ * O material que a coordenação sobe (glossário, "Material"; MVP, A2; D5, D22, D75). **O arquivo só é guardado até a extração** (abaixo): aqui
  * ficam os metadados, a titularidade, a licença, a declaração e o estado; o texto, por página, vai para `trecho`
  * (`docs/mvp-rapido.md`, seção 4, item 3). Pertence ao tenant e nunca cruza para outra escola (regra 60, item 10). Não
  * varia por ano letivo: a apostila de 2026 continua valendo em 2027.
@@ -25,6 +25,10 @@ import { usuario } from './usuario.js'
  *   cita e até o prazo de `material_excluido` (F3, tarefa 5.0), e os trechos saem na mesma transação; depois disso a linha
  *   sai, e o artefato que a citava mostra «material da escola». Quem enviou e quem excluiu viram nulo se a pessoa for eliminada (`on delete set null
  *   (coluna)`, escrito à mão na 0022), e a autoria fica na auditoria (`material.enviado`, `material.excluido`).
+ * - **O PDF fica no storage só até a extração** (ingestao-do-material, 1.0): o objeto `material-temporario/<escola>/<material>` nasce no envio e
+ *   sai depois do commit da extração, da falha, da exclusão ou do expurgo. `processado_em` é o instante em que o material saiu de `processando`
+ *   (`pronto` ou `falhou`), e `objeto_apagado_em`, o instante em que o objeto foi apagado: nulo é "o objeto pode ainda existir". O material de antes
+ *   da F4 nasce com `objeto_apagado_em = enviado_em`, porque nunca teve objeto.
  * - Índice `(escola_id, disciplina_id, id)`: a listagem paginada, da coordenação e do professor pela disciplina dele.
  */
 export const material = pgTable(
@@ -49,6 +53,8 @@ export const material = pgTable(
     enviadoEm: timestamp({ withTimezone: true }).notNull().defaultNow(),
     excluidoPor: uuid(),
     excluidoEm: timestamp({ withTimezone: true }),
+    processadoEm: timestamp({ withTimezone: true }),
+    objetoApagadoEm: timestamp({ withTimezone: true }),
   },
   (tabela) => [
     unique('material_escola_id_unico').on(tabela.escolaId, tabela.id),
@@ -61,6 +67,10 @@ export const material = pgTable(
     index('material_disciplina_idx').on(tabela.escolaId, tabela.disciplinaId, tabela.id),
     // O expurgo do `material_excluido` (F3, tarefa 5.0): só o excluído, do mais antigo.
     index('material_excluido_idx').on(tabela.escolaId, tabela.excluidoEm).where(sql`${tabela.excluidoEm} is not null`),
+    // A varredura do PDF que sobrou no storage (ingestao-do-material, 2.0): só o material cujo objeto ainda não foi apagado, e que já saiu de `processando` ou foi excluído.
+    // Não começa por `escola_id` (regra 80, item 8) porque a varredura é a rotina nossa, entre escolas, `@Unscoped` e com a justificativa escrita na 2.0; o expurgo por
+    // escola (`excluidosComObjeto`) se apoia no `material_excluido_idx`, que começa pela escola.
+    index('material_objeto_a_apagar_idx').on(tabela.processadoEm, tabela.excluidoEm).where(sql`${tabela.objetoApagadoEm} is null`),
     // 160 e 120 são `TAMANHO_MAXIMO_TITULO_DO_MATERIAL` e `TAMANHO_MAXIMO_DO_LICENCIANTE` do contrato (`packages/shared`).
     check('material_titulo_preenchido', sql`char_length(btrim(${tabela.titulo})) between 1 and 160`),
     check('material_titularidade_valida', sql`${tabela.titularidade} in ('escola', 'professor', 'terceiro_com_licenca', 'dominio_publico')`),

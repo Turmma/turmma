@@ -56,6 +56,22 @@ falhou. Seed e e2e usam licenciante fictício.
   liberada, com o texto da falha na tela
 - [P] Material excluído entre o `lerParaExtrair` e o `lerBytes`, com o objeto já apagado: o job conclui sem efeito, sem
   `falhou` no material nem `job.falhos`. Mutação: tratar todo objeto ausente como `falhou`
+- [I] Material que já saiu de `processando`, ou excluído, com o objeto ainda no storage: o job nem lê o objeto (a leitura
+  conta zero) e o objeto fica. Mutação: tirar `estado` ou `excluido_em` de `lerParaExtrair`
+- [P] Excluído enquanto o PDF é extraído, com texto e sem texto: sem trecho, sem `falhou`, métrica `sem_efeito`. Mutação:
+  tirar `excluido_em` de `marcarPronto`, ou o `sem_efeito` do `falhou`
+- [I] Repository com ids da B no contexto da A: `marcarPronto`, `marcarFalhou`, `marcarObjetoApagado` e `excluidosComObjeto`
+  não alcançam nada; `objeto_apagado_em` guarda o primeiro instante, e o cursor do expurgo segue o id
+- [I] Expurgo noturno do objeto do excluído (`excluidosComObjeto`): apaga os da A e não os da B, deixa o `processando` vigente,
+  espera a noite, e com o storage recusando o objeto fica sem registro e sai na noite seguinte
+- [I] `arquivo_ausente` à parte de `extracao_falhou` no log e na métrica
+- [I] O desligamento além da graça, ou o prazo, com o extrator que ignora o sinal: na última tentativa o material fecha em `falhou` e
+  o objeto sai; com tentativa sobrando, o material segue `processando` e o objeto fica. Mutação: tirar o `quandoAbortar`
+- [I] A réplica da fila `pdf` sobe com um PDF por vez, lock de 60 s e verificação de stalled de 20 s (`WORKER_POOL_OPTIONS_BY_QUEUE`), e o lock vale mais que a verificação. Mutação: voltar o stalled ao padrão do BullMQ (30 s)
+- [I] O job que nunca devolve (o processo morto), na última tentativa: o job `falhou/EXECUCAO_INTERROMPIDA`, a vaga sai, o material
+  segue `processando` com o objeto, e quem o fecha é o "Descartar" da 3.0 (`3_task.md`, "Descartar o PDF")
+- [I] Os `UPDATE` da migration `0049`: o `processando` que a API anterior deixou vira `falhou`/`extracao_falhou` (e pode ser enviado de novo),
+  todo material antigo sai da varredura do objeto (`objeto_apagado_em = enviado_em`), e o de outra escola não muda
 - [I] PDF sem capítulo termina `pronto`, com zero capítulos
 - [U] `ChapterReader`: marcador de primeiro nível; dois marcadores na mesma página (fica o primeiro); fora de ordem
   (ordenado); título vazio ("Capítulo N"); título de 300 caracteres (cortado em 200); número acima de int (nulo); linha

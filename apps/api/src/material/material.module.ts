@@ -1,64 +1,53 @@
-import type { Database, LoggerBase } from '@educa/core'
-import { Global, Module, type BeforeApplicationShutdown, type DynamicModule, type OnApplicationBootstrap } from '@nestjs/common'
+import { JobOutbox, JobOutboxRepository, type Database, type FileStorage, type LoggerBase } from '@educa/core'
+import { S3FileStorage } from '@educa/core/s3-file-storage'
+import { Global, Module, type BeforeApplicationShutdown, type DynamicModule } from '@nestjs/common'
 import { DB } from '../database.module.js'
+import type { FileStorageApiConfig } from '../privacidade/file-storage-config.js'
 import { TrechoSearch } from './trecho-search.js'
-import { PdfExtractor } from './pdf-extraction.js'
-import { ExtractionQueue } from './extraction-queue.js'
 import { MaterialController } from './material.controller.js'
-import { INTERVALO_DA_VARREDURA_MS, MaterialService } from './material.service.js'
+import { MaterialService } from './material.service.js'
 import { MaterialUploadGuard } from './material-upload.js'
 
-/**
- * O que o módulo faz na subida e na descida do processo, para nenhum material ficar `processando` sem ninguém lendo:
- *
- * - **na subida**, e depois a cada minuto, a varredura dá por falho o que ficou para trás de um processo que caiu (o
- *   PDF não é guardado, então não há o que retomar; a coordenação envia de novo);
- * - **na descida** (deploy, SIGTERM), antes de o pool do banco fechar, a fila aborta o que está lendo e cada material
- *   grava a própria falha na hora, sem esperar a varredura.
- */
-export class ExtractionLifecycle implements OnApplicationBootstrap, BeforeApplicationShutdown {
-  #varredura: NodeJS.Timeout | undefined
+/** Fecha o cliente do armazém na descida do processo, antes de o pool do banco fechar. */
+class CicloDoArmazemDoMaterial implements BeforeApplicationShutdown {
+  constructor(private readonly encerrar: () => void) {}
 
-  constructor(
-    private readonly materiais: MaterialService,
-    private readonly fila: ExtractionQueue,
-  ) {}
-
-  async onApplicationBootstrap(): Promise<void> {
-    await this.materiais.varrerParados()
-    this.#varredura = setInterval(() => void this.materiais.varrerParados(), INTERVALO_DA_VARREDURA_MS)
-    this.#varredura.unref()
-  }
-
-  async beforeApplicationShutdown(): Promise<void> {
-    clearInterval(this.#varredura)
-    this.#varredura = undefined
-    await this.fila.encerrar()
+  beforeApplicationShutdown(): void {
+    this.encerrar()
   }
 }
 
+/** O que o módulo recebe de fora: o logger, a configuração do storage e, só no teste, o armazém que a substitui. */
+export interface MaterialModuleOptions {
+  /** O logger JSON do processo, o mesmo do `configureApp`: as linhas levam o id do material e medidas. */
+  readonly logger: LoggerBase
+  readonly armazem: FileStorageApiConfig
+  /** O armazém falso do teste. Sem ele, o S3 da configuração. Nunca vem do ambiente. */
+  readonly armazemDeTeste?: FileStorage
+}
+
 /**
- * O material da escola (MVP, A2; D5, D22, D75): as cinco rotas de `/v1/materiais`, a extração do PDF em segundo plano e
- * a busca de trechos. É global para o Assistente e o Tutor injetarem `TrechoSearch` sem importar o módulo.
+ * O material da escola (MVP, A2; D5, D22, D75): as cinco rotas de `/v1/materiais` e a busca de trechos. A API guarda o PDF
+ * no storage privado e pede o job `material.extrair-pdf`; quem extrai é o `apps/worker`, na fila `pdf`. É global para o
+ * Assistente e o Tutor injetarem `TrechoSearch` sem importar o módulo.
  */
 @Global()
 @Module({})
 export class MaterialModule {
-  /** @param logger o logger JSON do processo, o mesmo do `configureApp`: as linhas levam o id do material e medidas. */
-  static forRoot(logger: LoggerBase): DynamicModule {
+  static forRoot(opcoes: MaterialModuleOptions): DynamicModule {
+    const { armazem, encerrar } =
+      opcoes.armazemDeTeste === undefined ? S3FileStorage.criar(opcoes.armazem) : { armazem: opcoes.armazemDeTeste, encerrar: (): void => undefined }
     return {
       module: MaterialModule,
       controllers: [MaterialController],
       providers: [
-        { provide: PdfExtractor, useValue: new PdfExtractor() },
-        { provide: ExtractionQueue, useValue: new ExtractionQueue() },
         {
           provide: MaterialService,
-          useFactory: (banco: Database, extrator: PdfExtractor, fila: ExtractionQueue) => new MaterialService({ banco, extrator, fila, logger }),
-          inject: [DB, PdfExtractor, ExtractionQueue],
+          useFactory: (banco: Database) => new MaterialService({ banco, armazem, enfileirador: new JobOutbox(new JobOutboxRepository(banco)), logger: opcoes.logger }),
+          inject: [DB],
         },
         { provide: TrechoSearch, useFactory: (banco: Database) => new TrechoSearch(banco), inject: [DB] },
-        { provide: ExtractionLifecycle, useFactory: (materiais: MaterialService, fila: ExtractionQueue) => new ExtractionLifecycle(materiais, fila), inject: [MaterialService, ExtractionQueue] },
+        { provide: CicloDoArmazemDoMaterial, useFactory: () => new CicloDoArmazemDoMaterial(encerrar) },
         MaterialUploadGuard,
       ],
       exports: [TrechoSearch],

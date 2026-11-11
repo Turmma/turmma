@@ -57,7 +57,7 @@
       "count": 1
     }
   },
-  "apps/api/src/material/pdf-extraction.ts": {
+  "packages/core/src/material/pdf-extractor.ts": {
     "complexity": {
       "count": 1
     }

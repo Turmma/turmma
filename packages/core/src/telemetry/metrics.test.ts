@@ -158,6 +158,12 @@ describe('métricas com escola', () => {
     expect(METRICS_WITH_ESCOLA).not.toContain(METRICS.hashRecusado)
   })
 
+  it('as duas da extração do PDF (ingestao-do-material, tarefa 1.0) não levam escola nem material: o id vai no log', () => {
+    expect(METRICS_WITH_ESCOLA).not.toContain(METRICS.extracaoDoMaterial)
+    expect(METRICS_WITH_ESCOLA).not.toContain(METRICS.duracaoDaExtracaoDoMaterial)
+    expect([METRICS.extracaoDoMaterial, METRICS.duracaoDaExtracaoDoMaterial]).toEqual(['material.extracao', 'material.extracao.duracao'])
+  })
+
   it('as duas da sala (A1, tarefa 7.0) não levam escola: a escola do limite atingido vai no log, e a do pedido em lugar nenhum', () => {
     expect(METRICS_WITH_ESCOLA).not.toContain(METRICS.limiteDaSala)
     expect(METRICS_WITH_ESCOLA).not.toContain(METRICS.reivindicacaoNaSala)

@@ -1,15 +1,14 @@
-import { currentContext, DomainException, runInContext, AuditoriaRecorder, summarizeError, requestSessao, type Database, type LoggerBase } from '@educa/core'
+import { DEFAULT_RETRY_AFTER_SECONDS, DomainException, AuditoriaRecorder, FileStorageUnavailableError, JobOutbox, summarizeError, requestSessao, type Database, type FileStorage, type LoggerBase } from '@educa/core'
 import {
   alcanceDe,
   ErrorCode,
-  InvariantException,
+  TIPO_EXTRAIR_PDF,
   buscaDeMaterialResponseSchema,
   listaDeMateriaisResponseSchema,
   materialResponseSchema,
   motivoDaRecusaDoMaterial,
   type BuscaDeMaterialQuery,
   type MateriaisQuery,
-  type FalhaDeMaterial,
   type LicencaDeMaterial,
   type EnviarMaterialRequest,
   type BuscaDeMaterialResponse,
@@ -18,10 +17,9 @@ import {
 } from '@educa/shared'
 import { createHash } from 'node:crypto'
 import { DisciplinaRepository } from '@educa/core/estrutura'
+import { chaveDoTemporario, ExtracaoDoMaterialRepository, PRAZO_DO_OBJETO_DO_MATERIAL_MS, temAssinaturaDePdf, uuidV7 } from '@educa/core/material'
 import { paginar } from '../http/pagination.js'
-import { temAssinaturaDePdf, type PdfExtractor } from './pdf-extraction.js'
-import { PRAZO_DA_EXTRACAO_MS, type ExtractionQueue } from './extraction-queue.js'
-import { MaterialParadoRepository, MaterialRepository, type AlcanceDoMaterial, type MaterialLido } from './material.repository.js'
+import { MaterialRepository, type AlcanceDoMaterial, type MaterialLido } from './material.repository.js'
 import { trechoCitado } from './trecho-citado.js'
 
 const registro = new AuditoriaRecorder()
@@ -33,20 +31,12 @@ export const ENVIOS_POR_USUARIO_NA_JANELA = 30
 /** Envios da escola inteira na janela, somando todas as pessoas da coordenação. */
 export const ENVIOS_POR_ESCOLA_NA_JANELA = 60
 /**
- * Materiais da escola sendo lidos ao mesmo tempo. É o que limita a memória: o PDF não é guardado, e os bytes de cada
- * material esperam a vez na instância que os recebeu (até 20 MB cada um).
+ * Materiais da escola esperando a extração ao mesmo tempo (`processando`). Não é mais a memória da API, porque o PDF espera no
+ * storage; é o que impede uma escola de empilhar na fila `pdf` mais do que ela escoa, e a resposta diz quanto esperar.
  */
 export const MATERIAIS_EM_PROCESSAMENTO_POR_ESCOLA = 3
 /** Quanto esperar antes de enviar de novo quando o teto é o do processamento: o tempo de uma extração. */
 const ESPERA_PELO_PROCESSAMENTO_S = 30
-/**
- * A idade em que um material `processando` é dado por parado: os da escola que estavam na frente dele, mais ele, mais
- * uma folga. Nenhuma extração viva chega lá, porque o prazo a aborta antes; com duas instâncias, uma não encerra o que
- * a outra está lendo.
- */
-export const IDADE_DO_MATERIAL_PARADO_MS = (MATERIAIS_EM_PROCESSAMENTO_POR_ESCOLA + 1) * PRAZO_DA_EXTRACAO_MS
-/** De quanto em quanto tempo a varredura dos parados roda. */
-export const INTERVALO_DA_VARREDURA_MS = 60_000
 
 /** O arquivo como o recebimento o entrega: os bytes e o tamanho. O nome e o tipo declarado não entram em regra nenhuma. */
 export interface ArquivoRecebido {
@@ -81,8 +71,10 @@ function paraResposta(lido: MaterialLido, alcance: AlcanceDoMaterial): MaterialR
 
 export interface MaterialDependencies {
   readonly banco: Database
-  readonly extrator: PdfExtractor
-  readonly fila: ExtractionQueue
+  /** O storage privado: o PDF espera nele até o worker da fila `pdf` extrair (regra 20, item 7). */
+  readonly armazem: FileStorage
+  /** O outbox: o job `material.extrair-pdf` entra na mesma transação que a linha do material. */
+  readonly enfileirador: Pick<JobOutbox, 'enfileirarUmaVez'>
   /** O logger JSON do processo: as linhas levam o id do material e medidas, que o `Logger` do Nest não carrega. */
   readonly logger: Pick<LoggerBase, 'info' | 'warn'>
 }
@@ -91,6 +83,8 @@ export interface MaterialDependencies {
  * O material da escola (MVP, A2; D5, D22, D75): a coordenação envia o PDF com a titularidade e a licença declaradas, e
  * o professor lê e busca o das disciplinas dele. O aluno não alcança nenhuma rota (o Tutor lê por ele, no servidor,
  * por `TrechoSearch`).
+ *
+ * A extração do PDF é do worker (fila `pdf`, `material.extrair-pdf`): aqui o arquivo só é guardado e o job, pedido.
  *
  * **Nada disto loga título, licenciante, nome de arquivo nem texto de trecho** (regra 20, item 9): as linhas levam o
  * id do material, o tamanho, as páginas, a duração e o código. A auditoria leva ids e o que foi declarado.
@@ -109,12 +103,15 @@ export class MaterialService {
    *    foi limitado no recebimento);
    * 4. os tetos de envio, com a escola travada, e a gravação do material `processando` com `material.enviado`, na
    *    mesma transação. O mesmo arquivo de novo na escola é `CONFLITO`, pelo índice único;
-   * 5. a extração é agendada e a resposta sai, com o material ainda `processando` (regra 00, item 4).
+   * 5. o job de extração é pedido e a resposta sai, com o material ainda `processando` (regra 00, item 4).
    *
-   * O arquivo **não é guardado**: os bytes ficam na memória desta instância até a extração terminar.
+   * O arquivo é guardado no storage privado **antes** da transação, com o id do material na chave: se o storage está fora, o
+   * envio responde 503 sem linha nenhuma; se a transação falha depois, o objeto é apagado no mesmo `catch` (melhor esforço, com o id no log se o
+   * storage recusa) e, se nem assim saiu, a varredura (2.0) o apaga. O job
+   * entra no outbox na mesma transação da linha, então não há material `processando` sem job (D49).
    */
   async enviar(pedido: EnviarMaterialRequest, arquivo: unknown): Promise<MaterialResponse> {
-    const { banco, logger } = this.dependencias
+    const { banco, armazem, enfileirador, logger } = this.dependencias
     const disciplinaId = pedido.disciplinaId.toLowerCase()
     if ((await new DisciplinaRepository(banco).porId(disciplinaId)) === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
 
@@ -137,17 +134,24 @@ export class MaterialService {
     const bytes = arquivo.buffer
     const sha256 = createHash('sha256').update(bytes).digest('hex')
 
+    // O id nasce aqui, antes da linha: a chave do objeto o leva, e a varredura acha o órfão por ela.
+    const id = uuidV7()
+    await this.#guardarObjeto(armazem, id, bytes)
     const gravado = await banco.transaction(async (tx) => {
       const materiais = new MaterialRepository(tx)
       await materiais.travarEnviosDaEscola()
       await this.#exigirDentroDosTetos(materiais)
-      const novo = await materiais.inserir({ disciplinaId, titulo: pedido.titulo, titularidade: pedido.titularidade, licenciante: pedido.licenciante ?? null, licenca, sha256, tamanhoBytes: bytes.byteLength })
+      const novo = await materiais.inserir({ id, disciplinaId, titulo: pedido.titulo, titularidade: pedido.titularidade, licenciante: pedido.licenciante ?? null, licenca, sha256, tamanhoBytes: bytes.byteLength })
       await registro.gravar(tx, 'material.enviado', { entidadeId: novo.id, depois: { disciplinaId, titularidade: pedido.titularidade, licenca, declaracao: true } })
+      await enfileirador.enfileirarUmaVez(tx, TIPO_EXTRAIR_PDF, { materialId: novo.id }, novo.id)
       return novo
+    }).catch(async (erro: unknown) => {
+      // Teto, duplicado ou banco fora: nenhuma linha ficou, então o objeto não tem dono. Sem conseguir apagar, a varredura o acha.
+      await armazem.apagar(chaveDoTemporario(id)).catch((falha: unknown) => logger.warn({ evento: 'material.objeto_nao_apagado', materialId: id, erro: summarizeError(falha) }))
+      throw erro
     })
     const tamanho = bytes.byteLength
     logger.info({ evento: 'material.enviado', materialId: gravado.id, tamanho })
-    this.#agendarExtracao(gravado.id, bytes)
     // Quem envia é sempre a coordenação (a célula `material.enviar` é só dela): recebe o que declarou.
     return paraResposta(gravado, 'unidade')
   }
@@ -171,65 +175,23 @@ export class MaterialService {
     }
   }
 
-  /**
-   * A extração, depois de a requisição responder. O contexto é montado aqui, com a escola do material: a fila chama o
-   * trabalho de dentro da cadeia assíncrona de **outra** requisição (a que liberou a vaga), e sem isto o repository
-   * gravaria com a escola dela.
-   */
-  #agendarExtracao(materialId: string, bytes: Buffer): void {
-    const { escolaId } = requestSessao()
-    const requisicaoId = currentContext()?.requisicaoId
-    if (requisicaoId === undefined) throw new InvariantException('contexto da requisição ausente')
-    this.dependencias.fila.agendar(escolaId, (sinal) => runInContext({ requisicaoId, escolaId }, () => this.#extrair(materialId, bytes, sinal)))
-  }
-
-  /** Nunca rejeita: a falha vira estado do material e uma linha de log com o código. */
-  async #extrair(materialId: string, bytes: Buffer, sinal: AbortSignal): Promise<void> {
-    const { banco, extrator, logger } = this.dependencias
-    const inicio = performance.now()
-    const falhar = async (codigo: FalhaDeMaterial): Promise<void> => {
-      const duracaoMs = Math.round(performance.now() - inicio)
-      logger.warn({ evento: 'material.extracao_falhou', materialId, codigo, duracaoMs })
-      // Sem conseguir gravar a falha, o material fica `processando` e a varredura o encerra.
-      await new MaterialRepository(banco).marcarFalhou(materialId, codigo).catch(() => undefined)
-    }
+  /** O PDF no storage, com prazo curto; o storage fora é 503 com `Retry-After`, e nenhuma linha fica para trás. */
+  async #guardarObjeto(armazem: FileStorage, id: string, bytes: Buffer): Promise<void> {
     try {
-      // Chamado já abortado (o processo está descendo, e este esperava a vez): só grava a falha, sem ler nada.
-      if (sinal.aborted) return await falhar('extracao_falhou')
-      const resultado = await extrator.extrair(bytes, sinal)
-      if (resultado.falha !== null) return await falhar(resultado.falha)
-      const gravou = await banco.transaction(async (tx) => {
-        const materiais = new MaterialRepository(tx)
-        const disciplinaId = await materiais.marcarPronto(materialId, resultado.paginas)
-        // Excluído, ou dado por falho pela varredura, enquanto era lido: nenhum trecho entra.
-        if (disciplinaId === undefined) return false
-        await materiais.gravarTrechos(materialId, disciplinaId, resultado.trechos)
-        return true
-      })
-      const duracaoMs = Math.round(performance.now() - inicio)
-      const paginasTotal = resultado.paginas
-      const trechosTotal = resultado.trechos.length
-      if (gravou) logger.info({ evento: 'material.extraido', materialId, paginasTotal, trechosTotal, duracaoMs })
-      else logger.info({ evento: 'material.extracao_descartada', materialId, duracaoMs })
+      await armazem.guardarBytes(chaveDoTemporario(id), bytes, { prazoMs: PRAZO_DO_OBJETO_DO_MATERIAL_MS })
     } catch (erro) {
-      logger.warn({ evento: 'material.extracao_erro', materialId, erro: summarizeError(erro) })
-      await falhar('extracao_falhou')
+      if (erro instanceof FileStorageUnavailableError) throw new DomainException(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, undefined, DEFAULT_RETRY_AFTER_SECONDS)
+      throw erro
     }
   }
 
-  /**
-   * A varredura do que ficou `processando` com o processo que o lia fora do ar. Nunca lança: banco fora é aviso no
-   * log, e a próxima tenta de novo.
-   */
-  async varrerParados(agora: Date = new Date()): Promise<number> {
-    const { banco, logger } = this.dependencias
+  async #apagarObjetoDoExcluido(id: string): Promise<void> {
+    const { banco, armazem, logger } = this.dependencias
     try {
-      const total = await new MaterialParadoRepository(banco).falharParados(new Date(agora.getTime() - IDADE_DO_MATERIAL_PARADO_MS))
-      if (total > 0) logger.warn({ evento: 'material.parados_encerrados', total })
-      return total
+      await armazem.apagar(chaveDoTemporario(id))
+      await new ExtracaoDoMaterialRepository(banco).marcarObjetoApagado(id)
     } catch (erro) {
-      logger.warn({ evento: 'material.varredura_falhou', erro: summarizeError(erro) })
-      return 0
+      logger.warn({ evento: 'material.objeto_nao_apagado', materialId: id, erro: summarizeError(erro) })
     }
   }
 
@@ -257,15 +219,18 @@ export class MaterialService {
    */
   async excluir(id: string): Promise<void> {
     const { banco, logger } = this.dependencias
-    const trechosTotal = await banco.transaction(async (tx) => {
+    const { trechosTotal, estado } = await banco.transaction(async (tx) => {
       const materiais = new MaterialRepository(tx)
       const excluido = await materiais.excluir(id)
       if (excluido === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       const apagados = await materiais.apagarTrechos(id)
       await registro.gravar(tx, 'material.excluido', { entidadeId: id, antes: { disciplinaId: excluido.disciplinaId, estado: excluido.estado }, depois: { trechosApagados: apagados } })
-      return apagados
+      return { trechosTotal: apagados, estado: excluido.estado }
     })
     logger.info({ evento: 'material.excluido', materialId: id, trechosTotal })
+    // Só o `processando` ainda tem o objeto: o `pronto` e o `falhou` já o apagaram. Depois do commit, e sem poder desfazer a exclusão:
+    // o que não saiu agora sai no expurgo noturno (`excluidosComObjeto`).
+    if (estado === 'processando') await this.#apagarObjetoDoExcluido(id)
   }
 
   /**

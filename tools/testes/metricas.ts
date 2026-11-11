@@ -101,4 +101,6 @@ export const NOMES_NO_PROMETHEUS = {
   emailPorResultado: ['email_envio_total'],
   emailAdiado: ['email_adiado_total'],
   senhaProvisoriaGerada: ['senha_provisoria_gerada_total'],
+  extracaoDoMaterial: ['material_extracao_total'],
+  duracaoDaExtracaoDoMaterial: ['material_extracao_duracao_seconds_bucket', 'material_extracao_duracao_seconds_count', 'material_extracao_duracao_seconds_sum'],
 } as const satisfies Record<keyof typeof METRICS, readonly string[]>

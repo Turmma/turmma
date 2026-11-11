@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { syntheticJobDataSchema } from './synthetic-jobs.js'
+import { FILAS_DO_SINTETICO, syntheticJobDataSchema } from './synthetic-jobs.js'
 import type { QueueName } from './jobs.js'
 
 /**
@@ -21,6 +21,7 @@ export const TIPO_EXPURGAR_DADO_PESSOAL = 'sistema.expurgar-dado-pessoal'
 export const TIPO_GRAVAR_PLANILHA = 'estrutura.gravar-planilha'
 export const TIPO_ENVIAR_CONVITE = 'email.enviar-convite'
 export const TIPO_ENVIAR_EMAIL_DA_CONTA = 'sistema.enviar-email-da-conta'
+export const TIPO_EXTRAIR_PDF = 'material.extrair-pdf'
 export const TIPO_JOB_SINTETICO = 'sintetico'
 
 /**
@@ -103,9 +104,14 @@ const importacaoSchema = z.strictObject({ importacaoId: z.uuid() })
 const conviteSchema = z.strictObject({ conviteId: z.uuid() })
 /** O job do e-mail da conta leva só o id do link: a conta global não tem escola, e o token e o endereço vêm da linha do `link_da_conta`, cifrados. */
 const linkDaContaSchema = z.strictObject({ linkId: z.uuid() })
+/** O job da extração leva só o id do material: a escola vem da linha do outbox, e o objeto do storage tem a chave dela e do material. */
+const materialSchema = z.strictObject({ materialId: z.uuid() })
+
+/** A extração do PDF tenta três vezes: o PDF que falha em três é o PDF, e não a fila (`prazoMs` de dez minutos cada). */
+const RETENTATIVA_DA_EXTRACAO: JobRetry = { tentativas: 3, recuoMs: 2_000, jitter: 0.5 }
 
 /**
- * Os 11 tipos de hoje. `prazoMs` é o maior tempo que o tipo leva, arredondado para cima, e a 43.0 o confere.
+ * Os 12 tipos de hoje. `prazoMs` é o maior tempo que o tipo leva, arredondado para cima, e a 43.0 o confere.
  */
 export const JOB_DEFINITIONS = {
   [TIPO_MONTAR_ARQUIVO]: defineJob({
@@ -206,9 +212,20 @@ export const JOB_DEFINITIONS = {
     prazoMs: 60_000,
     naoUrgente: false,
   }),
+  // A extração do PDF do material (ingestao-do-material, tarefa 1.0): fila `pdf`, no `worker-pdf`, urgente (a coordenação espera o `pronto` na tela). Dez minutos cobrem o
+  // PDF de 20 MB do seed com a vaga da escola dividida com a fila inteira, e a terceira tentativa que falha deixa o material `falhou`.
+  [TIPO_EXTRAIR_PDF]: defineJob({
+    filas: ['pdf'],
+    escopo: 'escola',
+    executor: 'worker',
+    dados: materialSchema,
+    retentativa: RETENTATIVA_DA_EXTRACAO,
+    prazoMs: 600_000,
+    naoUrgente: false,
+  }),
   // O sintético é o job de teste de carga: a fila e o não urgente vêm do corpo do `POST`, e o prazo cobre o teto de CPU dele.
   [TIPO_JOB_SINTETICO]: defineJob({
-    filas: ['interativa', 'normal', 'lote'],
+    filas: FILAS_DO_SINTETICO,
     escopo: 'escola',
     executor: 'worker',
     dados: syntheticJobDataSchema,

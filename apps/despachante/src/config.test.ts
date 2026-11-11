@@ -13,6 +13,7 @@ const ambienteValido = {
   VAGAS_ESCOLA_INTERATIVA: '5',
   VAGAS_ESCOLA_NORMAL: '5',
   VAGAS_ESCOLA_LOTE: '2',
+  VAGAS_ESCOLA_PDF: '2',
   JANELA_LETIVA_FUSO: 'America/Sao_Paulo',
   JANELA_LETIVA_DIAS: '1,2,3,4,5',
   JANELA_LETIVA_INICIO: '07:00',
@@ -36,7 +37,7 @@ describe('lerConfiguracao do despachante', () => {
     expect(loadConfig(ambienteValido)).toEqual({
       banco: { url: ambienteValido.BANCO_URL, maximoConexoes: 3, timeoutConexaoMs: 2000, timeoutConsultaMs: 2000 },
       redisFilaUrl: 'redis://redis-fila:6379',
-      vagasPadrao: { interativa: 5, normal: 5, lote: 2 },
+      vagasPadrao: { interativa: 5, normal: 5, lote: 2, pdf: 2 },
       janelaPadrao: { fuso: 'America/Sao_Paulo', diasLetivos: [1, 2, 3, 4, 5], inicio: '07:00', fim: '18:00' },
       telemetria: { otlpUrl: 'http://observabilidade:4318', intervaloMs: 5000 },
     })

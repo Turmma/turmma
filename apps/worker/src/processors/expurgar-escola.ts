@@ -1,5 +1,6 @@
 import {
   ALVOS_DO_EXPURGO_DA_ESCOLA,
+  chaveDoTemporario,
   currentContext,
   estaNaJanela,
   LOTE_DO_EXPURGO,
@@ -10,6 +11,7 @@ import {
   type OperationalSettings,
   type JobOutbox,
   type ExpurgoDaEscolaRepository,
+  type ExtracaoDoMaterialRepository,
   type JanelaLetiva,
   type LoggerBase,
   type Clock,
@@ -21,6 +23,8 @@ import { JobFailureError } from '../job-failure.error.js'
 
 /** Quantos arquivos do titular o expurgo apaga por volta: cada um é uma chamada ao storage, e são poucos por escola. */
 export const LOTE_DOS_ARQUIVOS_DO_TITULAR = 100
+/** Quantos PDFs de material excluído o expurgo apaga por volta: cada um é uma chamada ao storage, e o excluído que ficou com o objeto é raro. */
+export const LOTE_DOS_OBJETOS_DE_MATERIAL = 100
 
 export interface ExpurgoDaEscolaDependencies {
   repositorio: Pick<ExpurgoDaEscolaRepository, 'expurgarLote' | 'expurgarRegistroDoExpurgo' | 'registrar' | 'categoriaPendente' | 'enfileirarEliminacoes' | 'fecharImportacoesParadas' | 'fecharEnviosParados' | 'anularProvisoriasVencidas'>
@@ -28,6 +32,8 @@ export interface ExpurgoDaEscolaDependencies {
   enfileirador: Pick<JobOutbox, 'enfileirarUmaVez'>
   /** Os arquivos do titular vencidos ou marcados `apagado_em` (F3, tarefa 13.0): o objeto sai do storage, e só então a linha. */
   arquivos: Pick<ArquivoDoTitularRepository, 'aApagar' | 'apagarLinhas'>
+  /** Os materiais excluídos cujo objeto ficou no storage (ingestao-do-material, 1.0): o objeto sai primeiro, e a linha registra que saiu. */
+  materiais: Pick<ExtracaoDoMaterialRepository, 'excluidosComObjeto' | 'marcarObjetoApagado'>
   armazem: Pick<FileStorage, 'apagar'>
   retencao: Pick<RetencaoDaEscolaRepository, 'ajustes'>
   /** O horário letivo da escola do contexto: o expurgo confere a cada lote, e para quando ele abre. */
@@ -65,9 +71,11 @@ export interface ExpurgoDaEscolaDependencies {
  *   convite e do relógio do job, fecha `falhou` e perde o token e o endereço cifrados. Na pior hipótese isso leva cerca de 48 h (a noite seguinte).
  * - **Depois, a senha provisória vencida** (acesso-e-convites, 9.0): a credencial cuja `provisoria_expira_em` passou do relógio do job perde o hash, a
  *   validade e quem a gerou, com `skip locked`; a auditoria fica. Prazo fixo em código, e não categoria de retenção.
+ * - **O PDF do material excluído que ainda está no storage** (ingestao-do-material, 1.0): sai antes das categorias, do menor id ao maior, com o cursor
+ *   no último id visto, para o objeto que o storage não deixou apagar não prender o laço; a linha só registra `objeto_apagado_em` depois de o objeto sair.
  * - Loga só a categoria (sob `tipo`) e as contagens; a escola vai pelo contexto, nunca uma linha.
  */
-export function criarExpurgoDaEscola({ repositorio, arquivos, armazem, retencao, janelaDaEscola, enfileirador, relogio, logger, lote = LOTE_DO_EXPURGO }: ExpurgoDaEscolaDependencies): JobProcessor<typeof TIPO_EXPURGAR_ESCOLA> {
+export function criarExpurgoDaEscola({ repositorio, arquivos, materiais, armazem, retencao, janelaDaEscola, enfileirador, relogio, logger, lote = LOTE_DO_EXPURGO }: ExpurgoDaEscolaDependencies): JobProcessor<typeof TIPO_EXPURGAR_ESCOLA> {
   return async () => {
     if (currentContext()?.escolaId === undefined) throw new JobFailureError(JobFailureCode.DADOS_INVALIDOS, true)
     const agora = relogio.agora()
@@ -86,6 +94,8 @@ export function criarExpurgoDaEscola({ repositorio, arquivos, armazem, retencao,
     // Primeiro os arquivos do titular (F3, tarefa 13.0): o objeto sai do storage e só então a linha. O que o storage não
     // deixou apagar fica com a linha e é tentado de novo na noite seguinte (pelo `apagado_em` ou pelo vencimento).
     const { apagados: arquivosApagadosTotal, naoApagados: arquivosNaoApagadosTotal } = await apagarArquivosDoTitular({ arquivos, armazem, janela, relogio, agora, logger })
+    // Depois, o PDF do material que a coordenação excluiu e cujo objeto não saiu na hora (o storage estava fora): é o mesmo que os arquivos do titular.
+    const { apagados: objetosDeMaterialApagadosTotal, naoApagados: objetosDeMaterialNaoApagadosTotal } = await apagarObjetosDosMateriais({ materiais, armazem, janela, relogio, logger })
     const ordem = ordemDaNoite(await repositorio.categoriaPendente())
     let linhasTotal = 0
     for (const categoria of ordem) {
@@ -143,6 +153,8 @@ export function criarExpurgoDaEscola({ repositorio, arquivos, armazem, retencao,
       registroApagadoTotal,
       arquivosApagadosTotal,
       arquivosNaoApagadosTotal,
+      objetosDeMaterialApagadosTotal,
+      objetosDeMaterialNaoApagadosTotal,
       eliminacoesTotal,
       eliminacoesJaEnfileiradasTotal,
       importacoesFechadasTotal,
@@ -191,6 +203,44 @@ async function apagarArquivosDoTitular({ arquivos, armazem, janela, relogio, ago
     apagados += linhasApagadas
     // Nenhum objeto saiu, ou nenhuma linha saiu com eles: o mesmo lote voltaria, e a noite seguinte tenta de novo.
     if (sairam.length === 0 || linhasApagadas === 0) break
+  }
+  return { apagados, naoApagados }
+}
+
+interface ApagarObjetosDeMaterialDependencies {
+  materiais: ExpurgoDaEscolaDependencies['materiais']
+  armazem: ExpurgoDaEscolaDependencies['armazem']
+  janela: JanelaLetiva
+  relogio: Clock
+  logger: LoggerBase
+}
+
+/**
+ * Apaga do storage o PDF dos materiais **excluídos** da escola do contexto cujo objeto ainda pode estar lá, em lotes, **sem passar da janela
+ * letiva**, e só depois registra `objeto_apagado_em`. O `processando` que não foi excluído nunca entra (o objeto dele é o da extração em curso).
+ * Falha ao apagar um objeto não derruba o job nem os outros: o objeto fica sem registro e a noite seguinte o tenta de novo. O cursor é o último id
+ * do lote, para o objeto que ficou não voltar no mesmo laço.
+ */
+async function apagarObjetosDosMateriais({ materiais, armazem, janela, relogio, logger }: ApagarObjetosDeMaterialDependencies): Promise<{ apagados: number; naoApagados: number }> {
+  let apagados = 0
+  let naoApagados = 0
+  let depoisDe: string | undefined
+  for (;;) {
+    const ids = await materiais.excluidosComObjeto(depoisDe, LOTE_DOS_OBJETOS_DE_MATERIAL)
+    if (ids.length === 0) break
+    if (estaNaJanela(janela, relogio.agora())) break
+    for (const id of ids) {
+      try {
+        await armazem.apagar(chaveDoTemporario(id))
+        await materiais.marcarObjetoApagado(id)
+        apagados += 1
+      } catch (erro) {
+        naoApagados += 1
+        // Nem a chave nem o texto do erro vão ao log: só que um objeto ficou, com o id do material.
+        logger.warn({ evento: 'retencao.objeto_de_material_nao_apagado', materialId: id, erro: summarizeError(erro) })
+      }
+    }
+    depoisDe = ids.at(-1)
   }
   return { apagados, naoApagados }
 }

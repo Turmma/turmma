@@ -209,7 +209,7 @@ que cai na degradação declarada (regra 80, item 4), e não como erro cru.
 **Orçamento das threads, por processo.** O que ocupa as 16:
 
 - **Cliente que reconecta, até uma thread cada, por até 1 s:** os 2 Redis, o exportador de métricas e,
-  no worker-lote, o storage. São 3 ou 4
+  no worker-lote e no worker-pdf, o storage. São 3 ou 4
 - **Rajada de conexões quando o Postgres volta:** até `BANCO_POOL_MAXIMO` resoluções de `postgres` ao
   mesmo tempo (10 na API, 80 no worker-interativo). O nome resolve em milissegundos, então a fila
   passa rápido, mas nesse instante ela disputa as mesmas threads
@@ -259,6 +259,7 @@ só com `docker compose` (regra 00) tem exatamente o comportamento da esteira.
 | interativa | tutor em sala, ferramenta que o professor está esperando na tela | nunca espera trabalho de lote |
 | normal | correção que o professor pediu agora, notificação | minutos |
 | lote | ingestão, correção em massa, agentes noturnos, expurgo, exportação | preferencialmente fora do horário letivo |
+| pdf | a extração do texto do PDF do material (`material.extrair-pdf`): CPU e memória de um PDF de até 20 MB | segundos a minutos, em horário letivo; **um PDF por vez por réplica** (`worker-pdf`) e duas vagas por escola, para o PDF de uma escola não ocupar a leitura das outras |
 
 Trabalho de lote que não é urgente roda à noite. Isso tira carga do pico, usa a capacidade
 ociosa do provedor e, em provedor que oferece API de lote, custa menos.
@@ -276,6 +277,8 @@ dois Redis, a observabilidade, os nossos contêineres e a suíte dividem a mesma
 rotina da máquina, não sinal de Redis travado. O cenário de carga é a exceção: `infra/carga.env` fixa os 100 ms,
 porque é nele que o corte é medido com a rajada das 7h30 descrita acima.
 
+**A réplica `worker-pdf`** (ingestao-do-material, tarefa 1.0) atende só a fila `pdf`: pool de um PDF por vez (`WORKER_POOL_PDF=1`), `cpus: 1` no compose, `lockDuration` de 60 s e verificação de stalled a cada 20 s (a leitura devolve o event loop entre uma página e outra, então a renovação do lock chega a tempo; a réplica morta devolve o job em até 80 s), prazo do tipo de 10 min e três tentativas. Lê o storage, então não sobe sem as variáveis dele. O objeto sai do storage logo depois do commit da extração, **no bucket sem versionamento** (versionamento guardaria uma cópia do PDF que o `DeleteObject` não remove: o contrato do bucket é que apagar apaga). A leitura e a gravação do objeto têm prazo de 30 s cada. O alerta e o runbook da fila `pdf` chegam com a tarefa 3.0.
+
 ### 5.3 Concorrência por escola
 
 Cada escola tem limite de jobs simultâneos por fila, para uma escola barulhenta não ocupar
@@ -292,7 +295,7 @@ resolveu com um limitador próprio, sem licença (regra 00). O desenho completo 
 - **A vaga é um ZSET por fila e escola** (`vaga:{fila}:{escola}`), tomada em Lua
   (`packages/core/src/queue/concurrency-slot.lua`), com validade de 60 s renovada pelo worker a cada
   15 s. Vaga de worker morto vence sozinha. Liberar a vaga acorda o despachante na hora
-- **Padrões por escola:** interativa 5, normal 5, lote 2, com pools de 50, 30 e 10. É
+- **Padrões por escola:** interativa 5, normal 5, lote 2 e pdf 2 (`VAGAS_ESCOLA_PDF`, no worker e no despachante), com pools de 50, 30, 10 e 1. É
   configuração por escola em `configuracao_operacional_escola`, nunca constante (D41)
 - **Lote não urgente** só é reservado fora do horário letivo da escola (seção 5.2)
 - **Entrega pelo menos uma vez** (D49): o processador recebe a chave de idempotência, igual

@@ -1,4 +1,4 @@
-import { defineJob, JOB_DEFINITIONS, TIPO_JOB_SINTETICO, TIPO_MONTAR_ARQUIVO, type JobRegistry } from '@educa/shared'
+import { defineJob, JOB_DEFINITIONS, TIPO_EXTRAIR_PDF, TIPO_JOB_SINTETICO, TIPO_MONTAR_ARQUIVO, type JobRegistry } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import { jobExecutor, jobOptions } from './publishing.js'
 
@@ -9,9 +9,10 @@ const DEFINICOES: JobRegistry = {
 }
 
 describe('opcoesDeJob: a retentativa que o despachante publica é a do tipo', () => {
-  it('cada tipo do registro de hoje publica as cinco tentativas e o recuo exponencial de 2 s com jitter de 0,5, em literal', () => {
+  it('cada tipo do registro de hoje publica as cinco tentativas e o recuo exponencial de 2 s com jitter de 0,5, em literal; a extração do PDF, três', () => {
     for (const tipo of Object.keys(JOB_DEFINITIONS)) {
-      expect(jobOptions(tipo), tipo).toEqual({ attempts: 5, backoff: { type: 'exponential', delay: 2_000, jitter: 0.5 } })
+      const tentativas = tipo === TIPO_EXTRAIR_PDF ? 3 : 5
+      expect(jobOptions(tipo), tipo).toEqual({ attempts: tentativas, backoff: { type: 'exponential', delay: 2_000, jitter: 0.5 } })
     }
   })
 

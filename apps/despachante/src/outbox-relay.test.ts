@@ -28,7 +28,7 @@ function montar({
   livres = () => 5,
   conceder = (ids: readonly string[]) => ids,
   publicacaoFalha = false,
-  vagasDaEscola = { interativa: 5, normal: 5, lote: 2 },
+  vagasDaEscola = { interativa: 5, normal: 5, lote: 2, pdf: 2 },
   lote,
   publicadosDaEscola = [],
   membrosDaVaga = [],
@@ -147,7 +147,7 @@ describe('Despachante.rodada', () => {
     const { despachante, reservas, tomadas, publicados } = montar({
       pendentes: [{ fila: 'lote', escolaId: ESCOLA_A }],
       livres: () => 2,
-      vagasDaEscola: { interativa: 5, normal: 5, lote: 7 },
+      vagasDaEscola: { interativa: 5, normal: 5, lote: 7, pdf: 2 },
     })
     expect(await despachante.rodada()).toBe(2)
     expect(reservas).toEqual([{ fila: 'lote', escolaId: ESCOLA_A, rotinaDoSistema: false, limite: 2, soUrgentes: true }])

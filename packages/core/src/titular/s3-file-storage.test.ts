@@ -1,7 +1,7 @@
 import { once } from 'node:events'
 import { createServer } from 'node:http'
 import type { AddressInfo } from 'node:net'
-import { DeleteObjectCommand, HeadObjectCommand, PutObjectCommand, S3ServiceException, type S3Client } from '@aws-sdk/client-s3'
+import { DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3ServiceException, type S3Client } from '@aws-sdk/client-s3'
 import { describe, expect, it } from 'vitest'
 import { FileStorageUnavailableError } from './file-storage.js'
 import { S3FileStorage, createS3Client, TIMEOUT_REQUISICAO_DO_ARMAZEM_MS } from './s3-file-storage.js'
@@ -105,6 +105,48 @@ describe('ArmazemS3: as chamadas ao storage', () => {
     expect((guardar as PutObjectCommand).input).toMatchObject({ Bucket: 'educa-local', Key: CHAVE, Body: '{"a":1}', CacheControl: 'no-store', ContentDisposition: 'attachment' })
     expect(apagar).toBeInstanceOf(DeleteObjectCommand)
     expect((apagar as DeleteObjectCommand).input).toEqual({ Bucket: 'educa-local', Key: CHAVE })
+  })
+
+  it('`guardarBytes` grava o PDF do material sem cache e com o prazo da chamada, e `lerBytes` o devolve inteiro', async () => {
+    const bytes = new Uint8Array([37, 80, 68, 70, 0, 255])
+    const gravar = clienteFalso({})
+    await new S3FileStorage(gravar.cliente, 'educa-local').guardarBytes(CHAVE, bytes, { prazoMs: 5_000 })
+    expect(gravar.enviados[0]).toBeInstanceOf(PutObjectCommand)
+    expect((gravar.enviados[0] as PutObjectCommand).input).toMatchObject({ Bucket: 'educa-local', Key: CHAVE, Body: bytes, ContentType: 'application/pdf', CacheControl: 'no-store' })
+
+    const ler = clienteFalso({ Body: { transformToByteArray: () => Promise.resolve(bytes) } })
+    expect(await new S3FileStorage(ler.cliente, 'educa-local').lerBytes(CHAVE, { prazoMs: 5_000 })).toEqual(bytes)
+    expect(ler.enviados[0]).toBeInstanceOf(GetObjectCommand)
+    expect((ler.enviados[0] as GetObjectCommand).input).toEqual({ Bucket: 'educa-local', Key: CHAVE })
+  })
+
+  it('`lerBytes` do objeto que não existe devolve `undefined`; qualquer outra falha é indisponibilidade, e nunca "ausente"', async () => {
+    const ausente = new S3ServiceException({ name: 'NoSuchKey', $fault: 'client', $metadata: { httpStatusCode: 404 }, message: 'sem objeto em http://storage:8333/educa/x' })
+    expect(await new S3FileStorage(clienteFalso(ausente).cliente, 'educa-local').lerBytes(CHAVE, { prazoMs: 5_000 })).toBeUndefined()
+    const ausenteSemNome = new S3ServiceException({ name: 'UnknownError', $fault: 'client', $metadata: { httpStatusCode: 404 }, message: 'o 404 basta' })
+    expect(await new S3FileStorage(clienteFalso(ausenteSemNome).cliente, 'educa-local').lerBytes(CHAVE, { prazoMs: 5_000 })).toBeUndefined()
+    const proibido = new S3ServiceException({ name: 'AccessDenied', $fault: 'client', $metadata: { httpStatusCode: 403 }, message: 'negado' })
+    for (const falha of [proibido, new Error('connect ECONNREFUSED http://storage:8333/educa-local/segredo')]) {
+      const erro = await new S3FileStorage(clienteFalso(falha).cliente, 'educa-local').lerBytes(CHAVE, { prazoMs: 5_000 }).catch((queda: unknown) => queda)
+      expect(erro).toBeInstanceOf(FileStorageUnavailableError)
+      expect(JSON.stringify(erro)).not.toContain('storage:8333')
+    }
+    const queda = await new S3FileStorage(clienteFalso(new Error('connect ECONNREFUSED')).cliente, 'educa-local').guardarBytes(CHAVE, new Uint8Array(), { prazoMs: 5_000 }).catch((falha: unknown) => falha)
+    expect(queda).toBeInstanceOf(FileStorageUnavailableError)
+  })
+
+  it('o prazo da chamada corta `guardarBytes` e `lerBytes`: o storage que demora mais vira indisponibilidade, e o que responde dentro dele é atendido', async () => {
+    const storage = await storageLento(1_000)
+    const { armazem, encerrar } = S3FileStorage.criar({ ...CONFIG, url: storage.url, bucket: 'educa-local', tentativas: 1, timeoutRequisicaoMs: 10_000 })
+    try {
+      // O controle: o mesmo storage, com prazo de sobra, atende a gravação.
+      await expect(armazem.guardarBytes(CHAVE, new Uint8Array([1]), { prazoMs: 5_000 })).resolves.toBeUndefined()
+      await expect(armazem.guardarBytes(CHAVE, new Uint8Array([1]), { prazoMs: 100 })).rejects.toBeInstanceOf(FileStorageUnavailableError)
+      await expect(armazem.lerBytes(CHAVE, { prazoMs: 100 })).rejects.toBeInstanceOf(FileStorageUnavailableError)
+    } finally {
+      encerrar()
+      storage.fechar()
+    }
   })
 
   it('`existe` diz que não quando o storage diz que o objeto não está, e que sim quando está', async () => {

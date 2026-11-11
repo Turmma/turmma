@@ -1,5 +1,6 @@
 import {
   ArquivoDoTitularRepository,
+  ExtracaoDoMaterialRepository,
   throttledWarn,
   OperationalSettings,
   OperationalSettingsRepository,
@@ -50,16 +51,19 @@ import {
   TIPO_ELIMINAR_TITULAR,
   TIPO_ENVIAR_CONVITE,
   TIPO_ENVIAR_EMAIL_DA_CONTA,
+  TIPO_EXTRAIR_PDF,
   TIPO_EXPURGAR_ACESSO,
   TIPO_EXPURGAR_DADO_PESSOAL,
   TIPO_EXPURGAR_ESCOLA,
   TIPO_EXPURGAR_JOBS,
   TIPO_GRAVAR_PLANILHA,
   TIPO_JOB_SINTETICO,
+  FILAS_DO_SINTETICO,
   TIPO_MONTAR_ARQUIVO,
   type QueueName,
   type JobRegistry,
 } from '@educa/shared'
+import { PdfExtractor } from '@educa/core/material'
 import { S3FileStorage } from '@educa/core/s3-file-storage'
 import { Queue, Worker } from 'bullmq'
 import { Redis } from 'ioredis'
@@ -73,6 +77,7 @@ import { criarExpurgoDeJobs } from './processors/expurgar-jobs.js'
 import { criarRotinaDeExpurgo } from './processors/expurgar-dado-pessoal.js'
 import { criarEliminacaoDoTitular } from './processors/eliminar-titular.js'
 import { criarExpurgoDaEscola } from './processors/expurgar-escola.js'
+import { criarExtracaoDoPdf } from './processors/extrair-pdf.js'
 import { EliminacaoGauge } from './eliminacao-gauge.js'
 import { ArquivoGauge } from './arquivo-gauge.js'
 import { ImportacaoGauge } from './importacao-gauge.js'
@@ -271,6 +276,8 @@ export interface ProcessorParts {
   armazem: FileStorage | undefined
   /** O e-mail do convite; só a réplica que atende a fila `normal` o recebe (`config.email`). */
   email?: PecasDoEmail | undefined
+  /** O leitor de PDF; só a réplica que atende a fila `pdf` o usa. Só o teste o troca. */
+  extrator?: PdfExtractor | undefined
 }
 
 /** As peças dos jobs do e-mail (o do convite e o do link da conta): o repositório do envio, o adaptador, a cifra do token e o endereço da web. */
@@ -290,8 +297,8 @@ export interface ProcessorSet {
 }
 
 /**
- * Os processadores que esta réplica leva, pelas filas que ela atende (`config.pools`): o sintético em toda réplica, o
- * arquivo do titular na que atende a `normal` e as rotinas do sistema e da escola na que atende o `lote`. É a fonte do que a
+ * Os processadores que esta réplica leva, pelas filas que ela atende (`config.pools`): o sintético em toda réplica que atende uma das filas dele (a `pdf` não o leva), o
+ * arquivo do titular na que atende a `normal`, as rotinas do sistema e da escola na que atende o `lote` e a extração do PDF na que atende a `pdf`. É a fonte do que a
  * réplica sabe executar, e `composition.test.ts` a liga a `JOB_DEFINITIONS`: todo tipo do worker tem processador nas filas
  * dele, e nenhum processador está numa fila que a definição do tipo não lista.
  */
@@ -302,7 +309,12 @@ export function createProcessors(config: Pick<WorkerConfig, 'pools' | 'storage' 
       ? undefined
       : createRoutines(config.storage, config.janelaPadrao, banco, uso, relogio, logger, medidor, armazem)
   return {
-    processadores: { [TIPO_JOB_SINTETICO]: createSyntheticProcessor(pecas.cpu, pecas.efeitos), ...rotinas?.processadores, ...(config.pools.normal === undefined ? {} : processadoresDaNormal(pecas)) },
+    processadores: {
+      ...processadoresDoSintetico(config, pecas),
+      ...rotinas?.processadores,
+      ...(config.pools.normal === undefined ? {} : processadoresDaNormal(pecas)),
+      ...(config.pools.pdf === undefined ? {} : processadoresDaPdf(pecas)),
+    },
     ...(rotinas === undefined ? {} : { rotinas }),
   }
 }
@@ -322,6 +334,16 @@ export function pecasDoEmail(config: Pick<WorkerConfig, 'email'>, banco?: Databa
     limite: new LimiteDeEmailPorMinuto(fila.redis, email.porMinuto, { prefixo: fila.prefixo }),
     urlDaWeb: email.urlDaWeb,
   }
+}
+
+/** O sintético, só na réplica que atende uma das filas dele: a `pdf` não o leva, e o processador de um tipo que a fila não lista nunca roda. */
+function processadoresDoSintetico(config: Pick<WorkerConfig, 'pools'>, { cpu, efeitos }: ProcessorParts): JobProcessors {
+  return FILAS_DO_SINTETICO.some((fila) => config.pools[fila] !== undefined) ? { [TIPO_JOB_SINTETICO]: createSyntheticProcessor(cpu, efeitos) } : {}
+}
+
+/** Os processadores da fila `pdf`: a extração do PDF do material, que lê o objeto do storage e o apaga (ingestao-do-material, tarefa 1.0). Sem armazém, nenhum. */
+function processadoresDaPdf({ banco, logger, medidor, armazem, extrator }: ProcessorParts): JobProcessors {
+  return armazem === undefined ? {} : { [TIPO_EXTRAIR_PDF]: criarExtracaoDoPdf({ banco, armazem, extrator: extrator ?? new PdfExtractor(), logger, medidor }) }
 }
 
 /**
@@ -398,6 +420,7 @@ function createRoutines(
       [TIPO_EXPURGAR_ESCOLA]: criarExpurgoDaEscola({
         repositorio: expurgoDaEscola,
         arquivos,
+        materiais: new ExtracaoDoMaterialRepository(banco),
         armazem,
         retencao: new RetencaoDaEscolaRepository(banco),
         janelaDaEscola,

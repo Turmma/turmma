@@ -125,10 +125,18 @@ pelos leitores que a escola já usa (`docs/modelo-de-dados.md`, "A leitura da op
 
 ## Assíncrono
 
-Nada demorado em request. São três filas, uma por prioridade: `interativa`, `normal` e `lote`. O trabalho se
-distingue pelo **tipo** do job (`retencao.expurgar-escola`, `titular.montar-arquivo`…), não por uma fila própria.
+Nada demorado em request. São quatro filas: `interativa`, `normal` e `lote`, uma por prioridade, e `pdf`, que isola o
+trabalho de CPU e de memória da leitura de PDF. O trabalho se distingue pelo **tipo** do job (`retencao.expurgar-escola`,
+`titular.montar-arquivo`…), não por uma fila própria; a `pdf` só tem o `material.extrair-pdf`.
 Cada escola tem um limite de concorrência (`EscolaConcurrencyLimiter`), e o lote não urgente roda fora do horário letivo. No
-compose, o `worker-interativo` atende `interativa` e `normal`, e o `worker-lote` atende `lote`.
+compose, o `worker-interativo` atende `interativa` e `normal`, o `worker-lote` atende `lote` e o `worker-pdf` atende `pdf`, um PDF
+por vez.
+
+**A extração do PDF é do worker** (ingestao-do-material, tarefa 1.0): o envio da API guarda o PDF no storage privado e grava,
+na mesma transação da linha do material, o job `material.extrair-pdf` (chave de idempotência = id do material); o worker lê o
+objeto, extrai o texto por página, grava os trechos e o estado numa transação só e **só depois do commit** apaga o objeto. A
+transição `processando → pronto|falhou` só pega o material `processando` e não excluído, e é ela que faz o job repetido e o job
+que chega depois da exclusão saírem sem efeito (D49).
 
 **Exceção declarada:** as tarefas de IA (Tutor, ferramentas do professor) ainda rodam no processo da API, pelo
 `ExecucaoScheduler`, que responde 202 e executa em segundo plano (D77). A ida para o worker está registrada na X6

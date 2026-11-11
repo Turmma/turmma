@@ -103,7 +103,11 @@ export class AppModule {
         EstruturaModule,
         SemanaModule.forRoot(opcoes.relogioDaSemana === undefined ? {} : { relogio: opcoes.relogioDaSemana }),
         ProfessoresModule.forRoot({ chaveDoToken: config.email.chaveDoToken, instancias: config.limite.instancias, relogio: opcoes.relogioDosConvites }),
-        MaterialModule.forRoot(opcoes.logger ?? createLogger({ servico: 'api' })),
+        MaterialModule.forRoot({
+          logger: opcoes.logger ?? createLogger({ servico: 'api' }),
+          armazem: config.armazem,
+          ...(opcoes.armazemDeArquivos === undefined ? {} : { armazemDeTeste: opcoes.armazemDeArquivos }),
+        }),
         IaModule.forRoot({ config: config.ia, ...(opcoes.logger === undefined ? {} : { logger: opcoes.logger }) }),
         AssistenteModule.forRoot({ chaveContador: config.login.chaveContador, instancias: config.limite.instancias, logger: opcoes.logger ?? createLogger({ servico: 'api' }) }),
         ArtefatoModule,

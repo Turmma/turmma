@@ -390,6 +390,8 @@ export const LEITURAS_DO_ARQUIVO: Readonly<Record<string, LeituraDaTabela>> = {
       licenciante: 'o nome do dono do direito, que é de terceiro',
       sha256: 'identificador técnico do arquivo',
       falha: 'código técnico da extração',
+      processado_em: 'instante técnico em que a extração terminou',
+      objeto_apagado_em: 'instante técnico em que o arquivo temporário saiu do storage',
       enviado_por: 'o próprio titular',
       excluido_por: 'o próprio titular',
     },
