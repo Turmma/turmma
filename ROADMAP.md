@@ -6,7 +6,7 @@ O alvo é o sistema inteiro, não um MVP fatiado, porque a venda acontece em reu
 coordenação e em assembleia de pais, e o que convence é o fluxo completo. Um pedaço não
 vende.
 
-**A fatia do piloto (D84, 03/11/2026).** F2, F4, F5 com a X6 parcial, F18, F6, F6b, F7 mínima (rubrica), F11 mínima, trio da F12
+**A fatia do piloto (D84, 03/11/2026).** F2, F4 (com a F4b), F5 com a X6 parcial, F18, F6, F6b, F7 mínima (rubrica), F11 mínima, trio da F12
 (Auditoria, Conformidade, Denúncias), portal da família (F19) e F9, nesta ordem de construção. O Tutor fica pronto e
 alinhado antes da entrada da escola, mas desligado na escola até a Turmma liberá-lo, por chave no painel da Operação (D84). Ficam fora: o resto de F7, F11 e F12,
 F17, F14, F15 e F16.
@@ -520,7 +520,7 @@ O que a X5 deixou de fora no recorte de 22/10/2026 (D81), registrado para não s
 X5, e a lista está em "Saíram para a X6" de `tasks/prd-reengenharia/tasks.md`, com o desenho nos `onda-<n>.md` (revisto
 pela D81 onde ela diz). Entra também o que a regra do corte da X5 deixar fora. Cada parte entra no momento dela:
 
-- **Antes do portão do piloto:** a IA e o PDF no worker (42.0, 45.0 a 47.0, 49.0, 50.0), o prazo do cliente com "Tentar
+- **Antes do portão do piloto:** a IA no worker (42.0, 47.0, 49.0, 50.0; a 45.0 e a 46.0, o PDF no worker, entraram na F4 em 11/11/2026), o prazo do cliente com "Tentar
   de novo" (52.0) e o Redis fora sem gastar tentativa (54.0)
 - **Junto da X4 ou do F2:** a onda 4, de tela (55.0 a 80.0): a rede de teste da web, a cobertura por pasta e o corte das
   telas grandes
@@ -570,19 +570,30 @@ recebimento; e nada do que a coordenação vê separa o professor que usou a IA 
 **Depende de:** F1
 
 Conferido contra o código em 24/10/2026. **Já existe** (A1): upload de PDF pela coordenação, com titularidade e licença declaradas (D5
-revista, D75); recusa sem licença antes da extração; extração em fila; trecho por página, com rastreio até a
-página citada; e busca textual. O "Pronto quando" original está cumprido.
+revista, D75); recusa sem licença antes da extração; extração; trecho por página, com rastreio até a página citada; e busca textual.
 
-**Falta:** classificar o material por série, capítulo e habilidade BNCC (hoje só por disciplina), para a
-geração usar; trecho menor que a página, se a busca pedir; versionamento e reprocessamento, que exigem guardar
-o arquivo (hoje ele não é guardado: rever com `docs/mvp-rapido.md` seção 4 e com o mapa de `docs/lgpd.md`);
-autorização da escola por fonte; e o painel agregado do estado da ingestão. A extração no worker é da X6
-(45.0 e 46.0). A porta de fonte com adaptador de scraper sai daqui: só entra com escola real, fonte definida e
-licença do dono do conteúdo (D22), depois do portão.
+**Corte de 11/11/2026 (Joaquim):** o PRD (`tasks/prd-ingestao-do-material/prd.md`) dava cerca de 21 tarefas, e a classificação
+pela BNCC foi para a **F4b**. Fica aqui: a extração no worker, com o PDF apagado depois dela, e listar, reprocessar e descartar
+job (a 45.0 e a 46.0 da X6 entram nesta spec); a série do material, com a busca da geração e do Tutor presa à série da turma; o
+capítulo lido do PDF; o envio de até 20 arquivos; a edição nova, com o artefato antigo citando a edição que usou; a licença
+registrada, com validade e aviso no sino; e o painel do estado da ingestão. A porta de fonte com adaptador de scraper sai daqui:
+só entra com escola real, fonte definida e licença do dono do conteúdo (D22), depois do portão.
 
-**Pronto quando:** o material é classificado por série e habilidade BNCC e a geração usa isso; um material
-trocado por versão nova é reprocessado, e o artefato antigo continua apontando a página da versão que citou;
-e a coordenação vê num painel o estado de toda a ingestão da escola.
+**Pronto quando:** a geração e o Tutor usam só material da série e da disciplina da turma; uma edição nova substitui a antiga sem
+perder o que foi gerado, e o artefato antigo continua apontando a página da edição que citou; a licença vencida tira o material da
+busca; 300 apostilas ficam prontas numa noite, com o PDF apagado; e a coordenação vê num painel o estado de toda a ingestão.
+
+## F4b — `classificacao-bncc` [ ]
+**Depende de:** F4
+
+Saiu da F4 no corte de 11/11/2026 (Joaquim), com o PRD aprovado lá (`tasks/prd-classificacao-bncc/prd.md`, que aponta os RF do PRD
+da F4): a tabela pública da BNCC no lugar do catálogo próprio (`QUI.EM.05`), em toda a geração e no acerto por habilidade em
+Turmas; a classificação de cada capítulo pela IA, em lote, como função nova do Assistente de ensino; a correção pela coordenação e a
+troca da habilidade da questão pelo professor; a reclassificação; e a cobertura de habilidades por série. A AIA do diagnóstico por
+habilidade é revista nela.
+
+**Pronto quando:** o material é classificado por habilidade da BNCC e a geração usa isso; a coordenação corrige e a correção vence;
+e a coordenação vê as habilidades da série sem material.
 
 ## F5 — `camada-ia` [ ]
 **Depende de:** F0 · **paralelo com F1–F4**; o gateway vem da X6
@@ -608,7 +619,7 @@ teste prova que prompt com texto de aluno não sai para provedor fora do Brasil;
 reais; e a avaliação de modelos foi executada, com principal e reserva registrados (D37, D62).
 
 ## F6 — `avaliacao-e-correcao` [ ]
-**Depende de:** F4, F5
+**Depende de:** F4, F4b (o diagnóstico por habilidade passa a ser BNCC), F5
 
 Conferido contra o código em 24/10/2026. **Já existe** (A3, X3, X5): atividade objetiva a partir do material, com página citada; gabarito que
 nunca vai ao aluno; aplicação e encerramento, com a flag `avaliativa` travando o Tutor; correção pela conta do

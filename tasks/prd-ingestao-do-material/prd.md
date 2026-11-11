@@ -4,6 +4,11 @@
 **Funcionalidade do roadmap:** F4
 **Depende de:** F1 (concluída); absorve a 45.0 e a 46.0 da X6 (PDF no worker; listar, reprocessar e descartar job)
 
+> **Corte de 11/11/2026 (Joaquim), antes da Tech Spec, sem mudar requisito.** Esta spec (F4) leva o RF3, o RF4, a série
+> no RF7, o RF8, o RF10, o RF11, do RF13 ao RF18 (no RF15, "prontas"; "classificadas" é da F4b) e a parte deles no
+> RF20. A **F4b `classificacao-bncc`** (`tasks/prd-classificacao-bncc/prd.md`) leva o RF1, o RF2, o RF5, o RF6, a
+> habilidade no RF7, o RF9, o RF12, o RF19, a seção 8b e as perguntas da BNCC da seção 10.
+
 ## 1. Problema
 
 O material entra só "por disciplina": quando Camila pede uma revisão para o 2ºB, a busca mistura o 1º e o 3º ano, e
