@@ -4,10 +4,9 @@
 **Funcionalidade do roadmap:** F4
 **Depende de:** F1 (concluída); absorve a 45.0 e a 46.0 da X6 (PDF no worker; listar, reprocessar e descartar job)
 
-> **Corte de 11/11/2026 (Joaquim), antes da Tech Spec, sem mudar requisito.** Esta spec (F4) leva o RF3, o RF4, a série
-> no RF7, o RF8, o RF10, o RF11, do RF13 ao RF18 (no RF15, "prontas"; "classificadas" é da F4b) e a parte deles no
-> RF20. A **F4b `classificacao-bncc`** (`tasks/prd-classificacao-bncc/prd.md`) leva o RF1, o RF2, o RF5, o RF6, a
-> habilidade no RF7, o RF9, o RF12, o RF19, a seção 8b e as perguntas da BNCC da seção 10.
+> **Corte de 11/11/2026 (Joaquim), sem mudar requisito:** RF1, RF2, RF5, RF6, RF9, RF12, RF19, a habilidade no RF7, o
+> "classificadas" do RF15, a classificação no RF20, a seção 8b e as perguntas da BNCC na 10 são da F4b
+> (`tasks/prd-classificacao-bncc/prd.md`).
 
 ## 1. Problema
 
@@ -90,7 +89,7 @@ controladas, e toda geração usa essa classificação e cita a página da ediç
 
 | Dado | Titular | Finalidade | Retenção | Já está em `docs/lgpd.md`? |
 |---|---|---|---|---|
-| Licenciante (nome do dono do direito, pode ser pessoa), agora no registro da licença | licenciante | registrar a licença (D5) | enquanto a licença ou um material dela existir, depois o prazo de `material_excluido` | sim, na linha do material; **muda de lugar**: atualizar a linha |
+| Licenciante (pode ser pessoa), agora no registro da licença | licenciante | registrar a licença (D5) | enquanto a licença ou um material dela existir, depois o `material_excluido` | sim, na linha do material; **muda de lugar** |
 | Quem registrou e alterou a licença, quem corrigiu a classificação, quem enviou a edição | coordenador | autoria da declaração e da correção | na auditoria, com o prazo dela | **não**: incluir as ações novas na linha da auditoria |
 | PDF temporário, até a extração | (material, sem pessoa) | extrair o texto | até a extração, ou 25 h no órfão | **não**: a 45.0 já previa a linha |
 
@@ -106,16 +105,14 @@ continua na atividade, que o professor aprova antes de aplicar.
 
 ## 9. Métricas
 
-Tempo do envio ao material classificado. Capítulos corrigidos pela coordenação e questões com habilidade trocada pelo
-professor (alto indica classificador fraco). Cobertura por série no primeiro mês.
+Tempo do envio ao material classificado. Capítulos corrigidos e habilidades trocadas (alto: classificador fraco).
+Cobertura por série no primeiro mês.
 
 ## 10. Perguntas em aberto
 
-- Trecho menor que a página: a Tech Spec decide pela medida da busca; a citação continua pela página
+- Trecho menor que a página: a Tech Spec decide
 - A taxa mínima e a amostra fixa da detecção de capítulo e da classificação BNCC: Tech Spec, com o `test-engineer`
-- A fonte da tabela: o dataset comunitário `bncc-dados` (CC BY 4.0, com atribuição), conferido por amostra contra o PDF
-  do MEC, ou a planilha oficial, se o link existir
+- A fonte da tabela: o `bncc-dados` (CC BY 4.0), conferido por amostra contra o PDF do MEC, ou a planilha oficial
 - Se o texto da BNCC é ato oficial fora do direito autoral (Lei 9.610, art. 8º, IV): a confirmar com advogado
-- A revisão da BNCC em curso no CNE: a tabela guarda a versão
-- Se a licença de terceiro precisa dizer que cobre o uso com IA (envio ao provedor): a confirmar com advogado, junto
-  com os termos de editora de `docs/regulacao.md` seção 5
+- A revisão da BNCC no CNE: a tabela guarda a versão
+- Se a licença de terceiro precisa cobrir o envio ao provedor de IA: a confirmar com advogado (`docs/regulacao.md` seção 5)

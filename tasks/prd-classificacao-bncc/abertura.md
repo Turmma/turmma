@@ -10,3 +10,6 @@ o Arquiteto:
 3. Usa a pesquisa da BNCC de 11/11/2026 (resumo na seção 10 do PRD da F4): códigos, blocos `EF67`/`EF69`/`EF89`, EM por
    área, cerca de 1.300 habilidades no EF e 183 no EM, o dataset `bncc-dados` (CC BY 4.0), e o que ficou ⚠️ não
    verificado.
+4. Põe na Tech Spec a contração que a F4 deixou (Tech Spec da F4, seção 3): o backfill de séries e licenças de novo,
+   idempotente, para o que entrou na janela; o check `(titularidade = 'terceiro_com_licenca') = (licenca_id is not
+   null)` com `NOT VALID` e `VALIDATE`; e a saída de `material.licenciante` e dos dois checks dele.
