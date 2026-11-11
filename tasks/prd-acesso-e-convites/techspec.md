@@ -1,7 +1,7 @@
 # Tech Spec — A equipe e o aluno entram sem depender de ninguém
 
 **PRD:** `tasks/prd-acesso-e-convites/prd.md`
-**Status:** do F2, separada em 03/11/2026; revista
+**Status:** implementada em 10/11/2026 (do F2, separada em 03/11/2026; revista)
 **Depende de:** F2: o `travarPendente`, o `fechar('encerrada')`, o cadastro do professor, o `desativar` e os dois expurgos
 **Cenários:** `tasks/prd-acesso-e-convites/cenarios.md`
 

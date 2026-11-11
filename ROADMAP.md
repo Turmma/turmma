@@ -493,7 +493,8 @@ dia e sua semana" do Assistente continua no F11, lendo o que esta fase gera. O p
 **Pronto quando:** o professor abre a semana e vê o que precisa fazer sem cadastrar nada; feriado e recesso do
 calendário tiram a aula do dia; e nenhuma tela mostra dado de outra escola.
 
-## F2c — `acesso-e-convites` [~]
+## F2c — `acesso-e-convites` [x]
+Concluída em 10/11/2026, validada em tasks/prd-acesso-e-convites/validacao.md.
 **Depende de:** F2 · **não depende da F2b** · **pousa antes da primeira escola real**
 
 Saiu do F2 no corte das tarefas de 03/11/2026 (Joaquim), com o PRD, a Tech Spec e os cenários já revisados lá
