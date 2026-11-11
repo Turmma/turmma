@@ -566,7 +566,7 @@ recebimento; e nada do que a coordenação vê separa o professor que usou a IA 
 
 > Esta funcionalidade parece burocracia e é a que protege o negócio. Não empurre para o fim.
 
-## F4 — `ingestao-do-material` [ ]
+## F4 — `ingestao-do-material` [~]
 **Depende de:** F1
 
 Conferido contra o código em 24/10/2026. **Já existe** (A1): upload de PDF pela coordenação, com titularidade e licença declaradas (D5
