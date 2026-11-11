@@ -36,3 +36,4 @@ Leia este índice antes de codar, e abra só os blocos que interessam à tarefa 
 | 2026-11-11 10:51:39 | `revisor-geral` | 5ª | APROVADO | `revisao-spec` | TS §5 "Extração", linha 87. O texto da transição traz só `estado` e `excluido_em`. A §6 já obriga o escopo, mas a regra 10 fica mais visível com `where… |
 | 2026-11-11 10:51:59 | `infra-guardian` | 5ª | REPROVADO | `revisao-spec` | techspec.md:91-92 (TS §5 Extração) e TS §3 "Migrations" (techspec.md:48-51): o código novo grava `falha = 'arquivo_ausente'`, e o código anterior não consegue… |
 | 2026-11-11 10:54:27 | `infra-guardian` | 6ª | APROVADO | `revisao-spec` | cenarios.md:157-158, o [I] da volta do código. |
+| 2026-11-11 11:02:35 | `test-engineer` | 5ª | SEM VEREDITO | `revisao-spec` | As tabelas de "Testes que provam a regra" das 12 tarefas estão abaixo. Usei as legendas do `cenarios.md` (I, U, E, P, C). "Mutação" diz o que se tira para o… |

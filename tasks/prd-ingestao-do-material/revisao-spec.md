@@ -192,3 +192,4 @@ atual, com APROVADO quando o revisor tem veto.
 | 2026-11-11 10:50:25 | 2026-11-11 10:51:39 | `revisor-geral` | 5 | APROVADO | ae44f5ff933324ed8 |
 | 2026-11-11 10:50:20 | 2026-11-11 10:51:59 | `infra-guardian` | 5 | REPROVADO | acac84479097adb11 |
 | 2026-11-11 10:53:10 | 2026-11-11 10:54:27 | `infra-guardian` | 6 | APROVADO | abfd7f7d64f0428fc |
+| 2026-11-11 10:58:06 | 2026-11-11 11:02:35 | `test-engineer` | 5 | SEM VEREDITO | ab6403a8e93592a1f |

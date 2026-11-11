@@ -14,11 +14,11 @@ por série e licença. O trecho é a página.
 
 | Módulo | Novo ou alterado | O quê |
 |---|---|---|
-| `packages/core/src/material/` | novo | `PdfExtractor`, `ChapterReader` e o repository da extração, da API e do worker |
-| `apps/worker/src/processors/` | novo | a extração e a varredura do temporário |
+| `packages/core/src/material/` | novo | `PdfExtractor`, `ChapterReader`, o repository da extração |
+| `apps/worker/src/processors/` | novo | extração e varredura |
 | `apps/api/src/material/` | alterado | envio, séries, edição, licença, resumo |
 | `apps/api/src/ops/`, `operacao/` | alterado | a 46.0 |
-| `apps/api/src/{artefato,assistente,tutor}` | alterado | leitura; `fontes` |
+| `apps/api/src/{artefato,assistente,tutor}` | alterado | leitura, `fontes` |
 | `packages/shared`, `core/retencao`, `apps/despachante` | alterado | contratos, fila, jobs, vagas, matriz, classificação, expurgo |
 | `infra/`, `compose` | alterado | `worker-pdf`; `VAGAS_ESCOLA_PDF` no worker e no despachante |
 
@@ -47,12 +47,12 @@ envio_de_material    escola_id, material_id, criado_em; pk (escola_id, material_
 
 **Migrations** (regra 80, item 9): (1) colunas e tabelas nulas; (2) backfill em lotes, com `lock_timeout`: todas as
 séries da escola em cada material; uma licença por `(escola_id, licenciante)`, `vigente_desde` no `enviado_em`
-mais antigo, sem fim (ou com fim na última exclusão, se todos os materiais estão excluídos), `referencia` "registrada antes da F4". O código grava `licenca_id` **e** `licenciante`. A contração é da F4b
+mais antigo, sem fim (ou fim na última exclusão, se todos estão excluídos), `referencia` "registrada antes da F4". O código grava `licenca_id` **e** `licenciante`. A contração é da F4b
 (item 4 da abertura de lá). O `docs/runbook.md` ganha "Voltar o código depois da F4": o que fica (jobs `pdf`,
 `processando`, `envio_de_material`) e como limpar.
 
-**Retenção.** A licença sai no expurgo, em `material_excluido`, contada de `vigente_ate` (sem fim, não sai), e só sem
-nenhuma linha de `material` que a cite, inclusive excluída; o passo roda depois do material.
+**Retenção.** A licença sai no expurgo, em `material_excluido`, contada de `vigente_ate` (sem fim, não sai), só sem
+linha de `material` que a cite, inclusive excluída; o passo vem depois do material.
 
 ## 4. API
 
@@ -147,13 +147,8 @@ sem pessoa (itens 7 e 9).
 | Métrica e alerta | extração (duração, resultado); idade do job `pdf`. Alerta `pdf-parado`: o job `pdf` mais antigo pendente há mais de 15 min **e** nenhuma extração terminada (`pronto` ou `falhou`) nos últimos 15, com runbook |
 | Cenário de teste de carga | `cenarios.md` |
 
-**Estados do material:**
-
-| Estado | Entra | Sai | Prazo e queda |
-|---|---|---|---|
-| `processando` | envio, edição | `pronto`, `falhou` | prazo na última tentativa: `falhou`; queda: stalled refaz |
-| `pronto` | extração | exclusão, substituição | — |
-| `falhou` | extração, prazo, descarte | só envio novo (`ops:reprocessar-job` recusa) | expurgo |
+**Estados.** `processando` (envio, edição) vai a `pronto` (extração) ou `falhou` (extração, prazo na última tentativa,
+descarte); queda: stalled refaz. `pronto` sai por exclusão ou substituição; `falhou`, só por envio novo.
 
 ## 8. Uso de IA
 
@@ -161,12 +156,15 @@ Nenhuma chamada nova.
 
 ## 9. Frontend
 
-- **Material** (Escola › Material): resumo; lista paginada; envio de até 20 PDFs, um por vez, com a situação de cada
-  um; o painel edita séries e título, mostra capítulos e envia a edição nova, avisando que a anterior sai da busca
-- **Licenças** (aba de Material): situação; registrar; alterar vigência, com quantos materiais saem ou voltam
-- **Sino**: sexto tipo, `licenca-vencendo` (30 dias antes, ou vencida com material), de `GET /v1/licencas`, sem
-  reler por tempo; leva a Licenças, sem nome nem número por pessoa; some com a vigência atualizada
-- **Chip e PDF do artefato**: título e edição pelas `fontes`; **Tutor do aluno**: um estado
+| Tela | Mostra ou faz | De onde vem (§4) |
+|---|---|---|
+| Material | resumo; lista paginada | `GET /resumo`; `GET /v1/materiais` |
+| Envio (até 20, um por vez) | disciplina, séries, licença vigente; enviar | `/v1/disciplinas`, `/v1/series`, `GET /v1/licencas` (`situacao`); `POST /v1/materiais` |
+| Painel do material | capítulos; séries e título; edição nova (a anterior sai da busca) | `GET /:id` (`capitulos`); `PATCH /:id`; `POST /:id/edicoes` |
+| Licenças (aba de Material) | situação, materiais; registrar; vigência | `GET`, `POST`, `PATCH /v1/licencas` (`materiais`: o que sai ou volta) |
+| Sino | `licenca-vencendo` (30 dias antes, ou vencida com material), leva a Licenças, sem nome nem número por pessoa | `GET /v1/licencas`, sem reler por tempo |
+| Chip e PDF do artefato | título, edição, "edição anterior" | `fontes` do artefato |
+| Tutor do aluno | estado sem material | `SEM_MATERIAL_DA_SERIE` |
 
 Textos e estados: `cenarios.md`, "Telas" (D51). `docs/interface.md` muda na tarefa de cada tela, inclusive os "cinco
 tipos" do sino.

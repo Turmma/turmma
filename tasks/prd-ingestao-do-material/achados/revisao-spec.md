@@ -1637,3 +1637,87 @@ Arquivos:
 - /home/joaquimdp/Documents/git/.maestri/floors/educaia--specingestao-do-material/tasks/prd-ingestao-do-material/cenarios.md
 - /home/joaquimdp/Documents/git/.maestri/floors/educaia--specingestao-do-material/packages/shared/src/material/material.ts
 - /home/joaquimdp/Documents/git/.maestri/floors/educaia--specingestao-do-material/apps/despachante/src/outbox-relay.ts
+
+## test-engineer · 5ª rodada · SEM VEREDITO · 2026-11-11 11:02:35 · `tasks/prd-ingestao-do-material/revisao-spec.md`
+
+As tabelas de "Testes que provam a regra" das 12 tarefas estão abaixo. Usei as legendas do `cenarios.md` (I, U, E, P, C). "Mutação" diz o que se tira para o caso ficar vermelho. As recomendações da Rodada 6 entraram como linhas, marcadas com **(R6)**. Não escrevi nenhum arquivo.
+
+Pontos que valem para todas as tarefas:
+- **Suíte de saídas depois do `guardarBytes`.** Ela nasce na 2.0, e cada tarefa acrescenta o caso da sua cláusula: a 6.0 põe `LICENCA_VENCIDA` reconferida na transação, e a 8.0 põe `EDICAO_EM_ANDAMENTO` e o `CONFLITO` da edição. A 2.0 não pode provar um código de erro que ainda não existe.
+- **Ordem da linha [C].** A linha de carga está na 3.0, mas ela mede o p95 do turno do Tutor da escola B, que a 7.0 muda. Ou a 3.0 roda depois da 7.0, ou a 7.0 roda o cenário de novo, com o resultado na coluna "Caso" (aviso 3 da retro da F2c).
+- **Mesmo relógio.** "Hoje", 59 e 61 min, 25 h e 29 ou 31 dias vêm sempre do mesmo `Clock` injetado, nunca de `Date.now()`. No e2e, o relógio fica parado com `page.clock` (autoconferência 10).
+
+---
+
+### 1.0 PDF extraído no worker
+
+| Cenário | Tipo | O que prova |
+|---|---|---|
+| caminho feliz: job `material.extrair-pdf` na fila `pdf` | I | o material fica `pronto`, com os trechos por página, `processado_em` e `objeto_apagado_em` gravados, e o objeto apagado só depois do commit |
+| Prazo (onda-3b) | I | com o relógio falso e o extrator que não resolve, dá `TEMPO_ESGOTADO` com a vaga livre; na 3ª tentativa o material fica `falhou` e o objeto é apagado |
+| SIGTERM além da graça | I | dá `EXECUCAO_INTERROMPIDA` na última tentativa; com tentativa sobrando, o job fica `ativo` e o objeto fica |
+| Falha final: as 3 tentativas da definição | I | o job fica `falhou`, `job.falhos{tipo}` sobe, o material fica `falhou` e o objeto é apagado |
+| `sem_texto` e `arquivo_invalido`, um caso cada | I | vai a `falhou` numa tentativa só, com a vaga liberada |
+| objeto ausente com o material em `processando` | I | grava `extracao_falhou` numa tentativa, e nenhum valor novo entra em `falha` |
+| [P] material excluído entre o `lerParaExtrair` e o `lerBytes`, com o objeto já apagado | P | o job conclui sem efeito, sem `falhou` e sem `job.falhos`. Mutação: tratar todo objeto ausente como `falhou` **(R6)** |
+| [P] dois jobs, o segundo parado entre o `lerParaExtrair` e o `lerBytes` até o primeiro dar commit | P | o material fica `pronto` e os dois jobs `concluido`. Mutações: conferir só `excluido_em`; gravar `falhou` sem `estado = 'processando'` |
+| concorrência: PDF duplicado, dois jobs em `Promise.all` | P | o material fica `pronto`, os trechos entram uma vez e os dois jobs ficam `concluido` |
+| Exclusão em `processando` | I | o objeto deixa de existir, e o job que chega depois sai sem gravar |
+| isolamento, repository: contexto A com o id da B no `lerParaExtrair` | I | volta vazio. Mutação: tirar o `escola_id` |
+| isolamento, job: job da A com o `materialId` da B | I | nada é lido nem gravado em escola nenhuma, e o estado e o objeto da B ficam intactos |
+| Expurgo | I | o expurgo da A apaga os objetos da A e não toca os da B. Mutação: tirar o filtro de escola |
+| log novo e métrica da extração | I | a linha leva ids, código, duração e contagem, e nunca título, nome do arquivo, licenciante nem texto; `arquivo_ausente` aparece à parte de `extracao_falhou` na métrica e no log **(R6)** |
+
+Fora da contagem: os testes de hoje do `PdfExtractor` (duas colunas, fórmula quebrada) vão com ele para o `packages/core`. Permissão não se aplica, porque não há rota.
+
+### 2.0 Nenhum PDF fica para trás
+
+| Cenário | Tipo | O que prova |
+|---|---|---|
+| caminho feliz | I | a linha de `envio_de_material` existe antes do `guardarBytes`, e a transação a apaga; no fim há material e job, e nenhuma linha sobra |
+| saída depois do `guardarBytes`: `CONFLITO`, `LIMITE_EXCEDIDO` reconferido sob a trava e commit forçado a falhar, um caso cada | I | o objeto e a linha são apagados. Mutação: tirar o apagar do `catch` |
+| falha do próprio `guardarBytes`: o storage estoura o prazo e grava depois do `apagar` | I | dá 503, nada entra em `material` e a linha fica; com 61 min, a varredura apaga o objeto e a linha. Mutação: apagar a linha no `catch` |
+| `CONFLITO` com o `apagar` falhando | I | a linha fica, e a varredura apaga os dois. Mutações: apagar a linha antes do objeto; apagar sem conferir o resultado |
+| o `apagar` falha uma vez na varredura | I | a linha fica e sai na varredura da hora seguinte |
+| queda entre o `guardarBytes` e o commit | I | com 59 min a varredura não apaga; com 61 min apaga, pelo mesmo `Clock`. Mutação: tirar a leitura de `envio_de_material` |
+| linha sem objeto: queda antes do upload | I | a linha sai sem erro |
+| a varredura apagou a linha de um envio lento | I | a transação não acha a linha, desfaz com 503 (o `delete` roda sob `lock_timeout`) e nada fica em `material`. Mutação: não conferir o `delete` |
+| concorrência: [P] envio lento com a linha travada e a varredura das 61 min | P | a varredura pula a linha e não apaga o objeto, e o envio confirma `pronto`. Mutações: tirar o `skip locked`; tirar o travar |
+| Órfão pós-commit (onda-3b), um caso por item | I | `pronto` há 25 h sai, há 23 h fica; `falhou` há 25 h, com o `apagar` falhando, sai (mutação: gravar `processado_em` só no sucesso); excluído há 25 h sai; `processando` há 25 h fica; o de antes da migration não entra |
+| isolamento: órfão e `envio_de_material` em duas escolas | I | cada `apagar` roda no contexto da sua escola e grava só na sua linha. Mutação: um contexto só para as duas |
+| falha numa escola | I | a varredura segue nas outras |
+| o `@Unscoped` da varredura | U | o teste de arquitetura acha a justificativa no mesmo método, e a leitura é só de escola e id **(R6)** |
+| log novo da varredura | I | a linha leva ids e contagens, e nunca chave do objeto com título, nome do arquivo nem licenciante |
+
+### 3.0 Operação, alerta, fila `pdf` e carga
+
+| Cenário | Tipo | O que prova |
+|---|---|---|
+| Reprocessar com um tipo que a 46.0 aceita | I | o job conclui, a cópia `failed` sai e a reconciliação não republica |
+| concorrência: duas execuções do reprocessar em `Promise.all` | P | só uma reprocessa |
+| recusa: `ia.*`, `titular.*` e `material.extrair-pdf`, um caso cada | I | o pedido é recusado, este último com "Tentar de novo é envio novo". Mutação: tirar o tipo da lista |
+| Descartar o PDF, e `sistema.*` e `retencao.*`, um caso cada | I | o PDF deixa o material `falhou` e o objeto apagado; os outros dois tipos descartam |
+| Descartar um job `aguardando` | I | recusado, com a linha, o material e o objeto intactos. Mutação: tirar o `where estado = 'falhou'` |
+| Chamado: `--chamado` 0, negativo ou texto | I | recusado, com a linha e a auditoria intactas |
+| Auditoria | I | `job.reprocessado` e `job.descartado` gravam o chamado; uma sentinela em `dados` fica fora da saída, da auditoria e do log |
+| isolamento: listar com a escola A | I | não traz job da B. Mutação: tirar o filtro |
+| fila `pdf`: escola A com 10 pendentes e vaga 2 | I | o PDF da B, enviado depois, conclui antes de a fila da A esvaziar. Mutação: ignorar a vaga |
+| checks da migration | I | `job_registro_fila_valida` aceita `pdf`, e o de `vagas` aceita a chave `pdf` |
+| configuração das vagas | U | `VAGAS_ESCOLA_PDF` vale 2 por padrão e cede a `configuracao_operacional_escola.vagas`, no worker e no despachante |
+| configuração do `worker-pdf` | U | lê um PDF por vez, declara `lockDuration` e stalled **(R6)** e não sobe sem as variáveis do storage |
+| alerta `pdf-parado`, termo a termo (alertas e ensaio) | I | não dispara no 1º job depois de horas sem PDF, nem com 300 pendentes e extrações terminando (inclusive `falhou`); dispara com o `worker-pdf` parado e um job pendente há 16 min; o alerta entra no `ensaio-alertas.ts` |
+| [C] carga das 300 apostilas | C | ver os critérios logo abaixo |
+
+Critérios da linha [C]:
+- 300 PDFs do maior tamanho do seed passam pela rota real, com o guard, por três coordenadores.
+- A escola B usa o Tutor no pico ao mesmo tempo.
+- A vazão projeta as 300 entre 19h e 5h com uma réplica.
+- O p95 do turno do Tutor da B fica até 500 ms acima da base.
+- Nenhum statement passa de 1,5 s.
+- O PDF que a B envia no meio espera no máximo duas extrações.
+- Controle negativo: com `VAGAS_POR_ESCOLA_DESLIGADAS`, o cenário reprova.
+
+A coluna "Caso" da linha [C] leva a corrida, e não o teste do script: o comando novo (`npm run carga:ingestao` e o `:controle-negativo`), a data, os números e a condição da máquina ("Quando a carga vale como registro").
+
+### 4.0 Capítulos
+[… 178 linhas cortadas]
