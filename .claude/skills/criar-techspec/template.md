@@ -93,6 +93,12 @@ Telas, estados, componentes reaproveitados. Como fica em Chromebook fraco, com t
 
 Medida, token e estado de uma peça moram num lugar só, o `docs/interface.md`; aqui e no `cenarios.md` cite a seção, sem repetir o número. Na X1 a mesma regra estava na Tech Spec, no `cenarios.md`, no `docs/interface.md` e no `mockup.md`, e cada decisão de tarefa tinha de chegar aos quatro.
 
+**De onde vem cada coisa da tela.** Para cada dado que a tela mostra e cada ação que ela oferece, a rota da §4 que o entrega
+e o campo do esquema; a borda do PRD que pede uma ação ("a coordenação corrige o e-mail") tem a rota dela. O que não tem rota
+vira item da §4 ou sai da tela, antes da revisão da spec. Na F2c, a confirmação da senha provisória mostrava a matrícula que
+nenhuma leitura entregava (12.0: parada do Joaquim e a 17.0 nova), e a borda "E-mail que volta" prometia corrigir um e-mail sem
+caminho (maior 1 da validação: as 18.0 e 19.0 novas).
+
 **Altura.** Se a tela tem limite de altura ("a 1366 × 768 a página não rola, só o miolo"), diga qual peça
 é dona dela, de preferência a casca (coluna flexível, e a região que rola com `min-h-0`), e que nenhuma
 tela calcula a própria altura com `calc(100dvh − N rem)`. Diga também que alvo de toque e altura não

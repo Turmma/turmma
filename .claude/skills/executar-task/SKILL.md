@@ -88,7 +88,11 @@ caso ou uma ferramenta, tem de ler os arquivos da linha: abra o que ela lê ante
 
 Antes de pedir a rodada, rode `node tools/processo/mutacoes.ts --faltando <documento>`: cada linha que ele lista ganha bloco
 em "Mutações", ou a meia linha do motivo, e o começo de "Mutações" leva a linha `--faltando: <n> linhas (<n> blocos, <n>
-motivos)`. Vale para o código de `tools/` também. Na X4, a 4.0 e a 6.0 reprovaram por linha que ele já apontava. E cada linha da
+motivos)`. Vale para o código de `tools/` também. Na X4, a 4.0 e a 6.0 reprovaram por linha que ele já apontava. **O
+`--faltando` é o piso, não a lista**: ele lê a linha com condição, e não vê (a) cada termo de uma linha com vários
+(`and(eq(a), eq(b))`, `a && b`: um bloco ou um motivo por termo, e o motivo de um não cobre os outros), (b) SQL ou Lua dentro de
+template string, (c) a linha sem condição que protege (a chamada que confere antes, a fiação de uma guarda, o campo zod). Esses a
+pergunta 1 da autoconferência lista à mão: na F2c foram 8 reprovações do `test-engineer` por cláusula que ele não listava. E cada linha da
 tabela de testes ganha o caso na coluna "Caso" (pergunta 11); documento sem a coluna leva a lista "linha → caso" no plano.
 
 ## 3. Implementar
@@ -225,7 +229,11 @@ Se entrar na lista parece contrariar a regra que o teste cita, não atualize: é
 **Quem usa o que mudou.** Mudou contrato de rota, esquema ou constante de `packages/shared`, a assinatura de uma peça do
 `core` ou um limite que outro caminho alcança: procure quem a usa e rode isolados os testes achados que você não alterou.
 O portão só roda os que a árvore alterou. Na F2, a 8.0 trocou o contrato da lista e derrubou quatro specs de e2e que sobem a
-lista pela tela, e o teto de 100 da 16.0 quebrou o caso de 501 da 10.0, que a validação pegou.
+lista pela tela, e o teto de 100 da 16.0 quebrou o caso de 501 da 10.0, que a validação pegou. **Acrescentar também conta**:
+serviço no compose, rota, botão numa lista de ações, campo no retorno de um repository. O teste que confere o conjunto inteiro
+(o inventário) quebra com o acréscimo: `tools/ci/compose.int.test.ts` (serviços), `apps/api/test/convite.int.test.ts` (rotas com
+"convite"), `ACOES_DO_ESTADO` em `e2e/professores.spec.ts`, o `toEqual` do retorno no `*.repository.int.test.ts`. Na F2c, foram
+quatro vermelhos da esteira (1.0, 3.0, 10.0, 19.0) e a reprovação da 7.0 (cinco e2e da regra antiga).
 
 ```bash
 grep -rl "<o nome que mudou>" --include='*.test.ts' --include='*.test.tsx' --include='*.spec.ts' apps packages infra e2e
@@ -288,7 +296,8 @@ Orquestrador: <o nome que veio no pedido dele>
 ### O que volta
 
 - **`RELATÓRIO` com "APROVADO por todos":** a aprovação é final. Se a linha "Sem aplicar" aponta um
-  arquivo, copie a tabela dele para "Recomendações sem aplicar" do `N_task.md`, como está, e siga
+  arquivo, copie a tabela dele para "Recomendações sem aplicar" do `N_task.md`, como está, junto da seção "Sem aplicar" de
+  **cada** ordem anterior deste documento (`.processo/ordens/<documento>-r<n>.md`), e siga
   para o passo 6. Quem decide o que se aplica e o destino do resto é a Mesa, não você.
 - **`ORDEM DE CORREÇÃO` só com recomendações:** os revisores aprovaram, e a Mesa escolheu as
   recomendações baratas a aplicar. Aplique como qualquer ordem, rode o portão da tarefa e peça rodada

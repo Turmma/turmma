@@ -64,6 +64,11 @@ Foram nove achados no F1 e três reprovações na A0 (10.0 e 11.0): o cache da p
 nenhum teste provava esvaziar, e o mesmo link colado de novo na aba, que não mudava o estado e
 deixava a tela presa com o token na barra. Na A0b foram mais quatro, todas no quarto caso: o foco,
 o aviso ou o desafio da tentativa anterior sobrando depois de uma falha ou de a lista recarregar.
+A linha de carga ([C], regra 80) leva na coluna "Caso" o resultado da corrida de verdade, e não o teste do script: o comando
+(`npm run carga:…`), a data, os números do critério e a condição da máquina (`docs/runbook.md`, "Quando a carga vale como
+registro"). Teste do script prova o script; a carga só se prova rodando. A tarefa que muda o que a tela ou a rota manda
+atualiza o cenário de carga que a mede. Na F2c, a fase `professores` passou pela 10.0 com os testes do script e caiu na primeira
+corrida, na validação (crítico 1), e a 16.0 mudou o que a sala manda sem atualizar o k6 dela.
 A linha de log vale para toda linha de log nova, e sai quando a tarefa não escreve nenhuma: três
 recomendações na A0 (7.0, 8.0, 9.0) foram log sem teste do conteúdo.
 
@@ -93,7 +98,9 @@ rodada nova; o caso que originou cada pergunta está em `docs/processo-licoes.md
    a medida gravada com `style.setProperty`, a guarda dele) e o id dentro de uma `queryKey`. Inclua as cópias da mesma regra
    em outro arquivo e as que entram depois, para atender um revisor. Cada uma ganha um bloco na seção "Mutações"; bloco cujo
    teste continua verde reprova o portão: falta o teste, e não o bloco. Trava se prova pelo efeito (dois registros), não
-   pela espera.
+   pela espera. Entram também as linhas sem condição que protegem — a chamada que confere antes (`#conferir`,
+   `semaforo.executar`: a mutação é tirar a linha), a fiação de uma guarda, o campo de um esquema zod — e o SQL ou Lua dentro
+   de template string: o `--faltando` não vê nenhum deles (8 reprovações na F2c).
 2. **O texto que você põe na tela já aparece nela?** Procure o texto novo em `e2e/` (`grep -rln '<texto>' e2e/`) e rode
    isolados os specs que o contam (`toHaveCount`, `nth`): o portão só puxa os specs que citam texto **removido**.
 3. **O cenário tem o segundo dado que torna a cláusula observável?** Se o repository filtra por turma, aluno em **duas**
@@ -103,7 +110,11 @@ rodada nova; o caso que originou cada pergunta está em `docs/processo-licoes.md
    ninguém: o teste fica verde pelo motivo errado. Percorra o caminho até a linha que interessa e confirme que o cenário
    chega nela.
 5. **A asserção olha o resultado, ou a forma do código?** Asserção sobre texto de arquivo, nome de função ou lista vazia
-   passa igual se a regra ler o campo errado. Compare o que o usuário obtém.
+   passa igual se a regra ler o campo errado. Compare o que o usuário obtém. Asserção de ausência ou de contagem na tela
+   (`not.toContain`, `toHaveCount(0)`, `vezes > antes`) só prova depois da resposta que poderia trazer o que ela nega: espere
+   essa resposta (`page.waitForResponse`, o pedido contado na rede falsa, ou um controle na mesma cena que mostra o positivo) e
+   leia o "antes" com a tela parada, logo antes do clique; `waitFor(() => expect(…).not…)` passa na primeira volta. Na F2c,
+   a 6.0, a 12.0, a 16.0 e a 19.0 reprovaram por asserção que passava antes de a resposta chegar.
 6. **A guarda nova (regra de lint, teste estrutural, trava de pasta) tem fixture de quem a contorna, e falha quando o alvo
    some?** Uma fixture e o teste vermelho para cada forma de escrever o mesmo que a regra conhece (reexportação,
    `import *`, `import()` e `require`, o caminho como texto em outra posição, alias). A cerca sobre arquivo que mudou de
@@ -131,7 +142,10 @@ rodada nova; o caso que originou cada pergunta está em `docs/processo-licoes.md
     Caso de e2e que olha "hoje", a semana ou o mês correntes: a cena tem dado no dia da semana de hoje (como o T9 da F2b,
     `grade: () => [{ dia: diaDeHoje, … }]`), ou o relógio parado com `page.clock`; o caso passa num sábado, num domingo e às
     23h59 de domingo. Na F2b, a 6.0 reprovou com três casos que caíam todo fim de semana, e a 8.0 criava o item antes da
-    virada da semana.
+    virada da semana. E o teste não depende de a máquina estar calma nem de o relógio de parede não recuar: compare instantes
+    do mesmo relógio (o do banco, ou `performance.now()` no mesmo processo), dê folga entre processos, espere pelo sinal (a
+    resposta, a linha no banco) e não por tempo, e escolha "o último" pela ordem de criação, não por `expiraEm` nem
+    `Date.now()`. Na F2c foram 11 correções de teste que caía com a máquina carregada ou o relógio recuando.
 11. **O teste de isolamento quebraria sem a cláusula de escopo do repository, e cada linha da tabela de testes tem o caso na
     coluna "Caso", um para cada coisa que a linha diz?** Remova mentalmente a cláusula e pergunte se algo ficaria vermelho.
     Repository que filtra por escola e por ano: o ano de cada escola já separa, e a escola tirada fica verde se o caso usa
