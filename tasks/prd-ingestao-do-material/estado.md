@@ -1,9 +1,9 @@
 # Estado da execução — ingestao-do-material
 
 ## Agora
-- **Espero:** o `RELATÓRIO` do `Arquiteto` (spec a partir de `sem-prd`; para nas perguntas e na aprovação do PRD pelo Joaquim), pedido em 11/11 09:06. Em paralelo, a retro da F2c (acesso-e-convites) com o `Arquiteto 2` no térreo (D86).
-- **Devo ainda:** com o `RELATÓRIO` da retro e o commit dela na `develop`, trazer a `develop` para a spec (`git -C <andar> merge develop` e push, com o andar limpo) e pedir ao `Arquiteto` a fase `sem-tarefas` (passo 8, "A retro"). Escolhi a F4 como próxima pela ordem de construção do piloto (D84: F2, F4, F5 com a X6 parcial…); a X6, primeira `[ ]` do arquivo, entra por partes no momento de cada uma.
-- **Base:** `spec/ingestao-do-material` em `43006575`
+- **Espero:** o `RELATÓRIO` do `Arquiteto` da fase `sem-tarefas` (lista de tarefas, com a conferência da Tech Spec contra o template novo da retro da F2c), pedido em 11/11 depois do merge da `develop`. Spec revisada e aprovada em `082ab538` (6 rodadas, 7 revisores APROVADO, `revisao-spec.md`); a F4 foi cortada em duas: ingestão aqui, classificação pela BNCC na F4b (`5c53cf35`). Retro da F2c: `c6b5c44e` na `develop`, sem push.
+- **Devo ainda:** com a lista de tarefas, abrir as linhas e partir a primeira tarefa (passo 6).
+- **Base:** `spec/ingestao-do-material` em `082ab538` + merge da `develop` (`c6b5c44e`)
 
 ## Concluídas
 | Tarefa | Commit | Modelo | Rodadas | Observação |
