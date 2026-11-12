@@ -83,7 +83,7 @@ coordenação da escola afetada (seção "Como avisar as escolas") de que as fer
 esgotou as tentativas (5, com recuo) ou que falhou de forma definitiva. O despachante mede a cada 5 s e o alerta traz o `tipo`, nunca
 a escola nem o `dados`. A linha `falhou` fica 30 dias em `job_registro` (o `concluido` sai em 7) e o expurgo a leva; a de `titular.*`
 fica até a ação do operador. **O alerta não zera quando alguém olha**: fica aceso enquanto houver linha do tipo, e a lista de falhos
-está no "Primeiro olhar". Antes da 46.0 (X6) não há comando para reprocessar nem para descartar: a linha sai pelo prazo.
+está no "Primeiro olhar". Reprocessar e descartar têm comando (3.0 da ingestão do material, 46.0 da X5): veja "Reprocessar ou descartar um job que falhou" abaixo.
 
 **Impacto:** depende do tipo. `titular.montar-arquivo` e `titular.eliminar`: o pedido de um titular (LGPD, art. 18) não andou, e o job foi
 enfileirado uma vez só, então ninguém vai tentar de novo sozinho. `ia.*`: a ferramenta ou o tutor da escola não entregou o que a pessoa
@@ -119,12 +119,41 @@ No painel "Fundação — rota, fila e escola": "Jobs que falharam de vez, por t
    pelo stalled, vê a linha final e não o executa. Job com tentativa sobrando não chega aqui: fica `ativo` e é retomado. Queda sem SIGTERM (`kill -9`, host que caiu) também não grava este código: a linha fica `ativo` e o job volta pelo stalled. Foi no
    deploy, em horário letivo → o deploy fora do horário é regra (regra 80, item 9); registre o tipo e a escola (veja "Depois").
 
-**Se nada disso resolver:** não apague a linha à mão nem mude o `estado` por `update`: a linha é o rastro de que o job não terminou, e o
-caso de uso que grava a auditoria vem na 46.0. Escale ao dono do produto e, se o tipo é `titular.*` ou `ia.*`, avise a coordenação da
+**Se nada disso resolver:** não apague a linha à mão nem mude o `estado` por `update`: a linha é o rastro de que o job não terminou, e quem a
+reprocessa ou a descarta, com chamado e auditoria, é o comando da seção "Reprocessar ou descartar um job que falhou". Escale ao dono do produto e, se o tipo é `titular.*` ou `ia.*`, avise a coordenação da
 escola de que o pedido ou a ferramenta atrasou, sem mandar nome nem conteúdo por mensagem.
 
 **Depois:** registre no `TODO.md` o tipo, o `jobId`, a escola (id), o `codigo_falha` e a data, só com ids. Causa nova vira tarefa com
 teste que a reproduz.
+
+## Reprocessar ou descartar um job que falhou
+
+Os três comandos rodam com `OPERADOR=<pessoa da equipe>` (um operador ativo) e só tocam job que está `falhou`. Nenhum imprime nem guarda o
+`dados` do job: ele pode trazer o id de um material ou de um pedido.
+
+```
+OPERADOR=<pessoa> npm run -s ops:jobs-que-falharam
+OPERADOR=<pessoa> npm run -s ops:reprocessar-job -- <id do job> --chamado <n>
+OPERADOR=<pessoa> npm run -s ops:descartar-job -- <id do job> --chamado <n>
+```
+
+- **`ops:jobs-que-falharam`** lista até 200, dos mais recentes: id, escola, tipo, fila, código da falha e data. É a lista do "Primeiro olhar" de
+  "Job que falhou de vez", sem precisar do `psql`.
+- **`ops:reprocessar-job`** volta o job a `aguardando`: tira do Redis de fila a cópia `failed` dele (sem isso a fila ignoraria a publicação do mesmo
+  id) e o despachante o publica de novo. Grava `job.reprocessado` na auditoria da escola, com o número do chamado. **Recusa** `ia.*`, `titular.*`
+  (o pedido do titular foi enfileirado uma vez só e tem o caminho dele) e `material.extrair-pdf`: no PDF, "Tentar de novo é envio novo", porque o
+  objeto já saiu do storage e quem tenta de novo é a coordenação, enviando o arquivo outra vez. Antes de reprocessar, confira que a causa saiu (o
+  storage de volta, o código corrigido): o job que volta e falha de novo só repete o alerta. **`email.enviar-convite` manda de novo um e-mail para fora da
+  casa**: confira o convite (se ainda vale, e para quem foi) antes de reprocessar, mesmo que o worker recuse o convite revogado.
+- **`ops:descartar-job`** encerra o job e apaga a linha, e o alerta "Job que falhou de vez" se encerra com ela (se era a última do tipo). Grava
+  `job.descartado`. **Recusa** `ia.*` e `titular.*`. No `material.extrair-pdf`, fecha o material `processando` como `falhou` (a coordenação o vê com a
+  falha e pode enviar o arquivo de novo) e apaga o PDF do storage; se o storage recusar, o comando diz `objetoApagado: false` e a varredura de objetos
+  apaga em até 25 h. No `retencao.*` e nos outros de escola, a linha só sai: a rotina volta na próxima rodada.
+- **`--chamado`** é o número do chamado que pede a ação: inteiro positivo, nunca texto. Fora disso o comando recusa antes de abrir o banco.
+- **Job sem escola** (`sistema.*`): os dois comandos o recusam, até a migration da 5.0. Enquanto isso a linha sai pelo prazo de 30 dias, e a rotina
+  volta na próxima rodada agendada.
+- Se o comando diz `CONFLITO`, a fila ainda tem o job como ativo (a linha está desatualizada), ou já existe um igual em andamento: espere a
+  reconciliação do minuto seguinte e liste de novo.
 
 ## Seguro de limite ativo
 
@@ -816,6 +845,40 @@ acesso. Escale ao dono do produto e peça à coordenação que grave fora do hor
 **Depois:** registre no `TODO.md` o horário, o tipo da planilha, o número de linhas e a causa, sem planilha. Causa nova vira tarefa com
 teste que a reproduz.
 
+## Extração de PDF parada
+
+**Dispara quando:** o job `pdf` mais antigo que ainda não começou espera há mais de 15 min **e** nenhuma extração terminou (`pronto` ou `falhou`) nos
+últimos 15 min, por 1 min (`max(job_espera_mais_antiga_s{fila="pdf"}) and on () ((sum(increase(material_extracao_total{job="educa/worker", resultado=~"pronto|falhou"}[15m])) or vector(0)) == 0)`
+acima de 900, regra `infra/grafana/alertas/pdf-parado.yaml`; Tech Spec da ingestão do material, seção 7c). Os dois termos valem juntos: fila cheia com extração
+andando (as 300 apostilas do onboarding esperam horas) não dispara, e o primeiro PDF depois de horas sem nenhum também não, porque espera segundos.
+`sem_efeito`, `arquivo_ausente` e `nova_tentativa` não contam como extração terminada. A série não leva escola.
+
+**Impacto:** a coordenação enviou o PDF e o material fica em "processando": não vira texto, e nenhuma ferramenta nem o Tutor o usa. O PDF espera no storage
+privado; nada se perde. Job que **nunca rodou** fica `aguardando` até rodar, e este alerta é o único aviso: não há prazo automático para o PDF dele.
+
+**Primeiro olhar:** a réplica e a fila, só com ids e datas: `docker compose ps worker-pdf` e
+`docker compose exec postgres psql -U educa -c "select id, escola_id, estado, criado_em from job_registro where fila = 'pdf' and estado not in ('concluido', 'falhou') order by criado_em limit 20"`.
+O log do `worker-pdf` traz `material.extraido`, `material.extracao_falhou` e `material.extracao_repetira` (`materialId`, `tentativa`, nunca título nem texto), e o
+painel "Fundação — rota, fila e escola" mostra a espera da fila `pdf`.
+
+**Causas prováveis:**
+1. O `worker-pdf` está parado ou reiniciando em laço (`docker compose ps`) → `docker compose up -d worker-pdf`; confira `docker compose logs --since 10m worker-pdf`.
+   Sem `STORAGE_*` ele não sobe: a mensagem cita só o nome da variável.
+2. O storage sem espaço (o PDF fica no storage privado até a extração, em `material-temporario/`; com a fila parada ele só cresce, e o pior caso, as
+   300 apostilas de 20 MB das dez escolas do primeiro ano esperando juntas, é de cerca de 60 GB, `docs/infra.md` seção 3.5) → `df -h` do volume do storage
+   (`storage-dados`); libere espaço (backup antigo, objeto de teste) e suba o `worker-pdf`: a fila anda e cada objeto sai depois de extraído.
+3. O job está esperando vaga: a escola tem 2 PDFs em extração e a vaga `pdf` está tomada por um que passou do prazo → a `pdf` devolve o job da réplica
+   morta em até 80 s (lock de 60 s, verificação de 20 s); passando disso, veja "Job interativo esperando" (mesma vaga por escola) e a liberação da vaga.
+4. O despachante está parado ou o Redis de fila se perdeu → o job fica `aguardando` ou `publicado` sem andar; veja "Job interativo esperando" e "Job que falhou de vez" (o despachante republica pelo outbox, D49).
+5. O job falhou de vez e o material ficou `processando` com o PDF (a réplica morreu na última tentativa) → o alerta "Job que falhou de vez" dispara junto;
+   use `ops:descartar-job` (seção "Reprocessar ou descartar um job que falhou"): fecha o material e apaga o PDF.
+
+**Se nada disso resolver:** não apague a linha do job nem o objeto à mão. Avise a coordenação das escolas com material `processando` de que o envio está
+atrasado e que o arquivo não precisa ser enviado de novo (seção "Como avisar as escolas"); se for um PDF que trava a extração (o `worker-pdf` reinicia ao
+chegar nele), descarte o job pelo comando e peça à escola que envie o arquivo de novo.
+
+**Depois:** registre no `TODO.md` a hora, o que parou e quantos jobs esperaram, só com ids e contagens. Causa nova vira tarefa com teste que a reproduz.
+
 ## Voltar o código com eliminação agendada em curso (rollback)
 
 *Procedimento, não alerta: não há regra em `infra/grafana/alertas/`. Vale para qualquer volta de versão que passe pela migration
@@ -1022,6 +1085,10 @@ laços tentam códigos da turma no formato, um por segundo cada, pela página da
 1.000 códigos errados, as tentativas seguintes esperam 1 s e somam na métrica, e a regra dispara 5 min depois. Nenhuma
 tentativa recebe 429 nem 5xx: todas `NAO_ENCONTRADO`. A escola do ensaio fica acima do teto só até a janela de 10 min dela
 virar, e nenhuma escola real sente.
+
+O ensaio provoca também o "Extração de PDF parada": para o `worker-pdf` (a linha de comando sobe a stack inteira, e ele tomaria o job) e grava um job `material.extrair-pdf` na fila `pdf` com o `criado_em` há 16 min
+(uma escola sintética, sem material: o job nunca roda) e espera a regra disparar 1 min depois de o despachante medir a espera. Na restauração o job sai da tabela e o `worker-pdf` volta. A extração terminada que o
+segundo termo procura não existe no ensaio, e o dispara prova os dois termos juntos; o "não dispara" de cada termo tem prova própria em `infra/test/alerta-do-pdf-parado.int.test.ts`.
 
 O "Reuso de refresh" não entra no ensaio, porque não nasce de serviço parado: ele tem prova própria em
 `infra/test/alertas.int.test.ts`, que reusa cinco cookies (a regra fica normal) e depois o sexto (dispara), na

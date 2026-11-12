@@ -110,3 +110,19 @@ export function urlDoBancoDeOperacao(ambiente: Record<string, string | undefined
   if (url === undefined) throw new InvalidConfigError(['BANCO_URL'])
   return { url, timeoutConexaoMs: valores.BANCO_TIMEOUT_CONEXAO_MS, timeoutConsultaMs: valores.BANCO_TIMEOUT_CONSULTA_MS }
 }
+
+const opsRedisEnvSchema = z.object({
+  REDIS_FILA_URL: z.string().regex(/^redis:\/\/[^/\s]+(\/\d+)?$/).optional(),
+  REDIS_FILA_PORTA_HOST: inteiroPositivo.optional(),
+})
+
+/**
+ * O Redis de fila dos comandos que mexem na fila (`ops:reprocessar-job`): no container, o `REDIS_FILA_URL` do serviço; na máquina, com
+ * `.env.example`, o Redis de fila do compose local pela porta do host. Nenhum dos dois: `InvalidConfigError` pelo nome da variável.
+ */
+export function urlDoRedisDeFilaDeOperacao(ambiente: Record<string, string | undefined>): string {
+  const valores = validateEnvironment(opsRedisEnvSchema, ambiente)
+  if (valores.REDIS_FILA_URL !== undefined) return valores.REDIS_FILA_URL
+  if (valores.REDIS_FILA_PORTA_HOST === undefined) throw new InvalidConfigError(['REDIS_FILA_URL'])
+  return `redis://127.0.0.1:${String(valores.REDIS_FILA_PORTA_HOST)}`
+}

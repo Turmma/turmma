@@ -108,6 +108,17 @@ describe('mapa de ações da auditoria', () => {
     for (const validadeDias of [0, 2, 31]) expect(depois.safeParse({ ...base, validadeDias }).success, String(validadeDias)).toBe(false)
   })
 
+  it.each(['job.reprocessado', 'job.descartado'] as const)('%s leva o tipo de lista fechada e o chamado inteiro positivo, e nada mais (ingestao-do-material, 3.0)', (acao) => {
+    const depois = ACOES_DE_AUDITORIA[acao].depois
+    expect(depois.safeParse({ tipo: 'estrutura.gravar-planilha', chamado: 4711 }).success).toBe(true)
+    expect(depois.safeParse({ tipo: 'material.extrair-pdf', chamado: 1 }).success).toBe(true)
+    // O tipo é de uma lista fechada: texto livre (o `dados` do job, um nome) nunca entra.
+    expect(depois.safeParse({ tipo: 'Enzo Martins', chamado: 1 }).success, 'tipo livre').toBe(false)
+    for (const chamado of [0, -3, 1.5]) expect(depois.safeParse({ tipo: 'estrutura.gravar-planilha', chamado }).success, String(chamado)).toBe(false)
+    expect(depois.safeParse({ tipo: 'estrutura.gravar-planilha', chamado: 1, dados: { materialId: 'x' } }).success, 'campo a mais').toBe(false)
+    expect(depois.safeParse({ tipo: 'estrutura.gravar-planilha' }).success, 'sem chamado').toBe(false)
+  })
+
   // MVP de apresentação (D77): o que a fatia audita (regra 20, item 10; regra 70, item 6).
   const UM_ID = '0190c7e2-0000-7000-8000-000000000000'
 

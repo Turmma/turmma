@@ -23,13 +23,14 @@ import {
 
 // Contra o compose de teste, com as imagens construídas: a observabilidade (grafana/otel-lgtm) com as regras
 // provisionadas de infra/grafana/alertas/, uma API, os dois despachantes e o worker-interativo exportando OTLP
-// de verdade, e o estado das regras lido pela API do Grafana, como o ensaio faz.
+// de verdade, e o estado das regras lido pela API do Grafana, como o ensaio faz. O `worker-pdf` fica de pé: o ensaio é que o para (o `pdf-parado`
+// precisa de um job `pdf` que ninguém executa) e o religa na restauração.
 const ambiente = lerAmbienteDeTeste()
 const porta = (variavel: string) => valorObrigatorio(ambiente, variavel)
 const API = `http://127.0.0.1:${porta('API_1_PORTA_HOST')}`
 const GRAFANA = `http://127.0.0.1:${porta('GRAFANA_PORTA_HOST')}`
 const PROMETHEUS = `http://127.0.0.1:${porta('PROMETHEUS_PORTA_HOST')}`
-const SERVICOS = ['observabilidade', 'api-1', 'despachante-1', 'despachante-2', 'worker-interativo-1', 'worker-interativo-2'] as const
+const SERVICOS = ['observabilidade', 'api-1', 'despachante-1', 'despachante-2', 'worker-interativo-1', 'worker-interativo-2', 'worker-pdf'] as const
 /**
  * A escola da borda opera com uma vaga interativa só (configuração dela): um job longo a toma inteira. Com as cinco
  * vagas do padrão seriam cinco jobs longos, e o job sintético queima CPU de verdade no sandbox (15.0): cinco deles
@@ -124,6 +125,7 @@ describe('alertas locais: as regras do ensaio disparam, não disparam com condi�
     const loginRebaixado = resultado.disparos[REGRAS_DO_ENSAIO.loginRebaixado]
     const loginEmailLimiteIp = resultado.disparos[REGRAS_DO_ENSAIO.loginEmailLimiteIp]
     const salaCodigoErrado = resultado.disparos[REGRAS_DO_ENSAIO.salaCodigoErrado]
+    const pdfParado = resultado.disparos[REGRAS_DO_ENSAIO.pdfParado]
     // Cada regra disparou com os rótulos da condição provocada: a escola do job, a rota que falhou.
     expect(jobInterativo.rotulos).toMatchObject({ fila: 'interativa', escola_id: resultado.escolaDoJob })
     expect(taxa5xx.rotulos).toMatchObject({ job: 'educa/api', http_route: '/v1/sistema/jobs-sinteticos' })
@@ -144,8 +146,9 @@ describe('alertas locais: as regras do ensaio disparam, não disparam com condi�
       loginRebaixado.duracaoS,
       loginEmailLimiteIp.duracaoS,
       salaCodigoErrado.duracaoS,
-    ]).toEqual([60, 120, 300, 180, 180, 120, 300, 300])
-    for (const disparo of [jobInterativo, seguroDoLimite, taxa5xx, loginLento, loginHashRecusado, loginRebaixado, loginEmailLimiteIp, salaCodigoErrado]) {
+      pdfParado.duracaoS,
+    ]).toEqual([60, 120, 300, 180, 180, 120, 300, 300, 60])
+    for (const disparo of [jobInterativo, seguroDoLimite, taxa5xx, loginLento, loginHashRecusado, loginRebaixado, loginEmailLimiteIp, salaCodigoErrado, pdfParado]) {
       expect(disparo.disparadoDesdeMs - disparo.pendenteDesdeMs).toBeGreaterThanOrEqual(disparo.duracaoS * 1_000)
     }
     // Isolamento do gatilho: com a falha forçada valendo, outra escola gravou job na mesma rota.
@@ -174,7 +177,8 @@ describe('alertas locais: as regras do ensaio disparam, não disparam com condi�
     expect(await gatilhoDaFalhaExiste(bancoUrl)).toBe(false)
     const depois = await criarJobSintetico(API, await token(resultado.escolaDaFalha), { fila: 'interativa', cpuMs: 0 })
     expect(depois.status).toBe(202)
-    for (const servico of ['redis-cache', 'worker-interativo-1', 'worker-interativo-2']) {
+    // O `worker-pdf` também: o ensaio o parou para o job de PDF ficar pendente, e a restauração o religa.
+    for (const servico of ['redis-cache', 'worker-interativo-1', 'worker-interativo-2', 'worker-pdf']) {
       expect(compose('ps', '--format', '{{.Health}}', servico).saida.trim(), servico).toBe('healthy')
     }
     // O job que esperou começou quando o worker voltou, e as três regras estão normais.

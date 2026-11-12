@@ -1,6 +1,6 @@
 # Tarefa 5.0 — A licença é registrada uma vez, com vigência, retenção e arquivo do titular
 
-**Funcionalidade:** ingestao-do-material · **Depende de:** 1.0
+**Funcionalidade:** ingestao-do-material · **Depende de:** 1.0, 3.0
 **Subagentes obrigatórios:** `tenancy-guardian`, `privacy-guardian`, `infra-guardian`
 **Porte:** grande
 
@@ -27,6 +27,7 @@ pelo backfill; ela tem retenção e entra no arquivo do titular.
 - [ ] 5.5 — Classificação da tabela; arquivo do titular do coordenador que registrou (`licenciante` e `referencia` em `fora`)
 - [ ] 5.6 — Documentos: `docs/lgpd.md` (a licença, e "sem fim fica até a coordenação encerrar", R6); `docs/modelo-de-dados.md`; `docs/regulacao.md` §5 apontando a licença (R6)
 - [ ] 5.7 — Testes
+- [ ] 5.8 — O que a 3.0 deixou (`techspec.md` §11, linha "3.0"): na migration (1), o check `auditoria_escola_ou_operacao_global` aceita sem escola também `entidade = 'job'`, e `ENTIDADES_DE_AUDITORIA_SEM_ESCOLA` ganha `job`; `ops:reprocessar-job` e `ops:descartar-job` perdem a recusa do job sem escola e auditam o `sistema.*` sem escola, com `autor_operador`; o expurgo de jobs (`expurgo-de-jobs.repository.ts`) deixa o `falhou` de `material.extrair-pdf` como deixa o de `titular.*`, e o prazo `tarefa_em_segundo_plano` (`packages/shared/src/privacidade/retencao.ts`) e a linha de `job_registro` do `docs/lgpd.md` dizem isso
 
 ## Arquivos previstos
 
@@ -35,6 +36,7 @@ pelo backfill; ela tem retenção e entra no arquivo do titular.
 | `packages/core/drizzle/0052_*.sql`, `0053_*.sql`, `packages/core/src/db/schema/material.ts`, `apps/api/src/material/licenca.controller.ts`, `apps/api/src/material/licenca.service.ts`, `apps/api/src/material/licenca.repository.ts`, `apps/api/src/material/material.module.ts`, `packages/shared/src/material/licenca.ts`, `packages/shared/src/index.ts` | novo e alterado |
 | `packages/shared/src/permissao/matriz.ts`, `packages/shared/src/privacidade/classificacao.ts`, `packages/core/src/auditoria/acoes.ts`, `packages/core/src/retencao/expurgo-da-escola.repository.ts`, `packages/core/src/titular/`, `docs/lgpd.md`, `docs/modelo-de-dados.md`, `docs/regulacao.md` | alterado |
 | `apps/api/test/licenca.int.test.ts`, `packages/core/src/db/migracao-f4.int.test.ts` | novo |
+| `packages/core/src/db/schema/auditoria.ts`, `packages/core/src/auditoria/auditoria-recorder.ts`, `packages/core/src/retencao/expurgo-de-jobs.repository.ts`, `packages/shared/src/privacidade/retencao.ts`, `apps/api/src/operacao/jobs-que-falharam.repository.ts`, `apps/api/src/ops/reprocessar-job.ts`, `apps/api/src/ops/descartar-job.ts`, `apps/api/test/ops-jobs.int.test.ts` | alterado (5.8) |
 
 ## Testes que provam a regra
 
@@ -43,6 +45,8 @@ pelo backfill; ela tem retenção e entra no arquivo do titular.
 | caminho feliz | I | registrada, listada, alterada | |
 | situação, uma de cada | I | `vigente`, `vence_em_30_dias`, `vencida`, `futura`, cada termo com o relógio falso | |
 | contagem de materiais | I | `materiais` conta os da licença, não os de outra | |
+| (5.8) reprocessar e descartar `sistema.*` | I | auditados sem escola, com `autor_operador`; o de escola segue com a escola da linha. Mutação: tirar `job` de `ENTIDADES_DE_AUDITORIA_SEM_ESCOLA` | |
+| (5.8) o `falhou` de `material.extrair-pdf` com 31 dias | I | fica no expurgo; o de outro tipo sai. Mutação: tirar a exceção do SQL | |
 | `vigente_ate` antes de `vigente_desde`; textos fora do tamanho | I | `ENTRADA_INVALIDA` | |
 | [P] dois `PATCH` da mesma licença | P | a auditoria tem dois "antes" diferentes. Mutação: tirar o `for update` | |
 | auditoria | I | sem licenciante, cobertura nem referência (sentinela) | |

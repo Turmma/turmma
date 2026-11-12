@@ -6,6 +6,7 @@ import {
   CONTESTACOES_DE_VINCULO,
   DECISORES_DA_REIVINDICACAO,
   InvariantException,
+  JOB_DEFINITIONS,
   ESTADOS_DE_MATERIAL,
   ESTADOS_DE_VINCULO,
   ETAPAS,
@@ -46,6 +47,9 @@ import {
 } from '@educa/shared'
 import { PROVEDORES_EXTERNOS } from '../db/schema/conta-externa.js'
 import { TIPOS_DE_REDE } from '../db/schema/rede.js'
+
+/** Os tipos de job que existem: o que a auditoria do job aceita no lugar de texto livre. */
+const TIPOS_DE_JOB = Object.keys(JOB_DEFINITIONS) as [keyof typeof JOB_DEFINITIONS, ...Array<keyof typeof JOB_DEFINITIONS>]
 
 /**
  * Nomes que nenhum campo de `antes` ou `depois` pode ter, nem como parte do nome (`nomeDoAluno`,
@@ -724,6 +728,27 @@ export const ACOES_DE_AUDITORIA = {
     antes: z.strictObject({ meses: z.number().int().positive(), origem: z.enum(ORIGENS_DA_RETENCAO) }),
     depois: z.strictObject({ categoria: z.enum(CHAVES_DE_RETENCAO), meses: z.number().int().positive(), referenciaContrato: z.number().int().positive() }),
     finalidade: z.enum([FINALIDADE_DO_AJUSTE_DE_RETENCAO]),
+  },
+  /**
+   * A operação tirou da lista dos que falharam um job de escola e o mandou de novo à fila (ingestao-do-material, 3.0;
+   * `ops:reprocessar-job`), no contexto da escola da linha e sempre com `autor_operador`. `entidadeId` é o job. `depois` é o tipo
+   * (da lista fechada dos tipos que existem) e o número do chamado que pede a ação. Nunca o `dados` do job.
+   */
+  'job.reprocessado': {
+    entidade: 'job',
+    antes: null,
+    depois: z.strictObject({ tipo: z.enum(TIPOS_DE_JOB), chamado: z.number().int().positive() }),
+    finalidade: null,
+  },
+  /**
+   * A operação encerrou de vez um job de escola que falhou (`ops:descartar-job`), com o efeito do tipo (o PDF fecha o material e sai
+   * do storage). Mesmo formato do `job.reprocessado`: o job, o tipo e o chamado, nunca o `dados`.
+   */
+  'job.descartado': {
+    entidade: 'job',
+    antes: null,
+    depois: z.strictObject({ tipo: z.enum(TIPOS_DE_JOB), chamado: z.number().int().positive() }),
+    finalidade: null,
   },
   /**
    * A operação cadastrou um suboperador (F3, RF6; `ops:suboperador cadastrar`). Acima do tenant, sem escola no contexto, e

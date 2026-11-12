@@ -1,0 +1,67 @@
+# Alerta "Extração de PDF parada" (ingestao-do-material, tarefa 3.0; runbook: docs/runbook.md#extração-de-pdf-parada).
+# Provisionado por arquivo no Grafana da observabilidade local (infra/compose.yml monta esta pasta em provisioning/alerting).
+#
+# Dois termos, e os dois precisam valer:
+#   1. o job `pdf` mais antigo que ainda não começou espera mais de 15 min (`job_espera_mais_antiga_s`, que o despachante mede a partir de
+#      `job_registro.criado_em`; o limiar de 900 s está no limiar da regra, abaixo);
+#   2. nenhuma extração terminou nos últimos 15 min. "Terminou" é o `resultado` `pronto` ou `falhou` de `material_extracao_total`, que o
+#      `worker-pdf` conta: a falha também prova que a réplica está de pé e lendo a fila. `sem_efeito`, `arquivo_ausente` e `nova_tentativa` não contam.
+# O segundo termo é o que distingue a fila parada da fila cheia: 300 apostilas do onboarding esperam horas, e enquanto o `worker-pdf` termina uma
+# a cada poucos minutos o alerta não dispara. `or vector(0)` cobre o `worker-pdf` que nunca exportou, ou que parou há mais de 5 min e perdeu a série.
+#
+# Sem dado é normal: o `job_espera_mais_antiga_s{fila="pdf"}` só existe com job `pdf` pendente. O primeiro PDF depois de horas sem nenhum não
+# dispara: ele espera segundos, e o termo 1 ainda não vale.
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: pdf-parado
+    folder: Educa.ia alertas
+    interval: 10s
+    rules:
+      - uid: educa-pdf-parado
+        title: Extração de PDF parada
+        condition: C
+        for: 1m
+        noDataState: OK
+        execErrState: Error
+        isPaused: false
+        labels:
+          area: fila
+        annotations:
+          summary: O job de extração de PDF mais antigo espera há mais de 15 min e nenhuma extração terminou nos últimos 15
+          description: A fila `pdf` não anda. A coordenação enviou material e ele não vira texto. Siga o runbook.
+          runbook_url: https://github.com/Turmma/turmma/blob/main/docs/runbook.md#extração-de-pdf-parada
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              datasource:
+                type: prometheus
+                uid: prometheus
+              expr: max(job_espera_mais_antiga_s{fila="pdf"}) and on () ((sum(increase(material_extracao_total{job="educa/worker", resultado=~"pronto|falhou"}[15m])) or vector(0)) == 0)
+              instant: true
+              range: false
+              intervalMs: 10000
+              maxDataPoints: 43200
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params: [900]
