@@ -20,6 +20,7 @@ const PALAVRAS_DO_PROMQL = new Set([
   'unless',
   'on',
   'ignoring',
+  'vector',
 ])
 
 /**

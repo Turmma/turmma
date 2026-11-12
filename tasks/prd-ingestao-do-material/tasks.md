@@ -19,7 +19,7 @@
   - [ ] 2.3 Varredura horária do envio sem commit e do órfão pós-commit (25 h)
   - [ ] 2.4 Testes: toda saída depois do `guardarBytes`, a varredura contra o envio lento, duas escolas
 
-- [ ] **3.0 — A operação lista, reprocessa e descarta job (46.0), e o alerta `pdf-parado` avisa**
+- [x] **3.0 — A operação lista, reprocessa e descarta job (46.0), e o alerta `pdf-parado` avisa**
   - [ ] 3.1 `ops:jobs` listar, reprocessar e descartar, com chamado e auditoria
   - [ ] 3.2 Alerta `pdf-parado`, no ensaio; runbook e disco do temporário em `docs/infra.md`
   - [ ] 3.3 Testes: os comandos, as recusas, o alerta termo a termo
@@ -35,6 +35,7 @@
   - [ ] 5.2 `GET`, `POST`, `PATCH /v1/licencas`, com auditoria e `situacao`
   - [ ] 5.3 Retenção, classificação, arquivo do titular; documentos
   - [ ] 5.4 Testes: situação, isolamento, dois `PATCH`, a retenção segurada
+  - [ ] 5.5 O job sem escola na auditoria (check e `ENTIDADES_DE_AUDITORIA_SEM_ESCOLA`), sem a recusa da 3.0; o `falhou` de `material.extrair-pdf` fora do expurgo até o Descartar
 
 - [ ] **6.0 — A aba Licenças e o aviso `licenca-vencendo` no sino**
   - [ ] 6.1 Aba Licenças: lista, registrar, vigência
@@ -87,7 +88,7 @@ de cada vez, nesta ordem. A 3.0 não tem migration nem mexe em `packages/shared`
 | 2.0 | 1.0 | 3.0 |
 | 3.0 | 1.0 | 2.0, 4.0, 6.0 |
 | 4.0 | 1.0 | 3.0, 6.0 |
-| 5.0 | 1.0 | — |
+| 5.0 | 1.0, 3.0 | — |
 | 6.0 | 5.0 | 3.0, 4.0 |
 | 7.0 | 2.0, 6.0 | — |
 | 8.0 | 7.0 | — |

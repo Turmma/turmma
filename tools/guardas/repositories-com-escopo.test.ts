@@ -140,7 +140,7 @@ describe('a lista real só encolhe', () => {
       ['apps/api/src/privacidade/titulares.repository.ts', ['homonimo']],
       ['packages/core/src/auditoria/auditoria.repository.ts', ['listarDaEscola']],
       ['packages/core/src/auditoria/auditoria-insert.repository.ts', ['insertAuditoria']],
-      ['packages/core/src/queue/job-outbox.repository.ts', ['inserir', 'inserirUmaVez', 'buscarDaEscola', 'localizarParaExecucao', 'iniciarExecucao', 'concluir', 'devolverAoPublicado', 'avisarVagaLivre', 'registrarFalha']],
+      ['packages/core/src/queue/job-outbox.repository.ts', ['inserir', 'inserirUmaVez', 'buscarDaEscola', 'localizarParaExecucao', 'iniciarExecucao', 'concluir', 'devolverAoPublicado', 'reabrirFalho', 'descartarFalho', 'avisarVagaLivre', 'registrarFalha']],
       ['packages/core/src/identidade/sessao.repository.ts', ['lerParaGuarda', 'marcarAtualApresentado']],
       ['packages/core/src/titular/compartilhamento.repository.ts', ['datasDeReferencia']],
     ])

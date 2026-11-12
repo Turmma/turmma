@@ -13,6 +13,7 @@ import { lerEscolaARevogar, OPCAO_DA_ESCOLA } from '../../apps/api/src/ops/revog
 import { EVENTO_DO_LIMITE_DA_SALA, JANELA_DOS_LIMITES_DA_SALA_MS, SalaRateLimits, TETO_DE_CODIGOS_ERRADOS_POR_ESCOLA } from '../../apps/api/src/sala/sala-rate-limits.ts'
 import { WindowCounter } from '../../apps/api/src/credencial/senha/window-counter.ts'
 import { LIMITES_DO_HISTOGRAMA_HTTP_S } from '../../packages/core/src/telemetry/metrics.ts'
+import { QUEUE_PRIORITY } from '../../packages/core/src/queue/job-outbox.ts'
 import { LIMITES_DO_PASSO_3_S as LIMITES_DO_PASSO_3_DA_IMPORTACAO_S } from '../../apps/worker/src/processors/gravar-planilha.ts'
 import { MINUTOS_DA_IMPORTACAO_NA_FILA_PARA_ALERTAR } from '../../packages/shared/src/importacao/contratos.ts'
 import { HORAS_EM_PREPARACAO_PARA_ALERTAR } from '../../packages/shared/src/privacidade/arquivo.ts'
@@ -25,6 +26,8 @@ import {
   estadoDoAlerta,
   executarEnsaioDeAlertas,
   HASH_LENTO_DO_ENSAIO,
+  MINUTOS_DO_JOB_DE_PDF_DO_ENSAIO,
+  PRIORIDADE_DA_FILA_PDF,
   REGRAS_DO_ENSAIO,
   REGRAS_PROVISIONADAS,
   regrasDaResposta,
@@ -181,6 +184,18 @@ describe('regras de alerta provisionadas', () => {
       'histogram_quantile(0.95, sum by (le) (rate(importacao_passo3_duracao_seconds_bucket{job="educa/worker"}[5m]))) and on () (sum (rate(importacao_passo3_duracao_seconds_count{job="educa/worker"}[5m])) > 0)',
     )
     expect(limiar(passo3)).toEqual({ type: 'gt', params: [1] })
+
+    // ingestao-do-material, tarefa 3.0: a espera do job `pdf` mais antigo acima de 15 min (o limiar, em segundos) **e** nenhuma extração terminada (`pronto` ou
+    // `falhou`) nos últimos 15 min; `or vector(0)` cobre o `worker-pdf` sem série. As provas termo a termo estão em `alertas.int.test.ts`.
+    const pdfParado = regraPorUid(REGRAS_DO_ENSAIO.pdfParado).regra
+    expect(pdfParado.for).toBe('1m')
+    expect(expressao(pdfParado)).toBe(
+      'max(job_espera_mais_antiga_s{fila="pdf"}) and on () ((sum(increase(material_extracao_total{job="educa/worker", resultado=~"pronto|falhou"}[15m])) or vector(0)) == 0)',
+    )
+    expect(limiar(pdfParado)).toEqual({ type: 'gt', params: [15 * 60] })
+    // O ensaio grava a prioridade da fila `pdf` sem importar o `core`: o valor dele é o do `core`.
+    expect(PRIORIDADE_DA_FILA_PDF).toBe(QUEUE_PRIORITY.pdf)
+    expect(MINUTOS_DO_JOB_DE_PDF_DO_ENSAIO).toBeGreaterThan(15)
 
     // X5, tarefa 44.0: por tipo, em qualquer despachante, com qualquer job falho na tabela (acima de zero), por 1 min.
     const falhouDeVez = regraPorUid(REGRAS_PROVISIONADAS.jobFalhouDeVez).regra

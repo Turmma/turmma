@@ -72,7 +72,7 @@ const ORIGENS_DA_FALHA: JobState[] = ['reservado', 'publicado', 'ativo']
  * consultas da fila inteira, do despachante, ficam em `DispatchRepository`, com `@Unscoped`.
  */
 export class JobOutboxRepository {
-  constructor(private readonly banco: Database) {}
+  constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   /**
    * Grava o job na transação de quem pediu e avisa o despachante. O `pg_notify` só é entregue no
@@ -205,6 +205,32 @@ export class JobOutboxRepository {
       .where(and(eq(jobRegistro.id, id), jobScopeInContext(), eq(jobRegistro.estado, 'ativo')))
       .returning({ id: jobRegistro.id })
     return alteradas.length === 1
+  }
+
+  /**
+   * `falhou` → `aguardando` (a operação reprocessa, 46.0): a linha volta a ser pendente, sem a falha nem os instantes da tentativa
+   * anterior, e o `criado_em` passa a ser agora, para a espera do job não contar os dias em que ele esteve falho (a data de criação original se perde: o rastro do reprocesso é a auditoria `job.reprocessado`). Condicional ao
+   * `falhou`, na escola do contexto (ou na rotina do sistema marcada): o job que já voltou, ou nunca falhou, não muda. Devolve se mudou.
+   */
+  async reabrirFalho(id: string): Promise<boolean> {
+    const alteradas = await this.banco
+      .update(jobRegistro)
+      .set({ estado: 'aguardando', codigoFalha: null, concluidoEm: null, iniciadoEm: null, reservadoAte: null, criadoEm: sql`now()` })
+      .where(and(eq(jobRegistro.id, id), jobScopeInContext(), eq(jobRegistro.estado, 'falhou')))
+      .returning({ id: jobRegistro.id })
+    return alteradas.length === 1
+  }
+
+  /**
+   * Apaga a linha de um job `falhou` (a operação descarta, 46.0): sem a linha, o alerta de job falhou de vez se encerra. Condicional ao
+   * `falhou`, no escopo do contexto. Devolve se apagou.
+   */
+  async descartarFalho(id: string): Promise<boolean> {
+    const apagadas = await this.banco
+      .delete(jobRegistro)
+      .where(and(eq(jobRegistro.id, id), jobScopeInContext(), eq(jobRegistro.estado, 'falhou')))
+      .returning({ id: jobRegistro.id })
+    return apagadas.length === 1
   }
 
   /**

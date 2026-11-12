@@ -51,7 +51,7 @@ falhou. Seed e e2e usam licenciante fictício.
   Reprocessar e Descartar (Falha final com as 3 tentativas da definição; Reprocessar com um tipo que a 46.0 aceita; Descartar do PDF: material `falhou`, objeto
   apagado), Chamado, Auditoria, Outra escola (repository e job), PDF duplicado, dá certo ou falha, Exclusão em
   `processando`, Expurgo, Órfão, Órfão em duas escolas. Os comandos recusam `ia.*`, `titular.*` e
-  `material.extrair-pdf` (mutação: tirar o tipo da lista), este com "Tentar de novo é envio novo"
+  `material.extrair-pdf` (mutação: tirar o tipo da lista), este com "Tentar de novo é envio novo". Os dois comandos recusam o job sem escola (`sistema.*`) com `JobSemEscolaError`, antes de tocar a linha, a fila e a auditoria, até a 5.0 (`techspec.md` §11, linha "3.0"; `3_task.md`, "Divergências resolvidas"); a 5.8 tira a recusa
 - [I] `sem_texto`, `arquivo_invalido` e objeto ausente (`extracao_falhou`): `falhou` numa tentativa só, a vaga
   liberada, com o texto da falha na tela
 - [P] Material excluído entre o `lerParaExtrair` e o `lerBytes`, com o objeto já apagado: o job conclui sem efeito, sem
@@ -118,6 +118,8 @@ falhou. Seed e e2e usam licenciante fictício.
 - [I] Retenção: material excluído além do prazo, ainda citado por `mensagem_tutor`, segura a licença, e a categoria
   termina `concluida`; na noite em que a conversa sai, os dois saem. Mutação: tirar o `not exists` da licença
 - [I] `licenca.registrada` e `licenca.alterada` sem licenciante, cobertura nem referência (sentinela fora da auditoria)
+- [I] (5.8, o que a 3.0 deixou) `ops:reprocessar-job` e `ops:descartar-job` com um job `sistema.*` sem escola: auditados sem escola, com `autor_operador` (a entidade `job` entra no check `auditoria_escola_ou_operacao_global` e em `ENTIDADES_DE_AUDITORIA_SEM_ESCOLA`); o job de escola segue auditado na escola da linha. Mutação: tirar `job` da lista
+- [I] (5.8) O `falhou` de `material.extrair-pdf` com 31 dias fica fora do expurgo de jobs, como o de `titular.*`, até o "Descartar"; o de outro tipo sai. Mutação: tirar a exceção do SQL
 
 ## Leitura de página por série (RF7, RF8)
 

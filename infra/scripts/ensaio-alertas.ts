@@ -27,7 +27,10 @@ import { raizRepositorio } from '../../tools/ci/executar.ts'
  *   - manda, em paralelo, logins por e-mail sem conta, acima do limite por IP da rota ("Login por e-mail acima do
  *     limite por IP");
  *   - tenta códigos da turma que não existem no endereço de outra escola sintética, sem parar, até passar do teto de
- *     códigos errados dela e seguir acima dele ("Código da turma errado em massa numa escola", A1, tarefa 9.0).
+ *     códigos errados dela e seguir acima dele ("Código da turma errado em massa numa escola", A1, tarefa 9.0);
+ *   - para o `worker-pdf` (a linha de comando sobe a stack inteira, e ele tomaria o job) e grava um job `material.extrair-pdf` na fila `pdf` com o `criado_em` há 16 min, que ninguém executa
+ *     ("Extração de PDF parada", ingestao-do-material, tarefa 3.0): o dispara prova os dois termos juntos, a espera acima de 15 min e nenhuma
+ *     extração terminada nos últimos 15. O job sai da tabela e o `worker-pdf` volta na restauração.
  * No fim, com sucesso ou não, restaura tudo: remove o gatilho, religa o Redis de cache e os workers, recria as APIs
  * com o ambiente de sempre, e espera as regras voltarem a normal.
  *
@@ -43,6 +46,7 @@ export const REGRAS_DO_ENSAIO = {
   loginRebaixado: 'educa-login-rebaixado-por-escola',
   loginEmailLimiteIp: 'educa-login-email-limite-ip',
   salaCodigoErrado: 'educa-sala-codigo-errado-por-escola',
+  pdfParado: 'educa-pdf-parado',
 } as const
 
 export type UidDaRegra = (typeof REGRAS_DO_ENSAIO)[keyof typeof REGRAS_DO_ENSAIO]
@@ -345,6 +349,34 @@ export async function removerGatilhoDaFalha(bancoUrl: string): Promise<void> {
   })
 }
 
+/** A prioridade da fila `pdf` em `job_registro` (`QUEUE_PRIORITY.pdf`, que `infra/test/alertas.test.ts` confere): o ensaio não importa o `core`. */
+export const PRIORIDADE_DA_FILA_PDF = 4
+
+/** Há quantos minutos o job de PDF do ensaio foi gravado: acima dos 15 da regra `pdf-parado`. */
+export const MINUTOS_DO_JOB_DE_PDF_DO_ENSAIO = 16
+
+/**
+ * O job `material.extrair-pdf` que ninguém executa (o ensaio parou o `worker-pdf`), gravado há `MINUTOS_DO_JOB_DE_PDF_DO_ENSAIO` minutos na escola
+ * dada: o despachante o publica e o mede, e a espera dele passa dos 15 min da regra. O `materialId` é sorteado: não há material, e o job não roda.
+ */
+export async function criarJobDePdfParado(bancoUrl: string, escolaId: string): Promise<string> {
+  return comBanco(bancoUrl, async (cliente) => {
+    const { rows } = await cliente.query<{ id: string }>(
+      `insert into job_registro (escola_id, fila, prioridade, tipo, dados, nao_urgente, estado, criado_em)
+       values ($1, 'pdf', $2, 'material.extrair-pdf', jsonb_build_object('materialId', $3::text), false, 'aguardando', now() - $4::int * interval '1 minute')
+       returning id`,
+      [escolaId, PRIORIDADE_DA_FILA_PDF, randomUUID(), MINUTOS_DO_JOB_DE_PDF_DO_ENSAIO],
+    )
+    return rows[0]?.id ?? ''
+  })
+}
+
+export async function removerJobDePdfParado(bancoUrl: string, jobId: string): Promise<void> {
+  await comBanco(bancoUrl, async (cliente) => {
+    await cliente.query('delete from job_registro where id = $1', [jobId])
+  })
+}
+
 export async function gatilhoDaFalhaExiste(bancoUrl: string): Promise<boolean> {
   return comBanco(bancoUrl, async (cliente) => {
     const { rows } = await cliente.query<{ existe: boolean }>('select exists (select 1 from pg_trigger where tgname = $1) or exists (select 1 from pg_proc where proname = $1) as existe', [GATILHO_DA_FALHA])
@@ -534,6 +566,7 @@ export async function executarEnsaioDeAlertas(opcoes: OpcoesDoEnsaio): Promise<R
   const statusDaSala: Record<string, number> = {}
   const disparos: Partial<Record<UidDaRegra, DisparoObservado>> = {}
   let jobId = ''
+  let jobDePdf = ''
   let jobDeOutraEscolaNaFalha = ''
   let trafego: { parar: () => Promise<void> } | undefined
   let rajadaDeLogin: { parar: () => Promise<void> } | undefined
@@ -552,6 +585,11 @@ export async function executarEnsaioDeAlertas(opcoes: OpcoesDoEnsaio): Promise<R
     const resposta = await criarJobSintetico(opcoes.apiUrl, await tokenDaVez(doJob, 0), { fila: 'interativa', cpuMs: 0 })
     if (resposta.status !== 202) throw new Error(`o job interativo do ensaio não foi aceito (status ${resposta.status})`)
     jobId = ((await resposta.json()) as { jobId: string }).jobId
+
+    registrar('parando o worker-pdf e gravando um job de PDF há 16 min')
+    // Pela linha de comando o ensaio sobe a stack inteira (`servicos: []`), o `worker-pdf` incluído: sem pará-lo, ele tomaria o job e a fila `pdf` andaria.
+    await comandoOuFalha(opcoes, 'stop', 'worker-pdf')
+    jobDePdf = await criarJobDePdfParado(opcoes.bancoUrl, escolaDoJob)
 
     registrar('parando o Redis de cache e forçando falha na rota sintética')
     await comandoOuFalha(opcoes, 'stop', 'redis-cache')
@@ -575,6 +613,7 @@ export async function executarEnsaioDeAlertas(opcoes: OpcoesDoEnsaio): Promise<R
       [REGRAS_DO_ENSAIO.loginRebaixado]: { escola_id: escolaDoLogin },
       [REGRAS_DO_ENSAIO.loginEmailLimiteIp]: {},
       [REGRAS_DO_ENSAIO.salaCodigoErrado]: {},
+      [REGRAS_DO_ENSAIO.pdfParado]: {},
     }
     // A pendência de cada regra, anotada quando vista: o disparo só vale se veio depois dela e do `for:` inteiro.
     const pendencias: Partial<Record<UidDaRegra, number>> = {}
@@ -601,7 +640,7 @@ export async function executarEnsaioDeAlertas(opcoes: OpcoesDoEnsaio): Promise<R
   }
 
   // Com sucesso ou não, restaura tudo, e cada passo tenta mesmo que o anterior tenha falhado.
-  registrar('restaurando: gatilho removido, Redis de cache e worker-interativo religados')
+  registrar('restaurando: gatilho e job de PDF removidos, Redis de cache, worker-interativo e worker-pdf religados')
   const falhasDaRestauracao: unknown[] = []
   for (const passo of [
     () => trafego?.parar() ?? Promise.resolve(),
@@ -609,7 +648,10 @@ export async function executarEnsaioDeAlertas(opcoes: OpcoesDoEnsaio): Promise<R
     () => rajadaDeEmail?.parar() ?? Promise.resolve(),
     () => ataqueDeCodigo?.parar() ?? Promise.resolve(),
     () => removerGatilhoDaFalha(opcoes.bancoUrl),
-    () => subir(opcoes, ['redis-cache', ...WORKERS_INTERATIVOS]),
+    () => (jobDePdf === '' ? Promise.resolve() : removerJobDePdfParado(opcoes.bancoUrl, jobDePdf)),
+    // O despachante pode ter publicado o job de PDF no BullMQ antes de a linha sair: o `worker-pdf` que volta o recebe sem linha, o recusa como
+    // `nao_encontrado` (`UnrecoverableError`, sem vaga tomada) e segue (`apps/worker/test/job-execution.int.test.ts`, o job sem linha).
+    () => subir(opcoes, ['redis-cache', ...WORKERS_INTERATIVOS, 'worker-pdf']),
   ]) {
     try {
       await passo()

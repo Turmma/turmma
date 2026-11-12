@@ -120,6 +120,11 @@ precisam de um adaptador em Redis para chegar ao professor certo.
   ("esse nome já foi reivindicado, chame o professor"), não com verificação antes de gravar
 - Ingestão de 300 apostilas: horas de CPU de extração. Vai para a fila de baixa prioridade,
   com limite de concorrência por escola
+- **O disco do temporário no pior caso** (R6 da revisão da spec da ingestão do material): o PDF fica no storage privado, em
+  `material-temporario/`, só até a extração. Com o `worker-pdf` parado nada sai, e o que a coordenação envia só se acumula: 300 apostilas de até 20 MB
+  por escola (6 GB) nas dez escolas do primeiro ano (D25) somam **cerca de 60 GB**, mais o órfão que a varredura apaga em 25 h. É o que o volume do
+  storage precisa ter de folga no onboarding, e o que o alerta `pdf-parado` protege: ele avisa em cerca de 16 min (os 15 da espera e o `for: 1m`), e com o `worker-pdf` de volta cada objeto sai
+  depois de extraído (uma réplica faz um PDF por vez).
 
 ### 3.6 Crescimento de dado (primeiro ano)
 
@@ -277,7 +282,7 @@ dois Redis, a observabilidade, os nossos contêineres e a suíte dividem a mesma
 rotina da máquina, não sinal de Redis travado. O cenário de carga é a exceção: `infra/carga.env` fixa os 100 ms,
 porque é nele que o corte é medido com a rajada das 7h30 descrita acima.
 
-**A réplica `worker-pdf`** (ingestao-do-material, tarefa 1.0) atende só a fila `pdf`: pool de um PDF por vez (`WORKER_POOL_PDF=1`), `cpus: 1` no compose, `lockDuration` de 60 s e verificação de stalled a cada 20 s (a leitura devolve o event loop entre uma página e outra, então a renovação do lock chega a tempo; a réplica morta devolve o job em até 80 s), prazo do tipo de 10 min e três tentativas. Lê o storage, então não sobe sem as variáveis dele. O objeto sai do storage logo depois do commit da extração, **no bucket sem versionamento** (versionamento guardaria uma cópia do PDF que o `DeleteObject` não remove: o contrato do bucket é que apagar apaga). A leitura e a gravação do objeto têm prazo de 30 s cada. O alerta e o runbook da fila `pdf` chegam com a tarefa 3.0.
+**A réplica `worker-pdf`** (ingestao-do-material, tarefa 1.0) atende só a fila `pdf`: pool de um PDF por vez (`WORKER_POOL_PDF=1`), `cpus: 1` no compose, `lockDuration` de 60 s e verificação de stalled a cada 20 s (a leitura devolve o event loop entre uma página e outra, então a renovação do lock chega a tempo; a réplica morta devolve o job em até 80 s), prazo do tipo de 10 min e três tentativas. Lê o storage, então não sobe sem as variáveis dele. O objeto sai do storage logo depois do commit da extração, **no bucket sem versionamento** (versionamento guardaria uma cópia do PDF que o `DeleteObject` não remove: o contrato do bucket é que apagar apaga). A leitura e a gravação do objeto têm prazo de 30 s cada. O alerta `pdf-parado` (o job `pdf` mais antigo esperando há mais de 15 min **e** nenhuma extração terminada, `pronto` ou `falhou`, nos últimos 15) e a entrada de runbook "Extração de PDF parada" avisam quando a fila não anda; o `pdf-esperando` da onda 3b não nasce, porque a fila cheia com extração andando é o onboarding normal, e não uma falha. O job `pdf` que falhou de vez se reprocessa por envio novo e se descarta por `ops:descartar-job` (o material fecha e o PDF sai do storage).
 
 ### 5.3 Concorrência por escola
 
