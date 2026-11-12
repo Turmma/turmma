@@ -1,7 +1,7 @@
 import 'reflect-metadata'
 import { DeleteObjectCommand, DeleteObjectsCommand, PutObjectCommand, type S3Client } from '@aws-sdk/client-s3'
 import { UsageMeter, currentContext, runInContext, UsageRepository, VALIDADE_DO_CONTADOR_SEGUNDOS, type UsagePeriod } from '@educa/core'
-import { JobFailureCode, TIPO_CONSOLIDAR_USO, TIPO_EXPURGAR_ACESSO, TIPO_EXPURGAR_DADO_PESSOAL, TIPO_EXPURGAR_JOBS } from '@educa/shared'
+import { JobFailureCode, TIPO_CONSOLIDAR_USO, TIPO_EXPURGAR_ACESSO, TIPO_EXPURGAR_DADO_PESSOAL, TIPO_EXPURGAR_JOBS, TIPO_VARRER_TEMPORARIOS_DE_MATERIAL } from '@educa/shared'
 import { Queue } from 'bullmq'
 import { randomUUID } from 'node:crypto'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, onTestFinished } from 'vitest'
@@ -589,7 +589,7 @@ describe('uso por escola: contagem, consolidação e bytes', () => {
       await fila.close()
     })
 
-    it('as rotinas são agendadas à 1h, às 2h, às 3h30 e às 4h30 de São Paulo, e registrar de novo (a outra réplica) não duplica o agendador', async () => {
+    it('as rotinas são agendadas à 1h, às 2h, às 3h30 e às 4h30 de São Paulo, e a varredura do PDF que sobrou, de hora em hora no minuto 10, e registrar de novo (a outra réplica) não duplica o agendador', async () => {
       await registerJobSchedulers(fila)
       await registerJobSchedulers(fila)
       const agendadores = await fila.getJobSchedulers()
@@ -598,6 +598,7 @@ describe('uso por escola: contagem, consolidação e bytes', () => {
         { key: TIPO_EXPURGAR_ACESSO, pattern: '30 4 * * *', tz: SCHEDULE_TIMEZONE },
         { key: TIPO_EXPURGAR_DADO_PESSOAL, pattern: '0 1 * * *', tz: SCHEDULE_TIMEZONE },
         { key: TIPO_EXPURGAR_JOBS, pattern: '30 3 * * *', tz: SCHEDULE_TIMEZONE },
+        { key: TIPO_VARRER_TEMPORARIOS_DE_MATERIAL, pattern: '10 * * * *', tz: SCHEDULE_TIMEZONE },
       ])
       const proximaConsolidacao = agendadores.find(({ key }) => key === TIPO_CONSOLIDAR_USO)?.next
       const horaEmSaoPaulo = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' }).format(new Date(proximaConsolidacao ?? 0))

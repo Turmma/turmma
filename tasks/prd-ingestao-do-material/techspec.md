@@ -81,9 +81,9 @@ conferidas, fora de transação. (2) Id da aplicação (UUIDv7); linha em `envio
 grava `material.recusado`); na edição, lê o alvo com `where escola_id = :ctx and id = :alvo and estado = 'pronto' and
 excluido_em is null for update` (sem linha: `EDICAO_EM_ANDAMENTO` ou `NAO_ENCONTRADO`) e herda
 as séries lidas ali; grava material, séries, auditoria e o job (chave = id), e apaga a linha de `envio_de_material`,
-que precisa existir (sob `lock_timeout` curto), ou desfaz com 503. (4) Falha do próprio `guardarBytes`: tenta apagar o objeto e a linha fica
+que precisa existir (sob `lock_timeout` de 1 s, `ESPERA_MAXIMA_PELA_LINHA_DO_ENVIO_MS`; o `55P03` também é 503), ou desfaz com 503. (4) Falha do próprio `guardarBytes`: tenta apagar o objeto e a linha fica
 (o PUT atrasado pode gravar). Falha depois: o objeto sai primeiro (ausente conta), a linha só depois; se o
-apagar falha, a linha fica. A varredura horária, depois de 1 h, trava a linha (`for update skip locked`), na mesma ordem, com prazo curto no `apagar`.
+apagar falha, a linha fica. A varredura horária, depois de 1 h, trava a linha (`for update skip locked`), na mesma ordem, com prazo curto no `apagar` (10 s), **dentro** da transação que segura a linha, de propósito: é a linha travada que impede o envio lento de entrar no meio, e tirar o `apagar` da transação reabre a corrida (regra 80, item 7). Passada à parte: o objeto de `pronto`, `falhou` ou excluído há mais de 25 h, com `objeto_apagado_em` nulo, sai e ganha a marca.
 
 **Extração** (worker, na escola do job). A transição `where escola_id = :escola and id = :id and estado = 'processando'
 and excluido_em is null` abre a
@@ -108,8 +108,8 @@ livre não muda.
 ## 6. Isolamento (obrigatório)
 
 FK composta com a escola em toda referência; escopo do contexto (no worker, `job_registro.escola_id`) em toda
-consulta, inclusive `for update` e `for share`. `@Unscoped`: os da 45.0 e da 46.0, e a leitura de `envio_de_material`
-pela varredura (só escola e id).
+consulta, inclusive `for update` e `for share`. `@Unscoped`: os da 45.0 e da 46.0, e as duas leituras da varredura da 2.0, a de `envio_de_material`
+e a de `material` (só escola e id, em `VarreduraDoMaterialRepository`).
 
 ## 7. Dado pessoal (obrigatório)
 
@@ -138,7 +138,7 @@ sem pessoa (itens 7 e 9).
 |---|---|
 | Está no caminho quente? | a leitura de página |
 | Carga na manhã de segunda | dois joins, por índice da escola |
-| Fila e prioridade | fila `pdf` (checks de fila e `vagas` ampliados com `NOT VALID`/`VALIDATE`); `worker-pdf` com um PDF por vez e `cpus` limitado; `prazoMs` 10 min, 3 tentativas; varredura em `lote`, horária |
+| Fila e prioridade | fila `pdf` (checks de fila e `vagas` ampliados com `NOT VALID`/`VALIDATE`); `worker-pdf` com um PDF por vez e `cpus` limitado; `prazoMs` 10 min, 3 tentativas; varredura em `lote`, horária (minuto 10, urgente, lote de 500 alvos por passada); o lote vezes o prazo de cada `apagar` não cabe nos 10 min do job, e o que garante o corte é o `sinal` do executor (o laço para entre um alvo e outro, e o `apagar` em curso rejeita e a transação desfaz) e o storage fora do ar (3 falhas de storage seguidas, sem alvo que passou no meio, em duas escolas ou mais: as duas passadas param), com o resto na próxima tentativa ou na hora seguinte; uma chave que falha sempre, ou um `apagar` que passa sempre dos 10 s, é falha de uma escola só e não para as outras (o `S3FileStorage` transforma toda falha do `DeleteObject` em `FileStorageUnavailableError`, então só a sequência em mais de uma escola distingue o storage fora de uma chave com defeito); a linha trava com a transação aberta durante o `apagar`, por isso o pool de lote não pode ficar preso: cada `apagar` tem prazo de 10 s e o corte solta a conexão |
 | Limite por escola | vaga `pdf` por escola 2 (`VAGAS_ESCOLA_PDF`, sobreposta por `configuracao_operacional_escola.vagas`); 100 envios por hora por pessoa, 300 por escola; 300 pendentes por escola; 20 MB por arquivo |
 | Rate limit | `MaterialUploadGuard` (429, `Retry-After`) no envio e na edição; o `PATCH` à parte, 100 por hora por pessoa e 300 por escola |
 | Corridas de concorrência | `cenarios.md` |
@@ -180,6 +180,7 @@ Em `cenarios.md`.
 | 00, 10, 20, 70, 80 | seções 5 a 7c | — | — |
 | 45.0 | onda 3b | fila `pdf` no `apps/worker`, não no `main-worker.ts` da 47.0; a varredura também acha o envio sem commit; sem o `substitui` da 41.0; o `pdf-esperando` não nasce, e no lugar fica o `pdf-parado` | esta Tech Spec (Joaquim, 11/11/2026) |
 | 1.0 | extração no worker (a 45.0 inteira) | o id do material nasce na aplicação (`uuidV7`) e o objeto vai ao storage **antes** da transação, em `material-temporario/<escola>/<id>` (`chaveDoTemporario`), sem a linha de `envio_de_material`, que é da 2.0; a varredura de `processando` parado deixa a API aqui, e o `processando` sem job é fechado de outro jeito (abaixo): a varredura da 2.0 é só do objeto de `pronto`, `falhou` e excluído; o expurgo noturno apaga o objeto do excluído (`excluidosComObjeto`, lotes de 100, só dentro da janela) e a exclusão de `processando` o apaga na hora; o objeto ausente de `processando` é `arquivo_ausente` no log e na métrica, e `extracao_falhou` em `falha`; a extração tem 3 tentativas e a guarda `definicoes-de-job` a admite; o prazo e o desligamento além da graça abortam o `sinal` e o processador recupera o controle (`quandoAbortar`): na última tentativa o material fecha em `falhou` e o objeto sai com o processo vivo, e se o processo morre antes o job termina `falhou/EXECUCAO_INTERROMPIDA`, o alerta de job falhou de vez dispara e o "Descartar" da 3.0 fecha o material e apaga o objeto (§7c "Estados": descarte); o `processando` que a API anterior deixou, sem job nem objeto, a migration `0049` fecha em `falhou`/`extracao_falhou`; `processado_em` e `objeto_apagado_em` entram em `fora` do arquivo do titular; a `pdf` tem lock de 60 s e verificação de stalled de 20 s (`WORKER_POOL_OPTIONS_BY_QUEUE`), de modo que o job que perde o lock volta à fila em até 80 s; o job sintético não entra na `pdf` (`FILAS_DO_SINTETICO`) | esta Tech Spec (Implementador, 11/11/2026) |
+| 2.0 | `envio_de_material`, objeto antes da linha, varredura horária | o job `sistema.varrer-temporarios-de-material` é **urgente** (`naoUrgente: false`), de hora em hora no minuto 10 (`10 * * * *`): rotina leve, e a janela letiva não pode segurar o PDF no storage de 7h às 18h (RF13); a falha de qualquer alvo não segura os outros, mas faz o job falhar no fim (a fila repete), salvo o storage fora do ar (3 `FileStorageUnavailableError` seguidos em duas escolas ou mais), que a para, e o `sinal` do executor, que a corta; cada passada trata até 500 alvos, e o `apagar` tem prazo de 10 s, sem caber no prazo do job no pior caso (o corte é o `sinal`); a espera pela linha do envio é de 1 s (`lock_timeout`), e o `55P03` é 503; `criado_em` é o relógio do banco, e a varredura lê o `Clock` do job; duas leituras `@Unscoped` (a de `envio_de_material` e a do órfão pós-commit), só escola e id; o repository da linha saiu como `envio-de-material.repository.ts` (o `EnvioRepository` de e-mail já cerca o nome `envio.repository`) e as leituras entre escolas, em `varredura.repository.ts` | esta Tech Spec |
 | RF11 | as `fontes` | depois do expurgo da linha, a fonte vira "material da escola" | esta Tech Spec |
 | RF6 | `PATCH` de séries | a de série fica na F4 (o backfill precisa); a de habilidade, na F4b | esta Tech Spec |
 | RF8 | a recusa | o Tutor sem material vira um estado da tela, sem fala da IA | esta Tech Spec |

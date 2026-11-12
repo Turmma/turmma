@@ -653,7 +653,10 @@ O que a fatia tem de diferente do desenho definitivo, e por quê:
   `embedding` (busca por texto completo em português). `processado_em` guarda o instante em que a extração terminou, e
   `objeto_apagado_em`, o instante em que o objeto saiu do storage (o que a varredura do objeto órfão, 2.0, confere); as duas
   são nulas ao nascer e técnicas: não entram no arquivo do titular. O id do material é gerado pela aplicação (UUIDv7),
-  porque a chave do objeto o leva e o objeto é gravado antes da linha. Não existe material sem a declaração de licença
+  porque a chave do objeto o leva e o objeto é gravado antes da linha. **`EnvioDeMaterial`** (`envio_de_material`) → escola*,
+  materialId*, criadoEm*; chave `(escola, materialId)`, sem FK para o material, que ainda não existe: a linha nasce antes do
+  objeto e sai na transação do envio, e a varredura horária (`sistema.varrer-temporarios-de-material`) apaga o objeto e a linha
+  de mais de 1 h; é o que faz o PDF de um envio que nunca chegou ao commit ser achado. Só ids e um instante, sem pessoa (`sem_pessoa`). Não existe material sem a declaração de licença
   (check), e a recusa não grava linha (D5, D75).
 - **Não existe `Nota`** (D46). `Correcao` é o diagnóstico formativo de objetiva, por aluno e por lote; `AtividadeAplicada`,
   `TentativaAtividade` e `RespostaAtividade` são a `Avaliacao`, a `Aplicacao` e a `Resposta`, finas, só para objetiva online.

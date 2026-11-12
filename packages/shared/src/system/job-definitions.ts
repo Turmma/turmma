@@ -22,6 +22,7 @@ export const TIPO_GRAVAR_PLANILHA = 'estrutura.gravar-planilha'
 export const TIPO_ENVIAR_CONVITE = 'email.enviar-convite'
 export const TIPO_ENVIAR_EMAIL_DA_CONTA = 'sistema.enviar-email-da-conta'
 export const TIPO_EXTRAIR_PDF = 'material.extrair-pdf'
+export const TIPO_VARRER_TEMPORARIOS_DE_MATERIAL = 'sistema.varrer-temporarios-de-material'
 export const TIPO_JOB_SINTETICO = 'sintetico'
 
 /**
@@ -220,6 +221,18 @@ export const JOB_DEFINITIONS = {
     executor: 'worker',
     dados: materialSchema,
     retentativa: RETENTATIVA_DA_EXTRACAO,
+    prazoMs: 600_000,
+    naoUrgente: false,
+  }),
+  // A varredura horária do PDF que sobrou no storage (ingestao-do-material, tarefa 2.0): o objeto do envio que não chegou ao commit (1 h) e o que ficou depois dele
+  // (25 h). Rotina nossa, sem escola, na fila `lote` e **urgente** (`naoUrgente: false`): é leve (uma leitura de ids e os `apagar`), e uma rotina horária segurada pela
+  // janela letiva deixaria o PDF no storage de 7h às 18h, contra o RF13. O prazo (10 min) não cobre o lote inteiro no pior caso: o processador escuta o `sinal` e para entre um alvo e outro quando ele aborta, e para quando o storage está fora do ar (3 falhas seguidas em duas escolas ou mais; uma chave que falha sempre não para as outras escolas); o que sobra sai na próxima tentativa ou na hora seguinte.
+  [TIPO_VARRER_TEMPORARIOS_DE_MATERIAL]: defineJob({
+    filas: ['lote'],
+    escopo: 'sistema',
+    executor: 'worker',
+    dados: semDados,
+    retentativa: RETENTATIVA_DE_HOJE,
     prazoMs: 600_000,
     naoUrgente: false,
   }),

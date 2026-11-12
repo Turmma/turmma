@@ -1,5 +1,5 @@
 import { runInContext, type Database, type JobOutbox, type LoggerBase } from '@educa/core'
-import { TIPO_CONSOLIDAR_USO, TIPO_EXPURGAR_ACESSO, TIPO_EXPURGAR_DADO_PESSOAL, TIPO_EXPURGAR_JOBS, type JobType } from '@educa/shared'
+import { TIPO_CONSOLIDAR_USO, TIPO_EXPURGAR_ACESSO, TIPO_EXPURGAR_DADO_PESSOAL, TIPO_EXPURGAR_JOBS, TIPO_VARRER_TEMPORARIOS_DE_MATERIAL, type JobType } from '@educa/shared'
 import { UnrecoverableError, type Job, type Queue } from 'bullmq'
 import { randomUUID } from 'node:crypto'
 
@@ -35,6 +35,8 @@ export const JOB_SCHEDULES: readonly JobSchedule[] = [
   { tipo: TIPO_CONSOLIDAR_USO, padrao: '0 2 * * *' },
   { tipo: TIPO_EXPURGAR_JOBS, padrao: '30 3 * * *' },
   { tipo: TIPO_EXPURGAR_ACESSO, padrao: '30 4 * * *' },
+  // De hora em hora, no minuto 10 (longe do :00 e do :30 das outras): o PDF que sobrou no storage (ingestao-do-material, 2.0). Urgente, ao contrário das noturnas.
+  { tipo: TIPO_VARRER_TEMPORARIOS_DE_MATERIAL, padrao: '10 * * * *' },
 ]
 
 /**

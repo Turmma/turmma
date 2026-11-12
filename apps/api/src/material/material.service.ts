@@ -1,4 +1,4 @@
-import { DEFAULT_RETRY_AFTER_SECONDS, DomainException, AuditoriaRecorder, FileStorageUnavailableError, JobOutbox, summarizeError, requestSessao, type Database, type FileStorage, type LoggerBase } from '@educa/core'
+import { DEFAULT_RETRY_AFTER_SECONDS, DomainException, AuditoriaRecorder, FileStorageUnavailableError, JobOutbox, postgresErrorIn, summarizeError, requestSessao, type Database, type FileStorage, type LoggerBase } from '@educa/core'
 import {
   alcanceDe,
   ErrorCode,
@@ -17,12 +17,15 @@ import {
 } from '@educa/shared'
 import { createHash } from 'node:crypto'
 import { DisciplinaRepository } from '@educa/core/estrutura'
-import { chaveDoTemporario, ExtracaoDoMaterialRepository, PRAZO_DO_OBJETO_DO_MATERIAL_MS, temAssinaturaDePdf, uuidV7 } from '@educa/core/material'
+import { chaveDoTemporario, EnvioDeMaterialRepository, ExtracaoDoMaterialRepository, PRAZO_DO_OBJETO_DO_MATERIAL_MS, temAssinaturaDePdf, uuidV7 } from '@educa/core/material'
 import { paginar } from '../http/pagination.js'
 import { MaterialRepository, type AlcanceDoMaterial, type MaterialLido } from './material.repository.js'
 import { trechoCitado } from './trecho-citado.js'
 
 const registro = new AuditoriaRecorder()
+
+/** SQLSTATE `lock_not_available`: o `lock_timeout` da linha do envio estourou, porque a varredura a segurava. */
+const TRAVA_NAO_DISPONIVEL = '55P03'
 
 /** A janela dos tetos de envio. */
 export const JANELA_DOS_ENVIOS_MS = 60 * 60_000
@@ -105,10 +108,12 @@ export class MaterialService {
    *    mesma transação. O mesmo arquivo de novo na escola é `CONFLITO`, pelo índice único;
    * 5. o job de extração é pedido e a resposta sai, com o material ainda `processando` (regra 00, item 4).
    *
-   * O arquivo é guardado no storage privado **antes** da transação, com o id do material na chave: se o storage está fora, o
-   * envio responde 503 sem linha nenhuma; se a transação falha depois, o objeto é apagado no mesmo `catch` (melhor esforço, com o id no log se o
-   * storage recusa) e, se nem assim saiu, a varredura (2.0) o apaga. O job
-   * entra no outbox na mesma transação da linha, então não há material `processando` sem job (D49).
+   * O arquivo é guardado no storage privado **antes** da transação, com o id do material na chave, e a linha de `envio_de_material` nasce **antes**
+   * do arquivo (2.0): é ela que faz a varredura horária achar o objeto de um envio que nunca chegou ao commit. A transação a apaga no fim, sob
+   * `lock_timeout` curto, e a linha precisa existir: se a varredura já a apagou (o envio foi lento), o envio desfaz com 503, para nunca haver material
+   * cujo objeto a varredura levou. Toda saída depois do `guardarBytes` apaga o **objeto primeiro** (o objeto ausente conta) e só então a linha; o
+   * `apagar` que falha deixa a linha, e a varredura apaga os dois. A falha do próprio `guardarBytes` tenta apagar o objeto e **deixa a linha**: o PUT
+   * atrasado pode gravar depois do `apagar`. O job entra no outbox na mesma transação da linha, então não há material `processando` sem job (D49).
    */
   async enviar(pedido: EnviarMaterialRequest, arquivo: unknown): Promise<MaterialResponse> {
     const { banco, armazem, enfileirador, logger } = this.dependencias
@@ -136,20 +141,27 @@ export class MaterialService {
 
     // O id nasce aqui, antes da linha: a chave do objeto o leva, e a varredura acha o órfão por ela.
     const id = uuidV7()
+    // A linha do envio vem antes do objeto: sem ela, o PDF que chega ao storage e nunca tem commit não tem dono, e ninguém o procura.
+    await new EnvioDeMaterialRepository(banco).registrar(id)
     await this.#guardarObjeto(armazem, id, bytes)
-    const gravado = await banco.transaction(async (tx) => {
-      const materiais = new MaterialRepository(tx)
-      await materiais.travarEnviosDaEscola()
-      await this.#exigirDentroDosTetos(materiais)
-      const novo = await materiais.inserir({ id, disciplinaId, titulo: pedido.titulo, titularidade: pedido.titularidade, licenciante: pedido.licenciante ?? null, licenca, sha256, tamanhoBytes: bytes.byteLength })
-      await registro.gravar(tx, 'material.enviado', { entidadeId: novo.id, depois: { disciplinaId, titularidade: pedido.titularidade, licenca, declaracao: true } })
-      await enfileirador.enfileirarUmaVez(tx, TIPO_EXTRAIR_PDF, { materialId: novo.id }, novo.id)
-      return novo
-    }).catch(async (erro: unknown) => {
-      // Teto, duplicado ou banco fora: nenhuma linha ficou, então o objeto não tem dono. Sem conseguir apagar, a varredura o acha.
-      await armazem.apagar(chaveDoTemporario(id)).catch((falha: unknown) => logger.warn({ evento: 'material.objeto_nao_apagado', materialId: id, erro: summarizeError(falha) }))
-      throw erro
-    })
+    const gravado = await banco
+      .transaction(async (tx) => {
+        const materiais = new MaterialRepository(tx)
+        await materiais.travarEnviosDaEscola()
+        await this.#exigirDentroDosTetos(materiais)
+        const novo = await materiais.inserir({ id, disciplinaId, titulo: pedido.titulo, titularidade: pedido.titularidade, licenciante: pedido.licenciante ?? null, licenca, sha256, tamanhoBytes: bytes.byteLength })
+        await registro.gravar(tx, 'material.enviado', { entidadeId: novo.id, depois: { disciplinaId, titularidade: pedido.titularidade, licenca, declaracao: true } })
+        await enfileirador.enfileirarUmaVez(tx, TIPO_EXTRAIR_PDF, { materialId: novo.id }, novo.id)
+        // A linha sai com o commit. Sem ela, a varredura já a levou (e o objeto com ela): o envio foi lento demais e desfaz, sem material sem objeto.
+        if (!(await new EnvioDeMaterialRepository(tx).apagarNoEnvio(id))) throw new DomainException(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, undefined, DEFAULT_RETRY_AFTER_SECONDS)
+        return novo
+      })
+      .catch(async (erro: unknown) => {
+        // Teto, duplicado, trava ou banco fora: nenhuma linha de material ficou, então o objeto não tem dono. O objeto sai primeiro e a linha do envio só depois.
+        await this.#desfazerEnvio(id)
+        if (postgresErrorIn(erro)?.code === TRAVA_NAO_DISPONIVEL) throw new DomainException(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, undefined, DEFAULT_RETRY_AFTER_SECONDS)
+        throw erro
+      })
     const tamanho = bytes.byteLength
     logger.info({ evento: 'material.enviado', materialId: gravado.id, tamanho })
     // Quem envia é sempre a coordenação (a célula `material.enviar` é só dela): recebe o que declarou.
@@ -175,14 +187,33 @@ export class MaterialService {
     }
   }
 
-  /** O PDF no storage, com prazo curto; o storage fora é 503 com `Retry-After`, e nenhuma linha fica para trás. */
+  /**
+   * O PDF no storage, com prazo curto; o storage fora é 503 com `Retry-After`. A falha do `guardarBytes` não diz se o objeto chegou (o PUT atrasado pode
+   * gravar depois): tenta apagar o objeto e **deixa a linha do envio**, para a varredura apagar de novo quando a hora passar.
+   */
   async #guardarObjeto(armazem: FileStorage, id: string, bytes: Buffer): Promise<void> {
     try {
       await armazem.guardarBytes(chaveDoTemporario(id), bytes, { prazoMs: PRAZO_DO_OBJETO_DO_MATERIAL_MS })
     } catch (erro) {
+      await armazem.apagar(chaveDoTemporario(id)).catch((falha: unknown) => this.dependencias.logger.warn({ evento: 'material.objeto_nao_apagado', materialId: id, erro: summarizeError(falha) }))
       if (erro instanceof FileStorageUnavailableError) throw new DomainException(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, undefined, DEFAULT_RETRY_AFTER_SECONDS)
       throw erro
     }
+  }
+
+  /**
+   * A saída de um envio que passou do `guardarBytes` sem virar material: o objeto sai primeiro (ausente conta) e só então a linha do envio. Se o `apagar`
+   * falha, a linha fica, com o id no log, e a varredura horária apaga o objeto e a linha; se é a linha que não sai, o objeto já saiu e a varredura a apaga.
+   */
+  async #desfazerEnvio(id: string): Promise<void> {
+    const { banco, armazem, logger } = this.dependencias
+    try {
+      await armazem.apagar(chaveDoTemporario(id))
+    } catch (falha) {
+      logger.warn({ evento: 'material.objeto_nao_apagado', materialId: id, erro: summarizeError(falha) })
+      return
+    }
+    await new EnvioDeMaterialRepository(banco).apagar(id).catch((falha: unknown) => logger.warn({ evento: 'material.envio_nao_apagado', materialId: id, erro: summarizeError(falha) }))
   }
 
   async #apagarObjetoDoExcluido(id: string): Promise<void> {

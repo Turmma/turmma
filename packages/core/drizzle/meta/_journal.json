@@ -351,6 +351,13 @@
       "when": 1794409234272,
       "tag": "0049_material_extracao_no_worker",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1794420493250,
+      "tag": "0050_material_envio_em_andamento",
+      "breakpoints": true
     }
   ]
 }

@@ -90,6 +90,7 @@ describe('a réplica de cada fila contra o registro de jobs', () => {
       'sistema.expurgar-acesso',
       'sistema.expurgar-dado-pessoal',
       'sistema.expurgar-jobs',
+      'sistema.varrer-temporarios-de-material',
       'titular.eliminar',
     ])
   })

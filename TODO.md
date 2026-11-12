@@ -3466,3 +3466,33 @@ aula" em `Retencao.tsx`, o Validador conferiu: a tela já o mostra pela descriç
       chave a mais (usar o conjunto exato); `extrair-pdf.ts` tornar o `sinal` obrigatório, já que o executor sempre o entrega; `1_task.md`, linha "envio: recusa, teto e corrida", citar os casos pelo nome
 - [ ] (ingestao-do-material, 1.0, revisor-geral, 2ª) **`3_task.md`, caso "Descartar o PDF":** dizer o estado de partida (job `EXECUCAO_INTERROMPIDA`, material `processando` com objeto) e que o descarte
       libera o teto de 3 (dono: o Arquiteto, ao revisar a tarefa)
+- [ ] (ingestao-do-material, 2.0, infra-guardian, 1ª) **`#guardarObjeto`: com o `guardarBytes` estourando os 30 s, o `apagar` do `catch` espera até 5 s antes do 503.** Devolver o 503 na hora e apagar em segundo plano
+      muda o comportamento do envio e o caso "o `guardarBytes` estoura o prazo" (o PUT que chega antes do `apagar` do `catch` sai na hora); decidir com o Arquiteto (dono: Implementador da 2.0 ou o que mexer no envio)
+- [ ] (ingestao-do-material, 2.0, infra-guardian, 1ª) **Somar ao log `material.varredura` a duração da execução** (`duracaoMs`). Muda o conjunto de chaves, que o caso do log compara por igualdade (dono: quem mexer na varredura)
+- [ ] (ingestao-do-material, 2.0, revisor-geral, 1ª) **`#desfazerEnvio`, depois do `55P03`: o `apagar(id)` da linha roda sem `lock_timeout`** e a requisição chega a uns 3 s; aplicar a mesma espera curta, ou não apagar a linha nesse caminho
+      (a varredura a apaga depois). Muda o caminho de falha do envio e o caso "a varredura segurando a linha do envio" (dono: Implementador da 2.0 ou quem mexer no envio)
+- [ ] (ingestao-do-material, 2.0, test-engineer, 1ª) **Duas varreduras ao mesmo tempo (duas execuções ou duas réplicas), uma parada no `apagar`:** caso novo de integração, com a ordem forçada. O `skip locked` já está provado contra o
+      envio lento; falta contra a outra varredura (dono: quem mexer na varredura)
+- [ ] (ingestao-do-material, 2.0, test-engineer, 1ª) **Uma escola com falha persistente pode segurar as outras:** o lote de 500 é global, ordenado por `criado_em`, e uma escola com 500 ou mais alvos que falham sempre fica na frente.
+      Decisão de desenho do lote (por escola ou global) (dono: o Arquiteto).
+      Rodada 3: duas escolas com chaves que falham sempre entre os alvos mais antigos (A, B, A, sem alvo que passe no meio) disparam "storage fora" toda hora e deixam o PDF das outras
+      escolas no storage; `storageForaDepoisDe` não reinicia a lista quando a escola muda ((a, a, a, b) já conta), e `docs/lgpd.md` garante só o caso de uma escola. Com alvos de uma escola só
+      e o storage fora, a regra das duas escolas não dispara e a execução gasta até 10 min (500 × 10 s, cada um com uma conexão de `lote` e uma transação aberta) a cada tentativa
+- [ ] (ingestao-do-material, 2.0, infra-guardian e test-engineer, 3ª) **`varrer-envios.ts` (~149): o alvo pulado zera a conta de falhas do storage.** `travarParada` devolve `false` sem chamar o
+      storage, e `falhasDeStorageSeguidas` zera como se um `apagar` tivesse passado; zerar só quando um `apagar` passou de fato, ou escrever o comentário. Muda o critério de parada, provado por
+      mutação (dono: quem mexer na varredura)
+- [ ] (ingestao-do-material, 2.0, test-engineer, 3ª) **A conta de falhas atravessa as duas passadas** (envios e objetos): `[a, a, b]` com dois envios da A no fim da primeira passada e o primeiro
+      objeto da B para a passada dos objetos inteira. Deixar escrito que é intencional, ou zerar entre as passadas, com caso de teste (dono: quem mexer na varredura)
+- [ ] (ingestao-do-material, 2.0, test-engineer e revisor-geral, 3ª) **Acabamento dos casos novos de `varrer-envios.int.test.ts`:** (~277) `idA` e `idB` nascem com o mesmo `criado_em` e o desempate
+      é `randomUUID`, fixar com `enviosNaOrdem([a, b], base)`; (~563) o caso de zerar a conta só se distingue pelo `estado`, um quinto alvo depois da sequência prova também na contagem de chamadas;
+      no caso "o alvo que passa zera a conta" usar o `enviosNaOrdem` no laço; no caso "falha que não é do storage" os envios usam o mesmo `RelogioMovel` sem avançar e o comentário "a, a, b, b"
+      não é a ordem da leitura (a asserção não depende dela) (dono: quem mexer nesse teste)
+- [ ] (ingestao-do-material, 2.0, test-engineer, 1ª) **`material.int.test.ts` (~368), "dois envios do mesmo arquivo ao mesmo tempo gravam um":** acrescentar `expect(linhasDoEnvio).toEqual([])`. O arquivo não é tocado pela 2.0;
+      o caso feliz de `material-envio-orfao.int.test.ts` já prova que a linha não sobra no envio único (dono: quem mexer em `material.int.test.ts`)
+- [ ] (ingestao-do-material, 2.0, tenancy-guardian, 2ª) **A parada por "storage fora" supõe um storage único para todas as escolas.** O critério (3 falhas seguidas em duas escolas) só vale com um storage só; com storage por
+      escola, ou por região, a premissa muda. Registrar na Tech Spec junto do lote global (dono: o Arquiteto)
+- [ ] (ingestao-do-material, 2.0, privacy-guardian, 2ª) **`summarizeError` grava a `pilha` no log, com caminhos de arquivo do servidor.** Não é dado pessoal, e já era assim; revisar se o destino do log mudar (dono: quem mexer no log)
+- [ ] (ingestao-do-material, 2.0, revisor-geral, 2ª) **`varrer-envios.ts`, `apagarComPrazo`: o `if (aoAbortar)` do `finally` é sempre verdadeiro** (o executor da `Promise` roda de forma síncrona); pode virar atribuição direta
+      (dono: quem mexer na varredura)
+- [ ] (ingestao-do-material, 2.0, revisor-geral, 2ª) **O alerta de "objeto não apagado" deveria ler o `estado` do resumo de `material.varredura`** (`cortada`, `storage_fora`, `completa`) para separar o storage lento de uma chave com defeito;
+      é o mesmo assunto do lote global (dono: o Arquiteto)

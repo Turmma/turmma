@@ -13,7 +13,7 @@
   - [x] 1.5 O envio enfileira; exclusão e expurgo apagam o objeto; métrica, log e documentos
   - [x] 1.6 Testes: a tabela "3. Falha" da onda 3b, as corridas de dois jobs, a vaga, isolamento
 
-- [ ] **2.0 — Nenhum PDF fica para trás: `envio_de_material`, objeto antes da linha, varredura horária**
+- [x] **2.0 — Nenhum PDF fica para trás: `envio_de_material`, objeto antes da linha, varredura horária**
   - [ ] 2.1 Migration de `envio_de_material`
   - [ ] 2.2 A linha antes do `guardarBytes`, apagada na transação; o `catch` na ordem da §5 (4)
   - [ ] 2.3 Varredura horária do envio sem commit e do órfão pós-commit (25 h)

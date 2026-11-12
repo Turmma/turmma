@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm'
-import { boolean, check, foreignKey, index, integer, pgTable, text, timestamp, unique, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
+import { boolean, check, foreignKey, index, integer, pgTable, primaryKey, text, timestamp, unique, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
 import type { EstadoDeMaterial, FalhaDeMaterial, LicencaDeMaterial, TitularidadeDeMaterial } from '@educa/shared'
 import { disciplina } from './disciplina.js'
 import { escola } from './escola.js'
@@ -88,4 +88,28 @@ export const material = pgTable(
     check('material_pronto_tem_paginas', sql`${tabela.estado} <> 'pronto' or ${tabela.paginas} is not null`),
     check('material_excluido_por_so_no_excluido', sql`${tabela.excluidoPor} is null or ${tabela.excluidoEm} is not null`),
   ],
+)
+
+/**
+ * O envio de material em andamento (ingestao-do-material, tarefa 2.0; Tech Spec, seções 3 e 5, "Envio e edição"; onda 3b, 3. Falha). A
+ * linha nasce **antes** do `guardarBytes` e sai na transação do envio: ela é o que faz o PDF que chegou ao storage e nunca teve commit
+ * (a API caiu, o PUT atrasado gravou depois do `apagar`) ser achado e apagado pela varredura horária. Sem a linha, o objeto de um envio
+ * que não chegou a virar `material` não tem dono e ninguém o procura.
+ *
+ * - Chave `(escola_id, material_id)`, sem FK para `material`: o material ainda não existe quando a linha nasce, e na maioria dos envios
+ *   nunca existirá. A escola tem FK (regra 10, item 1); o id é o UUIDv7 que a aplicação gerou e que a chave do objeto leva.
+ * - `criado_em` é o relógio do banco; a varredura o compara com o relógio dela, com uma hora de folga, que cobre o prazo do envio.
+ * - Sem pessoa nenhuma: só ids e um instante (`sem_pessoa`, `packages/shared/src/privacidade/classificacao.ts`). Ninguém a lê pela API.
+ * - Índice `(criado_em)`: a varredura é rotina nossa, entre escolas (`@Unscoped`, só escola e id), e a tabela é de linhas que duram minutos.
+ */
+export const envioDeMaterial = pgTable(
+  'envio_de_material',
+  {
+    escolaId: uuid()
+      .notNull()
+      .references(() => escola.id),
+    materialId: uuid().notNull(),
+    criadoEm: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (tabela) => [primaryKey({ name: 'envio_de_material_pk', columns: [tabela.escolaId, tabela.materialId] }), index('envio_de_material_criado_em_idx').on(tabela.criadoEm)],
 )

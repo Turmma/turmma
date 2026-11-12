@@ -60,6 +60,7 @@ import {
   TIPO_JOB_SINTETICO,
   FILAS_DO_SINTETICO,
   TIPO_MONTAR_ARQUIVO,
+  TIPO_VARRER_TEMPORARIOS_DE_MATERIAL,
   type QueueName,
   type JobRegistry,
 } from '@educa/shared'
@@ -78,6 +79,7 @@ import { criarRotinaDeExpurgo } from './processors/expurgar-dado-pessoal.js'
 import { criarEliminacaoDoTitular } from './processors/eliminar-titular.js'
 import { criarExpurgoDaEscola } from './processors/expurgar-escola.js'
 import { criarExtracaoDoPdf } from './processors/extrair-pdf.js'
+import { criarVarreduraDeTemporarios } from './processors/varrer-envios.js'
 import { EliminacaoGauge } from './eliminacao-gauge.js'
 import { ArquivoGauge } from './arquivo-gauge.js'
 import { ImportacaoGauge } from './importacao-gauge.js'
@@ -372,7 +374,7 @@ function iniciarMedicaoDaImportacao(dependencias: { escolas: CronEscolasReposito
 
 /**
  * As rotinas do sistema, que só a réplica de lote executa: consolidação de uso (com o storage),
- * expurgo de `job_registro`, expurgo do acesso (registro de acesso, sessão e convite, 17.0) e o expurgo do dado pessoal
+ * expurgo de `job_registro`, expurgo do acesso (registro de acesso, sessão e convite, 17.0), a varredura horária do PDF que sobrou no storage (ingestao-do-material, 2.0) e o expurgo do dado pessoal
  * (F3, tarefa 3.0): a rotina que grava um job por escola, o job da escola, e, com o medidor, a medição das noites
  * incompletas que o alerta lê.
  */
@@ -429,6 +431,7 @@ function createRoutines(
         logger,
       }),
       [TIPO_ELIMINAR_TITULAR]: criarEliminacaoDoTitular({ banco, janelaDaEscola, relogio, logger }),
+      [TIPO_VARRER_TEMPORARIOS_DE_MATERIAL]: criarVarreduraDeTemporarios({ banco, armazem, relogio, logger }),
     },
     encerrar: async () => {
       await medicao?.encerrar()

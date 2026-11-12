@@ -127,6 +127,8 @@ export const CLASSIFICACAO_DAS_TABELAS: Readonly<Record<string, ClassificacaoDaT
   ano_letivo: SEM_PESSOA,
   serie: SEM_PESSOA,
   disciplina: SEM_PESSOA,
+  // O envio de material em andamento (ingestao-do-material, 2.0): só a escola, o id do material que vai nascer e um instante. Dura minutos; a varredura horária a apaga.
+  envio_de_material: SEM_PESSOA,
   turma: SEM_PESSOA,
   // O calendário do ano (F2, 2.0): tipo, datas e descrição de até 120 caracteres, sem nome de pessoa por desenho.
   evento_calendario: SEM_PESSOA,

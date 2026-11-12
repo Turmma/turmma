@@ -31,6 +31,8 @@ falhou. Seed e e2e usam licenciante fictício.
   ou sem conferir o `apagar`
 - [I] A varredura apagou a linha de um envio lento: a transação dele não acha a linha, desfaz com 503 e nada fica em
   `material`. Mutação: não conferir o `delete`
+- [I] A varredura segurando a linha do envio (apaga o objeto): o envio espera 1 s (`lock_timeout`), desfaz com 503 e não deixa material nem objeto. Lote: com mais alvos que o lote, a execução trata os mais antigos e o resto sai na hora seguinte, nas duas passadas. Mutação: tirar o `lock_timeout`
+- [I] O corte e o storage fora do ar: com o `sinal` já abortado nenhum `apagar` é chamado; com o `sinal` abortado durante um `apagar` mudo o job volta, a transação desfaz (a linha fica livre) e nenhum outro alvo é tentado; com o storage fora do ar (3 `FileStorageUnavailableError` seguidos em duas escolas) a passada para e a do objeto que sobrou nem começa; uma chave que falha sempre numa escola só, mesmo em vários alvos, não para a da outra, e o alvo que passa zera a conta (o erro dos casos é o que o `S3FileStorage` lança de fato). Mutação: tirar a leitura do `sinal`, o limite de falhas seguidas, a regra das duas escolas ou o zerar da conta
 - [P] A transação de um envio lento com a linha de `envio_de_material` travada; a varredura das 61 min pula a linha e
   não apaga o objeto; o envio confirma e o material fica pronto. Mutação: tirar o `skip locked` (ou o travar)
 - [I] `PATCH` de título e séries: a busca de uma turma da série tirada deixa de achar o material; `material.atualizado`

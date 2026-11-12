@@ -235,6 +235,7 @@ export async function materiaisJaEnviados(
  */
 export async function apagarMateriais(bancada: SessaoFixtures, escolas: readonly string[]): Promise<void> {
   if (escolas.length === 0) return
+  await bancada.pool.query('delete from envio_de_material where escola_id = any($1::uuid[])', [escolas])
   await bancada.pool.query('delete from trecho where escola_id = any($1::uuid[])', [escolas])
   await bancada.pool.query('delete from material where escola_id = any($1::uuid[])', [escolas])
 }
