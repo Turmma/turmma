@@ -90,6 +90,7 @@ const FKS_COMPOSTAS_DO_MVP = [
   'material_disciplina_da_escola_fk',
   'material_enviado_por_da_escola_fk',
   'material_excluido_por_da_escola_fk',
+  'material_licenca_da_escola_fk',
   'mensagem_agente_disciplina_da_escola_fk',
   'mensagem_agente_execucao_do_ano_da_escola_fk',
   'mensagem_agente_thread_do_ano_da_escola_fk',
