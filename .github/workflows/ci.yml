@@ -71,10 +71,24 @@ jobs:
       - run: npm run ci:integracao
 
   infra:
-    name: infra (borda, métricas, alertas e jobs no compose)
+    # Em fatias, cada uma no seu runner e com o seu compose, como o e2e: o Vitest roda um arquivo de `infra/test` por vez (os testes
+    # param e religam serviços), e a soma deles chegou a 42,5 min com o `alertas.int.test.ts` sozinho em 18,5 (o ensaio dos alertas
+    # espera o `for:` real das regras, e a de 5xx só dispara depois de 5 min): o job único foi cancelado no teto de 45 min com testes
+    # ainda por rodar (execução 43325031136, tasks/correcoes/2026-11-12-job-de-infra-passa-de-45-min.md). O Vitest reparte os
+    # arquivos por hash do caminho, sem sobra nem repetição, e nenhum arquivo depende de outro ter rodado antes.
+    name: infra ${{ matrix.fatia }}/3 (borda, métricas, alertas e jobs no compose)
     runs-on: ubuntu-24.04
-    # O ensaio dos alertas leva uns 11 min (a regra de 5xx só dispara depois de 5 min), e o teste de métricas
-    # baixa a imagem da observabilidade (grafana/otel-lgtm): uns 16 min locais, com folga para o runner.
+    strategy:
+      # Uma fatia vermelha não cancela as outras: o vermelho de cada uma continua aparecendo.
+      fail-fast: false
+      # O número de fatias é o tamanho desta lista, e o total do `--shard` do passo `npm run ci:infra` e o do `name` do job têm de
+      # acompanhá-lo (`tools/ci/esteira.test.ts` confere).
+      matrix:
+        fatia: [1, 2, 3]
+    # O teto é de cada fatia. Hoje a mais longa soma uns 21 min de teste (o `alertas.int.test.ts` sozinho é 18,5, e é o piso de
+    # qualquer repartição) e uns 4 de `npm ci`, subida do compose e imagem da observabilidade (grafana/otel-lgtm): uns 25 min, com
+    # folga até os 45. Arquivo novo de alerta soma uns 2 min na fatia em que cair: passando dos 30 min na esteira, acrescente fatia
+    # (a matriz, o `/3` do nome e o do passo), em vez de subir este número.
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -85,7 +99,7 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - run: npm run ci:infra
+      - run: npm run ci:infra -- --shard=${{ matrix.fatia }}/3
 
   e2e:
     # Em fatias, cada uma no seu runner e com o seu compose: o job único chegou ao teto de 45 min com 394 casos, e foi

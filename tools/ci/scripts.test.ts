@@ -175,6 +175,30 @@ describe('scripts ci:* reais', () => {
     expect(verde.chamadas.some((chamada) => / logs /.test(chamada))).toBe(false)
   })
 
+  it('ci:infra leva a fatia da esteira ao Vitest, e fatia malformada reprova antes de subir o compose', () => {
+    const fatia = rodarScript('infra.ts', null, ['--shard=2/3'])
+    expect(fatia.codigo).toBe(0)
+    expect(fatia.chamadas).toContain('npm run test:infra -- --shard=2/3')
+    expect(indiceDe(fatia.chamadas, 'npm run test:infra')).toBeGreaterThan(indiceDe(fatia.chamadas, ' up '))
+    expect(indiceDe(fatia.chamadas, ' down ')).toBeGreaterThan(indiceDe(fatia.chamadas, 'npm run test:infra'))
+
+    // Sem fatia, o projeto inteiro: é o `npm run ci:infra` da máquina e o portão da tarefa.
+    expect(rodarScript('infra.ts', null).chamadas).toContain('npm run test:infra')
+    expect(rodarScript('infra.ts', null).chamadas.some((chamada) => chamada.includes('--shard'))).toBe(false)
+
+    // Fatia vermelha continua derrubando o compose e despejando o log.
+    const vermelha = rodarScript('infra.ts', 'npm run test:infra', ['--shard=1/3'])
+    expect(vermelha.codigo).not.toBe(0)
+    afirmarDespejoCarimbado(vermelha.chamadas)
+
+    // `${{ matrix.fatia }}` que não foi expandido, um índice fora do total ou duas fatias rodariam a suíte errada.
+    for (const malformada of [['--shard=4/3'], ['--shard=0/3'], ['--shard=${{'], ['--shard=1/2', '--shard=2/2']]) {
+      const resultado = rodarScript('infra.ts', null, malformada)
+      expect(resultado.codigo, malformada.join(' ')).not.toBe(0)
+      expect(resultado.chamadas, malformada.join(' ')).toEqual([])
+    }
+  })
+
   it('a esteira roda todo projeto do Vitest, e o `npm run test` do portão da tarefa só deixa de fora o de infra (D52)', async () => {
     const { default: configuracao } = await import('../../vitest.config.ts')
     const projetos = (configuracao.test?.projects ?? []).map((projeto) => (typeof projeto === 'object' && 'test' in projeto ? projeto.test?.name : undefined))

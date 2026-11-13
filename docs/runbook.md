@@ -1365,6 +1365,17 @@ tomada de novo, com o `privacy-guardian`. O mesmo vale para o relatório do cens
 (`censo-do-e2e-<i>`, o `censo-do-e2e.json`), que também é público, inclusive na execução de pull request de fork, e leva o
 `stdout`, o `stderr` e os `errors` de cada caso: um `console.log` de fixture com dado real vazaria por ali.
 
+## Esteira vermelha na infra
+
+A infra roda em **três fatias**, cada uma num job próprio (`infra 1/3` a `infra 3/3`), com o seu compose e o seu `--shard=<i>/3` do
+Vitest, que reparte os arquivos de `infra/test` por hash do caminho; uma fatia vermelha não cancela as outras. O projeto roda um
+arquivo por vez (os testes param e religam serviços), e a soma deles chegou a 42,5 min num runner só, com o `alertas.int.test.ts`
+sozinho em 18,5: o job único foi cancelado no teto de 45 min com testes por rodar (execução 43325031136;
+`tasks/correcoes/2026-11-12-job-de-infra-passa-de-45-min.md`). Em três fatias a mais longa leva uns 25 min. Cancelada sem push novo é
+o prazo: some a duração de cada arquivo no log da fatia (`gh run view <id> --log`) e, passando dos 30 min, acrescente fatia em vez de
+subir o `timeout-minutes`. O total de fatias está escrito em três lugares do `.github/workflows/ci.yml`: a matriz, o `name` do job e o
+`--shard` do passo. Localmente, `npm run ci:infra` roda tudo, e `npm run ci:infra -- --shard=<i>/<n>` roda uma fatia.
+
 ## Buscar um erro no log pelo `tipo`
 
 O erro que sai no log traz o campo `tipo`, que é o nome da classe do erro (`summarizeError`, `packages/core/src/error/summarize-error.ts`);

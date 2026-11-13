@@ -64,20 +64,25 @@ function casosDoE2e(argumentos: readonly string[] = []): number {
 }
 
 /**
- * Os índices das fatias do e2e, pela matriz do job (`strategy.matrix.fatia`). Sem matriz, uma fatia só: a suíte inteira
- * num job, que é como a esteira estava até a correção 2026-10-03-e2e-em-fatias.
+ * Os índices das fatias de um job em fatias (`e2e` e `infra`), pela matriz dele (`strategy.matrix.fatia`). Sem matriz, uma fatia só:
+ * a suíte inteira num job, que é como a esteira estava até a correção 2026-10-03-e2e-em-fatias (o e2e) e até a
+ * 2026-11-12-job-de-infra-passa-de-45-min (a infra).
  */
-function fatiasDoE2e(): number[] {
-  const matriz = workflow.jobs['e2e']?.strategy?.matrix
+function fatiasDoJob(nome: 'e2e' | 'infra'): number[] {
+  const matriz = workflow.jobs[nome]?.strategy?.matrix
   if (matriz === undefined) return [1]
   // Só a fatia: `include` ou `exclude` acrescentariam ou tirariam jobs sem a guarda ver.
   expect(Object.keys(matriz)).toEqual(['fatia'])
   const fatias = matriz['fatia']
-  expect(Array.isArray(fatias), 'strategy.matrix.fatia do e2e é uma lista').toBe(true)
+  expect(Array.isArray(fatias), `strategy.matrix.fatia do ${nome} é uma lista`).toBe(true)
   const indices = fatias as number[]
   // De 1 a n, sem buraco nem repetição: a fatia que falta na matriz é suíte que deixa de rodar sem nenhum vermelho.
   expect(indices).toEqual(Array.from({ length: indices.length }, (_, posicao) => posicao + 1))
   return indices
+}
+
+function fatiasDoE2e(): number[] {
+  return fatiasDoJob('e2e')
 }
 
 interface Workflow {
@@ -342,9 +347,9 @@ describe('esteira do GitHub (.github/workflows/ci.yml)', () => {
     expect(Object.keys(workflow.jobs).sort()).toEqual(['e2e', 'infra', 'integracao', 'verificar'])
     for (const [nome, job] of Object.entries(workflow.jobs)) {
       const comandos = job.steps.flatMap((passo) => (passo.run === undefined ? [] : [passo.run.trim()]))
-      // O e2e passa a fatia dele, e o total do `--shard` é o tamanho da matriz: `/3` com quatro fatias rodaria a quarta
+      // O e2e e a infra passam a fatia deles, e o total do `--shard` é o tamanho da matriz: `/3` com quatro fatias rodaria a quarta
       // fatia de três, que não existe, e a de `/5` deixaria um quinto da suíte sem rodar.
-      const argumentos = nome === 'e2e' ? ` -- --shard=${EXPRESSAO_DA_FATIA}/${String(fatiasDoE2e().length)}` : ''
+      const argumentos = nome === 'e2e' || nome === 'infra' ? ` -- --shard=${EXPRESSAO_DA_FATIA}/${String(fatiasDoJob(nome).length)}` : ''
       // O `verificar` confere também as entregas (RF14, terceira camada), antes das suítes; o teste dele está abaixo.
       const antes = nome === 'verificar' ? ['npm run ci:conferir-entregas'] : []
       expect(comandos).toEqual(['npm ci', ...antes, `npm run ci:${nome}${argumentos}`])
@@ -358,6 +363,17 @@ describe('esteira do GitHub (.github/workflows/ci.yml)', () => {
     expect(job?.strategy?.['fail-fast']).toBe(false)
     // O nome mostra a fatia: sem isso, os jobs da execução aparecem iguais e não se sabe qual ficou vermelho.
     expect(job?.name).toContain(`${EXPRESSAO_DA_FATIA}/${String(fatiasDoE2e().length)}`)
+  })
+
+  it('a infra roda em fatias que não se cancelam: o vermelho de uma não esconde o das outras, e cada uma tem teto de até 45 min', () => {
+    const job = workflow.jobs['infra']
+    expect(fatiasDoJob('infra').length).toBeGreaterThan(1)
+    expect(job?.strategy?.['fail-fast']).toBe(false)
+    // O nome mostra a fatia: sem isso, os jobs da execução aparecem iguais e não se sabe qual ficou vermelho.
+    expect(job?.name).toContain(`${EXPRESSAO_DA_FATIA}/${String(fatiasDoJob('infra').length)}`)
+    // Cada fatia tem o seu teto: a soma dos arquivos de `infra/test` dividida em fatias, e não o job inteiro em 45 min (run 43325031136).
+    expect(Number(job?.['timeout-minutes'])).toBeGreaterThan(0)
+    expect(Number(job?.['timeout-minutes'])).toBeLessThanOrEqual(45)
   })
 
   it('só usa ações oficiais da própria GitHub, fixadas por SHA completo, e não por tag que pode ser movida', () => {

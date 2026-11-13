@@ -72,7 +72,7 @@ mesmo tempo, cada uma na sua linha (D79).
 | `npm run typecheck` | tipos de todos os pacotes |
 | `npm run lint` | ESLint |
 | `npm run test` | unidade e integração; a integração sobe Postgres, Redis e storage sozinha |
-| `npm run test:infra` | integração da borda, métricas, alertas e jobs contra o compose inteiro (uns 16 min); fica fora do `test` e roda quando a tarefa mexe em infra (D52) |
+| `npm run test:infra` | integração da borda, métricas, alertas e jobs contra o compose inteiro (uns 45 min, e a esteira o divide em três fatias); fica fora do `test` e roda quando a tarefa mexe em infra (D52) |
 | `npm run test:e2e` | mede o teto do bundle da web (size-limit, 150 kB em brotli), sobe o compose de teste completo e roda o Playwright com axe nos projetos `chromebook` (CPU ×4, Fast 3G) e `celular` (360 × 800, toque, CPU ×4, rede móvel lenta), deixando o ambiente de pé |
 | `npm run ci:verificar`, `ci:integracao`, `ci:infra`, `ci:e2e` | exatamente o que a esteira roda; derrubam o ambiente no fim. Na esteira o e2e roda em dez fatias, `ci:e2e -- --shard=<i>/10` |
 | `npm run ci:conferir-entregas` | a terceira camada do RF14: confere, em `origin/develop..HEAD`, que todo commit com código tem a marca `(tarefa N.0)` ou `(correção <slug>)` e a linha `Revisões:`, ou `Fora do processo: <motivo>`. A esteira o roda só em `spec/**` e `correcao/**`; sai 2 sem a `origin/develop` |
