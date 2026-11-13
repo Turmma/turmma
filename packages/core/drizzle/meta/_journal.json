@@ -393,6 +393,13 @@
       "when": 1794544373062,
       "tag": "0055_material_serie_backfill",
       "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1794586372844,
+      "tag": "0056_material_edicao",
+      "breakpoints": true
     }
   ]
 }

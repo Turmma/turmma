@@ -15,6 +15,8 @@ const material = (n: number, parte: Partial<Material> = {}): Material => ({
   titularidade: 'escola',
   licenciante: null,
   licencaId: null,
+  edicao: null,
+  substitui: null,
   serieIds: [id(800)],
   licenca: 'autoria_da_escola',
   estado: 'pronto',

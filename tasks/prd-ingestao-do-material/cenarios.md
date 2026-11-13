@@ -102,6 +102,10 @@ falhou. Seed e e2e usam licenciante fictício.
 - [I] Antes de a nova ficar pronta, a busca devolve a antiga; depois, só a nova; nova com falha, a antiga segue
 - [I] Edição sobre material `processando`: `EDICAO_EM_ANDAMENTO`; sobre material excluído ou substituído:
   `NAO_ENCONTRADO`; com a licença vencida: `LICENCA_VENCIDA` antes de ler o arquivo
+- [I] Edição sobre material `falhou`: `NAO_ENCONTRADO`, como o excluído e o substituído, e nenhum byte chega ao storage
+  (só o envio novo vale para o que não ficou pronto)
+- [I] Edição sobre material sem série (o de antes da F4 numa escola sem série): 201, e a nova nasce sem série; com a
+  licença vencida, `LICENCA_VENCIDA`, e o `material.recusado` guarda `serieIds` vazio
 - [I] A nova herda disciplina, séries, titularidade e licença, e aparece nas mesmas séries
 - [I] Arquivo igual ao da edição atual: `CONFLITO`
 - [I] As `fontes` do artefato antigo trazem título, edição e `substituido`; geração nova não cita a antiga
@@ -177,8 +181,13 @@ falhou. Seed e e2e usam licenciante fictício.
   excluídos ganha licença com fim na última exclusão; o mesmo `licenciante` duas vezes na
   escola dá uma licença, e na escola B outra; `vigente_desde` é o `enviado_em` mais antigo; escola sem série deixa o
   material em `semSerie`; o código novo grava `licenciante` copiado da licença
-- [I] Volta do código: depois do passo do runbook, as linhas que a F4 gravou passam pelo `listaDeMateriaisResponseSchema`
-  da versão anterior (nenhum valor novo de `falha`, `licenciante` preenchido)
+- [I] Volta do código: o bloco 1 do runbook fecha o que está `processando` como `falhou` com `extracao_falhou` e
+  `processado_em`; depois dele, as linhas que a F4 gravou passam pelo `listaDeMateriaisResponseSchema` da versão anterior
+  (nenhum valor novo de `falha`, nada `processando`), e um bloco 1 com outro código de `falha` é recusado pelo banco. O
+  `licenciante` preenchido é gravado pelo código novo e provado pela API ("Edição nova", a herança; o envio da 7.0)
+- [I] Roll-forward: depois do bloco 2 do runbook, o material que o código anterior gravou sem série ganha todas as da
+  escola, o de terceiro sem `licenca_id` é ligado à licença do mesmo `licenciante` (ou a uma nova, "registrada durante a
+  volta do código"), e rodar o bloco de novo não duplica nada
 
 ## Permissão, escola sem ano letivo e vínculo encerrado
 

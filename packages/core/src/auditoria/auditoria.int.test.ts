@@ -227,7 +227,7 @@ describe('auditoria no banco', () => {
     })
   })
 
-  describe('o autor `rotina` (F3, tarefa 15.0): o banco o aceita só nas quatro ações da eliminação', () => {
+  describe('o autor `rotina` (F3, tarefa 15.0): o banco o aceita só nas ações da eliminação e na substituição da edição do material (8.0)', () => {
     const comoRotina = (acao: string, entidade: string) =>
       pool.query(
         `insert into auditoria (escola_id, autor_usuario_id, autor_operador, acao, entidade, entidade_id, requisicao_id)
@@ -240,6 +240,8 @@ describe('auditoria no banco', () => {
       ['acesso_turma.revogado', 'acesso_turma'],
       ['titular.nome_trocado', 'texto_livre'],
       ['pedido.concluido', 'pedido_titular'],
+      // A extração do PDF (job, sem pessoa) substitui o material antigo pela edição que ficou pronta: o autor é `rotina`, e ela não aprova nada (8.0).
+      ['material.substituido', 'material'],
     ])('aceita %s', async (acao, entidade) => {
       await comoRotina(acao, entidade)
       const { rows } = await pool.query('select autor_operador from auditoria where escola_id = $1 and acao = $2', [escolaA, acao])

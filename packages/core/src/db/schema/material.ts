@@ -31,6 +31,9 @@ import { usuario } from './usuario.js'
  *   (`pronto` ou `falhou`), e `objeto_apagado_em`, o instante em que o objeto foi apagado: nulo é "o objeto pode ainda existir". O material de antes
  *   da F4 nasce com `objeto_apagado_em = enviado_em`, porque nunca teve objeto.
  * - `licenca_id` (ingestao-do-material, 5.0): a licença registrada (`licencaDeMaterial`), nula no material que não é de terceiro. `licenciante` continua gravado junto (o código grava as duas, e a contração é da F4b).
+ * - **A edição** (ingestao-do-material, 8.0): `edicao` é o rótulo que a coordenação dá ("2025", "3ª edição"), `substitui_id` aponta o material que a edição substitui e `substituido_por`, a edição que o
+ *   substituiu. A anterior segue na busca até a nova ficar `pronta`, e sai na transação da extração (`excluido_em` e `substituido_por` juntos). O índice único parcial `material_uma_edicao_em_andamento` admite
+ *   uma edição `processando` por alvo. As colunas nascem nulas, e o código anterior não as conhece.
  * - Índice `(escola_id, disciplina_id, id)`: a listagem paginada, da coordenação e do professor pela disciplina dele.
  */
 export const material = pgTable(
@@ -58,6 +61,9 @@ export const material = pgTable(
     processadoEm: timestamp({ withTimezone: true }),
     objetoApagadoEm: timestamp({ withTimezone: true }),
     licencaId: uuid(),
+    edicao: text(),
+    substituiId: uuid(),
+    substituidoPor: uuid(),
   },
   (tabela) => [
     unique('material_escola_id_unico').on(tabela.escolaId, tabela.id),
@@ -69,6 +75,13 @@ export const material = pgTable(
     // A licença do material de terceiro (ingestao-do-material, 5.0): nula enquanto o código anterior grava, e preenchida pelo backfill da 0053 e pelo envio novo (7.0). Sem ação na FK: a
     // licença com material, vivo ou excluído, não sai (o expurgo só a apaga depois do material).
     foreignKey({ name: 'material_licenca_da_escola_fk', columns: [tabela.escolaId, tabela.licencaId], foreignColumns: [licencaDeMaterial.escolaId, licencaDeMaterial.id] }),
+    // A edição (ingestao-do-material, 8.0): `substitui_id` é o material que esta edição vai substituir quando ficar pronta, e `substituido_por`, a edição que o substituiu. As duas FKs são compostas com a
+    // escola e **sem a escola no `set null`** (a migration escreve `on delete set null ("substitui_id")` e `("substituido_por")`, à mão, como a 0022): o expurgo apaga o material excluído, a edição nova
+    // fica com `substitui_id` nulo e o antigo some sem travar. Auto-referência da mesma escola: o id de outra escola não existe para a FK.
+    foreignKey({ name: 'material_substitui_da_escola_fk', columns: [tabela.escolaId, tabela.substituiId], foreignColumns: [tabela.escolaId, tabela.id] }).onDelete('set null'),
+    foreignKey({ name: 'material_substituido_por_da_escola_fk', columns: [tabela.escolaId, tabela.substituidoPor], foreignColumns: [tabela.escolaId, tabela.id] }).onDelete('set null'),
+    // Uma edição em andamento por material: a segunda sobre o mesmo alvo esbarra aqui (`EDICAO_EM_ANDAMENTO`). É o apoio da checagem sob a trava de envios, e não a substitui.
+    uniqueIndex('material_uma_edicao_em_andamento').on(tabela.escolaId, tabela.substituiId).where(sql`${tabela.estado} = 'processando' and ${tabela.excluidoEm} is null`),
     // Quantos materiais a licença cobre (`GET /v1/licencas`) e o `not exists` do expurgo da licença: começa pela escola.
     index('material_licenca_idx').on(tabela.escolaId, tabela.licencaId).where(sql`${tabela.licencaId} is not null`),
     uniqueIndex('material_arquivo_na_escola_unico').on(tabela.escolaId, tabela.sha256).where(sql`${tabela.excluidoEm} is null and ${tabela.estado} <> 'falhou'`),
@@ -81,6 +94,8 @@ export const material = pgTable(
     index('material_objeto_a_apagar_idx').on(tabela.processadoEm, tabela.excluidoEm).where(sql`${tabela.objetoApagadoEm} is null`),
     // 160 e 120 são `TAMANHO_MAXIMO_TITULO_DO_MATERIAL` e `TAMANHO_MAXIMO_DO_LICENCIANTE` do contrato (`packages/shared`).
     check('material_titulo_preenchido', sql`char_length(btrim(${tabela.titulo})) between 1 and 160`),
+    // 60 é `TAMANHO_MAXIMO_DA_EDICAO` do contrato (`packages/shared`).
+    check('material_edicao_preenchida', sql`${tabela.edicao} is null or char_length(btrim(${tabela.edicao})) between 1 and 60`),
     check('material_titularidade_valida', sql`${tabela.titularidade} in ('escola', 'professor', 'terceiro_com_licenca', 'dominio_publico')`),
     check('material_licenca_valida', sql`${tabela.licenca} in ('dominio_publico', 'autoria_da_escola', 'licenca_aberta', 'licenca_comercial_autorizada')`),
     check('material_com_declaracao', sql`${tabela.declaracao}`),

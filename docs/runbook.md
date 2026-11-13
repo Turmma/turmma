@@ -985,6 +985,85 @@ resolvê-la é a coordenação, renomeando a turma.
 
 **Depois:** registre no `TODO.md` a janela (de quando a quando) e quantas turmas ficaram sem chave por repetição, só contagens.
 
+## Voltar o código depois da F4 (rollback)
+
+*Procedimento, não alerta: não há regra em `infra/grafana/alertas/`. Vale para qualquer volta de versão que passe pelas migrations
+`0049` a `0056` (ingestão do material, F4; tarefas 1.0 a 8.0; Tech Spec da ingestão, seções 3 e 5). O que o teste prova está em
+`packages/core/src/db/volta-da-f4.int.test.ts`, que roda os dois blocos de SQL desta seção.*
+
+**O que as migrations deixaram:** as colunas `material.processado_em`, `objeto_apagado_em`, `licenca_id`, `edicao`, `substitui_id` e
+`substituido_por`, as tabelas `capitulo_do_material`, `licenca_de_material`, `material_serie` e `envio_de_material`, o índice
+`material_uma_edicao_em_andamento`, a fila `pdf` em `job_registro` e o `material.substituido` no check da auditoria. Tudo só expande: o
+código anterior roda sobre isso sem erro. **Não reverta nenhuma delas**: apagar `licenca_id` ou `material_serie` tira da busca e do
+Tutor a única marca do que a licença cobre e de que série o material é.
+
+**O que o código anterior faz com elas:**
+
+- **Os jobs `pdf`** (`aguardando`, `reservado`, `publicado`, `ativo`): o despachante anterior não conhece a fila `pdf` e não os reserva. Se ficarem
+  em `job_registro`, voltam a andar no worker novo e leem o PDF de um material que o código anterior já fechou como `falhou`. Por isso o bloco 1 os
+  conclui todos, e nenhum job `pdf` sobrevive à volta.
+- **O material `processando`**: o código anterior lia o PDF dentro da API, e não o lê mais do storage. A varredura dele (`varrerParados`, a
+  cada 60 s) passa para `falhou` com `extracao_falhou` o que está `processando` há mais de quatro prazos de extração, **sem** gravar
+  `processado_em`. É o estrago: o PDF desse material fica no storage sem ninguém que o apague, porque a varredura do worker novo
+  (`objetosQueSobraram`) só olha o material que já saiu de `processando` **com** `processado_em` ou excluído. Por isso o bloco 1, abaixo,
+  fecha os `processando` antes de o código anterior subir, e grava o `processado_em`.
+- **A edição `processando`** é um material `processando` como os outros: fechada como `falhou`, ela libera o índice
+  `material_uma_edicao_em_andamento`, e o material que ela ia substituir segue `pronto` e na busca. Nada se perde.
+- **A linha de `envio_de_material`**: o código anterior não a conhece e não a lê. Fica onde está; a varredura de 61 minutos do worker novo apaga a
+  linha e o objeto que sobraram, depois do roll-forward. **Não apague a tabela nem as linhas à mão**: elas são o único jeito de achar um PDF sem dono.
+- **O material enviado durante a volta** nasce sem série (`material_serie`), e o de terceiro, com o `licenciante` na linha e sem `licenca_id`. Ele
+  aparece na busca de toda a escola enquanto não houver série, e o aviso de vencimento não o alcança. É o que o bloco 2 conserta no roll-forward.
+
+**Antes de voltar:** pare a API, o `worker-pdf` e o worker de lote (nenhum deles pode tomar um job no meio do passo), e rode o bloco 1 numa
+transação, na entrada do `psql`: `docker compose exec -T postgres psql -U educa -1 -v ON_ERROR_STOP=1`. Ele fecha como `falhou`, com
+`extracao_falhou` (nenhum valor novo em `falha`, que o código anterior não conhece) e com `processado_em`, os materiais `processando`, e conclui os jobs `pdf` que não terminaram (`aguardando`, `reservado`, `publicado` e `ativo`). Só então suba o código anterior. A coordenação vê "o arquivo não foi lido" no material fechado e envia de novo.
+
+```sql
+-- volta-da-f4: bloco 1, antes de subir o código anterior
+update material set estado = 'falhou', falha = 'extracao_falhou', processado_em = now()
+ where estado = 'processando' and excluido_em is null;
+update job_registro set estado = 'concluido', concluido_em = now()
+ where fila = 'pdf' and estado in ('aguardando', 'reservado', 'publicado', 'ativo');
+```
+
+Confira depois, só com contagens: `select count(*) filter (where estado = 'processando') as processando from material where excluido_em is null`
+deve dar 0, e `select count(*) from job_registro where fila = 'pdf' and estado not in ('concluido', 'falhou')`, também.
+
+**Na volta para a versão nova (roll-forward), antes de reabrir o envio:** rode o bloco 2, também com `psql -1`. Ele dá a todo material que
+nasceu sem série **todas as séries da escola** (a mesma conta da `0055`), e liga o material de terceiro sem `licenca_id` à licença da
+escola com o mesmo `licenciante`, ou cria uma "registrada durante a volta do código", com o começo no `enviado_em` mais antigo (a mesma conta da `0053`).
+Depois suba o worker: nenhum job `pdf` da época da volta existe mais (o bloco 1 os concluiu), os envios novos entram na fila `pdf` normalmente, e a varredura de 61 minutos limpa o que sobrou no storage.
+
+```sql
+-- volta-da-f4: bloco 2, no roll-forward
+insert into material_serie (escola_id, material_id, serie_id)
+select m.escola_id, m.id, s.id
+  from material m join serie s on s.escola_id = m.escola_id
+ where not exists (select 1 from material_serie ms where ms.escola_id = m.escola_id and ms.material_id = m.id);
+insert into licenca_de_material (escola_id, licenciante, cobertura, referencia, vigente_desde, vigente_ate)
+select m.escola_id, m.licenciante, 'Materiais enviados com o código anterior', 'registrada durante a volta do código',
+       (min(m.enviado_em) at time zone 'America/Sao_Paulo')::date,
+       case when bool_and(m.excluido_em is not null) then (max(m.excluido_em) at time zone 'America/Sao_Paulo')::date end
+  from material m
+ where m.licenciante is not null and m.licenca_id is null
+   and not exists (select 1 from licenca_de_material l where l.escola_id = m.escola_id and l.licenciante = m.licenciante)
+ group by m.escola_id, m.licenciante;
+update material m set licenca_id = (
+  select l.id from licenca_de_material l
+   where l.escola_id = m.escola_id and l.licenciante = m.licenciante order by l.vigente_desde desc, l.id limit 1)
+ where m.licenca_id is null and m.licenciante is not null;
+```
+
+Se a licença que o bloco 2 ligou a um material já está vencida, o material sai da busca: a coordenação a estende em Licenças, e ele volta sem
+reenviar (RF17).
+
+**Não faça:** apagar `substitui_id`, `substituido_por` ou o índice para "passar" a versão anterior; gravar um `falha` que não seja um dos três
+códigos que o código anterior conhece (`arquivo_invalido`, `sem_texto`, `extracao_falhou`), porque a lista de materiais dele **recusa a
+resposta inteira** com um valor que não conhece; apagar o objeto em `material-temporario/` à mão; rodar o bloco 2 sem o 1 já ter fechado os `processando`.
+
+**Depois:** registre no `TODO.md` a janela (de quando a quando), quantos materiais o bloco 1 fechou e quantos receberam série e licença
+no bloco 2, só contagens, e avise a coordenação das escolas que tinham material em "processando".
+
 ## Rotina do sistema sem rodar (consolidação de uso, expurgo de jobs, expurgo do acesso)
 
 *A preencher antes da primeira escola real* (pendência em `TODO.md`). Hoje nada avisa se

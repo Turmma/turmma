@@ -7,7 +7,7 @@ import { jobExecution } from '../../worker/test/job-execution.fixture.js'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { DB } from '../src/database.module.js'
 import { montarEscolaComTurma as montarEscola, type EscolaComTurma } from './escola-turma.fixture.js'
-import { apagarMateriais, auditoriaDa, enviarMaterial, esperarExtracao, materiaisDa, materiaisJaEnviados, PDF_DE_DEMONSTRACAO, registrarLicencaDeTeste } from './material.fixture.js'
+import { apagarMateriais, auditoriaDa, enviarEdicaoDeMaterial, enviarMaterial, esperarExtracao, materiaisDa, materiaisJaEnviados, PDF_DE_DEMONSTRACAO, registrarLicencaDeTeste } from './material.fixture.js'
 import { SessaoFixtures } from './sessao.fixture.js'
 import { chamar, subirApi, type RespostaHttp, type TestApi } from './test-api.js'
 import { aguardar, esperarNaTrava, WriteBlockTrigger } from './write-block-trigger.js'
@@ -136,6 +136,66 @@ describe('o envio de material não deixa PDF para trás', () => {
     expect(erroDe(repetido)).toEqual({ status: 409, codigo: ErrorCode.CONFLITO })
     expect(objetosDaEscola(api, escola.coordenacao.escolaId)).toEqual([])
     expect(await linhasDoEnvio(escola.coordenacao.escolaId)).toEqual([])
+  })
+
+  it('a edição com o arquivo do alvo, `CONFLITO` depois do `guardarBytes`: o objeto e a linha saem, e continua um material só (8.0)', async () => {
+    const escola = await montarEscolaComTurma()
+    const escolaId = escola.coordenacao.escolaId
+    const alvo = (await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica })).corpo['id'] as string
+    await esperarExtracao(api)
+
+    const repetida = await enviarEdicaoDeMaterial(api, escola.coordenacao, alvo, {}, PDF_DE_DEMONSTRACAO)
+
+    expect(erroDe(repetida)).toEqual({ status: 409, codigo: ErrorCode.CONFLITO })
+    expect(objetosDaEscola(api, escolaId)).toEqual([])
+    expect(await linhasDoEnvio(escolaId)).toEqual([])
+    expect((await materiaisDa(bancada, escolaId)).map((material) => material.id)).toEqual([alvo])
+  })
+
+  it('a segunda edição sobre o mesmo alvo, `EDICAO_EM_ANDAMENTO` sob a trava: o objeto e a linha saem, e a primeira segue (8.0)', async () => {
+    const escola = await montarEscolaComTurma()
+    const escolaId = escola.coordenacao.escolaId
+    const alvo = (await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica })).corpo['id'] as string
+    await esperarExtracao(api)
+    const primeira = (await enviarEdicaoDeMaterial(api, escola.coordenacao, alvo, { edicao: 'primeira' })).corpo['id'] as string
+
+    const segunda = await enviarEdicaoDeMaterial(api, escola.coordenacao, alvo, { edicao: 'segunda' })
+
+    expect(erroDe(segunda)).toEqual({ status: 409, codigo: ErrorCode.EDICAO_EM_ANDAMENTO })
+    expect(objetosDaEscola(api, escolaId)).toEqual([`material-temporario/${escolaId}/${primeira}`])
+    expect(await linhasDoEnvio(escolaId)).toEqual([])
+    expect((await materiaisDa(bancada, escolaId)).map((material) => material.id)).toContain(primeira)
+    expect(await materiaisDa(bancada, escolaId)).toHaveLength(2)
+    await esperarExtracao(api)
+  })
+
+  it('a segunda edição recusada com o `apagar` falhando: o objeto e a linha dela ficam, o log diz só o id, e a varredura apaga os dois sem tocar o da primeira (8.0)', async () => {
+    const escola = await montarEscolaComTurma()
+    const escolaId = escola.coordenacao.escolaId
+    const alvo = (await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica })).corpo['id'] as string
+    await esperarExtracao(api)
+    const primeira = (await enviarEdicaoDeMaterial(api, escola.coordenacao, alvo, { edicao: 'primeira' })).corpo['id'] as string
+    const armazem = armazemDe(api)
+    armazem.falhaAoApagar = true
+    let segunda: RespostaHttp
+    try {
+      segunda = await enviarEdicaoDeMaterial(api, escola.coordenacao, alvo, { edicao: 'segunda' })
+    } finally {
+      armazem.falhaAoApagar = false
+    }
+
+    expect(erroDe(segunda)).toEqual({ status: 409, codigo: ErrorCode.EDICAO_EM_ANDAMENTO })
+    const [id] = await linhasDoEnvio(escolaId)
+    expect(id).toBeDefined()
+    expect(id).not.toBe(primeira)
+    expect(objetosDaEscola(api, escolaId).toSorted()).toEqual([`material-temporario/${escolaId}/${primeira}`, `material-temporario/${escolaId}/${id ?? ''}`].toSorted())
+    const avisos = linhasDeLog.map((linha) => JSON.parse(linha) as Record<string, unknown>).filter((linha) => linha['evento'] === 'material.objeto_nao_apagado')
+    expect(avisos.map((aviso) => aviso['materialId'])).toEqual([id])
+
+    await varrer(61)
+    expect(await linhasDoEnvio(escolaId)).toEqual([])
+    expect(objetosDaEscola(api, escolaId)).toEqual([`material-temporario/${escolaId}/${primeira}`])
+    await esperarExtracao(api)
   })
 
   it('`LIMITE_EXCEDIDO` reconferido sob a trava: o objeto e a linha saem', async () => {

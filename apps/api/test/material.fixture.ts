@@ -133,6 +133,27 @@ export async function enviarMaterial(api: TestApi, sessao: Pick<TestSessao, 'tok
   }
 }
 
+/** `POST /v1/materiais/:id/edicoes` como a tela o manda: multipart, o rótulo e o título antes do arquivo. Por padrão leva o PDF de demonstração. */
+export async function enviarEdicaoDeMaterial(
+  api: TestApi,
+  sessao: Pick<TestSessao, 'token'>,
+  alvoId: string,
+  campos: { readonly edicao?: string; readonly titulo?: string; readonly extra?: Readonly<Record<string, string>> } = {},
+  arquivo: Buffer | null = variacaoDoPdf(),
+): Promise<RespostaHttp & { retryAfter: string | null }> {
+  const formulario = new FormData()
+  for (const [campo, valor] of Object.entries({ edicao: campos.edicao, titulo: campos.titulo, ...campos.extra })) if (valor !== undefined) formulario.append(campo, valor)
+  if (arquivo !== null) formulario.append('arquivo', new Blob([new Uint8Array(arquivo)], { type: 'application/pdf' }), 'edicao.pdf')
+  const resposta = await fetch(`${api.url}/v1/materiais/${alvoId}/edicoes`, { method: 'POST', headers: { Authorization: `Bearer ${sessao.token}` }, body: formulario })
+  const corpo = await resposta.text()
+  return {
+    status: resposta.status,
+    corpo: corpo === '' ? {} : (JSON.parse(corpo) as RespostaHttp['corpo']),
+    setCookie: resposta.headers.getSetCookie(),
+    retryAfter: resposta.headers.get('Retry-After'),
+  }
+}
+
 const EXTRATORES = new WeakMap<TestApi, PdfExtractor>()
 
 /** O extrator que `esperarExtracao` usa nesta API: o teste o espiona (`vi.spyOn`) para contar chamadas ou segurar a leitura. */

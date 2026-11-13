@@ -49,7 +49,7 @@
   - [ ] 7.3 Diálogo de envio em lote, com o 429 e a retomada
   - [ ] 7.4 Testes: validação, isolamento, o `for share`, o lote, o fim a fim
 
-- [ ] **8.0 — A edição nova substitui a anterior só quando fica pronta**
+- [x] **8.0 — A edição nova substitui a anterior só quando fica pronta**
   - [ ] 8.1 Migration de `edicao`, `substitui_id`, `substituido_por` e do índice parcial
   - [ ] 8.2 `POST /v1/materiais/:id/edicoes`, com a herança lida sob `for update`
   - [ ] 8.3 A substituição na transação da extração

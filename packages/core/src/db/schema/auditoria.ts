@@ -63,12 +63,13 @@ export const auditoria = pgTable(
     // Um autor e só um: a pessoa da escola, ou alguém da nossa equipe em rotina de operador.
     check('auditoria_um_autor', sql`(autor_usuario_id is not null) <> (autor_operador is not null)`),
     check('auditoria_operador_formato', sql`autor_operador is null or autor_operador ~ '^[a-z][a-z0-9-]{1,31}$'`),
-    // O autor `rotina` (a eliminação do titular e o expurgo por prazo, F3, tarefa 15.0) só assina as quatro ações que a rotina
-    // faz sozinha: a eliminação da pessoa e a revogação do acesso que ela gerou, a troca do nome dela nos textos livres e a
-    // conclusão do pedido. Ele nunca aprova entrega, rejeita entrega nem valida lote: a aprovação humana é regra 70, item 3.
+    // O autor `rotina` (a eliminação do titular e o expurgo por prazo, F3, tarefa 15.0) só assina as cinco ações que a rotina
+    // faz sozinha: a eliminação da pessoa e a revogação do acesso que ela gerou, a troca do nome dela nos textos livres, a
+    // conclusão do pedido e, desde a ingestão do material (8.0), a substituição da edição anterior, que a extração grava no worker
+    // quando a edição nova fica pronta. Ele nunca aprova entrega, rejeita entrega nem valida lote: a aprovação humana é regra 70, item 3.
     check(
       'auditoria_rotina_so_nas_acoes',
-      sql`autor_operador is distinct from 'rotina' or acao in ('usuario.eliminado', 'acesso_turma.revogado', 'titular.nome_trocado', 'pedido.concluido')`,
+      sql`autor_operador is distinct from 'rotina' or acao in ('usuario.eliminado', 'acesso_turma.revogado', 'titular.nome_trocado', 'pedido.concluido', 'material.substituido')`,
     ),
     check('auditoria_finalidade_curta', sql`finalidade is null or char_length(finalidade) between 1 and 200`),
   ],

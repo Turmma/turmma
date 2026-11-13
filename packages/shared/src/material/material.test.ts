@@ -3,6 +3,7 @@ import { MENSAGENS_DE_ERRO } from '../errors/messages.js'
 import {
   buscaDeMaterialQuerySchema,
   materialSchema,
+  enviarEdicaoRequestSchema,
   enviarMaterialRequestSchema,
   buscaDeMaterialResponseSchema,
   LICENCAS_DE_MATERIAL,
@@ -12,6 +13,7 @@ import {
   materiaisQuerySchema,
   motivoDaRecusaDoMaterial,
   SEM_LICENCA,
+  TAMANHO_MAXIMO_DA_EDICAO,
 } from './material.js'
 
 // Valores fixos e sintéticos: o pacote não tem os tipos do Node.
@@ -74,7 +76,7 @@ describe('envio de material (D5, D75): sem licença ou sem declaração, é recu
   })
 
   it('o material devolvido não traz o texto, o resumo do arquivo nem quem enviou; a busca devolve página e um trecho curto', () => {
-    const material = { id: UM_ID, titulo: 'Química 2, cap. 7', disciplinaId: OUTRO_ID, titularidade: 'escola', licenciante: null, licencaId: null, licenca: 'autoria_da_escola', serieIds: [UM_ID], estado: 'pronto', falha: null, paginas: 6, trechos: 6, enviadoEm: AGORA }
+    const material = { id: UM_ID, titulo: 'Química 2, cap. 7', disciplinaId: OUTRO_ID, titularidade: 'escola', licenciante: null, licencaId: null, licenca: 'autoria_da_escola', serieIds: [UM_ID], edicao: null, substitui: null, estado: 'pronto', falha: null, paginas: 6, trechos: 6, enviadoEm: AGORA }
     expect(materialSchema.safeParse(material).success).toBe(true)
     for (const campo of [{ sha256: 'a'.repeat(64) }, { enviadoPor: UM_ID }, { texto: 'página inteira' }, { escolaId: UM_ID }]) expect(materialSchema.safeParse({ ...material, ...campo }).success, Object.keys(campo)[0]).toBe(false)
     // O material gravado nunca tem `sem_licenca`.
@@ -86,5 +88,30 @@ describe('envio de material (D5, D75): sem licença ou sem declaração, é recu
     expect(buscaDeMaterialResponseSchema.safeParse({ itens: [{ ...trecho, escolaId: UM_ID }] }).success).toBe(false)
     expect(buscaDeMaterialQuerySchema.parse({ q: ' reagente limitante ' })).toEqual({ q: 'reagente limitante', limite: 8 })
     for (const consulta of [{ q: 'a' }, { q: 'reagente', escolaId: UM_ID }, { q: 'reagente', limite: '21' }, {}]) expect(buscaDeMaterialQuerySchema.safeParse(consulta).success, JSON.stringify(consulta)).toBe(false)
+  })
+})
+
+describe('edição do material (8.0): só o rótulo e o título vêm do pedido, o resto é herdado do alvo', () => {
+  it('o pedido pode vir vazio; o rótulo e o título são aparados, e o rótulo tem no máximo 60 caracteres', () => {
+    expect(TAMANHO_MAXIMO_DA_EDICAO).toBe(60)
+    expect(enviarEdicaoRequestSchema.parse({})).toEqual({})
+    expect(enviarEdicaoRequestSchema.parse({ edicao: '  2ª edição  ', titulo: '  Química 2  ' })).toEqual({ edicao: '2ª edição', titulo: 'Química 2' })
+    for (const pedido of [{ edicao: '   ' }, { edicao: 'x'.repeat(61) }, { titulo: '' }, { titulo: 'x'.repeat(161) }]) expect(enviarEdicaoRequestSchema.safeParse(pedido).success, JSON.stringify(pedido)).toBe(false)
+    expect(enviarEdicaoRequestSchema.safeParse({ edicao: 'x'.repeat(60) }).success).toBe(true)
+  })
+
+  it('o pedido não escolhe o que a edição herda: disciplina, séries, titularidade, licença, licenciante, declaração e escola são recusados', () => {
+    for (const campo of [{ disciplinaId: UM_ID }, { serieIds: [UM_ID] }, { titularidade: 'escola' }, { licenca: 'licenca_aberta' }, { licencaId: UM_ID }, { licenciante: 'Editora' }, { declaracao: 'true' }, { escolaId: UM_ID }]) {
+      expect(enviarEdicaoRequestSchema.safeParse(campo).success, Object.keys(campo)[0]).toBe(false)
+    }
+  })
+
+  it('o material devolvido leva o rótulo e a referência da edição, ambos anuláveis, e o rótulo vazio ou longo demais não passa', () => {
+    const material = { id: UM_ID, titulo: 'Química 2, cap. 7', disciplinaId: OUTRO_ID, titularidade: 'escola', licenciante: null, licencaId: null, licenca: 'autoria_da_escola', serieIds: [UM_ID], estado: 'pronto', falha: null, paginas: 6, trechos: 6, enviadoEm: AGORA }
+    expect(materialSchema.safeParse({ ...material, edicao: null, substitui: null }).success).toBe(true)
+    expect(materialSchema.safeParse({ ...material, edicao: '2ª edição', substitui: OUTRO_ID }).success).toBe(true)
+    // Sem os dois campos, a resposta não é do contrato: a tela precisa de `edicao` e `substitui`, mesmo nulos.
+    expect(materialSchema.safeParse(material).success).toBe(false)
+    for (const campo of [{ edicao: '' }, { edicao: 'x'.repeat(61) }, { substitui: 'não é id' }]) expect(materialSchema.safeParse({ ...material, edicao: null, substitui: null, ...campo }).success, JSON.stringify(campo)).toBe(false)
   })
 })

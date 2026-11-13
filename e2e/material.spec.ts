@@ -228,6 +228,8 @@ test.describe('Material da coordenação', () => {
       titularidade: 'escola',
       licenciante: null,
       licencaId: null,
+      edicao: null,
+      substitui: null,
       serieIds: [],
       licenca: 'autoria_da_escola',
       estado,

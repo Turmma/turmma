@@ -91,6 +91,8 @@ const FKS_COMPOSTAS_DO_MVP = [
   'material_enviado_por_da_escola_fk',
   'material_excluido_por_da_escola_fk',
   'material_licenca_da_escola_fk',
+  'material_substitui_da_escola_fk',
+  'material_substituido_por_da_escola_fk',
   'mensagem_agente_disciplina_da_escola_fk',
   'mensagem_agente_execucao_do_ano_da_escola_fk',
   'mensagem_agente_thread_do_ano_da_escola_fk',
@@ -520,7 +522,10 @@ describe('tabelas do MVP de apresentação: o banco recusa o que o contrato pro�
              where k.contype = 'f' and k.conrelid = c.table_name::regclass and k.confrelid in ('usuario'::regclass, 'tentativa_atividade'::regclass) and a.attname = c.column_name
            ) as com_fk
          from information_schema.columns c
-         where c.table_schema = 'public' and c.table_name = any($1::text[]) and c.column_name ~ '(_por|^aluno_id|^usuario_id)$' order by 1, 2`,
+         where c.table_schema = 'public' and c.table_name = any($1::text[]) and c.column_name ~ '(_por|^aluno_id|^usuario_id)$'
+           -- \`material.substituido_por\` é o id da edição que substituiu o material (FK composta para \`material\`, 8.0), não de pessoa: o nome só termina em \`_por\`.
+           and not (c.table_name = 'material' and c.column_name = 'substituido_por')
+         order by 1, 2`,
         [[...TABELAS_DO_MVP]],
       )
       const comGatilho = new Set(gatilhos.filter((gatilho) => gatilho.coluna !== '').map((gatilho) => `${gatilho.tabela}.${gatilho.coluna}`))
@@ -1225,6 +1230,8 @@ describe('tabelas do MVP de apresentação: o banco recusa o que o contrato pro�
         { tabela: 'entrega', coluna: 'justificativa' },
         // O código do erro da execução, preso por formato.
         { tabela: 'execucao_agente', coluna: 'erro' },
+        // O rótulo da edição ("2ª edição", "2025"), que a coordenação digita sobre o material: preso a 60 caracteres, nunca sobre pessoa (8.0).
+        { tabela: 'material', coluna: 'edicao' },
         { tabela: 'material', coluna: 'licenciante' },
         { tabela: 'material', coluna: 'sha256' },
         { tabela: 'material', coluna: 'titulo' },

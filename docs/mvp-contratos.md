@@ -47,6 +47,7 @@ Célula é `recurso.acao` da `MATRIZ`. Alcance: C coordenação, P professor, A 
 | Rota | Entrada | Saída | Célula | Erros próprios | Auditoria |
 |---|---|---|---|---|---|
 | `POST /materiais` (multipart, `arquivo` até `MAXIMO_DE_BYTES_DO_MATERIAL`) | `enviarMaterialRequestSchema` | 201 `materialResponseSchema` | `material.enviar` C `un` | `MATERIAL_SEM_LICENCA`, `CONFLITO` (mesmo arquivo) | `material.enviado`, ou `material.recusado` |
+| `POST /materiais/:id/edicoes` (multipart, `arquivo`; campos opcionais `edicao` e `titulo`) | `enviarEdicaoRequestSchema` | 201 `materialResponseSchema` | `material.enviar` C `un` | `EDICAO_EM_ANDAMENTO`, `CONFLITO` (mesmo arquivo), `LICENCA_VENCIDA`, `NAO_ENCONTRADO` (alvo de outra escola, excluído, substituído ou `falhou`) | `material.edicao_enviada`; na extração, `material.substituido` (autor `rotina`) |
 | `GET /materiais` | `materiaisQuerySchema` | `listaDeMateriaisResponseSchema` | `material.listar` C `un`, P `tv` | | |
 | `GET /materiais/:id` | | `materialResponseSchema` | `material.ler` C `un`, P `tv` | | |
 | `DELETE /materiais/:id` | | 204 | `material.excluir` C `un` | | `material.excluido` |

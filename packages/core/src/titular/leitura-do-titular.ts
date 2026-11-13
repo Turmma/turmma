@@ -384,11 +384,13 @@ export const LEITURAS_DO_ARQUIVO: Readonly<Record<string, LeituraDaTabela>> = {
   },
   material: {
     descricao: 'Os materiais da escola que você enviou ou excluiu',
-    colunas: ['id', 'disciplina_id', 'titulo', 'titularidade', 'licenca', 'declaracao', 'tamanho_bytes', 'paginas', 'estado', 'enviado_em', 'excluido_em'],
+    colunas: ['id', 'disciplina_id', 'titulo', 'edicao', 'titularidade', 'licenca', 'declaracao', 'tamanho_bytes', 'paginas', 'estado', 'enviado_em', 'excluido_em'],
     fora: {
       escola_id: ESCOPO,
       licenciante: 'o nome do dono do direito, que é de terceiro',
       licenca_id: 'ligação interna com a licença registrada; a licença que o titular registrou vem em `licenca_de_material`',
+      substitui_id: 'ligação interna com o material que a edição substitui',
+      substituido_por: 'ligação interna com a edição que substituiu o material',
       sha256: 'identificador técnico do arquivo',
       falha: 'código técnico da extração',
       processado_em: 'instante técnico em que a extração terminou',
@@ -397,7 +399,7 @@ export const LEITURAS_DO_ARQUIVO: Readonly<Record<string, LeituraDaTabela>> = {
       excluido_por: 'o próprio titular',
     },
     consultas: ({ escolaId, titularId }) => [
-      sql`select ${selectColumns('id', 'disciplina_id', 'titulo', 'titularidade', 'licenca', 'declaracao', 'tamanho_bytes', 'paginas', 'estado', 'enviado_em', 'excluido_em')} from material t
+      sql`select ${selectColumns('id', 'disciplina_id', 'titulo', 'edicao', 'titularidade', 'licenca', 'declaracao', 'tamanho_bytes', 'paginas', 'estado', 'enviado_em', 'excluido_em')} from material t
           where t.escola_id = ${escolaId} and (t.enviado_por = ${titularId} or t.excluido_por = ${titularId})`,
     ],
   },

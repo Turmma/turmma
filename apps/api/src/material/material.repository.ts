@@ -19,6 +19,10 @@ export interface MaterialLido {
   readonly licenciante: string | null
   readonly licencaId: string | null
   readonly licenca: LicencaDeMaterial
+  /** O rótulo da edição, nulo no que não é edição ou foi enviada sem rótulo. */
+  readonly edicao: string | null
+  /** O material que esta edição substitui (ou substituiu); nulo no que não é edição, e na edição cuja anterior saiu no expurgo. */
+  readonly substitui: string | null
   /** As séries declaradas, em ordem de id; vazio no material que a migração deixou sem série (a escola sem nenhuma). */
   readonly serieIds: string[]
   readonly estado: EstadoDeMaterial
@@ -40,6 +44,25 @@ export interface NovoMaterial {
   readonly licenca: LicencaDeMaterial
   readonly sha256: string
   readonly tamanhoBytes: number
+  /** O rótulo da edição ("2025"); só a edição o leva. */
+  readonly edicao?: string | null | undefined
+  /** O material que esta edição vai substituir quando ficar pronta; só a edição o leva. */
+  readonly substituiId?: string | null | undefined
+}
+
+/**
+ * O que a edição lê do material que vai substituir, e que **herda**: a disciplina, a titularidade, o licenciante, a licença registrada e a de uso. As séries vêm à parte (`seriesDoMaterial`), lidas
+ * depois da trava. Nunca o resumo do arquivo nem quem enviou.
+ */
+export interface AlvoDaEdicao {
+  readonly id: string
+  readonly estado: EstadoDeMaterial
+  readonly titulo: string
+  readonly disciplinaId: string
+  readonly titularidade: TitularidadeDeMaterial
+  readonly licenciante: string | null
+  readonly licencaId: string | null
+  readonly licenca: LicencaDeMaterial
 }
 
 /** Quantos envios a escola e a pessoa fizeram na janela, e quantos materiais da escola ainda estão sendo lidos. */
@@ -88,6 +111,8 @@ const colunasDaLinha = {
   licenciante: material.licenciante,
   licencaId: material.licencaId,
   licenca: material.licenca,
+  edicao: material.edicao,
+  substitui: material.substituiId,
   estado: material.estado,
   falha: material.falha,
   paginas: material.paginas,
@@ -96,6 +121,17 @@ const colunasDaLinha = {
 }
 
 const colunas = { ...colunasDaLinha, serieIds: dasSeries }
+
+const colunasDoAlvo = {
+  id: material.id,
+  estado: material.estado,
+  titulo: material.titulo,
+  disciplinaId: material.disciplinaId,
+  titularidade: material.titularidade,
+  licenciante: material.licenciante,
+  licencaId: material.licencaId,
+  licenca: material.licenca,
+}
 
 const colunasDoTrecho = { materialId: trecho.materialId, disciplinaId: trecho.disciplinaId, titulo: material.titulo, pagina: trecho.pagina, texto: trecho.texto }
 
@@ -197,6 +233,51 @@ export class MaterialRepository {
   async gravarSeries(materialId: string, serieIds: readonly string[]): Promise<void> {
     const escolaId = requireEscolaId()
     await this.banco.insert(materialSerie).values(serieIds.map((serieId) => ({ escolaId, materialId, serieId })))
+  }
+
+  /**
+   * O material que a edição vai substituir, **antes de ler o arquivo**: o não excluído da escola do contexto, em qualquer estado. O de outra escola, o excluído, o já substituído e o inexistente não são achados
+   * (`undefined`), e quem chama responde `NAO_ENCONTRADO` igual aos quatro. Leitura sem trava: quem decide é `travarAlvoDaEdicao`, na transação.
+   */
+  async alvoDaEdicao(id: string): Promise<AlvoDaEdicao | undefined> {
+    const [alvo] = await this.banco
+      .select(colunasDoAlvo)
+      .from(material)
+      .where(and(eq(material.escolaId, requireEscolaId()), eq(material.id, id), isNull(material.excluidoEm)))
+    return alvo
+  }
+
+  /**
+   * O alvo da edição, **`for update`**, lido de dentro da transação do envio: só o `pronto` e não excluído. A substituição de outra edição sobre o mesmo alvo (a extração dela, no worker) segura esta linha até o commit, então
+   * quem espera aqui e depois acha o alvo excluído não acha nada (`undefined`): o alvo já foi substituído. Quem lê as séries e a licença depois desta linha as lê já com o que o `PATCH` de séries confirmou.
+   */
+  async travarAlvoDaEdicao(id: string): Promise<AlvoDaEdicao | undefined> {
+    const [alvo] = await this.banco
+      .select(colunasDoAlvo)
+      .from(material)
+      .where(and(eq(material.escolaId, requireEscolaId()), eq(material.id, id), eq(material.estado, 'pronto'), isNull(material.excluidoEm)))
+      .for('update')
+    return alvo
+  }
+
+  /** Há uma edição deste material sendo lida (`processando`, não excluída)? Sob a trava de envios da escola, é a checagem que o índice `material_uma_edicao_em_andamento` repete. */
+  async edicaoEmAndamentoSobre(alvoId: string): Promise<boolean> {
+    const [achada] = await this.banco
+      .select({ id: material.id })
+      .from(material)
+      .where(and(eq(material.escolaId, requireEscolaId()), eq(material.substituiId, alvoId), eq(material.estado, 'processando'), isNull(material.excluidoEm)))
+      .limit(1)
+    return achada !== undefined
+  }
+
+  /** As séries declaradas do material da escola do contexto, em ordem de id: o que a edição herda. */
+  async seriesDoMaterial(materialId: string): Promise<string[]> {
+    const linhas = await this.banco
+      .select({ serieId: materialSerie.serieId })
+      .from(materialSerie)
+      .where(and(eq(materialSerie.escolaId, requireEscolaId()), eq(materialSerie.materialId, materialId)))
+      .orderBy(asc(materialSerie.serieId))
+    return linhas.map((linha) => linha.serieId)
   }
 
   /** Uma página dos materiais não excluídos, em ordem de envio, com uma linha a mais que diz se há próxima. */

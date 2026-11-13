@@ -50,6 +50,11 @@ export const ErrorCode = {
    */
   LICENCA_VENCIDA: 'LICENCA_VENCIDA',
   /**
+   * Já há uma edição deste material sendo lida (ingestao-do-material, 8.0; RF10; 409): o alvo ainda está `processando`, ou outra edição sobre ele está. A coordenação espera a leitura terminar;
+   * o alvo `processando` é recusado **antes de ler o arquivo**, e a outra edição em andamento, de dentro da transação, sob a trava de envios da escola (o arquivo já chegou ao storage e sai com o desfazer do envio).
+   */
+  EDICAO_EM_ANDAMENTO: 'EDICAO_EM_ANDAMENTO',
+  /**
    * A coordenação suspendeu esta função da IA na escola (D60; 409): o servidor recusa executar, e o que já foi produzido
    * continua onde estava. A resposta não diz quem suspendeu.
    */

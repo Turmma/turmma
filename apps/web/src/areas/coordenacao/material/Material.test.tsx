@@ -64,6 +64,8 @@ const material = (n: number, parte: Record<string, unknown> = {}) => ({
   titularidade: 'escola',
   licenciante: null,
   licencaId: null,
+  edicao: null,
+  substitui: null,
   serieIds: [SERIE_6.id],
   licenca: 'autoria_da_escola',
   estado: 'pronto',

@@ -22,6 +22,7 @@ export const MENSAGENS_DE_ERRO: Readonly<Record<ErrorCode, string>> = {
   REIVINDICACAO_RECUSADA: 'Não foi possível enviar. Confira a matrícula; se estiver certa, chame o professor.',
   MATERIAL_SEM_LICENCA: 'Este material não pode entrar sem licença de uso. Escolha a licença que a escola tem e marque a declaração, ou envie outro material.',
   LICENCA_VENCIDA: 'A licença deste material não está vigente. Atualize a vigência em Licenças e envie de novo.',
+  EDICAO_EM_ANDAMENTO: 'Espere a edição em processamento terminar.',
   FUNCAO_SUSPENSA: 'Esta função da IA está suspensa na sua escola. Fale com a coordenação para saber quando ela volta.',
   LIMITE_DIARIO_DO_TUTOR: 'Você chegou ao limite de perguntas ao Tutor por hoje. Amanhã ele volta; se precisar agora, chame o professor.',
   PACOTE_DO_TUTOR_ESGOTADO: 'A sua turma usou todas as perguntas ao Tutor deste mês. Chame o professor para continuar a atividade.',

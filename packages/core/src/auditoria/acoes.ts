@@ -609,9 +609,36 @@ export const ACOES_DE_AUDITORIA = {
       titularidade: z.enum(TITULARIDADES_DE_MATERIAL),
       licenca: z.enum(LICENCAS_DECLARAVEIS),
       declaracao: z.boolean(),
-      serieIds: z.array(z.uuid()).min(1).max(MAXIMO_DE_SERIES_DO_MATERIAL),
+      // De 0 a 7: o envio exige ao menos uma, e só a recusa da edição de um material que a migração deixou sem série (`semSerie`, que herda nenhuma) leva a lista vazia.
+      serieIds: z.array(z.uuid()).max(MAXIMO_DE_SERIES_DO_MATERIAL),
       motivo: z.enum([...MOTIVOS_DA_RECUSA_DO_MATERIAL, ...MOTIVOS_DA_RECUSA_PELA_LICENCA_REGISTRADA]),
     }),
+    finalidade: null,
+  },
+  /**
+   * A coordenação enviou uma edição nova de um material (ingestao-do-material, 8.0; RF10). `entidadeId` é a **edição nova**, e `substituiId`, o material que ela vai substituir quando ficar pronta. Leva o que a
+   * edição herdou e que a escola declarou ao enviar o material (a disciplina, a titularidade, a licença de uso e a declaração): **nunca o título, o rótulo da edição nem o nome do arquivo**.
+   */
+  'material.edicao_enviada': {
+    entidade: 'material',
+    antes: null,
+    depois: z.strictObject({
+      substituiId: z.uuid(),
+      disciplinaId: z.uuid(),
+      titularidade: z.enum(TITULARIDADES_DE_MATERIAL),
+      licenca: z.enum(LICENCAS_DE_MATERIAL),
+      declaracao: z.literal(true),
+    }),
+    finalidade: null,
+  },
+  /**
+   * A edição nova ficou pronta e a anterior saiu da busca (ingestao-do-material, 8.0; RF10). `entidadeId` é o material **substituído**; `substituidoPor`, a edição que o substituiu. Quem grava é a extração, no worker,
+   * na mesma transação que tira a edição de `processando`: sem pessoa no contexto, o autor é a `rotina` (o check `auditoria_rotina_so_nas_acoes`), e quem decidiu a troca está em `material.edicao_enviada`.
+   */
+  'material.substituido': {
+    entidade: 'material',
+    antes: null,
+    depois: z.strictObject({ substituidoPor: z.uuid() }),
     finalidade: null,
   },
   /**

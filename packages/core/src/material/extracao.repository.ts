@@ -11,6 +11,8 @@ import type { PaginaExtraida } from './pdf-extractor.js'
 export interface MaterialParaExtrair {
   readonly id: string
   readonly disciplinaId: string
+  /** O material que esta edição substitui quando ficar pronta (8.0); nulo no que não é edição. Não muda depois do envio. */
+  readonly substituiId: string | null
 }
 
 /** Quantos trechos vão num `insert` só: um capítulo cabe em um, e um livro de mil páginas não vira um comando de 20 MB. */
@@ -30,7 +32,7 @@ export class ExtracaoDoMaterialRepository {
   /** O material `processando` e não excluído com esse id, na escola do contexto. O de outra escola não é achado. */
   async lerParaExtrair(id: string): Promise<MaterialParaExtrair | undefined> {
     const [linha] = await this.banco
-      .select({ id: material.id, disciplinaId: material.disciplinaId })
+      .select({ id: material.id, disciplinaId: material.disciplinaId, substituiId: material.substituiId })
       .from(material)
       .where(and(eq(material.escolaId, requireEscolaId()), eq(material.id, id), eq(material.estado, 'processando'), isNull(material.excluidoEm)))
     return linha
@@ -82,6 +84,23 @@ export class ExtracaoDoMaterialRepository {
     if (capitulos.length === 0) return
     const escolaId = requireEscolaId()
     await this.banco.insert(capituloDoMaterial).values(capitulos.map(({ ordem, numero, titulo, paginaInicial, paginaFinal }) => ({ escolaId, materialId, ordem, numero, titulo, paginaInicial, paginaFinal })))
+  }
+
+  /**
+   * A edição nova ficou pronta e a anterior sai da busca (8.0): marca a **antiga** da escola do contexto como excluída, com a edição que a substituiu, e apaga os trechos dela, na transação da extração. Só
+   * muda a que ainda não foi excluída: se a coordenação a excluiu enquanto a nova era lida, nada muda (`false`), o `excluido_em` dela é o da exclusão, e quem chama não grava `material.substituido`.
+   * Sem `excluido_por`: quem substituiu foi a extração, e quem mandou a edição está em `material.edicao_enviada`.
+   */
+  async substituirAnterior(novaId: string, antigaId: string): Promise<boolean> {
+    const escolaId = requireEscolaId()
+    const substituidas = await this.banco
+      .update(material)
+      .set({ excluidoEm: sql`now()`, substituidoPor: novaId })
+      .where(and(eq(material.escolaId, escolaId), eq(material.id, antigaId), isNull(material.excluidoEm)))
+      .returning({ id: material.id })
+    if (substituidas.length === 0) return false
+    await this.banco.delete(trecho).where(and(eq(trecho.escolaId, escolaId), eq(trecho.materialId, antigaId)))
+    return true
   }
 
   /** Marca que o objeto do material foi apagado do storage (ou que nunca esteve lá). Gravar de novo não muda o primeiro instante. */

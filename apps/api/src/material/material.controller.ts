@@ -3,8 +3,10 @@ import {
   buscaDeMaterialQuerySchema,
   materiaisQuerySchema,
   enviarMaterialRequestSchema,
+  enviarEdicaoRequestSchema,
   type BuscaDeMaterialQuery,
   type MateriaisQuery,
+  type EnviarEdicaoRequest,
   type EnviarMaterialRequest,
   type BuscaDeMaterialResponse,
   type ListaDeMateriaisResponse,
@@ -38,6 +40,22 @@ export class MaterialController {
   @UseInterceptors(MaterialUploadInterceptor)
   enviar(@Body(new ZodValidationPipe(enviarMaterialRequestSchema)) campos: EnviarMaterialRequest, @UploadedFile() arquivo: unknown): Promise<MaterialResponse> {
     return this.materiais.enviar(campos, arquivo)
+  }
+
+  /**
+   * A edição nova de um material (ingestao-do-material, 8.0): os mesmos guardas e o mesmo recebimento do envio, e a mesma permissão (`material.enviar`, só da coordenação: o professor responde `NAO_ENCONTRADO`). O
+   * pedido só traz o rótulo da edição e, se quiser, o título; o resto a edição herda do material que substitui.
+   */
+  @Post(':id/edicoes')
+  @RequirePermissao('material', 'enviar')
+  @UseGuards(MaterialUploadGuard)
+  @UseInterceptors(MaterialUploadInterceptor)
+  enviarEdicao(
+    @Param('id', IdPipe) alvoId: string,
+    @Body(new ZodValidationPipe(enviarEdicaoRequestSchema)) campos: EnviarEdicaoRequest,
+    @UploadedFile() arquivo: unknown,
+  ): Promise<MaterialResponse> {
+    return this.materiais.enviarEdicao(alvoId, campos, arquivo)
   }
 
   @Get()

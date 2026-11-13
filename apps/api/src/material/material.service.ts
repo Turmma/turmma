@@ -1,4 +1,4 @@
-import { DEFAULT_RETRY_AFTER_SECONDS, DomainException, AuditoriaRecorder, diaDeUso, FileStorageUnavailableError, JobOutbox, postgresErrorIn, summarizeError, requestSessao, systemClock, type Clock, type Database, type FileStorage, type LoggerBase } from '@educa/core'
+import { DEFAULT_RETRY_AFTER_SECONDS, DomainException, AuditoriaRecorder, diaDeUso, FileStorageUnavailableError, JobOutbox, postgresErrorIn, summarizeError, requestSessao, systemClock, type Clock, type Database, type DatabaseTransaction, type FileStorage, type LoggerBase } from '@educa/core'
 import {
   alcanceDe,
   ErrorCode,
@@ -14,6 +14,7 @@ import {
   type LicencaDeMaterial,
   type MotivoDaRecusaDoMaterial,
   type MotivoDaRecusaPelaLicencaRegistrada,
+  type EnviarEdicaoRequest,
   type EnviarMaterialRequest,
   type BuscaDeMaterialResponse,
   type ListaDeMateriaisResponse,
@@ -24,7 +25,7 @@ import { createHash } from 'node:crypto'
 import { DisciplinaRepository } from '@educa/core/estrutura'
 import { chaveDoTemporario, EnvioDeMaterialRepository, ExtracaoDoMaterialRepository, PRAZO_DO_OBJETO_DO_MATERIAL_MS, temAssinaturaDePdf, uuidV7 } from '@educa/core/material'
 import { paginar } from '../http/pagination.js'
-import { LicencaRepository, type VigenciaDaLicenca } from './licenca.repository.js'
+import { LicencaRepository, type LicencaParaUso, type VigenciaDaLicenca } from './licenca.repository.js'
 import { MaterialRepository, type AlcanceDoMaterial, type MaterialLido } from './material.repository.js'
 import { trechoCitado } from './trecho-citado.js'
 
@@ -32,6 +33,9 @@ const registro = new AuditoriaRecorder()
 
 /** SQLSTATE `lock_not_available`: o `lock_timeout` da linha do envio estourou, porque a varredura a segurava. */
 const TRAVA_NAO_DISPONIVEL = '55P03'
+/** SQLSTATE `unique_violation`, e o índice que admite uma edição em andamento por material: a segunda que passa pela checagem sob a trava cai nele. */
+const VIOLACAO_DE_UNICO = '23505'
+const INDICE_DA_EDICAO_EM_ANDAMENTO = 'material_uma_edicao_em_andamento'
 
 /** A janela dos tetos de envio. */
 export const JANELA_DOS_ENVIOS_MS = 60 * 60_000
@@ -52,6 +56,9 @@ function licencaValeEm(hoje: string, licenca: VigenciaDaLicenca): boolean {
   const situacao = situacaoDaLicenca(hoje, licenca.vigenteDesde, licenca.vigenteAte)
   return situacao === 'vigente' || situacao === 'vence_em_30_dias'
 }
+
+/** O que a recusa pela licença grava do que foi declarado: o pedido do envio, ou o que a edição herdou do material que substitui. */
+type Declarado = Pick<EnviarMaterialRequest, 'titularidade' | 'licenca' | 'declaracao'>
 
 /** A licença que valia ao ler o pedido já não vale na transação do envio (a coordenação encurtou a vigência no meio): o envio desfaz e responde `LICENCA_VENCIDA`. */
 class LicencaDeixouDeValerNoEnvio extends Error {}
@@ -123,7 +130,7 @@ export class MaterialService {
   }
 
   /** A recusa fica na auditoria, fora de qualquer transação do envio (o `rollback` dela não a leva), com as séries **já conferidas** da escola. */
-  async #registrarRecusa(pedido: EnviarMaterialRequest, disciplinaId: string, serieIds: readonly string[], motivo: MotivoDaRecusaDoMaterial | MotivoDaRecusaPelaLicencaRegistrada): Promise<void> {
+  async #registrarRecusa(pedido: Declarado, disciplinaId: string, serieIds: readonly string[], motivo: MotivoDaRecusaDoMaterial | MotivoDaRecusaPelaLicencaRegistrada): Promise<void> {
     await this.dependencias.banco.transaction((tx) =>
       registro.gravar(tx, 'material.recusado', {
         entidadeId: disciplinaId,
@@ -138,7 +145,7 @@ export class MaterialService {
    * A licença registrada que o material de terceiro cita, lida antes de o arquivo ser aberto: a que não é da escola ou não existe responde `NAO_ENCONTRADO` (a de outra escola, igual à
    * inexistente), e a vencida ou ainda não vigente, `LICENCA_VENCIDA`. As duas gravam a recusa. O que não é de terceiro nunca traz `licencaId` (o contrato o recusa).
    */
-  async #exigirLicencaVigente(pedido: EnviarMaterialRequest, disciplinaId: string, serieIds: readonly string[], licencaId: string): Promise<void> {
+  async #exigirLicencaVigente(pedido: Declarado, disciplinaId: string, serieIds: readonly string[], licencaId: string): Promise<void> {
     const registrada = await new LicencaRepository(this.dependencias.banco).paraUso(licencaId, false)
     if (registrada === undefined) {
       await this.#registrarRecusa(pedido, disciplinaId, serieIds, 'licenca_inexistente')
@@ -174,7 +181,7 @@ export class MaterialService {
    * atrasado pode gravar depois do `apagar`. O job entra no outbox na mesma transação da linha, então não há material `processando` sem job (D49).
    */
   async enviar(pedido: EnviarMaterialRequest, arquivo: unknown): Promise<MaterialResponse> {
-    const { banco, armazem, enfileirador, logger } = this.dependencias
+    const { banco, logger } = this.dependencias
     const disciplinaId = pedido.disciplinaId.toLowerCase()
     if ((await new DisciplinaRepository(banco).porId(disciplinaId)) === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     // Em minúsculas, como o banco as devolve: a resposta e a auditoria levam o mesmo texto que a lista do material.
@@ -195,19 +202,12 @@ export class MaterialService {
     const bytes = arquivo.buffer
     const sha256 = createHash('sha256').update(bytes).digest('hex')
 
-    // O id nasce aqui, antes da linha: a chave do objeto o leva, e a varredura acha o órfão por ela.
-    const id = uuidV7()
-    // A linha do envio vem antes do objeto: sem ela, o PDF que chega ao storage e nunca tem commit não tem dono, e ninguém o procura.
-    await new EnvioDeMaterialRepository(banco).registrar(id)
-    await this.#guardarObjeto(armazem, id, bytes)
-    const gravado = await banco
-      .transaction(async (tx) => {
+    const gravado = await this.#gravarEnvio(
+      bytes,
+      async (tx, id) => {
         const materiais = new MaterialRepository(tx)
-        await materiais.travarEnviosDaEscola()
-        await this.#exigirDentroDosTetos(materiais)
         // A licença do envio, lida de novo e **travada** (`for share`): o `PATCH` que encurta a vigência (`for update`) espera este envio terminar.
-        const vigente = licencaId === undefined ? undefined : await new LicencaRepository(tx).paraUso(licencaId, true)
-        if (licencaId !== undefined && (vigente === undefined || !licencaValeEm(this.#hoje(), vigente))) throw new LicencaDeixouDeValerNoEnvio()
+        const vigente = await this.#licencaTravada(tx, licencaId)
         const novo = await materiais.inserir({
           id,
           disciplinaId,
@@ -221,25 +221,128 @@ export class MaterialService {
         })
         await materiais.gravarSeries(novo.id, serieIds)
         await registro.gravar(tx, 'material.enviado', { entidadeId: novo.id, depois: { disciplinaId, titularidade: pedido.titularidade, licenca, declaracao: true } })
-        await enfileirador.enfileirarUmaVez(tx, TIPO_EXTRAIR_PDF, { materialId: novo.id }, novo.id)
-        // A linha sai com o commit. Sem ela, a varredura já a levou (e o objeto com ela): o envio foi lento demais e desfaz, sem material sem objeto.
-        if (!(await new EnvioDeMaterialRepository(tx).apagarNoEnvio(id))) throw new DomainException(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, undefined, DEFAULT_RETRY_AFTER_SECONDS)
-        return novo
-      })
-      .catch(async (erro: unknown) => {
-        // Teto, duplicado, licença, trava ou banco fora: nenhuma linha de material ficou, então o objeto não tem dono. O objeto sai primeiro e a linha do envio só depois.
-        await this.#desfazerEnvio(id)
-        if (erro instanceof LicencaDeixouDeValerNoEnvio) {
-          await this.#registrarRecusa(pedido, disciplinaId, serieIds, 'licenca_vencida')
-          throw new DomainException(ErrorCode.LICENCA_VENCIDA)
-        }
-        if (postgresErrorIn(erro)?.code === TRAVA_NAO_DISPONIVEL) throw new DomainException(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, undefined, DEFAULT_RETRY_AFTER_SECONDS)
-        throw erro
-      })
+        await this.dependencias.enfileirador.enfileirarUmaVez(tx, TIPO_EXTRAIR_PDF, { materialId: novo.id }, novo.id)
+        return { ...novo, serieIds: serieIds.toSorted() }
+      },
+      () => this.#registrarRecusa(pedido, disciplinaId, serieIds, 'licenca_vencida'),
+    )
     const tamanho = bytes.byteLength
     logger.info({ evento: 'material.enviado', materialId: gravado.id, tamanho })
     // Quem envia é sempre a coordenação (a célula `material.enviar` é só dela): recebe o que declarou.
-    return paraResposta({ ...gravado, serieIds: serieIds.toSorted() }, 'unidade')
+    return paraResposta(gravado, 'unidade')
+  }
+
+  /**
+   * `POST /v1/materiais/:id/edicoes` (ingestao-do-material, 8.0; RF10; Tech Spec, seção 5, "Envio e edição"): a edição nova de um material `pronto`. A anterior **segue na busca** até a nova ficar `pronta`, e sai na
+   * transação da extração (`material.substituido`); se a nova falhar, a anterior segue. A edição herda do alvo a disciplina, as séries, a titularidade e a licença, e a ordem é a regra:
+   *
+   * 1. o alvo é da escola da sessão, não excluído e `pronto`, ou `NAO_ENCONTRADO` (o de outra escola, o excluído, o substituído e o inexistente respondem igual, e nenhum byte é lido); o alvo `processando`, `EDICAO_EM_ANDAMENTO`;
+   * 2. **a licença do alvo, antes de abrir o arquivo**: a vencida ou que ainda não começou grava `material.recusado` (com as séries do alvo) e responde `LICENCA_VENCIDA`;
+   * 3. só então o arquivo, como no envio, e os mesmos tetos e a mesma trava de envios da escola;
+   * 4. na transação, o alvo é lido de novo, **`for update`**, e a edição herda o que lê **ali**: as séries que um `PATCH` confirmou entre o passo 1 e a transação entram. Com o alvo já substituído por outra edição que
+   *    estava sendo gravada, a espera pelo `for update` termina sem linha, e a resposta é `NAO_ENCONTRADO`. Sob a mesma trava, uma edição `processando` sobre o alvo é `EDICAO_EM_ANDAMENTO`, e o índice
+   *    `material_uma_edicao_em_andamento` repete a regra no banco.
+   *
+   * O arquivo igual ao de um material da escola é `CONFLITO` (índice `material_arquivo_na_escola_unico`), com o objeto e a linha do envio apagados, como no envio.
+   */
+  async enviarEdicao(alvoId: string, pedido: EnviarEdicaoRequest, arquivo: unknown): Promise<MaterialResponse> {
+    const { banco, logger } = this.dependencias
+    const materiais = new MaterialRepository(banco)
+    const alvo = await materiais.alvoDaEdicao(alvoId)
+    if (alvo === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+    if (alvo.estado === 'processando') throw new DomainException(ErrorCode.EDICAO_EM_ANDAMENTO)
+    // `falhou` não tem edição: só o envio novo. Responde como o que não existe, igual ao excluído.
+    if (alvo.estado !== 'pronto') throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+    const seriesDoAlvo = await materiais.seriesDoMaterial(alvo.id)
+    const declarado: Declarado = { titularidade: alvo.titularidade, licenca: alvo.licenca, declaracao: true }
+    if (alvo.licencaId !== null) await this.#exigirLicencaVigente(declarado, alvo.disciplinaId, seriesDoAlvo, alvo.licencaId)
+
+    if (!ehArquivoRecebido(arquivo) || arquivo.size === 0 || !temAssinaturaDePdf(arquivo.buffer)) throw new DomainException(ErrorCode.ENTRADA_INVALIDA)
+    const bytes = arquivo.buffer
+    const sha256 = createHash('sha256').update(bytes).digest('hex')
+    const gravado = await this.#gravarEnvio(
+      bytes,
+      (tx, id) => this.#gravarEdicao(tx, id, alvo.id, pedido, { sha256, tamanhoBytes: bytes.byteLength }),
+      () => this.#registrarRecusa(declarado, alvo.disciplinaId, seriesDoAlvo, 'licenca_vencida'),
+    )
+    const tamanho = bytes.byteLength
+    logger.info({ evento: 'material.edicao_enviada', materialId: gravado.id, substituiId: alvo.id, tamanho })
+    return paraResposta(gravado, 'unidade')
+  }
+
+  /** A parte da transação do envio que é da edição: o alvo `for update`, a herança lida ali, a edição, as séries, a auditoria e o job. */
+  async #gravarEdicao(tx: DatabaseTransaction, id: string, alvoId: string, pedido: EnviarEdicaoRequest, arquivo: { sha256: string; tamanhoBytes: number }): Promise<MaterialLido> {
+    const materiais = new MaterialRepository(tx)
+    const alvo = await materiais.travarAlvoDaEdicao(alvoId)
+    // Sem linha: o alvo foi excluído ou substituído enquanto este envio esperava a trava (um `pronto` nunca volta a `processando`).
+    if (alvo === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+    if (await materiais.edicaoEmAndamentoSobre(alvo.id)) throw new DomainException(ErrorCode.EDICAO_EM_ANDAMENTO)
+    const herdadas = await materiais.seriesDoMaterial(alvo.id)
+    const vigente = await this.#licencaTravada(tx, alvo.licencaId ?? undefined)
+    const nova = await materiais.inserir({
+      id,
+      disciplinaId: alvo.disciplinaId,
+      titulo: pedido.titulo ?? alvo.titulo,
+      titularidade: alvo.titularidade,
+      licenciante: vigente?.licenciante ?? alvo.licenciante,
+      licencaId: alvo.licencaId,
+      licenca: alvo.licenca,
+      sha256: arquivo.sha256,
+      tamanhoBytes: arquivo.tamanhoBytes,
+      edicao: pedido.edicao ?? null,
+      substituiId: alvo.id,
+    })
+    if (herdadas.length > 0) await materiais.gravarSeries(nova.id, herdadas)
+    await registro.gravar(tx, 'material.edicao_enviada', {
+      entidadeId: nova.id,
+      depois: { substituiId: alvo.id, disciplinaId: alvo.disciplinaId, titularidade: alvo.titularidade, licenca: alvo.licenca, declaracao: true },
+    })
+    await this.dependencias.enfileirador.enfileirarUmaVez(tx, TIPO_EXTRAIR_PDF, { materialId: nova.id }, nova.id)
+    return { ...nova, serieIds: herdadas }
+  }
+
+  /** A licença registrada, lida **`for share`** dentro da transação do envio: a que deixou de valer entre a entrada e aqui (ou sumiu) desfaz o envio. Sem `licencaId`, nada a ler. */
+  async #licencaTravada(tx: DatabaseTransaction, licencaId: string | undefined): Promise<LicencaParaUso | undefined> {
+    if (licencaId === undefined) return undefined
+    const vigente = await new LicencaRepository(tx).paraUso(licencaId, true)
+    if (vigente === undefined || !licencaValeEm(this.#hoje(), vigente)) throw new LicencaDeixouDeValerNoEnvio()
+    return vigente
+  }
+
+  /**
+   * O objeto no storage, a transação do envio e a saída de quem não chegou ao commit: o que o envio e a edição fazem igual. A linha de `envio_de_material` nasce **antes** do arquivo (2.0), o objeto vai ao storage
+   * **antes** da transação, com o id do material na chave, e a transação a apaga no fim, sob `lock_timeout` curto: a linha precisa existir, e se a varredura já a apagou (o envio foi lento) a transação desfaz com 503,
+   * para nunca haver material cujo objeto a varredura levou. `gravar` é o que difere: o que entra na transação, depois da trava de envios, dos tetos e antes de a linha do envio sair.
+   */
+  async #gravarEnvio(bytes: Buffer, gravar: (tx: DatabaseTransaction, id: string) => Promise<MaterialLido>, recusarPelaLicenca: () => Promise<void>): Promise<MaterialLido> {
+    const { banco, armazem } = this.dependencias
+    // O id nasce aqui, antes da linha: a chave do objeto o leva, e a varredura acha o órfão por ela.
+    const id = uuidV7()
+    // A linha do envio vem antes do objeto: sem ela, o PDF que chega ao storage e nunca tem commit não tem dono, e ninguém o procura.
+    await new EnvioDeMaterialRepository(banco).registrar(id)
+    await this.#guardarObjeto(armazem, id, bytes)
+    return banco
+      .transaction(async (tx) => {
+        const materiais = new MaterialRepository(tx)
+        await materiais.travarEnviosDaEscola()
+        await this.#exigirDentroDosTetos(materiais)
+        const gravado = await gravar(tx, id)
+        // A linha sai com o commit. Sem ela, a varredura já a levou (e o objeto com ela): o envio foi lento demais e desfaz, sem material sem objeto.
+        if (!(await new EnvioDeMaterialRepository(tx).apagarNoEnvio(id))) throw new DomainException(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, undefined, DEFAULT_RETRY_AFTER_SECONDS)
+        return gravado
+      })
+      .catch(async (erro: unknown) => {
+        // Teto, duplicado, licença, edição, trava ou banco fora: nenhuma linha de material ficou, então o objeto não tem dono. O objeto sai primeiro e a linha do envio só depois.
+        await this.#desfazerEnvio(id)
+        if (erro instanceof LicencaDeixouDeValerNoEnvio) {
+          await recusarPelaLicenca()
+          throw new DomainException(ErrorCode.LICENCA_VENCIDA)
+        }
+        if (postgresErrorIn(erro)?.code === TRAVA_NAO_DISPONIVEL) throw new DomainException(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, undefined, DEFAULT_RETRY_AFTER_SECONDS)
+        const doBanco = postgresErrorIn(erro)
+        if (doBanco?.code === VIOLACAO_DE_UNICO && doBanco.constraint === INDICE_DA_EDICAO_EM_ANDAMENTO) throw new DomainException(ErrorCode.EDICAO_EM_ANDAMENTO)
+        throw erro
+      })
   }
 
   /**

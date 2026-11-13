@@ -40,6 +40,8 @@ const MATERIAL = (estado: 'processando' | 'falhou' | 'pronto') => ({
   titularidade: 'escola',
   licenciante: null,
   licencaId: null,
+  edicao: null,
+  substitui: null,
   serieIds: [],
   licenca: 'autoria_da_escola',
   estado,

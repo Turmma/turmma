@@ -1,4 +1,5 @@
 import {
+  AuditoriaRecorder,
   ExtracaoDoMaterialRepository,
   chaveDoTemporario,
   METRICS,
@@ -6,6 +7,7 @@ import {
   requireEscolaId,
   summarizeError,
   type Database,
+  type DatabaseTransaction,
   type FileStorage,
   type LoggerBase,
   type Meter,
@@ -27,6 +29,17 @@ export interface ExtrairPdfDependencies {
   extrator: Pick<PdfExtractor, 'extrair'>
   logger: LoggerBase
   medidor?: Meter | undefined
+}
+
+const registro = new AuditoriaRecorder()
+
+/**
+ * A edição nova ficou pronta: a anterior sai da busca na mesma transação (8.0). Só grava `material.substituido` quem de fato a substituiu: a antiga que a coordenação excluiu no meio do caminho não muda.
+ * Sem pessoa no contexto do worker, o autor é a `rotina`; quem mandou a edição está em `material.edicao_enviada`.
+ */
+async function substituirAAnterior(tx: DatabaseTransaction, novaId: string, antigaId: string): Promise<void> {
+  if (!(await new ExtracaoDoMaterialRepository(tx).substituirAnterior(novaId, antigaId))) return
+  await registro.gravar(tx, 'material.substituido', { entidadeId: antigaId, depois: { substituidoPor: novaId }, autorOperador: 'rotina' })
 }
 
 /** Como a execução terminou, que é o `resultado` da métrica e o que o log diz. */
@@ -60,6 +73,8 @@ function quandoAbortar(sinal: AbortSignal): Promise<never> {
  *   tentativa sobrando, o objeto fica para a próxima. O prazo e o desligamento além da graça abortam o `sinal`, e o processador recupera o controle
  *   mesmo que o extrator o ignore (`quandoAbortar`): na última tentativa, o material fecha e o objeto sai com o processo ainda vivo. Se o processo
  *   morre antes disso, o job termina `falhou` e quem fecha o material e apaga o objeto é o "Descartar" da 3.0 (o alerta de job falhou de vez o chama).
+ * - **A edição substitui a anterior aqui** (8.0): com `substitui_id`, a transação que tira a edição de `processando` exclui a anterior (`excluido_em` e `substituido_por`, só se ela ainda não foi excluída), apaga os
+ *   trechos dela e grava `material.substituido`. Edição que falha ou é excluída antes não toca a anterior, que segue na busca.
  * - **O objeto apagado fica registrado** (`objeto_apagado_em`). Se o `apagar` falha, o objeto fica e a varredura da 2.0 o acha; o job conclui.
  * - **Log e métrica**: ids, códigos e contagens, nunca título, nome de arquivo, licenciante nem texto (regra 20, itens 7 e 9). O objeto ausente
  *   de um material `processando` é `arquivo_ausente`, à parte de `extracao_falhou`: é o sinal de um objeto perdido.
@@ -121,6 +136,7 @@ export function criarExtracaoDoPdf({ banco, armazem, extrator, logger, medidor }
         if (disciplinaId === undefined) return false
         await materiais.gravarTrechos(materialId, disciplinaId, resultado.trechos)
         await materiais.gravarCapitulos(materialId, resultado.capitulos)
+        if (material.substituiId !== null) await substituirAAnterior(tx, materialId, material.substituiId)
         return true
       })
       if (!gravou) return 'sem_efeito'

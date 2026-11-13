@@ -169,7 +169,8 @@ describe('mapa de ações da auditoria', () => {
     // A licença registrada que recusa o envio entra pelo motivo, e as séries são de 1 a 7 ids.
     for (const motivo of ['licenca_vencida', 'licenca_inexistente']) expect(recusado.safeParse({ ...declarado, motivo }).success, motivo).toBe(true)
     expect(recusado.safeParse({ ...declarado, motivo: 'qualquer_outro' }).success).toBe(false)
-    expect(recusado.safeParse({ ...declarado, serieIds: [] }).success).toBe(false)
+    // A lista vazia é a da edição de um material que a migração deixou sem série; o envio a recusa antes, no contrato (`enviarMaterialRequestSchema`).
+    expect(recusado.safeParse({ ...declarado, serieIds: [] }).success).toBe(true)
     expect(recusado.safeParse({ ...declarado, serieIds: Array.from({ length: 8 }, () => UM_ID) }).success).toBe(false)
     expect(recusado.safeParse({ titularidade: 'escola', licenca: 'sem_licenca', declaracao: true, motivo: 'sem_licenca' }).success).toBe(false)
     for (const proibido of [{ titulo: 'Apostila Sistema X' }, { licenciante: 'Editora X' }, { arquivo: 'apostila.pdf' }]) expect(recusado.safeParse({ ...declarado, ...proibido }).success, Object.keys(proibido)[0]).toBe(false)

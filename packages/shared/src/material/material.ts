@@ -52,6 +52,8 @@ export const MENSAGEM_DA_FALHA_DE_MATERIAL: Readonly<Record<FalhaDeMaterial, str
 export const MAXIMO_DE_BYTES_DO_MATERIAL = 20 * 1024 * 1024
 export const TAMANHO_MAXIMO_TITULO_DO_MATERIAL = 160
 export const TAMANHO_MAXIMO_DO_LICENCIANTE = 120
+/** O rótulo da edição ("2025", "3ª edição"): o check `material_edicao_preenchida` repete o teto. */
+export const TAMANHO_MAXIMO_DA_EDICAO = 60
 /** As séries que um material pode declarar: as sete do recorte (6º ao 9º ano e 1º ao 3º do EM; D43). A tabela `material_serie` não admite mais que isso. */
 export const MAXIMO_DE_SERIES_DO_MATERIAL = 7
 /** Quantos PDFs a tela envia de uma vez, um por vez (RF14): o 21º é recusado antes de enviar. */
@@ -93,6 +95,16 @@ export const enviarMaterialRequestSchema = z
   .refine((pedido) => pedido.licencaId === undefined || pedido.titularidade === 'terceiro_com_licenca', { path: ['licencaId'], message: 'licença registrada só com material de terceiro' })
 export type EnviarMaterialRequest = z.infer<typeof enviarMaterialRequestSchema>
 
+/**
+ * Os campos de `POST /v1/materiais/:id/edicoes` (multipart, além do `arquivo`; ingestao-do-material, 8.0; RF10): o rótulo da edição e, se a coordenação quiser, outro título. O resto (disciplina, séries,
+ * titularidade, licença e declaração) a edição **herda** do material que substitui, lido na transação do envio: o pedido não traz nada disso, e campo a mais é `ENTRADA_INVALIDA`. Sem `titulo`, a edição leva o do alvo.
+ */
+export const enviarEdicaoRequestSchema = z.strictObject({
+  edicao: z.string().trim().min(1).max(TAMANHO_MAXIMO_DA_EDICAO).optional(),
+  titulo: z.string().trim().min(1).max(TAMANHO_MAXIMO_TITULO_DO_MATERIAL).optional(),
+})
+export type EnviarEdicaoRequest = z.infer<typeof enviarEdicaoRequestSchema>
+
 export const MOTIVOS_DA_RECUSA_DO_MATERIAL = ['sem_licenca', 'sem_declaracao'] as const
 export type MotivoDaRecusaDoMaterial = (typeof MOTIVOS_DA_RECUSA_DO_MATERIAL)[number]
 
@@ -133,6 +145,10 @@ export const materialSchema = z.strictObject({
   /** A licença registrada do material de terceiro (`GET /v1/licencas`); nula no material que não é de terceiro. */
   licencaId: z.uuid().nullable(),
   licenca: z.enum(LICENCAS_DE_MATERIAL),
+  /** O rótulo da edição que a coordenação deu ao enviá-la; nulo no material que não é edição, e na edição enviada sem rótulo. */
+  edicao: z.string().min(1).max(TAMANHO_MAXIMO_DA_EDICAO).nullable(),
+  /** O material que esta edição vai substituir (ou substituiu): nulo no material que não é edição, e na edição cuja anterior já saiu no expurgo. */
+  substitui: z.uuid().nullable(),
   /** As séries declaradas, de 0 (a escola sem série na migração) a 7, em ordem de id. */
   serieIds: z.array(z.uuid()).max(MAXIMO_DE_SERIES_DO_MATERIAL),
   estado: z.enum(ESTADOS_DE_MATERIAL),

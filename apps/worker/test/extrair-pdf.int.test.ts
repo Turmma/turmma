@@ -481,7 +481,7 @@ describe('material.extrair-pdf', () => {
       const deA = await materialComObjeto(a)
 
       expect(await naEscola(a.escolaId, () => new ExtracaoDoMaterialRepository(bancada.banco).lerParaExtrair(deB))).toBeUndefined()
-      expect(await naEscola(a.escolaId, () => new ExtracaoDoMaterialRepository(bancada.banco).lerParaExtrair(deA))).toEqual({ id: deA, disciplinaId: a.disciplinaId })
+      expect(await naEscola(a.escolaId, () => new ExtracaoDoMaterialRepository(bancada.banco).lerParaExtrair(deA))).toEqual({ id: deA, disciplinaId: a.disciplinaId, substituiId: null })
       // Sem escola no contexto, falha fechado.
       await expect(runInContext({ requisicaoId: randomUUID() }, () => new ExtracaoDoMaterialRepository(bancada.banco).lerParaExtrair(deA))).rejects.toThrow()
     })
