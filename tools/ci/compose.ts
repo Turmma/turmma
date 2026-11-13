@@ -178,14 +178,30 @@ export function comandosDaSubidaDeTeste(ambiente: Readonly<Record<string, string
 }
 
 /**
- * Sobe Postgres, Redis e storage, roda o `npm run <script>` e derruba o ambiente, com os logs dos serviços
- * antes quando falha. É o corpo de `ci:integracao` e `ci:infra`.
+ * Lê `--shard=<i>/<n>` dos argumentos de `ci:infra`, a fatia dos arquivos de `infra/test` que este runner roda (o Vitest reparte
+ * por arquivo). Sem ele, `null`: o projeto inteiro, que é o `npm run ci:infra` da máquina. Formato errado reprova antes de subir
+ * o compose, em vez de rodar a suíte inteira numa fatia que não cabe no teto.
  */
-export function executarTestesComInfra(nome: string, script: string): Promise<number> {
+export function fatiaDosArgumentosDaInfra(argumentos: readonly string[]): string | null {
+  if (argumentos.length === 0) return null
+  const fatia = /^--shard=(\d+)\/(\d+)$/.exec(argumentos.length === 1 ? (argumentos[0] ?? '') : '')
+  const indice = Number(fatia?.[1])
+  const total = Number(fatia?.[2])
+  if (fatia === null || indice < 1 || indice > total) {
+    throw new Error(`fatia da infra inválida: ${argumentos.join(' ')} (esperado um só --shard=<i>/<n>, com 1 ≤ i ≤ n)`)
+  }
+  return `${String(indice)}/${String(total)}`
+}
+
+/**
+ * Sobe Postgres, Redis e storage, roda o `npm run <script>` (numa fatia dos arquivos, quando é a da esteira) e derruba o
+ * ambiente, com os logs dos serviços antes quando falha. É o corpo de `ci:integracao` e `ci:infra`.
+ */
+export function executarTestesComInfra(nome: string, script: string, fatia: string | null = null): Promise<number> {
   return executarEtapas(
     [
       etapaCompose('subir Postgres, Redis, storage e oidc-falso', 'up', '--detach', '--wait', ...SERVICOS_INFRA),
-      { nome, comando: 'npm', argumentos: ['run', script] },
+      { nome, comando: 'npm', argumentos: ['run', script, ...(fatia === null ? [] : ['--', `--shard=${fatia}`])] },
     ],
     (codigo) => etapasDeEncerramento(codigo),
   )
