@@ -43,7 +43,7 @@
   - [ ] 6.2 O sexto tipo do sino
   - [ ] 6.3 Testes: os quatro estados, as datas, os dias do sino
 
-- [ ] **7.0 — A coordenação envia até 20 PDFs de uma vez, com séries e licença**
+- [x] **7.0 — A coordenação envia até 20 PDFs de uma vez, com séries e licença**
   - [ ] 7.1 Migration de `material_serie`, com o backfill
   - [ ] 7.2 `serieIds` e `licencaId` no envio, conferidos antes de ler e de novo na transação; `serieId` na lista
   - [ ] 7.3 Diálogo de envio em lote, com o 429 e a retomada

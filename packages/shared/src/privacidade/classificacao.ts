@@ -141,6 +141,8 @@ export const CLASSIFICACAO_DAS_TABELAS: Readonly<Record<string, ClassificacaoDaT
   trecho: SEM_PESSOA,
   // Os capítulos lidos do PDF (ingestao-do-material, 4.0): número, título do material didático e faixa de páginas. Saem em cascata com o material expurgado.
   capitulo_do_material: SEM_PESSOA,
+  // As séries declaradas do material (ingestao-do-material, 7.0): só ids da escola. Saem em cascata com o material expurgado.
+  material_serie: SEM_PESSOA,
   resumo_do_analista: SEM_PESSOA,
   // Guarda o apelido do operador que ajustou, da nossa equipe, e nenhuma pessoa da escola.
   retencao_escola: SEM_PESSOA,

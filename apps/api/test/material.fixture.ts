@@ -8,7 +8,7 @@ import { CAMINHO_DO_MATERIAL } from '../../../tools/demonstracao/gerar-material.
 import { DB } from '../src/database.module.js'
 import { criarExtracaoDoPdf } from '../../worker/src/processors/extrair-pdf.js'
 import { jobExecution } from '../../worker/test/job-execution.fixture.js'
-import type { TestApi, RespostaHttp } from './test-api.js'
+import { chamar, type TestApi, type RespostaHttp } from './test-api.js'
 import type { SessaoFixtures, TestSessao } from './sessao.fixture.js'
 
 /** O PDF de demonstração commitado: seis páginas de "Química 2 — Capítulo 7: Estequiometria". */
@@ -48,7 +48,13 @@ export interface UploadFields {
   readonly titulo?: string
   readonly disciplinaId: string
   readonly titularidade?: string
-  readonly licenciante?: string
+  /**
+   * As séries do pedido. Sem o campo, o envio leva **todas** as séries da escola da sessão (lidas de `GET /v1/series`), para o caso que não é sobre série; `[]` não manda campo nenhum,
+   * e a lista com um id manda o campo uma vez só, como a tela.
+   */
+  readonly serieIds?: readonly string[]
+  /** A licença registrada do material de terceiro (`licenca_de_material`). */
+  readonly licencaId?: string
   readonly licenca?: string
   readonly declaracao?: string
   /** Campo que o contrato não tem, para o teste do contrato estrito. */
@@ -68,6 +74,34 @@ export interface UploadOptions {
   readonly copias?: number
 }
 
+/** Os ids das séries da escola da sessão, como a coordenação as lê. Quem não as lê (professor, aluno) manda sem série: a rota o recusa antes de olhar o pedido. */
+async function seriesDaEscola(api: TestApi, sessao: Pick<TestSessao, 'token'>): Promise<string[]> {
+  const resposta = await fetch(`${api.url}/v1/series?limite=100`, { headers: { Authorization: `Bearer ${sessao.token}` } })
+  if (!resposta.ok) return []
+  const corpo = (await resposta.json()) as { itens: Array<{ id: string }> }
+  return corpo.itens.map((serie) => serie.id)
+}
+
+/** A licença que o material de terceiro cita: o licenciante é fictício, a vigência começa em 2020 e, sem `vigenteAte`, não tem fim. */
+export interface CamposDaLicencaDeTeste {
+  readonly licenciante?: string
+  readonly vigenteDesde?: string
+  readonly vigenteAte?: string | null
+}
+
+/** Registra uma licença pela rota real (`POST /v1/licencas`) e devolve o id. */
+export async function registrarLicencaDeTeste(api: TestApi, sessao: Pick<TestSessao, 'token'>, campos: CamposDaLicencaDeTeste = {}): Promise<string> {
+  const resposta = await chamar(api.url, 'POST', '/v1/licencas', sessao.token, {
+    licenciante: campos.licenciante ?? 'Editora sintética',
+    cobertura: 'Apostilas sintéticas de teste',
+    referencia: 'contrato sintético 1',
+    vigenteDesde: campos.vigenteDesde ?? '2020-01-01',
+    ...(campos.vigenteAte === undefined ? {} : { vigenteAte: campos.vigenteAte }),
+  })
+  if (resposta.status !== 201) throw new Error(`licença de teste não registrada: ${String(resposta.status)}`)
+  return resposta.corpo['id'] as string
+}
+
 /** `POST /v1/materiais` como a tela manda: multipart, com os campos antes do arquivo. */
 export async function enviarMaterial(api: TestApi, sessao: Pick<TestSessao, 'token'>, campos: UploadFields, opcoes: UploadOptions = {}): Promise<RespostaHttp & { retryAfter: string | null }> {
   const { arquivo = PDF_DE_DEMONSTRACAO, nomeDoArquivo = 'capitulo.pdf', tipo = 'application/pdf', arquivoPrimeiro = false, campoDoArquivo = 'arquivo', copias = 1 } = opcoes
@@ -81,12 +115,13 @@ export async function enviarMaterial(api: TestApi, sessao: Pick<TestSessao, 'tok
     titulo: campos.titulo ?? 'Material sintético de teste',
     disciplinaId: campos.disciplinaId,
     titularidade: campos.titularidade ?? 'escola',
-    licenciante: campos.licenciante,
+    licencaId: campos.licencaId,
     licenca: campos.licenca ?? 'autoria_da_escola',
     declaracao: campos.declaracao ?? 'true',
     ...campos.extra,
   }
   for (const [campo, valor] of Object.entries(texto)) if (valor !== undefined) formulario.append(campo, valor)
+  for (const serieId of campos.serieIds ?? (await seriesDaEscola(api, sessao))) formulario.append('serieIds', serieId)
   if (!arquivoPrimeiro) anexar()
   const resposta = await fetch(`${api.url}/v1/materiais`, { method: 'POST', headers: { Authorization: `Bearer ${sessao.token}` }, body: formulario })
   const corpo = await resposta.text()

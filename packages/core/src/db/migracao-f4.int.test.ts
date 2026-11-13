@@ -15,6 +15,7 @@ import { migrate, PASTA_MIGRACOES, type MigrationConfig } from './migrate.js'
  */
 
 const ULTIMA_DA_5_0 = '0053_licenca_de_material_backfill'
+const ULTIMA_DA_7_0 = '0055_material_serie_backfill'
 
 const logger = createLogger({ servico: 'migrar-f4-teste', nivel: 'silent' })
 
@@ -71,6 +72,10 @@ describe('a migration da licença sobre dado da F3', () => {
     readonly escolaA: string
     readonly escolaB: string
     readonly escolaC: string
+    /** A escola sem série nenhuma, com um material (7.0). */
+    readonly escolaD: string
+    /** As séries de cada escola, pelo nome da escola (7.0). */
+    readonly series: Record<'A' | 'B' | 'C', string[]>
     /** O material de terceiro de cada caso, pelo nome do caso. */
     readonly materiais: Record<string, string>
   }
@@ -128,13 +133,25 @@ describe('a migration da licença sobre dado da F3', () => {
        from generate_series(1, 5100) as n`,
       [escolaC, quimicaC],
     )
-    return { escolaA, escolaB, escolaC, materiais }
+    // As séries da 7.0: A tem duas, B uma, C duas (os dois lotes de 5.000 somam 10.200 linhas) e D nenhuma.
+    const serieDe = (escolaId: string, etapa: string, ano: number) => id('insert into serie (escola_id, etapa, ano) values ($1, $2, $3) returning id', [escolaId, etapa, ano])
+    const series = {
+      A: [await serieDe(escolaA, 'ef_anos_finais', 6), await serieDe(escolaA, 'em', 1)],
+      B: [await serieDe(escolaB, 'ef_anos_finais', 7)],
+      C: [await serieDe(escolaC, 'ef_anos_finais', 8), await serieDe(escolaC, 'em', 2)],
+    }
+    const escolaD = await escola('licenca-d')
+    const daD = await material(escolaD, await disciplina(escolaD), { licenciante: null, enviadoEm: '2026-03-01T12:00:00Z' })
+    // Fora do padrão `Material %` dos casos da licença, que contam só o dado da 5.0.
+    await scratch.query("update material set titulo = 'Da escola sem série' where id = $1", [daD])
+    return { escolaA, escolaB, escolaC, escolaD, series, materiais }
   }
 
   // O dado da F3 e o retrato de antes e de depois nascem uma vez, no `beforeAll`: cada caso lê o que precisa e roda sozinho (`-t`).
   let dados: Dados
   let antes: Awaited<ReturnType<typeof retrato>>
   let depois: Awaited<ReturnType<typeof retrato>>
+  let depoisDaSerie: Awaited<ReturnType<typeof retrato>>
 
   beforeAll(async () => {
     await administrador.connect()
@@ -145,6 +162,8 @@ describe('a migration da licença sobre dado da F3', () => {
     antes = await retrato()
     await migrate(configuracao(pastaAte(ULTIMA_DA_5_0)), logger)
     depois = await retrato()
+    await migrate(configuracao(pastaAte(ULTIMA_DA_7_0)), logger)
+    depoisDaSerie = await retrato()
   }, 240_000)
 
   afterAll(async () => {
@@ -293,5 +312,56 @@ describe('a migration da licença sobre dado da F3', () => {
     await expect(inserir('job', null)).rejects.toMatchObject({ code: '23514' })
     await expect(inserir('escola', 'operador-teste')).rejects.toMatchObject({ code: '23514', constraint: 'auditoria_escola_ou_operacao_global' })
     await scratch.query("delete from auditoria where acao = 'teste.check'")
+  })
+
+  // A 7.0: as séries do material (`0054_material_serie`, `0055_material_serie_backfill`), sobre o mesmo dado, já migrado até a 0053.
+  describe('as séries do material (7.0)', () => {
+    const seriesDoMaterial = async (escolaId: string): Promise<Array<{ material_id: string; serie_id: string }>> =>
+      (await scratch.query<{ material_id: string; serie_id: string }>('select material_id, serie_id from material_serie where escola_id = $1 order by material_id, serie_id', [escolaId])).rows
+
+    it('só expande: nenhuma coluna nem linha some, e a tabela nova é a única diferença', () => {
+      for (const coluna of depois.colunas) expect(depoisDaSerie.colunas, coluna).toContain(coluna)
+      expect(depoisDaSerie.colunas.filter((coluna) => !depois.colunas.includes(coluna))).toEqual(['material_serie.escola_id', 'material_serie.material_id', 'material_serie.serie_id'])
+      for (const [tabela, linhas] of Object.entries(depois.linhas)) if (tabela !== 'material_serie') expect(depoisDaSerie.linhas[tabela], tabela).toBe(linhas)
+    })
+
+    it('cada material ganha todas as séries da própria escola, e nenhuma de outra', async () => {
+      const materiaisDaA = Number((await scratch.query<{ total: string }>('select count(*) as total from material where escola_id = $1', [dados.escolaA])).rows[0]?.total)
+      const daA = await seriesDoMaterial(dados.escolaA)
+      expect(daA).toHaveLength(materiaisDaA * dados.series.A.length)
+      expect(new Set(daA.map((linha) => linha.serie_id))).toEqual(new Set(dados.series.A))
+      const daB = await seriesDoMaterial(dados.escolaB)
+      expect(daB).toEqual([{ material_id: dados.materiais['bVivo'], serie_id: dados.series.B[0] }])
+    })
+
+    it('mais de um lote de 5.000: os 5.100 materiais da escola C têm as duas séries dela, e nenhum ficou sem', async () => {
+      const { rows } = await scratch.query<{ total: number; sem: number }>(
+        `select count(*)::int as total, (select count(*)::int from material m where m.escola_id = $1 and not exists (select 1 from material_serie s where s.escola_id = m.escola_id and s.material_id = m.id)) as sem
+         from material_serie where escola_id = $1`,
+        [dados.escolaC],
+      )
+      expect(rows[0]).toEqual({ total: 5_100 * dados.series.C.length, sem: 0 })
+    })
+
+    it('a escola sem série deixa o material sem linha, e rodar o backfill de novo não duplica nada', async () => {
+      expect(await seriesDoMaterial(dados.escolaD)).toEqual([])
+      const antesDoRepeteco = (await scratch.query<{ total: string }>('select count(*) as total from material_serie')).rows[0]?.total
+      const corpo = readFileSync(join(PASTA_MIGRACOES, '0055_material_serie_backfill.sql'), 'utf8').split('--> statement-breakpoint')
+      for (const instrucao of corpo) await scratch.query(instrucao)
+      expect((await scratch.query<{ total: string }>('select count(*) as total from material_serie')).rows[0]?.total).toBe(antesDoRepeteco)
+    })
+
+    it('a tabela tem as travas do banco: a FK composta com a escola do material e da série, e a chave sem repetição', async () => {
+      const [serieDaA] = dados.series.A
+      const material = dados.materiais['aVivo1']
+      await expect(scratch.query('insert into material_serie (escola_id, material_id, serie_id) values ($1, $2, $3)', [dados.escolaB, material, dados.series.B[0]])).rejects.toMatchObject({ constraint: 'material_serie_material_da_escola_fk' })
+      await expect(scratch.query('insert into material_serie (escola_id, material_id, serie_id) values ($1, $2, $3)', [dados.escolaA, material, dados.series.B[0]])).rejects.toMatchObject({ constraint: 'material_serie_serie_da_escola_fk' })
+      await expect(scratch.query('insert into material_serie (escola_id, material_id, serie_id) values ($1, $2, $3)', [dados.escolaA, material, serieDaA])).rejects.toMatchObject({ constraint: 'material_serie_pk' })
+    })
+
+    it('o índice começa pela escola e pela série', async () => {
+      const { rows } = await scratch.query<{ indexdef: string }>("select indexdef from pg_indexes where tablename = 'material_serie' and indexname = 'material_serie_serie_idx'")
+      expect(rows[0]?.indexdef).toContain('(escola_id, serie_id, material_id)')
+    })
   })
 })

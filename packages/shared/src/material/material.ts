@@ -52,38 +52,71 @@ export const MENSAGEM_DA_FALHA_DE_MATERIAL: Readonly<Record<FalhaDeMaterial, str
 export const MAXIMO_DE_BYTES_DO_MATERIAL = 20 * 1024 * 1024
 export const TAMANHO_MAXIMO_TITULO_DO_MATERIAL = 160
 export const TAMANHO_MAXIMO_DO_LICENCIANTE = 120
+/** As séries que um material pode declarar: as sete do recorte (6º ao 9º ano e 1º ao 3º do EM; D43). A tabela `material_serie` não admite mais que isso. */
+export const MAXIMO_DE_SERIES_DO_MATERIAL = 7
+/** Quantos PDFs a tela envia de uma vez, um por vez (RF14): o 21º é recusado antes de enviar. */
+export const MAXIMO_DE_PDFS_POR_LOTE = 20
 
 const declaracao = z.union([z.boolean(), z.enum(['true', 'false']).transform((valor) => valor === 'true')])
 
 /**
- * Os campos de `POST /v1/materiais` (multipart, além do `arquivo`): título, disciplina, titularidade, licença e a
- * declaração de que a escola pode usar o material. `licenciante` é o nome do dono do direito e só existe, obrigatório,
- * quando o material é de terceiro. `declaracao` chega como texto no multipart (`true` ou `false`). Estrito.
+ * As séries do envio. No multipart a lista chega como o campo `serieIds` repetido: com um só valor o recebimento entrega texto, não lista, e aqui vira lista de um.
+ * De 1 a 7, sem repetir (a tabela `material_serie` tem a chave `(escola_id, material_id, serie_id)`): sem série, ou com a mesma duas vezes, é `ENTRADA_INVALIDA`, nunca 500.
+ */
+const serieIds = z.preprocess(
+  (valor) => (typeof valor === 'string' ? [valor] : valor),
+  z
+    .array(z.uuid())
+    .min(1)
+    .max(MAXIMO_DE_SERIES_DO_MATERIAL)
+    .refine((ids) => new Set(ids.map((id) => id.toLowerCase())).size === ids.length, { message: 'série repetida' }),
+)
+
+/**
+ * Os campos de `POST /v1/materiais` (multipart, além do `arquivo`): título, disciplina, séries, titularidade, licença de uso e a
+ * declaração de que a escola pode usar o material. `licencaId` é a licença **registrada** (`licenca_de_material`) do material de terceiro, e só existe nele: o dono do direito
+ * (`licenciante`) vem da licença, nunca do pedido (ingestao-do-material, 7.0; RF3 e RF16). `declaracao` chega como texto no multipart (`true` ou `false`). Estrito.
  *
- * O schema aceita `sem_licenca` e `declaracao=false`: quem recusa é `motivoDaRecusaDoMaterial`, com `MATERIAL_SEM_LICENCA`
- * e registro em auditoria, e não um `ENTRADA_INVALIDA` que não deixaria rastro.
+ * O schema aceita o terceiro sem `licencaId`, `sem_licenca` e `declaracao=false`: quem recusa é `motivoDaRecusaDoMaterial`, com `MATERIAL_SEM_LICENCA`
+ * e registro em auditoria, e não um `ENTRADA_INVALIDA` que não deixaria rastro. O que o schema recusa é `licencaId` em material que não é de terceiro.
  */
 export const enviarMaterialRequestSchema = z
   .strictObject({
     titulo: z.string().trim().min(1).max(TAMANHO_MAXIMO_TITULO_DO_MATERIAL),
     disciplinaId: z.uuid(),
+    serieIds,
     titularidade: z.enum(TITULARIDADES_DE_MATERIAL),
-    licenciante: z.string().trim().min(1).max(TAMANHO_MAXIMO_DO_LICENCIANTE).optional(),
+    licencaId: z.uuid().optional(),
     licenca: z.enum(LICENCAS_DECLARAVEIS),
     declaracao,
   })
-  .refine((pedido) => (pedido.titularidade === 'terceiro_com_licenca') === (pedido.licenciante !== undefined), { path: ['licenciante'], message: 'licenciante só com material de terceiro' })
+  .refine((pedido) => pedido.licencaId === undefined || pedido.titularidade === 'terceiro_com_licenca', { path: ['licencaId'], message: 'licença registrada só com material de terceiro' })
 export type EnviarMaterialRequest = z.infer<typeof enviarMaterialRequestSchema>
 
 export const MOTIVOS_DA_RECUSA_DO_MATERIAL = ['sem_licenca', 'sem_declaracao'] as const
 export type MotivoDaRecusaDoMaterial = (typeof MOTIVOS_DA_RECUSA_DO_MATERIAL)[number]
 
 /**
- * Por que o material é recusado, ou `null` quando entra (D5, D75). A API chama isto **antes** de abrir o arquivo, e a
- * tela, antes de enviar: a regra é uma só. Sem licença válida ou sem a declaração marcada, nada é extraído nem gravado.
+ * Os motivos com que o envio é recusado pela licença **registrada** do material de terceiro (ingestao-do-material, 7.0), e que entram na auditoria (`material.recusado`) ao lado dos de
+ * `MOTIVOS_DA_RECUSA_DO_MATERIAL`: `licenca_vencida` (a data da licença não vale hoje; resposta `LICENCA_VENCIDA`) e `licenca_inexistente` (não é da escola, ou não existe: a resposta é a mesma
+ * `NAO_ENCONTRADO` das duas, e a auditoria também não as distingue; regra 10, item 6). Ficam fora da lista dos outros porque quem os diz é a licença lida no banco, e não o pedido.
  */
-export function motivoDaRecusaDoMaterial(pedido: { readonly licenca: LicencaDeclarada; readonly declaracao: boolean }): MotivoDaRecusaDoMaterial | null {
+export const MOTIVOS_DA_RECUSA_PELA_LICENCA_REGISTRADA = ['licenca_vencida', 'licenca_inexistente'] as const
+export type MotivoDaRecusaPelaLicencaRegistrada = (typeof MOTIVOS_DA_RECUSA_PELA_LICENCA_REGISTRADA)[number]
+
+/**
+ * Por que o material é recusado, ou `null` quando entra (D5, D75). A API chama isto **antes** de abrir o arquivo, e a
+ * tela, antes de enviar: a regra é uma só. Sem licença válida, sem a declaração marcada ou, no material de terceiro, sem a licença registrada
+ * (`licencaId`), nada é extraído nem gravado. A tela passa só `licenca` e `declaracao`: o que ela deixa de escolher, ela já pede no formulário.
+ */
+export function motivoDaRecusaDoMaterial(pedido: {
+  readonly licenca: LicencaDeclarada
+  readonly declaracao: boolean
+  readonly titularidade?: TitularidadeDeMaterial
+  readonly licencaId?: string | undefined
+}): MotivoDaRecusaDoMaterial | null {
   if (pedido.licenca === SEM_LICENCA) return 'sem_licenca'
+  if (pedido.titularidade === 'terceiro_com_licenca' && pedido.licencaId === undefined) return 'sem_licenca'
   return pedido.declaracao ? null : 'sem_declaracao'
 }
 
@@ -97,7 +130,11 @@ export const materialSchema = z.strictObject({
   disciplinaId: z.uuid(),
   titularidade: z.enum(TITULARIDADES_DE_MATERIAL),
   licenciante: z.string().min(1).nullable(),
+  /** A licença registrada do material de terceiro (`GET /v1/licencas`); nula no material que não é de terceiro. */
+  licencaId: z.uuid().nullable(),
   licenca: z.enum(LICENCAS_DE_MATERIAL),
+  /** As séries declaradas, de 0 (a escola sem série na migração) a 7, em ordem de id. */
+  serieIds: z.array(z.uuid()).max(MAXIMO_DE_SERIES_DO_MATERIAL),
   estado: z.enum(ESTADOS_DE_MATERIAL),
   falha: z.enum(FALHAS_DE_MATERIAL).nullable(),
   /** Páginas do PDF, nulo enquanto processa. */
@@ -133,10 +170,10 @@ export const materialComCapitulosResponseSchema = materialSchema.extend({ capitu
 export type MaterialComCapitulosResponse = z.infer<typeof materialComCapitulosResponseSchema>
 
 /**
- * Consulta de `GET /v1/materiais`: a página e, se quiser, a disciplina. A coordenação lê os da escola; o professor, só
+ * Consulta de `GET /v1/materiais`: a página e, se quiser, a disciplina e a série. A coordenação lê os da escola; o professor, só
  * os das disciplinas em que tem vínculo confirmado, com ou sem o filtro. Só os não excluídos.
  */
-export const materiaisQuerySchema = paginationQuerySchema.extend({ disciplinaId: z.uuid().optional() }).strict()
+export const materiaisQuerySchema = paginationQuerySchema.extend({ disciplinaId: z.uuid().optional(), serieId: z.uuid().optional() }).strict()
 export type MateriaisQuery = z.infer<typeof materiaisQuerySchema>
 
 export const listaDeMateriaisResponseSchema = pageSchema(materialSchema)

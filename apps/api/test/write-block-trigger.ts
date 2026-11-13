@@ -33,7 +33,7 @@ export async function esperarNaTrava(pool: DatabasePool, padrao: string, quantos
 
 /**
  * Um gatilho **só do banco de teste** que para uma escrita no meio da transação dela, sem gancho no código de produção
- * (cenários E11 e E15 da A0b). É `after … for each row`: quando ele dispara, a linha já está na tabela e nos índices, e
+ * (cenários E11 e E15 da A0b). Por padrão é `after … for each row`: quando ele dispara, a linha já está na tabela e nos índices, e
  * a transação já passou por tudo que veio antes (o `for share` do autor, por exemplo). Ali ele espera numa trava
  * consultiva que o teste segura; o teste confere o que quiser com a escrita parada, e solta.
  *
@@ -49,7 +49,7 @@ export class WriteBlockTrigger {
 
   constructor(
     pool: DatabasePool,
-    private readonly opcoes: { readonly tabela: string; readonly evento: 'insert' | 'update' | 'delete'; readonly quando: string },
+    private readonly opcoes: { readonly tabela: string; readonly evento: 'insert' | 'update' | 'delete'; readonly quando: string; readonly momento?: 'before' | 'after' },
   ) {
     this.#pool = pool
   }
@@ -65,10 +65,11 @@ export class WriteBlockTrigger {
         segurador.release()
       }
     }
+    const antes = this.opcoes.momento === 'before'
     await this.#pool.query(
-      `create function ${this.#nome}() returns trigger language plpgsql as $$ begin perform pg_advisory_xact_lock_shared(${CLASSE_DA_PARADA}, ${this.#chave}); return null; end $$`,
+      `create function ${this.#nome}() returns trigger language plpgsql as $$ begin perform pg_advisory_xact_lock_shared(${CLASSE_DA_PARADA}, ${this.#chave}); return ${antes ? (this.opcoes.evento === 'delete' ? 'old' : 'new') : 'null'}; end $$`,
     )
-    await this.#pool.query(`create trigger ${this.#nome} after ${this.opcoes.evento} on ${this.opcoes.tabela} for each row when (${this.opcoes.quando}) execute function ${this.#nome}()`)
+    await this.#pool.query(`create trigger ${this.#nome} ${antes ? 'before' : 'after'} ${this.opcoes.evento} on ${this.opcoes.tabela} for each row when (${this.opcoes.quando}) execute function ${this.#nome}()`)
   }
 
   /** Espera até `quantas` escritas estarem paradas no gatilho. */

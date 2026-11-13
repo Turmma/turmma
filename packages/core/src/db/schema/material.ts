@@ -3,6 +3,7 @@ import { boolean, check, date, foreignKey, index, integer, pgTable, primaryKey, 
 import type { EstadoDeMaterial, FalhaDeMaterial, LicencaDeMaterial, TitularidadeDeMaterial } from '@educa/shared'
 import { disciplina } from './disciplina.js'
 import { escola } from './escola.js'
+import { serie } from './serie.js'
 import { usuario } from './usuario.js'
 
 /**
@@ -94,6 +95,34 @@ export const material = pgTable(
     check('material_falha_so_no_que_falhou', sql`(${tabela.estado} = 'falhou') = (${tabela.falha} is not null)`),
     check('material_pronto_tem_paginas', sql`${tabela.estado} <> 'pronto' or ${tabela.paginas} is not null`),
     check('material_excluido_por_so_no_excluido', sql`${tabela.excluidoPor} is null or ${tabela.excluidoEm} is not null`),
+  ],
+)
+
+/**
+ * As séries que a coordenação declara para o material (ingestao-do-material, tarefa 7.0; Tech Spec, seções 3 e 5; PRD, RF3 e RF7): de uma a sete, as do recorte. A busca, a ferramenta e o Tutor
+ * leem só o material da série da turma (9.0); o envio sem série é recusado, e o material de antes da F4 ganhou **todas** as séries da escola na migração 0055, para continuar na busca até a
+ * coordenação corrigir (o resumo avisa).
+ *
+ * - Chave `(escola_id, material_id, serie_id)`: a mesma série duas vezes no material é a violação dela, e o contrato a recusa antes (`ENTRADA_INVALIDA`).
+ * - FK composta com a escola nas duas pontas (regra 10, item 1): a série e o material são da mesma escola. A do material é em cascata, e as linhas saem com o material no expurgo de
+ *   `material_excluido`; a da série não tem ação: a série com material não se exclui.
+ * - Índice `(escola_id, serie_id, material_id)`: o filtro `GET /v1/materiais?serieId` e as leituras de página por série começam pela escola e pela série (regra 80, item 8).
+ * - Não varia por ano letivo, como o material e a série: a turma é que é do ano. Sem dado de pessoa.
+ */
+export const materialSerie = pgTable(
+  'material_serie',
+  {
+    escolaId: uuid()
+      .notNull()
+      .references(() => escola.id),
+    materialId: uuid().notNull(),
+    serieId: uuid().notNull(),
+  },
+  (tabela) => [
+    primaryKey({ name: 'material_serie_pk', columns: [tabela.escolaId, tabela.materialId, tabela.serieId] }),
+    foreignKey({ name: 'material_serie_material_da_escola_fk', columns: [tabela.escolaId, tabela.materialId], foreignColumns: [material.escolaId, material.id] }).onDelete('cascade'),
+    foreignKey({ name: 'material_serie_serie_da_escola_fk', columns: [tabela.escolaId, tabela.serieId], foreignColumns: [serie.escolaId, serie.id] }),
+    index('material_serie_serie_idx').on(tabela.escolaId, tabela.serieId, tabela.materialId),
   ],
 )
 

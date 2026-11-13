@@ -313,7 +313,7 @@ export class AssistenteApiMock {
       status: 200,
       corpo: {
         itens: [
-          { id: MATERIAL, titulo: TITULO_DO_MATERIAL, disciplinaId: randomUUID(), titularidade: 'escola', licenciante: null, licenca: 'autoria_da_escola', estado: 'pronto', falha: null, paginas: 6, trechos: 6, enviadoEm: '2026-10-01T12:00:00.000Z' },
+          { id: MATERIAL, titulo: TITULO_DO_MATERIAL, disciplinaId: randomUUID(), titularidade: 'escola', licenciante: null, licencaId: null, serieIds: [], licenca: 'autoria_da_escola', estado: 'pronto', falha: null, paginas: 6, trechos: 6, enviadoEm: '2026-10-01T12:00:00.000Z' },
         ],
       },
     }

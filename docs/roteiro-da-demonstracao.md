@@ -172,14 +172,15 @@ vale 72 horas. O painel da operação não mostra dado de aluno nem de professor
 
 ## 3. Passo 1: o material da escola, com licença (Coordenação, 2 min)
 
-1. **Material** → arraste o PDF de demonstração → Título `Química 2, capítulo 7: Estequiometria` → Disciplina
-   `Química` → De quem é: `Material próprio da escola` → Licença: **`Não tenho a licença, ou não sei`** → marque a
-   declaração → **Enviar material**.
+1. **Material** → **Enviar material** → arraste o PDF de demonstração (o título sai do nome do arquivo; troque por
+   `Química 2, capítulo 7: Estequiometria`) → Disciplina `Química` → Séries: marque **`2º ano do Ensino Médio`** → De quem
+   é: `Material próprio da escola` → Licença: **`Não tenho a licença, ou não sei`** → marque a declaração → **Enviar
+   material**. (O diálogo aceita até 20 PDFs de uma vez; na demonstração é um só.)
    **Aparece:** "Envio recusado", em borda tracejada. **Diga:** "Sem licença, o arquivo não sai do computador: o
    sistema recusa antes de ler, e a tentativa fica na auditoria. Apostila de terceiro sem licença não entra por caminho
    nenhum."
-2. Escolha o arquivo de novo, a mesma informação, e Licença: **`Autoria da escola ou de professor dela`** → declaração
-   → **Enviar material**.
+2. O diálogo continua aberto, com o arquivo na lista e o que você digitou: troque só a Licença para
+   **`Autoria da escola ou de professor dela`** → declaração → **Enviar material**.
    **Aparece:** em alguns segundos, "Pronto · 6 páginas". **Diga:** "A IA só trabalha com o que a escola subiu e pode
    usar. Tudo que ela gerar vai citar a página daqui."
 

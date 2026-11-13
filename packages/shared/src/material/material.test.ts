@@ -7,6 +7,9 @@ import {
   buscaDeMaterialResponseSchema,
   LICENCAS_DE_MATERIAL,
   MAXIMO_DE_BYTES_DO_MATERIAL,
+  MAXIMO_DE_PDFS_POR_LOTE,
+  MAXIMO_DE_SERIES_DO_MATERIAL,
+  materiaisQuerySchema,
   motivoDaRecusaDoMaterial,
   SEM_LICENCA,
 } from './material.js'
@@ -17,7 +20,7 @@ const OUTRO_ID = '0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5c'
 const AGORA = '2026-10-04T13:00:00.000Z'
 
 describe('envio de material (D5, D75): sem licença ou sem declaração, é recusado antes de abrir o arquivo', () => {
-  const pedido = { titulo: 'Química 2, cap. 7', disciplinaId: UM_ID, titularidade: 'escola', licenca: 'autoria_da_escola', declaracao: 'true' }
+  const pedido = { titulo: 'Química 2, cap. 7', disciplinaId: UM_ID, serieIds: [UM_ID], titularidade: 'escola', licenca: 'autoria_da_escola', declaracao: 'true' }
 
   it('as quatro licenças com que um material entra, com a declaração marcada, passam', () => {
     expect(LICENCAS_DE_MATERIAL).toEqual(['dominio_publico', 'autoria_da_escola', 'licenca_aberta', 'licenca_comercial_autorizada'])
@@ -43,17 +46,35 @@ describe('envio de material (D5, D75): sem licença ou sem declaração, é recu
     expect(enviarMaterialRequestSchema.safeParse({ ...pedido, declaracao: 'sim' }).success).toBe(false)
   })
 
-  it('o licenciante existe só, e sempre, no material de terceiro; escola e quem envia não vêm do cliente', () => {
+  it('a licença registrada existe só, e sempre, no material de terceiro; o licenciante não vem do cliente; escola e quem envia também não', () => {
     const deTerceiro = { ...pedido, titularidade: 'terceiro_com_licenca', licenca: 'licenca_comercial_autorizada' }
-    expect(enviarMaterialRequestSchema.safeParse(deTerceiro).success).toBe(false)
-    expect(enviarMaterialRequestSchema.safeParse({ ...deTerceiro, licenciante: 'Editora Sintética' }).success).toBe(true)
-    expect(enviarMaterialRequestSchema.safeParse({ ...pedido, licenciante: 'Editora Sintética' }).success).toBe(false)
-    for (const campo of [{ escolaId: UM_ID }, { enviadoPor: UM_ID }, { estado: 'pronto' }]) expect(enviarMaterialRequestSchema.safeParse({ ...pedido, ...campo }).success, Object.keys(campo)[0]).toBe(false)
+    // Sem `licencaId` o schema deixa passar, e a regra recusa com registro (`sem_licenca`): a recusa precisa deixar rastro.
+    const semRegistro = enviarMaterialRequestSchema.parse(deTerceiro)
+    expect(motivoDaRecusaDoMaterial({ licenca: semRegistro.licenca, declaracao: semRegistro.declaracao, titularidade: semRegistro.titularidade, licencaId: semRegistro.licencaId })).toBe('sem_licenca')
+    const comRegistro = enviarMaterialRequestSchema.parse({ ...deTerceiro, licencaId: OUTRO_ID })
+    expect(motivoDaRecusaDoMaterial({ licenca: comRegistro.licenca, declaracao: comRegistro.declaracao, titularidade: comRegistro.titularidade, licencaId: comRegistro.licencaId })).toBeNull()
+    expect(enviarMaterialRequestSchema.safeParse({ ...pedido, licencaId: OUTRO_ID }).success).toBe(false)
+    expect(enviarMaterialRequestSchema.safeParse({ ...deTerceiro, licencaId: 'não é id' }).success).toBe(false)
+    for (const campo of [{ licenciante: 'Editora Sintética' }, { escolaId: UM_ID }, { enviadoPor: UM_ID }, { estado: 'pronto' }]) {
+      expect(enviarMaterialRequestSchema.safeParse({ ...deTerceiro, licencaId: OUTRO_ID, ...campo }).success, Object.keys(campo)[0]).toBe(false)
+    }
     expect(MAXIMO_DE_BYTES_DO_MATERIAL).toBe(20 * 1024 * 1024)
   })
 
+  it('as séries: de 1 a 7, sem repetir; um valor só do multipart vira lista de um; sem série, vazia, repetida (também em maiúscula) ou a oitava é entrada inválida', () => {
+    expect(MAXIMO_DE_SERIES_DO_MATERIAL).toBe(7)
+    expect(MAXIMO_DE_PDFS_POR_LOTE).toBe(20)
+    const outras = Array.from({ length: 7 }, (_, indice) => `0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a${String(indice).padStart(2, '0')}`)
+    expect(enviarMaterialRequestSchema.parse({ ...pedido, serieIds: UM_ID }).serieIds).toEqual([UM_ID])
+    expect(enviarMaterialRequestSchema.parse({ ...pedido, serieIds: outras }).serieIds).toEqual(outras)
+    const invalidas: unknown[] = [undefined, [], [...outras, UM_ID], [UM_ID, UM_ID], [UM_ID, UM_ID.toUpperCase()], ['não é id'], [UM_ID, 'x']]
+    for (const serieIds of invalidas) expect(enviarMaterialRequestSchema.safeParse({ ...pedido, serieIds }).success, JSON.stringify(serieIds)).toBe(false)
+    expect(materiaisQuerySchema.safeParse({ serieId: UM_ID }).success).toBe(true)
+    expect(materiaisQuerySchema.safeParse({ serieId: 'x' }).success).toBe(false)
+  })
+
   it('o material devolvido não traz o texto, o resumo do arquivo nem quem enviou; a busca devolve página e um trecho curto', () => {
-    const material = { id: UM_ID, titulo: 'Química 2, cap. 7', disciplinaId: OUTRO_ID, titularidade: 'escola', licenciante: null, licenca: 'autoria_da_escola', estado: 'pronto', falha: null, paginas: 6, trechos: 6, enviadoEm: AGORA }
+    const material = { id: UM_ID, titulo: 'Química 2, cap. 7', disciplinaId: OUTRO_ID, titularidade: 'escola', licenciante: null, licencaId: null, licenca: 'autoria_da_escola', serieIds: [UM_ID], estado: 'pronto', falha: null, paginas: 6, trechos: 6, enviadoEm: AGORA }
     expect(materialSchema.safeParse(material).success).toBe(true)
     for (const campo of [{ sha256: 'a'.repeat(64) }, { enviadoPor: UM_ID }, { texto: 'página inteira' }, { escolaId: UM_ID }]) expect(materialSchema.safeParse({ ...material, ...campo }).success, Object.keys(campo)[0]).toBe(false)
     // O material gravado nunca tem `sem_licenca`.

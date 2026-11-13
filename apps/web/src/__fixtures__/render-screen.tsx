@@ -19,6 +19,8 @@ import { abrirSessaoPeloCookie } from '../api/sessao'
 export interface FakeResponse {
   readonly status: number
   readonly corpo?: unknown
+  /** Os cabeçalhos da resposta, como o `Retry-After` do 429. */
+  readonly cabecalhos?: Readonly<Record<string, string>>
 }
 
 /** O que a peça pediu à API, na ordem: o caminho, o método e a credencial com que foi. O corpo fica de fora. */
@@ -68,7 +70,7 @@ export function fakeNetwork(): FakeNetwork {
       const preparada = doCaminho === undefined ? fila.shift() : typeof doCaminho.resposta === 'function' ? doCaminho.resposta(caminho) : doCaminho.resposta
       if (preparada === undefined) throw new Error(`chamada à API sem resposta preparada: ${caminho}`)
       const resposta = await preparada
-      return new Response(resposta.corpo === undefined ? null : JSON.stringify(resposta.corpo), { status: resposta.status })
+      return new Response(resposta.corpo === undefined ? null : JSON.stringify(resposta.corpo), { status: resposta.status, ...(resposta.cabecalhos === undefined ? {} : { headers: resposta.cabecalhos }) })
     }),
   )
   return {

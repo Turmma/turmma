@@ -22,6 +22,11 @@ export interface VigenciaDaLicenca {
   readonly vigenteAte: string | null
 }
 
+/** O que o envio do material de terceiro lê da licença: a vigência, para saber se vale hoje, e o licenciante, que o material copia. Nunca a cobertura nem a referência. */
+export interface LicencaParaUso extends VigenciaDaLicenca {
+  readonly licenciante: string
+}
+
 /**
  * Quantos materiais não excluídos a licença cobre. Escrito com os nomes qualificados: numa consulta de uma tabela só, o drizzle escreve a coluna sem a
  * tabela, e `escola_id = escola_id` dentro da subconsulta seria o material com ele mesmo (como `quantosTrechos`, no repository do material).
@@ -63,6 +68,20 @@ export class LicencaRepository {
       .select(colunas)
       .from(licencaDeMaterial)
       .where(and(eq(licencaDeMaterial.escolaId, requireEscolaId()), eq(licencaDeMaterial.id, id)))
+    return linha
+  }
+
+  /**
+   * A licença da escola do contexto que o envio do material de terceiro vai usar. Com `travar`, a linha é lida `for share` até o fim da transação do envio: um `PATCH` da vigência
+   * (`travarVigencia`, `for update`) espera o envio terminar, e o envio nunca grava material sobre uma licença que acabou de ser encurtada. Sem `travar`, é a leitura da conferência
+   * que vem antes de o arquivo ser lido. A de outra escola e a inexistente não são achadas.
+   */
+  async paraUso(id: string, travar: boolean): Promise<LicencaParaUso | undefined> {
+    const consulta = this.banco
+      .select({ licenciante: licencaDeMaterial.licenciante, vigenteDesde: licencaDeMaterial.vigenteDesde, vigenteAte: licencaDeMaterial.vigenteAte })
+      .from(licencaDeMaterial)
+      .where(and(eq(licencaDeMaterial.escolaId, requireEscolaId()), eq(licencaDeMaterial.id, id)))
+    const [linha] = await (travar ? consulta.for('share') : consulta)
     return linha
   }
 

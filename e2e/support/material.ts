@@ -82,6 +82,21 @@ export function criarMaterialNoBanco(escolaId: string, disciplinaId: string, mat
   })
 }
 
+/**
+ * Muitos materiais `pronto` de uma vez, num `insert` só (ingestao-do-material, 7.0: "300 no seed"): a escola que já tem apostila de sobra, para a tela do envio e
+ * a lista que cresce. Enviados há dois dias, fora da janela de uma hora dos tetos de envio (`ENVIOS_POR_ESCOLA_NA_JANELA`): são o acervo da escola, e o lote do caso não esbarra neles. Sem trechos: o caso é sobre a tela, e o hash de cada um é próprio, para o envio de verdade não esbarrar em nenhum.
+ */
+export function criarMateriaisNoBanco(escolaId: string, disciplinaId: string, quantos: number): Promise<void> {
+  return comBanco(async (banco) => {
+    await banco.query(
+      `insert into material (escola_id, disciplina_id, titulo, titularidade, licenca, declaracao, sha256, tamanho_bytes, paginas, estado, enviado_em)
+       select $1::uuid, $2::uuid, 'Material sintético ' || g, 'escola', 'autoria_da_escola', true, encode(sha256(convert_to($1::text || '-' || g::text, 'UTF8')), 'hex'), 48000, 3, 'pronto', now() - interval '2 days'
+         from generate_series(1, $3::int) as g`,
+      [escolaId, disciplinaId, quantos],
+    )
+  })
+}
+
 /** A falha gravada: só o material que `falhou` a tem (o check do banco), com a que o caso pediu ou `sem_texto`. */
 function falhaDoMaterial(material: MaterialDeTeste): string | null {
   return material.estado === 'falhou' ? (material.falha ?? 'sem_texto') : null

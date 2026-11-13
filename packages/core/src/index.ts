@@ -268,7 +268,7 @@ export { chaveDoTemporario, PRAZO_DO_OBJETO_DO_MATERIAL_MS } from './material/te
 export { uuidV7 } from './material/uuid-v7.js'
 export { EnvioDeMaterialRepository, ESPERA_MAXIMA_PELA_LINHA_DO_ENVIO_MS } from './material/envio-de-material.repository.js'
 export { VarreduraDoMaterialRepository } from './material/varredura.repository.js'
-export { capituloDoMaterial, licencaDeMaterial } from './db/schema/material.js'
+export { capituloDoMaterial, licencaDeMaterial, materialSerie } from './db/schema/material.js'
 export type { AlvoDaVarredura } from './material/varredura.repository.js'
 export type { ArquivoAApagar, ArquivoLido, PedidoDoUsuario, PedidoParaMontar } from './titular/arquivo-do-titular.repository.js'
 export { selectColumns, LEITURAS_DO_ARQUIVO, LeituraDoTitular } from './titular/leitura-do-titular.js'

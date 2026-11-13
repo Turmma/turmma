@@ -47,7 +47,8 @@ export class MaterialModule {
       providers: [
         {
           provide: MaterialService,
-          useFactory: (banco: Database) => new MaterialService({ banco, armazem, enfileirador: new JobOutbox(new JobOutboxRepository(banco)), logger: opcoes.logger }),
+          useFactory: (banco: Database) =>
+            new MaterialService({ banco, armazem, enfileirador: new JobOutbox(new JobOutboxRepository(banco)), logger: opcoes.logger, ...(opcoes.relogioDasLicencas === undefined ? {} : { relogio: opcoes.relogioDasLicencas }) }),
           inject: [DB],
         },
         { provide: LicencaService, useFactory: (banco: Database) => new LicencaService({ banco, ...(opcoes.relogioDasLicencas === undefined ? {} : { relogio: opcoes.relogioDasLicencas }) }), inject: [DB] },

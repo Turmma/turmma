@@ -43,8 +43,11 @@ export const materiaisQueryOptions = queryOptions({
 export interface CamposDoEnvioDeMaterial {
   readonly titulo: string
   readonly disciplinaId: string
+  /** De 1 a 7 séries da escola; o multipart leva o campo `serieIds` repetido, uma vez por série. */
+  readonly serieIds: readonly string[]
   readonly titularidade: TitularidadeDeMaterial
-  readonly licenciante?: string
+  /** A licença registrada (`GET /v1/licencas`), só no material de terceiro: o nome de quem licenciou vem dela, nunca da tela. */
+  readonly licencaId?: string
   readonly licenca: LicencaDeclarada
   readonly declaracao: boolean
 }
@@ -82,8 +85,9 @@ export async function enviarMaterial(campos: CamposDoEnvioDeMaterial, arquivo: F
   const formulario = new FormData()
   formulario.append('titulo', campos.titulo)
   formulario.append('disciplinaId', campos.disciplinaId)
+  for (const serieId of campos.serieIds) formulario.append('serieIds', serieId)
   formulario.append('titularidade', campos.titularidade)
-  if (campos.licenciante !== undefined) formulario.append('licenciante', campos.licenciante)
+  if (campos.licencaId !== undefined) formulario.append('licencaId', campos.licencaId)
   formulario.append('licenca', campos.licenca)
   formulario.append('declaracao', campos.declaracao ? 'true' : 'false')
   // O nome do arquivo no computador da pessoa não vai junto: a API não o usa, e ele não é dado do material.

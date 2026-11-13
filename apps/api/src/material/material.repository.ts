@@ -1,6 +1,6 @@
-import { requireEscolaId, capituloDoMaterial, material, requestSessao, trecho, vinculo, type Database, type DatabaseTransaction } from '@educa/core'
+import { requireEscolaId, capituloDoMaterial, material, materialSerie, requestSessao, serie, trecho, vinculo, type Database, type DatabaseTransaction } from '@educa/core'
 import type { CapituloDoMaterial, MateriaisQuery, EstadoDeMaterial, FalhaDeMaterial, LicencaDeMaterial, TitularidadeDeMaterial } from '@educa/shared'
-import { and, asc, desc, eq, exists, gt, gte, isNull, sql, type SQL } from 'drizzle-orm'
+import { and, asc, desc, eq, exists, gt, gte, inArray, isNull, sql, type SQL } from 'drizzle-orm'
 import { InvariantException } from '@educa/shared'
 
 /**
@@ -17,7 +17,10 @@ export interface MaterialLido {
   readonly disciplinaId: string
   readonly titularidade: TitularidadeDeMaterial
   readonly licenciante: string | null
+  readonly licencaId: string | null
   readonly licenca: LicencaDeMaterial
+  /** As séries declaradas, em ordem de id; vazio no material que a migração deixou sem série (a escola sem nenhuma). */
+  readonly serieIds: string[]
   readonly estado: EstadoDeMaterial
   readonly falha: FalhaDeMaterial | null
   readonly paginas: number | null
@@ -31,7 +34,9 @@ export interface NovoMaterial {
   readonly disciplinaId: string
   readonly titulo: string
   readonly titularidade: TitularidadeDeMaterial
+  /** O licenciante **da licença registrada** (`licencaId`), copiado dela: o pedido não traz nome. Nulo no que não é de terceiro. */
   readonly licenciante: string | null
+  readonly licencaId: string | null
   readonly licenca: LicencaDeMaterial
   readonly sha256: string
   readonly tamanhoBytes: number
@@ -71,12 +76,17 @@ export interface FiltroDaBusca {
  */
 const quantosTrechos = sql<number>`(select count(*)::int from "trecho" where "trecho"."escola_id" = "material"."escola_id" and "trecho"."material_id" = "material"."id")`
 
-const colunas = {
+/** As séries do material, em ordem de id. Nomes qualificados, pelo mesmo motivo de `quantosTrechos`; a lista vazia (sem série) é `{}`, nunca nula. */
+const dasSeries = sql<string[]>`coalesce((select array_agg("material_serie"."serie_id" order by "material_serie"."serie_id") from "material_serie" where "material_serie"."escola_id" = "material"."escola_id" and "material_serie"."material_id" = "material"."id"), '{}'::uuid[])`
+
+/** As colunas da própria linha: o `insert ... returning` só pode devolver estas, porque as séries ainda não foram gravadas. */
+const colunasDaLinha = {
   id: material.id,
   titulo: material.titulo,
   disciplinaId: material.disciplinaId,
   titularidade: material.titularidade,
   licenciante: material.licenciante,
+  licencaId: material.licencaId,
   licenca: material.licenca,
   estado: material.estado,
   falha: material.falha,
@@ -84,6 +94,8 @@ const colunas = {
   trechos: quantosTrechos,
   enviadoEm: material.enviadoEm,
 }
+
+const colunas = { ...colunasDaLinha, serieIds: dasSeries }
 
 const colunasDoTrecho = { materialId: trecho.materialId, disciplinaId: trecho.disciplinaId, titulo: material.titulo, pagina: trecho.pagina, texto: trecho.texto }
 
@@ -122,6 +134,16 @@ export class MaterialRepository {
     )
   }
 
+  /** O material declarado para a série. A série de outra escola não casa com material desta: o filtro é igual ao da série que não existe. */
+  #comASerie(serieId: string): SQL {
+    return exists(
+      this.banco
+        .select({ um: materialSerie.serieId })
+        .from(materialSerie)
+        .where(and(eq(materialSerie.escolaId, material.escolaId), eq(materialSerie.materialId, material.id), eq(materialSerie.serieId, serieId))),
+    )
+  }
+
   /**
    * Segura os envios da escola do contexto até o fim da transação: dois envios ao mesmo tempo contam um depois do
    * outro, e o teto não é furado pela corrida (regra 80, item 7). A trava é da escola: outra escola não espera.
@@ -152,18 +174,33 @@ export class MaterialRepository {
    * `motivoDaRecusaDoMaterial`). O mesmo arquivo de novo na escola esbarra no índice único `(escola_id, sha256)` entre
    * os não excluídos e não falhos, e sai `CONFLITO` pelo filtro de erro: dois envios ao mesmo tempo gravam um.
    */
-  async inserir(novo: NovoMaterial): Promise<MaterialLido> {
+  async inserir(novo: NovoMaterial): Promise<Omit<MaterialLido, 'serieIds'>> {
     const { usuarioId } = requestSessao()
     const [gravado] = await this.banco
       .insert(material)
       .values({ ...novo, escolaId: requireEscolaId(), declaracao: true, enviadoPor: usuarioId })
-      .returning({ ...colunas, trechos: sql<number>`0` })
+      .returning({ ...colunasDaLinha, trechos: sql<number>`0` })
     if (gravado === undefined) throw new InvariantException('material não gravado')
     return gravado
   }
 
+  /** Quais destas séries são da escola do contexto: a de outra escola e a inexistente não são achadas. Quem chama compara com o que pediu. */
+  async seriesDaEscola(serieIds: readonly string[]): Promise<string[]> {
+    const achadas = await this.banco
+      .select({ id: serie.id })
+      .from(serie)
+      .where(and(eq(serie.escolaId, requireEscolaId()), inArray(serie.id, [...serieIds])))
+    return achadas.map((linha) => linha.id)
+  }
+
+  /** Declara as séries do material recém-gravado, na escola do contexto. A chave `(escola_id, material_id, serie_id)` não admite a mesma duas vezes. */
+  async gravarSeries(materialId: string, serieIds: readonly string[]): Promise<void> {
+    const escolaId = requireEscolaId()
+    await this.banco.insert(materialSerie).values(serieIds.map((serieId) => ({ escolaId, materialId, serieId })))
+  }
+
   /** Uma página dos materiais não excluídos, em ordem de envio, com uma linha a mais que diz se há próxima. */
-  listar({ pagina, limite, disciplinaId }: MateriaisQuery, alcance: AlcanceDoMaterial): Promise<MaterialLido[]> {
+  listar({ pagina, limite, disciplinaId, serieId }: MateriaisQuery, alcance: AlcanceDoMaterial): Promise<MaterialLido[]> {
     return this.banco
       .select(colunas)
       .from(material)
@@ -172,6 +209,7 @@ export class MaterialRepository {
           eq(material.escolaId, requireEscolaId()),
           isNull(material.excluidoEm),
           disciplinaId === undefined ? undefined : eq(material.disciplinaId, disciplinaId),
+          serieId === undefined ? undefined : this.#comASerie(serieId),
           pagina === undefined ? undefined : gt(material.id, pagina),
           this.#noAlcance(alcance),
         ),

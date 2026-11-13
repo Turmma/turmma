@@ -60,17 +60,17 @@ export function materialDoEndereco(busca: string, materiais: readonly Material[]
 }
 
 /**
- * O formulário que o "Tentar de novo" de um material que falhou abre: o que ele declarava — título, disciplina, de quem é, quem deu a
- * licença e a licença —, sem o arquivo e **sem a declaração marcada**: quem declara é a pessoa que envia de novo, a cada envio.
+ * O formulário que o "Tentar de novo" de um material que falhou abre: o que ele declarava — título, disciplina, séries, de quem é, a licença registrada e a
+ * licença de uso —, sem o arquivo e **sem a declaração marcada**: quem declara é a pessoa que envia de novo, a cada envio.
  */
-export function rascunhoDoMaterialQueFalhou(material: Pick<Material, 'titulo' | 'disciplinaId' | 'titularidade' | 'licenciante' | 'licenca'>): RascunhoDoEnvio {
+export function rascunhoDoMaterialQueFalhou(material: Pick<Material, 'titulo' | 'disciplinaId' | 'serieIds' | 'titularidade' | 'licencaId' | 'licenca'>): RascunhoDoEnvio {
   return {
     titulo: material.titulo,
     disciplinaId: material.disciplinaId,
+    serieIds: material.serieIds,
     titularidade: material.titularidade,
-    licenciante: material.licenciante ?? '',
+    licencaId: material.licencaId ?? '',
     licenca: material.licenca,
     declaracao: false,
-    temArquivo: false,
   }
 }

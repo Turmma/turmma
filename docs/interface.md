@@ -626,6 +626,17 @@ os quatro estados; o vazio da grade convida a "Baixar modelo".
   uma regra da tela:** a situação vem da API, e quem decide é a coordenação, pela vigência. Os quatro
   estados valem para a aba (carregando, erro com "Tentar de novo", vazio que convida a registrar a
   primeira licença, e a tabela)
+  **"Enviar material"** (ingestao-do-material, 7.0; RF3, RF14, RF16) é um diálogo que envia **até 20 PDFs de uma vez**, com a mesma disciplina, as
+  mesmas **séries** (de uma a sete, marcadas uma a uma; sem série o envio não segue; escola sem nenhuma série vê onde criá-las e um link para Escola), a mesma titularidade e a mesma licença. Cada PDF vira um
+  material, com o título tirado do nome do arquivo e editável na lista do lote. O arquivo entra arrastado **ou** pelo botão "Escolher arquivos";
+  o que não é PDF ou passa de 20 MB fica de fora, dito pelo nome, e o que excede os 20 do lote também, com o texto dizendo quantos ficaram de fora. **O material de terceiro cita uma licença registrada**
+  (só as que valem hoje: a vencida não se escolhe), lida de novo quando o diálogo abre e quando a janela volta ao foco, e a que a pessoa tinha
+  escolhido e deixou de valer sai da escolha, com o aviso; **sem licença vigente** o diálogo diz "Registre a licença primeiro" e leva a Licenças.
+  O envio é **um arquivo por vez**: o que falha não derruba os outros, o repetido é "já enviado", e o limite de envios (429) e a licença que
+  venceu no meio **param** o lote, com os que faltam na lista, a hora em que o envio volta e o botão "Continuar o envio". O resumo do lote
+  ("12 de 20 enviados", contando os que já estavam na escola) recebe o foco no fim, e uma região `aria-live` diz a situação de cada arquivo. Sem licença,
+  ou sem a declaração, o envio é recusado antes de ler o arquivo, e a recusa entra na tabela e na auditoria, com as séries (`docs/lgpd.md`).
+  Cada abertura é um formulário novo; quem fecha o diálogo deixa de enviar os arquivos seguintes
 
 **Registros** tem três abas, **IA, Pedidos e Privacidade**, que recebem a tabela da Governança, o
 item Agentes e o item Privacidade de hoje.

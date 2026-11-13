@@ -45,6 +45,11 @@ export const ErrorCode = {
    */
   MATERIAL_SEM_LICENCA: 'MATERIAL_SEM_LICENCA',
   /**
+   * A licença registrada do material de terceiro não está vigente hoje (ingestao-do-material, 7.0; RF16 e RF17; 422): venceu ou ainda não começou. Sai **antes de abrir o arquivo**, e de novo na
+   * transação do envio, que lê a licença `for share` (um `PATCH` que encurta a vigência não passa por um envio em curso). Fica na auditoria (`material.recusado`) e não grava `material`.
+   */
+  LICENCA_VENCIDA: 'LICENCA_VENCIDA',
+  /**
    * A coordenação suspendeu esta função da IA na escola (D60; 409): o servidor recusa executar, e o que já foi produzido
    * continua onde estava. A resposta não diz quem suspendeu.
    */

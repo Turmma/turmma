@@ -14,6 +14,8 @@ const material = (n: number, parte: Partial<Material> = {}): Material => ({
   disciplinaId: id(900),
   titularidade: 'escola',
   licenciante: null,
+  licencaId: null,
+  serieIds: [id(800)],
   licenca: 'autoria_da_escola',
   estado: 'pronto',
   falha: null,
@@ -78,21 +80,21 @@ describe('o material que o endereço abre', () => {
 })
 
 describe('o que o "Tentar de novo" devolve ao formulário', () => {
-  it('o que o material declarava, sem o arquivo e sem a declaração marcada', () => {
-    const falhou = material(5, { estado: 'falhou', falha: 'sem_texto', titularidade: 'terceiro_com_licenca', licenciante: 'Editora Sintética', licenca: 'licenca_comercial_autorizada' })
+  it('o que o material declarava, com as séries e a licença registrada, sem o arquivo e sem a declaração marcada', () => {
+    const falhou = material(5, { estado: 'falhou', falha: 'sem_texto', titularidade: 'terceiro_com_licenca', licenciante: 'Editora Sintética', licencaId: id(33), serieIds: [id(801), id(802)], licenca: 'licenca_comercial_autorizada' })
     expect(rascunhoDoMaterialQueFalhou(falhou)).toEqual({
       titulo: 'Material 5',
       disciplinaId: id(900),
+      serieIds: [id(801), id(802)],
       titularidade: 'terceiro_com_licenca',
-      licenciante: 'Editora Sintética',
+      licencaId: id(33),
       licenca: 'licenca_comercial_autorizada',
       declaracao: false,
-      temArquivo: false,
     })
   })
 
-  it('sem licenciante, o campo volta vazio', () => {
-    expect(rascunhoDoMaterialQueFalhou(material(6)).licenciante).toBe('')
+  it('sem licença registrada, o campo volta vazio', () => {
+    expect(rascunhoDoMaterialQueFalhou(material(6)).licencaId).toBe('')
   })
 })
 

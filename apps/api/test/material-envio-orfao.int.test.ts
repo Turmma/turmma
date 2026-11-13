@@ -7,9 +7,9 @@ import { jobExecution } from '../../worker/test/job-execution.fixture.js'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { DB } from '../src/database.module.js'
 import { montarEscolaComTurma as montarEscola, type EscolaComTurma } from './escola-turma.fixture.js'
-import { apagarMateriais, enviarMaterial, esperarExtracao, materiaisDa, materiaisJaEnviados, PDF_DE_DEMONSTRACAO } from './material.fixture.js'
+import { apagarMateriais, auditoriaDa, enviarMaterial, esperarExtracao, materiaisDa, materiaisJaEnviados, PDF_DE_DEMONSTRACAO, registrarLicencaDeTeste } from './material.fixture.js'
 import { SessaoFixtures } from './sessao.fixture.js'
-import { subirApi, type RespostaHttp, type TestApi } from './test-api.js'
+import { chamar, subirApi, type RespostaHttp, type TestApi } from './test-api.js'
 import { aguardar, esperarNaTrava, WriteBlockTrigger } from './write-block-trigger.js'
 
 // O envio de material que deixa PDF no storage sem commit (ingestao-do-material, tarefa 2.0; Tech Spec, seção 5, "Envio e edição"; onda 3b, 3. Falha, "Órfão"), pela API de verdade,
@@ -342,5 +342,89 @@ describe('o envio de material não deixa PDF para trás', () => {
     await esperarExtracao(api)
     expect((await materiaisDa(bancada, escolaId))[0]).toMatchObject({ estado: 'pronto' })
     expect(objetosDaEscola(api, escolaId)).toEqual([])
+  })
+
+  it('`LICENCA_VENCIDA` reconferida na transação: a licença encurtada depois da conferência da entrada recusa o envio, o objeto e a linha saem, e a recusa é auditada (7.0)', async () => {
+    const escola = await montarEscolaComTurma()
+    const escolaId = escola.coordenacao.escolaId
+    const licencaId = await registrarLicencaDeTeste(api, escola.coordenacao)
+    // A licença acaba entre a leitura da entrada (vigente) e a transação do envio, no meio do `guardarBytes`.
+    const desfazer = aoGuardar({
+      depois: async () => {
+        const encurtada = await chamar(api.url, 'PATCH', `/v1/licencas/${licencaId}`, escola.coordenacao.token, { vigenteAte: '2020-06-01' })
+        expect(encurtada.status).toBe(200)
+      },
+    })
+    let resposta: RespostaHttp
+    try {
+      resposta = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica, titularidade: 'terceiro_com_licenca', licenca: 'licenca_comercial_autorizada', licencaId })
+    } finally {
+      desfazer()
+    }
+
+    expect(erroDe(resposta)).toEqual({ status: 422, codigo: ErrorCode.LICENCA_VENCIDA })
+    expect(await materiaisDa(bancada, escolaId)).toEqual([])
+    expect(objetosDaEscola(api, escolaId)).toEqual([])
+    expect(await linhasDoEnvio(escolaId)).toEqual([])
+    const { rows } = await bancada.pool.query("select 1 from job_registro where escola_id = $1 and tipo = 'material.extrair-pdf'", [escolaId])
+    expect(rows).toEqual([])
+    const recusas = await auditoriaDa(bancada, escolaId, 'material.recusado')
+    expect(recusas).toHaveLength(1)
+    expect(recusas[0]).toMatchObject({ entidade: 'disciplina', entidade_id: escola.quimica, depois: { motivo: 'licenca_vencida', serieIds: [escola.serieId] } })
+  })
+
+  it('`LICENCA_VENCIDA` reconferida na transação: a licença que some do banco depois da conferência da entrada recusa o envio como vencida, e nada fica (7.0)', async () => {
+    const escola = await montarEscolaComTurma()
+    const escolaId = escola.coordenacao.escolaId
+    const licencaId = await registrarLicencaDeTeste(api, escola.coordenacao)
+    const desfazer = aoGuardar({
+      depois: async () => {
+        await bancada.pool.query('delete from licenca_de_material where escola_id = $1 and id = $2', [escolaId, licencaId])
+      },
+    })
+    let resposta: RespostaHttp
+    try {
+      resposta = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica, titularidade: 'terceiro_com_licenca', licenca: 'licenca_comercial_autorizada', licencaId })
+    } finally {
+      desfazer()
+    }
+
+    expect(erroDe(resposta)).toEqual({ status: 422, codigo: ErrorCode.LICENCA_VENCIDA })
+    expect(await materiaisDa(bancada, escolaId)).toEqual([])
+    expect(objetosDaEscola(api, escolaId)).toEqual([])
+    expect(await linhasDoEnvio(escolaId)).toEqual([])
+    const recusas = await auditoriaDa(bancada, escolaId, 'material.recusado')
+    expect(recusas).toHaveLength(1)
+    expect(recusas[0]).toMatchObject({ depois: { motivo: 'licenca_vencida', serieIds: [escola.serieId] } })
+  })
+
+  it('[P] o envio segura a licença (`for share`) até o commit: o `PATCH` que a encurta espera o envio e não perde para ele, e o material fica com a licença que valia (7.0)', async () => {
+    const escola = await montarEscolaComTurma()
+    const escolaId = escola.coordenacao.escolaId
+    const licencaId = await registrarLicencaDeTeste(api, escola.coordenacao, { licenciante: 'Editora do envio' })
+    // O gatilho para o envio **antes** do `insert` do material: a licença já foi lida e travada, e a FK do material (que também a travaria, em `for key share`) ainda não rodou.
+    // Sem isso o teste não distinguiria o `for share` do envio da trava que a própria FK já poria: o `PATCH` esperaria do mesmo jeito.
+    const gatilho = new WriteBlockTrigger(bancada.pool, { tabela: 'material', evento: 'insert', quando: `new.escola_id = '${escolaId}'`, momento: 'before' })
+    await gatilho.armar()
+    let resposta: RespostaHttp
+    let alteracao: Promise<RespostaHttp> | undefined
+    try {
+      const envio = enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica, titularidade: 'terceiro_com_licenca', licenca: 'licenca_comercial_autorizada', licencaId })
+      await gatilho.esperarParadas()
+      alteracao = chamar(api.url, 'PATCH', `/v1/licencas/${licencaId}`, escola.coordenacao.token, { vigenteAte: '2020-06-01' })
+      // O `PATCH` trava a licença (`for update`), que o envio ainda segura: ele fica na fila da trava, e só sai quando o envio confirma.
+      await esperarNaTrava(bancada.pool, '%licenca_de_material%for update%')
+      await gatilho.soltar()
+      resposta = await envio
+    } finally {
+      await gatilho.desarmar()
+    }
+
+    expect(resposta.status).toBe(201)
+    expect((await alteracao)?.status).toBe(200)
+    expect((await materiaisDa(bancada, escolaId))[0]).toMatchObject({ estado: 'processando' })
+    const { rows } = await bancada.pool.query<{ licenciante: string | null; licenca_id: string | null }>('select licenciante, licenca_id from material where escola_id = $1', [escolaId])
+    expect(rows).toEqual([{ licenciante: 'Editora do envio', licenca_id: licencaId }])
+    await esperarExtracao(api)
   })
 })

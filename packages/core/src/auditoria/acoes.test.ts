@@ -163,9 +163,15 @@ describe('mapa de ações da auditoria', () => {
     expect(decidida.safeParse({ ...base, estado: 'pendente' }).success).toBe(false)
 
     const recusado = ACOES_DE_AUDITORIA['material.recusado'].depois
-    const declarado = { titularidade: 'terceiro_com_licenca', licenca: 'sem_licenca', declaracao: true, motivo: 'sem_licenca' }
+    const declarado = { titularidade: 'terceiro_com_licenca', licenca: 'sem_licenca', declaracao: true, serieIds: [UM_ID], motivo: 'sem_licenca' }
     expect(recusado.safeParse(declarado).success).toBe(true)
     expect(recusado.safeParse({ ...declarado, licenca: 'licenca_aberta', declaracao: false, motivo: 'sem_declaracao' }).success).toBe(true)
+    // A licença registrada que recusa o envio entra pelo motivo, e as séries são de 1 a 7 ids.
+    for (const motivo of ['licenca_vencida', 'licenca_inexistente']) expect(recusado.safeParse({ ...declarado, motivo }).success, motivo).toBe(true)
+    expect(recusado.safeParse({ ...declarado, motivo: 'qualquer_outro' }).success).toBe(false)
+    expect(recusado.safeParse({ ...declarado, serieIds: [] }).success).toBe(false)
+    expect(recusado.safeParse({ ...declarado, serieIds: Array.from({ length: 8 }, () => UM_ID) }).success).toBe(false)
+    expect(recusado.safeParse({ titularidade: 'escola', licenca: 'sem_licenca', declaracao: true, motivo: 'sem_licenca' }).success).toBe(false)
     for (const proibido of [{ titulo: 'Apostila Sistema X' }, { licenciante: 'Editora X' }, { arquivo: 'apostila.pdf' }]) expect(recusado.safeParse({ ...declarado, ...proibido }).success, Object.keys(proibido)[0]).toBe(false)
     // O material que entrou só é registrado com licença que permite o uso e com a declaração marcada.
     const enviado = ACOES_DE_AUDITORIA['material.enviado'].depois

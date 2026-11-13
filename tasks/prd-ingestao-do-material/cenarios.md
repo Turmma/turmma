@@ -14,7 +14,8 @@ falhou. Seed e e2e usam licenciante fictício.
   falso, em `material` nem em `envio_de_material`, e a auditoria sem o id da série da B
 - [I] Terceiro sem `licencaId`: `MATERIAL_SEM_LICENCA`; com licença vencida, inexistente ou da escola B: recusado
   **antes de ler o arquivo** (o storage falso sem objeto, o extrator sem chamada), `material.recusado` gravado com o
-  motivo e as séries
+  motivo e as séries (o motivo: `sem_licenca` do terceiro sem `licencaId`, `licenca_vencida` da vencida ou que só começa
+  depois, `licenca_inexistente` da que não existe e da da escola B, que a API responde igual com `NAO_ENCONTRADO`)
 - [I] Material próprio, sem licença: entra e aparece na busca
 - [I] O objeto e a linha de `envio_de_material` são apagados em toda saída depois do `guardarBytes`: `CONFLITO` (arquivo
   repetido), `LIMITE_EXCEDIDO` reconferido sob a trava, `LICENCA_VENCIDA` reconferida na transação (o storage falso
@@ -222,7 +223,9 @@ Cada um vermelho sem a cláusula de escopo:
 - [U] Tutor do aluno: `SEM_MATERIAL_DA_SERIE` vira o estado "Ainda não há material da sua turma aqui. Avise seu
   professor.", sem o avatar do Tutor, pelo mapa de pausas (`pausaDoErro`)
 - [E] Três PDFs com um repetido; registrar licença; nova edição, e o artefato antigo mostrando "edição anterior"; com 300
-  materiais no seed, sob throttling de rede e de CPU
+  materiais no seed, sob throttling de rede e de CPU. O lote é dois casos, pelo teto de 15 s do caso alterado: o lote de
+  três PDFs com um repetido (o título de cada um vem do nome e se edita), e o diálogo do lote numa escola com 300 materiais
+  em 1366 × 768 (a página não rola, o diálogo rola dentro dele)
 
 ## Carga
 

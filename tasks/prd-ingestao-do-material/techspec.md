@@ -76,9 +76,12 @@ excluído ou de outra escola dá `NAO_ENCONTRADO`, e o que é ou tem edição em
 
 **Envio e edição.** (1) Antes de ler o arquivo: alvo da edição (fora da escola ou inexistente: `NAO_ENCONTRADO`, antes
 de tudo), tetos, licença (da escola, vigente) e séries (da escola); a recusa grava `material.recusado`, só com séries
-conferidas, fora de transação. (2) Id da aplicação (UUIDv7); linha em `envio_de_material`; bytes ao storage, com prazo.
+conferidas, fora de transação, com o motivo: `sem_licenca` e `sem_declaracao` (o pedido), e, com a licença registrada,
+`licenca_vencida` (a data não vale hoje: `LICENCA_VENCIDA`) e `licenca_inexistente` (a que não existe e a da escola B, que
+a auditoria não distingue e a API responde com o mesmo `NAO_ENCONTRADO`); os dois ficam em
+`MOTIVOS_DA_RECUSA_PELA_LICENCA_REGISTRADA` (`packages/shared`). (2) Id da aplicação (UUIDv7); linha em `envio_de_material`; bytes ao storage, com prazo.
 (3) A transação toma a trava de envios da escola, como hoje, e reconfere tetos e licença (`for share`; a recusa também
-grava `material.recusado`); na edição, lê o alvo com `where escola_id = :ctx and id = :alvo and estado = 'pronto' and
+grava `material.recusado`; a licença que deixou de valer entre a entrada e a transação, ou que sumiu do banco nesse meio-tempo, cai nos dois casos em `licenca_vencida` e em `LICENCA_VENCIDA`, para quem lê a auditoria depois); na edição, lê o alvo com `where escola_id = :ctx and id = :alvo and estado = 'pronto' and
 excluido_em is null for update` (sem linha: `EDICAO_EM_ANDAMENTO` ou `NAO_ENCONTRADO`) e herda
 as séries lidas ali; grava material, séries, auditoria e o job (chave = id), e apaga a linha de `envio_de_material`,
 que precisa existir (sob `lock_timeout` de 1 s, `ESPERA_MAXIMA_PELA_LINHA_DO_ENVIO_MS`; o `55P03` também é 503), ou desfaz com 503. (4) Falha do próprio `guardarBytes`: tenta apagar o objeto e a linha fica
@@ -145,7 +148,7 @@ sem pessoa (itens 7 e 9).
 | Está no caminho quente? | a leitura de página |
 | Carga na manhã de segunda | dois joins, por índice da escola |
 | Fila e prioridade | fila `pdf` (checks de fila e `vagas` ampliados com `NOT VALID`/`VALIDATE`); `worker-pdf` com um PDF por vez e `cpus` limitado; `prazoMs` 10 min, 3 tentativas; varredura em `lote`, horária (minuto 10, urgente, lote de 500 alvos por passada); o lote vezes o prazo de cada `apagar` não cabe nos 10 min do job, e o que garante o corte é o `sinal` do executor (o laço para entre um alvo e outro, e o `apagar` em curso rejeita e a transação desfaz) e o storage fora do ar (3 falhas de storage seguidas, sem alvo que passou no meio, em duas escolas ou mais: as duas passadas param), com o resto na próxima tentativa ou na hora seguinte; uma chave que falha sempre, ou um `apagar` que passa sempre dos 10 s, é falha de uma escola só e não para as outras (o `S3FileStorage` transforma toda falha do `DeleteObject` em `FileStorageUnavailableError`, então só a sequência em mais de uma escola distingue o storage fora de uma chave com defeito); a linha trava com a transação aberta durante o `apagar`, por isso o pool de lote não pode ficar preso: cada `apagar` tem prazo de 10 s e o corte solta a conexão |
-| Limite por escola | vaga `pdf` por escola 2 (`VAGAS_ESCOLA_PDF`, sobreposta por `configuracao_operacional_escola.vagas`); 100 envios por hora por pessoa, 300 por escola; 300 pendentes por escola; 20 MB por arquivo |
+| Limite por escola | vaga `pdf` por escola 2 (`VAGAS_ESCOLA_PDF`, sobreposta por `configuracao_operacional_escola.vagas`); 100 envios por hora por pessoa, 300 por escola; 300 pendentes por escola; 20 MB por arquivo; o recebimento do multipart aceita 1 arquivo e até 17 campos (os 6 do pedido, as 7 séries repetidas de `serieIds` e uma folga de 4: `MAXIMO_DE_CAMPOS`, `material-upload.ts`) |
 | Rate limit | `MaterialUploadGuard` (429, `Retry-After`) no envio e na edição; o `PATCH` à parte, 100 por hora por pessoa e 300 por escola |
 | Corridas de concorrência | `cenarios.md` |
 | Índices novos | `material_serie (escola_id, serie_id, material_id)`; `licenca_de_material_vigente_ate_idx (escola_id, vigente_ate) where vigente_ate is not null` e `material_licenca_idx (escola_id, licenca_id) where licenca_id is not null` (0052, 5.0); `auditoria (escola_id, em) where acao = 'material.recusado'`, sem `concurrently` (exceção da 0034); o parcial da 45.0 |

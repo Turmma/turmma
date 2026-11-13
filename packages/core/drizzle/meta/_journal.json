@@ -379,6 +379,20 @@
       "when": 1794528759767,
       "tag": "0053_licenca_de_material_backfill",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1794544366799,
+      "tag": "0054_material_serie",
+      "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1794544373062,
+      "tag": "0055_material_serie_backfill",
+      "breakpoints": true
     }
   ]
 }

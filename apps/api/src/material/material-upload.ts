@@ -1,12 +1,15 @@
-import { enviarMaterialRequestSchema, MAXIMO_DE_BYTES_DO_MATERIAL, motivoDaRecusaDoMaterial } from '@educa/shared'
+import { enviarMaterialRequestSchema, MAXIMO_DE_BYTES_DO_MATERIAL, MAXIMO_DE_SERIES_DO_MATERIAL, motivoDaRecusaDoMaterial } from '@educa/shared'
 import { Injectable, type CanActivate } from '@nestjs/common'
 import { FileInterceptor } from '@nestjs/platform-express'
 import { MaterialService } from './material.service.js'
 
 /** O nome do campo do arquivo no multipart de `POST /v1/materiais`. */
 export const CAMPO_DO_ARQUIVO = 'arquivo'
-/** Os campos de texto do pedido são seis; a folga é para o pedido com campo a mais chegar ao contrato e sair `ENTRADA_INVALIDA`. */
-const MAXIMO_DE_CAMPOS = 10
+/**
+ * Os campos de texto do pedido são seis, e as séries repetem o campo `serieIds` (até sete): treze no máximo. A folga de quatro é para o pedido com campo a mais, ou com série a mais, chegar
+ * ao contrato e sair `ENTRADA_INVALIDA`.
+ */
+const MAXIMO_DE_CAMPOS = 6 + MAXIMO_DE_SERIES_DO_MATERIAL + 4
 /** O maior campo de texto é o título, de 160 caracteres. */
 const MAXIMO_DE_BYTES_POR_CAMPO = 2 * 1024
 

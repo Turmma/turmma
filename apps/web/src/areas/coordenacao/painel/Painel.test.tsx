@@ -39,6 +39,8 @@ const MATERIAL = (estado: 'processando' | 'falhou' | 'pronto') => ({
   disciplinaId: MATEMATICA.id,
   titularidade: 'escola',
   licenciante: null,
+  licencaId: null,
+  serieIds: [],
   licenca: 'autoria_da_escola',
   estado,
   falha: estado === 'falhou' ? 'sem_texto' : null,

@@ -1,4 +1,4 @@
-import { InMemoryFileStorage, runInContext, type Database } from '@educa/core'
+import { InMemoryFileStorage, runInContext, type Clock, type Database } from '@educa/core'
 import type { ResultadoDaExtracao } from '@educa/core/material'
 import { ErrorCode, buscaDeMaterialResponseSchema, listaDeMateriaisResponseSchema, materialComCapitulosResponseSchema, materialResponseSchema, MAXIMO_DE_BYTES_DO_MATERIAL, TAMANHO_MAXIMO_DO_TRECHO_CITADO } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
@@ -24,10 +24,12 @@ import {
   PDF_DE_DEMONSTRACAO,
   pdfCorrompido,
   pdfSemTexto,
+  registrarLicencaDeTeste,
   trechosDa,
   variacaoDoPdf,
 } from './material.fixture.js'
 import { SessaoFixtures, type TestSessao } from './sessao.fixture.js'
+import { TEST_APP_OPTIONS } from './test-config.js'
 
 /** O armazém em memória que `subirApi` deu a esta API. */
 function armazemDe(api: TestApi): InMemoryFileStorage {
@@ -99,8 +101,11 @@ describe('material da escola', () => {
     return professor
   }
 
+  /** O relógio da vigência da licença: o do sistema, até o teste fixar um dia (`fixo`). */
+  const relogio: Clock & { fixo: Date | undefined } = { fixo: undefined, agora: () => relogio.fixo ?? new Date() }
+
   beforeAll(async () => {
-    api = await subirApi(medidor.medidor, {}, linhasDeLog)
+    api = await subirApi(medidor.medidor, {}, linhasDeLog, { ...TEST_APP_OPTIONS, relogioDasLicencas: relogio })
   })
 
   afterEach(() => {
@@ -122,7 +127,7 @@ describe('material da escola', () => {
       expect(enviado.status).toBe(201)
       // O contrato é estrito: a resposta não leva o resumo do arquivo, quem enviou nem a declaração.
       const resposta = materialResponseSchema.parse(enviado.corpo)
-      expect(resposta).toMatchObject({ titulo: 'Química 2 — Capítulo 7', disciplinaId: escola.quimica, titularidade: 'escola', licenciante: null, licenca: 'autoria_da_escola', estado: 'processando', falha: null, paginas: null, trechos: 0 })
+      expect(resposta).toMatchObject({ titulo: 'Química 2 — Capítulo 7', disciplinaId: escola.quimica, titularidade: 'escola', licenciante: null, licencaId: null, serieIds: [escola.serieId], licenca: 'autoria_da_escola', estado: 'processando', falha: null, paginas: null, trechos: 0 })
 
       await esperarExtracao(api)
       const lido = materialComCapitulosResponseSchema.parse((await get(escola.coordenacao, `/v1/materiais/${resposta.id}`)).corpo)
@@ -145,19 +150,23 @@ describe('material da escola', () => {
       ])
     })
 
-    it('material de terceiro guarda o licenciante; sem ele, ou com ele em material próprio, é `ENTRADA_INVALIDA` e nada é gravado', async () => {
+    it('material de terceiro cita a licença registrada e copia o licenciante dela; o pedido não traz nome, e `licencaId` em material próprio é `ENTRADA_INVALIDA` e nada é gravado', async () => {
       const escola = await montarEscolaComTurma(api, bancada)
-      const deTerceiro = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica, titularidade: 'terceiro_com_licenca', licenca: 'licenca_comercial_autorizada', licenciante: 'Editora sintética' })
+      const licencaId = await registrarLicencaDeTeste(api, escola.coordenacao)
+      const deTerceiro = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica, titularidade: 'terceiro_com_licenca', licenca: 'licenca_comercial_autorizada', licencaId })
       expect(deTerceiro.status).toBe(201)
-      expect(deTerceiro.corpo).toMatchObject({ titularidade: 'terceiro_com_licenca', licenciante: 'Editora sintética', licenca: 'licenca_comercial_autorizada' })
+      expect(deTerceiro.corpo).toMatchObject({ titularidade: 'terceiro_com_licenca', licenciante: 'Editora sintética', licencaId, licenca: 'licenca_comercial_autorizada' })
       await esperarExtracao(api)
 
-      const semLicenciante = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica, titularidade: 'terceiro_com_licenca', licenca: 'licenca_aberta' }, { arquivo: variacaoDoPdf() })
-      const licencianteAMais = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica, titularidade: 'escola', licenciante: 'Editora sintética' }, { arquivo: variacaoDoPdf() })
+      const licencaIdEmProprio = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica, titularidade: 'escola', licencaId }, { arquivo: variacaoDoPdf() })
+      // O nome de quem licenciou vem da licença: o campo `licenciante` do pedido deixou de existir.
+      const comLicenciante = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica, titularidade: 'terceiro_com_licenca', licencaId, extra: { licenciante: 'Outra editora' } }, { arquivo: variacaoDoPdf() })
       // Nada de escola vem do cliente: o contrato é estrito.
       const comEscola = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica, extra: { escolaId: escola.coordenacao.escolaId } }, { arquivo: variacaoDoPdf() })
-      for (const resposta of [semLicenciante, licencianteAMais, comEscola]) expect(erroDe(resposta)).toEqual({ status: 400, codigo: ErrorCode.ENTRADA_INVALIDA })
+      for (const resposta of [licencaIdEmProprio, comLicenciante, comEscola]) expect(erroDe(resposta)).toEqual({ status: 400, codigo: ErrorCode.ENTRADA_INVALIDA })
       expect(await materiaisDa(bancada, escola.coordenacao.escolaId)).toHaveLength(1)
+      const [linha] = await bancada.pool.query<{ licenciante: string; licenca_id: string }>('select licenciante, licenca_id from material where escola_id = $1', [escola.coordenacao.escolaId]).then((r) => r.rows)
+      expect(linha).toEqual({ licenciante: 'Editora sintética', licenca_id: licencaId })
     })
 
     it('os campos ao lado do arquivo passam pelo ZodValidationPipe: o PDF válido com campo fora do contrato é `ENTRADA_INVALIDA`, e o arquivo nem chega à leitura nem vira material (17.0)', async () => {
@@ -179,7 +188,8 @@ describe('material da escola', () => {
 
     it('o licenciante é da coordenação: o professor da disciplina lê o material sem ele, na lista e por id', async () => {
       const escola = await montarEscolaComTurma(api, bancada)
-      const deTerceiro = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica, titularidade: 'terceiro_com_licenca', licenca: 'licenca_comercial_autorizada', licenciante: 'Editora sintética' })
+      const licencaId = await registrarLicencaDeTeste(api, escola.coordenacao)
+      const deTerceiro = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica, titularidade: 'terceiro_com_licenca', licenca: 'licenca_comercial_autorizada', licencaId })
       expect(deTerceiro.status).toBe(201)
       await esperarExtracao(api)
       const id = deTerceiro.corpo['id'] as string
@@ -327,7 +337,7 @@ describe('material da escola', () => {
       expect(recusas).toHaveLength(respostas.length)
       // Sem linha em `material`, a entidade da auditoria é a disciplina para a qual o material ia.
       for (const recusa of recusas) {
-        expect(recusa).toEqual({ entidade: 'disciplina', entidade_id: escola.quimica, autor_usuario_id: escola.coordenacao.usuarioId, antes: null, depois: { titularidade: 'escola', licenca: campos.licenca, declaracao, motivo } })
+        expect(recusa).toEqual({ entidade: 'disciplina', entidade_id: escola.quimica, autor_usuario_id: escola.coordenacao.usuarioId, antes: null, depois: { titularidade: 'escola', licenca: campos.licenca, declaracao, serieIds: [escola.serieId], motivo } })
       }
       expect(await auditoriaDa(bancada, escola.coordenacao.escolaId, 'material.enviado')).toEqual([])
     })
@@ -414,8 +424,8 @@ describe('material da escola', () => {
      * - dois arquivos: um arquivo só por pedido (o `single` do interceptor);
      * - dois arquivos sem licença: o `files: 1`, porque o arquivo que o `fileFilter` descarta não conta no `maxCount`, e
      *   sem o teto o pedido chegaria à recusa por licença, com auditoria;
-     * - dez campos: o pedido com exatamente as `parts` passa pelo recebimento, e quem recusa é o contrato estrito;
-     * - onze campos e o campo grande: o `fields` (com o `parts`, que pega a 12ª parte se só o `fields` sair) e o
+     * - dezessete campos: o pedido com exatamente as `parts` passa pelo recebimento, e quem recusa é o contrato estrito;
+     * - dezoito campos e o campo grande: o `fields` (com o `parts`, que pega a 19ª parte se só o `fields` sair) e o
      *   `fieldSize` param o pedido no campo, antes do arquivo. O arquivo vai acima do teto de tamanho: sem esses tetos,
      *   o contrato recusaria do mesmo jeito, mas só depois de o arquivo chegar, e a resposta seria 413.
      */
@@ -424,9 +434,9 @@ describe('material da escola', () => {
       { caso: 'dois arquivos no campo `arquivo`', campos: {}, opcoes: { copias: 2 } },
       // O teto de arquivos vale antes da licença: o `fileFilter` que descarta o arquivo não o tira da contagem.
       { caso: 'dois arquivos num pedido que seria recusado por licença', campos: { licenca: 'sem_licenca' }, opcoes: { copias: 2 } },
-      // Os cinco campos que o pedido manda, mais cinco: dez campos e o arquivo, exatamente as `parts` do recebimento.
-      { caso: 'dez campos e o arquivo (no limite de partes; o contrato estrito recusa)', campos: { extra: camposAMais(5) }, opcoes: {} },
-      { caso: 'onze campos e o arquivo acima do teto (para nos campos, antes do arquivo)', campos: { extra: camposAMais(6) }, opcoes: { arquivo: PDF_ACIMA_DO_TETO } },
+      // Os cinco campos de texto e a única série da escola, mais onze: dezessete campos e o arquivo, exatamente as `parts` do recebimento (6 + 7 séries + 4 de folga).
+      { caso: 'dezessete campos e o arquivo (no limite de partes; o contrato estrito recusa)', campos: { extra: camposAMais(11) }, opcoes: {} },
+      { caso: 'dezoito campos e o arquivo acima do teto (para nos campos, antes do arquivo)', campos: { extra: camposAMais(12) }, opcoes: { arquivo: PDF_ACIMA_DO_TETO } },
       { caso: 'um campo de texto acima de 2 KiB e o arquivo acima do teto (para no campo, antes do arquivo)', campos: { titulo: 'a'.repeat(2 * 1024 + 1) }, opcoes: { arquivo: PDF_ACIMA_DO_TETO } },
     ])('$caso: `ENTRADA_INVALIDA` no recebimento, e nada é gravado nem lido', async ({ campos, opcoes }) => {
       const escola = await montarEscolaComTurma(api, bancada)
@@ -751,6 +761,223 @@ describe('material da escola', () => {
     })
   })
 
+  describe('séries e licença registrada no envio (ingestao-do-material, tarefa 7.0; RF3, RF14, RF16)', () => {
+    /** Uma escola com a série do EM 2 e uma segunda, a do EM 1, e o `GET /v1/materiais?serieId=` de quem lê. */
+    async function escolaComDuasSeries(): Promise<{ escola: EscolaComTurma; outraSerie: string }> {
+      const escola = await montarEscolaComTurma(api, bancada)
+      const criada = await post(escola.coordenacao, '/v1/series', { etapa: 'em', ano: 1 })
+      expect(criada.status).toBe(201)
+      return { escola, outraSerie: criada.corpo['id'] as string }
+    }
+    const idsDaLista = (resposta: RespostaHttp): string[] => (listaDeMateriaisResponseSchema.parse(resposta.corpo).itens).map((item) => item.id)
+    const objetosEnviados = (escolaId: string): string[] => objetosDaEscola(api, escolaId)
+    const linhasDoEnvio = async (escolaId: string): Promise<number> => Number((await bancada.pool.query<{ total: string }>('select count(*) as total from envio_de_material where escola_id = $1', [escolaId])).rows[0]?.total)
+
+    it('com duas séries o material aparece no filtro de cada uma e não no de uma terceira; o professor com vínculo confirmado o lê pela série, e o vínculo encerrado não entra', async () => {
+      const { escola, outraSerie } = await escolaComDuasSeries()
+      const terceiraSerie = (await post(escola.coordenacao, '/v1/series', { etapa: 'em', ano: 3 })).corpo['id'] as string
+      const enviado = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica, serieIds: [escola.serieId, outraSerie] })
+      expect(enviado.status).toBe(201)
+      const id = enviado.corpo['id'] as string
+      // A resposta e a lista levam as séries em ordem de id, como o banco as devolve.
+      expect(enviado.corpo['serieIds']).toEqual([escola.serieId, outraSerie].toSorted())
+
+      expect(idsDaLista(await get(escola.coordenacao, `/v1/materiais?serieId=${escola.serieId}`))).toEqual([id])
+      expect(idsDaLista(await get(escola.coordenacao, `/v1/materiais?serieId=${outraSerie}`))).toEqual([id])
+      expect(idsDaLista(await get(escola.coordenacao, `/v1/materiais?serieId=${terceiraSerie}`))).toEqual([])
+      expect(listaDeMateriaisResponseSchema.parse((await get(escola.coordenacao, '/v1/materiais')).corpo).itens[0]?.serieIds).toEqual([escola.serieId, outraSerie].toSorted())
+      await esperarExtracao(api)
+
+      // Vínculo encerrado em Química e aberto em Física: `GET ?serieId` só traz o material de Física.
+      const deFisica = (await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.fisica, serieIds: [escola.serieId] }, { arquivo: variacaoDoPdf() })).corpo['id'] as string
+      await esperarExtracao(api)
+      // O de Física não declara a `outraSerie`: o filtro dela continua trazendo só o de Química (o filtro é por material, não por "alguma linha da série").
+      expect(idsDaLista(await get(escola.coordenacao, `/v1/materiais?serieId=${outraSerie}`))).toEqual([id])
+      const professor = await bancada.sessao(escola.coordenacao.escolaId, 'professor')
+      const emQuimica = await post(escola.coordenacao, '/v1/vinculos', { usuarioId: professor.usuarioId, turmaId: escola.turma, disciplinaId: escola.quimica, papel: 'professor' })
+      const emFisica = await post(escola.coordenacao, '/v1/vinculos', { usuarioId: professor.usuarioId, turmaId: escola.turma, disciplinaId: escola.fisica, papel: 'professor' })
+      for (const vinculo of [emQuimica, emFisica]) expect((await post(professor, `/v1/vinculos/${vinculo.corpo['id'] as string}/confirmar`)).status).toBe(200)
+      expect(idsDaLista(await get(professor, `/v1/materiais?serieId=${escola.serieId}`)).toSorted()).toEqual([id, deFisica].toSorted())
+      expect((await post(escola.coordenacao, `/v1/vinculos/${emQuimica.corpo['id'] as string}/encerrar`, { motivo: 'desligamento' })).status).toBe(200)
+      expect(idsDaLista(await get(professor, `/v1/materiais?serieId=${escola.serieId}`))).toEqual([deFisica])
+    })
+
+    it('sem série, `serieIds` vazio, repetida (também em maiúsculas) ou com oito: `ENTRADA_INVALIDA`, nada lido nem gravado; a série em maiúsculas vira minúsculas', async () => {
+      const { escola } = await escolaComDuasSeries()
+      const extrair = vi.spyOn(extratorDe(api), 'extrair')
+      const semSerie = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica, serieIds: [] }, { arquivo: variacaoDoPdf() })
+      const repetida = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica, serieIds: [escola.serieId, escola.serieId] }, { arquivo: variacaoDoPdf() })
+      const repetidaEmMaiusculas = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica, serieIds: [escola.serieId, escola.serieId.toUpperCase()] }, { arquivo: variacaoDoPdf() })
+      const oito = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica, serieIds: Array.from({ length: 8 }, () => randomUUID()) }, { arquivo: variacaoDoPdf() })
+      for (const resposta of [semSerie, repetida, repetidaEmMaiusculas, oito]) expect(erroDe(resposta)).toEqual({ status: 400, codigo: ErrorCode.ENTRADA_INVALIDA })
+      expect(extrair).not.toHaveBeenCalled()
+      expect(await materiaisDa(bancada, escola.coordenacao.escolaId)).toEqual([])
+      expect(objetosEnviados(escola.coordenacao.escolaId)).toEqual([])
+      expect(await auditoriaDa(bancada, escola.coordenacao.escolaId, 'material.recusado')).toEqual([])
+
+      const emMaiusculas = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica, serieIds: [escola.serieId.toUpperCase()] }, { arquivo: variacaoDoPdf() })
+      expect(emMaiusculas.status).toBe(201)
+      expect(emMaiusculas.corpo['serieIds']).toEqual([escola.serieId])
+      expect(idsDaLista(await get(escola.coordenacao, `/v1/materiais?serieId=${escola.serieId}`))).toEqual([emMaiusculas.corpo['id'] as string])
+      await esperarExtracao(api)
+    })
+
+    it('série inexistente e série da escola B: o mesmo `NAO_ENCONTRADO`, nenhum byte lido, nada no storage, em `material` nem em `envio_de_material`, e a auditoria nunca leva o id da B', async () => {
+      const { escola } = await escolaComDuasSeries()
+      const outraEscola = await montarEscolaComTurma(api, bancada)
+      const extrair = vi.spyOn(extratorDe(api), 'extrair')
+      const inexistente = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica, serieIds: [randomUUID()] }, { arquivo: variacaoDoPdf() })
+      const daB = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica, serieIds: [outraEscola.serieId] }, { arquivo: variacaoDoPdf() })
+      // A boa junto da da B não salva o pedido: a da B derruba o pedido inteiro.
+      const umaBoaEUmaDaB = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica, serieIds: [escola.serieId, outraEscola.serieId] }, { arquivo: variacaoDoPdf() })
+      // A recusa por licença também só conta com as séries conferidas.
+      const semLicencaComSerieDaB = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica, serieIds: [outraEscola.serieId], licenca: 'sem_licenca' }, { arquivo: variacaoDoPdf() })
+      for (const resposta of [inexistente, daB, umaBoaEUmaDaB, semLicencaComSerieDaB]) {
+        expect(erroDe(resposta)).toEqual({ status: 404, codigo: ErrorCode.NAO_ENCONTRADO })
+        expect({ ...resposta.corpo.erro, requisicaoId: undefined }).toEqual({ ...inexistente.corpo.erro, requisicaoId: undefined })
+      }
+      expect(extrair).not.toHaveBeenCalled()
+      expect(await materiaisDa(bancada, escola.coordenacao.escolaId)).toEqual([])
+      expect(objetosEnviados(escola.coordenacao.escolaId)).toEqual([])
+      expect(await linhasDoEnvio(escola.coordenacao.escolaId)).toBe(0)
+      expect(await auditoriaDa(bancada, escola.coordenacao.escolaId, 'material.recusado')).toEqual([])
+      expect(JSON.stringify(await auditoriaDa(bancada, escola.coordenacao.escolaId, 'material.recusado'))).not.toContain(outraEscola.serieId)
+    })
+
+    it('`GET /v1/materiais?serieId` com a série da B responde como a que não existe: lista vazia, mesmo com material da B nessa série', async () => {
+      const { escola } = await escolaComDuasSeries()
+      const outraEscola = await montarEscolaComTurma(api, bancada)
+      await enviarMaterial(api, outraEscola.coordenacao, { disciplinaId: outraEscola.quimica })
+      await esperarExtracao(api)
+      await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica })
+      await esperarExtracao(api)
+
+      // A garantia de que a série da A nunca leva material da B é a FK composta de `material_serie` (`escola_id` + `serie_id`, e `escola_id` + `material_id`): o banco não aceita a linha cruzada.
+      // O que este caso prova é o filtro da lista, que repete o escopo da escola e trata a série da B como a que não existe.
+      const daB = await get(escola.coordenacao, `/v1/materiais?serieId=${outraEscola.serieId}`)
+      const inexistente = await get(escola.coordenacao, `/v1/materiais?serieId=${randomUUID()}`)
+      expect(daB.status).toBe(200)
+      expect(daB.corpo).toEqual(inexistente.corpo)
+      expect(idsDaLista(daB)).toEqual([])
+    })
+
+    it('terceiro sem `licencaId`: `MATERIAL_SEM_LICENCA` antes de abrir o arquivo, gravado com o motivo e as séries', async () => {
+      const { escola } = await escolaComDuasSeries()
+      const extrair = vi.spyOn(extratorDe(api), 'extrair')
+      const resposta = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica, serieIds: [escola.serieId], titularidade: 'terceiro_com_licenca', licenca: 'licenca_aberta' }, { arquivo: Buffer.from('isto não é um PDF') })
+      expect(erroDe(resposta)).toEqual({ status: 422, codigo: ErrorCode.MATERIAL_SEM_LICENCA })
+      expect(extrair).not.toHaveBeenCalled()
+      expect(objetosEnviados(escola.coordenacao.escolaId)).toEqual([])
+      expect(await materiaisDa(bancada, escola.coordenacao.escolaId)).toEqual([])
+      const [recusa] = await auditoriaDa(bancada, escola.coordenacao.escolaId, 'material.recusado')
+      expect(recusa?.depois).toMatchObject({ titularidade: 'terceiro_com_licenca', motivo: 'sem_licenca', serieIds: [escola.serieId] })
+    })
+
+    it.each([
+      { caso: 'vencida', vigenteDesde: '2020-01-01', vigenteAte: '2020-12-31', status: 422, codigo: ErrorCode.LICENCA_VENCIDA, motivo: 'licenca_vencida' },
+      { caso: 'que só começa no futuro', vigenteDesde: '2999-01-01', vigenteAte: null, status: 422, codigo: ErrorCode.LICENCA_VENCIDA, motivo: 'licenca_vencida' },
+    ])('licença $caso: $codigo antes de abrir o arquivo, gravado com o motivo e as séries; nada no storage nem em `material`', async ({ vigenteDesde, vigenteAte, status, codigo, motivo }) => {
+      const { escola } = await escolaComDuasSeries()
+      const licencaId = await registrarLicencaDeTeste(api, escola.coordenacao, { vigenteDesde, vigenteAte })
+      const extrair = vi.spyOn(extratorDe(api), 'extrair')
+      const resposta = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica, serieIds: [escola.serieId], titularidade: 'terceiro_com_licenca', licencaId }, { arquivo: Buffer.from('isto não é um PDF') })
+      expect(erroDe(resposta)).toEqual({ status, codigo })
+      expect(extrair).not.toHaveBeenCalled()
+      expect(objetosEnviados(escola.coordenacao.escolaId)).toEqual([])
+      expect(await linhasDoEnvio(escola.coordenacao.escolaId)).toBe(0)
+      expect(await materiaisDa(bancada, escola.coordenacao.escolaId)).toEqual([])
+      const [recusa] = await auditoriaDa(bancada, escola.coordenacao.escolaId, 'material.recusado')
+      expect(recusa).toMatchObject({ entidade: 'disciplina', entidade_id: escola.quimica, depois: { titularidade: 'terceiro_com_licenca', motivo, serieIds: [escola.serieId] } })
+    })
+
+    it('licença inexistente e licença da escola B: o mesmo `NAO_ENCONTRADO`, antes de abrir o arquivo, gravado com o motivo e sem o id da B', async () => {
+      const { escola } = await escolaComDuasSeries()
+      const outraEscola = await montarEscolaComTurma(api, bancada)
+      const licencaDaB = await registrarLicencaDeTeste(api, outraEscola.coordenacao)
+      const extrair = vi.spyOn(extratorDe(api), 'extrair')
+      const inexistente = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica, titularidade: 'terceiro_com_licenca', licencaId: randomUUID() }, { arquivo: Buffer.from('lixo') })
+      const daB = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica, titularidade: 'terceiro_com_licenca', licencaId: licencaDaB }, { arquivo: Buffer.from('lixo') })
+      for (const resposta of [inexistente, daB]) {
+        expect(erroDe(resposta)).toEqual({ status: 404, codigo: ErrorCode.NAO_ENCONTRADO })
+        expect({ ...resposta.corpo.erro, requisicaoId: undefined }).toEqual({ ...inexistente.corpo.erro, requisicaoId: undefined })
+      }
+      expect(extrair).not.toHaveBeenCalled()
+      expect(objetosEnviados(escola.coordenacao.escolaId)).toEqual([])
+      expect(await materiaisDa(bancada, escola.coordenacao.escolaId)).toEqual([])
+      const recusas = await auditoriaDa(bancada, escola.coordenacao.escolaId, 'material.recusado')
+      expect(recusas.map((recusa) => (recusa.depois as { motivo: string }).motivo)).toEqual(['licenca_inexistente', 'licenca_inexistente'])
+      expect(JSON.stringify(recusas)).not.toContain(licencaDaB)
+    })
+
+    it('o último dia da licença ainda vale, e o material de terceiro sai com o `licenciante` da licença', async () => {
+      const { escola } = await escolaComDuasSeries()
+      try {
+        relogio.fixo = new Date('2026-11-12T23:30:00-03:00')
+        const noUltimoDia = await registrarLicencaDeTeste(api, escola.coordenacao, { licenciante: 'Editora do último dia', vigenteAte: '2026-11-12' })
+        const resposta = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica, titularidade: 'terceiro_com_licenca', licencaId: noUltimoDia, licenca: 'licenca_aberta' })
+        expect(resposta.status).toBe(201)
+        expect(resposta.corpo).toMatchObject({ licenciante: 'Editora do último dia', licencaId: noUltimoDia })
+        await esperarExtracao(api)
+      } finally {
+        relogio.fixo = undefined
+      }
+    })
+
+    it('a licença citada em maiúsculas vale como a de minúsculas: o material sai com o id dela em minúsculas', async () => {
+      const { escola } = await escolaComDuasSeries()
+      const licencaId = await registrarLicencaDeTeste(api, escola.coordenacao, { licenciante: 'Editora das maiúsculas' })
+      const resposta = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica, titularidade: 'terceiro_com_licenca', licencaId: licencaId.toUpperCase(), licenca: 'licenca_aberta' })
+      expect(resposta.status).toBe(201)
+      expect(resposta.corpo).toMatchObject({ licenciante: 'Editora das maiúsculas', licencaId })
+      await esperarExtracao(api)
+    })
+
+    it('as sete séries do teto com uma licença registrada: o recebimento aceita os treze campos do pedido e o material sai com as sete', async () => {
+      const { escola, outraSerie } = await escolaComDuasSeries()
+      const outras = [
+        outraSerie,
+        (await post(escola.coordenacao, '/v1/series', { etapa: 'em', ano: 3 })).corpo['id'] as string,
+        ...(await Promise.all([6, 7, 8, 9].map(async (ano) => (await post(escola.coordenacao, '/v1/series', { etapa: 'ef_anos_finais', ano })).corpo['id'] as string))),
+      ]
+      const serieIds = [escola.serieId, ...outras]
+      expect(new Set(serieIds).size).toBe(7)
+      const licencaId = await registrarLicencaDeTeste(api, escola.coordenacao, { licenciante: 'Editora das sete séries' })
+      const resposta = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica, serieIds, titularidade: 'terceiro_com_licenca', licencaId, licenca: 'licenca_aberta' })
+      expect(resposta.status).toBe(201)
+      expect(resposta.corpo['serieIds']).toEqual(serieIds.toSorted())
+      expect(resposta.corpo).toMatchObject({ licenciante: 'Editora das sete séries', licencaId })
+      await esperarExtracao(api)
+    })
+
+    it('a vigência da licença é conferida pelo relógio injetado, não pelo do sistema: vale no dia dentro do prazo e deixa de valer no seguinte', async () => {
+      const { escola } = await escolaComDuasSeries()
+      const licencaId = await registrarLicencaDeTeste(api, escola.coordenacao, { licenciante: 'Editora de 2020', vigenteDesde: '2020-01-01', vigenteAte: '2020-12-31' })
+      const pedido = { disciplinaId: escola.quimica, titularidade: 'terceiro_com_licenca', licencaId, licenca: 'licenca_aberta' } as const
+      try {
+        relogio.fixo = new Date('2020-12-31T23:00:00-03:00')
+        const noUltimoDia = await enviarMaterial(api, escola.coordenacao, pedido)
+        expect(noUltimoDia.status).toBe(201)
+        await esperarExtracao(api)
+        relogio.fixo = new Date('2021-01-01T00:01:00-03:00')
+        const noDiaSeguinte = await enviarMaterial(api, escola.coordenacao, pedido, { arquivo: variacaoDoPdf() })
+        expect(erroDe(noDiaSeguinte)).toEqual({ status: 422, codigo: ErrorCode.LICENCA_VENCIDA })
+      } finally {
+        relogio.fixo = undefined
+      }
+    })
+
+    it('escola sem ano letivo em curso: o envio com séries funciona', async () => {
+      const coordenacao = await bancada.escolaComSessao('coordenador')
+      escolasDoTeste.push(coordenacao.escolaId)
+      const serie = (await post(coordenacao, '/v1/series', { etapa: 'em', ano: 2 })).corpo['id'] as string
+      const disciplina = (await post(coordenacao, '/v1/disciplinas', { nome: 'Química' })).corpo['id'] as string
+      const resposta = await enviarMaterial(api, coordenacao, { disciplinaId: disciplina, serieIds: [serie] })
+      expect(resposta.status).toBe(201)
+      expect(resposta.corpo['serieIds']).toEqual([serie])
+      await esperarExtracao(api)
+    })
+  })
+
   describe('tetos de envio, por pessoa e por escola (regra 80, itens 1 e 3)', () => {
     it('a pessoa no teto recebe `LIMITE_EXCEDIDO` com a espera; outra pessoa da mesma escola ainda envia; a escola no teto segura todos, e só ela', async () => {
       const escola = await montarEscolaComTurma(api, bancada)
@@ -990,7 +1217,8 @@ describe('material da escola', () => {
       const TITULO = `Sentinela-título-${randomUUID().slice(0, 8)}`
       const LICENCIANTE = `Sentinela-licenciante-${randomUUID().slice(0, 8)}`
       const ARQUIVO = `sentinela-arquivo-${randomUUID().slice(0, 8)}.pdf`
-      const campos = { titulo: TITULO, disciplinaId: escola.quimica, titularidade: 'terceiro_com_licenca', licenciante: LICENCIANTE, licenca: 'licenca_comercial_autorizada' }
+      const licencaId = await registrarLicencaDeTeste(api, escola.coordenacao, { licenciante: LICENCIANTE })
+      const campos = { titulo: TITULO, disciplinaId: escola.quimica, titularidade: 'terceiro_com_licenca', licencaId, licenca: 'licenca_comercial_autorizada' }
       linhasDeLog.length = 0
 
       const enviado = await enviarMaterial(api, escola.coordenacao, campos, { nomeDoArquivo: ARQUIVO })

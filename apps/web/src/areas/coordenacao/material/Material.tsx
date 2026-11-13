@@ -246,9 +246,9 @@ function MateriaisDaEscola() {
           disciplinas={dasDisciplinas.itens}
           inicial={alvo === undefined ? RASCUNHO_VAZIO : rascunhoDoMaterialQueFalhou(alvo)}
           {...(alvo === undefined ? {} : { substitui: alvo.id })}
-          aoEnviar={(substituiu) => {
+          aoConcluir={({ enviados, substituiu }) => {
             dialogo.fecharSeAinda(aberta)
-            definirAnuncio(TEXTO_DO_ENVIO)
+            definirAnuncio(enviados === 1 ? TEXTO_DO_ENVIO : `${String(enviados)} materiais enviados. A leitura das páginas começa agora e leva alguns instantes.`)
             if (substituiu !== undefined) tirarDoEndereco(substituiu)
           }}
           aoRecusar={registrarRecusa}

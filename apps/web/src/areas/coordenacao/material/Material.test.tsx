@@ -7,6 +7,7 @@ import { memoryLocation } from 'wouter/memory-location'
 import { setupScreen, fakeNetwork, renderScreen, type FakeNetwork, type FakeResponse } from '../../../__fixtures__/render-screen'
 import type * as Sessao from '../../../api/sessao'
 import { buttonVariants } from '../../../components/ui/button-variants'
+import { COORDENACAO_ROUTES } from '../../../paths'
 import Escola from '../Escola'
 import Material from './Material'
 
@@ -40,12 +41,30 @@ vi.mock('../../../api/sessao', async (importar) => {
 const id = (n: number) => `0197a1c0-0000-7000-8000-${String(n).padStart(12, '0')}`
 const QUIMICA = { id: id(500), nome: 'Química', area: null }
 const FISICA = { id: id(501), nome: 'Física', area: null }
+const SERIE_6 = { id: id(600), etapa: 'ef_anos_finais', ano: 6 }
+const SERIE_7 = { id: id(601), etapa: 'ef_anos_finais', ano: 7 }
+const licenca = (n: number, parte: Record<string, unknown> = {}) => ({
+  id: id(700 + n),
+  licenciante: `Editora ${String(n)}`,
+  cobertura: 'Apostilas sintéticas',
+  referencia: 'contrato sintético',
+  vigenteDesde: '2026-01-01',
+  vigenteAte: null,
+  situacao: 'vigente',
+  materiais: 0,
+  registradaEm: '2026-01-02T12:00:00.000Z',
+  alteradaEm: '2026-01-02T12:00:00.000Z',
+  ...parte,
+})
+const LICENCA_VIGENTE = licenca(1, { licenciante: 'Editora Sintética' })
 const material = (n: number, parte: Record<string, unknown> = {}) => ({
   id: id(n),
   titulo: `Material ${String(n)}`,
   disciplinaId: QUIMICA.id,
   titularidade: 'escola',
   licenciante: null,
+  licencaId: null,
+  serieIds: [SERIE_6.id],
   licenca: 'autoria_da_escola',
   estado: 'pronto',
   falha: null,
@@ -60,6 +79,8 @@ const SEM_TEXTO = material(2, {
   disciplinaId: FISICA.id,
   titularidade: 'terceiro_com_licenca',
   licenciante: 'Editora Sintética',
+  licencaId: LICENCA_VIGENTE.id,
+  serieIds: [SERIE_6.id, SERIE_7.id],
   licenca: 'licenca_comercial_autorizada',
   estado: 'falhou',
   falha: 'sem_texto',
@@ -89,10 +110,18 @@ const PADRAO: Respostas = {
   disciplinas: ok([QUIMICA, FISICA]),
 }
 
+/** As séries e as licenças que o diálogo de envio lê ao abrir: as da escola do teste. */
+function instalarSeriesELicencas(rede: FakeNetwork, licencas: Resposta = ok([LICENCA_VIGENTE]), series: Resposta = ok([SERIE_6, SERIE_7])): void {
+  rede.responderPor('/v1/series', series)
+  rede.responderPor('/v1/licencas', licencas)
+}
+
 function instalar(rede: FakeNetwork, parcial: Partial<Respostas> = {}): void {
+  instalarSeriesELicencas(rede)
   const respostas = { ...PADRAO, ...parcial }
   rede.responderPor('/v1/materiais', respostas.materiais)
   rede.responderPor('/v1/disciplinas', respostas.disciplinas)
+  instalarSeriesELicencas(rede)
 }
 
 /** Os pedidos que a tela fez, sem a consulta: `GET /v1/materiais`, `POST /v1/materiais`, `DELETE /v1/materiais/<id>`. */
@@ -170,7 +199,15 @@ const cheios = () =>
     .filter((botao) => botao.className.startsWith(buttonVariants({ variante: 'primario', tamanho: 'principal' })))
     .map((botao) => botao.textContent)
 
-const PDF = () => new File(['%PDF-1.4 sintético'], 'capitulo-novo.pdf', { type: 'application/pdf' })
+const PDF = (nome = 'capitulo-novo.pdf') => new File(['%PDF-1.4 sintético'], nome, { type: 'application/pdf' })
+
+/** Escolhe um PDF e dá a ele o título que o teste quer: o título é de cada arquivo, e só existe depois de o arquivo estar na lista. */
+async function comArquivoETitulo(usuario: ReturnType<typeof userEvent.setup>, dialogo: ReturnType<typeof within>, titulo: string): Promise<void> {
+  await usuario.upload(dialogo.getByTestId('arquivo-do-material'), PDF('apostila.pdf'))
+  const campo = await dialogo.findByLabelText('Título de apostila.pdf')
+  await usuario.clear(campo)
+  await usuario.type(campo, titulo)
+}
 
 /** O corpo (multipart) do `POST /v1/materiais` que a tela mandou: é nele que se vê se o arquivo saiu do computador. */
 function corpoDoEnvio(): FormData {
@@ -340,14 +377,35 @@ describe('o painel do material', () => {
     await usuario.click(botaoDe('Capítulo sem texto'))
     await usuario.click(within(await painelDe('Capítulo sem texto')).getByRole('button', { name: 'Tentar de novo' }))
     const dialogo = within(await dialogoDeEnvio())
-    expect((dialogo.getByLabelText('Título') as HTMLInputElement).value).toBe('Capítulo sem texto')
-    expect((dialogo.getByLabelText('Disciplina') as HTMLSelectElement).value).toBe(FISICA.id)
-    expect((dialogo.getByLabelText('De quem é o material') as HTMLSelectElement).value).toBe('terceiro_com_licenca')
-    expect((dialogo.getByLabelText('Quem deu a licença') as HTMLInputElement).value).toBe('Editora Sintética')
+    expect((dialogo.getByLabelText('Disciplina (obrigatório)') as HTMLSelectElement).value).toBe(FISICA.id)
+    expect((dialogo.getByLabelText(/^6º ano/) as HTMLInputElement).checked).toBe(true)
+    expect((dialogo.getByLabelText(/^7º ano/) as HTMLInputElement).checked).toBe(true)
+    expect((dialogo.getByLabelText('De quem é o material (obrigatório)') as HTMLSelectElement).value).toBe('terceiro_com_licenca')
+    expect((await dialogo.findByLabelText('Licença registrada do material') as HTMLSelectElement).value).toBe(LICENCA_VIGENTE.id)
     expect((dialogo.getByLabelText('Licença de uso (obrigatória)') as HTMLSelectElement).value).toBe('licenca_comercial_autorizada')
     expect((dialogo.getByLabelText(/^Declaro que a escola pode usar/) as HTMLInputElement).checked).toBe(false)
+    // O título que o material tinha vira o do arquivo escolhido.
+    await usuario.upload(dialogo.getByTestId('arquivo-do-material'), PDF('novo.pdf'))
+    expect((await dialogo.findByLabelText('Título de novo.pdf') as HTMLInputElement).value).toBe('Capítulo sem texto')
     expect(dialogo.getByText('Escolha o arquivo de novo, marque a declaração e envie. O material que falhou sai da lista quando o novo entrar.')).toBeTruthy()
-    expect(document.activeElement).toBe(dialogo.getByRole('button', { name: 'Escolher arquivo' }))
+    expect(dialogo.getByRole('button', { name: 'Trocar arquivo' })).toBeTruthy()
+  })
+
+  it('"Tentar de novo" troca um material só: a dica e o botão dizem "arquivo", dois soltos de uma vez ficam em um, e não há "Tirar"', async () => {
+    const usuario = userEvent.setup()
+    instalar(fakeNetwork())
+    await montarEEsperar()
+    await usuario.click(botaoDe('Capítulo sem texto'))
+    await usuario.click(within(await painelDe('Capítulo sem texto')).getByRole('button', { name: 'Tentar de novo' }))
+    const dialogo = within(await dialogoDeEnvio())
+    expect(dialogo.getByText('Arraste o PDF para cá, ou escolha o arquivo. Com até 20 MB.')).toBeTruthy()
+    expect(dialogo.getByRole('button', { name: 'Escolher arquivo' })).toBeTruthy()
+    const zona = dialogo.getByText(/^Arraste o PDF/).parentElement
+    if (zona === null) throw new Error('sem a área de soltar o arquivo')
+    fireEvent.drop(zona, { dataTransfer: { files: [PDF('a.pdf'), PDF('b.pdf')] } })
+    expect(await dialogo.findByText('Este envio troca um material só. Escolha um arquivo.')).toBeTruthy()
+    expect(within(dialogo.getByRole('list', { name: 'Arquivos do lote' })).getAllByRole('listitem')).toHaveLength(1)
+    expect(dialogo.queryByRole('button', { name: /^Tirar/ })).toBeNull()
   })
 
   it('o envio novo de um material que falhou o troca: o antigo é excluído, o painel sai do endereço e o diálogo fecha', async () => {
@@ -356,6 +414,7 @@ describe('o painel do material', () => {
     let trocado = false
     const novo = material(5, { titulo: 'Capítulo sem texto', disciplinaId: FISICA.id, estado: 'processando', paginas: null, trechos: 0 })
     rede.responderPor('/v1/disciplinas', ok([QUIMICA, FISICA]))
+    instalarSeriesELicencas(rede)
     rede.responderPor('/v1/materiais', () => {
       if (rede.chamadas.at(-1)?.metodo === 'POST') {
         trocado = true
@@ -370,7 +429,7 @@ describe('o painel do material', () => {
     await usuario.click(within(await painelDe('Capítulo sem texto')).getByRole('button', { name: 'Tentar de novo' }))
     const dialogo = within(await dialogoDeEnvio())
     await usuario.upload(dialogo.getByTestId('arquivo-do-material'), PDF())
-    await dialogo.findByText(/^capitulo-novo\.pdf/)
+    await dialogo.findByLabelText('Título de capitulo-novo.pdf')
     await usuario.click(dialogo.getByLabelText(/^Declaro que a escola pode usar/))
     await usuario.click(dialogo.getByRole('button', { name: 'Enviar material' }))
 
@@ -411,6 +470,7 @@ describe('excluir pelo painel', () => {
     const rede = fakeNetwork()
     let excluido = false
     rede.responderPor('/v1/disciplinas', ok([QUIMICA, FISICA]))
+    instalarSeriesELicencas(rede)
     rede.responderPor('/v1/materiais', () => ok(excluido ? [PRONTO, MAIS_NOVO] : [PRONTO, SEM_TEXTO, MAIS_NOVO]))
     rede.responderPor(/^\/v1\/materiais\/.+/, () => {
       excluido = true
@@ -452,6 +512,7 @@ describe('a releitura que falha com a lista na tela', () => {
     const rede = fakeNetwork()
     let falhar = false
     rede.responderPor('/v1/disciplinas', ok([QUIMICA, FISICA]))
+    instalarSeriesELicencas(rede)
     rede.responderPor('/v1/materiais', () => (falhar ? FALHA : ok([PRONTO])))
     rede.responderPor(/^\/v1\/materiais\/.+/, ERRO('NAO_ENCONTRADO', 404))
     await montarEEsperar()
@@ -482,14 +543,22 @@ describe('o diálogo "Enviar material"', () => {
     await usuario.click(screen.getByRole('button', { name: 'Enviar material' }))
     const dialogo = within(await dialogoDeEnvio())
     expect(dialogo.getByRole('heading', { name: 'Enviar material' })).toBeTruthy()
-    for (const rotulo of ['Título', 'Disciplina', 'De quem é o material', 'Licença de uso (obrigatória)', /^Declaro que a escola pode usar este material/]) expect(dialogo.getByLabelText(rotulo)).toBeTruthy()
+    for (const rotulo of ['Disciplina (obrigatório)', 'De quem é o material (obrigatório)', 'Licença de uso (obrigatória)', /^Declaro que a escola pode usar este material/]) expect(dialogo.getByLabelText(rotulo)).toBeTruthy()
+    // As séries da escola, marcáveis, no grupo que o leitor de tela anuncia pelo nome.
+    expect(dialogo.getByRole('group', { name: /^Séries do material/ })).toBeTruthy()
+    expect((await dialogo.findByLabelText(/^6º ano/) as HTMLInputElement).type).toBe('checkbox')
     expect(dialogo.queryByLabelText('Quem deu a licença')).toBeNull()
-    expect(dialogo.getByText('Arraste o PDF para cá, ou escolha o arquivo. Um por vez, com até 20 MB.')).toBeTruthy()
+    // Material próprio não cita licença registrada, e o formulário não cobra nada antes de a pessoa tentar enviar.
+    expect(dialogo.queryByLabelText('Licença registrada do material')).toBeNull()
+    expect(dialogo.queryByText('Lendo as licenças registradas…')).toBeNull()
+    expect(dialogo.queryByText('Escolha a disciplina do material.')).toBeNull()
+    expect(dialogo.getByText('Arraste até 20 PDFs para cá, ou escolha os arquivos. Cada um com até 20 MB.')).toBeTruthy()
     expect(dialogo.getByTestId('arquivo-do-material').getAttribute('accept')).toBe('application/pdf,.pdf')
-    expect(document.activeElement).toBe(dialogo.getByRole('button', { name: 'Escolher arquivo' }))
-    // De terceiro, pede quem deu a licença.
-    await usuario.selectOptions(dialogo.getByLabelText('De quem é o material'), 'Material de terceiro, com licença')
-    expect(dialogo.getByLabelText('Quem deu a licença')).toBeTruthy()
+    expect(dialogo.getByTestId('arquivo-do-material').hasAttribute('multiple')).toBe(true)
+    expect(document.activeElement).toBe(dialogo.getByRole('button', { name: 'Escolher arquivos' }))
+    // De terceiro, pede a licença registrada, e só as que valem.
+    await usuario.selectOptions(dialogo.getByLabelText('De quem é o material (obrigatório)'), 'Material de terceiro, com licença')
+    expect(await dialogo.findByLabelText('Licença registrada do material')).toBeTruthy()
   })
 
   it('o formulário incompleto diz o que falta em cada campo, e nada vai à API', async () => {
@@ -502,17 +571,23 @@ describe('o diálogo "Enviar material"', () => {
     await usuario.click(dialogo.getByRole('button', { name: 'Enviar material' }))
     for (const texto of [
       'Escolha o PDF do material.',
-      'Dê um título ao material, como ele aparece no livro ou na apostila.',
+      'Marque ao menos uma série: é por ela que o professor e o Tutor acham o material.',
       'Escolha a disciplina do material.',
       'Diga de quem é o material.',
       'Escolha a licença de uso. Sem licença declarada, o material não entra.',
     ])
       expect(dialogo.getByText(texto)).toBeTruthy()
-    expect(document.activeElement).toBe(dialogo.getByRole('button', { name: 'Escolher arquivo' }))
+    expect(document.activeElement).toBe(dialogo.getByRole('button', { name: 'Escolher arquivos' }))
+    // O erro do arquivo é o que o botão de escolher descreve, e o do grupo das séries é o que o grupo descreve (nunca `aria-invalid`, que não vale num grupo).
+    expect(dialogo.getByRole('button', { name: 'Escolher arquivos' }).getAttribute('aria-describedby')).toBe('erro-do-arquivo-do-material')
+    const grupoDasSeries = dialogo.getByRole('group', { name: /^Séries do material/ })
+    expect(grupoDasSeries.hasAttribute('aria-invalid')).toBe(false)
+    expect(grupoDasSeries.getAttribute('aria-describedby')).toBe('erro-das-series-do-material')
+    expect(document.getElementById('erro-das-series-do-material')?.textContent).toMatch(/^Marque ao menos uma série/)
     expect(pedidosDe(rede).filter((pedido) => pedido.startsWith('POST'))).toEqual([])
   })
 
-  it('o arquivo que não é PDF é recusado na tela, sem pedido à API; dois de uma vez, também', async () => {
+  it('o arquivo que não é PDF é recusado na tela, com o nome dele, sem pedido à API; o 21º arquivo também fica de fora', async () => {
     const usuario = userEvent.setup()
     const rede = fakeNetwork()
     instalar(rede)
@@ -520,13 +595,16 @@ describe('o diálogo "Enviar material"', () => {
     await usuario.click(screen.getByRole('button', { name: 'Enviar material' }))
     const dialogo = within(await dialogoDeEnvio())
     await usuario.upload(dialogo.getByTestId('arquivo-do-material'), new File(['nome;turma\nAluno sintético;7A\n'], 'apostila.pdf', { type: 'application/pdf' }))
-    expect(await dialogo.findByText('O arquivo não é um PDF que conseguimos abrir. Confira o arquivo e envie de novo.')).toBeTruthy()
-    expect(dialogo.getByRole('button', { name: 'Escolher arquivo' })).toBeTruthy()
-    // Dois arquivos soltos de uma vez na área: um por vez.
-    const zona = dialogo.getByText(/^Arraste o PDF/).parentElement
+    expect(await dialogo.findByText('apostila.pdf: O arquivo não é um PDF que conseguimos abrir. Confira o arquivo e envie de novo.')).toBeTruthy()
+    expect(dialogo.queryByRole('list', { name: 'Arquivos do lote' })).toBeNull()
+    expect(dialogo.getByRole('button', { name: 'Escolher arquivos' }).getAttribute('aria-describedby')).toBe('erro-do-arquivo-do-material')
+    // 21 arquivos soltos de uma vez na área: os 20 primeiros entram, o 21º é recusado antes de enviar.
+    const zona = dialogo.getByText(/^Arraste até 20 PDFs/).parentElement
     if (zona === null) throw new Error('sem a área de soltar o arquivo')
-    fireEvent.drop(zona, { dataTransfer: { files: [PDF(), PDF()] } })
-    expect(await dialogo.findByText('Envie um arquivo por vez. Escolha só o PDF deste material.')).toBeTruthy()
+    fireEvent.drop(zona, { dataTransfer: { files: Array.from({ length: 21 }, (_, indice) => PDF(`cap-${String(indice + 1)}.pdf`)) } })
+    expect(await dialogo.findByText('Um lote tem até 20 PDFs. O último arquivo não entrou: envie o resto num segundo lote.')).toBeTruthy()
+    expect(within(dialogo.getByRole('list', { name: 'Arquivos do lote' })).getAllByRole('listitem')).toHaveLength(20)
+    expect(dialogo.getByText('0 de 20 enviados')).toBeTruthy()
     expect(pedidosDe(rede).filter((pedido) => pedido.startsWith('POST'))).toEqual([])
   })
 
@@ -536,6 +614,7 @@ describe('o diálogo "Enviar material"', () => {
     let enviado = false
     const novo = material(5, { titulo: 'capitulo novo', estado: 'processando', paginas: null, trechos: 0 })
     rede.responderPor('/v1/disciplinas', ok([QUIMICA, FISICA]))
+    instalarSeriesELicencas(rede)
     rede.responderPor('/v1/materiais', () => {
       if (rede.chamadas.at(-1)?.metodo === 'POST') {
         enviado = true
@@ -548,11 +627,12 @@ describe('o diálogo "Enviar material"', () => {
     await usuario.click(abrir)
     const dialogo = within(await dialogoDeEnvio())
     await usuario.upload(dialogo.getByTestId('arquivo-do-material'), PDF())
-    await dialogo.findByText(/^capitulo-novo\.pdf/)
+    await dialogo.findByLabelText('Título de capitulo-novo.pdf')
     // O título é sugerido pelo nome do arquivo.
-    expect((dialogo.getByLabelText('Título') as HTMLInputElement).value).toBe('capitulo novo')
-    await usuario.selectOptions(dialogo.getByLabelText('Disciplina'), 'Química')
-    await usuario.selectOptions(dialogo.getByLabelText('De quem é o material'), 'Material próprio da escola')
+    expect((dialogo.getByLabelText('Título de capitulo-novo.pdf') as HTMLInputElement).value).toBe('capitulo novo')
+    await usuario.selectOptions(dialogo.getByLabelText('Disciplina (obrigatório)'), 'Química')
+    await usuario.click(dialogo.getByLabelText(/^6º ano/))
+    await usuario.selectOptions(dialogo.getByLabelText('De quem é o material (obrigatório)'), 'Material próprio da escola')
     await usuario.selectOptions(dialogo.getByLabelText('Licença de uso (obrigatória)'), 'Autoria da escola ou de professor dela')
     await usuario.click(dialogo.getByLabelText(/^Declaro que a escola pode usar/))
     await usuario.click(dialogo.getByRole('button', { name: 'Enviar material' }))
@@ -571,6 +651,7 @@ describe('o diálogo "Enviar material"', () => {
     let enviado = false
     const novo = material(5, { titulo: 'capitulo novo', estado: 'processando', paginas: null, trechos: 0 })
     rede.responderPor('/v1/disciplinas', ok([QUIMICA]))
+    instalarSeriesELicencas(rede)
     rede.responderPor('/v1/materiais', () => {
       if (rede.chamadas.at(-1)?.metodo === 'POST') {
         enviado = true
@@ -582,9 +663,10 @@ describe('o diálogo "Enviar material"', () => {
     await usuario.click(await screen.findByRole('button', { name: 'Enviar material' }))
     const dialogo = within(await dialogoDeEnvio())
     await usuario.upload(dialogo.getByTestId('arquivo-do-material'), PDF())
-    await dialogo.findByText(/^capitulo-novo\.pdf/)
-    await usuario.selectOptions(dialogo.getByLabelText('Disciplina'), 'Química')
-    await usuario.selectOptions(dialogo.getByLabelText('De quem é o material'), 'Material próprio da escola')
+    await dialogo.findByLabelText('Título de capitulo-novo.pdf')
+    await usuario.selectOptions(dialogo.getByLabelText('Disciplina (obrigatório)'), 'Química')
+    await usuario.click(dialogo.getByLabelText(/^6º ano/))
+    await usuario.selectOptions(dialogo.getByLabelText('De quem é o material (obrigatório)'), 'Material próprio da escola')
     await usuario.selectOptions(dialogo.getByLabelText('Licença de uso (obrigatória)'), 'Autoria da escola ou de professor dela')
     await usuario.click(dialogo.getByLabelText(/^Declaro que a escola pode usar/))
     await usuario.click(dialogo.getByRole('button', { name: 'Enviar material' }))
@@ -599,6 +681,7 @@ describe('o diálogo "Enviar material"', () => {
     const rede = fakeNetwork()
     let enviado = false
     rede.responderPor('/v1/disciplinas', ok([QUIMICA]))
+    instalarSeriesELicencas(rede)
     rede.responderPor('/v1/materiais', () => {
       if (rede.chamadas.at(-1)?.metodo === 'POST') {
         enviado = true
@@ -611,9 +694,10 @@ describe('o diálogo "Enviar material"', () => {
     await usuario.click(await screen.findByRole('button', { name: 'Enviar material' }))
     const dialogo = within(await dialogoDeEnvio())
     await usuario.upload(dialogo.getByTestId('arquivo-do-material'), PDF())
-    await dialogo.findByText(/^capitulo-novo\.pdf/)
-    await usuario.selectOptions(dialogo.getByLabelText('Disciplina'), 'Química')
-    await usuario.selectOptions(dialogo.getByLabelText('De quem é o material'), 'Material próprio da escola')
+    await dialogo.findByLabelText('Título de capitulo-novo.pdf')
+    await usuario.selectOptions(dialogo.getByLabelText('Disciplina (obrigatório)'), 'Química')
+    await usuario.click(dialogo.getByLabelText(/^6º ano/))
+    await usuario.selectOptions(dialogo.getByLabelText('De quem é o material (obrigatório)'), 'Material próprio da escola')
     await usuario.selectOptions(dialogo.getByLabelText('Licença de uso (obrigatória)'), 'Autoria da escola ou de professor dela')
     await usuario.click(dialogo.getByLabelText(/^Declaro que a escola pode usar/))
     await usuario.click(dialogo.getByRole('button', { name: 'Enviar material' }))
@@ -630,28 +714,31 @@ describe('o diálogo "Enviar material"', () => {
     const rede = fakeNetwork()
     let falha = ERRO('INDISPONIVEL_TENTE_DE_NOVO', 503)
     rede.responderPor('/v1/disciplinas', ok([QUIMICA]))
+    instalarSeriesELicencas(rede)
     rede.responderPor('/v1/materiais', () => (rede.chamadas.at(-1)?.metodo === 'POST' ? falha : ok([PRONTO])))
     await montarEEsperar()
     await usuario.click(screen.getByRole('button', { name: 'Enviar material' }))
     const dialogo = within(await dialogoDeEnvio())
     await usuario.upload(dialogo.getByTestId('arquivo-do-material'), PDF())
-    await dialogo.findByText(/^capitulo-novo\.pdf/)
-    await usuario.selectOptions(dialogo.getByLabelText('Disciplina'), 'Química')
-    await usuario.selectOptions(dialogo.getByLabelText('De quem é o material'), 'Material próprio da escola')
+    await dialogo.findByLabelText('Título de capitulo-novo.pdf')
+    await usuario.selectOptions(dialogo.getByLabelText('Disciplina (obrigatório)'), 'Química')
+    await usuario.click(dialogo.getByLabelText(/^6º ano/))
+    await usuario.selectOptions(dialogo.getByLabelText('De quem é o material (obrigatório)'), 'Material próprio da escola')
     await usuario.selectOptions(dialogo.getByLabelText('Licença de uso (obrigatória)'), 'Autoria da escola ou de professor dela')
     await usuario.click(dialogo.getByLabelText(/^Declaro que a escola pode usar/))
     await usuario.click(dialogo.getByRole('button', { name: 'Enviar material' }))
 
-    const alerta = await dialogo.findByText('O sistema está indisponível no momento. Tente de novo em instantes.')
-    expect(document.activeElement).toBe(alerta)
-    expect((dialogo.getByLabelText('Título') as HTMLInputElement).value).toBe('capitulo novo')
+    // A falha é do arquivo, na lista, com o que fazer; o título e o resto do formulário ficam como estavam.
+    expect(await dialogo.findByText('O envio não foi concluído. Tente de novo em instantes.')).toBeTruthy()
+    expect((dialogo.getByLabelText('Título de capitulo-novo.pdf') as HTMLInputElement).value).toBe('capitulo novo')
+    expect(dialogo.getAllByText('0 de 1 enviado').length).toBeGreaterThan(0)
     expect(linhas()).toHaveLength(1)
     // O erro de rede não relê a lista: só a leitura antes do envio e a de entrada.
     expect(quantos(rede, 'GET /v1/materiais')).toBe(2)
 
     falha = ERRO('CONFLITO', 409)
-    await usuario.click(dialogo.getByRole('button', { name: 'Enviar material' }))
-    expect(await dialogo.findByText('Este arquivo já foi enviado nesta escola. Procure o material na lista abaixo.')).toBeTruthy()
+    await usuario.click(dialogo.getByRole('button', { name: 'Tentar de novo os que falharam' }))
+    expect(await dialogo.findByText('Já enviado nesta escola')).toBeTruthy()
     // Conflito: a leitura antes do envio e, depois, a releitura que mostra o que a escola já tem.
     await waitFor(() => expect(quantos(rede, 'GET /v1/materiais')).toBe(4))
   })
@@ -663,9 +750,10 @@ describe('a recusa por licença', () => {
 
   async function enviarSemLicenca(usuario: ReturnType<typeof userEvent.setup>, titulo: string) {
     const dialogo = within(await dialogoDeEnvio())
-    await usuario.type(dialogo.getByLabelText('Título'), titulo)
-    await usuario.selectOptions(dialogo.getByLabelText('Disciplina'), 'Química')
-    await usuario.selectOptions(dialogo.getByLabelText('De quem é o material'), 'Material próprio da escola')
+    await comArquivoETitulo(usuario, dialogo, titulo)
+    await usuario.selectOptions(dialogo.getByLabelText('Disciplina (obrigatório)'), 'Química')
+    await usuario.click(dialogo.getByLabelText(/^6º ano/))
+    await usuario.selectOptions(dialogo.getByLabelText('De quem é o material (obrigatório)'), 'Material próprio da escola')
     await usuario.selectOptions(dialogo.getByLabelText('Licença de uso (obrigatória)'), SEM_LICENCA)
     await usuario.click(dialogo.getByRole('button', { name: 'Enviar material' }))
     return dialogo
@@ -675,6 +763,7 @@ describe('a recusa por licença', () => {
     const usuario = userEvent.setup()
     const rede = fakeNetwork()
     rede.responderPor('/v1/disciplinas', ok([QUIMICA]))
+    instalarSeriesELicencas(rede)
     rede.responderPor('/v1/materiais', () => (rede.chamadas.at(-1)?.metodo === 'POST' ? RECUSADO : ok([PRONTO, SEM_TEXTO])))
     await montarEEsperar()
     await usuario.click(screen.getByRole('button', { name: 'Enviar material' }))
@@ -688,7 +777,7 @@ describe('a recusa por licença', () => {
     const alerta = await dialogo.findByText(`Envio recusado. ${textoDaRecusa}`)
     expect(document.activeElement).toBe(alerta)
     // O diálogo fica aberto, com o que foi digitado, para a pessoa corrigir e enviar de novo.
-    expect((dialogo.getByLabelText('Título') as HTMLInputElement).value).toBe('Apostila sem dono')
+    expect((dialogo.getByLabelText('Título de apostila.pdf') as HTMLInputElement).value).toBe('Apostila sem dono')
     // A recusa é a primeira linha: falha vem antes, e não é material (sem botão que abre painel).
     expect(linhas().map((linha) => linha.children[0]?.textContent)).toEqual(['Apostila sem dono', 'Capítulo sem texto', 'Capítulo pronto'])
     const recusada = linhaDe('Apostila sem dono')
@@ -702,17 +791,53 @@ describe('a recusa por licença', () => {
     expect(pedidosDe(rede).filter((pedido) => pedido.includes('/v1/materiais/'))).toEqual([])
   })
 
+  it('a falha do pedido de recusa que não é a recusa (o servidor fora) é dita como falha, sem linha de recusa na tabela', async () => {
+    const usuario = userEvent.setup()
+    const rede = fakeNetwork()
+    rede.responderPor('/v1/disciplinas', ok([QUIMICA]))
+    instalarSeriesELicencas(rede)
+    rede.responderPor('/v1/materiais', () => (rede.chamadas.at(-1)?.metodo === 'POST' ? ERRO('INDISPONIVEL_TENTE_DE_NOVO', 503) : ok([PRONTO])))
+    await montarEEsperar()
+    await usuario.click(screen.getByRole('button', { name: 'Enviar material' }))
+    const dialogo = await enviarSemLicenca(usuario, 'Apostila sem dono')
+    expect(await dialogo.findByText('O envio não foi concluído. Tente de novo em instantes.')).toBeTruthy()
+    expect(dialogo.queryByText(/^Envio recusado/)).toBeNull()
+    expect(linhas().map((linha) => linha.children[0]?.textContent)).toEqual(['Capítulo pronto'])
+  })
+
+  it('enquanto o pedido de recusa está no ar, o formulário não muda: o que vale para o envio fica travado', async () => {
+    const usuario = userEvent.setup()
+    const rede = fakeNetwork()
+    rede.responderPor('/v1/disciplinas', ok([QUIMICA]))
+    instalarSeriesELicencas(rede)
+    rede.responderPor('/v1/materiais', () => (rede.chamadas.at(-1)?.metodo === 'POST' ? nuncaResponde() : ok([PRONTO])))
+    await montarEEsperar()
+    await usuario.click(screen.getByRole('button', { name: 'Enviar material' }))
+    const dialogo = within(await dialogoDeEnvio())
+    await usuario.selectOptions(dialogo.getByLabelText('Disciplina (obrigatório)'), 'Química')
+    await usuario.click(await dialogo.findByLabelText(/^6º ano/))
+    await usuario.selectOptions(dialogo.getByLabelText('De quem é o material (obrigatório)'), 'Material próprio da escola')
+    await usuario.selectOptions(dialogo.getByLabelText('Licença de uso (obrigatória)'), SEM_LICENCA)
+    expect((dialogo.getByLabelText('Disciplina (obrigatório)') as HTMLSelectElement).disabled).toBe(false)
+    await usuario.click(dialogo.getByRole('button', { name: 'Enviar material' }))
+    await dialogo.findByRole('button', { name: 'Enviando…' })
+    expect((dialogo.getByLabelText('Disciplina (obrigatório)') as HTMLSelectElement).disabled).toBe(true)
+    expect(quantos(rede, 'POST /v1/materiais')).toBe(1)
+  })
+
   it('com licença e sem a declaração, o motivo é o outro', async () => {
     const usuario = userEvent.setup()
     const rede = fakeNetwork()
     rede.responderPor('/v1/disciplinas', ok([QUIMICA]))
+    instalarSeriesELicencas(rede)
     rede.responderPor('/v1/materiais', () => (rede.chamadas.at(-1)?.metodo === 'POST' ? RECUSADO : ok([PRONTO])))
     await montarEEsperar()
     await usuario.click(screen.getByRole('button', { name: 'Enviar material' }))
     const dialogo = within(await dialogoDeEnvio())
-    await usuario.type(dialogo.getByLabelText('Título'), 'Outro capítulo')
-    await usuario.selectOptions(dialogo.getByLabelText('Disciplina'), 'Química')
-    await usuario.selectOptions(dialogo.getByLabelText('De quem é o material'), 'Material próprio da escola')
+    await comArquivoETitulo(usuario, dialogo, 'Outro capítulo')
+    await usuario.selectOptions(dialogo.getByLabelText('Disciplina (obrigatório)'), 'Química')
+    await usuario.click(dialogo.getByLabelText(/^6º ano/))
+    await usuario.selectOptions(dialogo.getByLabelText('De quem é o material (obrigatório)'), 'Material próprio da escola')
     await usuario.selectOptions(dialogo.getByLabelText('Licença de uso (obrigatória)'), 'Licença aberta (Creative Commons e semelhantes)')
     await usuario.click(dialogo.getByRole('button', { name: 'Enviar material' }))
     expect(await dialogo.findByText('Envio recusado. Falta a declaração de que a escola pode usar este material. O arquivo não foi enviado nem lido. Marque a declaração e envie de novo.')).toBeTruthy()
@@ -723,6 +848,7 @@ describe('a recusa por licença', () => {
     const usuario = userEvent.setup()
     const rede = fakeNetwork()
     rede.responderPor('/v1/disciplinas', ok([QUIMICA]))
+    instalarSeriesELicencas(rede)
     rede.responderPor('/v1/materiais', () => (rede.chamadas.at(-1)?.metodo === 'POST' ? RECUSADO : ok([])))
     montar()
     await usuario.click(await screen.findByRole('button', { name: 'Enviar material' }))
@@ -735,7 +861,8 @@ describe('a recusa por licença', () => {
     expect(linhas().map((linha) => linha.children[0]?.textContent)).toEqual(['Apostila sem dono'])
     await usuario.click(screen.getByRole('button', { name: 'Enviar material' }))
     const reaberto = within(await dialogoDeEnvio())
-    expect((reaberto.getByLabelText('Título') as HTMLInputElement).value).toBe('')
+    expect(reaberto.queryByRole('list', { name: 'Arquivos do lote' })).toBeNull()
+    expect((reaberto.getByLabelText(/^6º ano/) as HTMLInputElement).checked).toBe(false)
     expect((reaberto.getByLabelText('Licença de uso (obrigatória)') as HTMLSelectElement).value).toBe('')
     expect(reaberto.queryByText(/^Envio recusado\./)).toBeNull()
     await usuario.click(reaberto.getByRole('button', { name: 'Cancelar' }))
@@ -753,9 +880,10 @@ describe('o que o diálogo e a tabela guardam entre uma tentativa e outra', () =
 
   async function preencherComLicenca(usuario: ReturnType<typeof userEvent.setup>, dialogo: ReturnType<typeof within>) {
     await usuario.upload(dialogo.getByTestId('arquivo-do-material'), PDF())
-    await dialogo.findByText(/^capitulo-novo\.pdf/)
-    await usuario.selectOptions(dialogo.getByLabelText('Disciplina'), 'Química')
-    await usuario.selectOptions(dialogo.getByLabelText('De quem é o material'), 'Material próprio da escola')
+    await dialogo.findByLabelText('Título de capitulo-novo.pdf')
+    await usuario.selectOptions(dialogo.getByLabelText('Disciplina (obrigatório)'), 'Química')
+    await usuario.click(dialogo.getByLabelText(/^6º ano/))
+    await usuario.selectOptions(dialogo.getByLabelText('De quem é o material (obrigatório)'), 'Material próprio da escola')
     await usuario.selectOptions(dialogo.getByLabelText('Licença de uso (obrigatória)'), 'Autoria da escola ou de professor dela')
     await usuario.click(dialogo.getByLabelText(/^Declaro que a escola pode usar/))
   }
@@ -764,14 +892,16 @@ describe('o que o diálogo e a tabela guardam entre uma tentativa e outra', () =
     const usuario = userEvent.setup()
     const rede = fakeNetwork()
     rede.responderPor('/v1/disciplinas', ok([QUIMICA]))
+    instalarSeriesELicencas(rede)
     rede.responderPor('/v1/materiais', () => (rede.chamadas.at(-1)?.metodo === 'POST' ? RECUSADO : ok([PRONTO])))
     await montarEEsperar()
     for (const titulo of ['Primeira apostila', 'Segunda apostila']) {
       await usuario.click(screen.getByRole('button', { name: 'Enviar material' }))
       const dialogo = within(await dialogoDeEnvio())
-      await usuario.type(dialogo.getByLabelText('Título'), titulo)
-      await usuario.selectOptions(dialogo.getByLabelText('Disciplina'), 'Química')
-      await usuario.selectOptions(dialogo.getByLabelText('De quem é o material'), 'Material próprio da escola')
+      await comArquivoETitulo(usuario, dialogo, titulo)
+      await usuario.selectOptions(dialogo.getByLabelText('Disciplina (obrigatório)'), 'Química')
+      await usuario.click(dialogo.getByLabelText(/^6º ano/))
+      await usuario.selectOptions(dialogo.getByLabelText('De quem é o material (obrigatório)'), 'Material próprio da escola')
       await usuario.selectOptions(dialogo.getByLabelText('Licença de uso (obrigatória)'), SEM_LICENCA)
       await usuario.click(dialogo.getByRole('button', { name: 'Enviar material' }))
       await dialogo.findByText(/^Envio recusado\./)
@@ -788,6 +918,7 @@ describe('o que o diálogo e a tabela guardam entre uma tentativa e outra', () =
     const rede = fakeNetwork()
     let recusar = true
     rede.responderPor('/v1/disciplinas', ok([QUIMICA]))
+    instalarSeriesELicencas(rede)
     rede.responderPor('/v1/materiais', () => {
       if (rede.chamadas.at(-1)?.metodo !== 'POST') return ok([PRONTO])
       return recusar ? RECUSADO : { status: 201, corpo: material(5, { titulo: 'capitulo novo', estado: 'processando', paginas: null, trechos: 0 }) }
@@ -796,9 +927,10 @@ describe('o que o diálogo e a tabela guardam entre uma tentativa e outra', () =
     await usuario.click(screen.getByRole('button', { name: 'Enviar material' }))
     const dialogo = within(await dialogoDeEnvio())
     await usuario.upload(dialogo.getByTestId('arquivo-do-material'), PDF())
-    await dialogo.findByText(/^capitulo-novo\.pdf/)
-    await usuario.selectOptions(dialogo.getByLabelText('Disciplina'), 'Química')
-    await usuario.selectOptions(dialogo.getByLabelText('De quem é o material'), 'Material próprio da escola')
+    await dialogo.findByLabelText('Título de capitulo-novo.pdf')
+    await usuario.selectOptions(dialogo.getByLabelText('Disciplina (obrigatório)'), 'Química')
+    await usuario.click(dialogo.getByLabelText(/^6º ano/))
+    await usuario.selectOptions(dialogo.getByLabelText('De quem é o material (obrigatório)'), 'Material próprio da escola')
     await usuario.selectOptions(dialogo.getByLabelText('Licença de uso (obrigatória)'), SEM_LICENCA)
     await usuario.click(dialogo.getByRole('button', { name: 'Enviar material' }))
     await dialogo.findByText(/^Envio recusado\./)
@@ -822,6 +954,7 @@ describe('o que o diálogo e a tabela guardam entre uma tentativa e outra', () =
     const usuario = userEvent.setup()
     const rede = fakeNetwork()
     rede.responderPor('/v1/disciplinas', ok([QUIMICA]))
+    instalarSeriesELicencas(rede)
     rede.responderPor('/v1/materiais', () =>
       rede.chamadas.at(-1)?.metodo === 'POST' ? { status: 201, corpo: material(5, { titulo: 'capitulo novo', estado: 'processando', paginas: null, trechos: 0 }) } : ok([PRONTO]),
     )
@@ -837,21 +970,23 @@ describe('o que o diálogo e a tabela guardam entre uma tentativa e outra', () =
     expect(screen.queryByText(TEXTO_DO_ENVIO)).toBeNull()
   })
 
-  it('a falha do envio some quando a pessoa escolhe outro arquivo', async () => {
+  it('o arquivo que falhou continua na lista, com o texto, e o outro escolhido depois entra ao lado dele', async () => {
     const usuario = userEvent.setup()
     const rede = fakeNetwork()
     rede.responderPor('/v1/disciplinas', ok([QUIMICA]))
+    instalarSeriesELicencas(rede)
     rede.responderPor('/v1/materiais', () => (rede.chamadas.at(-1)?.metodo === 'POST' ? ERRO('INDISPONIVEL_TENTE_DE_NOVO', 503) : ok([PRONTO])))
     await montarEEsperar()
     await usuario.click(screen.getByRole('button', { name: 'Enviar material' }))
     const dialogo = within(await dialogoDeEnvio())
     await preencherComLicenca(usuario, dialogo)
     await usuario.click(dialogo.getByRole('button', { name: 'Enviar material' }))
-    await dialogo.findByText('O sistema está indisponível no momento. Tente de novo em instantes.')
+    await dialogo.findByText('O envio não foi concluído. Tente de novo em instantes.')
 
     await usuario.upload(dialogo.getByTestId('arquivo-do-material'), new File(['%PDF-1.4 outro'], 'outro.pdf', { type: 'application/pdf' }))
-    await dialogo.findByText(/^outro\.pdf/)
-    expect(dialogo.queryByText('O sistema está indisponível no momento. Tente de novo em instantes.')).toBeNull()
+    await dialogo.findByLabelText('Título de outro.pdf')
+    expect(within(dialogo.getByRole('list', { name: 'Arquivos do lote' })).getAllByRole('listitem')).toHaveLength(2)
+    expect(dialogo.getByText('O envio não foi concluído. Tente de novo em instantes.')).toBeTruthy()
   })
 
   it('o seletor de arquivo fechado sem escolha não fecha o diálogo nem apaga o formulário: o `cancel` do input não é o Esc do diálogo', async () => {
@@ -860,11 +995,11 @@ describe('o que o diálogo e a tabela guardam entre uma tentativa e outra', () =
     await montarEEsperar()
     await usuario.click(screen.getByRole('button', { name: 'Enviar material' }))
     const dialogo = within(await dialogoDeEnvio())
-    await usuario.type(dialogo.getByLabelText('Título'), 'Capítulo que ficou pela metade')
+    await comArquivoETitulo(usuario, dialogo, 'Capítulo que ficou pela metade')
     // O navegador manda `cancel` ao input quando o seletor se fecha sem escolha (ou com o mesmo arquivo), e o evento sobe.
     fireEvent(dialogo.getByTestId('arquivo-do-material'), new Event('cancel', { bubbles: true, cancelable: true }))
     expect(screen.queryByRole('dialog', { name: 'Enviar material' })).not.toBeNull()
-    expect((dialogo.getByLabelText('Título') as HTMLInputElement).value).toBe('Capítulo que ficou pela metade')
+    expect((dialogo.getByLabelText('Título de apostila.pdf') as HTMLInputElement).value).toBe('Capítulo que ficou pela metade')
     // O Esc de verdade, no próprio diálogo, continua fechando.
     fireEvent(screen.getByRole('dialog', { name: 'Enviar material' }), new Event('cancel', { cancelable: true }))
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Enviar material' })).toBeNull())
@@ -877,7 +1012,7 @@ describe('o que o diálogo e a tabela guardam entre uma tentativa e outra', () =
     await usuario.click(screen.getByRole('button', { name: 'Enviar material' }))
     const dialogo = within(await dialogoDeEnvio())
     expect(dialogo.getByText(/^Antes de enviar material, crie as disciplinas da escola/)).toBeTruthy()
-    expect(dialogo.queryByLabelText('Título')).toBeNull()
+    expect(dialogo.queryByLabelText('Disciplina (obrigatório)')).toBeNull()
     await usuario.click(dialogo.getByRole('button', { name: 'Fechar' }))
     expect(screen.queryByRole('dialog', { name: 'Enviar material' })).toBeNull()
   })
@@ -901,6 +1036,7 @@ describe('o que o diálogo e a tabela guardam entre uma tentativa e outra', () =
     const usuario = userEvent.setup()
     const rede = fakeNetwork()
     rede.responderPor('/v1/disciplinas', ok([QUIMICA]))
+    instalarSeriesELicencas(rede)
     rede.responderPor('/v1/materiais', () => (rede.chamadas.at(-1)?.metodo === 'POST' ? nuncaResponde() : ok([PRONTO])))
     await montarEEsperar()
     await usuario.click(screen.getByRole('button', { name: 'Enviar material' }))
@@ -916,6 +1052,7 @@ describe('o que o diálogo e a tabela guardam entre uma tentativa e outra', () =
     const rede = fakeNetwork()
     let soltar: (resposta: FakeResponse) => void = () => undefined
     rede.responderPor('/v1/disciplinas', ok([QUIMICA]))
+    instalarSeriesELicencas(rede)
     rede.responderPor('/v1/materiais', () => {
       if (rede.chamadas.at(-1)?.metodo !== 'POST') return ok([PRONTO])
       return new Promise<FakeResponse>((resolver) => {
@@ -935,20 +1072,21 @@ describe('o que o diálogo e a tabela guardam entre uma tentativa e outra', () =
     // 2. Ela reabre o diálogo e digita um título; a resposta atrasada chega agora.
     await usuario.click(screen.getByRole('button', { name: 'Enviar material' }))
     const reaberto = within(await dialogoDeEnvio())
-    await usuario.type(reaberto.getByLabelText('Título'), 'Outro capítulo')
+    await comArquivoETitulo(usuario, reaberto, 'Outro capítulo')
     soltar({ status: 201, corpo: material(5, { titulo: 'capitulo novo', estado: 'processando', paginas: null, trechos: 0 }) })
     await waitFor(() => expect(screen.getByText(TEXTO_DO_ENVIO)).toBeTruthy())
     // O diálogo reaberto é de outra abertura: continua aberto, com o que foi digitado.
     expect(screen.queryByRole('dialog', { name: 'Enviar material' })).not.toBeNull()
-    expect((reaberto.getByLabelText('Título') as HTMLInputElement).value).toBe('Outro capítulo')
+    expect((reaberto.getByLabelText('Título de apostila.pdf') as HTMLInputElement).value).toBe('Outro capítulo')
     await usuario.click(reaberto.getByRole('button', { name: 'Cancelar' }))
 
     // 3. A recusa que chega com o diálogo fechado também vai à tabela.
     await usuario.click(screen.getByRole('button', { name: 'Enviar material' }))
     const terceiro = within(await dialogoDeEnvio())
-    await usuario.type(terceiro.getByLabelText('Título'), 'Apostila atrasada')
-    await usuario.selectOptions(terceiro.getByLabelText('Disciplina'), 'Química')
-    await usuario.selectOptions(terceiro.getByLabelText('De quem é o material'), 'Material próprio da escola')
+    await comArquivoETitulo(usuario, terceiro, 'Apostila atrasada')
+    await usuario.selectOptions(terceiro.getByLabelText('Disciplina (obrigatório)'), 'Química')
+    await usuario.click(terceiro.getByLabelText(/^6º ano/))
+    await usuario.selectOptions(terceiro.getByLabelText('De quem é o material (obrigatório)'), 'Material próprio da escola')
     await usuario.selectOptions(terceiro.getByLabelText('Licença de uso (obrigatória)'), SEM_LICENCA)
     await usuario.click(terceiro.getByRole('button', { name: 'Enviar material' }))
     await waitFor(() => expect(quantos(rede, 'POST /v1/materiais')).toBe(2))
@@ -962,13 +1100,15 @@ describe('o que o diálogo e a tabela guardam entre uma tentativa e outra', () =
     const usuario = userEvent.setup()
     const rede = fakeNetwork()
     rede.responderPor('/v1/disciplinas', ok([QUIMICA]))
+    instalarSeriesELicencas(rede)
     rede.responderPor('/v1/materiais', () => (rede.chamadas.at(-1)?.metodo === 'POST' ? RECUSADO : ok([PRONTO])))
     await montarEEsperar()
     await usuario.click(screen.getByRole('button', { name: 'Enviar material' }))
     const dialogo = within(await dialogoDeEnvio())
-    await usuario.type(dialogo.getByLabelText('Título'), 'Apostila sem dono')
-    await usuario.selectOptions(dialogo.getByLabelText('Disciplina'), 'Química')
-    await usuario.selectOptions(dialogo.getByLabelText('De quem é o material'), 'Material próprio da escola')
+    await comArquivoETitulo(usuario, dialogo, 'Apostila sem dono')
+    await usuario.selectOptions(dialogo.getByLabelText('Disciplina (obrigatório)'), 'Química')
+    await usuario.click(dialogo.getByLabelText(/^6º ano/))
+    await usuario.selectOptions(dialogo.getByLabelText('De quem é o material (obrigatório)'), 'Material próprio da escola')
     await usuario.selectOptions(dialogo.getByLabelText('Licença de uso (obrigatória)'), SEM_LICENCA)
     await usuario.click(dialogo.getByRole('button', { name: 'Enviar material' }))
     await dialogo.findByText(/^Envio recusado\./)
@@ -988,6 +1128,7 @@ describe('o que o diálogo e a tabela guardam entre uma tentativa e outra', () =
     const usuario = userEvent.setup()
     const rede = fakeNetwork()
     rede.responderPor('/v1/disciplinas', ok([QUIMICA]))
+    instalarSeriesELicencas(rede)
     rede.responderPor('/v1/materiais', () => (rede.chamadas.at(-1)?.metodo === 'POST' ? nuncaResponde() : ok([PRONTO])))
     await montarEEsperar()
     await usuario.click(screen.getByRole('button', { name: 'Enviar material' }))
@@ -1001,5 +1142,483 @@ describe('o que o diálogo e a tabela guardam entre uma tentativa e outra', () =
     await waitFor(() => expect(quantos(rede, 'POST /v1/materiais')).toBe(1))
     await usuario.click(await dialogo.findByRole('button', { name: 'Enviando…' }))
     expect(quantos(rede, 'POST /v1/materiais')).toBe(1)
+  })
+})
+
+describe('o lote de até 20 PDFs (ingestao-do-material, 7.0; RF14)', () => {
+  const novo = (n: number) => material(100 + n, { titulo: `cap ${String(n)}`, estado: 'processando', paginas: null, trechos: 0 })
+  const CRIADO = (n: number): FakeResponse => ({ status: 201, corpo: novo(n) })
+  type Usuario = ReturnType<typeof userEvent.setup>
+  const arquivos = (quantos: number): File[] => Array.from({ length: quantos }, (_, indice) => PDF(`cap-${String(indice + 1)}.pdf`))
+
+  /** A rede de um lote: a lista de sempre e um `POST` que o teste decide por número de ordem (de 0). */
+  function redeDoLote(posts: (ordem: number) => FakeResponse | Promise<FakeResponse>, licencas: Resposta = ok([LICENCA_VIGENTE]), series: Resposta = ok([SERIE_6, SERIE_7])): FakeNetwork {
+    const rede = fakeNetwork()
+    let ordem = 0
+    rede.responderPor('/v1/disciplinas', ok([QUIMICA]))
+    instalarSeriesELicencas(rede, licencas, series)
+    rede.responderPor('/v1/materiais', () => {
+      if (rede.chamadas.at(-1)?.metodo !== 'POST') return ok([PRONTO])
+      const atual = ordem
+      ordem += 1
+      return posts(atual)
+    })
+    return rede
+  }
+
+  /** Abre o diálogo, escolhe os arquivos e preenche o que vale para o lote todo, de material próprio e com a declaração. */
+  async function prepararLote(usuario: Usuario, quantos: number) {
+    await montarEEsperar()
+    await usuario.click(screen.getByRole('button', { name: 'Enviar material' }))
+    const dialogo = within(await dialogoDeEnvio())
+    await usuario.upload(dialogo.getByTestId('arquivo-do-material'), arquivos(quantos))
+    await dialogo.findByLabelText(`Título de cap-${String(quantos)}.pdf`)
+    await usuario.selectOptions(dialogo.getByLabelText('Disciplina (obrigatório)'), 'Química')
+    await usuario.click(dialogo.getByLabelText(/^6º ano/))
+    await usuario.selectOptions(dialogo.getByLabelText('De quem é o material (obrigatório)'), 'Material próprio da escola')
+    await usuario.selectOptions(dialogo.getByLabelText('Licença de uso (obrigatória)'), 'Autoria da escola ou de professor dela')
+    await usuario.click(dialogo.getByLabelText(/^Declaro que a escola pode usar/))
+    return dialogo
+  }
+
+  const posts = (): FormData[] =>
+    ((fetch as unknown as Mock).mock.calls as Array<[string, RequestInit | undefined]>)
+      .filter(([, opcoes]) => opcoes?.method === 'POST')
+      .map(([, opcoes]) => opcoes?.body)
+      .filter((corpo): corpo is FormData => corpo instanceof FormData)
+
+  it('20 arquivos, um inválido e um repetido: 18 prontos, uma falha e um "já enviado", um por vez, com as séries e o título de cada um', async () => {
+    const usuario = userEvent.setup()
+    const rede = redeDoLote((ordem) => (ordem === 4 ? ERRO('ENTRADA_INVALIDA', 400) : ordem === 9 ? ERRO('CONFLITO', 409) : CRIADO(ordem)))
+    const dialogo = await prepararLote(usuario, 20)
+    expect(dialogo.getByRole('button', { name: 'Enviar 20 materiais' })).toBeTruthy()
+    await usuario.click(dialogo.getByRole('button', { name: 'Enviar 20 materiais' }))
+
+    await waitFor(() => expect(dialogo.getAllByText('19 de 20 enviados').length).toBeGreaterThan(0), { timeout: 10_000 })
+    expect(quantos(rede, 'POST /v1/materiais')).toBe(20)
+    expect(dialogo.getAllByText('Enviado. A leitura das páginas começa agora.')).toHaveLength(18)
+    expect(dialogo.getAllByText('Já enviado nesta escola')).toHaveLength(1)
+    expect(dialogo.getAllByText(/^O arquivo não é um PDF que conseguimos abrir, ou passa de 20 MB/)).toHaveLength(1)
+    // O lote termina com uma falha: o diálogo fica aberto, com o foco no resumo, e oferece tentar só os que falharam.
+    expect(document.activeElement?.textContent).toBe('19 de 20 enviados')
+    expect(dialogo.getByRole('button', { name: 'Tentar de novo os que falharam' })).toBeTruthy()
+    // A situação também é dita na cor: o que saiu, o que falhou e o repetido, cada um na sua família.
+    expect(dialogo.getAllByText('Enviado. A leitura das páginas começa agora.')[0]?.className).toContain('text-ok')
+    expect(dialogo.getByText('Já enviado nesta escola').className).toContain('text-apoio')
+    expect(dialogo.getByText(/^O arquivo não é um PDF que conseguimos abrir, ou passa de 20 MB/).className).toContain('text-erro')
+    // Cada pedido levou o arquivo, as séries e o título do nome do arquivo.
+    const primeiro = posts()[0]
+    expect(primeiro?.get('titulo')).toBe('cap 1')
+    expect(primeiro?.getAll('serieIds')).toEqual([SERIE_6.id])
+    expect(primeiro?.get('arquivo')).toBeInstanceOf(File)
+    // Material próprio não cita licença registrada: o campo nem vai no pedido.
+    expect(primeiro?.has('licencaId')).toBe(false)
+  })
+
+  it('o título nasce do nome do arquivo e se edita antes de enviar; o título vazio barra o envio e diz qual arquivo', async () => {
+    const usuario = userEvent.setup()
+    const rede = redeDoLote((ordem) => CRIADO(ordem))
+    const dialogo = await prepararLote(usuario, 2)
+    expect((dialogo.getByLabelText('Título de cap-2.pdf') as HTMLInputElement).value).toBe('cap 2')
+    await usuario.clear(dialogo.getByLabelText('Título de cap-1.pdf'))
+    await usuario.click(dialogo.getByRole('button', { name: 'Enviar 2 materiais' }))
+    expect(await dialogo.findByText('Dê um título ao material, como ele aparece no livro ou na apostila.')).toBeTruthy()
+    expect(document.activeElement).toBe(dialogo.getByLabelText('Título de cap-1.pdf'))
+    expect(quantos(rede, 'POST /v1/materiais')).toBe(0)
+
+    await usuario.type(dialogo.getByLabelText('Título de cap-1.pdf'), 'Estequiometria, cap. 1')
+    await usuario.click(dialogo.getByRole('button', { name: 'Enviar 2 materiais' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Enviar material' })).toBeNull())
+    expect(posts().map((corpo) => corpo.get('titulo'))).toEqual(['Estequiometria, cap. 1', 'cap 2'])
+    expect(screen.getByText('2 materiais enviados. A leitura das páginas começa agora e leva alguns instantes.')).toBeTruthy()
+  })
+
+  it('o 429 no meio: os que faltam ficam na lista, a tela diz "12 de 20 enviados" e o botão continua de onde parou', async () => {
+    const usuario = userEvent.setup()
+    let liberado = false
+    const rede = redeDoLote((ordem) => (ordem === 12 && !liberado ? ERRO('LIMITE_EXCEDIDO', 429) : CRIADO(ordem)))
+    const dialogo = await prepararLote(usuario, 20)
+    await usuario.click(dialogo.getByRole('button', { name: 'Enviar 20 materiais' }))
+
+    expect(await dialogo.findByText('Muitos envios por agora. Os que faltam ficam aqui e continuam quando você tocar em "Continuar o envio".', {}, { timeout: 10_000 })).toBeTruthy()
+    expect(dialogo.getAllByText('12 de 20 enviados').length).toBeGreaterThan(0)
+    expect(dialogo.getAllByText('Na fila')).toHaveLength(8)
+    expect(quantos(rede, 'POST /v1/materiais')).toBe(13)
+    expect(screen.queryByRole('dialog', { name: 'Enviar material' })).not.toBeNull()
+
+    liberado = true
+    await usuario.click(dialogo.getByRole('button', { name: 'Continuar o envio' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Enviar material' })).toBeNull(), { timeout: 10_000 })
+    // Os 8 que faltavam saíram, e nenhum dos 12 foi reenviado.
+    expect(quantos(rede, 'POST /v1/materiais')).toBe(21)
+    expect(posts().map((corpo) => corpo.get('titulo')).filter((titulo) => titulo === 'cap 1')).toHaveLength(1)
+    expect(screen.getByText(/^20 materiais enviados\./)).toBeTruthy()
+  })
+
+  it('o 429 com a espera da API: a tela diz a hora e o envio continua sozinho nela', async () => {
+    const usuario = userEvent.setup()
+    let liberado = false
+    const rede = redeDoLote((ordem) => (ordem === 1 && !liberado ? { ...ERRO('LIMITE_EXCEDIDO', 429), cabecalhos: { 'Retry-After': '1' } } : CRIADO(ordem)))
+    const dialogo = await prepararLote(usuario, 3)
+    await usuario.click(dialogo.getByRole('button', { name: 'Enviar 3 materiais' }))
+
+    expect(await dialogo.findByText(/^Muitos envios por agora\. Os que faltam ficam aqui e continuam às \d{2}:\d{2}\.$/)).toBeTruthy()
+    liberado = true
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Enviar material' })).toBeNull(), { timeout: 6_000 })
+    expect(quantos(rede, 'POST /v1/materiais')).toBe(4)
+  })
+
+  it('quem fecha o diálogo no meio do lote não envia os arquivos seguintes, e o que já saiu é anunciado na tela', async () => {
+    const usuario = userEvent.setup()
+    let soltar: (resposta: FakeResponse) => void = () => undefined
+    const rede = redeDoLote((ordem) => (ordem === 0 ? new Promise<FakeResponse>((resolver) => (soltar = resolver)) : CRIADO(ordem)))
+    const dialogo = await prepararLote(usuario, 3)
+    await usuario.click(dialogo.getByRole('button', { name: 'Enviar 3 materiais' }))
+    await waitFor(() => expect(quantos(rede, 'POST /v1/materiais')).toBe(1))
+    await usuario.click(dialogo.getByRole('button', { name: 'Cancelar' }))
+    expect(screen.queryByRole('dialog', { name: 'Enviar material' })).toBeNull()
+    soltar(CRIADO(0))
+    await waitFor(() => expect(screen.getByText('Material enviado. A leitura das páginas começa agora e leva alguns instantes.')).toBeTruthy())
+    expect(quantos(rede, 'POST /v1/materiais')).toBe(1)
+  })
+
+  it('duplo clique: um lote só, mesmo com dois envios do formulário no mesmo instante', async () => {
+    const usuario = userEvent.setup()
+    const rede = redeDoLote(() => nuncaResponde())
+    const dialogo = await prepararLote(usuario, 3)
+    const formulario = dialogo.getByRole('button', { name: 'Enviar 3 materiais' }).closest('form') as HTMLFormElement
+    // O envio do formulário não recarrega a página: o navegador teria o padrão cancelado.
+    expect(fireEvent.submit(formulario)).toBe(false)
+    fireEvent.submit(formulario)
+    await waitFor(() => expect(quantos(rede, 'POST /v1/materiais')).toBe(1))
+    expect((await dialogo.findByRole('button', { name: 'Enviando…' }) as HTMLButtonElement).disabled).toBe(true)
+    expect(dialogo.getByText('Enviando os materiais…')).toBeTruthy()
+    // Com o lote no ar nada se edita nem se tira: nem o que já está enviando, nem o que espera a vez.
+    expect((dialogo.getByLabelText('Título de cap-1.pdf') as HTMLInputElement).disabled).toBe(true)
+    expect((dialogo.getByLabelText('Título de cap-3.pdf') as HTMLInputElement).disabled).toBe(true)
+    expect(dialogo.queryByRole('button', { name: /^Tirar/ })).toBeNull()
+    expect(quantos(rede, 'POST /v1/materiais')).toBe(1)
+  })
+
+  describe('a licença do material de terceiro (RF16)', () => {
+    const VENCIDA = licenca(2, { licenciante: 'Editora vencida', situacao: 'vencida', vigenteAte: '2026-01-31' })
+    const FUTURA = licenca(3, { licenciante: 'Editora futura', situacao: 'futura', vigenteDesde: '2030-01-01' })
+
+    async function abrirDeTerceiro(usuario: Usuario) {
+      await montarEEsperar()
+      await usuario.click(screen.getByRole('button', { name: 'Enviar material' }))
+      const dialogo = within(await dialogoDeEnvio())
+      await usuario.selectOptions(dialogo.getByLabelText('De quem é o material (obrigatório)'), 'Material de terceiro, com licença')
+      return dialogo
+    }
+
+    it('só as licenças vigentes se escolhem: a vencida e a que ainda não começou não aparecem, e a escolhida vai no pedido', async () => {
+      const usuario = userEvent.setup()
+      const rede = redeDoLote((ordem) => CRIADO(ordem), ok([LICENCA_VIGENTE, VENCIDA, FUTURA]))
+      const dialogo = await abrirDeTerceiro(usuario)
+      const campo = (await dialogo.findByLabelText('Licença registrada do material')) as HTMLSelectElement
+      expect([...campo.options].map((opcao) => opcao.textContent)).toEqual(['Escolha a licença', 'Editora Sintética · Vigente'])
+      // Nada foi escolhido ainda: não há licença que "deixou de valer".
+      expect(dialogo.queryByText(/não vale mais/)).toBeNull()
+      await usuario.selectOptions(campo, LICENCA_VIGENTE.id)
+      await usuario.upload(dialogo.getByTestId('arquivo-do-material'), PDF('cap-1.pdf'))
+      await dialogo.findByLabelText('Título de cap-1.pdf')
+      await usuario.selectOptions(dialogo.getByLabelText('Disciplina (obrigatório)'), 'Química')
+      await usuario.click(dialogo.getByLabelText(/^6º ano/))
+      await usuario.selectOptions(dialogo.getByLabelText('Licença de uso (obrigatória)'), 'Licença comercial que autoriza este uso')
+      await usuario.click(dialogo.getByLabelText(/^Declaro que a escola pode usar/))
+      await usuario.click(dialogo.getByRole('button', { name: 'Enviar material' }))
+      await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Enviar material' })).toBeNull())
+      expect(posts()[0]?.get('licencaId')).toBe(LICENCA_VIGENTE.id)
+      expect(posts()[0]?.get('licenciante')).toBeNull()
+      expect(quantos(rede, 'POST /v1/materiais')).toBe(1)
+    })
+
+    it('terceiro sem a licença escolhida diz o que fazer, e nada vai à API', async () => {
+      const usuario = userEvent.setup()
+      const rede = redeDoLote((ordem) => CRIADO(ordem))
+      const dialogo = await abrirDeTerceiro(usuario)
+      await dialogo.findByLabelText('Licença registrada do material')
+      await usuario.click(dialogo.getByRole('button', { name: 'Enviar material' }))
+      expect(await dialogo.findByText(/^Escolha a licença registrada do material\./)).toBeTruthy()
+      expect(quantos(rede, 'POST /v1/materiais')).toBe(0)
+    })
+
+    it('sem licença vigente: "Registre a licença primeiro", com o link para Licenças', async () => {
+      const usuario = userEvent.setup()
+      redeDoLote((ordem) => CRIADO(ordem), ok([VENCIDA, FUTURA]))
+      const dialogo = await abrirDeTerceiro(usuario)
+      expect(await dialogo.findByText(/^Registre a licença primeiro\./)).toBeTruthy()
+      expect(dialogo.queryByLabelText('Licença registrada do material')).toBeNull()
+      expect(dialogo.getByRole('link', { name: 'Ir para Licenças' }).getAttribute('href')).toContain('aba=licencas')
+    })
+
+    it('a licença é lida de novo quando a janela volta ao foco: a que venceu some, e a escolha dela sai, dita', async () => {
+      const usuario = userEvent.setup()
+      let lista = [LICENCA_VIGENTE, licenca(4, { licenciante: 'Editora quatro' })]
+      redeDoLote((ordem) => CRIADO(ordem), () => ok(lista))
+      const dialogo = await abrirDeTerceiro(usuario)
+      const campo = (await dialogo.findByLabelText('Licença registrada do material')) as HTMLSelectElement
+      await usuario.selectOptions(campo, LICENCA_VIGENTE.id)
+      expect(campo.value).toBe(LICENCA_VIGENTE.id)
+
+      // A licença escolhida vence com o diálogo aberto; a pessoa volta à janela.
+      lista = [licenca(4, { licenciante: 'Editora quatro' })]
+      act(() => {
+        document.dispatchEvent(new Event('visibilitychange', { bubbles: true }))
+      })
+      await waitFor(() => expect([...campo.options].map((opcao) => opcao.value)).not.toContain(LICENCA_VIGENTE.id))
+      expect(campo.value).toBe('')
+      expect(dialogo.getByText('A licença que você tinha escolhido não vale mais. Escolha outra, ou atualize a vigência dela em Licenças.')).toBeTruthy()
+      // A escolha que saiu não vai no pedido nem passa pela conferência: o campo volta a ser cobrado.
+      await usuario.click(dialogo.getByRole('button', { name: 'Enviar material' }))
+      expect(await dialogo.findByText(/^Escolha a licença registrada do material\./)).toBeTruthy()
+    })
+
+    it('a licença é lida de novo quando o diálogo reabre, dentro do prazo em que a lista ainda estaria fresca: a que venceu nesse meio-tempo não aparece', async () => {
+      const usuario = userEvent.setup()
+      let lista = [LICENCA_VIGENTE, licenca(4, { licenciante: 'Editora quatro' })]
+      const rede = redeDoLote((ordem) => CRIADO(ordem), () => ok(lista))
+      const primeiro = await abrirDeTerceiro(usuario)
+      const campo = (await primeiro.findByLabelText('Licença registrada do material')) as HTMLSelectElement
+      expect([...campo.options].map((opcao) => opcao.value)).toContain(LICENCA_VIGENTE.id)
+      const lidas = quantos(rede, 'GET /v1/licencas')
+      await usuario.click(primeiro.getByRole('button', { name: 'Cancelar' }))
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+
+      // A licença vence com o diálogo fechado; a lista que a tela guardou ainda a traz.
+      lista = [licenca(4, { licenciante: 'Editora quatro' })]
+      const segundo = await abrirDeTerceiro(usuario)
+      await waitFor(() => expect(quantos(rede, 'GET /v1/licencas')).toBeGreaterThan(lidas))
+      const campoNovo = (await segundo.findByLabelText('Licença registrada do material')) as HTMLSelectElement
+      await waitFor(() => expect([...campoNovo.options].map((opcao) => opcao.value)).not.toContain(LICENCA_VIGENTE.id))
+    })
+
+    it('a licença que a releitura não conseguiu ler não derruba a lista que já estava na tela', async () => {
+      const usuario = userEvent.setup()
+      let falhar = false
+      const rede = redeDoLote((ordem) => CRIADO(ordem), () => (falhar ? FALHA : ok([LICENCA_VIGENTE])))
+      const dialogo = await abrirDeTerceiro(usuario)
+      await dialogo.findByLabelText('Licença registrada do material')
+      const lidas = quantos(rede, 'GET /v1/licencas')
+      falhar = true
+      act(() => {
+        document.dispatchEvent(new Event('visibilitychange', { bubbles: true }))
+      })
+      await waitFor(() => expect(quantos(rede, 'GET /v1/licencas')).toBeGreaterThan(lidas))
+      expect(dialogo.getByLabelText('Licença registrada do material')).toBeTruthy()
+      expect(dialogo.queryByText('Não foi possível ler as licenças registradas.')).toBeNull()
+    })
+
+    it('enquanto as licenças são lidas, a tela diz isso e não oferece o campo', async () => {
+      const usuario = userEvent.setup()
+      redeDoLote((ordem) => CRIADO(ordem), nuncaResponde)
+      const dialogo = await abrirDeTerceiro(usuario)
+      expect(await dialogo.findByText('Lendo as licenças registradas…')).toBeTruthy()
+      expect(dialogo.queryByLabelText('Licença registrada do material')).toBeNull()
+    })
+
+    it('a leitura das licenças que falha diz o que aconteceu, e "Tentar de novo" lê de novo', async () => {
+      const usuario = userEvent.setup()
+      let falhar = true
+      redeDoLote((ordem) => CRIADO(ordem), () => (falhar ? FALHA : ok([LICENCA_VIGENTE])))
+      const dialogo = await abrirDeTerceiro(usuario)
+      expect(await dialogo.findByText('Não foi possível ler as licenças registradas.')).toBeTruthy()
+      expect(dialogo.queryByLabelText('Licença registrada do material')).toBeNull()
+      falhar = false
+      await usuario.click(dialogo.getByRole('button', { name: 'Tentar de novo ler as licenças' }))
+      expect(await dialogo.findByLabelText('Licença registrada do material')).toBeTruthy()
+    })
+
+    it('a API recusa `LICENCA_VENCIDA` no meio do lote: o lote para, o texto manda para Licenças e os arquivos ficam', async () => {
+      const usuario = userEvent.setup()
+      const rede = redeDoLote((ordem) => (ordem === 1 ? ERRO('LICENCA_VENCIDA', 422) : CRIADO(ordem)))
+      const dialogo = await prepararLote(usuario, 3)
+      await usuario.click(dialogo.getByRole('button', { name: 'Enviar 3 materiais' }))
+      expect(await dialogo.findByText(/^A licença deste material não está vigente\. Atualize a vigência em Licenças/)).toBeTruthy()
+      expect(dialogo.getAllByText('1 de 3 enviados').length).toBeGreaterThan(0)
+      expect(quantos(rede, 'POST /v1/materiais')).toBe(2)
+      expect(dialogo.getByRole('button', { name: 'Continuar o envio' })).toBeTruthy()
+    })
+  })
+
+  it('parado no 429: o que já saiu trava o formulário, só o que falta se edita, e "Cancelar" passa a dizer "Fechar"', async () => {
+    const usuario = userEvent.setup()
+    redeDoLote((ordem) => (ordem === 1 ? ERRO('LIMITE_EXCEDIDO', 429) : CRIADO(ordem)))
+    const dialogo = await prepararLote(usuario, 3)
+    expect(dialogo.getByRole('button', { name: 'Cancelar' })).toBeTruthy()
+    await usuario.click(dialogo.getByRole('button', { name: 'Enviar 3 materiais' }))
+    await dialogo.findByText(/^Muitos envios por agora/)
+
+    expect(dialogo.queryByRole('button', { name: 'Cancelar' })).toBeNull()
+    expect(dialogo.getAllByRole('button', { name: 'Fechar' }).length).toBeGreaterThan(0)
+    expect((dialogo.getByLabelText('Disciplina (obrigatório)') as HTMLSelectElement).disabled).toBe(true)
+    // O que saiu não se edita nem se tira; o que falta, sim.
+    expect((dialogo.getByLabelText('Título de cap-1.pdf') as HTMLInputElement).disabled).toBe(true)
+    expect(dialogo.queryByRole('button', { name: 'Tirar cap-1.pdf do lote' })).toBeNull()
+    expect((dialogo.getByLabelText('Título de cap-3.pdf') as HTMLInputElement).disabled).toBe(false)
+    expect(dialogo.getByRole('button', { name: 'Tirar cap-3.pdf do lote' })).toBeTruthy()
+  })
+
+  it('o arquivo que já estava na escola também conta como o que saiu: o botão diz "Fechar"', async () => {
+    const usuario = userEvent.setup()
+    redeDoLote((ordem) => (ordem === 0 ? ERRO('CONFLITO', 409) : ERRO('LIMITE_EXCEDIDO', 429)))
+    const dialogo = await prepararLote(usuario, 3)
+    await usuario.click(dialogo.getByRole('button', { name: 'Enviar 3 materiais' }))
+    await dialogo.findByText(/^Muitos envios por agora/)
+    expect(dialogo.getByText('Já enviado nesta escola')).toBeTruthy()
+    expect(dialogo.queryByRole('button', { name: 'Cancelar' })).toBeNull()
+  })
+
+  it('"Tirar" tira o arquivo da lista antes do envio, e o botão passa a contar os que sobraram', async () => {
+    const usuario = userEvent.setup()
+    redeDoLote((ordem) => CRIADO(ordem))
+    const dialogo = await prepararLote(usuario, 3)
+    await usuario.click(dialogo.getByRole('button', { name: 'Tirar cap-2.pdf do lote' }))
+    expect(within(dialogo.getByRole('list', { name: 'Arquivos do lote' })).getAllByRole('listitem')).toHaveLength(2)
+    expect(dialogo.queryByLabelText('Título de cap-2.pdf')).toBeNull()
+    expect(dialogo.getByRole('button', { name: 'Enviar 2 materiais' })).toBeTruthy()
+  })
+
+  it('a região `aria-live` diz quantos arquivos entraram, não anuncia o que não entrou, e diz cada arquivo que sai enquanto o seguinte está no ar', async () => {
+    const usuario = userEvent.setup()
+    redeDoLote((ordem) => (ordem === 1 ? nuncaResponde() : CRIADO(ordem)))
+    await montarEEsperar()
+    await usuario.click(screen.getByRole('button', { name: 'Enviar material' }))
+    const dialogo = within(await dialogoDeEnvio())
+    const regiao = dialogo.getByTestId('situacao-do-lote')
+    const entrada = dialogo.getByTestId('arquivo-do-material')
+    await usuario.upload(entrada, new File(['nome;turma\n'], 'planilha.pdf', { type: 'application/pdf' }))
+    await dialogo.findByText(/^planilha\.pdf:/)
+    expect(regiao.textContent).toBe('')
+    // A escolha vazia (o seletor fechado sem arquivo) não apaga o que a tela já disse do arquivo recusado.
+    fireEvent.change(entrada, { target: { files: [] } })
+    await new Promise((resolver) => setTimeout(resolver, 50))
+    expect(dialogo.getByText(/^planilha\.pdf:/)).toBeTruthy()
+    await usuario.upload(entrada, PDF('um.pdf'))
+    await waitFor(() => expect(regiao.textContent).toBe('Um arquivo na lista.'))
+    await usuario.upload(entrada, [PDF('dois.pdf'), PDF('tres.pdf')])
+    await waitFor(() => expect(regiao.textContent).toBe('2 arquivos na lista.'))
+
+    await usuario.selectOptions(dialogo.getByLabelText('Disciplina (obrigatório)'), 'Química')
+    await usuario.click(dialogo.getByLabelText(/^6º ano/))
+    await usuario.selectOptions(dialogo.getByLabelText('De quem é o material (obrigatório)'), 'Material próprio da escola')
+    await usuario.selectOptions(dialogo.getByLabelText('Licença de uso (obrigatória)'), 'Autoria da escola ou de professor dela')
+    await usuario.click(dialogo.getByLabelText(/^Declaro que a escola pode usar/))
+    await usuario.click(dialogo.getByRole('button', { name: 'Enviar 3 materiais' }))
+    await waitFor(() => expect(regiao.textContent).toBe('um.pdf: Enviado. A leitura das páginas começa agora.'))
+  })
+
+  it('o leitor de tela ouve o aviso da declaração só depois de tentar enviar, e só enquanto ela falta', async () => {
+    const usuario = userEvent.setup()
+    redeDoLote((ordem) => CRIADO(ordem))
+    await montarEEsperar()
+    await usuario.click(screen.getByRole('button', { name: 'Enviar material' }))
+    const dialogo = within(await dialogoDeEnvio())
+    await usuario.selectOptions(dialogo.getByLabelText('Licença de uso (obrigatória)'), 'Licença aberta (Creative Commons e semelhantes)')
+    const caixa = dialogo.getByLabelText(/^Declaro que a escola pode usar/)
+    const AVISO = 'Sem a declaração marcada, o envio é recusado.'
+    expect(dialogo.queryByText(AVISO)).toBeNull()
+    expect(caixa.hasAttribute('aria-describedby')).toBe(false)
+    await usuario.click(dialogo.getByRole('button', { name: 'Enviar material' }))
+    expect(dialogo.getByText(AVISO).id).toBe(caixa.getAttribute('aria-describedby'))
+    await usuario.click(caixa)
+    expect(dialogo.queryByText(AVISO)).toBeNull()
+    expect(caixa.hasAttribute('aria-describedby')).toBe(false)
+  })
+
+  it('enquanto os arquivos são lidos, o botão de escolher e o de enviar ficam desligados', async () => {
+    const usuario = userEvent.setup()
+    redeDoLote((ordem) => CRIADO(ordem))
+    await montarEEsperar()
+    await usuario.click(screen.getByRole('button', { name: 'Enviar material' }))
+    const dialogo = within(await dialogoDeEnvio())
+    const lento = PDF('lento.pdf')
+    lento.slice = () => ({ arrayBuffer: () => new Promise<ArrayBuffer>(() => undefined) }) as unknown as Blob
+    await usuario.upload(dialogo.getByTestId('arquivo-do-material'), lento)
+    await waitFor(() => expect((dialogo.getByRole('button', { name: 'Escolher arquivos' }) as HTMLButtonElement).disabled).toBe(true))
+    expect((dialogo.getByRole('button', { name: 'Enviar material' }) as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('quem fecha o diálogo no meio do lote e recebe o "já enviado" do arquivo no ar não relê a lista de uma tela que já não acompanha', async () => {
+    const usuario = userEvent.setup()
+    let soltar: (resposta: FakeResponse) => void = () => undefined
+    const rede = redeDoLote((ordem) => (ordem === 0 ? new Promise<FakeResponse>((resolver) => (soltar = resolver)) : CRIADO(ordem)))
+    const dialogo = await prepararLote(usuario, 3)
+    await usuario.click(dialogo.getByRole('button', { name: 'Enviar 3 materiais' }))
+    await waitFor(() => expect(quantos(rede, 'POST /v1/materiais')).toBe(1))
+    await usuario.click(dialogo.getByRole('button', { name: 'Cancelar' }))
+    const lidas = quantos(rede, 'GET /v1/materiais')
+    soltar(ERRO('CONFLITO', 409))
+    await new Promise((resolver) => setTimeout(resolver, 150))
+    expect(quantos(rede, 'POST /v1/materiais')).toBe(1)
+    expect(quantos(rede, 'GET /v1/materiais')).toBe(lidas)
+  })
+
+  describe('as séries da escola', () => {
+    async function abrirOEnvio(usuario: Usuario) {
+      await montarEEsperar()
+      await usuario.click(screen.getByRole('button', { name: 'Enviar material' }))
+      return within(await dialogoDeEnvio())
+    }
+
+    it('aparecem na ordem da série, e não na que a API devolveu; marcar uma não desmarca a outra, e desmarcar tira só aquela', async () => {
+      const usuario = userEvent.setup()
+      redeDoLote((ordem) => CRIADO(ordem), ok([LICENCA_VIGENTE]), ok([SERIE_7, SERIE_6]))
+      const dialogo = await abrirOEnvio(usuario)
+      const grupo = within(dialogo.getByRole('group', { name: /^Séries do material/ }))
+      await grupo.findByLabelText(/^6º ano/)
+      expect(grupo.getAllByRole('checkbox').map((caixa) => caixa.closest('label')?.textContent?.slice(0, 7))).toEqual(['6º ano ', '7º ano '])
+      const sexta = grupo.getByLabelText(/^6º ano/) as HTMLInputElement
+      const setima = grupo.getByLabelText(/^7º ano/) as HTMLInputElement
+      await usuario.click(sexta)
+      await usuario.click(setima)
+      expect([sexta.checked, setima.checked]).toEqual([true, true])
+      await usuario.click(sexta)
+      expect([sexta.checked, setima.checked]).toEqual([false, true])
+    })
+
+    it('enquanto são lidas a tela diz isso; sem nenhuma, diz onde criá-las', async () => {
+      const usuario = userEvent.setup()
+      redeDoLote((ordem) => CRIADO(ordem), ok([LICENCA_VIGENTE]), nuncaResponde)
+      const dialogo = await abrirOEnvio(usuario)
+      expect(await dialogo.findByText('Carregando as séries…')).toBeTruthy()
+    })
+
+    it('sem nenhuma série na escola a tela diz onde criá-las', async () => {
+      const usuario = userEvent.setup()
+      redeDoLote((ordem) => CRIADO(ordem), ok([LICENCA_VIGENTE]), ok([]))
+      const dialogo = await abrirOEnvio(usuario)
+      expect(await dialogo.findByText('A escola ainda não tem séries. Crie as séries em Escola › Turmas antes de enviar material.')).toBeTruthy()
+      expect(dialogo.getByRole('link', { name: 'Ir para Escola' }).getAttribute('href')).toContain(COORDENACAO_ROUTES.estrutura)
+    })
+
+    it('a leitura que falha diz o que aconteceu, e "Tentar de novo" lê de novo', async () => {
+      const usuario = userEvent.setup()
+      let falhar = true
+      redeDoLote((ordem) => CRIADO(ordem), ok([LICENCA_VIGENTE]), () => (falhar ? FALHA : ok([SERIE_6, SERIE_7])))
+      const dialogo = await abrirOEnvio(usuario)
+      expect(await dialogo.findByText('Não foi possível ler as séries da escola.')).toBeTruthy()
+      falhar = false
+      await usuario.click(dialogo.getByRole('button', { name: 'Tentar de novo ler as séries' }))
+      expect(await dialogo.findByLabelText(/^6º ano/)).toBeTruthy()
+    })
+  })
+
+  it('acessibilidade: a região `aria-live` diz a situação de cada arquivo, os alvos têm 44 px e o foco vai ao resumo no fim', async () => {
+    const usuario = userEvent.setup()
+    redeDoLote((ordem) => (ordem === 0 ? ERRO('ENTRADA_INVALIDA', 400) : CRIADO(ordem)))
+    const dialogo = await prepararLote(usuario, 2)
+    // Alvos de 44 px: o botão de arquivos, cada série e a declaração.
+    expect(dialogo.getByRole('button', { name: 'Escolher mais arquivos' }).className).toContain('min-h-11')
+    expect(dialogo.getByLabelText(/^6º ano/).closest('label')?.className).toContain('min-h-11')
+    // A declaração é o passo que a coordenação mais erra no celular: o rótulo dela também é alvo de 44 px.
+    expect(dialogo.getByText(/^Declaro que a escola pode usar/).className).toContain('min-h-11')
+    const regiao = dialogo.getByTestId('situacao-do-lote')
+    expect(regiao.getAttribute('role')).toBe('status')
+    expect(regiao.getAttribute('aria-live')).toBe('polite')
+    await usuario.click(dialogo.getByRole('button', { name: 'Enviar 2 materiais' }))
+    await waitFor(() => expect(regiao.textContent).toBe('1 de 2 enviados'))
+    expect(document.activeElement?.textContent).toBe('1 de 2 enviados')
   })
 })

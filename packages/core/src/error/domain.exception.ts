@@ -20,6 +20,8 @@ export const HTTP_STATUS_BY_CODE: Readonly<Record<ErrorCode, number>> = {
   REIVINDICACAO_RECUSADA: 409,
   // MVP de apresentação (D77). 422: o pedido é bem formado, e a licença declarada não permite o uso (D5).
   MATERIAL_SEM_LICENCA: 422,
+  // 7.0: o pedido é bem formado, e a licença registrada não vale hoje.
+  LICENCA_VENCIDA: 422,
   FUNCAO_SUSPENSA: 409,
   // Freio diário e pacote do mês do Tutor (D38): limite de uso, como o `LIMITE_EXCEDIDO`.
   LIMITE_DIARIO_DO_TUTOR: 429,

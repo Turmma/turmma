@@ -1,8 +1,8 @@
 import type { APIRequestContext, Locator, Page, Request, Route } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { abrirNavegacao, entrarPelaTelaComSegundoFator, lateral, SIGN_IN_TIMEOUT_MS } from './support/casca.ts'
-import { irPelaCoordenacao, linhasDaTabela } from './support/coordenacao.ts'
-import { CAMINHO_DO_PDF_DE_DEMONSTRACAO, criarMaterialNoBanco, materiaisNoBanco, recusasNaAuditoria } from './support/material.ts'
+import { irPelaCoordenacao, linhasDaTabela, paginaNaoRola } from './support/coordenacao.ts'
+import { CAMINHO_DO_PDF_DE_DEMONSTRACAO, criarMaterialNoBanco, criarMateriaisNoBanco, materiaisNoBanco, recusasNaAuditoria } from './support/material.ts'
 import { expect, test } from './support/profiles.ts'
 import { abrirPelaApiSemMedirAPrimeiraCarga, configurarSegundoFatorPelaApi } from './support/mfa.ts'
 import { criarEquipeComSenha, montarEstruturaNoBanco, type EquipeDeTeste, type EstruturaDeTeste } from './support/seed.ts'
@@ -16,6 +16,8 @@ import { ALVO_DE_TOQUE_PRINCIPAL_PX, horizontalOverflow, larguraExcedenteDoDialo
  */
 
 const TITULO = 'Química 2 — Capítulo 7: Estequiometria'
+/** A série que `montarEstruturaNoBanco` cria: o material enviado precisa de ao menos uma (ingestao-do-material, 7.0). */
+const SERIE_DA_ESTRUTURA = '7º ano do Ensino Fundamental'
 /** A leitura do PDF acontece depois da resposta do envio, e a tela a acompanha de 1,5 em 1,5 s. */
 const PRAZO_DA_LEITURA_MS = 30_000
 const INDISPONIVEL = JSON.stringify({ erro: { codigo: 'INDISPONIVEL_TENTE_DE_NOVO', mensagem: 'texto que a tela não usa', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } })
@@ -23,6 +25,8 @@ const TEXTO_SEM_LICENCA =
   'Sem uma licença que permita o uso, o material não entra na base da escola. O arquivo não foi enviado nem lido. Peça a autorização ao dono do conteúdo e envie de novo com a licença.'
 const TEXTO_SEM_DECLARACAO = 'Falta a declaração de que a escola pode usar este material. O arquivo não foi enviado nem lido. Marque a declaração e envie de novo.'
 const TEXTO_INDISPONIVEL = 'O sistema está indisponível no momento. Tente de novo em instantes.'
+/** O que o arquivo do lote diz quando a API responde 503: a falha é dele, e o lote segue. */
+const TEXTO_FALHA_DO_ENVIO = 'O envio não foi concluído. Tente de novo em instantes.'
 
 const ehALista = (url: URL) => url.pathname === '/v1/materiais'
 const ehOEnvio = (pedido: Request) => new URL(pedido.url()).pathname === '/v1/materiais' && pedido.method() === 'POST'
@@ -50,6 +54,8 @@ const tituloDaLista = (page: Page) => lista(page).getByRole('heading', { name: '
 /** O anúncio da ação que terminou, na região da lista. */
 const anuncio = (page: Page, texto: string) => lista(page).getByRole('status').filter({ hasText: texto })
 /** O arquivo escolhido, como a área de envio o mostra: o nome e o tamanho (o anúncio para o leitor de tela começa por outro texto). */
+/** A área onde o PDF se solta: o texto que a descreve está dentro dela. */
+const areaDeSoltar = (page: Page) => caixaDeEnvio(page).getByText(/^Arraste até 20 PDFs para cá/)
 const escolhido = (page: Page, nome: string) => caixaDeEnvio(page).getByText(new RegExp(`^${nome.replaceAll('.', '\\.')} · \\d`))
 
 async function activate(alvo: Locator, hasTouch: boolean): Promise<void> {
@@ -135,6 +141,7 @@ async function preencher(page: Page, cenario: Cenario, campos: { titulo?: string
   if (comArquivo) await arquivo(page).setInputFiles(CAMINHO_DO_PDF_DE_DEMONSTRACAO)
   await caixa.getByLabel('Título').fill(titulo)
   await caixa.getByLabel('Disciplina').selectOption({ label: cenario.estrutura.disciplina.nome })
+  await caixa.getByRole('checkbox', { name: SERIE_DA_ESTRUTURA }).check()
   await caixa.getByLabel('De quem é o material').selectOption({ label: 'Material próprio da escola' })
   await caixa.getByLabel('Licença de uso (obrigatória)').selectOption({ label: licenca })
   if (declarar) await declaracao(page).check()
@@ -175,7 +182,7 @@ test.describe('Material da coordenação', () => {
 
     // Reabrir o diálogo começa de um formulário novo: sem arquivo, sem título e com a declaração desmarcada.
     await abrirEnvio(page, hasTouch)
-    await expect(caixaDeEnvio(page).getByLabel('Título')).toHaveValue('')
+    await expect(caixaDeEnvio(page).getByLabel(/^Título/)).toHaveCount(0)
     await expect(declaracao(page)).not.toBeChecked()
     await expect(caixaDeEnvio(page).getByRole('button', { name: 'Escolher arquivo' })).toBeVisible()
     await cancelarEnvio(page, hasTouch)
@@ -220,6 +227,8 @@ test.describe('Material da coordenação', () => {
       disciplinaId: '0190f5a0-0000-7000-8000-0000000000bb',
       titularidade: 'escola',
       licenciante: null,
+      licencaId: null,
+      serieIds: [],
       licenca: 'autoria_da_escola',
       estado,
       falha: null,
@@ -302,7 +311,8 @@ test.describe('Material da coordenação', () => {
     await expect(caixaDeEnvio(page).getByRole('alert').filter({ hasText: 'Envio recusado.' })).toHaveText(`Envio recusado. ${TEXTO_SEM_DECLARACAO}`, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(linhaDe(page, 'Outro capítulo').getByText('Envio recusado · sem declaração')).toBeVisible()
     expect(await materiaisNoBanco(cenario.coordenadora.escolaId)).toEqual([])
-    expect((await recusasNaAuditoria(cenario.coordenadora.escolaId)).map((recusa) => recusa.motivo)).toEqual(['sem_licenca', 'sem_declaracao'])
+    // Sem ordem: a auditoria ordena por `em`, e o relógio da máquina de teste (WSL) às vezes volta alguns segundos entre as duas recusas.
+    expect((await recusasNaAuditoria(cenario.coordenadora.escolaId)).map((recusa) => recusa.motivo).toSorted()).toEqual(['sem_declaracao', 'sem_licenca'])
 
     expect(await larguraExcedenteDoDialogo(page)).toBe(0)
     expect(await seriousViolations(page)).toEqual([])
@@ -310,7 +320,7 @@ test.describe('Material da coordenação', () => {
     // Reabrir o diálogo começa de um formulário novo: o rascunho e o aviso da tentativa anterior saem, e a recusa continua na tabela.
     await cancelarEnvio(page, hasTouch)
     await abrirEnvio(page, hasTouch)
-    await expect(caixaDeEnvio(page).getByLabel('Título')).toHaveValue('')
+    await expect(caixaDeEnvio(page).getByLabel(/^Título/)).toHaveCount(0)
     await expect(caixaDeEnvio(page).getByRole('alert').filter({ hasText: 'Envio recusado.' })).toHaveCount(0)
     await cancelarEnvio(page, hasTouch)
     await expect(linhasDaLista(page)).toHaveCount(2)
@@ -332,13 +342,77 @@ test.describe('Material da coordenação', () => {
     await expect(caixaDeEnvio(page).getByRole('alert').filter({ hasText: 'Envio recusado.' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     expect(await materiaisNoBanco(cenario.coordenadora.escolaId)).toEqual([])
 
-    // A coordenação corrige a licença no mesmo diálogo e envia de novo.
-    await preencher(page, cenario)
+    // A coordenação corrige a licença no mesmo diálogo e envia de novo: o arquivo continua na lista, e não entra duas vezes.
+    await preencher(page, cenario, { comArquivo: false })
     await activate(enviar(page), hasTouch)
     await expect(caixaDeEnvio(page)).toHaveCount(0, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(linhaDe(page, TITULO).getByText('Pronto · 6 páginas')).toBeVisible({ timeout: PRAZO_DA_LEITURA_MS })
     await expect(linhaDe(page, TITULO).getByText('Envio recusado · sem licença')).toBeVisible()
     expect(await materiaisNoBanco(cenario.coordenadora.escolaId)).toEqual([expect.objectContaining({ titulo: TITULO, estado: 'pronto', paginas: 6 })])
+  })
+
+  /** Os três PDFs do lote: o segundo tem um comentário a mais no fim (outro conteúdo, entra), e o terceiro repete o primeiro com outro nome. */
+  const tresPdfs = () => {
+    const pdf = readFileSync(CAMINHO_DO_PDF_DE_DEMONSTRACAO)
+    return [
+      { name: 'capitulo-um.pdf', mimeType: 'application/pdf', buffer: pdf },
+      { name: 'capitulo-dois.pdf', mimeType: 'application/pdf', buffer: Buffer.concat([pdf, Buffer.from('\n% outro conteúdo\n')]) },
+      { name: 'capitulo-um-de-novo.pdf', mimeType: 'application/pdf', buffer: pdf },
+    ]
+  }
+
+  /** Disciplina, série, titularidade, licença de uso e declaração do lote, sem tocar nos títulos (cada arquivo tem o seu). */
+  async function preencherOLote(page: Page, cenario: Cenario): Promise<void> {
+    const caixa = caixaDeEnvio(page)
+    await caixa.getByLabel('Disciplina').selectOption({ label: cenario.estrutura.disciplina.nome })
+    await caixa.getByRole('checkbox', { name: SERIE_DA_ESTRUTURA }).check()
+    await caixa.getByLabel('De quem é o material').selectOption({ label: 'Material próprio da escola' })
+    await caixa.getByLabel('Licença de uso (obrigatória)').selectOption({ label: 'Autoria da escola ou de professor dela' })
+    await declaracao(page).check()
+  }
+
+  test('o lote de três PDFs, um repetido: dois entram, o repetido é "já enviado", e o título de cada um vem do nome do arquivo e se edita', async ({ page, hasTouch, request }) => {
+    // O preparo e os três envios em sequência, na rede lenta, passam dos 30 s do relógio com folga pequena (regra 50, item 1).
+    test.slow()
+    const cenario = await abrirMaterial(page, request)
+    await expect(lista(page).getByText('Nenhum material ainda')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+    await abrirEnvio(page, hasTouch)
+    await arquivo(page).setInputFiles(tresPdfs())
+    const caixa = caixaDeEnvio(page)
+    await expect(caixa.getByRole('list', { name: 'Arquivos do lote' }).getByRole('listitem')).toHaveCount(3)
+    await expect(caixa.getByLabel('Título de capitulo-um.pdf')).toHaveValue('capitulo um')
+    await expect(caixa.getByLabel('Título de capitulo-dois.pdf')).toHaveValue('capitulo dois')
+    await caixa.getByLabel('Título de capitulo-um-de-novo.pdf').fill('Capítulo um, outra cópia')
+    await preencherOLote(page, cenario)
+
+    await activate(caixa.getByRole('button', { name: 'Enviar 3 materiais' }), hasTouch)
+    // O lote não deixa pendência: o diálogo fecha, e a tela diz quantos entraram.
+    await expect(caixaDeEnvio(page)).toHaveCount(0, { timeout: PRAZO_DA_LEITURA_MS })
+    await expect(anuncio(page, '2 materiais enviados. A leitura das páginas começa agora e leva alguns instantes.')).toBeVisible()
+    const novos = await materiaisNoBanco(cenario.coordenadora.escolaId)
+    expect(novos.map((material) => material.titulo).toSorted()).toEqual(['capitulo dois', 'capitulo um'])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
+  })
+
+  test('numa escola com 300 materiais o lote cabe em 1366 × 768: a página não rola, o diálogo rola dentro dele, e a lista dos 300 continua atrás', async ({ page, hasTouch, request }) => {
+    // A lista de 300 linhas na rede e na CPU lentas é o que pesa aqui: o caso do envio, com os três arquivos, é o de cima (cada um passa de 15 s
+    // sozinho se juntos, e o limite de duração do portão é por caso).
+    test.slow()
+    const cenario = await abrirMaterial(page, request, async ({ coordenadora, estrutura }) => {
+      await criarMateriaisNoBanco(coordenadora.escolaId, estrutura.disciplina.id, 300)
+    })
+    await expect(linhasDaLista(page).first()).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+    await abrirEnvio(page, hasTouch)
+    await arquivo(page).setInputFiles(tresPdfs())
+    await expect(caixaDeEnvio(page).getByRole('list', { name: 'Arquivos do lote' }).getByRole('listitem')).toHaveCount(3)
+    await preencherOLote(page, cenario)
+    await page.setViewportSize({ width: 1366, height: 768 })
+    await paginaNaoRola(page)
+    expect(await larguraExcedenteDoDialogo(page)).toBe(0)
+    // O botão de enviar continua à vista sem rolar a página: o rodapé do diálogo não sai da janela.
+    await expect(caixaDeEnvio(page).getByRole('button', { name: 'Enviar 3 materiais' })).toBeInViewport()
+    expect(await materiaisNoBanco(cenario.coordenadora.escolaId)).toHaveLength(300)
   })
 
   test('o texto do campo "De quem é o material" cabe inteiro, também na opção mais longa: a coordenação lê a titularidade que declarou', async ({ page, hasTouch, request }) => {
@@ -379,8 +453,10 @@ test.describe('Material da coordenação', () => {
     const caixa = caixaDeEnvio(page)
     await activate(enviar(page), hasTouch)
     await expect(caixa.getByText('Escolha o PDF do material.')).toBeVisible()
-    await expect(caixa.getByText('Dê um título ao material, como ele aparece no livro ou na apostila.')).toBeVisible()
+    // O título é de cada arquivo da lista: sem arquivo, não há título para cobrar.
+    await expect(caixa.getByLabel(/^Título/)).toHaveCount(0)
     await expect(caixa.getByText('Escolha a disciplina do material.')).toBeVisible()
+    await expect(caixa.getByText('Marque ao menos uma série: é por ela que o professor e o Tutor acham o material.')).toBeVisible()
     await expect(caixa.getByText('Diga de quem é o material.')).toBeVisible()
     await expect(caixa.getByText('Escolha a licença de uso. Sem licença declarada, o material não entra.')).toBeVisible()
     // O foco vai ao primeiro campo com erro: o arquivo.
@@ -390,11 +466,10 @@ test.describe('Material da coordenação', () => {
     await expect(caixa.getByText('O arquivo não é um PDF que conseguimos abrir. Confira o arquivo e envie de novo.')).toBeVisible()
     await expect(caixa.getByRole('button', { name: 'Escolher arquivo' })).toBeVisible()
 
-    // Material de terceiro pede quem deu a licença.
+    // Material de terceiro cita uma licença registrada: a escola não tem nenhuma, e o diálogo manda registrá-la primeiro.
     await caixa.getByLabel('De quem é o material').selectOption({ label: 'Material de terceiro, com licença' })
-    await expect(caixa.getByLabel('Quem deu a licença')).toBeVisible()
-    await activate(enviar(page), hasTouch)
-    await expect(caixa.getByText('Diga quem é o dono do conteúdo que deu a licença.')).toBeVisible()
+    await expect(caixa.getByText('Registre a licença primeiro.')).toBeVisible()
+    await expect(caixa.getByRole('link', { name: 'Ir para Licenças' })).toBeVisible()
     expect(envios).toBe(0)
     expect(await larguraExcedenteDoDialogo(page)).toBe(0)
     expect(await seriousViolations(page)).toEqual([])
@@ -417,7 +492,7 @@ test.describe('Material da coordenação', () => {
     }
     await (await seletor).setFiles(CAMINHO_DO_PDF_DE_DEMONSTRACAO)
     await expect(escolhido(page, 'quimica-2-cap-7-estequiometria.pdf')).toBeVisible()
-    await expect(caixaDeEnvio(page).getByRole('button', { name: 'Trocar arquivo' })).toBeVisible()
+    await expect(caixaDeEnvio(page).getByRole('button', { name: 'Escolher mais arquivos' })).toBeVisible()
 
     // Arrastado: o mesmo PDF solto na área, com outro nome.
     const bytes = [...readFileSync(CAMINHO_DO_PDF_DE_DEMONSTRACAO)]
@@ -426,18 +501,18 @@ test.describe('Material da coordenação', () => {
       dados.items.add(new File([new Uint8Array(conteudo)], 'capitulo-arrastado.pdf', { type: 'application/pdf' }))
       return dados
     }, bytes)
-    await escolhido(page, 'quimica-2-cap-7-estequiometria.pdf').dispatchEvent('drop', { dataTransfer: transferencia })
+    await areaDeSoltar(page).dispatchEvent('drop', { dataTransfer: transferencia })
     await expect(escolhido(page, 'capitulo-arrastado.pdf')).toBeVisible()
 
-    // Dois arquivos soltos de uma vez: um por vez.
+    // Dois arquivos soltos de uma vez: os dois entram na lista, que agora tem quatro (o lote leva até 20).
     const duas = await page.evaluateHandle(() => {
       const dados = new DataTransfer()
       dados.items.add(new File(['%PDF-1.4 a'], 'a.pdf', { type: 'application/pdf' }))
       dados.items.add(new File(['%PDF-1.4 b'], 'b.pdf', { type: 'application/pdf' }))
       return dados
     })
-    await escolhido(page, 'capitulo-arrastado.pdf').dispatchEvent('drop', { dataTransfer: duas })
-    await expect(caixaDeEnvio(page).getByText('Envie um arquivo por vez. Escolha só o PDF deste material.')).toBeVisible()
+    await areaDeSoltar(page).dispatchEvent('drop', { dataTransfer: duas })
+    await expect(caixaDeEnvio(page).getByRole('list', { name: 'Arquivos do lote' }).getByRole('listitem')).toHaveCount(4)
   })
 
   // Os quatro estados, em três casos: juntos, com a entrada da coordenação, três varreduras de acessibilidade e a leitura
@@ -601,9 +676,11 @@ test.describe('Material da coordenação', () => {
     await preencher(page, cenario)
     await activate(enviar(page), hasTouch)
 
-    const alerta = caixaDeEnvio(page).getByRole('alert').filter({ hasText: TEXTO_INDISPONIVEL })
-    await expect(alerta).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
-    await expect(alerta).toBeFocused()
+    // A falha é do arquivo, e fica nele: o lote diz que nenhum saiu, o foco vai ao resumo, e o botão passa a tentar de novo os que falharam.
+    const falhou = caixaDeEnvio(page).getByRole('listitem').filter({ hasText: TEXTO_FALHA_DO_ENVIO })
+    await expect(falhou).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(caixaDeEnvio(page).locator('p', { hasText: '0 de 1 enviado' })).toBeFocused()
+    await expect(caixaDeEnvio(page).getByRole('button', { name: 'Tentar de novo os que falharam' })).toBeVisible()
     await expect(caixaDeEnvio(page).getByLabel('Título')).toHaveValue(TITULO)
     await expect(escolhido(page, 'quimica-2-cap-7-estequiometria.pdf')).toBeVisible()
     expect(await larguraExcedenteDoDialogo(page)).toBe(0)
@@ -614,8 +691,8 @@ test.describe('Material da coordenação', () => {
     await cancelarEnvio(page, hasTouch)
     await expect(lista(page).getByText('Nenhum material ainda')).toBeVisible()
     await abrirEnvio(page, hasTouch)
-    await expect(caixaDeEnvio(page).getByLabel('Título')).toHaveValue('')
-    await expect(caixaDeEnvio(page).getByRole('alert').filter({ hasText: TEXTO_INDISPONIVEL })).toHaveCount(0)
+    await expect(caixaDeEnvio(page).getByLabel(/^Título/)).toHaveCount(0)
+    await expect(caixaDeEnvio(page).getByText(TEXTO_FALHA_DO_ENVIO)).toHaveCount(0)
     await expect(caixaDeEnvio(page).getByRole('button', { name: 'Escolher arquivo' })).toBeVisible()
   })
 
@@ -629,7 +706,6 @@ test.describe('Material da coordenação', () => {
     await activate(botaoDaLinha(page, 'Capítulo sem texto'), hasTouch)
     await activate(painelDe(page, 'Capítulo sem texto').getByRole('button', { name: 'Tentar de novo' }), hasTouch)
     await expect(caixaDeEnvio(page)).toBeVisible()
-    await expect(caixaDeEnvio(page).getByLabel('Título')).toHaveValue('Capítulo sem texto')
     await expect(caixaDeEnvio(page).getByLabel('Licença de uso (obrigatória)')).toHaveValue('autoria_da_escola')
     await expect(declaracao(page)).not.toBeChecked()
     await expect(caixaDeEnvio(page).getByRole('button', { name: 'Escolher arquivo' })).toBeFocused()
@@ -637,6 +713,9 @@ test.describe('Material da coordenação', () => {
 
     // Com o arquivo de verdade, o material entra, e o que falhou sai da lista e do endereço.
     await arquivo(page).setInputFiles(CAMINHO_DO_PDF_DE_DEMONSTRACAO)
+    // O título que o material declarava vai para o arquivo escolhido, e a série (que o material de antes da F4 não tinha) se marca de novo.
+    await expect(caixaDeEnvio(page).getByLabel('Título')).toHaveValue('Capítulo sem texto')
+    await caixaDeEnvio(page).getByRole('checkbox', { name: SERIE_DA_ESTRUTURA }).check()
     await declaracao(page).check()
     await activate(enviar(page), hasTouch)
     await expect(caixaDeEnvio(page)).toHaveCount(0, { timeout: SIGN_IN_TIMEOUT_MS })

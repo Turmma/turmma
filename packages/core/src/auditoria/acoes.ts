@@ -24,7 +24,9 @@ import {
   FINALIDADES_DA_REDEFINICAO_DE_MFA,
   LICENCAS_DE_MATERIAL,
   LICENCAS_DECLARAVEIS,
+  MAXIMO_DE_SERIES_DO_MATERIAL,
   MOTIVOS_DA_RECUSA_DO_MATERIAL,
+  MOTIVOS_DA_RECUSA_PELA_LICENCA_REGISTRADA,
   MOTIVOS_DE_DESTAQUE,
   MOTIVOS_DE_ENCERRAMENTO_PELA_COORDENACAO,
   MOTIVOS_DE_SUSPENSAO,
@@ -595,9 +597,10 @@ export const ACOES_DE_AUDITORIA = {
     finalidade: null,
   },
   /**
-   * O envio foi recusado antes de abrir o arquivo (MVP, A2; D5): sem licença que permita o uso, ou sem a declaração
-   * marcada. **Não há linha em `material`**, e por isso `entidadeId` é a disciplina para a qual o material ia. Leva o que
-   * foi declarado e o motivo; a resposta foi `MATERIAL_SEM_LICENCA`.
+   * O envio foi recusado antes de abrir o arquivo (MVP, A2; D5): sem licença que permita o uso, sem a declaração
+   * marcada ou, no material de terceiro, sem licença registrada vigente (ingestao-do-material, 7.0). **Não há linha em `material`**, e por isso `entidadeId` é a disciplina para a qual o
+   * material ia. Leva o que foi declarado, as séries **da escola** que o pedido trazia (só as que a conferência achou: o id de série de outra escola nunca chega aqui) e o motivo; a
+   * resposta foi `MATERIAL_SEM_LICENCA`, `LICENCA_VENCIDA` (motivo `licenca_vencida`) ou `NAO_ENCONTRADO` (motivo `licenca_inexistente`, a licença que não é da escola).
    */
   'material.recusado': {
     entidade: 'disciplina',
@@ -606,7 +609,8 @@ export const ACOES_DE_AUDITORIA = {
       titularidade: z.enum(TITULARIDADES_DE_MATERIAL),
       licenca: z.enum(LICENCAS_DECLARAVEIS),
       declaracao: z.boolean(),
-      motivo: z.enum(MOTIVOS_DA_RECUSA_DO_MATERIAL),
+      serieIds: z.array(z.uuid()).min(1).max(MAXIMO_DE_SERIES_DO_MATERIAL),
+      motivo: z.enum([...MOTIVOS_DA_RECUSA_DO_MATERIAL, ...MOTIVOS_DA_RECUSA_PELA_LICENCA_REGISTRADA]),
     }),
     finalidade: null,
   },

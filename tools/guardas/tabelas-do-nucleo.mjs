@@ -42,6 +42,7 @@ export const TABELAS_DO_NUCLEO = [
   'linkDaConta',
   'listaNome',
   'material',
+  'materialSerie',
   'mensagemAgente',
   'mensagemTutor',
   'operador',

@@ -1,4 +1,4 @@
-import { DEFAULT_RETRY_AFTER_SECONDS, DomainException, AuditoriaRecorder, FileStorageUnavailableError, JobOutbox, postgresErrorIn, summarizeError, requestSessao, type Database, type FileStorage, type LoggerBase } from '@educa/core'
+import { DEFAULT_RETRY_AFTER_SECONDS, DomainException, AuditoriaRecorder, diaDeUso, FileStorageUnavailableError, JobOutbox, postgresErrorIn, summarizeError, requestSessao, systemClock, type Clock, type Database, type FileStorage, type LoggerBase } from '@educa/core'
 import {
   alcanceDe,
   ErrorCode,
@@ -8,9 +8,12 @@ import {
   materialComCapitulosResponseSchema,
   materialResponseSchema,
   motivoDaRecusaDoMaterial,
+  situacaoDaLicenca,
   type BuscaDeMaterialQuery,
   type MateriaisQuery,
   type LicencaDeMaterial,
+  type MotivoDaRecusaDoMaterial,
+  type MotivoDaRecusaPelaLicencaRegistrada,
   type EnviarMaterialRequest,
   type BuscaDeMaterialResponse,
   type ListaDeMateriaisResponse,
@@ -21,6 +24,7 @@ import { createHash } from 'node:crypto'
 import { DisciplinaRepository } from '@educa/core/estrutura'
 import { chaveDoTemporario, EnvioDeMaterialRepository, ExtracaoDoMaterialRepository, PRAZO_DO_OBJETO_DO_MATERIAL_MS, temAssinaturaDePdf, uuidV7 } from '@educa/core/material'
 import { paginar } from '../http/pagination.js'
+import { LicencaRepository, type VigenciaDaLicenca } from './licenca.repository.js'
 import { MaterialRepository, type AlcanceDoMaterial, type MaterialLido } from './material.repository.js'
 import { trechoCitado } from './trecho-citado.js'
 
@@ -42,6 +46,15 @@ export const ENVIOS_POR_ESCOLA_NA_JANELA = 60
 export const MATERIAIS_EM_PROCESSAMENTO_POR_ESCOLA = 3
 /** Quanto esperar antes de enviar de novo quando o teto é o do processamento: o tempo de uma extração. */
 const ESPERA_PELO_PROCESSAMENTO_S = 30
+
+/** A licença registrada vale hoje? `futura` e `vencida` não valem: o dia do fim ainda vale, e a licença sem fim vale até a coordenação a encerrar (RF16 e RF17). */
+function licencaValeEm(hoje: string, licenca: VigenciaDaLicenca): boolean {
+  const situacao = situacaoDaLicenca(hoje, licenca.vigenteDesde, licenca.vigenteAte)
+  return situacao === 'vigente' || situacao === 'vence_em_30_dias'
+}
+
+/** A licença que valia ao ler o pedido já não vale na transação do envio (a coordenação encurtou a vigência no meio): o envio desfaz e responde `LICENCA_VENCIDA`. */
+class LicencaDeixouDeValerNoEnvio extends Error {}
 
 /** O arquivo como o recebimento o entrega: os bytes e o tamanho. O nome e o tipo declarado não entram em regra nenhuma. */
 export interface ArquivoRecebido {
@@ -87,6 +100,8 @@ export interface MaterialDependencies {
   readonly enfileirador: Pick<JobOutbox, 'enfileirarUmaVez'>
   /** O logger JSON do processo: as linhas levam o id do material e medidas, que o `Logger` do Nest não carrega. */
   readonly logger: Pick<LoggerBase, 'info' | 'warn'>
+  /** O relógio da vigência da licença (o dia de São Paulo, `diaDeUso`): o teste injeta o dele; nunca vem do ambiente. Sem ele, o do sistema. */
+  readonly relogio?: Clock
 }
 
 /**
@@ -102,17 +117,53 @@ export interface MaterialDependencies {
 export class MaterialService {
   constructor(private readonly dependencias: MaterialDependencies) {}
 
+  /** O dia de São Paulo em que a licença é conferida: às 23h do último dia ela ainda vale, e às 0h01 do seguinte não. */
+  #hoje(): string {
+    return diaDeUso((this.dependencias.relogio ?? systemClock).agora())
+  }
+
+  /** A recusa fica na auditoria, fora de qualquer transação do envio (o `rollback` dela não a leva), com as séries **já conferidas** da escola. */
+  async #registrarRecusa(pedido: EnviarMaterialRequest, disciplinaId: string, serieIds: readonly string[], motivo: MotivoDaRecusaDoMaterial | MotivoDaRecusaPelaLicencaRegistrada): Promise<void> {
+    await this.dependencias.banco.transaction((tx) =>
+      registro.gravar(tx, 'material.recusado', {
+        entidadeId: disciplinaId,
+        depois: { titularidade: pedido.titularidade, licenca: pedido.licenca, declaracao: pedido.declaracao, serieIds: [...serieIds], motivo },
+      }),
+    )
+    const codigo: string = motivo
+    this.dependencias.logger.info({ evento: 'material.recusado', disciplinaId, codigo })
+  }
+
+  /**
+   * A licença registrada que o material de terceiro cita, lida antes de o arquivo ser aberto: a que não é da escola ou não existe responde `NAO_ENCONTRADO` (a de outra escola, igual à
+   * inexistente), e a vencida ou ainda não vigente, `LICENCA_VENCIDA`. As duas gravam a recusa. O que não é de terceiro nunca traz `licencaId` (o contrato o recusa).
+   */
+  async #exigirLicencaVigente(pedido: EnviarMaterialRequest, disciplinaId: string, serieIds: readonly string[], licencaId: string): Promise<void> {
+    const registrada = await new LicencaRepository(this.dependencias.banco).paraUso(licencaId, false)
+    if (registrada === undefined) {
+      await this.#registrarRecusa(pedido, disciplinaId, serieIds, 'licenca_inexistente')
+      throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+    }
+    if (!licencaValeEm(this.#hoje(), registrada)) {
+      await this.#registrarRecusa(pedido, disciplinaId, serieIds, 'licenca_vencida')
+      throw new DomainException(ErrorCode.LICENCA_VENCIDA)
+    }
+  }
+
   /**
    * `POST /v1/materiais`. A ordem é a regra (D5, D75), e o teste a confere:
    *
-   * 1. a disciplina é da escola da sessão, ou `NAO_ENCONTRADO` (a permissão já passou pela guarda);
-   * 2. **a licença, antes de abrir o arquivo**: sem licença que permita o uso, ou sem a declaração marcada, grava
-   *    `material.recusado` na auditoria e responde `MATERIAL_SEM_LICENCA`. Nenhuma linha em `material`, e nenhum byte
-   *    do arquivo é lido — nem a assinatura. O pedido recusado nem precisa trazer arquivo;
+   * 1. a disciplina e as séries são da escola da sessão, ou `NAO_ENCONTRADO` (a permissão já passou pela guarda): a série da outra escola responde como a inexistente, e a
+   *    auditoria nunca leva o id dela;
+   * 2. **a licença, antes de abrir o arquivo**: sem licença que permita o uso, sem a declaração marcada ou, no material de terceiro, sem licença registrada, grava
+   *    `material.recusado` na auditoria (com as séries) e responde `MATERIAL_SEM_LICENCA`. A licença registrada que não é da escola ou não existe responde `NAO_ENCONTRADO`, e a vencida
+   *    ou ainda não vigente, `LICENCA_VENCIDA`, as duas também gravadas. Nenhuma linha em `material`, e nenhum byte do arquivo é lido — nem a assinatura. O pedido recusado nem precisa
+   *    trazer arquivo;
    * 3. só então o arquivo: precisa existir e ter a assinatura de PDF no conteúdo, ou `ENTRADA_INVALIDA` (o tamanho já
    *    foi limitado no recebimento);
-   * 4. os tetos de envio, com a escola travada, e a gravação do material `processando` com `material.enviado`, na
-   *    mesma transação. O mesmo arquivo de novo na escola é `CONFLITO`, pelo índice único;
+   * 4. os tetos de envio, com a escola travada, **a licença de novo, `for share`** (um `PATCH` da vigência espera o envio; a que deixou de valer desfaz o envio, grava a recusa e responde
+   *    `LICENCA_VENCIDA`), e a gravação do material `processando` com as séries e `material.enviado`, na mesma transação. O licenciante do material é o da licença, nunca o do pedido. O
+   *    mesmo arquivo de novo na escola é `CONFLITO`, pelo índice único;
    * 5. o job de extração é pedido e a resposta sai, com o material ainda `processando` (regra 00, item 4).
    *
    * O arquivo é guardado no storage privado **antes** da transação, com o id do material na chave, e a linha de `envio_de_material` nasce **antes**
@@ -126,21 +177,19 @@ export class MaterialService {
     const { banco, armazem, enfileirador, logger } = this.dependencias
     const disciplinaId = pedido.disciplinaId.toLowerCase()
     if ((await new DisciplinaRepository(banco).porId(disciplinaId)) === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+    // Em minúsculas, como o banco as devolve: a resposta e a auditoria levam o mesmo texto que a lista do material.
+    const serieIds = pedido.serieIds.map((id) => id.toLowerCase())
+    if ((await new MaterialRepository(banco).seriesDaEscola(serieIds)).length !== serieIds.length) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
 
     const motivo = motivoDaRecusaDoMaterial(pedido)
     if (motivo !== null) {
-      await banco.transaction((tx) =>
-        registro.gravar(tx, 'material.recusado', {
-          entidadeId: disciplinaId,
-          depois: { titularidade: pedido.titularidade, licenca: pedido.licenca, declaracao: pedido.declaracao, motivo },
-        }),
-      )
-      const codigo: string = motivo
-      logger.info({ evento: 'material.recusado', disciplinaId, codigo })
+      await this.#registrarRecusa(pedido, disciplinaId, serieIds, motivo)
       throw new DomainException(ErrorCode.MATERIAL_SEM_LICENCA)
     }
     // Depois da recusa, a licença é uma das quatro com que um material entra.
     const licenca = pedido.licenca as LicencaDeMaterial
+    const licencaId = pedido.licencaId?.toLowerCase()
+    if (licencaId !== undefined) await this.#exigirLicencaVigente(pedido, disciplinaId, serieIds, licencaId)
 
     if (!ehArquivoRecebido(arquivo) || arquivo.size === 0 || !temAssinaturaDePdf(arquivo.buffer)) throw new DomainException(ErrorCode.ENTRADA_INVALIDA)
     const bytes = arquivo.buffer
@@ -156,7 +205,21 @@ export class MaterialService {
         const materiais = new MaterialRepository(tx)
         await materiais.travarEnviosDaEscola()
         await this.#exigirDentroDosTetos(materiais)
-        const novo = await materiais.inserir({ id, disciplinaId, titulo: pedido.titulo, titularidade: pedido.titularidade, licenciante: pedido.licenciante ?? null, licenca, sha256, tamanhoBytes: bytes.byteLength })
+        // A licença do envio, lida de novo e **travada** (`for share`): o `PATCH` que encurta a vigência (`for update`) espera este envio terminar.
+        const vigente = licencaId === undefined ? undefined : await new LicencaRepository(tx).paraUso(licencaId, true)
+        if (licencaId !== undefined && (vigente === undefined || !licencaValeEm(this.#hoje(), vigente))) throw new LicencaDeixouDeValerNoEnvio()
+        const novo = await materiais.inserir({
+          id,
+          disciplinaId,
+          titulo: pedido.titulo,
+          titularidade: pedido.titularidade,
+          licenciante: vigente?.licenciante ?? null,
+          licencaId: licencaId ?? null,
+          licenca,
+          sha256,
+          tamanhoBytes: bytes.byteLength,
+        })
+        await materiais.gravarSeries(novo.id, serieIds)
         await registro.gravar(tx, 'material.enviado', { entidadeId: novo.id, depois: { disciplinaId, titularidade: pedido.titularidade, licenca, declaracao: true } })
         await enfileirador.enfileirarUmaVez(tx, TIPO_EXTRAIR_PDF, { materialId: novo.id }, novo.id)
         // A linha sai com o commit. Sem ela, a varredura já a levou (e o objeto com ela): o envio foi lento demais e desfaz, sem material sem objeto.
@@ -164,15 +227,19 @@ export class MaterialService {
         return novo
       })
       .catch(async (erro: unknown) => {
-        // Teto, duplicado, trava ou banco fora: nenhuma linha de material ficou, então o objeto não tem dono. O objeto sai primeiro e a linha do envio só depois.
+        // Teto, duplicado, licença, trava ou banco fora: nenhuma linha de material ficou, então o objeto não tem dono. O objeto sai primeiro e a linha do envio só depois.
         await this.#desfazerEnvio(id)
+        if (erro instanceof LicencaDeixouDeValerNoEnvio) {
+          await this.#registrarRecusa(pedido, disciplinaId, serieIds, 'licenca_vencida')
+          throw new DomainException(ErrorCode.LICENCA_VENCIDA)
+        }
         if (postgresErrorIn(erro)?.code === TRAVA_NAO_DISPONIVEL) throw new DomainException(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, undefined, DEFAULT_RETRY_AFTER_SECONDS)
         throw erro
       })
     const tamanho = bytes.byteLength
     logger.info({ evento: 'material.enviado', materialId: gravado.id, tamanho })
     // Quem envia é sempre a coordenação (a célula `material.enviar` é só dela): recebe o que declarou.
-    return paraResposta(gravado, 'unidade')
+    return paraResposta({ ...gravado, serieIds: serieIds.toSorted() }, 'unidade')
   }
 
   /**

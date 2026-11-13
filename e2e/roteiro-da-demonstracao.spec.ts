@@ -342,22 +342,24 @@ test.describe('o roteiro da demonstração, de ponta a ponta', () => {
       await principal(coordenacao).getByRole('button', { name: 'Enviar material' }).click()
       const envio = coordenacao.getByRole('dialog', { name: 'Enviar material' })
       await expect(envio).toBeVisible()
-      const preencher = async (licenca: string) => {
-        await coordenacao.getByTestId('arquivo-do-material').setInputFiles(CAMINHO_DO_PDF_DE_DEMONSTRACAO)
+      // O arquivo entra uma vez só: o diálogo continua aberto, com ele na lista, depois da recusa (ingestao-do-material, 7.0).
+      const preencher = async (licenca: string, comArquivo: boolean) => {
+        if (comArquivo) await coordenacao.getByTestId('arquivo-do-material').setInputFiles(CAMINHO_DO_PDF_DE_DEMONSTRACAO)
         await envio.getByLabel('Título').fill(TITULO_DO_MATERIAL)
         await envio.getByLabel('Disciplina').selectOption({ label: DISCIPLINA })
+        await envio.getByRole('checkbox', { name: SERIE }).check()
         await envio.getByLabel('De quem é o material').selectOption({ label: 'Material próprio da escola' })
         await envio.getByLabel('Licença de uso (obrigatória)').selectOption({ label: licenca })
         await envio.getByLabel(/^Declaro que a escola pode usar este material/).check()
         await envio.getByRole('button', { name: 'Enviar material' }).click()
       }
-      await preencher('Não tenho a licença, ou não sei')
+      await preencher('Não tenho a licença, ou não sei', true)
       await expect(envio.getByRole('alert').filter({ hasText: 'Envio recusado.' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
       expect(await materiaisNoBanco(escolaId)).toEqual([])
       expect(await recusasNaAuditoria(escolaId)).toEqual([{ motivo: 'sem_licenca', licenca: 'sem_licenca', declaracao: true }])
 
       // O diálogo continua aberto com o que foi digitado: a coordenação corrige a licença e envia de novo.
-      await preencher('Autoria da escola ou de professor dela')
+      await preencher('Autoria da escola ou de professor dela', false)
       const material = linhasDaTabela(principal(coordenacao).getByRole('region', { name: 'Materiais da escola' })).filter({ hasText: TITULO_DO_MATERIAL }).filter({ hasText: 'Pronto' })
       await expect(material.getByText('Pronto · 6 páginas')).toBeVisible({ timeout: AI_TIMEOUT_MS })
       expect(await materiaisNoBanco(escolaId)).toEqual([expect.objectContaining({ titulo: TITULO_DO_MATERIAL, estado: 'pronto', paginas: 6, trechos: 6 })])

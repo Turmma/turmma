@@ -324,14 +324,6 @@
       "count": 1
     }
   },
-  "apps/web/src/areas/coordenacao/material/DialogoDeEnvioDeMaterial.tsx": {
-    "complexity": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
   "apps/web/src/areas/coordenacao/material/Material.tsx": {
     "complexity": {
       "count": 1
@@ -343,11 +335,6 @@
   "apps/web/src/areas/coordenacao/material/api/material.ts": {
     "complexity": {
       "count": 2
-    }
-  },
-  "apps/web/src/areas/coordenacao/material/material-envio.ts": {
-    "complexity": {
-      "count": 1
     }
   },
   "apps/web/src/areas/coordenacao/painel/Painel.tsx": {
