@@ -1,5 +1,5 @@
-import { requireEscolaId, material, requestSessao, trecho, vinculo, type Database, type DatabaseTransaction } from '@educa/core'
-import type { MateriaisQuery, EstadoDeMaterial, FalhaDeMaterial, LicencaDeMaterial, TitularidadeDeMaterial } from '@educa/shared'
+import { requireEscolaId, capituloDoMaterial, material, requestSessao, trecho, vinculo, type Database, type DatabaseTransaction } from '@educa/core'
+import type { CapituloDoMaterial, MateriaisQuery, EstadoDeMaterial, FalhaDeMaterial, LicencaDeMaterial, TitularidadeDeMaterial } from '@educa/shared'
 import { and, asc, desc, eq, exists, gt, gte, isNull, sql, type SQL } from 'drizzle-orm'
 import { InvariantException } from '@educa/shared'
 
@@ -187,6 +187,15 @@ export class MaterialRepository {
       .from(material)
       .where(and(eq(material.escolaId, requireEscolaId()), eq(material.id, id), isNull(material.excluidoEm), this.#noAlcance(alcance)))
     return linha
+  }
+
+  /** Os capítulos do material da escola do contexto, em ordem. Quem chama já conferiu que o material é alcançado (`porId`); a escola vem do contexto. */
+  capitulos(materialId: string): Promise<CapituloDoMaterial[]> {
+    return this.banco
+      .select({ ordem: capituloDoMaterial.ordem, numero: capituloDoMaterial.numero, titulo: capituloDoMaterial.titulo, paginaInicial: capituloDoMaterial.paginaInicial, paginaFinal: capituloDoMaterial.paginaFinal })
+      .from(capituloDoMaterial)
+      .where(and(eq(capituloDoMaterial.escolaId, requireEscolaId()), eq(capituloDoMaterial.materialId, materialId)))
+      .orderBy(asc(capituloDoMaterial.ordem))
   }
 
   /**

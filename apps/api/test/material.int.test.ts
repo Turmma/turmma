@@ -1,10 +1,13 @@
-import { InMemoryFileStorage, runInContext } from '@educa/core'
+import { InMemoryFileStorage, runInContext, type Database } from '@educa/core'
 import type { ResultadoDaExtracao } from '@educa/core/material'
-import { ErrorCode, buscaDeMaterialResponseSchema, listaDeMateriaisResponseSchema, materialResponseSchema, MAXIMO_DE_BYTES_DO_MATERIAL, TAMANHO_MAXIMO_DO_TRECHO_CITADO } from '@educa/shared'
+import { ErrorCode, buscaDeMaterialResponseSchema, listaDeMateriaisResponseSchema, materialComCapitulosResponseSchema, materialResponseSchema, MAXIMO_DE_BYTES_DO_MATERIAL, TAMANHO_MAXIMO_DO_TRECHO_CITADO } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { linhasDoBloco, normalizarTexto, paginaDoMaterial, PAGINAS_DO_MATERIAL } from '../../../tools/demonstracao/conteudo-estequiometria.ts'
+import { AMOSTRAS_DE_CAPITULOS, montarPdfDaAmostra } from '../../../tools/demonstracao/amostra-de-capitulos.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
+import { DB } from '../src/database.module.js'
+import { MaterialRepository } from '../src/material/material.repository.js'
 import { TrechoSearch } from '../src/material/trecho-search.js'
 import { ENVIOS_POR_ESCOLA_NA_JANELA, ENVIOS_POR_USUARIO_NA_JANELA, MATERIAIS_EM_PROCESSAMENTO_POR_ESCOLA } from '../src/material/material.service.js'
 import { chamar, subirApi, type TestApi, type RespostaHttp } from './test-api.js'
@@ -122,8 +125,8 @@ describe('material da escola', () => {
       expect(resposta).toMatchObject({ titulo: 'Química 2 — Capítulo 7', disciplinaId: escola.quimica, titularidade: 'escola', licenciante: null, licenca: 'autoria_da_escola', estado: 'processando', falha: null, paginas: null, trechos: 0 })
 
       await esperarExtracao(api)
-      const lido = materialResponseSchema.parse((await get(escola.coordenacao, `/v1/materiais/${resposta.id}`)).corpo)
-      expect(lido).toMatchObject({ id: resposta.id, estado: 'pronto', falha: null, paginas: 6, trechos: 6 })
+      const lido = materialComCapitulosResponseSchema.parse((await get(escola.coordenacao, `/v1/materiais/${resposta.id}`)).corpo)
+      expect(lido).toMatchObject({ id: resposta.id, estado: 'pronto', falha: null, paginas: 6, trechos: 6, capitulos: [] })
 
       const trechos = await trechosDa(bancada, escola.coordenacao.escolaId)
       expect(trechos.map((trecho) => trecho.pagina)).toEqual([1, 2, 3, 4, 5, 6])
@@ -194,6 +197,105 @@ describe('material da escola', () => {
       const listadoPeloProfessor = await get(professor, '/v1/materiais')
       expect(listadoPeloProfessor.corpo['itens']).toEqual([expect.objectContaining({ id, licenciante: null })])
       expect(JSON.stringify([lidoPeloProfessor.corpo, listadoPeloProfessor.corpo])).not.toContain('Editora sintética')
+    })
+  })
+
+  describe('capítulos lidos do PDF (ingestao-do-material, tarefa 4.0; RF4)', () => {
+    const pdfDaAmostra = (nome: string): Buffer => {
+      const amostra = AMOSTRAS_DE_CAPITULOS.find((candidata) => candidata.nome === nome)
+      if (amostra === undefined) throw new Error(`a amostra ${nome} sumiu`)
+      return montarPdfDaAmostra(amostra)
+    }
+    const capitulosDe = async (sessao: TestSessao, id: string) => materialComCapitulosResponseSchema.parse((await get(sessao, `/v1/materiais/${id}`)).corpo).capitulos
+
+    const CAPITULOS_DO_MARCADOR = [
+      { ordem: 1, numero: 1, titulo: 'Capítulo 1: Mol e massa molar', paginaInicial: 1, paginaFinal: 2 },
+      { ordem: 2, numero: 2, titulo: 'Capítulo 2: Reações químicas', paginaInicial: 3, paginaFinal: 4 },
+      { ordem: 3, numero: null, titulo: 'Soluções', paginaInicial: 5, paginaFinal: 6 },
+    ]
+    const CAPITULOS_DA_LINHA = [
+      { ordem: 1, numero: 1, titulo: 'Capítulo 1: Mol e massa molar', paginaInicial: 1, paginaFinal: 3 },
+      { ordem: 2, numero: 2, titulo: 'Capítulo 2: Reações químicas', paginaInicial: 4, paginaFinal: 6 },
+    ]
+
+    it('o PDF com marcador termina `pronto` e devolve os capítulos em `GET /:id`, em ordem, à coordenação e ao professor da disciplina; a lista não os leva, e outro material da mesma escola tem os dele', async () => {
+      const escola = await montarEscolaComTurma(api, bancada)
+      const comMarcador = await materialPronto(escola, escola.quimica, pdfDaAmostra('marcador'))
+      const comLinha = await materialPronto(escola, escola.quimica, pdfDaAmostra('linha no topo'))
+      const professor = await professorCom(escola, escola.quimica, true)
+
+      const lido = materialComCapitulosResponseSchema.parse((await get(escola.coordenacao, `/v1/materiais/${comMarcador}`)).corpo)
+      expect(lido).toMatchObject({ id: comMarcador, estado: 'pronto', paginas: 6, trechos: 6 })
+      expect(lido.capitulos).toEqual(CAPITULOS_DO_MARCADOR)
+      expect(await capitulosDe(escola.coordenacao, comLinha)).toEqual(CAPITULOS_DA_LINHA)
+      expect(await capitulosDe(professor, comMarcador)).toEqual(CAPITULOS_DO_MARCADOR)
+
+      const lista = listaDeMateriaisResponseSchema.parse((await get(escola.coordenacao, '/v1/materiais')).corpo).itens
+      expect(lista.map(({ id }) => id)).toEqual([comMarcador, comLinha])
+      for (const item of lista) expect(item).not.toHaveProperty('capitulos')
+    })
+
+    it('PDF sem capítulo termina `pronto`, com zero capítulos; o que ainda está `processando` também devolve zero', async () => {
+      const escola = await montarEscolaComTurma(api, bancada)
+      const semCapitulo = await materialPronto(escola, escola.quimica, pdfDaAmostra('sem capítulo'))
+      expect(materialComCapitulosResponseSchema.parse((await get(escola.coordenacao, `/v1/materiais/${semCapitulo}`)).corpo)).toMatchObject({ estado: 'pronto', paginas: 6, trechos: 6, capitulos: [] })
+      expect(await capitulosDe(escola.coordenacao, await materialPronto(escola))).toEqual([])
+
+      const aindaProcessando = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica }, { arquivo: pdfDaAmostra('marcador') })
+      expect(aindaProcessando.status).toBe(201)
+      expect(await capitulosDe(escola.coordenacao, aindaProcessando.corpo['id'] as string)).toEqual([])
+    })
+
+    it('isolamento: o material da B, lido pela coordenação da A, é `NAO_ENCONTRADO` sem capítulo nenhum; o repository com o id da B no contexto da A não acha capítulo, e no da B acha', async () => {
+      const a = await montarEscolaComTurma(api, bancada)
+      const b = await montarEscolaComTurma(api, bancada)
+      const deB = await materialPronto(b, b.quimica, pdfDaAmostra('marcador'))
+      expect(await capitulosDe(b.coordenacao, deB)).toEqual(CAPITULOS_DO_MARCADOR)
+
+      const daA = await get(a.coordenacao, `/v1/materiais/${deB}`)
+      expect(erroDe(daA)).toEqual({ status: 404, codigo: ErrorCode.NAO_ENCONTRADO })
+      expect(daA.corpo).not.toHaveProperty('capitulos')
+      expect(JSON.stringify(daA.corpo)).not.toContain('Mol e massa molar')
+
+      const banco = api.app.get<Database>(DB)
+      const noContextoDa = (escolaId: string) => runInContext({ requisicaoId: randomUUID(), escolaId }, () => new MaterialRepository(banco).capitulos(deB))
+      expect(await noContextoDa(a.coordenacao.escolaId)).toEqual([])
+      expect(await noContextoDa(b.coordenacao.escolaId)).toHaveLength(3)
+    })
+
+    it('material excluído: `GET /:id` responde como o que não existe, sem capítulo, mesmo com os capítulos ainda gravados', async () => {
+      const escola = await montarEscolaComTurma(api, bancada)
+      const id = await materialPronto(escola, escola.quimica, pdfDaAmostra('marcador'))
+      expect(await capitulosDe(escola.coordenacao, id)).toEqual(CAPITULOS_DO_MARCADOR)
+
+      expect((await del(escola.coordenacao, `/v1/materiais/${id}`)).status).toBe(204)
+
+      const resposta = await get(escola.coordenacao, `/v1/materiais/${id}`)
+      const inexistente = await get(escola.coordenacao, `/v1/materiais/${randomUUID()}`)
+      expect(erroDe(resposta)).toEqual({ status: 404, codigo: ErrorCode.NAO_ENCONTRADO })
+      expect({ ...resposta.corpo.erro, requisicaoId: undefined }).toEqual({ ...inexistente.corpo.erro, requisicaoId: undefined })
+      expect(resposta.corpo).not.toHaveProperty('capitulos')
+      expect(JSON.stringify(resposta.corpo)).not.toContain('Mol e massa molar')
+      // A exclusão é lógica: os capítulos continuam na tabela, e é o `porId` que não deixa a rota chegar neles.
+      const banco = api.app.get<Database>(DB)
+      const gravados = await runInContext({ requisicaoId: randomUUID(), escolaId: escola.coordenacao.escolaId }, () => new MaterialRepository(banco).capitulos(id))
+      expect(gravados).toHaveLength(3)
+    })
+
+    it('permissão: o aluno, o professor sem vínculo e o de outra disciplina recebem o mesmo 404 do material que não existe, sem capítulo', async () => {
+      const escola = await montarEscolaComTurma(api, bancada)
+      const id = await materialPronto(escola, escola.quimica, pdfDaAmostra('marcador'))
+      const aluno = await bancada.sessao(escola.coordenacao.escolaId, 'aluno')
+      const semVinculo = await bancada.sessao(escola.coordenacao.escolaId, 'professor')
+      const deFisica = await professorCom(escola, escola.fisica, true)
+      const inexistente = await get(escola.coordenacao, `/v1/materiais/${randomUUID()}`)
+
+      for (const quem of [aluno, semVinculo, deFisica]) {
+        const resposta = await get(quem, `/v1/materiais/${id}`)
+        expect(erroDe(resposta)).toEqual({ status: 404, codigo: ErrorCode.NAO_ENCONTRADO })
+        expect({ ...resposta.corpo.erro, requisicaoId: undefined }).toEqual({ ...inexistente.corpo.erro, requisicaoId: undefined })
+        expect(resposta.corpo).not.toHaveProperty('capitulos')
+      }
     })
   })
 
@@ -277,7 +379,7 @@ describe('material da escola', () => {
       await esperarExtracao(api)
       expect([primeiro.status, segundo.status]).toEqual([201, 201])
 
-      const lidos = await Promise.all([primeiro, segundo].map(async (enviado) => materialResponseSchema.parse((await get(escola.coordenacao, `/v1/materiais/${enviado.corpo['id'] as string}`)).corpo)))
+      const lidos = await Promise.all([primeiro, segundo].map(async (enviado) => materialComCapitulosResponseSchema.parse((await get(escola.coordenacao, `/v1/materiais/${enviado.corpo['id'] as string}`)).corpo)))
       expect(lidos.map(({ estado, falha, paginas, trechos }) => ({ estado, falha, paginas, trechos }))).toEqual([
         { estado: 'falhou', falha: 'sem_texto', paginas: null, trechos: 0 },
         { estado: 'falhou', falha: 'arquivo_invalido', paginas: null, trechos: 0 },
@@ -484,7 +586,7 @@ describe('material da escola', () => {
       const enviado = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica })
       expect(enviado.status).toBe(201)
       const id = enviado.corpo['id'] as string
-      expect((await get(escola.coordenacao, `/v1/materiais/${id}`)).corpo).toMatchObject({ estado: 'processando', paginas: null, trechos: 0 })
+      expect((await get(escola.coordenacao, `/v1/materiais/${id}`)).corpo).toMatchObject({ estado: 'processando', paginas: null, trechos: 0, capitulos: [] })
       expect(itensDe(await buscar(escola.coordenacao, 'reagente limitante'))).toEqual([])
 
       liberar()

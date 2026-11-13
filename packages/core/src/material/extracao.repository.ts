@@ -2,8 +2,9 @@ import { InvariantException, type FalhaDeMaterial } from '@educa/shared'
 import { and, asc, eq, gt, isNotNull, isNull, sql } from 'drizzle-orm'
 import { requireEscolaId } from '../context/context-escola.js'
 import type { Database, DatabaseTransaction } from '../db/database.js'
-import { material } from '../db/schema/material.js'
+import { capituloDoMaterial, material } from '../db/schema/material.js'
 import { trecho } from '../db/schema/trecho.js'
+import type { CapituloLido } from './chapter-reader.js'
 import type { PaginaExtraida } from './pdf-extractor.js'
 
 /** O material que a extração vai ler: o suficiente para gravar os trechos, e nada do que ele é. */
@@ -71,6 +72,16 @@ export class ExtracaoDoMaterialRepository {
         .values(lote.map(({ pagina, texto }) => ({ escolaId, disciplinaId, materialId, pagina, texto })))
         .onConflictDoNothing({ target: [trecho.escolaId, trecho.materialId, trecho.pagina] })
     }
+  }
+
+  /**
+   * Grava os capítulos que o leitor achou, na ordem. **Só depois de `marcarPronto` ter achado a linha**, na mesma transação: quem não passou pela transição
+   * não chama, e o insert não esconde o segundo job com `on conflict` (a violação do `(escola_id, material_id, ordem)` o denunciaria). Sem capítulo, não grava nada.
+   */
+  async gravarCapitulos(materialId: string, capitulos: readonly CapituloLido[]): Promise<void> {
+    if (capitulos.length === 0) return
+    const escolaId = requireEscolaId()
+    await this.banco.insert(capituloDoMaterial).values(capitulos.map(({ ordem, numero, titulo, paginaInicial, paginaFinal }) => ({ escolaId, materialId, ordem, numero, titulo, paginaInicial, paginaFinal })))
   }
 
   /** Marca que o objeto do material foi apagado do storage (ou que nunca esteve lá). Gravar de novo não muda o primeiro instante. */

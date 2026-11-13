@@ -17,6 +17,7 @@ export const TABELAS_DO_NUCLEO = [
   'atividadeAplicada',
   'auditoriaOperacao',
   'aula',
+  'capituloDoMaterial',
   'codigoRecuperacao',
   'codigoRecuperacaoOperador',
   'configuracaoOperacionalEscola',

@@ -615,6 +615,7 @@ Material*          → escola*, disciplina*, titulo*, titularidade*, licenciante
                      sha256*, tamanhoBytes*, paginas?, estado* (processando | pronto | falhou), falha?,
                      enviadoPor?, enviadoEm*, excluidoPor?, excluidoEm?
 Trecho*            → escola*, disciplina*, material*, pagina*, texto*, busca (tsvector, português)
+CapituloDoMaterial*→ escola*, material*, ordem*, numero?, titulo* (1 a 200), paginaInicial*, paginaFinal*
 ExecucaoAgente*    → escola*, anoLetivo*, funcao*, tarefa*, solicitadaPor?, chaveEnvio*,
                      estado* (pendente | rodando | concluida | falhou), entrada*, resultado?, erro?, datas,
                      anonimizadaEm? (F3)
@@ -656,7 +657,7 @@ O que a fatia tem de diferente do desenho definitivo, e por quê:
   porque a chave do objeto o leva e o objeto é gravado antes da linha. **`EnvioDeMaterial`** (`envio_de_material`) → escola*,
   materialId*, criadoEm*; chave `(escola, materialId)`, sem FK para o material, que ainda não existe: a linha nasce antes do
   objeto e sai na transação do envio, e a varredura horária (`sistema.varrer-temporarios-de-material`) apaga o objeto e a linha
-  de mais de 1 h; é o que faz o PDF de um envio que nunca chegou ao commit ser achado. Só ids e um instante, sem pessoa (`sem_pessoa`). Não existe material sem a declaração de licença
+  de mais de 1 h; é o que faz o PDF de um envio que nunca chegou ao commit ser achado. Só ids e um instante, sem pessoa (`sem_pessoa`). **`CapituloDoMaterial`** (`capitulo_do_material`, F4, 4.0) é o `Capitulo` do desenho, sem o `TrechoIndexado.capitulo?`: a extração grava, na transação que tira o material de `processando`, um capítulo por marcador de primeiro nível do PDF ou, sem marcador, por linha "Capítulo N" no topo da página quando o número muda; `numero` é nulo quando o PDF não escreve número ou ele não cabe em `int`; chave `(escola, material, ordem)`, FK composta com a escola em cascata (o material expurgado leva os capítulos), `pagina_final >= pagina_inicial`; sem pessoa (`sem_pessoa`); `GET /v1/materiais/:id` os devolve. Material sem capítulo não tem linha e fica `pronto`. Não existe material sem a declaração de licença
   (check), e a recusa não grava linha (D5, D75).
 - **Não existe `Nota`** (D46). `Correcao` é o diagnóstico formativo de objetiva, por aluno e por lote; `AtividadeAplicada`,
   `TentativaAtividade` e `RespostaAtividade` são a `Avaliacao`, a `Aplicacao` e a `Resposta`, finas, só para objetiva online.

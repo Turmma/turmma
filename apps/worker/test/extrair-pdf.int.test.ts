@@ -4,7 +4,9 @@ import { PdfExtractor, type ResultadoDaExtracao } from '@educa/core/material'
 import { JOB_DEFINITIONS, JobFailureCode, TIPO_EXTRAIR_PDF, type JobRegistry } from '@educa/shared'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
+import type { PoolClient } from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { AMOSTRAS_DE_CAPITULOS, montarPdfDaAmostra } from '../../../tools/demonstracao/amostra-de-capitulos.ts'
 import { CAMINHO_DO_MATERIAL } from '../../../tools/demonstracao/gerar-material.ts'
 import { compose, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
@@ -19,6 +21,13 @@ import { InMemoryLog, QueueFixtures } from './queue.fixture.js'
 
 const PDF_DE_DEMONSTRACAO = readFileSync(CAMINHO_DO_MATERIAL)
 const TENTATIVAS = JOB_DEFINITIONS[TIPO_EXTRAIR_PDF].retentativa.tentativas
+const MIGRATION_DOS_CAPITULOS = readFileSync(new URL('../../../packages/core/drizzle/0051_capitulo_do_material.sql', import.meta.url), 'utf8')
+
+function pdfDaAmostra(nome: string): Buffer {
+  const amostra = AMOSTRAS_DE_CAPITULOS.find((candidata) => candidata.nome === nome)
+  if (amostra === undefined) throw new Error(`a amostra ${nome} sumiu`)
+  return montarPdfDaAmostra(amostra)
+}
 
 /** Um PDF de verdade, com uma página e nenhum texto: o que um scanner entrega sem OCR, menos a imagem. */
 function pdfSemTexto(): Buffer {
@@ -89,6 +98,20 @@ describe('material.extrair-pdf', () => {
   async function trechos(id: string): Promise<number[]> {
     const { rows } = await bancada.pool.query<{ pagina: number }>('select pagina from trecho where material_id = $1 order by pagina', [id])
     return rows.map(({ pagina }) => pagina)
+  }
+
+  interface CapituloRow {
+    readonly escola_id: string
+    readonly ordem: number
+    readonly numero: number | null
+    readonly titulo: string
+    readonly pagina_inicial: number
+    readonly pagina_final: number
+  }
+
+  async function capitulos(id: string): Promise<CapituloRow[]> {
+    const { rows } = await bancada.pool.query<CapituloRow>('select escola_id, ordem, numero, titulo, pagina_inicial, pagina_final from capitulo_do_material where material_id = $1 order by ordem', [id])
+    return rows
   }
 
   const temObjeto = (escolaId: string, id: string, onde: InMemoryFileStorage = armazem): Promise<boolean> => naEscola(escolaId, () => onde.existe(chaveDoTemporario(id)))
@@ -409,9 +432,9 @@ describe('material.extrair-pdf', () => {
     })
 
     it.each([
-      { caso: 'extração com texto', resultado: { falha: null, paginas: 2, trechos: [{ pagina: 1, texto: 'a' }, { pagina: 2, texto: 'b' }] } satisfies ResultadoDaExtracao },
+      { caso: 'extração com texto', resultado: { falha: null, paginas: 2, trechos: [{ pagina: 1, texto: 'a' }, { pagina: 2, texto: 'b' }], capitulos: [{ ordem: 1, numero: 1, titulo: 'Capítulo 1', paginaInicial: 1, paginaFinal: 2 }] } satisfies ResultadoDaExtracao },
       { caso: 'extração sem texto', resultado: { falha: 'sem_texto' } satisfies ResultadoDaExtracao },
-    ])('[P] excluído enquanto o PDF é extraído ($caso): sem trecho, sem `falhou`, sem falha de job, a métrica diz `sem_efeito`', async ({ resultado }) => {
+    ])('[P] excluído enquanto o PDF é extraído ($caso): sem trecho, sem capítulo, sem `falhou`, sem falha de job, a métrica diz `sem_efeito`', async ({ resultado }) => {
       const c = await escolaNova()
       const id = await materialComObjeto(c)
       const medidor = new MedidorDeTeste()
@@ -432,6 +455,7 @@ describe('material.extrair-pdf', () => {
 
       expect(await linha(id)).toMatchObject({ estado: 'processando', falha: null, paginas: null })
       expect(await trechos(id)).toEqual([])
+      expect(await capitulos(id)).toEqual([])
       expect(await temObjeto(c.escolaId, id)).toBe(true)
     })
 
@@ -774,6 +798,173 @@ describe('material.extrair-pdf', () => {
         await bancadaDoCaso.fechar()
       }
     }, 60_000)
+  })
+
+  describe('capítulos lidos do PDF (ingestao-do-material, tarefa 4.0; Tech Spec, seção 5, "Capítulos")', () => {
+    const CAPITULOS_DO_MARCADOR = [
+      { ordem: 1, numero: 1, titulo: 'Capítulo 1: Mol e massa molar', pagina_inicial: 1, pagina_final: 2 },
+      { ordem: 2, numero: 2, titulo: 'Capítulo 2: Reações químicas', pagina_inicial: 3, pagina_final: 4 },
+      { ordem: 3, numero: null, titulo: 'Soluções', pagina_inicial: 5, pagina_final: 6 },
+    ]
+
+    it('[I] caminho feliz com marcador: os capítulos entram com os trechos, na escola do material, e o material fica `pronto`', async () => {
+      const c = await escolaNova()
+      const id = await materialComObjeto(c, pdfDaAmostra('marcador'))
+
+      await rodar(c.escolaId, id)
+
+      expect(await linha(id)).toMatchObject({ estado: 'pronto', falha: null, paginas: 6 })
+      expect(await trechos(id)).toEqual([1, 2, 3, 4, 5, 6])
+      const gravados = await capitulos(id)
+      expect(gravados.map(({ escola_id: escolaId }) => escolaId)).toEqual([c.escolaId, c.escolaId, c.escolaId])
+      expect(gravados.map(({ escola_id: _escola, ...resto }) => resto)).toEqual(CAPITULOS_DO_MARCADOR)
+    })
+
+    it('[I] PDF sem capítulo (o material de demonstração e a amostra sem nada) termina `pronto`, com zero capítulos', async () => {
+      const c = await escolaNova()
+      for (const bytes of [PDF_DE_DEMONSTRACAO, pdfDaAmostra('sem capítulo')]) {
+        const id = await materialComObjeto(c, bytes)
+        await rodar(c.escolaId, id)
+        expect(await linha(id)).toMatchObject({ estado: 'pronto', falha: null, paginas: 6 })
+        expect(await trechos(id)).toHaveLength(6)
+        expect(await capitulos(id)).toEqual([])
+      }
+    })
+
+    it('[P] dois jobs da mesma extração em `Promise.all`, os dois com os bytes na mão: os capítulos entram uma vez: um job conclui `pronto` e o outro `sem_efeito`', async () => {
+      const c = await escolaNova()
+      const dele = new InMemoryFileStorage()
+      const id = await materialComObjeto(c, pdfDaAmostra('marcador'), { armazemDoObjeto: dele })
+      // Os dois só leem o objeto quando os dois chegaram: nenhum o vê ausente, e os dois chegam à transição com os capítulos na mão.
+      const juntos = barreira()
+      let chegaram = 0
+      dele.aoLerBytes = async () => {
+        chegaram += 1
+        if (chegaram === 2) juntos.soltar()
+        await juntos.espera
+      }
+
+      const medidor = new MedidorDeTeste()
+
+      try {
+        await Promise.all([rodar(c.escolaId, id, { armazemDoCaso: dele, medidor }), rodar(c.escolaId, id, { armazemDoCaso: dele, medidor })])
+        // Um dos dois grava os capítulos e sai de `processando`; o outro, com os capítulos na mão, chega à transição, não a acha e não grava nada.
+        expect(await medidor.pontos(METRICS.extracaoDoMaterial)).toEqual(expect.arrayContaining([{ atributos: { resultado: 'pronto' }, valor: 1 }, { atributos: { resultado: 'sem_efeito' }, valor: 1 }]))
+      } finally {
+        await medidor.encerrar()
+      }
+
+      expect(await linha(id)).toMatchObject({ estado: 'pronto', falha: null, paginas: 6 })
+      expect((await capitulos(id)).map(({ escola_id: _escola, ...resto }) => resto)).toEqual(CAPITULOS_DO_MARCADOR)
+    })
+
+    it('o repository: `gravarCapitulos` sem capítulo não grava nada e não falha; com o id da B no contexto da A, a FK composta o recusa e nada é gravado', async () => {
+      const a = await escolaNova()
+      const b = await escolaNova()
+      const deB = await materialComObjeto(b, null)
+      const deA = await materialComObjeto(a, null)
+      const umCapitulo = [{ ordem: 1, numero: 1, titulo: 'Capítulo 1', paginaInicial: 1, paginaFinal: 2 }]
+      const naA = (funcao: (repositorio: ExtracaoDoMaterialRepository) => Promise<void>): Promise<void> => naEscola(a.escolaId, () => funcao(new ExtracaoDoMaterialRepository(bancada.banco)))
+
+      await expect(naA((repositorio) => repositorio.gravarCapitulos(deA, []))).resolves.toBeUndefined()
+      expect(await capitulos(deA)).toEqual([])
+      await expect(naA((repositorio) => repositorio.gravarCapitulos(deB, umCapitulo))).rejects.toMatchObject({ cause: { constraint: 'capitulo_do_material_da_escola_fk' } })
+      expect(await capitulos(deB)).toEqual([])
+      await naA((repositorio) => repositorio.gravarCapitulos(deA, umCapitulo))
+      expect(await capitulos(deA)).toHaveLength(1)
+    })
+
+    /**
+     * A tabela da migration `0051`, provada de duas formas: **a que a migration cria** (o arquivo `.sql` é lido e aplicado num esquema de teste, e o teste roda sobre
+     * essa tabela) e **a migrada** do banco de teste. A primeira deixa o teste ficar vermelho quando o SQL perde uma restrição; a segunda confere que o banco
+     * migrado a tem. Os dois apontam para o `material` e o `escola` reais: a FK composta e a cascata são exercidas de verdade.
+     */
+    describe.each([{ origem: 'a tabela que a migration 0051 cria' as const }, { origem: 'a tabela migrada' as const }])('restrições do banco: $origem', ({ origem }) => {
+      const esquema = origem === 'a tabela migrada' ? 'public' : `capitulo_teste_${randomUUID().replaceAll('-', '')}`
+      const tabela = `"${esquema}"."capitulo_do_material"`
+
+      beforeAll(async () => {
+        if (esquema === 'public') return
+        const cliente: PoolClient = await bancada.pool.connect()
+        try {
+          await cliente.query(`create schema "${esquema}"`)
+          await cliente.query(`set search_path = "${esquema}", public`)
+          for (const instrucao of MIGRATION_DOS_CAPITULOS.split('--> statement-breakpoint')) await cliente.query(instrucao)
+        } finally {
+          await cliente.query('reset search_path')
+          cliente.release()
+        }
+      })
+
+      afterAll(async () => {
+        if (esquema !== 'public') await bancada.pool.query(`drop schema "${esquema}" cascade`)
+      })
+
+      const inserir = (escolaId: string, materialId: string, campos: { ordem?: number; numero?: number | null; titulo?: string; inicial?: number; final?: number } = {}): Promise<unknown> =>
+        bancada.pool.query(`insert into ${tabela} (escola_id, material_id, ordem, numero, titulo, pagina_inicial, pagina_final) values ($1, $2, $3, $4, $5, $6, $7)`, [
+          escolaId,
+          materialId,
+          campos.ordem ?? 1,
+          campos.numero === undefined ? 1 : campos.numero,
+          campos.titulo ?? 'Capítulo 1',
+          campos.inicial ?? 1,
+          campos.final ?? 2,
+        ])
+      const quantos = async (materialId: string): Promise<number> => (await bancada.pool.query<{ total: number }>(`select count(*)::int as total from ${tabela} where material_id = $1`, [materialId])).rows[0]?.total ?? -1
+
+      it('guarda o capítulo sem número, com título de 200 caracteres e de uma página só', async () => {
+        const c = await escolaNova()
+        const id = await materialComObjeto(c, null)
+        await inserir(c.escolaId, id, { numero: null, titulo: 'a'.repeat(200), inicial: 3, final: 3 })
+        expect(await quantos(id)).toBe(1)
+      })
+
+      it('o título vazio e o de 201 caracteres são recusados pelo check', async () => {
+        const c = await escolaNova()
+        const id = await materialComObjeto(c, null)
+        await expect(inserir(c.escolaId, id, { titulo: '' })).rejects.toMatchObject({ constraint: 'capitulo_do_material_titulo_preenchido' })
+        await expect(inserir(c.escolaId, id, { titulo: 'a'.repeat(201) })).rejects.toMatchObject({ constraint: 'capitulo_do_material_titulo_preenchido' })
+      })
+
+      it('a página final antes da inicial é recusada pelo check', async () => {
+        const c = await escolaNova()
+        const id = await materialComObjeto(c, null)
+        await expect(inserir(c.escolaId, id, { inicial: 5, final: 4 })).rejects.toMatchObject({ constraint: 'capitulo_do_material_paginas_validas' })
+      })
+
+      it('a ordem é única por material: repetida no mesmo é recusada, e a mesma ordem em outro material da escola entra', async () => {
+        const c = await escolaNova()
+        const primeiro = await materialComObjeto(c, null)
+        const segundo = await materialComObjeto(c, null)
+        await inserir(c.escolaId, primeiro, { ordem: 1 })
+        await expect(inserir(c.escolaId, primeiro, { ordem: 1 })).rejects.toMatchObject({ constraint: 'capitulo_do_material_ordem_unica' })
+        await inserir(c.escolaId, segundo, { ordem: 1 })
+        expect(await quantos(segundo)).toBe(1)
+      })
+
+      it('a FK composta com a escola: o capítulo da escola A não aponta para o material da B', async () => {
+        const a = await escolaNova()
+        const b = await escolaNova()
+        const deB = await materialComObjeto(b, null)
+        await expect(inserir(a.escolaId, deB)).rejects.toMatchObject({ constraint: 'capitulo_do_material_da_escola_fk' })
+        await inserir(b.escolaId, deB)
+        expect(await quantos(deB)).toBe(1)
+      })
+
+      it('o material expurgado leva os capítulos dele em cascata, e os do outro material ficam', async () => {
+        const c = await escolaNova()
+        const expurgado = await materialComObjeto(c, null)
+        const vizinho = await materialComObjeto(c, null)
+        await inserir(c.escolaId, expurgado, { ordem: 1 })
+        await inserir(c.escolaId, expurgado, { ordem: 2, inicial: 3, final: 4 })
+        await inserir(c.escolaId, vizinho, { ordem: 1 })
+
+        await bancada.pool.query('delete from material where escola_id = $1 and id = $2', [c.escolaId, expurgado])
+
+        expect(await quantos(expurgado)).toBe(0)
+        expect(await quantos(vizinho)).toBe(1)
+      })
+    })
   })
 })
 

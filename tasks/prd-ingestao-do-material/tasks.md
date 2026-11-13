@@ -24,11 +24,12 @@
   - [ ] 3.2 Alerta `pdf-parado`, no ensaio; runbook e disco do temporário em `docs/infra.md`
   - [ ] 3.3 Testes: os comandos, as recusas, o alerta termo a termo
 
-- [ ] **4.0 — Os capítulos lidos do PDF chegam no `GET /v1/materiais/:id`**
-  - [ ] 4.1 Migration de `capitulo_do_material`
-  - [ ] 4.2 `ChapterReader` e a gravação na transação da extração
-  - [ ] 4.3 `capitulos` no contrato
-  - [ ] 4.4 Testes: as bordas do leitor, a amostra com o pdfjs, dois jobs
+- [x] **4.0 — Os capítulos lidos do PDF chegam no `GET /v1/materiais/:id`**
+  - [x] 4.1 Migration: `capitulo_do_material`, com a FK composta em cascata e os checks; `docs/modelo-de-dados.md`
+  - [x] 4.2 `ChapterReader` em `packages/core/src/material/`: o marcador de primeiro nível, e a linha no topo quando não há marcador
+  - [x] 4.3 Gravar na transação da extração, depois da transição; a amostra sintética em `tools/demonstracao`
+  - [x] 4.4 `capitulos` no contrato de `GET /v1/materiais/:id`, DTO explícito
+  - [x] 4.5 Testes: as bordas do leitor, a amostra com o pdfjs, dois jobs, isolamento
 
 - [ ] **5.0 — A licença é registrada uma vez, com vigência, retenção e arquivo do titular**
   - [ ] 5.1 Migration de `licenca_de_material` e `material.licenca_id`, com o backfill

@@ -535,6 +535,8 @@ export type {
 } from './time/execucao.js'
 export {
   buscaDeMaterialQuerySchema,
+  capituloDoMaterialSchema,
+  materialComCapitulosResponseSchema,
   materiaisQuerySchema,
   materialSchema,
   enviarMaterialRequestSchema,
@@ -556,6 +558,7 @@ export {
   SEM_LICENCA,
   TAMANHO_MAXIMO_DA_BUSCA,
   TAMANHO_MAXIMO_DO_LICENCIANTE,
+  TAMANHO_MAXIMO_DO_TITULO_DO_CAPITULO,
   TAMANHO_MAXIMO_DO_TRECHO_CITADO,
   TAMANHO_MAXIMO_TITULO_DO_MATERIAL,
   TITULARIDADES_DE_MATERIAL,
@@ -563,6 +566,7 @@ export {
 } from './material/material.js'
 export type {
   BuscaDeMaterialQuery,
+  CapituloDoMaterial,
   MateriaisQuery,
   EstadoDeMaterial,
   FalhaDeMaterial,
@@ -573,6 +577,7 @@ export type {
   EnviarMaterialRequest,
   BuscaDeMaterialResponse,
   ListaDeMateriaisResponse,
+  MaterialComCapitulosResponse,
   MaterialResponse,
   TitularidadeDeMaterial,
   TrechoEncontrado,

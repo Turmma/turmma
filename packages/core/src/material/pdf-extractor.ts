@@ -1,5 +1,7 @@
 import type { FalhaDeMaterial } from '@educa/shared'
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs'
+import { ChapterReader, type CapituloLido } from './chapter-reader.js'
+import { linhasLimpas } from './limpar-linha.js'
 
 /** O teto da coluna `trecho.texto` (check `trecho_texto_preenchido`): a página que passa dele é cortada aqui. */
 export const MAXIMO_DE_CARACTERES_DO_TRECHO = 20_000
@@ -19,8 +21,8 @@ export interface PaginaExtraida {
 }
 
 export type ResultadoDaExtracao =
-  /** `paginas` é o total do PDF; `trechos`, só as que têm texto, em ordem. */
-  | { readonly falha: null; readonly paginas: number; readonly trechos: readonly PaginaExtraida[] }
+  /** `paginas` é o total do PDF; `trechos`, só as que têm texto, em ordem; `capitulos`, os que o `ChapterReader` leu (vazio é o PDF sem capítulo). */
+  | { readonly falha: null; readonly paginas: number; readonly trechos: readonly PaginaExtraida[]; readonly capitulos: readonly CapituloLido[] }
   | { readonly falha: FalhaDeMaterial }
 
 /** O arquivo começa como PDF? É a conferência do conteúdo, e não do nome nem do tipo que o navegador declarou. */
@@ -57,15 +59,6 @@ export function tirarLinhasRepetidas(paginas: readonly (readonly string[])[]): s
   return restantes
 }
 
-/** Caractere de controle que o Postgres não guarda em `text` (o NUL) ou que não é texto: vira espaço. */
-// eslint-disable-next-line no-control-regex -- é justamente o caractere de controle que se quer tirar.
-const CONTROLE = /[\u0000-\u0008\u000B-\u001F\u007F]/g
-
-/** Cada linha com um espaço só entre as palavras, e nenhuma linha vazia. */
-function linhasLimpas(linhas: readonly string[]): string[] {
-  return linhas.map((linha) => linha.replace(CONTROLE, ' ').replace(/\s+/g, ' ').trim()).filter((linha) => linha !== '')
-}
-
 /** Erros do pdfjs que dizem "isto não é um PDF que se abre": arquivo corrompido, truncado ou com senha. */
 const ERROS_DE_ARQUIVO = new Set(['InvalidPDFException', 'PasswordException', 'FormatError', 'MissingPDFException', 'XRefParseException'])
 
@@ -84,7 +77,8 @@ const proximaVolta = (): Promise<void> => new Promise((resolver) => setImmediate
  * - `data` como `Uint8Array` **copiado**: o pdfjs recusa `Buffer` e esvazia o array que recebe;
  * - sem fonte do sistema e sem `@font-face`, e `verbosity: 0`;
  * - uma linha é o que vem até o item com `hasEOL`; as linhas da página se juntam com `\n`;
- * - `destroy()` no fim, sempre.
+ * - `destroy()` no fim, sempre;
+ * - os capítulos (`ChapterReader`) saem do mesmo documento aberto, sem reabrir o arquivo.
  *
  * **Nunca lança**: toda falha sai como código da lista fechada (`FALHAS_DE_MATERIAL`). A mensagem da biblioteca, que
  * pode trazer pedaço do arquivo, não sai daqui (regra 20, itens 9 e 11).
@@ -93,6 +87,8 @@ const proximaVolta = (): Promise<void> => new Promise((resolver) => setImmediate
  * a leitura devolve o laço de eventos, para a API continuar atendendo enquanto um capítulo longo é lido.
  */
 export class PdfExtractor {
+  readonly #capitulos = new ChapterReader()
+
   async extrair(bytes: Uint8Array, sinal?: AbortSignal): Promise<ResultadoDaExtracao> {
     // Lido por função: o prazo pode vencer no meio da leitura, entre uma conferência e outra.
     const abortado = (): boolean => sinal?.aborted === true
@@ -127,7 +123,8 @@ export class PdfExtractor {
         .map((linhas, indice) => ({ pagina: indice + 1, texto: linhas.join('\n').slice(0, MAXIMO_DE_CARACTERES_DO_TRECHO).trimEnd() }))
         .filter((pagina) => pagina.texto !== '')
       if (trechos.length === 0) return { falha: 'sem_texto' }
-      return { falha: null, paginas: linhasPorPagina.length, trechos }
+      // Com o documento ainda aberto e as linhas de antes de `tirarLinhasRepetidas`: o cabeçalho corrido é o dado da linha "Capítulo N".
+      return { falha: null, paginas: linhasPorPagina.length, trechos, capitulos: await this.#capitulos.ler(pdf, linhasPorPagina) }
     } catch (erro) {
       return { falha: abortado() ? 'extracao_falhou' : falhaDoErro(erro) }
     } finally {

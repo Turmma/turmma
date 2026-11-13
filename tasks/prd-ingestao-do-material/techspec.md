@@ -95,7 +95,13 @@ trechos da antiga apagados e `material.substituido`. Depois do commit, o objeto 
 
 **Capítulos** (`ChapterReader`). O marcador de primeiro nível, um por página; sem marcador, a linha
 `^(cap[ií]tulo|unidade|m[óo]dulo)\s+(\d+)` no topo da página quando o número muda, fora do sumário. Bordas em
-`cenarios.md`; erro dá zero capítulos, sem falhar.
+`cenarios.md`; erro dá zero capítulos, sem falhar. O que o código fixa (4.0): o "topo" são as **2 primeiras linhas**
+da página, lidas **antes** de `tirarLinhasRepetidas` (o cabeçalho corrido é o dado da linha); o sumário é a página com
+**3 casamentos ou mais em qualquer linha**; o marcador sem destino de página, ou fora do PDF, é pulado, e se nenhum
+resolve o leitor cai na linha; a linha lida é a **primeira das duas do topo que casa**: num livro com "Unidade 2" como cabeçalho corrido na primeira linha e "Capítulo 5" na segunda, o número da unidade não muda e os capítulos dentro dela se perdem (limite conhecido; o marcador do PDF não tem essa limitação); o `numero` é o do começo do título (a mesma regex), nulo se não há ou passa de `int`; o
+título vazio vira `Capítulo <ordem>`; o capítulo vai até a página antes do seguinte, e o último até o fim; **mais de
+2.000 capítulos** (um marcador por página) é zero capítulos. Os capítulos são gravados com `insert` simples, sem
+`on conflict`, depois da transição e na mesma transação: o segundo job do mesmo material não chega ao insert.
 
 **Leitura de página.** Série e "hoje" (`Clock`, São Paulo) entram em `buscar`, `paginasDoMaterial`,
 `materialDaTurma` e na rota `GET /v1/materiais/busca` (com `serieId`, que filtra e não autoriza): `pronto`, não
@@ -188,7 +194,7 @@ Em `cenarios.md`.
 
 ## 12. Premissas não verificadas
 
-`⚠️ NÃO VERIFICADO`: o `getOutline()` acha a página de todo marcador; a amostra prova.
+~~`⚠️ NÃO VERIFICADO`~~ Verificado na 4.0: o `getOutline()` acha a página de todo marcador, com destino direto e nomeado; a amostra fixa (`tools/demonstracao/amostra-de-capitulos.ts`, seis PDFs, lida com o pdfjs de verdade em `chapter-reader.test.ts`) tem 100% das páginas no capítulo certo.
 
 ## 13. Riscos técnicos
 

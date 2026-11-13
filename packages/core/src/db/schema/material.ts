@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm'
-import { boolean, check, foreignKey, index, integer, pgTable, primaryKey, text, timestamp, unique, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
+import { boolean, check, foreignKey, index, integer, pgTable, primaryKey, smallint, text, timestamp, unique, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
 import type { EstadoDeMaterial, FalhaDeMaterial, LicencaDeMaterial, TitularidadeDeMaterial } from '@educa/shared'
 import { disciplina } from './disciplina.js'
 import { escola } from './escola.js'
@@ -112,4 +112,40 @@ export const envioDeMaterial = pgTable(
     criadoEm: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (tabela) => [primaryKey({ name: 'envio_de_material_pk', columns: [tabela.escolaId, tabela.materialId] }), index('envio_de_material_criado_em_idx').on(tabela.criadoEm)],
+)
+
+/**
+ * Os capítulos que a extração leu do PDF (ingestao-do-material, tarefa 4.0; Tech Spec, seções 3 e 5, "Capítulos"; PRD, RF4): número, título e a faixa de
+ * páginas de cada um, do marcador de primeiro nível do PDF ou da linha "Capítulo N" no topo da página. Gravados na transação que tira o material de
+ * `processando`, depois da transição, e lidos por `GET /v1/materiais/:id`. Material sem capítulo não tem linha aqui, e termina `pronto` do mesmo jeito.
+ *
+ * - FK composta `(escola_id, material_id)` para o material, `on delete cascade` (regra 10, item 1): o capítulo nunca aponta para o material de outra escola e
+ *   sai com a linha dele, no expurgo de `material_excluido`. Na exclusão lógica ele fica, como o próprio material, até o expurgo.
+ * - Único `(escola_id, material_id, ordem)`: a ordem é a posição no material, a partir de 1, e a faixa de páginas não se sobrepõe porque o leitor
+ *   a calcula assim. Também é o índice da leitura, que começa pela escola (regra 80, item 8). Gravar os capítulos duas vezes é a violação dele, e não
+ *   duas linhas: quem chega depois da transição não grava.
+ * - `numero` é o que o PDF escreve ("Capítulo 7"), nulo quando não há número ou ele não cabe em `int`; `titulo` tem de 1 a 200 caracteres.
+ * - Sem dado de pessoa: título do material didático da escola. Não varia por ano letivo, como o material.
+ */
+export const capituloDoMaterial = pgTable(
+  'capitulo_do_material',
+  {
+    id: uuid().primaryKey().default(sql`uuidv7()`),
+    escolaId: uuid()
+      .notNull()
+      .references(() => escola.id),
+    materialId: uuid().notNull(),
+    ordem: smallint().notNull(),
+    numero: integer(),
+    titulo: text().notNull(),
+    paginaInicial: integer().notNull(),
+    paginaFinal: integer().notNull(),
+  },
+  (tabela) => [
+    unique('capitulo_do_material_ordem_unica').on(tabela.escolaId, tabela.materialId, tabela.ordem),
+    foreignKey({ name: 'capitulo_do_material_da_escola_fk', columns: [tabela.escolaId, tabela.materialId], foreignColumns: [material.escolaId, material.id] }).onDelete('cascade'),
+    // 200 é `TAMANHO_MAXIMO_DO_TITULO_DO_CAPITULO` do contrato (`packages/shared`).
+    check('capitulo_do_material_titulo_preenchido', sql`char_length(${tabela.titulo}) between 1 and 200`),
+    check('capitulo_do_material_paginas_validas', sql`${tabela.paginaFinal} >= ${tabela.paginaInicial}`),
+  ],
 )

@@ -165,6 +165,19 @@ describe('contratos de saída: nenhuma resposta traz credencial, segredo ou iden
     expect(camposDoEsquema(shared.gravarPlanilhaResponseSchema)).toEqual(['id'])
   })
 
+  it('ingestao-do-material 4.0: `GET /v1/materiais/:id` entra na varredura com os capítulos, e só com o que o painel mostra: nem o texto das páginas, nem hash, nem quem enviou', () => {
+    expect(esquemasDeResposta.map(([nome]) => nome)).toContain('materialComCapitulosResponseSchema')
+    const campos = camposDoEsquema(shared.materialComCapitulosResponseSchema)
+    expect(campos.filter((campo) => campo.startsWith('capitulos'))).toEqual(['capitulos', 'capitulos[].ordem', 'capitulos[].numero', 'capitulos[].titulo', 'capitulos[].paginaInicial', 'capitulos[].paginaFinal'])
+    for (const proibido of ['sha256', 'enviadoPor', 'texto']) expect(campos).not.toContain(proibido)
+    expect(problemasDoContrato('materialComCapitulosResponseSchema', shared.materialComCapitulosResponseSchema)).toEqual([])
+    // O capítulo é estrito: campo a mais é recusado, e o título passa do teto da coluna não.
+    const capitulo = { ordem: 1, numero: 1, titulo: 'Capítulo 1', paginaInicial: 1, paginaFinal: 2 }
+    expect(shared.capituloDoMaterialSchema.safeParse(capitulo).success).toBe(true)
+    expect(shared.capituloDoMaterialSchema.safeParse({ ...capitulo, texto: 'a página inteira' }).success).toBe(false)
+    expect(shared.capituloDoMaterialSchema.safeParse({ ...capitulo, titulo: 'a'.repeat(shared.TAMANHO_MAXIMO_DO_TITULO_DO_CAPITULO + 1) }).success).toBe(false)
+  })
+
   it('e-mail é recusado em contrato que pode chegar ao aluno, e só passa em contrato declarado da equipe', () => {
     const comEmail = z.object({ itens: z.array(z.object({ usuarioId: z.uuid(), email: z.email() })) })
     expect(problemasDoContrato('alunosDaTurmaResponseSchema', comEmail)).toEqual(['alunosDaTurmaResponseSchema: itens[].email (email)'])

@@ -8,6 +8,7 @@ import {
   type EnviarMaterialRequest,
   type BuscaDeMaterialResponse,
   type ListaDeMateriaisResponse,
+  type MaterialComCapitulosResponse,
   type MaterialResponse,
 } from '@educa/shared'
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Query, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common'
@@ -54,7 +55,7 @@ export class MaterialController {
 
   @Get(':id')
   @RequirePermissao('material', 'ler')
-  ler(@Param('id', IdPipe) materialId: string): Promise<MaterialResponse> {
+  ler(@Param('id', IdPipe) materialId: string): Promise<MaterialComCapitulosResponse> {
     return this.materiais.ler(materialId)
   }
 

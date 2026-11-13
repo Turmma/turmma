@@ -108,9 +108,29 @@ export const materialSchema = z.strictObject({
 })
 export type Material = z.infer<typeof materialSchema>
 
-/** Resposta de `POST /v1/materiais` (201) e de `GET /v1/materiais/:id`. `DELETE /v1/materiais/:id` responde 204, sem corpo. */
+/** Resposta de `POST /v1/materiais` (201). `DELETE /v1/materiais/:id` responde 204, sem corpo. */
 export const materialResponseSchema = materialSchema
 export type MaterialResponse = Material
+
+/** O teto do título de um capítulo: a coluna `capitulo_do_material.titulo` (check `capitulo_do_material_titulo_preenchido`) e o corte do leitor. */
+export const TAMANHO_MAXIMO_DO_TITULO_DO_CAPITULO = 200
+
+/**
+ * Um capítulo que a extração leu do PDF (ingestao-do-material, 4.0; RF4): a posição no material (a partir de 1), o número que o PDF escreve (nulo quando
+ * não há ou não cabe em `int`), o título e a faixa de páginas, de 1 em diante. Só o que o painel mostra: nunca o texto das páginas.
+ */
+export const capituloDoMaterialSchema = z.strictObject({
+  ordem: z.number().int().min(1),
+  numero: z.number().int().nonnegative().nullable(),
+  titulo: z.string().min(1).max(TAMANHO_MAXIMO_DO_TITULO_DO_CAPITULO),
+  paginaInicial: z.number().int().min(1),
+  paginaFinal: z.number().int().min(1),
+})
+export type CapituloDoMaterial = z.infer<typeof capituloDoMaterialSchema>
+
+/** Resposta de `GET /v1/materiais/:id`: o material, mais os capítulos lidos do PDF em ordem. Vazio: o PDF sem capítulo, ou ainda `processando`. */
+export const materialComCapitulosResponseSchema = materialSchema.extend({ capitulos: z.array(capituloDoMaterialSchema) })
+export type MaterialComCapitulosResponse = z.infer<typeof materialComCapitulosResponseSchema>
 
 /**
  * Consulta de `GET /v1/materiais`: a página e, se quiser, a disciplina. A coordenação lê os da escola; o professor, só

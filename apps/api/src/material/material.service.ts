@@ -5,6 +5,7 @@ import {
   TIPO_EXTRAIR_PDF,
   buscaDeMaterialResponseSchema,
   listaDeMateriaisResponseSchema,
+  materialComCapitulosResponseSchema,
   materialResponseSchema,
   motivoDaRecusaDoMaterial,
   type BuscaDeMaterialQuery,
@@ -13,6 +14,7 @@ import {
   type EnviarMaterialRequest,
   type BuscaDeMaterialResponse,
   type ListaDeMateriaisResponse,
+  type MaterialComCapitulosResponse,
   type MaterialResponse,
 } from '@educa/shared'
 import { createHash } from 'node:crypto'
@@ -69,7 +71,12 @@ function alcanceDoMaterial(acao: 'listar' | 'ler' | 'buscar'): AlcanceDoMaterial
  * DTO mínimo). Quem decide é o alcance da célula da `MATRIZ`, não o nome do papel.
  */
 function paraResposta(lido: MaterialLido, alcance: AlcanceDoMaterial): MaterialResponse {
-  return materialResponseSchema.parse({ ...lido, licenciante: alcance === 'unidade' ? lido.licenciante : null, enviadoEm: lido.enviadoEm.toISOString() })
+  return materialResponseSchema.parse(daLinhaParaOContrato(lido, alcance))
+}
+
+/** O material como o contrato o espera, ainda por validar: quem devolve é quem escolhe o esquema que o fecha (`paraResposta`, ou `ler`, com os capítulos). */
+function daLinhaParaOContrato(lido: MaterialLido, alcance: AlcanceDoMaterial) {
+  return { ...lido, licenciante: alcance === 'unidade' ? lido.licenciante : null, enviadoEm: lido.enviadoEm.toISOString() }
 }
 
 export interface MaterialDependencies {
@@ -235,12 +242,16 @@ export class MaterialService {
     return listaDeMateriaisResponseSchema.parse({ itens: itens.map((item) => paraResposta(item, alcance)), ...(proxima === undefined ? {} : { proxima }) })
   }
 
-  /** `GET /v1/materiais/:id`. De outra escola, de disciplina sem vínculo, excluído ou inexistente: `NAO_ENCONTRADO`. */
-  async ler(id: string): Promise<MaterialResponse> {
+  /** `GET /v1/materiais/:id`, com os capítulos lidos do PDF. De outra escola, de disciplina sem vínculo, excluído ou inexistente: `NAO_ENCONTRADO`, sem capítulo. */
+  async ler(id: string): Promise<MaterialComCapitulosResponse> {
     const alcance = alcanceDoMaterial('ler')
-    const lido = await new MaterialRepository(this.dependencias.banco).porId(id, alcance)
+    const materiais = new MaterialRepository(this.dependencias.banco)
+    const lido = await materiais.porId(id, alcance)
     if (lido === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
-    return paraResposta(lido, alcance)
+    // `porId` e `capitulos` são duas consultas, sem transação: se o expurgo apagar o material entre as duas, a resposta sai com o material e a lista vazia.
+    // Aceito: o material vale até a exclusão, e uma lista vazia de um material que acabou de sumir não expõe nada a quem não o alcançava.
+    // A resposta é validada uma vez só, pelo esquema estrito do contrato inteiro.
+    return materialComCapitulosResponseSchema.parse({ ...daLinhaParaOContrato(lido, alcance), capitulos: await materiais.capitulos(id) })
   }
 
   /**

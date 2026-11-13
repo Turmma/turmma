@@ -78,7 +78,9 @@ falhou. Seed e e2e usam licenciante fictício.
 - [U] `ChapterReader`: marcador de primeiro nível; dois marcadores na mesma página (fica o primeiro); fora de ordem
   (ordenado); título vazio ("Capítulo N"); título de 300 caracteres (cortado em 200); número acima de int (nulo); linha
   "Capítulo 3" só quando muda o número (cabeçalho corrido não cria um capítulo por página); página de sumário com três
-  casamentos, ignorada; erro do leitor dá zero capítulos
+  casamentos, ignorada (com dois, a página começa capítulo); erro do leitor dá zero capítulos; só as 2 primeiras linhas são o
+  topo, e a primeira das duas que casa é a lida (limite conhecido: "Unidade 2" corrido na linha 1 e "Capítulo 5" na 2 não
+  muda o número, e os capítulos dentro da unidade se perdem; o marcador do PDF não tem esse limite); mais de 2.000 capítulos dá zero
 - [U] Amostra fixa, com o pdfjs de verdade: PDFs sintéticos de `tools/demonstracao` com marcador, com destino nomeado,
   com a linha, com cabeçalho corrido, com sumário e sem nada; 100% das páginas no capítulo certo
 - [U] Os testes de hoje do `PdfExtractor` (duas colunas, fórmula quebrada) vão com ele ao `packages/core`

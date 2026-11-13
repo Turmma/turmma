@@ -46,7 +46,7 @@ function quandoAbortar(sinal: AbortSignal): Promise<never> {
 
 /**
  * `material.extrair-pdf` (ingestao-do-material, tarefa 1.0; Tech Spec, seção 5, "Extração"; onda 3b, 45.0): no contexto da escola do job,
- * lê o PDF do storage, extrai o texto por página e grava os trechos e o estado do material numa transação só; **depois do commit**, apaga o
+ * lê o PDF do storage, extrai o texto por página e os capítulos e grava os trechos, os capítulos e o estado do material numa transação só; **depois do commit**, apaga o
  * objeto. O PDF não sobra no storage em nenhum caminho: sucesso, falha definitiva, exclusão (o envio da exclusão o apaga), expurgo.
  *
  * - **A transição abre a transação.** `processando` e não excluído, da escola do job: sem linha, o job conclui sem efeito. É a que faz o job
@@ -120,12 +120,14 @@ export function criarExtracaoDoPdf({ banco, armazem, extrator, logger, medidor }
         // Excluído, ou já extraído por outro job, enquanto era lido: nenhum trecho entra, e o objeto é de quem mudou a linha.
         if (disciplinaId === undefined) return false
         await materiais.gravarTrechos(materialId, disciplinaId, resultado.trechos)
+        await materiais.gravarCapitulos(materialId, resultado.capitulos)
         return true
       })
       if (!gravou) return 'sem_efeito'
       const paginasTotal = resultado.paginas
       const trechosTotal = resultado.trechos.length
-      logger.info({ evento: 'material.extraido', materialId, paginasTotal, trechosTotal, tentativa })
+      const capitulosTotal = resultado.capitulos.length
+      logger.info({ evento: 'material.extraido', materialId, paginasTotal, trechosTotal, capitulosTotal, tentativa })
       await apagarObjeto(materialId)
       return 'pronto'
     }
