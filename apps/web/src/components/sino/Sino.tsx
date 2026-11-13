@@ -26,6 +26,8 @@ export interface ItemDoSino {
   readonly para: string
   /** Um número que o item carrega (as turmas sem professor), com o que ele conta, em texto, para o leitor de tela. */
   readonly contador?: { readonly n: number; readonly oQueConta: string }
+  /** O título é um fato que se lê inteiro, e quebra em quantas linhas precisar em vez de terminar em reticências (`ListItem`). */
+  readonly tituloInteiro?: boolean
 }
 
 /** Um link do pé do sino: o texto e o endereço da tela, relativo à área onde o sino está. */
@@ -111,6 +113,7 @@ function GrupoDeItens({ titulo, itens }: { readonly titulo: string; readonly ite
               para={item.para}
               titulo={item.titulo}
               abaixo={item.detalhe}
+              {...(item.tituloInteiro === true ? { tituloInteiro: true } : {})}
               {...(item.contador === undefined ? {} : { fim: <CountBadge n={item.contador.n} oQueConta={item.contador.oQueConta} /> })}
             />
           </li>

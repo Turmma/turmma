@@ -141,6 +141,21 @@ describe('Linha', () => {
     expect(classes.has('truncate')).toBe(false)
   })
 
+  it('o título que pede `tituloInteiro` quebra em quantas linhas precisar: sem reticências e sem o corte de duas linhas, mesmo com `tituloEmDuasLinhas`', () => {
+    render(
+      <>
+        <ListItem para="/a" titulo="Um fato inteiro" tituloInteiro />
+        <ListItem para="/b" titulo="Outro fato inteiro" tituloInteiro tituloEmDuasLinhas />
+      </>,
+    )
+    for (const texto of ['Um fato inteiro', 'Outro fato inteiro']) {
+      const classes = classesOf(screen.getByText(texto))
+      expect(classes.has('break-words')).toBe(true)
+      expect(classes.has('truncate')).toBe(false)
+      expect(classes.has('line-clamp-2')).toBe(false)
+    }
+  })
+
   it('a linha tem 64 px no mínimo, ocupa a largura toda e desenha o anel por dentro', () => {
     render(
       <>

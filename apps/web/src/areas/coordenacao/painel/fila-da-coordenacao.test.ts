@@ -1,4 +1,4 @@
-import type { AnoLetivo, IncidenteDaEscola, Material, ProfessorDaEscola, Turma, VinculoDaCoordenacao } from '@educa/shared'
+import { situacaoDaLicenca, type AnoLetivo, type IncidenteDaEscola, type Licenca, type Material, type ProfessorDaEscola, type Turma, type VinculoDaCoordenacao } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import { montarFila, TIPOS_DA_FILA, turmasSemProfessor, type EntradaDaFila, type LeituraDaFila } from './fila-da-coordenacao'
 
@@ -58,6 +58,35 @@ const material = (n: number, estado: Material['estado']): Material => ({
   enviadoEm: '2026-10-01T12:00:00.000Z',
 })
 
+/** `AAAA-MM-DD` mais `dias`, por calendário, sem fuso: o dia do fim de cada licença dos casos, contado a partir de "hoje". */
+function maisDias(dia: string, dias: number): string {
+  const data = new Date(`${dia}T00:00:00Z`)
+  data.setUTCDate(data.getUTCDate() + dias)
+  return data.toISOString().slice(0, 10)
+}
+
+const HOJE = '2026-11-14'
+
+/**
+ * Uma licença que termina `diasParaOFim` dias depois de hoje (negativo: já terminou), com a `situacao` que a API daria **para o dia de hoje**:
+ * é a função de `packages/shared`, a mesma da API, e não um texto escrito à mão, que faria o caso passar por qualquer valor.
+ */
+const licenca = (n: number, diasParaOFim: number | null, materiais: number): Licenca => {
+  const vigenteAte = diasParaOFim === null ? null : maisDias(HOJE, diasParaOFim)
+  return {
+    id: id(800 + n),
+    licenciante: 'Editora Sintética',
+    cobertura: 'Coleção de Química',
+    referencia: 'Contrato 123',
+    vigenteDesde: '2026-01-01',
+    vigenteAte,
+    situacao: situacaoDaLicenca(HOJE, '2026-01-01', vigenteAte),
+    materiais,
+    registradaEm: '2026-01-01T12:00:00.000Z',
+    alteradaEm: '2026-01-01T12:00:00.000Z',
+  }
+}
+
 /** Tudo lido e sem nada esperando, com o ano em curso; o caso muda o que importa. */
 function entrada(sobre: Partial<EntradaDaFila> = {}): EntradaDaFila {
   return {
@@ -65,6 +94,7 @@ function entrada(sobre: Partial<EntradaDaFila> = {}): EntradaDaFila {
     incidentes: lida([]),
     professores: lida([CAMILA, PAULO]),
     materiais: lida([]),
+    licencas: lida([]),
     turmas: lida([T1, T2]),
     vinculos: lida([vinculo(1, CAMILA, T1, 'confirmado'), vinculo(2, PAULO, T2, 'confirmado')]),
     ...sobre,
@@ -72,12 +102,13 @@ function entrada(sobre: Partial<EntradaDaFila> = {}): EntradaDaFila {
 }
 
 describe('montarFila: a conta, tipo a tipo', () => {
-  it('os cinco tipos viram item, com o endereço certo; vínculo pendente e material processando não viram', () => {
+  it('os seis tipos viram item, com o endereço certo; vínculo pendente e material processando não viram', () => {
     const fila = montarFila(
       entrada({
         incidentes: lida([incidente(1, null), incidente(2, '2026-10-02T10:00:00.000Z')]),
         professores: lida([CAMILA, professor(2, 'Paulo Sintético', 'vencido'), professor(3, 'Rita Sintética', 'pendente')]),
         materiais: lida([material(1, 'falhou'), material(2, 'processando'), material(3, 'pronto')]),
+        licencas: lida([licenca(1, 10, 2), licenca(2, 90, 5)]),
         turmas: lida([T1, T2, T3]),
         vinculos: lida([vinculo(1, CAMILA, T1, 'contestado'), vinculo(2, CAMILA, T2, 'pendente')]),
       }),
@@ -88,6 +119,7 @@ describe('montarFila: a conta, tipo a tipo', () => {
       { tipo: 'contestacao', para: `/professores?professor=${CAMILA.usuarioId}`, urgente: false },
       { tipo: 'convite-vencido', para: `/professores?professor=${id(302)}`, urgente: false },
       { tipo: 'material-falhou', para: `/material?material=${id(701)}`, urgente: false },
+      { tipo: 'licenca-vencendo', para: '/material?aba=licencas', urgente: false },
       { tipo: 'turmas-sem-professor', para: '/estrutura?situacao=sem-professor', urgente: false },
     ])
     const vencido = fila.itens.find((item) => item.tipo === 'convite-vencido')
@@ -96,12 +128,13 @@ describe('montarFila: a conta, tipo a tipo', () => {
     expect(fila.itens.find((item) => item.tipo === 'turmas-sem-professor')?.contador).toEqual({ n: 2, oQueConta: 'turmas sem professor' })
   })
 
-  it('o tipo é sempre um dos cinco, e só as turmas sem professor levam contador', () => {
+  it('o tipo é sempre um dos seis, e só as turmas sem professor levam contador', () => {
     const fila = montarFila(
       entrada({
         incidentes: lida([incidente(1, null)]),
         professores: lida([CAMILA, professor(2, 'Paulo Sintético', 'vencido')]),
         materiais: lida([material(1, 'falhou')]),
+        licencas: lida([licenca(1, 5, 1)]),
         turmas: lida([T1, T2, T3]),
         vinculos: lida([vinculo(1, CAMILA, T1, 'contestado')]),
       }),
@@ -220,6 +253,7 @@ describe('montarFila: a leitura que não veio inteira', () => {
       { anos: lida([ANO], false) },
       { professores: lida([CAMILA], false) },
       { materiais: lida([], false) },
+      { licencas: lida([], false) },
       { turmas: lida([T1], false) },
       { vinculos: lida([], false) },
     ]
@@ -253,8 +287,60 @@ describe('montarFila: a leitura que não veio inteira', () => {
 
   it('nada lido: erro; alguma leitura em curso: carregando', () => {
     const falha: LeituraDaFila<never> = { estado: 'erro', erro: new Error('x') }
-    const tudoFalhou = montarFila({ anos: falha, incidentes: falha, professores: falha, materiais: falha, turmas: { estado: 'nao-se-aplica' }, vinculos: { estado: 'nao-se-aplica' } })
+    const tudoFalhou = montarFila({ anos: falha, incidentes: falha, professores: falha, materiais: falha, licencas: falha, turmas: { estado: 'nao-se-aplica' }, vinculos: { estado: 'nao-se-aplica' } })
     expect(tudoFalhou.situacao).toBe('erro')
     expect(montarFila(entrada({ materiais: { estado: 'carregando' } })).situacao).toBe('carregando')
+  })
+})
+
+describe('montarFila: a licença de material (RF17)', () => {
+  const itensDeLicenca = (licencas: readonly Licenca[]) => montarFila(entrada({ licencas: lida(licencas) })).itens.filter((item) => item.tipo === 'licenca-vencendo')
+
+  it('a 31 dias do fim: sem aviso', () => {
+    expect(itensDeLicenca([licenca(1, 31, 3)])).toEqual([])
+  })
+
+  it('a 30 dias do fim: avisa, com o dia e o mês do fim', () => {
+    const [item, ...resto] = itensDeLicenca([licenca(1, 30, 3)])
+    expect(resto).toEqual([])
+    expect(item?.titulo).toBe('Uma licença de material vence em 14/12')
+    expect(item?.para).toBe('/material?aba=licencas')
+  })
+
+  it('no último dia (0): ainda avisa que vence, com o dia de hoje', () => {
+    expect(itensDeLicenca([licenca(1, 0, 3)]).map((item) => item.titulo)).toEqual(['Uma licença de material vence em 14/11'])
+  })
+
+  it('um dia depois do fim (+1) e com material: avisa que venceu e que os materiais saíram da busca', () => {
+    const itens = itensDeLicenca([licenca(1, -1, 3)])
+    expect(itens.map((item) => item.titulo)).toEqual(['Uma licença de material venceu; os materiais dela saíram da busca'])
+    expect(itens.map((item) => item.para)).toEqual(['/material?aba=licencas'])
+  })
+
+  it('vencida sem material: não avisa, porque nada depende dela', () => {
+    expect(itensDeLicenca([licenca(1, -1, 0)])).toEqual([])
+  })
+
+  it('a que vence sem material avisa, a sem fim e a que ainda não começou não', () => {
+    const futura: Licenca = { ...licenca(3, 100, 2), vigenteDesde: '2026-12-01', situacao: 'futura' }
+    expect(itensDeLicenca([licenca(1, 10, 0)])).toHaveLength(1)
+    expect(itensDeLicenca([licenca(2, null, 4), futura])).toEqual([])
+  })
+
+  it('um item por licença, com ids distintos, e o texto não leva licenciante nem número', () => {
+    // Duas de cada tipo: o id é o da licença, e não o do tipo.
+    const itens = itensDeLicenca([licenca(1, 10, 3), licenca(2, 20, 1), licenca(3, -4, 7), licenca(4, -9, 2)])
+    expect(new Set(itens.map((item) => item.id)).size).toBe(4)
+    for (const item of itens) {
+      expect(`${item.titulo} ${item.detalhe}`).not.toMatch(/Editora Sintética|Coleção|Contrato/)
+      expect(item.contador).toBeUndefined()
+      expect(item.tituloInteiro).toBe(true)
+      expect(`${item.titulo} ${item.detalhe}`).not.toMatch(/\d+ (materiais|material)/)
+    }
+  })
+
+  it('o aviso sai quando a vigência muda: a mesma licença, com o fim adiado, não é item', () => {
+    expect(itensDeLicenca([licenca(1, 10, 3)])).toHaveLength(1)
+    expect(itensDeLicenca([licenca(1, 200, 3)])).toEqual([])
   })
 })

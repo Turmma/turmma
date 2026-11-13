@@ -38,7 +38,7 @@
   - [x] 5.4 Testes: situação, isolamento, dois `PATCH`, a retenção segurada
   - [x] 5.5 O job sem escola na auditoria (check e `ENTIDADES_DE_AUDITORIA_SEM_ESCOLA`), sem a recusa da 3.0; o `falhou` de `material.extrair-pdf` fora do expurgo até o Descartar
 
-- [ ] **6.0 — A aba Licenças e o aviso `licenca-vencendo` no sino**
+- [x] **6.0 — A aba Licenças e o aviso `licenca-vencendo` no sino**
   - [ ] 6.1 Aba Licenças: lista, registrar, vigência
   - [ ] 6.2 O sexto tipo do sino
   - [ ] 6.3 Testes: os quatro estados, as datas, os dias do sino

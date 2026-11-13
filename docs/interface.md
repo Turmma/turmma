@@ -611,7 +611,21 @@ os quatro estados; o vazio da grade convida a "Baixar modelo".
 - **Material**: **só a coordenação sobe material para a base da escola**; professor e aluno não
   sobem (D75). Fontes com titularidade e licença, upload, estado da ingestão com o que entrou,
   o que falhou, o que está pendente e o que foi recusado por falta de licença (F4,
-  D5 revista)
+  D5 revista). **Material tem duas abas dentro dela, Materiais e Licenças**, e a aba é o endereço
+  (`?aba=licencas`; sem o parâmetro abre Materiais). **Licenças** (ingestao-do-material, 6.0; RF16 e RF17)
+  é uma tabela com cada licença de material: quem a deu e o que cobre, a **situação em texto e em cor**
+  (Vigente, "Vence em dd/mm/aaaa", "Vencida em dd/mm/aaaa", "Começa em dd/mm/aaaa"), a vigência com
+  as datas em dd/mm/aaaa e o rótulo de cada uma ("Começa em", "Termina em", ou "Sem data de fim") e
+  quantos materiais ela cobre; a 360 px a tabela vira lista. As licenças criadas
+  automaticamente, a partir do nome da editora de cada material, vêm com o selo "Criada automaticamente ·
+  revise", o documento "não informado" e uma faixa que pede a revisão da vigência. **"Registrar
+  licença"** abre um diálogo (licenciante, o que cobre, documento, começo e fim opcional), e o botão
+  fica desligado enquanto o pedido corre: a rota não tem idempotência. **"Mudar a vigência"** abre
+  um diálogo que diz, **antes de confirmar**, quantos materiais saem da busca do Assistente e do Tutor
+  ou voltam a ela, sem reenviar nada. A licença não se exclui. **Nenhum material some para o aluno por
+  uma regra da tela:** a situação vem da API, e quem decide é a coordenação, pela vigência. Os quatro
+  estados valem para a aba (carregando, erro com "Tentar de novo", vazio que convida a registrar a
+  primeira licença, e a tabela)
 
 **Registros** tem três abas, **IA, Pedidos e Privacidade**, que recebem a tabela da Governança, o
 item Agentes e o item Privacidade de hoje.
@@ -648,11 +662,13 @@ item Agentes e o item Privacidade de hoje.
   coordenação da escola afetada; "Ver depois" deixa uma faixa fixa, sem botão de fechar, até a confirmação, e o "Sair" nunca fica
   fora de alcance (D59)
 
-**O sino "Esperando você"** da coordenação (X2, RF4 a RF7) lista cinco tipos, e só eles: incidente
-sem confirmação, professor que contestou a turma, convite vencido, material que falhou e turmas sem
-professor. Cada item leva à tela que resolve e sai quando o estado muda; sem item, o vazio diz "Tudo
-em dia". Nenhum item conta por professor (o único número é o das turmas sem professor), e o que só
-se lê com leitura auditada (lista de nomes, pedidos de nome, pedidos do titular) não entra (regra 20,
+**O sino "Esperando você"** da coordenação (X2, RF4 a RF7; ingestao-do-material, 6.0, RF17) lista seis tipos, e só eles: incidente
+sem confirmação, professor que contestou a turma, convite vencido, material que falhou, **licença de material que vence
+ou que venceu com material** e turmas sem professor. A licença aparece em dois textos, "Uma licença de material vence em dd/mm"
+(de 30 dias antes do fim até o último dia) e "Uma licença de material venceu; os materiais dela saíram da busca" (só se ainda
+há material nela), e leva à aba Licenças; **sem licenciante, sem número por pessoa** e sem aviso fora do sino (D59). Cada item leva à
+tela que resolve e sai quando o estado muda; sem item, o vazio diz "Tudo em dia". Nenhum item conta por professor (o único número é o
+das turmas sem professor), e o que só se lê com leitura auditada (lista de nomes, pedidos de nome, pedidos do titular) não entra (regra 20,
 item 10; D45, D64). O sino não pisca, não soa e não relê por tempo.
 
 **A introdução** (X4, tarefa 11.0) abre na primeira entrada, em tela de foco, falada pelo Analista
@@ -1755,7 +1771,7 @@ prova isso (RF6 da X1).
 | Peça | Desenho | Estados e teclado |
 |---|---|---|
 | `Card` (R) | Canto 16, borda 2, face `fundo`, 16 px por dentro (20 a partir de 768). De leitura, sem degrau. A cor de família vai no ladrilho e no selo de dentro, nunca no fundo inteiro | Clicável: degrau, hover `fundo-suave`. Selecionado: `azul-claro` com `azul-borda` |
-| `ListItem` (N) | A linha inteira clicável: mínimo de 64 px. Título em `t-cartao`, numa linha com reticências (o `title` guarda o texto inteiro; o título fixo e curto, que não pode sair cortado a 360 px, pede `tituloEmDuasLinhas` e quebra em até duas); embaixo, `t-apoio`; no fim, chevron de 20 em `apagado`, decoração. O fio de 2 px entre uma linha e a de cima é de quem junta as linhas, com `divide-y-2 divide-borda` na moldura (produto): a linha sozinha não sabe se é a primeira | Link, botão ou só leitura (sem foco e sem chevron). Hover `fundo-suave`; o anel de foco por dentro (−3 px) |
+| `ListItem` (N) | A linha inteira clicável: mínimo de 64 px. Título em `t-cartao`, numa linha com reticências (o `title` guarda o texto inteiro; o título fixo e curto, que não pode sair cortado a 360 px, pede `tituloEmDuasLinhas` e quebra em até duas; o fato que se lê inteiro, como o aviso do sino, pede `tituloInteiro` e quebra em quantas linhas precisar); embaixo, `t-apoio`; no fim, chevron de 20 em `apagado`, decoração. O fio de 2 px entre uma linha e a de cima é de quem junta as linhas, com `divide-y-2 divide-borda` na moldura (produto): a linha sozinha não sabe se é a primeira | Link, botão ou só leitura (sem foco e sem chevron). Hover `fundo-suave`; o anel de foco por dentro (−3 px) |
 | `Table` (R) | Moldura de canto 16. Cabeçalho de 44 px em `t-selo`; linha de 64 px, 15 px em 500. Abaixo de 768 px cada linha vira um cartão | Linha ativa em `azul-claro`. Linha que abre: inteira, por Enter e espaço. Não ordena |
 | `Tabs` (R) | Linha de 44 px (produto: as abas de página do mockup, que levam o número; a de 48 px é a do mockup solta) sobre um fio de 2 px. Rótulo em `t-rotulo`, `sutil`; a ativa em `azul-texto`, com sublinhado de 3 px em `azul`. **Até três** | Teclado de `tabs-keyboard.ts`; `aria-selected` e `aria-controls` |
 | `Page` (R) | A moldura de toda tela, com o título e as larguras (11.2) | — |

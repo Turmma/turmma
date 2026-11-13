@@ -7,7 +7,7 @@ import { errorMessage } from '../../../api/client'
 import { disciplinasQueryOptions } from '../../../api/estrutura'
 import { materiaisQueryOptions, excluirMaterial, type CamposDoEnvioDeMaterial } from './api/material'
 import { aoTrocarDeSessao } from '../../../api/sessao'
-import { MATERIAL_PARAM } from '../../../paths'
+import { MATERIAL_PARAM, ABA_DO_MATERIAL_PARAM, type AbaDoMaterial } from '../../../paths'
 import { Button } from '../../../components/ui/Button'
 import { useDialogState } from '../../../components/ui/overlays/dialog-state'
 import { ConfirmDialog } from '../../../components/ui/overlays/ConfirmDialog'
@@ -23,6 +23,8 @@ import { FAMILIA_DA_SITUACAO_DO_MATERIAL, linhasDosMateriais, materialDoEndereco
 import { useFocusPageHeading } from '../comum/moldura'
 import { AvisoDeListaIncompleta, CLASSES_DO_BOTAO_DA_LINHA } from '../comum/pecas-da-lista'
 import { PainelDoMaterial } from './PainelDoMaterial'
+import { Licencas } from './Licencas'
+import { Tabs, type TabItem } from '../../../components/ui/Tabs'
 
 /** Os diálogos da tela, um por vez. O envio leva, quando vem do painel de um material que falhou, esse material; a exclusão leva o da linha. */
 type TipoDeDialogo = 'enviar' | 'excluir'
@@ -89,7 +91,7 @@ function colunasDosMateriais(
  *
  * Os quatro estados: carregando; erro com "Tentar de novo"; vazio, que convida a enviar o primeiro material; e com dado.
  */
-export default function Material() {
+function MateriaisDaEscola() {
   const cliente = useQueryClient()
   const [caminho, navegar] = useLocation()
   const busca = useSearch()
@@ -312,5 +314,40 @@ function ExcluirMaterial({ material, disciplina, aoFechar, aoTerminar, aoExcluir
       {...(mutacao.isError ? { falha: errorText(mutacao.error, TEXTOS_DA_FALHA_DA_EXCLUSAO) } : {})}
       focoDeReserva={focoDeReserva}
     />
+  )
+}
+
+/** As duas seções de Material, na ordem em que a coordenação as usa: o que a escola enviou, e as licenças que o material de terceiro cita. */
+const SECOES: readonly (TabItem & { readonly id: AbaDoMaterial })[] = [
+  { id: 'materiais', rotulo: 'Materiais' },
+  { id: 'licencas', rotulo: 'Licenças' },
+]
+
+/**
+ * A seção de Material que o endereço pede (`?aba=licencas`); qualquer outro valor, ou nenhum, abre "Materiais". O endereço só leva um valor de
+ * lista fechada, nunca nome (regra 20, item 9).
+ */
+export function abaDoEndereco(busca: string): AbaDoMaterial {
+  return new URLSearchParams(busca).get(ABA_DO_MATERIAL_PARAM) === 'licencas' ? 'licencas' : 'materiais'
+}
+
+/**
+ * Escola › Material: duas seções em abas, **Materiais** (a tabela do que a escola enviou, o envio e o painel) e **Licenças** (RF16 e RF17: a
+ * licença de cada material de terceiro, com a vigência). A seção é o endereço (`?aba=licencas`), e é o endereço que o item `licenca-vencendo`
+ * do sino abre; trocar de seção troca só o parâmetro, sem tirar o `?material=`.
+ */
+export default function Material() {
+  const [caminho, navegar] = useLocation()
+  const busca = useSearch()
+  const ativa = abaDoEndereco(busca)
+  return (
+    <Tabs
+      rotulo="Seções de Material"
+      abas={SECOES}
+      ativa={ativa}
+      aoMudar={(id) => navegar(enderecoComParametro(caminho, busca, ABA_DO_MATERIAL_PARAM, id === 'licencas' ? 'licencas' : undefined), { replace: true })}
+    >
+      {ativa === 'licencas' ? <Licencas /> : <MateriaisDaEscola />}
+    </Tabs>
   )
 }

@@ -28,7 +28,7 @@ import { nomeDaFuncao, textoDoConsumo, textoDoPacoteDoTutor } from '../governanc
  * que a Governança, a Estrutura e o sino já leem, com as mesmas chaves.
  *
  * - **Nada aqui é indicador de professor, de turma ou de pedido de titular** (regra 70, itens 8 e 9; D45, D64): os quatro
- *   números são da escola, a fila tem os cinco tipos do sino e o único número de item é o das turmas sem professor. Os
+ *   números são da escola, a fila tem os seis tipos do sino e o único número de item é o das turmas sem professor. Os
  *   pedidos de titular entram por uma porta fixa, **sem contagem**: contá-los seria ler a lista, e cada leitura é auditada
  *   (regra 20, item 10). O mesmo vale para a lista de nomes das turmas.
  * - **Cada bloco tem o seu carregando, o seu erro e o seu "Tentar de novo"**: um bloco que falha não derruba os outros.
@@ -192,6 +192,7 @@ function EsperandoVoce() {
                 para={item.para}
                 titulo={item.titulo}
                 abaixo={item.detalhe}
+                {...(item.tituloInteiro === true ? { tituloInteiro: true } : {})}
                 {...(item.contador === undefined && !item.urgente
                   ? {}
                   : {

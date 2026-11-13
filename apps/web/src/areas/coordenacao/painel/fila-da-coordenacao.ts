@@ -1,11 +1,13 @@
-import type { AnoLetivo, IncidenteDaEscola, Material, ProfessorDaEscola, Turma, VinculoDaCoordenacao } from '@educa/shared'
+import type { AnoLetivo, IncidenteDaEscola, Licenca, Material, ProfessorDaEscola, Turma, VinculoDaCoordenacao } from '@educa/shared'
 import { useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query'
 import { useState } from 'react'
 import { anosLetivosQueryOptions, turmasQueryOptions, vinculosQueryOptions, type ListaDaEstrutura } from '../../../api/estrutura'
+import { licencasQueryOptions } from '../material/api/licencas'
 import { materiaisQueryOptions } from '../material/api/material'
+import { diaEMesDaLicenca } from '../material/licencas'
 import { incidentesQueryOptions } from '../privacidade/api/privacidade'
 import { professoresQueryOptions } from '../professores/api/professores'
-import { caminhoDoProfessor } from '../../../paths'
+import { caminhoDasLicencas, caminhoDoProfessor } from '../../../paths'
 import { QUEUE_QUERY_OPTIONS, NO_AUTO_REFETCH, type LeituraDaFila } from '../../../components/sino/leitura-do-sino'
 import type { ItemDoSino, SituacaoDoSino } from '../../../components/sino/Sino'
 import { formatDayOfInstant } from '../../../format'
@@ -19,11 +21,12 @@ export type { LeituraDaFila }
  * A fila "Esperando você" da coordenação (Tech Spec das telas da coordenação, seção 5, "A fila"; RF4, RF5 e RF7): uma função
  * pura, `montarFila`, sobre leituras que a web já faz, e o gancho que as lê. Nenhuma rota e nenhuma tabela são novas.
  *
- * **Os tipos são cinco e só esses.** Nada aqui deriva de uso, de entrega ou de atividade do professor, e nenhum item leva
+ * **Os tipos são seis e só esses.** Nada aqui deriva de uso, de entrega ou de atividade do professor, e nenhum item leva
  * número por professor (regra 70, itens 8 e 9; D64): quem contestou ou tem convite vencido aparece como o fato, um item por
- * vínculo ou convite, sem contagem. O único `contador` é o das turmas sem professor.
+ * vínculo ou convite, sem contagem. O único `contador` é o das turmas sem professor. O sexto, `licenca-vencendo`
+ * (ingestao-do-material, 6.0; RF17), é da licença de material: o fim dela, em dia e mês, e nunca o licenciante, que pode ser nome de pessoa.
  */
-export const TIPOS_DA_FILA = ['incidente', 'contestacao', 'convite-vencido', 'material-falhou', 'turmas-sem-professor'] as const
+export const TIPOS_DA_FILA = ['incidente', 'contestacao', 'convite-vencido', 'material-falhou', 'licenca-vencendo', 'turmas-sem-professor'] as const
 export type TipoDeItemDaFila = (typeof TIPOS_DA_FILA)[number]
 
 export interface ItemDaFila extends ItemDoSino {
@@ -35,6 +38,7 @@ export interface EntradaDaFila {
   readonly incidentes: LeituraDaFila<readonly IncidenteDaEscola[]>
   readonly professores: LeituraDaFila<readonly ProfessorDaEscola[]>
   readonly materiais: LeituraDaFila<readonly Material[]>
+  readonly licencas: LeituraDaFila<readonly Licenca[]>
   readonly turmas: LeituraDaFila<readonly Turma[]>
   readonly vinculos: LeituraDaFila<readonly VinculoDaCoordenacao[]>
 }
@@ -121,6 +125,43 @@ function itensDeMaterial(materiais: readonly Material[]): ItemDaFila[] {
     }))
 }
 
+/**
+ * As licenças de material que pedem a coordenação (RF17): a que **vence nos próximos 30 dias** (a `situacao` é da API, do dia de São Paulo:
+ * de 30 dias antes do fim até o último dia), e a que **venceu e ainda tem material**, que já saiu da busca. A vencida sem material não avisa:
+ * nada depende dela. O texto diz a data ou o fato, sem licenciante nem número; é a coordenação quem decide, ao mudar a vigência (D44).
+ */
+function itensDeLicenca(licencas: readonly Licenca[]): ItemDaFila[] {
+  return licencas.flatMap((licenca): ItemDaFila[] => {
+    if (licenca.situacao === 'vence_em_30_dias' && licenca.vigenteAte !== null) {
+      return [
+        {
+          id: `licenca-${licenca.id}`,
+          tipo: 'licenca-vencendo',
+          titulo: `Uma licença de material vence em ${diaEMesDaLicenca(licenca.vigenteAte)}`,
+          detalhe: 'Atualize a vigência antes do fim, ou os materiais dela saem da busca.',
+          urgente: false,
+          tituloInteiro: true,
+          para: caminhoDasLicencas(),
+        },
+      ]
+    }
+    if (licenca.situacao === 'vencida' && licenca.materiais > 0) {
+      return [
+        {
+          id: `licenca-${licenca.id}`,
+          tipo: 'licenca-vencendo',
+          titulo: 'Uma licença de material venceu; os materiais dela saíram da busca',
+          detalhe: 'Atualize a vigência para eles voltarem.',
+          urgente: false,
+          tituloInteiro: true,
+          para: caminhoDasLicencas(),
+        },
+      ]
+    }
+    return []
+  })
+}
+
 function itemDeTurmasSemProfessor(semProfessor: readonly Turma[]): ItemDaFila[] {
   if (semProfessor.length === 0) return []
   return [
@@ -143,14 +184,15 @@ function itemDeTurmasSemProfessor(semProfessor: readonly Turma[]): ItemDaFila[] 
  * quando nenhuma leitura que se aplica deu certo; `carregando`, enquanto alguma ainda não respondeu.
  */
 export function montarFila(entrada: EntradaDaFila): FilaDaCoordenacao {
-  const { anos, incidentes, professores, materiais, turmas, vinculos } = entrada
-  const leituras = [anos, incidentes, professores, materiais, turmas, vinculos]
+  const { anos, incidentes, professores, materiais, licencas, turmas, vinculos } = entrada
+  const leituras = [anos, incidentes, professores, materiais, licencas, turmas, vinculos]
 
   const itens: ItemDaFila[] = [
     ...itensDeIncidente(lida(incidentes) ?? []),
     ...itensDeContestacao(lida(vinculos) ?? [], lida(professores)),
     ...itensDeConviteVencido(lida(professores) ?? []),
     ...itensDeMaterial(lida(materiais) ?? []),
+    ...itensDeLicenca(lida(licencas) ?? []),
   ]
   const turmasLidas = inteira(turmas)
   const vinculosLidos = inteira(vinculos)
@@ -193,12 +235,12 @@ export interface FilaLida extends FilaDaCoordenacao {
 }
 
 /**
- * Lê a fila: seis observadores com as opções acima. O de incidentes é o do aviso da área, uma leitura por sessão
+ * Lê a fila: sete observadores com as opções acima. O de incidentes é o do aviso da área, uma leitura por sessão
  * (`staleTime: Infinity`). **Turmas e vínculos só se leem com ano letivo em curso**: sem ele a API responde como
  * inexistente, e a fila não chama.
  *
- * "Tentar de novo" relê só o que falhou ou veio truncado, e "Atualizar" relê os cinco da lista (anos, turmas, vínculos,
- * professores e materiais), cada um **por `refetchQueries` com a chave exata** da consulta do observador: nunca por prefixo,
+ * "Tentar de novo" relê só o que falhou ou veio truncado, e "Atualizar" relê os seis da lista (anos, turmas, vínculos,
+ * professores, materiais e licenças), cada um **por `refetchQueries` com a chave exata** da consulta do observador: nunca por prefixo,
  * que alcançaria também a lista de nomes e os pedidos de titular, cuja leitura é auditada (regra 20, item 10).
  */
 export function useFilaDaCoordenacao(): FilaLida {
@@ -206,6 +248,7 @@ export function useFilaDaCoordenacao(): FilaLida {
   const incidentes = useQuery({ ...incidentesQueryOptions, ...QUEUE_QUERY_OPTIONS, staleTime: Infinity })
   const professores = useQuery({ ...professoresQueryOptions, ...QUEUE_QUERY_OPTIONS })
   const materiais = useQuery({ ...materiaisQueryOptions, ...QUEUE_QUERY_OPTIONS })
+  const licencas = useQuery({ ...licencasQueryOptions, ...QUEUE_QUERY_OPTIONS })
   const leituraDosAnos = leituraDe(anos)
   const aplicaAoAno = anoEmCurso(leituraDosAnos) !== undefined
   const turmas = useQuery({ ...turmasQueryOptions, ...QUEUE_QUERY_OPTIONS, enabled: aplicaAoAno })
@@ -222,6 +265,7 @@ export function useFilaDaCoordenacao(): FilaLida {
     incidentes: leituraDeIncidentes,
     professores: leituraDe(professores),
     materiais: leituraDe(materiais),
+    licencas: leituraDe(licencas),
     turmas: leituraDe(turmas, aplicaAoAno),
     vinculos: leituraDe(vinculos, aplicaAoAno),
   })
@@ -240,13 +284,14 @@ export function useFilaDaCoordenacao(): FilaLida {
   const cliente = useQueryClient()
   const reler = (consulta: { readonly queryKey: readonly unknown[] }): Promise<unknown> => cliente.refetchQueries({ queryKey: consulta.queryKey, exact: true })
 
-  // As seis leituras. "Atualizar" relê as cinco da lista (os incidentes são uma leitura por sessão). Turmas e vínculos sem ano em
+  // As sete leituras. "Atualizar" relê as seis da lista (os incidentes são uma leitura por sessão). Turmas e vínculos sem ano em
   // curso estão desligadas (`enabled`), e `refetchQueries` não relê consulta desligada: sem ano, nenhuma chamada a elas.
   const leiturasDaFila = [
     { resultado: anos, consulta: anosLetivosQueryOptions, atualiza: true },
     { resultado: incidentes, consulta: incidentesQueryOptions, atualiza: false },
     { resultado: professores, consulta: professoresQueryOptions, atualiza: true },
     { resultado: materiais, consulta: materiaisQueryOptions, atualiza: true },
+    { resultado: licencas, consulta: licencasQueryOptions, atualiza: true },
     { resultado: turmas, consulta: turmasQueryOptions, atualiza: true },
     { resultado: vinculos, consulta: vinculosQueryOptions, atualiza: true },
   ] as const

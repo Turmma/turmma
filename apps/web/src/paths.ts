@@ -112,6 +112,19 @@ export const PROFESSOR_PARAM = 'professor'
 export const MATERIAL_PARAM = 'material'
 
 /**
+ * O nome do parâmetro que escolhe a seção de Material (ingestao-do-material, 6.0): sem ele abre "Materiais", e `licencas` abre a aba Licenças.
+ * Só o valor de uma lista fechada vai ao endereço (regra 20, item 9).
+ */
+export const ABA_DO_MATERIAL_PARAM = 'aba'
+export const ABAS_DO_MATERIAL = ['materiais', 'licencas'] as const
+export type AbaDoMaterial = (typeof ABAS_DO_MATERIAL)[number]
+
+/** O endereço da aba Licenças de Material, **relativo à área**: é para onde o item `licenca-vencendo` do sino leva (6.0; RF17). */
+export function caminhoDasLicencas(): string {
+  return `${COORDENACAO_ROUTES.material}?${ABA_DO_MATERIAL_PARAM}=licencas`
+}
+
+/**
  * O endereço de Professores com o professor aberto, **relativo à área**: só o id do usuário vai na consulta, nunca o nome (regra
  * 20, item 9). É o que a fila do sino e a lista de professores da turma usam para levar ao painel dele (X2, 9.0; o painel é o da 6.0).
  */

@@ -3505,3 +3505,21 @@ aula" em `Retencao.tsx`, o Validador conferiu: a tela já o mostra pela descriç
 - [ ] (ingestao-do-material, 4.0, Implementador) **`npm run db:gerar` quebra:** o `schema` do `packages/core/drizzle.config.ts` é o glob `./packages/core/src/db/schema/*.ts`, que pega o `auditoria-por-alvo.int.test.ts`
       (arquivo de teste que mora ao lado do schema), e o `drizzle-kit` não carrega o Vitest ("Vitest cannot be imported in a CommonJS module"). A 4.0 gerou a `0051` com uma configuração temporária que lista os `.ts` do schema
       sem os `.test.ts`. Corrigir o glob (ou mover o teste para fora da pasta) e conferir que a geração volta a funcionar (dono: quem criar a próxima migration)
+
+## Da ingestao-do-material, tarefa 6.0, fora dela
+
+- [ ] (ingestao-do-material, 6.0, infra-guardian e test-engineer, 1ª e 2ª) **`POST /v1/licencas` sem chave de idempotência** (`Idempotency-Key` ou restrição única no banco; D49, regra 80 item 7). A tela segura um pedido por vez e relê a lista
+      quando o registro falha, mas a rota é da 5.0. Quando ela ganhar a chave, voltar a provar no e2e (`material-licencas.spec.ts`, caso do registro com resposta lenta) que o servidor grava uma licença só (dono: a API de licenças)
+- [ ] (ingestao-do-material, 6.0, infra-guardian, 1ª) **O sino faz uma sétima leitura por sessão** (a das licenças). Se a fila crescer, um endpoint agregado da fila em vez de uma leitura por tipo (dono: quem mexer na fila do sino)
+- [ ] (ingestao-do-material, 6.0, privacy-guardian, 1ª) **`registradaAntesDaF4` compara o texto da referência** (`registrada antes da F4`); um marcador próprio na API (campo ou origem da licença) seria mais firme. Muda o contrato da
+      API da 5.0 (dono: quem mexer em `/v1/licencas`)
+- [ ] (ingestao-do-material, 6.0, conformidade-reviewer, 1ª) **A vitrine cheia (`tools/vitrine/`) sem licença nenhuma:** pôr ao menos uma licença em cada situação e os dois avisos do sino, para o Validador fotografar a aba e o sino como
+      pede a seção "Telas" da 6.0 (antes da validação da ingestao-do-material)
+- [ ] (ingestao-do-material, 6.0, revisor-geral, 1ª e 2ª) **Fixar `locale: 'pt-BR'` na vitrine e no e2e** (`tools/vitrine/`, configuração do Playwright): as fotos mostram a data do campo como "mm/dd/yyyy", e a coordenadora a vê em dd/mm/aaaa
+- [ ] (ingestao-do-material, 6.0, frontend-reviewer, 1ª) **A sub-aba "Materiais | Licenças" se parece com a barra de abas de Escola.** Na validação, ver a tela com licenças; se a coordenação confundir os dois níveis, diferenciar o estilo
+- [ ] (ingestao-do-material, 6.0, test-engineer, 1ª) **Datas do e2e perto da meia-noite de São Paulo:** `diaEm` do Node contra `now()` do Postgres. O "Como testar" da 6.0 previa `page.clock` e "num sábado também", e o e2e não usa nenhum dos
+      dois (a unidade cobre o dia de São Paulo, `licencas.test.ts`); alinhar o texto do documento ou o e2e na validação
+- [ ] (ingestao-do-material, 6.0, frontend-reviewer, 2ª) **Texto da faixa no singular:** "Uma licença foi criada a partir do nome da editora de cada material" supõe várias; algo como "Uma licença foi criada automaticamente, a partir do nome da
+      editora". Muda a tela, os testes, o e2e e `docs/interface.md` (dono: quem mexer na aba Licenças)
+- [ ] (ingestao-do-material, 6.0, frontend-reviewer, revisor-geral e conformidade-reviewer, 2ª) **Nomes de código que ainda dizem "F4":** `registradaAntesDaF4`, `antesDaF4`, `REFERENCIA_DA_MIGRACAO` e os comentários de `Licencas.tsx` ("faixa da
+      migração"); um nome como `criadaAutomaticamente` ficaria igual ao da tela (retro ou X8, nomes de mercado)

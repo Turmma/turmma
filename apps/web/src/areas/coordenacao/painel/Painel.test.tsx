@@ -87,6 +87,7 @@ interface Respostas {
   incidentes: Resposta
   professores: Resposta
   materiais: Resposta
+  licencas: Resposta
   turmas: Resposta
   vinculos: Resposta
   series: Resposta
@@ -101,6 +102,7 @@ const TUDO_EM_DIA: Respostas = {
   incidentes: { status: 200, corpo: { incidentes: [], prazoLegal: 'O prazo é da escola.' } },
   professores: ok([CAMILA]),
   materiais: ok([MATERIAL('pronto')]),
+  licencas: ok([]),
   turmas: ok([TURMA]),
   vinculos: ok([VINCULO(1, CAMILA.usuarioId, TURMA, 'confirmado')]),
   series: ok([SERIE]),
@@ -115,6 +117,7 @@ function instalar(rede: FakeNetwork, respostas: Respostas): void {
   rede.responderPor('/v1/privacidade/incidentes', respostas.incidentes)
   rede.responderPor('/v1/professores', respostas.professores)
   rede.responderPor('/v1/materiais', respostas.materiais)
+  rede.responderPor('/v1/licencas', respostas.licencas)
   rede.responderPor('/v1/turmas', respostas.turmas)
   rede.responderPor('/v1/vinculos', respostas.vinculos)
   rede.responderPor('/v1/series', respostas.series)
@@ -124,8 +127,8 @@ function instalar(rede: FakeNetwork, respostas: Respostas): void {
   rede.responderPor('/v1/governanca/funcoes', respostas.funcoes)
 }
 
-/** As onze leituras do Painel, e só elas. Os incidentes são uma leitura por sessão (o aviso da área). */
-const LEITURAS_DO_PAINEL = ['/v1/anos-letivos', '/v1/professores', '/v1/materiais', '/v1/turmas', '/v1/vinculos', '/v1/series', '/v1/disciplinas', '/v1/governanca/resumo', '/v1/governanca/consumo', '/v1/governanca/funcoes']
+/** As onze leituras do Painel, e só elas (a fila do sino leu as licenças a partir da ingestao-do-material, 6.0). Os incidentes são uma leitura por sessão (o aviso da área) e fazem a décima segunda onde o caso as soma. */
+const LEITURAS_DO_PAINEL = ['/v1/anos-letivos', '/v1/professores', '/v1/materiais', '/v1/licencas', '/v1/turmas', '/v1/vinculos', '/v1/series', '/v1/disciplinas', '/v1/governanca/resumo', '/v1/governanca/consumo', '/v1/governanca/funcoes']
 const semConsulta = (caminho: string) => caminho.split('?')[0] ?? caminho
 const caminhosDe = (rede: FakeNetwork) => rede.chamadas.map((chamada) => semConsulta(chamada.caminho))
 
@@ -325,21 +328,27 @@ describe('nenhum número é de professor, de turma ou de pedido de titular (RF7)
     desmontar()
   })
 
-  it('os tipos da fila do Painel são os cinco do sino: nenhum item de uso, de entrega ou de atividade', async () => {
+  it('os tipos da fila do Painel são os seis do sino: nenhum item de uso, de entrega ou de atividade', async () => {
     const rede = fakeNetwork()
-    instalar(rede, { ...TUDO_EM_DIA, professores: ok([CAMILA, PAULO]), materiais: ok([MATERIAL('falhou')]), turmas: ok([TURMA, OUTRA_TURMA]) })
+    const licenca = { id: id(801), licenciante: 'Editora Sintética', cobertura: 'Coleção', referencia: 'Contrato 1', vigenteDesde: '2026-01-01', vigenteAte: '2026-12-14', situacao: 'vence_em_30_dias', materiais: 4, registradaEm: '2026-01-01T12:00:00.000Z', alteradaEm: '2026-01-01T12:00:00.000Z' }
+    instalar(rede, { ...TUDO_EM_DIA, professores: ok([CAMILA, PAULO]), materiais: ok([MATERIAL('falhou')]), licencas: ok([licenca]), turmas: ok([TURMA, OUTRA_TURMA]) })
     montar()
     await esperarTudoLido()
     const titulos = bloco(REGIOES.fila)
       .getAllByRole('link')
       .map((link) => link.querySelector('span.t-cartao')?.textContent)
-    expect(titulos).toEqual(['Refazer o convite de Paulo Sintético', 'O material "Apostila sintética" não foi lido', 'Uma turma sem professor', 'Pedidos dos titulares'])
+    expect(titulos).toEqual(['Refazer o convite de Paulo Sintético', 'O material "Apostila sintética" não foi lido', 'Uma licença de material vence em 14/12', 'Uma turma sem professor', 'Pedidos dos titulares'])
+    // O aviso de licença se lê inteiro, como no sino; os outros itens seguem numa linha com reticências.
+    const classesDe = (texto: string) => bloco(REGIOES.fila).getByText(texto).classList
+    expect(classesDe('Uma licença de material vence em 14/12').contains('break-words')).toBe(true)
+    expect(classesDe('Uma licença de material vence em 14/12').contains('truncate')).toBe(false)
+    expect(classesDe('Uma turma sem professor').contains('truncate')).toBe(true)
     expect(document.body.textContent).not.toMatch(/sem chamada|provas a aprovar|não usa|adoção/i)
   })
 })
 
 describe('o que o Painel não lê', () => {
-  it('nem a lista de nomes, nem os pedidos de nome, nem os pedidos de titular: só as onze leituras dele', async () => {
+  it('nem a lista de nomes, nem os pedidos de nome, nem os pedidos de titular: só as onze leituras dele, mais a dos incidentes', async () => {
     const usuario = userEvent.setup()
     const rede = fakeNetwork()
     instalar(rede, { ...TUDO_EM_DIA, professores: ok([CAMILA, PAULO]) })
@@ -463,6 +472,7 @@ describe('a fila que falha em parte nunca diz "Tudo em dia"', () => {
       incidentes: aTodas(TUDO_EM_DIA.incidentes as FakeResponse),
       professores: aTodas(ok([CAMILA, PAULO])),
       materiais: aTodas(ok([])),
+      licencas: aTodas(ok([])),
       turmas: aTodas(ok([TURMA])),
       vinculos: aTodas(ok([VINCULO(1, CAMILA.usuarioId, TURMA, 'confirmado')])),
     })
@@ -796,7 +806,7 @@ describe('o Painel não relê sozinho (regra 80)', () => {
     expect(rede.chamadas).toHaveLength(antes)
   })
 
-  it('abrir o Painel com a leitura de mais de 5 minutos relê as dez leituras que ficaram velhas, uma vez cada; os incidentes, que são uma leitura por sessão, não', async () => {
+  it('abrir o Painel com a leitura de mais de 5 minutos relê as onze leituras que ficaram velhas, uma vez cada; os incidentes, que são uma leitura por sessão, não', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     const rede = fakeNetwork()
     instalar(rede, TUDO_EM_DIA)

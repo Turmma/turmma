@@ -57,6 +57,8 @@ export interface MaterialDeTeste {
   readonly falha?: 'arquivo_invalido' | 'sem_texto' | 'extracao_falhou'
   /** Páginas do material `pronto`; cada uma ganha um trecho. */
   readonly paginas?: number
+  /** A licença registrada que ele cita (ingestao-do-material, 6.0): vira material de terceiro, com um licenciante sintético. */
+  readonly licencaId?: string
 }
 
 /**
@@ -67,9 +69,9 @@ export function criarMaterialNoBanco(escolaId: string, disciplinaId: string, mat
   return comBanco(async (banco) => {
     const paginas = material.estado === 'pronto' ? (material.paginas ?? 3) : null
     const { rows } = await banco.query<{ id: string }>(
-      `insert into material (escola_id, disciplina_id, titulo, titularidade, licenca, declaracao, sha256, tamanho_bytes, paginas, estado, falha)
-       values ($1, $2, $3, 'escola', 'autoria_da_escola', true, $4, 48000, $5, $6, $7) returning id`,
-      [escolaId, disciplinaId, material.titulo, randomBytes(32).toString('hex'), paginas, material.estado, material.estado === 'falhou' ? (material.falha ?? 'sem_texto') : null],
+      `insert into material (escola_id, disciplina_id, titulo, titularidade, licenca, licenciante, licenca_id, declaracao, sha256, tamanho_bytes, paginas, estado, falha)
+       values ($1, $2, $3, $8, $9, $10, $11, true, $4, 48000, $5, $6, $7) returning id`,
+      [escolaId, disciplinaId, material.titulo, randomBytes(32).toString('hex'), paginas, material.estado, falhaDoMaterial(material), ...origemDoMaterial(material)],
     )
     const id = rows[0]?.id
     if (id === undefined) throw new Error('o seed do e2e não criou o material')
@@ -77,5 +79,57 @@ export function criarMaterialNoBanco(escolaId: string, disciplinaId: string, mat
       await banco.query('insert into trecho (escola_id, disciplina_id, material_id, pagina, texto) values ($1, $2, $3, $4, $5)', [escolaId, disciplinaId, id, pagina, `Texto sintético da página ${String(pagina)}.`])
     }
     return id
+  })
+}
+
+/** A falha gravada: só o material que `falhou` a tem (o check do banco), com a que o caso pediu ou `sem_texto`. */
+function falhaDoMaterial(material: MaterialDeTeste): string | null {
+  return material.estado === 'falhou' ? (material.falha ?? 'sem_texto') : null
+}
+
+/** A titularidade, a licença e o licenciante: o da licença registrada é material de terceiro, e o resto é autoria da escola. */
+function origemDoMaterial(material: MaterialDeTeste): [string, string, string | null, string | null] {
+  if (material.licencaId === undefined) return ['escola', 'autoria_da_escola', null, null]
+  return ['terceiro_com_licenca', 'licenca_comercial_autorizada', 'Editora sintética do teste', material.licencaId]
+}
+
+export interface LicencaDeTeste {
+  readonly licenciante: string
+  readonly cobertura?: string
+  readonly referencia?: string
+  /** O começo, em dias a partir de hoje no dia de São Paulo (negativo = no passado). */
+  readonly desdeEmDias: number
+  /** O fim, em dias a partir de hoje no dia de São Paulo; `null` = sem fim. */
+  readonly ateEmDias: number | null
+}
+
+/**
+ * Uma licença de material registrada direto no banco (ingestao-do-material, 6.0): as datas são relativas ao **dia de São Paulo**, que é o
+ * dia por que a API calcula a situação, e por isso o caso não depende da hora em que roda. Devolve o id.
+ */
+export function criarLicencaNoBanco(escolaId: string, licenca: LicencaDeTeste): Promise<string> {
+  return comBanco(async (banco) => {
+    const { rows } = await banco.query<{ id: string }>(
+      `insert into licenca_de_material (escola_id, licenciante, cobertura, referencia, vigente_desde, vigente_ate)
+       values ($1, $2, $3, $4,
+               (now() at time zone 'America/Sao_Paulo')::date + $5::int,
+               case when $6::int is null then null else (now() at time zone 'America/Sao_Paulo')::date + $6::int end)
+       returning id`,
+      [escolaId, licenca.licenciante, licenca.cobertura ?? 'Coleção sintética do teste', licenca.referencia ?? 'Contrato sintético 001', licenca.desdeEmDias, licenca.ateEmDias],
+    )
+    const id = rows[0]?.id
+    if (id === undefined) throw new Error('o seed do e2e não criou a licença')
+    return id
+  })
+}
+
+/** As licenças da escola como estão no banco: quantas, e o licenciante de cada uma. A ordem é a do `id`, que é UUID e não segue o registro: quem compara mais de uma licença ordena antes. */
+export function licencasNoBanco(escolaId: string): Promise<Array<{ id: string; licenciante: string; vigenteDesde: string; vigenteAte: string | null }>> {
+  return comBanco(async (banco) => {
+    const { rows } = await banco.query<{ id: string; licenciante: string; vigente_desde: string; vigente_ate: string | null }>(
+      "select id, licenciante, to_char(vigente_desde, 'YYYY-MM-DD') as vigente_desde, to_char(vigente_ate, 'YYYY-MM-DD') as vigente_ate from licenca_de_material where escola_id = $1 order by id",
+      [escolaId],
+    )
+    return rows.map((linha) => ({ id: linha.id, licenciante: linha.licenciante, vigenteDesde: linha.vigente_desde, vigenteAte: linha.vigente_ate }))
   })
 }

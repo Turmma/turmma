@@ -16,6 +16,11 @@ interface ListItemCommonProps {
    * deixar cortado em 360 px ("Rever a introdução", RF9): o que vem de dado (nome, atividade) segue em uma linha.
    */
   readonly tituloEmDuasLinhas?: boolean
+  /**
+   * O título quebra em quantas linhas precisar, sem reticências: é o texto de um fato que a pessoa precisa ler inteiro (o aviso do sino,
+   * "Uma licença de material venceu; os materiais dela saíram da busca"), que em 360 px passa de duas linhas. Vale sobre `tituloEmDuasLinhas`.
+   */
+  readonly tituloInteiro?: boolean
 }
 
 /** Uma ação só: a linha é um link (`para`), um botão (`aoAcionar`) ou só de leitura (nenhum dos dois). */
@@ -53,14 +58,20 @@ interface ListItemBodyProps extends ListItemCommonProps {
   readonly acionavel: boolean
 }
 
+/** As classes do título: inteiro (quebra sem limite), em até duas linhas, ou numa linha só com reticências. */
+function classeDoTitulo(inteiro: boolean, emDuasLinhas: boolean): string {
+  if (inteiro) return 'break-words'
+  return emDuasLinhas ? 'line-clamp-2 break-words' : 'truncate'
+}
+
 /** O que a linha mostra por dentro, igual nos três casos; só o chevron depende de a linha ter ação. */
-function MioloDaLinha({ titulo, inicio, abaixo, fim, tituloEmDuasLinhas = false, acionavel }: ListItemBodyProps) {
+function MioloDaLinha({ titulo, inicio, abaixo, fim, tituloEmDuasLinhas = false, tituloInteiro = false, acionavel }: ListItemBodyProps) {
   return (
     <>
       {inicio !== undefined && <span className="flex shrink-0 items-center">{inicio}</span>}
       <span className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
         <span className="flex min-w-0 flex-1 flex-col">
-          <span title={titulo} className={`t-cartao text-tinta ${tituloEmDuasLinhas ? 'line-clamp-2 break-words' : 'truncate'}`}>
+          <span title={titulo} className={`t-cartao text-tinta ${classeDoTitulo(tituloInteiro, tituloEmDuasLinhas)}`}>
             {titulo}
           </span>
           {abaixo !== undefined && <span className="t-apoio break-words text-sutil">{abaixo}</span>}

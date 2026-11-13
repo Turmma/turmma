@@ -8,6 +8,7 @@ import { memoryLocation } from 'wouter/memory-location'
 import { createQueryClient } from '../../../api/query-client'
 import { anosLetivosQueryOptions, turmasQueryOptions, vinculosQueryOptions } from '../../../api/estrutura'
 import { listaDaTurmaQueryOptions } from '../estrutura/api/lista'
+import { licencasQueryOptions } from '../material/api/licencas'
 import { materiaisQueryOptions } from '../material/api/material'
 import { pedidosDaTurmaQueryOptions } from '../../../api/pedidos'
 import { incidentesQueryOptions, pedidosDoTitularQueryOptions } from '../privacidade/api/privacidade'
@@ -43,6 +44,20 @@ const MATERIAL = (estado: 'processando' | 'falhou' | 'pronto') => ({
   enviadoEm: '2026-10-01T12:00:00.000Z',
 })
 
+/** Uma licença como a API a entrega: a `situacao` é a do dia dela, e o licenciante é de terceiro e pode ser nome de pessoa. */
+const LICENCA = (situacao: 'vigente' | 'vence_em_30_dias' | 'vencida' | 'futura', vigenteAte: string | null, materiais: number) => ({
+  id: id(801),
+  licenciante: 'Maria Licenciante Sintética',
+  cobertura: 'Coleção sintética de Química',
+  referencia: 'Contrato sintético 7',
+  vigenteDesde: '2026-01-01',
+  vigenteAte,
+  situacao,
+  materiais,
+  registradaEm: '2026-01-01T12:00:00.000Z',
+  alteradaEm: '2026-01-01T12:00:00.000Z',
+})
+
 const ok = (itens: readonly unknown[], extra: Record<string, unknown> = {}): FakeResponse => ({ status: 200, corpo: { itens, ...extra } })
 const INDISPONIVEL: FakeResponse = { status: 503, corpo: { erro: { codigo: 'INDISPONIVEL_TENTE_DE_NOVO', mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } }
 const FORA = { status: 404, corpo: { erro: { codigo: 'NAO_ENCONTRADO', mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } }
@@ -54,6 +69,7 @@ interface Respostas {
   incidentes: Resposta
   professores: Resposta
   materiais: Resposta
+  licencas: Resposta
   turmas: Resposta
   vinculos: Resposta
 }
@@ -62,6 +78,7 @@ const TUDO_EM_DIA: Respostas = {
   incidentes: { status: 200, corpo: { incidentes: [], prazoLegal: 'O prazo é da escola.' } },
   professores: ok([CAMILA]),
   materiais: ok([MATERIAL('pronto')]),
+  licencas: ok([]),
   turmas: ok([TURMA]),
   vinculos: ok([VINCULO]),
 }
@@ -73,11 +90,12 @@ function instalar(rede: FakeNetwork, respostas: Respostas): void {
   rede.responderPor('/v1/privacidade/incidentes', respostas.incidentes)
   rede.responderPor('/v1/professores', respostas.professores)
   rede.responderPor('/v1/materiais', respostas.materiais)
+  rede.responderPor('/v1/licencas', respostas.licencas)
   rede.responderPor('/v1/turmas', respostas.turmas)
   rede.responderPor('/v1/vinculos', respostas.vinculos)
 }
 
-const LEITURAS_DA_FILA = ['/v1/anos-letivos', '/v1/privacidade/incidentes', '/v1/professores', '/v1/materiais', '/v1/turmas', '/v1/vinculos']
+const LEITURAS_DA_FILA = ['/v1/anos-letivos', '/v1/privacidade/incidentes', '/v1/professores', '/v1/materiais', '/v1/licencas', '/v1/turmas', '/v1/vinculos']
 const semConsulta = (caminho: string) => caminho.split('?')[0] ?? caminho
 const caminhosDe = (rede: FakeNetwork) => rede.chamadas.map((chamada) => semConsulta(chamada.caminho))
 
@@ -136,12 +154,56 @@ describe('o sino da coordenação lê a fila', () => {
     expect(ancora.contains(sino)).toBe(true)
   })
 
-  it('lê as seis leituras da fila, e só elas', async () => {
+  it('lê as sete leituras da fila, e só elas', async () => {
     const rede = fakeNetwork()
     instalar(rede, COM_UM_ITEM)
     montar()
     await botao('Esperando você, 1')
     expect([...new Set(caminhosDe(rede))].sort()).toEqual([...LEITURAS_DA_FILA].sort())
+  })
+
+  it('uma licença que vence: o sino conta 1, o item diz o dia e o mês, sem licenciante nem número, e leva à aba Licenças', async () => {
+    const usuario = userEvent.setup()
+    const rede = fakeNetwork()
+    instalar(rede, { ...TUDO_EM_DIA, licencas: ok([LICENCA('vence_em_30_dias', '2026-12-14', 4)]) })
+    montar()
+    await usuario.click(await botao('Esperando você, 1'))
+    const painel = screen.getByRole('dialog', { name: 'Esperando você' })
+    const item = within(painel).getByRole('link', { name: /Uma licença de material vence em 14\/12/ })
+    expect(item.getAttribute('href')).toBe('/material?aba=licencas')
+    expect(painel.textContent).not.toMatch(/Maria Licenciante|Coleção sintética|Contrato sintético/)
+    expect(painel.textContent).not.toMatch(/\b4\b/)
+  })
+
+  it('uma licença vencida com material: avisa que os materiais saíram da busca; sem material, "Tudo em dia"', async () => {
+    const usuario = userEvent.setup()
+    const comMaterial = fakeNetwork()
+    instalar(comMaterial, { ...TUDO_EM_DIA, licencas: ok([LICENCA('vencida', '2026-11-13', 2)]) })
+    montar()
+    await usuario.click(await botao('Esperando você, 1'))
+    expect(within(screen.getByRole('dialog', { name: 'Esperando você' })).getByRole('link', { name: /Uma licença de material venceu; os materiais dela saíram da busca/ })).toBeTruthy()
+    cleanup()
+
+    const semMaterial = fakeNetwork()
+    instalar(semMaterial, { ...TUDO_EM_DIA, licencas: ok([LICENCA('vencida', '2026-11-13', 0)]) })
+    montar()
+    await usuario.click(await botao('Esperando você, nada'))
+    expect(within(screen.getByRole('dialog', { name: 'Esperando você' })).getByText('Tudo em dia')).toBeTruthy()
+  })
+
+  it('depois da mudança da vigência, o item some: o "Atualizar" lê a licença já vigente e a fila volta a "Tudo em dia"', async () => {
+    const usuario = userEvent.setup()
+    const rede = fakeNetwork()
+    let alterada = false
+    instalar(rede, { ...TUDO_EM_DIA, licencas: () => ok([alterada ? LICENCA('vigente', '2027-12-31', 4) : LICENCA('vencida', '2026-11-13', 4)]) })
+    montar()
+    await usuario.click(await botao('Esperando você, 1'))
+    const painel = () => within(screen.getByRole('dialog', { name: 'Esperando você' }))
+    expect(painel().getByRole('link', { name: /Uma licença de material venceu/ })).toBeTruthy()
+    alterada = true
+    await usuario.click(painel().getByRole('button', { name: 'Atualizar' }))
+    await waitFor(() => expect(painel().getByText('Tudo em dia')).toBeTruthy())
+    expect(painel().queryByRole('link', { name: /licença de material/ })).toBeNull()
   })
 
   it('o que a fila não lê: nem a lista de nomes, nem os pedidos de nome, nem os pedidos de titular; e abrir a lista não faz chamada', async () => {
@@ -169,7 +231,7 @@ describe('o sino da coordenação lê a fila', () => {
     }
   })
 
-  it('a leitura dos incidentes que falha: a fila é parcial, com os itens das outras cinco', async () => {
+  it('a leitura dos incidentes que falha: a fila é parcial, com os itens das outras seis', async () => {
     const usuario = userEvent.setup()
     const rede = fakeNetwork()
     instalar(rede, { ...COM_UM_ITEM, incidentes: FORA })
@@ -245,6 +307,24 @@ describe('o sino não relê sozinho (RF5)', () => {
     expect(rede.chamadas).toHaveLength(antes)
   })
 
+  it('com uma licença a vencer, 12 s depois: nenhuma leitura de licenças, e nenhuma notificação do navegador (D59: o aviso fica no sino, e só na hora em que a pessoa o abre)', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const Notificacao = vi.fn()
+    vi.stubGlobal('Notification', Notificacao)
+    const rede = fakeNetwork()
+    instalar(rede, { ...TUDO_EM_DIA, licencas: ok([LICENCA('vence_em_30_dias', '2026-12-14', 4)]) })
+    montar()
+    await botao('Esperando você, 1')
+    const antes = rede.chamadas.length
+    await avancar(12 * MIL)
+    await sairEVoltar('foco')
+    await sairEVoltar('rede')
+    expect(rede.chamadas).toHaveLength(antes)
+    expect(rede.chamadas.filter((chamada) => semConsulta(chamada.caminho) === '/v1/licencas')).toHaveLength(1)
+    expect(Notificacao).not.toHaveBeenCalled()
+    vi.unstubAllGlobals()
+  })
+
   it('com o dado velho (mais de 5 min), o foco sai e volta: nenhuma leitura, de nenhuma consulta, anos inclusive', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     const rede = fakeNetwork()
@@ -295,7 +375,7 @@ describe('o sino não relê sozinho (RF5)', () => {
     cliente.unmount()
   })
 
-  it('o sino que monta depois de a tela já ter em erro as outras cinco leituras (incidentes, professores, materiais, turmas e vínculos) não relê nenhuma', async () => {
+  it('o sino que monta depois de a tela já ter em erro as outras seis leituras (incidentes, professores, materiais, licenças, turmas e vínculos) não relê nenhuma', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     const rede = fakeNetwork()
     let indisponivel = true
@@ -305,23 +385,25 @@ describe('o sino não relê sozinho (RF5)', () => {
       incidentes: quando(TUDO_EM_DIA.incidentes as FakeResponse),
       professores: quando(ok([CAMILA])),
       materiais: quando(ok([MATERIAL('pronto')])),
+      licencas: quando(ok([])),
       turmas: quando(ok([TURMA])),
       vinculos: quando(ok([VINCULO])),
     })
     const cliente = createQueryClient()
     cliente.mount()
-    // As telas da área leem os anos (com dado, para turmas e vínculos terem ano em curso) e as outras cinco, que falham.
+    // As telas da área leem os anos (com dado, para turmas e vínculos terem ano em curso) e as outras seis, que falham.
     const telas = [
       new QueryObserver(cliente, anosLetivosQueryOptions),
       new QueryObserver(cliente, incidentesQueryOptions),
       new QueryObserver(cliente, professoresQueryOptions),
       new QueryObserver(cliente, materiaisQueryOptions),
+      new QueryObserver(cliente, licencasQueryOptions),
       new QueryObserver(cliente, turmasQueryOptions),
       new QueryObserver(cliente, vinculosQueryOptions),
     ]
     const largar = telas.map((tela) => tela.subscribe(() => undefined))
     await avancar(2 * MIL)
-    expect(telas.map((tela) => tela.getCurrentResult().status)).toEqual(['success', 'error', 'error', 'error', 'error', 'error'])
+    expect(telas.map((tela) => tela.getCurrentResult().status)).toEqual(['success', 'error', 'error', 'error', 'error', 'error', 'error'])
     indisponivel = false
     const leiturasDe = () => LEITURAS_DA_FILA.map((caminho) => caminhosDe(rede).filter((chamado) => chamado === caminho).length)
     const antes = leiturasDe()
@@ -329,7 +411,7 @@ describe('o sino não relê sozinho (RF5)', () => {
     await screen.findByRole('button', { name: /^Esperando você/ })
     await avancar(2 * MIL)
     expect(leiturasDe()).toEqual(antes)
-    expect(telas.map((tela) => tela.getCurrentResult().status)).toEqual(['success', 'error', 'error', 'error', 'error', 'error'])
+    expect(telas.map((tela) => tela.getCurrentResult().status)).toEqual(['success', 'error', 'error', 'error', 'error', 'error', 'error'])
     for (const parar of largar) parar()
     cliente.unmount()
   })
@@ -456,7 +538,7 @@ describe('"Tentar de novo" e "Atualizar" releem pela chave exata', () => {
     expect(depois).toEqual(['/v1/professores'])
   })
 
-  it('"Atualizar" relê as cinco leituras da lista, uma vez cada, e não toca na lista de nomes nem nos pedidos; o "Atualizado às" só muda depois do clique', async () => {
+  it('"Atualizar" relê as seis leituras da lista, uma vez cada, e não toca na lista de nomes nem nos pedidos; o "Atualizado às" só muda depois do clique', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true, now: new Date(2026, 9, 16, 9, 0, 0) })
     const usuario = userEvent.setup({ advanceTimers: (ms) => void vi.advanceTimersByTime(ms) })
     const rede = fakeNetwork()
@@ -479,7 +561,7 @@ describe('"Tentar de novo" e "Atualizar" releem pela chave exata', () => {
     await usuario.click(within(painel).getByRole('button', { name: 'Atualizar' }))
     await waitFor(() => expect(within(screen.getByRole('dialog', { name: 'Esperando você' })).getByText('Atualizado às 09:02')).toBeTruthy())
     const lidas = rede.chamadas.slice(antes).map((chamada) => semConsulta(chamada.caminho)).sort()
-    expect(lidas).toEqual(['/v1/anos-letivos', '/v1/materiais', '/v1/professores', '/v1/turmas', '/v1/vinculos'])
+    expect(lidas).toEqual(['/v1/anos-letivos', '/v1/licencas', '/v1/materiais', '/v1/professores', '/v1/turmas', '/v1/vinculos'])
   })
 
   it('"Tentar de novo" com turmas que vieram truncadas: relê só as turmas', async () => {
@@ -540,10 +622,10 @@ describe('"Tentar de novo" e "Atualizar" releem pela chave exata', () => {
     seguraAnos = false
     liberarAnos()
     await waitFor(() => expect(painel().getByRole('button', { name: 'Atualizar' })).toBeTruthy())
-    expect(rede.chamadas.slice(antes).map((chamada) => semConsulta(chamada.caminho)).sort()).toEqual(['/v1/anos-letivos', '/v1/materiais', '/v1/professores', '/v1/turmas', '/v1/vinculos'])
+    expect(rede.chamadas.slice(antes).map((chamada) => semConsulta(chamada.caminho)).sort()).toEqual(['/v1/anos-letivos', '/v1/licencas', '/v1/materiais', '/v1/professores', '/v1/turmas', '/v1/vinculos'])
   })
 
-  it('"Atualizar" sem ano em curso relê só anos, professores e materiais: turmas e vínculos continuam sem ser chamados', async () => {
+  it('"Atualizar" sem ano em curso relê só anos, professores, materiais e licenças: turmas e vínculos continuam sem ser chamados', async () => {
     const usuario = userEvent.setup()
     const rede = fakeNetwork()
     instalar(rede, { ...TUDO_EM_DIA, anos: ok([{ ...ANO, situacao: 'planejado' }]), turmas: FORA, vinculos: FORA })
@@ -554,7 +636,7 @@ describe('"Tentar de novo" e "Atualizar" releem pela chave exata', () => {
     await usuario.click(within(painel).getByRole('button', { name: 'Atualizar' }))
     await waitFor(() => expect(rede.chamadas.length).toBeGreaterThan(antes))
     await waitFor(() => expect(within(screen.getByRole('dialog', { name: 'Esperando você' })).getByRole('button', { name: 'Atualizar' })).toBeTruthy())
-    expect(rede.chamadas.slice(antes).map((chamada) => semConsulta(chamada.caminho)).sort()).toEqual(['/v1/anos-letivos', '/v1/materiais', '/v1/professores'])
+    expect(rede.chamadas.slice(antes).map((chamada) => semConsulta(chamada.caminho)).sort()).toEqual(['/v1/anos-letivos', '/v1/licencas', '/v1/materiais', '/v1/professores'])
   })
 
   it('"Tentar de novo" com a fila inteira em erro: o botão relê o que falhou, e a fila volta', async () => {
@@ -567,6 +649,7 @@ describe('"Tentar de novo" e "Atualizar" releem pela chave exata', () => {
       incidentes: respostas(TUDO_EM_DIA.incidentes as FakeResponse),
       professores: respostas(ok([CAMILA, PAULO])),
       materiais: respostas(ok([])),
+      licencas: respostas(ok([])),
       turmas: respostas(ok([TURMA])),
       vinculos: respostas(ok([VINCULO])),
     })

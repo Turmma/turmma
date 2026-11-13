@@ -100,3 +100,15 @@ Leia este índice antes de codar, e abra só os blocos que interessam à tarefa 
 | 2026-11-12 22:41:16 | `conformidade-reviewer` | 2ª | APROVADO | `5_task` | nenhuma nova. |
 | 2026-11-12 22:41:34 | `revisor-geral` | 2ª | APROVADO | `5_task` | O parágrafo de abertura de "Divergências resolvidas" (`tasks/prd-ingestao-do-material/5_task.md`) ainda diz que a frase geral de "Permissão…" do `cenarios.md`… |
 | 2026-11-12 22:41:48 | `test-engineer` | 2ª | APROVADO | `5_task` | O caso novo do `ops-jobs.int.test.ts:436` não distingue o `isNull(jobRegistro.escolaId)` do `like(tipo, 'sistema.%')` em `packages/core/src/queue/job-outbox.rep… |
+| 2026-11-13 01:00:24 | `privacy-guardian` | 1ª | APROVADO | `6_task` | `apps/web/src/areas/coordenacao/material/Licencas.tsx:74`: o rótulo de leitor de tela "da licença de {licenciante}" é correto para quem usa leitor de tela e só… |
+| 2026-11-13 01:00:32 | `frontend-reviewer` | 1ª | AJUSTES NECESSÁRIOS | `6_task` | Termo técnico na tela da coordenação. O texto interno de projeto vaza para o usuário final em três pontos: |
+| 2026-11-13 01:00:46 | `conformidade-reviewer` | 1ª | APROVADO | `6_task` | A frase do diálogo da vigência "O que já foi gerado continua citando a página" (`licencas.ts:105`) está correta. Quando a 7.0 ligar a licença ao envio, vale… |
+| 2026-11-13 01:00:57 | `infra-guardian` | 1ª | APROVADO | `6_task` | `apps/web/src/areas/coordenacao/material/api/licencas.ts:33`: `POST /v1/licencas` não tem chave de idempotência. A trava contra clique duplo está só na tela.… |
+| 2026-11-13 01:01:34 | `revisor-geral` | 1ª | APROVADO | `6_task` | O Painel ainda corta o aviso de licença vencida. Em `apps/web/src/areas/coordenacao/painel/Painel.tsx:191-205`, os mesmos itens do sino aparecem no bloco… |
+| 2026-11-13 01:02:01 | `test-engineer` | 1ª | REPROVADO | `6_task` | O teste da troca de sessão não prova o que o nome promete. |
+| 2026-11-13 01:23:05 | `privacy-guardian` | 2ª | APROVADO | `6_task` | nenhuma nova. |
+| 2026-11-13 01:23:13 | `frontend-reviewer` | 2ª | APROVADO | `6_task` | `Licencas.tsx:120`: no singular, "Uma licença foi criada a partir do nome da editora de cada material" soa estranho, porque "de cada material" supõe várias.… |
+| 2026-11-13 01:23:42 | `revisor-geral` | 2ª | APROVADO | `6_task` | `apps/web/src/areas/coordenacao/material/licencas.ts:23` (`registradaAntesDaF4`) e `apps/web/src/areas/coordenacao/material/Licencas.tsx:108` (`antesDaF4`)… |
+| 2026-11-13 01:23:52 | `conformidade-reviewer` | 2ª | APROVADO | `6_task` | O comentário de `LEITURAS_DO_PAINEL` (`apps/web/src/areas/coordenacao/painel/Painel.test.tsx:172`) e o título do caso na linha 192 agora explicam as "onze mais… |
+| 2026-11-13 01:23:57 | `test-engineer` | 2ª | APROVADO | `6_task` | Na linha "registradas antes da F4" da tabela de `6_task.md`, o trecho "(e a que não tem nenhuma, sem a faixa)" é paráfrase. O nome real do caso é "sem nenhuma… |
+| 2026-11-13 01:24:03 | `infra-guardian` | 2ª | APROVADO | `6_task` | O `TODO.md` ainda não tem as duas recomendações da rodada 1 que a Mesa mandou para lá. A primeira é a `Idempotency-Key` no `POST /v1/licencas`. A segunda é o… |

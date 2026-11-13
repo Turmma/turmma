@@ -114,6 +114,16 @@ describe('a lista "Esperando você"', () => {
     expect(within(painel).queryByText('Tudo em dia')).toBeNull()
   })
 
+  it('o item que pede `tituloInteiro` mostra o título sem reticências; o que não pede segue numa linha só', async () => {
+    const usuario = userEvent.setup()
+    const longo: ItemDoSino = { id: 'd', titulo: 'Um aviso longo que a pessoa precisa ler inteiro, até o fim da frase', detalhe: 'Faça.', urgente: false, para: '/a', tituloInteiro: true }
+    desenhar({ itens: [longo, CONVITE] })
+    await usuario.click(screen.getByRole('button', { name: /^Esperando você/ }))
+    const lista = within(screen.getByRole('dialog', { name: 'Esperando você' }))
+    expect(lista.getByText(longo.titulo).className).not.toMatch(/truncate/)
+    expect(lista.getByText(CONVITE.titulo).className).toMatch(/truncate/)
+  })
+
   it('só aparece o grupo que tem item', async () => {
     const usuario = userEvent.setup()
     desenhar({ itens: [CONVITE] })
