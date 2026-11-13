@@ -388,6 +388,7 @@ export const LEITURAS_DO_ARQUIVO: Readonly<Record<string, LeituraDaTabela>> = {
     fora: {
       escola_id: ESCOPO,
       licenciante: 'o nome do dono do direito, que é de terceiro',
+      licenca_id: 'ligação interna com a licença registrada; a licença que o titular registrou vem em `licenca_de_material`',
       sha256: 'identificador técnico do arquivo',
       falha: 'código técnico da extração',
       processado_em: 'instante técnico em que a extração terminou',
@@ -398,6 +399,20 @@ export const LEITURAS_DO_ARQUIVO: Readonly<Record<string, LeituraDaTabela>> = {
     consultas: ({ escolaId, titularId }) => [
       sql`select ${selectColumns('id', 'disciplina_id', 'titulo', 'titularidade', 'licenca', 'declaracao', 'tamanho_bytes', 'paginas', 'estado', 'enviado_em', 'excluido_em')} from material t
           where t.escola_id = ${escolaId} and (t.enviado_por = ${titularId} or t.excluido_por = ${titularId})`,
+    ],
+  },
+  licenca_de_material: {
+    descricao: 'As licenças de material que você registrou',
+    colunas: ['id', 'cobertura', 'vigente_desde', 'vigente_ate', 'registrada_em', 'alterada_em'],
+    fora: {
+      escola_id: ESCOPO,
+      licenciante: 'o nome do dono do direito, que é de terceiro e pode ser uma pessoa',
+      referencia: 'a referência do documento da licença, que é do contrato com o terceiro',
+      registrada_por: 'o próprio titular',
+    },
+    consultas: ({ escolaId, titularId }) => [
+      sql`select ${selectColumns('id', 'cobertura', 'vigente_desde', 'vigente_ate', 'registrada_em', 'alterada_em')} from licenca_de_material t
+          where t.escola_id = ${escolaId} and t.registrada_por = ${titularId}`,
     ],
   },
   suspensao_de_funcao: {

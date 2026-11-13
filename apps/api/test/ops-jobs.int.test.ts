@@ -225,11 +225,17 @@ describe('ops:jobs-que-falharam, ops:reprocessar-job e ops:descartar-job (46.0)'
       expect(await auditoriaDoJob(id)).toEqual([])
     })
 
-    it('job sem escola (sistema.*): recusado antes de tocar a linha, a fila e a auditoria', async () => {
+    it('job sem escola (sistema.*): volta a aguardando, e a auditoria sai sem escola, só com o autor_operador (5.8)', async () => {
       const id = await job(null, 'sistema.expurgar-jobs')
-      expect(await reprocessar([id, '--chamado', '9'], FILA_PROIBIDA)).toEqual({ codigo: 1, saida: '', erro: 'o job não tem escola: reprocessar e descartar job de rotina do sistema ainda não existe\n' })
-      expect((await linhaDoJob(id))?.estado).toBe('falhou')
-      expect(await auditoriaDoJob(id)).toEqual([])
+      const daEscola = await job(escolaA, 'estrutura.gravar-planilha')
+      expect(await reprocessar([id, '--chamado', '9'])).toEqual({ codigo: 0, saida: `${JSON.stringify({ reprocessado: id, tipo: 'sistema.expurgar-jobs', chamado: 9 })}\n`, erro: '' })
+      expect((await linhaDoJob(id))?.estado).toBe('aguardando')
+      expect(await auditoriaDoJob(id)).toEqual([
+        { acao: 'job.reprocessado', escola_id: null, entidade: 'job', entidade_id: id, autor_operador: OPERADOR, autor_usuario_id: null, antes: null, depois: { tipo: 'sistema.expurgar-jobs', chamado: 9 } },
+      ])
+      // O de escola segue auditado na escola da linha (o isolamento do contexto da rotina do sistema está no caso do repository, abaixo).
+      expect((await reprocessar([daEscola, '--chamado', '10'])).codigo).toBe(0)
+      expect((await auditoriaDoJob(daEscola)).map((registro) => [registro.acao, registro.escola_id])).toEqual([['job.reprocessado', escolaA]])
     })
 
     it.each(['aguardando', 'publicado', 'ativo', 'concluido'])('job %s: recusado, a fila não é tocada e a linha não muda', async (estado) => {
@@ -388,11 +394,17 @@ describe('ops:jobs-que-falharam, ops:reprocessar-job e ops:descartar-job (46.0)'
       expect(await auditoriaDoJob(id)).toEqual([])
     })
 
-    it('job sem escola (sistema.*): recusado, a linha segue falhou', async () => {
+    it('job sem escola (sistema.*): a linha sai, e a auditoria sai sem escola, só com o autor_operador (5.8)', async () => {
       const id = await job(null, 'sistema.expurgar-acesso')
-      expect(await descartar([id, '--chamado', '9'])).toEqual({ codigo: 1, saida: '', erro: 'o job não tem escola: reprocessar e descartar job de rotina do sistema ainda não existe\n' })
-      expect((await linhaDoJob(id))?.estado).toBe('falhou')
-      expect(await auditoriaDoJob(id)).toEqual([])
+      expect(await descartar([id, '--chamado', '9'])).toEqual({
+        codigo: 0,
+        saida: `${JSON.stringify({ descartado: id, tipo: 'sistema.expurgar-acesso', chamado: 9, materialFechado: false, objetoApagado: false })}\n`,
+        erro: '',
+      })
+      expect(await linhaDoJob(id)).toBeUndefined()
+      expect(await auditoriaDoJob(id)).toEqual([
+        { acao: 'job.descartado', escola_id: null, entidade: 'job', entidade_id: id, autor_operador: OPERADOR, autor_usuario_id: null, antes: null, depois: { tipo: 'sistema.expurgar-acesso', chamado: 9 } },
+      ])
     })
 
     it.each(['aguardando', 'publicado', 'ativo'])('job %s: recusado; a linha, o material e o objeto ficam intactos', async (estado) => {
@@ -419,6 +431,24 @@ describe('ops:jobs-que-falharam, ops:reprocessar-job e ops:descartar-job (46.0)'
       expect(achado).toMatchObject({ id: falho, escolaId: escolaA, tipo: 'material.extrair-pdf', fila: 'pdf', materialId })
       expect(JSON.stringify(achado)).not.toContain(SENTINELA)
       expect(await repository.travarFalho(randomUUID())).toBeUndefined()
+    })
+
+    it('o contexto da rotina do sistema só alcança o job sem escola, e o contexto da escola só o dela', async () => {
+      const doSistema = await job(null, 'sistema.expurgar-jobs')
+      const daEscola = await job(escolaA, 'estrutura.gravar-planilha')
+      const repositorio = new JobOutboxRepository(bancada.banco)
+      const daRotina = <T>(funcao: () => Promise<T>): Promise<T> => runInContext({ requisicaoId: randomUUID(), rotinaDoSistema: true }, funcao)
+      // A rotina do sistema não alcança o job de escola, nem para reabrir nem para descartar.
+      expect(await daRotina(() => repositorio.reabrirFalho(daEscola))).toBe(false)
+      expect(await daRotina(() => repositorio.descartarFalho(daEscola))).toBe(false)
+      expect((await linhaDoJob(daEscola))?.estado).toBe('falhou')
+      // O contexto de escola não alcança o job do sistema.
+      expect(await noContexto(escolaA, () => repositorio.reabrirFalho(doSistema))).toBe(false)
+      expect(await noContexto(escolaA, () => repositorio.descartarFalho(doSistema))).toBe(false)
+      expect((await linhaDoJob(doSistema))?.estado).toBe('falhou')
+      // No contexto dele, cada um passa.
+      expect(await daRotina(() => repositorio.reabrirFalho(doSistema))).toBe(true)
+      expect(await noContexto(escolaA, () => repositorio.reabrirFalho(daEscola))).toBe(true)
     })
 
     it('reabrirFalho e descartarFalho só mudam o job falhou da escola do contexto: o aguardando e o job de outra escola ficam como estavam', async () => {

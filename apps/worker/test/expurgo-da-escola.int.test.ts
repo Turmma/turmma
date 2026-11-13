@@ -1231,6 +1231,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
           // trabalho do aluno, que desce pelo ano letivo, tem o teste dele logo abaixo, com volume.
           ['reivindicacao', 'reivindicacao_decidida_idx', doLote('reivindicacao')],
           ['material', 'material_excluido_idx', doLote('material')],
+          ['licenca_de_material', 'licenca_de_material_vigente_ate_idx', doLote('licenca_de_material')],
           ['vinculo', 'vinculo_encerrado_idx', doLote('vinculo')],
           ['usuario', 'usuario_desativado_idx', expurgoDeactivatedPeopleStatement(a.escolaId, prazo, 100)],
           ['expurgo_execucao', 'expurgo_execucao_escola_em_idx', expurgoRecordStatement(a.escolaId, QUARTA_1H, LOTE_DO_EXPURGO)],
@@ -1648,6 +1649,132 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
           linhas.reduce((soma, linha) => soma + linha.linhas, 0),
           categoria,
         ).toBe(8)
+      }
+    })
+  })
+
+  describe('licença de material (ingestao-do-material, tarefa 5.0)', () => {
+    const MESES = CATEGORIAS_DE_RETENCAO.material_excluido.padrao
+    const PRAZO_DA_LICENCA = { agora: QUARTA_1H, meses: MESES, fuso: FUSO } satisfies PrazoDoLote
+
+    /** A licença da escola; `fimHa` é a idade do `vigente_ate` (dia de São Paulo, contado do `agora` do teste), ou nulo para a licença sem fim. */
+    async function licencaDe(escola: { escolaId: string }, fimHa: string | null, agora: Date = QUARTA_1H): Promise<string> {
+      const { rows } = await bancada.pool.query<{ id: string }>(
+        `insert into licenca_de_material (escola_id, licenciante, cobertura, referencia, vigente_desde, vigente_ate)
+         values ($1, 'Editora sintética', 'Cobertura sintética', 'Referência sintética', '2015-01-01',
+           case when $3::text is null then null else ((($2::timestamptz at time zone $4)::date) - $3::interval)::date end) returning id`,
+        [escola.escolaId, agora.toISOString(), fimHa, FUSO],
+      )
+      return rows[0]?.id ?? ''
+    }
+
+    /** O material de terceiro que cita a licença, vivo (`excluidoHa` nulo) ou excluído há `excluidoHa`. */
+    async function materialDaLicenca(escola: { escolaId: string }, licencaId: string, excluidoHa: string | null): Promise<string> {
+      const { rows } = await bancada.pool.query<{ id: string }>(
+        `insert into material (escola_id, disciplina_id, titulo, titularidade, licenciante, licenca, licenca_id, declaracao, sha256, tamanho_bytes, paginas, estado, excluido_em)
+         values ($1, $2, 'Apostila sintética', 'terceiro_com_licenca', 'Editora sintética', 'licenca_comercial_autorizada', $3, true, md5(random()::text) || md5(random()::text), 1000, 1, 'pronto',
+           case when $5::text is null then null else $4::timestamptz - $5::interval end) returning id`,
+        [escola.escolaId, await disciplinaDa(escola.escolaId), licencaId, QUARTA_1H.toISOString(), excluidoHa],
+      )
+      return rows[0]?.id ?? ''
+    }
+
+    const linhasDaCategoria = async (escolaId: string): Promise<number[]> => (await execucoes(escolaId)).filter((linha) => linha.categoria === 'material_excluido').map((linha) => linha.linhas)
+
+    it('prazo contado de `vigente_ate`: um dia antes e no dia exato a licença fica, um dia depois sai; a da escola B, com a mesma idade, fica; reexecutar não mexe em mais nada', async () => {
+      const a = await escolaNova()
+      const b = await escolaNova()
+      const umDiaAntes = await licencaDe(a, `${String(MESES)} months - 1 day`)
+      const noDia = await licencaDe(a, `${String(MESES)} months`)
+      const umDiaDepois = await licencaDe(a, `${String(MESES)} months 1 day`)
+      const deB = await licencaDe(b, `${String(MESES)} months 1 day`)
+      await rodar(a.escolaId, expurgo(relogioEm(QUARTA_1H)))
+      expect(await existe('licenca_de_material', umDiaDepois)).toBe(false)
+      for (const id of [umDiaAntes, noDia, deB]) expect(await existe('licenca_de_material', id), id).toBe(true)
+      await rodar(a.escolaId, expurgo(relogioEm(QUARTA_1H)))
+      expect(await linhasDaCategoria(a.escolaId)).toEqual([1, 0])
+      expect(await execucoes(b.escolaId)).toEqual([])
+    })
+
+    it('fica a licença com material vivo, a com material excluído há pouco, e a sem fim, mesmo com anos de idade; cada uma por si', async () => {
+      const a = await escolaNova()
+      const comVivo = await licencaDe(a, `${String(MESES + 12)} months`)
+      await materialDaLicenca(a, comVivo, null)
+      const comExcluidoRecente = await licencaDe(a, `${String(MESES + 12)} months`)
+      await materialDaLicenca(a, comExcluidoRecente, '1 day')
+      const semFim = await licencaDe(a, null)
+      const semMaterial = await licencaDe(a, `${String(MESES + 12)} months`)
+      await rodar(a.escolaId, expurgo(relogioEm(QUARTA_1H)))
+      for (const id of [comVivo, comExcluidoRecente, semFim]) expect(await existe('licenca_de_material', id), id).toBe(true)
+      expect(await existe('licenca_de_material', semMaterial)).toBe(false)
+      expect(await linhasDaCategoria(a.escolaId)).toEqual([1])
+    })
+
+    it('o passo do material vem antes: o material excluído além do prazo e a licença dele, também vencida, saem na mesma noite, e a categoria conta as duas linhas', async () => {
+      const a = await escolaNova()
+      const licenca = await licencaDe(a, `${String(MESES)} months 1 day`)
+      const material = await materialDaLicenca(a, licenca, `${String(MESES)} months 1 day`)
+      await rodar(a.escolaId, expurgo(relogioEm(QUARTA_1H)))
+      expect(await existe('material', material)).toBe(false)
+      expect(await existe('licenca_de_material', licenca)).toBe(false)
+      expect(await linhasDaCategoria(a.escolaId)).toEqual([2])
+    })
+
+    it('o material que a conversa do Tutor ainda cita segura a licença, a categoria termina concluída, e quando a conversa sai o material e a licença saem juntos', async () => {
+      const a = await escolaNova()
+      const licenca = await licencaDe(a, `${String(MESES)} months 1 day`)
+      const material = await materialDaLicenca(a, licenca, `${String(MESES)} months 1 day`)
+      const execucaoId = await execucao(a, 'turno_do_tutor', a.alunoId)
+      const { rows } = await bancada.pool.query<{ id: string }>(
+        `insert into mensagem_tutor (escola_id, ano_letivo_id, turma_id, aluno_id, execucao_id, autor, texto, material_id, criada_em)
+         values ($1, $2, $3, $4, $5, 'aluno', 'Pergunta sintética do expurgo', $6, $7::timestamptz - interval '1 day') returning id`,
+        [a.escolaId, a.anoId, a.turmaId, a.alunoId, execucaoId, material, QUARTA_1H.toISOString()],
+      )
+      const mensagem = rows[0]?.id ?? ''
+      await rodar(a.escolaId, expurgo(relogioEm(QUARTA_1H)))
+      expect(await existe('material', material)).toBe(true)
+      expect(await existe('licenca_de_material', licenca)).toBe(true)
+      expect((await execucoes(a.escolaId)).find((linha) => linha.categoria === 'material_excluido')).toEqual({ categoria: 'material_excluido', linhas: 0, concluida: true })
+      // Catorze meses depois, a mensagem passou do prazo da conversa e sai no passo dela, que vem antes; o material e a licença saem na mesma noite.
+      await rodar(a.escolaId, expurgo(relogioEm(new Date('2027-12-08T01:00:00-03:00'))))
+      expect(await existe('mensagem_tutor', mensagem)).toBe(false)
+      expect(await existe('material', material)).toBe(false)
+      expect(await existe('licenca_de_material', licenca)).toBe(false)
+    })
+
+    it('o lote apaga no máximo o limite, diz que veio cheio, o seguinte leva o resto, e a licença de outra escola, mais antiga, não é tocada', async () => {
+      const a = await escolaNova()
+      const b = await escolaNova()
+      // Fora da ordem da idade: o lote leva primeiro a de fim mais antigo.
+      const maisRecente = await licencaDe(a, `${String(MESES + 1)} months`)
+      const maisAntiga = await licencaDe(a, `${String(MESES + 3)} months`)
+      const doMeio = await licencaDe(a, `${String(MESES + 2)} months`)
+      const deB = await licencaDe(b, `${String(MESES + 20)} months`)
+      const lote = (limite: number) => runInContext({ requisicaoId: randomUUID(), escolaId: a.escolaId }, () => new ExpurgoDaEscolaRepository(bancada.banco).expurgarLote('licenca_de_material', PRAZO_DA_LICENCA, limite))
+      expect(await lote(2)).toEqual({ linhas: 2, cheio: true })
+      expect(await existe('licenca_de_material', maisAntiga)).toBe(false)
+      expect(await existe('licenca_de_material', doMeio)).toBe(false)
+      expect(await existe('licenca_de_material', maisRecente)).toBe(true)
+      expect(await lote(2)).toEqual({ linhas: 1, cheio: false })
+      expect(await lote(2)).toEqual({ linhas: 0, cheio: false })
+      expect(await existe('licenca_de_material', deB)).toBe(true)
+    })
+
+    it('o lote pula, sem esperar, a licença que outra transação travou, e leva a outra', async () => {
+      const a = await escolaNova()
+      const livre = await licencaDe(a, `${String(MESES + 1)} months`)
+      const travada = await licencaDe(a, `${String(MESES + 2)} months`)
+      const outra = await bancada.pool.connect()
+      try {
+        await outra.query('begin')
+        await outra.query('select 1 from licenca_de_material where id = $1 for update', [travada])
+        const lote = await runInContext({ requisicaoId: randomUUID(), escolaId: a.escolaId }, () => new ExpurgoDaEscolaRepository(bancada.banco).expurgarLote('licenca_de_material', PRAZO_DA_LICENCA, 2))
+        expect(lote).toEqual({ linhas: 1, cheio: false })
+        expect(await existe('licenca_de_material', livre)).toBe(false)
+        expect(await existe('licenca_de_material', travada)).toBe(true)
+      } finally {
+        await outra.query('rollback')
+        outra.release()
       }
     })
   })

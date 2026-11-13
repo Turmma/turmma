@@ -181,9 +181,10 @@ falhou. Seed e e2e usam licenciante fictício.
 
 ## Permissão, escola sem ano letivo e vínculo encerrado
 
-- [I] Professor: `POST /:id/edicoes`, `PATCH /:id`, `GET /resumo`, `GET`/`POST`/`PATCH /licencas` recusados com
-  `NAO_ENCONTRADO` (rotas de objeto) ou `PERMISSAO_NEGADA` (coleção), conforme a matriz; aluno, em todas as rotas de
-  material e licença
+- [I] Professor: `POST /:id/edicoes`, `PATCH /:id` e `GET /resumo` recusados com `NAO_ENCONTRADO` (rotas de objeto) ou
+  `PERMISSAO_NEGADA` (coleção), conforme a matriz; `GET`, `POST` e `PATCH /licencas` recusados com `NAO_ENCONTRADO`
+  nas três, coleção inclusive: o `PermissaoGuard` responde 404 a toda célula `nunca` (regra 10, item 6), e não existe
+  `GET /v1/licencas/:id` (Tech Spec §4). Aluno: o mesmo, em todas as rotas de material e licença
 - [I] Escola sem ano letivo em curso: a coordenação usa envio, edição, `PATCH`, resumo e licenças
 - [I] Professor com vínculo encerrado na disciplina X e aberto na Y: `GET /materiais?serieId` e as `fontes` só trazem Y
 - [I] `contracts.test`: `GET /materiais/:id` do professor sem hash, chave de objeto, quem enviou e licenciante

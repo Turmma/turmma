@@ -12,7 +12,7 @@ describe('prazo declarado à escola para o registro das tarefas em segundo plano
     expect(prazo).toMatch(new RegExp(`^${RETENCAO_JOB_REGISTRO_DIAS} dias; a que falhou, ${RETENCAO_JOB_REGISTRO_FALHO_DIAS} dias;`))
   })
 
-  it('diz que o pedido de acesso ou de eliminação que falhou fica até a equipe resolver, sem prazo de dias', () => {
-    expect(prazo).toMatch(/; a do pedido de acesso ou de eliminação que falhou, até a equipe Turmma resolver$/)
+  it('diz que o pedido de acesso ou de eliminação e a leitura de um material que falharam ficam até a equipe resolver, sem prazo de dias', () => {
+    expect(prazo).toMatch(/; a do pedido de acesso ou de eliminação e a da leitura de um material que falharam, até a equipe Turmma resolver$/)
   })
 })

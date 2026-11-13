@@ -31,12 +31,12 @@
   - [x] 4.4 `capitulos` no contrato de `GET /v1/materiais/:id`, DTO explícito
   - [x] 4.5 Testes: as bordas do leitor, a amostra com o pdfjs, dois jobs, isolamento
 
-- [ ] **5.0 — A licença é registrada uma vez, com vigência, retenção e arquivo do titular**
-  - [ ] 5.1 Migration de `licenca_de_material` e `material.licenca_id`, com o backfill
-  - [ ] 5.2 `GET`, `POST`, `PATCH /v1/licencas`, com auditoria e `situacao`
-  - [ ] 5.3 Retenção, classificação, arquivo do titular; documentos
-  - [ ] 5.4 Testes: situação, isolamento, dois `PATCH`, a retenção segurada
-  - [ ] 5.5 O job sem escola na auditoria (check e `ENTIDADES_DE_AUDITORIA_SEM_ESCOLA`), sem a recusa da 3.0; o `falhou` de `material.extrair-pdf` fora do expurgo até o Descartar
+- [x] **5.0 — A licença é registrada uma vez, com vigência, retenção e arquivo do titular**
+  - [x] 5.1 Migration de `licenca_de_material` e `material.licenca_id`, com o backfill
+  - [x] 5.2 `GET`, `POST`, `PATCH /v1/licencas`, com auditoria e `situacao`
+  - [x] 5.3 Retenção, classificação, arquivo do titular; documentos
+  - [x] 5.4 Testes: situação, isolamento, dois `PATCH`, a retenção segurada
+  - [x] 5.5 O job sem escola na auditoria (check e `ENTIDADES_DE_AUDITORIA_SEM_ESCOLA`), sem a recusa da 3.0; o `falhou` de `material.extrair-pdf` fora do expurgo até o Descartar
 
 - [ ] **6.0 — A aba Licenças e o aviso `licenca-vencendo` no sino**
   - [ ] 6.1 Aba Licenças: lista, registrar, vigência

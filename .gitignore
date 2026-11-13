@@ -28,3 +28,6 @@ test-results/
 # Maestri. Os andares ficam fora do repositório, ao lado dele. Esta pasta só aparece quando alguém cria um agente
 # com "responsabilidade" do Maestri, o que o processo proíbe: nela nenhum hook dispara (.claude/skills/seguir/protocolo.md).
 .maestri/
+
+# Cache do compilador (tsc --build)
+tsconfig.tsbuildinfo

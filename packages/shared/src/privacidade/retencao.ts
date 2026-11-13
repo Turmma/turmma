@@ -104,7 +104,7 @@ export const PRAZOS_FIXOS: Readonly<Record<ChaveDePrazoFixo, DefinicaoDoPrazoFix
     prazo: '90 dias depois de concluída; o texto da planilha só até o fim da importação',
   },
   registro_de_decisao: { descricao: 'Auditoria e registro das decisões sobre o que a IA produziu', prazo: 'enquanto durar o contrato com a escola, e mais 5 anos' },
-  tarefa_em_segundo_plano: { descricao: 'Registro técnico das tarefas feitas em segundo plano, só com códigos', prazo: '7 dias; a que falhou, 30 dias; a do pedido de acesso ou de eliminação que falhou, até a equipe Turmma resolver' },
+  tarefa_em_segundo_plano: { descricao: 'Registro técnico das tarefas feitas em segundo plano, só com códigos', prazo: '7 dias; a que falhou, 30 dias; a do pedido de acesso ou de eliminação e a da leitura de um material que falharam, até a equipe Turmma resolver' },
   equipe_turmma: { descricao: 'Contas e acessos da equipe Turmma ao painel da operação, sem dado da escola', prazo: 'acesso, 6 meses; conta, até a desativação; registro, enquanto durar o contrato, e mais 5 anos' },
   registro_de_incidente: { descricao: 'Registro dos incidentes de segurança que afetaram a escola e de quem confirmou o aviso (Resolução CD/ANPD nº 15/2024, art. 10)', prazo: '5 anos do registro' },
   arquivo_do_titular: { descricao: 'A cópia dos dados que o aluno ou o professor baixa em "Meus dados" depois de pedir acesso à escola', prazo: '7 dias depois de pronta, ou até a eliminação da pessoa' },

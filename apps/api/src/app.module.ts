@@ -67,6 +67,8 @@ export interface AppModuleOptions {
   readonly relogioDosConvites?: Clock
   /** O relógio e a espera do piso de 400 ms do "esqueci a senha", que o teste injeta para provar o piso sem cronômetro. Nunca vem do ambiente. */
   readonly pisoDoEsqueci?: PisoDoEsqueci
+  /** O relógio da situação da licença de material (o dia de São Paulo), que o teste injeta. Nunca vem do ambiente. */
+  readonly relogioDasLicencas?: Clock
   /** O relógio da Semana do professor (`hoje` e `agora` no fuso da escola), que o teste injeta. Nunca vem do ambiente. */
   readonly relogioDaSemana?: Clock
 }
@@ -107,6 +109,7 @@ export class AppModule {
           logger: opcoes.logger ?? createLogger({ servico: 'api' }),
           armazem: config.armazem,
           ...(opcoes.armazemDeArquivos === undefined ? {} : { armazemDeTeste: opcoes.armazemDeArquivos }),
+          ...(opcoes.relogioDasLicencas === undefined ? {} : { relogioDasLicencas: opcoes.relogioDasLicencas }),
         }),
         IaModule.forRoot({ config: config.ia, ...(opcoes.logger === undefined ? {} : { logger: opcoes.logger }) }),
         AssistenteModule.forRoot({ chaveContador: config.login.chaveContador, instancias: config.limite.instancias, logger: opcoes.logger ?? createLogger({ servico: 'api' }) }),

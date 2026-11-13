@@ -4,7 +4,7 @@ import pg from 'pg'
 import { describe, expect, it } from 'vitest'
 import { InvalidArgumentError, OperadorRejectedError, urlDoRedisDeFilaDeOperacao } from './command.js'
 import { executarOpsDescartarJob } from './descartar-job.js'
-import { exigirJobDeEscola, executarOpsJobsQueFalharam, JobRecusadoError, JobSemEscolaError, lerPedidoDeJob, terminarComErro } from './jobs-que-falharam.js'
+import { exigirJobDaOperacao, executarOpsJobsQueFalharam, JobRecusadoError, lerPedidoDeJob, terminarComErro } from './jobs-que-falharam.js'
 import { executarOpsReprocessarJob } from './reprocessar-job.js'
 import type { JobQueFalhou } from '../operacao/jobs-que-falharam.repository.js'
 
@@ -81,30 +81,30 @@ describe('os comandos recusam antes de abrir o banco, a fila e o storage', () =>
   })
 })
 
-describe('exigirJobDeEscola: quais jobs a operação mexe', () => {
+describe('exigirJobDaOperacao: quais jobs a operação mexe', () => {
   it.each(['ia.gerar-atividade', 'ia.responder-tutor', 'titular.montar-arquivo', 'titular.eliminar'])('%s: recusado nos dois comandos, com o motivo e sem o id', (tipo) => {
     for (const recusados of [[], ['material.extrair-pdf']]) {
-      expect(() => exigirJobDeEscola(linha(tipo), recusados)).toThrow(new JobRecusadoError('tipo de job que a operação não mexe: IA ou pedido do titular'))
+      expect(() => exigirJobDaOperacao(linha(tipo), recusados)).toThrow(new JobRecusadoError('tipo de job que a operação não mexe: IA ou pedido do titular'))
     }
   })
 
   it('material.extrair-pdf: o reprocessar o recusa com "Tentar de novo é envio novo", e o descartar o aceita', () => {
-    expect(() => exigirJobDeEscola(linha('material.extrair-pdf'), ['material.extrair-pdf'])).toThrow(new JobRecusadoError('Tentar de novo é envio novo'))
-    expect(exigirJobDeEscola(linha('material.extrair-pdf'), [])).toEqual({ escolaId: ESCOLA, tipo: 'material.extrair-pdf' })
+    expect(() => exigirJobDaOperacao(linha('material.extrair-pdf'), ['material.extrair-pdf'])).toThrow(new JobRecusadoError('Tentar de novo é envio novo'))
+    expect(exigirJobDaOperacao(linha('material.extrair-pdf'), [])).toEqual({ escolaId: ESCOLA, tipo: 'material.extrair-pdf' })
   })
 
   it('retencao.* e o e-mail de convite passam, com a escola da linha', () => {
-    expect(exigirJobDeEscola(linha('retencao.expurgar-escola'), ['material.extrair-pdf'])).toEqual({ escolaId: ESCOLA, tipo: 'retencao.expurgar-escola' })
-    expect(exigirJobDeEscola(linha('email.enviar-convite'), [])).toEqual({ escolaId: ESCOLA, tipo: 'email.enviar-convite' })
+    expect(exigirJobDaOperacao(linha('retencao.expurgar-escola'), ['material.extrair-pdf'])).toEqual({ escolaId: ESCOLA, tipo: 'retencao.expurgar-escola' })
+    expect(exigirJobDaOperacao(linha('email.enviar-convite'), [])).toEqual({ escolaId: ESCOLA, tipo: 'email.enviar-convite' })
   })
 
   it('tipo que não existe é recusado, para a auditoria nunca receber texto livre', () => {
-    expect(() => exigirJobDeEscola(linha('tipo.de-uma-versao-antiga'), [])).toThrow(new JobRecusadoError('tipo de job desconhecido'))
+    expect(() => exigirJobDaOperacao(linha('tipo.de-uma-versao-antiga'), [])).toThrow(new JobRecusadoError('tipo de job desconhecido'))
   })
 
-  it('job sem escola (sistema.*) é recusado, até a 5.0', () => {
-    expect(() => exigirJobDeEscola(linha('sistema.expurgar-acesso', null), [])).toThrow(JobSemEscolaError)
-    expect(() => exigirJobDeEscola(linha('sistema.expurgar-acesso', null), ['material.extrair-pdf'])).toThrow(JobSemEscolaError)
+  it('job sem escola (sistema.*) passa, com a escola nula: a auditoria dele sai sem escola (5.0)', () => {
+    expect(exigirJobDaOperacao(linha('sistema.expurgar-acesso', null), [])).toEqual({ escolaId: null, tipo: 'sistema.expurgar-acesso' })
+    expect(exigirJobDaOperacao(linha('sistema.expurgar-acesso', null), ['material.extrair-pdf'])).toEqual({ escolaId: null, tipo: 'sistema.expurgar-acesso' })
   })
 })
 
@@ -121,9 +121,8 @@ describe('terminarComErro: o código de saída e o texto, sem nada do pedido nem
     expect(terminar(new OperadorRejectedError()).codigo).toBe(2)
   })
 
-  it('recusa por tipo e job sem escola: 1, com a mensagem fixa', () => {
+  it('recusa por tipo: 1, com a mensagem fixa', () => {
     expect(terminar(new JobRecusadoError('Tentar de novo é envio novo'))).toEqual({ codigo: 1, texto: 'Tentar de novo é envio novo\n' })
-    expect(terminar(new JobSemEscolaError())).toEqual({ codigo: 1, texto: `${new JobSemEscolaError().message}\n` })
   })
 
   it('NAO_ENCONTRADO e CONFLITO do domínio, e o 23505 do Postgres que vira CONFLITO: 1, com o texto do código', () => {

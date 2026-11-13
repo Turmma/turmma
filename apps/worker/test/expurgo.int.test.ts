@@ -58,11 +58,11 @@ describe('sistema.expurgar-jobs', () => {
   const contar = async (condicao: string): Promise<number> =>
     Number((await bancada.pool.query<{ total: string }>(`select count(*) as total from job_registro where ${condicao}`)).rows[0]?.total)
 
-  /** O que o prazo já devia ter levado: o concluído há mais de 7 dias e o falho há mais de 30 (o de `titular.*` não vence). */
+  /** O que o prazo já devia ter levado: o concluído há mais de 7 dias e o falho há mais de 30 (o de `titular.*` e o de `material.extrair-pdf` não vencem). */
   const vencidosRestantes = () =>
     contar(
       `(estado = 'concluido' and concluido_em < now() - interval '7 days')
-       or (estado = 'falhou' and tipo not like 'titular.%' and concluido_em < now() - interval '30 days')`,
+       or (estado = 'falhou' and tipo not like 'titular.%' and tipo <> 'material.extrair-pdf' and concluido_em < now() - interval '30 days')`,
     )
 
   /** Os que o expurgo nunca pode tocar, pelo id. */
@@ -114,6 +114,8 @@ describe('sistema.expurgar-jobs', () => {
       // O pedido do titular é enfileirado uma vez só: a linha `falhou` fica até o operador agir, por mais velha que seja.
       titularMontarArquivo: await inserir('falhou', '40 days', '31 days', 'titular.montar-arquivo'),
       titularEliminar: await inserir('falhou', '90 days', '60 days', 'titular.eliminar'),
+      // A extração do PDF que falhou de vez: o material fica `processando` até o `ops:descartar-job`, que acha o job por esta linha.
+      pdfQueFalhou: await inserir('falhou', '40 days', '31 days', 'material.extrair-pdf'),
     }
   }, 60_000)
 
@@ -171,6 +173,17 @@ describe('sistema.expurgar-jobs', () => {
         { chave: 'ia-31', estado: 'falhou', tipo: 'ia.geracao.concluida', ha: '31 days' },
       ]),
     ).toEqual(['titular-eliminar-31', 'titular-eliminar-400', 'titular-montar-31'])
+  })
+
+  it('o falho de `material.extrair-pdf` fica depois dos 30 dias, sem prazo; o concluído do mesmo tipo sai em 8 dias; o falho de outro tipo sai', async () => {
+    expect(
+      await sobramDe([
+        { chave: 'pdf-31', estado: 'falhou', tipo: 'material.extrair-pdf', ha: '31 days' },
+        { chave: 'pdf-400', estado: 'falhou', tipo: 'material.extrair-pdf', ha: '400 days' },
+        { chave: 'pdf-concluido-8', estado: 'concluido', tipo: 'material.extrair-pdf', ha: '8 days' },
+        { chave: 'ia-31', estado: 'falhou', tipo: 'ia.geracao.concluida', ha: '31 days' },
+      ]),
+    ).toEqual(['pdf-31', 'pdf-400'])
   })
 
   it('cada instrução apaga no máximo um lote, e rodar de novo depois do fim não apaga nada', async () => {

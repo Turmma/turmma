@@ -15,11 +15,12 @@ export type DadosDaAuditoria<Acao extends AcaoDeAuditoria> = EstadosDaAcao<Acao>
 const entidadeIdSchema = z.uuid()
 
 /**
- * As entidades que o operador audita sem escola no contexto (F3, 8.0): a rede, que ainda não tem escola, e o suboperador,
- * que pode atender toda escola. A lista é a do check `auditoria_escola_ou_operacao_global`; qualquer outra ação sem escola
- * é recusada aqui, antes de chegar ao banco.
+ * As entidades que o operador audita sem escola no contexto (F3, 8.0): a rede, que ainda não tem escola, o suboperador,
+ * que pode atender toda escola, e o job de rotina do sistema (`sistema.*`), que não é de escola nenhuma e que a operação
+ * reprocessa ou descarta (ingestao-do-material, 5.0). A lista é a do check `auditoria_escola_ou_operacao_global`; qualquer
+ * outra ação sem escola é recusada aqui, antes de chegar ao banco.
  */
-export const ENTIDADES_DE_AUDITORIA_SEM_ESCOLA: readonly string[] = ['rede', 'suboperador']
+export const ENTIDADES_DE_AUDITORIA_SEM_ESCOLA: readonly string[] = ['rede', 'suboperador', 'job']
 
 /** O valor conferido contra o schema da ação; ação sem schema para a parte não aceita valor nenhum. */
 function conferido<Valor>(esquema: z.ZodType<Valor> | null, valor: unknown): Valor | null {

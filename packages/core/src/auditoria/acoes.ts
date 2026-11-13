@@ -611,6 +611,26 @@ export const ACOES_DE_AUDITORIA = {
     finalidade: null,
   },
   /**
+   * A coordenação registrou uma licença de material de terceiro (ingestao-do-material, 5.0; PRD, RF16; Tech Spec, seção 7). `entidadeId` é a licença. Leva só a vigência: **nunca o licenciante, a
+   * cobertura nem a referência**, que são texto livre e podem ter nome de pessoa (o teste da sentinela confere). O autor do registro é quem registrou, e a linha perde a autoria se a pessoa for eliminada.
+   */
+  'licenca.registrada': {
+    entidade: 'licenca',
+    antes: null,
+    depois: z.strictObject({ vigenteDesde: z.iso.date(), vigenteAte: z.iso.date().nullable() }),
+    finalidade: null,
+  },
+  /**
+   * A coordenação alterou a vigência, a cobertura ou a referência de uma licença (5.0). `antes` e `depois` são a vigência de antes e de depois da alteração, lida com a linha travada
+   * (`for update`): dois `PATCH` ao mesmo tempo deixam dois registros em fila, cada um com o "antes" que de fato encontrou. Sem texto livre, como a registrada.
+   */
+  'licenca.alterada': {
+    entidade: 'licenca',
+    antes: z.strictObject({ vigenteDesde: z.iso.date(), vigenteAte: z.iso.date().nullable() }),
+    depois: z.strictObject({ vigenteDesde: z.iso.date(), vigenteAte: z.iso.date().nullable() }),
+    finalidade: null,
+  },
+  /**
    * A coordenação excluiu um material (MVP, A2; regra 20, item 15): exclusão lógica da linha, e os trechos dele saem de
    * fato, na mesma transação. `entidadeId` é o material; `trechosApagados`, quantas páginas deixaram a busca.
    */

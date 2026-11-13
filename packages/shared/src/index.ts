@@ -583,6 +583,29 @@ export type {
   TrechoEncontrado,
 } from './material/material.js'
 export {
+  alterarLicencaRequestSchema,
+  DIAS_DO_AVISO_DE_VENCIMENTO,
+  licencaResponseSchema,
+  licencaSchema,
+  licencasQuerySchema,
+  listaDeLicencasResponseSchema,
+  registrarLicencaRequestSchema,
+  SITUACOES_DA_LICENCA,
+  situacaoDaLicenca,
+  TAMANHO_MAXIMO_DA_COBERTURA,
+  TAMANHO_MAXIMO_DA_REFERENCIA,
+  vigenciaInvalida,
+} from './material/licenca.js'
+export type {
+  AlterarLicencaRequest,
+  Licenca,
+  LicencaResponse,
+  LicencasQuery,
+  ListaDeLicencasResponse,
+  RegistrarLicencaRequest,
+  SituacaoDaLicenca,
+} from './material/licenca.js'
+export {
   CATALOGO_DE_HABILIDADES,
   HABILIDADE_GERAL,
   habilidadeDoCatalogo,

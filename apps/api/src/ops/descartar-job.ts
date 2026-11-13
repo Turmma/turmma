@@ -5,7 +5,7 @@ import { pathToFileURL } from 'node:url'
 import { JobsQueFalharamRepository } from '../operacao/jobs-que-falharam.repository.js'
 import { abrirArmazemDeOperacao } from './armazem-de-operacao.js'
 import { abrirBancoDeOperacao, autorDoComando, lerOperador, type CommandDatabase, type CommandOutput } from './command.js'
-import { exigirJobDeEscola, lerPedidoDeJob, terminarComErro, type PedidoDeJob } from './jobs-que-falharam.js'
+import { exigirJobDaOperacao, lerPedidoDeJob, noContextoDoJob, terminarComErro, type PedidoDeJob } from './jobs-que-falharam.js'
 import type { AuthorCheck } from '../sessao/index.js'
 
 const registro = new AuditoriaRecorder()
@@ -27,8 +27,8 @@ export interface JobDescartado {
  * - Recusa `ia.*` e `titular.*`. O do PDF (`material.extrair-pdf`) tem efeito: o material `processando` vira `falhou` (`extracao_falhou`) na mesma
  *   transação, e **depois do commit** o objeto sai do storage e a linha registra. Se o storage falha, o objeto fica para a varredura da 2.0, e o comando
  *   diz `objetoApagado: false`. Os outros (`retencao.*` e os demais de escola) só saem: voltam na próxima rodada, se forem de rotina.
- * - O `job.descartado` fica na auditoria da escola do job, com o chamado, na mesma transação. O job sem escola (`sistema.*`) é recusado antes de tocar a
- *   linha, até a 5.0 (`techspec.md` §11, linha "3.0").
+ * - O `job.descartado` fica na auditoria da escola do job, com o chamado, na mesma transação. O job de rotina do sistema (`sistema.*`) não tem escola: sai no contexto da rotina
+ *   do sistema e a auditoria fica **sem escola**, só com o `autor_operador` (`techspec.md` §11, linha "3.0"). O PDF só é de escola.
  */
 export async function descartarJob(banco: Database, autor: AuthorCheck, armazem: Pick<FileStorage, 'apagar'>, pedido: PedidoDeJob): Promise<JobDescartado> {
   const requisicaoId = randomUUID()
@@ -37,8 +37,8 @@ export async function descartarJob(banco: Database, autor: AuthorCheck, armazem:
       const autorOperador = await autor(tx)
       const linha = await new JobsQueFalharamRepository(tx).travarFalho(pedido.jobId)
       if (linha === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
-      const { escolaId, tipo } = exigirJobDeEscola(linha, [])
-      return runInContext({ requisicaoId, escolaId }, async () => {
+      const { escolaId, tipo } = exigirJobDaOperacao(linha, [])
+      return noContextoDoJob(requisicaoId, escolaId, async () => {
         const materialId = tipo === TIPO_EXTRAIR_PDF ? linha.materialId : null
         const materialFechado = materialId === null ? false : await new ExtracaoDoMaterialRepository(tx).marcarFalhou(materialId, 'extracao_falhou')
         if (!(await new JobOutboxRepository(tx).descartarFalho(linha.id))) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
@@ -46,8 +46,9 @@ export async function descartarJob(banco: Database, autor: AuthorCheck, armazem:
         return { id: linha.id, tipo, escolaId, materialId: materialFechado ? materialId : null }
       })
     })
-    if (decisao.materialId === null) return { id: decisao.id, tipo: decisao.tipo, materialFechado: false, objetoApagado: false }
     const { materialId, escolaId } = decisao
+    // O PDF é sempre de escola: o job de rotina do sistema nunca fecha material.
+    if (materialId === null || escolaId === null) return { id: decisao.id, tipo: decisao.tipo, materialFechado: false, objetoApagado: false }
     const objetoApagado = await runInContext({ requisicaoId, escolaId }, async () => {
       try {
         await armazem.apagar(chaveDoTemporario(materialId))
@@ -63,7 +64,7 @@ export async function descartarJob(banco: Database, autor: AuthorCheck, armazem:
 }
 
 /**
- * Executa o comando e devolve o código de saída: 0 descartado, 1 recusa (tipo, job sem escola), `NAO_ENCONTRADO` ou `ERRO_INTERNO` resumido, 2 argumento
+ * Executa o comando e devolve o código de saída: 0 descartado, 1 recusa (tipo), `NAO_ENCONTRADO` ou `ERRO_INTERNO` resumido, 2 argumento
  * ou ambiente inválido, ou `OPERADOR` que não é operador ativo. O armazém só é aberto depois de o argumento e o `OPERADOR` serem conferidos.
  */
 export async function executarOpsDescartarJob(

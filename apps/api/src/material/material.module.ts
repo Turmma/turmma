@@ -1,8 +1,10 @@
-import { JobOutbox, JobOutboxRepository, type Database, type FileStorage, type LoggerBase } from '@educa/core'
+import { JobOutbox, JobOutboxRepository, type Clock, type Database, type FileStorage, type LoggerBase } from '@educa/core'
 import { S3FileStorage } from '@educa/core/s3-file-storage'
 import { Global, Module, type BeforeApplicationShutdown, type DynamicModule } from '@nestjs/common'
 import { DB } from '../database.module.js'
 import type { FileStorageApiConfig } from '../privacidade/file-storage-config.js'
+import { LicencaController } from './licenca.controller.js'
+import { LicencaService } from './licenca.service.js'
 import { TrechoSearch } from './trecho-search.js'
 import { MaterialController } from './material.controller.js'
 import { MaterialService } from './material.service.js'
@@ -24,10 +26,12 @@ export interface MaterialModuleOptions {
   readonly armazem: FileStorageApiConfig
   /** O armazém falso do teste. Sem ele, o S3 da configuração. Nunca vem do ambiente. */
   readonly armazemDeTeste?: FileStorage
+  /** O relógio da situação da licença (o dia de São Paulo), que o teste injeta. Sem ele, o do sistema. Nunca vem do ambiente. */
+  readonly relogioDasLicencas?: Clock
 }
 
 /**
- * O material da escola (MVP, A2; D5, D22, D75): as cinco rotas de `/v1/materiais` e a busca de trechos. A API guarda o PDF
+ * O material da escola (MVP, A2; D5, D22, D75): as rotas de `/v1/materiais`, a busca de trechos e as três de `/v1/licencas` (ingestao-do-material, 5.0). A API guarda o PDF
  * no storage privado e pede o job `material.extrair-pdf`; quem extrai é o `apps/worker`, na fila `pdf`. É global para o
  * Assistente e o Tutor injetarem `TrechoSearch` sem importar o módulo.
  */
@@ -39,13 +43,14 @@ export class MaterialModule {
       opcoes.armazemDeTeste === undefined ? S3FileStorage.criar(opcoes.armazem) : { armazem: opcoes.armazemDeTeste, encerrar: (): void => undefined }
     return {
       module: MaterialModule,
-      controllers: [MaterialController],
+      controllers: [MaterialController, LicencaController],
       providers: [
         {
           provide: MaterialService,
           useFactory: (banco: Database) => new MaterialService({ banco, armazem, enfileirador: new JobOutbox(new JobOutboxRepository(banco)), logger: opcoes.logger }),
           inject: [DB],
         },
+        { provide: LicencaService, useFactory: (banco: Database) => new LicencaService({ banco, ...(opcoes.relogioDasLicencas === undefined ? {} : { relogio: opcoes.relogioDasLicencas }) }), inject: [DB] },
         { provide: TrechoSearch, useFactory: (banco: Database) => new TrechoSearch(banco), inject: [DB] },
         { provide: CicloDoArmazemDoMaterial, useFactory: () => new CicloDoArmazemDoMaterial(encerrar) },
         MaterialUploadGuard,

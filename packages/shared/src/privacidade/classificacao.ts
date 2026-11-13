@@ -58,6 +58,9 @@ export const CLASSIFICACAO_DAS_TABELAS: Readonly<Record<string, ClassificacaoDaT
   reivindicacao: categoria(['reivindicacao_decidida'], 'lista_nome_id', 'decidida_por'),
   artefato: categoria(['autoria_de_artefato'], 'criado_por'),
   material: categoria(['material_excluido'], 'enviado_por', 'excluido_por'),
+  // A licença do material de terceiro (ingestao-do-material, 5.0): sai no expurgo de `material_excluido`, contada de `vigente_ate` e só depois do último material que a cite; a sem fim fica até a coordenação a encerrar.
+  // Entra no arquivo de quem a registrou (`registrada_por`); o `licenciante` e a `referencia` ficam fora (nome de terceiro e número do documento).
+  licenca_de_material: categoria(['material_excluido'], 'registrada_por'),
   vinculo: categoria(['vinculo_encerrado'], 'usuario_id'),
   usuario: categoria(['pessoa_desativada'], 'id'),
   // A aula da grade (F2, 2.0) é do professor pelo vínculo e sai com ele, em cascata: o vínculo encerrado vai pelo prazo de

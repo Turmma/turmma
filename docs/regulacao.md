@@ -268,7 +268,7 @@ para o provedor de modelo. E os donos desse conteúdo já vendem IA própria.
 
 Condições que valem como regra técnica, para qualquer fonte:
 
-- Licença ou parceria com o dono do conteúdo, registrada, quando o material não é da escola
+- Licença ou parceria com o dono do conteúdo, registrada, quando o material não é da escola. No produto, a coordenação registra a licença **uma vez** (`licenca_de_material`: licenciante, cobertura, referência do documento e vigência), e cada material de terceiro a cita; a API entrega a situação (quando ela vence) e quantos materiais ela cobre, e a tela da coordenação os mostra na 6.0 (`docs/lgpd.md`, "Licença de material")
 - A escola autoriza por escrito, e a autorização fica registrada no sistema
 - As credenciais usadas são **da escola**, fornecidas por ela, nunca obtidas por nós
 - O conteúdo ingerido fica **restrito ao tenant daquela escola**. Nunca é reaproveitado para

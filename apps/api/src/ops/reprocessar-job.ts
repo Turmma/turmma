@@ -5,7 +5,7 @@ import { pathToFileURL } from 'node:url'
 import { JobsQueFalharamRepository } from '../operacao/jobs-que-falharam.repository.js'
 import { abrirBancoDeOperacao, urlDoRedisDeFilaDeOperacao, autorDoComando, lerOperador, type CommandDatabase, type CommandOutput } from './command.js'
 import { abrirFilaDeOperacao, type FilaDeOperacao } from './fila-de-jobs.js'
-import { exigirJobDeEscola, lerPedidoDeJob, terminarComErro, type PedidoDeJob } from './jobs-que-falharam.js'
+import { exigirJobDaOperacao, lerPedidoDeJob, noContextoDoJob, terminarComErro, type PedidoDeJob } from './jobs-que-falharam.js'
 import type { AuthorCheck } from '../sessao/index.js'
 
 const registro = new AuditoriaRecorder()
@@ -20,7 +20,8 @@ const registro = new AuditoriaRecorder()
  * - Tira a cópia `failed` do BullMQ **dentro da transação, com a linha travada**: sem isso o despachante publicaria o job com o mesmo id, a fila
  *   o ignoraria, e a reconciliação o daria por falho de novo. Depois, a linha volta a `aguardando` e o `job.reprocessado` fica na auditoria da
  *   escola, com o chamado. Se a fila falha, nada muda; se o commit falha depois, a cópia já saiu e o comando se repete sem efeito colateral.
- * - O job sem escola (`sistema.*`) é recusado antes de tocar a linha, até a 5.0 (`techspec.md` §11, linha "3.0").
+ * - O job de rotina do sistema (`sistema.*`) não tem escola: reabre-se no contexto da rotina do sistema e a auditoria `job.reprocessado` sai **sem escola**, só com o `autor_operador`
+ *   (a entidade `job`, em `ENTIDADES_DE_AUDITORIA_SEM_ESCOLA` e no check `auditoria_escola_ou_operacao_global`). O de escola é auditado na escola da linha, nunca sem escola.
  */
 export function reprocessarJob(banco: Database, autor: AuthorCheck, fila: FilaDeOperacao, pedido: PedidoDeJob): Promise<{ id: string; tipo: string }> {
   const requisicaoId = randomUUID()
@@ -29,8 +30,8 @@ export function reprocessarJob(banco: Database, autor: AuthorCheck, fila: FilaDe
       const autorOperador = await autor(tx)
       const linha = await new JobsQueFalharamRepository(tx).travarFalho(pedido.jobId)
       if (linha === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
-      const { escolaId, tipo } = exigirJobDeEscola(linha, [TIPO_EXTRAIR_PDF])
-      return runInContext({ requisicaoId, escolaId }, async () => {
+      const { escolaId, tipo } = exigirJobDaOperacao(linha, [TIPO_EXTRAIR_PDF])
+      return noContextoDoJob(requisicaoId, escolaId, async () => {
         await fila.tirarCopiaDaFalha({ id: linha.id, fila: linha.fila, tipo: linha.tipo })
         if (!(await new JobOutboxRepository(tx).reabrirFalho(linha.id))) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
         await registro.gravar(tx, 'job.reprocessado', { entidadeId: linha.id, depois: { tipo, chamado: pedido.chamado }, autorOperador })
@@ -41,7 +42,7 @@ export function reprocessarJob(banco: Database, autor: AuthorCheck, fila: FilaDe
 }
 
 /**
- * Executa o comando e devolve o código de saída: 0 reprocessado, 1 recusa (tipo, job sem escola), `NAO_ENCONTRADO`, `CONFLITO` ou `ERRO_INTERNO`
+ * Executa o comando e devolve o código de saída: 0 reprocessado, 1 recusa (tipo), `NAO_ENCONTRADO`, `CONFLITO` ou `ERRO_INTERNO`
  * resumido, 2 argumento ou ambiente inválido, ou `OPERADOR` que não é operador ativo. Argumento, `OPERADOR` e o endereço do Redis são conferidos
  * antes de abrir o banco.
  */

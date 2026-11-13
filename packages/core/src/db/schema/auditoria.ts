@@ -58,8 +58,8 @@ export const auditoria = pgTable(
     index('auditoria_por_alvo_idx')
       .on(tabela.escolaId, tabela.entidadeId, tabela.em)
       .where(sql`${tabela.acao} in (${sql.raw(literaisDeSql(ACOES_DO_ARQUIVO_POR_ALVO))})`),
-    // Sem escola, só o que a operação faz acima do tenant: a rede criada e o suboperador cadastrado ou encerrado (F3, 8.0).
-    check('auditoria_escola_ou_operacao_global', sql`escola_id is not null or (autor_operador is not null and entidade in ('rede', 'suboperador'))`),
+    // Sem escola, só o que a operação faz acima do tenant: a rede criada, o suboperador cadastrado ou encerrado (F3, 8.0) e o job de rotina do sistema que a operação reprocessa ou descarta (ingestao-do-material, 5.0).
+    check('auditoria_escola_ou_operacao_global', sql`escola_id is not null or (autor_operador is not null and entidade in ('rede', 'suboperador', 'job'))`),
     // Um autor e só um: a pessoa da escola, ou alguém da nossa equipe em rotina de operador.
     check('auditoria_um_autor', sql`(autor_usuario_id is not null) <> (autor_operador is not null)`),
     check('auditoria_operador_formato', sql`autor_operador is null or autor_operador ~ '^[a-z][a-z0-9-]{1,31}$'`),

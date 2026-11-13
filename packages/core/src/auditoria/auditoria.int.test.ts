@@ -171,14 +171,14 @@ describe('auditoria no banco', () => {
       })
     })
 
-    it('escola nula com operador é aceita para a rede e para o suboperador, e só para eles (F3, 8.0)', async () => {
-      for (const entidade of ['rede', 'suboperador']) {
+    it('escola nula com operador é aceita para a rede, o suboperador e o job, e só para eles (F3, 8.0; ingestao-do-material, 5.8)', async () => {
+      for (const entidade of ['rede', 'suboperador', 'job']) {
         await inserir({ escolaId: null, autorUsuarioId: null, autorOperador: 'operador-teste', entidade })
       }
       await pool.query(`delete from auditoria where acao = 'teste.check' and escola_id is null`)
     })
 
-    it('escola nula com operador e entidade diferente de rede e de suboperador é recusada', async () => {
+    it('escola nula com operador e entidade diferente de rede, de suboperador e de job é recusada', async () => {
       await expect(inserir({ escolaId: null, autorUsuarioId: null, autorOperador: 'operador-teste', entidade: 'escola' })).rejects.toMatchObject({
         code: '23514',
         constraint: 'auditoria_escola_ou_operacao_global',

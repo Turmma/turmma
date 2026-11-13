@@ -676,6 +676,35 @@ describe('arquivo do titular (F3, tarefa 13.0): do pedido ao download', () => {
     })
   })
 
+  describe('a licença de material (ingestao-do-material, tarefa 5.0)', () => {
+    it('a licença entra no arquivo de quem a registrou, com `licenciante` e `referencia` de fora; a do colega e a de outra escola não entram', async () => {
+      const cenario = await novaEscola()
+      const outraEscola = await novaEscola()
+      const colega = await pessoa(cenario, 'professor', 'Colega')
+      const licenciante = sentinela('licenciante-da-licenca')
+      const referencia = sentinela('referencia-da-licenca')
+      const licenca = (escolaId: string, quem: string, nome: string, ref: string) =>
+        inserir(
+          `insert into licenca_de_material (escola_id, licenciante, cobertura, referencia, vigente_desde, registrada_por) values ($1, $2, 'Cobertura da licença', $3, '2026-03-01', $4) returning id`,
+          [escolaId, nome, ref, quem],
+        )
+      const dela = await licenca(cenario.escolaId, cenario.coordenacao.usuarioId, licenciante, referencia)
+      const doColega = await licenca(cenario.escolaId, colega.id, sentinela('licenciante-do-colega'), sentinela('referencia-do-colega'))
+      const deOutraEscola = await licenca(outraEscola.escolaId, outraEscola.coordenacao.usuarioId, sentinela('licenciante-de-B'), sentinela('referencia-de-B'))
+
+      const arquivo = await runInContext({ requisicaoId: randomUUID(), escolaId: cenario.escolaId }, () =>
+        // `PapelDoTitular` só admite aluno e professor: o papel só decide o uso real do professor na versão completa, que não toca a licença; a coordenação como titular fica para o "Meus dados" dela.
+        new LeituraDoTitular(bancada.banco).montar({ titularId: cenario.coordenacao.usuarioId, papel: 'professor', versao: 'completa', compartilhamento: [], geradoEm: new Date() }),
+      )
+
+      const linhas = arquivo.tabelas['licenca_de_material'] ?? []
+      expect(linhas.map((linha) => linha['id'])).toEqual([dela])
+      expect(Object.keys(linhas[0] ?? {}).sort()).toEqual(['alterada_em', 'cobertura', 'id', 'registrada_em', 'vigente_ate', 'vigente_desde'])
+      const texto = JSON.stringify(arquivo)
+      for (const proibido of [licenciante, referencia, doColega, deOutraEscola]) expect(texto, proibido).not.toContain(proibido)
+    })
+  })
+
   describe('D85: o arquivo do aluno traz o que a escola fez sobre ele, sem dizer quem fez (acesso-e-convites, tarefa 11.0)', () => {
     type Autor = 'coordenacao' | 'professor' | 'aluno'
     interface Ato {

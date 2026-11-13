@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm'
-import { boolean, check, foreignKey, index, integer, pgTable, primaryKey, smallint, text, timestamp, unique, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
+import { boolean, check, date, foreignKey, index, integer, pgTable, primaryKey, smallint, text, timestamp, unique, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
 import type { EstadoDeMaterial, FalhaDeMaterial, LicencaDeMaterial, TitularidadeDeMaterial } from '@educa/shared'
 import { disciplina } from './disciplina.js'
 import { escola } from './escola.js'
@@ -29,6 +29,7 @@ import { usuario } from './usuario.js'
  *   sai depois do commit da extração, da falha, da exclusão ou do expurgo. `processado_em` é o instante em que o material saiu de `processando`
  *   (`pronto` ou `falhou`), e `objeto_apagado_em`, o instante em que o objeto foi apagado: nulo é "o objeto pode ainda existir". O material de antes
  *   da F4 nasce com `objeto_apagado_em = enviado_em`, porque nunca teve objeto.
+ * - `licenca_id` (ingestao-do-material, 5.0): a licença registrada (`licencaDeMaterial`), nula no material que não é de terceiro. `licenciante` continua gravado junto (o código grava as duas, e a contração é da F4b).
  * - Índice `(escola_id, disciplina_id, id)`: a listagem paginada, da coordenação e do professor pela disciplina dele.
  */
 export const material = pgTable(
@@ -55,6 +56,7 @@ export const material = pgTable(
     excluidoEm: timestamp({ withTimezone: true }),
     processadoEm: timestamp({ withTimezone: true }),
     objetoApagadoEm: timestamp({ withTimezone: true }),
+    licencaId: uuid(),
   },
   (tabela) => [
     unique('material_escola_id_unico').on(tabela.escolaId, tabela.id),
@@ -63,6 +65,11 @@ export const material = pgTable(
     // A migration escreve `on delete set null ("enviado_por")` e `("excluido_por")`: o `set null` inteiro anularia também a escola.
     foreignKey({ name: 'material_enviado_por_da_escola_fk', columns: [tabela.escolaId, tabela.enviadoPor], foreignColumns: [usuario.escolaId, usuario.id] }).onDelete('set null'),
     foreignKey({ name: 'material_excluido_por_da_escola_fk', columns: [tabela.escolaId, tabela.excluidoPor], foreignColumns: [usuario.escolaId, usuario.id] }).onDelete('set null'),
+    // A licença do material de terceiro (ingestao-do-material, 5.0): nula enquanto o código anterior grava, e preenchida pelo backfill da 0053 e pelo envio novo (7.0). Sem ação na FK: a
+    // licença com material, vivo ou excluído, não sai (o expurgo só a apaga depois do material).
+    foreignKey({ name: 'material_licenca_da_escola_fk', columns: [tabela.escolaId, tabela.licencaId], foreignColumns: [licencaDeMaterial.escolaId, licencaDeMaterial.id] }),
+    // Quantos materiais a licença cobre (`GET /v1/licencas`) e o `not exists` do expurgo da licença: começa pela escola.
+    index('material_licenca_idx').on(tabela.escolaId, tabela.licencaId).where(sql`${tabela.licencaId} is not null`),
     uniqueIndex('material_arquivo_na_escola_unico').on(tabela.escolaId, tabela.sha256).where(sql`${tabela.excluidoEm} is null and ${tabela.estado} <> 'falhou'`),
     index('material_disciplina_idx').on(tabela.escolaId, tabela.disciplinaId, tabela.id),
     // O expurgo do `material_excluido` (F3, tarefa 5.0): só o excluído, do mais antigo.
@@ -87,6 +94,48 @@ export const material = pgTable(
     check('material_falha_so_no_que_falhou', sql`(${tabela.estado} = 'falhou') = (${tabela.falha} is not null)`),
     check('material_pronto_tem_paginas', sql`${tabela.estado} <> 'pronto' or ${tabela.paginas} is not null`),
     check('material_excluido_por_so_no_excluido', sql`${tabela.excluidoPor} is null or ${tabela.excluidoEm} is not null`),
+  ],
+)
+
+/**
+ * A licença do material de terceiro, registrada uma vez pela coordenação (ingestao-do-material, tarefa 5.0; Tech Spec, seções 3, 4 e 7; PRD, RF16, RF17 e RF20). Substitui o
+ * `licenciante` solto de cada material: o material de terceiro aponta uma licença (`material.licenca_id`), e a que vence tira da busca o que ela cobre (7.0, 9.0).
+ *
+ * - Pertence ao tenant e não varia por ano letivo, como o material: a licença da editora vale por contrato, não por ano escolar (regra 10, itens 1 e 2).
+ * - `licenciante` pode ser nome de pessoa (dado pessoal, `docs/lgpd.md`), e `referencia` é o número ou o apelido do documento, nunca o contrato: ambos ficam **fora** do arquivo do titular.
+ * - `vigente_desde` e `vigente_ate` são datas do calendário, no dia de São Paulo; sem fim, `vigente_ate` é nulo e a licença fica até a coordenação a encerrar. Check `licenca_de_material_vigencia_valida`:
+ *   o fim não vem antes do começo.
+ * - `registrada_por` é a coordenação que a registrou: vira nulo se a pessoa for eliminada (`on delete set null ("registrada_por")`, escrito à mão como na 0022), e a autoria fica na auditoria
+ *   (`licenca.registrada`, `licenca.alterada`). Quem alterou nunca é gravado na linha, só na auditoria.
+ * - `unique (escola_id, id)` é o alvo da FK composta do material. A licença não se exclui pela API: sai no expurgo de `material_excluido`, contada de `vigente_ate`, depois do último material que a cite.
+ * - Índice `(escola_id, vigente_ate)` parcial: o expurgo lê só a licença com fim, do mais antigo.
+ */
+export const licencaDeMaterial = pgTable(
+  'licenca_de_material',
+  {
+    id: uuid().primaryKey().default(sql`uuidv7()`),
+    escolaId: uuid()
+      .notNull()
+      .references(() => escola.id),
+    licenciante: text().notNull(),
+    cobertura: text().notNull(),
+    referencia: text().notNull(),
+    vigenteDesde: date({ mode: 'string' }).notNull(),
+    vigenteAte: date({ mode: 'string' }),
+    registradaPor: uuid(),
+    registradaEm: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    alteradaEm: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (tabela) => [
+    unique('licenca_de_material_escola_id_unico').on(tabela.escolaId, tabela.id),
+    // A migration escreve `on delete set null ("registrada_por")`: o `set null` inteiro anularia também a escola.
+    foreignKey({ name: 'licenca_de_material_registrada_por_da_escola_fk', columns: [tabela.escolaId, tabela.registradaPor], foreignColumns: [usuario.escolaId, usuario.id] }).onDelete('set null'),
+    index('licenca_de_material_vigente_ate_idx').on(tabela.escolaId, tabela.vigenteAte).where(sql`${tabela.vigenteAte} is not null`),
+    // 120, 300 e 200 são `TAMANHO_MAXIMO_DO_LICENCIANTE`, `TAMANHO_MAXIMO_DA_COBERTURA` e `TAMANHO_MAXIMO_DA_REFERENCIA` do contrato (`packages/shared`).
+    check('licenca_de_material_licenciante_preenchido', sql`char_length(btrim(${tabela.licenciante})) between 1 and 120`),
+    check('licenca_de_material_cobertura_preenchida', sql`char_length(btrim(${tabela.cobertura})) between 1 and 300`),
+    check('licenca_de_material_referencia_preenchida', sql`char_length(btrim(${tabela.referencia})) between 1 and 200`),
+    check('licenca_de_material_vigencia_valida', sql`${tabela.vigenteAte} is null or ${tabela.vigenteAte} >= ${tabela.vigenteDesde}`),
   ],
 )
 

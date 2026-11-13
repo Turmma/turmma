@@ -1,3 +1,4 @@
+import { TIPO_EXTRAIR_PDF } from '@educa/shared'
 import { sql } from 'drizzle-orm'
 import type { Database } from '../db/database.js'
 import { Unscoped } from '../db/unscoped.decorator.js'
@@ -7,7 +8,7 @@ export const RETENCAO_JOB_REGISTRO_DIAS = 7
 
 /**
  * Por quantos dias `job_registro` guarda o job que terminou `falhou` (44.0): o operador tem um mês para ver o alerta
- * "Job que falhou de vez" e abrir a correção. A exceção é o de `titular.*`, que não sai pelo prazo (abaixo).
+ * "Job que falhou de vez" e abrir a correção. As exceções são o de `titular.*` e o de `material.extrair-pdf`, que não saem pelo prazo (abaixo).
  */
 export const RETENCAO_JOB_REGISTRO_FALHO_DIAS = 30
 
@@ -28,9 +29,12 @@ export const LOTE_DO_EXPURGO = 5_000
  * O que sai: o `concluido` depois de 7 dias e o `falhou` depois de 30, no mesmo lote e pelo mesmo índice, e **nunca o
  * `falhou` de `titular.*`** (44.0, RF18): o pedido do titular é enfileirado uma vez só (`titular.montar-arquivo`), e a
  * linha `falhou` é o único rastro de que o arquivo ou a eliminação não saiu; ela fica até a ação do operador (46.0, X6).
- * A exceção é só do `falhou`: o `concluido` de `titular.*` sai em 7 dias como os outros. Ela está no SQL do lote, e não num
+ * **Nem o `falhou` de `material.extrair-pdf`** (ingestao-do-material, 5.0; `techspec.md` §11, linha "3.0"): o material fica `processando`, com o PDF no
+ * storage, até o `ops:descartar-job` fechá-lo e apagar o objeto, e o descarte acha o job pela linha: se ela saísse em 30 dias, o Descartar não a acharia
+ * e o material ficaria `processando` com o PDF para sempre. Ela fica até a ação do operador, como a de `titular.*`.
+ * A exceção é só do `falhou`: o `concluido` de `titular.*` e o de `material.extrair-pdf` saem em 7 dias como os outros. Ela está no SQL do lote, e não num
  * filtro depois: o `limit` conta só o que vai sair, e o lote continua de `LOTE_DO_EXPURGO`. O `falhou` que ainda está no
- * prazo e o de `titular.*` ficam na frente do índice (ordenado por `concluido_em`) e são lidos e descartados a cada lote;
+ * prazo e o dessas duas famílias ficam na frente do índice (ordenado por `concluido_em`) e são lidos e descartados a cada lote;
  * são os que o alerta "Job que falhou de vez" já mostrou ao operador, e a medição `job.falhos` os conta.
  *
  * `for update skip locked`: duas execuções ao mesmo tempo (a reexecução de D49) apagam linhas
@@ -42,7 +46,7 @@ const APAGAR_LOTE_VENCIDO = (limite: number) => sql`
   where id = any(array(
     select id from job_registro
     where (estado = 'concluido' and concluido_em < now() - make_interval(days => ${RETENCAO_JOB_REGISTRO_DIAS}))
-      or (estado = 'falhou' and tipo not like 'titular.%' and concluido_em < now() - make_interval(days => ${RETENCAO_JOB_REGISTRO_FALHO_DIAS}))
+      or (estado = 'falhou' and tipo not like 'titular.%' and tipo <> ${TIPO_EXTRAIR_PDF} and concluido_em < now() - make_interval(days => ${RETENCAO_JOB_REGISTRO_FALHO_DIAS}))
     order by concluido_em
     limit ${limite}
     for update skip locked
@@ -51,7 +55,7 @@ const APAGAR_LOTE_VENCIDO = (limite: number) => sql`
 
 /**
  * A retenção de `job_registro`: o job concluído há mais de `RETENCAO_JOB_REGISTRO_DIAS` e o falho há mais de
- * `RETENCAO_JOB_REGISTRO_FALHO_DIAS` saem do banco, menos o falho de `titular.*`. Fica fora do módulo da fila de
+ * `RETENCAO_JOB_REGISTRO_FALHO_DIAS` saem do banco, menos o falho de `titular.*` e o de `material.extrair-pdf`. Fica fora do módulo da fila de
  * propósito: o despachante distribui, este apaga, e o expurgo por retenção de dado de escola (F3) mora aqui também.
  */
 export class ExpurgoDeJobsRepository {
@@ -60,7 +64,7 @@ export class ExpurgoDeJobsRepository {
   /**
    * Apaga até `limite` jobs vencidos, de qualquer escola. Job `aguardando`, `reservado`, `publicado`
    * ou `ativo` nunca sai, por mais antigo que seja; o `concluido` há menos de 7 dias e o `falhou` há menos de 30
-   * também não, e o `falhou` de `titular.*` não sai por prazo nenhum.
+   * também não, e o `falhou` de `titular.*` e o de `material.extrair-pdf` não saem por prazo nenhum.
    */
   @Unscoped(
     'o expurgo é rotina nossa e aplica a mesma retenção de job a todas as escolas; ' +

@@ -39,14 +39,6 @@ export class JobRecusadoError extends Error {
   }
 }
 
-/** O job é de rotina do sistema, sem escola: a auditoria dele sem escola chega com a 5.0 (`techspec.md` §11, linha "3.0"). */
-export class JobSemEscolaError extends Error {
-  constructor() {
-    super('o job não tem escola: reprocessar e descartar job de rotina do sistema ainda não existe')
-    this.name = 'JobSemEscolaError'
-  }
-}
-
 /** `<id do job> --chamado <n>`: o UUID em minúsculas e o inteiro positivo. Ausente ou fora do formato, só a opção na mensagem. */
 export function lerPedidoDeJob(argumentos: string[]): PedidoDeJob {
   let lido: ReturnType<typeof parseArgs<{ options: { chamado: { type: 'string' } }; allowPositionals: true }>>
@@ -63,14 +55,24 @@ export function lerPedidoDeJob(argumentos: string[]): PedidoDeJob {
   return { jobId: id.data.toLowerCase(), chamado: Number(lido.values.chamado) }
 }
 
-/** O job que a operação pode mexer: o tipo existe, não é de IA nem do titular, e a escola dele é conhecida. Devolve a escola. */
-export function exigirJobDeEscola(linha: JobQueFalhou, tiposRecusados: readonly string[]): { escolaId: string; tipo: keyof typeof JOB_DEFINITIONS } {
+/**
+ * O job que a operação pode mexer: o tipo existe e não é de IA nem do titular. Devolve a escola da linha, ou `null` no job de rotina do sistema (`sistema.*`),
+ * que não é de escola nenhuma: a auditoria dele fica sem escola, com `autor_operador` (`techspec.md` §11, linha "3.0"; ingestao-do-material, 5.0).
+ */
+export function exigirJobDaOperacao(linha: JobQueFalhou, tiposRecusados: readonly string[]): { escolaId: string | null; tipo: keyof typeof JOB_DEFINITIONS } {
   if (PREFIXOS_QUE_A_OPERACAO_NAO_MEXE.some((prefixo) => linha.tipo.startsWith(prefixo))) throw new JobRecusadoError('tipo de job que a operação não mexe: IA ou pedido do titular')
   if (tiposRecusados.includes(linha.tipo)) throw new JobRecusadoError('Tentar de novo é envio novo')
   const tipo = (Object.keys(JOB_DEFINITIONS) as Array<keyof typeof JOB_DEFINITIONS>).find((existente) => existente === linha.tipo)
   if (tipo === undefined) throw new JobRecusadoError('tipo de job desconhecido')
-  if (linha.escolaId === null) throw new JobSemEscolaError()
   return { escolaId: linha.escolaId, tipo }
+}
+
+/**
+ * Roda `funcao` no contexto do job: o da escola da linha, ou o da rotina do sistema quando ele não tem escola (`escolaId` nulo). O contexto é o que o `JobOutboxRepository` lê para
+ * escopar a linha (`jobScopeInContext`): o job de escola só alcança a da escola, e o de `sistema.*`, só as sem escola. A auditoria sai com a escola do contexto, ou sem escola e com o operador.
+ */
+export function noContextoDoJob<T>(requisicaoId: string, escolaId: string | null, funcao: () => T): T {
+  return runInContext(escolaId === null ? { requisicaoId, rotinaDoSistema: true } : { requisicaoId, escolaId }, funcao)
 }
 
 /** Os jobs que falharam de vez, em todas as escolas, numa transação que começa pela conferência do autor. */
@@ -96,7 +98,7 @@ export function terminarComErro(erro: unknown, terminal: CommandOutput): number 
     terminal.erro(`${erro.message}\n`)
     return 2
   }
-  if (erro instanceof JobRecusadoError || erro instanceof JobSemEscolaError) {
+  if (erro instanceof JobRecusadoError) {
     terminal.erro(`${erro.message}\n`)
     return 1
   }

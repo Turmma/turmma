@@ -95,6 +95,11 @@ export const RECURSOS = {
    */
   material: ['enviar', 'listar', 'ler', 'excluir', 'buscar'],
   /**
+   * A licença do material de terceiro (ingestao-do-material, 5.0; PRD, RF16): `listar`, `registrar` e `alterar` são `GET`, `POST` e `PATCH /:id` de
+   * `/v1/licencas`. Só a coordenação: o professor, o aluno e a rede nunca a alcançam (o licenciante pode ser nome de pessoa). Não se exclui.
+   */
+  licenca: ['listar', 'registrar', 'alterar'],
+  /**
    * As planilhas da escola (F2, 4.0; Tech Spec, seção 4), só da coordenação: `previa` é `POST /v1/importacoes/:tipo/previa`
    * e `gravar`, `POST /v1/importacoes/:tipo` (202); `ler` é `GET /v1/importacoes/:id` (5.0), o estado e as contagens da
    * importação da escola, sem linha da planilha.
@@ -244,6 +249,7 @@ export const MATRIZ: { readonly [P in Papel]: CelulasDoPapel } = {
     professor: { listar: 'nunca', cadastrar: 'nunca', refazer_convite: 'nunca', revogar_convite: 'nunca', corrigir_email: 'nunca' },
     indicador_professor: { ler_agregado: 'agregado', ler_nominal: 'nunca' },
     material: { enviar: 'nunca', listar: 'nunca', ler: 'nunca', excluir: 'nunca', buscar: 'nunca' },
+    licenca: { listar: 'nunca', registrar: 'nunca', alterar: 'nunca' },
     importacao_planilha: { previa: 'nunca', gravar: 'nunca', ler: 'nunca' },
     calendario: { ler: 'nunca' },
     grade: { ler: 'nunca' },
@@ -291,6 +297,7 @@ export const MATRIZ: { readonly [P in Papel]: CelulasDoPapel } = {
     professor: { listar: 'unidade', cadastrar: 'unidade', refazer_convite: 'unidade', revogar_convite: 'unidade', corrigir_email: 'unidade' },
     indicador_professor: { ler_agregado: 'agregado', ler_nominal: 'nominal_auditado' },
     material: { enviar: 'unidade', listar: 'unidade', ler: 'unidade', excluir: 'unidade', buscar: 'unidade' },
+    licenca: { listar: 'unidade', registrar: 'unidade', alterar: 'unidade' },
     importacao_planilha: { previa: 'unidade', gravar: 'unidade', ler: 'unidade' },
     calendario: { ler: 'unidade' },
     grade: { ler: 'unidade' },
@@ -338,6 +345,7 @@ export const MATRIZ: { readonly [P in Papel]: CelulasDoPapel } = {
     professor: { listar: 'nunca', cadastrar: 'nunca', refazer_convite: 'nunca', revogar_convite: 'nunca', corrigir_email: 'nunca' },
     indicador_professor: { ler_agregado: 'nunca', ler_nominal: 'proprio' },
     material: { enviar: 'nunca', listar: 'turma_vinculada', ler: 'turma_vinculada', excluir: 'nunca', buscar: 'turma_vinculada' },
+    licenca: { listar: 'nunca', registrar: 'nunca', alterar: 'nunca' },
     importacao_planilha: { previa: 'nunca', gravar: 'nunca', ler: 'nunca' },
     calendario: { ler: 'turma_vinculada' },
     grade: { ler: 'turma_vinculada' },
@@ -385,6 +393,7 @@ export const MATRIZ: { readonly [P in Papel]: CelulasDoPapel } = {
     professor: { listar: 'nunca', cadastrar: 'nunca', refazer_convite: 'nunca', revogar_convite: 'nunca', corrigir_email: 'nunca' },
     indicador_professor: { ler_agregado: 'nunca', ler_nominal: 'nunca' },
     material: { enviar: 'nunca', listar: 'nunca', ler: 'nunca', excluir: 'nunca', buscar: 'nunca' },
+    licenca: { listar: 'nunca', registrar: 'nunca', alterar: 'nunca' },
     importacao_planilha: { previa: 'nunca', gravar: 'nunca', ler: 'nunca' },
     calendario: { ler: 'nunca' },
     grade: { ler: 'nunca' },

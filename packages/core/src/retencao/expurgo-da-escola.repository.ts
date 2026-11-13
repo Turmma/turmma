@@ -52,7 +52,7 @@ export const ALVOS_DO_EXPURGO_DA_ESCOLA = {
   trabalho_do_aluno: ['tentativa_atividade'],
   reivindicacao_decidida: ['reivindicacao'],
   autoria_de_artefato: ['artefato_autoria'],
-  material_excluido: ['material'],
+  material_excluido: ['material', 'licenca_de_material'],
   vinculo_encerrado: ['vinculo'],
   pessoa_desativada: ['usuario'],
 } as const satisfies Record<CategoriaDoExpurgo, readonly string[]>
@@ -171,6 +171,9 @@ const ANO_ENCERRADO_ALEM_DO_PRAZO = (escolaId: string, { agora, meses, fuso }: P
  *   as duas FKs para ele não têm ação, e a conversa pode viver mais que o material (o piso do material é 12 meses, o teto
  *   da conversa, 24). O que a conversa cita sai na noite em que ela sai. Os trechos já saíram na exclusão e, se algum
  *   ficou, saem em cascata. O material vigente nunca entra.
+ * - **`licenca_de_material`** (ingestao-do-material, 5.0): a licença **com fim** (`vigente_ate`) além do prazo, contado do dia do fim no fuso da escola, e **sem linha de `material` que a cite**,
+ *   inclusive a excluída: a FK do material não tem ação, e a licença só sai depois do último material dela (o passo vem depois do `material`, na mesma categoria, e o material que a conversa do Tutor
+ *   ainda cita segura a licença até a noite em que a conversa sai). A licença **sem fim** nunca sai: fica até a coordenação a encerrar. Trava só a licença (`of l`), sem `order by` que não seja o do índice.
  * - **`vinculo`**: o vínculo `encerrado` além do prazo, pela data do encerramento. O ativo, o pendente e o contestado ficam.
  */
 const INSTRUCAO_DO_LOTE: Record<Exclude<AlvoDoExpurgoDaEscola, 'thread_agente' | 'usuario'>, (escolaId: string, prazo: PrazoDoLote, limite: number) => SQL> = {
@@ -289,6 +292,18 @@ const INSTRUCAO_DO_LOTE: Record<Exclude<AlvoDoExpurgoDaEscola, 'thread_agente' |
       order by m.excluido_em
       limit ${limite}
       for update of m skip locked
+    ))
+  `,
+  licenca_de_material: (escolaId, { agora, meses, fuso }, limite) => sql`
+    delete from licenca_de_material
+    where escola_id = ${escolaId} and id = any(array(
+      select l.id from licenca_de_material l
+      where l.escola_id = ${escolaId} and l.vigente_ate is not null
+        and l.vigente_ate + make_interval(months => ${meses}) < (${agora.toISOString()}::timestamptz at time zone ${fuso})::date
+        and not exists (select 1 from material m where m.escola_id = ${escolaId} and m.licenca_id = l.id)
+      order by l.vigente_ate
+      limit ${limite}
+      for update of l skip locked
     ))
   `,
   vinculo: (escolaId, { agora, meses }, limite) => sql`
