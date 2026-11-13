@@ -1,15 +1,16 @@
 # Estado da execução — ingestao-do-material
 
 ## Agora
-- **Espero:** o `RELATÓRIO` do `Implementador` (linha 1, `…--l1`, ambiente 1), correção `encontro-2`, pedida às 19:49 de 12/11: a 2.0 voltou CONCLUÍDA (`2245cca3`, 3 rodadas, todos APROVADO na 3ª), mas o encontro 1 deu CONFLITO em `docs/lgpd.md` com a 3.0; par reiniciado no checkout da linha, guardião ditado `privacy-guardian`. Depois, `encontro 1` de novo. Linha 2 ociosa: nada parte enquanto a 2.0 não se encontra.
-- **Devo ainda:** levar ao `TODO.md`, no fechamento da spec (a 3.0 já se encontrou): dois blocos de mutação do ensaio de alertas (parada do worker-pdf e `for: 1m`) estouram o teto de 600 s do portão e ficaram como motivo escrito no `3_task.md`. abrir a linha 3 quando o quadro liberar tarefa sem linha (4.0 e 5.0 não correm com 2.0 agora). A spec não pousa sem a 2.0 e a 3.0 (a `docs/lgpd.md:101` conta com as duas). Ler a esteira no próximo encontro: a execução 43323319937 roda sobre `9f05674` (o vermelho de `8fbf3b2` foi DNS do runner, não código).
-- **Base:** `spec/ingestao-do-material` em `9f05674f`
+- **Espero:** o `RELATÓRIO` do `Implementador` (linha 1, `…--l1`, ambiente 1), tarefa 4.0, porte pequeno, 1ª tentativa, pedida às 20:01 de 12/11. Linha 2 ociosa: a 5.0 corre sozinha (migration), e o quadro só libera a 4.0.
+- **Devo ainda:** levar ao `TODO.md`, no fechamento da spec (a 3.0 já se encontrou): dois blocos de mutação do ensaio de alertas (parada do worker-pdf e `for: 1m`) estouram o teto de 600 s do portão e ficaram como motivo escrito no `3_task.md`. Abrir a linha 3 quando o quadro liberar tarefa sem linha (a 5.0 parte só quando nenhuma outra corre). Ler a esteira no próximo encontro: a execução 43323319937 roda sobre `9f05674`, e o push de `03454faf` dispara outra (o vermelho de `8fbf3b2` foi DNS do runner, não código).
+- **Base:** `spec/ingestao-do-material` em `03454faf`
 
 ## Concluídas
 | Tarefa | Commit | Modelo | Rodadas | Observação |
 |---|---|---|---|---|
 | 1.0 | `a6c3640e` | Sonnet 5.5 | 3 | r1 reprovou revisor-geral e test-engineer; recomendações do r2 no `TODO.md`, do r3 em `.processo/ordens/1_task-r3.md` (linha 1) |
 | 3.0 | `c63b6a9c` | Sonnet 5.5 | 2 | divergência de desenho triada pelo `Arquiteto` como detalhe (4 arquivos de spec no commit); `cenarios.md` editado pela r1; recomendações da r1 e r2 em "Recomendações sem aplicar" do `3_task.md` |
+| 2.0 | `2245cca3` | Sonnet 5.5 | 3 | encontro com CONFLITO em `docs/lgpd.md` com a 3.0: correção `encontro-2` na linha 1 (`e2725b05`, privacy e test-engineer APROVADO na 1ª); sem aplicar em `TODO.md` e no `2_task.md` |
 
 ## Esperando o Joaquim
 ## O que falhou
