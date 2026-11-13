@@ -14,6 +14,8 @@ import { confirmarVinculosNoBanco, criarAlocacaoDoProfessor, criarCoordenadoraNa
 export const AI_TIMEOUT_MS = 45_000
 export const TITULO_DO_MATERIAL = 'Química 2, capítulo 7: Estequiometria'
 export const DISCIPLINA = 'Química'
+/** A série que `criarAlocacaoDoProfessor` cria para a turma da professora, como a tela a escreve: o material enviado precisa de ao menos uma (ingestao-do-material, 7.0). */
+const SERIE_DA_ESCOLA = '7º ano do Ensino Fundamental'
 
 export interface Escola {
   readonly professora: EquipeDeTeste
@@ -52,6 +54,7 @@ export async function montarEscolaEEntrar(page: Page, hasTouch: boolean): Promis
   await page.getByTestId('arquivo-do-material').setInputFiles(CAMINHO_DO_PDF_DE_DEMONSTRACAO)
   await envio.getByLabel('Título').fill(TITULO_DO_MATERIAL)
   await envio.getByLabel('Disciplina').selectOption({ label: DISCIPLINA })
+  await envio.getByRole('checkbox', { name: SERIE_DA_ESCOLA }).check()
   await envio.getByLabel('De quem é o material').selectOption({ label: 'Material próprio da escola' })
   await envio.getByLabel('Licença de uso (obrigatória)').selectOption({ label: 'Autoria da escola ou de professor dela' })
   await envio.getByLabel(/^Declaro que a escola pode usar este material/).check()
