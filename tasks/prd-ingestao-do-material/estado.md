@@ -1,9 +1,9 @@
 # Estado da execução — ingestao-do-material
 
 ## Agora
-- **Espero:** o `RELATÓRIO` do `Implementador 2` (linha 2) da correção `2026-11-13-fk-a-mais-no-catalogo-do-mvp`, pedida às 01:29 de 13/11 (esteira VERMELHA na execução 43347186711, sobre `6b2611b`: `mvp-tables.int.test.ts`, catálogo de FKs com 45 contra 44, vindo da 5.0; `tenancy-guardian`); e o do `Implementador` (linha 1), tarefa 7.0, porte grande, 1ª tentativa, pedida às 01:29 de 13/11. A esteira de `e5a99cec` (depois da 6.0) corre na execução 43365706134.
+- **Espero:** o `RELATÓRIO` do `Implementador` (linha 1), tarefa 7.0, porte grande, 1ª tentativa, pedida às 01:29 de 13/11; a assinatura do Claude caiu às 01:36 e o par voltou com `PEDIDO de retomada` na manhã de 13/11. Linha 2 ociosa. A esteira de `75a3dce8` (com a correção da FK) corre depois do push; a de `e5a99ce` (execução 43365706134) caiu só no catálogo de FKs, 45 contra 44, que essa correção conserta.
 - **Devo ainda:** levar ao `TODO.md`, no fechamento da spec: dois blocos de mutação do ensaio de alertas (parada do worker-pdf e `for: 1m`) estouram o teto de 600 s do portão e ficaram como motivo escrito no `3_task.md`; o `db:gerar` quebrado (glob pega `.test.ts`), que a 4.0 já registrou no `TODO.md`; reduzir o item "Job infra perto do teto", pondo nele o `vitest.config.ts:15-17`, a guarda de fatia vazia e a medida da execução 43337792191 (sobre `da056b4`): fatias de infra em 10, 15 e 23 min, dentro do prazo de 45; e, da ordem r1 da 5.0, os itens de `TODO.md` dela (idempotência do `POST /v1/licencas`, envelhecimento do `falhou` de `material.extrair-pdf`, campos alterados em `licenca.alterada`) se o Implementador não os levou. Abrir a linha 3 quando o quadro liberar tarefa sem linha. Da correção `2026-11-12-e2e-fatia-acima-do-teto` (ordem r1, seção "Sem aplicar", em `.processo/ordens/` da L1): corrigir `TODO.md:1696` (onze fatias, teto de 2167 casos, uns 190 de margem sobre os 1974); levar ao `TODO.md` a medida do preparo fixo de ~4 min por fatia antes da 12ª; levar à retro derivar o `/N` do `name` e do `--shard` de `strategy.job-total`. A correção e a 6.0 entram nessa ordem (o primeiro bloco de mutações da correção só fica vermelho com o spec da 6.0 na árvore). O aviso de trocar `e2e N/10` na proteção de branch não se aplica: `develop`, `release` e `main` não têm proteção nem ruleset (conferido com `gh api` em 13/11).
-- **Base:** `spec/ingestao-do-material` em `e5a99cec`
+- **Base:** `spec/ingestao-do-material` em `75a3dce8`
 
 ## Concluídas
 | Tarefa | Commit | Modelo | Rodadas | Observação |
@@ -16,6 +16,7 @@
 | correção `2026-11-12-job-de-infra-passa-de-45-min` | `bc55820a` | Sonnet 5.5 | 2 | linha 2; job `infra` da esteira em 3 fatias (`--shard=<i>/3`); infra-guardian e privacy-guardian APROVADO na 1ª, test-engineer e revisor-geral na 2ª |
 | correção `2026-11-12-e2e-fatia-acima-do-teto` | `822146b9` | Sonnet 5.5 | 1 | linha 1, no meio da 6.0, sem encontro próprio; 11ª fatia do e2e (180 casos por fatia); infra, privacy, revisor-geral e test-engineer APROVADO na 1ª
 | 6.0 | `ceefb439` | Sonnet 5.5 | 2 | divergência de portão (fatia do e2e acima do teto) virou a correção acima; caso `:91` do e2e dividido; 7 revisores APROVADO na 2ª; Mesa viu 6 fotos; 9 linhas no `TODO.md` (seção "Da ingestao-do-material, tarefa 6.0")
+| correção `2026-11-13-fk-a-mais-no-catalogo-do-mvp` | `a94008c3` | Sonnet 5.5 | 1 | linha 2; FK `material_licenca_da_escola_fk` da 5.0 posta em `FKS_COMPOSTAS_DO_MVP`; 5 revisores APROVADO na 1ª; recomendação do test-engineer (portão rodar `mvp-tables.int.test.ts` quando há migration) foi para a retro |
 
 ## Esperando o Joaquim
 ## O que falhou
