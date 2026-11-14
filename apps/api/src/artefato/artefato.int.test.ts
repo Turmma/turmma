@@ -21,7 +21,7 @@ import {
   zerarLimiteDePedidosDeIa,
   type EscolaComAssistente,
 } from '../../test/escola-assistente.fixture.js'
-import { variacaoDoPdf } from '../../test/material.fixture.js'
+import { enviarEdicaoDeMaterial, enviarMaterial, esperarExtracao, registrarLicencaDeTeste, variacaoDoPdf } from '../../test/material.fixture.js'
 import { SessaoFixtures, type TestSessao } from '../../test/sessao.fixture.js'
 import { IaRequestRateLimit } from '../assistente/ai-request-rate-limit.js'
 import { ExecucaoScheduler } from '../ia/execucao.scheduler.js'
@@ -258,7 +258,9 @@ describe('ferramentas e artefato', () => {
       }
       expect((await comoPessoa(a, a.professora, 'professor', () => new ArtefatoRepository(bancada.banco).porId(atividadeDeA)))?.id).toBe(atividadeDeA)
       // O título do material de B não sai no PDF de A, nem que a citação apontasse para ele.
-      expect(await comoPessoa(a, a.professora, 'professor', () => new ArtefatoRepository(bancada.banco).titulosDosMateriais([a.materialId, b.materialId]))).toEqual(new Map([[a.materialId, 'Química 2 — Capítulo 7: Estequiometria']]))
+      expect(await comoPessoa(a, a.professora, 'professor', () => new ArtefatoRepository(bancada.banco).fontesDosMateriais([a.materialId, b.materialId]))).toEqual(
+        new Map([[a.materialId, { titulo: 'Química 2 — Capítulo 7: Estequiometria', edicao: null, substituido: false }]]),
+      )
     })
 
     it('a listagem traz só os artefatos das turmas da professora, paginados, e o filtro de turma não abre a turma dos outros', async () => {
@@ -353,6 +355,164 @@ describe('ferramentas e artefato', () => {
       // Nada do material foi ao modelo, e nenhum artefato nasceu.
       expect(chamadasAoModelo).toBe(0)
       expect(await contarNaEscola(bancada, 'artefato', a.escolaId)).toBe(antes)
+    })
+  })
+
+  /**
+   * As `fontes` do artefato (ingestao-do-material, 10.0; RF11): o artefato gerado antes da troca de edição, ou da licença
+   * vencer, continua citando o material que usou, com título, edição e "edição anterior"; depois do expurgo da linha, a
+   * fonte vira "material da escola". Escola própria (`c`), porque os casos trocam a edição e o título do material dela, e
+   * as outras `describe` leem o de `a`. Os casos andam em ordem: cada um parte do que o anterior deixou.
+   */
+  describe('as fontes do artefato (ingestao-do-material, 10.0; RF11)', () => {
+    const TITULO = 'Química 2 — Capítulo 7: Estequiometria'
+    const TITULO_DA_OUTRA = 'Título confidencial da escola D'
+    const umaLinha = (texto: string): string => texto.replace(/\s+/gu, ' ').trim()
+    let c: EscolaComAssistente
+    let d: EscolaComAssistente
+    let atividadeDeC: string
+    let planoDeC: string
+    /** A edição que substituiu o material de `c`, e o artefato gerado depois da troca. */
+    let edicaoNova: string
+    let atividadeDaEdicaoNova: string
+
+    const fontesDe = async (sessao: TestSessao, id: string) => (await artefatoDe(sessao, id)).fontes
+    const textoDoPdf = async (sessao: TestSessao, id: string) => (await extrairTextoPorPagina((await baixarPdf(sessao, id)).bytes)).map(umaLinha).join(' ')
+    const tokenDaCoordenacao = async (escola: EscolaComAssistente) => ({ token: await escola.coordenacao.tokenNovo() })
+
+    beforeAll(async () => {
+      c = await montarEscolaComAssistente(api, bancada)
+      d = await montarEscolaComAssistente(api, bancada)
+      atividadeDeC = await gerar(c, 'atividade_objetiva', 'reagente limitante e reagente em excesso', { quantidade: 3 })
+      planoDeC = await gerar(c, 'plano_de_aula', 'reagente limitante')
+      // O título de `d` é outro, para o caso de isolamento ver de quem é o texto que sai.
+      await sql('update material set titulo = $1 where escola_id = $2 and id = $3', [TITULO_DA_OUTRA, d.escolaId, d.materialId])
+    })
+
+    it('caminho feliz: as fontes dizem o título e a edição de cada material citado, sem repetir o material de três questões, no plano também, e o PDF diz o mesmo', async () => {
+      expect(await fontesDe(c.professora, atividadeDeC)).toEqual([{ materialId: c.materialId, titulo: TITULO, edicao: null, substituido: false }])
+      await sql('update material set edicao = $1 where escola_id = $2 and id = $3', ['2024', c.escolaId, c.materialId])
+      const esperada = [{ materialId: c.materialId, titulo: TITULO, edicao: '2024', substituido: false }]
+      expect(await fontesDe(c.professora, atividadeDeC)).toEqual(esperada)
+      expect(await fontesDe(c.professora, planoDeC)).toEqual(esperada)
+      expect(await textoDoPdf(c.professora, atividadeDeC)).toMatch(new RegExp(`Fonte: ${TITULO} \\(2024\\), p\\. \\d`, 'u'))
+      expect(await textoDoPdf(c.professora, planoDeC)).toContain(`• ${TITULO} (2024), p.`)
+      // Sem nenhum artefato aberto, o repository não devolve nada para quem não tem o que ler.
+      expect(await comoPessoa(c, c.professora, 'professor', () => new ArtefatoRepository(bancada.banco).fontesDosMateriais([]))).toEqual(new Map())
+    })
+
+    it('a troca de edição: o artefato antigo segue citando a edição que usou, com "edição anterior", e a geração nova cita só a nova', async () => {
+      const enviada = await enviarEdicaoDeMaterial(api, await tokenDaCoordenacao(c), c.materialId, { edicao: '2025' })
+      expect(enviada.status).toBe(201)
+      edicaoNova = enviada.corpo['id'] as string
+      // Enquanto a nova não fica pronta, a antiga é a edição vigente: a fonte do artefato não muda.
+      expect((await fontesDe(c.professora, atividadeDeC))[0]).toMatchObject({ edicao: '2024', substituido: false })
+      await esperarExtracao(api)
+
+      expect(await fontesDe(c.professora, atividadeDeC)).toEqual([{ materialId: c.materialId, titulo: TITULO, edicao: '2024', substituido: true }])
+      expect(await fontesDe(c.professora, planoDeC)).toEqual([{ materialId: c.materialId, titulo: TITULO, edicao: '2024', substituido: true }])
+      expect(await textoDoPdf(c.professora, atividadeDeC)).toMatch(new RegExp(`Fonte: ${TITULO} \\(2024, edição anterior\\), p\\. \\d`, 'u'))
+
+      // A geração nova só cita a edição nova, e as fontes dela não trazem a antiga.
+      atividadeDaEdicaoNova = await gerar(c, 'atividade_objetiva', 'reagente limitante e reagente em excesso', { quantidade: 3 })
+      const nova = await artefatoDe(c.professora, atividadeDaEdicaoNova)
+      expect(nova.conteudo.tipo === 'atividade_objetiva' && nova.conteudo.questoes.every((questao) => questao.citacao.materialId === edicaoNova)).toBe(true)
+      expect(nova.fontes).toEqual([{ materialId: edicaoNova, titulo: TITULO, edicao: '2025', substituido: false }])
+      const pdfDaNova = await textoDoPdf(c.professora, atividadeDaEdicaoNova)
+      expect(pdfDaNova).toContain(`Fonte: ${TITULO} (2025), p.`)
+      expect(pdfDaNova).not.toContain('edição anterior')
+    })
+
+    it('o expurgo da linha: a edição antiga sai, e as fontes do artefato antigo dizem "material da escola", na tela e no PDF, sem edição', async () => {
+      // O que o expurgo noturno faz com a edição substituída além do prazo: apaga a linha (a FK da nova solta só `substitui_id`).
+      await sql('delete from material where escola_id = $1 and id = $2', [c.escolaId, c.materialId])
+      expect(await fontesDe(c.professora, atividadeDeC)).toEqual([{ materialId: c.materialId, titulo: 'material da escola', edicao: null, substituido: false }])
+      expect(await textoDoPdf(c.professora, atividadeDeC)).toMatch(/Fonte: material da escola, p\. \d/u)
+      // A nova edição segue com a edição dela, e agora sem `substitui_id`.
+      expect(await fontesDe(c.professora, atividadeDaEdicaoNova)).toEqual([{ materialId: edicaoNova, titulo: TITULO, edicao: '2025', substituido: false }])
+    })
+
+    it('isolamento: o artefato de `c` que cita o material de `d` não ganha o título dele, nem com a linha de `d` lá; o repository só acha o material do contexto', async () => {
+      // O id vem do `jsonb`, sem FK: o conteúdo cita o material de outra escola. O título de `d` é diferente do de `c`, para o texto dizer de quem veio.
+      const citandoD = await gerar(c, 'atividade_objetiva', 'reagente limitante e reagente em excesso', { quantidade: 2 })
+      await sql(`update artefato set conteudo = replace(conteudo::text, $1::text, $2::text)::jsonb where escola_id = $3 and id = $4`, [edicaoNova, d.materialId, c.escolaId, citandoD])
+      expect((await sql('select count(*)::int as n from material where escola_id = $1 and id = $2', [d.escolaId, d.materialId])).rows).toEqual([{ n: 1 }])
+      expect(await fontesDe(c.professora, citandoD)).toEqual([{ materialId: d.materialId, titulo: 'material da escola', edicao: null, substituido: false }])
+      expect(await textoDoPdf(c.professora, citandoD)).toMatch(/Fonte: material da escola, p\. \d/u)
+      const doContexto = await comoPessoa(c, c.professora, 'professor', () => new ArtefatoRepository(bancada.banco).fontesDosMateriais([edicaoNova, d.materialId]))
+      expect([...doContexto.keys()]).toEqual([edicaoNova])
+      // Só o que se pede: o material de `d` pedido sozinho não acha nada em `c`, que tem a edição nova e nenhum outro id na mão.
+      expect(await comoPessoa(c, c.professora, 'professor', () => new ArtefatoRepository(bancada.banco).fontesDosMateriais([d.materialId]))).toEqual(new Map())
+      // E do outro lado: no contexto de `d`, só o material de `d` é achado, e o de `c` fica de fora.
+      const deD = await comoPessoa(d, d.professora, 'professor', () => new ArtefatoRepository(bancada.banco).fontesDosMateriais([edicaoNova, d.materialId]))
+      expect([...deD.keys()]).toEqual([d.materialId])
+    })
+
+    it('o artefato de B no contexto de A, e quem não é o professor da turma, recebem NAO_ENCONTRADO, igual ao inexistente, sem fontes nem título', async () => {
+      const inexistente = semId(await get(c.professora, `/v1/artefatos/${randomUUID()}`))
+      expect(inexistente).toEqual({ status: 404, codigo: 'NAO_ENCONTRADO' })
+      for (const [sessao, id] of [
+        [a.professora, atividadeDeC],
+        [c.colega, atividadeDeC],
+        [c.deFisica, atividadeDeC],
+        [c.coordenacao, atividadeDeC],
+        [c.aluno, atividadeDeC],
+        [c.professora, atividadeDeA],
+      ] as const) {
+        const resposta = await get(sessao, `/v1/artefatos/${id}`)
+        expect(semId(resposta), `${id}`).toEqual(inexistente)
+        expect(JSON.stringify(resposta.corpo)).not.toMatch(/fontes|Estequiometria/u)
+      }
+    })
+
+    it('a professora de Física, com o vínculo de Química encerrado, perde o artefato de Química e segue com o de Física: as fontes só vêm do que ela alcança', async () => {
+      // O artefato de Física: um dos de `c`, com a disciplina trocada (a citação segue sendo a do material de Química).
+      const deFisica = await gerar(c, 'atividade_objetiva', 'reagente limitante e reagente em excesso', { quantidade: 2 })
+      await sql('update artefato set disciplina_id = $1 where escola_id = $2 and id = $3', [c.fisica, c.escolaId, deFisica])
+      await vincularProfessor(bancada, c, c.deFisica.usuarioId, c.turma, c.quimica)
+      expect(await fontesDe(c.deFisica, atividadeDaEdicaoNova)).toEqual([{ materialId: edicaoNova, titulo: TITULO, edicao: '2025', substituido: false }])
+      await sql(`update vinculo set estado = 'encerrado', motivo_encerramento = 'realocacao', encerrado_em = now() where escola_id = $1 and usuario_id = $2 and turma_id = $3 and disciplina_id = $4`, [c.escolaId, c.deFisica.usuarioId, c.turma, c.quimica])
+      expect(semId(await get(c.deFisica, `/v1/artefatos/${atividadeDaEdicaoNova}`))).toEqual({ status: 404, codigo: 'NAO_ENCONTRADO' })
+      expect(await fontesDe(c.deFisica, deFisica)).toEqual([{ materialId: edicaoNova, titulo: TITULO, edicao: '2025', substituido: false }])
+    })
+
+    it('o rascunho que cita material cuja licença venceu: as fontes e o PDF seguem com título e edição, e a geração nova não usa o material', async () => {
+      // Em `d`, só o material de terceiro conta: o próprio dela sai da busca antes de a atividade ser gerada.
+      await sql('update material set excluido_em = now() where escola_id = $1 and id = $2', [d.escolaId, d.materialId])
+      const licencaId = await registrarLicencaDeTeste(api, await tokenDaCoordenacao(d))
+      const enviado = await enviarMaterial(
+        api,
+        await tokenDaCoordenacao(d),
+        { titulo: 'Apostila licenciada', disciplinaId: d.quimica, titularidade: 'terceiro_com_licenca', licencaId, licenca: 'licenca_comercial_autorizada' },
+        { arquivo: variacaoDoPdf() },
+      )
+      expect(enviado.status).toBe(201)
+      await esperarExtracao(api)
+      // A edição entra pelo banco: o envio acima não a pediu, e o caso prova que a licença vencida não a tira da fonte.
+      await sql('update material set edicao = $1 where escola_id = $2 and id = $3', ['2025', d.escolaId, enviado.corpo['id']])
+      const doTerceiro = await gerar(d, 'atividade_objetiva', 'reagente limitante e reagente em excesso', { quantidade: 2 })
+      expect(await fontesDe(d.professora, doTerceiro)).toEqual([{ materialId: enviado.corpo['id'], titulo: 'Apostila licenciada', edicao: '2025', substituido: false }])
+
+      await sql(`update licenca_de_material set vigente_ate = '2026-01-01' where escola_id = $1 and id = $2`, [d.escolaId, licencaId])
+      expect(await fontesDe(d.professora, doTerceiro)).toEqual([{ materialId: enviado.corpo['id'], titulo: 'Apostila licenciada', edicao: '2025', substituido: false }])
+      expect(await textoDoPdf(d.professora, doTerceiro)).toMatch(/Fonte: Apostila licenciada \(2025\), p\. \d/u)
+      expect(semId(await pedir(d.professora, 'POST', '/v1/ferramentas/atividade_objetiva/gerar', { ...parametros(d, 'mol'), chaveEnvio: randomUUID() }))).toEqual({ status: 422, codigo: 'SEM_MATERIAL_DA_SERIE' })
+    })
+
+    it('dois materiais citados: as fontes saem na ordem da primeira citação, sem repetir o que a terceira questão cita de novo', async () => {
+      // Um segundo material em `c`, de título e sem edição próprios; o artefato cita os dois, o de id maior primeiro, para uma ordenação por id não passar.
+      const segundo = await enviarMaterialDeDemonstracao(api, c, c.quimica, 'Química 3 — Capítulo 2: Termoquímica', variacaoDoPdf())
+      const [primeiro, outro] = [edicaoNova, segundo].sort().reverse() as [string, string]
+      const dois = await gerar(c, 'atividade_objetiva', 'reagente limitante e reagente em excesso', { quantidade: 3 })
+      const { rows } = await sql('select conteudo from artefato where escola_id = $1 and id = $2', [c.escolaId, dois])
+      const conteudo = rows[0]?.conteudo as { questoes: { citacao: { materialId: string } }[] }
+      const citados = [primeiro, outro, primeiro]
+      conteudo.questoes.forEach((questao, indice) => {
+        questao.citacao.materialId = citados[indice] ?? primeiro
+      })
+      await sql('update artefato set conteudo = $1::jsonb where escola_id = $2 and id = $3', [JSON.stringify(conteudo), c.escolaId, dois])
+      const dosDois = { [edicaoNova]: { titulo: TITULO, edicao: '2025' }, [segundo]: { titulo: 'Química 3 — Capítulo 2: Termoquímica', edicao: null } } as const
+      expect(await fontesDe(c.professora, dois)).toEqual([primeiro, outro].map((materialId) => ({ materialId, ...dosDois[materialId as keyof typeof dosDois], substituido: false })))
     })
   })
 

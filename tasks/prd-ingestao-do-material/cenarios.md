@@ -225,8 +225,9 @@ Cada um vermelho sem a cláusula de escopo:
   materiais saem ou voltam da busca antes de confirmar; o botão de registrar trava durante o envio
 - [U] Sino: "Uma licença de material vence em dd/mm" e "Uma licença de material venceu; os materiais dela saíram da
   busca", sem licenciante nem número por pessoa, levando à aba Licenças
-- [U] Chip e PDF do artefato: carregando; título e edição pelas `fontes`; "edição anterior"; "material da escola";
-  artefato sem `fontes`; erro da leitura
+- [U] Chip e PDF do artefato: título e edição pelas `fontes`; "edição anterior"; "material da escola"; artefato sem
+  `fontes`; carregando e erro da leitura são os da tela do artefato (as `fontes` vêm na resposta dele), e nenhum chip nem
+  título de fonte aparece enquanto eles valem
 - [U] Textos: `EDICAO_EM_ANDAMENTO` "Espere a edição em processamento terminar"; `LICENCA_VENCIDA` "Atualize a vigência
   em Licenças"; `SEM_MATERIAL_DA_SERIE` ao professor "Peça à coordenação o material desta série"; o 429 do `PATCH` "Muitas alterações por agora. Tente de novo às HH:MM"; 503 "O envio não foi
   concluído. Tente de novo em instantes."
@@ -235,7 +236,11 @@ Cada um vermelho sem a cláusula de escopo:
 - [E] Três PDFs com um repetido; registrar licença; nova edição, e o artefato antigo mostrando "edição anterior"; com 300
   materiais no seed, sob throttling de rede e de CPU. O lote é dois casos, pelo teto de 15 s do caso alterado: o lote de
   três PDFs com um repetido (o título de cada um vem do nome e se edita), e o diálogo do lote numa escola com 300 materiais
-  em 1366 × 768 (a página não rola, o diálogo rola dentro dele)
+  em 1366 × 768 (a página não rola, o diálogo rola dentro dele). **O "nova edição, e o artefato antigo mostrando
+  'edição anterior'" da 10.0 grava a troca no banco** (`substituirMaterialNoBanco`) e abre o artefato pela API de verdade
+  (`e2e/artefato-fontes.spec.ts`), sem passar pela coordenação nem pelo worker: a extração de um PDF novo passa de 15 s. O caminho
+  completo, com o envio da edição e o worker, é o caso "a troca de edição" de `apps/api/src/artefato/artefato.int.test.ts`; o da
+  tela de edição, com a coordenação, é o e2e da 12.0 ("editar séries e enviar edição nova"), que não confere o artefato antigo
 
 ## Carga
 

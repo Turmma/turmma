@@ -1,6 +1,7 @@
 import { adaptarAtividade, DomainException, LLMError, type Database } from '@educa/core'
 import {
   ErrorCode,
+  TITULO_DA_FONTE_SEM_LINHA,
   conteudoDeAtividadeSchema,
   conteudoDoArtefatoSchema,
   artefatoResponseSchema,
@@ -11,7 +12,9 @@ import {
   type AdaptarArtefatoRequest,
   type RenomearArtefatoRequest,
   type ArtefatoResponse,
+  type ConteudoDoArtefato,
   type ExecucaoAceitaResponse,
+  type FonteDoArtefato,
   type ListaDeArtefatosResponse,
 } from '@educa/shared'
 import { ExecucaoDoPedidoRepository } from '../assistente/execucao-do-pedido.repository.js'
@@ -44,6 +47,18 @@ function resumido(lido: ArtefatoLido): Record<string, unknown> {
   }
 }
 
+/**
+ * Os materiais que o conteúdo cita, na ordem em que a primeira citação aparece, cada um com o título e a edição de agora e
+ * se foi substituído (RF11). **Só se chama com o artefato já achado no alcance**: os ids vêm do conteúdo dele, e a escola
+ * é a do contexto. O material que a linha não alcança (a do expurgo, a de outra escola que o `jsonb` citasse) vira
+ * "material da escola", sem edição: a citação continua valendo, com a página.
+ */
+async function fontesDoConteudo(artefatos: ArtefatoRepository, conteudo: ConteudoDoArtefato): Promise<FonteDoArtefato[]> {
+  const ids = [...new Set(citacoesDoConteudo(conteudo).map((citacao) => citacao.materialId))]
+  const lidas = await artefatos.fontesDosMateriais(ids)
+  return ids.map((materialId) => ({ materialId, ...(lidas.get(materialId) ?? { titulo: TITULO_DA_FONTE_SEM_LINHA, edicao: null, substituido: false }) }))
+}
+
 /** A atividade que pode ser adaptada: objetiva, e que não é ela mesma uma versão adaptada. Fora disso, `CONFLITO`. */
 function atividadeOriginal(lido: ArtefatoLido): ConteudoDeAtividade {
   const conteudo = conteudoDeAtividadeSchema.safeParse(lido.conteudo)
@@ -59,6 +74,8 @@ function atividadeOriginal(lido: ArtefatoLido): ConteudoDeAtividade {
  *   respondem o mesmo `NAO_ENCONTRADO`. Coordenação e aluno não leem.
  * - **Renomear muda só o título**, na coluna e no conteúdo, juntos. A versão adaptada **já decidida** não se renomeia
  *   (`CONFLITO`): o que foi aprovado ou rejeitado fica como estava quando a professora decidiu.
+ * - **As `fontes`** de `GET /:id` são o título, a edição e o "edição anterior" de cada material citado, lidos agora, e só do artefato
+ *   que o professor alcança (ingestao-do-material, 10.0; RF11). O PDF as usa na linha "Fonte" de cada questão ou etapa.
  * - **O PDF** é gerado na hora, sem guardar arquivo e sem dado de pessoa; não gera auditoria (contrato, decisão 24).
  *   **A versão adaptada sai limpa só com a entrega `aprovada`**; `pendente`, sai como rascunho marcado em toda página e
  *   sem a frase "revisado"; `rejeitada`, não sai (`VERSAO_ADAPTADA_NAO_APROVADA`).
@@ -84,11 +101,13 @@ export class ArtefatoService {
     const artefatos = new ArtefatoRepository(this.banco)
     const lido = await artefatos.porId(id)
     if (lido === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
-    const [versoes, aplicacoes] = await Promise.all([artefatos.versoesAdaptadas(id), artefatos.aplicacoes(id)])
+    // O conteúdo gravado é validado de novo na leitura (regra 30, item 7).
+    const conteudo = conteudoDoArtefatoSchema.parse(lido.conteudo)
+    const [versoes, aplicacoes, fontes] = await Promise.all([artefatos.versoesAdaptadas(id), artefatos.aplicacoes(id), fontesDoConteudo(artefatos, conteudo)])
     return artefatoResponseSchema.parse({
       ...resumido(lido),
-      // O conteúdo gravado é validado de novo na leitura (regra 30, item 7).
-      conteudo: conteudoDoArtefatoSchema.parse(lido.conteudo),
+      conteudo,
+      fontes,
       versoesAdaptadas: versoes.map(resumido),
       aplicacoes: aplicacoes.map((aplicacao) => ({ id: aplicacao.id, turmaId: aplicacao.turmaId, estado: aplicacao.estado, aplicadaEm: aplicacao.aplicadaEm.toISOString() })),
     })
@@ -111,9 +130,9 @@ export class ArtefatoService {
     const rascunho = lido.origemId !== null && lido.entregaEstado === 'pendente'
     if (lido.origemId !== null && lido.entregaEstado !== 'aprovada' && !rascunho) throw new DomainException(ErrorCode.VERSAO_ADAPTADA_NAO_APROVADA)
     const conteudo = conteudoDoArtefatoSchema.parse(lido.conteudo)
-    // O id do material vem do `jsonb`, sem FK: o título é relido pela escola do contexto, e o que não for dela não aparece.
-    const titulos = await new ArtefatoRepository(this.banco).titulosDosMateriais([...new Set(citacoesDoConteudo(conteudo).map((citacao) => citacao.materialId))])
-    return { nome: nomeDoArquivoDoPdf(rascunho ? `rascunho ${conteudo.titulo}` : conteudo.titulo), bytes: await gerarPdfDoArtefato(conteudo, titulos, { rascunho }) }
+    // O id do material vem do `jsonb`, sem FK: título e edição são relidos pela escola do contexto, e o que não for dela não aparece.
+    const fontes = await fontesDoConteudo(new ArtefatoRepository(this.banco), conteudo)
+    return { nome: nomeDoArquivoDoPdf(rascunho ? `rascunho ${conteudo.titulo}` : conteudo.titulo), bytes: await gerarPdfDoArtefato(conteudo, new Map(fontes.map((fonte) => [fonte.materialId, fonte])), { rascunho }) }
   }
 
   async adaptar(id: string, pedido: AdaptarArtefatoRequest): Promise<ExecucaoAceitaResponse> {

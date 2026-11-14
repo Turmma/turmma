@@ -62,15 +62,47 @@ export const aplicacaoDoArtefatoSchema = z.strictObject({
 
 export const MAXIMO_DE_VERSOES_NO_ARTEFATO = 50
 
+/** O que a fonte diz de si quando a linha do material não existe mais (o expurgo a apagou): a citação continua valendo, com a página. */
+export const TITULO_DA_FONTE_SEM_LINHA = 'material da escola'
+
+/** Teto de materiais diferentes que um artefato cita: o plano cita até 8 no fim e uma por etapa; uma questão, um. */
+export const MAXIMO_DE_FONTES_NO_ARTEFATO = 100
+
+/**
+ * Um material que o artefato cita (ingestao-do-material, 10.0; RF11): o título e a edição **de agora**, lidos pela escola do
+ * contexto, e se a edição já foi substituída por outra. Só o que a professora precisa para saber de onde a citação veio:
+ * nunca o hash, a chave do objeto, quem enviou nem o licenciante (regra 20, item 4). Sem a linha, o título é
+ * `TITULO_DA_FONTE_SEM_LINHA`, sem edição.
+ */
+export const fonteDoArtefatoSchema = z.strictObject({
+  materialId: z.uuid(),
+  titulo: z.string().min(1),
+  edicao: z.string().min(1).nullable(),
+  substituido: z.boolean(),
+})
+export type FonteDoArtefato = z.infer<typeof fonteDoArtefatoSchema>
+
+/**
+ * Como a fonte se escreve na tela e no PDF, igual nos dois: `Química 2`, `Química 2 (2025)`, `Química 2 (2024, edição
+ * anterior)` ou `Química 2 (edição anterior)`. A edição vem do rótulo que a coordenação deu, e o "edição anterior" é o que
+ * a troca de edição acrescenta, sem apagar a citação que já estava no artefato.
+ */
+export function rotuloDaFonte({ titulo, edicao, substituido }: Pick<FonteDoArtefato, 'titulo' | 'edicao' | 'substituido'>): string {
+  const detalhes = [...(edicao === null ? [] : [edicao]), ...(substituido ? ['edição anterior'] : [])]
+  return detalhes.length === 0 ? titulo : `${titulo} (${detalhes.join(', ')})`
+}
+
 /**
  * Resposta de `GET /v1/artefatos/:id` e de `PATCH /v1/artefatos/:id`: o artefato inteiro, com o conteúdo (questões com
- * gabarito e página citada, ou o plano), as versões adaptadas que saíram dele e as aplicações. Só o professor da turma.
+ * gabarito e página citada, ou o plano), as versões adaptadas que saíram dele, as aplicações e as `fontes`: o título e a
+ * edição de cada material citado, e se a edição foi substituída. Só o professor da turma.
  */
 export const artefatoResponseSchema = artefatoResumidoSchema
   .extend({
     conteudo: conteudoDoArtefatoSchema,
     versoesAdaptadas: z.array(artefatoResumidoSchema).max(MAXIMO_DE_VERSOES_NO_ARTEFATO),
     aplicacoes: z.array(aplicacaoDoArtefatoSchema).max(MAXIMO_DE_VERSOES_NO_ARTEFATO),
+    fontes: z.array(fonteDoArtefatoSchema).max(MAXIMO_DE_FONTES_NO_ARTEFATO),
   })
   .strict()
 export type ArtefatoResponse = z.infer<typeof artefatoResponseSchema>

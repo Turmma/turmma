@@ -196,7 +196,7 @@ export class AssistenteApiMock {
       // Como a API: `?turmaId=` só restringe a lista (telas do professor, 5.0). Turma que não é da professora devolve a página vazia.
       const turma = url.searchParams.get('turmaId')
       const daTurma = turma === null ? this.artefatos : this.artefatos.filter((item) => item.turmaId === turma)
-      return { status: 200, corpo: this.pagina(daTurma.map(({ conteudo: _conteudo, versoesAdaptadas: _versoes, aplicacoes: _aplicacoes, ...resumido }) => resumido), url) }
+      return { status: 200, corpo: this.pagina(daTurma.map(({ conteudo: _conteudo, versoesAdaptadas: _versoes, aplicacoes: _aplicacoes, fontes: _fontes, ...resumido }) => resumido), url) }
     }
     if (rota === 'artefato' || rota === 'renomear' || rota === 'pdf') {
       const artefato = this.artefatos.find((item) => item.id === id)
@@ -398,6 +398,8 @@ export function atividadeSintetica(turmaId: string, disciplinaId: string, campos
     },
     versoesAdaptadas: [],
     aplicacoes: [],
+    // As `fontes` do artefato (ingestao-do-material, 10.0): o título do material vem daqui, e não da lista de materiais.
+    fontes: [{ materialId: MATERIAL, titulo: TITULO_DO_MATERIAL, edicao: null, substituido: false }],
     ...campos,
   }
 }
@@ -437,7 +439,7 @@ export function versaoAdaptada(origem: ArtefatoResponse, estado: Entrega['estado
 }
 
 /** O resumo de um artefato, como ele aparece na lista de versões da origem. */
-export function resumoDoArtefato({ conteudo: _conteudo, versoesAdaptadas: _versoes, aplicacoes: _aplicacoes, ...resumido }: ArtefatoResponse): ArtefatoResponse['versoesAdaptadas'][number] {
+export function resumoDoArtefato({ conteudo: _conteudo, versoesAdaptadas: _versoes, aplicacoes: _aplicacoes, fontes: _fontes, ...resumido }: ArtefatoResponse): ArtefatoResponse['versoesAdaptadas'][number] {
   return resumido
 }
 

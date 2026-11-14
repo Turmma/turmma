@@ -148,3 +148,23 @@ export function licencasNoBanco(escolaId: string): Promise<Array<{ id: string; l
     return rows.map((linha) => ({ id: linha.id, licenciante: linha.licenciante, vigenteDesde: linha.vigente_desde, vigenteAte: linha.vigente_ate }))
   })
 }
+
+/**
+ * A troca de edição como a extração a deixa (ingestao-do-material, 10.0): a antiga ganha o rótulo `edicaoAntiga`, sai da busca
+ * (`excluido_em`) e aponta a nova (`substituido_por`); a nova nasce `pronto`, herda título e disciplina, sem séries (o caso é sobre a
+ * citação, e não sobre a busca) e leva o rótulo `edicaoNova`. Devolve o id da nova. A troca de verdade, com o PDF e o worker,
+ * passa de 15 s e tem o caso dela na integração (`artefato.int.test.ts`).
+ */
+export function substituirMaterialNoBanco(escolaId: string, antigoId: string, edicaoAntiga: string, edicaoNova: string): Promise<string> {
+  return comBanco(async (banco) => {
+    const { rows } = await banco.query<{ id: string }>(
+      `insert into material (escola_id, disciplina_id, titulo, titularidade, licenca, declaracao, sha256, tamanho_bytes, paginas, estado, edicao, substitui_id)
+       select escola_id, disciplina_id, titulo, titularidade, licenca, declaracao, $4, tamanho_bytes, paginas, 'pronto', $3, id from material where escola_id = $1 and id = $2 returning id`,
+      [escolaId, antigoId, edicaoNova, randomBytes(32).toString('hex')],
+    )
+    const novoId = rows[0]?.id
+    if (novoId === undefined) throw new Error('o seed do e2e não criou a edição nova')
+    await banco.query('update material set edicao = $3, excluido_em = now(), substituido_por = $4 where escola_id = $1 and id = $2', [escolaId, antigoId, edicaoAntiga, novoId])
+    return novoId
+  })
+}

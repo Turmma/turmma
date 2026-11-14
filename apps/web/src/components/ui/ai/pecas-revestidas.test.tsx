@@ -9,6 +9,7 @@ import { Sources } from './Sources'
 import type { DescricaoDeFerramenta, ValoresValidados } from './schema-form'
 import { SchemaForm } from './SchemaForm'
 import { PageThumbnail } from './PageThumbnail'
+import { titulosDasFontes } from './source-labels'
 
 /**
  * As peças de IA que a 10.0 reveste sem mudar o que dizem nem a ordem do foco (`docs/interface.md` 9.3 e 10.2): o chip de
@@ -61,6 +62,27 @@ describe('ChipFonte', () => {
     const tamanhos = [...cartao.querySelectorAll('span')].flatMap((no) => [...classesOf(no)].filter((classe) => /^text-\[1[0-3]px\]$|^text-xs$/.test(classe)))
     expect(tamanhos, 'texto abaixo do piso de 14 px').toEqual([])
     expect(within(cartao).getByText('Página 142')).toBeTruthy()
+  })
+})
+
+describe('ChipFonte com as fontes de um artefato (ingestao-do-material, 10.0)', () => {
+  const comFonte = (fonte: { edicao: string | null; substituido: boolean; titulo?: string }) => titulosDasFontes([{ materialId: MATERIAL, titulo: fonte.titulo ?? 'Química 2', edicao: fonte.edicao, substituido: fonte.substituido }])
+
+  it.each([
+    ['título e edição', { edicao: '2025', substituido: false }, 'Química 2 (2025)'],
+    ['"edição anterior"', { edicao: '2024', substituido: true }, 'Química 2 (2024, edição anterior)'],
+    ['"material da escola", a linha que o expurgo apagou', { edicao: null, substituido: false, titulo: 'material da escola' }, 'material da escola'],
+  ] as const)('%s: o nome do chip e o cartão dizem o mesmo texto', async (_caso, fonte, esperado) => {
+    render(<CitationChip citacao={CITACAO} materiais={comFonte(fonte)} />)
+    await userEvent.setup().click(screen.getByRole('button', { name: /^Fonte:/ }))
+    const cartao = screen.getByRole('group', { name: `Fonte: ${esperado}, p. 142` })
+    expect(within(cartao).getByText(esperado)).toBeTruthy()
+  })
+
+  it('sem as fontes, o chip diz "Material da escola" e a página', async () => {
+    render(<CitationChip citacao={CITACAO} materiais={titulosDasFontes([])} />)
+    await userEvent.setup().click(screen.getByRole('button', { name: /^Fonte:/ }))
+    expect(screen.getByRole('group', { name: 'Fonte: Material da escola, p. 142' })).toBeTruthy()
   })
 })
 

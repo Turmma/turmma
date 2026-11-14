@@ -7,13 +7,13 @@ import { artefatoQueryOptions, renomearArtefato } from './api/artefatos'
 import { ARTEFATOS_QUERY_KEY } from '../../../api/chaves-do-professor'
 import { ApiError, errorMessage } from '../../../api/client'
 import { entregasDaTurmaQueryOptions } from './api/entregas'
-import { titulosDosMateriaisQueryOptions } from './api/titulos-dos-materiais'
 import { meusVinculosQueryOptions } from '../comum/api/vinculos'
 import { caminhoDaAdaptacaoDoArtefato, caminhoDoArtefatoDoProfessor, PROFESSOR_ROUTES } from '../../../paths'
 import { Tabs, type TabItem } from '../../../components/ui/Tabs'
 import { Button } from '../../../components/ui/Button'
 import { FormField } from '../../../components/ui/fields/FormField'
 import { LoadingState, ErrorState, EmptyState } from '../../../components/states/index'
+import { titulosDasFontes } from '../../../components/ui/ai/source-labels'
 import { AgentSignature } from '../../../components/ui/ai/AgentSignature'
 import { ApprovalLine } from '../../../components/ui/ai/ApprovalLine'
 import { Switch } from '../../../components/ui/fields/Switch'
@@ -83,7 +83,6 @@ export default function Artefato({ artefatoId }: { artefatoId: string }) {
   const busca = useSearch()
   const artefato = useQuery(artefatoQueryOptions(artefatoId))
   const dados = artefato.data
-  const materiais = useQuery(titulosDosMateriaisQueryOptions)
   const vinculos = useInfiniteQuery(meusVinculosQueryOptions)
   const temVersao = dados !== undefined && (dados.entrega !== null || dados.versoesAdaptadas.length > 0)
   const entregas = useQuery({ ...entregasDaTurmaQueryOptions(dados?.turmaId ?? ''), enabled: temVersao })
@@ -272,7 +271,7 @@ export default function Artefato({ artefatoId }: { artefatoId: string }) {
                 </div>
               )}
               <Folha rotulo={dados.titulo}>
-                <ConteudoDoArtefato conteudo={dados.conteudo} materiais={materiais.data ?? {}} comGabarito={comGabarito} />
+                <ConteudoDoArtefato conteudo={dados.conteudo} materiais={titulosDasFontes(dados.fontes)} comGabarito={comGabarito} />
               </Folha>
             </div>
           )}
