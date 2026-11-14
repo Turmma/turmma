@@ -578,7 +578,7 @@ describe('suboperadores: a operação cadastra e encerra por comando, e a coorde
 
     await inserir(valida)
     await expect(inserir(valida), 'duas vigentes').rejects.toMatchObject({ code: '23505', constraint: 'suboperador_chave_vigente_idx' })
-    await bancada.pool.query('update suboperador set fim = now() where chave = $1', [chave])
+    await bancada.pool.query('update suboperador set fim = greatest(now(), inicio) where chave = $1', [chave])
     await inserir(valida)
     expect((await linhasDa(chave)).filter((linha) => linha.fim === null)).toHaveLength(1)
     await encerrar(chave)

@@ -528,7 +528,7 @@ describe('atividade aplicada', () => {
       expect((await rotas.encerrar(c.professora, id)).status).toBe(200)
       expect(await lotesDa(id)).toEqual([])
 
-      await sql('update suspensao_de_funcao set retomada_em = now(), retomada_por = $2 where escola_id = $1', [c.escolaId, c.coordenacao.usuarioId])
+      await sql('update suspensao_de_funcao set retomada_em = greatest(now(), suspensa_em), retomada_por = $2 where escola_id = $1', [c.escolaId, c.coordenacao.usuarioId])
       const retomada = atividadeEncerradaResponseSchema.parse((await rotas.encerrar(c.professora, id)).corpo)
       expect(retomada.atividade.entrega).toMatchObject({ estado: 'pendente' })
       expect(retomada.atividade.encerradaEm).toBe(suspensa.atividade.encerradaEm)

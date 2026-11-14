@@ -395,7 +395,7 @@ describe('entregas', () => {
         expect(await decidir(a.professora, paraAprovar.entregaId, { decisao: 'aprovar' })).toMatchObject({ status: 200, corpo: { estado: 'aprovada' } })
         expect(await decidir(a.professora, paraRejeitar.entregaId, { decisao: 'rejeitar', justificativa: 'A função foi suspensa pela coordenação.' })).toMatchObject({ status: 200, corpo: { estado: 'rejeitada' } })
       } finally {
-        await sql('update suspensao_de_funcao set retomada_em = now(), retomada_por = $2 where escola_id = $1 and retomada_em is null', [a.escolaId, a.coordenacao.usuarioId])
+        await sql('update suspensao_de_funcao set retomada_em = greatest(now(), suspensa_em), retomada_por = $2 where escola_id = $1 and retomada_em is null', [a.escolaId, a.coordenacao.usuarioId])
       }
     })
   })
