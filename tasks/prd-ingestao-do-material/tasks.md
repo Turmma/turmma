@@ -63,7 +63,7 @@
   - [ ] 9.4 Carga das 300 apostilas
   - [ ] 9.5 Testes: um caso por chamador, a vigência no relógio, a D36 antes, a carga
 
-- [ ] **10.0 — O chip e o PDF do artefato dizem título, edição e "edição anterior"**
+- [x] **10.0 — O chip e o PDF do artefato dizem título, edição e "edição anterior"**
   - [ ] 10.1 `fontes` no `GET /v1/artefatos/:id`
   - [ ] 10.2 Chip e PDF do artefato
   - [ ] 10.3 Testes: substituído, licença vencida, expurgo, os estados do chip

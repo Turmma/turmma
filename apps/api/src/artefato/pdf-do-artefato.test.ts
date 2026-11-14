@@ -1,10 +1,13 @@
-import type { ConteudoDeAtividade, ConteudoDePlanoDeAula, QuestaoObjetiva } from '@educa/shared'
+import type { ConteudoDeAtividade, ConteudoDePlanoDeAula, FonteDoArtefato, QuestaoObjetiva } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import { extrairTextoPorPagina } from '../../../../tools/demonstracao/extrair-texto.ts'
 import { AVISO_DE_IA_NO_PDF, AVISO_DE_IA_NO_RASCUNHO, gerarPdfDoArtefato, MARCA_DE_RASCUNHO, nomeDoArquivoDoPdf, textoParaAFontePadrao } from './pdf-do-artefato.js'
 
 const MATERIAL = '0190f5a0-0000-7000-8000-0000000000a1'
-const TITULOS = new Map([[MATERIAL, 'Química 2 — Capítulo 7: Estequiometria']])
+const TITULO_DO_MATERIAL = 'Química 2 — Capítulo 7: Estequiometria'
+/** As `fontes` do artefato como o PDF as recebe: o título, a edição e se a edição foi substituída. */
+const comFonte = (fonte: Partial<FonteDoArtefato> = {}) => new Map<string, FonteDoArtefato>([[MATERIAL, { materialId: MATERIAL, titulo: TITULO_DO_MATERIAL, edicao: null, substituido: false, ...fonte }]])
+const TITULOS = comFonte()
 const umaLinha = (texto: string): string => texto.replace(/\s+/g, ' ').trim()
 
 function questao(numero: number, gabarito = numero % 4): QuestaoObjetiva {
@@ -86,6 +89,30 @@ describe('gerarPdfDoArtefato', () => {
     expect(paginas.join(' ').match(/\?/gu)).toHaveLength(20)
   })
 
+  it('o rodapé de cada questão diz o título, a edição e "edição anterior" da fonte; sem edição, só o título', async () => {
+    const rodape = async (fontes: ReturnType<typeof comFonte>, conteudo: ConteudoDeAtividade | ConteudoDePlanoDeAula = atividade(1)) =>
+      (await extrairTextoPorPagina(await gerarPdfDoArtefato(conteudo, fontes))).map(umaLinha).join(' ')
+    expect(await rodape(comFonte())).toContain(`Fonte: ${TITULO_DO_MATERIAL}, p. 2`)
+    expect(await rodape(comFonte({ edicao: '2025' }))).toContain(`Fonte: ${TITULO_DO_MATERIAL} (2025), p. 2`)
+    expect(await rodape(comFonte({ edicao: '2024', substituido: true }))).toContain(`Fonte: ${TITULO_DO_MATERIAL} (2024, edição anterior), p. 2`)
+    expect(await rodape(comFonte({ substituido: true }))).toContain(`Fonte: ${TITULO_DO_MATERIAL} (edição anterior), p. 2`)
+    // A lista de fontes do plano usa o mesmo texto.
+    const citacao = { materialId: MATERIAL, pagina: 3, trecho: 'A proporção em mol é dada pelos coeficientes.' }
+    const plano: ConteudoDePlanoDeAula = {
+      tipo: 'plano_de_aula',
+      titulo: 'Plano',
+      duracaoMinutos: 50,
+      objetivos: ['Explicar a proporção.'],
+      habilidades: [{ codigo: 'QUI.EM.05', descricao: 'Identificar o reagente limitante.' }],
+      etapas: [{ titulo: 'Abertura', minutos: 10, descricao: 'Pergunte à turma.', citacao }],
+      avaliacao: 'Atividade curta.',
+      citacoes: [citacao],
+    }
+    const doPlano = await rodape(comFonte({ edicao: '2024', substituido: true }), plano)
+    expect(doPlano).toContain(`Fonte: ${TITULO_DO_MATERIAL} (2024, edição anterior), p. 3`)
+    expect(doPlano).toContain(`• ${TITULO_DO_MATERIAL} (2024, edição anterior), p. 3`)
+  })
+
   it('não tem de onde tirar nome de pessoa nem de turma: só o conteúdo e o título do material entram, e os metadados do arquivo não levam autor', async () => {
     const bytes = await gerarPdfDoArtefato(atividade(2), TITULOS)
     const cru = bytes.toString('latin1')
@@ -123,6 +150,16 @@ describe('gerarPdfDoArtefato', () => {
     expect(limpas.join(' ')).not.toContain('Rascunho')
     expect(limpas.join(' ')).toContain(umaLinha(AVISO_DE_IA_NO_PDF))
     expect(AVISO_DE_IA_NO_RASCUNHO).not.toMatch(/revisad/u)
+  })
+
+  it('o rascunho com a fonte de "edição anterior": a marca em toda página e o rodapé novo aparecem no mesmo PDF, sem um esconder o outro', async () => {
+    const fontes = comFonte({ edicao: '2024', substituido: true })
+    const paginas = (await extrairTextoPorPagina(await gerarPdfDoArtefato(atividade(12), fontes, { rascunho: true }))).map(umaLinha)
+    for (const pagina of paginas) expect(pagina).toContain(MARCA_DE_RASCUNHO)
+    const todas = paginas.join(' ')
+    expect(todas).toContain(`Fonte: ${TITULO_DO_MATERIAL} (2024, edição anterior), p. 2`)
+    expect(todas).toContain(umaLinha(AVISO_DE_IA_NO_RASCUNHO))
+    expect(todas).not.toContain('revisado')
   })
 
   it('o plano de aula sai com a duração, os objetivos, as etapas com a página de origem, a avaliação e as fontes', async () => {

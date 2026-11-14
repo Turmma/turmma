@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { adaptarArtefatoRequestSchema, gerarComFerramentaRequestSchema, renomearArtefatoRequestSchema, artefatoResponseSchema } from './artefato.js'
+import { adaptarArtefatoRequestSchema, gerarComFerramentaRequestSchema, renomearArtefatoRequestSchema, artefatoResponseSchema, rotuloDaFonte, TITULO_DA_FONTE_SEM_LINHA } from './artefato.js'
 import { conteudoDeAtividadeSchema, conteudoDePlanoDeAulaSchema, conteudoDoArtefatoSchema, questaoObjetivaSchema, TIPOS_DE_ADAPTACAO } from './conteudo.js'
 import {
   conversaDoAssistenteQuerySchema,
@@ -143,10 +143,25 @@ describe('ferramentas e artefato', () => {
   it('a resposta do artefato traz a versão adaptada com os tipos e o estado da entrega, e nada sobre aluno', () => {
     const resumido = { id: UM_ID, tipo: 'atividade_objetiva', titulo: 'Lista', turmaId: UM_ID, disciplinaId: OUTRO_ID, origemId: null, adaptacao: null, entrega: null, criadoEm: AGORA }
     const adaptada = { ...resumido, id: OUTRO_ID, origemId: UM_ID, adaptacao: { tipos: ['fonte_ampliada'] }, entrega: { id: UM_ID, estado: 'pendente', decididaEm: null } }
-    const resposta = { ...resumido, conteudo: atividade, versoesAdaptadas: [adaptada], aplicacoes: [] }
+    const resposta = { ...resumido, conteudo: atividade, versoesAdaptadas: [adaptada], aplicacoes: [], fontes: [] }
     expect(artefatoResponseSchema.safeParse(resposta).success).toBe(true)
     expect(artefatoResponseSchema.safeParse({ ...resposta, versoesAdaptadas: [{ ...adaptada, alunos: [UM_ID] }] }).success).toBe(false)
     expect(artefatoResponseSchema.safeParse({ ...resposta, versoesAdaptadas: [{ ...adaptada, adaptacao: { tipos: ['fonte_ampliada'], paraQuem: 'Ana' } }] }).success).toBe(false)
+  })
+
+  it('as fontes do artefato (10.0): a resposta as exige, a fonte é estrita, e o rótulo é o mesmo texto da tela e do PDF', () => {
+    const resumido = { id: UM_ID, tipo: 'atividade_objetiva', titulo: 'Lista', turmaId: UM_ID, disciplinaId: OUTRO_ID, origemId: null, adaptacao: null, entrega: null, criadoEm: AGORA }
+    const resposta = { ...resumido, conteudo: atividade, versoesAdaptadas: [], aplicacoes: [] }
+    expect(artefatoResponseSchema.safeParse(resposta).success, 'sem fontes').toBe(false)
+    const fonte = { materialId: UM_ID, titulo: 'Química 2', edicao: '2024', substituido: true }
+    expect(artefatoResponseSchema.safeParse({ ...resposta, fontes: [fonte] }).success).toBe(true)
+    expect(artefatoResponseSchema.safeParse({ ...resposta, fontes: [{ ...fonte, licenciante: 'Editora' }] }).success).toBe(false)
+    expect(artefatoResponseSchema.safeParse({ ...resposta, fontes: [{ ...fonte, edicao: '' }] }).success, 'edição vazia').toBe(false)
+    expect(rotuloDaFonte({ titulo: 'Química 2', edicao: null, substituido: false })).toBe('Química 2')
+    expect(rotuloDaFonte({ titulo: 'Química 2', edicao: '2025', substituido: false })).toBe('Química 2 (2025)')
+    expect(rotuloDaFonte(fonte)).toBe('Química 2 (2024, edição anterior)')
+    expect(rotuloDaFonte({ titulo: 'Química 2', edicao: null, substituido: true })).toBe('Química 2 (edição anterior)')
+    expect(rotuloDaFonte({ titulo: TITULO_DA_FONTE_SEM_LINHA, edicao: null, substituido: false })).toBe('material da escola')
   })
 })
 

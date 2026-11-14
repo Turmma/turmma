@@ -18,8 +18,9 @@ export async function abrirOQueFoiGerado(page: Page, hasTouch: boolean): Promise
 /**
  * Um documento gravado direto no banco, na turma e na disciplina de um vínculo, com a autoria de quem a tela dele diria.
  * É o que o teste de isolamento precisa: o documento de **outra** escola, que nenhuma tela dela cria (regra 10, item 5).
+ * `materialId` é o material que a questão cita (ingestao-do-material, 10.0); sem ele, um id que nenhuma linha tem.
  */
-export async function criarArtefatoDoVinculo(escolaId: string, vinculoId: string, autorId: string, titulo: string): Promise<{ artefatoId: string; turmaId: string }> {
+export async function criarArtefatoDoVinculo(escolaId: string, vinculoId: string, autorId: string, titulo: string, materialId: string = randomUUID()): Promise<{ artefatoId: string; turmaId: string }> {
   const banco = new Client({ connectionString: urlDoBancoDeTeste() })
   await banco.connect()
   try {
@@ -39,7 +40,7 @@ export async function criarArtefatoDoVinculo(escolaId: string, vinculoId: string
           alternativas: ['16 g/mol', '18 g/mol', '20 g/mol', '34 g/mol'],
           gabarito: 1,
           habilidade: { codigo: 'QUI.EM.05', descricao: 'Calcular a massa molar de uma substância' },
-          citacao: { materialId: randomUUID(), pagina: 2, trecho: 'Na água, dois hidrogênios e um oxigênio.' },
+          citacao: { materialId, pagina: 2, trecho: 'Na água, dois hidrogênios e um oxigênio.' },
           explicacao: 'Dois hidrogênios e um oxigênio somam 18.',
         },
       ],

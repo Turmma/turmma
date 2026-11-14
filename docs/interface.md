@@ -2126,6 +2126,13 @@ professora não está no Início: está no sino.** O menu **Ferramenta** fica na
   agente; o **chip de fonte** "p. 142" dentro do texto, que abre material, página e trecho; e,
   depois da aprovação, a linha **"Aprovado por Camila Souza · 19/09, 10h42"**. Fonte de fora leva o
   chip **"da web"** com o link, de desenho diferente do chip de página (D68)
+- **O chip do artefato diz de que edição a citação veio** (ingestao-do-material, 10.0; RF11). No
+  artefato aberto e no resultado da ferramenta, o nome do chip e a linha do material no cartão são
+  o título e, entre parênteses, a edição que a coordenação deu: "Química 2 (2025)". O material que a
+  troca de edição substituiu continua citado, com **"edição anterior"** ("Química 2 (2024, edição
+  anterior)"), e o que o expurgo apagou vira **"material da escola"**, sem edição. O texto é o
+  mesmo do rodapé de cada questão no PDF. O chip continua mostrando só "p. 142"; vem das `fontes`
+  da resposta do artefato, e não da lista de materiais, que já não tem a edição anterior
 - **A pergunta da D18** é uma frase do Assistente e um cartão com **duas opções do mesmo peso**,
   que encolhe para uma linha depois da escolha (P16). Nenhuma das duas é a "certa" (D59)
 - **O cartão de ferramenta** é o formulário da própria ferramenta dentro da conversa: mesmos

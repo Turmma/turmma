@@ -24,6 +24,7 @@ const id = (n: number) => `0197a1c0-0000-7000-8000-${String(n).padStart(12, '0')
 const TURMA = id(100)
 const DISCIPLINA = id(200)
 const MATERIAL = id(300)
+const TITULO_DO_MATERIAL = 'Química 2, cap. 7'
 const QUEM_DECIDE = { id: id(400), nome: 'Camila Souza sintética' }
 const ENUNCIADO = 'Qual a massa de CO₂ formada na queima completa de 24 g de carbono?'
 const EXPLICACAO = '24 g de carbono são 2 mol, que formam 2 mol de CO₂, ou 88 g.'
@@ -56,6 +57,7 @@ function atividade(n: number, campos: Record<string, unknown> = {}) {
     conteudo: { tipo: 'atividade_objetiva', titulo: `Atividade ${String(n)}`, questoes: [questao] },
     versoesAdaptadas: [],
     aplicacoes: [],
+    fontes: [{ materialId: MATERIAL, titulo: TITULO_DO_MATERIAL, edicao: null, substituido: false }],
     ...campos,
   }
 }
@@ -64,7 +66,7 @@ function atividade(n: number, campos: Record<string, unknown> = {}) {
 function versao(n: number, origem: { id: string }, entrega: Entrega) {
   return atividade(n, { titulo: `Versão ${String(n)}`, origemId: origem.id, adaptacao: { tipos: ['fonte_ampliada'] }, entrega: { id: entrega.id, estado: entrega.estado, decididaEm: entrega.decididaEm } })
 }
-const resumo = ({ conteudo: _conteudo, versoesAdaptadas: _versoes, aplicacoes: _aplicacoes, ...resumido }: ReturnType<typeof atividade>) => resumido
+const resumo = ({ conteudo: _conteudo, versoesAdaptadas: _versoes, aplicacoes: _aplicacoes, fontes: _fontes, ...resumido }: ReturnType<typeof atividade>) => resumido
 
 const entregaDe = (n: number, estado: Entrega['estado']): Entrega => ({ id: id(900 + n), estado, decididaEm: estado === 'pendente' ? null : '2026-10-05T13:42:00.000Z' })
 const entregaCompleta = (artefato: { id: string; titulo: string }, entrega: Entrega) => ({
@@ -102,14 +104,13 @@ interface Mundo {
   readonly aplicadas?: readonly unknown[]
 }
 
-/** O que a tela lê: o artefato pelo id (404 para o que o mundo não tem), os materiais, os vínculos, as entregas e as aplicações. */
+/** O que a tela lê: o artefato pelo id (404 para o que o mundo não tem), os vínculos, as entregas e as aplicações. O título do material vem das `fontes` do próprio artefato: a rede não responde `/v1/materiais`. */
 function instalar(rede: FakeNetwork, { artefatos, entregas = [], aplicadas = [] }: Mundo): void {
   rede.responderPor(/^\/v1\/artefatos\/[^/?]+(\?|$)/, (caminho) => {
     const pedido = caminho.split('?')[0]?.split('/').at(-1)
     const achado = artefatos.find((artefato) => artefato.id === pedido)
     return achado === undefined ? erro(404, 'NAO_ENCONTRADO') : ok(achado)
   })
-  rede.responderPor('/v1/materiais', ok({ itens: [{ id: MATERIAL, titulo: 'Química 2, cap. 7', disciplinaId: DISCIPLINA }] }))
   rede.responderPor('/v1/meus-vinculos', ok({ itens: [{ id: id(450), turma: { id: TURMA, nome: '7ºA' }, disciplina: { id: DISCIPLINA, nome: 'Química' }, estado: 'confirmado' }] }))
   rede.responderPor('/v1/entregas', ok({ itens: entregas }))
   rede.responderPor('/v1/atividades-aplicadas', ok({ itens: aplicadas }))
@@ -192,6 +193,57 @@ describe('o documento: os quatro estados', () => {
     expect(within(folha).getByText(/Página 142/)).toBeTruthy()
     expect(within(folha).getByText(EXPLICACAO)).toBeTruthy()
     expect(within(folha).getByText('Gabarito', { exact: true })).toBeTruthy()
+  })
+})
+
+describe('as fontes do artefato (ingestao-do-material, 10.0; RF11): o chip diz título, edição e "edição anterior"', () => {
+  /** O `jsdom` junta o texto escondido ao visível sem o espaço antes de `p.`; o navegador o mantém (como em `pecas-revestidas.test.tsx`). */
+  const chip = (nome: string) => screen.findByRole('button', { name: new RegExp(`^${nome.replace(/[().]/gu, '\\$&').replace(', p\\.', ',\\s?p\\.')}$`, 'u') })
+
+  it('título e edição pelas `fontes`, sem ler a lista de materiais', async () => {
+    const rede = fakeNetwork()
+    instalar(rede, { artefatos: [atividade(1, { fontes: [{ materialId: MATERIAL, titulo: TITULO_DO_MATERIAL, edicao: '2025', substituido: false }] })] })
+    montar(id(1))
+    const botao = await chip(`Fonte: ${TITULO_DO_MATERIAL} (2025), p. 142`)
+    await userEvent.setup().click(botao)
+    expect(within(screen.getByRole('group', { name: `Fonte: ${TITULO_DO_MATERIAL} (2025), p. 142` })).getByText(`${TITULO_DO_MATERIAL} (2025)`)).toBeTruthy()
+    expect(rede.chamadas.some((chamada) => chamada.caminho.startsWith('/v1/materiais'))).toBe(false)
+  })
+
+  it('"edição anterior": o material que a troca de edição substituiu continua citado, com a edição que o artefato usou', async () => {
+    instalar(fakeNetwork(), { artefatos: [atividade(1, { fontes: [{ materialId: MATERIAL, titulo: TITULO_DO_MATERIAL, edicao: '2024', substituido: true }] })] })
+    montar(id(1))
+    expect(await chip(`Fonte: ${TITULO_DO_MATERIAL} (2024, edição anterior), p. 142`)).toBeTruthy()
+    expect(screen.getAllByText('Fontes (1): Química 2, cap. 7 (2024, edição anterior), p. 142')).toBeTruthy()
+  })
+
+  it('"material da escola": a linha que o expurgo apagou, sem edição', async () => {
+    instalar(fakeNetwork(), { artefatos: [atividade(1, { fontes: [{ materialId: MATERIAL, titulo: 'material da escola', edicao: null, substituido: false }] })] })
+    montar(id(1))
+    expect(await chip('Fonte: material da escola, p. 142')).toBeTruthy()
+  })
+
+  // Só a guarda do componente: a API nunca devolve este estado (toda citação gera uma fonte, com o texto "material da escola" quando a linha saiu).
+  it('artefato sem `fontes`: a citação continua valendo, com a página', async () => {
+    instalar(fakeNetwork(), { artefatos: [atividade(1, { fontes: [] })] })
+    montar(id(1))
+    expect(await chip('Fonte: Material da escola, p. 142')).toBeTruthy()
+  })
+
+  it('carregando e erro: nenhum chip nem título de fonte aparece antes de a resposta do artefato chegar, e a falha não deixa o do anterior', async () => {
+    const rede = fakeNetwork()
+    rede.responderPor(`/v1/artefatos/${id(2)}`, nuncaResponde)
+    instalar(rede, { artefatos: [atividade(1)] })
+    const { unmount } = montar(id(2))
+    expect(await screen.findByText('Carregando o artefato…')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /^Fonte:/ })).toBeNull()
+    unmount()
+    const comErro = fakeNetwork()
+    comErro.responderPor(`/v1/artefatos/${id(3)}`, () => erro(429, 'LIMITE_EXCEDIDO'))
+    instalar(comErro, { artefatos: [atividade(1)] })
+    montar(id(3))
+    await screen.findByRole('alert')
+    expect(screen.queryByRole('button', { name: /^Fonte:/ })).toBeNull()
   })
 })
 

@@ -2,10 +2,10 @@ import type { ChaveDeFuncao } from '@educa/shared'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'wouter'
 import { artefatoQueryOptions } from '../artefatos/api/artefatos'
-import { titulosDosMateriaisQueryOptions } from '../artefatos/api/titulos-dos-materiais'
 import { caminhoDoArtefatoDoProfessor, PROFESSOR_ROUTES } from '../../../paths'
 import { buttonVariants } from '../../../components/ui/button-variants'
 import { LoadingState, ErrorState } from '../../../components/states/index'
+import { titulosDasFontes } from '../../../components/ui/ai/source-labels'
 import { AIMessage } from '../../../components/ui/ai/Message'
 import { ConteudoDoArtefato } from '../artefatos/ConteudoDoArtefato'
 import { saidaEmPdf, textoDaAdaptacao } from '../artefatos/entregas'
@@ -31,7 +31,6 @@ const CLASSES_DA_ACAO = `${buttonVariants({ variante: 'discreto', tamanho: 'comp
  */
 export function ResultadoDaFerramenta({ artefatoId, entregaId, funcao }: PropsDoResultado) {
   const artefato = useQuery(artefatoQueryOptions(artefatoId))
-  const materiais = useQuery(titulosDosMateriaisQueryOptions)
   if (artefato.isPending) return <LoadingState rotulo="Carregando o que foi gerado…" />
   if (artefato.isError) return <ErrorState erro={artefato.error} tentando={artefato.isFetching} aoTentarDeNovo={() => void artefato.refetch({ cancelRefetch: false })} />
   const { data } = artefato
@@ -59,7 +58,7 @@ export function ResultadoDaFerramenta({ artefatoId, entregaId, funcao }: PropsDo
       <div className="flex min-w-0 flex-col gap-3">
         <p className="min-w-0 font-semibold break-words text-tinta">{data.titulo}</p>
         {data.adaptacao !== null && <p className="min-w-0 text-sm break-words text-sutil">Adaptação: {textoDaAdaptacao(data.adaptacao)}</p>}
-        <ConteudoDoArtefato conteudo={data.conteudo} materiais={materiais.data ?? {}} resumido />
+        <ConteudoDoArtefato conteudo={data.conteudo} materiais={titulosDasFontes(data.fontes)} resumido />
         {entregaId !== null && <p className="min-w-0 text-sm break-words text-sutil">Esta versão só pode ir aos alunos depois que você aprovar. Até lá, o PDF dela sai marcado como rascunho.</p>}
       </div>
     </AIMessage>

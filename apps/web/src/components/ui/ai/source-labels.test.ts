@@ -1,6 +1,6 @@
 import type { Citacao } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
-import { fontesUnicas, MATERIAL_SEM_TITULO, nomeDoChip, resumoDasFontes, textoDoChip } from './source-labels'
+import { fontesUnicas, MATERIAL_SEM_TITULO, nomeDoChip, resumoDasFontes, textoDoChip, titulosDasFontes } from './source-labels'
 
 const QUIMICA = '0190a1b2-0000-7000-8000-000000000001'
 const FISICA = '0190a1b2-0000-7000-8000-000000000002'
@@ -42,5 +42,18 @@ describe('lista de fontes', () => {
   it('uma fonte só, e nenhuma', () => {
     expect(resumoDasFontes([citacao(QUIMICA, 142)], MATERIAIS)).toBe('Fontes (1): Química 2, p. 142')
     expect(fontesUnicas([])).toEqual([])
+  })
+})
+
+describe('os títulos das fontes de um artefato (ingestao-do-material, 10.0)', () => {
+  it('cada material citado vira o rótulo da fonte: título, edição e "edição anterior"; sem as fontes, o chip cai no "Material da escola"', () => {
+    const titulos = titulosDasFontes([
+      { materialId: QUIMICA, titulo: 'Química 2', edicao: '2024', substituido: true },
+      { materialId: FISICA, titulo: 'Física 1', edicao: null, substituido: false },
+    ])
+    expect(titulos).toEqual({ [QUIMICA]: 'Química 2 (2024, edição anterior)', [FISICA]: 'Física 1' })
+    expect(nomeDoChip(citacao(QUIMICA, 142), titulos)).toBe('Fonte: Química 2 (2024, edição anterior), p. 142')
+    expect(resumoDasFontes([citacao(QUIMICA, 142), citacao(FISICA, 3)], titulos)).toBe('Fontes (2): Química 2 (2024, edição anterior), p. 142 · Física 1, p. 3')
+    expect(nomeDoChip(citacao(QUIMICA, 142), titulosDasFontes([]))).toBe(`Fonte: ${MATERIAL_SEM_TITULO}, p. 142`)
   })
 })

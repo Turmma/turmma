@@ -1,5 +1,5 @@
 import { artefato, atividadeAplicada, entrega, requireAnoEmCurso, requireEscolaId, material, requestSessao, type Database, type DatabaseTransaction } from '@educa/core'
-import { InvariantException, MAXIMO_DE_VERSOES_NO_ARTEFATO, type ArtefatosQuery, type ConteudoDoArtefato, type EstadoDeAtividadeAplicada, type EstadoDeEntrega, type TipoDeArtefato } from '@educa/shared'
+import { InvariantException, MAXIMO_DE_VERSOES_NO_ARTEFATO, type ArtefatosQuery, type ConteudoDoArtefato, type FonteDoArtefato, type EstadoDeAtividadeAplicada, type EstadoDeEntrega, type TipoDeArtefato } from '@educa/shared'
 import { and, desc, eq, exists, inArray, lt, ne, not, sql, type SQL } from 'drizzle-orm'
 import { comVinculoConfirmadoDoProfessor, disciplinaDoArtefato } from '../assistente/turma-do-professor.repository.js'
 
@@ -122,16 +122,23 @@ export class ArtefatoRepository {
   }
 
   /**
-   * O título dos materiais que o artefato cita, para a linha "Fonte" do PDF. Inclui o material excluído: a linha dele
-   * fica justamente porque artefatos já o citam. O id vem do `jsonb`, sem FK: só os da escola do contexto são achados.
+   * O título e a edição dos materiais que o artefato cita, e se a edição foi substituída, para as `fontes` e a linha
+   * "Fonte" do PDF. Inclui o material excluído e o substituído: a linha dele fica justamente porque artefatos já o citam, e
+   * a licença vencida não o tira daqui (a citação continua valendo). O id vem do `jsonb`, sem FK: só os da escola do
+   * contexto são achados. Fica fora do mapa o material cuja linha o expurgo apagou (o service o trata como "material da
+   * escola") e o id de outra escola, que nunca é achado.
+   *
+   * **Só se chama depois do `porId`**: o filtro é a escola, e a disciplina e a turma do vínculo já foram conferidas ali, sobre o
+   * artefato. Chamado sozinho, com ids que não saíram de um artefato alcançado, serviria para ler o título de qualquer
+   * material da escola.
    */
-  async titulosDosMateriais(ids: readonly string[]): Promise<Map<string, string>> {
+  async fontesDosMateriais(ids: readonly string[]): Promise<Map<string, Omit<FonteDoArtefato, 'materialId'>>> {
     if (ids.length === 0) return new Map()
     const linhas = await this.banco
-      .select({ id: material.id, titulo: material.titulo })
+      .select({ id: material.id, titulo: material.titulo, edicao: material.edicao, substituido: sql<boolean>`${material.substituidoPor} is not null` })
       .from(material)
       .where(and(eq(material.escolaId, requireEscolaId()), inArray(material.id, [...ids])))
-    return new Map(linhas.map((linha) => [linha.id, linha.titulo]))
+    return new Map(linhas.map((linha) => [linha.id, { titulo: linha.titulo, edicao: linha.edicao, substituido: linha.substituido }]))
   }
 
   /**

@@ -695,6 +695,10 @@ export {
   artefatoResponseSchema,
   listaDeArtefatosResponseSchema,
   MAXIMO_DE_VERSOES_NO_ARTEFATO,
+  MAXIMO_DE_FONTES_NO_ARTEFATO,
+  TITULO_DA_FONTE_SEM_LINHA,
+  fonteDoArtefatoSchema,
+  rotuloDaFonte,
 } from './assistente/artefato.js'
 export type {
   ArtefatoResumido,
@@ -704,6 +708,7 @@ export type {
   GerarComFerramentaRequest,
   RenomearArtefatoRequest,
   ArtefatoResponse,
+  FonteDoArtefato,
   ListaDeArtefatosResponse,
 } from './assistente/artefato.js'
 export {

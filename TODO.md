@@ -3546,3 +3546,23 @@ aula" em `Retencao.tsx`, o Validador conferiu: a tela já o mostra pela descriç
 - [ ] (ingestao-do-material, 9.0, infra-guardian, 2ª) **O veredito da [C] depende do relógio de parede do banco (`now()`).** Fazer `lerTurnoDaBNaJanela` reprovar a corrida com turno negativo ou acima de `PRAZO_DO_TURNO_MS`, e
       registrar no runbook, em "Quando a carga vale como registro", que o `systemd-timesyncd` precisa estar parado no WSL (o vaivém de ±5,5 s invalidou duas corridas da 9.0)
 - [ ] (ingestao-do-material, 9.0, infra-guardian, 2ª) **A deriva de cerca de 3,5% do relógio monotônico do WSL** infla o turno do k6 na mesma proporção (uns 15 ms no p95). Uma linha na seção da carga do runbook, junto com o item anterior
+
+## Da ingestao-do-material, tarefa 10.0, fora dela
+
+- [ ] (ingestao-do-material, 10.0, privacy-guardian e revisor-geral, 1ª) **Unificar "material da escola" (API, `TITULO_DA_FONTE_SEM_LINHA`) e "Material da escola" (tela, `MATERIAL_SEM_TITULO`).** Muda o texto
+      na tela e o contrato de `fontes`; o comentário de `source-labels.ts` registra por que hoje diferem
+- [ ] (ingestao-do-material, 10.0, conformidade-reviewer e frontend-reviewer, 1ª e 2ª) **A conversa e a Turma hoje (`titulos-dos-materiais.ts`) ficam sem "edição anterior"**: ainda leem a lista de materiais.
+      Trocar a fonte delas pelas `fontes` do que mostram é de outra tarefa
+- [ ] (ingestao-do-material, 10.0, frontend-reviewer, 1ª e 2ª) **A vitrine da escola cheia (`tools/vitrine/`) monta um artefato com "edição anterior" e outro com "material da escola"**; hoje o
+      Validador cria os dois à mão no banco para fotografar
+- [ ] (ingestao-do-material, 10.0, frontend-reviewer, 1ª e 2ª) **O título "Artefato" da tela de não disponível é termo interno.** Já está no item da X3, 6.0 (a), acima; trocar por "documento" junto com ele
+- [ ] (ingestao-do-material, 10.0, test-engineer, 1ª) **Um caso pela rota com a versão adaptada pendente (PDF em rascunho), a licença vencida e as `fontes` juntas.** Hoje o caso da licença usa o artefato
+      original; o rascunho com "edição anterior" está provado só no `pdf-do-artefato.test.ts`
+- [ ] (ingestao-do-material, 10.0, test-engineer, 1ª; revisor-geral, 2ª) **Um e2e que passe pela tela de edição da coordenação (12.0) e abra o artefato antigo com "edição anterior".** O e2e da 10.0
+      grava a troca no banco (divergência registrada em `cenarios.md` e na Tech Spec §11); o `12_task.md` hoje não o pede
+- [ ] (ingestao-do-material, 10.0, tenancy-guardian, 2ª) **Um caso pela API com o `materialId` de outra escola no `jsonb` do artefato** conferindo "material da escola", sem título nem edição, também no
+      PDF. O `fontesDosMateriais` já tem o caso de isolamento no repository
+- [ ] (ingestao-do-material, 10.0, infra-guardian, 2ª) **Se um segundo lugar chamar `fontesDosMateriais`, receber o artefato carregado em vez dos ids soltos.** Hoje há um só chamador (o service,
+      depois do `porId`); ver na retrospectiva da F4
+- [ ] (ingestao-do-material, 10.0, test-engineer e revisor-geral, 2ª) **Caso "dois materiais citados": `expect(conteudo.questoes).toHaveLength(3)` antes do `forEach`**, e não depender do `edicaoNova` do
+      caso anterior (rodado com `-t`, ele falha). A premissa já está provada no caminho feliz

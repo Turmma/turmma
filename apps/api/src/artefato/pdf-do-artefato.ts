@@ -1,4 +1,4 @@
-import { ROTULOS_DA_ADAPTACAO, type Citacao, type ConteudoDeAtividade, type ConteudoDePlanoDeAula, type ConteudoDoArtefato } from '@educa/shared'
+import { ROTULOS_DA_ADAPTACAO, rotuloDaFonte, TITULO_DA_FONTE_SEM_LINHA, type Citacao, type ConteudoDeAtividade, type ConteudoDePlanoDeAula, type ConteudoDoArtefato, type FonteDoArtefato } from '@educa/shared'
 import PDFDocument from 'pdfkit'
 
 /**
@@ -191,11 +191,15 @@ function estilosDoPdf(ampliada: boolean): Estilos {
   }
 }
 
-function fonteDaCitacao(citacao: Pick<Citacao, 'materialId' | 'pagina'>, titulos: ReadonlyMap<string, string>): string {
-  return `Fonte: ${titulos.get(citacao.materialId) ?? 'material da escola'}, p. ${String(citacao.pagina)}`
+/** Os materiais que o artefato cita, pelo id: título, edição e se a edição foi substituída (as `fontes` do artefato). */
+type FontesDoPdf = ReadonlyMap<string, FonteDoArtefato>
+
+function fonteDaCitacao(citacao: Pick<Citacao, 'materialId' | 'pagina'>, fontes: FontesDoPdf): string {
+  const fonte = fontes.get(citacao.materialId)
+  return `Fonte: ${fonte === undefined ? TITULO_DA_FONTE_SEM_LINHA : rotuloDaFonte(fonte)}, p. ${String(citacao.pagina)}`
 }
 
-function escreverAtividade(folha: Folha, conteudo: ConteudoDeAtividade, titulos: ReadonlyMap<string, string>, aviso: string): void {
+function escreverAtividade(folha: Folha, conteudo: ConteudoDeAtividade, fontes: FontesDoPdf, aviso: string): void {
   const estilos = estilosDoPdf(conteudo.adaptacao?.tipos.includes('fonte_ampliada') === true)
   folha.escrever(conteudo.titulo, estilos.titulo)
   folha.escrever(aviso, estilos.aviso)
@@ -203,7 +207,7 @@ function escreverAtividade(folha: Folha, conteudo: ConteudoDeAtividade, titulos:
     folha.junto([
       [`${String(indice + 1)}. ${questao.enunciado}`, { ...estilos.corpo, depois: 8 }],
       ...questao.alternativas.map((alternativa, posicao) => [`${LETRAS[posicao] ?? '?'}) ${alternativa}`, estilos.item] as const),
-      [fonteDaCitacao(questao.citacao, titulos), estilos.fonteCitada],
+      [fonteDaCitacao(questao.citacao, fontes), estilos.fonteCitada],
     ])
   })
 
@@ -222,7 +226,7 @@ function escreverAtividade(folha: Folha, conteudo: ConteudoDeAtividade, titulos:
   })
 }
 
-function escreverPlano(folha: Folha, conteudo: ConteudoDePlanoDeAula, titulos: ReadonlyMap<string, string>): void {
+function escreverPlano(folha: Folha, conteudo: ConteudoDePlanoDeAula, fontes: FontesDoPdf): void {
   const estilos = estilosDoPdf(false)
   folha.escrever(conteudo.titulo, estilos.titulo)
   folha.escrever(AVISO_DE_IA_NO_PDF, estilos.aviso)
@@ -236,7 +240,7 @@ function escreverPlano(folha: Folha, conteudo: ConteudoDePlanoDeAula, titulos: R
     folha.junto([
       [`${String(indice + 1)}. ${etapa.titulo} (${String(etapa.minutos)} min)`, { ...estilos.corpo, fonte: 'Helvetica-Bold', depois: 4 }],
       [etapa.descricao, { ...estilos.item, depois: etapa.citacao === undefined ? 14 : 4 }],
-      ...(etapa.citacao === undefined ? [] : [[fonteDaCitacao(etapa.citacao, titulos), estilos.fonteCitada] as const]),
+      ...(etapa.citacao === undefined ? [] : [[fonteDaCitacao(etapa.citacao, fontes), estilos.fonteCitada] as const]),
     ])
   })
   folha.junto([
@@ -244,14 +248,15 @@ function escreverPlano(folha: Folha, conteudo: ConteudoDePlanoDeAula, titulos: R
     [conteudo.avaliacao, { ...estilos.corpo, depois: 14 }],
   ])
   folha.escrever('Fontes', estilos.secao)
-  for (const citacao of conteudo.citacoes) folha.escrever(`• ${fonteDaCitacao(citacao, titulos).replace(/^Fonte: /u, '')}`, estilos.item)
+  for (const citacao of conteudo.citacoes) folha.escrever(`• ${fonteDaCitacao(citacao, fontes).replace(/^Fonte: /u, '')}`, estilos.item)
 }
 
 /**
- * O PDF do artefato, em memória. `titulos` é o título de cada material citado, lido pela escola do contexto; material
- * que não está no mapa sai como "material da escola".
+ * O PDF do artefato, em memória. `fontes` são os materiais citados, lidos pela escola do contexto: o rodapé de cada questão
+ * diz título, edição e "edição anterior" (`rotuloDaFonte`, o mesmo texto da tela); material que não está no mapa sai como
+ * "material da escola".
  */
-export function gerarPdfDoArtefato(conteudo: ConteudoDoArtefato, titulos: ReadonlyMap<string, string>, { rascunho = false }: PdfOptions = {}): Promise<Buffer> {
+export function gerarPdfDoArtefato(conteudo: ConteudoDoArtefato, fontes: FontesDoPdf, { rascunho = false }: PdfOptions = {}): Promise<Buffer> {
   return new Promise((resolver, rejeitar) => {
     const documento = new PDFDocument({
       size: 'A4',
@@ -266,8 +271,8 @@ export function gerarPdfDoArtefato(conteudo: ConteudoDoArtefato, titulos: Readon
     documento.on('end', () => resolver(Buffer.concat(pedacos)))
     documento.on('error', rejeitar)
     const folha = new Folha(documento)
-    if (conteudo.tipo === 'atividade_objetiva') escreverAtividade(folha, conteudo, titulos, rascunho ? AVISO_DE_IA_NO_RASCUNHO : AVISO_DE_IA_NO_PDF)
-    else escreverPlano(folha, conteudo, titulos)
+    if (conteudo.tipo === 'atividade_objetiva') escreverAtividade(folha, conteudo, fontes, rascunho ? AVISO_DE_IA_NO_RASCUNHO : AVISO_DE_IA_NO_PDF)
+    else escreverPlano(folha, conteudo, fontes)
     if (rascunho) {
       const { start, count } = documento.bufferedPageRange()
       for (let pagina = start; pagina < start + count; pagina += 1) {

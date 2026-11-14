@@ -178,6 +178,19 @@ describe('contratos de saída: nenhuma resposta traz credencial, segredo ou iden
     expect(shared.capituloDoMaterialSchema.safeParse({ ...capitulo, titulo: 'a'.repeat(shared.TAMANHO_MAXIMO_DO_TITULO_DO_CAPITULO + 1) }).success).toBe(false)
   })
 
+  it('ingestao-do-material 10.0: `GET /v1/artefatos/:id` traz as `fontes` só com materialId, título, edição e substituído: nem hash, nem chave do objeto, nem quem enviou, nem licenciante', () => {
+    expect(esquemasDeResposta.map(([nome]) => nome)).toContain('artefatoResponseSchema')
+    const campos = camposDoEsquema(shared.artefatoResponseSchema)
+    expect(campos.filter((campo) => campo.startsWith('fontes'))).toEqual(['fontes', 'fontes[].materialId', 'fontes[].titulo', 'fontes[].edicao', 'fontes[].substituido'])
+    for (const proibido of ['sha256', 'chave', 'enviadoPor', 'licenciante', 'licencaId', 'licenca', 'titularidade']) expect(campos.filter((campo) => campo.startsWith('fontes'))).not.toContain(`fontes[].${proibido}`)
+    expect(problemasDoContrato('artefatoResponseSchema', shared.artefatoResponseSchema)).toEqual([])
+    // A fonte é estrita: campo a mais (o licenciante, o hash) é recusado.
+    const fonte = { materialId: randomUUID(), titulo: 'Química 2', edicao: '2025', substituido: false }
+    expect(shared.fonteDoArtefatoSchema.safeParse(fonte).success).toBe(true)
+    expect(shared.fonteDoArtefatoSchema.safeParse({ ...fonte, licenciante: 'Editora' }).success).toBe(false)
+    expect(shared.fonteDoArtefatoSchema.safeParse({ ...fonte, sha256: 'abc' }).success).toBe(false)
+  })
+
   it('e-mail é recusado em contrato que pode chegar ao aluno, e só passa em contrato declarado da equipe', () => {
     const comEmail = z.object({ itens: z.array(z.object({ usuarioId: z.uuid(), email: z.email() })) })
     expect(problemasDoContrato('alunosDaTurmaResponseSchema', comEmail)).toEqual(['alunosDaTurmaResponseSchema: itens[].email (email)'])
