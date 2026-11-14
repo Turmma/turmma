@@ -6,6 +6,7 @@ import { useLocation, useSearch } from 'wouter'
 import { errorMessage } from '../../../api/client'
 import { disciplinasQueryOptions } from '../../../api/estrutura'
 import { materiaisQueryOptions, excluirMaterial, type CamposDoEnvioDeMaterial } from './api/material'
+import { RESUMO_DO_MATERIAL_QUERY_KEY } from './api/resumo'
 import { aoTrocarDeSessao } from '../../../api/sessao'
 import { MATERIAL_PARAM, ABA_DO_MATERIAL_PARAM, type AbaDoMaterial } from '../../../paths'
 import { Button } from '../../../components/ui/Button'
@@ -17,9 +18,10 @@ import { StatusBadge } from '../../../components/ui/StatusBadge'
 import { Table, type TableColumn } from '../../../components/ui/Table'
 import { errorText } from '../../../components/error-text'
 import { DialogoDeEnvioDeMaterial } from './DialogoDeEnvioDeMaterial'
+import { ResumoDoMaterial } from './ResumoDoMaterial'
 import { enderecoComParametro } from '../comum/endereco-da-tela'
 import { RASCUNHO_VAZIO, TEXTO_DA_RECUSA, TEXTOS_DA_FALHA_DA_EXCLUSAO } from './material-envio'
-import { FAMILIA_DA_SITUACAO_DO_MATERIAL, linhasDosMateriais, materialDoEndereco, nomeDaLicenca, rascunhoDoMaterialQueFalhou, textoDaSituacaoDaRecusa, textoDaSituacaoDoMaterial, type MaterialRow, type RecusaDeEnvio } from './materiais-da-escola'
+import { FAMILIA_DA_SITUACAO_DO_MATERIAL, linhasDosMateriais, MATERIAIS_POR_VEZ, materialDoEndereco, nomeDaLicenca, rascunhoDoMaterialQueFalhou, textoDaSituacaoDaRecusa, textoDaSituacaoDoMaterial, type MaterialRow, type RecusaDeEnvio } from './materiais-da-escola'
 import { useFocusPageHeading } from '../comum/moldura'
 import { AvisoDeListaIncompleta, CLASSES_DO_BOTAO_DA_LINHA } from '../comum/pecas-da-lista'
 import { PainelDoMaterial } from './PainelDoMaterial'
@@ -104,6 +106,7 @@ function MateriaisDaEscola() {
 
   const [recusas, definirRecusas] = useState<readonly RecusaDeEnvio[]>([])
   const [anuncio, definirAnuncio] = useState('')
+  const [visiveis, definirVisiveis] = useState(MATERIAIS_POR_VEZ)
   const ultimaRecusa = useRef(0)
   const focarOTituloDaMoldura = useFocusPageHeading()
   const tituloDaLista = useRef<HTMLHeadingElement>(null)
@@ -112,17 +115,19 @@ function MateriaisDaEscola() {
   const doPainel = lista === undefined ? undefined : materialDoEndereco(busca, lista.itens)
   const painelAberto = doPainel !== undefined
 
-  const recarregar = useCallback(() => cliente.invalidateQueries({ queryKey: materiaisQueryOptions.queryKey }), [cliente])
+  // O envio e a exclusão relêem a lista; o resumo se relê quando a lista nova mostra o estado que mudou (o material que entrou ou saiu), e não junto com ela: um pedido só, depois da lista (regra 80, item 10).
+  const recarregar = useCallback(() => cliente.invalidateQueries({ queryKey: materiaisQueryOptions.queryKey }).then(() => undefined), [cliente])
   // O foco quando o botão que abriu o diálogo ou o painel saiu da tela: o "Enviar material" do vazio, a linha do material excluído.
   // Sem a lista na tela (a releitura caiu com ela ainda vazia), vai para o título da tela, e não para o `body`.
   const focarNaLista = useCallback(() => (tituloDaLista.current === null ? focarOTituloDaMoldura() : tituloDaLista.current.focus()), [focarOTituloDaMoldura])
-  // A sessão que acaba ou muda de dono leva o que a pessoa fazia: o diálogo fecha e as recusas da tabela — que carregam o título e a
-  // disciplina que ela declarou — saem, para não passarem à pessoa seguinte do mesmo computador (regra 20, item 15).
+  // A sessão que acaba ou muda de dono leva o que a pessoa fazia: o diálogo fecha, as recusas da tabela — que carregam o título e a
+  // disciplina que ela declarou — saem, para não passarem à pessoa seguinte do mesmo computador (regra 20, item 15), e o "Mostrar mais" volta às primeiras 25 linhas.
   useEffect(
     () =>
       aoTrocarDeSessao(() => {
         fecharDialogo()
         definirRecusas([])
+        definirVisiveis(MATERIAIS_POR_VEZ)
       }),
     [fecharDialogo],
   )
@@ -165,114 +170,139 @@ function MateriaisDaEscola() {
   const nomeDe = (disciplinaId: string): string => nomeDaDisciplina.get(disciplinaId) ?? 'Disciplina'
   const emLeitura = lista === undefined ? 0 : lista.itens.filter((material) => material.estado === 'processando').length
   const semNada = lista !== undefined && lista.itens.length === 0 && recusas.length === 0
+  // A tabela mostra `visiveis` linhas, e "Mostrar mais" revela mais `MATERIAIS_POR_VEZ`: a escola com centenas de materiais não desenha todos de uma vez.
+  const linhas = lista === undefined ? [] : linhasDosMateriais(lista.itens, recusas)
+  function mostrarMais(): void {
+    const agora = Math.min(visiveis + MATERIAIS_POR_VEZ, linhas.length)
+    definirVisiveis(agora)
+    definirAnuncio(`Mostrando ${String(agora)} de ${String(linhas.length)}.`)
+    // O botão sai da tela quando a lista acabou, e o foco que estava nele iria para o `body`: vai ao título da lista.
+    if (agora >= linhas.length) focarNaLista()
+  }
 
   function registrarRecusa(campos: CamposDoEnvioDeMaterial, motivo: RecusaDeEnvio['motivo']): void {
     ultimaRecusa.current += 1
     const recusa: RecusaDeEnvio = { chave: ultimaRecusa.current, titulo: campos.titulo, disciplinaId: campos.disciplinaId, licenca: campos.licenca, motivo }
     definirRecusas((atuais) => [recusa, ...atuais])
+    // A recusa ficou na auditoria da escola antes de a resposta chegar, e o resumo conta as dos últimos 30 dias: ele se relê.
+    void cliente.invalidateQueries({ queryKey: RESUMO_DO_MATERIAL_QUERY_KEY })
   }
 
   return (
-    <section className="flex min-w-0 flex-col gap-6" aria-label="Materiais da escola">
-      {materiais.isPending || disciplinas.isPending ? (
-        <LoadingState rotulo="Carregando os materiais…" />
-      ) : lista === undefined || dasDisciplinas === undefined ? (
-        erroDaLeitura
-      ) : semNada ? (
-        // A releitura que cai com a lista ainda vazia não afirma o vazio: a lista de antes já não vale.
-        materiais.isError ? (
+    <div className="flex min-w-0 flex-col gap-6">
+      {/* O resumo fica fora da região "Materiais da escola": as linhas da tabela dele não são linhas da lista (o e2e conta as da lista pela região). */}
+      <ResumoDoMaterial materiais={lista?.itens} />
+      <section className="flex min-w-0 flex-col gap-6" aria-label="Materiais da escola">
+        {materiais.isPending || disciplinas.isPending ? (
+          <LoadingState rotulo="Carregando os materiais…" />
+        ) : lista === undefined || dasDisciplinas === undefined ? (
           erroDaLeitura
+        ) : semNada ? (
+          // A releitura que cai com a lista ainda vazia não afirma o vazio: a lista de antes já não vale.
+          materiais.isError ? (
+            erroDaLeitura
+          ) : (
+            <EmptyState
+              titulo="Nenhum material ainda"
+              descricao="Envie o primeiro PDF da escola, com a licença declarada. É dele que o Assistente e o Tutor tiram as atividades e as explicações, sempre citando a página."
+              acao={{ rotulo: 'Enviar material', aoAcionar: () => abrir('enviar') }}
+            />
+          )
         ) : (
-          <EmptyState
-            titulo="Nenhum material ainda"
-            descricao="Envie o primeiro PDF da escola, com a licença declarada. É dele que o Assistente e o Tutor tiram as atividades e as explicações, sempre citando a página."
-            acao={{ rotulo: 'Enviar material', aoAcionar: () => abrir('enviar') }}
-          />
-        )
-      ) : (
-        <>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 ref={tituloDaLista} tabIndex={-1} className="text-lg font-semibold text-tinta">
-              Materiais da escola
-            </h2>
-            <Button onClick={() => abrir('enviar')}>Enviar material</Button>
-          </div>
-          {/*
-            Com a lista já na tela, a releitura que falhou é dita aqui com o "Tentar de novo" em `secundario`: o `primario`
-            da tela é um só, o "Enviar material".
-          */}
-          {materiais.isError && (
-            <div className="flex min-w-0 flex-wrap items-center gap-3 rounded-cartao border border-erro bg-erro-cx p-4">
-              <p role="alert" className="min-w-0 flex-1 basis-56 break-words text-erro">
-                {errorMessage(materiais.error)}
-              </p>
-              <Button variante="secundario" onClick={() => void materiais.refetch({ cancelRefetch: false })}>
-                Tentar de novo
-              </Button>
-              <span role="status" className="text-erro">
-                {materiais.isFetching ? 'Tentando de novo…' : ''}
-              </span>
+          <>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 ref={tituloDaLista} tabIndex={-1} className="text-lg font-semibold text-tinta">
+                Materiais da escola
+              </h2>
+              <Button onClick={() => abrir('enviar')}>Enviar material</Button>
             </div>
-          )}
-          <Table
-            rotulo="Lista de materiais"
-            colunas={colunasDosMateriais(nomeDe, abrirPainel, (chave) => definirRecusas((atuais) => atuais.filter((outra) => outra.chave !== chave)))}
-            linhas={linhasDosMateriais(lista.itens, recusas)}
-            chaveDaLinha={(linha) => (linha.tipo === 'material' ? linha.material.id : `recusa-${String(linha.recusa.chave)}`)}
+            {/*
+              Com a lista já na tela, a releitura que falhou é dita aqui com o "Tentar de novo" em `secundario`: o `primario`
+              da tela é um só, o "Enviar material".
+            */}
+            {materiais.isError && (
+              <div className="flex min-w-0 flex-wrap items-center gap-3 rounded-cartao border border-erro bg-erro-cx p-4">
+                <p role="alert" className="min-w-0 flex-1 basis-56 break-words text-erro">
+                  {errorMessage(materiais.error)}
+                </p>
+                <Button variante="secundario" onClick={() => void materiais.refetch({ cancelRefetch: false })}>
+                  Tentar de novo
+                </Button>
+                <span role="status" className="text-erro">
+                  {materiais.isFetching ? 'Tentando de novo…' : ''}
+                </span>
+              </div>
+            )}
+            <Table
+              rotulo="Lista de materiais"
+              colunas={colunasDosMateriais(nomeDe, abrirPainel, (chave) => definirRecusas((atuais) => atuais.filter((outra) => outra.chave !== chave)))}
+              linhas={linhas.slice(0, visiveis)}
+              chaveDaLinha={(linha) => (linha.tipo === 'material' ? linha.material.id : `recusa-${String(linha.recusa.chave)}`)}
+            />
+            {linhas.length > visiveis && (
+              <div className="flex flex-wrap items-center gap-3">
+                <Button variante="secundario" onClick={mostrarMais}>
+                  Mostrar mais
+                </Button>
+                <p className="t-apoio text-apoio">
+                  Mostrando {String(visiveis)} de {String(linhas.length)}
+                </p>
+              </div>
+            )}
+            <AvisoDeListaIncompleta completa={lista.completa} />
+          </>
+        )}
+        <StatusAnnouncement texto={anuncio} />
+        <span role="status" className="sr-only">
+          {emLeitura === 0 ? '' : emLeitura === 1 ? 'Um material está sendo lido.' : `${String(emLeitura)} materiais estão sendo lidos.`}
+        </span>
+
+        {doPainel !== undefined && (
+          <PainelDoMaterial
+            key={doPainel.id}
+            material={doPainel}
+            disciplina={nomeDe(doPainel.disciplinaId)}
+            aoFechar={fecharPainel}
+            aoTentarDeNovo={() => abrir('enviar', doPainel)}
+            aoExcluir={() => abrir('excluir', doPainel)}
+            focoDeReserva={focarNaLista}
           />
-          <AvisoDeListaIncompleta completa={lista.completa} />
-        </>
-      )}
-      <StatusAnnouncement texto={anuncio} />
-      <span role="status" className="sr-only">
-        {emLeitura === 0 ? '' : emLeitura === 1 ? 'Um material está sendo lido.' : `${String(emLeitura)} materiais estão sendo lidos.`}
-      </span>
+        )}
 
-      {doPainel !== undefined && (
-        <PainelDoMaterial
-          key={doPainel.id}
-          material={doPainel}
-          disciplina={nomeDe(doPainel.disciplinaId)}
-          aoFechar={fecharPainel}
-          aoTentarDeNovo={() => abrir('enviar', doPainel)}
-          aoExcluir={() => abrir('excluir', doPainel)}
-          focoDeReserva={focarNaLista}
-        />
-      )}
-
-      {aberta?.tipo === 'enviar' && dasDisciplinas !== undefined && (
-        <DialogoDeEnvioDeMaterial
-          key={aberta.numero}
-          disciplinas={dasDisciplinas.itens}
-          inicial={alvo === undefined ? RASCUNHO_VAZIO : rascunhoDoMaterialQueFalhou(alvo)}
-          {...(alvo === undefined ? {} : { substitui: alvo.id })}
-          aoConcluir={({ enviados, substituiu }) => {
-            dialogo.fecharSeAinda(aberta)
-            definirAnuncio(enviados === 1 ? TEXTO_DO_ENVIO : `${String(enviados)} materiais enviados. A leitura das páginas começa agora e leva alguns instantes.`)
-            if (substituiu !== undefined) tirarDoEndereco(substituiu)
-          }}
-          aoRecusar={registrarRecusa}
-          recarregar={recarregar}
-          aoFechar={fecharDialogo}
-          focoDeReserva={focarNaLista}
-        />
-      )}
-      {aberta?.tipo === 'excluir' && alvo !== undefined && (
-        <ExcluirMaterial
-          key={aberta.numero}
-          material={alvo}
-          disciplina={nomeDe(alvo.disciplinaId)}
-          aoFechar={fecharDialogo}
-          aoTerminar={recarregar}
-          aoExcluir={() => {
-            dialogo.fecharSeAinda(aberta)
-            tirarDoEndereco(alvo.id)
-            definirAnuncio('Material excluído. A busca do Assistente e do Tutor deixou de achá-lo.')
-          }}
-          focoDeReserva={focarNaLista}
-        />
-      )}
-    </section>
+        {aberta?.tipo === 'enviar' && dasDisciplinas !== undefined && (
+          <DialogoDeEnvioDeMaterial
+            key={aberta.numero}
+            disciplinas={dasDisciplinas.itens}
+            inicial={alvo === undefined ? RASCUNHO_VAZIO : rascunhoDoMaterialQueFalhou(alvo)}
+            {...(alvo === undefined ? {} : { substitui: alvo.id })}
+            aoConcluir={({ enviados, substituiu }) => {
+              dialogo.fecharSeAinda(aberta)
+              definirAnuncio(enviados === 1 ? TEXTO_DO_ENVIO : `${String(enviados)} materiais enviados. A leitura das páginas começa agora e leva alguns instantes.`)
+              if (substituiu !== undefined) tirarDoEndereco(substituiu)
+            }}
+            aoRecusar={registrarRecusa}
+            recarregar={recarregar}
+            aoFechar={fecharDialogo}
+            focoDeReserva={focarNaLista}
+          />
+        )}
+        {aberta?.tipo === 'excluir' && alvo !== undefined && (
+          <ExcluirMaterial
+            key={aberta.numero}
+            material={alvo}
+            disciplina={nomeDe(alvo.disciplinaId)}
+            aoFechar={fecharDialogo}
+            aoTerminar={recarregar}
+            aoExcluir={() => {
+              dialogo.fecharSeAinda(aberta)
+              tirarDoEndereco(alvo.id)
+              definirAnuncio('Material excluído. A busca do Assistente e do Tutor deixou de achá-lo.')
+            }}
+            focoDeReserva={focarNaLista}
+          />
+        )}
+      </section>
+    </div>
   )
 }
 

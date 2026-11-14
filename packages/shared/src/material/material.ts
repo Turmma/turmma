@@ -165,6 +165,42 @@ export type Material = z.infer<typeof materialSchema>
 export const materialResponseSchema = materialSchema
 export type MaterialResponse = Material
 
+/** Quantos dias para trás o resumo conta os envios recusados (RF18): 30, a janela que a coordenação lê como "no último mês". */
+export const DIAS_DAS_RECUSAS_NO_RESUMO = 30
+
+/**
+ * Os motivos de `material.recusado` que o resumo conta (RF18; Tech Spec, seção 4): os que a API respondeu `MATERIAL_SEM_LICENCA` (`sem_licenca` e `sem_declaracao`) e `LICENCA_VENCIDA`
+ * (`licenca_vencida`). `licenca_inexistente` fica de fora: a resposta foi `NAO_ENCONTRADO`, igual à da licença de outra escola, e contá-la diria à coordenação que a escola B existe (regra 10, item 6).
+ */
+export const MOTIVOS_DA_RECUSA_QUE_O_RESUMO_CONTA: readonly (MotivoDaRecusaDoMaterial | MotivoDaRecusaPelaLicencaRegistrada)[] = ['sem_licenca', 'sem_declaracao', 'licenca_vencida']
+
+const contagem = z.number().int().nonnegative()
+
+/**
+ * Uma linha do resumo do material: o que a escola tem de uma disciplina numa série (RF18). `serieId` nulo é a linha **sem série**, o material que a migração deixou sem nenhuma (a escola sem série
+ * na época) e a recusa de edição sobre ele. O material com várias séries conta em cada uma delas. Só contagens: nunca título, quem enviou nem licenciante (regra 70, itens 7 e 9).
+ */
+export const linhaDoResumoDoMaterialSchema = z.strictObject({
+  disciplinaId: z.uuid(),
+  serieId: z.uuid().nullable(),
+  pronto: contagem,
+  processando: contagem,
+  falhou: contagem,
+  /** Os envios recusados por falta de licença, de declaração ou de vigência nos últimos `DIAS_DAS_RECUSAS_NO_RESUMO` dias, na série que a recusa conferiu. */
+  recusados30Dias: contagem,
+})
+export type ResumoDoMaterialRow = z.infer<typeof linhaDoResumoDoMaterialSchema>
+
+/**
+ * Resposta de `GET /v1/materiais/resumo` (só a coordenação): uma linha por disciplina e série que tem material ou recusa, e quantos materiais da escola estão sem série (excluído e substituído não contam).
+ * Não tem página: é um agregado do tamanho das disciplinas da escola vezes as sete séries.
+ */
+export const resumoDoMaterialResponseSchema = z.strictObject({
+  linhas: z.array(linhaDoResumoDoMaterialSchema),
+  semSerie: contagem,
+})
+export type ResumoDoMaterialResponse = z.infer<typeof resumoDoMaterialResponseSchema>
+
 /** O teto do título de um capítulo: a coluna `capitulo_do_material.titulo` (check `capitulo_do_material_titulo_preenchido`) e o corte do leitor. */
 export const TAMANHO_MAXIMO_DO_TITULO_DO_CAPITULO = 200
 

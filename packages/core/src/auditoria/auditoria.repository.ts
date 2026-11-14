@@ -1,5 +1,5 @@
 import { PAPEIS_QUE_GERAM_A_SENHA_PROVISORIA, MAXIMO_DE_PROVISORIAS_ANTERIORES_NA_TROCA, type PapelQueGeraASenhaProvisoria } from '@educa/shared'
-import { and, desc, eq, inArray } from 'drizzle-orm'
+import { and, desc, eq, inArray, sql } from 'drizzle-orm'
 import type { NodePgQueryResultHKT } from 'drizzle-orm/node-postgres'
 import type { PgDatabase } from 'drizzle-orm/pg-core'
 import { currentContext } from '../context/context.js'
@@ -35,6 +35,13 @@ export interface ProvisoriaAnterior {
 
 /** Quantos registros de `gerada` e `usada` do aluno a leitura olha: cada geração tem no máximo um uso, e as cotas (5 por dia) deixam isto bem acima das 11 gerações que ela precisa. */
 const REGISTROS_LIDOS_POR_ALUNO = 60
+
+/** Quantos envios de material foram recusados numa disciplina e numa série (ou sem série: `serieId` nulo), contados da auditoria. Só ids e uma contagem. */
+export interface RecusaDeMaterialContada {
+  readonly disciplinaId: string
+  readonly serieId: string | null
+  readonly total: number
+}
 
 export const LIMITE_PADRAO_DA_LISTAGEM = 100
 export const LIMITE_MAXIMO_DA_LISTAGEM = 500
@@ -81,6 +88,31 @@ export class AuditoriaRepository {
       const usada = usos.some((uso) => uso.em >= geracao.em && (seguinte === undefined || uso.em < seguinte.em))
       return { geradaEm: geracao.em, papel: papelDaGeracao(geracao.depois), usada }
     })
+  }
+
+  /**
+   * Os envios de material recusados da escola do contexto desde `desde`, por disciplina e por série (ingestao-do-material, 11.0; RF18): a base do resumo do material. Conta só os registros
+   * `material.recusado` com um dos `motivos` (sem motivo nenhum, a resposta é vazia, sem consulta), e a recusa de várias séries cai em cada uma delas, como o material de várias séries. A recusa sem série (a edição de um material que a migração
+   * deixou sem nenhuma) volta com `serieId` nulo. O `entidade_id` do registro é a disciplina, e a consulta o prende (`entidade = 'disciplina'`: a ação `material.recusado` não grava outra). O texto de `acao` vai escrito na consulta, e não como parâmetro,
+   * para o índice parcial `auditoria_material_recusado_idx` servir. Sem escola, `requireEscolaId` recusa.
+   */
+  async recusasDeMaterialDesde(desde: Date, motivos: readonly string[]): Promise<RecusaDeMaterialContada[]> {
+    const escolaId = requireEscolaId()
+    if (motivos.length === 0) return []
+    const resultado = await this.banco.execute<{ disciplina_id: string; serie_id: string | null; total: number }>(sql`
+      select a.entidade_id as disciplina_id, s.serie_id, count(*)::int as total
+      from auditoria a
+      left join lateral jsonb_array_elements_text(a.depois -> 'serieIds') as s(serie_id) on true
+      where a.escola_id = ${escolaId}
+        and a.acao = 'material.recusado'
+        and a.entidade = 'disciplina'
+        and a.em >= ${desde.toISOString()}::timestamptz
+        and a.depois ->> 'motivo' in (${sql.join(
+          motivos.map((motivo) => sql`${motivo}`),
+          sql`, `,
+        )})
+      group by a.entidade_id, s.serie_id`)
+    return resultado.rows.map((linha) => ({ disciplinaId: linha.disciplina_id, serieId: linha.serie_id, total: linha.total }))
   }
 }
 

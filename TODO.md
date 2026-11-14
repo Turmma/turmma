@@ -3566,3 +3566,26 @@ aula" em `Retencao.tsx`, o Validador conferiu: a tela já o mostra pela descriç
       depois do `porId`); ver na retrospectiva da F4
 - [ ] (ingestao-do-material, 10.0, test-engineer e revisor-geral, 2ª) **Caso "dois materiais citados": `expect(conteudo.questoes).toHaveLength(3)` antes do `forEach`**, e não depender do `edicaoNova` do
       caso anterior (rodado com `-t`, ele falha). A premissa já está provada no caminho feliz
+
+## Da ingestao-do-material, tarefa 11.0, fora dela
+
+- [ ] (ingestao-do-material, 11.0, infra-guardian, 1ª) **A lista da aba Material já se relê perto do teto por usuário antes do resumo.** Com mais de 200 materiais, `lerPaginas` lê 3 páginas a cada 1,5 s (`api/material.ts:29` e `:38`): 120 pedidos por minuto,
+      o `LIMITE_REQ_USUARIO_MIN` de `.env.example`. **Priorizar antes do piloto** (escola com 201 a 300 materiais e um `processando` já está nos 120 por minuto só com a lista). Correção própria: reler só o que está `processando`, ou aumentar o intervalo, com o cenário de 300 materiais e um processando. O resumo (11.0) não soma a isso: só se relê quando um estado muda
+- [ ] (ingestao-do-material, 11.0, frontend-reviewer e revisor-geral, 1ª) **Dois vazios empilhados na escola nova.** "Ainda não há material para resumir…" (resumo) e "Nenhum material ainda" (lista). `cenarios.md` "Telas" pede o vazio do resumo como estado próprio;
+      esconder um deles muda o que a spec pede. Decisão do Arquiteto na retro da F4
+- [ ] (ingestao-do-material, 11.0, frontend-reviewer e revisor-geral, 1ª) **O texto do aviso das séries da migração** (`resumo-do-material.ts`, `avisoDaMigracao`): abre com "migração", fala de "9º ano" e "6º" e não pode ser dispensado.
+      É o texto de `cenarios.md`; a decisão é do Arquiteto na retro
+- [ ] (ingestao-do-material, 11.0, frontend-reviewer, 1ª) **"Disciplina" e "Série" soltos na tabela do resumo** quando o id não está na lista lida (`linhasDoResumo`). Texto de tela, caso raro (a disciplina ou a série criada depois da leitura)
+- [ ] (ingestao-do-material, 11.0, revisor-geral, 1ª) **O erro da releitura das disciplinas e das séries não aparece no resumo** (`ResumoDoMaterial.tsx`, `releituraFalhou={resumo.isError}`). O nome na tela continua certo e não bloqueia; muda o comportamento da tela
+- [x] *(resolvido na própria 11.0: o resumo não tem laço, e o caso espera o estado que muda na lista, sem o relógio de 4 s)* (ingestao-do-material, 11.0, test-engineer, 1ª) **A releitura do resumo esperava o `refetchInterval` de 1,5 s pelo relógio de verdade** (`ResumoDoMaterial.test.tsx`)
+- [ ] (ingestao-do-material, 11.0, conformidade-reviewer, 1ª) **Semear materiais na escola cheia da vitrine** (`tools/vitrine/escola.ts:216`), para a tela do resumo com dado ter foto. Sem isso, só o vazio é fotografável: o Validador precisa saber, ao fotografar cada requisito com tela no fim da spec
+- [ ] (ingestao-do-material, 11.0, privacy-guardian, 1ª; Implementador, 2ª) **Um caso de integração da rota do resumo com a sessão da rede.** `apps/api/test/sessao.fixture.ts` só cria coordenador, professor e aluno (`PapelDeUsuario`); a permissão da
+      rede segue provada pela matriz (`matriz.test.ts`). Voltar quando um caso de integração precisar de sessão da rede
+- [ ] (ingestao-do-material, 11.0, revisor-geral, 2ª) **O `useRef` da assinatura anterior (`useRelerOResumoQuandoUmEstadoMuda`) não é zerado em `aoTrocarDeSessao`.** Inofensivo (o cache já foi esvaziado; só uma releitura a mais)
+- [ ] (ingestao-do-material, 11.0, revisor-geral, infra-guardian e test-engineer, 2ª) **Esperas negativas pelo relógio de verdade em `ResumoDoMaterial.test.tsx`** (100 ms e 1,8 s). Não dão falso vermelho, e a ausência do `refetchInterval` já está
+      provada de forma determinística em `resumo-do-material.test.ts`
+- [ ] (ingestao-do-material, 11.0, test-engineer, 2ª) **O portão confirmar a build de `packages/shared` e `packages/core` antes dos `.int.test.ts`** (`tools/processo/`). O `dist` mais velho que o código fez o `material-resumo.int.test.ts` dar 404 na rota
+      na máquina do revisor; o carimbo do portão desta árvore vale
+- [ ] (ingestao-do-material 11.0, test-engineer 3ª e 4ª, infra-guardian 3ª, revisor-geral 4ª) **Não comparar a lista com o resumo quando a lista veio incompleta (`completa: false`).** `resumoFicouParaTras` (`resumo-do-material.ts:83-85`) a ignora: na escola acima do teto de `lerPaginas`
+      (10 páginas de 100, `MAXIMO_DE_PAGINAS_DA_ESTRUTURA`, `apps/web/src/api/estrutura.ts:44`), o material `processando` fora das páginas faz cada mudança na lista pedir duas leituras do resumo, e não uma; e um resumo diferente a cada resposta, ainda contando `processando`, repete a releitura.
+      Não é laço (um resumo relido igual para em duas leituras, provado no caso "o resumo relido que ainda conta…"), é uma leitura a mais; a escola com mais de 1000 materiais não é a do recorte. Junto da linha da lista que se relê perto do teto

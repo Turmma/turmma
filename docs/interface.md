@@ -637,6 +637,13 @@ os quatro estados; o vazio da grade convida a "Baixar modelo".
   ("12 de 20 enviados", contando os que já estavam na escola) recebe o foco no fim, e uma região `aria-live` diz a situação de cada arquivo. Sem licença,
   ou sem a declaração, o envio é recusado antes de ler o arquivo, e a recusa entra na tabela e na auditoria, com as séries (`docs/lgpd.md`).
   Cada abertura é um formulário novo; quem fecha o diálogo deixa de enviar os arquivos seguintes
+  **O resumo no topo da aba Materiais** (ingestao-do-material, 11.0; RF18) vem antes da tabela, em uma região própria ("Resumo do material"): **uma linha por disciplina e série**, com
+  quantos materiais estão **Prontos**, **Processando** e **Com falha**, e quantos envios foram **recusados por licença nos últimos 30 dias** (a recusa por arquivo inválido ou por limite não conta).
+  A tabela vira lista a 360 px, e são só contagens: nenhum título, licenciante nem autor. O material **sem série** é a linha **"Sem série"** da disciplina, por último, e dispara o aviso **"Séries atribuídas na migração"**, que pede à coordenação que
+  confira a série de cada um (o material de antes da declaração de séries ganhou todas, e o aviso também aparece quando algum tem todas as séries da escola). Os quatro estados valem para o resumo (carregando, erro com "Tentar de novo", vazio que diz o que
+  acontece quando o primeiro PDF chega, e a tabela); se a releitura falha com o resumo já na tela, o erro vem ao lado e o número de antes fica. O resumo **não tem laço próprio**: se relê quando a lista mostra que um material mudou de estado (terminou, entrou ou saiu: o envio e a exclusão passam por aí) e quando um envio é recusado. O "Tentar de novo o resumo" é o botão secundário dele, com nome próprio, para não repetir o da lista quando as duas leituras caem juntas.
+  **A tabela de materiais mostra 25 por vez**, com "Mostrando 25 de N" e o botão secundário **"Mostrar mais"**, que revela mais 25, anuncia quantos estão à vista e, ao revelar o último, leva o foco ao título da lista.
+  Só a coordenação vê o resumo; o professor não alcança a aba
 
 **Registros** tem três abas, **IA, Pedidos e Privacidade**, que recebem a tabela da Governança, o
 item Agentes e o item Privacidade de hoje.

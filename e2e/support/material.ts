@@ -97,6 +97,13 @@ export function criarMateriaisNoBanco(escolaId: string, disciplinaId: string, qu
   })
 }
 
+/** Dá ao material todas as séries da escola, como o envio com séries declaradas deixa: sem isso o material do seed fica "sem série" (ingestao-do-material, 11.0). */
+export function vincularMaterialAsSeriesNoBanco(escolaId: string, materialId: string): Promise<void> {
+  return comBanco(async (banco) => {
+    await banco.query('insert into material_serie (escola_id, material_id, serie_id) select escola_id, $2, id from serie where escola_id = $1', [escolaId, materialId])
+  })
+}
+
 /** A falha gravada: só o material que `falhou` a tem (o check do banco), com a que o caso pediu ou `sem_texto`. */
 function falhaDoMaterial(material: MaterialDeTeste): string | null {
   return material.estado === 'falhou' ? (material.falha ?? 'sem_texto') : null

@@ -9,6 +9,12 @@ import { doMaisNovoAoMaisAntigo, OPCOES_DE_LICENCA, textoDoEstado, type Rascunho
  * módulo puro para a ordem e a busca pelo id terem teste de unidade e para a tela só desenhar.
  */
 
+/**
+ * Quantas linhas da tabela de materiais aparecem de cada vez (ingestao-do-material, 11.0; `cenarios.md`, "Telas"): a escola com 300 apostilas não desenha 300 linhas no Chromebook de uma vez, e "Mostrar mais" revela
+ * as próximas. A lista inteira já foi lida (`lerPaginas`) e o painel abre qualquer material pelo endereço; o que se limita é o que se desenha.
+ */
+export const MATERIAIS_POR_VEZ = 25
+
 /** Um envio recusado por licença: existe só na tela, porque a recusa não vira material (D5). Fica na tabela até a pessoa dispensá-la. */
 export interface RecusaDeEnvio {
   readonly chave: number

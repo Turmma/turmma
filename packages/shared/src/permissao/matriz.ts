@@ -91,9 +91,10 @@ export const RECURSOS = {
   /**
    * O material da escola (MVP, A2; D75): `enviar`, `listar`, `ler` e `excluir` são `POST`, `GET`, `GET /:id` e `DELETE` de
    * `/v1/materiais`; `buscar`, `GET /v1/materiais/busca`. Só a coordenação envia e exclui. O professor lê e busca só o das
-   * disciplinas em que tem vínculo confirmado; o aluno não lê material (o Tutor lê por ele, no servidor).
+   * disciplinas em que tem vínculo confirmado; o aluno não lê material (o Tutor lê por ele, no servidor). `resumir` é `GET /v1/materiais/resumo` (ingestao-do-material, 11.0; RF18): só a coordenação, a unidade
+   * toda; o professor, o aluno e a rede nunca o alcançam (a recusa por licença é assunto da coordenação).
    */
-  material: ['enviar', 'listar', 'ler', 'excluir', 'buscar'],
+  material: ['enviar', 'listar', 'ler', 'excluir', 'buscar', 'resumir'],
   /**
    * A licença do material de terceiro (ingestao-do-material, 5.0; PRD, RF16): `listar`, `registrar` e `alterar` são `GET`, `POST` e `PATCH /:id` de
    * `/v1/licencas`. Só a coordenação: o professor, o aluno e a rede nunca a alcançam (o licenciante pode ser nome de pessoa). Não se exclui.
@@ -248,7 +249,7 @@ export const MATRIZ: { readonly [P in Papel]: CelulasDoPapel } = {
     senha_provisoria: { gerar: 'nunca' },
     professor: { listar: 'nunca', cadastrar: 'nunca', refazer_convite: 'nunca', revogar_convite: 'nunca', corrigir_email: 'nunca' },
     indicador_professor: { ler_agregado: 'agregado', ler_nominal: 'nunca' },
-    material: { enviar: 'nunca', listar: 'nunca', ler: 'nunca', excluir: 'nunca', buscar: 'nunca' },
+    material: { enviar: 'nunca', listar: 'nunca', ler: 'nunca', excluir: 'nunca', buscar: 'nunca', resumir: 'nunca' },
     licenca: { listar: 'nunca', registrar: 'nunca', alterar: 'nunca' },
     importacao_planilha: { previa: 'nunca', gravar: 'nunca', ler: 'nunca' },
     calendario: { ler: 'nunca' },
@@ -296,7 +297,7 @@ export const MATRIZ: { readonly [P in Papel]: CelulasDoPapel } = {
     senha_provisoria: { gerar: 'unidade' },
     professor: { listar: 'unidade', cadastrar: 'unidade', refazer_convite: 'unidade', revogar_convite: 'unidade', corrigir_email: 'unidade' },
     indicador_professor: { ler_agregado: 'agregado', ler_nominal: 'nominal_auditado' },
-    material: { enviar: 'unidade', listar: 'unidade', ler: 'unidade', excluir: 'unidade', buscar: 'unidade' },
+    material: { enviar: 'unidade', listar: 'unidade', ler: 'unidade', excluir: 'unidade', buscar: 'unidade', resumir: 'unidade' },
     licenca: { listar: 'unidade', registrar: 'unidade', alterar: 'unidade' },
     importacao_planilha: { previa: 'unidade', gravar: 'unidade', ler: 'unidade' },
     calendario: { ler: 'unidade' },
@@ -344,7 +345,7 @@ export const MATRIZ: { readonly [P in Papel]: CelulasDoPapel } = {
     senha_provisoria: { gerar: 'turma_vinculada' },
     professor: { listar: 'nunca', cadastrar: 'nunca', refazer_convite: 'nunca', revogar_convite: 'nunca', corrigir_email: 'nunca' },
     indicador_professor: { ler_agregado: 'nunca', ler_nominal: 'proprio' },
-    material: { enviar: 'nunca', listar: 'turma_vinculada', ler: 'turma_vinculada', excluir: 'nunca', buscar: 'turma_vinculada' },
+    material: { enviar: 'nunca', listar: 'turma_vinculada', ler: 'turma_vinculada', excluir: 'nunca', buscar: 'turma_vinculada', resumir: 'nunca' },
     licenca: { listar: 'nunca', registrar: 'nunca', alterar: 'nunca' },
     importacao_planilha: { previa: 'nunca', gravar: 'nunca', ler: 'nunca' },
     calendario: { ler: 'turma_vinculada' },
@@ -392,7 +393,7 @@ export const MATRIZ: { readonly [P in Papel]: CelulasDoPapel } = {
     senha_provisoria: { gerar: 'nunca' },
     professor: { listar: 'nunca', cadastrar: 'nunca', refazer_convite: 'nunca', revogar_convite: 'nunca', corrigir_email: 'nunca' },
     indicador_professor: { ler_agregado: 'nunca', ler_nominal: 'nunca' },
-    material: { enviar: 'nunca', listar: 'nunca', ler: 'nunca', excluir: 'nunca', buscar: 'nunca' },
+    material: { enviar: 'nunca', listar: 'nunca', ler: 'nunca', excluir: 'nunca', buscar: 'nunca', resumir: 'nunca' },
     licenca: { listar: 'nunca', registrar: 'nunca', alterar: 'nunca' },
     importacao_planilha: { previa: 'nunca', gravar: 'nunca', ler: 'nunca' },
     calendario: { ler: 'nunca' },

@@ -1,6 +1,7 @@
-import { DEFAULT_RETRY_AFTER_SECONDS, DomainException, AuditoriaRecorder, diaDeUso, FileStorageUnavailableError, JobOutbox, postgresErrorIn, summarizeError, requestSessao, systemClock, type Clock, type Database, type DatabaseTransaction, type FileStorage, type LoggerBase } from '@educa/core'
+import { DEFAULT_RETRY_AFTER_SECONDS, DomainException, AuditoriaRecorder, AuditoriaRepository, diaDeUso, FileStorageUnavailableError, JobOutbox, postgresErrorIn, summarizeError, requestSessao, systemClock, type Clock, type Database, type DatabaseTransaction, type FileStorage, type LoggerBase } from '@educa/core'
 import {
   alcanceDe,
+  DIAS_DAS_RECUSAS_NO_RESUMO,
   ErrorCode,
   TIPO_EXTRAIR_PDF,
   buscaDeMaterialResponseSchema,
@@ -8,6 +9,8 @@ import {
   materialComCapitulosResponseSchema,
   materialResponseSchema,
   motivoDaRecusaDoMaterial,
+  MOTIVOS_DA_RECUSA_QUE_O_RESUMO_CONTA,
+  resumoDoMaterialResponseSchema,
   situacaoDaLicenca,
   type BuscaDeMaterialQuery,
   type MateriaisQuery,
@@ -19,7 +22,9 @@ import {
   type BuscaDeMaterialResponse,
   type ListaDeMateriaisResponse,
   type MaterialComCapitulosResponse,
+  type ResumoDoMaterialRow,
   type MaterialResponse,
+  type ResumoDoMaterialResponse,
 } from '@educa/shared'
 import { createHash } from 'node:crypto'
 import { DisciplinaRepository } from '@educa/core/estrutura'
@@ -124,9 +129,14 @@ export interface MaterialDependencies {
 export class MaterialService {
   constructor(private readonly dependencias: MaterialDependencies) {}
 
+  /** O instante de agora, do `Clock` injetado: o teste põe o dele, e o que conta dias (a licença, a janela do resumo) lê só dele, nunca do relógio do computador. */
+  #agora(): Date {
+    return (this.dependencias.relogio ?? systemClock).agora()
+  }
+
   /** O dia de São Paulo em que a licença é conferida: às 23h do último dia ela ainda vale, e às 0h01 do seguinte não. */
   #hoje(): string {
-    return diaDeUso((this.dependencias.relogio ?? systemClock).agora())
+    return diaDeUso(this.#agora())
   }
 
   /** A recusa fica na auditoria, fora de qualquer transação do envio (o `rollback` dela não a leva), com as séries **já conferidas** da escola. */
@@ -443,6 +453,40 @@ export class MaterialService {
     // Só o `processando` ainda tem o objeto: o `pronto` e o `falhou` já o apagaram. Depois do commit, e sem poder desfazer a exclusão:
     // o que não saiu agora sai no expurgo noturno (`excluidosComObjeto`).
     if (estado === 'processando') await this.#apagarObjetoDoExcluido(id)
+  }
+
+  /**
+   * `GET /v1/materiais/resumo` (ingestao-do-material, 11.0; RF18): só a coordenação (a célula `material.resumir`). Por disciplina e série, quantos materiais da escola estão `pronto`, `processando` e `falhou`
+   * (o excluído e o substituído não contam, e o material de várias séries conta em cada uma), quantos envios foram recusados nos últimos `DIAS_DAS_RECUSAS_NO_RESUMO` dias por falta de licença, de declaração ou de vigência
+   * (`MOTIVOS_DA_RECUSA_QUE_O_RESUMO_CONTA`, lidos da auditoria, na série que a recusa conferiu) e quantos materiais estão sem série. A janela é contada do `Clock` do serviço. Não depende do ano letivo: a escola sem ano em curso o vê.
+   * Só ids e contagens (regra 70, itens 7 e 9): nenhum título, licenciante nem autor.
+   */
+  async resumir(): Promise<ResumoDoMaterialResponse> {
+    const { banco } = this.dependencias
+    const desde = new Date(this.#agora().getTime() - DIAS_DAS_RECUSAS_NO_RESUMO * 24 * 60 * 60_000)
+    const [materiais, recusas] = await Promise.all([
+      new MaterialRepository(banco).contarPorDisciplinaESerie(),
+      new AuditoriaRepository(banco).recusasDeMaterialDesde(desde, MOTIVOS_DA_RECUSA_QUE_O_RESUMO_CONTA),
+    ])
+    const linhas = new Map<string, ResumoDoMaterialRow>()
+    const linhaDe = (disciplinaId: string, serieId: string | null): ResumoDoMaterialRow => {
+      const chave = `${disciplinaId}|${serieId ?? ''}`
+      const achada = linhas.get(chave)
+      if (achada !== undefined) return achada
+      const nova: ResumoDoMaterialRow = { disciplinaId, serieId, pronto: 0, processando: 0, falhou: 0, recusados30Dias: 0 }
+      linhas.set(chave, nova)
+      return nova
+    }
+    let semSerie = 0
+    for (const contado of materiais) {
+      linhaDe(contado.disciplinaId, contado.serieId)[contado.estado] += contado.total
+      if (contado.serieId === null) semSerie += contado.total
+    }
+    for (const recusada of recusas) {
+      linhaDe(recusada.disciplinaId, recusada.serieId).recusados30Dias += recusada.total
+    }
+    // A ordem é da tela, que a faz pelo nome da disciplina e pela posição da série (`linhasDoResumo`).
+    return resumoDoMaterialResponseSchema.parse({ linhas: [...linhas.values()], semSerie })
   }
 
   /**

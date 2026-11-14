@@ -6,12 +6,15 @@ import {
   enviarEdicaoRequestSchema,
   enviarMaterialRequestSchema,
   buscaDeMaterialResponseSchema,
+  DIAS_DAS_RECUSAS_NO_RESUMO,
   LICENCAS_DE_MATERIAL,
   MAXIMO_DE_BYTES_DO_MATERIAL,
   MAXIMO_DE_PDFS_POR_LOTE,
   MAXIMO_DE_SERIES_DO_MATERIAL,
   materiaisQuerySchema,
   motivoDaRecusaDoMaterial,
+  MOTIVOS_DA_RECUSA_QUE_O_RESUMO_CONTA,
+  resumoDoMaterialResponseSchema,
   SEM_LICENCA,
   TAMANHO_MAXIMO_DA_EDICAO,
 } from './material.js'
@@ -113,5 +116,37 @@ describe('edição do material (8.0): só o rótulo e o título vêm do pedido, 
     // Sem os dois campos, a resposta não é do contrato: a tela precisa de `edicao` e `substitui`, mesmo nulos.
     expect(materialSchema.safeParse(material).success).toBe(false)
     for (const campo of [{ edicao: '' }, { edicao: 'x'.repeat(61) }, { substitui: 'não é id' }]) expect(materialSchema.safeParse({ ...material, edicao: null, substitui: null, ...campo }).success, JSON.stringify(campo)).toBe(false)
+  })
+})
+
+describe('o resumo do material (ingestao-do-material, 11.0; RF18): só ids e contagens', () => {
+  const linha = { disciplinaId: UM_ID, serieId: OUTRO_ID, pronto: 2, processando: 1, falhou: 0, recusados30Dias: 3 }
+
+  it('a linha de uma série e a sem série, de serieId nulo, passam, com o total dos sem série', () => {
+    expect(resumoDoMaterialResponseSchema.safeParse({ linhas: [linha, { ...linha, serieId: null }], semSerie: 4 }).success).toBe(true)
+    expect(resumoDoMaterialResponseSchema.safeParse({ linhas: [], semSerie: 0 }).success).toBe(true)
+  })
+
+  it('campo a mais, na linha ou na resposta, não passa: o resumo não leva título, licenciante nem autor', () => {
+    expect(resumoDoMaterialResponseSchema.safeParse({ linhas: [{ ...linha, titulo: 'Apostila' }], semSerie: 0 }).success).toBe(false)
+    expect(resumoDoMaterialResponseSchema.safeParse({ linhas: [linha], semSerie: 0, licenciante: 'Editora' }).success).toBe(false)
+  })
+
+  it('a contagem negativa ou fracionária não passa, em cada campo', () => {
+    for (const campo of ['pronto', 'processando', 'falhou', 'recusados30Dias'] as const) {
+      for (const valor of [-1, 1.5]) expect(resumoDoMaterialResponseSchema.safeParse({ linhas: [{ ...linha, [campo]: valor }], semSerie: 0 }).success, `${campo} ${String(valor)}`).toBe(false)
+    }
+    for (const valor of [-1, 1.5]) expect(resumoDoMaterialResponseSchema.safeParse({ linhas: [], semSerie: valor }).success, `semSerie ${String(valor)}`).toBe(false)
+  })
+
+  it('a disciplina e a série são ids, e a série é o único campo que pode ser nulo', () => {
+    expect(resumoDoMaterialResponseSchema.safeParse({ linhas: [{ ...linha, disciplinaId: 'Química' }], semSerie: 0 }).success).toBe(false)
+    expect(resumoDoMaterialResponseSchema.safeParse({ linhas: [{ ...linha, disciplinaId: null }], semSerie: 0 }).success).toBe(false)
+    expect(resumoDoMaterialResponseSchema.safeParse({ linhas: [{ ...linha, serieId: '6º ano' }], semSerie: 0 }).success).toBe(false)
+  })
+
+  it('a janela é de 30 dias e os motivos são os três que a API responde como licença; a licença inexistente fica de fora', () => {
+    expect(DIAS_DAS_RECUSAS_NO_RESUMO).toBe(30)
+    expect([...MOTIVOS_DA_RECUSA_QUE_O_RESUMO_CONTA].sort()).toEqual(['licenca_vencida', 'sem_declaracao', 'sem_licenca'])
   })
 })

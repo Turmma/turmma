@@ -105,25 +105,31 @@ type Resposta = FakeResponse | (() => FakeResponse | Promise<FakeResponse>)
 interface Respostas {
   materiais: Resposta
   disciplinas: Resposta
+  /** O resumo do topo da aba (`GET /v1/materiais/resumo`, ingestao-do-material, 11.0): a rede falsa responde por caminho exato, e o resumo não pode tomar a vez do que o caso enfileirou. */
+  resumo: Resposta
 }
 const PADRAO: Respostas = {
   // Na ordem de envio da API: o mais antigo primeiro.
   materiais: ok([PRONTO, SEM_TEXTO, MAIS_NOVO]),
   disciplinas: ok([QUIMICA, FISICA]),
+  resumo: { status: 200, corpo: { linhas: [{ disciplinaId: QUIMICA.id, serieId: SERIE_6.id, pronto: 2, processando: 0, falhou: 1, recusados30Dias: 0 }], semSerie: 0 } },
 }
 
-/** As séries e as licenças que o diálogo de envio lê ao abrir: as da escola do teste. */
-function instalarSeriesELicencas(rede: FakeNetwork, licencas: Resposta = ok([LICENCA_VIGENTE]), series: Resposta = ok([SERIE_6, SERIE_7])): void {
+/**
+ * As séries e as licenças que o diálogo de envio lê ao abrir: as da escola do teste. E o resumo do topo: a rede falsa casa o caminho exato, e o caso que instala `/v1/materiais/<qualquer id>` por expressão
+ * regular, ou que enfileira respostas, perderia a vez para o resumo se ele não tivesse a dele. Chamada antes do que é do caso, a primeira resposta por caminho é a que vale.
+ */
+function instalarSeriesELicencas(rede: FakeNetwork, licencas: Resposta = ok([LICENCA_VIGENTE]), series: Resposta = ok([SERIE_6, SERIE_7]), resumo: Resposta = PADRAO.resumo): void {
   rede.responderPor('/v1/series', series)
   rede.responderPor('/v1/licencas', licencas)
+  rede.responderPor('/v1/materiais/resumo', resumo)
 }
 
 function instalar(rede: FakeNetwork, parcial: Partial<Respostas> = {}): void {
-  instalarSeriesELicencas(rede)
   const respostas = { ...PADRAO, ...parcial }
+  instalarSeriesELicencas(rede, ok([LICENCA_VIGENTE]), ok([SERIE_6, SERIE_7]), respostas.resumo)
   rede.responderPor('/v1/materiais', respostas.materiais)
   rede.responderPor('/v1/disciplinas', respostas.disciplinas)
-  instalarSeriesELicencas(rede)
 }
 
 /** Os pedidos que a tela fez, sem a consulta: `GET /v1/materiais`, `POST /v1/materiais`, `DELETE /v1/materiais/<id>`. */
@@ -224,7 +230,7 @@ describe('os quatro estados da tela', () => {
     instalar(fakeNetwork(), { materiais: nuncaResponde })
     montar()
     expect(await screen.findByText('Carregando os materiais…')).toBeTruthy()
-    expect(screen.queryByRole('table')).toBeNull()
+    expect(screen.queryByRole('table', { name: 'Lista de materiais' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Enviar material' })).toBeNull()
   })
 
@@ -243,12 +249,12 @@ describe('os quatro estados da tela', () => {
   })
 
   it('vazio: "Nenhum material ainda", com "Enviar material" — o único botão da tela — e nenhuma tabela', async () => {
-    instalar(fakeNetwork(), { materiais: ok([]) })
+    instalar(fakeNetwork(), { materiais: ok([]), resumo: { status: 200, corpo: { linhas: [], semSerie: 0 } } })
     montar()
     expect(await screen.findByText('Nenhum material ainda')).toBeTruthy()
     expect(screen.getAllByRole('button')).toHaveLength(1)
     expect(cheios()).toEqual(['Enviar material'])
-    expect(screen.queryByRole('table')).toBeNull()
+    expect(screen.queryByRole('table', { name: 'Lista de materiais' })).toBeNull()
   })
 
   it('com dado: a tabela em português, o que não carregou primeiro e depois o mais novo, cada situação em texto', async () => {
@@ -299,7 +305,7 @@ describe('os quatro estados da tela', () => {
     instalar(fakeNetwork())
     montar()
     const lista = await screen.findByRole('list', { name: 'Lista de materiais' })
-    expect(screen.queryByRole('table')).toBeNull()
+    expect(screen.queryByRole('table', { name: 'Lista de materiais' })).toBeNull()
     expect(within(lista).getAllByRole('listitem')).toHaveLength(3)
     expect(within(lista).getAllByText('Situação').length).toBeGreaterThan(0)
     await usuario.click(within(lista).getByRole('button', { name: 'Capítulo pronto' }))
@@ -790,7 +796,7 @@ describe('a recusa por licença', () => {
     expect(within(recusada).queryByRole('button', { name: 'Apostila sem dono' })).toBeNull()
     expect(Array.from(recusada.children)[1]?.textContent).toBe('Química')
     expect(Array.from(recusada.children)[2]?.textContent).toBe(SEM_LICENCA)
-    expect(pedidosDe(rede).filter((pedido) => pedido.includes('/v1/materiais/'))).toEqual([])
+    expect(pedidosDe(rede).filter((pedido) => pedido.includes('/v1/materiais/') && !pedido.endsWith('/v1/materiais/resumo'))).toEqual([])
   })
 
   it('a falha do pedido de recusa que não é a recusa (o servidor fora) é dita como falha, sem linha de recusa na tabela', async () => {
@@ -871,7 +877,7 @@ describe('a recusa por licença', () => {
 
     await usuario.click(screen.getByRole('button', { name: 'Dispensar o aviso de Apostila sem dono' }))
     expect(await screen.findByText('Nenhum material ainda')).toBeTruthy()
-    expect(screen.queryByRole('table')).toBeNull()
+    expect(screen.queryByRole('table', { name: 'Lista de materiais' })).toBeNull()
   })
 })
 
@@ -1622,5 +1628,155 @@ describe('o lote de até 20 PDFs (ingestao-do-material, 7.0; RF14)', () => {
     await usuario.click(dialogo.getByRole('button', { name: 'Enviar 2 materiais' }))
     await waitFor(() => expect(regiao.textContent).toBe('1 de 2 enviados'))
     expect(document.activeElement?.textContent).toBe('1 de 2 enviados')
+  })
+})
+
+/**
+ * O resumo no topo e a lista que se revela aos poucos (ingestao-do-material, 11.0; RF18; `cenarios.md`, "Telas"): o resumo vem antes da tabela e se relê quando a lista muda; a tabela mostra 25 linhas e "Mostrar mais"
+ * revela as próximas. Os estados do resumo e a tabela dele são de `ResumoDoMaterial.test.tsx`; a lista inteira continua lida (o painel abre qualquer material pelo endereço), e o que se limita é o que se desenha.
+ */
+describe('o resumo no topo da aba', () => {
+  it('o resumo vem antes da tabela de materiais, no topo da aba', async () => {
+    instalar(fakeNetwork())
+    await montarEEsperar()
+
+    const resumo = await screen.findByRole('table', { name: 'Resumo do material por disciplina e série' })
+    const listaDeMateriais = screen.getByRole('table', { name: 'Lista de materiais' })
+    expect(resumo.compareDocumentPosition(listaDeMateriais) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Resumo do material' })).toBeTruthy()
+  })
+
+  it('o aviso das séries atribuídas na migração lê a lista que a aba já leu: o material de todas as séries da escola o dispara', async () => {
+    instalar(fakeNetwork(), { materiais: ok([material(1, { titulo: 'Material de todas as séries', serieIds: [SERIE_6.id, SERIE_7.id] })]) })
+    await montarEEsperar()
+
+    expect((await screen.findByRole('note')).textContent).toContain('Séries atribuídas na migração')
+  })
+
+  it('sem material de todas as séries nem sem série, a aba não traz o aviso', async () => {
+    instalar(fakeNetwork(), { materiais: ok([PRONTO]) })
+    await montarEEsperar()
+
+    await screen.findByRole('table', { name: 'Resumo do material por disciplina e série' })
+    expect(screen.queryByRole('note')).toBeNull()
+  })
+
+  it('excluir um material lê o resumo de novo, junto com a lista', async () => {
+    const usuario = userEvent.setup()
+    const rede = fakeNetwork()
+    let excluido = false
+    rede.responderPor('/v1/disciplinas', ok([QUIMICA, FISICA]))
+    instalarSeriesELicencas(rede)
+    rede.responderPor('/v1/materiais', () => ok(excluido ? [PRONTO] : [PRONTO, MAIS_NOVO]))
+    rede.responderPor(/^\/v1\/materiais\/.+/, () => {
+      excluido = true
+      return { status: 204 }
+    })
+    await montarEEsperar()
+    await screen.findByRole('table', { name: 'Resumo do material por disciplina e série' })
+    const antes = quantos(rede, 'GET /v1/materiais/resumo')
+    expect(antes).toBe(1)
+
+    await usuario.click(botaoDe('Capítulo mais novo'))
+    await usuario.click(within(await painelDe('Capítulo mais novo')).getByRole('button', { name: 'Excluir material' }))
+    await usuario.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Excluir material' }))
+
+    await waitFor(() => expect(quantos(rede, 'GET /v1/materiais/resumo')).toBe(antes + 1))
+  })
+
+  it('o envio recusado por licença lê o resumo de novo: a recusa entra no número de "Recusados em 30 dias"', async () => {
+    const usuario = userEvent.setup()
+    const rede = fakeNetwork()
+    rede.responderPor('/v1/disciplinas', ok([QUIMICA]))
+    instalarSeriesELicencas(rede)
+    rede.responderPor('/v1/materiais', () => (rede.chamadas.at(-1)?.metodo === 'POST' ? ERRO('MATERIAL_SEM_LICENCA', 422) : ok([PRONTO])))
+    await montarEEsperar()
+    await screen.findByRole('table', { name: 'Resumo do material por disciplina e série' })
+    const antes = quantos(rede, 'GET /v1/materiais/resumo')
+    expect(antes).toBe(1)
+
+    await usuario.click(screen.getByRole('button', { name: 'Enviar material' }))
+    const dialogo = within(await dialogoDeEnvio())
+    await comArquivoETitulo(usuario, dialogo, 'Apostila sem dono')
+    await usuario.selectOptions(dialogo.getByLabelText('Disciplina (obrigatório)'), 'Química')
+    await usuario.click(dialogo.getByLabelText(/^6º ano/))
+    await usuario.selectOptions(dialogo.getByLabelText('De quem é o material (obrigatório)'), 'Material próprio da escola')
+    await usuario.selectOptions(dialogo.getByLabelText('Licença de uso (obrigatória)'), 'Não tenho a licença, ou não sei')
+    await usuario.click(dialogo.getByRole('button', { name: 'Enviar material' }))
+    await dialogo.findByText(/^Envio recusado\./)
+
+    await waitFor(() => expect(quantos(rede, 'GET /v1/materiais/resumo')).toBe(antes + 1))
+  })
+})
+
+describe('a tabela de materiais com "Mostrar mais"', () => {
+  const muitos = (quantos: number) => Array.from({ length: quantos }, (_, indice) => material(100 + indice, { titulo: `Apostila ${String(indice + 1).padStart(3, '0')}` }))
+
+  it('até 25 materiais, todos à vista e sem o botão', async () => {
+    instalar(fakeNetwork(), { materiais: ok(muitos(25)) })
+    await montarEEsperar()
+
+    expect(linhas()).toHaveLength(25)
+    expect(screen.queryByRole('button', { name: 'Mostrar mais' })).toBeNull()
+  })
+
+  it('com 30: 25 linhas e "Mostrando 25 de 30"; "Mostrar mais" revela as 5, anuncia, some, e o foco vai ao título da lista', async () => {
+    const usuario = userEvent.setup()
+    instalar(fakeNetwork(), { materiais: ok(muitos(30)) })
+    await montarEEsperar()
+    expect(linhas()).toHaveLength(25)
+    expect(screen.getByText('Mostrando 25 de 30')).toBeTruthy()
+
+    await usuario.click(screen.getByRole('button', { name: 'Mostrar mais' }))
+
+    expect(linhas()).toHaveLength(30)
+    expect(screen.queryByRole('button', { name: 'Mostrar mais' })).toBeNull()
+    expect(screen.getByText('Mostrando 30 de 30.')).toBeTruthy()
+    expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Materiais da escola' }))
+  })
+
+  it('com 60: cada clique revela 25 a mais, e enquanto há mais o botão fica, com o foco nele', async () => {
+    const usuario = userEvent.setup()
+    instalar(fakeNetwork(), { materiais: ok(muitos(60)) })
+    await montarEEsperar()
+
+    await usuario.click(screen.getByRole('button', { name: 'Mostrar mais' }))
+    expect(linhas()).toHaveLength(50)
+    expect(screen.getByText('Mostrando 50 de 60')).toBeTruthy()
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Mostrar mais' }))
+    await usuario.click(screen.getByRole('button', { name: 'Mostrar mais' }))
+    expect(linhas()).toHaveLength(60)
+    expect(screen.queryByRole('button', { name: 'Mostrar mais' })).toBeNull()
+  })
+
+  it('a troca de sessão volta às primeiras 25 linhas: a pessoa seguinte não herda quantas a anterior abriu', async () => {
+    const usuario = userEvent.setup()
+    instalar(fakeNetwork(), { materiais: ok(muitos(60)) })
+    await montarEEsperar()
+    await usuario.click(screen.getByRole('button', { name: 'Mostrar mais' }))
+    expect(linhas()).toHaveLength(50)
+
+    act(() => {
+      for (const ouvinte of ouvintesDeTroca) ouvinte()
+    })
+
+    await waitFor(() => expect(linhas()).toHaveLength(25))
+    expect(screen.getByText('Mostrando 25 de 60')).toBeTruthy()
+  })
+})
+
+describe('o erro do resumo e o da lista juntos', () => {
+  it('com as duas leituras caídas, são dois botões com nomes diferentes, e só o da lista é o cheio', async () => {
+    const rede = fakeNetwork()
+    instalar(rede, { materiais: FALHA, resumo: FALHA })
+    montar()
+
+    await waitFor(() => expect(screen.getAllByRole('alert')).toHaveLength(2))
+    const daLista = screen.getByRole('button', { name: 'Tentar de novo' })
+    const doResumo = screen.getByRole('button', { name: 'Tentar de novo o resumo' })
+    expect(daLista).not.toBe(doResumo)
+    expect(cheios()).toContain('Tentar de novo')
+    expect(cheios()).not.toContain('Tentar de novo o resumo')
+    expect(doResumo.className.startsWith(buttonVariants({ variante: 'secundario' }))).toBe(true)
   })
 })

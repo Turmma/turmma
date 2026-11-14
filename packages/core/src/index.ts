@@ -330,7 +330,7 @@ export { AuditoriaRecorder } from './auditoria/auditoria-recorder.js'
 export type { DadosDaAuditoria } from './auditoria/auditoria-recorder.js'
 // Só leitura: a escrita em `auditoria` tem uma porta só, o AuditoriaRecorder (a tabela e o insert ficam fora do pacote).
 export { AuditoriaRepository, LIMITE_MAXIMO_DA_LISTAGEM, LIMITE_PADRAO_DA_LISTAGEM } from './auditoria/auditoria.repository.js'
-export type { DatabaseExecutor, RegistroAuditado } from './auditoria/auditoria.repository.js'
+export type { DatabaseExecutor, RecusaDeMaterialContada, RegistroAuditado } from './auditoria/auditoria.repository.js'
 // Camada de IA (regra 30): o domínio importa a porta, as tarefas e os erros; adaptador é detalhe daqui.
 export {
   ADAPTADORES_DE_IA,

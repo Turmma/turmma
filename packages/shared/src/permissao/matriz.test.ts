@@ -157,16 +157,16 @@ describe('MATRIZ de permissão', () => {
   // célula trocada; estes testes dizem a regra de cada grupo.
   const RECURSOS_DO_MVP = ['material', 'time', 'assistente', 'execucao', 'ferramenta', 'artefato', 'entrega', 'atividade_aplicada', 'minha_atividade', 'correcao', 'desempenho_da_turma', 'tutor', 'sinal', 'uso_do_tutor', 'governanca', 'analista'] as const
 
-  it('MVP: as quarenta e duas rotas têm célula, e a rede não chama nenhuma', () => {
+  it('MVP: as quarenta e três rotas têm célula, e a rede não chama nenhuma', () => {
     const acoes = RECURSOS_DO_MVP.flatMap((recurso) => RECURSOS[recurso].map((acao) => [recurso, acao] as const))
-    expect(acoes).toHaveLength(42)
+    expect(acoes).toHaveLength(43)
     for (const [recurso, acao] of acoes) expect(alcanceDe('rede', recurso, acao), `${recurso}.${acao}`).toBe('nunca')
   })
 
   it('MVP: só a coordenação envia e exclui material (D75); o professor lê e busca o das disciplinas dele; o aluno, nada', () => {
-    expect(RECURSOS.material).toEqual(['enviar', 'listar', 'ler', 'excluir', 'buscar'])
+    expect(RECURSOS.material).toEqual(['enviar', 'listar', 'ler', 'excluir', 'buscar', 'resumir'])
     for (const acao of RECURSOS.material) expect(alcanceDe('coordenador', 'material', acao), acao).toBe('unidade')
-    for (const acao of ['enviar', 'excluir'] as const) expect(alcanceDe('professor', 'material', acao), acao).toBe('nunca')
+    for (const acao of ['enviar', 'excluir', 'resumir'] as const) expect(alcanceDe('professor', 'material', acao), acao).toBe('nunca')
     for (const acao of ['listar', 'ler', 'buscar'] as const) expect(alcanceDe('professor', 'material', acao), acao).toBe('turma_vinculada')
     for (const acao of RECURSOS.material) expect(alcanceDe('aluno', 'material', acao), acao).toBe('nunca')
   })

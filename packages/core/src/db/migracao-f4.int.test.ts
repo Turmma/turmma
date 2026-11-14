@@ -364,4 +364,17 @@ describe('a migration da licença sobre dado da F3', () => {
       expect(rows[0]?.indexdef).toContain('(escola_id, serie_id, material_id)')
     })
   })
+
+  // A 11.0: o índice do resumo do material (`0057_auditoria_material_recusado`), sobre o mesmo banco, migrado até a 0057 (a 0056 é da 8.0).
+  describe('o índice da recusa de material (11.0)', () => {
+    beforeAll(async () => {
+      await migrate(configuracao(pastaAte('0057_auditoria_material_recusado')), logger)
+    }, 120_000)
+
+    it('o índice da recusa é parcial na ação `material.recusado` e começa pela escola e pelo instante', async () => {
+      const { rows } = await scratch.query<{ indexdef: string }>("select indexdef from pg_indexes where tablename = 'auditoria' and indexname = 'auditoria_material_recusado_idx'")
+      expect(rows).toHaveLength(1)
+      expect(rows[0]?.indexdef).toMatch(/\(escola_id, em\) WHERE .*material\.recusado/)
+    })
+  })
 })

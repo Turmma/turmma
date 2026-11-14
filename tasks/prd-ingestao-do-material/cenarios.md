@@ -151,6 +151,10 @@ falhou. Seed e e2e usam licenciante fictício.
 - [I] Material com duas séries conta nas duas; excluído e substituído não contam; `semSerie` conta
 - [I] Recusa de 29 dias conta, de 31 não; `MATERIAL_SEM_LICENCA` e `LICENCA_VENCIDA` contam, outro motivo não; por
   disciplina e série
+- [I] A recusa de uma edição sobre material sem série conta na linha sem série (`serieId` nulo); só o registro
+  `material.recusado` conta; o índice parcial `auditoria_material_recusado_idx` serve à consulta e é parcial na ação
+- [I] Professor e aluno recebem `NAO_ENCONTRADO` (célula `material.resumir`); escola sem ano letivo em curso vê o
+  resumo, vazio; a resposta só traz ids e contagens
 
 ## Corridas
 

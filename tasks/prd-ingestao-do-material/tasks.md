@@ -68,10 +68,10 @@
   - [ ] 10.2 Chip e PDF do artefato
   - [ ] 10.3 Testes: substituído, licença vencida, expurgo, os estados do chip
 
-- [ ] **11.0 — O resumo no topo da aba Material**
-  - [ ] 11.1 `GET /v1/materiais/resumo`, com o índice da auditoria
-  - [ ] 11.2 O resumo na tela
-  - [ ] 11.3 Testes: as contagens, os estados
+- [x] **11.0 — O resumo no topo da aba Material**
+  - [x] 11.1 `GET /v1/materiais/resumo`, com o índice da auditoria
+  - [x] 11.2 O resumo na tela
+  - [x] 11.3 Testes: as contagens, os estados
 
 - [ ] **12.0 — O painel do material mostra os capítulos, corrige séries e título e recebe a edição nova**
   - [ ] 12.1 `PATCH /v1/materiais/:id`, com o teto próprio

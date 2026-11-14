@@ -128,7 +128,7 @@ describe('auditoria: uma porta só de escrita', () => {
 
   it('o AuditoriaRepository só lê, na escola do contexto: sem método de escrita e sem @SemEscopo', () => {
     const metodos = Object.getOwnPropertyNames(AuditoriaRepository.prototype).filter((nome) => nome !== 'constructor')
-    expect(metodos).toEqual(['listarDaEscola', 'provisoriasAnterioresDoAluno'])
+    expect(metodos).toEqual(['listarDaEscola', 'provisoriasAnterioresDoAluno', 'recusasDeMaterialDesde'])
     for (const metodo of metodos) expect(unscopedJustification(AuditoriaRepository, metodo), metodo).toBeUndefined()
   })
 })

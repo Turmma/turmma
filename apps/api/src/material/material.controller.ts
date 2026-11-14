@@ -12,6 +12,7 @@ import {
   type ListaDeMateriaisResponse,
   type MaterialComCapitulosResponse,
   type MaterialResponse,
+  type ResumoDoMaterialResponse,
 } from '@educa/shared'
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Query, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common'
 import { MaterialService } from './material.service.js'
@@ -62,6 +63,13 @@ export class MaterialController {
   @RequirePermissao('material', 'listar')
   listar(@Query(new ZodValidationPipe(materiaisQuerySchema)) consulta: MateriaisQuery): Promise<ListaDeMateriaisResponse> {
     return this.materiais.listar(consulta)
+  }
+
+  /** Declarada antes de `:id`, como a `busca`: `resumo` não é id de material. Só a coordenação (`material.resumir`); o professor e o aluno recebem `NAO_ENCONTRADO`, como em toda célula `nunca`. */
+  @Get('resumo')
+  @RequirePermissao('material', 'resumir')
+  resumir(): Promise<ResumoDoMaterialResponse> {
+    return this.materiais.resumir()
   }
 
   /** Declarada antes de `:id`: `busca` não é id de material. */

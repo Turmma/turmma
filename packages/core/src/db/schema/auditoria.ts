@@ -58,6 +58,11 @@ export const auditoria = pgTable(
     index('auditoria_por_alvo_idx')
       .on(tabela.escolaId, tabela.entidadeId, tabela.em)
       .where(sql`${tabela.acao} in (${sql.raw(literaisDeSql(ACOES_DO_ARQUIVO_POR_ALVO))})`),
+    // O resumo do material (ingestao-do-material, 11.0; RF18): os envios recusados da escola nos últimos 30 dias. Parcial na única ação que ele lê: a auditoria cresce com tudo o que a escola faz, e o índice só
+    // guarda a recusa de envio. Criado sem `concurrently`, como o da 0034 (Tech Spec, seção 7c): a migração roda numa transação só, e o deploy é fora do horário letivo.
+    index('auditoria_material_recusado_idx')
+      .on(tabela.escolaId, tabela.em)
+      .where(sql`${tabela.acao} = 'material.recusado'`),
     // Sem escola, só o que a operação faz acima do tenant: a rede criada, o suboperador cadastrado ou encerrado (F3, 8.0) e o job de rotina do sistema que a operação reprocessa ou descarta (ingestao-do-material, 5.0).
     check('auditoria_escola_ou_operacao_global', sql`escola_id is not null or (autor_operador is not null and entidade in ('rede', 'suboperador', 'job'))`),
     // Um autor e só um: a pessoa da escola, ou alguém da nossa equipe em rotina de operador.

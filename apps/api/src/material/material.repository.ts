@@ -97,6 +97,14 @@ export interface FiltroDaBusca {
   readonly palavras: 'todas' | 'qualquer'
 }
 
+/** Quantos materiais não excluídos da escola há num estado, numa disciplina e numa série (`serieId` nulo: o material sem série). Só ids e uma contagem. */
+export interface MateriaisContados {
+  readonly disciplinaId: string
+  readonly serieId: string | null
+  readonly estado: EstadoDeMaterial
+  readonly total: number
+}
+
 /**
  * Quantas páginas do material viraram trecho. Escrito com os nomes qualificados: numa consulta de uma tabela só, o
  * drizzle escreve a coluna sem a tabela, e `escola_id = escola_id` dentro da subconsulta seria o trecho com ele mesmo.
@@ -336,6 +344,20 @@ export class MaterialRepository {
       )
       .orderBy(asc(material.id))
       .limit(limite + 1)
+  }
+
+  /**
+   * Os materiais da escola do contexto contados por disciplina, série e estado (ingestao-do-material, 11.0; RF18): a base do resumo. O material com várias séries entra em cada uma, e o sem nenhuma
+   * volta com `serieId` nulo (a junção à esquerda). Fica de fora o excluído, e com ele o substituído por uma edição pronta (a extração marca `excluido_em` na mesma transação que `substituido_por`). Só a coordenação
+   * chega aqui (a célula `material.resumir` da `MATRIZ`): não há alcance por vínculo.
+   */
+  contarPorDisciplinaESerie(): Promise<MateriaisContados[]> {
+    return this.banco
+      .select({ disciplinaId: material.disciplinaId, serieId: materialSerie.serieId, estado: material.estado, total: sql<number>`count(*)::int` })
+      .from(material)
+      .leftJoin(materialSerie, and(eq(materialSerie.escolaId, material.escolaId), eq(materialSerie.materialId, material.id)))
+      .where(and(eq(material.escolaId, requireEscolaId()), isNull(material.excluidoEm)))
+      .groupBy(material.disciplinaId, materialSerie.serieId, material.estado)
   }
 
   /** O material não excluído com esse id, se quem pede o alcança; o de outra escola não é achado. */
