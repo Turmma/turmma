@@ -510,7 +510,7 @@ senha provisória.
 professor da turma dá ao aluno uma senha provisória, com auditoria; e o aluno entra pela conta da escola depois da
 aprovação.
 
-## X6 — `reengenharia-continuacao` [ ]
+## X6 — `reengenharia-continuacao` [~]
 **Depende de:** X5 · **não segura a X4 nem o F2**
 
 É a dona da fila de IA do F11 (42.0 e 47.0) e do gateway do F5 (49.0 e 50.0): as duas fases esperam essas partes
