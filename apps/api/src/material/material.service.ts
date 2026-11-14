@@ -39,15 +39,15 @@ const INDICE_DA_EDICAO_EM_ANDAMENTO = 'material_uma_edicao_em_andamento'
 
 /** A janela dos tetos de envio. */
 export const JANELA_DOS_ENVIOS_MS = 60 * 60_000
-/** Envios de uma pessoa na janela. O ano de uma disciplina cabe em bem menos; acima disso é laço ou engano. */
-export const ENVIOS_POR_USUARIO_NA_JANELA = 30
-/** Envios da escola inteira na janela, somando todas as pessoas da coordenação. */
-export const ENVIOS_POR_ESCOLA_NA_JANELA = 60
+/** Envios de uma pessoa na janela: 100 por hora (Tech Spec, 7c). O onboarding de 300 apostilas, por três coordenadores, cabe; acima disso é laço ou engano. */
+export const ENVIOS_POR_USUARIO_NA_JANELA = 100
+/** Envios da escola inteira na janela, somando todas as pessoas da coordenação: 300 por hora (Tech Spec, 7c). */
+export const ENVIOS_POR_ESCOLA_NA_JANELA = 300
 /**
- * Materiais da escola esperando a extração ao mesmo tempo (`processando`). Não é mais a memória da API, porque o PDF espera no
+ * Materiais da escola esperando a extração ao mesmo tempo (`processando`): 300, o onboarding inteiro (Tech Spec, 7c; a vaga `pdf` por escola é que impede a escola de tomar a fila). Não é mais a memória da API, porque o PDF espera no
  * storage; é o que impede uma escola de empilhar na fila `pdf` mais do que ela escoa, e a resposta diz quanto esperar.
  */
-export const MATERIAIS_EM_PROCESSAMENTO_POR_ESCOLA = 3
+export const MATERIAIS_EM_PROCESSAMENTO_POR_ESCOLA = 300
 /** Quanto esperar antes de enviar de novo quando o teto é o do processamento: o tempo de uma extração. */
 const ESPERA_PELO_PROCESSAMENTO_S = 30
 
@@ -447,11 +447,12 @@ export class MaterialService {
 
   /**
    * `GET /v1/materiais/busca`: os trechos por relevância, com todas as palavras da busca
-   * (`websearch_to_tsquery('portuguese', q)`), dentro da escola do contexto e do alcance de quem pede.
+   * (`websearch_to_tsquery('portuguese', q)`), dentro da escola do contexto e do alcance de quem pede, **só do material
+   * próprio ou de licença vigente hoje** e, com `serieId`, só do declarado para a série (a série **filtra e não autoriza**: a de outra escola não acha nada).
    */
   async buscar(consulta: BuscaDeMaterialQuery): Promise<BuscaDeMaterialResponse> {
     const achados = await new MaterialRepository(this.dependencias.banco).buscar(
-      { texto: consulta.q, disciplinaId: consulta.disciplinaId?.toLowerCase(), limite: consulta.limite, palavras: 'todas' },
+      { texto: consulta.q, disciplinaId: consulta.disciplinaId?.toLowerCase(), serieId: consulta.serieId?.toLowerCase(), hoje: this.#hoje(), limite: consulta.limite, palavras: 'todas' },
       alcanceDoMaterial('buscar'),
     )
     return buscaDeMaterialResponseSchema.parse({ itens: achados.map(({ materialId, titulo, pagina, texto }) => ({ materialId, titulo, pagina, trecho: trechoCitado(texto, consulta.q) })) })

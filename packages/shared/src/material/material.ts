@@ -208,6 +208,8 @@ export const TAMANHO_MAXIMO_DO_TRECHO_CITADO = 400
 export const buscaDeMaterialQuerySchema = z.strictObject({
   q: z.string().trim().min(2).max(TAMANHO_MAXIMO_DA_BUSCA),
   disciplinaId: z.uuid().optional(),
+  /** Só o material declarado para a série. **Filtra, não autoriza**: a série de outra escola não casa com nenhum material desta, e responde como a que não existe. */
+  serieId: z.uuid().optional(),
   limite: z.coerce.number().int().min(1).max(MAXIMO_DE_TRECHOS_NA_BUSCA).default(TRECHOS_PADRAO_NA_BUSCA),
 })
 export type BuscaDeMaterialQuery = z.infer<typeof buscaDeMaterialQuerySchema>

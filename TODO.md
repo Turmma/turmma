@@ -3523,3 +3523,26 @@ aula" em `Retencao.tsx`, o Validador conferiu: a tela já o mostra pela descriç
       editora". Muda a tela, os testes, o e2e e `docs/interface.md` (dono: quem mexer na aba Licenças)
 - [ ] (ingestao-do-material, 6.0, frontend-reviewer, revisor-geral e conformidade-reviewer, 2ª) **Nomes de código que ainda dizem "F4":** `registradaAntesDaF4`, `antesDaF4`, `REFERENCIA_DA_MIGRACAO` e os comentários de `Licencas.tsx` ("faixa da
       migração"); um nome como `criadaAutomaticamente` ficaria igual ao da tela (retro ou X8, nomes de mercado)
+
+## Da ingestao-do-material, tarefa 9.0, fora dela
+
+- [ ] (ingestao-do-material, 9.0, frontend-reviewer, 1ª e 2ª) **Texto do estado "sem material" do aluno:** "Avise seu professor." é curto para quem nunca viu o aviso (uma frase a mais). Texto de tela, a avaliar com a tela
+      vista pelo aluno no piloto; muda `tutor.ts`, o teste, o e2e e `docs/interface.md` (dono: quem mexer em `Tutor.tsx`)
+- [ ] (ingestao-do-material, 9.0, frontend-reviewer, 1ª) **O aviso do Tutor só some na próxima pergunta (`recusaVencida`).** Reavaliar depois do piloto se o professor enviar o material enquanto o aluno está na tela; está em
+      `docs/interface.md` e é coerente com a pausa `suspenso`
+- [ ] (ingestao-do-material, 9.0, frontend-reviewer, 1ª) **`FalhaNaConversa` mostra "O Tutor não recebeu esta mensagem." acima do aviso**, redundante para `sem_material`. Inofensiva; mexer nela muda o texto de outro
+      estado (dono: a próxima tarefa que tocar `Tutor.tsx`)
+- [ ] (ingestao-do-material, 9.0, conformidade-reviewer, 1ª) **Rodar `ehAssuntoDelicado` de novo sobre `pergunta.texto` antes de falhar a conferência depois do `202`** (a recusa de "sem material" pós-`202` não passa pela D36).
+      Muda comportamento do Tutor: levar para a AIA do Tutor (`docs/aia/`) e para a retro da funcionalidade
+- [ ] (ingestao-do-material, 9.0, conformidade-reviewer, 1ª) **Indicador por turma, sem aluno, na tela do professor ou da coordenação** ("turma sem material da série"; hoje só há o gráfico do runbook). Decisão de produto
+- [ ] (ingestao-do-material, 9.0, conformidade-reviewer e test-engineer, 1ª e 2ª) **A mensagem do professor, "Peça à coordenação o material desta série.", não diz qual série**, e não tem teste de tela. Dizer a série muda o
+      contrato da mensagem (`messages.ts` é texto fixo por código); junto com a tela do professor ou da coordenação
+- [ ] (ingestao-do-material, 9.0, privacy-guardian, 1ª e 2ª) **Turma muito pequena, cruzada com o horário, pode apontar quem perguntou** (rótulo `turma_id` do contador `tutor.recusa_sem_material`). Hoje o contador não guarda
+      conteúdo e fica na infraestrutura nossa; registrar na AIA do Tutor (`docs/aia/`)
+- [ ] (ingestao-do-material, 9.0, test-engineer, 2ª) **Seção "Mutações" do `9_task.md`:** uma frase dizendo por que os outros três blocos que tiram o `serieId` ainda ficam vermelhos por `TypeError` (o `serieId.toLowerCase()` de
+      `trecho-search.ts`), e que o bloco de `tutor.service.ts` que tira o `serieId` de `doMaterial` não chega à cláusula (o `materialDaTurma` já exige a série), cabendo em "Cláusulas sem bloco"
+- [ ] (ingestao-do-material, 9.0, test-engineer, 2ª) **Prender a premissa do caso das duas séries** com uma asserção prévia pela rota `GET /v1/materiais/busca` sem `serieId` (o material do 2º entre os primeiros). Reforço de
+      teste que não muda comportamento
+- [ ] (ingestao-do-material, 9.0, infra-guardian, 2ª) **O veredito da [C] depende do relógio de parede do banco (`now()`).** Fazer `lerTurnoDaBNaJanela` reprovar a corrida com turno negativo ou acima de `PRAZO_DO_TURNO_MS`, e
+      registrar no runbook, em "Quando a carga vale como registro", que o `systemd-timesyncd` precisa estar parado no WSL (o vaivém de ±5,5 s invalidou duas corridas da 9.0)
+- [ ] (ingestao-do-material, 9.0, infra-guardian, 2ª) **A deriva de cerca de 3,5% do relógio monotônico do WSL** infla o turno do k6 na mesma proporção (uns 15 ms no p95). Uma linha na seção da carga do runbook, junto com o item anterior

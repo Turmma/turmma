@@ -189,6 +189,11 @@ export const METRICS = {
   extracaoDoMaterial: 'material.extracao',
   /** Histograma, em segundos, de cada execução do job `material.extrair-pdf`, por `resultado` (os mesmos valores): da leitura da linha ao fim do apagar. */
   duracaoDaExtracaoDoMaterial: 'material.extracao.duracao',
+  /**
+   * Perguntas do Tutor recusadas com `SEM_MATERIAL_DA_SERIE` (ingestao-do-material, tarefa 9.0; RF8), por `turma_id`: é a contagem que mostra uma turma sem Tutor útil. Conta a recusa do `POST` **e** a da conferência depois do `202` (o material saiu do alcance entre as duas): uma pergunta já aceita pode entrar na conta. O único rótulo é a turma
+   * (nunca o aluno, a escola nem o texto da pergunta), e por isso não entra em `METRICS_WITH_ESCOLA`.
+   */
+  tutorRecusadoSemMaterial: 'tutor.recusa_sem_material',
 } as const
 
 /**

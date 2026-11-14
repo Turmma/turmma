@@ -26,10 +26,13 @@ import {
 import { InvariantException, TIPOS_DE_SINAL_DE_TRABALHO, TROCAS_POR_DIA_PADRAO_DO_TUTOR, type Citacao, type Etapa, type EstadoDeAtividadeAplicada, type TipoDeMensagemDoTutor, type TipoDeSinal, type TipoDeSinalDeTrabalho } from '@educa/shared'
 import { and, asc, count, desc, eq, exists, gte, inArray, isNull, lt, notExists, sql, type SQL } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
+import { declaradoParaASerie, proprioOuComLicencaVigente } from '../material/material.repository.js'
 import type { TurnoDoAluno } from './sinais-do-turno.js'
 
 export interface TurmaDoAluno {
   readonly turmaId: string
+  /** A série da turma: o material que o Tutor lê é o declarado para ela (RF7). */
+  readonly serieId: string
   readonly serie: { readonly etapa: Etapa; readonly ano: number }
 }
 
@@ -136,14 +139,14 @@ export class TutorDoAlunoRepository {
   async turmaDoAluno(): Promise<TurmaDoAluno | undefined> {
     const { escolaId, anoLetivoId, alunoId } = this.#aluno()
     const [linha] = await this.banco
-      .select({ turmaId: turma.id, etapa: serie.etapa, ano: serie.ano })
+      .select({ turmaId: turma.id, serieId: serie.id, etapa: serie.etapa, ano: serie.ano })
       .from(vinculo)
       .innerJoin(turma, and(eq(turma.escolaId, vinculo.escolaId), eq(turma.anoLetivoId, vinculo.anoLetivoId), eq(turma.id, vinculo.turmaId)))
       .innerJoin(serie, and(eq(serie.escolaId, turma.escolaId), eq(serie.id, turma.serieId)))
       .where(and(eq(vinculo.escolaId, escolaId), eq(vinculo.anoLetivoId, anoLetivoId), eq(vinculo.usuarioId, alunoId), eq(vinculo.papel, 'aluno'), eq(vinculo.estado, 'confirmado')))
       .orderBy(desc(vinculo.id))
       .limit(1)
-    return linha === undefined ? undefined : { turmaId: linha.turmaId, serie: { etapa: linha.etapa, ano: linha.ano } }
+    return linha === undefined ? undefined : { turmaId: linha.turmaId, serieId: linha.serieId, serie: { etapa: linha.etapa, ano: linha.ano } }
   }
 
   /** As disciplinas que a turma tem: as de professor com vínculo confirmado nela, em ordem de nome. */
@@ -183,10 +186,12 @@ export class TutorDoAlunoRepository {
 
   /**
    * O material que a turma dada pode usar: da escola do contexto, `pronto`, não excluído, e de disciplina que a turma
-   * tem (há professor com vínculo confirmado nela, na turma). A `TrechoSearch` não confere quem pede: é aqui que o
-   * aluno é impedido de ler material de disciplina que a turma dele não tem.
+   * tem (há professor com vínculo confirmado nela, na turma), **declarado para a série da turma e próprio ou de licença
+   * vigente em `hoje`** (o dia de São Paulo, do `Clock` da `TrechoSearch`). A `TrechoSearch` não confere quem pede: é aqui que o
+   * aluno é impedido de ler material de disciplina que a turma dele não tem, e o que saiu do alcance (edição substituída, licença
+   * vencida, série tirada) responde como o inexistente.
    */
-  async materialDaTurma(turmaId: string, materialId: string): Promise<MaterialDaTurma | undefined> {
+  async materialDaTurma(turmaId: string, serieId: string, hoje: string, materialId: string): Promise<MaterialDaTurma | undefined> {
     const { escolaId, anoLetivoId } = this.#aluno()
     const turmaTemADisciplina = this.banco
       .select({ um: vinculo.id })
@@ -205,7 +210,17 @@ export class TutorDoAlunoRepository {
       .select({ id: material.id, disciplinaId: material.disciplinaId, disciplina: disciplina.nome, paginas: material.paginas })
       .from(material)
       .innerJoin(disciplina, and(eq(disciplina.escolaId, material.escolaId), eq(disciplina.id, material.disciplinaId)))
-      .where(and(eq(material.escolaId, escolaId), eq(material.id, materialId), eq(material.estado, 'pronto'), isNull(material.excluidoEm), exists(turmaTemADisciplina)))
+      .where(
+        and(
+          eq(material.escolaId, escolaId),
+          eq(material.id, materialId),
+          eq(material.estado, 'pronto'),
+          isNull(material.excluidoEm),
+          exists(turmaTemADisciplina),
+          declaradoParaASerie(this.banco, serieId),
+          proprioOuComLicencaVigente(this.banco, hoje),
+        ),
+      )
     return linha
   }
 

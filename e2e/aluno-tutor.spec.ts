@@ -410,4 +410,35 @@ test.describe('o Tutor pausado explica, não parece erro, e não trava a caixa',
     expect(await horizontalOverflow(page)).toBe(0)
     expect(await seriousViolations(page)).toEqual([])
   })
+
+  /** A conversa da atividade da turma, com o servidor recusando antes de gravar a pergunta (422, `SEM_MATERIAL_DA_SERIE`): a tela mostra o estado, calmo, e a caixa segue usável. */
+  async function perguntarSemMaterial(page: Page, hasTouch: boolean): Promise<void> {
+    const atividade = minhaAtividade()
+    const { api } = await entrar(page, hasTouch, (simulada) => {
+      simulada.atividades = [atividade]
+      simulada.provas.set(atividade.id, provaDa(atividade))
+    })
+    await irPara(page, `/aluno/tutor/${atividade.id}`)
+    await expect(caixa(page)).toBeEnabled({ timeout: SCREEN_TIMEOUT_MS })
+    api.trocar('mensagens', () => apiError(422, 'SEM_MATERIAL_DA_SERIE'))
+    await perguntar(page, 'como acho a massa molar?', hasTouch)
+    await expect(pausa(page)).toHaveAttribute('data-pausa-do-tutor', 'sem_material', { timeout: SCREEN_TIMEOUT_MS })
+  }
+
+  test('sem material da turma: o estado diz "Avise seu professor", sem fala do Tutor, sem avatar nem código, e a caixa continua usável', async ({ page, hasTouch }) => {
+    await perguntarSemMaterial(page, hasTouch)
+    await expect(pausa(page)).toContainText('Ainda não há material da sua turma aqui. Avise seu professor.')
+    await expect(pausa(page).locator('img, svg[data-avatar], [data-avatar]')).toHaveCount(0)
+    await expect(principal(page).getByRole('alert')).toHaveCount(0)
+    await expect(principal(page).locator('[data-falha-do-tutor]')).toHaveCount(0)
+    for (const cru of ['SEM_MATERIAL_DA_SERIE', rawCodePattern('422'), MENSAGENS_DE_ERRO.SEM_MATERIAL_DA_SERIE]) await expect(page.locator('body')).not.toContainText(cru)
+    await expect(caixa(page)).toBeEnabled()
+    await expect(page.locator('body')).not.toContainText(PROIBIDO_NA_AREA)
+  })
+
+  test('sem material da turma: o estado cabe na tela sem rolar de lado e não tem violação séria de acessibilidade', async ({ page, hasTouch }) => {
+    await perguntarSemMaterial(page, hasTouch)
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
+  })
 })

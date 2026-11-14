@@ -116,7 +116,7 @@ export class AppModule {
         ArtefatoModule,
         EntregaModule,
         AtividadeModule,
-        TutorModule,
+        TutorModule.forRoot(opcoes.medidor === undefined ? {} : { medidor: opcoes.medidor }),
         GovernancaModule,
         PrivacidadeModule.forRoot({
           armazem: config.armazem,

@@ -132,7 +132,8 @@ falhou. Seed e e2e usam licenciante fictício.
 
 ## Leitura de página por série (RF7, RF8)
 
-- [I] Para cada chamador, material só do 6º e turma do 9º: nada citado. Atividade, plano e adaptação; chat do
+- [I] Para cada chamador, material só do 6º e turma do 9º: nada citado. Atividade e plano (a adaptação parte do
+  artefato que a professora já tem, não lê material e fica fora: ver `techspec.md` §5, "Como ficou na 9.0"); chat do
   Assistente; turno do Tutor; página aberta do Tutor (`paginasDoMaterial`); material que o aluno abre
   (`materialDaTurma`); rota `GET /v1/materiais/busca`
 - [I] O único material da série com licença vencida, ou `processando`: `SEM_MATERIAL_DA_SERIE`, zero chamadas ao

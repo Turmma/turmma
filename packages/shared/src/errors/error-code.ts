@@ -101,6 +101,11 @@ export const ErrorCode = {
    */
   MATERIAL_INSUFICIENTE: 'MATERIAL_INSUFICIENTE',
   /**
+   * A escola não tem material `pronto` da série da turma e da disciplina, próprio ou de licença vigente hoje (422; ingestao-do-material, 9.0; RF8). Responde **antes** do `202`: sem execução,
+   * sem consumo e sem chamar o modelo. Ao professor diz o que pedir à coordenação; no Tutor do aluno vira um estado da tela, sem fala do Tutor.
+   */
+  SEM_MATERIAL_DA_SERIE: 'SEM_MATERIAL_DA_SERIE',
+  /**
    * O ajuste de retenção pedido pela operação (`ops:retencao`; F3, RF2; 422) não cabe: abaixo do piso ou acima do teto
    * da categoria, acima do prazo da categoria que a trava, ou numa categoria que não se ajusta (registro de acesso,
    * auditoria e os outros prazos fixos). Nada é gravado.

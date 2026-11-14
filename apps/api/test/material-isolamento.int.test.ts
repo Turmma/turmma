@@ -3,10 +3,11 @@ import { ErrorCode, buscaDeMaterialResponseSchema, listaDeMateriaisResponseSchem
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
+import { MATERIAIS_EM_PROCESSAMENTO_POR_ESCOLA } from '../src/material/material.service.js'
 import { TrechoSearch } from '../src/material/trecho-search.js'
 import { chamar, subirApi, type TestApi, type RespostaHttp } from './test-api.js'
 import { montarEscolaComTurma as montarEscola, type EscolaComTurma } from './escola-turma.fixture.js'
-import { apagarMateriais, auditoriaDa, enviarMaterial, esperarExtracao, materiaisDa, trechosDa } from './material.fixture.js'
+import { apagarMateriais, auditoriaDa, enviarMaterial, esperarExtracao, materiaisDa, materiaisJaEnviados, trechosDa } from './material.fixture.js'
 import { SessaoFixtures, type TestSessao } from './sessao.fixture.js'
 
 /**
@@ -146,12 +147,7 @@ describe('material: isolamento entre escolas', () => {
   it('os tetos de envio são por escola: o que B enviou não conta para A', async () => {
     // B com o teto de materiais em leitura cheio; A continua enviando.
     const c = await montarEscolaComTurma(api, bancada)
-    for (let indice = 0; indice < 3; indice += 1) {
-      await bancada.pool.query(
-        `insert into material (escola_id, disciplina_id, titulo, titularidade, licenca, declaracao, sha256, tamanho_bytes, estado, enviado_por) values ($1, $2, 'Sintético', 'escola', 'autoria_da_escola', true, $3, 10, 'processando', $4)`,
-        [c.coordenacao.escolaId, c.quimica, randomUUID().replaceAll('-', '').padEnd(64, '0'), c.coordenacao.usuarioId],
-      )
-    }
+    await materiaisJaEnviados(bancada, c.coordenacao, c.quimica, MATERIAIS_EM_PROCESSAMENTO_POR_ESCOLA, { estado: 'processando', enviadoHaMs: 2 * 60 * 60_000 })
     expect((await enviarMaterial(api, c.coordenacao, { disciplinaId: c.quimica })).status).toBe(429)
     const d = await montarEscolaComTurma(api, bancada)
     expect((await enviarMaterial(api, d.coordenacao, { disciplinaId: d.quimica })).status).toBe(201)
@@ -162,15 +158,15 @@ describe('material: isolamento entre escolas', () => {
     const porta = api.app.get(TrechoSearch)
     const naEscolaA = <T>(funcao: () => Promise<T>): Promise<T> => runInContext({ requisicaoId: randomUUID(), escolaId: a.coordenacao.escolaId }, funcao)
 
-    const achados = await naEscolaA(() => porta.buscar({ texto: 'reagente limitante', disciplinaId: a.quimica, limite: 20 }))
+    const achados = await naEscolaA(() => porta.buscar({ texto: 'reagente limitante', disciplinaId: a.quimica, serieId: a.serieId, limite: 20 }))
     expect(achados.length).toBeGreaterThan(0)
     expect(new Set(achados.map((trecho) => trecho.materialId))).toEqual(new Set([a.materialId]))
     // Com a disciplina de B, com o material de B, ou pedindo as páginas do material de B: nada.
-    expect(await naEscolaA(() => porta.buscar({ texto: 'reagente limitante', disciplinaId: b.quimica }))).toEqual([])
-    expect(await naEscolaA(() => porta.buscar({ texto: 'reagente limitante', disciplinaId: a.quimica, materialId: b.materialId }))).toEqual([])
-    expect(await naEscolaA(() => porta.doMaterial(b.materialId, b.quimica))).toEqual([])
-    expect(await naEscolaA(() => porta.doMaterial(b.materialId, a.quimica))).toEqual([])
-    expect((await naEscolaA(() => porta.doMaterial(a.materialId, a.quimica))).map((trecho) => trecho.pagina)).toEqual([1, 2, 3, 4, 5, 6])
+    expect(await naEscolaA(() => porta.buscar({ texto: 'reagente limitante', disciplinaId: b.quimica, serieId: b.serieId }))).toEqual([])
+    expect(await naEscolaA(() => porta.buscar({ texto: 'reagente limitante', disciplinaId: a.quimica, serieId: a.serieId, materialId: b.materialId }))).toEqual([])
+    expect(await naEscolaA(() => porta.doMaterial(b.materialId, b.quimica, b.serieId))).toEqual([])
+    expect(await naEscolaA(() => porta.doMaterial(b.materialId, a.quimica, a.serieId))).toEqual([])
+    expect((await naEscolaA(() => porta.doMaterial(a.materialId, a.quimica, a.serieId))).map((trecho) => trecho.pagina)).toEqual([1, 2, 3, 4, 5, 6])
   })
 
   it('a extração em segundo plano grava na escola de quem enviou, mesmo quando a vaga foi liberada pela extração de outra escola', async () => {

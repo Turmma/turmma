@@ -136,12 +136,14 @@ export async function trocasJaFeitas(bancada: SessaoFixtures, escola: EscolaComA
     )
     const execucaoId = rows[0]?.id
     const quando = `now() - make_interval(days => ${String(haDias)})`
+    // O `id` (v7) acompanha o `criada_em`: a consulta da última troca ordena por ele, e uma mensagem de dois dias atrás com id de agora (ou adiantado, quando o relógio do banco ajusta) ganharia da de hoje.
+    const idDoMomento = `uuidv7(make_interval(days => -${String(haDias)}))`
     await bancada.pool.query(
-      `insert into mensagem_tutor (escola_id, ano_letivo_id, turma_id, aluno_id, execucao_id, autor, texto, criada_em) values ($1, $2, $3, $4, $5, 'aluno', 'Pergunta sintética já feita', ${quando})`,
+      `insert into mensagem_tutor (id, escola_id, ano_letivo_id, turma_id, aluno_id, execucao_id, autor, texto, criada_em) values (${idDoMomento}, $1, $2, $3, $4, $5, 'aluno', 'Pergunta sintética já feita', ${quando})`,
       [escola.escolaId, escola.anoLetivoId, turmaId, alunoId, execucaoId],
     )
     const { rows: respostas } = await bancada.pool.query<{ id: string }>(
-      `insert into mensagem_tutor (escola_id, ano_letivo_id, turma_id, aluno_id, execucao_id, autor, texto, citacoes, criada_em) values ($1, $2, $3, $4, $5, 'tutor', 'O que a questão pede?', '[]', ${quando}) returning id`,
+      `insert into mensagem_tutor (id, escola_id, ano_letivo_id, turma_id, aluno_id, execucao_id, autor, texto, citacoes, criada_em) values (${idDoMomento}, $1, $2, $3, $4, $5, 'tutor', 'O que a questão pede?', '[]', ${quando}) returning id`,
       [escola.escolaId, escola.anoLetivoId, turmaId, alunoId, execucaoId],
     )
     await bancada.pool.query(`update execucao_agente set estado = 'concluida', resultado = $3, concluida_em = now() where escola_id = $1 and id = $2`, [

@@ -60,7 +60,7 @@ describe('ferramentas e artefato', () => {
   const artefatoDe = async (sessao: TestSessao, id: string) => artefatoResponseSchema.parse((await get(sessao, `/v1/artefatos/${id}`)).corpo)
   const suspender = (escola: EscolaComAssistente, funcao: ChaveDeFuncao) => sql('insert into suspensao_de_funcao (escola_id, funcao, suspensa_por) values ($1, $2, $3)', [escola.escolaId, funcao, escola.coordenacao.usuarioId])
   const retomar = (escola: EscolaComAssistente, funcao: ChaveDeFuncao) =>
-    sql('update suspensao_de_funcao set retomada_em = now(), retomada_por = $3 where escola_id = $1 and funcao = $2 and retomada_em is null', [escola.escolaId, funcao, escola.coordenacao.usuarioId])
+    sql('update suspensao_de_funcao set retomada_em = greatest(now(), suspensa_em), retomada_por = $3 where escola_id = $1 and funcao = $2 and retomada_em is null', [escola.escolaId, funcao, escola.coordenacao.usuarioId])
   /** Sem espaço nenhum: a quebra de linha do PDF cai onde a largura da página manda. */
   const semEspaco = (texto: string) => texto.replace(/\s+/gu, '')
   const semId = (resposta: RespostaHttp) => ({ status: resposta.status, codigo: resposta.corpo.erro?.codigo })
@@ -184,20 +184,26 @@ describe('ferramentas e artefato', () => {
       expect((await baixarPdf(a.professora, plano.id)).status).toBe(200)
     })
 
-    it('sem material aproveitável na disciplina, a execução falha com MATERIAL_INSUFICIENTE e nenhum artefato nasce; material excluído ou ainda processando não conta', async () => {
+    it('sem material da série na disciplina, o pedido é recusado antes do 202 com SEM_MATERIAL_DA_SERIE, sem execução nem consumo; material excluído ou ainda processando não conta; o tema sem página no material que existe falha com MATERIAL_INSUFICIENTE', async () => {
       await vincularProfessor(bancada, a, a.professora.usuarioId, a.turma, a.fisica)
       const antes = await contarNaEscola(bancada, 'artefato', a.escolaId)
+      const gastos = async () => [await contarNaEscola(bancada, 'execucao_agente', a.escolaId), await contarNaEscola(bancada, 'consumo_ia', a.escolaId)]
       const emFisica = () => dispararExecucao(api, a.professora, '/v1/ferramentas/atividade_objetiva/gerar', { turmaId: a.turma, disciplinaId: a.fisica, tema: 'estequiometria' })
-      expect(await execucaoTerminada(api, a.professora, await emFisica())).toMatchObject({ estado: 'falhou', erro: 'MATERIAL_INSUFICIENTE', resultado: null })
+      const recusadaEmFisica = async () => semId(await pedir(a.professora, 'POST', '/v1/ferramentas/atividade_objetiva/gerar', { turmaId: a.turma, disciplinaId: a.fisica, tema: 'estequiometria', chaveEnvio: randomUUID() }))
+      const gastosAntes = await gastos()
+      expect(await recusadaEmFisica()).toEqual({ status: 422, codigo: 'SEM_MATERIAL_DA_SERIE' })
+      expect(await gastos()).toEqual(gastosAntes)
 
-      // Com material em Física, gera; excluído ou voltando a `processando`, deixa de gerar.
+      // Com material em Física, gera; excluído ou voltando a `processando`, o único material da série deixa de contar e o pedido nem chega à execução.
       const deFisica = await enviarMaterialDeDemonstracao(api, a, a.fisica, 'Material sintético de Física', variacaoDoPdf())
       expect((await execucaoTerminada(api, a.professora, await emFisica())).estado).toBe('concluida')
+      const depoisDeGerar = await gastos()
       await sql(`update material set estado = 'processando' where id = $1`, [deFisica])
-      expect((await execucaoTerminada(api, a.professora, await emFisica())).erro).toBe('MATERIAL_INSUFICIENTE')
+      expect(await recusadaEmFisica()).toEqual({ status: 422, codigo: 'SEM_MATERIAL_DA_SERIE' })
       await sql(`update material set estado = 'pronto', excluido_em = now() where id = $1`, [deFisica])
-      expect((await execucaoTerminada(api, a.professora, await emFisica())).erro).toBe('MATERIAL_INSUFICIENTE')
-      // O tema sem nenhuma palavra do material também não gera.
+      expect(await recusadaEmFisica()).toEqual({ status: 422, codigo: 'SEM_MATERIAL_DA_SERIE' })
+      expect(await gastos()).toEqual(depoisDeGerar)
+      // O tema sem nenhuma palavra do material que existe (o de Química) segue falhando depois do 202, como antes.
       expect((await execucaoTerminada(api, a.professora, await dispararExecucao(api, a.professora, '/v1/ferramentas/atividade_objetiva/gerar', parametros(a, 'xilofone zumbi')))).erro).toBe('MATERIAL_INSUFICIENTE')
       expect(await contarNaEscola(bancada, 'artefato', a.escolaId)).toBe(antes + 1)
     })

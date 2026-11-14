@@ -73,8 +73,12 @@ describe('o Tutor pausado é aviso que explica, e não erro', () => {
     expect(avisoDaPausa('pacote_do_mes').texto).not.toMatch(/amanhã/i)
   })
 
+  it('sem material da turma, o estado diz o que fazer, sem culpar o aluno nem prometer volta', () => {
+    expect(avisoDaPausa('sem_material')).toEqual({ pausa: 'sem_material', titulo: 'Ainda não há material da sua turma aqui.', texto: 'Avise seu professor.' })
+  })
+
   it('nenhum aviso de pausa grita, culpa o aluno ou mostra código', () => {
-    const pausas: readonly PausaDoTutor[] = ['avaliacao', 'limite_do_dia', 'pacote_do_mes', 'fora', 'suspenso']
+    const pausas: readonly PausaDoTutor[] = ['avaliacao', 'limite_do_dia', 'pacote_do_mes', 'fora', 'suspenso', 'sem_material']
     for (const pausa of pausas) {
       const { titulo, texto } = avisoDaPausa(pausa, { avaliacao: 'Prova', limiteDoDia: 60 })
       expect(`${titulo} ${texto}`, pausa).not.toMatch(/!|falh|proibid|bloquead|castig|409|429|[A-Z]{3,}_/)
@@ -87,7 +91,9 @@ describe('o Tutor pausado é aviso que explica, e não erro', () => {
     expect(pausaDoErro(ErrorCode.LIMITE_DIARIO_DO_TUTOR)).toBe('limite_do_dia')
     expect(pausaDoErro(ErrorCode.PACOTE_DO_TUTOR_ESGOTADO)).toBe('pacote_do_mes')
     expect(pausaDoErro(ErrorCode.FUNCAO_SUSPENSA)).toBe('suspenso')
+    expect(pausaDoErro(ErrorCode.SEM_MATERIAL_DA_SERIE)).toBe('sem_material')
     expect(pausaDoErro(ErrorCode.IA_INDISPONIVEL)).toBeUndefined()
+    expect(falhaDaPergunta(ErrorCode.SEM_MATERIAL_DA_SERIE)).toEqual({ tipo: 'pausa', pausa: 'sem_material' })
     expect(falhaDaPergunta(ErrorCode.LIMITE_DIARIO_DO_TUTOR)).toEqual({ tipo: 'pausa', pausa: 'limite_do_dia' })
     expect(falhaDaPergunta(ErrorCode.FUNCAO_SUSPENSA)).toEqual({ tipo: 'pausa', pausa: 'suspenso' })
   })
@@ -115,6 +121,8 @@ describe('o Tutor pausado é aviso que explica, e não erro', () => {
     expect(recusaVencida('avaliacao', 'avaliacao', true)).toBe(false)
     // A conversa lida não diz nada sobre a suspensão pela escola: ela não a desmente.
     expect(recusaVencida('suspenso', undefined, true)).toBe(false)
+    // A conversa lida também não diz nada sobre o material da turma: o aviso fica até a próxima pergunta.
+    expect(recusaVencida('sem_material', undefined, true)).toBe(false)
     expect(recusaVencida(undefined, undefined, true)).toBe(false)
   })
 })

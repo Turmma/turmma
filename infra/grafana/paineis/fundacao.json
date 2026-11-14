@@ -2218,6 +2218,55 @@
           "range": true
         }
       ]
+    },
+    {
+      "id": 48,
+      "type": "timeseries",
+      "title": "Perguntas do Tutor recusadas por falta de material da turma",
+      "description": "Quantas perguntas o Tutor recusou com SEM_MATERIAL_DA_SERIE, por turma (nunca por aluno): é a contagem que mostra uma turma sem Tutor útil, porque o único material da série venceu, está processando ou foi substituído. Ver \"Turma sem material da série\" no runbook.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 155
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (turma_id) (increase(tutor_recusa_sem_material_total[1h]))",
+          "legendFormat": "{{turma_id}}",
+          "range": true
+        }
+      ]
     }
   ]
 }

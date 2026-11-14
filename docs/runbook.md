@@ -879,6 +879,27 @@ chegar nele), descarte o job pelo comando e peça à escola que envie o arquivo 
 
 **Depois:** registre no `TODO.md` a hora, o que parou e quantos jobs esperaram, só com ids e contagens. Causa nova vira tarefa com teste que a reproduz.
 
+## Turma sem material da série
+
+*Procedimento, não alerta: não há regra em `infra/grafana/alertas/`. O painel "Fundação — rota, fila e escola" tem o gráfico "Perguntas do Tutor recusadas por
+falta de material da turma" (`tutor_recusa_sem_material_total`, por `turma_id`; ingestão do material, tarefa 9.0).*
+
+**O que significa:** o aluno da turma pergunta ao Tutor e a série dela não tem material **pronto** de hoje: o único material
+declarado para a série venceu (licença), está `processando`, foi substituído ou nunca existiu. A recusa é `SEM_MATERIAL_DA_SERIE`, dada antes de gastar modelo, e
+o aluno vê "Avise seu professor". É o comportamento certo; o gráfico só mostra quem está sem Tutor útil. **O gráfico conta só o Tutor**: a professora que pede atividade, plano ou chat sem
+material da série recebe a mesma recusa na tela dela, e isso não entra na conta.
+
+**Primeiro olhar:** só ids e datas. Quais materiais a série tem e em que estado:
+`docker compose exec postgres psql -U educa -c "select m.id, m.estado, m.titularidade, l.vigente_ate from material m join material_serie ms on ms.escola_id = m.escola_id and ms.material_id = m.id left join licenca_de_material l on l.escola_id = m.escola_id and l.id = m.licenca_id where m.escola_id = '<escolaId>' and ms.serie_id = '<serieId>' and m.excluido_em is null"`.
+
+**Causas e o que fazer:**
+1. Licença vencida de material de terceiro → a coordenação registra a licença nova ou estende a vigência (`PATCH /v1/licencas/:id`); a leitura volta no mesmo dia, sem reprocessar nada.
+2. Material em `processando` → veja "Extração de PDF parada" e "Job que falhou de vez".
+3. Material nunca declarado para a série (o envio sem série) → hoje a série só se declara no envio: a coordenação envia o arquivo de novo (`POST /v1/materiais`) com a série marcada e exclui
+   o envio sem série (`DELETE /v1/materiais/:id`). Corrigir as séries sem reenviar o arquivo chega com o painel do material (tarefa 12.0).
+
+**Depois:** nada a registrar quando é só uma turma que ainda não recebeu material. Se várias turmas somem juntas, é licença vencida em lote: avise a coordenação.
+
 ## Voltar o código com eliminação agendada em curso (rollback)
 
 *Procedimento, não alerta: não há regra em `infra/grafana/alertas/`. Vale para qualquer volta de versão que passe pela migration
@@ -1345,9 +1366,35 @@ Se reprovar, a saída diz a fase e o critério:
 - **503 no login dos professores:** primeiro confira o hash e a máquina ("Quando a carga vale como registro", abaixo): 503 com o hash a mais de ~35 ms é o host, e a rodada se repete. Com o hash na referência, o job de professores achou ou criou a conta global enquanto eles entravam e tomou a vez do hash.
 - **passo (3) rodou menos do que a fase pede:** o job saiu `desatualizada` ou não chegou ao passo (3); a fase não mediu o [C].
 
+## Rodar o cenário da ingestão
+
+`npm run carga:ingestao` roda o cenário "300 apostilas numa noite" (ingestao-do-material, tarefa 9.0; Tech Spec, 7c; PRD, RF15) no mesmo projeto compose (`educa-carga`) dos outros, e o derruba no
+fim. Leva uns 10 min, mais a construção das imagens. Não rode junto com o portão, com os testes nem com os outros cenários (`flock /tmp/educa-carga.lock`). O `worker-pdf` do compose de carga é **uma
+réplica** (`cpus: 1.5`, um PDF por vez). O cenário cria a rede e as escolas A, B e C pelo `ops:escola`, e as sessões pelo `ops:sessao-sintetica`: três coordenadores da A, um da B e trinta alunos da B.
+
+- **base**: o k6 (`infra/k6/ingestao.js`) só com o Tutor da B, 1,5 turno por segundo, por 2 min. O p95 do turno que o banco registrou (`execucao_agente`, `criada_em` a `concluida_em`) é a régua;
+- **ingestao**: o mesmo k6 por 3 min e, dez segundos depois, os três coordenadores da A enviam as **300 apostilas** pela rota real (`POST /v1/materiais`, com o guard e o multipart como a tela manda;
+  cada arquivo é o PDF do seed com um comentário final que o torna único), e o coordenador da B envia o PDF dele quando a A já mandou 90%. O cenário espera as 300 extrações.
+
+Passa quando: os 300 envios voltam 201 (os tetos do §7c: 100 por hora por pessoa, 300 por escola, 300 em processamento); as 300 extrações ficam prontas, nenhuma `falhou`; a vazão por PDF
+(do primeiro `iniciado_em` ao último `concluido_em` de `job_registro`, fila `pdf`) projeta as 300 dentro das 10 h entre 19h e 5h; o p95 do turno do Tutor da B fica até 500 ms acima da base
+(com ao menos 20 turnos em cada janela); nenhum statement do `pg_stat_statements` passa de 1,5 s; e o PDF da B espera no máximo **duas extrações da A** (quantas extrações da A começaram entre o
+`criado_em` e o `iniciado_em` do job dela). `npm run carga:ingestao:controle-negativo` sobe com `VAGAS_POR_ESCOLA_DESLIGADAS=true` e só sai verde se o cenário **reprovar pela espera do PDF da B**, com o
+envio e a extração limpos: sem a vaga `pdf` por escola, o PDF da B espera atrás da fila inteira da A.
+
+Se reprovar, a saída diz o critério:
+- **envio recusado (429):** o guard (`exigirEnvioDentroDosTetos`) está com teto menor que o onboarding. Confira `ENVIOS_POR_USUARIO_NA_JANELA`, `ENVIOS_POR_ESCOLA_NA_JANELA` e `MATERIAIS_EM_PROCESSAMENTO_POR_ESCOLA`.
+- **extração com falha ou pendente:** veja o log do `worker-pdf` (o cenário imprime o fim dos logs). O storage ou o parser de PDF.
+- **vazão acima da noite:** a extração de um PDF ficou lenta; confira o `statement_timeout` e o tamanho do PDF do seed (o do cenário tem 14,6 KB: a apostila real é maior, e a conta se refaz com a vazão medida).
+- **turno da B acima da base mais 500 ms:** a ingestão disputa CPU ou conexão com o Tutor; confira o pool do `worker-pdf` e os statements.
+- **PDF da B atrás de mais de duas extrações:** a vaga `pdf` por escola (`VAGAS_ESCOLA_PDF`, 2) não está separando as escolas. Rode o controle negativo para confirmar que ele continua reprovando.
+
+A corrida de 13/11/2026 está em `tasks/prd-ingestao-do-material/9_task.md`, "A corrida da carga". O cenário vale como registro com as condições de "Quando a carga vale como registro" (a máquina calma; o hash
+não entra neste cenário).
+
 ## Quando a carga vale como registro
 
-Os cenários de login, da sala e da importação (`carga:login`, `carga:sala`, `carga:importacao`) medem o p95 de rotas que passam pelo hash de senha, e as duas APIs
+Os cenários de login, da sala e da importação (`carga:login`, `carga:sala`, `carga:importacao`; o da ingestão, `carga:ingestao`, não passa pelo hash e só pede a primeira condição) medem o p95 de rotas que passam pelo hash de senha, e as duas APIs
 do compose de carga têm `cpus: 1` (`infra/compose.carga.yml`). Se o host não entrega a CPU de referência, o hash custa o dobro, o semáforo do hash
 passa do prazo e o resultado é 503 e p95 de segundos, **sem que o produto tenha mudado**. Foi assim no K2 da sala (hash a 42 ms, `decidir` a 3.047 e
 3.417 ms) e na fase `professores` da validação de `acesso-e-convites` (283 × 503, rajada a 2.123 ms numa corrida e verde na seguinte). Por isso uma rodada

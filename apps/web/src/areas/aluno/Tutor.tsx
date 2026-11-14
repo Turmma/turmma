@@ -1,6 +1,6 @@
 import { ErrorCode } from '@educa/shared'
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, CircleAlert, Hourglass, Lock, MoonStar, PauseCircle, type LucideIcon } from 'lucide-react'
+import { ArrowLeft, BookX, CircleAlert, Hourglass, Lock, MoonStar, PauseCircle, type LucideIcon } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useSearch } from 'wouter'
 import { minhasAtividadesInfiniteQueryOptions } from '../../api/atividades-do-aluno'
@@ -44,7 +44,7 @@ import {
 /** O aluno não alcança o título do material (`GET /v1/materiais` é do professor e da coordenação): o chip diz a página. */
 const SEM_TITULOS = {}
 
-const ICONE_DA_PAUSA: Readonly<Record<PausaDoTutor, LucideIcon>> = { avaliacao: Lock, limite_do_dia: MoonStar, pacote_do_mes: MoonStar, fora: PauseCircle, suspenso: PauseCircle }
+const ICONE_DA_PAUSA: Readonly<Record<PausaDoTutor, LucideIcon>> = { avaliacao: Lock, limite_do_dia: MoonStar, pacote_do_mes: MoonStar, fora: PauseCircle, suspenso: PauseCircle, sem_material: BookX }
 
 /**
  * O Tutor pausado: **uma tela que explica, com ícone e uma frase, e não parece erro** (11.6). Cinza, sem botão de tentar

@@ -114,6 +114,14 @@ orçamento). O Tutor resolve turma e atividade, roda a D36 (intacta, `materialId
 filtra o material aberto e confere a série: recusa sem nada na conversa; a tela do aluno mostra um estado. O modo
 livre não muda.
 
+**Como ficou na 9.0.** O filtro é uma cópia só, em `material.repository.ts` (`declaradoParaASerie` e `proprioOuComLicencaVigente`), que as quatro
+leituras usam. "Próprio" é `titularidade <> 'terceiro_com_licenca'`: o material da escola não pede licença, e o de terceiro só vale pela licença
+vigente. A página aberta (`materialId` e `pagina`) fora do alcance da turma (outro material, outra série, edição substituída, licença vencida)
+responde `NAO_ENCONTRADO`, a resposta do inexistente (regra 10, item 6), e a conferência depois do `202` repete o mesmo filtro: a execução falha com o
+código da recusa, sem trecho, sem consumo e sem resposta. A recusa por falta de material (`SEM_MATERIAL_DA_SERIE`, 422) conta em
+`tutor.recusa_sem_material`, com um rótulo só, `turma_id`: nem aluno nem escola. A adaptação (`POST /v1/artefatos/:id/adaptar`) não passa pelo `gerar` e não lê material: ela transforma o artefato que a professora já tem, e por isso não é recusada por `SEM_MATERIAL_DA_SERIE`; recusam só a atividade, o plano e o chat. A ferramenta e o chat conferem pela turma do professor
+(`turmaComDisciplina` devolve `serieId`), e `serieId` na rota de busca só filtra. A contagem tem gráfico no painel de Fundação (`tutor_recusa_sem_material_total`, por turma) e a seção "Turma sem material da série" do runbook diz o que olhar; não é alerta.
+
 ## 6. Isolamento (obrigatório)
 
 FK composta com a escola em toda referência; escopo do contexto (no worker, `job_registro.escola_id`) em toda

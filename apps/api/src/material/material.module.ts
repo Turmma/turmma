@@ -52,7 +52,7 @@ export class MaterialModule {
           inject: [DB],
         },
         { provide: LicencaService, useFactory: (banco: Database) => new LicencaService({ banco, ...(opcoes.relogioDasLicencas === undefined ? {} : { relogio: opcoes.relogioDasLicencas }) }), inject: [DB] },
-        { provide: TrechoSearch, useFactory: (banco: Database) => new TrechoSearch(banco), inject: [DB] },
+        { provide: TrechoSearch, useFactory: (banco: Database) => new TrechoSearch(banco, opcoes.relogioDasLicencas), inject: [DB] },
         { provide: CicloDoArmazemDoMaterial, useFactory: () => new CicloDoArmazemDoMaterial(encerrar) },
         MaterialUploadGuard,
       ],

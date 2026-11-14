@@ -49,6 +49,8 @@
     "carga:login": "npm run -s build -w @educa/shared && npm run -s build -w @educa/core && npm run -s build -w @educa/api && node infra/scripts/carga-login.ts",
     "carga:login:controle-negativo": "npm run -s build -w @educa/shared && npm run -s build -w @educa/core && npm run -s build -w @educa/api && node infra/scripts/carga-login.ts --controle-negativo",
     "carga:importacao": "npm run -s build -w @educa/shared && npm run -s build -w @educa/core && npm run -s build -w @educa/api && node infra/scripts/carga-importacao.ts",
+    "carga:ingestao": "npm run -s build -w @educa/shared && npm run -s build -w @educa/core && npm run -s build -w @educa/api && node infra/scripts/carga-ingestao.ts",
+    "carga:ingestao:controle-negativo": "npm run -s build -w @educa/shared && npm run -s build -w @educa/core && npm run -s build -w @educa/api && node infra/scripts/carga-ingestao.ts --controle-negativo",
     "carga:sala": "npm run -s build -w @educa/shared && npm run -s build -w @educa/core && npm run -s build -w @educa/api && node infra/scripts/carga-sala.ts",
     "db:gerar": "drizzle-kit generate --config packages/core/drizzle.config.ts",
     "demonstracao:material": "node tools/demonstracao/gerar-material.ts"

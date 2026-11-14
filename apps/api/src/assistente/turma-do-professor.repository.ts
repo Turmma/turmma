@@ -87,6 +87,8 @@ export function disciplinaDaEntrega(banco: Database | DatabaseTransaction, colun
 
 /** A turma e a disciplina de um pedido, como a tarefa de IA as recebe: a série e o nome da disciplina, sem nome de turma nem de pessoa. */
 export interface TurmaComDisciplina {
+  /** A série da turma: o material que a geração e o chat leem é o declarado para ela (RF7). Nunca vai à tarefa de IA. */
+  readonly serieId: string
   readonly serie: { readonly etapa: Etapa; readonly ano: number }
   readonly disciplina: string
 }
@@ -106,11 +108,11 @@ export class TurmaDoProfessorRepository {
   async turmaComDisciplina(turmaId: string, disciplinaId: string): Promise<TurmaComDisciplina | undefined> {
     const escolaId = requireEscolaId()
     const [linha] = await this.banco
-      .select({ etapa: serie.etapa, ano: serie.ano, disciplina: disciplina.nome })
+      .select({ serieId: serie.id, etapa: serie.etapa, ano: serie.ano, disciplina: disciplina.nome })
       .from(turma)
       .innerJoin(serie, and(eq(serie.escolaId, turma.escolaId), eq(serie.id, turma.serieId)))
       .innerJoin(disciplina, and(eq(disciplina.escolaId, turma.escolaId), eq(disciplina.id, disciplinaId)))
       .where(and(eq(turma.escolaId, escolaId), eq(turma.anoLetivoId, requireAnoEmCurso()), eq(turma.id, turmaId), comVinculoConfirmadoDoProfessor(this.banco, { escolaId: turma.escolaId, anoLetivoId: turma.anoLetivoId, turmaId: turma.id }, disciplinaId)))
-    return linha === undefined ? undefined : { serie: { etapa: linha.etapa, ano: linha.ano }, disciplina: linha.disciplina }
+    return linha === undefined ? undefined : { serieId: linha.serieId, serie: { etapa: linha.etapa, ano: linha.ano }, disciplina: linha.disciplina }
   }
 }

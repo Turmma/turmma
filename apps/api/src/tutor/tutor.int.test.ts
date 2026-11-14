@@ -102,7 +102,7 @@ describe('Tutor e sinais', () => {
     )).rows
   const suspender = (escola: EscolaComAssistente, funcao: ChaveDeFuncao) => sql('insert into suspensao_de_funcao (escola_id, funcao, suspensa_por) values ($1, $2, $3)', [escola.escolaId, funcao, escola.coordenacao.usuarioId])
   const retomar = (escola: EscolaComAssistente, funcao: ChaveDeFuncao) =>
-    sql('update suspensao_de_funcao set retomada_em = now(), retomada_por = $3 where escola_id = $1 and funcao = $2 and retomada_em is null', [escola.escolaId, funcao, escola.coordenacao.usuarioId])
+    sql('update suspensao_de_funcao set retomada_em = greatest(now(), suspensa_em), retomada_por = $3 where escola_id = $1 and funcao = $2 and retomada_em is null', [escola.escolaId, funcao, escola.coordenacao.usuarioId])
   /** Um aluno novo com vínculo confirmado na turma: cada grupo de testes usa o seu, para o freio e os sinais de um não contarem no outro. */
   const novoAluno = async (escola: EscolaComAssistente, turmaId: string = escola.turma, nome = `Aluno Sintético ${randomUUID().slice(0, 8)}`): Promise<TestSessao> => {
     const sessao = await bancada.sessao(escola.escolaId, 'aluno')
@@ -906,6 +906,8 @@ describe('Tutor e sinais', () => {
       const deQuimica = await novoAluno(a, a.turma, 'Aluna Sintética Só de Química')
       const deFisica = await novoAluno(a, a.turma, 'Aluno Sintético Só de Física')
       const semDisciplina = await novoAluno(a, a.turma, 'Aluno Sintético Fora de Atividade')
+      // Sem material da série na disciplina, o Tutor recusa antes de gravar (9.0): a Física também tem o dela.
+      await enviarMaterialDeDemonstracao(api, a, a.fisica, 'Material de Física da turma', variacaoDoPdf())
       const listaDeFisica = await aplicarAtividade(bancada, a, { disciplinaId: a.fisica, titulo: 'Lista de Física', aplicadaPor: a.deFisica.usuarioId })
       await turno(deQuimica, 'qual é a resposta da questão 3?', naQuestao(3))
       await turno(deQuimica, 'o que diz essa página?', { materialId: a.materialId, pagina: 2 })
@@ -1034,6 +1036,9 @@ describe('Tutor e sinais', () => {
       for (const [professoraId, disciplinaId] of [[a.professora.usuarioId, a.quimica], [a.professora.usuarioId, a.fisica], [a.deFisica.usuarioId, biologia]] as const) {
         await sql(`insert into vinculo (escola_id, ano_letivo_id, usuario_id, turma_id, disciplina_id, papel, estado, criado_por, decidido_em) values ($1, $2, $3, $4, $5, 'professor', 'confirmado', $6, now())`, [a.escolaId, a.anoLetivoId, professoraId, turmaNova, disciplinaId, a.coordenacao.usuarioId])
       }
+      // Cada disciplina precisa de material da série da turma, senão o Tutor recusa (9.0).
+      await enviarMaterialDeDemonstracao(api, a, a.fisica, 'Material de Física da turma nova', variacaoDoPdf())
+      await enviarMaterialDeDemonstracao(api, a, biologia, 'Material de Biologia da turma nova', variacaoDoPdf())
       const deQuimica = await aplicarAtividade(bancada, a, { turmaId: turmaNova, titulo: 'Lista de Química' })
       const deFisica = await aplicarAtividade(bancada, a, { turmaId: turmaNova, disciplinaId: a.fisica, titulo: 'Lista de Física' })
       const deBiologia = await aplicarAtividade(bancada, a, { turmaId: turmaNova, disciplinaId: biologia, titulo: 'Lista de Biologia', aplicadaPor: a.deFisica.usuarioId })

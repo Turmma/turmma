@@ -45,8 +45,10 @@ export function usoDoDia(uso: ConversaDoTutorResponse['uso']): UsoDoDia {
  * - `pacote_do_mes`: a turma usou as perguntas do mês.
  * - `fora`: a escola deixou o Tutor desligado neste horário.
  * - `suspenso`: a coordenação suspendeu o Tutor na escola.
+ * - `sem_material`: a escola ainda não tem material da série da turma (ou o que havia saiu da busca). É um estado da tela, **sem fala do Tutor** e sem avatar: o servidor recusou antes de gravar
+ *   a pergunta (`SEM_MATERIAL_DA_SERIE`, ingestao-do-material, 9.0; RF8).
  */
-export type PausaDoTutor = 'avaliacao' | 'limite_do_dia' | 'pacote_do_mes' | 'fora' | 'suspenso'
+export type PausaDoTutor = 'avaliacao' | 'limite_do_dia' | 'pacote_do_mes' | 'fora' | 'suspenso' | 'sem_material'
 
 export interface AvisoDaPausa {
   readonly pausa: PausaDoTutor
@@ -70,6 +72,7 @@ export function avisoDaPausa(pausa: PausaDoTutor, contexto: { readonly avaliacao
     }
   if (pausa === 'pacote_do_mes')
     return { pausa, titulo: 'As perguntas deste mês acabaram.', texto: 'A sua turma usou todas as perguntas ao Tutor deste mês. Se precisar de ajuda na atividade, chame quem dá a aula.' }
+  if (pausa === 'sem_material') return { pausa, titulo: 'Ainda não há material da sua turma aqui.', texto: 'Avise seu professor.' }
   if (pausa === 'fora') return { pausa, titulo: 'O Tutor está desligado agora.', texto: 'A sua escola escolhe os horários em que ele funciona. Não é um erro. As suas atividades continuam abertas.' }
   return { pausa, titulo: 'O Tutor está pausado na sua escola.', texto: 'A coordenação pausou o Tutor por enquanto. Não é um erro, e não é com você. Se precisar de ajuda na atividade, chame quem dá a aula.' }
 }
@@ -88,6 +91,7 @@ export function pausaDoErro(erro: ErrorCode): PausaDoTutor | undefined {
   if (erro === ErrorCode.LIMITE_DIARIO_DO_TUTOR) return 'limite_do_dia'
   if (erro === ErrorCode.PACOTE_DO_TUTOR_ESGOTADO) return 'pacote_do_mes'
   if (erro === ErrorCode.FUNCAO_SUSPENSA) return 'suspenso'
+  if (erro === ErrorCode.SEM_MATERIAL_DA_SERIE) return 'sem_material'
   return undefined
 }
 
@@ -190,10 +194,10 @@ export function pausaNaTela(conversa: Pick<ConversaDoTutorResponse, 'estado' | '
 /**
  * A recusa por pausa que já não vale: a conversa foi lida **depois** dela e diz que o Tutor está ligado (a professora
  * encerrou a avaliação, o dia virou). Sem isto, o aviso da recusa ficaria na tela até o aluno escrever de novo, e ele não
- * escreveria, porque o aviso diz que está pausado. A suspensão pela escola não aparece na conversa lida, e por isso fica.
+ * escreveria, porque o aviso diz que está pausado. A suspensão pela escola e a falta de material da série não aparecem na conversa lida, e por isso ficam.
  */
 export function recusaVencida(pausaRecusada: PausaDoTutor | undefined, pausaLida: PausaDoTutor | undefined, lidaDepoisDaRecusa: boolean): boolean {
-  if (pausaRecusada === undefined || pausaRecusada === 'suspenso') return false
+  if (pausaRecusada === undefined || pausaRecusada === 'suspenso' || pausaRecusada === 'sem_material') return false
   return lidaDepoisDaRecusa && pausaLida === undefined
 }
 

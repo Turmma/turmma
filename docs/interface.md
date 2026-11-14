@@ -2231,6 +2231,12 @@ seção 1.3, a fila.
   Troca de escola ou de pessoa não deixa nada da anterior (a resposta não fica guardada fora da tela)
 - **Tutor travado em avaliação**, ou desligado fora da sala, é tela que explica, com ícone e uma
   frase. Não parece erro (D19)
+- **Sem material da turma** (ingestao-do-material, 9.0; RF8): quando a escola ainda não enviou material da série da turma (ou o que havia saiu da busca: licença
+  vencida, edição ainda em processamento), a pergunta de uma tarefa daquela disciplina volta recusada (422, `SEM_MATERIAL_DA_SERIE`) e a tela mostra o estado
+  **"Ainda não há material da sua turma aqui. Avise seu professor."**, no mesmo bloco das outras pausas (`role="status"`, `data-pausa-do-tutor="sem_material"`): ícone de
+  livro riscado, **sem avatar nem fala do Tutor** (ele não respondeu: a recusa vem antes de gravar a pergunta), sem código, sem ponto de exclamação e sem culpa. A caixa de
+  pedido continua usável: o modo livre, sem atividade, segue aceito. O aviso fica até a próxima pergunta; a conversa lida depois não o desfaz, porque não diz nada sobre o
+  material (`recusaVencida`). A pergunta de assunto delicado nunca cai aqui: a D36 vem antes do filtro de material, e o aluno recebe o encaminhamento de sempre
 - A assinatura do Tutor é a mesma dos outros agentes: avatar, "Tutor", selo "IA". Perguntado, ele
   diz o que é (D58, D65)
 - **Não existe nesta área:** saudação animada, número subindo, selo de conquista, qualquer lista

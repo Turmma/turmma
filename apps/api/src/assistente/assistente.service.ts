@@ -84,7 +84,10 @@ export class AssistenteService {
     const turmaId = pedido.turmaId.toLowerCase()
     const disciplinaId = pedido.disciplinaId.toLowerCase()
     // A turma e a disciplina de outra pessoa, de outra escola ou inexistentes respondem igual (regra 10, item 6).
-    if ((await new TurmaDoProfessorRepository(this.banco).turmaComDisciplina(turmaId, disciplinaId)) === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+    const daTurma = await new TurmaDoProfessorRepository(this.banco).turmaComDisciplina(turmaId, disciplinaId)
+    if (daTurma === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+    // Antes do `202`: sem material da série, o chat não responde e nada é gravado nem gasto (RF8). A conversa em si não gera artefato, mas a resposta cita o material da escola.
+    if (!(await this.trechos.existeMaterialDaSerie({ serieId: daTurma.serieId, disciplinaId }))) throw new DomainException(ErrorCode.SEM_MATERIAL_DA_SERIE)
 
     // O que a execução leu antes de chamar o modelo, e que a conclusão usa: só existe depois de `entrada` rodar.
     let lido: { pergunta: PerguntaDaExecucao; entregues: readonly TrechoDoMaterial[] } | undefined
@@ -112,7 +115,7 @@ export class AssistenteService {
         const semProposta = (await new ExecucaoDoPedidoRepository(this.banco).entradaDaChave(pedido.chaveEnvio, 'propor_ferramenta')).resposta === 'so_conversar'
         const ultimoPedido = turnosAnteriores.findLast((turno) => turno.autor === 'professor')?.texto
         const procurado = semProposta && ultimoPedido !== undefined ? `${ultimoPedido} ${mensagem}` : mensagem
-        const entregues = await this.trechos.buscar({ texto: procurado, disciplinaId: pergunta.disciplinaId, limite: TRECHOS_NA_CONVERSA })
+        const entregues = await this.trechos.buscar({ texto: procurado, disciplinaId: pergunta.disciplinaId, serieId: turma.serieId, limite: TRECHOS_NA_CONVERSA })
         lido = { pergunta, entregues }
         return {
           mensagem,

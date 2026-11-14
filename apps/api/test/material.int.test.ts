@@ -555,27 +555,27 @@ describe('material da escola', () => {
 
       const trechos = api.app.get(TrechoSearch)
       const noContexto = <T>(funcao: () => Promise<T>): Promise<T> => runInContext({ requisicaoId: randomUUID(), escolaId: escola.coordenacao.escolaId }, funcao)
-      const achados = await noContexto(() => trechos.buscar({ texto: pergunta, disciplinaId: escola.quimica, limite: 3 }))
+      const achados = await noContexto(() => trechos.buscar({ texto: pergunta, disciplinaId: escola.quimica, serieId: escola.serieId, limite: 3 }))
       expect(achados).toHaveLength(3)
       expect(achados[0]).toMatchObject({ materialId, disciplinaId: escola.quimica, titulo: 'Material sintético de teste', pagina: 4 })
       expect(normalizarTexto(achados[0]?.texto ?? '')).toBe(conteudoDaPagina(4))
 
       // Só da disciplina pedida, só do material pedido, e nada para a busca sem palavra aproveitável.
-      expect(await noContexto(() => trechos.buscar({ texto: pergunta, disciplinaId: escola.fisica }))).toEqual([])
-      expect(await noContexto(() => trechos.buscar({ texto: pergunta, disciplinaId: escola.quimica, materialId: randomUUID() }))).toEqual([])
-      expect(await noContexto(() => trechos.buscar({ texto: 'de a o', disciplinaId: escola.quimica }))).toEqual([])
-      expect(await noContexto(() => trechos.buscar({ texto: '   ', disciplinaId: escola.quimica }))).toEqual([])
+      expect(await noContexto(() => trechos.buscar({ texto: pergunta, disciplinaId: escola.fisica, serieId: escola.serieId }))).toEqual([])
+      expect(await noContexto(() => trechos.buscar({ texto: pergunta, disciplinaId: escola.quimica, serieId: escola.serieId, materialId: randomUUID() }))).toEqual([])
+      expect(await noContexto(() => trechos.buscar({ texto: 'de a o', disciplinaId: escola.quimica, serieId: escola.serieId }))).toEqual([])
+      expect(await noContexto(() => trechos.buscar({ texto: '   ', disciplinaId: escola.quimica, serieId: escola.serieId }))).toEqual([])
 
-      const doMaterial = await noContexto(() => trechos.doMaterial(materialId, escola.quimica))
+      const doMaterial = await noContexto(() => trechos.doMaterial(materialId, escola.quimica, escola.serieId))
       expect(doMaterial.map((trecho) => trecho.pagina)).toEqual([1, 2, 3, 4, 5, 6])
-      expect((await noContexto(() => trechos.doMaterial(materialId, escola.quimica, 2))).map((trecho) => trecho.pagina)).toEqual([1, 2])
-      expect(await noContexto(() => trechos.doMaterial(randomUUID(), escola.quimica))).toEqual([])
+      expect((await noContexto(() => trechos.doMaterial(materialId, escola.quimica, escola.serieId, 2))).map((trecho) => trecho.pagina)).toEqual([1, 2])
+      expect(await noContexto(() => trechos.doMaterial(randomUUID(), escola.quimica, escola.serieId))).toEqual([])
       // A disciplina é filtro, e não enfeite: o material de Química pedido com a disciplina de Física, que existe na
       // mesma escola, não devolve página nenhuma, nem com uma disciplina que não existe.
-      expect(await noContexto(() => trechos.doMaterial(materialId, escola.fisica))).toEqual([])
-      expect(await noContexto(() => trechos.doMaterial(materialId, randomUUID()))).toEqual([])
+      expect(await noContexto(() => trechos.doMaterial(materialId, escola.fisica, escola.serieId))).toEqual([])
+      expect(await noContexto(() => trechos.doMaterial(materialId, randomUUID(), escola.serieId))).toEqual([])
       // Sem escola no contexto, a porta falha fechada em vez de buscar em todas as escolas.
-      await expect(trechos.buscar({ texto: pergunta, disciplinaId: escola.quimica })).rejects.toThrow()
+      await expect(trechos.buscar({ texto: pergunta, disciplinaId: escola.quimica, serieId: escola.serieId })).rejects.toThrow()
     })
   })
 
@@ -622,7 +622,7 @@ describe('material da escola', () => {
       expect(listaDeMateriaisResponseSchema.parse((await get(escola.coordenacao, '/v1/materiais')).corpo).itens).toEqual([])
       expect(itensDe(await buscar(escola.coordenacao, 'reagente limitante'))).toEqual([])
       const porta = api.app.get(TrechoSearch)
-      expect(await runInContext({ requisicaoId: randomUUID(), escolaId: escola.coordenacao.escolaId }, () => porta.doMaterial(id, escola.quimica))).toEqual([])
+      expect(await runInContext({ requisicaoId: randomUUID(), escolaId: escola.coordenacao.escolaId }, () => porta.doMaterial(id, escola.quimica, escola.serieId))).toEqual([])
 
       // Excluir de novo é como excluir o que não existe, e não grava segunda auditoria.
       expect(erroDe(await del(escola.coordenacao, `/v1/materiais/${id}`))).toEqual({ status: 404, codigo: ErrorCode.NAO_ENCONTRADO })
@@ -1027,7 +1027,7 @@ describe('material da escola', () => {
     it('com o teto de materiais em leitura da escola cheio, o envio espera a vez com `LIMITE_EXCEDIDO`; os de outra escola passam', async () => {
       const escola = await montarEscolaComTurma(api, bancada)
       const outraEscola = await montarEscolaComTurma(api, bancada)
-      const emLeitura = await materiaisJaEnviados(bancada, escola.coordenacao, escola.quimica, MATERIAIS_EM_PROCESSAMENTO_POR_ESCOLA, { estado: 'processando' })
+      const emLeitura = await materiaisJaEnviados(bancada, escola.coordenacao, escola.quimica, MATERIAIS_EM_PROCESSAMENTO_POR_ESCOLA, { estado: 'processando', enviadoHaMs: 2 * 60 * 60_000 })
 
       const segurado = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica })
       expect(erroDe(segurado)).toEqual({ status: 429, codigo: ErrorCode.LIMITE_EXCEDIDO })
@@ -1097,12 +1097,14 @@ describe('material da escola', () => {
 
     it('o envio que a transação recusa pelo teto de materiais em leitura, vencido na corrida, não deixa o objeto para trás', async () => {
       const escola = await montarEscolaComTurma(api, bancada)
-      const envios = Array.from({ length: MATERIAIS_EM_PROCESSAMENTO_POR_ESCOLA + 2 }, () => enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica }, { arquivo: variacaoDoPdf() }))
+      // Uma vaga livre no teto, e cinco envios ao mesmo tempo: só um cabe.
+      await materiaisJaEnviados(bancada, escola.coordenacao, escola.quimica, MATERIAIS_EM_PROCESSAMENTO_POR_ESCOLA - 1, { estado: 'processando', enviadoHaMs: 2 * 60 * 60_000 })
+      const envios = Array.from({ length: 5 }, () => enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica }, { arquivo: variacaoDoPdf() }))
 
       const respostas = await Promise.all(envios)
 
-      // Tanto faz quem chegou primeiro: três ficam, e os dois que passaram pela conferência da entrada mas perderam na transação, ou nela, não guardam nada.
-      expect(respostas.map((resposta) => resposta.status).toSorted()).toEqual([201, 201, 201, 429, 429])
+      // Tanto faz quem chegou primeiro: um fica, e os que passaram pela conferência da entrada mas perderam na transação, ou nela, não guardam nada.
+      expect(respostas.map((resposta) => resposta.status).toSorted()).toEqual([201, 429, 429, 429, 429])
       const ficaram = respostas.filter((resposta) => resposta.status === 201).map((resposta) => chaveDe(escola.coordenacao.escolaId, resposta.corpo['id'] as string))
       expect(objetosDaEscola(api, escola.coordenacao.escolaId).toSorted()).toEqual(ficaram.toSorted())
       await esperarExtracao(api)

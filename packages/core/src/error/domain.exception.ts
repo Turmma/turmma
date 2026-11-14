@@ -41,6 +41,8 @@ export const HTTP_STATUS_BY_CODE: Readonly<Record<ErrorCode, number>> = {
   IA_ENTRADA_INVALIDA: 500,
   EXECUCAO_INTERROMPIDA: 503,
   MATERIAL_INSUFICIENTE: 422,
+  // 9.0: o pedido é bem formado, e a escola não tem material pronto da série da turma (próprio ou de licença vigente hoje).
+  SEM_MATERIAL_DA_SERIE: 422,
   // F3, RF2: o pedido é bem formado, e o prazo não cabe no catálogo da retenção.
   RETENCAO_FORA_DO_LIMITE: 422,
   // F3, RF16: o pedido do titular não está no estado que a ação pede (fora de correção, já fechado, eliminação).

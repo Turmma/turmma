@@ -1,6 +1,8 @@
 import {
   diaDeUso,
   ehAssuntoDelicado,
+  globalMeter,
+  METRICS,
   DomainException,
   LLMError,
   MODELO_DA_REGRA_FIXA,
@@ -11,6 +13,7 @@ import {
   type TutorInput,
   type OrcamentoDeIa,
   type Clock,
+  type Meter,
   type TutorOutput,
   type SuspensaoDeFuncao,
   type DatabaseTransaction,
@@ -151,13 +154,19 @@ export class TutorService {
     private readonly orcamento: OrcamentoDeIa,
     private readonly suspensao: SuspensaoDeFuncao,
     private readonly relogio: Clock = systemClock,
-  ) {}
+    medidor: Meter = globalMeter(),
+  ) {
+    this.#recusasSemMaterial = medidor.createCounter(METRICS.tutorRecusadoSemMaterial, { description: 'Perguntas do Tutor recusadas por falta de material da série, por turma' })
+  }
+
+  /** As recusas por falta de material da série, **por turma** (RF8): o único rótulo é a turma, nunca o aluno, a escola nem o texto. */
+  readonly #recusasSemMaterial: ReturnType<Meter['createCounter']>
 
   /** `POST /v1/tutor/mensagens`: confere, grava a pergunta com a execução e responde o id dela. */
   async enviar(pedido: MensagemAoTutorRequest): Promise<ExecucaoAceitaResponse> {
-    const alcance = await this.#alcance(pedido)
-    const onde: ReferenciaDaPergunta = { atividadeAplicadaId: alcance.atividade?.id ?? null, questao: pedido.questao ?? null, materialId: alcance.material?.id ?? null, pagina: pedido.pagina ?? null }
-    const { turmaId } = alcance.turma
+    // A turma e a atividade primeiro: o material aberto só se confere depois da D36, para a mensagem fixa nunca depender dele.
+    const daTurma = await this.#alcance(pedido)
+    const { turmaId } = daTurma.turma
     const { usuarioId: alunoId } = requestSessao()
 
     // O reenvio com a mesma chave devolve a mesma execução, mesmo que o freio tenha fechado ou a avaliação aberto depois.
@@ -165,7 +174,11 @@ export class TutorService {
     if (jaAceita !== undefined && jaAceita.tarefa !== turnoDoTutor.nome) throw new DomainException(ErrorCode.CONFLITO)
 
     // Antes de tudo, até da avaliação aberta: a trava existe para o Tutor não ajudar na prova, e a mensagem fixa não ajuda em prova nenhuma.
-    if (ehAssuntoDelicado(pedido.texto)) return jaAceita === undefined ? this.#encaminhar(pedido, alcance) : { execucaoId: jaAceita.id }
+    if (ehAssuntoDelicado(pedido.texto)) return jaAceita === undefined ? this.#encaminhar(pedido, daTurma) : { execucaoId: jaAceita.id }
+
+    // Só depois da D36: o material aberto que saiu do alcance (edição substituída, licença vencida) responde como o inexistente, e a turma sem material da série é recusada, sem nada na conversa.
+    const alcance = await this.#doMaterial(daTurma, pedido)
+    const onde: ReferenciaDaPergunta = { atividadeAplicadaId: alcance.atividade?.id ?? null, questao: pedido.questao ?? null, materialId: alcance.material?.id ?? null, pagina: pedido.pagina ?? null }
 
     // Por aluno e por escola, nunca por IP: a turma inteira sai pelo mesmo endereço (regra 80, item 1). Depois do assunto
     // delicado, e não antes: às 10h, com seis turmas, o teto da escola se esgota, e o aluno que escreve sobre se machucar
@@ -203,7 +216,9 @@ export class TutorService {
         const pergunta = await tutor.perguntaDaChave(pedido.chaveEnvio)
         if (pergunta === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
         // O alcance é conferido de novo na hora de rodar: quem saiu da turma depois do `202` não recebe resposta sobre ela.
-        const agora = await this.#alcance({ ...(pergunta.atividadeAplicadaId === null ? {} : { atividadeAplicadaId: pergunta.atividadeAplicadaId }), ...(pergunta.materialId === null ? {} : { materialId: pergunta.materialId }) })
+        // Com o mesmo filtro do `POST`: o material que saiu do alcance entre o `202` e agora (licença vencida, edição substituída) faz a execução falhar, sem trecho, sem modelo e sem classificação do modelo.
+        const pedidoGravado = { ...(pergunta.atividadeAplicadaId === null ? {} : { atividadeAplicadaId: pergunta.atividadeAplicadaId }), ...(pergunta.materialId === null ? {} : { materialId: pergunta.materialId }) }
+        const agora = await this.#doMaterial(await this.#alcance(pedidoGravado), pedidoGravado)
         if (agora.turma.turmaId !== pergunta.turmaId) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
         // A avaliação que abriu entre o `202` e agora trava o turno antes de qualquer trabalho: sem trecho, sem memória e sem
         // chamar o modelo. A execução falha com o código da pausa, `trocas()` a ignora e a pergunta fica só em `mensagem_tutor`.
@@ -237,22 +252,42 @@ export class TutorService {
   }
 
   /**
-   * O que o aluno referencia, conferido: a turma dele, a atividade aplicada a ela e o material que ela pode usar. Com
-   * atividade e material juntos, o material precisa ser da disciplina da atividade. Fora do alcance, de outra escola,
-   * de outro ano ou inexistente: `NAO_ENCONTRADO`, igual para todos (regra 10, item 6).
+   * O que o aluno referencia **fora do material**, conferido: a turma dele, a atividade aplicada a ela e a questão. Fora do alcance, de outra escola, de outro ano ou inexistente:
+   * `NAO_ENCONTRADO`, igual para todos (regra 10, item 6). O material vem depois, em `#doMaterial`, porque a D36 passa na frente dele.
    */
-  async #alcance(pedido: Pick<MensagemAoTutorRequest, 'atividadeAplicadaId' | 'questao' | 'materialId' | 'pagina'>): Promise<Alcance> {
+  async #alcance(pedido: Pick<MensagemAoTutorRequest, 'atividadeAplicadaId' | 'questao'>): Promise<Alcance> {
     const tutor = new TutorDoAlunoRepository(this.banco, this.relogio)
     const naoEncontrado = (): never => {
       throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     }
     const turma = (await tutor.turmaDoAluno()) ?? naoEncontrado()
     const atividade = pedido.atividadeAplicadaId === undefined ? undefined : ((await tutor.atividadeDaTurma(turma.turmaId, pedido.atividadeAplicadaId.toLowerCase())) ?? naoEncontrado())
-    const material = pedido.materialId === undefined ? undefined : ((await tutor.materialDaTurma(turma.turmaId, pedido.materialId.toLowerCase())) ?? naoEncontrado())
-    if (atividade !== undefined && material !== undefined && material.disciplinaId !== atividade.disciplinaId) naoEncontrado()
     if (atividade !== undefined && pedido.questao !== undefined && questaoSemGabarito(atividade.conteudo, pedido.questao) === undefined) naoEncontrado()
+    return { turma, ...(atividade === undefined ? {} : { atividade }) }
+  }
+
+  /**
+   * O material que o aluno referencia, e a série dele. O material precisa ser da turma: da disciplina que ela tem, **declarado para a série dela e próprio ou de licença vigente hoje**; com atividade
+   * e material juntos, da disciplina da atividade. Fora disso, `NAO_ENCONTRADO` (a página aberta de uma edição substituída responde como o inexistente, como antes da F4).
+   *
+   * Com atividade ou material, a disciplina é conhecida, e a escola precisa ter material **da série** dela: senão, `SEM_MATERIAL_DA_SERIE`, contado por turma (nunca por aluno) e sem nada na conversa.
+   * Sem atividade e sem material é o modo livre, que não muda.
+   */
+  async #doMaterial(base: Alcance, pedido: Pick<MensagemAoTutorRequest, 'materialId' | 'pagina'>): Promise<Alcance> {
+    const tutor = new TutorDoAlunoRepository(this.banco, this.relogio)
+    const naoEncontrado = (): never => {
+      throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+    }
+    const { turma, atividade } = base
+    const material = pedido.materialId === undefined ? undefined : ((await tutor.materialDaTurma(turma.turmaId, turma.serieId, this.trechos.hoje(), pedido.materialId.toLowerCase())) ?? naoEncontrado())
+    if (atividade !== undefined && material !== undefined && material.disciplinaId !== atividade.disciplinaId) naoEncontrado()
     if (material !== undefined && pedido.pagina !== undefined && pedido.pagina > (material.paginas ?? 0)) naoEncontrado()
-    return { turma, ...(atividade === undefined ? {} : { atividade }), ...(material === undefined ? {} : { material }) }
+    const disciplinaId = atividade?.disciplinaId ?? material?.disciplinaId
+    if (disciplinaId !== undefined && !(await this.trechos.existeMaterialDaSerie({ serieId: turma.serieId, disciplinaId }))) {
+      this.#recusasSemMaterial.add(1, { turma_id: turma.turmaId })
+      throw new DomainException(ErrorCode.SEM_MATERIAL_DA_SERIE)
+    }
+    return { ...base, ...(material === undefined ? {} : { material }) }
   }
 
   /** Série e disciplina como a tarefa as recebe: o nome que a escola deu, sem nome de turma nem de pessoa. */
@@ -278,12 +313,13 @@ export class TutorService {
     const achados = await this.trechos.buscar({
       texto: `${pergunta.texto} ${questao?.enunciado ?? ''}`,
       disciplinaId,
+      serieId: alcance.turma.serieId,
       ...(alcance.material === undefined ? {} : { materialId: alcance.material.id }),
       limite: TRECHOS_NO_TURNO,
     })
     if (alcance.material === undefined || pergunta.pagina === null) return achados
     // A disciplina vai para a porta, que filtra no repository: o material de outra disciplina não devolve página nenhuma.
-    const aberta = (await this.trechos.doMaterial(alcance.material.id, disciplinaId)).find((trecho) => trecho.pagina === pergunta.pagina)
+    const aberta = (await this.trechos.doMaterial(alcance.material.id, disciplinaId, alcance.turma.serieId)).find((trecho) => trecho.pagina === pergunta.pagina)
     if (aberta === undefined) return achados
     return [aberta, ...achados.filter((trecho) => !(trecho.materialId === aberta.materialId && trecho.pagina === aberta.pagina))].slice(0, TRECHOS_NO_TURNO)
   }

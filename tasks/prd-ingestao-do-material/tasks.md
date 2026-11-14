@@ -56,7 +56,7 @@
   - [ ] 8.4 "Voltar o código depois da F4" no runbook, com o teste do schema congelado
   - [ ] 8.5 Testes: os momentos do RF10 e as corridas
 
-- [ ] **9.0 — Toda leitura de página filtra por série e licença vigente; sem material, ninguém gera**
+- [x] **9.0 — Toda leitura de página filtra por série e licença vigente; sem material, ninguém gera**
   - [ ] 9.1 Série e "hoje" nas quatro leituras e na rota de busca
   - [ ] 9.2 `SEM_MATERIAL_DA_SERIE` antes do `202`; no Tutor, depois da D36
   - [ ] 9.3 O estado do aluno sem material

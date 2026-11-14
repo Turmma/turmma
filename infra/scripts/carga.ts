@@ -235,7 +235,7 @@ async function idDoOpsEscola(argumentos: readonly string[], ambiente: NodeJS.Pro
  * aplicadas. Endereço sorteado a cada execução: o volume é derrubado no fim, mas duas execuções sobrepostas
  * não disputam o mesmo slug.
  */
-async function criarEscolasDoCenario(ambiente: NodeJS.ProcessEnv): Promise<EscolasDoCenario> {
+export async function criarEscolasDoCenario(ambiente: NodeJS.ProcessEnv): Promise<EscolasDoCenario> {
   const comOperador = { ...ambiente, OPERADOR: OPERADOR_DA_CARGA }
   const redeId = await idDoOpsEscola(['rede', 'criar', '--nome', 'Rede sintética da carga', '--tipo', 'independente'], comOperador, 'redeId')
   const entradas: Array<[NomeDeEscola, string]> = []

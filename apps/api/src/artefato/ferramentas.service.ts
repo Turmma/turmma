@@ -65,7 +65,10 @@ export class FerramentasService {
     await this.limite.contar()
     const { chaveEnvio, ...resto } = pedido
     const parametros: ParametrosDeFerramenta = { ...resto, turmaId: resto.turmaId.toLowerCase(), disciplinaId: resto.disciplinaId.toLowerCase() }
-    if ((await new TurmaDoProfessorRepository(this.banco).turmaComDisciplina(parametros.turmaId, parametros.disciplinaId)) === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+    const daTurma = await new TurmaDoProfessorRepository(this.banco).turmaComDisciplina(parametros.turmaId, parametros.disciplinaId)
+    if (daTurma === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+    // Antes do `202`: sem material da série (o único venceu, ou ainda está `processando`), não há execução, consumo nem chamada ao modelo (RF8).
+    if (!(await this.trechos.existeMaterialDaSerie({ serieId: daTurma.serieId, disciplinaId: parametros.disciplinaId }))) throw new DomainException(ErrorCode.SEM_MATERIAL_DA_SERIE)
 
     const tarefa = TAREFA_DA_FERRAMENTA[ferramenta]
     let preparado: Preparado | undefined
@@ -113,7 +116,7 @@ export class FerramentasService {
     const turma = await new TurmaDoProfessorRepository(this.banco).turmaComDisciplina(parametros.turmaId, parametros.disciplinaId)
     if (turma === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     // A porta de trechos não confere papel: o vínculo confirmado na disciplina foi conferido logo acima.
-    const achados = await this.trechos.buscar({ texto: parametros.tema, disciplinaId: parametros.disciplinaId, limite: TRECHOS_NA_FERRAMENTA })
+    const achados = await this.trechos.buscar({ texto: parametros.tema, disciplinaId: parametros.disciplinaId, serieId: turma.serieId, limite: TRECHOS_NA_FERRAMENTA })
     if (achados.length === 0) throw new LLMError('MATERIAL_INSUFICIENTE')
     // A busca escolhe por relevância; a tarefa recebe as páginas escolhidas na ordem do material, como quem lê o capítulo.
     const entregues = [...achados].sort((a, b) => a.materialId.localeCompare(b.materialId) || a.pagina - b.pagina)

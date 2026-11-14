@@ -1,6 +1,6 @@
-import { requireEscolaId, capituloDoMaterial, material, materialSerie, requestSessao, serie, trecho, vinculo, type Database, type DatabaseTransaction } from '@educa/core'
+import { requireEscolaId, capituloDoMaterial, licencaDeMaterial, material, materialSerie, requestSessao, serie, trecho, vinculo, type Database, type DatabaseTransaction } from '@educa/core'
 import type { CapituloDoMaterial, MateriaisQuery, EstadoDeMaterial, FalhaDeMaterial, LicencaDeMaterial, TitularidadeDeMaterial } from '@educa/shared'
-import { and, asc, desc, eq, exists, gt, gte, inArray, isNull, sql, type SQL } from 'drizzle-orm'
+import { and, asc, desc, eq, exists, gt, gte, inArray, isNull, lte, ne, or, sql, type SQL } from 'drizzle-orm'
 import { InvariantException } from '@educa/shared'
 
 /**
@@ -85,6 +85,10 @@ export interface FiltroDaBusca {
   readonly texto: string
   readonly disciplinaId?: string | undefined
   readonly materialId?: string | undefined
+  /** Só o material declarado para a série. Obrigatório a quem lê por uma turma (Assistente, Tutor); a rota da busca o recebe do cliente, e ele só filtra. */
+  readonly serieId?: string | undefined
+  /** O dia de São Paulo em que a licença é conferida (`diaDeUso`), do `Clock` de quem chama: nunca o relógio do banco. */
+  readonly hoje: string
   readonly limite: number
   /**
    * `todas`: a página precisa ter todas as palavras (`websearch_to_tsquery`, o contrato da rota). `qualquer`: basta
@@ -133,6 +137,46 @@ const colunasDoAlvo = {
   licenca: material.licenca,
 }
 
+/**
+ * O material declarado para a série. A série de outra escola não casa com material desta: o filtro é igual ao da série que não existe.
+ * **Uma cópia só**: a lista, a busca, a página aberta, o `materialDaTurma` do Tutor e o `existeMaterialDaSerie` leem a série por aqui.
+ * O corte `eq(materialSerie.escolaId, requireEscolaId())` **repete** o da tabela principal de quem chama (regra 10, item 3): é defesa em profundidade e **não é sobra**. Tirar um dos dois não
+ * quebra a consulta inteira, porque o outro segura; o teste de isolamento chama o fragmento sozinho, sem o escopo de fora, para provar o dele.
+ */
+export function declaradoParaASerie(banco: Database | DatabaseTransaction, serieId: string): SQL {
+  return exists(
+    banco
+      .select({ um: materialSerie.serieId })
+      .from(materialSerie)
+      .where(and(eq(materialSerie.escolaId, requireEscolaId()), eq(materialSerie.materialId, material.id), eq(materialSerie.serieId, serieId))),
+  )
+}
+
+/**
+ * O material que a escola pode ler **hoje**: o próprio (do que não é de terceiro) ou o de terceiro cuja licença registrada vale no dia: `vigente_desde <= hoje` e `vigente_ate` nula ou `>= hoje`.
+ * O de terceiro sem licença registrada (o que o código anterior à F4 gravou depois da volta) não é lido: sem licença que o autorize, a escola não o usa (D5). `hoje` é o dia de São Paulo (`diaDeUso`).
+ * O corte `eq(licencaDeMaterial.escolaId, requireEscolaId())` **repete** o da tabela principal de quem chama (regra 10, item 3): defesa em profundidade, **não é sobra**; o teste de isolamento chama o
+ * fragmento sozinho para provar o dele.
+ */
+export function proprioOuComLicencaVigente(banco: Database | DatabaseTransaction, hoje: string): SQL | undefined {
+  return or(
+    ne(material.titularidade, 'terceiro_com_licenca'),
+    exists(
+      banco
+        .select({ um: licencaDeMaterial.id })
+        .from(licencaDeMaterial)
+        .where(
+          and(
+            eq(licencaDeMaterial.escolaId, requireEscolaId()),
+            eq(licencaDeMaterial.id, material.licencaId),
+            lte(licencaDeMaterial.vigenteDesde, hoje),
+            or(isNull(licencaDeMaterial.vigenteAte), gte(licencaDeMaterial.vigenteAte, hoje)),
+          ),
+        ),
+    ),
+  )
+}
+
 const colunasDoTrecho = { materialId: trecho.materialId, disciplinaId: trecho.disciplinaId, titulo: material.titulo, pagina: trecho.pagina, texto: trecho.texto }
 
 /**
@@ -170,14 +214,9 @@ export class MaterialRepository {
     )
   }
 
-  /** O material declarado para a série. A série de outra escola não casa com material desta: o filtro é igual ao da série que não existe. */
+  /** O material declarado para a série (`declaradoParaASerie`, a cópia única). */
   #comASerie(serieId: string): SQL {
-    return exists(
-      this.banco
-        .select({ um: materialSerie.serieId })
-        .from(materialSerie)
-        .where(and(eq(materialSerie.escolaId, material.escolaId), eq(materialSerie.materialId, material.id), eq(materialSerie.serieId, serieId))),
-    )
+    return declaradoParaASerie(this.banco, serieId)
   }
 
   /**
@@ -347,7 +386,7 @@ export class MaterialRepository {
    *
    * O filtro começa por `trecho.escola_id` e `disciplina_id`, que são o começo do índice GIN (regra 80, item 8).
    */
-  buscar({ texto, disciplinaId, materialId, limite, palavras }: FiltroDaBusca, alcance: AlcanceDoMaterial): Promise<TrechoAchado[]> {
+  buscar({ texto, disciplinaId, materialId, serieId, hoje, limite, palavras }: FiltroDaBusca, alcance: AlcanceDoMaterial): Promise<TrechoAchado[]> {
     const escolaId = requireEscolaId()
     const todas = sql`websearch_to_tsquery('portuguese', ${texto})`
     // `a & b` vira `a | b`: a consulta já saiu do analisador do Postgres, e o texto dela só tem lexemas e operadores.
@@ -365,6 +404,8 @@ export class MaterialRepository {
           sql`${trecho.busca} @@ ${consulta}`,
           eq(material.estado, 'pronto'),
           isNull(material.excluidoEm),
+          serieId === undefined ? undefined : this.#comASerie(serieId),
+          proprioOuComLicencaVigente(this.banco, hoje),
           this.#noAlcance(alcance),
         ),
       )
@@ -372,8 +413,11 @@ export class MaterialRepository {
       .limit(limite)
   }
 
-  /** As páginas de um material `pronto` e não excluído da escola **e da disciplina pedida**, em ordem, até `limite`. */
-  paginasDoMaterial(materialId: string, disciplinaId: string, limite: number, alcance: AlcanceDoMaterial): Promise<TrechoAchado[]> {
+  /**
+   * As páginas de um material `pronto` e não excluído da escola **e da disciplina pedida**, em ordem, até `limite`, **da série dada e de licença vigente hoje**: a página aberta de uma
+   * edição substituída, ou de material cuja licença venceu, não devolve nada.
+   */
+  paginasDoMaterial(materialId: string, disciplinaId: string, serieId: string, hoje: string, limite: number, alcance: AlcanceDoMaterial): Promise<TrechoAchado[]> {
     const escolaId = requireEscolaId()
     return this.banco
       .select(colunasDoTrecho)
@@ -387,10 +431,34 @@ export class MaterialRepository {
           eq(trecho.materialId, materialId),
           eq(material.estado, 'pronto'),
           isNull(material.excluidoEm),
+          this.#comASerie(serieId),
+          proprioOuComLicencaVigente(this.banco, hoje),
           this.#noAlcance(alcance),
         ),
       )
       .orderBy(asc(trecho.pagina))
       .limit(limite)
+  }
+
+  /**
+   * Há material `pronto`, não excluído, da disciplina e da série, próprio ou de licença vigente hoje? É o que a ferramenta e o chat conferem **antes do `202`** (`SEM_MATERIAL_DA_SERIE`) e o que o
+   * Tutor confere depois da D36: o único material da série que venceu, ou que ainda está `processando`, não conta. Quem chama já conferiu que a pessoa alcança a disciplina.
+   */
+  async existeMaterialDaSerie(serieId: string, disciplinaId: string, hoje: string): Promise<boolean> {
+    const [achado] = await this.banco
+      .select({ id: material.id })
+      .from(material)
+      .where(
+        and(
+          eq(material.escolaId, requireEscolaId()),
+          eq(material.disciplinaId, disciplinaId),
+          eq(material.estado, 'pronto'),
+          isNull(material.excluidoEm),
+          this.#comASerie(serieId),
+          proprioOuComLicencaVigente(this.banco, hoje),
+        ),
+      )
+      .limit(1)
+    return achado !== undefined
   }
 }

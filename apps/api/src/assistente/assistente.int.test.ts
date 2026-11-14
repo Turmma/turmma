@@ -51,7 +51,7 @@ describe('Assistente de ensino', () => {
   const conversaDe = async (sessao: TestSessao, consulta = '') => conversaDoAssistenteResponseSchema.parse((await get(sessao, `/v1/assistente/conversa${consulta}`)).corpo)
   const suspender = (escola: EscolaComAssistente, funcao: ChaveDeFuncao) => sql('insert into suspensao_de_funcao (escola_id, funcao, suspensa_por) values ($1, $2, $3)', [escola.escolaId, funcao, escola.coordenacao.usuarioId])
   const retomar = (escola: EscolaComAssistente, funcao: ChaveDeFuncao) =>
-    sql('update suspensao_de_funcao set retomada_em = now(), retomada_por = $3 where escola_id = $1 and funcao = $2 and retomada_em is null', [escola.escolaId, funcao, escola.coordenacao.usuarioId])
+    sql('update suspensao_de_funcao set retomada_em = greatest(now(), suspensa_em), retomada_por = $3 where escola_id = $1 and funcao = $2 and retomada_em is null', [escola.escolaId, funcao, escola.coordenacao.usuarioId])
 
   beforeAll(async () => {
     api = await subirApi(medidor.medidor, {}, linhasDeLog)
@@ -269,7 +269,7 @@ describe('Assistente de ensino', () => {
       await vincularProfessor(bancada, a, a.colega.usuarioId, a.turma, a.fisica, 'pendente')
       expect(await turmas()).toBeUndefined()
       await sql(`update vinculo set estado = 'confirmado', decidido_em = now() where escola_id = $1 and usuario_id = $2 and turma_id = $3 and disciplina_id = $4`, [a.escolaId, a.colega.usuarioId, a.turma, a.fisica])
-      expect(await turmas()).toEqual({ serie: { etapa: 'em', ano: 2 }, disciplina: 'Física' })
+      expect(await turmas()).toEqual({ serieId: a.serieId, serie: { etapa: 'em', ano: 2 }, disciplina: 'Física' })
       // O vínculo em Física não abre Química na mesma turma: o material é da disciplina.
       expect(await comoPessoa(a, a.colega, 'professor', () => new TurmaDoProfessorRepository(bancada.banco).turmaComDisciplina(a.turma, a.quimica))).toBeUndefined()
       await sql(`update vinculo set estado = 'encerrado', motivo_encerramento = 'realocacao', encerrado_em = now() where escola_id = $1 and usuario_id = $2 and turma_id = $3 and disciplina_id = $4`, [a.escolaId, a.colega.usuarioId, a.turma, a.fisica])

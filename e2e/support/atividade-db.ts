@@ -58,6 +58,8 @@ export function criarAtividadeNoBanco(escolaId: string, professoraId: string, tu
     )
     const materialId = materiais[0]?.id
     if (materialId === undefined) throw new Error('o seed do e2e não criou o material')
+    // Como o envio de verdade faz: o material é declarado para as séries da escola. Sem série, o Tutor e as ferramentas não o leem (ingestao-do-material, 9.0).
+    await banco.query('insert into material_serie (escola_id, material_id, serie_id) select escola_id, $2, id from serie where escola_id = $1', [escolaId, materialId])
     for (const [indice, texto] of PAGINAS.entries()) {
       await banco.query('insert into trecho (escola_id, disciplina_id, material_id, pagina, texto) values ($1, $2, $3, $4, $5)', [escolaId, disciplinaId, materialId, indice + 1, texto])
     }
