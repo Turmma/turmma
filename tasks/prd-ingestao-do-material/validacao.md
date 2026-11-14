@@ -1,5 +1,171 @@
 # Validação — ingestao-do-material (F4)
 
+## Rodada 2 — 14/11/2026
+
+**Escopo:** funcionalidade completa (o mesmo corte de 11/11/2026 da rodada 1: RF1, RF2, RF5, RF9, RF12, RF19, a habilidade
+no RF7, o "classificadas" do RF15 e a classificação no RF20 são da F4b)
+**Commit validado:** `206e9909` (o último commit de código é `7d4e4f7b`, correção `2026-11-14-erro-de-material-na-tela-da-professora`)
+**Veredito: APROVADA**
+
+**O que mudou desde a rodada 1** (`743fd52f..206e9909`): duas correções, nada mais em `apps/`, `packages/`, `infra/`, `e2e/` ou
+`tools/` (`git diff --stat 743fd52f 206e9909`):
+- `43186c74`, correção `2026-11-14-adaptacao-com-licenca-vencida` (o achado maior 1 da rodada 1, decisão (a) do Joaquim às
+  ~05:25): `ArtefatoService.adaptar` confere o material que o original cita (`exigirMaterialEmUso`,
+  `artefato.service.ts:70-79`; `ArtefatoRepository.materiaisForaDoUso`, `artefato.repository.ts:150-157`, com o
+  `proprioOuComLicencaVigente` da 9.0), antes do `202` (`:156-158`, menos no reenvio da chave já aceita) e de novo na entrada
+  da execução (`:174`), antes de o texto ir ao modelo. `LICENCA_VENCIDA` (422) e o código novo `EDICAO_SUBSTITUIDA` (422,
+  `packages/shared/src/errors/error-code.ts`, `packages/core/src/error/domain.exception.ts`), com `docs/mvp-contratos.md`, a Tech
+  Spec §5 e §11 e o `cenarios.md` alinhados no mesmo commit.
+- `7d4e4f7b`, correção `2026-11-14-erro-de-material-na-tela-da-professora` (decisão 2(a), 13:15): `FalhaDoPedido`
+  (`apps/web/src/areas/professor/comum/avisos.tsx:63,96`) mostra à professora "O material que esta atividade cita saiu de uso.
+  Gere a atividade de novo para poder adaptá-la." nos dois códigos, no `POST` e na execução; o catálogo geral não muda.
+
+Por isso, nos RF que as correções não tocam, o código é o mesmo da rodada 1 e as linhas de código citadas lá valem; o que esta
+rodada refez foi rodar de novo os testes que servem de evidência a eles (seção 3). Nos RF que elas tocam (RF7, RF11 e o caso de
+borda da licença), a leitura, os testes, as mutações e a foto são desta rodada.
+
+Ambiente: integração no ambiente de teste 1 (`EDUCA_AMBIENTE_TESTE=1`, só Postgres, Redis e storage de pé); e2e e vitrine no
+ambiente 0, reconstruído por `node tools/ci/e2e.ts --manter-ambiente e2e/artefato-fontes.spec.ts` porque as imagens dele eram de
+08:14, de antes das duas correções. O `node_modules` é anterior ao `package-lock.json`, como na rodada 1, e o lock não mudou desde
+`743fd52f`: não rodei `npm ci`. Árvore limpa no começo e no fim.
+
+### 1. RF a RF
+
+| RF | Situação | Código | Teste | Observação |
+|---|---|---|---|---|
+| RF1, RF2, RF5, RF9, RF12, RF19 | fora do escopo | — | — | F4b, pelo corte de 11/11 |
+| RF3 | ATENDIDO | sem mudança desde a rodada 1 (`material.service.ts:205-206`, `material.repository.ts:278-290`) | `apps/api/test/material.int.test.ts` (":776", ":805"), rodado de novo, verde | Fotos da rodada 1 (`envio--*.png`): a tela não mudou |
+| RF4 | ATENDIDO | sem mudança (`packages/core/src/material/chapter-reader.ts:65`, `apps/worker/src/processors/extrair-pdf.ts:138`) | `chapter-reader.test.ts` e o resto de `packages/core/src/material` (60 casos), `apps/worker/test/extrair-pdf.int.test.ts`, rodados de novo, verdes | Fotos da rodada 1 (`painel-pronto--*.png`, `painel-terceiro--computador.png`) |
+| RF6 (só séries e título) | ATENDIDO | sem mudança (`material.service.ts:449-474`) | `apps/api/test/material-patch.int.test.ts`, rodado de novo, verde | Fotos da rodada 1 (`painel-correcao--*.png`) |
+| RF7 (sem a habilidade) | ATENDIDO | o filtro das leituras sem mudança (`material.repository.ts:161-193`, `tutor.repository.ts:194-221`); **a adaptação, desta rodada**: `artefato.service.ts:70-79` (`exigirMaterialEmUso`), `:156-158` (antes do `202`) e `:174` (na entrada da execução); `artefato.repository.ts:150-157` (`materiaisForaDoUso`, com o corte da escola em `:155`) | `apps/api/test/leitura-por-serie.int.test.ts` (37 casos); `apps/api/src/artefato/artefato.int.test.ts:680-822`, o `describe` "a adaptação de artefato cujo material saiu de uso": "licença vencida… recusada com LICENCA_VENCIDA antes do 202, sem execução, versão, entrega…; vigente, a mesma atividade se adapta" (com a licença que vence entre o `202` e a execução, `chamadasAoModelo` zero, e o reenvio da chave), "dois materiais citados, um em uso e outro com a licença vencida" | O achado maior 1 da rodada 1 está fechado: com a licença vencida a adaptação não manda mais o trecho ao modelo nem grava versão nem entrega (as contagens de `execucao_agente`, `artefato` e `entrega` iguais antes e depois). **Mutações 1 e 3** vermelhas. Foto abaixo, no RF11 |
+| RF8 | ATENDIDO | sem mudança (`ferramentas.service.ts:75`, `assistente.service.ts:93,115`, `tutor.service.ts:288-290`, `apps/web/src/areas/aluno/tutor.ts:75,94`) | `leitura-por-serie.int.test.ts` ("sem material da série, ninguém gera", "o Tutor: a D36 vem antes do filtro…"), rodado de novo, verde; `apps/web/src/areas/aluno/tutor*`, verde | Fotos da rodada 1 (`professor-sem-material--*.png`, e2e do aluno) |
+| RF10 | ATENDIDO | sem mudança (`material.service.ts:265-319`, `extrair-pdf.ts:40-43,139`) | `apps/api/test/material-edicao.int.test.ts`, rodado de novo, verde | Foto da rodada 1 (`painel-pronto--computador.png`) |
+| RF11 | ATENDIDO | `fontesDoConteudo` sem mudança (`artefato.service.ts:56-60`); **desta rodada**: a adaptação do artefato antigo, que citava a edição anterior e gerava versão nova citando-a, agora é recusada com `EDICAO_SUBSTITUIDA` (`artefato.service.ts:78`, `artefato.repository.ts:156`: `substituido_por` não nulo, ou a linha que falta); a tela da professora em `avisos.tsx:63,96` | `artefato.int.test.ts`: ":404" ("a troca de edição: o artefato antigo segue citando…"), "edição substituída: … recusada com EDICAO_SUBSTITUIDA, também depois do expurgo da linha, e a atividade gerada da edição nova se adapta", "edição trocada entre o 202 e a execução: … falha com EDICAO_SUBSTITUIDA antes de chamar o modelo"; `apps/web/src/areas/professor/ferramentas/CartaoDeFerramenta.test.tsx`, "a Adaptação de uma atividade cujo material saiu de uso" (4 casos, `it.each` nos dois códigos, na recusa e na execução, texto exato, sem "Licenças", sem o código, sem "Tentar de novo"); `e2e/artefato-fontes.spec.ts` (10 casos, `chromebook` e `celular`), rodado de novo, verde | **Foto lida desta rodada**, contra a API reconstruída: a professora da vitrine cheia pede a Adaptação da atividade "Estequiometria: lista sintética" (que cita um material sem linha, o caso do expurgo) com "Fonte ampliada": `professora--professor-ferramentas-adaptacao--Fonte-ampliada-Gerar-versão-adaptada--celular.png` mostra o aviso vermelho com o texto novo, sem "Licenças" e sem botão de tentar de novo; `…--computador.png` mostra o formulário inteiro, e o aviso nasce abaixo do botão, fora da área visível do miolo (menor 4). A vitrine terminou com "Nenhuma tela rola a 1366 × 768". Nenhum defeito da lista do `frontend-reviewer` |
+| RF13 | ATENDIDO | sem mudança | `apps/worker/test/extrair-pdf.int.test.ts`, `apps/worker/test/varrer-envios.int.test.ts`, `apps/api/test/material-envio-orfao.int.test.ts`, `apps/api/test/ops-jobs.int.test.ts`, `packages/core/src/db/volta-da-f4.int.test.ts`, rodados de novo, verdes | O alerta `pdf-parado` (`infra/`) não rodei, como na rodada 1: é da esteira |
+| RF14 | ATENDIDO | sem mudança | `apps/web/src/areas/coordenacao/material/` (envio em lote, `Material.test.tsx`), rodados de novo, verdes | Fotos da rodada 1 (`envio--*.png`) |
+| RF15 (sem "classificadas") | ATENDIDO | sem mudança (`infra/compose.yml:473-499`) | a corrida da carga do `9_task.md` e a medida de 20 MB da rodada 1 | Nada que a carga mede mudou desde a rodada 1 (as correções só tocam a adaptação, sob demanda da professora); não refiz a corrida |
+| RF16 | ATENDIDO | sem mudança | `apps/api/test/licenca.int.test.ts`, `material.int.test.ts` (terceiro sem licença, vencida, inexistente e da B), rodados de novo, verdes | Fotos da rodada 1 (`licencas--*.png`) |
+| RF17 | ATENDIDO | sem mudança no filtro (`material.repository.ts:176-193`) e no sino; a adaptação usa o mesmo dia de São Paulo (`diaDeUso`, `artefato.service.ts:76`) | `leitura-por-serie.int.test.ts:248` ("às 23h do último dia… às 0h01 do seguinte não…"), `:276`, `:289`; `artefato.int.test.ts:479` (o rascunho mantém a citação) e o caso da licença vencida da adaptação; `apps/web/src/areas/coordenacao/painel/` (sino), verde | "Os artefatos já gerados mantêm a citação" segue: a correção recusa só a **adaptação** nova, e o artefato aberto continua com as `fontes` (`artefato-fontes.spec.ts`) |
+| RF18 | ATENDIDO | sem mudança | `apps/api/test/material-resumo.int.test.ts`, rodado de novo, verde; telas do resumo, verdes | Fotos da rodada 1 (`lista--*.png`, `vazia--*.png`) |
+| RF20 (sem a classificação) | ATENDIDO | sem mudança no material; **desta rodada**: `materiaisForaDoUso` com `eq(material.escolaId, requireEscolaId())` (`artefato.repository.ts:155`), chamado só depois do `porId` do artefato no alcance | `apps/api/test/material-isolamento.int.test.ts` e os blocos de isolamento de `material-edicao`, `material-patch`, `material-resumo`, `licenca`, `leitura-por-serie`, `extrair-pdf`, rodados de novo, verdes; `artefato.int.test.ts`, "isolamento: o artefato de `g` cujo `jsonb` cita um material em uso de `h` não é adaptado…" | **Mutação 2** vermelha. O material de outra escola cai em `EDICAO_SUBSTITUIDA`, a mesma resposta do material cuja linha saiu: não confirma que o id existe em outra escola (regra 10, item 6) |
+
+Provas de mutação desta rodada (uma de cada vez, no código das correções, restauradas com `git checkout -- <arquivo>`, árvore
+limpa no fim; nenhuma é cópia literal dos blocos do documento da correção):
+
+| RF | Cláusula removida | Teste que ficou vermelho |
+|---|---|---|
+| RF7, D5 | o filtro de licença em `materiaisForaDoUso`: `emUso: coalesce(${proprioOuComLicencaVigente(...)}, true)` trocado por `` sql`true` `` (`artefato.repository.ts:153`) | `artefato.int.test.ts`: 2 casos ("licença vencida: a adaptação é recusada com LICENCA_VENCIDA…", "dois materiais citados, um em uso e outro com a licença vencida…"), por asserção, não por erro de carga |
+| RF20 | `eq(material.escolaId, requireEscolaId())` no `where` de `materiaisForaDoUso` (`artefato.repository.ts:155`) | `artefato.int.test.ts`: "isolamento: o artefato de `g` cujo `jsonb` cita um material em uso de `h`…" |
+| RF7, RF11 | a conferência na entrada da execução, `await exigirMaterialEmUso(..., lida.original)` (`artefato.service.ts:174`) | `artefato.int.test.ts`: 2 casos ("licença vencida…", no trecho entre o `202` e a execução; "edição trocada entre o 202 e a execução…") |
+
+A tela da professora não levou mutação minha (limite de três): o teste de componente compara o texto exato (`toBe`), e as três
+mutações do documento da correção (`tasks/correcoes/2026-11-14-erro-de-material-na-tela-da-professora.md`) rodaram no portão dela.
+
+As fotos desta rodada estão em
+`/tmp/claude-1000/-home-joaquimdp-Documents-git--maestri-floors-educaia--specingestao-do-material/f6941bd5-463e-4335-ab89-991d216ad419/scratchpad/fotos/`
+(cópia das de `.processo/vitrine/`). Não mexi no banco da vitrine: as atividades semeadas pelo e2e citam ids de material que não
+existem, e é esse o caso "linha que o expurgo apagou", que a correção responde com `EDICAO_SUBSTITUIDA`. O texto na tela é o
+mesmo para `LICENCA_VENCIDA`, que o teste de componente prova.
+
+### 2. Regras de negócio, casos de borda e critério de pronto
+
+Só o que muda em relação à rodada 1. O resto da tabela da rodada 1 vale como está (o código não mudou, e os testes foram rodados
+de novo, verdes).
+
+| Item | Situação | Evidência |
+|---|---|---|
+| Regra: toda saída cita material, edição e página (D6) | cumprida | a adaptação continua obrigada a repetir a citação (`exigirAdaptacaoFiel`), e agora só quando a citação é de material em uso |
+| Borda: licença vence com atividade em rascunho citando o material | **coberta** (era "com ressalva" na rodada 1) | o rascunho mantém a citação (`artefato.int.test.ts:479`); geração nova não usa o material, **também na adaptação** ("licença vencida: a adaptação é recusada…") |
+| Pronto: toda leitura de página só alcança material `pronto`, da série, próprio ou de licença vigente; sem ele nada é gerado | cumprido | RF7, RF8, RF17; mutações 1 e 3 desta rodada e 1 e 2 da rodada 1 |
+| Pronto: a edição nova só tira a anterior quando fica pronta; o artefato antigo cita a que usou | cumprido | RF10, RF11; a adaptação do antigo não gera versão citando a edição anterior |
+| Pronto: nada de uma escola para outra, por endpoint e repository | cumprido | RF20; mutação 2 desta rodada e 3 da rodada 1 |
+| Pronto: `docs/` alinhados | cumprido | `docs/mvp-contratos.md:75` traz os dois códigos da rota de adaptação; nenhum outro doc descreve a adaptação com licença vencida |
+| Escolha registrada: material **excluído** pela coordenação continua adaptável | cumprida, sem teste | decisão 1(a) do Joaquim (estado.md, 14/11 ~13:15), na `techspec.md` §5 e em `cenarios.md:127`, sem `[I]`: menor 2 |
+
+### 3. Portão
+
+| Portão | Resultado |
+|---|---|
+| `npm run typecheck`, `npm run lint`, suítes inteiras | não rodados: escopo de funcionalidade completa (D79). Esteira: conferida no fechamento |
+| Integração, evidência dos RF (13 arquivos: `artefato`, `leitura-por-serie`, `licenca`, `material-edicao`, `material-envio-orfao`, `material-isolamento`, `material-patch`, `material-resumo`, `material`, `ops-jobs`, `extrair-pdf`, `varrer-envios`, `volta-da-f4`), ambiente 1 | ✅ 72 + 306 = 378 passaram |
+| Unidade, evidência dos RF (23 arquivos: `CartaoDeFerramenta`, `areas/coordenacao/material`, `packages/core/src/material`, `packages/shared/src/material`, `areas/aluno/tutor*`, `areas/coordenacao/painel`, `contracts`) | ✅ 502 passaram |
+| e2e, `e2e/artefato-fontes.spec.ts` (pelo `e2e.ts --manter-ambiente`, que reconstruiu o ambiente 0) | ✅ 10 passaram, `chromebook` e `celular` |
+| Mutações (3) | ✅ as três vermelhas, árvore restaurada |
+| **Vermelho registrado, de ambiente** | a primeira execução de `artefato.int.test.ts` e de `leitura-por-serie.int.test.ts` foi no ambiente 0, com o compose do e2e da rodada 1 de pé desde 08:14: **11 de 35 e 6 de 37 vermelhos**, todos com `422 SEM_MATERIAL_DA_SERIE` (`apps/api/test/escola-assistente.fixture.ts:149`, "o pedido não foi aceito"). Causa, conferida no log do `educa-teste-worker-pdf-1` (`material.arquivo_ausente`, `codigo: extracao_falhou`, 16:16:06Z): o `worker-pdf` do compose consome o `material.extrair-pdf` que a integração enfileira, não acha o objeto (o teste guarda o PDF no armazém em memória) e marca o material como falho, e a linha some antes de o `esperarExtracao` rodar a extração no processo do teste. O portão já evita isso, porque derruba despachantes e workers antes da integração (`tools/processo/sequencia-do-portao.ts:47`), e a esteira começa cada job vazia. No ambiente 1, sem workers, os mesmos dois arquivos deram 72 de 72. Não é defeito do código validado; é o menor 5 |
+| Esteira do GitHub | roda no fechamento, depois desta validação (D78): não entra no veredito |
+| Revisões com veto registradas e aprovadas | ✅ nas duas correções novas, todo revisor obrigatório tem rodada e a última de cada um é APROVADO: `adaptacao-com-licenca-vencida` (tenancy, privacy, conformidade, llm-integrator, infra na 1ª; revisor-geral e test-engineer na 2ª, depois do REPROVADO do revisor-geral na 1ª); `erro-de-material-na-tela-da-professora` (frontend, tenancy, privacy, conformidade, infra na 1ª; test-engineer na 2ª). As 12 tarefas, como na rodada 1 |
+
+Processo: entre `origin/develop` e `206e9909`, nenhum commit de código fora de `(tarefa N.0)` ou `(correção <slug>)` (só os
+merges das linhas) e nenhum `Fora do processo:`. As divergências das correções estão na Tech Spec (§5 e a linha nova da §11).
+
+### 4. Achados
+
+**Críticos**
+- Nenhum.
+
+**Maiores**
+- Nenhum. O maior 1 da rodada 1 está fechado pelas duas correções (ver RF7 e RF11).
+
+**Menores**
+1. `apps/api/src/artefato/artefato.repository.ts:147`: o comentário de `materiaisForaDoUso` diz que "o expurgo só apaga a
+   edição substituída", mas o material **excluído** pela coordenação também perde a linha no prazo de `material_excluido`
+   (`packages/core/src/db/schema/material.ts:25-27`). Efeito: o artefato que cita material excluído se adapta até o expurgo
+   (escolha 1(a)) e, depois dele, é recusado com `EDICAO_SUBSTITUIDA`, um código cujo nome e cuja mensagem de catálogo falam de
+   "edição substituída". A professora lê o texto unificado, então nada errado chega à tela; o que está errado é o comentário e o
+   nome no contrato. **Correção:** corrigir o comentário (e a doc do código em `error-code.ts`) para "edição substituída, ou
+   linha que o expurgo apagou (substituída ou excluída)". Dono: Orquestrador, ao `TODO.md`.
+2. `tasks/prd-ingestao-do-material/cenarios.md:127`: a escolha 1(a) ("material excluído continua adaptável") não tem `[I]` nem
+   mutação, e a Mesa da correção registrou que, qualquer que fosse a resposta do Joaquim, viraria um caso `[I]` com mutação
+   (`excluido_em` em `materiaisForaDoUso`). No mesmo documento, sem destino: `cenarios.md:142` diz "abaixo" onde os cenários estão
+   acima; e falta o caso da ordem dos dois códigos (licença vencida e edição substituída juntas saem `LICENCA_VENCIDA`).
+   **Correção:** os dois casos `[I]` em `artefato.int.test.ts` e a palavra no `cenarios.md`, numa correção ou na próxima tarefa
+   que tocar `ArtefatoService.adaptar`. Dono: Orquestrador, ao `TODO.md`.
+3. `tasks/correcoes/2026-11-14-adaptacao-com-licenca-vencida.md`, "Recomendações sem aplicar": três linhas com destino
+   "`TODO.md`" que **não estão no `TODO.md`** (`git diff 743fd52f 206e9909 -- TODO.md` vazio): o caso da subquery de
+   `licenca_de_material` com licença de outra escola (tenancy-guardian), o contador por código para `LICENCA_VENCIDA` e
+   `EDICAO_SUBSTITUIDA` (infra-guardian) e o `Clock` injetado no `ArtefatoService` no lugar de `systemClock.agora()`
+   (`artefato.service.ts:76`; privacy, revisor-geral e test-engineer). **Correção:** levar as três ao `TODO.md` no fechamento.
+   Dono: Orquestrador.
+4. `apps/web/src/areas/professor/comum/avisos.tsx:95` e a foto
+   `professora--professor-ferramentas-adaptacao--Fonte-ampliada-Gerar-versão-adaptada--computador.png`: a 1366 × 768 o aviso
+   da falha nasce abaixo do botão "Gerar versão adaptada", fora da parte visível do miolo, e a professora só o vê rolando
+   (no celular a foto o mostra). Vale para toda `FalhaDoPedido`, não é desta funcionalidade, e o `role="alert"` o anuncia ao
+   leitor de tela. **Correção:** levar o aviso à vista (rolar até ele ou focá-lo) quando a falha chega. Dono: Orquestrador, ao
+   `TODO.md`, como recomendação de tela.
+5. `.claude/agents/validador.md`, seção 4, e `tools/testes/integracao.setup.ts`: rodar um arquivo de integração à mão num
+   ambiente com o compose do e2e de pé (o que o próprio `vitrine` e o `e2e.ts --manter-ambiente` deixam) dá vermelho falso em
+   todo teste que extrai PDF (seção 3). O portão se protege; quem roda isolado, não, e o `estado.md` já registrava o mesmo do
+   Implementador ("levar à retro"). **Correção:** o `globalSetup` da integração derrubar os workers como o portão, ou o
+   `validador.md` mandar rodar a integração num ambiente sem eles. Dono: Orquestrador, à retro.
+6. Os menores da rodada 1 (as quatro rotas de `now()` contra `defaultNow()`, o `mem_limit` do `worker-pdf`, os tetos do material
+   com `Date.now()`, o "rascunho" no status da `techspec.md:5`, a mensagem do professor sem material, e o "Devo ainda" do
+   `estado.md`) seguem como estavam: nenhuma das duas correções os tocou. Conferir no fechamento. Dono: Orquestrador.
+
+**Positivos**
+- A conferência da adaptação feita duas vezes, antes do `202` e de novo na entrada da execução, com teste que vence a licença
+  entre as duas e conta zero chamadas ao modelo: é o mesmo desenho da página aberta do Tutor, e cobre a janela que um teste só
+  da rota deixaria aberta.
+- A correção da tela da professora trocou o texto só onde a professora o recebe e deixou o catálogo da coordenação intacto,
+  com o limite escrito no comentário (`avisos.tsx:53-62`).
+
+### 5. Conclusão
+
+APROVADA. Os 14 RF do escopo estão atendidos, com código, teste rodado nesta rodada e foto nos que têm tela; o achado maior da
+rodada 1 (a adaptação herdando trecho e citação de material com licença vencida ou edição substituída) foi corrigido como o
+Joaquim escolheu, com teste que prova cada parte e três mutações minhas vermelhas. Não há crítico nem maior. O único vermelho
+desta rodada foi de ambiente, com a causa achada e conferida, e os mesmos arquivos deram verde num ambiente sem workers; fica
+como o menor 5. Os menores não mudam o veredito: vão ao `TODO.md` ou à retro no fechamento.
+
+### 6. Pendências herdadas
+
+| Pendência | Destino |
+|---|---|
+| Menores 1 a 4 desta rodada | `TODO.md`, no fechamento (Orquestrador) |
+| Menor 5 (integração à mão com o e2e de pé) | retro da F4 |
+| Menores da rodada 1 | como a rodada 1 os destinou (`TODO.md` e fechamento) |
+| A licença de terceiro cobre o envio ao provedor de IA? (`docs/regulacao.md` §5, PRD §10) | segue em aberto com advogado; a correção reduz o envio (a adaptação com licença vencida não manda mais o trecho) |
+| Commits `Fora do processo:` com código | nenhum |
+
 ## Rodada 1 — 14/11/2026
 
 **Escopo:** funcionalidade completa (com o corte de 11/11/2026: RF1, RF2, RF5, RF9, RF12, RF19, a habilidade no RF7, o

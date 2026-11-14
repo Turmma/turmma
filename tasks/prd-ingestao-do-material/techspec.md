@@ -2,7 +2,7 @@
 
 **PRD:** `prd.md` (RF da nota do corte)
 **Cenários de teste:** `cenarios.md`
-**Status:** rascunho
+**Status:** implementada em 14/11/2026 (aprovada em 11/11/2026)
 
 ## 1. Resumo da abordagem
 
