@@ -594,6 +594,9 @@ test.describe('Escolas, Nova rede e Nova escola (A0b, tarefa 6.0)', () => {
 
   test('recomeço: reabrir o diálogo sorteia outro id; sair e entrar outro operador na aba não mostra a lista do primeiro', async ({ page, hasTouch }) => {
     test.slow()
+    // A lista que o primeiro operador deixa na tela e o segundo não pode ver é a de escolas que existem: o `POST` deste caso é abortado e não cria nenhuma, e o banco da
+    // esteira pode ainda não ter escola de outro caso (esteira 43534741262, shard 10: "Nenhuma escola ainda").
+    await novoPainel('nenhum')
     const primeiro = await novoOperador()
     const segundo = await novoOperador()
     await entrarNaOperacao(page, primeiro, hasTouch)
@@ -624,6 +627,7 @@ test.describe('Escolas, Nova rede e Nova escola (A0b, tarefa 6.0)', () => {
 
     // A lista do primeiro operador está na tela. Ele sai; o segundo entra na mesma aba, sem recarregar, e a lista dele
     // fica segura no servidor: a tela mostra o carregando, e nada da lista de antes.
+    await expect.poll(() => nomesNaTela(page), { timeout: SIGN_IN_TIMEOUT_MS }).not.toEqual([])
     const lista = await nomesNaTela(page)
     expect(lista.length).toBeGreaterThan(0)
     await activate(page, 'Sair', hasTouch)
