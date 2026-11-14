@@ -336,6 +336,211 @@ describe('leitura de página por série e licença vigente (9.0)', () => {
     })
   })
 
+  describe('o reenvio com a mesma chaveEnvio, depois que o material saiu do alcance', () => {
+    /** Os três pedidos da professora que disparam IA, cada um com a sua chave: o que a tela reenvia quando perde a resposta do `202`. */
+    const pedidosDaProfessora = (c: Cenario) => [
+      ...FERRAMENTAS.map((ferramenta) => ({ rotulo: ferramenta, caminho: `/v1/ferramentas/${ferramenta}/gerar`, corpo: { turmaId: c.turma9, disciplinaId: c.escola.quimica, tema: 'estequiometria', chaveEnvio: randomUUID() } })),
+      { rotulo: 'chat', caminho: '/v1/assistente/mensagens', corpo: { texto: 'explique o reagente limitante', turmaId: c.turma9, disciplinaId: c.escola.quimica, chaveEnvio: randomUUID() } },
+    ]
+    const aceitarETerminar = async (sessao: TestSessao, caminho: string, corpo: Record<string, unknown>, rotulo: string): Promise<string> => {
+      const aceita = await post(sessao, caminho, corpo)
+      expect(aceita.status, rotulo).toBe(202)
+      const execucaoId = aceita.corpo['execucaoId'] as string
+      expect((await execucaoTerminada(api, sessao, execucaoId)).estado, rotulo).toBe('concluida')
+      return execucaoId
+    }
+
+    /**
+     * O reenvio com a execução ainda `pendente`: segura a execução na transição `rodando` (o gatilho só do banco de teste), tira o material, reenvia com a **mesma chave** e solta. É o caminho que a correção
+     * abriu: o reenvio já não para no filtro, e o `agendar` retoma a execução que ainda não rodou. O que ela faz com o material que saiu é o que o caso confere.
+     */
+    async function reenviandoComAExecucaoPendente(sessao: TestSessao, caminho: string, corpo: Record<string, unknown>, mudar: () => Promise<void>): Promise<{ aceita: RespostaHttp; reenvio: RespostaHttp; execucaoId: string }> {
+      await executor.ociosa()
+      const parada = new WriteBlockTrigger(bancada.pool, { tabela: 'execucao_agente', evento: 'update', quando: `new.solicitada_por = '${sessao.usuarioId}'::uuid and new.estado = 'rodando'` })
+      await parada.armar()
+      let aceita: RespostaHttp
+      let reenvio: RespostaHttp
+      try {
+        aceita = await post(sessao, caminho, corpo)
+        expect(aceita.status).toBe(202)
+        await parada.esperarParadas(1)
+        await mudar()
+        reenvio = await post(sessao, caminho, corpo)
+      } finally {
+        await parada.desarmar()
+      }
+      await executor.ociosa()
+      return { aceita, reenvio, execucaoId: aceita.corpo['execucaoId'] as string }
+    }
+    const estadoDaExecucao = async (escolaId: string, execucaoId: string) =>
+      (await sql<{ estado: string; erro: string | null }>('select estado, erro from execucao_agente where escola_id = $1 and id = $2', [escolaId, execucaoId])).rows
+
+    it('a ferramenta e o chat devolvem o execucaoId já aceito, sem gravar nem chamar o modelo, depois que o único material da série saiu; a chave nova continua recusada', async () => {
+      const c = await cenario()
+      const materialId = await materialDe9(c, { deDemonstracao: true })
+      const pedidos = pedidosDaProfessora(c)
+      const aceitos: string[] = []
+      for (const pedido of pedidos) aceitos.push(await aceitarETerminar(c.escola.professora, pedido.caminho, pedido.corpo, pedido.rotulo))
+
+      await sql('delete from material_serie where escola_id = $1 and material_id = $2', [c.escola.escolaId, materialId])
+      const adaptador = vi.spyOn(FakeAdapter.prototype, 'chamar')
+      const antes = await gastos(c.escola)
+      for (const [posicao, pedido] of pedidos.entries()) {
+        const reenvio = await post(c.escola.professora, pedido.caminho, pedido.corpo)
+        expect(reenvio.status, pedido.rotulo).toBe(202)
+        expect(reenvio.corpo['execucaoId'], pedido.rotulo).toBe(aceitos[posicao])
+        // O controle: a chave nova, com o mesmo corpo, continua recusada. O que passa é a chave que o servidor já aceitou.
+        expect(erroDe(await post(c.escola.professora, pedido.caminho, { ...pedido.corpo, chaveEnvio: randomUUID() })), pedido.rotulo).toEqual({ status: 422, codigo: ErrorCode.SEM_MATERIAL_DA_SERIE })
+      }
+      await executor.ociosa()
+      expect(adaptador).not.toHaveBeenCalled()
+      expect(await gastos(c.escola)).toEqual(antes)
+    })
+
+    it('a chave aceita para um pedido não pula a conferência de outro: reaproveitada em outra ferramenta ou no chat, continua com SEM_MATERIAL_DA_SERIE', async () => {
+      const c = await cenario()
+      const materialId = await materialDe9(c, { deDemonstracao: true })
+      const pedidos = pedidosDaProfessora(c)
+      for (const pedido of pedidos) await aceitarETerminar(c.escola.professora, pedido.caminho, pedido.corpo, pedido.rotulo)
+
+      await sql('delete from material_serie where escola_id = $1 and material_id = $2', [c.escola.escolaId, materialId])
+      const antes = await gastos(c.escola)
+      for (const dona of pedidos) {
+        for (const outro of pedidos.filter((pedido) => pedido !== dona)) {
+          const reaproveitada = await post(c.escola.professora, outro.caminho, { ...outro.corpo, chaveEnvio: dona.corpo.chaveEnvio })
+          expect(erroDe(reaproveitada), `${dona.rotulo} no lugar de ${outro.rotulo}`).toEqual({ status: 422, codigo: ErrorCode.SEM_MATERIAL_DA_SERIE })
+        }
+      }
+      expect(await gastos(c.escola)).toEqual(antes)
+    })
+
+    it('a chave aceita para uma professora não abre a recusa para outra da mesma escola: ela continua com SEM_MATERIAL_DA_SERIE', async () => {
+      const c = await cenario()
+      const materialId = await materialDe9(c, { deDemonstracao: true })
+      await vincularProfessor(bancada, c.escola, c.escola.deFisica.usuarioId, c.turma9, c.escola.quimica)
+      const pedidos = pedidosDaProfessora(c)
+      for (const pedido of pedidos) await aceitarETerminar(c.escola.professora, pedido.caminho, pedido.corpo, pedido.rotulo)
+
+      await sql('delete from material_serie where escola_id = $1 and material_id = $2', [c.escola.escolaId, materialId])
+      const antes = await gastos(c.escola)
+      for (const pedido of pedidos) expect(erroDe(await post(c.escola.deFisica, pedido.caminho, pedido.corpo)), pedido.rotulo).toEqual({ status: 422, codigo: ErrorCode.SEM_MATERIAL_DA_SERIE })
+      expect(await gastos(c.escola)).toEqual(antes)
+    })
+
+    it('o Tutor devolve a execução já aceita quando o material aberto ou o único material da série saiu, porque a licença venceu; a chave nova é recusada', async () => {
+      const c = await cenario()
+      const licencaId = await licencaDe(c, '2026-01-01')
+      const materialId = await materialDe9(c, { titularidade: 'terceiro_com_licenca', licencaId, deDemonstracao: true })
+      const comMaterialAberto = { atividadeAplicadaId: c.atividadeDe9, materialId, pagina: 1, chaveEnvio: randomUUID() }
+      const soComAtividade = { atividadeAplicadaId: c.atividadeDe9, chaveEnvio: randomUUID() }
+      const aceitos = [await aceitarETerminar(c.alunoDe9, '/v1/tutor/mensagens', { texto: 'não entendi o reagente limitante', ...comMaterialAberto }, 'com o material aberto')]
+      aceitos.push(await aceitarETerminar(c.alunoDe9, '/v1/tutor/mensagens', { texto: 'não entendi o reagente limitante', ...soComAtividade }, 'só com a atividade'))
+
+      await sql(`update licenca_de_material set vigente_ate = '2026-11-12' where id = $1`, [licencaId])
+      const adaptador = vi.spyOn(FakeAdapter.prototype, 'chamar')
+      const antes = await gastos(c.escola)
+      const reenvios = [comMaterialAberto, soComAtividade]
+      const recusas = [
+        { status: 404, codigo: ErrorCode.NAO_ENCONTRADO },
+        { status: 422, codigo: ErrorCode.SEM_MATERIAL_DA_SERIE },
+      ]
+      for (const [posicao, corpo] of reenvios.entries()) {
+        const reenvio = await perguntar(c.alunoDe9, corpo)
+        expect(reenvio.status, String(posicao)).toBe(202)
+        expect(reenvio.corpo['execucaoId'], String(posicao)).toBe(aceitos[posicao])
+        // O controle: a chave nova, com o mesmo corpo, é recusada como era.
+        expect(erroDe(await perguntar(c.alunoDe9, { ...corpo, chaveEnvio: randomUUID() })), String(posicao)).toEqual(recusas[posicao])
+      }
+      await executor.ociosa()
+      expect(adaptador).not.toHaveBeenCalled()
+      expect(await gastos(c.escola)).toEqual(antes)
+    })
+
+    // A execução pendente retomada pelo reenvio confere o material de novo, e falha por ele: sem trecho, sem modelo e sem consumo (RF8).
+    for (const [rotulo, falha] of [
+      ['atividade_objetiva', ErrorCode.MATERIAL_INSUFICIENTE],
+      ['plano_de_aula', ErrorCode.MATERIAL_INSUFICIENTE],
+      ['chat', ErrorCode.SEM_MATERIAL_DA_SERIE],
+    ] as const) {
+      it(`${rotulo}: o reenvio com a execução ainda pendente, depois que o material saiu, devolve o mesmo id e a execução falha pelo material sem chamar o modelo`, async () => {
+        const c = await cenario()
+        const materialId = await materialDe9(c, { deDemonstracao: true })
+        const pedido = pedidosDaProfessora(c).find((candidato) => candidato.rotulo === rotulo)
+        if (pedido === undefined) throw new Error(`pedido ${rotulo} não montado`)
+        const adaptador = vi.spyOn(FakeAdapter.prototype, 'chamar')
+        const { aceita, reenvio, execucaoId } = await reenviandoComAExecucaoPendente(c.escola.professora, pedido.caminho, pedido.corpo, async () => {
+          await sql('delete from material_serie where escola_id = $1 and material_id = $2', [c.escola.escolaId, materialId])
+        })
+        expect(reenvio.status).toBe(202)
+        expect(reenvio.corpo['execucaoId']).toBe(aceita.corpo['execucaoId'])
+        expect(await estadoDaExecucao(c.escola.escolaId, execucaoId)).toEqual([{ estado: 'falhou', erro: falha }])
+        expect(adaptador).not.toHaveBeenCalled()
+        expect(await contarNaEscola(bancada, 'consumo_ia', c.escola.escolaId, `execucao_id = '${execucaoId}'`)).toBe(0)
+        expect(await contarNaEscola(bancada, 'execucao_agente', c.escola.escolaId, `chave_envio = '${String(pedido.corpo.chaveEnvio)}'`)).toBe(1)
+      })
+    }
+
+    it('o Tutor com a execução ainda pendente no reenvio devolve o mesmo id, e a execução falha pelo material, sem resposta, sem consumo e sem chamar o modelo', async () => {
+      const c = await cenario()
+      const licencaId = await licencaDe(c, '2026-01-01')
+      const materialId = await materialDe9(c, { titularidade: 'terceiro_com_licenca', licencaId, deDemonstracao: true })
+      const adaptador = vi.spyOn(FakeAdapter.prototype, 'chamar')
+      const corpo = { texto: 'não entendi o reagente limitante', atividadeAplicadaId: c.atividadeDe9, materialId, pagina: 1, chaveEnvio: randomUUID() }
+      const { aceita, reenvio, execucaoId } = await reenviandoComAExecucaoPendente(c.alunoDe9, '/v1/tutor/mensagens', corpo, async () => {
+        await sql(`update licenca_de_material set vigente_ate = '2026-11-12' where id = $1`, [licencaId])
+      })
+      expect(reenvio.status).toBe(202)
+      expect(reenvio.corpo['execucaoId']).toBe(aceita.corpo['execucaoId'])
+      expect(await estadoDaExecucao(c.escola.escolaId, execucaoId)).toEqual([{ estado: 'falhou', erro: ErrorCode.NAO_ENCONTRADO }])
+      expect(adaptador).not.toHaveBeenCalled()
+      expect(await contarNaEscola(bancada, 'consumo_ia', c.escola.escolaId, `execucao_id = '${execucaoId}'`)).toBe(0)
+      const { rows: mensagens } = await sql<{ autor: string }>('select autor from mensagem_tutor where escola_id = $1 and aluno_id = $2', [c.escola.escolaId, c.alunoDe9.usuarioId])
+      expect(mensagens).toEqual([{ autor: 'aluno' }])
+    })
+
+    it('a chave aceita para um aluno não abre a recusa para outro da mesma turma: ele recebe a mesma resposta da chave nova', async () => {
+      const c = await cenario()
+      const licencaId = await licencaDe(c, '2026-01-01')
+      const materialId = await materialDe9(c, { titularidade: 'terceiro_com_licenca', licencaId, deDemonstracao: true })
+      const colega = await novoAluno(c.escola, c.turma9)
+      const corpos = [
+        { texto: 'não entendi o reagente limitante', atividadeAplicadaId: c.atividadeDe9, materialId, pagina: 1, chaveEnvio: randomUUID() },
+        { texto: 'não entendi o reagente limitante', atividadeAplicadaId: c.atividadeDe9, chaveEnvio: randomUUID() },
+      ]
+      for (const corpo of corpos) await aceitarETerminar(c.alunoDe9, '/v1/tutor/mensagens', corpo, 'do primeiro aluno')
+
+      await sql(`update licenca_de_material set vigente_ate = '2026-11-12' where id = $1`, [licencaId])
+      const antes = await gastos(c.escola)
+      const recusas = [
+        { status: 404, codigo: ErrorCode.NAO_ENCONTRADO },
+        { status: 422, codigo: ErrorCode.SEM_MATERIAL_DA_SERIE },
+      ]
+      for (const [posicao, corpo] of corpos.entries()) {
+        expect(erroDe(await post(colega, '/v1/tutor/mensagens', corpo)), String(posicao)).toEqual(recusas[posicao])
+        expect(erroDe(await post(colega, '/v1/tutor/mensagens', { ...corpo, chaveEnvio: randomUUID() })), String(posicao)).toEqual(recusas[posicao])
+      }
+      expect(await gastos(c.escola)).toEqual(antes)
+    })
+
+    it('a chave aceita na escola A não abre a recusa para a professora da escola B: ela recebe a mesma resposta da chave nova', async () => {
+      const c = await cenario()
+      const materialId = await materialDe9(c, { deDemonstracao: true })
+      const pedidosDaA = pedidosDaProfessora(c)
+      for (const pedido of pedidosDaA) await aceitarETerminar(c.escola.professora, pedido.caminho, pedido.corpo, pedido.rotulo)
+      const b = await montarEscolaComAssistente(api, bancada)
+      await sql('delete from material_serie where escola_id = $1 and material_id = $2', [c.escola.escolaId, materialId])
+      await sql('delete from material_serie where escola_id = $1 and material_id = $2', [b.escolaId, b.materialId])
+      const antes = await gastos(b)
+      for (const pedido of pedidosDaA) {
+        const daB = { ...pedido.corpo, turmaId: b.turma, disciplinaId: b.quimica }
+        const recusa = { status: 422, codigo: ErrorCode.SEM_MATERIAL_DA_SERIE }
+        expect(erroDe(await post(b.professora, pedido.caminho, daB)), pedido.rotulo).toEqual(recusa)
+        expect(erroDe(await post(b.professora, pedido.caminho, { ...daB, chaveEnvio: randomUUID() })), pedido.rotulo).toEqual(recusa)
+      }
+      expect(await gastos(b)).toEqual(antes)
+    })
+  })
+
   describe('o Tutor: a D36 vem antes do filtro, e a recusa não deixa rastro', () => {
     /**
      * Os três casos em que o filtro recusaria a pergunta comum: a turma sem material da série, a página aberta de uma edição já substituída, e a de material com licença vencida. A pergunta

@@ -177,7 +177,9 @@ export class TutorService {
     if (ehAssuntoDelicado(pedido.texto)) return jaAceita === undefined ? this.#encaminhar(pedido, daTurma) : { execucaoId: jaAceita.id }
 
     // Só depois da D36: o material aberto que saiu do alcance (edição substituída, licença vencida) responde como o inexistente, e a turma sem material da série é recusada, sem nada na conversa.
-    const alcance = await this.#doMaterial(daTurma, pedido)
+    // No reenvio da chave já aceita, não: o pedido existe, e o material que saiu do alcance depois do `202` falha a execução (`entrada`), não a resposta do reenvio.
+    // O ramo do reenvio não pode passar a devolver nada do material do corpo (só o `execucaoId` que já era desta pessoa), para não virar oráculo do que existe; e o `onde` abaixo só vale para a execução nova, porque o `aoGravar` não roda no reenvio.
+    const alcance = jaAceita === undefined ? await this.#doMaterial(daTurma, pedido) : daTurma
     const onde: ReferenciaDaPergunta = { atividadeAplicadaId: alcance.atividade?.id ?? null, questao: pedido.questao ?? null, materialId: alcance.material?.id ?? null, pagina: pedido.pagina ?? null }
 
     // Por aluno e por escola, nunca por IP: a turma inteira sai pelo mesmo endereço (regra 80, item 1). Depois do assunto
