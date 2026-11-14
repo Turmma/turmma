@@ -120,6 +120,10 @@ falhou. Seed e e2e usam licenciante fictício.
 - [I] `GET /v1/licencas`: uma de cada `situacao` (`vigente`, `vence_em_30_dias`, `vencida`, `futura`), com a contagem de
   materiais
 - [I] Rascunho que cita material cuja licença venceu: as `fontes` seguem com título e edição; geração nova não usa o material
+- [I] (correção `2026-11-14-adaptacao-com-licenca-vencida`) Adaptação de artefato que cita material de terceiro com a licença vencida: `LICENCA_VENCIDA` (422) antes do `202`, sem execução, versão, entrega nem chamada ao modelo; com a licença vigente, a mesma atividade se adapta; a licença que vence entre o `202` e a execução falha a execução com `LICENCA_VENCIDA`, antes do modelo; o reenvio da chave já aceita devolve a mesma execução. Mutação: tirar a conferência antes do `202`, a da entrada da execução ou o `reenvio`; com dois materiais citados, um em uso e outro vencido, a recusa vale (`some`, não `every`)
+- [I] (a mesma correção) Adaptação de artefato que cita edição substituída, ou cuja linha o expurgo apagou: `EDICAO_SUBSTITUIDA` (422), e a atividade gerada da edição nova se adapta; a edição trocada entre o `202` e a execução falha a execução com `EDICAO_SUBSTITUIDA`, antes do modelo. Mutação: tirar a cláusula `substituido`, a contagem de linhas que faltam, ou a conferência da entrada
+- [I] (a mesma correção) Isolamento: o artefato de `g` cujo `jsonb` cita um material em uso de `h` não é adaptado, igual ao material que o expurgo apagou (`EDICAO_SUBSTITUIDA`). Mutação: tirar `eq(material.escolaId, requireEscolaId())` de `materiaisForaDoUso`
+- Material excluído pela coordenação fica fora da conferência (escolha declarada, `techspec.md` §5): o artefato que o cita continua adaptável
 - [U] O sino: dias −31 (sem aviso), −30, 0 e +1 avisam; vencida sem material não avisa; depois do `PATCH` da vigência,
   o item some
 - [I] Retenção: licença vencida e sem material sai depois do prazo de `material_excluido`; com material vivo, fica;
@@ -132,8 +136,9 @@ falhou. Seed e e2e usam licenciante fictício.
 
 ## Leitura de página por série (RF7, RF8)
 
-- [I] Para cada chamador, material só do 6º e turma do 9º: nada citado. Atividade e plano (a adaptação parte do
-  artefato que a professora já tem, não lê material e fica fora: ver `techspec.md` §5, "Como ficou na 9.0"); chat do
+- [I] Para cada chamador, material só do 6º e turma do 9º: nada citado. Atividade e plano (a adaptação não busca
+  material: parte do artefato que a professora já tem, e confere o que ele cita, como nos três cenários da adaptação
+  abaixo; ver `techspec.md` §5, "Como ficou na 9.0"); chat do
   Assistente; turno do Tutor; página aberta do Tutor (`paginasDoMaterial`); material que o aluno abre
   (`materialDaTurma`); rota `GET /v1/materiais/busca`
 - [I] O único material da série com licença vencida, ou `processando`: `SEM_MATERIAL_DA_SERIE`, zero chamadas ao

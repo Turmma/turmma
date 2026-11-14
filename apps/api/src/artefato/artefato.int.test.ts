@@ -677,6 +677,153 @@ describe('ferramentas e artefato', () => {
     })
   })
 
+  describe('a adaptação de artefato cujo material saiu de uso (ingestao-do-material; RF7, RF11, D5)', () => {
+    let e: EscolaComAssistente
+    let f: EscolaComAssistente
+    let g: EscolaComAssistente
+    let h: EscolaComAssistente
+    let k: EscolaComAssistente
+    let m: EscolaComAssistente
+    const tokenDaCoordenacao = async (escola: EscolaComAssistente) => ({ token: await escola.coordenacao.tokenNovo() })
+    const contagens = async (escola: EscolaComAssistente) => [await contarNaEscola(bancada, 'execucao_agente', escola.escolaId), await contarNaEscola(bancada, 'artefato', escola.escolaId), await contarNaEscola(bancada, 'entrega', escola.escolaId)]
+    const pedirAdaptacao = (escola: EscolaComAssistente, id: string) => pedir(escola.professora, 'POST', `/v1/artefatos/${id}/adaptar`, { tipos: ['fonte_ampliada'], chaveEnvio: randomUUID() })
+    /** A atividade que cita o material de terceiro com licença, e o id da licença: em `e`, só ele conta para a geração. */
+    const atividadeDoTerceiro = async (escola: EscolaComAssistente) => {
+      await sql('update material set excluido_em = now() where escola_id = $1 and id = $2', [escola.escolaId, escola.materialId])
+      const licencaId = await registrarLicencaDeTeste(api, await tokenDaCoordenacao(escola))
+      const enviado = await enviarMaterial(
+        api,
+        await tokenDaCoordenacao(escola),
+        { titulo: 'Apostila licenciada', disciplinaId: escola.quimica, titularidade: 'terceiro_com_licenca', licencaId, licenca: 'licenca_comercial_autorizada' },
+        { arquivo: variacaoDoPdf() },
+      )
+      expect(enviado.status).toBe(201)
+      await esperarExtracao(api)
+      return { licencaId, atividadeId: await gerar(escola, 'atividade_objetiva', 'reagente limitante e reagente em excesso', { quantidade: 2 }) }
+    }
+
+    beforeAll(async () => {
+      e = await montarEscolaComAssistente(api, bancada)
+      f = await montarEscolaComAssistente(api, bancada)
+      g = await montarEscolaComAssistente(api, bancada)
+      h = await montarEscolaComAssistente(api, bancada)
+      k = await montarEscolaComAssistente(api, bancada)
+      m = await montarEscolaComAssistente(api, bancada)
+    })
+
+    it('licença vencida: a adaptação é recusada com LICENCA_VENCIDA antes do 202, sem execução, versão, entrega nem texto do material no modelo; vigente, a mesma atividade se adapta', async () => {
+      const { licencaId, atividadeId } = await atividadeDoTerceiro(e)
+      // Vigente: a adaptação segue, e a versão nasce pendente (o controle: o caso não recusa tudo).
+      const vigente = await execucaoTerminada(api, e.professora, await dispararExecucao(api, e.professora, `/v1/artefatos/${atividadeId}/adaptar`, { tipos: ['fonte_ampliada'] }))
+      expect(vigente.estado).toBe('concluida')
+
+      await sql(`update licenca_de_material set vigente_ate = '2026-01-01' where escola_id = $1 and id = $2`, [e.escolaId, licencaId])
+      const antes = await contagens(e)
+      expect(semId(await pedirAdaptacao(e, atividadeId))).toEqual({ status: 422, codigo: 'LICENCA_VENCIDA' })
+      expect(await contagens(e)).toEqual(antes)
+
+      // Entre o 202 e a execução: o pedido foi aceito com a licença vigente, a licença vence, e a execução falha antes de chamar o modelo.
+      await sql(`update licenca_de_material set vigente_ate = null where escola_id = $1 and id = $2`, [e.escolaId, licencaId])
+      let chamadasAoModelo = 0
+      let liberar = (): void => undefined
+      const servicos = comProvedor(
+        async () => {
+          chamadasAoModelo += 1
+          return {}
+        },
+        new Promise<void>((resolver) => (liberar = resolver)),
+      )
+      const chaveEnvio = randomUUID()
+      const { execucaoId } = await comoPessoa(e, e.professora, 'professor', () => servicos.artefatos.adaptar(atividadeId, { tipos: ['fonte_ampliada'], chaveEnvio }))
+      await sql(`update licenca_de_material set vigente_ate = '2026-01-01' where escola_id = $1 and id = $2`, [e.escolaId, licencaId])
+      const versoes = await contarNaEscola(bancada, 'artefato', e.escolaId)
+      liberar()
+      expect(await execucaoTerminada(api, e.professora, execucaoId)).toMatchObject({ estado: 'falhou', erro: 'LICENCA_VENCIDA', resultado: null })
+      expect(chamadasAoModelo).toBe(0)
+      expect(await contarNaEscola(bancada, 'artefato', e.escolaId)).toBe(versoes)
+      // O reenvio da chave já aceita devolve a mesma execução, mesmo com a licença vencida: o pedido existe, e quem decide o que ele vira é a execução.
+      const reenvio = await pedir(e.professora, 'POST', `/v1/artefatos/${atividadeId}/adaptar`, { tipos: ['fonte_ampliada'], chaveEnvio })
+      expect({ status: reenvio.status, execucaoId: reenvio.corpo['execucaoId'] }).toEqual({ status: 202, execucaoId })
+    })
+
+    it('edição substituída: a adaptação do artefato antigo é recusada com EDICAO_SUBSTITUIDA, também depois do expurgo da linha, e a atividade gerada da edição nova se adapta', async () => {
+      const antiga = await gerar(f, 'atividade_objetiva', 'reagente limitante e reagente em excesso', { quantidade: 2 })
+      const enviada = await enviarEdicaoDeMaterial(api, await tokenDaCoordenacao(f), f.materialId, { edicao: '2025' })
+      expect(enviada.status).toBe(201)
+      await esperarExtracao(api)
+
+      const antes = await contagens(f)
+      expect(semId(await pedirAdaptacao(f, antiga))).toEqual({ status: 422, codigo: 'EDICAO_SUBSTITUIDA' })
+      expect(await contagens(f)).toEqual(antes)
+
+      // Expurgo da edição antiga (a linha sai): o artefato que a citava continua sem poder ser adaptado.
+      await sql('delete from material where escola_id = $1 and id = $2', [f.escolaId, f.materialId])
+      expect(semId(await pedirAdaptacao(f, antiga))).toEqual({ status: 422, codigo: 'EDICAO_SUBSTITUIDA' })
+      expect(await contagens(f)).toEqual(antes)
+
+      // A geração nova cita a edição atual, e essa se adapta.
+      const nova = await gerar(f, 'atividade_objetiva', 'reagente limitante e reagente em excesso', { quantidade: 2 })
+      expect((await execucaoTerminada(api, f.professora, await dispararExecucao(api, f.professora, `/v1/artefatos/${nova}/adaptar`, { tipos: ['fonte_ampliada'] }))).estado).toBe('concluida')
+    })
+
+    it('isolamento: o artefato de `g` cujo `jsonb` cita um material em uso de `h` não é adaptado: o material de outra escola não conta como o da escola, igual ao que o expurgo apagou', async () => {
+      const atividadeDeG = await gerar(g, 'atividade_objetiva', 'reagente limitante e reagente em excesso', { quantidade: 2 })
+      // Em uso, na escola dele: sem a cláusula de escopo do repository, a linha de `h` seria achada e a adaptação seguiria.
+      expect((await sql('select 1 from material where escola_id = $1 and id = $2 and substituido_por is null and excluido_em is null', [h.escolaId, h.materialId])).rowCount).toBe(1)
+      await sql(`update artefato set conteudo = replace(conteudo::text, $3::text, $4::text)::jsonb where escola_id = $1 and id = $2`, [g.escolaId, atividadeDeG, g.materialId, h.materialId])
+      const antes = await contagens(g)
+      expect(semId(await pedirAdaptacao(g, atividadeDeG))).toEqual({ status: 422, codigo: 'EDICAO_SUBSTITUIDA' })
+      expect(await contagens(g)).toEqual(antes)
+    })
+
+    it('edição trocada entre o 202 e a execução: a execução falha com EDICAO_SUBSTITUIDA antes de chamar o modelo, e nada nasce', async () => {
+      const atividade = await gerar(k, 'atividade_objetiva', 'reagente limitante e reagente em excesso', { quantidade: 2 })
+      let chamadasAoModelo = 0
+      let liberar = (): void => undefined
+      const servicos = comProvedor(
+        async () => {
+          chamadasAoModelo += 1
+          return {}
+        },
+        new Promise<void>((resolver) => (liberar = resolver)),
+      )
+      const { execucaoId } = await comoPessoa(k, k.professora, 'professor', () => servicos.artefatos.adaptar(atividade, { tipos: ['fonte_ampliada'], chaveEnvio: randomUUID() }))
+      // A coordenação envia a edição nova e a leitura termina, enquanto a execução espera: o material que a atividade cita passa a ser a edição anterior.
+      expect((await enviarEdicaoDeMaterial(api, await tokenDaCoordenacao(k), k.materialId, { edicao: '2025' })).status).toBe(201)
+      await esperarExtracao(api)
+      const versoes = await contarNaEscola(bancada, 'artefato', k.escolaId)
+      liberar()
+      expect(await execucaoTerminada(api, k.professora, execucaoId)).toMatchObject({ estado: 'falhou', erro: 'EDICAO_SUBSTITUIDA', resultado: null })
+      expect(chamadasAoModelo).toBe(0)
+      expect(await contarNaEscola(bancada, 'artefato', k.escolaId)).toBe(versoes)
+    })
+
+    it('dois materiais citados, um em uso e outro com a licença vencida: a adaptação é recusada com LICENCA_VENCIDA', async () => {
+      const atividade = await gerar(m, 'atividade_objetiva', 'reagente limitante e reagente em excesso', { quantidade: 2 })
+      const licencaId = await registrarLicencaDeTeste(api, await tokenDaCoordenacao(m))
+      const enviado = await enviarMaterial(
+        api,
+        await tokenDaCoordenacao(m),
+        { titulo: 'Apostila licenciada', disciplinaId: m.quimica, titularidade: 'terceiro_com_licenca', licencaId, licenca: 'licenca_comercial_autorizada' },
+        { arquivo: variacaoDoPdf() },
+      )
+      expect(enviado.status).toBe(201)
+      await esperarExtracao(api)
+      // A primeira questão cita o material próprio da escola (em uso), e a segunda, o de terceiro.
+      const { rows } = await sql('select conteudo from artefato where escola_id = $1 and id = $2', [m.escolaId, atividade])
+      const conteudo = rows[0]?.conteudo as { questoes: { citacao: { materialId: string } }[] }
+      const citados = [m.materialId, enviado.corpo['id'] as string]
+      conteudo.questoes.forEach((questao, indice) => {
+        questao.citacao.materialId = citados[indice] ?? m.materialId
+      })
+      await sql('update artefato set conteudo = $1::jsonb where escola_id = $2 and id = $3', [JSON.stringify(conteudo), m.escolaId, atividade])
+      await sql(`update licenca_de_material set vigente_ate = '2026-01-01' where escola_id = $1 and id = $2`, [m.escolaId, licencaId])
+      const antes = await contagens(m)
+      expect(semId(await pedirAdaptacao(m, atividade))).toEqual({ status: 422, codigo: 'LICENCA_VENCIDA' })
+      expect(await contagens(m)).toEqual(antes)
+    })
+  })
+
   describe('citação (regra 30, item 12)', () => {
     it('a saída que cita página que não foi entregue à tarefa é recusada, e nenhum artefato nasce', async () => {
       const antes = await contarNaEscola(bancada, 'artefato', a.escolaId)

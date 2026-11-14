@@ -2,6 +2,7 @@ import { artefato, atividadeAplicada, entrega, requireAnoEmCurso, requireEscolaI
 import { InvariantException, MAXIMO_DE_VERSOES_NO_ARTEFATO, type ArtefatosQuery, type ConteudoDoArtefato, type FonteDoArtefato, type EstadoDeAtividadeAplicada, type EstadoDeEntrega, type TipoDeArtefato } from '@educa/shared'
 import { and, desc, eq, exists, inArray, lt, ne, not, sql, type SQL } from 'drizzle-orm'
 import { comVinculoConfirmadoDoProfessor, disciplinaDoArtefato } from '../assistente/turma-do-professor.repository.js'
+import { proprioOuComLicencaVigente } from '../material/material.repository.js'
 
 /** Um artefato como o repository o devolve: o `conteudo` é `jsonb`, e o service o valida antes de usar. */
 export interface ArtefatoLido {
@@ -139,6 +140,20 @@ export class ArtefatoRepository {
       .from(material)
       .where(and(eq(material.escolaId, requireEscolaId()), inArray(material.id, [...ids])))
     return new Map(linhas.map((linha) => [linha.id, { titulo: linha.titulo, edicao: linha.edicao, substituido: linha.substituido }]))
+  }
+
+  /**
+   * O que impede de adaptar o artefato que cita estes materiais (RF7, RF11, D5): `licencaVencida` se algum é de terceiro e a licença não vale `hoje` (venceu ou ainda não começou); `substituido`
+   * se algum teve a edição substituída, ou já não tem linha (o expurgo só apaga a edição substituída). Material excluído pela coordenação não entra aqui: a decisão é só sobre licença e edição.
+   * Mesmo escopo e mesma regra de `fontesDosMateriais`: **só se chama depois do `porId`**, com os ids do conteúdo do artefato alcançado.
+   */
+  async materiaisForaDoUso(ids: readonly string[], hoje: string): Promise<{ licencaVencida: boolean; substituido: boolean }> {
+    if (ids.length === 0) return { licencaVencida: false, substituido: false }
+    const linhas = await this.banco
+      .select({ id: material.id, substituido: sql<boolean>`${material.substituidoPor} is not null`, emUso: sql<boolean>`coalesce(${proprioOuComLicencaVigente(this.banco, hoje)}, true)` })
+      .from(material)
+      .where(and(eq(material.escolaId, requireEscolaId()), inArray(material.id, [...ids])))
+    return { licencaVencida: linhas.some((linha) => !linha.emUso), substituido: linhas.length < new Set(ids).size || linhas.some((linha) => linha.substituido) }
   }
 
   /**

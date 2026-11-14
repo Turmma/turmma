@@ -50,6 +50,11 @@ export const ErrorCode = {
    */
   LICENCA_VENCIDA: 'LICENCA_VENCIDA',
   /**
+   * O material que o artefato cita foi substituído por uma edição nova, ou a edição antiga já saiu (ingestao-do-material; RF11; 422): a adaptação não herda a citação da edição anterior, e a professora gera a atividade de novo para adaptá-la.
+   * Sai antes do `202` e de novo na entrada da execução, antes de o texto do material ir ao modelo.
+   */
+  EDICAO_SUBSTITUIDA: 'EDICAO_SUBSTITUIDA',
+  /**
    * Já há uma edição deste material sendo lida (ingestao-do-material, 8.0; RF10; 409): o alvo ainda está `processando`, ou outra edição sobre ele está. A coordenação espera a leitura terminar;
    * o alvo `processando` é recusado **antes de ler o arquivo**, e a outra edição em andamento, de dentro da transação, sob a trava de envios da escola (o arquivo já chegou ao storage e sai com o desfazer do envio).
    */

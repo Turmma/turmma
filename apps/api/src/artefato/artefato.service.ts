@@ -1,4 +1,4 @@
-import { adaptarAtividade, DomainException, LLMError, type Database } from '@educa/core'
+import { adaptarAtividade, diaDeUso, DomainException, LLMError, systemClock, type Database } from '@educa/core'
 import {
   ErrorCode,
   TITULO_DA_FONTE_SEM_LINHA,
@@ -21,6 +21,7 @@ import { ExecucaoDoPedidoRepository } from '../assistente/execucao-do-pedido.rep
 import type { IaRequestRateLimit } from '../assistente/ai-request-rate-limit.js'
 import { EntregaRepository } from '../entrega/entrega.repository.js'
 import { paginar } from '../http/pagination.js'
+import { ExecucaoDaSessaoRepository } from '../ia/execucao.repository.js'
 import type { ExecucaoScheduler } from '../ia/execucao.scheduler.js'
 import { ArtefatoRepository, type ArtefatoLido } from './artefato.repository.js'
 import { citacoesDoConteudo, exigirAdaptacaoFiel } from './conferencia.js'
@@ -64,6 +65,17 @@ function atividadeOriginal(lido: ArtefatoLido): ConteudoDeAtividade {
   const conteudo = conteudoDeAtividadeSchema.safeParse(lido.conteudo)
   if (lido.tipo !== 'atividade_objetiva' || lido.origemId !== null || !conteudo.success || conteudo.data.adaptacao !== undefined) throw new DomainException(ErrorCode.CONFLITO)
   return conteudo.data
+}
+
+/**
+ * A atividade só se adapta se o material que ela cita ainda está em uso (RF7, RF11, D5): a adaptação manda o trecho citado ao modelo e grava uma versão nova, com entrega, que cita de novo a página. Licença
+ * que não vale hoje, `LICENCA_VENCIDA`; edição substituída, ou cuja linha o expurgo apagou, `EDICAO_SUBSTITUIDA`: a professora gera a atividade de novo, que cita a edição atual. **Só se chama com o artefato já achado no alcance.**
+ */
+async function exigirMaterialEmUso(artefatos: ArtefatoRepository, conteudo: ConteudoDeAtividade): Promise<void> {
+  const ids = [...new Set(citacoesDoConteudo(conteudo).map((citacao) => citacao.materialId))]
+  const fora = await artefatos.materiaisForaDoUso(ids, diaDeUso(systemClock.agora()))
+  if (fora.licencaVencida) throw new DomainException(ErrorCode.LICENCA_VENCIDA)
+  if (fora.substituido) throw new DomainException(ErrorCode.EDICAO_SUBSTITUIDA)
 }
 
 /**
@@ -139,7 +151,11 @@ export class ArtefatoService {
     await this.limite.contar()
     const lido = await new ArtefatoRepository(this.banco).porId(id)
     if (lido === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
-    atividadeOriginal(lido)
+    const original = atividadeOriginal(lido)
+    // O reenvio da chave que esta pessoa já teve aceita devolve a mesma execução: quem decide o que o pedido vira é a execução, que confere de novo abaixo. A chave não é ligada ao `artefatoId`: o artefato do reenvio nunca é o que a execução lê (a entrada gravada manda), e a conferência dela vale para o gravado.
+    const reenvio = (await new ExecucaoDaSessaoRepository(this.banco).daChave(pedido.chaveEnvio))?.tarefa === 'adaptar_atividade'
+    // Antes do `202`: sem material em uso, não há execução, consumo nem chamada ao modelo.
+    if (!reenvio) await exigirMaterialEmUso(new ArtefatoRepository(this.banco), original)
 
     // O que a execução leu antes de chamar o modelo, e que a conclusão confere: só existe depois de `entrada` rodar.
     let lida: { original: ConteudoDeAtividade; adaptacao: AdaptacaoAplicada; artefatoId: string } | undefined
@@ -154,6 +170,8 @@ export class ArtefatoService {
         if (origem === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
         const adaptacao: AdaptacaoAplicada = { tipos: gravada.tipos, ...(gravada.tempoExtraPercentual === undefined ? {} : { tempoExtraPercentual: gravada.tempoExtraPercentual }) }
         lida = { original: atividadeOriginal(origem), adaptacao, artefatoId: origem.id }
+        // Entre o `202` e a execução a licença pode vencer ou a edição ser trocada: o texto do material só vai ao modelo se ainda estiver em uso.
+        await exigirMaterialEmUso(new ArtefatoRepository(this.banco), lida.original)
         return { conteudo: lida.original, adaptacao }
       },
       aoConcluir: async (saida, tx, execucaoId) => {

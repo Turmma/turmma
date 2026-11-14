@@ -72,7 +72,7 @@ material `pronto` e não excluído.
 | `GET /artefatos/:id` | | `artefatoResponseSchema` | `artefato.ler` P `tv` | | |
 | `PATCH /artefatos/:id` | `renomearArtefatoRequestSchema` | `artefatoResponseSchema` | `artefato.renomear` P `tv` | `CONFLITO` (versão adaptada com a entrega já decidida) | |
 | `GET /artefatos/:id/pdf` | | binário, `Content-Disposition: attachment` | `artefato.exportar` P `tv` | `VERSAO_ADAPTADA_NAO_APROVADA` (versão adaptada rejeitada); pendente sai como rascunho marcado, `rascunho-….pdf` | nenhuma (ver abaixo) |
-| `POST /artefatos/:id/adaptar` | `adaptarArtefatoRequestSchema` | 202 | `artefato.adaptar` P `tv` | `FUNCAO_SUSPENSA`, `CONFLITO` (não é atividade, ou já é versão adaptada) | |
+| `POST /artefatos/:id/adaptar` | `adaptarArtefatoRequestSchema` | 202 | `artefato.adaptar` P `tv` | `FUNCAO_SUSPENSA`, `CONFLITO` (não é atividade, ou já é versão adaptada), `LICENCA_VENCIDA` (o material citado é de terceiro e a licença não vale hoje), `EDICAO_SUBSTITUIDA` (a edição citada foi substituída ou já saiu) | |
 | `GET /entregas` | `entregasQuerySchema` | `listaDeEntregasResponseSchema` | `entrega.listar` P `tv` | | |
 | `POST /entregas/:id/decidir` | `decidirEntregaRequestSchema` | `entregaResponseSchema` | `entrega.decidir` P `tv` | `ENTREGA_JA_DECIDIDA`; `ENTRADA_INVALIDA` ao aprovar lote por aqui | `entrega.decidida` |
 

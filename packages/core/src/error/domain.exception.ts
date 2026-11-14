@@ -22,6 +22,8 @@ export const HTTP_STATUS_BY_CODE: Readonly<Record<ErrorCode, number>> = {
   MATERIAL_SEM_LICENCA: 422,
   // 7.0: o pedido é bem formado, e a licença registrada não vale hoje.
   LICENCA_VENCIDA: 422,
+  // O pedido é bem formado, e o artefato cita uma edição que já não é a atual: a adaptação não a herda.
+  EDICAO_SUBSTITUIDA: 422,
   // 8.0: o pedido é bem formado, e o material ainda está sendo lido, ou já tem uma edição sendo lida.
   EDICAO_EM_ANDAMENTO: 409,
   FUNCAO_SUSPENSA: 409,
