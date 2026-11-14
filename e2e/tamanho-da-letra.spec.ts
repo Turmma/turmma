@@ -59,11 +59,43 @@ const rotuloDe = (page: Page, nome: Nome) => dialogo(page).getByRole('group', { 
 
 /** O "Sair" da linha de Eu, que é o do aluno a um clique. */
 async function sairPelaLinha(page: Page, hasTouch: boolean): Promise<void> {
+  // Só com a turma e "Como estou indo" assentados: o "Carregando…" e o que o substitui têm alturas diferentes, e a linha de cima ("Rever a introdução")
+  // é a que o toque alcança se a lista descer entre o cálculo do ponto e o toque (esteira 43534741262: o `404` da turma chegou durante o `tap`).
+  await expect(principal(page).getByText(/^Carregando/)).toHaveCount(0, { timeout: SIGN_IN_TIMEOUT_MS })
   await activate(principal(page).getByRole('button', { name: 'Sair' }), hasTouch)
   await expect(page).toHaveURL(/\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
 }
 
 test.describe('o tamanho da letra do aluno', () => {
+  test('o "Sair" da linha espera a turma assentar: com a resposta da turma presa o toque não sai; solta, a saída vale', async ({ page, hasTouch }) => {
+    // Este caso prova o ajudante `sairPelaLinha` deste arquivo (que espera a tela de Eu assentar antes de tocar), não uma regra da tela Eu: ele existe para a esteira não cair no
+    // toque que acerta a linha de cima quando a lista desce. Não é requisito do produto.
+    const aluno = await criarAlunoComMatricula()
+    let soltar: () => void = () => undefined
+    const segura = new Promise<void>((resolver) => {
+      soltar = resolver
+    })
+    await page.route(
+      (url) => url.pathname === '/v1/minha-turma',
+      async (rota) => {
+        await segura
+        await rota.fallback()
+      },
+    )
+    await entrarComoAluno(page, aluno, hasTouch)
+    await irPelaNavegacao(page, 'Eu', hasTouch)
+    await expect(principal(page).getByText('Carregando a sua turma…')).toBeVisible()
+
+    const saida = sairPelaLinha(page, hasTouch)
+    // Por evento, não por janela que passa sozinha: se o toque saísse com a turma presa, a página iria à entrada e a espera abaixo resolveria na hora. Sem o toque, ela
+    // esgota o prazo (o que se espera) e a página segue em Eu.
+    await expect(page.waitForURL(/\/entrar$/, { timeout: 800 })).rejects.toThrow()
+    await expect(page).toHaveURL(/\/aluno\/eu$/)
+
+    soltar()
+    await saida
+  })
+
   test('antes do primeiro quadro: com Maior guardado, o data-letra já está no DOMContentLoaded e a letra é 20 px; a entrada, sem sessão, não a herda', async ({ page }) => {
     await guardarAntesDeCarregar(page, 'maior')
     // O que a página tinha no `DOMContentLoaded`. Esse evento só dispara depois dos scripts de módulo, então aqui o `LetraDoAluno` do

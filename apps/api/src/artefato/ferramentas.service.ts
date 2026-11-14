@@ -16,6 +16,7 @@ import { exigirCitacoesEntregues } from '../assistente/citacoes.js'
 import { ExecucaoDoPedidoRepository } from '../assistente/execucao-do-pedido.repository.js'
 import type { IaRequestRateLimit } from '../assistente/ai-request-rate-limit.js'
 import { TurmaDoProfessorRepository } from '../assistente/turma-do-professor.repository.js'
+import { ExecucaoDaSessaoRepository } from '../ia/execucao.repository.js'
 import type { ExecucaoScheduler } from '../ia/execucao.scheduler.js'
 import type { TrechoSearch, TrechoDoMaterial } from '../material/trecho-search.js'
 import { ArtefatoRepository } from './artefato.repository.js'
@@ -67,10 +68,12 @@ export class FerramentasService {
     const parametros: ParametrosDeFerramenta = { ...resto, turmaId: resto.turmaId.toLowerCase(), disciplinaId: resto.disciplinaId.toLowerCase() }
     const daTurma = await new TurmaDoProfessorRepository(this.banco).turmaComDisciplina(parametros.turmaId, parametros.disciplinaId)
     if (daTurma === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
-    // Antes do `202`: sem material da série (o único venceu, ou ainda está `processando`), não há execução, consumo nem chamada ao modelo (RF8).
-    if (!(await this.trechos.existeMaterialDaSerie({ serieId: daTurma.serieId, disciplinaId: parametros.disciplinaId }))) throw new DomainException(ErrorCode.SEM_MATERIAL_DA_SERIE)
-
     const tarefa = TAREFA_DA_FERRAMENTA[ferramenta]
+    // O reenvio da chave que esta pessoa já teve aceita devolve a mesma execução, mesmo que o material tenha saído do alcance depois do `202`: o pedido existe, e quem decide o que ele vira é a execução.
+    const reenvio = (await new ExecucaoDaSessaoRepository(this.banco).daChave(chaveEnvio))?.tarefa === tarefa
+    // Antes do `202`: sem material da série (o único venceu, ou ainda está `processando`), não há execução, consumo nem chamada ao modelo (RF8).
+    if (!reenvio && !(await this.trechos.existeMaterialDaSerie({ serieId: daTurma.serieId, disciplinaId: parametros.disciplinaId }))) throw new DomainException(ErrorCode.SEM_MATERIAL_DA_SERIE)
+
     let preparado: Preparado | undefined
     const preparar = async (): Promise<Preparado> => {
       preparado = await this.#preparar(chaveEnvio, tarefa)

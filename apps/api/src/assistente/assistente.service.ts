@@ -10,6 +10,7 @@ import {
   type ConversaDoAssistenteResponse,
   type ExecucaoAceitaResponse,
 } from '@educa/shared'
+import { ExecucaoDaSessaoRepository } from '../ia/execucao.repository.js'
 import type { ExecucaoScheduler } from '../ia/execucao.scheduler.js'
 import type { TrechoSearch, TrechoDoMaterial } from '../material/trecho-search.js'
 import { exigirCitacoesEntregues } from './citacoes.js'
@@ -86,8 +87,10 @@ export class AssistenteService {
     // A turma e a disciplina de outra pessoa, de outra escola ou inexistentes respondem igual (regra 10, item 6).
     const daTurma = await new TurmaDoProfessorRepository(this.banco).turmaComDisciplina(turmaId, disciplinaId)
     if (daTurma === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+    // O reenvio da chave que esta pessoa já teve aceita devolve a mesma execução, mesmo que o material tenha saído do alcance depois do `202`: o pedido existe, e quem decide o que ele vira é a execução.
+    const reenvio = (await new ExecucaoDaSessaoRepository(this.banco).daChave(pedido.chaveEnvio))?.tarefa === proporFerramenta.nome
     // Antes do `202`: sem material da série, o chat não responde e nada é gravado nem gasto (RF8). A conversa em si não gera artefato, mas a resposta cita o material da escola.
-    if (!(await this.trechos.existeMaterialDaSerie({ serieId: daTurma.serieId, disciplinaId }))) throw new DomainException(ErrorCode.SEM_MATERIAL_DA_SERIE)
+    if (!reenvio && !(await this.trechos.existeMaterialDaSerie({ serieId: daTurma.serieId, disciplinaId }))) throw new DomainException(ErrorCode.SEM_MATERIAL_DA_SERIE)
 
     // O que a execução leu antes de chamar o modelo, e que a conclusão usa: só existe depois de `entrada` rodar.
     let lido: { pergunta: PerguntaDaExecucao; entregues: readonly TrechoDoMaterial[] } | undefined
@@ -108,6 +111,8 @@ export class AssistenteService {
         // O vínculo é conferido de novo na hora de rodar: quem saiu da turma depois do `202` não recebe resposta sobre ela.
         const turma = await new TurmaDoProfessorRepository(this.banco).turmaComDisciplina(pergunta.turmaId, pergunta.disciplinaId)
         if (turma === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+        // O material da série é conferido de novo, como no Tutor: o que saiu do alcance entre o `202` e agora (ou antes do reenvio que retomou esta execução pendente) falha a execução, sem trecho, sem modelo e sem consumo (RF8).
+        if (!(await this.trechos.existeMaterialDaSerie({ serieId: turma.serieId, disciplinaId: pergunta.disciplinaId }))) throw new DomainException(ErrorCode.SEM_MATERIAL_DA_SERIE)
         const mensagem = conteudoDaMensagemDoUsuarioSchema.parse(pergunta.conteudo).texto
         const turnosAnteriores = (await conversa.anteriores(pergunta.id, TURNOS_ANTERIORES_NA_CONVERSA)).reverse().map(turnoAnterior)
         // "Só conversar" (D18): a marca gravada com a execução. A resposta é sobre o último pedido dela, e é para ele

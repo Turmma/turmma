@@ -6,6 +6,7 @@ import { criarVarreduraDeTemporarios } from '../../worker/src/processors/varrer-
 import { jobExecution } from '../../worker/test/job-execution.fixture.js'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { DB } from '../src/database.module.js'
+import { JANELA_DOS_ENVIOS_MS, MATERIAIS_EM_PROCESSAMENTO_POR_ESCOLA } from '../src/material/material.service.js'
 import { montarEscolaComTurma as montarEscola, type EscolaComTurma } from './escola-turma.fixture.js'
 import { apagarMateriais, auditoriaDa, enviarEdicaoDeMaterial, enviarMaterial, esperarExtracao, materiaisDa, materiaisJaEnviados, PDF_DE_DEMONSTRACAO, registrarLicencaDeTeste } from './material.fixture.js'
 import { SessaoFixtures } from './sessao.fixture.js'
@@ -200,11 +201,14 @@ describe('o envio de material não deixa PDF para trás', () => {
 
   it('`LIMITE_EXCEDIDO` reconferido sob a trava: o objeto e a linha saem', async () => {
     const escola = await montarEscolaComTurma()
-    // O teto de materiais em leitura enche depois da conferência da entrada e antes da transação, no meio do `guardarBytes`.
+    // O teto de materiais em leitura enche depois da conferência da entrada e antes da transação, no meio do `guardarBytes`. Enviados há duas horas, fora da janela dos tetos
+    // de envio: hoje o service confere o teto de processamento antes dos de envio e o `429` já viria dele, mas as linhas fora da janela mantêm a prova presa ao teto de
+    // processamento se a ordem das conferências no service mudar (com 300 linhas "de agora", o teto de 100 por pessoa também estouraria).
     const desfazer = aoGuardar({
-      depois: async () => void (await materiaisJaEnviados(bancada, escola.coordenacao, escola.quimica, 3, { estado: 'processando' })),
+      depois: async () =>
+        void (await materiaisJaEnviados(bancada, escola.coordenacao, escola.quimica, MATERIAIS_EM_PROCESSAMENTO_POR_ESCOLA, { estado: 'processando', enviadoHaMs: 2 * 60 * 60_000 })),
     })
-    let resposta: RespostaHttp
+    let resposta: Awaited<ReturnType<typeof enviarMaterial>>
     try {
       resposta = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica })
     } finally {
@@ -212,9 +216,12 @@ describe('o envio de material não deixa PDF para trás', () => {
     }
 
     expect(erroDe(resposta)).toEqual({ status: 429, codigo: ErrorCode.LIMITE_EXCEDIDO })
+    // Os dois tetos devolvem o mesmo código; o que os distingue é a espera: a do processamento é a de uma extração, a dos tetos de envio é a janela de uma hora.
+    expect(Number(resposta.retryAfter)).toBeGreaterThan(0)
+    expect(Number(resposta.retryAfter)).toBeLessThan(JANELA_DOS_ENVIOS_MS / 1_000)
     expect(objetosDaEscola(api, escola.coordenacao.escolaId)).toEqual([])
     expect(await linhasDoEnvio(escola.coordenacao.escolaId)).toEqual([])
-    expect(await materiaisDa(bancada, escola.coordenacao.escolaId)).toHaveLength(3)
+    expect(await materiaisDa(bancada, escola.coordenacao.escolaId)).toHaveLength(MATERIAIS_EM_PROCESSAMENTO_POR_ESCOLA)
   })
 
   it('o commit forçado a falhar: o objeto e a linha saem, e nada fica em `material`', async () => {
