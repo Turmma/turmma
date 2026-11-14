@@ -1348,8 +1348,8 @@ describe('tabelas do MVP de apresentação: o banco recusa o que o contrato pro�
       // Suspender a correção não suspende a adaptação, e a suspensão de A não é a de B.
       await expect(suspender(a, 'adaptacao')).resolves.toMatch(/^[0-9a-f-]{36}$/)
       await expect(suspender(b, 'correcao_de_objetiva')).resolves.toMatch(/^[0-9a-f-]{36}$/)
-      expect(await recusa(cliente.query('update suspensao_de_funcao set retomada_em = now() where id = $1', [suspensaoId]))).toEqual({ codigo: '23514', restricao: 'suspensao_de_funcao_retomada_registrada' })
-      await cliente.query('update suspensao_de_funcao set retomada_em = now(), retomada_por = $2 where id = $1 and retomada_em is null', [suspensaoId, a.coordenadorId])
+      expect(await recusa(cliente.query('update suspensao_de_funcao set retomada_em = greatest(now(), suspensa_em) where id = $1', [suspensaoId]))).toEqual({ codigo: '23514', restricao: 'suspensao_de_funcao_retomada_registrada' })
+      await cliente.query('update suspensao_de_funcao set retomada_em = greatest(now(), suspensa_em), retomada_por = $2 where id = $1 and retomada_em is null', [suspensaoId, a.coordenadorId])
       await expect(suspender(a, 'correcao_de_objetiva')).resolves.toMatch(/^[0-9a-f-]{36}$/)
       const { rows } = await cliente.query<{ vigentes: string; total: string }>(
         "select count(*) filter (where retomada_em is null) as vigentes, count(*) as total from suspensao_de_funcao where escola_id = $1 and funcao = 'correcao_de_objetiva'",

@@ -336,7 +336,7 @@ describe('camada de IA na API', () => {
     const suspender = (escola: Escola, funcao: ChaveDeFuncao) =>
       sql('insert into suspensao_de_funcao (escola_id, funcao, suspensa_por) values ($1, $2, $3)', [escola.escolaId, funcao, escola.coordenacao.usuarioId])
     const retomar = (escola: Escola, funcao: ChaveDeFuncao) =>
-      sql('update suspensao_de_funcao set retomada_em = now(), retomada_por = $3 where escola_id = $1 and funcao = $2 and retomada_em is null', [escola.escolaId, funcao, escola.coordenacao.usuarioId])
+      sql('update suspensao_de_funcao set retomada_em = greatest(now(), suspensa_em), retomada_por = $3 where escola_id = $1 and funcao = $2 and retomada_em is null', [escola.escolaId, funcao, escola.coordenacao.usuarioId])
 
     it('função suspensa em B: suspensa em B, ativa em A; outra função de B continua ativa; retomada, volta a ficar ativa', async () => {
       const suspensao = new SuspensaoRepository(bancada.banco)
@@ -682,7 +682,7 @@ describe('camada de IA na API', () => {
         const gravadas = (escola: Escola) => contar('consumo_ia', escola.escolaId, `modelo = '${modelo}'`)
         expect([await gravadas(a), await gravadas(b)]).toEqual([5, 5])
       } finally {
-        await sql(`update suspensao_de_funcao set retomada_em = now(), retomada_por = $2 where escola_id = $1 and funcao = 'tutor_com_o_aluno' and retomada_em is null`, [b.escolaId, b.coordenacao.usuarioId])
+        await sql(`update suspensao_de_funcao set retomada_em = greatest(now(), suspensa_em), retomada_por = $2 where escola_id = $1 and funcao = 'tutor_com_o_aluno' and retomada_em is null`, [b.escolaId, b.coordenacao.usuarioId])
         await sql('delete from configuracao_operacional_escola where escola_id = any($1::uuid[])', [[a.escolaId, b.escolaId]])
       }
     })
