@@ -1,9 +1,11 @@
 import { IdPipe, RequirePermissao, ZodValidationPipe } from '@educa/core'
 import {
+  atualizarMaterialRequestSchema,
   buscaDeMaterialQuerySchema,
   materiaisQuerySchema,
   enviarMaterialRequestSchema,
   enviarEdicaoRequestSchema,
+  type AtualizarMaterialRequest,
   type BuscaDeMaterialQuery,
   type MateriaisQuery,
   type EnviarEdicaoRequest,
@@ -14,9 +16,9 @@ import {
   type MaterialResponse,
   type ResumoDoMaterialResponse,
 } from '@educa/shared'
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Query, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common'
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common'
 import { MaterialService } from './material.service.js'
-import { MaterialUploadGuard, MaterialUploadInterceptor } from './material-upload.js'
+import { MaterialAtualizarGuard, MaterialUploadGuard, MaterialUploadInterceptor } from './material-upload.js'
 
 /**
  * `/v1/materiais` (MVP, A2; `docs/mvp-contratos.md`, seção 3): a coordenação envia, lista, lê e exclui o material da
@@ -57,6 +59,17 @@ export class MaterialController {
     @UploadedFile() arquivo: unknown,
   ): Promise<MaterialResponse> {
     return this.materiais.enviarEdicao(alvoId, campos, arquivo)
+  }
+
+  /**
+   * Corrige o título e as séries do material (ingestao-do-material, 12.0; RF6): a mesma permissão do envio (`material.enviar`, só da coordenação; o professor responde `NAO_ENCONTRADO`), o corpo pelo
+   * contrato estrito, e o teto próprio do `PATCH`, à parte do de envios. O que o `PATCH` espera e recusa é do service.
+   */
+  @Patch(':id')
+  @RequirePermissao('material', 'enviar')
+  @UseGuards(MaterialAtualizarGuard)
+  atualizar(@Param('id', IdPipe) materialId: string, @Body(new ZodValidationPipe(atualizarMaterialRequestSchema)) campos: AtualizarMaterialRequest): Promise<MaterialResponse> {
+    return this.materiais.atualizar(materialId, campos)
   }
 
   @Get()

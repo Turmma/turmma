@@ -642,6 +642,16 @@ export const ACOES_DE_AUDITORIA = {
     finalidade: null,
   },
   /**
+   * A coordenação corrigiu o título ou as séries de um material (ingestao-do-material, 12.0; RF6). `entidadeId` é o material. `antes` e `depois` levam **as séries** (lidas com a linha travada: dois `PATCH`
+   * ao mesmo tempo deixam dois registros, cada um com o "antes" que de fato encontrou) e `depois` diz só **se** o título mudou: **nunca o título**, que é texto livre.
+   */
+  'material.atualizado': {
+    entidade: 'material',
+    antes: z.strictObject({ serieIds: z.array(z.uuid()).max(MAXIMO_DE_SERIES_DO_MATERIAL) }),
+    depois: z.strictObject({ serieIds: z.array(z.uuid()).max(MAXIMO_DE_SERIES_DO_MATERIAL), tituloAlterado: z.boolean() }),
+    finalidade: null,
+  },
+  /**
    * A coordenação registrou uma licença de material de terceiro (ingestao-do-material, 5.0; PRD, RF16; Tech Spec, seção 7). `entidadeId` é a licença. Leva só a vigência: **nunca o licenciante, a
    * cobertura nem a referência**, que são texto livre e podem ter nome de pessoa (o teste da sentinela confere). O autor do registro é quem registrou, e a linha perde a autoria se a pessoa for eliminada.
    */

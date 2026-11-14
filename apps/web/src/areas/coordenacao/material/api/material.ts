@@ -1,7 +1,10 @@
 import {
   ErrorCode,
   listaDeMateriaisResponseSchema,
+  materialComCapitulosResponseSchema,
   materialResponseSchema,
+  type AtualizarMaterialRequest,
+  type EnviarEdicaoRequest,
   type LicencaDeclarada,
   type Material,
   type TitularidadeDeMaterial,
@@ -79,9 +82,6 @@ function codigoDaResposta(corpo: unknown, status: number): ErrorCode {
  * envio é o que ficou em memória depois dela, no cabeçalho, nunca na URL (regra 50, item 7).
  */
 export async function enviarMaterial(campos: CamposDoEnvioDeMaterial, arquivo: File | undefined): Promise<Material> {
-  await authedGet(`${CAMINHO}?limite=1`, listaDeMateriaisResponseSchema)
-  const token = tokenDeAcesso()
-  if (token === undefined) throw new ApiError(ErrorCode.NAO_AUTENTICADO)
   const formulario = new FormData()
   formulario.append('titulo', campos.titulo)
   formulario.append('disciplinaId', campos.disciplinaId)
@@ -92,9 +92,27 @@ export async function enviarMaterial(campos: CamposDoEnvioDeMaterial, arquivo: F
   formulario.append('declaracao', campos.declaracao ? 'true' : 'false')
   // O nome do arquivo no computador da pessoa não vai junto: a API não o usa, e ele não é dado do material.
   if (arquivo !== undefined) formulario.append('arquivo', arquivo, 'material.pdf')
+  return enviarMultipart(CAMINHO, formulario)
+}
+
+/**
+ * `POST /v1/materiais/:id/edicoes` (ingestao-do-material, 12.0; RF10): a edição nova de um material que está `pronto`. Vai só o PDF e, se a pessoa quiser, o rótulo da edição (o título a edição leva o do material): a disciplina, as séries, a titularidade e a
+ * licença a API herda do material que a edição substitui. Pelo mesmo caminho do envio (token renovado antes, campos antes do arquivo, `Retry-After` no limite).
+ */
+export function enviarEdicao(alvoId: string, campos: Pick<EnviarEdicaoRequest, 'edicao'>, arquivo: File): Promise<Material> {
+  const formulario = new FormData()
+  if (campos.edicao !== undefined) formulario.append('edicao', campos.edicao)
+  formulario.append('arquivo', arquivo, 'material.pdf')
+  return enviarMultipart(`${CAMINHO}/${encodeURIComponent(alvoId)}/edicoes`, formulario)
+}
+
+async function enviarMultipart(caminho: string, formulario: FormData): Promise<Material> {
+  await authedGet(`${CAMINHO}?limite=1`, listaDeMateriaisResponseSchema)
+  const token = tokenDeAcesso()
+  if (token === undefined) throw new ApiError(ErrorCode.NAO_AUTENTICADO)
   let resposta: Response
   try {
-    resposta = await fetch(CAMINHO, { method: 'POST', cache: 'no-store', headers: { Accept: 'application/json', Authorization: `Bearer ${token}` }, body: formulario })
+    resposta = await fetch(caminho, { method: 'POST', cache: 'no-store', headers: { Accept: 'application/json', Authorization: `Bearer ${token}` }, body: formulario })
   } catch {
     throw new ApiError(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
   }
@@ -111,6 +129,22 @@ export async function enviarMaterial(campos: CamposDoEnvioDeMaterial, arquivo: F
   const lido = materialResponseSchema.safeParse(corpo)
   if (!lido.success) throw new ApiError(ErrorCode.ERRO_INTERNO)
   return lido.data
+}
+
+/**
+ * Os capítulos de um material (`GET /v1/materiais/:id`, ingestao-do-material, 12.0; RF4): lidos só do material que está `pronto`, que é o que tem capítulos. A chave leva o id: a troca de material no mesmo painel nunca mostra os
+ * capítulos do anterior.
+ */
+export const materialComCapitulosQueryOptions = (id: string, habilitada: boolean) =>
+  queryOptions({
+    queryKey: [...MATERIAL_QUERY_KEY, 'capitulos', id],
+    queryFn: ({ signal }) => authedGet(`${CAMINHO}/${encodeURIComponent(id)}`, materialComCapitulosResponseSchema, signal),
+    enabled: habilitada,
+  })
+
+/** `PATCH /v1/materiais/:id` (RF6): corrige o título e as séries; vale na hora para a busca. Responde o material como ficou. */
+export function atualizarMaterial(id: string, campos: AtualizarMaterialRequest): Promise<Material> {
+  return authedRequest(`${CAMINHO}/${encodeURIComponent(id)}`, materialResponseSchema, { metodo: 'PATCH', corpo: campos })
 }
 
 /** `DELETE /v1/materiais/:id`: exclusão lógica; os trechos saem da busca na mesma hora. */

@@ -65,6 +65,13 @@ export interface AlvoDaEdicao {
   readonly licenca: LicencaDeMaterial
 }
 
+/** O que o `PATCH` lê do material que vai alterar, com a linha travada: se é uma edição ainda `processando` (`substitui` não nulo), ele não se altera. */
+export interface MaterialParaAtualizar {
+  readonly id: string
+  readonly estado: EstadoDeMaterial
+  readonly substitui: string | null
+}
+
 /** Quantos envios a escola e a pessoa fizeram na janela, e quantos materiais da escola ainda estão sendo lidos. */
 export interface EnviosNaJanela {
   readonly daEscola: number
@@ -305,6 +312,34 @@ export class MaterialRepository {
       .where(and(eq(material.escolaId, requireEscolaId()), eq(material.id, id), eq(material.estado, 'pronto'), isNull(material.excluidoEm)))
       .for('update')
     return alvo
+  }
+
+  /**
+   * A linha do material que o `PATCH` vai alterar, **`for update`** até o fim da transação (ingestao-do-material, 12.0): o não excluído da escola do contexto, em qualquer estado. O de outra escola, o excluído, o
+   * substituído e o inexistente não são achados (`undefined`), e quem chama responde `NAO_ENCONTRADO` igual aos quatro. A trava é a mesma do alvo da edição (`travarAlvoDaEdicao`): o `PATCH` espera a edição que está
+   * sendo gravada sobre este material e, quando ela confirma, já enxerga a edição `processando` (`EDICAO_EM_ANDAMENTO`); dois `PATCH` do mesmo material passam um depois do outro.
+   */
+  async travarParaAtualizar(id: string): Promise<MaterialParaAtualizar | undefined> {
+    const [linha] = await this.banco
+      .select({ id: material.id, estado: material.estado, substitui: material.substituiId })
+      .from(material)
+      .where(and(eq(material.escolaId, requireEscolaId()), eq(material.id, id), isNull(material.excluidoEm)))
+      .for('update')
+    return linha
+  }
+
+  /** Troca o título do material da escola do contexto. Quem chama já travou a linha (`travarParaAtualizar`). */
+  async renomear(id: string, titulo: string): Promise<void> {
+    await this.banco
+      .update(material)
+      .set({ titulo })
+      .where(and(eq(material.escolaId, requireEscolaId()), eq(material.id, id)))
+  }
+
+  /** Troca as séries declaradas do material da escola do contexto pelas dadas (de 1 a 7, sem repetir): as de antes saem e as novas entram. Quem chama já travou a linha (`travarParaAtualizar`) e conferiu as séries. */
+  async substituirSeries(materialId: string, serieIds: readonly string[]): Promise<void> {
+    await this.banco.delete(materialSerie).where(and(eq(materialSerie.escolaId, requireEscolaId()), eq(materialSerie.materialId, materialId)))
+    await this.gravarSeries(materialId, serieIds)
   }
 
   /** Há uma edição deste material sendo lida (`processando`, não excluída)? Sob a trava de envios da escola, é a checagem que o índice `material_uma_edicao_em_andamento` repete. */

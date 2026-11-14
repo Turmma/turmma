@@ -73,10 +73,10 @@
   - [x] 11.2 O resumo na tela
   - [x] 11.3 Testes: as contagens, os estados
 
-- [ ] **12.0 — O painel do material mostra os capítulos, corrige séries e título e recebe a edição nova**
-  - [ ] 12.1 `PATCH /v1/materiais/:id`, com o teto próprio
-  - [ ] 12.2 Painel: capítulos, séries e título, edição nova
-  - [ ] 12.3 Testes: as corridas do `PATCH` com a edição, os textos, o fim a fim
+- [x] **12.0 — O painel do material mostra os capítulos, corrige séries e título e recebe a edição nova**
+  - [x] 12.1 `PATCH /v1/materiais/:id`, com o teto próprio
+  - [x] 12.2 Painel: capítulos, séries e título, edição nova
+  - [x] 12.3 Testes: as corridas do `PATCH` com a edição, os textos, o fim a fim
 
 ## Dependências e paralelismo
 

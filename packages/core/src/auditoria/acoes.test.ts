@@ -141,6 +141,16 @@ describe('mapa de ações da auditoria', () => {
     }
   })
 
+  it('`material.atualizado` leva as séries antes e depois e só se o título mudou: nunca o título, que é texto livre (ingestao-do-material, 12.0)', () => {
+    const { antes, depois, finalidade, entidade } = ACOES_DE_AUDITORIA['material.atualizado']
+    expect([entidade, finalidade]).toEqual(['material', null])
+    expect(antes?.safeParse({ serieIds: [UM_ID] }).success).toBe(true)
+    expect(depois.safeParse({ serieIds: [UM_ID], tituloAlterado: true }).success).toBe(true)
+    expect(depois.safeParse({ serieIds: [UM_ID], tituloAlterado: true, titulo: 'Apostila da Ana' }).success, 'o título não entra').toBe(false)
+    expect(depois.safeParse({ serieIds: [UM_ID], tituloAlterado: 'Apostila' }).success, 'texto no lugar do booleano').toBe(false)
+    expect(antes?.safeParse({ serieIds: ['Ana Souza'] }).success, 'série é id').toBe(false)
+  })
+
   it('a leitura nominal e a do desempenho de aluno pela coordenação só gravam com finalidade de lista fechada', () => {
     for (const acao of ['turma.desempenho_lido', 'analista.nominal_lido'] as const) {
       const { finalidade } = ACOES_DE_AUDITORIA[acao]

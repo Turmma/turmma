@@ -105,6 +105,18 @@ export const enviarEdicaoRequestSchema = z.strictObject({
 })
 export type EnviarEdicaoRequest = z.infer<typeof enviarEdicaoRequestSchema>
 
+/**
+ * Os campos de `PATCH /v1/materiais/:id` (JSON; ingestao-do-material, 12.0; RF6): o título e as séries, como no envio (de 1 a 7, sem repetir; `[]` e repetidas são `ENTRADA_INVALIDA`).
+ * Pelo menos um dos dois: o pedido sem nada a alterar também é `ENTRADA_INVALIDA`. Estrito: disciplina, titularidade, licença e o resto do material não se alteram aqui.
+ */
+export const atualizarMaterialRequestSchema = z
+  .strictObject({
+    titulo: z.string().trim().min(1).max(TAMANHO_MAXIMO_TITULO_DO_MATERIAL).optional(),
+    serieIds: serieIds.optional(),
+  })
+  .refine((pedido) => pedido.titulo !== undefined || pedido.serieIds !== undefined, { message: 'nada a alterar' })
+export type AtualizarMaterialRequest = z.infer<typeof atualizarMaterialRequestSchema>
+
 export const MOTIVOS_DA_RECUSA_DO_MATERIAL = ['sem_licenca', 'sem_declaracao'] as const
 export type MotivoDaRecusaDoMaterial = (typeof MOTIVOS_DA_RECUSA_DO_MATERIAL)[number]
 

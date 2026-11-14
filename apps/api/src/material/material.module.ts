@@ -8,7 +8,7 @@ import { LicencaService } from './licenca.service.js'
 import { TrechoSearch } from './trecho-search.js'
 import { MaterialController } from './material.controller.js'
 import { MaterialService } from './material.service.js'
-import { MaterialUploadGuard } from './material-upload.js'
+import { MaterialAtualizarGuard, MaterialUploadGuard } from './material-upload.js'
 
 /** Fecha o cliente do armazém na descida do processo, antes de o pool do banco fechar. */
 class CicloDoArmazemDoMaterial implements BeforeApplicationShutdown {
@@ -55,6 +55,7 @@ export class MaterialModule {
         { provide: TrechoSearch, useFactory: (banco: Database) => new TrechoSearch(banco, opcoes.relogioDasLicencas), inject: [DB] },
         { provide: CicloDoArmazemDoMaterial, useFactory: () => new CicloDoArmazemDoMaterial(encerrar) },
         MaterialUploadGuard,
+        MaterialAtualizarGuard,
       ],
       exports: [TrechoSearch],
     }

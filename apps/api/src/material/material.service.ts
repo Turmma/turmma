@@ -17,6 +17,7 @@ import {
   type LicencaDeMaterial,
   type MotivoDaRecusaDoMaterial,
   type MotivoDaRecusaPelaLicencaRegistrada,
+  type AtualizarMaterialRequest,
   type EnviarEdicaoRequest,
   type EnviarMaterialRequest,
   type BuscaDeMaterialResponse,
@@ -55,6 +56,12 @@ export const ENVIOS_POR_ESCOLA_NA_JANELA = 300
 export const MATERIAIS_EM_PROCESSAMENTO_POR_ESCOLA = 300
 /** Quanto esperar antes de enviar de novo quando o teto é o do processamento: o tempo de uma extração. */
 const ESPERA_PELO_PROCESSAMENTO_S = 30
+/** A janela dos tetos do `PATCH` do material (título e séries): a mesma hora dos envios, mas contada à parte (ingestao-do-material, 12.0; Tech Spec, 7c). */
+export const JANELA_DAS_ATUALIZACOES_MS = 60 * 60_000
+/** `PATCH` de uma pessoa na janela: 100 por hora. Corrigir as séries de 300 apostilas em lote cabe; acima disso é laço. */
+export const ATUALIZACOES_POR_USUARIO_NA_JANELA = 100
+/** `PATCH` da escola inteira na janela, somando as pessoas da coordenação: 300 por hora. */
+export const ATUALIZACOES_POR_ESCOLA_NA_JANELA = 300
 
 /** A licença registrada vale hoje? `futura` e `vencida` não valem: o dia do fim ainda vale, e a licença sem fim vale até a coordenação a encerrar (RF16 e RF17). */
 function licencaValeEm(hoje: string, licenca: VigenciaDaLicenca): boolean {
@@ -363,6 +370,20 @@ export class MaterialService {
     await this.#exigirDentroDosTetos(new MaterialRepository(this.dependencias.banco))
   }
 
+  /**
+   * O teto do `PATCH` do material antes de o corpo ser lido (`MaterialAtualizarGuard`; regra 80, itens 1 e 3): 100 por hora por pessoa e 300 por escola, **à parte do teto de envios** (os dois não se
+   * somam). Conta as alterações já gravadas (`material.atualizado`, na auditoria) na janela de uma hora. É leitura sem trava, como a dos envios: protege do laço, e as poucas alterações em voo ao mesmo
+   * tempo podem passar um pouco do número. Acima do teto, `LIMITE_EXCEDIDO` com o `Retry-After` da janela inteira.
+   */
+  async exigirAtualizacaoDentroDosTetos(): Promise<void> {
+    const feitas = await new AuditoriaRepository(this.dependencias.banco).contarDaEscolaEDaPessoaDesde('material.atualizado', new Date(Date.now() - JANELA_DAS_ATUALIZACOES_MS))
+    if (feitas.doUsuario >= ATUALIZACOES_POR_USUARIO_NA_JANELA || feitas.daEscola >= ATUALIZACOES_POR_ESCOLA_NA_JANELA) {
+      const tipo = feitas.daEscola >= ATUALIZACOES_POR_ESCOLA_NA_JANELA ? 'escola' : 'usuario'
+      this.dependencias.logger.warn({ evento: 'material.teto_de_atualizacoes', tipo })
+      throw new DomainException(ErrorCode.LIMITE_EXCEDIDO, undefined, JANELA_DAS_ATUALIZACOES_MS / 1_000)
+    }
+  }
+
   /** Por pessoa e por escola, nunca por IP (regra 80, itens 1 e 3): a escola inteira sai pelo mesmo IP. */
   async #exigirDentroDosTetos(materiais: MaterialRepository): Promise<void> {
     const envios = await materiais.enviosNaJanela(new Date(Date.now() - JANELA_DOS_ENVIOS_MS))
@@ -411,6 +432,45 @@ export class MaterialService {
     } catch (erro) {
       logger.warn({ evento: 'material.objeto_nao_apagado', materialId: id, erro: summarizeError(erro) })
     }
+  }
+
+  /**
+   * `PATCH /v1/materiais/:id` (ingestao-do-material, 12.0; RF6; Tech Spec, seções 4 e 5): a coordenação corrige o título e as séries de um material. A ordem é a regra:
+   *
+   * 1. as séries pedidas são da escola da sessão, ou `NAO_ENCONTRADO` (a de outra escola responde como a inexistente, e a auditoria nunca leva o id dela);
+   * 2. a transação trava a linha do material (`for update`): o de outra escola, o excluído, o substituído e o inexistente dão `NAO_ENCONTRADO`, **sempre antes** de `EDICAO_EM_ANDAMENTO` (regra 10, item 6: quem
+   *    não alcança o material não descobre, pela outra resposta, que ele tem uma edição em andamento);
+   * 3. a edição que ainda está `processando`, ou a que o material tem sobre si, dá `EDICAO_EM_ANDAMENTO`: a edição herda as séries do material que substitui, lidas sob esta mesma trava, e quem as
+   *    altera no meio deixaria as duas fora de passo. A edição que está sendo gravada segura a linha do alvo até o commit, então este `PATCH` espera e, depois, já enxerga a edição;
+   * 4. o título e as séries mudam e `material.atualizado` é gravado, na mesma transação. As séries tiradas deixam a busca e a página aberta na hora; o título não vai à auditoria.
+   *
+   * Dois `PATCH` do mesmo material passam um depois do outro: o último vale, sem `500`.
+   */
+  async atualizar(id: string, pedido: AtualizarMaterialRequest): Promise<MaterialResponse> {
+    const { banco, logger } = this.dependencias
+    // Em minúsculas, como o banco as devolve: a auditoria leva o mesmo texto que a resposta.
+    const serieIds = pedido.serieIds?.map((serieId) => serieId.toLowerCase())
+    if (serieIds !== undefined && (await new MaterialRepository(banco).seriesDaEscola(serieIds)).length !== serieIds.length) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+    await banco.transaction(async (tx) => {
+      const materiais = new MaterialRepository(tx)
+      const alvo = await materiais.travarParaAtualizar(id)
+      if (alvo === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+      if (alvo.estado === 'processando' && alvo.substitui !== null) throw new DomainException(ErrorCode.EDICAO_EM_ANDAMENTO)
+      if (await materiais.edicaoEmAndamentoSobre(alvo.id)) throw new DomainException(ErrorCode.EDICAO_EM_ANDAMENTO)
+      const antes = await materiais.seriesDoMaterial(alvo.id)
+      if (pedido.titulo !== undefined) await materiais.renomear(alvo.id, pedido.titulo)
+      if (serieIds !== undefined) await materiais.substituirSeries(alvo.id, serieIds)
+      await registro.gravar(tx, 'material.atualizado', {
+        entidadeId: alvo.id,
+        antes: { serieIds: antes },
+        depois: { serieIds: serieIds?.toSorted() ?? antes, tituloAlterado: pedido.titulo !== undefined },
+      })
+    })
+    logger.info({ evento: 'material.atualizado', materialId: id })
+    const lido = await new MaterialRepository(banco).porId(id, 'unidade')
+    if (lido === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+    // Quem altera é sempre a coordenação (a célula `material.enviar` é só dela): recebe o que declarou.
+    return paraResposta(lido, 'unidade')
   }
 
   /** `GET /v1/materiais`: a coordenação, os da escola; o professor, os das disciplinas dele, com ou sem o filtro. */

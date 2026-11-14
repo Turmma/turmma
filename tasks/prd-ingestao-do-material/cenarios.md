@@ -232,6 +232,7 @@ Cada um vermelho sem a cláusula de escopo:
 - [U] Chip e PDF do artefato: título e edição pelas `fontes`; "edição anterior"; "material da escola"; artefato sem
   `fontes`; carregando e erro da leitura são os da tela do artefato (as `fontes` vêm na resposta dele), e nenhum chip nem
   título de fonte aparece enquanto eles valem
+- [U] Painel do material (12.0): os capítulos só no material `pronto` (lendo, vazio com "sem capítulo", erro com "Tentar de novo"); `processando` diz que aparecem quando a leitura terminar e `falhou` não tem a região; "Enviar edição nova" só no `pronto` e sem edição em leitura; com edição em andamento, título e séries desabilitados com o motivo dito; "Salvar alterações" desabilitado sem mudança e durante o pedido (clique duplo, um pedido); o resultado dito numa região com foco; a edição enviada fecha o painel e é anunciada. Mutação: deixar o salvar habilitado com edição em andamento
 - [U] Textos: `EDICAO_EM_ANDAMENTO` "Espere a edição em processamento terminar"; `LICENCA_VENCIDA` "Atualize a vigência
   em Licenças"; `SEM_MATERIAL_DA_SERIE` ao professor "Peça à coordenação o material desta série"; o 429 do `PATCH` "Muitas alterações por agora. Tente de novo às HH:MM"; 503 "O envio não foi
   concluído. Tente de novo em instantes."

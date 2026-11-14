@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { MENSAGENS_DE_ERRO } from '../errors/messages.js'
 import {
+  atualizarMaterialRequestSchema,
   buscaDeMaterialQuerySchema,
   materialSchema,
   enviarEdicaoRequestSchema,
@@ -148,5 +149,24 @@ describe('o resumo do material (ingestao-do-material, 11.0; RF18): só ids e con
   it('a janela é de 30 dias e os motivos são os três que a API responde como licença; a licença inexistente fica de fora', () => {
     expect(DIAS_DAS_RECUSAS_NO_RESUMO).toBe(30)
     expect([...MOTIVOS_DA_RECUSA_QUE_O_RESUMO_CONTA].sort()).toEqual(['licenca_vencida', 'sem_declaracao', 'sem_licenca'])
+  })
+})
+
+describe('correção do material (12.0): `PATCH` com o título e as séries, e pelo menos um dos dois', () => {
+  const OUTRO_ID = '0190c7e2-0000-7000-8000-000000000001'
+
+  it('o título é aparado; as séries são de 1 a 7, e o pedido pode levar só um dos campos', () => {
+    expect(atualizarMaterialRequestSchema.parse({ titulo: '  Química 2  ' })).toEqual({ titulo: 'Química 2' })
+    expect(atualizarMaterialRequestSchema.parse({ serieIds: [UM_ID] })).toEqual({ serieIds: [UM_ID] })
+    expect(atualizarMaterialRequestSchema.parse({ titulo: 'Química', serieIds: [UM_ID, OUTRO_ID] }).serieIds).toEqual([UM_ID, OUTRO_ID])
+  })
+
+  it('o pedido vazio, as séries vazias ou repetidas, o título vazio ou longo demais e o campo a mais são recusados', () => {
+    const recusados = [{}, { serieIds: [] }, { serieIds: [UM_ID, UM_ID] }, { serieIds: [UM_ID, UM_ID.toUpperCase()] }, { titulo: '   ' }, { titulo: 'x'.repeat(161) }, { serieIds: Array.from({ length: 8 }, (_, n) => `0190c7e2-0000-7000-8000-00000000010${String(n)}`) }]
+    for (const pedido of recusados) expect(atualizarMaterialRequestSchema.safeParse(pedido).success, JSON.stringify(pedido)).toBe(false)
+    // O que não é título nem série não se altera por aqui.
+    for (const campo of [{ disciplinaId: UM_ID }, { titularidade: 'escola' }, { licenca: 'licenca_aberta' }, { licenciante: 'Editora' }, { escolaId: UM_ID }, { estado: 'pronto' }]) {
+      expect(atualizarMaterialRequestSchema.safeParse({ titulo: 'Química', ...campo }).success, Object.keys(campo)[0]).toBe(false)
+    }
   })
 })

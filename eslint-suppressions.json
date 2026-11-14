@@ -334,7 +334,7 @@
   },
   "apps/web/src/areas/coordenacao/material/api/material.ts": {
     "complexity": {
-      "count": 2
+      "count": 1
     }
   },
   "apps/web/src/areas/coordenacao/painel/Painel.tsx": {

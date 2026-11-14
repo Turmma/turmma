@@ -175,3 +175,68 @@ export function substituirMaterialNoBanco(escolaId: string, antigoId: string, ed
     return novoId
   })
 }
+
+/** Os capítulos que a extração deixaria no material (ingestao-do-material, 12.0): o painel os lê de `GET /v1/materiais/:id`. Número nulo é o capítulo que o PDF não numera. */
+export function criarCapitulosNoBanco(escolaId: string, materialId: string, capitulos: ReadonlyArray<{ readonly numero: number | null; readonly titulo: string; readonly paginaInicial: number; readonly paginaFinal: number }>): Promise<void> {
+  return comBanco(async (banco) => {
+    for (const [indice, capitulo] of capitulos.entries()) {
+      await banco.query('insert into capitulo_do_material (escola_id, material_id, ordem, numero, titulo, pagina_inicial, pagina_final) values ($1, $2, $3, $4, $5, $6, $7)', [
+        escolaId,
+        materialId,
+        indice + 1,
+        capitulo.numero,
+        capitulo.titulo,
+        capitulo.paginaInicial,
+        capitulo.paginaFinal,
+      ])
+    }
+  })
+}
+
+/** Dá ao material **só** a série do ano dado (Ensino Fundamental), que a escola precisa ter (`criarTodasAsSeriesNoBanco`). */
+export function vincularMaterialAUmaSerieNoBanco(escolaId: string, materialId: string, ano: number): Promise<void> {
+  return comBanco(async (banco) => {
+    await banco.query("insert into material_serie (escola_id, material_id, serie_id) select escola_id, $2, id from serie where escola_id = $1 and etapa = 'ef_anos_finais' and ano = $3", [escolaId, materialId, ano])
+  })
+}
+
+/** As séries do material no banco, como `etapa:ano`, em ordem: o que a busca usa para achá-lo. */
+export function seriesDoMaterialNoBanco(escolaId: string, materialId: string): Promise<string[]> {
+  return comBanco(async (banco) => {
+    const { rows } = await banco.query<{ serie: string }>(
+      'select s.etapa || \':\' || s.ano as serie from material_serie ms join serie s on s.escola_id = ms.escola_id and s.id = ms.serie_id where ms.escola_id = $1 and ms.material_id = $2 order by s.etapa, s.ano',
+      [escolaId, materialId],
+    )
+    return rows.map((linha) => linha.serie)
+  })
+}
+
+/** As edições que substituem o material, com o estado e o rótulo: o que o "Enviar edição nova" deixou no banco. */
+export function edicoesDoMaterialNoBanco(escolaId: string, alvoId: string): Promise<Array<{ id: string; titulo: string; estado: string; edicao: string | null }>> {
+  return comBanco(async (banco) => {
+    const { rows } = await banco.query<{ id: string; titulo: string; estado: string; edicao: string | null }>('select id, titulo, estado, edicao from material where escola_id = $1 and substitui_id = $2 order by id', [escolaId, alvoId])
+    return rows
+  })
+}
+
+/** O título do material no banco: o que o `PATCH` gravou. */
+export function tituloDoMaterialNoBanco(escolaId: string, materialId: string): Promise<string | undefined> {
+  return comBanco(async (banco) => {
+    const { rows } = await banco.query<{ titulo: string }>('select titulo from material where escola_id = $1 and id = $2', [escolaId, materialId])
+    return rows[0]?.titulo
+  })
+}
+
+/** Uma edição que ainda está sendo lida sobre o material, como o envio da edição a deixa (`processando`, `substitui_id` no alvo): o painel do alvo e o da edição não se corrigem enquanto ela existe. Devolve o id dela. */
+export function criarEdicaoEmLeituraNoBanco(escolaId: string, alvoId: string, titulo: string): Promise<string> {
+  return comBanco(async (banco) => {
+    const { rows } = await banco.query<{ id: string }>(
+      `insert into material (escola_id, disciplina_id, titulo, titularidade, licenca, declaracao, sha256, tamanho_bytes, paginas, estado, substitui_id)
+       select escola_id, disciplina_id, $3, titularidade, licenca, declaracao, $4, tamanho_bytes, null, 'processando', id from material where escola_id = $1 and id = $2 returning id`,
+      [escolaId, alvoId, titulo, randomBytes(32).toString('hex')],
+    )
+    const id = rows[0]?.id
+    if (id === undefined) throw new Error('o seed do e2e não criou a edição em leitura')
+    return id
+  })
+}

@@ -334,7 +334,7 @@ describe('o painel do material', () => {
       'Licença de uso': 'Licença comercial que autoriza este uso',
       Páginas: '—',
     })
-    expect(dentro.getAllByRole('button').map((botao) => botao.getAttribute('aria-label') ?? botao.textContent)).toEqual(['Fechar', 'Tentar de novo', 'Excluir material'])
+    expect(dentro.getAllByRole('button').map((botao) => botao.getAttribute('aria-label') ?? botao.textContent)).toEqual(['Fechar', 'Salvar alterações', 'Tentar de novo', 'Excluir material'])
 
     await usuario.click(dentro.getByRole('button', { name: 'Fechar' }))
     expect(screen.queryByRole('dialog', { name: 'Capítulo sem texto' })).toBeNull()

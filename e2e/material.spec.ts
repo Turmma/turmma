@@ -578,7 +578,7 @@ test.describe('Material da coordenação', () => {
     await expect(painel).toContainText('O PDF não tem texto para ler: parece ser só imagem. Envie a versão com texto.')
     await expect(painel).toContainText('Material próprio da escola')
     await expect(painel).toContainText('Autoria da escola ou de professor dela')
-    await expect(painel.locator('button:not([aria-label="Fechar"])')).toHaveText(['Tentar de novo', 'Excluir material'])
+    await expect(painel.locator('button:not([aria-label="Fechar"])')).toHaveText(['Salvar alterações', 'Tentar de novo', 'Excluir material'])
     expect(await botoesCheios(page)).toEqual(['Enviar material'])
     expect(await horizontalOverflow(page)).toBe(0)
     expect(await seriousViolations(page)).toEqual([])
@@ -588,9 +588,9 @@ test.describe('Material da coordenação', () => {
     await expect(painel).toHaveCount(0)
     await expect(page).toHaveURL(/\/coordenacao\/material$/)
 
-    // O material pronto só oferece "Excluir material".
+    // O material pronto oferece a correção, a edição nova e "Excluir material", e não o "Tentar de novo", que é só do que falhou.
     await activate(botaoDaLinha(page, 'Capítulo pronto'), hasTouch)
-    await expect(painelDe(page, 'Capítulo pronto').locator('button:not([aria-label="Fechar"])')).toHaveText(['Excluir material'])
+    await expect(painelDe(page, 'Capítulo pronto').locator('button:not([aria-label="Fechar"])')).toHaveText(['Salvar alterações', 'Enviar edição nova', 'Excluir material'])
   })
 
   test('o painel abre pelo endereço, como o link do sino, e o Esc tira o id do endereço', async ({ page, request }) => {

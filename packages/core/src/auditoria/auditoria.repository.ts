@@ -91,6 +91,22 @@ export class AuditoriaRepository {
   }
 
   /**
+   * Quantas vezes a `acao` foi gravada desde `desde`, na escola do contexto e pela pessoa da sessão (ingestao-do-material, 12.0): a base do teto do `PATCH` do material, por pessoa e por escola. Só uma
+   * contagem. A escola e a pessoa vêm do contexto, nunca de argumento (regra 10, item 3); sem escola, `requireEscolaId` recusa, e sem pessoa a contagem dela é zero. O texto de `acao` vai como parâmetro: o
+   * índice `auditoria_escola_em_idx` serve à consulta pela escola e pelo instante.
+   */
+  async contarDaEscolaEDaPessoaDesde(acao: string, desde: Date): Promise<{ daEscola: number; doUsuario: number }> {
+    const escolaId = requireEscolaId()
+    const usuarioId = currentContext()?.usuarioId
+    const resultado = await this.banco.execute<{ da_escola: number; do_usuario: number }>(sql`
+      select count(*)::int as da_escola, (count(*) filter (where autor_usuario_id = ${usuarioId ?? null}))::int as do_usuario
+      from auditoria
+      where escola_id = ${escolaId} and acao = ${acao} and em >= ${desde.toISOString()}::timestamptz`)
+    const linha = resultado.rows[0]
+    return { daEscola: linha?.da_escola ?? 0, doUsuario: linha?.do_usuario ?? 0 }
+  }
+
+  /**
    * Os envios de material recusados da escola do contexto desde `desde`, por disciplina e por série (ingestao-do-material, 11.0; RF18): a base do resumo do material. Conta só os registros
    * `material.recusado` com um dos `motivos` (sem motivo nenhum, a resposta é vazia, sem consulta), e a recusa de várias séries cai em cada uma delas, como o material de várias séries. A recusa sem série (a edição de um material que a migração
    * deixou sem nenhuma) volta com `serieId` nulo. O `entidade_id` do registro é a disciplina, e a consulta o prende (`entidade = 'disciplina'`: a ação `material.recusado` não grava outra). O texto de `acao` vai escrito na consulta, e não como parâmetro,

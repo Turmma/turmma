@@ -52,3 +52,17 @@ export class MaterialUploadGuard implements CanActivate {
     return true
   }
 }
+
+/**
+ * O teto do `PATCH /v1/materiais/:id` conferido **antes** de o corpo ser lido (ingestao-do-material, 12.0): 100 por hora por pessoa e 300 por escola, à parte dos envios. Mesma posição do
+ * `MaterialUploadGuard`: depois das guardas globais (a sessão e a permissão já estão no contexto) e antes do pipe que valida o corpo. Acima do teto, `LIMITE_EXCEDIDO` com `Retry-After`.
+ */
+@Injectable()
+export class MaterialAtualizarGuard implements CanActivate {
+  constructor(private readonly materiais: MaterialService) {}
+
+  async canActivate(): Promise<boolean> {
+    await this.materiais.exigirAtualizacaoDentroDosTetos()
+    return true
+  }
+}

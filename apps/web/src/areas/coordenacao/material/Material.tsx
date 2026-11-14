@@ -17,7 +17,9 @@ import { LoadingState, ErrorState, EmptyState } from '../../../components/states
 import { StatusBadge } from '../../../components/ui/StatusBadge'
 import { Table, type TableColumn } from '../../../components/ui/Table'
 import { errorText } from '../../../components/error-text'
+import { DialogoDeEdicaoNova } from './DialogoDeEdicaoNova'
 import { DialogoDeEnvioDeMaterial } from './DialogoDeEnvioDeMaterial'
+import { temEdicaoEmAndamento, TEXTO_DA_EDICAO_ENVIADA } from './material-painel'
 import { ResumoDoMaterial } from './ResumoDoMaterial'
 import { enderecoComParametro } from '../comum/endereco-da-tela'
 import { RASCUNHO_VAZIO, TEXTO_DA_RECUSA, TEXTOS_DA_FALHA_DA_EXCLUSAO } from './material-envio'
@@ -29,7 +31,7 @@ import { Licencas } from './Licencas'
 import { Tabs, type TabItem } from '../../../components/ui/Tabs'
 
 /** Os diálogos da tela, um por vez. O envio leva, quando vem do painel de um material que falhou, esse material; a exclusão leva o da linha. */
-type TipoDeDialogo = 'enviar' | 'excluir'
+type TipoDeDialogo = 'enviar' | 'excluir' | 'edicao'
 
 const TEXTO_DO_ENVIO = 'Material enviado. A leitura das páginas começa agora e leva alguns instantes.'
 
@@ -262,8 +264,11 @@ function MateriaisDaEscola() {
             key={doPainel.id}
             material={doPainel}
             disciplina={nomeDe(doPainel.disciplinaId)}
+            edicaoEmAndamento={lista !== undefined && temEdicaoEmAndamento(doPainel, lista.itens)}
+            recarregar={recarregar}
             aoFechar={fecharPainel}
             aoTentarDeNovo={() => abrir('enviar', doPainel)}
+            aoEnviarEdicao={() => abrir('edicao', doPainel)}
             aoExcluir={() => abrir('excluir', doPainel)}
             focoDeReserva={focarNaLista}
           />
@@ -282,6 +287,21 @@ function MateriaisDaEscola() {
             }}
             aoRecusar={registrarRecusa}
             recarregar={recarregar}
+            aoFechar={fecharDialogo}
+            focoDeReserva={focarNaLista}
+          />
+        )}
+        {aberta?.tipo === 'edicao' && alvo !== undefined && (
+          <DialogoDeEdicaoNova
+            key={aberta.numero}
+            alvo={alvo}
+            recarregar={recarregar}
+            aoEnviar={() => {
+              dialogo.fecharSeAinda(aberta)
+              definirAnuncio(TEXTO_DA_EDICAO_ENVIADA)
+              // O painel do material fecha: a edição nova é outra linha da lista, e a anterior segue valendo até ela ficar pronta.
+              tirarDoEndereco(alvo.id)
+            }}
             aoFechar={fecharDialogo}
             focoDeReserva={focarNaLista}
           />
