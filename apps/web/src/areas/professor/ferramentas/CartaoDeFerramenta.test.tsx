@@ -47,6 +47,8 @@ interface Quem {
   readonly vinculos?: FakeResponse | (() => FakeResponse | Promise<FakeResponse>)
   readonly time?: FakeResponse
   readonly artefatos?: FakeResponse
+  /** A resposta da consulta da execução; sem ela, a execução fica no ar. */
+  readonly execucao?: FakeResponse
 }
 
 function instalar(rede: FakeNetwork, quem: Quem = {}): void {
@@ -55,7 +57,7 @@ function instalar(rede: FakeNetwork, quem: Quem = {}): void {
   rede.responderPor('/v1/artefatos', quem.artefatos ?? { status: 200, corpo: { itens: [ATIVIDADE] } })
   // O pedido de geração: a execução fica no ar, sem terminar.
   rede.responderPor('/v1/ferramentas/atividade_objetiva/gerar', { status: 202, corpo: { execucaoId: id(950) } })
-  rede.responderPor(/^\/v1\/execucoes\//, () => new Promise<FakeResponse>(() => undefined))
+  rede.responderPor(/^\/v1\/execucoes\//, quem.execucao ?? (() => new Promise<FakeResponse>(() => undefined)))
 }
 
 const INICIAIS: IniciaisDaFerramenta = { turma: VALOR_DA_TURMA_A, tema: 'Estequiometria' }
@@ -205,5 +207,45 @@ describe('a Adaptação não tem onde receber texto (D35, D67)', () => {
     // O que o cartão pede é o que a Adaptação precisa: a atividade de origem e os tipos de adaptação.
     expect(within(cartao('adaptacao')).getByLabelText(/Atividade/)).toBeTruthy()
     expect(within(cartao('adaptacao')).getAllByRole('checkbox').length).toBeGreaterThan(0)
+  })
+})
+
+describe('a Adaptação de uma atividade cujo material saiu de uso', () => {
+  const TEXTO_DA_PROFESSORA = 'O material que esta atividade cita saiu de uso. Gere a atividade de novo para poder adaptá-la.'
+
+  async function falhaDoPedido(): Promise<Element> {
+    await waitFor(() => expect(document.querySelector('[data-falha-do-pedido]')).not.toBeNull())
+    return document.querySelector('[data-falha-do-pedido]') as Element
+  }
+
+  async function pedirAdaptacao(): Promise<void> {
+    const usuario = userEvent.setup()
+    montar('adaptacao', { comIcone: true })
+    await screen.findByRole('heading', { level: 2, name: 'Adaptação' })
+    await usuario.selectOptions(within(cartao('adaptacao')).getByLabelText(/Atividade de origem/), ATIVIDADE.id)
+    await usuario.click(within(cartao('adaptacao')).getByRole('checkbox', { name: 'Fonte ampliada' }))
+    await usuario.click(within(cartao('adaptacao')).getByRole('button', { name: 'Gerar versão adaptada' }))
+  }
+
+  it.each(['LICENCA_VENCIDA', 'EDICAO_SUBSTITUIDA'])('%s na recusa do pedido: o texto para a professora, sem Licenças, sem Tentar de novo e sem o código', async (codigo) => {
+    const rede = fakeNetwork()
+    instalar(rede)
+    rede.responderPor(`/v1/artefatos/${ATIVIDADE.id}/adaptar`, erro(422, codigo))
+    await pedirAdaptacao()
+    const alerta = await falhaDoPedido()
+    expect(alerta.textContent).toBe(TEXTO_DA_PROFESSORA)
+    expect(alerta.textContent).not.toMatch(/Licenças|vigência/i)
+    expect(alerta.textContent).not.toContain(codigo)
+    expect(screen.queryByRole('button', { name: /Tentar de novo|Pedir de novo/ })).toBeNull()
+  })
+
+  it.each(['LICENCA_VENCIDA', 'EDICAO_SUBSTITUIDA'])('%s que aparece na execução, depois do 202, quando o material saiu de uso no meio: o mesmo texto', async (codigo) => {
+    const rede = fakeNetwork()
+    instalar(rede, { execucao: { status: 200, corpo: { id: id(951), tarefa: 'adaptar_atividade', estado: 'falhou', resultado: null, erro: codigo } } })
+    rede.responderPor(`/v1/artefatos/${ATIVIDADE.id}/adaptar`, { status: 202, corpo: { execucaoId: id(951) } })
+    await pedirAdaptacao()
+    const alerta = await falhaDoPedido()
+    expect(alerta.textContent).toBe(TEXTO_DA_PROFESSORA)
+    expect(screen.queryByRole('button', { name: /Tentar de novo|Pedir de novo/ })).toBeNull()
   })
 })

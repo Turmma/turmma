@@ -1,4 +1,4 @@
-import { MENSAGENS_DE_ERRO, type ChaveDeFuncao, type ErrorCode } from '@educa/shared'
+import { ErrorCode, MENSAGENS_DE_ERRO, type ChaveDeFuncao } from '@educa/shared'
 import { Hourglass, PauseCircle } from 'lucide-react'
 import { aparenciaDaFalha } from '../../../api/ciclo-de-execucao'
 import { Button } from '../../../components/ui/Button'
@@ -50,6 +50,20 @@ export function AvisoNaEntregaDeFuncaoSuspensa({ texto }: { texto: string }) {
 /** O que a tela diz a quem passou do limite de pedidos de IA por minuto: o que houve, e que é só esperar. */
 export const TEXTO_DO_LIMITE_DE_PEDIDOS = 'Você fez muitos pedidos ao Assistente em pouco tempo. Espere cerca de um minuto e peça de novo: o seu pedido continua aqui.'
 
+/**
+ * O que a professora lê quando a Adaptação é recusada porque o material que a atividade cita saiu de uso: a licença deixou
+ * de valer (`LICENCA_VENCIDA`) ou a edição foi substituída (`EDICAO_SUBSTITUIDA`). Os dois pedem o mesmo dela, gerar a
+ * atividade de novo, e nenhum deixa ao seu alcance o que o catálogo manda fazer em "Licenças", que é da coordenação.
+ *
+ * **O texto só é verdadeiro enquanto a Adaptação for a única que devolve esses dois códigos à professora** (hoje,
+ * `ArtefatoService.adaptar`): a geração filtra o material fora de uso e não os devolve. `FalhaDoPedido` também serve à
+ * conversa e às outras ferramentas, e quem passar a devolver `LICENCA_VENCIDA` ou `EDICAO_SUBSTITUIDA` em outro fluxo
+ * escolhe o texto pela função do pedido, em vez de reaproveitar a lista abaixo.
+ */
+export const TEXTO_DO_MATERIAL_FORA_DE_USO = 'O material que esta atividade cita saiu de uso. Gere a atividade de novo para poder adaptá-la.'
+
+const MATERIAL_FORA_DE_USO: readonly ErrorCode[] = [ErrorCode.LICENCA_VENCIDA, ErrorCode.EDICAO_SUBSTITUIDA]
+
 interface PropsDaFalha {
   readonly erro: ErrorCode
   /** A função que o pedido usa: é dela a frase da suspensão. */
@@ -79,7 +93,7 @@ export function FalhaDoPedido({ erro, funcao, aoTentarDeNovo }: PropsDaFalha) {
     )
   return (
     <p role="alert" data-falha-do-pedido="" className="min-w-0 rounded-controle bg-erro-cx p-3 break-words text-erro">
-      {MENSAGENS_DE_ERRO[erro]}
+      {MATERIAL_FORA_DE_USO.includes(erro) ? TEXTO_DO_MATERIAL_FORA_DE_USO : MENSAGENS_DE_ERRO[erro]}
     </p>
   )
 }
