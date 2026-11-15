@@ -514,24 +514,32 @@ aprovação.
 **Depende de:** X5 · **não segura a X4 nem o F2**
 
 É a dona da fila de IA do F11 (42.0 e 47.0) e do gateway do F5 (49.0 e 50.0): as duas fases esperam essas partes
-dela, e não as refazem.
+dela, e não as refazem. PRD em `tasks/prd-reengenharia-continuacao/prd.md`.
 
-O que a X5 deixou de fora no recorte de 22/10/2026 (D81), registrado para não se perder. As tarefas guardam o número da
-X5, e a lista está em "Saíram para a X6" de `tasks/prd-reengenharia/tasks.md`, com o desenho nos `onda-<n>.md` (revisto
-pela D81 onde ela diz). Entra também o que a regra do corte da X5 deixar fora. Cada parte entra no momento dela:
+**O recorte de 14/11/2026 (Joaquim): só o que o piloto espera.** A IA no worker, com o Tutor e a ferramenta do professor em
+filas separadas (42.0, 47.0); o limite de tokens por minuto com a degradação da regra 80.4 e as métricas de IA (49.0); a
+subida que recusa provedor sem processamento no Brasil, e o gateway que recusa, a cada chamada, a que leva texto de aluno
+(50.0, D62); o prazo de toda chamada da web, com "Tentar de novo", e a tela de falha na raiz (52.0, 56.0); e o Redis fora
+no segundo fator e na escolha de escola (54.0). O roteamento para o provedor de reserva continua no F5.
 
-- **Antes do portão do piloto:** a IA no worker (42.0, 47.0, 49.0, 50.0; a 45.0 e a 46.0, o PDF no worker, entraram na F4 em 11/11/2026), o prazo do cliente com "Tentar
-  de novo" (52.0) e o Redis fora sem gastar tentativa (54.0)
-- **Junto da X4 ou do F2:** a onda 4, de tela (55.0 a 80.0): a rede de teste da web, a cobertura por pasta e o corte das
-  telas grandes
-- **O resto:** o OpenAPI, pelo `@nestjs/swagger` 12, quando houver consumidor fora do `apps/web` (no lugar do registro de
-  rotas próprio, 21.0 a 23.0); a web tolerante ao campo extra (20.0); as políticas em `conformidade/`, com a mutação por
-  padrão e a trava do `ouro` (26.0 a 29.0); os subcaminhos e as leituras prontas da onda 2 (30.0 a 32.0, 37.0 a 41.0); a
-  onda 5 (81.0 a 89.0, 91.0). A Etapa 9 ⛔ (92.0), com as perguntas "Para a Etapa 9" do
-  `tasks/prd-reengenharia/DIAGNOSTICO.md`, saiu daqui em 23/10/2026 e é a X7 (`harness`)
+**O resto vai para a fase dona** (mesma decisão). Os números são os da X5 (`tasks/prd-reengenharia/tasks.md`), com o desenho
+nos `onda-<n>.md`, a conferir contra o código quando a tarefa partir:
 
-**Pronto quando:** cada parte cumpre o critério do RF dela no PRD da X5 (`tasks/prd-reengenharia/prd.md`, §5 e §11),
-com o processo completo; o OpenAPI só entra com o consumidor que o pede.
+| Itens da X5 | Destino |
+|---|---|
+| `conformidade/`, com a mutação por padrão e a trava do `ouro` (26.0 a 29.0), e o risco à vida e a D55 abaixo do alvo no lote retido (`TODO.md`) | F9, a parte do Tutor; F7, a do Assistente |
+| O "esperando" do professor e da coordenação numa leitura pronta, sem nome de aluno, e o sino (37.0, 38.0) | F13 |
+| `GET /v1/escola/roteiro`, "a escola está montada" (39.0) | F12 |
+| A troca do material que falhou numa transação só (41.0) | F4b |
+| O prazo de 15 dias do titular vindo da API (40.0); a web tolerante a campo extra, com "há uma versão nova" (20.0); os subcaminhos de `shared` e `nucleo` (30.0, 32.0); a cobertura da web por pasta, com piso (55.0); a onda 5 do e2e (81.0 a 89.0, 91.0) | F16 |
+| A sessão injetável, a `<Leitura>` e o corte de cada tela grande (57.0, 58.0, 60.0 a 80.0) | a spec que tocar naquela tela |
+| O OpenAPI pelo `@nestjs/swagger` 12 (21.0 a 23.0) | sem fase: entra quando houver consumidor fora do `apps/web` (D81) |
+
+Já feitas: a 31.0 (`tools/testes/`), a 45.0 e a 46.0 (na F4) e a 59.0 (o botão de perigo no kit).
+
+**Pronto quando:** nenhuma requisição da API espera modelo; o Tutor em sala não espera a ferramenta do professor e
+responde, no p95, no máximo 1 s mais devagar; o provedor que recusa por limite degrada sem erro cru; texto de aluno não sai
+para provedor sem processamento no Brasil; nenhuma chamada da web fica sem prazo; e o Redis fora não gasta tentativa.
 
 ## F3 — `lgpd-e-titular` [x]
 Concluída em 11/10/2026, validada em tasks/prd-lgpd-e-titular/validacao.md.
@@ -586,6 +594,8 @@ busca; 300 apostilas ficam prontas numa noite, com o PDF apagado; e a coordenaç
 
 ## F4b — `classificacao-bncc` [ ]
 **Depende de:** F4
+
+**Vem da X6 (14/11/2026):** a troca do material que falhou numa transação só (41.0 da X5).
 
 Saiu da F4 no corte de 11/11/2026 (Joaquim), com o PRD aprovado lá (`tasks/prd-classificacao-bncc/prd.md`, que aponta os RF do PRD
 da F4): a tabela pública da BNCC no lugar do catálogo próprio (`QUI.EM.05`), em toda a geração e no acerto por habilidade em
@@ -664,6 +674,8 @@ que a imagem não sai do nosso ambiente; e nenhum campo guarda nota ou devolutiv
 ## F7 — `chat-e-ferramentas-professor` [ ]
 **Depende de:** F6
 
+**Vem da X6 (14/11/2026):** a política da D55 do Assistente em `conformidade/`, com a mutação por padrão e a trava do `ouro`, e a medida abaixo do alvo no lote retido (26.0 a 29.0 da X5; `TODO.md`).
+
 **No piloto (D84):** só a rubrica por competência para redação e discursiva, sem correção por IA (D55). O resto fica depois.
 
 Conferido contra o código em 24/10/2026. **Já existe** (A2, X3): Início em chat com o **Assistente de ensino**, com contexto de turma e
@@ -686,6 +698,8 @@ sem campo em que caiba um diagnóstico.
 
 ## F9 — `ambiente-do-aluno` [ ]
 **Depende de:** F6 · a busca em fontes aprovadas espera a busca na web do F7
+
+**Vem da X6 (14/11/2026):** as políticas do Tutor (risco à vida, assunto delicado, pedido de resposta) em `conformidade/`, com a mutação por padrão e a trava do `ouro`, e o risco à vida abaixo do alvo no lote retido (26.0 a 29.0 da X5; `TODO.md`).
 
 **No piloto (D84):** construída e alinhada antes da entrada da escola, mas com o Tutor desligado na escola até a Turmma liberá-lo, por **chave por escola no painel da Operação** (D76, D84), desligada por padrão.
 Se soma à suspensão da função pela coordenação e à política por turma (modo do professor; fora da sala, D19). O padrão do modo em sala se decide no PRD.
@@ -751,6 +765,8 @@ aviso nem chamada de IA.
 ## F12 — `governanca-do-coordenador` [ ]
 **Depende de:** F6, F9, F11
 
+**Vem da X6 (14/11/2026):** `GET /v1/escola/roteiro`, "a escola está montada", lido da API (39.0 da X5).
+
 **No piloto (D84):** o trio mínimo, Auditoria, Conformidade (o dossiê) e Denúncias, sem esperar a F9. A entrada do aluno em Denúncias
 chega com a F9. O resto desta fase fica depois.
 
@@ -781,6 +797,8 @@ de adoção nunca nominal continuam passando nas telas novas.
 
 ## F13 — `eventos-e-notificacoes` [ ]
 **Depende de:** F6, F11
+
+**Vem da X6 (14/11/2026):** o "esperando" do professor e da coordenação e o sino numa leitura pronta do servidor, sem nome de aluno (37.0 e 38.0 da X5).
 
 Conferido contra o código em 24/10/2026. Nada do motor existe. O sino do professor e o da coordenação (X2, X3) são calculados das filas
 pendentes, e passam a ler o evento gravado.
@@ -874,6 +892,8 @@ com alerta ensaiado chegando ao celular.
 
 ## F16 — `hardening-e-conformidade` [ ]
 **Depende de:** F15, F17, F18
+
+**Vem da X6 (14/11/2026):** o prazo de 15 dias do titular vindo da API (40.0), a web tolerante a campo extra (20.0), os subcaminhos de `shared` e `nucleo` (30.0, 32.0), a cobertura da web por pasta (55.0) e a onda 5 do e2e (81.0 a 89.0, 91.0), da X5.
 
 Conferido contra o código em 24/10/2026. **Já existe** (F0, F3, A1, X5): a guarda de log sem dado pessoal, no lint e no redact do logger; os
 cenários de k6 de login das 7h30, reivindicação em sala e justiça entre escolas; 14 alertas, com a guarda de

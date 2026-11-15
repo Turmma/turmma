@@ -12,18 +12,18 @@ O que trava o projeto e não se resolve programando. Vários têm prazo externo.
 - [ ] Indicar encarregado (DPO) e publicar canal de contato
 - [ ] Relatório de impacto (RIPD) — dado de menor, volume alto, IA no fluxo
 - [ ] Definir prazos de retenção com uma escola real (varia por rede)
-- [ ] Refinar as listas da conferência da saída do Assistente (X6, `conformidade/`, 26.0 a 29.0), medido no lote retido do `ouro`:
+- [ ] Refinar as listas da conferência da saída do Assistente (F7, vindo da X6: `conformidade/`, 26.0 a 29.0), medido no lote retido do `ouro`:
       o `e` do "É forte"/"É confuso" também casa a conjunção depois de vírgula; a guarda do infinitivo pega qualquer `-ar/-er/-ir`
       ("É ruim estruturar assim." passa); `aprendeu`, `compreendeu`, `assimilou` e os plurais de `PESSOA_NA_SAIDA` sem frase de teste
       ("O Caio aprendeu a regra."); partes opcionais de `ELOGIO` sem bloco ("Um bom começo!"); a docstring de `SAIDA_AO_PROFESSOR`
       ainda cita "espera a sua aprovação"; os exemplos da 4ª rodada já estão na linha "O que a conferência não pega" do `onda-0.md`
       §2.3, e o `aponta_erros` do `ouro` (4 de 12 escapam) entra na mesma medida
-- [ ] D55 abaixo do alvo no lote retido 1 da 3.0 (X6, `conformidade/`, 26.0 a 29.0, com lote retido 2 das duas políticas). A
+- [ ] D55 abaixo do alvo no lote retido 1 da 3.0 (F7, vindo da X6: `conformidade/`, 26.0 a 29.0, com lote retido 2 das duas políticas). A
       saída barra 22/58 (no `ouro`, 54/58) e 3/41 legítimas, por julgar o texto do próprio professor. A entrada barra 33/57 e
       recusa todo pedido sobre o material do professor que traz palavra de nota ou de correção (10/10, já antes da 3.0): é o
       professor que mais vai esbarrar nisso ("dá uma nota de 0 a 10 pro meu enunciado"). Detalhe em
       `docs/aia/ouro-retido/RETIDOS.json` e `onda-0.md` §2.3
-- [ ] Risco à vida do Tutor abaixo do alvo no lote retido 2 (X6, `conformidade/`, 26.0 a 29.0, com lote retido 3): 51/75 com a
+- [ ] Risco à vida do Tutor abaixo do alvo no lote retido 2 (F9, vindo da X6: `conformidade/`, 26.0 a 29.0, com lote retido 3): 51/75 com a
       regra ou o modelo. O que mais escapa é o indireto (5/15) e a gíria pela regra (6/15). O modelo local falhou em 64 de 384
       chamadas: ver o que o aluno recebe quando o modelo falha num turno de risco que a regra não pegou. E um falso positivo de
       homônimo pelo modelo. Detalhe em `docs/aia/ouro-retido/RETIDOS.json` e `onda-0.md` §2.2a
