@@ -67,6 +67,17 @@ const FALHA_DA_AREA = {
 } as const
 
 /**
+ * O que a fronteira de fora diz quando uma tela quebra numa rota sem área (a entrada, a sala pública, a troca da senha, o
+ * estado do sistema): o componente que lançou não deixa a página branca, e o "Voltar ao início" é a saída. Texto próprio,
+ * porque aqui o que falhou foi a tela, e não o chunk de uma área que não chegou.
+ */
+const FALHA_FORA_DE_AREA = {
+  tituloDaAba: tituloDaEscola('Esta tela não abriu'),
+  titulo: 'Esta tela não abriu',
+  texto: 'Algo saiu do esperado ao mostrar esta tela. Tente de novo ou volte ao início.',
+} as const
+
+/**
  * A área que exige sessão. O estado vem do módulo de sessão, não do cache de consultas: a sessão não é dado de
  * servidor para guardar (regra 50, item 3), e a troca de escola da 20.0 limpa o cache inteiro do TanStack Query.
  *
@@ -187,7 +198,8 @@ function Entrada() {
   return <Entrar />
 }
 
-export function AppRoutes() {
+/** As rotas, uma a uma. A fronteira de fora é a de `AppRoutes`, que as envolve. */
+function RouteSwitch() {
   return (
     <Switch>
       <Route path={ROUTES.entrar} component={Entrada} />
@@ -198,6 +210,7 @@ export function AppRoutes() {
           titulo="Operação Turmma"
           texto="Não foi possível carregar a área da operação. Confira a conexão e tente de novo."
           paginaInteira
+          voltarPara={BASE_DA_OPERACAO}
         >
           <Suspense
             fallback={
@@ -239,5 +252,18 @@ export function AppRoutes() {
       <Route path={CAMINHOS_COM_SESSAO} component={AreaAutenticada} />
       <Route component={NotFoundPage} />
     </Switch>
+  )
+}
+
+/**
+ * As rotas da web, dentro de uma fronteira de página inteira: a tela que lança numa rota sem área (a entrada, a sala pública,
+ * a troca da senha, o estado do sistema) mostra a falha com o "Voltar ao início", e não a página branca (RF12). A fronteira de
+ * cada área, por dentro, pega primeiro: com a casca de pé.
+ */
+export function AppRoutes() {
+  return (
+    <AreaErrorBoundary {...FALHA_FORA_DE_AREA} paginaInteira>
+      <RouteSwitch />
+    </AreaErrorBoundary>
   )
 }

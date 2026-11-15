@@ -125,8 +125,14 @@ respondeu hoje".
 **A web (52.0, 56.0).** O `apiRequest` liga um `AbortController` próprio ao sinal de quem chamou, com os prazos do RF11: o
 estouro vira `ApiError(TEMPO_ESGOTADO)`; o cancelamento relança o `AbortError`, fora da tela. `material.ts` e `artefatos.ts` usam
 o mesmo `comPrazo`, e `no-restricted-globals` barra `fetch` fora do cliente. O `PUT` estourado vai para o fim da
-`fila-de-respostas`. Um `AreaErrorBoundary paginaInteira`, com texto próprio, envolve o `<Switch>` de `AppRoutes`. O `Falha`
-ganha "Voltar ao início" (`<a href="/">`, que limpa a fronteira; `/operacao` na operação; 44 px, secundário).
+`fila-de-respostas`. Um `AreaErrorBoundary paginaInteira`, com texto próprio ("Esta tela não abriu"), envolve o `<Switch>` de `AppRoutes`: o
+`<Switch>` e as rotas dele passam a ser o componente `RouteSwitch`, com o corpo como estava, e `AppRoutes` devolve só a fronteira em volta
+de `<RouteSwitch />` (o diff do `<Switch>` fica de um recuo a menos). O `Falha` ganha "Voltar ao início" (`<a href="/">`, que recarrega a
+página e por isso limpa a fronteira; a prop `voltarPara` da fronteira, `/operacao` na operação; 44 px, secundário). O clique não é
+impedido: a saída da `Falha` só se vê no navegador (e2e); o `jsdom` não navega. Os dois botões quebram em linha com o `flex-wrap`: a 360 px
+já não cabem lado a lado (173 e 181 px, mais o vão de 12 px, passam dos 328 px da área), e o `flex-wrap` se prova a 280 px (celular dobrável
+fechado), porque o caso de 360 px não lê a posição do segundo botão e a mutação do `flex-wrap` não ficou vermelha nele; os 44 px se leem no
+`min-height` do estilo, porque o link sem a classe herda a altura do irmão.
 
 **O prazo do cliente (52.0), como ficou.** (1) `comPrazo(tipo, sinalDeFora, executar)`, em `api/client.ts`: o `executar` recebe
 o `pedir` (o `fetch` ligado ao sinal do prazo) e o sinal. O `fetch` só existe em `client.ts`, a única exceção do

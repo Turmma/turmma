@@ -86,7 +86,7 @@ paralela desde o começo e não alongam o caminho, que é o da IA (1.0 → 11.0)
   - [x] 12.3 O `PUT` estourado vai para o fim da `fila-de-respostas`
   - [x] 12.4 Testes
 
-- [ ] **13.0 — Uma tela que quebra fora de uma área mostra a falha com o caminho de volta (56.0)**
+- [x] **13.0 — Uma tela que quebra fora de uma área mostra a falha com o caminho de volta (56.0)**
   - [ ] 13.1 `AreaErrorBoundary paginaInteira` em volta do `<Switch>` de `AppRoutes`
   - [ ] 13.2 "Voltar ao início" na `Falha`
   - [ ] 13.3 Testes

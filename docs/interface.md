@@ -772,6 +772,17 @@ para ninguém confundir com a tela de uma escola. As medidas estão na seção 1
 - Quatro estados: carregando, vazio, erro, com dado. **Vazio é convite para agir**
 - Português do Brasil, data e número no formato local
 - Erro diz o que fazer: "não foi possível salvar, tente de novo em instantes"
+- **Tela que quebra nunca vira página branca** (reengenharia-continuacao, 13.0; RF12). Quando um componente lança, a fronteira
+  de erro mostra a **tela de falha**, com o título, uma linha que diz o que houve e o que fazer, em português comum, sem
+  código nem termo técnico, e **dois botões**, e sair leva o mesmo número de passos que repetir (D59): "Tentar de novo",
+  principal, que recarrega a página, e **"Voltar ao início"**, secundário, de 44 px. O "Voltar ao início" é um link comum para `/`
+  (na operação, para `/operacao`): ele **recarrega a página**, e é por isso que a fronteira, que guarda a falha, é limpa. Se é a
+  própria entrada (`/entrar`, ou `/operacao/entrar`) que quebra, a raiz leva de volta a ela, e a falha reaparece: é o comportamento
+  esperado, e o "Tentar de novo" é o outro caminho. Os dois quebram em linha, sem cortar o texto, a 360 px. A falha
+  assume a página com o foco no título e põe o título dela na aba. **Dentro de uma área** a falha ocupa o lugar do conteúdo,
+  com a casca de pé (título "Não foi possível carregar esta parte do Turmma"); **fora de uma área** (a entrada, a sala
+  pública, a troca da senha, o estado do sistema) ela toma a página inteira, sem casca ("Esta tela não abriu"). A fronteira da
+  área pega primeiro
 - Navegação por teclado, foco visível, contraste, rótulo em campo
 - Lista longa virtualizada. Nada que assuma máquina boa
 - **Toda saída de IA é rotulada como tal**, com a fonte e a página quando vem do material, e
@@ -2216,7 +2227,8 @@ seção 1.3, a fila.
   desconhecida vai em `anil`, com um livro aberto
 - **A tarefa aberta** (X4, 6.0 e correção `2026-10-25-tarefa-aberta-cabe-em-1366`): uma questão por vez, com as
   alternativas em rádio grande, "Anterior" e "Próxima" e o mapa de quais já têm resposta. Cada escolha vai ao servidor na
-  hora, e "Resposta salva" só aparece com a confirmação dele (regra 80, item 6). "Pedir ajuda ao Tutor nesta questão" fica
+  hora, e "Resposta salva" só aparece com a confirmação dele (regra 80, item 6); a escolha que o servidor ainda não confirmou
+  fica no espelho da fila (`sessionStorage`) e sobrevive à recarga, inclusive à da tela de falha (seção 6). "Pedir ajuda ao Tutor nesta questão" fica
   no cartão da questão. A partir de 768 px, "Enviar a atividade", o ponto de parada e "Anterior" e "Próxima" ficam numa
   linha só, sem barra presa; no celular a barra fica presa embaixo. Corrigida, ela mostra o diagnóstico (acertos por
   habilidade e questão por questão, em contagem, sem nota, sem percentual e sem comparação), com a assinatura da função

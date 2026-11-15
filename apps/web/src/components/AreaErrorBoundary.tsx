@@ -1,6 +1,8 @@
 import { Component, useContext, useEffect, useRef, type ReactNode } from 'react'
 import { useTabTitle } from '../document-title'
+import { ROUTES } from '../paths'
 import { Button } from './ui/Button'
+import { SECONDARY_LINK_CLASSES } from './ui/button-variants'
 import { DrawerContext } from './drawer-context'
 
 interface PropsDaFalha {
@@ -11,10 +13,16 @@ interface PropsDaFalha {
   /** O que não carregou e o que fazer, sem código nem status (regra 50, item 12). */
   readonly texto: string
   /**
-   * Página inteira, com o próprio `<main>`, para a área que não tem casca em volta (a operação). Sem isto, a falha
-   * ocupa o lugar do conteúdo dentro da casca da escola, e a lateral continua de pé para a pessoa ir a outro lugar.
+   * Página inteira, com o próprio `<main>`, para a falha que não tem casca em volta: a da operação e a da fronteira de
+   * fora do `AppRoutes` (a entrada, a sala pública, a troca da senha, o estado do sistema). Sem isto, a falha ocupa o
+   * lugar do conteúdo dentro da casca da escola, e a lateral continua de pé para a pessoa ir a outro lugar.
    */
   readonly paginaInteira?: boolean
+  /**
+   * Para onde o "Voltar ao início" leva: a página inicial da escola (`/`), ou, na operação, o início dela. É um link
+   * comum, que recarrega a página e por isso limpa a fronteira (o `state` dela só se desfaz com a página nova).
+   */
+  readonly voltarPara?: string
 }
 
 /**
@@ -27,7 +35,7 @@ interface PropsDaFalha {
  * - fecha a gaveta da casca, se ela estava aberta, e leva o foco ao título da falha, nesta ordem: fechar o `dialog`
  *   devolve o foco a quem o abriu, e quem usa teclado ou leitor de tela ficaria sem saber que a tela atrás mudou.
  */
-function Falha({ tituloDaAba, titulo, texto, paginaInteira = false }: PropsDaFalha) {
+function Falha({ tituloDaAba, titulo, texto, paginaInteira = false, voltarPara = ROUTES.inicio }: PropsDaFalha) {
   useTabTitle(tituloDaAba)
   const { fechar } = useContext(DrawerContext)
   const tituloDaFalha = useRef<HTMLHeadingElement>(null)
@@ -44,9 +52,13 @@ function Falha({ tituloDaAba, titulo, texto, paginaInteira = false }: PropsDaFal
       <p role="alert" className="rounded-controle border border-erro bg-erro-cx p-4 text-erro">
         {texto}
       </p>
-      <Button className="self-start" onClick={() => window.location.reload()}>
-        Tentar de novo
-      </Button>
+      {/* Sair leva o mesmo número de passos que repetir (D59): um toque, e os dois de 44 px. Quebram em linha a 360 px sem cortar o texto. */}
+      <div className="flex flex-wrap gap-3 self-start">
+        <Button onClick={() => window.location.reload()}>Tentar de novo</Button>
+        <a href={voltarPara} className={SECONDARY_LINK_CLASSES}>
+          Voltar ao início
+        </a>
+      </div>
     </>
   )
   if (paginaInteira) return <main className="mx-auto flex min-h-screen max-w-md flex-col gap-4 bg-fundo px-4 py-6 text-tinta sm:px-6">{conteudo}</main>
@@ -54,11 +66,18 @@ function Falha({ tituloDaAba, titulo, texto, paginaInteira = false }: PropsDaFal
 }
 
 /**
- * A fronteira de erro de uma área carregada por `import()` (a operação e a área de cada papel da escola): o chunk que
- * não chega (rede da escola caindo, 3G no celular) não vira tela branca, e a falha aparece no lugar da área.
+ * A fronteira de erro, em dois usos. (1) De uma área carregada por `import()` (a operação e a área de cada papel da
+ * escola): o chunk que não chega (rede da escola caindo, 3G no celular) não vira tela branca, e a falha aparece no
+ * lugar da área. (2) De fora, em volta das rotas sem área do `AppRoutes` (a entrada, a sala pública, a troca da senha,
+ * o estado do sistema): o componente que lança não derruba a página, e a falha toma a página inteira.
  *
- * "Tentar de novo" recarrega a página, porque o navegador e o `lazy` do React guardam a falha do módulo, e um segundo
- * `import()` do mesmo endereço devolveria a mesma falha. A tela que não carregou não tem o que perder na recarga.
+ * "Tentar de novo" e "Voltar ao início" recarregam a página, porque o navegador e o `lazy` do React guardam a falha do
+ * módulo (um segundo `import()` do mesmo endereço devolveria a mesma falha) e porque é a página nova que limpa o
+ * `state` desta fronteira. Na área, a tela que não carregou não tem o que perder na recarga; na troca da senha ou na
+ * sala pública, o que a pessoa digitou na tela que quebrou se perde, e a tela diz o que fazer.
+ *
+ * O erro não é registrado de propósito: a mensagem da exceção pode carregar dado da tela (regra 20, item 9). Se um dia
+ * entrar um `componentDidCatch` para telemetria, que leve só o id e o nome do componente.
  */
 export class AreaErrorBoundary extends Component<PropsDaFalha & { readonly children: ReactNode }, { falhou: boolean }> {
   override state = { falhou: false }
