@@ -880,15 +880,22 @@ export function documentoDaTarefa(alterados: readonly string[]): string | null {
   return candidatos.length === 1 ? (candidatos[0] ?? null) : null
 }
 
-export interface LinhaNova {
+/** O que está dentro de um template string: SQL (`sql\``, `execute(`, `query(`) ou script Lua (`eval(`, `defineCommand`, `redis.call`). */
+export type ModeloDoTemplate = 'sql' | 'lua'
+
+export interface LinhaAcrescentada {
   arquivo: string
   linha: number
   texto: string
+  /** Só quando a linha está dentro de um template string de SQL ou de Lua (`linhasDeTemplateComScript`): ela é lida como tal, e não como TypeScript. */
+  modelo?: ModeloDoTemplate
+  /** Com o `modelo`: a linha tem TypeScript junto do template (a que o abre, a que o fecha, a de um template de uma linha só), e continua lida como TypeScript também. */
+  mista?: boolean
 }
 
 /** As linhas que um `git diff -U0` acrescenta, com o arquivo e o número delas no arquivo novo. Arquivo apagado não tem linha nova. */
-export function linhasAcrescentadas(diff: string): LinhaNova[] {
-  const linhas: LinhaNova[] = []
+export function linhasAcrescentadas(diff: string): LinhaAcrescentada[] {
+  const linhas: LinhaAcrescentada[] = []
   let arquivo: string | null = null
   let numero = 0
   let noTrecho = false
@@ -948,31 +955,495 @@ export function condicoesDaLinha(texto: string): string[] {
   return OPERADORES_DE_CONDICAO.filter((operador) => operador.acha(codigo, aparada)).map((operador) => operador.nome)
 }
 
-export interface LinhaSemBloco extends LinhaNova {
+// ─── Termo a termo (M1 da retro da F2c) ───
+
+/** Antes do primeiro termo da linha: `const x =`, `return`, `x =` e `x ||=`. */
+const ANTES_DO_PRIMEIRO_TERMO = /^(?:(?:export\s+)?(?:const|let|var)\s+[\w$]+(?:\s*:\s*[^=]+?)?\s*=(?![=>])\s*|return\s+|[\w$.[\]]+\s*(?:[|&?]{2}=|=)(?![=>])\s*)/
+/** O que vem antes do termo quando a linha abre com `if (x) return a && b` ou `(x) => a && b`. */
+const ANTES_DO_PRIMEIRO_TERMO_DEPOIS_DE_PARENTESES = /^.*?\)\s+(?:=>\s*|return\s+)/
+
+/** Uma expressão regular de TypeScript pode começar depois destes caracteres e de `return`; depois de qualquer outro, `/` divide. */
+const ANTES_DE_REGEX = /(?:^|[(,=:[!&|?{};]|\breturn)$/
+
+/** O fim, depois de `i`, do texto entre aspas simples ou duplas: não passa da linha (a quebra fica para quem lê a seguir), e o `\` pula o caractere seguinte. */
+function fimDoTextoEntreAspas(texto: string, i: number): number {
+  const aspa = texto[i]
+  let j = i + 1
+  while (j < texto.length && texto[j] !== aspa && texto[j] !== '\n') j += texto[j] === '\\' ? 2 : 1
+  return texto[j] === aspa ? j + 1 : j
+}
+
+/** O fim da expressão regular que começa em `i` (a barra), com a classe `[...]` e o `\` lidos. */
+function fimDaExpressaoRegular(texto: string, i: number): number {
+  let j = i + 1
+  let naClasse = false
+  while (j < texto.length && texto[j] !== '\n') {
+    const c = texto[j]
+    if (c === '\\') j += 2
+    else {
+      if (c === '[') naClasse = true
+      else if (c === ']') naClasse = false
+      else if (c === '/' && !naClasse) return j + 1
+      j += 1
+    }
+  }
+  return j
+}
+
+/** O texto a que o termo se resume: sem a atribuição, o `return` nem o `if (x) return` que vêm antes do primeiro. */
+function soOTermo(operando: string): string {
+  let termo = operando.trim().replace(ANTES_DO_PRIMEIRO_TERMO, '')
+  termo = termo.replace(ANTES_DO_PRIMEIRO_TERMO_DEPOIS_DE_PARENTESES, '')
+  return termo.replace(ANTES_DO_PRIMEIRO_TERMO, '').trim()
+}
+
+interface GrupoDeTermos {
+  de: number
+  chamada: boolean
+  /** Um `&&` ou um `||` cortou este grupo: o último operando acaba onde o ternário (`a && b ? x : y`) começa. */
+  logico: boolean
+  operandos: { de: number; ate: number }[]
+}
+
+/** O leitor de uma linha: um grupo para cada parêntese, colchete ou chave aberto, e os cortes de cada grupo viram os operandos dele. */
+class LeitorDeTermos {
+  readonly #texto: string
+  readonly #grupos: GrupoDeTermos[] = [{ de: 0, chamada: false, logico: false, operandos: [] }]
+  readonly #achados: { de: number; texto: string }[] = []
+  #i = 0
+  #fim: number
+  #recente = ''
+
+  constructor(texto: string) {
+    this.#texto = texto
+    this.#fim = texto.length
+  }
+
+  readonly #tratadores: Record<string, (c: string) => void> = {
+    "'": () => this.#aspas(),
+    '"': () => this.#aspas(),
+    '`': () => this.#modelo(),
+    '/': () => this.#barra(),
+    '&': (c) => this.#logico(c),
+    '|': (c) => this.#logico(c),
+    '(': (c) => this.#abrir(c),
+    '[': (c) => this.#abrir(c),
+    '{': (c) => this.#abrir(c),
+    ')': (c) => this.#fecharGrupo(c),
+    ']': (c) => this.#fecharGrupo(c),
+    '}': (c) => this.#fecharGrupo(c),
+    ',': (c) => this.#virgula(c),
+  }
+
+  ler(): string[] {
+    while (this.#i < this.#texto.length) {
+      const c = this.#texto[this.#i] ?? ''
+      const tratar = this.#tratadores[c] ?? ((outro: string) => this.#comum(outro))
+      tratar(c)
+    }
+    // No fim da linha os grupos que ficaram abertos (a condição continua na linha de baixo) fecham de dentro para fora.
+    while (this.#grupos.length > 0) {
+      this.#fechar(this.#topo(), this.#fim, this.#grupos.length === 1)
+      this.#grupos.pop()
+    }
+    return this.#achados.sort((a, b) => a.de - b.de).map((achado) => achado.texto)
+  }
+
+  #topo(): GrupoDeTermos {
+    return this.#grupos[this.#grupos.length - 1] as GrupoDeTermos
+  }
+
+  #comum(c: string): void {
+    if (!/\s/.test(c)) this.#recente += c
+    this.#i += 1
+  }
+
+  #aspas(): void {
+    this.#i = fimDoTextoEntreAspas(this.#texto, this.#i)
+    this.#recente += "'"
+  }
+
+  /** Modelo de texto: o que está dentro, `${}` incluído, não é termo. */
+  #modelo(): void {
+    let j = this.#i + 1
+    while (j < this.#texto.length && this.#texto[j] !== '`') j += this.#texto[j] === '\\' ? 2 : 1
+    this.#i = j + 1
+    this.#recente += "'"
+  }
+
+  #barra(): void {
+    const proximo = this.#texto[this.#i + 1]
+    const depoisDeEspaco = this.#i === 0 || /\s/.test(this.#texto[this.#i - 1] ?? '')
+    if (proximo === '/' && depoisDeEspaco) {
+      this.#fim = this.#i
+      this.#i = this.#texto.length
+    } else if (proximo === '*') {
+      const fim = this.#texto.indexOf('*/', this.#i + 2)
+      this.#i = fim === -1 ? this.#texto.length : fim + 2
+    } else if (proximo !== '/' && ANTES_DE_REGEX.test(this.#recente.slice(-8))) {
+      this.#i = fimDaExpressaoRegular(this.#texto, this.#i)
+      this.#recente += 'r'
+    } else this.#comum('/')
+  }
+
+  #logico(c: string): void {
+    if (this.#texto[this.#i + 1] !== c) return this.#comum(c)
+    if (this.#texto[this.#i + 2] === '=') this.#i += 3
+    else {
+      const grupo = this.#topo()
+      this.#cortar(grupo, this.#i, this.#i + 2)
+      grupo.logico = true
+      this.#i += 2
+    }
+    this.#recente += c
+  }
+
+  #abrir(c: string): void {
+    const chamada = c === '(' && /(?:^|[^\w$])(?:and|or)$/.test(this.#texto.slice(0, this.#i))
+    this.#grupos.push({ de: this.#i + 1, chamada, logico: false, operandos: [] })
+    this.#i += 1
+    this.#recente += c
+  }
+
+  #fecharGrupo(c: string): void {
+    if (this.#grupos.length > 1) {
+      this.#fechar(this.#topo(), this.#i, false)
+      this.#grupos.pop()
+    }
+    this.#i += 1
+    this.#recente += c
+  }
+
+  #virgula(c: string): void {
+    const grupo = this.#topo()
+    if (grupo.chamada) this.#cortar(grupo, this.#i, this.#i + 1)
+    else {
+      // Fora de and/or a vírgula separa argumentos, ou propriedades: cada pedaço é um grupo à parte.
+      this.#fechar(grupo, this.#i, this.#grupos.length === 1)
+      grupo.de = this.#i + 1
+    }
+    this.#i += 1
+    this.#recente += c
+  }
+
+  #cortar(grupo: GrupoDeTermos, ate: number, proximo: number): void {
+    grupo.operandos.push({ de: grupo.de, ate })
+    grupo.de = proximo
+  }
+
+  /** O grupo acaba em `ate`: com dois operandos ou mais, cada um vira um termo. */
+  #fechar(grupo: GrupoDeTermos, ate: number, ehTopo: boolean): void {
+    const operandos = [...grupo.operandos, { de: grupo.de, ate }]
+    const termos = operandos
+      .map((operando, indice) => ({ de: operando.de, texto: this.#termo(grupo, operando, indice, operandos.length - 1, ehTopo) }))
+      .filter((termo) => termo.texto !== '')
+    if (termos.length >= 2) this.#achados.push(...termos)
+    grupo.operandos = []
+    grupo.logico = false
+  }
+
+  #termo(grupo: GrupoDeTermos, operando: { de: number; ate: number }, indice: number, ultimo: number, ehTopo: boolean): string {
+    let termo = this.#texto.slice(operando.de, operando.ate)
+    if (ehTopo && indice === 0) termo = soOTermo(termo)
+    if (ehTopo && indice === ultimo) termo = termo.replace(/[\s,;{]+$/, '')
+    if (grupo.logico && indice === ultimo) termo = termo.replace(/\s\?\s[\s\S]*$/, '')
+    return termo.trim()
+  }
+}
+
+/**
+ * Os termos de uma linha com vários: os argumentos de `and(...)` e de `or(...)`, e os dois lados de `&&` e de `||`, em cada
+ * grupo de parênteses da linha, na ordem em que aparecem (o termo que contém outros vem antes deles). Uma linha com um termo
+ * só, ou sem `and`, `or`, `&&` nem `||`, devolve `[]`. Não entram os que estão entre aspas, em modelo de texto, em expressão
+ * regular nem em comentário; `||=` e `&&=` não são termo. A linha acaba com grupos abertos (a condição segue na de baixo): eles
+ * fecham no fim da linha, de dentro para fora.
+ *
+ * Limites conhecidos, que a autoconferência 1 do `criar-tasks` manda conferir à mão: (1) o `and(` e o `or(` valem pelo nome, e uma
+ * função sua com esse nome também é lida como tal; (2) o `&&` dentro de um `and(` vira mais um termo dele, e não um grupo próprio;
+ * (3) o `and(` ou o `or(` com um argumento por linha (`.where(`, `and(`, `eq(t.escolaId, escolaId),`, cada um na sua) é lido uma
+ * linha por vez, e a linha `eq(...)` sozinha não tem termo nem condição: a cláusula de escopo da regra 10 fica fora da lista;
+ * (4) o ternário: `return x ? a && b : c` devolve `x ? a` e `b : c`, porque o corte tira o `? ...` do fim e não o `x ?` do começo.
+ */
+export function termosDaLinha(texto: string): string[] {
+  const aparada = texto.trim()
+  return /^(?:\/\/|\/\*|\*)/.test(aparada) ? [] : new LeitorDeTermos(aparada).ler()
+}
+
+// ─── SQL e Lua em template string (M1 da retro da F2c) ───
+
+const MARCAS_DE_LUA = /\bredis\.p?call\s*\(|\b(?:KEYS|ARGV)\s*\[/
+const ANTES_DE_LUA = /\b(?:eval|evalsha|defineCommand)\s*\(|\blua\s*:\s*$/i
+const ANTES_DE_SQL = /\b(?:execute|query)\s*\(\s*$/
+
+function modeloDoTemplate(antes: string, corpo: string): ModeloDoTemplate | null {
+  const naLinha = antes.slice(antes.lastIndexOf('\n') + 1)
+  if (/(?:^|[^\w$])sql(?:\.\w+)?$/.test(antes)) return 'sql'
+  if (ANTES_DE_LUA.test(naLinha) || MARCAS_DE_LUA.test(corpo)) return 'lua'
+  return ANTES_DE_SQL.test(naLinha) ? 'sql' : null
+}
+
+/** A linha de SQL que tem uma condição ou uma comparação: é o que faz valer listar a linha que mistura SQL e TypeScript (`sql\`now()\`` não tem). */
+const CONDICAO_DE_SQL = /\b(?:where|and|or|on|case|when|having|exists|not|is|in|between|like|limit|join|union)\b|[=<>]/i
+
+export interface LinhaDeTemplate {
+  modelo: ModeloDoTemplate
+  /** A linha em que o template abre ou fecha, ou que o tem inteiro: tem TypeScript junto, e continua lida como TypeScript também. */
+  mista: boolean
+}
+
+interface ModeloEmLeitura {
+  /** O que vem antes da crase que abre, para a etiqueta e o `eval(`. */
+  antes: string
+  abre: number
+  corpo: string
+  textoPorLinha: Map<number, string>
+}
+
+/** O leitor de um arquivo: o código e os templates dele, com a linha em que cada coisa está. */
+class LeitorDeTemplates {
+  readonly #fonte: string
+  readonly #achadas = new Map<number, LinhaDeTemplate>()
+  #linha = 1
+  #i = 0
+  #recente = ''
+
+  constructor(fonte: string) {
+    this.#fonte = fonte
+  }
+
+  readonly #tratadores: Record<string, (c: string) => void> = {
+    '\n': () => {
+      this.#linha += 1
+      this.#i += 1
+    },
+    "'": () => this.#aspas(),
+    '"': () => this.#aspas(),
+    '`': () => this.#modelo(),
+    '/': () => this.#barra(),
+  }
+
+  ler(): Map<number, LinhaDeTemplate> {
+    this.#codigo(false)
+    return this.#achadas
+  }
+
+  /** Lê o código até o fim do arquivo, ou, na interpolação `${}`, até a chave que a fecha. */
+  #codigo(deInterpolacao: boolean): void {
+    let chaves = 0
+    while (this.#i < this.#fonte.length) {
+      const c = this.#fonte[this.#i] ?? ''
+      if (deInterpolacao && c === '}' && chaves === 0) {
+        this.#i += 1
+        return
+      }
+      if (deInterpolacao) chaves += saldoDeChaves(c)
+      const tratar = this.#tratadores[c] ?? ((outro: string) => this.#comum(outro))
+      tratar(c)
+    }
+  }
+
+  #comum(c: string): void {
+    if (!/\s/.test(c)) this.#recente += c
+    if (this.#recente.length > 64) this.#recente = this.#recente.slice(-16)
+    this.#i += 1
+  }
+
+  #aspas(): void {
+    this.#i = fimDoTextoEntreAspas(this.#fonte, this.#i)
+    this.#recente += "'"
+  }
+
+  #barra(): void {
+    const proximo = this.#fonte[this.#i + 1]
+    if (proximo === '/') {
+      while (this.#i < this.#fonte.length && this.#fonte[this.#i] !== '\n') this.#i += 1
+    } else if (proximo === '*') {
+      const fim = this.#fonte.indexOf('*/', this.#i + 2)
+      const fechado = fim === -1 ? this.#fonte.length : fim + 2
+      this.#linha += this.#fonte.slice(this.#i, fechado).split('\n').length - 1
+      this.#i = fechado
+    } else if (ANTES_DE_REGEX.test(this.#recente.slice(-8))) {
+      this.#i = fimDaExpressaoRegular(this.#fonte, this.#i)
+      this.#recente += 'r'
+    } else this.#comum('/')
+  }
+
+  #modelo(): void {
+    const modelo: ModeloEmLeitura = { antes: this.#fonte.slice(Math.max(0, this.#i - 200), this.#i), abre: this.#linha, corpo: '', textoPorLinha: new Map() }
+    this.#i += 1
+    while (this.#i < this.#fonte.length && this.#fonte[this.#i] !== '`') this.#passoDoModelo(modelo)
+    this.#registrar(modelo)
+    this.#i += 1
+    this.#recente += "'"
+  }
+
+  #passoDoModelo(modelo: ModeloEmLeitura): void {
+    const c = this.#fonte[this.#i] ?? ''
+    if (c === '\\') {
+      if (this.#fonte[this.#i + 1] === '\n') this.#linha += 1
+      else this.#guardar(modelo, 'x')
+      modelo.corpo += ' '
+      this.#i += 2
+    } else if (c === '$' && this.#fonte[this.#i + 1] === '{') {
+      this.#guardar(modelo, 'x')
+      modelo.corpo += ' '
+      this.#i += 2
+      this.#codigo(true)
+    } else {
+      if (c === '\n') this.#linha += 1
+      else this.#guardar(modelo, c)
+      modelo.corpo += c
+      this.#i += 1
+    }
+  }
+
+  #guardar(modelo: ModeloEmLeitura, texto: string): void {
+    modelo.textoPorLinha.set(this.#linha, (modelo.textoPorLinha.get(this.#linha) ?? '') + texto)
+  }
+
+  /** O template acabou: se é de SQL ou de Lua, as linhas dele com texto entram. */
+  #registrar(modelo: ModeloEmLeitura): void {
+    const dele = modeloDoTemplate(modelo.antes, modelo.corpo)
+    if (dele === null) return
+    for (const [numero, texto] of modelo.textoPorLinha) {
+      if (texto.trim() === '') continue
+      const mista = numero === modelo.abre || numero === this.#linha
+      if (mista && dele === 'sql' && !CONDICAO_DE_SQL.test(texto)) continue
+      this.#achadas.set(numero, { modelo: dele, mista })
+    }
+  }
+}
+
+/** Quanto o caractere muda a conta das chaves abertas na interpolação. */
+function saldoDeChaves(c: string): number {
+  if (c === '{') return 1
+  return c === '}' ? -1 : 0
+}
+
+/**
+ * As linhas de um arquivo que têm SQL ou Lua de um template string, com o que é cada uma. É SQL o template com a etiqueta `sql`
+ * (também `sql.raw`) ou passado a `execute(` e `query(`; é Lua o passado a `eval(`, `evalsha(` ou `defineCommand(`, o da propriedade
+ * `lua:` e o que traz `redis.call(`, `KEYS[` ou `ARGV[`. A linha **de dentro** de um template de várias linhas (entre a que abre e a que
+ * fecha, com texto) entra sempre; a que abre, a que fecha e a do template de uma linha só têm TypeScript junto (`mista`) e entram
+ * quando o Lua tem texto nelas ou o SQL tem uma condição ou comparação. A interpolação `${}` é código. Limite conhecido: o SQL em
+ * template sem etiqueta e fora de `execute(` e `query(` não é visto, e uma crase dentro de expressão regular só é lida certa quando a
+ * barra vem depois de `(`, `,`, `=`, `:`, `[`, `!`, `&`, `|`, `?`, `{`, `}`, `;` ou `return`.
+ */
+export function linhasDeTemplateComScript(fonte: string): Map<number, LinhaDeTemplate> {
+  return new LeitorDeTemplates(fonte).ler()
+}
+
+// ─── A lista do --faltando ───
+
+export interface LinhaSemBloco extends LinhaAcrescentada {
   condicoes: string[]
+  /** Quando a linha tem vários termos, o termo deste item: um item por termo. */
+  termo?: string
+}
+
+/** A linha tem o texto como palavra inteira? `b` não está em `ab` nem em `a.b`; o que não começa nem termina em letra casa de qualquer jeito. */
+function contemOTermo(linha: string, termo: string): boolean {
+  const comeco = /^[\w$]/.test(termo) ? '(?<![\\w$.])' : ''
+  const fim = /[\w$]$/.test(termo) ? '(?![\\w$])' : ''
+  return new RegExp(`${comeco}${escapar(termo)}${fim}`).test(linha)
+}
+
+/** O motivo só vale para termo de três caracteres ou mais: o `a` ou o `b` de uma crase qualquer não prova nada. */
+const MENOR_TERMO_COM_MOTIVO = 3
+
+/** O bloco tira este termo e deixa os outros? Os termos de dentro dele saem com ele, e os que o contêm ou o contêm a ele não são "outros". */
+function blocoTiraOTermo(mutacao: Mutacao, termo: string, termos: readonly string[]): boolean {
+  if (!mutacao.antes.some((linha) => contemOTermo(linha, termo))) return false
+  if (mutacao.depois.some((linha) => contemOTermo(linha, termo))) return false
+  const deDentro = termos.filter((outro) => outro !== termo && contemOTermo(termo, outro))
+  if (deDentro.some((outro) => mutacao.depois.some((linha) => contemOTermo(linha, outro)))) return false
+  const outros = termos.filter((outro) => outro !== termo && !contemOTermo(termo, outro) && !contemOTermo(outro, termo))
+  return outros.every((outro) => mutacao.depois.some((linha) => contemOTermo(linha, outro)))
+}
+
+/**
+ * O que o documento escreve na seção "Mutações", fora dos blocos `mutacao`: é onde mora o motivo de uma linha ou de um termo sem
+ * bloco. A "Correção" cita linhas inteiras e termos de passagem, e isso não é motivo.
+ */
+export function prosaSemBlocos(documento: string): string {
+  const secao = /^## Mutações[^\n]*\n([\s\S]*?)(?=^## |(?![\s\S]))/m.exec(documento)
+  return (secao?.[1] ?? '').replace(BLOCO, '')
+}
+
+/** A linha de dentro de um template de SQL ou de Lua que carrega código: sem o comentário, o fecho solto e o `end` do Lua. */
+function ehCodigoDoTemplate(texto: string): boolean {
+  const aparada = texto.trim()
+  if (/^(?:--|\/\/)/.test(aparada) || !/[\p{L}\d]/u.test(aparada)) return false
+  return !/^(?:end|else|then|do)[\s,;)]*$/i.test(aparada)
+}
+
+interface ContextoDoFaltando {
+  citadas: ReadonlyMap<string, ReadonlySet<string>>
+  mutacoes: readonly Mutacao[]
+  cobertoPorMotivo: (termo: string) => boolean
+}
+
+/** Um item por termo que nem um bloco do mesmo arquivo nem um motivo alcança. */
+function itensPorTermo(nova: LinhaAcrescentada, condicoes: string[], termos: readonly string[], contexto: ContextoDoFaltando): LinhaSemBloco[] {
+  const doArquivo = contexto.mutacoes.filter((mutacao) => mutacao.arquivo === nova.arquivo)
+  return termos
+    .filter((termo) => !contexto.cobertoPorMotivo(termo) && !doArquivo.some((mutacao) => blocoTiraOTermo(mutacao, termo, termos)))
+    .map((termo) => ({ ...nova, condicoes, termo }))
+}
+
+/** As condições da linha nova: as de TypeScript, e o modelo quando ela traz um template de SQL ou de Lua junto. */
+function condicoesDaLinhaNova(nova: LinhaAcrescentada): string[] {
+  return [...condicoesDaLinha(nova.texto), ...(nova.modelo === undefined ? [] : [nova.modelo])]
+}
+
+/** Os itens de uma linha nova: um, um por termo, ou nenhum se um bloco a alcança. */
+function itensDaLinha(nova: LinhaAcrescentada, contexto: ContextoDoFaltando): LinhaSemBloco[] {
+  const alcancada = contexto.citadas.get(nova.arquivo)?.has(nova.texto.trim()) === true
+  if (nova.modelo !== undefined && nova.mista !== true) {
+    return ehCodigoDoTemplate(nova.texto) && !alcancada ? [{ ...nova, condicoes: [nova.modelo] }] : []
+  }
+  const condicoes = condicoesDaLinhaNova(nova)
+  const termos = [...new Set(termosDaLinha(nova.texto))]
+  if (termos.length >= 2) return itensPorTermo(nova, condicoes.length > 0 ? condicoes : ['termos'], termos, contexto)
+  return condicoes.length > 0 && !alcancada ? [{ ...nova, condicoes }] : []
 }
 
 /**
  * As linhas acrescentadas em produção com condição que nenhum bloco alcança. Alcançar é um bloco do **mesmo arquivo**
  * citar o texto da linha (trecho que sai, troca ou serve de contexto): o `.where(and(` do exemplo do `executar-task` é
  * contexto, e é ele que localiza a cláusula que sai.
+ *
+ * A linha com vários termos (`and(eq(a), eq(b))`, `a && b`, `a || b`) é um item por termo, e o termo só sai da lista com um
+ * bloco do mesmo arquivo que o **tire e deixe os outros** (`blocoTiraOTermo`: trocar a linha inteira, ou citá-la como contexto,
+ * não alcança termo nenhum), ou com um motivo na seção "Mutações" do documento (`prosaSemBlocos`) cuja crase seja **igual** ao termo: a crase que traz a linha inteira
+ * ou um nome maior (`podeEditarTudo` não cobre `podeEditar`) não cobre termo nenhum. A linha de
+ * dentro de um template de SQL ou de Lua (`LinhaAcrescentada.modelo`) é listada sem condição de TypeScript, e a mesma regra do bloco
+ * a tira da lista; a que tem TypeScript junto (`mista`) é lida também como TypeScript, e leva o modelo entre as condições.
  */
-export function linhasSemBloco(novas: readonly LinhaNova[], mutacoes: readonly Mutacao[]): LinhaSemBloco[] {
+export function linhasSemBloco(novas: readonly LinhaAcrescentada[], mutacoes: readonly Mutacao[], prosa = ''): LinhaSemBloco[] {
   const citadas = new Map<string, Set<string>>()
   for (const mutacao of mutacoes) {
     const doArquivo = citadas.get(mutacao.arquivo) ?? new Set<string>()
     for (const linha of mutacao.antes) doArquivo.add(linha)
     citadas.set(mutacao.arquivo, doArquivo)
   }
+  const emCrases = new Set([...prosa.matchAll(/`([^`\n]+)`/g)].map((achado) => (achado[1] ?? '').trim()))
+  const contexto: ContextoDoFaltando = {
+    citadas,
+    mutacoes,
+    cobertoPorMotivo: (termo) => termo.length >= MENOR_TERMO_COM_MOTIVO && emCrases.has(termo),
+  }
   return novas
     .filter((nova) => ehArquivoDoFaltando(nova.arquivo))
-    .map((nova) => ({ ...nova, condicoes: condicoesDaLinha(nova.texto) }))
-    .filter((nova) => nova.condicoes.length > 0 && !citadas.get(nova.arquivo)?.has(nova.texto.trim()))
+    .flatMap((nova) => itensDaLinha(nova, contexto))
     .sort((a, b) => (a.arquivo === b.arquivo ? a.linha - b.linha : a.arquivo < b.arquivo ? -1 : 1))
 }
 
-/** O que a árvore acrescentou em produção e em `tools/` em relação ao HEAD: o diff dos versionados e todas as linhas dos arquivos novos. */
-export function linhasNovasDaArvore(raiz: string): LinhaNova[] {
+/**
+ * O que a árvore acrescentou em produção e em `tools/` em relação ao HEAD: o diff dos versionados e todas as linhas dos arquivos
+ * novos. A linha que cai dentro de um template string de SQL ou de Lua do arquivo como está agora leva o `modelo` (`linhasDeTemplateComScript`).
+ */
+export function linhasNovasDaArvore(raiz: string): LinhaAcrescentada[] {
   const git = (...argumentos: string[]) => execFileSync('git', argumentos, { cwd: raiz, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
   const novas = linhasAcrescentadas(git('diff', '-U0', '--no-color', '--no-ext-diff', '--no-renames', 'HEAD', '--', 'apps', 'packages', 'tools'))
   for (const arquivo of git('ls-files', '--others', '--exclude-standard', '-z', '--', 'apps', 'packages', 'tools').split('\0')) {
@@ -981,14 +1452,28 @@ export function linhasNovasDaArvore(raiz: string): LinhaNova[] {
     if (linhas.at(-1) === '') linhas.pop()
     linhas.forEach((texto, indice) => novas.push({ arquivo, linha: indice + 1, texto }))
   }
-  return novas.filter((nova) => ehArquivoDoFaltando(nova.arquivo))
+  const doFaltando = novas.filter((nova) => ehArquivoDoFaltando(nova.arquivo))
+  const templates = new Map(
+    [...new Set(doFaltando.map((nova) => nova.arquivo))].map((arquivo) => [arquivo, linhasDeTemplateComScript(readFileSync(join(raiz, arquivo), 'utf8'))] as const),
+  )
+  return doFaltando.map((nova) => {
+    const doTemplate = templates.get(nova.arquivo)?.get(nova.linha)
+    return doTemplate === undefined ? nova : { ...nova, modelo: doTemplate.modelo, mista: doTemplate.mista }
+  })
 }
 
 /** O texto do `--faltando`: a lista, ou a frase de que não falta nada. Só informa: quem decide é o `test-engineer`. */
 export function relatorioDoFaltando(faltando: readonly LinhaSemBloco[], documento: string): string {
   if (faltando.length === 0) return `Nenhuma linha nova de produção com condição fica sem bloco em ${documento}.\n`
-  const linhas = faltando.map((nova) => `  ${nova.arquivo}:${String(nova.linha)}  [${nova.condicoes.join(' ')}]  ${nova.texto.trim()}`)
+  const linhas = faltando.map(
+    (nova) => `  ${nova.arquivo}:${String(nova.linha)}  [${nova.condicoes.join(' ')}]  ${nova.texto.trim()}${nova.termo === undefined ? '' : `  (termo \`${nova.termo}\`)`}`,
+  )
   return `Linhas novas de produção com condição que nenhum bloco de ${documento} alcança (${String(faltando.length)}):\n${linhas.join('\n')}\n`
+}
+
+/** O `--faltando` de um documento já lido, como o comando e o portão da tarefa o imprimem: os blocos e a prosa do documento contra as linhas novas da árvore. */
+export function faltandoDoDocumento(raiz: string, texto: string, documento: string): string {
+  return relatorioDoFaltando(linhasSemBloco(linhasNovasDaArvore(raiz), lerMutacoes(texto).mutacoes, prosaSemBlocos(texto)), documento)
 }
 
 // Chamado como supervisor (`rodarCalado`), este arquivo não é módulo: roda o comando e sai com o código da corrida.
@@ -1013,7 +1498,7 @@ if (process.argv[2] === '--faltando' && resolve(process.argv[1] ?? '') === fileU
   }
   const raizDaArvore = process.env['CLAUDE_PROJECT_DIR'] ?? process.cwd()
   try {
-    process.stdout.write(relatorioDoFaltando(linhasSemBloco(linhasNovasDaArvore(raizDaArvore), lerMutacoes(readFileSync(join(raizDaArvore, documento), 'utf8')).mutacoes), documento))
+    process.stdout.write(faltandoDoDocumento(raizDaArvore, readFileSync(join(raizDaArvore, documento), 'utf8'), documento))
   } catch (erro) {
     process.stdout.write(`não foi possível listar as linhas sem bloco (${(erro as Error).message})\n`)
   }

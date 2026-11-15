@@ -24,10 +24,8 @@ import {
   conferirMutacoesDoDocumento,
   documentoDaTarefa,
   exigenciaDeMutacao,
+  faltandoDoDocumento,
   lerMutacoes,
-  linhasNovasDaArvore,
-  linhasSemBloco,
-  relatorioDoFaltando,
   rodarCalado,
   type CarimboDasMutacoes,
 } from './mutacoes.ts'
@@ -167,7 +165,7 @@ if (semMutacao !== null) {
 }
 // RF5: as linhas novas com condição que nenhum bloco alcança. Só informa; quem decide é o `test-engineer`.
 if (documento && textoDoDocumento !== null) {
-  process.stdout.write(`\n${relatorioDoFaltando(linhasSemBloco(linhasNovasDaArvore(raiz), lerMutacoes(textoDoDocumento).mutacoes), documento)}`)
+  process.stdout.write(`\n${faltandoDoDocumento(raiz, textoDoDocumento, documento)}`)
   // M3 da retro da X7: a divergência que ficou só no documento da tarefa. Só informa, como o `--faltando`.
   const aviso = avisoDaDivergenciaSoNoDocumento(raiz, documento, arquivosAlterados(raiz))
   if (aviso !== null) process.stdout.write(`\n${aviso}`)

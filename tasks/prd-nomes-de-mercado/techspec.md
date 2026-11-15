@@ -131,7 +131,12 @@ fora. O `arquivo` de um `fica` e o da troca à mão registrada são os da árvor
 classificou: antes de comparar, o `restos` (e a lista de não classificadas do `reaplicar`) leva cada um pelos movimentos
 `arquivo` e `pasta` das ondas seguintes, na ordem das ondas. O mapa e o relatório de onda feita não se reescrevem. **A exceção, com motivo:** o `13.json` ganhou a ocorrência `fica` do serviço
 `migrar` do compose citado no `README.md` da raiz (correção `2026-11-02-reaplicar-filtra-arquivo`): o `README.md` só entrou como
-documento vivo para o `restos` nessa correção, e a classificação cabe no mapa da onda que leva os documentos, a 13.0. O mapa de linha (`"linha": true`) não olha documento até a 13.0 criar o `mapas/13.json`, que tira também a
+documento vivo para o `restos` nessa correção, e a classificação cabe no mapa da onda que leva os documentos, a 13.0. **O homônimo
+classificado `fica` pode ganhar outro nome depois**, com o mapa intacto: o `fica` vale pelo trecho exato e não cobre linha nova, então
+o código novo que precisa do nome no arquivo do homônimo o renomeia, e a entrada `fica` que fica sem ocorrência não pesa no `restos`
+nem no `reaplicar`. Nem entrada nova no mapa, nem o `de` com `arquivo` solto do resto da árvore no `restos`, que deixaria passar o nome
+antigo trazido de volta por merge (o `LinhaNova` de `tools/processo/mutacoes.ts` virou `LinhaAcrescentada`, triagem da divergência da
+correção `2026-11-15-faltando-termo-a-termo`, 15/11/2026). O mapa de linha (`"linha": true`) não olha documento até a 13.0 criar o `mapas/13.json`, que tira também a
 isenção do ouro; o `reaplicar` leva então os mapas de linha aos documentos (RF3, RF6, RF9, RF10).
 
 **O `reaplicar`.** O merge da `develop` que traz nome antigo vira uma correção (`/corrigir`), com revisão. A correção
