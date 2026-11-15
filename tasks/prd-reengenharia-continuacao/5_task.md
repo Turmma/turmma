@@ -82,3 +82,18 @@ Reentrega, corrida e varredura nova (6.0); corte (7.0); tokens (10.0).
 ## Mutações
 
 ## Recomendações sem aplicar
+
+Herdadas das tarefas 3.0 e 2.0, destino 5.0 (copiadas das tabelas delas antes de a 5.0 começar):
+
+| Revisor e rodada | Recomendação | Destino ou motivo |
+|---|---|---|
+| infra-guardian (1ª da 3.0) | `docs/runbook.md`, causa 1: diagnóstico cita só `worker-interativo-*`; com o `worker-ia` o alerta na `ferramenta` pede o `ps` e o `logs` dele | tarefa 5.0, que cria o `worker-ia` |
+| revisor-geral (1ª da 3.0) | `docs/arquitetura.md` e `docs/infra.md` dizem "nenhuma réplica atende a `ferramenta` antes do `worker-ia`, na 5.0": a frase deixa de valer | tarefa 5.0, que precisa reescrevê-las |
+| test-engineer (1ª da 3.0) | `infra/test/alertas.int.test.ts:305`: o caso da `ferramenta` esperando depende de nenhuma réplica a atender; com o `worker-ia` quebra | tarefa 5.0 (segurar o job, por exemplo tomando as 4 vagas da escola antes) |
+| test-engineer (1ª da 3.0) | `tools/ci/ambiente.test.ts:150`: a conta "dez escolas cabem nos pools" deixa a `FERRAMENTA` de fora sem dizer | tarefa 5.0, ao criar `WORKER_POOL_FERRAMENTA` |
+| privacy-guardian (1ª da 3.0) | O `dados` do job `ia.executar` só com ids: um caso que recuse campo de texto livre no esquema estrito do tipo, em `JOB_DEFINITIONS` | tarefa 5.0, que cria o tipo |
+| privacy-guardian (1ª da 3.0) | A cópia `failed` no Redis da `ferramenta` só com o código da falha, sem a mensagem do provedor de IA: caso com erro do adaptador | tarefa 5.0 |
+| conformidade-reviewer (1ª da 3.0) | O que a `ferramenta` gera para o aluno nasce pendente com aprovação registrada (regra 70, item 3): teste de integração pelo estado pendente via fila | tarefa 5.0 |
+| conformidade-reviewer (1ª da 3.0) | Guarda que recuse job de discursiva ou redação na `ferramenta` (D55) | tarefa 5.0 |
+| infra-guardian, conformidade-reviewer, revisor-geral, llm-integrator (1ª da 2.0) | A transação própria da D36 abre dentro da transação de conclusão e ocupa duas conexões do pool; separar um passo "antes da conclusão" no `ComandoExecutavel`, fora do `gravar` | Muda o contrato do `ComandoExecutavel` e o desenho do `concluir`. Destino: tarefa 5.0 (a IA vai ao worker; ela já tem o caso "pool" na tabela). Os quatro dizem que o risco é latente |
+| privacy-guardian (1ª da 2.0) | Teste do aluno eliminado entre o `preparar` e o `concluir` com `assunto_delicado` | Precisa de barreira e eliminação no meio; hoje a chave estrangeira garante. Destino: tarefa 5.0 (job) |
