@@ -2888,10 +2888,16 @@ processo: entram por correção.
       `defineCommand`) é listada mesmo sem condição de TypeScript. Na F2c foram 8 reprovações do `test-engineer` por cláusula que ele não listava
       (2.0, 4.0, 5.0, 9.0, 10.0, 14.0, 15.0, 16.0), e o modelo já dizia "cada termo". Os casos de `mutacoes.test.ts` ganham fixture de cada forma.
       Guardiões: `test-engineer`, `revisor-geral`
-- [ ] (F2c, retro, M2) **O `Write` não reescreve documento com a seção "Revisões".** Hook PreToolUse de `Write` em `.claude/settings.json`, com um
+- [x] (F2c, retro, M2) **O `Write` não reescreve documento com a seção "Revisões".** Hook PreToolUse de `Write` em `.claude/settings.json`, com um
       modo novo em `tools/processo/hook-revisoes.ts`: recusa (saída 2, com "use Edit") o `Write` sobre arquivo que já existe em `tasks/` e já tem
       `## Revisões`, quando o conteúdo novo não traz a tabela inteira de antes. A seção sumiu na 3.0 (a 1ª rodada se perdeu de vez), na 5.0 e na
       12.0, e duas vezes na X1. Caso de teste do hook para cada lado (com a tabela, sem ela, arquivo novo). Guardiões: `revisor-geral`, `test-engineer`
+- [ ] (correção 2026-11-15-write-sobre-revisoes) **O hook do `Write` compara o caminho com `resolve`/`relative`, sem `realpathSync`.** Link simbólico para
+      `tasks/` ou desde `tasks/` escapa da conferência. Normalizar com `realpathSync` e acrescentar o caso em `tools/processo/hook-portao.test.ts`. Guardiões: `test-engineer`, `revisor-geral`
+- [ ] (correção 2026-11-15-write-sobre-revisoes) **O título "## Revisões" é procurado com `\n`; arquivo com CRLF não casa.** `linhasDaTabelaDeRevisoes` e `lerRevisoes` usam o mesmo
+      título: aceitar `\r?\n` nos dois, ou declarar o limite, com caso de teste. Guardiões: `test-engineer`, `revisor-geral`
+- [ ] (correção 2026-11-15-write-sobre-revisoes) **`Edit` que apaga a seção "Revisões", e `Bash` com `>`, não passam pelo hook do `Write`.** Só entra se a seção voltar a
+      sumir por esses caminhos (retro): o gancho do `Edit` compararia `old_string` e `new_string` com `recusaDeEscritaSobreRevisoes`. Guardiões: `test-engineer`, `revisor-geral`
 
 ## Da retrospectiva da F2b (semana-do-professor, 07/11/2026)
 

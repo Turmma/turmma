@@ -11,7 +11,7 @@
 // passo 2 do `/executar-task` manda lê-lo antes de cada tarefa: o índice é o que cabe na janela,
 // e o bloco inteiro se abre por ele.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { basename, dirname, join } from 'node:path'
+import { basename, dirname, join, relative, resolve } from 'node:path'
 import { alteracoesDeCodigo, arquivosAlterados, chaveDaRodada, comTrava, gravarInstantaneo } from './caducidade.ts'
 
 export const REVISORES_COM_VETO = ['tenancy-guardian', 'privacy-guardian', 'conformidade-reviewer', 'infra-guardian', 'test-engineer', 'revisor-geral']
@@ -129,6 +129,46 @@ export function lerRevisoes(conteudoTarefa: string): Revisao[] {
         .map((celula) => celula.trim().replaceAll('`', ''))
       return { inicio: inicioRodada, fim, revisor, rodada: Number(rodada), veredito, agente }
     })
+}
+
+/**
+ * As linhas da tabela da seção "Revisões", do título até o fim do arquivo (é onde `lerRevisoes` lê e onde `acrescentarRevisao`
+ * escreve): cabeçalho, separador e rodadas, toda linha que começa por `|`. Sem a seção, a lista é vazia. Supõe que a seção seja a
+ * última do arquivo, como o hook a deixa: outra tabela depois dela entraria na conta, e o gancho do `Write` passaria a exigi-la.
+ */
+export function linhasDaTabelaDeRevisoes(conteudo: string): string[] {
+  const titulo = `\n${TITULO_SECAO}\n`
+  const secao = conteudo.split(titulo).slice(1).join(titulo)
+  return secao.split('\n').filter((linha) => linha.startsWith('|'))
+}
+
+/** A recusa de um `Write` que apagaria rodadas: a frase que o hook devolve, ou `null` quando a escrita pode seguir. */
+export function recusaDeEscritaSobreRevisoes(arquivo: string, existente: string, novo: string): string | null {
+  const antes = linhasDaTabelaDeRevisoes(existente)
+  const depois = new Set(linhasDaTabelaDeRevisoes(novo))
+  const faltam = antes.filter((linha) => !depois.has(linha))
+  if (faltam.length === 0) return null
+  return (
+    `Write bloqueado: ${arquivo} já tem a seção "${TITULO_SECAO.slice(3)}" e o conteúdo novo não traz ${String(faltam.length)} de ` +
+    `${String(antes.length)} linhas da tabela dela. Quem escreve essa seção é o hook: reescrever o documento a apaga e a contagem das rodadas ` +
+    'recomeça do 1. Mude o documento com Edit, só no trecho que precisa mudar.'
+  )
+}
+
+/**
+ * A decisão do hook do `Write` (PreToolUse): o motivo da recusa, ou `null`. Só vale para arquivo que já existe sob `tasks/` da
+ * raiz; arquivo novo, ou fora de `tasks/`, passa. Falha de leitura que não é "não existe" sobe: o hook trata como recusa.
+ */
+export function decidirEscrita(entrada: EntradaHook, raiz: string): string | null {
+  const alvo = entrada.tool_input?.file_path
+  if (typeof alvo !== 'string') return null
+  const absoluto = resolve(raiz, alvo)
+  const relativo = relative(resolve(raiz), absoluto)
+  // Fora da raiz o caminho relativo começa por `../`, e também não é `tasks/`.
+  if (!relativo.startsWith('tasks/')) return null
+  if (!existsSync(absoluto)) return null
+  const conteudo = entrada.tool_input?.content
+  return recusaDeEscritaSobreRevisoes(relativo, readFileSync(absoluto, 'utf8'), typeof conteudo === 'string' ? conteudo : '')
 }
 
 // Os marcados no documento, mais os que toda tarefa e toda correção têm, marcados ou não.
@@ -343,7 +383,7 @@ export interface EntradaHook {
   agent_id?: string
   agent_transcript_path?: string
   last_assistant_message?: string
-  tool_input?: { command?: string }
+  tool_input?: { command?: string; file_path?: unknown; content?: unknown }
 }
 
 export function registrar(entrada: EntradaHook, raiz: string, agora = new Date()): string | null {

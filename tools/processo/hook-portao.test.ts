@@ -19,7 +19,7 @@ function ganchos(evento: 'PreToolUse' | 'SubagentStop'): Gancho[] {
   return configuracao.hooks[evento] ?? []
 }
 
-function comandoDe(evento: 'PreToolUse' | 'SubagentStop', modo: 'portao' | 'registrar'): string {
+function comandoDe(evento: 'PreToolUse' | 'SubagentStop', modo: 'portao' | 'registrar' | 'escrita'): string {
   const comandos = ganchos(evento).flatMap((gancho) => gancho.hooks.map((hook) => hook.command))
   const achados = comandos.filter((comando) => comando.includes(`hook-revisoes.ts" ${modo}`))
   const [achado] = achados
@@ -223,8 +223,137 @@ describe('o registrar (SubagentStop) fica como está', () => {
     expect(registrar).not.toContain('||')
   })
 
-  it('o exit 2 está só no comando do portão', () => {
+  it('o exit 2 está só nos comandos do portão e da escrita', () => {
     const comandos = [...ganchos('PreToolUse'), ...ganchos('SubagentStop')].flatMap((gancho) => gancho.hooks.map((hook) => hook.command))
-    expect(comandos.filter((comando) => comando.includes('exit 2'))).toEqual([comandoDe('PreToolUse', 'portao')])
+    expect(comandos.filter((comando) => comando.includes('exit 2'))).toEqual([comandoDe('PreToolUse', 'portao'), comandoDe('PreToolUse', 'escrita')])
+  })
+})
+
+describe('o Write não reescreve documento que já tem a seção "Revisões"', () => {
+  const escrita = () => comandoDe('PreToolUse', 'escrita')
+  const DOCUMENTO = 'tasks/prd-exemplo/3_task.md'
+  const TABELA = [
+    '| Início | Fim | Revisor | Rodada | Veredito | Agente |',
+    '|---|---|---|---|---|---|',
+    '| 2026-11-01 10:00:00 | 2026-11-01 10:05:00 | `test-engineer` | 1 | REPROVADO | a1 |',
+    '| 2026-11-01 11:00:00 | 2026-11-01 11:05:00 | `test-engineer` | 2 | APROVADO | a2 |',
+  ]
+  const COM_SECAO = `# Tarefa\n\nTexto antigo.\n\n## Revisões\n\nNota do hook.\n\n${TABELA.join('\n')}\n`
+
+  /** A raiz com o documento já escrito (e o que mais o caso pedir) e o `Write` rodado pelo comando do settings.json. */
+  function escrever(arquivos: Record<string, string>, alvo: string | undefined | ((raiz: string) => string), content: string | undefined, papel?: string) {
+    const raiz = copia()
+    for (const [caminho, texto] of Object.entries(arquivos)) {
+      mkdirSync(join(raiz, caminho, '..'), { recursive: true })
+      writeFileSync(join(raiz, caminho), texto)
+    }
+    const env: NodeJS.ProcessEnv = { ...process.env, CLAUDE_PROJECT_DIR: raiz }
+    delete env['CLAUDE_CODE_AGENT']
+    if (papel) env['CLAUDE_CODE_AGENT'] = papel
+    const resultado = spawnSync('sh', ['-c', escrita()], {
+      cwd: raiz,
+      env,
+      encoding: 'utf8',
+      input: JSON.stringify({ cwd: raiz, tool_name: 'Write', tool_input: { file_path: typeof alvo === 'function' ? alvo(raiz) : alvo, content } }),
+    })
+    return { raiz, status: resultado.status, stdout: resultado.stdout, stderr: resultado.stderr }
+  }
+
+  it('o gancho do settings.json é do Write', () => {
+    const gancho = ganchos('PreToolUse').find((candidato) => candidato.hooks.some((hook) => hook.command === escrita()))
+    expect(gancho?.matcher).toBe('Write')
+  })
+
+  it('com a tabela inteira, passa calado, também com papel e com o texto em volta mudado', () => {
+    const novo = `# Tarefa\n\nTexto novo, bem diferente.\n\n## Revisões\n\n${TABELA.join('\n')}\n`
+    for (const papel of [undefined, 'implementador']) {
+      const saida = escrever({ [DOCUMENTO]: COM_SECAO }, DOCUMENTO, novo, papel)
+      expect(saida.status).toBe(0)
+      expect(saida.stderr).toBe('')
+    }
+  })
+
+  it('sem a seção, recusa com saída 2, diz "Edit" e conta as linhas que somem', () => {
+    const saida = escrever({ [DOCUMENTO]: COM_SECAO }, DOCUMENTO, '# Tarefa\n\nSó o texto.\n')
+    expect(saida.status).toBe(2)
+    expect(saida.stderr).toContain('Write bloqueado')
+    expect(saida.stderr).toContain(DOCUMENTO)
+    expect(saida.stderr).toContain('não traz 4 de 4 linhas')
+    expect(saida.stderr).toContain('Edit')
+  })
+
+  it('com a seção sem a primeira rodada, recusa (a 3.0 perdeu a 1ª rodada assim)', () => {
+    const novo = `# Tarefa\n\n## Revisões\n\n${[TABELA[0], TABELA[1], TABELA[3]].join('\n')}\n`
+    const saida = escrever({ [DOCUMENTO]: COM_SECAO }, DOCUMENTO, novo)
+    expect(saida.status).toBe(2)
+    expect(saida.stderr).toContain('não traz 1 de 4 linhas')
+  })
+
+  it('com a linha de uma rodada alterada, recusa', () => {
+    const novo = `# Tarefa\n\n## Revisões\n\n${TABELA.join('\n').replace('REPROVADO', 'APROVADO')}\n`
+    const saida = escrever({ [DOCUMENTO]: COM_SECAO }, DOCUMENTO, novo)
+    expect(saida.status).toBe(2)
+    expect(saida.stderr).toContain('não traz 1 de 4 linhas')
+  })
+
+  it('com a tabela acima do título da seção, recusa: o hook acrescenta rodada no fim da seção', () => {
+    const novo = `# Tarefa\n\n${TABELA.join('\n')}\n\n## Revisões\n`
+    const saida = escrever({ [DOCUMENTO]: COM_SECAO }, DOCUMENTO, novo)
+    expect(saida.status).toBe(2)
+    expect(saida.stderr).toContain('não traz 4 de 4 linhas')
+  })
+
+  it('o caminho absoluto e o relativo à raiz valem igual', () => {
+    const alvos = [DOCUMENTO, (raiz: string) => join(raiz, DOCUMENTO), `./${DOCUMENTO}`, 'tasks/prd-exemplo/../prd-exemplo/3_task.md']
+    for (const alvo of alvos) {
+      const saida = escrever({ [DOCUMENTO]: COM_SECAO }, alvo, 'só texto')
+      expect(saida.status, String(alvo)).toBe(2)
+      expect(saida.stderr).toContain('não traz 4 de 4 linhas')
+    }
+  })
+
+  it('arquivo novo, e arquivo que existe sem a seção, passam', () => {
+    expect(escrever({}, DOCUMENTO, '# Tarefa nova\n').status).toBe(0)
+    expect(escrever({ [DOCUMENTO]: '# Tarefa\n\nSem seção.\n' }, DOCUMENTO, '# Outra\n').status).toBe(0)
+  })
+
+  it('arquivo com a seção fora de tasks/ passa, e tasks/ de outra raiz também', () => {
+    expect(escrever({ 'docs/exemplo.md': COM_SECAO }, 'docs/exemplo.md', 'só texto').status).toBe(0)
+    expect(escrever({ 'tasks-antigas/x.md': COM_SECAO }, 'tasks-antigas/x.md', 'só texto').status).toBe(0)
+    // Outra raiz, com o mesmo `tasks/` e a seção: o caminho absoluto dela não é da raiz do hook.
+    const outra = copia()
+    mkdirSync(join(outra, 'tasks'), { recursive: true })
+    writeFileSync(join(outra, 'tasks/x.md'), COM_SECAO)
+    expect(escrever({}, join(outra, 'tasks/x.md'), 'só texto').status).toBe(0)
+  })
+
+  it('Write sem conteúdo sobre documento com a seção recusa pela tabela que falta, em vez de apagá-la', () => {
+    const saida = escrever({ [DOCUMENTO]: COM_SECAO }, DOCUMENTO, undefined)
+    expect(saida.status).toBe(2)
+    expect(saida.stderr).toContain('não traz 4 de 4 linhas')
+  })
+
+  it('entrada sem caminho de arquivo passa: não há documento a proteger', () => {
+    expect(escrever({ [DOCUMENTO]: COM_SECAO }, undefined, 'x').status).toBe(0)
+  })
+
+  it('falha ao ler o documento recusa e diz que o hook falhou', () => {
+    const saida = escrever({ 'tasks/pasta.md/dentro.txt': 'x' }, 'tasks/pasta.md', 'texto')
+    expect(saida.status).toBe(2)
+    expect(saida.stderr).toContain('o hook de escrita falhou')
+  })
+
+  it('hook que não carrega recusa o Write com saída 2 e a mensagem do conserto, e a recusa de verdade não a leva junto', () => {
+    const raiz = copia((processo) => acrescentar(processo, 'revisoes.ts', 'export const quebrado = {{{'))
+    const saida = spawnSync('sh', ['-c', escrita()], {
+      cwd: raiz,
+      env: { ...process.env, CLAUDE_PROJECT_DIR: raiz },
+      encoding: 'utf8',
+      input: JSON.stringify({ cwd: raiz, tool_name: 'Write', tool_input: { file_path: 'tasks/novo.md', content: 'x' } }),
+    })
+    expect(saida.status).toBe(2)
+    expect(saida.stderr).toContain('hook de escrita não carregou')
+    const recusa = escrever({ [DOCUMENTO]: COM_SECAO }, DOCUMENTO, 'só texto')
+    expect(recusa.stderr).not.toContain('não carregou')
   })
 })

@@ -45,6 +45,15 @@
             "command": "node \"$CLAUDE_PROJECT_DIR/tools/processo/hook-revisoes.ts\" portao || { echo 'hook de revisões não carregou: nenhum Bash roda até consertar tools/processo/. Avise o Joaquim.' >&2; exit 2; }"
           }
         ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/tools/processo/hook-revisoes.ts\" escrita || { [ \"$?\" = 2 ] && exit 2; echo 'hook de escrita não carregou: nenhum Write roda até consertar tools/processo/ (use Edit). Avise o Joaquim.' >&2; exit 2; }"
+          }
+        ]
       }
     ]
   }
