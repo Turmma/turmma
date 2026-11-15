@@ -191,14 +191,21 @@ bancada, com fixture.
   - com uma só escolha na fila, o estouro espera o recuo de sempre; a falha que não é estouro também (a seguinte só sai na hora no
     estouro, `haOutraEsperando`); a escolha trocada enquanto a velha pendurava não é movida
 - [U] Componente que lança na raiz: aparece a `Falha` com "Voltar ao início", em cada rota sem área (entrada, sala pública,
-  troca de senha, sistema), sem casca e com o `DrawerContext` padrão; o clique navega para `/` e a tela sai da `Falha`. Na
-  operação, o destino é `/operacao`
+  troca de senha, sistema), sem casca e com o `DrawerContext` padrão; o "Voltar ao início" é um link para `/` cujo clique não é
+  impedido (a página nova é que limpa a fronteira: o `jsdom` não navega, e a saída da `Falha` é o [E] abaixo). Na operação, o
+  destino é `/operacao`; a fronteira da área pega primeiro, com a casca de pé
 - [U] 503 com `Retry-After: 3`: botão desabilitado, `role="status"` com "Tentando de novo em instantes" (a contagem é
   `aria-hidden`), uma nova tentativa; segundo 503: o `ErrorState`, sem nova espera; `Retry-After: 10` espera, `Retry-After: 11`
   vai direto ao `ErrorState`. Na entrada e no seletor, que mantém a escola
 - [I] Redis fora no segundo fator e na escolha de escola: `503 INDISPONIVEL_TENTE_DE_NOVO` com `Retry-After`, e o contador do
   `insuranceLimiter` do `LoginLockout` sem tentativa gasta. Mutação: reservar antes de `conferirLivre`
-- [E] `celular` a 360 px: a `Falha` (os dois botões quebrando sem cortar texto), o aviso da espera e a linha do aluno no uso
+- [E] A `Falha` fora de área (`e2e/tela-de-falha.spec.ts`): o estado do sistema (`/sistema`) com a hora que não formata (o `Intl` do
+  navegador lança só nessa página, por `addInitScript`; nenhuma resposta válida da API faz uma tela da entrada lançar) e a operação com o
+  chunk trocado por um módulo que lança (`page.route`). O foco vai ao título; a 1366 × 768 a página não rola; o "Voltar ao início" sai da
+  `Falha` (`/` leva à entrada; na operação, a `/operacao`)
+- [E] `celular` a 360 px: a `Falha` (os dois botões sem cortar texto, com o `min-height` de 44 px lido no estilo e não só na caixa, porque o link sem a
+  classe herda a altura do irmão; a 360 px os dois já quebram em linha (173 e 181 px, mais o vão, passam dos 328 px), e o `flex-wrap` se prova a
+  280 px, o celular dobrável fechado, onde o segundo desce para a linha de baixo sem passar da janela), o aviso da espera e a linha do aluno no uso
   com "N perguntas que o Tutor não respondeu hoje", sem rolagem horizontal, alvos de 44 px, texto em português, axe. A falha, o
   `503` e o uso vêm de `page.route`, sem gancho no build de produção
 
