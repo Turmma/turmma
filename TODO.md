@@ -3673,3 +3673,21 @@ aula" em `Retencao.tsx`, o Validador conferiu: a tela já o mostra pela descriç
 - [ ] (ingestao-do-material, 5.0, privacy-guardian, 1ª) **`licenca.alterada` guardar os nomes dos campos alterados (sem o texto)** quando só a cobertura ou a referência mudam. Muda o formato da auditoria que a Tech Spec §6 fixa (dono: Arquiteto)
 - [ ] (ingestao-do-material, 7.0, Mesa) **A asserção da auditoria em `e2e/material.spec.ts:314` depende da ordem**, e o relógio do WSL, que volta segundos, a derrubou duas vezes: comparar sem ordem (dono: quem mexer em `e2e/material.spec.ts`)
 - [ ] (censo do e2e do fechamento da ingestao-do-material, execução 43614434067, 14/11/2026, dívida da develop: arquivos que a spec não alterou) **Doze casos acima de dois terços do prazo, nenhum acima de 90%:** `alocacao.spec.ts:85` (76,6 e 73,0 s de 90), `operacao.spec.ts:125` (64,7 e 61,1 s de 90) e `:45` (21,2 e 20,5 s de 30), `escola-e-vinculos.spec.ts:211` (24,5 e 21,9 s de 30) e `:271` (20,9 s), `components-ai.spec.ts:205` (21,5 e 21,1 s), `casca.spec.ts:386` (20,3 s, celular); os mesmos do censo da F2c, mais o `casca:386` e o `components-ai:205`. Encurtar ou dividir quando o arquivo for tocado; o mais perto do teto é o `alocacao:85` (85%) (dono: Implementador)
+
+## Da correção 2026-11-15-e2e-pedidos-do-titular (a tela em "Carregando…" depois da entrada), fora dela
+
+- [ ] (correção 2026-11-15-e2e-pedidos-do-titular, infra-guardian, 1ª) **Em produção a tela fica em "Carregando…" para sempre quando um pedaço ou uma leitura não volta.** A correção só tocou o e2e
+      (recarga da tela travada, com aviso). Para o usuário real falta um prazo na tela, a mensagem "tente de novo" e a recarga: tarefa de produto, com a regra 50 (quatro estados, erro que diz o que fazer)
+      (dono: Arquiteto, para a próxima spec de tela)
+- [ ] (correção 2026-11-15-e2e-pedidos-do-titular, infra-guardian, 1ª) **Nada conta as ocorrências de `primeira-carga-travou` por execução.** O aviso `::warning` aparece, mas um passo da esteira (ou uma linha do
+      runbook) que as some e acenda acima de um limite deixaria "ocorrência que se repete é regressão" medida, e não só lida (dono: Orquestrador, com infra-guardian)
+- [ ] (correção 2026-11-15-e2e-pedidos-do-titular, frontend-reviewer, 1ª) **No celular o topo da coordenação mostra o nome da escola truncado ("Colégio s…") ao lado do Sino e do Sair.** Fora de uma correção de e2e
+      (dono: frontend-reviewer, na próxima tarefa de tela da coordenação)
+- [ ] (correção 2026-11-15-e2e-pedidos-do-titular, test-engineer e revisor-geral, 2ª) **O ramo de `esperarATela` sem caso do `test` (`return esperar(PRAZO_DA_ESPERA_DA_TELA_MS)`) não tem teste nem bloco de mutação**, e hoje
+      nenhuma chamada chega nele: lançar um erro claro no lugar da espera sem recarga, ou testar o ramo (dono: quem mexer em `e2e/support/profiles.ts`)
+- [ ] (correção 2026-11-15-e2e-pedidos-do-titular, test-engineer, 2ª) **As três trocas de `activate` por `activateQuandoAparecer` em `irPelaCoordenacao` não têm teste:** voltar qualquer uma não derruba caso nenhum.
+      Pediria uma página servida pela rota com a navegação `Seções` mínima (dono: quem mexer em `irPelaCoordenacao`)
+- [ ] (correção 2026-11-15-e2e-pedidos-do-titular, revisor-geral, 2ª) **`travaDoCaso` aparece como fixture no tipo do `test` de todos os specs, embora seja interna:** um nome que deixe isso claro, ou um
+      tipo à parte das `ProfileOptions`, se o Playwright permitir (dono: quem mexer em `e2e/support/profiles.ts`)
+- [ ] (correção 2026-11-15-e2e-pedidos-do-titular, revisor-geral, 2ª) **`esperarATela` (`profiles.ts`) e `esperarATelaDepoisDaRecarga` (`casca.ts`) têm nomes quase iguais e fazem coisas diferentes:** renomear um
+      dos dois (dono: quem mexer em `e2e/support/casca.ts`)

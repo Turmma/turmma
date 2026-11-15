@@ -1,6 +1,6 @@
 import type { Locator, Page } from '@playwright/test'
 import { irPelaNavegacao } from './casca.ts'
-import { expect } from './profiles.ts'
+import { esperarATela, expect } from './profiles.ts'
 import { horizontalOverflow } from './checks.ts'
 
 /**
@@ -68,6 +68,12 @@ async function activate(alvo: Locator, hasTouch: boolean): Promise<void> {
   else await alvo.click()
 }
 
+/** Espera o alvo aparecer antes de acioná-lo, com a recarga da tela que trava em "Carregando…" (`esperarATela`): o clique sem prazo próprio esperava os do caso inteiro. */
+export async function activateQuandoAparecer(page: Page, alvo: Locator, hasTouch: boolean): Promise<void> {
+  await esperarATela(page, (timeout) => expect(alvo).toBeVisible({ timeout }))
+  await activate(alvo, hasTouch)
+}
+
 /**
  * Vai a uma tela da coordenação pelo caminho da pessoa: o lugar em `Seções` (a lateral, ou a barra de baixo no celular) e, se a
  * tela é uma aba, a aba. O seletor da Privacidade e o link dos Agentes são o clique de dentro. Termina com a tela aberta:
@@ -79,15 +85,15 @@ export async function irPelaCoordenacao(page: Page, tela: TelaDaCoordenacao, has
   const principal = page.getByRole('main')
   if (aba !== undefined) {
     const abaDoLugar = principal.getByRole('tab', { name: aba, exact: true })
-    await activate(abaDoLugar, hasTouch)
+    await activateQuandoAparecer(page, abaDoLugar, hasTouch)
     await expect(abaDoLugar).toHaveAttribute('aria-selected', 'true')
   }
   if (seletor !== undefined) {
     const opcao = principal.getByRole('radio', { name: seletor, exact: true })
-    await activate(opcao, hasTouch)
+    await activateQuandoAparecer(page, opcao, hasTouch)
     await expect(opcao).toHaveAttribute('aria-checked', 'true')
   }
-  if (link !== undefined) await activate(principal.getByRole('link', { name: link }), hasTouch)
+  if (link !== undefined) await activateQuandoAparecer(page, principal.getByRole('link', { name: link }), hasTouch)
 }
 
 /**
