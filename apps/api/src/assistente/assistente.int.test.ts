@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
 import { PersonalDataCapture } from '../../test/personal-data-capture.js'
 import { chamar, subirApi, type TestApi, type RespostaHttp } from '../../test/test-api.js'
@@ -22,6 +22,7 @@ import {
 import { SessaoFixtures, type TestSessao } from '../../test/sessao.fixture.js'
 import { ExecucaoScheduler } from '../ia/execucao.scheduler.js'
 import { EXECUTOR_DE_AGENTE, SUSPENSAO_DE_FUNCAO } from '../ia/ia.module.js'
+import { RegistroDeComandos } from '../ia/registro-de-comandos.js'
 import { TrechoSearch } from '../material/trecho-search.js'
 import { AssistenteService } from './assistente.service.js'
 import { ConversaRepository } from './conversa.repository.js'
@@ -324,7 +325,7 @@ describe('Assistente de ensino', () => {
       } as unknown as LLMProvider
       // O trabalho da execução espera o teste liberar: é o intervalo entre o `202` e a execução.
       const comEspera: AgenteExecutor = { agendar: (execucao, trabalho) => executor.agendar(execucao, async (sinal) => (await antesDeRodar, trabalho(sinal))) }
-      const servico = new AssistenteService(bancada.banco, new ExecucaoScheduler(bancada.banco, ia, comEspera, api.app.get<SuspensaoDeFuncao>(SUSPENSAO_DE_FUNCAO)), api.app.get(IaRequestRateLimit), api.app.get(TrechoSearch))
+      const servico = new AssistenteService(bancada.banco, new ExecucaoScheduler(bancada.banco, ia, comEspera, api.app.get<SuspensaoDeFuncao>(SUSPENSAO_DE_FUNCAO), api.app.get(RegistroDeComandos)), api.app.get(IaRequestRateLimit), api.app.get(TrechoSearch))
 
       await vincularProfessor(bancada, b, b.colega.usuarioId, b.turma, b.quimica)
       const { execucaoId } = await comoPessoa(b, b.colega, 'professor', () => servico.enviar({ texto: 'o que é o reagente limitante?', turmaId: b.turma, disciplinaId: b.quimica, chaveEnvio: randomUUID() }))
@@ -360,6 +361,179 @@ describe('Assistente de ensino', () => {
       expect(contagem.match(/\bmensagem_agente\b/g) ?? [], 'o repository do titular lê a mensagem do professor em mais de um lugar').toHaveLength(1)
       expect(contagem, 'a leitura de `mensagem_agente` no repository do titular não é a contagem').toMatch(/count\(\*\)::int from mensagem_agente m\b/)
       expect(contagem, 'o repository do titular seleciona colunas da conversa do professor com `*`').not.toMatch(/\bm\.\*|\bselect\s+\*/i)
+    })
+  })
+
+  describe('o comando do Assistente relê a execução pelo id (X6, 1.0)', () => {
+    /** O serviço atrás de um modelo de mentira que guarda a entrada que recebeu, com o executor segurando a execução até `liberar()`: é o intervalo entre o `202` e o `preparar`. */
+    function servicoComModelo(saida: unknown = { tipo: 'texto', texto: 'resposta de teste', citacoes: [] }) {
+      let liberar = (): void => undefined
+      const antesDeRodar = new Promise<void>((resolver) => (liberar = resolver))
+      const entradas: { semProposta?: boolean; mensagem: string; turnosAnteriores: { autor: string; texto: string }[] }[] = []
+      const ia = {
+        gerar: async (pedido: { entrada: { semProposta?: boolean; mensagem: string; turnosAnteriores: { autor: string; texto: string }[] } }) => {
+          entradas.push(pedido.entrada)
+          return { saida, medicao: {} }
+        },
+      } as unknown as LLMProvider
+      const comEspera: AgenteExecutor = { agendar: (execucao, trabalho) => executor.agendar(execucao, async (sinal) => (await antesDeRodar, trabalho(sinal))) }
+      const agendador = new ExecucaoScheduler(bancada.banco, ia, comEspera, api.app.get<SuspensaoDeFuncao>(SUSPENSAO_DE_FUNCAO), api.app.get(RegistroDeComandos))
+      return { servico: new AssistenteService(bancada.banco, agendador, api.app.get(IaRequestRateLimit), api.app.get(TrechoSearch)), liberar, entradas }
+    }
+    const pedir = (escola: EscolaComAssistente, servico: AssistenteService, texto: string) => comoPessoa(escola, escola.professora, 'professor', () => servico.enviar({ texto, turmaId: escola.turma, disciplinaId: escola.quimica, chaveEnvio: randomUUID() }))
+
+    it('a execução produz pelo que ficou gravado, e não pelo que o corpo do pedido dizia: a pergunta e a marca de "só conversar" vêm do banco', async () => {
+      const { servico, liberar, entradas } = servicoComModelo()
+      const { execucaoId } = await pedir(a, servico, 'o que é o reagente limitante?')
+      await sql(`update execucao_agente set entrada = '{"tarefa":"propor_ferramenta","resposta":"so_conversar"}' where id = $1`, [execucaoId])
+      await sql(`update mensagem_agente set conteudo = '{"tipo":"texto","texto":"o que é o excesso de reagente?"}' where escola_id = $1 and execucao_id = $2 and autor = 'usuario'`, [a.escolaId, execucaoId])
+      liberar()
+      expect(await execucaoTerminada(api, a.professora, execucaoId)).toMatchObject({ estado: 'concluida' })
+      expect(entradas).toHaveLength(1)
+      expect(entradas[0]).toMatchObject({ mensagem: 'o que é o excesso de reagente?', semProposta: true })
+    })
+
+    it('depois do 202, a pergunta que saiu da conversa, a disciplina em que a professora não tem vínculo e o material que saiu de uso não chegam à busca nem ao modelo', async () => {
+      const c = await montarEscolaComAssistente(api, bancada)
+      const busca = vi.spyOn(api.app.get(TrechoSearch), 'buscar')
+      const existe = vi.spyOn(api.app.get(TrechoSearch), 'existeMaterialDaSerie')
+      try {
+        const casos = [
+          { rotulo: 'pergunta removida', erro: 'NAO_ENCONTRADO', mexer: (execucaoId: string) => sql(`delete from mensagem_agente where escola_id = $1 and execucao_id = $2 and autor = 'usuario'`, [c.escolaId, execucaoId]), leMaterial: false },
+          { rotulo: 'disciplina sem vínculo na mensagem gravada', erro: 'NAO_ENCONTRADO', mexer: (execucaoId: string) => sql(`update mensagem_agente set disciplina_id = $3 where escola_id = $1 and execucao_id = $2 and autor = 'usuario'`, [c.escolaId, execucaoId, c.fisica]), leMaterial: false },
+          { rotulo: 'material excluído', erro: 'SEM_MATERIAL_DA_SERIE', mexer: () => sql('update material set excluido_em = now() where escola_id = $1', [c.escolaId]), leMaterial: true },
+        ]
+        for (const { rotulo, erro, mexer, leMaterial } of casos) {
+          const { servico, liberar, entradas } = servicoComModelo()
+          const { execucaoId } = await pedir(c, servico, 'o que é o reagente limitante?')
+          existe.mockClear()
+          busca.mockClear()
+          await mexer(execucaoId)
+          liberar()
+          expect(await execucaoTerminada(api, c.professora, execucaoId), rotulo).toMatchObject({ estado: 'falhou', erro, resultado: null })
+          expect(entradas, rotulo).toEqual([])
+          expect(busca, rotulo).not.toHaveBeenCalled()
+          // O material só é consultado depois de a pergunta e o vínculo serem os da pessoa: o que está fora do alcance não é lido.
+          expect(existe.mock.calls.length > 0, rotulo).toBe(leMaterial)
+        }
+        expect(await contarNaEscola(bancada, 'consumo_ia', c.escolaId)).toBe(0)
+      } finally {
+        busca.mockRestore()
+        existe.mockRestore()
+      }
+    })
+
+    it('a pergunta lida é a da própria professora: a linha que está na thread da colega, ou que aponta para a turma da colega, é NAO_ENCONTRADO (a de outra escola nem existe: a turma e a thread vão por FK composta com a escola)', async () => {
+      const c = await montarEscolaComAssistente(api, bancada)
+      const busca = vi.spyOn(api.app.get(TrechoSearch), 'buscar')
+      try {
+        await sql(`insert into thread_agente (escola_id, ano_letivo_id, usuario_id, agente) values ($1, $2, $3, 'assistente_de_ensino') on conflict do nothing`, [c.escolaId, c.anoLetivoId, c.colega.usuarioId])
+        const { rows } = await sql(`select id from thread_agente where escola_id = $1 and usuario_id = $2 and agente = 'assistente_de_ensino'`, [c.escolaId, c.colega.usuarioId])
+        const threadDaColega = (rows[0] as { id: string }).id
+        const casos = [
+          { rotulo: 'a linha na thread da colega', mexer: (execucaoId: string) => sql(`update mensagem_agente set thread_id = $3 where escola_id = $1 and execucao_id = $2 and autor = 'usuario'`, [c.escolaId, execucaoId, threadDaColega]) },
+          { rotulo: 'a linha com a turma da colega', mexer: (execucaoId: string) => sql(`update mensagem_agente set turma_id = $3 where escola_id = $1 and execucao_id = $2 and autor = 'usuario'`, [c.escolaId, execucaoId, c.outraTurma]) },
+        ]
+        for (const { rotulo, mexer } of casos) {
+          const { servico, liberar, entradas } = servicoComModelo()
+          const { execucaoId } = await pedir(c, servico, 'o que é o reagente limitante?')
+          busca.mockClear()
+          await mexer(execucaoId)
+          liberar()
+          expect(await execucaoTerminada(api, c.professora, execucaoId), rotulo).toMatchObject({ estado: 'falhou', erro: 'NAO_ENCONTRADO', resultado: null })
+          expect(entradas, rotulo).toEqual([])
+          expect(busca, rotulo).not.toHaveBeenCalled()
+        }
+      } finally {
+        busca.mockRestore()
+      }
+    })
+
+    it('a função suspensa depois do 202 não chega ao `preparar`: nem leitura da conversa, nem busca, nem modelo, nem consumo', async () => {
+      const c = await montarEscolaComAssistente(api, bancada)
+      const busca = vi.spyOn(api.app.get(TrechoSearch), 'buscar')
+      const { servico, liberar, entradas } = servicoComModelo()
+      try {
+        const { execucaoId } = await pedir(c, servico, 'o que é o reagente limitante?')
+        busca.mockClear()
+        await suspender(c, 'conversa_e_ferramentas')
+        liberar()
+        expect(await execucaoTerminada(api, c.professora, execucaoId)).toMatchObject({ estado: 'falhou', erro: 'FUNCAO_SUSPENSA', resultado: null })
+        expect(entradas).toEqual([])
+        expect(busca).not.toHaveBeenCalled()
+        expect(await contarNaEscola(bancada, 'consumo_ia', c.escolaId)).toBe(0)
+      } finally {
+        busca.mockRestore()
+      }
+    })
+
+    it('a conversa anterior acompanha a nova como turnos, na ordem, com o autor da função; e só com "só conversar" a busca leva também o último pedido dela', async () => {
+      const c = await montarEscolaComAssistente(api, bancada)
+      const busca = vi.spyOn(api.app.get(TrechoSearch), 'buscar')
+      try {
+        const { servico, liberar, entradas } = servicoComModelo()
+        const enviar = async (texto: string, resposta?: 'so_conversar') => {
+          const { execucaoId } = await comoPessoa(c, c.professora, 'professor', () => servico.enviar({ texto, turmaId: c.turma, disciplinaId: c.quimica, chaveEnvio: randomUUID(), ...(resposta === undefined ? {} : { resposta }) }))
+          liberar()
+          expect(await execucaoTerminada(api, c.professora, execucaoId)).toMatchObject({ estado: 'concluida' })
+        }
+        const textosBuscados = () => busca.mock.calls.map(([pedido]) => pedido.texto)
+
+        // Sem histórico, "só conversar" busca só pela fala dela; sem a marca, pela fala também.
+        await enviar('Só conversar', 'so_conversar')
+        await enviar('o que é o reagente limitante?')
+        // Com histórico: sem a marca, só a fala; com a marca, o último pedido dela e a fala.
+        await enviar('e o excesso de reagente?')
+        await enviar('Só conversar', 'so_conversar')
+
+        expect(entradas.map((entrada) => entrada.mensagem)).toEqual(['Só conversar', 'o que é o reagente limitante?', 'e o excesso de reagente?', 'Só conversar'])
+        expect(entradas.map((entrada) => entrada.semProposta)).toEqual([true, undefined, undefined, true])
+        expect(Object.keys(entradas[1] ?? {}).includes('semProposta')).toBe(false)
+        expect(entradas[1]?.turnosAnteriores).toEqual([
+          { autor: 'professor', texto: 'Só conversar' },
+          { autor: 'assistente', texto: 'resposta de teste' },
+        ])
+        expect(entradas[3]?.turnosAnteriores.map((turno) => turno.autor)).toEqual(['professor', 'assistente', 'professor', 'assistente', 'professor', 'assistente'])
+        expect(textosBuscados()).toEqual(['Só conversar', 'o que é o reagente limitante?', 'e o excesso de reagente?', 'e o excesso de reagente? Só conversar'])
+      } finally {
+        busca.mockRestore()
+      }
+    })
+
+    it('o turno anterior longo vai cortado no teto da tarefa', async () => {
+      const c = await montarEscolaComAssistente(api, bancada)
+      const { servico, liberar, entradas } = servicoComModelo({ tipo: 'texto', texto: 'y'.repeat(3000), citacoes: [] })
+      for (const texto of ['o que é o reagente limitante?', 'e o excesso de reagente?']) {
+        const { execucaoId } = await pedir(c, servico, texto)
+        liberar()
+        expect(await execucaoTerminada(api, c.professora, execucaoId)).toMatchObject({ estado: 'concluida' })
+      }
+      expect(entradas[1]?.turnosAnteriores.map((turno) => turno.texto.length)).toEqual(['o que é o reagente limitante?'.length, 2000])
+    })
+
+    it('a saída que cita página que não foi entregue, ou que não cabe no contrato da mensagem, é IA_SAIDA_INVALIDA: nada é gravado na conversa; a proposta leva a turma e a disciplina da pergunta, e não as do modelo', async () => {
+      const c = await montarEscolaComAssistente(api, bancada)
+      const saidas = [
+        { rotulo: 'citação de página que não veio', saida: { tipo: 'texto', texto: 'resposta de teste', citacoes: [{ materialId: c.materialId, pagina: 999, trecho: 'trecho que não existe' }] } },
+        { rotulo: 'texto vazio, fora do contrato da mensagem', saida: { tipo: 'texto', texto: '', citacoes: [] } },
+      ]
+      for (const { rotulo, saida } of saidas) {
+        const { servico, liberar } = servicoComModelo(saida)
+        const antes = (await conversaDe(c.professora)).mensagens.length
+        const { execucaoId } = await pedir(c, servico, 'o que é o reagente limitante?')
+        liberar()
+        expect(await execucaoTerminada(api, c.professora, execucaoId), rotulo).toMatchObject({ estado: 'falhou', erro: 'IA_SAIDA_INVALIDA', resultado: null })
+        // Só a pergunta dela ficou na conversa: nenhuma resposta do agente.
+        const depois = (await conversaDe(c.professora)).mensagens
+        expect(depois.length - antes, rotulo).toBe(1)
+        expect(depois.at(-1)?.autor, rotulo).toBe('usuario')
+      }
+
+      const { servico, liberar } = servicoComModelo({ tipo: 'proposta_de_ferramenta', texto: 'Quer abrir a ferramenta?', proposta: { ferramenta: 'atividade_objetiva', parametros: { tema: 'reagente limitante', turmaId: randomUUID(), disciplinaId: randomUUID() } } })
+      const { execucaoId } = await pedir(c, servico, 'monta uma atividade sobre reagente limitante')
+      liberar()
+      const proposta = await execucaoTerminada(api, c.professora, execucaoId)
+      expect(proposta.resultado?.mensagem).toMatchObject({ tipo: 'proposta_de_ferramenta', proposta: { parametros: { turmaId: c.turma, disciplinaId: c.quimica } } })
     })
   })
 

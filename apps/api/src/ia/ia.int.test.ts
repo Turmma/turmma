@@ -11,6 +11,8 @@ import {
   proporFerramenta,
   threadAgente,
   turnoDoTutor,
+  type AgenteExecutor,
+  type GenerationRequest,
   type OrcamentoQuery,
   type ConsumoDeIa,
   type RequestContext,
@@ -23,17 +25,19 @@ import {
 import { ErrorCode, execucaoResponseSchema, TROCAS_POR_DIA_PADRAO_DO_TUTOR, type ChaveDeFuncao, type PapelDeUsuario, type ResultadoGravado } from '@educa/shared'
 import { and, eq } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
 import { chamar, subirApi, type TestApi, type RespostaHttp } from '../../test/test-api.js'
 import { montarEscolaComTurma, type EscolaComTurma } from '../../test/escola-turma.fixture.js'
 import { SessaoFixtures, type TestSessao } from '../../test/sessao.fixture.js'
-import { ExecucaoScheduler, type ExecucaoRequest } from './execucao.scheduler.js'
+import type { EntradaDaTarefa, ExecucaoCommand, ExecucaoLida, Preparado, SaidaDaTarefa } from './execucao-command.js'
+import { ExecucaoScheduler, type ExecucaoComComando, type ExecucaoRequest } from './execucao.scheduler.js'
 import { FuncaoSuspensionCheck } from './funcao-suspension-check.js'
 import { ConsumoRepository } from './consumo.repository.js'
 import { ExecucaoDaSessaoRepository, ExecucaoRepository } from './execucao.repository.js'
 import { EXECUTOR_DE_AGENTE, LLM_PROVIDER, ORCAMENTO_DE_IA, SUSPENSAO_DE_FUNCAO } from './ia.module.js'
 import { OrcamentoRepository } from './orcamento.repository.js'
+import { RegistroDeComandos } from './registro-de-comandos.js'
 import { SuspensaoRepository } from './suspensao.repository.js'
 
 /**
@@ -820,6 +824,178 @@ describe('camada de IA na API', () => {
       expect(await execucaoNoBanco(execucaoId)).toMatchObject({ estado: 'falhou', erro: 'MATERIAL_INSUFICIENTE' })
       expect(aoConcluir).not.toHaveBeenCalled()
       expect(new LLMError('MATERIAL_INSUFICIENTE').status).toBe(422)
+    })
+  })
+
+  describe('o comando registrado (X6, 1.0)', () => {
+    const entradaDoComando: EntradaDaTarefa<typeof gerarAtividadeObjetiva> = {
+      tema: 'estequiometria',
+      quantidade: 3,
+      contexto: { serie: '2º ano do Ensino Médio', disciplina: 'Química' },
+      habilidades: [{ codigo: 'EM13CNT101', descricao: 'Analisar e representar transformações e conservações em sistemas.' }],
+      trechos: [],
+    }
+    type Lido = { readonly execucaoVista: string }
+
+    /** Um comando de teste para uma tarefa real, com o `preparar` e o `concluir` espiados e o modelo de mentira, que conta as chamadas. */
+    function comandoDeTeste(extra: { alunoId?: string; turmaId?: string } = {}) {
+      const preparar = vi.fn(async (execucao: ExecucaoLida): Promise<Preparado<EntradaDaTarefa<typeof gerarAtividadeObjetiva>, Lido>> => ({ entrada: entradaDoComando, lido: { execucaoVista: execucao.id }, ...extra }))
+      const concluir = vi.fn(async (_saida: SaidaDaTarefa<typeof gerarAtividadeObjetiva>, _lido: Lido, _tx: DatabaseTransaction, _execucaoId: string): Promise<ResultadoGravado> => ({ tipo: 'artefato', artefatoId: randomUUID(), entregaId: null }))
+      const comando: ExecucaoCommand<EntradaDaTarefa<typeof gerarAtividadeObjetiva>, SaidaDaTarefa<typeof gerarAtividadeObjetiva>, Lido> = { tarefa: gerarAtividadeObjetiva, fila: 'ferramenta', preparar, concluir }
+      const gerar = vi.fn(async (_pedido: GenerationRequest<EntradaDaTarefa<typeof gerarAtividadeObjetiva>, SaidaDaTarefa<typeof gerarAtividadeObjetiva>>) => ({ saida: {}, medicao: {} }))
+      const registro = new RegistroDeComandos()
+      registro.registrar(comando)
+      return { comando, preparar, concluir, gerar, registro }
+    }
+    /** O agendador com o registro e o modelo de teste, e o executor segurando a execução até `liberar()`: é o intervalo entre o `202` e o `preparar`. */
+    function agendadorComEspera(teste: ReturnType<typeof comandoDeTeste>) {
+      let liberar = (): void => undefined
+      const segurar = new Promise<void>((resolver) => (liberar = resolver))
+      const comEspera: AgenteExecutor = { agendar: (execucao, trabalho) => executor.agendar(execucao, async (sinal) => (await segurar, trabalho(sinal))) }
+      const agendadorDeTeste = new ExecucaoScheduler(bancada.banco, { gerar: teste.gerar } as unknown as LLMProvider, comEspera, api.app.get<SuspensaoDeFuncao>(SUSPENSAO_DE_FUNCAO), teste.registro)
+      return { agendadorDeTeste, liberar }
+    }
+    const pedirComando = (chaveEnvio = randomUUID(), extra: Partial<ExecucaoComComando> = {}): ExecucaoComComando => ({ comando: 'gerar_atividade_objetiva', chaveEnvio, entradaDaExecucao: { tarefa: 'gerar_atividade_objetiva', parametros: { turmaId: a.turma, disciplinaId: a.quimica, tema: 'estequiometria' } }, ...extra })
+
+    it('o registro não aceita a mesma tarefa duas vezes, e a tarefa sem comando é defeito de montagem', () => {
+      const { comando, registro } = comandoDeTeste()
+      expect(() => registro.registrar(comando)).toThrow(/já tem comando/u)
+      expect(() => registro.de('resumo_do_analista')).toThrow(/não tem comando/u)
+      expect(registro.tarefas()).toEqual(['gerar_atividade_objetiva'])
+      expect(registro.de('gerar_atividade_objetiva')).toMatchObject({ tarefa: 'gerar_atividade_objetiva', funcao: 'conversa_e_ferramentas', fila: 'ferramenta' })
+    })
+
+    it('o comando relê a execução pelo id: a da pessoa, no escopo, com a entrada gravada; a de B, a do colega, a de outro ano e a de entrada inválida não são achadas', async () => {
+      const primeira = await execucaoPendente(a, a.professor, 'turno_do_tutor', 'tutor_com_o_aluno')
+      const minha = await execucaoPendente(a, a.professor)
+      const doColega = await execucaoPendente(a, a.outroProfessor)
+      const deB = await execucaoPendente(b, b.professor)
+      const execucoes = new ExecucaoDaSessaoRepository(bancada.banco)
+      await como(a, a.professor, 'professor', async () => {
+        // Com duas execuções da pessoa, é o id que escolhe: a achada é a pedida, e não a primeira da pessoa.
+        expect(await execucoes.paraExecutar(minha.id)).toEqual({ id: minha.id, tarefa: 'gerar_atividade_objetiva', chaveEnvio: minha.chave, entrada: { tarefa: 'gerar_atividade_objetiva', parametros: { turmaId: a.turma, disciplinaId: a.quimica, tema: 'estequiometria' } } })
+        expect(await execucoes.paraExecutar(primeira.id)).toMatchObject({ id: primeira.id, tarefa: 'turno_do_tutor' })
+        expect(await execucoes.paraExecutar(deB.id)).toBeUndefined()
+        expect(await execucoes.paraExecutar(doColega.id)).toBeUndefined()
+      })
+      // O ano letivo é o do contexto: a execução de A, lida num contexto de outro ano, é igual à inexistente.
+      const deOutroAno = { ...contextoDe(a, a.professor, 'professor'), anoLetivoId: randomUUID() }
+      expect(await runInContext(deOutroAno, () => execucoes.paraExecutar(minha.id))).toBeUndefined()
+      // A escola também é a do contexto: a pessoa e o ano de A, com a escola de B, não alcançam a execução de A.
+      const naEscolaDeB = { ...contextoDe(a, a.professor, 'professor'), escolaId: b.escolaId }
+      expect(await runInContext(naEscolaDeB, () => execucoes.paraExecutar(minha.id))).toBeUndefined()
+      // A entrada é `jsonb`, sem FK: o check do banco só prende a `tarefa` dela, e o resto é validado de novo na releitura.
+      await sql(`update execucao_agente set entrada = '{"tarefa":"gerar_atividade_objetiva"}' where id = $1`, [minha.id])
+      expect(await como(a, a.professor, 'professor', () => execucoes.paraExecutar(minha.id))).toBeUndefined()
+    })
+
+    it('a tarefa sem comando roda pela closure do pedido: a entrada vem da função, e o aluno e a turma vão ao modelo', async () => {
+      const { pedido } = pedidoDoTutor(b, b.outroAluno, 'dúvida de teste')
+      const entradaDoTurno = pedido.entrada as Parameters<typeof turnoDoTutor.falso>[0]
+      const gerar = vi.fn(async (_pedido: unknown) => ({ saida: await turnoDoTutor.falso(entradaDoTurno), medicao: {} }))
+      const agendadorDeTeste = new ExecucaoScheduler(bancada.banco, { gerar } as unknown as LLMProvider, executor, api.app.get<SuspensaoDeFuncao>(SUSPENSAO_DE_FUNCAO), new RegistroDeComandos())
+      const { execucaoId } = await como(b, b.outroAluno, 'aluno', () => agendadorDeTeste.agendar({ ...pedido, entrada: async () => entradaDoTurno }))
+      await executor.ociosa()
+      expect(gerar).toHaveBeenCalledTimes(1)
+      expect(gerar.mock.calls[0]?.[0]).toMatchObject({ entrada: entradaDoTurno, escolaId: b.escolaId, execucaoId, alunoId: b.outroAluno.usuarioId, turmaId: b.turma })
+      expect(await execucaoNoBanco(execucaoId)).toMatchObject({ estado: 'concluida' })
+    })
+
+    it('o resultado que o comando devolve é validado antes de concluir: o que não é referência derruba a execução, e ela não fica concluída com ele', async () => {
+      const teste = comandoDeTeste()
+      teste.concluir.mockResolvedValueOnce({ tipo: 'artefato', artefatoId: 'texto-no-lugar-da-referencia', entregaId: null })
+      const { agendadorDeTeste, liberar } = agendadorComEspera(teste)
+      const { execucaoId } = await como(a, a.professor, 'professor', () => agendadorDeTeste.agendar(pedirComando()))
+      liberar()
+      await executor.ociosa()
+      expect(teste.concluir).toHaveBeenCalledTimes(1)
+      expect(await execucaoNoBanco(execucaoId)).toMatchObject({ estado: 'falhou', resultado: null })
+    })
+
+    it('a API sobe com o comando de cada tarefa que não é do Tutor, cada um registrado pelo módulo dono', () => {
+      expect(api.app.get(RegistroDeComandos).tarefas().sort()).toEqual(['adaptar_atividade', 'gerar_atividade_objetiva', 'gerar_plano_de_aula', 'propor_ferramenta', 'resumo_do_analista'])
+    })
+
+    /** Roda o comando pelo agendador e confere o que cada peça recebeu: `extra` é o que o `preparar` devolve além da entrada (o aluno e a turma). */
+    async function rodarEConferir(extra: { alunoId?: string; turmaId?: string }): Promise<void> {
+      const teste = comandoDeTeste(extra)
+      const { agendadorDeTeste, liberar } = agendadorComEspera(teste)
+      const aoGravar = vi.fn(async (_tx: DatabaseTransaction, _execucaoId: string) => undefined)
+      const chaveEnvio = randomUUID()
+      const { execucaoId } = await como(a, a.professor, 'professor', () => agendadorDeTeste.agendar(pedirComando(chaveEnvio, { aoGravar })))
+      // O que fica na requisição é a mensagem de quem pediu; o comando ainda não rodou.
+      expect(aoGravar).toHaveBeenCalledTimes(1)
+      expect(aoGravar.mock.calls[0]?.[1]).toBe(execucaoId)
+      expect(teste.preparar).not.toHaveBeenCalled()
+      liberar()
+      await executor.ociosa()
+      expect(teste.preparar).toHaveBeenCalledTimes(1)
+      expect(teste.preparar.mock.calls[0]?.[0]).toEqual({ id: execucaoId, tarefa: 'gerar_atividade_objetiva', chaveEnvio, entrada: { tarefa: 'gerar_atividade_objetiva', parametros: { turmaId: a.turma, disciplinaId: a.quimica, tema: 'estequiometria' } } })
+      expect(teste.gerar).toHaveBeenCalledTimes(1)
+      const pedidoAoModelo = teste.gerar.mock.calls[0]?.[0]
+      expect(pedidoAoModelo).toMatchObject({ entrada: entradaDoComando, escolaId: a.escolaId, execucaoId })
+      // O freio do dia do Tutor só vê o aluno e a turma que o comando disse: sem eles, as chaves nem existem.
+      if ('alunoId' in extra) expect(pedidoAoModelo).toMatchObject({ alunoId: a.aluno.usuarioId, turmaId: a.turma })
+      else expect(Object.keys(pedidoAoModelo ?? {})).not.toEqual(expect.arrayContaining(['alunoId']))
+      if (!('alunoId' in extra)) expect(Object.keys(pedidoAoModelo ?? {})).not.toEqual(expect.arrayContaining(['turmaId']))
+      // O `concluir` recebe o `lido` do `preparar`, a transação e o id da execução, e o resultado é a referência que a execução grava.
+      expect(teste.concluir).toHaveBeenCalledTimes(1)
+      expect(teste.concluir.mock.calls[0]?.[1]).toEqual({ execucaoVista: execucaoId })
+      expect(teste.concluir.mock.calls[0]?.[3]).toBe(execucaoId)
+      expect(await execucaoNoBanco(execucaoId)).toMatchObject({ estado: 'concluida', resultado: { tipo: 'artefato', entregaId: null } })
+    }
+
+    it('o agendador roda o comando sem aluno nem turma: o `aoGravar` na requisição, o `preparar` com a execução relida e o `concluir` com o `lido` na transação; o modelo não recebe aluno nem turma', async () => {
+      await rodarEConferir({})
+    })
+
+    it('o agendador roda o comando com aluno e turma: o modelo os recebe, e só quando o comando os dá', async () => {
+      await rodarEConferir({ alunoId: a.aluno.usuarioId, turmaId: a.turma })
+    })
+
+    it('o pedido com a entrada gravada de outra tarefa é defeito de quem chama (IA_ENTRADA_INVALIDA), e a chave de outra tarefa é CONFLITO: nada é gravado nem rodado', async () => {
+      const teste = comandoDeTeste()
+      const { agendadorDeTeste, liberar } = agendadorComEspera(teste)
+      const chaveEnvio = randomUUID()
+      // Libera a execução que sobrar: sem a trava de chave, o pedido agenda uma que ficaria presa e seguraria o fim da suíte.
+      onTestFinished(liberar)
+      const errada = await como(a, a.professor, 'professor', () => agendadorDeTeste.agendar(pedirComando(chaveEnvio, { entradaDaExecucao: { tarefa: 'resumo_do_analista' } })).then(() => undefined, (erro: unknown) => erro))
+      expect(errada).toBeInstanceOf(LLMError)
+      expect((errada as LLMError).codigo).toBe('IA_ENTRADA_INVALIDA')
+      expect(await contar('execucao_agente', a.escolaId, `chave_envio = '${chaveEnvio}'`)).toBe(0)
+      // A chave que a pessoa já usou para o resumo do Analista não devolve a execução dele para a atividade.
+      await como(a, a.professor, 'professor', () => new ExecucaoDaSessaoRepository(bancada.banco).gravarPendente('resumo_do_analista', chaveEnvio, { tarefa: 'resumo_do_analista' }))
+      expect((await erroDe(como(a, a.professor, 'professor', () => agendadorDeTeste.agendar(pedirComando(chaveEnvio))))).codigo).toBe(ErrorCode.CONFLITO)
+      expect(teste.preparar).not.toHaveBeenCalled()
+    })
+
+    it('o comando não registrado é defeito de montagem: o `POST` não grava a execução', async () => {
+      const teste = comandoDeTeste()
+      const { agendadorDeTeste } = agendadorComEspera(teste)
+      const chaveEnvio = randomUUID()
+      await expect(como(a, a.professor, 'professor', () => agendadorDeTeste.agendar({ comando: 'resumo_do_analista', chaveEnvio, entradaDaExecucao: { tarefa: 'resumo_do_analista' } }))).rejects.toThrow(/não tem comando/u)
+      expect(await contar('execucao_agente', a.escolaId, `chave_envio = '${chaveEnvio}'`)).toBe(0)
+    })
+
+    it('depois do 202, a função suspensa, a execução que saiu do alcance e a linha que virou de outra tarefa não chegam ao `preparar`: nem leitura, nem modelo', async () => {
+      const c = await montarEscola()
+      const casos = [
+        { rotulo: 'função suspensa', erro: 'FUNCAO_SUSPENSA', mexer: () => sql(`insert into suspensao_de_funcao (escola_id, funcao, suspensa_por) values ($1, 'conversa_e_ferramentas', $2)`, [c.escolaId, c.coordenacao.usuarioId]) },
+        { rotulo: 'a execução anonimizada (sem quem pediu)', erro: 'NAO_ENCONTRADO', mexer: (id: string) => sql('update execucao_agente set solicitada_por = null where id = $1', [id]) },
+        { rotulo: 'a linha que virou de outra tarefa', erro: 'NAO_ENCONTRADO', mexer: (id: string) => sql(`update execucao_agente set tarefa = 'resumo_do_analista', funcao = 'resumo_e_alerta', entrada = '{"tarefa":"resumo_do_analista"}' where id = $1`, [id]) },
+      ]
+      for (const { rotulo, erro, mexer } of casos) {
+        const teste = comandoDeTeste()
+        const { agendadorDeTeste, liberar } = agendadorComEspera(teste)
+        const { execucaoId } = await como(c, c.professor, 'professor', () => agendadorDeTeste.agendar(pedirComando(randomUUID(), { entradaDaExecucao: { tarefa: 'gerar_atividade_objetiva', parametros: { turmaId: c.turma, disciplinaId: c.quimica, tema: 'estequiometria' } } })))
+        await mexer(execucaoId)
+        liberar()
+        await executor.ociosa()
+        expect(await execucaoNoBanco(execucaoId), rotulo).toMatchObject({ estado: 'falhou', erro, resultado: null })
+        expect(teste.preparar, rotulo).not.toHaveBeenCalled()
+        expect(teste.gerar, rotulo).not.toHaveBeenCalled()
+        await sql('delete from suspensao_de_funcao where escola_id = $1', [c.escolaId])
+      }
     })
   })
 

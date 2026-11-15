@@ -9,6 +9,7 @@ import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
 import { chamar, subirApi, type TestApi, type RespostaHttp } from '../../test/test-api.js'
 import {
   comoPessoa,
+  contarNaEscola,
   copiarArtefatoParaOAnoAnterior,
   dispararExecucao,
   execucaoTerminada,
@@ -317,6 +318,21 @@ describe('entregas', () => {
       const { entregaId } = await entregaPendente(a, atividadeDeA)
       expect(await noBanco(entregaId)).toEqual({ estado: 'pendente', decidida_por: null, decidida_em: null, justificativa: null })
       expect(await auditoriasDa(entregaId)).toEqual([])
+    })
+
+    it('caracterização do comando: a conversa do Assistente e a geração da atividade concluem sem entrega nem decisão (só a adaptação cria entrega, e pendente)', async () => {
+      await zerarLimiteDePedidosDeIa(api)
+      const entregasAntes = await contarNaEscola(bancada, 'entrega', a.escolaId)
+      const conversa = await execucaoTerminada(api, a.professora, await dispararExecucao(api, a.professora, '/v1/assistente/mensagens', { texto: 'monta uma atividade de estequiometria', turmaId: a.turma, disciplinaId: a.quimica }))
+      expect(conversa).toMatchObject({ estado: 'concluida', resultado: { tipo: 'mensagem' } })
+      expect(conversa.resultado?.entregaId).toBeUndefined()
+      const geracao = await execucaoTerminada(api, a.professora, await dispararExecucao(api, a.professora, '/v1/ferramentas/atividade_objetiva/gerar', { turmaId: a.turma, disciplinaId: a.quimica, tema: 'reagente limitante', quantidade: 3 }))
+      expect(geracao).toMatchObject({ estado: 'concluida', resultado: { tipo: 'artefato', entregaId: null } })
+      expect(await contarNaEscola(bancada, 'entrega', a.escolaId)).toBe(entregasAntes)
+      // A adaptação, ao contrário, cria a entrega, pendente e sem autor de decisão.
+      const adaptada = await entregaPendente(a, atividadeDeA)
+      expect(await contarNaEscola(bancada, 'entrega', a.escolaId)).toBe(entregasAntes + 1)
+      expect(await noBanco(adaptada.entregaId)).toEqual({ estado: 'pendente', decidida_por: null, decidida_em: null, justificativa: null })
     })
 
     it('sem a sessão de uma pessoa no contexto (job, rotina, execução em segundo plano), decidir é recusado e nada muda', async () => {

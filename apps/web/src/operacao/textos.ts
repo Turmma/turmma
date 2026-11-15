@@ -1,5 +1,5 @@
 import { ErrorCode, formatarEspera, MENSAGENS_DE_ERRO, mensagemDaEntrada, mensagemDoSegundoFator, type TipoDeRede } from '@educa/shared'
-import { ApiError } from '../api/client'
+import { ApiError, estourouNoCliente } from '../api/client'
 import type { FalhaDoConvite } from '../components/DialogoDoConvite'
 import { errorText as textoDaFalhaPeloCodigo } from '../components/error-text'
 import { TEXTO_DO_CONVITE_QUE_MUDOU, TEXTO_DO_CONVITE_QUE_NAO_VALE } from '../components/textos-do-convite'
@@ -73,12 +73,13 @@ export function ehEnderecoRepetido(erro: unknown): boolean {
 }
 
 /**
- * A falha em que não se sabe se o servidor criou: a conexão caiu (a resposta pode ter se perdido depois da gravação) ou a
- * resposta veio fora do contrato. O 503 da trava (`TEMPO_ESGOTADO`), o 429 e os 4xx são recusas: nada foi gravado.
+ * A falha em que não se sabe se o servidor criou: a conexão caiu (a resposta pode ter se perdido depois da gravação), a
+ * resposta veio fora do contrato, ou o prazo da chamada estourou no navegador (52.0: o pedido pode ter sido gravado e a resposta
+ * não chegou). O 503 da trava (`TEMPO_ESGOTADO` **da API**, sem `origem`), o 429 e os 4xx são recusas: nada foi gravado.
  */
 export function ehResultadoIncerto(erro: unknown): boolean {
   const codigo = codigoDe(erro)
-  return codigo === ErrorCode.INDISPONIVEL_TENTE_DE_NOVO || codigo === ErrorCode.ERRO_INTERNO
+  return codigo === ErrorCode.INDISPONIVEL_TENTE_DE_NOVO || codigo === ErrorCode.ERRO_INTERNO || estourouNoCliente(erro)
 }
 
 /**

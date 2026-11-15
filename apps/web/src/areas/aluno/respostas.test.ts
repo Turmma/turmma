@@ -229,7 +229,7 @@ describe('só a escolha mais nova vale: a sequência manda max(local, servidor) 
  * `gravadaPorOutraJanela` responde com uma escolha mais nova, que não é a mandada.
  */
 function servidorDeMentira() {
-  const chamadas: { questao: number; alternativa: number; sequencia: number; aceitar: () => void; gravadaPorOutraJanela: (alternativa: number, sequencia: number) => void; recusar: (codigo: ErrorCode) => void }[] = []
+  const chamadas: { questao: number; alternativa: number; sequencia: number; aceitar: () => void; gravadaPorOutraJanela: (alternativa: number, sequencia: number) => void; recusar: (codigo: ErrorCode) => void; estourar: () => void }[] = []
   const salvar = (questao: number, alternativa: number, sequencia: number): Promise<QuestaoSalvaResponse> =>
     new Promise((resolver, rejeitar) => {
       chamadas.push({
@@ -239,6 +239,8 @@ function servidorDeMentira() {
         aceitar: () => resolver({ questao, alternativa, sequencia, respondidaEm: '2026-10-05T13:10:00.000Z' }),
         gravadaPorOutraJanela: (outraAlternativa, outraSequencia) => resolver({ questao, alternativa: outraAlternativa, sequencia: outraSequencia, respondidaEm: '2026-10-05T13:10:00.000Z' }),
         recusar: (codigo) => rejeitar(new ApiError(codigo)),
+        // O prazo do cliente estourou (`comPrazo`): o mesmo código da API, com a marca de origem.
+        estourar: () => rejeitar(new ApiError(ErrorCode.TEMPO_ESGOTADO, undefined, 'cliente')),
       })
     })
   return { chamadas, salvar }
@@ -405,5 +407,143 @@ describe('o reenvio das respostas', () => {
     expect(provaComRespostaSalva(prova, { questao: 1, alternativa: 1, sequencia: 2 }).respostas).toContainEqual({ questao: 1, alternativa: 1, sequencia: 2 })
     // Questão que ainda não tinha resposta no cache: entra.
     expect(provaComRespostaSalva(prova, { questao: 3, alternativa: 0, sequencia: 1 }).respostas).toContainEqual({ questao: 3, alternativa: 0, sequencia: 1 })
+  })
+})
+
+describe('a resposta de prova pendurada não trava as outras (RF11; regra 80, item 6)', () => {
+  const escolhas = (estado: EstadoDaFila) => estado.pendentes.map((pendente) => `${String(pendente.questao)}:${String(pendente.alternativa)}:${String(pendente.sequencia)}`)
+
+  it('a gravação que estoura o prazo vai para o fim da fila, com a mesma sequência, e a questão seguinte sai antes dela', () => {
+    const noAr = comecarEnvio(escolher(escolher(escolher(FILA_VAZIA, 1, 0), 2, 1), 3, 2))
+    expect(noAr.noAr).toMatchObject({ questao: 1, alternativa: 0, sequencia: 1 })
+    const depois = falharEnvio(noAr, ErrorCode.TEMPO_ESGOTADO)
+    expect(escolhas(depois)).toEqual(['2:1:1', '3:2:1', '1:0:1'])
+    expect(proximoEnvio(depois)).toMatchObject({ questao: 2, alternativa: 1, sequencia: 1 })
+    expect(depois).toMatchObject({ noAr: undefined, falha: 'passageira', tentativas: 1 })
+  })
+
+  it('só o estouro muda a ordem: a gravação que falha de outro jeito continua na frente, e o que não passa sozinho segue parando a fila', () => {
+    const noAr = comecarEnvio(escolher(escolher(FILA_VAZIA, 1, 0), 2, 1))
+    for (const codigo of [ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, ErrorCode.ERRO_INTERNO, ErrorCode.LIMITE_EXCEDIDO]) {
+      expect(escolhas(falharEnvio(noAr, codigo)), codigo).toEqual(['1:0:1', '2:1:1'])
+    }
+    expect(falharEnvio(noAr, ErrorCode.ATIVIDADE_ENCERRADA).falha).toBe('encerrada')
+    // Sem gravação no ar, a falha que chega (o relógio atrasado de uma fila já parada) não mexe em nada.
+    expect(falharEnvio(FILA_VAZIA, ErrorCode.TEMPO_ESGOTADO)).toBe(FILA_VAZIA)
+  })
+
+  it('o estouro de uma gravação que já tinha sido trocada não move a escolha nova: só sai do ar a velha, e cada questão fica onde estava', () => {
+    // A questão 1 vai ao ar; a pessoa marca a 2, troca a 1 e marca a 3. A fila é [2, 1 (nova), 3].
+    let estado = comecarEnvio(escolher(FILA_VAZIA, 1, 0))
+    estado = escolher(escolher(escolher(estado, 2, 1), 1, 2), 3, 3)
+    expect(escolhas(estado)).toEqual(['2:1:1', '1:2:2', '3:3:1'])
+    const depois = falharEnvio(estado, ErrorCode.TEMPO_ESGOTADO)
+    // Nem a 1 nova (mesma questão, outra sequência) nem a 2 (outra questão, mesma sequência) vão para o fim.
+    expect(escolhas(depois)).toEqual(['2:1:1', '1:2:2', '3:3:1'])
+    expect(depois.noAr).toBeUndefined()
+  })
+
+  it('com duas na fila, a que pendurou espera a vez: a seguinte sai na hora, sem recuo, e a pendurada volta com a mesma sequência', async () => {
+    const servidor = servidorDeMentira()
+    const relogio = relogioDeMentira()
+    const salvas: number[] = []
+    const fila = criarFilaDeRespostas({ salvar: servidor.salvar, aoSalvar: (salva) => salvas.push(salva.questao), agendar: relogio.agendar })
+    fila.escolher(1, 0)
+    fila.escolher(2, 1)
+    expect(servidor.chamadas).toHaveLength(1)
+    servidor.chamadas[0]?.estourar()
+    await assentar()
+    // A questão 2 sai agora, sem esperar relógio nenhum; a 1 está no fim da fila.
+    expect(servidor.chamadas).toHaveLength(2)
+    expect(servidor.chamadas[1]).toMatchObject({ questao: 2, alternativa: 1, sequencia: 1 })
+    expect(relogio.agendados).toEqual([])
+    expect(escolhas(fila.ler())).toEqual(['2:1:1', '1:0:1'])
+    servidor.chamadas[1]?.aceitar()
+    await assentar()
+    // Recomeço: a mesma questão sai de novo, com a mesma sequência (o servidor grava uma vez só).
+    expect(servidor.chamadas).toHaveLength(3)
+    expect(servidor.chamadas[2]).toMatchObject({ questao: 1, alternativa: 0, sequencia: 1 })
+    servidor.chamadas[2]?.aceitar()
+    await assentar()
+    expect(salvas).toEqual([2, 1])
+    expect(fila.ler()).toMatchObject({ pendentes: [], noAr: undefined, falha: undefined })
+  })
+
+  it('duas penduradas se revezam: cada estouro manda a outra, e nenhuma fica esquecida', async () => {
+    const servidor = servidorDeMentira()
+    const relogio = relogioDeMentira()
+    const fila = criarFilaDeRespostas({ salvar: servidor.salvar, aoSalvar: () => undefined, agendar: relogio.agendar })
+    fila.escolher(1, 0)
+    fila.escolher(2, 1)
+    servidor.chamadas[0]?.estourar()
+    await assentar()
+    servidor.chamadas[1]?.estourar()
+    await assentar()
+    expect(servidor.chamadas.map((chamada) => `${String(chamada.questao)}:${String(chamada.sequencia)}`)).toEqual(['1:1', '2:1', '1:1'])
+    expect(escolhas(fila.ler())).toEqual(['1:0:1', '2:1:1'])
+  })
+
+  it('o TEMPO_ESGOTADO que a API devolve (o 503 rápido do banco sobrecarregado) passa pelo recuo, mesmo com duas na fila: só o estouro do cliente libera a seguinte', async () => {
+    semJitter()
+    const servidor = servidorDeMentira()
+    const relogio = relogioDeMentira()
+    const fila = criarFilaDeRespostas({ salvar: servidor.salvar, aoSalvar: () => undefined, agendar: relogio.agendar })
+    fila.escolher(1, 0)
+    fila.escolher(2, 1)
+    servidor.chamadas[0]?.recusar(ErrorCode.TEMPO_ESGOTADO)
+    await assentar()
+    expect(servidor.chamadas).toHaveLength(1)
+    expect(relogio.agendados.map((item) => item.esperaMs)).toEqual([2_000])
+  })
+
+  it('com uma só escolha na fila, o estouro espera o recuo de sempre: a mesma gravação não é martelada na API', async () => {
+    semJitter()
+    const servidor = servidorDeMentira()
+    const relogio = relogioDeMentira()
+    const fila = criarFilaDeRespostas({ salvar: servidor.salvar, aoSalvar: () => undefined, agendar: relogio.agendar })
+    fila.escolher(1, 0)
+    servidor.chamadas[0]?.estourar()
+    await assentar()
+    expect(servidor.chamadas).toHaveLength(1)
+    expect(relogio.agendados.map((item) => item.esperaMs)).toEqual([2_000])
+  })
+
+  it('a falha que não é estouro, com outra escolha esperando, também espera o recuo: só o estouro libera a seguinte na hora', async () => {
+    semJitter()
+    const servidor = servidorDeMentira()
+    const relogio = relogioDeMentira()
+    const fila = criarFilaDeRespostas({ salvar: servidor.salvar, aoSalvar: () => undefined, agendar: relogio.agendar })
+    fila.escolher(1, 0)
+    fila.escolher(2, 1)
+    servidor.chamadas[0]?.recusar(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
+    await assentar()
+    expect(servidor.chamadas).toHaveLength(1)
+    expect(relogio.agendados.map((item) => item.esperaMs)).toEqual([2_000])
+    expect(escolhas(fila.ler())).toEqual(['1:0:1', '2:1:1'])
+  })
+
+  it('resposta velha: a escolha trocada enquanto a anterior pendurava é a que vale, e a velha, que o servidor receba atrasada, não a troca no cache', async () => {
+    semJitter()
+    const servidor = servidorDeMentira()
+    const relogio = relogioDeMentira()
+    const salvas: QuestaoSalvaResponse[] = []
+    const fila = criarFilaDeRespostas({ salvar: servidor.salvar, aoSalvar: (salva) => salvas.push(salva), agendar: relogio.agendar })
+    fila.escolher(1, 0)
+    // A gravação da alternativa 0 está pendurada no ar; a pessoa muda de ideia e marca a 2: ela espera na fila, uma acima.
+    fila.escolher(1, 2)
+    expect(escolhas(fila.ler())).toEqual(['1:2:2'])
+    servidor.chamadas[0]?.estourar()
+    await assentar()
+    // A velha estourou e não volta: a fila só tem a nova, com a sequência dela.
+    expect(escolhas(fila.ler())).toEqual(['1:2:2'])
+    relogio.agendados[0]?.funcao()
+    expect(servidor.chamadas[1]).toMatchObject({ questao: 1, alternativa: 2, sequencia: 2 })
+    servidor.chamadas[1]?.aceitar()
+    await assentar()
+    expect(salvas).toEqual([{ questao: 1, alternativa: 2, sequencia: 2, respondidaEm: '2026-10-05T13:10:00.000Z' }])
+    expect(fila.ler()).toMatchObject({ pendentes: [], alteradas: [], conhecidas: { 1: { alternativa: 2, sequencia: 2 } } })
+    // A velha chega ao servidor depois da nova e a tela a recebe: o cache da prova fica com a nova.
+    const prova = { atividadeAplicadaId: 'x', titulo: 't', avaliativa: false, estado: 'aberta' as const, adaptacao: null, questoes: [], respostas: [{ questao: 1, alternativa: 2, sequencia: 2 }], enviadaEm: null }
+    expect(provaComRespostaSalva(prova, { questao: 1, alternativa: 0, sequencia: 1 })).toBe(prova)
   })
 })

@@ -1,7 +1,7 @@
 import { type AgenteExecutor, type InProcessAgenteExecutor, type LLMProvider, type SuspensaoDeFuncao } from '@educa/core'
-import { conteudoDeAtividadeSchema, artefatoResponseSchema, listaDeArtefatosResponseSchema, listaDeEntregasResponseSchema, timeResponseSchema, type ChaveDeFuncao, type ConteudoDeAtividade } from '@educa/shared'
+import { QUESTOES_PADRAO_POR_ATIVIDADE, conteudoDeAtividadeSchema, artefatoResponseSchema, listaDeArtefatosResponseSchema, listaDeEntregasResponseSchema, timeResponseSchema, type ChaveDeFuncao, type ConteudoDeAtividade } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { normalizarTexto, textoDaPagina } from '../../../../tools/demonstracao/conteudo-estequiometria.ts'
 import { extrairTextoPorPagina } from '../../../../tools/demonstracao/extrair-texto.ts'
 import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
@@ -26,10 +26,12 @@ import { SessaoFixtures, type TestSessao } from '../../test/sessao.fixture.js'
 import { IaRequestRateLimit } from '../assistente/ai-request-rate-limit.js'
 import { ExecucaoScheduler } from '../ia/execucao.scheduler.js'
 import { EXECUTOR_DE_AGENTE, LLM_PROVIDER, SUSPENSAO_DE_FUNCAO } from '../ia/ia.module.js'
+import { RegistroDeComandos } from '../ia/registro-de-comandos.js'
 import { TrechoSearch } from '../material/trecho-search.js'
 import { ArtefatoRepository } from './artefato.repository.js'
 import { ArtefatoService } from './artefato.service.js'
-import { DURACAO_PADRAO_DO_PLANO_DE_AULA_MIN, FerramentasService } from './ferramentas.service.js'
+import { DURACAO_PADRAO_DO_PLANO_DE_AULA_MIN } from './ferramentas.command.js'
+import { FerramentasService } from './ferramentas.service.js'
 import { AVISO_DE_IA_NO_PDF, AVISO_DE_IA_NO_RASCUNHO, MARCA_DE_RASCUNHO } from './pdf-do-artefato.js'
 
 /**
@@ -82,7 +84,7 @@ describe('ferramentas e artefato', () => {
     const ia = { gerar: async (pedido: { entrada: unknown; execucaoId?: string }) => ({ saida: await gerarSaida(pedido), medicao: {} }) } as unknown as LLMProvider
     // `antesDeRodar` segura o trabalho da execução até o teste liberar: é o intervalo entre o `202` e a execução.
     const comEspera: AgenteExecutor = { agendar: (execucao, trabalho) => executor.agendar(execucao, async (sinal) => (await antesDeRodar, trabalho(sinal))) }
-    const agendador = new ExecucaoScheduler(bancada.banco, ia, comEspera, api.app.get<SuspensaoDeFuncao>(SUSPENSAO_DE_FUNCAO))
+    const agendador = new ExecucaoScheduler(bancada.banco, ia, comEspera, api.app.get<SuspensaoDeFuncao>(SUSPENSAO_DE_FUNCAO), api.app.get(RegistroDeComandos))
     const limite = api.app.get(IaRequestRateLimit)
     return { ferramentas: new FerramentasService(bancada.banco, agendador, limite, api.app.get(TrechoSearch)), artefatos: new ArtefatoService(bancada.banco, agendador, limite) }
   }
@@ -355,6 +357,197 @@ describe('ferramentas e artefato', () => {
       // Nada do material foi ao modelo, e nenhum artefato nasceu.
       expect(chamadasAoModelo).toBe(0)
       expect(await contarNaEscola(bancada, 'artefato', a.escolaId)).toBe(antes)
+    })
+  })
+
+  describe('o comando das ferramentas e da adaptação relê a execução pelo id (X6, 1.0)', () => {
+    /** O modelo de mentira que guarda as entradas, com o executor segurando a execução até `liberar()`: é o intervalo entre o `202` e o `preparar`. */
+    function comModelo() {
+      let liberar = (): void => undefined
+      const entradas: Record<string, unknown>[] = []
+      const servicos = comProvedor(
+        async (pedido) => {
+          entradas.push(pedido.entrada as Record<string, unknown>)
+          return {}
+        },
+        new Promise<void>((resolver) => (liberar = resolver)),
+      )
+      return { ...servicos, liberar, entradas }
+    }
+    const tema = (escola: EscolaComAssistente, tema: string) => ({ ...parametros(escola, tema), chaveEnvio: randomUUID() })
+
+    it('a atividade e o plano saem pelos parâmetros gravados com a execução, e não pelos do corpo do pedido', async () => {
+      for (const [ferramenta, campo] of [['atividade_objetiva', 'tema'], ['plano_de_aula', 'tema']] as const) {
+        const { ferramentas, liberar, entradas } = comModelo()
+        const { execucaoId } = await comoPessoa(a, a.professora, 'professor', () => ferramentas.gerar(ferramenta, tema(a, 'reagente limitante')))
+        await sql(`update execucao_agente set entrada = jsonb_set(entrada, '{parametros,tema}', '"reagente em excesso"') where id = $1`, [execucaoId])
+        liberar()
+        await execucaoTerminada(api, a.professora, execucaoId)
+        expect(entradas, ferramenta).toHaveLength(1)
+        expect(entradas[0]?.[campo], ferramenta).toBe('reagente em excesso')
+      }
+    })
+
+    it('a adaptação sai pelos tipos gravados com a execução, e o artefato vem do gravado, relido no alcance', async () => {
+      const { artefatos, liberar, entradas } = comModelo()
+      const { execucaoId } = await comoPessoa(a, a.professora, 'professor', () => artefatos.adaptar(atividadeDeA, { tipos: ['fonte_ampliada'], chaveEnvio: randomUUID() }))
+      await sql(`update execucao_agente set entrada = jsonb_set(entrada, '{tipos}', '["tempo_adicional"]') where id = $1`, [execucaoId])
+      liberar()
+      await execucaoTerminada(api, a.professora, execucaoId)
+      expect(entradas).toHaveLength(1)
+      expect(entradas[0]).toMatchObject({ adaptacao: { tipos: ['tempo_adicional'] } })
+    })
+
+    it('a entrada gravada que cita a turma, o artefato ou a disciplina de quem a pessoa não alcança, lida no contexto da A, é NAO_ENCONTRADO: nada da B é lido, nada vai ao modelo, e não há consumo', async () => {
+      const busca = vi.spyOn(api.app.get(TrechoSearch), 'buscar')
+      try {
+        const casos = [
+          { rotulo: 'turma da B', pedir: (s: ReturnType<typeof comModelo>) => s.ferramentas.gerar('atividade_objetiva', tema(a, 'reagente limitante')), mexer: `jsonb_set(jsonb_set(entrada, '{parametros,turmaId}', to_jsonb($2::text)), '{parametros,disciplinaId}', to_jsonb($3::text))`, valores: [b.turma, b.quimica] },
+          { rotulo: 'disciplina da B', pedir: (s: ReturnType<typeof comModelo>) => s.ferramentas.gerar('plano_de_aula', tema(a, 'reagente limitante')), mexer: `jsonb_set(entrada, '{parametros,disciplinaId}', to_jsonb($2::text))`, valores: [b.fisica] },
+          { rotulo: 'artefato da B', pedir: (s: ReturnType<typeof comModelo>) => s.artefatos.adaptar(atividadeDeA, { tipos: ['fonte_ampliada'], chaveEnvio: randomUUID() }), mexer: `jsonb_set(entrada, '{artefatoId}', to_jsonb($2::text))`, valores: [atividadeDeB] },
+        ]
+        const consumoAntes = await contarNaEscola(bancada, 'consumo_ia', a.escolaId)
+        for (const { rotulo, pedir: disparar, mexer, valores } of casos) {
+          const servicos = comModelo()
+          const { execucaoId } = await comoPessoa(a, a.professora, 'professor', () => disparar(servicos))
+          busca.mockClear()
+          await sql(`update execucao_agente set entrada = ${mexer} where id = $1`, [execucaoId, ...valores])
+          servicos.liberar()
+          expect(await execucaoTerminada(api, a.professora, execucaoId), rotulo).toMatchObject({ estado: 'falhou', erro: 'NAO_ENCONTRADO', resultado: null })
+          expect(servicos.entradas, rotulo).toEqual([])
+          expect(busca, rotulo).not.toHaveBeenCalled()
+        }
+        expect(await contarNaEscola(bancada, 'consumo_ia', a.escolaId)).toBe(consumoAntes)
+      } finally {
+        busca.mockRestore()
+      }
+    })
+
+    it('o vínculo encerrado depois do 202, na adaptação: a execução confere de novo o alcance do artefato, e nada vai ao modelo nem vira versão ou entrega', async () => {
+      const busca = vi.spyOn(api.app.get(TrechoSearch), 'buscar')
+      try {
+        await vincularProfessor(bancada, a, a.colega.usuarioId, a.turma, a.quimica)
+        const servicos = comModelo()
+        const versoesAntes = await contarNaEscola(bancada, 'artefato', a.escolaId)
+        const entregasAntes = await contarNaEscola(bancada, 'entrega', a.escolaId)
+        // O vínculo acaba entre o `202` e a execução.
+        const { execucaoId } = await comoPessoa(a, a.colega, 'professor', () => servicos.artefatos.adaptar(atividadeDeA, { tipos: ['fonte_ampliada'], chaveEnvio: randomUUID() }))
+        await sql(`update vinculo set estado = 'encerrado', motivo_encerramento = 'realocacao', encerrado_em = now() where escola_id = $1 and usuario_id = $2 and turma_id = $3`, [a.escolaId, a.colega.usuarioId, a.turma])
+        busca.mockClear()
+        servicos.liberar()
+        expect(await execucaoTerminada(api, a.colega, execucaoId)).toMatchObject({ estado: 'falhou', erro: 'NAO_ENCONTRADO', resultado: null })
+        expect(servicos.entradas).toEqual([])
+        expect(busca).not.toHaveBeenCalled()
+        expect(await contarNaEscola(bancada, 'artefato', a.escolaId)).toBe(versoesAntes)
+        expect(await contarNaEscola(bancada, 'entrega', a.escolaId)).toBe(entregasAntes)
+      } finally {
+        busca.mockRestore()
+        await sql(`delete from vinculo where escola_id = $1 and usuario_id = $2 and turma_id = $3`, [a.escolaId, a.colega.usuarioId, a.turma])
+      }
+    })
+
+    it('a função suspensa depois do 202, nas três tarefas do módulo, não chega ao `preparar`: nem busca, nem modelo, nem consumo, e a execução falha com FUNCAO_SUSPENSA', async () => {
+      const busca = vi.spyOn(api.app.get(TrechoSearch), 'buscar')
+      try {
+        const casos = [
+          { funcao: 'conversa_e_ferramentas' as const, pedir: (s: ReturnType<typeof comModelo>) => s.ferramentas.gerar('atividade_objetiva', tema(a, 'reagente limitante')) },
+          { funcao: 'conversa_e_ferramentas' as const, pedir: (s: ReturnType<typeof comModelo>) => s.ferramentas.gerar('plano_de_aula', tema(a, 'reagente limitante')) },
+          { funcao: 'adaptacao' as const, pedir: (s: ReturnType<typeof comModelo>) => s.artefatos.adaptar(atividadeDeA, { tipos: ['fonte_ampliada'], chaveEnvio: randomUUID() }) },
+        ]
+        const consumoAntes = await contarNaEscola(bancada, 'consumo_ia', a.escolaId)
+        for (const { funcao, pedir: disparar } of casos) {
+          const servicos = comModelo()
+          const { execucaoId } = await comoPessoa(a, a.professora, 'professor', () => disparar(servicos))
+          busca.mockClear()
+          await suspender(a, funcao)
+          try {
+            servicos.liberar()
+            expect(await execucaoTerminada(api, a.professora, execucaoId), funcao).toMatchObject({ estado: 'falhou', erro: 'FUNCAO_SUSPENSA', resultado: null })
+          } finally {
+            await retomar(a, funcao)
+          }
+          expect(servicos.entradas, funcao).toEqual([])
+          expect(busca, funcao).not.toHaveBeenCalled()
+        }
+        expect(await contarNaEscola(bancada, 'consumo_ia', a.escolaId)).toBe(consumoAntes)
+      } finally {
+        busca.mockRestore()
+      }
+    })
+
+    it('sem trecho do material, o comando falha com MATERIAL_INSUFICIENTE antes do modelo: nenhuma entrada, nenhuma chamada, nenhum artefato', async () => {
+      const antes = await contarNaEscola(bancada, 'artefato', a.escolaId)
+      const { ferramentas, liberar, entradas } = comModelo()
+      const { execucaoId } = await comoPessoa(a, a.professora, 'professor', () => ferramentas.gerar('atividade_objetiva', tema(a, 'xilofone zumbi')))
+      liberar()
+      expect(await execucaoTerminada(api, a.professora, execucaoId)).toMatchObject({ estado: 'falhou', erro: 'MATERIAL_INSUFICIENTE', resultado: null })
+      expect(entradas).toEqual([])
+      expect(await contarNaEscola(bancada, 'artefato', a.escolaId)).toBe(antes)
+    })
+
+    it('a tarefa recebe os trechos na ordem do material (por material e, no mesmo material, por página), e a quantidade padrão quando a professora não pede', async () => {
+      const busca = vi.spyOn(api.app.get(TrechoSearch), 'buscar')
+      try {
+        // A busca devolve por relevância, fora de ordem: dois materiais, e páginas trocadas dentro de cada um.
+        const [primeiro = '', segundo = ''] = [a.materialId, 'ffffffff-ffff-4fff-8fff-ffffffffffff'].sort()
+        const trecho = (materialId: string, pagina: number) => ({ materialId, disciplinaId: a.quimica, titulo: 'Material', pagina, texto: `${materialId}:${String(pagina)}` })
+        busca.mockResolvedValueOnce([trecho(segundo, 1), trecho(primeiro, 5), trecho(primeiro, 2), trecho(segundo, 9)])
+        const { ferramentas, liberar, entradas } = comModelo()
+        const { execucaoId } = await comoPessoa(a, a.professora, 'professor', () => ferramentas.gerar('atividade_objetiva', tema(a, 'reagente limitante')))
+        liberar()
+        await execucaoTerminada(api, a.professora, execucaoId)
+        expect(entradas).toHaveLength(1)
+        expect((entradas[0]?.['trechos'] as { texto: string }[]).map((item) => item.texto)).toEqual([`${primeiro}:2`, `${primeiro}:5`, `${segundo}:1`, `${segundo}:9`])
+        expect(entradas[0]?.['quantidade']).toBe(QUESTOES_PADRAO_POR_ATIVIDADE)
+      } finally {
+        busca.mockRestore()
+      }
+    })
+
+    it('a saída da geração que não cabe no contrato, ou que traz a marca de versão adaptada, é IA_SAIDA_INVALIDA: nenhum artefato nasce', async () => {
+      const antes = await contarNaEscola(bancada, 'artefato', a.escolaId)
+      const saidas = [
+        { rotulo: 'objeto vazio', saida: async () => ({}) },
+        {
+          rotulo: 'atividade com a marca de adaptação',
+          saida: async (pedido: Parameters<LLMProvider['gerar']>[0]) => ({ ...((await falso().gerar(pedido)).saida as ConteudoDeAtividade), adaptacao: { tipos: ['fonte_ampliada'] } }),
+        },
+      ]
+      for (const { rotulo, saida } of saidas) {
+        const servicos = comProvedor((pedido) => saida(pedido as Parameters<LLMProvider['gerar']>[0]))
+        const { execucaoId } = await comoPessoa(a, a.professora, 'professor', () => servicos.ferramentas.gerar('atividade_objetiva', tema(a, 'reagente limitante')))
+        expect(await execucaoTerminada(api, a.professora, execucaoId), rotulo).toMatchObject({ estado: 'falhou', erro: 'IA_SAIDA_INVALIDA', resultado: null })
+      }
+      expect(await contarNaEscola(bancada, 'artefato', a.escolaId)).toBe(antes)
+    })
+
+    it('a adaptação leva ao modelo só o que foi pedido: sem tempo extra, a chave nem existe; e a saída fora do contrato é IA_SAIDA_INVALIDA', async () => {
+      const { artefatos, liberar, entradas } = comModelo()
+      const { execucaoId } = await comoPessoa(a, a.professora, 'professor', () => artefatos.adaptar(atividadeDeA, { tipos: ['fonte_ampliada'], chaveEnvio: randomUUID() }))
+      liberar()
+      expect(await execucaoTerminada(api, a.professora, execucaoId)).toMatchObject({ estado: 'falhou', erro: 'IA_SAIDA_INVALIDA', resultado: null })
+      expect(entradas).toHaveLength(1)
+      expect(Object.keys((entradas[0] as { adaptacao: object }).adaptacao)).toEqual(['tipos'])
+    })
+
+    it('o artefato de origem que some entre o modelo e a gravação é NAO_ENCONTRADO: nem versão adaptada nem entrega', async () => {
+      const origem = await gerar(a, 'atividade_objetiva', 'reagente limitante e reagente em excesso', { quantidade: 2 })
+      const antes = [await contarNaEscola(bancada, 'artefato', a.escolaId), await contarNaEscola(bancada, 'entrega', a.escolaId)]
+      const servicos = comProvedor(async (pedido) => {
+        await sql('delete from artefato where escola_id = $1 and id = $2', [a.escolaId, origem])
+        return (await falso().gerar(pedido as Parameters<LLMProvider['gerar']>[0])).saida
+      })
+      const { execucaoId } = await comoPessoa(a, a.professora, 'professor', () => servicos.artefatos.adaptar(origem, { tipos: ['fonte_ampliada'], chaveEnvio: randomUUID() }))
+      expect(await execucaoTerminada(api, a.professora, execucaoId)).toMatchObject({ estado: 'falhou', erro: 'NAO_ENCONTRADO', resultado: null })
+      expect([await contarNaEscola(bancada, 'artefato', a.escolaId), await contarNaEscola(bancada, 'entrega', a.escolaId)]).toEqual(antes.map((total, indice) => (indice === 0 ? total - 1 : total)))
+    })
+
+    it('o conteúdo gravado que não lê como atividade é CONFLITO, sem execução: o que se adapta é a atividade inteira', async () => {
+      const lixo = await gerar(a, 'atividade_objetiva', 'reagente limitante e reagente em excesso', { quantidade: 2 })
+      await sql(`update artefato set conteudo = '{"tipo":"atividade_objetiva"}'::jsonb where escola_id = $1 and id = $2`, [a.escolaId, lixo])
+      const execucoes = await contarNaEscola(bancada, 'execucao_agente', a.escolaId)
+      expect(semId(await pedir(a.professora, 'POST', `/v1/artefatos/${lixo}/adaptar`, { tipos: ['fonte_ampliada'], chaveEnvio: randomUUID() }))).toEqual({ status: 409, codigo: 'CONFLITO' })
+      expect(await contarNaEscola(bancada, 'execucao_agente', a.escolaId)).toBe(execucoes)
     })
   })
 

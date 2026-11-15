@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest'
 import { raizRepositorio } from '../ci/executar.ts'
 import { criarEslintDasGuardas, violacoesDasGuardas } from './eslint-das-guardas.ts'
 import type { Supressoes } from './catraca.ts'
-import { ARQUIVOS_DE_TESTE, ESCOPO_DO_NOME, EXCECOES_DAS_GUARDAS, REGRAS_DAS_GUARDAS, REGRAS_DE_ERRO, REGRAS_DE_LOG, REGRAS_DE_NOME, REGRAS_DE_SDK_DE_IA, REGRAS_DE_TAMANHO, REGRAS_DE_TENANT, REGRAS_DE_TESTE, REGRAS_EM_TODO_ARQUIVO } from './index.mjs'
+import { ARQUIVO_DO_CLIENTE, ARQUIVOS_DE_TESTE, ESCOPO_DO_FETCH, ESCOPO_DO_NOME, EXCECOES_DAS_GUARDAS, REGRAS_DAS_GUARDAS, REGRAS_DE_ENTRADA, REGRAS_DE_ERRO, REGRAS_DE_LOG, REGRAS_DE_NOME, REGRAS_DE_SDK_DE_IA, REGRAS_DE_TAMANHO, REGRAS_DE_TENANT, REGRAS_DE_TESTE, REGRAS_DO_FETCH, REGRAS_EM_TODO_ARQUIVO } from './index.mjs'
 import { EXCECOES_NOMINAIS, FORMAS } from './nomes-de-mercado.mjs'
 import { excecoesSemAlvo, sugestoesDoNome } from './regras-nome.mjs'
 import { CHAVES_PESSOAIS, ehChaveOperacional, ehNomePessoal } from './regras-log.mjs'
@@ -740,6 +740,90 @@ describe('guarda de nome de mercado (RF8; regra 60; D81)', () => {
   }, 240_000)
 })
 
+describe('o fetch só no cliente da API (no-restricted-globals e no-restricted-syntax, 52.0; RF11)', { timeout: 120_000 }, () => {
+  const PASTA = 'fetch-fora-do-cliente'
+  const REGRAS = new Set(['no-restricted-globals', 'no-restricted-syntax'])
+  const NA_WEB = 'apps/web/src/areas/professor/x.ts'
+  /** Uma fixture por forma de chamar o `fetch` sem passar pelo cliente; cada uma reprova exatamente as linhas que marca. */
+  const FORMAS = [
+    ['o `fetch` solto, do escopo global', 'fetch-solto.ts'],
+    ['`globalThis.fetch`, `window.fetch`, `self.fetch`, `window[\'fetch\']`, `window?.fetch` e o alias da janela', 'fetch-do-global.ts'],
+    ['a desestruturação: `const { fetch } = window`, a do `globalThis`, a de chave calculada e a atribuição', 'fetch-desestruturado.ts'],
+    ['a reexportação e a importação com o nome `fetch`', 'fetch-reexportado.ts'],
+    ['o `import()` de um módulo que chama `fetch`, e o uso do `fetch` que ele devolve', 'fetch-por-import-dinamico.ts'],
+    ['o módulo que o `import()` carrega, onde o `fetch` é chamado', 'modulo-que-chama-fetch.ts'],
+  ] as const
+
+  it.each(FORMAS)('reprova %s', async (_forma, arquivo) => {
+    const fixture = `${PASTA}/${arquivo}`
+    expect(await lintar(eslint, fixture, NA_WEB, REGRAS)).toEqual(marcasDeViolacao(fixture))
+  })
+
+  it('o que a web usa no lugar do `fetch`, e os nomes que só se parecem com ele, passa', async () => {
+    expect(marcas(lerFixture(`${PASTA}/fetch-que-passa.ts`))).toEqual([])
+    expect(await lintar(eslint, `${PASTA}/fetch-que-passa.ts`, NA_WEB, REGRAS)).toEqual([])
+  })
+
+  it('a desestruturação esconde o `fetch` do `no-restricted-globals`: só o seletor a acusa, e a chamada da variável local passa', async () => {
+    const fixture = `${PASTA}/fetch-desestruturado.ts`
+    const globais = await lintar(eslint, fixture, NA_WEB, new Set(['no-restricted-globals']))
+    expect(globais).toEqual([])
+    expect(await lintar(eslint, fixture, NA_WEB, new Set(['no-restricted-syntax']))).toEqual(marcasDeViolacao(fixture))
+  })
+
+  it('a exceção é o cliente, e só ele: no `api/client.ts` o `fetch` passa; renomeado, a exceção não acoberta o arquivo novo, e a guarda acusa', async () => {
+    const fixture = `${PASTA}/fetch-solto.ts`
+    expect(ARQUIVO_DO_CLIENTE).toBe('apps/web/src/api/client.ts')
+    expect(await lintar(eslint, fixture, ARQUIVO_DO_CLIENTE, REGRAS)).toEqual([])
+    for (const caminho of ['apps/web/src/api/cliente-da-api.ts', 'apps/web/src/api/client/index.ts', 'apps/web/src/api/client.tsx', 'apps/web/src/api/sessao.ts'])
+      expect(await lintar(eslint, fixture, caminho, REGRAS), caminho).toEqual(marcasDeViolacao(fixture))
+  })
+
+  it('o alvo da exceção existe e ainda chama o `fetch`: arquivo que sumiu ou que deixou de citá-lo reprova', () => {
+    const texto = existsSync(join(raizRepositorio, ARQUIVO_DO_CLIENTE)) ? readFileSync(join(raizRepositorio, ARQUIVO_DO_CLIENTE), 'utf8') : undefined
+    expect(texto, `${ARQUIVO_DO_CLIENTE} não existe mais: a exceção do fetch ficou sem alvo`).toBeDefined()
+    expect(texto, `${ARQUIVO_DO_CLIENTE} não chama mais o fetch: a exceção ficou sem alvo`).toMatch(/\bfetch\(/)
+  })
+
+  it('o teste e o __fixtures__ da web trocam o `fetch` à vontade, e fora de apps/web/src a guarda não vale', async () => {
+    const fixture = `${PASTA}/fetch-do-global.ts`
+    const solto = `${PASTA}/fetch-solto.ts`
+    expect(await lintar(eslint, solto, 'apps/web/src/api/x.test.ts', REGRAS)).toEqual([])
+    expect(await lintar(eslint, fixture, 'apps/web/src/areas/x.test.tsx', REGRAS)).toEqual([])
+    expect(await lintar(eslint, solto, 'apps/web/src/__fixtures__/x.ts', REGRAS)).toEqual([])
+    expect(await lintar(eslint, fixture, 'apps/web/src/__fixtures__/x.ts', REGRAS)).toEqual([])
+    expect(await lintar(eslint, solto, 'apps/web/src/operacao/__fixtures__/x.tsx', REGRAS)).toEqual([])
+    for (const caminho of ['packages/shared/src/x.ts', 'e2e/support/x.ts', 'apps/web/vite.config.ts']) expect(await lintar(eslint, solto, caminho, REGRAS), caminho).toEqual([])
+  })
+
+  it('o kit visual também é barrado: o bloco do kit repete os seletores, porque o `no-restricted-syntax` dele sobrescreve o do `fetch`', async () => {
+    const fixture = `${PASTA}/fetch-do-global.ts`
+    expect(await lintar(eslint, fixture, 'apps/web/src/components/ui/x.tsx', REGRAS)).toEqual(marcasDeViolacao(fixture))
+  })
+
+  it('fica entre as que a passada sem comentários roda, e o `eslint-disable` não a fura: o ESLint comum aceita o comentário, e a passada das guardas reprova do mesmo jeito', async () => {
+    expect(REGRAS_DO_FETCH).toEqual(['no-restricted-globals'])
+    expect(REGRAS_DAS_GUARDAS).toContain('no-restricted-globals')
+    expect(REGRAS_DE_ENTRADA).toContain('no-restricted-syntax')
+    expect(ESCOPO_DO_FETCH).toEqual(['apps/web/src/**/*.{ts,tsx}'])
+    const caminho = join(raizRepositorio, NA_WEB)
+    const texto = ['// eslint-disable-next-line no-restricted-globals', "export const a = () => fetch('/v1/eu')", '// eslint-disable-next-line no-restricted-syntax', "export const b = () => window.fetch('/v1/eu')"].join('\n')
+    const doFetch = (resultado: ESLint.LintResult | undefined) => (resultado?.messages ?? []).filter((mensagem) => REGRAS.has(mensagem.ruleId ?? '')).map((mensagem) => `${mensagem.line} ${mensagem.ruleId}`).sort()
+    const [comum] = await eslint.lintText(texto, { filePath: caminho })
+    expect(doFetch(comum)).toEqual([])
+    const [dasGuardas] = await eslintDasGuardas.lintText(texto, { filePath: caminho })
+    expect(doFetch(dasGuardas)).toEqual(['2 no-restricted-globals', '4 no-restricted-syntax'])
+  })
+
+  it('o repositório de hoje não tem violação: nenhum arquivo de apps/web/src chama o `fetch` fora do cliente, nem pelas formas que o contornam', async () => {
+    const resultados = await eslintDasGuardas.lintFiles(['apps/web/src'])
+    const achadas = resultados.flatMap((resultado) =>
+      resultado.messages.filter((mensagem) => REGRAS.has(mensagem.ruleId ?? '')).map((mensagem) => `${resultado.filePath.replace(`${raizRepositorio}`, '')}:${mensagem.line} ${mensagem.ruleId}`),
+    )
+    expect(achadas).toEqual([])
+  })
+})
+
 describe('guarda desligada por comentário', { timeout: 60_000 }, () => {
   it.each(['desabilitar-na-linha.ts', 'desabilitar-tudo.ts'])(
     'o ESLint reprova a diretiva que desliga uma guarda: %s',
@@ -914,7 +998,7 @@ describe('tamanho com catraca (RF11, R37)', () => {
 })
 
 describe('configuração das guardas', { timeout: 60_000 }, () => {
-  it('as únicas exceções são o SDK nos adaptadores, a tabela no repository, no teste e no db/ do núcleo, a própria guarda de tabela, o erro tipado em teste, em __fixtures__ e no main.tsx da web, o teste do redact e a mensagem repassada pelo LoggerDoNest', () => {
+  it('as únicas exceções são o SDK nos adaptadores, a tabela no repository, no teste e no db/ do núcleo, a própria guarda de tabela, o erro tipado em teste, em __fixtures__ e no main.tsx da web, o `fetch` no cliente da API, no teste e em __fixtures__, o teste do redact e a mensagem repassada pelo LoggerDoNest', () => {
     expect(EXCECOES_DAS_GUARDAS).toEqual([
       { files: ['packages/core/src/ia/*-adapter.ts'], regras: REGRAS_DE_SDK_DE_IA },
       { files: ['**/*.repository.ts'], regras: REGRAS_DE_TENANT },
@@ -923,6 +1007,7 @@ describe('configuração das guardas', { timeout: 60_000 }, () => {
       { files: ['tools/guardas/regras-tenant.mjs'], regras: REGRAS_DE_TENANT },
       { files: [...ARQUIVOS_DE_TESTE, '**/__fixtures__/**'], regras: REGRAS_DE_ERRO },
       { files: ['apps/web/src/main.tsx'], regras: REGRAS_DE_ERRO },
+      { files: [ARQUIVO_DO_CLIENTE, ...ARQUIVOS_DE_TESTE, '**/__fixtures__/**'], regras: REGRAS_DO_FETCH },
       { files: ['packages/core/src/log/logger.test.ts'], regras: REGRAS_DE_LOG },
       { files: ['packages/core/src/log/nest-logger.ts'], regras: ['guardas/log-sem-conteudo-montado'] },
     ])

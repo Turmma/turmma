@@ -3691,3 +3691,34 @@ aula" em `Retencao.tsx`, o Validador conferiu: a tela já o mostra pela descriç
       tipo à parte das `ProfileOptions`, se o Playwright permitir (dono: quem mexer em `e2e/support/profiles.ts`)
 - [ ] (correção 2026-11-15-e2e-pedidos-do-titular, revisor-geral, 2ª) **`esperarATela` (`profiles.ts`) e `esperarATelaDepoisDaRecarga` (`casca.ts`) têm nomes quase iguais e fazem coisas diferentes:** renomear um
       dos dois (dono: quem mexer em `e2e/support/casca.ts`)
+## Da reengenharia-continuacao, tarefa 12.0 (o prazo da chamada da web), fora dela
+
+- [ ] (reengenharia-continuacao, 12.0, infra-guardian e test-engineer, 1ª) **Duas escolhas penduradas pelo cliente se revezam sem recuo:** limitar o envio imediato a uma volta pela fila desde o último
+      sucesso, e depois dela o recuo. A 13.0 (tela de falha) decide, com a rede pendurada de vez (dono: Implementador da 13.0, com infra-guardian)
+- [ ] (reengenharia-continuacao, 12.0, infra-guardian, 1ª) **`POST`s sem chave de idempotência que agora estouram aos 20 s** (`/v1/tutor/mensagens`, `/v1/assistente/mensagens`, `/v1/ferramentas/*/gerar`): "Tentar de novo"
+      pode duplicar a execução. Já podia acontecer antes do prazo; entra na 13.0 e na 14.0 (dono: Implementador, com infra-guardian)
+- [ ] (reengenharia-continuacao, 12.0, revisor-geral, 1ª) **`material.ts` e `artefatos.ts` repetem o `try/catch` em volta do `pedir`:** extrair para `api/client.ts` quando aparecer a terceira chamada de fora do
+      `apiRequest` (dono: quem escrever a terceira)
+- [ ] (reengenharia-continuacao, 12.0, frontend-reviewer, 1ª) **A nova tentativa automática do `shouldRetry` no `TEMPO_ESGOTADO` leva a leitura a cerca de 41 s até o erro na tela:** reduzir ou tirar a repetição quando o erro é de prazo.
+      Muda o contrato da leitura; a 13.0 (tela de falha) decide (dono: Implementador da 13.0)
+- [ ] (reengenharia-continuacao, 12.0, frontend-reviewer, 1ª e 2ª) **"FERRAME…" e o nome da escola cortados na barra de baixo do celular a 360 px:** componente da casca, que a tarefa não altera (dono: quem mexer na casca)
+- [ ] (reengenharia-continuacao, 12.0, conformidade-reviewer, 1ª) **As linhas de `Criados` não têm o selo de saída de IA (regra 70, item 4a).** Já era assim antes da 12.0; entra na tarefa de tela do professor que tocar
+      `Criados.tsx` (dono: Implementador dessa tarefa, com conformidade-reviewer)
+- [ ] (reengenharia-continuacao, 12.0, test-engineer, 1ª) **Teste que junte o `responderQuestao` de verdade, com o `fetch` pendurado, dentro de `criarFilaDeRespostas`:** hoje o `client.test.ts` prova os 10 s e o
+      `respostas.test.ts`, a fila, cada um do seu lado (dono: Implementador)
+- [ ] (reengenharia-continuacao, 12.0, test-engineer, 1ª) **`guardas.test.ts`, caso "o alvo da exceção existe e ainda chama o `fetch`":** a busca por `/\bfetch\(/` acerta comentário; conferir pelo ESLint
+      (dono: Implementador, na próxima tarefa que tocar as guardas)
+- [ ] (reengenharia-continuacao, 12.0, infra-guardian e outros quatro, 2ª) **Texto por origem no aviso da decisão da correção (`Aprovar.tsx`):** hoje o 503 `TEMPO_ESGOTADO` da API mostra o mesmo "Não foi possível
+      confirmar a decisão" do estouro do cliente (lado conservador). Separar com `estourouNoCliente`, se a 13.0 (tela de falha) quiser (dono: Implementador da 13.0)
+- [ ] (reengenharia-continuacao, 12.0, infra-guardian, 2ª) **Teste de tela em `NovaEscola.tsx` que leve o estouro do navegador ao aviso de tentativa incerta:** hoje só `ehResultadoIncerto` é testado em
+      `operacao/textos.test.ts` (dono: Implementador)
+- [ ] (reengenharia-continuacao, 12.0, revisor-geral, 3ª) **`Aprovar.test.tsx`, caso "a decisão que o prazo do cliente interrompe":** o comentário diz que o diálogo segue aberto aos 19,9 s, e nada o confere; acrescentar
+      `expect(screen.getByRole('alertdialog')).toBeTruthy()` antes dos últimos 100 ms (dono: quem tocar `Aprovar.test.tsx`)
+- [ ] (reengenharia-continuacao, 12.0, test-engineer, 3ª) **A tabela "Testes que provam a regra" do `12_task.md` não tem linha para o aviso da decisão no estouro nem para a marca `origem: 'cliente'`:** a prova existe nos
+      blocos de mutação e nas divergências; o Validador cruza a tabela com o código no fim da spec (dono: Validador)
+- [ ] (reengenharia-continuacao, 12.0, test-engineer, 3ª) **Nenhum teste fixa que o 503 `TEMPO_ESGOTADO` da API mostra o mesmo texto do estouro do cliente em `Aprovar.tsx`:** se a 13.0 separar o texto por
+      origem, o caso com `ApiError(TEMPO_ESGOTADO)` sem `origem` entra lá (dono: Implementador da 13.0)
+- [ ] (reengenharia-continuacao, 1.0, infra-guardian, 1ª, 15/11/2026) **`paraExecutar` devolve `undefined` quando a `entrada` gravada não passa no `execucaoInputSchema`, e a execução vira `NAO_ENCONTRADO` sem sinal nenhum** (`apps/api/src/ia/execucao.repository.ts`): um contador ou uma linha de log só com ids (`execucaoId`, `escolaId`, tarefa), para a linha corrompida aparecer antes de a escola reclamar. Acrescenta log/métrica, é comportamento novo (dono: Implementador, com infra-guardian)
+- [ ] (reengenharia-continuacao, 1.0, conformidade-reviewer, 1ª, 15/11/2026) **O `concluir` da adaptação não reconfere a suspensão da função antes de criar a entrega `pendente`** (`apps/api/src/artefato/adaptacao.command.ts`): não é violação (a entrega nasce `pendente` e o código anterior também não conferia), mas a suspensão que chega durante a chamada ao modelo ainda deixa nascer a versão adaptada. Acrescentaria uma falha nova no `concluir`, com mutação própria (dono: Implementador, com conformidade-reviewer)
+- [ ] (reengenharia-continuacao, 1.0, revisor-geral, 1ª, 15/11/2026) **`prompts-caracterizados.test.ts` fixa só `prompt.sistema`:** `REGRAS_COMUNS` e o JSON Schema que o adaptador junta à mensagem ficam fora do hash. A 1.1 pede o hash de cada `PROMPT_*`, e isso está provado; estender é da área do `llm-integrator` (dono: llm-integrator)
+- [ ] (reengenharia-continuacao, 1.0, llm-integrator, 1ª, 15/11/2026) **Guardar a estimativa de custo de IA por professor por mês (~R$ 1,00)** para a planilha de precificação (regra 30). É número de ordem de grandeza, sem medição: refazer com o `consumo_ia` real quando houver uso (dono: llm-integrator)

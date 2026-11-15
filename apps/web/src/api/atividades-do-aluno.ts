@@ -63,10 +63,11 @@ export function meuDiagnosticoQueryOptions(atividadeAplicadaId: string) {
 /**
  * `PUT /v1/atividades-aplicadas/:id/respostas/:questao`: a alternativa marcada e a `sequencia` dela. A gravação é
  * idempotente (regra 80, item 6): mandar a mesma escolha de novo, quando a rede volta, não muda nada no servidor, e a de
- * `sequencia` menor que a gravada perde: a resposta traz o que ficou gravado, e a fila não reenvia (RF21).
+ * `sequencia` menor que a gravada perde: a resposta traz o que ficou gravado, e a fila não reenvia (RF21). Sai com o prazo de
+ * 10 s (`tipo: 'prova'`): a que pendura estoura em `TEMPO_ESGOTADO` e a fila a manda para o fim, sem travar as outras (RF11).
  */
 export function responderQuestao(atividadeAplicadaId: string, questao: number, alternativa: number, sequencia: number): Promise<QuestaoSalvaResponse> {
-  return authedRequest(`${caminhoDaAtividade(atividadeAplicadaId)}/respostas/${String(questao)}`, questaoSalvaResponseSchema, { metodo: 'PUT', corpo: { alternativa, sequencia } })
+  return authedRequest(`${caminhoDaAtividade(atividadeAplicadaId)}/respostas/${String(questao)}`, questaoSalvaResponseSchema, { metodo: 'PUT', corpo: { alternativa, sequencia }, tipo: 'prova' })
 }
 
 /** `POST /v1/atividades-aplicadas/:id/enviar`: corpo vazio e estrito. Enviar de novo devolve o mesmo. */

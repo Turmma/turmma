@@ -9,7 +9,7 @@ paralela desde o começo e não alongam o caminho, que é o da IA (1.0 → 11.0)
 
 ## Lista
 
-- [ ] **1.0 — O Assistente, as ferramentas, o artefato e o Analista rodam por comando registrado, ainda no processo (42.0)**
+- [x] **1.0 — O Assistente, as ferramentas, o artefato e o Analista rodam por comando registrado, ainda no processo (42.0)**
   - [ ] 1.1 Caracterização, num commit antes: o hash de cada prompt contra a `versao`, e a entrega do assistente e do artefato nascendo `pendente`
   - [ ] 1.2 `ExecucaoCommand` e o registro em `apps/api/src/ia/`; o `agendar` chama `preparar` e `concluir` do comando
   - [ ] 1.3 Os comandos de `assistente/`, `artefato/` (ferramentas, artefato, `propor_ferramenta`) e `governanca/` (Analista)
@@ -80,11 +80,11 @@ paralela desde o começo e não alongam o caminho, que é o da IA (1.0 → 11.0)
   - [ ] 11.2 A corrida de base e a da árvore na mesma sessão; o relatório
   - [ ] 11.3 `docs/infra.md`: o piso do contrato e as premissas medidas
 
-- [ ] **12.0 — Toda chamada da web à API tem prazo, e a resposta de prova pendurada não trava as outras (52.0)**
-  - [ ] 12.1 `comPrazo` no `apiRequest`, em `material.ts` e em `artefatos.ts`
-  - [ ] 12.2 A guarda de `fetch` fora do cliente
-  - [ ] 12.3 O `PUT` estourado vai para o fim da `fila-de-respostas`
-  - [ ] 12.4 Testes
+- [x] **12.0 — Toda chamada da web à API tem prazo, e a resposta de prova pendurada não trava as outras (52.0)**
+  - [x] 12.1 `comPrazo` no `apiRequest`, em `material.ts` e em `artefatos.ts`
+  - [x] 12.2 A guarda de `fetch` fora do cliente
+  - [x] 12.3 O `PUT` estourado vai para o fim da `fila-de-respostas`
+  - [x] 12.4 Testes
 
 - [ ] **13.0 — Uma tela que quebra fora de uma área mostra a falha com o caminho de volta (56.0)**
   - [ ] 13.1 `AreaErrorBoundary paginaInteira` em volta do `<Switch>` de `AppRoutes`

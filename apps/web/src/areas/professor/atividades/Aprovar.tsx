@@ -61,14 +61,15 @@ const idDoDestaque = (alunoId: string) => `destaque-${alunoId}`
 /**
  * O que a tela diz quando a decisão não foi registrada por um motivo que não é erro de ninguém. O `CONFLITO` é o lote que
  * mudou desde a leitura (a aprovação vale para o que a pessoa leu: a API confere); o indisponível é o registro que não pôde
- * ser gravado agora. Em todos, **nada foi aprovado**, e a tela relê a correção.
+ * ser gravado agora. Nesses, nada foi aprovado. O `TEMPO_ESGOTADO` é outra coisa: a chamada passou do prazo do navegador (20 s) e o
+ * servidor pode ter gravado a decisão, então o texto não afirma o resultado e manda conferir. Em todos, a tela relê a correção.
  */
 const AVISO_DA_DECISAO: Partial<Record<ErrorCode, string>> = {
   [ErrorCode.ENTREGA_JA_DECIDIDA]: 'Esta correção já tinha sido decidida. A tela foi atualizada com a decisão.',
   [ErrorCode.DESTAQUES_NAO_ABERTOS]: 'Ainda há destaque para abrir. A tela foi atualizada: abra o que falta e aprove de novo.',
   [ErrorCode.CONFLITO]: 'A correção mudou desde que você abriu esta tela, e nada foi aprovado. Ela foi atualizada: confira de novo e aprove.',
   [ErrorCode.INDISPONIVEL_TENTE_DE_NOVO]: 'Não foi possível registrar a decisão agora, e nada foi aprovado. Confira a correção e tente de novo em instantes.',
-  [ErrorCode.TEMPO_ESGOTADO]: 'Não foi possível registrar a decisão agora, e nada foi aprovado. Confira a correção e tente de novo em instantes.',
+  [ErrorCode.TEMPO_ESGOTADO]: 'Não foi possível confirmar a decisão. Confira a situação da correção na tela antes de tentar de novo.',
 }
 
 /**
@@ -212,7 +213,7 @@ export default function Aprovar({ atividadeAplicadaId }: { atividadeAplicadaId: 
     onError: async (erro) => {
       if (!(erro instanceof ApiError)) return
       // Outra aba já decidiu, um destaque deixou de estar aberto, o lote mudou desde que a tela o leu, ou o registro não
-      // pôde ser gravado agora: a tela se atualiza e diz o que houve, com calma, sem erro cru. Nada foi aprovado.
+      // pôde ser gravado agora, ou a resposta não chegou no prazo: a tela se atualiza e diz o que houve, com calma, sem erro cru.
       const texto = AVISO_DA_DECISAO[erro.codigo]
       if (texto === undefined) return
       definirAviso(texto)

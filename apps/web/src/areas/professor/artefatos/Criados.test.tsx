@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
+import { MENSAGENS_DE_ERRO } from '@educa/shared'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createQueryClient } from '../../../api/query-client'
 import { formatDateTime } from '../../../format'
 import { setupScreen, fakeNetwork, type FakeNetwork, type FakeResponse } from '../../../__fixtures__/render-screen'
@@ -479,5 +480,78 @@ describe('Criados: no celular', () => {
     await usuario.click(limpar)
     expect(localizacao.history?.at(-1)).toBe('/criados')
     await waitFor(() => expect((within(dialogo).getByRole('button', { name: 'Limpar filtros' }) as HTMLButtonElement).disabled).toBe(true))
+  })
+})
+
+describe('Criados: a chamada que pendura (RF11, 52.0)', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  /**
+   * A rede falsa de sempre, com a consulta dos artefatos pendurada até o sinal abortar, como a do navegador, enquanto
+   * `controle.pendurar` for verdade. Devolve os sinais que a consulta mandou.
+   */
+  function instalarComArtefatosPendurados(controle: { pendurar: boolean }): AbortSignal[] {
+    const rede = fakeNetwork()
+    instalar(rede, { artefatos: [ATIVIDADE] })
+    const darResposta = globalThis.fetch
+    const sinais: AbortSignal[] = []
+    vi.stubGlobal('fetch', (caminho: string, opcoes?: RequestInit) => {
+      if (!controle.pendurar || !caminho.startsWith('/v1/artefatos')) return darResposta(caminho, opcoes)
+      return new Promise<Response>((_resolver, rejeitar) => {
+        const sinal = opcoes?.signal
+        if (sinal === undefined || sinal === null) return
+        sinais.push(sinal)
+        sinal.addEventListener('abort', () => rejeitar(new DOMException('abortada', 'AbortError')))
+      })
+    })
+    return sinais
+  }
+
+  it('a leitura que passa de 20 s mostra a mensagem do catálogo e "Tentar de novo", e a nova tentativa traz a lista', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const usuario = userEvent.setup({ advanceTimers: (ms) => void vi.advanceTimersByTime(ms) })
+    const controle = { pendurar: true }
+    const sinais = instalarComArtefatosPendurados(controle)
+    montar()
+    await vi.advanceTimersByTimeAsync(19_900)
+    // Até aos 19,9 s a tela espera: nem erro nem botão.
+    expect(screen.queryByRole('alert')).toBeNull()
+    // Estoura aos 20 s; a tentativa automática de um segundo depois pendura outros 20 s, e só então a tela dá o erro.
+    await vi.advanceTimersByTimeAsync(100)
+    await vi.advanceTimersByTimeAsync(1_000)
+    expect(screen.queryByRole('alert')).toBeNull()
+    await vi.advanceTimersByTimeAsync(20_000)
+    const alerta = await screen.findByRole('alert')
+    expect(alerta.textContent).toBe(MENSAGENS_DE_ERRO.TEMPO_ESGOTADO)
+    expect(sinais).toHaveLength(2)
+    expect(sinais.every((sinal) => sinal.aborted)).toBe(true)
+    expect(screen.queryByText('Nada gerado ainda')).toBeNull()
+
+    controle.pendurar = false
+    await usuario.click(screen.getByRole('button', { name: 'Tentar de novo' }))
+    expect(await screen.findByText('Atividade de estequiometria')).toBeTruthy()
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  // Este caso prova que o sinal do TanStack Query chega ao `fetch` e que o prazo não reabre a consulta cancelada. Quem segura o
+  // `if (sinal.aborted) throw erro` de `chamar`, o cancelamento que não vira `INDISPONIVEL_TENTE_DE_NOVO`, é o `client.test.ts` ›
+  // "cancelamento: quem chamou cancela": o TanStack Query v5 descarta o que a consulta cancelada rejeita, e a tela ficaria sem erro mesmo sem ele.
+  it('a leitura que o TanStack Query cancela não vira erro na tela: nem aos 20 s, nem depois, nem com tentativa nova', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const sinais = instalarComArtefatosPendurados({ pendurar: true })
+    const cliente = montar().cliente
+    await vi.advanceTimersByTimeAsync(5_000)
+    expect(sinais).toHaveLength(1)
+    expect(sinais[0]?.aborted).toBe(false)
+    await cliente.cancelQueries()
+    // Só se confere depois de a promessa terminar: o abort chegou ao fetch, e passou o prazo que a teria feito estourar.
+    await vi.advanceTimersByTimeAsync(0)
+    expect(sinais[0]?.aborted).toBe(true)
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Tentar de novo' })).toBeNull()
+    expect(sinais).toHaveLength(1)
   })
 })
