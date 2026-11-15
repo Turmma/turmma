@@ -129,7 +129,7 @@
   },
   "apps/api/src/tutor/tutor.service.ts": {
     "complexity": {
-      "count": 4
+      "count": 2
     }
   },
   "apps/api/test/acesso-da-turma.int.test.ts": {

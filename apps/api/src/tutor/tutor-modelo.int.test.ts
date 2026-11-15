@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
 import { chamar, subirApi, type TestApi } from '../../test/test-api.js'
-import { dispararExecucao, execucaoTerminada, montarEscolaComAssistente, NOME_DA_PROFESSORA_DE_TESTE, zerarLimiteDePedidosDeIa, type EscolaComAssistente, type ExecucaoLida } from '../../test/escola-assistente.fixture.js'
+import { comoPessoa, dispararExecucao, enviarMaterialDeDemonstracao, execucaoTerminada, montarEscolaComAssistente, NOME_DA_PROFESSORA_DE_TESTE, zerarLimiteDePedidosDeIa, type EscolaComAssistente, type ExecucaoLida } from '../../test/escola-assistente.fixture.js'
 import {
   ALTERNATIVA_CERTA_DA_QUESTAO_3,
   fakeModelEnv,
@@ -19,8 +19,11 @@ import {
   type FakeModel,
 } from '../../test/escola-tutor.fixture.js'
 import { WriteBlockTrigger } from '../../test/write-block-trigger.js'
+import { variacaoDoPdf } from '../../test/material.fixture.js'
 import { SessaoFixtures, type TestSessao } from '../../test/sessao.fixture.js'
 import { EXECUTOR_DE_AGENTE } from '../ia/ia.module.js'
+import { TurnoDoTutorCommand } from './turno.command.js'
+import { TutorDoAlunoRepository } from './tutor.repository.js'
 
 const NOME_DO_ALUNO = 'Aluno Sintético Otávio Quintanilha'
 
@@ -375,6 +378,65 @@ describe('Tutor contra um modelo que não obedece', () => {
     })
   })
 
+  describe('a D36 não depende da execução (X6, 2.0)', () => {
+    const delicado = () => modelo.responder(() => JSON.stringify({ classificacao: 'assunto_delicado', resposta: 'Sinto muito, vamos conversar sobre isso. O que aconteceu?', citacoes: [] }))
+    const frase = 'lá em casa as coisas estão bem complicadas'
+    const execucaoLida = async (execucaoId: string) =>
+      (await sql<{ estado: string; erro: string | null; resultado: unknown }>('select estado, erro, resultado from execucao_agente where escola_id = $1 and id = $2', [a.escolaId, execucaoId])).rows
+
+    it('o modelo classificou assunto delicado e a execução já foi encerrada (a varredura, o prazo): a mensagem fixa e o sinal sem referência ficam, e a execução segue como estava', async () => {
+      await executor.ociosa()
+      const aluno = await novoAluno()
+      delicado()
+      // Segura o turno quando o consumo da chamada vai ser gravado: o modelo já respondeu, e o `concluir` ainda não correu.
+      const parada = new WriteBlockTrigger(bancada.pool, { tabela: 'consumo_ia', evento: 'insert', quando: `new.aluno_id = '${aluno.usuarioId}'::uuid and new.estado = 'concluida'` })
+      await parada.armar()
+      let execucaoId: string
+      try {
+        const aceita = await chamar(api.url, 'POST', '/v1/tutor/mensagens', await aluno.tokenNovo(), { chaveEnvio: randomUUID(), texto: frase, ...naQuestao(3) })
+        expect(aceita.status).toBe(202)
+        execucaoId = aceita.corpo['execucaoId'] as string
+        await parada.esperarParadas()
+        // Como a varredura a deixaria: `falhou`, e a conclusão condicional da execução não é mais possível.
+        await sql(`update execucao_agente set estado = 'falhou', erro = 'EXECUCAO_INTERROMPIDA', concluida_em = now() where escola_id = $1 and id = $2 and estado = 'rodando'`, [a.escolaId, execucaoId])
+        await parada.soltar()
+        await executor.ociosa()
+      } finally {
+        await parada.desarmar()
+      }
+      expect(await execucaoLida(execucaoId)).toEqual([{ estado: 'falhou', erro: 'EXECUCAO_INTERROMPIDA', resultado: null }])
+      // O aluno recebe a mensagem fixa e o professor, o aviso: nenhum dos dois depende de a execução concluir.
+      expect(await respostasGravadas(aluno)).toEqual([MENSAGEM_DE_ASSUNTO_DELICADO])
+      expect(await sinaisDe(aluno)).toEqual([{ tipo: 'atencao_humana', atividade_aplicada_id: null, questao: null }])
+      // A pergunta perde a questão: o turno delicado não é referência a trabalho.
+      const { rows: perguntas } = await sql(`select questao, material_id, pagina from mensagem_tutor where escola_id = $1 and execucao_id = $2 and autor = 'aluno'`, [a.escolaId, execucaoId])
+      expect(perguntas).toEqual([{ questao: null, material_id: null, pagina: null }])
+    })
+
+    it('o `concluir` duas vezes (a reentrega da execução): uma mensagem e um sinal só, e a mesma mensagem nas duas', async () => {
+      await executor.ociosa()
+      const aluno = await novoAluno()
+      delicado()
+      const execucao = await turno(aluno, frase, naQuestao(3))
+      expect(execucao.estado).toBe('concluida')
+      const comando = api.app.get(TurnoDoTutorCommand)
+      const saida = { classificacao: 'assunto_delicado' as const, resposta: MENSAGEM_DE_ASSUNTO_DELICADO, citacoes: [] }
+      const concluirDeNovo = () =>
+        comoPessoa(a, aluno, 'aluno', async () => {
+          const pergunta = await new TutorDoAlunoRepository(bancada.banco).perguntaDaExecucao(execucao.execucaoId)
+          if (pergunta === undefined) throw new Error('a pergunta do turno não foi achada')
+          return bancada.banco.transaction((tx) => comando.concluir(saida, { pergunta, entregues: [] }, tx, execucao.execucaoId))
+        })
+      // Ao mesmo tempo: o job executado duas vezes (D49). A garantia é das chaves únicas e do `select` depois do conflito, e não da ordem das chamadas.
+      const [primeira, segunda] = await Promise.all([concluirDeNovo(), concluirDeNovo()])
+      expect(primeira).toEqual(segunda)
+      // A que a execução devolveu à tela (a rota resolve o id na mensagem) é a mesma que o `concluir` repetido relê.
+      expect(primeira).toEqual({ tipo: 'mensagem_do_tutor', mensagemId: (execucao.resultado?.mensagem as { id: string }).id })
+      expect(await respostasGravadas(aluno)).toEqual([MENSAGEM_DE_ASSUNTO_DELICADO])
+      expect(await sinaisDe(aluno)).toEqual([{ tipo: 'atencao_humana', atividade_aplicada_id: null, questao: null }])
+    })
+  })
+
   describe('a avaliação abre depois do 202 (S12; regra 30, item 10)', () => {
     const pausada = { estado: 'falhou', erro: ErrorCode.TUTOR_PAUSADO_EM_AVALIACAO, resultado: null }
     const execucaoLida = async (execucaoId: string) =>
@@ -462,6 +524,95 @@ describe('Tutor contra um modelo que não obedece', () => {
       expect(await respostasGravadas(aluno)).toEqual([MENSAGEM_DE_RISCO_A_VIDA])
       expect(await sinaisDe(aluno)).toEqual([{ tipo: 'atencao_humana', atividade_aplicada_id: null, questao: null }])
       expect(await usoDeHoje(aluno)).toBe(1)
+    })
+  })
+
+  describe('o que o turno leva do material e da disciplina (X6, 2.0)', () => {
+    /** Os trechos que o pedido ao modelo levou, na ordem, como `[materialId, página]`. */
+    const trechosDoPedido = (pedido: string): Array<[string, number]> => [...pedido.matchAll(/tipo=\\?"trecho_do_material\\?" materialId=\\?"([0-9a-f-]{36})\\?" pagina=\\?"(\d+)\\?"/g)].map((achado) => [achado[1] ?? '', Number(achado[2])])
+    const nomesDasDisciplinas = async (): Promise<{ quimica: string; fisica: string }> => {
+      const { rows } = await sql<{ id: string; nome: string }>('select id, nome from disciplina where escola_id = $1 and id in ($2, $3)', [a.escolaId, a.quimica, a.fisica])
+      return { quimica: rows.find((linha) => linha.id === a.quimica)?.nome ?? '', fisica: rows.find((linha) => linha.id === a.fisica)?.nome ?? '' }
+    }
+
+    it('o material aberto sem atividade: a página aberta vai na frente, só as páginas dele a seguir, sem repetir, e a disciplina é a dele, não a da turma toda', async () => {
+      const aluno = await novoAluno()
+      const outro = await enviarMaterialDeDemonstracao(api, a, a.quimica, 'Segundo material de Química, do mesmo conteúdo', variacaoDoPdf())
+      const { quimica, fisica } = await nomesDasDisciplinas()
+      modelo.responder((pedido) => obediente(pedido))
+      const execucao = await turno(aluno, 'não entendi o que é reagente limitante', { materialId: a.materialId, pagina: 4 })
+      expect(execucao.estado).toBe('concluida')
+      expect(modelo.pedidos).toHaveLength(1)
+      const pedido = modelo.pedidos[0] ?? ''
+      const trechos = trechosDoPedido(pedido)
+      // A aberta na frente, e nada do outro material da mesma disciplina, que o mesmo texto também acharia.
+      expect(trechos[0]).toEqual([a.materialId, 4])
+      expect(trechos.every(([materialId]) => materialId === a.materialId)).toBe(true)
+      expect(trechos.some(([materialId]) => materialId === outro)).toBe(false)
+      // Mais de uma página, e a aberta uma vez só.
+      expect(trechos.length).toBeGreaterThan(1)
+      expect(trechos.filter(([, pagina]) => pagina === 4)).toHaveLength(1)
+      // A disciplina que o modelo recebe é a do material, e não a lista da turma.
+      expect(pedido).toContain(quimica)
+      expect(pedido).not.toContain(fisica)
+      expect(resposta(execucao).tipo).toBe('texto')
+
+      // A dúvida que a busca não acha em lugar nenhum ainda leva a página que o aluno tem aberta: ela não depende de a busca achá-la.
+      expect((await turno(aluno, 'zzqx wvk plmn', { materialId: a.materialId, pagina: 4 })).estado).toBe('concluida')
+      expect(trechosDoPedido(modelo.pedidos[1] ?? '')).toEqual([[a.materialId, 4]])
+    })
+
+    it('a página aberta sem trecho indexado não derruba o turno: segue com o que a busca achou, sem a página', async () => {
+      const aluno = await novoAluno()
+      const semPagina = await enviarMaterialDeDemonstracao(api, a, a.quimica, 'Material de Química com a página 5 sem trecho', variacaoDoPdf())
+      await sql('delete from trecho where escola_id = $1 and material_id = $2 and pagina = 5', [a.escolaId, semPagina])
+      modelo.responder((pedido) => obediente(pedido))
+      const execucao = await turno(aluno, 'não entendi o que é reagente limitante', { materialId: semPagina, pagina: 5 })
+      expect(execucao.estado).toBe('concluida')
+      const trechos = trechosDoPedido(modelo.pedidos[0] ?? '')
+      expect(trechos.length).toBeGreaterThan(0)
+      expect(trechos.every(([materialId, pagina]) => materialId === semPagina && pagina !== 5)).toBe(true)
+    })
+
+    it('sem atividade e sem material, o modelo recebe as disciplinas da turma e nenhum trecho: não sabe de qual é a dúvida, e pergunta', async () => {
+      const aluno = await novoAluno()
+      const { quimica, fisica } = await nomesDasDisciplinas()
+      modelo.responder((pedido) => obediente(pedido))
+      const execucao = await turno(aluno, 'não entendi o que é reagente limitante')
+      expect(execucao.estado).toBe('concluida')
+      expect(modelo.pedidos).toHaveLength(1)
+      const pedido = modelo.pedidos[0] ?? ''
+      const disciplina = /serie_e_disciplina.{0,120}?disciplina\\*"\s*:\s*\\*"([^"\\]*)/s.exec(pedido)?.[1]
+      expect(disciplina).toBe(`${fisica} e ${quimica}`)
+      expect(trechosDoPedido(pedido)).toEqual([])
+    })
+  })
+
+  describe('o comando confere o que grava (X6, 2.0)', () => {
+    it('a citação que o `concluir` recebe é conferida contra os trechos que o `preparar` entregou, sem depender da tarefa: a página fora deles é IA_SAIDA_INVALIDA e nada é gravado; a entregue, grava', async () => {
+      await executor.ociosa()
+      const aluno = await novoAluno()
+      // O turno falha (o modelo devolve lixo): a pergunta fica sozinha na conversa, e o `concluir` é chamado à mão, com a saída que a tarefa não deixaria passar.
+      modelo.responder(() => 'isto não é json')
+      const falhada = await turno(aluno, 'não entendi o que é reagente limitante', { materialId: a.materialId, pagina: 4 })
+      expect(falhada.estado).toBe('falhou')
+      const comando = api.app.get(TurnoDoTutorCommand)
+      const concluir = (citacoes: Array<{ materialId: string; pagina: number; trecho: string }>, entregues: Array<{ materialId: string; disciplinaId: string; titulo: string; pagina: number; texto: string }>) =>
+        comoPessoa(a, aluno, 'aluno', async () => {
+          const pergunta = await new TutorDoAlunoRepository(bancada.banco).perguntaDaExecucao(falhada.execucaoId)
+          if (pergunta === undefined) throw new Error('a pergunta do turno não foi achada')
+          return bancada.banco.transaction((tx) => comando.concluir({ classificacao: 'normal', resposta: 'Vamos por partes. O que o enunciado pede que você descubra?', citacoes }, { pergunta, entregues }, tx, falhada.execucaoId))
+        })
+      const entregue = { materialId: a.materialId, disciplinaId: a.quimica, titulo: 'Material de demonstração', pagina: 4, texto: 'Página 4 do material' }
+      const citacao = { materialId: a.materialId, pagina: 4, trecho: 'Página 4 do material' }
+
+      await expect(concluir([{ ...citacao, pagina: 5 }], [entregue])).rejects.toMatchObject({ codigoDeIa: 'IA_SAIDA_INVALIDA' })
+      await expect(concluir([citacao], [])).rejects.toMatchObject({ codigoDeIa: 'IA_SAIDA_INVALIDA' })
+      expect(await respostasGravadas(aluno)).toEqual([])
+      expect(await sinaisDe(aluno)).toEqual([])
+
+      expect(await concluir([citacao], [entregue])).toMatchObject({ tipo: 'mensagem_do_tutor' })
+      expect(await respostasGravadas(aluno)).toEqual(['Vamos por partes. O que o enunciado pede que você descubra?'])
     })
   })
 })

@@ -16,13 +16,14 @@ import {
   type OrcamentoQuery,
   type ConsumoDeIa,
   type RequestContext,
+  type TaskDefinition,
   type InProcessAgenteExecutor,
   type LLMProvider,
   type OrcamentoDeIa,
   type SuspensaoDeFuncao,
   type DatabaseTransaction,
 } from '@educa/core'
-import { ErrorCode, execucaoResponseSchema, TROCAS_POR_DIA_PADRAO_DO_TUTOR, type ChaveDeFuncao, type PapelDeUsuario, type ResultadoGravado } from '@educa/shared'
+import { ErrorCode, execucaoResponseSchema, TAREFAS_DE_IA, TROCAS_POR_DIA_PADRAO_DO_TUTOR, type ChaveDeFuncao, type PapelDeUsuario, type ResultadoGravado } from '@educa/shared'
 import { and, eq } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it, onTestFinished, vi } from 'vitest'
@@ -30,14 +31,14 @@ import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
 import { chamar, subirApi, type TestApi, type RespostaHttp } from '../../test/test-api.js'
 import { montarEscolaComTurma, type EscolaComTurma } from '../../test/escola-turma.fixture.js'
 import { SessaoFixtures, type TestSessao } from '../../test/sessao.fixture.js'
-import type { EntradaDaTarefa, ExecucaoCommand, ExecucaoLida, Preparado, SaidaDaTarefa } from './execucao-command.js'
-import { ExecucaoScheduler, type ExecucaoComComando, type ExecucaoRequest } from './execucao.scheduler.js'
+import type { EntradaDaTarefa, ExecucaoCommand, ExecucaoLida, FilaDeIa, Preparado, SaidaDaTarefa } from './execucao-command.js'
+import { ExecucaoScheduler, type ExecucaoComComando } from './execucao.scheduler.js'
 import { FuncaoSuspensionCheck } from './funcao-suspension-check.js'
 import { ConsumoRepository } from './consumo.repository.js'
 import { ExecucaoDaSessaoRepository, ExecucaoRepository } from './execucao.repository.js'
 import { EXECUTOR_DE_AGENTE, LLM_PROVIDER, ORCAMENTO_DE_IA, SUSPENSAO_DE_FUNCAO } from './ia.module.js'
 import { OrcamentoRepository } from './orcamento.repository.js'
-import { RegistroDeComandos } from './registro-de-comandos.js'
+import { RegistroDeComandos, tarefasSemComando, TAREFAS_SEM_CHAMADOR } from './registro-de-comandos.js'
 import { SuspensaoRepository } from './suspensao.repository.js'
 
 /**
@@ -142,6 +143,33 @@ describe('camada de IA na API', () => {
     return (rows as { execucao_id: string }[]).map((linha) => linha.execucao_id)
   }
 
+  /**
+   * O que um pedido de teste diz ao comando de teste da sua tarefa: a entrada, a conclusão e, no Tutor, o aluno e a turma. Fica no
+   * mapa pela **chave de envio**, que é o que o `preparar` recebe da execução relida: o comando é um só por tarefa, e o pedido
+   * escolhe o que ele faz, como a closure escolhia antes da 2.0.
+   */
+  interface Ganchos<Entrada, Saida> {
+    readonly entrada: () => Promise<Entrada>
+    readonly concluir: (saida: Saida, tx: DatabaseTransaction, execucaoId: string) => Promise<ResultadoGravado>
+    readonly alunoId?: string
+    readonly turmaId?: string
+  }
+  const ganchosDoAssistente = new Map<string, Ganchos<EntradaDaTarefa<typeof proporFerramenta>, SaidaDaTarefa<typeof proporFerramenta>>>()
+  const ganchosDoTutor = new Map<string, Ganchos<EntradaDaTarefa<typeof turnoDoTutor>, SaidaDaTarefa<typeof turnoDoTutor>>>()
+  const ganchosDaAtividade = new Map<string, Ganchos<EntradaDaTarefa<typeof gerarAtividadeObjetiva>, SaidaDaTarefa<typeof gerarAtividadeObjetiva>>>()
+  function comandoPorChave<Entrada, Saida>(tarefa: TaskDefinition<Entrada, Saida>, fila: FilaDeIa, ganchos: Map<string, Ganchos<Entrada, Saida>>): ExecucaoCommand<Entrada, Saida, Ganchos<Entrada, Saida>> {
+    return {
+      tarefa,
+      fila,
+      async preparar(execucao) {
+        const doPedido = ganchos.get(execucao.chaveEnvio)
+        if (doPedido === undefined) throw new Error('pedido de teste sem ganchos')
+        return { entrada: await doPedido.entrada(), lido: doPedido, ...(doPedido.alunoId === undefined ? {} : { alunoId: doPedido.alunoId }), ...(doPedido.turmaId === undefined ? {} : { turmaId: doPedido.turmaId }) }
+      },
+      concluir: (saida, doPedido, tx, execucaoId) => doPedido.concluir(saida, tx, execucaoId),
+    }
+  }
+
   /** O pedido que o pacote do Assistente faria para a mensagem de um professor: grava a mensagem dele e, ao concluir, a do agente. */
   function pedidoDoAssistente(escola: Escola, opcoes: { chaveEnvio?: string; texto?: string; aoConcluir?: (tx: DatabaseTransaction) => Promise<void> } = {}) {
     const aoGravar = vi.fn(async (tx: DatabaseTransaction, execucaoId: string) => {
@@ -177,17 +205,15 @@ describe('camada de IA na API', () => {
       return { tipo: 'mensagem', mensagemId: mensagem?.id ?? '' }
     })
     const contextoVisto: (RequestContext | undefined)[] = []
-    const pedido: ExecucaoRequest<Parameters<typeof proporFerramenta.falso>[0], Awaited<ReturnType<typeof proporFerramenta.falso>>> = {
-      tarefa: proporFerramenta,
-      chaveEnvio: opcoes.chaveEnvio ?? randomUUID(),
-      entradaDaExecucao: { tarefa: 'propor_ferramenta' },
+    const chaveEnvio = opcoes.chaveEnvio ?? randomUUID()
+    ganchosDoAssistente.set(chaveEnvio, {
       entrada: async () => {
         contextoVisto.push(currentContext())
         return { mensagem: opcoes.texto ?? 'monta uma atividade com 5 questões sobre reagente limitante', contexto: { serie: '2º ano do Ensino Médio', disciplina: 'Química' }, trechos: [], turnosAnteriores: [] }
       },
-      aoGravar,
-      aoConcluir,
-    }
+      concluir: aoConcluir,
+    })
+    const pedido: ExecucaoComComando = { comando: 'propor_ferramenta', chaveEnvio, entradaDaExecucao: { tarefa: 'propor_ferramenta' }, aoGravar }
     return { pedido, aoGravar, aoConcluir, contextoVisto }
   }
 
@@ -210,17 +236,20 @@ describe('camada de IA na API', () => {
         .returning({ id: mensagemTutor.id })
       return { tipo: 'mensagem_do_tutor', mensagemId: mensagem?.id ?? '' }
     })
-    const pedido: ExecucaoRequest<Parameters<typeof turnoDoTutor.falso>[0], Awaited<ReturnType<typeof turnoDoTutor.falso>>> = {
-      tarefa: turnoDoTutor,
-      chaveEnvio: randomUUID(),
-      entradaDaExecucao: { tarefa: 'turno_do_tutor' },
-      entrada: { duvida, contexto: { serie: '2º ano do Ensino Médio', disciplina: 'Química' }, trechos: [], memoria: [], turnosAnteriores: [] },
+    const chaveEnvio = randomUUID()
+    ganchosDoTutor.set(chaveEnvio, {
+      entrada: async () => ({ duvida, contexto: { serie: '2º ano do Ensino Médio', disciplina: 'Química' }, trechos: [], memoria: [], turnosAnteriores: [] }),
+      concluir: aoConcluir,
       alunoId: aluno.usuarioId,
       turmaId: escola.turma,
+    })
+    const pedido: ExecucaoComComando = {
+      comando: 'turno_do_tutor',
+      chaveEnvio,
+      entradaDaExecucao: { tarefa: 'turno_do_tutor' },
       aoGravar: async (tx, execucaoId) => {
         await tx.insert(mensagemTutor).values({ escolaId: escola.escolaId, anoLetivoId: escola.anoLetivoId, turmaId: escola.turma, alunoId: aluno.usuarioId, execucaoId, autor: 'aluno', texto: duvida })
       },
-      aoConcluir,
     }
     return { pedido, aoConcluir }
   }
@@ -236,8 +265,13 @@ describe('camada de IA na API', () => {
 
   beforeAll(async () => {
     api = await subirApi(medidor.medidor)
-    agendador = api.app.get(ExecucaoScheduler)
+    // Os casos do agendador rodam com comandos de teste (um por tarefa que eles disparam), num registro à parte: o do `AppModule` tem os reais.
+    const registroDeTeste = new RegistroDeComandos()
+    registroDeTeste.registrar(comandoPorChave(proporFerramenta, 'ferramenta', ganchosDoAssistente))
+    registroDeTeste.registrar(comandoPorChave(turnoDoTutor, 'interativa', ganchosDoTutor))
+    registroDeTeste.registrar(comandoPorChave(gerarAtividadeObjetiva, 'ferramenta', ganchosDaAtividade))
     executor = api.app.get<InProcessAgenteExecutor>(EXECUTOR_DE_AGENTE)
+    agendador = new ExecucaoScheduler(bancada.banco, api.app.get<LLMProvider>(LLM_PROVIDER), executor, api.app.get<SuspensaoDeFuncao>(SUSPENSAO_DE_FUNCAO), registroDeTeste)
     a = await montarEscola()
     b = await montarEscola()
   })
@@ -811,14 +845,10 @@ describe('camada de IA na API', () => {
     it('material sem trecho aproveitável termina "falhou" com MATERIAL_INSUFICIENTE, que a tela sabe mostrar', async () => {
       const trechos = [{ materialId: randomUUID(), pagina: 1, texto: 'Sumário. Capítulo 7.' }]
       const aoConcluir = vi.fn(async (): Promise<ResultadoGravado> => ({ tipo: 'artefato', artefatoId: randomUUID(), entregaId: null }))
+      const chaveEnvio = randomUUID()
+      ganchosDaAtividade.set(chaveEnvio, { entrada: async () => ({ tema: 'estequiometria', quantidade: 5, contexto: { serie: '2º ano', disciplina: 'Química' }, habilidades: [{ codigo: 'QUI.EM.05', descricao: 'Estequiometria' }], trechos }), concluir: aoConcluir })
       const { execucaoId } = await como(a, a.professor, 'professor', () =>
-        agendador.agendar({
-          tarefa: gerarAtividadeObjetiva,
-          chaveEnvio: randomUUID(),
-          entradaDaExecucao: { tarefa: 'gerar_atividade_objetiva', parametros: { turmaId: a.turma, disciplinaId: a.quimica, tema: 'estequiometria' } },
-          entrada: { tema: 'estequiometria', quantidade: 5, contexto: { serie: '2º ano', disciplina: 'Química' }, habilidades: [{ codigo: 'QUI.EM.05', descricao: 'Estequiometria' }], trechos },
-          aoConcluir,
-        }),
+        agendador.agendar({ comando: 'gerar_atividade_objetiva', chaveEnvio, entradaDaExecucao: { tarefa: 'gerar_atividade_objetiva', parametros: { turmaId: a.turma, disciplinaId: a.quimica, tema: 'estequiometria' } } }),
       )
       await executor.ociosa()
       expect(await execucaoNoBanco(execucaoId)).toMatchObject({ estado: 'falhou', erro: 'MATERIAL_INSUFICIENTE' })
@@ -889,18 +919,6 @@ describe('camada de IA na API', () => {
       expect(await como(a, a.professor, 'professor', () => execucoes.paraExecutar(minha.id))).toBeUndefined()
     })
 
-    it('a tarefa sem comando roda pela closure do pedido: a entrada vem da função, e o aluno e a turma vão ao modelo', async () => {
-      const { pedido } = pedidoDoTutor(b, b.outroAluno, 'dúvida de teste')
-      const entradaDoTurno = pedido.entrada as Parameters<typeof turnoDoTutor.falso>[0]
-      const gerar = vi.fn(async (_pedido: unknown) => ({ saida: await turnoDoTutor.falso(entradaDoTurno), medicao: {} }))
-      const agendadorDeTeste = new ExecucaoScheduler(bancada.banco, { gerar } as unknown as LLMProvider, executor, api.app.get<SuspensaoDeFuncao>(SUSPENSAO_DE_FUNCAO), new RegistroDeComandos())
-      const { execucaoId } = await como(b, b.outroAluno, 'aluno', () => agendadorDeTeste.agendar({ ...pedido, entrada: async () => entradaDoTurno }))
-      await executor.ociosa()
-      expect(gerar).toHaveBeenCalledTimes(1)
-      expect(gerar.mock.calls[0]?.[0]).toMatchObject({ entrada: entradaDoTurno, escolaId: b.escolaId, execucaoId, alunoId: b.outroAluno.usuarioId, turmaId: b.turma })
-      expect(await execucaoNoBanco(execucaoId)).toMatchObject({ estado: 'concluida' })
-    })
-
     it('o resultado que o comando devolve é validado antes de concluir: o que não é referência derruba a execução, e ela não fica concluída com ele', async () => {
       const teste = comandoDeTeste()
       teste.concluir.mockResolvedValueOnce({ tipo: 'artefato', artefatoId: 'texto-no-lugar-da-referencia', entregaId: null })
@@ -912,8 +930,9 @@ describe('camada de IA na API', () => {
       expect(await execucaoNoBanco(execucaoId)).toMatchObject({ estado: 'falhou', resultado: null })
     })
 
-    it('a API sobe com o comando de cada tarefa que não é do Tutor, cada um registrado pelo módulo dono', () => {
-      expect(api.app.get(RegistroDeComandos).tarefas().sort()).toEqual(['adaptar_atividade', 'gerar_atividade_objetiva', 'gerar_plano_de_aula', 'propor_ferramenta', 'resumo_do_analista'])
+    it('a API sobe com o comando de toda tarefa do catálogo que alguém chama, cada um registrado pelo módulo dono', () => {
+      expect(api.app.get(RegistroDeComandos).tarefas().sort()).toEqual(TAREFAS_DE_IA.filter((tarefa) => !TAREFAS_SEM_CHAMADOR.includes(tarefa)).sort())
+      expect(tarefasSemComando(api.app.get(RegistroDeComandos).tarefas())).toEqual([])
     })
 
     /** Roda o comando pelo agendador e confere o que cada peça recebeu: `extra` é o que o `preparar` devolve além da entrada (o aluno e a turma). */
