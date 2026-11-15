@@ -419,3 +419,58 @@ describe('Revisar a correção: a aba pelo endereço', () => {
     expect(screen.getByRole('region', { name: 'As outras 3 correções' })).toBeTruthy()
   })
 })
+
+describe('Revisar a correção: a decisão que o prazo do cliente interrompe (RF11, 52.0; regra 70, item 1)', () => {
+  afterEach(() => vi.useRealTimers())
+
+  const AVISO_DO_PRAZO = 'Não foi possível confirmar a decisão. Confira a situação da correção na tela antes de tentar de novo.'
+
+  // A decisão passa dos 20 s da leitura (`aprovarLote` e `decidirEntrega` não pedem `tipo`): o servidor pode ter gravado, e a tela
+  // não afirma que "nada foi aprovado". Só a chamada da decisão pendura, e obedece ao sinal, como o `fetch` do navegador; o resto
+  // é a rede falsa de sempre.
+  it.each([
+    ['a aprovação do lote', '/aprovar-lote', async (usuario: ReturnType<typeof userEvent.setup>) => {
+      await usuario.click(botaoDeAprovar())
+      await usuario.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Aprovar 28 correções' }))
+    }],
+    ['a rejeição do lote', '/decidir', async (usuario: ReturnType<typeof userEvent.setup>) => {
+      await usuario.click(within(barra()).getByRole('button', { name: 'Rejeitar a correção' }))
+      const dialogo = await screen.findByRole('alertdialog')
+      await usuario.type(within(dialogo).getByRole('textbox', { name: /Por que você está rejeitando\?/ }), 'O gabarito da questão 2 está errado.')
+      await usuario.click(within(dialogo).getByRole('button', { name: 'Rejeitar a correção' }))
+    }],
+  ])('%s que passa de 20 s diz que não foi possível confirmar, manda conferir a correção, e lê a correção de novo', async (_nome, caminhoDaDecisao, decidir) => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const usuario = userEvent.setup({ advanceTimers: (ms) => void vi.advanceTimersByTime(ms) })
+    const rede = fakeNetwork()
+    instalar(rede, () => ok(lote({ abertos: [ANA, BRUNO], podeAprovar: true })))
+    const daRede = vi.mocked(fetch)
+    const sinais: AbortSignal[] = []
+    vi.stubGlobal('fetch', (caminho: string, opcoes: RequestInit = {}) => {
+      if (!caminho.endsWith(caminhoDaDecisao)) return daRede(caminho, opcoes)
+      return new Promise<Response>((_resolver, rejeitar) => {
+        const { signal } = opcoes
+        if (signal === undefined || signal === null) return
+        sinais.push(signal)
+        signal.addEventListener('abort', () => rejeitar(new DOMException('abortada', 'AbortError')))
+      })
+    })
+    const leituras = () => rede.chamadas.filter((chamada) => chamada.metodo === 'GET' && chamada.caminho.endsWith('/correcao')).length
+    montar()
+    await screen.findByRole('group', { name: 'Aprovação do lote' })
+    await decidir(usuario)
+    const lidasAntes = leituras()
+    await vi.advanceTimersByTimeAsync(19_900)
+    // Até aos 19,9 s a tela espera: nenhum aviso, e o diálogo segue aberto.
+    expect(sinais).toHaveLength(1)
+    expect(screen.queryByText(AVISO_DO_PRAZO)).toBeNull()
+    await vi.advanceTimersByTimeAsync(100)
+    expect(await screen.findByText(AVISO_DO_PRAZO)).toBeTruthy()
+    // Não afirma o resultado: a decisão pode ter sido gravada, e a tela manda conferir.
+    expect(document.body.textContent).not.toContain('nada foi aprovado')
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(document.body.textContent).not.toContain('TEMPO_ESGOTADO')
+    await waitFor(() => expect(leituras()).toBeGreaterThan(lidasAntes))
+    expect(screen.queryByRole('alertdialog')).toBeNull()
+  })
+})

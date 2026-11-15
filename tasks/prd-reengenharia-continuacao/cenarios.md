@@ -176,11 +176,20 @@ bancada, com fixture.
 ## 7. A web (RF11, RF12, RF13)
 
 - [U] Cliente com relógio falso: a leitura estoura em 20 s, o PDF em 30 s, o envio de arquivo em 180 s, a resposta de prova em
-  10 s: `TEMPO_ESGOTADO` e "Tentar de novo". Cancelamento de quem chamou: nenhum `ErrorState`
+  10 s: `TEMPO_ESGOTADO` e "Tentar de novo" (a de prova é o `responderQuestao`, com `tipo: 'prova'`; o prazo cobre também a leitura do
+  corpo da resposta). Cancelamento de quem chamou: nenhum `ErrorState`. O prazo é **o de cada tentativa**: a leitura repetida uma vez
+  pelo `shouldRetry` (1 s de atraso) só mostra "Tentar de novo" por volta dos 41 s (20 s + 1 s + 20 s)
+- [U] O estouro do prazo do cliente leva a marca `origem: 'cliente'` (o `ApiError` criado em `comPrazo`); o `TEMPO_ESGOTADO` da API
+  (503 do `statement_timeout`, 408, 504) não a leva. Só o estouro do cliente deixa incerto se a gravação aconteceu (`ehResultadoIncerto`,
+  em `operacao/textos.ts`: a proteção da tentativa incerta de `NovaEscola` liga) e só ele manda a escolha seguinte da fila de prova
+  na hora; o `TEMPO_ESGOTADO` da API passa pelo recuo com jitter. O aviso da decisão da correção, no estouro, manda conferir a
+  correção, sem afirmar que nada foi aprovado
 - [U] `material/api/material.ts` e `artefatos/api/artefatos.ts` com prazo; a guarda acusa `fetch` fora de `api/client.ts`, com
   fixture em `tools/guardas/guardas.test.ts`
 - [U] `PUT` de resposta pendurado: estoura, vai para o fim da `fila-de-respostas`, e a questão seguinte sai. Mutação: devolver
   ao início da fila
+  - com uma só escolha na fila, o estouro espera o recuo de sempre; a falha que não é estouro também (a seguinte só sai na hora no
+    estouro, `haOutraEsperando`); a escolha trocada enquanto a velha pendurava não é movida
 - [U] Componente que lança na raiz: aparece a `Falha` com "Voltar ao início", em cada rota sem área (entrada, sala pública,
   troca de senha, sistema), sem casca e com o `DrawerContext` padrão; o clique navega para `/` e a tela sai da `Falha`. Na
   operação, o destino é `/operacao`

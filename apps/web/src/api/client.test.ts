@@ -1,7 +1,11 @@
 import { ErrorCode, avisosResponseSchema, MENSAGENS_DE_ERRO } from '@educa/shared'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { shouldRetry } from './query-client'
-import { apiGet, apiRequest, ApiError, errorMessage, EMPTY_BODY } from './client'
+import { baixarPdfDoArtefato } from '../areas/professor/artefatos/api/artefatos'
+import { enviarEdicao } from '../areas/coordenacao/material/api/material'
+import { apiGet, apiRequest, ApiError, comPrazo, errorMessage, estourouNoCliente, EMPTY_BODY, PRAZOS_DA_CHAMADA_MS } from './client'
+import { responderQuestao } from './atividades-do-aluno'
+import { abrirSessaoPeloCookie } from './sessao'
 
 function responder(status: number, corpo: unknown, cabecalhos?: Record<string, string>): void {
   vi.stubGlobal(
@@ -151,5 +155,235 @@ describe('deveTentarDeNovo', () => {
     expect(shouldRetry(0, new ApiError(ErrorCode.TEMPO_ESGOTADO))).toBe(true)
     expect(shouldRetry(0, new ApiError(ErrorCode.ERRO_INTERNO))).toBe(true)
     expect(shouldRetry(0, new TypeError('falha fora do cliente'))).toBe(true)
+  })
+})
+
+describe('prazo da chamada (RF11, 52.0)', () => {
+  const ID = '0197a1c0-0000-7000-8000-000000000001'
+
+  /** O `fetch` que fica pendurado até o sinal abortar, como o do navegador; guarda cada sinal que recebeu. */
+  function penduradoAteAbortar(responderAntes?: (caminho: string, opcoes: RequestInit) => Response | undefined): AbortSignal[] {
+    const sinais: AbortSignal[] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((caminho: string, opcoes: RequestInit = {}) => {
+        const pronta = responderAntes?.(caminho, opcoes)
+        if (pronta !== undefined) return Promise.resolve(pronta)
+        return new Promise<Response>((_resolver, rejeitar) => {
+          const { signal } = opcoes
+          if (signal === undefined || signal === null) return
+          sinais.push(signal)
+          signal.addEventListener('abort', () => rejeitar(new DOMException('abortada', 'AbortError')))
+        })
+      }),
+    )
+    return sinais
+  }
+
+  /** A resposta que chegou com o cabeçalho e cujo corpo nunca termina: a leitura dele erra quando o sinal aborta, como no navegador. */
+  function respostaComCorpoPendurado(status: number, opcoes: RequestInit): Response {
+    // O `pull` que rejeita ao abortar faz o fluxo falhar; é o que o navegador faz com a leitura em andamento.
+    const corpo = new ReadableStream<Uint8Array>({
+      pull: () => new Promise<void>((_resolver, rejeitar) => opcoes.signal?.addEventListener('abort', () => rejeitar(new DOMException('abortada', 'AbortError')))),
+    })
+    return new Response(corpo, { status })
+  }
+
+  /** Onde a promessa está agora, sem esperar por ela: o relógio falso é quem a faz andar. */
+  function acompanhar(promessa: Promise<unknown>) {
+    const visto: { situacao: 'pendente' | 'resolvida' | 'rejeitada'; erro?: unknown } = { situacao: 'pendente' }
+    promessa.then(
+      () => void (visto.situacao = 'resolvida'),
+      (erro: unknown) => {
+        visto.situacao = 'rejeitada'
+        visto.erro = erro
+      },
+    )
+    return visto
+  }
+
+  /** O estouro do prazo no navegador: o código do catálogo e a marca `origem: 'cliente'`, que o separa do `TEMPO_ESGOTADO` da API. */
+  const tempoEsgotado = (visto: { erro?: unknown }) => {
+    expect(visto.erro).toMatchObject({ name: 'ApiError', codigo: ErrorCode.TEMPO_ESGOTADO, origem: 'cliente' })
+    expect(estourouNoCliente(visto.erro)).toBe(true)
+  }
+
+  /** A pessoa entrou: `authedRequest` e o envio de arquivo pedem o token da sessão. Com o relógio de verdade, antes dos casos. */
+  beforeAll(async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response(JSON.stringify({ token: 'token-do-prazo', expiraEm: new Date(Date.now() + 3_600_000).toISOString() }), { status: 200 }))))
+    await abrirSessaoPeloCookie()
+    vi.unstubAllGlobals()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('os prazos são os do RF11: leitura 20 s, PDF 30 s, envio de arquivo 180 s, resposta de prova 10 s', () => {
+    expect(PRAZOS_DA_CHAMADA_MS).toEqual({ leitura: 20_000, pdf: 30_000, envio: 180_000, prova: 10_000 })
+  })
+
+  it('o TEMPO_ESGOTADO que a API devolve (503 rápido) não leva a marca do cliente, e o do prazo estourado leva', async () => {
+    responder(503, { erro: { codigo: 'TEMPO_ESGOTADO' } })
+    const daApi = await apiGet('/v1/turmas', avisosResponseSchema).catch((erro: unknown) => erro)
+    expect(daApi).toMatchObject({ codigo: ErrorCode.TEMPO_ESGOTADO })
+    expect(estourouNoCliente(daApi)).toBe(false)
+    expect(estourouNoCliente(new ApiError(ErrorCode.TEMPO_ESGOTADO))).toBe(false)
+    expect(estourouNoCliente(new Error('TEMPO_ESGOTADO'))).toBe(false)
+    // O que não é `ApiError` nunca é lido como estouro, ainda que traga uma `origem` igual.
+    expect(estourouNoCliente({ origem: 'cliente' })).toBe(false)
+    expect(estourouNoCliente(new ApiError(ErrorCode.TEMPO_ESGOTADO, undefined, 'cliente'))).toBe(true)
+  })
+
+  it('leitura: aos 19,9 s ainda espera, e aos 20 s vira TEMPO_ESGOTADO', async () => {
+    vi.useFakeTimers()
+    penduradoAteAbortar()
+    const visto = acompanhar(apiGet('/v1/turmas', avisosResponseSchema))
+    await vi.advanceTimersByTimeAsync(19_900)
+    expect(visto.situacao).toBe('pendente')
+    await vi.advanceTimersByTimeAsync(100)
+    expect(visto.situacao).toBe('rejeitada')
+    tempoEsgotado(visto)
+  })
+
+  it('PDF: o prazo é 30 s, e não os 20 s da leitura', async () => {
+    vi.useFakeTimers()
+    penduradoAteAbortar()
+    const visto = acompanhar(baixarPdfDoArtefato(ID, 'Prova de química'))
+    await vi.advanceTimersByTimeAsync(29_900)
+    expect(visto.situacao).toBe('pendente')
+    await vi.advanceTimersByTimeAsync(100)
+    expect(visto.situacao).toBe('rejeitada')
+    tempoEsgotado(visto)
+  })
+
+  it('envio de arquivo: o prazo é 180 s, contado do envio (a conferência da sessão antes dele não conta)', async () => {
+    vi.useFakeTimers()
+    penduradoAteAbortar((_caminho, opcoes) => (opcoes.method === 'POST' ? undefined : new Response(JSON.stringify({ itens: [] }), { status: 200 })))
+    const visto = acompanhar(enviarEdicao(ID, { edicao: '2027' }, new File(['%PDF-1.4'], 'material.pdf', { type: 'application/pdf' })))
+    await vi.advanceTimersByTimeAsync(179_900)
+    expect(visto.situacao).toBe('pendente')
+    await vi.advanceTimersByTimeAsync(100)
+    expect(visto.situacao).toBe('rejeitada')
+    tempoEsgotado(visto)
+  })
+
+  it('resposta de prova: a gravação da questão é o PUT de 10 s, e aos 9,9 s ainda espera', async () => {
+    vi.useFakeTimers()
+    penduradoAteAbortar()
+    const visto = acompanhar(responderQuestao(ID, 3, 1, 1))
+    await vi.advanceTimersByTimeAsync(9_900)
+    expect(visto.situacao).toBe('pendente')
+    await vi.advanceTimersByTimeAsync(100)
+    expect(visto.situacao).toBe('rejeitada')
+    tempoEsgotado(visto)
+  })
+
+  it('o estouro aborta a chamada de verdade: o sinal que o fetch recebeu fica abortado, e a leitura do corpo que pendura também estoura', async () => {
+    vi.useFakeTimers()
+    const sinais = penduradoAteAbortar()
+    const visto = acompanhar(apiGet('/v1/turmas', avisosResponseSchema))
+    await vi.advanceTimersByTimeAsync(0)
+    expect(sinais).toHaveLength(1)
+    expect(sinais[0]?.aborted).toBe(false)
+    await vi.advanceTimersByTimeAsync(20_000)
+    expect(sinais[0]?.aborted).toBe(true)
+    tempoEsgotado(visto)
+
+    // O cabeçalho chegou, e o corpo pendura: o prazo cobre a leitura inteira, e não só o início da resposta.
+    vi.stubGlobal('fetch', vi.fn((_caminho: string, opcoes: RequestInit = {}) => Promise.resolve(respostaComCorpoPendurado(200, opcoes))))
+    const corpoPendurado = acompanhar(apiGet('/v1/turmas', avisosResponseSchema))
+    await vi.advanceTimersByTimeAsync(19_900)
+    expect(corpoPendurado.situacao).toBe('pendente')
+    await vi.advanceTimersByTimeAsync(100)
+    expect(corpoPendurado.situacao).toBe('rejeitada')
+    tempoEsgotado(corpoPendurado)
+  })
+
+  it('o PDF e o envio de arquivo também contam a leitura do corpo: o cabeçalho que chega e o corpo que pendura estouram no prazo deles, no 200 e no erro', async () => {
+    const casos: [string, number, () => Promise<unknown>, number][] = [
+      ['PDF, corpo do arquivo', 200, () => baixarPdfDoArtefato(ID, 'Prova de química'), 30_000],
+      ['PDF, corpo do erro', 500, () => baixarPdfDoArtefato(ID, 'Prova de química'), 30_000],
+      ['envio, corpo da resposta', 201, () => enviarEdicao(ID, { edicao: '2027' }, new File(['%PDF-1.4'], 'material.pdf', { type: 'application/pdf' })), 180_000],
+    ]
+    for (const [nome, status, chamar, prazo] of casos) {
+      vi.useFakeTimers()
+      // No envio, a conferência da sessão (GET) responde na hora, e só o POST fica com o corpo pendurado.
+      vi.stubGlobal(
+        'fetch',
+        vi.fn((_caminho: string, opcoes: RequestInit = {}) =>
+          Promise.resolve(opcoes.method === 'POST' || status !== 201 ? respostaComCorpoPendurado(status, opcoes) : new Response(JSON.stringify({ itens: [] }), { status: 200 })),
+        ),
+      )
+      const visto = acompanhar(chamar())
+      await vi.advanceTimersByTimeAsync(prazo - 100)
+      expect(visto.situacao, `${nome}: antes do prazo`).toBe('pendente')
+      await vi.advanceTimersByTimeAsync(100)
+      expect(visto.situacao, `${nome}: no prazo`).toBe('rejeitada')
+      tempoEsgotado(visto)
+      vi.useRealTimers()
+    }
+  })
+
+  it('cancelamento: quem chamou cancela, e sai o AbortError, e não um erro de API; nem o prazo, que vence depois, o troca', async () => {
+    vi.useFakeTimers()
+    penduradoAteAbortar()
+    const controle = new AbortController()
+    const visto = acompanhar(apiGet('/v1/turmas', avisosResponseSchema, controle.signal))
+    await vi.advanceTimersByTimeAsync(5_000)
+    expect(visto.situacao).toBe('pendente')
+    controle.abort()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(visto.situacao).toBe('rejeitada')
+    expect(visto.erro).not.toBeInstanceOf(ApiError)
+    expect(visto.erro).toMatchObject({ name: 'AbortError' })
+    expect(vi.getTimerCount()).toBe(0)
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(visto.erro).toMatchObject({ name: 'AbortError' })
+  })
+
+  it('cancelamento com o corpo pendurado: a leitura que o cancelamento aborta sai como AbortError, e não como erro de API', async () => {
+    vi.useFakeTimers()
+    vi.stubGlobal('fetch', vi.fn((_caminho: string, opcoes: RequestInit = {}) => Promise.resolve(respostaComCorpoPendurado(200, opcoes))))
+    const controle = new AbortController()
+    const visto = acompanhar(apiGet('/v1/turmas', avisosResponseSchema, controle.signal))
+    await vi.advanceTimersByTimeAsync(1_000)
+    expect(visto.situacao).toBe('pendente')
+    controle.abort()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(visto.situacao).toBe('rejeitada')
+    expect(visto.erro).not.toBeInstanceOf(ApiError)
+    expect(visto.erro).toMatchObject({ name: 'AbortError' })
+  })
+
+  it('o prazo libera: a resposta que chega antes tira o temporizador, e nenhum abort acontece depois', async () => {
+    vi.useFakeTimers()
+    const sinais: AbortSignal[] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((_caminho: string, opcoes: RequestInit = {}) => {
+        if (opcoes.signal !== undefined && opcoes.signal !== null) sinais.push(opcoes.signal)
+        return Promise.resolve(new Response(JSON.stringify({ itens: [] }), { status: 200 }))
+      }),
+    )
+    const controle = new AbortController()
+    await expect(apiGet('/v1/turmas', avisosResponseSchema, controle.signal)).resolves.toEqual({ itens: [] })
+    expect(vi.getTimerCount()).toBe(0)
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(sinais).toHaveLength(1)
+    expect(sinais[0]?.aborted).toBe(false)
+    // O ouvinte do sinal de quem chamou também saiu: cancelar depois não aborta o que já terminou.
+    controle.abort()
+    expect(sinais[0]?.aborted).toBe(false)
+  })
+
+  it('o erro que não é abort sobe do `comPrazo` como está, e o temporizador sai', async () => {
+    vi.useFakeTimers()
+    await expect(
+      comPrazo('leitura', undefined, () => {
+        throw new ApiError(ErrorCode.NAO_ENCONTRADO)
+      }),
+    ).rejects.toMatchObject({ codigo: ErrorCode.NAO_ENCONTRADO })
+    expect(vi.getTimerCount()).toBe(0)
   })
 })

@@ -49,11 +49,21 @@ export const ESCOPO_DO_NOME = [
   'packages/**/*.{js,mjs,cjs,jsx,ts,mts,cts,tsx}',
   'e2e/**/*.{js,mjs,cjs,jsx,ts,mts,cts,tsx}',
 ]
+/**
+ * Toda chamada da web à API sai por `apps/web/src/api/client.ts`, que dá o prazo a ela (52.0; RF11): `fetch` solto, no escopo
+ * global, reprova em qualquer arquivo de `apps/web/src`, fora o teste e o `__fixtures__`. As formas que o contornam
+ * (`window.fetch`, a desestruturação, a reexportação) são seletores do `no-restricted-syntax`, em `REGRAS_DE_ENTRADA`. A
+ * exceção do cliente é o arquivo, e só ele (`EXCECOES_DAS_GUARDAS`); renomeado, a exceção deixa de valer e a guarda acusa.
+ */
+export const REGRAS_DO_FETCH = ['no-restricted-globals']
+export const ESCOPO_DO_FETCH = ['apps/web/src/**/*.{ts,tsx}']
+export const ARQUIVO_DO_CLIENTE = 'apps/web/src/api/client.ts'
 export const REGRAS_DE_TESTE = ['guardas/esperar-servico-do-compose', 'guardas/teste-sem-desligar']
 /**
- * O `no-restricted-syntax` do ESLint, com os seletores em `eslint.config.mjs`, serve a dois blocos: a entrada do
- * controller passa pelo pipe no parâmetro (D81), e o kit visual não importa `api/`, `areas/` nem `sessao/` por `import()`
- * (D81, R56). Tirá-lo desta lista devolve ao `eslint-disable` o poder de furar a segunda passada nos dois.
+ * O `no-restricted-syntax` do ESLint, com os seletores em `eslint.config.mjs`, serve a três blocos: a entrada do
+ * controller passa pelo pipe no parâmetro (D81), o kit visual não importa `api/`, `areas/` nem `sessao/` por `import()`
+ * (D81, R56), e o `fetch` não se lê de `window`, nem se desestrutura, fora do cliente (52.0). Tirá-lo desta lista devolve ao
+ * `eslint-disable` o poder de furar a segunda passada nos três.
  */
 export const REGRAS_DE_ENTRADA = ['no-restricted-syntax']
 /**
@@ -82,6 +92,7 @@ export const REGRAS_DAS_GUARDAS = [
   ...REGRAS_DE_TESTE,
   ...REGRAS_DE_ENTRADA,
   ...REGRAS_DO_KIT,
+  ...REGRAS_DO_FETCH,
   ...REGRAS_DE_TAMANHO,
 ]
 
@@ -128,6 +139,11 @@ export const EXCECOES_DAS_GUARDAS = [
     regras: REGRAS_DE_ERRO,
   },
   {
+    // O cliente da API é o único lugar do `fetch` (52.0; RF11): ele o liga ao prazo. O teste e o `__fixtures__` o trocam por uma rede falsa.
+    files: [ARQUIVO_DO_CLIENTE, ...ARQUIVOS_DE_TESTE, '**/__fixtures__/**'],
+    regras: REGRAS_DO_FETCH,
+  },
+  {
     // O teste do redact precisa entregar chave pessoal ao logger para provar que ela sai removida.
     files: ['packages/core/src/log/logger.test.ts'],
     regras: REGRAS_DE_LOG,
@@ -162,6 +178,12 @@ export const configuracaoDasGuardas = [
         'guardas/*',
         '@typescript-eslint/no-restricted-imports',
       ],
+    },
+  },
+  {
+    files: ESCOPO_DO_FETCH,
+    rules: {
+      'no-restricted-globals': ['error', { name: 'fetch', message: 'A chamada à API sai por `apiRequest` ou `comPrazo`, em `api/client.ts`: sem o prazo dele, a resposta pendurada trava a tela e a fila da prova (RF11).' }],
     },
   },
   {

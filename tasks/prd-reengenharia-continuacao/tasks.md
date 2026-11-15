@@ -80,11 +80,11 @@ paralela desde o começo e não alongam o caminho, que é o da IA (1.0 → 11.0)
   - [ ] 11.2 A corrida de base e a da árvore na mesma sessão; o relatório
   - [ ] 11.3 `docs/infra.md`: o piso do contrato e as premissas medidas
 
-- [ ] **12.0 — Toda chamada da web à API tem prazo, e a resposta de prova pendurada não trava as outras (52.0)**
-  - [ ] 12.1 `comPrazo` no `apiRequest`, em `material.ts` e em `artefatos.ts`
-  - [ ] 12.2 A guarda de `fetch` fora do cliente
-  - [ ] 12.3 O `PUT` estourado vai para o fim da `fila-de-respostas`
-  - [ ] 12.4 Testes
+- [x] **12.0 — Toda chamada da web à API tem prazo, e a resposta de prova pendurada não trava as outras (52.0)**
+  - [x] 12.1 `comPrazo` no `apiRequest`, em `material.ts` e em `artefatos.ts`
+  - [x] 12.2 A guarda de `fetch` fora do cliente
+  - [x] 12.3 O `PUT` estourado vai para o fim da `fila-de-respostas`
+  - [x] 12.4 Testes
 
 - [ ] **13.0 — Uma tela que quebra fora de uma área mostra a falha com o caminho de volta (56.0)**
   - [ ] 13.1 `AreaErrorBoundary paginaInteira` em volta do `<Switch>` de `AppRoutes`

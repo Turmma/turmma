@@ -1,16 +1,18 @@
 # Estado da execução — reengenharia-continuacao
 
 ## Agora
-- **Espero:** o `RELATÓRIO` do `Implementador` (linha 1, tarefa 12.0, porte pequeno, 1ª tentativa, pedida às 15/11 13:40), do `Implementador 2` (linha 2, correção `2026-11-15-e2e-pedidos-do-titular`, esteira vermelha em `b8280ad`, execução 43736759780, pedida às 15/11 15:35; a 13.0 parte depois dela) e do `Implementador 3` (linha 3, tarefa 1.0, porte grande, 1ª tentativa, pedida às 15/11 12:32).
-- **Devo ainda:** as M1 a M4 da retro da F4 ficam no `TODO.md` como correções, sem ordem pedida. Antes de a 5.0 partir, o `Arquiteto` copia para o `5_task.md` as linhas "tarefa 5.0" da tabela "Sem aplicar" do `3_task.md` (alertas.int.test.ts:305, ambiente.test.ts:150, frases de arquitetura.md e infra.md, causa 1 do runbook, casos do privacy-guardian e do conformidade-reviewer). No pedido de pouso, lembrar o Joaquim: `VAGAS_ESCOLA_FERRAMENTA=4` no `.env` da VPS antes do primeiro deploy (o runbook já diz).
-- **Base:** `spec/reengenharia-continuacao` em `864a7a93`
+- **Espero:** o `RELATÓRIO` do `Implementador` (linha 1, tarefa 4.0, porte grande, 1ª tentativa, pedida às 15/11 17:00; retomada depois da triagem da divergência do teto do Analista: a spec fica, só muda o texto do 'Fora do escopo'), do `Implementador 2` (linha 2, correção `2026-11-15-e2e-pedidos-do-titular`, esteira vermelha em `b8280ad`, execução 43736759780, pedida às 15/11 15:35; a 13.0 parte depois dela) e do `Implementador 3` (linha 3, tarefa 2.0, porte grande, 1ª tentativa, pedida às 15/11 16:22).
+- **Devo ainda:** levar ao `TODO.md` (e ao Joaquim) o achado do `Arquiteto` na triagem da 4.0: o Analista devolve os agregados inteiros na saída e tem só 6000 tokens de saída, então com modelo real a entrada válida passa de ~4 mil tokens e já falha (`IA_SAIDA_INVALIDA`); reduzir o schema corta o resumo da coordenação, decisão do Joaquim junto da U03-12 (D32, `/descobrir`), fora desta spec. as M1 a M4 da retro da F4 ficam no `TODO.md` como correções, sem ordem pedida. Antes de a 5.0 partir, o `Arquiteto` copia para o `5_task.md` as linhas "tarefa 5.0" da tabela "Sem aplicar" do `3_task.md` (alertas.int.test.ts:305, ambiente.test.ts:150, frases de arquitetura.md e infra.md, causa 1 do runbook, casos do privacy-guardian e do conformidade-reviewer). No pedido de pouso, lembrar o Joaquim: `VAGAS_ESCOLA_FERRAMENTA=4` no `.env` da VPS antes do primeiro deploy (o runbook já diz).
+- **Base:** `spec/reengenharia-continuacao` em `05095808`
 
 ## Concluídas
 | Tarefa | Commit | Modelo | Rodadas | Observação |
 |---|---|---|---|---|
+| tarefa 1.0 (L3) | `3c4d7c38` | Sonnet | os sete revisores aprovaram na 2ª | 4 divergências resolvidas (Tech Spec §5); 4 linhas no `TODO.md`; esteira vermelha de `b8280ad` já em correção na L2 |
 | tarefa 3.0 (L2) | `63197b63` | Sonnet | todos aprovaram na 2ª | sem aplicar no documento; 2 linhas no `TODO.md`; pendências da 5.0 ainda fora do `5_task.md` |
 | correção `2026-11-15-faltando-termo-a-termo` (F2c retro M1, L1) | `6c5b1a27` | Sonnet | test-engineer, revisor-geral e privacy-guardian na 2ª | divergência triada (detalhe, `LinhaAcrescentada`); recomendações no `TODO.md` |
 | correção `2026-11-15-write-sobre-revisoes` (F2c retro M2, L2) | `15ed12a2` | Sonnet | test-engineer e revisor-geral na 2ª | + 3 itens no `TODO.md` (realpath, CRLF, Edit/Bash) |
+| tarefa 12.0 (L1) | `58b683bf` | Sonnet | 3 rodadas: 1ª infra-guardian e revisor-geral, 2ª test-engineer, 3ª todos aprovaram | Mesa fotografou /professor/criados; sem aplicar no documento e no `TODO.md`; esteira verde em `1b705e9` |
 
 ## Esperando o Joaquim
 ## 15/11 03:05 — retro da F4, no terminal do `Arquiteto 2`

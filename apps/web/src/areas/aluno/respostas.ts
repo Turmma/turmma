@@ -143,10 +143,34 @@ export function tipoDaFalha(codigo: ErrorCode): FalhaDaFila {
   return 'passageira'
 }
 
-/** A gravação falhou. **A escolha continua na fila**, em qualquer falha: é o que a tela mostra como marcado e não salvo. */
+/**
+ * A gravação falhou. **A escolha continua na fila**, em qualquer falha: é o que a tela mostra como marcado e não salvo.
+ * A que **estourou o prazo** (`TEMPO_ESGOTADO`: a resposta pendurada) vai para o **fim** da fila, com a mesma `sequencia`:
+ * a questão seguinte sai antes dela, e uma resposta pendurada não segura as outras (regra 80, item 6; RF11). Vale para o
+ * `TEMPO_ESGOTADO` dos dois lados: o do cliente (o prazo estourou) e o da API (o 503 do `statement_timeout`). O que os separa não é a
+ * ordem da fila, e sim a pressa: só o estouro do cliente manda a seguinte na hora (`fila-de-respostas.ts`, `estourouNoCliente`); o da
+ * API passa pelo recuo com jitter, e a escolha no fim da fila não perde resposta nem martela o banco.
+ */
 export function falharEnvio(estado: EstadoDaFila, codigo: ErrorCode): EstadoDaFila {
-  if (estado.noAr === undefined) return estado
-  return { ...estado, noAr: undefined, falha: tipoDaFalha(codigo), tentativas: estado.tentativas + 1 }
+  const { noAr } = estado
+  if (noAr === undefined) return estado
+  const pendentes = codigo === ErrorCode.TEMPO_ESGOTADO ? paraOFim(estado.pendentes, noAr) : estado.pendentes
+  return { ...estado, pendentes, noAr: undefined, falha: tipoDaFalha(codigo), tentativas: estado.tentativas + 1 }
+}
+
+/**
+ * A escolha que estava no ar, no fim da fila. Só se ela ainda é a mesma (questão e `sequencia`): quem trocou de alternativa
+ * enquanto ela pendurava já tem a nova na fila, e a velha não volta.
+ */
+function paraOFim(pendentes: readonly EscolhaPendente[], noAr: EscolhaPendente): readonly EscolhaPendente[] {
+  const dela = pendentes.find((pendente) => pendente.questao === noAr.questao && pendente.sequencia === noAr.sequencia)
+  // A mesma entrada em outra posição: a escolha mandada para o fim não ganha cópia na fila nem no espelho local (`sessionStorage`).
+  return dela === undefined ? pendentes : [...pendentes.filter((pendente) => pendente !== dela), dela]
+}
+
+/** Há outra escolha esperando atrás da que estourou: ela sai já, sem o recuo, porque a rede não falhou de pronto, só demorou. */
+export function haOutraEsperando(estado: EstadoDaFila): boolean {
+  return estado.pendentes.length > 1
 }
 
 export const PRIMEIRA_ESPERA_DA_FILA_MS = 2_000

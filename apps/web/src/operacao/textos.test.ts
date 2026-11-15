@@ -41,6 +41,11 @@ describe('W10: as mensagens do painel para as falhas de rede e escola', () => {
     }
   })
 
+  it('o estouro do prazo no navegador deixa incerto se a escola foi criada, e o 503 TEMPO_ESGOTADO da API, que é recusa, não', () => {
+    expect(ehResultadoIncerto(new ApiError(ErrorCode.TEMPO_ESGOTADO, undefined, 'cliente'))).toBe(true)
+    expect(ehResultadoIncerto(new ApiError(ErrorCode.TEMPO_ESGOTADO))).toBe(false)
+  })
+
   it('o 401 leva à entrada com "Sua sessão terminou. Entre de novo para continuar.", o texto que a sessão do operador deixa na entrada', () => {
     // Por extenso, como no W10: se o catálogo mudar, o cenário deixa de ser verdade e este teste fica vermelho.
     expect(TEXTO_DA_SESSAO_ENCERRADA).toBe('Sua sessão terminou. Entre de novo para continuar.')

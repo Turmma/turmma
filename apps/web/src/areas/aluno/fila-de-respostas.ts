@@ -1,12 +1,13 @@
-import type { ProvaResponse, QuestaoSalvaResponse, RespostaSalva } from '@educa/shared'
+import { type ProvaResponse, type QuestaoSalvaResponse, type RespostaSalva } from '@educa/shared'
 import type { QueryClient } from '@tanstack/react-query'
 import { responderQuestao, provaQueryOptions } from '../../api/atividades-do-aluno'
 import { MINHAS_ATIVIDADES_QUERY_KEY } from '../../api/chaves-do-aluno'
+import { estourouNoCliente } from '../../api/client'
 import { codigoDoErro } from '../../api/ciclo-de-execucao'
 import { euQueryOptions } from '../../api/eu'
 import { esquecerEspelhosDeOutroDono, gravarEspelho, lerEspelho } from '../../api/espelho-da-fila'
 import { aoAbrirSessao, aoTrocarDeSessao } from '../../api/sessao'
-import { adotarLeitura, comecarEnvio, confirmarEnvio, escolher, esperaAntesDeTentar, falharEnvio, FILA_VAZIA, hidratarDoEspelho, proximoEnvio, type EstadoDaFila } from './respostas'
+import { adotarLeitura, comecarEnvio, confirmarEnvio, escolher, esperaAntesDeTentar, falharEnvio, FILA_VAZIA, haOutraEsperando, hidratarDoEspelho, proximoEnvio, type EstadoDaFila } from './respostas'
 
 /**
  * A fila de respostas de uma atividade, ligada à rede e ao relógio (regra 80, item 6). A regra é de `respostas.ts`; aqui
@@ -90,7 +91,12 @@ export function criarFilaDeRespostas({ salvar, aoSalvar, agendar = agendarNoRelo
       },
       (erro: unknown) => {
         if (parada) return
-        publicar(falharEnvio(estado, codigoDoErro(erro)))
+        const codigo = codigoDoErro(erro)
+        publicar(falharEnvio(estado, codigo))
+        // O prazo do cliente estourou (a rede pendurou, e não a API recusou): a pendurada foi para o fim da fila, e a seguinte sai já.
+        // O `TEMPO_ESGOTADO` que a API devolve (503 do `statement_timeout`, 408, 504) passa pelo recuo com jitter: mandar a seguinte
+        // na hora, a cada recusa rápida, faria cada aluno martelar o banco sobrecarregado a cada 2 s.
+        if (estourouNoCliente(erro) && haOutraEsperando(estado)) return bombear()
         // Só a falha que passa sozinha é tentada de novo pelo relógio; a escolha fica na fila em qualquer uma.
         if (estado.falha === 'passageira') cancelarEspera = agendar(bombear, esperaAntesDeTentar(estado.tentativas))
       },
