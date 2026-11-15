@@ -2267,6 +2267,55 @@
           "range": true
         }
       ]
+    },
+    {
+      "id": 49,
+      "type": "timeseries",
+      "title": "Pedidos de IA recusados acima do teto de entrada, por tarefa",
+      "description": "Pedidos que o gateway de IA recusou com PEDIDO_ACIMA_DO_TETO (reengenharia-continuacao, tarefa 4.0), por tarefa: o pedido passou pelo esquema da entrada e mesmo assim estourou o teto de tokens declarado na tarefa. É só guarda de defeito (o teto do pior pedido válido não acompanhou um campo ou um prompt que cresceu), e por isso qualquer valor acima de zero alerta. Sem escola, execução nem usuário no rótulo. Ver \"Pedido de IA acima do teto de entrada\" no runbook.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 163
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (tarefa) (increase(ia_pedido_acima_do_teto_total[1h]))",
+          "legendFormat": "{{tarefa}}",
+          "range": true
+        }
+      ]
     }
   ]
 }

@@ -1,4 +1,4 @@
-import { ErrorCode, ESTADOS_FINAIS_DE_EXECUCAO, INTERVALO_DA_CONSULTA_DE_EXECUCAO_MS, type EstadoDeExecucao, type ExecucaoResponse, type ResultadoDaExecucao } from '@educa/shared'
+import { ErrorCode, ESTADOS_FINAIS_DE_EXECUCAO, INTERVALO_DA_CONSULTA_DE_EXECUCAO_MS, PASSAGEIROS, type EstadoDeExecucao, type ExecucaoResponse, type ResultadoDaExecucao } from '@educa/shared'
 import { CONVERSA_QUERY_KEY, ENTREGAS_QUERY_KEY, ARTEFATOS_QUERY_KEY } from './chaves-do-professor'
 import { ApiError } from './client'
 
@@ -104,18 +104,6 @@ export function chavesParaInvalidar(resultado: ResultadoDaExecucao): readonly (r
   if (resultado.tipo === 'lote_de_correcao') return [ENTREGAS_QUERY_KEY]
   return []
 }
-
-/** Os erros que passam sozinhos: vale pedir de novo com o mesmo pedido. O resto pede que algo mude antes. */
-const PASSAGEIROS: readonly ErrorCode[] = [
-  ErrorCode.IA_INDISPONIVEL,
-  ErrorCode.IA_TEMPO_ESGOTADO,
-  ErrorCode.IA_SAIDA_INVALIDA,
-  ErrorCode.IA_ENTRADA_INVALIDA,
-  ErrorCode.EXECUCAO_INTERROMPIDA,
-  ErrorCode.INDISPONIVEL_TENTE_DE_NOVO,
-  ErrorCode.TEMPO_ESGOTADO,
-  ErrorCode.ERRO_INTERNO,
-]
 
 /**
  * Como a falha aparece na tela, pelo código (regra 80, item 4: nunca erro cru):

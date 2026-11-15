@@ -104,7 +104,8 @@ bancada, com fixture.
 - [I] Com o falso ou o local, a linha estimada não conta como envio externo
 - [I] O original vivo também registra: duas linhas, nunca zero
 - [U] Por tarefa, o pior pedido válido (cada campo no limite do `esquemaDeEntrada`, montado pelo `montarPedido`, com o prompt)
-  cabe no `maximoDeTokensDeEntrada`. O gerador falha se algum campo do esquema não tem limite. Mutação: um teto abaixo do pior
+  cabe no `maximoDeTokensDeEntrada`. O gerador falha se algum campo do esquema não tem limite (no Analista, o nome da disciplina
+  ganhou o `max` do cadastro, 80). Mutação: um teto abaixo do pior
   pedido
 - [U] O pedido acima do teto (só por defeito): `PEDIDO_ACIMA_DO_TETO`, nenhum `fetch`, nenhum orçamento reservado, nenhuma linha
   em `consumo_ia`, `ia.pedido_acima_do_teto{tarefa}` +1; a tarefa sem o teto não compila (`@ts-expect-error`)

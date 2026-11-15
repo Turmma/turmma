@@ -171,6 +171,11 @@ describe('como a falha aparece: nunca erro cru (regra 80, item 4)', () => {
     expect([ErrorCode.MATERIAL_INSUFICIENTE, ErrorCode.IA_ORCAMENTO_ESGOTADO, ErrorCode.NAO_ENCONTRADO, ErrorCode.CONFLITO].map(aparenciaDaFalha)).toEqual(['explicada', 'explicada', 'explicada', 'explicada'])
   })
 
+  it('o pedido acima do teto de entrada é defeito nosso e a tela oferece tentar de novo, nunca o erro cru', () => {
+    expect(aparenciaDaFalha(ErrorCode.PEDIDO_ACIMA_DO_TETO)).toBe('fila')
+    expect(MENSAGENS_DE_ERRO[ErrorCode.PEDIDO_ACIMA_DO_TETO]).toBe('Não foi possível concluir agora. Tente de novo em instantes.')
+  })
+
   it('todo código que o ciclo guarda tem mensagem em português no catálogo', () => {
     for (const codigo of Object.values(ErrorCode)) expect(MENSAGENS_DE_ERRO[codigo]).toMatch(/\p{L}/u)
   })

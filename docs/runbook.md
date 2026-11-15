@@ -759,6 +759,36 @@ canal que ela preferir. Não reenvie em massa enquanto o provedor estiver recusa
 
 **Depois:** registre no `TODO.md` as escolas (ids), o `tipo` e a hora, só com ids e datas. Causa nova vira tarefa com teste que a reproduz.
 
+## Pedido de IA acima do teto de entrada
+
+**Dispara quando:** o gateway de IA recusou um pedido por estar acima do `maximoDeTokensDeEntrada` da tarefa, em qualquer tarefa e sem espera
+(`sum by (tarefa) (increase(ia_pedido_acima_do_teto_total[10m]))` acima de zero; o gateway cria a série de cada tarefa em zero na subida, e por isso a primeira recusa conta; a exceção é a recusa que vier antes da primeira coleta do Prometheus depois de um restart: a série já nasce em 1 e o `increase()` não a conta, e o log `ia.geracao.pedido_acima_do_teto` a registra do mesmo jeito;
+regra `infra/grafana/alertas/ia-pedido-acima-do-teto.yaml`; reengenharia-continuacao, tarefa 4.0). Não há taxa aceitável: a recusa só acontece com a entrada
+**já válida** no esquema da tarefa, e por isso é defeito nosso, e não pedido de quem usa. Resolve sozinho 10 min depois da última recusa. A série soma as
+instâncias e não leva escola, execução nem usuário: eles estão no log.
+
+**Impacto:** a execução termina `falhou` com `PEDIDO_ACIMA_DO_TETO`, sem nada ter ido ao modelo, sem linha em `consumo_ia` e sem consumir o orçamento da escola. A tela
+mostra "Tentar de novo" (a mensagem do catálogo, nunca o erro cru), e repetir dá o mesmo enquanto o teto não for corrigido. Quem pediu foi o Tutor, uma ferramenta
+ou o Analista, conforme a `tarefa`. No Tutor a pergunta recusada **não conta** como troca do aluno (a execução `falhou` devolve a vez), e a regra fixa do assunto
+delicado (D36) não passa pelo teto: o aluno continua recebendo o 188.
+
+**Primeiro olhar:** o painel "Pedidos de IA recusados acima do teto de entrada, por tarefa" diz qual tarefa. O log da API traz, por recusa,
+`ia.geracao.pedido_acima_do_teto` com `tipo` (a tarefa), `codigo`, `escolaId`, `execucaoId` e `duracaoMs`, nunca a entrada nem o prompt (veja "Buscar um erro no log pelo `tipo`").
+A execução, só com ids: `docker compose exec postgres psql -U educa -c "select id, escola_id, tarefa, estado, erro, criada_em from execucao_agente where id = '<execucaoId do log>'"`.
+O teste que confere cada teto com o pior pedido válido diz qual tarefa passou dele e por quanto: `npx vitest run --project unidade packages/core/src/ia/teto-de-entrada.test.ts`.
+
+**Causas prováveis:**
+1. O prompt ou um campo da tarefa cresceu e o `maximoDeTokensDeEntrada` dela não acompanhou (o teste acima falha, e a esteira o pega; chegar em produção quer dizer que a
+   versão saiu sem ela) → corrija o número em `packages/core/src/ia/tasks/<tarefa>.ts` para o pior pedido que o teste imprime, com teste, e faça o deploy fora do horário letivo.
+2. Um limite do esquema de entrada foi afrouxado (um `max` maior, um array maior) → o pior pedido válido cresceu: o teto sobe junto, ou o limite volta. Pedido válido que o modelo não
+   comporta é decisão de produto, não só de teto: registre no `TODO.md` antes de subir o número.
+3. O esquema passou a deixar entrar campo sem `max` → o gerador do pior pedido falha no teste (`EntradaSemLimiteError`); ponha o limite no campo, e não no teto.
+
+**Se nada disso resolver:** avise a coordenação da escola afetada de que aquela ferramenta (ou o Tutor, ou o Analista) está fora até a correção, dizendo o que continua funcionando. Não
+suba o teto de uma tarefa "para passar": o teto é o que o limitador e a estimativa da execução interrompida leem, e um número solto quebra a conta.
+
+**Depois:** registre no `TODO.md` o nome da tarefa, a hora e quantas recusas (só o nome da tarefa e contagens, sem id de escola: o repositório é público). A causa vira tarefa com teste que a reproduz.
+
 ## Importação de planilha com falha acima de 20% em 1 h
 
 **Dispara quando:** mais de 20% das importações de planilha que terminaram na última hora saíram `falhou`, por 5 min

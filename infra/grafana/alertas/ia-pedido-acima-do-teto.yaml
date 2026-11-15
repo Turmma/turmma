@@ -1,0 +1,64 @@
+# Alerta "Pedido de IA acima do teto de entrada" (reengenharia-continuacao, tarefa 4.0; runbook: docs/runbook.md#pedido-de-ia-acima-do-teto-de-entrada).
+# Provisionado por arquivo no Grafana da observabilidade local (infra/compose.yml monta esta pasta em provisioning/alerting).
+#
+# `ia.pedido_acima_do_teto{tarefa}` é contada pelo gateway de IA quando o pedido que a tarefa monta passa do `maximoDeTokensDeEntrada` dela, depois de
+# a entrada já ter passado pelo esquema: é defeito nosso (o teto não acompanhou um campo ou um prompt que cresceu), recusado antes do orçamento e do
+# envio. Não há taxa aceitável: qualquer recusa alerta. O gateway cria a série de cada tarefa em zero na subida (o `increase()` não conta o primeiro ponto
+# de uma série nova), e a regra olha o aumento nos últimos 10 min. Soma as instâncias (a API hoje, o worker de IA depois) e não leva escola, execução nem
+# usuário: o `execucaoId` e a escola vão no log `ia.geracao.pedido_acima_do_teto`.
+#
+# Sem recusa é normal: sem série, o estado é normal. Passados 10 min da última recusa o alerta se resolve sozinho, e a recusa seguinte o dispara de novo.
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: ia-pedido-acima-do-teto
+    folder: Educa.ia alertas
+    interval: 10s
+    rules:
+      - uid: educa-ia-pedido-acima-do-teto
+        title: Pedido de IA acima do teto de entrada
+        condition: C
+        for: 0s
+        noDataState: OK
+        execErrState: Error
+        isPaused: false
+        labels:
+          area: ia
+        annotations:
+          summary: 'A tarefa {{ $labels.tarefa }} recusou um pedido acima do teto de entrada'
+          description: O pedido passou pelo esquema da entrada e estourou o teto de tokens da tarefa. É defeito do teto, de um campo ou do prompt. Siga o runbook.
+          runbook_url: https://github.com/Turmma/turmma/blob/main/docs/runbook.md#pedido-de-ia-acima-do-teto-de-entrada
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              datasource:
+                type: prometheus
+                uid: prometheus
+              expr: 'sum by (tarefa) (increase(ia_pedido_acima_do_teto_total[10m]))'
+              instant: true
+              range: false
+              intervalMs: 10000
+              maxDataPoints: 43200
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params: [0]

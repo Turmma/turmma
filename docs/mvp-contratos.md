@@ -35,7 +35,7 @@ Códigos de erro novos (`packages/shared/src/errors/`, com status em `packages/c
 `TUTOR_PAUSADO_EM_AVALIACAO` 409 · `DESTAQUES_NAO_ABERTOS` 409 · `ENTREGA_JA_DECIDIDA` 409 ·
 `VERSAO_ADAPTADA_NAO_APROVADA` 409 · `ATIVIDADE_ENCERRADA` 409 · `MATERIAL_INSUFICIENTE` 422 · `IA_INDISPONIVEL` 503 ·
 `IA_TEMPO_ESGOTADO` 503 · `IA_SAIDA_INVALIDA` 502 · `IA_ORCAMENTO_ESGOTADO` 429 · `IA_ENTRADA_INVALIDA` 500 ·
-`EXECUCAO_INTERROMPIDA` 503.
+`EXECUCAO_INTERROMPIDA` 503 · `PEDIDO_ACIMA_DO_TETO` 503 (só guarda de defeito: o gateway recusa o pedido acima do teto de entrada da tarefa, e a execução o grava em `erro`; nenhuma rota o devolve como status).
 
 ## 3. Rotas (todas sob `/v1`)
 

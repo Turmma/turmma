@@ -28,7 +28,7 @@ paralela desde o começo e não alongam o caminho, que é o da IA (1.0 → 11.0)
   - [x] 3.4 `job-interativo-esperando.yaml` olha também a `ferramenta`, com o runbook
   - [x] 3.5 Testes
 
-- [ ] **4.0 — O pedido acima do teto de entrada da tarefa é recusado antes de qualquer envio**
+- [x] **4.0 — O pedido acima do teto de entrada da tarefa é recusado antes de qualquer envio**
   - [ ] 4.1 `maximoDeTokensDeEntrada` obrigatório em `TaskDefinition`, calculado pelo pior pedido válido
   - [ ] 4.2 `PEDIDO_ACIMA_DO_TETO` (503) em `LLM_ERROR_CODES`, `shared` e `HTTP_STATUS_BY_CODE`; `PASSAGEIROS` vai da web para `shared`
   - [ ] 4.3 Métrica `ia.pedido_acima_do_teto{tarefa}`, alerta e runbook

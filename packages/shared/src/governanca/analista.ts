@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { habilidadeSchema } from '../assistente/conteudo.js'
+import { TAMANHO_MAXIMO_NOME_DISCIPLINA } from '../estrutura/disciplina.js'
 import { serieSchema } from '../estrutura/serie.js'
 import { acertoPorHabilidadeSchema } from '../atividade/prova.js'
 import { idempotencyKeySchema } from '../time/idempotency-key.js'
@@ -46,6 +47,9 @@ export const TEXTO_DA_HIPOTESE: Readonly<Record<HipoteseDoAnalista, string>> = {
 
 const percentual = z.number().min(0).max(100)
 
+/** A disciplina como a escola a nomeou, com o limite do cadastro (`TAMANHO_MAXIMO_NOME_DISCIPLINA`): campo sem limite não tem teto de entrada. */
+const disciplinaDoRecorteSchema = z.strictObject({ id: z.uuid(), nome: z.string().min(1).max(TAMANHO_MAXIMO_NOME_DISCIPLINA) })
+
 /**
  * Um recorte do agregado: série × disciplina, com quantos professores e alunos entram nele, o acerto e as habilidades.
  * **O schema recusa o recorte com menos de dois professores** (D45): o de um professor só é o resultado dele, e só abre
@@ -53,7 +57,7 @@ const percentual = z.number().min(0).max(100)
  */
 export const recorteDoAnalistaSchema = z.strictObject({
   serie: serieSchema,
-  disciplina: z.strictObject({ id: z.uuid(), nome: z.string().min(1) }),
+  disciplina: disciplinaDoRecorteSchema,
   professores: z.number().int().min(GRUPO_MINIMO_DE_PROFESSORES),
   alunos: z.number().int().nonnegative(),
   lotesAprovados: z.number().int().nonnegative(),
@@ -65,14 +69,14 @@ export type RecorteDoAnalista = z.infer<typeof recorteDoAnalistaSchema>
 /** O recorte que ficou de fora do agregado pelo grupo mínimo: só diz qual é, **sem número nenhum**. */
 export const recorteNominalSchema = z.strictObject({
   serie: serieSchema,
-  disciplina: z.strictObject({ id: z.uuid(), nome: z.string().min(1) }),
+  disciplina: disciplinaDoRecorteSchema,
 })
 
 /** Um alerta: o tipo, o recorte, a habilidade (quando é sobre uma), o valor medido, a referência e as hipóteses. */
 export const alertaDoAnalistaSchema = z.strictObject({
   tipo: z.enum(TIPOS_DE_ALERTA_DO_ANALISTA),
   serie: serieSchema,
-  disciplina: z.strictObject({ id: z.uuid(), nome: z.string().min(1) }),
+  disciplina: disciplinaDoRecorteSchema,
   habilidade: habilidadeSchema.nullable(),
   valor: z.number().nonnegative(),
   referencia: z.number().nonnegative(),

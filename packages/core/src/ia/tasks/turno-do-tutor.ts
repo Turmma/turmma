@@ -627,6 +627,7 @@ export const turnoDoTutor = defineTask({
   esquemaDeSaida: tutorOutputSchema,
   prompt: PROMPT_TURNO_DO_TUTOR,
   maximoDeTokensDeSaida: 700,
+  maximoDeTokensDeEntrada: 24300,
   levaTextoLivreDePessoa: true,
   levaTextoDeAluno: true,
 

@@ -868,6 +868,7 @@ export type {
   MemoriaDoTutorResponse,
   TipoDeMensagemDoTutor,
 } from './tutor/tutor.js'
+export { PASSAGEIROS } from './tutor/passageiros.js'
 export {
   usoDoTutorQuerySchema,
   referenciaDaUltimaTrocaSchema,

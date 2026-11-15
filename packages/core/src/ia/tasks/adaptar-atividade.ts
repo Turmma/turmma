@@ -68,6 +68,7 @@ export const adaptarAtividade = defineTask({
   esquemaDeSaida: conteudoDeAtividadeSchema,
   prompt: PROMPT_ADAPTAR_ATIVIDADE,
   maximoDeTokensDeSaida: 6000,
+  maximoDeTokensDeEntrada: 22900,
   levaTextoLivreDePessoa: false,
   levaTextoDeAluno: false,
 

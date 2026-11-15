@@ -234,6 +234,7 @@ export const gerarAtividadeObjetiva = defineTask({
   esquemaDeSaida: conteudoDeAtividadeSchema,
   prompt: PROMPT_GERAR_ATIVIDADE_OBJETIVA,
   maximoDeTokensDeSaida: 6000,
+  maximoDeTokensDeEntrada: 26100,
   levaTextoLivreDePessoa: false,
   levaTextoDeAluno: false,
 

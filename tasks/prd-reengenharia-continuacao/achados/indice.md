@@ -78,3 +78,16 @@ Leia este índice antes de codar, e abra só os blocos que interessam à tarefa 
 | 2026-11-15 15:12:15 | `privacy-guardian` | 2ª | APROVADO | `3_task` | Na 5.0, conferir que as duas recomendações minhas encaminhadas para lá viraram teste: `dados` de `ia.executar` só com identificadores, recusado no esquema… |
 | 2026-11-15 15:12:22 | `revisor-geral` | 2ª | APROVADO | `3_task` | O empate de prioridade entre as linhas antigas e as novas, até elas terminarem, só está escrito no `3_task.md`. Uma frase na `techspec.md` §5 "A fila", ou no… |
 | 2026-11-15 15:12:24 | `conformidade-reviewer` | 2ª | APROVADO | `3_task` | nenhuma nova. |
+| 2026-11-15 19:33:45 | `frontend-reviewer` | 1ª | APROVADO | `4_task` | Teste mal dividido em `apps/web/src/api/ciclo-de-execucao.test.ts` (por volta das linhas 170 a 177). O novo `it` do teto entrou no meio do `it` "o que passa… |
+| 2026-11-15 19:33:55 | `conformidade-reviewer` | 1ª | APROVADO | `4_task` | O caso de integração do Tutor confere a pergunta recusada direto no banco. Um caso pela rota que o professor usa para ler a conversa, mostrando a pergunta sem… |
+| 2026-11-15 19:34:25 | `infra-guardian` | 1ª | APROVADO | `4_task` | `packages/core/src/ia/llm-gateway.ts:316`: o `tokensDoPedido` chama o `montarMensagens` inteiro (com `montarPedido` e a junção dos textos), e o adaptador monta… |
+| 2026-11-15 19:34:29 | `privacy-guardian` | 1ª | APROVADO | `4_task` | `packages/core/src/ia/teto-de-entrada.ts:179`: a mensagem de `EntradaSemLimiteError` copia as mensagens de erro do zod. Hoje isso só roda em teste, sobre… |
+| 2026-11-15 19:34:31 | `revisor-geral` | 1ª | APROVADO | `4_task` | `apps/web/src/api/ciclo-de-execucao.test.ts:176`: a asserção dos códigos que viram `'explicada'` saiu do caso da linha 169 e ficou dentro do caso novo do teto… |
+| 2026-11-15 19:34:50 | `llm-integrator` | 1ª | APROVADO | `4_task` | `apps/web/src/api/ciclo-de-execucao.test.ts`, por volta da linha 171: o `it` novo foi inserido no meio do `it` antigo ("o que passa sozinho vira aviso com… |
+| 2026-11-15 19:35:53 | `test-engineer` | 1ª | REPROVADO | `4_task` | `packages/core/src/ia/teto-de-entrada.ts:159`, termo `!Object.hasOwn(atual, ultima)`: o motivo dado no lugar do bloco é falso, e o ramo não tem teste. O motivo… |
+| 2026-11-15 19:51:23 | `revisor-geral` | 2ª | APROVADO | `4_task` | Comentário em `teto-de-entrada.ts:179`: diz que a mensagem do zod "pode trazer o valor recebido". Vale citar um caso concreto, ou o `code` do zod que traz… |
+| 2026-11-15 19:51:26 | `test-engineer` | 2ª | APROVADO | `4_task` | O diff troca `problema.message` por `problema.code` na mensagem do `EntradaSemLimiteError` (`teto-de-entrada.ts:180`), para não levar o valor recebido ao texto… |
+| 2026-11-15 19:51:26 | `infra-guardian` | 2ª | APROVADO | `4_task` | nenhuma nova |
+| 2026-11-15 19:51:41 | `conformidade-reviewer` | 2ª | APROVADO | `4_task` | nenhuma nova. |
+| 2026-11-15 19:51:44 | `llm-integrator` | 2ª | APROVADO | `4_task` | O teto do Analista (642.300 tokens) é maior que a janela de qualquer modelo plausível e fica inerte. Quem protege é a reserva do limitador na tarefa 10.0. Já… |
+| 2026-11-15 19:51:48 | `frontend-reviewer` | 2ª | APROVADO | `4_task` | Registrada em `TODO.md`: o caso pela rota de leitura da conversa pelo professor, com a pergunta sem resposta (item 4 da regra 70). Não bloqueia. |

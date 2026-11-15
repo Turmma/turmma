@@ -75,6 +75,7 @@ export const relatorioDaCorrecao = defineTask({
   esquemaDeSaida: relatorioOutputSchema,
   prompt: PROMPT_RELATORIO_DA_CORRECAO,
   maximoDeTokensDeSaida: 2500,
+  maximoDeTokensDeEntrada: 3200,
   levaTextoLivreDePessoa: false,
   levaTextoDeAluno: false,
 

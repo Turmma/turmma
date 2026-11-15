@@ -22,6 +22,8 @@ export const LLM_ERROR_CODES = [
   ErrorCode.PACOTE_DO_TUTOR_ESGOTADO,
   /** Quem chamou mandou uma entrada fora do schema da tarefa: chave a mais (nome de pessoa, por exemplo) ou campo errado. */
   ErrorCode.IA_ENTRADA_INVALIDA,
+  /** O pedido montado passa do teto de entrada da tarefa: defeito nosso, recusado antes do orçamento e do envio, sem consumo. */
+  ErrorCode.PEDIDO_ACIMA_DO_TETO,
   /** A escola suspendeu esta função (D60): nada dela executa enquanto a suspensão durar. */
   ErrorCode.FUNCAO_SUSPENSA,
   /** Os trechos do material não sustentam o que foi pedido: sem página para citar, nada é gerado (regra 30, item 12). */

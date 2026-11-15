@@ -93,6 +93,7 @@ export const gerarPlanoDeAula = defineTask({
   esquemaDeSaida: conteudoDePlanoDeAulaSchema,
   prompt: PROMPT_GERAR_PLANO_DE_AULA,
   maximoDeTokensDeSaida: 4000,
+  maximoDeTokensDeEntrada: 26100,
   levaTextoLivreDePessoa: false,
   levaTextoDeAluno: false,
 
