@@ -133,7 +133,8 @@ Enquanto um teste não passa, ele se roda isolado; o portão não é ferramenta 
 `apps/*/src` ou `packages/*/src` (fora teste e `.d.ts`) precisa, no documento dela, de ao menos um bloco
 ` ```mutacao ` ou da linha `**Sem mutação:** <motivo>`, com o motivo escrito. Sem um dos dois o portão fica
 vermelho e o hook recusa o commit. `node tools/processo/mutacoes.ts --faltando <documento>` lista as linhas
-novas com condição que nenhum bloco alcança, também as do código de `tools/` (fora teste, `.d.ts`, as pastas `test/`, `tests/`,
+novas com condição que nenhum bloco alcança, um item por termo da linha com vários (`and(...)`, `&&`, `||`) e também a linha
+de SQL ou Lua em template string, também as do código de `tools/` (fora teste, `.d.ts`, as pastas `test/`, `tests/`,
 `__tests__/`, `__fixtures__/` e `fixtures/`, e o que não é código); só informa, e a exigência acima segue só com `apps/*/src` e `packages/*/src`.
 
 **A esteira**, em todo push da spec e da correção. Cada commit de tarefa vai para o GitHub logo depois de feito, na branch

@@ -21,6 +21,7 @@ import {
   impressaoDasMutacoes,
   lerMutacoes,
   linhasAcrescentadas,
+  linhasDeTemplateComScript,
   linhasNovasDaArvore,
   linhasSemBloco,
   MARCA_DO_SUPERVISOR,
@@ -28,17 +29,19 @@ import {
   prazoDaMutada,
   prepararRelatorio,
   PROJETOS_DO_E2E,
+  prosaSemBlocos,
   reconstruirDepoisDasMutacoes,
   relatorioDoFaltando,
   rodarCalado,
   SAIDA_DO_PRAZO,
   semMutacaoDeclarada,
   sinalAoGrupo,
+  termosDaLinha,
   testTimeoutDaMutacao,
   testTimeoutDoCaso,
   testTimeoutDoProjeto,
   tipoDoTeste,
-  type LinhaNova,
+  type LinhaAcrescentada,
   type Mutacao,
   type Rodar,
 } from './mutacoes.ts'
@@ -688,7 +691,7 @@ index 0000000..4444444
   })
 
   it('linha nova em teste, em .d.ts e fora de src não é listada', () => {
-    const emTeste: LinhaNova[] = [
+    const emTeste: LinhaAcrescentada[] = [
       { arquivo: 'apps/api/src/pedidos.test.ts', linha: 1, texto: 'if (a) b' },
       { arquivo: 'apps/web/src/vite-env.d.ts', linha: 1, texto: 'x ? y : z' },
       { arquivo: 'apps/web/vite.config.ts', linha: 1, texto: 'a && b' },
@@ -721,7 +724,7 @@ index 0000000..4444444
   })
 
   it('linha nova com condição em tools/ é listada, e o bloco do mesmo arquivo a alcança', () => {
-    const deTools: LinhaNova[] = [
+    const deTools: LinhaAcrescentada[] = [
       { arquivo: 'tools/processo/mutacoes.ts', linha: 9, texto: '  if (a) return b' },
       { arquivo: 'tools/ci/e2e.ts', linha: 3, texto: 'const a = b ?? c' },
       { arquivo: 'tools/processo/mutacoes.test.ts', linha: 1, texto: 'if (x) y' },
@@ -744,6 +747,364 @@ index 0000000..4444444
       'Linhas novas de produção com condição que nenhum bloco de tasks/prd-x/3_task.md alcança (1):\n  apps/api/src/a.ts:7  [if &&]  if (a && b) {\n',
     )
     expect(relatorioDoFaltando([], 'tasks/prd-x/3_task.md')).toBe('Nenhuma linha nova de produção com condição fica sem bloco em tasks/prd-x/3_task.md.\n')
+  })
+})
+
+describe('o --faltando termo a termo (M1 da retro da F2c)', () => {
+  it.each([
+    { nome: 'and de Drizzle com dois termos', linha: 'return and(eq(a.escolaId, escolaId), eq(a.id, id))', termos: ['eq(a.escolaId, escolaId)', 'eq(a.id, id)'] },
+    { nome: 'or de Drizzle com três termos', linha: '.where(or(isNull(a.x), eq(a.y, 1), gt(a.z, 2)))', termos: ['isNull(a.x)', 'eq(a.y, 1)', 'gt(a.z, 2)'] },
+    { nome: 'e lógico', linha: 'if (a && b) {', termos: ['a', 'b'] },
+    { nome: 'e e ou na mesma linha', linha: 'if (a && b || c) {', termos: ['a', 'b', 'c'] },
+    { nome: 'ou lógico depois de atribuição', linha: 'const ok = erro instanceof ApiError || falha', termos: ['erro instanceof ApiError', 'falha'] },
+    { nome: 'e lógico depois de return', linha: 'return a.ativo && !a.revogado', termos: ['a.ativo', '!a.revogado'] },
+    { nome: 'e lógico depois de um if sem chaves', linha: 'if (pronto) return a && b', termos: ['a', 'b'] },
+    { nome: 'propriedade de objeto, com a vírgula do fim', linha: 'ativo: a && b,', termos: ['ativo: a', 'b'] },
+    { nome: 'e lógico antes de um ternário', linha: 'const v = a && b ? x : y', termos: ['a', 'b'] },
+    { nome: 'e lógico antes de um ternário, com ternário no primeiro termo', linha: 'x = a ? b : c && d', termos: ['a ? b : c', 'd'] },
+    { nome: 'ternário dentro de and, que não é de e lógico', linha: 'and(eq(a, 1), x ? y : z)', termos: ['eq(a, 1)', 'x ? y : z'] },
+    { nome: 'e lógico depois de uma atribuição simples', linha: 'x.y = a && b', termos: ['a', 'b'] },
+    { nome: 'igualdade não é atribuição', linha: 'const r = a == b && c', termos: ['a == b', 'c'] },
+    { nome: 'função de seta com parênteses', linha: 'const f = (x) => a && b', termos: ['a', 'b'] },
+    { nome: 'função de seta sem parênteses, que fica no termo', linha: 'const f = x => a && b', termos: ['x => a', 'b'] },
+    { nome: 'ponto e vírgula do fim da linha', linha: 'x = a && b;', termos: ['a', 'b'] },
+    { nome: 'dentro de parênteses o que vem antes do primeiro termo fica', linha: 'if (x = a && b) {', termos: ['x = a', 'b'] },
+    { nome: 'fecho sem abertura', linha: 'a) && b', termos: ['a)', 'b'] },
+    { nome: 'texto entre aspas seguido de outro termo', linha: "const a = 'x && y' && z", termos: ["'x && y'", 'z'] },
+    { nome: 'texto com aspa escapada seguido de outro termo', linha: "const a = 'it\\'s' && b", termos: ["'it\\'s'", 'b'] },
+    { nome: 'modelo de texto seguido de outro termo', linha: 'const a = `x && y` && z', termos: ['`x && y`', 'z'] },
+    { nome: 'modelo de texto com crase escapada seguido de outro termo', linha: 'const a = `x\\`y && z` && w', termos: ['`x\\`y && z`', 'w'] },
+    { nome: 'divisão antes do e lógico', linha: 'const m = soma / total && ok', termos: ['soma / total', 'ok'] },
+    { nome: 'expressão regular com classe, seguida de outro termo', linha: 'const r = /[a]/.test(x) && y', termos: ['/[a]/.test(x)', 'y'] },
+    { nome: 'duas barras coladas no texto não são comentário', linha: 'const u = a//b && c', termos: ['a//b', 'c'] },
+    { nome: 'comentário de bloco depois de um termo', linha: 'a /* x && y */ && c', termos: ['a /* x && y */', 'c'] },
+    { nome: 'comentário de bloco antes do primeiro termo', linha: 'const a = /* c */ b && c', termos: ['/* c */ b', 'c'] },
+    { nome: 'e lógico dentro de chamada, com argumentos antes', linha: 'f(x, a && b)', termos: ['a', 'b'] },
+    { nome: 'texto entre aspas duplas seguido de outro termo', linha: 'const a = "x && y" && z', termos: ['"x && y"', 'z'] },
+    { nome: 'expressão regular depois de parêntese, seguida de outro termo', linha: "if (x.replace(/a||b/, '') && c)", termos: ["x.replace(/a||b/, '')", 'c'] },
+    { nome: 'expressão regular depois de vírgula, seguida de outro termo', linha: 'if (f(a, /x||y/) && c)', termos: ['f(a, /x||y/)', 'c'] },
+    { nome: 'atribuição depois da função de seta, que sai junto', linha: 'const f = (x) => y = a && b', termos: ['a', 'b'] },
+    { nome: 'condição que continua na linha de baixo: os grupos abertos fecham no fim', linha: 'if (a && b && lista.some((x) =>', termos: ['a', 'b', 'lista.some((x) =>'] },
+    { nome: 'grupo aberto no fim: o que vem antes do primeiro termo só sai no topo da linha', linha: 'if (x = a && lista.some((y) =>', termos: ['x = a', 'lista.some((y) =>'] },
+    { nome: 'grupo aberto no fim, com o primeiro e o último fora dele', linha: 'const r = a && f(b && c,', termos: ['a', 'f(b && c', 'b', 'c'] },
+    { nome: 'limite conhecido: o ternário fica com o começo (`x ?`) no primeiro termo', linha: 'return x ? a && b : c', termos: ['x ? a', 'b : c'] },
+    { nome: 'e lógico dentro de and', linha: 'and(eq(a, 1), b && c)', termos: ['eq(a, 1)', 'b', 'c'] },
+    { nome: 'or aninhado em and', linha: 'and(eq(a, 1), or(eq(b, 2), eq(c, 3)))', termos: ['eq(a, 1)', 'or(eq(b, 2), eq(c, 3))', 'eq(b, 2)', 'eq(c, 3)'] },
+  ])('os termos de $nome', ({ linha, termos }) => {
+    expect(termosDaLinha(linha)).toEqual(termos)
+  })
+
+  it.each([
+    { nome: 'um termo só', linha: 'if (a) return b' },
+    { nome: 'and com um argumento', linha: 'return and(eq(a, 1))' },
+    { nome: 'chamada com vírgula que não é and', linha: 'eq(a.escolaId, escolaId)' },
+    { nome: 'texto entre aspas', linha: "const aviso = 'a && b || c'" },
+    { nome: 'modelo de texto', linha: 'const aviso = `a && ${b} || c`' },
+    { nome: 'comentário de linha inteira', linha: '// a && b' },
+    { nome: 'comentário no fim', linha: 'const a = 1 // a && b' },
+    { nome: 'docblock', linha: ' * se a && b' },
+    { nome: 'expressão regular', linha: 'const r = /a||b/' },
+    { nome: 'expressão regular depois de return', linha: 'return /a||b/.test(x)' },
+    { nome: 'expressão regular no começo da linha', linha: '/a||b/.test(x)' },
+    { nome: 'expressão regular com barra escapada', linha: 'const r = /a\\/b||c/' },
+    { nome: 'expressão regular com barra dentro da classe', linha: 'const r = /[/]||x/' },
+    { nome: 'comentário de bloco', linha: 'const a = /* x && y */ 1' },
+    { nome: 'comentário de bloco sem fechar', linha: 'const a = /* x && y' },
+    { nome: 'ou bit a bit', linha: 'const m = a | b' },
+    { nome: 'e bit a bit', linha: 'const m = a & b' },
+    { nome: 'atribuição lógica', linha: 'a ||= b' },
+    { nome: 'coalescência', linha: 'const a = b ?? c' },
+    { nome: 'linha em branco', linha: '   ' },
+    { nome: 'um argumento do and numa linha só, que é como o and de várias linhas chega (limite conhecido)', linha: 'eq(t.escolaId, escolaId),' },
+    { nome: 'a abertura do and de várias linhas (limite conhecido)', linha: '.where(and(' },
+  ])('não há termos em $nome', ({ linha }) => {
+    expect(termosDaLinha(linha)).toEqual([])
+  })
+
+  const linha = (texto: string, linhaNo = 7, arquivo = 'apps/api/src/pedidos.repository.ts'): LinhaAcrescentada => ({ arquivo, linha: linhaNo, texto })
+  const bloco2 = (antes: string[], depois: string[], arquivo = 'apps/api/src/pedidos.repository.ts'): Mutacao => ({ arquivo, teste: 'apps/api/test/x.int.test.ts', caso: null, antes, depois })
+  const E = 'return and(eq(a.escolaId, escolaId), eq(a.id, id))'
+  const itens = (faltando: ReturnType<typeof linhasSemBloco>) => faltando.map((item) => `${String(item.linha)} ${item.termo ?? '-'}`)
+
+  it('a linha com vários termos é listada com um item por termo, mesmo sem operador de TypeScript', () => {
+    const faltando = linhasSemBloco([linha(`  ${E}`)], [])
+    expect(itens(faltando)).toEqual(['7 eq(a.escolaId, escolaId)', '7 eq(a.id, id)'])
+    expect(faltando.map((item) => item.condicoes)).toEqual([['termos'], ['termos']])
+  })
+
+  it('a linha com operador e com termos leva o operador em cada item', () => {
+    const faltando = linhasSemBloco([linha('if (a && b) {')], [])
+    expect(itens(faltando)).toEqual(['7 a', '7 b'])
+    expect(faltando.map((item) => item.condicoes)).toEqual([['if', '&&'], ['if', '&&']])
+  })
+
+  it('o bloco que tira um termo e deixa os outros alcança só esse termo', () => {
+    const tiraOSegundo = bloco2([E], ['return and(eq(a.escolaId, escolaId))'])
+    expect(itens(linhasSemBloco([linha(E)], [tiraOSegundo]))).toEqual(['7 eq(a.escolaId, escolaId)'])
+    const tiraOPrimeiro = bloco2([E], ['return and(eq(a.id, id))'])
+    expect(itens(linhasSemBloco([linha(E)], [tiraOPrimeiro]))).toEqual(['7 eq(a.id, id)'])
+  })
+
+  it('um bloco para cada termo tira a linha da lista', () => {
+    const blocos = [bloco2([E], ['return and(eq(a.escolaId, escolaId))']), bloco2([E], ['return and(eq(a.id, id))'])]
+    expect(linhasSemBloco([linha(E)], blocos)).toEqual([])
+  })
+
+  it('o bloco que troca a linha inteira, ou só a cita como contexto, não alcança termo nenhum', () => {
+    expect(itens(linhasSemBloco([linha(E)], [bloco2([E], ['return true'])]))).toEqual(['7 eq(a.escolaId, escolaId)', '7 eq(a.id, id)'])
+    const contexto = bloco2([E, 'return outra'], [E, 'return nada'])
+    expect(itens(linhasSemBloco([linha(E)], [contexto]))).toEqual(['7 eq(a.escolaId, escolaId)', '7 eq(a.id, id)'])
+  })
+
+  it('o termo de dentro de outro, tirado sozinho, não exige que o termo de fora continue igual', () => {
+    const aninhada = 'and(eq(a, 1), or(eq(b, 2), eq(c, 3)))'
+    const tiraOC = bloco2([aninhada], ['and(eq(a, 1), or(eq(b, 2)))'])
+    expect(itens(linhasSemBloco([linha(aninhada)], [tiraOC]))).toEqual(['7 eq(a, 1)', '7 or(eq(b, 2), eq(c, 3))', '7 eq(b, 2)'])
+  })
+
+  it('o termo é achado por palavra inteira: tirar `ab` não conta como tirar `a`', () => {
+    const faltando = linhasSemBloco([linha('if (a && ab) {')], [bloco2(['if (a && ab) {'], ['if (a) {'])])
+    expect(itens(faltando)).toEqual(['7 a'])
+  })
+
+  it('bloco de outro arquivo não alcança o termo', () => {
+    expect(linhasSemBloco([linha(E)], [bloco2([E], ['return and(eq(a.id, id))'], 'apps/api/src/outro.repository.ts')])).toHaveLength(2)
+  })
+
+  it('o motivo que cita o termo entre crases o tira da lista, e o que cita outro termo não', () => {
+    const documento = ['# Tarefa', '', '## Mutações', '', 'Um termo sem bloco, com o motivo: o `eq(a.escolaId, escolaId)` só estreita o tipo.', '', bloco('arquivo: apps/api/src/x.ts', 'teste: apps/api/test/x.int.test.ts', '- return 1', '+ return 2')].join('\n')
+    expect(itens(linhasSemBloco([linha(E)], [], prosaSemBlocos(documento)))).toEqual(['7 eq(a.id, id)'])
+  })
+
+  it('o termo repetido na linha (a && a && b) é um item só', () => {
+    expect(itens(linhasSemBloco([linha('if (a && a && b) {')], []))).toEqual(['7 a', '7 b'])
+  })
+
+  it('o motivo só vale com a crase igual ao termo: a crase com a linha inteira não cobre termo nenhum', () => {
+    expect(itens(linhasSemBloco([linha(E)], [], `O motivo: \`${E}\` só estreita o tipo.`))).toEqual(['7 eq(a.escolaId, escolaId)', '7 eq(a.id, id)'])
+  })
+
+  it('o motivo só vale com a crase igual ao termo: `podeEditarTudo` não cobre `podeEditar`', () => {
+    expect(itens(linhasSemBloco([linha('if (podeEditar && podeVer) {')], [], 'O `podeEditarTudo` e o `podeVerTudo` só estreitam o tipo.'))).toEqual(['7 podeEditar', '7 podeVer'])
+    expect(itens(linhasSemBloco([linha('if (podeEditar && podeVer) {')], [], 'O `podeEditar` só estreita o tipo.'))).toEqual(['7 podeVer'])
+    expect(itens(linhasSemBloco([linha('if (podeEditar && podeVer) {')], [], 'O ` podeEditar ` só estreita o tipo.'))).toEqual(['7 podeVer'])
+  })
+
+  it('o motivo só vale na seção "Mutações": a linha citada na "Correção" continua listando os dois termos', () => {
+    const documento = ['# Tarefa', '', '## Correção', '', `A linha \`${E}\` e o termo \`eq(a.id, id)\` mudam.`, '', '## Mutações', '', 'Sem motivo escrito.'].join('\n')
+    expect(itens(linhasSemBloco([linha(E)], [], prosaSemBlocos(documento)))).toEqual(['7 eq(a.escolaId, escolaId)', '7 eq(a.id, id)'])
+    expect(prosaSemBlocos(documento)).not.toContain('A linha')
+    expect(prosaSemBlocos(documento)).toContain('Sem motivo escrito.')
+  })
+
+  it('o documento sem a seção "Mutações" não tem motivo nenhum', () => {
+    expect(prosaSemBlocos('# Tarefa\n\nUm motivo: `eq(a.id, id)`.\n')).toBe('')
+  })
+
+  it('a seção "Mutações" acaba na próxima seção (as "Revisões" do hook não valem como motivo)', () => {
+    const documento = ['# Tarefa', '', '## Mutações', '', 'Motivo: `eq(a.id, id)`.', '', '## Revisões', '', 'Outro: `eq(a.escolaId, escolaId)`.'].join('\n')
+    expect(itens(linhasSemBloco([linha(E)], [], prosaSemBlocos(documento)))).toEqual(['7 eq(a.escolaId, escolaId)'])
+  })
+
+  it('o motivo não cobre termo curto demais, que qualquer crase conteria', () => {
+    expect(itens(linhasSemBloco([linha('if (a && b) {')], [], 'O `a` e o `b` só estreitam o tipo.'))).toEqual(['7 a', '7 b'])
+  })
+
+  it('o texto de dentro de um bloco de mutação não é motivo', () => {
+    const documento = ['# Tarefa', '', '## Mutações', '', 'Texto da seção.', '', bloco('arquivo: apps/api/src/x.ts', 'teste: apps/api/test/x.int.test.ts', `- \`${E}\``, '+ x')].join('\n')
+    expect(prosaSemBlocos(documento)).not.toContain('eq(a.id, id)')
+    expect(prosaSemBlocos(documento)).toContain('Texto da seção.')
+    expect(itens(linhasSemBloco([linha(E)], [], prosaSemBlocos(documento)))).toHaveLength(2)
+  })
+
+  it('a linha de um termo só segue como antes: o bloco que a cita, mesmo como contexto, a tira', () => {
+    expect(linhasSemBloco([linha('if (a) return b')], [bloco2(['if (a) return b'], [])])).toEqual([])
+  })
+
+  it('o bloco que não cita o termo não o alcança, ainda que o que sobra tenha os outros', () => {
+    const deOutraLinha = bloco2(['return outra'], ['eq(a.id, id)'])
+    expect(itens(linhasSemBloco([linha(E)], [deOutraLinha]))).toEqual(['7 eq(a.escolaId, escolaId)', '7 eq(a.id, id)'])
+  })
+
+  it('o termo depois de um ponto é outra coisa: `x.b` não é o `b` que o bloco deixou', () => {
+    expect(itens(linhasSemBloco([linha('if (a && b) {')], [bloco2(['if (a && b) {'], ['if (a) { x.b }'])]))).toEqual(['7 a'])
+  })
+
+  it('o bloco que tira o ramo inteiro alcança o ramo, e não os termos de dentro dele', () => {
+    const aninhada = 'and(eq(a, 1), or(eq(b, 2), eq(c, 3)))'
+    const tiraOOr = bloco2([aninhada], ['and(eq(a, 1))'])
+    expect(itens(linhasSemBloco([linha(aninhada)], [tiraOOr]))).toEqual(['7 eq(a, 1)', '7 eq(b, 2)', '7 eq(c, 3)'])
+  })
+
+  it('o relatório diz o termo de cada item e conta um por termo', () => {
+    const faltando = linhasSemBloco([linha(`  ${E}`)], [])
+    expect(relatorioDoFaltando(faltando, 'tasks/prd-x/3_task.md')).toBe(
+      'Linhas novas de produção com condição que nenhum bloco de tasks/prd-x/3_task.md alcança (2):\n' +
+        `  apps/api/src/pedidos.repository.ts:7  [termos]  ${E}  (termo \`eq(a.escolaId, escolaId)\`)\n` +
+        `  apps/api/src/pedidos.repository.ts:7  [termos]  ${E}  (termo \`eq(a.id, id)\`)\n`,
+    )
+  })
+})
+
+describe('o --faltando e o SQL ou o Lua em template string (M1 da retro da F2c)', () => {
+  const C = '`'
+  const modelos = (fonte: string) => [...linhasDeTemplateComScript(fonte)].map(([numero, achada]) => `${String(numero)} ${achada.modelo}${achada.mista ? ' mista' : ''}`)
+
+  it('o corpo de um template com a etiqueta sql, linha a linha', () => {
+    const fonte = [`const q = sql${C}`, '  select a', '  from t', `${C}`, 'const fora = 1'].join('\n')
+    expect(modelos(fonte)).toEqual(['2 sql', '3 sql'])
+  })
+
+  it('o script Lua pelo que ele traz (redis.call, KEYS, ARGV), sem etiqueta', () => {
+    const fonte = [`const SCRIPT = ${C}`, "local v = redis.call('GET', KEYS[1])", 'return v', `${C}`].join('\n')
+    expect(modelos(fonte)).toEqual(['2 lua', '3 lua'])
+  })
+
+  it('o template passado a eval ou a defineCommand é Lua, ainda que não tenha marca nenhuma', () => {
+    expect(modelos([`await redis.eval(${C}`, 'return 1', `${C}, 0)`].join('\n'))).toEqual(['2 lua'])
+    expect(modelos(["redis.defineCommand('x', {", `  lua: ${C}`, '  return 2', `  ${C},`, '})'].join('\n'))).toEqual(['3 lua'])
+  })
+
+  it('o template passado a execute ou a query é SQL', () => {
+    expect(modelos([`await banco.execute(${C}`, '  update t set a = 1', `${C})`].join('\n'))).toEqual(['2 sql'])
+    expect(modelos([`await pool.query(${C}`, '  delete from t', `${C})`].join('\n'))).toEqual(['2 sql'])
+  })
+
+  it('o template de uma linha só com sql conta a própria linha como mista, se tem condição; `now()` não conta', () => {
+    expect(modelos([`const a = 1`, `const b = sql${C}a is null or b = 1${C}`].join('\n'))).toEqual(['2 sql mista'])
+    expect(modelos(`const b = { em: sql${C}now()${C} }`)).toEqual([])
+  })
+
+  it('a linha que abre e a que fecha o template são mistas; a de dentro, não', () => {
+    const fonte = [`await banco.execute(sql${C}`, '  where a = 1', `${C}, x && y)`].join('\n')
+    expect(modelos(fonte)).toEqual(['2 sql'])
+    expect(modelos([`const q = sql${C}where a = 1`, '  and b = 2', `${C}`].join('\n'))).toEqual(['1 sql mista', '2 sql'])
+  })
+
+  it('o Lua de uma linha só é mista, com texto qualquer', () => {
+    expect(modelos(`await redis.eval(${C}return 1${C}, 0)`)).toEqual(['1 lua mista'])
+  })
+
+  it('o template de texto comum, e o código que vem depois dele, não são SQL nem Lua', () => {
+    const fonte = [`const aviso = ${C}olá, mundo${C}`, `const q = sql${C}`, '  select 1', `${C}`, `const outro = ${C}`, 'texto', `${C}`, 'const x = a && b'].join('\n')
+    expect(modelos(fonte)).toEqual(['3 sql'])
+  })
+
+  it('a interpolação é código: a crase de dentro dela e o texto depois dela seguem no mesmo template', () => {
+    const fonte = [`const q = sql${C}`, `  select ${'${'}a} from t where x = ${'${'}fn(${C}y${C})}`, '  and z = 1', `${C}`, 'const depois = 1'].join('\n')
+    expect(modelos(fonte)).toEqual(['2 sql', '3 sql'])
+  })
+
+  it('crase em comentário, em texto entre aspas e em expressão regular não abre template', () => {
+    const fonte = ['// uma crase ` solta', "const a = '`'", 'const r = /`/', '/* ` */', `const q = sql${C}`, '  select 1', `${C}`].join('\n')
+    expect(modelos(fonte)).toEqual(['6 sql'])
+  })
+
+  it('o comentário de linha com crase, e a expressão regular com crase depois de return, não abrem template', () => {
+    expect(modelos(['const a = 1', '// crase ` solta', `const q = sql${C}`, '  select 1', `${C}`].join('\n'))).toEqual(['4 sql'])
+    expect(modelos(['function f() {', '  return /`/.test(x)', '}', `const q = sql${C}`, '  select 1', `${C}`].join('\n'))).toEqual(['5 sql'])
+  })
+
+  it('a crase entre aspas duplas não abre template', () => {
+    expect(modelos([`const a = "${C}"`, `const q = sql${C}`, '  select 1', `${C}`].join('\n'))).toEqual(['3 sql'])
+  })
+
+  it('a expressão regular com crase depois de parêntese e depois de vírgula não abre template', () => {
+    expect(modelos([`f(/${C}/)`, `const q = sql${C}`, '  select 1', `${C}`].join('\n'))).toEqual(['3 sql'])
+    expect(modelos([`g(a, /${C}/)`, `const q = sql${C}`, '  select 1', `${C}`].join('\n'))).toEqual(['3 sql'])
+  })
+
+  it('o comentário de bloco de várias linhas conta as linhas, e o que vem depois dele na mesma linha é lido', () => {
+    expect(modelos(['/* um', ' comentário */', `const q = sql${C}`, '  select 1', `${C}`].join('\n'))).toEqual(['4 sql'])
+    expect(modelos(['const a = 1;', `/* c */ const q = sql${C}x is null${C}`].join('\n'))).toEqual(['2 sql mista'])
+  })
+
+  it('a linha em branco do corpo, vazia ou só de espaços, não conta', () => {
+    expect(modelos([`const q = sql${C}`, '', '   ', '  select 1', `${C}`].join('\n'))).toEqual(['4 sql'])
+  })
+
+  it('o Lua só com ARGV e o Lua só com redis.call são Lua', () => {
+    expect(modelos([`const A = ${C}`, 'return ARGV[1]', `${C}`].join('\n'))).toEqual(['2 lua'])
+    expect(modelos([`const B = ${C}`, "return redis.call('GET', k)", `${C}`].join('\n'))).toEqual(['2 lua'])
+  })
+
+  it('evalsha, defineCommand sem lua: e EVAL em maiúscula também dão Lua ao template', () => {
+    expect(modelos([`await redis.evalsha(${C}`, 'return 1', `${C})`].join('\n'))).toEqual(['2 lua'])
+    expect(modelos([`redis.defineCommand('x', ${C}`, 'return 1', `${C})`].join('\n'))).toEqual(['2 lua'])
+    expect(modelos([`await redis.EVAL(${C}`, 'return 1', `${C})`].join('\n'))).toEqual(['2 lua'])
+  })
+
+  it('sql.raw é SQL, e mysql não é', () => {
+    expect(modelos([`const q = sql.raw${C}`, '  select 1', `${C}`].join('\n'))).toEqual(['2 sql'])
+    expect(modelos([`const q = mysql${C}`, '  select 1', `${C}`].join('\n'))).toEqual([])
+  })
+
+  it('o SQL de uma linha só é mista pela palavra de condição ou pelo operador', () => {
+    expect(modelos(`const a = sql${C}x is null${C}`)).toEqual(['1 sql mista'])
+    expect(modelos(`const a = sql${C}is null${C}`)).toEqual(['1 sql mista'])
+    expect(modelos(`const a = sql${C}x = 1${C}`)).toEqual(['1 sql mista'])
+    expect(modelos(`const a = sql${C}x > 1${C}`)).toEqual(['1 sql mista'])
+  })
+
+  it('o fecho de chave no código não encerra a leitura do arquivo', () => {
+    expect(modelos(['function f() {', '}', `const q = sql${C}`, '  select 1', `${C}`].join('\n'))).toEqual(['4 sql'])
+  })
+
+  it('a interpolação com chaves e crase de dentro segue até a chave que a fecha', () => {
+    const fonte = [`const q = sql${C}`, '  select ${fn({ a: 1 }, `y`)} from t', '  and z = 1', `${C}`, 'const depois = 1'].join('\n')
+    expect(modelos(fonte)).toEqual(['2 sql', '3 sql'])
+  })
+
+  it('crase escapada e quebra de linha escapada ficam no template', () => {
+    expect(modelos([`const q = sql${C}`, `  select \\${C} from t`, '  where a = 1', `${C}`].join('\n'))).toEqual(['2 sql', '3 sql'])
+    expect(modelos([`const q = sql${C}`, '  select 1 \\', '  where a = 1', `${C}`].join('\n'))).toEqual(['2 sql', '3 sql'])
+  })
+
+  it('`$1` e a chave solta no texto do template não são interpolação', () => {
+    expect(modelos([`const q = sql${C}`, '  select $1', '  where a = $2', `${C}`].join('\n'))).toEqual(['2 sql', '3 sql'])
+    expect(modelos([`const q = sql${C}`, '  select 1 {', '  where a = 1', `${C}`].join('\n'))).toEqual(['2 sql', '3 sql'])
+  })
+
+  it('a linha em que o template fecha, com texto antes da crase, é mista', () => {
+    expect(modelos([`const q = sql${C}`, '  select 1', `  where a = 1 ${C}`].join('\n'))).toEqual(['2 sql', '3 sql mista'])
+  })
+
+  it('o código depois de uma divisão, de uma aspa solta e de uma barra solta continua lido', () => {
+    expect(modelos(`const m = a / 2, q = sql${C}x is null${C}`)).toEqual(['1 sql mista'])
+    expect(modelos(["<p>don't</p>", `const q = sql${C}`, '  select 1', `${C}`].join('\n'))).toEqual(['3 sql'])
+    expect(modelos([`const a = /`, `const q = sql${C}`, '  select 1', `${C}`].join('\n'))).toEqual(['3 sql'])
+  })
+
+  const sobre = (arquivo: string, ...trechos: string[]): Mutacao => ({ arquivo, teste: 'apps/api/test/x.int.test.ts', caso: null, antes: trechos, depois: [] })
+  const doTemplate: LinhaAcrescentada[] = [
+    { arquivo: 'apps/api/src/q.repository.ts', linha: 2, texto: '  where x = 1', modelo: 'sql' },
+    { arquivo: 'apps/api/src/q.repository.ts', linha: 3, texto: '  -- só um comentário', modelo: 'sql' },
+    { arquivo: 'apps/api/src/q.repository.ts', linha: 4, texto: 'end', modelo: 'lua' },
+    { arquivo: 'apps/api/src/q.repository.ts', linha: 5, texto: '  )', modelo: 'sql' },
+    { arquivo: 'apps/api/src/q.repository.ts', linha: 6, texto: "  redis.call('SET', k, v)", modelo: 'lua' },
+  ]
+
+  it('a linha de SQL ou de Lua é listada sem condição de TypeScript; comentário e fecho solto, não', () => {
+    const faltando = linhasSemBloco(doTemplate, [])
+    expect(faltando.map((item) => `${String(item.linha)} ${item.condicoes.join('+')}`)).toEqual(['2 sql', '6 lua'])
+  })
+
+  it('o bloco do mesmo arquivo que cita a linha do template a tira da lista', () => {
+    expect(linhasSemBloco(doTemplate, [sobre('apps/api/src/q.repository.ts', 'where x = 1')]).map((item) => item.linha)).toEqual([6])
+    expect(linhasSemBloco(doTemplate, [sobre('apps/api/src/outro.ts', 'where x = 1')]).map((item) => item.linha)).toEqual([2, 6])
+  })
+
+  it('a linha mista é lida como TypeScript e como template: leva o modelo, e os termos dela viram itens', () => {
+    const mistas: LinhaAcrescentada[] = [
+      { arquivo: 'apps/api/src/q.repository.ts', linha: 4, texto: '  ...(a && b ? [sql`x is null`] : []),', modelo: 'sql', mista: true },
+      { arquivo: 'apps/api/src/q.repository.ts', linha: 9, texto: '  const q = sql`a = 1`', modelo: 'sql', mista: true },
+    ]
+    expect(linhasSemBloco(mistas, []).map((item) => `${String(item.linha)} ${item.condicoes.join('+')} ${item.termo ?? '-'}`)).toEqual(['4 &&+?:+sql a', '4 &&+?:+sql b', '9 sql -'])
+  })
+
+  it('a linha de template não é lida como TypeScript: um && de Lua não vira termo', () => {
+    const lua: LinhaAcrescentada[] = [{ arquivo: 'apps/api/src/q.ts', linha: 2, texto: 'if a && b then', modelo: 'lua' }]
+    expect(linhasSemBloco(lua, []).map((item) => `${item.condicoes.join('+')} ${item.termo ?? '-'}`)).toEqual(['lua -'])
   })
 })
 
@@ -824,19 +1185,31 @@ describe('--faltando, sobre uma árvore de verdade', () => {
     const sem = rodar(repositorio('# Tarefa\n', true))
     expect(sem.status).toBe(0)
     expect(sem.stdout).toBe(
-      'Linhas novas de produção com condição que nenhum bloco de tasks/prd-x/3_task.md alcança (4):\n' +
+      'Linhas novas de produção com condição que nenhum bloco de tasks/prd-x/3_task.md alcança (6):\n' +
         '  apps/api/src/novo.ts:2  [if]  if (x > 1) return 1\n' +
-        '  apps/api/src/velho.ts:2  [&&]  export const b = a && 2\n' +
+        '  apps/api/src/velho.ts:2  [&&]  export const b = a && 2  (termo `a`)\n' +
+        '  apps/api/src/velho.ts:2  [&&]  export const b = a && 2  (termo `2`)\n' +
         '  tools/ci/novo.ts:2  [if]  if (x > 1) return 1\n' +
-        '  tools/ci/velho.ts:2  [||]  export const c = a || 3\n',
+        '  tools/ci/velho.ts:2  [||]  export const c = a || 3  (termo `a`)\n' +
+        '  tools/ci/velho.ts:2  [||]  export const c = a || 3  (termo `3`)\n',
     )
-    const documento = `# Tarefa\n\n${bloco('arquivo: tools/ci/velho.ts', 'teste: tools/ci/velho.test.ts', '- export const c = a || 3', '+ export const c = a')}\n\n${bloco('arquivo: tools/ci/novo.ts', 'teste: tools/ci/velho.test.ts', '- if (x > 1) return 1')}\n`
-    const com = rodar(repositorio(documento, true))
+    const umPorTermo = [
+      bloco('arquivo: tools/ci/velho.ts', 'teste: tools/ci/velho.test.ts', '- export const c = a || 3', '+ export const c = a'),
+      bloco('arquivo: tools/ci/velho.ts', 'teste: tools/ci/velho.test.ts', '- export const c = a || 3', '+ export const c = 3'),
+      bloco('arquivo: tools/ci/novo.ts', 'teste: tools/ci/velho.test.ts', '- if (x > 1) return 1'),
+    ]
+    const com = rodar(repositorio(`# Tarefa\n\n${umPorTermo.join('\n\n')}\n`, true))
     expect(com.stdout).toBe(
-      'Linhas novas de produção com condição que nenhum bloco de tasks/prd-x/3_task.md alcança (2):\n' +
+      'Linhas novas de produção com condição que nenhum bloco de tasks/prd-x/3_task.md alcança (3):\n' +
         '  apps/api/src/novo.ts:2  [if]  if (x > 1) return 1\n' +
-        '  apps/api/src/velho.ts:2  [&&]  export const b = a && 2\n',
+        '  apps/api/src/velho.ts:2  [&&]  export const b = a && 2  (termo `a`)\n' +
+        '  apps/api/src/velho.ts:2  [&&]  export const b = a && 2  (termo `2`)\n',
     )
+    // Um bloco só para a linha de tools/ (o que tira o `3`) deixa o `a` na lista.
+    const umSo = `# Tarefa\n\n${umPorTermo[0]}\n\n${umPorTermo[2]}\n`
+    const saida = rodar(repositorio(umSo, true)).stdout
+    expect(saida).toContain('  tools/ci/velho.ts:2  [||]  export const c = a || 3  (termo `a`)\n')
+    expect(saida).not.toContain('(termo `3`)')
   })
 
   it('lista o que nenhum bloco alcança e sai 0', () => {
@@ -844,9 +1217,10 @@ describe('--faltando, sobre uma árvore de verdade', () => {
     const saida = rodar(raiz)
     expect(saida.status).toBe(0)
     const lista =
-      'Linhas novas de produção com condição que nenhum bloco de tasks/prd-x/3_task.md alcança (2):\n' +
+      'Linhas novas de produção com condição que nenhum bloco de tasks/prd-x/3_task.md alcança (3):\n' +
       '  apps/api/src/novo.ts:2  [if]  if (x > 1) return 1\n' +
-      '  apps/api/src/velho.ts:2  [&&]  export const b = a && 2\n'
+      '  apps/api/src/velho.ts:2  [&&]  export const b = a && 2  (termo `a`)\n' +
+      '  apps/api/src/velho.ts:2  [&&]  export const b = a && 2  (termo `2`)\n'
     expect(saida.stdout).toBe(lista)
     // Sem a variável do projeto, a árvore é a do diretório onde o comando roda.
     const semVariavel = spawnSync(process.execPath, [...process.execArgv, script, '--faltando', 'tasks/prd-x/3_task.md'], { cwd: raiz, encoding: 'utf8', env: { ...process.env, CLAUDE_PROJECT_DIR: undefined } })
@@ -862,11 +1236,50 @@ describe('--faltando, sobre uma árvore de verdade', () => {
   })
 
   it('com um bloco que cita as linhas, não falta nada, e sai 0', () => {
-    const documento = `# Tarefa\n\n${bloco('arquivo: apps/api/src/velho.ts', 'teste: apps/api/test/velho.int.test.ts', '- export const b = a && 2', '+ export const b = a')}\n\n${bloco('arquivo: apps/api/src/novo.ts', 'teste: apps/api/test/velho.int.test.ts', '- if (x > 1) return 1')}\n`
+    const documento = `# Tarefa\n\n${bloco('arquivo: apps/api/src/velho.ts', 'teste: apps/api/test/velho.int.test.ts', '- export const b = a && 2', '+ export const b = a')}\n\n${bloco('arquivo: apps/api/src/velho.ts', 'teste: apps/api/test/velho.int.test.ts', '- export const b = a && 2', '+ export const b = 2')}\n\n${bloco('arquivo: apps/api/src/novo.ts', 'teste: apps/api/test/velho.int.test.ts', '- if (x > 1) return 1')}\n`
     const raiz = repositorio(documento)
     const saida = rodar(raiz)
     expect(saida.status).toBe(0)
     expect(saida.stdout).toBe('Nenhuma linha nova de produção com condição fica sem bloco em tasks/prd-x/3_task.md.\n')
+  })
+
+  it('o motivo no documento, entre crases, tira o termo da lista; o texto de dentro de um bloco não vale como motivo', () => {
+    const blocos = [
+      bloco('arquivo: apps/api/src/velho.ts', 'teste: apps/api/test/velho.int.test.ts', '- export const b = a && 2', '+ export const b = a'),
+      bloco('arquivo: apps/api/src/velho.ts', 'teste: apps/api/test/velho.int.test.ts', '- export const b = a && 2', '+ export const b = 2'),
+      bloco('arquivo: apps/api/src/novo.ts', 'teste: apps/api/test/velho.int.test.ts', '- if (x > 1) return 1'),
+    ].join('\n\n')
+    const motivo = 'Um termo sem bloco, com o motivo: o `podeLer` só estreita o tipo.'
+    const raiz = repositorio(`# Tarefa\n\n## Mutações\n\n${motivo}\n\n${blocos}\n`)
+    writeFileSync(join(raiz, 'apps/api/src/termos.ts'), 'export const ok = podeLer && podeEditar\n')
+    expect(rodar(raiz).stdout).toBe(
+      'Linhas novas de produção com condição que nenhum bloco de tasks/prd-x/3_task.md alcança (1):\n' + '  apps/api/src/termos.ts:1  [&&]  export const ok = podeLer && podeEditar  (termo `podeEditar`)\n',
+    )
+    // O texto de dentro de um bloco não é motivo: o `podeEditar` citado só ali continua na lista.
+    const citadoNoBloco = bloco('arquivo: apps/api/src/outro.ts', 'teste: apps/api/test/velho.int.test.ts', '- `podeEditar`', '+ x')
+    const outra = repositorio(`# Tarefa\n\n## Mutações\n\n${motivo}\n\n${blocos}\n\n${citadoNoBloco}\n`)
+    writeFileSync(join(outra, 'apps/api/src/termos.ts'), 'export const ok = podeLer && podeEditar\n')
+    expect(rodar(outra).stdout).toContain('(termo `podeEditar`)')
+  })
+
+  it('a linha nova de SQL e de Lua em template string é listada, de arquivo novo e de arquivo versionado', () => {
+    const raiz = repositorio('# Tarefa\n')
+    const git = (...argumentos: string[]) => execFileSync('git', argumentos, { cwd: raiz, stdio: 'pipe' })
+    const C = '`'
+    writeFileSync(join(raiz, 'apps/api/src/script.ts'), ['export const SCRIPT = ' + C, "local v = redis.call('GET', KEYS[1])", 'return v', C, "export const aviso = 'texto'"].join('\n') + '\n')
+    // Versionado: a linha de SQL entra no diff e o arquivo todo é lido para saber que ela está dentro do template.
+    writeFileSync(join(raiz, 'apps/api/src/velho.ts'), ['export const a = 1', 'export const q = sql' + C, '  select 1', '  where x = 1', C].join('\n') + '\n')
+    git('add', 'apps/api/src/velho.ts')
+    const novas = linhasNovasDaArvore(raiz).filter((linha) => linha.modelo !== undefined)
+    expect(novas.map((linha) => `${linha.arquivo}:${String(linha.linha)} ${linha.modelo ?? ''}`)).toEqual([
+      'apps/api/src/velho.ts:3 sql',
+      'apps/api/src/velho.ts:4 sql',
+      'apps/api/src/script.ts:2 lua',
+      'apps/api/src/script.ts:3 lua',
+    ])
+    const lista = rodar(raiz).stdout
+    expect(lista).toContain("  apps/api/src/script.ts:2  [lua]  local v = redis.call('GET', KEYS[1])\n")
+    expect(lista).toContain('  apps/api/src/velho.ts:4  [sql]  where x = 1\n')
   })
 
   it('importado por outro script, o módulo não roda o --faltando, ainda que o argumento seja o dele', () => {

@@ -169,7 +169,9 @@ bancada, com fixture.
   id inexistente; a linha segue `pendente`; `ia.espera_estourada` não soma. Mutação: cortar antes da leitura, ou sem
   `solicitada_por`
 - [I] Entrada gravada que cita turma ou material da B: o `preparar` dá `NAO_ENCONTRADO`
-- [I] Vagas: a escola A com 4 ferramentas rodando espera na 5.ª, e o Tutor dela responde; a escola B segue com as suas (RF2)
+- [I] Vagas: a escola A com 4 ferramentas rodando espera na 5.ª, e o Tutor dela responde; a escola B segue com as suas (RF2).
+  A `QUEUE_PRIORITY` ordena `interativa` 1, `ferramenta` 2, `normal` 3, `lote` 4, `pdf` 5; um `ferramenta` novo começa antes de
+  qualquer `normal` não iniciado (pool próprio)
 
 ## 7. A web (RF11, RF12, RF13)
 

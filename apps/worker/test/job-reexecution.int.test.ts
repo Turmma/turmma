@@ -1,11 +1,19 @@
 import 'reflect-metadata'
-import { currentContext, SyntheticEffectRepository, runInContext, IDADE_PARA_RECONCILIAR_SEGUNDOS, bullmqQueueName, SYNTHETIC_EFFECT_TABLE } from '@educa/core'
+import {
+  currentContext,
+  SyntheticEffectRepository,
+  runInContext,
+  IDADE_PARA_RECONCILIAR_SEGUNDOS,
+  bullmqQueueName,
+  SYNTHETIC_EFFECT_TABLE,
+  type JobExecution,
+  type JobProcessor,
+  JobFailureError,
+} from '@educa/core'
 import { JobFailureCode, JOB_DEFINITIONS, TIPO_JOB_SINTETICO, type SyntheticJobData } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { compose, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
-import type { JobExecution, JobProcessor } from '../src/job-executor.js'
-import { JobFailureError } from '../src/job-failure.error.js'
 import { createSyntheticProcessor } from '../src/processors/synthetic.js'
 import { QueueFixtures, InMemoryLog } from './queue.fixture.js'
 

@@ -1,20 +1,11 @@
 import 'reflect-metadata'
-import {
-  EmailSendError,
-  FakeEmailSender,
-  LimiteDeEmailPorMinuto,
-  runInContext,
-  SecretCipher,
-  VERSAO_DA_CHAVE_DO_TOKEN_DE_EMAIL,
-} from '@educa/core'
+import { EmailSendError, FakeEmailSender, LimiteDeEmailPorMinuto, runInContext, SecretCipher, VERSAO_DA_CHAVE_DO_TOKEN_DE_EMAIL, JobAdiadoError, JobFailureError } from '@educa/core'
 import { CicloDeVidaRepository } from '@educa/core/ciclo-de-vida'
 import { JobFailureCode, JOB_DEFINITIONS, TIPO_ENVIAR_CONVITE } from '@educa/shared'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { compose, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
 import { ConviteRepository } from '../../api/src/sessao/convite/convite.repository.js'
-import { JobAdiadoError } from '../src/job-adiado.error.js'
-import { JobFailureError } from '../src/job-failure.error.js'
 import { criarEnvioDoConvite, criarEnvios, TENTATIVAS_DO_ENVIO_DE_EMAIL } from '../src/processors/enviar-email.js'
 import { jobExecution } from './job-execution.fixture.js'
 import { InMemoryLog, QueueFixtures } from './queue.fixture.js'

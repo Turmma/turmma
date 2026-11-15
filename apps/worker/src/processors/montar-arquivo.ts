@@ -1,15 +1,5 @@
-import {
-  ArquivoDoTitularRepository,
-  objectKey,
-  requireEscolaId,
-  LeituraDoTitular,
-  type FileStorage,
-  type Database,
-  type LoggerBase,
-  type Clock,
-} from '@educa/core'
+import { ArquivoDoTitularRepository, objectKey, requireEscolaId, LeituraDoTitular, type FileStorage, type Database, type LoggerBase, type Clock, type JobProcessor } from '@educa/core'
 import { TIPOS_DE_PEDIDO_COM_ARQUIVO, type TIPO_MONTAR_ARQUIVO, type VersaoDoArquivo } from '@educa/shared'
-import type { JobProcessor } from '../job-executor.js'
 
 export interface MontarArquivoDependencies {
   banco: Database

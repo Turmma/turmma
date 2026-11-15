@@ -9,10 +9,10 @@ import {
   type JanelaLetiva,
   type LoggerBase,
   type Clock,
+  type JobProcessor,
+  JobFailureError,
 } from '@educa/core'
 import { JobFailureCode, InvariantException, TIPO_EXPURGAR_ESCOLA, type TIPO_EXPURGAR_DADO_PESSOAL } from '@educa/shared'
-import type { JobProcessor } from '../job-executor.js'
-import { JobFailureError } from '../job-failure.error.js'
 
 /** A data local de `agora` no `fuso`, `AAAA-MM-DD`: a chave de idempotência do expurgo da escola naquela noite. */
 export function chaveDaNoite(fuso: string, agora: Date): string {

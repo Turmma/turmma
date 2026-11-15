@@ -34,10 +34,12 @@ Depois: <o que registrar, e se vira tarefa>
 
 ## Job interativo esperando
 
-**Dispara quando:** o job interativo mais antigo de uma escola espera mais de 30 s, por 1 min
-seguido (`max by (fila, escola_id) (job_espera_mais_antiga_s{fila="interativa"}) > 30`, regra
+**Dispara quando:** o job mais antigo de uma escola, na fila `interativa` (o turno do Tutor) ou na `ferramenta` (a ferramenta,
+a proposta e o artefato), espera mais de 30 s, por 1 min seguido
+(`max by (fila, escola_id) (job_espera_mais_antiga_s{fila=~"interativa|ferramenta"}) > 30`, regra
 `infra/grafana/alertas/job-interativo-esperando.yaml`). Na prática, um job parado há mais de uns
-90 s. O alerta traz o `escola_id`. Uma queda curta do Redis de fila deixa o job até ~30 s a mais
+90 s. O alerta traz o `escola_id` e a `fila`: a `ferramenta` tem a vaga dela (`VAGAS_ESCOLA_FERRAMENTA`, 4) e a `interativa` a dela
+(`VAGAS_ESCOLA_INTERATIVA`, 10), e o "Vagas em uso" do painel se lê na fila do alerta. Uma queda curta do Redis de fila deixa o job até ~30 s a mais
 esperando depois que ele volta (a reserva vence e o despachante publica de novo): isso deixa a
 regra pendente, e só dispara se a espera continuar acima de 30 s pelo minuto inteiro.
 
@@ -54,7 +56,8 @@ e `docker compose logs --since 10m worker-interativo-1 worker-interativo-2 despa
    `docker compose up -d worker-interativo-1 worker-interativo-2`. Se volta a cair, o log dele diz
    por quê (`worker.redis_indisponivel`, `worker.fila_com_erro`). O job não se perde: está em
    `job_registro` e começa quando o worker volta.
-2. Só esta escola, com "Vagas em uso" no teto dela (`VAGAS_ESCOLA_INTERATIVA`, ou as vagas da
+   A fila `ferramenta` não é desse worker: quem a consome é o `worker-ia`, a partir da 5.0.
+2. Só esta escola, com "Vagas em uso" no teto dela (`VAGAS_ESCOLA_INTERATIVA` ou `VAGAS_ESCOLA_FERRAMENTA`, conforme a fila, ou as vagas da
    escola em `configuracao_operacional_escola`) → a escola espera pelos próprios jobs longos, e as
    outras não sentem. Com "Jobs em stalled" subindo, um job travou: siga o `jobId` no log do worker.
    Um job que rodou de novo aparece com mais de um `job.iniciado` do mesmo `jobId` (a `tentativa`
@@ -67,6 +70,11 @@ e `docker compose logs --since 10m worker-interativo-1 worker-interativo-2 despa
    despachante, ninguém mede a espera: o último valor fica congelado no Prometheus por até 5 min,
    e depois a série some e a regra volta a normal **sem o job ter começado**. Confira no painel
    que a espera zerou, e não só sumiu.
+
+**Variável nova no ambiente de produção (deploy da `ferramenta`):** o `infra/compose.yml` lê `VAGAS_ESCOLA_FERRAMENTA` com `:?`, então o `despachante` e os
+workers **não sobem** sem ela, e o deploy pela `main` (D31) para no compose. Antes do primeiro deploy com a fila `ferramenta`, ponha no `.env` da VPS
+(D82) `VAGAS_ESCOLA_FERRAMENTA=4` e confira se `VAGAS_ESCOLA_INTERATIVA` está em 10: o deploy não troca o `.env` sozinho (é o mesmo caso dos 6.000 do
+login, na seção do rate limit mais abaixo). Deploy fora do horário letivo.
 
 **Se nada disso resolver:** reinicie um worker por vez (`docker compose restart worker-interativo-1`,
 depois o 2), que espera os jobs em andamento por até 20 s (a graça) e não perde nenhum: o que passa dela e ainda tem tentativa fica

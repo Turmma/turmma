@@ -23,6 +23,8 @@ import {
   type JanelaLetiva,
   type PrazoDoLote,
   type Clock,
+  QUEUE_PRIORITY,
+  type JobProcessor,
 } from '@educa/core'
 import { AUTOR_DA_ROTINA, CATEGORIAS_DE_RETENCAO, CHAVES_DE_RETENCAO, JobFailureCode, TIPO_EXPURGAR_ESCOLA } from '@educa/shared'
 import { PgDialect } from 'drizzle-orm/pg-core'
@@ -33,7 +35,6 @@ import { compose, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { esperarNaTrava, WriteBlockTrigger } from '../../api/test/write-block-trigger.js'
 import type { StorageConfig } from '../src/config.js'
-import type { JobProcessor } from '../src/job-executor.js'
 import { ExpurgoGauge } from '../src/expurgo-gauge.js'
 import { GovernancaRepository } from '../../api/src/governanca/governanca.repository.js'
 import { createWorker } from '../src/composition.js'
@@ -1384,7 +1385,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
     it('a colisão com um job que terminou entre a colisão e a leitura devolve nulo; e, terminado, a mesma chave grava outro job', async () => {
       const a = await escolaNova()
       const chave = `chave-${randomUUID()}`
-      const linha = { tipo: TIPO_EXPURGAR_ESCOLA, fila: 'lote' as const, prioridade: 3, naoUrgente: true, dados: {} }
+      const linha = { tipo: TIPO_EXPURGAR_ESCOLA, fila: 'lote' as const, prioridade: QUEUE_PRIORITY.lote, naoUrgente: true, dados: {} }
       const noContexto = <T>(funcao: () => Promise<T>) => runInContext({ requisicaoId: randomUUID(), escolaId: a.escolaId }, funcao)
       // Três jobs pendentes que só diferem do da chave numa coisa: a chave, o tipo ou a escola. A leitura da colisão não
       // pode devolver nenhum deles.
@@ -1429,7 +1430,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
     })
 
     it('a chave sem escola é recusada: pelo código, na rotina do sistema, e pelo banco, no insert direto', async () => {
-      const linha = { tipo: 'sistema.qualquer-rotina', fila: 'lote' as const, prioridade: 3, naoUrgente: true, dados: {} }
+      const linha = { tipo: 'sistema.qualquer-rotina', fila: 'lote' as const, prioridade: QUEUE_PRIORITY.lote, naoUrgente: true, dados: {} }
       await expect(
         runInContext({ requisicaoId: randomUUID(), rotinaDoSistema: true }, () => bancada.banco.transaction((tx) => bancada.registro.inserirUmaVez(tx, linha, 'sem-escola'))),
       ).rejects.toThrow('chave de idempotência só em job de escola')
@@ -1457,7 +1458,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
       // Meia-noite e meia de quarta em São Paulo é 22h30 de terça em Rio Branco.
       await rodarRotina(rotina(relogioEm(new Date('2026-10-07T00:30:00-03:00')), [a.escolaId, b.escolaId]))
       expect((await jobsDoExpurgo(a.escolaId)).map(({ chave, fila, prioridade, naoUrgente, estado }) => ({ chave, fila, prioridade, naoUrgente, estado }))).toEqual([
-        { chave: '2026-10-07', fila: 'lote', prioridade: 3, naoUrgente: true, estado: 'aguardando' },
+        { chave: '2026-10-07', fila: 'lote', prioridade: QUEUE_PRIORITY.lote, naoUrgente: true, estado: 'aguardando' },
       ])
       expect((await jobsDoExpurgo(b.escolaId)).map(({ chave }) => chave)).toEqual(['2026-10-06'])
       const disparos = log.doEvento('retencao.rotina_disparada')

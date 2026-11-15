@@ -11,11 +11,11 @@ import {
   type FileStorage,
   type LoggerBase,
   type Meter,
+  type JobProcessor,
+  JobFailureError,
 } from '@educa/core'
 import type { PdfExtractor } from '@educa/core/material'
 import { JOB_DEFINITIONS, JobFailureCode, TIPO_EXTRAIR_PDF, type FalhaDeMaterial } from '@educa/shared'
-import type { JobProcessor } from '../job-executor.js'
-import { JobFailureError } from '../job-failure.error.js'
 
 /** Os limites do histograma da extração, em segundos: de um PDF curto aos dez minutos do prazo do tipo. */
 export const LIMITES_DA_EXTRACAO_S = [1, 5, 15, 30, 60, 120, 300, 600]

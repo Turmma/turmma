@@ -24,7 +24,7 @@ export interface WorkerPoolOptions {
 }
 
 /**
- * Lock e verificação de stalled por fila. Na interativa e na normal, uma réplica morta com `kill -9`
+ * Lock e verificação de stalled por fila. Na interativa, na ferramenta e na normal, uma réplica morta com `kill -9`
  * devolve o job em até ~15 s (lock vence em 10 s, verificação a cada 5 s), abaixo do alerta de job
  * interativo esperando 30 s. No lote vale o padrão do BullMQ: job longo, e ninguém esperando na tela.
  *
@@ -33,6 +33,8 @@ export interface WorkerPoolOptions {
  */
 export const WORKER_POOL_OPTIONS_BY_QUEUE: Readonly<Record<QueueName, WorkerPoolOptions>> = {
   interativa: { lockDurationMs: 10_000, stalledIntervalMs: 5_000 },
+  // A ferramenta tem o lock e o stalled da interativa: o professor está esperando na tela, e a réplica morta devolve o job em até ~15 s.
+  ferramenta: { lockDurationMs: 10_000, stalledIntervalMs: 5_000 },
   normal: { lockDurationMs: 10_000, stalledIntervalMs: 5_000 },
   lote: { lockDurationMs: 30_000, stalledIntervalMs: 30_000 },
   // A extração do PDF é CPU contínua num pool de um só job: o lock de 60 s e a verificação a cada 20 s (abaixo dos 30 s que o BullMQ usa sem configuração, para o valor ser deste pool) devolvem o job da réplica morta em até

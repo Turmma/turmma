@@ -21,12 +21,12 @@ paralela desde o começo e não alongam o caminho, que é o da IA (1.0 → 11.0)
   - [ ] 2.3 `ExecucaoRequest` fica só com `aoGravar`; teste: toda `TarefaDeIa` tem comando, salvo `relatorio_da_correcao`
   - [ ] 2.4 Testes
 
-- [ ] **3.0 — A fila `ferramenta` existe, com vaga própria por escola, e o executor de jobs mora no `core` (47.0)**
-  - [ ] 3.1 Migration 0058: `ferramenta` nos checks de `job_registro` e das vagas (`NOT VALID`, `VALIDATE`, `lock_timeout`)
-  - [ ] 3.2 `ferramenta` em `QUEUE_NAMES`, `QUEUE_PRIORITY`, `WORKER_POOL_OPTIONS_BY_QUEUE`; `VAGAS_ESCOLA_FERRAMENTA` 4, `VAGAS_ESCOLA_INTERATIVA` 10
-  - [ ] 3.3 `JobExecutor` e `SlotReleasedNotifier` de `apps/worker` para `packages/core/src/jobs/`
-  - [ ] 3.4 `job-interativo-esperando.yaml` olha também a `ferramenta`, com o runbook
-  - [ ] 3.5 Testes
+- [x] **3.0 — A fila `ferramenta` existe, com vaga própria por escola, e o executor de jobs mora no `core` (47.0)**
+  - [x] 3.1 Migration 0058: `ferramenta` nos checks de `job_registro` e das vagas (`NOT VALID`, `VALIDATE`, `lock_timeout`)
+  - [x] 3.2 `ferramenta` em `QUEUE_NAMES`, `QUEUE_PRIORITY`, `WORKER_POOL_OPTIONS_BY_QUEUE`; `VAGAS_ESCOLA_FERRAMENTA` 4, `VAGAS_ESCOLA_INTERATIVA` 10
+  - [x] 3.3 `JobExecutor` e `SlotReleasedNotifier` de `apps/worker` para `packages/core/src/jobs/`
+  - [x] 3.4 `job-interativo-esperando.yaml` olha também a `ferramenta`, com o runbook
+  - [x] 3.5 Testes
 
 - [ ] **4.0 — O pedido acima do teto de entrada da tarefa é recusado antes de qualquer envio**
   - [ ] 4.1 `maximoDeTokensDeEntrada` obrigatório em `TaskDefinition`, calculado pelo pior pedido válido

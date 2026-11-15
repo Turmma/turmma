@@ -11,10 +11,10 @@ import {
   type Database,
   type LoggerBase,
   type Meter,
+  JobFailureError,
+  type JobProcessor,
 } from '@educa/core'
 import { JobFailureCode, type TIPO_GRAVAR_PLANILHA } from '@educa/shared'
-import { JobFailureError } from '../job-failure.error.js'
-import type { JobProcessor } from '../job-executor.js'
 
 export interface GravarPlanilhaDependencies {
   banco: Database

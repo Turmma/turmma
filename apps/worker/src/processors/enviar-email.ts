@@ -18,12 +18,13 @@ import {
   type NaturezaDaFalhaDeEmail,
   type PontoDeEmail,
   type SecretCipher,
+  JobAdiadoError,
+  type MotivoDoAdiamento,
+  type JobProcessor,
+  JobFailureError,
 } from '@educa/core'
 import { EnvioRepository, type ReservaDoEnvio, type ReservaDoLink } from '@educa/core/envio'
 import { JobFailureCode, JOB_DEFINITIONS, TIPO_ENVIAR_CONVITE, TIPO_ENVIAR_EMAIL_DA_CONTA } from '@educa/shared'
-import { JobAdiadoError, type MotivoDoAdiamento } from '../job-adiado.error.js'
-import type { JobProcessor } from '../job-executor.js'
-import { JobFailureError } from '../job-failure.error.js'
 
 /** Quanto o job espera com o Redis de fila fora: sem o `msBeforeNext` do limite, vale esta espera (Tech Spec, seção 5, "E-mail"). */
 export const ESPERA_COM_REDIS_FORA_MS = 30_000

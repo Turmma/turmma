@@ -99,8 +99,10 @@ rodada nova; o caso que originou cada pergunta está em `docs/processo-licoes.md
    em outro arquivo e as que entram depois, para atender um revisor. Cada uma ganha um bloco na seção "Mutações"; bloco cujo
    teste continua verde reprova o portão: falta o teste, e não o bloco. Trava se prova pelo efeito (dois registros), não
    pela espera. Entram também as linhas sem condição que protegem — a chamada que confere antes (`#conferir`,
-   `semaforo.executar`: a mutação é tirar a linha), a fiação de uma guarda, o campo de um esquema zod — e o SQL ou Lua dentro
-   de template string: o `--faltando` não vê nenhum deles (8 reprovações na F2c).
+   `semaforo.executar`: a mutação é tirar a linha), a fiação de uma guarda, o campo de um esquema zod. O `--faltando` lista um
+   item por termo de uma condição composta e a linha de SQL ou Lua em template string (`sql`, `execute(`, `eval(`); não vê o SQL
+   sem etiqueta, o `and(`/`or(` com um argumento por linha (a `eq(t.escolaId, escolaId),` sozinha), o `&&` dentro de um `and(`, o ternário nem essas
+   linhas sem condição: confira esses à mão (8 reprovações na F2c, a maioria já coberta pela ferramenta).
 2. **O texto que você põe na tela já aparece nela?** Procure o texto novo em `e2e/` (`grep -rln '<texto>' e2e/`) e rode
    isolados os specs que o contam (`toHaveCount`, `nth`): o portão só puxa os specs que citam texto **removido**.
 3. **O cenário tem o segundo dado que torna a cláusula observável?** Se o repository filtra por turma, aluno em **duas**

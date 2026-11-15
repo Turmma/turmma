@@ -16,10 +16,10 @@ import {
   type LoggerBase,
   type Clock,
   type RetencaoDaEscolaRepository,
+  type JobProcessor,
+  JobFailureError,
 } from '@educa/core'
 import { JobFailureCode, InvariantException, retencaoDaEscola, type TIPO_EXPURGAR_ESCOLA } from '@educa/shared'
-import type { JobProcessor } from '../job-executor.js'
-import { JobFailureError } from '../job-failure.error.js'
 
 /** Quantos arquivos do titular o expurgo apaga por volta: cada um é uma chamada ao storage, e são poucos por escola. */
 export const LOTE_DOS_ARQUIVOS_DO_TITULAR = 100

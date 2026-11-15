@@ -1,4 +1,3 @@
-import { currentContext, createLogger, type JobToRun, type JobStartResult } from '@educa/core'
 import { ErrorCode, JobFailureCode, defineJob, JOB_DEFINITIONS, TIPO_CONSOLIDAR_USO, TIPO_ELIMINAR_TITULAR, TIPO_ENVIAR_CONVITE, TIPO_ENVIAR_EMAIL_DA_CONTA, TIPO_EXTRAIR_PDF, TIPO_EXPURGAR_ACESSO, TIPO_EXPURGAR_DADO_PESSOAL, TIPO_EXPURGAR_ESCOLA, TIPO_EXPURGAR_JOBS, TIPO_GRAVAR_PLANILHA, TIPO_JOB_SINTETICO, TIPO_MONTAR_ARQUIVO, TIPO_VARRER_TEMPORARIOS_DE_MATERIAL, type QueueName, type JobRegistry, type JobType } from '@educa/shared'
 import { DelayedError, UnrecoverableError } from 'bullmq'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -6,6 +5,9 @@ import { z } from 'zod'
 import { SlotReleasedNotifier, ESPERA_POR_VAGA_MS, SORTEIO_DO_ADIAMENTO_MS, JobExecutor, type JobExecutorDependencies, type QueuedJob, type JobProcessor, type JobProcessors } from './job-executor.js'
 import { JobAdiadoError, type MotivoDoAdiamento } from './job-adiado.error.js'
 import { JobFailureError } from './job-failure.error.js'
+import { currentContext } from '../context/context.js'
+import { createLogger } from '../log/logger.js'
+import type { JobToRun, JobStartResult } from '../queue/job-outbox.repository.js'
 
 const ESCOLA_A = '0190f5a0-0000-7000-8000-00000000000a'
 const JOB_ID = '0190f5a0-0000-7000-8000-0000000000f1'
@@ -104,7 +106,7 @@ function montar({
         return liberar()
       },
     },
-    vagasDaEscola: { daEscola: () => Promise.resolve({ interativa: 5, normal: 5, lote: 3, pdf: 2 }) },
+    vagasDaEscola: { daEscola: () => Promise.resolve({ interativa: 5, ferramenta: 4, normal: 5, lote: 3, pdf: 2 }) },
     uso: { marcar: (metrica) => marcacoes.push(`${metrica}:${currentContext()?.escolaId ?? 'sem escola'}`) },
     aoLiberarVaga: () => eventos.push('avisou_vaga_livre'),
     intervaloRenovacaoMs: 100,

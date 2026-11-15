@@ -184,6 +184,13 @@ O que trava o projeto e não se resolve programando. Vários têm prazo externo.
 
 ## Infra e operação
 
+- [ ] (reengenharia-continuacao, 3.0, infra-guardian, 1ª) **`VALIDATE` do check fora da transação da migration.** A `0058` valida os dois checks na mesma
+      transação que os acrescenta (`ACCESS EXCLUSIVE` em `job_registro`, que cresce a partir da 5.0). A próxima migration que mexer num check dessa tabela
+      separa o `VALIDATE` (o cabeçalho da `0058` já promete; este item é para não depender de lembrança) (dono: Implementador da próxima migration)
+- [ ] (reengenharia-continuacao, 3.0, revisor-geral, 1ª) **Prioridade antiga escrita à mão em três testes que a 3.0 não toca:** `'lote', 3` em
+      `apps/despachante/test/queue-gauge.int.test.ts` (145, 154, 184, 258) e `apps/worker/test/expurgo.int.test.ts` (80, 91, 144, 206); `'normal', 2` em
+      `packages/core/src/db/migrate.int.test.ts` (94, 97) e em `queue-gauge.int.test.ts` (195). Trocar por `QUEUE_PRIORITY.<fila>`; nenhuma asserção depende
+      do número hoje (dono: Implementador)
 - [ ] **(correção `2026-11-10-alertas-503`) Teto para a proporção de 503 na rota da falha do `ensaio:alertas`** (`infra-guardian`, `test-engineer`, `revisor-geral`, `privacy-guardian`, 1ª): `statusForaDoEsperadoNaFalha` aceita qualquer quantidade de 503, de qualquer origem; uma degradação real da sessão passaria. Um teto (ex.: abaixo de 5% da rota) pede dado de mais execuções no runner: um limiar sem medida refaria a intermitência. A causa dos 503 (leitura de sessão lenta na `SessaoGuard`) é inferida: o log não traz evento da guarda (fechamento da F2c, 10/11/2026). Dono: Joaquim.
 - [ ] (semana-do-professor, 1.0, infra-guardian, 1ª) **O `delete` da `aula` no encerramento do ano roda no request síncrono.** Dezenas de milhares de
       linhas sob `statement_timeout`, e a gravação do `PUT /v1/aulas` espera no `for share` do ano. Escrever o cenário ou o parágrafo do runbook do
@@ -2882,16 +2889,25 @@ duas causas voltaram na F4 (3 das 6 cláusulas sem prova, e a 9.0 perdeu a 1ª r
 `tasks/prd-acesso-e-convites/retro.md`. Aceitas pelo Joaquim em 11/11/2026 ("aprovo"). Os seis avisos já aplicados; M1 e M2 mudam código de
 processo: entram por correção.
 
-- [ ] (F2c, retro, M1) **O `--faltando` termo a termo, e o SQL e o Lua em template string.** `tools/processo/mutacoes.ts` (`linhasNovasDaArvore`,
+- [x] *(feito na correção `2026-11-15-faltando-termo-a-termo`, 15/11/2026: um item por termo, bloco que tira o termo e deixa os outros ou motivo (crase igual ao termo, na seção "Mutações"); SQL e Lua em template string com etiqueta `sql`, `execute(`, `query(`, `eval(`, `defineCommand` ou `redis.call`; limites, a conferir à mão: o SQL sem etiqueta fora de `execute(` e `query(`, o `&&` dentro de `and(` como grupo à parte, o `and(` com um argumento por linha e o ternário)* (F2c, retro, M1) **O `--faltando` termo a termo, e o SQL e o Lua em template string.** `tools/processo/mutacoes.ts` (`linhasNovasDaArvore`,
       `linhasSemBloco`): a linha com vários termos (`and(eq(a), eq(b))`, `a && b`, `a || b`) é listada com um item por termo, e só sai da lista com
       um bloco cujo `-` tire aquele termo, ou com o motivo que o cite; a linha nova dentro de template string com SQL ou Lua (`sql\``, `EVAL`,
       `defineCommand`) é listada mesmo sem condição de TypeScript. Na F2c foram 8 reprovações do `test-engineer` por cláusula que ele não listava
       (2.0, 4.0, 5.0, 9.0, 10.0, 14.0, 15.0, 16.0), e o modelo já dizia "cada termo". Os casos de `mutacoes.test.ts` ganham fixture de cada forma.
       Guardiões: `test-engineer`, `revisor-geral`
+- [ ] (correção `2026-11-15-faltando-termo-a-termo`, `privacy-guardian` 2ª, `tenancy-guardian` 1ª, `test-engineer` e `revisor-geral` 2ª) **O `--faltando` junta as linhas de um `and(`/`or(` de várias linhas antes de partir em termos.** `tools/processo/mutacoes.ts` (`termosDaLinha`, `linhasSemBloco`): hoje a `eq(t.escolaId, escolaId),` sozinha, num `and(` com um argumento por linha, não tem termo nem condição, e é a cláusula de escopo da regra 10; o limite só está escrito (comentário de `termosDaLinha`, `executar-task`, `task-template.md`) e no item fechado da M1. Entram juntos, na mesma correção: (a) a decisão de a ferramenta recusar o motivo na seção "Mutações" para termo de escopo de tenant (`escolaId`), que só se cobre por bloco, escrita no `executar-task` ou na regra 40; (b) a frase "Docs:" da correção anterior (a regra 40 "passa a dizer o que fica") acompanha, ou os limites entram na regra 40; (c) os casos do ternário e do `and(` de uma linha só, que hoje fixam o limite como teste, ficam vermelhos quando ele for corrigido: trocá-los junto; (d) `prosaSemBlocos` reconhece só o título `## Mutações` de nível 2 e termina a seção na primeira linha que começa com `## `, mesmo dentro de um bloco cercado (o erro é para o lado seguro: a lista sai maior), uma linha no comentário; (e) meia linha de motivo para o `this.#grupos.pop()` do laço de `ler()` (sem ele o laço é infinito e o portão o recusa como estouro de prazo), junto do motivo dos laços. Guardiões: `test-engineer`, `tenancy-guardian`, `revisor-geral`
+- [ ] (correção `2026-11-15-faltando-termo-a-termo`, `revisor-geral`, 1ª rodada) **Uma base comum para `LeitorDeTermos` e `LeitorDeTemplates`.** `tools/processo/mutacoes.ts`: os dois leitores repetem `#comum`, `#aspas` e o grosso de `#barra` (uns 100 linhas). É refatoração de um arquivo que leva mais de cem blocos de mutação, e anularia as provas da correção; entra por correção própria, com os blocos refeitos. Guardiões: `test-engineer`, `revisor-geral`
 - [ ] (F2c, retro, M2) **O `Write` não reescreve documento com a seção "Revisões".** Hook PreToolUse de `Write` em `.claude/settings.json`, com um
+- [x] (F2c, retro, M2) **O `Write` não reescreve documento com a seção "Revisões".** Hook PreToolUse de `Write` em `.claude/settings.json`, com um
       modo novo em `tools/processo/hook-revisoes.ts`: recusa (saída 2, com "use Edit") o `Write` sobre arquivo que já existe em `tasks/` e já tem
       `## Revisões`, quando o conteúdo novo não traz a tabela inteira de antes. A seção sumiu na 3.0 (a 1ª rodada se perdeu de vez), na 5.0 e na
       12.0, e duas vezes na X1. Caso de teste do hook para cada lado (com a tabela, sem ela, arquivo novo). Guardiões: `revisor-geral`, `test-engineer`
+- [ ] (correção 2026-11-15-write-sobre-revisoes) **O hook do `Write` compara o caminho com `resolve`/`relative`, sem `realpathSync`.** Link simbólico para
+      `tasks/` ou desde `tasks/` escapa da conferência. Normalizar com `realpathSync` e acrescentar o caso em `tools/processo/hook-portao.test.ts`. Guardiões: `test-engineer`, `revisor-geral`
+- [ ] (correção 2026-11-15-write-sobre-revisoes) **O título "## Revisões" é procurado com `\n`; arquivo com CRLF não casa.** `linhasDaTabelaDeRevisoes` e `lerRevisoes` usam o mesmo
+      título: aceitar `\r?\n` nos dois, ou declarar o limite, com caso de teste. Guardiões: `test-engineer`, `revisor-geral`
+- [ ] (correção 2026-11-15-write-sobre-revisoes) **`Edit` que apaga a seção "Revisões", e `Bash` com `>`, não passam pelo hook do `Write`.** Só entra se a seção voltar a
+      sumir por esses caminhos (retro): o gancho do `Edit` compararia `old_string` e `new_string` com `recusaDeEscritaSobreRevisoes`. Guardiões: `test-engineer`, `revisor-geral`
 
 ## Da retrospectiva da F2b (semana-do-professor, 07/11/2026)
 

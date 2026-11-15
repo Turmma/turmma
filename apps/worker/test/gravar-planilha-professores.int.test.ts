@@ -1,5 +1,20 @@
 import 'reflect-metadata'
-import { CHAVE_DA_TRAVA_DO_CONVITE_DA_ESCOLA, ContaDaPlanilhaPerdidaError, convidarProfessorDaPlanilha, createDatabase, ehFalhaDeTrava, createPool, executarPlanilha, MotorDePlanilha, runInContext, schema, TENTATIVAS_DO_JOB, type Database, type DatabasePool } from '@educa/core'
+import {
+  CHAVE_DA_TRAVA_DO_CONVITE_DA_ESCOLA,
+  ContaDaPlanilhaPerdidaError,
+  convidarProfessorDaPlanilha,
+  createDatabase,
+  ehFalhaDeTrava,
+  createPool,
+  executarPlanilha,
+  MotorDePlanilha,
+  runInContext,
+  schema,
+  TENTATIVAS_DO_JOB,
+  type Database,
+  type DatabasePool,
+  JobFailureError,
+} from '@educa/core'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it, onTestFinished } from 'vitest'
@@ -7,7 +22,6 @@ import { compose, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { esperarNaTrava, WriteBlockTrigger } from '../../api/test/write-block-trigger.js'
-import { JobFailureError } from '../src/job-failure.error.js'
 import { criarGravacaoDaPlanilha } from '../src/processors/gravar-planilha.js'
 import { jobExecution } from './job-execution.fixture.js'
 import { InMemoryLog, QueueFixtures } from './queue.fixture.js'
