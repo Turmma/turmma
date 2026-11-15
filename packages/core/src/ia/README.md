@@ -37,17 +37,17 @@ O `IaModule` (`apps/api/src/ia/`) é global. O pacote injeta o `ExecucaoSchedule
 constructor(private readonly agendador: ExecucaoScheduler) {}
 
 return this.agendador.agendar({               // responde { execucaoId }: é o corpo do 202
-  tarefa: proporFerramenta,                    // o Tutor: turnoDoTutor, com alunoId e turmaId
+  comando: 'propor_ferramenta',                // o nome da tarefa: o registro acha o comando do módulo dono (o Tutor: 'turno_do_tutor')
   chaveEnvio: pedido.chaveEnvio,               // a mesma chave devolve a mesma execução e não produz duas vezes
   entradaDaExecucao: { tarefa: 'propor_ferramenta' },                  // o que fica em execucao_agente.entrada
   aoGravar: (tx, execucaoId) => mensagens.gravarDoUsuario(tx, execucaoId, pedido),   // mesma transação da execução
-  entrada: async () => ({ mensagem, contexto, trechos: await materiais.buscar(texto), turnosAnteriores }),
-  aoConcluir: async (saida, tx, execucaoId) => ({ tipo: 'mensagem', mensagemId: await mensagens.gravarDoAgente(tx, execucaoId, saida) }),
 })
 ```
 
-- Escola, ano letivo e quem pediu vêm da sessão; `entrada` e `aoConcluir` rodam depois do `202`, no contexto de quem pediu.
-- A suspensão é conferida antes de gravar; a falha vira `falhou` com um `ErrorCode`, e o que `aoConcluir` gravou é desfeito.
+- Escola, ano letivo e quem pediu vêm da sessão. A entrada da tarefa e o que a execução grava são do **comando** do módulo dono
+  (`<módulo>/<tarefa>.command.ts`): o `preparar` relê a execução pelo id e repete o alcance do `POST`, e o `concluir` grava na
+  transação que a conclui. Ambos rodam depois do `202`, no contexto de quem pediu.
+- A suspensão é conferida antes de gravar; a falha vira `falhou` com um `ErrorCode`, e o que o `concluir` gravou é desfeito.
 - A tela lê o resultado em `GET /v1/execucoes/:id` (só quem pediu). O Tutor grava `mensagem_tutor` no lugar de `mensagem_agente`.
 - Função que roda **sem modelo** (a correção de objetiva): `FuncaoSuspensionCheck.exigirAtiva('correcao_de_objetiva')`.
 - As portas também são injetáveis: `LLM_PROVIDER`, `EXECUTOR_DE_AGENTE`, `SUSPENSAO_DE_FUNCAO` e `ORCAMENTO_DE_IA` (o

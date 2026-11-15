@@ -1,4 +1,4 @@
-import { InvariantException, type TarefaDeIa } from '@educa/shared'
+import { InvariantException, TAREFAS_DE_IA, type TarefaDeIa } from '@educa/shared'
 import { comoExecutavel, type ComandoExecutavel, type ExecucaoCommand } from './execucao-command.js'
 
 /**
@@ -32,4 +32,23 @@ export class RegistroDeComandos {
 export function comRegistro<Comando extends ExecucaoCommand<unknown, unknown, unknown>>(registro: RegistroDeComandos, comando: Comando): Comando {
   registro.registrar(comando)
   return comando
+}
+
+/**
+ * A tarefa do catálogo que **ninguém chama**: o `relatorio_da_correcao` não roda por `execucao_agente` (a correção da objetiva é
+ * regra, e o relatório que o professor vê é montado sem modelo), e por isso não tem comando. Tarefa que ganha chamador sai desta
+ * lista e ganha comando no mesmo commit.
+ */
+export const TAREFAS_SEM_CHAMADOR: readonly TarefaDeIa[] = ['relatorio_da_correcao']
+
+/**
+ * As tarefas do catálogo que o registro dado não cobre, fora as que ninguém chama. A lista de tarefas vazia, ou o registro vazio,
+ * **não** são "nada a cobrar": são o alvo que sumiu, e a conferência falha em vez de passar em branco.
+ */
+export function tarefasSemComando(registradas: readonly TarefaDeIa[], catalogo: readonly TarefaDeIa[] = TAREFAS_DE_IA): TarefaDeIa[] {
+  if (catalogo.length === 0) throw new InvariantException('o catálogo de tarefas de IA está vazio')
+  if (registradas.length === 0) throw new InvariantException('nenhum comando registrado')
+  // O comando de uma tarefa que o catálogo não tem é erro de montagem, não comando a mais.
+  if (registradas.some((tarefa) => !catalogo.includes(tarefa))) throw new InvariantException('comando registrado para tarefa fora do catálogo')
+  return catalogo.filter((tarefa) => !registradas.includes(tarefa) && !TAREFAS_SEM_CHAMADOR.includes(tarefa))
 }

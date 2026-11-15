@@ -15,7 +15,7 @@ paralela desde o começo e não alongam o caminho, que é o da IA (1.0 → 11.0)
   - [ ] 1.3 Os comandos de `assistente/`, `artefato/` (ferramentas, artefato, `propor_ferramenta`) e `governanca/` (Analista)
   - [ ] 1.4 Testes
 
-- [ ] **2.0 — O Tutor roda por comando: a D36 grava em transação própria e a S12 se confere no `preparar` e no `concluir` (42.0)**
+- [x] **2.0 — O Tutor roda por comando: a D36 grava em transação própria e a S12 se confere no `preparar` e no `concluir` (42.0)**
   - [ ] 2.1 O comando do Tutor; o `lido` vira retorno tipado do `preparar`
   - [ ] 2.2 O `assunto_delicado` numa transação própria, antes da conclusão condicional
   - [ ] 2.3 `ExecucaoRequest` fica só com `aoGravar`; teste: toda `TarefaDeIa` tem comando, salvo `relatorio_da_correcao`

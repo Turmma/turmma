@@ -1,5 +1,5 @@
 import { relative } from 'node:path'
-import { test as base, errors, expect, type CDPSession, type Page } from '@playwright/test'
+import { test as base, errors, expect, type CDPSession, type Page, type TestInfo } from '@playwright/test'
 
 /**
  * Condições de rede aplicadas pelo CDP (`Network.emulateNetworkConditions`): latência de ida e volta em
@@ -46,11 +46,19 @@ export const MOBILE_PROFILE: MachineProfile = { cpuMaisLenta: 4, rede: REDE_MOVE
  */
 export const PRAZO_DA_NAVEGACAO_MS = 15_000
 
+/**
+ * Quanto a primeira espera de uma tela da coordenação, depois da entrada, vale antes de a tela ser tida como travada em "Carregando…"
+ * (`esperarATela`). É o prazo que a entrada já tinha (`SIGN_IN_TIMEOUT_MS`, em `casca.ts`, que importa este arquivo e por isso não pode ser importado daqui).
+ */
+export const PRAZO_DA_ESPERA_DA_TELA_MS = 20_000
+
 export interface ProfileOptions {
   /** Sem perfil, a página roda sem limitação, e o teste falha: todo projeto declara o seu. */
   profile: MachineProfile | undefined
   /** Até quando a primeira tentativa de `page.goto` espera o `load` (`gotoComNovaTentativa`). Só o guarda desta trava o encurta. */
   prazoDaNavegacaoMs: number
+  /** Até quando a primeira espera de uma tela em "Carregando…" vale antes da recarga (`esperarATela`). Só o guarda desta trava o encurta. */
+  prazoDaTelaMs: number
   /** Para onde vai a linha `::warning` da trava. Só o guarda desta trava o troca, por um que guarda. */
   avisoDaEsteira: AvisoDaEsteira
 }
@@ -79,6 +87,14 @@ export function linhaDoAviso(onde: string, projeto: string, descricao: string): 
  * O campo `perfil` daqui é interno e não é a opção `profile` do Playwright (a da fixture e de `playwright.config.ts`).
  */
 const sessoesDoPerfil = new WeakMap<Page, { sessao: CDPSession; perfil: MachineProfile }>()
+
+/** O que `esperarATela` pede ao caso: o prazo da primeira espera e onde registrar a ocorrência. É do **caso**, e não da página: vale também para a de `browser.newContext()`. */
+interface TravaDoCaso {
+  prazoMs: number
+  registrar: (descricao: string) => void
+}
+
+const travasDosCasos = new WeakMap<TestInfo, TravaDoCaso>()
 
 function limitarARede(sessao: CDPSession, rede: NetworkCondition): Promise<unknown> {
   return sessao.send('Network.emulateNetworkConditions', {
@@ -130,6 +146,49 @@ export async function gotoComNovaTentativa(ir: Ir, url: string, opcoes: Paramete
   }
 }
 
+/**
+ * O que a anotação e o aviso da esteira dizem da tela que travou: só o caminho, o prazo e o que se fez. **Tirar a query e o fragmento é de
+ * propósito** (privacidade, e o repositório é público: a linha vira anotação da execução no GitHub), e não estética: não troque por `href`.
+ */
+export function descricaoDaTelaTravada(alvo: string, prazoMs: number): string {
+  return `${new URL(alvo).pathname}: a tela ficou em Carregando… por ${prazoMs} ms; uma recarga`
+}
+
+/**
+ * Espera uma tela da coordenação e, se a espera falha **com a tela em "Carregando…"**, recarrega a página **uma** vez e espera de novo: a
+ * trava da rede do navegador depois do `load` (`2026-11-15-e2e-pedidos-do-titular`), irmã da do `goto` (`gotoComNovaTentativa`, que diz
+ * o que a nova tentativa esconde e como a anotação e o aviso deixam de esconder; vale igual aqui, com a mesma anotação e a mesma linha).
+ *
+ * `esperar` recebe o prazo da primeira espera e o repete na segunda. **Só a tela em "Carregando…" é refeita**: a falha de outra natureza
+ * (um título que não veio, um erro na tela) é relançada na primeira, sem recarga e sem anotação. **O que supõe:** (1) esperar não consome
+ * nada; (2) a sessão sobrevive à recarga. Vale para a página de qualquer contexto do caso, também a de `browser.newContext()`: a trava é do
+ * caso. Fora de um caso do `test` deste arquivo, espera como antes, sem recarga.
+ */
+export async function esperarATela(page: Page, esperar: (prazoMs: number) => Promise<void>): Promise<void> {
+  const trava = travaDoCasoAtual()
+  if (trava === undefined) return esperar(PRAZO_DA_ESPERA_DA_TELA_MS)
+  try {
+    return await esperar(trava.prazoMs)
+  } catch (erro) {
+    const carregando = page.getByRole('main').getByRole('status').filter({ hasText: /^Carregando/ })
+    if ((await carregando.count()) === 0) throw erro
+    const url = page.url()
+    trava.registrar(descricaoDaTelaTravada(url, trava.prazoMs))
+    // Passa por `about:blank` para largar o documento preso e os pedidos dele (a mesma razão de `gotoComNovaTentativa`).
+    await page.goto('about:blank')
+    await page.goto(url)
+    await esperar(trava.prazoMs)
+  }
+}
+
+function travaDoCasoAtual(): TravaDoCaso | undefined {
+  try {
+    return travasDosCasos.get(base.info())
+  } catch {
+    return undefined
+  }
+}
+
 /** Sem limitação: latência zero e vazão sem teto (`-1`, no CDP). */
 const REDE_SEM_LIMITE: NetworkCondition = { nome: 'sem limite', latenciaMs: 0, downloadBytesPorSegundo: -1, uploadBytesPorSegundo: -1 }
 
@@ -138,11 +197,25 @@ const REDE_SEM_LIMITE: NetworkCondition = { nome: 'sem limite', latenciaMs: 0, d
  * projeto pelo CDP. Importar `test` direto de `@playwright/test` pula a limitação, e a guarda da
  * configuração (tools/ci/playwright.test.ts) reprova.
  */
-export const test = base.extend<ProfileOptions>({
+export const test = base.extend<ProfileOptions & { travaDoCaso: TravaDoCaso }>({
   profile: [undefined, { option: true }],
   prazoDaNavegacaoMs: [PRAZO_DA_NAVEGACAO_MS, { option: true }],
+  prazoDaTelaMs: [PRAZO_DA_ESPERA_DA_TELA_MS, { option: true }],
   avisoDaEsteira: [avisoDaEsteira(process.env, process.stdout), { option: true }],
-  page: async ({ page, profile, prazoDaNavegacaoMs, avisoDaEsteira }, use, testInfo) => {
+  travaDoCaso: [
+    async ({ prazoDaTelaMs, avisoDaEsteira }, use, testInfo) => {
+      // Na esteira, vira anotação da execução do GitHub, e aparece também com o caso verde (a anotação do caso só vai para o artefato).
+      const registrar = (descricao: string): void => {
+        testInfo.annotations.push({ type: 'primeira-carga-travou', description: descricao })
+        avisoDaEsteira.escrever(linhaDoAviso(`${relative(process.cwd(), testInfo.file)}:${testInfo.line}`, testInfo.project.name, descricao))
+      }
+      const trava = { prazoMs: prazoDaTelaMs, registrar }
+      travasDosCasos.set(testInfo, trava)
+      await use(trava)
+    },
+    { auto: true },
+  ],
+  page: async ({ page, profile, prazoDaNavegacaoMs, travaDoCaso }, use) => {
     if (!profile) throw new Error('projeto do Playwright sem perfil de máquina: declare `profile` em playwright.config.ts')
     const cdp = await page.context().newCDPSession(page)
     await cdp.send('Network.enable')
@@ -150,13 +223,7 @@ export const test = base.extend<ProfileOptions>({
     await cdp.send('Emulation.setCPUThrottlingRate', { rate: profile.cpuMaisLenta })
     sessoesDoPerfil.set(page, { sessao: cdp, perfil: profile })
     const irOriginal: Ir = page.goto.bind(page)
-    page.goto = (url, opcoes) =>
-      gotoComNovaTentativa(irOriginal, url, opcoes, prazoDaNavegacaoMs, (alvo) => {
-        const descricao = descricaoDaTrava(alvo, prazoDaNavegacaoMs)
-        testInfo.annotations.push({ type: 'primeira-carga-travou', description: descricao })
-        // Na esteira, vira anotação da execução do GitHub, e aparece também com o caso verde (a anotação do caso só vai para o artefato).
-        avisoDaEsteira.escrever(linhaDoAviso(`${relative(process.cwd(), testInfo.file)}:${testInfo.line}`, testInfo.project.name, descricao))
-      })
+    page.goto = (url, opcoes) => gotoComNovaTentativa(irOriginal, url, opcoes, prazoDaNavegacaoMs, (alvo) => travaDoCaso.registrar(descricaoDaTrava(alvo, prazoDaNavegacaoMs)))
     await use(page)
   },
 })

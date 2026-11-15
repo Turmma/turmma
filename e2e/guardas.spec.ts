@@ -1,5 +1,7 @@
 import type { Page, TestInfo } from '@playwright/test'
-import { avisoDaEsteira, expect, linhaDoAviso, test } from './support/profiles.ts'
+import { avisoDaEsteira, descricaoDaTelaTravada, expect, linhaDoAviso, test } from './support/profiles.ts'
+import { esperarPainel } from './support/casca.ts'
+import { activateQuandoAparecer } from './support/coordenacao.ts'
 import {
   HTML_PAGE_16_PX_BUTTONS,
   HTML_PAGE_44_PX_BUTTONS,
@@ -267,5 +269,104 @@ test.describe('o aviso padrão da trava só escreve na esteira do GitHub', () =>
       else process.env['GITHUB_ACTIONS'] = ambiente
     }
     expect(escritasNoStdout).toEqual(['::warning title=primeira-carga-travou::e2e/x.spec.ts:1 (chromebook) d\n'])
+  })
+})
+
+const PRAZO_DA_TELA_ENCURTADO_MS = 1_000
+const TELA_CARREGANDO = '<!doctype html><html lang="pt-BR"><body><main><p role="status">Carregando…</p></main></body></html>'
+const TELA_DO_PAINEL = '<!doctype html><html lang="pt-BR"><body><main><h1>Painel</h1></main></body></html>'
+// Uma tela com `status` que não é a de "Carregando…": a falha de outra natureza, que o filtro do `esperarATela` tem de distinguir.
+const TELA_COM_ERRO = '<!doctype html><html lang="pt-BR"><body><main><p role="status">Não foi possível carregar</p></main></body></html>'
+const TELA_DO_PAINEL_AINDA_CARREGANDO = '<!doctype html><html lang="pt-BR"><body><main><h1>Painel</h1><p role="status">Carregando…</p></main></body></html>'
+const TELA_DO_PAINEL_COM_A_ABA =
+  '<!doctype html><html lang="pt-BR"><body><main><h1>Painel</h1><div role="tablist"><button role="tab" aria-selected="false" onclick="this.setAttribute(\'aria-selected\', \'true\')">Pedidos</button></div></main></body></html>'
+
+/**
+ * A trava da rede do navegador depois do `load` (pedidos-do-titular 15/11): a casca monta, e os pedaços e as leituras da tela, criados numa
+ * rajada, nunca saem do navegador. A tela fica em "Carregando…" até o prazo do caso. Aqui a rota serve o endereço do Painel com essa tela
+ * e, no pedido seguinte, com a tela de verdade: o tempo é o da rota, e não a folga da máquina.
+ */
+test.describe('a tela que fica em Carregando… depois da entrada ganha uma recarga, uma só, e fica anotada', () => {
+  const avisosGuardados: string[] = []
+  test.use({ prazoDaTelaMs: PRAZO_DA_TELA_ENCURTADO_MS, avisoDaEsteira: { escrever: (linha) => avisosGuardados.push(linha) } })
+  test.beforeEach(() => {
+    avisosGuardados.length = 0
+  })
+
+  /** Serve o Painel com a tela de cada pedido, na ordem; o último vale para os que vierem depois. Devolve quantos documentos pediram. */
+  async function servirOPainel(page: Page, telas: readonly string[]): Promise<() => number> {
+    let pedidos = 0
+    await page.route('**/coordenacao/painel', async (rota) => {
+      const tela = telas[Math.min(pedidos, telas.length - 1)] ?? TELA_CARREGANDO
+      pedidos += 1
+      await rota.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: tela })
+    })
+    return () => pedidos
+  }
+
+  const anotacoesDaTrava = (testInfo: TestInfo) => testInfo.annotations.filter((anotacao) => anotacao.type === ANOTACAO_DA_TRAVA)
+
+  test('o Painel preso em Carregando… é recarregado, abre, anota e avisa a esteira', async ({ page }, testInfo) => {
+    const pedidos = await servirOPainel(page, [TELA_CARREGANDO, TELA_DO_PAINEL])
+    const enderecos: string[] = []
+    page.on('framenavigated', (quadro) => {
+      if (quadro === page.mainFrame()) enderecos.push(quadro.url())
+    })
+    await page.goto('/coordenacao/painel')
+    await esperarPainel(page)
+    expect(pedidos()).toBe(2)
+    // A recarga passa por `about:blank`, que larga o documento preso e os pedidos dele.
+    expect(enderecos.map((endereco) => (endereco.startsWith('about:') ? endereco : new URL(endereco).pathname))).toEqual([
+      '/coordenacao/painel',
+      'about:blank',
+      '/coordenacao/painel',
+    ])
+    const anotacoes = anotacoesDaTrava(testInfo)
+    expect(anotacoes).toHaveLength(1)
+    expect(anotacoes[0]?.description).toBe(`/coordenacao/painel: a tela ficou em Carregando… por ${PRAZO_DA_TELA_ENCURTADO_MS} ms; uma recarga`)
+    // A linha é pública na execução do GitHub: nada da query nem do fragmento vai a ela.
+    expect(descricaoDaTelaTravada('http://x/coordenacao/painel?token=a#b', 1)).toBe('/coordenacao/painel: a tela ficou em Carregando… por 1 ms; uma recarga')
+    expect(avisosGuardados).toHaveLength(1)
+    expect(avisosGuardados[0]).toMatch(/^::warning title=primeira-carga-travou::/)
+    expect(avisosGuardados[0]).toContain(`/coordenacao/painel: a tela ficou em Carregando… por ${PRAZO_DA_TELA_ENCURTADO_MS} ms; uma recarga`)
+  })
+
+  test('só a tela em Carregando… é recarregada, e a recarga é uma só: a falha de outra natureza e a segunda trava reprovam', async ({ page }, testInfo) => {
+    // A espera falha e a tela NÃO está em Carregando…: não é a trava, e o caso reprova na primeira, sem recarga nem anotação.
+    const outraTela = await servirOPainel(page, [TELA_COM_ERRO])
+    await page.goto('/coordenacao/painel')
+    await expect(esperarPainel(page)).rejects.toThrow(/toBeAttached/)
+    expect(outraTela()).toBe(1)
+    expect(anotacoesDaTrava(testInfo)).toHaveLength(0)
+
+    // A tela volta a ficar em Carregando… na recarga: uma recarga só, e o caso reprova com o erro da espera.
+    await page.unrouteAll({ behavior: 'wait' })
+    const presa = await servirOPainel(page, [TELA_CARREGANDO])
+    await page.goto('/coordenacao/painel')
+    await expect(esperarPainel(page)).rejects.toThrow(/toBeAttached/)
+    expect(presa()).toBe(2)
+    expect(anotacoesDaTrava(testInfo)).toHaveLength(1)
+    expect(avisosGuardados).toHaveLength(1)
+  })
+
+  test('a página de um contexto novo do navegador também ganha a recarga: no título do Painel e na aba que o clique espera', async ({ browser }, testInfo) => {
+    // A trava é do caso, e não da página da fixture: a de outro navegador (roteiro da demonstração, incidentes) não pode lançar nem ficar sem a recarga.
+    const contexto = await browser.newContext()
+    try {
+      const outra = await contexto.newPage()
+      const pedidos = await servirOPainel(outra, [TELA_CARREGANDO, TELA_DO_PAINEL_AINDA_CARREGANDO, TELA_DO_PAINEL_COM_A_ABA])
+      await outra.goto('/coordenacao/painel')
+      await esperarPainel(outra)
+      expect(pedidos()).toBe(2)
+      // O título veio, e a aba, não: o clique (`activateQuandoAparecer`) espera a aba, e a tela em "Carregando…" é recarregada outra vez.
+      const aba = outra.getByRole('tab', { name: 'Pedidos' })
+      await activateQuandoAparecer(outra, aba, false)
+      expect(pedidos()).toBe(3)
+      await expect(aba).toHaveAttribute('aria-selected', 'true')
+      expect(anotacoesDaTrava(testInfo)).toHaveLength(2)
+      expect(avisosGuardados).toHaveLength(2)
+    } finally {
+      await contexto.close()
+    }
   })
 })

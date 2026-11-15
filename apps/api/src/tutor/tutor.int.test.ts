@@ -45,6 +45,7 @@ import { TETO_DE_PEDIDOS_DE_IA_POR_USUARIO } from '../assistente/ai-request-rate
 import { EXECUTOR_DE_AGENTE } from '../ia/ia.module.js'
 import { REDIS_CACHE_CLIENT } from '../rate-limit.module.js'
 import { TrechoSearch } from '../material/trecho-search.js'
+import { TurnoDoTutorCommand } from './turno.command.js'
 import { REDIS_LOGIN_CLIENT } from '../credencial/index.js'
 import { TROCAS_SEGUIDAS_PARA_TRAVOU } from './sinais-do-turno.js'
 import { SupervisaoDoTutorRepository } from './supervisao.repository.js'
@@ -580,6 +581,36 @@ describe('Tutor e sinais', () => {
       expect((await conversaDe(aluno, `?atividadeAplicadaId=${atividade}`)).uso.hoje).toBe(1)
     })
 
+    it('o comando relê o contexto ao rodar: o vínculo encerrado, a pergunta eliminada, o material que saiu do alcance e a função suspensa depois do 202 falham a execução, sem trecho, sem modelo e sem consumo', async () => {
+      const buscar = vi.spyOn(api.app.get(TrechoSearch), 'buscar')
+      try {
+        // O material próprio do caso: o `a.materialId` é dos outros casos, e este é excluído no meio.
+        const materialQueSai = await enviarMaterialDeDemonstracao(api, a, a.quimica, 'Material que a coordenação exclui no meio do turno', variacaoDoPdf())
+        const casos = [
+          { rotulo: 'vínculo encerrado', erro: 'NAO_ENCONTRADO', onde: {}, mexer: (aluno: TestSessao) => sql(`update vinculo set estado = 'encerrado', motivo_encerramento = 'realocacao', encerrado_em = now() where escola_id = $1 and usuario_id = $2`, [a.escolaId, aluno.usuarioId]) },
+          { rotulo: 'a pergunta eliminada', erro: 'NAO_ENCONTRADO', onde: {}, mexer: (aluno: TestSessao) => sql(`delete from mensagem_tutor where escola_id = $1 and aluno_id = $2 and autor = 'aluno'`, [a.escolaId, aluno.usuarioId]) },
+          { rotulo: 'o material excluído', erro: 'NAO_ENCONTRADO', onde: { materialId: materialQueSai, pagina: 1 }, mexer: async () => void (await chamar(api.url, 'DELETE', `/v1/materiais/${materialQueSai}`, await a.coordenacao.tokenNovo())) },
+          { rotulo: 'a função suspensa', erro: 'FUNCAO_SUSPENSA', onde: {}, mexer: () => suspender(a, 'tutor_com_o_aluno') },
+        ]
+        for (const { rotulo, erro, onde, mexer } of casos) {
+          await executor.ociosa()
+          const aluno = await novoAluno(a)
+          const marca = `jaguar${randomUUID().slice(0, 8)}`
+          const consumoAntes = Number((await sql<{ total: string }>('select count(*) as total from consumo_ia where escola_id = $1', [a.escolaId])).rows[0]?.total)
+          const [aceita] = await abrindoEntreO202EAExecucao([aluno], async () => [await enviar(aluno, { texto: `não entendi o reagente limitante ${marca}`, ...onde })], async () => void (await mexer(aluno)))
+          if (rotulo === 'a função suspensa') await retomar(a, 'tutor_com_o_aluno')
+          const execucaoId = aceita?.corpo['execucaoId'] as string
+          expect(await execucaoLida(execucaoId), rotulo).toEqual([{ estado: 'falhou', erro, resultado: null }])
+          expect(buscar.mock.calls.filter(([pedido]) => pedido.texto.includes(marca)), rotulo).toEqual([])
+          expect(await sinaisDe(aluno), rotulo).toEqual([])
+          expect(Number((await sql<{ total: string }>('select count(*) as total from consumo_ia where escola_id = $1', [a.escolaId])).rows[0]?.total), rotulo).toBe(consumoAntes)
+          expect((await mensagensDe(aluno)).filter((mensagem) => mensagem.autor === 'tutor'), rotulo).toEqual([])
+        }
+      } finally {
+        buscar.mockRestore()
+      }
+    })
+
     it('dois alunos parados ao entrar em `rodando` quando a prova abre (dois bastam para segurar as duas vagas da escola ao mesmo tempo): todas as execuções falham, nenhuma chama o modelo e nenhuma troca é contada', async () => {
       await executor.ociosa()
       const alunos = [await novoAluno(a), await novoAluno(a)]
@@ -829,6 +860,34 @@ describe('Tutor e sinais', () => {
   })
 
   describe('isolamento', () => {
+    it('o comando relê a pergunta pelo id da execução, no escopo do aluno: a de outra escola e a do colega da mesma turma respondem como inexistente, e nenhum trecho é lido', async () => {
+      const comando = api.app.get(TurnoDoTutorCommand)
+      const dono = await novoAluno(a)
+      const colega = await novoAluno(a)
+      const deOutraEscola = await novoAluno(b)
+      const marca = `sucuri${randomUUID().slice(0, 8)}`
+      const doColega = (await turno(colega, `o que é reagente limitante ${marca}?`, naQuestao(3))).execucaoId
+      const daOutraEscola = (await turno(deOutraEscola, `o que é reagente limitante ${marca}?`)).execucaoId
+      const meu = (await turno(dono, 'o que é reagente limitante?', naQuestao(3))).execucaoId
+      const lida = (id: string) => ({ id, tarefa: 'turno_do_tutor' as const, chaveEnvio: randomUUID(), entrada: { tarefa: 'turno_do_tutor' as const } })
+      const buscar = vi.spyOn(api.app.get(TrechoSearch), 'buscar')
+      try {
+        for (const [rotulo, id] of [['a do colega da mesma turma', doColega], ['a de outra escola', daOutraEscola]] as const) {
+          await expect(comoPessoa(a, dono, 'aluno', () => comando.preparar(lida(id))), rotulo).rejects.toMatchObject({ codigo: 'NAO_ENCONTRADO' })
+          expect(await comoPessoa(a, dono, 'aluno', () => new TutorDoAlunoRepository(bancada.banco).perguntaDaExecucao(id)), rotulo).toBeUndefined()
+        }
+        expect(buscar.mock.calls.filter(([pedido]) => pedido.texto.includes(marca))).toEqual([])
+        // A do próprio aluno é lida, com o aluno e a turma que o freio do dia conta.
+        const preparado = await comoPessoa(a, dono, 'aluno', () => comando.preparar(lida(meu)))
+        expect(preparado).toMatchObject({ alunoId: dono.usuarioId, turmaId: a.turma, lido: { pergunta: { execucaoId: meu, turmaId: a.turma } }, entrada: { duvida: 'o que é reagente limitante?' } })
+        // A execução concluída tem duas linhas com o id dela, a pergunta e a resposta: só a do aluno é a pergunta, mesmo quando a da resposta vem primeiro no heap.
+        await sql(`update mensagem_tutor set texto = texto where escola_id = $1 and execucao_id = $2 and autor = 'aluno'`, [a.escolaId, meu])
+        expect((await comoPessoa(a, dono, 'aluno', () => new TutorDoAlunoRepository(bancada.banco).perguntaDaExecucao(meu)))?.texto).toBe('o que é reagente limitante?')
+      } finally {
+        buscar.mockRestore()
+      }
+    })
+
     it('o aluno só lê a própria conversa e a própria memória: nada do colega vem, e não há parâmetro que o alcance', async () => {
       const ana = await novoAluno(a)
       const bia = await novoAluno(a)
@@ -1010,6 +1069,20 @@ describe('Tutor e sinais', () => {
         // No ano anterior, a mesma leitura acha o que foi gravado: o caso é real.
         const noAnoAnterior = await comoPessoa(deAntes, aluno, 'aluno', () => new TutorDoAlunoRepository(bancada.banco).trabalhos(10))
         expect(noAnoAnterior.map((trabalho) => trabalho.atividadeAplicadaId)).toEqual([atividadeDeAntes])
+      })
+
+      it('o comando relê a pergunta pelo id da execução só no ano em curso: a pergunta de 2025 do próprio aluno responde como inexistente, e no ano dela a mesma leitura a acha', async () => {
+        const comando = api.app.get(TurnoDoTutorCommand)
+        // As trocas de 2025 do aluno (a execução e a pergunta, gravadas no `beforeAll`): o mesmo aluno, a mesma escola, outro ano.
+        const { rows } = await sql<{ execucao_id: string }>(`select execucao_id from mensagem_tutor where escola_id = $1 and ano_letivo_id = $2 and aluno_id = $3 and autor = 'aluno'`, [a.escolaId, anterior.anoLetivoId, aluno.usuarioId])
+        expect(rows).toHaveLength(2)
+        for (const { execucao_id: execucaoId } of rows) {
+          const lida = { id: execucaoId, tarefa: 'turno_do_tutor' as const, chaveEnvio: randomUUID(), entrada: { tarefa: 'turno_do_tutor' as const } }
+          expect(await comoPessoa(a, aluno, 'aluno', () => new TutorDoAlunoRepository(bancada.banco).perguntaDaExecucao(execucaoId))).toBeUndefined()
+          await expect(comoPessoa(a, aluno, 'aluno', () => comando.preparar(lida))).rejects.toMatchObject({ codigo: 'NAO_ENCONTRADO' })
+          // No ano dela, a mesma leitura acha a pergunta: o caso é real.
+          expect((await comoPessoa(deAntes, aluno, 'aluno', () => new TutorDoAlunoRepository(bancada.banco).perguntaDaExecucao(execucaoId)))?.texto).toBe('Pergunta sintética já feita')
+        }
       })
 
       it('a professora com vínculo confirmado na turma do ano anterior não lê os sinais nem o uso daquele ano no ano em curso', async () => {

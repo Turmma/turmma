@@ -57,6 +57,20 @@ entrada pela chave, sai: `paraExecutar` o substitui, e as peças que os comandos
 do comando ou da conferência. O comando não escreve linha de log nova: a linha da execução segue sendo a do executor (`ia.execucao.concluida` e
 `ia.execucao.falhou`, com `execucaoId`, `escolaId`, código e duração), e o texto da professora não entra nela.
 
+**O Tutor, como a 2.0 o fez** (`tutor/turno.command.ts`): o `TurnoDoTutorCommand` (fila `interativa`) relê a pergunta **pelo id da
+execução** (`TutorDoAlunoRepository.perguntaDaExecucao`, no escopo do aluno da sessão; a `perguntaDaChave` saiu) e repete, no `preparar`, o
+alcance do `POST`: a turma do aluno, a atividade, a questão, o material e a série, e a avaliação aberta. Essa conferência é uma peça só, a
+`AlcanceDoAluno` (`alcance`, `doMaterial`, `contexto`), que o `TutorService` e o comando dividem, e que leva a contagem de
+`SEM_MATERIAL_DA_SERIE`; com ela moram em `turno.command.ts` `questaoSemGabarito`, `memoriaDoTrabalho` e as constantes do turno
+(`TRECHOS_NO_TURNO` e as outras). O `preparar` devolve o aluno e a turma para o freio do dia e o pacote do mês (D38). O `concluir` grava o
+`assunto_delicado` (mensagem fixa e `atencao_humana`, sem referência) **numa transação própria**, antes de tocar a da conclusão: a execução
+que a varredura, o prazo ou a prova que abriu já encerraram não desfaz o encaminhamento, e o `concluir` repetido relê o que ficou gravado
+(chaves únicas, um sinal só). A resposta comum confere a avaliação aberta de novo na transação da conclusão, e a desfaz com
+`TUTOR_PAUSADO_EM_AVALIACAO`. O `#encaminhar` do `POST` (a regra reconhece o assunto antes da fila) continua na requisição, com a sua
+execução já `concluida`, sem comando. O `ExecucaoRequest` saiu do `agendar`: toda tarefa tem comando, e a conferência é
+`tarefasSemComando` (`registro-de-comandos.ts`), que reprova o registro vazio, o catálogo vazio e o comando de tarefa fora dele, e só aceita sem
+comando as `TAREFAS_SEM_CHAMADOR` (o `relatorio_da_correcao`).
+
 **O contexto no worker.** A escola vem de `job_registro.escola_id`; o `preparar` lê a execução no escopo, monta o contexto
 (`solicitada_por`, ano letivo da linha, papel do vínculo ativo) e repete o alcance do `POST` (turma, atividade, material) e a
 suspensão da função. Eliminado, vínculo encerrado ou sem alcance: `NAO_ENCONTRADO`, sem modelo nem `consumo_ia`.

@@ -12,7 +12,7 @@ import { REGRAS_DE_TAMANHO } from './index.mjs'
 // recalculado pela soma da base resultante, e não herdado de um dos lados: cada lado pode ter baixado por um caminho. A comparação com o HEAD vale no
 // portão da tarefa, onde o HEAD é o commit anterior; na esteira o HEAD é o próprio commit e ela passa sempre, e quem segura
 // ali é a soma contra o `TETO`.
-const TETO = { complexity: 235, 'max-lines-per-function': 59, 'max-depth': 12, 'max-lines': 8 }
+const TETO = { complexity: 233, 'max-lines-per-function': 59, 'max-depth': 12, 'max-lines': 8 }
 
 const ARQUIVO = 'eslint-suppressions.json'
 const lerBase = (pasta: string): Supressoes => JSON.parse(readFileSync(join(pasta, ARQUIVO), 'utf8')) as Supressoes

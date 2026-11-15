@@ -1,6 +1,6 @@
 import type { Locator, Page, Response } from '@playwright/test'
 import { mensagemDoSegundoFator } from '../../packages/shared/src/errors/messages.ts'
-import { loadUnthrottled, expect } from './profiles.ts'
+import { esperarATela, loadUnthrottled, expect } from './profiles.ts'
 import { campoCodigo } from './mfa.ts'
 import { codigoDoAutenticador, criarEquipeComSenha, type ConviteDeCoordenadorDeTeste, type EquipeDeTeste } from './seed.ts'
 
@@ -293,7 +293,7 @@ export async function entrarComoProfessoraPelaApi(page: Page): Promise<EquipeDeT
  */
 export async function esperarPainel(page: Page): Promise<void> {
   await expect(page).toHaveURL(/\/coordenacao\/painel$/, { timeout: SIGN_IN_TIMEOUT_MS })
-  await expect(page.getByRole('heading', { level: 1, name: 'Painel' })).toBeAttached({ timeout: SIGN_IN_TIMEOUT_MS })
+  await esperarATela(page, (timeout) => expect(page.getByRole('heading', { level: 1, name: 'Painel' })).toBeAttached({ timeout }))
 }
 
 /** A Estrutura da coordenação aberta (A1, 13.0), que é a aba Turmas de Escola: o endereço e a moldura. */

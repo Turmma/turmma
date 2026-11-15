@@ -5,7 +5,6 @@ import {
   requireEscolaId,
   exigirFuncaoAtiva,
   type Database,
-  type TaskDefinition,
   type ExecucaoAgendada,
   type AgenteExecutor,
   type LLMProvider,
@@ -19,9 +18,9 @@ import { ExecucaoDaSessaoRepository, ExecucaoRepository } from './execucao.repos
 import type { RegistroDeComandos } from './registro-de-comandos.js'
 
 /**
- * O pedido de uma tarefa que tem **comando registrado** (`RegistroDeComandos`): o domínio entrega só a chave do envio, a
- * entrada gravada e, se houver, o que grava junto do `pendente`. Entrada da tarefa e conclusão são do comando, que as
- * relê do banco pelo id da execução, e não de closure do pedido.
+ * O pedido de uma tarefa de IA, que sempre tem **comando registrado** (`RegistroDeComandos`): o domínio entrega só a chave do
+ * envio, a entrada gravada e, se houver, o que grava junto do `pendente`. Entrada da tarefa e conclusão são do comando, que as
+ * relê do banco pelo id da execução: o pedido não leva closure de entrada nem de conclusão.
  */
 export interface ExecucaoComComando {
   /** O nome da tarefa: é por ele que o registro acha o comando. */
@@ -33,40 +32,6 @@ export interface ExecucaoComComando {
    * (`mensagem_agente`), ligada à execução. Na chave repetida não roda. Fica na requisição, nunca no comando.
    */
   readonly aoGravar?: (tx: DatabaseTransaction, execucaoId: string) => Promise<void>
-}
-
-/**
- * O pedido da tarefa **sem** comando: o Tutor, até a 2.0, que o leva ao registro. Escola, ano letivo e pessoa vêm da
- * sessão.
- */
-export interface ExecucaoRequest<Entrada, Saida> {
-  readonly tarefa: TaskDefinition<Entrada, Saida>
-  /** A chave que a tela sorteou para este envio (`chaveEnvio` do corpo): a mesma chave devolve a mesma execução. */
-  readonly chaveEnvio: string
-  /**
-   * O que fica em `execucao_agente.entrada` (`execucaoInputSchema`): só os parâmetros que não estão em outra
-   * linha. O texto do professor e o do aluno **não** vêm aqui: ficam em `mensagem_agente` e `mensagem_tutor`.
-   */
-  readonly entradaDaExecucao: ExecucaoInput
-  /**
-   * A entrada da tarefa, ou como montá-la. A função roda **depois** de a rota responder, já no contexto de quem pediu:
-   * é o lugar de buscar os trechos do material e de reler a mensagem gravada, para o `POST` não esperar por isso.
-   */
-  readonly entrada: Entrada | (() => Promise<Entrada>)
-  /** No Tutor: o aluno e a turma, para o freio do dia e o pacote do mês (D38). */
-  readonly alunoId?: string
-  readonly turmaId?: string
-  /**
-   * Roda na **mesma transação** que grava a execução, só quando ela é nova: é onde entra a mensagem de quem pediu
-   * (`mensagem_agente`, `mensagem_tutor`), ligada à execução. Na chave repetida não roda.
-   */
-  readonly aoGravar?: (tx: DatabaseTransaction, execucaoId: string) => Promise<void>
-  /**
-   * Recebe a saída **já validada** e grava o que a execução produz (a mensagem do agente, o artefato, a entrega),
-   * devolvendo a referência que vai para `resultado`. Roda na mesma transação que conclui a execução: ou ficam as duas
-   * coisas, ou nenhuma. Cada linha gravada aponta para a execução por `execucao_id`.
-   */
-  readonly aoConcluir: (saida: Saida, tx: DatabaseTransaction, execucaoId: string) => Promise<ResultadoGravado>
 }
 
 interface AlvoDoPedido {
@@ -85,9 +50,8 @@ interface AlvoDoPedido {
  *   condicional decide quem roda, e a chave de outra pessoa responde como inexistente.
  * - **O trabalho roda no contexto de quem pediu** (escola, pessoa, ano letivo), copiado na hora do pedido: os
  *   repositories de domínio que ele usa têm o mesmo escopo que teriam na requisição.
- * - **A falha** vira `falhou` com o código, pelo executor; nada do que `aoConcluir` gravou fica.
- * - **Com comando registrado** (`ExecucaoComComando`), o que roda é `preparar` → modelo → `concluir` do comando, que relê a
- *   execução pelo id; a tarefa sem comando (o Tutor, até a 2.0) segue pela closure do pedido.
+ * - **A falha** vira `falhou` com o código, pelo executor; nada do que o `concluir` do comando gravou na transação fica.
+ * - **O que roda** é `preparar` → modelo → `concluir` do comando registrado, que relê a execução pelo id.
  */
 export class ExecucaoScheduler {
   constructor(
@@ -98,10 +62,8 @@ export class ExecucaoScheduler {
     private readonly comandos: RegistroDeComandos,
   ) {}
 
-  agendar(pedido: ExecucaoComComando): Promise<ExecucaoAceitaResponse>
-  agendar<Entrada, Saida>(pedido: ExecucaoRequest<Entrada, Saida>): Promise<ExecucaoAceitaResponse>
-  async agendar<Entrada, Saida>(pedido: ExecucaoComComando | ExecucaoRequest<Entrada, Saida>): Promise<ExecucaoAceitaResponse> {
-    // Com comando, a tarefa e a função são as dele; sem, as da definição que o pedido traz. Sem comando registrado, o `de` lança antes de gravar.
+  async agendar(pedido: ExecucaoComComando): Promise<ExecucaoAceitaResponse> {
+    // A tarefa e a função são as do comando. Sem comando registrado, o `de` lança antes de gravar.
     const alvo = this.#alvoDo(pedido)
     const escolaId = requireEscolaId()
     const contexto = copiarContextoDeQuemPede()
@@ -143,13 +105,11 @@ export class ExecucaoScheduler {
     )
     return { execucaoId }
   }
-  /** Quem roda o pedido: o comando registrado, ou a closure do pedido sem comando. A tarefa e a função são as de quem roda. */
-  #alvoDo<Entrada, Saida>(pedido: ExecucaoComComando | ExecucaoRequest<Entrada, Saida>): AlvoDoPedido {
-    if ('comando' in pedido) {
-      const comando = this.comandos.de(pedido.comando)
-      return { tarefa: comando.tarefa, funcao: comando.funcao, rodar: (execucaoId, sinal, gravar) => this.#rodarComando(comando, execucaoId, sinal, gravar) }
-    }
-    return { tarefa: pedido.tarefa.nome, funcao: pedido.tarefa.funcao, rodar: (execucaoId, sinal, gravar) => this.#rodarClosure(pedido, execucaoId, sinal, gravar) }
+
+  /** Quem roda o pedido: o comando registrado. A tarefa e a função são as dele. */
+  #alvoDo(pedido: ExecucaoComComando): AlvoDoPedido {
+    const comando = this.comandos.de(pedido.comando)
+    return { tarefa: comando.tarefa, funcao: comando.funcao, rodar: (execucaoId, sinal, gravar) => this.#rodarComando(comando, execucaoId, sinal, gravar) }
   }
 
   /**
@@ -162,20 +122,5 @@ export class ExecucaoScheduler {
     const lida = await new ExecucaoDaSessaoRepository(this.banco).paraExecutar(execucaoId)
     if (lida === undefined || lida.tarefa !== comando.tarefa) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     return comando.executar(lida, this.ia, sinal, gravar)
-  }
-
-  /** A tarefa sem comando (o Tutor, até a 2.0): a entrada e a conclusão são as closures do pedido. */
-  async #rodarClosure<Entrada, Saida>(pedido: ExecucaoRequest<Entrada, Saida>, execucaoId: string, sinal: AbortSignal, gravar: GravadorDaConclusao): Promise<ResultadoGravado> {
-    const entrada = typeof pedido.entrada === 'function' ? await (pedido.entrada as () => Promise<Entrada>)() : pedido.entrada
-    const { saida } = await this.ia.gerar({
-      tarefa: pedido.tarefa,
-      entrada,
-      escolaId: requireEscolaId(),
-      execucaoId,
-      sinal,
-      ...(pedido.alunoId === undefined ? {} : { alunoId: pedido.alunoId }),
-      ...(pedido.turmaId === undefined ? {} : { turmaId: pedido.turmaId }),
-    })
-    return gravar((tx, id) => pedido.aoConcluir(saida, tx, id))
   }
 }
