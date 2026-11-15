@@ -42,11 +42,6 @@
       "count": 2
     }
   },
-  "apps/api/src/governanca/analista.service.ts": {
-    "complexity": {
-      "count": 1
-    }
-  },
   "apps/api/src/governanca/governanca.repository.ts": {
     "complexity": {
       "count": 1

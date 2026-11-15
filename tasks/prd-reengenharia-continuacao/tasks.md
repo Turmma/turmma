@@ -9,7 +9,7 @@ paralela desde o começo e não alongam o caminho, que é o da IA (1.0 → 11.0)
 
 ## Lista
 
-- [ ] **1.0 — O Assistente, as ferramentas, o artefato e o Analista rodam por comando registrado, ainda no processo (42.0)**
+- [x] **1.0 — O Assistente, as ferramentas, o artefato e o Analista rodam por comando registrado, ainda no processo (42.0)**
   - [ ] 1.1 Caracterização, num commit antes: o hash de cada prompt contra a `versao`, e a entrega do assistente e do artefato nascendo `pendente`
   - [ ] 1.2 `ExecucaoCommand` e o registro em `apps/api/src/ia/`; o `agendar` chama `preparar` e `concluir` do comando
   - [ ] 1.3 Os comandos de `assistente/`, `artefato/` (ferramentas, artefato, `propor_ferramenta`) e `governanca/` (Analista)

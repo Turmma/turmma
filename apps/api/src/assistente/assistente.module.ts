@@ -3,10 +3,12 @@ import { Global, Module, type DynamicModule } from '@nestjs/common'
 import type { Redis } from 'ioredis'
 import { DB } from '../database.module.js'
 import { ExecucaoScheduler } from '../ia/execucao.scheduler.js'
+import { comRegistro, RegistroDeComandos } from '../ia/registro-de-comandos.js'
 import { REDIS_LOGIN_CLIENT, WindowCounter } from '../credencial/index.js'
 import { AssistenteController } from './assistente.controller.js'
 import { AssistenteService } from './assistente.service.js'
 import { avisarSeguroDosPedidosDeIa, JANELA_DOS_PEDIDOS_DE_IA_MS, IaRequestRateLimit } from './ai-request-rate-limit.js'
+import { ProporFerramentaCommand } from './proposta.command.js'
 import { TimeController } from './time.controller.js'
 import { TimeService } from './time.service.js'
 import { TrechoSearch } from '../material/trecho-search.js'
@@ -39,6 +41,12 @@ export class AssistenteModule {
           provide: IaRequestRateLimit,
           useFactory: (cliente: Redis) => new IaRequestRateLimit({ janela: new WindowCounter(cliente, chaveContador, { janelaMs: JANELA_DOS_PEDIDOS_DE_IA_MS, avisarSeguro: avisarSeguroDosPedidosDeIa }), instancias, logger }),
           inject: [REDIS_LOGIN_CLIENT],
+        },
+        // O comando do chat: o registro o acha pelo nome da tarefa da `execucao_agente`.
+        {
+          provide: ProporFerramentaCommand,
+          useFactory: (banco: Database, trechos: TrechoSearch, registro: RegistroDeComandos) => comRegistro(registro, new ProporFerramentaCommand(banco, trechos)),
+          inject: [DB, TrechoSearch, RegistroDeComandos],
         },
         { provide: TimeService, useFactory: (banco: Database) => new TimeService(banco), inject: [DB] },
         {

@@ -1,5 +1,6 @@
-import { LLMError } from '@educa/core'
-import { habilidadesDaDisciplina, type AdaptacaoAplicada, type Citacao, type ConteudoDeAtividade, type ConteudoDoArtefato, type Etapa, type Habilidade } from '@educa/shared'
+import { diaDeUso, DomainException, LLMError, systemClock } from '@educa/core'
+import { ErrorCode, conteudoDeAtividadeSchema, habilidadesDaDisciplina, type AdaptacaoAplicada, type Citacao, type ConteudoDeAtividade, type ConteudoDoArtefato, type Etapa, type Habilidade } from '@educa/shared'
+import type { ArtefatoLido, ArtefatoRepository } from './artefato.repository.js'
 
 /** Quantas habilidades uma tarefa aceita (`habilidadesSchema`, na camada de IA). */
 export const MAXIMO_DE_HABILIDADES_NA_TAREFA = 6
@@ -60,4 +61,22 @@ export function exigirAdaptacaoFiel(original: ConteudoDeAtividade, adaptada: Con
     mesmosTipos(adaptada.adaptacao.tipos, pedida.tipos) &&
     adaptada.adaptacao.tempoExtraPercentual === pedida.tempoExtraPercentual
   if (!fiel) throw new LLMError('IA_SAIDA_INVALIDA')
+}
+
+/** A atividade que pode ser adaptada: objetiva, e que não é ela mesma uma versão adaptada. Fora disso, `CONFLITO`. */
+export function atividadeOriginal(lido: ArtefatoLido): ConteudoDeAtividade {
+  const conteudo = conteudoDeAtividadeSchema.safeParse(lido.conteudo)
+  if (lido.tipo !== 'atividade_objetiva' || lido.origemId !== null || !conteudo.success || conteudo.data.adaptacao !== undefined) throw new DomainException(ErrorCode.CONFLITO)
+  return conteudo.data
+}
+
+/**
+ * A atividade só se adapta se o material que ela cita ainda está em uso (RF7, RF11, D5): a adaptação manda o trecho citado ao modelo e grava uma versão nova, com entrega, que cita de novo a página. Licença
+ * que não vale hoje, `LICENCA_VENCIDA`; edição substituída, ou cuja linha o expurgo apagou, `EDICAO_SUBSTITUIDA`: a professora gera a atividade de novo, que cita a edição atual. **Só se chama com o artefato já achado no alcance.**
+ */
+export async function exigirMaterialEmUso(artefatos: ArtefatoRepository, conteudo: ConteudoDeAtividade): Promise<void> {
+  const ids = [...new Set(citacoesDoConteudo(conteudo).map((citacao) => citacao.materialId))]
+  const fora = await artefatos.materiaisForaDoUso(ids, diaDeUso(systemClock.agora()))
+  if (fora.licencaVencida) throw new DomainException(ErrorCode.LICENCA_VENCIDA)
+  if (fora.substituido) throw new DomainException(ErrorCode.EDICAO_SUBSTITUIDA)
 }
