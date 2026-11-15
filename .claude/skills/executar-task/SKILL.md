@@ -89,10 +89,15 @@ caso ou uma ferramenta, tem de ler os arquivos da linha: abra o que ela lê ante
 Antes de pedir a rodada, rode `node tools/processo/mutacoes.ts --faltando <documento>`: cada linha que ele lista ganha bloco
 em "Mutações", ou a meia linha do motivo, e o começo de "Mutações" leva a linha `--faltando: <n> linhas (<n> blocos, <n>
 motivos)`. Vale para o código de `tools/` também. Na X4, a 4.0 e a 6.0 reprovaram por linha que ele já apontava. **O
-`--faltando` é o piso, não a lista**: ele lê a linha com condição, e não vê (a) cada termo de uma linha com vários
-(`and(eq(a), eq(b))`, `a && b`: um bloco ou um motivo por termo, e o motivo de um não cobre os outros), (b) SQL ou Lua dentro de
-template string, (c) a linha sem condição que protege (a chamada que confere antes, a fiação de uma guarda, o campo zod). Esses a
-pergunta 1 da autoconferência lista à mão: na F2c foram 8 reprovações do `test-engineer` por cláusula que ele não listava. E cada linha da
+`--faltando` é o piso, não a lista**: a linha com vários termos (`and(eq(a), eq(b))`, `a && b`, `a || b`) sai **um item por termo**, e
+o termo só deixa a lista com um bloco que o **tire e deixe os outros** (trocar a linha inteira, ou citá-la como contexto, não o alcança) ou
+com um motivo na seção "Mutações" cuja crase seja **igual** ao termo (de três caracteres ou mais); a linha de SQL ou de Lua em template string (`sql`, `execute(`, `query(`,
+`eval(`, `defineCommand`, `redis.call`) também é listada, sem condição de TypeScript. Ele ainda **não vê** (a) o SQL em template sem
+etiqueta e fora de `execute(` e `query(`, (b) o `&&` dentro de um `and(` como grupo à parte, (c) o `and(` ou o `or(` com **um argumento por linha**
+(`.where(`, `and(`, `eq(t.escolaId, escolaId),`, cada um na sua: a linha `eq(...)` sozinha não tem termo nem condição, e é a cláusula de escopo da regra 10),
+(d) o ternário (`return x ? a && b : c` deixa o `x ?` no primeiro termo), (e) a linha sem condição que protege (a chamada que confere antes,
+a fiação de uma guarda, o campo zod). Esses a pergunta 1 da autoconferência lista à mão: na F2c foram 8 reprovações do `test-engineer` por
+cláusula que ele não listava, a maioria de termo e de SQL ou Lua, que agora saem da ferramenta. E cada linha da
 tabela de testes ganha o caso na coluna "Caso" (pergunta 11); documento sem a coluna leva a lista "linha → caso" no plano.
 
 ## 3. Implementar
