@@ -1,13 +1,14 @@
 # Estado da execução — reengenharia-continuacao
 
 ## Agora
-- **Espero:** o `RELATÓRIO` do `Implementador` (linha 1, correção `2026-11-15-faltando-termo-a-termo`, retomada após a triagem do `Arquiteto`: detalhe, opção (c), `LinhaAcrescentada` sem mexer no mapa 4; techspec da X8 §5 registrada sem commit na L1), do `Implementador 2` (linha 2, tarefa 3.0, porte grande, 1ª tentativa, pedida às 15/11 12:55) e do `Implementador 3` (linha 3, tarefa 1.0, porte grande, 1ª tentativa, pedida às 15/11 12:32). A 12.0 parte quando a linha 1 fechar a correção.
-- **Devo ainda:** as M1 a M4 da retro da F4 ficam no `TODO.md` como correções, sem ordem pedida. Ler o veredito da esteira da execução 43732575540 (`6bd8f12`) no próximo encontro.
-- **Base:** `spec/reengenharia-continuacao` em `6bd8f123`
+- **Espero:** o `RELATÓRIO` do `Implementador` (linha 1, tarefa 12.0, porte pequeno, 1ª tentativa, pedida às 15/11), do `Implementador 2` (linha 2, tarefa 3.0, porte grande, 1ª tentativa, pedida às 15/11 12:55) e do `Implementador 3` (linha 3, tarefa 1.0, porte grande, 1ª tentativa, pedida às 15/11 12:32).
+- **Devo ainda:** as M1 a M4 da retro da F4 ficam no `TODO.md` como correções, sem ordem pedida.
+- **Base:** `spec/reengenharia-continuacao` em `b8280ad5`
 
 ## Concluídas
 | Tarefa | Commit | Modelo | Rodadas | Observação |
 |---|---|---|---|---|
+| correção `2026-11-15-faltando-termo-a-termo` (F2c retro M1, L1) | `6c5b1a27` | Sonnet | test-engineer, revisor-geral e privacy-guardian na 2ª | divergência triada (detalhe, `LinhaAcrescentada`); recomendações no `TODO.md` |
 | correção `2026-11-15-write-sobre-revisoes` (F2c retro M2, L2) | `15ed12a2` | Sonnet | test-engineer e revisor-geral na 2ª | + 3 itens no `TODO.md` (realpath, CRLF, Edit/Bash) |
 
 ## Esperando o Joaquim
