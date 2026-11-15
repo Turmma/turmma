@@ -4,10 +4,12 @@ import { IaRequestRateLimit } from '../assistente/ai-request-rate-limit.js'
 import { DB } from '../database.module.js'
 import { ExecucaoScheduler } from '../ia/execucao.scheduler.js'
 import { ORCAMENTO_DE_IA, SUSPENSAO_DE_FUNCAO } from '../ia/ia.module.js'
+import { comRegistro, RegistroDeComandos } from '../ia/registro-de-comandos.js'
 import { TrechoSearch } from '../material/trecho-search.js'
 import { SinaisController } from './sinais.controller.js'
 import { SupervisaoDoTutorService } from './supervisao.service.js'
 import { TutorController } from './tutor.controller.js'
+import { AlcanceDoAluno, TurnoDoTutorCommand } from './turno.command.js'
 import { TutorService } from './tutor.service.js'
 
 /**
@@ -23,11 +25,18 @@ export class TutorModule {
       module: TutorModule,
       controllers: [TutorController, SinaisController],
       providers: [
+        // O que o `POST` e o comando conferem do aluno é uma peça só (e é ela que conta a recusa por falta de material da série).
+        { provide: AlcanceDoAluno, useFactory: (banco: Database, trechos: TrechoSearch) => new AlcanceDoAluno(banco, trechos, undefined, opcoes.medidor), inject: [DB, TrechoSearch] },
+        // O comando do turno: o registro o acha pelo nome da tarefa da `execucao_agente`.
+        {
+          provide: TurnoDoTutorCommand,
+          useFactory: (banco: Database, alcance: AlcanceDoAluno, trechos: TrechoSearch, suspensao: SuspensaoDeFuncao, registro: RegistroDeComandos) => comRegistro(registro, new TurnoDoTutorCommand(banco, alcance, trechos, suspensao)),
+          inject: [DB, AlcanceDoAluno, TrechoSearch, SUSPENSAO_DE_FUNCAO, RegistroDeComandos],
+        },
         {
           provide: TutorService,
-          useFactory: (banco: Database, agendador: ExecucaoScheduler, limite: IaRequestRateLimit, trechos: TrechoSearch, orcamento: OrcamentoDeIa, suspensao: SuspensaoDeFuncao) =>
-            new TutorService(banco, agendador, limite, trechos, orcamento, suspensao, undefined, opcoes.medidor),
-          inject: [DB, ExecucaoScheduler, IaRequestRateLimit, TrechoSearch, ORCAMENTO_DE_IA, SUSPENSAO_DE_FUNCAO],
+          useFactory: (banco: Database, agendador: ExecucaoScheduler, limite: IaRequestRateLimit, orcamento: OrcamentoDeIa, alcance: AlcanceDoAluno) => new TutorService(banco, agendador, limite, orcamento, alcance),
+          inject: [DB, ExecucaoScheduler, IaRequestRateLimit, ORCAMENTO_DE_IA, AlcanceDoAluno],
         },
         { provide: SupervisaoDoTutorService, useFactory: (banco: Database) => new SupervisaoDoTutorService(banco), inject: [DB] },
       ],

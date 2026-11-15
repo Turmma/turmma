@@ -325,9 +325,15 @@ export class TutorDoAlunoRepository {
       .onConflictDoNothing()
   }
 
-  /** A pergunta que este aluno gravou com essa chave de envio. A chave de outra pessoa não é achada. */
-  async perguntaDaChave(chaveEnvio: string): Promise<PerguntaGravada | undefined> {
-    const { alunoId } = this.#aluno()
+  /**
+   * A pergunta que este aluno gravou com **esta execução**, no ano em curso: é o que o comando relê pelo id da execução. A execução de
+   * outro aluno, a de outra escola e a de outro ano não casam com a conversa do aluno da sessão, e a resposta é a do inexistente.
+   *
+   * Duas conferências, que se complementam: aqui, o escopo da conversa (`escolaId`, `anoLetivoId` e `alunoId` da mensagem); no `paraExecutar`
+   * do `ExecucaoDaSessaoRepository`, o de quem pediu a execução (`solicitadaPor`). Este método não cruza com `execucao_agente`: não tire
+   * nenhuma das duas achando que a outra basta.
+   */
+  async perguntaDaExecucao(execucaoId: string): Promise<PerguntaGravada | undefined> {
     const [linha] = await this.banco
       .select({
         id: mensagemTutor.id,
@@ -341,8 +347,7 @@ export class TutorDoAlunoRepository {
         criadaEm: mensagemTutor.criadaEm,
       })
       .from(mensagemTutor)
-      .innerJoin(execucaoAgente, and(eq(execucaoAgente.escolaId, mensagemTutor.escolaId), eq(execucaoAgente.anoLetivoId, mensagemTutor.anoLetivoId), eq(execucaoAgente.id, mensagemTutor.execucaoId)))
-      .where(and(this.#doAluno(), eq(mensagemTutor.autor, 'aluno'), eq(execucaoAgente.chaveEnvio, chaveEnvio), eq(execucaoAgente.solicitadaPor, alunoId)))
+      .where(and(this.#doAluno(), eq(mensagemTutor.autor, 'aluno'), eq(mensagemTutor.execucaoId, execucaoId)))
     return linha
   }
 

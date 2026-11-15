@@ -304,8 +304,9 @@ Exemplo: `apps/api/src/artefato/ferramentas.service.ts`.
    (`apps/api/src/ia/registro-de-comandos.ts`). Exemplo: `apps/api/src/artefato/ferramentas.command.ts`.
 3. **O service chama** o `ExecucaoScheduler.agendar({ comando, chaveEnvio, entradaDaExecucao, aoGravar? })`. A resposta
    é 202 com `execucaoId`, e a execução roda em segundo plano, passando pelo gateway: orçamento, suspensão da função,
-   prazo e validação da saída. O `aoGravar` é o que fica na requisição, na mesma transação do `pendente`. O Tutor ainda
-   usa a closure (`tarefa`, `entrada`, `aoConcluir`) até a 2.0 da X6.
+   prazo e validação da saída. O `aoGravar` é o que fica na requisição, na mesma transação do `pendente`. O pedido não leva
+   closure de entrada nem de conclusão: toda tarefa tem comando, o Tutor também (`tutor/turno.command.ts`), e a única sem
+   é a que ninguém chama (`TAREFAS_SEM_CHAMADOR`). O teste `registro-de-comandos.test.ts` reprova a tarefa nova sem comando.
 4. **Nunca chame o adaptador nem a porta direto.** O lint barra só o import de SDK de IA. Chamar o
    `OpenAICompatAdapter` ou o `LLMProvider` sem passar pelo `ExecucaoScheduler` e pelo gateway não tem trava de
    máquina: é proibido pela regra 30, e quem segura é a revisão.
