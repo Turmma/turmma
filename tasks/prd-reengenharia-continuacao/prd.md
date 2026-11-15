@@ -38,9 +38,9 @@ piloto (D84) esperam desta spec.
 | Papel | O que pode fazer | O que não pode |
 |---|---|---|
 | Aluno | receber a resposta do Tutor com a escola cheia; ver "Tentar de novo" sem gastar a troca | receber erro cru; ter a conversa enviada para fora do Brasil |
-| Professor | usar as ferramentas sem atrasar o Tutor dos alunos; ver a pergunta do aluno que ficou sem resposta | ocupar a vaga do Tutor da própria escola |
+| Professor | usar as ferramentas sem atrasar o Tutor; ver no uso a troca sem resposta, sem o texto | ocupar a vaga do Tutor |
 | Coordenação | trocar de escola com o Redis fora, sem perder tentativa | ver dado de outra escola em métrica ou alerta |
-| Operador Turmma | receber alerta de fila de IA cheia, de provedor fora e de tokens perto do teto, cada um com runbook | ver usuário, conversa ou nome em métrica ou alerta (D76) |
+| Operador Turmma | receber alerta de fila cheia, provedor fora e tokens perto do teto, com runbook | ver usuário, conversa ou nome em métrica ou alerta (D76) |
 
 ## 5. Requisitos funcionais
 
@@ -50,25 +50,25 @@ piloto (D84) esperam desta spec.
 |---|---|---|
 | RF1 | Toda chamada de modelo (o Tutor, as ferramentas, a proposta de ferramenta, a adaptação e o Analista) roda no worker, por job. Nenhuma requisição da API espera o modelo | O módulo HTTP da API não monta o provedor de IA; um teste exige um job registrado para cada tarefa de IA; o turno do Tutor passa pela fila |
 | RF2 | O Tutor e as ferramentas do professor rodam em filas separadas, com vaga por escola em cada uma | Com 4 ferramentas da escola rodando, a 5.ª espera e o Tutor da mesma escola responde; a escola B segue com as vagas dela |
-| RF3 | Quando a execução é entregue duas vezes, ou o worker morre no meio dela, o modelo não é chamado de novo e nenhuma resposta sai em dobro. A troca não conta, a execução fica `interrompida`, e o consumo estimado fica registrado, a mais e nunca a menos (D14, D49) | Teste com o worker morto no meio da execução e com entrega duplicada: uma chamada ao modelo, uma resposta, uma troca |
-| RF4 | No worker continuam valendo o assunto delicado e a avaliação aberta. O assunto delicado grava a mensagem fixa e o sinal ao professor mesmo quando a execução é descartada (D36). A avaliação que abre depois do pedido faz a troca não contar (X5, RF3) | Os testes de hoje dessas duas regras passam pelo caminho da fila; o sinal não duplica na reentrega |
-| RF5 | A pergunta do Tutor que espera mais de 20 s na fila termina sem modelo, com "Tentar de novo" e sem contar a troca. A pergunta continua visível ao professor, e o operador recebe um alerta com runbook, que separa "uma escola grande" de "falta capacidade" | Teste com relógio falso: a de 21 s termina indisponível; a ferramenta com 21 s roda; alerta e parágrafo do runbook conferidos |
+| RF3 | Execução entregue duas vezes, ou com o worker morto, não chama o modelo de novo nem responde em dobro: fica `falhou` com `EXECUCAO_INTERROMPIDA`, a troca não conta, e o consumo estimado fica registrado a mais, nunca a menos (D14, D49) | Teste com o worker morto e com entrega duplicada: uma chamada, uma resposta, uma troca |
+| RF4 | No worker, o assunto delicado grava a mensagem fixa e o sinal ao professor mesmo com a execução descartada (D36), e a avaliação que abre depois do pedido faz a troca não contar (X5, RF3) | Os testes de hoje das duas regras passam pela fila; o sinal não duplica na reentrega |
+| RF5 | A pergunta do Tutor que espera mais de 20 s na fila termina sem modelo, com "Tentar de novo", sem contar a troca e visível ao professor; o operador recebe alerta com runbook, que separa "uma escola grande" de "falta capacidade" | Relógio falso: a de 21 s termina indisponível, a ferramenta de 21 s roda; alerta e runbook conferidos |
 | RF6 | O p95 do turno do Tutor piora no máximo 1 s. Na carga da manhã, com 10 escolas, a espera p95 do Tutor fica abaixo de 2 s, a da ferramenta abaixo de 10 s, e nenhum aluno vê "indisponível" | k6 com o adaptador falso, build anterior e o da tarefa na mesma sessão; números no relatório |
 
 **O gateway (49.0, 50.0)**
 
 | # | Requisito | Como se prova |
 |---|---|---|
-| RF7 | Toda chamada de modelo passa por um limite de tokens por minuto, abaixo do contratado e somado entre as réplicas; o trabalho que não é do Tutor nem da ferramenta usa até metade dele. Perto do teto, o pedido do aluno espera até 8 s, depois vai ao modelo menor do mesmo perfil, e só então termina indisponível, sem contar a troca e nunca com erro cru (regra 80.4) | Teste com relógio falso, um por degrau; duas réplicas somam; com o Redis fora, cada réplica segura a parte dela |
-| RF8 | A IA mede duração, erro, disjuntor aberto, degrau de degradação e uso do teto, sem usuário nem escola. Os alertas "Provedor de IA fora" e "Tokens acima de 80 %" têm parágrafo no runbook | Cada degrau muda a sua métrica; os alertas são conferidos pelo teste de alertas e pela guarda do runbook |
-| RF9 | A API e o worker não sobem com provedor externo cujo suboperador vigente não tenha processamento no Brasil, treinamento vedado e a categoria "conversa do aluno" (D62). O adaptador falso e o modelo local sobem; com o banco fora, a subida não fica pronta nem consome fila | Um teste de subida por caso: fora do Brasil, com treinamento, sem vigência, sem a categoria, local, banco fora |
-| RF10 | A chamada que leva texto de aluno é recusada pelo gateway, antes de qualquer envio, se o provedor não declara processamento no Brasil. Toda tarefa de IA declara se leva texto de aluno | Teste do gateway com a marca ligada e o provedor sem a declaração: nenhum envio e erro tipado; a tarefa sem a declaração não compila |
+| RF7 | Toda chamada de modelo passa por um limite de tokens por minuto, abaixo do contratado e somado entre as réplicas; o trabalho que não é do Tutor nem da ferramenta usa até metade dele. A ferramenta tem teto próprio, abaixo do do Tutor. Perto do teto, o pedido espera até 8 s, depois vai ao modelo menor do mesmo perfil (não no Tutor, até ele passar pela medida da D36) e só então termina indisponível, sem contar a troca e nunca com erro cru (regra 80.4) | Relógio falso, um teste por degrau; réplicas somam; Redis fora: cada uma segura a sua parte |
+| RF8 | A IA mede duração, erro, disjuntor aberto, degrau e uso do teto, sem usuário nem escola; "Provedor de IA fora" e "Tokens acima de 80 %" alertam, com runbook | Cada degrau muda a sua métrica; teste de alertas e guarda do runbook |
+| RF9 | A API e o worker não sobem com provedor externo cujo suboperador vigente não tenha processamento no Brasil, treinamento vedado e a categoria "conversa do aluno" (D62). O adaptador falso e o modelo local sobem; com o banco fora, a subida não fica pronta nem consome fila | Um teste de subida por caso |
+| RF10 | A chamada que leva texto de aluno é recusada pelo gateway, antes de qualquer envio, se o provedor não declara processamento no Brasil. Toda tarefa de IA declara se leva texto de aluno | Marca ligada e provedor sem a declaração: nenhum envio, erro tipado; tarefa sem a declaração não compila |
 
 **A web e o Redis (52.0, 54.0, 56.0)**
 
 | # | Requisito | Como se prova |
 |---|---|---|
-| RF11 | Toda chamada da web à API tem prazo (leitura 20 s, PDF 30 s, envio de arquivo 180 s, resposta de prova 10 s). Quando o prazo estoura, a tela mostra "Tentar de novo"; quando quem chamou cancela, não aparece erro. Uma resposta de prova pendurada não trava as outras (regra 80.6) | Testes do cliente com relógio falso; o lint barra `fetch` fora do cliente; teste da prova com um envio pendurado |
+| RF11 | Toda chamada da web à API tem prazo (leitura 20 s, PDF 30 s, envio de arquivo 180 s, resposta de prova 10 s). Quando o prazo estoura, a tela mostra "Tentar de novo"; quando quem chamou cancela, não aparece erro. Uma resposta de prova pendurada não trava as outras (regra 80.6) | Cliente com relógio falso; lint barra `fetch` fora do cliente; prova com um envio pendurado |
 | RF12 | Quando uma tela quebra fora de uma área, aparece a tela de falha com o caminho de volta, e não a página branca | Teste com um componente que lança na raiz |
 | RF13 | Com o Redis fora, o segundo fator e a escolha de escola respondem "indisponível, tente de novo", com o tempo de espera, e não gastam tentativa. A web espera esse tempo uma vez | Teste com o Redis fora nas duas rotas; teste da web com o `Retry-After` |
 
@@ -83,8 +83,8 @@ piloto (D84) esperam desta spec.
 - O que a escola vê só muda no RF5, no RF11 ao RF13 e no degrau do RF7. A conformidade é a mesma, agora no worker
 - O job de IA leva só o id da execução. A escola vem do registro do job, e o repository aplica o escopo (regra 10)
 - A conferência do assunto delicado roda antes da fila, sem modelo (D36): a mensagem fixa nunca espera vaga
-- O Tutor desligado na escola (D84), suspenso pela coordenação (D9) ou fora da política da turma (D19) não chega a criar job
-- Nenhum teste chama provedor pago; a carga usa o adaptador falso (regra 80.11)
+- O Tutor desligado (D84), suspenso (D9) ou fora da política da turma (D19) não cria job
+- Nenhum teste chama provedor pago (regra 80.11)
 
 ## 7. Casos de borda
 
@@ -93,11 +93,8 @@ piloto (D84) esperam desta spec.
 | Às 10h, seis turmas usam o Tutor e a professora gera uma prova de 50 s | O Tutor responde dentro da meta; a prova espera a vaga de ferramenta, não a do Tutor |
 | Uma escola de 900 alunos enche as vagas dela | Só ela espera, e o alerta diz "uma escola grande" |
 | O professor abre a avaliação com a dúvida de um aluno na fila | A resposta não sai e a troca não conta; "quero sumir" ainda recebe o CVV e o sinal |
-| O worker morre no meio de um turno | `interrompida`; "Tentar de novo" sem gastar a troca |
-| O provedor recusa por limite no meio da aula | Espera curta, depois o modelo menor, depois "indisponível", nunca erro cru |
 | A rede da escola trava no meio da prova | A resposta pendurada estoura em 10 s e volta para a fila de reenvio; as outras questões seguem |
 | O Redis cai às 7h30 enquanto a coordenação troca de escola | "Tente de novo" com o tempo de espera, sem gastar tentativa |
-| Provedor configurado sem a declaração do Brasil | A API e o worker não sobem |
 
 ## 8. Dado pessoal envolvido
 
@@ -106,24 +103,21 @@ piloto (D84) esperam desta spec.
 | Job de IA em `job_registro` (só o id da execução) | aluno, professor, pelos ids | rodar a IA fora da API e provar que rodou | a da linha de hoje: 7 dias concluído, 30 falhou | sim, linha do `job_registro`; a linha passa a citar os tipos `ia.*` |
 | Consumo estimado da execução interrompida (`consumo_ia`) | aluno, nas funções do Tutor | freio diário e custo (D14, D38) | a da linha de hoje | sim |
 
-Nenhum campo novo. A conversa continua só em `mensagem_tutor`; as métricas de IA não levam usuário nem escola.
+Nenhum campo novo. A conversa continua só em `mensagem_tutor`; as métricas de IA não levam usuário, e só a da espera estourada leva a escola, como contagem.
 
 ## 8b. Risco regulatório
 
 O Tutor é alto risco (CNE). A supervisão não muda: o professor vê o uso como hoje (D8, D47). A D62 passa a ser conferida
 pelo código, e a D36 continua no worker. A AIA do Tutor
-(`docs/aia/tutor.md`) atualiza a descrição de onde ele roda. O `conformidade-reviewer` revisa as tarefas do RF1 ao RF5 e
-do RF10.
+(`docs/aia/tutor.md`) diz onde ele roda e registra como limitação o turno que termina sem modelo (espera, teto, D62), em que
+só a regra da D36 vale. O `conformidade-reviewer` revisa as tarefas do RF1 ao RF5, do RF7 e do RF10.
 
 ## 9. Métricas
 
-Chamadas de modelo no processo HTTP da API: de todas para zero. As do RF6. Erro cru de IA ao aluno nos testes de falha
-(lento, 429, fora, teto): zero.
+Chamadas de modelo no processo HTTP da API: zero. As do RF6. Erro cru de IA ao aluno nos testes de falha: zero.
 
 ## 10. Perguntas em aberto
 
-- O teto real de tokens por minuto e o modelo menor de cada perfil dependem do provedor da D37. Até lá, valem os valores do
-  ambiente local, e a Tech Spec diz qual é o padrão
-- "1 ferramenta por minuto por escola" é premissa sem fonte (`onda-3a.md`): a carga da manhã a mede, e o `docs/infra.md`
-  a registra
+- O teto real de tokens e o modelo menor de cada perfil dependem da D37
+- "1 ferramenta por minuto por escola" é premissa sem fonte (`onda-3a.md`): a carga da manhã a mede
 - O uso por menor nos termos do provedor (regra 20, item 13) segue pendência da D37
