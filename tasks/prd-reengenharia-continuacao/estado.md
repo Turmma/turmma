@@ -1,9 +1,9 @@
 # Estado da execução — reengenharia-continuacao
 
 ## Agora
-- **Espero:** o `RELATÓRIO` do `Arquiteto` (fase `sem-tarefas`, pedida às 15/11 ~03:15): a lista de tarefas. Retro da F4 feita e aceita (`9970e28b` na `develop`, sem push), trazida para a spec em `395cc4c9`.
-- **Devo ainda:** antes da primeira tarefa da X6, as correções (F2c, retro, M1) `--faltando` termo a termo e (F2c, retro, M2) hook do `Write` sobre "Revisões" (`TODO.md`, seção da retro da F2c), cada uma numa linha (`partida <n> correcao:<slug>`), com `test-engineer` e `revisor-geral`. As M1 a M4 da F4 ficam no `TODO.md` como correções, sem ordem pedida.
-- **Base:** `spec/reengenharia-continuacao` em `395cc4c9`
+- **Espero:** o `RELATÓRIO` do `Implementador` (linha 1, correção `2026-11-15-faltando-termo-a-termo`, F2c retro M1, 1ª tentativa, pedida às 15/11 12:10) e do `Implementador 2` (linha 2, correção `2026-11-15-write-sobre-revisoes`, F2c retro M2, 1ª tentativa, 12:10) e do `Implementador 3` (linha 3, aberta às 12:31, tarefa 1.0, porte grande, 1ª tentativa, pedida às 15/11 12:32). A construção começou às 12:31; a 3.0 e a 12.0 partem quando a linha 1 ou a 2 fechar a correção.
+- **Devo ainda:** as M1 a M4 da retro da F4 ficam no `TODO.md` como correções, sem ordem pedida.
+- **Base:** `spec/reengenharia-continuacao` em `1ba364d3`
 
 ## Concluídas
 | Tarefa | Commit | Modelo | Rodadas | Observação |
