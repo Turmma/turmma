@@ -8,10 +8,11 @@ import { conferirCatraca, renomeadosDesdeOHead, somaPorRegra, suprimidasDoHead, 
 import { REGRAS_DE_TAMANHO } from './index.mjs'
 
 // A catraca do tamanho (X5, 13.0; RF11): `eslint-suppressions.json` só encolhe. O `TETO` é a soma por regra de hoje; quem corta
-// uma função roda `eslint . --prune-suppressions` e baixa o número aqui, no mesmo commit. A comparação com o HEAD vale no
+// uma função roda `eslint . --prune-suppressions` e baixa o número aqui, no mesmo commit. No merge entre linhas, o `TETO` é
+// recalculado pela soma da base resultante, e não herdado de um dos lados: cada lado pode ter baixado por um caminho. A comparação com o HEAD vale no
 // portão da tarefa, onde o HEAD é o commit anterior; na esteira o HEAD é o próprio commit e ela passa sempre, e quem segura
 // ali é a soma contra o `TETO`.
-const TETO = { complexity: 236, 'max-lines-per-function': 59, 'max-depth': 12, 'max-lines': 8 }
+const TETO = { complexity: 235, 'max-lines-per-function': 59, 'max-depth': 12, 'max-lines': 8 }
 
 const ARQUIVO = 'eslint-suppressions.json'
 const lerBase = (pasta: string): Supressoes => JSON.parse(readFileSync(join(pasta, ARQUIVO), 'utf8')) as Supressoes
