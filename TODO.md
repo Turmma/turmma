@@ -3666,3 +3666,31 @@ aula" em `Retencao.tsx`, o Validador conferiu: a tela já o mostra pela descriç
 - [ ] (ingestao-do-material, 5.0, privacy-guardian, 1ª) **`licenca.alterada` guardar os nomes dos campos alterados (sem o texto)** quando só a cobertura ou a referência mudam. Muda o formato da auditoria que a Tech Spec §6 fixa (dono: Arquiteto)
 - [ ] (ingestao-do-material, 7.0, Mesa) **A asserção da auditoria em `e2e/material.spec.ts:314` depende da ordem**, e o relógio do WSL, que volta segundos, a derrubou duas vezes: comparar sem ordem (dono: quem mexer em `e2e/material.spec.ts`)
 - [ ] (censo do e2e do fechamento da ingestao-do-material, execução 43614434067, 14/11/2026, dívida da develop: arquivos que a spec não alterou) **Doze casos acima de dois terços do prazo, nenhum acima de 90%:** `alocacao.spec.ts:85` (76,6 e 73,0 s de 90), `operacao.spec.ts:125` (64,7 e 61,1 s de 90) e `:45` (21,2 e 20,5 s de 30), `escola-e-vinculos.spec.ts:211` (24,5 e 21,9 s de 30) e `:271` (20,9 s), `components-ai.spec.ts:205` (21,5 e 21,1 s), `casca.spec.ts:386` (20,3 s, celular); os mesmos do censo da F2c, mais o `casca:386` e o `components-ai:205`. Encurtar ou dividir quando o arquivo for tocado; o mais perto do teto é o `alocacao:85` (85%) (dono: Implementador)
+
+## Da reengenharia-continuacao, tarefa 12.0 (o prazo da chamada da web), fora dela
+
+- [ ] (reengenharia-continuacao, 12.0, infra-guardian e test-engineer, 1ª) **Duas escolhas penduradas pelo cliente se revezam sem recuo:** limitar o envio imediato a uma volta pela fila desde o último
+      sucesso, e depois dela o recuo. A 13.0 (tela de falha) decide, com a rede pendurada de vez (dono: Implementador da 13.0, com infra-guardian)
+- [ ] (reengenharia-continuacao, 12.0, infra-guardian, 1ª) **`POST`s sem chave de idempotência que agora estouram aos 20 s** (`/v1/tutor/mensagens`, `/v1/assistente/mensagens`, `/v1/ferramentas/*/gerar`): "Tentar de novo"
+      pode duplicar a execução. Já podia acontecer antes do prazo; entra na 13.0 e na 14.0 (dono: Implementador, com infra-guardian)
+- [ ] (reengenharia-continuacao, 12.0, revisor-geral, 1ª) **`material.ts` e `artefatos.ts` repetem o `try/catch` em volta do `pedir`:** extrair para `api/client.ts` quando aparecer a terceira chamada de fora do
+      `apiRequest` (dono: quem escrever a terceira)
+- [ ] (reengenharia-continuacao, 12.0, frontend-reviewer, 1ª) **A nova tentativa automática do `shouldRetry` no `TEMPO_ESGOTADO` leva a leitura a cerca de 41 s até o erro na tela:** reduzir ou tirar a repetição quando o erro é de prazo.
+      Muda o contrato da leitura; a 13.0 (tela de falha) decide (dono: Implementador da 13.0)
+- [ ] (reengenharia-continuacao, 12.0, frontend-reviewer, 1ª e 2ª) **"FERRAME…" e o nome da escola cortados na barra de baixo do celular a 360 px:** componente da casca, que a tarefa não altera (dono: quem mexer na casca)
+- [ ] (reengenharia-continuacao, 12.0, conformidade-reviewer, 1ª) **As linhas de `Criados` não têm o selo de saída de IA (regra 70, item 4a).** Já era assim antes da 12.0; entra na tarefa de tela do professor que tocar
+      `Criados.tsx` (dono: Implementador dessa tarefa, com conformidade-reviewer)
+- [ ] (reengenharia-continuacao, 12.0, test-engineer, 1ª) **Teste que junte o `responderQuestao` de verdade, com o `fetch` pendurado, dentro de `criarFilaDeRespostas`:** hoje o `client.test.ts` prova os 10 s e o
+      `respostas.test.ts`, a fila, cada um do seu lado (dono: Implementador)
+- [ ] (reengenharia-continuacao, 12.0, test-engineer, 1ª) **`guardas.test.ts`, caso "o alvo da exceção existe e ainda chama o `fetch`":** a busca por `/\bfetch\(/` acerta comentário; conferir pelo ESLint
+      (dono: Implementador, na próxima tarefa que tocar as guardas)
+- [ ] (reengenharia-continuacao, 12.0, infra-guardian e outros quatro, 2ª) **Texto por origem no aviso da decisão da correção (`Aprovar.tsx`):** hoje o 503 `TEMPO_ESGOTADO` da API mostra o mesmo "Não foi possível
+      confirmar a decisão" do estouro do cliente (lado conservador). Separar com `estourouNoCliente`, se a 13.0 (tela de falha) quiser (dono: Implementador da 13.0)
+- [ ] (reengenharia-continuacao, 12.0, infra-guardian, 2ª) **Teste de tela em `NovaEscola.tsx` que leve o estouro do navegador ao aviso de tentativa incerta:** hoje só `ehResultadoIncerto` é testado em
+      `operacao/textos.test.ts` (dono: Implementador)
+- [ ] (reengenharia-continuacao, 12.0, revisor-geral, 3ª) **`Aprovar.test.tsx`, caso "a decisão que o prazo do cliente interrompe":** o comentário diz que o diálogo segue aberto aos 19,9 s, e nada o confere; acrescentar
+      `expect(screen.getByRole('alertdialog')).toBeTruthy()` antes dos últimos 100 ms (dono: quem tocar `Aprovar.test.tsx`)
+- [ ] (reengenharia-continuacao, 12.0, test-engineer, 3ª) **A tabela "Testes que provam a regra" do `12_task.md` não tem linha para o aviso da decisão no estouro nem para a marca `origem: 'cliente'`:** a prova existe nos
+      blocos de mutação e nas divergências; o Validador cruza a tabela com o código no fim da spec (dono: Validador)
+- [ ] (reengenharia-continuacao, 12.0, test-engineer, 3ª) **Nenhum teste fixa que o 503 `TEMPO_ESGOTADO` da API mostra o mesmo texto do estouro do cliente em `Aprovar.tsx`:** se a 13.0 separar o texto por
+      origem, o caso com `ApiError(TEMPO_ESGOTADO)` sem `origem` entra lá (dono: Implementador da 13.0)

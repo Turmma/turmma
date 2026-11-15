@@ -9,7 +9,7 @@ import {
 } from '@educa/shared'
 import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query'
 import { ARTEFATOS_QUERY_KEY } from '../../../../api/chaves-do-professor'
-import { ApiError } from '../../../../api/client'
+import { ApiError, comPrazo } from '../../../../api/client'
 import { authedGet, authedRequest, renovarSessao, tokenDeAcesso } from '../../../../api/sessao'
 
 const CAMINHO_DOS_ARTEFATOS = '/v1/artefatos'
@@ -92,14 +92,16 @@ function ehCodigoDeErro(valor: unknown): valor is ErrorCode {
 }
 
 /** O erro de uma resposta que não trouxe o PDF: o código do envelope da API, ou o que o status permite dizer. */
-async function erroDoPdf(resposta: Response): Promise<ApiError> {
+async function erroDoPdf(resposta: Response, sinal: AbortSignal): Promise<ApiError> {
   try {
     const corpo: unknown = await resposta.json()
     if (typeof corpo === 'object' && corpo !== null && 'erro' in corpo) {
       const { erro } = corpo
       if (typeof erro === 'object' && erro !== null && 'codigo' in erro && ehCodigoDeErro(erro.codigo)) return new ApiError(erro.codigo)
     }
-  } catch {
+  } catch (erro) {
+    // A leitura abortada (o prazo) não é "sem envelope": o erro sobe, e vira `TEMPO_ESGOTADO`.
+    if (sinal.aborted) throw erro
     // Sem envelope: o status decide.
   }
   if (resposta.status === 404) return new ApiError(ErrorCode.NAO_ENCONTRADO)
@@ -108,14 +110,28 @@ async function erroDoPdf(resposta: Response): Promise<ApiError> {
   return new ApiError(ErrorCode.ERRO_INTERNO)
 }
 
-async function pedirPdf(caminho: string): Promise<Response> {
+/** O que o pedido do PDF trouxe: o status, o nome que o cabeçalho deu (se deu) e o arquivo, ou o erro da resposta que não o trouxe. */
+interface PdfPedido {
+  readonly status: number
+  readonly nome: string | undefined
+  readonly resultado: Blob | ApiError
+}
+
+async function pedirPdf(caminho: string): Promise<PdfPedido> {
   const token = tokenDeAcesso()
-  try {
-    // `no-store`: o PDF tem o gabarito, e o cache HTTP do navegador fica em disco no computador da escola.
-    return await fetch(caminho, { cache: 'no-store', headers: { Accept: 'application/pdf', ...(token === undefined ? {} : { Authorization: `Bearer ${token}` }) } })
-  } catch {
-    throw new ApiError(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
-  }
+  // O prazo do PDF (30 s) cobre o pedido e a leitura do arquivo, que é a parte lenta numa rede ruim.
+  return comPrazo('pdf', undefined, async (pedir, sinal) => {
+    let resposta: Response
+    try {
+      // `no-store`: o PDF tem o gabarito, e o cache HTTP do navegador fica em disco no computador da escola.
+      resposta = await pedir(caminho, { cache: 'no-store', headers: { Accept: 'application/pdf', ...(token === undefined ? {} : { Authorization: `Bearer ${token}` }) } })
+    } catch {
+      // Sem rede. O prazo estourado também cai aqui (o `fetch` aborta), e o `comPrazo` o troca por `TEMPO_ESGOTADO`.
+      throw new ApiError(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
+    }
+    if (!resposta.ok) return { status: resposta.status, nome: undefined, resultado: await erroDoPdf(resposta, sinal) }
+    return { status: resposta.status, nome: nomeNoCabecalho(resposta.headers.get('Content-Disposition')), resultado: await resposta.blob() }
+  })
 }
 
 export interface PdfDoArtefato {
@@ -130,13 +146,13 @@ export interface PdfDoArtefato {
  */
 export async function baixarPdfDoArtefato(id: string, titulo: string): Promise<PdfDoArtefato> {
   const caminho = `${CAMINHO_DOS_ARTEFATOS}/${encodeURIComponent(id)}/pdf`
-  let resposta = await pedirPdf(caminho)
-  if (resposta.status === 401) {
+  let pedido = await pedirPdf(caminho)
+  if (pedido.status === 401) {
     await renovarSessao()
-    resposta = await pedirPdf(caminho)
+    pedido = await pedirPdf(caminho)
   }
-  if (!resposta.ok) throw await erroDoPdf(resposta)
-  return { arquivo: await resposta.blob(), nome: nomeNoCabecalho(resposta.headers.get('Content-Disposition')) ?? nomeDoArquivoPdf(titulo) }
+  if (pedido.resultado instanceof ApiError) throw pedido.resultado
+  return { arquivo: pedido.resultado, nome: pedido.nome ?? nomeDoArquivoPdf(titulo) }
 }
 
 /** Entrega o arquivo à pessoa pelo navegador, como um download comum. O endereço temporário é solto em seguida. */

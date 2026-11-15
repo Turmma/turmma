@@ -222,7 +222,7 @@ function fontesDaArvore(): Fonte[] {
     carregarFonte('ARQUIVOS_DE_TESTE', 2, () => globs(ARQUIVOS_DE_TESTE)),
     carregarFonte('camadas.cjs', 39, () => pathsDoCamadas(requerer(join(RAIZ, 'tools/guardas/camadas.cjs')) as Camadas)),
     carregarFonte('guardioes-por-caminho.ts', 45, () => prefixos([...EXCECOES_DO_CODIGO.map((e) => e.prefixo), ...REGRAS_DO_RF16.map((r) => r.prefixo), ...RESTO_DO_PROCESSO])),
-    carregarFonte('eslint.config.mjs, files', 25, () => filesDoEslint(configuracaoDoEslint)),
+    carregarFonte('eslint.config.mjs, files', 30, () => filesDoEslint(configuracaoDoEslint)),
     carregarFonte('eslint.config.mjs, ignores', 8, () => ignoresDoEslint(configuracaoDoEslint)),
     carregarFonte('package.json, workspaces', 2, () => unicos(lerJson<{ workspaces: string[] }>('package.json').workspaces.map((valor) => ({ valor, tipo: 'pasta' as const })))),
     carregarFonte('knip.json, workspaces', 8, () => workspacesDoKnip(lerJson<Knip>('knip.json'))),

@@ -2,7 +2,7 @@ import js from '@eslint/js'
 import reactHooks from 'eslint-plugin-react-hooks'
 import globals from 'globals'
 import tseslint from 'typescript-eslint'
-import { ARQUIVOS_DE_TESTE, configuracaoDasGuardas } from './tools/guardas/index.mjs'
+import { ARQUIVOS_DE_TESTE, configuracaoDasGuardas, ESCOPO_DO_FETCH } from './tools/guardas/index.mjs'
 
 // A entrada do controller (D81): o que cada seletor reprova. `@Req()` fica fora desta lista, num objeto à parte, porque
 // `sessao/` e `operacao/` o recuperam (o cookie e o IP só se leem da requisição).
@@ -19,6 +19,23 @@ const SELETORES_DA_ENTRADA = [
     selector: "MemberExpression[object.name='requisicao'][property.name=/^(body|query|params)$/]",
     message: 'A entrada não se lê da requisição: use @Body, @Query e @Param com o pipe.',
   },
+]
+
+// Toda chamada da web à API sai por `apps/web/src/api/client.ts` (52.0; RF11), que dá o prazo a ela: o `fetch` solto fica
+// pendurado na rede da escola e trava a tela, ou a fila de respostas da prova. `no-restricted-globals` (em
+// `tools/guardas/index.mjs`) barra o `fetch` do escopo global; estes seletores barram o que o contorna: ler o `fetch` de
+// `globalThis`, `window`, `self` ou de qualquer objeto (`x.fetch`, `x['fetch']`), desestruturá-lo (`const { fetch } = window`,
+// também do `import()`) e importá-lo ou reexportá-lo com esse nome. Limite: o `fetch` guardado sob outro nome por um
+// objeto montado à mão (`{ buscar: fetch }` é barrado pelo global; `Reflect.get(window, 'fetch')`, não), a chave montada em tempo
+// de execução (`window['fet' + 'ch']`) e o `XMLHttpRequest`, que escapam aos seletores: o que sobra é da revisão.
+const MENSAGEM_DO_FETCH = 'A chamada à API sai por `apiRequest` ou `comPrazo`, em `api/client.ts`: sem o prazo dele, a resposta pendurada trava a tela e a fila da prova (RF11).'
+const SELETORES_DO_FETCH = [
+  { selector: "MemberExpression[computed=false][property.name='fetch']", message: MENSAGEM_DO_FETCH },
+  { selector: "MemberExpression[computed=true][property.value='fetch']", message: MENSAGEM_DO_FETCH },
+  { selector: "ObjectPattern > Property[computed=false][key.name='fetch']", message: MENSAGEM_DO_FETCH },
+  { selector: "ObjectPattern > Property[computed=true][key.value='fetch']", message: MENSAGEM_DO_FETCH },
+  { selector: "ImportSpecifier[imported.name='fetch']", message: MENSAGEM_DO_FETCH },
+  { selector: "ExportSpecifier[local.name='fetch']", message: MENSAGEM_DO_FETCH },
 ]
 
 const SELETOR_DA_REQUISICAO = {
@@ -106,6 +123,13 @@ export default tseslint.config(
     rules: reactHooks.configs.recommended.rules,
   },
   {
+    // O `fetch` só em `api/client.ts` (52.0; RF11). O teste e o `__fixtures__` o apanham e o trocam à vontade: é neles que a rede é falsa.
+    // `no-restricted-syntax` está em `REGRAS_DE_ENTRADA`: o `eslint-disable` dele não fura a segunda passada do `npm run lint`.
+    files: ESCOPO_DO_FETCH,
+    ignores: [...ARQUIVOS_DE_TESTE, '**/__fixtures__/**'],
+    rules: { 'no-restricted-syntax': ['error', ...SELETORES_DO_FETCH] },
+  },
+  {
     // O kit visual (`components/ui/`) não conhece a API, as telas nem a sessão (D81, R56; `onda-2.md`, "Onde moram"): o
     // que ele recebe vem por prop, e quem fala com o servidor é a tela. O `no-restricted-imports` do ESLint core vale para
     // `import`, `import type` e `export … from`; o `import()` é o seletor, porque o core não o vê. As duas regras estão em
@@ -127,6 +151,8 @@ export default tseslint.config(
       ],
       'no-restricted-syntax': [
         'error',
+        // O bloco do `fetch` (acima) tem a mesma regra, e este a sobrescreve nos arquivos do kit: os seletores do `fetch` entram aqui também.
+        ...SELETORES_DO_FETCH,
         {
           // O `/` do caminho entra como `\x2f`: o esquery não aceita `/` dentro do literal de expressão regular.
           selector: 'ImportExpression[source.value=/(^|\\x2f)(api|areas|sessao)(\\x2f|$)/]',

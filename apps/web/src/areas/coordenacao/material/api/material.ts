@@ -10,7 +10,7 @@ import {
   type TitularidadeDeMaterial,
 } from '@educa/shared'
 import { queryOptions } from '@tanstack/react-query'
-import { ApiError, EMPTY_BODY } from '../../../../api/client'
+import { ApiError, comPrazo, EMPTY_BODY, lerJson } from '../../../../api/client'
 import { lerPaginas, type ListaDaEstrutura } from '../../../../api/estrutura'
 import { authedGet, authedRequest, tokenDeAcesso } from '../../../../api/sessao'
 
@@ -110,18 +110,18 @@ async function enviarMultipart(caminho: string, formulario: FormData): Promise<M
   await authedGet(`${CAMINHO}?limite=1`, listaDeMateriaisResponseSchema)
   const token = tokenDeAcesso()
   if (token === undefined) throw new ApiError(ErrorCode.NAO_AUTENTICADO)
-  let resposta: Response
-  try {
-    resposta = await fetch(caminho, { method: 'POST', cache: 'no-store', headers: { Accept: 'application/json', Authorization: `Bearer ${token}` }, body: formulario })
-  } catch {
-    throw new ApiError(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
-  }
-  let corpo: unknown
-  try {
-    corpo = await resposta.json()
-  } catch {
-    corpo = undefined
-  }
+  // O prazo do envio de arquivo (180 s) cobre o pedido e a leitura da resposta: o PDF grande numa rede lenta tem tempo, e a
+  // que pendura de vez sai como `TEMPO_ESGOTADO`, com "Tentar de novo".
+  const { resposta, corpo } = await comPrazo('envio', undefined, async (pedir, sinal) => {
+    let enviada: Response
+    try {
+      enviada = await pedir(caminho, { method: 'POST', cache: 'no-store', headers: { Accept: 'application/json', Authorization: `Bearer ${token}` }, body: formulario })
+    } catch {
+      // Sem rede. O prazo estourado também cai aqui (o `fetch` aborta), e o `comPrazo` o troca por `TEMPO_ESGOTADO`.
+      throw new ApiError(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
+    }
+    return { resposta: enviada, corpo: await lerJson(enviada, sinal) }
+  })
   if (!resposta.ok) {
     const espera = Number(resposta.headers.get('Retry-After'))
     throw new ApiError(codigoDaResposta(corpo, resposta.status), Number.isFinite(espera) && espera > 0 ? espera : undefined)

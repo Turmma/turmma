@@ -99,6 +99,25 @@ o mesmo `comPrazo`, e `no-restricted-globals` barra `fetch` fora do cliente. O `
 `fila-de-respostas`. Um `AreaErrorBoundary paginaInteira`, com texto próprio, envolve o `<Switch>` de `AppRoutes`. O `Falha`
 ganha "Voltar ao início" (`<a href="/">`, que limpa a fronteira; `/operacao` na operação; 44 px, secundário).
 
+**O prazo do cliente (52.0), como ficou.** (1) `comPrazo(tipo, sinalDeFora, executar)`, em `api/client.ts`: o `executar` recebe
+o `pedir` (o `fetch` ligado ao sinal do prazo) e o sinal. O `fetch` só existe em `client.ts`, a única exceção do
+`no-restricted-globals`, e por isso `material.ts` e `artefatos.ts` chamam `pedir`, e não `fetch` (a `comPrazo(sinal, limiteMs)`
+da `onda-3c.md` é anterior a isso). (2) O prazo cobre o pedido **e a leitura do corpo** (`lerJson`, o `blob()` do PDF, a leitura
+do erro do PDF): cabeçalho que chega e corpo que pendura também sai `TEMPO_ESGOTADO`. (3) O tipo da chamada escolhe o prazo
+(`tipo` em `RequestOptions`; `leitura` quando não dito): `responderQuestao`, em `api/atividades-do-aluno.ts`, pede `tipo: 'prova'`
+(10 s); o PDF usa `pdf` (30 s) e o envio de arquivo, `envio` (180 s). (4) Na fila, a gravação que estoura vai para o fim, com a
+mesma `sequencia` (`paraOFim`, em `respostas.ts`), e, **havendo outra escolha esperando** (`haOutraEsperando`), a seguinte sai
+na hora, sem o recuo; com uma só na fila vale o recuo de sempre, e a falha que não é estouro também. A escolha trocada
+enquanto a velha pendurava não é movida: a velha já saiu da fila. (5) O lint: `no-restricted-globals` barra o `fetch`, e
+seletores do `no-restricted-syntax` barram `x.fetch`, `x['fetch']`, `const { fetch } = x`, `import { fetch }` e `export { fetch }`,
+em `apps/web/src` e fora do teste e do `__fixtures__`; o bloco do kit visual repete os seletores (o `no-restricted-syntax` dele
+sobrescreve o do `fetch`); a exceção é só `api/client.ts` (`ARQUIVO_DO_CLIENTE`), e a regra está em `REGRAS_DAS_GUARDAS`.
+(6) **A marca de origem.** O estouro do cliente e o `TEMPO_ESGOTADO` da API têm o mesmo código, e a tela decide pelo código. O
+`ApiError` criado em `comPrazo` leva `origem: 'cliente'` (terceiro argumento do construtor; `estourouNoCliente(erro)` a lê), sem
+mudar o catálogo de `packages/shared`. Só ela libera a seguinte da fila de prova na hora (`bombear`); o `TEMPO_ESGOTADO` da API passa
+pelo recuo com jitter (regra 80, item 6). Só ela entra em `ehResultadoIncerto`: a resposta não chegou e o servidor pode ter gravado,
+enquanto o 503 da API é recusa. O aviso da decisão da correção (`Aprovar.tsx`) não afirma "nada foi aprovado" no `TEMPO_ESGOTADO`.
+
 **O Redis fora (54.0).** `#semRedis` de `credencial/challenge.ts` devolve `INDISPONIVEL_TENTE_DE_NOVO` com `Retry-After`, como
 `operacao/operador-challenge.ts`, e `conferirLivre` vem antes de qualquer reserva. A web espera o `Retry-After` uma vez, até 10 s,
 com o botão desabilitado e um aviso em `role="status"`; acima disso, ou num segundo `503`, o `ErrorState`. O seletor mantém a
