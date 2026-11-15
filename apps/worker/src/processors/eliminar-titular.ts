@@ -1,14 +1,5 @@
-import {
-  EliminacaoDoTitular,
-  estaNaJanela,
-  type Database,
-  type OperationalSettings,
-  type JanelaLetiva,
-  type LoggerBase,
-  type Clock,
-} from '@educa/core'
+import { EliminacaoDoTitular, estaNaJanela, type Database, type OperationalSettings, type JanelaLetiva, type LoggerBase, type Clock, type JobProcessor } from '@educa/core'
 import type { TIPO_ELIMINAR_TITULAR } from '@educa/shared'
-import type { JobProcessor } from '../job-executor.js'
 
 export interface EliminacaoDoTitularDependencies {
   banco: Database

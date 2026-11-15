@@ -184,6 +184,13 @@ O que trava o projeto e não se resolve programando. Vários têm prazo externo.
 
 ## Infra e operação
 
+- [ ] (reengenharia-continuacao, 3.0, infra-guardian, 1ª) **`VALIDATE` do check fora da transação da migration.** A `0058` valida os dois checks na mesma
+      transação que os acrescenta (`ACCESS EXCLUSIVE` em `job_registro`, que cresce a partir da 5.0). A próxima migration que mexer num check dessa tabela
+      separa o `VALIDATE` (o cabeçalho da `0058` já promete; este item é para não depender de lembrança) (dono: Implementador da próxima migration)
+- [ ] (reengenharia-continuacao, 3.0, revisor-geral, 1ª) **Prioridade antiga escrita à mão em três testes que a 3.0 não toca:** `'lote', 3` em
+      `apps/despachante/test/queue-gauge.int.test.ts` (145, 154, 184, 258) e `apps/worker/test/expurgo.int.test.ts` (80, 91, 144, 206); `'normal', 2` em
+      `packages/core/src/db/migrate.int.test.ts` (94, 97) e em `queue-gauge.int.test.ts` (195). Trocar por `QUEUE_PRIORITY.<fila>`; nenhuma asserção depende
+      do número hoje (dono: Implementador)
 - [ ] **(correção `2026-11-10-alertas-503`) Teto para a proporção de 503 na rota da falha do `ensaio:alertas`** (`infra-guardian`, `test-engineer`, `revisor-geral`, `privacy-guardian`, 1ª): `statusForaDoEsperadoNaFalha` aceita qualquer quantidade de 503, de qualquer origem; uma degradação real da sessão passaria. Um teto (ex.: abaixo de 5% da rota) pede dado de mais execuções no runner: um limiar sem medida refaria a intermitência. A causa dos 503 (leitura de sessão lenta na `SessaoGuard`) é inferida: o log não traz evento da guarda (fechamento da F2c, 10/11/2026). Dono: Joaquim.
 - [ ] (semana-do-professor, 1.0, infra-guardian, 1ª) **O `delete` da `aula` no encerramento do ano roda no request síncrono.** Dezenas de milhares de
       linhas sob `statement_timeout`, e a gravação do `PUT /v1/aulas` espera no `for share` do ano. Escrever o cenário ou o parágrafo do runbook do

@@ -2,7 +2,8 @@
 # Provisionado por arquivo no Grafana da observabilidade local (infra/compose.yml monta esta pasta em
 # provisioning/alerting): mudança na regra é mudança neste arquivo, e a edição na tela não vale.
 #
-# Dispara quando o job interativo mais antigo de uma escola espera mais de 30 s por 1 min seguido. A espera
+# Dispara quando o job mais antigo de uma escola, na fila `interativa` (o turno do Tutor) ou na `ferramenta` (a ferramenta,
+# a proposta e o artefato, com o professor esperando), espera mais de 30 s por 1 min seguido. A espera
 # vem do despachante, a partir de job_registro.criado_em, e vale com o Redis de fila fora. Os dois
 # despachantes exportam a mesma medição, cada um na sua instância: `max by (fila, escola_id)` junta.
 #
@@ -28,8 +29,8 @@ groups:
         labels:
           area: fila
         annotations:
-          summary: Job interativo da escola {{ $labels.escola_id }} esperando há mais de 30 s por 1 min
-          description: A professora ou o aluno está esperando uma ferramenta que não começou. Siga o runbook.
+          summary: Job {{ $labels.fila }} da escola {{ $labels.escola_id }} esperando há mais de 30 s por 1 min
+          description: O aluno (Tutor) ou a professora (ferramenta) está esperando um job que não começou. Siga o runbook.
           runbook_url: https://github.com/Turmma/turmma/blob/main/docs/runbook.md#job-interativo-esperando
         data:
           - refId: A
@@ -42,7 +43,7 @@ groups:
               datasource:
                 type: prometheus
                 uid: prometheus
-              expr: max by (fila, escola_id) (job_espera_mais_antiga_s{fila="interativa"})
+              expr: max by (fila, escola_id) (job_espera_mais_antiga_s{fila=~"interativa|ferramenta"})
               instant: true
               range: false
               intervalMs: 10000

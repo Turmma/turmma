@@ -12,10 +12,10 @@ import {
   type Database,
   type FileStorage,
   type LoggerBase,
+  type JobProcessor,
+  JobFailureError,
 } from '@educa/core'
 import { InvariantException, JobFailureCode, type TIPO_VARRER_TEMPORARIOS_DE_MATERIAL } from '@educa/shared'
-import type { JobProcessor } from '../job-executor.js'
-import { JobFailureError } from '../job-failure.error.js'
 
 /** Uma hora: a linha do envio que passou disto não vai mais virar material (o envio mais lento leva o prazo do `guardarBytes`, 30 s, e a transação). */
 export const FOLGA_DA_LINHA_DO_ENVIO_MS = 60 * 60_000

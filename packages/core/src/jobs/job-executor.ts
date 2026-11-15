@@ -1,19 +1,14 @@
-import {
-  queuedJobDataSchema,
-  runInContext,
-  INTERVALO_RENOVACAO_DA_VAGA_MS,
-  summarizeError,
-  type OperationalSettings,
-  type UsageMeter,
-  type RequestContext,
-  type JobOutboxRepository,
-  type LoggerBase,
-  type EscolaConcurrencyLimiter,
-  type ConcurrencyByQueue,
-} from '@educa/core'
 import { ErrorCode, JobFailureCode, JOB_DEFINITIONS, InvariantException, type ParsedJobData, type QueueName, type JobRegistry, type JobType } from '@educa/shared'
 import { DelayedError, UnrecoverableError, type Job } from 'bullmq'
 import { randomUUID } from 'node:crypto'
+import { runInContext, type RequestContext } from '../context/context.js'
+import { summarizeError } from '../error/summarize-error.js'
+import type { LoggerBase } from '../log/logger.js'
+import { INTERVALO_RENOVACAO_DA_VAGA_MS, type EscolaConcurrencyLimiter } from '../queue/escola-concurrency-limiter.js'
+import type { JobOutboxRepository } from '../queue/job-outbox.repository.js'
+import { queuedJobDataSchema } from '../queue/publishing.js'
+import type { ConcurrencyByQueue, OperationalSettings } from '../settings/operational-settings.js'
+import type { UsageMeter } from '../usage/usage-meter.js'
 import { JobAdiadoError } from './job-adiado.error.js'
 import { JobFailureError } from './job-failure.error.js'
 

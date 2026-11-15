@@ -12,6 +12,8 @@ import {
   QUEUE_PRIORITY,
   VALIDADE_DA_VAGA_MS,
   type EscolaConcurrencyLimiter,
+  type JobProcessor,
+  JobFailureError,
 } from '@educa/core'
 import { JobFailureCode, defineJob, JOB_DEFINITIONS, TIPO_EXPURGAR_JOBS, TIPO_JOB_SINTETICO, type QueueName } from '@educa/shared'
 import { Queue } from 'bullmq'
@@ -21,13 +23,11 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import { compose, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
-import type { JobProcessor } from '../../worker/src/job-executor.js'
-import { JobFailureError } from '../../worker/src/job-failure.error.js'
-import { QueueFixtures, configuracaoDoBanco, InMemoryLog, urlRedisDeFila } from '../../worker/test/queue.fixture.js'
+import { QueueFixtures, configuracaoDoBanco, InMemoryLog, urlRedisDeFila, vagasPadraoDoAmbiente } from '../../worker/test/queue.fixture.js'
 
 // Despachantes e workers de verdade (a mesma montagem do main.ts), no processo do teste, contra o
 // Postgres e o Redis de fila do compose de teste, com as vagas padrão de `.env.example`
-// (interativa 5, normal 5, lote 2).
+// (interativa 10, ferramenta 4, normal 5, lote 2, pdf 2).
 
 interface NoDoPlano {
   'Index Name'?: string
@@ -99,6 +99,10 @@ beforeAll(() => {
   compose('stop', ...PROCESSOS_DA_FILA)
 })
 
+/** O padrão do ambiente de teste (`.env.example`): o Tutor tem 10 vagas por escola, e a ferramenta, 4, só dela. */
+const VAGAS_DA_INTERATIVA = 10
+const VAGAS_DA_FERRAMENTA = 4
+
 describe('vagas por escola e filas por prioridade', () => {
   let bancada: QueueFixtures<typeof DEFINICOES_DO_TESTE>
   // Escolas reais, criadas a cada caso: desde a tarefa 3.0 `job_registro` e
@@ -148,7 +152,7 @@ describe('vagas por escola e filas por prioridade', () => {
     expect.poll(async () => (await bancada.estado(id))?.estado, { timeout, interval: 50 }).toBe(estado)
   /**
    * Espera a escola ficar sem vaga tomada. O worker conclui no Postgres, para a renovação e só então
-   * libera no Redis (`executar`, em `apps/worker/src/job-executor.ts`), nessa ordem e de propósito: com o
+   * libera no Redis (`executar`, em `packages/core/src/jobs/job-executor.ts`), nessa ordem e de propósito: com o
    * Postgres fora no meio, o job volta a tentar ainda dono da vaga. Quem esperou o estado `concluido`
    * esperou só o primeiro passo, e conferir o ZSET no instante seguinte é corrida — perdida no runner
    * carregado da esteira. A regra provada continua a mesma: a vaga sai no fim do job, ou o prazo estoura.
@@ -185,6 +189,68 @@ describe('vagas por escola e filas por prioridade', () => {
     expect(await bancada.filas.lote.getJobCounts('active', 'waiting')).toEqual({ active: 10, waiting: 990 })
     expect(logInterativo.doEvento('job.iniciado').map((registro) => registro['jobId'])).toEqual([interativo])
   }, 90_000)
+
+  it('a ferramenta tem vaga própria: a escola A com 4 ferramentas rodando espera na 5.ª, e o Tutor dela (interativa) começa na hora, sem tomar a vaga da ferramenta', async () => {
+    expect(vagasPadraoDoAmbiente()).toMatchObject({ interativa: VAGAS_DA_INTERATIVA, ferramenta: VAGAS_DA_FERRAMENTA })
+    const processador = contado()
+    await inserirJobs(ESCOLA_A, 'ferramenta', VAGAS_DA_FERRAMENTA + 1, 'F')
+    bancada.worker(new InMemoryLog('worker-ia'), { pools: { interativa: 5, ferramenta: 20 }, processadores: { sintetico: processador.processar } })
+    bancada.despachante(new InMemoryLog('despachante')).despachante.iniciar()
+    await expect.poll(() => processador.iniciados('F'), { timeout: 10_000, interval: 50 }).toBe(VAGAS_DA_FERRAMENTA)
+
+    // Com as 4 vagas da ferramenta tomadas, o Tutor da mesma escola começa: a vaga dele é outra.
+    await inserirJobs(ESCOLA_A, 'interativa', 1, 'T')
+    await expect.poll(() => processador.iniciados('T'), { timeout: 5_000, interval: 50 }).toBe(1)
+    // O efeito nas duas chaves: cada fila tem as vagas dela, e a 5.ª ferramenta segue esperando.
+    expect(await membrosDaVaga('ferramenta', ESCOLA_A)).toHaveLength(VAGAS_DA_FERRAMENTA)
+    expect(await membrosDaVaga('interativa', ESCOLA_A)).toHaveLength(1)
+    expect(processador.iniciados('F')).toBe(VAGAS_DA_FERRAMENTA)
+    expect(await contarEstado(ESCOLA_A, 'aguardando')).toBe(1)
+
+    // Quando as vagas se liberam, a 5.ª começa: ela esperou a vez, e não foi perdida.
+    processador.soltar()
+    await expect.poll(() => processador.iniciados('F'), { timeout: 10_000, interval: 50 }).toBe(VAGAS_DA_FERRAMENTA + 1)
+    expect(processador.maximo('F')).toBe(VAGAS_DA_FERRAMENTA)
+  }, 60_000)
+
+  it('caminho feliz: com 1.000 normais na fila, uma ferramenta nova começa antes de qualquer normal não iniciado', async () => {
+    // Vagas de normal de sobra para a A: o que segura a ferramenta aqui só poderia ser o pool, não a vaga.
+    await bancada.configurarEscola(ESCOLA_A, { vagas: { normal: 1_000 } })
+    const normais = contado()
+    await inserirJobs(ESCOLA_A, 'normal', 1_000, 'N')
+    bancada.worker(new InMemoryLog('worker-normal'), { pools: { normal: 10 }, processadores: { sintetico: normais.processar } })
+    const ferramentas = contado(50)
+    const logFerramenta = new InMemoryLog('worker-ia')
+    bancada.worker(logFerramenta, { pools: { ferramenta: 5 }, processadores: { sintetico: ferramentas.processar } })
+    bancada.despachante(new InMemoryLog('despachante')).despachante.iniciar()
+
+    await expect.poll(() => bancada.filas.normal.getJobCounts('active', 'waiting'), { timeout: 30_000, interval: 200 }).toEqual({ active: 10, waiting: 990 })
+
+    const [ferramenta = ''] = await inserirJobs(ESCOLA_A, 'ferramenta', 1, 'F')
+    const inicio = performance.now()
+    await aguardarEstado(ferramenta, 'concluido', 5_000)
+    expect(performance.now() - inicio).toBeLessThan(2_000)
+    // Nenhum normal a mais começou: a ferramenta não passou por trás de nenhum deles.
+    expect(normais.iniciados('N')).toBe(10)
+    expect(ferramentas.iniciados('F')).toBe(1)
+    expect(await bancada.filas.normal.getJobCounts('active', 'waiting')).toEqual({ active: 10, waiting: 990 })
+    expect(logFerramenta.doEvento('job.iniciado').map((registro) => registro['jobId'])).toEqual([ferramenta])
+  }, 90_000)
+
+  it('borda: vagas nula usa o padrão da ferramenta; vagas.ferramenta=2 vale só para aquela escola', async () => {
+    await bancada.configurarEscola(ESCOLA_A, { vagas: { ferramenta: 2 } })
+    // A C configurou outra coisa, mas não as vagas: vale o padrão.
+    await bancada.configurarEscola(ESCOLA_C, { vagas: null, limiteReqEscolaMin: 10 })
+    const processador = contado(200)
+    for (const [escolaId, rotulo] of [[ESCOLA_A, 'A'], [ESCOLA_B, 'B'], [ESCOLA_C, 'C']] as const) await inserirJobs(escolaId, 'ferramenta', 40, rotulo)
+    bancada.worker(new InMemoryLog('worker-ia'), { pools: { ferramenta: 20 }, processadores: { sintetico: processador.processar } })
+    bancada.despachante(new InMemoryLog('despachante')).despachante.iniciar()
+
+    await expect
+      .poll(() => [processador.iniciados('A') >= 6, processador.iniciados('B') >= 12, processador.iniciados('C') >= 12], { timeout: 30_000, interval: 100 })
+      .toEqual([true, true, true])
+    expect({ A: processador.maximo('A'), B: processador.maximo('B'), C: processador.maximo('C') }).toEqual({ A: 2, B: VAGAS_DA_FERRAMENTA, C: VAGAS_DA_FERRAMENTA })
+  }, 60_000)
 
   it('a escola A com 1.000 lotes nunca passa de 2 vagas em uso, com dois despachantes; um lote da B começa sem esperar', async () => {
     const processador = contado(150)
@@ -229,11 +295,11 @@ describe('vagas por escola e filas por prioridade', () => {
     const log = new InMemoryLog('worker-interativo')
     bancada.worker(log, { pools: { interativa: 20 }, processadores: { sintetico: processador.processar }, vagasPorEscolaDesligadas: true })
     bancada.despachante(new InMemoryLog('despachante'), {}, true).despachante.iniciar()
-    await inserirJobs(ESCOLA_A, 'interativa', 12, 'A')
-    // Com o teto padrão de 5 vagas interativas no despachante, só 5 começariam. O worker confere a vaga que o
+    await inserirJobs(ESCOLA_A, 'interativa', 15, 'A')
+    // Com o teto padrão de 10 vagas interativas no despachante, só 10 começariam. O worker confere a vaga que o
     // despachante já tomou; a flag nele vale para a vaga que venceu no caminho, e o log prova que ela chegou lá.
-    await expect.poll(() => processador.iniciados('A'), { timeout: 10_000, interval: 50 }).toBe(12)
-    expect(processador.maximo('A')).toBe(12)
+    await expect.poll(() => processador.iniciados('A'), { timeout: 10_000, interval: 50 }).toBe(15)
+    expect(processador.maximo('A')).toBe(15)
     expect(log.doEvento('worker.vagas_por_escola_desligadas')).toHaveLength(1)
   }, 60_000)
 
@@ -508,8 +574,8 @@ describe('vagas por escola e filas por prioridade', () => {
 
   describe('isolamento', () => {
     it('A sem vaga não atrasa B: com as vagas interativas da A tomadas e jobs dela à espera, o interativo da B executa na hora', async () => {
-      const ocupantes = Array.from({ length: 5 }, () => randomUUID())
-      await bancada.vagas.tomar('interativa', ESCOLA_A, 5, ocupantes)
+      const ocupantes = Array.from({ length: VAGAS_DA_INTERATIVA }, () => randomUUID())
+      await bancada.vagas.tomar('interativa', ESCOLA_A, VAGAS_DA_INTERATIVA, ocupantes)
       const daEscolaA = await Promise.all(Array.from({ length: 20 }, () => bancada.enfileirar(ESCOLA_A)))
       bancada.worker(new InMemoryLog('worker'), { pools: { interativa: 5 } })
       bancada.despachante(new InMemoryLog('despachante')).despachante.iniciar()
@@ -518,6 +584,21 @@ describe('vagas por escola e filas por prioridade', () => {
       await aguardarEstado(daEscolaB, 'concluido', 3_000)
       for (const id of daEscolaA) expect((await bancada.estado(id))?.estado).toBe('aguardando')
       expect(await membrosDaVaga('interativa', ESCOLA_A)).toEqual([...ocupantes].sort())
+    })
+
+    it('A sem vaga de ferramenta não atrasa B: com as 4 vagas da ferramenta da A tomadas e jobs dela à espera, a ferramenta da B executa na hora', async () => {
+      const ocupantes = Array.from({ length: VAGAS_DA_FERRAMENTA }, () => randomUUID())
+      await bancada.vagas.tomar('ferramenta', ESCOLA_A, VAGAS_DA_FERRAMENTA, ocupantes)
+      const daEscolaA = await inserirJobs(ESCOLA_A, 'ferramenta', 20, 'A')
+      const processador = contado(50)
+      bancada.worker(new InMemoryLog('worker-ia'), { pools: { ferramenta: 5 }, processadores: { sintetico: processador.processar } })
+      bancada.despachante(new InMemoryLog('despachante')).despachante.iniciar()
+
+      const [daEscolaB = ''] = await inserirJobs(ESCOLA_B, 'ferramenta', 1, 'B')
+      await aguardarEstado(daEscolaB, 'concluido', 3_000)
+      for (const id of daEscolaA) expect((await bancada.estado(id))?.estado).toBe('aguardando')
+      expect(processador.iniciados('A')).toBe(0)
+      expect(await membrosDaVaga('ferramenta', ESCOLA_A)).toEqual([...ocupantes].sort())
     })
 
     it('reservar, devolver, listar e marcar publicados só alcançam a escola do contexto: ids da B no contexto da A não mudam nada', async () => {

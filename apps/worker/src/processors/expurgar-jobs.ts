@@ -1,7 +1,5 @@
-import { currentContext, LOTE_DO_EXPURGO, type ExpurgoDeJobsRepository, type LoggerBase } from '@educa/core'
+import { currentContext, LOTE_DO_EXPURGO, type ExpurgoDeJobsRepository, type LoggerBase, type JobProcessor, JobFailureError } from '@educa/core'
 import { JobFailureCode, type TIPO_EXPURGAR_JOBS } from '@educa/shared'
-import type { JobProcessor } from '../job-executor.js'
-import { JobFailureError } from '../job-failure.error.js'
 
 export interface ExpurgoDeJobsDependencies {
   repositorio: Pick<ExpurgoDeJobsRepository, 'apagarLoteVencido'>

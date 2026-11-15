@@ -1,10 +1,9 @@
 import 'reflect-metadata'
-import { createDatabase, createPool, DispatchRepository, runInContext, QUEUE_PRIORITY } from '@educa/core'
+import { createDatabase, createPool, DispatchRepository, runInContext, QUEUE_PRIORITY, type JobProcessor } from '@educa/core'
 import type { QueueName } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { compose, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
-import type { JobProcessor } from '../../worker/src/job-executor.js'
 import { QueueFixtures, configuracaoDoBanco, InMemoryLog } from '../../worker/test/queue.fixture.js'
 
 // Despachante de verdade (a mesma montagem do main.ts) contra o Postgres e o Redis de fila do compose

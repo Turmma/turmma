@@ -11,6 +11,11 @@ import {
   type Clock,
   type EmailSender,
   type LimiteDeEmail,
+  JobAdiadoError,
+  JobExecutor,
+  type JobProcessors,
+  type QueuedJob,
+  JobFailureError,
 } from '@educa/core'
 import { JobFailureCode, TIPO_ENVIAR_CONVITE, TIPO_ENVIAR_EMAIL_DA_CONTA } from '@educa/shared'
 import { DelayedError } from 'bullmq'
@@ -18,9 +23,6 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { compose, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
 import { TenantResolutionRepository } from '../../api/src/sessao/tenant/tenant-resolution.repository.js'
-import { JobAdiadoError } from '../src/job-adiado.error.js'
-import { JobExecutor, type JobProcessors, type QueuedJob } from '../src/job-executor.js'
-import { JobFailureError } from '../src/job-failure.error.js'
 import { criarEnvioDoConvite, criarEnvioDoLinkDaConta, criarEnvios, TENTATIVAS_DO_ENVIO_DO_LINK_DA_CONTA } from '../src/processors/enviar-email.js'
 import { jobExecution } from './job-execution.fixture.js'
 import { InMemoryLog, QueueFixtures } from './queue.fixture.js'
@@ -313,7 +315,7 @@ describe('sistema.enviar-email-da-conta', () => {
         processadores,
         logger: log.logger,
         vagas: bancada.vagas,
-        vagasDaEscola: { daEscola: () => Promise.resolve({ interativa: 1, normal: 1, lote: 1, pdf: 1 }) },
+        vagasDaEscola: { daEscola: () => Promise.resolve({ interativa: 1, ferramenta: 1, normal: 1, lote: 1, pdf: 1 }) },
         uso: { marcar: () => undefined },
       })
     }

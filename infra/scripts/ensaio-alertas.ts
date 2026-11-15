@@ -350,7 +350,7 @@ export async function removerGatilhoDaFalha(bancoUrl: string): Promise<void> {
 }
 
 /** A prioridade da fila `pdf` em `job_registro` (`QUEUE_PRIORITY.pdf`, que `infra/test/alertas.test.ts` confere): o ensaio não importa o `core`. */
-export const PRIORIDADE_DA_FILA_PDF = 4
+export const PRIORIDADE_DA_FILA_PDF = 5
 
 /** Há quantos minutos o job de PDF do ensaio foi gravado: acima dos 15 da regra `pdf-parado`. */
 export const MINUTOS_DO_JOB_DE_PDF_DO_ENSAIO = 16

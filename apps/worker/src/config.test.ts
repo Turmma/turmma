@@ -33,7 +33,8 @@ const ambienteValido = {
   FILAS: 'interativa,normal',
   WORKER_POOL_INTERATIVA: '50',
   WORKER_POOL_NORMAL: '30',
-  VAGAS_ESCOLA_INTERATIVA: '5',
+  VAGAS_ESCOLA_INTERATIVA: '10',
+  VAGAS_ESCOLA_FERRAMENTA: '4',
   VAGAS_ESCOLA_NORMAL: '5',
   VAGAS_ESCOLA_LOTE: '2',
   VAGAS_ESCOLA_PDF: '2',
@@ -70,7 +71,7 @@ describe('lerConfiguracao do worker', () => {
       banco: { url: ambienteValido.BANCO_URL, maximoConexoes: 80, timeoutConexaoMs: 2000, timeoutConsultaMs: 2000 },
       redisFilaUrl: 'redis://redis-fila:6379',
       pools: { interativa: 50, normal: 30 },
-      vagasPadrao: { interativa: 5, normal: 5, lote: 2, pdf: 2 },
+      vagasPadrao: { interativa: 10, ferramenta: 4, normal: 5, lote: 2, pdf: 2 },
       threadsMaximo: 2,
       telemetria: { otlpUrl: 'http://observabilidade:4318', intervaloMs: 5000 },
       storage: { url: 'http://storage:8333', regiao: 'us-east-1', bucket: 'educa-local', chaveAcesso: 'chave_sintetica', chaveSecreta: 'segredo_sintetico_xyz' },
@@ -116,6 +117,15 @@ describe('lerConfiguracao do worker', () => {
 
   it('o worker-pdf não sobe sem o pool da fila, e o pool não é de outra fila', () => {
     expect(erroDe({ ...ambienteValido, FILAS: 'pdf' }).variaveis).toEqual(['WORKER_POOL_PDF'])
+  })
+
+  it.each(['VAGAS_ESCOLA_INTERATIVA', 'VAGAS_ESCOLA_FERRAMENTA'])('não sobe com %s=0, fração ou texto: vaga zero pararia o Tutor ou a ferramenta de toda escola sem configuração própria', (variavel) => {
+    for (const valor of ['0', '-2', '1.5', 'duas']) expect(erroDe({ ...ambienteValido, [variavel]: valor }).variaveis, valor).toEqual([variavel])
+  })
+
+  it('a fila `ferramenta` é uma fila que a réplica pode atender, com o pool próprio, e sem o pool dela a réplica não sobe', () => {
+    expect(loadConfig({ ...ambienteValido, FILAS: 'ferramenta', WORKER_POOL_FERRAMENTA: '20' }).pools).toEqual({ ferramenta: 20 })
+    expect(erroDe({ ...ambienteValido, FILAS: 'ferramenta' }).variaveis).toEqual(['WORKER_POOL_FERRAMENTA'])
   })
 
   it.each(['0', '-2', '1.5', 'duas'])('não sobe com VAGAS_ESCOLA_PDF=%s: vaga zero pararia o PDF de toda escola sem configuração própria', (valor) => {

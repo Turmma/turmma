@@ -68,7 +68,11 @@ numa transação própria, antes da conclusão condicional. A avaliação aberta
 no `preparar` e no `concluir`. A conferência do assunto delicado roda antes da fila (`tutor.service.ts`, `#encaminhar`), sem job.
 
 **A fila.** Tutor na `interativa`; ferramentas, artefato e `propor_ferramenta` na `ferramenta`; Analista na `normal`. Vaga de
-hoje; pool por réplica de `onda-3a.md`; o job não segura conexão durante o modelo.
+hoje; pool por réplica de `onda-3a.md`; o job não segura conexão durante o modelo. `QUEUE_PRIORITY` (`smallint`, só ordena a
+varredura e a reconciliação) passa a `interativa` 1, `ferramenta` 2, `normal` 3, `lote` 4, `pdf` 5, e as constantes que
+`infra/scripts/` copiam (`PRIORIDADE_DA_FILA_PDF`, a do lote do expurgo da carga) seguem. A `VAGAS_ESCOLA_FERRAMENTA` entra no despachante e em toda réplica do
+worker (o `WORKER_POOL_FERRAMENTA` nasce com o `worker-ia`, na 5.0). O `JobExecutor` no `core` leva o `bullmq` ao `package.json`
+dele (`DelayedError`, `UnrecoverableError`).
 
 **Os tokens (49.0).** `TokenLimiter.reservar(modelo, estimativa, fila)`, com caracteres ÷ 4 + `maximoDeTokensDeSaida`, nova a cada
 chamada e acertada pelo uso real (a da interrompida não volta: superestima por até 1 min). O balde geral, por

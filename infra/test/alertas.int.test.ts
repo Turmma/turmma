@@ -1,5 +1,6 @@
 import pg from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { QUEUE_PRIORITY } from '../../packages/core/src/queue/job-outbox.ts'
 import { cookieDaResposta, cookieDeRenovacao, renovar } from '../../apps/api/test/test-api.js'
 import { SessaoFixtures } from '../../apps/api/test/sessao.fixture.js'
 import { lerAmbienteDeTeste, valorObrigatorio } from '../../tools/ci/compose.ts'
@@ -50,8 +51,8 @@ async function token(escolaId: string): Promise<string> {
   return (await sessoes.sessao(escolaId, 'coordenador')).token
 }
 
-async function esperaNoPrometheus(escolaId: string): Promise<number | undefined> {
-  const consulta = new URLSearchParams({ query: `max(job_espera_mais_antiga_s{escola_id="${escolaId}", fila="interativa"})` })
+async function esperaNoPrometheus(escolaId: string, fila: 'interativa' | 'ferramenta' = 'interativa'): Promise<number | undefined> {
+  const consulta = new URLSearchParams({ query: `max(job_espera_mais_antiga_s{escola_id="${escolaId}", fila="${fila}"})` })
   const corpo = (await (await fetch(`${PROMETHEUS}/api/v1/query?${consulta}`)).json()) as { data: { result: Array<{ value: [number, string] }> } }
   const [serie] = corpo.data.result
   return serie === undefined ? undefined : Number(serie.value[1])
@@ -297,6 +298,44 @@ describe('alertas locais: as regras do ensaio disparam, não disparam com condi�
     expect(estados).not.toContain('disparado')
     expect(estados.at(-1)).toBe('normal')
   }, 300_000)
+
+  it('a ferramenta esperando: a 20 s a regra nem fica pendente, passando de 30 s ela fica pendente e dispara na escola e na fila dela, e sem o job volta a normal (reengenharia-continuacao, 3.0)', async () => {
+    const escola = await sessoes.escola()
+    escolas.push(escola)
+    // Nenhuma réplica atende a `ferramenta` antes do `worker-ia` (5.0): o job que o despachante publica fica esperando, como o de PDF do ensaio.
+    const pool = new pg.Pool({ connectionString: bancoUrl, max: 1 })
+    const { rows } = await pool.query<{ id: string }>(
+      `insert into job_registro (escola_id, fila, prioridade, tipo, dados, nao_urgente) values ($1, 'ferramenta', $2, 'sintetico', '{"cpuMs": 0, "falhar": false}'::jsonb, false) returning id`,
+      [escola, QUEUE_PRIORITY.ferramenta],
+    )
+    const jobId = rows[0]?.id ?? ''
+    await pool.query(`select pg_notify('job', '')`)
+
+    // O estado da regra para esta escola e esta fila, amostrado sem parar: um disparo cedo demais não passa despercebido.
+    const estados: EstadoDoAlerta[] = []
+    const estadoDaEscola = async (): Promise<EstadoDoAlerta> => {
+      const estado = alertaCom((await lerRegrasNoGrafana(GRAFANA)).get(REGRAS_DO_ENSAIO.jobInterativo), { escola_id: escola, fila: 'ferramenta' })?.estado ?? 'normal'
+      estados.push(estado)
+      return estado
+    }
+    try {
+      // Com a espera em 20 s no Prometheus, abaixo do limiar: a regra nem começou a contar.
+      await expect.poll(() => esperaNoPrometheus(escola, 'ferramenta'), { timeout: 60_000, interval: 1_000 }).toBeGreaterThanOrEqual(20)
+      expect(await esperaNoPrometheus(escola, 'ferramenta')).toBeLessThan(30)
+      expect(await estadoDaEscola()).toBe('normal')
+      // Acima de 30 s ela fica pendente, e só o `for:` de 1 min a dispara: o limiar vale para a `ferramenta` como para a `interativa`.
+      await expect.poll(estadoDaEscola, { timeout: 60_000, interval: 1_000 }).toBe('pendente')
+      await expect.poll(estadoDaEscola, { timeout: 150_000, interval: 2_000 }).toBe('disparado')
+      // O job da `interativa` da mesma escola não existe: a série disparada é a da `ferramenta`.
+      expect(await esperaNoPrometheus(escola, 'interativa')).toBeUndefined()
+    } finally {
+      await pool.query('delete from job_registro where id = $1', [jobId])
+      await pool.end()
+    }
+    // Sem o job, a espera zera e a regra volta a normal.
+    await expect.poll(estadoDaEscola, { timeout: 150_000, interval: 2_000 }).toBe('normal')
+    expect(estados.indexOf('disparado')).toBeGreaterThan(estados.indexOf('pendente'))
+  }, 480_000)
 
   it('login abaixo dos limiares: com logins sem fila, o p95 fica abaixo de 1 s e nenhum 503 sai do semáforo, e as duas regras de login ficam normais', async () => {
     const lento = regraPorUidNoArquivo(REGRAS_DO_ENSAIO.loginLento)

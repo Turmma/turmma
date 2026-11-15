@@ -16,8 +16,8 @@
 # controle negativo de novo (`npm run carga:controle-negativo`).
 
 x-worker-interativo-carga: &worker-interativo-carga
-  # Cinco vagas interativas por escola e jobs de 100 ms: duas threads por réplica, quatro no total, esvaziam a
-  # rajada de 500 da escola A em uns 15 s, abaixo dos 30 s do alerta.
+  # Dez vagas interativas por escola (o padrão) e jobs de 100 ms: o que limita é o par de threads de cada réplica, quatro no total,
+  # que esvaziam a rajada de 500 da escola A em uns 15 s, abaixo dos 30 s do alerta.
   cpus: 2.5
   environment:
     WORKER_THREADS_MAXIMO: '2'

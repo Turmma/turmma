@@ -1,19 +1,11 @@
 import 'reflect-metadata'
-import {
-  createQueueRedisClient,
-  runInContext,
-  IDADE_PARA_RECONCILIAR_SEGUNDOS,
-  bullmqQueueName,
-  TIMEOUT_COMANDO_REDIS_FILA_MS,
-  type QueuedJobData,
-} from '@educa/core'
+import { createQueueRedisClient, runInContext, IDADE_PARA_RECONCILIAR_SEGUNDOS, bullmqQueueName, TIMEOUT_COMANDO_REDIS_FILA_MS, type QueuedJobData, JobFailureError } from '@educa/core'
 import { JobFailureCode } from '@educa/shared'
 import { Queue, UnrecoverableError, Worker } from 'bullmq'
 import { Redis } from 'ioredis'
 import { randomUUID } from 'node:crypto'
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { aguardarSaudavel, compose, composeAssincronoOuFalha, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
-import { JobFailureError } from '../../worker/src/job-failure.error.js'
 import { QueueFixtures, InMemoryLog, urlRedisDeFila } from '../../worker/test/queue.fixture.js'
 import type { OutboxRelayRuntime } from '../src/composition.js'
 import { BullMQJobPublisher, type JobPublisher } from '../src/job-publisher.js'

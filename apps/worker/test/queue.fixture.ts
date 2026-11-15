@@ -22,6 +22,7 @@ import {
   type DatabasePool,
   type ConfiguredConcurrency,
   type ConcurrencyByQueue,
+  type JobProcessors,
 } from '@educa/core'
 import { JOB_DEFINITIONS, QUEUE_NAMES, type JobState, type QueueName, type JobRegistry } from '@educa/shared'
 import { Queue } from 'bullmq'
@@ -31,7 +32,6 @@ import { lerAmbienteDeTeste, valorObrigatorio } from '../../../tools/ci/compose.
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
 import { criarEscola, criarRede } from '../../api/src/operacao/escola/escola.js'
 import { createOutboxRelay, type OutboxRelayRuntime, type CreateOutboxRelayOptions } from '../../despachante/src/composition.js'
-import type { JobProcessors } from '../src/job-executor.js'
 import { createWorker, type WorkerRuntime } from '../src/composition.js'
 
 /** O operador que a bancada grava na auditoria da rede e da escola que cria. */
@@ -57,6 +57,7 @@ export function configuracaoDoBanco(maximoConexoes = 5): DatabaseConfig {
 export function vagasPadraoDoAmbiente(): ConcurrencyByQueue {
   return {
     interativa: Number(valorObrigatorio(ambiente, 'VAGAS_ESCOLA_INTERATIVA')),
+    ferramenta: Number(valorObrigatorio(ambiente, 'VAGAS_ESCOLA_FERRAMENTA')),
     normal: Number(valorObrigatorio(ambiente, 'VAGAS_ESCOLA_NORMAL')),
     lote: Number(valorObrigatorio(ambiente, 'VAGAS_ESCOLA_LOTE')),
     pdf: Number(valorObrigatorio(ambiente, 'VAGAS_ESCOLA_PDF')),

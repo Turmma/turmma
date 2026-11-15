@@ -735,11 +735,6 @@
       "count": 1
     }
   },
-  "apps/worker/src/job-executor.test.ts": {
-    "complexity": {
-      "count": 1
-    }
-  },
   "apps/worker/src/composition.ts": {
     "complexity": {
       "count": 1
@@ -1031,6 +1026,11 @@
     }
   },
   "packages/core/src/ia/tasks/turno-do-tutor.ts": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "packages/core/src/jobs/job-executor.test.ts": {
     "complexity": {
       "count": 1
     }

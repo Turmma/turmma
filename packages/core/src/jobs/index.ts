@@ -1,0 +1,5 @@
+export { JobExecutor, SlotReleasedNotifier, ESPERA_POR_VAGA_MS, SORTEIO_DO_ADIAMENTO_MS } from './job-executor.js'
+export type { JobExecution, JobExecutorDependencies, JobProcessor, JobProcessors, QueuedJob } from './job-executor.js'
+export { JobAdiadoError } from './job-adiado.error.js'
+export type { MotivoDoAdiamento } from './job-adiado.error.js'
+export { JobFailureError } from './job-failure.error.js'

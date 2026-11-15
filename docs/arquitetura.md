@@ -125,8 +125,12 @@ pelos leitores que a escola já usa (`docs/modelo-de-dados.md`, "A leitura da op
 
 ## Assíncrono
 
-Nada demorado em request. São quatro filas: `interativa`, `normal` e `lote`, uma por prioridade, e `pdf`, que isola o
-trabalho de CPU e de memória da leitura de PDF. O trabalho se distingue pelo **tipo** do job (`retencao.expurgar-escola`,
+Nada demorado em request. São cinco filas: `interativa` (o turno do Tutor), `ferramenta` (a ferramenta, a proposta e o
+artefato, com o professor esperando), `normal` e `lote`, uma por prioridade, e `pdf`, que isola o trabalho de CPU e de
+memória da leitura de PDF. A `ferramenta` tem **vaga própria por escola** (4, contra as 10 da `interativa`): a ferramenta
+longa de uma escola nunca ocupa a vaga do Tutor dela, nem o contrário (reengenharia-continuacao, 3.0; nenhuma réplica
+atende a `ferramenta` antes do `worker-ia`, na 5.0). O `JobExecutor`, que corta o prazo e toma e libera a vaga, mora em
+`packages/core/src/jobs/`, para o worker e a API o usarem. O trabalho se distingue pelo **tipo** do job (`retencao.expurgar-escola`,
 `titular.montar-arquivo`…), não por uma fila própria; a `pdf` só tem o `material.extrair-pdf`.
 Cada escola tem um limite de concorrência (`EscolaConcurrencyLimiter`), e o lote não urgente roda fora do horário letivo. No
 compose, o `worker-interativo` atende `interativa` e `normal`, o `worker-lote` atende `lote` e o `worker-pdf` atende `pdf`, um PDF

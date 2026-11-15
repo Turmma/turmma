@@ -45,6 +45,9 @@ import {
   type LoggerBase,
   type Meter,
   type Clock,
+  SlotReleasedNotifier,
+  JobExecutor,
+  type JobProcessors,
 } from '@educa/core'
 import {
   TIPO_CONSOLIDAR_USO,
@@ -70,7 +73,6 @@ import { Queue, Worker } from 'bullmq'
 import { Redis } from 'ioredis'
 import { JOB_SCHEDULES, createScheduleProcessor, SCHEDULES_QUEUE, registerJobSchedulers, type JobSchedule } from './job-schedules.js'
 import type { StorageConfig, WorkerConfig } from './config.js'
-import { SlotReleasedNotifier, JobExecutor, type JobProcessors } from './job-executor.js'
 import { criarConsolidacaoDeUso } from './processors/consolidar-uso.js'
 import { criarEnvioDoConvite, criarEnvioDoLinkDaConta, criarEnvios, type EnviosDoEmail } from './processors/enviar-email.js'
 import { criarExpurgoDeAcesso } from './processors/expurgar-acesso.js'

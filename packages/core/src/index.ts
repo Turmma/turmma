@@ -86,6 +86,8 @@ export { QUEUES_BY_PRIORITY, bullmqQueueName, WORKER_POOL_OPTIONS_BY_QUEUE } fro
 export type { WorkerPoolOptions } from './queue/queues.js'
 export { DONO_DAS_VAGAS_DO_SISTEMA, INTERVALO_RENOVACAO_DA_VAGA_MS, EscolaConcurrencyLimiter, VALIDADE_DA_VAGA_MS } from './queue/escola-concurrency-limiter.js'
 export { JobOutbox, QUEUE_PRIORITY } from './queue/job-outbox.js'
+export { JobExecutor, SlotReleasedNotifier, JobAdiadoError, JobFailureError, ESPERA_POR_VAGA_MS, SORTEIO_DO_ADIAMENTO_MS } from './jobs/index.js'
+export type { JobExecution, JobExecutorDependencies, JobProcessor, JobProcessors, QueuedJob, MotivoDoAdiamento } from './jobs/index.js'
 export { JobRejectionReason, JobRequestRejectedError } from './queue/job-request-rejected.error.js'
 export { CANAL_NOTIFICACAO_JOB, JobOutboxRepository, PREFIXO_TIPO_SISTEMA } from './queue/job-outbox.repository.js'
 export type { RegisteredJobState, JobToRun, IdempotencyKeyResult, JobStartResult } from './queue/job-outbox.repository.js'

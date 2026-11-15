@@ -11,6 +11,12 @@ import {
   VERSAO_DA_CHAVE_DO_TOKEN_DE_EMAIL,
   type Clock,
   type LimiteDeEmail,
+  JobAdiadoError,
+  JobExecutor,
+  SORTEIO_DO_ADIAMENTO_MS,
+  type JobProcessors,
+  type QueuedJob,
+  JobFailureError,
 } from '@educa/core'
 import { JobFailureCode, TIPO_ENVIAR_CONVITE, TIPO_JOB_SINTETICO } from '@educa/shared'
 import { DelayedError } from 'bullmq'
@@ -19,9 +25,6 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { compose, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
-import { JobAdiadoError } from '../src/job-adiado.error.js'
-import { JobExecutor, SORTEIO_DO_ADIAMENTO_MS, type JobProcessors, type QueuedJob } from '../src/job-executor.js'
-import { JobFailureError } from '../src/job-failure.error.js'
 import { criarEnvioDoConvite, criarEnvios, TENTATIVAS_DO_ENVIO_DE_EMAIL } from '../src/processors/enviar-email.js'
 import { jobExecution } from './job-execution.fixture.js'
 import { InMemoryLog, QueueFixtures, urlRedisDeFila } from './queue.fixture.js'
@@ -158,7 +161,7 @@ describe('email.enviar-convite: o EMAIL_POR_MINUTO e a saída de adiar', () => {
       processadores,
       logger: log.logger,
       vagas: bancada.vagas,
-      vagasDaEscola: { daEscola: () => Promise.resolve({ interativa: 1, normal: 1, lote: 1, pdf: 1 }) },
+      vagasDaEscola: { daEscola: () => Promise.resolve({ interativa: 1, ferramenta: 1, normal: 1, lote: 1, pdf: 1 }) },
       uso: { marcar: (metrica) => marcacoes.push(metrica) },
     })
   }

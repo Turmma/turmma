@@ -130,6 +130,18 @@ describe('.env.example e compose', () => {
     for (const nome of ['despachante-1', 'worker-interativo-1', 'worker-lote-1', 'worker-pdf']) expect(services[nome]?.environment?.['VAGAS_ESCOLA_PDF'], nome).toMatch(/^\$\{VAGAS_ESCOLA_PDF:\?/)
   })
 
+  it('a vaga do Tutor (`interativa`) é 10 e a da ferramenta é 4, as mesmas no despachante e em toda réplica do worker (reengenharia-continuacao, 3.0)', () => {
+    const ambiente = lerAmbienteExemplo()
+    const { services } = parse(lerArquivo('infra/compose.yml'), { merge: true }) as {
+      services: Record<string, Servico & { environment?: Record<string, string> }>
+    }
+    expect(ambiente['VAGAS_ESCOLA_INTERATIVA']).toBe('10')
+    expect(ambiente['VAGAS_ESCOLA_FERRAMENTA']).toBe('4')
+    for (const variavel of ['VAGAS_ESCOLA_INTERATIVA', 'VAGAS_ESCOLA_FERRAMENTA']) {
+      for (const nome of ['despachante-1', 'worker-interativo-1', 'worker-lote-1', 'worker-pdf']) expect(services[nome]?.environment?.[variavel], `${nome} ${variavel}`).toMatch(new RegExp(`^\\$\\{${variavel}:\\?`))
+    }
+  })
+
   it('as vagas padrão de dez escolas (D25) cabem nos pools das duas réplicas, e as de uma escola cabem numa réplica só', () => {
     const ambiente = lerAmbienteExemplo()
     const ESCOLAS_DO_PRIMEIRO_ANO = 10

@@ -1,4 +1,4 @@
-import type { JobExecution } from '../src/job-executor.js'
+import type { JobExecution } from '@educa/core'
 
 /** O prazo de uma tentativa que o teste dá ao processador chamado direto: nenhum desses testes o aplica nem o confere. */
 export const PRAZO_DE_TESTE_MS = 60_000
