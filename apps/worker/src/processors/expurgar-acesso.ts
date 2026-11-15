@@ -1,7 +1,5 @@
-import { currentContext, LOTE_DO_EXPURGO, type AlvoDoExpurgoDeAcesso, type ExpurgoDeAcessoRepository, type LoggerBase, type Clock } from '@educa/core'
+import { currentContext, LOTE_DO_EXPURGO, type AlvoDoExpurgoDeAcesso, type ExpurgoDeAcessoRepository, type LoggerBase, type Clock, type JobProcessor, JobFailureError } from '@educa/core'
 import { JobFailureCode, type TIPO_EXPURGAR_ACESSO } from '@educa/shared'
-import type { JobProcessor } from '../job-executor.js'
-import { JobFailureError } from '../job-failure.error.js'
 
 /** Quantas linhas saíram de cada alvo: um total por alvo, e o compilador recusa o objeto a que falte um. */
 export type TotaisDoExpurgoDeAcesso = Record<AlvoDoExpurgoDeAcesso, number>

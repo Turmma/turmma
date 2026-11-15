@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { createPool, runInContext, type DatabasePool } from '@educa/core'
+import { createPool, QUEUE_PRIORITY, runInContext, type DatabasePool } from '@educa/core'
 import { ErrorCode, JobFailureCode, MENSAGENS_DE_ERRO, TIPO_JOB_SINTETICO } from '@educa/shared'
 import type { INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
@@ -92,7 +92,7 @@ describe('POST e GET /v1/sistema/jobs-sinteticos', () => {
       escola_id: ESCOLA_A,
       tipo: TIPO_JOB_SINTETICO,
       fila: 'lote',
-      prioridade: 3,
+      prioridade: QUEUE_PRIORITY.lote,
       dados: { cpuMs: 250, falhar: false },
       nao_urgente: true,
       estado: 'aguardando',
@@ -108,9 +108,9 @@ describe('POST e GET /v1/sistema/jobs-sinteticos', () => {
 
   it('o corpo escolhe a fila e o não urgente do job: cada combinação grava a fila, a prioridade e o valor que veio', async () => {
     const combinacoes = [
-      { fila: 'interativa', prioridade: 1, naoUrgente: false },
-      { fila: 'normal', prioridade: 2, naoUrgente: true },
-      { fila: 'lote', prioridade: 3, naoUrgente: false },
+      { fila: 'interativa', prioridade: QUEUE_PRIORITY.interativa, naoUrgente: false },
+      { fila: 'normal', prioridade: QUEUE_PRIORITY.normal, naoUrgente: true },
+      { fila: 'lote', prioridade: QUEUE_PRIORITY.lote, naoUrgente: false },
     ] as const
     for (const { fila, prioridade, naoUrgente } of combinacoes) {
       const resposta = await request(app.getHttpServer()).post(ROTA).set('Authorization', `Bearer ${tokenA}`).send({ fila, cpuMs: 1, naoUrgente })

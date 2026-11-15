@@ -19,6 +19,7 @@ import { ExecucaoRepository } from './execucao.repository.js'
 import { ExecucoesController } from './execucoes.controller.js'
 import { ExecucoesService } from './execucoes.service.js'
 import { OrcamentoRepository } from './orcamento.repository.js'
+import { RegistroDeComandos } from './registro-de-comandos.js'
 import { SuspensaoRepository } from './suspensao.repository.js'
 
 /** A porta da camada de IA (regra 30, item 1): `@Inject(LLM_PROVIDER) ia: LLMProvider`. */
@@ -42,6 +43,7 @@ export interface IaModuleOptions {
  * de domínio só injeta.
  *
  * - `ExecucaoScheduler`: disparar uma tarefa (o caminho normal de todo `POST` que usa IA).
+ * - `RegistroDeComandos`: o comando de cada tarefa de IA, que o módulo dono registra na subida.
  * - `FuncaoSuspensionCheck`: conferir a suspensão onde a função roda sem modelo.
  * - `LLM_PROVIDER`, `EXECUTOR_DE_AGENTE`, `SUSPENSAO_DE_FUNCAO`, `ORCAMENTO_DE_IA`: as portas, para o caso que o
  *   agendador não cobre.
@@ -73,15 +75,16 @@ export class IaModule implements OnApplicationBootstrap, OnApplicationShutdown {
           useFactory: (banco: Database) => new InProcessAgenteExecutor({ repositorio: new ExecucaoRepository(banco), config: config.executor, logger }),
           inject: [DB],
         },
+        { provide: RegistroDeComandos, useFactory: () => new RegistroDeComandos() },
         {
           provide: ExecucaoScheduler,
-          useFactory: (banco: Database, ia: LLMProvider, executor: AgenteExecutor, suspensao: SuspensaoDeFuncao) => new ExecucaoScheduler(banco, ia, executor, suspensao),
-          inject: [DB, LLM_PROVIDER, EXECUTOR_DE_AGENTE, SUSPENSAO_DE_FUNCAO],
+          useFactory: (banco: Database, ia: LLMProvider, executor: AgenteExecutor, suspensao: SuspensaoDeFuncao, comandos: RegistroDeComandos) => new ExecucaoScheduler(banco, ia, executor, suspensao, comandos),
+          inject: [DB, LLM_PROVIDER, EXECUTOR_DE_AGENTE, SUSPENSAO_DE_FUNCAO, RegistroDeComandos],
         },
         { provide: FuncaoSuspensionCheck, useFactory: (suspensao: SuspensaoDeFuncao) => new FuncaoSuspensionCheck(suspensao), inject: [SUSPENSAO_DE_FUNCAO] },
         { provide: ExecucoesService, useFactory: (banco: Database) => new ExecucoesService(banco), inject: [DB] },
       ],
-      exports: [LLM_PROVIDER, EXECUTOR_DE_AGENTE, SUSPENSAO_DE_FUNCAO, ORCAMENTO_DE_IA, ExecucaoScheduler, FuncaoSuspensionCheck],
+      exports: [LLM_PROVIDER, EXECUTOR_DE_AGENTE, SUSPENSAO_DE_FUNCAO, ORCAMENTO_DE_IA, ExecucaoScheduler, FuncaoSuspensionCheck, RegistroDeComandos],
     }
   }
 

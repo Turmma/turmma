@@ -3,8 +3,8 @@ import type { DatabaseTransaction } from '../db/database.js'
 import type { JobOutboxRepository, NewJobRow, IdempotencyKeyResult } from './job-outbox.repository.js'
 import { JobRejectionReason, JobRequestRejectedError } from './job-request-rejected.error.js'
 
-/** A prioridade vem só da fila: 1 é a mais urgente. A `pdf` é uma fila do BullMQ só dela, com réplica própria: o 4 não a põe a competir com as outras. */
-export const QUEUE_PRIORITY: Readonly<Record<QueueName, number>> = { interativa: 1, normal: 2, lote: 3, pdf: 4 }
+/** A prioridade vem só da fila: 1 é a mais urgente. A `pdf` é uma fila do BullMQ só dela, com réplica própria: o 5 não a põe a competir com as outras. */
+export const QUEUE_PRIORITY: Readonly<Record<QueueName, number>> = { interativa: 1, ferramenta: 2, normal: 3, lote: 4, pdf: 5 }
 
 /** As opções são opcionais, salvo no tipo que deixa o `naoUrgente` com quem enfileira (o sintético). */
 type ArgumentosDeOpcoes<Tipo extends JobType> = Record<never, never> extends JobOptions<Tipo> ? [opcoes?: JobOptions<Tipo>] : [opcoes: JobOptions<Tipo>]

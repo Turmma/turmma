@@ -10,7 +10,8 @@ const ambienteValido = {
   BANCO_TIMEOUT_CONEXAO_MS: '2000',
   BANCO_TIMEOUT_CONSULTA_MS: '2000',
   REDIS_FILA_URL: 'redis://redis-fila:6379',
-  VAGAS_ESCOLA_INTERATIVA: '5',
+  VAGAS_ESCOLA_INTERATIVA: '10',
+  VAGAS_ESCOLA_FERRAMENTA: '4',
   VAGAS_ESCOLA_NORMAL: '5',
   VAGAS_ESCOLA_LOTE: '2',
   VAGAS_ESCOLA_PDF: '2',
@@ -37,7 +38,7 @@ describe('lerConfiguracao do despachante', () => {
     expect(loadConfig(ambienteValido)).toEqual({
       banco: { url: ambienteValido.BANCO_URL, maximoConexoes: 3, timeoutConexaoMs: 2000, timeoutConsultaMs: 2000 },
       redisFilaUrl: 'redis://redis-fila:6379',
-      vagasPadrao: { interativa: 5, normal: 5, lote: 2, pdf: 2 },
+      vagasPadrao: { interativa: 10, ferramenta: 4, normal: 5, lote: 2, pdf: 2 },
       janelaPadrao: { fuso: 'America/Sao_Paulo', diasLetivos: [1, 2, 3, 4, 5], inicio: '07:00', fim: '18:00' },
       telemetria: { otlpUrl: 'http://observabilidade:4318', intervaloMs: 5000 },
     })
@@ -59,6 +60,10 @@ describe('lerConfiguracao do despachante', () => {
 
   it('escola com aula aos sábados no padrão: os dias saem em ordem e sem repetição', () => {
     expect(loadConfig({ ...ambienteValido, JANELA_LETIVA_DIAS: '6,1,2,3,4,5,1' }).janelaPadrao.diasLetivos).toEqual([1, 2, 3, 4, 5, 6])
+  })
+
+  it.each(['VAGAS_ESCOLA_INTERATIVA', 'VAGAS_ESCOLA_FERRAMENTA'])('não sobe com %s=0, fração ou texto: vaga zero pararia o Tutor ou a ferramenta de toda escola sem configuração própria', (variavel) => {
+    for (const valor of ['0', '-2', '1.5', 'duas']) expect(erroDe({ ...ambienteValido, [variavel]: valor }).variaveis, valor).toEqual([variavel])
   })
 
   it.each(['0', '-2', '1.5', 'duas'])('não sobe com VAGAS_ESCOLA_LOTE=%s: vaga zero pararia toda escola sem configuração própria', (valor) => {

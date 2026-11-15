@@ -1,14 +1,11 @@
-import { adaptarAtividade, diaDeUso, DomainException, LLMError, systemClock, type Database } from '@educa/core'
+import { DomainException, type Database } from '@educa/core'
 import {
   ErrorCode,
   TITULO_DA_FONTE_SEM_LINHA,
-  conteudoDeAtividadeSchema,
   conteudoDoArtefatoSchema,
   artefatoResponseSchema,
   listaDeArtefatosResponseSchema,
-  type AdaptacaoAplicada,
   type ArtefatosQuery,
-  type ConteudoDeAtividade,
   type AdaptarArtefatoRequest,
   type RenomearArtefatoRequest,
   type ArtefatoResponse,
@@ -17,14 +14,12 @@ import {
   type FonteDoArtefato,
   type ListaDeArtefatosResponse,
 } from '@educa/shared'
-import { ExecucaoDoPedidoRepository } from '../assistente/execucao-do-pedido.repository.js'
 import type { IaRequestRateLimit } from '../assistente/ai-request-rate-limit.js'
-import { EntregaRepository } from '../entrega/entrega.repository.js'
 import { paginar } from '../http/pagination.js'
 import { ExecucaoDaSessaoRepository } from '../ia/execucao.repository.js'
 import type { ExecucaoScheduler } from '../ia/execucao.scheduler.js'
 import { ArtefatoRepository, type ArtefatoLido } from './artefato.repository.js'
-import { citacoesDoConteudo, exigirAdaptacaoFiel } from './conferencia.js'
+import { atividadeOriginal, citacoesDoConteudo, exigirMaterialEmUso } from './conferencia.js'
 import { gerarPdfDoArtefato, nomeDoArquivoDoPdf } from './pdf-do-artefato.js'
 
 export interface PdfDoArtefato {
@@ -58,24 +53,6 @@ async function fontesDoConteudo(artefatos: ArtefatoRepository, conteudo: Conteud
   const ids = [...new Set(citacoesDoConteudo(conteudo).map((citacao) => citacao.materialId))]
   const lidas = await artefatos.fontesDosMateriais(ids)
   return ids.map((materialId) => ({ materialId, ...(lidas.get(materialId) ?? { titulo: TITULO_DA_FONTE_SEM_LINHA, edicao: null, substituido: false }) }))
-}
-
-/** A atividade que pode ser adaptada: objetiva, e que não é ela mesma uma versão adaptada. Fora disso, `CONFLITO`. */
-function atividadeOriginal(lido: ArtefatoLido): ConteudoDeAtividade {
-  const conteudo = conteudoDeAtividadeSchema.safeParse(lido.conteudo)
-  if (lido.tipo !== 'atividade_objetiva' || lido.origemId !== null || !conteudo.success || conteudo.data.adaptacao !== undefined) throw new DomainException(ErrorCode.CONFLITO)
-  return conteudo.data
-}
-
-/**
- * A atividade só se adapta se o material que ela cita ainda está em uso (RF7, RF11, D5): a adaptação manda o trecho citado ao modelo e grava uma versão nova, com entrega, que cita de novo a página. Licença
- * que não vale hoje, `LICENCA_VENCIDA`; edição substituída, ou cuja linha o expurgo apagou, `EDICAO_SUBSTITUIDA`: a professora gera a atividade de novo, que cita a edição atual. **Só se chama com o artefato já achado no alcance.**
- */
-async function exigirMaterialEmUso(artefatos: ArtefatoRepository, conteudo: ConteudoDeAtividade): Promise<void> {
-  const ids = [...new Set(citacoesDoConteudo(conteudo).map((citacao) => citacao.materialId))]
-  const fora = await artefatos.materiaisForaDoUso(ids, diaDeUso(systemClock.agora()))
-  if (fora.licencaVencida) throw new DomainException(ErrorCode.LICENCA_VENCIDA)
-  if (fora.substituido) throw new DomainException(ErrorCode.EDICAO_SUBSTITUIDA)
 }
 
 /**
@@ -157,36 +134,10 @@ export class ArtefatoService {
     // Antes do `202`: sem material em uso, não há execução, consumo nem chamada ao modelo.
     if (!reenvio) await exigirMaterialEmUso(new ArtefatoRepository(this.banco), original)
 
-    // O que a execução leu antes de chamar o modelo, e que a conclusão confere: só existe depois de `entrada` rodar.
-    let lida: { original: ConteudoDeAtividade; adaptacao: AdaptacaoAplicada; artefatoId: string } | undefined
     return this.agendador.agendar({
-      tarefa: adaptarAtividade,
+      comando: 'adaptar_atividade',
       chaveEnvio: pedido.chaveEnvio,
       entradaDaExecucao: { tarefa: 'adaptar_atividade', artefatoId: id, tipos: pedido.tipos, ...(pedido.tempoExtraPercentual === undefined ? {} : { tempoExtraPercentual: pedido.tempoExtraPercentual }) },
-      entrada: async () => {
-        // A entrada gravada, e não a do corpo de um reenvio; e o artefato dela relido no alcance, que é `jsonb` sem FK.
-        const gravada = await new ExecucaoDoPedidoRepository(this.banco).entradaDaChave(pedido.chaveEnvio, 'adaptar_atividade')
-        const origem = await new ArtefatoRepository(this.banco).porId(gravada.artefatoId)
-        if (origem === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
-        const adaptacao: AdaptacaoAplicada = { tipos: gravada.tipos, ...(gravada.tempoExtraPercentual === undefined ? {} : { tempoExtraPercentual: gravada.tempoExtraPercentual }) }
-        lida = { original: atividadeOriginal(origem), adaptacao, artefatoId: origem.id }
-        // Entre o `202` e a execução a licença pode vencer ou a edição ser trocada: o texto do material só vai ao modelo se ainda estiver em uso.
-        await exigirMaterialEmUso(new ArtefatoRepository(this.banco), lida.original)
-        return { conteudo: lida.original, adaptacao }
-      },
-      aoConcluir: async (saida, tx, execucaoId) => {
-        if (lida === undefined) throw new LLMError('IA_ENTRADA_INVALIDA')
-        const adaptada = conteudoDeAtividadeSchema.safeParse(saida)
-        if (!adaptada.success) throw new LLMError('IA_SAIDA_INVALIDA')
-        // O original relido dentro da transação: é a turma **dele**, e não a do pedido, que a versão e a entrega levam.
-        const origem = await new ArtefatoRepository(tx).porId(lida.artefatoId)
-        if (origem === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
-        exigirAdaptacaoFiel(atividadeOriginal(origem), adaptada.data, lida.adaptacao)
-        const artefatoId = await new ArtefatoRepository(tx).criar({ turmaId: origem.turmaId, disciplinaId: origem.disciplinaId, conteudo: adaptada.data, execucaoId, origemId: origem.id })
-        // A entrega nasce pendente, aqui, junto da versão: ou ficam as duas, ou nenhuma.
-        const entregaId = await new EntregaRepository(tx).criarDaVersaoAdaptada({ turmaId: origem.turmaId, artefatoId, execucaoId })
-        return { tipo: 'artefato', artefatoId, entregaId }
-      },
     })
   }
 }

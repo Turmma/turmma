@@ -13,6 +13,7 @@ import {
   linhasVencidas,
   medirEscritaDosIndices,
   NOME_DO_TITULAR,
+  PRIORIDADE_DO_LOTE,
   semearEscolaA,
   semearTutorDaB,
   TIPO_DA_ELIMINACAO,
@@ -154,7 +155,7 @@ describe('a janela, o job e a leitura do trabalho da A', () => {
     expect((await pool.query('select dias_letivos from configuracao_operacional_escola where escola_id = $1', [nova])).rows).toEqual([{ dias_letivos: [] }])
   })
 
-  it('grava o job do expurgo como a rotina da noite o grava: lote, prioridade 3, não urgente, com a data da noite', async () => {
+  it('grava o job do expurgo como a rotina da noite o grava: lote, a prioridade do lote, não urgente, com a data da noite', async () => {
     const escolaId = await escola()
     const agora = new Date('2026-10-10T03:00:00.000Z')
     const jobId = await enfileirarExpurgoDaA(pool, escolaId, agora)
@@ -162,7 +163,7 @@ describe('a janela, o job e a leitura do trabalho da A', () => {
       `select fila, prioridade, tipo, dados, nao_urgente, estado, chave_idempotencia from job_registro where escola_id = $1 and id = $2`,
       [escolaId, jobId],
     )
-    expect(rows).toEqual([{ fila: 'lote', prioridade: 3, tipo: TIPO_DO_EXPURGO, dados: {}, nao_urgente: true, estado: 'aguardando', chave_idempotencia: '2026-10-10' }])
+    expect(rows).toEqual([{ fila: 'lote', prioridade: PRIORIDADE_DO_LOTE, tipo: TIPO_DO_EXPURGO, dados: {}, nao_urgente: true, estado: 'aguardando', chave_idempotencia: '2026-10-10' }])
   })
 
   it('lê o trabalho da A: o começo do primeiro, o fim do último, e quantos falharam ou ainda correm', async () => {
@@ -170,7 +171,7 @@ describe('a janela, o job e a leitura do trabalho da A', () => {
     const grava = (tipo: string, estado: string, inicioHa: number | null, fimHa: number | null) =>
       pool.query(
         `insert into job_registro (escola_id, fila, prioridade, tipo, estado, nao_urgente, iniciado_em, concluido_em)
-         values ($1, 'lote', 3, $2, $3, true,
+         values ($1, 'lote', 4, $2, $3, true,
                  case when $4::float8 is null then null else now() - make_interval(secs => $4::float8) end,
                  case when $5::float8 is null then null else now() - make_interval(secs => $5::float8) end)`,
         [escolaId, tipo, estado, inicioHa, fimHa],
@@ -206,7 +207,7 @@ describe('a janela, o job e a leitura do trabalho da A', () => {
     const escolaId = await escola()
     await pool.query(
       `insert into job_registro (escola_id, fila, prioridade, tipo, estado, nao_urgente, iniciado_em, concluido_em)
-       values ($1, 'lote', 3, $2, 'concluido', true, now() - interval '20 seconds', now() - interval '10 seconds')`,
+       values ($1, 'lote', 4, $2, 'concluido', true, now() - interval '20 seconds', now() - interval '10 seconds')`,
       [escolaId, TIPO_DO_EXPURGO],
     )
     const inicio = performance.now()
@@ -219,8 +220,8 @@ describe('a janela, o job e a leitura do trabalho da A', () => {
     const [a, outra] = await Promise.all([escola(), escola()])
     await pool.query(
       `insert into job_registro (escola_id, fila, prioridade, tipo, estado, nao_urgente, iniciado_em, concluido_em) values
-         ($1, 'lote', 3, $3, 'falhou', true, now(), now()),
-         ($2, 'lote', 3, $4, 'falhou', true, now(), now()),
+         ($1, 'lote', 4, $3, 'falhou', true, now(), now()),
+         ($2, 'lote', 4, $4, 'falhou', true, now(), now()),
          ($2, 'interativa', 1, 'sintetico', 'falhou', false, now(), now())`,
       [outra, a, TIPO_DO_EXPURGO, 'sintetico'],
     )

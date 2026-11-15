@@ -42,11 +42,6 @@
       "count": 2
     }
   },
-  "apps/api/src/governanca/analista.service.ts": {
-    "complexity": {
-      "count": 1
-    }
-  },
   "apps/api/src/governanca/governanca.repository.ts": {
     "complexity": {
       "count": 1
@@ -735,11 +730,6 @@
       "count": 1
     }
   },
-  "apps/worker/src/job-executor.test.ts": {
-    "complexity": {
-      "count": 1
-    }
-  },
   "apps/worker/src/composition.ts": {
     "complexity": {
       "count": 1
@@ -1031,6 +1021,11 @@
     }
   },
   "packages/core/src/ia/tasks/turno-do-tutor.ts": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "packages/core/src/jobs/job-executor.test.ts": {
     "complexity": {
       "count": 1
     }

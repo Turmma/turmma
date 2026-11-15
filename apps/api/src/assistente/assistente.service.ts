@@ -1,10 +1,9 @@
-import { DomainException, LLMError, proporFerramenta, type Database, type AssistenteInput } from '@educa/core'
+import { DomainException, proporFerramenta, type Database } from '@educa/core'
 import {
   ErrorCode,
   conteudoDaMensagemDoAgenteSchema,
   conteudoDaMensagemDoUsuarioSchema,
   conversaDoAssistenteResponseSchema,
-  nomeDaSerie,
   type ConversaDoAssistenteQuery,
   type MensagemAoAssistenteRequest,
   type ConversaDoAssistenteResponse,
@@ -12,24 +11,10 @@ import {
 } from '@educa/shared'
 import { ExecucaoDaSessaoRepository } from '../ia/execucao.repository.js'
 import type { ExecucaoScheduler } from '../ia/execucao.scheduler.js'
-import type { TrechoSearch, TrechoDoMaterial } from '../material/trecho-search.js'
-import { exigirCitacoesEntregues } from './citacoes.js'
-import { ConversaRepository, type MensagemGravada, type PerguntaDaExecucao } from './conversa.repository.js'
-import { ExecucaoDoPedidoRepository } from './execucao-do-pedido.repository.js'
+import type { TrechoSearch } from '../material/trecho-search.js'
+import { ConversaRepository, type MensagemGravada } from './conversa.repository.js'
 import type { IaRequestRateLimit } from './ai-request-rate-limit.js'
 import { TurmaDoProfessorRepository } from './turma-do-professor.repository.js'
-
-/** Quantos trechos do material acompanham a mensagem do professor (o teto de `assistenteInputSchema`). */
-export const TRECHOS_NA_CONVERSA = 6
-/** Quantas mensagens anteriores acompanham a nova, e o tamanho de cada uma (os tetos da tarefa). */
-export const TURNOS_ANTERIORES_NA_CONVERSA = 8
-const TAMANHO_MAXIMO_DO_TURNO = 2000
-const TAMANHO_MAXIMO_DO_CONTEXTO = 60
-
-/** Série e disciplina como a tarefa as recebe: o nome que a escola deu, sem nome de turma nem de pessoa. */
-export function contextoDaTarefa(turma: { serie: { etapa: 'ef_anos_finais' | 'em'; ano: number }; disciplina: string }): { serie: string; disciplina: string } {
-  return { serie: nomeDaSerie(turma.serie).slice(0, TAMANHO_MAXIMO_DO_CONTEXTO), disciplina: turma.disciplina.slice(0, TAMANHO_MAXIMO_DO_CONTEXTO) }
-}
 
 function paraATela(mensagem: MensagemGravada): unknown {
   const comum = { id: mensagem.id, criadaEm: mensagem.criadaEm.toISOString() }
@@ -38,12 +23,6 @@ function paraATela(mensagem: MensagemGravada): unknown {
   }
   // O conteúdo gravado é validado de novo na leitura (regra 30, item 7).
   return { ...comum, autor: 'agente', ...conteudoDaMensagemDoAgenteSchema.parse(mensagem.conteudo) }
-}
-
-/** O texto de uma mensagem gravada, para acompanhar a próxima como turno anterior. */
-function turnoAnterior(mensagem: MensagemGravada): AssistenteInput['turnosAnteriores'][number] {
-  const texto = mensagem.autor === 'usuario' ? conteudoDaMensagemDoUsuarioSchema.parse(mensagem.conteudo).texto : conteudoDaMensagemDoAgenteSchema.parse(mensagem.conteudo).texto
-  return { autor: mensagem.autor === 'usuario' ? 'professor' : 'assistente', texto: texto.slice(0, TAMANHO_MAXIMO_DO_TURNO) }
 }
 
 /**
@@ -92,54 +71,15 @@ export class AssistenteService {
     // Antes do `202`: sem material da série, o chat não responde e nada é gravado nem gasto (RF8). A conversa em si não gera artefato, mas a resposta cita o material da escola.
     if (!reenvio && !(await this.trechos.existeMaterialDaSerie({ serieId: daTurma.serieId, disciplinaId }))) throw new DomainException(ErrorCode.SEM_MATERIAL_DA_SERIE)
 
-    // O que a execução leu antes de chamar o modelo, e que a conclusão usa: só existe depois de `entrada` rodar.
-    let lido: { pergunta: PerguntaDaExecucao; entregues: readonly TrechoDoMaterial[] } | undefined
     return this.agendador.agendar({
-      tarefa: proporFerramenta,
+      comando: 'propor_ferramenta',
       chaveEnvio: pedido.chaveEnvio,
       // A marca de "só conversar" é de lista fechada, e fica com a execução; o texto da professora, só na conversa.
       entradaDaExecucao: { tarefa: 'propor_ferramenta', ...(pedido.resposta === undefined ? {} : { resposta: pedido.resposta }) },
+      // A mensagem de quem pediu fica na requisição, na mesma transação do `pendente`: a execução a relê pelo id.
       aoGravar: async (tx, execucaoId) => {
         const conversa = new ConversaRepository(tx)
         await conversa.gravarDoUsuario(await conversa.garantirThread(), execucaoId, { texto: pedido.texto, turmaId, disciplinaId })
-      },
-      entrada: async () => {
-        const conversa = new ConversaRepository(this.banco)
-        // A pergunta gravada, e não a do corpo: no reenvio com a mesma chave, vale a que entrou na conversa.
-        const pergunta = await conversa.perguntaDaChave(pedido.chaveEnvio)
-        if (pergunta === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
-        // O vínculo é conferido de novo na hora de rodar: quem saiu da turma depois do `202` não recebe resposta sobre ela.
-        const turma = await new TurmaDoProfessorRepository(this.banco).turmaComDisciplina(pergunta.turmaId, pergunta.disciplinaId)
-        if (turma === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
-        // O material da série é conferido de novo, como no Tutor: o que saiu do alcance entre o `202` e agora (ou antes do reenvio que retomou esta execução pendente) falha a execução, sem trecho, sem modelo e sem consumo (RF8).
-        if (!(await this.trechos.existeMaterialDaSerie({ serieId: turma.serieId, disciplinaId: pergunta.disciplinaId }))) throw new DomainException(ErrorCode.SEM_MATERIAL_DA_SERIE)
-        const mensagem = conteudoDaMensagemDoUsuarioSchema.parse(pergunta.conteudo).texto
-        const turnosAnteriores = (await conversa.anteriores(pergunta.id, TURNOS_ANTERIORES_NA_CONVERSA)).reverse().map(turnoAnterior)
-        // "Só conversar" (D18): a marca gravada com a execução. A resposta é sobre o último pedido dela, e é para ele
-        // que se buscam os trechos: a fala "só conversar" não diz de que assunto se trata.
-        const semProposta = (await new ExecucaoDoPedidoRepository(this.banco).entradaDaChave(pedido.chaveEnvio, 'propor_ferramenta')).resposta === 'so_conversar'
-        const ultimoPedido = turnosAnteriores.findLast((turno) => turno.autor === 'professor')?.texto
-        const procurado = semProposta && ultimoPedido !== undefined ? `${ultimoPedido} ${mensagem}` : mensagem
-        const entregues = await this.trechos.buscar({ texto: procurado, disciplinaId: pergunta.disciplinaId, serieId: turma.serieId, limite: TRECHOS_NA_CONVERSA })
-        lido = { pergunta, entregues }
-        return {
-          mensagem,
-          contexto: contextoDaTarefa(turma),
-          trechos: entregues.map(({ materialId, pagina, texto }) => ({ materialId, pagina, texto })),
-          turnosAnteriores,
-          ...(semProposta ? { semProposta } : {}),
-        }
-      },
-      aoConcluir: async (saida, tx, execucaoId) => {
-        if (lido === undefined) throw new LLMError('IA_ENTRADA_INVALIDA')
-        const { pergunta, entregues } = lido
-        if (saida.tipo === 'texto') exigirCitacoesEntregues(saida.citacoes, entregues)
-        // A turma e a disciplina da proposta são as da mensagem do professor: o modelo não conhece id nenhum.
-        const conteudo = conteudoDaMensagemDoAgenteSchema.safeParse(
-          saida.tipo === 'texto' ? saida : { ...saida, proposta: { ferramenta: saida.proposta.ferramenta, parametros: { ...saida.proposta.parametros, turmaId: pergunta.turmaId, disciplinaId: pergunta.disciplinaId } } },
-        )
-        if (!conteudo.success) throw new LLMError('IA_SAIDA_INVALIDA')
-        return { tipo: 'mensagem', mensagemId: await new ConversaRepository(tx).gravarDoAgente(pergunta.threadId, execucaoId, conteudo.data) }
       },
     })
   }

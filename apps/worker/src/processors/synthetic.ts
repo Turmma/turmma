@@ -1,8 +1,7 @@
 import type { SyntheticEffectRepository } from '@educa/core'
 import { JobFailureCode, InvariantException, type TIPO_JOB_SINTETICO } from '@educa/shared'
 import { Worker } from 'node:worker_threads'
-import type { JobProcessor } from '../job-executor.js'
-import { JobFailureError } from '../job-failure.error.js'
+import { type JobProcessor, JobFailureError } from '@educa/core'
 
 /**
  * O arquivo da thread: o `.js` compilado no container e o próprio `.ts` no teste, que o Node carrega sem build.

@@ -13,9 +13,10 @@ import {
   type ExecucaoRepository as ExecucaoRepositoryPort,
   type DatabaseTransaction,
 } from '@educa/core'
-import { resultadoGravadoSchema, FUNCAO_DA_TAREFA_DE_IA, type ErrorCode, type ExecucaoInput, type EstadoDeExecucao, type ResultadoGravado, type TarefaDeIa } from '@educa/shared'
+import { execucaoInputSchema, resultadoGravadoSchema, FUNCAO_DA_TAREFA_DE_IA, type ErrorCode, type ExecucaoInput, type EstadoDeExecucao, type ResultadoGravado, type TarefaDeIa } from '@educa/shared'
 import { and, eq, lt, or, sql } from 'drizzle-orm'
 import { requireUsuarioId } from './execucao-context.js'
+import type { ExecucaoLida } from './execucao-command.js'
 
 /**
  * A porta `ExecucaoRepository` do `AgenteExecutor`, sobre `execucao_agente`. O executor roda **fora de
@@ -131,6 +132,23 @@ export class ExecucaoDaSessaoRepository {
         ),
       )
     return linha
+  }
+
+  /**
+   * O que o comando relê **pelo id** antes de rodar: a execução que esta pessoa pediu, no ano letivo em curso, com a
+   * `entrada` gravada validada de novo (é `jsonb`, sem FK). A de outra pessoa, a de outra escola, a de outro ano e a
+   * anonimizada (`solicitada_por` nulo não casa com ninguém) não são achadas, nem a de entrada que o schema não lê (o check
+   * `execucao_agente_entrada_da_tarefa` já garante que a `tarefa` da entrada é a da linha).
+   */
+  async paraExecutar(id: string): Promise<ExecucaoLida | undefined> {
+    const [linha] = await this.banco
+      .select({ id: execucaoAgente.id, tarefa: execucaoAgente.tarefa, chaveEnvio: execucaoAgente.chaveEnvio, entrada: execucaoAgente.entrada })
+      .from(execucaoAgente)
+      .where(and(eq(execucaoAgente.escolaId, requireEscolaId()), eq(execucaoAgente.anoLetivoId, requireAnoEmCurso()), eq(execucaoAgente.id, id), eq(execucaoAgente.solicitadaPor, requireUsuarioId())))
+    if (linha === undefined) return undefined
+    const entrada = execucaoInputSchema.safeParse(linha.entrada)
+    if (!entrada.success) return undefined
+    return { id: linha.id, tarefa: linha.tarefa, chaveEnvio: linha.chaveEnvio, entrada: entrada.data }
   }
 
   /**

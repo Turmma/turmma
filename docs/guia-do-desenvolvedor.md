@@ -298,14 +298,19 @@ Exemplo: `apps/api/src/artefato/ferramentas.service.ts`.
 1. **A tarefa** fica em `packages/core/src/ia/tasks/<tarefa>.ts`, com `defineTask`, o perfil (`rapido`,
    `padrao`, `complexo`, `visao`) e os esquemas de entrada e saída. O prompt é versionado em `ia/prompts/`. Registre
    em `TASK_CATALOG`.
-2. **O módulo chama** o `ExecucaoScheduler.agendar({ tarefa, chaveEnvio, ... })`. A resposta é 202 com
-   `execucaoId`, e a execução roda em segundo plano, passando pelo gateway: orçamento, suspensão da função, prazo e
-   validação da saída.
-3. **Nunca chame o adaptador nem a porta direto.** O lint barra só o import de SDK de IA. Chamar o
+2. **O módulo dono tem um comando por tarefa** (`ExecucaoCommand`, em `<módulo>/<tarefa>.command.ts`): o `preparar`
+   relê do banco, pelo id da execução, o que a tarefa precisa e repete o alcance do `POST`; o `concluir` grava o que ela
+   produz na transação que conclui a execução. O módulo o registra na subida com `comRegistro(registro, new …)`
+   (`apps/api/src/ia/registro-de-comandos.ts`). Exemplo: `apps/api/src/artefato/ferramentas.command.ts`.
+3. **O service chama** o `ExecucaoScheduler.agendar({ comando, chaveEnvio, entradaDaExecucao, aoGravar? })`. A resposta
+   é 202 com `execucaoId`, e a execução roda em segundo plano, passando pelo gateway: orçamento, suspensão da função,
+   prazo e validação da saída. O `aoGravar` é o que fica na requisição, na mesma transação do `pendente`. O Tutor ainda
+   usa a closure (`tarefa`, `entrada`, `aoConcluir`) até a 2.0 da X6.
+4. **Nunca chame o adaptador nem a porta direto.** O lint barra só o import de SDK de IA. Chamar o
    `OpenAICompatAdapter` ou o `LLMProvider` sem passar pelo `ExecucaoScheduler` e pelo gateway não tem trava de
    máquina: é proibido pela regra 30, e quem segura é a revisão.
-4. **Teste com o `FakeAdapter`.** Nenhum teste chama provedor pago.
-5. **Funcionalidade de alto risco** só entra com a AIA escrita em `docs/aia/` (regra 70.6a). A lista da regra é:
+5. **Teste com o `FakeAdapter`.** Nenhum teste chama provedor pago.
+6. **Funcionalidade de alto risco** só entra com a AIA escrita em `docs/aia/` (regra 70.6a). A lista da regra é:
    Tutor, correção de objetiva, diagnóstico por habilidade, sinais e alertas, e adaptação. Na dúvida, leia a regra e
    não a lista. Saída de IA que chega ao aluno nasce pendente de aprovação humana, com uma só exceção:
    a resposta do Tutor.

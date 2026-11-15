@@ -33,6 +33,7 @@ import {
   regrasDaResposta,
   statusForaDoEsperadoNaFalha,
 } from '../scripts/ensaio-alertas.ts'
+import { PRIORIDADE_DO_LOTE } from '../scripts/expurgo-da-carga.ts'
 
 interface Consulta {
   refId: string
@@ -76,7 +77,8 @@ describe('regras de alerta provisionadas', () => {
 
     const job = regraPorUid(REGRAS_DO_ENSAIO.jobInterativo).regra
     expect(job.for).toBe('1m')
-    expect(expressao(job)).toBe('max by (fila, escola_id) (job_espera_mais_antiga_s{fila="interativa"})')
+    // As duas filas em que há alguém esperando na tela: o Tutor (`interativa`) e a ferramenta (`ferramenta`, vaga própria por escola).
+    expect(expressao(job)).toBe('max by (fila, escola_id) (job_espera_mais_antiga_s{fila=~"interativa|ferramenta"})')
     expect(limiar(job)).toEqual({ type: 'gt', params: [30] })
 
     const seguro = regraPorUid(REGRAS_DO_ENSAIO.seguroDoLimite).regra
@@ -195,6 +197,8 @@ describe('regras de alerta provisionadas', () => {
     expect(limiar(pdfParado)).toEqual({ type: 'gt', params: [15 * 60] })
     // O ensaio grava a prioridade da fila `pdf` sem importar o `core`: o valor dele é o do `core`.
     expect(PRIORIDADE_DA_FILA_PDF).toBe(QUEUE_PRIORITY.pdf)
+    // O expurgo da carga grava a prioridade da fila de lote sem importar o `core`: o valor dele também é o do `core`.
+    expect(PRIORIDADE_DO_LOTE).toBe(QUEUE_PRIORITY.lote)
     expect(MINUTOS_DO_JOB_DE_PDF_DO_ENSAIO).toBeGreaterThan(15)
 
     // X5, tarefa 44.0: por tipo, em qualquer despachante, com qualquer job falho na tabela (acima de zero), por 1 min.

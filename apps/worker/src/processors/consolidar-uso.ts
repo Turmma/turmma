@@ -12,10 +12,10 @@ import {
   type Clock,
   type UsagePeriod,
   type UsageRepository,
+  type JobProcessor,
+  JobFailureError,
 } from '@educa/core'
 import { JobFailureCode, type TIPO_CONSOLIDAR_USO } from '@educa/shared'
-import type { JobProcessor } from '../job-executor.js'
-import { JobFailureError } from '../job-failure.error.js'
 import type { StorageSizeReader } from '../storage/storage-size-reader.js'
 
 /**

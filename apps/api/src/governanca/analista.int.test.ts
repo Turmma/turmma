@@ -1,7 +1,7 @@
 import type { InProcessAgenteExecutor } from '@educa/core'
 import { analistaNominalResponseSchema, resumoDoAnalistaResponseSchema, type ConteudoDoResumoDoAnalista } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
 import { chamar, subirApi, type TestApi, type RespostaHttp } from '../../test/test-api.js'
 import {
@@ -17,6 +17,7 @@ import {
   type RotasDaAtividade,
 } from '../../test/atividade.fixture.js'
 import {
+  comoPessoa,
   contarNaEscola,
   dispararExecucao,
   execucaoTerminada,
@@ -33,7 +34,8 @@ import { aplicarAtividade as gravarAplicacao, lancarLote, trocasJaFeitas } from 
 import { SessaoFixtures, type TestSessao } from '../../test/sessao.fixture.js'
 import { TETO_DE_PEDIDOS_DE_IA_POR_USUARIO } from '../assistente/ai-request-rate-limit.js'
 import { EXECUTOR_DE_AGENTE } from '../ia/ia.module.js'
-import { LIMIAR_DE_ACERTO_BAIXO_PERCENTUAL } from './analista.service.js'
+import { LIMIAR_DE_ACERTO_BAIXO_PERCENTUAL, MAXIMO_DE_HABILIDADES_POR_RECORTE, ResumoDoAnalistaCommand } from './analista.command.js'
+import { AnalistaRepository } from './analista.repository.js'
 
 const TODAS_CERTAS = [0, 1, 2, 3, 0] as const
 /** Acerta só a questão 2: uma de três na primeira habilidade, nenhuma de duas na segunda. */
@@ -258,6 +260,63 @@ describe('Analista de desempenho escolar', () => {
       expect(erro(await post(a.coordenacao, '/v1/analista/gerar', corpo))).toEqual({ status: 429, codigo: 'LIMITE_EXCEDIDO' })
       expect((await post(b.coordenacao, '/v1/analista/gerar', { chaveEnvio: randomUUID() })).status).toBe(202)
       await executor.ociosa()
+    })
+  })
+
+  describe('o comando monta os agregados no contexto de quem pediu (X6, 1.0)', () => {
+    const execucao = () => ({ id: randomUUID(), tarefa: 'resumo_do_analista' as const, chaveEnvio: randomUUID(), entrada: { tarefa: 'resumo_do_analista' as const } })
+    const preparar = (escola: EscolaComAssistente, comando: ResumoDoAnalistaCommand) => comoPessoa(escola, escola.coordenacao, 'coordenador', () => comando.preparar(execucao()))
+    const somar = (dia: string, dias: number): string => new Date(Date.parse(`${dia}T12:00:00Z`) + dias * 86_400_000).toISOString().slice(0, 10)
+
+    it('o período vai do começo do ano até hoje, e hoje que cai antes ou depois do ano fica preso ao começo ou ao fim dele', async () => {
+      const [ano] = await sql<{ inicio: string; fim: string }>('select inicio::text as inicio, fim::text as fim from ano_letivo where id = $1', [a.anoLetivoId])
+      const { inicio, fim } = ano ?? { inicio: '', fim: '' }
+      const meio = somar(inicio, Math.floor((Date.parse(fim) - Date.parse(inicio)) / 86_400_000 / 2))
+      for (const [rotulo, hoje, esperado] of [['antes do ano', somar(inicio, -30), inicio], ['no meio do ano', meio, meio], ['depois do ano', somar(fim, 30), fim]] as const) {
+        const { entrada } = await preparar(a, new ResumoDoAnalistaCommand(bancada.banco, { agora: () => new Date(`${hoje}T12:00:00Z`) }))
+        expect(entrada.periodo, rotulo).toEqual({ inicio, fim: esperado })
+      }
+    })
+
+    it('o ano letivo que não é da escola do contexto não é achado: NAO_ENCONTRADO, e nada é montado', async () => {
+      const lido = vi.spyOn(AnalistaRepository.prototype, 'numerosDaEscola')
+      try {
+        await expect(preparar({ ...a, anoLetivoId: b.anoLetivoId }, new ResumoDoAnalistaCommand(bancada.banco))).rejects.toMatchObject({ codigo: 'NAO_ENCONTRADO' })
+        expect(lido).not.toHaveBeenCalled()
+      } finally {
+        lido.mockRestore()
+      }
+    })
+
+    it('os tetos das listas, a habilidade sem descrição, a linha sem prova e o recorte sem nenhuma resposta: o que a tarefa recebe', async () => {
+      const recorte = (i: number, professores: number) => ({ serieId: `serie-${String(i)}`, etapa: 'em' as const, ano: 1, disciplinaId: 'disciplina', disciplina: 'Química', lotesAprovados: 1, alunos: 1, professores })
+      const comLotes = [...Array.from({ length: 105 }, (_, i) => recorte(i, 2)), ...Array.from({ length: 105 }, (_, i) => recorte(1000 + i, 1))]
+      const doPrimeiro = { serieId: 'serie-0', disciplinaId: 'disciplina' }
+      const acertos = [
+        { ...doPrimeiro, codigo: 'SEM-PROVA', acertos: 0, total: 0 },
+        ...Array.from({ length: MAXIMO_DE_HABILIDADES_POR_RECORTE + 5 }, (_, i) => ({ ...doPrimeiro, codigo: `H${String(i)}`, acertos: 1, total: 2 })),
+        { serieId: 'serie-2', disciplinaId: 'disciplina', codigo: 'DE-OUTRO-RECORTE', acertos: 5, total: 5 },
+      ]
+      const espioes = [
+        vi.spyOn(AnalistaRepository.prototype, 'recortesComLotes').mockResolvedValue(comLotes),
+        vi.spyOn(AnalistaRepository.prototype, 'acertosPorRecorte').mockResolvedValue(acertos),
+        vi.spyOn(AnalistaRepository.prototype, 'descricoesDasHabilidades').mockResolvedValue(new Map([['H0', 'Descrição de H0']])),
+      ]
+      try {
+        const { entrada } = await preparar(a, new ResumoDoAnalistaCommand(bancada.banco))
+        expect(entrada.recortes).toHaveLength(100)
+        expect(entrada.recortesNominais).toHaveLength(100)
+        const primeiro = entrada.recortes[0]
+        expect(primeiro?.porHabilidade).toHaveLength(MAXIMO_DE_HABILIDADES_POR_RECORTE)
+        // Sem a linha sem prova, e sem a de outro recorte: a primeira é H0, e a conta é a das 65 que valem (65 de 130).
+        expect(primeiro?.porHabilidade.slice(0, 2).map((linha) => linha.habilidade)).toEqual([{ codigo: 'H0', descricao: 'Descrição de H0' }, { codigo: 'H1', descricao: 'H1' }])
+        expect(primeiro?.acertoPercentual).toBe(50)
+        // O recorte sem nenhuma resposta tem acerto 0, e não NaN.
+        expect(entrada.recortes[1]?.acertoPercentual).toBe(0)
+        expect(entrada.recortes[1]?.porHabilidade).toEqual([])
+      } finally {
+        for (const espiao of espioes) espiao.mockRestore()
+      }
     })
   })
 

@@ -1,3 +1,4 @@
+import { QUEUE_NAMES } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { describe, expect, it, vi } from 'vitest'
 import { currentContext, runInContext } from '../context/context.js'
@@ -15,7 +16,7 @@ import type { OperationalSettingsRow } from './operational-settings.repository.j
 
 const ESCOLA_A = '0190f5a0-0000-7000-8000-00000000000a'
 const ESCOLA_B = '0190f5a0-0000-7000-8000-00000000000b'
-const VAGAS_PADRAO = { interativa: 5, normal: 5, lote: 2, pdf: 2 }
+const VAGAS_PADRAO = { interativa: 10, ferramenta: 4, normal: 5, lote: 2, pdf: 2 }
 const LIMITES_PADRAO = { porUsuarioMin: 120, porEscolaMin: 30_000 }
 const JANELA_PADRAO = { fuso: 'America/Sao_Paulo', diasLetivos: [1, 2, 3, 4, 5], inicio: '07:00', fim: '18:00' }
 
@@ -30,15 +31,24 @@ describe('resolverVagas e resolverLimites', () => {
 
   it('vagas nulas usam o padrão; a fila configurada troca só ela', () => {
     expect(resolverVagas(VAGAS_PADRAO, linha({ limiteReqEscolaMin: 10 }))).toEqual(VAGAS_PADRAO)
-    expect(resolverVagas(VAGAS_PADRAO, linha({ vagas: { lote: 5 } }))).toEqual({ interativa: 5, normal: 5, lote: 5, pdf: 2 })
+    expect(resolverVagas(VAGAS_PADRAO, linha({ vagas: { lote: 5 } }))).toEqual({ interativa: 10, ferramenta: 4, normal: 5, lote: 5, pdf: 2 })
     // A vaga da fila `pdf` cede à escola como as outras: a que subiu o piso da rede configura a dela, e as outras filas seguem o padrão.
-    expect(resolverVagas(VAGAS_PADRAO, linha({ vagas: { pdf: 1 } }))).toEqual({ interativa: 5, normal: 5, lote: 2, pdf: 1 })
+    expect(resolverVagas(VAGAS_PADRAO, linha({ vagas: { pdf: 1 } }))).toEqual({ interativa: 10, ferramenta: 4, normal: 5, lote: 2, pdf: 1 })
+  })
+
+  it('a vaga da `ferramenta` vale só para a escola que a configurou, e a escola sem `vagas` usa as 4 do padrão; a `interativa` padrão é 10', () => {
+    expect(VAGAS_PADRAO.interativa).toBe(10)
+    expect(resolverVagas(VAGAS_PADRAO, linha({ vagas: { ferramenta: 2 } }))).toEqual({ ...VAGAS_PADRAO, ferramenta: 2 })
+    expect(resolverVagas(VAGAS_PADRAO, linha({ vagas: null })).ferramenta).toBe(4)
+    expect(resolverVagas(VAGAS_PADRAO, undefined).ferramenta).toBe(4)
+    // A vaga da ferramenta não mexe na do Tutor: cada fila tem a sua.
+    expect(resolverVagas(VAGAS_PADRAO, linha({ vagas: { ferramenta: 2 } })).interativa).toBe(10)
   })
 
   it('com a vaga por escola desligada (controle negativo), nenhuma fila tem teto, nem a da escola que configurou o seu', () => {
-    expect(resolverVagasDaEscola(VAGAS_PADRAO, linha({ vagas: { lote: 1 } }), false)).toEqual({ interativa: 5, normal: 5, lote: 1, pdf: 2 })
+    expect(resolverVagasDaEscola(VAGAS_PADRAO, linha({ vagas: { lote: 1 } }), false)).toEqual({ interativa: 10, ferramenta: 4, normal: 5, lote: 1, pdf: 2 })
     expect(resolverVagasDaEscola(VAGAS_PADRAO, linha({ vagas: { lote: 1 } }), true)).toEqual(VAGAS_SEM_LIMITE)
-    expect(Object.values(VAGAS_SEM_LIMITE)).toEqual([Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER])
+    expect(Object.values(VAGAS_SEM_LIMITE)).toEqual(Array<number>(QUEUE_NAMES.length).fill(Number.MAX_SAFE_INTEGER))
   })
 
   it('cada limite nulo cai no padrão, independente do outro', () => {

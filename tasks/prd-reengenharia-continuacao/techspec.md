@@ -46,6 +46,17 @@ Com o Redis fora, a escolha de escola e o segundo fator dão `503 INDISPONIVEL_T
 **O comando.** `ExecucaoCommand<E, S>`: `tarefa`, `fila`, `preparar(execucao)` → `{ entrada, lido, alunoId?, turmaId? }` e
 `concluir(saida, lido, tx, execucaoId)`, um por `TarefaDeIa` (salvo `relatorio_da_correcao`, sem chamador). O `aoGravar` fica na requisição; antes de mover um `aoConcluir`, testes fixam o hash de cada prompt e a entrega `pendente`.
 
+Como a 1.0 o fez (`ExecucaoComComando` no `agendar`, `RegistroDeComandos`, `comRegistro` e `paraExecutar`, em `apps/api/src/ia/`): o pedido
+traz o nome da tarefa (`comando`) e a entrada que fica gravada, e o agendador acha o comando no registro; `paraExecutar(id)` relê a execução
+pelo id, no escopo (escola, ano e quem pediu), e a de outra tarefa é `NAO_ENCONTRADO`. A caracterização (a 1.1) vai **no mesmo commit** da
+tarefa, e não num commit antes: o commit `(tarefa N.0)` é o que leva a rodada da Mesa, e um commit só de teste ficaria sem ela; a prova de que
+vem antes é que os dois testes rodaram verdes na árvore ainda sem mudança de produção. O Assistente não cria entrega (só a adaptação cria, e
+`pendente`): a caracterização fixa que a conversa e a geração concluem sem entrega. O `ExecucaoDoPedidoRepository` (`assistente/`), que lia a
+entrada pela chave, sai: `paraExecutar` o substitui, e as peças que os comandos dividem com os services (`TRECHOS_NA_CONVERSA` e
+`contextoDaTarefa` em `ia/contexto-da-tarefa.ts`, que a proposta e a geração dividem, `atividadeOriginal` e `exigirMaterialEmUso` em `artefato/conferencia.ts`, o limiar e o teto do Analista) moram no arquivo
+do comando ou da conferência. O comando não escreve linha de log nova: a linha da execução segue sendo a do executor (`ia.execucao.concluida` e
+`ia.execucao.falhou`, com `execucaoId`, `escolaId`, código e duração), e o texto da professora não entra nela.
+
 **O contexto no worker.** A escola vem de `job_registro.escola_id`; o `preparar` lê a execução no escopo, monta o contexto
 (`solicitada_por`, ano letivo da linha, papel do vínculo ativo) e repete o alcance do `POST` (turma, atividade, material) e a
 suspensão da função. Eliminado, vínculo encerrado ou sem alcance: `NAO_ENCONTRADO`, sem modelo nem `consumo_ia`.
@@ -68,7 +79,11 @@ numa transação própria, antes da conclusão condicional. A avaliação aberta
 no `preparar` e no `concluir`. A conferência do assunto delicado roda antes da fila (`tutor.service.ts`, `#encaminhar`), sem job.
 
 **A fila.** Tutor na `interativa`; ferramentas, artefato e `propor_ferramenta` na `ferramenta`; Analista na `normal`. Vaga de
-hoje; pool por réplica de `onda-3a.md`; o job não segura conexão durante o modelo.
+hoje; pool por réplica de `onda-3a.md`; o job não segura conexão durante o modelo. `QUEUE_PRIORITY` (`smallint`, só ordena a
+varredura e a reconciliação) passa a `interativa` 1, `ferramenta` 2, `normal` 3, `lote` 4, `pdf` 5, e as constantes que
+`infra/scripts/` copiam (`PRIORIDADE_DA_FILA_PDF`, a do lote do expurgo da carga) seguem. A `VAGAS_ESCOLA_FERRAMENTA` entra no despachante e em toda réplica do
+worker (o `WORKER_POOL_FERRAMENTA` nasce com o `worker-ia`, na 5.0). O `JobExecutor` no `core` leva o `bullmq` ao `package.json`
+dele (`DelayedError`, `UnrecoverableError`).
 
 **Os tokens (49.0).** `TokenLimiter.reservar(modelo, estimativa, fila)`, com caracteres ÷ 4 + `maximoDeTokensDeSaida`, nova a cada
 chamada e acertada pelo uso real (a da interrompida não volta: superestima por até 1 min). O balde geral, por

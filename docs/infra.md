@@ -261,7 +261,8 @@ só com `docker compose` (regra 00) tem exatamente o comportamento da esteira.
 
 | Prioridade | O quê | Regra |
 |---|---|---|
-| interativa | tutor em sala, ferramenta que o professor está esperando na tela | nunca espera trabalho de lote |
+| interativa | o turno do Tutor em sala, o aluno esperando na tela | nunca espera trabalho de lote; 10 vagas por escola |
+| ferramenta | a ferramenta, a proposta e o artefato que o professor está esperando na tela (`ia.executar`, 5.0) | nunca espera trabalho de lote; **4 vagas por escola, só dela**: a ferramenta não ocupa a vaga do Tutor |
 | normal | correção que o professor pediu agora, notificação | minutos |
 | lote | ingestão, correção em massa, agentes noturnos, expurgo, exportação | preferencialmente fora do horário letivo |
 | pdf | a extração do texto do PDF do material (`material.extrair-pdf`): CPU e memória de um PDF de até 20 MB | segundos a minutos, em horário letivo; **um PDF por vez por réplica** (`worker-pdf`) e duas vagas por escola, para o PDF de uma escola não ocupar a leitura das outras |
@@ -300,8 +301,11 @@ resolveu com um limitador próprio, sem licença (regra 00). O desenho completo 
 - **A vaga é um ZSET por fila e escola** (`vaga:{fila}:{escola}`), tomada em Lua
   (`packages/core/src/queue/concurrency-slot.lua`), com validade de 60 s renovada pelo worker a cada
   15 s. Vaga de worker morto vence sozinha. Liberar a vaga acorda o despachante na hora
-- **Padrões por escola:** interativa 5, normal 5, lote 2 e pdf 2 (`VAGAS_ESCOLA_PDF`, no worker e no despachante), com pools de 50, 30, 10 e 1. É
-  configuração por escola em `configuracao_operacional_escola`, nunca constante (D41)
+- **Padrões por escola:** interativa 10 (`VAGAS_ESCOLA_INTERATIVA`, R42), ferramenta 4 (`VAGAS_ESCOLA_FERRAMENTA`), normal 5, lote 2 e pdf 2
+  (`VAGAS_ESCOLA_PDF`), no worker e no despachante, com pools de 50, 30, 10 e 1 (o da `ferramenta`, 20 por réplica, nasce com o `worker-ia`, na 5.0). É
+  configuração por escola em `configuracao_operacional_escola` (`vagas.ferramenta`, `vagas.interativa`…), nunca constante (D41). A conta: o Tutor usa
+  0,75 turno/s × 6 s ≈ 4,5 vagas no pico; a ferramenta, 1,2 vaga nominal e 2,7 no pior caso, das 4. "1 ferramenta por minuto por escola" é premissa, sem fonte
+  na seção 3: a `FASE=sala` do cenário de carga a confere
 - **Lote não urgente** só é reservado fora do horário letivo da escola (seção 5.2)
 - **Entrega pelo menos uma vez** (D49): o processador recebe a chave de idempotência, igual
   em toda reexecução
@@ -383,7 +387,7 @@ Uma pessoa sem plantão só consegue operar se o sistema avisar antes da escola 
 - Check externo de disponibilidade falhando no horário letivo
 - p95 do tutor ou do salvamento de prova acima do limite
 - Tokens por minuto acima de 80% do contratado
-- Job interativo esperando mais de 30 segundos, por 1 minuto seguido (dispara com uns 90 s de
+- Job esperando mais de 30 segundos, por 1 minuto seguido, na fila `interativa` ou na `ferramenta` (dispara com uns 90 s de
   espera; regra em `infra/grafana/alertas/`)
 - Backup do dia não concluído
 

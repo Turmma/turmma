@@ -1,6 +1,6 @@
 import { JobFailureCode } from '@educa/shared'
 import { afterEach, describe, expect, it } from 'vitest'
-import { JobFailureError } from '../job-failure.error.js'
+import { JobFailureError } from '@educa/core'
 import { createSyntheticProcessor, CpuSandbox } from './synthetic.js'
 
 const abertos: CpuSandbox[] = []

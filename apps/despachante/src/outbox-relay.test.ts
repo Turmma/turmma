@@ -28,7 +28,7 @@ function montar({
   livres = () => 5,
   conceder = (ids: readonly string[]) => ids,
   publicacaoFalha = false,
-  vagasDaEscola = { interativa: 5, normal: 5, lote: 2, pdf: 2 },
+  vagasDaEscola = { interativa: 10, ferramenta: 4, normal: 5, lote: 2, pdf: 2 },
   lote,
   publicadosDaEscola = [],
   membrosDaVaga = [],
@@ -143,11 +143,23 @@ describe('Despachante.rodada', () => {
     expect(ordem()).toEqual(['interativa:c', 'interativa:a', 'interativa:b', 'normal:c', 'lote:a', 'lote:b'])
   })
 
+  it('a ferramenta é atendida depois da interativa e antes da normal, e toma a vaga com o limite dela, e não o do Tutor', async () => {
+    const pendentes: EscolaWithPendingJobs[] = [
+      { fila: 'normal', escolaId: ESCOLA_A },
+      { fila: 'ferramenta', escolaId: ESCOLA_A },
+      { fila: 'interativa', escolaId: ESCOLA_A },
+    ]
+    const { despachante, reservas, tomadas } = montar({ pendentes, livres: () => 1, vagasDaEscola: { interativa: 10, ferramenta: 3, normal: 5, lote: 2, pdf: 2 } })
+    await despachante.rodada()
+    expect(reservas.map(({ fila }) => fila)).toEqual(['interativa', 'ferramenta', 'normal'])
+    expect(tomadas.map(({ fila, limite }) => `${fila}:${String(limite)}`)).toEqual(['interativa:10', 'ferramenta:3', 'normal:5'])
+  })
+
   it('reserva no contexto da escola, só as vagas livres, e toma a vaga com o limite da fila na configuração dela', async () => {
     const { despachante, reservas, tomadas, publicados } = montar({
       pendentes: [{ fila: 'lote', escolaId: ESCOLA_A }],
       livres: () => 2,
-      vagasDaEscola: { interativa: 5, normal: 5, lote: 7, pdf: 2 },
+      vagasDaEscola: { interativa: 10, ferramenta: 4, normal: 5, lote: 7, pdf: 2 },
     })
     expect(await despachante.rodada()).toBe(2)
     expect(reservas).toEqual([{ fila: 'lote', escolaId: ESCOLA_A, rotinaDoSistema: false, limite: 2, soUrgentes: true }])

@@ -4,6 +4,7 @@ import {
   METRICS,
   bullmqQueueName,
   jobOptions,
+  QUEUE_PRIORITY,
   RETENCAO_JOB_CONCLUIDO_SEGUNDOS,
   RETENCAO_JOB_FALHO_SEGUNDOS,
   JobRejectionReason,
@@ -312,10 +313,10 @@ describe('dois despachantes e dois workers sobre a mesma fila', () => {
       const pedidoId = randomUUID()
       const doSistema = { requisicaoId: randomUUID(), rotinaDoSistema: true as const }
       const daEscola = { requisicaoId: randomUUID(), escolaId: ESCOLA_A }
-      const nada = { fila: 'lote', prioridade: 3, naoUrgente: true, dados: {} }
+      const nada = { fila: 'lote', prioridade: QUEUE_PRIORITY.lote, naoUrgente: true, dados: {} }
       const casos = [
-        { tipo: 'titular.montar-arquivo', contexto: daEscola, esperado: { fila: 'normal', prioridade: 2, naoUrgente: false, dados: { pedidoId } }, enfileirar: (tx: DatabaseTransaction) => bancada.enfileirador.enfileirar(tx, TIPO_MONTAR_ARQUIVO, { pedidoId }) },
-        { tipo: 'titular.eliminar', contexto: daEscola, esperado: { fila: 'lote', prioridade: 3, naoUrgente: true, dados: { pedidoId } }, enfileirar: (tx: DatabaseTransaction) => primeiroGravado(bancada.enfileirador.enfileirarUmaVez(tx, TIPO_ELIMINAR_TITULAR, { pedidoId }, `eliminacao:${pedidoId}`)) },
+        { tipo: 'titular.montar-arquivo', contexto: daEscola, esperado: { fila: 'normal', prioridade: QUEUE_PRIORITY.normal, naoUrgente: false, dados: { pedidoId } }, enfileirar: (tx: DatabaseTransaction) => bancada.enfileirador.enfileirar(tx, TIPO_MONTAR_ARQUIVO, { pedidoId }) },
+        { tipo: 'titular.eliminar', contexto: daEscola, esperado: { fila: 'lote', prioridade: QUEUE_PRIORITY.lote, naoUrgente: true, dados: { pedidoId } }, enfileirar: (tx: DatabaseTransaction) => primeiroGravado(bancada.enfileirador.enfileirarUmaVez(tx, TIPO_ELIMINAR_TITULAR, { pedidoId }, `eliminacao:${pedidoId}`)) },
         { tipo: 'retencao.expurgar-escola', contexto: daEscola, esperado: nada, enfileirar: (tx: DatabaseTransaction) => primeiroGravado(bancada.enfileirador.enfileirarUmaVez(tx, TIPO_EXPURGAR_ESCOLA, {}, 'noite')) },
         { tipo: 'sistema.consolidar-uso', contexto: doSistema, esperado: nada, enfileirar: (tx: DatabaseTransaction) => bancada.enfileirador.enfileirar(tx, TIPO_CONSOLIDAR_USO, {}) },
         { tipo: 'sistema.expurgar-acesso', contexto: doSistema, esperado: nada, enfileirar: (tx: DatabaseTransaction) => bancada.enfileirador.enfileirar(tx, TIPO_EXPURGAR_ACESSO, {}) },
@@ -325,7 +326,7 @@ describe('dois despachantes e dois workers sobre a mesma fila', () => {
         ...(['interativa', 'normal', 'lote'] as const).map((fila) => ({
           tipo: 'sintetico',
           contexto: daEscola,
-          esperado: { fila, prioridade: { interativa: 1, normal: 2, lote: 3 }[fila], naoUrgente: fila === 'lote', dados: { cpuMs: 5, falhar: false } },
+          esperado: { fila, prioridade: QUEUE_PRIORITY[fila], naoUrgente: fila === 'lote', dados: { cpuMs: 5, falhar: false } },
           enfileirar: (tx: DatabaseTransaction) => bancada.enfileirador.enfileirar(tx, TIPO_JOB_SINTETICO, { cpuMs: 5, falhar: false }, { fila, naoUrgente: fila === 'lote' }),
         })),
       ]

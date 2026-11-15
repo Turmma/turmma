@@ -16,7 +16,7 @@ bancada, com fixture.
 - [U] Toda `TarefaDeIa` tem comando registrado, salvo `relatorio_da_correcao`. Mutação: tirar um registro
 - [I] O `AppModule` sobe sem `LLM_PROVIDER`; o `main-worker` sobe sem controller nem porta. Mutação: importar o provedor no
   `AppModule`
-- [I] O hash de cada prompt bate com a `versao` antes e depois da troca; a entrega do assistente e do artefato nasce `pendente`
+- [I] O hash de cada prompt bate com a `versao` antes e depois da troca; a conversa do Assistente e a geração por ferramenta concluem sem entrega (só a adaptação cria entrega, e `pendente`)
 - [U] `ia.executar` recusa payload sem `execucaoId`, com campo a mais ou com id fora do formato uuid (`DADOS_INVALIDOS`, antes do
   repository)
 - [I] Turno do Tutor pela fila: `POST` dá 202 com a execução `pendente` e um `ia.executar` no outbox, na mesma transação; o
@@ -169,7 +169,9 @@ bancada, com fixture.
   id inexistente; a linha segue `pendente`; `ia.espera_estourada` não soma. Mutação: cortar antes da leitura, ou sem
   `solicitada_por`
 - [I] Entrada gravada que cita turma ou material da B: o `preparar` dá `NAO_ENCONTRADO`
-- [I] Vagas: a escola A com 4 ferramentas rodando espera na 5.ª, e o Tutor dela responde; a escola B segue com as suas (RF2)
+- [I] Vagas: a escola A com 4 ferramentas rodando espera na 5.ª, e o Tutor dela responde; a escola B segue com as suas (RF2).
+  A `QUEUE_PRIORITY` ordena `interativa` 1, `ferramenta` 2, `normal` 3, `lote` 4, `pdf` 5; um `ferramenta` novo começa antes de
+  qualquer `normal` não iniciado (pool próprio)
 
 ## 7. A web (RF11, RF12, RF13)
 
