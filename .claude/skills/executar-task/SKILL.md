@@ -233,7 +233,9 @@ lista pela tela, e o teto de 100 da 16.0 quebrou o caso de 501 da 10.0, que a va
 serviço no compose, rota, botão numa lista de ações, campo no retorno de um repository. O teste que confere o conjunto inteiro
 (o inventário) quebra com o acréscimo: `tools/ci/compose.int.test.ts` (serviços), `apps/api/test/convite.int.test.ts` (rotas com
 "convite"), `ACOES_DO_ESTADO` em `e2e/professores.spec.ts`, o `toEqual` do retorno no `*.repository.int.test.ts`. Na F2c, foram
-quatro vermelhos da esteira (1.0, 3.0, 10.0, 19.0) e a reprovação da 7.0 (cinco e2e da regra antiga).
+quatro vermelhos da esteira (1.0, 3.0, 10.0, 19.0) e a reprovação da 7.0 (cinco e2e da regra antiga). Campo novo
+obrigatório num formulário quebra quem o percorre em `e2e/support/` (`professor-flow.ts`, na 7.0 da F4); e o teste que
+escreveu a constante como número fica com o valor antigo (9.0 da F4): importe a constante.
 
 ```bash
 grep -rl "<o nome que mudou>" --include='*.test.ts' --include='*.test.tsx' --include='*.spec.ts' apps packages infra e2e
@@ -282,6 +284,15 @@ Antes de pedir, para cada linha de "Divergências resolvidas", procure a palavra
 `cenarios.md` (`grep -n`). Não achou: a decisão entra lá agora, na seção que a coluna "Onde está na spec" cita (o aviso
 crítico do passo 2). Na F2, a 3.0, a 5.0, a 8.0 (quatro linhas) e a 10.0 reprovaram no `revisor-geral` por divergência que só
 existia no documento da tarefa.
+
+Essa conferência vale **antes de cada rodada**, a primeira e as seguintes, com mais três:
+
+- cada caso citado na tabela "Testes que provam a regra" está no arquivo com esse nome (`grep -F` do começo do nome) e
+  prova o que a linha diz: caso renomeado ou dividido numa rodada leva a linha junto (na F4, a 6.0 e a 8.0 reprovaram por isso);
+- cada linha de "Recomendações sem aplicar" com destino `TODO.md` está no `TODO.md` da árvore (na F4, a 12.0 reprovou, e a
+  5.0, a 7.0 e a 9.0 deixaram o trabalho para o Orquestrador);
+- a rodada que mudou o desenho procura o termo antigo em `docs/` (`lgpd.md`, `runbook.md`, `infra.md`) e nos comentários do
+  código (na F4, a 1.0 e a 2.0).
 
 Com o portão local verde, peça a rodada e **encerre o turno**
 (`.claude/skills/seguir/protocolo.md`, item 2). O nome da Mesa veio no pedido do Orquestrador:
