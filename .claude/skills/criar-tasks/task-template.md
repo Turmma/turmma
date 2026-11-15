@@ -108,7 +108,9 @@ rodada nova; o caso que originou cada pergunta está em `docs/processo-licoes.md
    Apagar a cláusula tem de deixar algo vermelho.
 4. **Alguma checagem anterior responde antes da regra sob teste?** A rota cai em `requireAnoEmCurso()`, o e-mail não acha
    ninguém: o teste fica verde pelo motivo errado. Percorra o caminho até a linha que interessa e confirme que o cenário
-   chega nela.
+   chega nela. E o teste cria a condição de que depende (o serviço parado, o job que roda, o objeto que existe), em vez
+   de herdá-la de outro arquivo ou de um fixture que pula o caso; e o dublê lança o erro que a produção lança (o tipo que o
+   adaptador traduz, como `FileStorageUnavailableError`), não `new Error`. Na F4, a 1.0, a 2.0 e a 3.0.
 5. **A asserção olha o resultado, ou a forma do código?** Asserção sobre texto de arquivo, nome de função ou lista vazia
    passa igual se a regra ler o campo errado. Compare o que o usuário obtém. Asserção de ausência ou de contagem na tela
    (`not.toContain`, `toHaveCount(0)`, `vezes > antes`) só prova depois da resposta que poderia trazer o que ela nega: espere
@@ -127,7 +129,8 @@ rodada nova; o caso que originou cada pergunta está em `docs/processo-licoes.md
    quantas vezes por segundo, o que grava a cada vez). Antes da primeira rodada, abra cada lugar que a coluna cita e ache lá
    a decisão, com a palavra do código; se a decisão muda algo que mais de um documento descreve, procure o termo antigo em
    todos de uma vez, com `grep`. Subtarefa de busca ou de commit à parte só fica `[x]` com a prova no documento: a saída do
-   `grep` (vazia, ou cada linha justificada) e o hash do commit de caracterização.
+   `grep` (vazia, ou cada linha justificada) e o hash do commit de caracterização. E o `prd.md` não diz o contrário
+   (procure o termo nos RF e nos casos de borda): se diz, é DIVERGÊNCIA de desenho, não linha da tabela (a 9.0 da F4).
 9. **Qual peça que já existe faz isto?** Procure em `apps/api/src/sessao/` e em `packages/core/` antes de escrever.
    Reaproveite importando; se a peça está no lugar errado para dois módulos, mova-a para arquivo próprio ou para o
    `core`, nesta tarefa, e não copie.

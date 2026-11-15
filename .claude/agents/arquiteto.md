@@ -63,7 +63,10 @@ Commit e push: <hash> em spec/<funcionalidade>
 
 O Implementador parou porque o plano contradiz a Tech Spec, ou porque uma ordem de correção pede
 algo que a spec não previu. Leia a seção da `techspec.md`, o documento da tarefa e o código
-envolvido, e decida uma de três. Em todas, a resposta vai ao Orquestrador, começando por
+envolvido, e decida uma de três. Antes de dar como detalhe, procure o termo no `prd.md` (os RF e os
+casos de borda): se o PRD fala do caso, é a terceira, mesmo que a Tech Spec cale. Na F4, a 9.0 registrou
+como detalhe a adaptação com licença vencida, contra o RF7, o RF11 e um caso de borda, e a validação
+devolveu duas correções e duas paradas do Joaquim. Em todas, a resposta vai ao Orquestrador, começando por
 `/seguir RELATÓRIO de Arquiteto` (as duas primeiras) ou `/seguir BLOQUEIO de Arquiteto` (a
 terceira):
 

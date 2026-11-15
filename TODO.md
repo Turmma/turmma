@@ -2853,6 +2853,30 @@ repetem aqui.
       retro pendente na árvore, o próximo passo diz "trazer a develop com a retro antes do criar-tasks". Casos novos em
       `tools/processo/estado.test.ts`. Não trava nada: o texto do `/seguir` já cobre. Guardiões: `revisor-geral`, `test-engineer`
 
+## Da retrospectiva da F4 (ingestao-do-material, 15/11/2026)
+
+`tasks/prd-ingestao-do-material/retro.md`. Aceitas pelo Joaquim em 15/11/2026 ("aprovo"). Os cinco avisos já aplicados; M1 a M4 mudam código de
+processo: entram por correção. **Antes das tarefas da X6, o Orquestrador faz a M1 e a M2 da F2c (abaixo), aceitas em 11/11 e ainda abertas:** as
+duas causas voltaram na F4 (3 das 6 cláusulas sem prova, e a 9.0 perdeu a 1ª rodada inteira da seção "Revisões").
+
+- [ ] (F4, retro, M1) **O portão confere o que o documento cita.** Aviso informativo do portão, como o `--faltando` e o de divergências, em
+      `tools/processo/` ao lado de `divergencias.ts`: (a) cada `arquivo` › "nome…" da tabela "Testes que provam a regra" cujo começo do nome não
+      está no arquivo; (b) linha nova de "Recomendações sem aplicar" com destino `TODO.md` quando o `TODO.md` não mudou desde a base. Na F4, 10
+      bloqueantes em 8 tarefas por documento que afirmava o que a árvore não tinha (6.0 e 8.0 pelo caso renomeado, 12.0 pelo destino). Caso de
+      teste para cada lado. Guardiões: `revisor-geral`, `test-engineer`
+- [ ] (F4, retro, M2) **O portão roda o inventário quando o diff toca o inventariado.** `tools/processo/sequencia-do-portao.ts`: migration nova em
+      `packages/core/drizzle/` puxa `packages/core/src/db/schema/mvp/mvp-tables.int.test.ts`; `infra/compose.yml` puxa `tools/ci/compose.int.test.ts`.
+      A tabela "caminho → inventário" fica num lugar só, com teste. Na F4, três vermelhos da esteira (a FK do catálogo, duas vezes na 5.0, e o
+      compose). Guardiões: `revisor-geral`, `test-engineer`, `infra-guardian`
+- [ ] (F4, retro, M3) **A integração à mão recusa os workers de pé.** `tools/testes/integracao.setup.ts`: o `globalSetup` confere se há worker de pé
+      no compose de teste e, havendo, recusa com a mensagem e o comando que os para (o mesmo `stop` da sequência do portão). Não derruba sozinho: o
+      ambiente de pé pode ser a vitrine ou o e2e de alguém. Na F4, três vermelhos falsos, um deles na validação (menor 5 da r2). Caso de teste para
+      cada lado. Guardiões: `revisor-geral`, `test-engineer`, `infra-guardian`
+- [ ] (F4, retro, M4) **A fatia do e2e vem da conta.** `.github/workflows/ci.yml`: um passo curto conta os casos (`playwright test --list`) e gera a
+      matriz com N = teto(casos / 180) por `fromJSON`; o `name` e o `--shard` derivam de `strategy.job-total`. `tools/ci/esteira.test.ts` passa a
+      provar a conta, e não um N escrito. Duas specs seguidas (F2c e F4) tiveram tarefa parada no portão por uma fatia a mais. Custo: um job de
+      ~1 min antes do e2e. Guardiões: `infra-guardian`, `revisor-geral`, `test-engineer`
+
 ## Da retrospectiva da F2c (acesso-e-convites, 11/11/2026)
 
 `tasks/prd-acesso-e-convites/retro.md`. Aceitas pelo Joaquim em 11/11/2026 ("aprovo"). Os seis avisos já aplicados; M1 e M2 mudam código de
@@ -3563,7 +3587,7 @@ aula" em `Retencao.tsx`, o Validador conferiu: a tela já o mostra pela descriç
 - [ ] (ingestao-do-material, 10.0, tenancy-guardian, 2ª) **Um caso pela API com o `materialId` de outra escola no `jsonb` do artefato** conferindo "material da escola", sem título nem edição, também no
       PDF. O `fontesDosMateriais` já tem o caso de isolamento no repository
 - [ ] (ingestao-do-material, 10.0, infra-guardian, 2ª) **Se um segundo lugar chamar `fontesDosMateriais`, receber o artefato carregado em vez dos ids soltos.** Hoje há um só chamador (o service,
-      depois do `porId`); ver na retrospectiva da F4
+      depois do `porId`); ver na retrospectiva da F4 *(retro da F4, 15/11/2026: sem mudança enquanto houver um chamador; a linha fica para quem acrescentar o segundo)*
 - [ ] (ingestao-do-material, 10.0, test-engineer e revisor-geral, 2ª) **Caso "dois materiais citados": `expect(conteudo.questoes).toHaveLength(3)` antes do `forEach`**, e não depender do `edicaoNova` do
       caso anterior (rodado com `-t`, ele falha). A premissa já está provada no caminho feliz
 
@@ -3572,9 +3596,9 @@ aula" em `Retencao.tsx`, o Validador conferiu: a tela já o mostra pela descriç
 - [ ] (ingestao-do-material, 11.0, infra-guardian, 1ª) **A lista da aba Material já se relê perto do teto por usuário antes do resumo.** Com mais de 200 materiais, `lerPaginas` lê 3 páginas a cada 1,5 s (`api/material.ts:29` e `:38`): 120 pedidos por minuto,
       o `LIMITE_REQ_USUARIO_MIN` de `.env.example`. **Priorizar antes do piloto** (escola com 201 a 300 materiais e um `processando` já está nos 120 por minuto só com a lista). Correção própria: reler só o que está `processando`, ou aumentar o intervalo, com o cenário de 300 materiais e um processando. O resumo (11.0) não soma a isso: só se relê quando um estado muda
 - [ ] (ingestao-do-material, 11.0, frontend-reviewer e revisor-geral, 1ª) **Dois vazios empilhados na escola nova.** "Ainda não há material para resumir…" (resumo) e "Nenhum material ainda" (lista). `cenarios.md` "Telas" pede o vazio do resumo como estado próprio;
-      esconder um deles muda o que a spec pede. Decisão do Arquiteto na retro da F4
+      esconder um deles muda o que a spec pede. Decisão do Arquiteto na retro da F4 *(retro da F4, 15/11/2026: não decidido na retro, que é de processo; muda tela e `cenarios.md`, e vai à próxima spec que tocar a aba Material, com o Joaquim)*
 - [ ] (ingestao-do-material, 11.0, frontend-reviewer e revisor-geral, 1ª) **O texto do aviso das séries da migração** (`resumo-do-material.ts`, `avisoDaMigracao`): abre com "migração", fala de "9º ano" e "6º" e não pode ser dispensado.
-      É o texto de `cenarios.md`; a decisão é do Arquiteto na retro
+      É o texto de `cenarios.md`; a decisão é do Arquiteto na retro *(retro da F4, 15/11/2026: idem ao item anterior, junto dele)*
 - [ ] (ingestao-do-material, 11.0, frontend-reviewer, 1ª) **"Disciplina" e "Série" soltos na tabela do resumo** quando o id não está na lista lida (`linhasDoResumo`). Texto de tela, caso raro (a disciplina ou a série criada depois da leitura)
 - [ ] (ingestao-do-material, 11.0, revisor-geral, 1ª) **O erro da releitura das disciplinas e das séries não aparece no resumo** (`ResumoDoMaterial.tsx`, `releituraFalhou={resumo.isError}`). O nome na tela continua certo e não bloqueia; muda o comportamento da tela
 - [x] *(resolvido na própria 11.0: o resumo não tem laço, e o caso espera o estado que muda na lista, sem o relógio de 4 s)* (ingestao-do-material, 11.0, test-engineer, 1ª) **A releitura do resumo esperava o `refetchInterval` de 1,5 s pelo relógio de verdade** (`ResumoDoMaterial.test.tsx`)
@@ -3602,7 +3626,7 @@ aula" em `Retencao.tsx`, o Validador conferiu: a tela já o mostra pela descriç
 - [ ] (ingestao-do-material, 12.0, privacy-guardian, 1ª) **Acrescentar o `PATCH /v1/materiais/:id` ao `contracts.test.ts`**, a varredura que confere que nenhuma resposta traz `enviadoPor` nem `sha256` (a 4.0 já pôs o `GET /v1/materiais/:id` lá, `apps/api/test/contracts.test.ts:168`). O `materialResponseSchema` já garante, mas a varredura é a prova de rota
 - [ ] (ingestao-do-material, 12.0, revisor-geral, 3ª) **`MaterialAtualizarGuard` mora em `material-upload.ts`** (`apps/api/src/material/material-upload.ts:61`) e não tem nada de upload. Renomear o arquivo ou mover a guarda toca o módulo, o controller e os imports
 - [ ] (ingestao-do-material, 12.0, revisor-geral, 4ª) **O rascunho de `CorrecaoDoMaterial` nasce uma vez** (`PainelDoMaterial.tsx:115`, `useState(() => rascunhoDoMaterial(material))`). Se outra pessoa corrigir o mesmo material com o painel aberto, "Salvar alterações" manda o rascunho velho e pode desfazer a correção dela (o `PATCH` leva só o que a pessoa mudou, mas
-      uma série marcada de novo volta). **Risco real, raro:** a API não erra; o conserto muda o comportamento do painel (reler o rascunho a cada leitura da lista, ou avisar que o material mudou) e fica para a retro da F4
+      uma série marcada de novo volta). **Risco real, raro:** a API não erra; o conserto muda o comportamento do painel (reler o rascunho a cada leitura da lista, ou avisar que o material mudou) e fica para a retro da F4 *(retro da F4, 15/11/2026: defeito de produto, não de processo; fica aqui, para correção própria)*
 - [ ] (ingestao-do-material, 12.0, test-engineer e infra-guardian, 2ª) **O foco do pedido de A fora do painel de B não tem prova.** `e2e/material-painel.spec.ts:269`: o comentário ("O aviso e o foco do pedido de A não aparecem no painel de B") ainda fala do foco, e a asserção `:focus` saiu na rodada 1; o `toHaveCount(0)` do aviso é o que prova o recomeço.
       Ajustar o comentário, ou provar o foco por um caso de unidade em `PainelDoMaterial.test.tsx`
 
