@@ -1,9 +1,9 @@
 # Estado da execução — reengenharia-continuacao
 
 ## Agora
-- **Espero:** o `RELATÓRIO` do `Implementador 2` (linha 2, tarefa 14.0, porte grande, retomada depois da `ESCALADA` do `revisor-geral`, 1ª e 2ª rodadas), pedida às 15/11 ~22:45 com o diagnóstico do `Arquiteto` (`.processo/ordens/diagnostico-14.md` na linha 2: não é o desenho; quatro pontos, o 4º reescreve o aviso para não afirmar que o código estava certo; a Tech Spec §5 ajustada na árvore da linha, sem commit, vai no commit da tarefa; rodada 3 com `revisor-geral` e `frontend-reviewer`) e a ordem `.processo/ordens/14_task-r2.md`. Conferir ainda na esteira de `c747dc2` e na de `69242d71` os avisos `primeira-carga-travou` e se `pedidos-do-titular` volta a passar. As pendências herdadas estão nas tarefas: na `5_task.md` (`251eaa7a`, mais a linha 556 da 2.0 em `db2af7a1`) e na `6_task.md` (a 562 da 2.0, em `db2af7a1`). As linhas 1 e 3 estão ociosas: a 5.0 não corre junto da 14.0 (`tasks.md`), e as demais esperam a 5.0.
+- **Espero:** o `RELATÓRIO` do `Implementador` (linha 1, tarefa 5.0, porte grande, 1ª tentativa, pedida às 15/11 ~23:00). Conferir na esteira de `58782107` (execução 43789142591, na fila às 22:55) o veredito; a de `db2af7a1` passou, com `pedidos-do-titular` verde e sem `primeira-carga-travou`. As pendências herdadas estão nas tarefas: na `5_task.md` (`251eaa7a`, mais a linha 556 da 2.0 em `db2af7a1`) e na `6_task.md` (a 562 da 2.0, em `db2af7a1`). As linhas 2 e 3 estão ociosas: as demais esperam a 5.0 em cadeia (6.0 → 11.0).
 - **Devo ainda:** levar ao `TODO.md` (e ao Joaquim) o achado do `Arquiteto` na triagem da 4.0: o Analista devolve os agregados inteiros na saída e tem só 6000 tokens de saída, então com modelo real a entrada válida passa de ~4 mil tokens e já falha (`IA_SAIDA_INVALIDA`); reduzir o schema corta o resumo da coordenação, decisão do Joaquim junto da U03-12 (D32, `/descobrir`), fora desta spec. As M1 a M4 da retro da F4 ficam no `TODO.md` como correções, sem ordem pedida. No pedido de pouso, lembrar o Joaquim: `VAGAS_ESCOLA_FERRAMENTA=4` no `.env` da VPS antes do primeiro deploy (o runbook já diz).
-- **Base:** `spec/reengenharia-continuacao` em `69242d71`
+- **Base:** `spec/reengenharia-continuacao` em `58782107`
 
 ## Concluídas
 | Tarefa | Commit | Modelo | Rodadas | Observação |
@@ -19,6 +19,7 @@
 | tarefa 13.0 (L2) | `67a83962` | Sonnet | frontend, tenancy, privacy, conformidade e infra na 1ª; test-engineer e revisor-geral na 2ª | telas só pela Mesa (4 fotos; a falha só aparece com `page.route`, medidas no e2e); 2 mutações do celular verdes, só o e2e mudou (divergência na 13_task, techspec §5, cenarios §7); 4 linhas no `TODO.md` |
 | tarefa 4.0 (L1) | `6189c06a` | Sonnet | test-engineer na 2ª; os outros sete na 1ª | o encontro deu `CONFLITO` no `TETO` da catraca e quebrou o teste da 4.0 sobre o `ExecucaoRequest` que a 2.0 removeu |
 | correção `2026-11-15-encontro-4` (L1) | `a922952c` (merge) | Sonnet | revisor-geral na 3ª (reprovou na 2ª); os outros na 1ª | `TETO` 233; `teto-de-entrada.int.test.ts` passou a usar comando de teste, com 1 mutação vermelha; recomendações no documento e no `TODO.md`; flake de `revisoes.test.ts` no 1º portão (3 de 3 verde isolado); encontro em `69242d71` |
+| tarefa 14.0 (L2) | `7d6906d4` | Sonnet | `revisor-geral` reprovou na 1ª e na 2ª (`ESCALADA`, diagnóstico do `Arquiteto`, `diagnostico-14.md`); os sete aprovaram na 3ª | Tech Spec §5 ajustada pelo `Arquiteto` no commit da tarefa; `cenarios.md` §7 sem o [U] do prazo estourado no navegador fica com o `Arquiteto` (r3, sem aplicar); 3 linhas no `TODO.md`; telas não vistas (a vitrine não força o 503), o `Validador` fotografa |
 
 ## Esperando o Joaquim
 ## 15/11 03:05 — retro da F4, no terminal do `Arquiteto 2`
