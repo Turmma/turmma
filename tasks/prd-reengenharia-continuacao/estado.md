@@ -1,9 +1,9 @@
 # Estado da execução — reengenharia-continuacao
 
 ## Agora
-- **Espero:** o `RELATÓRIO` do `Implementador` (linha 1, tarefa 6.0, porte grande, 1ª tentativa, pedida em 16/11 ~02:20) e o do `Implementador 2` (linha 2, correção `2026-11-16-limite-do-ip-no-consultar-convite`, pedida em 16/11 ~03:50: esteira vermelha de `346d5d8`, execução 43814514097, `input-boundary-sessao.int.test.ts`, 400 no lugar de 429 na sexta recusa do `/v1/convites/consultar`; passou em `5878210`, execução 43789142591: cai depois da 5.0). Conferir a esteira de `178a2f70` (execução 43818754463). A linha 3 está ociosa: 7.0 a 11.0 esperam a 6.0 em cadeia; a pendência da 2.0 (linha 562, `db2af7a1`) está na `6_task.md`.
+- **Espero:** o `RELATÓRIO` do `Implementador` (linha 1, tarefa 6.0, porte grande, 1ª tentativa, pedida em 16/11 ~02:20) e o do `Implementador 2` (linha 2, correção `2026-11-16-uuid-no-log-do-job-timeout`, pedida em 16/11 ~07:45: esteira vermelha de `785f7d3`, execução 43818883538, `apps/worker/test/job-timeout.int.test.ts`: o teste proíbe `4242` no log, e o `jobId` aleatório `…-594242a7b87a` o contém; a outra queda da mesma execução, `input-boundary-sessao`, é a correção já encontrada). Conferir a esteira de `c71bbf97` (execução 43825324403). A linha 3 está ociosa: 7.0 a 11.0 esperam a 6.0 em cadeia; a pendência da 2.0 (linha 562, `db2af7a1`) está na `6_task.md`.
 - **Devo ainda:** levar ao `TODO.md` (e ao Joaquim) o achado do `Arquiteto` na triagem da 4.0: o Analista devolve os agregados inteiros na saída e tem só 6000 tokens de saída, então com modelo real a entrada válida passa de ~4 mil tokens e já falha (`IA_SAIDA_INVALIDA`); reduzir o schema corta o resumo da coordenação, decisão do Joaquim junto da U03-12 (D32, `/descobrir`), fora desta spec. As M1 a M4 da retro da F4 ficam no `TODO.md` como correções, sem ordem pedida. No pedido de pouso, lembrar o Joaquim: `VAGAS_ESCOLA_FERRAMENTA=4` no `.env` da VPS antes do primeiro deploy (o runbook já diz). No pedido de pouso, também: a 5.0 sem a 10.0 (teto global `IA_EXECUCOES_TOTAL`) não vai para produção, as duas pousam juntas; a divergência D84/D19 da 5.0 (Tutor desligado e política por turma não existem na API) está no `5_task.md`, para o `Validador` e o Joaquim.
-- **Base:** `spec/reengenharia-continuacao` em `178a2f70`
+- **Base:** `spec/reengenharia-continuacao` em `c71bbf97`
 
 ## Concluídas
 | Tarefa | Commit | Modelo | Rodadas | Observação |
@@ -23,6 +23,7 @@
 
 | tarefa 5.0 (L1) | `dd7dde79` | Sonnet | revisor-geral, privacy-guardian e test-engineer reprovaram na 1ª; os sete aprovaram na 2ª | sem aplicar no documento e no `TODO.md`; pousa só junto com a 10.0; divergência D84/D19 no documento; encontro em `346d5d82` |
 | correção `2026-11-16-execucao-pendente-na-leitura-por-serie` (L2) | `5af33f06` | Sonnet | test-engineer e revisor-geral na 2ª; os outros cinco na 1ª | causa: o update da execução passava do corte de 2 s da API num runner lento; 2 linhas no `TODO.md`; encontro em `178a2f70` |
+| correção `2026-11-16-limite-do-ip-no-consultar-convite` (L2) | `6553edf9` | Sonnet | test-engineer e revisor-geral na 2ª; os outros quatro na 1ª | defeito do teste: a 1ª chamada caía no seguro em memória passando dos 100 ms do cliente do limite; sem vermelho determinístico (1 em 3 e 1 em 8 antes, 20 de 20 depois); `TODO.md`: ~18 testes com `LIMITE_REQ_*` podem ter a mesma suposição (casa provável o `subirApi`); encontro em `c71bbf97` |
 
 ## Esperando o Joaquim
 ## 15/11 03:05 — retro da F4, no terminal do `Arquiteto 2`
