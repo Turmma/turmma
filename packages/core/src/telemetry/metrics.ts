@@ -211,6 +211,29 @@ export const METRICS = {
    * deixam a linha estimada em `consumo_ia`; a `pendente` sem job vivo não entra (o modelo nunca foi chamado e não há linha). Só contagem, sem aluno, execução nem texto.
    */
   execucaoInterrompida: 'ia.execucao.interrompida',
+  /**
+   * Quanto cada chamada ao provedor de IA levou, em segundos (reengenharia-continuacao, tarefa 10.0; RF8), por `provedor` (o id do provedor contratado, ou a origem do adaptador:
+   * `falso`, `openai_compat`), `perfil` e `resultado` (`ok` ou `erro`). Só a chamada ao modelo: a espera pela vaga de tokens e a repetição por saída inválida não entram.
+   * Nunca a escola, o aluno, a execução nem o texto.
+   */
+  duracaoDaChamadaDeIa: 'ia.chamada.duracao',
+  /** As chamadas ao provedor que terminaram em erro (10.0), por `provedor`, `perfil` e `codigo` (o da camada de IA: `IA_INDISPONIVEL`, `IA_TEMPO_ESGOTADO`…). Sem escola, aluno nem texto. */
+  errosDaChamadaDeIa: 'ia.chamada.erros',
+  /**
+   * 1 enquanto o disjuntor do modelo e do perfil não está fechado (aberto, ou meio aberto esperando a chamada de teste), 0 fechado (10.0), por `provedor`, `modelo` e `perfil`. É o que o
+   * alerta "Provedor de IA fora" lê. Em memória, por réplica: o alerta toma o maior valor por modelo e perfil.
+   */
+  disjuntorDeIaAberto: 'ia.disjuntor.aberto',
+  /**
+   * Quantas vezes um pedido desceu um degrau da degradação do gateway (10.0), por `degrau`: `espera` (esperou a vaga de tokens), `modelo_menor` (foi ao menor do perfil) e
+   * `indisponivel` (terminou `IA_INDISPONIVEL` por falta de tokens). Cada degrau nasce em zero. Sem escola, aluno nem texto.
+   */
+  degradacaoDeIa: 'ia.degradacao',
+  /**
+   * Quanto do **contratado** (`LLM_TOKENS_POR_MINUTO`) o balde geral do modelo já consumiu no minuto, de 0 a 0,8 (10.0), por `modelo`: 0,8 é o balde cheio. É o que o alerta "Tokens acima de 80 %"
+   * lê (o balde cheio; o runbook diz que é saturação) e o aviso aos 70 %. Vale a última reserva do minuto; sem reserva há um minuto, a série volta a 0.
+   */
+  usoDoTetoDeTokens: 'ia.tokens.uso_do_teto',
 } as const
 
 /**

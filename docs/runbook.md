@@ -82,6 +82,10 @@ workers **não sobem** sem ela, e o deploy pela `main` (D31) para no compose. An
 (D82) `VAGAS_ESCOLA_FERRAMENTA=4` e confira se `VAGAS_ESCOLA_INTERATIVA` está em 10: o deploy não troca o `.env` sozinho (é o mesmo caso dos 6.000 do
 login, na seção do rate limit mais abaixo). Deploy fora do horário letivo.
 
+**Variável nova no ambiente de produção (limite de tokens, 49.0):** o `infra/compose.yml` lê `LLM_TOKENS_POR_MINUTO` com `:?` no `api` e no `worker-ia`, e a configuração
+**não sobe** fora do `AMBIENTE=local` sem ela. Antes do pouso na `main` que a traz, ponha no `.env` da VPS o que o contrato com o provedor dá em tokens por minuto
+(o do `.env.example`, 2.500.000, é só o exemplo do desenvolvimento): sem a linha, o deploy automático para na interpolação do compose, e o `worker-ia` fica no que estava. O deploy não troca o `.env` sozinho.
+
 **Se nada disso resolver:** reinicie um worker por vez (`docker compose restart worker-interativo-1`,
 depois o 2), que espera os jobs em andamento por até 20 s (a graça) e não perde nenhum: o que passa dela e ainda tem tentativa fica
 `ativo` e outra réplica o retoma; só a última tentativa termina `EXECUCAO_INTERROMPIDA` (veja "Job que falhou de vez"). Continuando, avise a
@@ -1330,9 +1334,71 @@ operador entra de novo com e-mail e senha.
 
 *A preencher no F5.* Primeira suspeita: tokens por minuto perto do limite do provedor.
 
-## Tokens por minuto acima de 80% do contratado
+## Provedor de IA fora
 
-*A preencher no F5.*
+**Dispara quando:** o disjuntor de um modelo e perfil do gateway de IA está aberto (ou meio aberto) por 2 min seguidos (`max by (provedor, modelo, perfil) (ia_disjuntor_aberto)` acima de zero, por 2 min;
+regra `infra/grafana/alertas/ia-provedor-fora.yaml`; reengenharia-continuacao, tarefa 10.0). O disjuntor abre com cinco falhas seguidas do provedor (5xx, conexão recusada ou prazo estourado; o 429 e o outro 4xx não contam: o
+provedor está de pé, só recusou), é em memória por réplica do `worker-ia` (a regra toma o maior valor entre as réplicas) e meio abre a cada 30 s para uma chamada de teste. Resolve sozinho quando o disjuntor fecha. A série não leva escola, execução nem usuário.
+
+**Impacto:** toda chamada ao modelo daquele perfil termina `IA_INDISPONIVEL` na hora, sem esperar o prazo: o Tutor (`rapido`) mostra "Tentar de novo" ao aluno (nunca o erro do provedor), e a ferramenta, o Assistente e o Analista
+(`padrao`) mostram o mesmo à professora ou à coordenação. A regra fixa do assunto delicado (D36) não depende do provedor: o aluno continua recebendo o 188. O disjuntor é por modelo: o modelo menor tem o seu, e o degrau do gateway só o usa por falta de vaga de tokens, e não por provedor fora.
+
+**Primeiro olhar:** o painel "IA: chamadas ao provedor" (duração e erros por `provedor`, `perfil` e `codigo`, de `ia_chamada_duracao_seconds` e `ia_chamada_erros_total`) diz se o código é `IA_INDISPONIVEL` (o provedor caiu ou recusou conexão) ou
+`IA_TEMPO_ESGOTADO` (ficou lento). O log do `worker-ia` traz `ia.geracao.falhou` com `tipo` (a tarefa), `codigo`, `escolaId`, `execucaoId` e `duracaoMs`, nunca a entrada nem o prompt (veja "Buscar um erro no log pelo `tipo`").
+Do próprio servidor, sem dado de aluno: `curl -sS -o /dev/null -w '%{http_code} %{time_total}\n' "$LLM_BASE_URL/models"` a partir do container do `worker-ia` (`docker compose exec worker-ia ...`), que diz se o provedor responde dali.
+
+**Causas prováveis:**
+1. O provedor está com incidente ou fora do ar (o status dele, e a chamada acima falha ou demora) → não há o que consertar do nosso lado: o disjuntor volta sozinho quando a chamada de teste de 30 s der certo. Avise as escolas que usam o Tutor no horário (veja "Como avisar as escolas").
+2. A chave ou a URL mudou ou venceu (`LLM_BASE_URL`, `LLM_CHAVE_API`: a chamada acima devolve 401 ou 404, que não abre o disjuntor; se abriu, o provedor devolveu 5xx para a chave) → corrija a variável do `worker-ia` e recrie só ele (`docker compose up -d worker-ia`), fora do horário letivo se der.
+3. A rede do servidor para o provedor caiu (conexão recusada, DNS) → `docker compose exec worker-ia getent hosts <host do LLM_BASE_URL>`; a causa é da VPS ou do provedor de rede, e não do código.
+4. O prazo do perfil ficou curto para um modelo que ficou lento (`IA_TEMPO_ESGOTADO` no painel, com o provedor respondendo) → é capacidade do provedor ou do modelo: veja "Tokens acima de 80% do contratado" (a espera por vaga come o prazo) antes de mexer em `LLM_TIMEOUT_MS` (complexo e visão), `LLM_TIMEOUT_MS_RAPIDO` ou `LLM_TIMEOUT_MS_PADRAO`.
+
+**Se nada disso resolver:** não há provedor de reserva até a D37 (a degradação declarada é a espera e o modelo menor do mesmo provedor, que não ajuda com o provedor fora). Avise a coordenação das escolas em sala de que o Tutor e as ferramentas estão fora, dizendo o que continua
+funcionando (matérias, notas e turmas não dependem da IA), e suspenda a função da escola pelo painel de governança se a escola preferir o aviso na tela a "Tentar de novo". Não troque o provedor por conta própria: a D62 exige o suboperador cadastrado, e uma troca às pressas sem o cadastro é o que a subida recusa.
+
+**Depois:** registre no `TODO.md` a hora, o provedor, o código dominante e quanto tempo durou (sem id de escola: o repositório é público). Mais de uma vez por mês, o contrato e a reserva da D29 e da D37 viram tarefa.
+
+## Tokens acima de 70% do contratado
+
+**Dispara quando:** o modelo já consome 70 % ou mais do contratado de tokens por minuto, por 5 min seguidos (`max by (modelo) (ia_tokens_uso_do_teto) >= 0.7`, por 5 min; regra `infra/grafana/alertas/ia-tokens-acima-do-teto.yaml`; reengenharia-continuacao, tarefa 10.0).
+É o **aviso**: o balde geral tem 80 % do contratado (`LLM_TOKENS_POR_MINUTO`), e este alerta sobe com 12,5 % de folga ainda. No pico da manhã de segunda esperam-se uns 68 %, e por isso são 5 min seguidos, e não o pico de um minuto.
+
+**Impacto:** nenhum ainda. Quem pede ao modelo é atendido na hora; a espera pela vaga e o modelo menor só começam com o balde cheio.
+
+**Primeiro olhar:** o painel "IA: uso do teto de tokens, por modelo" (`ia_tokens_uso_do_teto`) e o consumo do dia por função (`ops:uso`, sem dado de aluno): se é o Tutor de várias turmas ao mesmo tempo (normal às 10h), a ferramenta de uma escola, ou o Analista.
+
+**Causas prováveis:**
+1. A manhã de segunda, com muitas turmas no Tutor ao mesmo tempo → é o esperado perto do limite do desenho (`docs/infra.md`, "Tokens por minuto"): acompanhe se passa para o alerta de 80 %; se for toda semana, o contratado sobe.
+2. Uma escola nova entrou e o contratado não acompanhou → some os alunos ativos ao desenho de `docs/infra.md` e peça ao provedor mais tokens por minuto antes do próximo horário de pico.
+3. Um laço de execuções (uma ferramenta chamada em repetição, uma tarefa que repete a saída inválida) → `ops:uso` mostra a função e a escola; a escola vê o teto do orçamento dela antes de o provedor ver o teto global.
+
+**Se nada disso resolver:** suba o contratado com o provedor, ou ajuste `LLM_TOKENS_POR_MINUTO` (o teto do balde) para o que o contrato dá de fato, e recrie o `worker-ia` e a API (`docker compose up -d worker-ia api`), fora do horário letivo. `LLM_TOKENS_POR_MINUTO` **acima** do contratado desliga a folga: nunca o suba sem o contrato mudar.
+
+**Depois:** registre no `TODO.md` a hora, o modelo e o pico (a fração) observado. Aviso que se repete toda semana vira tarefa de capacidade.
+
+## Tokens acima de 80% do contratado
+
+**Dispara quando:** o balde geral do modelo está cheio por 5 min seguidos (`max by (modelo) (ia_tokens_uso_do_teto) >= 0.8`, por 5 min; o `0,8` é o `PARTE_DO_BALDE_GERAL` do `TokenLimiter`, que o teste de alertas confere; regra
+`infra/grafana/alertas/ia-tokens-acima-do-teto.yaml`; reengenharia-continuacao, tarefa 10.0). **É saturação de capacidade, e não defeito do código, mas isso não é "nada a fazer":** o gateway está fazendo o que a regra 80, item 4, pede (o limite abaixo do contratado, com a espera e o menor), e o alerta diz que isso virou rotina, com aluno vendo "Tentar de novo" em sala agora. Quem está de plantão olha o impacto abaixo e a ação em "Se nada disso resolver".
+
+**Impacto:** a chamada sem vaga espera até 8 s ("Pensando" para o aluno, no prazo único da execução: 60 s no Tutor, 140 s na ferramenta); passados os 8 s vai ao modelo menor do perfil, se houver e se a tarefa puder (**o turno do Tutor nunca**), e termina `IA_INDISPONIVEL` se também lá não
+houver vaga: "Tentar de novo" na tela, nunca erro cru. A `ferramenta` (teto de 15 %) e a `normal` (10 %) esperam antes do Tutor, que só olha o balde geral. Cada degrau tem a sua métrica (`ia_degradacao_total{degrau}`: `espera`, `modelo_menor`, `indisponivel`).
+
+**O balde é um só para todas as escolas, de propósito** (`docs/infra.md`, "Tokens por minuto"): uma escola com muita carga pode esgotá-lo e fazer o Tutor de outra terminar `IA_INDISPONIVEL` depois de 8 s. Não vaza dado, mas é interferência entre escolas, e as vagas por escola (RF2) não a impedem, porque são outra barreira. Avaliar uma parte por escola está no `TODO.md`, para quando o piloto tiver mais de uma escola com carga real.
+
+**O painel superestima, e é seguro:** a reserva é a estimativa da chamada, e o uso real só a acerta quando a resposta chega. Chamada que falha não chama o `acertar`, e a estimativa fica no balde até o fim do minuto; as repetições internas do `ResilientAdapter` (o recuo e a nova tentativa do mesmo pedido) gastam tokens sem reserva nova. Por isso, com o provedor instável, o uso do teto pode passar do que o provedor de fato cobrou.
+
+**Primeiro olhar:** os painéis "IA: uso do teto de tokens, por modelo" e "IA: degraus da degradação" dizem quanto do minuto está ocupado e em que degrau os pedidos estão caindo; o aumento de `ia_degradacao_total{degrau="indisponivel"}` é o que o aluno e a professora já sentem. Com o `ia_espera_estourada_total` junto
+(alertas "Pergunta do Tutor cortada na espera"), a saturação é da fila e do provedor, e não de uma escola.
+
+**Causas prováveis:**
+1. O pico da manhã de segunda ou uma prova com Tutor liberado em várias escolas → capacidade: peça ao provedor mais tokens por minuto e suba `LLM_TOKENS_POR_MINUTO` junto, por escrito no contrato (`docs/infra.md`, "Tokens por minuto").
+2. Um laço (uma tarefa que repete a saída inválida, uma escola que dispara ferramenta sem parar) → `ops:uso` mostra a função e a escola; o orçamento da escola corta o laço dela. Uma tarefa que repete a saída inválida é defeito de prompt, e vira tarefa com teste.
+3. Um segundo `worker-ia` subiu sem entrar na conta (`IA_REPLICAS` não foi atualizada) → com o Redis de pé o balde é um só entre as réplicas e isso não muda o teto; mas, com o Redis fora, cada réplica segura o teto ÷ `IA_REPLICAS`, e o número errado dá teto a mais ou a menos: confira `IA_REPLICAS` no compose.
+
+**Se nada disso resolver:** avise a coordenação das escolas com Tutor em sala de que a IA está lenta nesse horário e que "Tentar de novo" é esperado; não suba `LLM_TOKENS_POR_MINUTO` acima do contratado "para passar": é o que a folga de 20 % protege contra o 429 do provedor. Se o modelo menor está respondendo, as ferramentas seguem; o Tutor não tem menor (D36).
+
+**Depois:** registre no `TODO.md` a hora, o modelo, quantos minutos e o degrau mais alto (só contagens, sem id de escola). Saturação que se repete vira tarefa de capacidade e entra na planilha de custo (`docs/infra.md`).
 
 ## Salvamento de resposta de prova lento ou falhando
 

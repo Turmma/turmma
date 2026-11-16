@@ -13,7 +13,10 @@ import type { LLMConfig } from '../config/llm-config.js'
 import { HTTP_STATUS_BY_CODE } from '../error/domain.exception.js'
 import { LLM_ERROR_CODES, LLMError } from './errors.js'
 import type { DeclaracaoDeSoberania, EnvioDaChamada, GenerationMeasurement } from './port.js'
-import { createLLMGateway, destinoDoAdaptador, MODELO_DA_REGRA_FIXA, LLMGateway, type LLMLogger } from './llm-gateway.js'
+import { createLLMGateway, destinoDoAdaptador, ESPERA_MAXIMA_DA_VAGA_MS, MODELO_DA_REGRA_FIXA, MOTIVO_MODELO_MENOR_SEM_PRECO, LLMGateway, type LLMGatewayDependencies, type LLMLogger } from './llm-gateway.js'
+import type { FilaDeTokens, LimiteDeTokens, ResultadoDaReserva } from './token-limiter.js'
+import { InvalidConfigError } from '../config/validate-config.js'
+import { RECUSA_DE_CORRECAO_DE_TEXTO_DE_ALUNO } from './tasks/propor-ferramenta.js'
 import { exigirFuncaoAtiva, InMemorySuspensoes, type SuspensaoDeFuncao } from './suspensao.js'
 import { tokensDoPedido } from './teto-de-entrada.js'
 import type { TaskDefinition } from './task.js'
@@ -40,7 +43,7 @@ function soOQuePassou<Campos extends object>(campos: Campos): { [Chave in keyof 
 }
 
 /** `semContexto`: o provedor puro, sem o contexto da escola do pedido, para o teste do que acontece sem escola no contexto. */
-function montar(opcoes: { adaptador?: ModelAdapter; orcamento?: OrcamentoDeIa; registro?: RegistroDeConsumo; suspensao?: SuspensaoDeFuncao; soberania?: DeclaracaoDeSoberania; logger?: LLMLogger; agora?: () => Date; semContexto?: true; medidor?: MedidorDeTeste['medidor'] } = {}) {
+function montar(opcoes: { adaptador?: ModelAdapter; orcamento?: OrcamentoDeIa; registro?: RegistroDeConsumo; suspensao?: SuspensaoDeFuncao; soberania?: DeclaracaoDeSoberania; logger?: LLMLogger; agora?: () => Date; semContexto?: true; medidor?: MedidorDeTeste['medidor']; limiteDeTokens?: LimiteDeTokens; modelosMenores?: LLMGatewayDependencies['modelosMenores'] } = {}) {
   const consumo = new InMemoryConsumo()
   const relogio = { agora: opcoes.agora ?? (() => new Date('2026-10-05T13:00:00Z')) }
   const puro = new LLMGateway({
@@ -49,7 +52,7 @@ function montar(opcoes: { adaptador?: ModelAdapter; orcamento?: OrcamentoDeIa; r
     orcamento: opcoes.orcamento ?? SEMPRE,
     suspensao: opcoes.suspensao ?? new InMemorySuspensoes(),
     relogio,
-    ...soOQuePassou({ soberania: opcoes.soberania, logger: opcoes.logger, medidor: opcoes.medidor }),
+    ...soOQuePassou({ soberania: opcoes.soberania, logger: opcoes.logger, medidor: opcoes.medidor, limiteDeTokens: opcoes.limiteDeTokens, modelosMenores: opcoes.modelosMenores }),
   })
   const ia = opcoes.semContexto === true ? puro : withEscolaContextOfRequest(puro)
   return { ia, consumo, relogio }
@@ -829,5 +832,423 @@ describe('destinoDoAdaptador: para onde a configuração manda o conteúdo (a li
     const config: LLMConfig = { adaptador: 'openai_compat', ...base, modelo: { baseUrl: 'http://provedor.invalido', modelos: { rapido: 'm', padrao: 'm', complexo: 'm', visao: 'm' }, processamentoLocal: false } }
     expect(() => destinoDoAdaptador(config)).toThrow()
     expect(() => createLLMGateway(config, { registro: new InMemoryConsumo(), orcamento: SEMPRE, suspensao: new InMemorySuspensoes() })).toThrow()
+  })
+})
+
+/** O limitador de mentira: reserva o que `fechados` não nomeia, e recusa o resto com a espera dita. Anota cada pedido e cada acerto, para o teste ler. */
+class LimiteDeMentira implements LimiteDeTokens {
+  readonly pedidos: { modelo: string; estimativa: number; fila: FilaDeTokens }[] = []
+  readonly acertos: number[] = []
+  /** Os `provedor:modelo` sem vaga agora: o teste os abre com o relógio. */
+  readonly fechados = new Set<string>()
+  uso = 0.5
+  /** A recusa do balde da fila vem sem o uso do geral, que nem foi consultado. */
+  recusaSemUso = false
+
+  constructor(private readonly msAteLiberar = 1_000) {}
+
+  async reservar(modelo: string, estimativa: number, fila: FilaDeTokens): Promise<ResultadoDaReserva> {
+    this.pedidos.push({ modelo, estimativa, fila })
+    if (this.fechados.has(modelo)) return this.recusaSemUso ? { concedida: false, msAteLiberar: this.msAteLiberar } : { concedida: false, msAteLiberar: this.msAteLiberar, usoDoTeto: this.uso }
+    return { concedida: true, usoDoTeto: this.uso, reserva: { acertar: async (usoReal) => void this.acertos.push(usoReal) } }
+  }
+
+  get modelosPedidos(): string[] {
+    return this.pedidos.map((pedido) => pedido.modelo)
+  }
+}
+
+const PRINCIPAL_DO_PADRAO = `${PROVEDOR_ROTEIRIZADO}:roteirizado-padrao`
+const PRINCIPAL_DO_RAPIDO = `${PROVEDOR_ROTEIRIZADO}:roteirizado-rapido`
+const MENOR_DO_PADRAO = `${PROVEDOR_ROTEIRIZADO}:menor-padrao`
+const MENOR_DO_RAPIDO = `${PROVEDOR_ROTEIRIZADO}:menor-rapido`
+const MENORES = { padrao: 'menor-padrao', rapido: 'menor-rapido' } as const
+const saidaDeAtividade = () => JSON.stringify(atividadeDeEstequiometria())
+const pedidoDaFerramenta = () => ({ tarefa: gerarAtividadeObjetiva, entrada: entradaDeAtividade(), escolaId: ESCOLA_A, execucaoId: EXECUCAO, fila: 'ferramenta' as const })
+
+async function valorDe(leitor: MedidorDeTeste, nome: string, atributo: string, valor: string): Promise<number> {
+  const ponto = (await leitor.pontos(nome)).find((candidato) => candidato.atributos[atributo] === valor)
+  return typeof ponto?.valor === 'number' ? ponto.valor : Number.NaN
+}
+
+describe('LLMGateway: o limite de tokens e a degradação (49.0; RF7, RF8; regra 80, item 4)', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('com vaga, a chamada roda no modelo do perfil, reservada na fila do pedido, e a reserva é acertada pelo uso real; nenhum degrau', async () => {
+    const limite = new LimiteDeMentira()
+    const leitor = new MedidorDeTeste()
+    const adaptador = new ScriptedAdapter([saidaDeAtividade()])
+    const { ia } = montar({ adaptador, limiteDeTokens: limite, modelosMenores: MENORES, medidor: leitor.medidor })
+    await ia.gerar(pedidoDaFerramenta())
+    expect(limite.pedidos).toEqual([{ modelo: PRINCIPAL_DO_PADRAO, estimativa: tokensDoPedido(gerarAtividadeObjetiva, entradaDeAtividade()) + gerarAtividadeObjetiva.maximoDeTokensDeSaida, fila: 'ferramenta' }])
+    expect(adaptador.modelosPedidos).toEqual([undefined])
+    // O uso real (100 de entrada e 20 de saída, do roteiro) troca a estimativa.
+    expect(limite.acertos).toEqual([120])
+    for (const degrau of ['espera', 'modelo_menor', 'indisponivel']) expect(await valorDe(leitor, 'ia.degradacao', 'degrau', degrau), degrau).toBe(0)
+    await leitor.encerrar()
+  })
+
+  it('sem fila no pedido, a reserva vale a `normal`, a do menor teto', async () => {
+    const limite = new LimiteDeMentira()
+    const { ia } = montar({ adaptador: new ScriptedAdapter([saidaDeAtividade()]), limiteDeTokens: limite })
+    await ia.gerar({ tarefa: gerarAtividadeObjetiva, entrada: entradaDeAtividade(), escolaId: ESCOLA_A })
+    expect(limite.pedidos.map((pedido) => pedido.fila)).toEqual(['normal'])
+  })
+
+  it('degrau 1: sem vaga, espera até 8 s; a vaga que abre aos 7 s leva a chamada ao modelo principal, e só a espera conta', async () => {
+    vi.useFakeTimers()
+    const limite = new LimiteDeMentira()
+    limite.fechados.add(PRINCIPAL_DO_PADRAO)
+    const leitor = new MedidorDeTeste()
+    const adaptador = new ScriptedAdapter([saidaDeAtividade()])
+    const { ia } = montar({ adaptador, limiteDeTokens: limite, modelosMenores: MENORES, medidor: leitor.medidor })
+    const resultado = ia.gerar(pedidoDaFerramenta())
+    await vi.advanceTimersByTimeAsync(6_999)
+    expect(adaptador.chamadas).toBe(0)
+    limite.fechados.delete(PRINCIPAL_DO_PADRAO)
+    await vi.advanceTimersByTimeAsync(1_000)
+    await resultado
+    expect(adaptador.modelosPedidos).toEqual([undefined])
+    expect(limite.modelosPedidos.every((modelo) => modelo === PRINCIPAL_DO_PADRAO)).toBe(true)
+    expect(await valorDe(leitor, 'ia.degradacao', 'degrau', 'espera')).toBe(1)
+    expect(await valorDe(leitor, 'ia.degradacao', 'degrau', 'modelo_menor')).toBe(0)
+    expect(await valorDe(leitor, 'ia.degradacao', 'degrau', 'indisponivel')).toBe(0)
+    await leitor.encerrar()
+  })
+
+  it('degrau 2: passados os 8 s sem vaga, vai ao modelo menor do perfil, que responde e fica no consumo e na medição; conta a espera e o menor', async () => {
+    vi.useFakeTimers()
+    const limite = new LimiteDeMentira()
+    limite.fechados.add(PRINCIPAL_DO_PADRAO)
+    const leitor = new MedidorDeTeste()
+    const adaptador = new ScriptedAdapter([saidaDeAtividade()])
+    const { ia, consumo } = montar({ adaptador, limiteDeTokens: limite, modelosMenores: MENORES, medidor: leitor.medidor })
+    const resultado = ia.gerar(pedidoDaFerramenta())
+    await vi.advanceTimersByTimeAsync(ESPERA_MAXIMA_DA_VAGA_MS - 1)
+    expect(adaptador.chamadas).toBe(0)
+    await vi.advanceTimersByTimeAsync(1)
+    const { medicao } = await resultado
+    expect(adaptador.modelosPedidos).toEqual(['menor-padrao'])
+    expect(limite.modelosPedidos.at(-1)).toBe(MENOR_DO_PADRAO)
+    expect(medicao.modelo).toBe('menor-padrao')
+    expect(consumo.registros).toMatchObject([{ modelo: 'menor-padrao', estado: 'concluida', tentativas: 1 }])
+    expect(await valorDe(leitor, 'ia.degradacao', 'degrau', 'espera')).toBe(1)
+    expect(await valorDe(leitor, 'ia.degradacao', 'degrau', 'modelo_menor')).toBe(1)
+    expect(await valorDe(leitor, 'ia.degradacao', 'degrau', 'indisponivel')).toBe(0)
+    await leitor.encerrar()
+  })
+
+  it('o modelo menor que falha: o consumo de `falhou` grava o menor, que recebeu o pedido, e não o do perfil', async () => {
+    vi.useFakeTimers()
+    const limite = new LimiteDeMentira()
+    limite.fechados.add(PRINCIPAL_DO_PADRAO)
+    const adaptador = new ScriptedAdapter([new LLMError('IA_INDISPONIVEL')])
+    const { ia, consumo } = montar({ adaptador, limiteDeTokens: limite, modelosMenores: MENORES })
+    const resultado = erroDe(ia.gerar(pedidoDaFerramenta()))
+    await vi.advanceTimersByTimeAsync(ESPERA_MAXIMA_DA_VAGA_MS)
+    expect(await resultado).toMatchObject({ codigoDeIa: 'IA_INDISPONIVEL' })
+    expect(adaptador.modelosPedidos).toEqual(['menor-padrao'])
+    // Antes de a chamada sair o consumo dizia o principal (`gasto.modelo` só mudava com a resposta).
+    expect(consumo.registros).toMatchObject([{ modelo: 'menor-padrao', estado: 'falhou', codigoDeErro: 'IA_INDISPONIVEL' }])
+  })
+
+  it('degrau 3: sem vaga no principal nem no menor, termina IA_INDISPONIVEL aos 8 s, sem chamar o modelo, sem erro cru e sem dizer que houve envio', async () => {
+    vi.useFakeTimers()
+    const limite = new LimiteDeMentira()
+    limite.fechados.add(PRINCIPAL_DO_PADRAO).add(MENOR_DO_PADRAO)
+    const leitor = new MedidorDeTeste()
+    const adaptador = new ScriptedAdapter([])
+    const { ia, consumo } = montar({ adaptador, limiteDeTokens: limite, modelosMenores: MENORES, medidor: leitor.medidor })
+    const resultado = erroDe(ia.gerar(pedidoDaFerramenta()))
+    await vi.advanceTimersByTimeAsync(ESPERA_MAXIMA_DA_VAGA_MS)
+    expect(await resultado).toMatchObject({ codigoDeIa: 'IA_INDISPONIVEL', status: 503 })
+    expect(adaptador.chamadas).toBe(0)
+    expect(consumo.registros).toMatchObject([{ estado: 'falhou', codigoDeErro: 'IA_INDISPONIVEL', tentativas: 0, envioExterno: false, provedorId: null }])
+    expect(await valorDe(leitor, 'ia.degradacao', 'degrau', 'espera')).toBe(1)
+    expect(await valorDe(leitor, 'ia.degradacao', 'degrau', 'modelo_menor')).toBe(0)
+    expect(await valorDe(leitor, 'ia.degradacao', 'degrau', 'indisponivel')).toBe(1)
+    await leitor.encerrar()
+  })
+
+  it('o turno do Tutor pula o modelo menor (D36, regra 30, item 11): sem vaga, termina IA_INDISPONIVEL sem nem reservar o menor', async () => {
+    vi.useFakeTimers()
+    const limite = new LimiteDeMentira()
+    limite.fechados.add(PRINCIPAL_DO_RAPIDO)
+    const leitor = new MedidorDeTeste()
+    const adaptador = new ScriptedAdapter([])
+    const { ia } = montar({ adaptador, limiteDeTokens: limite, modelosMenores: MENORES, soberania: CONFERIDA, medidor: leitor.medidor })
+    const resultado = erroDe(ia.gerar({ tarefa: turnoDoTutor, entrada: entradaDoTutor('não entendi essa'), escolaId: ESCOLA_A, alunoId: ALUNO_1, execucaoId: EXECUCAO, fila: 'interativa' }))
+    await vi.advanceTimersByTimeAsync(ESPERA_MAXIMA_DA_VAGA_MS)
+    expect((await resultado).codigoDeIa).toBe('IA_INDISPONIVEL')
+    expect(limite.modelosPedidos).not.toContain(MENOR_DO_RAPIDO)
+    expect(adaptador.chamadas).toBe(0)
+    expect(await valorDe(leitor, 'ia.degradacao', 'degrau', 'modelo_menor')).toBe(0)
+    expect(await valorDe(leitor, 'ia.degradacao', 'degrau', 'indisponivel')).toBe(1)
+    await leitor.encerrar()
+  })
+
+  it('sem modelo menor configurado para o perfil, o degrau é pulado e a métrica dele não muda', async () => {
+    vi.useFakeTimers()
+    const limite = new LimiteDeMentira()
+    limite.fechados.add(PRINCIPAL_DO_PADRAO)
+    const leitor = new MedidorDeTeste()
+    // Só o `rapido` tem menor: a ferramenta, que é do `padrao`, não tem.
+    const { ia } = montar({ adaptador: new ScriptedAdapter([]), limiteDeTokens: limite, modelosMenores: { rapido: 'menor-rapido' }, medidor: leitor.medidor })
+    const resultado = erroDe(ia.gerar(pedidoDaFerramenta()))
+    await vi.advanceTimersByTimeAsync(ESPERA_MAXIMA_DA_VAGA_MS)
+    expect((await resultado).codigoDeIa).toBe('IA_INDISPONIVEL')
+    expect(limite.modelosPedidos.every((modelo) => modelo === PRINCIPAL_DO_PADRAO)).toBe(true)
+    expect(await valorDe(leitor, 'ia.degradacao', 'degrau', 'modelo_menor')).toBe(0)
+    expect(await valorDe(leitor, 'ia.degradacao', 'degrau', 'indisponivel')).toBe(1)
+    await leitor.encerrar()
+  })
+
+  it('a saída do modelo menor passa pela mesma conferência: propor_ferramenta com nota na saída é recusada pela regra fixa da D55, e o menor é quem respondeu', async () => {
+    vi.useFakeTimers()
+    const limite = new LimiteDeMentira()
+    limite.fechados.add(PRINCIPAL_DO_RAPIDO)
+    const comNota = JSON.stringify({ tipo: 'texto', texto: 'A nota do aluno nessa redação é 8.', citacoes: [] })
+    const adaptador = new ScriptedAdapter([comNota, comNota])
+    const { ia, consumo } = montar({ adaptador, limiteDeTokens: limite, modelosMenores: MENORES, soberania: CONFERIDA })
+    const resultado = ia.gerar({ tarefa: proporFerramenta, entrada: entradaDoAssistente('monta uma atividade com 5 questões sobre reagente limitante'), escolaId: ESCOLA_A, execucaoId: EXECUCAO, fila: 'ferramenta' })
+    // Cada tentativa reserva de novo: a repetição também espera os 8 s pela vaga do principal antes de ir ao menor.
+    await vi.advanceTimersByTimeAsync(2 * ESPERA_MAXIMA_DA_VAGA_MS)
+    const { saida, medicao } = await resultado
+    expect(adaptador.modelosPedidos).toEqual(['menor-rapido', 'menor-rapido'])
+    expect(saida).toEqual({ tipo: 'texto', texto: RECUSA_DE_CORRECAO_DE_TEXTO_DE_ALUNO, citacoes: [] })
+    expect(JSON.stringify(saida)).not.toContain('nota do aluno')
+    expect(medicao.modelo).toBe('menor-rapido')
+    expect(consumo.registros).toMatchObject([{ modelo: 'menor-rapido', tentativas: 2 }])
+  })
+
+  it('a ordem: a D62 e o teto de entrada recusam antes do reservar, e nada é reservado', async () => {
+    const limite = new LimiteDeMentira()
+    // A D62: texto de aluno para provedor de fora, com a subida não conferida.
+    const daD62 = montar({ adaptador: new ScriptedAdapter([]), limiteDeTokens: limite, modelosMenores: MENORES })
+    expect((await erroDe(daD62.ia.gerar({ tarefa: turnoDoTutor, entrada: entradaDoTutor('não entendi essa'), escolaId: ESCOLA_A, alunoId: ALUNO_1, fila: 'interativa' }))).codigoDeIa).toBe('IA_INDISPONIVEL')
+    // O teto de entrada: a tarefa com o teto abaixo do pedido.
+    const pequena = { ...gerarAtividadeObjetiva, maximoDeTokensDeEntrada: 1 }
+    const doTeto = montar({ adaptador: new ScriptedAdapter([]), limiteDeTokens: limite, modelosMenores: MENORES })
+    expect((await erroDe(doTeto.ia.gerar({ tarefa: pequena, entrada: entradaDeAtividade(), escolaId: ESCOLA_A }))).codigoDeIa).toBe('PEDIDO_ACIMA_DO_TETO')
+    expect(limite.pedidos).toEqual([])
+  })
+
+  it('o orçamento recusa antes do reservar: nada fica reservado por pedido que não vai ao modelo', async () => {
+    const limite = new LimiteDeMentira()
+    const { ia } = montar({ adaptador: new ScriptedAdapter([]), limiteDeTokens: limite, orcamento: { consultar: async () => ({ permitido: false, codigo: 'IA_ORCAMENTO_ESGOTADO' }) } })
+    await erroDe(ia.gerar(pedidoDaFerramenta()))
+    expect(limite.pedidos).toEqual([])
+  })
+
+  it('a resposta de regra fixa não reserva token: não chama o modelo', async () => {
+    const limite = new LimiteDeMentira()
+    const { ia } = montar({ adaptador: new ScriptedAdapter([]), limiteDeTokens: limite, soberania: CONFERIDA })
+    const fixa = { ...turnoDoTutor, semModelo: () => turnoDoTutor.falso(entradaDoTutor('não entendi')) }
+    const { saida } = await ia.gerar({ tarefa: fixa, entrada: entradaDoTutor('não entendi'), escolaId: ESCOLA_A, alunoId: ALUNO_1, fila: 'interativa' })
+    expect(saida.resposta.length).toBeGreaterThan(0)
+    expect(limite.pedidos).toEqual([])
+  })
+
+  it('a repetição por saída inválida reserva de novo, com a resposta anterior e a correção na estimativa; cada chamada é acertada pelo seu uso', async () => {
+    const limite = new LimiteDeMentira()
+    const adaptador = new ScriptedAdapter(['não é json', saidaDeAtividade()])
+    const { ia } = montar({ adaptador, limiteDeTokens: limite })
+    await ia.gerar(pedidoDaFerramenta())
+    expect(limite.pedidos).toHaveLength(2)
+    expect(limite.pedidos[1]?.estimativa).toBeGreaterThan(limite.pedidos[0]?.estimativa ?? Number.POSITIVE_INFINITY)
+    expect(limite.acertos).toEqual([120, 120])
+    // A repetição leva ao modelo a resposta anterior e o que estava errado nela; a primeira chamada não leva correção.
+    expect(adaptador.correcoes[0]).toBeUndefined()
+    expect(adaptador.correcoes[1]).toMatchObject({ respostaAnterior: 'não é json' })
+  })
+
+  it('o prazo que vence durante a espera a encerra na hora: IA_TEMPO_ESGOTADO, sem chamar o modelo e sem esperar os 8 s', async () => {
+    vi.useFakeTimers()
+    const limite = new LimiteDeMentira()
+    limite.fechados.add(PRINCIPAL_DO_PADRAO)
+    const adaptador = new ScriptedAdapter([])
+    const prazo = new AbortController()
+    const { ia } = montar({ adaptador, limiteDeTokens: limite, modelosMenores: MENORES })
+    const resultado = erroDe(ia.gerar({ ...pedidoDaFerramenta(), sinal: prazo.signal }))
+    await vi.advanceTimersByTimeAsync(3_000)
+    prazo.abort()
+    expect((await resultado).codigoDeIa).toBe('IA_TEMPO_ESGOTADO')
+    expect(adaptador.chamadas).toBe(0)
+    // Nada mais é reservado depois: nem o menor.
+    expect(limite.modelosPedidos.every((modelo) => modelo === PRINCIPAL_DO_PADRAO)).toBe(true)
+  })
+
+  it('o sinal já abortado quando a espera começa a encerra sem esperar', async () => {
+    const limite = new LimiteDeMentira()
+    limite.fechados.add(PRINCIPAL_DO_PADRAO)
+    const prazo = new AbortController()
+    prazo.abort()
+    const { ia } = montar({ adaptador: new ScriptedAdapter([]), limiteDeTokens: limite })
+    expect((await erroDe(ia.gerar({ ...pedidoDaFerramenta(), sinal: prazo.signal }))).codigoDeIa).toBe('IA_TEMPO_ESGOTADO')
+  })
+
+  it('o balde que libera em milissegundos não vira laço apertado: entre duas reservas há ao menos 50 ms', async () => {
+    vi.useFakeTimers()
+    const limite = new LimiteDeMentira(1)
+    limite.fechados.add(PRINCIPAL_DO_PADRAO)
+    const { ia } = montar({ adaptador: new ScriptedAdapter([]), limiteDeTokens: limite })
+    const resultado = erroDe(ia.gerar(pedidoDaFerramenta()))
+    await vi.advanceTimersByTimeAsync(1_000)
+    // 1 000 ms a 50 ms: no máximo 21 reservas (a primeira e uma a cada 50 ms), nunca uma por milissegundo.
+    expect(limite.pedidos.length).toBeLessThanOrEqual(21)
+    await vi.advanceTimersByTimeAsync(ESPERA_MAXIMA_DA_VAGA_MS)
+    await resultado
+  })
+
+  it('o log de cada degrau leva só o evento, a tarefa, o id do modelo e o código; nunca a escola, a execução, o aluno nem o pedido (regra 20, item 9)', async () => {
+    vi.useFakeTimers()
+    const limite = new LimiteDeMentira()
+    limite.fechados.add(PRINCIPAL_DO_PADRAO).add(MENOR_DO_PADRAO)
+    const logger = registrador()
+    const { ia } = montar({ adaptador: new ScriptedAdapter([]), limiteDeTokens: limite, modelosMenores: MENORES, logger })
+    const resultado = erroDe(ia.gerar(pedidoDaFerramenta()))
+    await vi.advanceTimersByTimeAsync(ESPERA_MAXIMA_DA_VAGA_MS)
+    await resultado
+    const degraus = logger.linhas().filter((linha) => ['ia.geracao.espera_de_vaga', 'ia.geracao.sem_vaga'].includes((linha as { evento?: string }).evento ?? ''))
+    expect(degraus).toEqual([
+      { evento: 'ia.geracao.espera_de_vaga', tipo: 'gerar_atividade_objetiva', modeloId: 'roteirizado-padrao' },
+      { evento: 'ia.geracao.sem_vaga', tipo: 'gerar_atividade_objetiva', modeloId: 'menor-padrao', codigo: 'IA_INDISPONIVEL' },
+    ])
+  })
+
+  it('o log do degrau do modelo menor leva só o evento, a tarefa e o id do modelo', async () => {
+    vi.useFakeTimers()
+    const limite = new LimiteDeMentira()
+    limite.fechados.add(PRINCIPAL_DO_PADRAO)
+    const logger = registrador()
+    const { ia } = montar({ adaptador: new ScriptedAdapter([saidaDeAtividade()]), limiteDeTokens: limite, modelosMenores: MENORES, logger })
+    const resultado = ia.gerar(pedidoDaFerramenta())
+    await vi.advanceTimersByTimeAsync(ESPERA_MAXIMA_DA_VAGA_MS)
+    await resultado
+    expect(logger.linhas()).toContainEqual({ evento: 'ia.geracao.modelo_menor', tipo: 'gerar_atividade_objetiva', modeloId: 'menor-padrao' })
+  })
+
+  it('sem limitador (o local sem LLM_TOKENS_POR_MINUTO), a chamada vai direto ao modelo do perfil, sem espera nem degrau', async () => {
+    const adaptador = new ScriptedAdapter([saidaDeAtividade()])
+    const { ia } = montar({ adaptador, modelosMenores: MENORES })
+    await ia.gerar(pedidoDaFerramenta())
+    expect(adaptador.modelosPedidos).toEqual([undefined])
+  })
+
+  it('as métricas do gateway nunca levam usuário nem escola, nem execução, aluno ou texto: só provedor, perfil, resultado, código, degrau e modelo', async () => {
+    vi.useFakeTimers()
+    const limite = new LimiteDeMentira()
+    limite.fechados.add(PRINCIPAL_DO_PADRAO)
+    const leitor = new MedidorDeTeste()
+    const { ia } = montar({ adaptador: new ScriptedAdapter([saidaDeAtividade()]), limiteDeTokens: limite, modelosMenores: MENORES, medidor: leitor.medidor })
+    const resultado = ia.gerar(pedidoDaFerramenta())
+    await vi.advanceTimersByTimeAsync(ESPERA_MAXIMA_DA_VAGA_MS)
+    await resultado
+    const lidas = (await leitor.atributosDeTodas()).filter((ponto) => ponto.nome.startsWith('ia.'))
+    expect(new Set(lidas.map((ponto) => ponto.nome))).toEqual(new Set(['ia.pedido_acima_do_teto', 'ia.degradacao', 'ia.chamada.duracao', 'ia.tokens.uso_do_teto']))
+    const nomes = new Set(lidas.flatMap((ponto) => Object.keys(ponto.atributos)))
+    expect([...nomes].sort()).toEqual(['degrau', 'modelo', 'perfil', 'provedor', 'resultado', 'tarefa'])
+    await leitor.encerrar()
+  })
+
+  it('a duração e os erros da chamada ao provedor: ok na que respondeu, erro com o código na que falhou; a espera pela vaga não entra', async () => {
+    const leitor = new MedidorDeTeste()
+    const { ia } = montar({ adaptador: new ScriptedAdapter([new LLMError('IA_TEMPO_ESGOTADO'), saidaDeAtividade()]), medidor: leitor.medidor })
+    await erroDe(ia.gerar(pedidoDaFerramenta()))
+    await ia.gerar(pedidoDaFerramenta())
+    const duracoes = await leitor.pontos('ia.chamada.duracao')
+    expect(duracoes.map((ponto) => [ponto.atributos['provedor'], ponto.atributos['perfil'], ponto.atributos['resultado'], (ponto.valor as { contagem: number }).contagem]).sort()).toEqual([
+      [PROVEDOR_ROTEIRIZADO, 'padrao', 'erro', 1],
+      [PROVEDOR_ROTEIRIZADO, 'padrao', 'ok', 1],
+    ])
+    expect((await leitor.pontos('ia.chamada.erros')).map((ponto) => [ponto.atributos['codigo'], ponto.valor])).toEqual([['IA_TEMPO_ESGOTADO', 1]])
+    await leitor.encerrar()
+  })
+
+  it('o uso do teto é o da última reserva do modelo, e volta a 0 um minuto depois sem reservar', async () => {
+    vi.useFakeTimers()
+    const limite = new LimiteDeMentira()
+    limite.uso = 0.8
+    const leitor = new MedidorDeTeste()
+    const { ia } = montar({ adaptador: new ScriptedAdapter([saidaDeAtividade()]), limiteDeTokens: limite, medidor: leitor.medidor })
+    await ia.gerar(pedidoDaFerramenta())
+    expect(await valorDe(leitor, 'ia.tokens.uso_do_teto', 'modelo', 'roteirizado-padrao')).toBe(0.8)
+    await vi.advanceTimersByTimeAsync(59_000)
+    expect(await valorDe(leitor, 'ia.tokens.uso_do_teto', 'modelo', 'roteirizado-padrao')).toBe(0.8)
+    await vi.advanceTimersByTimeAsync(1_000)
+    expect(await valorDe(leitor, 'ia.tokens.uso_do_teto', 'modelo', 'roteirizado-padrao')).toBe(0)
+    await leitor.encerrar()
+  })
+})
+
+describe('LLMGateway: o uso do teto na recusa do balde da fila (49.0)', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('a recusa que não traz o uso do geral (o balde da fila cheio) não zera nem inventa a métrica: vale a última reserva', async () => {
+    vi.useFakeTimers()
+    const limite = new LimiteDeMentira()
+    limite.uso = 0.6
+    const leitor = new MedidorDeTeste()
+    const { ia } = montar({ adaptador: new ScriptedAdapter([saidaDeAtividade()]), limiteDeTokens: limite, medidor: leitor.medidor })
+    await ia.gerar(pedidoDaFerramenta())
+    expect(await valorDe(leitor, 'ia.tokens.uso_do_teto', 'modelo', 'roteirizado-padrao')).toBe(0.6)
+    limite.fechados.add(PRINCIPAL_DO_PADRAO)
+    limite.recusaSemUso = true
+    const resultado = erroDe(ia.gerar(pedidoDaFerramenta()))
+    await vi.advanceTimersByTimeAsync(ESPERA_MAXIMA_DA_VAGA_MS)
+    await resultado
+    expect(await valorDe(leitor, 'ia.tokens.uso_do_teto', 'modelo', 'roteirizado-padrao')).toBe(0.6)
+    await leitor.encerrar()
+  })
+})
+
+describe('createLLMGateway: o modelo menor precisa de preço (49.0, D14)', () => {
+  const PORTAS = { registro: new InMemoryConsumo(), orcamento: SEMPRE, suspensao: new InMemorySuspensoes() }
+  const CONFIG: LLMConfig = { adaptador: 'falso', prazosMs: PRAZOS, recuoMs: 100, replicas: 1 }
+
+  it('modelo menor sem preço em PRECO_DOS_MODELOS: a subida falha, dizendo a variável e nunca o valor', () => {
+    let erro: unknown
+    try {
+      createLLMGateway({ ...CONFIG, modelosMenores: { padrao: 'modelo-sem-preco', rapido: 'falso-menor' } }, PORTAS)
+    } catch (motivo) {
+      erro = motivo
+    }
+    expect(erro).toBeInstanceOf(InvalidConfigError)
+    expect(erro).toMatchObject({ variaveis: ['LLM_MODELO_MENOR_PADRAO'], motivos: [MOTIVO_MODELO_MENOR_SEM_PRECO] })
+    expect(JSON.stringify(erro)).not.toContain('modelo-sem-preco')
+  })
+
+  it('com preço, sobe; sem modelo menor, sobe', () => {
+    expect(() => createLLMGateway({ ...CONFIG, modelosMenores: { padrao: 'falso-menor' } }, PORTAS)).not.toThrow()
+    expect(() => createLLMGateway(CONFIG, PORTAS)).not.toThrow()
+  })
+
+  it('o medidor das portas chega ao decorador: depois de uma chamada, `ia.disjuntor.aberto` existe para o modelo e o perfil, fechado', async () => {
+    const leitor = new MedidorDeTeste()
+    const ia = withEscolaContextOfRequest(createLLMGateway(CONFIG, { ...PORTAS, registro: new InMemoryConsumo(), medidor: leitor.medidor }))
+    await ia.gerar(pedidoDaFerramenta())
+    const pontos = await leitor.pontos('ia.disjuntor.aberto')
+    expect(pontos.map((ponto) => [ponto.atributos['provedor'], ponto.atributos['modelo'], ponto.atributos['perfil'], ponto.valor])).toEqual([['falso', MODELO_FALSO, 'padrao', 0]])
+    await leitor.encerrar()
+  })
+
+  it('o menor do adaptador falso responde com o nome dele, e o disjuntor conta por modelo', async () => {
+    vi.useFakeTimers()
+    try {
+      const limite = new LimiteDeMentira()
+      limite.fechados.add(`falso:${MODELO_FALSO}`)
+      const consumo = new InMemoryConsumo()
+      const ia = withEscolaContextOfRequest(createLLMGateway({ ...CONFIG, modelosMenores: { padrao: 'falso-menor' } }, { ...PORTAS, registro: consumo, limiteDeTokens: limite }))
+      const resultado = ia.gerar(pedidoDaFerramenta())
+      await vi.advanceTimersByTimeAsync(ESPERA_MAXIMA_DA_VAGA_MS)
+      await resultado
+      expect(consumo.registros).toMatchObject([{ modelo: 'falso-menor', origem: 'falso', estado: 'concluida' }])
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

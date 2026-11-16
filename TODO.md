@@ -3835,3 +3835,16 @@ aula" em `Retencao.tsx`, o Validador conferiu: a tela já o mostra pela descriç
       sem job no banco, e a correção só protege o `execucao-interrompida.int.test.ts` (o `esvaziarAsSobras`). Tarefa que tocar esses arquivos.
 - [ ] (correção `2026-11-16-varredura-da-pendente-na-esteira`, test-engineer, 1ª, 16/11/2026) **`esvaziarAsSobras` e os projetos `integracao` e `infra` no mesmo banco:** se a esteira passar a juntá-los, o auxiliar pode encerrar a `pendente`
       de um arquivo de infra. Hoje roda um arquivo por vez (`fileParallelism: false`), e a premissa está no comentário do auxiliar.
+- [ ] (reengenharia-continuacao, 10.0, tenancy-guardian, 1ª, 16/11/2026) **O balde geral de tokens é de todas as escolas** (de propósito, `docs/infra.md` "Tokens por minuto"): uma escola com muita carga pode fazer o Tutor de outra terminar `IA_INDISPONIVEL`
+      depois de 8 s. Avaliar uma parte por escola quando o piloto tiver mais de uma escola de carga real.
+- [ ] (reengenharia-continuacao, 10.0, llm-integrator, 1ª, 16/11/2026) **`custo_micros` por chamada ainda não é calculado:** `PRECO_DOS_MODELOS` só barra a subida do modelo menor sem preço. O cálculo entra com o preço do modelo real, na D37.
+- [ ] (reengenharia-continuacao, 10.0, conformidade-reviewer, 1ª, 16/11/2026) **As AIAs `docs/aia/correcao-de-objetiva.md`, `docs/aia/sinais-e-alertas.md` e `docs/aia/adaptacao.md` não falam do modelo menor,** e `relatorio_da_correcao`,
+      `resumo_do_analista` e `adaptar_atividade` podem descer a ele. Quem pôr o modelo real com a D37 atualiza as três (regra 70, item 6a).
+- [ ] (reengenharia-continuacao, 10.0, conformidade-reviewer, 1ª, 16/11/2026) **A coordenação pode querer ver, na tela de auditoria, qual modelo produziu cada entrega** (para a D37; não é exigência da regra 70).
+- [ ] (reengenharia-continuacao, 10.0, conformidade-reviewer, 1ª, 16/11/2026) **Trocar a lista de exclusão do modelo menor (`TAREFAS_SEM_MODELO_MENOR`) por lista de permissão, ou campo obrigatório no `defineTask`:** hoje uma tarefa nova
+      desce ao menor por padrão. Muda o contrato do `defineTask`.
+- [ ] (reengenharia-continuacao, 10.0, revisor-geral e conformidade-reviewer, 1ª, 16/11/2026) **Tornar `fila` obrigatória no comando,** em vez de `pedido.fila ?? 'normal'` no gateway. Muda o contrato do comando.
+- [ ] (reengenharia-continuacao, 10.0, infra-guardian, 1ª, 16/11/2026) **Devolver a saída de reserva (`reservaQuandoInvalida`) quando a 2ª tentativa fica sem vaga:** hoje termina `IA_INDISPONIVEL` mesmo havendo reserva. Muda comportamento.
+- [ ] (reengenharia-continuacao, 10.0, infra-guardian, 1ª, 16/11/2026) **Guarda em `tools/guardas/alerta-tem-runbook.test.ts`** que confira que toda variável citada nos parágrafos dos alertas novos existe no `.env.example` (o runbook citava `LLM_API_KEY` e `LLM_PRAZO_*_MS`, que não existem; corrigido à mão na 10.0). Opcional.
+- [ ] (reengenharia-continuacao, 10.0, test-engineer, 1ª, 16/11/2026) **O caso do Redis que cai com o cliente ainda `ready`** (o comando falha), além do cliente não pronto, que é o que `token-limiter.test.ts` e o `.int` provam.
+- [ ] (reengenharia-continuacao, 10.0, test-engineer, 1ª, 16/11/2026) **A repetição que muda de modelo grava só o último em `gasto.modelo`, e o custo mistura os dois:** o `custo_micros` por chamada (item acima) precisa de um registro por chamada, na D37.

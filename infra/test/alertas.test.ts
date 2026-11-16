@@ -14,6 +14,7 @@ import { EVENTO_DO_LIMITE_DA_SALA, JANELA_DOS_LIMITES_DA_SALA_MS, SalaRateLimits
 import { WindowCounter } from '../../apps/api/src/credencial/senha/window-counter.ts'
 import { LIMITES_DO_HISTOGRAMA_HTTP_S } from '../../packages/core/src/telemetry/metrics.ts'
 import { QUEUE_PRIORITY } from '../../packages/core/src/queue/job-outbox.ts'
+import { PARTE_DO_BALDE_GERAL } from '../../packages/core/src/ia/token-limiter.ts'
 import { LIMITES_DO_PASSO_3_S as LIMITES_DO_PASSO_3_DA_IMPORTACAO_S } from '../../apps/worker/src/processors/gravar-planilha.ts'
 import { MINUTOS_DA_IMPORTACAO_NA_FILA_PARA_ALERTAR } from '../../packages/shared/src/importacao/contratos.ts'
 import { HORAS_EM_PREPARACAO_PARA_ALERTAR } from '../../packages/shared/src/privacidade/arquivo.ts'
@@ -234,6 +235,31 @@ describe('regras de alerta provisionadas', () => {
     expect(falhouDeVez.for).toBe('1m')
     expect(expressao(falhouDeVez)).toBe('max by (tipo) (job_falhos)')
     expect(limiar(falhouDeVez)).toEqual({ type: 'gt', params: [0] })
+
+    // reengenharia-continuacao, tarefa 10.0: "Provedor de IA fora" é o disjuntor aberto por 2 min, o maior valor entre as réplicas por provedor, modelo e perfil.
+    const provedorFora = regraPorUid(REGRAS_PROVISIONADAS.iaProvedorFora).regra
+    expect(provedorFora.for).toBe('2m')
+    expect(expressao(provedorFora)).toBe('max by (provedor, modelo, perfil) (ia_disjuntor_aberto)')
+    expect(limiar(provedorFora)).toEqual({ type: 'gt', params: [0] })
+    expect(provedorFora.noDataState).toBe('OK')
+    expect(NOMES_NO_PROMETHEUS.disjuntorDeIaAberto).toEqual(['ia_disjuntor_aberto'])
+
+    // "Tokens acima de 80 %": o balde cheio, que é o `PARTE_DO_BALDE_GERAL` do contratado (0,8) por 5 min, e o aviso aos 70 %, os dois pelo maior valor entre as réplicas por modelo.
+    // O limiar está na expressão (`>= 0,8`, e não `> 0,8`: o uso do teto é a ocupação do balde vezes `PARTE_DO_BALDE_GERAL`, e o balde cheio, ou a reserva que ele recusa, vale exatamente 0,8 e nunca passa dele). O `0,8` é o da constante: o balde e o alerta não divergem.
+    const aos80 = regraPorUid(REGRAS_PROVISIONADAS.iaTokensAcimaDe80).regra
+    expect(PARTE_DO_BALDE_GERAL).toBe(0.8)
+    expect(aos80.for).toBe('5m')
+    expect(expressao(aos80)).toBe(`max by (modelo) (ia_tokens_uso_do_teto) >= ${PARTE_DO_BALDE_GERAL}`)
+    expect(limiar(aos80)).toEqual({ type: 'gt', params: [0] })
+    const aos70 = regraPorUid(REGRAS_PROVISIONADAS.iaTokensAcimaDe70).regra
+    expect(aos70.for).toBe('5m')
+    expect(expressao(aos70)).toBe('max by (modelo) (ia_tokens_uso_do_teto) >= 0.7')
+    expect(limiar(aos70)).toEqual({ type: 'gt', params: [0] })
+    // O aviso vem antes do alerta: 70 % está abaixo do balde cheio.
+    expect(0.7).toBeLessThan(PARTE_DO_BALDE_GERAL)
+    expect(NOMES_NO_PROMETHEUS.usoDoTetoDeTokens).toEqual(['ia_tokens_uso_do_teto'])
+    // Nenhuma das três leva escola, execução, usuário nem aluno na consulta.
+    for (const regra of [provedorFora, aos70, aos80]) expect(expressao(regra)).not.toMatch(/escola|usuario|execucao|aluno/)
   })
 
   it('L11: a linha `sala.limite_atingido` que o limite da escola escreve traz o `escolaId` que o comando da entrada do runbook recebe', async () => {

@@ -107,4 +107,9 @@ export const NOMES_NO_PROMETHEUS = {
   pedidoAcimaDoTeto: ['ia_pedido_acima_do_teto_total'],
   esperaEstourada: ['ia_espera_estourada_total'],
   execucaoInterrompida: ['ia_execucao_interrompida_total'],
+  duracaoDaChamadaDeIa: ['ia_chamada_duracao_seconds_bucket', 'ia_chamada_duracao_seconds_count', 'ia_chamada_duracao_seconds_sum'],
+  errosDaChamadaDeIa: ['ia_chamada_erros_total'],
+  disjuntorDeIaAberto: ['ia_disjuntor_aberto'],
+  degradacaoDeIa: ['ia_degradacao_total'],
+  usoDoTetoDeTokens: ['ia_tokens_uso_do_teto'],
 } as const satisfies Record<keyof typeof METRICS, readonly string[]>

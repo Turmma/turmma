@@ -5,6 +5,7 @@ import { diaDeUso } from '../usage/usage-day.js'
 import type { ModelAdapter } from './adapter.js'
 import type { LLMErrorCode } from './errors.js'
 import { EXECUCAO_INTERROMPIDA } from './executor.js'
+import { MODELO_FALSO, MODELO_FALSO_MENOR } from './fake-adapter.js'
 import type { Perfil } from './perfis.js'
 import type { EnvioDaChamada, OutputSource } from './port.js'
 import type { TaskDefinition } from './task.js'
@@ -86,6 +87,27 @@ export function consumoEstimadoDaInterrompida(entrada: { readonly tarefa: DadosD
     ...destino.envio,
     em,
   }
+}
+
+/** O preço de um modelo, em milionésimos de real por mil tokens, o mesmo `micros` do `consumo_ia.custo_micros`. */
+export interface PrecoDoModelo {
+  readonly entradaMicrosPorMilTokens: number
+  readonly saidaMicrosPorMilTokens: number
+}
+
+/**
+ * O preço de cada modelo que a subida conhece. **Hoje a tabela só barra a subida:** o valor dos preços **não é lido por nenhum cálculo**, e o cálculo do custo por chamada (`custo_micros`) ainda não existe
+ * (fica registrado para a D37, que o fecha junto da precificação). O **modelo menor** de um perfil (`LLM_MODELO_MENOR_<PERFIL>`, 49.0) só entra se está aqui: sem preço declarado, a subida falha
+ * (`createLLMGateway`), para que o degrau não passe a usar um modelo que ninguém conferiu. Os do adaptador falso custam zero. O modelo real entra com a D37 (o teto real e os modelos menores), junto da linha dele em
+ * `docs/avaliacao-de-modelos.md`: até lá, configurar um menor contra provedor de verdade recusa a subida, de propósito.
+ */
+export const PRECO_DOS_MODELOS: Readonly<Record<string, PrecoDoModelo>> = {
+  [MODELO_FALSO]: { entradaMicrosPorMilTokens: 0, saidaMicrosPorMilTokens: 0 },
+  [MODELO_FALSO_MENOR]: { entradaMicrosPorMilTokens: 0, saidaMicrosPorMilTokens: 0 },
+}
+
+export function precoDoModelo(modelo: string): PrecoDoModelo | undefined {
+  return Object.hasOwn(PRECO_DOS_MODELOS, modelo) ? PRECO_DOS_MODELOS[modelo] : undefined
 }
 
 /** Porta do registro. A implementação em Postgres grava em `consumo_ia`, na escola do contexto. */

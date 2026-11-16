@@ -208,6 +208,23 @@ describe('a IA roda no worker', () => {
         await worker.fechar()
       }
     })
+
+    it('o `main-worker` monta o limite de tokens quando há `LLM_TOKENS_POR_MINUTO`, e é ele que o gateway reserva; sem a variável (só no `local`), nenhum limite e nenhuma espera (49.0)', async () => {
+      const com = await FilaDeIa.subirOMainWorker()
+      try {
+        expect(com.limiteDeTokens).toBe('TokenLimiter')
+        expect(com.gatewayReservaNele).toBe(true)
+      } finally {
+        await com.fechar()
+      }
+      const sem = await FilaDeIa.subirOMainWorker({ semTokensPorMinuto: true })
+      try {
+        expect(sem.limiteDeTokens).toBeNull()
+        expect(sem.gatewayReservaNele).toBe(false)
+      } finally {
+        await sem.fechar()
+      }
+    })
   })
 
   describe('payload do job', () => {
@@ -315,6 +332,20 @@ describe('a IA roda no worker', () => {
       expect(chamadas).toEqual([])
       expect(await execucaoDe(execucaoId)).toMatchObject({ estado: 'concluida', erro: null })
       expect(await consumosDa(execucaoId)).toBe(1)
+    })
+  })
+
+  describe('49.0: a fila do comando chega ao gateway', () => {
+    it('o pedido ao modelo leva a fila do comando (o Tutor na `interativa`, a ferramenta na `ferramenta`): é nela que o limite de tokens reserva', async () => {
+      const filas = new Map<string, string | undefined>()
+      fila.comModelo((pedido) => {
+        filas.set(pedido.tarefa.nome, pedido.fila)
+        return respondeNaHora(pedido)
+      })
+      await agendar(fila, a, pedidoDe(a, 'propor_ferramenta'))
+      await agendar(fila, a, pedidoDe(a, 'turno_do_tutor'))
+      await fila.ociosa()
+      expect(Object.fromEntries(filas)).toEqual({ propor_ferramenta: 'ferramenta', turno_do_tutor: 'interativa' })
     })
   })
 

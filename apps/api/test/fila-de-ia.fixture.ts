@@ -47,6 +47,7 @@ import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { subirApi, type TestApi } from './test-api.js'
 import { LLM_PROVIDER } from '../src/ia/ia.module.js'
 import { WorkerModule } from '../src/worker.module.js'
+import { LIMITE_DE_TOKENS } from '../src/ia/ia-do-worker.module.js'
 import type { AppModuleOptions } from '../src/app.module.js'
 
 /** O modelo que o teste põe no lugar do falso: recebe o pedido que o gateway receberia e devolve a saída e a medição. */
@@ -281,8 +282,18 @@ export class FilaDeIa {
    * Sobe o `WorkerModule` de verdade, o do `main-worker`, como contexto de aplicação (sem HTTP, sem porta), e devolve o que o teste confere: os
    * controllers, se ele resolve o provedor e se o healthcheck de batimento foi escrito. O batimento vai para um arquivo do teste, e não para o `/tmp/educa-batimento`.
    */
-  static async subirOMainWorker(): Promise<{ readonly controllers: number; readonly temProvedor: boolean; readonly fechar: () => Promise<void> }> {
+  static async subirOMainWorker(opcoes: { readonly semTokensPorMinuto?: true } = {}): Promise<{
+    readonly controllers: number
+    readonly temProvedor: boolean
+    /** O limite de tokens do módulo (49.0): o nome da classe, ou `null` sem `LLM_TOKENS_POR_MINUTO`. */
+    readonly limiteDeTokens: string | null
+    /** O provedor do worker leu o limite do módulo, e não outro: é o que o gateway reserva antes de cada chamada. */
+    readonly gatewayReservaNele: boolean
+    readonly fechar: () => Promise<void>
+  }> {
+    const { tokensPorMinuto: _tokens, ...iaSemTokens } = testConfig({}).ia
     const config = testConfig({})
+    const ia = opcoes.semTokensPorMinuto === true ? iaSemTokens : config.ia
     const arquivo = join(mkdtempSync(join(tmpdir(), 'main-worker-')), 'batimento')
     const contexto = await NestFactory.createApplicationContext(
       WorkerModule.forRoot(
@@ -292,7 +303,7 @@ export class FilaDeIa {
           pools: { interativa: 1, ferramenta: 1, normal: 1 },
           vagasPadrao: vagasPadraoDoAmbiente(),
           telemetria: config.telemetria,
-          ia: config.ia,
+          ia,
         },
         createLogger({ servico: 'main-worker-teste', nivel: 'silent' }),
         // Sem exportação: o medidor do teste não tem coletor.
@@ -301,8 +312,12 @@ export class FilaDeIa {
       ),
       { logger: false },
     )
+    const limite = contexto.get<{ constructor: { name: string } } | null>(LIMITE_DE_TOKENS, { strict: false })
+    const provedor = contexto.get<{ dependencias: { limiteDeTokens?: unknown } }>(LLM_PROVIDER, { strict: false })
     return {
       controllers: FilaDeIa.controllersDe(contexto),
+      limiteDeTokens: limite === null ? null : limite.constructor.name,
+      gatewayReservaNele: provedor.dependencias.limiteDeTokens !== undefined && provedor.dependencias.limiteDeTokens === limite,
       temProvedor: (() => {
         try {
           contexto.get(LLM_PROVIDER, { strict: false })

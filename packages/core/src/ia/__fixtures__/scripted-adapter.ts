@@ -13,6 +13,8 @@ export class ScriptedAdapter implements ModelAdapter {
   readonly origem = 'openai_compat'
   /** O que cada chamada recebeu de correção (`undefined` na primeira). */
   readonly correcoes: (RepairHint | undefined)[] = []
+  /** O modelo que cada chamada pediu (`undefined`: o do perfil). O degrau do modelo menor o troca. */
+  readonly modelosPedidos: (string | undefined)[] = []
 
   readonly envio: EnvioDaChamada
 
@@ -34,8 +36,9 @@ export class ScriptedAdapter implements ModelAdapter {
   async chamar<Entrada, Saida>(chamada: ModelCall<Entrada, Saida>): Promise<ModelResponse> {
     const item = this.roteiro[this.correcoes.length]
     this.correcoes.push(chamada.correcao)
+    this.modelosPedidos.push(chamada.modelo)
     if (item === undefined) throw new Error('o roteiro do teste acabou antes das chamadas')
     if (item instanceof Error) throw item
-    return { texto: item, modelo: this.modeloDoPerfil(chamada.tarefa.perfil), tokensDeEntrada: 100, tokensDeSaida: 20 }
+    return { texto: item, modelo: chamada.modelo ?? this.modeloDoPerfil(chamada.tarefa.perfil), tokensDeEntrada: 100, tokensDeSaida: 20 }
   }
 }

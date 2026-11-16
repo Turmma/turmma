@@ -27,6 +27,13 @@ describe('o teto de entrada de cada tarefa é o pior pedido válido', () => {
     expect(comum).toBeLessThan(TASK_CATALOG.gerar_atividade_objetiva.maximoDeTokensDeEntrada)
   })
 
+  it('a repetição leva a resposta anterior e os problemas: o pedido dela é maior que o primeiro, e a reserva de tokens a conta (49.0)', () => {
+    const tarefa = TASK_CATALOG.gerar_atividade_objetiva
+    const primeiro = tokensDoPedido(tarefa, entradaDeAtividade())
+    const repeticao = tokensDoPedido(tarefa, entradaDeAtividade(), { respostaAnterior: 'x'.repeat(4_000), problemas: ['o campo questoes está vazio'] })
+    expect(repeticao).toBeGreaterThan(primeiro + 500)
+  })
+
   it('o pedido de cada tarefa passa pelo esquema de entrada, com o campo opcional que o esquema aceita presente', () => {
     const adaptacao = piorEntradaDaTarefa(TASK_CATALOG.adaptar_atividade)
     // A regra cruzada (a atividade de origem não é versão adaptada; tempo extra só com o tipo) retira o que ela recusa.

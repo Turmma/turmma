@@ -2414,6 +2414,174 @@
           "range": true
         }
       ]
+    },
+    {
+      "id": 52,
+      "type": "timeseries",
+      "title": "IA: chamadas ao provedor",
+      "description": "Duração (p95, em segundos) e erros por código das chamadas ao modelo, por provedor e perfil (reengenharia-continuacao, tarefa 10.0). Só a chamada ao provedor: a espera pela vaga de tokens e a repetição por saída inválida ficam de fora. `IA_INDISPONIVEL` é o provedor caído ou recusando conexão; `IA_TEMPO_ESGOTADO`, o provedor lento. Sem escola, execução nem usuário no rótulo. Ver \"Provedor de IA fora\" no runbook.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 171
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le, provedor, perfil) (rate(ia_chamada_duracao_seconds_bucket[5m])))",
+          "legendFormat": "p95 {{provedor}} {{perfil}}",
+          "range": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (provedor, perfil, codigo) (increase(ia_chamada_erros_total[5m]))",
+          "legendFormat": "erros {{provedor}} {{perfil}} {{codigo}}",
+          "range": true
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max by (provedor, modelo, perfil) (ia_disjuntor_aberto)",
+          "legendFormat": "disjuntor aberto {{provedor}} {{modelo}} {{perfil}}",
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 53,
+      "type": "timeseries",
+      "title": "IA: uso do teto de tokens, por modelo",
+      "description": "Quanto do contratado (`LLM_TOKENS_POR_MINUTO`) o balde geral do modelo consumiu no minuto, de 0 a 0,8 (reengenharia-continuacao, tarefa 10.0): 0,8 é o balde cheio, onde a espera e o degrau começam; o aviso é aos 0,7. Sem escola, execução nem usuário no rótulo. Ver \"Tokens acima de 80% do contratado\" no runbook.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 171
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max by (modelo) (ia_tokens_uso_do_teto)",
+          "legendFormat": "{{modelo}}",
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 54,
+      "type": "timeseries",
+      "title": "IA: degraus da degradação",
+      "description": "Quantas vezes um pedido desceu cada degrau por falta de vaga de tokens (reengenharia-continuacao, tarefa 10.0): `espera` (esperou até 8 s), `modelo_menor` (foi ao menor do perfil) e `indisponivel` (terminou IA_INDISPONIVEL). O aumento de `indisponivel` é o que o aluno e a professora já sentem. Sem escola, execução nem usuário no rótulo. Ver \"Tokens acima de 80% do contratado\" no runbook.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 171
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (degrau) (increase(ia_degradacao_total[1h]))",
+          "legendFormat": "{{degrau}}",
+          "range": true
+        }
+      ]
     }
   ]
 }

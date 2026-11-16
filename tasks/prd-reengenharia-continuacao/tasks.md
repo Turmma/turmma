@@ -69,11 +69,11 @@ paralela desde o começo e não alongam o caminho, que é o da IA (1.0 → 11.0)
   - [x] 9.3 `docs/lgpd.md` ("Uso do Tutor") e a N21 da AIA
   - [x] 9.4 Testes
 
-- [ ] **10.0 — Toda chamada de modelo passa pelo limite de tokens por minuto, com degradação (49.0)**
-  - [ ] 10.1 `TokenLimiter` com `RateLimiterRedis`: o balde geral e os da `ferramenta` e da `normal`; o `insuranceLimiter`
-  - [ ] 10.2 A espera de 8 s, o modelo menor (fora do `turno_do_tutor`) e `IA_INDISPONIVEL`, dentro do prazo único
-  - [ ] 10.3 Configuração; métricas; alertas e runbook
-  - [ ] 10.4 Testes
+- [x] **10.0 — Toda chamada de modelo passa pelo limite de tokens por minuto, com degradação (49.0)**
+  - [x] 10.1 `TokenLimiter` com `RateLimiterRedis`: o balde geral e os da `ferramenta` e da `normal`; o `insuranceLimiter`
+  - [x] 10.2 A espera de 8 s, o modelo menor (fora do `turno_do_tutor`) e `IA_INDISPONIVEL`, dentro do prazo único
+  - [x] 10.3 Configuração; métricas; alertas e runbook
+  - [x] 10.4 Testes
 
 - [ ] **11.0 — A carga da manhã prova o Tutor dentro da meta com a IA no worker (47.0)**
   - [ ] 11.1 `FASE=sala` em `justica-entre-escolas.js`, com o `kill -9`; `infra/carga.env`

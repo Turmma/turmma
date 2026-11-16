@@ -12,6 +12,7 @@ import {
   MOTIVO_PROVEDOR_ID_DE_EXEMPLO,
   MOTIVO_RECUO_MAIOR_QUE_O_PRAZO,
   MOTIVO_SEM_PROVEDOR_ID,
+  MOTIVO_SEM_TOKENS_POR_MINUTO,
 } from './llm-config.js'
 import { InvalidConfigError } from './validate-config.js'
 
@@ -19,6 +20,8 @@ const LOCAL = { AMBIENTE: 'local' }
 /** Fora da nossa rede (o padrão) o provedor tem de ter id; o teste que prova a exigência o tira. */
 const LLAMA = { ...LOCAL, IA_ADAPTADOR: 'openai_compat', LLM_BASE_URL: 'http://127.0.0.1:8080/v1', LLM_MODELO: 'qwen3-8b', IA_PROVEDOR_ID: 'provedor-de-teste' }
 const SEM_PROVEDOR = { IA_PROVEDOR_ID: undefined }
+/** O contratado: fora de `local` a variável é obrigatória. */
+const TOKENS = { LLM_TOKENS_POR_MINUTO: '2500000' }
 const PRAZOS_PADRAO = { rapido: 20_000, padrao: 60_000, complexo: 60_000, visao: 60_000 }
 
 function erroDe(ambiente: Record<string, string | undefined>): InvalidConfigError {
@@ -61,10 +64,10 @@ describe('lerConfiguracaoDeIa', () => {
   })
 
   it('em produção o adaptador falso é recusado: escola real não recebe conteúdo de demonstração', () => {
-    const erro = erroDe({ AMBIENTE: 'producao' })
+    const erro = erroDe({ AMBIENTE: 'producao', ...TOKENS })
     expect(erro.variaveis).toEqual(['IA_ADAPTADOR'])
     expect(erro.motivos).toEqual([MOTIVO_ADAPTADOR_FALSO_EM_PRODUCAO])
-    expect(loadLLMConfig({ ...LLAMA, AMBIENTE: 'producao', LLM_BASE_URL: 'https://api.provedor.example/v1' }).adaptador).toBe('openai_compat')
+    expect(loadLLMConfig({ ...LLAMA, ...TOKENS, AMBIENTE: 'producao', LLM_BASE_URL: 'https://api.provedor.example/v1' }).adaptador).toBe('openai_compat')
   })
 
   it('o modelo local: endereço, um id comum para os quatro perfis e processamento local declarado', () => {
@@ -122,10 +125,10 @@ describe('lerConfiguracaoDeIa', () => {
 
   it('o id de exemplo do .env.example só vale em local: em staging e produção, com envio externo, a subida é recusada', () => {
     for (const ambiente of ['staging', 'producao']) {
-      expect(erroDe({ ...LLAMA, AMBIENTE: ambiente, IA_PROVEDOR_ID: 'provedor-de-exemplo' }), ambiente).toMatchObject({ variaveis: ['IA_PROVEDOR_ID'], motivos: [MOTIVO_PROVEDOR_ID_DE_EXEMPLO] })
+      expect(erroDe({ ...LLAMA, ...TOKENS, AMBIENTE: ambiente, IA_PROVEDOR_ID: 'provedor-de-exemplo' }), ambiente).toMatchObject({ variaveis: ['IA_PROVEDOR_ID'], motivos: [MOTIVO_PROVEDOR_ID_DE_EXEMPLO] })
     }
     expect(loadLLMConfig({ ...LLAMA, AMBIENTE: 'local', IA_PROVEDOR_ID: 'provedor-de-exemplo' }).modelo?.provedorId).toBe('provedor-de-exemplo')
-    expect(() => loadLLMConfig({ ...LLAMA, AMBIENTE: 'producao', LLM_PROCESSAMENTO_LOCAL: 'true', IA_PROVEDOR_ID: 'provedor-de-exemplo' })).not.toThrow()
+    expect(() => loadLLMConfig({ ...LLAMA, ...TOKENS, AMBIENTE: 'producao', LLM_PROCESSAMENTO_LOCAL: 'true', IA_PROVEDOR_ID: 'provedor-de-exemplo' })).not.toThrow()
   })
 
   it('com processamento local não há provedor a declarar: a variável é dispensada', () => {
@@ -252,5 +255,47 @@ describe('lerConfiguracaoDeIa', () => {
 
   it('endereço inválido com processamento local declarado aponta só o endereço, sem quebrar a validação', () => {
     expect(erroDe({ ...LLAMA, LLM_BASE_URL: 'llama', LLM_PROCESSAMENTO_LOCAL: 'true' }).variaveis).toEqual(['LLM_BASE_URL'])
+  })
+
+  it('LLM_TOKENS_POR_MINUTO é obrigatória fora de local e opcional no local (49.0)', () => {
+    for (const ambiente of ['staging', 'producao']) {
+      expect(erroDe({ ...LLAMA, AMBIENTE: ambiente }), ambiente).toMatchObject({ variaveis: ['LLM_TOKENS_POR_MINUTO'], motivos: [MOTIVO_SEM_TOKENS_POR_MINUTO] })
+      // O compose entrega a variável sem valor como texto vazio: vale como ausente, e a subida recusa do mesmo jeito.
+      expect(erroDe({ ...LLAMA, AMBIENTE: ambiente, LLM_TOKENS_POR_MINUTO: '' }).variaveis, ambiente).toEqual(['LLM_TOKENS_POR_MINUTO'])
+      expect(loadLLMConfig({ ...LLAMA, ...TOKENS, AMBIENTE: ambiente }).tokensPorMinuto, ambiente).toBe(2_500_000)
+    }
+    expect(loadLLMConfig(LOCAL)).not.toHaveProperty('tokensPorMinuto')
+    expect(loadLLMConfig({ ...LOCAL, ...TOKENS }).tokensPorMinuto).toBe(2_500_000)
+    // Valor que não é número inteiro razoável é recusado, com o nome da variável.
+    expect(erroDe({ ...LOCAL, LLM_TOKENS_POR_MINUTO: 'muito' }).variaveis).toEqual(['LLM_TOKENS_POR_MINUTO'])
+    expect(erroDe({ ...LOCAL, LLM_TOKENS_POR_MINUTO: '999' }).variaveis).toEqual(['LLM_TOKENS_POR_MINUTO'])
+  })
+
+  it('o modelo menor é opcional por perfil: só o perfil declarado entra, e sem nenhum a configuração não o traz (49.0)', () => {
+    expect(loadLLMConfig(LOCAL)).not.toHaveProperty('modelosMenores')
+    expect(loadLLMConfig({ ...LOCAL, LLM_MODELO_MENOR_RAPIDO: '', LLM_MODELO_MENOR_PADRAO: '' })).not.toHaveProperty('modelosMenores')
+    const menores = { LLM_MODELO_MENOR_RAPIDO: 'a', LLM_MODELO_MENOR_PADRAO: 'b', LLM_MODELO_MENOR_COMPLEXO: 'c', LLM_MODELO_MENOR_VISAO: 'd' }
+    expect(loadLLMConfig({ ...LOCAL, ...menores }).modelosMenores).toEqual({ rapido: 'a', padrao: 'b', complexo: 'c', visao: 'd' })
+    expect(loadLLMConfig({ ...LOCAL, LLM_MODELO_MENOR_PADRAO: 'b' }).modelosMenores).toEqual({ padrao: 'b' })
+  })
+
+  it('as variáveis que a 5.0 tirou (IA_EXECUCOES_POR_ESCOLA, IA_EXECUCOES_TOTAL, IA_EXECUCAO_TIMEOUT_MS) não existem mais na configuração nem no exemplo', () => {
+    const raiz = fileURLToPath(new URL('../../../../', import.meta.url))
+    const exemplo = readFileSync(`${raiz}.env.example`, 'utf8')
+    const compose = readFileSync(`${raiz}infra/compose.yml`, 'utf8')
+    const fonte = readFileSync(fileURLToPath(new URL('./llm-config.ts', import.meta.url)), 'utf8')
+    for (const saiu of ['IA_EXECUCOES_POR_ESCOLA', 'IA_EXECUCOES_TOTAL', 'IA_EXECUCAO_TIMEOUT_MS']) {
+      expect(exemplo, saiu).not.toContain(saiu)
+      expect(compose, saiu).not.toContain(saiu)
+      expect(fonte, saiu).not.toContain(saiu)
+    }
+  })
+
+  it('o .env.example declara o contratado e o compose o entrega à API e ao worker de IA (49.0)', () => {
+    const raiz = fileURLToPath(new URL('../../../../', import.meta.url))
+    const exemplo = parseEnv(readFileSync(`${raiz}.env.example`, 'utf8'))
+    expect(Number(exemplo['LLM_TOKENS_POR_MINUTO'])).toBeGreaterThanOrEqual(1_000)
+    const compose = readFileSync(`${raiz}infra/compose.yml`, 'utf8')
+    expect(compose.match(/LLM_TOKENS_POR_MINUTO: \$\{LLM_TOKENS_POR_MINUTO:\?/g)).toHaveLength(2)
   })
 })

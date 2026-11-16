@@ -324,6 +324,28 @@ Toda chamada de modelo já passa pela porta `LLMProvider` (regra 30). É ali que
   "o tutor está pensando". Se passar do limite, cai para um modelo menor do mesmo perfil.
   Se o provedor principal falhar, vai para o de reserva. O professor vê o sinal de
   sobrecarga no modo sala
+
+  **O que está implementado (reengenharia-continuacao, tarefa 10.0):** o `TokenLimiter` (`packages/core/src/ia/token-limiter.ts`,
+  `rate-limiter-flexible` no Redis da fila, D81) reserva a estimativa de cada chamada (a entrada do pedido mais o máximo de saída da
+  tarefa) antes de ela sair, e acerta pelo uso real depois, dentro do mesmo minuto. Há um balde geral de **80 % do contratado** por
+  `provedor:modelo`, somado entre as réplicas do `worker-ia`, e, antes dele, um balde menor para a `ferramenta` (15 %) e outro para a
+  `normal` (10 %): cheio o balde da fila, quem espera é ela, e o Tutor, que só olha o geral, segue. Sem vaga, o pedido **espera até 8 s**
+  (dentro do prazo único da execução), **desce ao modelo menor do perfil** (`LLM_MODELO_MENOR_<PERFIL>`, opcional; o turno do Tutor
+  nunca, D36) e então termina **`IA_INDISPONIVEL`**, sem troca contada e sem erro cru. O provedor de reserva fica para a D37. Com o
+  Redis fora, cada réplica segura o teto dividido por `IA_REPLICAS`: nunca libera sem teto. Cada degrau tem a sua métrica
+  (`ia.degradacao{degrau}`) e o uso do balde também (`ia.tokens.uso_do_teto{modelo}`), com os alertas "Tokens acima de 70% do
+  contratado" (aviso) e "Tokens acima de 80% do contratado" (o balde cheio), e "Provedor de IA fora" (o disjuntor aberto por 2 min).
+
+  **O balde geral é de todas as escolas, de propósito.** O limite é do **provedor** (o contratado é por conta, e não por escola), e por isso o balde é um só por `provedor:modelo`. Uma escola com muita carga pode esgotá-lo
+  e fazer o Tutor de outra terminar `IA_INDISPONIVEL` depois de 8 s. Isso não vaza dado, mas é interferência entre escolas, e as vagas por escola (RF2, `VAGAS_ESCOLA_*`) não a impedem: são outra barreira, que limita jobs
+  em andamento, e não tokens. Uma parte por escola fica no `TODO.md`, para quando o piloto tiver mais de uma escola com carga real.
+
+  **Tokens por minuto, o contrato (`LLM_TOKENS_POR_MINUTO`):** o balde geral vale 80 % do contratado, e no pico da manhã de segunda
+  esperam-se uns 1,5 milhão de tokens por minuto do Tutor mais uns 0,2 milhão da ferramenta (seção 3.2), **~1,7 milhão**. Com a `normal`
+  cheia (10 % do contratado, do Analista), o balde geral deixa 70 % para o Tutor e a ferramenta, e o piso do contrato é 1,7 ÷ 0,7 ≈ **2,5 milhões por minuto**:
+  é o número do `.env.example` (`LLM_TOKENS_POR_MINUTO=2500000`), e o que o contrato com o provedor precisa dizer por escrito antes
+  do primeiro aluno real (D29, D37). Contratar menos não derruba o sistema: aumenta a espera e os degraus. Fora do `AMBIENTE=local` a
+  variável é obrigatória, e o modelo menor só sobe com preço em `PRECO_DOS_MODELOS` (D14)
 - **Timeout e circuit breaker:** provedor lento não segura conexão da API
 
 ---

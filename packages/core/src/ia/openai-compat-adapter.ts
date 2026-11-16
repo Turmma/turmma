@@ -104,7 +104,7 @@ export class OpenAICompatAdapter implements ModelAdapter {
   }
 
   async chamar<Entrada, Saida>(chamada: ModelCall<Entrada, Saida>): Promise<ModelResponse> {
-    const modelo = this.modeloDoPerfil(chamada.tarefa.perfil)
+    const modelo = chamada.modelo ?? this.modeloDoPerfil(chamada.tarefa.perfil)
     const mensagens = montarMensagens(chamada)
     const corpo = JSON.stringify({
       model: modelo,

@@ -1,5 +1,6 @@
 import { BrokenCircuitError, TaskCancelledError } from 'cockatiel'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
 import { withEscolaContextOfRequest } from './__fixtures__/escola-context.js'
 import { ScriptedAdapter } from './__fixtures__/scripted-adapter.js'
 import { entradaDeAtividade, ESCOLA_A } from './__fixtures__/inputs.js'
@@ -418,6 +419,48 @@ describe('AdaptadorResiliente: o disjuntor', { timeout: LIMITE_DO_TESTE_MS }, ()
     interno.comportamento = responde
     const doMenor = await chamarEEsperar(chamar('padrao'), 10)
     expect(doMenor.valor).toEqual(RESPOSTA)
+  })
+
+  it('o modelo que a chamada pede (o degrau do modelo menor do gateway) tem o disjuntor dele: o principal aberto não o fecha', async () => {
+    const { interno, adaptador, chamar } = montar(falha('servidor'))
+    await chamarEmFila(() => chamar('padrao'), FALHAS_PARA_ABRIR_O_DISJUNTOR)
+    await chamarEmFila(() => chamar('padrao'), 1)
+    expect(interno.chamadas).toBe(FALHAS_PARA_ABRIR_O_DISJUNTOR)
+    interno.comportamento = responde
+    // O principal segue aberto: a chamada ao modelo do perfil sai sem pedido ao provedor. A do menor, com `modelo`, chega a ele.
+    const doPrincipal = await chamarEEsperar(chamar('padrao'), 10)
+    expect(codigoDe(doPrincipal)).toBe('IA_INDISPONIVEL')
+    const doMenor = await chamarEEsperar(adaptador.chamar({ tarefa: tarefaDo('padrao'), entrada: entradaDeAtividade(), sinal: new AbortController().signal, modelo: 'modelo-menor' }), 10)
+    expect(doMenor.valor).toEqual(RESPOSTA)
+    // E o menor abre pelas falhas dele, sem abrir o principal de volta: cinco falhas seguidas no menor.
+    interno.comportamento = falha('servidor')
+    for (let vez = 0; vez < FALHAS_PARA_ABRIR_O_DISJUNTOR; vez += 1) await chamarEEsperar(adaptador.chamar({ tarefa: tarefaDo('padrao'), entrada: entradaDeAtividade(), sinal: new AbortController().signal, modelo: 'modelo-menor' }), 10)
+    const chamadasAntes = interno.chamadas
+    await chamarEEsperar(adaptador.chamar({ tarefa: tarefaDo('padrao'), entrada: entradaDeAtividade(), sinal: new AbortController().signal, modelo: 'modelo-menor' }), 10)
+    expect(interno.chamadas).toBe(chamadasAntes)
+  })
+
+  it('`ia.disjuntor.aberto{provedor,modelo,perfil}`: 0 com o disjuntor fechado, 1 aberto, 0 de novo quando a chamada de teste dá certo; um por modelo e perfil', async () => {
+    const leitor = new MedidorDeTeste()
+    const { interno, adaptador, chamar } = montar(responde, { medidor: leitor.medidor })
+    const valores = async () => Object.fromEntries((await leitor.pontos('ia.disjuntor.aberto')).map((ponto) => [`${String(ponto.atributos['provedor'])}|${String(ponto.atributos['modelo'])}|${String(ponto.atributos['perfil'])}`, ponto.valor]))
+    // Sem chamada ainda, nenhum disjuntor existe e nada é observado.
+    expect(await valores()).toEqual({})
+    await chamarEmFila(() => chamar('padrao'), 1)
+    expect(await valores()).toEqual({ 'provedor-de-teste|modelo-unico|padrao': 0 })
+    interno.comportamento = falha('servidor')
+    await chamarEmFila(() => chamar('padrao'), FALHAS_PARA_ABRIR_O_DISJUNTOR)
+    expect(await valores()).toEqual({ 'provedor-de-teste|modelo-unico|padrao': 1 })
+    // O do menor aparece à parte, fechado, e o do `padrao` segue aberto.
+    interno.comportamento = responde
+    await chamarEEsperar(adaptador.chamar({ tarefa: tarefaDo('padrao'), entrada: entradaDeAtividade(), sinal: new AbortController().signal, modelo: 'modelo-menor' }), 10)
+    expect(await valores()).toEqual({ 'provedor-de-teste|modelo-unico|padrao': 1, 'provedor-de-teste|modelo-menor|padrao': 0 })
+    // Meio aberto ainda vale 1: só a chamada de teste que dá certo fecha.
+    await avancar(MEIO_ABRE_O_DISJUNTOR_EM_MS)
+    expect((await valores())['provedor-de-teste|modelo-unico|padrao']).toBe(1)
+    await chamarEmFila(() => chamar('padrao'), 1)
+    expect((await valores())['provedor-de-teste|modelo-unico|padrao']).toBe(0)
+    await leitor.encerrar()
   })
 
   describe('a chamada lenta', () => {

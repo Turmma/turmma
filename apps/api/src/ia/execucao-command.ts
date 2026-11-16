@@ -78,6 +78,7 @@ export function comoExecutavel<Entrada, Saida, Lido>(comando: ExecucaoCommand<En
         escolaId: requireEscolaId(),
         execucaoId: execucao.id,
         sinal,
+        fila: comando.fila,
         ...(alunoId === undefined ? {} : { alunoId }),
         ...(turmaId === undefined ? {} : { turmaId }),
       })

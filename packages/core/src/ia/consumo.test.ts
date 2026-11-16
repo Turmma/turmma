@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { consumoEstimadoDaInterrompida, DURACAO_MAXIMA_DA_LINHA_MS, type DestinoDoAdaptador } from './consumo.js'
+import { consumoEstimadoDaInterrompida, DURACAO_MAXIMA_DA_LINHA_MS, PRECO_DOS_MODELOS, precoDoModelo, type DestinoDoAdaptador } from './consumo.js'
+import { MODELO_FALSO, MODELO_FALSO_MENOR } from './fake-adapter.js'
 import { proporFerramenta } from './tasks/propor-ferramenta.js'
 
 const EXECUCAO = '1d2e3f4a-5b6c-4d7e-8f90-a1b2c3d4e5f6'
@@ -17,5 +18,18 @@ describe('consumoEstimadoDaInterrompida: a duração da linha', () => {
     expect(duracaoDa(301_000.4)).toBe(301_000)
     expect(duracaoDa(DURACAO_MAXIMA_DA_LINHA_MS)).toBe(DURACAO_MAXIMA_DA_LINHA_MS)
     expect(duracaoDa(-5)).toBe(0)
+  })
+})
+
+describe('precoDoModelo: o que a subida conhece (49.0, D14)', () => {
+  it('os dois do adaptador falso custam zero; modelo que não está na tabela não tem preço', () => {
+    expect(precoDoModelo(MODELO_FALSO)).toEqual({ entradaMicrosPorMilTokens: 0, saidaMicrosPorMilTokens: 0 })
+    expect(precoDoModelo(MODELO_FALSO_MENOR)).toEqual({ entradaMicrosPorMilTokens: 0, saidaMicrosPorMilTokens: 0 })
+    expect(precoDoModelo('qwen-pequeno')).toBeUndefined()
+    expect(Object.keys(PRECO_DOS_MODELOS).sort()).toEqual([MODELO_FALSO, MODELO_FALSO_MENOR].sort())
+  })
+
+  it('o nome que existe em todo objeto (`constructor`, `toString`, `__proto__`) não é modelo com preço', () => {
+    for (const nome of ['constructor', 'toString', '__proto__', 'hasOwnProperty']) expect(precoDoModelo(nome), nome).toBeUndefined()
   })
 })

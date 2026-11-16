@@ -1,5 +1,6 @@
 import type { OrigemDaSaidaDeIa } from '@educa/shared'
 import type { Perfil } from './perfis.js'
+import type { FilaDeTokens } from './token-limiter.js'
 import type { TaskDefinition } from './task.js'
 
 /**
@@ -26,6 +27,11 @@ export interface GenerationRequest<Entrada, Saida> {
   readonly execucaoId?: string
   /** Cancela a chamada em curso: o processador da execução (`ExecucaoProcessor`, no `main-worker`) passa o dele, e a execução que estourou o prazo não segue gastando. */
   readonly sinal?: AbortSignal
+  /**
+   * A fila de onde o pedido vem (`interativa`, `ferramenta`, `normal`): é nela que o limite de tokens reserva antes (49.0). O comando registrado a diz; sem ela, vale a `normal`, a do
+   * menor teto.
+   */
+  readonly fila?: FilaDeTokens
 }
 
 /**

@@ -1,6 +1,7 @@
 import {
   BrokenCircuitError,
   circuitBreaker,
+  CircuitState,
   ConsecutiveBreaker,
   DelegateBackoff,
   handleWhen,
@@ -12,6 +13,8 @@ import {
   type IDefaultPolicyContext,
   type IPolicy,
 } from 'cockatiel'
+import type { Meter } from '@opentelemetry/api'
+import { METRICS } from '../telemetry/metrics.js'
 import type { ModelAdapter, ModelCall, ModelResponse } from './adapter.js'
 import { LLMError, ProviderError, type ProviderFailure } from './errors.js'
 import type { Perfil } from './perfis.js'
@@ -31,6 +34,15 @@ export interface ResiliencePolicy {
   readonly recuoMs: number
   /** Sorteio do jitter, entre 0 e 1 (`Math.random`). O teste o fixa. */
   readonly aleatorio: () => number
+  /** Onde `ia.disjuntor.aberto{provedor,modelo,perfil}` é observada (10.0). Sem ele o disjuntor vale do mesmo jeito, só sem a métrica. */
+  readonly medidor?: Meter
+}
+
+/** O estado de um disjuntor, como a métrica o lê: o modelo e o perfil são os da chave dele, e `aberto` é 1 enquanto não está fechado. */
+interface EstadoDoDisjuntor {
+  readonly modelo: string
+  readonly perfil: Perfil
+  aberto: 0 | 1
 }
 
 interface Tentativa {
@@ -95,6 +107,7 @@ export class ResilientAdapter implements ModelAdapter {
   readonly origem: ModelAdapter['origem']
   readonly envio: EnvioDaChamada
   private readonly politicas = new Map<string, Resiliencia>()
+  private readonly estados = new Map<string, EstadoDoDisjuntor>()
 
   constructor(
     private readonly interno: ModelAdapter,
@@ -102,6 +115,10 @@ export class ResilientAdapter implements ModelAdapter {
   ) {
     this.origem = interno.origem
     this.envio = interno.envio
+    const provedor = interno.envio.provedorId ?? interno.origem
+    politica.medidor?.createObservableGauge(METRICS.disjuntorDeIaAberto, { description: '1 enquanto o disjuntor do modelo e do perfil não está fechado, por provedor, modelo e perfil' }).addCallback((observador) => {
+      for (const estado of this.estados.values()) observador.observe(estado.aberto, { provedor, modelo: estado.modelo, perfil: estado.perfil })
+    })
   }
 
   modeloDoPerfil(perfil: Perfil): string {
@@ -111,7 +128,7 @@ export class ResilientAdapter implements ModelAdapter {
   async chamar<Entrada, Saida>(chamada: ModelCall<Entrada, Saida>): Promise<ModelResponse> {
     const perfil = chamada.tarefa.perfil
     try {
-      const { resposta } = await this.resiliencia(perfil).execute((contexto) => this.tentar(chamada, contexto.signal), chamada.sinal)
+      const { resposta } = await this.resiliencia(perfil, chamada.modelo ?? this.interno.modeloDoPerfil(perfil)).execute((contexto) => this.tentar(chamada, contexto.signal), chamada.sinal)
       return resposta
     } catch (erro) {
       throw traduzir(erro)
@@ -135,10 +152,10 @@ export class ResilientAdapter implements ModelAdapter {
 
   /**
    * Um disjuntor por modelo e perfil, criado na primeira chamada e mantido: ele só vale compartilhado. O provedor é
-   * o desta instância (uma por `createLLMGateway`), e por isso não entra na chave.
+   * o desta instância (uma por `createLLMGateway`), e por isso não entra na chave. O modelo é o que atende a chamada: o menor do degrau (49.0) tem o seu.
    */
-  private resiliencia(perfil: Perfil): Resiliencia {
-    const chave = `${this.interno.modeloDoPerfil(perfil)}|${perfil}`
+  private resiliencia(perfil: Perfil, modelo: string): Resiliencia {
+    const chave = `${modelo}|${perfil}`
     const guardada = this.politicas.get(chave)
     if (guardada !== undefined) return guardada
     const prazoMs = this.politica.prazosMs[perfil]
@@ -164,6 +181,12 @@ export class ResilientAdapter implements ModelAdapter {
       handleWhen(pesaNoDisjuntor).orWhenResult((resultado) => (resultado as Tentativa).lenta),
       { breaker: new ConsecutiveBreaker(FALHAS_PARA_ABRIR_O_DISJUNTOR), halfOpenAfter: MEIO_ABRE_O_DISJUNTOR_EM_MS },
     )
+    // Meio aberto ainda é "não fechado": o provedor só volta a valer depois da chamada de teste, e o alerta de provedor fora não oscila a cada 30 s.
+    const estado: EstadoDoDisjuntor = { modelo, perfil, aberto: 0 }
+    this.estados.set(chave, estado)
+    disjuntor.onStateChange((novo) => {
+      estado.aberto = novo === CircuitState.Closed ? 0 : 1
+    })
     const criada = wrap(timeout(prazoMs, TimeoutStrategy.Aggressive), disjuntor, repeticao)
     this.politicas.set(chave, criada)
     return criada

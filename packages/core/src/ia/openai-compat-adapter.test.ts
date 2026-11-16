@@ -78,6 +78,15 @@ describe('AdaptadorOpenAICompat: o pedido', () => {
     expect(pedidos[0]?.corpo.max_tokens).toBe(gerarAtividadeObjetiva.maximoDeTokensDeSaida)
   })
 
+  it('o modelo que a chamada pede (o degrau do modelo menor, 49.0) vai no corpo no lugar do modelo do perfil', async () => {
+    const { pedidos } = await montar(() => ({ corpo: chatResponse(TEXTO_BOM, { uso: USO }) }))
+    const adaptador = new OpenAICompatAdapter({ baseUrl: servidor?.url ?? '', modelos: MODELOS, processamentoLocal: true })
+    const resposta = await adaptador.chamar({ tarefa: gerarAtividadeObjetiva, entrada: entradaDeAtividade(), sinal: new AbortController().signal, modelo: 'qwen-menor' })
+    expect(pedidos.map((pedido) => pedido.corpo.model)).toEqual(['qwen-menor'])
+    // O nome que volta é o que o servidor disse: o gateway registra o modelo que respondeu.
+    expect(resposta.modelo).toBe('qwen-sintetico')
+  })
+
   it('o sistema leva o prompt versionado da tarefa e a regra de que dado não é instrução; o material vai cercado, com a página', async () => {
     const { ia, pedidos } = await montar(() => ({ corpo: chatResponse(TEXTO_BOM) }))
     await gerarAtividade(ia)

@@ -14,6 +14,11 @@ export interface ModelCall<Entrada, Saida> {
   readonly entrada: Entrada
   readonly sinal: AbortSignal
   readonly correcao?: RepairHint
+  /**
+   * O modelo que atende esta chamada quando não é o do perfil: o degrau do modelo menor do gateway (`LLM_MODELO_MENOR_<PERFIL>`, 49.0). Sem ele vale o do perfil.
+   * O disjuntor do `ResilientAdapter` conta por este modelo: o menor tem o seu.
+   */
+  readonly modelo?: string
 }
 
 export interface ModelResponse {

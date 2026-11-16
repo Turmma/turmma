@@ -433,6 +433,15 @@ Tutor.
     **O professor vê a pergunta que ficou sem resposta, só como contagem**, pelo mesmo contador do item 15: o corte da espera deixa `IA_INDISPONIVEL`, que está em `PASSAGEIROS`, e
     o Tutor parado pela D62 pode durar uma manhã inteira, não um corte isolado. O operador vê o `worker-ia` parado (o batimento não bate, e o log traz o motivo); a turma vê quantas perguntas
     ficaram sem resposta hoje, sem o texto.
+17. **Limitação: o turno sem vaga de tokens** (reengenharia-continuacao, tarefa 10.0). Toda chamada ao modelo reserva, antes de sair, os tokens do pedido num limite por minuto abaixo do contratado
+    (`LLM_TOKENS_POR_MINUTO`, somado entre as réplicas do `worker-ia`). Sem vaga, o pedido espera até 8 s, dentro do prazo único da execução (60 s no Tutor), e então termina `IA_INDISPONIVEL`, **sem chamar o modelo**,
+    sem troca de aluno e sem erro cru: o aluno vê o mesmo "O Tutor não conseguiu responder agora. Tente de novo." do item 15, com "Tentar de novo", e a pergunta reenviada conta uma vez. **O turno do Tutor nunca desce
+    para o modelo menor** (as outras ferramentas, sim): liberar o menor no Tutor pede a medida de risco à vida do `docs/avaliacao-de-modelos.md` e uma decisão registrada (D36, D37), e até lá o Tutor só roda no modelo que a
+    escola conhece. Nenhuma resposta é inventada, e a falta de vaga não é decisão sobre o aluno. **O turno sem vaga não envia nada ao provedor** (a reserva é nossa, antes da chamada, e a chamada nem sai): ele não
+    entra na lista de compartilhamento do aluno (`docs/lgpd.md`, o teste de fechamento da regra 20), e o consumo da tentativa que terminou `IA_INDISPONIVEL` sem sair não diz que houve envio externo.
+    **Limitação, com o risco que sobra (D36):** como nos itens 15 e 16, no turno sem vaga **só vale a leitura por palavras** do item 10, que roda no `POST`, antes da fila; a leitura do modelo, a segunda, não acontece. A mensagem
+    fixa do assunto delicado, com o 188, não passa pelo limite (não envia nada ao provedor) e segue valendo. **O professor vê a pergunta sem resposta, só como contagem**, pelo mesmo contador do item 15, e o operador vê o
+    degrau (`ia.degradacao{degrau="indisponivel"}`) e o alerta "Tokens acima de 80% do contratado", sem escola, aluno nem texto na série.
 
 Os itens restantes não bloqueiam o MVP de apresentação (dado sintético, D71); bloqueiam o primeiro aluno real (etapas 2 a 6).
 

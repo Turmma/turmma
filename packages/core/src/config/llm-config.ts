@@ -23,6 +23,8 @@ export const MOTIVO_PROCESSAMENTO_LOCAL_EM_ENDERECO_DE_FORA =
   'LLM_PROCESSAMENTO_LOCAL=true só vale com LLM_BASE_URL nesta máquina ou em rede privada: declarar local um provedor de fora apagaria o registro de envio externo'
 export const MOTIVO_RECUO_MAIOR_QUE_O_PRAZO =
   'LLM_RECUO_MS precisa ser menor que o menor prazo de chamada (LLM_TIMEOUT_MS, LLM_TIMEOUT_MS_RAPIDO e LLM_TIMEOUT_MS_PADRAO): a repetição acontece dentro do prazo da chamada, não depois dele'
+export const MOTIVO_SEM_TOKENS_POR_MINUTO =
+  'LLM_TOKENS_POR_MINUTO é obrigatória fora de AMBIENTE=local: é o contratado com o provedor, e o limite de tokens por minuto do gateway (80 % dele no balde geral) não tem valor escondido no código (D41)'
 export const MOTIVO_LATENCIA_FALSA_MAIOR_QUE_O_PRAZO =
   'IA_LATENCIA_FALSA_MS precisa ser menor que o prazo de todo perfil (LLM_TIMEOUT_MS, LLM_TIMEOUT_MS_RAPIDO e LLM_TIMEOUT_MS_PADRAO): senão toda chamada ao adaptador falso, em algum perfil, estoura o prazo'
 
@@ -75,6 +77,16 @@ export const llmEnvSchema = z
     LLM_MODELO_PADRAO: modelo,
     LLM_MODELO_COMPLEXO: modelo,
     LLM_MODELO_VISAO: modelo,
+    /**
+     * O modelo menor de cada perfil, o degrau do gateway quando falta vaga de tokens (49.0): o mesmo provedor, com preço em `PRECO_DOS_MODELOS`. Ausente, o degrau é pulado. O turno do Tutor
+     * nunca o usa (D36, regra 30, item 11).
+     */
+    LLM_MODELO_MENOR_RAPIDO: modelo,
+    LLM_MODELO_MENOR_PADRAO: modelo,
+    LLM_MODELO_MENOR_COMPLEXO: modelo,
+    LLM_MODELO_MENOR_VISAO: modelo,
+    /** O contratado com o provedor, em tokens por minuto (49.0). Obrigatório fora de `AMBIENTE=local`; no `local` sem ele o limite não existe. */
+    LLM_TOKENS_POR_MINUTO: opcional(z.coerce.number().int().min(1_000).max(1_000_000_000).optional()),
     /** Só para provedor que exige chave. Nunca vai para log, erro nem registro. */
     LLM_CHAVE_API: opcional(z.string().min(1).optional()),
     /** O prazo da chamada de cada perfil que não tem o seu: `complexo` e `visao`. */
@@ -108,6 +120,7 @@ export const llmEnvSchema = z
     const menorPrazo = Math.min(...prazos)
     if (valores.LLM_RECUO_MS >= menorPrazo) problema('LLM_RECUO_MS', MOTIVO_RECUO_MAIOR_QUE_O_PRAZO)
     if (valores.IA_LATENCIA_FALSA_MS >= menorPrazo) problema('IA_LATENCIA_FALSA_MS', MOTIVO_LATENCIA_FALSA_MAIOR_QUE_O_PRAZO)
+    if (valores.AMBIENTE !== 'local' && valores.LLM_TOKENS_POR_MINUTO === undefined) problema('LLM_TOKENS_POR_MINUTO', MOTIVO_SEM_TOKENS_POR_MINUTO)
     if (valores.IA_ADAPTADOR !== 'openai_compat') return
     if (valores.LLM_BASE_URL === undefined) problema('LLM_BASE_URL', MOTIVO_LLM_SEM_ENDERECO)
     else if (valores.LLM_PROCESSAMENTO_LOCAL === 'true' && !enderecoDaNossaRede(valores.LLM_BASE_URL)) {
@@ -139,6 +152,10 @@ export interface LLMConfig {
   readonly prazosMs: Readonly<Record<Perfil, number>>
   /** Espera antes da única repetição em 429 e conexão recusada (regra 30, item 8): cabe no menor prazo. */
   readonly recuoMs: number
+  /** O contratado com o provedor (`LLM_TOKENS_POR_MINUTO`). Ausente (só em `AMBIENTE=local`), o gateway não limita tokens. */
+  readonly tokensPorMinuto?: number
+  /** O modelo menor de cada perfil que tem o seu (`LLM_MODELO_MENOR_<PERFIL>`): o degrau depois da espera. Ausente, ou sem o perfil, o degrau é pulado. */
+  readonly modelosMenores?: Readonly<Partial<Record<Perfil, string>>>
   /** As réplicas do `worker-ia` (`IA_REPLICAS`): o teto de tokens por minuto se divide entre elas quando o Redis de fila está fora. */
   readonly replicas: number
   /** Só do adaptador falso: a espera simulada de cada chamada (`IA_LATENCIA_FALSA_MS`). Ausente é sem espera. */
@@ -147,11 +164,24 @@ export interface LLMConfig {
 
 export function loadLLMConfig(ambiente: Record<string, string | undefined>): LLMConfig {
   const valores = validateEnvironment(llmEnvSchema, ambiente)
+  const menoresDoPerfil: Readonly<Record<Perfil, string | undefined>> = {
+    rapido: valores.LLM_MODELO_MENOR_RAPIDO,
+    padrao: valores.LLM_MODELO_MENOR_PADRAO,
+    complexo: valores.LLM_MODELO_MENOR_COMPLEXO,
+    visao: valores.LLM_MODELO_MENOR_VISAO,
+  }
+  const menoresPresentes = PERFIS.flatMap((perfil) => {
+    const menor = menoresDoPerfil[perfil]
+    return menor === undefined ? [] : [[perfil, menor] as const]
+  })
+  const menores = menoresPresentes.length === 0 ? undefined : (Object.fromEntries(menoresPresentes) as Partial<Record<Perfil, string>>)
   const base = {
     adaptador: valores.IA_ADAPTADOR,
     prazosMs: { rapido: valores.LLM_TIMEOUT_MS_RAPIDO, padrao: valores.LLM_TIMEOUT_MS_PADRAO, complexo: valores.LLM_TIMEOUT_MS, visao: valores.LLM_TIMEOUT_MS },
     recuoMs: valores.LLM_RECUO_MS,
     replicas: valores.IA_REPLICAS,
+    ...(valores.LLM_TOKENS_POR_MINUTO === undefined ? {} : { tokensPorMinuto: valores.LLM_TOKENS_POR_MINUTO }),
+    ...(menores === undefined ? {} : { modelosMenores: menores }),
     ...(valores.IA_LATENCIA_FALSA_MS > 0 ? { latenciaFalsaMs: valores.IA_LATENCIA_FALSA_MS } : {}),
   }
   if (valores.IA_ADAPTADOR !== 'openai_compat' || valores.LLM_BASE_URL === undefined) return base

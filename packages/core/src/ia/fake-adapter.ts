@@ -6,6 +6,8 @@ import { SEM_ENVIO_EXTERNO } from './port.js'
 import { MaterialSemConteudoAproveitavelError, type TaskDefinition } from './task.js'
 
 export const MODELO_FALSO = 'falso-deterministico'
+/** O modelo menor do adaptador falso (`LLM_MODELO_MENOR_<PERFIL>=falso-menor`): o degrau da carga e do ensaio sem provedor. */
+export const MODELO_FALSO_MENOR = 'falso-menor'
 
 /** Estimativa grosseira e estável: quatro caracteres por token. Serve para o consumo aparecer na governança sem modelo. */
 export function estimarTokens(texto: string): number {
@@ -51,7 +53,7 @@ export class FakeAdapter implements ModelAdapter {
     const texto = JSON.stringify(versaoDeterministica(chamada.tarefa, chamada.entrada))
     return {
       texto,
-      modelo: MODELO_FALSO,
+      modelo: chamada.modelo ?? MODELO_FALSO,
       tokensDeEntrada: estimarTokens(JSON.stringify(chamada.entrada)),
       tokensDeSaida: estimarTokens(texto),
     }

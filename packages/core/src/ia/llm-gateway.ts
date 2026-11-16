@@ -1,5 +1,5 @@
-import type { Counter, Meter } from '@opentelemetry/api'
-import { TAREFAS_DE_IA, type ChaveDeFuncao } from '@educa/shared'
+import type { Counter, Histogram, Meter } from '@opentelemetry/api'
+import { TAREFAS_DE_IA, type ChaveDeFuncao, type TarefaDeIa } from '@educa/shared'
 import type { LLMConfig } from '../config/llm-config.js'
 import { InvalidConfigError } from '../config/validate-config.js'
 import { currentContext } from '../context/context.js'
@@ -7,17 +7,19 @@ import { summarizeError } from '../error/summarize-error.js'
 import type { LoggerBase } from '../log/logger.js'
 import { METRICS } from '../telemetry/metrics.js'
 import { systemClock, type Clock } from '../clock.js'
-import type { ModelAdapter, RepairHint } from './adapter.js'
+import type { ModelAdapter, ModelCall, ModelResponse, RepairHint } from './adapter.js'
 import { FakeAdapter } from './fake-adapter.js'
 import { OpenAICompatAdapter } from './openai-compat-adapter.js'
 import { ResilientAdapter } from './resilient-adapter.js'
-import type { ConsumoDeIa, DestinoDoAdaptador, OrcamentoDeIa, RegistroDeConsumo } from './consumo.js'
+import { precoDoModelo, type ConsumoDeIa, type DestinoDoAdaptador, type OrcamentoDeIa, type RegistroDeConsumo } from './consumo.js'
 import { LLMError, type LLMErrorCode } from './errors.js'
 import { semMarcacao } from './clean-output.js'
 import { SEM_ENVIO_EXTERNO, type DeclaracaoDeSoberania, type LLMProvider, type GenerationMeasurement, type GenerationRequest, type GenerationResult } from './port.js'
 import { exigirFuncaoAtiva, type SuspensaoDeFuncao } from './suspensao.js'
 import type { TaskDefinition } from './task.js'
 import { tokensDoPedido } from './teto-de-entrada.js'
+import type { Perfil } from './perfis.js'
+import type { LimiteDeTokens, ReservaDeTokens } from './token-limiter.js'
 
 /** O que o provedor escreve no log: evento fixo, ids, duração. Nunca entrada, saída nem prompt (regra 20, item 9). */
 export type LLMLogger = Pick<LoggerBase, 'info' | 'warn'>
@@ -35,12 +37,105 @@ export interface LLMGatewayDependencies {
   readonly soberania?: DeclaracaoDeSoberania
   readonly logger?: LLMLogger
   readonly relogio?: Clock
-  /** Onde `ia.pedido_acima_do_teto{tarefa}` é contada. Sem ele a recusa vale do mesmo jeito, só sem a métrica. */
+  /** Onde as métricas do gateway são contadas (`ia.pedido_acima_do_teto`, as da chamada, a da degradação e a do uso do teto). Sem ele tudo vale do mesmo jeito, só sem a métrica. */
   readonly medidor?: Meter
+  /**
+   * O limite de tokens por minuto (49.0): reserva antes de cada chamada ao modelo. Sem ele (o `local` sem `LLM_TOKENS_POR_MINUTO`, a ferramenta de medição) a chamada não espera
+   * nem desce de degrau.
+   */
+  readonly limiteDeTokens?: LimiteDeTokens
+  /** O modelo menor de cada perfil que tem o seu (`LLM_MODELO_MENOR_<PERFIL>`): o degrau depois da espera. O turno do Tutor nunca o usa. */
+  readonly modelosMenores?: Readonly<Partial<Record<Perfil, string>>>
+}
+
+/** Quanto o pedido espera pela vaga de tokens antes de descer um degrau: o "Pensando" que o aluno aguenta (`aluno/Tutor.tsx`), dentro do prazo único da execução (RF7). */
+export const ESPERA_MAXIMA_DA_VAGA_MS = 8_000
+/** O piso de cada espera entre duas tentativas de reservar: o balde que libera em 1 ms não vira laço apertado contra o Redis. */
+const ESPERA_MINIMA_ENTRE_RESERVAS_MS = 50
+/** Quanto a última reserva vale como "uso do teto": depois de um minuto sem reservar, o balde esvaziou e a métrica volta a 0. */
+const VALIDADE_DO_USO_DO_TETO_MS = 60_000
+/** Os degraus da degradação, nesta ordem (`ia.degradacao{degrau}`). */
+const DEGRAUS = ['espera', 'modelo_menor', 'indisponivel'] as const
+type Degrau = (typeof DEGRAUS)[number]
+
+/**
+ * O turno do Tutor nunca vai ao modelo menor (D36, regra 30, item 11): liberar pede a medida de risco à vida e a suíte de recusa de `docs/avaliacao-de-modelos.md`, e uma decisão
+ * registrada. Sem vaga, ele termina `IA_INDISPONIVEL`, e quem responde é a regra fixa da D36 quando ela se aplica.
+ */
+const TAREFAS_SEM_MODELO_MENOR: ReadonlySet<TarefaDeIa> = new Set<TarefaDeIa>(['turno_do_tutor'])
+
+export const MOTIVO_MODELO_MENOR_SEM_PRECO =
+  'LLM_MODELO_MENOR_<PERFIL> precisa de preço em PRECO_DOS_MODELOS (packages/core/src/ia/consumo.ts): sem preço o degrau do gateway gastaria sem a conta da D14, e o modelo real só entra com a D37'
+
+/** A espera entre duas reservas, cortada pelo sinal de quem chamou (o prazo único da execução, ou o desligamento): o prazo que vence na espera a encerra na hora. */
+function esperar(ms: number, sinal: AbortSignal | undefined): Promise<void> {
+  return new Promise((resolver, rejeitar) => {
+    if (sinal?.aborted === true) {
+      rejeitar(new LLMError('IA_TEMPO_ESGOTADO'))
+      return
+    }
+    const cancelar = (): void => {
+      clearTimeout(temporizador)
+      rejeitar(new LLMError('IA_TEMPO_ESGOTADO'))
+    }
+    const temporizador = setTimeout(() => {
+      sinal?.removeEventListener('abort', cancelar)
+      resolver()
+    }, ms)
+    sinal?.addEventListener('abort', cancelar, { once: true })
+  })
+}
+
+/** A chamada ao adaptador: a correção só existe na repetição, e o modelo só quando o degrau trocou o do perfil. */
+function chamadaAoModelo<Entrada, Saida>(base: Pick<ModelCall<Entrada, Saida>, 'tarefa' | 'entrada' | 'sinal'>, correcao: RepairHint | undefined, modelo: string | undefined): ModelCall<Entrada, Saida> {
+  return { ...base, ...(correcao === undefined ? {} : { correcao }), ...(modelo === undefined ? {} : { modelo }) }
+}
+
+/** As medidas do gateway, criadas na subida (o medidor pode faltar: sem ele tudo vale do mesmo jeito, só sem a métrica). Cada série nasce em zero: o `increase()` do alerta não conta o primeiro ponto de uma série nova. */
+interface Medidas {
+  readonly pedidosAcimaDoTeto?: Counter
+  readonly degradacao?: Counter
+  readonly duracaoDaChamada?: Histogram
+  readonly errosDaChamada?: Counter
+}
+
+/**
+ * A hora do processo, a que o `setTimeout` obedece: a espera pela vaga e a validade do uso do teto medem **tempo decorrido**, e por isso leem o mesmo relógio dos temporizadores
+ * (e o `vi.useFakeTimers` dos testes, que falsifica os dois juntos). O `relogio` injetado (`Clock`) é o do **dia de negócio** (o freio diário, o mês do orçamento, o `em` do consumo): um
+ * teste o fixa numa data, e a espera, que depende de o relógio andar, ficaria parada nele.
+ */
+const horaDoProcessoMs = (): number => Date.now()
+
+function criarMedidas(medidor: Meter | undefined, usosDoTeto: ReadonlyMap<string, { readonly valor: number; readonly em: number }>): Medidas {
+  if (medidor === undefined) return {}
+  const pedidosAcimaDoTeto = medidor.createCounter(METRICS.pedidoAcimaDoTeto, { description: 'Pedidos de IA recusados acima do teto de entrada da tarefa, por tarefa' })
+  const degradacao = medidor.createCounter(METRICS.degradacaoDeIa, { description: 'Pedidos de IA que desceram um degrau da degradação (espera, modelo menor, indisponível), por degrau' })
+  const duracaoDaChamada = medidor.createHistogram(METRICS.duracaoDaChamadaDeIa, {
+    unit: 's',
+    description: 'Duração de cada chamada ao provedor de IA, por provedor, perfil e resultado',
+    advice: { explicitBucketBoundaries: LIMITES_DO_HISTOGRAMA_DA_CHAMADA_S },
+  })
+  const errosDaChamada = medidor.createCounter(METRICS.errosDaChamadaDeIa, { description: 'Chamadas ao provedor de IA que terminaram em erro, por provedor, perfil e código' })
+  medidor.createObservableGauge(METRICS.usoDoTetoDeTokens, { description: 'Quanto do contratado o balde geral de tokens do modelo já consumiu no minuto (0,8 é o balde cheio)' }).addCallback((observador) => {
+    const agora = horaDoProcessoMs()
+    for (const [modelo, uso] of usosDoTeto) observador.observe(agora - uso.em < VALIDADE_DO_USO_DO_TETO_MS ? uso.valor : 0, { modelo })
+  })
+  for (const degrau of DEGRAUS) degradacao.add(0, { degrau })
+  for (const tarefa of TAREFAS_DE_IA) pedidosAcimaDoTeto.add(0, { tarefa })
+  return { pedidosAcimaDoTeto, degradacao, duracaoDaChamada, errosDaChamada }
+}
+
+/** Com qual modelo a chamada sai e o que reservar dele. `modelo` ausente é o do perfil. */
+interface Vaga {
+  readonly modelo?: string
+  readonly reserva?: ReservaDeTokens
 }
 
 /** Funções cujo gasto é de um aluno: sem `alunoId` não há como consultar o freio dele, e a chamada é recusada. */
 const FUNCOES_COM_ORCAMENTO_POR_ALUNO: ReadonlySet<ChaveDeFuncao> = new Set<ChaveDeFuncao>(['tutor_com_o_aluno'])
+
+/** Os limites do histograma da chamada ao modelo, em segundos: da resposta rápida do Tutor ao prazo de 140 s da ferramenta. */
+const LIMITES_DO_HISTOGRAMA_DA_CHAMADA_S = [0.5, 1, 2, 5, 10, 20, 30, 60, 90, 140]
 
 /** Uma primeira chamada e uma repetição, dizendo ao modelo o que veio errado. Depois disso é erro tipado. */
 const TENTATIVAS_MAXIMAS = 2
@@ -93,12 +188,19 @@ interface Gasto {
 export class LLMGateway implements LLMProvider {
   private readonly relogio: Clock
   private readonly pedidosAcimaDoTeto: Counter | undefined
+  private readonly degradacao: Counter | undefined
+  private readonly duracaoDaChamada: Histogram | undefined
+  private readonly errosDaChamada: Counter | undefined
+  /** O uso do teto de cada modelo na última reserva, lido pela métrica: depois de um minuto sem reservar, vale 0. */
+  private readonly usosDoTeto = new Map<string, { readonly valor: number; readonly em: number }>()
 
   constructor(private readonly dependencias: LLMGatewayDependencies) {
     this.relogio = dependencias.relogio ?? systemClock
-    this.pedidosAcimaDoTeto = dependencias.medidor?.createCounter(METRICS.pedidoAcimaDoTeto, { description: 'Pedidos de IA recusados acima do teto de entrada da tarefa, por tarefa' })
-    // Cada tarefa nasce em zero: o `increase()` do alerta não conta o primeiro ponto de uma série nova, e sem isto a primeira recusa passaria em silêncio.
-    for (const tarefa of TAREFAS_DE_IA) this.pedidosAcimaDoTeto?.add(0, { tarefa })
+    const medidas = criarMedidas(dependencias.medidor, this.usosDoTeto)
+    this.pedidosAcimaDoTeto = medidas.pedidosAcimaDoTeto
+    this.degradacao = medidas.degradacao
+    this.duracaoDaChamada = medidas.duracaoDaChamada
+    this.errosDaChamada = medidas.errosDaChamada
   }
 
   async gerar<Entrada, Saida>(pedido: GenerationRequest<Entrada, Saida>): Promise<GenerationResult<Saida>> {
@@ -243,10 +345,15 @@ export class LLMGateway implements LLMProvider {
     let reprovadaNaConferencia = false
     let problemasDaUltima: readonly string[] = []
     while (gasto.tentativas < TENTATIVAS_MAXIMAS) {
+      // A vaga de tokens vem antes da chamada, e a tentativa só conta depois dela: a que terminou `IA_INDISPONIVEL` sem sair não deixa o consumo dizer que houve envio.
+      const vaga = await this.reservarVaga(pedido, entrada, correcao)
       gasto.tentativas += 1
       // O prazo da chamada é do `ResilientAdapter`, que sabe o do perfil. O sinal de quem chamou (o executor) o cancela.
       const sinal = pedido.sinal ?? new AbortController().signal
-      const resposta = await this.dependencias.adaptador.chamar({ tarefa, entrada, sinal, ...(correcao === undefined ? {} : { correcao }) })
+      // O modelo que vai receber o pedido: se a chamada falhar, o consumo de `falhou` grava este (regra 70, item 6), e não o do perfil.
+      gasto.modelo = vaga.modelo ?? this.dependencias.adaptador.modeloDoPerfil(tarefa.perfil)
+      const resposta = await this.chamarModelo(pedido, chamadaAoModelo({ tarefa, entrada, sinal }, correcao, vaga.modelo))
+      await vaga.reserva?.acertar(resposta.tokensDeEntrada + resposta.tokensDeSaida)
       gasto.modelo = resposta.modelo
       gasto.tokensDeEntrada += resposta.tokensDeEntrada
       gasto.tokensDeSaida += resposta.tokensDeSaida
@@ -256,17 +363,104 @@ export class LLMGateway implements LLMProvider {
       reprovadaNaConferencia = interpretada.naConferencia === true
       problemasDaUltima = interpretada.problemas
     }
-    // Só quando o modelo respondeu na forma certa e errou no conteúdo: modelo que devolve lixo continua sendo falha.
-    const reserva = reprovadaNaConferencia ? tarefa.reservaQuandoInvalida?.(entrada, problemasDaUltima) : undefined
-    if (reserva !== undefined) {
-      const validada = validar(tarefa, entrada, reserva)
-      if (validada.ok) {
-        const tipo = tarefa.nome
-        this.dependencias.logger?.info({ evento: 'ia.geracao.reserva', tipo, escolaId: pedido.escolaId, execucaoId: pedido.execucaoId, tentativas: gasto.tentativas })
-        return validada.saida
+    const reserva = this.saidaDeReserva(pedido, entrada, gasto.tentativas, reprovadaNaConferencia ? problemasDaUltima : undefined)
+    if (reserva !== undefined) return reserva
+    throw new LLMError('IA_SAIDA_INVALIDA')
+  }
+
+  /** Só quando o modelo respondeu na forma certa e errou no conteúdo (`problemas` presente): modelo que devolve lixo continua sendo falha. */
+  private saidaDeReserva<Entrada, Saida>(pedido: GenerationRequest<Entrada, Saida>, entrada: Entrada, tentativas: number, problemas: readonly string[] | undefined): Saida | undefined {
+    const { tarefa } = pedido
+    const reserva = problemas === undefined ? undefined : tarefa.reservaQuandoInvalida?.(entrada, problemas)
+    if (reserva === undefined) return undefined
+    const validada = validar(tarefa, entrada, reserva)
+    if (!validada.ok) return undefined
+    const tipo = tarefa.nome
+    this.dependencias.logger?.info({ evento: 'ia.geracao.reserva', tipo, escolaId: pedido.escolaId, execucaoId: pedido.execucaoId, tentativas })
+    return validada.saida
+  }
+
+  /** Uma chamada ao adaptador, medida: a duração e, se falhou, o código. Só o que o provedor fez: a espera pela vaga e a repetição por saída inválida ficam de fora. */
+  private async chamarModelo<Entrada, Saida>(pedido: GenerationRequest<Entrada, Saida>, chamada: ModelCall<Entrada, Saida>): Promise<ModelResponse> {
+    const { adaptador } = this.dependencias
+    const atributos = { provedor: adaptador.envio.provedorId ?? adaptador.origem, perfil: pedido.tarefa.perfil }
+    const inicio = performance.now()
+    try {
+      const resposta = await adaptador.chamar(chamada)
+      this.duracaoDaChamada?.record((performance.now() - inicio) / 1_000, { ...atributos, resultado: 'ok' })
+      return resposta
+    } catch (erro) {
+      this.duracaoDaChamada?.record((performance.now() - inicio) / 1_000, { ...atributos, resultado: 'erro' })
+      this.errosDaChamada?.add(1, { ...atributos, codigo: erro instanceof LLMError ? erro.codigoDeIa : 'IA_INDISPONIVEL' })
+      throw erro
+    }
+  }
+
+  /**
+   * O limite de tokens por minuto (49.0, regra 80, item 4), antes de cada chamada ao modelo, depois da D62, do teto de entrada e do orçamento: o pedido que estes recusam não reserva nada.
+   * Reserva a estimativa do pedido (a da repetição inclui a resposta anterior e a correção) mais o máximo de saída, e, sem vaga:
+   *
+   * 1. **espera** até `ESPERA_MAXIMA_DA_VAGA_MS`, no ritmo do `msBeforeNext` do balde, cortada pelo `pedido.sinal`: o prazo único da execução cobre a espera;
+   * 2. **o modelo menor** do perfil, uma reserva só, se houver e se a tarefa puder (o turno do Tutor, nunca);
+   * 3. **`IA_INDISPONIVEL`**, sem troca contada e sem erro cru.
+   *
+   * Sem limitador configurado, a chamada vai direto ao modelo do perfil.
+   */
+  private async reservarVaga<Entrada, Saida>(pedido: GenerationRequest<Entrada, Saida>, entrada: Entrada, correcao: RepairHint | undefined): Promise<Vaga> {
+    const limite = this.dependencias.limiteDeTokens
+    if (limite === undefined) return {}
+    const { tarefa } = pedido
+    const fila = pedido.fila ?? 'normal'
+    const estimativa = tokensDoPedido(tarefa, entrada, correcao) + tarefa.maximoDeTokensDeSaida
+    const principal = this.dependencias.adaptador.modeloDoPerfil(tarefa.perfil)
+    const limiteDaEspera = horaDoProcessoMs() + ESPERA_MAXIMA_DA_VAGA_MS
+    let esperou = false
+    for (;;) {
+      const resultado = await limite.reservar(this.chaveDoBalde(principal), estimativa, fila)
+      this.anotarUsoDoTeto(principal, resultado.usoDoTeto)
+      if (resultado.concedida) return { reserva: resultado.reserva }
+      const restante = limiteDaEspera - horaDoProcessoMs()
+      if (restante <= 0) break
+      if (!esperou) {
+        esperou = true
+        this.descer('espera', tarefa.nome, principal)
+      }
+      await esperar(Math.min(Math.max(resultado.msAteLiberar, ESPERA_MINIMA_ENTRE_RESERVAS_MS), restante), pedido.sinal)
+    }
+    return this.descerParaOMenor(pedido, estimativa, fila, limite)
+  }
+
+  private async descerParaOMenor<Entrada, Saida>(pedido: GenerationRequest<Entrada, Saida>, estimativa: number, fila: NonNullable<GenerationRequest<Entrada, Saida>['fila']>, limite: LimiteDeTokens): Promise<Vaga> {
+    const { tarefa } = pedido
+    const menor = TAREFAS_SEM_MODELO_MENOR.has(tarefa.nome) ? undefined : this.dependencias.modelosMenores?.[tarefa.perfil]
+    if (menor !== undefined) {
+      const resultado = await limite.reservar(this.chaveDoBalde(menor), estimativa, fila)
+      this.anotarUsoDoTeto(menor, resultado.usoDoTeto)
+      if (resultado.concedida) {
+        this.descer('modelo_menor', tarefa.nome, menor)
+        return { modelo: menor, reserva: resultado.reserva }
       }
     }
-    throw new LLMError('IA_SAIDA_INVALIDA')
+    const modelo = menor ?? this.dependencias.adaptador.modeloDoPerfil(tarefa.perfil)
+    this.descer('indisponivel', tarefa.nome, modelo)
+    throw new LLMError('IA_INDISPONIVEL')
+  }
+
+  /** O balde é do `provedor:modelo`: o modelo menor tem o seu, e dois provedores não dividem balde. */
+  private chaveDoBalde(modelo: string): string {
+    const { adaptador } = this.dependencias
+    return `${adaptador.envio.provedorId ?? adaptador.origem}:${modelo}`
+  }
+
+  private anotarUsoDoTeto(modelo: string, uso: number | undefined): void {
+    if (uso !== undefined) this.usosDoTeto.set(modelo, { valor: uso, em: horaDoProcessoMs() })
+  }
+
+  /** Um degrau: a métrica dele e o log só com a tarefa, o modelo e, no fim, o código. Nunca a escola, a execução nem o pedido (regra 20, item 9). */
+  private descer(degrau: Degrau, tipo: TarefaDeIa, modeloId: string): void {
+    this.degradacao?.add(1, { degrau })
+    if (degrau === 'indisponivel') this.dependencias.logger?.warn({ evento: 'ia.geracao.sem_vaga', tipo, modeloId, codigo: 'IA_INDISPONIVEL' })
+    else this.dependencias.logger?.info({ evento: degrau === 'espera' ? 'ia.geracao.espera_de_vaga' : 'ia.geracao.modelo_menor', tipo, modeloId })
   }
 
   private medir<Entrada, Saida>(pedido: GenerationRequest<Entrada, Saida>, gasto: Gasto, inicio: number, regraFixa: boolean): GenerationMeasurement {
@@ -312,6 +506,7 @@ export class LLMGateway implements LLMProvider {
 }
 
 export interface LLMGatewayPorts {
+  readonly limiteDeTokens?: LimiteDeTokens
   readonly registro: RegistroDeConsumo
   readonly orcamento: OrcamentoDeIa
   readonly suspensao: SuspensaoDeFuncao
@@ -326,8 +521,20 @@ export interface LLMGatewayPorts {
  * prazo por perfil, a repetição e o disjuntor.
  */
 export function createLLMGateway(config: LLMConfig, portas: LLMGatewayPorts): LLMProvider {
-  const adaptador = new ResilientAdapter(adaptadorInterno(config), { prazosMs: config.prazosMs, recuoMs: config.recuoMs, aleatorio: Math.random })
-  return new LLMGateway({ adaptador, ...portas })
+  exigirPrecoDosModelosMenores(config)
+  const adaptador = new ResilientAdapter(adaptadorInterno(config), {
+    prazosMs: config.prazosMs,
+    recuoMs: config.recuoMs,
+    aleatorio: Math.random,
+    ...(portas.medidor === undefined ? {} : { medidor: portas.medidor }),
+  })
+  return new LLMGateway({ adaptador, ...portas, ...(config.modelosMenores === undefined ? {} : { modelosMenores: config.modelosMenores }) })
+}
+
+/** O modelo menor sem preço em `PRECO_DOS_MODELOS` recusa a subida (49.0, D14): o degrau gastaria sem conta. Diz a variável, nunca o valor dela. */
+function exigirPrecoDosModelosMenores(config: LLMConfig): void {
+  const semPreco = Object.entries(config.modelosMenores ?? {}).filter(([, modelo]) => precoDoModelo(modelo) === undefined)
+  if (semPreco.length > 0) throw new InvalidConfigError(semPreco.map(([perfil]) => `LLM_MODELO_MENOR_${perfil.toUpperCase()}`).sort(), [MOTIVO_MODELO_MENOR_SEM_PRECO])
 }
 
 /** O adaptador que `IA_ADAPTADOR` escolhe, sem a resiliência: a única conta de qual é, e que `createLLMGateway` e `destinoDoAdaptador` dividem. */

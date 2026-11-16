@@ -55,7 +55,7 @@ const ambienteValido = {
  * A camada de IA como a produção a configura: o adaptador falso é recusado lá, e a API só sobe com o provedor declarado.
  * Endereço e modelo sintéticos.
  */
-const IA_DE_PRODUCAO = { IA_ADAPTADOR: 'openai_compat', LLM_BASE_URL: 'https://modelo.sintetico.example/v1', LLM_MODELO: 'modelo-sintetico', IA_PROVEDOR_ID: 'provedor-sintetico' }
+const IA_DE_PRODUCAO = { IA_ADAPTADOR: 'openai_compat', LLM_BASE_URL: 'https://modelo.sintetico.example/v1', LLM_MODELO: 'modelo-sintetico', IA_PROVEDOR_ID: 'provedor-sintetico', LLM_TOKENS_POR_MINUTO: '2500000' }
 
 /** A chave AES-256 que o HKDF deriva do texto da variável, como a configuração faz. */
 function chaveDerivada(texto: string): Uint8Array {
@@ -169,7 +169,8 @@ describe('lerConfiguracao', () => {
     // Somada às outras leituras, e sem repetir o AMBIENTE, que a identidade já aponta.
     expect(erroDe({ ...ambienteValido, API_PORTA: '0', LLM_TIMEOUT_MS: 'um minuto' }).variaveis).toEqual(['API_PORTA', 'LLM_TIMEOUT_MS'])
     expect(erroDe({ ...ambienteValido, AMBIENTE: 'homologacao' }).variaveis).toEqual(['AMBIENTE'])
-    const emProducao = erroDe({ ...ambienteValido, AMBIENTE: 'producao' })
+    // Com o limite de tokens declarado, o único defeito é o adaptador falso (sem ele, `LLM_TOKENS_POR_MINUTO` também é apontada: caso próprio abaixo).
+    const emProducao = erroDe({ ...ambienteValido, LLM_TOKENS_POR_MINUTO: IA_DE_PRODUCAO.LLM_TOKENS_POR_MINUTO, AMBIENTE: 'producao' })
     expect(emProducao.variaveis).toEqual(['IA_ADAPTADOR'])
     expect(emProducao.message).toContain(MOTIVO_ADAPTADOR_FALSO_EM_PRODUCAO)
   })
@@ -253,7 +254,7 @@ describe('lerConfiguracao', () => {
     const emProducao = erroDe({ ...ambienteValido, ...IA_DE_PRODUCAO, AMBIENTE: 'producao', LOGIN_REDIS_PRAZO_MS: acimaDoCorte })
     expect(emProducao.variaveis).toEqual(['LOGIN_REDIS_PRAZO_MS'])
     expect(emProducao.message).toContain(MOTIVO_PRAZO_DO_REDIS_DO_LOGIN)
-    expect(erroDe({ ...ambienteValido, AMBIENTE: 'staging', LOGIN_REDIS_PRAZO_MS: acimaDoCorte }).variaveis).toEqual(['LOGIN_REDIS_PRAZO_MS'])
+    expect(erroDe({ ...ambienteValido, LLM_TOKENS_POR_MINUTO: IA_DE_PRODUCAO.LLM_TOKENS_POR_MINUTO, AMBIENTE: 'staging', LOGIN_REDIS_PRAZO_MS: acimaDoCorte }).variaveis).toEqual(['LOGIN_REDIS_PRAZO_MS'])
     // Um a mais que o corte já não passa, nos dois: o limite é o valor, não uma faixa.
     for (const ambiente of ['staging', 'producao'] as const) {
       expect(erroDe({ ...ambienteValido, ...IA_DE_PRODUCAO, AMBIENTE: ambiente, LOGIN_REDIS_PRAZO_MS: String(TIMEOUT_COMANDO_REDIS_API_MS + 1) }).variaveis, ambiente).toEqual(['LOGIN_REDIS_PRAZO_MS'])

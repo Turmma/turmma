@@ -100,7 +100,7 @@ export class WorkerModule {
       imports: [
         DatabaseModule.forRoot(config.banco),
         BuscaDoWorkerModule.forRoot(),
-        IaDoWorkerModule.forRoot({ config: config.ia, logger, medidor }),
+        IaDoWorkerModule.forRoot({ config: config.ia, redisFilaUrl: config.redisFilaUrl, logger, medidor }),
         ComandosDeIaModule.forRoot({ medidor }),
       ],
       providers: [

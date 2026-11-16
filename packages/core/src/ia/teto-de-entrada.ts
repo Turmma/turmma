@@ -1,4 +1,5 @@
 import type { z } from 'zod'
+import type { RepairHint } from './adapter.js'
 import { estimarTokens } from './fake-adapter.js'
 import { montarMensagens } from './openai-compat-adapter.js'
 import type { TaskDefinition } from './task.js'
@@ -188,10 +189,10 @@ export function piorEntradaDaTarefa<Entrada, Saida>(tarefa: Pick<TaskDefinition<
  * comuns e o JSON Schema da saída, e a instrução com os dados), a quatro caracteres por token (`estimarTokens`). As mensagens são
  * as do formato do `openai-compat-adapter` (`montarMensagens`): se um adaptador montar as dele de outro jeito, o teto passa a medir uma
  * coisa e o envio outra, e quem o troca confere esta conta. A repetição depois de uma saída inválida soma a resposta anterior e a
- * correção, e não entra: o teto é do pedido que a tarefa monta.
+ * correção, e elas só entram quando quem chama as passa (a reserva de tokens da repetição, 49.0): o teto de entrada é do pedido que a tarefa monta, sem elas.
  */
-export function tokensDoPedido<Entrada, Saida>(tarefa: TaskDefinition<Entrada, Saida>, entrada: Entrada): number {
-  return montarMensagens({ tarefa, entrada }).reduce((soma, mensagem) => soma + estimarTokens(mensagem.content), 0)
+export function tokensDoPedido<Entrada, Saida>(tarefa: TaskDefinition<Entrada, Saida>, entrada: Entrada, correcao?: RepairHint): number {
+  return montarMensagens({ tarefa, entrada, ...(correcao === undefined ? {} : { correcao }) }).reduce((soma, mensagem) => soma + estimarTokens(mensagem.content), 0)
 }
 
 /** O tamanho estimado do pior pedido válido da tarefa: o que o `maximoDeTokensDeEntrada` dela precisa cobrir. */
