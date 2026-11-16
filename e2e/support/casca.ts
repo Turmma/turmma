@@ -1,5 +1,5 @@
 import type { Locator, Page, Response } from '@playwright/test'
-import { mensagemDoSegundoFator } from '../../packages/shared/src/errors/messages.ts'
+import { AVISO_DO_CODIGO_GASTO_SEM_ENTRAR, mensagemDoSegundoFator } from '../../packages/shared/src/errors/messages.ts'
 import { esperarATela, loadUnthrottled, expect } from './profiles.ts'
 import { campoCodigo } from './mfa.ts'
 import { codigoDoAutenticador, criarEquipeComSenha, type ConviteDeCoordenadorDeTeste, type EquipeDeTeste } from './seed.ts'
@@ -314,19 +314,23 @@ export async function abrirEstrutura(page: Page, hasTouch: boolean): Promise<voi
 
 /** O aviso que a tela de ativação mostra quando a API recusa o código: o do código errado, o do já usado e o do Redis de fila parado são o mesmo. */
 const RECUSA_DO_SEGUNDO_FATOR = mensagemDoSegundoFator('NAO_AUTENTICADO')
+/** O aviso do mesmo passo quando a API responde 503 porque o Redis de fila não respondeu (54.0): a tela da ativação mostra o texto do catálogo. */
+const INDISPONIVEL_NA_ATIVACAO = mensagemDoSegundoFator('INDISPONIVEL_TENTE_DE_NOVO')
+/** O aviso do segundo fator da entrada quando o Redis falha **depois** do código certo (54.0): o código foi gasto, e a tela manda digitar o seguinte. */
+const ESGOTADO_NA_ENTRADA = AVISO_DO_CODIGO_GASTO_SEM_ENTRAR
 
 /**
  * Digita o código e ativa o segundo fator, e espera a tela dizer o que aconteceu: o link "Ir para a entrada" (ativou) ou o aviso de recusa.
  *
  * Com o disco da esteira ocupado, o Redis de fila pode passar dos 2 s do compose de teste, e a API recusa o desafio sem a marca dele
- * (`login.desafio_sem_redis`, de propósito) **antes de gastar o código e o desafio**: a tela mostra o aviso do código errado, e o mesmo
- * código, no mesmo desafio, vale na tentativa seguinte. O desafio com o `iat` à frente do relógio da API dá a mesma recusa, também antes do código
+ * (`login.desafio_sem_redis`, de propósito, com o 503 `INDISPONIVEL_TENTE_DE_NOVO` desde a 14.0) **antes de gastar o código e o desafio**: a tela mostra o
+ * aviso do código errado, ou o do 503 (`INDISPONIVEL_NA_ATIVACAO`), e o mesmo código, no mesmo desafio, vale na tentativa seguinte. O desafio com o `iat` à frente do relógio da API dá a mesma recusa, também antes do código
  * (ver `ESPERAS_ENTRE_TENTATIVAS_MS`). Por isso a recusa tem novas tentativas, com espera e o código do passo de agora. Uma recusa que se repete
  * é do código ou da API, e falha aqui, dizendo o que a tela mostrava, em vez de esperar o link até o fim do relógio do teste.
  */
 async function ativarOSegundoFator(page: Page, segredo: string, hasTouch: boolean): Promise<void> {
   const ativou = page.getByRole('link', { name: 'Ir para a entrada' })
-  const recusa = page.getByRole('alert').filter({ hasText: RECUSA_DO_SEGUNDO_FATOR })
+  const recusa = page.getByRole('alert').filter({ hasText: RECUSA_DO_SEGUNDO_FATOR }).or(page.getByRole('alert').filter({ hasText: INDISPONIVEL_NA_ATIVACAO }))
   for (let tentativa = 1; tentativa <= TENTATIVAS_DO_PASSO; tentativa += 1) {
     await esperarParaRepetir(page, tentativa)
     await campoCodigo(page).fill(codigoDoAutenticador(segredo))
@@ -388,7 +392,13 @@ export async function pedirOSegredo(page: Page, entrar: () => Promise<void>, has
  * aqui, sem esperar o Painel até o fim do relógio do teste.
  */
 export async function digitarOCodigoDaEntrada(page: Page, segredo: string, hasTouch: boolean): Promise<void> {
-  const recusa = page.getByRole('alert').filter({ hasText: RECUSA_DO_SEGUNDO_FATOR })
+  // Com o 503 do Redis de fila (54.0) a tela espera o `Retry-After` uma vez e repete sozinha; o segundo 503 chega aqui como o `ErrorState`.
+  // Com o código certo gasto e o Redis que falhou depois (`ESGOTADO_NA_ENTRADA`), a tela manda digitar o seguinte: é a mesma recusa, e o passo seguinte entra.
+  const recusa = page
+    .getByRole('alert')
+    .filter({ hasText: RECUSA_DO_SEGUNDO_FATOR })
+    .or(page.getByRole('alert').filter({ hasText: INDISPONIVEL_NA_ATIVACAO }))
+    .or(page.getByRole('alert').filter({ hasText: ESGOTADO_NA_ENTRADA }))
   for (let tentativa = 1; tentativa <= TENTATIVAS_DO_PASSO; tentativa += 1) {
     await esperarParaRepetir(page, tentativa)
     await campoCodigo(page).fill(codigoDoAutenticador(segredo, PASSO_SEGUINTE_SEGUNDOS))

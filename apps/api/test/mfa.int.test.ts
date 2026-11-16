@@ -3,18 +3,18 @@ import { createLogger, SecretCipher, TokenIssuer } from '@educa/core'
 import { ErrorCode, type PapelDeUsuario } from '@educa/shared'
 import type { INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
-import type { Redis } from 'ioredis'
+import { ReplyError, type Redis } from 'ioredis'
 import { randomBytes, randomUUID } from 'node:crypto'
 import type { AddressInfo } from 'node:net'
 import { Secret, TOTP } from 'otpauth'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { lerAmbienteDeTeste } from '../../../tools/ci/compose.ts'
 import { aguardarSaudavel, composeOuFalha } from '../../../tools/testes/compose.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { AppModule } from '../src/app.module.js'
 import { configureApp } from '../src/configure-app.js'
 import { executarOpsRedefinirMfa } from '../src/ops/redefinir-mfa.js'
-import { REDIS_LOGIN_CLIENT, ChallengeIssuer, gerarCodigosDeRecuperacao, gerarSegredo, PasswordHasher, hmacDaRecuperacao } from '../src/credencial/index.js'
+import { REDIS_LOGIN_CLIENT, ChallengeIssuer, LoginLockout, gerarCodigosDeRecuperacao, gerarSegredo, PasswordHasher, hmacDaRecuperacao } from '../src/credencial/index.js'
 import { testConfig, TEST_APP_OPTIONS } from './test-config.js'
 import { SessaoFixtures } from './sessao.fixture.js'
 
@@ -164,6 +164,14 @@ describe('MFA do coordenador: configurar, ativar, entrar com o código e redefin
   function esperarNaoAutenticado(resposta: Resposta): void {
     expect(resposta.status).toBe(401)
     expect(resposta.corpo.erro?.codigo).toBe(ErrorCode.NAO_AUTENTICADO)
+    expect(resposta.setCookie).toEqual([])
+  }
+
+  /** O 503 do Redis de fila fora (54.0): o código tipado e o `Retry-After`, sem cookie nenhum. */
+  function esperarIndisponivel(resposta: Resposta): void {
+    expect(resposta.status).toBe(503)
+    expect(resposta.corpo.erro?.codigo).toBe(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
+    expect(Number(resposta.retryAfter)).toBeGreaterThan(0)
     expect(resposta.setCookie).toEqual([])
   }
 
@@ -751,26 +759,118 @@ describe('MFA do coordenador: configurar, ativar, entrar com o código e redefin
     })
   })
 
-  it('falha: com o Redis de fila fora, o desafio de mfa é recusado com NAO_AUTENTICADO antes de o código ser conferido, e depois a pessoa entra de novo', async () => {
+  it('falha (54.0): com o Redis de fila fora, o segundo fator dá 503 INDISPONIVEL_TENTE_DE_NOVO com Retry-After, sem gastar código, desafio nem tentativa, e o aviso sai uma vez; com o Redis de volta, o mesmo desafio entra', async () => {
     const coordenador = await pessoa(await bancada.escola())
     const { base32 } = await comMfaAtivo(coordenador)
     const desafio = await desafioDoLogin(coordenador, 'mfa')
+    const avisosDoRedis = () => linhasDeLog.filter((linha) => linha.includes('login.desafio_sem_redis')).length
+    const avisosAntes = avisosDoRedis()
+    // O seguro é do processo, e outros casos do arquivo o usam: a prova é que a queda não o mexe, e não que ele seja zero.
+    const seguroAntes = app.get(LoginLockout).proporcaoDoSeguro
     composeOuFalha('stop', 'redis-fila')
     try {
       const prazo = performance.now() + 10_000
       while (cliente.status === 'ready' && performance.now() < prazo) await new Promise((resolver) => setTimeout(resolver, 20))
       expect(cliente.status).not.toBe('ready')
-      esperarNaoAutenticado(await comDesafio('/v1/sessao/mfa', desafio, { codigo: codigoDoPasso(base32, passoAtual()) }))
-      // O código não foi gasto: o passo não andou.
+      // Seis códigos errados: se a reserva do contador viesse antes da conferência do desafio, o quinto já seria CONTA_SEGURADA.
+      for (let tentativa = 1; tentativa <= 6; tentativa++) esperarIndisponivel(await comDesafio('/v1/sessao/mfa', desafio, { codigo: codigoDoPasso(base32, passoAtual() + 5) }))
+      esperarIndisponivel(await comDesafio('/v1/sessao/mfa', desafio, { codigo: codigoDoPasso(base32, passoAtual()) }))
+      // O código certo não foi gasto (o passo não andou), nenhuma sessão abriu, e o contador do seguro não recebeu tentativa.
       expect(await mfaNoBanco(coordenador.contaId)).toMatchObject({ passo: null })
       expect(await sessoesDaConta(coordenador.contaId)).toBe(0)
+      expect(app.get(LoginLockout).proporcaoDoSeguro).toBe(seguroAntes)
+      // O 503 só vale para o desafio que valia: o forjado continua 401, e o Redis fora não confirma desafio nenhum.
+      esperarNaoAutenticado(await comDesafio('/v1/sessao/mfa', `${desafio.slice(0, -4)}AAAA`, { codigo: codigoDoPasso(base32, passoAtual()) }))
+      // Uma linha para as sete recusas, e só o evento: o log inteiro é conferido por segredo no caso de privacidade, no fim.
+      expect(avisosDoRedis() - avisosAntes).toBe(1)
     } finally {
       composeOuFalha('start', 'redis-fila')
       await aguardarSaudavel('redis-fila')
       await clientePronto(cliente)
     }
-    const deNovo = await comDesafio('/v1/sessao/mfa', await desafioDoLogin(coordenador, 'mfa'), { codigo: codigoDoPasso(base32, passoAtual()) })
+    // O desafio da queda não foi gasto: com o Redis de volta, o mesmo desafio e o mesmo código entram.
+    const deNovo = await comDesafio('/v1/sessao/mfa', desafio, { codigo: codigoDoPasso(base32, passoAtual()) })
+    expect(deNovo.status).toBe(200)
     expect(deNovo.corpo['etapa']).toBe('pronta')
+  })
+
+  it('falha (54.0): com o Redis de fila conectado e recusando o comando, o segundo fator dá o mesmo 503, e a tentativa seguinte entra', async () => {
+    const coordenador = await pessoa(await bancada.escola())
+    const { base32 } = await comMfaAtivo(coordenador)
+    const desafio = await desafioDoLogin(coordenador, 'mfa')
+    expect(cliente.status).toBe('ready')
+    // O erro que o ioredis lança quando o servidor responde com erro (o Redis ainda carregando, a réplica somente leitura).
+    const recusa = vi.spyOn(cliente, 'exists').mockRejectedValue(new (ReplyError as new (mensagem: string) => Error)('LOADING Redis is loading the dataset in memory'))
+    try {
+      esperarIndisponivel(await comDesafio('/v1/sessao/mfa', desafio, { codigo: codigoDoPasso(base32, passoAtual()) }))
+      expect(recusa).toHaveBeenCalled()
+      expect(await mfaNoBanco(coordenador.contaId)).toMatchObject({ passo: null })
+    } finally {
+      recusa.mockRestore()
+    }
+    const deNovo = await comDesafio('/v1/sessao/mfa', desafio, { codigo: codigoDoPasso(base32, passoAtual()) })
+    expect(deNovo.corpo['etapa']).toBe('pronta')
+  })
+
+  it('falha (54.0): o Redis de fila recusa o `consumir` depois do código certo: 503 TEMPO_ESGOTADO, que a web não repete sozinha, com o código gasto e nenhuma sessão; o código seguinte, com o Redis de volta, entra', async () => {
+    const coordenador = await pessoa(await bancada.escola())
+    const { base32 } = await comMfaAtivo(coordenador)
+    const desafio = await desafioDoLogin(coordenador, 'mfa')
+    const erroDoRedis = new (ReplyError as new (mensagem: string) => Error)('LOADING Redis is loading the dataset in memory')
+    // O `conferirLivre` (`exists`) passa, e é o `consumir` (`set`) que recusa: o código já está gasto quando o 503 sobe.
+    const recusa = vi.spyOn(cliente, 'set').mockRejectedValue(erroDoRedis)
+    try {
+      const resposta = await comDesafio('/v1/sessao/mfa', desafio, { codigo: codigoDoPasso(base32, passoAtual()) })
+      expect(recusa).toHaveBeenCalled()
+      // Não é o 503 que manda repetir o mesmo pedido (`INDISPONIVEL_TENTE_DE_NOVO`): repetir o código gasto daria "código incorreto".
+      expect(resposta.status).toBe(503)
+      expect(resposta.corpo.erro?.codigo).toBe(ErrorCode.TEMPO_ESGOTADO)
+      expect(resposta.setCookie).toEqual([])
+      expect((await mfaNoBanco(coordenador.contaId)).passo).not.toBeNull()
+      expect(await sessoesDaConta(coordenador.contaId)).toBe(0)
+    } finally {
+      recusa.mockRestore()
+    }
+    // O mesmo código, em outro desafio, já é recusado: por isso a tela manda digitar o seguinte.
+    esperarNaoAutenticado(await comDesafio('/v1/sessao/mfa', await desafioDoLogin(coordenador, 'mfa'), { codigo: codigoDoPasso(base32, passoAtual()) }))
+    const seguinte = await comDesafio('/v1/sessao/mfa', desafio, { codigo: codigoDoPasso(base32, passoAtual() + 1) })
+    expect(seguinte.status).toBe(200)
+    expect(seguinte.corpo['etapa']).toBe('pronta')
+  })
+
+  it('falha (54.0): o desafio já marcado como usado depois do código certo continua 401, e não vira o TEMPO_ESGOTADO da queda', async () => {
+    const coordenador = await pessoa(await bancada.escola())
+    const { base32 } = await comMfaAtivo(coordenador)
+    const desafio = await desafioDoLogin(coordenador, 'mfa')
+    // O Redis responde, e a marca do desafio já existe (outro pedido o gastou entre a conferência e o `consumir`): `set ... NX` devolve `null`.
+    // O tipo do `set` com `NX` só prevê "OK", e o ioredis devolve `null` quando a chave já existe: o valor real, para o tipo.
+    const jaExistia = null as unknown as Awaited<ReturnType<typeof cliente.set>>
+    const marcado = vi.spyOn(cliente, 'set').mockResolvedValue(jaExistia)
+    try {
+      esperarNaoAutenticado(await comDesafio('/v1/sessao/mfa', desafio, { codigo: codigoDoPasso(base32, passoAtual()) }))
+      expect(marcado).toHaveBeenCalled()
+      expect(await sessoesDaConta(coordenador.contaId)).toBe(0)
+    } finally {
+      marcado.mockRestore()
+    }
+  })
+
+  it('falha (54.0): o mesmo com o código de recuperação: o 503 é TEMPO_ESGOTADO, o código usado não volta, e o outro entra', async () => {
+    const coordenador = await pessoa(await bancada.escola())
+    const { codigosRecuperacao } = await comMfaAtivo(coordenador)
+    const desafio = await desafioDoLogin(coordenador, 'mfa')
+    const recusa = vi.spyOn(cliente, 'set').mockRejectedValue(new (ReplyError as new (mensagem: string) => Error)('LOADING Redis is loading the dataset in memory'))
+    try {
+      const resposta = await comDesafio('/v1/sessao/mfa', desafio, { recuperacao: codigosRecuperacao[0] })
+      expect(resposta.status).toBe(503)
+      expect(resposta.corpo.erro?.codigo).toBe(ErrorCode.TEMPO_ESGOTADO)
+      expect(await sessoesDaConta(coordenador.contaId)).toBe(0)
+    } finally {
+      recusa.mockRestore()
+    }
+    esperarNaoAutenticado(await comDesafio('/v1/sessao/mfa', await desafioDoLogin(coordenador, 'mfa'), { recuperacao: codigosRecuperacao[0] }))
+    const outro = await comDesafio('/v1/sessao/mfa', desafio, { recuperacao: codigosRecuperacao[1] })
+    expect(outro.corpo['etapa']).toBe('pronta')
   })
 
   it('privacidade: o log do fluxo inteiro, com os erros, não tem segredo, URI, código, código de recuperação, desafio, cookie nem e-mail', () => {

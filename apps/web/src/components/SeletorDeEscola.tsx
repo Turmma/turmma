@@ -1,11 +1,13 @@
 import { AVISO_DA_TROCA_RECUSADA, ErrorCode, type AcessoDaConta } from '@educa/shared'
 import { Check, ChevronsUpDown } from 'lucide-react'
-import { useId, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
 import { useLocation } from 'wouter'
 import { ApiError, errorMessage } from '../api/client'
 import { trocarDeEscola } from '../api/sessao'
+import { AvisoDaEspera, DESCARTADA, ehIndisponivel, useEsperaDoIndisponivel } from '../pages/espera-do-indisponivel'
 import { LOGIN_STEP_ROUTE } from '../paths'
 import { ROLE_LABELS } from '../roles'
+import { ErrorState } from './states/ErrorState'
 
 /**
  * O que a troca recusada diz. A API responde `NAO_ENCONTRADO` para a sessão que não troca (matrícula, conta da
@@ -37,6 +39,23 @@ function DadosDaEscola({ acesso }: { acesso: AcessoDaConta }) {
   )
 }
 
+interface FalhaProps {
+  readonly falha: unknown
+  readonly ocupado: boolean
+  readonly aoTentarDeNovo: () => void
+}
+
+/** A falha da troca: o 503 de queda vai ao `ErrorState`, que repete a troca que falhou; o resto é a mensagem da troca recusada. */
+function FalhaDaTroca({ falha, ocupado, aoTentarDeNovo }: FalhaProps) {
+  if (ehIndisponivel(falha)) return <ErrorState erro={falha} aoTentarDeNovo={aoTentarDeNovo} tentando={ocupado} />
+  if (falha === undefined) return null
+  return (
+    <p role="alert" className="rounded-controle border-2 border-erro bg-erro-cx p-3 text-erro">
+      {mensagemDaTroca(falha)}
+    </p>
+  )
+}
+
 interface Props {
   /** O nome da escola em que a pessoa está agora: é o que aparece quando não há outra para escolher. */
   escolaAtual: string
@@ -65,6 +84,11 @@ interface Props {
  * desabilitar a linha que tem o foco o jogaria no `body`, e o leitor de tela perderia onde estava.
  *
  * Com uma escola só, não há o que abrir: fica o nome dela, que é o que diz onde a pessoa está.
+ *
+ * **503 que não é da pessoa (54.0):** a troca que a API recusa com `INDISPONIVEL_TENTE_DE_NOVO` e `Retry-After` (até 10 s) espera
+ * uma vez, com a lista aberta, a linha escolhida em "Abrindo …" e "Tentando de novo em instantes" em `role="status"`, e repete a
+ * mesma troca. O segundo 503, ou um `Retry-After` maior, vai ao `ErrorState`, que repete a troca que falhou; a escola em que
+ * a pessoa está continua marcada, porque nenhuma sessão mudou.
  */
 export function SeletorDeEscola({ escolaAtual, acessos, usuarioAtual }: Props) {
   const [, navegar] = useLocation()
@@ -72,6 +96,13 @@ export function SeletorDeEscola({ escolaAtual, acessos, usuarioAtual }: Props) {
   // A escola cuja troca está no ar: o texto "Abrindo …" da linha, do nome dela e da região de status sai daqui só.
   const [trocando, definirTrocando] = useState<AcessoDaConta | undefined>(undefined)
   const [falha, definirFalha] = useState<unknown>(undefined)
+  // A última troca, com a pessoa de quando saiu: a falha e o "Tentar de novo" são dela, e não valem para a que entrou depois.
+  const [ultimaTroca, definirUltimaTroca] = useState<{ readonly acesso: AcessoDaConta; readonly usuario: string } | undefined>(undefined)
+  const espera = useEsperaDoIndisponivel()
+  const usuarioAgora = useRef(usuarioAtual)
+  useEffect(() => {
+    usuarioAgora.current = usuarioAtual
+  }, [usuarioAtual])
   const idDaLista = useId()
   const botao = useRef<HTMLButtonElement>(null)
   const escolhida = useRef<HTMLButtonElement>(null)
@@ -109,10 +140,17 @@ export function SeletorDeEscola({ escolaAtual, acessos, usuarioAtual }: Props) {
       fechar()
       return
     }
+    const usuarioDoInicio = usuarioAtual
     definirTrocando(acesso)
+    definirUltimaTroca({ acesso, usuario: usuarioAtual })
     definirFalha(undefined)
     try {
-      const resposta = await trocarDeEscola(acesso.usuarioId)
+      // A repetição só sai para a mesma pessoa: o usuário da escola de agora é o que ela tinha ao clicar.
+      const resposta = await espera.executar(
+        () => trocarDeEscola(acesso.usuarioId),
+        () => usuarioAgora.current === usuarioDoInicio,
+      )
+      if (resposta === DESCARTADA) return
       // `pronta` volta à página inicial, já da escola de destino; a coordenação passa antes pelo segundo fator.
       navegar(LOGIN_STEP_ROUTE[resposta.etapa], { replace: true })
     } catch (erro) {
@@ -130,6 +168,8 @@ export function SeletorDeEscola({ escolaAtual, acessos, usuarioAtual }: Props) {
     fechar()
   }
 
+  const daPessoaDeAgora = ultimaTroca?.usuario === usuarioAtual
+
   return (
     <div className="flex min-w-0 flex-col gap-2" onKeyDown={aoTeclar}>
       <button
@@ -144,6 +184,18 @@ export function SeletorDeEscola({ escolaAtual, acessos, usuarioAtual }: Props) {
         <DadosDaEscola acesso={atual} />
         <ChevronsUpDown aria-hidden="true" size={18} strokeWidth={2.5} className="shrink-0 text-sutil" />
       </button>
+      {/* A troca no ar anunciada a todo leitor de tela: a troca do nome da linha com o foco, sozinha, cada um lê de um
+          jeito. A região existe antes do texto, para a mudança ser anunciada. O aviso e a falha vêm
+          logo abaixo do botão, antes da lista: a lateral rola, e abaixo da lista aberta eles ficariam fora da vista (visto no 360 px e no 1366 × 768). */}
+      <AvisoDaEspera restante={espera.restante} repouso={abrindo} classe="t-apoio px-1" />
+      <FalhaDaTroca
+        falha={daPessoaDeAgora ? falha : undefined}
+        ocupado={trocando !== undefined}
+        aoTentarDeNovo={() => {
+          // O `ErrorState` só está na tela para quem trocou (`daPessoaDeAgora`): a pessoa da aba é uma prop, e a tela desenha de novo quando ela muda.
+          if (ultimaTroca !== undefined) void escolher(ultimaTroca.acesso)
+        }}
+      />
       {aberto && (
         <ul id={idDaLista} aria-label="Suas escolas" className="flex flex-col gap-1 rounded-cartao bg-fundo p-1 shadow-flutua">
           {acessos.map((acesso) => {
@@ -175,16 +227,6 @@ export function SeletorDeEscola({ escolaAtual, acessos, usuarioAtual }: Props) {
             )
           })}
         </ul>
-      )}
-      {/* A troca no ar anunciada a todo leitor de tela: a troca do nome da linha com o foco, sozinha, cada um lê de um
-          jeito. A região existe antes do texto, para a mudança ser anunciada. */}
-      <p role="status" className="sr-only">
-        {abrindo}
-      </p>
-      {falha !== undefined && (
-        <p role="alert" className="rounded-controle border-2 border-erro bg-erro-cx p-3 text-erro">
-          {mensagemDaTroca(falha)}
-        </p>
       )}
     </div>
   )

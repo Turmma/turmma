@@ -587,7 +587,7 @@ describe('ataque de senha nunca bloqueia a escola: rebaixa, por IP e escola, e q
       const desafio = await verifyChallenge(await new ChallengeIssuer(chave).emitir({ contaId: randomUUID(), etapa: 'mfa', mfaCumprido: false }), chave, ['mfa'])
       const travado = await travarRedis(testConfig().redisFilaUrl, 3_000)
       const comecou = performance.now()
-      await expect(instancia.app.get(ChallengeConsumer).consumir(desafio)).rejects.toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
+      await expect(instancia.app.get(ChallengeConsumer).consumir(desafio)).rejects.toMatchObject({ codigo: ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, status: 503 })
       // O corte é curto, e é isso que separa esta montagem da do compose: com o prazo da fila chegando até aqui, a
       // recusa só viria depois de 2 s, e a asserção acima continuaria verde sem provar nada.
       expect(performance.now() - comecou).toBeLessThan(TIMEOUT_COMANDO_REDIS_FILA_MS / 2)

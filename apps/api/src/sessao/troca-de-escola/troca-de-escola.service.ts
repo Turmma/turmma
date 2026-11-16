@@ -26,6 +26,8 @@ const naoEncontrado = () => new DomainException(ErrorCode.NAO_ENCONTRADO)
  *
  * - **`escolher`:** com o desafio da etapa. O `jti` só é consumido quando a etapa conclui (sessão gravada ou o desafio
  *   do segundo fator emitido): o `usuarioId` recusado não gasta o desafio.
+ *   Com o Redis de fila fora, `conferirLivre` recusa antes de qualquer outra leitura, com 503 `INDISPONIVEL_TENTE_DE_NOVO` e
+ *   `Retry-After` (54.0): o `usuarioId` de outra conta e o inexistente recebem a mesma resposta.
  * - **Troca pelo token:** só a sessão de método `email` troca; a de matrícula e a externa recebem 404, como o id de
  *   outra conta. A sessão nova, de família nova, nasce no destino, e a de origem é encerrada na mesma transação, com
  *   motivo `troca_de_escola`.

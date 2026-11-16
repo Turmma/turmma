@@ -1918,7 +1918,11 @@ Uma só para coordenação, professor e aluno. A lateral do professor, como fica
 - **A lateral** tem 256 px, face `fundo` e borda direita de 2 px. No topo, a marca e o botão de
   recolher; embaixo, o **seletor de escola**, para quem tem mais de uma (regra 50, item 13; P30):
   um cartão com degrau, com a escola, a rede e o papel. Sigla e turno não existem no modelo, e o
-  número de turmas seria dado da outra escola (Tech Spec da A1, seção 11)
+  número de turmas seria dado da outra escola (Tech Spec da A1, seção 11). **Com o 503 que pede para esperar** (54.0; a espera é genérica para o `INDISPONIVEL_TENTE_DE_NOVO` da troca, e não é o Redis de fila, que a troca pelo token não toca), a troca
+  espera o `Retry-After` uma vez (até 10 s) com a lista aberta: a linha escolhida diz "Abrindo …", a escola de agora segue
+  marcada, e "Tentando de novo em instantes" aparece em `role="status"`, com a contagem em `aria-hidden`; o segundo 503 mostra o
+  `ErrorState` dentro da lateral, o foco continua na linha, e "Tentar de novo" repete a troca. O aviso e a falha ficam logo abaixo do
+  botão da escola, antes da lista: a lateral rola, e abaixo da lista aberta eles saíam da vista
 - **Os lugares** são links de 52 px, canto 12 e borda 2: o ícone ilustrado de 32 px numa caixa de
   36, e o rótulo em `t-rotulo`. **Aceso** tem borda `azul-borda`, fundo `azul-claro`, texto
   `azul-texto` e `aria-current`; apagado tem texto `sutil`, e `fundo-suave` com `tinta` no hover
@@ -2037,6 +2041,19 @@ A entrada, o convite, a reivindicação de nome e a verificação em duas etapas
 - **Textos, ordem de campo e mensagens não mudam** (RF20 da X1), e as proteções ficam: a entrada
   responde igual para matrícula errada e pedido pendente, o convite não mostra e-mail, e o segundo
   fator mostra o segredo em texto, além do QR (D80, item 7; regra 50, item 2)
+- **O Redis de fila fora no segundo fator e na escolha de escola** (reengenharia-continuacao, 14.0; RF13). A API responde 503
+  `INDISPONIVEL_TENTE_DE_NOVO` com `Retry-After`, sem gastar tentativa nem desafio, e a tela espera **uma vez**, até 10 s: o
+  botão (o "Entrar" do segundo fator, as escolas da lista) fica desabilitado, e "Tentando de novo em instantes" aparece em
+  `role="status"`, visível, com a contagem em `aria-hidden`; o mesmo pedido sai de novo ao fim. O segundo 503, ou um
+  `Retry-After` acima de 10 s, mostra o `ErrorState` ("Tentar de novo" repete o pedido, com uma espera única nova), com o aviso
+  fora e o foco de volta ao botão. Outro erro (o código errado) segue com a mensagem de sempre, sem espera. Nenhuma peça nova
+  (o `AvisoDaEspera` mora em `pages/espera-do-indisponivel.ts`). O 503 vem do `conferirLivre` do desafio, que vale também para
+  a **ativação do segundo fator** (`configurar_mfa`): ali a tela mostra o texto do catálogo, **sem** espera automática, de
+  propósito (a ativação não é a tela da entrada). Se o Redis cai **depois** do código certo, o código já está gasto e repetir o
+  mesmo daria "código incorreto": a API responde `TEMPO_ESGOTADO`, que a tela não repete sozinha, e o texto manda digitar o
+  próximo código do aplicativo (ou outro de recuperação). **O seletor de escola** troca pelo token, que não passa pelo desafio
+  do Redis: a espera dele vale para qualquer `INDISPONIVEL_TENTE_DE_NOVO` da troca (é genérica), e o Redis fora aparece para a
+  coordenação na tela do segundo fator que a troca abre.
 - **"Esqueci a senha" e "Redefinir"** (acesso-e-convites, 6.0; RF12). Só a entrada da equipe (e-mail e senha) leva o link
   **"Esqueci a senha"**, um link `secundario` de 44 px logo abaixo do "Entrar"; a do aluno, que não tem e-mail, não o leva.
   - **Esqueci a senha** (`/esqueci`): um campo, "E-mail", o `primario` "Enviar o link" (que vira "Enviando…", desligado, com o

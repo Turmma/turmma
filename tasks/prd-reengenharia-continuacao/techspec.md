@@ -156,7 +156,17 @@ enquanto o 503 da API é recusa. O aviso da decisão da correção (`Aprovar.tsx
 **O Redis fora (54.0).** `#semRedis` de `credencial/challenge.ts` devolve `INDISPONIVEL_TENTE_DE_NOVO` com `Retry-After`, como
 `operacao/operador-challenge.ts`, e `conferirLivre` vem antes de qualquer reserva. A web espera o `Retry-After` uma vez, até 10 s,
 com o botão desabilitado e um aviso em `role="status"`; acima disso, ou num segundo `503`, o `ErrorState`. O seletor mantém a
-escola.
+escola. O `docs/runbook.md` ("Seguro de limite ativo", causa 4) cita o 401 do desafio sem Redis e o "volta ao login": passa a dizer 503 e a
+espera única da tela, no commit desta tarefa (14.3). A espera é de 0 a 10 s, com o piso de 1 s da entrada (`ESPERA_MINIMA_NO_503_MS`: um `Retry-After: 0` não faz a escola
+martelar a rota); o hook `useEsperaDoIndisponivel` e a região `AvisoDaEspera` (visível na espera, `sr-only` fora dela, a contagem em `aria-hidden`) ficam em
+`pages/espera-do-indisponivel.ts`, e a falha de cada tela (`FalhaDoSegundoFator`, `FalhaDaEscolha`, `FalhaDaTroca`) é uma peça pequena do próprio arquivo, por causa do
+limite de complexidade do lint. A repetição só sai para quem pediu: a tela que saiu, ou o desafio da aba que mudou, a descarta. **O 503 depois do código certo:** se o Redis cai no `consumir` de `MfaService`, depois de o código certo ter gasto o passo (ou o código de recuperação), o 503
+que manda repetir faria a web repetir o mesmo código, e a resposta seria "código incorreto". Esse caso sai como `TEMPO_ESGOTADO` (a web não o repete sozinha), com o texto
+próprio da tela do segundo fator da entrada (`AVISO_DO_CODIGO_GASTO_SEM_ENTRAR`), que manda digitar o código seguinte **sem afirmar que o código estava certo**: a API dá o
+mesmo código no `statement_timeout`, que pode vir antes da conferência. O estouro do prazo no navegador (`estourouNoCliente`: a resposta não chegou, e a web não sabe
+o que a API fez) fica com o texto geral do `TEMPO_ESGOTADO`. Quando o `consumir` falha, o convite do desafio já pode ter sido ativado (`ativar` vem antes): a ativação
+fica, e o código seguinte entra por ela. O seletor troca pelo token, que não passa pelo desafio do Redis: a espera dele vale para qualquer
+`INDISPONIVEL_TENTE_DE_NOVO` da troca. A ativação do segundo fator mostra o texto do catálogo, sem espera automática.
 
 ## 6. Isolamento (obrigatório)
 

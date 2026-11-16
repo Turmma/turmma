@@ -1,7 +1,8 @@
-import type { Page, Route } from '@playwright/test'
+import type { Locator, Page, Route } from '@playwright/test'
 import { MENSAGENS_DE_ERRO, mensagemDaEntradaPorMatricula, mensagemDaFalhaExterna, mensagemDoAcessoDaEscola } from '../packages/shared/src/errors/messages.ts'
-import { criarAlunoComMatricula, criarEscolaSintetica, liberarProvedorDaEscola, ligarContaExterna, type AlunoDeTeste } from './support/seed.ts'
-import { esperarInicioDoAluno } from './support/casca.ts'
+import { criarAlunoComMatricula, criarEquipeComSenha, criarEscolaSintetica, criarUsuarioEmOutraEscola, liberarProvedorDaEscola, ligarContaExterna, type AlunoDeTeste } from './support/seed.ts'
+import { abrirSeletorDeEscola, entrarPelaApiSemMedirAPrimeiraCarga, entrarPorEmail, esperarInicioDoAluno, esperarNovaConversa, lateral, linhaDoSeletor, nomeNoSeletor } from './support/casca.ts'
+import { paginaNaoRola } from './support/coordenacao.ts'
 import { expect, test } from './support/profiles.ts'
 import { ALVO_DE_TOQUE_PRINCIPAL_PX, rawCodePattern, isFocusVisible, horizontalOverflow, seriousViolations } from './support/checks.ts'
 
@@ -267,5 +268,167 @@ test.describe('entrada do aluno pela conta Google da escola', () => {
       expect(await seriousViolations(page)).toEqual([])
       expect(await horizontalOverflow(page)).toBe(0)
     }
+  })
+})
+
+/**
+ * O Redis de fila fora na entrada e no seletor (54.0; RF13): o 503 `INDISPONIVEL_TENTE_DE_NOVO` com `Retry-After` do segundo fator, da
+ * escolha de escola e da troca pelo seletor. A tela espera uma vez, com o botão desabilitado e o aviso em `role="status"`, e o
+ * segundo 503 vira o `ErrorState`; a página não rola a 1366 × 768, nada rola de lado a 360 px, os alvos têm 44 px e o axe não acha
+ * nada sério. O 503 vem de `page.route` (parar o Redis de verdade pararia os casos que rodam ao mesmo tempo): a recusa de verdade
+ * da API, sem gastar tentativa, é de `apps/api/test/mfa.int.test.ts` e `troca-de-escola.int.test.ts`, e a lógica da espera, de
+ * `apps/web/src/pages/espera-do-indisponivel.test.ts`.
+ */
+test.describe('com o Redis de fila fora: o segundo fator, a escolha de escola e o seletor esperam uma vez', () => {
+  const AVISO = 'Tentando de novo em instantes'
+  // O máximo que a tela espera sozinha: o axe roda com o relógio solto (`medir`), e a espera tem de sobrar para ele.
+  const ESPERA_S = 10
+  const PESSOA = { email: 'pessoa-sintetica@escola.invalid', senha: 'senha-sintetica-qualquer-1' }
+  const indisponivel = {
+    status: 503,
+    contentType: 'application/json',
+    headers: { 'Retry-After': String(ESPERA_S) },
+    body: JSON.stringify({ erro: { codigo: 'INDISPONIVEL_TENTE_DE_NOVO', mensagem: 'texto da API que a tela não usa', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } }),
+  }
+  const ACESSOS = [
+    { usuarioId: '0197a1c0-0000-7000-8000-00000000000a', escolaNome: 'Colégio Sintético A', redeNome: 'Rede A', papel: 'professor' },
+    { usuarioId: '0197a1c0-0000-7000-8000-00000000000b', escolaNome: 'Escola Sintética B', redeNome: 'Rede B', papel: 'professor' },
+  ]
+
+  /** O login por e-mail que a tela recebe: a etapa seguinte, com o desafio. */
+  async function loginQueDa(page: Page, etapa: Record<string, unknown>): Promise<void> {
+    await page.route('**/v1/sessao/email', (rota: Route) => rota.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(etapa) }))
+  }
+
+  /**
+   * Para o relógio da página, antes de a tela pedir o que o 503 vai recusar: o aviso e o botão desabilitado existem só nos
+   * `ESPERA_S` do `Retry-After`, e medir a tela (o axe, a altura, a rolagem) contra esses segundos de relógio real só passa com a
+   * máquina folgada. Com o relógio parado, a espera só acaba em `soltarAEspera`. A rede e o resto da página seguem de verdade.
+   */
+  async function pararORelogio(page: Page): Promise<void> {
+    const agora = await page.evaluate(() => Date.now())
+    await page.clock.pauseAt(agora + 1_000)
+  }
+
+  /** Os `ESPERA_S` do `Retry-After` passam de uma vez: a contagem acaba e a repetição sai. */
+  async function soltarAEspera(page: Page): Promise<void> {
+    await page.clock.runFor(ESPERA_S * 1_000)
+  }
+
+  /**
+   * A medida da tela com o aviso ou o erro: a página não rola, nada rola de lado, o botão tem 44 px e o axe não acha nada. A geometria
+   * se mede com o relógio parado: é a da tela com o aviso, em qualquer máquina. O axe usa `setTimeout` e abre uma página em branco
+   * do contexto (o `page.clock` é do contexto, e `runFor` caía nela), então roda com o relógio solto, e a espera de `ESPERA_S` (o
+   * máximo que a tela aceita, 10 s) sobra para ele; a repetição só sai em `soltarAEspera`, e o que se confere antes dela confere antes do axe.
+   */
+  async function medir(page: Page, botao: Locator): Promise<void> {
+    await paginaNaoRola(page)
+    const caixa = await botao.boundingBox()
+    expect(caixa, 'o botão sem caixa').not.toBeNull()
+    expect(caixa?.height ?? 0).toBeGreaterThanOrEqual(ALVO_DE_TOQUE_PRINCIPAL_PX)
+    await page.clock.resume()
+    expect(await seriousViolations(page)).toEqual([])
+  }
+
+  test('segundo fator: o aviso com o botão desabilitado, uma nova tentativa depois do Retry-After, e o ErrorState no segundo 503', async ({ page, hasTouch }) => {
+    await loginQueDa(page, { etapa: 'mfa', desafio: 'desafio-sintetico-do-segundo-fator' })
+    let pedidos = 0
+    await page.route('**/v1/sessao/mfa', (rota: Route) => {
+      pedidos++
+      return rota.fulfill(indisponivel)
+    })
+    await page.clock.install()
+    await page.goto('/entrar')
+    await entrarPorEmail(page, PESSOA, hasTouch)
+    await expect(page.getByRole('heading', { name: 'Segundo fator' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+    await page.getByLabel('Código do aplicativo').fill('123456')
+    await pararORelogio(page)
+    await activate(page, /^Entrar$/, hasTouch)
+
+    const aviso = page.getByRole('status').filter({ hasText: AVISO })
+    await expect(aviso).toBeVisible()
+    await expect(botaoEntrar(page)).toBeDisabled()
+    expect(pedidos).toBe(1)
+    await medir(page, botaoEntrar(page))
+
+    // O segundo 503 não espera de novo: o ErrorState, com o aviso fora e o foco de volta ao botão.
+    await soltarAEspera(page)
+    const tentarDeNovo = page.getByRole('button', { name: 'Tentar de novo' })
+    await expect(tentarDeNovo).toBeVisible()
+    await expect(tentarDeNovo).toBeInViewport()
+    expect(pedidos).toBe(2)
+    await expect(aviso).toHaveCount(0)
+    await expect(botaoEntrar(page)).toBeEnabled()
+    await expect(botaoEntrar(page)).toBeFocused()
+    await medir(page, tentarDeNovo)
+  })
+
+  test('escolha de escola: o aviso com as escolas desabilitadas, uma nova tentativa depois do Retry-After, e o ErrorState no segundo 503', async ({ page, hasTouch }) => {
+    await loginQueDa(page, { etapa: 'escolher', desafio: 'desafio-sintetico-da-escolha', acessos: ACESSOS })
+    let pedidos = 0
+    await page.route('**/v1/sessao/escola', (rota: Route) => {
+      pedidos++
+      return rota.fulfill(indisponivel)
+    })
+    await page.clock.install()
+    await page.goto('/entrar')
+    await entrarPorEmail(page, PESSOA, hasTouch)
+    const escolhida = page.getByRole('button', { name: /Escola Sintética B/ })
+    await expect(escolhida).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+    await pararORelogio(page)
+    await activate(page, /Escola Sintética B/, hasTouch)
+
+    const aviso = page.getByRole('status').filter({ hasText: AVISO })
+    await expect(aviso).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(escolhida).toBeDisabled()
+    await expect(page.getByRole('button', { name: /Colégio Sintético A/ })).toBeDisabled()
+    expect(pedidos).toBe(1)
+    await medir(page, escolhida)
+
+    await soltarAEspera(page)
+    const tentarDeNovo = page.getByRole('button', { name: 'Tentar de novo' })
+    await expect(tentarDeNovo).toBeVisible()
+    expect(pedidos).toBe(2)
+    await expect(aviso).toHaveCount(0)
+    await expect(escolhida).toBeEnabled()
+    await expect(escolhida).toBeFocused()
+    await medir(page, tentarDeNovo)
+  })
+
+  test('seletor: a troca de escola espera uma vez com a lista aberta, e o segundo 503 mostra o ErrorState com a escola de agora marcada', async ({ page, hasTouch }) => {
+    const emA = await criarEquipeComSenha()
+    const emB = await criarUsuarioEmOutraEscola(emA.contaId)
+    await page.clock.install()
+    await entrarPelaApiSemMedirAPrimeiraCarga(page, emA, '/professor/nova-conversa', () => esperarNovaConversa(page, emA.nome), emA.usuarioId)
+    let pedidos = 0
+    await page.route('**/v1/sessao/escola', (rota: Route) => {
+      if (rota.request().method() !== 'POST') return rota.continue()
+      pedidos++
+      return rota.fulfill(indisponivel)
+    })
+
+    await abrirSeletorDeEscola(page, hasTouch)
+    const linhaDeB = linhaDoSeletor(page, nomeNoSeletor(emB, 'professor'))
+    await pararORelogio(page)
+    if (hasTouch) await linhaDeB.tap()
+    else await linhaDeB.click()
+
+    const aviso = lateral(page).getByRole('status').filter({ hasText: AVISO })
+    await expect(aviso).toBeVisible()
+    // A lateral rola: com a lista aberta, o aviso tem de estar à vista, e não abaixo da dobra (visto no 360 px e no 1366 × 768).
+    await expect(aviso).toBeInViewport()
+    expect(pedidos).toBe(1)
+    // Enquanto a troca espera, a linha da escola que abre diz "Abrindo …" (é o nome acessível dela até a espera acabar).
+    await medir(page, lateral(page).getByRole('list', { name: 'Suas escolas' }).getByRole('button', { name: /^Abrindo / }))
+
+    await soltarAEspera(page)
+    const tentarDeNovo = lateral(page).getByRole('button', { name: 'Tentar de novo' })
+    await expect(tentarDeNovo).toBeVisible()
+    expect(pedidos).toBe(2)
+    await expect(aviso).toHaveCount(0)
+    // Nenhuma sessão mudou: a escola de agora segue marcada, e a lista continua aberta.
+    await expect(linhaDoSeletor(page, nomeNoSeletor(emA, 'professor'))).toHaveAttribute('aria-current', 'true')
+    await expect(linhaDeB).toBeFocused()
+    await medir(page, tentarDeNovo)
   })
 })

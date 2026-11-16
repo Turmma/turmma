@@ -1,4 +1,4 @@
-import { createApiRedisClient, createQueueRedisClient, DomainException } from '@educa/core'
+import { createApiRedisClient, createQueueRedisClient, DEFAULT_RETRY_AFTER_SECONDS, DomainException } from '@educa/core'
 import { ErrorCode } from '@educa/shared'
 import { Logger } from '@nestjs/common'
 import type { Redis } from 'ioredis'
@@ -50,13 +50,13 @@ describe('ConsumoDeDesafio: o jti vale uma vez só, no Redis de fila', () => {
     expect(vida).toBeLessThanOrEqual(5 * 60_000)
   })
 
-  it('falha: com o Redis de fila fora, o desafio é recusado, e não aceito sem marca', async () => {
+  it('falha (54.0): com o Redis de fila fora, o desafio é recusado com 503 INDISPONIVEL_TENTE_DE_NOVO e Retry-After, e não aceito sem marca', async () => {
     const fora = createApiRedisClient('redis://127.0.0.1:9', 'teste-desafio-fora', () => undefined)
     try {
       const desafio = await verifyChallenge(await new ChallengeIssuer(CHAVE).emitir({ contaId: CONTA, etapa: 'escolher', mfaCumprido: false }), CHAVE, ['escolher'])
       const consumo = new ChallengeConsumer(fora)
-      await expect(consumo.consumir(desafio)).rejects.toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
-      await expect(consumo.conferirLivre(desafio)).rejects.toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
+      await expect(consumo.consumir(desafio)).rejects.toMatchObject({ codigo: ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, status: 503, tenteDeNovoEmSegundos: DEFAULT_RETRY_AFTER_SECONDS })
+      await expect(consumo.conferirLivre(desafio)).rejects.toMatchObject({ codigo: ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, status: 503, tenteDeNovoEmSegundos: DEFAULT_RETRY_AFTER_SECONDS })
       // A recusa pelo Redis entra no sinal do seguro (15.5).
       expect(consumo.proporcaoDoSeguro).toBe(1)
     } finally {
@@ -76,8 +76,8 @@ describe('ConsumoDeDesafio: o jti vale uma vez só, no Redis de fila', () => {
       avisos.mockClear()
 
       const travado = await travarRedis(URL_REDIS_FILA, 3_000)
-      await expect(consumo.conferirLivre(noTravamento)).rejects.toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
-      await expect(consumo.consumir(noTravamento)).rejects.toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
+      await expect(consumo.conferirLivre(noTravamento)).rejects.toMatchObject({ codigo: ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, status: 503 })
+      await expect(consumo.consumir(noTravamento)).rejects.toMatchObject({ codigo: ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, status: 503 })
       expect(producao.status).toBe('ready')
       expect(consumo.proporcaoDoSeguro).toBe(1)
       // Uma linha só para as duas recusas, e só o evento: nada do desafio, da conta ou da pessoa.
@@ -93,7 +93,7 @@ describe('ConsumoDeDesafio: o jti vale uma vez só, no Redis de fila', () => {
           async () =>
             consumo.consumir(await emitir()).then(
               () => 'aceito',
-              (erro: unknown) => (erro instanceof DomainException && erro.codigo === ErrorCode.NAO_AUTENTICADO ? 'recusado' : `outra recusa: ${String(erro)}`),
+              (erro: unknown) => (erro instanceof DomainException && erro.codigo === ErrorCode.INDISPONIVEL_TENTE_DE_NOVO ? 'recusado' : `outra recusa: ${String(erro)}`),
             ),
           { timeout: 5_000, interval: 100 },
         )

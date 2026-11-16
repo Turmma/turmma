@@ -12,6 +12,7 @@ import {
   mensagemDoAcessoDaEscola,
   mensagemDoConvite,
   mensagemDoSegundoFator,
+  AVISO_DO_CODIGO_GASTO_SEM_ENTRAR,
   MENSAGENS_DA_FALHA_EXTERNA,
   MENSAGENS_DA_LIGACAO,
   MENSAGENS_DE_ERRO,
@@ -105,6 +106,15 @@ describe('mensagemDoSegundoFator', () => {
     expect(mensagem).toBe(mensagemDoConvite(ErrorCode.NAO_ENCONTRADO))
     expect(mensagem).not.toBe(MENSAGENS_DE_ERRO.NAO_ENCONTRADO)
     expect(mensagem).not.toMatch(/senha|código|corret/i)
+  })
+
+  it('54.0: o código possivelmente gasto com o sistema que não terminou a entrada manda digitar o seguinte, sem afirmar que o código estava certo', () => {
+    expect(AVISO_DO_CODIGO_GASTO_SEM_ENTRAR).not.toBe(MENSAGENS_DE_ERRO.TEMPO_ESGOTADO)
+    expect(AVISO_DO_CODIGO_GASTO_SEM_ENTRAR).toContain('pode já ter sido usado')
+    expect(AVISO_DO_CODIGO_GASTO_SEM_ENTRAR).not.toMatch(/estava certo/)
+    expect(AVISO_DO_CODIGO_GASTO_SEM_ENTRAR).toContain('próximo código')
+    // A ativação e a operação seguem com o texto geral do código: o aviso é só da tela da entrada.
+    expect(mensagemDoSegundoFator(ErrorCode.TEMPO_ESGOTADO)).toBe(MENSAGENS_DE_ERRO.TEMPO_ESGOTADO)
   })
 
   it('a conta segurada no quinto código errado diz a espera, como na senha', () => {

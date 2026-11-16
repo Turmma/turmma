@@ -91,7 +91,7 @@ paralela desde o começo e não alongam o caminho, que é o da IA (1.0 → 11.0)
   - [ ] 13.2 "Voltar ao início" na `Falha`
   - [ ] 13.3 Testes
 
-- [ ] **14.0 — Com o Redis fora, o segundo fator e a escolha de escola pedem para tentar de novo, sem gastar tentativa (54.0)**
+- [x] **14.0 — Com o Redis fora, o segundo fator e a escolha de escola pedem para tentar de novo, sem gastar tentativa (54.0)**
   - [ ] 14.1 `#semRedis` devolve `INDISPONIVEL_TENTE_DE_NOVO` com `Retry-After`; `conferirLivre` antes de qualquer reserva
   - [ ] 14.2 A web espera o `Retry-After` uma vez, na entrada e no seletor
   - [ ] 14.3 Testes

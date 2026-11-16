@@ -198,7 +198,13 @@ bancada, com fixture.
   `aria-hidden`), uma nova tentativa; segundo 503: o `ErrorState`, sem nova espera; `Retry-After: 10` espera, `Retry-After: 11`
   vai direto ao `ErrorState`. Na entrada e no seletor, que mantém a escola
 - [I] Redis fora no segundo fator e na escolha de escola: `503 INDISPONIVEL_TENTE_DE_NOVO` com `Retry-After`, e o contador do
-  `insuranceLimiter` do `LoginLockout` sem tentativa gasta. Mutação: reservar antes de `conferirLivre`
+  `insuranceLimiter` do `LoginLockout` sem tentativa gasta. Mutação: reservar antes de `conferirLivre`. O `docs/runbook.md`
+  ("Seguro de limite ativo", causa 4) deixa de dizer 401 e "volta ao login": diz 503 e a espera única da tela (14.0)
+- [I] Redis que cai **depois** do código certo (o `consumir` do segundo fator): `503 TEMPO_ESGOTADO`, e não o 503 que manda repetir o mesmo pedido; o código está gasto
+  (o passo gravado, ou o de recuperação usado), nenhuma sessão abre, e o código seguinte, com o Redis de volta, entra. O desafio forjado, com o Redis fora, segue 401
+- [E] Com o Redis de fila fora (`e2e/entrar-na-escola.spec.ts`): o segundo fator e a escolha de escola da entrada (login falso por `page.route`, sem usuário
+  no banco) e o seletor (uma professora de verdade em duas escolas, entrando pela API) recebem o 503 com `Retry-After: 10` duas vezes, com o relógio da página parado (`page.clock`) enquanto o aviso é medido: o aviso com o botão
+  desabilitado e, depois, o `ErrorState` com o foco de volta ao botão; a 1366 × 768 a página não rola, a 360 px nada rola de lado, o botão tem 44 px, e o axe não acha nada sério
 - [E] A `Falha` fora de área (`e2e/tela-de-falha.spec.ts`): o estado do sistema (`/sistema`) com a hora que não formata (o `Intl` do
   navegador lança só nessa página, por `addInitScript`; nenhuma resposta válida da API faz uma tela da entrada lançar) e a operação com o
   chunk trocado por um módulo que lança (`page.route`). O foco vai ao título; a 1366 × 768 a página não rola; o "Voltar ao início" sai da

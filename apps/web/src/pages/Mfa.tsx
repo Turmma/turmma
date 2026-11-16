@@ -1,4 +1,5 @@
 import {
+  AVISO_DO_CODIGO_GASTO_SEM_ENTRAR,
   avisoDoSegundoFatorConsumido,
   ErrorCode,
   DIGITOS_DO_CODIGO_MFA,
@@ -6,18 +7,47 @@ import {
   TAMANHO_DO_CODIGO_DE_RECUPERACAO,
   type MfaRequest,
 } from '@educa/shared'
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useLocation } from 'wouter'
-import { ApiError } from '../api/client'
+import { ApiError, estourouNoCliente } from '../api/client'
 import { definirAvisoDaEntrada, desafioDaEtapa, entrarComSegundoFator, esquecerDesafio } from '../api/sessao'
 import { LOGIN_STEP_ROUTE, ROUTES } from '../paths'
 import { Button } from '../components/ui/Button'
 import { FormField } from '../components/ui/fields/FormField'
 import { CascaPublica } from '../components/CascaPublica'
+import { ErrorState } from '../components/states/ErrorState'
+import { AvisoDaEspera, DESCARTADA, ehIndisponivel, useEsperaDoIndisponivel } from './espera-do-indisponivel'
 import { SemDesafio } from './SemDesafio'
 
 /** Quanto texto o campo de recuperação aceita: os 12 caracteres do código, com folga para espaço e hífen copiados. */
 const TAMANHO_MAXIMO_DIGITADO_NA_RECUPERACAO = TAMANHO_DO_CODIGO_DE_RECUPERACAO + 8
+
+interface FalhaProps {
+  readonly falha: unknown
+  readonly entrando: boolean
+  readonly aoTentarDeNovo: () => void
+}
+
+/**
+ * O texto da falha que não é a queda: o `TEMPO_ESGOTADO` **da API** (o código gasto sem entrar) tem o texto próprio; o estouro do
+ * prazo no navegador (a resposta não chegou, e a web não sabe se o código foi conferido) cai em `mensagemDoSegundoFator`, que dá
+ * o texto geral do `TEMPO_ESGOTADO`.
+ */
+function mensagemDaFalhaDoCodigo(falha: unknown): string {
+  if (falha instanceof ApiError && falha.codigo === ErrorCode.TEMPO_ESGOTADO && !estourouNoCliente(falha)) return AVISO_DO_CODIGO_GASTO_SEM_ENTRAR
+  return falha instanceof ApiError ? mensagemDoSegundoFator(falha.codigo, falha.esperaSegundos) : mensagemDoSegundoFator(ErrorCode.ERRO_INTERNO)
+}
+
+/** A falha do envio: o 503 de queda vai ao `ErrorState`, que repete o pedido; o resto é a mensagem do campo (código errado, conta segurada). */
+function FalhaDoSegundoFator({ falha, entrando, aoTentarDeNovo }: FalhaProps) {
+  if (ehIndisponivel(falha)) return <ErrorState erro={falha} aoTentarDeNovo={aoTentarDeNovo} tentando={entrando} />
+  if (falha === undefined) return null
+  return (
+    <p role="alert" className="rounded-controle border border-erro bg-erro-cx p-4 text-erro">
+      {mensagemDaFalhaDoCodigo(falha)}
+    </p>
+  )
+}
 
 /**
  * O segundo fator do coordenador (RF12, RF20). Chega aqui quem já provou a senha: o desafio `mfa` está na memória
@@ -25,6 +55,10 @@ const TAMANHO_MAXIMO_DIGITADO_NA_RECUPERACAO = TAMANHO_DO_CODIGO_DE_RECUPERACAO 
  *
  * Estados: "com dado" é o formulário; erro é a mensagem que diz o que fazer; carregando é o botão em "Entrando…".
  * Sem desafio — um F5, ou o quinto código errado, que o gasta —, a tela manda entrar de novo, que é o único caminho.
+ *
+ * **Redis de fila fora (54.0):** a API responde 503 `INDISPONIVEL_TENTE_DE_NOVO` com `Retry-After` e não gasta tentativa
+ * nem código. A tela espera esse tempo uma vez (até 10 s), com o botão desabilitado e "Tentando de novo em instantes" em
+ * `role="status"`, e repete o mesmo código; o segundo 503, ou um `Retry-After` maior, vai ao `ErrorState`.
  */
 export function Mfa() {
   const [, navegar] = useLocation()
@@ -32,19 +66,36 @@ export function Mfa() {
   const [codigo, definirCodigo] = useState('')
   const [entrando, definirEntrando] = useState(false)
   const [falha, definirFalha] = useState<unknown>(undefined)
+  const espera = useEsperaDoIndisponivel()
+  const botao = useRef<HTMLButtonElement>(null)
+
+  // O botão desabilitado perde o foco; ao terminar com falha, ele volta ao botão (e só se foi perdido: quem está no campo fica nele).
+  useEffect(() => {
+    if (falha !== undefined && document.activeElement === document.body) botao.current?.focus()
+  }, [falha])
 
   if (desafioDaEtapa('mfa') === undefined) {
     return <SemDesafio titulo="Segundo fator" explicacao="Para continuar, entre de novo com o seu e-mail e a sua senha." />
   }
 
-  async function enviar(evento: FormEvent<HTMLFormElement>): Promise<void> {
+  function aoEnviar(evento: FormEvent<HTMLFormElement>): void {
     evento.preventDefault()
+    void enviar()
+  }
+
+  async function enviar(): Promise<void> {
     if (entrando) return
     definirEntrando(true)
     definirFalha(undefined)
     const pedido: MfaRequest = recuperacao ? { recuperacao: codigo } : { codigo }
+    const desafioDaTentativa = desafioDaEtapa('mfa')
     try {
-      const resposta = await entrarComSegundoFator(pedido)
+      // A repetição só sai se o desafio é o mesmo: a pessoa seguinte do computador não herda o código de quem saiu.
+      const resposta = await espera.executar(
+        () => entrarComSegundoFator(pedido),
+        () => desafioDaEtapa('mfa') === desafioDaTentativa,
+      )
+      if (resposta === DESCARTADA) return
       definirCodigo('')
       navegar(LOGIN_STEP_ROUTE[resposta.etapa])
     } catch (erro) {
@@ -83,7 +134,7 @@ export function Mfa() {
           ? 'Digite um dos códigos de recuperação que você guardou quando configurou o segundo fator. Cada código vale uma vez só.'
           : 'Digite o código que o seu aplicativo autenticador mostra agora. Ele muda a cada 30 segundos.'}
       </p>
-      <form className="flex flex-col gap-4" onSubmit={(evento) => void enviar(evento)}>
+      <form className="flex flex-col gap-4" onSubmit={aoEnviar}>
         {recuperacao ? (
           <FormField
             key="recuperacao"
@@ -115,17 +166,11 @@ export function Mfa() {
             onChange={(evento) => definirCodigo(evento.target.value)}
           />
         )}
-        {falha !== undefined && (
-          <p role="alert" className="rounded-controle border border-erro bg-erro-cx p-4 text-erro">
-            {falha instanceof ApiError ? mensagemDoSegundoFator(falha.codigo, falha.esperaSegundos) : mensagemDoSegundoFator(ErrorCode.ERRO_INTERNO)}
-          </p>
-        )}
-        <Button type="submit" disabled={entrando} className="w-full">
+        <FalhaDoSegundoFator falha={falha} entrando={entrando} aoTentarDeNovo={() => void enviar()} />
+        <Button ref={botao} type="submit" disabled={entrando} className="w-full">
           {entrando ? 'Entrando…' : 'Entrar'}
         </Button>
-        <span role="status" className="sr-only">
-          {entrando ? 'Entrando…' : ''}
-        </span>
+        <AvisoDaEspera restante={espera.restante} repouso={entrando ? 'Entrando…' : ''} classe="t-apoio text-center" />
       </form>
       {/* Botão, e não link: não é navegação, é o mesmo formulário com o outro código. */}
       <button type="button" onClick={trocarDeCodigo} className="min-h-11 self-start text-caramelo-texto underline">

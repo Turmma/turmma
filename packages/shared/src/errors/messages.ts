@@ -99,6 +99,16 @@ export const MENSAGENS_DO_SEGUNDO_FATOR: Readonly<Partial<Record<ErrorCode, stri
 }
 
 /**
+ * O segundo fator da entrada quando o sistema não terminou a entrada (54.0; o Redis falhou depois da conferência): repetir o
+ * mesmo código não adianta, e a tela manda digitar o seguinte. O mesmo `TEMPO_ESGOTADO` da API também vem do `statement_timeout`,
+ * antes da conferência do código, por isso o texto não afirma que o código estava certo. O conselho vale nos dois casos: o código
+ * seguinte do aplicativo entra tenha o anterior sido gasto ou não. Só a tela da entrada o usa: a ativação do segundo fator e a
+ * da operação respondem outra coisa ao mesmo código de erro.
+ */
+export const AVISO_DO_CODIGO_GASTO_SEM_ENTRAR =
+  'O sistema não conseguiu terminar a entrada, e esse código pode já ter sido usado. Digite o próximo código do aplicativo, ou outro código de recuperação.'
+
+/**
  * O que a tela do convite diz. Expirado, revogado, refeito, já usado e inexistente chegam no mesmo `NAO_ENCONTRADO`, e a
  * tela não diz qual deles foi (regra 10, item 6): pede outro convite, que é o que resolve todos.
  */

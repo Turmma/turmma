@@ -3,13 +3,14 @@ import { createLogger, SecretCipher, TokenIssuer } from '@educa/core'
 import { ErrorCode, type PapelDeUsuario } from '@educa/shared'
 import type { INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
-import type { Redis } from 'ioredis'
+import { ReplyError, type Redis } from 'ioredis'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import type { AddressInfo } from 'node:net'
 import { SignJWT } from 'jose'
 import { Secret, TOTP } from 'otpauth'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
+import { aguardarSaudavel, composeOuFalha } from '../../../tools/testes/compose.ts'
 import { travarRedis } from '../../../tools/testes/redis-travado.ts'
 import { AppModule } from '../src/app.module.js'
 import { configureApp } from '../src/configure-app.js'
@@ -34,6 +35,7 @@ interface Resposta {
   status: number
   corpo: Record<string, unknown> & { erro?: { codigo?: string; requisicaoId?: string } }
   setCookie: string[]
+  retryAfter: string | null
 }
 
 interface Pessoa {
@@ -146,7 +148,7 @@ describe('POST /v1/sessao/escola e /v1/eu.acessos: quem trabalha em mais de uma 
     for (const linha of setCookie) segredosVistos.add(linha.split(';')[0]?.split('=').slice(1).join('=') ?? '')
     const corpo = texto === '' ? {} : (JSON.parse(texto) as Resposta['corpo'])
     for (const campo of ['desafio', 'token'] as const) if (typeof corpo[campo] === 'string') segredosVistos.add(corpo[campo])
-    return { status: resposta.status, corpo, setCookie }
+    return { status: resposta.status, corpo, setCookie, retryAfter: resposta.headers.get('retry-after') }
   }
 
   async function entrar(email: string): Promise<Resposta> {
@@ -763,6 +765,76 @@ describe('POST /v1/sessao/escola e /v1/eu.acessos: quem trabalha em mais de uma 
     expect(doAluno.status).toBe(200)
     expect(doAluno.corpo['acessos']).toEqual([])
     expect(typeof doAluno.corpo['usuarioId'] === 'string' && UUID.test(doAluno.corpo['usuarioId'])).toBe(true)
+  })
+
+  it('falha (54.0): com o Redis de fila fora, escolher dá 503 INDISPONIVEL_TENTE_DE_NOVO com Retry-After, igual para o usuário de outra conta e para o inexistente, sem sessão nem desafio gasto; com o Redis de volta, a escolha entra', async () => {
+    const a = await escola('Colégio')
+    const b = await escola('Escola da rede')
+    const professora = await pessoa(a.id)
+    await naOutraEscola(professora, b.id)
+    const deOutraConta = await pessoa(b.id)
+    const login = await entrar(professora.email)
+    expect(login.corpo['etapa']).toBe('escolher')
+    const desafio = texto(login.corpo['desafio'])
+    const cliente = app.get<Redis>(REDIS_LOGIN_CLIENT, { strict: false })
+    composeOuFalha('stop', 'redis-fila')
+    try {
+      const prazo = performance.now() + 10_000
+      while (cliente.status === 'ready' && performance.now() < prazo) await new Promise((resolver) => setTimeout(resolver, 20))
+      expect(cliente.status).not.toBe('ready')
+      const propria = await escolherEscola(desafio, professora.usuarioId)
+      const outraConta = await escolherEscola(desafio, deOutraConta.usuarioId)
+      const inexistente = await escolherEscola(desafio, randomUUID())
+      for (const resposta of [propria, outraConta, inexistente]) {
+        expect(resposta.status).toBe(503)
+        expect(resposta.corpo.erro?.codigo).toBe(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
+        expect(Number(resposta.retryAfter)).toBeGreaterThan(0)
+        expect(resposta.setCookie).toEqual([])
+      }
+      // O isolamento: com o Redis fora, o usuário de outra escola não se distingue do que não existe (regra 10, item 6).
+      expect(semRequisicao(outraConta.corpo)).toEqual(semRequisicao(inexistente.corpo))
+      expect(semRequisicao(propria.corpo)).toEqual(semRequisicao(inexistente.corpo))
+      expect(await sessoesDe(a.id, professora.usuarioId)).toEqual([])
+      expect(await sessoesDe(b.id, deOutraConta.usuarioId)).toEqual([])
+      // O 503 só vale para o desafio que valia: o forjado continua 401, e o Redis fora não confirma desafio nenhum.
+      const forjado = await escolherEscola(`${desafio.slice(0, -4)}AAAA`, professora.usuarioId)
+      expect(forjado.status).toBe(401)
+      expect(forjado.corpo.erro?.codigo).toBe(ErrorCode.NAO_AUTENTICADO)
+    } finally {
+      composeOuFalha('start', 'redis-fila')
+      await aguardarSaudavel('redis-fila')
+      await clientePronto(cliente)
+    }
+    // O desafio da queda não foi gasto: o mesmo desafio escolhe a escola.
+    const escolhido = await escolherEscola(desafio, professora.usuarioId)
+    expect(escolhido.status).toBe(200)
+    expect(escolhido.corpo['etapa']).toBe('pronta')
+    await sessaoUnica(a.id, professora.usuarioId)
+  })
+
+  it('falha (54.0): com o Redis de fila conectado e recusando o comando, escolher dá o mesmo 503, sem sessão, e a escolha seguinte entra', async () => {
+    const a = await escola('Colégio')
+    const b = await escola('Escola da rede')
+    const professora = await pessoa(a.id)
+    await naOutraEscola(professora, b.id)
+    const login = await entrar(professora.email)
+    const desafio = texto(login.corpo['desafio'])
+    const cliente = app.get<Redis>(REDIS_LOGIN_CLIENT, { strict: false })
+    expect(cliente.status).toBe('ready')
+    // O erro que o ioredis lança quando o servidor responde com erro (o Redis ainda carregando, a réplica somente leitura).
+    const recusa = vi.spyOn(cliente, 'exists').mockRejectedValue(new (ReplyError as new (mensagem: string) => Error)('LOADING Redis is loading the dataset in memory'))
+    try {
+      const resposta = await escolherEscola(desafio, professora.usuarioId)
+      expect(recusa).toHaveBeenCalled()
+      expect(resposta.status).toBe(503)
+      expect(resposta.corpo.erro?.codigo).toBe(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
+      expect(Number(resposta.retryAfter)).toBeGreaterThan(0)
+      expect(await sessoesDe(a.id, professora.usuarioId)).toEqual([])
+    } finally {
+      recusa.mockRestore()
+    }
+    const escolhido = await escolherEscola(desafio, professora.usuarioId)
+    expect(escolhido.corpo['etapa']).toBe('pronta')
   })
 
   it('esteira: com o Redis de fila respondendo acima dos 100 ms, a escolha da escola continua entrando (correção 2026-09-22-corte-de-100-ms-do-redis-recusa-o-desafio-no-e2e)', async () => {

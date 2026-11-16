@@ -1,4 +1,4 @@
-import { throttledWarn, EMISSOR_TOKEN, DomainException, iatDoDesafioConfere, SlidingWindowRatio, systemClock, TIPO_DESAFIO, type Clock } from '@educa/core'
+import { throttledWarn, EMISSOR_TOKEN, DEFAULT_RETRY_AFTER_SECONDS, DomainException, iatDoDesafioConfere, SlidingWindowRatio, systemClock, TIPO_DESAFIO, type Clock } from '@educa/core'
 import { ErrorCode, ETAPAS_COM_DESAFIO, type EtapaComDesafio } from '@educa/shared'
 import { Logger } from '@nestjs/common'
 import type { Redis } from 'ioredis'
@@ -134,13 +134,15 @@ export async function verifyChallenge(desafio: string, chaveAssinatura: Uint8Arr
  * conclusão da mesma etapa com o mesmo desafio (clique duplo, reenvio, cópia do desafio) é recusada, e as duas nunca
  * passam juntas (regra 80, item 7).
  *
- * Com o Redis fora, recusa: sem a marca, o desafio poderia ser reusado, e quem perde é só quem tem MFA ou mais de uma
- * escola, que entra de novo (Tech Spec, seção 4).
+ * Com o Redis fora, recusa com **503 `INDISPONIVEL_TENTE_DE_NOVO` e `Retry-After`** (54.0), e não com o `NAO_AUTENTICADO` do
+ * desafio inválido: sem a marca, o desafio poderia ser reusado, mas a pessoa não errou nada, e a web espera o `Retry-After`
+ * uma vez e repete. Quem chama confere (`conferirLivre`) antes de qualquer reserva do `LoginLockout`, e por isso a recusa
+ * nunca gasta tentativa. O do operador faz o mesmo (`OperadorChallengeConsumer`).
  *
  * **Recusa pelo Redis com rastro** (15.5): a recusa porque o Redis de fila está fora, ou não respondeu no prazo do
  * cliente (`LOGIN_REDIS_PRAZO_MS`: 100 ms em produção e no staging, 2 s em `local`, onde uma resposta mais lenta é da
  * máquina), vai para o log como `login.desafio_sem_redis`, no máximo uma linha a cada 30 s e sem nada da pessoa,
- * e entra em `proporcaoDoSeguro`, que soma no `limite.seguro_ativo`: o coordenador que cai de volta ao login deixa a
+ * e entra em `proporcaoDoSeguro`, que soma no `limite.seguro_ativo`: o coordenador que recebe o 503 no segundo fator deixa a
  * causa à vista, e o alerta "Seguro de limite ativo" avisa.
  */
 export class ChallengeConsumer {
@@ -164,7 +166,8 @@ export class ChallengeConsumer {
 
   /**
    * Antes de conferir o fator: recusa o desafio já usado (concluído, ou consumido pelo quinto erro), e recusa também
-   * com o Redis fora ou sem resposta, sem esperar: sem a marca, não dá para saber se ele ainda vale. Não consome.
+   * com o Redis fora ou sem resposta, sem esperar, com o 503 `INDISPONIVEL_TENTE_DE_NOVO`: sem a marca, não dá para saber
+   * se ele ainda vale. Não consome.
    */
   async conferirLivre(desafio: Pick<VerifiedChallenge, 'jti'>): Promise<void> {
     if (this.cliente.status !== 'ready') throw this.#semRedis()
@@ -190,10 +193,10 @@ export class ChallengeConsumer {
     if (marcado !== 'OK') throw new DomainException(ErrorCode.NAO_AUTENTICADO)
   }
 
-  /** A recusa porque o Redis de fila não respondeu: a mesma resposta ao cliente, com rastro para quem opera. */
+  /** A recusa porque o Redis de fila não respondeu: 503 com `Retry-After`, e o rastro para quem opera. */
   #semRedis(): DomainException {
     this.#proporcaoDoSeguro.registrar(true)
     this.#avisarSemRedis()
-    return new DomainException(ErrorCode.NAO_AUTENTICADO)
+    return new DomainException(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, undefined, DEFAULT_RETRY_AFTER_SECONDS)
   }
 }

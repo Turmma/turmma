@@ -1,4 +1,4 @@
-import { DomainException, METRICS, systemClock, type SecretCipher, type Database, type Meter, type Clock } from '@educa/core'
+import { DEFAULT_RETRY_AFTER_SECONDS, DomainException, METRICS, systemClock, type SecretCipher, type Database, type Meter, type Clock } from '@educa/core'
 import { ErrorCode, type EtapaComDesafio, type MfaRequest, type AtivarMfaResponse, type ConfigurarMfaResponse } from '@educa/shared'
 import type { ConclusaoDeLogin } from '../completion/login-completion.js'
 import type { LoginLockout } from '../../credencial/login-lockout.js'
@@ -44,7 +44,8 @@ const naoAutenticado = () => new DomainException(ErrorCode.NAO_AUTENTICADO)
  *   limite próprio do MFA: na quinta falha seguida, a resposta é `CONTA_SEGURADA` e o desafio é consumido, e daí nem
  *   o código certo passa com ele; a espera dobra de 30 s a 15 min, como a da senha. O sufixo `conhecido` vale para o
  *   navegador que já concluiu um login desta conta, que só ganha o `educa_dispositivo` depois do segundo fator.
- * - **Redis de fila fora:** o desafio é recusado antes de qualquer código ser conferido, e a pessoa entra de novo.
+ * - **Redis de fila fora:** 503 `INDISPONIVEL_TENTE_DE_NOVO` com `Retry-After` (54.0), antes de qualquer código ser conferido e
+ *   de qualquer reserva do contador (`#desafioLivre` vem antes de `reservar`): nenhuma tentativa é gasta, e a web repete uma vez.
  * - **Fim:** o acerto ativa o usuário do convite que veio no desafio (7.0), sob a trava do convite da escola, e só então
  *   consome o desafio (o 503 da trava não o gasta); segue como o login da senha, para `escolher` (com o MFA cumprido)
  *   ou `pronta`, que grava a sessão e os cookies `educa_sessao` e `educa_dispositivo`. O desafio que veio da escolha ou
@@ -152,7 +153,15 @@ export class MfaService {
     const pendente = verificado.conviteId === undefined ? undefined : await ativacao.pendenteDoConvite(contaId, verificado.conviteId)
     if (pendente !== undefined) await ativacao.ativar(pendente)
     const usuarios = (await resolucao.usuariosAtivosDaConta(contaId)).filter((ativo) => ativo.papel !== 'aluno')
-    await consumo.consumir(verificado)
+    // O código já foi gasto (o passo gravado, ou o de recuperação usado): o 503 que manda repetir o mesmo pedido, como o do Redis
+    // de fila fora antes da conferência (54.0), faria a web repetir o mesmo código, e a resposta seria "código incorreto". Aqui o
+    // erro é outro, `TEMPO_ESGOTADO`, que a web não repete sozinha e que diz para digitar o código seguinte.
+    await consumo.consumir(verificado).catch((erro: unknown) => {
+      if (erro instanceof DomainException && erro.codigo === ErrorCode.INDISPONIVEL_TENTE_DE_NOVO) {
+        throw new DomainException(ErrorCode.TEMPO_ESGOTADO, undefined, DEFAULT_RETRY_AFTER_SECONDS)
+      }
+      throw erro
+    })
     return usuarios
   }
 
