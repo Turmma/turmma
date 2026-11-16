@@ -1,4 +1,5 @@
 import {
+  anoLetivo,
   execucaoAgente,
   requireAnoEmCurso,
   requireEscolaId,
@@ -7,63 +8,104 @@ import {
   mensagemTutor,
   Unscoped,
   threadAgente,
+  usuario,
   type Database,
   type CodigoDeFalhaDaExecucao,
-  type ExecucaoAgendada,
-  type ExecucaoRepository as ExecucaoRepositoryPort,
   type DatabaseTransaction,
 } from '@educa/core'
-import { execucaoInputSchema, resultadoGravadoSchema, FUNCAO_DA_TAREFA_DE_IA, type ErrorCode, type ExecucaoInput, type EstadoDeExecucao, type ResultadoGravado, type TarefaDeIa } from '@educa/shared'
-import { and, eq, lt, or, sql } from 'drizzle-orm'
+import { execucaoInputSchema, resultadoGravadoSchema, FUNCAO_DA_TAREFA_DE_IA, type ErrorCode, type ExecucaoInput, type EstadoDeExecucao, type PapelDeUsuario, type ResultadoGravado, type TarefaDeIa } from '@educa/shared'
+import { and, eq, isNull, lt, or, sql } from 'drizzle-orm'
 import { requireUsuarioId } from './execucao-context.js'
 import type { ExecucaoLida } from './execucao-command.js'
 
+/** O que o processador lê da execução antes de rodá-la: a tarefa, o estado e **quem pediu**, para montar o contexto que o `POST` tinha. */
+export interface ExecucaoParaIniciar {
+  readonly id: string
+  readonly tarefa: TarefaDeIa
+  readonly estado: EstadoDeExecucao
+  /**
+   * O contexto de quem pediu; ausente quando a pessoa foi desativada ou tem a eliminação agendada, ou o ano letivo da linha já não está em curso. O vínculo
+   * não é lido aqui: o fim dele desativa a conta (regra 20, item 18), e o `preparar` do comando confere o vínculo de novo.
+   */
+  readonly quemPediu: { readonly usuarioId: string; readonly papel: PapelDeUsuario; readonly anoLetivoId: string } | undefined
+}
+
 /**
- * A porta `ExecucaoRepository` do `AgenteExecutor`, sobre `execucao_agente`. O executor roda **fora de
- * requisição**, sem sessão: a escola de cada método é a da própria execução agendada, que nasceu do contexto de quem
- * pediu (`ExecucaoAgendada.escolaId`), e entra em toda cláusula (regra 10, item 3). Nenhum método recebe escola do
- * cliente.
+ * `execucao_agente` para o **processador do worker de IA** (X6, 5.0): a escola é a do contexto do job (`job_registro.escola_id`,
+ * que o `JobExecutor` grava no contexto) e entra em toda cláusula (regra 10, item 3); nenhum método a recebe por argumento. Com o
+ * contexto da escola A e o id de uma execução da B, nada é lido nem mudado.
  *
- * As passagens de estado são um `update` condicional, numa instrução só: duas instâncias, ou duas chamadas com a
- * mesma chave, não rodam a mesma execução (regra 80, item 7).
+ * As passagens de estado são um `update` condicional, numa instrução só, com o `now()` do banco: duas entregas do mesmo job, ou o
+ * job e a varredura, não rodam nem concluem a mesma execução (regra 80, item 7).
  */
-export class ExecucaoRepository implements ExecucaoRepositoryPort {
+export class ExecucaoRepository {
   constructor(private readonly banco: Database | DatabaseTransaction) {}
 
-  async marcarRodando(execucao: ExecucaoAgendada): Promise<boolean> {
+  /**
+   * A execução do job e quem a pediu. A pessoa só vale se está ativa (nem desativada, nem com eliminação agendada) e o ano letivo da
+   * linha ainda está em curso: a virada do ano, a desativação (que o fim do vínculo faz, regra 20, item 18) e a eliminação entre o `202` e o
+   * worker dão `quemPediu` vazio. O vínculo em si é conferido pelo `preparar` do comando, que repete o alcance do `POST`.
+   */
+  async paraIniciar(id: string): Promise<ExecucaoParaIniciar | undefined> {
+    const escolaId = requireEscolaId()
+    const [linha] = await this.banco
+      .select({
+        id: execucaoAgente.id,
+        tarefa: execucaoAgente.tarefa,
+        estado: execucaoAgente.estado,
+        anoLetivoId: execucaoAgente.anoLetivoId,
+        usuarioId: usuario.id,
+        papel: usuario.papel,
+        anoEmCurso: anoLetivo.id,
+      })
+      .from(execucaoAgente)
+      .leftJoin(
+        usuario,
+        and(eq(usuario.escolaId, execucaoAgente.escolaId), eq(usuario.id, execucaoAgente.solicitadaPor), isNull(usuario.desativadoEm), isNull(usuario.eliminacaoAgendadaEm)),
+      )
+      .leftJoin(anoLetivo, and(eq(anoLetivo.escolaId, execucaoAgente.escolaId), eq(anoLetivo.id, execucaoAgente.anoLetivoId), eq(anoLetivo.situacao, 'em_curso')))
+      .where(and(eq(execucaoAgente.escolaId, escolaId), eq(execucaoAgente.id, id)))
+    if (linha === undefined) return undefined
+    const quemPediu = linha.usuarioId !== null && linha.papel !== null && linha.anoEmCurso !== null ? { usuarioId: linha.usuarioId, papel: linha.papel, anoLetivoId: linha.anoLetivoId } : undefined
+    return { id: linha.id, tarefa: linha.tarefa, estado: linha.estado, quemPediu }
+  }
+
+  /** `pendente` → `rodando`, com o instante do banco. `false` é a execução que já não estava `pendente`: outra entrega a pegou, ou ela terminou. Quem recebe `false` não chama o modelo. */
+  async marcarRodando(id: string): Promise<boolean> {
     const marcadas = await this.banco
       .update(execucaoAgente)
       .set({ estado: 'rodando', iniciadaEm: sql`now()` })
-      .where(and(eq(execucaoAgente.escolaId, execucao.escolaId), eq(execucaoAgente.id, execucao.id), eq(execucaoAgente.estado, 'pendente')))
+      .where(and(eq(execucaoAgente.escolaId, requireEscolaId()), eq(execucaoAgente.id, id), eq(execucaoAgente.estado, 'pendente')))
       .returning({ id: execucaoAgente.id })
     return marcadas.length > 0
   }
 
-  async marcarConcluida(execucao: ExecucaoAgendada, resultado: unknown): Promise<void> {
-    await this.concluirRodando(execucao, resultadoGravadoSchema.parse(resultado))
-  }
-
   /**
-   * `rodando` → `concluida`, com a referência ao que a execução gravou, e diz se concluiu. `false` é a execução que já
-   * não estava `rodando`: o prazo ou a varredura a encerraram antes, e quem produziu desfaz a própria transação.
+   * `rodando` → `concluida`, com a referência ao que a execução gravou, e diz se concluiu. `false` é a execução que já não estava
+   * `rodando` (a varredura a encerrou antes): quem produziu desfaz a própria transação.
    */
-  async concluirRodando(execucao: ExecucaoAgendada, resultado: ResultadoGravado): Promise<boolean> {
+  async concluirRodando(id: string, resultado: ResultadoGravado): Promise<boolean> {
+    // O resultado é só referência: o que não é, nem chega ao banco.
+    const referencia = resultadoGravadoSchema.parse(resultado)
     const concluidas = await this.banco
       .update(execucaoAgente)
-      .set({ estado: 'concluida', resultado, concluidaEm: sql`now()` })
-      .where(and(eq(execucaoAgente.escolaId, execucao.escolaId), eq(execucaoAgente.id, execucao.id), eq(execucaoAgente.estado, 'rodando')))
+      .set({ estado: 'concluida', resultado: referencia, concluidaEm: sql`now()` })
+      .where(and(eq(execucaoAgente.escolaId, requireEscolaId()), eq(execucaoAgente.id, id), eq(execucaoAgente.estado, 'rodando')))
       .returning({ id: execucaoAgente.id })
     return concluidas.length > 0
   }
 
-  async marcarFalhou(execucao: ExecucaoAgendada, codigo: CodigoDeFalhaDaExecucao): Promise<void> {
-    await this.banco
+  /** `rodando` → `falhou`, com o código do contrato. Não mexe em quem não está `rodando`. */
+  async marcarFalhou(id: string, codigo: CodigoDeFalhaDaExecucao): Promise<boolean> {
+    const falhadas = await this.banco
       .update(execucaoAgente)
       .set({ estado: 'falhou', erro: codigo, concluidaEm: sql`now()` })
-      .where(and(eq(execucaoAgente.escolaId, execucao.escolaId), eq(execucaoAgente.id, execucao.id), eq(execucaoAgente.estado, 'rodando')))
+      .where(and(eq(execucaoAgente.escolaId, requireEscolaId()), eq(execucaoAgente.id, id), eq(execucaoAgente.estado, 'rodando')))
+      .returning({ id: execucaoAgente.id })
+    return falhadas.length > 0
   }
 
-  @Unscoped('varredura da subida da API: encerra a execução que o processo caído deixou pendente ou rodando, em qualquer escola; grava só estado, código e data, e não lê conteúdo nem pessoa')
+  @Unscoped('varredura do main-worker: encerra a execução que o processo caído deixou pendente ou rodando, em qualquer escola; grava só estado, código e data, e não lê conteúdo nem pessoa')
   async falharInterrompidas(antesDe: Date): Promise<number> {
     const encerradas = await this.banco
       .update(execucaoAgente)

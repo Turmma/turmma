@@ -1,38 +1,27 @@
-import type { Database, Meter, OrcamentoDeIa, SuspensaoDeFuncao } from '@educa/core'
+import type { Database, OrcamentoDeIa } from '@educa/core'
 import { Module, type DynamicModule } from '@nestjs/common'
 import { IaRequestRateLimit } from '../assistente/ai-request-rate-limit.js'
 import { DB } from '../database.module.js'
 import { ExecucaoScheduler } from '../ia/execucao.scheduler.js'
-import { ORCAMENTO_DE_IA, SUSPENSAO_DE_FUNCAO } from '../ia/ia.module.js'
-import { comRegistro, RegistroDeComandos } from '../ia/registro-de-comandos.js'
-import { TrechoSearch } from '../material/trecho-search.js'
+import { ORCAMENTO_DE_IA } from '../ia/ia.module.js'
 import { SinaisController } from './sinais.controller.js'
 import { SupervisaoDoTutorService } from './supervisao.service.js'
 import { TutorController } from './tutor.controller.js'
-import { AlcanceDoAluno, TurnoDoTutorCommand } from './turno.command.js'
+import { AlcanceDoAluno } from './turno.command.js'
 import { TutorService } from './tutor.service.js'
 
 /**
  * O Tutor e os sinais (MVP, A4; D8, D34, D36, D38, D47, D66): a conversa e a memória do aluno, e o que o professor da
- * turma vê dela (sinais e uso). O limite dos pedidos de IA vem do `AssistenteModule`, a busca de trechos, do
- * `MaterialModule`, e o agendador, o orçamento e a suspensão, do `IaModule`, todos globais.
+ * turma vê dela (sinais e uso). O limite dos pedidos de IA vem do `AssistenteModule`, o agendador, o orçamento e a suspensão, do
+ * `IaModule`, e o comando do turno e a `AlcanceDoAluno`, do `ComandosDeIaModule`, todos globais.
  */
 @Module({})
 export class TutorModule {
-  /** `medidor` é só do teste, que lê a contagem das recusas por falta de material da série; sem ele vale o medidor global do processo. */
-  static forRoot(opcoes: { readonly medidor?: Meter } = {}): DynamicModule {
+  static forRoot(): DynamicModule {
     return {
       module: TutorModule,
       controllers: [TutorController, SinaisController],
       providers: [
-        // O que o `POST` e o comando conferem do aluno é uma peça só (e é ela que conta a recusa por falta de material da série).
-        { provide: AlcanceDoAluno, useFactory: (banco: Database, trechos: TrechoSearch) => new AlcanceDoAluno(banco, trechos, undefined, opcoes.medidor), inject: [DB, TrechoSearch] },
-        // O comando do turno: o registro o acha pelo nome da tarefa da `execucao_agente`.
-        {
-          provide: TurnoDoTutorCommand,
-          useFactory: (banco: Database, alcance: AlcanceDoAluno, trechos: TrechoSearch, suspensao: SuspensaoDeFuncao, registro: RegistroDeComandos) => comRegistro(registro, new TurnoDoTutorCommand(banco, alcance, trechos, suspensao)),
-          inject: [DB, AlcanceDoAluno, TrechoSearch, SUSPENSAO_DE_FUNCAO, RegistroDeComandos],
-        },
         {
           provide: TutorService,
           useFactory: (banco: Database, agendador: ExecucaoScheduler, limite: IaRequestRateLimit, orcamento: OrcamentoDeIa, alcance: AlcanceDoAluno) => new TutorService(banco, agendador, limite, orcamento, alcance),

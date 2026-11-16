@@ -53,7 +53,7 @@ describe('.env.example e compose', () => {
 
   it('despachante e worker, sem HTTP, usam o healthcheck do batimento com a mesma idade máxima do código', () => {
     const { services } = parse(lerArquivo('infra/compose.yml'), { merge: true }) as { services: Record<string, Servico> }
-    for (const nome of ['despachante-1', 'despachante-2', 'worker-interativo-1', 'worker-interativo-2', 'worker-lote-1', 'worker-lote-2', 'worker-pdf']) {
+    for (const nome of ['despachante-1', 'despachante-2', 'worker-interativo-1', 'worker-interativo-2', 'worker-lote-1', 'worker-lote-2', 'worker-pdf', 'worker-ia-1', 'worker-ia-2']) {
       expect(services[nome]?.healthcheck?.test, nome).toEqual(['CMD', 'node', '-e', COMANDO_HEALTHCHECK_BATIMENTO])
     }
   })
@@ -83,6 +83,8 @@ describe('.env.example e compose', () => {
       'despachante-2',
       'realtime-1',
       'realtime-2',
+      'worker-ia-1',
+      'worker-ia-2',
       'worker-interativo-1',
       'worker-interativo-2',
       'worker-lote-1',
@@ -138,7 +140,7 @@ describe('.env.example e compose', () => {
     expect(ambiente['VAGAS_ESCOLA_INTERATIVA']).toBe('10')
     expect(ambiente['VAGAS_ESCOLA_FERRAMENTA']).toBe('4')
     for (const variavel of ['VAGAS_ESCOLA_INTERATIVA', 'VAGAS_ESCOLA_FERRAMENTA']) {
-      for (const nome of ['despachante-1', 'worker-interativo-1', 'worker-lote-1', 'worker-pdf']) expect(services[nome]?.environment?.[variavel], `${nome} ${variavel}`).toMatch(new RegExp(`^\\$\\{${variavel}:\\?`))
+      for (const nome of ['despachante-1', 'worker-interativo-1', 'worker-lote-1', 'worker-pdf', 'worker-ia-1']) expect(services[nome]?.environment?.[variavel], `${nome} ${variavel}`).toMatch(new RegExp(`^\\$\\{${variavel}:\\?`))
     }
   })
 
@@ -155,6 +157,38 @@ describe('.env.example e compose', () => {
       // pode passar do pool: aí o job espera a vez na fila, e o teto de cada escola segue valendo,
       // porque o worker confere a vaga ao começar (slots.int.test.ts, "publicação ambígua"). O que não
       // pode é uma escola sozinha não caber no pool de uma réplica.
+      expect(vagas, fila).toBeLessThanOrEqual(pool)
+    }
+  })
+
+  it('o `worker-ia` atende as filas da IA, com o pool do banco menor que a soma dos pools e as duas réplicas que `IA_REPLICAS` conta (reengenharia-continuacao, 5.0)', () => {
+    const ambiente = lerAmbienteExemplo()
+    const { services } = parse(lerArquivo('infra/compose.yml'), { merge: true }) as {
+      services: Record<string, Servico & { command?: string[]; environment?: Record<string, string> }>
+    }
+    const replicas = Object.keys(services).filter((nome) => /^worker-ia-\d+$/u.test(nome))
+    expect(replicas).toEqual(['worker-ia-1', 'worker-ia-2'])
+    expect(Number(ambiente['IA_REPLICAS'])).toBe(replicas.length)
+    for (const nome of replicas) {
+      const variaveis = services[nome]?.environment ?? {}
+      expect(services[nome]?.command, nome).toEqual(['node', 'dist/main-worker.js'])
+      expect(variaveis['IA_REPLICAS'], nome).toMatch(/^\$\{IA_REPLICAS:\?/)
+      for (const fila of ['INTERATIVA', 'FERRAMENTA', 'NORMAL']) expect(variaveis[`WORKER_IA_POOL_${fila}`], `${nome} ${fila}`).toMatch(new RegExp(`^\\$\\{WORKER_IA_POOL_${fila}:\\?`))
+      // As variáveis do provedor só existem aqui e na API (que as valida): o `FILAS` do worker de jobs não vale para ele.
+      expect(variaveis['FILAS'], nome).toBeUndefined()
+    }
+    expect(Number(ambiente['WORKER_IA_BANCO_POOL_MAXIMO'])).toBe(20)
+    const soma = ['INTERATIVA', 'FERRAMENTA', 'NORMAL'].reduce((total, fila) => total + Number(ambiente[`WORKER_IA_POOL_${fila}`]), 0)
+    // Nenhum job segura conexão durante o modelo: com o pool do banco igual à soma, a conta do §5 não valeria.
+    expect(Number(ambiente['WORKER_IA_BANCO_POOL_MAXIMO'])).toBeLessThan(soma)
+  })
+
+  it('as vagas do Tutor e da ferramenta de dez escolas (D25) cabem nos pools da IA das duas réplicas, e a de uma escola cabe numa só', () => {
+    const ambiente = lerAmbienteExemplo()
+    for (const fila of ['INTERATIVA', 'FERRAMENTA']) {
+      const vagas = Number(ambiente[`VAGAS_ESCOLA_${fila}`])
+      const pool = Number(ambiente[`WORKER_IA_POOL_${fila}`])
+      expect(10 * vagas, fila).toBeLessThanOrEqual(2 * pool)
       expect(vagas, fila).toBeLessThanOrEqual(pool)
     }
   })

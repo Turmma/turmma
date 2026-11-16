@@ -1,4 +1,4 @@
-import { MENSAGEM_DE_ASSUNTO_DELICADO, MENSAGEM_DE_RISCO_A_VIDA, type InProcessAgenteExecutor } from '@educa/core'
+import { MENSAGEM_DE_ASSUNTO_DELICADO, MENSAGEM_DE_RISCO_A_VIDA } from '@educa/core'
 import {
   conversaDoTutorResponseSchema,
   memoriaDoTutorResponseSchema,
@@ -11,8 +11,10 @@ import {
 import type { Redis } from 'ioredis'
 import { randomUUID } from 'node:crypto'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { aguardarSaudavel, compose, composeAssincronoOuFalha } from '../../../../tools/testes/compose.ts'
 import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
-import { chamar, subirApi, type TestApi, type RespostaHttp } from '../../test/test-api.js'
+import { chamar, type TestApi, type RespostaHttp } from '../../test/test-api.js'
+import { FilaDeIa } from '../../test/fila-de-ia.fixture.js'
 import {
   comoPessoa,
   dispararExecucao,
@@ -42,7 +44,6 @@ import { WriteBlockTrigger } from '../../test/write-block-trigger.js'
 import { variacaoDoPdf } from '../../test/material.fixture.js'
 import { SessaoFixtures, type TestSessao } from '../../test/sessao.fixture.js'
 import { TETO_DE_PEDIDOS_DE_IA_POR_USUARIO } from '../assistente/ai-request-rate-limit.js'
-import { EXECUTOR_DE_AGENTE } from '../ia/ia.module.js'
 import { REDIS_CACHE_CLIENT } from '../rate-limit.module.js'
 import { TrechoSearch } from '../material/trecho-search.js'
 import { TurnoDoTutorCommand } from './turno.command.js'
@@ -72,7 +73,7 @@ describe('Tutor e sinais', () => {
   const medidor = new MedidorDeTeste()
   const linhasDeLog: string[] = []
   let api: TestApi
-  let executor: InProcessAgenteExecutor
+  let fila: FilaDeIa
   let a: EscolaComAssistente
   let b: EscolaComAssistente
   /** A lista de Química aplicada ao 2ºB da escola A, não avaliativa, e a mesma na escola B. */
@@ -104,6 +105,8 @@ describe('Tutor e sinais', () => {
   const suspender = (escola: EscolaComAssistente, funcao: ChaveDeFuncao) => sql('insert into suspensao_de_funcao (escola_id, funcao, suspensa_por) values ($1, $2, $3)', [escola.escolaId, funcao, escola.coordenacao.usuarioId])
   const retomar = (escola: EscolaComAssistente, funcao: ChaveDeFuncao) =>
     sql('update suspensao_de_funcao set retomada_em = greatest(now(), suspensa_em), retomada_por = $3 where escola_id = $1 and funcao = $2 and retomada_em is null', [escola.escolaId, funcao, escola.coordenacao.usuarioId])
+  /** Quantos jobs `ia.executar` a escola tem: o que a API recusa ou resolve sozinha (D36) não grava nenhum. */
+  const jobsDeIa = async (escolaId: string): Promise<number> => Number((await sql<{ total: string }>(`select count(*) as total from job_registro where escola_id = $1 and tipo = 'ia.executar'`, [escolaId])).rows[0]?.total)
   /** Um aluno novo com vínculo confirmado na turma: cada grupo de testes usa o seu, para o freio e os sinais de um não contarem no outro. */
   const novoAluno = async (escola: EscolaComAssistente, turmaId: string = escola.turma, nome = `Aluno Sintético ${randomUUID().slice(0, 8)}`): Promise<TestSessao> => {
     const sessao = await bancada.sessao(escola.escolaId, 'aluno')
@@ -159,8 +162,8 @@ describe('Tutor e sinais', () => {
   }
 
   beforeAll(async () => {
-    api = await subirApi(medidor.medidor, {}, linhasDeLog)
-    executor = api.app.get<InProcessAgenteExecutor>(EXECUTOR_DE_AGENTE)
+    fila = await FilaDeIa.subir(medidor.medidor, {}, linhasDeLog)
+    api = fila.api
     rotas = pelaRota.rotasDaAtividade(api)
     a = await montarEscolaComAssistente(api, bancada)
     b = await montarEscolaComAssistente(api, bancada)
@@ -173,8 +176,8 @@ describe('Tutor e sinais', () => {
   })
 
   afterAll(async () => {
-    await executor.ociosa()
-    await api.app.close()
+    await fila.ociosa()
+    await fila.fechar()
     await bancada.fechar()
   })
 
@@ -221,7 +224,7 @@ describe('Tutor e sinais', () => {
       const segunda = await enviar(aluno, corpo)
       expect([primeira.status, segunda.status]).toEqual([202, 202])
       expect(segunda.corpo['execucaoId']).toBe(primeira.corpo['execucaoId'])
-      await executor.ociosa()
+      await fila.ociosa()
       expect((await mensagensDe(aluno)).map((mensagem) => mensagem.autor)).toEqual(['aluno', 'tutor'])
       expect((await conversaDe(aluno, `?atividadeAplicadaId=${atividade}`)).uso.hoje).toBe(1)
     })
@@ -263,7 +266,7 @@ describe('Tutor e sinais', () => {
       for (let pedido = 0; pedido < TETO_DE_PEDIDOS_DE_IA_POR_USUARIO; pedido += 1) expect((await enviar(aluno, { texto: 'o que é mol?', ...naQuestao(1) })).status).toBe(202)
       expect(await enviar(aluno, { texto: 'o que é mol?', ...naQuestao(1) })).toMatchObject({ status: 429, corpo: { erro: { codigo: 'LIMITE_EXCEDIDO' } } })
       expect((await enviar(colega, { texto: 'o que é mol?', ...naQuestao(1) })).status).toBe(202)
-      await executor.ociosa()
+      await fila.ociosa()
       expect((await mensagensDe(aluno)).filter((mensagem) => mensagem.autor === 'aluno')).toHaveLength(TETO_DE_PEDIDOS_DE_IA_POR_USUARIO)
     })
 
@@ -311,7 +314,10 @@ describe('Tutor e sinais', () => {
     it('recebe a mensagem fixa na hora, e o professor recebe o sinal sem referência e sem conteúdo', async () => {
       const aluno = await novoAluno(a)
       const marca = `cardume${randomUUID().slice(0, 8)}`
+      const jobsAntes = await jobsDeIa(a.escolaId)
       const execucao = await turno(aluno, `eu apanho em casa ${marca}`, { ...naQuestao(3), materialId: a.materialId, pagina: 4 })
+      // D36: o encaminhamento é resposta da própria requisição, sem fila: nenhum job nasce, então nem a fila cheia nem o Redis fora o seguram.
+      expect(await jobsDeIa(a.escolaId)).toBe(jobsAntes)
       expect(execucao).toMatchObject({ estado: 'concluida', resultado: { tipo: 'mensagem_do_tutor', mensagem: { autor: 'tutor', tipo: 'assunto_delicado', texto: MENSAGEM_DE_ASSUNTO_DELICADO } } })
       expect(resposta(execucao)).not.toHaveProperty('citacoes')
 
@@ -409,6 +415,7 @@ describe('Tutor e sinais', () => {
 
     it('passa na frente do pacote do mês esgotado e da suspensão, do Tutor e dos sinais', async () => {
       const aluno = await novoAluno(b)
+      const jobsAntes = await jobsDeIa(b.escolaId)
       const alunosDaTurma = Number((await sql<{ total: string }>(`select count(*) as total from vinculo where escola_id = $1 and turma_id = $2 and papel = 'aluno' and estado = 'confirmado'`, [b.escolaId, b.turma])).rows[0]?.total)
       await configurarLimitesDoTutor(bancada, b.escolaId, { porMes: 1 })
       try {
@@ -426,6 +433,8 @@ describe('Tutor e sinais', () => {
           await retomar(b, funcao)
         }
       }
+      // Nenhum dos quatro caminhos (pacote esgotado, o 429 e as duas suspensões) passou pela fila.
+      expect(await jobsDeIa(b.escolaId)).toBe(jobsAntes)
       // Três turnos delicados, três avisos: o aviso de que o aluno precisa de um adulto não é suprimido pela suspensão.
       expect((await sinaisDe(aluno)).map((sinal) => sinal.tipo)).toEqual(['atencao_humana', 'atencao_humana', 'atencao_humana'])
     })
@@ -435,9 +444,11 @@ describe('Tutor e sinais', () => {
     it('com o Tutor suspenso, a dúvida comum é recusada antes de gravar; retomado, volta', async () => {
       const aluno = await novoAluno(b)
       await suspender(b, 'tutor_com_o_aluno')
+      const jobsAntes = await jobsDeIa(b.escolaId)
       try {
         expect(await enviar(aluno, { texto: 'não entendi a questão', atividadeAplicadaId: atividadeDeB, questao: 3 })).toMatchObject({ status: 409, corpo: { erro: { codigo: 'FUNCAO_SUSPENSA' } } })
         expect(await mensagensDe(aluno)).toEqual([])
+        expect(await jobsDeIa(b.escolaId)).toBe(jobsAntes)
       } finally {
         await retomar(b, 'tutor_com_o_aluno')
       }
@@ -466,11 +477,13 @@ describe('Tutor e sinais', () => {
       const doC = await novoAluno(a, a.outraTurma)
       const doB = await novoAluno(a)
       const prova = await aplicarAtividade(bancada, a, { avaliativa: true, turmaId: a.outraTurma, titulo: 'Prova sintética de estequiometria', aplicadaPor: a.colega.usuarioId })
+      const jobsAntes = await jobsDeIa(a.escolaId)
       try {
         for (const corpo of [{ texto: 'não entendi a questão 1', atividadeAplicadaId: prova, questao: 1 }, { texto: 'o que é mol?' }]) {
           expect(await enviar(doC, corpo)).toMatchObject({ status: 409, corpo: { erro: { codigo: 'TUTOR_PAUSADO_EM_AVALIACAO' } } })
         }
         expect(await mensagensDe(doC)).toEqual([])
+        expect(await jobsDeIa(a.escolaId)).toBe(jobsAntes)
         expect(await conversaDe(doC)).toMatchObject({ estado: 'avaliacao', avaliacaoAberta: { titulo: 'Prova sintética de estequiometria' } })
         // A avaliação do 2ºC não trava o 2ºB.
         expect((await enviar(doB, { texto: 'o que é mol?', ...naQuestao(1) })).status).toBe(202)
@@ -513,7 +526,7 @@ describe('Tutor e sinais', () => {
       } finally {
         await parada.desarmar()
       }
-      await executor.ociosa()
+      await fila.ociosa()
       return aceitas
     }
     const execucaoLida = async (execucaoId: string) =>
@@ -522,14 +535,19 @@ describe('Tutor e sinais', () => {
     const pausada = { estado: 'falhou', erro: 'TUTOR_PAUSADO_EM_AVALIACAO', resultado: null }
 
     it('abre entre o 202 e a execução: a execução falha com o código da pausa, sem trecho, sem modelo, sem resposta, sem sinal e sem troca; a pergunta fica só na conversa; o reenvio devolve a mesma execução', async () => {
-      await executor.ociosa()
+      await fila.ociosa()
       const aluno = await novoAluno(a)
       const marca = `sabia${randomUUID().slice(0, 8)}`
       const texto = `não entendi o reagente limitante ${marca}`
       const chaveEnvio = randomUUID()
       const corpo = { texto, ...naQuestao(3), materialId: a.materialId, pagina: 4, chaveEnvio }
-      const buscar = vi.spyOn(api.app.get(TrechoSearch), 'buscar')
+      // O turno roda no worker, com a busca de trechos da bancada: é ela que se espia (a da API não é chamada pelo Tutor).
+      const buscar = vi.spyOn(fila.trechos, 'buscar')
       try {
+        // O controle: um turno comum chama o espião, e por isso o "nenhuma chamada" abaixo pode falhar.
+        const marcaDoControle = `controle${randomUUID().slice(0, 8)}`
+        await turno(await novoAluno(a), `não entendi o reagente limitante ${marcaDoControle}`, naQuestao(3))
+        expect(buscar.mock.calls.filter(([pedido]) => pedido.texto.includes(marcaDoControle)).length).toBeGreaterThan(0)
         const [aceita] = await abrindoEntreO202EAExecucao([aluno], async () => [await enviar(aluno, corpo)], async () => void (await abrirProva()))
         const execucaoId = aceita?.corpo['execucaoId'] as string
         expect(await execucaoLida(execucaoId)).toEqual([pausada])
@@ -548,7 +566,7 @@ describe('Tutor e sinais', () => {
         // O reenvio com a mesma chave, com a avaliação ainda aberta, devolve a mesma execução já `falhou`: sem nova pergunta e sem troca.
         const reenvio = await enviar(aluno, corpo)
         expect(reenvio).toMatchObject({ status: 202, corpo: { execucaoId } })
-        await executor.ociosa()
+        await fila.ociosa()
         expect(await execucaoLida(execucaoId)).toEqual([pausada])
         expect((await mensagensDe(aluno)).map((mensagem) => mensagem.autor)).toEqual(['aluno'])
         expect((await conversaDe(aluno, `?atividadeAplicadaId=${atividade}`)).uso.hoje).toBe(0)
@@ -582,8 +600,13 @@ describe('Tutor e sinais', () => {
     })
 
     it('o comando relê o contexto ao rodar: o vínculo encerrado, a pergunta eliminada, o material que saiu do alcance e a função suspensa depois do 202 falham a execução, sem trecho, sem modelo e sem consumo', async () => {
-      const buscar = vi.spyOn(api.app.get(TrechoSearch), 'buscar')
+      // O turno roda no worker, com a busca de trechos da bancada: é ela que se espia (a da API não é chamada pelo Tutor).
+      const buscar = vi.spyOn(fila.trechos, 'buscar')
       try {
+        // O controle: um turno comum chama o espião, e por isso o "nenhuma chamada" de cada caso pode falhar.
+        const marcaDoControle = `controle${randomUUID().slice(0, 8)}`
+        await turno(await novoAluno(a), `não entendi o reagente limitante ${marcaDoControle}`, naQuestao(3))
+        expect(buscar.mock.calls.filter(([pedido]) => pedido.texto.includes(marcaDoControle)).length).toBeGreaterThan(0)
         // O material próprio do caso: o `a.materialId` é dos outros casos, e este é excluído no meio.
         const materialQueSai = await enviarMaterialDeDemonstracao(api, a, a.quimica, 'Material que a coordenação exclui no meio do turno', variacaoDoPdf())
         const casos = [
@@ -593,7 +616,7 @@ describe('Tutor e sinais', () => {
           { rotulo: 'a função suspensa', erro: 'FUNCAO_SUSPENSA', onde: {}, mexer: () => suspender(a, 'tutor_com_o_aluno') },
         ]
         for (const { rotulo, erro, onde, mexer } of casos) {
-          await executor.ociosa()
+          await fila.ociosa()
           const aluno = await novoAluno(a)
           const marca = `jaguar${randomUUID().slice(0, 8)}`
           const consumoAntes = Number((await sql<{ total: string }>('select count(*) as total from consumo_ia where escola_id = $1', [a.escolaId])).rows[0]?.total)
@@ -612,7 +635,7 @@ describe('Tutor e sinais', () => {
     })
 
     it('dois alunos parados ao entrar em `rodando` quando a prova abre (dois bastam para segurar as duas vagas da escola ao mesmo tempo): todas as execuções falham, nenhuma chama o modelo e nenhuma troca é contada', async () => {
-      await executor.ociosa()
+      await fila.ociosa()
       const alunos = [await novoAluno(a), await novoAluno(a)]
       const noMesAntes = (await usoPara(a.professora, a.turma)).trocasDaTurmaNoMes
       const aceitas = await abrindoEntreO202EAExecucao(
@@ -708,7 +731,7 @@ describe('Tutor e sinais', () => {
       await trocasJaFeitas(bancada, a, aluno.usuarioId, 5, { haDias: 1 })
       await trocasJaFeitas(bancada, a, aluno.usuarioId, TROCAS_POR_DIA_PADRAO_DO_TUTOR - 1)
       expect((await enviar(aluno, { texto: 'a sexagésima', ...naQuestao(1) })).status).toBe(202)
-      await executor.ociosa()
+      await fila.ociosa()
       const antes = (await mensagensDe(aluno)).length
       const execucoesAntes = Number((await sql<{ total: string }>('select count(*) as total from execucao_agente where escola_id = $1 and solicitada_por = $2', [a.escolaId, aluno.usuarioId])).rows[0]?.total)
 
@@ -729,7 +752,7 @@ describe('Tutor e sinais', () => {
       const respostas = await Promise.all(Array.from({ length: 10 }, (_, indice) => enviar(aluno, { texto: `pergunta simultânea ${String(indice)}`, ...naQuestao(1) })))
       expect(respostas.map((lida) => lida.status).sort()).toEqual([202, 202, 202, 429, 429, 429, 429, 429, 429, 429])
       for (const recusada of respostas.filter((lida) => lida.status === 429)) expect(recusada.corpo.erro?.codigo).toBe('LIMITE_DIARIO_DO_TUTOR')
-      await executor.ociosa()
+      await fila.ociosa()
       expect((await mensagensDe(aluno)).filter((mensagem) => mensagem.autor === 'aluno').length).toBe(antes + 3)
     })
 
@@ -1005,7 +1028,7 @@ describe('Tutor e sinais', () => {
       } finally {
         await parada.desarmar()
       }
-      await executor.ociosa()
+      await fila.ociosa()
 
       const { rows } = await sql<{ estado: string; erro: string | null; resultado: unknown }>('select estado, erro, resultado from execucao_agente where escola_id = $1 and id = $2', [a.escolaId, execucaoId])
       expect(rows).toEqual([{ estado: 'falhou', erro: 'NAO_ENCONTRADO', resultado: null }])
@@ -1144,5 +1167,41 @@ describe('Tutor e sinais', () => {
       await sinaisPara(a.professora, a.turma)
       expect(linhasDeLog.some((linha) => linha.includes(NOME_DO_ALUNO_DE_TESTE))).toBe(false)
     })
+  })
+  describe('a D36 não passa pela fila (X6, 5.0)', () => {
+    afterEach(async () => {
+      compose('unpause', 'redis-fila')
+      await composeAssincronoOuFalha('up', '--detach', 'redis-fila')
+      await aguardarSaudavel('redis-fila')
+    }, 120_000)
+
+    it('com a fila segura (nenhum job sai) e uma pergunta comum à espera, o encaminhamento responde na hora, e o único job é o da pergunta comum', async () => {
+      const doComum = await novoAluno(a)
+      const doDelicado = await novoAluno(a)
+      const jobsAntes = await jobsDeIa(a.escolaId)
+      const soltar = fila.segurar()
+      try {
+        expect((await enviar(doComum, { texto: 'não entendi a questão', ...naQuestao(3) })).status).toBe(202)
+        // Sem esperar a bancada ficar ociosa (o job da pergunta comum está seguro): o encaminhamento já vem concluído no `202`.
+        const execucaoId = await dispararExecucao(api, doDelicado, '/v1/tutor/mensagens', { texto: 'sofro bullying na escola' })
+        const lida = await chamar(api.url, 'GET', `/v1/execucoes/${execucaoId}`, await doDelicado.tokenNovo())
+        expect(lida.corpo).toMatchObject({ estado: 'concluida', resultado: { tipo: 'mensagem_do_tutor', mensagem: { tipo: 'assunto_delicado' } } })
+        expect((await sinaisDe(doDelicado)).map((sinal) => sinal.tipo)).toEqual(['atencao_humana'])
+        expect(await jobsDeIa(a.escolaId)).toBe(jobsAntes + 1)
+      } finally {
+        soltar()
+      }
+      await fila.ociosa()
+    })
+
+    it('com o Redis de fila parado, o encaminhamento responde igual: a mensagem fixa e o sinal ficam, e nenhum job nasce', async () => {
+      const aluno = await novoAluno(a)
+      const jobsAntes = await jobsDeIa(a.escolaId)
+      await composeAssincronoOuFalha('stop', 'redis-fila')
+      const execucao = await turno(aluno, 'meu pai morreu')
+      expect(execucao).toMatchObject({ estado: 'concluida', resultado: { tipo: 'mensagem_do_tutor', mensagem: { tipo: 'assunto_delicado', texto: MENSAGEM_DE_ASSUNTO_DELICADO } } })
+      expect((await sinaisDe(aluno)).map((sinal) => sinal.tipo)).toEqual(['atencao_humana'])
+      expect(await jobsDeIa(a.escolaId)).toBe(jobsAntes)
+    }, 120_000)
   })
 })

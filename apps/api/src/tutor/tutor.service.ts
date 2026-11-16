@@ -146,7 +146,7 @@ export class TutorService {
    */
   async #encaminhar(pedido: MensagemAoTutorRequest, alcance: Alcance): Promise<ExecucaoAceitaResponse> {
     const inicio = performance.now()
-    const { escolaId, usuarioId: alunoId } = requestSessao()
+    const { usuarioId: alunoId } = requestSessao()
     const fixa = turnoDoTutor.semModelo?.({ duvida: pedido.texto, contexto: await this.alcanceDoAluno.contexto(alcance), trechos: [], memoria: [], turnosAnteriores: [] })
     if (fixa === undefined || fixa.classificacao !== 'assunto_delicado') throw new LLMError('IA_SAIDA_INVALIDA')
     const execucaoId = await this.banco.transaction(async (tx) => {
@@ -164,9 +164,8 @@ export class TutorService {
       await tutor.gravarPergunta(nova, naConversa.turmaId, pedido.texto, { atividadeAplicadaId: naConversa.atividadeAplicadaId, questao: null, materialId: null, pagina: null })
       const mensagemId = await tutor.gravarResposta(naConversa, { tipo: 'assunto_delicado', texto: fixa.resposta })
       await tutor.gravarSinal(nova, naConversa.turmaId, { tipo: 'atencao_humana' })
-      const execucao = { id: nova, escolaId, chave: pedido.chaveEnvio }
       const estados = new ExecucaoRepository(tx)
-      if (!(await estados.marcarRodando(execucao)) || !(await estados.concluirRodando(execucao, { tipo: 'mensagem_do_tutor', mensagemId }))) throw new LLMError('IA_INDISPONIVEL')
+      if (!(await estados.marcarRodando(nova)) || !(await estados.concluirRodando(nova, { tipo: 'mensagem_do_tutor', mensagemId }))) throw new LLMError('IA_INDISPONIVEL')
       await new ConsumoRepository(tx).registrar({
         alunoId,
         execucaoId: nova,

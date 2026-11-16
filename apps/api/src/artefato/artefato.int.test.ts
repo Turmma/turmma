@@ -1,11 +1,12 @@
-import { type AgenteExecutor, type InProcessAgenteExecutor, type LLMProvider, type SuspensaoDeFuncao } from '@educa/core'
+import { type LLMProvider } from '@educa/core'
 import { QUESTOES_PADRAO_POR_ATIVIDADE, conteudoDeAtividadeSchema, artefatoResponseSchema, listaDeArtefatosResponseSchema, listaDeEntregasResponseSchema, timeResponseSchema, type ChaveDeFuncao, type ConteudoDeAtividade } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { normalizarTexto, textoDaPagina } from '../../../../tools/demonstracao/conteudo-estequiometria.ts'
 import { extrairTextoPorPagina } from '../../../../tools/demonstracao/extrair-texto.ts'
 import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
-import { chamar, subirApi, type TestApi, type RespostaHttp } from '../../test/test-api.js'
+import { chamar, type TestApi, type RespostaHttp } from '../../test/test-api.js'
+import { FilaDeIa } from '../../test/fila-de-ia.fixture.js'
 import {
   comoPessoa,
   contarNaEscola,
@@ -24,9 +25,6 @@ import {
 import { enviarEdicaoDeMaterial, enviarMaterial, esperarExtracao, registrarLicencaDeTeste, variacaoDoPdf } from '../../test/material.fixture.js'
 import { SessaoFixtures, type TestSessao } from '../../test/sessao.fixture.js'
 import { IaRequestRateLimit } from '../assistente/ai-request-rate-limit.js'
-import { ExecucaoScheduler } from '../ia/execucao.scheduler.js'
-import { EXECUTOR_DE_AGENTE, LLM_PROVIDER, SUSPENSAO_DE_FUNCAO } from '../ia/ia.module.js'
-import { RegistroDeComandos } from '../ia/registro-de-comandos.js'
 import { TrechoSearch } from '../material/trecho-search.js'
 import { ArtefatoRepository } from './artefato.repository.js'
 import { ArtefatoService } from './artefato.service.js'
@@ -48,7 +46,7 @@ describe('ferramentas e artefato', () => {
   const medidor = new MedidorDeTeste()
   const linhasDeLog: string[] = []
   let api: TestApi
-  let executor: InProcessAgenteExecutor
+  let fila: FilaDeIa
   let a: EscolaComAssistente
   let b: EscolaComAssistente
   /** A atividade objetiva que a professora de A gerou, e a que a de B gerou. */
@@ -79,33 +77,36 @@ describe('ferramentas e artefato', () => {
     return { status: resposta.status, tipo: resposta.headers.get('content-type'), disposicao: resposta.headers.get('content-disposition'), cache: resposta.headers.get('cache-control'), bytes: new Uint8Array(await resposta.arrayBuffer()) }
   }
 
-  /** Os services atrás de um provedor de mentira, com o agendador, o executor, a suspensão e o banco de verdade. */
-  function comProvedor(gerarSaida: (pedido: { entrada: unknown; execucaoId?: string }) => Promise<unknown>, antesDeRodar: Promise<void> = Promise.resolve()) {
-    const ia = { gerar: async (pedido: { entrada: unknown; execucaoId?: string }) => ({ saida: await gerarSaida(pedido), medicao: {} }) } as unknown as LLMProvider
-    // `antesDeRodar` segura o trabalho da execução até o teste liberar: é o intervalo entre o `202` e a execução.
-    const comEspera: AgenteExecutor = { agendar: (execucao, trabalho) => executor.agendar(execucao, async (sinal) => (await antesDeRodar, trabalho(sinal))) }
-    const agendador = new ExecucaoScheduler(bancada.banco, ia, comEspera, api.app.get<SuspensaoDeFuncao>(SUSPENSAO_DE_FUNCAO), api.app.get(RegistroDeComandos))
+  /** Os services atrás de um modelo de mentira no worker, com o agendador, a suspensão e o banco de verdade. */
+  function comProvedor(gerarSaida: (pedido: { entrada: unknown; execucaoId?: string }) => Promise<unknown>, antesDeRodar?: Promise<void>) {
+    fila.comModelo(async (pedido) => ({ saida: await gerarSaida(pedido as { entrada: unknown; execucaoId?: string }), medicao: {} }))
+    // `antesDeRodar` segura o começo da execução até o teste liberar: é o intervalo entre o `202` e a execução.
+    if (antesDeRodar !== undefined) void antesDeRodar.then(fila.segurar())
+    const agendador = fila.agendador()
     const limite = api.app.get(IaRequestRateLimit)
     return { ferramentas: new FerramentasService(bancada.banco, agendador, limite, api.app.get(TrechoSearch)), artefatos: new ArtefatoService(bancada.banco, agendador, limite) }
   }
-  const falso = () => api.app.get<LLMProvider>(LLM_PROVIDER)
+  const falso = () => fila.falso()
 
   beforeAll(async () => {
-    api = await subirApi(medidor.medidor, {}, linhasDeLog)
-    executor = api.app.get<InProcessAgenteExecutor>(EXECUTOR_DE_AGENTE)
+    fila = await FilaDeIa.subir(medidor.medidor, {}, linhasDeLog)
+    api = fila.api
     a = await montarEscolaComAssistente(api, bancada)
     b = await montarEscolaComAssistente(api, bancada)
     atividadeDeA = await gerar(a, 'atividade_objetiva', 'reagente limitante e reagente em excesso', { quantidade: 4 })
     atividadeDeB = await gerar(b, 'atividade_objetiva', 'reagente limitante', { quantidade: 3 })
   })
 
+  // O modelo de mentira e o portão de uma execução não passam para o caso seguinte.
+  afterEach(() => fila.restaurar())
+
   beforeEach(async () => {
     await zerarLimiteDePedidosDeIa(api)
   })
 
   afterAll(async () => {
-    await executor.ociosa()
-    await api.app.close()
+    await fila.ociosa()
+    await fila.fechar()
     await bancada.fechar()
   })
 
@@ -399,7 +400,7 @@ describe('ferramentas e artefato', () => {
     })
 
     it('a entrada gravada que cita a turma, o artefato ou a disciplina de quem a pessoa não alcança, lida no contexto da A, é NAO_ENCONTRADO: nada da B é lido, nada vai ao modelo, e não há consumo', async () => {
-      const busca = vi.spyOn(api.app.get(TrechoSearch), 'buscar')
+      const busca = vi.spyOn(fila.trechos, 'buscar')
       try {
         const casos = [
           { rotulo: 'turma da B', pedir: (s: ReturnType<typeof comModelo>) => s.ferramentas.gerar('atividade_objetiva', tema(a, 'reagente limitante')), mexer: `jsonb_set(jsonb_set(entrada, '{parametros,turmaId}', to_jsonb($2::text)), '{parametros,disciplinaId}', to_jsonb($3::text))`, valores: [b.turma, b.quimica] },
@@ -424,7 +425,7 @@ describe('ferramentas e artefato', () => {
     })
 
     it('o vínculo encerrado depois do 202, na adaptação: a execução confere de novo o alcance do artefato, e nada vai ao modelo nem vira versão ou entrega', async () => {
-      const busca = vi.spyOn(api.app.get(TrechoSearch), 'buscar')
+      const busca = vi.spyOn(fila.trechos, 'buscar')
       try {
         await vincularProfessor(bancada, a, a.colega.usuarioId, a.turma, a.quimica)
         const servicos = comModelo()
@@ -447,7 +448,7 @@ describe('ferramentas e artefato', () => {
     })
 
     it('a função suspensa depois do 202, nas três tarefas do módulo, não chega ao `preparar`: nem busca, nem modelo, nem consumo, e a execução falha com FUNCAO_SUSPENSA', async () => {
-      const busca = vi.spyOn(api.app.get(TrechoSearch), 'buscar')
+      const busca = vi.spyOn(fila.trechos, 'buscar')
       try {
         const casos = [
           { funcao: 'conversa_e_ferramentas' as const, pedir: (s: ReturnType<typeof comModelo>) => s.ferramentas.gerar('atividade_objetiva', tema(a, 'reagente limitante')) },
@@ -486,7 +487,7 @@ describe('ferramentas e artefato', () => {
     })
 
     it('a tarefa recebe os trechos na ordem do material (por material e, no mesmo material, por página), e a quantidade padrão quando a professora não pede', async () => {
-      const busca = vi.spyOn(api.app.get(TrechoSearch), 'buscar')
+      const busca = vi.spyOn(fila.trechos, 'buscar')
       try {
         // A busca devolve por relevância, fora de ordem: dois materiais, e páginas trocadas dentro de cada um.
         const [primeiro = '', segundo = ''] = [a.materialId, 'ffffffff-ffff-4fff-8fff-ffffffffffff'].sort()
@@ -823,7 +824,7 @@ describe('ferramentas e artefato', () => {
       const execucaoId = String(respostas[0]?.corpo['execucaoId'])
       const execucao = await execucaoTerminada(api, a.professora, execucaoId)
       expect((await pedir(a.professora, 'POST', `/v1/artefatos/${atividadeDeA}/adaptar`, corpo)).corpo['execucaoId']).toBe(execucaoId)
-      await executor.ociosa()
+      await fila.ociosa()
       expect(await contarNaEscola(bancada, 'execucao_agente', a.escolaId, `chave_envio = '${corpo.chaveEnvio}'`)).toBe(1)
       expect(await contarNaEscola(bancada, 'artefato', a.escolaId, `execucao_id = '${execucaoId}'`)).toBe(1)
       expect(await contarNaEscola(bancada, 'entrega', a.escolaId, `execucao_id = '${execucaoId}'`)).toBe(1)
@@ -1047,7 +1048,7 @@ describe('ferramentas e artefato', () => {
       try {
         const antes = [await contarNaEscola(bancada, 'execucao_agente', a.escolaId), await contarNaEscola(bancada, 'consumo_ia', a.escolaId), await contarNaEscola(bancada, 'artefato', a.escolaId)]
         expect(semId(await pedir(a.professora, 'POST', `/v1/artefatos/${atividadeDeA}/adaptar`, { tipos: ['fonte_ampliada'], chaveEnvio: randomUUID() }))).toEqual({ status: 409, codigo: 'FUNCAO_SUSPENSA' })
-        await executor.ociosa()
+        await fila.ociosa()
         expect([await contarNaEscola(bancada, 'execucao_agente', a.escolaId), await contarNaEscola(bancada, 'consumo_ia', a.escolaId), await contarNaEscola(bancada, 'artefato', a.escolaId)]).toEqual(antes)
         // A outra função da mesma escola segue, e a mesma função em outra escola também.
         expect(await gerar(a, 'atividade_objetiva', 'mol', { quantidade: 2 })).toMatch(/^[0-9a-f-]{36}$/u)
@@ -1065,7 +1066,7 @@ describe('ferramentas e artefato', () => {
         await retomar(a, 'adaptacao')
       }
       expect((await pedir(a.professora, 'POST', `/v1/artefatos/${atividadeDeA}/adaptar`, { tipos: ['fonte_ampliada'], chaveEnvio: randomUUID() })).status).toBe(202)
-      await executor.ociosa()
+      await fila.ociosa()
     })
 
     it('com a conversa e as ferramentas suspensas, gerar é recusado antes de gravar, e adaptar, que é outra função, segue', async () => {
@@ -1073,10 +1074,10 @@ describe('ferramentas e artefato', () => {
       try {
         const antes = [await contarNaEscola(bancada, 'execucao_agente', a.escolaId), await contarNaEscola(bancada, 'consumo_ia', a.escolaId)]
         expect(semId(await pedir(a.professora, 'POST', '/v1/ferramentas/plano_de_aula/gerar', { ...parametros(a, 'mol'), chaveEnvio: randomUUID() }))).toEqual({ status: 409, codigo: 'FUNCAO_SUSPENSA' })
-        await executor.ociosa()
+        await fila.ociosa()
         expect([await contarNaEscola(bancada, 'execucao_agente', a.escolaId), await contarNaEscola(bancada, 'consumo_ia', a.escolaId)]).toEqual(antes)
         expect((await pedir(a.professora, 'POST', `/v1/artefatos/${atividadeDeA}/adaptar`, { tipos: ['tempo_adicional'], tempoExtraPercentual: 50, chaveEnvio: randomUUID() })).status).toBe(202)
-        await executor.ociosa()
+        await fila.ociosa()
       } finally {
         await retomar(a, 'conversa_e_ferramentas')
       }

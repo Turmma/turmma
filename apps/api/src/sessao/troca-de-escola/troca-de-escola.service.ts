@@ -1,4 +1,4 @@
-import { DomainException, requestSessao, type Database } from '@educa/core'
+import { DomainException, requestSessaoDeRequisicao, type Database } from '@educa/core'
 import { ErrorCode, type TrocaDeEscolaRequest } from '@educa/shared'
 import type { ConclusaoDeLogin } from '../completion/login-completion.js'
 import { verifyChallenge, type ChallengeConsumer, type ChallengeIssuer, type SessaoDeOrigemDaTroca } from '../../credencial/challenge.js'
@@ -50,7 +50,7 @@ export class TrocaDeEscolaService {
   }
 
   async trocar(pedido: TrocaDeEscolaRequest, origem: RequestOrigin): Promise<ResultadoDoLogin> {
-    const { escolaId, sessaoId } = requestSessao()
+    const { escolaId, sessaoId } = requestSessaoDeRequisicao()
     const daOrigem = await new SessaoDeOrigemRepository(this.dependencias.banco).metodoEConta(sessaoId)
     if (daOrigem?.metodo !== 'email' || daOrigem.contaId === null) throw naoEncontrado()
     const destino = await this.#destinoDaConta(daOrigem.contaId, pedido.usuarioId)

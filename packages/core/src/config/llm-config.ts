@@ -21,11 +21,8 @@ export const MOTIVO_PROVEDOR_ID_DE_EXEMPLO =
 export const MOTIVO_LLM_SEM_MODELO = 'IA_ADAPTADOR=openai_compat precisa de LLM_MODELO, ou de LLM_MODELO_<PERFIL> para os quatro perfis'
 export const MOTIVO_PROCESSAMENTO_LOCAL_EM_ENDERECO_DE_FORA =
   'LLM_PROCESSAMENTO_LOCAL=true só vale com LLM_BASE_URL nesta máquina ou em rede privada: declarar local um provedor de fora apagaria o registro de envio externo'
-export const MOTIVO_EXECUCAO_MAIS_CURTA_QUE_A_CHAMADA =
-  'IA_EXECUCAO_TIMEOUT_MS precisa ser maior que o maior prazo de chamada (LLM_TIMEOUT_MS, LLM_TIMEOUT_MS_RAPIDO e LLM_TIMEOUT_MS_PADRAO): senão a execução estoura antes de a chamada ao modelo terminar'
 export const MOTIVO_RECUO_MAIOR_QUE_O_PRAZO =
   'LLM_RECUO_MS precisa ser menor que o menor prazo de chamada (LLM_TIMEOUT_MS, LLM_TIMEOUT_MS_RAPIDO e LLM_TIMEOUT_MS_PADRAO): a repetição acontece dentro do prazo da chamada, não depois dele'
-export const MOTIVO_VAGAS_DE_IA_INCOERENTES = 'IA_EXECUCOES_POR_ESCOLA não pode passar de IA_EXECUCOES_TOTAL: uma escola sozinha ocuparia todas as vagas'
 export const MOTIVO_LATENCIA_FALSA_MAIOR_QUE_O_PRAZO =
   'IA_LATENCIA_FALSA_MS precisa ser menor que o prazo de todo perfil (LLM_TIMEOUT_MS, LLM_TIMEOUT_MS_RAPIDO e LLM_TIMEOUT_MS_PADRAO): senão toda chamada ao adaptador falso, em algum perfil, estoura o prazo'
 
@@ -91,9 +88,11 @@ export const llmEnvSchema = z
     LLM_PROCESSAMENTO_LOCAL: opcional(z.enum(['true', 'false']).default('false')),
     /** Quem recebe o conteúdo quando ele sai da nossa rede. Não é segredo: vai para `consumo_ia.provedor`. */
     IA_PROVEDOR_ID: opcional(z.string().regex(FORMATO_DO_PROVEDOR_ID).optional()),
-    IA_EXECUCOES_POR_ESCOLA: inteiro(1, 100, 2),
-    IA_EXECUCOES_TOTAL: inteiro(1, 1_000, 8),
-    IA_EXECUCAO_TIMEOUT_MS: inteiro(1_000, 3_600_000, 150_000),
+    /**
+     * Quantas réplicas do `worker-ia` o compose sobe (o `IA_REPLICAS` de `infra/compose.yml`, que `tools/ci/compose.int.test.ts` confere):
+     * com o Redis de fila fora, cada réplica segura o teto de tokens dividido por este número (49.0). Uma, por padrão.
+     */
+    IA_REPLICAS: inteiro(1, 20, 1),
     /**
      * Espera simulada de cada chamada do adaptador **falso**, para o teste de carga e o ensaio sem provedor (regra 80,
      * item 11). Zero (o padrão) não espera. O adaptador `openai_compat` a ignora: a latência dele é a do provedor.
@@ -103,12 +102,11 @@ export const llmEnvSchema = z
   .superRefine((valores, contexto) => {
     const problema = (variavel: string, message: string): void => contexto.addIssue({ code: 'custom', path: [variavel], message })
     if (valores.AMBIENTE === 'producao' && valores.IA_ADAPTADOR === 'falso') problema('IA_ADAPTADOR', MOTIVO_ADAPTADOR_FALSO_EM_PRODUCAO)
-    // Os três prazos são o de cada perfil: o recuo e a latência falsa cabem no menor, a execução cobre o maior.
+    // Os três prazos são o de cada perfil: o recuo e a latência falsa cabem no menor. O prazo da execução é único e vem do perfil
+    // (`PRAZO_DA_EXECUCAO_MS`): a chamada usa o menor entre o prazo dela e o que sobra da execução, e por isso nenhum prazo de chamada é comparado a ele.
     const prazos = [valores.LLM_TIMEOUT_MS, valores.LLM_TIMEOUT_MS_RAPIDO, valores.LLM_TIMEOUT_MS_PADRAO]
     const menorPrazo = Math.min(...prazos)
     if (valores.LLM_RECUO_MS >= menorPrazo) problema('LLM_RECUO_MS', MOTIVO_RECUO_MAIOR_QUE_O_PRAZO)
-    if (valores.IA_EXECUCAO_TIMEOUT_MS <= Math.max(...prazos)) problema('IA_EXECUCAO_TIMEOUT_MS', MOTIVO_EXECUCAO_MAIS_CURTA_QUE_A_CHAMADA)
-    if (valores.IA_EXECUCOES_POR_ESCOLA > valores.IA_EXECUCOES_TOTAL) problema('IA_EXECUCOES_POR_ESCOLA', MOTIVO_VAGAS_DE_IA_INCOERENTES)
     if (valores.IA_LATENCIA_FALSA_MS >= menorPrazo) problema('IA_LATENCIA_FALSA_MS', MOTIVO_LATENCIA_FALSA_MAIOR_QUE_O_PRAZO)
     if (valores.IA_ADAPTADOR !== 'openai_compat') return
     if (valores.LLM_BASE_URL === undefined) problema('LLM_BASE_URL', MOTIVO_LLM_SEM_ENDERECO)
@@ -133,14 +131,6 @@ export interface ModelConfig {
   readonly provedorId?: string
 }
 
-export interface AgenteExecutorConfig {
-  /** Execuções de IA de uma mesma escola ao mesmo tempo (regra 80, item 3). */
-  readonly vagasPorEscola: number
-  /** Execuções de IA ao mesmo tempo neste processo. */
-  readonly vagasNoTotal: number
-  readonly timeoutMs: number
-}
-
 export interface LLMConfig {
   readonly adaptador: LLMAdapterKind
   /** Só com `openai_compat`. */
@@ -149,7 +139,8 @@ export interface LLMConfig {
   readonly prazosMs: Readonly<Record<Perfil, number>>
   /** Espera antes da única repetição em 429 e conexão recusada (regra 30, item 8): cabe no menor prazo. */
   readonly recuoMs: number
-  readonly executor: AgenteExecutorConfig
+  /** As réplicas do `worker-ia` (`IA_REPLICAS`): o teto de tokens por minuto se divide entre elas quando o Redis de fila está fora. */
+  readonly replicas: number
   /** Só do adaptador falso: a espera simulada de cada chamada (`IA_LATENCIA_FALSA_MS`). Ausente é sem espera. */
   readonly latenciaFalsaMs?: number
 }
@@ -160,7 +151,7 @@ export function loadLLMConfig(ambiente: Record<string, string | undefined>): LLM
     adaptador: valores.IA_ADAPTADOR,
     prazosMs: { rapido: valores.LLM_TIMEOUT_MS_RAPIDO, padrao: valores.LLM_TIMEOUT_MS_PADRAO, complexo: valores.LLM_TIMEOUT_MS, visao: valores.LLM_TIMEOUT_MS },
     recuoMs: valores.LLM_RECUO_MS,
-    executor: { vagasPorEscola: valores.IA_EXECUCOES_POR_ESCOLA, vagasNoTotal: valores.IA_EXECUCOES_TOTAL, timeoutMs: valores.IA_EXECUCAO_TIMEOUT_MS },
+    replicas: valores.IA_REPLICAS,
     ...(valores.IA_LATENCIA_FALSA_MS > 0 ? { latenciaFalsaMs: valores.IA_LATENCIA_FALSA_MS } : {}),
   }
   if (valores.IA_ADAPTADOR !== 'openai_compat' || valores.LLM_BASE_URL === undefined) return base

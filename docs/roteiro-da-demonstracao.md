@@ -319,33 +319,33 @@ contêiner `127.0.0.1` é o próprio contêiner: por isso o repasse abaixo, liga
 
    Para tirar depois da demonstração: `sudo ufw delete allow from 172.16.0.0/12 to any port 18080 proto tcp`.
 
-3. O `infra/compose.yml` passa as variáveis de IA à API, mas **não** mapeia `host.docker.internal`. Crie, **fora do
+3. O `infra/compose.yml` passa as variáveis de IA ao `worker-ia`, que é quem chama o modelo, mas **não** mapeia `host.docker.internal`. Crie, **fora do
    repositório**, o arquivo `/tmp/turmma-modelo-local.yml`:
 
    ```yaml
    services:
-     api-1:
+     worker-ia-1:
        extra_hosts: ["host.docker.internal:host-gateway"]
-     api-2:
+     worker-ia-2:
        extra_hosts: ["host.docker.internal:host-gateway"]
    ```
 
-4. Recriar só as duas APIs com o modelo (a variável do terminal vence a do `.env.example`):
+4. Recriar só os dois `worker-ia` com o modelo (a variável do terminal vence a do `.env.example`):
 
    ```bash
    IA_ADAPTADOR=openai_compat \
    LLM_BASE_URL=http://host.docker.internal:18080/v1 \
    LLM_MODELO=qwen3.6-35b-a3b \
    LLM_PROCESSAMENTO_LOCAL=true \
-   LLM_TIMEOUT_MS=120000 LLM_TIMEOUT_MS_RAPIDO=120000 LLM_TIMEOUT_MS_PADRAO=120000 IA_EXECUCAO_TIMEOUT_MS=300000 \
-   docker compose -f compose.yaml -f /tmp/turmma-modelo-local.yml up -d --wait api-1 api-2
+   LLM_TIMEOUT_MS=120000 LLM_TIMEOUT_MS_RAPIDO=120000 LLM_TIMEOUT_MS_PADRAO=120000 \
+   docker compose -f compose.yaml -f /tmp/turmma-modelo-local.yml up -d --wait worker-ia-1 worker-ia-2
    ```
 
    `LLM_PROCESSAMENTO_LOCAL=true` só é aceito com endereço local (`host.docker.internal` é): o registro de consumo
    grava que nada saiu da máquina. Os prazos maiores são porque o modelo local leva dezenas de segundos numa atividade
-   de cinco questões, e cada perfil tem o seu (`rapido` 20 s e `padrao` 60 s por padrão); o da execução precisa ser maior que
-   o maior deles.
-5. Conferir: `docker compose logs api-1 | tail` sem erro de configuração, e uma conversa de teste na professora antes
+   de cinco questões, e cada perfil tem o seu (`rapido` 20 s e `padrao` 60 s por padrão). O prazo da execução não é variável: vem do perfil da tarefa
+   (60 s no Tutor, 140 s nas outras) e o job de IA corta aos 150 s, então chamada acima disso não cabe.
+5. Conferir: `docker compose logs worker-ia-1 | tail` sem erro de configuração, e uma conversa de teste na professora antes
    da reunião. Alternativa sem o arquivo do passo 3: `LLM_BASE_URL=http://172.17.0.1:18080/v1` (IP privado, também
    aceito como local).
 

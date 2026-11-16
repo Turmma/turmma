@@ -11,14 +11,11 @@ import {
   proporFerramenta,
   threadAgente,
   turnoDoTutor,
-  type AgenteExecutor,
   type GenerationRequest,
   type OrcamentoQuery,
   type ConsumoDeIa,
   type RequestContext,
   type TaskDefinition,
-  type InProcessAgenteExecutor,
-  type LLMProvider,
   type OrcamentoDeIa,
   type SuspensaoDeFuncao,
   type DatabaseTransaction,
@@ -26,20 +23,22 @@ import {
 import { ErrorCode, execucaoResponseSchema, TAREFAS_DE_IA, TROCAS_POR_DIA_PADRAO_DO_TUTOR, type ChaveDeFuncao, type PapelDeUsuario, type ResultadoGravado } from '@educa/shared'
 import { and, eq } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
-import { afterAll, beforeAll, describe, expect, it, onTestFinished, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
-import { chamar, subirApi, type TestApi, type RespostaHttp } from '../../test/test-api.js'
+import { chamar, type TestApi, type RespostaHttp } from '../../test/test-api.js'
+import { FilaDeIa } from '../../test/fila-de-ia.fixture.js'
 import { montarEscolaComTurma, type EscolaComTurma } from '../../test/escola-turma.fixture.js'
 import { SessaoFixtures, type TestSessao } from '../../test/sessao.fixture.js'
-import type { EntradaDaTarefa, ExecucaoCommand, ExecucaoLida, FilaDeIa, Preparado, SaidaDaTarefa } from './execucao-command.js'
+import type { EntradaDaTarefa, ExecucaoCommand, ExecucaoLida, FilaDeIa as NomeDaFila, Preparado, SaidaDaTarefa } from './execucao-command.js'
 import { ExecucaoScheduler, type ExecucaoComComando } from './execucao.scheduler.js'
 import { FuncaoSuspensionCheck } from './funcao-suspension-check.js'
 import { ConsumoRepository } from './consumo.repository.js'
 import { ExecucaoDaSessaoRepository, ExecucaoRepository } from './execucao.repository.js'
-import { EXECUTOR_DE_AGENTE, LLM_PROVIDER, ORCAMENTO_DE_IA, SUSPENSAO_DE_FUNCAO } from './ia.module.js'
+import { ORCAMENTO_DE_IA, SUSPENSAO_DE_FUNCAO } from './ia.module.js'
 import { OrcamentoRepository } from './orcamento.repository.js'
 import { RegistroDeComandos, tarefasSemComando, TAREFAS_SEM_CHAMADOR } from './registro-de-comandos.js'
 import { SuspensaoRepository } from './suspensao.repository.js'
+import { VarreduraDeExecucoes } from './varredura-de-execucoes.js'
 
 /**
  * A camada de IA ligada ao banco e à API (MVP, fase 1): as quatro portas em Postgres, o `GET /v1/execucoes/:id` e o
@@ -53,7 +52,8 @@ describe('camada de IA na API', () => {
   const medidor = new MedidorDeTeste()
   let api: TestApi
   let agendador: ExecucaoScheduler
-  let executor: InProcessAgenteExecutor
+  let fila: FilaDeIa
+  let registroDeTeste: RegistroDeComandos
 
   interface Escola extends EscolaComTurma {
     readonly escolaId: string
@@ -157,7 +157,7 @@ describe('camada de IA na API', () => {
   const ganchosDoAssistente = new Map<string, Ganchos<EntradaDaTarefa<typeof proporFerramenta>, SaidaDaTarefa<typeof proporFerramenta>>>()
   const ganchosDoTutor = new Map<string, Ganchos<EntradaDaTarefa<typeof turnoDoTutor>, SaidaDaTarefa<typeof turnoDoTutor>>>()
   const ganchosDaAtividade = new Map<string, Ganchos<EntradaDaTarefa<typeof gerarAtividadeObjetiva>, SaidaDaTarefa<typeof gerarAtividadeObjetiva>>>()
-  function comandoPorChave<Entrada, Saida>(tarefa: TaskDefinition<Entrada, Saida>, fila: FilaDeIa, ganchos: Map<string, Ganchos<Entrada, Saida>>): ExecucaoCommand<Entrada, Saida, Ganchos<Entrada, Saida>> {
+  function comandoPorChave<Entrada, Saida>(tarefa: TaskDefinition<Entrada, Saida>, fila: NomeDaFila, ganchos: Map<string, Ganchos<Entrada, Saida>>): ExecucaoCommand<Entrada, Saida, Ganchos<Entrada, Saida>> {
     return {
       tarefa,
       fila,
@@ -264,21 +264,27 @@ describe('camada de IA na API', () => {
   }
 
   beforeAll(async () => {
-    api = await subirApi(medidor.medidor)
     // Os casos do agendador rodam com comandos de teste (um por tarefa que eles disparam), num registro à parte: o do `AppModule` tem os reais.
-    const registroDeTeste = new RegistroDeComandos()
+    registroDeTeste = new RegistroDeComandos()
     registroDeTeste.registrar(comandoPorChave(proporFerramenta, 'ferramenta', ganchosDoAssistente))
     registroDeTeste.registrar(comandoPorChave(turnoDoTutor, 'interativa', ganchosDoTutor))
     registroDeTeste.registrar(comandoPorChave(gerarAtividadeObjetiva, 'ferramenta', ganchosDaAtividade))
-    executor = api.app.get<InProcessAgenteExecutor>(EXECUTOR_DE_AGENTE)
-    agendador = new ExecucaoScheduler(bancada.banco, api.app.get<LLMProvider>(LLM_PROVIDER), executor, api.app.get<SuspensaoDeFuncao>(SUSPENSAO_DE_FUNCAO), registroDeTeste)
+    fila = await FilaDeIa.subir(medidor.medidor, {}, undefined, { registro: registroDeTeste })
+    api = fila.api
+    agendador = fila.agendador()
     a = await montarEscola()
     b = await montarEscola()
   })
 
+  // O modelo, o portão e o registro de mentira de um caso não passam para o seguinte.
+  afterEach(() => {
+    fila.restaurar()
+    fila.usarRegistro(registroDeTeste)
+  })
+
   afterAll(async () => {
-    await executor.ociosa()
-    await api.app.close()
+    await fila.ociosa()
+    await fila.fechar()
     // A limpeza da bancada ainda não conhece as tabelas do MVP, que apontam para a turma e para o ano letivo: o que
     // este arquivo gravou nelas sai antes, do que aponta para o que é apontado.
     const escolas = [a.escolaId, b.escolaId]
@@ -288,57 +294,79 @@ describe('camada de IA na API', () => {
     await bancada.fechar()
   })
 
-  describe('ExecucaoRepository: a execução só é marcada com a escola dela', () => {
-    it('com o id da execução de B e a escola A, nada é marcado; com a escola de B, a mesma chamada marca', async () => {
+  describe('ExecucaoRepository: a execução só é lida e marcada na escola do contexto', () => {
+    it('com o id da execução de B e a escola A no contexto, nada é lido nem marcado; com a escola de B, a mesma chamada marca', async () => {
       const execucoes = new ExecucaoRepository(bancada.banco)
       const deB = await execucaoPendente(b, b.professor)
-      const comEscolaErrada = { ...deB, escolaId: a.escolaId }
 
-      expect(await execucoes.marcarRodando(comEscolaErrada)).toBe(false)
+      expect(await noContextoDe(a, () => execucoes.paraIniciar(deB.id))).toBeUndefined()
+      expect(await noContextoDe(a, () => execucoes.marcarRodando(deB.id))).toBe(false)
       expect((await execucaoNoBanco(deB.id)).estado).toBe('pendente')
-      expect(await execucoes.marcarRodando(deB)).toBe(true)
+      expect(await noContextoDe(b, () => execucoes.paraIniciar(deB.id))).toMatchObject({ id: deB.id, tarefa: 'gerar_atividade_objetiva', estado: 'pendente', quemPediu: { usuarioId: b.professor.usuarioId, papel: 'professor', anoLetivoId: b.anoLetivoId } })
+      expect(await noContextoDe(b, () => execucoes.marcarRodando(deB.id))).toBe(true)
       expect((await execucaoNoBanco(deB.id)).iniciada_em).toBeInstanceOf(Date)
 
       const resultado = { tipo: 'artefato', artefatoId: randomUUID(), entregaId: null } as const
-      await execucoes.marcarFalhou(comEscolaErrada, 'IA_INDISPONIVEL')
-      await execucoes.marcarConcluida(comEscolaErrada, resultado)
-      expect(await execucoes.concluirRodando(comEscolaErrada, resultado)).toBe(false)
+      expect(await noContextoDe(a, () => execucoes.marcarFalhou(deB.id, 'IA_INDISPONIVEL'))).toBe(false)
+      expect(await noContextoDe(a, () => execucoes.concluirRodando(deB.id, resultado))).toBe(false)
       expect((await execucaoNoBanco(deB.id)).estado).toBe('rodando')
 
-      await execucoes.marcarConcluida(deB, resultado)
+      expect(await noContextoDe(b, () => execucoes.concluirRodando(deB.id, resultado))).toBe(true)
       const concluida = await execucaoNoBanco(deB.id)
       expect(concluida).toMatchObject({ estado: 'concluida', resultado, erro: null })
       expect(concluida.concluida_em).toBeInstanceOf(Date)
     })
 
+    it('sem escola no contexto, lança antes de ler: nem a execução de B responde por ninguém', async () => {
+      const execucoes = new ExecucaoRepository(bancada.banco)
+      const deB = await execucaoPendente(b, b.professor)
+      await expect(execucoes.paraIniciar(deB.id)).rejects.toThrow()
+      await expect(execucoes.marcarRodando(deB.id)).rejects.toThrow()
+      expect((await execucaoNoBanco(deB.id)).estado).toBe('pendente')
+    })
+
+    it('quem pediu só vale se ainda está ativa no ano em curso: a pessoa eliminada e a desativada não têm contexto', async () => {
+      const execucoes = new ExecucaoRepository(bancada.banco)
+      for (const [coluna, valor] of [['eliminacao_agendada_em', 'now()'], ['desativado_em', 'now()']] as const) {
+        const execucao = await execucaoPendente(a, a.outroProfessor)
+        expect((await noContextoDe(a, () => execucoes.paraIniciar(execucao.id)))?.quemPediu, coluna).toBeDefined()
+        await sql(`update usuario set ${coluna} = ${valor} where escola_id = $1 and id = $2`, [a.escolaId, a.outroProfessor.usuarioId])
+        try {
+          expect((await noContextoDe(a, () => execucoes.paraIniciar(execucao.id)))?.quemPediu, coluna).toBeUndefined()
+        } finally {
+          await sql(`update usuario set ${coluna} = null where escola_id = $1 and id = $2`, [a.escolaId, a.outroProfessor.usuarioId])
+        }
+      }
+    })
+
     it('a passagem é uma só: a segunda instância que tenta pegar a mesma execução não pega, e a terminada não volta a rodar', async () => {
       const execucoes = new ExecucaoRepository(bancada.banco)
       const execucao = await execucaoPendente(a, a.professor)
-      const pegaram = await Promise.all(Array.from({ length: 5 }, () => execucoes.marcarRodando(execucao)))
+      const pegaram = await noContextoDe(a, () => Promise.all(Array.from({ length: 5 }, () => execucoes.marcarRodando(execucao.id))))
       expect(pegaram.filter(Boolean)).toHaveLength(1)
-      await execucoes.marcarFalhou(execucao, 'IA_TEMPO_ESGOTADO')
+      expect(await noContextoDe(a, () => execucoes.marcarFalhou(execucao.id, 'IA_TEMPO_ESGOTADO'))).toBe(true)
       const falha = await execucaoNoBanco(execucao.id)
       expect(falha).toMatchObject({ estado: 'falhou', erro: 'IA_TEMPO_ESGOTADO', resultado: null })
       expect(falha.concluida_em).toBeInstanceOf(Date)
-      expect(await execucoes.marcarRodando(execucao)).toBe(false)
+      expect(await noContextoDe(a, () => execucoes.marcarRodando(execucao.id))).toBe(false)
       // O resultado que chega depois da falha não ressuscita a execução.
-      await execucoes.marcarConcluida(execucao, { tipo: 'artefato', artefatoId: randomUUID(), entregaId: null })
+      expect(await noContextoDe(a, () => execucoes.concluirRodando(execucao.id, { tipo: 'artefato', artefatoId: randomUUID(), entregaId: null }))).toBe(false)
       expect((await execucaoNoBanco(execucao.id)).estado).toBe('falhou')
     })
 
     it('o resultado é só referência: texto no lugar dela não é gravado', async () => {
       const execucoes = new ExecucaoRepository(bancada.banco)
       const execucao = await execucaoPendente(a, a.professor)
-      await execucoes.marcarRodando(execucao)
-      await expect(execucoes.marcarConcluida(execucao, { tipo: 'mensagem', texto: 'a resposta inteira do Assistente' })).rejects.toThrow()
+      await noContextoDe(a, () => execucoes.marcarRodando(execucao.id))
+      await expect(noContextoDe(a, () => execucoes.concluirRodando(execucao.id, { tipo: 'mensagem', texto: 'a resposta inteira do Assistente' } as unknown as Parameters<ExecucaoRepository['concluirRodando']>[1]))).rejects.toThrow()
       expect((await execucaoNoBanco(execucao.id)).estado).toBe('rodando')
-      await execucoes.marcarFalhou(execucao, 'ERRO_INTERNO')
+      await noContextoDe(a, () => execucoes.marcarFalhou(execucao.id, 'ERRO_INTERNO'))
     })
 
-    it('a única consulta entre escolas é a varredura, marcada @SemEscopo com a justificativa', () => {
+    it('a única consulta entre escolas é a varredura, marcada @Unscoped com a justificativa', () => {
       const metodos = Object.getOwnPropertyNames(ExecucaoRepository.prototype).filter((metodo) => metodo !== 'constructor')
       expect(metodos.filter((metodo) => unscopedJustification(ExecucaoRepository, metodo) !== undefined)).toEqual(['falharInterrompidas'])
-      expect(unscopedJustification(ExecucaoRepository, 'falharInterrompidas')).toMatch(/^varredura da subida da API: /)
+      expect(unscopedJustification(ExecucaoRepository, 'falharInterrompidas')).toMatch(/^varredura do main-worker: /)
     })
   })
 
@@ -408,14 +436,14 @@ describe('camada de IA na API', () => {
         const { pedido, aoGravar, aoConcluir } = pedidoDoAssistente(a)
         const erro = await erroDe(como(a, a.professor, 'professor', () => agendador.agendar(pedido)))
         expect(erro).toMatchObject({ codigo: ErrorCode.FUNCAO_SUSPENSA, status: 409 })
-        await executor.ociosa()
+        await fila.ociosa()
         expect(aoGravar).not.toHaveBeenCalled()
         expect(aoConcluir).not.toHaveBeenCalled()
         expect(await contar('execucao_agente', a.escolaId)).toBe(execucoesAntes)
         expect(await contar('consumo_ia', a.escolaId)).toBe(consumoAntes)
 
         // Pela porta, direto, a recusa é a mesma e também não grava consumo.
-        const ia = api.app.get<LLMProvider>(LLM_PROVIDER)
+        const ia = fila.provedor
         const direto = await erroDe(
           noContextoDe(a, () => ia.gerar({ tarefa: proporFerramenta, escolaId: a.escolaId, entrada: { mensagem: 'bom dia', contexto: { serie: '2º ano', disciplina: 'Química' }, trechos: [], turnosAnteriores: [] } })),
         )
@@ -425,7 +453,7 @@ describe('camada de IA na API', () => {
         // A mesma função na escola B executa, e outra função na escola A também.
         const naB = pedidoDoAssistente(b)
         await como(b, b.professor, 'professor', () => agendador.agendar(naB.pedido))
-        await executor.ociosa()
+        await fila.ociosa()
         expect(naB.aoConcluir).toHaveBeenCalledTimes(1)
         await expect(como(a, a.coordenacao, 'coordenador', () => api.app.get(FuncaoSuspensionCheck).exigirAtiva('correcao_de_objetiva'))).resolves.toBeUndefined()
         expect((await erroDe(como(a, a.coordenacao, 'coordenador', () => api.app.get(FuncaoSuspensionCheck).exigirAtiva('conversa_e_ferramentas')))).codigo).toBe(ErrorCode.FUNCAO_SUSPENSA)
@@ -536,7 +564,7 @@ describe('camada de IA na API', () => {
       // A 61ª, agendada assim mesmo, falha com o código do freio, sem resposta e sem consumo de modelo.
       const { pedido, aoConcluir } = pedidoDoTutor(a, a.aluno, 'como eu acho o reagente limitante?')
       const { execucaoId } = await como(a, a.aluno, 'aluno', () => agendador.agendar(pedido))
-      await executor.ociosa()
+      await fila.ociosa()
       expect(await execucaoNoBanco(execucaoId)).toMatchObject({ estado: 'falhou', erro: 'LIMITE_DIARIO_DO_TUTOR' })
       expect(aoConcluir).not.toHaveBeenCalled()
 
@@ -735,7 +763,7 @@ describe('camada de IA na API', () => {
       // O id volta antes de a tarefa rodar: o que a execução produz só é gravado depois de a rota responder.
       expect(aoConcluir).not.toHaveBeenCalled()
 
-      await executor.ociosa()
+      await fila.ociosa()
       expect(contextoVisto).toMatchObject([{ escolaId: a.escolaId, usuarioId: a.professor.usuarioId, anoLetivoId: a.anoLetivoId, papel: 'professor' }])
       // O consumo da execução, gravada depois do 202, é da escola de quem pediu: uma linha em A, e B sem mudança.
       expect([await contar('consumo_ia', a.escolaId), await contar('consumo_ia', b.escolaId)]).toEqual([consumoAntesDeA + 1, consumoAntesDeB])
@@ -760,7 +788,7 @@ describe('camada de IA na API', () => {
       const um = pedidoDoAssistente(a, { chaveEnvio })
       const dois = pedidoDoAssistente(a, { chaveEnvio })
       const [primeira, segunda] = await como(a, a.professor, 'professor', () => Promise.all([agendador.agendar(um.pedido), agendador.agendar(dois.pedido)]))
-      await executor.ociosa()
+      await fila.ociosa()
       expect(primeira.execucaoId).toBe(segunda.execucaoId)
       expect(await contar('execucao_agente', a.escolaId, `chave_envio = '${chaveEnvio}'`)).toBe(1)
       expect(um.aoGravar.mock.calls.length + dois.aoGravar.mock.calls.length).toBe(1)
@@ -771,7 +799,7 @@ describe('camada de IA na API', () => {
       // O reenvio depois de concluída devolve a mesma execução, e não produz de novo.
       const tres = pedidoDoAssistente(a, { chaveEnvio })
       expect(await como(a, a.professor, 'professor', () => agendador.agendar(tres.pedido))).toEqual({ execucaoId: primeira.execucaoId })
-      await executor.ociosa()
+      await fila.ociosa()
       expect(tres.aoGravar).not.toHaveBeenCalled()
       expect(tres.aoConcluir).not.toHaveBeenCalled()
       expect(await contar('mensagem_agente', a.escolaId, `execucao_id = '${primeira.execucaoId}'`)).toBe(2)
@@ -781,10 +809,10 @@ describe('camada de IA na API', () => {
       const chaveEnvio = randomUUID()
       const dono = pedidoDoAssistente(a, { chaveEnvio })
       await como(a, a.professor, 'professor', () => agendador.agendar(dono.pedido))
-      await executor.ociosa()
+      await fila.ociosa()
       const colega = pedidoDoAssistente(a, { chaveEnvio })
       expect((await erroDe(como(a, a.outroProfessor, 'professor', () => agendador.agendar(colega.pedido)))).codigo).toBe(ErrorCode.NAO_ENCONTRADO)
-      await executor.ociosa()
+      await fila.ociosa()
       expect(colega.aoGravar).not.toHaveBeenCalled()
       expect(colega.aoConcluir).not.toHaveBeenCalled()
     })
@@ -793,7 +821,7 @@ describe('camada de IA na API', () => {
       const texto = 'monta uma atividade sobre mol para o Enzo, que tem dislexia: palavra-marcada-do-professor'
       const { pedido } = pedidoDoAssistente(a, { texto })
       const { execucaoId } = await como(a, a.professor, 'professor', () => agendador.agendar(pedido))
-      await executor.ociosa()
+      await fila.ociosa()
       const { rows } = await sql('select tarefa, funcao, estado, aluno_id, entrada, saida, origem, envio_externo, tokens_de_entrada from consumo_ia where escola_id = $1 and execucao_id = $2', [a.escolaId, execucaoId])
       expect(rows).toMatchObject([{ tarefa: 'propor_ferramenta', funcao: 'conversa_e_ferramentas', estado: 'concluida', aluno_id: null, entrada: null, saida: null, origem: 'falso', envio_externo: false }])
       const tudo = JSON.stringify([(await sql('select * from consumo_ia where escola_id = $1', [a.escolaId])).rows, (await sql('select * from execucao_agente where escola_id = $1', [a.escolaId])).rows])
@@ -807,7 +835,7 @@ describe('camada de IA na API', () => {
       // O orçamento desta escola foi esgotado no caso do pacote do mês: volta ao padrão para este turno.
       await sql('update configuracao_operacional_escola set tutor_trocas_por_dia = null, tutor_trocas_por_mes = null where escola_id = $1', [b.escolaId])
       const { execucaoId } = await como(b, b.outroAluno, 'aluno', () => agendador.agendar(pedido))
-      await executor.ociosa()
+      await fila.ociosa()
       const { rows } = await sql('select tarefa, funcao, perfil, estado, aluno_id, entrada, saida from consumo_ia where escola_id = $1 and execucao_id = $2', [b.escolaId, execucaoId])
       expect(rows).toEqual([{ tarefa: 'turno_do_tutor', funcao: 'tutor_com_o_aluno', perfil: 'rapido', estado: 'concluida', aluno_id: b.outroAluno.usuarioId, entrada: null, saida: null }])
       expect(JSON.stringify((await sql('select * from consumo_ia where escola_id = $1', [b.escolaId])).rows)).not.toContain('palavra-marcada-do-aluno')
@@ -823,7 +851,7 @@ describe('camada de IA na API', () => {
     it('assunto delicado no Tutor: a mensagem fixa chega ao aluno sem modelo, e o consumo não guarda o que ele escreveu', async () => {
       const { pedido } = pedidoDoTutor(b, b.outroAluno, 'não tô bem, meu pai me bate')
       const { execucaoId } = await como(b, b.outroAluno, 'aluno', () => agendador.agendar(pedido))
-      await executor.ociosa()
+      await fila.ociosa()
       expect((await get(b.outroAluno, `/v1/execucoes/${execucaoId}`)).corpo).toMatchObject({ estado: 'concluida', resultado: { tipo: 'mensagem_do_tutor', mensagem: { tipo: 'assunto_delicado' } } })
       const { rows } = await sql('select origem, tentativas, entrada, saida from consumo_ia where escola_id = $1 and execucao_id = $2', [b.escolaId, execucaoId])
       expect(rows).toEqual([{ origem: 'regra_fixa', tentativas: 0, entrada: null, saida: null }])
@@ -836,7 +864,7 @@ describe('camada de IA na API', () => {
         },
       })
       const { execucaoId } = await como(a, a.professor, 'professor', () => agendador.agendar(pedido))
-      await executor.ociosa()
+      await fila.ociosa()
       expect(await execucaoNoBanco(execucaoId)).toMatchObject({ estado: 'falhou', erro: 'ERRO_INTERNO', resultado: null })
       expect(await contar('mensagem_agente', a.escolaId, `execucao_id = '${execucaoId}' and autor = 'agente'`)).toBe(0)
       expect((await get(a.professor, `/v1/execucoes/${execucaoId}`)).corpo).toEqual({ id: execucaoId, tarefa: 'propor_ferramenta', estado: 'falhou', resultado: null, erro: 'ERRO_INTERNO' })
@@ -850,7 +878,7 @@ describe('camada de IA na API', () => {
       const { execucaoId } = await como(a, a.professor, 'professor', () =>
         agendador.agendar({ comando: 'gerar_atividade_objetiva', chaveEnvio, entradaDaExecucao: { tarefa: 'gerar_atividade_objetiva', parametros: { turmaId: a.turma, disciplinaId: a.quimica, tema: 'estequiometria' } } }),
       )
-      await executor.ociosa()
+      await fila.ociosa()
       expect(await execucaoNoBanco(execucaoId)).toMatchObject({ estado: 'falhou', erro: 'MATERIAL_INSUFICIENTE' })
       expect(aoConcluir).not.toHaveBeenCalled()
       expect(new LLMError('MATERIAL_INSUFICIENTE').status).toBe(422)
@@ -877,13 +905,12 @@ describe('camada de IA na API', () => {
       registro.registrar(comando)
       return { comando, preparar, concluir, gerar, registro }
     }
-    /** O agendador com o registro e o modelo de teste, e o executor segurando a execução até `liberar()`: é o intervalo entre o `202` e o `preparar`. */
+    /** O agendador com o registro e o modelo de teste, e o worker segurando a execução até `liberar()`: é o intervalo entre o `202` e o `preparar`. */
     function agendadorComEspera(teste: ReturnType<typeof comandoDeTeste>) {
-      let liberar = (): void => undefined
-      const segurar = new Promise<void>((resolver) => (liberar = resolver))
-      const comEspera: AgenteExecutor = { agendar: (execucao, trabalho) => executor.agendar(execucao, async (sinal) => (await segurar, trabalho(sinal))) }
-      const agendadorDeTeste = new ExecucaoScheduler(bancada.banco, { gerar: teste.gerar } as unknown as LLMProvider, comEspera, api.app.get<SuspensaoDeFuncao>(SUSPENSAO_DE_FUNCAO), teste.registro)
-      return { agendadorDeTeste, liberar }
+      fila.usarRegistro(teste.registro)
+      fila.comModelo(async (pedido) => teste.gerar(pedido as Parameters<typeof teste.gerar>[0]))
+      const liberar = fila.segurar()
+      return { agendadorDeTeste: fila.agendador(), liberar }
     }
     const pedirComando = (chaveEnvio = randomUUID(), extra: Partial<ExecucaoComComando> = {}): ExecucaoComComando => ({ comando: 'gerar_atividade_objetiva', chaveEnvio, entradaDaExecucao: { tarefa: 'gerar_atividade_objetiva', parametros: { turmaId: a.turma, disciplinaId: a.quimica, tema: 'estequiometria' } }, ...extra })
 
@@ -925,7 +952,7 @@ describe('camada de IA na API', () => {
       const { agendadorDeTeste, liberar } = agendadorComEspera(teste)
       const { execucaoId } = await como(a, a.professor, 'professor', () => agendadorDeTeste.agendar(pedirComando()))
       liberar()
-      await executor.ociosa()
+      await fila.ociosa()
       expect(teste.concluir).toHaveBeenCalledTimes(1)
       expect(await execucaoNoBanco(execucaoId)).toMatchObject({ estado: 'falhou', resultado: null })
     })
@@ -947,7 +974,7 @@ describe('camada de IA na API', () => {
       expect(aoGravar.mock.calls[0]?.[1]).toBe(execucaoId)
       expect(teste.preparar).not.toHaveBeenCalled()
       liberar()
-      await executor.ociosa()
+      await fila.ociosa()
       expect(teste.preparar).toHaveBeenCalledTimes(1)
       expect(teste.preparar.mock.calls[0]?.[0]).toEqual({ id: execucaoId, tarefa: 'gerar_atividade_objetiva', chaveEnvio, entrada: { tarefa: 'gerar_atividade_objetiva', parametros: { turmaId: a.turma, disciplinaId: a.quimica, tema: 'estequiometria' } } })
       expect(teste.gerar).toHaveBeenCalledTimes(1)
@@ -996,12 +1023,11 @@ describe('camada de IA na API', () => {
       expect(await contar('execucao_agente', a.escolaId, `chave_envio = '${chaveEnvio}'`)).toBe(0)
     })
 
-    it('depois do 202, a função suspensa, a execução que saiu do alcance e a linha que virou de outra tarefa não chegam ao `preparar`: nem leitura, nem modelo', async () => {
+    it('depois do 202, a função suspensa e a execução que saiu do alcance não chegam ao `preparar`: nem leitura, nem modelo', async () => {
       const c = await montarEscola()
       const casos = [
         { rotulo: 'função suspensa', erro: 'FUNCAO_SUSPENSA', mexer: () => sql(`insert into suspensao_de_funcao (escola_id, funcao, suspensa_por) values ($1, 'conversa_e_ferramentas', $2)`, [c.escolaId, c.coordenacao.usuarioId]) },
         { rotulo: 'a execução anonimizada (sem quem pediu)', erro: 'NAO_ENCONTRADO', mexer: (id: string) => sql('update execucao_agente set solicitada_por = null where id = $1', [id]) },
-        { rotulo: 'a linha que virou de outra tarefa', erro: 'NAO_ENCONTRADO', mexer: (id: string) => sql(`update execucao_agente set tarefa = 'resumo_do_analista', funcao = 'resumo_e_alerta', entrada = '{"tarefa":"resumo_do_analista"}' where id = $1`, [id]) },
       ]
       for (const { rotulo, erro, mexer } of casos) {
         const teste = comandoDeTeste()
@@ -1009,7 +1035,7 @@ describe('camada de IA na API', () => {
         const { execucaoId } = await como(c, c.professor, 'professor', () => agendadorDeTeste.agendar(pedirComando(randomUUID(), { entradaDaExecucao: { tarefa: 'gerar_atividade_objetiva', parametros: { turmaId: c.turma, disciplinaId: c.quimica, tema: 'estequiometria' } } })))
         await mexer(execucaoId)
         liberar()
-        await executor.ociosa()
+        await fila.ociosa()
         expect(await execucaoNoBanco(execucaoId), rotulo).toMatchObject({ estado: 'falhou', erro, resultado: null })
         expect(teste.preparar, rotulo).not.toHaveBeenCalled()
         expect(teste.gerar, rotulo).not.toHaveBeenCalled()
@@ -1046,7 +1072,7 @@ describe('camada de IA na API', () => {
       // A execução é do colega de A, mas o resultado dela aponta para a mensagem do Assistente de outro professor.
       const { pedido } = pedidoDoAssistente(a)
       const { execucaoId: daOutra } = await como(a, a.professor, 'professor', () => agendador.agendar(pedido))
-      await executor.ociosa()
+      await fila.ociosa()
       const { rows } = await sql(`select resultado from execucao_agente where id = $1`, [daOutra])
       const forjada = await execucaoPendente(a, a.outroProfessor, 'propor_ferramenta')
       await sql(`update execucao_agente set estado = 'concluida', iniciada_em = now(), concluida_em = now(), resultado = $2 where id = $1`, [forjada.id, JSON.stringify((rows as { resultado: unknown }[])[0]?.resultado)])
@@ -1059,7 +1085,7 @@ describe('camada de IA na API', () => {
       const respostaDoTutorA = async (escola: Escola, aluno: TestSessao): Promise<{ execucaoId: string; mensagemId: string }> => {
         const { pedido } = pedidoDoTutor(escola, aluno, 'como eu acho o reagente limitante?')
         const { execucaoId } = await como(escola, aluno, 'aluno', () => agendador.agendar(pedido))
-        await executor.ociosa()
+        await fila.ociosa()
         const { rows } = await sql(`select id from mensagem_tutor where escola_id = $1 and execucao_id = $2 and autor = 'tutor'`, [escola.escolaId, execucaoId])
         const mensagemId = (rows as { id: string }[])[0]?.id
         if (mensagemId === undefined) throw new Error('o Tutor deveria ter respondido')
@@ -1101,7 +1127,7 @@ describe('camada de IA na API', () => {
       await como(b, b.professor, 'professor', () => agendador.agendar(pedidoAssistenteDeB))
       const { pedido: pedidoTutorDeB } = pedidoDoTutor(b, b.outroAluno, 'como eu acho o reagente limitante?')
       await como(b, b.outroAluno, 'aluno', () => agendador.agendar(pedidoTutorDeB))
-      await executor.ociosa()
+      await fila.ociosa()
       const { rows: doTutor } = await sql(`select id from mensagem_tutor where escola_id = $1 and ano_letivo_id = $3 and aluno_id = $2 and autor = 'tutor' limit 1`, [b.escolaId, b.outroAluno.usuarioId, b.anoLetivoId])
       const { rows: doAssistente } = await sql(
         `select m.id from mensagem_agente m join thread_agente t on t.escola_id = m.escola_id and t.id = m.thread_id where m.escola_id = $1 and m.ano_letivo_id = $3 and t.usuario_id = $2 and m.autor = 'agente' limit 1`,
@@ -1185,26 +1211,25 @@ describe('camada de IA na API', () => {
 
     it('a execução que falhou devolve só o código do erro, e a sem sessão não passa', async () => {
       const execucao = await execucaoPendente(a, a.professor)
-      await new ExecucaoRepository(bancada.banco).marcarRodando(execucao)
-      await new ExecucaoRepository(bancada.banco).marcarFalhou(execucao, 'IA_SAIDA_INVALIDA')
+      await noContextoDe(a, () => new ExecucaoRepository(bancada.banco).marcarRodando(execucao.id))
+      await noContextoDe(a, () => new ExecucaoRepository(bancada.banco).marcarFalhou(execucao.id, 'IA_SAIDA_INVALIDA'))
       expect((await get(a.professor, `/v1/execucoes/${execucao.id}`)).corpo).toEqual({ id: execucao.id, tarefa: 'gerar_atividade_objetiva', estado: 'falhou', resultado: null, erro: 'IA_SAIDA_INVALIDA' })
       expect((await chamar(api.url, 'GET', `/v1/execucoes/${execucao.id}`, undefined)).status).toBe(401)
     })
   })
 
-  describe('varredura da subida', () => {
-    it('execução presa em "rodando" ou "pendente" vira "falhou" com EXECUCAO_INTERROMPIDA quando a API sobe; a recente não é tocada', async () => {
+  describe('varredura do main-worker', () => {
+    it('execução presa em "rodando" ou "pendente" há mais de 300 s vira "falhou" com EXECUCAO_INTERROMPIDA; a recente não é tocada', async () => {
       const presaRodando = await execucaoPendente(a, a.professor)
       const presaPendente = await execucaoPendente(b, b.professor)
       const viva = await execucaoPendente(a, a.professor)
       const recemCriada = await execucaoPendente(b, b.professor)
       await sql(`update execucao_agente set estado = 'rodando', iniciada_em = now() - interval '1 hour' where id = $1`, [presaRodando.id])
       await sql(`update execucao_agente set criada_em = now() - interval '1 hour' where id = $1`, [presaPendente.id])
-      await new ExecucaoRepository(bancada.banco).marcarRodando(viva)
+      await noContextoDe(a, () => new ExecucaoRepository(bancada.banco).marcarRodando(viva.id))
 
-      // Outra instância da API sobe: é a varredura dela que encerra o que ficou para trás, nas duas escolas.
-      const outra = await subirApi(medidor.medidor)
-      await outra.app.close()
+      // A varredura do `main-worker` encerra o que ficou para trás, nas duas escolas.
+      expect(await new VarreduraDeExecucoes(bancada.banco, fila.log.logger).varrer()).toBeGreaterThanOrEqual(2)
 
       for (const presa of [presaRodando, presaPendente]) {
         const encerrada = await execucaoNoBanco(presa.id)
@@ -1215,7 +1240,7 @@ describe('camada de IA na API', () => {
       expect((await execucaoNoBanco(recemCriada.id)).estado).toBe('pendente')
       // A tela de quem pediu recebe o código, e sabe o que mostrar.
       expect((await get(a.professor, `/v1/execucoes/${presaRodando.id}`)).corpo).toMatchObject({ estado: 'falhou', erro: 'EXECUCAO_INTERROMPIDA' })
-      await new ExecucaoRepository(bancada.banco).marcarFalhou(viva, 'ERRO_INTERNO')
+      await noContextoDe(a, () => new ExecucaoRepository(bancada.banco).marcarFalhou(viva.id, 'ERRO_INTERNO'))
     })
   })
 })

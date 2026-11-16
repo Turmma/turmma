@@ -230,7 +230,7 @@ export class TurnoDoTutorCommand implements ExecucaoCommand<EntradaDaTarefa<type
   /**
    * Grava a resposta do Tutor e os sinais do turno.
    *
-   * - **Assunto delicado** (pelos gatilhos, ou pela classificação do modelo): a mensagem fixa, com `tipo =
+   * - **Assunto delicado** (pelos gatilhos, ou pela classificação do modelo), em `antesDeConcluir`, **antes** de a transação da conclusão abrir: a mensagem fixa, com `tipo =
    *   'assunto_delicado'`, e o sinal `atencao_humana`, **sem referência e sem conteúdo**, numa transação própria (D36): fica
    *   mesmo com a avaliação aberta e mesmo com a execução já encerrada. A reexecução relê o que já está gravado (chaves únicas).
    *   **De propósito, esse ramo vem antes de `exigirCitacoesEntregues` e não passa por ela**: a mensagem é fixa, não é escrita
@@ -243,8 +243,11 @@ export class TurnoDoTutorCommand implements ExecucaoCommand<EntradaDaTarefa<type
    * Nenhum sinal leva texto. Com `sinais_para_o_professor` suspensa, os três sinais de aprendizagem não nascem; o `atencao_humana`
    * não depende dela: suspender os sinais de aprendizagem não cala o aviso de que um aluno precisa de um adulto.
    */
+  async antesDeConcluir(saida: SaidaDaTarefa<typeof turnoDoTutor>, { pergunta }: LidoDoTurno): Promise<ResultadoGravado | undefined> {
+    return saida.classificacao === 'assunto_delicado' ? { tipo: 'mensagem_do_tutor', mensagemId: await this.#encaminhar(pergunta, saida) } : undefined
+  }
+
   async concluir(saida: SaidaDaTarefa<typeof turnoDoTutor>, { pergunta, entregues }: LidoDoTurno, tx: DatabaseTransaction, _execucaoId: string): Promise<ResultadoGravado> {
-    if (saida.classificacao === 'assunto_delicado') return { tipo: 'mensagem_do_tutor', mensagemId: await this.#encaminhar(pergunta, saida) }
     // Sem trava, de propósito: a conferência lê e grava em READ COMMITTED, e a avaliação que comita logo depois da leitura ainda
     // deixa a resposta passar. A corrida é aceita: o resultado equivale à ordem serial "a resposta grava antes de a prova abrir"
     // (nenhuma transação lê o que a outra escreve), e a prova que abriu já pausou o Tutor para os turnos seguintes. Uma trava aqui

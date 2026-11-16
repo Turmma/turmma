@@ -89,9 +89,13 @@ export interface RequestSessao {
   readonly escolaId: string
   readonly usuarioId: string
   readonly papel: PapelDeUsuario
-  readonly sessaoId: string
+  /** A sessão de quem pediu. Só a requisição HTTP a tem: a execução de IA no worker roda como a pessoa, sem sessão (`RequestSessaoDeRequisicao`). */
+  readonly sessaoId?: string
   readonly anoLetivoId: string | null
 }
+
+/** A sessão de uma requisição HTTP, que sempre traz o `sessaoId` (a `SessaoGuard` o grava). */
+export type RequestSessaoDeRequisicao = RequestSessao & { readonly sessaoId: string }
 
 /**
  * Grava a sessão lida do banco no contexto da requisição em andamento: escola, usuário, papel, sessão e ano letivo
@@ -103,7 +107,7 @@ export function setContextSessao(sessao: RequestSessao): void {
   contexto.escolaId = sessao.escolaId
   contexto.usuarioId = sessao.usuarioId
   contexto.papel = sessao.papel
-  contexto.sessaoId = sessao.sessaoId
+  if (sessao.sessaoId !== undefined) contexto.sessaoId = sessao.sessaoId
   contexto.anoLetivoId = sessao.anoLetivoId
 }
 

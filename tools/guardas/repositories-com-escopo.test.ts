@@ -134,7 +134,6 @@ describe('a lista real só encolhe', () => {
   it('é exatamente esta, por arquivo e por método: uma entrada a mais ou a menos muda este teste', () => {
     expect(REPOSITORIES_SEM_ESCOPO.map((entrada) => [entrada.arquivo, entrada.metodos])).toEqual([
       ['apps/api/src/assistente/turma-do-professor.repository.ts', ['comVinculoConfirmadoDoProfessor', 'disciplinaDoArtefato', 'disciplinaDaEntrega']],
-      ['apps/api/src/ia/execucao.repository.ts', ['marcarRodando', 'marcarConcluida', 'concluirRodando', 'marcarFalhou']],
       ['apps/api/src/operacao/operador/operador.repository.ts', ['autorAtivoNaTransacao', 'travarOperadores', 'situacaoDoAutor', 'ativoParaAtualizar', 'contarAtivos', 'criar', 'criarConvite', 'revogarConvitePendente', 'desativar', 'apagarCodigosDeRecuperacao', 'encerrarSessoes', 'lerSessaoParaGuarda', 'marcarUsoDaSessao', 'sessaoParaRenovar', 'rotacionarSessao', 'encerrarSessao', 'encerrarSessaoPelaSaida', 'daSessao', 'conviteValidoPorHash', 'aceitarConvite', 'gravarSegredoParaConfigurar', 'trocarCodigosDeRecuperacao', 'ativoParaSegundoFator', 'avancarPassoDoSegundoFator', 'usarCodigoDeRecuperacao', 'ativarSegundoFator', 'abrirSessao', 'credencialDeEntrada', 'registrarFalhaDeEntrada', 'registrarAcesso', 'auditar']],
       ['apps/api/src/ops/operacao-privacidade.repository.ts', ['cadastrar', 'travarVigente', 'encerrar', 'registrarIncidente']],
       ['apps/api/src/privacidade/titulares.repository.ts', ['homonimo']],

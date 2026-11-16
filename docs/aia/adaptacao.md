@@ -294,4 +294,4 @@ Conforme `docs/mvp-rapido.md`, com dado 100% sintético.
 - o disparo automático quando se cria avaliação para turma com adaptação registrada;
 - a adaptação de material didático, e a exportação em PPTX e XLSX;
 - a leitura do tipo de adaptação pelo Tutor (D66): não consta do contrato do MVP;
-- a fila de jobs: no MVP a execução roda no processo da API, como dívida declarada (D77).
+- a retomada da execução interrompida: a execução roda como job `ia.executar` no `worker-ia` (reengenharia-continuacao, 5.0), e a que fica `rodando` quando o worker cai é encerrada pela varredura; a reentrega do job é da tarefa 6.0.

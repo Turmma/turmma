@@ -339,4 +339,4 @@ Conforme `docs/mvp-rapido.md`, com dado 100% sintético.
 - o modo papel com foto e os demais modos de avaliação;
 - a nota oficial, o boletim e a proposta de nota das objetivas;
 - a prova online resiliente, com relógio no servidor e retomada após queda (D27);
-- a fila de jobs: no MVP a execução roda no processo da API, como dívida declarada (D77).
+- a retomada da execução interrompida: a execução roda como job `ia.executar` no `worker-ia` (reengenharia-continuacao, 5.0), e a que fica `rodando` quando o worker cai é encerrada pela varredura; a reentrega do job é da tarefa 6.0.

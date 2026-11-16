@@ -1,4 +1,4 @@
-import { throttledWarn, METRICS, requestSessao, type Database, type Meter } from '@educa/core'
+import { throttledWarn, METRICS, requestSessaoDeRequisicao, type Database, type Meter } from '@educa/core'
 import { Logger } from '@nestjs/common'
 import { SessaoWriteRepository } from '../../credencial/sessao-write.repository.js'
 
@@ -28,7 +28,7 @@ export class RegistroDeAtividade {
    * gravação, para quem precisar saber quando terminou (o teste); ela nunca rejeita.
    */
   registrarAtividade(): Promise<void> {
-    const { sessaoId } = requestSessao()
+    const { sessaoId } = requestSessaoDeRequisicao()
     return new SessaoWriteRepository(this.banco)
       .registrarUso(sessaoId)
       .then(() => undefined)

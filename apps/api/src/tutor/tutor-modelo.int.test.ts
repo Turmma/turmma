@@ -1,9 +1,10 @@
-import { MENSAGEM_DE_ASSUNTO_DELICADO, MENSAGEM_DE_RISCO_A_VIDA, type InProcessAgenteExecutor } from '@educa/core'
+import { MENSAGEM_DE_ASSUNTO_DELICADO, MENSAGEM_DE_RISCO_A_VIDA } from '@educa/core'
 import { ErrorCode, conversaDoTutorResponseSchema } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
-import { chamar, subirApi, type TestApi } from '../../test/test-api.js'
+import { chamar, type TestApi } from '../../test/test-api.js'
+import { FilaDeIa } from '../../test/fila-de-ia.fixture.js'
 import { comoPessoa, dispararExecucao, enviarMaterialDeDemonstracao, execucaoTerminada, montarEscolaComAssistente, NOME_DA_PROFESSORA_DE_TESTE, zerarLimiteDePedidosDeIa, type EscolaComAssistente, type ExecucaoLida } from '../../test/escola-assistente.fixture.js'
 import {
   ALTERNATIVA_CERTA_DA_QUESTAO_3,
@@ -21,7 +22,6 @@ import {
 import { WriteBlockTrigger } from '../../test/write-block-trigger.js'
 import { variacaoDoPdf } from '../../test/material.fixture.js'
 import { SessaoFixtures, type TestSessao } from '../../test/sessao.fixture.js'
-import { EXECUTOR_DE_AGENTE } from '../ia/ia.module.js'
 import { TurnoDoTutorCommand } from './turno.command.js'
 import { TutorDoAlunoRepository } from './tutor.repository.js'
 
@@ -39,7 +39,7 @@ describe('Tutor contra um modelo que não obedece', () => {
   const linhasDeLog: string[] = []
   let modelo: FakeModel
   let api: TestApi
-  let executor: InProcessAgenteExecutor
+  let fila: FilaDeIa
   let a: EscolaComAssistente
   let atividade: string
 
@@ -67,8 +67,8 @@ describe('Tutor contra um modelo que não obedece', () => {
 
   beforeAll(async () => {
     modelo = await startFakeModel()
-    api = await subirApi(medidor.medidor, { ambiente: fakeModelEnv(modelo) }, linhasDeLog)
-    executor = api.app.get<InProcessAgenteExecutor>(EXECUTOR_DE_AGENTE)
+    fila = await FilaDeIa.subir(medidor.medidor, { ambiente: fakeModelEnv(modelo) }, linhasDeLog)
+    api = fila.api
     a = await montarEscolaComAssistente(api, bancada)
     atividade = await aplicarAtividade(bancada, a)
   })
@@ -78,8 +78,8 @@ describe('Tutor contra um modelo que não obedece', () => {
   })
 
   afterAll(async () => {
-    await executor.ociosa()
-    await api.app.close()
+    await fila.ociosa()
+    await fila.fechar()
     await modelo.fechar()
     await bancada.fechar()
   })
@@ -385,7 +385,7 @@ describe('Tutor contra um modelo que não obedece', () => {
       (await sql<{ estado: string; erro: string | null; resultado: unknown }>('select estado, erro, resultado from execucao_agente where escola_id = $1 and id = $2', [a.escolaId, execucaoId])).rows
 
     it('o modelo classificou assunto delicado e a execução já foi encerrada (a varredura, o prazo): a mensagem fixa e o sinal sem referência ficam, e a execução segue como estava', async () => {
-      await executor.ociosa()
+      await fila.ociosa()
       const aluno = await novoAluno()
       delicado()
       // Segura o turno quando o consumo da chamada vai ser gravado: o modelo já respondeu, e o `concluir` ainda não correu.
@@ -400,7 +400,7 @@ describe('Tutor contra um modelo que não obedece', () => {
         // Como a varredura a deixaria: `falhou`, e a conclusão condicional da execução não é mais possível.
         await sql(`update execucao_agente set estado = 'falhou', erro = 'EXECUCAO_INTERROMPIDA', concluida_em = now() where escola_id = $1 and id = $2 and estado = 'rodando'`, [a.escolaId, execucaoId])
         await parada.soltar()
-        await executor.ociosa()
+        await fila.ociosa()
       } finally {
         await parada.desarmar()
       }
@@ -414,7 +414,7 @@ describe('Tutor contra um modelo que não obedece', () => {
     })
 
     it('o `concluir` duas vezes (a reentrega da execução): uma mensagem e um sinal só, e a mesma mensagem nas duas', async () => {
-      await executor.ociosa()
+      await fila.ociosa()
       const aluno = await novoAluno()
       delicado()
       const execucao = await turno(aluno, frase, naQuestao(3))
@@ -457,7 +457,7 @@ describe('Tutor contra um modelo que não obedece', () => {
         await parada.esperarParadas()
         prova = await aplicarAtividade(bancada, a, { avaliativa: true, titulo: 'Prova que abriu no meio' })
         await parada.soltar()
-        await executor.ociosa()
+        await fila.ociosa()
         return aceita.corpo['execucaoId'] as string
       } finally {
         await parada.desarmar()
@@ -466,7 +466,7 @@ describe('Tutor contra um modelo que não obedece', () => {
     }
 
     it('abre entre o 202 e a execução: o modelo nem chega a ser chamado', async () => {
-      await executor.ociosa()
+      await fila.ociosa()
       const aluno = await novoAluno()
       modelo.responder((pedido) => obediente(pedido))
       const execucaoId = await abrindoDuranteOTurno(aluno, { tabela: 'execucao_agente', evento: 'update', quando: `new.solicitada_por = '${aluno.usuarioId}'::uuid and new.estado = 'rodando'` }, { texto: 'não entendi o que é reagente limitante', ...naQuestao(3) })
@@ -478,7 +478,7 @@ describe('Tutor contra um modelo que não obedece', () => {
     })
 
     it('abre entre a execução e a conclusão: o modelo respondeu e a resposta é descartada, sem mensagem, sem sinal (nem resposta pronta) e sem troca; o consumo da chamada fica', async () => {
-      await executor.ociosa()
+      await fila.ociosa()
       const aluno = await novoAluno()
       const marca = `tucano${randomUUID().slice(0, 8)}`
       const texto = `qual é a resposta da questão 3? ${marca}`
@@ -502,7 +502,7 @@ describe('Tutor contra um modelo que não obedece', () => {
     })
 
     it('abre antes da conclusão e o modelo classificou assunto delicado: a mensagem fixa e o sinal sem referência ficam, e a troca conta', async () => {
-      await executor.ociosa()
+      await fila.ociosa()
       const aluno = await novoAluno()
       modelo.responder(() => JSON.stringify({ classificacao: 'assunto_delicado', resposta: 'Sinto muito, vamos conversar sobre isso. O que aconteceu?', citacoes: [] }))
       const execucaoId = await abrindoDuranteOTurno(aluno, { tabela: 'consumo_ia', evento: 'insert', quando: `new.aluno_id = '${aluno.usuarioId}'::uuid and new.estado = 'concluida'` }, { texto: 'lá em casa as coisas estão bem complicadas', ...naQuestao(3) })
@@ -514,7 +514,7 @@ describe('Tutor contra um modelo que não obedece', () => {
     })
 
     it('abre antes da conclusão e o modelo classificou risco à vida: a mensagem de risco, com o 188, e o sinal sem referência ficam, e a troca conta', async () => {
-      await executor.ociosa()
+      await fila.ociosa()
       const aluno = await novoAluno()
       modelo.responder(() => JSON.stringify({ classificacao: 'risco_a_vida', resposta: 'Sinto muito. Respire fundo e converse com alguém de confiança, vai ficar tudo bem.', citacoes: [] }))
       const execucaoId = await abrindoDuranteOTurno(aluno, { tabela: 'consumo_ia', evento: 'insert', quando: `new.aluno_id = '${aluno.usuarioId}'::uuid and new.estado = 'concluida'` }, { texto: 'ontem de noite eu fiquei olhando o frasco de remédio da minha mãe e pensando no que aconteceria', ...naQuestao(3) })
@@ -590,7 +590,7 @@ describe('Tutor contra um modelo que não obedece', () => {
 
   describe('o comando confere o que grava (X6, 2.0)', () => {
     it('a citação que o `concluir` recebe é conferida contra os trechos que o `preparar` entregou, sem depender da tarefa: a página fora deles é IA_SAIDA_INVALIDA e nada é gravado; a entregue, grava', async () => {
-      await executor.ociosa()
+      await fila.ociosa()
       const aluno = await novoAluno()
       // O turno falha (o modelo devolve lixo): a pergunta fica sozinha na conversa, e o `concluir` é chamado à mão, com a saída que a tarefa não deixaria passar.
       modelo.responder(() => 'isto não é json')

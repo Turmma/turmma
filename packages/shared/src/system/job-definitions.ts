@@ -24,6 +24,8 @@ export const TIPO_ENVIAR_EMAIL_DA_CONTA = 'sistema.enviar-email-da-conta'
 export const TIPO_EXTRAIR_PDF = 'material.extrair-pdf'
 export const TIPO_VARRER_TEMPORARIOS_DE_MATERIAL = 'sistema.varrer-temporarios-de-material'
 export const TIPO_JOB_SINTETICO = 'sintetico'
+/** A execução de uma tarefa de IA (o comando que o `POST` gravou): roda no `main-worker` da API, não no worker (X6, 5.0). */
+export const TIPO_EXECUTAR_IA = 'ia.executar'
 
 /**
  * `escola`: o job pertence a uma escola e nasce no contexto dela. `sistema`: rotina nossa, sem escola, e só nasce de rotina do
@@ -107,12 +109,21 @@ const conviteSchema = z.strictObject({ conviteId: z.uuid() })
 const linkDaContaSchema = z.strictObject({ linkId: z.uuid() })
 /** O job da extração leva só o id do material: a escola vem da linha do outbox, e o objeto do storage tem a chave dela e do material. */
 const materialSchema = z.strictObject({ materialId: z.uuid() })
+/** O job da IA leva só o id da execução: a escola vem da linha do outbox, e a entrada, a pessoa e o ano, da `execucao_agente`. */
+const execucaoDeIaSchema = z.strictObject({ execucaoId: z.uuid() })
+
+/**
+ * A execução de IA tenta **uma vez**: a repetição de um job que pode ter chamado (e cobrado) o modelo é decisão do processador, que
+ * relê o estado da execução, e não da fila. A reentrega do stalled não conta tentativa (`attemptsMade`), e é ela que o processador
+ * trata (a 6.0).
+ */
+const RETENTATIVA_DA_IA: JobRetry = { tentativas: 1, recuoMs: 2_000, jitter: 0.5 }
 
 /** A extração do PDF tenta três vezes: o PDF que falha em três é o PDF, e não a fila (`prazoMs` de dez minutos cada). */
 const RETENTATIVA_DA_EXTRACAO: JobRetry = { tentativas: 3, recuoMs: 2_000, jitter: 0.5 }
 
 /**
- * Os 12 tipos de hoje. `prazoMs` é o maior tempo que o tipo leva, arredondado para cima, e a 43.0 o confere.
+ * Os 14 tipos de hoje. `prazoMs` é o maior tempo que o tipo leva, arredondado para cima, e a 43.0 o confere.
  */
 export const JOB_DEFINITIONS = {
   [TIPO_MONTAR_ARQUIVO]: defineJob({
@@ -234,6 +245,17 @@ export const JOB_DEFINITIONS = {
     dados: semDados,
     retentativa: RETENTATIVA_DE_HOJE,
     prazoMs: 600_000,
+    naoUrgente: false,
+  }),
+  // A execução de IA (X6, 5.0): o Tutor na `interativa`, as ferramentas e a `propor_ferramenta` na `ferramenta`, o Analista na `normal`, todas urgentes (alguém espera na tela). Executor `api`:
+  // as filas `api-*`, que só o `main-worker` consome. O prazo de 150 s cobre o `padrao` (140 s, o prazo único da execução) e a folga de gravar a falha.
+  [TIPO_EXECUTAR_IA]: defineJob({
+    filas: ['interativa', 'ferramenta', 'normal'],
+    escopo: 'escola',
+    executor: 'api',
+    dados: execucaoDeIaSchema,
+    retentativa: RETENTATIVA_DA_IA,
+    prazoMs: 150_000,
     naoUrgente: false,
   }),
   // O sintético é o job de teste de carga: a fila e o não urgente vêm do corpo do `POST`, e o prazo cobre o teto de CPU dele.

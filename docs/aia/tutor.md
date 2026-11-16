@@ -183,9 +183,13 @@ Como se confere: leitura de tela pelo `frontend-reviewer`; não existe rota em q
 conversa; o teto diário aparece para o aluno.
 
 **N10. Não mostra erro cru ao aluno.** Quando o provedor falha ou recusa por limite, o aluno vê
-aviso de fila ou de pausa.
+aviso de fila ou de pausa. O turno roda no `worker-ia`, pela fila (reengenharia-continuacao, 5.0): a execução falha só com o código
+(`IA_TEMPO_ESGOTADO`, `IA_INDISPONIVEL`…), nunca com a mensagem do provedor, que também não vai à cópia `failed` do job no Redis, e o
+desligamento do worker não grava falha nenhuma: a execução fica `rodando` e a varredura a encerra com `EXECUCAO_INTERROMPIDA`
+(a reentrega do job é da tarefa 6.0, e hoje ela sai como "já tratada", sem rodar o modelo de novo). A pergunta do aluno fica em
+`mensagem_tutor`, mesmo quando o modelo não responde; o professor da turma vê o uso dela (`GET /v1/tutor/uso`), sem o texto (N21).
 Fundamento: regra 80, item 4.
-Como se confere: teste com o adaptador falso devolvendo falha e limite.
+Como se confere: teste com o adaptador falso devolvendo falha e limite; `apps/api/src/ia/fila-de-ia.int.test.ts`.
 
 #### Sobre o que o Tutor sabe e guarda
 

@@ -1,9 +1,9 @@
-import type { InProcessAgenteExecutor } from '@educa/core'
 import { analistaNominalResponseSchema, resumoDoAnalistaResponseSchema, type ConteudoDoResumoDoAnalista } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
-import { chamar, subirApi, type TestApi, type RespostaHttp } from '../../test/test-api.js'
+import { chamar, type TestApi, type RespostaHttp } from '../../test/test-api.js'
+import { FilaDeIa } from '../../test/fila-de-ia.fixture.js'
 import {
   alunosComSessao,
   aplicarAtividade,
@@ -33,7 +33,6 @@ import {
 import { aplicarAtividade as gravarAplicacao, lancarLote, trocasJaFeitas } from '../../test/escola-tutor.fixture.js'
 import { SessaoFixtures, type TestSessao } from '../../test/sessao.fixture.js'
 import { TETO_DE_PEDIDOS_DE_IA_POR_USUARIO } from '../assistente/ai-request-rate-limit.js'
-import { EXECUTOR_DE_AGENTE } from '../ia/ia.module.js'
 import { LIMIAR_DE_ACERTO_BAIXO_PERCENTUAL, MAXIMO_DE_HABILIDADES_POR_RECORTE, ResumoDoAnalistaCommand } from './analista.command.js'
 import { AnalistaRepository } from './analista.repository.js'
 
@@ -55,7 +54,7 @@ describe('Analista de desempenho escolar', () => {
   const medidor = new MedidorDeTeste()
   const linhasDeLog: string[] = []
   let api: TestApi
-  let executor: InProcessAgenteExecutor
+  let fila: FilaDeIa
   let rotas: RotasDaAtividade
   let a: EscolaComAssistente
   let b: EscolaComAssistente
@@ -99,8 +98,8 @@ describe('Analista de desempenho escolar', () => {
   }
 
   beforeAll(async () => {
-    api = await subirApi(medidor.medidor, {}, linhasDeLog)
-    executor = api.app.get<InProcessAgenteExecutor>(EXECUTOR_DE_AGENTE)
+    fila = await FilaDeIa.subir(medidor.medidor, {}, linhasDeLog)
+    api = fila.api
     rotas = rotasDaAtividade(api)
     a = await montarEscolaComAssistente(api, bancada)
     b = await montarEscolaComAssistente(api, bancada)
@@ -127,8 +126,8 @@ describe('Analista de desempenho escolar', () => {
   })
 
   afterAll(async () => {
-    await executor.ociosa()
-    await api.app.close()
+    await fila.ociosa()
+    await fila.fechar()
     await bancada.fechar()
   })
 
@@ -232,7 +231,7 @@ describe('Analista de desempenho escolar', () => {
       const segunda = await post(a.coordenacao, '/v1/analista/gerar', corpo)
       expect([primeira.status, segunda.status]).toEqual([202, 202])
       expect(segunda.corpo['execucaoId']).toBe(primeira.corpo['execucaoId'])
-      await executor.ociosa()
+      await fila.ociosa()
       expect(await contarNaEscola(bancada, 'resumo_do_analista', a.escolaId)).toBe(antes + 1)
       expect(erro(await post(a.coordenacao, '/v1/analista/gerar', { chaveEnvio: randomUUID(), escolaId: b.escolaId }))).toEqual(ENTRADA_INVALIDA)
     })
@@ -251,7 +250,7 @@ describe('Analista de desempenho escolar', () => {
         expect((await post(a.coordenacao, '/v1/governanca/funcoes/resumo_e_alerta/retomar')).status).toBe(200)
       }
       expect((await post(a.coordenacao, '/v1/analista/gerar', { chaveEnvio: randomUUID() })).status).toBe(202)
-      await executor.ociosa()
+      await fila.ociosa()
     })
 
     it('o gerar tem limite por pessoa: acima do teto do minuto, LIMITE_EXCEDIDO, e a coordenação da outra escola segue', async () => {
@@ -259,7 +258,7 @@ describe('Analista de desempenho escolar', () => {
       for (let pedido = 0; pedido < TETO_DE_PEDIDOS_DE_IA_POR_USUARIO; pedido += 1) expect((await post(a.coordenacao, '/v1/analista/gerar', corpo)).status).toBe(202)
       expect(erro(await post(a.coordenacao, '/v1/analista/gerar', corpo))).toEqual({ status: 429, codigo: 'LIMITE_EXCEDIDO' })
       expect((await post(b.coordenacao, '/v1/analista/gerar', { chaveEnvio: randomUUID() })).status).toBe(202)
-      await executor.ociosa()
+      await fila.ociosa()
     })
   })
 

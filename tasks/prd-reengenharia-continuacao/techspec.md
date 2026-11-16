@@ -96,8 +96,21 @@ no `preparar` e no `concluir`. A conferência do assunto delicado roda antes da 
 hoje; pool por réplica de `onda-3a.md`; o job não segura conexão durante o modelo. `QUEUE_PRIORITY` (`smallint`, só ordena a
 varredura e a reconciliação) passa a `interativa` 1, `ferramenta` 2, `normal` 3, `lote` 4, `pdf` 5, e as constantes que
 `infra/scripts/` copiam (`PRIORIDADE_DA_FILA_PDF`, a do lote do expurgo da carga) seguem. A `VAGAS_ESCOLA_FERRAMENTA` entra no despachante e em toda réplica do
-worker (o `WORKER_POOL_FERRAMENTA` nasce com o `worker-ia`, na 5.0). O `JobExecutor` no `core` leva o `bullmq` ao `package.json`
+worker (o pool da `ferramenta` nasce com o `worker-ia`, na 5.0, como `WORKER_IA_POOL_FERRAMENTA`: veja "Como a 5.0 ficou"). O `JobExecutor` no `core` leva o `bullmq` ao `package.json`
 dele (`DelayedError`, `UnrecoverableError`).
+
+**Como a 5.0 ficou (o código manda).** (1) O `worker-ia` é o `main-worker` da API: a mesma imagem (`educa-api`, alvo `api`) com outro `command`, como o `migrar`; o pool de cada fila é
+`WORKER_IA_POOL_INTERATIVA`, `WORKER_IA_POOL_FERRAMENTA` e `WORKER_IA_POOL_NORMAL`, e o pool de conexões, `WORKER_IA_BANCO_POOL_MAXIMO` (20). O prefixo é próprio porque o
+`worker-interativo` lê `WORKER_POOL_INTERATIVA` e `WORKER_POOL_NORMAL` com outros valores (50 e 30) na mesma `.env`. `IA_REPLICAS` é 2, igual às duas réplicas do compose, e
+`POSTGRES_CONEXOES_MAXIMAS` é 300 (as 20 conexões de cada `worker-ia`, as da API, as dos workers comuns e do despachante, com folga). (2) A `ApiConfig` mantém o `ia`: a API não monta o
+provedor, mas valida a configuração (a subida em produção recusa o adaptador falso, e `IA_REPLICAS` entra no teto por réplica). (3) A execução de IA roda **como a pessoa que pediu e sem sessão**:
+`RequestSessao.sessaoId` é opcional, e quem precisa da sessão em si (sair, trocar de escola, renovar a atividade) chama `requestSessaoDeRequisicao`. (4) O `agendar` lê a chave antes de gravar: o
+`insert … on conflict` espera a transação que está mudando a linha (o worker, passando-a a `rodando`), e o reenvio esperaria com ele; a corrida do clique duplo em paralelo ainda cai no
+`on conflict` e devolve a mesma execução. (5) O `ComandoExecutavel` ganha o passo opcional `antesDeConcluir`, **fora** da transação da conclusão: o encaminhamento da D36 (a classificação do modelo) grava
+a mensagem fixa e o sinal numa transação própria e já concluída, e a conclusão só registra o resultado, para a execução nunca segurar duas conexões do pool ao mesmo tempo. (6) O prazo único é o do perfil
+(`PRAZO_DA_EXECUCAO_MS`: 60 s no Tutor, 140 s nos demais): a folga de 5 s (`FOLGA_DO_PRAZO_MS`) é a de gravar a falha antes dos 150 s do job, e o prazo vira `IA_TEMPO_ESGOTADO` só quando o sinal
+é o do prazo; o abort do job (desligamento do worker) não grava.
+(7) O Tutor **desligado na escola (D84)** e **fora da política da turma (D19)** não são conferências da API de hoje: o `TutorService` confere a função suspensa (D9), a avaliação aberta (D70) e o freio e o pacote (D38), e `GET /v1/tutor/conversa` diz em código que "nesta fatia não há política de Tutor por turma" (`fora` não é devolvido). O "nenhum job" da suspensão, da avaliação e do pacote tem caso; o do desligado e o do fora da política espera quem criar a conferência.
 
 **Os tokens (49.0).** `TokenLimiter.reservar(modelo, estimativa, fila)`, com caracteres ÷ 4 + `maximoDeTokensDeSaida`, nova a cada
 chamada e acertada pelo uso real (a da interrompida não volta: superestima por até 1 min). O balde geral, por

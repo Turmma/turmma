@@ -1,4 +1,4 @@
-import { DomainException, runInContext, type InProcessAgenteExecutor } from '@educa/core'
+import { DomainException, runInContext } from '@educa/core'
 import { entregaResponseSchema, listaDeEntregasResponseSchema, timeResponseSchema } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { readdirSync, readFileSync } from 'node:fs'
@@ -6,7 +6,8 @@ import { join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
-import { chamar, subirApi, type TestApi, type RespostaHttp } from '../../test/test-api.js'
+import { chamar, type TestApi, type RespostaHttp } from '../../test/test-api.js'
+import { FilaDeIa } from '../../test/fila-de-ia.fixture.js'
 import {
   comoPessoa,
   contarNaEscola,
@@ -21,7 +22,6 @@ import {
   type EscolaComAssistente,
 } from '../../test/escola-assistente.fixture.js'
 import { SessaoFixtures, type TestSessao } from '../../test/sessao.fixture.js'
-import { EXECUTOR_DE_AGENTE } from '../ia/ia.module.js'
 import { EntregaRepository } from './entrega.repository.js'
 import { EntregaService } from './entrega.service.js'
 
@@ -38,7 +38,7 @@ describe('entregas', () => {
   const medidor = new MedidorDeTeste()
   const linhasDeLog: string[] = []
   let api: TestApi
-  let executor: InProcessAgenteExecutor
+  let fila: FilaDeIa
   let a: EscolaComAssistente
   let b: EscolaComAssistente
   let atividadeDeA: string
@@ -96,8 +96,8 @@ describe('entregas', () => {
   }
 
   beforeAll(async () => {
-    api = await subirApi(medidor.medidor, {}, linhasDeLog)
-    executor = api.app.get<InProcessAgenteExecutor>(EXECUTOR_DE_AGENTE)
+    fila = await FilaDeIa.subir(medidor.medidor, {}, linhasDeLog)
+    api = fila.api
     a = await montarEscolaComAssistente(api, bancada)
     b = await montarEscolaComAssistente(api, bancada)
     atividadeDeA = await atividade(a)
@@ -109,8 +109,8 @@ describe('entregas', () => {
   })
 
   afterAll(async () => {
-    await executor.ociosa()
-    await api.app.close()
+    await fila.ociosa()
+    await fila.fechar()
     await bancada.fechar()
   })
 

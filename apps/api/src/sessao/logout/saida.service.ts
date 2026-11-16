@@ -1,4 +1,4 @@
-import { requestSessao, type Environment, type Database } from '@educa/core'
+import { requestSessaoDeRequisicao, type Environment, type Database } from '@educa/core'
 import { SESSAO_COOKIE, serializarCookie } from '../../credencial/cookies.js'
 import { ipParaRegistro } from '../../credencial/request-origin.js'
 import { RegistroDeAcessoRepository } from '../../credencial/registro-de-acesso.repository.js'
@@ -17,7 +17,7 @@ export class LogoutService {
   ) {}
 
   async sair(ip: string): Promise<readonly string[]> {
-    const { sessaoId, usuarioId } = requestSessao()
+    const { sessaoId, usuarioId } = requestSessaoDeRequisicao()
     await this.banco.transaction(async (tx) => {
       if (await new SessaoWriteRepository(tx).encerrar(sessaoId, 'saida')) {
         await new RegistroDeAcessoRepository(tx).gravar('saida', usuarioId, ipParaRegistro(ip))

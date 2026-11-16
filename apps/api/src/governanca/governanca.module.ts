@@ -3,8 +3,6 @@ import { Module } from '@nestjs/common'
 import { IaRequestRateLimit } from '../assistente/ai-request-rate-limit.js'
 import { DB } from '../database.module.js'
 import { ExecucaoScheduler } from '../ia/execucao.scheduler.js'
-import { comRegistro, RegistroDeComandos } from '../ia/registro-de-comandos.js'
-import { ResumoDoAnalistaCommand } from './analista.command.js'
 import { AnalistaController } from './analista.controller.js'
 import { AnalistaService } from './analista.service.js'
 import { GovernancaController } from './governanca.controller.js'
@@ -22,8 +20,6 @@ import { GovernancaService } from './governanca.service.js'
   controllers: [GovernancaController, AnalistaController],
   providers: [
     { provide: GovernancaService, useFactory: (banco: Database) => new GovernancaService(banco), inject: [DB] },
-    // O comando do resumo: o registro o acha pelo nome da tarefa da `execucao_agente`.
-    { provide: ResumoDoAnalistaCommand, useFactory: (banco: Database, registro: RegistroDeComandos) => comRegistro(registro, new ResumoDoAnalistaCommand(banco)), inject: [DB, RegistroDeComandos] },
     {
       provide: AnalistaService,
       useFactory: (banco: Database, agendador: ExecucaoScheduler, limite: IaRequestRateLimit) => new AnalistaService(banco, agendador, limite),

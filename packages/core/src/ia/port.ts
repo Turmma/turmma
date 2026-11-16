@@ -24,7 +24,7 @@ export interface GenerationRequest<Entrada, Saida> {
   readonly turmaId?: string
   /** A `execucao_agente` que pediu, para o consumo apontar para ela. */
   readonly execucaoId?: string
-  /** Cancela a chamada em curso: o `AgenteExecutor` passa o dele, e a execução que estourou o prazo não segue gastando. */
+  /** Cancela a chamada em curso: o processador da execução (`ExecucaoProcessor`, no `main-worker`) passa o dele, e a execução que estourou o prazo não segue gastando. */
   readonly sinal?: AbortSignal
 }
 

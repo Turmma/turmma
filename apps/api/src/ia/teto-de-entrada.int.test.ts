@@ -1,14 +1,15 @@
-import { runInContext, turnoDoTutor, mensagemTutor, type DatabaseTransaction, type InProcessAgenteExecutor, type LLMProvider, type OrcamentoDeIa, type RequestContext, type SuspensaoDeFuncao } from '@educa/core'
+import { runInContext, turnoDoTutor, mensagemTutor, type DatabaseTransaction, type OrcamentoDeIa, type RequestContext } from '@educa/core'
 import { TROCAS_POR_DIA_PADRAO_DO_TUTOR, type PapelDeUsuario, type ResultadoGravado } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
 import { montarEscolaComTurma, type EscolaComTurma } from '../../test/escola-turma.fixture.js'
 import { SessaoFixtures, type TestSessao } from '../../test/sessao.fixture.js'
-import { subirApi, type TestApi } from '../../test/test-api.js'
+import type { TestApi } from '../../test/test-api.js'
+import { FilaDeIa } from '../../test/fila-de-ia.fixture.js'
 import type { ExecucaoCommand, Preparado } from './execucao-command.js'
-import { ExecucaoScheduler, type ExecucaoComComando } from './execucao.scheduler.js'
-import { EXECUTOR_DE_AGENTE, LLM_PROVIDER, ORCAMENTO_DE_IA, SUSPENSAO_DE_FUNCAO } from './ia.module.js'
+import type { ExecucaoComComando } from './execucao.scheduler.js'
+import { ORCAMENTO_DE_IA } from './ia.module.js'
 import { RegistroDeComandos } from './registro-de-comandos.js'
 
 type TutorInput = Parameters<typeof turnoDoTutor.falso>[0]
@@ -18,7 +19,7 @@ type TutorOutput = Awaited<ReturnType<typeof turnoDoTutor.falso>>
  * O pedido acima do teto de entrada, com a API, o banco e o gateway de verdade (reengenharia-continuacao, 4.0; `techspec.md` §8). O teto da tarefa é
  * rebaixado na definição que um **comando de teste** leva ao gateway (`comoExecutavel` passa `comando.tarefa` ao `ia.gerar`, depois da 2.0):
  * a entrada passa pelo esquema, e quem recusa é o gateway, antes do orçamento e do envio. Cada definição tem o registro e o agendador dela
- * (o registro recusa a mesma tarefa duas vezes), e o modelo é o `LLM_PROVIDER` da app, que é o gateway montado com o medidor.
+ * (o registro recusa a mesma tarefa duas vezes), e o modelo é o gateway do worker da bancada, montado com o medidor.
  *
  * O arquivo **não prova alcance nem escopo**: o comando de teste devolve `alunoId` e `turmaId` fixos no `preparar` e não passa pela checagem de alcance do
  * `TurnoDoTutorCommand` real. Ninguém conta com ele como cobertura de isolamento entre escolas; o que ele prova é a recusa pelo teto, no gateway.
@@ -27,7 +28,7 @@ describe('o turno do Tutor acima do teto de entrada', () => {
   const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
   let api: TestApi
-  let executor: InProcessAgenteExecutor
+  let fila: FilaDeIa
   let a: EscolaComTurma & { escolaId: string; aluno: TestSessao; outroAluno: TestSessao }
 
   const sql = (texto: string, valores: unknown[] = []) => bancada.pool.query(texto, valores)
@@ -37,8 +38,8 @@ describe('o turno do Tutor acima do teto de entrada', () => {
   }
 
   beforeAll(async () => {
-    api = await subirApi(medidor.medidor)
-    executor = api.app.get<InProcessAgenteExecutor>(EXECUTOR_DE_AGENTE)
+    fila = await FilaDeIa.subir(medidor.medidor, {}, undefined, { registro: new RegistroDeComandos() })
+    api = fila.api
     const escola = await montarEscolaComTurma(api, bancada)
     const { escolaId } = escola.coordenacao
     const [aluno, outroAluno] = await bancada.sessoes(escolaId, { papel: 'aluno', quantidade: 2 })
@@ -53,8 +54,8 @@ describe('o turno do Tutor acima do teto de entrada', () => {
   })
 
   afterAll(async () => {
-    await executor.ociosa()
-    await api.app.close()
+    await fila.ociosa()
+    await fila.fechar()
     for (const tabela of ['consumo_ia', 'mensagem_tutor', 'execucao_agente', 'configuracao_operacional_escola']) {
       await sql(`delete from ${tabela} where escola_id = $1`, [a.escolaId])
     }
@@ -91,7 +92,8 @@ describe('o turno do Tutor acima do teto de entrada', () => {
     }
     const registro = new RegistroDeComandos()
     registro.registrar(comando)
-    const agendador = new ExecucaoScheduler(bancada.banco, api.app.get<LLMProvider>(LLM_PROVIDER), executor, api.app.get<SuspensaoDeFuncao>(SUSPENSAO_DE_FUNCAO), registro)
+    fila.usarRegistro(registro)
+    const agendador = fila.agendador()
     const pedido: ExecucaoComComando = {
       comando: 'turno_do_tutor',
       chaveEnvio: randomUUID(),
@@ -130,7 +132,7 @@ describe('o turno do Tutor acima do teto de entrada', () => {
 
     const { pedido, agendador, concluir } = pedidoDoTutor({ ...turnoDoTutor, maximoDeTokensDeEntrada: 1 }, 'como eu acho o reagente limitante?', a.aluno)
     const { execucaoId } = await como(a.aluno, 'aluno', () => agendador.agendar(pedido))
-    await executor.ociosa()
+    await fila.ociosa()
 
     const { rows } = await sql('select estado, erro, resultado from execucao_agente where id = $1', [execucaoId])
     expect(rows).toEqual([{ estado: 'falhou', erro: 'PEDIDO_ACIMA_DO_TETO', resultado: null }])
@@ -148,7 +150,7 @@ describe('o turno do Tutor acima do teto de entrada', () => {
   it('o mesmo pedido com o teto da tarefa conclui: a recusa de cima veio do teto, e não de outra checagem', async () => {
     const { pedido, agendador, concluir } = pedidoDoTutor(turnoDoTutor, 'como eu acho o reagente limitante?', a.outroAluno)
     const { execucaoId } = await como(a.outroAluno, 'aluno', () => agendador.agendar(pedido))
-    await executor.ociosa()
+    await fila.ociosa()
     const { rows } = await sql('select estado, erro from execucao_agente where id = $1', [execucaoId])
     expect(rows).toEqual([{ estado: 'concluida', erro: null }])
     expect(concluir).toHaveBeenCalledTimes(1)

@@ -302,7 +302,7 @@ describe('alertas locais: as regras do ensaio disparam, não disparam com condi�
   it('a ferramenta esperando: a 20 s a regra nem fica pendente, passando de 30 s ela fica pendente e dispara na escola e na fila dela, e sem o job volta a normal (reengenharia-continuacao, 3.0)', async () => {
     const escola = await sessoes.escola()
     escolas.push(escola)
-    // Nenhuma réplica atende a `ferramenta` antes do `worker-ia` (5.0): o job que o despachante publica fica esperando, como o de PDF do ensaio.
+    // O job sintético é do executor `worker`, na fila `ferramenta` sem sufixo: nenhum `worker-*` a atende, e o `worker-ia` só lê a `api-ferramenta`, a do `ia.executar`. O job que o despachante publica fica esperando, como o de PDF do ensaio.
     const pool = new pg.Pool({ connectionString: bancoUrl, max: 1 })
     const { rows } = await pool.query<{ id: string }>(
       `insert into job_registro (escola_id, fila, prioridade, tipo, dados, nao_urgente) values ($1, 'ferramenta', $2, 'sintetico', '{"cpuMs": 0, "falhar": false}'::jsonb, false) returning id`,

@@ -1,7 +1,7 @@
 import type { ChaveDeFuncao, ExecucaoInput, ResultadoGravado, TarefaDeIa } from '@educa/shared'
-import { requireEscolaId, type DatabaseTransaction, type LLMProvider, type TaskDefinition } from '@educa/core'
+import { requireEscolaId, type DatabaseTransaction, type LLMProvider, type Perfil, type TaskDefinition } from '@educa/core'
 
-/** A fila em que a tarefa roda (a 5.0 a leva ao worker): o Tutor na `interativa`, as ferramentas na `ferramenta`, o Analista na `normal`. */
+/** A fila em que a tarefa roda, no `main-worker` (5.0): o Tutor na `interativa`, as ferramentas na `ferramenta`, o Analista na `normal`. */
 export type FilaDeIa = 'interativa' | 'ferramenta' | 'normal'
 
 /**
@@ -34,6 +34,12 @@ export interface ExecucaoCommand<Entrada, Saida, Lido> {
   readonly tarefa: TaskDefinition<Entrada, Saida>
   readonly fila: FilaDeIa
   preparar(execucao: ExecucaoLida): Promise<Preparado<Entrada, Lido>>
+  /**
+   * O que se grava **antes** de abrir a transação da conclusão, na sua própria e já concluída (a D36 do Tutor): devolve o resultado, e a conclusão só o
+   * registra; `undefined` segue para o `concluir`. Separado do `concluir` para a execução nunca ocupar duas conexões do pool ao mesmo tempo: com o job
+   * no worker, o pool é do tamanho da concorrência, e duas conexões por job o deixariam esperando por si mesmo.
+   */
+  antesDeConcluir?(saida: Saida, lido: Lido): Promise<ResultadoGravado | undefined>
   concluir(saida: Saida, lido: Lido, tx: DatabaseTransaction, execucaoId: string): Promise<ResultadoGravado>
 }
 
@@ -52,6 +58,8 @@ export interface ComandoExecutavel {
   readonly tarefa: TarefaDeIa
   readonly funcao: ChaveDeFuncao
   readonly fila: FilaDeIa
+  /** O perfil da tarefa: é por ele que o processador acha o prazo único da execução (`PRAZO_DA_EXECUCAO_MS`). */
+  readonly perfil: Perfil
   /** `preparar` → modelo → `concluir` na transação do `gravar`. Quem chama já conferiu a suspensão e leu a execução. */
   executar(execucao: ExecucaoLida, ia: LLMProvider, sinal: AbortSignal, gravar: GravadorDaConclusao): Promise<ResultadoGravado>
 }
@@ -61,6 +69,7 @@ export function comoExecutavel<Entrada, Saida, Lido>(comando: ExecucaoCommand<En
     tarefa: comando.tarefa.nome,
     funcao: comando.tarefa.funcao,
     fila: comando.fila,
+    perfil: comando.tarefa.perfil,
     async executar(execucao, ia, sinal, gravar) {
       const { entrada, lido, alunoId, turmaId } = await comando.preparar(execucao)
       const { saida } = await ia.gerar({
@@ -72,6 +81,8 @@ export function comoExecutavel<Entrada, Saida, Lido>(comando: ExecucaoCommand<En
         ...(alunoId === undefined ? {} : { alunoId }),
         ...(turmaId === undefined ? {} : { turmaId }),
       })
+      const jaGravado = await comando.antesDeConcluir?.(saida, lido)
+      if (jaGravado !== undefined) return gravar(() => Promise.resolve(jaGravado))
       return gravar((tx, execucaoId) => comando.concluir(saida, lido, tx, execucaoId))
     },
   }

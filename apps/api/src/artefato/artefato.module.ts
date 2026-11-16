@@ -3,13 +3,10 @@ import { Module } from '@nestjs/common'
 import { IaRequestRateLimit } from '../assistente/ai-request-rate-limit.js'
 import { DB } from '../database.module.js'
 import { ExecucaoScheduler } from '../ia/execucao.scheduler.js'
-import { comRegistro, RegistroDeComandos } from '../ia/registro-de-comandos.js'
 import { TrechoSearch } from '../material/trecho-search.js'
-import { AdaptarAtividadeCommand } from './adaptacao.command.js'
 import { ArtefatoController } from './artefato.controller.js'
 import { ArtefatoService } from './artefato.service.js'
 import { FerramentasController } from './ferramentas.controller.js'
-import { GerarAtividadeObjetivaCommand, GerarPlanoDeAulaCommand } from './ferramentas.command.js'
 import { FerramentasService } from './ferramentas.service.js'
 
 /**
@@ -20,18 +17,6 @@ import { FerramentasService } from './ferramentas.service.js'
 @Module({
   controllers: [FerramentasController, ArtefatoController],
   providers: [
-    // Os comandos das três tarefas do módulo: o registro os acha pelo nome da tarefa da `execucao_agente`.
-    {
-      provide: GerarAtividadeObjetivaCommand,
-      useFactory: (banco: Database, trechos: TrechoSearch, registro: RegistroDeComandos) => comRegistro(registro, new GerarAtividadeObjetivaCommand(banco, trechos)),
-      inject: [DB, TrechoSearch, RegistroDeComandos],
-    },
-    {
-      provide: GerarPlanoDeAulaCommand,
-      useFactory: (banco: Database, trechos: TrechoSearch, registro: RegistroDeComandos) => comRegistro(registro, new GerarPlanoDeAulaCommand(banco, trechos)),
-      inject: [DB, TrechoSearch, RegistroDeComandos],
-    },
-    { provide: AdaptarAtividadeCommand, useFactory: (banco: Database, registro: RegistroDeComandos) => comRegistro(registro, new AdaptarAtividadeCommand(banco)), inject: [DB, RegistroDeComandos] },
     {
       provide: FerramentasService,
       useFactory: (banco: Database, agendador: ExecucaoScheduler, limite: IaRequestRateLimit, trechos: TrechoSearch) => new FerramentasService(banco, agendador, limite, trechos),

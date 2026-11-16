@@ -8,7 +8,7 @@ export {
   contextMiddleware,
   resolveRequestId,
 } from './context/context.js'
-export type { RequestContext, RequestSessao } from './context/context.js'
+export type { RequestContext, RequestSessao, RequestSessaoDeRequisicao } from './context/context.js'
 export { requireAnoEmCurso } from './context/ano-em-curso.js'
 export { requireEscolaId } from './context/context-escola.js'
 export {
@@ -109,7 +109,7 @@ export { AllExceptionsFilter } from './error/all-exceptions.filter.js'
 export { mapPostgresError } from './error/map-postgres-error.js'
 export { isPostgresError, postgresErrorIn, summarizeError } from './error/summarize-error.js'
 export type { PostgresError, ErrorSummary } from './error/summarize-error.js'
-export { AuthGuard, requestIdentity, requestSessao } from './identidade/auth.guard.js'
+export { AuthGuard, requestIdentity, requestSessao, requestSessaoDeRequisicao } from './identidade/auth.guard.js'
 export {
   ALGORITMO_TOKEN,
   operadorBearer,
@@ -339,14 +339,12 @@ export {
   llmEnvSchema,
   loadLLMConfig,
   MOTIVO_ADAPTADOR_FALSO_EM_PRODUCAO,
-  MOTIVO_EXECUCAO_MAIS_CURTA_QUE_A_CHAMADA,
   MOTIVO_LLM_SEM_ENDERECO,
   MOTIVO_LLM_SEM_MODELO,
   MOTIVO_PROCESSAMENTO_LOCAL_EM_ENDERECO_DE_FORA,
   MOTIVO_RECUO_MAIOR_QUE_O_PRAZO,
-  MOTIVO_VAGAS_DE_IA_INCOERENTES,
 } from './config/llm-config.js'
-export type { LLMAdapterKind, LLMConfig, AgenteExecutorConfig, ModelConfig } from './config/llm-config.js'
+export type { LLMAdapterKind, LLMConfig, ModelConfig } from './config/llm-config.js'
 export type { Perfil } from './ia/perfis.js'
 export { LLM_ERROR_CODES, LLMError } from './ia/errors.js'
 export type { LLMErrorCode } from './ia/errors.js'
@@ -362,8 +360,9 @@ export type { LLMGatewayDependencies, LLMGatewayPorts, LLMLogger } from './ia/ll
 export { FakeAdapter, MODELO_FALSO } from './ia/fake-adapter.js'
 export { OpenAICompatAdapter } from './ia/openai-compat-adapter.js'
 export type { ModelAdapter } from './ia/adapter.js'
-export { ESTADOS_DA_EXECUCAO, EXECUCAO_INTERROMPIDA, InMemoryExecucoes, InProcessAgenteExecutor } from './ia/executor.js'
-export type { CodigoDeFalhaDaExecucao, AgenteExecutorDependencies, EstadoDaExecucao, ExecucaoAgendada, AgenteExecutor, ExecucaoRepository } from './ia/executor.js'
+export { ESTADOS_DA_EXECUCAO, EXECUCAO_INTERROMPIDA } from './ia/executor.js'
+export type { CodigoDeFalhaDaExecucao, EstadoDaExecucao } from './ia/executor.js'
+export { PRAZO_DA_EXECUCAO_MS, FOLGA_DO_PRAZO_MS } from './ia/prazo-da-execucao.js'
 export { contextoDaTurmaSchema, trechoSchema } from './ia/material.js'
 export type { ContextoDaTurma, Trecho } from './ia/material.js'
 export { TASK_CATALOG } from './ia/tasks/index.js'

@@ -1,9 +1,9 @@
-import { runInContext, PREFIXO_LIMITE_USUARIO, type RequestContext, type InProcessAgenteExecutor } from '@educa/core'
+import { runInContext, PREFIXO_LIMITE_USUARIO, type RequestContext } from '@educa/core'
 import type { PapelDeUsuario } from '@educa/shared'
 import type { Redis } from 'ioredis'
 import { randomUUID } from 'node:crypto'
 import { MATERIAL_DE_DEMONSTRACAO } from '../../../tools/demonstracao/conteudo-estequiometria.ts'
-import { EXECUTOR_DE_AGENTE } from '../src/ia/ia.module.js'
+import { esperarAFilaDeIa } from './fila-de-ia.fixture.js'
 import { REDIS_CACHE_CLIENT } from '../src/rate-limit.module.js'
 import { REDIS_LOGIN_CLIENT } from '../src/credencial/index.js'
 import { chamar, type TestApi, type RespostaHttp } from './test-api.js'
@@ -135,9 +135,9 @@ export interface ExecucaoLida {
   readonly resultado: (Record<string, unknown> & { tipo: string; artefatoId?: string; entregaId?: string | null; mensagem?: Record<string, unknown> }) | null
 }
 
-/** Espera o executor terminar o que tem e lê a execução como a tela lê, em `GET /v1/execucoes/:id`. */
+/** Espera o worker de IA terminar o que tem e lê a execução como a tela lê, em `GET /v1/execucoes/:id`. */
 export async function execucaoTerminada(api: TestApi, sessao: TestSessao, execucaoId: string): Promise<ExecucaoLida> {
-  await api.app.get<InProcessAgenteExecutor>(EXECUTOR_DE_AGENTE).ociosa()
+  await esperarAFilaDeIa(api)
   const resposta = await chamar(api.url, 'GET', `/v1/execucoes/${execucaoId}`, await sessao.tokenNovo())
   if (resposta.status !== 200) throw new Error(`a execução não foi lida: ${String(resposta.status)}`)
   return resposta.corpo as unknown as ExecucaoLida
@@ -150,12 +150,25 @@ export async function dispararExecucao(api: TestApi, sessao: TestSessao, caminho
   return resposta.corpo['execucaoId'] as string
 }
 
+/** Os clientes Redis da API não têm fila offline: o primeiro comando de um arquivo que não monta nada antes cai num cliente ainda `connecting`. */
+async function aguardarPronto(redis: Redis): Promise<void> {
+  if (redis.status === 'ready') return
+  await new Promise<void>((resolver, rejeitar) => {
+    const prazo = setTimeout(() => rejeitar(new Error('o cliente Redis da API não ficou pronto em 10 s')), 10_000)
+    redis.once('ready', () => {
+      clearTimeout(prazo)
+      resolver()
+    })
+  })
+}
+
 /**
  * Zera os contadores do limite de pedidos de IA e os do limite geral por usuário, para um teste não gastar o minuto do
  * outro: um arquivo destes faz, pela mesma professora, mais requisições por minuto do que uma pessoa faria.
  */
 export async function zerarLimiteDePedidosDeIa(api: TestApi): Promise<void> {
   for (const [redis, padrao] of [[api.app.get<Redis>(REDIS_LOGIN_CLIENT), 'ia:pedidos-*'], [api.app.get<Redis>(REDIS_CACHE_CLIENT), `${PREFIXO_LIMITE_USUARIO}:*`]] as const) {
+    await aguardarPronto(redis)
     const chaves = await redis.keys(padrao)
     if (chaves.length > 0) await redis.del(...chaves)
   }

@@ -232,9 +232,6 @@ services:
       LLM_RECUO_MS: ${LLM_RECUO_MS:?defina LLM_RECUO_MS}
       LLM_PROCESSAMENTO_LOCAL: ${LLM_PROCESSAMENTO_LOCAL:?defina LLM_PROCESSAMENTO_LOCAL}
       IA_PROVEDOR_ID: ${IA_PROVEDOR_ID:?defina IA_PROVEDOR_ID}
-      IA_EXECUCOES_POR_ESCOLA: ${IA_EXECUCOES_POR_ESCOLA:?defina IA_EXECUCOES_POR_ESCOLA}
-      IA_EXECUCOES_TOTAL: ${IA_EXECUCOES_TOTAL:?defina IA_EXECUCOES_TOTAL}
-      IA_EXECUCAO_TIMEOUT_MS: ${IA_EXECUCAO_TIMEOUT_MS:?defina IA_EXECUCAO_TIMEOUT_MS}
       IA_LATENCIA_FALSA_MS: ${IA_LATENCIA_FALSA_MS:?defina IA_LATENCIA_FALSA_MS}
       # O arquivo do titular (F3, tarefa 13.0): a API confere que o objeto existe e assina a URL de download de 5 minutos.
       # `STORAGE_URL` é por onde ela alcança o storage; `STORAGE_URL_PUBLICA`, o endereço que entra na assinatura e que o
@@ -501,6 +498,70 @@ services:
       # Métricas OTLP para a observabilidade local. Sem depends_on: fora do ar, perde-se a métrica, e só.
       TELEMETRIA_OTLP_URL: http://observabilidade:4318
       TELEMETRIA_INTERVALO_MS: ${TELEMETRIA_INTERVALO_MS:?defina TELEMETRIA_INTERVALO_MS}
+
+  # A IA roda aqui (reengenharia-continuacao, 5.0): o `POST` grava a execução e o job `ia.executar`, e este processo, o `main-worker` da imagem da
+  # API, o consome das filas `interativa`, `ferramenta` e `normal` e chama o modelo. A API não tem o provedor. Duas réplicas, e `IA_REPLICAS` diz
+  # quantas são (o teto de tokens por minuto se divide entre elas se o Redis de fila cair). O pool do banco é de 20 por réplica: nenhum job
+  # segura conexão durante o modelo (§5), então 20 conexões atendem os jobs de IA em andamento e a leitura do material. No SIGTERM espera
+  # os jobs por até 20 s e aborta o que sobrar; a execução que ficou `rodando` é encerrada pela varredura com `EXECUCAO_INTERROMPIDA`, e a reentrega
+  # do job (a outra réplica retomar a mesma execução) é da 6.0: hoje ela sai como "já tratada", sem rodar o modelo de novo.
+  worker-ia-1: &worker-ia
+    image: educa-api:local
+    build:
+      context: ..
+      dockerfile: infra/docker/servico.Dockerfile
+      target: api
+    command: [node, dist/main-worker.js]
+    dns_opt: ['timeout:1', 'attempts:2']
+    environment:
+      AMBIENTE: ${AMBIENTE:?defina AMBIENTE}
+      UV_THREADPOOL_SIZE: ${UV_THREADPOOL_SIZE:?defina UV_THREADPOOL_SIZE}
+      BANCO_URL: postgres://${POSTGRES_USUARIO}:${POSTGRES_SENHA}@postgres:5432/${POSTGRES_BANCO}
+      BANCO_POOL_MAXIMO: ${WORKER_IA_BANCO_POOL_MAXIMO:?defina WORKER_IA_BANCO_POOL_MAXIMO}
+      BANCO_TIMEOUT_CONEXAO_MS: ${BANCO_TIMEOUT_CONEXAO_MS:?defina BANCO_TIMEOUT_CONEXAO_MS}
+      BANCO_TIMEOUT_CONSULTA_MS: ${BANCO_TIMEOUT_CONSULTA_MS:?defina BANCO_TIMEOUT_CONSULTA_MS}
+      REDIS_FILA_URL: redis://redis-fila:6379
+      WORKER_IA_POOL_INTERATIVA: ${WORKER_IA_POOL_INTERATIVA:?defina WORKER_IA_POOL_INTERATIVA}
+      WORKER_IA_POOL_FERRAMENTA: ${WORKER_IA_POOL_FERRAMENTA:?defina WORKER_IA_POOL_FERRAMENTA}
+      WORKER_IA_POOL_NORMAL: ${WORKER_IA_POOL_NORMAL:?defina WORKER_IA_POOL_NORMAL}
+      VAGAS_ESCOLA_INTERATIVA: ${VAGAS_ESCOLA_INTERATIVA:?defina VAGAS_ESCOLA_INTERATIVA}
+      VAGAS_ESCOLA_FERRAMENTA: ${VAGAS_ESCOLA_FERRAMENTA:?defina VAGAS_ESCOLA_FERRAMENTA}
+      VAGAS_ESCOLA_NORMAL: ${VAGAS_ESCOLA_NORMAL:?defina VAGAS_ESCOLA_NORMAL}
+      VAGAS_ESCOLA_LOTE: ${VAGAS_ESCOLA_LOTE:?defina VAGAS_ESCOLA_LOTE}
+      VAGAS_ESCOLA_PDF: ${VAGAS_ESCOLA_PDF:?defina VAGAS_ESCOLA_PDF}
+      VAGAS_POR_ESCOLA_DESLIGADAS: ${VAGAS_POR_ESCOLA_DESLIGADAS:?defina VAGAS_POR_ESCOLA_DESLIGADAS}
+      # Camada de IA (regra 30): só este processo monta o provedor. As mesmas variáveis da API, que ainda lê o adaptador para validar a configuração.
+      IA_ADAPTADOR: ${IA_ADAPTADOR:?defina IA_ADAPTADOR}
+      LLM_BASE_URL: ${LLM_BASE_URL:?defina LLM_BASE_URL}
+      LLM_MODELO: ${LLM_MODELO:?defina LLM_MODELO}
+      LLM_TIMEOUT_MS: ${LLM_TIMEOUT_MS:?defina LLM_TIMEOUT_MS}
+      LLM_TIMEOUT_MS_RAPIDO: ${LLM_TIMEOUT_MS_RAPIDO:?defina LLM_TIMEOUT_MS_RAPIDO}
+      LLM_TIMEOUT_MS_PADRAO: ${LLM_TIMEOUT_MS_PADRAO:?defina LLM_TIMEOUT_MS_PADRAO}
+      LLM_RECUO_MS: ${LLM_RECUO_MS:?defina LLM_RECUO_MS}
+      LLM_PROCESSAMENTO_LOCAL: ${LLM_PROCESSAMENTO_LOCAL:?defina LLM_PROCESSAMENTO_LOCAL}
+      IA_PROVEDOR_ID: ${IA_PROVEDOR_ID:?defina IA_PROVEDOR_ID}
+      IA_REPLICAS: ${IA_REPLICAS:?defina IA_REPLICAS}
+      IA_LATENCIA_FALSA_MS: ${IA_LATENCIA_FALSA_MS:?defina IA_LATENCIA_FALSA_MS}
+      # Métricas OTLP para a observabilidade local. Sem depends_on: fora do ar, perde-se a métrica, e só.
+      TELEMETRIA_OTLP_URL: http://observabilidade:4318
+      TELEMETRIA_INTERVALO_MS: ${TELEMETRIA_INTERVALO_MS:?defina TELEMETRIA_INTERVALO_MS}
+    # Acima dos 20 s de graça do worker, mais até 3 s de espera pelo fechamento depois de abortar o que sobrou (`ESPERA_APOS_INTERROMPER_MS`,
+    # `apps/api/src/ia/worker-de-ia.ts`) e o tempo de o Nest fechar o pool e os clientes Redis antes do SIGKILL.
+    stop_grace_period: 30s
+    depends_on:
+      migrar:
+        condition: service_completed_successfully
+      redis-fila:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, node, -e, "const fs=require('fs');try{process.exit(Date.now()-fs.statSync('/tmp/educa-batimento').mtimeMs<10000?0:1)}catch{process.exit(1)}"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
+
+  worker-ia-2:
+    <<: *worker-ia
 
   # Borda local (infra/Caddyfile): balanceia as duas APIs e os dois realtimes, sem log de acesso.
   borda:

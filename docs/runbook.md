@@ -48,15 +48,18 @@ escolas disparando juntas é o sistema; uma só é algo daquela escola.
 
 **Primeiro olhar:** painel "Fundação — rota, fila e escola", linha "Filas": "Espera do job mais
 antigo", "Vagas em uso", "Jobs que chegaram sem vaga" e "Jobs em stalled", na escola do alerta.
-Depois `docker compose ps worker-interativo-1 worker-interativo-2 despachante-1 despachante-2 redis-fila`
-e `docker compose logs --since 10m worker-interativo-1 worker-interativo-2 despachante-1`.
+Depois `docker compose ps worker-interativo-1 worker-interativo-2 worker-ia-1 worker-ia-2 despachante-1 despachante-2 redis-fila`
+e `docker compose logs --since 10m worker-interativo-1 worker-interativo-2 worker-ia-1 worker-ia-2 despachante-1`. O alerta da `ferramenta`
+e o da `interativa` do Tutor são do `worker-ia`: olhe-o primeiro.
 
 **Causas prováveis:**
 1. Worker interativo parado ou reiniciando em laço (sem `healthy` no `ps`) →
    `docker compose up -d worker-interativo-1 worker-interativo-2`. Se volta a cair, o log dele diz
    por quê (`worker.redis_indisponivel`, `worker.fila_com_erro`). O job não se perde: está em
    `job_registro` e começa quando o worker volta.
-   A fila `ferramenta` não é desse worker: quem a consome é o `worker-ia`, a partir da 5.0.
+   A fila `ferramenta` não é desse worker: quem a consome é o `worker-ia` (`docker compose up -d worker-ia-1 worker-ia-2`; o log dele diz
+   `ia.execucao.*` com o `execucaoId`, a escola e o código). A execução que ficou `rodando` com o worker morto é encerrada pela varredura do
+   `main-worker` com `EXECUCAO_INTERROMPIDA`, e quem pediu tenta de novo.
 2. Só esta escola, com "Vagas em uso" no teto dela (`VAGAS_ESCOLA_INTERATIVA` ou `VAGAS_ESCOLA_FERRAMENTA`, conforme a fila, ou as vagas da
    escola em `configuracao_operacional_escola`) → a escola espera pelos próprios jobs longos, e as
    outras não sentem. Com "Jobs em stalled" subindo, um job travou: siga o `jobId` no log do worker.
@@ -1125,6 +1128,57 @@ resposta inteira** com um valor que não conhece; apagar o objeto em `material-t
 
 **Depois:** registre no `TODO.md` a janela (de quando a quando), quantos materiais o bloco 1 fechou e quantos receberam série e licença
 no bloco 2, só contagens, e avise a coordenação das escolas que tinham material em "processando".
+
+## Voltar o código depois da 5.0 (a IA no worker) (rollback)
+
+*Procedimento, não alerta: não há regra em `infra/grafana/alertas/`. Vale para a volta da versão em que o `POST` grava o job `ia.executar` e o
+`worker-ia` conclui (reengenharia-continuacao, tarefa 5.0) para a que roda a IA dentro da API. A 5.0 não tem migration: não há nada a reverter no
+banco. O que o procedimento prova está em `apps/api/src/ia/fila-de-ia.int.test.ts` (o caso "a volta do código depois da 5.0"), que roda o bloco de SQL
+desta seção.*
+
+**Deploy e volta fora do horário letivo** (regra 80, item 9): a execução `rodando` na hora da volta é encerrada, e quem estava com o Tutor ou uma ferramenta
+aberta vê "tentar de novo".
+
+**O que o código anterior faz com o que a 5.0 deixou:**
+
+- **O job `ia.executar`** (`aguardando`, `reservado`, `publicado`, `ativo`): o despachante anterior não conhece o tipo e o publica como tipo desconhecido, na fila do
+  worker, sem o prefixo `api-` (`apps/despachante/src/job-publisher.test.ts`: "o tipo da API vai à Queue da API da fila dele, o do worker e o tipo desconhecido, à do
+  worker"). Nas filas `interativa` e `normal`, o `worker-interativo` anterior o falha na hora com `TIPO_DESCONHECIDO`, definitivo e sem retentativa
+  (`packages/core/src/jobs/job-executor.ts`), e a execução continua `pendente`. Na `ferramenta`, nenhum worker anterior a consome: o job fica parado na fila, como o job
+  sintético do alerta "ferramenta esperando". Nenhum dos dois trava o despachante, e por isso o bloco abaixo só os conclui, para não sobrar job de uma execução que o
+  código anterior já encerrou.
+- **A execução `pendente` e a `rodando`**: a API anterior, ao subir, roda a varredura da subida (`falharInterrompidas`) e as encerra com `EXECUCAO_INTERROMPIDA`. O
+  bloco faz o mesmo antes, para o resultado não depender da hora em que a API sobe, e o aluno ou a professora vê "tentar de novo" em vez de esperar.
+- **O `worker-ia-1` e o `worker-ia-2`**: o compose anterior não os tem. Sem `--remove-orphans` eles continuariam de pé, com o código novo, consumindo as filas
+  `api-interativa`, `api-ferramenta` e `api-normal` (e rodando, no banco que o código anterior usa, qualquer job velho). Por isso se param **antes**.
+- **O que a execução produziu e já gravou** (versão adaptada, entrega `pendente`, mensagem do Tutor, consumo): fica, porque o código anterior lê as mesmas
+  tabelas. A entrega `pendente` continua esperando a decisão da professora.
+
+**Antes de voltar:**
+
+1. `docker compose stop worker-ia-1 worker-ia-2`: a graça é de 20 s, e o que roda é abortado e fica `rodando`.
+2. Pare a API (nada novo grava execução durante o passo).
+3. Rode o bloco, numa transação, na entrada do `psql`: `docker compose exec -T postgres psql -U educa -1 -v ON_ERROR_STOP=1`.
+4. Suba o código anterior **com** `--remove-orphans`, para o compose não deixar os `worker-ia-*` de pé.
+
+```sql
+-- volta-da-5.0: bloco, antes de subir o código anterior
+update execucao_agente set estado = 'falhou', erro = 'EXECUCAO_INTERROMPIDA', concluida_em = now()
+ where estado in ('pendente', 'rodando');
+update job_registro set estado = 'concluido', concluido_em = now()
+ where tipo = 'ia.executar' and estado in ('aguardando', 'reservado', 'publicado', 'ativo');
+```
+
+Confira depois, só com contagens: `select count(*) from execucao_agente where estado in ('pendente', 'rodando')` e
+`select count(*) from job_registro where tipo = 'ia.executar' and estado not in ('concluido', 'falhou')` devem dar 0, e `docker compose ps` não pode listar `worker-ia-*`.
+
+**Na volta para a versão nova (roll-forward):** não há bloco a rodar. As execuções do período já estão `falhou` e os jobs, `concluido`; um job velho que ainda esteja nas filas `api-*` do
+Redis cai numa execução já encerrada, a transição `pendente → rodando` não acontece, e o modelo não é chamado.
+
+**Não faça:** rodar o bloco com o `worker-ia` de pé (ele pegaria a execução no meio do passo); apagar à mão as chaves `api-*` do Redis; reabrir uma execução `falhou` pelo bloco para
+"retomar" a resposta (a retomada é da tarefa 6.0, e o aluno tenta de novo pela tela).
+
+**Depois:** registre no `TODO.md` a janela (de quando a quando) e quantas execuções e quantos jobs o bloco fechou, só contagens.
 
 ## Rotina do sistema sem rodar (consolidação de uso, expurgo de jobs, expurgo do acesso)
 

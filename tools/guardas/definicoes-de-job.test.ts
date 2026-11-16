@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { getTableConfig, PgDialect } from 'drizzle-orm/pg-core'
-import { JOB_DEFINITIONS, QUEUE_NAMES, TIPO_EXTRAIR_PDF, type JobDataSchema } from '@educa/shared'
+import { JOB_DEFINITIONS, QUEUE_NAMES, TIPO_EXECUTAR_IA, TIPO_EXTRAIR_PDF, type JobDataSchema } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import { jobRegistro } from '../../packages/core/src/db/schema/job-registro.ts'
@@ -41,9 +41,9 @@ describe('o registro de jobs contra o banco', () => {
     }
   })
 
-  it('a retentativa de todo tipo é a de hoje: cinco tentativas, recuo de 2 s e jitter de 0,5, em literal; a extração do PDF tem três (ingestao-do-material, tarefa 1.0)', () => {
+  it('a retentativa de todo tipo é a de hoje: cinco tentativas, recuo de 2 s e jitter de 0,5, em literal; a extração do PDF tem três (ingestao-do-material, tarefa 1.0) e a execução de IA, uma (X6, 5.0)', () => {
     for (const [tipo, definicao] of Object.entries(JOB_DEFINITIONS)) {
-      expect(definicao.retentativa, tipo).toEqual({ tentativas: tipo === TIPO_EXTRAIR_PDF ? 3 : 5, recuoMs: 2_000, jitter: 0.5 })
+      expect(definicao.retentativa, tipo).toEqual({ tentativas: tipo === TIPO_EXTRAIR_PDF ? 3 : tipo === TIPO_EXECUTAR_IA ? 1 : 5, recuoMs: 2_000, jitter: 0.5 })
     }
   })
 })

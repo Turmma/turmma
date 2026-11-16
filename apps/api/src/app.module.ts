@@ -30,6 +30,7 @@ import type { ApiConfig } from './config.js'
 import { EntregaModule } from './entrega/entrega.module.js'
 import { EstruturaModule } from './estrutura/estrutura.module.js'
 import { GovernancaModule } from './governanca/governanca.module.js'
+import { ComandosDeIaModule } from './ia/comandos-de-ia.module.js'
 import { IaModule } from './ia/ia.module.js'
 import { ESCOLA_RATE_LIMITS, RateLimitModule } from './rate-limit.module.js'
 import { MaterialModule } from './material/material.module.js'
@@ -111,12 +112,14 @@ export class AppModule {
           ...(opcoes.armazemDeArquivos === undefined ? {} : { armazemDeTeste: opcoes.armazemDeArquivos }),
           ...(opcoes.relogioDasLicencas === undefined ? {} : { relogioDasLicencas: opcoes.relogioDasLicencas }),
         }),
-        IaModule.forRoot({ config: config.ia, ...(opcoes.logger === undefined ? {} : { logger: opcoes.logger }), ...(opcoes.medidor === undefined ? {} : { medidor: opcoes.medidor }) }),
+        // Sem modelo na API (X6, 5.0): o `agendar` grava o job, e o provedor vive no `main-worker`.
+        IaModule.forRoot(),
+        ComandosDeIaModule.forRoot(opcoes.medidor === undefined ? {} : { medidor: opcoes.medidor }),
         AssistenteModule.forRoot({ chaveContador: config.login.chaveContador, instancias: config.limite.instancias, logger: opcoes.logger ?? createLogger({ servico: 'api' }) }),
         ArtefatoModule,
         EntregaModule,
         AtividadeModule,
-        TutorModule.forRoot(opcoes.medidor === undefined ? {} : { medidor: opcoes.medidor }),
+        TutorModule.forRoot(),
         GovernancaModule,
         PrivacidadeModule.forRoot({
           armazem: config.armazem,

@@ -65,6 +65,11 @@ services:
     cpus: 0.5
   worker-interativo-1: *worker-interativo-carga
   worker-interativo-2: *worker-interativo-carga
+  # O worker de IA espera o modelo (rede), não calcula: um núcleo por réplica; sem sandbox de threads.
+  worker-ia-1:
+    cpus: 1
+  worker-ia-2:
+    cpus: 1
   worker-lote-1: *worker-lote-carga
   worker-lote-2: *worker-lote-carga
   # A fila `pdf` (ingestao-do-material): um PDF por vez, uma thread e meio núcleo de sobra para o event loop; a corrida das 300 apostilas é a da 9.0.

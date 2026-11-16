@@ -128,13 +128,12 @@ pelos leitores que a escola já usa (`docs/modelo-de-dados.md`, "A leitura da op
 Nada demorado em request. São cinco filas: `interativa` (o turno do Tutor), `ferramenta` (a ferramenta, a proposta e o
 artefato, com o professor esperando), `normal` e `lote`, uma por prioridade, e `pdf`, que isola o trabalho de CPU e de
 memória da leitura de PDF. A `ferramenta` tem **vaga própria por escola** (4, contra as 10 da `interativa`): a ferramenta
-longa de uma escola nunca ocupa a vaga do Tutor dela, nem o contrário (reengenharia-continuacao, 3.0; nenhuma réplica
-atende a `ferramenta` antes do `worker-ia`, na 5.0). O `JobExecutor`, que corta o prazo e toma e libera a vaga, mora em
+longa de uma escola nunca ocupa a vaga do Tutor dela, nem o contrário (reengenharia-continuacao, 3.0). O `JobExecutor`, que corta o prazo e toma e libera a vaga, mora em
 `packages/core/src/jobs/`, para o worker e a API o usarem. O trabalho se distingue pelo **tipo** do job (`retencao.expurgar-escola`,
 `titular.montar-arquivo`…), não por uma fila própria; a `pdf` só tem o `material.extrair-pdf`.
 Cada escola tem um limite de concorrência (`EscolaConcurrencyLimiter`), e o lote não urgente roda fora do horário letivo. No
 compose, o `worker-interativo` atende `interativa` e `normal`, o `worker-lote` atende `lote` e o `worker-pdf` atende `pdf`, um PDF
-por vez.
+por vez; o `worker-ia` atende as filas da IA (`interativa`, `ferramenta` e `normal` do `ia.executar`).
 
 **A extração do PDF é do worker** (ingestao-do-material, tarefa 1.0): o envio da API guarda o PDF no storage privado e grava,
 na mesma transação da linha do material, o job `material.extrair-pdf` (chave de idempotência = id do material); o worker lê o
@@ -142,9 +141,14 @@ objeto, extrai o texto por página, grava os trechos e o estado numa transação
 transição `processando → pronto|falhou` só pega o material `processando` e não excluído, e é ela que faz o job repetido e o job
 que chega depois da exclusão saírem sem efeito (D49).
 
-**Exceção declarada:** as tarefas de IA (Tutor, ferramentas do professor) ainda rodam no processo da API, pelo
-`ExecucaoScheduler`, que responde 202 e executa em segundo plano (D77). A ida para o worker está registrada na X6
-(`reengenharia-continuacao`, 42.0 e 47.0), antes do portão do piloto.
+**A IA é do `worker-ia`** (reengenharia-continuacao, 5.0, a 47.0): o `ExecucaoScheduler` responde 202 depois de gravar, numa só
+transação, a execução `pendente` e o job `ia.executar` (chave de idempotência = id da execução, só o `execucaoId` no payload). O
+`main-worker`, de `apps/api/src/main-worker.ts` (a imagem da API com outro comando, sem porta e sem controller), consome as filas
+`interativa`, `ferramenta` e `normal` do executor `api`, dentro do contexto da escola da linha, e é o único processo com o
+`LLM_PROVIDER`. O `ExecucaoProcessor` passa a execução de `pendente` a `rodando` e a `concluida` ou `falhou` por `update` condicional, com
+o prazo único do perfil passado como `pedido.sinal`, e não segura conexão do banco durante a chamada ao modelo. O desligamento do worker
+aborta e não grava (o job volta); só o prazo vira `IA_TEMPO_ESGOTADO`. A varredura de execução presa ficou como estava e é do worker; a
+6.0 a refaz.
 
 No F3, o expurgo noturno (`retencao.expurgar-escola`, um job por escola, à 1h) e a eliminação do titular (`titular.eliminar`,
 que o expurgo enfileira quando o prazo de 7 dias vence) são lote não urgente; a montagem do arquivo do titular

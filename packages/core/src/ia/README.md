@@ -11,7 +11,7 @@ const { saida, medicao } = await ia.gerar({
   tarefa: gerarAtividadeObjetiva,        // já declara a função (D9), o perfil e o prompt
   escolaId,                              // do contexto ou da execução gravada, nunca do cliente
   entrada: { tema, quantidade: 5, contexto: { serie, disciplina }, habilidades, trechos },
-  execucaoId, sinal,                     // o que o AgenteExecutor entrega ao trabalho
+  execucaoId, sinal,                     // o que o ExecucaoProcessor (o worker de IA) entrega ao trabalho
 })
 // saida: ConteudoDeAtividade, com a página citada conferida contra os trechos
 // falha: sempre LLMError (codigoDeIa: IA_INDISPONIVEL | IA_TEMPO_ESGOTADO | IA_SAIDA_INVALIDA | …)
@@ -50,6 +50,7 @@ return this.agendador.agendar({               // responde { execucaoId }: é o c
 - A suspensão é conferida antes de gravar; a falha vira `falhou` com um `ErrorCode`, e o que o `concluir` gravou é desfeito.
 - A tela lê o resultado em `GET /v1/execucoes/:id` (só quem pediu). O Tutor grava `mensagem_tutor` no lugar de `mensagem_agente`.
 - Função que roda **sem modelo** (a correção de objetiva): `FuncaoSuspensionCheck.exigirAtiva('correcao_de_objetiva')`.
-- As portas também são injetáveis: `LLM_PROVIDER`, `EXECUTOR_DE_AGENTE`, `SUSPENSAO_DE_FUNCAO` e `ORCAMENTO_DE_IA` (o
-  `POST` do Tutor consulta este último antes de gravar, para responder `LIMITE_DIARIO_DO_TUTOR` na hora).
-- O executor roda no processo da API (`TODO(fila)`, D77); na subida, a varredura encerra o que ficou preso.
+- As portas também são injetáveis: `SUSPENSAO_DE_FUNCAO` e `ORCAMENTO_DE_IA` (o `POST` do Tutor consulta este último antes de gravar, para
+  responder `LIMITE_DIARIO_DO_TUTOR` na hora). O `LLM_PROVIDER` só existe no `main-worker`: a API não chama modelo.
+- A execução roda no `main-worker` (`apps/api/src/main-worker.ts`): o `POST` grava a execução `pendente` e o job `ia.executar` no outbox,
+  e o worker o conclui, uma vez só. A varredura do `main-worker` encerra o que ficou preso.

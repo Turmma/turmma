@@ -34,7 +34,7 @@ paralela desde o começo e não alongam o caminho, que é o da IA (1.0 → 11.0)
   - [ ] 4.3 Métrica `ia.pedido_acima_do_teto{tarefa}`, alerta e runbook
   - [ ] 4.4 Testes
 
-- [ ] **5.0 — A IA roda no worker: o `POST` grava o job e o `main-worker` conclui, uma vez só (47.0)**
+- [x] **5.0 — A IA roda no worker: o `POST` grava o job e o `main-worker` conclui, uma vez só (47.0)**
   - [ ] 5.1 `ia.executar` em `JOB_DEFINITIONS`; o `agendar` grava o job no outbox na transação da execução
   - [ ] 5.2 `main-worker.ts` e `worker.module.ts`; o `AppModule` sai do `LLM_PROVIDER`; sai o `InProcessAgenteExecutor`
   - [ ] 5.3 `ExecucaoProcessor`: `pendente → rodando` e a conclusão condicionais, o prazo único; a varredura de hoje vai como está

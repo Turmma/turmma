@@ -19,14 +19,14 @@ function arquivosDeProducao(pasta: string): string[] {
 }
 
 /**
- * As tarefas que os módulos **registram na subida**, lidas do que eles escrevem: cada `comRegistro(registro, new <Comando>(…))` de um
- * `*.module.ts` aponta uma classe, e a classe, de um `*.command.ts`, diz a tarefa. É o que a API monta, sem subir a API, e por isso o
- * comando que sai de um módulo (ou que nunca entrou) aparece aqui. Sem módulo ou sem comando achado, é o alvo que sumiu: lança.
+ * As tarefas que a API e o worker **registram na subida**, lidas do que `montar-comandos.ts` escreve (o único lugar que os monta, para os dois
+ * processos): cada `comRegistro(registro, new <Comando>(…))` dele aponta uma classe, e a classe, de um `*.command.ts`, diz a tarefa. É o que a API monta, sem subir a API, e por isso o
+ * comando que sai de um módulo (ou que nunca entrou) aparece aqui. Sem a montagem ou sem comando achado, é o alvo que sumiu: lança.
  */
 async function tarefasRegistradasPelosModulos(raiz: string): Promise<TarefaDeIa[]> {
   const arquivos = arquivosDeProducao(raiz)
   const classes = arquivos
-    .filter((arquivo) => arquivo.endsWith('.module.ts'))
+    .filter((arquivo) => arquivo.endsWith('montar-comandos.ts'))
     .flatMap((arquivo) => [...readFileSync(arquivo, 'utf8').matchAll(/comRegistro\(\s*\w+\s*,\s*new\s+(\w+)\(/gu)].map((achado) => achado[1] as string))
   if (classes.length === 0) throw new Error('nenhum módulo registra comando')
   const tarefas: TarefaDeIa[] = []
@@ -52,14 +52,14 @@ describe('o registro de comandos de IA', () => {
     expect(tarefasSemComando(registradas.filter((tarefa) => tarefa !== 'turno_do_tutor'))).toEqual(['turno_do_tutor'])
   })
 
-  it('o alvo que some reprova em vez de passar em branco: registro vazio, catálogo vazio e pasta sem módulo', async () => {
+  it('o alvo que some reprova em vez de passar em branco: registro vazio, catálogo vazio e pasta sem a montagem', async () => {
     expect(() => tarefasSemComando([])).toThrow(/nenhum comando registrado/u)
     expect(() => tarefasSemComando(['turno_do_tutor'], [])).toThrow(/catálogo de tarefas de IA está vazio/u)
     const vazia = mkdtempSync(join(tmpdir(), 'registro-vazio-'))
     await expect(tarefasRegistradasPelosModulos(vazia)).rejects.toThrow(/nenhum módulo registra comando/u)
-    // Um módulo que cita o comando e uma pasta sem o arquivo dele: o alvo sumiu, e a leitura não o inventa.
-    mkdirSync(join(vazia, 'tutor'))
-    writeFileSync(join(vazia, 'tutor', 'x.module.ts'), 'const c = comRegistro(registro, new ComandoQueNaoExiste(banco))\n')
+    // Uma montagem que cita o comando e uma pasta sem o arquivo dele: o alvo sumiu, e a leitura não o inventa.
+    mkdirSync(join(vazia, 'ia'))
+    writeFileSync(join(vazia, 'ia', 'montar-comandos.ts'), 'const c = comRegistro(registro, new ComandoQueNaoExiste(banco))\n')
     await expect(tarefasRegistradasPelosModulos(vazia)).rejects.toThrow(/não está em nenhum \*\.command\.ts/u)
   })
 

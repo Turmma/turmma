@@ -92,9 +92,9 @@ export interface ApiConfig {
   /** Para onde e de quanto em quanto tempo as métricas vão. */
   telemetria: TelemetryConfig
   /**
-   * A camada de IA: o adaptador (o falso, sem nenhuma variável), o modelo de cada perfil, o prazo da chamada e as vagas
-   * e o prazo das execuções em segundo plano. Nenhuma variável dela é obrigatória fora de produção, onde o adaptador
-   * falso é recusado.
+   * A camada de IA: o adaptador (o falso, sem nenhuma variável), o modelo de cada perfil, o prazo da chamada e as réplicas
+   * do `worker-ia`. A API só a valida: quem monta o provedor é o `main-worker` (reengenharia-continuacao, 5.0). Nenhuma
+   * variável dela é obrigatória fora de produção, onde o adaptador falso é recusado.
    */
   ia: LLMConfig
   /**

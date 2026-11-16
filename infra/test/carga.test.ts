@@ -225,7 +225,8 @@ describe('infra/compose.carga.yml', () => {
   })
 
   it('o sandbox de cada worker tem uma thread por núcleo inteiro e sobra pelo menos meio núcleo para o event loop', () => {
-    const workers = Object.keys(base).filter((nome) => nome.startsWith('worker-'))
+    // O `worker-ia` não tem sandbox de threads: espera o modelo pela rede, e só os workers de CPU entram na conta.
+    const workers = Object.keys(base).filter((nome) => nome.startsWith('worker-') && !nome.startsWith('worker-ia-'))
     expect(workers).toHaveLength(5)
     for (const nome of workers) {
       const threads = Number(carga[nome]?.environment?.['WORKER_THREADS_MAXIMO'])
@@ -242,8 +243,10 @@ describe('infra/compose.carga.yml', () => {
     expect(comando[0]).toBe('postgres')
   })
 
-  it('a latência simulada do Tutor chega à API do cenário: o compose a passa às duas instâncias e infra/carga.env a liga', () => {
-    for (const nome of ['api-1', 'api-2']) {
+  it('a latência simulada do Tutor chega a quem chama o modelo: o compose a passa às duas instâncias da API e às duas do `worker-ia`, e infra/carga.env a liga', () => {
+    // A API validou a configuração e já não chama o modelo (X6, 5.0): quem espera a latência simulada é o `worker-ia`. Sem a variável nele, o adaptador falso
+    // responde sem espera e o cenário deixa de medir o Tutor (regra 80, item 11).
+    for (const nome of ['api-1', 'api-2', 'worker-ia-1', 'worker-ia-2']) {
       const servico = base[nome] as { environment?: Record<string, string> }
       expect(servico.environment?.['IA_LATENCIA_FALSA_MS'], nome).toMatch(/^\$\{IA_LATENCIA_FALSA_MS:\?/)
     }

@@ -1,4 +1,4 @@
-import { FakeAdapter, material, runInContext, type Clock, type Database, type InProcessAgenteExecutor } from '@educa/core'
+import { FakeAdapter, material, runInContext, type Clock, type Database } from '@educa/core'
 import { artefatoResponseSchema, conteudoDoArtefatoSchema, ErrorCode } from '@educa/shared'
 import { and, eq, type SQL } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
@@ -6,14 +6,14 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { citacoesDoConteudo } from '../src/artefato/conferencia.js'
 import { DB } from '../src/database.module.js'
-import { EXECUTOR_DE_AGENTE } from '../src/ia/ia.module.js'
 import { declaradoParaASerie, proprioOuComLicencaVigente } from '../src/material/material.repository.js'
 import { TrechoSearch } from '../src/material/trecho-search.js'
 import { contarNaEscola, execucaoTerminada, montarEscolaComAssistente, vincularProfessor, zerarLimiteDePedidosDeIa, type EscolaComAssistente } from './escola-assistente.fixture.js'
 import { aplicarAtividade } from './escola-tutor.fixture.js'
 import { semearLicenca, semearMaterial } from './leitura-por-serie.fixture.js'
 import { SessaoFixtures, type TestSessao } from './sessao.fixture.js'
-import { chamar, subirApi, type RespostaHttp, type TestApi } from './test-api.js'
+import { chamar, type RespostaHttp, type TestApi } from './test-api.js'
+import { FilaDeIa } from './fila-de-ia.fixture.js'
 import { TEST_APP_OPTIONS } from './test-config.js'
 import { WriteBlockTrigger } from './write-block-trigger.js'
 
@@ -32,7 +32,7 @@ describe('leitura de página por série e licença vigente (9.0)', () => {
   /** O dia de São Paulo da licença: o caso o avança. */
   const relogio: Clock & { atual: Date } = { atual: new Date('2026-11-13T12:00:00-03:00'), agora: () => relogio.atual }
   let api: TestApi
-  let executor: InProcessAgenteExecutor
+  let fila: FilaDeIa
 
   /** A escola de Química do 2º EM (com o material de demonstração) mais a série e a turma do 9º ano, sem material, com a professora vinculada e um aluno em cada turma. */
   interface Cenario {
@@ -103,8 +103,8 @@ describe('leitura de página por série e licença vigente (9.0)', () => {
   const licencaDe = (c: Cenario, desde: string, ate: string | null = null) => semearLicenca(bancada.pool, c.escola.escolaId, c.escola.coordenacao.usuarioId, { desde, ate })
 
   beforeAll(async () => {
-    api = await subirApi(medidor.medidor, {}, linhasDeLog, { ...TEST_APP_OPTIONS, relogioDasLicencas: relogio })
-    executor = api.app.get<InProcessAgenteExecutor>(EXECUTOR_DE_AGENTE)
+    fila = await FilaDeIa.subir(medidor.medidor, {}, linhasDeLog, {}, { ...TEST_APP_OPTIONS, relogioDasLicencas: relogio })
+    api = fila.api
   })
 
   beforeEach(async () => {
@@ -117,8 +117,8 @@ describe('leitura de página por série e licença vigente (9.0)', () => {
   })
 
   afterAll(async () => {
-    await executor.ociosa()
-    await api.app.close()
+    await fila.ociosa()
+    await fila.fechar()
     await medidor.encerrar()
     await bancada.fechar()
   })
@@ -260,7 +260,7 @@ describe('leitura de página por série e licença vigente (9.0)', () => {
       relogio.atual = new Date('2026-11-13T23:00:00-03:00')
       expect([(await paginaAberta()).length, await existe(), await achada(), await emUso()]).toEqual([2, true, [materialId], 1])
       expect((await naTelaDoAluno()).status).toBe(202)
-      await executor.ociosa()
+      await fila.ociosa()
 
       relogio.atual = new Date('2026-11-14T00:01:00-03:00')
       expect([(await paginaAberta()).length, await existe(), await achada(), await emUso()]).toEqual([0, false, [], 0])
@@ -270,7 +270,7 @@ describe('leitura de página por série e licença vigente (9.0)', () => {
       expect((await patch(c.escola.coordenacao, `/v1/licencas/${licencaId}`, { vigenteAte: '2027-12-31' })).status).toBe(200)
       expect([(await paginaAberta()).length, await existe(), await achada(), await emUso()]).toEqual([2, true, [materialId], 1])
       expect((await naTelaDoAluno()).status).toBe(202)
-      await executor.ociosa()
+      await fila.ociosa()
     })
 
     it('a licença que só começa amanhã deixa o material fora até o dia', async () => {
@@ -355,7 +355,7 @@ describe('leitura de página por série e licença vigente (9.0)', () => {
      * abriu: o reenvio já não para no filtro, e o `agendar` retoma a execução que ainda não rodou. O que ela faz com o material que saiu é o que o caso confere.
      */
     async function reenviandoComAExecucaoPendente(sessao: TestSessao, caminho: string, corpo: Record<string, unknown>, mudar: () => Promise<void>): Promise<{ aceita: RespostaHttp; reenvio: RespostaHttp; execucaoId: string }> {
-      await executor.ociosa()
+      await fila.ociosa()
       const parada = new WriteBlockTrigger(bancada.pool, { tabela: 'execucao_agente', evento: 'update', quando: `new.solicitada_por = '${sessao.usuarioId}'::uuid and new.estado = 'rodando'` })
       await parada.armar()
       let aceita: RespostaHttp
@@ -369,7 +369,7 @@ describe('leitura de página por série e licença vigente (9.0)', () => {
       } finally {
         await parada.desarmar()
       }
-      await executor.ociosa()
+      await fila.ociosa()
       return { aceita, reenvio, execucaoId: aceita.corpo['execucaoId'] as string }
     }
     const estadoDaExecucao = async (escolaId: string, execucaoId: string) =>
@@ -392,7 +392,7 @@ describe('leitura de página por série e licença vigente (9.0)', () => {
         // O controle: a chave nova, com o mesmo corpo, continua recusada. O que passa é a chave que o servidor já aceitou.
         expect(erroDe(await post(c.escola.professora, pedido.caminho, { ...pedido.corpo, chaveEnvio: randomUUID() })), pedido.rotulo).toEqual({ status: 422, codigo: ErrorCode.SEM_MATERIAL_DA_SERIE })
       }
-      await executor.ociosa()
+      await fila.ociosa()
       expect(adaptador).not.toHaveBeenCalled()
       expect(await gastos(c.escola)).toEqual(antes)
     })
@@ -451,7 +451,7 @@ describe('leitura de página por série e licença vigente (9.0)', () => {
         // O controle: a chave nova, com o mesmo corpo, é recusada como era.
         expect(erroDe(await perguntar(c.alunoDe9, { ...corpo, chaveEnvio: randomUUID() })), String(posicao)).toEqual(recusas[posicao])
       }
-      await executor.ociosa()
+      await fila.ociosa()
       expect(adaptador).not.toHaveBeenCalled()
       expect(await gastos(c.escola)).toEqual(antes)
     })
@@ -599,7 +599,7 @@ describe('leitura de página por série e licença vigente (9.0)', () => {
      * Segura a execução entre o `202` e a conferência (a transição `rodando`), muda o que o caso quer, solta, e devolve a execução terminada. O gatilho para quando a execução do aluno vira `rodando`.
      */
     async function mudandoEntreO202EAExecucao(c: Cenario, corpo: Record<string, unknown>, mudar: () => Promise<void>): Promise<{ aceita: RespostaHttp; execucaoId: string }> {
-      await executor.ociosa()
+      await fila.ociosa()
       const parada = new WriteBlockTrigger(bancada.pool, { tabela: 'execucao_agente', evento: 'update', quando: `new.solicitada_por = '${c.alunoDe9.usuarioId}'::uuid and new.estado = 'rodando'` })
       await parada.armar()
       let aceita: RespostaHttp
@@ -611,7 +611,7 @@ describe('leitura de página por série e licença vigente (9.0)', () => {
       } finally {
         await parada.desarmar()
       }
-      await executor.ociosa()
+      await fila.ociosa()
       return { aceita, execucaoId: aceita.corpo['execucaoId'] as string }
     }
 
@@ -652,7 +652,7 @@ describe('leitura de página por série e licença vigente (9.0)', () => {
       expect(erroDe(await perguntar(c.alunoDe9, { atividadeAplicadaId: c.atividadeDe9 })).codigo).toBe(ErrorCode.SEM_MATERIAL_DA_SERIE)
       // A pergunta aceita da outra turma não conta.
       expect((await perguntar(c.alunoDe2, { atividadeAplicadaId: c.atividadeDe2 })).status).toBe(202)
-      await executor.ociosa()
+      await fila.ociosa()
 
       expect(await lidas(c.turma9)).toBe(antesDe9 + 2)
       expect(await lidas(c.escola.turma)).toBe(antesDe2)
@@ -676,7 +676,7 @@ describe('leitura de página por série e licença vigente (9.0)', () => {
       // Em 2026 o aluno está no 8º: acha o material dele e não o do 9º.
       const atividadeDe8 = await aplicarAtividade(bancada, c.escola, { turmaId: turma8 })
       expect((await perguntar(aluno, { atividadeAplicadaId: atividadeDe8, materialId: materialDe8, pagina: 1 })).status).toBe(202)
-      await executor.ociosa()
+      await fila.ociosa()
 
       // Vira o ano: 2026 encerra, 2027 entra, a turma do 9º e o vínculo do aluno são do ano novo, e a série (e o material dela) são os mesmos.
       await sql(`update ano_letivo set situacao = 'encerrado' where id = $1`, [c.escola.anoLetivoId])
@@ -703,7 +703,7 @@ describe('leitura de página por série e licença vigente (9.0)', () => {
       const atividadeDe2027 = await aplicarAtividade(bancada, de2027, { turmaId: turma2027 })
 
       expect((await perguntar(aluno, { atividadeAplicadaId: atividadeDe2027, materialId: materialDoNono, pagina: 1 })).status).toBe(202)
-      await executor.ociosa()
+      await fila.ociosa()
       // O material do 8º, que ele leu em 2026, já não é o da turma dele.
       expect(erroDe(await perguntar(aluno, { atividadeAplicadaId: atividadeDe2027, materialId: materialDe8, pagina: 1 }))).toEqual({ status: 404, codigo: ErrorCode.NAO_ENCONTRADO })
       await sql(`update ano_letivo set situacao = 'encerrado' where id = $1`, [anoLetivoId])

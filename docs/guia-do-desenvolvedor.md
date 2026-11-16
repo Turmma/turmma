@@ -287,7 +287,7 @@ Qual fila usar:
 
 | Fila | Para quê | Exemplo |
 |---|---|---|
-| `interativa` | alguém está esperando na tela | nenhum tipo hoje. A IA roda no processo da API (D77) até a 47.0, na X6 |
+| `interativa` | alguém está esperando na tela | o turno do Tutor (`ia.executar`, no `worker-ia`). A `ferramenta` (ferramentas, artefato e proposta) e a `normal` (o Analista) levam o mesmo tipo |
 | `normal` | o resto | montar o arquivo do titular |
 | `lote` | pesado e sem pressa; o não urgente espera o fim do horário letivo | expurgo da escola, eliminação do titular |
 
@@ -303,8 +303,10 @@ Exemplo: `apps/api/src/artefato/ferramentas.service.ts`.
    produz na transação que conclui a execução. O módulo o registra na subida com `comRegistro(registro, new …)`
    (`apps/api/src/ia/registro-de-comandos.ts`). Exemplo: `apps/api/src/artefato/ferramentas.command.ts`.
 3. **O service chama** o `ExecucaoScheduler.agendar({ comando, chaveEnvio, entradaDaExecucao, aoGravar? })`. A resposta
-   é 202 com `execucaoId`, e a execução roda em segundo plano, passando pelo gateway: orçamento, suspensão da função,
-   prazo e validação da saída. O `aoGravar` é o que fica na requisição, na mesma transação do `pendente`. O pedido não leva
+   é 202 com `execucaoId`: o `agendar` grava a execução `pendente` e o job `ia.executar` na mesma transação, e quem roda é o
+   `main-worker` (`apps/api/src/main-worker.ts`), pelo gateway: orçamento, suspensão da função, prazo e validação da saída. A API
+   não tem o `LLM_PROVIDER`. O teste de integração sobe a IA pela bancada `apps/api/test/fila-de-ia.fixture.ts`, e a guarda
+   `tools/guardas/executor-so-na-bancada.test.ts` reprova o teste que monte o provedor, o processador ou o worker por fora. O `aoGravar` é o que fica na requisição, na mesma transação do `pendente`. O pedido não leva
    closure de entrada nem de conclusão: toda tarefa tem comando, o Tutor também (`tutor/turno.command.ts`), e a única sem
    é a que ninguém chama (`TAREFAS_SEM_CHAMADOR`). O teste `registro-de-comandos.test.ts` reprova a tarefa nova sem comando.
 4. **Nunca chame o adaptador nem a porta direto.** O lint barra só o import de SDK de IA. Chamar o

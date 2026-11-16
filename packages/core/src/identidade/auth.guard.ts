@@ -3,7 +3,7 @@ import type { CanActivate, ExecutionContext } from '@nestjs/common'
 import type { Reflector } from '@nestjs/core'
 import type { IncomingMessage } from 'node:http'
 import type { AuthConfig } from '../config/validate-config.js'
-import { currentContext, type RequestSessao } from '../context/context.js'
+import { currentContext, type RequestSessao, type RequestSessaoDeRequisicao } from '../context/context.js'
 import { DomainException } from '../error/domain.exception.js'
 import { isRouteWithoutSessao } from './route-without-sessao.js'
 import { storeRequestToken } from './request-token.js'
@@ -50,17 +50,22 @@ export function requestIdentity(): Identity {
   return { escolaId: contexto.escolaId, usuarioId: contexto.usuarioId }
 }
 
-/** A sessão da requisição em andamento, com papel e ano letivo. Sem sessão conferida no contexto, `NAO_AUTENTICADO`. */
+/**
+ * A pessoa da requisição ou da execução em andamento, com papel e ano letivo. Sem escola, pessoa, papel ou ano no contexto, `NAO_AUTENTICADO`.
+ * Serve a quem roda também no worker (a execução de IA, X6 5.0), onde a pessoa é a que pediu e **não há sessão**: quem precisa da sessão em si
+ * (sair, trocar de escola, renovar a atividade) chama `requestSessaoDeRequisicao`.
+ */
 export function requestSessao(): RequestSessao {
   const contexto = currentContext()
-  if (
-    contexto?.escolaId === undefined ||
-    contexto.usuarioId === undefined ||
-    contexto.papel === undefined ||
-    contexto.sessaoId === undefined ||
-    contexto.anoLetivoId === undefined
-  ) {
+  if (contexto?.escolaId === undefined || contexto.usuarioId === undefined || contexto.papel === undefined || contexto.anoLetivoId === undefined) {
     throw new DomainException(ErrorCode.NAO_AUTENTICADO)
   }
-  return { escolaId: contexto.escolaId, usuarioId: contexto.usuarioId, papel: contexto.papel, sessaoId: contexto.sessaoId, anoLetivoId: contexto.anoLetivoId }
+  return { escolaId: contexto.escolaId, usuarioId: contexto.usuarioId, papel: contexto.papel, anoLetivoId: contexto.anoLetivoId, ...(contexto.sessaoId === undefined ? {} : { sessaoId: contexto.sessaoId }) }
+}
+
+/** A sessão da requisição HTTP em andamento, com o `sessaoId`. Sem sessão conferida no contexto (job, execução em segundo plano), `NAO_AUTENTICADO`. */
+export function requestSessaoDeRequisicao(): RequestSessaoDeRequisicao {
+  const sessao = requestSessao()
+  if (sessao.sessaoId === undefined) throw new DomainException(ErrorCode.NAO_AUTENTICADO)
+  return { ...sessao, sessaoId: sessao.sessaoId }
 }

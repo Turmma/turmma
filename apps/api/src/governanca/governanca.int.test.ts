@@ -1,9 +1,9 @@
-import type { InProcessAgenteExecutor } from '@educa/core'
 import { CHAVES_DE_FUNCAO, consumoResponseSchema, funcaoDaGovernancaResponseSchema, funcoesDaGovernancaResponseSchema, resumoDaGovernancaResponseSchema, FUNCOES, TROCAS_POR_MES_PADRAO_DO_TUTOR, type ChaveDeFuncao } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
-import { chamar, subirApi, type TestApi, type RespostaHttp } from '../../test/test-api.js'
+import { chamar, type TestApi, type RespostaHttp } from '../../test/test-api.js'
+import { FilaDeIa } from '../../test/fila-de-ia.fixture.js'
 import { aplicarAtividade, aprovarOLote, criarAtividade, criarVersaoAdaptada, encerrarAtividade, responderProva, rotasDaAtividade, type RotasDaAtividade } from '../../test/atividade.fixture.js'
 import {
   contarNaEscola,
@@ -19,7 +19,6 @@ import {
   type EscolaComAssistente,
 } from '../../test/escola-assistente.fixture.js'
 import { SessaoFixtures, type TestSessao } from '../../test/sessao.fixture.js'
-import { EXECUTOR_DE_AGENTE } from '../ia/ia.module.js'
 
 /**
  * A governança de IA da coordenação (MVP, A5; D9, D45, D60, D64; regra 70, itens 5, 6, 8 e 9), pela rota, contra o
@@ -31,7 +30,7 @@ describe('governança de IA da coordenação', () => {
   const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
   let api: TestApi
-  let executor: InProcessAgenteExecutor
+  let fila: FilaDeIa
   let rotas: RotasDaAtividade
   let a: EscolaComAssistente
   let b: EscolaComAssistente
@@ -103,8 +102,8 @@ describe('governança de IA da coordenação', () => {
   const mensagemAoAssistente = (escola: EscolaComAssistente) => ({ texto: 'o que é o reagente limitante?', turmaId: escola.turma, disciplinaId: escola.quimica, chaveEnvio: randomUUID() })
 
   beforeAll(async () => {
-    api = await subirApi(medidor.medidor)
-    executor = api.app.get<InProcessAgenteExecutor>(EXECUTOR_DE_AGENTE)
+    fila = await FilaDeIa.subir(medidor.medidor)
+    api = fila.api
     rotas = rotasDaAtividade(api)
     a = await montarEscolaComAssistente(api, bancada)
     b = await montarEscolaComAssistente(api, bancada)
@@ -147,8 +146,8 @@ describe('governança de IA da coordenação', () => {
   })
 
   afterAll(async () => {
-    await executor.ociosa()
-    await api.app.close()
+    await fila.ociosa()
+    await fila.fechar()
     await bancada.fechar()
   })
 
@@ -412,7 +411,7 @@ describe('governança de IA da coordenação', () => {
         await retomar(a, 'conversa_e_ferramentas')
       }
       expect((await post(a.professora, '/v1/assistente/mensagens', mensagemAoAssistente(a))).status).toBe(202)
-      await executor.ociosa()
+      await fila.ociosa()
       await rotas.encerrar(a.professora, aberta)
     })
 
@@ -431,7 +430,7 @@ describe('governança de IA da coordenação', () => {
         await retomar(a, 'tutor_com_o_aluno')
       }
       expect((await post(a.aluno, '/v1/tutor/mensagens', duvida(abertaEmA))).status).toBe(202)
-      await executor.ociosa()
+      await fila.ociosa()
       await rotas.encerrar(a.professora, abertaEmA)
       await rotas.encerrar(b.professora, abertaEmB)
     })
@@ -440,7 +439,7 @@ describe('governança de IA da coordenação', () => {
   describe('o consumo', () => {
     it('soma por função, no mês, sem origem, sem aluno, sem entrada e sem saída; e não soma o de outra escola', async () => {
       await execucaoTerminada(api, a.professora, await dispararExecucao(api, a.professora, '/v1/assistente/mensagens', mensagemAoAssistente(a)))
-      await executor.ociosa()
+      await fila.ociosa()
       const resposta = await get(a.coordenacao, '/v1/governanca/consumo')
       expect(resposta.status).toBe(200)
       const consumo = consumoResponseSchema.parse(resposta.corpo)

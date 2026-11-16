@@ -92,6 +92,7 @@ bancada, com fixture.
 - [I] Avaliação aberta entre o `POST` e o `preparar`, e entre o `preparar` e o `concluir`: a resposta não sai, a troca não conta
 - [I] Tutor desligado na escola (D84), função suspensa (D9) e fora da política da turma (D19): nenhum job no outbox. Uma mutação
   por camada: tirar cada conferência
+  (5.0: só a função suspensa, a avaliação aberta e o pacote existem na API; o desligado e o fora da política não têm conferência hoje, e o caso deles espera quem a criar: `techspec.md` §5, "Como a 5.0 ficou" (7))
 
 ## 3. A execução interrompida no rastro (RF3, regra 20.19)
 

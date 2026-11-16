@@ -228,5 +228,5 @@ export async function startFakeModel(): Promise<FakeModel> {
 
 /** As variáveis que apontam a API de teste para o modelo de mentira, como modelo local (o endereço é desta máquina). */
 export function fakeModelEnv(modelo: FakeModel): Record<string, string> {
-  return { IA_ADAPTADOR: 'openai_compat', LLM_BASE_URL: modelo.url, LLM_MODELO: 'modelo-de-mentira', LLM_PROCESSAMENTO_LOCAL: 'true', LLM_RECUO_MS: '0', LLM_TIMEOUT_MS: '5000', LLM_TIMEOUT_MS_RAPIDO: '5000', LLM_TIMEOUT_MS_PADRAO: '5000', IA_EXECUCAO_TIMEOUT_MS: '20000' }
+  return { IA_ADAPTADOR: 'openai_compat', LLM_BASE_URL: modelo.url, LLM_MODELO: 'modelo-de-mentira', LLM_PROCESSAMENTO_LOCAL: 'true', LLM_RECUO_MS: '0', LLM_TIMEOUT_MS: '5000', LLM_TIMEOUT_MS_RAPIDO: '5000', LLM_TIMEOUT_MS_PADRAO: '5000' }
 }

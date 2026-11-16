@@ -5,7 +5,6 @@ import { describe, expect, it } from 'vitest'
 import {
   loadLLMConfig,
   MOTIVO_ADAPTADOR_FALSO_EM_PRODUCAO,
-  MOTIVO_EXECUCAO_MAIS_CURTA_QUE_A_CHAMADA,
   MOTIVO_LATENCIA_FALSA_MAIOR_QUE_O_PRAZO,
   MOTIVO_LLM_SEM_ENDERECO,
   MOTIVO_LLM_SEM_MODELO,
@@ -13,7 +12,6 @@ import {
   MOTIVO_PROVEDOR_ID_DE_EXEMPLO,
   MOTIVO_RECUO_MAIOR_QUE_O_PRAZO,
   MOTIVO_SEM_PROVEDOR_ID,
-  MOTIVO_VAGAS_DE_IA_INCOERENTES,
 } from './llm-config.js'
 import { InvalidConfigError } from './validate-config.js'
 
@@ -35,7 +33,7 @@ function erroDe(ambiente: Record<string, string | undefined>): InvalidConfigErro
 
 describe('lerConfiguracaoDeIa', () => {
   it('sem nenhuma variável de IA, sobe com o adaptador falso: nada novo é obrigatório', () => {
-    expect(loadLLMConfig(LOCAL)).toEqual({ adaptador: 'falso', prazosMs: PRAZOS_PADRAO, recuoMs: 500, executor: { vagasPorEscola: 2, vagasNoTotal: 8, timeoutMs: 150_000 } })
+    expect(loadLLMConfig(LOCAL)).toEqual({ adaptador: 'falso', prazosMs: PRAZOS_PADRAO, recuoMs: 500, replicas: 1 })
   })
 
   it('o prazo de cada perfil: 20 s no `rapido`, 60 s no `padrao`, e o `LLM_TIMEOUT_MS` nos que não têm o seu', () => {
@@ -47,7 +45,7 @@ describe('lerConfiguracaoDeIa', () => {
   })
 
   it('variável vazia, como o compose entrega a que não tem valor, vale como ausente', () => {
-    const vazias = { ...LOCAL, IA_ADAPTADOR: '', LLM_BASE_URL: '', LLM_MODELO: '', LLM_TIMEOUT_MS: '', LLM_PROCESSAMENTO_LOCAL: '', IA_EXECUCOES_POR_ESCOLA: '' }
+    const vazias = { ...LOCAL, IA_ADAPTADOR: '', LLM_BASE_URL: '', LLM_MODELO: '', LLM_TIMEOUT_MS: '', LLM_PROCESSAMENTO_LOCAL: '', IA_REPLICAS: '' }
     expect(loadLLMConfig(vazias)).toEqual(loadLLMConfig(LOCAL))
   })
 
@@ -74,7 +72,7 @@ describe('lerConfiguracaoDeIa', () => {
       adaptador: 'openai_compat',
       prazosMs: { rapido: 20_000, padrao: 60_000, complexo: 45_000, visao: 45_000 },
       recuoMs: 500,
-      executor: { vagasPorEscola: 2, vagasNoTotal: 8, timeoutMs: 150_000 },
+      replicas: 1,
       modelo: {
         baseUrl: 'http://127.0.0.1:8080/v1',
         modelos: { rapido: 'qwen3-8b', padrao: 'qwen3-8b', complexo: 'qwen3-8b', visao: 'qwen3-8b' },
@@ -91,8 +89,8 @@ describe('lerConfiguracaoDeIa', () => {
     const prazos = ['LLM_TIMEOUT_MS', 'LLM_TIMEOUT_MS_RAPIDO', 'LLM_TIMEOUT_MS_PADRAO'] as const
     for (const variavel of prazos) {
       const outros = Object.fromEntries(prazos.filter((outro) => outro !== variavel).map((outro) => [outro, '90000']))
-      expect(erroDe({ ...LLAMA, ...outros, [variavel]: '4000', LLM_RECUO_MS: '4000', IA_EXECUCAO_TIMEOUT_MS: '200000' }), variavel).toMatchObject({ variaveis: ['LLM_RECUO_MS'], motivos: [MOTIVO_RECUO_MAIOR_QUE_O_PRAZO] })
-      expect(loadLLMConfig({ ...LLAMA, ...outros, [variavel]: '4000', LLM_RECUO_MS: '3999', IA_EXECUCAO_TIMEOUT_MS: '200000' }).recuoMs, variavel).toBe(3_999)
+      expect(erroDe({ ...LLAMA, ...outros, [variavel]: '4000', LLM_RECUO_MS: '4000' }), variavel).toMatchObject({ variaveis: ['LLM_RECUO_MS'], motivos: [MOTIVO_RECUO_MAIOR_QUE_O_PRAZO] })
+      expect(loadLLMConfig({ ...LLAMA, ...outros, [variavel]: '4000', LLM_RECUO_MS: '3999' }).recuoMs, variavel).toBe(3_999)
     }
   })
 
@@ -196,15 +194,16 @@ describe('lerConfiguracaoDeIa', () => {
     expect(`${erro.message} ${JSON.stringify(erro.motivos)}`).not.toContain(chave)
   })
 
-  it('o prazo da execução precisa ser maior que o da chamada, de todo perfil, e uma escola não pode ter mais vagas que o total', () => {
-    expect(erroDe({ ...LOCAL, LLM_TIMEOUT_MS: '60000', IA_EXECUCAO_TIMEOUT_MS: '60000' })).toMatchObject({ variaveis: ['IA_EXECUCAO_TIMEOUT_MS'], motivos: [MOTIVO_EXECUCAO_MAIS_CURTA_QUE_A_CHAMADA] })
-    // O maior prazo manda, qualquer que seja o perfil dele: o `rapido` e o `padrao` também seguram a execução.
-    for (const variavel of ['LLM_TIMEOUT_MS_RAPIDO', 'LLM_TIMEOUT_MS_PADRAO']) {
-      expect(erroDe({ ...LOCAL, [variavel]: '150000', IA_EXECUCAO_TIMEOUT_MS: '150000' }), variavel).toMatchObject({ variaveis: ['IA_EXECUCAO_TIMEOUT_MS'], motivos: [MOTIVO_EXECUCAO_MAIS_CURTA_QUE_A_CHAMADA] })
-      expect(loadLLMConfig({ ...LOCAL, [variavel]: '149999', IA_EXECUCAO_TIMEOUT_MS: '150000' }).executor.timeoutMs, variavel).toBe(150_000)
-    }
-    expect(erroDe({ ...LOCAL, IA_EXECUCOES_POR_ESCOLA: '9', IA_EXECUCOES_TOTAL: '8' })).toMatchObject({ variaveis: ['IA_EXECUCOES_POR_ESCOLA'], motivos: [MOTIVO_VAGAS_DE_IA_INCOERENTES] })
-    expect(loadLLMConfig({ ...LOCAL, IA_EXECUCOES_POR_ESCOLA: '3', IA_EXECUCOES_TOTAL: '12', IA_EXECUCAO_TIMEOUT_MS: '90000' }).executor).toEqual({ vagasPorEscola: 3, vagasNoTotal: 12, timeoutMs: 90_000 })
+  it('as réplicas do worker de IA: uma por padrão, e o número do compose quando ele diz (o teto de tokens se divide entre elas)', () => {
+    expect(loadLLMConfig(LOCAL).replicas).toBe(1)
+    expect(loadLLMConfig({ ...LOCAL, IA_REPLICAS: '2' }).replicas).toBe(2)
+    expect(erroDe({ ...LOCAL, IA_REPLICAS: '0' }).variaveis).toEqual(['IA_REPLICAS'])
+    expect(erroDe({ ...LOCAL, IA_REPLICAS: 'duas' }).variaveis).toEqual(['IA_REPLICAS'])
+  })
+
+  it('o prazo da execução não é variável: IA_EXECUCAO_TIMEOUT_MS e as vagas do processo saíram, e o prazo vem do perfil da tarefa', () => {
+    // Variável que saiu não é lida: um valor absurdo nela não recusa a subida.
+    expect(loadLLMConfig({ ...LOCAL, IA_EXECUCAO_TIMEOUT_MS: 'dois minutos', IA_EXECUCOES_POR_ESCOLA: '0', IA_EXECUCOES_TOTAL: 'muitas' })).toEqual(loadLLMConfig(LOCAL))
   })
 
   it('a latência simulada do adaptador falso (teste de carga, regra 80, item 11): ausente ou zero não espera, e precisa caber no prazo da chamada', () => {
@@ -216,7 +215,7 @@ describe('lerConfiguracaoDeIa', () => {
     expect(erroDe({ ...LOCAL, IA_LATENCIA_FALSA_MS: '-1' }).variaveis).toEqual(['IA_LATENCIA_FALSA_MS'])
     expect(erroDe({ ...LOCAL, IA_LATENCIA_FALSA_MS: '60001' }).variaveis).toEqual(['IA_LATENCIA_FALSA_MS'])
     // Com o prazo da chamada maior que o teto, é o teto da variável (60 s) que recusa, e não a comparação com o prazo.
-    const comPrazoLongo = { ...LOCAL, LLM_TIMEOUT_MS: '120000', LLM_TIMEOUT_MS_RAPIDO: '120000', LLM_TIMEOUT_MS_PADRAO: '120000', IA_EXECUCAO_TIMEOUT_MS: '300000' }
+    const comPrazoLongo = { ...LOCAL, LLM_TIMEOUT_MS: '120000', LLM_TIMEOUT_MS_RAPIDO: '120000', LLM_TIMEOUT_MS_PADRAO: '120000' }
     expect(loadLLMConfig({ ...comPrazoLongo, IA_LATENCIA_FALSA_MS: '60000' }).latenciaFalsaMs).toBe(60_000)
     expect(erroDe({ ...comPrazoLongo, IA_LATENCIA_FALSA_MS: '60001' }).variaveis).toEqual(['IA_LATENCIA_FALSA_MS'])
     expect(erroDe({ ...LOCAL, LLM_TIMEOUT_MS: '5000', IA_LATENCIA_FALSA_MS: '5000' })).toMatchObject({
@@ -245,8 +244,7 @@ describe('lerConfiguracaoDeIa', () => {
     ['LLM_TIMEOUT_MS_PADRAO', '600001'],
     ['LLM_TIMEOUT_MS_PADRAO', 'um minuto'],
     ['LLM_PROCESSAMENTO_LOCAL', 'sim'],
-    ['IA_EXECUCOES_POR_ESCOLA', '0'],
-    ['IA_EXECUCAO_TIMEOUT_MS', 'dois minutos'],
+    ['IA_REPLICAS', '0'],
   ])('recusa %s="%s"', (variavel, valor) => {
     // Um prazo inválido também reprova o que se compara com ele; o que importa é a variável errada estar apontada.
     expect(erroDe({ ...LLAMA, [variavel]: valor }).variaveis).toContain(variavel)

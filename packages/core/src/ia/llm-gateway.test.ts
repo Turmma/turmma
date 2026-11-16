@@ -162,13 +162,13 @@ describe('ProvedorDeIa: saída validada e medição', () => {
 
   it('criarProvedorDeIa: sem nada configurado, a porta é a do adaptador falso', async () => {
     const consumo = new InMemoryConsumo()
-    const ia = withEscolaContextOfRequest(createLLMGateway({ adaptador: 'falso', prazosMs: PRAZOS, recuoMs: 500, executor: { vagasPorEscola: 2, vagasNoTotal: 8, timeoutMs: 10_000 } }, { registro: consumo, orcamento: SEMPRE, suspensao: new InMemorySuspensoes() }))
+    const ia = withEscolaContextOfRequest(createLLMGateway({ adaptador: 'falso', prazosMs: PRAZOS, recuoMs: 500, replicas: 1 }, { registro: consumo, orcamento: SEMPRE, suspensao: new InMemorySuspensoes() }))
     const { medicao } = await ia.gerar({ tarefa: gerarAtividadeObjetiva, entrada: entradaDeAtividade(), escolaId: ESCOLA_A })
     expect(medicao.origem).toBe('falso')
   })
 
   it('criarProvedorDeIa: com latenciaFalsaMs a chamada do adaptador falso espera pelo menos isso, e sem ela não espera', async () => {
-    const config = { adaptador: 'falso' as const, prazosMs: PRAZOS, recuoMs: 500, executor: { vagasPorEscola: 2, vagasNoTotal: 8, timeoutMs: 10_000 } }
+    const config = { adaptador: 'falso' as const, prazosMs: PRAZOS, recuoMs: 500, replicas: 1 }
     const portas = { registro: new InMemoryConsumo(), orcamento: SEMPRE, suspensao: new InMemorySuspensoes() }
     const chamar = async (latenciaFalsaMs?: number): Promise<number> => {
       const ia = withEscolaContextOfRequest(createLLMGateway(latenciaFalsaMs === undefined ? config : { ...config, latenciaFalsaMs }, portas))
@@ -197,7 +197,7 @@ describe('criarProvedorDeIa: o adaptador do provedor sai decorado com o prazo do
     const configuracao: LLMConfig = {
       adaptador: 'openai_compat',
       ...config,
-      executor: { vagasPorEscola: 2, vagasNoTotal: 8, timeoutMs: 10_000 },
+      replicas: 1,
       modelo: { baseUrl: servidor.url, modelos: { rapido: 'm', padrao: 'm', complexo: 'm', visao: 'm' }, processamentoLocal: true },
     }
     const consumo = new InMemoryConsumo()

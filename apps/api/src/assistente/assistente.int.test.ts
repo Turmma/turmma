@@ -1,13 +1,14 @@
-import { runInContext, RECUSA_DE_CORRECAO_DE_TEXTO_DE_ALUNO, type AgenteExecutor, type InProcessAgenteExecutor, type LLMProvider, type SuspensaoDeFuncao } from '@educa/core'
+import { runInContext, RECUSA_DE_CORRECAO_DE_TEXTO_DE_ALUNO } from '@educa/core'
 import { conversaDoAssistenteResponseSchema, timeResponseSchema, FUNCOES, MENSAGENS_DE_ERRO, type ChaveDeFuncao } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
 import { PersonalDataCapture } from '../../test/personal-data-capture.js'
-import { chamar, subirApi, type TestApi, type RespostaHttp } from '../../test/test-api.js'
+import { chamar, type TestApi, type RespostaHttp } from '../../test/test-api.js'
+import { FilaDeIa } from '../../test/fila-de-ia.fixture.js'
 import {
   comoPessoa,
   contarNaEscola,
@@ -20,9 +21,6 @@ import {
   type EscolaComAssistente,
 } from '../../test/escola-assistente.fixture.js'
 import { SessaoFixtures, type TestSessao } from '../../test/sessao.fixture.js'
-import { ExecucaoScheduler } from '../ia/execucao.scheduler.js'
-import { EXECUTOR_DE_AGENTE, SUSPENSAO_DE_FUNCAO } from '../ia/ia.module.js'
-import { RegistroDeComandos } from '../ia/registro-de-comandos.js'
 import { TrechoSearch } from '../material/trecho-search.js'
 import { AssistenteService } from './assistente.service.js'
 import { ConversaRepository } from './conversa.repository.js'
@@ -41,7 +39,7 @@ describe('Assistente de ensino', () => {
   const medidor = new MedidorDeTeste()
   const linhasDeLog: string[] = []
   let api: TestApi
-  let executor: InProcessAgenteExecutor
+  let fila: FilaDeIa
   let a: EscolaComAssistente
   let b: EscolaComAssistente
 
@@ -55,19 +53,22 @@ describe('Assistente de ensino', () => {
     sql('update suspensao_de_funcao set retomada_em = greatest(now(), suspensa_em), retomada_por = $3 where escola_id = $1 and funcao = $2 and retomada_em is null', [escola.escolaId, funcao, escola.coordenacao.usuarioId])
 
   beforeAll(async () => {
-    api = await subirApi(medidor.medidor, {}, linhasDeLog)
-    executor = api.app.get<InProcessAgenteExecutor>(EXECUTOR_DE_AGENTE)
+    fila = await FilaDeIa.subir(medidor.medidor, {}, linhasDeLog)
+    api = fila.api
     a = await montarEscolaComAssistente(api, bancada)
     b = await montarEscolaComAssistente(api, bancada)
   })
+
+  // O modelo de mentira e o portão de uma execução não passam para o caso seguinte.
+  afterEach(() => fila.restaurar())
 
   beforeEach(async () => {
     await zerarLimiteDePedidosDeIa(api)
   })
 
   afterAll(async () => {
-    await executor.ociosa()
-    await api.app.close()
+    await fila.ociosa()
+    await fila.fechar()
     await bancada.fechar()
   })
 
@@ -314,18 +315,14 @@ describe('Assistente de ensino', () => {
     })
 
     it('quem perdeu o vínculo depois do 202 não recebe resposta sobre a turma: a execução confere de novo ao rodar, e nada vai ao modelo', async () => {
-      let liberar = (): void => undefined
-      const antesDeRodar = new Promise<void>((resolver) => (liberar = resolver))
       let chamadasAoModelo = 0
-      const ia = {
-        gerar: async () => {
-          chamadasAoModelo += 1
-          return { saida: { tipo: 'texto', texto: 'resposta que não deveria existir', citacoes: [] }, medicao: {} }
-        },
-      } as unknown as LLMProvider
-      // O trabalho da execução espera o teste liberar: é o intervalo entre o `202` e a execução.
-      const comEspera: AgenteExecutor = { agendar: (execucao, trabalho) => executor.agendar(execucao, async (sinal) => (await antesDeRodar, trabalho(sinal))) }
-      const servico = new AssistenteService(bancada.banco, new ExecucaoScheduler(bancada.banco, ia, comEspera, api.app.get<SuspensaoDeFuncao>(SUSPENSAO_DE_FUNCAO), api.app.get(RegistroDeComandos)), api.app.get(IaRequestRateLimit), api.app.get(TrechoSearch))
+      fila.comModelo(async () => {
+        chamadasAoModelo += 1
+        return { saida: { tipo: 'texto', texto: 'resposta que não deveria existir', citacoes: [] }, medicao: {} }
+      })
+      // O worker espera o teste liberar: é o intervalo entre o `202` e a execução.
+      const liberar = fila.segurar()
+      const servico = new AssistenteService(bancada.banco, fila.agendador(), api.app.get(IaRequestRateLimit), api.app.get(TrechoSearch))
 
       await vincularProfessor(bancada, b, b.colega.usuarioId, b.turma, b.quimica)
       const { execucaoId } = await comoPessoa(b, b.colega, 'professor', () => servico.enviar({ texto: 'o que é o reagente limitante?', turmaId: b.turma, disciplinaId: b.quimica, chaveEnvio: randomUUID() }))
@@ -367,17 +364,13 @@ describe('Assistente de ensino', () => {
   describe('o comando do Assistente relê a execução pelo id (X6, 1.0)', () => {
     /** O serviço atrás de um modelo de mentira que guarda a entrada que recebeu, com o executor segurando a execução até `liberar()`: é o intervalo entre o `202` e o `preparar`. */
     function servicoComModelo(saida: unknown = { tipo: 'texto', texto: 'resposta de teste', citacoes: [] }) {
-      let liberar = (): void => undefined
-      const antesDeRodar = new Promise<void>((resolver) => (liberar = resolver))
       const entradas: { semProposta?: boolean; mensagem: string; turnosAnteriores: { autor: string; texto: string }[] }[] = []
-      const ia = {
-        gerar: async (pedido: { entrada: { semProposta?: boolean; mensagem: string; turnosAnteriores: { autor: string; texto: string }[] } }) => {
-          entradas.push(pedido.entrada)
-          return { saida, medicao: {} }
-        },
-      } as unknown as LLMProvider
-      const comEspera: AgenteExecutor = { agendar: (execucao, trabalho) => executor.agendar(execucao, async (sinal) => (await antesDeRodar, trabalho(sinal))) }
-      const agendador = new ExecucaoScheduler(bancada.banco, ia, comEspera, api.app.get<SuspensaoDeFuncao>(SUSPENSAO_DE_FUNCAO), api.app.get(RegistroDeComandos))
+      fila.comModelo(async (pedido) => {
+        entradas.push(pedido.entrada as (typeof entradas)[number])
+        return { saida, medicao: {} }
+      })
+      const liberar = fila.segurar()
+      const agendador = fila.agendador()
       return { servico: new AssistenteService(bancada.banco, agendador, api.app.get(IaRequestRateLimit), api.app.get(TrechoSearch)), liberar, entradas }
     }
     const pedir = (escola: EscolaComAssistente, servico: AssistenteService, texto: string) => comoPessoa(escola, escola.professora, 'professor', () => servico.enviar({ texto, turmaId: escola.turma, disciplinaId: escola.quimica, chaveEnvio: randomUUID() }))
@@ -395,8 +388,8 @@ describe('Assistente de ensino', () => {
 
     it('depois do 202, a pergunta que saiu da conversa, a disciplina em que a professora não tem vínculo e o material que saiu de uso não chegam à busca nem ao modelo', async () => {
       const c = await montarEscolaComAssistente(api, bancada)
-      const busca = vi.spyOn(api.app.get(TrechoSearch), 'buscar')
-      const existe = vi.spyOn(api.app.get(TrechoSearch), 'existeMaterialDaSerie')
+      const busca = vi.spyOn(fila.trechos, 'buscar')
+      const existe = vi.spyOn(fila.trechos, 'existeMaterialDaSerie')
       try {
         const casos = [
           { rotulo: 'pergunta removida', erro: 'NAO_ENCONTRADO', mexer: (execucaoId: string) => sql(`delete from mensagem_agente where escola_id = $1 and execucao_id = $2 and autor = 'usuario'`, [c.escolaId, execucaoId]), leMaterial: false },
@@ -425,7 +418,7 @@ describe('Assistente de ensino', () => {
 
     it('a pergunta lida é a da própria professora: a linha que está na thread da colega, ou que aponta para a turma da colega, é NAO_ENCONTRADO (a de outra escola nem existe: a turma e a thread vão por FK composta com a escola)', async () => {
       const c = await montarEscolaComAssistente(api, bancada)
-      const busca = vi.spyOn(api.app.get(TrechoSearch), 'buscar')
+      const busca = vi.spyOn(fila.trechos, 'buscar')
       try {
         await sql(`insert into thread_agente (escola_id, ano_letivo_id, usuario_id, agente) values ($1, $2, $3, 'assistente_de_ensino') on conflict do nothing`, [c.escolaId, c.anoLetivoId, c.colega.usuarioId])
         const { rows } = await sql(`select id from thread_agente where escola_id = $1 and usuario_id = $2 and agente = 'assistente_de_ensino'`, [c.escolaId, c.colega.usuarioId])
@@ -451,7 +444,7 @@ describe('Assistente de ensino', () => {
 
     it('a função suspensa depois do 202 não chega ao `preparar`: nem leitura da conversa, nem busca, nem modelo, nem consumo', async () => {
       const c = await montarEscolaComAssistente(api, bancada)
-      const busca = vi.spyOn(api.app.get(TrechoSearch), 'buscar')
+      const busca = vi.spyOn(fila.trechos, 'buscar')
       const { servico, liberar, entradas } = servicoComModelo()
       try {
         const { execucaoId } = await pedir(c, servico, 'o que é o reagente limitante?')
@@ -469,7 +462,7 @@ describe('Assistente de ensino', () => {
 
     it('a conversa anterior acompanha a nova como turnos, na ordem, com o autor da função; e só com "só conversar" a busca leva também o último pedido dela', async () => {
       const c = await montarEscolaComAssistente(api, bancada)
-      const busca = vi.spyOn(api.app.get(TrechoSearch), 'buscar')
+      const busca = vi.spyOn(fila.trechos, 'buscar')
       try {
         const { servico, liberar, entradas } = servicoComModelo()
         const enviar = async (texto: string, resposta?: 'so_conversar') => {
@@ -548,7 +541,7 @@ describe('Assistente de ensino', () => {
       await execucaoTerminada(api, a.professora, execucaoId ?? '')
       // O reenvio depois de concluída devolve a mesma, e não roda de novo.
       expect((await post(a.professora, '/v1/assistente/mensagens', corpo)).corpo['execucaoId']).toBe(execucaoId)
-      await executor.ociosa()
+      await fila.ociosa()
       expect(await contarNaEscola(bancada, 'execucao_agente', a.escolaId, `chave_envio = '${corpo.chaveEnvio}'`)).toBe(1)
       const { rows } = await sql('select autor from mensagem_agente where escola_id = $1 and execucao_id = $2 order by autor', [a.escolaId, execucaoId])
       expect(rows).toEqual([{ autor: 'agente' }, { autor: 'usuario' }])
@@ -568,7 +561,7 @@ describe('Assistente de ensino', () => {
       const emB = await post(b.professora, '/v1/assistente/mensagens', { ...corpo, turmaId: b.turma, disciplinaId: b.quimica })
       expect(emB.status).toBe(202)
       expect(emB.corpo['execucaoId']).not.toBe(daProfessora.corpo['execucaoId'])
-      await executor.ociosa()
+      await fila.ociosa()
     })
   })
 
@@ -578,7 +571,7 @@ describe('Assistente de ensino', () => {
       try {
         const antes = [await contarNaEscola(bancada, 'execucao_agente', a.escolaId), await contarNaEscola(bancada, 'mensagem_agente', a.escolaId), await contarNaEscola(bancada, 'consumo_ia', a.escolaId)]
         expect(await post(a.professora, '/v1/assistente/mensagens', mensagem(a, 'monta uma atividade de mol'))).toMatchObject({ status: 409, corpo: { erro: { codigo: 'FUNCAO_SUSPENSA' } } })
-        await executor.ociosa()
+        await fila.ociosa()
         expect([await contarNaEscola(bancada, 'execucao_agente', a.escolaId), await contarNaEscola(bancada, 'mensagem_agente', a.escolaId), await contarNaEscola(bancada, 'consumo_ia', a.escolaId)]).toEqual(antes)
         const emB = await execucaoTerminada(api, b.professora, await dispararExecucao(api, b.professora, '/v1/assistente/mensagens', mensagem(b, 'monta uma atividade de mol')))
         expect(emB.estado).toBe('concluida')
@@ -588,7 +581,7 @@ describe('Assistente de ensino', () => {
         await retomar(a, 'conversa_e_ferramentas')
       }
       expect((await post(a.professora, '/v1/assistente/mensagens', mensagem(a, 'monta uma atividade de mol'))).status).toBe(202)
-      await executor.ociosa()
+      await fila.ociosa()
     })
   })
 
@@ -681,7 +674,7 @@ describe('Assistente de ensino', () => {
       expect(await post(a.professora, '/v1/assistente/mensagens', mensagem(a, 'e massa molar?'))).toMatchObject({ status: 429, corpo: { erro: { codigo: 'LIMITE_EXCEDIDO' } } })
       expect(await contarNaEscola(bancada, 'execucao_agente', a.escolaId)).toBe(execucoesAntes)
       expect((await post(a.colega, '/v1/assistente/mensagens', mensagem(a, 'o que é mol?', { turmaId: a.outraTurma }))).status).toBe(202)
-      await executor.ociosa()
+      await fila.ociosa()
       // Uma linha de log por janela, com o evento e os ids, e nada do pedido (regra 80, item 10; regra 20, item 9).
       expect(await post(a.professora, '/v1/assistente/mensagens', mensagem(a, 'e massa molar?'))).toMatchObject({ status: 429 })
       const doLimite = linhasDeLog.map((linha) => JSON.parse(linha) as Record<string, unknown>).filter((linha) => linha['evento'] === 'ia.limite_de_pedidos_atingido')

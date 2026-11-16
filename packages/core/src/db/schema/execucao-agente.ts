@@ -7,9 +7,9 @@ import { usuario } from './usuario.js'
 
 /**
  * Uma execução de agente (MVP, seção 4, item 1; `docs/agentes.md`, "Requisitos de runtime"; D49): todo `POST` que
- * dispara IA grava a linha `pendente` e responde na hora; a execução roda depois e termina `concluida` ou `falhou`. Nesta
- * fatia ela roda no processo da API, atrás do `AgenteExecutor` (`packages/core/src/ia`), e não na fila: dívida
- * declarada, `TODO(fila)`. É a tabela da porta `ExecucaoRepository`.
+ * dispara IA grava a linha `pendente` e o job `ia.executar` na mesma transação e responde na hora; o `main-worker` (`worker-ia`) roda a
+ * execução depois e ela termina `concluida` ou `falhou` (reengenharia-continuacao, 5.0). É a tabela do `ExecucaoRepository` (o
+ * processador do worker) e do `ExecucaoDaSessaoRepository` (a pessoa da sessão), ambos em `apps/api/src/ia`.
  *
  * - `chave_envio` é a chave de idempotência (a `chave` da `ExecucaoAgendada`), que a tela sorteia a cada envio. Índice
  *   único `(escola_id, chave_envio)`: o reenvio, o clique duplo e a reexecução caem no 23505, e quem grava relê a execução
