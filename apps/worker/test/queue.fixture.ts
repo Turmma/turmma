@@ -73,6 +73,8 @@ export function urlRedisDeFila(): string {
   return `redis://127.0.0.1:${valorObrigatorio(ambiente, 'REDIS_FILA_PORTA_HOST')}`
 }
 
+const UUID_NO_TEXTO = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi
+
 /** Log em memória, para o teste ler o que o processo escreveria no stdout. */
 export class InMemoryLog {
   readonly linhas: string[] = []
@@ -88,6 +90,16 @@ export class InMemoryLog {
 
   doEvento(evento: string): Array<Record<string, unknown>> {
     return this.registros().filter((registro) => registro['evento'] === evento)
+  }
+
+  /**
+   * O valor aparece no log como dado, fora de um id? Todo UUID sai do texto antes da busca, porque o log leva ids sorteados (dígitos
+   * hexadecimais) e uma sequência curta de dígitos cabe dentro de um deles. Por isso a busca serve só para valor que não tem formato de
+   * UUID: procurar um UUID que vazou dá sempre `false`. E só os UUIDs são descartados: número de medição (`prazoMs`, `esperaMs`) continua
+   * no texto e é achado.
+   */
+  contemValor(valor: string): boolean {
+    return this.linhas.join('\n').replace(UUID_NO_TEXTO, '').includes(valor)
   }
 }
 
