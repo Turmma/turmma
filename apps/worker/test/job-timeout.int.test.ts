@@ -70,7 +70,7 @@ describe('o worker corta a tentativa no prazo do tipo', () => {
     const estouro = log.doEvento('job.tempo_esgotado')
     expect(estouro).toEqual([expect.objectContaining({ jobId: id, tentativa: 1, prazoMs: PRAZO_CURTO_MS })])
     expect(log.doEvento('job.falhou')).toEqual([expect.objectContaining({ jobId: id, codigo: JobFailureCode.TEMPO_ESGOTADO })])
-    expect(log.linhas.join('\n')).not.toContain(String(CPU_QUE_SO_O_JOB_TEM))
+    expect(log.contemValor(String(CPU_QUE_SO_O_JOB_TEM))).toBe(false)
   })
 
   it('o estouro libera a vaga da escola logo: com limite de 1, o segundo job roda sem esperar o processador que ignora o sinal', async () => {
