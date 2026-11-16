@@ -165,6 +165,8 @@ A S12, a suspensão e o `NAO_ENCONTRADO` não contam. `trocasHoje`
 (todas as disciplinas) e o freio não mudam. A linha do aluno mostra, neutro e separado do freio, "N perguntas que o Tutor não
 respondeu hoje".
 
+**Como a 9.0 ficou (o código manda).** (1) **`#semResposta`** (`supervisao.repository.ts`) é `exists` da execução `falhou` num código de `PASSAGEIROS` (importada, sem cópia) e `notExists` da mensagem fixa da D36 no mesmo turno; `ultimasTrocas` a soma ao `notExists(#execucaoQueFalhou)` num `or`, e o recorte de turma, ano e disciplina virou `#recorteDoProfessor`, usado também por `semRespostaDeHoje(turmaId, alunos)`, que conta só os alunos que `ultimasTrocas` devolveu. `trocasDeHoje` e o freio não mudaram. (2) **A tela**: `perguntasSemResposta` (`sinais.ts`) escreve a frase, e a célula "Trocas hoje" a mostra em outra linha, só quando há. (3) **O caso de e2e** é o `a3-a4-professor.spec.ts`, contra a API real, com a pergunta sem resposta gravada no banco (o corte pede 20 s de fila parada): um caso novo em `professor-tutor.spec.ts` levava de 16 a 19 s, a entrada da professora gasta 11,5 s, e o portão o reprova acima de 15 s. A medida a 1366 × 768 (`soOPainelDaAbaRola`) é da aba por trás do painel, e a linha nova mora dentro dele: ela fica no `professor-turma-aberta.spec.ts`. (4) **O runbook** "A D62 na subida" diz que a professora vê o contador.
+
 **A web (52.0, 56.0).** O `apiRequest` liga um `AbortController` próprio ao sinal de quem chamou, com os prazos do RF11: o
 estouro vira `ApiError(TEMPO_ESGOTADO)`; o cancelamento relança o `AbortError`, fora da tela. `material.ts` e `artefatos.ts` usam
 o mesmo `comPrazo`, e `no-restricted-globals` barra `fetch` fora do cliente. O `PUT` estourado vai para o fim da

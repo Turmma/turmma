@@ -19,7 +19,7 @@ import {
   type Clock,
   type DatabaseTransaction,
 } from '@educa/core'
-import { TIPOS_DE_SINAL_DE_TRABALHO, TROCAS_POR_DIA_PADRAO_DO_TUTOR, TROCAS_POR_MES_PADRAO_DO_TUTOR, type TipoDeSinal, type TipoDeSinalDeTrabalho } from '@educa/shared'
+import { PASSAGEIROS, TIPOS_DE_SINAL_DE_TRABALHO, TROCAS_POR_DIA_PADRAO_DO_TUTOR, TROCAS_POR_MES_PADRAO_DO_TUTOR, type TipoDeSinal, type TipoDeSinalDeTrabalho } from '@educa/shared'
 import { and, asc, count, countDistinct, desc, eq, exists, gte, inArray, isNull, lt, notExists, or, sql, type AnyColumn, type SQL } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import { comVinculoConfirmadoDoProfessor, type ColunasDaTurma } from '../assistente/turma-do-professor.repository.js'
@@ -68,6 +68,8 @@ const aplicacaoDaLinha = alias(atividadeAplicada, 'aplicacao_da_linha')
 const artefatoDaAplicacao = alias(artefato, 'artefato_da_aplicacao_da_linha')
 const materialDaLinha = alias(material, 'material_da_linha')
 const alunoDaTurma = alias(vinculo, 'aluno_da_turma')
+/** A mensagem fixa da D36 que o Tutor gravou no mesmo turno da pergunta: a pergunta que a recebeu foi respondida por um humano a caminho, e não é "sem resposta". */
+const respostaFixaDoTurno = alias(mensagemTutor, 'resposta_fixa_do_turno')
 
 /**
  * A supervisão do Tutor pelo **professor da sessão** (MVP, A4; D8, D34, D47; regra 70, itens 4 e 7): os sinais e o uso
@@ -210,17 +212,48 @@ export class SupervisaoDoTutorRepository {
   }
 
   /**
-   * Os alunos da turma que já trocaram com o Tutor no ano, **em ordem de nome**, cada um com a hora e a referência da
-   * **última** troca que este professor alcança (a da disciplina dele, ou a feita fora de atividade e de material).
+   * A pergunta **não foi respondida** (RF5): a execução terminou `falhou` num código de `PASSAGEIROS` (o corte da espera, o
+   * worker parado, a saída inválida, o teto, a reentrega interrompida...), e o turno não recebeu a mensagem fixa da D36. O
+   * critério é a lista do contrato, importada, e não uma cópia: código passageiro novo entra na contagem sozinho. A avaliação
+   * aberta (S12), a função suspensa e o `NAO_ENCONTRADO` não são passageiros: o Tutor não deixou de responder por falha, e a
+   * pergunta não conta aqui, como não conta no freio.
+   * Só vale dentro de uma consulta já escopada (escola, ano e turma do contexto): as subconsultas se amarram à escola da linha de `mensagem_tutor`, não ao contexto.
+   */
+  #semResposta(): SQL {
+    const cortada = this.banco
+      .select({ id: execucaoAgente.id })
+      .from(execucaoAgente)
+      .where(and(eq(execucaoAgente.escolaId, mensagemTutor.escolaId), eq(execucaoAgente.id, mensagemTutor.execucaoId), eq(execucaoAgente.estado, 'falhou'), inArray(execucaoAgente.erro, [...PASSAGEIROS])))
+    const comMensagemFixa = this.banco
+      .select({ id: respostaFixaDoTurno.id })
+      .from(respostaFixaDoTurno)
+      .where(and(eq(respostaFixaDoTurno.escolaId, mensagemTutor.escolaId), eq(respostaFixaDoTurno.execucaoId, mensagemTutor.execucaoId), eq(respostaFixaDoTurno.tipo, 'assunto_delicado')))
+    return sql`(${exists(cortada)} and ${notExists(comMensagemFixa)})`
+  }
+
+  /**
+   * A troca ou a pergunta sem resposta que este professor alcança: a da disciplina dele (a atividade ou o material é da
+   * disciplina em que ele tem vínculo confirmado), ou a feita fora de atividade e de material, que todo professor da turma
+   * vê (senão seria uso invisível a todos; regra 70, item 4). É o recorte de `ultimasTrocas` e de `semRespostaDeHoje`.
+   */
+  #recorteDoProfessor(): SQL {
+    const colunas = { escolaId: mensagemTutor.escolaId, anoLetivoId: mensagemTutor.anoLetivoId, turmaId: mensagemTutor.turmaId, atividadeAplicadaId: mensagemTutor.atividadeAplicadaId, materialId: mensagemTutor.materialId }
+    const semDisciplina = and(isNull(mensagemTutor.atividadeAplicadaId), isNull(mensagemTutor.materialId))
+    return sql`(${or(and(semDisciplina, this.#comVinculoNaTurma(colunas)), this.#daDisciplinaDoProfessor(colunas))})`
+  }
+
+  /**
+   * Os alunos da turma que já perguntaram ao Tutor no ano, **em ordem de nome**, cada um com a hora e a referência da
+   * **última** pergunta que este professor alcança (a da disciplina dele, ou a feita fora de atividade e de material). A
+   * última é a que o Tutor respondeu **ou** a que ficou sem resposta (`#semResposta`): o aluno cuja única pergunta foi
+   * cortada também aparece, porque o uso invisível é justamente o que a supervisão não pode deixar passar (D8, D47).
    *
    * O que a consulta não tem, de propósito (regra 70, item 7): o texto da pergunta ou da resposta; quem **não** usou
-   * (a junção é com a última troca, e quem não tem não aparece); as trocas anteriores à última; ordenação por recência
+   * (a junção é com a última pergunta, e quem não tem não aparece); as anteriores à última; ordenação por recência
    * ou por quantidade.
    */
   async ultimasTrocas(turmaId: string, limite: number): Promise<UltimaTrocaDoAluno[]> {
     const { escolaId, anoLetivoId } = this.#escopo()
-    const colunas = { escolaId: mensagemTutor.escolaId, anoLetivoId: mensagemTutor.anoLetivoId, turmaId: mensagemTutor.turmaId, atividadeAplicadaId: mensagemTutor.atividadeAplicadaId, materialId: mensagemTutor.materialId }
-    const semDisciplina = and(isNull(mensagemTutor.atividadeAplicadaId), isNull(mensagemTutor.materialId))
     const ultima = this.banco
       .select({
         criadaEm: mensagemTutor.criadaEm,
@@ -237,8 +270,8 @@ export class SupervisaoDoTutorRepository {
           eq(mensagemTutor.turmaId, turmaId),
           eq(mensagemTutor.alunoId, alunoDaTurma.usuarioId),
           eq(mensagemTutor.autor, 'aluno'),
-          notExists(this.#execucaoQueFalhou()),
-          or(and(semDisciplina, this.#comVinculoNaTurma(colunas)), this.#daDisciplinaDoProfessor(colunas)),
+          or(notExists(this.#execucaoQueFalhou()), this.#semResposta()),
+          this.#recorteDoProfessor(),
         ),
       )
       .orderBy(desc(mensagemTutor.id))
@@ -286,6 +319,34 @@ export class SupervisaoDoTutorRepository {
           eq(mensagemTutor.autor, 'aluno'),
           gte(mensagemTutor.criadaEm, this.#desde(diaDeUso(this.relogio.agora()))),
           notExists(this.#execucaoQueFalhou()),
+        ),
+      )
+      .groupBy(mensagemTutor.alunoId)
+    return new Map(linhas.map((linha) => [linha.alunoId, linha.total]))
+  }
+
+  /**
+   * As perguntas de hoje que o Tutor **não respondeu**, por aluno (RF5): desde a virada do dia no fuso do uso (`FUSO_DO_USO`),
+   * na turma, no ano e no recorte deste professor, com o mesmo critério de `ultimasTrocas` (`#semResposta`). Só a contagem: a consulta
+   * não lê `texto`, `citacoes` nem o código do erro, e o aluno sem nenhuma não está no mapa. **`trocasDeHoje` e o freio não
+   * mudam**: a pergunta cortada continua fora das trocas, e esta conta existe ao lado delas, para a professora ver que o aluno perguntou.
+   */
+  async semRespostaDeHoje(turmaId: string, alunos: readonly string[]): Promise<Map<string, number>> {
+    if (alunos.length === 0) return new Map()
+    const { escolaId, anoLetivoId } = this.#escopo()
+    const linhas = await this.banco
+      .select({ alunoId: mensagemTutor.alunoId, total: count() })
+      .from(mensagemTutor)
+      .where(
+        and(
+          eq(mensagemTutor.escolaId, escolaId),
+          eq(mensagemTutor.anoLetivoId, anoLetivoId),
+          eq(mensagemTutor.turmaId, turmaId),
+          inArray(mensagemTutor.alunoId, [...alunos]),
+          eq(mensagemTutor.autor, 'aluno'),
+          gte(mensagemTutor.criadaEm, this.#desde(diaDeUso(this.relogio.agora()))),
+          this.#semResposta(),
+          this.#recorteDoProfessor(),
         ),
       )
       .groupBy(mensagemTutor.alunoId)

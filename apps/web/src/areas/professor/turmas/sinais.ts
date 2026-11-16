@@ -116,3 +116,14 @@ export const QUANDO_O_TUTOR_AVISA = [
 export function trocasDeHoje(uso: Pick<UsoDoAluno, 'trocasHoje'>, limiteDoDia: number): string {
   return `${String(uso.trocasHoje)} de ${String(limiteDoDia)}`
 }
+
+/**
+ * "2 perguntas que o Tutor não respondeu hoje": a contagem de RF5, no singular quando é uma, e **nada** (`null`) com zero. Fala do
+ * Tutor, não do aluno (o aluno perguntou e o Tutor não respondeu), é só o número, sem o texto da pergunta, e não é o "12 de 60":
+ * não conta contra o freio, e a tela a mostra à parte dele.
+ */
+export function perguntasSemResposta(uso: Pick<UsoDoAluno, 'semRespostaHoje'>): string | null {
+  const { semRespostaHoje: quantas } = uso
+  if (quantas === 0) return null
+  return `${String(quantas)} ${quantas === 1 ? 'pergunta' : 'perguntas'} que o Tutor não respondeu hoje`
+}

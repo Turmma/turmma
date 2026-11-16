@@ -1,4 +1,4 @@
-import type { Sinal } from '@educa/shared'
+import type { Sinal, UsoDoAluno } from '@educa/shared'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { ChartNoAxesColumn, ChevronRight, HeartHandshake } from 'lucide-react'
 import { useEffect, useId, useRef } from 'react'
@@ -28,6 +28,7 @@ import {
   emQueEstava,
   falaDoGrupo,
   horaDoUltimoAviso,
+  perguntasSemResposta,
   porNome,
   QUANDO_O_TUTOR_AVISA,
   separarSinais,
@@ -305,6 +306,20 @@ interface PropsDoPainel {
 }
 
 /**
+ * A célula "Trocas hoje" do uso: o "12 de 60" do freio e, **à parte, em outra linha**, "N perguntas que o Tutor não respondeu hoje"
+ * (RF5), só com `semRespostaHoje` acima de zero. O aviso é neutro: fala do Tutor, não do aluno, e não é uma troca nem entra no "12 de 60".
+ */
+function CelulaDasTrocasDeHoje({ aluno, limiteDoDia }: { readonly aluno: UsoDoAluno; readonly limiteDoDia: number }) {
+  const semResposta = perguntasSemResposta(aluno)
+  return (
+    <>
+      <span>{trocasDeHoje(aluno, limiteDoDia)}</span>
+      {semResposta !== null && <span className="block text-sutil">{semResposta}</span>}
+    </>
+  )
+}
+
+/**
  * O painel "O que o Tutor viu" (`?ver=tutor`): o único lugar de Hoje em que o nome do aluno chega à tela, e só depois de
  * "Ver quem" ou "Ver o uso do Tutor por aluno" (D34, D36). Começa pela atenção humana, sem o que foi dito, e segue com os sinais
  * e o uso por aluno, **em ordem de nome** (D69: não é ranking nem recência).
@@ -387,7 +402,7 @@ function PainelDoTutor({ turmaId, lendoOsSinais, falhouOsSinais, atencao, alunos
                   rotulo="Uso do Tutor por aluno"
                   colunas={[
                     { chave: 'aluno', titulo: 'Aluno', celula: (aluno) => aluno.aluno.nome },
-                    { chave: 'hoje', titulo: 'Trocas hoje', celula: (aluno) => trocasDeHoje(aluno, uso.data.limiteDoDia) },
+                    { chave: 'hoje', titulo: 'Trocas hoje', celula: (aluno) => <CelulaDasTrocasDeHoje aluno={aluno} limiteDoDia={uso.data.limiteDoDia} /> },
                     // A hora, como hora ("05/10, 10h42"): nunca "há X minutos", que viraria relógio de tempo parado.
                     { chave: 'ultima', titulo: 'Última troca', celula: (aluno) => formatDayAndTime(aluno.ultimaTrocaEm) },
                     { chave: 'onde', titulo: 'Em que estava', celula: (aluno) => emQueEstava(aluno, referencias) },

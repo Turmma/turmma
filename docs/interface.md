@@ -330,7 +330,9 @@ conversa (regra 50, item 10; D34).
 - **O nome chega por ação explícita**: "Ver quem" e "Ver o uso do Tutor por aluno" abrem o painel "O que o
   Tutor viu" (`?ver=tutor`), com a atenção humana (nome e hora, sem o que foi dito), os "Sinais por aluno" e o
   "Uso do Tutor pela turma" (as trocas do mês contra o pacote e, por aluno, as trocas de hoje, a última troca e
-  em que ele estava), **em ordem de nome** e nunca por recência. A leitura nominal do uso só existe com o painel
+  em que ele estava), **em ordem de nome** e nunca por recência. Na célula das trocas de hoje, **à parte do "12 de 60"
+  e só quando há**, a linha neutra "N perguntas que o Tutor não respondeu hoje" (RF5: a pergunta que o Tutor
+  não respondeu, sem o texto e sem o motivo; "1 pergunta…" no singular; com zero, nada; não é troca nem entra no freio). A leitura nominal do uso só existe com o painel
   aberto e sai da memória com ele. **Nenhuma linha, botão ou link leva à conversa de um aluno**
 - O endereço antigo do Tutor (`/professor/time/tutor`) leva a Hoje, quando há uma só turma confirmada, ou a
   Turmas

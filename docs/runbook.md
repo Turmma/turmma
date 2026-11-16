@@ -1240,7 +1240,9 @@ suboperador a conferir e sobem sem ele (reengenharia-continuacao, tarefa 8.0; D6
 `categoriasEnviadas` de cada tarefa em `packages/core/src/ia/tasks/`). Sem isso, o `worker-ia` **falha fechado**: não cria o consumidor das filas `api-*` nem bate o batimento, e o gateway recusa a tarefa
 com texto de aluno (`IA_INDISPONIVEL`, log `ia.geracao.soberania_recusada`). O que não leva texto de aluno e a resposta fixa do assunto delicado (D36, o 188) não passam por essa recusa.
 Com o banco fora, a conferência também não passa. **A API não confere e não muda:** a `/prontidao` dela responde como sempre, e login, prova e o resto do produto seguem de pé (o horário de aula
-é sagrado, regra 80). Quem pergunta ao Tutor durante a falha vê "Tentar de novo" depois do corte da espera de 20 s (AIA do Tutor, itens 15 e 16).
+é sagrado, regra 80). Quem pergunta ao Tutor durante a falha vê "Tentar de novo" depois do corte da espera de 20 s (AIA do Tutor, itens 15 e 16), e **o professor vê o contador**: no uso da turma
+(`?ver=tutor`), cada aluno que perguntou mostra "N perguntas que o Tutor não respondeu hoje", sem o texto. Numa manhã com o `worker-ia` parado, é por ali que a professora percebe o que a turma está passando; é uma razão a
+mais para avisar a coordenação das escolas (seção "Como avisar as escolas").
 
 **Primeiro olhar.** O log do `worker-ia` (`docker compose logs --since 10m worker-ia-1 worker-ia-2`): `ia.soberania_na_subida_recusada` traz `provedorId` e o `codigo`, com os motivos separados por vírgula
 (`sem_suboperador_vigente`, `pais_fora_do_brasil`, `treinamento_nao_vedado`, `alcance_nao_e_todas`, `categoria_faltando:<categoria>`); `ia.soberania_na_subida_sem_banco` é o banco que não respondeu.

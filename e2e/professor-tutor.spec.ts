@@ -43,8 +43,8 @@ function comSinaisEUso(api: AssistenteApiMock, turmaId: string): void {
     trocasDaTurmaNoMes: 412,
     pacoteDaTurmaNoMes: 9000,
     alunos: [
-      { aluno: BRUNO, trocasHoje: 2, ultimaTrocaEm: '2026-10-05T13:26:00.000Z', ultimaReferencia: { atividadeAplicadaId: null, questao: null, materialId: null, pagina: null } },
-      { aluno: ANA, trocasHoje: 12, ultimaTrocaEm: '2026-10-05T13:42:00.000Z', ultimaReferencia: { atividadeAplicadaId: atividade.id, questao: 3, materialId: null, pagina: null } },
+      { aluno: BRUNO, trocasHoje: 2, semRespostaHoje: 0, ultimaTrocaEm: '2026-10-05T13:26:00.000Z', ultimaReferencia: { atividadeAplicadaId: null, questao: null, materialId: null, pagina: null } },
+      { aluno: ANA, trocasHoje: 12, semRespostaHoje: 2, ultimaTrocaEm: '2026-10-05T13:42:00.000Z', ultimaReferencia: { atividadeAplicadaId: atividade.id, questao: 3, materialId: null, pagina: null } },
     ],
   }
 }

@@ -134,19 +134,29 @@ describe('memória do Tutor (D66): o trabalho do aluno, nunca a pessoa', () => {
 
 describe('uso do Tutor por turma: nenhum uso é invisível ao professor, e supervisão não é vigilância (regra 70, itens 4 e 7; D47)', () => {
   const referencia = { atividadeAplicadaId: OUTRO_ID, questao: 3, materialId: null, pagina: null }
-  const uso = { aluno, trocasHoje: 12, ultimaTrocaEm: AGORA, ultimaReferencia: referencia }
+  const uso = { aluno, trocasHoje: 12, semRespostaHoje: 2, ultimaTrocaEm: AGORA, ultimaReferencia: referencia }
   const resposta = { turmaId: UM_ID, limiteDoDia: 60, trocasDaTurmaNoMes: 412, pacoteDaTurmaNoMes: 9600, alunos: [uso] }
 
   it('por aluno: as trocas do dia, a hora da última e em que ele estava; o aluno sem sinal nenhum aparece do mesmo jeito', () => {
     expect(usoDoTutorResponseSchema.parse(resposta)).toEqual(resposta)
     // Quem só fez perguntas comuns, fora de atividade e de material, e não trocou hoje: continua visível.
-    const semSinal = { aluno: { id: OUTRO_ID, nome: 'Bruno Tavares' }, trocasHoje: 0, ultimaTrocaEm: AGORA, ultimaReferencia: { atividadeAplicadaId: null, questao: null, materialId: null, pagina: null } }
+    const semSinal = { aluno: { id: OUTRO_ID, nome: 'Bruno Tavares' }, trocasHoje: 0, semRespostaHoje: 0, ultimaTrocaEm: AGORA, ultimaReferencia: { atividadeAplicadaId: null, questao: null, materialId: null, pagina: null } }
     expect(usoDoTutorResponseSchema.safeParse({ ...resposta, alunos: [uso, semSinal] }).success).toBe(true)
     expect(usoDoAlunoSchema.safeParse({ ...uso, ultimaReferencia: { atividadeAplicadaId: null, questao: null, materialId: OUTRO_ID, pagina: 151 } }).success).toBe(true)
     // Sem a hora da última troca ou sem as trocas do dia, o uso não está dito.
-    for (const campo of ['trocasHoje', 'ultimaTrocaEm', 'ultimaReferencia'] as const) {
+    for (const campo of ['trocasHoje', 'semRespostaHoje', 'ultimaTrocaEm', 'ultimaReferencia'] as const) {
       const { [campo]: _fora, ...semCampo } = uso
       expect(usoDoAlunoSchema.safeParse(semCampo).success, campo).toBe(false)
+    }
+  })
+
+  it('as perguntas sem resposta de hoje são só um número inteiro: sem texto da pergunta, sem código de erro e sem lista', () => {
+    expect(usoDoAlunoSchema.safeParse({ ...uso, semRespostaHoje: 0 }).success).toBe(true)
+    for (const valor of [-1, 1.5, '2', null, [{ pergunta: 'não entendi' }], { codigo: 'IA_INDISPONIVEL' }]) {
+      expect(usoDoAlunoSchema.safeParse({ ...uso, semRespostaHoje: valor }).success, JSON.stringify(valor)).toBe(false)
+    }
+    for (const campo of [{ perguntasSemResposta: ['não entendi'] }, { codigoDoErro: 'IA_INDISPONIVEL' }, { semResposta: [OUTRO_ID] }, { ultimaSemResposta: AGORA }]) {
+      expect(usoDoAlunoSchema.safeParse({ ...uso, ...campo }).success, Object.keys(campo)[0]).toBe(false)
     }
   })
 

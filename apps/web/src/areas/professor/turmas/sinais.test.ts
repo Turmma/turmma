@@ -2,7 +2,7 @@ import type { Sinal } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import * as textos from './sinais'
 import { formatDayAndTime } from '../../../format'
-import { emQueEstava, falaDoGrupo, horaDoUltimoAviso, ondeFoi, porNome, separarSinais, textoDaAtencaoHumana, textoDaHoraDoAviso, textoDoSinal, tituloDaAtencaoHumana, trocasDeHoje } from './sinais'
+import { emQueEstava, falaDoGrupo, horaDoUltimoAviso, ondeFoi, perguntasSemResposta, porNome, separarSinais, textoDaAtencaoHumana, textoDaHoraDoAviso, textoDoSinal, tituloDaAtencaoHumana, trocasDeHoje } from './sinais'
 
 const id = (final: string) => `0190f5a0-0000-7000-8000-0000000000${final}`
 const REFERENCIAS = { atividades: { [id('a1')]: 'Atividade — Estequiometria' }, materiais: { [id('b1')]: 'Química 2' } }
@@ -48,8 +48,14 @@ describe('os sinais do Tutor: só o trabalho, e onde', () => {
     expect(emQueEstava({ ultimaReferencia: { atividadeAplicadaId: null, questao: null, materialId: null, pagina: null } }, REFERENCIAS)).toBe('Sem atividade nem material')
   })
 
+  it('as perguntas sem resposta: o número no plural e no singular, e nada com zero', () => {
+    expect(perguntasSemResposta({ semRespostaHoje: 2 })).toBe('2 perguntas que o Tutor não respondeu hoje')
+    expect(perguntasSemResposta({ semRespostaHoje: 1 })).toBe('1 pergunta que o Tutor não respondeu hoje')
+    expect(perguntasSemResposta({ semRespostaHoje: 0 })).toBeNull()
+  })
+
   it('regra 70, item 7: nenhum texto fixo fala em tempo parado, ociosidade, atenção, humor ou emoção do aluno', () => {
-    const fixos = [...Object.values(textos).flatMap((valor) => (typeof valor === 'string' ? [valor] : [])), ...textos.QUANDO_O_TUTOR_AVISA, ...[1, 2].flatMap((quantos) => [tituloDaAtencaoHumana(quantos), textoDaAtencaoHumana(quantos)])]
+    const fixos = [...Object.values(textos).flatMap((valor) => (typeof valor === 'string' ? [valor] : [])), ...textos.QUANDO_O_TUTOR_AVISA, ...[1, 2].flatMap((quantos) => [tituloDaAtencaoHumana(quantos), textoDaAtencaoHumana(quantos)]), ...[1, 2].map((quantas) => perguntasSemResposta({ semRespostaHoje: quantas }) ?? '')]
     expect(fixos.length).toBeGreaterThanOrEqual(2)
     for (const texto of fixos) expect(texto).not.toMatch(/ocios|parado|distra|desatent|humor|triste|ansios|emoç/i)
   })

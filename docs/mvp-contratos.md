@@ -126,8 +126,9 @@ A prova do aluno é montada por `questoesDaProva(conteudo)`: copia número, enun
 
 **`GET /tutor/uso?turmaId=` é o que faz não existir uso do Tutor invisível ao professor** (D8, D47; regra 70, item 4). O
 sinal só nasce em quatro situações; o aluno com turnos todos comuns não gera sinal, e aparece aqui. Por aluno que já
-trocou com o Tutor no ano letivo, em ordem de nome: `trocasHoje`, `ultimaTrocaEm` e `ultimaReferencia` (a atividade
-aplicada e a questão, ou o material e a página, da última troca), mais o freio do dia e a soma da turma no mês contra o
+perguntou ao Tutor no ano letivo, em ordem de nome: `trocasHoje`, `semRespostaHoje` (as perguntas de hoje que o Tutor
+não respondeu: terminaram num código de `PASSAGEIROS`, sem a mensagem fixa da D36; só o número, sem o texto nem o código), `ultimaTrocaEm` e
+`ultimaReferencia` (a atividade aplicada e a questão, ou o material e a página, da última pergunta, respondida ou não), mais o freio do dia e a soma da turma no mês contra o
 pacote. **Sem conteúdo de conversa, sem tempo ocioso, sem histórico de navegação e sem lista de quem não usou** (regra 70,
 item 7): o schema é estrito e recusa esses campos. Troca é a mensagem do aluno em `mensagem_tutor`; o índice
 `mensagem_tutor_trocas_idx` serve a consulta. A coordenação e o aluno não leem (`nunca`). Para a referência existir, o
@@ -153,7 +154,7 @@ com vínculo confirmado na turma**: o sinal `atencao_humana`, que não tem refer
 atividade e de material (senão ela seria uso invisível a todos). Em `GET /tutor/uso`, a lista de alunos, `ultimaTrocaEm`
 e `ultimaReferencia` são da disciplina de quem pergunta; **`trocasHoje`, `limiteDoDia`, `trocasDaTurmaNoMes` e
 `pacoteDaTurmaNoMes` são os do freio**, somando todas as disciplinas, para a tela nunca mostrar um número diferente do
-que o freio conta.
+que o freio conta; `semRespostaHoje` é da disciplina de quem pergunta, como a lista, e não entra no freio.
 
 **Os limiares dos sinais de trabalho** (`apps/api/src/tutor/sinais-do-turno.ts`; decisão de produto em aberto, ponto de
 partida da fatia). A regra só lê onde o aluno pediu ajuda (a questão da atividade, ou a página do material) e o dia de

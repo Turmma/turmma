@@ -1,11 +1,11 @@
-import { atividadesAplicadasNoBanco, entregasNoBanco, validacoesNoBanco } from './support/db-assertions.ts'
+import { atividadesAplicadasNoBanco, entregasNoBanco, semearPerguntaSemRespostaNoBanco, validacoesNoBanco } from './support/db-assertions.ts'
 import { entrarComoAlunoPelaApi, perguntarAoTutorPelaApi, responderPelaApi } from './support/aluno-api.ts'
 import { irPelaNavegacao, SIGN_IN_TIMEOUT_MS } from './support/casca.ts'
 import { activate, gerarAtividade, montarEscolaEEntrar, AI_TIMEOUT_MS, principal } from './support/professor-flow.ts'
 import { expect, test } from './support/profiles.ts'
 import { abrirODestaque, fecharOPainel } from './support/professor/aprovar.ts'
 import { abrirEntregasDoAssistente } from './support/professor/entregas.ts'
-import { abrirOPainelDoTutor, abrirSinaisDoTutor, painelDoTutor } from './support/professor/tutor.ts'
+import { abrirOPainelDoTutor, abrirSinaisDoTutor, conferirAPerguntaSemResposta, painelDoTutor } from './support/professor/tutor.ts'
 import { colocarAlunoNaTurma, criarAlunoComMatricula } from './support/seed.ts'
 import { horizontalOverflow, larguraExcedenteDoDialogo, seriousViolations } from './support/checks.ts'
 
@@ -157,6 +157,8 @@ test.describe('A3 e A4 de ponta a ponta, do lado da professora, contra a API rea
     await abrirSinaisDoTutor(page, hasTouch)
     await expect(page.getByText('Carregando os sinais…')).toHaveCount(0, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.locator('body')).not.toContainText(primeiro.nome)
+    // Uma pergunta do primeiro aluno que o Tutor não respondeu hoje (o corte da espera): só o número chega ao painel (RF5).
+    await semearPerguntaSemRespostaNoBanco(professora.escolaId, turmaId, primeiro.usuarioId, atividadeAplicadaId, 1)
     await abrirOPainelDoTutor(page, hasTouch)
     const sinais = painelDoTutor(page).getByRole('region', { name: 'Sinais por aluno' })
     await expect(sinais).toContainText(`Pediu a resposta pronta na questão 1 de "${TITULO}"`, { timeout: SIGN_IN_TIMEOUT_MS })
@@ -165,6 +167,7 @@ test.describe('A3 e A4 de ponta a ponta, do lado da professora, contra a API rea
     await expect(uso).toContainText(primeiro.nome)
     await expect(uso).toContainText(/1 de \d+/)
     await expect(uso).toContainText(`Na questão 1 de "${TITULO}"`)
+    await conferirAPerguntaSemResposta(page)
     // Quem não usou não aparece, e nada do que o aluno escreveu ao Tutor chega à tela da professora.
     await expect(uso).not.toContainText(segundo.nome)
     await expect(principal(page)).not.toContainText('me dá a resposta')

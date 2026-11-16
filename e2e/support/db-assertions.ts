@@ -57,3 +57,27 @@ export async function validacoesNoBanco(escolaId: string): Promise<Array<{ confi
     await banco.end()
   }
 }
+
+/**
+ * Uma pergunta do aluno que o Tutor não respondeu (RF5, reengenharia-continuacao 9.0): a execução terminou `falhou` com `IA_INDISPONIVEL`, o corte da espera, e a
+ * pergunta ficou na conversa, na questão de uma atividade aplicada. Gravada direto, porque o corte pede 20 s de fila parada e o caso é o da tela da professora.
+ */
+export async function semearPerguntaSemRespostaNoBanco(escolaId: string, turmaId: string, alunoId: string, atividadeAplicadaId: string, questao: number): Promise<void> {
+  const banco = new Client({ connectionString: urlDoBancoDeTeste() })
+  await banco.connect()
+  try {
+    await banco.query(
+      `with cortada as (
+         insert into execucao_agente (escola_id, ano_letivo_id, funcao, tarefa, solicitada_por, chave_envio, estado, erro, entrada, concluida_em)
+         select t.escola_id, t.ano_letivo_id, 'tutor_com_o_aluno', 'turno_do_tutor', $3, gen_random_uuid(), 'falhou', 'IA_INDISPONIVEL', '{"tarefa":"turno_do_tutor"}', now()
+           from turma t where t.escola_id = $1 and t.id = $2
+         returning id, escola_id, ano_letivo_id
+       )
+       insert into mensagem_tutor (escola_id, ano_letivo_id, turma_id, aluno_id, execucao_id, atividade_aplicada_id, questao, autor, texto)
+       select escola_id, ano_letivo_id, $2, $3, id, $4, $5, 'aluno', 'Pergunta sintética sem resposta' from cortada`,
+      [escolaId, turmaId, alunoId, atividadeAplicadaId, questao],
+    )
+  } finally {
+    await banco.end()
+  }
+}

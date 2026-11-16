@@ -864,8 +864,8 @@ describe('Tutor e sinais', () => {
       const uso = usoDoTutorResponseSchema.parse(resposta.corpo)
       expect(uso).toMatchObject({ turmaId: turmaNova, limiteDoDia: TROCAS_POR_DIA_PADRAO_DO_TUTOR, trocasDaTurmaNoMes: expect.any(Number) as number, pacoteDaTurmaNoMes: 300 * 3 })
       expect(uso.alunos).toEqual([
-        { aluno: { id: caio.usuarioId, nome: 'Caio Sintético Abreu' }, trocasHoje: 2, ultimaTrocaEm: expect.any(String) as string, ultimaReferencia: { atividadeAplicadaId: null, questao: null, materialId: a.materialId, pagina: 5 } },
-        { aluno: { id: zeca.usuarioId, nome: 'Zeca Sintético Vidal' }, trocasHoje: 1, ultimaTrocaEm: expect.any(String) as string, ultimaReferencia: { atividadeAplicadaId: lista, questao: 1, materialId: null, pagina: null } },
+        { aluno: { id: caio.usuarioId, nome: 'Caio Sintético Abreu' }, trocasHoje: 2, semRespostaHoje: 0, ultimaTrocaEm: expect.any(String) as string, ultimaReferencia: { atividadeAplicadaId: null, questao: null, materialId: a.materialId, pagina: 5 } },
+        { aluno: { id: zeca.usuarioId, nome: 'Zeca Sintético Vidal' }, trocasHoje: 1, semRespostaHoje: 0, ultimaTrocaEm: expect.any(String) as string, ultimaReferencia: { atividadeAplicadaId: lista, questao: 1, materialId: null, pagina: null } },
       ])
       // Quem não usou não aparece em lugar nenhum, e o conteúdo da conversa não sai.
       const cru = JSON.stringify(resposta.corpo)

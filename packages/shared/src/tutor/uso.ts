@@ -4,14 +4,14 @@ import { MAXIMO_DE_QUESTOES_POR_ATIVIDADE } from '../assistente/conversa.js'
 /**
  * O uso do Tutor por turma, para o professor (MVP, A4; D8, D47; regra 70, itens 4 e 7): `GET /v1/tutor/uso?turmaId=`.
  * **Não existe uso do Tutor invisível ao professor.** O sinal só nasce em quatro situações; o aluno cujos turnos são
- * todos comuns não gera sinal nenhum, e é por aqui que o professor o vê: quem usou, quantas trocas hoje, quando foi a
- * última e em que estava.
+ * todos comuns não gera sinal nenhum, e é por aqui que o professor o vê: quem usou, quantas trocas hoje, quantas perguntas
+ * o Tutor não respondeu hoje (só o número), quando foi a última e em que estava.
  *
  * O que a resposta **não** tem, e o schema estrito recusa (regra 70, item 7: supervisão não é vigilância):
  * - **conteúdo de conversa**: nem a pergunta do aluno, nem a resposta do Tutor, nem trecho, assunto ou resumo;
  * - **tempo ocioso**, duração de sessão ou tempo entre trocas: só a hora da última troca;
  * - **histórico de navegação**: só a referência da **última** troca, nunca a lista do que o aluno abriu;
- * - quem **não** usou: a lista traz só quem trocou com o Tutor, em ordem de nome, sem ranking nem ordenação por uso.
+ * - quem **não** usou: a lista traz só quem perguntou ao Tutor (e teve resposta ou ficou sem ela), em ordem de nome, sem ranking nem ordenação por uso.
  *
  * Só o professor com vínculo confirmado na turma lê; a coordenação e o aluno, nunca. A coordenação vê o uso somado da
  * escola, por função, na governança.
@@ -33,10 +33,19 @@ export const referenciaDaUltimaTrocaSchema = z.strictObject({
   pagina: z.number().int().min(1).nullable(),
 })
 
-/** O uso de um aluno: nomeado só para o professor da turma (D34). Troca é a mensagem que o aluno mandou ao Tutor. */
+/**
+ * O uso de um aluno: nomeado só para o professor da turma (D34). Troca é a mensagem que o aluno mandou ao Tutor e que o
+ * Tutor respondeu.
+ *
+ * `semRespostaHoje` são as perguntas de hoje que o Tutor **não respondeu**: terminaram num código de `PASSAGEIROS` (o corte da
+ * espera, o worker parado pela D62, a saída inválida, o teto, a reentrega interrompida...), sem a mensagem fixa da D36 e no
+ * recorte das `ultimasTrocas`. É só a contagem, sem o texto da pergunta nem o código: a professora sabe que o aluno perguntou e
+ * ficou sem resposta, que é o que o uso invisível esconderia (D8, D47). Não entra em `trocasHoje` nem no freio do dia.
+ */
 export const usoDoAlunoSchema = z.strictObject({
   aluno: z.strictObject({ id: z.uuid(), nome: z.string().min(1) }),
   trocasHoje: z.number().int().nonnegative(),
+  semRespostaHoje: z.number().int().nonnegative(),
   ultimaTrocaEm: z.iso.datetime(),
   ultimaReferencia: referenciaDaUltimaTrocaSchema,
 })
@@ -46,7 +55,7 @@ export const MAXIMO_DE_ALUNOS_NO_USO = 200
 
 /**
  * Resposta de `GET /v1/tutor/uso`: os alunos da turma que já trocaram com o Tutor no ano letivo em curso, em ordem de
- * nome, cada um com as trocas de hoje (zero, se a última foi em outro dia), a hora da última e a referência dela; o freio
+ * nome, cada um com as trocas de hoje (zero, se a última foi em outro dia), as perguntas de hoje sem resposta, a hora da última e a referência dela; o freio
  * do dia configurado na escola, para a tela dizer "12 de 60"; e a soma da turma no mês contra o pacote (D38). Turma em
  * que ninguém usou vem com a lista vazia.
  */

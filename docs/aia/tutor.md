@@ -187,7 +187,7 @@ aviso de fila ou de pausa. O turno roda no `worker-ia`, pela fila (reengenharia-
 (`IA_TEMPO_ESGOTADO`, `IA_INDISPONIVEL`…), nunca com a mensagem do provedor, que também não vai à cópia `failed` do job no Redis, e o
 desligamento do worker não grava falha nenhuma: a execução fica `rodando` e a varredura a encerra com `EXECUCAO_INTERROMPIDA`
 (a reentrega do job é da tarefa 6.0, e hoje ela sai como "já tratada", sem rodar o modelo de novo). A pergunta do aluno fica em
-`mensagem_tutor`, mesmo quando o modelo não responde; o professor da turma vê o uso dela (`GET /v1/tutor/uso`), sem o texto (N21).
+`mensagem_tutor`, mesmo quando o modelo não responde; o professor da turma vê o uso dela (`GET /v1/tutor/uso`), como a contagem "perguntas que o Tutor não respondeu hoje", sem o texto (N21).
 Fundamento: regra 80, item 4.
 Como se confere: teste com o adaptador falso devolvendo falha e limite; `apps/api/src/ia/fila-de-ia.int.test.ts`.
 
@@ -285,9 +285,10 @@ Como se confere: teste de autorização por objeto na conversa; teste de isolame
 **N21. Não funciona às escondidas do professor.**
 Fundamento: D8; D47; regra 70, item 4.
 Como se confere: a tela do aluno tem a faixa de supervisão, que não fecha; o professor com
-vínculo confirmado na turma vê o **uso** de cada aluno (`GET /v1/tutor/uso`): as trocas do dia, a
-hora da última e em que ele estava, inclusive de quem nunca gerou sinal; teste de que o aluno sem
-sinal aparece no uso. No MVP o professor **não lê o texto** da conversa: nenhuma rota o entrega a
+vínculo confirmado na turma vê o **uso** de cada aluno (`GET /v1/tutor/uso`): as trocas do dia, **quantas
+perguntas de hoje o Tutor não respondeu** (só o número), a hora da última e em que ele estava,
+inclusive de quem nunca gerou sinal; teste de que o aluno sem sinal aparece no uso e de que o aluno
+só com pergunta cortada também aparece (`apps/api/src/tutor/sem-resposta.int.test.ts`). No MVP o professor **não lê o texto** da conversa: nenhuma rota o entrega a
 ele, e o uso vem sem conteúdo, sem tempo ocioso e sem histórico de navegação (regra 70, item 7).
 
 #### Sobre onde e quando o Tutor funciona
@@ -417,9 +418,10 @@ Tutor.
     188** nesse turno, e o professor **não recebe o sinal "precisa de atenção humana"**. Corte acontece sobretudo na hora de pico (10h de segunda). O aluno vê "Tentar de novo", e a
     pergunta reenviada passa pelas duas leituras. Quando a mensagem fixa já está na conversa e a execução termina `falhou` (o modelo classificou o assunto e a conclusão falhou: varredura,
     prazo), a tela a mostra **acima** do "Tentar de novo".
-    **O professor, hoje, não vê a pergunta cortada.** Ela fica em `mensagem_tutor`, mas as três leituras do professor (a última troca, as trocas de hoje e as do mês,
-    `supervisao.repository.ts`) excluem a pergunta cuja execução terminou `falhou`. Mostrar ao professor, sem o texto, quantas perguntas o Tutor não respondeu é a tarefa 9.0 desta
-    funcionalidade; até ela, o corte da espera não aparece na supervisão da turma.
+    **O professor vê a pergunta cortada, só como contagem.** Ela fica em `mensagem_tutor`, e as trocas de hoje e do mês (o freio) seguem excluindo a pergunta cuja execução
+    terminou `falhou`; ao lado delas, `GET /v1/tutor/uso` traz por aluno `semRespostaHoje`: as perguntas de hoje terminadas num código passageiro (`PASSAGEIROS`), sem a mensagem fixa da D36 e
+    no recorte de turma, ano e disciplina do professor. A tela diz "N perguntas que o Tutor não respondeu hoje", em texto neutro e à parte do "12 de 60", e nada com zero. **Sem o texto da
+    pergunta e sem o código do erro**: o aluno cuja única pergunta foi cortada aparece na lista, e a última referência dele é a da pergunta cortada.
 16. **Limitação: o turno sem a D62 conferida** (reengenharia-continuacao, tarefa 8.0). Com provedor externo, a pergunta do Tutor só segue ao modelo se o `worker-ia` conferiu, na
     subida, o suboperador do provedor (processamento no Brasil, treinamento vedado, a conversa do aluno entre as categorias; `docs/runbook.md`, "A D62 na subida"). Se a conferência não
     passou (o cadastro não cobre, ou o banco não respondeu), o `worker-ia` **não consome a fila**, e o gateway, a cada chamada, recusa a tarefa de aluno sem a declaração (`IA_INDISPONIVEL`),
@@ -428,9 +430,9 @@ Tutor.
     **Limitação, com o risco que sobra (D36):** como no corte da espera (item 15), **só vale a leitura por palavras** do item 10, que roda no `POST`, antes da fila, e dispensa o modelo; a
     leitura do modelo, a segunda, não acontece no turno sem a D62. A mensagem fixa do assunto delicado, com o 188, **não passa pela recusa da D62**, porque não envia nada ao provedor, e por
     isso segue valendo com o provedor não conferido.
-    **O professor, hoje, não vê a pergunta que ficou sem resposta**, pelo mesmo motivo do item 15: a execução termina `falhou`, e as leituras da supervisão a excluem. O Tutor parado pela D62
-    aparece ao operador (o `worker-ia` não bate o batimento, e o log traz o motivo), não à turma; mostrar ao professor, sem o texto, quantas perguntas o Tutor não respondeu é a tarefa 9.0
-    desta funcionalidade, e o mesmo contador cobre o corte da espera e este caso.
+    **O professor vê a pergunta que ficou sem resposta, só como contagem**, pelo mesmo contador do item 15: o corte da espera deixa `IA_INDISPONIVEL`, que está em `PASSAGEIROS`, e
+    o Tutor parado pela D62 pode durar uma manhã inteira, não um corte isolado. O operador vê o `worker-ia` parado (o batimento não bate, e o log traz o motivo); a turma vê quantas perguntas
+    ficaram sem resposta hoje, sem o texto.
 
 Os itens restantes não bloqueiam o MVP de apresentação (dado sintético, D71); bloqueiam o primeiro aluno real (etapas 2 a 6).
 

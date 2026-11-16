@@ -191,6 +191,32 @@ describe('contratos de saída: nenhuma resposta traz credencial, segredo ou iden
     expect(shared.fonteDoArtefatoSchema.safeParse({ ...fonte, sha256: 'abc' }).success).toBe(false)
   })
 
+  it('reengenharia-continuacao 9.0: `GET /v1/tutor/uso` entra na varredura e traz, por aluno, só os campos declarados: a contagem das perguntas sem resposta, e nunca o texto delas, o código do erro nem a execução', () => {
+    expect(esquemasDeResposta.map(([nome]) => nome)).toContain('usoDoTutorResponseSchema')
+    const campos = camposDoEsquema(shared.usoDoTutorResponseSchema)
+    expect(campos.filter((campo) => campo.startsWith('alunos'))).toEqual([
+      'alunos',
+      'alunos[].aluno',
+      'alunos[].aluno.id',
+      'alunos[].aluno.nome',
+      'alunos[].trocasHoje',
+      'alunos[].semRespostaHoje',
+      'alunos[].ultimaTrocaEm',
+      'alunos[].ultimaReferencia',
+      'alunos[].ultimaReferencia.atividadeAplicadaId',
+      'alunos[].ultimaReferencia.questao',
+      'alunos[].ultimaReferencia.materialId',
+      'alunos[].ultimaReferencia.pagina',
+    ])
+    expect(campos.filter((campo) => /texto|pergunta|mensagem|erro|codigo|execucao/i.test(campo))).toEqual([])
+    expect(problemasDoContrato('usoDoTutorResponseSchema', shared.usoDoTutorResponseSchema)).toEqual([])
+    // O aluno é estrito: o campo a mais (o texto da pergunta cortada, o código) é recusado.
+    const aluno = { aluno: { id: randomUUID(), nome: 'Aluno Sintético' }, trocasHoje: 1, semRespostaHoje: 2, ultimaTrocaEm: new Date().toISOString(), ultimaReferencia: { atividadeAplicadaId: null, questao: null, materialId: null, pagina: null } }
+    expect(shared.usoDoAlunoSchema.safeParse(aluno).success).toBe(true)
+    expect(shared.usoDoAlunoSchema.safeParse({ ...aluno, ultimaSemResposta: 'não entendi a questão 3' }).success).toBe(false)
+    expect(shared.usoDoAlunoSchema.safeParse({ ...aluno, erro: 'IA_INDISPONIVEL' }).success).toBe(false)
+  })
+
   it('e-mail é recusado em contrato que pode chegar ao aluno, e só passa em contrato declarado da equipe', () => {
     const comEmail = z.object({ itens: z.array(z.object({ usuarioId: z.uuid(), email: z.email() })) })
     expect(problemasDoContrato('alunosDaTurmaResponseSchema', comEmail)).toEqual(['alunosDaTurmaResponseSchema: itens[].email (email)'])

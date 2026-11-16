@@ -63,11 +63,11 @@ paralela desde o começo e não alongam o caminho, que é o da IA (1.0 → 11.0)
   - [ ] 8.4 Runbook e AIA
   - [ ] 8.5 Testes
 
-- [ ] **9.0 — A professora vê quantas perguntas o Tutor não respondeu hoje, sem o texto**
-  - [ ] 9.1 `semRespostaHoje` em `supervisao.repository.ts` e no contrato de `shared`
-  - [ ] 9.2 A linha do aluno no uso do Tutor
-  - [ ] 9.3 `docs/lgpd.md` ("Uso do Tutor") e a N21 da AIA
-  - [ ] 9.4 Testes
+- [x] **9.0 — A professora vê quantas perguntas o Tutor não respondeu hoje, sem o texto**
+  - [x] 9.1 `semRespostaHoje` em `supervisao.repository.ts` e no contrato de `shared`
+  - [x] 9.2 A linha do aluno no uso do Tutor
+  - [x] 9.3 `docs/lgpd.md` ("Uso do Tutor") e a N21 da AIA
+  - [x] 9.4 Testes
 
 - [ ] **10.0 — Toda chamada de modelo passa pelo limite de tokens por minuto, com degradação (49.0)**
   - [ ] 10.1 `TokenLimiter` com `RateLimiterRedis`: o balde geral e os da `ferramenta` e da `normal`; o `insuranceLimiter`

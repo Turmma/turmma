@@ -61,8 +61,8 @@ const USO = {
   trocasDaTurmaNoMes: 412,
   pacoteDaTurmaNoMes: 9000,
   alunos: [
-    { aluno: DELA, trocasHoje: 7, ultimaTrocaEm: '2026-10-05T13:30:00.000Z', ultimaReferencia: { atividadeAplicadaId: null, questao: null, materialId: null, pagina: null } },
-    { aluno: ANA, trocasHoje: 12, ultimaTrocaEm: '2026-10-05T13:42:00.000Z', ultimaReferencia: { atividadeAplicadaId: ATIVIDADE, questao: 3, materialId: null, pagina: null } },
+    { aluno: DELA, trocasHoje: 7, semRespostaHoje: 0, ultimaTrocaEm: '2026-10-05T13:30:00.000Z', ultimaReferencia: { atividadeAplicadaId: null, questao: null, materialId: null, pagina: null } },
+    { aluno: ANA, trocasHoje: 12, semRespostaHoje: 2, ultimaTrocaEm: '2026-10-05T13:42:00.000Z', ultimaReferencia: { atividadeAplicadaId: ATIVIDADE, questao: 3, materialId: null, pagina: null } },
   ],
 }
 const DESEMPENHO_VAZIO = { turmaId: TURMA, lotesAprovados: 0, porHabilidade: [], alunos: [] }
@@ -483,6 +483,49 @@ describe('Hoje: sem painel, sem rota nominal; com painel, só o que o painel ped
     expect(localizacao.history).toEqual([`/turmas/${TURMA}?aba=hoje`])
     expect(textoDaPagina()).not.toContain('Ana Sintética')
     await waitFor(() => expect(tudoDoCache(cliente).some((consulta) => consulta.queryKey[0] === USO_DO_TUTOR_QUERY_KEY[0])).toBe(false))
+  })
+
+  it('a linha do aluno diz "2 perguntas que o Tutor não respondeu hoje", neutra e à parte do "12 de 60", e a de quem tem zero não diz nada', async () => {
+    const rede = fakeNetwork()
+    instalar(rede)
+    montar('aba=hoje&ver=tutor')
+    const aberto = await screen.findByRole('dialog', { name: 'O que o Tutor viu' })
+    const uso = await within(aberto).findByRole('table', { name: 'Uso do Tutor por aluno' })
+    const linhaDaAna = within(uso).getByRole('row', { name: /Ana Sintética/ })
+    const aviso = within(linhaDaAna).getByText('2 perguntas que o Tutor não respondeu hoje')
+    const freio = within(linhaDaAna).getByText('12 de 60')
+    // Outro elemento, e não parte do "12 de 60": o freio não conta a pergunta cortada, e a tela não as mistura.
+    expect(aviso).not.toBe(freio)
+    expect(freio.textContent).toBe('12 de 60')
+    expect(aviso.contains(freio)).toBe(false)
+    expect(freio.contains(aviso)).toBe(false)
+    // Neutra: fala do Tutor, sem palavra de culpa, de alarme nem de nota.
+    expect(aviso.textContent).not.toMatch(/falh|erro|problema|atenção|alerta|nota|desatent/i)
+    // Quem tem zero (Dani): o "7 de 60" e nada mais; só a Ana tem o aviso na tabela.
+    const linhaDaDani = within(uso).getByRole('row', { name: /Dani Sintética/ })
+    const freioDaDani = within(linhaDaDani).getByText('7 de 60')
+    // A célula da Dani tem só o freio: nada de elemento vazio onde a frase estaria.
+    expect(freioDaDani.parentElement?.children).toHaveLength(1)
+    expect(linhaDaDani.textContent).not.toMatch(/não respondeu/)
+    expect(within(uso).getAllByText(/não respondeu hoje/)).toHaveLength(1)
+  })
+
+  it('uma pergunta sem resposta fica no singular, e com zero em todos a tabela não tem a frase', async () => {
+    const rede = fakeNetwork()
+    let semResposta = 1
+    instalar(rede, { uso: () => ok({ ...USO, alunos: USO.alunos.map((aluno) => ({ ...aluno, semRespostaHoje: semResposta })) }) })
+    const { cliente } = montar('aba=hoje&ver=tutor')
+    const aberto = await screen.findByRole('dialog', { name: 'O que o Tutor viu' })
+    const uso = await within(aberto).findByRole('table', { name: 'Uso do Tutor por aluno' })
+    expect(within(uso).getAllByText('1 pergunta que o Tutor não respondeu hoje')).toHaveLength(2)
+    expect(uso.textContent).not.toMatch(/1 perguntas/)
+    semResposta = 0
+    await act(async () => {
+      await cliente.invalidateQueries({ queryKey: USO_DO_TUTOR_QUERY_KEY })
+    })
+    await waitFor(() => expect(within(aberto).queryAllByText(/não respondeu hoje/)).toHaveLength(0))
+    // A leitura que traz o zero já chegou: a tabela segue lá, com o freio.
+    expect(within(aberto).getByText('12 de 60')).toBeTruthy()
   })
 
   it('"Ver o uso do Tutor por aluno" abre o mesmo painel, também sem sinal de atenção', async () => {

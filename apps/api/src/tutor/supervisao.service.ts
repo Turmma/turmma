@@ -51,12 +51,14 @@ export class SupervisaoDoTutorService {
     return sinaisResponseSchema.parse({ itens: itens.map(paraOProfessor), ...(proxima === undefined ? {} : { proxima }), grupos })
   }
 
-  /** `GET /v1/tutor/uso?turmaId=`: quem usou o Tutor, quantas trocas hoje, quando foi a última e em que estava; o freio do dia e o pacote do mês. */
+  /** `GET /v1/tutor/uso?turmaId=`: quem usou o Tutor, quantas trocas hoje, quantas perguntas ele não respondeu hoje, quando foi a última e em que estava; o freio do dia e o pacote do mês. */
   async uso({ turmaId }: UsoDoTutorQuery): Promise<UsoDoTutorResponse> {
     const repositorio = new SupervisaoDoTutorRepository(this.banco, this.relogio)
     const turma = await this.#turmaDoProfessor(repositorio, turmaId)
     const ultimas = await repositorio.ultimasTrocas(turma, MAXIMO_DE_ALUNOS_NO_USO)
-    const trocasDeHoje = await repositorio.trocasDeHoje(ultimas.map((ultima) => ultima.alunoId))
+    const alunos = ultimas.map((ultima) => ultima.alunoId)
+    const trocasDeHoje = await repositorio.trocasDeHoje(alunos)
+    const semRespostaDeHoje = await repositorio.semRespostaDeHoje(turma, alunos)
     const { limiteDoDia, pacoteDaTurmaNoMes } = await repositorio.limites(turma)
     return usoDoTutorResponseSchema.parse({
       turmaId: turma,
@@ -66,6 +68,7 @@ export class SupervisaoDoTutorService {
       alunos: ultimas.map((ultima) => ({
         aluno: { id: ultima.alunoId, nome: ultima.nome },
         trocasHoje: trocasDeHoje.get(ultima.alunoId) ?? 0,
+        semRespostaHoje: semRespostaDeHoje.get(ultima.alunoId) ?? 0,
         ultimaTrocaEm: ultima.ultimaTrocaEm.toISOString(),
         ultimaReferencia: { atividadeAplicadaId: ultima.atividadeAplicadaId, questao: ultima.questao, materialId: ultima.materialId, pagina: ultima.pagina },
       })),
