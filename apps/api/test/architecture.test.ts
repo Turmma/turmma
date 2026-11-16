@@ -473,14 +473,16 @@ describe('arquitetura: o suboperador só pelo OperacaoPrivacidadeRepository, que
     expect(escritor && usosDaOperacao(escritor.texto)).toEqual([])
   })
 
-  it('o único @SemEscopo é o encerramento das ligações em todas as escolas; a leitura da escola não tem nenhum', async () => {
+  it('o único @SemEscopo do escritor é o encerramento das ligações em todas as escolas; na leitura da escola, só a conferência da D62 da subida, e o que a escola lê não tem nenhum', async () => {
     const escritor = await import('../src/ops/operacao-privacidade.repository.js')
     const metodos = Object.getOwnPropertyNames(escritor.OperacaoPrivacidadeRepository.prototype).filter((metodo) => metodo !== 'constructor')
     expect(metodos.toSorted()).toEqual(['cadastrar', 'encerrar', 'encerrarLigacoes', 'ligarEscola', 'ligarEscolaAoIncidente', 'registrarIncidente', 'travarVigente'])
     expect(metodos.filter((metodo) => nucleo.unscopedJustification(escritor.OperacaoPrivacidadeRepository, metodo) !== undefined)).toEqual(['encerrarLigacoes'])
     const leitura = Object.getOwnPropertyNames(nucleo.SuboperadorDaEscolaRepository.prototype).filter((metodo) => metodo !== 'constructor')
-    expect(leitura).toEqual(['daEscola'])
+    expect(leitura).toEqual(['daEscola', 'vigenteDoProvedor'])
     expect(nucleo.unscopedJustification(nucleo.SuboperadorDaEscolaRepository, 'daEscola')).toBeUndefined()
+    // Reengenharia-continuacao, 8.0: a instância lê o suboperador vigente da `IA_PROVEDOR_ID` na subida, sem escola nem requisição (a D62).
+    expect(nucleo.unscopedJustification(nucleo.SuboperadorDaEscolaRepository, 'vigenteDoProvedor')).toMatch(/conferência da D62 é da instância na subida.*nunca contrato/)
   })
 
   it('a varredura pega o uso em qualquer forma, e não confunde variável, comentário nem teste com tabela', () => {
@@ -1548,5 +1550,48 @@ describe('arquitetura: o controller valida pelo pipe no parâmetro, e as funçõ
       { caminho: 'apps/api/src/tutor/tutor.controller.test.ts', texto: 'esquema.safeParse(corpo)' },
     ]
     expect(quemLeAEntradaPorFora([...fora, ...inocentes])).toEqual(fora.map((arquivo) => arquivo.caminho).sort())
+  })
+})
+
+/**
+ * Reengenharia-continuacao, 8.0 (a D62 na fiação): o gateway de produção que nasce sem a declaração de soberania recusa **toda** tarefa de texto de aluno
+ * com provedor externo, mesmo com o suboperador conferido na subida, e nenhum teste de módulo o alcança sem nomear o provedor (`guardas/executor-so-na-bancada`).
+ * Por isso a fiação se prova aqui: toda chamada de `createLLMGateway` em código de `apps/*\/src` entrega a `soberania` nas portas.
+ */
+function gatewaysDeProducaoSemASoberania(arquivos: readonly Arquivo[]): { chamadas: number; sem: string[] } {
+  const sem: string[] = []
+  let chamadas = 0
+  for (const arquivo of arquivos) {
+    if (!/^apps\/[^/]+\/src\//.test(arquivo.caminho) || /\.test\.tsx?$/.test(arquivo.caminho)) continue
+    const texto = semComentarios(arquivo.texto)
+    // Toda chamada conta; a que não tem a forma reconhecida (`createLLMGateway(config, { …portas })`, com as portas escritas ali) também reprova, em vez de passar em silêncio.
+    for (const chamada of texto.matchAll(/createLLMGateway\(/g)) {
+      chamadas += 1
+      const portas = /^createLLMGateway\(\s*\w+\s*,\s*\{([^}]*)\}/.exec(texto.slice(chamada.index))
+      if (portas === null || !/\bsoberania\b/.test(portas[1] ?? '')) sem.push(arquivo.caminho)
+    }
+  }
+  return { chamadas, sem }
+}
+
+describe('arquitetura: o gateway de IA de produção recebe a declaração da D62 (8.0)', () => {
+  it('todo createLLMGateway de apps/*/src entrega a soberania, e há ao menos um (o do worker de IA)', () => {
+    const { chamadas, sem } = gatewaysDeProducaoSemASoberania(arquivosDoRepositorio())
+    expect(chamadas).toBeGreaterThanOrEqual(1)
+    expect(sem).toEqual([])
+  })
+
+  it('a varredura reprova a chamada sem a soberania nas portas e deixa passar a com ela, o comentário e o teste', () => {
+    const sem = { caminho: 'apps/api/src/ia/outro.module.ts', texto: 'createLLMGateway(config, { registro, orcamento, suspensao, logger })' }
+    const entrega = { caminho: 'apps/api/src/ia/gateway-de-producao.module.ts', texto: 'createLLMGateway(config, { registro: new ConsumoRepository(banco), orcamento, suspensao, soberania, logger })' }
+    const inocentes = [
+      { caminho: 'apps/api/src/ia/comentario.ts', texto: '// createLLMGateway(config, { registro })\nconst a = 1' },
+      { caminho: 'apps/api/test/fila-de-ia.fixture.ts', texto: 'createLLMGateway(config, { registro })' },
+      { caminho: 'apps/api/src/ia/outro.test.ts', texto: 'createLLMGateway(config, { registro })' },
+    ]
+    // As portas numa variável: a forma não é a reconhecida, e a chamada reprova em vez de passar sem ser contada.
+    const emVariavel = { caminho: 'apps/api/src/ia/em-variavel.module.ts', texto: 'const portas = { registro, soberania }\ncreateLLMGateway(config, portas)' }
+    expect(gatewaysDeProducaoSemASoberania([sem, entrega, ...inocentes])).toEqual({ chamadas: 2, sem: [sem.caminho] })
+    expect(gatewaysDeProducaoSemASoberania([emVariavel])).toEqual({ chamadas: 1, sem: [emVariavel.caminho] })
   })
 })

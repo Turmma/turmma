@@ -405,6 +405,8 @@ Tutor.
     advogado antes do primeiro aluno real, a mesma do item 9; ela não bloqueia o MVP. O aviso não diz que o professor abre a conversa, porque nada na tela a abre; e a mensagem fixa que o aluno recebe na hora, ao contar algo pessoal difícil, termina na mesma frase do aviso, `FRASE_DO_AVISO_AO_PROFESSOR` (`packages/shared/src/tutor/sinal.ts`; correção `2026-10-26-mensagem-fixa-avisa-o-professor`, decisão do Joaquim de 26/10/2026): o professor é avisado, sem ver o que o aluno escreveu. No dia em que existir a tela ou a rota que abre a conversa de um aluno ao professor (regra 50, item 10), ou em que o F9 der à orientação ou à direção acesso auditado ao conteúdo (Lei 13.819/2019), o aviso e a frase do sinal mudam juntos.
 13. **Explicação em linguagem comum e caminho de contestação** do que o Tutor sabe. Exigidos pela
     D60 e pela D66; o desenho fecha nas etapas 4 e 6.
+14. **Responsabilidade por resposta errada do Tutor**, no contrato com a escola. Depende de
+    advogado (`TODO.md`).
 15. **Limitação: o turno sem modelo pela espera** (reengenharia-continuacao, tarefa 7.0). A pergunta do Tutor que fica mais de 20 s `pendente` na fila termina `falhou`
     (`IA_INDISPONIVEL`), cortada pelo worker ou pelo `GET` da execução, **sem chamar o modelo** e sem consumo. O aluno vê "O Tutor não conseguiu responder agora. Tente de novo." com
     "Tentar de novo"; a pergunta fica na conversa e **não conta** como troca do dia (a reenviada conta). Nenhuma resposta é inventada no lugar, e o corte não é decisão sobre o aluno. O operador recebe
@@ -418,8 +420,17 @@ Tutor.
     **O professor, hoje, não vê a pergunta cortada.** Ela fica em `mensagem_tutor`, mas as três leituras do professor (a última troca, as trocas de hoje e as do mês,
     `supervisao.repository.ts`) excluem a pergunta cuja execução terminou `falhou`. Mostrar ao professor, sem o texto, quantas perguntas o Tutor não respondeu é a tarefa 9.0 desta
     funcionalidade; até ela, o corte da espera não aparece na supervisão da turma.
-14. **Responsabilidade por resposta errada do Tutor**, no contrato com a escola. Depende de
-    advogado (`TODO.md`).
+16. **Limitação: o turno sem a D62 conferida** (reengenharia-continuacao, tarefa 8.0). Com provedor externo, a pergunta do Tutor só segue ao modelo se o `worker-ia` conferiu, na
+    subida, o suboperador do provedor (processamento no Brasil, treinamento vedado, a conversa do aluno entre as categorias; `docs/runbook.md`, "A D62 na subida"). Se a conferência não
+    passou (o cadastro não cobre, ou o banco não respondeu), o `worker-ia` **não consome a fila**, e o gateway, a cada chamada, recusa a tarefa de aluno sem a declaração (`IA_INDISPONIVEL`),
+    **sem chamar o modelo** e sem consumo. A API segue pronta: a escola continua entrando, com o professor e o resto do produto, e a pergunta do Tutor espera na fila até o corte do item 15
+    (20 s), com o mesmo texto ao aluno: "O Tutor não conseguiu responder agora. Tente de novo." com "Tentar de novo". Nenhuma resposta é inventada, e a recusa não é decisão sobre o aluno.
+    **Limitação, com o risco que sobra (D36):** como no corte da espera (item 15), **só vale a leitura por palavras** do item 10, que roda no `POST`, antes da fila, e dispensa o modelo; a
+    leitura do modelo, a segunda, não acontece no turno sem a D62. A mensagem fixa do assunto delicado, com o 188, **não passa pela recusa da D62**, porque não envia nada ao provedor, e por
+    isso segue valendo com o provedor não conferido.
+    **O professor, hoje, não vê a pergunta que ficou sem resposta**, pelo mesmo motivo do item 15: a execução termina `falhou`, e as leituras da supervisão a excluem. O Tutor parado pela D62
+    aparece ao operador (o `worker-ia` não bate o batimento, e o log traz o motivo), não à turma; mostrar ao professor, sem o texto, quantas perguntas o Tutor não respondeu é a tarefa 9.0
+    desta funcionalidade, e o mesmo contador cobre o corte da espera e este caso.
 
 Os itens restantes não bloqueiam o MVP de apresentação (dado sintético, D71); bloqueiam o primeiro aluno real (etapas 2 a 6).
 

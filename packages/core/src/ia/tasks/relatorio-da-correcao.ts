@@ -78,6 +78,7 @@ export const relatorioDaCorrecao = defineTask({
   maximoDeTokensDeEntrada: 3200,
   levaTextoLivreDePessoa: false,
   levaTextoDeAluno: false,
+  categoriasEnviadas: ['trabalho_do_aluno'],
 
   montarPedido(entrada) {
     return {

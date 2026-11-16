@@ -74,6 +74,8 @@ e o da `interativa` do Tutor são do `worker-ia`: olhe-o primeiro.
    despachante, ninguém mede a espera: o último valor fica congelado no Prometheus por até 5 min,
    e depois a série some e a regra volta a normal **sem o job ter começado**. Confira no painel
    que a espera zerou, e não só sumiu.
+5. O `worker-ia` parado pela D62 (sem `healthy` no `ps`, sem consumir, **e sem reiniciar em laço**: ele sobe e espera) → o log dele traz `ia.soberania_na_subida_recusada` (o
+   cadastro do provedor não cobre a D62) ou `ia.soberania_na_subida_sem_banco` (o banco não respondeu na subida); veja "A D62 na subida" mais abaixo. Só vale com provedor externo.
 
 **Variável nova no ambiente de produção (deploy da `ferramenta`):** o `infra/compose.yml` lê `VAGAS_ESCOLA_FERRAMENTA` com `:?`, então o `despachante` e os
 workers **não sobem** sem ela, e o deploy pela `main` (D31) para no compose. Antes do primeiro deploy com a fila `ferramenta`, ponha no `.env` da VPS
@@ -1226,6 +1228,44 @@ Redis cai numa execução já encerrada, a transição `pendente → rodando` n�
 "retomar" a resposta (a retomada é da tarefa 6.0, e o aluno tenta de novo pela tela).
 
 **Depois:** registre no `TODO.md` a janela (de quando a quando) e quantas execuções e quantos jobs o bloco fechou, só contagens.
+
+## A D62 na subida: o `worker-ia` parado (procedimento)
+
+*Procedimento, não alerta: não há regra própria em `infra/grafana/alertas/`; o sinal é o healthcheck do `worker-ia` (o batimento não bate) e, com a fila esperando, o alerta "Job
+interativo esperando" (causa 5). Vale só com `IA_ADAPTADOR=openai_compat` e `LLM_PROCESSAMENTO_LOCAL=false`: o adaptador falso e o modelo local não enviam nada para fora, não têm
+suboperador a conferir e sobem sem ele (reengenharia-continuacao, tarefa 8.0; D62; decisão de 16/11).*
+
+**O que o código faz.** Na subida, cada `worker-ia` lê o suboperador **vigente** (`fim` vazio) cuja `chave` é a `IA_PROVEDOR_ID` e exige: `pais = 'BR'`, treinamento vedado,
+`alcance = 'todas'` e, em `categorias`, a união das que as tarefas de IA enviam (hoje `conversa_do_aluno`, `conversa_do_professor`, `material_da_escola` e `trabalho_do_aluno`; a fonte é o
+`categoriasEnviadas` de cada tarefa em `packages/core/src/ia/tasks/`). Sem isso, o `worker-ia` **falha fechado**: não cria o consumidor das filas `api-*` nem bate o batimento, e o gateway recusa a tarefa
+com texto de aluno (`IA_INDISPONIVEL`, log `ia.geracao.soberania_recusada`). O que não leva texto de aluno e a resposta fixa do assunto delicado (D36, o 188) não passam por essa recusa.
+Com o banco fora, a conferência também não passa. **A API não confere e não muda:** a `/prontidao` dela responde como sempre, e login, prova e o resto do produto seguem de pé (o horário de aula
+é sagrado, regra 80). Quem pergunta ao Tutor durante a falha vê "Tentar de novo" depois do corte da espera de 20 s (AIA do Tutor, itens 15 e 16).
+
+**Primeiro olhar.** O log do `worker-ia` (`docker compose logs --since 10m worker-ia-1 worker-ia-2`): `ia.soberania_na_subida_recusada` traz `provedorId` e o `codigo`, com os motivos separados por vírgula
+(`sem_suboperador_vigente`, `pais_fora_do_brasil`, `treinamento_nao_vedado`, `alcance_nao_e_todas`, `categoria_faltando:<categoria>`); `ia.soberania_na_subida_sem_banco` é o banco que não respondeu.
+A instância confere de novo a cada 5 s (`INTERVALO_DA_NOVA_CONFERENCIA_MS`), e o mesmo motivo repetido sai de novo só a cada 12 tentativas seguidas dele (`REPETICAO_DO_LOG`, cerca de um minuto);
+o motivo que muda sai na hora.
+
+**Causas prováveis:**
+
+1. `sem_suboperador_vigente` → o provedor da `IA_PROVEDOR_ID` não está cadastrado, foi encerrado (`ops:suboperador encerrar`) ou a chave da variável não é a do cadastro: cadastre-o
+   (`ops:suboperador`, o cadastro da operação) ou corrija a variável.
+2. `pais_fora_do_brasil`, `treinamento_nao_vedado`, `alcance_nao_e_todas` → o contrato do provedor não cobre a D62: **não afrouxe o cadastro para subir**, e **nunca troque só
+   `LLM_PROCESSAMENTO_LOCAL=true` com o provedor externo no `LLM_BASE_URL`**: isso declara local o que sai para fora (regra 20, item 13). Só o modelo local de verdade (o `LLM_BASE_URL` e o
+   `LLM_MODELO` dele, com a flag junto) dispensa o suboperador; até haver contrato que cubra, o Tutor e as ferramentas ficam sem responder, e a coordenação é avisada (seção "Como avisar as escolas").
+3. `categoria_faltando:<categoria>` → uma tarefa passou a enviar uma categoria que o suboperador não lista: o contrato precisa cobri-la antes do cadastro; só então o operador a acrescenta.
+4. `ia.soberania_na_subida_sem_banco` → o Postgres está fora ou lento: veja o alerta do banco. A instância se confere sozinha quando ele volta.
+
+**Corrigido o cadastro, o `worker-ia` se confere sozinho** na tentativa seguinte (até 5 s) e passa a consumir, sem reiniciar.
+
+**Encerrar um suboperador pede reiniciar os `worker-ia`, a qualquer hora.** Depois de conferida, a instância não lê o cadastro de novo: o suboperador encerrado (`ops:suboperador encerrar`)
+continua valendo para ela até ela reiniciar. Ao encerrar, reinicie o `worker-ia-1` e logo depois o `worker-ia-2` (`docker compose restart worker-ia-1`, depois o 2): eles não carregam login nem prova, e,
+sem a D62 conferida, não voltam a consumir. **A API não reinicia.** Sem o reinício, a IA seguiria enviando ao provedor encerrado.
+
+**Se nada disso resolver:** o Tutor e as ferramentas seguem sem responder enquanto a D62 não é conferida, e isso é o desenho: avise a coordenação das escolas e não contorne a conferência.
+
+**Depois:** registre no `TODO.md` o motivo e por quanto tempo o `worker-ia` ficou parado.
 
 ## Rotina do sistema sem rodar (consolidação de uso, expurgo de jobs, expurgo do acesso)
 

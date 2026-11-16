@@ -3,6 +3,7 @@ import { alias } from 'drizzle-orm/pg-core'
 import { and, asc, desc, eq, exists, gt, isNull, ne, or, sql } from 'drizzle-orm'
 import { requireEscolaId } from '../context/context-escola.js'
 import type { Database, DatabaseTransaction } from '../db/database.js'
+import { Unscoped } from '../db/unscoped.decorator.js'
 import { escola } from '../db/schema/escola.js'
 import { suboperador, suboperadorEscola } from '../db/schema/suboperador.js'
 
@@ -28,9 +29,23 @@ export interface SuboperadorLidoPelaEscola {
 }
 
 /**
+ * O que a conferência da D62 lê do suboperador vigente de um provedor de IA: só os quatro campos que ela confere, sem contrato nem
+ * quem cadastrou (`soberania.ts`).
+ */
+export interface SuboperadorParaAConferenciaDaD62 {
+  readonly pais: string
+  readonly vedaTreinamento: boolean
+  readonly alcance: AlcanceDoSuboperador
+  readonly categorias: readonly CategoriaDeDadoDoSuboperador[]
+}
+
+/**
  * A leitura dos suboperadores da escola do contexto (F3, RF7; Tech Spec do F3, seções 4 e 6). **Só leitura**: o teste de
  * arquitetura confere que o arquivo não escreve em `suboperador` nem em `suboperador_escola`. Quem escreve é o
  * `OperacaoPrivacidadeRepository`, pelo `ops:suboperador`.
+ * * Tem **dois** métodos, de natureza diferente: `daEscola` é a leitura da escola do contexto (o que segue neste comentário, com o escopo da escola);
+ * `vigenteDoProvedor` é a leitura **da instância**, sem escola nem requisição, para a D62 conferida na subida do `main-worker` (8.0): é o único
+ * `@Unscoped` do arquivo, com a justificativa dele, e não é um desvio do escopo da escola (a tabela `suboperador` não tem `escola_id`).
  *
  * `suboperador` não tem `escola_id`, então o escopo é a pergunta "esta escola é atendida por ele?":
  * `(alcance = 'todas' or exists (ligação com a escola do contexto))`. Os parênteses são parte da regra: ela entra no `and`
@@ -104,6 +119,23 @@ export class SuboperadorDaEscolaRepository {
       inicio: linha.inicioDaLigacao ?? linha.inicioDoSuboperador,
       fim: maisCedo(linha.fimDoSuboperador, linha.fimDaLigacao),
     }))
+  }
+
+  /**
+   * O suboperador **vigente** (`fim is null`) da chave, que é a `IA_PROVEDOR_ID` da instância, para a conferência da D62 na subida do
+   * `main-worker`. Uma só pode estar vigente por chave (índice único); sem linha, `undefined`.
+   */
+  @Unscoped(
+    'a conferência da D62 é da instância na subida, sem escola nem requisição: a hospedagem do provedor é da operação e a tabela não tem ' +
+      'escola_id; devolve só pais, treinamento vedado, alcance e categorias, nunca contrato nem a lista das escolas',
+  )
+  async vigenteDoProvedor(chave: string): Promise<SuboperadorParaAConferenciaDaD62 | undefined> {
+    const [linha] = await this.banco
+      .select({ pais: suboperador.pais, vedaTreinamento: suboperador.vedaTreinamento, alcance: suboperador.alcance, categorias: suboperador.categorias })
+      .from(suboperador)
+      .where(and(eq(suboperador.chave, chave), isNull(suboperador.fim)))
+      .limit(1)
+    return linha
   }
 }
 

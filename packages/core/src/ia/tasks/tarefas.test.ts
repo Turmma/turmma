@@ -1,4 +1,7 @@
-import { ehChaveDeFuncao, FUNCAO_DA_TAREFA_DE_IA, PERFIS_DE_IA, TAREFAS_DE_IA, type ChaveDeFuncao, type TarefaDeIa } from '@educa/shared'
+import { ehChaveDeFuncao, FUNCAO_DA_TAREFA_DE_IA, PERFIS_DE_IA, TAREFAS_DE_IA, type CategoriaDeDadoDoSuboperador, type ChaveDeFuncao, type TarefaDeIa } from '@educa/shared'
+import { readdirSync, readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import {
@@ -12,7 +15,8 @@ import {
 } from '../__fixtures__/inputs.js'
 import { montarMensagens } from '../openai-compat-adapter.js'
 import { PERFIS, type Perfil } from '../perfis.js'
-import type { TaskDefinition } from '../task.js'
+import { categoriasEnviadasPelasTarefas } from '../soberania.js'
+import { defineTask, type TaskDefinition } from '../task.js'
 import { TASK_CATALOG } from './index.js'
 
 interface Caso {
@@ -33,15 +37,41 @@ const CASOS: Readonly<Record<TarefaDeIa, Caso>> = {
 }
 const NOMES = Object.keys(CASOS) as TarefaDeIa[]
 
-/** Função e perfil de cada tarefa. O perfil é o mais barato que resolve (regra 30, item 2): mudar aqui é mudar a fatura. */
-const DECLARADO: Readonly<Record<TarefaDeIa, { funcao: ChaveDeFuncao; perfil: Perfil; levaTextoLivreDePessoa: boolean; levaTextoDeAluno: boolean }>> = {
-  propor_ferramenta: { funcao: 'conversa_e_ferramentas', perfil: 'rapido', levaTextoLivreDePessoa: true, levaTextoDeAluno: true },
-  gerar_atividade_objetiva: { funcao: 'conversa_e_ferramentas', perfil: 'padrao', levaTextoLivreDePessoa: false, levaTextoDeAluno: false },
-  gerar_plano_de_aula: { funcao: 'conversa_e_ferramentas', perfil: 'padrao', levaTextoLivreDePessoa: false, levaTextoDeAluno: false },
-  adaptar_atividade: { funcao: 'adaptacao', perfil: 'padrao', levaTextoLivreDePessoa: false, levaTextoDeAluno: false },
-  turno_do_tutor: { funcao: 'tutor_com_o_aluno', perfil: 'rapido', levaTextoLivreDePessoa: true, levaTextoDeAluno: true },
-  relatorio_da_correcao: { funcao: 'correcao_de_objetiva', perfil: 'rapido', levaTextoLivreDePessoa: false, levaTextoDeAluno: false },
-  resumo_do_analista: { funcao: 'resumo_e_alerta', perfil: 'padrao', levaTextoLivreDePessoa: false, levaTextoDeAluno: false },
+interface Declarado {
+  funcao: ChaveDeFuncao
+  perfil: Perfil
+  levaTextoLivreDePessoa: boolean
+  levaTextoDeAluno: boolean
+  categoriasEnviadas: readonly CategoriaDeDadoDoSuboperador[]
+}
+
+/**
+ * Função, perfil e o que cada tarefa leva ao provedor. O perfil é o mais barato que resolve (regra 30, item 2): mudar aqui é mudar a fatura.
+ * `levaTextoDeAluno` e `categoriasEnviadas` são a D62: a subida exige que o suboperador do provedor cubra a união das categorias daqui, e uma
+ * categoria que sai de uma tarefa sem passar por aqui é dado que deixa de constar do contrato, ou que sai sem constar. Mudar uma linha é decisão
+ * de privacidade, e não de código.
+ */
+const DECLARADO: Readonly<Record<TarefaDeIa, Declarado>> = {
+  propor_ferramenta: { funcao: 'conversa_e_ferramentas', perfil: 'rapido', levaTextoLivreDePessoa: true, levaTextoDeAluno: true, categoriasEnviadas: ['conversa_do_aluno', 'conversa_do_professor', 'material_da_escola'] },
+  gerar_atividade_objetiva: { funcao: 'conversa_e_ferramentas', perfil: 'padrao', levaTextoLivreDePessoa: false, levaTextoDeAluno: false, categoriasEnviadas: ['material_da_escola'] },
+  gerar_plano_de_aula: { funcao: 'conversa_e_ferramentas', perfil: 'padrao', levaTextoLivreDePessoa: false, levaTextoDeAluno: false, categoriasEnviadas: ['material_da_escola'] },
+  adaptar_atividade: { funcao: 'adaptacao', perfil: 'padrao', levaTextoLivreDePessoa: false, levaTextoDeAluno: false, categoriasEnviadas: ['material_da_escola'] },
+  turno_do_tutor: { funcao: 'tutor_com_o_aluno', perfil: 'rapido', levaTextoLivreDePessoa: true, levaTextoDeAluno: true, categoriasEnviadas: ['conversa_do_aluno', 'material_da_escola', 'trabalho_do_aluno'] },
+  relatorio_da_correcao: { funcao: 'correcao_de_objetiva', perfil: 'rapido', levaTextoLivreDePessoa: false, levaTextoDeAluno: false, categoriasEnviadas: ['trabalho_do_aluno'] },
+  resumo_do_analista: { funcao: 'resumo_e_alerta', perfil: 'padrao', levaTextoLivreDePessoa: false, levaTextoDeAluno: false, categoriasEnviadas: ['trabalho_do_aluno'] },
+}
+
+/** O que há de incoerente na declaração da D62 de uma tarefa: quem leva texto de aluno leva a conversa do aluno, e as duas marcas de texto andam juntas. */
+function declaracaoIncoerente(tarefa: Pick<TaskDefinition<unknown, unknown>, 'levaTextoDeAluno' | 'levaTextoLivreDePessoa' | 'categoriasEnviadas'>): string[] {
+  const problemas: string[] = []
+  if (tarefa.levaTextoDeAluno && !tarefa.categoriasEnviadas.includes('conversa_do_aluno')) problemas.push('levaTextoDeAluno sem conversa_do_aluno nas categorias')
+  if (tarefa.levaTextoDeAluno && !tarefa.levaTextoLivreDePessoa) problemas.push('levaTextoDeAluno sem levaTextoLivreDePessoa')
+  return problemas
+}
+
+/** Os nomes das tarefas que o texto de um arquivo define com `defineTask`, em qualquer forma de `nome:` na abertura. */
+function tarefasDefinidasEm(texto: string): string[] {
+  return [...texto.matchAll(/defineTask(?:<[^>]*>)?\(\{\s*nome:\s*'([a-z_]+)'/g)].flatMap((achado) => (achado[1] === undefined ? [] : [achado[1]]))
 }
 
 /** Chaves que identificam ou descrevem uma pessoa. Nenhuma pode caber em nenhum nível de nenhuma entrada. */
@@ -93,9 +123,9 @@ describe('catálogo das tarefas de IA', () => {
 
   it.each(NOMES)('%s declara a função que gasta e o perfil mais barato que resolve; nenhuma usa o perfil caro', (nome) => {
     const { tarefa } = CASOS[nome]
-    expect({ funcao: tarefa.funcao, perfil: tarefa.perfil, levaTextoLivreDePessoa: tarefa.levaTextoLivreDePessoa, levaTextoDeAluno: tarefa.levaTextoDeAluno }).toEqual(DECLARADO[nome])
-    // Texto de aluno é texto livre de pessoa: a marca da D62 nunca vem sem a que tira o conteúdo do consumo.
-    if (tarefa.levaTextoDeAluno) expect(tarefa.levaTextoLivreDePessoa).toBe(true)
+    expect({ funcao: tarefa.funcao, perfil: tarefa.perfil, levaTextoLivreDePessoa: tarefa.levaTextoLivreDePessoa, levaTextoDeAluno: tarefa.levaTextoDeAluno, categoriasEnviadas: tarefa.categoriasEnviadas }).toEqual(DECLARADO[nome])
+    // Texto de aluno é texto livre de pessoa e é conversa do aluno: a marca da D62 nunca vem sem a que tira o conteúdo do consumo, nem sem a categoria.
+    expect(declaracaoIncoerente(tarefa)).toEqual([])
     expect(ehChaveDeFuncao(tarefa.funcao)).toBe(true)
     expect(PERFIS).toContain(tarefa.perfil)
     expect(tarefa.perfil).not.toBe('complexo')
@@ -106,6 +136,49 @@ describe('catálogo das tarefas de IA', () => {
     const { prompt } = CASOS[nome].tarefa
     expect(prompt.versao).toMatch(/^\d{4}-\d{2}-\d{2}\.\d+$/)
     expect(prompt.sistema.length).toBeGreaterThan(200)
+  })
+})
+
+describe('a declaração da D62 de cada tarefa (reengenharia-continuacao, 8.0)', () => {
+  it('o DECLARADO tem uma linha por tarefa do catálogo, nem a mais nem a menos: tarefa registrada sem linha fica vermelha', () => {
+    expect(Object.keys(DECLARADO).sort()).toEqual(Object.keys(TASK_CATALOG).sort())
+    expect(Object.keys(DECLARADO).sort()).toEqual([...TAREFAS_DE_IA].sort())
+  })
+
+  it('toda tarefa definida com defineTask em tasks/ está no catálogo, e o contrário: tarefa fora do catálogo escaparia da união que a subida exige', () => {
+    const pasta = dirname(fileURLToPath(import.meta.url))
+    const definidas = readdirSync(pasta)
+      .filter((arquivo) => arquivo.endsWith('.ts') && !arquivo.endsWith('.test.ts') && arquivo !== 'index.ts')
+      .flatMap((arquivo) => tarefasDefinidasEm(readFileSync(join(pasta, arquivo), 'utf8')))
+    expect(definidas.sort()).toEqual([...TAREFAS_DE_IA].sort())
+    // O leitor acusa a que está fora: uma definição com nome que o catálogo não tem aparece na lista.
+    expect(tarefasDefinidasEm("export const solta = defineTask({\n  nome: 'tarefa_solta',\n")).toEqual(['tarefa_solta'])
+    expect(tarefasDefinidasEm("export const solta = defineTask<A, B>({ nome: 'tarefa_solta',")).toEqual(['tarefa_solta'])
+  })
+
+  it('a união que a subida exige do suboperador é a das tarefas do catálogo, sem repetição', () => {
+    const esperada = [...new Set(Object.values(DECLARADO).flatMap((declarado) => declarado.categoriasEnviadas))].sort()
+    expect(categoriasEnviadasPelasTarefas().sort()).toEqual(esperada)
+    expect(esperada).toEqual(['conversa_do_aluno', 'conversa_do_professor', 'material_da_escola', 'trabalho_do_aluno'])
+  })
+
+  it('levaTextoDeAluno: true sem conversa_do_aluno nas categorias é incoerente, e sem levaTextoLivreDePessoa também', () => {
+    const material = ['material_da_escola'] as const
+    expect(declaracaoIncoerente({ levaTextoDeAluno: true, levaTextoLivreDePessoa: true, categoriasEnviadas: material })).toEqual(['levaTextoDeAluno sem conversa_do_aluno nas categorias'])
+    expect(declaracaoIncoerente({ levaTextoDeAluno: true, levaTextoLivreDePessoa: false, categoriasEnviadas: ['conversa_do_aluno'] })).toEqual(['levaTextoDeAluno sem levaTextoLivreDePessoa'])
+    expect(declaracaoIncoerente({ levaTextoDeAluno: false, levaTextoLivreDePessoa: false, categoriasEnviadas: material })).toEqual([])
+    expect(declaracaoIncoerente({ levaTextoDeAluno: true, levaTextoLivreDePessoa: true, categoriasEnviadas: ['conversa_do_aluno'] })).toEqual([])
+  })
+
+  it('a tarefa sem a declaração não compila: `levaTextoDeAluno` e `categoriasEnviadas` são obrigatórias em defineTask', () => {
+    const { categoriasEnviadas, ...semCategorias } = TASK_CATALOG.gerar_plano_de_aula
+    const { levaTextoDeAluno, ...semMarca } = TASK_CATALOG.gerar_plano_de_aula
+    // @ts-expect-error falta `categoriasEnviadas`: se o campo virar opcional, esta linha deixa de errar e o tsc reprova
+    const semAsCategorias: TaskDefinition<unknown, unknown> = defineTask(semCategorias)
+    // @ts-expect-error falta `levaTextoDeAluno`
+    const semAMarca: TaskDefinition<unknown, unknown> = defineTask(semMarca)
+    expect([categoriasEnviadas, levaTextoDeAluno]).toEqual([['material_da_escola'], false])
+    expect([semAsCategorias.nome, semAMarca.nome]).toEqual(['gerar_plano_de_aula', 'gerar_plano_de_aula'])
   })
 })
 

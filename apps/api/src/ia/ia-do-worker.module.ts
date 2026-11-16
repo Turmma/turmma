@@ -1,4 +1,4 @@
-import { createLLMGateway, destinoDoAdaptador, globalMeter, type Database, type DestinoDoAdaptador, type LLMConfig, type LoggerBase, type Meter, type OrcamentoDeIa, type SuspensaoDeFuncao } from '@educa/core'
+import { createLLMGateway, destinoDoAdaptador, globalMeter, SoberaniaNaSubida, SuboperadorDaEscolaRepository, type Database, type DestinoDoAdaptador, type LLMConfig, type LoggerBase, type Meter, type OrcamentoDeIa, type SuspensaoDeFuncao } from '@educa/core'
 import { Global, Module, type DynamicModule } from '@nestjs/common'
 import { DB } from '../database.module.js'
 import { ConsumoRepository } from './consumo.repository.js'
@@ -33,15 +33,21 @@ export class IaDoWorkerModule {
         { provide: SUSPENSAO_DE_FUNCAO, useFactory: (banco: Database) => new SuspensaoRepository(banco), inject: [DB] },
         { provide: ORCAMENTO_DE_IA, useFactory: (banco: Database) => new OrcamentoRepository(banco), inject: [DB] },
         {
+          // A D62 na subida (8.0): o `main-worker` só consome fila com ela conferida (`CicloDoWorkerDeIa`), e o gateway a lê a cada chamada.
+          provide: SoberaniaNaSubida,
+          useFactory: (banco: Database) => new SoberaniaNaSubida({ config, leitura: new SuboperadorDaEscolaRepository(banco), logger }),
+          inject: [DB],
+        },
+        {
           provide: LLM_PROVIDER,
-          useFactory: (banco: Database, orcamento: OrcamentoDeIa, suspensao: SuspensaoDeFuncao) =>
-            createLLMGateway(config, { registro: new ConsumoRepository(banco), orcamento, suspensao, logger, medidor: medidor ?? globalMeter() }),
-          inject: [DB, ORCAMENTO_DE_IA, SUSPENSAO_DE_FUNCAO],
+          useFactory: (banco: Database, orcamento: OrcamentoDeIa, suspensao: SuspensaoDeFuncao, soberania: SoberaniaNaSubida) =>
+            createLLMGateway(config, { registro: new ConsumoRepository(banco), orcamento, suspensao, soberania, logger, medidor: medidor ?? globalMeter() }),
+          inject: [DB, ORCAMENTO_DE_IA, SUSPENSAO_DE_FUNCAO, SoberaniaNaSubida],
         },
         { provide: RegistroDeComandos, useFactory: () => new RegistroDeComandos() },
         { provide: DESTINO_DO_ADAPTADOR, useFactory: (): DestinoDoAdaptador => destinoDoAdaptador(config) },
       ],
-      exports: [LLM_PROVIDER, SUSPENSAO_DE_FUNCAO, ORCAMENTO_DE_IA, RegistroDeComandos, DESTINO_DO_ADAPTADOR],
+      exports: [LLM_PROVIDER, SUSPENSAO_DE_FUNCAO, ORCAMENTO_DE_IA, RegistroDeComandos, DESTINO_DO_ADAPTADOR, SoberaniaNaSubida],
     }
   }
 }

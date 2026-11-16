@@ -40,6 +40,11 @@ export type EnvioDaChamada =
 /** Nada saiu: adaptador falso, modelo local, regra fixa e chamada que nem chegou a sair. */
 export const SEM_ENVIO_EXTERNO: EnvioDaChamada = { envioExterno: false, provedorId: null }
 
+/** O que o gateway lê a cada chamada: a subida conferiu a D62 desta instância? Um getter, porque a conferência pode terminar depois de o gateway nascer. */
+export interface DeclaracaoDeSoberania {
+  readonly conferida: boolean
+}
+
 interface DadosDaMedicao {
   readonly origem: OutputSource
   readonly perfil: Perfil

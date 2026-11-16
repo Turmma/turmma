@@ -237,6 +237,7 @@ export const gerarAtividadeObjetiva = defineTask({
   maximoDeTokensDeEntrada: 26100,
   levaTextoLivreDePessoa: false,
   levaTextoDeAluno: false,
+  categoriasEnviadas: ['material_da_escola'],
 
   /**
    * A atividade gerada nunca é versão adaptada: o `adaptacao` que o modelo acrescentar por conta própria sai antes do

@@ -16,9 +16,12 @@ import { atribuiNotaOuConceito, conversaPedeJulgamentoDeTextoDeAluno, conversaTr
 import { relatorioDaCorrecao } from './relatorio-da-correcao.js'
 import { resumoDoAnalista } from './resumo-do-analista.js'
 
+/** A D62 é provada em `llm-gateway.test.ts`: aqui o assunto é o conteúdo da tarefa, e a subida já conferiu o provedor roteirizado. */
+const SUBIDA_CONFERIDA = { conferida: true } as const
+
 function provedorCom(adaptador: ModelAdapter): { ia: LLMGateway; consumo: InMemoryConsumo } {
   const consumo = new InMemoryConsumo()
-  return { ia: withEscolaContextOfRequest(new LLMGateway({ adaptador, registro: consumo, orcamento: new InMemoryOrcamento(consumo), suspensao: new InMemorySuspensoes() })), consumo }
+  return { ia: withEscolaContextOfRequest(new LLMGateway({ adaptador, registro: consumo, orcamento: new InMemoryOrcamento(consumo), suspensao: new InMemorySuspensoes(), soberania: SUBIDA_CONFERIDA })), consumo }
 }
 
 describe('propor_ferramenta: o Assistente pergunta antes de abrir a ferramenta (D18)', () => {
@@ -606,7 +609,7 @@ describe('propor_ferramenta na tarefa 3.0: juízo sobre texto de aluno, na entra
       const consumo = new InMemoryConsumo()
       const logger = { info: vi.fn(), warn: vi.fn() }
       const adaptador = new ScriptedAdapter(roteiro)
-      const ia = withEscolaContextOfRequest(new LLMGateway({ adaptador, registro: consumo, orcamento: new InMemoryOrcamento(consumo), suspensao: new InMemorySuspensoes(), logger }))
+      const ia = withEscolaContextOfRequest(new LLMGateway({ adaptador, registro: consumo, orcamento: new InMemoryOrcamento(consumo), suspensao: new InMemorySuspensoes(), soberania: SUBIDA_CONFERIDA, logger }))
       return { ia, consumo, logger, adaptador }
     }
 

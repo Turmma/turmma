@@ -30,9 +30,12 @@ import {
   type TutorOutput,
 } from './turno-do-tutor.js'
 
+/** A D62 é provada em `llm-gateway.test.ts`: aqui o assunto é o conteúdo da tarefa, e a subida já conferiu o provedor roteirizado. */
+const SUBIDA_CONFERIDA = { conferida: true } as const
+
 function montar(adaptador: ModelAdapter = new FakeAdapter()): { ia: LLMGateway; consumo: InMemoryConsumo } {
   const consumo = new InMemoryConsumo()
-  return { ia: withEscolaContextOfRequest(new LLMGateway({ adaptador, registro: consumo, orcamento: new InMemoryOrcamento(consumo), suspensao: new InMemorySuspensoes() })), consumo }
+  return { ia: withEscolaContextOfRequest(new LLMGateway({ adaptador, registro: consumo, orcamento: new InMemoryOrcamento(consumo), suspensao: new InMemorySuspensoes(), soberania: SUBIDA_CONFERIDA })), consumo }
 }
 
 async function turno(entrada: TutorInput, adaptador?: ModelAdapter): Promise<TutorOutput> {

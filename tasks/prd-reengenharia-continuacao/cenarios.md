@@ -156,13 +156,19 @@ bancada, com fixture.
 
 - [I] Subida com provedor externo: sobe com o suboperador vigente `BR`, `veda_treinamento`, `alcance = 'todas'` e a união das
   categorias; um caso de recusa por campo e **um por categoria faltando**. Mutação: conferir só `conversa_do_aluno`
-- [I] Banco fora na subida: não fica pronto e não consome fila
+- [I] Banco fora na subida: o worker não consome fila
+- [I] Provedor externo com a D62 não conferida (cadastro que não cobre ou banco fora): a API responde 200 em `/prontidao` e o
+  worker não consome (RF9 revisto em 16/11). Mutação: a prontidão da API voltar a depender da conferência
 - [I] O falso e o local sobem sem suboperador (caso positivo)
 - [U] O `DECLARADO` de `packages/core/src/ia/tasks/tarefas.test.ts` fixa `levaTextoDeAluno` e `categoriasEnviadas` de **toda**
   tarefa; `levaTextoDeAluno: true` exige `conversa_do_aluno` nas categorias. Mutação: tirar uma categoria de uma tarefa
 - [U] Marca ligada e declaração não conferida: nenhum `fetch`, nenhum orçamento reservado, `IA_INDISPONIVEL`, log
   `ia.geracao.soberania_recusada`. Mutação: conferir depois do orçamento
 - [U] Marca ligada e adaptador falso: a chamada sai (caso positivo do gateway)
+- [I] A instância não conferida se confere sozinha quando o cadastro é corrigido (`worker-ia`), sem reiniciar; e a que desliga sem ter conferido
+  não cria o consumidor. Mutação: o consumo do worker sem a espera da conferência
+- [U] O gateway de produção recebe a declaração: todo `createLLMGateway` de `apps/*/src` entrega a `soberania` (`architecture.test.ts`). Mutação: tirá-la da fiação
+- [U] A regra fixa (D36, o 188) responde com a D62 não conferida: a recusa fica no ramo que chama o modelo
 
 ## 6. Isolamento (regra 10)
 

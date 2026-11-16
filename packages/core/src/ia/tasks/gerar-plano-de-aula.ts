@@ -96,6 +96,7 @@ export const gerarPlanoDeAula = defineTask({
   maximoDeTokensDeEntrada: 26100,
   levaTextoLivreDePessoa: false,
   levaTextoDeAluno: false,
+  categoriasEnviadas: ['material_da_escola'],
 
   montarPedido(entrada) {
     return {

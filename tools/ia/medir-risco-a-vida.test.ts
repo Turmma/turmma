@@ -52,7 +52,7 @@ async function medirComRoteiro(roteiro: readonly string[], execucoes?: number) {
   const nucleo = await carregar()
   const adaptador = new nucleo.ScriptedAdapter(roteiro)
   const consumo = new nucleo.InMemoryConsumo()
-  const provedor = new nucleo.LLMGateway({ adaptador, registro: consumo, orcamento: new nucleo.InMemoryOrcamento(consumo), suspensao: new nucleo.InMemorySuspensoes() })
+  const provedor = new nucleo.LLMGateway({ adaptador, registro: consumo, orcamento: new nucleo.InMemoryOrcamento(consumo), suspensao: new nucleo.InMemorySuspensoes(), soberania: { conferida: true } })
   const pecas: PecasDoNucleo = { provedor, executarNoContexto: nucleo.runInContext, turnoDoTutor: nucleo.turnoDoTutor, mencionaRiscoAVida: nucleo.mencionaRiscoAVida, MENSAGEM_DE_RISCO_A_VIDA: nucleo.MENSAGEM_DE_RISCO_A_VIDA }
   const resultado = await medirComProvedor(AMOSTRAS, pecas, execucoes === undefined ? {} : { execucoes })
   return { resultado, adaptador }

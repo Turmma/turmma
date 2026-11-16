@@ -12,7 +12,7 @@ import { InMemoryConsumo, InMemoryOrcamento, type OrcamentoQuery, type ConsumoDe
 import type { LLMConfig } from '../config/llm-config.js'
 import { HTTP_STATUS_BY_CODE } from '../error/domain.exception.js'
 import { LLM_ERROR_CODES, LLMError } from './errors.js'
-import type { EnvioDaChamada, GenerationMeasurement } from './port.js'
+import type { DeclaracaoDeSoberania, EnvioDaChamada, GenerationMeasurement } from './port.js'
 import { createLLMGateway, destinoDoAdaptador, MODELO_DA_REGRA_FIXA, LLMGateway, type LLMLogger } from './llm-gateway.js'
 import { exigirFuncaoAtiva, InMemorySuspensoes, type SuspensaoDeFuncao } from './suspensao.js'
 import { tokensDoPedido } from './teto-de-entrada.js'
@@ -24,6 +24,8 @@ import { turnoDoTutor } from './tasks/turno-do-tutor.js'
 
 const EXECUCAO = '1d2e3f4a-5b6c-4d7e-8f90-a1b2c3d4e5f6'
 const PRAZOS = { rapido: 5_000, padrao: 5_000, complexo: 5_000, visao: 5_000 } as const
+/** A subida conferiu a D62: o suboperador do provedor cobre o texto de aluno. */
+const CONFERIDA: DeclaracaoDeSoberania = { conferida: true }
 const SEMPRE = { consultar: async () => ({ permitido: true as const }) } satisfies OrcamentoDeIa
 
 function registrador(): LLMLogger & { linhas: () => unknown[] } {
@@ -32,8 +34,13 @@ function registrador(): LLMLogger & { linhas: () => unknown[] } {
   return { info, warn, linhas: () => [...info.mock.calls, ...warn.mock.calls].flat() }
 }
 
+/** Só as opções que o teste passou: com `exactOptionalPropertyTypes`, o campo opcional não aceita `undefined`. */
+function soOQuePassou<Campos extends object>(campos: Campos): { [Chave in keyof Campos]?: Exclude<Campos[Chave], undefined> } {
+  return Object.fromEntries(Object.entries(campos).filter(([, valor]) => valor !== undefined)) as { [Chave in keyof Campos]?: Exclude<Campos[Chave], undefined> }
+}
+
 /** `semContexto`: o provedor puro, sem o contexto da escola do pedido, para o teste do que acontece sem escola no contexto. */
-function montar(opcoes: { adaptador?: ModelAdapter; orcamento?: OrcamentoDeIa; registro?: RegistroDeConsumo; suspensao?: SuspensaoDeFuncao; logger?: LLMLogger; agora?: () => Date; semContexto?: true; medidor?: MedidorDeTeste['medidor'] } = {}) {
+function montar(opcoes: { adaptador?: ModelAdapter; orcamento?: OrcamentoDeIa; registro?: RegistroDeConsumo; suspensao?: SuspensaoDeFuncao; soberania?: DeclaracaoDeSoberania; logger?: LLMLogger; agora?: () => Date; semContexto?: true; medidor?: MedidorDeTeste['medidor'] } = {}) {
   const consumo = new InMemoryConsumo()
   const relogio = { agora: opcoes.agora ?? (() => new Date('2026-10-05T13:00:00Z')) }
   const puro = new LLMGateway({
@@ -42,8 +49,7 @@ function montar(opcoes: { adaptador?: ModelAdapter; orcamento?: OrcamentoDeIa; r
     orcamento: opcoes.orcamento ?? SEMPRE,
     suspensao: opcoes.suspensao ?? new InMemorySuspensoes(),
     relogio,
-    ...(opcoes.logger === undefined ? {} : { logger: opcoes.logger }),
-    ...(opcoes.medidor === undefined ? {} : { medidor: opcoes.medidor }),
+    ...soOQuePassou({ soberania: opcoes.soberania, logger: opcoes.logger, medidor: opcoes.medidor }),
   })
   const ia = opcoes.semContexto === true ? puro : withEscolaContextOfRequest(puro)
   return { ia, consumo, relogio }
@@ -273,7 +279,7 @@ describe('ProvedorDeIa: toda execução registra (regra 30, item 4)', () => {
   })
 
   it('na falha de tarefa que leva texto de aluno, o consumo também fica sem a entrada', async () => {
-    const { ia, consumo } = montar({ adaptador: new ScriptedAdapter(['não é json', 'não é json']) })
+    const { ia, consumo } = montar({ adaptador: new ScriptedAdapter(['não é json', 'não é json']), soberania: CONFERIDA })
     await erroDe(ia.gerar({ tarefa: turnoDoTutor, entrada: entradaDoTutor('não entendi palavra-marcada-do-aluno'), escolaId: ESCOLA_A, alunoId: ALUNO_1 }))
     expect(consumo.registros).toMatchObject([{ estado: 'falhou', codigoDeErro: 'IA_SAIDA_INVALIDA' }])
     expect(JSON.stringify(consumo.registros)).not.toContain('palavra-marcada')
@@ -285,7 +291,7 @@ describe('ProvedorDeIa: toda execução registra (regra 30, item 4)', () => {
     expect(proporFerramenta).toMatchObject({ levaTextoLivreDePessoa: true, levaTextoDeAluno: true })
     const { ia, consumo } = montar()
     await ia.gerar({ tarefa: proporFerramenta, entrada, escolaId: ESCOLA_A, execucaoId: EXECUCAO })
-    const falhando = montar({ registro: consumo, adaptador: new ScriptedAdapter(['não é json', 'não é json']) })
+    const falhando = montar({ registro: consumo, adaptador: new ScriptedAdapter(['não é json', 'não é json']), soberania: CONFERIDA })
     await erroDe(falhando.ia.gerar({ tarefa: proporFerramenta, entrada, escolaId: ESCOLA_A, execucaoId: EXECUCAO }))
     expect(consumo.registros).toMatchObject([
       { tarefa: 'propor_ferramenta', funcao: 'conversa_e_ferramentas', estado: 'concluida', execucaoId: EXECUCAO },
@@ -342,7 +348,7 @@ describe('ProvedorDeIa: o log leva id, nunca conteúdo (regra 20, item 9)', () =
     const duvida = 'como eu acho o reagente limitante? palavra-marcada-do-aluno'
     const { ia } = montar({ logger })
     const { saida } = await ia.gerar({ tarefa: turnoDoTutor, entrada: entradaDoTutor(duvida), escolaId: ESCOLA_A, alunoId: ALUNO_1 })
-    const falhando = montar({ logger, adaptador: new ScriptedAdapter(['palavra-marcada-do-modelo', 'palavra-marcada-do-modelo']) })
+    const falhando = montar({ logger, adaptador: new ScriptedAdapter(['palavra-marcada-do-modelo', 'palavra-marcada-do-modelo']), soberania: CONFERIDA })
     await erroDe(falhando.ia.gerar({ tarefa: turnoDoTutor, entrada: entradaDoTutor(duvida), escolaId: ESCOLA_A, alunoId: ALUNO_1 }))
     const linhas = JSON.stringify(logger.linhas())
     expect(logger.linhas()).toHaveLength(2)
@@ -497,6 +503,105 @@ describe('ProvedorDeIa: o pedido acima do teto de entrada para antes de qualquer
   })
 })
 
+describe('ProvedorDeIa: a D62 na chamada, antes do orçamento e do envio (reengenharia-continuacao, 8.0)', () => {
+  const duvida = 'como eu acho o reagente limitante? palavra-marcada-do-aluno'
+  const pedidoDoTutor = { tarefa: turnoDoTutor, entrada: entradaDoTutor(duvida), escolaId: ESCOLA_A, alunoId: ALUNO_1, execucaoId: EXECUCAO }
+  const respostaDoTutor = () => JSON.stringify(turnoDoTutor.falso(entradaDoTutor(duvida)))
+
+  it.each([
+    ['o Tutor', pedidoDoTutor],
+    ['o Assistente', { tarefa: proporFerramenta, entrada: entradaDoAssistente('monte uma atividade de estequiometria'), escolaId: ESCOLA_A, execucaoId: EXECUCAO }],
+  ] as const)('%s com provedor externo e a D62 não conferida: IA_INDISPONIVEL, nenhuma chamada ao provedor, orçamento não consultado, sem consumo', async (_nome, pedido) => {
+    const adaptador = new ScriptedAdapter([])
+    const consultar = vi.fn(async () => ({ permitido: true as const }))
+    const { ia, consumo } = montar({ adaptador, orcamento: { consultar } })
+    const erro = await erroDe(ia.gerar(pedido as typeof pedidoDoTutor))
+    expect(erro).toMatchObject({ codigoDeIa: 'IA_INDISPONIVEL', status: 503 })
+    expect(adaptador.chamadas).toBe(0)
+    expect(consultar).not.toHaveBeenCalled()
+    expect(consumo.registros).toEqual([])
+  })
+
+  it('a declaração dita `conferida: false` recusa do mesmo jeito que a ausência dela', async () => {
+    const adaptador = new ScriptedAdapter([])
+    const { ia } = montar({ adaptador, soberania: { conferida: false } })
+    expect((await erroDe(ia.gerar(pedidoDoTutor))).codigoDeIa).toBe('IA_INDISPONIVEL')
+    expect(adaptador.chamadas).toBe(0)
+  })
+
+  it('com a D62 conferida a chamada sai, e a declaração é lida a cada chamada: a que fica conferida depois deixa passar', async () => {
+    const adaptador = new ScriptedAdapter([respostaDoTutor()])
+    const soberania = { conferida: false }
+    const { ia } = montar({ adaptador, soberania })
+    expect((await erroDe(ia.gerar(pedidoDoTutor))).codigoDeIa).toBe('IA_INDISPONIVEL')
+    soberania.conferida = true
+    const { medicao } = await ia.gerar(pedidoDoTutor)
+    expect(adaptador.chamadas).toBe(1)
+    expect(medicao).toMatchObject({ envioExterno: true, provedorId: PROVEDOR_ROTEIRIZADO })
+  })
+
+  it('o adaptador falso e o modelo local não precisam da declaração: a chamada sai sem ela', async () => {
+    const falso = montar()
+    expect((await falso.ia.gerar(pedidoDoTutor)).medicao).toMatchObject({ envioExterno: false, provedorId: null })
+    const adaptadorLocal = new ScriptedAdapter([respostaDoTutor()], false)
+    const local = montar({ adaptador: adaptadorLocal })
+    await local.ia.gerar(pedidoDoTutor)
+    expect(adaptadorLocal.chamadas).toBe(1)
+  })
+
+  it('a tarefa sem texto de aluno sai para o provedor externo sem a declaração: a marca é que liga a recusa', async () => {
+    const adaptador = new ScriptedAdapter([JSON.stringify(atividadeDeEstequiometria())])
+    const { ia } = montar({ adaptador })
+    expect(gerarAtividadeObjetiva.levaTextoDeAluno).toBe(false)
+    await ia.gerar({ tarefa: gerarAtividadeObjetiva, entrada: entradaDeAtividade(), escolaId: ESCOLA_A })
+    expect(adaptador.chamadas).toBe(1)
+  })
+
+  it('a regra fixa não envia nada: o aluno no assunto delicado recebe a mensagem com o 188 mesmo com a D62 não conferida (D36)', async () => {
+    const adaptador = new ScriptedAdapter([])
+    const { ia } = montar({ adaptador })
+    const { saida } = await ia.gerar({ tarefa: turnoDoTutor, entrada: entradaDoTutor('eu quero morrer'), escolaId: ESCOLA_A, alunoId: ALUNO_1 })
+    expect(saida.resposta).toContain('188')
+    expect(adaptador.chamadas).toBe(0)
+  })
+
+  it('createLLMGateway entrega a declaração das portas ao gateway: com provedor externo, nenhum pedido sai sem ela, e com ela sai um', async () => {
+    const servidor = await startFakeLlamaServer(() => ({ corpo: chatResponse(respostaDoTutor()) }))
+    try {
+      // O endereço é desta máquina, mas o processamento não é declarado local: para o gateway é um provedor de fora.
+      const configuracao: LLMConfig = {
+        adaptador: 'openai_compat',
+        prazosMs: PRAZOS,
+        recuoMs: 20,
+        replicas: 1,
+        modelo: { baseUrl: servidor.url, modelos: { rapido: 'm', padrao: 'm', complexo: 'm', visao: 'm' }, processamentoLocal: false, provedorId: PROVEDOR_ROTEIRIZADO },
+      }
+      const portas = { registro: new InMemoryConsumo(), orcamento: SEMPRE, suspensao: new InMemorySuspensoes() }
+      const semDeclaracao = withEscolaContextOfRequest(createLLMGateway(configuracao, portas))
+      expect((await erroDe(semDeclaracao.gerar(pedidoDoTutor))).codigoDeIa).toBe('IA_INDISPONIVEL')
+      expect(servidor.pedidos).toHaveLength(0)
+      const comDeclaracao = withEscolaContextOfRequest(createLLMGateway(configuracao, { ...portas, soberania: CONFERIDA }))
+      await comDeclaracao.gerar(pedidoDoTutor)
+      expect(servidor.pedidos).toHaveLength(1)
+    } finally {
+      await servidor.fechar()
+    }
+  })
+
+  it('o log da recusa leva o evento, a tarefa, os ids e o provedor; nunca a entrada, o nome nem o prompt (regra 20, item 9)', async () => {
+    const logger = registrador()
+    const { ia } = montar({ adaptador: new ScriptedAdapter([]), logger })
+    await erroDe(ia.gerar(pedidoDoTutor))
+    const linha = logger.linhas().find((item) => (item as { evento?: string }).evento === 'ia.geracao.soberania_recusada')
+    expect(linha).toMatchObject({ evento: 'ia.geracao.soberania_recusada', tipo: 'turno_do_tutor', codigo: 'IA_INDISPONIVEL', escolaId: ESCOLA_A, execucaoId: EXECUCAO, provedorId: PROVEDOR_ROTEIRIZADO })
+    expect(logger.linhas()).toHaveLength(1)
+    const texto = JSON.stringify(logger.linhas())
+    expect(texto).not.toContain('palavra-marcada')
+    expect(texto).not.toContain(turnoDoTutor.prompt.sistema.slice(0, 40))
+    expect(texto).not.toContain(ALUNO_1)
+  })
+})
+
 describe('ProvedorDeIa: orçamento consultado antes de gastar (D14, D38)', () => {
   it('toda chamada consulta o orçamento com a função, sem a escola (a porta a lê do contexto); no Tutor, também com o aluno', async () => {
     const consultar = vi.fn(async () => ({ permitido: true as const }))
@@ -530,7 +635,7 @@ describe('ProvedorDeIa: orçamento consultado antes de gastar (D14, D38)', () =>
 
   it('o código da recusa é o que o orçamento deu: freio do dia e pacote do mês chegam com o código próprio', async () => {
     for (const codigo of ['LIMITE_DIARIO_DO_TUTOR', 'PACOTE_DO_TUTOR_ESGOTADO'] as const) {
-      const { ia } = montar({ adaptador: new ScriptedAdapter([]), orcamento: { consultar: async () => ({ permitido: false, codigo }) } })
+      const { ia } = montar({ adaptador: new ScriptedAdapter([]), soberania: CONFERIDA, orcamento: { consultar: async () => ({ permitido: false, codigo }) } })
       const erro = await erroDe(ia.gerar({ tarefa: turnoDoTutor, entrada: entradaDoTutor('não entendi'), escolaId: ESCOLA_A, alunoId: ALUNO_1 }))
       expect(erro).toMatchObject({ codigoDeIa: codigo, codigo, status: 429 })
     }
@@ -538,7 +643,7 @@ describe('ProvedorDeIa: orçamento consultado antes de gastar (D14, D38)', () =>
 
   it('assunto delicado não passa pelo orçamento: no fim do freio do dia, o aluno ainda recebe a mensagem fixa com o 188', async () => {
     const consultar = vi.fn(async () => ({ permitido: false as const, codigo: 'LIMITE_DIARIO_DO_TUTOR' as const }))
-    const { ia, consumo } = montar({ orcamento: { consultar }, adaptador: new ScriptedAdapter([]) })
+    const { ia, consumo } = montar({ orcamento: { consultar }, adaptador: new ScriptedAdapter([]), soberania: CONFERIDA })
     const { saida } = await ia.gerar({ tarefa: turnoDoTutor, entrada: entradaDoTutor('eu quero morrer'), escolaId: ESCOLA_A, alunoId: ALUNO_1 })
     expect(saida.resposta).toContain('188')
     expect(consultar).not.toHaveBeenCalled()

@@ -14,7 +14,7 @@ import { ResilientAdapter } from './resilient-adapter.js'
 import type { ConsumoDeIa, DestinoDoAdaptador, OrcamentoDeIa, RegistroDeConsumo } from './consumo.js'
 import { LLMError, type LLMErrorCode } from './errors.js'
 import { semMarcacao } from './clean-output.js'
-import { SEM_ENVIO_EXTERNO, type LLMProvider, type GenerationMeasurement, type GenerationRequest, type GenerationResult } from './port.js'
+import { SEM_ENVIO_EXTERNO, type DeclaracaoDeSoberania, type LLMProvider, type GenerationMeasurement, type GenerationRequest, type GenerationResult } from './port.js'
 import { exigirFuncaoAtiva, type SuspensaoDeFuncao } from './suspensao.js'
 import type { TaskDefinition } from './task.js'
 import { tokensDoPedido } from './teto-de-entrada.js'
@@ -27,6 +27,12 @@ export interface LLMGatewayDependencies {
   readonly registro: RegistroDeConsumo
   readonly orcamento: OrcamentoDeIa
   readonly suspensao: SuspensaoDeFuncao
+  /**
+   * A subida conferiu a D62 desta instância (`SoberaniaNaSubida`)? Lida a cada chamada. Com adaptador que manda o conteúdo para fora, a tarefa
+   * que leva texto de aluno só sai se `conferida`; **sem ela, vale não conferida** (falha fechada). O adaptador falso e o local não mandam nada
+   * para fora e não precisam dela.
+   */
+  readonly soberania?: DeclaracaoDeSoberania
   readonly logger?: LLMLogger
   readonly relogio?: Clock
   /** Onde `ia.pedido_acima_do_teto{tarefa}` é contada. Sem ele a recusa vale do mesmo jeito, só sem a métrica. */
@@ -79,7 +85,7 @@ interface Gasto {
 
 /**
  * A implementação da porta, igual para todo adaptador. Em toda chamada, nesta ordem: valida a entrada, confere se a
- * escola suspendeu a função, recusa o pedido acima do teto de entrada da tarefa, consulta o orçamento (salvo na resposta de regra fixa), chama o modelo (o prazo e a repetição do que não cobrou são do `ResilientAdapter`), valida a saída (repetindo uma vez),
+ * escola suspendeu a função, recusa a tarefa de texto de aluno que a subida não conferiu na D62, recusa o pedido acima do teto de entrada da tarefa, consulta o orçamento (salvo na resposta de regra fixa), chama o modelo (o prazo e a repetição do que não cobrou são do `ResilientAdapter`), valida a saída (repetindo uma vez),
  * registra o consumo e escreve o log.
  *
  * Nada que não foi registrado é devolvido: se o registro falhar, a chamada falha (regra 30, item 4).
@@ -134,6 +140,8 @@ export class LLMGateway implements LLMProvider {
     // delicado recebe a mensagem com o 188 mesmo no fim do freio do dia (D36).
     const fixa = tarefa.semModelo?.(entrada)
     if (fixa === undefined) {
+      // A D62, antes do teto, do orçamento e do envio: texto de aluno não sai para provedor que a subida não conferiu.
+      this.exigirSoberania(pedido, inicio)
       // Antes do orçamento e do envio: o pedido que estoura o teto da tarefa é defeito nosso, e não gasta nada nem a vez de ninguém.
       this.exigirPedidoDentroDoTeto(pedido, entrada, inicio)
       await this.exigirOrcamento(pedido, inicio)
@@ -165,6 +173,23 @@ export class LLMGateway implements LLMProvider {
     const { duracaoMs, tentativas } = medicao
     this.dependencias.logger?.info({ evento: 'ia.geracao.concluida', tipo, escolaId: pedido.escolaId, execucaoId: pedido.execucaoId, duracaoMs, tentativas })
     return { saida, medicao }
+  }
+
+  /**
+   * A D62 na chamada: a tarefa com `levaTextoDeAluno` não segue para adaptador que manda o conteúdo para fora sem a subida ter conferido o
+   * suboperador do provedor (`pais = 'BR'`, treinamento vedado, as categorias das tarefas). Recusa com `IA_INDISPONIVEL` e o log
+   * `ia.geracao.soberania_recusada`, sem registro de consumo (nada saiu). Fica **fora** da resposta de regra fixa, que não envia nada: o aluno no
+   * assunto delicado recebe a mensagem com o 188 mesmo com o provedor não conferido (D36). O log leva a tarefa, os ids e o provedor, nunca a
+   * entrada nem o pedido (regra 20, item 9).
+   */
+  private exigirSoberania<Entrada, Saida>(pedido: GenerationRequest<Entrada, Saida>, inicio: number): void {
+    const { tarefa } = pedido
+    const { envio } = this.dependencias.adaptador
+    if (!tarefa.levaTextoDeAluno || !envio.envioExterno || this.dependencias.soberania?.conferida === true) return
+    const tipo = tarefa.nome
+    const duracaoMs = Math.round(performance.now() - inicio)
+    this.dependencias.logger?.warn({ evento: 'ia.geracao.soberania_recusada', tipo, codigo: 'IA_INDISPONIVEL', escolaId: pedido.escolaId, execucaoId: pedido.execucaoId, provedorId: envio.provedorId, duracaoMs })
+    throw new LLMError('IA_INDISPONIVEL')
   }
 
   /**
@@ -290,6 +315,7 @@ export interface LLMGatewayPorts {
   readonly registro: RegistroDeConsumo
   readonly orcamento: OrcamentoDeIa
   readonly suspensao: SuspensaoDeFuncao
+  readonly soberania?: DeclaracaoDeSoberania
   readonly logger?: LLMLogger
   readonly relogio?: Clock
   readonly medidor?: Meter

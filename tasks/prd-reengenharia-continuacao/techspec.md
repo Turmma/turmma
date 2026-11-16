@@ -146,12 +146,17 @@ subida falha); então `IA_INDISPONIVEL`. **O `turno_do_tutor` pula o modelo meno
 risco à vida e a suíte de recusa em `docs/avaliacao-de-modelos.md` e uma decisão registrada. Sem modelo menor, o degrau é
 pulado. `consumo_ia` grava o modelo que respondeu.
 
-**A D62.** Cada tarefa declara `categoriasEnviadas` (com `levaTextoDeAluno`, inclui `conversa_do_aluno`). Na subida da API e do `main-worker`, com provedor externo, o
+**A D62.** Cada tarefa declara `categoriasEnviadas` (com `levaTextoDeAluno`, inclui `conversa_do_aluno`). Na subida do `main-worker`, com provedor externo, o
 `suboperador` vigente da `IA_PROVEDOR_ID` precisa de `pais = 'BR'`, `veda_treinamento`,
-`alcance = 'todas'` e, em `categorias`, a união das tarefas registradas; com o banco fora, não fica pronta. O falso e o local
-sobem. A cada chamada, o `LLMGateway` recusa a tarefa com `levaTextoDeAluno` sem declaração conferida, antes do
-orçamento e do `fetch` (`IA_INDISPONIVEL`, log `ia.geracao.soberania_recusada`). Encerrar o suboperador pede reiniciar API e
-`worker-ia` (runbook).
+`alcance = 'todas'` e, em `categorias`, a união das tarefas registradas; sem isso, ou com o banco fora, o worker não consome fila. O falso e o local
+consomem. **A API não confere a D62 e a prontidão dela não depende disso** (RF9 revisto pelo Joaquim em 16/11, na 8.0): a API não monta provedor
+(só o `IaDoWorkerModule` chama `createLLMGateway`), então a trava não seguraria envio nenhum e só tiraria login, prova e sala do balanceamento
+por um cadastro da IA (regra 80). Com o worker parado, o Tutor degrada pelo corte de 20 s da 7.0 e o operador vê o `job-interativo-esperando`. A cada chamada, o `LLMGateway` recusa a tarefa com `levaTextoDeAluno` sem declaração conferida, antes do
+orçamento e do `fetch` (`IA_INDISPONIVEL`, log `ia.geracao.soberania_recusada`). Encerrar o suboperador pede reiniciar os
+`worker-ia` (runbook), a qualquer hora: eles não carregam login nem prova, e sem a D62 conferida não voltam a consumir. A API não
+reinicia. Nunca trocar só `LLM_PROCESSAMENTO_LOCAL=true` com o provedor externo no `LLM_BASE_URL`: isso declara local o que sai para fora.
+
+**Como a 8.0 ficou (o código manda).** (1) **A conferência é um provider, `SoberaniaNaSubida`** (`packages/core/src/ia/soberania.ts`), só no `main-worker` (`IaDoWorkerModule`), não na API (`IaModule`); `main.ts` e `main-worker.ts` não mudaram. Sem envio externo (o falso e o local, que `destinoDoAdaptador` diz) ela nasce conferida e não lê o banco; com ele, nasce **não conferida**, lê o suboperador vigente da `IA_PROVEDOR_ID` (`SuboperadorDaEscolaRepository.vigenteDoProvedor`, a única `@Unscoped` da classe, com quatro campos) e, se o cadastro não cobre ou o banco não responde, **confere de novo a cada 5 s** (`INTERVALO_DA_NOVA_CONFERENCIA_MS`), sem derrubar o processo: corrigido o cadastro, a instância passa sozinha. (2) **A API** não tem a `SoberaniaNaSubida`: `/prontidao` (`ReadinessController`) responde como antes da 8.0, conferida ou não a D62; **o `worker-ia`** só cria o consumidor das filas `api-*`, a varredura e o batimento depois de conferida (`CicloDoWorkerDeIa`), e o healthcheck do compose o mostra parado. (3) **O gateway** lê a declaração (`DeclaracaoDeSoberania`, em `port.ts`, e não em `soberania.ts`, para não fechar ciclo) a cada chamada, dentro do ramo que não é de regra fixa e antes do teto e do orçamento: a D36 segue respondendo com o 188. (4) **O log** da subida (`ia.soberania_na_subida_recusada`, `ia.soberania_na_subida_sem_banco`, `ia.soberania_conferida`) leva o provedor, a tentativa e os motivos como códigos fixos na chave `codigo`; o primeiro aviso sai na hora e o mesmo motivo repetido, a cada 12 tentativas. (5) **A ferramenta de medição** (`tools/ia/medir-risco-a-vida.ts`, `--provedor-contratado`) declara a soberania conferida: o lote é sintético e a medida precede o cadastro do provedor (D37). O runbook ("Job interativo esperando") cita os logs da D62 entre as causas do worker parado. (6) **A fiação** tem guarda em `architecture.test.ts`: todo `createLLMGateway` de `apps/*/src` entrega a `soberania`.
 
 **A pergunta sem resposta (RF5).** Em `supervisao.repository.ts`, `semRespostaHoje` conta as perguntas de hoje (`FUSO_DO_USO`)
 que terminaram num código passageiro (a lista `PASSAGEIROS`)

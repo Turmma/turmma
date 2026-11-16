@@ -1,4 +1,4 @@
-import type { ChaveDeFuncao, TarefaDeIa as NomeDeTarefa } from '@educa/shared'
+import type { CategoriaDeDadoDoSuboperador, ChaveDeFuncao, TarefaDeIa as NomeDeTarefa } from '@educa/shared'
 import type { z } from 'zod'
 import type { Perfil } from './perfis.js'
 
@@ -70,6 +70,13 @@ export interface TaskDefinition<Entrada, Saida> {
    * antes de aluno real (D62). Toda tarefa com esta marca tem também a de cima.
    */
   readonly levaTextoDeAluno: boolean
+  /**
+   * As categorias de dado (as de `CATEGORIAS_DE_DADO_DO_SUBOPERADOR`) que o pedido desta tarefa leva ao provedor. Obrigatória em toda
+   * tarefa: na subida, com provedor externo, o suboperador vigente da `IA_PROVEDOR_ID` precisa listar a **união** delas (D62), e uma
+   * categoria declarada a menos é dado que sai sem constar do contrato, e do arquivo do titular. Quem tem `levaTextoDeAluno` tem
+   * `conversa_do_aluno` aqui (`tarefas.test.ts`).
+   */
+  readonly categoriasEnviadas: readonly CategoriaDeDadoDoSuboperador[]
   montarPedido(entrada: Entrada): ModelRequest
   /**
    * Resposta fixa, decidida por regra, **sem chamar o modelo**. É o caminho do assunto delicado no Tutor (D36): o

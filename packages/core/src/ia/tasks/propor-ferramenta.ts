@@ -615,6 +615,7 @@ export const proporFerramenta = defineTask({
   // O professor pode colar texto de aluno na conversa. A regra fixa segura o pedido de julgamento antes do modelo, mas o
   // texto colado sem pedido que ela reconheça segue para o provedor: a declaração é a do pior caso (D62).
   levaTextoDeAluno: true,
+  categoriasEnviadas: ['conversa_do_aluno', 'conversa_do_professor', 'material_da_escola'],
 
   /**
    * A regra da D55 na frente do modelo: pedido de nota, conceito ou pontuação, ou de julgamento de texto de aluno,

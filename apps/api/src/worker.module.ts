@@ -1,4 +1,4 @@
-import { Heartbeat, type Database, type DatabasePool, type DestinoDoAdaptador, type LLMProvider, type LoggerBase, type Meter, type SuspensaoDeFuncao } from '@educa/core'
+import { Heartbeat, SoberaniaNaSubida, type Database, type DatabasePool, type DestinoDoAdaptador, type LLMProvider, type LoggerBase, type Meter, type SuspensaoDeFuncao } from '@educa/core'
 import { Global, Inject, Module, type DynamicModule, type OnApplicationBootstrap, type OnApplicationShutdown } from '@nestjs/common'
 import { ComandosDeIaModule } from './ia/comandos-de-ia.module.js'
 import { DB, DB_POOL, DatabaseModule } from './database.module.js'
@@ -38,9 +38,10 @@ interface Montagem {
  * Liga o `ExecucaoProcessor` às filas `api-*` na subida e o desliga com graça no SIGTERM (X6, 5.0). É o que o `main-worker` faz de
  * útil: não há controller, nem porta, nem HTTP.
  */
-class CicloDoWorkerDeIa implements OnApplicationBootstrap, OnApplicationShutdown {
+export class CicloDoWorkerDeIa implements OnApplicationBootstrap, OnApplicationShutdown {
   #worker: WorkerDeIa | undefined
   #pulso: NodeJS.Timeout | undefined
+  #encerrado = false
   readonly #varredura: VarreduraDeExecucoes
 
   constructor(
@@ -51,11 +52,24 @@ class CicloDoWorkerDeIa implements OnApplicationBootstrap, OnApplicationShutdown
     @Inject(SUSPENSAO_DE_FUNCAO) private readonly suspensao: SuspensaoDeFuncao,
     @Inject(RegistroDeComandos) private readonly comandos: RegistroDeComandos,
     @Inject(DESTINO_DO_ADAPTADOR) private readonly destino: DestinoDoAdaptador,
+    @Inject(SoberaniaNaSubida) private readonly soberania: SoberaniaNaSubida,
   ) {
     this.#varredura = new VarreduraDeExecucoes(banco, montagem.logger, destino, montagem.medidor)
   }
 
+  /**
+   * Com provedor externo, o consumo das filas, a varredura e o batimento esperam a D62 conferida (8.0): sem o suboperador vigente que a cobre,
+   * ou com o banco fora, o `worker-ia` não consome nada, e o healthcheck do compose, que lê o batimento, o mostra parado. Sem envio externo (o falso e o
+   * local) a conferência já nasce feita e o consumo começa logo em seguida.
+   */
   onApplicationBootstrap(): void {
+    void this.soberania.aguardarConferida().then((conferida) => {
+      // O desligamento pode vir entre o fim da leitura do cadastro e este `then`: o consumidor não nasce depois do `onApplicationShutdown`, qualquer que seja a ordem em que o Nest desliga os módulos.
+      if (conferida && !this.#encerrado) this.#consumir()
+    })
+  }
+
+  #consumir(): void {
     const { config, logger, medidor, batimento } = this.montagem
     const processador = new ExecucaoProcessor({ banco: this.banco, ia: this.ia, comandos: this.comandos, suspensao: this.suspensao, destino: this.destino, logger, medidor })
     this.#worker = criarWorkerDeIa(config, { banco: this.banco, pool: this.pool }, { 'ia.executar': processador.processar }, logger, { medidor })
@@ -66,6 +80,7 @@ class CicloDoWorkerDeIa implements OnApplicationBootstrap, OnApplicationShutdown
   }
 
   async onApplicationShutdown(): Promise<void> {
+    this.#encerrado = true
     clearInterval(this.#pulso)
     this.#varredura.encerrar()
     await this.#worker?.encerrar()
@@ -91,9 +106,9 @@ export class WorkerModule {
       providers: [
         {
           provide: CicloDoWorkerDeIa,
-          useFactory: (banco: Database, pool: DatabasePool, ia: LLMProvider, suspensao: SuspensaoDeFuncao, comandos: RegistroDeComandos, destino: DestinoDoAdaptador) =>
-            new CicloDoWorkerDeIa({ config, logger, medidor, batimento }, banco, pool, ia, suspensao, comandos, destino),
-          inject: [DB, DB_POOL, LLM_PROVIDER, SUSPENSAO_DE_FUNCAO, RegistroDeComandos, DESTINO_DO_ADAPTADOR],
+          useFactory: (banco: Database, pool: DatabasePool, ia: LLMProvider, suspensao: SuspensaoDeFuncao, comandos: RegistroDeComandos, destino: DestinoDoAdaptador, soberania: SoberaniaNaSubida) =>
+            new CicloDoWorkerDeIa({ config, logger, medidor, batimento }, banco, pool, ia, suspensao, comandos, destino, soberania),
+          inject: [DB, DB_POOL, LLM_PROVIDER, SUSPENSAO_DE_FUNCAO, RegistroDeComandos, DESTINO_DO_ADAPTADOR, SoberaniaNaSubida],
         },
       ],
     }

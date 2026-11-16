@@ -88,6 +88,7 @@ export const resumoDoAnalista = defineTask({
   maximoDeTokensDeEntrada: 642300,
   levaTextoLivreDePessoa: false,
   levaTextoDeAluno: false,
+  categoriasEnviadas: ['trabalho_do_aluno'],
 
   montarPedido(entrada) {
     return {

@@ -56,7 +56,7 @@ paralela desde o começo e não alongam o caminho, que é o da IA (1.0 → 11.0)
   - [ ] 7.3 A mensagem fixa acima do "Tentar de novo" na tela do aluno; a AIA do Tutor
   - [ ] 7.4 Testes
 
-- [ ] **8.0 — Texto de aluno não sai do Brasil: a subida e o gateway conferem a D62 (50.0)**
+- [x] **8.0 — Texto de aluno não sai do Brasil: a subida e o gateway conferem a D62 (50.0)**
   - [ ] 8.1 `categoriasEnviadas` e `levaTextoDeAluno` em toda tarefa, fixadas no `DECLARADO`
   - [ ] 8.2 A conferência do suboperador vigente na subida da API e do `main-worker`
   - [ ] 8.3 A recusa no `LLMGateway`, antes do orçamento e do envio

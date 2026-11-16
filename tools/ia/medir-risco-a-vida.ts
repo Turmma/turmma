@@ -171,7 +171,7 @@ export interface ConfiguracaoLida {
 }
 interface NucleoEmDist {
   loadLLMConfig(ambiente: Record<string, string | undefined>): ConfiguracaoLida
-  createLLMGateway(config: ConfiguracaoLida, portas: { registro: unknown; orcamento: unknown; suspensao: unknown }): ProvedorDeTurnos
+  createLLMGateway(config: ConfiguracaoLida, portas: { registro: unknown; orcamento: unknown; suspensao: unknown; soberania: { conferida: boolean } }): ProvedorDeTurnos
   runInContext: ExecutarNoContexto
   InMemoryConsumo: new () => unknown
   InMemoryOrcamento: new (consumo: unknown) => unknown
@@ -214,7 +214,9 @@ async function principal(argumentos: readonly string[]): Promise<void> {
   const config = nucleo.loadLLMConfig(process.env)
   exigirModeloDaMedida(config, argumentos)
   const consumo = new nucleo.InMemoryConsumo()
-  const provedor = nucleo.createLLMGateway(config, { registro: consumo, orcamento: new nucleo.InMemoryOrcamento(consumo), suspensao: new nucleo.InMemorySuspensoes() })
+  // O lote é sintético (`docs/aia/tutor.md`) e o provedor só entra com `--provedor-contratado`, a decisão de quem roda (D37): não há texto de aluno real
+  // a conferir, e a medida do provedor que ainda não tem contrato cadastrado é justamente o que a D37 pede antes do contrato. A D62 da subida (8.0) não se aplica.
+  const provedor = nucleo.createLLMGateway(config, { registro: consumo, orcamento: new nucleo.InMemoryOrcamento(consumo), suspensao: new nucleo.InMemorySuspensoes(), soberania: { conferida: true } })
   const resultado = await medirComProvedor(amostras, { provedor, executarNoContexto: nucleo.runInContext, ...tarefa }, {
     aoTerminarExecucao: (execucao, execucoes) => process.stderr.write(`execução ${String(execucao)} de ${String(execucoes)} terminada\n`),
   })

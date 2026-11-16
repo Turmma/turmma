@@ -71,6 +71,7 @@ export const adaptarAtividade = defineTask({
   maximoDeTokensDeEntrada: 22900,
   levaTextoLivreDePessoa: false,
   levaTextoDeAluno: false,
+  categoriasEnviadas: ['material_da_escola'],
 
   /** Os tipos e o tempo extra são do professor (D35, D67): o que o modelo escrever no lugar deles não vale. */
   prepararResposta(entrada, bruto) {

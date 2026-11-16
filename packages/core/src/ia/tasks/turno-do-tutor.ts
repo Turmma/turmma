@@ -630,6 +630,7 @@ export const turnoDoTutor = defineTask({
   maximoDeTokensDeEntrada: 24300,
   levaTextoLivreDePessoa: true,
   levaTextoDeAluno: true,
+  categoriasEnviadas: ['conversa_do_aluno', 'material_da_escola', 'trabalho_do_aluno'],
 
   montarPedido(entrada) {
     return {
