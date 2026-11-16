@@ -3807,3 +3807,24 @@ aula" em `Retencao.tsx`, o Validador conferiu: a tela já o mostra pela descriç
 - [ ] (reengenharia-continuacao, 8.0, infra-guardian, 2ª) **`apps/api/src/ia/soberania-na-subida.int.test.ts`: o caso "provedor externo sem suboperador nenhum, ou com o banco fora" junta dois cenários num `it`:** separar em dois (legibilidade; os dois são provados e as mutações caem neles)
 - [ ] (reengenharia-continuacao, 8.0, tenancy-guardian e revisor-geral, 2ª) **`packages/core/src/titular/suboperador-da-escola.repository.ts:46`:** o parágrafo do docblock começa com `* * Tem **dois** métodos`; sobra o segundo `*` e falta a linha em branco. Corrigir junto da próxima tarefa que tocar o arquivo (corrigi-lo antes caduca a revisão do `revisor-geral`)
 - [ ] (reengenharia-continuacao, 8.0, test-engineer, 2ª) **Três casos do `soberania-na-subida.int.test.ts` esperam com relógio real (500 ms a 1,5 s) para provar que algo não acontece:** esperar um sinal em vez de um tempo. Com o código certo passam; a fraqueza é a mutação não ser pega com a máquina carregada
+
+## Da correção 2026-11-16-varredura-do-main-worker (a varredura do `main-worker` e a duração da linha estimada), fora dela
+
+- [ ] (correção `2026-11-16-varredura-do-main-worker`, revisor-geral, privacy-guardian, conformidade-reviewer, infra-guardian e test-engineer, 1ª, 16/11/2026) **`expurgo-da-escola.int.test.ts` não apaga o que semeia:** deixa
+      no banco uma `rodando` de 2025 e cerca de 2.700 `pendente` antigas, e o teste da 6.0 (`ia.int.test.ts` › "varredura do main-worker") passa a depender da ordem dos arquivos e do lote da volta (200 × 5).
+      Casa: o expurgo apagar o que semeia (`apps/worker/test`, tarefa própria), ou o teste da 6.0 varrer até esgotar o que sobrou.
+- [ ] (correção `2026-11-16-varredura-do-main-worker`, revisor-geral, privacy-guardian, conformidade-reviewer, infra-guardian e test-engineer, 1ª, 16/11/2026) **O aviso `ia.execucao.varredura_falhou` não diz qual
+      execução travou o lote:** incluir o `execucaoId` (UUID, nunca conteúdo) em `varredura-de-execucoes.ts`. Muda o log da varredura.
+- [ ] (correção `2026-11-16-varredura-do-main-worker`, infra-guardian e test-engineer, 1ª, 16/11/2026) **Isolar a falha por linha na varredura:** `try` próprio para `#encerrarRodandas` e `#encerrarPendentes` e,
+      se o lote falhar, encerrar linha a linha, para uma linha ruim não segurar as outras. Tarefa futura em `varredura-de-execucoes.ts`; muda o comportamento da varredura.
+- [ ] (correção `2026-11-16-varredura-do-main-worker`, infra-guardian, 1ª, 16/11/2026) **Métrica de falha da varredura, alerta para falha em voltas seguidas e o parágrafo em `docs/runbook.md`:** hoje a varredura que
+      falha só deixa um aviso no log. Tarefa futura; muda o contrato de observabilidade e toca o runbook (regra 80, item 10).
+
+## Da correção 2026-11-16-varredura-da-pendente-na-esteira (o caso da `pendente` de `execucao-interrompida.int.test.ts`), fora dela
+
+- [ ] (correção `2026-11-16-varredura-da-pendente-na-esteira`, revisor-geral, privacy-guardian e infra-guardian, 1ª, 16/11/2026) **Fonte única para o predicado de "o que a varredura encerraria":** `sobrasParaVarrer`, em
+      `apps/api/src/ia/execucao-interrompida.int.test.ts`, copia em SQL as condições de `encerrarRodandasVelhas` e `encerrarPendentesSemJob` (`execucao.repository.ts`). Uma constante ou um método do repository evitaria a cópia; muda código de produção.
+- [ ] (correção `2026-11-16-varredura-da-pendente-na-esteira`, infra-guardian, 1ª, 16/11/2026) **Os arquivos de integração apagarem o que semeiam** (`apps/worker/test/expurgo-da-escola.int.test.ts` e outros): deixam milhares de `pendente`
+      sem job no banco, e a correção só protege o `execucao-interrompida.int.test.ts` (o `esvaziarAsSobras`). Tarefa que tocar esses arquivos.
+- [ ] (correção `2026-11-16-varredura-da-pendente-na-esteira`, test-engineer, 1ª, 16/11/2026) **`esvaziarAsSobras` e os projetos `integracao` e `infra` no mesmo banco:** se a esteira passar a juntá-los, o auxiliar pode encerrar a `pendente`
+      de um arquivo de infra. Hoje roda um arquivo por vez (`fileParallelism: false`), e a premissa está no comentário do auxiliar.

@@ -1,7 +1,7 @@
 import { alunoTrailStatement, currentContext, runInContext, TASK_CATALOG, type DestinoDoAdaptador, type proporFerramenta, type turnoDoTutor } from '@educa/core'
 import { ErrorCode, type ResultadoGravado, type TarefaDeIa } from '@educa/shared'
 import { randomBytes, randomUUID } from 'node:crypto'
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
 import { aguardarSaudavel, compose, composeAssincronoOuFalha, PROCESSOS_DA_FILA } from '../../../../tools/testes/compose.ts'
 import { montarEscolaComTurma, type EscolaComTurma } from '../../test/escola-turma.fixture.js'
@@ -102,6 +102,40 @@ async function semear(escola: Escola, { tarefa = 'propor_ferramenta', por = esco
   if (estado === 'rodando') await sql(`update execucao_agente set estado = 'rodando', iniciada_em = now() - make_interval(secs => $2) where id = $1`, [id, haSegundos])
   else await sql('update execucao_agente set criada_em = now() - make_interval(secs => $2) where id = $1', [id, haSegundos])
   return id
+}
+
+/**
+ * O que a varredura encerraria agora, em qualquer escola: as `rodando` de mais de 300 s e as `pendente` sem job vivo. **É uma cópia em SQL** das condições de `ExecucaoRepository.encerrarRodandasVelhas` e
+ * `encerrarPendentesSemJob` (`execucao.repository.ts`): mudando lá, muda aqui. A escola do job é a da execução (`j.escola_id = p.escola_id`), e é o caso `varredura, escola` que prova que ela vale na varredura de verdade.
+ */
+async function sobrasParaVarrer(): Promise<number> {
+  const { rows } = await sql<{ total: string }>(
+    `select (
+        select count(*) from execucao_agente p
+         where p.estado = 'pendente'
+           and not exists (select 1 from job_registro j where j.escola_id = p.escola_id and j.fila in ('interativa', 'ferramenta', 'normal') and j.tipo = 'ia.executar' and j.dados ->> 'execucaoId' = p.id::text and j.estado not in ('concluido', 'falhou'))
+      ) + (
+        select count(*) from execucao_agente r where r.estado = 'rodando' and r.iniciada_em < now() - make_interval(secs => $1)
+      ) as total`,
+    [LIMITE_DA_RODANDO_SEGUNDOS],
+  )
+  return Number(rows[0]?.total)
+}
+
+const VOLTAS_PARA_ESVAZIAR = 20
+
+/**
+ * O banco da integração é um só entre os arquivos, e a varredura encerra da mais antiga para a mais nova, no máximo `LOTE_DA_VARREDURA × PASSADAS_MAXIMAS` por tipo e por volta.
+ * O que outro arquivo deixou `pendente` sem job (o `expurgo-da-escola` deixa milhares, de 2025) vem **antes** da execução de cada caso, e com mais de uma volta de sobra o caso
+ * não é alcançado: a esteira viu a `pendente` do caso seguir `pendente`. Cada caso começa, por isso, com a varredura passada até não restar nada para ela. Confere pelo banco:
+ * `varrer()` devolve 0 também quando falha, e então o laço pararia com a sobra de pé.
+ *
+ * A premissa: **os arquivos de integração rodam um por vez** (`fileParallelism: false` em `vitest.config.ts`). Ela encerra `pendente` e `rodando` de qualquer escola do banco compartilhado, e com
+ * dois arquivos juntos (ou o projeto `infra` no mesmo banco) encerraria a execução de um caso de outro arquivo.
+ */
+async function esvaziarAsSobras(fila: FilaDeIa): Promise<void> {
+  for (let volta = 0; volta < VOLTAS_PARA_ESVAZIAR && (await sobrasParaVarrer()) > 0; volta += 1) await fila.varredura().varrer()
+  expect(await sobrasParaVarrer(), `sobra de outros arquivos passou de ${VOLTAS_PARA_ESVAZIAR} voltas da varredura, ou um passo caiu no statement_timeout`).toBe(0)
 }
 
 interface Job {
@@ -237,6 +271,10 @@ describe('a execução interrompida: a reentrega e a varredura (adaptador falso)
     fila = await FilaDeIa.subir(medidor.medidor, {}, linhasDeLog, { registro: registroDeTeste(), semConsumir: true })
     a = await montarEscola(fila)
     b = await montarEscola(fila)
+  })
+
+  beforeEach(async () => {
+    await esvaziarAsSobras(fila)
   })
 
   afterEach(() => {
@@ -413,6 +451,46 @@ describe('a execução interrompida: a reentrega e a varredura (adaptador falso)
       // O limiar é o dobro do `prazoMs` do job, e a varredura anda de 60 em 60 s.
       expect(LIMITE_DA_RODANDO_SEGUNDOS).toBe(300)
       expect(INTERVALO_DA_VARREDURA_MS).toBe(60_000)
+    })
+
+    it('varredura, execução esquecida há mais de 24,8 dias: a `rodando` encerra com a duração no teto do inteiro da linha, e não trava a volta das outras `rodando`', async () => {
+      const esquecida = await semear(a, { haSegundos: 40 * 24 * 3600 })
+      // Na outra escola: o lote mistura escolas, e a linha de cada execução vai para a dela.
+      const recente = await semear(b, { haSegundos: 301 })
+      expect(await fila.varredura().varrer()).toBeGreaterThanOrEqual(2)
+      expect(await execucaoDe(esquecida)).toEqual({ estado: 'falhou', erro: 'EXECUCAO_INTERROMPIDA', resultado: null })
+      expect((await linhasDe(esquecida))[0]?.duracao_ms).toBe(2_147_483_647)
+      expect(await execucaoDe(recente)).toEqual({ estado: 'falhou', erro: 'EXECUCAO_INTERROMPIDA', resultado: null })
+      expect(await linhasDe(recente)).toEqual([estimadaDe('propor_ferramenta', b, fila.destino)])
+    })
+
+    it('reentrega, execução esquecida há mais de 24,8 dias: a `rodando` encerra com a linha no teto do inteiro, e não cai em `interrupcao_nao_gravada`', async () => {
+      const id = await semear(a, { haSegundos: 40 * 24 * 3600 })
+      await fila.entregarDeNovo(id, a.escolaId)
+      expect(await execucaoDe(id)).toEqual({ estado: 'falhou', erro: 'EXECUCAO_INTERROMPIDA', resultado: null })
+      expect((await linhasDe(id))[0]?.duracao_ms).toBe(2_147_483_647)
+      expect(linhasDeLog.some((linha) => linha.includes('"evento":"ia.execucao.interrupcao_nao_gravada"') && linha.includes(id))).toBe(false)
+    })
+
+    it('a conta do laço, `pendente`: o que passa do teto da volta fica para a volta seguinte, da mais antiga para a mais nova', async () => {
+      // O que a esteira viu: as `pendente` sem job de 2025, de outro arquivo, enchem as cinco passadas da volta, e a do caso (criada agora) não é alcançada.
+      const quantas = LOTE_DA_VARREDURA * PASSADAS_MAXIMAS + 50
+      await sql(
+        `insert into execucao_agente (escola_id, ano_letivo_id, funcao, tarefa, solicitada_por, chave_envio, entrada, criada_em)
+         select $1, $2, 'conversa_e_ferramentas', 'propor_ferramenta', $3, gen_random_uuid(), '{"tarefa":"propor_ferramenta"}'::jsonb, now() - interval '400 days' from generate_series(1, $4::int)`,
+        [b.escolaId, b.anoLetivoId, b.professor.usuarioId, quantas],
+      )
+      const atrasada = await semear(a, { estado: 'pendente', haSegundos: 5 })
+      await fila.varredura().varrer()
+      expect((await execucaoDe(atrasada)).estado).toBe('pendente')
+      expect(await sobrasParaVarrer()).toBeGreaterThan(0)
+      await esvaziarAsSobras(fila)
+      expect(await execucaoDe(atrasada)).toMatchObject({ estado: 'falhou', erro: 'EXECUCAO_INTERROMPIDA' })
+      // Com as sobras fora, a `pendente` sem job do caso é alcançada na primeira volta.
+      const doCaso = await semear(a, { estado: 'pendente', haSegundos: 5 })
+      // O total é o de todas as escolas, e uma `rodando` de outro caso pode vencer o limiar entre as duas linhas: a prova é o estado da execução do caso.
+      expect(await fila.varredura().varrer()).toBeGreaterThanOrEqual(1)
+      expect(await execucaoDe(doCaso)).toMatchObject({ estado: 'falhou', erro: 'EXECUCAO_INTERROMPIDA' })
     })
 
     it('varredura, `pendente`: com job vivo fica; sem job, com job final, de outro tipo, de outra fila ou de outra execução, é encerrada sem linha', async () => {
@@ -696,6 +774,10 @@ describe('a execução interrompida com o adaptador externo configurado', () => 
     b = await montarEscola(fila)
   })
 
+  beforeEach(async () => {
+    await esvaziarAsSobras(fila)
+  })
+
   afterAll(async () => {
     await fila.fechar()
     await limpar(a, b)
@@ -752,6 +834,10 @@ describe('Redis de fila fora', () => {
     compose('stop', ...PROCESSOS_DA_FILA)
     fila = await FilaDeIa.subir(medidor.medidor, {}, undefined, { registro: registroDeTeste(), semConsumir: true })
     a = await montarEscola(fila)
+  })
+
+  beforeEach(async () => {
+    await esvaziarAsSobras(fila)
   })
 
   afterEach(async () => {

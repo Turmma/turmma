@@ -55,6 +55,12 @@ export type DestinoDoAdaptador = Pick<ModelAdapter, 'origem' | 'envio' | 'modelo
 type DadosDaTarefaParaEstimar = Pick<TaskDefinition<never, unknown>, 'nome' | 'funcao' | 'perfil' | 'prompt' | 'maximoDeTokensDeEntrada' | 'maximoDeTokensDeSaida'>
 
 /**
+ * O teto da duração que a linha guarda: o maior `integer` do Postgres (`consumo_ia.duracao_ms`), ~24,8 dias. A execução esquecida em `rodando` por mais que isso (a API fora por um
+ * mês, uma réplica que nunca voltou) passaria dele, o `insert` falharia com 22003 e a varredura desfaria o lote de todas as outras, a cada volta.
+ */
+export const DURACAO_MAXIMA_DA_LINHA_MS = 2_147_483_647
+
+/**
  * A linha de consumo de uma execução `rodando` que o processo não terminou (a reentrega, a varredura): o worker caiu, e ninguém sabe se o
  * pedido chegou a sair nem quanto custou. Por isso ela **superestima, nunca subestima** (D14, regra 20, item 19): os tokens são os **dois tetos da
  * tarefa** (o pior pedido válido e o máximo de saída), e o envio é o do adaptador configurado, como se a chamada tivesse saído.
@@ -72,7 +78,7 @@ export function consumoEstimadoDaInterrompida(entrada: { readonly tarefa: DadosD
     promptVersao: tarefa.prompt.versao,
     tokensDeEntrada: tarefa.maximoDeTokensDeEntrada,
     tokensDeSaida: tarefa.maximoDeTokensDeSaida,
-    duracaoMs: Math.max(0, Math.round(duracaoMs)),
+    duracaoMs: Math.min(DURACAO_MAXIMA_DA_LINHA_MS, Math.max(0, Math.round(duracaoMs))),
     // Ao menos uma chamada pode ter saído: é a que se estima.
     tentativas: 1,
     estado: 'falhou',
