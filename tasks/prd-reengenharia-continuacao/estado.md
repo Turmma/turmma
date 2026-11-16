@@ -1,9 +1,9 @@
 # Estado da execução — reengenharia-continuacao
 
 ## Agora
-- **Espero:** o `RELATÓRIO` do `Implementador` (linha 1, tarefa 6.0, porte grande, 1ª tentativa, pedida em 16/11 ~02:20) e o do `Implementador 2` (linha 2, correção `2026-11-16-execucao-pendente-na-leitura-por-serie`, da esteira vermelha de `5878210`, pedida em 16/11 ~02:20). Conferir a esteira de `346d5d82`. A linha 3 está ociosa: 7.0 a 11.0 esperam a 6.0 em cadeia; a pendência da 2.0 (linha 562, `db2af7a1`) está na `6_task.md`.
+- **Espero:** o `RELATÓRIO` do `Implementador` (linha 1, tarefa 6.0, porte grande, 1ª tentativa, pedida em 16/11 ~02:20) e o do `Implementador 2` (linha 2, correção `2026-11-16-limite-do-ip-no-consultar-convite`, pedida em 16/11 ~03:50: esteira vermelha de `346d5d8`, execução 43814514097, `input-boundary-sessao.int.test.ts`, 400 no lugar de 429 na sexta recusa do `/v1/convites/consultar`; passou em `5878210`, execução 43789142591: cai depois da 5.0). Conferir a esteira de `178a2f70` (execução 43818754463). A linha 3 está ociosa: 7.0 a 11.0 esperam a 6.0 em cadeia; a pendência da 2.0 (linha 562, `db2af7a1`) está na `6_task.md`.
 - **Devo ainda:** levar ao `TODO.md` (e ao Joaquim) o achado do `Arquiteto` na triagem da 4.0: o Analista devolve os agregados inteiros na saída e tem só 6000 tokens de saída, então com modelo real a entrada válida passa de ~4 mil tokens e já falha (`IA_SAIDA_INVALIDA`); reduzir o schema corta o resumo da coordenação, decisão do Joaquim junto da U03-12 (D32, `/descobrir`), fora desta spec. As M1 a M4 da retro da F4 ficam no `TODO.md` como correções, sem ordem pedida. No pedido de pouso, lembrar o Joaquim: `VAGAS_ESCOLA_FERRAMENTA=4` no `.env` da VPS antes do primeiro deploy (o runbook já diz). No pedido de pouso, também: a 5.0 sem a 10.0 (teto global `IA_EXECUCOES_TOTAL`) não vai para produção, as duas pousam juntas; a divergência D84/D19 da 5.0 (Tutor desligado e política por turma não existem na API) está no `5_task.md`, para o `Validador` e o Joaquim.
-- **Base:** `spec/reengenharia-continuacao` em `346d5d82`
+- **Base:** `spec/reengenharia-continuacao` em `178a2f70`
 
 ## Concluídas
 | Tarefa | Commit | Modelo | Rodadas | Observação |
@@ -22,12 +22,15 @@
 | tarefa 14.0 (L2) | `7d6906d4` | Sonnet | `revisor-geral` reprovou na 1ª e na 2ª (`ESCALADA`, diagnóstico do `Arquiteto`, `diagnostico-14.md`); os sete aprovaram na 3ª | Tech Spec §5 ajustada pelo `Arquiteto` no commit da tarefa; `cenarios.md` §7 sem o [U] do prazo estourado no navegador fica com o `Arquiteto` (r3, sem aplicar); 3 linhas no `TODO.md`; telas não vistas (a vitrine não força o 503), o `Validador` fotografa |
 
 | tarefa 5.0 (L1) | `dd7dde79` | Sonnet | revisor-geral, privacy-guardian e test-engineer reprovaram na 1ª; os sete aprovaram na 2ª | sem aplicar no documento e no `TODO.md`; pousa só junto com a 10.0; divergência D84/D19 no documento; encontro em `346d5d82` |
+| correção `2026-11-16-execucao-pendente-na-leitura-por-serie` (L2) | `5af33f06` | Sonnet | test-engineer e revisor-geral na 2ª; os outros cinco na 1ª | causa: o update da execução passava do corte de 2 s da API num runner lento; 2 linhas no `TODO.md`; encontro em `178a2f70` |
+
 ## Esperando o Joaquim
 ## 15/11 03:05 — retro da F4, no terminal do `Arquiteto 2`
 As propostas M1 a M4 da retro estão na tela dele desde 14/11 15:13; a X6 só gera as tarefas depois do commit da retro.
 **Respondida em 15/11 ("aprovo"):** retro em `9970e28b`.
 ## O que falhou
 - 16/11 ~02:15: esteira vermelha em `5878210` (execução 43789142591): `leitura-por-serie.int.test.ts`, o reenvio com execução pendente depois que o material saiu ficou `pendente` em vez de `falhou` (passou em `db2af7a1`). Correção `2026-11-16-execucao-pendente-na-leitura-por-serie` na L2, em paralelo à 6.0 na L1.
+- 16/11 ~03:50: esteira vermelha em `346d5d8` (execução 43814514097), depois da 5.0: `input-boundary-sessao.int.test.ts`, o corpo inválido no `/v1/convites/consultar` dá 400 na sexta recusa em vez de 429 (passou em `5878210`). Correção `2026-11-16-limite-do-ip-no-consultar-convite` na L2, em paralelo à 6.0 na L1.
 - 15/11 ~22:35: `ESCALADA` da `Mesa 2` na 14.0 (L2): o `revisor-geral` reprovou duas vezes seguidas (1ª: o erro da repetição atrasada, feito; 2ª: `Mfa.tsx` afirma "o código estava certo" no `TEMPO_ESGOTADO` do próprio navegador). Diagnóstico pedido ao `Arquiteto` na linha 2.
 - 15/11 ~19:40: encontro da 4.0 (L1, `6189c06a`) deu `CONFLITO` em `catraca.test.ts`, a linha do `TETO` mudada pela L1 (`df37d6e9`, 235) e pela spec (`a318d872`, 233). Correção `2026-11-15-encontro-4` na L1.
 - 15/11 19:00: esteira vermelha em `ddfe209` (execução 43758821119): `catraca.test.ts`, `TETO.complexity` 236 com a soma em 235 (o merge das linhas juntou duas baixas). Corrigida na L1 em `df37d6e9`, que ainda não se encontrou; e o encontro da 2.0 (`025fbf92`) deixou outra vez o `TETO` (234) um acima da soma (233), porque a verificação do encontro não roda a unidade. Correção na L3. Para a retro: o `TETO` exato em `catraca.test.ts` quebra toda vez que duas linhas baixam supressão em paralelo.
