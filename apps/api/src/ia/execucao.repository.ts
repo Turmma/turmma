@@ -13,10 +13,13 @@ import {
   type CodigoDeFalhaDaExecucao,
   type DatabaseTransaction,
 } from '@educa/core'
-import { execucaoInputSchema, resultadoGravadoSchema, FUNCAO_DA_TAREFA_DE_IA, type ErrorCode, type ExecucaoInput, type EstadoDeExecucao, type PapelDeUsuario, type ResultadoGravado, type TarefaDeIa } from '@educa/shared'
-import { and, eq, isNull, sql } from 'drizzle-orm'
+import { ErrorCode, execucaoInputSchema, resultadoGravadoSchema, FUNCAO_DA_TAREFA_DE_IA, type ExecucaoInput, type EstadoDeExecucao, type PapelDeUsuario, type ResultadoGravado, type TarefaDeIa } from '@educa/shared'
+import { and, eq, gte, isNull, lt, sql } from 'drizzle-orm'
 import { requireUsuarioId } from './execucao-context.js'
 import type { ExecucaoLida } from './execucao-command.js'
+
+/** A espera máxima, em segundos, da pergunta do Tutor (`interativa`) na fila antes de o corte a encerrar (RF5): passada ela, o aluno vê "Tentar de novo" e a troca não conta. */
+export const ESPERA_MAXIMA_DA_INTERATIVA_SEGUNDOS = 20
 
 /** O que o processador lê da execução antes de rodá-la: a tarefa, o estado e **quem pediu**, para montar o contexto que o `POST` tinha. */
 export interface ExecucaoParaIniciar {
@@ -70,14 +73,46 @@ export class ExecucaoRepository {
     return { id: linha.id, tarefa: linha.tarefa, estado: linha.estado, quemPediu }
   }
 
-  /** `pendente` → `rodando`, com o instante do banco. `false` é a execução que já não estava `pendente`: outra entrega a pegou, ou ela terminou. Quem recebe `false` não chama o modelo. */
-  async marcarRodando(id: string): Promise<boolean> {
+  /**
+   * `pendente` → `rodando`, com o instante do banco. `false` é a execução que já não estava `pendente`: outra entrega a pegou, ou ela terminou. Quem recebe `false` não chama o modelo.
+   * Com `esperaMaximaSegundos` (a `interativa`, RF5), a passagem também exige `criada_em` dentro da espera: a pergunta que passou dela **não vira `rodando`** (o corte a encerra), e por isso o
+   * modelo não é chamado para uma resposta que a tela já deu como indisponível. A idade é a do banco.
+   */
+  async marcarRodando(id: string, esperaMaximaSegundos?: number): Promise<boolean> {
     const marcadas = await this.banco
       .update(execucaoAgente)
       .set({ estado: 'rodando', iniciadaEm: sql`now()` })
-      .where(and(eq(execucaoAgente.escolaId, requireEscolaId()), eq(execucaoAgente.id, id), eq(execucaoAgente.estado, 'pendente')))
+      .where(
+        and(
+          eq(execucaoAgente.escolaId, requireEscolaId()),
+          eq(execucaoAgente.id, id),
+          eq(execucaoAgente.estado, 'pendente'),
+          esperaMaximaSegundos === undefined ? undefined : gte(execucaoAgente.criadaEm, sql`now() - make_interval(secs => ${esperaMaximaSegundos}::float8)`),
+        ),
+      )
       .returning({ id: execucaoAgente.id })
     return marcadas.length > 0
+  }
+
+  /**
+   * O corte da espera (RF5): `pendente` com mais de `esperaMaximaSegundos` na fila → `falhou IA_INDISPONIVEL`, na escola do contexto, e diz se cortou. `false` é a execução que já não
+   * estava `pendente` (o processador a pegou, ou o outro lado já a cortou) ou que ainda está dentro da espera: quem recebe `false` não grava nada nem soma a métrica. É o mesmo `update`
+   * do processador e do `GET`, que disputam o corte, e a decisão é do banco (`where estado = 'pendente'`): um corte, uma linha. Quem chama só o usa para a fila `interativa`.
+   */
+  async cortarEspera(id: string, esperaMaximaSegundos: number): Promise<boolean> {
+    const cortadas = await this.banco
+      .update(execucaoAgente)
+      .set({ estado: 'falhou', erro: ErrorCode.IA_INDISPONIVEL, concluidaEm: sql`now()` })
+      .where(
+        and(
+          eq(execucaoAgente.escolaId, requireEscolaId()),
+          eq(execucaoAgente.id, id),
+          eq(execucaoAgente.estado, 'pendente'),
+          lt(execucaoAgente.criadaEm, sql`now() - make_interval(secs => ${esperaMaximaSegundos}::float8)`),
+        ),
+      )
+      .returning({ id: execucaoAgente.id })
+    return cortadas.length > 0
   }
 
   /**

@@ -50,7 +50,7 @@ paralela desde o começo e não alongam o caminho, que é o da IA (1.0 → 11.0)
   - [ ] 6.4 `docs/lgpd.md`: `job_registro` cita `ia.executar`; `consumo_ia` diz o que a linha estimada leva
   - [ ] 6.5 Testes
 
-- [ ] **7.0 — A pergunta do Tutor que espera mais de 20 s termina com "Tentar de novo", e o operador é avisado (47.0)**
+- [x] **7.0 — A pergunta do Tutor que espera mais de 20 s termina com "Tentar de novo", e o operador é avisado (47.0)**
   - [ ] 7.1 O corte no processador e no `GET /v1/execucoes/:id`, por `update` condicional
   - [ ] 7.2 `ia.espera_estourada{escola_id}`, o alerta e o runbook que separa uma escola de várias
   - [ ] 7.3 A mensagem fixa acima do "Tentar de novo" na tela do aluno; a AIA do Tutor

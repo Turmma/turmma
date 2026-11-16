@@ -253,6 +253,9 @@ describe('métricas na observabilidade local, por rota, fila e escola', () => {
         ...NOMES_NO_PROMETHEUS.minutosDaImportacaoNaFila,
         // As senhas provisórias de aluno geradas, por escola (acesso-e-convites, tarefa 9.0; Tech Spec, seção 7c).
         ...NOMES_NO_PROMETHEUS.senhaProvisoriaGerada,
+        // A pergunta do Tutor cortada por esperar mais de 20 s e a execução de IA encerrada como interrompida, por escola (reengenharia-continuacao, tarefa 7.0; Tech Spec, seção 7c).
+        ...NOMES_NO_PROMETHEUS.esperaEstourada,
+        ...NOMES_NO_PROMETHEUS.execucaoInterrompida,
       ].sort(),
     )
     expect(comEscola.filter((nome) => !admitidas.has(nome ?? ''))).toEqual([])

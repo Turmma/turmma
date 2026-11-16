@@ -1,9 +1,10 @@
-import { runInContext, summarizeError, type Database, type DestinoDoAdaptador, type LoggerBase } from '@educa/core'
+import { runInContext, summarizeError, type Database, type DestinoDoAdaptador, type LoggerBase, type Meter } from '@educa/core'
 import { JOB_DEFINITIONS, TIPO_EXECUTAR_IA } from '@educa/shared'
 import { sql } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 import { ConsumoRepository } from './consumo.repository.js'
 import { ExecucaoRepository } from './execucao.repository.js'
+import { MetricasDaExecucao } from './metricas-da-execucao.js'
 
 /** De quanto em quanto tempo o `main-worker` varre. */
 export const INTERVALO_DA_VARREDURA_MS = 60_000
@@ -35,12 +36,16 @@ export class VarreduraDeExecucoes {
   #temporizador: NodeJS.Timeout | undefined
   #parar = new AbortController()
   #emCurso = false
+  readonly #metricas: MetricasDaExecucao
 
   constructor(
     private readonly banco: Database,
     private readonly logger: LoggerBase,
     private readonly destino: DestinoDoAdaptador,
-  ) {}
+    medidor: Meter,
+  ) {
+    this.#metricas = new MetricasDaExecucao(medidor)
+  }
 
   /** Varre uma vez na subida e repete a cada `INTERVALO_DA_VARREDURA_MS`. */
   iniciar(intervaloMs: number = INTERVALO_DA_VARREDURA_MS): void {
@@ -88,15 +93,20 @@ export class VarreduraDeExecucoes {
     return total
   }
 
-  /** O encerramento e as linhas estimadas, numa transação só: a que falha desfaz o lote, e a linha segue `rodando` para a volta seguinte. */
-  #encerrarRodandas(): Promise<number> {
-    return this.banco.transaction(async (tx) => {
+  /**
+   * O encerramento e as linhas estimadas, numa transação só: a que falha desfaz o lote, e a linha segue `rodando` para a volta seguinte. `ia.execucao.interrompida` soma **depois** de a
+   * transação confirmar, uma vez por execução encerrada e na escola dela: o lote desfeito não conta.
+   */
+  async #encerrarRodandas(): Promise<number> {
+    const encerradas = await this.banco.transaction(async (tx) => {
       await tx.execute(sql.raw(`set local statement_timeout = ${PRAZO_DO_PASSO_MS}`))
       const encerradas = await new ExecucaoRepository(tx).encerrarRodandasVelhas(LIMITE_DA_RODANDO_SEGUNDOS, LOTE_DA_VARREDURA)
       const consumo = new ConsumoRepository(tx)
       for (const encerrada of encerradas) await consumo.registrarEstimada(encerrada, this.destino)
-      return encerradas.length
+      return encerradas
     })
+    for (const encerrada of encerradas) this.#metricas.interrompida(encerrada.escolaId, 'varredura')
+    return encerradas.length
   }
 
   #encerrarPendentes(): Promise<number> {

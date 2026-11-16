@@ -15,13 +15,15 @@ import {
   type JobProcessor,
   type LLMProvider,
   type LoggerBase,
+  type Meter,
   type RequestContext,
   type SuspensaoDeFuncao,
 } from '@educa/core'
 import { ErrorCode, InvariantException, JobFailureCode, resultadoGravadoSchema, type ResultadoGravado } from '@educa/shared'
 import type { ComandoExecutavel, GravadorDaConclusao } from './execucao-command.js'
 import { ConsumoRepository } from './consumo.repository.js'
-import { ExecucaoDaSessaoRepository, ExecucaoRepository, type ExecucaoParaIniciar } from './execucao.repository.js'
+import { ESPERA_MAXIMA_DA_INTERATIVA_SEGUNDOS, ExecucaoDaSessaoRepository, ExecucaoRepository, type ExecucaoParaIniciar } from './execucao.repository.js'
+import { MetricasDaExecucao } from './metricas-da-execucao.js'
 import { prazoPorTemporizador, type FabricaDePrazo } from './prazo-por-temporizador.js'
 import type { RegistroDeComandos } from './registro-de-comandos.js'
 
@@ -34,6 +36,8 @@ export interface ExecucaoProcessorDependencies {
   /** Para onde o adaptador configurado manda o conteúdo: a linha estimada da execução interrompida leva o envio e o modelo dele (D14). */
   readonly destino: DestinoDoAdaptador
   readonly logger: LoggerBase
+  /** Onde o corte da espera e a execução interrompida são contados (`ia.espera_estourada`, `ia.execucao.interrompida`). */
+  readonly medidor: Meter
   /** O prazo único de cada perfil. Só o teste troca, para ver o estouro sem esperar 140 s. */
   readonly prazo?: FabricaDePrazo
 }
@@ -52,8 +56,9 @@ function duracaoDesde(inicio: number): number {
  *
  * 1. **Lê a execução pelo id, no escopo da escola do job** (`ExecucaoRepository`). A de outra escola não é achada: o job falha
  *    sem tocar nada e sem modelo.
- * 2. **`pendente → rodando`** é um `update … where estado = 'pendente'`: a entrega duplicada, a execução que já terminou e a que a
- *    varredura encerrou não rodam, e o modelo não é chamado. **Com zero linhas, a execução ou terminou, ou está `rodando`**: a reentrega
+ * 2. **`pendente → rodando`** é um `update … where estado = 'pendente'` (e, na `interativa`, `criada_em` dentro dos 20 s de espera): a entrega duplicada, a execução que já terminou, a que a
+ *    varredura encerrou e a pergunta que esperou mais de 20 s não rodam, e o modelo não é chamado. **Com zero linhas na `interativa`, tenta-se o corte** (`pendente` com mais de 20 s →
+ *    `falhou IA_INDISPONIVEL`, sem modelo, e `ia.espera_estourada` soma só quando o `update` devolve a linha; RF5). **Com zero linhas ainda, a execução ou terminou, ou está `rodando`**: a reentrega
  *    (o worker morreu no meio, ou a outra entrega ainda roda) a encerra com `EXECUCAO_INTERROMPIDA` por um `update … where estado = 'rodando'`,
  *    **sem modelo e sem troca**, e grava a linha estimada de `consumo_ia` na mesma transação (X6, 6.0; D14, D49). A conclusão da outra entrega, se
  *    ainda vier, acha a linha encerrada e se desfaz.
@@ -66,7 +71,11 @@ function duracaoDesde(inicio: number): number {
  * 5. **Log só com ids, tarefa e código** (regra 20, item 9): nunca a mensagem do provedor nem a entrada.
  */
 export class ExecucaoProcessor {
-  constructor(private readonly dependencias: ExecucaoProcessorDependencies) {}
+  readonly #metricas: MetricasDaExecucao
+
+  constructor(private readonly dependencias: ExecucaoProcessorDependencies) {
+    this.#metricas = new MetricasDaExecucao(dependencias.medidor)
+  }
 
   /** O processador de `JobExecutor`, ligado a `ia.executar`. */
   readonly processar: JobProcessor<'ia.executar'> = async ({ execucaoId }, _execucao: JobExecution, sinalDoJob?: AbortSignal) => {
@@ -79,13 +88,10 @@ export class ExecucaoProcessor {
       logger.warn({ evento: 'ia.execucao.nao_encontrada', execucaoId, escolaId })
       throw new JobFailureError(JobFailureCode.DADOS_INVALIDOS, true)
     }
-    if (!(await execucoes.marcarRodando(execucaoId))) {
-      await this.#aoReentregar(execucaoId, escolaId, lida)
-      return
-    }
-    const inicio = performance.now()
     // O comando é o da tarefa que a linha diz ter; sem comando registrado, é defeito de montagem e a execução falha em vez de ficar `rodando`.
     const comando = this.#comandoDe(lida.tarefa)
+    if (!(await this.#comecar(execucoes, execucaoId, escolaId, lida, comando))) return
+    const inicio = performance.now()
     const prazo = (this.dependencias.prazo ?? prazoPorTemporizador)(PRAZO_DA_EXECUCAO_MS[comando?.perfil ?? 'padrao'])
     const sinal = sinalDoJob === undefined ? prazo.sinal : AbortSignal.any([sinalDoJob, prazo.sinal])
     try {
@@ -99,6 +105,33 @@ export class ExecucaoProcessor {
     } finally {
       prazo.cancelar()
     }
+  }
+
+  /**
+   * O `pendente → rodando`. `false`: a execução não começa aqui, ou porque a pergunta passou da espera (o corte a encerra, sem modelo e sem troca), ou porque já estava `rodando` ou terminou (a reentrega decide).
+   * Só a `interativa` (o Tutor) tem espera máxima: a `ferramenta` e a `normal` esperam a vaga sem corte (RF5).
+   */
+  async #comecar(execucoes: ExecucaoRepository, execucaoId: string, escolaId: string, lida: ExecucaoParaIniciar, comando: ComandoExecutavel | undefined): Promise<boolean> {
+    const espera = comando?.fila === 'interativa' ? ESPERA_MAXIMA_DA_INTERATIVA_SEGUNDOS : undefined
+    if (!(await execucoes.marcarRodando(execucaoId, espera))) {
+      if (espera !== undefined && (await this.#cortarEspera(execucoes, execucaoId, escolaId, lida))) return false
+      await this.#aoReentregar(execucaoId, escolaId, lida)
+      return false
+    }
+    return true
+  }
+
+  /**
+   * O corte da espera (RF5): a `interativa` que passou de 20 s `pendente` termina `falhou IA_INDISPONIVEL`, **sem modelo** e sem linha em `consumo_ia`, e a troca não conta. O `update` condicional
+   * é quem decide (o `GET` disputa o mesmo corte), e só quem recebe a linha soma `ia.espera_estourada`. `false` é a execução que não estava `pendente` ou que ainda cabe na espera.
+   */
+  async #cortarEspera(execucoes: ExecucaoRepository, execucaoId: string, escolaId: string, lida: ExecucaoParaIniciar): Promise<boolean> {
+    if (!(await execucoes.cortarEspera(execucaoId, ESPERA_MAXIMA_DA_INTERATIVA_SEGUNDOS))) return false
+    this.#metricas.esperaEstourada(escolaId)
+    const tipo = lida.tarefa
+    const codigo = ErrorCode.IA_INDISPONIVEL
+    this.dependencias.logger.warn({ evento: 'ia.execucao.espera_estourada', execucaoId, escolaId, tipo, codigo })
+    return true
   }
 
   /**
@@ -123,8 +156,10 @@ export class ExecucaoProcessor {
       return
     }
     const codigo = ErrorCode.EXECUCAO_INTERROMPIDA
-    if (encerrada) logger.warn({ evento: 'ia.execucao.interrompida', execucaoId, escolaId, tipo, codigo })
-    else logger.info({ evento: 'ia.execucao.ja_tratada', execucaoId, escolaId, estado: lida.estado })
+    if (encerrada) {
+      this.#metricas.interrompida(escolaId, 'reentrega')
+      logger.warn({ evento: 'ia.execucao.interrompida', execucaoId, escolaId, tipo, codigo })
+    } else logger.info({ evento: 'ia.execucao.ja_tratada', execucaoId, escolaId, estado: lida.estado })
   }
 
   #comandoDe(tarefa: ExecucaoParaIniciar['tarefa']): ComandoExecutavel | undefined {

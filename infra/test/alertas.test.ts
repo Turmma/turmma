@@ -196,6 +196,25 @@ describe('regras de alerta provisionadas', () => {
     // A métrica que o alerta lê é a que o código exporta, com o nome que o Prometheus dá a ela.
     expect(NOMES_NO_PROMETHEUS.pedidoAcimaDoTeto).toEqual(['ia_pedido_acima_do_teto_total'])
 
+    // reengenharia-continuacao, tarefa 7.0: a pergunta do Tutor cortada por esperar mais de 20 s, o aumento dos últimos 10 min por escola (a série que nasce agora vale o valor inteiro: o
+    // `or ... * 0` supre o que o `offset 10m` não acha). Três ou mais cortes é o que conta uma escola; uma só com isso é a vaga dela, e duas ou mais é capacidade. O limiar de cada regra e o `3`
+    // são o que separa as duas: trocar um deles junta ou desmembra os dois avisos.
+    const AUMENTO_DA_ESCOLA = '(sum by (escola_id) (ia_espera_estourada_total) - (sum by (escola_id) (ia_espera_estourada_total offset 10m) or sum by (escola_id) (ia_espera_estourada_total) * 0))'
+    const umaEscola = regraPorUid(REGRAS_PROVISIONADAS.iaEsperaEstourada).regra
+    expect(umaEscola.for).toBe('0s')
+    expect(expressao(umaEscola)).toBe(`(${AUMENTO_DA_ESCOLA} >= 3) and on() (count(${AUMENTO_DA_ESCOLA} >= 3) == 1)`)
+    expect(limiar(umaEscola)).toEqual({ type: 'gt', params: [0] })
+    const variasEscolas = regraPorUid(REGRAS_PROVISIONADAS.iaEsperaEstouradaEmVarias).regra
+    expect(variasEscolas.for).toBe('0s')
+    expect(expressao(variasEscolas)).toBe(`count(${AUMENTO_DA_ESCOLA} >= 3)`)
+    expect(limiar(variasEscolas)).toEqual({ type: 'gt', params: [1] })
+    expect(umaEscola.noDataState).toBe('OK')
+    expect(variasEscolas.noDataState).toBe('OK')
+    // As duas leem a métrica que o código exporta, com o nome que o Prometheus dá a ela, e só pela escola: nenhum usuário nem execução na consulta.
+    expect(NOMES_NO_PROMETHEUS.esperaEstourada).toEqual(['ia_espera_estourada_total'])
+    expect(NOMES_NO_PROMETHEUS.execucaoInterrompida).toEqual(['ia_execucao_interrompida_total'])
+    for (const regra of [umaEscola, variasEscolas]) expect(expressao(regra)).not.toMatch(/usuario|execucao_id|aluno/)
+
     // ingestao-do-material, tarefa 3.0: a espera do job `pdf` mais antigo acima de 15 min (o limiar, em segundos) **e** nenhuma extração terminada (`pronto` ou
     // `falhou`) nos últimos 15 min; `or vector(0)` cobre o `worker-pdf` sem série. As provas termo a termo estão em `alertas.int.test.ts`.
     const pdfParado = regraPorUid(REGRAS_DO_ENSAIO.pdfParado).regra

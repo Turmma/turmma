@@ -169,6 +169,22 @@ describe('o que a conversa mostra além do que a API já devolveu', () => {
     expect(pendenteNoTutor([], falhou(ErrorCode.IA_INDISPONIVEL), ATIVIDADE)).toEqual({ pergunta: PEDIDO.texto, pensando: false, falha: { tipo: 'tentar', texto: TEXTO_DA_FALHA_DO_TUTOR } })
   })
 
+  it('a mensagem fixa gravada depois da pergunta, com a execução encerrada pela varredura (D36): a pergunta aparece uma vez, a mensagem fixa fica na conversa e a falha vem junto, depois dela', () => {
+    const fixa: MensagemDoTutor = { id: id('0f'), criadaEm: '2026-10-05T13:00:06.000Z', autor: 'tutor', tipo: 'assunto_delicado', texto: 'Se você estiver em perigo, ligue 188 (CVV).' }
+    // O caso que existe: o modelo classificou o assunto, a mensagem fixa foi gravada, e a execução terminou `falhou EXECUCAO_INTERROMPIDA` (cenarios.md §2). O corte da espera só pega `pendente`, e a fixa já saiu antes dela.
+    const lidas = [doAluno('01', PEDIDO.texto), fixa]
+    const pendente = pendenteNoTutor(lidas, falhou(ErrorCode.EXECUCAO_INTERROMPIDA), ATIVIDADE)
+    // Sem `pergunta`: a conversa lida já a tem, antes da mensagem fixa. Com `falha`: o "Tentar de novo" é o que sobra a mais.
+    expect(pendente).toEqual({ pensando: false, falha: { tipo: 'tentar', texto: TEXTO_DA_FALHA_DO_TUTOR } })
+    expect(itensDoTutor(lidas, pendente)).toEqual([
+      { tipo: 'mensagem', mensagem: lidas[0] },
+      { tipo: 'mensagem', mensagem: fixa },
+    ])
+    // Controle: a mensagem fixa de outra pergunta, ou uma resposta comum depois da pergunta, não a esconde: a pergunta que a conversa ainda não tem continua pendente.
+    expect(pendenteNoTutor([doAluno('01', 'outra pergunta'), fixa], falhou(ErrorCode.EXECUCAO_INTERROMPIDA), ATIVIDADE)).toMatchObject({ pergunta: PEDIDO.texto })
+    expect(pendenteNoTutor([doAluno('01', PEDIDO.texto), doTutor('02', 'Vamos por partes.')], falhou(ErrorCode.EXECUCAO_INTERROMPIDA), ATIVIDADE)).toMatchObject({ pergunta: PEDIDO.texto })
+  })
+
   it('o pedido que a tela monta é o do contrato: o texto, a atividade e a questão, e nada de turma nem de aluno', () => {
     expect(mensagemAoTutorRequestSchema.safeParse({ ...PEDIDO, chaveEnvio: '0190f5a0-0000-4000-8000-0000000000f1' }).success).toBe(true)
     expect(Object.keys(PEDIDO).sort()).toEqual(['atividadeAplicadaId', 'questao', 'texto'])

@@ -796,6 +796,52 @@ suba o teto de uma tarefa "para passar": o teto é o que o limitador e a estimat
 
 **Depois:** registre no `TODO.md` o nome da tarefa, a hora e quantas recusas (só o nome da tarefa e contagens, sem id de escola: o repositório é público). A causa vira tarefa com teste que a reproduz.
 
+## Pergunta do Tutor cortada na espera em uma escola
+
+**Dispara quando:** uma escola, e só uma, teve 3 ou mais perguntas do Tutor cortadas por esperar mais de 20 s na fila em 10 min
+(`ia_espera_estourada_total`, o aumento por `escola_id` nos últimos 10 min, `>= 3`, e exatamente uma escola nessa condição; regra
+`infra/grafana/alertas/ia-espera-estourada-por-escola.yaml`; reengenharia-continuacao, tarefa 7.0). A métrica soma uma vez por pergunta, no instante em que o corte
+grava `falhou IA_INDISPONIVEL`, pelo worker ou pelo `GET /v1/execucoes/:id`, e só a `interativa` tem esse corte: a `ferramenta` espera sem limite. Resolve sozinho 10 min depois do último corte.
+Um restart do processo zera o contador dele e esconde o aumento daquela janela: o log `ia.execucao.espera_estourada` registra o corte do mesmo jeito.
+
+**Impacto:** o aluno daquela escola viu "Tentar de novo" na pergunta que ficou mais de 20 s esperando, nada foi ao modelo e nada entrou em `consumo_ia`. A pergunta cortada **não conta**
+como troca do dia (a execução `falhou` devolve a vez), e a reenviada conta. Da D36, a leitura por palavras continua (ela roda no `POST`, antes da fila); a leitura do modelo não roda nas perguntas cortadas. As outras escolas não sentem.
+
+**Primeiro olhar:** o painel "Perguntas do Tutor cortadas por esperar mais de 20 s, por escola" e, na linha "Filas", "Vagas em uso" e "Espera do job mais antigo" da fila `interativa` dessa escola. O log da API e do
+worker traz, por corte, `ia.execucao.espera_estourada` com `tipo`, `codigo`, `escolaId` e `execucaoId`, nunca o texto da pergunta (veja "Buscar um erro no log pelo `tipo`"). A execução, só com ids:
+`docker compose exec postgres psql -U educa -c "select id, tarefa, estado, erro, criada_em, iniciada_em from execucao_agente where escola_id = '<escolaId do alerta>' and tarefa = 'turno_do_tutor' order by criada_em desc limit 20"`.
+
+**Causas prováveis:**
+1. A vaga da escola na `interativa` (`VAGAS_ESCOLA_INTERATIVA`, 10) está cheia: uma turma inteira perguntando junto, ou o modelo lento segurando as vagas → "Vagas em uso" no teto dela. Se a latência do provedor subiu, o problema é a conversa com ele, e não a vaga. Aumentar a vaga de uma escola é decisão, não correção de madrugada: registre.
+2. O worker de IA dessa escola não está consumindo (`worker-ia-1`, `worker-ia-2`), ou uma execução `rodando` perdida segura a vaga até a varredura de 60 s a encerrar → `docker compose ps worker-ia-1 worker-ia-2` e os logs dos últimos 10 min.
+3. O Redis de fila fora ou lento (`redis_disponivel{instancia="fila"}` em 0): vale para todas, e então o alerta "em várias escolas" dispara junto. Só esta escola é o sinal de que o problema é dela.
+
+**Se nada disso resolver:** avise a coordenação da escola (seção "Como avisar as escolas") de que o Tutor está lento e de que "Tentar de novo" é seguro, e que nada do que o aluno escreveu se perde. Não aumente a vaga "para passar".
+
+**Depois:** registre no `TODO.md` a hora e quantos cortes, só com contagens, sem id de escola: o repositório é público. A causa nova vira tarefa com teste que a reproduz.
+
+## Pergunta do Tutor cortada na espera em várias escolas
+
+**Dispara quando:** duas ou mais escolas tiveram, cada uma, 3 ou mais perguntas do Tutor cortadas por esperar mais de 20 s em 10 min
+(`count(... >= 3)` acima de 1, sobre o mesmo aumento por `escola_id` da regra de uma escola; regra `infra/grafana/alertas/ia-espera-estourada-por-escola.yaml`; reengenharia-continuacao, tarefa 7.0).
+Resolve sozinho 10 min depois do último corte.
+
+**Impacto:** é o sistema, e não uma escola: os alunos de várias escolas viram "Tentar de novo" na pergunta que passou de 20 s. Nada foi ao modelo, nada entrou em `consumo_ia`, e a troca não conta. Da D36, a leitura por palavras continua
+(ela roda no `POST`, antes da fila); a leitura do modelo não roda nas perguntas cortadas. É o sintoma que mais aparece às 10h de segunda, com várias turmas perguntando juntas.
+
+**Primeiro olhar:** "Perguntas do Tutor cortadas por esperar mais de 20 s, por escola" (quantas escolas, e desde quando), "Espera do job mais antigo" e "Vagas em uso" da fila `interativa`.
+`docker compose ps worker-ia-1 worker-ia-2 despachante-1 despachante-2 redis-fila` e `docker compose logs --since 10m worker-ia-1 worker-ia-2`.
+
+**Causas prováveis:**
+1. O provedor de modelo lento ou recusando por limite → o limitador de tokens por minuto do gateway. O balde cheio é saturação: o horário de aula passou do contratado, e a conversa é com o provedor, não com o código.
+2. Capacidade do worker de IA: as duas réplicas na CPU ou na memória, e a `interativa` com a fila crescendo para todas as escolas → `docker stats` e a espera do job mais antigo de cada escola.
+3. O Redis de fila fora ou voltando (`redis_disponivel{instancia="fila"}`): os jobs chegam atrasados depois da volta, e o corte do `GET` já os encerrou. Passa sozinho quando a fila esvazia.
+4. Uma escola com lote enorme tomando as vagas de todas → não deveria, as vagas são por escola; se acontecer, é defeito do despachante: veja "Job interativo esperando".
+
+**Se nada disso resolver:** avise as coordenações afetadas, dizendo que o Tutor está lento e que "Tentar de novo" é seguro, e que a ferramenta do professor não tem esse corte. Não aumente vagas nem tokens por minuto sem decisão registrada.
+
+**Depois:** registre no `TODO.md` quantas escolas, a hora e a causa, só com contagens, sem id de escola: o repositório é público. A causa nova vira tarefa com teste que a reproduz.
+
 ## Importação de planilha com falha acima de 20% em 1 h
 
 **Dispara quando:** mais de 20% das importações de planilha que terminaram na última hora saíram `falhou`, por 5 min

@@ -200,6 +200,17 @@ export const METRICS = {
    * O único rótulo é a tarefa do catálogo (nunca a escola, a execução, o usuário nem o conteúdo).
    */
   pedidoAcimaDoTeto: 'ia.pedido_acima_do_teto',
+  /**
+   * Perguntas do Tutor cortadas por esperar mais de 20 s na fila (reengenharia-continuacao, tarefa 7.0; RF5), por `escola_id`: soma uma vez, quando o `update` do corte devolve a linha
+   * (o processador e o `GET` disputam o mesmo corte, e só quem o faz conta). É o que separa "uma escola grande" (a vaga dela) de "falta capacidade" (várias escolas). Só a escola no
+   * rótulo, como contagem: nunca o aluno, a execução nem o texto.
+   */
+  esperaEstourada: 'ia.espera_estourada',
+  /**
+   * Execuções `rodando` encerradas como `EXECUCAO_INTERROMPIDA` (reengenharia-continuacao, tarefa 7.0, vinda da 6.0), por `escola_id` e `origem` (`reentrega`: o job chegou de novo; `varredura`: a de 60 s). São as que
+   * deixam a linha estimada em `consumo_ia`; a `pendente` sem job vivo não entra (o modelo nunca foi chamado e não há linha). Só contagem, sem aluno, execução nem texto.
+   */
+  execucaoInterrompida: 'ia.execucao.interrompida',
 } as const
 
 /**
@@ -221,6 +232,8 @@ export const METRICS_WITH_ESCOLA: readonly string[] = [
   METRICS.horasDaEliminacaoVencida,
   METRICS.minutosDaImportacaoNaFila,
   METRICS.senhaProvisoriaGerada,
+  METRICS.esperaEstourada,
+  METRICS.execucaoInterrompida,
 ]
 
 /** O rótulo da escola nas métricas de job. Rotina do sistema, sem escola, aparece como `sistema`, como na chave da vaga. */

@@ -3,6 +3,8 @@ import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
 import { conferirAssinaturas, conferirQueAOncaNaoTemNome } from './support/avatar.ts'
 import { encaminhamento, apiError, minhaAtividade, perguntaDoAluno, gate, provaDa, respostaDoTutor, mockAlunoApi, type AlunoApiMock } from './support/aluno.ts'
 import { entrarComoAluno, esperarATelaDepoisDaRecarga, irPelaNavegacao } from './support/casca.ts'
+import { paginaNaoRola } from './support/coordenacao.ts'
+import { VOCABULARIO_DE_NOTA } from './support/professor/scenario.ts'
 import { expect, test } from './support/profiles.ts'
 import { colocarAlunoNaTurma, criarAlunoComMatricula, type AlunoDeTeste } from './support/seed.ts'
 import { rawCodePattern, horizontalOverflow, seriousViolations } from './support/checks.ts'
@@ -23,7 +25,7 @@ const INDUZ_USO = /sequência|dias seguidos|conquista|parabéns|continue assim|s
 interface Scenario {
   readonly api: AlunoApiMock
   readonly aluno: AlunoDeTeste
-  readonly colega: AlunoDeTeste
+  readonly turma: Awaited<ReturnType<typeof colocarAlunoNaTurma>>
 }
 
 async function activate(alvo: Locator, hasTouch: boolean): Promise<void> {
@@ -47,10 +49,15 @@ async function entrar(page: Page, hasTouch: boolean, antes?: (api: AlunoApiMock)
   antes?.(api)
   const aluno = await criarAlunoComMatricula()
   const turma = await colocarAlunoNaTurma(aluno)
+  await entrarComoAluno(page, aluno, hasTouch)
+  return { api, aluno, turma }
+}
+
+/** O colega de turma, para o caso que prova que a tela não o mostra: só ele paga a criação (os outros casos não a usam e o prazo é curto). */
+async function criarColega({ aluno, turma }: Scenario): Promise<AlunoDeTeste> {
   const colega = await criarAlunoComMatricula({ escola: aluno })
   await colocarAlunoNaTurma(colega, turma)
-  await entrarComoAluno(page, aluno, hasTouch)
-  return { api, aluno, colega }
+  return colega
 }
 
 const principal = (page: Page) => page.getByRole('main')
@@ -82,7 +89,9 @@ test.describe('o Tutor pelo Início e a conversa por atividade', () => {
     test.slow()
     const atividade = minhaAtividade()
     const segurada = gate()
-    const { api, colega } = await entrar(page, hasTouch)
+    const cenario = await entrar(page, hasTouch)
+    const { api } = cenario
+    const colega = await criarColega(cenario)
 
     // Pelo Início (X4, 3.0), sem tarefa nenhuma: o vazio diz que o Tutor ajuda quando houver, e a faixa já está lá. O endereço de
     // hoje do Tutor, `/aluno/tutor`, abre a escolha da atividade (RF2) e fica dentro de "Início" na lateral.
@@ -408,6 +417,45 @@ test.describe('o Tutor pausado explica, não parece erro, e não trava a caixa',
     await expect(caixa(page)).toBeEnabled()
     await expect(page.locator('body')).not.toContainText(PROIBIDO_NA_AREA)
     expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
+  })
+
+  test('a mensagem fixa do 188 gravada e a execução encerrada pela varredura (D36): a mensagem vem acima do "Tentar de novo", de 44 px, sem erro cru, sem rolar a página e sem violação de acessibilidade', async ({ page, hasTouch }) => {
+    test.slow()
+    const atividade = minhaAtividade()
+    const { api } = await entrar(page, hasTouch, (simulada) => {
+      simulada.atividades = [atividade]
+      simulada.provas.set(atividade.id, provaDa(atividade))
+    })
+    await irPara(page, `/aluno/tutor/${atividade.id}`)
+    await expect(caixa(page)).toBeEnabled({ timeout: SCREEN_TIMEOUT_MS })
+
+    // O modelo classificou o assunto como delicado (a frase não casa com nenhum gatilho da regra por palavras), o worker gravou a mensagem fixa e a varredura encerrou a execução: a conversa lida traz a pergunta e a mensagem, e a execução, `falhou EXECUCAO_INTERROMPIDA`.
+    // A API simulada já responde assim ao `POST` (a pergunta, depois a mensagem fixa, e a execução `falhou`), para o caso não esperar uma volta da consulta de 1 s: o prazo dele é curto.
+    api.trocar('mensagens', (entrada) => {
+      const aceita = api.responder('mensagens', entrada)
+      api.conversas.set(atividade.id, [...(api.conversas.get(atividade.id) ?? []), encaminhamento()])
+      api.falharNoTutor('EXECUCAO_INTERROMPIDA')
+      return aceita
+    })
+    await perguntar(page, 'lá em casa as coisas estão bem complicadas', hasTouch)
+    const cartao = conversa(page).locator('[data-assunto-delicado]')
+    await expect(cartao).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
+    const botao = conversa(page).locator('[data-falha-do-tutor="tentar"]').getByRole('button', { name: 'Tentar de novo' })
+    await expect(botao).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
+    await expect(cartao.getByRole('link', { name: '188' })).toHaveAttribute('href', 'tel:188')
+    await expect(conversa(page).getByText('Você: lá em casa as coisas estão bem complicadas')).toHaveCount(1)
+    // A mensagem fixa termina antes de o botão começar: quem escreveu sobre algo grave lê o 188 antes de ler "tente de novo".
+    const caixaDoCartao = await cartao.boundingBox()
+    const caixaDoBotao = await botao.boundingBox()
+    if (caixaDoCartao === null || caixaDoBotao === null) throw new Error('a mensagem fixa e o botão precisam estar na tela')
+    expect(caixaDoCartao.y + caixaDoCartao.height).toBeLessThanOrEqual(caixaDoBotao.y)
+    expect(caixaDoBotao.height).toBeGreaterThanOrEqual(44)
+    await expect(principal(page).getByRole('alert')).toHaveCount(0)
+    await expect(principal(page)).not.toContainText(VOCABULARIO_DE_NOTA)
+    for (const cru of ['EXECUCAO_INTERROMPIDA', MENSAGENS_DE_ERRO.EXECUCAO_INTERROMPIDA, rawCodePattern('503')]) await expect(page.locator('body')).not.toContainText(cru)
+    await expect(usoDoDia(page)).toContainText('Hoje: 12 de 60 perguntas')
+    await paginaNaoRola(page)
     expect(await seriousViolations(page)).toEqual([])
   })
 

@@ -405,6 +405,19 @@ Tutor.
     advogado antes do primeiro aluno real, a mesma do item 9; ela não bloqueia o MVP. O aviso não diz que o professor abre a conversa, porque nada na tela a abre; e a mensagem fixa que o aluno recebe na hora, ao contar algo pessoal difícil, termina na mesma frase do aviso, `FRASE_DO_AVISO_AO_PROFESSOR` (`packages/shared/src/tutor/sinal.ts`; correção `2026-10-26-mensagem-fixa-avisa-o-professor`, decisão do Joaquim de 26/10/2026): o professor é avisado, sem ver o que o aluno escreveu. No dia em que existir a tela ou a rota que abre a conversa de um aluno ao professor (regra 50, item 10), ou em que o F9 der à orientação ou à direção acesso auditado ao conteúdo (Lei 13.819/2019), o aviso e a frase do sinal mudam juntos.
 13. **Explicação em linguagem comum e caminho de contestação** do que o Tutor sabe. Exigidos pela
     D60 e pela D66; o desenho fecha nas etapas 4 e 6.
+15. **Limitação: o turno sem modelo pela espera** (reengenharia-continuacao, tarefa 7.0). A pergunta do Tutor que fica mais de 20 s `pendente` na fila termina `falhou`
+    (`IA_INDISPONIVEL`), cortada pelo worker ou pelo `GET` da execução, **sem chamar o modelo** e sem consumo. O aluno vê "O Tutor não conseguiu responder agora. Tente de novo." com
+    "Tentar de novo"; a pergunta fica na conversa e **não conta** como troca do dia (a reenviada conta). Nenhuma resposta é inventada no lugar, e o corte não é decisão sobre o aluno. O operador recebe
+    `ia.espera_estourada{escola_id}` (só a escola) e o alerta "Pergunta do Tutor cortada na espera" (uma escola: a vaga dela; várias: capacidade). Nenhum outro agente tem esse corte: a
+    ferramenta espera sem limite.
+    **Limitação, com o risco que sobra (D36):** no turno cortado, **só vale a leitura por palavras** do item 10, que roda no `POST`, antes da fila, e dispensa o modelo. A **leitura do
+    modelo, a segunda, não acontece**: ela só existe quando o modelo roda, e o corte o impede. Uma frase indireta sobre risco à vida que a lista de palavras não pega **não recebe o
+    188** nesse turno, e o professor **não recebe o sinal "precisa de atenção humana"**. Corte acontece sobretudo na hora de pico (10h de segunda). O aluno vê "Tentar de novo", e a
+    pergunta reenviada passa pelas duas leituras. Quando a mensagem fixa já está na conversa e a execução termina `falhou` (o modelo classificou o assunto e a conclusão falhou: varredura,
+    prazo), a tela a mostra **acima** do "Tentar de novo".
+    **O professor, hoje, não vê a pergunta cortada.** Ela fica em `mensagem_tutor`, mas as três leituras do professor (a última troca, as trocas de hoje e as do mês,
+    `supervisao.repository.ts`) excluem a pergunta cuja execução terminou `falhou`. Mostrar ao professor, sem o texto, quantas perguntas o Tutor não respondeu é a tarefa 9.0 desta
+    funcionalidade; até ela, o corte da espera não aparece na supervisão da turma.
 14. **Responsabilidade por resposta errada do Tutor**, no contrato com a escola. Depende de
     advogado (`TODO.md`).
 

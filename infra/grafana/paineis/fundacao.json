@@ -2316,6 +2316,104 @@
           "range": true
         }
       ]
+    },
+    {
+      "id": 50,
+      "type": "timeseries",
+      "title": "Perguntas do Tutor cortadas por esperar mais de 20 s, por escola",
+      "description": "Perguntas do Tutor (fila interativa) que esperaram mais de 20 s pendentes e foram cortadas com IA_INDISPONIVEL, sem modelo (reengenharia-continuacao, tarefa 7.0): uma por corte, no worker ou no GET da execução. O aluno vê \"Tentar de novo\" e a troca não conta. Uma escola só: a vaga dela; várias ao mesmo tempo: capacidade. Só a escola no rótulo. Ver \"Pergunta do Tutor cortada na espera em uma escola\" no runbook.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 163
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (escola_id) (increase(ia_espera_estourada_total[1h]))",
+          "legendFormat": "{{escola_id}}",
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 51,
+      "type": "timeseries",
+      "title": "Execuções de IA encerradas como interrompidas, por escola e origem",
+      "description": "Execuções que o worker perdeu no meio (reengenharia-continuacao, tarefa 6.0 e 7.0): a reentrega do job que a achou rodando, ou a varredura de 60 s. Cada uma deixa a linha estimada em consumo_ia e termina EXECUCAO_INTERROMPIDA. Origem: reentrega ou varredura. Só a escola e a origem no rótulo.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 163
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (escola_id, origem) (increase(ia_execucao_interrompida_total[1h]))",
+          "legendFormat": "{{escola_id}} · {{origem}}",
+          "range": true
+        }
+      ]
     }
   ]
 }

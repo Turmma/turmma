@@ -125,9 +125,12 @@ export class FilaDeIa {
   #worker: WorkerDeIa | undefined
   readonly #opcoes: FilaDeIaOptions
   readonly #logger: LoggerBase
+  /** O medidor da bancada: o do processador e o da varredura contam nele, e é nele que o teste lê `ia.espera_estourada` e `ia.execucao.interrompida`. */
+  readonly #medidor: Meter
 
   private constructor(readonly api: TestApi, opcoes: FilaDeIaOptions, sobreposicao: TestOverrides, medidor: Meter) {
     this.#opcoes = opcoes
+    this.#medidor = medidor
     // Com `linhasDeLog`, o worker escreve na mesma lista da API (até `trace`): o teste procura nela o que nunca pode ir a log.
     const linhas = api.linhasDeLog
     this.#logger = linhas === undefined ? this.log.logger : createLogger({ servico: 'worker-ia-teste', nivel: 'trace', destino: { write: (linha: string) => linhas.push(linha) } })
@@ -223,6 +226,7 @@ export class FilaDeIa {
       suspensao: new SuspensaoRepository(this.banco),
       destino: this.destino,
       logger: this.#logger,
+      medidor: this.#medidor,
       ...(this.#opcoes.prazo === undefined ? {} : { prazo: this.#opcoes.prazo }),
     }))
   }
@@ -238,7 +242,7 @@ export class FilaDeIa {
 
   /** A varredura do `main-worker`, com o banco e o destino da bancada. Não liga o relógio: o teste chama `varrer()`. */
   varredura(): VarreduraDeExecucoes {
-    return new VarreduraDeExecucoes(this.banco, this.#logger, this.destino)
+    return new VarreduraDeExecucoes(this.banco, this.#logger, this.destino, this.#medidor)
   }
 
   /** Liga o despachante e o consumo das três filas. */

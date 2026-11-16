@@ -74,6 +74,8 @@ export const REGRAS_PROVISIONADAS = {
   importacaoPasso3Lento: 'educa-importacao-passo3-lento',
   emailFalhou: 'educa-email-falhou',
   iaPedidoAcimaDoTeto: 'educa-ia-pedido-acima-do-teto',
+  iaEsperaEstourada: 'educa-ia-espera-estourada-uma-escola',
+  iaEsperaEstouradaEmVarias: 'educa-ia-espera-estourada-varias-escolas',
 } as const
 
 export const WORKERS_INTERATIVOS = ['worker-interativo-1', 'worker-interativo-2'] as const

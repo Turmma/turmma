@@ -143,7 +143,11 @@ export function pendenteNoTutor(mensagens: readonly MensagemDoTutor[], ciclo: Ci
   const resposta = ciclo.etapa === 'concluida' && ciclo.resultado.tipo === 'mensagem_do_tutor' ? ciclo.resultado.mensagem : undefined
   if (resposta !== undefined && mensagens.some((mensagem) => mensagem.id === resposta.id)) return undefined
   if (ciclo.etapa === 'concluida' && resposta === undefined) return undefined
-  const ultima = mensagens.at(-1)
+  // A mensagem fixa do assunto delicado (D36) pode vir gravada **depois** da pergunta, com a execução já `falhou`: o modelo classificou o assunto e a conclusão não saiu (a varredura a encerrou como
+  // `EXECUCAO_INTERROMPIDA`, ou o prazo estourou). Ela não esconde a pergunta que já está na conversa, e sem este passo a pergunta apareceria duas vezes, uma delas depois da mensagem fixa.
+  let fim = mensagens.length
+  while (fim > 0 && mensagens[fim - 1]?.autor === 'tutor' && mensagens[fim - 1]?.tipo === 'assunto_delicado') fim -= 1
+  const ultima = mensagens[fim - 1]
   const perguntaJaGravada = ultima?.autor === 'aluno' && ultima.texto === ciclo.pedido.texto
   return {
     ...(perguntaJaGravada ? {} : { pergunta: ciclo.pedido.texto }),

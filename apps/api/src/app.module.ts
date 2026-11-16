@@ -113,7 +113,7 @@ export class AppModule {
           ...(opcoes.relogioDasLicencas === undefined ? {} : { relogioDasLicencas: opcoes.relogioDasLicencas }),
         }),
         // Sem modelo na API (X6, 5.0): o `agendar` grava o job, e o provedor vive no `main-worker`.
-        IaModule.forRoot(),
+        IaModule.forRoot({ ...(opcoes.medidor === undefined ? {} : { medidor: opcoes.medidor }), ...(opcoes.logger === undefined ? {} : { logger: opcoes.logger }) }),
         ComandosDeIaModule.forRoot(opcoes.medidor === undefined ? {} : { medidor: opcoes.medidor }),
         AssistenteModule.forRoot({ chaveContador: config.login.chaveContador, instancias: config.limite.instancias, logger: opcoes.logger ?? createLogger({ servico: 'api' }) }),
         ArtefatoModule,

@@ -52,12 +52,12 @@ class CicloDoWorkerDeIa implements OnApplicationBootstrap, OnApplicationShutdown
     @Inject(RegistroDeComandos) private readonly comandos: RegistroDeComandos,
     @Inject(DESTINO_DO_ADAPTADOR) private readonly destino: DestinoDoAdaptador,
   ) {
-    this.#varredura = new VarreduraDeExecucoes(banco, montagem.logger, destino)
+    this.#varredura = new VarreduraDeExecucoes(banco, montagem.logger, destino, montagem.medidor)
   }
 
   onApplicationBootstrap(): void {
     const { config, logger, medidor, batimento } = this.montagem
-    const processador = new ExecucaoProcessor({ banco: this.banco, ia: this.ia, comandos: this.comandos, suspensao: this.suspensao, destino: this.destino, logger })
+    const processador = new ExecucaoProcessor({ banco: this.banco, ia: this.ia, comandos: this.comandos, suspensao: this.suspensao, destino: this.destino, logger, medidor })
     this.#worker = criarWorkerDeIa(config, { banco: this.banco, pool: this.pool }, { 'ia.executar': processador.processar }, logger, { medidor })
     this.#varredura.iniciar()
     batimento.bater()

@@ -2291,6 +2291,11 @@ seção 1.3, a fila.
   livro riscado, **sem avatar nem fala do Tutor** (ele não respondeu: a recusa vem antes de gravar a pergunta), sem código, sem ponto de exclamação e sem culpa. A caixa de
   pedido continua usável: o modo livre, sem atividade, segue aceito. O aviso fica até a próxima pergunta; a conversa lida depois não o desfaz, porque não diz nada sobre o
   material (`recusaVencida`). A pergunta de assunto delicado nunca cai aqui: a D36 vem antes do filtro de material, e o aluno recebe o encaminhamento de sempre
+- **A pergunta que esperou mais de 20 s** (reengenharia-continuacao, 7.0): o servidor a corta (`falhou IA_INDISPONIVEL`, sem modelo) e a tela mostra a falha de sempre dentro da conversa, **"O Tutor não conseguiu
+  responder agora. Tente de novo."** com **"Tentar de novo"** (`data-falha-do-tutor="tentar"`), sem o código nem o erro cru e sem vermelho. A pergunta fica na conversa e não conta no "Hoje: N de 60". **Quando a
+  mensagem fixa do assunto delicado já está na conversa junto da falha** (o caso que existe: o modelo classificou o assunto, a mensagem fixa foi gravada e a execução terminou `falhou`, pela varredura ou pelo
+  prazo; o corte da espera não traz a mensagem fixa junto, porque só pega a execução `pendente`), ela vem **acima** do botão, com o 188 inteiro: quem escreveu sobre algo grave lê o 188 antes de ler "tente de novo". A
+  pergunta não se repete por causa dela (`pendenteNoTutor` ignora a mensagem fixa que vem depois da pergunta). O botão tem 44 px, e nada rola de lado a 360 px
 - A assinatura do Tutor é a mesma dos outros agentes: avatar, "Tutor", selo "IA". Perguntado, ele
   diz o que é (D58, D65)
 - **Não existe nesta área:** saudação animada, número subindo, selo de conquista, qualquer lista

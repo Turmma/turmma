@@ -55,6 +55,8 @@ bancada, com fixture.
     só corte, a métrica soma uma vez, o modelo não é chamado. Na ordem "processador primeiro", a barreira fica também entre a
     leitura do `GET` e o `update` dele, que recebe zero linhas e não soma. Mutações, nessa ordem: tirar a condição de idade do
     `pendente → rodando` (o modelo é chamado); tirar `estado = 'pendente'` do `update` do corte do `GET`
+  - [I] `ia.execucao.interrompida{escola_id, origem}` (a 6.0 a deixou para a 7.0): soma uma vez por execução `rodando` encerrada, na escola dela, com `reentrega` ou `varredura`; a execução que já terminou, a entrega repetida e o lote que se desfaz
+    não somam. Mutação: contar antes de o `update` devolver a linha
   - [I] a interativa cortada: a tela mostra "Tentar de novo", a troca não conta; a ferramenta com 21 s na fila roda
   - [I] Redis fora e de volta: em 15 s, o job roda; em 25 s, o `GET` já cortou e o job, ao chegar, sai sem modelo; a ferramenta
     roda quando ele volta

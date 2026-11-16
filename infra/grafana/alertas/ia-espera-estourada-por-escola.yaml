@@ -1,0 +1,115 @@
+# Alertas "Pergunta do Tutor cortada na espera" (reengenharia-continuacao, tarefa 7.0; runbook: docs/runbook.md#pergunta-do-tutor-cortada-na-espera-em-uma-escola
+# e docs/runbook.md#pergunta-do-tutor-cortada-na-espera-em-várias-escolas). Provisionado por arquivo no Grafana da observabilidade local (infra/compose.yml monta esta
+# pasta em provisioning/alerting).
+#
+# `ia.espera_estourada{escola_id}` soma uma vez por pergunta do Tutor (fila `interativa`) que esperou mais de 20 s `pendente` e foi cortada com `IA_INDISPONIVEL`, sem modelo: só quando
+# o `update` condicional do corte devolve a linha, no worker ou no `GET /v1/execucoes/:id`. O rótulo é só a escola (nunca o aluno nem a execução: eles estão no log
+# `ia.execucao.espera_estourada`). As duas regras olham o aumento nos últimos 10 min por escola, e o aumento de uma série que nasce agora vale o valor dela inteiro (o `or ... * 0`
+# supre o que o `offset 10m` não acha: o `increase()` não conta o primeiro ponto de uma série nova, e as escolas nascem em ritmos próprios, sem série em zero na subida).
+# Uma escola só passa a contar com 3 ou mais perguntas cortadas em 10 min: a primeira, isolada, é um tropeço, e o aluno já vê "Tentar de novo".
+#
+#  - uma escola, e só uma, com 3 ou mais: a vaga dela (o teto de jobs simultâneos por escola) está cheia, ou ela mandou mais do que cabe;
+#  - duas ou mais escolas ao mesmo tempo: é capacidade do worker de IA, do Redis da fila ou do provedor, e não de uma escola.
+#
+# Sem corte é normal: sem série, o estado é normal. Passados 10 min do último corte o alerta se resolve sozinho. Um restart do processo zera o contador dele e esconde o
+# aumento daquela janela: o log traz o corte do mesmo jeito.
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: ia-espera-estourada
+    folder: Educa.ia alertas
+    interval: 10s
+    rules:
+      - uid: educa-ia-espera-estourada-uma-escola
+        title: Pergunta do Tutor cortada na espera em uma escola
+        condition: C
+        for: 0s
+        noDataState: OK
+        execErrState: Error
+        isPaused: false
+        labels:
+          area: ia
+        annotations:
+          summary: 'A escola {{ $labels.escola_id }} teve 3 ou mais perguntas do Tutor cortadas por esperar mais de 20 s em 10 min'
+          description: 'A fila interativa dessa escola não deu vaga a tempo: o aluno viu Tentar de novo, e nada foi ao modelo. Só ela está afetada. Siga o runbook.'
+          runbook_url: https://github.com/Turmma/turmma/blob/main/docs/runbook.md#pergunta-do-tutor-cortada-na-espera-em-uma-escola
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              datasource:
+                type: prometheus
+                uid: prometheus
+              expr: '((sum by (escola_id) (ia_espera_estourada_total) - (sum by (escola_id) (ia_espera_estourada_total offset 10m) or sum by (escola_id) (ia_espera_estourada_total) * 0)) >= 3) and on() (count((sum by (escola_id) (ia_espera_estourada_total) - (sum by (escola_id) (ia_espera_estourada_total offset 10m) or sum by (escola_id) (ia_espera_estourada_total) * 0)) >= 3) == 1)'
+              instant: true
+              range: false
+              intervalMs: 10000
+              maxDataPoints: 43200
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params: [0]
+      - uid: educa-ia-espera-estourada-varias-escolas
+        title: Pergunta do Tutor cortada na espera em várias escolas
+        condition: C
+        for: 0s
+        noDataState: OK
+        execErrState: Error
+        isPaused: false
+        labels:
+          area: ia
+        annotations:
+          summary: 'Duas ou mais escolas tiveram 3 ou mais perguntas do Tutor cortadas por esperar mais de 20 s em 10 min'
+          description: 'Mais de uma escola ao mesmo tempo: a capacidade do worker de IA, da fila ou do provedor não dá conta do horário. Siga o runbook.'
+          runbook_url: https://github.com/Turmma/turmma/blob/main/docs/runbook.md#pergunta-do-tutor-cortada-na-espera-em-várias-escolas
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              datasource:
+                type: prometheus
+                uid: prometheus
+              expr: 'count((sum by (escola_id) (ia_espera_estourada_total) - (sum by (escola_id) (ia_espera_estourada_total offset 10m) or sum by (escola_id) (ia_espera_estourada_total) * 0)) >= 3)'
+              instant: true
+              range: false
+              intervalMs: 10000
+              maxDataPoints: 43200
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params: [1]
