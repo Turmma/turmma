@@ -521,6 +521,29 @@ describe('arquivo do titular (F3, tarefa 13.0): do pedido ao download', () => {
       expect(resumo.find(({ conteudo }) => conteudo === 'Sua conversa com o Tutor')).toEqual({ conteudo: 'Sua conversa com o Tutor', registros: 1 })
     })
 
+    it('a linha estimada da execução interrompida (sem `aluno_id`, ligada pela execução que o aluno pediu) entra no arquivo dele, com o provedor, e a do colega da turma não', async () => {
+      const cenario = await novaEscola()
+      const aluno = await pessoa(cenario, 'aluno', 'Aluno')
+      const semeado = await semearAluno(cenario, aluno)
+      const colega = await pessoa(cenario, 'aluno', 'ColegaDaTurma')
+      const doColega = await semearAluno(cenario, colega)
+      // A linha estimada de uma execução `rodando` que o worker não terminou (X6, 6.0): `falhou`, `EXECUCAO_INTERROMPIDA`, os tetos nos tokens, o aluno nulo.
+      const estimada = (execucaoId: string) =>
+        inserir(
+          `insert into consumo_ia (escola_id, aluno_id, execucao_id, tarefa, funcao, perfil, origem, modelo, prompt_versao, tokens_de_entrada, tokens_de_saida, duracao_ms, envio_externo, provedor, tentativas, estado, codigo_de_erro)
+           values ($1, null, $2, 'turno_do_tutor', 'tutor_com_o_aluno', 'rapido', 'openai_compat', 'modelo-sintetico', 'v1', 3000, 600, 20000, true, $3, 1, 'falhou', 'EXECUCAO_INTERROMPIDA') returning id`,
+          [cenario.escolaId, execucaoId, PROVEDOR_DO_USO],
+        )
+      const daEstimada = await estimada(String(semeado.ids['execucao_agente']))
+      const daEstimadaDoColega = await estimada(String(doColega.ids['execucao_agente']))
+      const pedidoId = await pedidoPronto(cenario, aluno)
+      const arquivo = documento(cenario.escolaId, pedidoId, 'completa')
+      const tabelas = arquivo['tabelas'] as Record<string, Array<{ id: string }>>
+      // A de chamada do Tutor (com o aluno) e a estimada (só pela execução): as duas, e nenhuma do colega.
+      expect((tabelas['consumo_ia'] ?? []).map(({ id }) => id).sort()).toEqual([String(semeado.ids['consumo_ia']), daEstimada].sort())
+      expect(textoDoObjeto(cenario.escolaId, pedidoId, 'completa')).not.toContain(daEstimadaDoColega)
+    })
+
     it('o professor: cada tabela que ele tem aparece, com o e-mail da conta, e nada do colega nem de outra escola da mesma conta', async () => {
       const cenario = await novaEscola()
       const professor = await pessoa(cenario, 'professor', 'Professor')

@@ -36,6 +36,7 @@ bancada, com fixture.
   durante o modelo)
 - [P] Varredura com duas réplicas, com barreira entre o `update … returning` e o `commit`: um encerramento e uma linha estimada. Mutação:
   tirar a condição de estado do `update` da varredura
+- [I] A gravação da linha estimada falha (reentrega e varredura): o encerramento se desfaz, a execução segue `rodando`, e a volta seguinte a encerra com a linha. Mutação: o `update` fora da transação da linha
 - [I] Varredura: a `rodando` de 301 s é encerrada; a de 299 s fica; a `pendente` com job vivo em
   `job_registro` fica, mesmo com o Redis fora; a `pendente` com job final ou ausente é encerrada; um job vivo de outra escola com o
   mesmo `execucaoId` no payload não segura a `pendente`. Mutação: limiar fixo antigo, não ler `job_registro`, ou não igualar a escola
@@ -88,7 +89,7 @@ bancada, com fixture.
 - [I] Assunto delicado detectado no `concluir` com a execução já encerrada pela varredura: o sinal e a mensagem ficam
   (transação própria). Mutação: gravar o sinal dentro da conclusão condicional
 - [U] Quando a mensagem fixa e o "Tentar de novo" chegam juntos, a mensagem fixa (com o CVV) fica visível, acima do botão
-- [I] Reentrega do job do assunto delicado: um sinal só (chave única)
+- [I] Reentrega do job do assunto delicado: um sinal só (chave única); e com a 1.ª entrega parada na gravação do sinal, a 2.ª encerra a execução sem chegar a gravar: um sinal e uma mensagem fixa (a corrida das duas primeiras gravações, herdada da 2.0)
 - [I] Avaliação aberta entre o `POST` e o `preparar`, e entre o `preparar` e o `concluir`: a resposta não sai, a troca não conta
 - [I] Tutor desligado na escola (D84), função suspensa (D9) e fora da política da turma (D19): nenhum job no outbox. Uma mutação
   por camada: tirar cada conferência

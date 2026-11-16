@@ -58,8 +58,9 @@ e o da `interativa` do Tutor são do `worker-ia`: olhe-o primeiro.
    por quê (`worker.redis_indisponivel`, `worker.fila_com_erro`). O job não se perde: está em
    `job_registro` e começa quando o worker volta.
    A fila `ferramenta` não é desse worker: quem a consome é o `worker-ia` (`docker compose up -d worker-ia-1 worker-ia-2`; o log dele diz
-   `ia.execucao.*` com o `execucaoId`, a escola e o código). A execução que ficou `rodando` com o worker morto é encerrada pela varredura do
-   `main-worker` com `EXECUCAO_INTERROMPIDA`, e quem pediu tenta de novo.
+   `ia.execucao.*` com o `execucaoId`, a escola e o código). A execução que ficou `rodando` com o worker morto é encerrada com `EXECUCAO_INTERROMPIDA`
+   pela reentrega do job (uns 15 s depois) ou, no máximo, pela varredura do `main-worker` (a cada 60 s, a `rodando` de mais de 300 s), e quem pediu tenta de novo; as duas deixam
+   uma linha estimada em `consumo_ia` (o consumo a mais, nunca a menos): para conciliar o custo com a fatura do provedor, ela se separa por `codigo_de_erro = 'EXECUCAO_INTERROMPIDA'` (`tentativas` 1 e os dois tetos da tarefa nos tokens são hipótese, e não o que o provedor cobrou). A `pendente` sem job vivo também é encerrada pela varredura.
 2. Só esta escola, com "Vagas em uso" no teto dela (`VAGAS_ESCOLA_INTERATIVA` ou `VAGAS_ESCOLA_FERRAMENTA`, conforme a fila, ou as vagas da
    escola em `configuracao_operacional_escola`) → a escola espera pelos próprios jobs longos, e as
    outras não sentem. Com "Jobs em stalled" subindo, um job travou: siga o `jobId` no log do worker.

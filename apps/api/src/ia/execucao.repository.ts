@@ -14,7 +14,7 @@ import {
   type DatabaseTransaction,
 } from '@educa/core'
 import { execucaoInputSchema, resultadoGravadoSchema, FUNCAO_DA_TAREFA_DE_IA, type ErrorCode, type ExecucaoInput, type EstadoDeExecucao, type PapelDeUsuario, type ResultadoGravado, type TarefaDeIa } from '@educa/shared'
-import { and, eq, isNull, lt, or, sql } from 'drizzle-orm'
+import { and, eq, isNull, sql } from 'drizzle-orm'
 import { requireUsuarioId } from './execucao-context.js'
 import type { ExecucaoLida } from './execucao-command.js'
 
@@ -105,15 +105,72 @@ export class ExecucaoRepository {
     return falhadas.length > 0
   }
 
-  @Unscoped('varredura do main-worker: encerra a execução que o processo caído deixou pendente ou rodando, em qualquer escola; grava só estado, código e data, e não lê conteúdo nem pessoa')
-  async falharInterrompidas(antesDe: Date): Promise<number> {
-    const encerradas = await this.banco
+  /**
+   * `rodando` → `falhou EXECUCAO_INTERROMPIDA`, na escola do contexto, e devolve a execução encerrada, ou `undefined` se ela já não estava `rodando`
+   * (terminou, ou outra entrega ou a varredura a encerrou antes). É a reentrega da 6.0: o job chegou e a execução já estava `rodando`, de um
+   * worker que morreu ou de outra entrega que ainda roda. Quem recebe a linha grava a estimada na **mesma transação** (`consumoEstimadoDaInterrompida`),
+   * e quem recebe `undefined` não grava nada: uma execução encerra uma vez, com uma linha.
+   */
+  async encerrarRodando(id: string): Promise<InterrompidaEncerrada | undefined> {
+    const [encerrada] = await this.banco
       .update(execucaoAgente)
       .set({ estado: 'falhou', erro: EXECUCAO_INTERROMPIDA, concluidaEm: sql`now()` })
-      .where(or(and(eq(execucaoAgente.estado, 'rodando'), lt(execucaoAgente.iniciadaEm, antesDe)), and(eq(execucaoAgente.estado, 'pendente'), lt(execucaoAgente.criadaEm, antesDe))))
-      .returning({ id: execucaoAgente.id })
-    return encerradas.length
+      .where(and(eq(execucaoAgente.escolaId, requireEscolaId()), eq(execucaoAgente.id, id), eq(execucaoAgente.estado, 'rodando')))
+      .returning({ id: execucaoAgente.id, escolaId: execucaoAgente.escolaId, tarefa: execucaoAgente.tarefa, duracaoMs: sql<number>`(extract(epoch from (now() - ${execucaoAgente.iniciadaEm})) * 1000)::float8` })
+    return encerrada
   }
+
+  /**
+   * A varredura da `rodando` (X6, 6.0): encerra, com `EXECUCAO_INTERROMPIDA`, até `lote` execuções `rodando` iniciadas há mais de `limiteSegundos` (2 × o `prazoMs` do job),
+   * em qualquer escola, e devolve cada uma com a escola dela, para quem chama gravar a linha estimada na mesma transação. A idade é a do banco
+   * (`now()`), e `estado = 'rodando'` está no `update`: duas réplicas na mesma linha encerram uma vez só, a segunda recebe zero linhas ao fim da espera pela primeira.
+   */
+  @Unscoped('varredura do main-worker: encerra a execução que o processo caído deixou rodando, em qualquer escola, e devolve só o id, a escola, a tarefa e a duração; grava estado, código e data, e não lê conteúdo nem pessoa')
+  async encerrarRodandasVelhas(limiteSegundos: number, lote: number): Promise<InterrompidaEncerrada[]> {
+    const { rows } = await this.banco.execute<{ id: string; escola_id: string; tarefa: TarefaDeIa; duracao_ms: number }>(sql`
+      update execucao_agente x set estado = 'falhou', erro = ${EXECUCAO_INTERROMPIDA}, concluida_em = now()
+      where x.id in (select r.id from execucao_agente r where r.estado = 'rodando' and r.iniciada_em < now() - make_interval(secs => ${limiteSegundos}::float8) order by r.iniciada_em limit ${lote})
+        and x.estado = 'rodando'
+      returning x.id, x.escola_id, x.tarefa, (extract(epoch from (now() - x.iniciada_em)) * 1000)::float8 as duracao_ms
+    `)
+    return rows.map((linha) => ({ id: linha.id, escolaId: linha.escola_id, tarefa: linha.tarefa, duracaoMs: Number(linha.duracao_ms) }))
+  }
+
+  /**
+   * A varredura da `pendente` (X6, 6.0): encerra, com `EXECUCAO_INTERROMPIDA`, até `lote` execuções `pendente` **sem job vivo**, em qualquer escola, e devolve quantas. "Sem job vivo" é
+   * não haver, **na mesma escola**, `ia.executar` não finalizado nas filas da IA com o `execucaoId` dela: o predicado é o do `job_registro_pendentes_idx`
+   * (`fila`, `escola_id`, parcial em `estado not in ('concluido', 'falhou')`). Não lê o Redis: com ele fora o job continua vivo no outbox e a execução fica. Sem linha estimada: o modelo
+   * nunca foi chamado, a execução não saiu de `pendente`.
+   */
+  @Unscoped('varredura do main-worker: encerra a execução pendente que não tem mais job vivo na mesma escola, em qualquer escola; grava só estado, código e data, e não lê conteúdo nem pessoa')
+  async encerrarPendentesSemJob(lote: number): Promise<number> {
+    const { rows } = await this.banco.execute<{ id: string }>(sql`
+      update execucao_agente x set estado = 'falhou', erro = ${EXECUCAO_INTERROMPIDA}, concluida_em = now()
+      where x.id in (
+          select p.id from execucao_agente p
+          where p.estado = 'pendente'
+            and not exists (
+              select 1 from job_registro j
+              where j.escola_id = p.escola_id
+                and j.fila in ('interativa', 'ferramenta', 'normal')
+                and j.tipo = 'ia.executar'
+                and j.dados ->> 'execucaoId' = p.id::text
+                and j.estado not in ('concluido', 'falhou')
+            )
+          order by p.criada_em limit ${lote})
+        and x.estado = 'pendente'
+      returning x.id
+    `)
+    return rows.length
+  }
+}
+
+/** A execução que a reentrega ou a varredura encerrou como interrompida: com a escola, a tarefa e quanto tempo ficou `rodando`, para a linha estimada. */
+export interface InterrompidaEncerrada {
+  readonly id: string
+  readonly escolaId: string
+  readonly tarefa: TarefaDeIa
+  readonly duracaoMs: number
 }
 
 export interface ExecucaoDeQuemPediu {

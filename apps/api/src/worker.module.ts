@@ -1,9 +1,9 @@
-import { Heartbeat, type Database, type DatabasePool, type LLMProvider, type LoggerBase, type Meter, type SuspensaoDeFuncao } from '@educa/core'
+import { Heartbeat, type Database, type DatabasePool, type DestinoDoAdaptador, type LLMProvider, type LoggerBase, type Meter, type SuspensaoDeFuncao } from '@educa/core'
 import { Global, Inject, Module, type DynamicModule, type OnApplicationBootstrap, type OnApplicationShutdown } from '@nestjs/common'
 import { ComandosDeIaModule } from './ia/comandos-de-ia.module.js'
 import { DB, DB_POOL, DatabaseModule } from './database.module.js'
 import { ExecucaoProcessor } from './ia/execucao.processor.js'
-import { IaDoWorkerModule } from './ia/ia-do-worker.module.js'
+import { DESTINO_DO_ADAPTADOR, IaDoWorkerModule } from './ia/ia-do-worker.module.js'
 import { LLM_PROVIDER, SUSPENSAO_DE_FUNCAO } from './ia/ia.module.js'
 import { RegistroDeComandos } from './ia/registro-de-comandos.js'
 import { VarreduraDeExecucoes } from './ia/varredura-de-execucoes.js'
@@ -50,13 +50,14 @@ class CicloDoWorkerDeIa implements OnApplicationBootstrap, OnApplicationShutdown
     @Inject(LLM_PROVIDER) private readonly ia: LLMProvider,
     @Inject(SUSPENSAO_DE_FUNCAO) private readonly suspensao: SuspensaoDeFuncao,
     @Inject(RegistroDeComandos) private readonly comandos: RegistroDeComandos,
+    @Inject(DESTINO_DO_ADAPTADOR) private readonly destino: DestinoDoAdaptador,
   ) {
-    this.#varredura = new VarreduraDeExecucoes(banco, montagem.logger)
+    this.#varredura = new VarreduraDeExecucoes(banco, montagem.logger, destino)
   }
 
   onApplicationBootstrap(): void {
     const { config, logger, medidor, batimento } = this.montagem
-    const processador = new ExecucaoProcessor({ banco: this.banco, ia: this.ia, comandos: this.comandos, suspensao: this.suspensao, logger })
+    const processador = new ExecucaoProcessor({ banco: this.banco, ia: this.ia, comandos: this.comandos, suspensao: this.suspensao, destino: this.destino, logger })
     this.#worker = criarWorkerDeIa(config, { banco: this.banco, pool: this.pool }, { 'ia.executar': processador.processar }, logger, { medidor })
     this.#varredura.iniciar()
     batimento.bater()
@@ -90,9 +91,9 @@ export class WorkerModule {
       providers: [
         {
           provide: CicloDoWorkerDeIa,
-          useFactory: (banco: Database, pool: DatabasePool, ia: LLMProvider, suspensao: SuspensaoDeFuncao, comandos: RegistroDeComandos) =>
-            new CicloDoWorkerDeIa({ config, logger, medidor, batimento }, banco, pool, ia, suspensao, comandos),
-          inject: [DB, DB_POOL, LLM_PROVIDER, SUSPENSAO_DE_FUNCAO, RegistroDeComandos],
+          useFactory: (banco: Database, pool: DatabasePool, ia: LLMProvider, suspensao: SuspensaoDeFuncao, comandos: RegistroDeComandos, destino: DestinoDoAdaptador) =>
+            new CicloDoWorkerDeIa({ config, logger, medidor, batimento }, banco, pool, ia, suspensao, comandos, destino),
+          inject: [DB, DB_POOL, LLM_PROVIDER, SUSPENSAO_DE_FUNCAO, RegistroDeComandos, DESTINO_DO_ADAPTADOR],
         },
       ],
     }

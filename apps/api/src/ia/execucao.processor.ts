@@ -10,6 +10,7 @@ import {
   runInContext,
   summarizeError,
   type Database,
+  type DestinoDoAdaptador,
   type JobExecution,
   type JobProcessor,
   type LLMProvider,
@@ -19,6 +20,7 @@ import {
 } from '@educa/core'
 import { ErrorCode, InvariantException, JobFailureCode, resultadoGravadoSchema, type ResultadoGravado } from '@educa/shared'
 import type { ComandoExecutavel, GravadorDaConclusao } from './execucao-command.js'
+import { ConsumoRepository } from './consumo.repository.js'
 import { ExecucaoDaSessaoRepository, ExecucaoRepository, type ExecucaoParaIniciar } from './execucao.repository.js'
 import { prazoPorTemporizador, type FabricaDePrazo } from './prazo-por-temporizador.js'
 import type { RegistroDeComandos } from './registro-de-comandos.js'
@@ -29,6 +31,8 @@ export interface ExecucaoProcessorDependencies {
   readonly ia: LLMProvider
   readonly comandos: RegistroDeComandos
   readonly suspensao: SuspensaoDeFuncao
+  /** Para onde o adaptador configurado manda o conteúdo: a linha estimada da execução interrompida leva o envio e o modelo dele (D14). */
+  readonly destino: DestinoDoAdaptador
   readonly logger: LoggerBase
   /** O prazo único de cada perfil. Só o teste troca, para ver o estouro sem esperar 140 s. */
   readonly prazo?: FabricaDePrazo
@@ -49,7 +53,10 @@ function duracaoDesde(inicio: number): number {
  * 1. **Lê a execução pelo id, no escopo da escola do job** (`ExecucaoRepository`). A de outra escola não é achada: o job falha
  *    sem tocar nada e sem modelo.
  * 2. **`pendente → rodando`** é um `update … where estado = 'pendente'`: a entrega duplicada, a execução que já terminou e a que a
- *    varredura encerrou não rodam, e o modelo não é chamado. A reentrega de `rodando` é da 6.0.
+ *    varredura encerrou não rodam, e o modelo não é chamado. **Com zero linhas, a execução ou terminou, ou está `rodando`**: a reentrega
+ *    (o worker morreu no meio, ou a outra entrega ainda roda) a encerra com `EXECUCAO_INTERROMPIDA` por um `update … where estado = 'rodando'`,
+ *    **sem modelo e sem troca**, e grava a linha estimada de `consumo_ia` na mesma transação (X6, 6.0; D14, D49). A conclusão da outra entrega, se
+ *    ainda vier, acha a linha encerrada e se desfaz.
  * 3. **Monta o contexto de quem pediu** (a pessoa e o papel dela, e o ano letivo da linha) e roda o comando: `preparar`
  *    (que repete o alcance do `POST`, vínculo inclusive) → modelo → `concluir` na transação do `gravar`. Pessoa desativada ou com eliminação
  *    agendada (o fim do vínculo desativa a conta, regra 20, item 18) e ano virado dão `NAO_ENCONTRADO`, sem modelo e sem `consumo_ia`. Nenhuma conexão fica presa durante o modelo.
@@ -73,7 +80,7 @@ export class ExecucaoProcessor {
       throw new JobFailureError(JobFailureCode.DADOS_INVALIDOS, true)
     }
     if (!(await execucoes.marcarRodando(execucaoId))) {
-      logger.info({ evento: 'ia.execucao.ja_tratada', execucaoId, escolaId, estado: lida.estado })
+      await this.#aoReentregar(execucaoId, escolaId, lida)
       return
     }
     const inicio = performance.now()
@@ -92,6 +99,32 @@ export class ExecucaoProcessor {
     } finally {
       prazo.cancelar()
     }
+  }
+
+  /**
+   * A execução já não estava `pendente`: ou terminou (nada a fazer: o job foi entregue de novo), ou está `rodando`, e então a entrega que a pegou morreu ou ainda
+   * roda. A decisão é do `update` condicional, e não da leitura de antes (`lida.estado` pode já estar velho): quem encerra recebe a linha, e só ele grava a
+   * estimada, na mesma transação. A gravação que falha desfaz o encerramento, e a linha segue `rodando` para a varredura.
+   */
+  async #aoReentregar(execucaoId: string, escolaId: string, lida: ExecucaoParaIniciar): Promise<void> {
+    const { logger, banco, destino } = this.dependencias
+    const tipo = lida.tarefa
+    let encerrada: boolean
+    try {
+      encerrada = await banco.transaction(async (tx) => {
+        const interrompida = await new ExecucaoRepository(tx).encerrarRodando(execucaoId)
+        if (interrompida === undefined) return false
+        await new ConsumoRepository(tx).registrarEstimada(interrompida, destino)
+        return true
+      })
+    } catch (erro) {
+      // Só ids: a mensagem do erro do banco não vai ao log (regra 20, item 9).
+      logger.warn({ evento: 'ia.execucao.interrupcao_nao_gravada', execucaoId, escolaId, tipo, erro: summarizeError(erro) })
+      return
+    }
+    const codigo = ErrorCode.EXECUCAO_INTERROMPIDA
+    if (encerrada) logger.warn({ evento: 'ia.execucao.interrompida', execucaoId, escolaId, tipo, codigo })
+    else logger.info({ evento: 'ia.execucao.ja_tratada', execucaoId, escolaId, estado: lida.estado })
   }
 
   #comandoDe(tarefa: ExecucaoParaIniciar['tarefa']): ComandoExecutavel | undefined {

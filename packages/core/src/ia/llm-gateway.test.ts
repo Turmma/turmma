@@ -13,7 +13,7 @@ import type { LLMConfig } from '../config/llm-config.js'
 import { HTTP_STATUS_BY_CODE } from '../error/domain.exception.js'
 import { LLM_ERROR_CODES, LLMError } from './errors.js'
 import type { EnvioDaChamada, GenerationMeasurement } from './port.js'
-import { createLLMGateway, MODELO_DA_REGRA_FIXA, LLMGateway, type LLMLogger } from './llm-gateway.js'
+import { createLLMGateway, destinoDoAdaptador, MODELO_DA_REGRA_FIXA, LLMGateway, type LLMLogger } from './llm-gateway.js'
 import { exigirFuncaoAtiva, InMemorySuspensoes, type SuspensaoDeFuncao } from './suspensao.js'
 import { tokensDoPedido } from './teto-de-entrada.js'
 import type { TaskDefinition } from './task.js'
@@ -691,5 +691,38 @@ describe('as portas em memória leem a escola do contexto (8.0)', () => {
     suspensao.suspender(ESCOLA_A, 'adaptacao')
     expect(await noContexto(ESCOLA_A, () => suspensao.estaSuspensa('adaptacao'))).toBe(true)
     expect(await noContexto(ESCOLA_B, () => suspensao.estaSuspensa('adaptacao'))).toBe(false)
+  })
+})
+
+describe('destinoDoAdaptador: para onde a configuração manda o conteúdo (a linha estimada da execução interrompida, X6)', () => {
+  const base = { prazosMs: PRAZOS, recuoMs: 500, replicas: 1 } as const
+
+  it('o adaptador falso: origem `falso`, sem envio externo e o modelo falso em todo perfil', () => {
+    const destino = destinoDoAdaptador({ adaptador: 'falso', ...base })
+    expect(destino.origem).toBe('falso')
+    expect(destino.envio).toEqual({ envioExterno: false, provedorId: null })
+    expect(destino.modeloDoPerfil('padrao')).toBe(MODELO_FALSO)
+  })
+
+  it('o provedor externo: origem `openai_compat`, envio externo com o id do provedor e o modelo de cada perfil', () => {
+    const destino = destinoDoAdaptador({
+      adaptador: 'openai_compat',
+      ...base,
+      modelo: { baseUrl: 'http://provedor.invalido', modelos: { rapido: 'pequeno', padrao: 'medio', complexo: 'grande', visao: 'visual' }, processamentoLocal: false, provedorId: 'provedor-de-teste' },
+    })
+    expect(destino.origem).toBe('openai_compat')
+    expect(destino.envio).toEqual({ envioExterno: true, provedorId: 'provedor-de-teste' })
+    expect([destino.modeloDoPerfil('rapido'), destino.modeloDoPerfil('padrao'), destino.modeloDoPerfil('complexo'), destino.modeloDoPerfil('visao')]).toEqual(['pequeno', 'medio', 'grande', 'visual'])
+  })
+
+  it('o modelo local: origem `openai_compat`, sem envio externo', () => {
+    const destino = destinoDoAdaptador({ adaptador: 'openai_compat', ...base, modelo: { baseUrl: 'http://localhost:11434/v1', modelos: { rapido: 'm', padrao: 'm', complexo: 'm', visao: 'm' }, processamentoLocal: true } })
+    expect(destino.envio).toEqual({ envioExterno: false, provedorId: null })
+  })
+
+  it('o externo sem o id do provedor não monta, como o gateway não monta', () => {
+    const config: LLMConfig = { adaptador: 'openai_compat', ...base, modelo: { baseUrl: 'http://provedor.invalido', modelos: { rapido: 'm', padrao: 'm', complexo: 'm', visao: 'm' }, processamentoLocal: false } }
+    expect(() => destinoDoAdaptador(config)).toThrow()
+    expect(() => createLLMGateway(config, { registro: new InMemoryConsumo(), orcamento: SEMPRE, suspensao: new InMemorySuspensoes() })).toThrow()
   })
 })

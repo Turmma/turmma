@@ -147,8 +147,11 @@ transação, a execução `pendente` e o job `ia.executar` (chave de idempotênc
 `interativa`, `ferramenta` e `normal` do executor `api`, dentro do contexto da escola da linha, e é o único processo com o
 `LLM_PROVIDER`. O `ExecucaoProcessor` passa a execução de `pendente` a `rodando` e a `concluida` ou `falhou` por `update` condicional, com
 o prazo único do perfil passado como `pedido.sinal`, e não segura conexão do banco durante a chamada ao modelo. O desligamento do worker
-aborta e não grava (o job volta); só o prazo vira `IA_TEMPO_ESGOTADO`. A varredura de execução presa ficou como estava e é do worker; a
-6.0 a refaz.
+aborta e não grava (o job volta); só o prazo vira `IA_TEMPO_ESGOTADO`. **A reentrega e a varredura (6.0):** o job entregue de novo que acha a
+execução `rodando` a encerra com `EXECUCAO_INTERROMPIDA`, sem modelo e sem troca (`update … where estado = 'rodando'`, e quem encerra é quem grava a linha), e a
+varredura do `main-worker`, a cada 60 s e em lotes de 200, encerra a `rodando` iniciada há mais de 300 s (2 × o `prazoMs` do job) e a `pendente` sem job vivo
+(`not exists` em `job_registro`, da mesma escola, pelo `job_registro_pendentes_idx`; sem ler o Redis). Toda `rodando` encerrada deixa, **na mesma transação**, uma linha
+estimada em `consumo_ia` (os dois tetos da tarefa, o envio do adaptador configurado, `aluno_id` nulo): o custo e o destino a mais, nunca a menos (D14).
 
 No F3, o expurgo noturno (`retencao.expurgar-escola`, um job por escola, à 1h) e a eliminação do titular (`titular.eliminar`,
 que o expurgo enfileira quando o prazo de 7 dias vence) são lote não urgente; a montagem do arquivo do titular

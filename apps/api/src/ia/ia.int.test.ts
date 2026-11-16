@@ -38,7 +38,6 @@ import { ORCAMENTO_DE_IA, SUSPENSAO_DE_FUNCAO } from './ia.module.js'
 import { OrcamentoRepository } from './orcamento.repository.js'
 import { RegistroDeComandos, tarefasSemComando, TAREFAS_SEM_CHAMADOR } from './registro-de-comandos.js'
 import { SuspensaoRepository } from './suspensao.repository.js'
-import { VarreduraDeExecucoes } from './varredura-de-execucoes.js'
 
 /**
  * A camada de IA ligada ao banco e à API (MVP, fase 1): as quatro portas em Postgres, o `GET /v1/execucoes/:id` e o
@@ -363,10 +362,10 @@ describe('camada de IA na API', () => {
       await noContextoDe(a, () => execucoes.marcarFalhou(execucao.id, 'ERRO_INTERNO'))
     })
 
-    it('a única consulta entre escolas é a varredura, marcada @Unscoped com a justificativa', () => {
+    it('as únicas consultas entre escolas são as duas da varredura (a `rodando` e a `pendente`), marcadas @Unscoped com a justificativa', () => {
       const metodos = Object.getOwnPropertyNames(ExecucaoRepository.prototype).filter((metodo) => metodo !== 'constructor')
-      expect(metodos.filter((metodo) => unscopedJustification(ExecucaoRepository, metodo) !== undefined)).toEqual(['falharInterrompidas'])
-      expect(unscopedJustification(ExecucaoRepository, 'falharInterrompidas')).toMatch(/^varredura do main-worker: /)
+      expect(metodos.filter((metodo) => unscopedJustification(ExecucaoRepository, metodo) !== undefined)).toEqual(['encerrarRodandasVelhas', 'encerrarPendentesSemJob'])
+      for (const metodo of ['encerrarRodandasVelhas', 'encerrarPendentesSemJob']) expect(unscopedJustification(ExecucaoRepository, metodo)).toMatch(/^varredura do main-worker: /)
     })
   })
 
@@ -1219,7 +1218,7 @@ describe('camada de IA na API', () => {
   })
 
   describe('varredura do main-worker', () => {
-    it('execução presa em "rodando" ou "pendente" há mais de 300 s vira "falhou" com EXECUCAO_INTERROMPIDA; a recente não é tocada', async () => {
+    it('execução presa em "rodando" há mais de 300 s, e a "pendente" sem job vivo, viram "falhou" com EXECUCAO_INTERROMPIDA; a recente e a "pendente" com job vivo não são tocadas', async () => {
       const presaRodando = await execucaoPendente(a, a.professor)
       const presaPendente = await execucaoPendente(b, b.professor)
       const viva = await execucaoPendente(a, a.professor)
@@ -1227,9 +1226,11 @@ describe('camada de IA na API', () => {
       await sql(`update execucao_agente set estado = 'rodando', iniciada_em = now() - interval '1 hour' where id = $1`, [presaRodando.id])
       await sql(`update execucao_agente set criada_em = now() - interval '1 hour' where id = $1`, [presaPendente.id])
       await noContextoDe(a, () => new ExecucaoRepository(bancada.banco).marcarRodando(viva.id))
+      // A `pendente` que o POST acabou de gravar tem o job no outbox, vivo: é o que a segura.
+      await sql(`insert into job_registro (escola_id, fila, prioridade, tipo, dados) values ($1, 'ferramenta', 2, 'ia.executar', $2::jsonb)`, [b.escolaId, JSON.stringify({ execucaoId: recemCriada.id })])
 
       // A varredura do `main-worker` encerra o que ficou para trás, nas duas escolas.
-      expect(await new VarreduraDeExecucoes(bancada.banco, fila.log.logger).varrer()).toBeGreaterThanOrEqual(2)
+      expect(await fila.varredura().varrer()).toBeGreaterThanOrEqual(2)
 
       for (const presa of [presaRodando, presaPendente]) {
         const encerrada = await execucaoNoBanco(presa.id)

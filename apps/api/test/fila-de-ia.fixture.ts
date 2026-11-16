@@ -3,6 +3,7 @@ import {
   createLLMGateway,
   createLogger,
   createPool,
+  destinoDoAdaptador,
   Heartbeat,
   JobOutbox,
   JobOutboxRepository,
@@ -10,6 +11,8 @@ import {
   type Clock,
   type Database,
   type DatabasePool,
+  type DestinoDoAdaptador,
+  type JobExecution,
   type GenerationRequest,
   type GenerationResult,
   type LLMProvider,
@@ -35,6 +38,7 @@ import { montarComandos } from '../src/ia/montar-comandos.js'
 import { OrcamentoRepository } from '../src/ia/orcamento.repository.js'
 import { RegistroDeComandos } from '../src/ia/registro-de-comandos.js'
 import { SuspensaoRepository } from '../src/ia/suspensao.repository.js'
+import { VarreduraDeExecucoes } from '../src/ia/varredura-de-execucoes.js'
 import { criarWorkerDeIa, type FilaDaIa, type WorkerDeIa } from '../src/ia/worker-de-ia.js'
 import { AlcanceDoAluno } from '../src/tutor/turno.command.js'
 import { TrechoSearch } from '../src/material/trecho-search.js'
@@ -61,6 +65,8 @@ export interface FilaDeIaOptions {
   readonly prazo?: FabricaDePrazo
   readonly graca?: number
   readonly medidor?: Meter
+  /** Para onde o adaptador configurado manda o conteúdo, que a linha estimada da execução interrompida leva (6.0). O padrão é o da configuração de teste: o falso, sem envio externo. */
+  readonly destino?: DestinoDoAdaptador
   /** Sobe a API, o despachante e o worker sem ligar o consumo: o job espera no outbox. Quem liga é `ligar()`. */
   readonly semConsumir?: true
   /** O relógio da situação da licença de material, o mesmo que a API recebeu em `montagem.relogioDasLicencas`. */
@@ -108,6 +114,8 @@ export class FilaDeIa {
   readonly pool: DatabasePool
   readonly banco: Database
   readonly #gateway: LLMProvider
+  /** Para onde o adaptador configurado manda o conteúdo: o do processador e o da varredura da bancada. */
+  readonly destino: DestinoDoAdaptador
   readonly #despachante: OutboxRelayRuntime
   /** A busca de trechos do worker: o teste a espia aqui para ver o que a execução leu, e não a da API. */
   readonly trechos: TrechoSearch
@@ -126,6 +134,7 @@ export class FilaDeIa {
     this.pool = createPool({ ...configuracaoDoBanco(opcoes.conexoes ?? 20), timeoutConsultaMs: TEMPO_DA_CONSULTA_MS }, () => undefined)
     this.banco = createDatabase(this.pool)
     const suspensao: SuspensaoDeFuncao = new SuspensaoRepository(this.banco)
+    this.destino = opcoes.destino ?? destinoDoAdaptador(testConfig(sobreposicao).ia)
     this.#gateway = createLLMGateway(testConfig(sobreposicao).ia, {
       registro: new ConsumoRepository(this.banco),
       orcamento: new OrcamentoRepository(this.banco),
@@ -204,17 +213,38 @@ export class FilaDeIa {
     return new ExecucaoScheduler(this.banco, suspensao, this.registro, new JobOutbox(new JobOutboxRepository(this.banco)))
   }
 
-  /** Liga o despachante e o consumo das três filas. */
-  ligar(): void {
-    this.#despachante.iniciar()
-    const processador = new ExecucaoProcessor({
+  /** O processador do produto, com o provedor, o registro e o destino da bancada: o mesmo que o worker de IA consome e que `entregarDeNovo` chama. */
+  #processador: ExecucaoProcessor | undefined
+  get processador(): ExecucaoProcessor {
+    return (this.#processador ??= new ExecucaoProcessor({
       banco: this.banco,
       ia: this.provedor,
       comandos: new RegistroDaBancada(() => this.registro),
       suspensao: new SuspensaoRepository(this.banco),
+      destino: this.destino,
       logger: this.#logger,
       ...(this.#opcoes.prazo === undefined ? {} : { prazo: this.#opcoes.prazo }),
-    })
+    }))
+  }
+
+  /**
+   * Entrega o job `ia.executar` da execução **de novo**, direto ao processador e no contexto da escola dela, como o `JobExecutor` o faria: a reentrega do job que o worker
+   * morto deixou (~15 s), ou a segunda entrega do mesmo job. Sem passar pela fila: o teste da 6.0 escolhe o instante, e a vaga, o Redis e o relógio da fila não entram.
+   */
+  entregarDeNovo(execucaoId: string, escolaId: string, sinal?: AbortSignal): Promise<void> {
+    const execucao: JobExecution = { jobId: randomUUID(), tentativa: 1, chaveIdempotencia: execucaoId, prazoMs: 150_000 }
+    return runInContext({ requisicaoId: randomUUID(), escolaId }, () => this.processador.processar({ execucaoId }, execucao, sinal))
+  }
+
+  /** A varredura do `main-worker`, com o banco e o destino da bancada. Não liga o relógio: o teste chama `varrer()`. */
+  varredura(): VarreduraDeExecucoes {
+    return new VarreduraDeExecucoes(this.banco, this.#logger, this.destino)
+  }
+
+  /** Liga o despachante e o consumo das três filas. */
+  ligar(): void {
+    this.#despachante.iniciar()
+    const processador = this.processador
     this.#worker = criarWorkerDeIa(
       {
         redisFilaUrl: urlRedisDeFila(),

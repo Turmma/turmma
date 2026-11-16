@@ -112,6 +112,19 @@ a mensagem fixa e o sinal numa transação própria e já concluída, e a conclu
 é o do prazo; o abort do job (desligamento do worker) não grava.
 (7) O Tutor **desligado na escola (D84)** e **fora da política da turma (D19)** não são conferências da API de hoje: o `TutorService` confere a função suspensa (D9), a avaliação aberta (D70) e o freio e o pacote (D38), e `GET /v1/tutor/conversa` diz em código que "nesta fatia não há política de Tutor por turma" (`fora` não é devolvido). O "nenhum job" da suspensão, da avaliação e do pacote tem caso; o do desligado e o do fora da política espera quem criar a conferência.
 
+**Como a 6.0 ficou (o código manda).** (1) **Quem encerra a reentrega é o `update`, e não a leitura de antes.** O processador tenta o `pendente → rodando`; com zero linhas, tenta `rodando → falhou EXECUCAO_INTERROMPIDA`
+(`ExecucaoRepository.encerrarRodando`, `where estado = 'rodando'`, na escola do contexto) e, **na mesma transação**, grava a linha estimada; zero linhas de novo é a execução que já terminou, e nada se grava. O `lida.estado`
+só vai ao log: nas "duas leem `pendente`", a perdedora do `update` acha a linha `rodando` da vencedora e a encerra, como na "duplicada em corrida"; o modelo é chamado uma vez, e a conclusão da vencedora se desfaz. A gravação da linha que
+falha desfaz o encerramento (a execução segue `rodando` para a varredura, e o aviso `ia.execucao.interrupcao_nao_gravada` leva só ids). (2) **A varredura são dois métodos `@Unscoped`** (`encerrarRodandasVelhas` e
+`encerrarPendentesSemJob`; `falharInterrompidas` saiu), em SQL cru: o limiar da `rodando` é o do banco, `iniciada_em < now() - 2 × prazoMs do ia.executar` (`LIMITE_DA_RODANDO_SEGUNDOS`, 300), e a `pendente` não tem limiar de idade: ela só nasce com o job
+vivo no outbox (mesma transação), e "sem job vivo" é o `not exists` da §5, sem ler o Redis. O `update` repete `estado` no alvo: duas réplicas na mesma linha encerram uma vez só, com uma linha. (3) **A conta do laço** (§7c, "Laços e ritmo"): lote
+de 200 (`LOTE_DA_VARREDURA`), no máximo 5 passos por tipo (`PASSADAS_MAXIMAS`), cada passo numa transação com `statement_timeout` de 5 s (`PRAZO_DO_PASSO_MS`): 2 tipos × 5 × 5 s = 50 s ≤ 60 s (`PIOR_CASO_DA_VARREDURA_MS`);
+a volta não se sobrepõe à anterior, e `encerrar()` (o SIGTERM) não deixa começar outro passo. (4) **A linha estimada** (`consumoEstimadoDaInterrompida`, `packages/core/src/ia/consumo.ts`): `estado = 'falhou'`, `codigo_de_erro = 'EXECUCAO_INTERROMPIDA'`,
+`tokens_de_entrada` e `tokens_de_saida` são os dois tetos da tarefa (`TASK_CATALOG`), `tentativas` 1, `aluno_id`, `entrada` e `saida` nulos, `duracao_ms` desde o `rodando` (pelo banco), e `origem`, `modelo`, `envio_externo` e `provedor` são os do
+adaptador configurado (`destinoDoAdaptador(config)`, a mesma conta de `createLLMGateway`), que o `IaDoWorkerModule` provê (`DESTINO_DO_ADAPTADOR`) ao processador e à varredura. A fiação fica em `ia-do-worker.module.ts` e `worker.module.ts`
+(o `main-worker.ts` não mudou). (5) **O `EXPLAIN`** é o da sondagem do `not exists` por `pendente` (a escola e o `execucaoId` dela), que desce pelo `job_registro_pendentes_idx` com `fila` e `escola_id` na condição. (6) **O log** da reentrega
+(`ia.execucao.interrompida`: `execucaoId`, `escolaId`, `tipo`, `codigo`) e o da varredura (`ia.execucao.interrompidas_encerradas`: `total`, `rodandoTotal`, `pendentesTotal`) não levam texto, nome nem lista de execuções.
+
 **Os tokens (49.0).** `TokenLimiter.reservar(modelo, estimativa, fila)`, com caracteres ÷ 4 + `maximoDeTokensDeSaida`, nova a cada
 chamada e acertada pelo uso real (a da interrompida não volta: superestima por até 1 min). O balde geral, por
 `provedor:modelo`, tem 80 % do `LLM_TOKENS_POR_MINUTO`; a `ferramenta` reserva antes num de 15 %, e a `normal` num de 10 % (o
