@@ -14,7 +14,7 @@ import { semearLicenca, semearMaterial } from './leitura-por-serie.fixture.js'
 import { SessaoFixtures, type TestSessao } from './sessao.fixture.js'
 import { chamar, type RespostaHttp, type TestApi } from './test-api.js'
 import { FilaDeIa } from './fila-de-ia.fixture.js'
-import { TEST_APP_OPTIONS } from './test-config.js'
+import { TEST_APP_OPTIONS, testConfig } from './test-config.js'
 import { WriteBlockTrigger } from './write-block-trigger.js'
 
 /**
@@ -351,6 +351,13 @@ describe('leitura de página por série e licença vigente (9.0)', () => {
     }
 
     /**
+     * Quanto o ajudante segura o `rodando`: o corte de consulta da API (`BANCO_TIMEOUT_CONSULTA_MS`, 2 s no compose de teste, lido uma vez da mesma configuração que monta a API desta suíte, sem
+     * sobreposição de `banco`) mais uma folga. Quem executa a passagem a `rodando` é o pool da bancada do worker, que tem folga de sobra (`TEMPO_DA_CONSULTA_MS`, em `fila-de-ia.fixture.ts`): o caso põe à prova
+     * esse valor, e quem o encurtar até o corte da API derruba os casos que usam o ajudante. O pool de produção não tem essa folga: o corte do worker é o mesmo de 2 s da API, e só o gatilho do banco de teste prende o `rodando`.
+     */
+    const ALEM_DO_CORTE_DA_API_MS = testConfig({}).banco.timeoutConsultaMs + 500
+
+    /**
      * O reenvio com a execução ainda `pendente`: segura a execução na transição `rodando` (o gatilho só do banco de teste), tira o material, reenvia com a **mesma chave** e solta. É o caminho que a correção
      * abriu: o reenvio já não para no filtro, e o `agendar` retoma a execução que ainda não rodou. O que ela faz com o material que saiu é o que o caso confere.
      */
@@ -366,6 +373,8 @@ describe('leitura de página por série e licença vigente (9.0)', () => {
         await parada.esperarParadas(1)
         await mudar()
         reenvio = await post(sessao, caminho, corpo)
+        // O `rodando` fica preso além do corte da API: num runner lento a espera passa dele sozinha, e a execução tem de falhar pelo material do mesmo jeito.
+        await new Promise((resolver) => setTimeout(resolver, ALEM_DO_CORTE_DA_API_MS))
       } finally {
         await parada.desarmar()
       }
