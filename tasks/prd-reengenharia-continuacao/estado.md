@@ -1,9 +1,9 @@
 # Estado da execução — reengenharia-continuacao
 
 ## Agora
-- **Espero:** o `RELATÓRIO` do `Implementador` (linha 1, tarefa 7.0, porte grande, 1ª tentativa, pedida em 16/11 ~05:00) e o do `Implementador 2` (linha 2, correção `2026-11-16-uuid-no-log-do-job-timeout`, pedida em 16/11 ~04:40: esteira vermelha de `785f7d3`, execução 43818883538, `apps/worker/test/job-timeout.int.test.ts`: o teste proíbe `4242` no log, e o `jobId` aleatório `…-594242a7b87a` o contém). Conferir a esteira de `98ebb699` (o vermelho de `785f7d3` só some depois da correção da L2). A linha 3 está ociosa: 8.0 a 11.0 esperam a 7.0 em cadeia. Da 6.0 para a 7.0 e a 11.0: o contador de `ia.execucao.interrompida` e o cenário de carga da pendente (`6_task.md`, "Recomendações sem aplicar").
+- **Espero:** o `RELATÓRIO` do `Implementador` (linha 1, tarefa 7.0, porte grande, 1ª tentativa, pedida em 16/11 ~05:00). As linhas 2 e 3 estão ociosas: 8.0 a 11.0 esperam a 7.0 em cadeia. Esteira: o vermelho de `785f7d3` (`job-timeout.int.test.ts`) é o que a correção `uuid-no-log-do-job-timeout` conserta, juntada em `ef1ec80e`; ler de novo no encontro da 7.0. Da 6.0 para a 7.0 e a 11.0: o contador de `ia.execucao.interrompida` e o cenário de carga da pendente (`6_task.md`, "Recomendações sem aplicar").
 - **Devo ainda:** levar ao `TODO.md` (e ao Joaquim) o achado do `Arquiteto` na triagem da 4.0: o Analista devolve os agregados inteiros na saída e tem só 6000 tokens de saída, então com modelo real a entrada válida passa de ~4 mil tokens e já falha (`IA_SAIDA_INVALIDA`); reduzir o schema corta o resumo da coordenação, decisão do Joaquim junto da U03-12 (D32, `/descobrir`), fora desta spec. As M1 a M4 da retro da F4 ficam no `TODO.md` como correções, sem ordem pedida. No pedido de pouso, lembrar o Joaquim: `VAGAS_ESCOLA_FERRAMENTA=4` no `.env` da VPS antes do primeiro deploy (o runbook já diz). No pedido de pouso, também: a 5.0 sem a 10.0 (teto global `IA_EXECUCOES_TOTAL`) não vai para produção, as duas pousam juntas; a divergência D84/D19 da 5.0 (Tutor desligado e política por turma não existem na API) está no `5_task.md`, para o `Validador` e o Joaquim.
-- **Base:** `spec/reengenharia-continuacao` em `98ebb699`
+- **Base:** `spec/reengenharia-continuacao` em `ef1ec80e`
 
 ## Concluídas
 | Tarefa | Commit | Modelo | Rodadas | Observação |
@@ -25,6 +25,7 @@
 | correção `2026-11-16-execucao-pendente-na-leitura-por-serie` (L2) | `5af33f06` | Sonnet | test-engineer e revisor-geral na 2ª; os outros cinco na 1ª | causa: o update da execução passava do corte de 2 s da API num runner lento; 2 linhas no `TODO.md`; encontro em `178a2f70` |
 | correção `2026-11-16-limite-do-ip-no-consultar-convite` (L2) | `6553edf9` | Sonnet | test-engineer e revisor-geral na 2ª; os outros quatro na 1ª | defeito do teste: a 1ª chamada caía no seguro em memória passando dos 100 ms do cliente do limite; sem vermelho determinístico (1 em 3 e 1 em 8 antes, 20 de 20 depois); `TODO.md`: ~18 testes com `LIMITE_REQ_*` podem ter a mesma suposição (casa provável o `subirApi`); encontro em `c71bbf97` |
 | tarefa 6.0 (L1) | `2d1b2d11` | Sonnet | os seis revisores aprovaram na 1ª e na 2ª | sem tela; não mexeu em `leitura-por-serie.int.test.ts`; sem aplicar no `6_task.md` e no `TODO.md`, duas para a 7.0 e a 11.0; encontro em `98ebb699`; esteira ainda vermelha de `785f7d3` (correção na L2) |
+| correção `2026-11-16-uuid-no-log-do-job-timeout` (L2) | `5fa39c87` | Sonnet | privacy, infra, test-engineer, tenancy, conformidade na 1ª; revisor-geral na 2ª | falso positivo do teste: `4242` achado dentro do `jobId` (UUID); o worker não vazou nada; 10 verdes seguidas; encontro em `ef1ec80e` |
 
 ## Esperando o Joaquim
 ## 15/11 03:05 — retro da F4, no terminal do `Arquiteto 2`
