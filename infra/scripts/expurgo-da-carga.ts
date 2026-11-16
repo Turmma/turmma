@@ -143,8 +143,8 @@ export async function semearEscolaA(banco: Consultavel, escolaId: string, volume
   )
   const idsDosAlunos = `{${[alunoId, ...alunos.map(({ id }) => id)].join(',')}}`
   // As execuções do Tutor de 13 meses atrás (o padrão é 12), cada uma com a pergunta e a resposta. **Concluídas**, como o Tutor as
-  // deixa: com o estado padrão (`pendente`) a varredura da API (`falharInterrompidas`, a cada prazo de execução) tentaria falhar
-  // as 250 mil de uma vez, estouraria o `statement_timeout` e mudaria o que a fase mede (achado da rodada 1 da 19.0).
+  // deixa: com o estado padrão (`pendente`) a varredura do `main-worker` (a cada 60 s, em lotes de 200) encerraria
+  // as 250 mil aos poucos, com a linha estimada de `consumo_ia` para cada uma, e mudaria o que a fase mede (achado da rodada 1 da 19.0).
   await banco.query(
     `insert into execucao_agente (escola_id, ano_letivo_id, funcao, tarefa, solicitada_por, chave_envio, entrada, criada_em, estado, iniciada_em, concluida_em, resultado)
      select $1, $2, 'tutor_com_o_aluno', 'turno_do_tutor', ($3::uuid[])[1 + n % $5::int], gen_random_uuid(), '{"tarefa":"turno_do_tutor"}'::jsonb,

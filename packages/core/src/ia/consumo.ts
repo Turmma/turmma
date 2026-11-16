@@ -2,9 +2,12 @@ import type { ChaveDeFuncao, EstadoDeConsumoDeIa, TarefaDeIa } from '@educa/shar
 import { requireEscolaId } from '../context/context-escola.js'
 import { systemClock, type Clock } from '../clock.js'
 import { diaDeUso } from '../usage/usage-day.js'
+import type { ModelAdapter } from './adapter.js'
 import type { LLMErrorCode } from './errors.js'
+import { EXECUCAO_INTERROMPIDA } from './executor.js'
 import type { Perfil } from './perfis.js'
 import type { EnvioDaChamada, OutputSource } from './port.js'
+import type { TaskDefinition } from './task.js'
 
 /**
  * O que toda execução de IA deixa registrado (regra 30, item 4): é o que sustenta a cobrança, o consumo da
@@ -37,12 +40,47 @@ interface DadosDoConsumo {
   readonly duracaoMs: number
   readonly tentativas: number
   readonly estado: EstadoDeConsumoDeIa
-  readonly codigoDeErro?: LLMErrorCode
+  /** O código da camada de IA, ou o da execução que o processo caiu no meio dela (`EXECUCAO_INTERROMPIDA`, a linha estimada). */
+  readonly codigoDeErro?: LLMErrorCode | typeof EXECUCAO_INTERROMPIDA
   readonly em: Date
 }
 
 /** Com `envioExterno`, o `provedorId` de quem recebeu o conteúdo; sem ele, nulo (`consumo_ia.provedor`). */
 export type ConsumoDeIa = DadosDoConsumo & EnvioDaChamada
+
+/** Para onde o adaptador configurado manda o conteúdo: a origem, o envio (externo, e para quem) e o modelo de cada perfil. É o que a linha estimada de uma execução interrompida leva. */
+export type DestinoDoAdaptador = Pick<ModelAdapter, 'origem' | 'envio' | 'modeloDoPerfil'>
+
+/** Da tarefa, só o que a linha estimada lê: o catálogo (`TASK_CATALOG`) as entrega com os tipos de entrada e de saída de cada uma. */
+type DadosDaTarefaParaEstimar = Pick<TaskDefinition<never, unknown>, 'nome' | 'funcao' | 'perfil' | 'prompt' | 'maximoDeTokensDeEntrada' | 'maximoDeTokensDeSaida'>
+
+/**
+ * A linha de consumo de uma execução `rodando` que o processo não terminou (a reentrega, a varredura): o worker caiu, e ninguém sabe se o
+ * pedido chegou a sair nem quanto custou. Por isso ela **superestima, nunca subestima** (D14, regra 20, item 19): os tokens são os **dois tetos da
+ * tarefa** (o pior pedido válido e o máximo de saída), e o envio é o do adaptador configurado, como se a chamada tivesse saído.
+ * Sem `aluno_id` (o freio do dia conta a pergunta, não a linha) e sem `entrada` nem `saida`; a execução a liga ao rastro de quem a pediu.
+ */
+export function consumoEstimadoDaInterrompida(entrada: { readonly tarefa: DadosDaTarefaParaEstimar; readonly destino: DestinoDoAdaptador; readonly execucaoId: string; readonly duracaoMs: number; readonly em: Date }): ConsumoDeIa {
+  const { tarefa, destino, execucaoId, duracaoMs, em } = entrada
+  return {
+    execucaoId,
+    tarefa: tarefa.nome,
+    funcao: tarefa.funcao,
+    perfil: tarefa.perfil,
+    origem: destino.origem,
+    modelo: destino.modeloDoPerfil(tarefa.perfil),
+    promptVersao: tarefa.prompt.versao,
+    tokensDeEntrada: tarefa.maximoDeTokensDeEntrada,
+    tokensDeSaida: tarefa.maximoDeTokensDeSaida,
+    duracaoMs: Math.max(0, Math.round(duracaoMs)),
+    // Ao menos uma chamada pode ter saído: é a que se estima.
+    tentativas: 1,
+    estado: 'falhou',
+    codigoDeErro: EXECUCAO_INTERROMPIDA,
+    ...destino.envio,
+    em,
+  }
+}
 
 /** Porta do registro. A implementação em Postgres grava em `consumo_ia`, na escola do contexto. */
 export interface RegistroDeConsumo {

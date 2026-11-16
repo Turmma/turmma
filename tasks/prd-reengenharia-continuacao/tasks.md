@@ -43,7 +43,7 @@ paralela desde o começo e não alongam o caminho, que é o da IA (1.0 → 11.0)
   - [ ] 5.6 `worker-ia-1` e `-2` no compose; configuração; documentos
   - [ ] 5.7 Testes
 
-- [ ] **6.0 — Execução duplicada ou interrompida não chama o modelo de novo, e o consumo estimado fica no rastro (47.0)**
+- [x] **6.0 — Execução duplicada ou interrompida não chama o modelo de novo, e o consumo estimado fica no rastro (47.0)**
   - [ ] 6.1 A reentrega em `rodando` encerra com `EXECUCAO_INTERROMPIDA`, com a linha estimada em `consumo_ia` na mesma transação
   - [ ] 6.2 A varredura nova: `rodando` velha e `pendente` sem job vivo, com o `EXPLAIN`
   - [ ] 6.3 A conta do laço da varredura

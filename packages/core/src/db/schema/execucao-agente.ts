@@ -37,8 +37,10 @@ import { usuario } from './usuario.js'
  *   para o consumo, que não tem ano.
  * - O consumo de cada chamada ao modelo fica em `consumo_ia`, com tokens, custo e duração (regra 30, item 4).
  * - Cresce com o Tutor (uma por troca). Lê-se por id ou pela chave. O índice parcial das abertas, `(escola_id, estado,
- *   criada_em)`, só tem as `pendente` e `rodando`: é por ele que a varredura da subida do processo (`falharInterrompidas`,
- *   rotina nossa entre escolas, `@Unscoped`) encerra as que ficaram para trás, sem ler a tabela.
+ *   criada_em)`, só tem as `pendente` e `rodando`: é o das abertas. A varredura do `main-worker` (rotina
+ *   nossa entre escolas, `@Unscoped`, a cada 60 s, em lotes de 200) encerra as que ficaram para trás: a `pendente` sem job vivo
+ *   (`encerrarPendentesSemJob`) lê as abertas por ele, e a `rodando` velha (`encerrarRodandasVelhas`) cruza as escolas e ordena
+ *   por `iniciada_em`, então percorre as abertas inteiras, que são poucas: só entram `pendente` e `rodando`.
  * - **Anonimizada no prazo** (F3, tarefa 4.0; categoria `execucao_agente` da retenção): o expurgo noturno da escola troca
  *   a `entrada` por `{ tarefa }` (o que o check `execucao_agente_entrada_da_tarefa` exige), anula `solicitada_por` e
  *   grava `anonimizada_em`. A linha, o estado, o `resultado` e o `erro` ficam, e com eles as FKs de quem aponta para ela:

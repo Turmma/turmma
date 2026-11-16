@@ -1,4 +1,4 @@
-import { createLLMGateway, globalMeter, type Database, type LLMConfig, type LoggerBase, type Meter, type OrcamentoDeIa, type SuspensaoDeFuncao } from '@educa/core'
+import { createLLMGateway, destinoDoAdaptador, globalMeter, type Database, type DestinoDoAdaptador, type LLMConfig, type LoggerBase, type Meter, type OrcamentoDeIa, type SuspensaoDeFuncao } from '@educa/core'
 import { Global, Module, type DynamicModule } from '@nestjs/common'
 import { DB } from '../database.module.js'
 import { ConsumoRepository } from './consumo.repository.js'
@@ -6,6 +6,9 @@ import { LLM_PROVIDER, ORCAMENTO_DE_IA, SUSPENSAO_DE_FUNCAO } from './ia.module.
 import { OrcamentoRepository } from './orcamento.repository.js'
 import { RegistroDeComandos } from './registro-de-comandos.js'
 import { SuspensaoRepository } from './suspensao.repository.js'
+
+/** Para onde o adaptador configurado manda o conteúdo (X6, 6.0): a linha estimada da execução interrompida leva o envio e o modelo dele. */
+export const DESTINO_DO_ADAPTADOR = Symbol('DESTINO_DO_ADAPTADOR')
 
 export interface IaDoWorkerOptions {
   /** A configuração de IA que o `loadWorkerConfig` leu e validou (`IA_ADAPTADOR`, `LLM_*`, `IA_REPLICAS`). */
@@ -36,8 +39,9 @@ export class IaDoWorkerModule {
           inject: [DB, ORCAMENTO_DE_IA, SUSPENSAO_DE_FUNCAO],
         },
         { provide: RegistroDeComandos, useFactory: () => new RegistroDeComandos() },
+        { provide: DESTINO_DO_ADAPTADOR, useFactory: (): DestinoDoAdaptador => destinoDoAdaptador(config) },
       ],
-      exports: [LLM_PROVIDER, SUSPENSAO_DE_FUNCAO, ORCAMENTO_DE_IA, RegistroDeComandos],
+      exports: [LLM_PROVIDER, SUSPENSAO_DE_FUNCAO, ORCAMENTO_DE_IA, RegistroDeComandos, DESTINO_DO_ADAPTADOR],
     }
   }
 }

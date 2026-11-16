@@ -11,7 +11,7 @@ import type { ModelAdapter, RepairHint } from './adapter.js'
 import { FakeAdapter } from './fake-adapter.js'
 import { OpenAICompatAdapter } from './openai-compat-adapter.js'
 import { ResilientAdapter } from './resilient-adapter.js'
-import type { ConsumoDeIa, OrcamentoDeIa, RegistroDeConsumo } from './consumo.js'
+import type { ConsumoDeIa, DestinoDoAdaptador, OrcamentoDeIa, RegistroDeConsumo } from './consumo.js'
 import { LLMError, type LLMErrorCode } from './errors.js'
 import { semMarcacao } from './clean-output.js'
 import { SEM_ENVIO_EXTERNO, type LLMProvider, type GenerationMeasurement, type GenerationRequest, type GenerationResult } from './port.js'
@@ -300,10 +300,23 @@ export interface LLMGatewayPorts {
  * prazo por perfil, a repetição e o disjuntor.
  */
 export function createLLMGateway(config: LLMConfig, portas: LLMGatewayPorts): LLMProvider {
+  const adaptador = new ResilientAdapter(adaptadorInterno(config), { prazosMs: config.prazosMs, recuoMs: config.recuoMs, aleatorio: Math.random })
+  return new LLMGateway({ adaptador, ...portas })
+}
+
+/** O adaptador que `IA_ADAPTADOR` escolhe, sem a resiliência: a única conta de qual é, e que `createLLMGateway` e `destinoDoAdaptador` dividem. */
+function adaptadorInterno(config: LLMConfig): ModelAdapter {
   if (config.adaptador === 'openai_compat' && config.modelo === undefined) throw new InvalidConfigError(['LLM_BASE_URL', 'LLM_MODELO'])
   // A latência simulada é só do adaptador falso (teste de carga, regra 80, item 11): o do provedor tem a do provedor.
-  const interno =
-    config.modelo === undefined ? new FakeAdapter(config.latenciaFalsaMs === undefined ? {} : { latenciaMs: config.latenciaFalsaMs }) : new OpenAICompatAdapter(config.modelo)
-  const adaptador = new ResilientAdapter(interno, { prazosMs: config.prazosMs, recuoMs: config.recuoMs, aleatorio: Math.random })
-  return new LLMGateway({ adaptador, ...portas })
+  return config.modelo === undefined ? new FakeAdapter(config.latenciaFalsaMs === undefined ? {} : { latenciaMs: config.latenciaFalsaMs }) : new OpenAICompatAdapter(config.modelo)
+}
+
+/**
+ * Para onde a configuração manda o conteúdo (a origem, o envio externo e o provedor, o modelo de cada perfil), **sem montar o gateway**: é o que a linha
+ * estimada da execução interrompida lê (`consumoEstimadoDaInterrompida`). Sai da mesma conta de `createLLMGateway`, e por isso não diverge do que a
+ * chamada de verdade registraria.
+ */
+export function destinoDoAdaptador(config: LLMConfig): DestinoDoAdaptador {
+  const interno = adaptadorInterno(config)
+  return { origem: interno.origem, envio: interno.envio, modeloDoPerfil: (perfil) => interno.modeloDoPerfil(perfil) }
 }

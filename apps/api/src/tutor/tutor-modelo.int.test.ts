@@ -437,6 +437,58 @@ describe('Tutor contra um modelo que não obedece', () => {
     })
   })
 
+  describe('a D36 na reentrega do job (X6, 6.0; D49)', () => {
+    const delicado = () => modelo.responder(() => JSON.stringify({ classificacao: 'assunto_delicado', resposta: 'Sinto muito, vamos conversar sobre isso. O que aconteceu?', citacoes: [] }))
+    const frase = 'lá em casa as coisas estão bem complicadas'
+    const execucaoLida = async (execucaoId: string) =>
+      (await sql<{ estado: string; erro: string | null; resultado: unknown }>('select estado, erro, resultado from execucao_agente where escola_id = $1 and id = $2', [a.escolaId, execucaoId])).rows
+
+    it('D36 na reentrega: o `assunto_delicado` já gravado e o job reentregue com a execução `rodando`: encerra sem chamar o modelo, e o sinal e a mensagem fixa seguem um só', async () => {
+      await fila.ociosa()
+      const aluno = await novoAluno()
+      delicado()
+      const execucao = await turno(aluno, frase, naQuestao(3))
+      expect(execucao.estado).toBe('concluida')
+      expect(await sinaisDe(aluno)).toEqual([{ tipo: 'atencao_humana', atividade_aplicada_id: null, questao: null }])
+      // O worker morreu depois de gravar o encaminhamento e antes de concluir: a execução está `rodando`, e o job volta (~15 s depois).
+      await sql(`update execucao_agente set estado = 'rodando', erro = null, resultado = null, concluida_em = null where escola_id = $1 and id = $2`, [a.escolaId, execucao.execucaoId])
+      const chamadasAntes = modelo.pedidos.length
+      await fila.entregarDeNovo(execucao.execucaoId, a.escolaId)
+      expect(modelo.pedidos).toHaveLength(chamadasAntes)
+      expect(await execucaoLida(execucao.execucaoId)).toEqual([{ estado: 'falhou', erro: 'EXECUCAO_INTERROMPIDA', resultado: null }])
+      expect(await sinaisDe(aluno)).toEqual([{ tipo: 'atencao_humana', atividade_aplicada_id: null, questao: null }])
+      expect(await respostasGravadas(aluno)).toEqual([MENSAGEM_DE_ASSUNTO_DELICADO])
+    })
+
+    it('o job em dois workers: com a primeira entrega gravando o encaminhamento, a segunda encerra a execução e não chega a gravar; o sinal e a mensagem fixa saem uma vez só', async () => {
+      await fila.ociosa()
+      const aluno = await novoAluno()
+      delicado()
+      const texto = `${frase} (${randomUUID().slice(0, 8)})`
+      // A primeira entrega para dentro da gravação do sinal, com a mensagem fixa e o sinal ainda por confirmar; a segunda chega nesse instante.
+      const parada = new WriteBlockTrigger(bancada.pool, { tabela: 'sinal_tutor', evento: 'insert', quando: `new.aluno_id = '${aluno.usuarioId}'::uuid` })
+      await parada.armar()
+      let execucaoId: string
+      try {
+        const aceita = await chamar(api.url, 'POST', '/v1/tutor/mensagens', await aluno.tokenNovo(), { chaveEnvio: randomUUID(), texto, ...naQuestao(3) })
+        expect(aceita.status).toBe(202)
+        execucaoId = aceita.corpo['execucaoId'] as string
+        await parada.esperarParadas()
+        await fila.entregarDeNovo(execucaoId, a.escolaId)
+        expect(await execucaoLida(execucaoId)).toEqual([{ estado: 'falhou', erro: 'EXECUCAO_INTERROMPIDA', resultado: null }])
+        await parada.soltar()
+        await fila.ociosa()
+      } finally {
+        await parada.desarmar()
+      }
+      // O encaminhamento da primeira entrega é de transação própria: fica, e é um só.
+      expect(await execucaoLida(execucaoId)).toEqual([{ estado: 'falhou', erro: 'EXECUCAO_INTERROMPIDA', resultado: null }])
+      expect(await sinaisDe(aluno)).toEqual([{ tipo: 'atencao_humana', atividade_aplicada_id: null, questao: null }])
+      expect(await respostasGravadas(aluno)).toEqual([MENSAGEM_DE_ASSUNTO_DELICADO])
+      expect(modelo.pedidos.filter((pedido) => pedido.includes(texto))).toHaveLength(1)
+    })
+  })
+
   describe('a avaliação abre depois do 202 (S12; regra 30, item 10)', () => {
     const pausada = { estado: 'falhou', erro: ErrorCode.TUTOR_PAUSADO_EM_AVALIACAO, resultado: null }
     const execucaoLida = async (execucaoId: string) =>
