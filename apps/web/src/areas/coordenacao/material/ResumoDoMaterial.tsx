@@ -71,7 +71,8 @@ function CorpoDoResumo({ resumo, disciplinas, series, materiais, releituraFalhou
       )}
       {resumo.linhas.length > 0 && <Table rotulo="Resumo do material por disciplina e série" colunas={COLUNAS} linhas={linhasDoResumo(resumo, disciplinas, series)} chaveDaLinha={(linha) => linha.chave} />}
       {resumo.linhas.length === 0 && !releituraFalhou && (
-        <p className="t-apoio rounded-cartao border-2 border-borda bg-superficie p-4 text-apoio">Ainda não há material para resumir. Quando a escola enviar o primeiro PDF, os números aparecem aqui.</p>
+        // Uma linha, como o "Carregando o resumo…" que ele substitui: o resumo fica acima do "Enviar material", e um texto mais comprido, ao chegar, empurra o botão no celular. O convite a enviar é o do vazio da lista, logo abaixo.
+        <p className="t-apoio rounded-cartao border-2 border-borda bg-superficie p-4 text-apoio">Ainda não há material para resumir.</p>
       )}
     </>
   )

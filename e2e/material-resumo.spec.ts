@@ -116,6 +116,27 @@ test.describe('O resumo do material', () => {
     expect(await seriousViolations(page)).toEqual([])
   })
 
+  test('o "Enviar material" não sai do lugar quando o resumo termina de carregar: o toque que já saiu não cai ao lado dele', async ({ page, request }) => {
+    const segurada = gate()
+    await abrirMaterial(page, request, async () => {
+      await page.route(
+        (url) => url.pathname === '/v1/materiais/resumo',
+        async (rota: Route) => {
+          await segurada.aberta
+          return rota.fallback()
+        },
+      )
+    })
+    const botao = principal(page).getByRole('button', { name: 'Enviar material' })
+    await expect(resumo(page).getByRole('status').filter({ hasText: 'Carregando o resumo…' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(botao).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+    const antes = await botao.boundingBox()
+    segurada.abrir()
+    await expect(resumo(page).getByText('Ainda não há material para resumir.')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+    // O resumo fica acima da ação principal: o texto dele, ao chegar, não pode empurrá-la (a esteira de 16/11 perdeu o toque no celular por 40 px).
+    expect((await botao.boundingBox())?.y).toBe(antes?.y)
+  })
+
   test('o professor não alcança o resumo: o endereço da aba cai em "não encontrada", sem pedido do resumo', async ({ page }) => {
     const professora = await criarEquipeComSenha()
     const pedidos: string[] = []

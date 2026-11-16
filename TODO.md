@@ -3848,3 +3848,9 @@ aula" em `Retencao.tsx`, o Validador conferiu: a tela já o mostra pela descriç
 - [ ] (reengenharia-continuacao, 10.0, infra-guardian, 1ª, 16/11/2026) **Guarda em `tools/guardas/alerta-tem-runbook.test.ts`** que confira que toda variável citada nos parágrafos dos alertas novos existe no `.env.example` (o runbook citava `LLM_API_KEY` e `LLM_PRAZO_*_MS`, que não existem; corrigido à mão na 10.0). Opcional.
 - [ ] (reengenharia-continuacao, 10.0, test-engineer, 1ª, 16/11/2026) **O caso do Redis que cai com o cliente ainda `ready`** (o comando falha), além do cliente não pronto, que é o que `token-limiter.test.ts` e o `.int` provam.
 - [ ] (reengenharia-continuacao, 10.0, test-engineer, 1ª, 16/11/2026) **A repetição que muda de modelo grava só o último em `gasto.modelo`, e o custo mistura os dois:** o `custo_micros` por chamada (item acima) precisa de um registro por chamada, na D37.
+
+## Da correção 2026-11-16-e2e-enviar-material-no-celular (o resumo do material que empurra o "Enviar material"), fora dela
+
+- [ ] (correção `2026-11-16-e2e-enviar-material-no-celular`, frontend-reviewer, revisor-geral, test-engineer, infra-guardian, 1ª, 16/11/2026) **O resumo do material ainda empurra o "Enviar material" no celular
+      na escola com material (a tabela chega com altura diferente do "Carregando o resumo…") e quando a releitura falha (`ErroDoResumo`):** pôr o resumo depois da lista, ou reservar a altura. Muda a
+      ordem da tela. O caso novo de `e2e/material-resumo.spec.ts` serve de modelo (segurar o resumo com material, medir o `y` do botão, soltar).
