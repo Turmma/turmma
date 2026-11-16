@@ -415,6 +415,25 @@ describe('a execução interrompida: a reentrega e a varredura (adaptador falso)
       expect(INTERVALO_DA_VARREDURA_MS).toBe(60_000)
     })
 
+    it('varredura, execução esquecida há mais de 24,8 dias: a `rodando` encerra com a duração no teto do inteiro da linha, e não trava a volta das outras `rodando`', async () => {
+      const esquecida = await semear(a, { haSegundos: 40 * 24 * 3600 })
+      // Na outra escola: o lote mistura escolas, e a linha de cada execução vai para a dela.
+      const recente = await semear(b, { haSegundos: 301 })
+      expect(await fila.varredura().varrer()).toBeGreaterThanOrEqual(2)
+      expect(await execucaoDe(esquecida)).toEqual({ estado: 'falhou', erro: 'EXECUCAO_INTERROMPIDA', resultado: null })
+      expect((await linhasDe(esquecida))[0]?.duracao_ms).toBe(2_147_483_647)
+      expect(await execucaoDe(recente)).toEqual({ estado: 'falhou', erro: 'EXECUCAO_INTERROMPIDA', resultado: null })
+      expect(await linhasDe(recente)).toEqual([estimadaDe('propor_ferramenta', b, fila.destino)])
+    })
+
+    it('reentrega, execução esquecida há mais de 24,8 dias: a `rodando` encerra com a linha no teto do inteiro, e não cai em `interrupcao_nao_gravada`', async () => {
+      const id = await semear(a, { haSegundos: 40 * 24 * 3600 })
+      await fila.entregarDeNovo(id, a.escolaId)
+      expect(await execucaoDe(id)).toEqual({ estado: 'falhou', erro: 'EXECUCAO_INTERROMPIDA', resultado: null })
+      expect((await linhasDe(id))[0]?.duracao_ms).toBe(2_147_483_647)
+      expect(linhasDeLog.some((linha) => linha.includes('"evento":"ia.execucao.interrupcao_nao_gravada"') && linha.includes(id))).toBe(false)
+    })
+
     it('varredura, `pendente`: com job vivo fica; sem job, com job final, de outro tipo, de outra fila ou de outra execução, é encerrada sem linha', async () => {
       const comJobVivo = await semear(a, { estado: 'pendente', haSegundos: 5 })
       await semearJob(a, comJobVivo)

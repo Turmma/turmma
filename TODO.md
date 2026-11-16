@@ -3799,3 +3799,15 @@ aula" em `Retencao.tsx`, o Validador conferiu: a tela já o mostra pela descriç
       `aquecerORedisDoLimite` de `input-boundary-sessao.int.test.ts`. Toca cerca de 18 testes e pede tarefa própria (dono: Implementador, com test-engineer). A mesma tarefa pode trazer a
       conferência por `proporcaoDoSeguro`: o `postarContado` olha só o `seguroAtivo` da última consulta, e a requisição que consulta dois limites (a tentativa válida de login) pode ter o
       primeiro no seguro sem aparecer; o teste cai de qualquer modo, só sem a causa escrita (test-engineer, 2ª)
+
+## Da correção 2026-11-16-varredura-do-main-worker (a varredura do `main-worker` e a duração da linha estimada), fora dela
+
+- [ ] (correção `2026-11-16-varredura-do-main-worker`, revisor-geral, privacy-guardian, conformidade-reviewer, infra-guardian e test-engineer, 1ª, 16/11/2026) **`expurgo-da-escola.int.test.ts` não apaga o que semeia:** deixa
+      no banco uma `rodando` de 2025 e cerca de 2.700 `pendente` antigas, e o teste da 6.0 (`ia.int.test.ts` › "varredura do main-worker") passa a depender da ordem dos arquivos e do lote da volta (200 × 5).
+      Casa: o expurgo apagar o que semeia (`apps/worker/test`, tarefa própria), ou o teste da 6.0 varrer até esgotar o que sobrou.
+- [ ] (correção `2026-11-16-varredura-do-main-worker`, revisor-geral, privacy-guardian, conformidade-reviewer, infra-guardian e test-engineer, 1ª, 16/11/2026) **O aviso `ia.execucao.varredura_falhou` não diz qual
+      execução travou o lote:** incluir o `execucaoId` (UUID, nunca conteúdo) em `varredura-de-execucoes.ts`. Muda o log da varredura.
+- [ ] (correção `2026-11-16-varredura-do-main-worker`, infra-guardian e test-engineer, 1ª, 16/11/2026) **Isolar a falha por linha na varredura:** `try` próprio para `#encerrarRodandas` e `#encerrarPendentes` e,
+      se o lote falhar, encerrar linha a linha, para uma linha ruim não segurar as outras. Tarefa futura em `varredura-de-execucoes.ts`; muda o comportamento da varredura.
+- [ ] (correção `2026-11-16-varredura-do-main-worker`, infra-guardian, 1ª, 16/11/2026) **Métrica de falha da varredura, alerta para falha em voltas seguidas e o parágrafo em `docs/runbook.md`:** hoje a varredura que
+      falha só deixa um aviso no log. Tarefa futura; muda o contrato de observabilidade e toca o runbook (regra 80, item 10).
