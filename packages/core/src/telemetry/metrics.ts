@@ -194,6 +194,12 @@ export const METRICS = {
    * (nunca o aluno, a escola nem o texto da pergunta), e por isso não entra em `METRICS_WITH_ESCOLA`.
    */
   tutorRecusadoSemMaterial: 'tutor.recusa_sem_material',
+  /**
+   * Pedidos de IA que o gateway recusou com `PEDIDO_ACIMA_DO_TETO` (reengenharia-continuacao, tarefa 4.0), por `tarefa`: o pedido passou pelo
+   * esquema da entrada e estourou o `maximoDeTokensDeEntrada` da tarefa. Só guarda de defeito, e o alerta dispara com qualquer valor acima de zero.
+   * O único rótulo é a tarefa do catálogo (nunca a escola, a execução, o usuário nem o conteúdo).
+   */
+  pedidoAcimaDoTeto: 'ia.pedido_acima_do_teto',
 } as const
 
 /**

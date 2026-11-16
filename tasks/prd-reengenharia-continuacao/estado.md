@@ -1,9 +1,9 @@
 # Estado da execução — reengenharia-continuacao
 
 ## Agora
-- **Espero:** o `RELATÓRIO` do `Implementador` (linha 1, **correção `2026-11-15-encontro-4`**: o encontro da 4.0, `6189c06a`, deu `CONFLITO` na linha do `TETO` de `catraca.test.ts`, como previsto; o par foi reiniciado e a correção traz a spec e fecha o merge; depois, o encontro de novo; **parada por `DIVERGÊNCIA` de desenho às ~20:15**: `teto-de-entrada.int.test.ts` da 4.0 usa `ExecucaoRequest` e `agendar` com closures, que a 2.0 removeu; triada pelo `Arquiteto` como conflito semântico dentro da correção, sem mudar a spec; retomada enviada às ~20:20), do `Implementador 2` (linha 2, tarefa 13.0, porte pequeno, 1ª tentativa, retomada às 19:26 depois da correção `spec-na-linha-2`, só o merge `049840ee`, sem documento nem rodada: se o encontro da 13.0 recusar esse merge sem marca, é por isso; conferir na esteira os avisos `primeira-carga-travou` e se `pedidos-do-titular` volta a passar). A linha 3 está ociosa: nada parte antes da 4.0.
+- **Espero:** o `RELATÓRIO` do `Implementador` (linha 1, **correção `2026-11-15-encontro-4`**: o encontro da 4.0, `6189c06a`, deu `CONFLITO` na linha do `TETO` de `catraca.test.ts`, como previsto; o par foi reiniciado e a correção traz a spec e fecha o merge; depois, o encontro de novo; **parada por `DIVERGÊNCIA` de desenho às ~20:15**: `teto-de-entrada.int.test.ts` da 4.0 usa `ExecucaoRequest` e `agendar` com closures, que a 2.0 removeu; triada pelo `Arquiteto` como conflito semântico dentro da correção, sem mudar a spec; retomada enviada às ~20:20), do `Implementador 2` (linha 2, tarefa 14.0, porte grande, 1ª tentativa, pedida às 15/11 ~20:35 depois do encontro da 13.0; conferir na esteira de `c747dc2` os avisos `primeira-carga-travou` e se `pedidos-do-titular` volta a passar). A linha 3 está ociosa: a 5.0 espera a 4.0.
 - **Devo ainda:** levar ao `TODO.md` (e ao Joaquim) o achado do `Arquiteto` na triagem da 4.0: o Analista devolve os agregados inteiros na saída e tem só 6000 tokens de saída, então com modelo real a entrada válida passa de ~4 mil tokens e já falha (`IA_SAIDA_INVALIDA`); reduzir o schema corta o resumo da coordenação, decisão do Joaquim junto da U03-12 (D32, `/descobrir`), fora desta spec. As M1 a M4 da retro da F4 ficam no `TODO.md` como correções, sem ordem pedida. Antes de a 5.0 partir, o `Arquiteto` copia para o `5_task.md` as linhas "tarefa 5.0" da tabela "Sem aplicar" do `3_task.md` (alertas.int.test.ts:305, ambiente.test.ts:150, frases de arquitetura.md e infra.md, causa 1 do runbook, casos do privacy-guardian e do conformidade-reviewer). No pedido de pouso, lembrar o Joaquim: `VAGAS_ESCOLA_FERRAMENTA=4` no `.env` da VPS antes do primeiro deploy (o runbook já diz).
-- **Base:** `spec/reengenharia-continuacao` em `d8819368`
+- **Base:** `spec/reengenharia-continuacao` em `c747dc2b`
 
 ## Concluídas
 | Tarefa | Commit | Modelo | Rodadas | Observação |
@@ -15,6 +15,8 @@
 | tarefa 12.0 (L1) | `58b683bf` | Sonnet | 3 rodadas: 1ª infra-guardian e revisor-geral, 2ª test-engineer, 3ª todos aprovaram | Mesa fotografou /professor/criados; sem aplicar no documento e no `TODO.md`; esteira verde em `1b705e9` |
 | tarefa 2.0 (L3) | `2e1f5fbd` | Sonnet | os sete revisores aprovaram na 2ª | mexeu fora do previsto em `eslint-suppressions.json` (tutor.service 4→2) e no `TETO` da catraca (236→234); sem aplicar no documento e no `TODO.md` |
 | correção `2026-11-15-teto-da-catraca-depois-da-2-0` (esteira, L3) | `a318d872` | Sonnet | todos aprovaram na 1ª | `TETO.complexity` 234→233; 2 recomendações da Mesa para a retro na ordem r1 |
+| correção `2026-11-15-spec-na-linha-2` (L2) | `049840ee` | Sonnet | sem rodada: só o merge da spec, sem diff próprio | trouxe o `TETO` corrigido para a 13.0 |
+| tarefa 13.0 (L2) | `67a83962` | Sonnet | frontend, tenancy, privacy, conformidade e infra na 1ª; test-engineer e revisor-geral na 2ª | telas só pela Mesa (4 fotos; a falha só aparece com `page.route`, medidas no e2e); 2 mutações do celular verdes, só o e2e mudou (divergência na 13_task, techspec §5, cenarios §7); 4 linhas no `TODO.md` |
 
 ## Esperando o Joaquim
 ## 15/11 03:05 — retro da F4, no terminal do `Arquiteto 2`

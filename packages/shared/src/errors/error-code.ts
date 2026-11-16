@@ -101,6 +101,11 @@ export const ErrorCode = {
   /** A execução ficou parada além do prazo porque o processo caiu ou reiniciou no meio dela (503): a varredura a encerrou. */
   EXECUCAO_INTERROMPIDA: 'EXECUCAO_INTERROMPIDA',
   /**
+   * O pedido que a tarefa montou passa do teto de entrada dela (503): é defeito nosso, e nada foi ao modelo nem ao orçamento. A
+   * entrada passou pelo schema; quem estourou foi o teto declarado, ou o prompt que cresceu depois dele. A tela oferece "Tentar de novo".
+   */
+  PEDIDO_ACIMA_DO_TETO: 'PEDIDO_ACIMA_DO_TETO',
+  /**
    * O material da escola não tem trecho sobre o tema pedido (422): sem página para citar, a ferramenta não gera (D6;
    * regra 30, item 12).
    */

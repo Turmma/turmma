@@ -42,6 +42,8 @@ export const HTTP_STATUS_BY_CODE: Readonly<Record<ErrorCode, number>> = {
   IA_ORCAMENTO_ESGOTADO: 429,
   IA_ENTRADA_INVALIDA: 500,
   EXECUCAO_INTERROMPIDA: 503,
+  // Só guarda de defeito: a execução em segundo plano o grava em `execucao_agente.erro`; nenhuma rota o devolve como status (`techspec.md` §8).
+  PEDIDO_ACIMA_DO_TETO: 503,
   MATERIAL_INSUFICIENTE: 422,
   // 9.0: o pedido é bem formado, e a escola não tem material pronto da série da turma (próprio ou de licença vigente hoje).
   SEM_MATERIAL_DA_SERIE: 422,

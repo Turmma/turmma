@@ -111,7 +111,7 @@ export class AppModule {
           ...(opcoes.armazemDeArquivos === undefined ? {} : { armazemDeTeste: opcoes.armazemDeArquivos }),
           ...(opcoes.relogioDasLicencas === undefined ? {} : { relogioDasLicencas: opcoes.relogioDasLicencas }),
         }),
-        IaModule.forRoot({ config: config.ia, ...(opcoes.logger === undefined ? {} : { logger: opcoes.logger }) }),
+        IaModule.forRoot({ config: config.ia, ...(opcoes.logger === undefined ? {} : { logger: opcoes.logger }), ...(opcoes.medidor === undefined ? {} : { medidor: opcoes.medidor }) }),
         AssistenteModule.forRoot({ chaveContador: config.login.chaveContador, instancias: config.limite.instancias, logger: opcoes.logger ?? createLogger({ servico: 'api' }) }),
         ArtefatoModule,
         EntregaModule,

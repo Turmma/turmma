@@ -80,3 +80,9 @@ O corte dos 20 s (7.0); a contagem no uso do Tutor (9.0).
 ## Mutações
 
 ## Recomendações sem aplicar
+
+Herdada da tarefa 2.0 (copiada da tabela dela antes de a 6.0 começar; lá o destino diz 5.0, e vem para cá porque é a 6.0 que trata da reentrega e da corrida):
+
+| Revisor e rodada | Recomendação | Destino ou motivo |
+|---|---|---|
+| test-engineer (2ª da 2.0) | O `Promise.all` roda depois de o turno já ter gravado; falta a corrida das duas primeiras gravações de `assunto_delicado` (o job em dois workers) | tarefa 6.0 (reentrega e corrida, D49) |

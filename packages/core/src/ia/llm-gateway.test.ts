@@ -1,6 +1,7 @@
-import { ErrorCode } from '@educa/shared'
+import { ErrorCode, TAREFAS_DE_IA } from '@educa/shared'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { runInContext } from '../context/context.js'
+import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
 import { ScriptedAdapter, PROVEDOR_ROTEIRIZADO } from './__fixtures__/scripted-adapter.js'
 import { chatResponse, startFakeLlamaServer, type FakeLlamaServer } from './__fixtures__/fake-llama-server.js'
 import { withEscolaContextOfRequest } from './__fixtures__/escola-context.js'
@@ -9,10 +10,12 @@ import type { ModelAdapter } from './adapter.js'
 import { FakeAdapter, MODELO_FALSO } from './fake-adapter.js'
 import { InMemoryConsumo, InMemoryOrcamento, type OrcamentoQuery, type ConsumoDeIa, type OrcamentoDeIa, type RegistroDeConsumo } from './consumo.js'
 import type { LLMConfig } from '../config/llm-config.js'
+import { HTTP_STATUS_BY_CODE } from '../error/domain.exception.js'
 import { LLM_ERROR_CODES, LLMError } from './errors.js'
 import type { EnvioDaChamada, GenerationMeasurement } from './port.js'
 import { createLLMGateway, MODELO_DA_REGRA_FIXA, LLMGateway, type LLMLogger } from './llm-gateway.js'
 import { exigirFuncaoAtiva, InMemorySuspensoes, type SuspensaoDeFuncao } from './suspensao.js'
+import { tokensDoPedido } from './teto-de-entrada.js'
 import type { TaskDefinition } from './task.js'
 import { gerarAtividadeObjetiva } from './tasks/gerar-atividade-objetiva.js'
 import { proporFerramenta } from './tasks/propor-ferramenta.js'
@@ -30,7 +33,7 @@ function registrador(): LLMLogger & { linhas: () => unknown[] } {
 }
 
 /** `semContexto`: o provedor puro, sem o contexto da escola do pedido, para o teste do que acontece sem escola no contexto. */
-function montar(opcoes: { adaptador?: ModelAdapter; orcamento?: OrcamentoDeIa; registro?: RegistroDeConsumo; suspensao?: SuspensaoDeFuncao; logger?: LLMLogger; agora?: () => Date; semContexto?: true } = {}) {
+function montar(opcoes: { adaptador?: ModelAdapter; orcamento?: OrcamentoDeIa; registro?: RegistroDeConsumo; suspensao?: SuspensaoDeFuncao; logger?: LLMLogger; agora?: () => Date; semContexto?: true; medidor?: MedidorDeTeste['medidor'] } = {}) {
   const consumo = new InMemoryConsumo()
   const relogio = { agora: opcoes.agora ?? (() => new Date('2026-10-05T13:00:00Z')) }
   const puro = new LLMGateway({
@@ -40,6 +43,7 @@ function montar(opcoes: { adaptador?: ModelAdapter; orcamento?: OrcamentoDeIa; r
     suspensao: opcoes.suspensao ?? new InMemorySuspensoes(),
     relogio,
     ...(opcoes.logger === undefined ? {} : { logger: opcoes.logger }),
+    ...(opcoes.medidor === undefined ? {} : { medidor: opcoes.medidor }),
   })
   const ia = opcoes.semContexto === true ? puro : withEscolaContextOfRequest(puro)
   return { ia, consumo, relogio }
@@ -368,6 +372,10 @@ describe('ProvedorDeIa: o domínio nunca vê erro cru', () => {
     expect(new LLMError('IA_ENTRADA_INVALIDA')).toMatchObject({ codigo: 'IA_ENTRADA_INVALIDA', status: 500 })
     expect(new LLMError('FUNCAO_SUSPENSA')).toMatchObject({ codigo: 'FUNCAO_SUSPENSA', status: 409 })
     expect(new LLMError('MATERIAL_INSUFICIENTE')).toMatchObject({ codigo: 'MATERIAL_INSUFICIENTE', status: 422 })
+    // Só guarda de defeito: nenhuma rota o devolve como status (a execução o grava em `execucao_agente.erro`), mas o contrato tem o dele.
+    expect(new LLMError('PEDIDO_ACIMA_DO_TETO')).toMatchObject({ codigo: 'PEDIDO_ACIMA_DO_TETO', status: 503 })
+    expect(LLM_ERROR_CODES).toContain('PEDIDO_ACIMA_DO_TETO')
+    expect(HTTP_STATUS_BY_CODE.PEDIDO_ACIMA_DO_TETO).toBe(503)
     // Todo código da camada é um código do contrato da API: o que a execução grava é o que a tela sabe mostrar.
     for (const codigo of LLM_ERROR_CODES) expect(Object.values(ErrorCode)).toContain(codigo)
   })
@@ -418,6 +426,74 @@ describe('ProvedorDeIa: entrada inválida para antes de qualquer gasto', () => {
     expect(adaptador.chamadas).toBe(0)
     expect(consultar).not.toHaveBeenCalled()
     expect(consumo.registros).toEqual([])
+  })
+})
+
+describe('ProvedorDeIa: o pedido acima do teto de entrada para antes de qualquer gasto (reengenharia-continuacao, 4.0)', () => {
+  /** A entrada passa pelo esquema; quem estoura é o teto, rebaixado na definição injetada (o esquema nem é tocado). */
+  const comTeto = (teto: number) => ({ ...gerarAtividadeObjetiva, maximoDeTokensDeEntrada: teto })
+
+  it('acima do teto: PEDIDO_ACIMA_DO_TETO, nenhuma chamada ao modelo, orçamento não consultado, sem consumo, métrica +1 na tarefa', async () => {
+    const adaptador = new ScriptedAdapter([])
+    const consultar = vi.fn(async () => ({ permitido: true as const }))
+    const leitor = new MedidorDeTeste()
+    const { ia, consumo } = montar({ adaptador, orcamento: { consultar }, medidor: leitor.medidor })
+    const erro = await erroDe(ia.gerar({ tarefa: comTeto(1), entrada: entradaDeAtividade(), escolaId: ESCOLA_A }))
+    expect(erro).toMatchObject({ codigoDeIa: 'PEDIDO_ACIMA_DO_TETO', status: 503 })
+    expect(adaptador.chamadas).toBe(0)
+    expect(consultar).not.toHaveBeenCalled()
+    expect(consumo.registros).toEqual([])
+    const valores = Object.fromEntries((await leitor.pontos('ia.pedido_acima_do_teto')).map((ponto) => [String(ponto.atributos['tarefa']), ponto.valor]))
+    expect(valores['gerar_atividade_objetiva']).toBe(1)
+    // Cada tarefa já nasce em zero, e só a que recusou saiu dele.
+    expect(Object.keys(valores).sort()).toEqual([...TAREFAS_DE_IA].sort())
+    expect(Object.entries(valores).filter(([, valor]) => valor !== 0)).toEqual([['gerar_atividade_objetiva', 1]])
+    await leitor.encerrar()
+  })
+
+  it('o teto é inclusivo: o pedido do tamanho exato do teto passa, e um token a menos o recusa', async () => {
+    const entrada = entradaDeAtividade()
+    const tamanho = tokensDoPedido(gerarAtividadeObjetiva, entrada)
+    const adaptador = new ScriptedAdapter([JSON.stringify(atividadeDeEstequiometria())])
+    const { ia } = montar({ adaptador })
+    // Controle: com o teto no tamanho do pedido, a mesma chamada vai ao modelo, e então a recusa abaixo não veio de outra checagem.
+    await ia.gerar({ tarefa: comTeto(tamanho), entrada, escolaId: ESCOLA_A })
+    expect(adaptador.chamadas).toBe(1)
+    expect((await erroDe(ia.gerar({ tarefa: comTeto(tamanho - 1), entrada, escolaId: ESCOLA_A }))).codigoDeIa).toBe('PEDIDO_ACIMA_DO_TETO')
+    expect(adaptador.chamadas).toBe(1)
+  })
+
+  it('a regra fixa não manda nada ao modelo e não passa pelo teto: o aluno no assunto delicado recebe a mensagem mesmo com o teto estourado', async () => {
+    const adaptador = new ScriptedAdapter([])
+    const fixa = { ...turnoDoTutor, maximoDeTokensDeEntrada: 1, semModelo: () => turnoDoTutor.falso(entradaDoTutor('não entendi')) }
+    const { ia } = montar({ adaptador })
+    const { saida } = await ia.gerar({ tarefa: fixa, entrada: entradaDoTutor('não entendi'), escolaId: ESCOLA_A, alunoId: ALUNO_1 })
+    // O aluno recebe a mensagem da regra fixa, e não só "nada falhou": o D36 vale com o teto estourado.
+    expect(saida).toEqual(turnoDoTutor.falso(entradaDoTutor('não entendi')))
+    expect(adaptador.chamadas).toBe(0)
+  })
+
+  it('a métrica leva só o rótulo `tarefa`: nenhuma escola, execução nem usuário', async () => {
+    const leitor = new MedidorDeTeste()
+    const { ia } = montar({ medidor: leitor.medidor })
+    await erroDe(ia.gerar({ tarefa: comTeto(1), entrada: entradaDeAtividade(), escolaId: ESCOLA_A, execucaoId: EXECUCAO }))
+    await erroDe(ia.gerar({ tarefa: comTeto(1), entrada: entradaDeAtividade(), escolaId: ESCOLA_B }))
+    const pontos = await leitor.pontos('ia.pedido_acima_do_teto')
+    expect(pontos.map((ponto) => Object.keys(ponto.atributos))).toEqual(pontos.map(() => ['tarefa']))
+    expect(pontos.find((ponto) => ponto.atributos['tarefa'] === 'gerar_atividade_objetiva')?.valor).toBe(2)
+    await leitor.encerrar()
+  })
+
+  it('o log da recusa leva a tarefa, os ids e o código; nunca a entrada nem o prompt (regra 20, item 9)', async () => {
+    const logger = registrador()
+    const { ia } = montar({ logger })
+    await erroDe(ia.gerar({ tarefa: comTeto(1), entrada: entradaDeAtividade(), escolaId: ESCOLA_A, execucaoId: EXECUCAO }))
+    const linha = logger.linhas().find((item) => (item as { evento?: string }).evento === 'ia.geracao.pedido_acima_do_teto')
+    expect(linha).toMatchObject({ evento: 'ia.geracao.pedido_acima_do_teto', tipo: 'gerar_atividade_objetiva', codigo: 'PEDIDO_ACIMA_DO_TETO', escolaId: ESCOLA_A, execucaoId: EXECUCAO })
+    const texto = JSON.stringify(logger.linhas())
+    expect(texto).not.toContain(gerarAtividadeObjetiva.prompt.sistema.slice(0, 40))
+    // O texto dos trechos do material é entrada: não vai ao log.
+    expect(texto).not.toContain(entradaDeAtividade().trechos[0]?.texto.slice(0, 40) ?? 'trecho-ausente')
   })
 })
 

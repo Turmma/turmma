@@ -85,6 +85,7 @@ export const resumoDoAnalista = defineTask({
   esquemaDeSaida: analistaOutputSchema,
   prompt: PROMPT_RESUMO_DO_ANALISTA,
   maximoDeTokensDeSaida: 6000,
+  maximoDeTokensDeEntrada: 642300,
   levaTextoLivreDePessoa: false,
   levaTextoDeAluno: false,
 

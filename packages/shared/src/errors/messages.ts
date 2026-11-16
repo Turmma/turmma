@@ -38,6 +38,7 @@ export const MENSAGENS_DE_ERRO: Readonly<Record<ErrorCode, string>> = {
   IA_ORCAMENTO_ESGOTADO: 'O uso de IA da escola chegou ao limite do período. Fale com a coordenação para continuar.',
   IA_ENTRADA_INVALIDA: 'Não foi possível concluir agora. Tente de novo em instantes.',
   EXECUCAO_INTERROMPIDA: 'O pedido foi interrompido antes de terminar. Envie de novo.',
+  PEDIDO_ACIMA_DO_TETO: 'Não foi possível concluir agora. Tente de novo em instantes.',
   SEM_MATERIAL_DA_SERIE: 'Peça à coordenação o material desta série.',
   MATERIAL_INSUFICIENTE: 'Não encontramos esse tema no material da escola. Confira o tema ou peça à coordenação para enviar o material.',
   RETENCAO_FORA_DO_LIMITE: 'Este prazo não pode ser usado nesta categoria. Confira o mínimo e o máximo dela, e o prazo da categoria que a limita.',

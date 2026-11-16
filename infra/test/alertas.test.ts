@@ -187,6 +187,15 @@ describe('regras de alerta provisionadas', () => {
     )
     expect(limiar(passo3)).toEqual({ type: 'gt', params: [1] })
 
+    // reengenharia-continuacao, tarefa 4.0: qualquer recusa por teto de entrada, por tarefa, nos últimos 10 min; acima de zero, sem espera. O gateway
+    // cria a série de cada tarefa em zero (llm-gateway.test.ts), e é isso que deixa o `increase()` contar a primeira recusa.
+    const acimaDoTeto = regraPorUid(REGRAS_PROVISIONADAS.iaPedidoAcimaDoTeto).regra
+    expect(acimaDoTeto.for).toBe('0s')
+    expect(expressao(acimaDoTeto)).toBe('sum by (tarefa) (increase(ia_pedido_acima_do_teto_total[10m]))')
+    expect(limiar(acimaDoTeto)).toEqual({ type: 'gt', params: [0] })
+    // A métrica que o alerta lê é a que o código exporta, com o nome que o Prometheus dá a ela.
+    expect(NOMES_NO_PROMETHEUS.pedidoAcimaDoTeto).toEqual(['ia_pedido_acima_do_teto_total'])
+
     // ingestao-do-material, tarefa 3.0: a espera do job `pdf` mais antigo acima de 15 min (o limiar, em segundos) **e** nenhuma extração terminada (`pronto` ou
     // `falhou`) nos últimos 15 min; `or vector(0)` cobre o `worker-pdf` sem série. As provas termo a termo estão em `alertas.int.test.ts`.
     const pdfParado = regraPorUid(REGRAS_DO_ENSAIO.pdfParado).regra

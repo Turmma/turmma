@@ -1,12 +1,14 @@
 import {
   createLogger,
   createLLMGateway,
+  globalMeter,
   InProcessAgenteExecutor,
   type Database,
   type LLMConfig,
   type AgenteExecutor,
   type LLMProvider,
   type LoggerBase,
+  type Meter,
   type OrcamentoDeIa,
   type SuspensaoDeFuncao,
 } from '@educa/core'
@@ -35,6 +37,8 @@ export interface IaModuleOptions {
   /** A configuração de IA que o `loadConfig` da API leu e validou (`IA_ADAPTADOR`, `LLM_*`, `IA_EXECUC*`). */
   readonly config: LLMConfig
   readonly logger?: LoggerBase
+  /** Só do teste, que lê a contagem dos pedidos acima do teto; sem ele vale o medidor global do processo. */
+  readonly medidor?: Meter
 }
 
 /**
@@ -67,7 +71,7 @@ export class IaModule implements OnApplicationBootstrap, OnApplicationShutdown {
         {
           provide: LLM_PROVIDER,
           useFactory: (banco: Database, orcamento: OrcamentoDeIa, suspensao: SuspensaoDeFuncao) =>
-            createLLMGateway(config, { registro: new ConsumoRepository(banco), orcamento, suspensao, logger }),
+            createLLMGateway(config, { registro: new ConsumoRepository(banco), orcamento, suspensao, logger, medidor: opcoes.medidor ?? globalMeter() }),
           inject: [DB, ORCAMENTO_DE_IA, SUSPENSAO_DE_FUNCAO],
         },
         {

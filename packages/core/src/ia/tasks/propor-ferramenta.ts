@@ -610,6 +610,7 @@ export const proporFerramenta = defineTask({
   esquemaDeSaida: assistenteOutputSchema,
   prompt: PROMPT_PROPOR_FERRAMENTA,
   maximoDeTokensDeSaida: 800,
+  maximoDeTokensDeEntrada: 18200,
   levaTextoLivreDePessoa: true,
   // O professor pode colar texto de aluno na conversa. A regra fixa segura o pedido de julgamento antes do modelo, mas o
   // texto colado sem pedido que ela reconheça segue para o provedor: a declaração é a do pior caso (D62).

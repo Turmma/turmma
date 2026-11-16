@@ -104,4 +104,5 @@ export const NOMES_NO_PROMETHEUS = {
   extracaoDoMaterial: ['material_extracao_total'],
   duracaoDaExtracaoDoMaterial: ['material_extracao_duracao_seconds_bucket', 'material_extracao_duracao_seconds_count', 'material_extracao_duracao_seconds_sum'],
   tutorRecusadoSemMaterial: ['tutor_recusa_sem_material_total'],
+  pedidoAcimaDoTeto: ['ia_pedido_acima_do_teto_total'],
 } as const satisfies Record<keyof typeof METRICS, readonly string[]>

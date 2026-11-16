@@ -1,9 +1,11 @@
-import type { ChaveDeFuncao } from '@educa/shared'
+import type { Counter, Meter } from '@opentelemetry/api'
+import { TAREFAS_DE_IA, type ChaveDeFuncao } from '@educa/shared'
 import type { LLMConfig } from '../config/llm-config.js'
 import { InvalidConfigError } from '../config/validate-config.js'
 import { currentContext } from '../context/context.js'
 import { summarizeError } from '../error/summarize-error.js'
 import type { LoggerBase } from '../log/logger.js'
+import { METRICS } from '../telemetry/metrics.js'
 import { systemClock, type Clock } from '../clock.js'
 import type { ModelAdapter, RepairHint } from './adapter.js'
 import { FakeAdapter } from './fake-adapter.js'
@@ -15,6 +17,7 @@ import { semMarcacao } from './clean-output.js'
 import { SEM_ENVIO_EXTERNO, type LLMProvider, type GenerationMeasurement, type GenerationRequest, type GenerationResult } from './port.js'
 import { exigirFuncaoAtiva, type SuspensaoDeFuncao } from './suspensao.js'
 import type { TaskDefinition } from './task.js'
+import { tokensDoPedido } from './teto-de-entrada.js'
 
 /** O que o provedor escreve no log: evento fixo, ids, duração. Nunca entrada, saída nem prompt (regra 20, item 9). */
 export type LLMLogger = Pick<LoggerBase, 'info' | 'warn'>
@@ -26,6 +29,8 @@ export interface LLMGatewayDependencies {
   readonly suspensao: SuspensaoDeFuncao
   readonly logger?: LLMLogger
   readonly relogio?: Clock
+  /** Onde `ia.pedido_acima_do_teto{tarefa}` é contada. Sem ele a recusa vale do mesmo jeito, só sem a métrica. */
+  readonly medidor?: Meter
 }
 
 /** Funções cujo gasto é de um aluno: sem `alunoId` não há como consultar o freio dele, e a chamada é recusada. */
@@ -74,16 +79,20 @@ interface Gasto {
 
 /**
  * A implementação da porta, igual para todo adaptador. Em toda chamada, nesta ordem: valida a entrada, confere se a
- * escola suspendeu a função, consulta o orçamento (salvo na resposta de regra fixa), chama o modelo (o prazo e a repetição do que não cobrou são do `ResilientAdapter`), valida a saída (repetindo uma vez),
+ * escola suspendeu a função, recusa o pedido acima do teto de entrada da tarefa, consulta o orçamento (salvo na resposta de regra fixa), chama o modelo (o prazo e a repetição do que não cobrou são do `ResilientAdapter`), valida a saída (repetindo uma vez),
  * registra o consumo e escreve o log.
  *
  * Nada que não foi registrado é devolvido: se o registro falhar, a chamada falha (regra 30, item 4).
  */
 export class LLMGateway implements LLMProvider {
   private readonly relogio: Clock
+  private readonly pedidosAcimaDoTeto: Counter | undefined
 
   constructor(private readonly dependencias: LLMGatewayDependencies) {
     this.relogio = dependencias.relogio ?? systemClock
+    this.pedidosAcimaDoTeto = dependencias.medidor?.createCounter(METRICS.pedidoAcimaDoTeto, { description: 'Pedidos de IA recusados acima do teto de entrada da tarefa, por tarefa' })
+    // Cada tarefa nasce em zero: o `increase()` do alerta não conta o primeiro ponto de uma série nova, e sem isto a primeira recusa passaria em silêncio.
+    for (const tarefa of TAREFAS_DE_IA) this.pedidosAcimaDoTeto?.add(0, { tarefa })
   }
 
   async gerar<Entrada, Saida>(pedido: GenerationRequest<Entrada, Saida>): Promise<GenerationResult<Saida>> {
@@ -124,7 +133,11 @@ export class LLMGateway implements LLMProvider {
     // A resposta de regra fixa não gasta modelo e não passa pelo orçamento: o aluno que escreve sobre um assunto
     // delicado recebe a mensagem com o 188 mesmo no fim do freio do dia (D36).
     const fixa = tarefa.semModelo?.(entrada)
-    if (fixa === undefined) await this.exigirOrcamento(pedido, inicio)
+    if (fixa === undefined) {
+      // Antes do orçamento e do envio: o pedido que estoura o teto da tarefa é defeito nosso, e não gasta nada nem a vez de ninguém.
+      this.exigirPedidoDentroDoTeto(pedido, entrada, inicio)
+      await this.exigirOrcamento(pedido, inicio)
+    }
 
     const gasto: Gasto = { modelo: adaptador.modeloDoPerfil(tarefa.perfil), tokensDeEntrada: 0, tokensDeSaida: 0, tentativas: 0 }
     let saida: Saida
@@ -152,6 +165,21 @@ export class LLMGateway implements LLMProvider {
     const { duracaoMs, tentativas } = medicao
     this.dependencias.logger?.info({ evento: 'ia.geracao.concluida', tipo, escolaId: pedido.escolaId, execucaoId: pedido.execucaoId, duracaoMs, tentativas })
     return { saida, medicao }
+  }
+
+  /**
+   * O pedido que a tarefa monta passa do `maximoDeTokensDeEntrada` dela, mesmo com a entrada válida no esquema: o teto não acompanhou um
+   * campo ou um prompt que cresceu. Recusa sem registro de consumo (nada foi ao modelo), com a métrica, o log de ids e o código que a tela
+   * mostra como "Tentar de novo". O log leva a tarefa e os ids, nunca a entrada nem o pedido (regra 20, item 9).
+   */
+  private exigirPedidoDentroDoTeto<Entrada, Saida>(pedido: GenerationRequest<Entrada, Saida>, entrada: Entrada, inicio: number): void {
+    const { tarefa } = pedido
+    if (tokensDoPedido(tarefa, entrada) <= tarefa.maximoDeTokensDeEntrada) return
+    this.pedidosAcimaDoTeto?.add(1, { tarefa: tarefa.nome })
+    const tipo = tarefa.nome
+    const duracaoMs = Math.round(performance.now() - inicio)
+    this.dependencias.logger?.warn({ evento: 'ia.geracao.pedido_acima_do_teto', tipo, codigo: 'PEDIDO_ACIMA_DO_TETO', escolaId: pedido.escolaId, execucaoId: pedido.execucaoId, duracaoMs })
+    throw new LLMError('PEDIDO_ACIMA_DO_TETO')
   }
 
   /** Sem conseguir consultar o orçamento, não se gasta: a falha da consulta fecha a porta, não abre. */
@@ -264,6 +292,7 @@ export interface LLMGatewayPorts {
   readonly suspensao: SuspensaoDeFuncao
   readonly logger?: LLMLogger
   readonly relogio?: Clock
+  readonly medidor?: Meter
 }
 
 /**

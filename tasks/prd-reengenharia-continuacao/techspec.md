@@ -203,7 +203,7 @@ Tutor de alto risco; supervisão igual (D8, D47), mais a pergunta sem resposta. 
 Sem tarefa nem prompt novo. `TaskDefinition` ganha `maximoDeTokensDeEntrada`, obrigatório: o pedido do
 `montarPedido` com cada campo no limite do `esquemaDeEntrada`, mais o prompt. A recusa acima dele, antes do limitador e do envio, é
 só guarda de defeito: `PEDIDO_ACIMA_DO_TETO`, sem `consumo_ia`, com "Tentar de novo", `ia.pedido_acima_do_teto{tarefa}` e
-alerta. A `rodando` interrompida (reentrega ou varredura) grava, na transação que a encerra, uma linha em `consumo_ia` com os dois
+alerta. O teto do Analista é o valor do gerador, ~642 mil tokens (100 recortes × 60 habilidades × 300 caracteres de habilidade): o schema dele não muda, e o limitador reserva pelo pedido real (§5), não pelo teto. O gerador falha em campo sem limite, e o do Analista que não tinha era a `disciplina.nome` do recorte, do recorte nominal e do alerta (`packages/shared/src/governanca/analista.ts`): ganha `.max(TAMANHO_MAXIMO_NOME_DISCIPLINA)`, o mesmo que o cadastro já impõe (80). A métrica entra nos inventários fechados (`tools/testes/metricas.ts`, o painel `infra/grafana/paineis/fundacao.json`, `infra/scripts/ensaio-alertas.ts`, `tools/guardas/alerta-tem-runbook.test.ts`, `docs/mvp-contratos.md`) e o `medidor` chega ao gateway por `app.module.ts` e `ia.module.ts`. A `rodando` interrompida (reentrega ou varredura) grava, na transação que a encerra, uma linha em `consumo_ia` com os dois
 tetos, `entrada`, `saida` e `aluno_id` nulos (o freio não a conta) e o envio do adaptador configurado (`envio_externo`,
 `provedor`). Superestima custo e destino, nunca subestima (D14).
 
