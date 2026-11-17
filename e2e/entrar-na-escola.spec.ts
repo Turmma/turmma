@@ -3,7 +3,7 @@ import { MENSAGENS_DE_ERRO, mensagemDaEntradaPorMatricula, mensagemDaFalhaExtern
 import { criarAlunoComMatricula, criarEquipeComSenha, criarEscolaSintetica, criarUsuarioEmOutraEscola, liberarProvedorDaEscola, ligarContaExterna, type AlunoDeTeste } from './support/seed.ts'
 import { abrirSeletorDeEscola, entrarPelaApiSemMedirAPrimeiraCarga, entrarPorEmail, esperarInicioDoAluno, esperarNovaConversa, lateral, linhaDoSeletor, nomeNoSeletor } from './support/casca.ts'
 import { paginaNaoRola } from './support/coordenacao.ts'
-import { expect, test } from './support/profiles.ts'
+import { expect, loadUnthrottled, test } from './support/profiles.ts'
 import { ALVO_DE_TOQUE_PRINCIPAL_PX, rawCodePattern, isFocusVisible, horizontalOverflow, seriousViolations } from './support/checks.ts'
 
 const ROTA_MATRICULA = '**/v1/sessao/matricula'
@@ -94,9 +94,11 @@ test.describe('entrada do aluno pelo endereço da escola', () => {
   test('escola sem provedor liberado não mostra botão de conta nenhuma: só aparece o que a escola liberou', async ({ page }) => {
     // É também o caso de borda "escola revoga o app no meio do ano" (PRD): o botão some e a matrícula continua.
     const aluno = await criarAlunoComMatricula()
-    await page.goto(`/e/${aluno.slug}`)
-
-    await expect(campoMatricula(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+    // O assunto é o que a tela mostra, e não quanto ela leva para baixar na rede lenta: a primeira carga roda sem a rede do perfil (a CPU do perfil continua).
+    await loadUnthrottled(page, async () => {
+      await page.goto(`/e/${aluno.slug}`)
+      await expect(campoMatricula(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+    })
     await expect(page.getByRole('link', { name: /Entrar com a conta/ })).toHaveCount(0)
     await expect(page.locator('body')).not.toContainText('precisa liberar este aplicativo')
   })
