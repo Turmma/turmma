@@ -108,13 +108,15 @@ function afirmarDespejoCarimbado(chamadas: string[], derrubou = true): void {
 }
 
 describe('scripts ci:* reais', () => {
-  it('ci:verificar roda tipos, lint, as guardas da lista, a unidade e o git hook, e sai verde só se todos passarem', () => {
+  it('ci:verificar roda tipos, lint, as guardas da lista e o git hook, e sai verde só se todos passarem; a unidade é do ci:unidade', () => {
     const verde = rodarScript('verificar.ts', null)
     expect(verde.codigo).toBe(0)
     // As guardas vêm de `ETAPAS_DE_GUARDA`, a lista que o portão local também lê (RF8): guarda posta direto no
     // `verificar.ts`, fora dela, acrescenta uma chamada que esta lista não tem, e o teste fica vermelho.
     // O teste do git hook (RF14) roda aqui, e não na integração, porque não sobe o compose.
-    expect(verde.chamadas).toEqual(['npm run typecheck', 'npm run lint', ...ETAPAS_DE_GUARDA.map(chamadaDa), 'npm run test:unidade', 'npm run test:processo'])
+    expect(verde.chamadas).toEqual(['npm run typecheck', 'npm run lint', ...ETAPAS_DE_GUARDA.map(chamadaDa), 'npm run test:processo'])
+    // A unidade tem job próprio, em fatias: com ela dentro do `verificar` o job passou dos 15 min (run 43965073602).
+    expect(verde.chamadas.some((chamada) => chamada.includes('test:unidade'))).toBe(false)
   })
 
   it('as guardas da esteira são o gitleaks, o npm audit e o knip, nesta ordem', () => {
@@ -150,7 +152,7 @@ describe('scripts ci:* reais', () => {
     expect(rodarScript('segredo.ts', null).chamadas[0]).toContain(IMAGEM_GITLEAKS)
   })
 
-  it.each(['npm run lint', IMAGEM_GITLEAKS, 'npm audit --audit-level=high --omit=dev', 'npx --no -- knip', 'npm run test:unidade'])(
+  it.each(['npm run lint', IMAGEM_GITLEAKS, 'npm audit --audit-level=high --omit=dev', 'npx --no -- knip', 'npm run test:processo'])(
     'ci:verificar sai vermelho quando "%s" falha: guarda é portão, não aviso',
     (etapa) => {
       expect(rodarScript('verificar.ts', etapa).codigo).not.toBe(0)
@@ -199,13 +201,32 @@ describe('scripts ci:* reais', () => {
     }
   })
 
+  it('ci:unidade leva a fatia da esteira ao Vitest, sai vermelho quando a unidade falha, e fatia malformada reprova antes de rodar', () => {
+    const fatia = rodarScript('unidade.ts', null, ['--shard=2/2'])
+    expect(fatia.codigo).toBe(0)
+    expect(fatia.chamadas).toEqual(['npm run test:unidade -- --shard=2/2'])
+
+    // Sem fatia, o projeto inteiro: é o `npm run ci:unidade` da máquina.
+    expect(rodarScript('unidade.ts', null).chamadas).toEqual(['npm run test:unidade'])
+
+    // A unidade vermelha não vira verde pelo script: guarda é portão, não aviso.
+    expect(rodarScript('unidade.ts', 'npm run test:unidade', ['--shard=1/2']).codigo).not.toBe(0)
+
+    // `${{ matrix.fatia }}` que não foi expandido, um índice fora do total ou duas fatias rodariam a suíte errada.
+    for (const malformada of [['--shard=3/2'], ['--shard=0/2'], ['--shard=${{'], ['--shard=1/2', '--shard=2/2']]) {
+      const resultado = rodarScript('unidade.ts', null, malformada)
+      expect(resultado.codigo, malformada.join(' ')).not.toBe(0)
+      expect(resultado.chamadas, malformada.join(' ')).toEqual([])
+    }
+  })
+
   it('a esteira roda todo projeto do Vitest, e o `npm run test` do portão da tarefa só deixa de fora o de infra (D52)', async () => {
     const { default: configuracao } = await import('../../vitest.config.ts')
     const projetos = (configuracao.test?.projects ?? []).map((projeto) => (typeof projeto === 'object' && 'test' in projeto ? projeto.test?.name : undefined))
     expect(projetos).toEqual(['unidade', 'integracao', 'infra', 'processo'])
 
     const scripts = (JSON.parse(readFileSync(join(raizRepositorio, 'package.json'), 'utf8')) as { scripts: Record<string, string> }).scripts
-    const chamadasDaEsteira = ['verificar.ts', 'integracao.ts', 'infra.ts'].flatMap((script) => rodarScript(script, null).chamadas)
+    const chamadasDaEsteira = ['verificar.ts', 'unidade.ts', 'integracao.ts', 'infra.ts'].flatMap((script) => rodarScript(script, null).chamadas)
     for (const projeto of projetos) {
       expect(scripts[`test:${String(projeto)}`]).toBe(`vitest run --project ${String(projeto)}`)
       expect(chamadasDaEsteira).toContain(`npm run test:${String(projeto)}`)

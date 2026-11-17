@@ -32,8 +32,10 @@ permissions:
 
 jobs:
   verificar:
-    name: verificar (tipos, lint e guardas, segredo, dependências, unidade)
+    name: verificar (tipos, lint e guardas, segredo, dependências, git hook)
     runs-on: ubuntu-24.04
+    # Sem a unidade (job abaixo) ele leva uns 5 min num runner normal e uns 8 num lento. Com a unidade dentro, levava 10 a 12,5 min e
+    # passou dos 15 com a suíte verde num runner 45% mais lento (execução 43965073602, tasks/correcoes/2026-11-16-teto-do-verificar-na-esteira.md).
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -52,6 +54,32 @@ jobs:
       - if: startsWith(github.ref, 'refs/heads/spec/') || startsWith(github.ref, 'refs/heads/correcao/')
         run: npm run ci:conferir-entregas
       - run: npm run ci:verificar
+
+  unidade:
+    # Em fatias, cada uma no seu runner, como a infra e o e2e: o Vitest reparte os arquivos por hash do caminho, sem sobra nem repetição, e
+    # nenhum arquivo depende de outro ter rodado antes. A unidade inteira levava 387 s num runner normal e 577 s num lento, e a soma com os tipos e o
+    # lint passou dos 15 min do `verificar` (execução 43965073602). Ela cresce a cada tarefa: passando dos 7 min de teste numa fatia na esteira,
+    # acrescente fatia (a matriz, o `/2` do nome e o do passo), em vez de subir o teto.
+    name: unidade ${{ matrix.fatia }}/2 (Vitest)
+    runs-on: ubuntu-24.04
+    strategy:
+      # Uma fatia vermelha não cancela a outra: o vermelho de cada uma continua aparecendo.
+      fail-fast: false
+      # O número de fatias é o tamanho desta lista, e o total do `--shard` do passo `npm run ci:unidade` e o do `name` do job têm de
+      # acompanhá-lo (`tools/ci/esteira.test.ts` confere).
+      matrix:
+        fatia: [1, 2]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run ci:unidade -- --shard=${{ matrix.fatia }}/2
 
   integracao:
     name: integração (Postgres, Redis, storage)

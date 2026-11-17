@@ -46,6 +46,23 @@ export async function executarEtapas(
   return codigo
 }
 
+/**
+ * Lê `--shard=<i>/<n>` dos argumentos de `ci:infra` e de `ci:unidade`, a fatia dos arquivos de teste que este runner roda (o Vitest
+ * reparte por arquivo, por hash do caminho). Sem ele, `null`: o projeto inteiro, que é o `npm run ci:<suíte>` da máquina. Formato
+ * errado reprova antes de rodar qualquer coisa, em vez de rodar a suíte inteira numa fatia que não cabe no teto. `suite` só entra
+ * na mensagem do erro.
+ */
+export function fatiaDosArgumentosDoVitest(argumentos: readonly string[], suite: 'infra' | 'unidade'): string | null {
+  if (argumentos.length === 0) return null
+  const fatia = /^--shard=(\d+)\/(\d+)$/.exec(argumentos.length === 1 ? (argumentos[0] ?? '') : '')
+  const indice = Number(fatia?.[1])
+  const total = Number(fatia?.[2])
+  if (fatia === null || indice < 1 || indice > total) {
+    throw new Error(`fatia da ${suite} inválida: ${argumentos.join(' ')} (esperado um só --shard=<i>/<n>, com 1 ≤ i ≤ n)`)
+  }
+  return `${String(indice)}/${String(total)}`
+}
+
 export async function encerrarCom(execucao: Promise<number>): Promise<never> {
   const codigo = await execucao
   process.stdout.write(codigo === 0 ? '\n✔ esteira: etapa verde\n' : `\n✖ esteira: falhou com código ${codigo}\n`)

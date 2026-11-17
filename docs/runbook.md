@@ -1749,7 +1749,7 @@ maior parte na subida do compose, e até 7 s de relógio por caso; caso de tela 
 mais que o dobro.
 
 Dois sinais chegam antes do cancelamento. `tools/ci/esteira.test.ts` refaz a conta com os casos de cada
-fatia e reprova no portão local e no job `verificar` quando uma delas passa de 60% do teto, mesmo pela
+fatia e reprova no portão local e no job `unidade` quando uma delas passa de 60% do teto, mesmo pela
 média. E `tools/ci/e2e.ts` mede a etapa de testes de cada fatia e, quando ela passa desse limiar (60% do
 teto menos o custo fixo), deixa a anotação **"e2e perto do teto"** no resumo da execução, mesmo verde.
 Qualquer um dos dois pede mais fatias: acrescentar o número à `matrix.fatia` e trocar o total (hoje `/11`)
@@ -1776,6 +1776,14 @@ sozinho em 18,5: o job único foi cancelado no teto de 45 min com testes por rod
 o prazo: some a duração de cada arquivo no log da fatia (`gh run view <id> --log`) e, passando dos 30 min, acrescente fatia em vez de
 subir o `timeout-minutes`. O total de fatias está escrito em três lugares do `.github/workflows/ci.yml`: a matriz, o `name` do job e o
 `--shard` do passo. Localmente, `npm run ci:infra` roda tudo, e `npm run ci:infra -- --shard=<i>/<n>` roda uma fatia.
+
+## Esteira vermelha no `verificar` ou na unidade
+
+O job `verificar` (tipos, lint, guardas, segredo, dependências e o git hook) e os dois da unidade (`unidade 1/2` e `unidade 2/2`, o Vitest repartido por arquivo, por hash do caminho) têm teto de 15 min
+cada. A unidade já esteve dentro do `verificar`: o job levava de 10 a 12,5 min e, numa execução em que todas as etapas ficaram uns 45% mais lentas no runner (`tsc` 86 → 126 s, `eslint` 88 → 123 s, unidade
+387 → 577 s, sem arquivo nem teste novo), foi cancelado aos 15 min com tudo verde (execução 43965073602; `tasks/correcoes/2026-11-16-teto-do-verificar-na-esteira.md`). Cancelada sem push novo é o prazo: compare as
+etapas com as de uma execução verde (`gh run view <id> --log`), porque lentidão uniforme é do runner, e a que cresce sozinha é a que se corrige. Passando dos 7 min de teste numa fatia da unidade, acrescente
+fatia (a matriz, o `/2` do `name` e o do passo em `.github/workflows/ci.yml`) em vez de subir o `timeout-minutes`. Localmente, `npm run ci:unidade` roda tudo, e `npm run ci:unidade -- --shard=<i>/<n>` roda uma fatia.
 
 ## Buscar um erro no log pelo `tipo`
 

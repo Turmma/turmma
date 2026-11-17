@@ -24,6 +24,7 @@
     "guarda:segredo": "node tools/ci/segredo.ts",
     "guarda:dependencias": "node tools/ci/dependencias.ts",
     "ci:verificar": "node tools/ci/verificar.ts",
+    "ci:unidade": "node tools/ci/unidade.ts",
     "ci:conferir-entregas": "node tools/ci/conferir-entregas.ts",
     "ci:integracao": "node tools/ci/integracao.ts",
     "ci:infra": "node tools/ci/infra.ts",
