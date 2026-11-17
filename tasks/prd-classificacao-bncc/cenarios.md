@@ -15,7 +15,9 @@ teste vermelho por um caso que rodou e falhou. Nenhum teste chama provedor: `Scr
   material do 9º EF e do 1º EM traz a união
 - [I] Migration do componente: "Química", "QUIMICA" e " química " casam; "Português" é Língua Portuguesa; "Projeto de
   Vida" e "Robótica" ficam nulos; a disciplina da B não muda
-- [I] `PATCH /v1/disciplinas/:id` com `componenteBncc` grava, auditado como hoje; o nulo apaga; da B, `NAO_ENCONTRADO`
+- [I] A disciplina criada depois da migration ("química") nasce com Química; "Robótica" nasce nula; renomear "Química"
+  para "Robótica" mantém o componente. Mutação: tirar o casamento do `criar`
+- [I] `PATCH /v1/disciplinas/:id` com `componenteBncc` grava, com `disciplina.componente_alterado` (antes e depois); o nulo apaga; da B, `NAO_ENCONTRADO`
   (no `apps/api/test/estrutura.int.test.ts`)
 
 ## Seções e agendamento (RF5, RF15)
