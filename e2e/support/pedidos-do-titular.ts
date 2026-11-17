@@ -49,14 +49,6 @@ export const comoNaTela = (dia: string) =>
     year: 'numeric',
     timeZone: 'UTC',
   })
-/** O dia como o detalhe escreve o prazo: "16/10/2026". */
-export const diaCurto = (dia: string) => dia.split('-').reverse().join('/')
-
-/** `AAAA-MM-DD` de hoje (São Paulo) mais `dias`, em dia de calendário. */
-export function somarDiasAHoje(dias: number): string {
-  return new Date(Date.parse(`${hoje()}T00:00:00Z`) + dias * 86_400_000).toISOString().slice(0, 10)
-}
-
 export async function activate(alvo: Locator, hasTouch: boolean): Promise<void> {
   if (hasTouch) await alvo.tap()
   else await alvo.click()

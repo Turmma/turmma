@@ -1334,13 +1334,13 @@ export async function pedidosDoTitularNoBanco(escolaId: string): Promise<PedidoD
  * entre 21h e meia-noite, o `current_date` do banco, em UTC, já é o dia seguinte), e o id (uuidv7) segue a ordem de inserção. Atalho só do e2e: o pedido de
  * verdade nasce pela tela (16.0), que é onde o teste dele o registra.
  */
-export async function criarPedidosDoTitularNoBanco(escolaId: string, titularId: string, registradoPor: string, quantidade: number, maisRecenteHaDias = 0): Promise<void> {
+export async function criarPedidosDoTitularNoBanco(escolaId: string, titularId: string, registradoPor: string, quantidade: number, maisRecenteHaDias = 0, diaDaSemeadura?: string): Promise<void> {
   await comBanco(async (banco) => {
     for (let posicao = 0; posicao < quantidade; posicao += 1) {
       await banco.query(
         `insert into pedido_titular (escola_id, titular_id, papel_titular, tipo, solicitante, chegou_em, estado, compartilhamento, registrado_por, chave_envio)
-         values ($1, $2, 'aluno', 'acesso', 'titular', (now() at time zone 'America/Sao_Paulo')::date - $3::int, 'recebido', '[]'::jsonb, $4, $5)`,
-        [escolaId, titularId, maisRecenteHaDias + quantidade - 1 - posicao, registradoPor, randomUUID()],
+         values ($1, $2, 'aluno', 'acesso', 'titular', coalesce($6::date, (now() at time zone 'America/Sao_Paulo')::date) - $3::int, 'recebido', '[]'::jsonb, $4, $5)`,
+        [escolaId, titularId, maisRecenteHaDias + quantidade - 1 - posicao, registradoPor, randomUUID(), diaDaSemeadura ?? null],
       )
     }
   })
@@ -1350,14 +1350,14 @@ export async function criarPedidosDoTitularNoBanco(escolaId: string, titularId: 
  * Um pedido concluído de alguém que já não existe: o `usuario` do titular foi apagado e o pedido ficou só com os ids, que é o
  * que a eliminação deixa (F3, RF14 e RF15). Devolve o id do pedido.
  */
-export async function criarPedidoDeTitularEliminadoNoBanco(escolaId: string, registradoPor: string, chegouHaDias = 9): Promise<string> {
+export async function criarPedidoDeTitularEliminadoNoBanco(escolaId: string, registradoPor: string, chegouHaDias = 9, diaDaSemeadura?: string): Promise<string> {
   return comBanco(async (banco) => {
     const titularId = await id(banco, "insert into usuario (escola_id, papel, nome, introducao_vista_em) values ($1, 'aluno', $2, now()) returning id", [escolaId, `Eliminada ${randomUUID().slice(0, 8)}`])
     const pedidoId = await id(
       banco,
       `insert into pedido_titular (escola_id, titular_id, papel_titular, tipo, solicitante, chegou_em, estado, compartilhamento, registrado_por, chave_envio, concluido_em, concluido_por)
-       values ($1, $2, 'aluno', 'eliminacao', 'responsavel_legal', (now() at time zone 'America/Sao_Paulo')::date - $5::int, 'concluido', '[]'::jsonb, $3, $4, now(), $3) returning id`,
-      [escolaId, titularId, registradoPor, randomUUID(), chegouHaDias],
+       values ($1, $2, 'aluno', 'eliminacao', 'responsavel_legal', coalesce($6::date, (now() at time zone 'America/Sao_Paulo')::date) - $5::int, 'concluido', '[]'::jsonb, $3, $4, now(), $3) returning id`,
+      [escolaId, titularId, registradoPor, randomUUID(), chegouHaDias, diaDaSemeadura ?? null],
     )
     await banco.query('delete from usuario where escola_id = $1 and id = $2', [escolaId, titularId])
     return pedidoId
@@ -1373,6 +1373,8 @@ export interface PedidoDoTitularSemeado {
   readonly estado: 'recebido' | 'em_preparacao' | 'pronto' | 'agendado' | 'concluido' | 'cancelado'
   /** Quantos dias antes de hoje o pedido chegou à escola: é o que o prazo do detalhe conta. */
   readonly chegouHaDias?: number
+  /** O dia de hoje (`AAAA-MM-DD`, São Paulo) de que `chegouHaDias` parte, lido por `diaDeHojeNoBanco` uma vez para o caso inteiro; sem ele, o relógio do banco no INSERT. */
+  readonly diaDaSemeadura?: string
   readonly solicitante?: 'titular' | 'responsavel_legal'
   /** O papel da pessoa na escola: o aluno é o padrão, e o professor tem a mesma tela de "Meus dados" (F3, 18.0). */
   readonly papelDoTitular?: 'aluno' | 'professor'
@@ -1396,7 +1398,7 @@ export async function criarPedidoDoTitularNoBanco(pedido: PedidoDoTitularSemeado
     id(
       banco,
       `insert into pedido_titular (escola_id, titular_id, papel_titular, tipo, solicitante, chegou_em, estado, compartilhamento, registrado_por, chave_envio, eliminar_em, concluido_em, concluido_por, cancelado_em, cancelado_por)
-       values ($1, $2, $10, $3, $4, (now() at time zone 'America/Sao_Paulo')::date - $5::int, $6, $7::jsonb, $8, $9,
+       values ($1, $2, $10, $3, $4, coalesce($11::date, (now() at time zone 'America/Sao_Paulo')::date) - $5::int, $6, $7::jsonb, $8, $9,
                case when $6 = 'agendado' then now() + interval '6 days' end,
                case when $6 = 'concluido' then now() end, case when $6 = 'concluido' then $8::uuid end,
                case when $6 = 'cancelado' then now() end, case when $6 = 'cancelado' then $8::uuid end) returning id`,
@@ -1411,9 +1413,21 @@ export async function criarPedidoDoTitularNoBanco(pedido: PedidoDoTitularSemeado
         pedido.registradoPor,
         randomUUID(),
         pedido.papelDoTitular ?? 'aluno',
+        pedido.diaDaSemeadura ?? null,
       ],
     ),
   )
+}
+
+/**
+ * O dia de hoje em São Paulo (`AAAA-MM-DD`) pelo relógio do banco, o mesmo que grava a chegada. O caso o lê **uma vez**, antes de semear, e o passa
+ * à semeadura: o vencimento do pedido fica então de um dia só, e não depende de a meia-noite cair entre dois INSERTs nem entre o teste e o banco.
+ */
+export async function diaDeHojeNoBanco(): Promise<string> {
+  return comBanco(async (banco) => {
+    const { rows } = await banco.query<{ dia: string }>("select to_char((now() at time zone 'America/Sao_Paulo')::date, 'YYYY-MM-DD') as dia")
+    return rows[0]?.dia ?? ''
+  })
 }
 
 /** O estado do pedido no banco, e quem o concluiu ou cancelou: o que o clique fez, conferido por fora da tela. */

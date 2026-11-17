@@ -13,7 +13,6 @@ import {
   confirmacao,
   COR_DO_OFICIAL,
   COR_DO_PERIGO,
-  diaCurto,
   doisCliquesNoMesmoInstante,
   ELIMINADO,
   ENDERECO_DA_ABA,
@@ -30,8 +29,8 @@ import {
   gate,
   principal,
   registrarPeloFluxo,
-  somarDiasAHoje,
 } from './support/pedidos-do-titular.ts'
+import { prazoNaTela, somarDias } from './support/prazo-do-pedido.ts'
 import {
   colocarAlunoNaTurma,
   convidarProfessorNoBanco,
@@ -41,6 +40,7 @@ import {
   criarPedidoDeTitularEliminadoNoBanco,
   criarPedidoDoTitularNoBanco,
   criarPedidosDoTitularNoBanco,
+  diaDeHojeNoBanco,
   pedidosDoTitularNoBanco,
 } from './support/seed.ts'
 import { rawCodePattern, horizontalOverflow, larguraExcedenteDoDialogo, seriousViolations } from './support/checks.ts'
@@ -643,8 +643,9 @@ test.describe('Pedidos: a lista e os quatro estados', () => {
     // primeiro: o de hoje abre a primeira página, e a segunda tem só o mais antigo (o registrado antes de todos, e o último da lista).
     const aluno = await criarAlunoComMatricula({ escola: coordenadora, nome: `Gabriela ${marca()} Moura`, matricula: `7${marca()}` })
     const turma = await colocarAlunoNaTurma(aluno)
-    await criarPedidosDoTitularNoBanco(coordenadora.escolaId, aluno.usuarioId, coordenadora.usuarioId, 50, 1)
-    await criarPedidoDeTitularEliminadoNoBanco(coordenadora.escolaId, coordenadora.usuarioId, 0)
+    const diaDaSemeadura = await diaDeHojeNoBanco()
+    await criarPedidosDoTitularNoBanco(coordenadora.escolaId, aluno.usuarioId, coordenadora.usuarioId, 50, 1, diaDaSemeadura)
+    await criarPedidoDeTitularEliminadoNoBanco(coordenadora.escolaId, coordenadora.usuarioId, 0, diaDaSemeadura)
     await page.reload()
     await expect(linhas(page)).toHaveCount(50, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(principal(page).getByText(VAZIO)).toHaveCount(0)
@@ -659,11 +660,9 @@ test.describe('Pedidos: a lista e os quatro estados', () => {
     await expect(linhaDeOntem).toContainText('A própria pessoa')
     await expect(linhaDeOntem).toContainText('Recebido')
     // O prazo está na linha: o pedido de ontem ainda tem 14 dias, e o do titular eliminado, concluído, não tem prazo a cumprir.
-    await expect(linhaDeOntem).toContainText(`Faltam 14 dias, até ${diaCurto(somarDiasAHoje(14))}`)
+    await expect(linhaDeOntem).toContainText(prazoNaTela(diaDaSemeadura, 1))
     await expect(linhaDa(page, ELIMINADO)).toContainText('Pedido concluído: não há prazo a cumprir')
-    const ontem = new Date(`${hoje()}T12:00:00Z`)
-    ontem.setUTCDate(ontem.getUTCDate() - 1)
-    await expect(linhaDeOntem).toContainText(comoNaTela(ontem.toISOString().slice(0, 10)))
+    await expect(linhaDeOntem).toContainText(comoNaTela(somarDias(diaDaSemeadura, -1)))
     expect(await horizontalOverflow(page)).toBe(0)
     expect(await seriousViolations(page)).toEqual([])
 
@@ -689,7 +688,7 @@ test.describe('Pedidos: a lista e os quatro estados', () => {
     await expect(linhas(page).first()).toContainText(ELIMINADO)
     await expect(linhas(page).last()).toContainText(aluno.nome)
     // O pedido mais antigo da página seguinte chegou há 50 dias: o prazo venceu há 35, dito em texto e na família do erro.
-    await expect(linhas(page).last()).toContainText(`Prazo vencido há 35 dias (venceu em ${diaCurto(somarDiasAHoje(-35))})`)
+    await expect(linhas(page).last()).toContainText(prazoNaTela(diaDaSemeadura, 50))
     await expect(linhas(page).last().locator('[data-estado="erro"]')).toHaveCount(1)
     expect(await horizontalOverflow(page)).toBe(0)
     expect(await seriousViolations(page)).toEqual([])
@@ -748,8 +747,9 @@ test.describe('Pedidos: o prazo na linha e a linha inteira como o link do detalh
     const aberta = await criarAlunoComMatricula({ escola: coordenadora, nome: `Bia ${marca()} Reis`, matricula: `6${marca()}` })
     await colocarAlunoNaTurma(vencida)
     await colocarAlunoNaTurma(aberta)
+    const diaDaSemeadura = await diaDeHojeNoBanco()
     const semear = (titularId: string, tipo: 'acesso' | 'correcao', chegouHaDias: number) =>
-      criarPedidoDoTitularNoBanco({ escolaId: coordenadora.escolaId, titularId, registradoPor: coordenadora.usuarioId, tipo, estado: 'recebido', chegouHaDias })
+      criarPedidoDoTitularNoBanco({ escolaId: coordenadora.escolaId, titularId, registradoPor: coordenadora.usuarioId, tipo, estado: 'recebido', chegouHaDias, diaDaSemeadura })
     // Duas pessoas, dois pedidos: um que chegou há 20 dias (o prazo de 15 venceu há 5) e um de há 2 dias (faltam 13).
     const idDaVencida = await semear(vencida.usuarioId, 'correcao', 20)
     const idDaAberta = await semear(aberta.usuarioId, 'acesso', 2)
@@ -761,10 +761,10 @@ test.describe('Pedidos: o prazo na linha e a linha inteira como o link do detalh
     // O prazo está na linha: o aberto em pendente, o vencido em texto, na família do erro e com o ícone dela.
     const daVencida = linhaDa(page, vencida.nome)
     const daAberta = linhaDa(page, aberta.nome)
-    await expect(daVencida).toContainText(`Prazo vencido há 5 dias (venceu em ${diaCurto(somarDiasAHoje(-5))})`)
+    await expect(daVencida).toContainText(prazoNaTela(diaDaSemeadura, 20))
     await expect(daVencida.locator('[data-estado="erro"]')).toHaveCount(1)
     await expect(daVencida.locator('[data-estado="erro"] svg')).toHaveCount(1)
-    await expect(daAberta).toContainText(`Faltam 13 dias, até ${diaCurto(somarDiasAHoje(13))}`)
+    await expect(daAberta).toContainText(prazoNaTela(diaDaSemeadura, 2))
     await expect(daAberta.locator('[data-estado="erro"]')).toHaveCount(0)
     // No celular a tabela vira lista e cada item diz "Prazo"; no computador, o cabeçalho da coluna.
     if ((page.viewportSize()?.width ?? 1366) < 768) await expect(daVencida.locator('dt', { hasText: 'Prazo' })).toHaveCount(1)

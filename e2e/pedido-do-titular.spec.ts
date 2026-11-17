@@ -19,9 +19,8 @@ import {
   gate,
   principal,
   registrarPeloFluxo,
-  somarDiasAHoje,
-  diaCurto,
 } from './support/pedidos-do-titular.ts'
+import { prazoNaTela } from './support/prazo-do-pedido.ts'
 import {
   auditoriaDoPedidoNoBanco,
   cadastrarSuboperadorDeTeste,
@@ -30,6 +29,7 @@ import {
   criarEquipeComSenha,
   criarPedidoDeTitularEliminadoNoBanco,
   criarPedidoDoTitularNoBanco,
+  diaDeHojeNoBanco,
   desativarUsuario,
   mudarEstadoDoPedidoNoBanco,
   nomeDoUsuarioNoBanco,
@@ -124,9 +124,11 @@ test.describe('Detalhe do pedido: prazo e compartilhamento', () => {
     const noPrazo = cenario.aluno
     const vencida = await criarAlunoComMatricula({ escola: coordenadora, nome: `Vencida ${marca()} Lopes`, matricula: `6${marca()}` })
     const concluida = await criarAlunoComMatricula({ escola: coordenadora, nome: `Concluída ${marca()} Dias`, matricula: `5${marca()}` })
-    const pedidoNoPrazo = await semear(cenario, { tipo: 'acesso', estado: 'recebido', chegouHaDias: 11 })
-    const pedidoVencido = await semear(cenario, { tipo: 'correcao', estado: 'recebido', chegouHaDias: 20 }, vencida)
-    await semear(cenario, { tipo: 'portabilidade', estado: 'concluido', chegouHaDias: 40 }, concluida)
+    // O dia da semeadura, lido uma vez do relógio do banco e passado às três: o vencimento sai dele, e a tela pode ser lida no mesmo dia ou, na virada da meia-noite, no seguinte.
+    const diaDaSemeadura = await diaDeHojeNoBanco()
+    const pedidoNoPrazo = await semear(cenario, { tipo: 'acesso', estado: 'recebido', chegouHaDias: 11, diaDaSemeadura })
+    const pedidoVencido = await semear(cenario, { tipo: 'correcao', estado: 'recebido', chegouHaDias: 20, diaDaSemeadura }, vencida)
+    await semear(cenario, { tipo: 'portabilidade', estado: 'concluido', chegouHaDias: 40, diaDaSemeadura }, concluida)
     // A lista das empresas só é lida quando o pedido tem linha de compartilhamento: nenhum dos três tem.
     const leiturasDasEmpresas: string[] = []
     page.on('request', (pedido) => {
@@ -136,7 +138,7 @@ test.describe('Detalhe do pedido: prazo e compartilhamento', () => {
 
     // 11 dias depois da chegada, faltam 4 dos 15: o texto diz quantos e até que dia.
     await abrirODetalhe(page, hasTouch, noPrazo.nome)
-    await expect(secaoDoPrazo(page)).toContainText(`Faltam 4 dias, até ${diaCurto(somarDiasAHoje(4))}`, { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(secaoDoPrazo(page)).toContainText(prazoNaTela(diaDaSemeadura, 11), { timeout: SIGN_IN_TIMEOUT_MS })
     // O pedido recebido, sem arquivo, é o estado mais curto da tela, e já passava da janela de 1366 × 768 (88 px): só o miolo rola.
     await paginaNaoRola(page)
     await expect(secaoDoPrazo(page).locator('[data-estado="pendente"]')).toBeVisible()
@@ -152,7 +154,7 @@ test.describe('Detalhe do pedido: prazo e compartilhamento', () => {
 
     // Vencido há 5 dias: o texto diz que venceu, o selo é de erro e leva o ícone, e o prazo não depende só da cor.
     await abrirODetalhe(page, hasTouch, vencida.nome)
-    await expect(secaoDoPrazo(page)).toContainText(`Prazo vencido há 5 dias (venceu em ${diaCurto(somarDiasAHoje(-5))})`, { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(secaoDoPrazo(page)).toContainText(prazoNaTela(diaDaSemeadura, 20), { timeout: SIGN_IN_TIMEOUT_MS })
     const seloVencido = secaoDoPrazo(page).locator('[data-estado="erro"]')
     await expect(seloVencido).toBeVisible()
     await expect(seloVencido.locator('svg')).toHaveCount(1)
@@ -463,7 +465,9 @@ test.describe('Detalhe do pedido: eliminação agendada', () => {
     await expect(secaoDoPedido(page)).toContainText('Eliminação agendada')
     await expect(secaoDoPedido(page)).toContainText('o acesso da pessoa está suspenso')
     await expect(secaoDoPedido(page)).toContainText('7 dias')
-    await expect(secaoDoPrazo(page)).toContainText('Faltam 15 dias')
+    // Registrado pela tela, o pedido chega no dia que o formulário trazia, e o banco o guardou: o prazo parte desse dia, lido de volta, e a tela pode ser lida nele ou no seguinte.
+    const { chegouEm } = await unicoPedidoNoBanco(coordenadora.escolaId)
+    await expect(secaoDoPrazo(page)).toContainText(prazoNaTela(chegouEm, 0))
     // A eliminação não se conclui pela tela: o que existe é cancelar.
     await expect(principal(page).getByRole('button', { name: 'Concluir', exact: true })).toHaveCount(0)
     await telaSemProblema(page)
