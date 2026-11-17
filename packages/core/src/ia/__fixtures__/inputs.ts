@@ -4,6 +4,7 @@ import { gerarAtividadeObjetiva, type AtividadeObjetivaInput } from '../tasks/ge
 import type { PlanoDeAulaInput } from '../tasks/gerar-plano-de-aula.js'
 import type { AssistenteInput } from '../tasks/propor-ferramenta.js'
 import type { RelatorioInput } from '../tasks/relatorio-da-correcao.js'
+import type { ClassificarSecoesInput } from '../tasks/classificar-secoes.js'
 import type { AnalistaInput } from '../tasks/resumo-do-analista.js'
 import type { TutorInput } from '../tasks/turno-do-tutor.js'
 import { CONTEXTO_DE_QUIMICA, HABILIDADES_DE_ESTEQUIOMETRIA, trechosDeEstequiometria } from './estequiometria.js'
@@ -123,4 +124,43 @@ export const entradaDoAnalista = (): AnalistaInput => ({
   ],
   recortesNominais: [{ serie: { ...SERIE_2 }, disciplina: { ...FISICA } }],
   limiarDeAcertoBaixoPercentual: 60,
+})
+
+export const SECAO_DE_ESTEQUIOMETRIA = '3f5a7c91-2b4d-4e68-9a0c-1d2e3f4a5b61'
+export const SECAO_DO_SUMARIO = '4a6b8d02-3c5e-4f79-8b1d-2e3f4a5b6c72'
+export const SECAO_DE_BLOCO = '5b7c9e13-4d6f-4a80-9c2e-3f4a5b6c7d83'
+
+/** Três seções de um material de Química do Médio (a estequiometria, o sumário e um bloco de páginas sem título) e quatro candidatas da área de Ciências da Natureza: sintéticas, com a descrição que a BNCC dá. */
+export const entradaDeClassificacao = (): ClassificarSecoesInput => ({
+  candidatas: [
+    {
+      codigo: 'EM13CNT101',
+      descricao:
+        'Analisar e representar, com ou sem o uso de dispositivos e de aplicativos digitais específicos, as transformações e conservações em sistemas que envolvam quantidade de matéria, de energia e de movimento para realizar previsões sobre seus comportamentos em situações cotidianas e em processos produtivos que priorizem o desenvolvimento sustentável, o uso consciente dos recursos naturais e a preservação da vida em todas as suas formas.',
+    },
+    {
+      codigo: 'EM13CNT103',
+      descricao: 'Utilizar o conhecimento sobre as radiações e suas origens para avaliar as potencialidades e os riscos de sua aplicação em equipamentos de uso cotidiano, na saúde, no ambiente, na indústria, na agricultura e na geração de energia elétrica.',
+    },
+    {
+      codigo: 'EM13CNT301',
+      descricao:
+        'Construir questões, elaborar hipóteses, previsões e estimativas, empregar instrumentos de medição e representar e interpretar modelos explicativos, dados e/ou resultados experimentais para construir, avaliar e justificar conclusões no enfrentamento de situações-problema sob uma perspectiva científica.',
+    },
+    {
+      codigo: 'EM13CNT307',
+      descricao: 'Analisar as propriedades dos materiais para avaliar a adequação de seu uso em diferentes aplicações (industriais, cotidianas, arquitetônicas ou tecnológicas) e/ ou propor soluções seguras e sustentáveis considerando seu contexto local e cotidiano.',
+    },
+  ],
+  secoes: [
+    {
+      secaoId: SECAO_DE_ESTEQUIOMETRIA,
+      titulo: 'Capítulo 7 — Estequiometria',
+      comeco:
+        'A estequiometria permite prever a quantidade de matéria de cada reagente e de cada produto de uma transformação. Nas transformações químicas há conservação da massa: representamos o sistema por uma equação balanceada e usamos a razão entre os coeficientes para fazer previsões.',
+      subtitulos: '7.1 O que a estequiometria responde\n7.2 Quantidade de matéria e conservação\n7.3 Reagente limitante',
+    },
+    { secaoId: SECAO_DO_SUMARIO, titulo: 'Sumário', comeco: 'Capítulo 1 ........ 3\nCapítulo 2 ........ 21\nCapítulo 3 ........ 40', subtitulos: '' },
+    { secaoId: SECAO_DE_BLOCO, titulo: null, comeco: 'Exercícios de revisão para a prova bimestral.', subtitulos: '' },
+  ],
 })

@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import {
   entradaDeAdaptacao,
+  entradaDeClassificacao,
   entradaDeAtividade,
   entradaDePlano,
   entradaDoAnalista,
@@ -34,6 +35,7 @@ const CASOS: Readonly<Record<TarefaDeIa, Caso>> = {
   turno_do_tutor: caso(TASK_CATALOG.turno_do_tutor, entradaDoTutor('como eu acho o reagente limitante?')),
   relatorio_da_correcao: caso(TASK_CATALOG.relatorio_da_correcao, entradaDoRelatorio()),
   resumo_do_analista: caso(TASK_CATALOG.resumo_do_analista, entradaDoAnalista()),
+  classificar_secoes: caso(TASK_CATALOG.classificar_secoes, entradaDeClassificacao()),
 }
 const NOMES = Object.keys(CASOS) as TarefaDeIa[]
 
@@ -59,6 +61,7 @@ const DECLARADO: Readonly<Record<TarefaDeIa, Declarado>> = {
   turno_do_tutor: { funcao: 'tutor_com_o_aluno', perfil: 'rapido', levaTextoLivreDePessoa: true, levaTextoDeAluno: true, categoriasEnviadas: ['conversa_do_aluno', 'material_da_escola', 'trabalho_do_aluno'] },
   relatorio_da_correcao: { funcao: 'correcao_de_objetiva', perfil: 'rapido', levaTextoLivreDePessoa: false, levaTextoDeAluno: false, categoriasEnviadas: ['trabalho_do_aluno'] },
   resumo_do_analista: { funcao: 'resumo_e_alerta', perfil: 'padrao', levaTextoLivreDePessoa: false, levaTextoDeAluno: false, categoriasEnviadas: ['trabalho_do_aluno'] },
+  classificar_secoes: { funcao: 'classificacao_do_material', perfil: 'rapido', levaTextoLivreDePessoa: false, levaTextoDeAluno: false, categoriasEnviadas: ['material_da_escola'] },
 }
 
 /** O que há de incoerente na declaração da D62 de uma tarefa: quem leva texto de aluno leva a conversa do aluno, e as duas marcas de texto andam juntas. */

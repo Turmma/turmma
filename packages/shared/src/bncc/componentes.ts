@@ -130,6 +130,12 @@ const ANOS_DO_PREFIXO: Readonly<Record<string, readonly number[]>> = {
 const CODIGO_DO_FUNDAMENTAL = /^EF(06|07|08|09|67|69|89)([A-Z]{2})\d{2}$/
 const CODIGO_DO_MEDIO = /^EM13(?:(LGG|MAT|CNT|CHS)\d{3}|(LP)\d{2})$/
 
+/**
+ * O formato de todo código de habilidade da tabela `habilidade_bncc` (o check dela repete este conjunto): o do Fundamental (`EF07MA33`) ou o do Médio (`EM13CNT301`, `EM13LP05`). Sem sufixo estadual
+ * (`EF07LP01A`), sem minúscula e sem espaço. É o que a saída da classificação confere antes de olhar a lista de candidatas.
+ */
+export const CODIGO_DE_HABILIDADE_BNCC = new RegExp(`${CODIGO_DO_FUNDAMENTAL.source}|${CODIGO_DO_MEDIO.source}`)
+
 /** O que o código da habilidade diz sobre ela: a etapa, os anos (só no Fundamental) e a sigla do componente ou da área. `null` para código fora do recorte. */
 export function partesDoCodigoBncc(codigo: string): { readonly etapa: Etapa; readonly anos: readonly number[] | null; readonly sigla: string } | null {
   const fundamental = CODIGO_DO_FUNDAMENTAL.exec(codigo)

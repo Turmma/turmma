@@ -47,8 +47,8 @@ casa igual (`DisciplinaRepository.criar`); renomear não o muda. O `PATCH` roda 
 
 **Migrations** (regra 80, item 9, todas com `lock_timeout`): (1) tabelas, coluna, carga, o `unique` do capítulo;
 `execucao_agente.ano_letivo_id drop not null` (metadado); o check novo do ano e os de função e tarefa de
-`execucao_agente` e `consumo_ia` entram por `ADD … NOT VALID` e `VALIDATE` (como a `0036`), antes do código que grava a
-função; (2) seções dos materiais `pronto` existentes, em lotes de 1.000, sem execução (a rotina das 19h as agenda);
+`execucao_agente`, `consumo_ia` e `suspensao_de_funcao` (sem o último a coordenação não consegue suspender a função) entram por
+`ADD … NOT VALID` e `VALIDATE` (como a `0036`), antes do código que grava a função; (2) seções dos materiais `pronto` existentes, em lotes de 1.000, sem execução (a rotina das 19h as agenda);
 (3) **contração da F4** (abertura, item 4), em três passos: nesta spec, o backfill de séries e licenças de novo
 (idempotente), o check `(titularidade = 'terceiro_com_licenca') = (licenca_id is not null)` com `NOT VALID` e `VALIDATE`,
 a saída dos dois checks de `licenciante` e o código que não lê nem grava a coluna (fora do schema Drizzle); o
@@ -92,7 +92,7 @@ condição (P9). As candidatas são lidas no `preparar`; sem candidatas, conclui
 `execucao_id = :esta` (P11).
 
 **Classificação** (`main-worker`, contexto da rotina: a escola do job, sem pessoa nem ano). O `ExecucaoProcessor` aceita
-`quemPediu` ausente só em comando `daRotina` (extração, rotina, reclassificar, D76), que lê a execução sem ano. Antes de
+`quemPediu` ausente só em comando `daRotina` (extração, rotina, reclassificar, D76), que lê a execução sem ano (o `ExecucaoRepository.paraIniciar` já a lê: o `anoLetivoId` de quem pediu é o do `join` com o ano em curso, nunca a coluna nula). Até a 4.0 registrar o comando, `classificar_secoes` fica em `TAREFAS_SEM_CHAMADOR` (`registro-de-comandos.ts`). Antes de
 `rodando`, confere a janela letiva (dentro dela, adia até o fim, motivo `janela`, com jitter) e a suspensão. O `preparar` lê só as seções
 vivas (`execucao_id = :esta`, `corrigida_em` nulo, material `pronto` e não excluído); sem nenhuma, conclui sem modelo e
 sem consumo. A entrada leva, por seção, título, até 1.500 caracteres do começo e até 500 das linhas de subtítulo,
@@ -157,6 +157,9 @@ vence." `esperaAprovacao`: "Nada chega ao aluno pela classificação: a habilida
 professor confere e aplica a atividade." **A AIA `docs/aia/diagnostico-por-habilidade.md` é revista na tarefa que cria a
 função**, antes da que troca o catálogo: a habilidade vem da seção; a granularidade (seção, não questão); a taxa e o
 lote como evidência; contestação (correção, troca); a suspensão do §5; a conferência do lote por professor como etapa 2.
+O que a coordenação lê ao suspender (`EFEITO_DA_SUSPENSAO.classificacao_do_material`): o material novo deixa de ser classificado
+pela BNCC à noite, o pedido de classificar de novo é recusado, e a geração e a cobertura passam a valer só pelas habilidades que a
+coordenação corrigiu.
 
 **Classificação de texto.** (a) **Lote retido** `docs/aia/ouro-retido/classificacao-retido-1.json`, 48 seções
 (`cenarios.md`, "Lote retido"), escrito por subagente em contexto limpo, revisto pelo `pedagogia-reviewer` e pelo
@@ -177,7 +180,7 @@ registrando no `RETIDOS.json`. Sem a taxa no `rapido`, `padrao`; sem ela no
 |---|---|
 | Caminho quente | a seção da página, na geração (join por índice); sem classificação no horário letivo |
 | Fila | `lote`, `naoUrgente`; pool `lote` no `worker-ia`, 1 por réplica; a varredura de execuções inclui a `lote` |
-| Vazão | balde `lote` global, 5 % do contratado (125 mil tokens/min), ~12 mil por execução: ~10 execuções/min. O pool puxa `réplicas × 1 × 60 / latência` (2 réplicas, ~6 s: ~20/min); o excedente adia, e o adiamento é o regulador. Uma escola de 300 apostilas (~625 execuções) em ~65 min; o resto, na noite seguinte |
+| Vazão | balde `lote` global, 5 % do contratado (125 mil tokens/min), ~12 mil por execução: ~10 execuções/min. **A 3.0 mediu o recorte maior (§8, a linha de `classificar_secoes`): LP do 6º ao 9º com o Médio pede ~31 mil por execução com 12 seções cheias, e a vazão cai para ~4 execuções/min; a 5.0 dimensiona por essa conta, não pela de 12 mil (a conta está no `TODO.md`, entrada da 3.0).** O pool puxa `réplicas × 1 × 60 / latência` (2 réplicas, ~6 s: ~20/min); o excedente adia, e o adiamento é o regulador. Uma escola de 300 apostilas (~625 execuções) em ~65 min; o resto, na noite seguinte |
 | Limite por escola | vaga `lote` 1 por escola (dividida com expurgo e eliminação: o runbook diz); `FILAS_DA_IA` ganha a `lote` |
 | Corridas | uma linha por trava, ordem forçada e mutação em `cenarios.md`, P1 a P11 |
 | Laços | agendar (rotina e `PATCH`) e D76: lotes de 500 seções por transação, `statement_timeout`, até o sinal |
@@ -201,7 +204,7 @@ registrando no `RETIDOS.json`. Sem a taxa no `rapido`, `padrao`; sem ela no
 
 | Caso de uso | Perfil | Entrada | Saída | Validação | Aprovação humana |
 |---|---|---|---|---|---|
-| `classificar_secoes` | `rapido` | até 12 seções + candidatas (~12 mil tokens; o maior recorte, LP do 6º ao 9º, medido na tarefa) | 0 a 3 códigos por seção | schema e candidatas | correção da coordenação; atividade aplicada pelo professor |
+| `classificar_secoes` | `rapido` | até 12 seções + candidatas (~12 mil tokens no recorte comum; o maior, LP do 6º ao 9º com o Médio, 267 habilidades, mede ~31 mil na 3.0 com 12 seções cheias; o schema aceita até 300 candidatas e o teto de entrada é 121.600) | 0 a 3 códigos por seção | schema e candidatas | correção da coordenação; atividade aplicada pelo professor |
 
 Custo: ~625 chamadas por onboarding, R$ 4 a 20 por escola; fora do pacote do Tutor (D38). Prompt em `packages/core/src/ia/prompts/classificar-secoes.ts`, versão
 na execução: código só quando o trecho sustenta a habilidade, e "nenhuma" vale.

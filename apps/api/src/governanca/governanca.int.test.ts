@@ -267,7 +267,7 @@ describe('governança de IA da coordenação', () => {
   })
 
   describe('o que cada função faz sozinha', () => {
-    it('os três agentes e as seis funções, com a autonomia do catálogo e sem suspensão', async () => {
+    it('os três agentes e as sete funções, com a autonomia do catálogo e sem suspensão', async () => {
       const resposta = await get(b.coordenacao, '/v1/governanca/funcoes')
       const { agentes } = funcoesDaGovernancaResponseSchema.parse(resposta.corpo)
       expect(agentes.map((agente) => agente.agente)).toEqual(['assistente_de_ensino', 'tutor', 'analista_de_desempenho_escolar'])
@@ -277,6 +277,22 @@ describe('governança de IA da coordenação', () => {
         const { nome, autonomia, altoRisco, fazSozinha, esperaAprovacao } = FUNCOES[funcao.chave]
         expect(funcao).toEqual({ chave: funcao.chave, nome, autonomia, altoRisco, fazSozinha, esperaAprovacao, suspensa: false, suspensao: null })
       }
+    })
+
+    it('em "Como cada IA trabalha", a classificação do material é do Assistente de ensino, de autonomia 1, alto risco e suspensível, com o texto do catálogo', async () => {
+      const { agentes } = funcoesDaGovernancaResponseSchema.parse((await get(b.coordenacao, '/v1/governanca/funcoes')).corpo)
+      const assistente = agentes.find((agente) => agente.agente === 'assistente_de_ensino')
+      const funcao = assistente?.funcoes.find((candidata) => candidata.chave === 'classificacao_do_material')
+      expect(funcao).toEqual({
+        chave: 'classificacao_do_material',
+        nome: 'Classificação do material',
+        autonomia: 1,
+        altoRisco: true,
+        fazSozinha: 'Classifica cada capítulo ou bloco de páginas do material pela BNCC, à noite. A coordenação corrige, e a correção vence.',
+        esperaAprovacao: 'Nada chega ao aluno pela classificação: a habilidade de cada questão só vale quando o professor confere e aplica a atividade.',
+        suspensa: false,
+        suspensao: null,
+      })
     })
   })
 
@@ -300,6 +316,22 @@ describe('governança de IA da coordenação', () => {
       } finally {
         await retomar(a, 'resumo_e_alerta')
       }
+    })
+
+    it('a classificação do material se suspende e se retoma como as outras: a suspensão é da escola, aparece no time e não alcança a função vizinha', async () => {
+      const suspensa = await suspender(a, 'classificacao_do_material', { motivo: 'revisao_pedagogica' })
+      try {
+        expect(suspensa.status).toBe(200)
+        expect(funcaoDaGovernancaResponseSchema.parse(suspensa.corpo)).toMatchObject({ chave: 'classificacao_do_material', suspensa: true, suspensao: { motivo: 'revisao_pedagogica' } })
+        expect(await suspensoes(a, 'classificacao_do_material')).toMatchObject([{ suspensa_por: a.coordenacao.usuarioId, retomada_em: null, motivo: 'revisao_pedagogica' }])
+        expect(await auditorias(a, 'funcao.suspensa')).toContainEqual(expect.objectContaining({ depois: { funcao: 'classificacao_do_material', motivo: 'revisao_pedagogica' } }))
+        // A conversa do mesmo agente segue, e a outra escola não é alcançada.
+        expect(await funcaoDe(a, 'conversa_e_ferramentas')).toMatchObject({ suspensa: false })
+        expect(await funcaoDe(b, 'classificacao_do_material')).toMatchObject({ suspensa: false })
+      } finally {
+        await retomar(a, 'classificacao_do_material')
+      }
+      expect(await funcaoDe(a, 'classificacao_do_material')).toMatchObject({ suspensa: false, suspensao: null })
     })
 
     it('dois cliques no mesmo instante gravam uma suspensão só', async () => {

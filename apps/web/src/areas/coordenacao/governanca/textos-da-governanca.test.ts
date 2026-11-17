@@ -133,6 +133,10 @@ describe('a suspensão e o dado nominal dizem o que acontece antes de confirmar'
     expect(EFEITO_DA_SUSPENSAO.sinais_para_o_professor).toContain('uso do Tutor por turma continua visível')
     expect(EFEITO_DA_SUSPENSAO.tutor_com_o_aluno).toContain('continua recebendo a mensagem de encaminhamento')
     expect(EFEITO_DA_SUSPENSAO.correcao_de_objetiva).toContain('fica sem correção até a função voltar')
+    expect(EFEITO_DA_SUSPENSAO.classificacao_do_material).toContain('só pelas habilidades que a coordenação corrigiu')
+    expect(EFEITO_DA_SUSPENSAO.classificacao_do_material).toContain('de classificar de novo é recusado')
+    // A classificação não dá nota, conceito nem pontuação: o texto que a coordenação lê ao suspender também respeita o vocabulário de nota (a expressão de `governanca.test.ts`).
+    expect(EFEITO_DA_SUSPENSAO.classificacao_do_material).not.toMatch(/\bnotas?\b|\bconceitos?\b|pontuaç/i)
     expect(new Set(Object.values(EFEITO_DA_SUSPENSAO)).size).toBe(CHAVES_DE_FUNCAO.length)
   })
 

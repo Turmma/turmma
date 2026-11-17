@@ -55,7 +55,7 @@ function registroDeTeste(): RegistroDeComandos {
   return registro
 }
 
-type Tarefa = Extract<TarefaDeIa, 'propor_ferramenta' | 'turno_do_tutor'>
+type Tarefa = Extract<TarefaDeIa, 'propor_ferramenta' | 'turno_do_tutor' | 'classificar_secoes'>
 
 interface Escola extends EscolaComTurma {
   readonly escolaId: string
@@ -88,20 +88,28 @@ interface Semente {
 
 /** Uma execução gravada à mão, sem job: o estado e a idade vêm do banco, e nunca do relógio de JS. */
 async function semear(escola: Escola, { tarefa = 'propor_ferramenta', por = escola.professor, estado = 'rodando', haSegundos = 301 }: Semente = {}): Promise<string> {
-  const funcao = tarefa === 'turno_do_tutor' ? 'tutor_com_o_aluno' : 'conversa_e_ferramentas'
+  // A classificação do material roda pela rotina: sem ano letivo e sem pessoa (`execucao_agente_ano_so_nulo_na_classificacao`).
+  const quem = tarefa === 'classificar_secoes' ? { anoLetivoId: null, usuarioId: null } : { anoLetivoId: escola.anoLetivoId, usuarioId: por.usuarioId }
+  const funcao = funcaoDaTarefa(tarefa)
   const { rows } = await sql<{ id: string }>('insert into execucao_agente (escola_id, ano_letivo_id, funcao, tarefa, solicitada_por, chave_envio, entrada) values ($1, $2, $3, $4, $5, $6, $7) returning id', [
     escola.escolaId,
-    escola.anoLetivoId,
+    quem.anoLetivoId,
     funcao,
     tarefa,
-    por.usuarioId,
+    quem.usuarioId,
     randomUUID(),
     JSON.stringify({ tarefa }),
   ])
   const id = rows[0]?.id ?? ''
+  await envelhecer(id, estado, haSegundos)
+  return id
+}
+
+const funcaoDaTarefa = (tarefa: string): string => (tarefa === 'classificar_secoes' ? 'classificacao_do_material' : tarefa === 'turno_do_tutor' ? 'tutor_com_o_aluno' : 'conversa_e_ferramentas')
+
+async function envelhecer(id: string, estado: string, haSegundos: number): Promise<void> {
   if (estado === 'rodando') await sql(`update execucao_agente set estado = 'rodando', iniciada_em = now() - make_interval(secs => $2) where id = $1`, [id, haSegundos])
   else await sql('update execucao_agente set criada_em = now() - make_interval(secs => $2) where id = $1', [id, haSegundos])
-  return id
 }
 
 /**
@@ -451,6 +459,17 @@ describe('a execução interrompida: a reentrega e a varredura (adaptador falso)
       // O limiar é o dobro do `prazoMs` do job, e a varredura anda de 60 em 60 s.
       expect(LIMITE_DA_RODANDO_SEGUNDOS).toBe(300)
       expect(INTERVALO_DA_VARREDURA_MS).toBe(60_000)
+    })
+
+    it('varredura, execução sem ano nem pessoa (a classificação): a `rodando` de 301 s é encerrada com a linha estimada da função dela, na escola dela, e a de 299 s fica', async () => {
+      const velha = await semear(a, { tarefa: 'classificar_secoes', haSegundos: 301 })
+      const quase = await semear(a, { tarefa: 'classificar_secoes', haSegundos: 299 })
+      await fila.varredura().varrer()
+      expect(await execucaoDe(velha)).toEqual({ estado: 'falhou', erro: 'EXECUCAO_INTERROMPIDA', resultado: null })
+      expect(await linhasDe(velha)).toEqual([estimadaDe('classificar_secoes', a, fila.destino)])
+      expect((await linhasDe(velha))[0]?.funcao).toBe('classificacao_do_material')
+      expect(await execucaoDe(quase)).toEqual({ estado: 'rodando', erro: null, resultado: null })
+      expect(await linhasDe(quase)).toEqual([])
     })
 
     it('varredura, execução esquecida há mais de 24,8 dias: a `rodando` encerra com a duração no teto do inteiro da linha, e não trava a volta das outras `rodando`', async () => {

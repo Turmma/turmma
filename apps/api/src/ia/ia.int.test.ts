@@ -338,6 +338,19 @@ describe('camada de IA na API', () => {
       }
     })
 
+    it('a execução da classificação, sem ano letivo e sem pessoa, é lida sem quebrar e não tem `quemPediu`', async () => {
+      const execucoes = new ExecucaoRepository(bancada.banco)
+      const { rows } = await sql(
+        `insert into execucao_agente (escola_id, ano_letivo_id, funcao, tarefa, solicitada_por, chave_envio, entrada) values ($1, null, 'classificacao_do_material', 'classificar_secoes', null, $2, '{"tarefa":"classificar_secoes"}') returning id`,
+        [a.escolaId, randomUUID()],
+      )
+      const id = (rows as { id: string }[])[0]?.id ?? ''
+      expect(await noContextoDe(a, () => execucoes.paraIniciar(id))).toEqual({ id, tarefa: 'classificar_secoes', estado: 'pendente', quemPediu: undefined })
+      // Marcar e concluir não dependem de pessoa nem de ano: é o que o comando `daRotina` da 4.0 usa.
+      expect(await noContextoDe(a, () => execucoes.marcarRodando(id))).toBe(true)
+      expect(await noContextoDe(b, () => execucoes.paraIniciar(id))).toBeUndefined()
+    })
+
     it('a passagem é uma só: a segunda instância que tenta pegar a mesma execução não pega, e a terminada não volta a rodar', async () => {
       const execucoes = new ExecucaoRepository(bancada.banco)
       const execucao = await execucaoPendente(a, a.professor)

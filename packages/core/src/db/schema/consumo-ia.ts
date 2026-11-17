@@ -84,7 +84,7 @@ export const consumoIa = pgTable(
     index('consumo_ia_saida_idx').on(tabela.escolaId, tabela.id).where(sql`${tabela.saida} is not null`),
     check(
       'consumo_ia_funcao_valida',
-      sql`${tabela.funcao} in ('conversa_e_ferramentas', 'correcao_de_objetiva', 'adaptacao', 'tutor_com_o_aluno', 'sinais_para_o_professor', 'resumo_e_alerta')`,
+      sql`${tabela.funcao} in ('conversa_e_ferramentas', 'correcao_de_objetiva', 'adaptacao', 'tutor_com_o_aluno', 'sinais_para_o_professor', 'resumo_e_alerta', 'classificacao_do_material')`,
     ),
     check('consumo_ia_perfil_valido', sql`${tabela.perfil} in ('rapido', 'padrao', 'complexo', 'visao')`),
     check('consumo_ia_origem_valida', sql`${tabela.origem} in ('falso', 'openai_compat', 'regra_fixa')`),

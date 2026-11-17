@@ -1,5 +1,6 @@
 import type { TarefaDeIa } from '@educa/shared'
 import { adaptarAtividade } from './adaptar-atividade.js'
+import { classificarSecoes } from './classificar-secoes.js'
 import { gerarAtividadeObjetiva } from './gerar-atividade-objetiva.js'
 import { gerarPlanoDeAula } from './gerar-plano-de-aula.js'
 import { proporFerramenta } from './propor-ferramenta.js'
@@ -21,4 +22,5 @@ export const TASK_CATALOG = {
   turno_do_tutor: turnoDoTutor,
   relatorio_da_correcao: relatorioDaCorrecao,
   resumo_do_analista: resumoDoAnalista,
+  classificar_secoes: classificarSecoes,
 } as const satisfies Record<TarefaDeIa, { readonly nome: TarefaDeIa }>

@@ -19,6 +19,7 @@ const PROMPTS_CARACTERIZADOS = {
   turno_do_tutor: { versao: '2026-10-22.1', sha256: '7154c8e6a8dea0d595729215960dcc201755cc16fb8559d97df67a843251764c' },
   relatorio_da_correcao: { versao: '2026-10-04.2', sha256: '563f38c01f1effd63bf0d27081879a40f7431b235bd9b21e56c97856c9966d6a' },
   resumo_do_analista: { versao: '2026-10-04.3', sha256: '6be7fca96f41c1f9708053c07bd03fc8ec22fc2e169806324117c21bb8899abd' },
+  classificar_secoes: { versao: '2026-11-17.1', sha256: '84ab4e8f59f02fbda31e3a3cd530b8983d6717949f6f18fbf9edd02c67d4881e' },
 } as const
 
 const sha256 = (texto: string): string => createHash('sha256').update(texto).digest('hex')

@@ -23,13 +23,13 @@
   - [x] 2.5 `docs/lgpd.md` e `docs/modelo-de-dados.md`; `corrigida_por` em `fora` no arquivo do titular
   - [x] 2.6 Testes: seções, reentrega, backfill, herança, eliminação do titular, isolamento
 
-- [ ] **3.0 — A função `classificacao_do_material` existe e é suspensível, e a tarefa `classificar_secoes` tem prompt, saída e medidor**
-  - [ ] 3.1 A tarefa e a função em `packages/shared`, com `fazSozinha` e `esperaAprovacao`
-  - [ ] 3.2 Os checks de `execucao_agente` com `NOT VALID` e `VALIDATE`, e o ano nulo só nesta tarefa
-  - [ ] 3.3 A tarefa no `packages/core`: prompt versionado, saída estrita, `levaTextoDeAluno: false`, o `falso`
-  - [ ] 3.4 `tools/ia/medir-classificacao.ts`, provado com fixture própria
-  - [ ] 3.5 A AIA revista; a conferência do lote retido pelo professor no `TODO.md`
-  - [ ] 3.6 Testes: sondas de saída (c1), prompt, checks, governança, medidor
+- [x] **3.0 — A função `classificacao_do_material` existe e é suspensível, e a tarefa `classificar_secoes` tem prompt, saída e medidor**
+  - [x] 3.1 A tarefa e a função em `packages/shared`, com `fazSozinha` e `esperaAprovacao`
+  - [x] 3.2 Os checks de `execucao_agente` com `NOT VALID` e `VALIDATE`, e o ano nulo só nesta tarefa
+  - [x] 3.3 A tarefa no `packages/core`: prompt versionado, saída estrita, `levaTextoDeAluno: false`, o `falso`
+  - [x] 3.4 `tools/ia/medir-classificacao.ts`, provado com fixture própria
+  - [x] 3.5 A AIA revista; a conferência do lote retido pelo professor no `TODO.md`
+  - [x] 3.6 Testes: sondas de saída (c1), prompt, checks, governança, medidor
 
 - [ ] **4.0 — A classificação roda no worker, fora da janela letiva, e grava as habilidades da seção**
   - [ ] 4.1 O job `ia.executar-lote` na fila `lote`, com a vaga por escola

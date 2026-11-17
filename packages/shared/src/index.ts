@@ -198,6 +198,7 @@ export {
   habilidadeEhCandidata,
   NOME_DO_COMPONENTE,
   partesDoCodigoBncc,
+  CODIGO_DE_HABILIDADE_BNCC,
 } from './bncc/componentes.js'
 export type { ComponenteBncc, SerieDoRecorte } from './bncc/componentes.js'
 export {

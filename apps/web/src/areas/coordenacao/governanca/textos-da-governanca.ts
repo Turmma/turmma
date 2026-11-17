@@ -150,6 +150,7 @@ export const EFEITO_DA_SUSPENSAO: Readonly<Record<ChaveDeFuncao, string>> = {
   conversa_e_ferramentas: `O Assistente deixa de responder pedido novo dos professores e as ferramentas deixam de gerar. ${EFEITO_COMUM_DA_SUSPENSAO}`,
   correcao_de_objetiva: `A atividade objetiva que o professor encerrar fica sem correção até a função voltar; as respostas dos alunos ficam guardadas, e encerrar de novo depois corrige. ${EFEITO_COMUM_DA_SUSPENSAO}`,
   adaptacao: `O professor deixa de conseguir pedir versão adaptada nova. ${EFEITO_COMUM_DA_SUSPENSAO}`,
+  classificacao_do_material: `O material novo deixa de ser classificado pela BNCC à noite e o pedido de classificar de novo é recusado. A geração de atividades e a cobertura do currículo passam a valer só pelas habilidades que a coordenação corrigiu. ${EFEITO_COMUM_DA_SUSPENSAO}`,
   tutor_com_o_aluno: `O Tutor deixa de responder dúvida nova dos alunos. Quem escrever sobre um assunto pessoal delicado continua recebendo a mensagem de encaminhamento, e o professor continua sendo avisado. ${EFEITO_COMUM_DA_SUSPENSAO}`,
   sinais_para_o_professor: `Param os avisos de aprendizagem (quem travou, quem pediu a resposta pronta, a dúvida repetida). O aviso de que um aluno precisa de um adulto continua chegando ao professor, e o uso do Tutor por turma continua visível a ele. ${EFEITO_COMUM_DA_SUSPENSAO}`,
   resumo_e_alerta: `O Analista deixa de gerar resumo novo; o último gerado continua na tela. ${EFEITO_COMUM_DA_SUSPENSAO}`,

@@ -1954,6 +1954,27 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
       expect((await execucoes(a.escolaId)).find((linha) => linha.categoria === 'execucao_agente')).toEqual({ categoria: 'execucao_agente', linhas: 4, concluida: true })
     })
 
+    it('a execução da classificação, sem ano letivo e sem pessoa, é anonimizada como as outras e não trava o lote: fica a linha, o estado, o resultado e a escola', async () => {
+      const a = await escolaNova()
+      const { rows } = await bancada.pool.query<{ id: string }>(
+        `insert into execucao_agente (escola_id, ano_letivo_id, funcao, tarefa, solicitada_por, chave_envio, estado, entrada, erro, criada_em, iniciada_em, concluida_em)
+         values ($1, null, 'classificacao_do_material', 'classificar_secoes', null, $2, 'falhou', '{"tarefa":"classificar_secoes"}', 'IA_SAIDA_INVALIDA',
+           $3::timestamptz - interval '13 months', $3::timestamptz - interval '13 months', $3::timestamptz - interval '13 months')
+         returning id`,
+        [a.escolaId, randomUUID(), QUARTA_1H.toISOString()],
+      )
+      const id = rows[0]?.id ?? ''
+      const comTema = await execucaoComTema(a, QUARTA_1H, '13 months')
+      await rodar(a.escolaId, expurgo(relogioEm(QUARTA_1H)))
+      const lida = await bancada.pool.query<{ id: string; anoLetivoId: string | null; estado: string; erro: string | null; anonimizadaEm: Date | null }>(
+        'select id, ano_letivo_id as "anoLetivoId", estado, erro, anonimizada_em as "anonimizadaEm" from execucao_agente where id = any($1::uuid[]) order by id',
+        [[id, comTema]],
+      )
+      expect(lida.rows.find((linha) => linha.id === id)).toEqual({ id, anoLetivoId: null, estado: 'falhou', erro: 'IA_SAIDA_INVALIDA', anonimizadaEm: QUARTA_1H })
+      expect(lida.rows.find((linha) => linha.id === comTema)?.anonimizadaEm).toEqual(QUARTA_1H)
+      expect((await execucoes(a.escolaId)).find((linha) => linha.categoria === 'execucao_agente')).toEqual({ categoria: 'execucao_agente', linhas: 2, concluida: true })
+    })
+
     it('reexecutar não mexe na execução já anonimizada: `anonimizada_em` fica com a data da primeira noite', async () => {
       const a = await escolaNova()
       const id = await execucaoComTema(a, QUARTA_1H, '13 months')

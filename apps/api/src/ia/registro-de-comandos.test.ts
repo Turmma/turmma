@@ -72,9 +72,11 @@ describe('o registro de comandos de IA', () => {
     expect(registro.tarefas()).toEqual(['turno_do_tutor'])
   })
 
-  it('a exceção é uma só, e fica de fora porque ninguém a chama: nenhum arquivo da API usa o `relatorio_da_correcao`', () => {
-    expect(TAREFAS_SEM_CHAMADOR).toEqual(['relatorio_da_correcao'])
-    const comChamador = arquivosDeProducao(RAIZ_DA_API).filter((arquivo) => !arquivo.endsWith('registro-de-comandos.ts') && /relatorio_da_correcao|relatorioDaCorrecao/u.test(readFileSync(arquivo, 'utf8')))
+  it('as exceções são duas, e ficam de fora porque ninguém as chama: nenhum arquivo da API usa o `relatorio_da_correcao` nem o `classificar_secoes` (a rotina dele chega na 4.0, e ele sai da lista com o comando)', () => {
+    expect(TAREFAS_SEM_CHAMADOR).toEqual(['relatorio_da_correcao', 'classificar_secoes'])
+    const comChamador = arquivosDeProducao(RAIZ_DA_API).filter(
+      (arquivo) => !arquivo.endsWith('registro-de-comandos.ts') && /relatorio_da_correcao|relatorioDaCorrecao|classificar_secoes|classificarSecoes/u.test(readFileSync(arquivo, 'utf8')),
+    )
     expect(comChamador).toEqual([])
   })
 

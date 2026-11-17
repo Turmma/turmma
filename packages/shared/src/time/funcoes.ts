@@ -56,6 +56,14 @@ export const FUNCOES = {
     fazSozinha: 'Prepara a versão adaptada da atividade a partir do tipo de adaptação escolhido, sem receber diagnóstico nem texto sobre o aluno.',
     esperaAprovacao: 'A versão adaptada só chega ao aluno depois que o professor aprova.',
   },
+  classificacao_do_material: {
+    agente: 'assistente_de_ensino',
+    nome: 'Classificação do material',
+    autonomia: 1,
+    altoRisco: true,
+    fazSozinha: 'Classifica cada capítulo ou bloco de páginas do material pela BNCC, à noite. A coordenação corrige, e a correção vence.',
+    esperaAprovacao: 'Nada chega ao aluno pela classificação: a habilidade de cada questão só vale quando o professor confere e aplica a atividade.',
+  },
   tutor_com_o_aluno: {
     agente: 'tutor',
     nome: 'Tutor com o aluno',

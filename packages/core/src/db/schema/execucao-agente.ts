@@ -18,6 +18,9 @@ import { usuario } from './usuario.js'
  * - `tarefa` é o nome da tarefa de IA (`TAREFAS_DE_IA`), e `funcao`, a chave do catálogo `FUNCOES`: é por ela que a
  *   suspensão da coordenação alcança a execução (D60). O check `execucao_agente_tarefa_da_funcao` prende cada tarefa à
  *   função dela (`FUNCAO_DA_TAREFA_DE_IA`).
+ * - `ano_letivo_id` é nulo só na `classificar_secoes` (check `execucao_agente_ano_so_nulo_na_classificacao`): a classificação do material roda pela rotina, sem
+ *   pessoa nem ano, porque o material não tem ano (classificacao-bncc, Tech Spec, seção 3). A FK composta com o ano e o `unique (escola_id, ano_letivo_id, id)` não
+ *   alcançam a linha de ano nulo, e o que a classificação grava aponta para a execução por `(escola_id, id)`.
  * - As passagens de estado são um `update` condicional (`pendente` → `rodando` → `concluida` ou `falhou`): duas instâncias
  *   não rodam a mesma execução (regra 80, item 7). Os checks prendem o resultado à concluída, o erro à que falhou e a data
  *   do fim às duas.
@@ -57,7 +60,8 @@ export const execucaoAgente = pgTable(
     escolaId: uuid()
       .notNull()
       .references(() => escola.id),
-    anoLetivoId: uuid().notNull(),
+    // Nulo só na classificação do material (`execucao_agente_ano_so_nulo_na_classificacao`): o material não tem ano.
+    anoLetivoId: uuid(),
     funcao: text().$type<ChaveDeFuncao>().notNull(),
     tarefa: text().$type<TarefaDeIa>().notNull(),
     solicitadaPor: uuid(),
@@ -87,16 +91,17 @@ export const execucaoAgente = pgTable(
       .where(sql`${tabela.anonimizadaEm} is null and ${tabela.funcao} = 'tutor_com_o_aluno'`),
     check(
       'execucao_agente_funcao_valida',
-      sql`${tabela.funcao} in ('conversa_e_ferramentas', 'correcao_de_objetiva', 'adaptacao', 'tutor_com_o_aluno', 'sinais_para_o_professor', 'resumo_e_alerta')`,
+      sql`${tabela.funcao} in ('conversa_e_ferramentas', 'correcao_de_objetiva', 'adaptacao', 'tutor_com_o_aluno', 'sinais_para_o_professor', 'resumo_e_alerta', 'classificacao_do_material')`,
     ),
     check(
       'execucao_agente_tarefa_valida',
-      sql`${tabela.tarefa} in ('propor_ferramenta', 'gerar_atividade_objetiva', 'gerar_plano_de_aula', 'adaptar_atividade', 'turno_do_tutor', 'relatorio_da_correcao', 'resumo_do_analista')`,
+      sql`${tabela.tarefa} in ('propor_ferramenta', 'gerar_atividade_objetiva', 'gerar_plano_de_aula', 'adaptar_atividade', 'turno_do_tutor', 'relatorio_da_correcao', 'resumo_do_analista', 'classificar_secoes')`,
     ),
     check(
       'execucao_agente_tarefa_da_funcao',
-      sql`(${tabela.tarefa}, ${tabela.funcao}) in (('propor_ferramenta', 'conversa_e_ferramentas'), ('gerar_atividade_objetiva', 'conversa_e_ferramentas'), ('gerar_plano_de_aula', 'conversa_e_ferramentas'), ('adaptar_atividade', 'adaptacao'), ('turno_do_tutor', 'tutor_com_o_aluno'), ('relatorio_da_correcao', 'correcao_de_objetiva'), ('resumo_do_analista', 'resumo_e_alerta'))`,
+      sql`(${tabela.tarefa}, ${tabela.funcao}) in (('propor_ferramenta', 'conversa_e_ferramentas'), ('gerar_atividade_objetiva', 'conversa_e_ferramentas'), ('gerar_plano_de_aula', 'conversa_e_ferramentas'), ('adaptar_atividade', 'adaptacao'), ('turno_do_tutor', 'tutor_com_o_aluno'), ('relatorio_da_correcao', 'correcao_de_objetiva'), ('resumo_do_analista', 'resumo_e_alerta'), ('classificar_secoes', 'classificacao_do_material'))`,
     ),
+    check('execucao_agente_ano_so_nulo_na_classificacao', sql`${tabela.anoLetivoId} is not null or ${tabela.tarefa} = 'classificar_secoes'`),
     check('execucao_agente_estado_valido', sql`${tabela.estado} in ('pendente', 'rodando', 'concluida', 'falhou')`),
     check('execucao_agente_entrada_da_tarefa', sql`jsonb_typeof(${tabela.entrada}) = 'object' and coalesce(${tabela.entrada} ->> 'tarefa', '') = ${tabela.tarefa}`),
     check(

@@ -20,8 +20,12 @@ import {
   funcoesDaGovernancaResponseSchema,
   resumoDaGovernancaResponseSchema,
 } from './governanca.js'
+import { execucaoInputSchema, FUNCAO_DA_TAREFA_DE_IA, TAREFAS_DE_IA } from '../time/execucao.js'
 import { CHAVES_DE_FUNCAO, FUNCOES } from '../time/funcoes.js'
 import { chaveDeFuncaoSchema, timeResponseSchema, montarTime } from '../time/time.js'
+
+/** A mesma expressão de `e2e/support/professor/scenario.ts` (`VOCABULARIO_DE_NOTA`), copiada: o pacote não importa do e2e. */
+const VOCABULARIO_DE_NOTA = /\bnotas?\b|\bconceitos?\b|pontuaç/i
 
 // Valores fixos e sintéticos: o pacote não tem os tipos do Node.
 const UM_ID = '0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b'
@@ -97,7 +101,29 @@ describe('o que cada função faz sozinha, e a suspensão por função (D9, D60)
     expect(FUNCOES.tutor_com_o_aluno.esperaAprovacao).toMatch(/professor da turma acompanha/)
   })
 
-  it('o time sai do catálogo: três agentes, as seis funções, e só a função suspensa aparece suspensa', () => {
+  it('a classificação do material é função do Assistente de ensino, de autonomia 1, alto risco e suspensível, e o que a coordenação lê é o texto da Tech Spec, sem vocabulário de nota', () => {
+    const { agente, nome, autonomia, altoRisco, fazSozinha, esperaAprovacao } = FUNCOES.classificacao_do_material
+    expect({ agente, nome, autonomia, altoRisco }).toEqual({ agente: 'assistente_de_ensino', nome: 'Classificação do material', autonomia: 1, altoRisco: true })
+    expect(fazSozinha).toBe('Classifica cada capítulo ou bloco de páginas do material pela BNCC, à noite. A coordenação corrige, e a correção vence.')
+    expect(esperaAprovacao).toBe('Nada chega ao aluno pela classificação: a habilidade de cada questão só vale quando o professor confere e aplica a atividade.')
+    // A classificação não dá nota, conceito nem pontuação a ninguém: a mesma expressão do vocabulário de nota que as telas do professor respeitam.
+    for (const texto of [nome, fazSozinha, esperaAprovacao]) expect(texto).not.toMatch(VOCABULARIO_DE_NOTA)
+    expect(chaveDeFuncaoSchema.safeParse('classificacao_do_material').success).toBe(true)
+    // Suspensível: a suspensão por função a alcança, e o time a mostra suspensa só quando está.
+    const suspensa = montarTime(new Set(['classificacao_do_material'] as const)).agentes.flatMap((agente) => agente.funcoes)
+    expect(suspensa.filter((funcao) => funcao.suspensa).map((funcao) => funcao.chave)).toEqual(['classificacao_do_material'])
+  })
+
+  it('a tarefa classificar_secoes liga à função da classificação, e toda tarefa do contrato tem uma função do catálogo', () => {
+    expect(TAREFAS_DE_IA).toContain('classificar_secoes')
+    expect(FUNCAO_DA_TAREFA_DE_IA.classificar_secoes).toBe('classificacao_do_material')
+    for (const tarefa of TAREFAS_DE_IA) expect(CHAVES_DE_FUNCAO, tarefa).toContain(FUNCAO_DA_TAREFA_DE_IA[tarefa])
+    // A execução da classificação grava só a tarefa na entrada: nada de pessoa, de turma nem de texto (`classificar_secoes` roda pela rotina).
+    expect(execucaoInputSchema.safeParse({ tarefa: 'classificar_secoes' }).success).toBe(true)
+    expect(execucaoInputSchema.safeParse({ tarefa: 'classificar_secoes', materialId: UM_ID }).success).toBe(false)
+  })
+
+  it('o time sai do catálogo: três agentes, as sete funções, e só a função suspensa aparece suspensa', () => {
     const time = montarTime(new Set(['correcao_de_objetiva'] as const))
     expect(timeResponseSchema.safeParse(time).success).toBe(true)
     const funcoes = time.agentes.flatMap((agente) => agente.funcoes)
@@ -109,6 +135,7 @@ describe('o que cada função faz sozinha, e a suspensão por função (D9, D60)
       ['conversa_e_ferramentas', false],
       ['correcao_de_objetiva', true],
       ['adaptacao', false],
+      ['classificacao_do_material', false],
     ])
     for (const funcao of funcoes) {
       expect(funcao.fazSozinha, funcao.chave).toBe(FUNCOES[funcao.chave].fazSozinha)

@@ -629,7 +629,7 @@ CapituloDoMaterial*→ escola*, material*, ordem*, numero?, titulo* (1 a 200), p
 SecaoDoMaterial*   → escola*, material*, capitulo?, ordem*, paginaInicial*, paginaFinal*, execucao?, falhasSeguidas*,
                      classificadaEm?, corrigidaEm?, corrigidaPor?
 HabilidadeDaSecao  → escola*, secao*, codigo* (HabilidadeBncc), origem* (ia | coordenacao)   — chave (escola, secao, codigo)
-ExecucaoAgente*    → escola*, anoLetivo*, funcao*, tarefa*, solicitadaPor?, chaveEnvio*,
+ExecucaoAgente*    → escola*, anoLetivo? (nulo só na tarefa `classificar_secoes`, que roda pela rotina), funcao*, tarefa*, solicitadaPor?, chaveEnvio*,
                      estado* (pendente | rodando | concluida | falhou), entrada*, resultado?, erro?, datas,
                      anonimizadaEm? (F3)
 ConsumoIa*         → escola*, aluno?, execucao?, tarefa*, funcao*, perfil*, origem*, modelo*, promptVersao*,

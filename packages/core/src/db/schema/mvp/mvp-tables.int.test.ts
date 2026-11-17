@@ -204,13 +204,14 @@ describe('tabelas do MVP de apresentação: o banco recusa o que o contrato pro�
   const novoTrecho = (c: Pick<Cenario, 'escolaId' | 'disciplinaId'>, materialId: string, pagina: number, texto: string) =>
     id('insert into trecho (escola_id, disciplina_id, material_id, pagina, texto) values ($1, $2, $3, $4, $5) returning id', [c.escolaId, c.disciplinaId, materialId, pagina, texto])
 
-  const novaExecucao = (c: Cenario, tarefa = 'gerar_atividade_objetiva', ajuste: { funcao?: string; chave?: string; entrada?: unknown; solicitadaPor?: string; anoLetivoId?: string } = {}) =>
+  const novaExecucao = (c: Cenario, tarefa = 'gerar_atividade_objetiva', ajuste: { funcao?: string; chave?: string; entrada?: unknown; solicitadaPor?: string | null; anoLetivoId?: string | null } = {}) =>
     id('insert into execucao_agente (escola_id, ano_letivo_id, funcao, tarefa, solicitada_por, chave_envio, entrada) values ($1, $2, $3, $4, $5, $6, $7) returning id', [
       c.escolaId,
-      ajuste.anoLetivoId ?? c.anoLetivoId,
+      // `null` é pedido: só a classificação do material roda sem ano letivo e sem pessoa.
+      ajuste.anoLetivoId === undefined ? c.anoLetivoId : ajuste.anoLetivoId,
       ajuste.funcao ?? FUNCAO_DA_TAREFA_DE_IA[tarefa as keyof typeof FUNCAO_DA_TAREFA_DE_IA],
       tarefa,
-      ajuste.solicitadaPor ?? c.professorId,
+      ajuste.solicitadaPor === undefined ? c.professorId : ajuste.solicitadaPor,
       ajuste.chave ?? randomUUID(),
       JSON.stringify(ajuste.entrada ?? { tarefa }),
     ])
@@ -727,6 +728,39 @@ describe('tabelas do MVP de apresentação: o banco recusa o que o contrato pro�
       expect(await recusa(novaExecucao(c, 'tarefa_inventada', { funcao: 'adaptacao' }))).toEqual({ codigo: '23514', restricao: expect.stringMatching(/^execucao_agente_tarefa_(valida|da_funcao)$/) })
       expect(await recusa(novaExecucao(c, 'gerar_atividade_objetiva', { entrada: { tarefa: 'adaptar_atividade' } }))).toEqual({ codigo: '23514', restricao: 'execucao_agente_entrada_da_tarefa' })
       expect(await recusa(novaExecucao(c, 'gerar_atividade_objetiva', { entrada: { semTarefa: true } }))).toEqual({ codigo: '23514', restricao: 'execucao_agente_entrada_da_tarefa' })
+    })
+
+    it('a classificação do material: a tarefa e a função entram no par e só nele, e os seis checks que a 0062 tocou entram validados', async () => {
+      const c = await novoCenario()
+      await expect(novaExecucao(c, 'classificar_secoes', { anoLetivoId: null, solicitadaPor: null })).resolves.toEqual(expect.any(String))
+      // O par é um só: a tarefa com a função de outra, e a função da classificação com a tarefa de outra, caem no check do par.
+      expect(await recusa(novaExecucao(c, 'classificar_secoes', { funcao: 'conversa_e_ferramentas', anoLetivoId: null, solicitadaPor: null }))).toEqual({ codigo: '23514', restricao: 'execucao_agente_tarefa_da_funcao' })
+      expect(await recusa(novaExecucao(c, 'gerar_atividade_objetiva', { funcao: 'classificacao_do_material' }))).toEqual({ codigo: '23514', restricao: 'execucao_agente_tarefa_da_funcao' })
+      // O que o catálogo não tem continua recusado: a função inventada e a tarefa inventada com a função da classificação.
+      expect(await recusa(novaExecucao(c, 'classificar_secoes', { funcao: 'classificacao_inventada', anoLetivoId: null, solicitadaPor: null }))).toEqual({ codigo: '23514', restricao: 'execucao_agente_funcao_valida' })
+      expect(await recusa(novaExecucao(c, 'tarefa_inventada', { funcao: 'classificacao_do_material' }))).toEqual({
+        codigo: '23514',
+        restricao: expect.stringMatching(/^execucao_agente_tarefa_(valida|da_funcao)$/),
+      })
+      // O consumo da função entra na soma, e a função inventada não.
+      await expect(consumir(c, { tarefa: 'classificar_secoes', funcao: 'classificacao_do_material', perfil: 'rapido' })).resolves.toBeDefined()
+      expect(await recusa(consumir(c, { tarefa: 'classificar_secoes', funcao: 'classificacao_inventada' }))).toEqual({ codigo: '23514', restricao: 'consumo_ia_funcao_valida' })
+      // `NOT VALID` seguido de `VALIDATE`: nenhum dos cinco ficou só valendo para a linha nova.
+      const nomes = ['execucao_agente_funcao_valida', 'execucao_agente_tarefa_valida', 'execucao_agente_tarefa_da_funcao', 'execucao_agente_ano_so_nulo_na_classificacao', 'consumo_ia_funcao_valida', 'suspensao_de_funcao_funcao_valida']
+      const { rows } = await cliente.query<{ conname: string; convalidated: boolean }>('select conname, convalidated from pg_constraint where conname = any($1::text[]) order by conname', [nomes])
+      expect(rows).toEqual([...nomes].sort().map((conname) => ({ conname, convalidated: true })))
+    })
+
+    it('o ano letivo da execução é nulo só na classificação do material: nas outras seis tarefas o check recusa, e com ano a classificação também entra', async () => {
+      const c = await novoCenario()
+      for (const tarefa of TAREFAS_DE_IA.filter((nome) => nome !== 'classificar_secoes')) {
+        expect(await recusa(novaExecucao(c, tarefa, { anoLetivoId: null })), tarefa).toEqual({ codigo: '23514', restricao: 'execucao_agente_ano_so_nulo_na_classificacao' })
+      }
+      await expect(novaExecucao(c, 'classificar_secoes', { anoLetivoId: null, solicitadaPor: null })).resolves.toEqual(expect.any(String))
+      await expect(novaExecucao(c, 'classificar_secoes')).resolves.toEqual(expect.any(String))
+      // O ano que não existe na escola continua recusado pela FK composta: o nulo é a única saída, e só da classificação.
+      const deB = await novoCenario()
+      expect(await recusa(novaExecucao(c, 'classificar_secoes', { anoLetivoId: deB.anoLetivoId }))).toEqual({ codigo: '23503', restricao: 'execucao_agente_ano_letivo_da_escola_fk' })
     })
 
     it('o caminho pendente, rodando, concluída ou falhou: o resultado só na concluída, o erro só na que falhou, e sempre como código', async () => {

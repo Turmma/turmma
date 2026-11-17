@@ -1212,6 +1212,7 @@ código"), com o destino de cada uma. As pequenas foram fechadas na correção `
       a classificação por habilidade é alto risco (AIA, D60), a entrega nasce pendente e a autonomia do agente é declarada (dono: Arquiteto, ao revisar o `6_task.md`)
 - [ ] (classificacao-bncc, 2.0, rodada 1) **Teste da eliminação da coordenação que corrigiu pelo `CicloDeVidaService.eliminar`:** o caso de `migracao-f4b.int.test.ts` apaga o usuário com `delete from usuario`
       e prova a FK `set null ("corrigida_por")`; falta o que passa pelo caminho real da eliminação (dono: Implementador, na tarefa 7.0, que grava `corrigida_por`)
+- [ ] (classificacao-bncc, 3.0, infra-guardian, 1ª) **Os seis `VALIDATE` da `0062` rodam na mesma transação do `ADD`, e dois deles varrem tabelas que crescem com o Tutor:** `consumo_ia` e `execucao_agente` ficam sob a trava exclusiva enquanto cada `VALIDATE` as lê, como no precedente da `0060` (entrada logo abaixo) e da `0036`. A migration já tem `lock_timeout`, e o deploy é fora do horário letivo; antes do staging ou do piloto, o `VALIDATE` dos checks de `consumo_ia` e de `execucao_agente` vai para uma migration à parte (a próxima troca de check já nasce assim). Dono: a tarefa que tocar esses checks de novo (4.0 da classificacao-bncc, se ela trocar o check do `resultado`), ou a que montar o staging.
 - [ ] (classificacao-bncc, 2.0, rodada 1) **O `VALIDATE` do `auditoria_rotina_so_nas_acoes` na `0060` varre `auditoria` com a tabela travada:** é o precedente das `0036` e `0056`, e o deploy é fora do horário
       letivo; se `auditoria` crescer, `NOT VALID` numa migration e `VALIDATE` em outra, com o comentário do custo (dono: Implementador, na próxima ação nova que a `rotina` assinar)
 - [ ] (classificacao-bncc, 2.0, rodada 1) **Índice parcial `(escola_id, corrigida_por) where corrigida_por is not null` em `secao_do_material`:** a leitura do arquivo do titular e a eliminação da pessoa
@@ -1225,6 +1226,23 @@ código"), com o destino de cada uma. As pequenas foram fechadas na correção `
       (dono: Implementador, na próxima tarefa que tocar o `docs/runbook.md`)
 - [ ] (classificacao-bncc, 2.0, rodada 2) **`volta-da-2-0.int.test.ts`:** dar `capitulos: 2` ao `excluido` e ao `processando`, para provar também a parte por capítulo do bloco, e comparar `corrigida_em` por
       `getTime()` com `Date.parse(...)`, e não por `toISOString()` (dono: Implementador, na próxima tarefa que tocar o teste)
+- [ ] (classificacao-bncc, 3.0) **Conferência do lote retido por professor, antes do primeiro aluno real:** o lote de 48 seções (`docs/aia/ouro-retido/classificacao-retido-1.json`) é escrito por subagente e
+      revisto pelo `pedagogia-reviewer` e pelo `conformidade-reviewer`, e a taxa mede a concordância com ele; sem um professor da área conferir a `referencia` e os `aceitaveis`, o gabarito não foi validado
+      por quem ensina. O sha256 do lote muda se o professor alterar um dos dois, e a medida se refaz (`tools/ia/medir-classificacao.ts`). É a etapa 2 da AIA (`docs/aia/diagnostico-por-habilidade.md`, 1.10, item 7;
+      dono: Joaquim, com um professor da escola do piloto)
+- [ ] (classificacao-bncc, 3.0) **O pedido da classificação é maior que os ~12 mil tokens da Tech Spec:** medido sobre `dados-2026.08`, o maior recorte (Língua Portuguesa, 6º ao 9º mais o Médio, 267 habilidades)
+      com 12 seções cheias pede ~31 mil tokens, e o teto de entrada da tarefa é 121.600 (o pior que o schema aceita). A vazão da §7c (balde `lote` de 125 mil tokens/min, ~10 execuções/min) foi calculada com 12 mil;
+      com Matemática ou Ciências (recortes menores) fica perto disso, com LP pode cair a um terço. Rever a conta na carga das 300 apostilas (5.5) e, se pesar, reduzir as candidatas por série em vez de por
+      componente (dono: Arquiteto, ao revisar o `5_task.md`)
+- [ ] (classificacao-bncc, 3.0) **Para a 4.0:** `classificar_secoes` está em `TAREFAS_SEM_CHAMADOR` (`apps/api/src/ia/registro-de-comandos.ts`) e sai dela no commit que registra o comando. A execução concluída
+      precisa de um `resultado` que o check `execucao_agente_resultado_so_na_concluida` aceite (hoje só `mensagem`, `artefato`, `mensagem_do_tutor`, `lote_de_correcao` e `resumo_do_analista`, em
+      `resultadoGravadoSchema`), e a Tech Spec não diz qual; o tipo novo vai à migration da 4.0, com `NOT VALID` e `VALIDATE`. Também falta o `consumo_ia` da classificação gravar só ids na entrada (Tech Spec, §7;
+      hoje o gateway grava a entrada inteira quando `levaTextoLivreDePessoa` é `false`) (dono: Arquiteto, ao revisar o `4_task.md`)
+- [ ] (classificacao-bncc, 3.0) **O corte de `comeco` e `subtitulos` do medidor é aproximado:** `tools/ia/medir-classificacao.ts` usa os 1.500 primeiros caracteres e as linhas curtas sem ponto final, porque o
+      worker ainda não existe; quando a 4.0 escrever o corte de verdade, o medidor passa a usá-lo, e a medida do Arquiteto se refaz se o corte mudar (dono: Implementador, na tarefa 4.0)
+- [ ] (classificacao-bncc, 3.0, pedagogia-reviewer, 1ª) **`EFEITO_COMUM_DA_SUSPENSAO` fala em "o que está esperando o professor", que não existe na classificação:** o texto é comum às seis
+      funções (`apps/web/src/areas/coordenacao/governanca/textos-da-governanca.ts`), e a classificação (autonomia 1) não deixa nada à espera de aprovação; a coordenação que a suspende lê uma
+      frase que não se aplica. Tirar a frase comum da classificação, ou separá-la, mexe nos outros cinco textos e nos testes deles (dono: a tarefa que tocar `textos-da-governanca.ts`)
 
 ## Produto
 

@@ -31,6 +31,7 @@ export const TAREFAS_DE_IA = [
   'turno_do_tutor',
   'relatorio_da_correcao',
   'resumo_do_analista',
+  'classificar_secoes',
 ] as const
 export type TarefaDeIa = (typeof TAREFAS_DE_IA)[number]
 
@@ -47,6 +48,7 @@ export const FUNCAO_DA_TAREFA_DE_IA = {
   turno_do_tutor: 'tutor_com_o_aluno',
   relatorio_da_correcao: 'correcao_de_objetiva',
   resumo_do_analista: 'resumo_e_alerta',
+  classificar_secoes: 'classificacao_do_material',
 } as const satisfies Record<TarefaDeIa, ChaveDeFuncao>
 
 /** O perfil de IA de uma chamada (regra 30, item 2): a classe de tarefa que escolhe o modelo. O check `consumo_ia_perfil_valido` repete a lista. */
@@ -91,6 +93,8 @@ export const execucaoInputSchema = z.discriminatedUnion('tarefa', [
   z.strictObject({ tarefa: z.literal('turno_do_tutor') }),
   z.strictObject({ tarefa: z.literal('relatorio_da_correcao'), atividadeAplicadaId: z.uuid() }),
   z.strictObject({ tarefa: z.literal('resumo_do_analista') }),
+  // As seções a classificar são as da execução (`secao_do_material.execucao_id`), lidas no `preparar`: a entrada não leva id nem texto.
+  z.strictObject({ tarefa: z.literal('classificar_secoes') }),
 ])
 export type ExecucaoInput = z.infer<typeof execucaoInputSchema>
 

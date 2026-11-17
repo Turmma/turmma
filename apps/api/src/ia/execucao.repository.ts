@@ -47,7 +47,7 @@ export class ExecucaoRepository {
   /**
    * A execução do job e quem a pediu. A pessoa só vale se está ativa (nem desativada, nem com eliminação agendada) e o ano letivo da
    * linha ainda está em curso: a virada do ano, a desativação (que o fim do vínculo faz, regra 20, item 18) e a eliminação entre o `202` e o
-   * worker dão `quemPediu` vazio. O vínculo em si é conferido pelo `preparar` do comando, que repete o alcance do `POST`.
+   * worker dão `quemPediu` vazio, e a execução sem ano (a da classificação do material, rotina sem pessoa nem ano) também: o `anoLetivoId` de quem pediu é o do ano em curso que o `join` achou, nunca a coluna nula. O vínculo em si é conferido pelo `preparar` do comando, que repete o alcance do `POST`.
    */
   async paraIniciar(id: string): Promise<ExecucaoParaIniciar | undefined> {
     const escolaId = requireEscolaId()
@@ -56,7 +56,6 @@ export class ExecucaoRepository {
         id: execucaoAgente.id,
         tarefa: execucaoAgente.tarefa,
         estado: execucaoAgente.estado,
-        anoLetivoId: execucaoAgente.anoLetivoId,
         usuarioId: usuario.id,
         papel: usuario.papel,
         anoEmCurso: anoLetivo.id,
@@ -69,7 +68,7 @@ export class ExecucaoRepository {
       .leftJoin(anoLetivo, and(eq(anoLetivo.escolaId, execucaoAgente.escolaId), eq(anoLetivo.id, execucaoAgente.anoLetivoId), eq(anoLetivo.situacao, 'em_curso')))
       .where(and(eq(execucaoAgente.escolaId, escolaId), eq(execucaoAgente.id, id)))
     if (linha === undefined) return undefined
-    const quemPediu = linha.usuarioId !== null && linha.papel !== null && linha.anoEmCurso !== null ? { usuarioId: linha.usuarioId, papel: linha.papel, anoLetivoId: linha.anoLetivoId } : undefined
+    const quemPediu = linha.usuarioId !== null && linha.papel !== null && linha.anoEmCurso !== null ? { usuarioId: linha.usuarioId, papel: linha.papel, anoLetivoId: linha.anoEmCurso } : undefined
     return { id: linha.id, tarefa: linha.tarefa, estado: linha.estado, quemPediu }
   }
 

@@ -39,7 +39,7 @@ export const suspensaoDeFuncao = pgTable(
     index('suspensao_de_funcao_escola_idx').on(tabela.escolaId, tabela.suspensaEm),
     check(
       'suspensao_de_funcao_funcao_valida',
-      sql`${tabela.funcao} in ('conversa_e_ferramentas', 'correcao_de_objetiva', 'adaptacao', 'tutor_com_o_aluno', 'sinais_para_o_professor', 'resumo_e_alerta')`,
+      sql`${tabela.funcao} in ('conversa_e_ferramentas', 'correcao_de_objetiva', 'adaptacao', 'tutor_com_o_aluno', 'sinais_para_o_professor', 'resumo_e_alerta', 'classificacao_do_material')`,
     ),
     check(
       'suspensao_de_funcao_motivo_valido',
