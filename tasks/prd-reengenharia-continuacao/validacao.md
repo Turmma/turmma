@@ -1,5 +1,131 @@
 # Validação — reengenharia-continuacao (X6)
 
+## Rodada 2 — 16/11/2026
+
+**Escopo:** funcionalidade completa
+**Commit validado:** `26031b5a`
+**Veredito: APROVADA**
+
+Revalidação depois da rodada 1 (`37edd161`, APROVADA). De `37edd161` a `26031b5a` entraram duas correções, e só elas tocam código:
+`d3a935f4` (correção `2026-11-16-censo-e2e-entrar-na-escola`, só `e2e/entrar-na-escola.spec.ts`) e `40d676a5` (correção
+`2026-11-16-reserva-no-mesmo-milissegundo`, só `apps/worker/test/enviar-email.int.test.ts` e `enviar-email-da-conta.int.test.ts`). Os
+outros três commits são registros de estado e da validação. `git diff 37edd161..26031b5a` não toca nenhum arquivo de `apps/*/src`,
+`packages/*/src`, `infra/` nem `docs/`: o código de cada RF é o mesmo da rodada 1, e as citações de código dela continuam valendo. Mesmo
+assim, nesta rodada rodei de novo os testes de evidência dos RF, fiz três mutações novas, em cláusulas que a rodada 1 não mutou, e li de
+novo as fotos das telas.
+
+Lidos de novo: `prd.md`, `tasks.md` (critério de pronto), `estado.md`, a Tech Spec nas seções "Como a N.0 ficou" e 12, as regras 00,
+40, 60 e 80 por extenso (10, 20, 30 e 70 estavam no contexto), os dois documentos de correção e os achados deles
+(`tasks/correcoes/achados/`).
+
+### 1. RF a RF
+
+| RF | Situação | O que mudou desde a rodada 1 | Evidência desta rodada |
+|---|---|---|---|
+| RF1 | ATENDIDO | nada | `fila-de-ia.int.test.ts` e `registro-de-comandos.test.ts` verdes em `26031b5a` |
+| RF2 | ATENDIDO | nada | `fila-de-ia.int.test.ts` ("cinco ferramentas da A juntas…") verde |
+| RF3 | ATENDIDO | nada | `execucao-interrompida.int.test.ts` e `fila-de-ia.int.test.ts` verdes |
+| RF4 | ATENDIDO | nada | `tutor-modelo.int.test.ts` verde; **mutação nova** do sinal da D36 no worker (abaixo) |
+| RF5 | ATENDIDO | nada | `corte-da-espera.int.test.ts` e `sem-resposta.int.test.ts` verdes. **Fotos lidas de novo**: `.processo/vitrine/validacao-x6--corte--computador.png` ("O Tutor não conseguiu responder agora. Tente de novo." com o botão, "Hoje: 0 de 60"), `professora--professor-turmas-01a1e6fc-9444-7e80-8fbf-100358a43cf4--computador.png` e `--celular.png` ("1 pergunta que o Tutor não respondeu hoje", sem texto da pergunta). A `apps/web` não mudou desde as fotos. No computador, a tabela do painel "O que o Tutor viu" corta a coluna "Em que estava" na borda: é a região rolável do `Table` (`apps/web/src/components/ui/Table.tsx:85`, `overflow-x-auto`, com `role="region"` e foco), anterior à X6, e não esconde ação: não é defeito da lista |
+| RF6 | ATENDIDO | nada | a corrida de 16/11 (`11_task.md`, "A corrida"; `docs/infra.md` §10), não repetida (relatório, não portão) |
+| RF7 | ATENDIDO | nada | `llm-gateway.test.ts`, `token-limiter.test.ts` e `token-limiter.int.test.ts` verdes |
+| RF8 | ATENDIDO | nada | `llm-gateway.test.ts` verde; alertas e runbook sem mudança |
+| RF9 | ATENDIDO | nada | `soberania-na-subida.int.test.ts` e `soberania.test.ts` verdes; **mutação nova** da conferência na subida (abaixo) |
+| RF10 | ATENDIDO | nada | `llm-gateway.test.ts` (bloco da D62) e `tarefas.test.ts` verdes |
+| RF11 | ATENDIDO | nada | `client.test.ts` e `respostas.test.ts` verdes |
+| RF12 | ATENDIDO | nada | `AreaErrorBoundary.test.tsx` verde. **Foto lida de novo**: `.processo/vitrine/validacao-x6--falha--celular.png` (título com foco, texto do que fazer, "Tentar de novo" e "Voltar ao início" um abaixo do outro, sem corte a 360 px) |
+| RF13 | ATENDIDO | o arquivo de e2e mudou, num caso que não é do RF13 (`:94`, a entrada sem provedor liberado); os três casos do RF13 deslizaram duas linhas | `mfa.int.test.ts`, `troca-de-escola.int.test.ts`, `espera-do-indisponivel.test.ts` e `SeletorDeEscola.test.tsx` verdes; `e2e/entrar-na-escola.spec.ts` inteiro, 26 de 26 verdes (`chromebook` e `celular`), com os casos do RF13 agora em `:335`, `:368` e `:400` (de 5,0 a 7,0 s). **Foto lida de novo**: `.processo/vitrine/validacao-x6--espera--celular.png` ("Tentando de novo em instantes (10 s)", botão "Entrando…" desabilitado) |
+| RF14 | ATENDIDO | nada nos documentos | a leitura da rodada 1 vale: nenhum arquivo de `docs/` mudou. A esteira do último commit é do Orquestrador, no fechamento |
+
+Provas de mutação (feitas por mim, uma de cada vez, restauradas com `git checkout --`; árvore limpa no fim):
+
+| RF ou correção | Cláusula removida | Teste que ficou vermelho |
+|---|---|---|
+| RF9 (D62 na subida do `worker-ia`) | `if (motivos.length === 0) return true` trocada por `if (motivos.length >= 0) return true` (`packages/core/src/ia/soberania.ts:154`): a conferência passa com qualquer cadastro | `soberania-na-subida.int.test.ts` › "externo com o cadastro que não cobre: nenhum consumidor e nenhum batimento; corrigido o cadastro, passa a consumir sozinho" (`expected true to be false`) |
+| RF4 (D36 no worker) | `await tutor.gravarSinal(pergunta.execucaoId, pergunta.turmaId, { tipo: 'atencao_humana' })` de `#encaminhar` (`apps/api/src/tutor/turno.command.ts:273`) | `tutor-modelo.int.test.ts -t "assunto delicado"`: 3 casos vermelhos, entre eles "o modelo classificou assunto delicado e a execução já foi encerrada…" e "abre antes da conclusão…" (`expected [] to deeply equal [ { tipo: 'atencao_humana', … } ]`) |
+| Correção `reserva-no-mesmo-milissegundo` (o teste corrigido ainda prova a posse da reserva) | `eq(convite.envioReservadoEm, reserva)` do `concluir` (`packages/core/src/email/envio.repository.ts:90`), a mutação que o documento da correção declara | `enviar-email.int.test.ts` › "o desfecho é da reserva: `concluir` e `devolver` com a marca de uma reserva que outro processo já retomou não gravam nada" (`expected true to be false`) |
+
+As três mutações da rodada 1 (a D62 no gateway, o escopo de escola em `encerrarRodando`, a idade do corte de 20 s) recaem sobre código
+que não mudou.
+
+### 2. Regras de negócio, casos de borda e critério de pronto
+
+Sem mudança desde a rodada 1: o código, os testes de cada regra e de cada caso de borda e os documentos são os mesmos, e os testes
+citados lá rodaram verdes de novo aqui (seção 3). A tabela da rodada 1 vale inteira, inclusive a regra do Tutor desligado (D84) e fora da
+política (D19), que segue registrada como divergência (Tech Spec §5, "Como a 5.0 ficou" (7); `cenarios.md` §2). O item "o roteiro da
+demonstração não muda de tela" foi conferido na rodada 1 contra o mesmo código de `apps/` e `e2e/roteiro-da-demonstracao.spec.ts`, que
+não mudaram; não o rodei de novo.
+
+| Item | Situação | Evidência |
+|---|---|---|
+| As duas correções novas não mudam comportamento de produto | cumprida | o diff só toca dois testes de integração do worker de e-mail e um caso de e2e; as asserções do `:94` são as mesmas, na mesma ordem; o teste da reserva ficou mais forte (confere também `reservadoEm: segunda.reserva` em `enviar-email.int.test.ts:341`) |
+| Pronto: esteira verde no último commit | do fechamento | não entra neste veredito |
+
+### 3. Portão
+
+| Portão | Resultado |
+|---|---|
+| `npm run typecheck`, `npm run lint`, `npm run test`, `test:e2e`, `test:infra` inteiros | não rodados (escopo de funcionalidade, D79): esteira conferida no fechamento |
+| Unidade que serve de evidência | ✅ `llm-gateway.test.ts`, `soberania.test.ts`, `token-limiter.test.ts`, `tarefas.test.ts`, `registro-de-comandos.test.ts`, `client.test.ts`, `respostas.test.ts`, `AreaErrorBoundary.test.tsx`, `espera-do-indisponivel.test.ts`, `SeletorDeEscola.test.tsx`: 10 arquivos, 308 passaram |
+| Integração que serve de evidência | ✅ `fila-de-ia`, `execucao-interrompida`, `corte-da-espera`, `soberania-na-subida`, `tutor-modelo`, `sem-resposta`, `token-limiter` (Redis), `mfa`, `troca-de-escola`, mais os dois da correção (`enviar-email`, `enviar-email-da-conta`): 11 arquivos, 257 passaram. Os workers e despachantes do ambiente de teste 0 ficaram parados durante a corrida e as mutações, para não roubarem as filas da bancada, e foram religados depois |
+| e2e que serve de evidência | ✅ `e2e/entrar-na-escola.spec.ts`: 26 passaram (`chromebook` e `celular`), em 51,6 s; o caso corrigido (`:94`) levou 1,7 s e 0,9 s |
+| Mutações | ✅ 3 de 3 vermelhas por caso que rodou (seção 1) |
+| Esteira do GitHub | roda no fechamento, depois desta validação (D78, D79): não entra no veredito |
+| Revisões com veto registradas e aprovadas | ✅ as duas correções novas: `censo-e2e-entrar-na-escola` com os seis obrigatórios (`test-engineer`, `revisor-geral` e os quatro guardiões) APROVADO na 1ª; `reserva-no-mesmo-milissegundo` com os cinco obrigatórios APROVADO, o `test-engineer` também na 2ª (o `revisor-geral` não é obrigatório: dois arquivos, `.claude/skills/corrigir/SKILL.md`). As 14 tarefas, como na rodada 1 |
+
+Observação: o `node_modules` deste andar segue anterior ao `package-lock.json`. Não rodei `npm ci` (só vale para escopo de tarefa), e
+todos os testes acima passaram com o que está instalado.
+
+Processo: nenhum commit `Fora do processo:` com código (`git log origin/develop..HEAD -i --grep='^Fora do processo:' -- apps packages
+infra e2e tools` vazio), e todo commit de código desde a base leva `(tarefa N.0)` ou `(correção <slug>)`, os dois novos inclusive.
+
+### 4. Achados
+
+**Críticos**
+- Nenhum.
+
+**Maiores**
+- Nenhum.
+
+**Menores** (os sete da rodada 1 seguem, com os mesmos donos; abaixo, só os novos)
+8. Recomendações das duas correções novas sem linha no `TODO.md` (`grep` de `envio.repository`, `reserva-no-mesmo` e `censo-e2e-entrar`
+   no `TODO.md` não acha nada). (a) `tasks/correcoes/2026-11-16-reserva-no-mesmo-milissegundo.md`, "Recomendações sem aplicar": blocos de
+   mutação para `devolver` e para `concluirLink`/`devolverLink` (`packages/core/src/email/envio.repository.ts:100,133,144`), com destino
+   "a tarefa futura que tocar `envio.repository.ts`", que ninguém vai achar sem o `TODO.md`. (b) `apps/worker/test/enviar-email.int.test.ts:337`
+   e `enviar-email-da-conta.int.test.ts:303`: com a marca da primeira 3 min antes, o `toBeGreaterThan(marcaDaPrimeira)` passa sempre e já
+   não prova nada sozinho (recomendação do `infra-guardian` e do `conformidade-reviewer`, 1ª rodada). Quem prova a regra são os
+   `concluir`/`devolver` → `false` e a linha com `reservadoEm: segunda.reserva`, e a mutação desta rodada confirma. Correção: um comentário
+   que diga isso, ou tirar a asserção. (c) `tasks/correcoes/2026-11-16-censo-e2e-entrar-na-escola.md`: o `:218` a 17,8 s, perto dos 20 s do
+   censo, e se a nova tentativa do `gotoComNovaTentativa` deve contar no censo (destino: retro da X6); e citar no fechamento a execução da
+   esteira cujo `--censo` confirme o `:94` fora da lista. Dono: Orquestrador, no fechamento
+9. A rodada 1 cita os casos do RF13 em `e2e/entrar-na-escola.spec.ts:333,366,398`; depois da correção do censo eles estão em `:335`,
+   `:368` e `:400`. Só citação; esta rodada usa as novas. Dono: nenhum (registro)
+
+**Positivos**
+- A correção da reserva troca o relógio por um dado que o teste escreve: o caso deixou de depender de dois `clock_timestamp()` caírem em
+  milissegundos diferentes e ganhou a asserção da marca gravada. É o padrão para todo teste de posse por marca de tempo
+
+### 5. Conclusão
+
+APROVADA. Depois da rodada 1 só entraram duas correções de teste, sem nenhuma linha de código de produção, documento ou infraestrutura.
+Os 14 RF continuam com código e teste efetivo para cada parte do critério de aceite. Os testes de evidência rodaram verdes de novo em
+`26031b5a`: 308 de unidade, 257 de integração e 26 de e2e. As três mutações novas ficaram vermelhas: a D62 na subida do `worker-ia`
+(RF9), o sinal da D36 no worker (RF4) e a posse da reserva no teste corrigido. Com as da rodada 1, são seis cláusulas de risco
+provadas. As telas dos RF5, RF12 e RF13 foram lidas de novo nas fotos, e a `apps/web` não mudou desde elas. As duas correções têm
+todos os revisores obrigatórios com APROVADO. Ficam dois menores novos, que não mudam o veredito e vão ao `TODO.md` no fechamento. A
+esteira do commit validado é do Orquestrador.
+
+### 6. Pendências herdadas
+
+As da rodada 1 (tabela abaixo, na seção 6 dela), mais:
+
+| Pendência | Dono | Arquivo |
+|---|---|---|
+| Blocos de mutação de `devolver`, `concluirLink` e `devolverLink`; a asserção `toBeGreaterThan(marcaDaPrimeira)` que não prova nada sozinha (menor 8a e 8b) | Orquestrador no `TODO.md`; a próxima tarefa em `envio.repository.ts` | `packages/core/src/email/envio.repository.ts`; `apps/worker/test/enviar-email*.int.test.ts` |
+| O `:218` perto do limite do censo e a nova tentativa contando no censo; a execução da esteira que confirma o `:94` (menor 8c) | retro da X6 (D86); Orquestrador no fechamento | `e2e/entrar-na-escola.spec.ts`; `tools/processo/esteira.ts --censo` |
+
+Commits `Fora do processo:` com código da spec: nenhum.
+
 ## Rodada 1 — 16/11/2026
 
 **Escopo:** funcionalidade completa
