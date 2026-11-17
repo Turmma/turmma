@@ -1,8 +1,8 @@
 # Estado da execução — classificacao-bncc
 
 ## Agora
-- **Espero:** (1) o `RELATÓRIO` do `Arquiteto` da fase `sem-tarefas`, pedida em 17/11 depois do merge da `develop` (revisão da spec aprovada na rodada 6, `5a4f4e45`). (2) o `RELATÓRIO` do `Implementador` (linha 1) da correção `2026-11-17-integracao-recusa-workers-de-pe` (a M3 da F4, o P da retro da X6), pedida em 17/11 10:01; guardiões: infra-guardian, revisor-geral, test-engineer. A L1 está em `…/educaia--specclassificacao-bncc--l1`, sem andar no Maestri (o `floor create` recusou a branch e o `--dir`; worktree feito pelo git).
-- **Devo ainda:** retro da X6 na `develop` em `46ea2309` (aprovada às 09:54, 11 aceitas): `git -C <andar> merge develop` e push quando o andar estiver limpo (o `Arquiteto` está no meio da revisão da spec; só `.md`, sem `reaplicar`); depois, a fase `sem-tarefas` ao `Arquiteto`. Push da `develop` (retro, sem push) fica para o próximo pouso. O `recruit --replace` do Maestri procura a pasta apagada da L1 da X6: `mkdir` dela antes e `rmdir` depois.
+- **Espero:** a hora da construção: lista de 13 tarefas mostrada às 17/11 10:24 (`9567d37b`); sem objeção do Joaquim, a construção começa às 10:54 (ordem: 1→7 em série, 8‖9, 10, 11, 12‖13). A correção `2026-11-17-integracao-recusa-workers-de-pe` (L1, `e1670fbe`) teve o encontro neste turno. A L1 está em `…/educaia--specclassificacao-bncc--l1`, sem andar no Maestri (o `floor create` recusou; worktree feito pelo git).
+- **Devo ainda:** quando a 3.0 pousar, pedir ao `Arquiteto` a medida do lote retido (ele escreve e mede entre a 3.0 e a 10.0); a 10.0 só parte com ela, e taxa fora do padrão é decisão do Joaquim. No fechamento, marcar `[x]` o item "(F4, retro, M3)" do `TODO.md`. Push da `develop` (retro da X6, `46ea2309`) no próximo pouso. O `recruit --replace` do Maestri procura a pasta apagada da L1 da X6: `mkdir` dela antes e `rmdir` depois.
 - **Base:** `spec/classificacao-bncc` em `b9898c6a`
 
 ## Concluídas
