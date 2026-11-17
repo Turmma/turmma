@@ -1,13 +1,14 @@
 # Estado da execução — classificacao-bncc
 
 ## Agora
-- **Espero:** a hora da construção: lista de 13 tarefas mostrada às 17/11 10:24 (`9567d37b`); sem objeção do Joaquim, a construção começa às 10:54 (ordem: 1→7 em série, 8‖9, 10, 11, 12‖13). A correção `2026-11-17-integracao-recusa-workers-de-pe` (L1, `e1670fbe`) teve o encontro neste turno. A L1 está em `…/educaia--specclassificacao-bncc--l1`, sem andar no Maestri (o `floor create` recusou; worktree feito pelo git).
+- **Espero:** o `RELATÓRIO` do `Implementador` (linha 1) da tarefa 1.0 (porte grande), 1ª tentativa, pedida em 17/11 11:03; a construção começou às 11:01, sem objeção do Joaquim à lista de 10:24. A esteira de `95812d4e` (encontro da correção da M3) se lê ao fechar a 1.0. A L1 está em `…/educaia--specclassificacao-bncc--l1`, sem andar no Maestri (o `floor create` recusou; worktree feito pelo git).
 - **Devo ainda:** quando a 3.0 pousar, pedir ao `Arquiteto` a medida do lote retido (ele escreve e mede entre a 3.0 e a 10.0); a 10.0 só parte com ela, e taxa fora do padrão é decisão do Joaquim. No fechamento, marcar `[x]` o item "(F4, retro, M3)" do `TODO.md`. Push da `develop` (retro da X6, `46ea2309`) no próximo pouso. O `recruit --replace` do Maestri procura a pasta apagada da L1 da X6: `mkdir` dela antes e `rmdir` depois.
-- **Base:** `spec/classificacao-bncc` em `b9898c6a`
+- **Base:** `spec/classificacao-bncc` em `95812d4e`
 
 ## Concluídas
 | Tarefa | Commit | Modelo | Rodadas | Observação |
 |---|---|---|---|---|
+| correção `2026-11-17-integracao-recusa-workers-de-pe` (M3 da F4, P da retro da X6, L1) | `e1670fbe` | Sonnet | test-engineer na 2ª; os outros cinco na 1ª | módulos novos `tools/testes/workers-de-pe.ts` e o `globalSetup` que recusa; 12 mutações; 2 linhas no `TODO.md`; o item (F4, retro, M3) fica `[ ]` até o fechamento; encontro em `95812d4e` |
 
 ## Esperando o Joaquim
 ## 17/11 08:55 — retro da X6, no terminal do `Arquiteto 2`
@@ -23,3 +24,4 @@ Decisão: o tamanho (uma spec, teto maior, ou F4c) e quem confere o lote de refe
 
 ## O que falhou
 ## O que decidi sem perguntar
+- 17/11: DIVERGÊNCIA (portão) do Implementador na 1.0: workers de pé em `educa-teste-1` eram órfãos da reengenharia-continuacao (pousada, checkout apagado). Não é defeito de código, então sem `corrigir`: derrubei `educa-teste`, `-1`, `-2` e `-3` e mandei retomar.
