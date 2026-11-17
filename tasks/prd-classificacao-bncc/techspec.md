@@ -1,178 +1,226 @@
 # Tech Spec — Classificação do material pela BNCC (F4b)
 
 **PRD:** `prd.md` · **Cenários:** `cenarios.md`
-**Status:** rascunho
+**Status:** rascunho · **Teto:** 2.800 palavras e 13 tarefas (Joaquim, 17/11/2026: uma spec só)
 
-Joaquim, 17/11/2026: classificação como rotina no `main-worker`, fila `lote`, sempre à noite; questão de capítulo sem
-habilidade sai sem habilidade; componente da BNCC na disciplina.
+Joaquim, 17/11/2026: rotina no `main-worker`, fila `lote`, à noite; capítulo sem habilidade dá questão sem habilidade;
+componente na disciplina; professor confere o lote retido antes do primeiro aluno real.
 
 ## 1. Resumo da abordagem
 
 A tabela pública `habilidade_bncc` vem do `bncc-dados`, numa versão fixa. O material ganha **seções** (capítulo, ou bloco
-de 10 páginas), cada uma com habilidades. A extração cria as seções e agenda a classificação, que só corre à noite. A
-geração usa as habilidades da seção da página citada, e o catálogo próprio sai.
+de 10 páginas; na tela, "Capítulo N" ou "Páginas X a Y"), cada uma com habilidades, classificadas à noite. A geração usa
+as da seção da página citada, e o catálogo próprio sai.
 
 ## 2. Módulos afetados
 
-| Módulo | O quê |
-|---|---|
-| `packages/core` (`bncc/`, `db/schema/`, `ia/`) | tabela BNCC e carga; seções; tarefa `classificar_secoes`; balde `lote` |
-| `apps/api/src/ia/`, `material/`, `ops/`, `estrutura/disciplina/` | rotina no `main-worker`; seções, correção, reclassificação, cobertura; comando D76; componente |
-| `apps/api/src/{artefato,atividade,governanca,tutor}` | geração pela seção; "sem habilidade"; troca |
-| `apps/worker/src/processors/extrair-pdf.ts` | seções e agendamento na extração |
-| `packages/shared`, `apps/web` | contratos, `FUNCOES`, job; sai `habilidades.ts`; as telas do §9 |
+`packages/core` (`bncc/`, `db/schema/`, `ia/`); `apps/api/src/` (`ia`, `material`, `ops`, `estrutura`, `artefato`,
+`atividade`, `governanca`, `tutor`); `apps/worker` (extração); `packages/shared` (sai `habilidades.ts`); `apps/web`.
 
 ## 3. Modelo de dados
 
 ```
-habilidade_bncc   codigo text pk, descricao text, etapa, componente text null (EF), area text null (EM),
-                  anos smallint[] null (EF, só 6 a 9), versao text, localizador text   — pública, sem escola (regra 10, item 1)
-                  check do formato: EF(06|07|08|09|67|69|89)[A-Z]{2}\d{2}, EM13(LGG|MAT|CNT|CHS)\d{3}, EM13LP\d{2}
-disciplina        + componente_bncc text null (check na lista de `COMPONENTES_BNCC`)
-secao_do_material id, escola_id, material_id, capitulo_id null, ordem smallint, pagina_inicial, pagina_final,
-                  execucao_id uuid null, classificada_em null, corrigida_por uuid null, corrigida_em null
-                  unique (escola_id, material_id, ordem); FK (escola_id, material_id) e (escola_id, capitulo_id) on delete cascade;
-                  FK (escola_id, execucao_id); FK (escola_id, corrigida_por) on delete set null ("corrigida_por")
+habilidade_bncc   codigo text pk, descricao, etapa, componente null (EF), area null (EM), anos smallint[] null (6 a 9),
+                  versao, localizador                     — pública, sem escola (regra 10, item 1)
+                  check: EF(06|07|08|09|67|69|89)[A-Z]{2}\d{2} | EM13(LGG|MAT|CNT|CHS)\d{3} | EM13LP\d{2}
+disciplina        + componente_bncc text null (check: `COMPONENTES_BNCC`)
+capitulo_do_material + unique (escola_id, id)
+secao_do_material id uuid pk default uuidv7(), escola_id, material_id, capitulo_id null, ordem smallint,
+                  pagina_inicial, pagina_final, execucao_id null, falhas_seguidas smallint not null default 0, classificada_em null, corrigida_em null,
+                  corrigida_por null
+                  unique (escola_id, id), (escola_id, material_id, ordem); FK (escola_id, material_id), (escola_id, capitulo_id)
+                  on delete cascade; FK (escola_id, execucao_id); FK (escola_id, corrigida_por) on delete set null ("corrigida_por")
 habilidade_da_secao escola_id, secao_id, codigo (FK habilidade_bncc), origem ('ia' | 'coordenacao')
                   pk (escola_id, secao_id, codigo); FK (escola_id, secao_id) on delete cascade
+execucao_agente   ano_letivo_id passa a aceitar nulo, só em `classificar_secoes` (check)
 ```
 
-Sem ano letivo (PRD F4, §6). **Carga:** o JSON da release `dados-2026.08` do `bncc-dados` (CC BY 4.0), reduzido a código,
-texto, componente, anos (6 a 9) e área, versionado no repositório com a atribuição; a migration faz `on conflict (codigo)
-do update` e grava a versão. Código nunca sai: revisão da BNCC é carga nova. Sem Computação. **Componentes:**
-`COMPONENTES_BNCC` em `packages/shared`, com as candidatas (EF: componente e anos das séries; EM: a área, e Língua
-Portuguesa com `EM13LP` e `EM13LGG`); a migration preenche `componente_bncc` pelo nome (Química → Ciências da Natureza),
-e o que não casa fica nulo.
+**A marca da correção é `corrigida_em`** (a eliminação do titular não a toca); `corrigida_por` é só autoria. O material
+não tem ano (PRD F4, §6), nem a execução da classificação; a virada não a afeta.
 
-**Migrations** (regra 80, item 9): (1) tabelas, coluna e carga; (2) seções dos materiais `pronto` existentes, em lotes,
-sem execução (o comando da operação as classifica); (3) a **contração da F4** (abertura, item 4): o backfill de séries e
-licenças de novo, idempotente; o check `(titularidade = 'terceiro_com_licenca') = (licenca_id is not null)` com
-`NOT VALID` e `VALIDATE`; e a saída de `material.licenciante` e dos dois checks dele, depois do código que não o grava.
+**Carga:** o JSON da release `dados-2026.08` do `bncc-dados` (CC BY 4.0), reduzido a código, texto, componente, anos
+(6 a 9) e área, versionado com a atribuição; `on conflict (codigo) do update`, com a versão. Código nunca sai. Sem
+Computação (a D65 fica no `TODO.md`). **Componentes:** `COMPONENTES_BNCC` em `packages/shared` diz as candidatas (EF:
+componente e anos das séries; EM: a área, e Língua Portuguesa com `EM13LP` e `EM13LGG`; série do EF e do EM no mesmo
+material: a união). A migration preenche o componente pelo nome sem acento nem caixa; o que não casa fica nulo. A disciplina criada depois
+casa igual (`DisciplinaRepository.criar`); renomear não o muda.
+
+**Migrations** (regra 80, item 9, todas com `lock_timeout`): (1) tabelas, coluna, carga, o `unique` do capítulo;
+`execucao_agente.ano_letivo_id drop not null` (metadado); o check novo do ano e os de função e tarefa de
+`execucao_agente` e `consumo_ia` entram por `ADD … NOT VALID` e `VALIDATE` (como a `0036`), antes do código que grava a
+função; (2) seções dos materiais `pronto` existentes, em lotes de 1.000, sem execução (a rotina das 19h as agenda);
+(3) **contração da F4** (abertura, item 4), em três passos: nesta spec, o backfill de séries e licenças de novo
+(idempotente), o check `(titularidade = 'terceiro_com_licenca') = (licenca_id is not null)` com `NOT VALID` e `VALIDATE`,
+a saída dos dois checks de `licenciante` e o código que não lê nem grava a coluna (fora do schema Drizzle); o
+`DROP COLUMN` vai ao `TODO.md`, para o deploy seguinte.
 
 ## 4. API
 
 | Método | Rota | Papel | Entrada | Saída |
 |---|---|---|---|---|
-| GET | `/v1/materiais/:id` | coordenação, professor | — | + `secoes[]`: capítulo ou páginas, `situacao` (`aguardando`, `classificada`, `sem_habilidade`, `nao_classificada`), `habilidades[]` (`codigo`, `descricao`, `origem`), `corrigida` |
-| PUT | `/v1/materiais/:id/secoes/:secaoId/habilidades` | coordenação | `codigos[]` (0 a 5, do recorte do material) | a seção |
-| POST | `/v1/materiais/:id/reclassificar` | coordenação | — | `202` |
-| GET | `/v1/habilidades-bncc` | coordenação, professor | `materialId` ou `turmaId` | as candidatas do recorte |
-| GET | `/v1/materiais/cobertura` | coordenação | — | por série e componente (área, no EM): `semMaterial[]`, `total` |
+| GET | `/v1/materiais/:id` | coordenação, professor | — | + `secoes[]`: capítulo ou páginas, `situacao`, `habilidades[]` (`codigo`, `descricao`, `origem`), `corrigida`; + `classificacaoSuspensa` |
+| PUT | `/v1/materiais/:id/secoes/:secaoId/habilidades` | coordenação | `codigos[]` (0 a 5, sem repetir) | a seção |
+| POST | `/v1/materiais/:id/reclassificar` | coordenação | — | `202`, com quantas seções e quantas preservadas |
+| GET | `/v1/habilidades-bncc` | coordenação, professor | `materialId` ou `artefatoId` | as candidatas do recorte (até ~200) |
+| GET | `/v1/materiais/cobertura` | coordenação | `serieId` | por componente (área, no EM): `semMaterial[]`, `total`, `secoesSemClassificacao` |
 | PATCH | `/v1/disciplinas/:id` | coordenação | + `componenteBncc` (nulo apaga) | `Disciplina` |
-| PATCH | `/v1/artefatos/:id/questoes/:indice/habilidade` | professor | `codigo` | `Artefato` |
+| PATCH | `/v1/artefatos/:id/questoes/:indice/habilidade` | professor | `codigo` ou `null` | `Artefato` |
 
-Objeto de outra escola: `NAO_ENCONTRADO`, como o inexistente. Código fora do recorte: `ENTRADA_INVALIDA`. Material não
-`pronto` ou disciplina sem componente: `CONFLITO`. A troca só no original sem aplicação nem versão adaptada
-(`CONFLITO`), com código do recorte da turma (RF9). `PUT`, reclassificar e troca têm o teto do `PATCH` da F4 (100/h por
-pessoa, 300/h por escola).
+**Ordem das respostas:** primeiro o objeto no alcance (material da F4; `artefatoId` só do dono; série da escola), senão
+`NAO_ENCONTRADO`, igual ao inexistente; depois `ENTRADA_INVALIDA` (código fora do recorte atual); depois `CONFLITO`
+(material não `pronto`, disciplina sem componente, artefato aplicado ou com versão adaptada) e `FUNCAO_SUSPENSA`
+(reclassificar suspenso). Sem componente, `GET /v1/habilidades-bncc` devolve lista vazia com `semComponente`, e a
+troca só aceita `null`. `/cobertura` vem antes de `:id`. Tetos por pessoa e escola (429, `Retry-After`): `PUT` 300/h e
+900/h, reclassificar e troca 100/h e 300/h, contados na auditoria. A rede não alcança nada disto.
 
 ## 5. Fluxo
 
-**Seções.** Na transação da extração, depois dos capítulos: uma seção por capítulo, ou por bloco de 10 páginas; com
-componente, nascem ali as execuções `classificar_secoes` (12 seções cada, `solicitada_por` nulo) e os jobs
-`ia.executar-lote` (fila `lote`, `naoUrgente: true`, executor `api`, chave = execução), e cada seção guarda o
-`execucao_id`. A edição nova não herda a correção da anterior (os capítulos mudam).
+**Seções.** Na transação da extração, depois dos capítulos (só quem fez a transição para `pronto`, então a reentrega
+não duplica): uma seção por capítulo, ou por bloco de 10 páginas; páginas antes do primeiro capítulo ficam sem seção.
+Com componente e a função ativa, nascem ali as execuções `classificar_secoes` (12 seções cada, sem pessoa nem ano) e os jobs `ia.executar-lote` (fila `lote`, `naoUrgente: true`, executor `api`, chave = execução); cada seção
+guarda o `execucao_id`. **Edição nova:** a seção cujo capítulo tem o mesmo número e título (sem acento nem caixa) de uma
+seção corrigida da anterior herda as habilidades e `corrigida_em` (sem `corrigida_por`), com
+`material.classificacao_herdada` na auditoria; as outras vão à IA.
 
-**Classificação** (`main-worker`, contexto da rotina: a escola do job, sem pessoa nem ano letivo). O `ExecucaoProcessor`
-aceita `quemPediu` ausente só em comando `daRotina`; os outros seguem `NAO_ENCONTRADO`. A suspensão é conferida antes do
-modelo. O `preparar` relê as seções com o material `pronto` e não excluído; a entrada leva, por seção, título, até 1.500
-caracteres do começo e até 500 das linhas de subtítulo, delimitados como dado, com as candidatas no começo do prompt. A
-saída dá de 0 a 3 códigos por seção; fora das candidatas, `IA_SAIDA_INVALIDA`. O `concluir` grava cada seção
-`where execucao_id = :esta and corrigida_por is null`, com `for update`: correção e reclassificação mais nova vencem.
+**Agendar** (job `material.agendar-classificacao`, fila `lote`, `naoUrgente`, por escola, lotes de 500 seções; seção
+com `falhas_seguidas > 0` vai numa execução só dela). (a) **A rotina das 19h** pega a seção não corrigida de material `pronto` com
+componente **sem execução, ou com a última `falhou` e `falhas_seguidas < 3`**; nunca `classificada` nem `sem_habilidade`.
+(b) **A mudança de recorte** (`PATCH` do componente ou de séries) só enfileira o job do material ou disciplina (chave com
+a auditoria do `PATCH`); ele lê o recorte atual, **limpa** as não corrigidas e, com componente, agenda. **Limpar:** lê a
+seção `for update`, anula o `execucao_id`, apaga as `origem: 'ia'` e zera `falhas_seguidas` (P10). Função suspensa: limpa e não agenda. Agendar troca o `execucao_id` com a mesma
+condição (P9). As candidatas são lidas no `preparar`; sem candidatas, conclui sem modelo e limpa as seções com
+`execucao_id = :esta` (P11).
 
-**Reclassificar** (RF12) e o comando da operação: cada seção não corrigida ganha execução nova e o `execucao_id` dela; a
-antiga conclui sem efeito. O texto vem dos `trecho` gravados. **Correção** (RF6): `for update` na seção, troca as
-habilidades (`origem: 'coordenacao'`) e grava `corrigida_por`; a IA não a toca mais.
+**Classificação** (`main-worker`, contexto da rotina: a escola do job, sem pessoa nem ano). O `ExecucaoProcessor` aceita
+`quemPediu` ausente só em comando `daRotina` (extração, rotina, reclassificar, D76), que lê a execução sem ano. Antes de
+`rodando`, confere a janela letiva (dentro dela, adia até o fim, motivo `janela`, com jitter) e a suspensão. O `preparar` lê só as seções
+vivas (`execucao_id = :esta`, `corrigida_em` nulo, material `pronto` e não excluído); sem nenhuma, conclui sem modelo e
+sem consumo. A entrada leva, por seção, título, até 1.500 caracteres do começo e até 500 das linhas de subtítulo,
+delimitados como dado, com as candidatas no começo; saída de 0 a 3 códigos por seção, teto de 800 tokens; fora das
+candidatas ou do formato, `IA_SAIDA_INVALIDA`. O `concluir` relê o material `for share` (`pronto`, não excluído) e grava
+cada seção `where execucao_id = :esta and corrigida_em is null`, `for update`, zerando `falhas_seguidas`; senão conclui
+sem efeito.
 
-**Geração** (RF7, RF2). A busca devolve, com cada trecho, as habilidades da seção da página. A tarefa escolhe, por
-questão, uma das da página citada, ou nenhuma se não há; `habilidade` aceita `null`, e o plano, `habilidades` vazia. A
-conferência de quem grava (como `exigirCitacoesEntregues`) recusa habilidade fora da seção citada. Sai o catálogo
-(`habilidades.ts`, `habilidadesParaOTema`). A questão sem habilidade entra no `por_habilidade` com `codigo: null`:
-"Sem habilidade" em Turmas, no aluno, no Tutor e no Analista. Seed e fixturas passam à BNCC; o que já está gravado com
-código antigo fica (não há dado real).
+**Degradação do lote.** `classificar_secoes` entra em `TAREFAS_SEM_MODELO_MENOR`: nunca desce a modelo sem medida.
+Balde `lote` cheio, disjuntor aberto ou provedor fora (`IA_INDISPONIVEL` transitório): a execução volta a `pendente` e o
+job é adiado (`JobAdiadoError`, motivo `provedor`, `baseMs` do balde ou do disjuntor, com jitter), sem tentativa; consumo
+só se uma chamada saiu. O adiamento que cai na janela letiva é segurado pela conferência acima. Termina `falhou` o erro
+definitivo (`IA_SAIDA_INVALIDA`, `EXECUCAO_INTERROMPIDA`, `FUNCAO_SUSPENSA`, recusa de soberania); só `IA_SAIDA_INVALIDA`
+soma 1 em `falhas_seguidas` das seções da execução (`execucao_id = :esta`), na transação da passagem a `falhou`. Com 3, a seção espera o reclassificar.
 
-**Cobertura** (RF19): as candidatas de cada série e componente menos as das seções do material que passa no filtro da F4
-(`declaradoParaASerie`, `proprioOuComLicencaVigente`, `pronto`); `EF69LP01` conta em cada ano.
+**Reclassificar** (RF12) e o comando D76 (`reclassificar-escola`, com chamado, em lotes de 500): as seções não corrigidas e
+sem execução `pendente` ganham execução nova (`solicitada_por` nulo, `falhas_seguidas` zerada); a antiga conclui sem
+efeito. O texto vem dos `trecho`. **Correção** (RF6):
+`for update` na seção, troca as habilidades (`origem: 'coordenacao'`) e grava `corrigida_em`; é final.
+
+**Suspensão** de `classificacao_do_material`: a geração, a troca e a cobertura ignoram `origem: 'ia'` (vale só a
+correção); reclassificar e D76 recusam; a rotina não agenda; o painel diz por quê. Retomada: a rotina das 19h agenda.
+
+**Geração** (RF7, RF2). A busca da ferramenta e do chat devolve, com cada trecho, as habilidades da seção da página,
+filtradas pelo recorte atual da turma. A tarefa escolhe, por questão, uma das da página citada, ou nenhuma; `habilidade`
+aceita `null`, e o plano, `habilidades` vazia (a união das seções citadas). Habilidade fora da seção citada é anulada na
+gravação, e `ia.habilidade_anulada` soma. **O Tutor não recebe** as habilidades da seção: a entrada dele segue com
+`materialId`, `pagina` e `texto`, e a habilidade só chega pela atividade aplicada. Sai o catálogo (`habilidades.ts`,
+`habilidadesParaOTema`, `QUI.EM.*` no seed). Questão sem habilidade entra no `por_habilidade` com `codigo: null`. O
+schema de leitura aceita `null` e código antigo (a tarefa confere a produção, D82).
+
+**Troca** (RF9): `for update` no artefato, na transação que confere aplicação e versão adaptada e grava a questão;
+aplicar e adaptar tomam a mesma trava primeiro. Código do recorte atual (série da turma, componente da disciplina do
+artefato).
+
+**Cobertura** (RF19): candidatas da série menos as habilidades das seções de material no filtro da F4
+(`declaradoParaASerie`, `proprioOuComLicencaVigente`, `pronto`).
 
 ## 6. Isolamento (obrigatório)
 
-FK composta com a escola; escopo do contexto em todo método (no worker, `job_registro.escola_id`). Testes efetivos sem a
-cláusula: GET, `PUT` e reclassificar com material da B; cobertura sem o material da B; execução da A com seções da B
-(nada gravado); troca em artefato da B; comando da operação só na escola dada.
+FK composta com a escola; escopo do contexto em todo método (no worker, `job_registro.escola_id`); nenhum `@Unscoped`
+novo (a rotina das 19h roda por escola, como o expurgo). Testes efetivos sem a cláusula: `cenarios.md`, "Isolamento".
 
 ## 7. Dado pessoal (obrigatório)
 
 | Item | Resposta |
 |---|---|
-| Campos pessoais, novos (`docs/lgpd.md`) | `corrigida_por` (coordenador); as ações novas da auditoria |
+| Campos pessoais (`docs/lgpd.md`) | `corrigida_por` e as ações, na linha do material, na tarefa da migration |
 | Log | ids, contagens, códigos de erro; nunca título, texto ou código escolhido |
-| Auditoria | `material.classificacao_corrigida` (códigos antes e depois), `material.reclassificado`, `escola.reclassificada` (operação, com chamado), `artefato.habilidade_trocada` |
-| Provedor externo | texto do material e lista BNCC, sem pessoa (regra 20, item 13) |
-| Retenção | as seções saem com o material |
+| Auditoria | `material.classificacao_corrigida` (antes e depois), `material.classificacao_herdada`, `material.reclassificado`, `escola.reclassificada` (chamado), `artefato.habilidade_trocada`, `disciplina.componente_alterado` (a chave do job, §5) |
+| Provedor externo | texto do material e lista BNCC, sem pessoa; a tarefa declara `levaTextoDeAluno: false`, `levaTextoLivreDePessoa: false` e a categoria (regra 20, item 13) |
+| `consumo_ia` | entrada só com ids das seções e versão do prompt; saída, os códigos |
+| Retenção | sai com o material |
 | Arquivo do titular | `corrigida_por` em `fora`, como `registrada_por` na F4 |
-| Autorização, DTO | alcance do material da F4; troca só do dono; sem `corrigida_por` nem `execucao_id` |
+| Autorização, DTO | §4; sem `corrigida_por` nem `execucao_id` |
 
 ## 7b. Conformidade CNE
 
-A classificação alimenta o diagnóstico por habilidade (alto risco, regra 70, item 6a). Função nova
-`classificacao_do_material` do Assistente de ensino, autonomia 1 ("classifica cada capítulo pela BNCC; a coordenação
-corrige, e a correção vence"), alto risco, suspensível; os checks de `execucao_agente` e `consumo_ia` a recebem. A
-aprovação humana segue na atividade: o professor vê e troca a habilidade antes de aplicar. **A AIA
-`docs/aia/diagnostico-por-habilidade.md` é revista na tarefa que cria a função**, antes da que troca o catálogo.
+Função `classificacao_do_material` do Assistente de ensino, autonomia 1, alto risco, suspensível. `fazSozinha`:
+"Classifica cada capítulo ou bloco de páginas do material pela BNCC, à noite. A coordenação corrige, e a correção
+vence." `esperaAprovacao`: "Nada chega ao aluno pela classificação: a habilidade de cada questão só vale quando o
+professor confere e aplica a atividade." **A AIA `docs/aia/diagnostico-por-habilidade.md` é revista na tarefa que cria a
+função**, antes da que troca o catálogo: a habilidade vem da seção; a granularidade (seção, não questão); a taxa e o
+lote como evidência; contestação (correção, troca); a suspensão do §5; a conferência do lote por professor como etapa 2.
 
-Classificação de texto: (a) **lote retido** em `docs/aia/ouro-retido/`, 30 seções sintéticas com as habilidades de
-referência, escrito em contexto limpo antes do prompt e nunca lido por quem o escreve; (b) sem padrão de texto: o modelo
-decide, preso às candidatas; (c) a sonda de seções novas é do `test-engineer`, na revisão. **Taxa mínima:** ≥ 90 % das seções com um código da referência e ≥ 80 % dos códigos
-propostos aceitáveis, na pior de três execuções do modelo local (`tools/ia/medir-classificacao.ts`, fora do portão; o
-teste dela usa o `ScriptedAdapter`). Sem isso no `rapido`, vai a `padrao`.
+**Classificação de texto.** (a) **Lote retido** `docs/aia/ouro-retido/classificacao-retido-1.json`, 48 seções
+(`cenarios.md`, "Lote retido"), escrito por subagente em contexto limpo, revisto pelo `pedagogia-reviewer` e pelo
+`conformidade-reviewer`, conferido por professor antes do primeiro aluno real (`TODO.md`); o prompt é escrito sobre um
+conjunto `dev` próprio. (b) Sem padrão de texto. (c) Sondas do `test-engineer` na revisão da tarefa do prompt.
+
+**Taxa mínima**, na pior de três execuções, saída inválida conta como erro: ≥ 90 % das seções com conteúdo com um código
+da `referencia`, nenhuma etapa abaixo de 80 %; ≥ 80 % dos códigos propostos em `aceitaveis`; no máximo 1 de 6
+`sem_conteudo_curricular` com código; nenhuma `injecao` obedecida. **Por questão:** a ferramenta gera 10 atividades
+sobre seções do lote e lista questão e habilidade; o `pedagogia-reviewer` julga, ≥ 80 % coerentes. Mede o Arquiteto,
+com o modelo local e o da produção (D37), por `tools/ia/medir-classificacao.ts`, **antes da troca do catálogo**,
+registrando no `RETIDOS.json`. Sem a taxa no `rapido`, `padrao`; sem ela no
+`padrao`, a função nasce suspensa em cada escola (D76, com chamado e motivo) e a decisão é do Joaquim.
 
 ## 7c. Carga e falha (obrigatório)
 
 | Item | Resposta |
 |---|---|
-| Está no caminho quente? | a leitura da seção da página, na geração |
-| Carga na manhã de segunda | sem IA (a `lote` não corre no horário letivo); a geração soma um join por índice |
-| Fila e prioridade | `lote`, `naoUrgente`; pool `lote` no `worker-ia` (2 por réplica); a varredura de execuções inclui a `lote` |
-| Limite por escola | vaga `lote`; balde de tokens `lote` (5 % do contratado) |
-| Rate limit | §4 (429 com `Retry-After`) |
-| Corridas de concorrência | correção × execução (trava da seção); reclassificar × execução (`execucao_id`); dois reclassificar; edição nova × execução (conclui sem efeito). Ordens em `cenarios.md` |
-| Laços e ritmo | nenhum novo |
-| Índices novos | `secao_do_material (escola_id, material_id, pagina_inicial)`; `habilidade_da_secao (escola_id, codigo)`; parcial `(escola_id, execucao_id)` |
-| Migration | expandir e contrair; a contração da F4 por último |
-| Quando cada dependência cai | provedor: seções "não classificadas", com "Reclassificar"; Redis: outbox |
-| Métrica e alerta | as da X6, por tarefa |
-| Cenário de teste de carga | 300 materiais de ~25 capítulos numa noite, adaptador falso, Tutor da B medido |
+| Caminho quente | a seção da página, na geração (join por índice); sem classificação no horário letivo |
+| Fila | `lote`, `naoUrgente`; pool `lote` no `worker-ia`, 1 por réplica; a varredura de execuções inclui a `lote` |
+| Vazão | balde `lote` global, 5 % do contratado (125 mil tokens/min), ~12 mil por execução: ~10 execuções/min. O pool puxa `réplicas × 1 × 60 / latência` (2 réplicas, ~6 s: ~20/min); o excedente adia, e o adiamento é o regulador. Uma escola de 300 apostilas (~625 execuções) em ~65 min; o resto, na noite seguinte |
+| Limite por escola | vaga `lote` 1 por escola (dividida com expurgo e eliminação: o runbook diz); `FILAS_DA_IA` ganha a `lote` |
+| Corridas | uma linha por trava, ordem forçada e mutação em `cenarios.md`, P1 a P11 |
+| Laços | agendar (rotina e `PATCH`) e D76: lotes de 500 seções por transação, `statement_timeout`, até o sinal |
+| Índices | `secao_do_material (escola_id, material_id, pagina_inicial)`; `habilidade_da_secao (escola_id, codigo)`; parcial `(escola_id, execucao_id)` |
+| Migration | §3; a versão anterior lê execução sem ano e questão com `null` (teste) |
+| Dependência cai | provedor ou balde: adia (§5); Redis: outbox |
+| Métrica | `ia.habilidade_anulada`; envio à classificação (`classificada_em − enviado_em`); correções e trocas pela auditoria, por escola, nunca por professor |
+| Alerta | `classificacao-atrasada`: na abertura da janela, execução `classificar_secoes` `falhou` na noite, ou `pendente` criada antes dela; com runbook |
+| Carga | `cenarios.md`, "Carga" |
 
-**Estados da seção** (derivados da execução, sem estado gravado a mais). `aguardando` (execução `pendente` ou `rodando`)
-vai a `classificada` ou `sem_habilidade` pelo `concluir` dela; execução `falhou` (provedor, prazo, suspensão, varredura)
-dá `nao_classificada`, até reclassificar. `corrigida` é final para a IA.
+**Estados da seção** (derivados; `corrigida` vence todos):
+
+| Situação | Entra | Sai | Prazo e queda |
+|---|---|---|---|
+| `nao_agendada` | sem execução (sem componente, suspensa, migration, componente apagado) | agendar, reclassificar | rotina |
+| `aguardando` | execução `pendente` ou `rodando` | `concluir`; falha | adiada até a janela; `rodando` morta: reentrega, `EXECUCAO_INTERROMPIDA` |
+| `classificada`, `sem_habilidade` | `concluir` da própria execução | reclassificar, mudança de recorte, correção | — |
+| `nao_classificada` | execução `falhou` | rotina (`falhas_seguidas < 3`), reclassificar | — |
 
 ## 8. Uso de IA
 
 | Caso de uso | Perfil | Entrada | Saída | Validação | Aprovação humana |
 |---|---|---|---|---|---|
-| `classificar_secoes` | `rapido` | até 12 seções + candidatas (~12 mil tokens) | 0 a 3 códigos por seção | schema e candidatas | a correção da coordenação; a atividade aplicada pelo professor |
+| `classificar_secoes` | `rapido` | até 12 seções + candidatas (~12 mil tokens; o maior recorte, LP do 6º ao 9º, medido na tarefa) | 0 a 3 códigos por seção | schema e candidatas | correção da coordenação; atividade aplicada pelo professor |
 
-Custo (`llm-integrator`): onboarding de 300 apostilas, ~7 milhões de tokens, R$ 4 a 20 por escola conforme o modelo;
-menos de R$ 0,01 por aluno por mês. Fora do pacote do Tutor (D38), em `consumo_ia` com a função própria. Prompt em
-`packages/core/src/ia/prompts/classificar-secoes.ts`.
+Custo: ~625 chamadas por onboarding, R$ 4 a 20 por escola; fora do pacote do Tutor (D38). Prompt em `packages/core/src/ia/prompts/classificar-secoes.ts`, versão
+na execução: código só quando o trecho sustenta a habilidade, e "nenhuma" vale.
 
 ## 9. Frontend
 
 | Tela | Mostra ou faz | De onde vem (§4) |
 |---|---|---|
 | Estrutura, disciplina | componente | `PATCH /v1/disciplinas/:id` |
-| Painel do material | habilidades e situação por seção; corrigir; reclassificar; "classificação hoje à noite"; aviso sem componente | `GET /:id`, `GET /v1/habilidades-bncc`, `PUT`, `POST /reclassificar` |
-| Material, cobertura | o que falta por série e componente | `GET /cobertura` |
-| Artefato do professor | habilidade da questão; trocar | `GET /v1/artefatos/:id`, `GET /v1/habilidades-bncc`, `PATCH` |
-| Turmas, aluno, Analista | "Sem habilidade" | leituras de hoje |
+| Painel do material | por seção: situação, habilidades com descrição, origem; corrigir (seletor com filtro); reclassificar; avisos | `GET /:id`, habilidades, `PUT`, reclassificar |
+| Material, cobertura | por série: o que falta por componente; seções sem classificação | `GET /cobertura` |
+| Artefato do professor | habilidade da questão, com o capítulo; trocar (seletor com filtro) | artefato, habilidades, `PATCH` |
+| Turmas, aluno, Analista | "Sem habilidade", com explicação curta | leituras de hoje |
 
-O professor vê a classificação na questão do artefato, sem tela de material (D73). Textos em `cenarios.md`; peças em
-`docs/interface.md`.
+Estados, textos, 360 px, teclado: `cenarios.md`. A lista da troca traz primeiro as do capítulo.
 
 ## 10. Testes
 
-Em `cenarios.md`.
+`cenarios.md`. **Tarefas: 13** (`tasks.md`).
 
 ## 11. Conformidade com as regras
 
@@ -180,17 +228,18 @@ Em `cenarios.md`.
 |---|---|
 | 00, 20, 70, 80 | nenhum |
 | 10, item 1 | `habilidade_bncc` sem escola: tabela pública sem dono |
+| 10, item 2 | execução de `classificar_secoes` sem ano: classifica o material, que não tem ano (F4, §6) |
 | 30, item 8 | consumo por escola e função, sem teto por escola: o contrato não o tem (`OrcamentoRepository`) |
+| 40, item 4 | a taxa da classificação fica fora do portão (modelo de verdade): mede o Arquiteto antes da troca do catálogo |
+| PRD, papel do professor | "ver a classificação" é na questão do artefato e na troca, sem tela de material (D73) |
 
 ## 12. Premissas não verificadas
 
-- ⚠️ NÃO VERIFICADO: a origem do `bncc-dados` no MEC e a versão do PDF. A tarefa da carga confere 30 habilidades (3 por
-  componente do EF, uma por bloco, 4 por área do EM) e as contagens (183 no EM) contra o PDF homologado, com o hash dele.
-  O PDF vence.
-- ⚠️ NÃO VERIFICADO: os blocos de Arte, Educação Física e Ensino Religioso (o check os aceita); o art. 8º, IV, da Lei
-  9.610 e o envio do material ao provedor (advogado, PRD F4, §10).
+- ⚠️ NÃO VERIFICADO: a origem do `bncc-dados` no MEC. A tarefa da carga confere 30 habilidades e as contagens (183 no
+  EM) contra o PDF homologado, com o hash; o PDF vence.
+- ⚠️ NÃO VERIFICADO: os blocos de Arte, Educação Física e Ensino Religioso; o art. 8º, IV, da Lei 9.610 e o envio ao
+  provedor (advogado, PRD F4, §10).
 
 ## 13. Riscos técnicos
 
-- **Classificador fraco:** a taxa do §7b e a correção.
-- **Correção perdida na edição nova:** se pesar, herdar pelo capítulo.
+Capítulo longo, lido pelo começo (o lote mede).

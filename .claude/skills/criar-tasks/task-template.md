@@ -112,7 +112,10 @@ rodada nova; o caso que originou cada pergunta está em `docs/processo-licoes.md
    ninguém: o teste fica verde pelo motivo errado. Percorra o caminho até a linha que interessa e confirme que o cenário
    chega nela. E o teste cria a condição de que depende (o serviço parado, o job que roda, o objeto que existe), em vez
    de herdá-la de outro arquivo ou de um fixture que pula o caso; e o dublê lança o erro que a produção lança (o tipo que o
-   adaptador traduz, como `FileStorageUnavailableError`), não `new Error`. Na F4, a 1.0, a 2.0 e a 3.0.
+   adaptador traduz, como `FileStorageUnavailableError`), não `new Error`. Na F4, a 1.0, a 2.0 e a 3.0. Job que varre o
+   banco inteiro (varredura, expurgo) é testado com a sobra que outro arquivo deixa: semeie antes mais linhas que o lote da
+   volta, e uma com valor extremo (a de 2025), como a correção `varredura-da-pendente-na-esteira`. E a busca por um valor no
+   texto do log usa um que não caiba num UUID (só hexadecimal não serve).
 5. **A asserção olha o resultado, ou a forma do código?** Asserção sobre texto de arquivo, nome de função ou lista vazia
    passa igual se a regra ler o campo errado. Compare o que o usuário obtém. Asserção de ausência ou de contagem na tela
    (`not.toContain`, `toHaveCount(0)`, `vezes > antes`) só prova depois da resposta que poderia trazer o que ela nega: espere
@@ -125,6 +128,9 @@ rodada nova; o caso que originou cada pergunta está em `docs/processo-licoes.md
    lugar reprova, e não se cala; o `ignore` da configuração tem caso que prova que não esconde o real.
 7. **Algum comentário, docblock ou nota da tarefa afirma o que o código não faz?** Neste repositório a regra do módulo mora
    no comentário: quem lê "e só elas" conclui que o caso está barrado, e o próximo a mexer "corrige" o código pelo comentário.
+   Vale também para o texto novo em `docs/` (a AIA, o runbook, `lgpd.md`, `infra.md`): cada frase que diz o que o sistema faz
+   tem o arquivo ou o caso que a prova, e o nome de variável, comando ou métrica vem da árvore (`grep`), nunca de memória. Na
+   X6, a AIA prometia uma supervisão que não existia (7.0) e o runbook mandava corrigir `LLM_API_KEY` (10.0).
 8. **A divergência que você vai registrar cria ou muda uma regra, e a coluna "Onde está na spec" diz a verdade?** Uma trava
    nova, um subcomando a mais sob a mesma conferência, uma gravação nova numa rota sem sessão: antes do código, a
    divergência ganha a sua linha na tabela de testes e a resposta do guardião que ela toca (quem chama sem autenticação,
@@ -150,7 +156,11 @@ rodada nova; o caso que originou cada pergunta está em `docs/processo-licoes.md
     virada da semana. E o teste não depende de a máquina estar calma nem de o relógio de parede não recuar: compare instantes
     do mesmo relógio (o do banco, ou `performance.now()` no mesmo processo), dê folga entre processos, espere pelo sinal (a
     resposta, a linha no banco) e não por tempo, e escolha "o último" pela ordem de criação, não por `expiraEm` nem
-    `Date.now()`. Na F2c foram 11 correções de teste que caía com a máquina carregada ou o relógio recuando.
+    `Date.now()`. Na F2c foram 11 correções de teste que caía com a máquina carregada ou o relógio recuando. Na X6: o cliente
+   com corte curto (os 100 ms do limite, que manda a primeira chamada ao seguro em memória) e o `statement_timeout` de 2 s,
+   que a esteira carregada passa: o teste não conta com a chamada caber no corte; duas marcas de `clock_timestamp()` no mesmo
+   milissegundo; o dia calculado em três relógios (o banco na semeadura, a tela, o teste) na virada da meia-noite de SP:
+   calcule o esperado a partir do que o banco gravou.
 11. **O teste de isolamento quebraria sem a cláusula de escopo do repository, e cada linha da tabela de testes tem o caso na
     coluna "Caso", um para cada coisa que a linha diz?** Remova mentalmente a cláusula e pergunte se algo ficaria vermelho.
     Repository que filtra por escola e por ano: o ano de cada escola já separa, e a escola tirada fica verde se o caso usa
