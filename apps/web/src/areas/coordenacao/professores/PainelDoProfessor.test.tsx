@@ -27,8 +27,8 @@ const turma = (n: number, nome: string, serie: { id: string }) => ({ id: id(100 
 const T7A = turma(1, '7ºA', SERIE_7)
 const T7B = turma(2, '7ºB', SERIE_7)
 const T8A = turma(3, '8ºA', SERIE_8)
-const MATEMATICA = { id: id(500), nome: 'Matemática', area: null }
-const FISICA = { id: id(501), nome: 'Física', area: null }
+const MATEMATICA = { id: id(500), nome: 'Matemática', area: null, componenteBncc: null }
+const FISICA = { id: id(501), nome: 'Física', area: null, componenteBncc: null }
 const professor = (n: number, nome: string, estado: string) => ({ usuarioId: id(300 + n), nome, estado })
 const ANA = professor(1, 'Ana Sintética', 'aceito')
 const BRUNO = professor(2, 'Bruno Sintético', 'pendente')

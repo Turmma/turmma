@@ -10,13 +10,16 @@ teste vermelho por um caso que rodou e falhou. Nenhum teste chama provedor: `Scr
 - [I] A carga duas vezes dá a mesma contagem (183 no EM); `on conflict` atualiza a descrição e nunca apaga código; toda
   linha tem `versao` e `localizador`; nada de Computação (o check aceita `EF06CO01`: é a carga que barra)
 - [I] O check recusa `EF03CI03B`, `EF15AR01`, `EM13CNT3010`, `EF07LP01A`
+- [I] Os checks do recorte da etapa, do componente e da área: linha do Fundamental sem componente, com área ou com ano fora de 6 a 9, e linha do Médio sem área ou com anos, são recusadas; componente ou área fora da lista, também
 - [U] Candidatas: `EF69LP01` no 6º, 7º, 8º e 9º; `EF67EF` no 6º e 7º, `EF89EF` no 8º e 9º; `EM13CNT301` em Química e
   Física; Língua Portuguesa no EM traz `EM13LP` e `EM13LGG`; Arte, Educação Física e Ensino Religioso nos blocos;
   material do 9º EF e do 1º EM traz a união
+- [U] Biologia, Física e Química no EF procuram em Ciências (`EF09CI01`); Filosofia e Sociologia não têm candidata do EF e acham `EM13CHS`
+- [I] O `PATCH` com o mesmo componente que já estava responde 200 e não audita; dois iguais ao mesmo tempo auditam uma vez; o que espera a trava lê o componente que a outra troca deixou
 - [I] Migration do componente: "Química", "QUIMICA" e " química " casam; "Português" é Língua Portuguesa; "Projeto de
   Vida" e "Robótica" ficam nulos; a disciplina da B não muda
-- [I] A disciplina criada depois da migration ("química") nasce com Química; "Robótica" nasce nula; renomear "Química"
-  para "Robótica" mantém o componente. Mutação: tirar o casamento do `criar`
+- [I] A disciplina criada depois da migration ("química") nasce com Química; "Robótica" nasce nula; renomear "química" para
+  "Química Orgânica" mantém Química, e renomear "Robótica" para "Física" não dá a ela o componente do novo nome. Mutação: tirar o casamento do `criar`
 - [I] `PATCH /v1/disciplinas/:id` com `componenteBncc` grava, com `disciplina.componente_alterado` (antes e depois); o nulo apaga; da B, `NAO_ENCONTRADO`
   (no `apps/api/test/estrutura.int.test.ts`)
 

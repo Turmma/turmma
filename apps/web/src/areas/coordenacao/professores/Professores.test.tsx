@@ -84,7 +84,7 @@ const PADRAO: Respostas = {
   vinculos: ok(VINCULOS),
   // O painel do professor que recebe turma lê as turmas e as disciplinas da escola; o resto não as lê.
   turmas: ok(TURMAS),
-  disciplinas: ok([MATEMATICA, FISICA].map((disciplina) => ({ ...disciplina, area: null }))),
+  disciplinas: ok([MATEMATICA, FISICA].map((disciplina) => ({ ...disciplina, area: null, componenteBncc: null }))),
 }
 
 function instalar(rede: FakeNetwork, parcial: Partial<Respostas> = {}): void {

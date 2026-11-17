@@ -11,7 +11,7 @@ Escola*          → rede*, nome, slug*, inatividadeAlunoMin (30), inatividadeEq
 AnoLetivo*       → escola*, ano, inicio, fim, situacao (planejado | em_curso | encerrado)
 Serie*           → escola*, etapa (ef_anos_finais | em), ano (6–9 | 1–3)
 Turma*           → escola*, anoLetivo*, serie*, nome (2ºB), turno?, chave? (F2: o nome normalizado, "2b")
-Disciplina*      → escola*, nome, area? (área da BNCC)
+Disciplina*      → escola*, nome, area? (área da BNCC), componenteBncc? (o componente da BNCC: diz as habilidades candidatas do material dela; casado pelo nome na migration e na criação, definido pela coordenação)
 ```
 
 Tudo isso existe desde o F1. `slug` é o endereço de entrada da escola (`/e/:slug`), e a
@@ -28,6 +28,13 @@ sorteia um v4 (`randomUUID()`) a cada execução. O clique duplo repete o mesmo 
 recebe com `on conflict do nothing` e devolve sem criar outra (Tech Spec da A0b, seções 5 e 7c).
 Só esse id, e só nessas duas tabelas, vem de fora; o resto continua `uuidv7()` do banco. O cliente
 não escolhe um id legível: o contrato só aceita v4 e v7.
+
+**A BNCC e o componente da disciplina** (classificacao-bncc, 1.0). `HabilidadeBncc` (`habilidade_bncc`) é pública, sem `escola_id`:
+`codigo` (a chave: `EF69LP01`, `EM13CNT301`; o check aceita só os anos finais e o Médio), `descricao`, `etapa`, `componente` (do Fundamental e das
+`EM13LP`), `area` (do Médio), `anos` (6 a 9, só no Fundamental), `versao` (`dados-2026.08`) e `localizador` (a página do PDF homologado). Sem
+Computação (D65, `TODO.md`). `disciplina.componente_bncc` é um dos `COMPONENTES_BNCC` de `packages/shared` ou nulo: a migration e o `criar` o
+casam pelo nome (sem acento nem caixa), renomear não o muda, e a coordenação o define na Estrutura (`PATCH /v1/disciplinas/:id`,
+auditoria `disciplina.componente_alterado`). Nenhum dos dois é dado de pessoa.
 
 ## Pessoas e vínculos
 
@@ -826,7 +833,7 @@ liga a decisão sobre o professor (D45, regra 70 item 8). Os dois estão no mapa
    exceções são curtas e fixas, e esta lista é conferida contra as migrations por teste de
    arquitetura (`apps/api/test/architecture.test.ts`):
    - o próprio tenant: `Escola` e a `Rede` acima dela — ver "Estrutura institucional";
-   - tabela pública sem dono (habilidades da BNCC, banco de questões público);
+   - tabela pública sem dono: a `HabilidadeBncc` (classificacao-bncc, 1.0), a BNCC dos anos finais e do Médio carregada do `bncc-dados` (CC BY 4.0, versão `dados-2026.08`, 913 habilidades conferidas contra o PDF homologado), que a migration `0059_habilidade_bncc` cria e atualiza (`ON CONFLICT`, nunca apaga código) e que nenhuma escola escreve (a chave é o `codigo` oficial, em texto, e não um UUID: a regra 10, item 7, protege contra o id sequencial que revela o volume de dado de uma escola, e o código da BNCC é público, igual para todas e não conta nada de nenhuma); e o banco de questões público;
    - a identidade de login (`Conta`, `CodigoRecuperacao`), que é global por desenho e só é
      alcançada pelo módulo `sessao`, pelo `core/ciclo-de-vida` e pelo arquivo `core/estrutura/cadastro-de-professor.ts` (a `ContaGlobalRepository`),
      além da limpeza noturna do expurgo de acesso — ver "Pessoas e vínculos";

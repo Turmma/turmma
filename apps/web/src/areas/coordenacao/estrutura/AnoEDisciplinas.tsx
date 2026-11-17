@@ -1,5 +1,6 @@
 import {
   ANOS_DA_ETAPA,
+  COMPONENTES_BNCC,
   ErrorCode,
   ETAPAS,
   fimCaiAteOAnoSeguinte,
@@ -7,9 +8,11 @@ import {
   inicioCaiNoAnoLetivo,
   MAIOR_ANO_LETIVO,
   MENOR_ANO_LETIVO,
+  NOME_DO_COMPONENTE,
   nomeDaSerie,
   TAMANHO_MAXIMO_NOME_DISCIPLINA,
   type AnoLetivo,
+  type ComponenteBncc,
   type Disciplina,
   type Etapa,
   type Serie,
@@ -19,11 +22,12 @@ import { useId, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { abrirAnoLetivo, criarAnoLetivo, criarDisciplina, criarSerie, type ListaDaEstrutura } from '../../../api/estrutura'
 import { DANGER_BUTTON_CLASSES, SECONDARY_BUTTON_CLASSES } from '../../../components/ui/button-variants'
 import { FormField } from '../../../components/ui/fields/FormField'
+import { Select } from '../../../components/ui/fields/Select'
 import { ErrorAlert, StatusAnnouncement, FormDialog, useSingleSubmit } from '../../../components/dialogs'
 import { LoadingState, ErrorState } from '../../../components/states/index'
 import { Sheet } from '../../../components/ui/overlays/Sheet'
 import { SELECT_CLASSES } from '../../../components/ui/fields/field-styles'
-import { errorText } from '../../../components/error-text'
+import { errorText, listChanged } from '../../../components/error-text'
 import { formatDate } from '../../../format'
 import { ordenarPeloNome, ordenarSeries } from '../comum/ordem'
 import { AvisoDeListaIncompleta, ListRow } from '../comum/pecas-da-lista'
@@ -35,10 +39,10 @@ import { AvisoDeListaIncompleta, ListRow } from '../comum/pecas-da-lista'
  */
 
 /** O item da linha de uma lista da tela, fotografado na abertura do diálogo que age sobre ele. */
-export type AlvoDoDialogo = { readonly id: string; readonly nome: string }
+export type AlvoDoDialogo = { readonly id: string; readonly nome: string; readonly componenteBncc?: ComponenteBncc | null }
 
 /** Os diálogos que o painel abre. A Estrutura tem um só diálogo aberto de cada vez, e os da turma são dela. */
-export type TipoDeDialogoDoPainel = 'ano' | 'serie' | 'disciplina' | 'renomear_disciplina' | 'excluir_disciplina'
+export type TipoDeDialogoDoPainel = 'ano' | 'serie' | 'disciplina' | 'renomear_disciplina' | 'componente_da_disciplina' | 'excluir_disciplina'
 
 /** As seções da tela que têm escrita: o anúncio de cada ação aparece na seção dela. */
 export type SecaoDaTela = 'ano' | 'series' | 'disciplinas' | 'turmas'
@@ -69,8 +73,8 @@ export function Secao({ titulo, tituloRef, anuncio, acao, children }: PropsDaSec
   )
 }
 
-/** Renomear e Excluir da linha, com o nome do item no nome acessível do botão (WCAG 2.5.3). */
-function AcoesDaLinha({ nome, tipo, aoRenomear, aoExcluir }: { nome: string; tipo: string; aoRenomear: () => void; aoExcluir: () => void }) {
+/** Renomear, Componente (só na disciplina) e Excluir da linha, com o nome do item no nome acessível do botão (WCAG 2.5.3). */
+function AcoesDaLinha({ nome, tipo, aoRenomear, aoDefinirComponente, aoExcluir }: { nome: string; tipo: string; aoRenomear: () => void; aoDefinirComponente: () => void; aoExcluir: () => void }) {
   return (
     <>
       <button type="button" onClick={aoRenomear} className={SECONDARY_BUTTON_CLASSES}>
@@ -79,6 +83,10 @@ function AcoesDaLinha({ nome, tipo, aoRenomear, aoExcluir }: { nome: string; tip
           {' '}
           {tipo} {nome}
         </span>
+      </button>
+      <button type="button" onClick={aoDefinirComponente} className={SECONDARY_BUTTON_CLASSES}>
+        Componente{' '}
+        <span className="sr-only">da BNCC da disciplina {nome}</span>
       </button>
       <button type="button" onClick={aoExcluir} className={DANGER_BUTTON_CLASSES}>
         Excluir
@@ -385,6 +393,80 @@ export function NovaDisciplina({ aoFechar, aoCriar, recarregar }: PropsDeCriar<D
   )
 }
 
+/** O componente da BNCC como a linha da disciplina o diz; sem ele, "Sem componente": a coordenação o define no botão da linha. */
+export function textoDoComponente(componente: ComponenteBncc | null): string {
+  return componente === null ? 'Sem componente' : `Componente da BNCC: ${NOME_DO_COMPONENTE[componente]}`
+}
+
+const SEM_COMPONENTE = ''
+const OPCOES_DO_COMPONENTE = [{ valor: SEM_COMPONENTE, rotulo: 'Sem componente' }, ...COMPONENTES_BNCC.map((componente) => ({ valor: componente, rotulo: NOME_DO_COMPONENTE[componente] }))]
+
+/**
+ * O componente da BNCC da disciplina (classificacao-bncc, 1.0; RF1): o que diz as habilidades que o material dela pode ter. A escolha começa no que a disciplina tem hoje,
+ * fotografado na abertura da linha; "Sem componente" apaga. O foco volta ao botão da linha ao fechar, e o erro fica no diálogo, com a escolha de pé para tentar de novo.
+ */
+export function ComponenteDaDisciplina({
+  atual,
+  nome,
+  salvar,
+  aoFechar,
+  aoSalvar,
+  recarregar,
+  focoDeReserva,
+}: {
+  readonly atual: ComponenteBncc | null
+  readonly nome: string
+  readonly salvar: (componente: ComponenteBncc | null) => Promise<Disciplina>
+  readonly aoFechar: () => void
+  readonly aoSalvar: (disciplina: Disciplina) => void
+  readonly recarregar: () => unknown
+  readonly focoDeReserva: () => void
+}) {
+  const [escolhido, definirEscolhido] = useState<string>(atual ?? SEM_COMPONENTE)
+  const { enviar, mutacao } = useSingleSubmit({
+    mutationFn: salvar,
+    onSuccess: async (disciplina: Disciplina) => {
+      await recarregar()
+      aoSalvar(disciplina)
+    },
+    onError: recarregar,
+  })
+  const sumiu = mutacao.isError && listChanged(mutacao.error, [ErrorCode.NAO_ENCONTRADO])
+
+  function aoEnviar(): void {
+    const componente = COMPONENTES_BNCC.find((candidato) => candidato === escolhido)
+    enviar(componente ?? null)
+  }
+
+  return (
+    <FormDialog
+      titulo="Componente da BNCC"
+      aoFechar={aoFechar}
+      aoEnviar={aoEnviar}
+      enviando={mutacao.isPending}
+      rotuloDoEnvio="Salvar componente"
+      rotuloEnviando="Salvando…"
+      semNovaTentativa={sumiu}
+      focoDeReserva={focoDeReserva}
+      falha={
+        mutacao.isError
+          ? errorText(mutacao.error, {
+              [ErrorCode.NAO_ENCONTRADO]: 'Esta disciplina já não existe. A lista foi atualizada.',
+            })
+          : undefined
+      }
+    >
+      <Select
+        rotulo={`Componente da BNCC de ${nome}`}
+        dica="Diz quais habilidades da BNCC o material desta disciplina pode ter. Sem componente, o material não é classificado."
+        opcoes={OPCOES_DO_COMPONENTE}
+        valor={escolhido}
+        aoMudar={definirEscolhido}
+      />
+    </FormDialog>
+  )
+}
+
 interface PropsDoPainel {
   readonly anos: readonly AnoLetivo[]
   readonly series: UseQueryResult<ListaDaEstrutura<Serie>>
@@ -480,11 +562,12 @@ export function PainelDoAnoEDisciplinas({
             <>
               <ul className="flex flex-col gap-3">
                 {ordenarPeloNome(disciplinas.data.itens).map((disciplina) => (
-                  <ListRow key={disciplina.id} titulo={disciplina.nome}>
+                  <ListRow key={disciplina.id} titulo={disciplina.nome} detalhe={textoDoComponente(disciplina.componenteBncc)}>
                     <AcoesDaLinha
                       nome={disciplina.nome}
                       tipo="a disciplina"
                       aoRenomear={() => aoAbrir('renomear_disciplina', disciplina)}
+                      aoDefinirComponente={() => aoAbrir('componente_da_disciplina', disciplina)}
                       aoExcluir={() => aoAbrir('excluir_disciplina', disciplina)}
                     />
                   </ListRow>

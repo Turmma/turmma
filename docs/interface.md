@@ -610,6 +610,13 @@ os quatro estados; o vazio da grade convida a "Baixar modelo".
   texto. "Importar alunos" é um botão secundário da aba Turmas e abre um painel lateral; o que a planilha põe em outra turma ou deixa
   de fora chega **desmarcado**, em "Você decide", e só muda quem a coordenação marca (regra 70); cada gravação desliga **até 100** pessoas: com mais candidatos a desligar que isso, o rótulo vira "Marcar os primeiros 100 para desligar", os demais ficam sem marcar até alguém ser desmarcado, e a tela diz que é para gravar e enviar a planilha de novo, porque a prévia seguinte mostra quem ainda falta; perto de "Gravar planilha" uma linha diz o que as marcas escolhidas vão fazer, e o resultado diz quantas linhas ficaram de fora e por quê. O leitor de Excel só é baixado
   quando alguém escolhe um .xlsx, e a gravação, enfileirada, é acompanhada até concluir, sem desistir (regra 80)
+  **O componente da BNCC da disciplina** (classificacao-bncc, 1.0; RF1): no painel "Ano letivo e disciplinas", cada disciplina diz, embaixo do nome, "Componente da BNCC: Química" ou
+  "Sem componente", e a linha ganha o botão secundário **"Componente"** (ao lado de "Renomear" e "Excluir", com o nome da disciplina no nome acessível, "Componente da BNCC da disciplina
+  Química"). Ele abre o diálogo "Componente da BNCC", com um único campo, a `Select` "Componente da BNCC de <disciplina>" (as 14 opções de `COMPONENTES_BNCC` e "Sem componente", que
+  apaga), começando no que a disciplina tem hoje e com a dica "Diz quais habilidades da BNCC o material desta disciplina pode ter. Sem componente, o material não é classificado." "Salvar
+  componente" vira "Salvando…"; ao salvar, o diálogo fecha, a lista se relê, a seção anuncia "Componente da BNCC de Química: Química." (ou "… apagado.") e o foco volta ao botão da linha, ou ao título
+  "Disciplinas" quando a linha sai. O erro fica no diálogo, com a escolha de pé para tentar de novo, e o `NAO_ENCONTRADO` ("Esta disciplina já não existe. A lista foi atualizada.") tira a nova tentativa.
+  A disciplina nasce com o componente que o nome diz (a migration e a criação casam "Química", "Português", "Inglês"…), e renomear não o muda. Os quatro estados da seção seguem os de hoje.
 - **Material**: **só a coordenação sobe material para a base da escola**; professor e aluno não
   sobem (D75). Fontes com titularidade e licença, upload, estado da ingestão com o que entrou,
   o que falhou, o que está pendente e o que foi recusado por falta de licença (F4,

@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm'
 import { check, pgTable, text, unique, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
-import type { AreaDoConhecimento } from '@educa/shared'
+import { COMPONENTES_BNCC, type AreaDoConhecimento, type ComponenteBncc } from '@educa/shared'
 import { escola } from './escola.js'
 
 /**
@@ -9,7 +9,9 @@ import { escola } from './escola.js'
  * - `unique (escola_id, lower(nome))`: "Química" e "química" são a mesma disciplina na escola, e o nome se repete à
  *   vontade entre escolas.
  * - `unique (escola_id, id)` é o alvo da FK composta do vínculo (9.0).
- * - `area` é a área da BNCC, opcional. Sem dado de pessoa.
+ * - `area` é a área da BNCC, opcional.
+ * - `componente_bncc` é o componente da BNCC da disciplina (classificacao-bncc, 1.0; `COMPONENTES_BNCC`): diz as habilidades candidatas do material
+ *   dela. Nulo até a migration ou a criação o casarem pelo nome, ou a coordenação o definir. Sem dado de pessoa.
  */
 export const disciplina = pgTable(
   'disciplina',
@@ -20,6 +22,7 @@ export const disciplina = pgTable(
       .references(() => escola.id),
     nome: text().notNull(),
     area: text().$type<AreaDoConhecimento>(),
+    componenteBncc: text().$type<ComponenteBncc>(),
   },
   (tabela) => [
     unique('disciplina_escola_id_unico').on(tabela.escolaId, tabela.id),
@@ -29,5 +32,6 @@ export const disciplina = pgTable(
       'disciplina_area_valida',
       sql`${tabela.area} is null or ${tabela.area} in ('linguagens', 'matematica', 'ciencias_da_natureza', 'ciencias_humanas', 'ensino_religioso')`,
     ),
+    check('disciplina_componente_bncc_valido', sql.raw(`"disciplina"."componente_bncc" is null or "disciplina"."componente_bncc" in (${COMPONENTES_BNCC.map((c) => `'${c}'`).join(', ')})`)),
   ],
 )

@@ -15,8 +15,8 @@ import { ResumoDoMaterial } from './ResumoDoMaterial'
 setupScreen()
 
 const id = (n: number) => `0197a1c0-0000-7000-8000-${String(n).padStart(12, '0')}`
-const QUIMICA = { id: id(500), nome: 'Química', area: null }
-const FISICA = { id: id(501), nome: 'Física', area: null }
+const QUIMICA = { id: id(500), nome: 'Química', area: null, componenteBncc: null }
+const FISICA = { id: id(501), nome: 'Física', area: null, componenteBncc: null }
 const SERIE_6 = { id: id(600), etapa: 'ef_anos_finais', ano: 6 }
 const SERIE_9 = { id: id(603), etapa: 'ef_anos_finais', ano: 9 }
 const SERIE_2EM = { id: id(610), etapa: 'em', ano: 2 }

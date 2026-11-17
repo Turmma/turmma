@@ -27,8 +27,8 @@ const TURMA_7A = { id: id(101), anoLetivoId: ANO.id, nome: '7ºA', turno: 'manha
 const TURMA_7B = { id: id(102), anoLetivoId: ANO.id, nome: '7ºB', turno: null, serie: SERIE_7 }
 const TURMA_8A = { id: id(103), anoLetivoId: ANO.id, nome: '8ºA', turno: 'tarde', serie: SERIE_8 }
 const TURMA_1EM = { id: id(104), anoLetivoId: ANO.id, nome: '1ºA', turno: 'integral', serie: SERIE_1_EM }
-const MATEMATICA = { id: id(500), nome: 'Matemática', area: null }
-const FISICA = { id: id(501), nome: 'Física', area: null }
+const MATEMATICA = { id: id(500), nome: 'Matemática', area: null, componenteBncc: null }
+const FISICA = { id: id(501), nome: 'Física', area: null, componenteBncc: null }
 const BEATRIZ = { usuarioId: id(301), nome: 'Beatriz Sintética', estado: 'ativo' }
 const CAMILA = { usuarioId: id(302), nome: 'Camila Sintética', estado: 'ativo' }
 const RAFAEL = { usuarioId: id(303), nome: 'Rafael Sintético', estado: 'ativo' }
@@ -494,7 +494,10 @@ describe('o painel "Ano letivo e disciplinas"', () => {
       within(within(painel).getByRole('region', { name: 'Disciplinas' }))
         .getAllByRole('listitem')
         .map((item) => item.textContent),
-    ).toEqual(['FísicaRenomear a disciplina FísicaExcluir a disciplina Física', 'MatemáticaRenomear a disciplina MatemáticaExcluir a disciplina Matemática'])
+    ).toEqual([
+      'FísicaSem componenteRenomear a disciplina FísicaComponente da BNCC da disciplina FísicaExcluir a disciplina Física',
+      'MatemáticaSem componenteRenomear a disciplina MatemáticaComponente da BNCC da disciplina MatemáticaExcluir a disciplina Matemática',
+    ])
     await usuario.click(within(painel).getByRole('button', { name: 'Fechar' }))
     expect(localizacao.history?.at(-1)).toBe('/estrutura')
     expect(screen.queryByRole('dialog', { name: 'Ano letivo e disciplinas' })).toBeNull()
@@ -682,5 +685,218 @@ describe('o foco depois de cada ação', () => {
     expect(itens.map((item) => item.textContent)).toEqual(['Renomear', 'Excluir'])
     expect(itens[1]?.className).toContain('text-vermelho-texto')
     expect(itens[0]?.className).not.toContain('text-vermelho-texto')
+  })
+})
+
+describe('o componente da BNCC da disciplina (classificacao-bncc, 1.0; RF1)', () => {
+  const QUIMICA = { id: id(502), nome: 'Química', area: null, componenteBncc: 'quimica' }
+  const SEM_COMPONENTE = { ...MATEMATICA }
+
+  /** As disciplinas da escola, que o `PATCH` muda: a tela as relê depois de salvar. */
+  function disciplinasQueMudam(inicial: readonly { id: string }[]) {
+    let atuais = inicial
+    return {
+      resposta: () => ok(atuais),
+      trocar: (id_: string, mudanca: object) => {
+        atuais = atuais.map((disciplina) => (disciplina.id === id_ ? { ...disciplina, ...mudanca } : disciplina))
+      },
+    }
+  }
+
+  /** Os corpos que a tela mandou no `PATCH`, na ordem. */
+  const corposDosPatch = () =>
+    vi
+      .mocked(fetch)
+      .mock.calls.filter(([, opcoes]) => opcoes?.method === 'PATCH')
+      .map(([caminho, opcoes]) => [String(caminho), JSON.parse(String(opcoes?.body))] as const)
+
+  async function abrirOPainel(usuario: ReturnType<typeof userEvent.setup>) {
+    await montarEEsperar()
+    await usuario.click(screen.getByRole('button', { name: 'Ano letivo e disciplinas' }))
+    return screen.findByRole('dialog', { name: 'Ano letivo e disciplinas' })
+  }
+
+  it('com dado: cada linha diz o componente da disciplina, ou "Sem componente", e tem o botão "Componente" com o nome da disciplina', async () => {
+    const usuario = userEvent.setup()
+    instalar(fakeNetwork(), { disciplinas: ok([SEM_COMPONENTE, QUIMICA]) })
+    const painel = await abrirOPainel(usuario)
+    // Na ordem do nome: Matemática, Química.
+    const linhasDoPainel = within(within(painel).getByRole('region', { name: 'Disciplinas' })).getAllByRole('listitem')
+    expect(linhasDoPainel.map((linha) => linha.querySelector('p:nth-of-type(2)')?.textContent)).toEqual(['Sem componente', 'Componente da BNCC: Química'])
+    expect(within(painel).getByRole('button', { name: 'Componente da BNCC da disciplina Química' })).toBeTruthy()
+    expect(within(painel).getAllByRole('button', { name: /^Componente/ })).toHaveLength(2)
+    expect(within(painel).getByRole('button', { name: 'Componente da BNCC da disciplina Matemática' })).toBeTruthy()
+  })
+
+  it('carregando: a seção das disciplinas diz que está carregando, e a linha com o componente só vem depois', async () => {
+    const usuario = userEvent.setup()
+    instalar(fakeNetwork(), { disciplinas: nuncaResponde })
+    const painel = await abrirOPainel(usuario)
+    const secao = within(within(painel).getByRole('region', { name: 'Disciplinas' }))
+    expect(secao.getByText('Carregando as disciplinas…')).toBeTruthy()
+    expect(secao.queryByText(/Sem componente|Componente da BNCC:/)).toBeNull()
+    expect(secao.queryByRole('button', { name: /^Componente/ })).toBeNull()
+  })
+
+  it('erro: a seção das disciplinas mostra o erro com "Tentar de novo", que lê só as disciplinas, e a linha vem com o componente', async () => {
+    const usuario = userEvent.setup()
+    const rede = fakeNetwork()
+    let tentativa = 0
+    instalar(rede, {
+      disciplinas: () => {
+        tentativa += 1
+        return tentativa <= 1 ? FALHA : ok([QUIMICA])
+      },
+    })
+    const painel = await abrirOPainel(usuario)
+    const secao = within(within(painel).getByRole('region', { name: 'Disciplinas' }))
+    await secao.findByRole('button', { name: /Tentar de novo/ })
+    const antes = caminhosDe(rede).filter((caminho) => caminho === '/v1/disciplinas').length
+    await usuario.click(secao.getByRole('button', { name: /Tentar de novo/ }))
+    await secao.findByText('Componente da BNCC: Química')
+    expect(caminhosDe(rede).filter((caminho) => caminho === '/v1/disciplinas').length).toBeGreaterThan(antes)
+    expect(caminhosDe(rede).filter((caminho) => caminho === '/v1/series')).toHaveLength(1)
+  })
+
+  it('"Renomear" a disciplina abre só o diálogo do nome, e "Componente" só o do componente', async () => {
+    const usuario = userEvent.setup()
+    instalar(fakeNetwork(), { disciplinas: ok([QUIMICA]) })
+    const painel = await abrirOPainel(usuario)
+    await usuario.click(within(painel).getByRole('button', { name: /^Renomear.*Química/ }))
+    const doNome = await screen.findByRole('dialog', { name: 'Renomear a disciplina' })
+    expect(screen.queryByRole('dialog', { name: 'Componente da BNCC' })).toBeNull()
+    await usuario.click(within(doNome).getByRole('button', { name: 'Cancelar' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Renomear a disciplina' })).toBeNull())
+    await usuario.click(within(painel).getByRole('button', { name: 'Componente da BNCC da disciplina Química' }))
+    await screen.findByRole('dialog', { name: 'Componente da BNCC' })
+    expect(screen.queryByRole('dialog', { name: 'Renomear a disciplina' })).toBeNull()
+  })
+
+  it('definir: o diálogo abre no que a disciplina tem, salva o componente escolhido, a lista é relida, o anúncio diz e o foco volta ao botão da linha', async () => {
+    const usuario = userEvent.setup()
+    const rede = fakeNetwork()
+    const lista = disciplinasQueMudam([SEM_COMPONENTE, QUIMICA])
+    instalar(rede, { disciplinas: lista.resposta })
+    rede.responderPor(new RegExp(`^/v1/disciplinas/${MATEMATICA.id}$`), () => {
+      lista.trocar(MATEMATICA.id, { componenteBncc: 'matematica' })
+      return { status: 200, corpo: { ...MATEMATICA, componenteBncc: 'matematica' } }
+    })
+    const painel = await abrirOPainel(usuario)
+    await usuario.click(within(painel).getByRole('button', { name: 'Componente da BNCC da disciplina Matemática' }))
+    const dialogo = await screen.findByRole('dialog', { name: 'Componente da BNCC' })
+    const campo = within(dialogo).getByLabelText('Componente da BNCC de Matemática') as HTMLSelectElement
+    expect(campo.value).toBe('')
+    expect(Array.from(campo.options).map((opcao) => opcao.textContent)).toEqual([
+      'Sem componente',
+      'Arte',
+      'Biologia',
+      'Ciências',
+      'Educação Física',
+      'Ensino Religioso',
+      'Filosofia',
+      'Física',
+      'Geografia',
+      'História',
+      'Língua Inglesa',
+      'Língua Portuguesa',
+      'Matemática',
+      'Química',
+      'Sociologia',
+    ])
+    await usuario.selectOptions(campo, 'matematica')
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Salvar componente' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Componente da BNCC' })).toBeNull())
+    expect(corposDosPatch()).toEqual([[`/v1/disciplinas/${MATEMATICA.id}`, { componenteBncc: 'matematica' }]])
+    expect(await within(painel).findByText('Componente da BNCC: Matemática')).toBeTruthy()
+    expect(within(painel).getByRole('region', { name: 'Disciplinas' }).querySelector('[role="status"]')?.textContent).toBe('Componente da BNCC de Matemática: Matemática.')
+    await waitFor(() => expect(document.activeElement).toBe(within(painel).getByRole('button', { name: 'Componente da BNCC da disciplina Matemática' })))
+  })
+
+  it('"Sem componente" apaga: o diálogo da disciplina com componente abre nele, e a escolha de volta manda `null` e o anúncio diz que foi apagado', async () => {
+    const usuario = userEvent.setup()
+    const rede = fakeNetwork()
+    const lista = disciplinasQueMudam([QUIMICA])
+    instalar(rede, { disciplinas: lista.resposta })
+    rede.responderPor(new RegExp(`^/v1/disciplinas/${QUIMICA.id}$`), () => {
+      lista.trocar(QUIMICA.id, { componenteBncc: null })
+      return { status: 200, corpo: { ...QUIMICA, componenteBncc: null } }
+    })
+    const painel = await abrirOPainel(usuario)
+    await usuario.click(within(painel).getByRole('button', { name: 'Componente da BNCC da disciplina Química' }))
+    const dialogo = await screen.findByRole('dialog', { name: 'Componente da BNCC' })
+    const campo = within(dialogo).getByLabelText('Componente da BNCC de Química') as HTMLSelectElement
+    expect(campo.value).toBe('quimica')
+    await usuario.selectOptions(campo, '')
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Salvar componente' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Componente da BNCC' })).toBeNull())
+    expect(corposDosPatch()).toEqual([[`/v1/disciplinas/${QUIMICA.id}`, { componenteBncc: null }]])
+    expect(await within(painel).findByText('Sem componente')).toBeTruthy()
+    expect(within(painel).getByRole('region', { name: 'Disciplinas' }).querySelector('[role="status"]')?.textContent).toBe('Componente da BNCC de Química apagado.')
+  })
+
+  it('erro ao salvar: o diálogo fica aberto com o erro e a escolha de pé, e a nova tentativa salva', async () => {
+    const usuario = userEvent.setup()
+    const rede = fakeNetwork()
+    const lista = disciplinasQueMudam([SEM_COMPONENTE])
+    instalar(rede, { disciplinas: lista.resposta })
+    let tentativa = 0
+    rede.responderPor(new RegExp(`^/v1/disciplinas/${MATEMATICA.id}$`), () => {
+      tentativa += 1
+      if (tentativa === 1) return FALHA
+      lista.trocar(MATEMATICA.id, { componenteBncc: 'fisica' })
+      return { status: 200, corpo: { ...MATEMATICA, componenteBncc: 'fisica' } }
+    })
+    const painel = await abrirOPainel(usuario)
+    await usuario.click(within(painel).getByRole('button', { name: 'Componente da BNCC da disciplina Matemática' }))
+    const dialogo = await screen.findByRole('dialog', { name: 'Componente da BNCC' })
+    await usuario.selectOptions(within(dialogo).getByLabelText('Componente da BNCC de Matemática'), 'fisica')
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Salvar componente' }))
+    expect(await within(dialogo).findByRole('alert')).toBeTruthy()
+    expect(screen.getByRole('dialog', { name: 'Componente da BNCC' })).toBeTruthy()
+    expect((within(dialogo).getByLabelText('Componente da BNCC de Matemática') as HTMLSelectElement).value).toBe('fisica')
+    expect(within(painel).getByText('Sem componente')).toBeTruthy()
+
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Salvar componente' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Componente da BNCC' })).toBeNull())
+    expect(corposDosPatch()).toEqual([
+      [`/v1/disciplinas/${MATEMATICA.id}`, { componenteBncc: 'fisica' }],
+      [`/v1/disciplinas/${MATEMATICA.id}`, { componenteBncc: 'fisica' }],
+    ])
+    expect(await within(painel).findByText('Componente da BNCC: Física')).toBeTruthy()
+  })
+
+  it('a disciplina que já não existe: o diálogo diz que a lista foi atualizada e não oferece nova tentativa', async () => {
+    const usuario = userEvent.setup()
+    const rede = fakeNetwork()
+    instalar(rede, { disciplinas: ok([SEM_COMPONENTE]) })
+    rede.responderPor(new RegExp(`^/v1/disciplinas/${MATEMATICA.id}$`), ERRO('NAO_ENCONTRADO', 404))
+    const painel = await abrirOPainel(usuario)
+    await usuario.click(within(painel).getByRole('button', { name: 'Componente da BNCC da disciplina Matemática' }))
+    const dialogo = await screen.findByRole('dialog', { name: 'Componente da BNCC' })
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Salvar componente' }))
+    expect((await within(dialogo).findByRole('alert')).textContent).toContain('Esta disciplina já não existe. A lista foi atualizada.')
+    expect(within(dialogo).queryByRole('button', { name: 'Salvar componente' })).toBeNull()
+  })
+
+  it('recomeço: abrir outra disciplina começa no componente dela, e reabrir a mesma começa no que a lista tem agora, não no que ficou escolhido e não foi salvo', async () => {
+    const usuario = userEvent.setup()
+    instalar(fakeNetwork(), { disciplinas: ok([SEM_COMPONENTE, QUIMICA]) })
+    const painel = await abrirOPainel(usuario)
+    await usuario.click(within(painel).getByRole('button', { name: 'Componente da BNCC da disciplina Química' }))
+    let dialogo = await screen.findByRole('dialog', { name: 'Componente da BNCC' })
+    expect((within(dialogo).getByLabelText('Componente da BNCC de Química') as HTMLSelectElement).value).toBe('quimica')
+    await usuario.selectOptions(within(dialogo).getByLabelText('Componente da BNCC de Química'), 'biologia')
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Cancelar' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Componente da BNCC' })).toBeNull())
+
+    await usuario.click(within(painel).getByRole('button', { name: 'Componente da BNCC da disciplina Matemática' }))
+    dialogo = await screen.findByRole('dialog', { name: 'Componente da BNCC' })
+    expect((within(dialogo).getByLabelText('Componente da BNCC de Matemática') as HTMLSelectElement).value).toBe('')
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Cancelar' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Componente da BNCC' })).toBeNull())
+
+    await usuario.click(within(painel).getByRole('button', { name: 'Componente da BNCC da disciplina Química' }))
+    dialogo = await screen.findByRole('dialog', { name: 'Componente da BNCC' })
+    expect((within(dialogo).getByLabelText('Componente da BNCC de Química') as HTMLSelectElement).value).toBe('quimica')
   })
 })

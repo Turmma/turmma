@@ -1192,6 +1192,24 @@ código"), com o destino de cada uma. As pequenas foram fechadas na correção `
 - [ ] Conjunto fixo de amostras para medir qualidade da extração e da classificação BNCC
 - [ ] Baixar e organizar as provas oficiais do ENEM do INEP para o banco público (D21)
 - [ ] Verificar licença de uso das provas de vestibular antes de incluir qualquer uma
+- [ ] (classificacao-bncc, 1.0) **Computação fora da tabela `habilidade_bncc`:** a carga `dados-2026.08` leva só os anos finais e o Médio (913 habilidades), sem as 141 da
+      BNCC Computação (anexo ao Parecer CNE/CEB nº 2/2022, módulo `computacao-2022` do `bncc-dados`). O check do código aceita `EF06CO01` de propósito
+      (quem barra é a carga), mas nenhum componente tem candidata `CO`. A D65 (letramento em IA alinhado às habilidades de Computação) carrega o módulo, define o
+      componente e a pergunta de licença própria, na funcionalidade que a especificar (dono: Arquiteto, ao escrever o PRD da D65)
+- [ ] (classificacao-bncc, 1.0, rodada 1) **`disciplinaSchema` é `.strict()` e ganhou `componenteBncc`:** a aba aberta com o bundle antigo recusa a resposta da lista de
+      disciplinas até recarregar. É o padrão da casa e o deploy fica fora do horário letivo; conferir na primeira troca de versão da escola real (dono: Implementador)
+- [ ] (classificacao-bncc, 1.0, rodada 1) **A linha da disciplina no painel "Ano letivo e disciplinas" tem três botões:** a 1366 px a coluna do nome fica com uns 95 px, e com o
+      componente definido o texto pode quebrar em três ou quatro linhas. Foto de 17/11 (rodada 2, escola cheia da vitrine): sem rolagem lateral e o texto lê, mas
+      com o componente definido os três botões empilham em coluna ao lado do nome (a linha cresce); empilhar nome e ações no `Sheet` mexe em
+      `pecas-da-lista.tsx`, que as outras listas dividem, e não cabe em poucas linhas (dono: Implementador, com frontend-reviewer)
+- [ ] (classificacao-bncc, 1.0, rodada 2) **`tools/vitrine/foto.ts` reaproveita `sessao-<papel>.json` depois de `montar`:** a foto saiu da escola antiga até apagar `.processo/vitrine/sessao-*.json`;
+      a sessão deveria ser descartada quando a escola do `vitrine.json` muda (dono: Implementador, na próxima tarefa que usar a vitrine)
+- [ ] (classificacao-bncc, 1.0, rodada 1) **Renomear `DisciplinaService.renomear` e `renomearDisciplinaRequestSchema`:** os dois agora também definem o componente, e `atualizar` diria
+      melhor. Passa por API, shared e web e o nome já está nos testes; não coube na 1.0 (dono: Implementador, na próxima tarefa que tocar o `PATCH` de disciplina)
+- [ ] (classificacao-bncc, 1.0, rodada 1) **`AcoesDaLinha` sempre mostra "Componente":** hoje só a disciplina a usa; quem a reaproveitar na turma precisa tornar o botão opcional de novo
+      (dono: quem reaproveitar)
+- [ ] (classificacao-bncc, 1.0, rodada 1) **Para a 6.0:** o job disparado por `disciplina.componente_alterado` envia material ao provedor e precisa ser auditado em `ExecucaoAgente`;
+      a classificação por habilidade é alto risco (AIA, D60), a entrega nasce pendente e a autonomia do agente é declarada (dono: Arquiteto, ao revisar o `6_task.md`)
 
 ## Produto
 

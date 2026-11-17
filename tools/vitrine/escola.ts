@@ -227,7 +227,8 @@ async function montarEscolaVazia(url: string, ativarMfa: boolean): Promise<Acess
     const { escolaId } = coordenadora
     const anoLetivoId = await id(banco, "select id from ano_letivo where escola_id = $1 and situacao = 'em_curso'", [escolaId])
     const serieId = await id(banco, "insert into serie (escola_id, etapa, ano) values ($1, 'em', 2) returning id", [escolaId])
-    const disciplinaId = await id(banco, 'insert into disciplina (escola_id, nome) values ($1, $2) returning id', [escolaId, 'Química'])
+    // Com o componente que o nome diz, como a criação pela tela o grava (classificacao-bncc, 1.0): a foto da Estrutura mostra a linha "com componente".
+    const disciplinaId = await id(banco, 'insert into disciplina (escola_id, nome, componente_bncc) values ($1, $2, $3) returning id', [escolaId, 'Química', 'quimica'])
     const turmaId = await id(banco, 'insert into turma (escola_id, ano_letivo_id, serie_id, nome) values ($1, $2, $3, $4) returning id', [escolaId, anoLetivoId, serieId, turma])
     // Com o e-mail já verificado (acesso-e-convites, 7.0): a professora da vitrine aceita convite de outra escola sem passar pela verificação.
     const contaId = await id(banco, 'insert into conta (email, senha_hash, email_verificado_em) values ($1, $2, now()) returning id', [professora.email, hashDaProfessora])

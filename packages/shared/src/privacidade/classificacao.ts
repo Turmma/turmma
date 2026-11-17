@@ -130,6 +130,8 @@ export const CLASSIFICACAO_DAS_TABELAS: Readonly<Record<string, ClassificacaoDaT
   ano_letivo: SEM_PESSOA,
   serie: SEM_PESSOA,
   disciplina: SEM_PESSOA,
+  // As habilidades da BNCC (classificacao-bncc, 1.0): tabela pública, sem escola e sem pessoa; a carga é o texto oficial.
+  habilidade_bncc: SEM_PESSOA,
   // O envio de material em andamento (ingestao-do-material, 2.0): só a escola, o id do material que vai nascer e um instante. Dura minutos; a varredura horária a apaga.
   envio_de_material: SEM_PESSOA,
   turma: SEM_PESSOA,

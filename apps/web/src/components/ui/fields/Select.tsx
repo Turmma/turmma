@@ -48,7 +48,7 @@ export function Select({ rotulo, opcoes, valor, aoMudar, marcador, dica, erro, v
   const pilula = variante === 'pilula'
   return (
     <div className={`flex min-w-0 flex-col gap-1 ${pilula ? '' : 'w-full'}`}>
-      <label htmlFor={campo} className={rotuloOculto || pilula ? 'sr-only' : 't-apoio font-bold text-tinta'}>
+      <label htmlFor={campo} className={rotuloOculto || pilula ? 'sr-only' : 't-apoio font-bold break-words text-tinta'}>
         {rotulo}
         {obrigatoria && <RequiredMark />}
       </label>

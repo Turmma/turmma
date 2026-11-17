@@ -1,5 +1,6 @@
 import {
   ErrorCode,
+  NOME_DO_COMPONENTE,
   nomeDaSerie,
   TAMANHO_MAXIMO_NOME_DISCIPLINA,
   TAMANHO_MAXIMO_NOME_TURMA,
@@ -25,6 +26,7 @@ import {
   excluirDisciplina,
   excluirTurma,
   type ListaDaEstrutura,
+  definirComponenteDaDisciplina,
   renomearDisciplina,
   renomearTurma,
 } from '../../../api/estrutura'
@@ -44,6 +46,7 @@ import { StatusBadge } from '../../../components/ui/StatusBadge'
 import { Table, type TableColumn } from '../../../components/ui/Table'
 import { listChanged, errorText } from '../../../components/error-text'
 import {
+  ComponenteDaDisciplina,
   PainelDoAnoEDisciplinas,
   NovaDisciplina,
   NovaSerie,
@@ -401,6 +404,26 @@ export default function Estrutura() {
           focoDeReserva={() => tituloDasDisciplinas.current?.focus()}
         />
       )}
+      {aberta?.tipo === 'componente_da_disciplina' && alvo !== undefined ? (
+        <ComponenteDaDisciplina
+          key={aberta.numero}
+          atual={alvo.componenteBncc ?? null}
+          nome={alvo.nome}
+          salvar={(componente) => definirComponenteDaDisciplina(alvo.id, componente)}
+          aoFechar={dialogo.fechar}
+          aoSalvar={(disciplina) => {
+            anunciar(
+              'disciplinas',
+              disciplina.componenteBncc === null
+                ? `Componente da BNCC de ${disciplina.nome} apagado.`
+                : `Componente da BNCC de ${disciplina.nome}: ${NOME_DO_COMPONENTE[disciplina.componenteBncc]}.`,
+            )
+            dialogo.fecharSeAinda(aberta)
+          }}
+          recarregar={recarregar}
+          focoDeReserva={() => tituloDasDisciplinas.current?.focus()}
+        />
+      ) : null}
       {aberta?.tipo === 'renomear_turma' && alvo !== undefined && (
         <Renomear
           key={aberta.numero}

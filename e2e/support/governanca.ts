@@ -65,7 +65,8 @@ export async function montarEscolaComEntregas(escolaId: string, coordenadoraId: 
     const anoLetivoId = anos[0]?.id
     if (anoLetivoId === undefined) throw new Error('a escola do e2e não tem ano letivo em curso')
     const serieId = await id(banco, "insert into serie (escola_id, etapa, ano) values ($1, 'em', 2) on conflict (escola_id, etapa, ano) do update set ano = excluded.ano returning id", [escolaId])
-    const quimica = await id(banco, 'insert into disciplina (escola_id, nome) values ($1, $2) returning id', [escolaId, 'Química'])
+    // A Química com o componente que o nome diz, como a criação pela tela o grava (classificacao-bncc, 1.0); a Física fica sem, e a foto da Estrutura mostra os dois estados.
+    const quimica = await id(banco, 'insert into disciplina (escola_id, nome, componente_bncc) values ($1, $2, $3) returning id', [escolaId, 'Química', 'quimica'])
     const fisica = await id(banco, 'insert into disciplina (escola_id, nome) values ($1, $2) returning id', [escolaId, 'Física'])
     const turma = (nome: string) => id(banco, 'insert into turma (escola_id, ano_letivo_id, serie_id, nome) values ($1, $2, $3, $4) returning id', [escolaId, anoLetivoId, serieId, nome])
     const doB = { id: await turma(`2ºB ${marca}`), nome: `2ºB ${marca}` }

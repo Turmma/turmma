@@ -1,16 +1,19 @@
 import { requireEscolaId } from '../context/context-escola.js'
 import type { Database, DatabaseTransaction } from '../db/database.js'
 import { disciplina } from '../db/schema/disciplina.js'
-import type { PaginationQuery, Disciplina, CriarDisciplinaRequest } from '@educa/shared'
+import type { PaginationQuery, Disciplina, CriarDisciplinaRequest, ComponenteBncc } from '@educa/shared'
 import { and, asc, eq, gt } from 'drizzle-orm'
-import { InvariantException } from '@educa/shared'
+import { componenteDoNomeDaDisciplina, InvariantException } from '@educa/shared'
 import { excluirSemReferencia } from './exclusao.js'
 
-const colunas = { id: disciplina.id, nome: disciplina.nome, area: disciplina.area }
+const colunas = { id: disciplina.id, nome: disciplina.nome, area: disciplina.area, componenteBncc: disciplina.componenteBncc }
 
 /**
  * As disciplinas da escola do contexto, e só dela: nenhum método recebe escola (regra 10, item 3). O nome repetido,
  * sem diferenciar maiúscula, é barrado pelo banco (`disciplina_nome_na_escola_unico`).
+ *
+ * **O componente da BNCC** (classificacao-bncc, 1.0): a disciplina nasce com o que o nome diz (`componenteDoNomeDaDisciplina`: "química" nasce
+ * Química, "Robótica" nasce sem), renomear **não** o muda, e quem o troca é a coordenação (`definirComponente`).
  */
 export class DisciplinaRepository {
   constructor(private readonly banco: Database | DatabaseTransaction) {}
@@ -18,7 +21,7 @@ export class DisciplinaRepository {
   async criar(pedido: CriarDisciplinaRequest): Promise<Disciplina> {
     const [criada] = await this.banco
       .insert(disciplina)
-      .values({ escolaId: requireEscolaId(), nome: pedido.nome, area: pedido.area ?? null })
+      .values({ escolaId: requireEscolaId(), nome: pedido.nome, area: pedido.area ?? null, componenteBncc: componenteDoNomeDaDisciplina(pedido.nome) })
       .returning(colunas)
     if (criada === undefined) throw new InvariantException('disciplina não criada')
     return criada
@@ -55,6 +58,29 @@ export class DisciplinaRepository {
       .where(and(eq(disciplina.escolaId, requireEscolaId()), eq(disciplina.id, id)))
       .returning(colunas)
     return renomeada
+  }
+
+  /**
+   * A disciplina da escola com esse id, **com a linha travada** (`for update`) até o fim da transação: quem troca o componente lê o de antes sem que outra troca passe no meio, e a auditoria
+   * leva o antes e o depois certos. A de outra escola ou inexistente não é achada.
+   */
+  async travarPorId(id: string): Promise<Disciplina | undefined> {
+    const [linha] = await this.banco
+      .select(colunas)
+      .from(disciplina)
+      .where(and(eq(disciplina.escolaId, requireEscolaId()), eq(disciplina.id, id)))
+      .for('update')
+    return linha
+  }
+
+  /** Define o componente da BNCC da disciplina da escola com esse id (`null` o apaga) e devolve a disciplina; a de outra escola ou inexistente não é achada (`undefined`), e nada muda. */
+  async definirComponente(id: string, componente: ComponenteBncc | null): Promise<Disciplina | undefined> {
+    const [alterada] = await this.banco
+      .update(disciplina)
+      .set({ componenteBncc: componente })
+      .where(and(eq(disciplina.escolaId, requireEscolaId()), eq(disciplina.id, id)))
+      .returning(colunas)
+    return alterada
   }
 
   /**

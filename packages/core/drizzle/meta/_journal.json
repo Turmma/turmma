@@ -414,6 +414,13 @@
       "when": 1794625658692,
       "tag": "0058_fila_ferramenta",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1794924562210,
+      "tag": "0059_habilidade_bncc",
+      "breakpoints": true
     }
   ]
 }

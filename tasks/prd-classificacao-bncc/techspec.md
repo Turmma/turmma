@@ -42,8 +42,8 @@ não tem ano (PRD F4, §6), nem a execução da classificação; a virada não a
 (6 a 9) e área, versionado com a atribuição; `on conflict (codigo) do update`, com a versão. Código nunca sai. Sem
 Computação (a D65 fica no `TODO.md`). **Componentes:** `COMPONENTES_BNCC` em `packages/shared` diz as candidatas (EF:
 componente e anos das séries; EM: a área, e Língua Portuguesa com `EM13LP` e `EM13LGG`; série do EF e do EM no mesmo
-material: a união). A migration preenche o componente pelo nome sem acento nem caixa; o que não casa fica nulo. A disciplina criada depois
-casa igual (`DisciplinaRepository.criar`); renomear não o muda.
+material: a união; **a BNCC do Fundamental não tem Biologia, Física nem Química, e o conteúdo delas está em Ciências (`CI`): no EF elas procuram em `CI`, e Filosofia e Sociologia não têm candidata do EF**). A tabela leva, além do check do código, o do recorte da etapa (EF com componente e anos de 6 a 9, EM com área e sem anos) e o dos valores de componente e área; o JSON traz no cabeçalho o hash do PDF e o das habilidades, e a única diferença de texto contra o PDF (`EF07MA33`, o π que a camada de texto dele não traz) fica registrada ali, e o PDF vence. A migration preenche o componente pelo nome sem acento nem caixa; o que não casa fica nulo. A disciplina criada depois
+casa igual (`DisciplinaRepository.criar`); renomear não o muda. O `PATCH` roda numa transação com a linha da disciplina travada (`for update`) e só audita quando o componente muda: o mesmo componente de novo responde 200 e não grava nada.
 
 **Migrations** (regra 80, item 9, todas com `lock_timeout`): (1) tabelas, coluna, carga, o `unique` do capítulo;
 `execucao_agente.ano_letivo_id drop not null` (metadado); o check novo do ano e os de função e tarefa de

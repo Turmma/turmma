@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import {
   ALCANCES_DO_SUBOPERADOR,
+  COMPONENTES_BNCC,
   CHAVES_DE_FUNCAO,
   CHAVES_DE_RETENCAO,
   CONTESTACOES_DE_VINCULO,
@@ -413,6 +414,16 @@ export const ACOES_DE_AUDITORIA = {
       pedidosEncerrados: z.number().int().nonnegative(),
       linhasDaListaApagadas: z.number().int().nonnegative(),
     }),
+    finalidade: null,
+  },
+  /**
+   * A coordenação definiu, trocou ou apagou o componente da BNCC de uma disciplina (classificacao-bncc, 1.0; RF1). `entidadeId` é a disciplina; `antes` e `depois` levam o componente (`null`
+   * quando não havia ou foi apagado). Só o componente: nunca o nome da disciplina. É também a chave do job que refaz a classificação do material (6.0), que lê o componente atual e não o desta linha.
+   */
+  'disciplina.componente_alterado': {
+    entidade: 'disciplina',
+    antes: z.strictObject({ componenteBncc: z.enum(COMPONENTES_BNCC).nullable() }),
+    depois: z.strictObject({ componenteBncc: z.enum(COMPONENTES_BNCC).nullable() }),
     finalidade: null,
   },
   /**

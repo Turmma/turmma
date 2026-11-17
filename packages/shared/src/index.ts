@@ -192,6 +192,15 @@ export type { AnoLetivo, CriarAnoLetivoRequest, AnoLetivoResponse, ListaDeAnosLe
 export { ANOS_DA_ETAPA, criarSerieRequestSchema, listaDeSeriesResponseSchema, serieResponseSchema, serieSchema, ETAPAS, nomeDaSerie } from './estrutura/serie.js'
 export type { Etapa, CriarSerieRequest, ListaDeSeriesResponse, SerieResponse, Serie } from './estrutura/serie.js'
 export {
+  COMPONENTES_BNCC,
+  COMPONENTE_PELA_CHAVE_DO_NOME,
+  componenteDoNomeDaDisciplina,
+  habilidadeEhCandidata,
+  NOME_DO_COMPONENTE,
+  partesDoCodigoBncc,
+} from './bncc/componentes.js'
+export type { ComponenteBncc, SerieDoRecorte } from './bncc/componentes.js'
+export {
   AREAS_DO_CONHECIMENTO,
   disciplinaSchema,
   criarDisciplinaRequestSchema,

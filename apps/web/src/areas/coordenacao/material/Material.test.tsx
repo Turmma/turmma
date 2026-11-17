@@ -39,8 +39,8 @@ vi.mock('../../../api/sessao', async (importar) => {
 })
 
 const id = (n: number) => `0197a1c0-0000-7000-8000-${String(n).padStart(12, '0')}`
-const QUIMICA = { id: id(500), nome: 'Química', area: null }
-const FISICA = { id: id(501), nome: 'Física', area: null }
+const QUIMICA = { id: id(500), nome: 'Química', area: null, componenteBncc: null }
+const FISICA = { id: id(501), nome: 'Física', area: null, componenteBncc: null }
 const SERIE_6 = { id: id(600), etapa: 'ef_anos_finais', ano: 6 }
 const SERIE_7 = { id: id(601), etapa: 'ef_anos_finais', ano: 7 }
 const licenca = (n: number, parte: Record<string, unknown> = {}) => ({

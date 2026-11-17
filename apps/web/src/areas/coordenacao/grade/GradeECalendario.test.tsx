@@ -27,8 +27,8 @@ const SERIE_7 = { id: id(20), etapa: 'ef_anos_finais', ano: 7 }
 const turma = (n: number, nome: string) => ({ id: id(n), anoLetivoId: EM_CURSO.id, nome, turno: null, serie: SERIE_7 })
 const TURMA_A = turma(30, '7ºA')
 const TURMA_B = turma(31, '7ºB')
-const MATEMATICA = { id: id(40), nome: 'Matemática', area: null }
-const PORTUGUES = { id: id(41), nome: 'Português', area: null }
+const MATEMATICA = { id: id(40), nome: 'Matemática', area: null, componenteBncc: null }
+const PORTUGUES = { id: id(41), nome: 'Português', area: null, componenteBncc: null }
 
 const aula = (n: number, parte: Record<string, unknown> = {}) => ({
   id: id(n),

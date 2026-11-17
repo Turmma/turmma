@@ -5,15 +5,15 @@
 
 ## Lista
 
-- [ ] **1.0 — A tabela da BNCC existe, carregada do `bncc-dados`, e a disciplina tem o componente**
-  - [ ] 1.1 Migration de `habilidade_bncc`, com o check do código e a carga versionada, sem Computação
-  - [ ] 1.2 A conferência de 30 habilidades e das contagens contra o PDF homologado, com o hash
-  - [ ] 1.3 `COMPONENTES_BNCC` e as candidatas por série e componente em `packages/shared`
-  - [ ] 1.4 `disciplina.componente_bncc`, casado pelo nome na migration e no `criar`
-  - [ ] 1.5 `PATCH /v1/disciplinas/:id` com `componenteBncc` e `disciplina.componente_alterado`
-  - [ ] 1.6 A Estrutura mostra e define o componente; a Parte A no `docs/interface.md`
-  - [ ] 1.7 `docs/modelo-de-dados.md` (tabela pública), a D65 no `TODO.md`
-  - [ ] 1.8 Testes: carga idempotente, check, candidatas, casamento, `PATCH`, isolamento, estados da tela
+- [x] **1.0 — A tabela da BNCC existe, carregada do `bncc-dados`, e a disciplina tem o componente**
+  - [x] 1.1 Migration de `habilidade_bncc`, com o check do código e a carga versionada, sem Computação
+  - [x] 1.2 A conferência de 30 habilidades e das contagens contra o PDF homologado, com o hash
+  - [x] 1.3 `COMPONENTES_BNCC` e as candidatas por série e componente em `packages/shared`
+  - [x] 1.4 `disciplina.componente_bncc`, casado pelo nome na migration e no `criar`
+  - [x] 1.5 `PATCH /v1/disciplinas/:id` com `componenteBncc` e `disciplina.componente_alterado`
+  - [x] 1.6 A Estrutura mostra e define o componente; a Parte A no `docs/interface.md`
+  - [x] 1.7 `docs/modelo-de-dados.md` (tabela pública), a D65 no `TODO.md`
+  - [x] 1.8 Testes: carga idempotente, check, candidatas, casamento, `PATCH`, isolamento, estados da tela
 
 - [ ] **2.0 — O material ganha seções na extração, os prontos de antes também, e a edição nova herda a correção**
   - [ ] 2.1 Migration de `secao_do_material` e `habilidade_da_secao`, o `unique` do capítulo e os índices da §7c

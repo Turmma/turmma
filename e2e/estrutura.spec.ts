@@ -19,6 +19,7 @@ import {
   montarEstruturaNoBanco,
   porNaListaDaTurma,
 } from './support/seed.ts'
+import { VOCABULARIO_DE_NOTA } from './support/professor/scenario.ts'
 import { ALVO_DE_TOQUE_PRINCIPAL_PX, rawCodePattern, horizontalOverflow, larguraExcedenteDoDialogo, seriousViolations } from './support/checks.ts'
 
 /**
@@ -969,6 +970,200 @@ test.describe('recomeço da Estrutura', () => {
     // Na página que já abre sem a turma, o aviso não puxa o foco: isso é de quando ela sai com a tela aberta (16.0).
     await expect(principal(page).getByRole('status').filter({ hasText: 'Esta turma não está no ano letivo em curso' })).not.toBeFocused()
     for (const deOutra of [turmaDeA.nome, nomeDeA]) await expect(page.locator('body')).not.toContainText(deOutra)
+  })
+})
+
+/** A linha da disciplina no painel do ano letivo, pelo nome dela. */
+const linhaDaDisciplina = (painel: Locator, nome: string): Locator => painel.getByRole('region', { name: 'Disciplinas' }).getByRole('listitem').filter({ hasText: nome })
+
+test.describe('o componente da BNCC da disciplina (classificacao-bncc, 1.0)', () => {
+  test('1366 × 768: a linha diz "Sem componente", a coordenação define e apaga o componente, o anúncio fica na seção, o foco volta ao botão e a página não rola', async ({ page, hasTouch, request }) => {
+    const coordenadora = await criarEquipeComSenha('coordenador')
+    const nome = `Robótica ${randomUUID().slice(0, 8)}`
+    await criarDisciplinaNoBanco(coordenadora.escolaId, nome)
+    await montarEstruturaNoBanco(coordenadora.escolaId)
+    await abrirPelaApiSemMedirAPrimeiraCarga(page, request, coordenadora, '/coordenacao/estrutura', () => esperarEstrutura(page))
+    await expect(principal(page).getByRole('region', { name: 'Turmas de 2026' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+    await paginaNaoRola(page)
+    await expect(principal(page)).not.toContainText(VOCABULARIO_DE_NOTA)
+    const painel = await abrirAnoEDisciplinas(page, hasTouch)
+    const linha = linhaDaDisciplina(painel, nome)
+    await expect(linha).toContainText('Sem componente', { timeout: SIGN_IN_TIMEOUT_MS })
+    expect(await seriousViolations(page)).toEqual([])
+
+    const botao = linha.getByRole('button', { name: `Componente da BNCC da disciplina ${nome}` })
+    await activate(botao, hasTouch)
+    const doComponente = dialogo(page, 'Componente da BNCC')
+    await expect(doComponente).toBeVisible()
+    await expect(doComponente).not.toContainText(VOCABULARIO_DE_NOTA)
+    const campo = doComponente.getByLabel(`Componente da BNCC de ${nome}`)
+    await expect(campo).toHaveValue('')
+    await campo.selectOption('quimica')
+    await activate(doComponente.getByRole('button', { name: 'Salvar componente' }), hasTouch)
+    await expect(doComponente).toHaveCount(0, { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(linha).toContainText('Componente da BNCC: Química', { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(anuncio(painel.getByRole('region', { name: 'Disciplinas' }), `Componente da BNCC de ${nome}: Química.`)).toBeVisible()
+    await expect(botao).toBeFocused()
+
+    // Apagar: o diálogo abre no que a disciplina tem, e "Sem componente" volta a linha ao que era.
+    await activate(botao, hasTouch)
+    await expect(campo).toHaveValue('quimica')
+    await campo.selectOption('')
+    await activate(doComponente.getByRole('button', { name: 'Salvar componente' }), hasTouch)
+    await expect(doComponente).toHaveCount(0, { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(linha).toContainText('Sem componente')
+    await expect(anuncio(painel.getByRole('region', { name: 'Disciplinas' }), `Componente da BNCC de ${nome} apagado.`)).toBeVisible()
+    await fecharPainel(page, painel, hasTouch)
+    await paginaNaoRola(page)
+  })
+
+  test('360 px: sem rolagem lateral, também no diálogo, com alvos de 44 px e sem violação de acessibilidade', async ({ page, hasTouch, request }) => {
+    await page.setViewportSize({ width: 360, height: 800 })
+    const coordenadora = await criarEquipeComSenha('coordenador')
+    const nome = `Componente de nome muito longo ${'x'.repeat(40)}`
+    await criarDisciplinaNoBanco(coordenadora.escolaId, nome)
+    await montarEstruturaNoBanco(coordenadora.escolaId)
+    await abrirPelaApiSemMedirAPrimeiraCarga(page, request, coordenadora, '/coordenacao/estrutura', () => esperarEstrutura(page))
+    const painel = await abrirAnoEDisciplinas(page, hasTouch)
+    const linha = linhaDaDisciplina(painel, nome)
+    await expect(linha).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+    expect(await larguraExcedenteDoDialogo(page)).toBe(0)
+    const botao = linha.getByRole('button', { name: `Componente da BNCC da disciplina ${nome}` })
+    await alvoDeToque(botao, 'Componente')
+    await activate(botao, hasTouch)
+    const doComponente = dialogo(page, 'Componente da BNCC')
+    await expect(doComponente).toBeVisible()
+    expect(await larguraExcedenteDoDialogo(page)).toBe(0)
+    expect(await horizontalOverflow(page)).toBe(0)
+    await alvoDeToque(doComponente.getByLabel(`Componente da BNCC de ${nome}`), 'Campo do componente')
+    await alvoDeToque(doComponente.getByRole('button', { name: 'Salvar componente' }), 'Salvar componente')
+    await alvoDeToque(doComponente.getByRole('button', { name: 'Cancelar' }), 'Cancelar')
+    expect(await seriousViolations(page)).toEqual([])
+  })
+
+  test('recomeço: o salvamento segurado mostra "Salvando…" e fecha ao soltar; a falha deixa o diálogo e a escolha de pé, e a nova tentativa salva; reabrir começa no que a lista tem', async ({ page, hasTouch, request }) => {
+    const coordenadora = await criarEquipeComSenha('coordenador')
+    const nome = `Projeto ${randomUUID().slice(0, 8)}`
+    const outra = `Oficina ${randomUUID().slice(0, 8)}`
+    await criarDisciplinaNoBanco(coordenadora.escolaId, nome)
+    await criarDisciplinaNoBanco(coordenadora.escolaId, outra)
+    await montarEstruturaNoBanco(coordenadora.escolaId)
+    await abrirPelaApiSemMedirAPrimeiraCarga(page, request, coordenadora, '/coordenacao/estrutura', () => esperarEstrutura(page))
+    const painel = await abrirAnoEDisciplinas(page, hasTouch)
+    const botao = linhaDaDisciplina(painel, nome).getByRole('button', { name: `Componente da BNCC da disciplina ${nome}` })
+    const doComponente = dialogo(page, 'Componente da BNCC')
+    const campo = doComponente.getByLabel(`Componente da BNCC de ${nome}`)
+
+    // A API recusa uma vez: o diálogo explica, a escolha fica, e a nova tentativa salva.
+    let recusar = true
+    const segurada = gate()
+    let segurar = false
+    await page.route('**/v1/disciplinas/*', async (rota: Route) => {
+      if (rota.request().method() !== 'PATCH') return rota.continue()
+      if (recusar) {
+        recusar = false
+        return rota.fulfill({ status: 503, contentType: 'application/json', body: INDISPONIVEL })
+      }
+      if (segurar) await segurada.aberta
+      return rota.continue()
+    })
+    await activate(botao, hasTouch)
+    await campo.selectOption('historia')
+    await activate(doComponente.getByRole('button', { name: 'Salvar componente' }), hasTouch)
+    await expect(doComponente.getByRole('alert')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(campo).toHaveValue('historia')
+    await expect(linhaDaDisciplina(painel, nome)).toContainText('Sem componente')
+
+    segurar = true
+    await activate(doComponente.getByRole('button', { name: 'Salvar componente' }), hasTouch)
+    await expect(doComponente.getByRole('button', { name: 'Salvando…' })).toBeDisabled()
+    await expect(doComponente.getByRole('alert')).toHaveCount(0)
+    segurada.abrir()
+    await expect(doComponente).toHaveCount(0, { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(linhaDaDisciplina(painel, nome)).toContainText('Componente da BNCC: História')
+    await expect(botao).toBeFocused()
+
+    // Reabrir a mesma começa no que a lista tem; abrir a outra começa no dela.
+    await activate(botao, hasTouch)
+    await expect(campo).toHaveValue('historia')
+    await campo.selectOption('arte')
+    await activate(doComponente.getByRole('button', { name: 'Cancelar' }), hasTouch)
+    await expect(doComponente).toHaveCount(0)
+    await activate(linhaDaDisciplina(painel, outra).getByRole('button', { name: `Componente da BNCC da disciplina ${outra}` }), hasTouch)
+    await expect(doComponente.getByLabel(`Componente da BNCC de ${outra}`)).toHaveValue('')
+    await activate(doComponente.getByRole('button', { name: 'Cancelar' }), hasTouch)
+    await activate(botao, hasTouch)
+    await expect(campo).toHaveValue('historia')
+  })
+
+  test('o `PATCH` segurado de uma disciplina e a troca para outra: a resposta que chega depois não fecha o diálogo da outra, e a linha da primeira mostra o que foi salvo', async ({ page, hasTouch, request }) => {
+    const coordenadora = await criarEquipeComSenha('coordenador')
+    const nomeX = `Projeto ${randomUUID().slice(0, 8)}`
+    const nomeY = `Oficina ${randomUUID().slice(0, 8)}`
+    const idDeX = await criarDisciplinaNoBanco(coordenadora.escolaId, nomeX)
+    await criarDisciplinaNoBanco(coordenadora.escolaId, nomeY)
+    await montarEstruturaNoBanco(coordenadora.escolaId)
+    await abrirPelaApiSemMedirAPrimeiraCarga(page, request, coordenadora, '/coordenacao/estrutura', () => esperarEstrutura(page))
+    const painel = await abrirAnoEDisciplinas(page, hasTouch)
+    const doComponente = dialogo(page, 'Componente da BNCC')
+
+    // O `PATCH` da X fica no ar até o teste soltar.
+    const segurada = gate()
+    let seguradas = 0
+    await page.route(`**/v1/disciplinas/${idDeX}`, async (rota: Route) => {
+      if (rota.request().method() === 'PATCH') {
+        seguradas += 1
+        await segurada.aberta
+      }
+      await rota.continue()
+    })
+    await activate(linhaDaDisciplina(painel, nomeX).getByRole('button', { name: `Componente da BNCC da disciplina ${nomeX}` }), hasTouch)
+    await doComponente.getByLabel(`Componente da BNCC de ${nomeX}`).selectOption('historia')
+    await activate(doComponente.getByRole('button', { name: 'Salvar componente' }), hasTouch)
+    await expect(doComponente.getByRole('button', { name: 'Salvando…' })).toBeDisabled()
+    expect(seguradas).toBe(1)
+
+    // Com o pedido no ar, a pessoa cancela e abre a outra disciplina: é o diálogo do mesmo tipo, com o valor da Y.
+    await activate(doComponente.getByRole('button', { name: 'Cancelar' }), hasTouch)
+    await expect(doComponente).toHaveCount(0)
+    await activate(linhaDaDisciplina(painel, nomeY).getByRole('button', { name: `Componente da BNCC da disciplina ${nomeY}` }), hasTouch)
+    const campoDaY = doComponente.getByLabel(`Componente da BNCC de ${nomeY}`)
+    await expect(campoDaY).toHaveValue('')
+    await campoDaY.selectOption('arte')
+
+    // A resposta da X chega: a linha dela mostra o que foi salvo, o aviso é dela, e o diálogo da Y continua aberto, com o que a pessoa escolheu.
+    segurada.abrir()
+    await expect(linhaDaDisciplina(painel, nomeX)).toContainText('Componente da BNCC: História', { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(anuncio(painel.getByRole('region', { name: 'Disciplinas' }), `Componente da BNCC de ${nomeX}: História.`)).toBeVisible()
+    await expect(doComponente).toBeVisible()
+    await expect(campoDaY).toHaveValue('arte')
+    await expect(linhaDaDisciplina(painel, nomeY)).toContainText('Sem componente')
+  })
+
+  test('segunda pessoa: a coordenação de B não vê o componente que a de A definiu, nem a disciplina dela', async ({ page, hasTouch, request }) => {
+    const deA = await criarEquipeComSenha('coordenador')
+    const nomeDeA = `Disciplina de A ${randomUUID().slice(0, 8)}`
+    await criarDisciplinaNoBanco(deA.escolaId, nomeDeA)
+    await montarEstruturaNoBanco(deA.escolaId)
+    await abrirPelaApiSemMedirAPrimeiraCarga(page, request, deA, '/coordenacao/estrutura', () => esperarEstrutura(page))
+    const painelDeA = await abrirAnoEDisciplinas(page, hasTouch)
+    await activate(linhaDaDisciplina(painelDeA, nomeDeA).getByRole('button', { name: `Componente da BNCC da disciplina ${nomeDeA}` }), hasTouch)
+    await dialogo(page, 'Componente da BNCC').getByLabel(`Componente da BNCC de ${nomeDeA}`).selectOption('geografia')
+    await activate(dialogo(page, 'Componente da BNCC').getByRole('button', { name: 'Salvar componente' }), hasTouch)
+    await expect(linhaDaDisciplina(painelDeA, nomeDeA)).toContainText('Componente da BNCC: Geografia', { timeout: SIGN_IN_TIMEOUT_MS })
+    await page.keyboard.press('Escape')
+    await abrirNavegacao(page, hasTouch)
+    await activate(lateral(page).getByRole('button', { name: 'Sair' }), hasTouch)
+    await expect(page).toHaveURL(/\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
+
+    const deB = await criarEquipeComSenha('coordenador')
+    await entrarComoCoordenacaoNaMesmaAba(page, deB, hasTouch)
+    await esperarPainel(page)
+    await abrirEstrutura(page, hasTouch)
+    const painelDeB = await abrirAnoEDisciplinas(page, hasTouch)
+    await expect(painelDeB.getByRole('region', { name: 'Disciplinas' }).locator('li')).toHaveCount(0, { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(page.locator('body')).not.toContainText(nomeDeA)
+    await expect(page.locator('body')).not.toContainText('Geografia')
   })
 })
 

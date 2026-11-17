@@ -4,8 +4,8 @@ import { RESUMO_DO_MATERIAL_QUERY_KEY, resumoDoMaterialQueryOptions } from './ap
 import { assinaturaDosEstados, avisoDaMigracao, linhasDoResumo, NOME_DA_LINHA_SEM_SERIE, resumoFicouParaTras } from './resumo-do-material'
 
 const id = (n: number) => `0197a1c0-0000-7000-8000-${String(n).padStart(12, '0')}`
-const FISICA = { id: id(501), nome: 'Física', area: null }
-const QUIMICA = { id: id(500), nome: 'Química', area: null }
+const FISICA = { id: id(501), nome: 'Física', area: null, componenteBncc: null }
+const QUIMICA = { id: id(500), nome: 'Química', area: null, componenteBncc: null }
 const SERIE_6 = { id: id(600), etapa: 'ef_anos_finais', ano: 6 } as const
 const SERIE_9 = { id: id(603), etapa: 'ef_anos_finais', ano: 9 } as const
 const SERIE_1EM = { id: id(610), etapa: 'em', ano: 1 } as const

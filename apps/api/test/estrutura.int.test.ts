@@ -1,10 +1,15 @@
+import { createDatabase, createPool, runInContext, type DatabasePool } from '@educa/core'
+import { DisciplinaRepository } from '@educa/core/estrutura'
 import { ErrorCode } from '@educa/shared'
+import { randomUUID } from 'node:crypto'
 import pg from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { chamar, subirApi, type TestApi, type RespostaHttp } from './test-api.js'
 import { SessaoFixtures, type TestSessao } from './sessao.fixture.js'
+import { auditoriaDa } from './material.fixture.js'
+import { esperarNaTrava } from './write-block-trigger.js'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
 
@@ -12,12 +17,15 @@ describe('estrutura: a coordenação monta o ano letivo, as séries, as discipli
   const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
   let api: TestApi
+  let apoio: DatabasePool
 
   beforeAll(async () => {
     api = await subirApi(medidor.medidor)
+    apoio = createPool({ url: urlDoBancoDeTeste(), maximoConexoes: 2, timeoutConexaoMs: 5_000, timeoutConsultaMs: 30_000 }, () => undefined)
   })
 
   afterAll(async () => {
+    await apoio.end()
     await api.app.close()
     await bancada.fechar()
     await medidor.encerrar()
@@ -79,7 +87,7 @@ describe('estrutura: a coordenação monta o ano letivo, as séries, as discipli
 
     const quimica = await post(coordenacao, '/v1/disciplinas', { nome: '  Química ', area: 'ciencias_da_natureza' })
     expect(quimica.status).toBe(201)
-    expect(quimica.corpo).toEqual({ id: expect.stringMatching(UUID), nome: 'Química', area: 'ciencias_da_natureza' })
+    expect(quimica.corpo).toEqual({ id: expect.stringMatching(UUID), nome: 'Química', area: 'ciencias_da_natureza', componenteBncc: 'quimica' })
 
     const turma = await post(coordenacao, '/v1/turmas', { serieId: primeiroEm.corpo['id'], nome: '2ºB', turno: 'manha' })
     expect(turma.status).toBe(201)
@@ -673,6 +681,185 @@ describe('estrutura: a coordenação monta o ano letivo, as séries, as discipli
       expect((await nomesNoBanco('turma', coordenacao.escolaId)).sort()).toEqual(['6ºA', '6ºa'])
       expect((await excluir(coordenacao, `/v1/turmas/${String(atual['id'])}`)).status).toBe(204)
       expect(await nomesNoBanco('turma', coordenacao.escolaId)).toEqual(['6ºA'])
+    })
+  })
+
+  describe('classificacao-bncc, 1.0 (RF1): o componente da BNCC da disciplina', () => {
+    const criar = async (coordenacao: TestSessao, nome: string): Promise<Record<string, unknown>> => {
+      const resposta = await post(coordenacao, '/v1/disciplinas', { nome })
+      expect(resposta.status).toBe(201)
+      return resposta.corpo
+    }
+    const componenteNoBanco = async (disciplinaId: string): Promise<string | null> =>
+      (await bancada.pool.query<{ componente_bncc: string | null }>('select componente_bncc from disciplina where id = $1', [disciplinaId])).rows[0]?.componente_bncc ?? null
+    // Todas as linhas de auditoria da escola, de qualquer ação: a ausência que o caso afirma não pode esconder uma ação gravada com outro nome.
+    const totalDeAuditoria = async (escolaId: string): Promise<number> =>
+      Number((await bancada.pool.query<{ total: string }>('select count(*) as total from auditoria where escola_id = $1', [escolaId])).rows[0]?.total)
+    const comoEscola = <T>(escolaId: string, corpo: (repositorio: DisciplinaRepository) => Promise<T>): Promise<T> =>
+      runInContext({ requisicaoId: randomUUID(), escolaId }, () => corpo(new DisciplinaRepository(createDatabase(apoio))))
+
+    it('a disciplina criada depois nasce com o componente que o nome diz ("química", "Português"), a que não casa nasce sem, e renomear não o muda', async () => {
+      const coordenacao = await coordenacaoNova()
+      const quimica = await criar(coordenacao, 'química')
+      const portugues = await criar(coordenacao, ' Português ')
+      const robotica = await criar(coordenacao, 'Robótica')
+      expect([quimica['componenteBncc'], portugues['componenteBncc'], robotica['componenteBncc']]).toEqual(['quimica', 'lingua_portuguesa', null])
+      expect(await componenteNoBanco(String(quimica['id']))).toBe('quimica')
+
+      // Renomear não troca o componente: a "química" renomeada continua Química, e a "Robótica" renomeada para "Física" não ganha o de Física.
+      const renomeada = await patch(coordenacao, `/v1/disciplinas/${String(quimica['id'])}`, { nome: 'Química Orgânica' })
+      expect(renomeada.corpo).toEqual({ ...quimica, nome: 'Química Orgânica', componenteBncc: 'quimica' })
+      const semComponente = await patch(coordenacao, `/v1/disciplinas/${String(robotica['id'])}`, { nome: 'Física' })
+      expect(semComponente.corpo).toEqual({ ...robotica, nome: 'Física', componenteBncc: null })
+      expect(await componenteNoBanco(String(robotica['id']))).toBeNull()
+      expect((await get(coordenacao, '/v1/disciplinas')).corpo.itens).toEqual([renomeada.corpo, portugues, semComponente.corpo])
+    })
+
+    it('`PATCH` com `componenteBncc` grava o componente e `disciplina.componente_alterado` com o de antes e o de depois; o mesmo componente de novo não audita; `null` apaga e audita', async () => {
+      const coordenacao = await coordenacaoNova()
+      const robotica = await criar(coordenacao, 'Robótica')
+      const url = `/v1/disciplinas/${String(robotica['id'])}`
+
+      const definido = await patch(coordenacao, url, { componenteBncc: 'matematica' })
+      expect(definido.status).toBe(200)
+      expect(definido.corpo).toEqual({ ...robotica, componenteBncc: 'matematica' })
+      expect(await componenteNoBanco(String(robotica['id']))).toBe('matematica')
+      expect((await get(coordenacao, '/v1/disciplinas')).corpo.itens).toEqual([definido.corpo])
+
+      // O mesmo componente que já estava: responde a disciplina e não grava auditoria nova.
+      expect((await patch(coordenacao, url, { componenteBncc: 'matematica' })).corpo).toEqual(definido.corpo)
+      const trocado = await patch(coordenacao, url, { nome: 'Robótica 2', componenteBncc: 'fisica' })
+      expect(trocado.corpo).toEqual({ ...robotica, nome: 'Robótica 2', componenteBncc: 'fisica' })
+      const apagado = await patch(coordenacao, url, { componenteBncc: null })
+      expect(apagado.status).toBe(200)
+      expect(apagado.corpo).toEqual({ ...robotica, nome: 'Robótica 2', componenteBncc: null })
+      expect(await componenteNoBanco(String(robotica['id']))).toBeNull()
+
+      const registros = await auditoriaDa(bancada, coordenacao.escolaId, 'disciplina.componente_alterado')
+      expect(registros.map((registro) => [registro.antes, registro.depois])).toEqual([
+        [{ componenteBncc: null }, { componenteBncc: 'matematica' }],
+        [{ componenteBncc: 'matematica' }, { componenteBncc: 'fisica' }],
+        [{ componenteBncc: 'fisica' }, { componenteBncc: null }],
+      ])
+      expect(registros.every((registro) => registro.entidade === 'disciplina' && registro.entidade_id === robotica['id'] && registro.autor_usuario_id === coordenacao.usuarioId)).toBe(true)
+      // Só o componente: nem o nome da disciplina nem o que o corpo trouxe a mais entram na auditoria.
+      expect(JSON.stringify(registros)).not.toContain('Robótica')
+    })
+
+    it('duas disciplinas na mesma escola: o `PATCH` de uma muda só a dela, e a auditoria leva o de antes dela, não o da vizinha', async () => {
+      const coordenacao = await coordenacaoNova()
+      // A "Química" nasce com componente e vem primeiro na tabela: sem o id na trava ou na escrita, quem responde é ela.
+      const quimica = await criar(coordenacao, 'Química')
+      const robotica = await criar(coordenacao, 'Robótica')
+      const resposta = await patch(coordenacao, `/v1/disciplinas/${String(robotica['id'])}`, { componenteBncc: 'fisica' })
+      expect(resposta.status).toBe(200)
+      expect(resposta.corpo).toEqual({ ...robotica, componenteBncc: 'fisica' })
+      expect(await componenteNoBanco(String(quimica['id']))).toBe('quimica')
+      expect(await componenteNoBanco(String(robotica['id']))).toBe('fisica')
+      const registros = await auditoriaDa(bancada, coordenacao.escolaId, 'disciplina.componente_alterado')
+      expect(registros.map((registro) => [registro.entidade_id, registro.antes, registro.depois])).toEqual([[robotica['id'], { componenteBncc: null }, { componenteBncc: 'fisica' }]])
+    })
+
+    it('componente que não existe, de outro tipo ou com campo a mais é ENTRADA_INVALIDA; o banco recusa o componente fora da lista mesmo por fora da rota', async () => {
+      const coordenacao = await coordenacaoNova()
+      const quimica = await criar(coordenacao, 'Química')
+      const url = `/v1/disciplinas/${String(quimica['id'])}`
+      const auditoriaAntes = await totalDeAuditoria(coordenacao.escolaId)
+      for (const corpo of [{}, { componenteBncc: 'astrologia' }, { componenteBncc: 'Química' }, { componenteBncc: 7 }, { componenteBncc: '' }, { componenteBncc: 'fisica', escolaId: coordenacao.escolaId }]) {
+        const resposta = await patch(coordenacao, url, corpo)
+        expect(resposta.status, JSON.stringify(corpo)).toBe(400)
+        expect(resposta.corpo.erro?.codigo, JSON.stringify(corpo)).toBe(ErrorCode.ENTRADA_INVALIDA)
+      }
+      expect(await componenteNoBanco(String(quimica['id']))).toBe('quimica')
+      expect(await totalDeAuditoria(coordenacao.escolaId)).toBe(auditoriaAntes)
+      await expect(bancada.pool.query("update disciplina set componente_bncc = 'astrologia' where id = $1", [quimica['id']])).rejects.toMatchObject({ constraint: 'disciplina_componente_bncc_valido' })
+    })
+
+    it('isolamento: a coordenação da A não alcança a disciplina da B, e a resposta é a do id inexistente; nada muda na B, nem com o componente que ela já tem', async () => {
+      const a = await coordenacaoNova()
+      const b = await coordenacaoNova()
+      const daB = await criar(b, 'Química')
+      const urlDaB = `/v1/disciplinas/${String(daB['id'])}`
+      const auditoriaDaA = await totalDeAuditoria(a.escolaId)
+      const auditoriaDaB = await totalDeAuditoria(b.escolaId)
+
+      // O componente igual ao da B: sem a escola na trava, a A leria a linha da B, veria "nada a mudar" e responderia 200 com a disciplina dela.
+      const igual = await patch(a, urlDaB, { componenteBncc: 'quimica' })
+      const diferente = await patch(a, urlDaB, { componenteBncc: 'fisica' })
+      const nome = await patch(a, urlDaB, { nome: 'Invadida' })
+      const inexistente = await patch(a, `/v1/disciplinas/${randomUUID()}`, { componenteBncc: 'quimica' })
+      for (const resposta of [igual, diferente, nome, inexistente]) {
+        expect(resposta.status).toBe(404)
+        expect(resposta.corpo.erro?.codigo).toBe(ErrorCode.NAO_ENCONTRADO)
+      }
+      // A mesma resposta, menos o id da requisição, que é de cada chamada.
+      expect({ ...igual.corpo.erro, requisicaoId: undefined }).toEqual({ ...inexistente.corpo.erro, requisicaoId: undefined })
+      expect(JSON.stringify(igual.corpo)).not.toContain(String(daB['id']))
+      expect((await get(b, '/v1/disciplinas')).corpo.itens).toEqual([daB])
+      expect(await totalDeAuditoria(a.escolaId)).toBe(auditoriaDaA)
+      expect(await totalDeAuditoria(b.escolaId)).toBe(auditoriaDaB)
+
+      // O repository sozinho: o escopo da escola está na escrita, e não só na leitura que o service faz antes dela.
+      expect(await comoEscola(a.escolaId, (repositorio) => repositorio.definirComponente(String(daB['id']), 'fisica'))).toBeUndefined()
+      expect(await comoEscola(a.escolaId, (repositorio) => repositorio.travarPorId(String(daB['id'])))).toBeUndefined()
+      expect(await componenteNoBanco(String(daB['id']))).toBe('quimica')
+    })
+
+    it('o `PATCH` do componente é só da coordenação, não agenda nada e não chama o agente: professor e aluno recebem o 404 da rota inexistente, e nenhuma `execucao_agente` nasce', async () => {
+      const coordenacao = await coordenacaoNova()
+      const quimica = await criar(coordenacao, 'Química')
+      const antes = Number((await bancada.pool.query<{ total: string }>('select count(*) as total from execucao_agente where escola_id = $1', [coordenacao.escolaId])).rows[0]?.total)
+      const auditoriaAntes = await totalDeAuditoria(coordenacao.escolaId)
+      for (const papel of ['professor', 'aluno'] as const) {
+        const sessao = await bancada.sessao(coordenacao.escolaId, papel)
+        const resposta = await patch(sessao, `/v1/disciplinas/${String(quimica['id'])}`, { componenteBncc: 'fisica' })
+        expect(resposta.status, papel).toBe(404)
+        expect(resposta.corpo.erro?.codigo, papel).toBe(ErrorCode.NAO_ENCONTRADO)
+      }
+      expect(await totalDeAuditoria(coordenacao.escolaId)).toBe(auditoriaAntes)
+      expect((await patch(coordenacao, `/v1/disciplinas/${String(quimica['id'])}`, { componenteBncc: 'fisica' })).status).toBe(200)
+      expect(await componenteNoBanco(String(quimica['id']))).toBe('fisica')
+      const depois = Number((await bancada.pool.query<{ total: string }>('select count(*) as total from execucao_agente where escola_id = $1', [coordenacao.escolaId])).rows[0]?.total)
+      expect(depois).toBe(antes)
+      expect(await auditoriaDa(bancada, coordenacao.escolaId, 'disciplina.componente_alterado')).toHaveLength(1)
+      expect(await totalDeAuditoria(coordenacao.escolaId)).toBe(auditoriaAntes + 1)
+    })
+
+    it('concorrência: dois `PATCH` para o mesmo componente ao mesmo tempo auditam uma vez só', async () => {
+      const coordenacao = await coordenacaoNova()
+      const robotica = await criar(coordenacao, 'Robótica')
+      const url = `/v1/disciplinas/${String(robotica['id'])}`
+      const auditoriaAntes = await totalDeAuditoria(coordenacao.escolaId)
+      const iguais = await Promise.all([patch(coordenacao, url, { componenteBncc: 'historia' }), patch(coordenacao, url, { componenteBncc: 'historia' })])
+      expect(iguais.map((resposta) => resposta.status)).toEqual([200, 200])
+      expect(await auditoriaDa(bancada, coordenacao.escolaId, 'disciplina.componente_alterado')).toHaveLength(1)
+      expect(await totalDeAuditoria(coordenacao.escolaId)).toBe(auditoriaAntes + 1)
+      expect(await componenteNoBanco(String(robotica['id']))).toBe('historia')
+    })
+
+    it('concorrência, ordem forçada: o `PATCH` espera a trava da linha antes de ler o componente de antes, e a auditoria parte do que a outra troca deixou', async () => {
+      const coordenacao = await coordenacaoNova()
+      const robotica = await criar(coordenacao, 'Robótica')
+      const url = `/v1/disciplinas/${String(robotica['id'])}`
+      const auditoriaAntes = await totalDeAuditoria(coordenacao.escolaId)
+      const outra = new pg.Client({ connectionString: urlDoBancoDeTeste() })
+      await outra.connect()
+      try {
+        await outra.query('begin')
+        await outra.query('select 1 from disciplina where id = $1 for update', [robotica['id']])
+        const trocando = patch(coordenacao, url, { componenteBncc: 'quimica' })
+        await esperarNaTrava(bancada.pool, '%from "disciplina"%for update%')
+        // A outra troca termina primeiro, com o mesmo componente que o `PATCH` pede: quem esperava lê "quimica" como o de antes e não tem o que mudar.
+        await outra.query("update disciplina set componente_bncc = 'quimica' where id = $1", [robotica['id']])
+        await outra.query('commit')
+        const resposta = await trocando
+        expect(resposta.status).toBe(200)
+        expect(resposta.corpo).toEqual({ ...robotica, componenteBncc: 'quimica' })
+      } finally {
+        await outra.query('rollback').catch(() => undefined)
+        await outra.end()
+      }
+      expect(await totalDeAuditoria(coordenacao.escolaId)).toBe(auditoriaAntes)
     })
   })
 

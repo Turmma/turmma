@@ -12,6 +12,7 @@ import {
   vinculoDaCoordenacaoResponseSchema,
   TAMANHO_MAXIMO_DA_PAGINA,
   type AnoLetivo,
+  type ComponenteBncc,
   type Disciplina,
   type CriarAnoLetivoRequest,
   type CriarDisciplinaRequest,
@@ -123,6 +124,11 @@ export function criarDisciplina(pedido: CriarDisciplinaRequest): Promise<Discipl
 
 export function renomearDisciplina(id: string, nome: string): Promise<Disciplina> {
   return authedRequest(`/v1/disciplinas/${encodeURIComponent(id)}`, disciplinaResponseSchema, { metodo: 'PATCH', corpo: { nome } })
+}
+
+/** `PATCH /v1/disciplinas/:id` com o componente da BNCC (`null` o apaga): o que diz as habilidades candidatas do material da disciplina. */
+export function definirComponenteDaDisciplina(id: string, componenteBncc: ComponenteBncc | null): Promise<Disciplina> {
+  return authedRequest(`/v1/disciplinas/${encodeURIComponent(id)}`, disciplinaResponseSchema, { metodo: 'PATCH', corpo: { componenteBncc } })
 }
 
 export function excluirDisciplina(id: string): Promise<void> {
