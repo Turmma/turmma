@@ -184,6 +184,14 @@ O que trava o projeto e não se resolve programando. Vários têm prazo externo.
 
 ## Infra e operação
 
+- [ ] (correção `2026-11-17-integracao-recusa-workers-de-pe`, 2ª rodada, revisor-geral e test-engineer) **Cinco arremates em `tools/testes/`** (`integracao.setup.test.ts`,
+      `integracao.setup.ts`, `workers-de-pe.ts`): (1) o caso "o Docker ausente" simula o Docker que some entre o `up` e o `ps`, e sem Docker o `up` falha antes:
+      ajustar o nome ou o comentário de `listarServicosDePe`; (2) o mesmo caso usa `stdout: null`, contra `saida: string`: pôr `?? ''` em `saida`; (3) afirmar nele também
+      que `migrate` não é chamado; (4) bloco de mutação para o `${resultado.erro.trim()}` da mensagem; (5) bloco que mova a recusa para antes do laço da subida, provando
+      o caso "o `down` vem antes do `ps`" (dono: Implementador)
+- [ ] (correção `2026-11-17-integracao-recusa-workers-de-pe`, test-engineer, 1ª) **Teste da assinatura do `globalSetup` do Vitest.** `tools/testes/integracao.setup.ts`
+      decide pelo `project.name` que o Vitest 5 entrega (`infra` convive com os workers, o resto recusa). Se a assinatura mudar, o `infra` passaria a recusar
+      depois do e2e. O lado que recusa é o seguro para a integração; um teste que rode o Vitest de verdade e leia o nome é trabalho próprio (dono: Implementador)
 - [ ] (reengenharia-continuacao, 3.0, infra-guardian, 1ª) **`VALIDATE` do check fora da transação da migration.** A `0058` valida os dois checks na mesma
       transação que os acrescenta (`ACCESS EXCLUSIVE` em `job_registro`, que cresce a partir da 5.0). A próxima migration que mexer num check dessa tabela
       separa o `VALIDATE` (o cabeçalho da `0058` já promete; este item é para não depender de lembrança) (dono: Implementador da próxima migration)

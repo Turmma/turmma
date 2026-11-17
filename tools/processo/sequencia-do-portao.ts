@@ -28,12 +28,12 @@ export interface EntradaDaSequencia {
 }
 
 /** O `stop` dos despachantes e workers do compose de teste. Sem serviço nenhum o `stop` derrubaria o projeto inteiro, o banco junto: lista vazia é erro. */
-function derrubarJob(docker: readonly string[], servicosDeJob: readonly string[]): string {
+export function derrubarJob(docker: readonly string[], servicosDeJob: readonly string[]): string {
   if (servicosDeJob.length === 0) throw new Error('nenhum despachante nem worker no compose de teste: o portão não saberia o que derrubar antes da integração')
   return [...docker, 'stop', ...servicosDeJob].join(' ')
 }
 
-/** Alguma das mutações roda um teste de integração, que sobe só a infra e não olha quem já estava de pé (`mutacoes.ts`, sem `EDUCA_BANCO_NOVO`). */
+/** Alguma das mutações roda um teste de integração, que sobe só a infra e, com worker de pé, recusa (`tools/testes/workers-de-pe.ts`): o `stop` volta antes delas, porque elas rodam sem `EDUCA_BANCO_NOVO` (`mutacoes.ts`) e nada mais os derruba. */
 export function mutacaoDeIntegracao(mutacoes: readonly { teste: string }[]): boolean {
   return mutacoes.some((mutacao) => tipoDoTeste(mutacao.teste) === 'integracao')
 }
