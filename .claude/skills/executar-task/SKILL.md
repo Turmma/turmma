@@ -285,6 +285,10 @@ tarefa tem**, marcados ou não.
 (`.claude/skills/revisar-tarefa/SKILL.md`). Ela monta o prompt de cada um a partir da árvore, chama
 na ordem certa e devolve o resultado. Quem implementa não escreve o prompt de quem o revisa (D78).
 
+O `N_task.md` se muda com Edit. Script que reescreve o arquivo (python com `open(..., 'w')`, `sed -i`, `>`) não passa pelo
+gancho do `Write`: na X6 cortou a seção "Revisões" da 2.0, da 7.0 e da 10.0 (`s = s[:i] + tabela`), e a rodada perdida só
+ficou no `achados/`.
+
 Antes de pedir, para cada linha de "Divergências resolvidas", procure a palavra do código no `techspec.md` e no
 `cenarios.md` (`grep -n`). Não achou: a decisão entra lá agora, na seção que a coluna "Onde está na spec" cita (o aviso
 crítico do passo 2). Na F2, a 3.0, a 5.0, a 8.0 (quatro linhas) e a 10.0 reprovaram no `revisor-geral` por divergência que só

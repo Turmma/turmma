@@ -1130,6 +1130,9 @@ do hook. Uma fatia sintética nova, se vier, roda no processo de hoje: as linhas
 velocidade que o processo enxuto buscava, e o caminho, sem branch `mvp/` desde 05/10/2026, era código que
 ninguém exercitava (U11-10).
 
+Anotada em 17/11/2026, na retro da X6, com o "aprovo" do Joaquim: a dívida do item (5) está paga. A extração de PDF
+saiu do processo da API na F4, e a execução de IA na X6 (tarefa 5.0, 16/11/2026): as duas rodam por fila, no worker.
+
 **D78 — O processo roda no Maestri: um andar por spec, um comando, e modelo por papel.** *(decidida
 pelo Joaquim em 08/10/2026)*
 Revisa a D23 (onde o trabalho acontece e quando a esteira roda) e a D53 (quem chama os revisores e
