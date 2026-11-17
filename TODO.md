@@ -1210,6 +1210,21 @@ código"), com o destino de cada uma. As pequenas foram fechadas na correção `
       (dono: quem reaproveitar)
 - [ ] (classificacao-bncc, 1.0, rodada 1) **Para a 6.0:** o job disparado por `disciplina.componente_alterado` envia material ao provedor e precisa ser auditado em `ExecucaoAgente`;
       a classificação por habilidade é alto risco (AIA, D60), a entrega nasce pendente e a autonomia do agente é declarada (dono: Arquiteto, ao revisar o `6_task.md`)
+- [ ] (classificacao-bncc, 2.0, rodada 1) **Teste da eliminação da coordenação que corrigiu pelo `CicloDeVidaService.eliminar`:** o caso de `migracao-f4b.int.test.ts` apaga o usuário com `delete from usuario`
+      e prova a FK `set null ("corrigida_por")`; falta o que passa pelo caminho real da eliminação (dono: Implementador, na tarefa 7.0, que grava `corrigida_por`)
+- [ ] (classificacao-bncc, 2.0, rodada 1) **O `VALIDATE` do `auditoria_rotina_so_nas_acoes` na `0060` varre `auditoria` com a tabela travada:** é o precedente das `0036` e `0056`, e o deploy é fora do horário
+      letivo; se `auditoria` crescer, `NOT VALID` numa migration e `VALIDATE` em outra, com o comentário do custo (dono: Implementador, na próxima ação nova que a `rotina` assinar)
+- [ ] (classificacao-bncc, 2.0, rodada 1) **Índice parcial `(escola_id, corrigida_por) where corrigida_por is not null` em `secao_do_material`:** a leitura do arquivo do titular e a eliminação da pessoa
+      filtram por `corrigida_por`; hoje a tabela é pequena (uma seção por capítulo), e o índice entra se ela crescer (dono: Implementador, quando a 7.0 existir e o volume for medido)
+- [ ] (classificacao-bncc, 2.0, rodada 1) **`[P]` de dois jobs da mesma edição com a anterior corrigida:** a chave `habilidade_da_secao_pk` estouraria com a herança em dobro; hoje o `[P]` existente prova o
+      `marcarPronto` único que a protege, e o caso com a correção seria um teste inteiro (dono: Implementador, na tarefa 7.0, quando a correção existir de verdade)
+- [ ] (classificacao-bncc, 2.0, rodada 2) **`cenarios.md`: o `[I]` da volta do código é o único dos novos sem "Mutação":** sugestão, tirar o `not exists` do bloco; o caso de "rodar de novo" já prova a
+      idempotência (dono: Implementador, na próxima tarefa que tocar o `cenarios.md`)
+- [ ] (classificacao-bncc, 2.0, rodada 2) **Runbook, `volta-da-2-0`:** uma linha dizendo por que o bloco é um `INSERT` só, sem os lotes de 1.000 da `0061`; abrir o bloco com `SET LOCAL lock_timeout = '5s';`
+      (o teste lê e executa o bloco, então a mudança vai com ele); deixar explícita a ordem dos passos (subir o código novo, esperar o `worker-pdf` antigo, rodar o bloco, reabrir o envio)
+      (dono: Implementador, na próxima tarefa que tocar o `docs/runbook.md`)
+- [ ] (classificacao-bncc, 2.0, rodada 2) **`volta-da-2-0.int.test.ts`:** dar `capitulos: 2` ao `excluido` e ao `processando`, para provar também a parte por capítulo do bloco, e comparar `corrigida_em` por
+      `getTime()` com `Date.parse(...)`, e não por `toISOString()` (dono: Implementador, na próxima tarefa que tocar o teste)
 
 ## Produto
 

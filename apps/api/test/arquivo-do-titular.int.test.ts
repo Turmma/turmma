@@ -728,6 +728,42 @@ describe('arquivo do titular (F3, tarefa 13.0): do pedido ao download', () => {
     })
   })
 
+  describe('a seção do material (classificacao-bncc, tarefa 2.0)', () => {
+    it('`corrigida_por` fica em `fora`: a seção entra no arquivo de quem a corrigiu, com a marca e a faixa de páginas, e a do colega e a sem correção não entram (a de outra escola, a FK `(escola_id, corrigida_por)` a prende ao usuário da mesma escola, e não este filtro)', async () => {
+      const cenario = await novaEscola()
+      const outraEscola = await novaEscola()
+      const colega = await pessoa(cenario, 'professor', 'Colega')
+      const secao = async (escolaId: string, disciplinaId: string, quem: string | null, ordem: number): Promise<string> => {
+        const material = await inserir(
+          `insert into material (escola_id, disciplina_id, titulo, titularidade, licenca, declaracao, sha256, tamanho_bytes, estado, paginas)
+           values ($1, $2, 'Material da seção', 'escola', 'autoria_da_escola', true, md5(random()::text) || md5(random()::text), 1000, 'pronto', 10) returning id`,
+          [escolaId, disciplinaId],
+        )
+        return inserir(
+          `insert into secao_do_material (escola_id, material_id, ordem, pagina_inicial, pagina_final, corrigida_em, corrigida_por)
+           values ($1, $2, $3, 1, 10, case when $4::uuid is null then null else now() end, $4) returning id`,
+          [escolaId, material, ordem, quem],
+        )
+      }
+      const disciplinaDaA = await inserir("insert into disciplina (escola_id, nome) values ($1, 'Disciplina das seções') returning id", [cenario.escolaId])
+      const disciplinaDaB = await inserir("insert into disciplina (escola_id, nome) values ($1, 'Disciplina das seções') returning id", [outraEscola.escolaId])
+      const dela = await secao(cenario.escolaId, disciplinaDaA, cenario.coordenacao.usuarioId, 1)
+      const doColega = await secao(cenario.escolaId, disciplinaDaA, colega.id, 1)
+      const semCorrecao = await secao(cenario.escolaId, disciplinaDaA, null, 1)
+      const deOutraEscola = await secao(outraEscola.escolaId, disciplinaDaB, outraEscola.coordenacao.usuarioId, 1)
+
+      const arquivo = await runInContext({ requisicaoId: randomUUID(), escolaId: cenario.escolaId }, () =>
+        new LeituraDoTitular(bancada.banco).montar({ titularId: cenario.coordenacao.usuarioId, papel: 'professor', versao: 'completa', compartilhamento: [], geradoEm: new Date() }),
+      )
+
+      const linhas = arquivo.tabelas['secao_do_material'] ?? []
+      expect(linhas.map((linha) => linha['id'])).toEqual([dela])
+      expect(Object.keys(linhas[0] ?? {}).sort()).toEqual(['corrigida_em', 'id', 'material_id', 'ordem', 'pagina_final', 'pagina_inicial'])
+      const texto = JSON.stringify(arquivo.tabelas['secao_do_material'])
+      for (const proibido of [doColega, semCorrecao, deOutraEscola, cenario.coordenacao.usuarioId]) expect(texto, proibido).not.toContain(proibido)
+    })
+  })
+
   describe('D85: o arquivo do aluno traz o que a escola fez sobre ele, sem dizer quem fez (acesso-e-convites, tarefa 11.0)', () => {
     type Autor = 'coordenacao' | 'professor' | 'aluno'
     interface Ato {

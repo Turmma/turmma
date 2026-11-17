@@ -421,6 +421,20 @@
       "when": 1794924562210,
       "tag": "0059_habilidade_bncc",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1794932532922,
+      "tag": "0060_secao_do_material",
+      "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1794932559016,
+      "tag": "0061_secao_do_material_backfill",
+      "breakpoints": true
     }
   ]
 }

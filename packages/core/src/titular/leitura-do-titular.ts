@@ -417,6 +417,22 @@ export const LEITURAS_DO_ARQUIVO: Readonly<Record<string, LeituraDaTabela>> = {
           where t.escola_id = ${escolaId} and t.registrada_por = ${titularId}`,
     ],
   },
+  secao_do_material: {
+    descricao: 'Os capítulos de material cujas habilidades da BNCC você corrigiu',
+    colunas: ['id', 'material_id', 'ordem', 'pagina_inicial', 'pagina_final', 'corrigida_em'],
+    fora: {
+      escola_id: ESCOPO,
+      capitulo_id: 'ligação interna com o capítulo lido do PDF',
+      execucao_id: 'ligação interna com a execução da IA que classificou a seção',
+      falhas_seguidas: 'contagem técnica das noites em que a classificação falhou',
+      classificada_em: 'instante técnico em que a IA classificou a seção',
+      corrigida_por: 'o próprio titular',
+    },
+    consultas: ({ escolaId, titularId }) => [
+      sql`select ${selectColumns('id', 'material_id', 'ordem', 'pagina_inicial', 'pagina_final', 'corrigida_em')} from secao_do_material t
+          where t.escola_id = ${escolaId} and t.corrigida_por = ${titularId}`,
+    ],
+  },
   suspensao_de_funcao: {
     descricao: 'As suspensões de função da IA que você registrou ou retomou',
     colunas: ['id', 'funcao', 'motivo', 'suspensa_em', 'retomada_em'],

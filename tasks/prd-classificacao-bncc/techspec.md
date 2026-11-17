@@ -29,7 +29,7 @@ secao_do_material id uuid pk default uuidv7(), escola_id, material_id, capitulo_
                   pagina_inicial, pagina_final, execucao_id null, falhas_seguidas smallint not null default 0, classificada_em null, corrigida_em null,
                   corrigida_por null
                   unique (escola_id, id), (escola_id, material_id, ordem); FK (escola_id, material_id), (escola_id, capitulo_id)
-                  on delete cascade; FK (escola_id, execucao_id); FK (escola_id, corrigida_por) on delete set null ("corrigida_por")
+                  on delete cascade; FK (escola_id, execucao_id) on delete set null ("execucao_id") (o expurgo da execução não trava na seção, e ela volta a `nao_agendada`); FK (escola_id, corrigida_por) on delete set null ("corrigida_por"); check: `corrigida_por` só com `corrigida_em`
 habilidade_da_secao escola_id, secao_id, codigo (FK habilidade_bncc), origem ('ia' | 'coordenacao')
                   pk (escola_id, secao_id, codigo); FK (escola_id, secao_id) on delete cascade
 execucao_agente   ano_letivo_id passa a aceitar nulo, só em `classificar_secoes` (check)
@@ -79,8 +79,8 @@ troca só aceita `null`. `/cobertura` vem antes de `:id`. Tetos por pessoa e esc
 não duplica): uma seção por capítulo, ou por bloco de 10 páginas; páginas antes do primeiro capítulo ficam sem seção.
 Com componente e a função ativa, nascem ali as execuções `classificar_secoes` (12 seções cada, sem pessoa nem ano) e os jobs `ia.executar-lote` (fila `lote`, `naoUrgente: true`, executor `api`, chave = execução); cada seção
 guarda o `execucao_id`. **Edição nova:** a seção cujo capítulo tem o mesmo número e título (sem acento nem caixa) de uma
-seção corrigida da anterior herda as habilidades e `corrigida_em` (sem `corrigida_por`), com
-`material.classificacao_herdada` na auditoria; as outras vão à IA.
+seção corrigida da anterior herda as habilidades (com a origem que tinham) e `corrigida_em` (sem `corrigida_por`), com
+`material.classificacao_herdada` na auditoria (autor `rotina`, só quando alguma herdou; leva o material de onde veio e a contagem); as outras vão à IA. **Capítulo sem número não casa**, a seção de bloco de páginas não herda, e a anterior só classificada pela IA (sem `corrigida_em`) não conta.
 
 **Agendar** (job `material.agendar-classificacao`, fila `lote`, `naoUrgente`, por escola, lotes de 500 seções; seção
 com `falhas_seguidas > 0` vai numa execução só dela). (a) **A rotina das 19h** pega a seção não corrigida de material `pronto` com

@@ -15,13 +15,13 @@
   - [x] 1.7 `docs/modelo-de-dados.md` (tabela pública), a D65 no `TODO.md`
   - [x] 1.8 Testes: carga idempotente, check, candidatas, casamento, `PATCH`, isolamento, estados da tela
 
-- [ ] **2.0 — O material ganha seções na extração, os prontos de antes também, e a edição nova herda a correção**
-  - [ ] 2.1 Migration de `secao_do_material` e `habilidade_da_secao`, o `unique` do capítulo e os índices da §7c
-  - [ ] 2.2 As seções na transação da extração (capítulo, ou bloco de 10 páginas)
-  - [ ] 2.3 A migration (2): seções dos `pronto`, em lotes de 1.000, sem execução
-  - [ ] 2.4 A herança da correção na edição nova, com `material.classificacao_herdada`
-  - [ ] 2.5 `docs/lgpd.md` e `docs/modelo-de-dados.md`; `corrigida_por` em `fora` no arquivo do titular
-  - [ ] 2.6 Testes: seções, reentrega, backfill, herança, eliminação do titular, isolamento
+- [x] **2.0 — O material ganha seções na extração, os prontos de antes também, e a edição nova herda a correção**
+  - [x] 2.1 Migration de `secao_do_material` e `habilidade_da_secao`, o `unique` do capítulo e os índices da §7c
+  - [x] 2.2 As seções na transação da extração (capítulo, ou bloco de 10 páginas)
+  - [x] 2.3 A migration (2): seções dos `pronto`, em lotes de 1.000, sem execução
+  - [x] 2.4 A herança da correção na edição nova, com `material.classificacao_herdada`
+  - [x] 2.5 `docs/lgpd.md` e `docs/modelo-de-dados.md`; `corrigida_por` em `fora` no arquivo do titular
+  - [x] 2.6 Testes: seções, reentrega, backfill, herança, eliminação do titular, isolamento
 
 - [ ] **3.0 — A função `classificacao_do_material` existe e é suspensível, e a tarefa `classificar_secoes` tem prompt, saída e medidor**
   - [ ] 3.1 A tarefa e a função em `packages/shared`, com `fazSozinha` e `esperaAprovacao`

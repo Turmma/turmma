@@ -11,6 +11,10 @@ import { paginationQuerySchema, pageSchema } from '../estrutura/pagination.js'
 export const TITULARIDADES_DE_MATERIAL = ['escola', 'professor', 'terceiro_com_licenca', 'dominio_publico'] as const
 export type TitularidadeDeMaterial = (typeof TITULARIDADES_DE_MATERIAL)[number]
 
+/** Quem pôs a habilidade da BNCC numa seção do material (classificacao-bncc, 2.0): a classificação noturna da IA, ou a correção da coordenação, que vence. O check `habilidade_da_secao_origem_valida` repete a lista. */
+export const ORIGENS_DA_HABILIDADE_DA_SECAO = ['ia', 'coordenacao'] as const
+export type OrigemDaHabilidadeDaSecao = (typeof ORIGENS_DA_HABILIDADE_DA_SECAO)[number]
+
 export const NOME_DA_TITULARIDADE: Readonly<Record<TitularidadeDeMaterial, string>> = {
   escola: 'Material próprio da escola',
   professor: 'Material de autoria de professor da escola',

@@ -65,6 +65,17 @@ teste vermelho por um caso que rodou e falhou. Nenhum teste chama provedor: `Scr
 - [I] Edição nova: a seção do capítulo de mesmo número e título (sem acento nem caixa) de uma seção corrigida herda as
   habilidades e `corrigida_em`, com `corrigida_por` nulo e `material.classificacao_herdada`; as outras vão à IA.
   Mutação: tirar a herança
+- [I] Edição nova, o que não herda: mesmo número com título diferente, mesmo título com número diferente, capítulo sem
+  número (mesmo com o mesmo título), a anterior só com `origem: 'ia'` e a edição de PDF sem capítulo (bloco de páginas);
+  corrigida com 0 códigos herda a marca e fica sem habilidade; a correção da B nunca é lida no contexto da A. Mutação:
+  tirar `escola_id` da leitura da anterior; tirar um termo da chave (número ou título)
+- [I] A execução expurgada anula só o `execucao_id` da seção, sem anular a escola (`on delete set null ("execucao_id")`): o
+  expurgo de `execucao_agente` não trava nela, e as FKs que apontam para a execução são oito. Mutação: trocar a ação da FK
+  por `no action`
+- [I] `corrigida_por` sem `corrigida_em` é recusado pelo check `secao_do_material_corrigida_por_so_na_corrigida`.
+  Mutação: o check virar `true`
+- [I] Volta do código depois da 2.0: o bloco `volta-da-2-0: roll-forward` do runbook dá seção ao `pronto` não excluído que
+  ficou sem nenhuma (pela conta de `planejarSecoes`), e rodá-lo de novo não duplica nem toca a seção que já existe
 
 ## Classificação no worker (RF5)
 

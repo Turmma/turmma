@@ -4,6 +4,8 @@ export { ChapterReader, CASAMENTOS_QUE_FAZEM_UM_SUMARIO, LINHAS_DO_TOPO_DA_PAGIN
 export type { CapituloLido, DocumentoComMarcadores } from './chapter-reader.js'
 export { ExtracaoDoMaterialRepository } from './extracao.repository.js'
 export type { MaterialParaExtrair } from './extracao.repository.js'
+export { chaveDoCapituloEntreEdicoes, chaveDoTituloDoCapitulo, PAGINAS_POR_BLOCO_DE_SECAO, planejarSecoes } from './secoes.js'
+export type { CapituloGravado, SecaoPlanejada } from './secoes.js'
 export { uuidV7 } from './uuid-v7.js'
 export { chaveDoTemporario, PRAZO_DO_OBJETO_DO_MATERIAL_MS } from './temporario.js'
 export { EnvioDeMaterialRepository, ESPERA_MAXIMA_PELA_LINHA_DO_ENVIO_MS } from './envio-de-material.repository.js'

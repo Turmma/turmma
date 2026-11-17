@@ -1,8 +1,10 @@
 import { sql } from 'drizzle-orm'
 import { boolean, check, date, foreignKey, index, integer, pgTable, primaryKey, smallint, text, timestamp, unique, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
-import type { EstadoDeMaterial, FalhaDeMaterial, LicencaDeMaterial, TitularidadeDeMaterial } from '@educa/shared'
+import type { EstadoDeMaterial, FalhaDeMaterial, LicencaDeMaterial, OrigemDaHabilidadeDaSecao, TitularidadeDeMaterial } from '@educa/shared'
 import { disciplina } from './disciplina.js'
 import { escola } from './escola.js'
+import { execucaoAgente } from './execucao-agente.js'
+import { habilidadeBncc } from './habilidade-bncc.js'
 import { serie } from './serie.js'
 import { usuario } from './usuario.js'
 
@@ -236,9 +238,88 @@ export const capituloDoMaterial = pgTable(
   },
   (tabela) => [
     unique('capitulo_do_material_ordem_unica').on(tabela.escolaId, tabela.materialId, tabela.ordem),
+    // O alvo da FK composta da seção (classificacao-bncc, 2.0): a seção nunca aponta o capítulo de outra escola.
+    unique('capitulo_do_material_escola_id_unico').on(tabela.escolaId, tabela.id),
     foreignKey({ name: 'capitulo_do_material_da_escola_fk', columns: [tabela.escolaId, tabela.materialId], foreignColumns: [material.escolaId, material.id] }).onDelete('cascade'),
     // 200 é `TAMANHO_MAXIMO_DO_TITULO_DO_CAPITULO` do contrato (`packages/shared`).
     check('capitulo_do_material_titulo_preenchido', sql`char_length(${tabela.titulo}) between 1 and 200`),
     check('capitulo_do_material_paginas_validas', sql`${tabela.paginaFinal} >= ${tabela.paginaInicial}`),
+  ],
+)
+
+/**
+ * A seção do material (classificacao-bncc, tarefa 2.0; Tech Spec, seções 3, 5 e 7c; PRD, RF5): o capítulo, ou o bloco de 10 páginas do PDF sem capítulo, que a IA classifica pela BNCC à noite e que a
+ * coordenação corrige. Nasce na transação da extração, só em quem fez a transição para `pronto` (a reentrega não duplica), e na migration `0061` para os materiais que já estavam `pronto`. Pertence
+ * ao tenant e não varia por ano letivo, como o material (F4, §6).
+ *
+ * - FK composta com a escola nas três pontas, todas `on delete cascade` no material e no capítulo (a seção sai com eles no expurgo de `material_excluido`) e **`set null ("execucao_id")`** na execução: o expurgo
+ *   da execução (`execucao_agente`) não trava na seção que ainda a cita, e a seção volta a ser `nao_agendada`. A migration escreve `set null ("execucao_id")` e `("corrigida_por")` à mão, como a 0022: o `set null`
+ *   inteiro anularia também a `escola_id`.
+ * - `unique (escola_id, material_id, ordem)`: a ordem é a do capítulo, ou a do bloco (a partir de 1). `unique (escola_id, id)` é o alvo de `habilidade_da_secao`.
+ * - **A marca da correção é `corrigida_em`**: a eliminação do titular só anula `corrigida_por` (que é autoria), e a correção continua valendo. `corrigida_por` só existe com `corrigida_em`.
+ * - `execucao_id` é a execução de `classificar_secoes` que vai classificá-la (as tarefas 4.0 e 5.0), e `falhas_seguidas`, as noites seguidas de `IA_SAIDA_INVALIDA`. Esta tarefa não agenda: as duas nascem vazias.
+ * - Índices começando pela escola (regra 80, item 8): `(escola_id, material_id, pagina_inicial)` é a seção da página citada na geração, e o parcial `(escola_id, execucao_id)`, o `preparar` da execução.
+ * - Dado pessoal: só `corrigida_por` (a coordenação que corrigiu), na linha do material em `docs/lgpd.md` e **fora** do arquivo do titular (`COLUNAS_FORA_DO_ARQUIVO`).
+ */
+export const secaoDoMaterial = pgTable(
+  'secao_do_material',
+  {
+    id: uuid().primaryKey().default(sql`uuidv7()`),
+    escolaId: uuid()
+      .notNull()
+      .references(() => escola.id),
+    materialId: uuid().notNull(),
+    capituloId: uuid(),
+    ordem: smallint().notNull(),
+    paginaInicial: integer().notNull(),
+    paginaFinal: integer().notNull(),
+    execucaoId: uuid(),
+    falhasSeguidas: smallint().notNull().default(0),
+    classificadaEm: timestamp({ withTimezone: true }),
+    corrigidaEm: timestamp({ withTimezone: true }),
+    corrigidaPor: uuid(),
+  },
+  (tabela) => [
+    unique('secao_do_material_escola_id_unico').on(tabela.escolaId, tabela.id),
+    unique('secao_do_material_ordem_unica').on(tabela.escolaId, tabela.materialId, tabela.ordem),
+    foreignKey({ name: 'secao_do_material_da_escola_fk', columns: [tabela.escolaId, tabela.materialId], foreignColumns: [material.escolaId, material.id] }).onDelete('cascade'),
+    foreignKey({ name: 'secao_do_material_capitulo_da_escola_fk', columns: [tabela.escolaId, tabela.capituloId], foreignColumns: [capituloDoMaterial.escolaId, capituloDoMaterial.id] }).onDelete('cascade'),
+    // A migration escreve `on delete set null ("execucao_id")` e `("corrigida_por")`.
+    foreignKey({ name: 'secao_do_material_execucao_da_escola_fk', columns: [tabela.escolaId, tabela.execucaoId], foreignColumns: [execucaoAgente.escolaId, execucaoAgente.id] }).onDelete('set null'),
+    foreignKey({ name: 'secao_do_material_corrigida_por_da_escola_fk', columns: [tabela.escolaId, tabela.corrigidaPor], foreignColumns: [usuario.escolaId, usuario.id] }).onDelete('set null'),
+    index('secao_do_material_pagina_idx').on(tabela.escolaId, tabela.materialId, tabela.paginaInicial),
+    index('secao_do_material_execucao_idx').on(tabela.escolaId, tabela.execucaoId).where(sql`${tabela.execucaoId} is not null`),
+    check('secao_do_material_paginas_validas', sql`${tabela.paginaInicial} >= 1 and ${tabela.paginaFinal} >= ${tabela.paginaInicial}`),
+    check('secao_do_material_ordem_valida', sql`${tabela.ordem} >= 1`),
+    check('secao_do_material_falhas_validas', sql`${tabela.falhasSeguidas} >= 0`),
+    check('secao_do_material_corrigida_por_so_na_corrigida', sql`${tabela.corrigidaPor} is null or ${tabela.corrigidaEm} is not null`),
+  ],
+)
+
+/**
+ * As habilidades da BNCC de uma seção (classificacao-bncc, tarefa 2.0; Tech Spec, seção 3): de zero a cinco por seção (o limite é do contrato, 7.0). `origem` diz quem as pôs: `ia` (a classificação noturna) ou
+ * `coordenacao` (a correção, que vence). Pertence ao tenant, sem pessoa, e sai com a seção.
+ *
+ * - Chave `(escola_id, secao_id, codigo)`: a mesma habilidade duas vezes na seção é a violação dela.
+ * - FK composta com a escola para a seção, `on delete cascade`; o `codigo` aponta a tabela pública `habilidade_bncc` (que nunca perde código, 1.0), sem ação.
+ * - Índice `(escola_id, codigo)`: a cobertura (quais habilidades da série têm seção) começa pela escola (regra 80, item 8).
+ */
+export const habilidadeDaSecao = pgTable(
+  'habilidade_da_secao',
+  {
+    escolaId: uuid()
+      .notNull()
+      .references(() => escola.id),
+    secaoId: uuid().notNull(),
+    codigo: text()
+      .notNull()
+      .references(() => habilidadeBncc.codigo),
+    origem: text().$type<OrigemDaHabilidadeDaSecao>().notNull(),
+  },
+  (tabela) => [
+    primaryKey({ name: 'habilidade_da_secao_pk', columns: [tabela.escolaId, tabela.secaoId, tabela.codigo] }),
+    foreignKey({ name: 'habilidade_da_secao_da_escola_fk', columns: [tabela.escolaId, tabela.secaoId], foreignColumns: [secaoDoMaterial.escolaId, secaoDoMaterial.id] }).onDelete('cascade'),
+    index('habilidade_da_secao_codigo_idx').on(tabela.escolaId, tabela.codigo),
+    check('habilidade_da_secao_origem_valida', sql`${tabela.origem} in ('ia', 'coordenacao')`),
   ],
 )

@@ -582,6 +582,7 @@ export {
   TAMANHO_MAXIMO_DO_TITULO_DO_CAPITULO,
   TAMANHO_MAXIMO_DO_TRECHO_CITADO,
   TAMANHO_MAXIMO_TITULO_DO_MATERIAL,
+  ORIGENS_DA_HABILIDADE_DA_SECAO,
   TITULARIDADES_DE_MATERIAL,
   TRECHOS_PADRAO_NA_BUSCA,
 } from './material/material.js'
@@ -596,6 +597,7 @@ export type {
   ResumoDoMaterialRow,
   Material,
   MotivoDaRecusaDoMaterial,
+  OrigemDaHabilidadeDaSecao,
   MotivoDaRecusaPelaLicencaRegistrada,
   EnviarMaterialRequest,
   EnviarEdicaoRequest,

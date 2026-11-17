@@ -86,6 +86,16 @@ describe('edição do material da escola', () => {
     const { rows } = await bancada.pool.query<{ serie_id: string }>('select serie_id from material_serie where escola_id = $1 and material_id = $2 order by serie_id', [escolaId, materialId])
     return rows.map((linha) => linha.serie_id)
   }
+  interface SecaoDaEdicao {
+    readonly id: string
+    readonly ordem: number
+    readonly corrigida_em: Date | null
+    readonly corrigida_por: string | null
+  }
+  const secoesDe = async (escolaId: string, materialId: string): Promise<SecaoDaEdicao[]> => {
+    const { rows } = await bancada.pool.query<SecaoDaEdicao>('select id, ordem, corrigida_em, corrigida_por from secao_do_material where escola_id = $1 and material_id = $2 order by ordem', [escolaId, materialId])
+    return rows
+  }
   const linhasDoEnvio = async (escolaId: string): Promise<number> => {
     const { rows } = await bancada.pool.query<{ total: number }>('select count(*)::int as total from envio_de_material where escola_id = $1', [escolaId])
     return rows[0]?.total ?? 0
@@ -514,6 +524,8 @@ describe('edição do material da escola', () => {
       ])
       const substituido = await auditoriaDa(bancada, escolaId, 'material.substituido')
       expect(substituido).toEqual([{ entidade: 'material', entidade_id: alvo, autor_usuario_id: null, antes: null, depois: { substituidoPor: nova } }])
+      // Nada foi corrigido na anterior: a edição não herda, e a herança não é auditada.
+      expect(await auditoriaDa(bancada, escolaId, 'material.classificacao_herdada')).toEqual([])
       const texto = JSON.stringify([enviada, substituido])
       for (const proibido of ['sigiloso', 'edicao.pdf', 'sha256']) expect(texto).not.toContain(proibido)
       const { rows } = await bancada.pool.query<{ autor_operador: string | null }>("select autor_operador from auditoria where escola_id = $1 and acao = 'material.substituido'", [escolaId])
@@ -713,6 +725,8 @@ describe('edição do material da escola', () => {
       expect(trechos.filter((trecho) => trecho.material_id === alvo)).toEqual([])
       const { rows } = await bancada.pool.query<{ total: number }>('select count(*)::int as total from capitulo_do_material where escola_id = $1 and material_id = $2', [escolaId, nova])
       expect(rows[0]?.total).toBe(amostra.numeros.length)
+      // As seções também entram uma vez (classificacao-bncc, 2.0): uma por capítulo da edição, e a da anterior (um bloco) segue onde estava.
+      expect((await secoesDe(escolaId, nova)).map((secao) => secao.ordem)).toEqual(amostra.numeros.map((_, indice) => indice + 1))
     })
 
     it('[P] a edição parada depois de guardar o arquivo, com as séries do alvo mudadas por SQL: ela nasce com as séries de agora, lidas sob o `for update`', async () => {
@@ -750,6 +764,253 @@ describe('edição do material da escola', () => {
       expect(resposta.corpo['serieIds']).toEqual([outraSerie])
       expect(await seriesDe(escolaId, resposta.corpo['id'] as string)).toEqual([outraSerie])
       await esperarExtracao(api)
+    })
+  })
+
+  describe('a classificação herdada (classificacao-bncc, tarefa 2.0; Tech Spec, seção 5, "Edição nova")', () => {
+    interface CapituloDaAnterior {
+      readonly numero: number | null
+      readonly titulo: string
+      /** Corrigida pela coordenação (`corrigida_em`, `corrigida_por` e as habilidades com `origem: 'coordenacao'`), ou só classificada pela IA (sem marca, com `origem: 'ia'`). */
+      readonly corrigida: boolean
+      readonly codigos: readonly string[]
+    }
+    const CORRIGIDA_EM = '2026-10-01T15:00:00.000Z'
+    const AMOSTRA = AMOSTRAS_DE_CAPITULOS.find((candidata) => candidata.nome === 'marcador')
+    // Os capítulos da `marcador`: (1, "Capítulo 1: Mol e massa molar"), (2, "Capítulo 2: Reações químicas") e (sem número, "Soluções").
+    const MOL = 'Capítulo 1: Mol e massa molar'
+    const REACOES = 'Capítulo 2: Reações químicas'
+
+    /** A anterior com os capítulos e as seções que o teste manda, no lugar do bloco que a extração do PDF de demonstração deu: as seções entram por SQL, como a 7.0 as corrige. */
+    async function anteriorComCapitulos(escola: EscolaComTurma, capitulos: readonly CapituloDaAnterior[], arquivo: Buffer = PDF_DE_DEMONSTRACAO): Promise<{ alvo: string; secaoDe: (indice: number) => string }> {
+      const escolaId = escola.coordenacao.escolaId
+      const alvo = await materialPronto(escola, {}, escola.quimica, arquivo)
+      await bancada.pool.query('delete from secao_do_material where escola_id = $1 and material_id = $2', [escolaId, alvo])
+      const secoes: string[] = []
+      for (const [indice, capitulo] of capitulos.entries()) {
+        const { rows } = await bancada.pool.query<{ id: string }>(
+          'insert into capitulo_do_material (escola_id, material_id, ordem, numero, titulo, pagina_inicial, pagina_final) values ($1, $2, $3, $4, $5, $6, $6) returning id',
+          [escolaId, alvo, indice + 1, capitulo.numero, capitulo.titulo, indice + 1],
+        )
+        const secao = await bancada.pool.query<{ id: string }>(
+          'insert into secao_do_material (escola_id, material_id, capitulo_id, ordem, pagina_inicial, pagina_final, corrigida_em, corrigida_por) values ($1, $2, $3, $4, $5, $5, $6, $7) returning id',
+          [escolaId, alvo, rows[0]?.id, indice + 1, indice + 1, capitulo.corrigida ? CORRIGIDA_EM : null, capitulo.corrigida ? escola.coordenacao.usuarioId : null],
+        )
+        const secaoId = secao.rows[0]?.id ?? ''
+        secoes.push(secaoId)
+        for (const codigo of capitulo.codigos) {
+          await bancada.pool.query('insert into habilidade_da_secao (escola_id, secao_id, codigo, origem) values ($1, $2, $3, $4)', [escolaId, secaoId, codigo, capitulo.corrigida ? 'coordenacao' : 'ia'])
+        }
+      }
+      return { alvo, secaoDe: (indice) => secoes[indice] ?? '' }
+    }
+
+    /** A edição nova do `marcador`, extraída: o id dela. */
+    async function edicaoDoMarcador(escola: EscolaComTurma, alvo: string): Promise<string> {
+      if (AMOSTRA === undefined) throw new Error('a amostra marcador sumiu')
+      const enviada = await enviarEdicaoDeMaterial(api, escola.coordenacao, alvo, {}, montarPdfDaAmostra(AMOSTRA))
+      expect(enviada.status).toBe(201)
+      await esperarExtracao(api)
+      return enviada.corpo['id'] as string
+    }
+
+    async function habilidadesDe(escolaId: string, secaoId: string): Promise<Array<{ codigo: string; origem: string }>> {
+      const { rows } = await bancada.pool.query<{ codigo: string; origem: string }>('select codigo, origem from habilidade_da_secao where escola_id = $1 and secao_id = $2 order by codigo', [escolaId, secaoId])
+      return rows
+    }
+
+    it('o capítulo de mesmo número e título, sem acento nem caixa nem espaço a mais, herda as habilidades e `corrigida_em`, sem `corrigida_por`; as outras seções ficam sem marca e sem habilidade', async () => {
+      const escola = await montarEscolaComTurma()
+      const escolaId = escola.coordenacao.escolaId
+      const { alvo } = await anteriorComCapitulos(escola, [{ numero: 1, titulo: 'CAPITULO  1: MOL E MASSA  MOLAR ', corrigida: true, codigos: ['EM13CNT101', 'EM13CNT301'] }])
+
+      const nova = await edicaoDoMarcador(escola, alvo)
+
+      const secoes = await secoesDe(escolaId, nova)
+      expect(secoes.map((secao) => secao.ordem)).toEqual([1, 2, 3])
+      expect(secoes[0]?.corrigida_em?.toISOString()).toBe(CORRIGIDA_EM)
+      expect(secoes[0]?.corrigida_por).toBeNull()
+      expect(await habilidadesDe(escolaId, secoes[0]?.id ?? '')).toEqual([
+        { codigo: 'EM13CNT101', origem: 'coordenacao' },
+        { codigo: 'EM13CNT301', origem: 'coordenacao' },
+      ])
+      for (const outra of secoes.slice(1)) {
+        expect(outra.corrigida_em).toBeNull()
+        expect(await habilidadesDe(escolaId, outra.id)).toEqual([])
+      }
+    })
+
+    it('`material.classificacao_herdada` na auditoria da edição nova: a rotina como autora, o material de onde veio e quantas seções, sem título nem código', async () => {
+      const escola = await montarEscolaComTurma()
+      const escolaId = escola.coordenacao.escolaId
+      const { alvo } = await anteriorComCapitulos(escola, [
+        { numero: 1, titulo: MOL, corrigida: true, codigos: ['EM13CNT301'] },
+        { numero: 2, titulo: REACOES, corrigida: true, codigos: [] },
+      ])
+
+      const nova = await edicaoDoMarcador(escola, alvo)
+
+      const herdada = await auditoriaDa(bancada, escolaId, 'material.classificacao_herdada')
+      expect(herdada).toEqual([{ entidade: 'material', entidade_id: nova, autor_usuario_id: null, antes: null, depois: { herdadoDe: alvo, secoes: 2 } }])
+      const { rows } = await bancada.pool.query<{ autor_operador: string | null }>("select autor_operador from auditoria where escola_id = $1 and acao = 'material.classificacao_herdada'", [escolaId])
+      expect(rows).toEqual([{ autor_operador: 'rotina' }])
+      const texto = JSON.stringify(herdada)
+      for (const proibido of ['EM13CNT301', 'Mol e massa', 'Reações']) expect(texto).not.toContain(proibido)
+      // A correção sem nenhum código também é final: a seção herda a marca e fica sem habilidade.
+      const segunda = (await secoesDe(escolaId, nova))[1]
+      expect(segunda?.corrigida_em?.toISOString()).toBe(CORRIGIDA_EM)
+      expect(await habilidadesDe(escolaId, segunda?.id ?? '')).toEqual([])
+    })
+
+    it('mesmo número com título diferente, e mesmo título com número diferente: não herdam; o capítulo sem número nunca casa', async () => {
+      const escola = await montarEscolaComTurma()
+      const escolaId = escola.coordenacao.escolaId
+      const { alvo } = await anteriorComCapitulos(escola, [
+        { numero: 1, titulo: 'Capítulo 1: Outro título', corrigida: true, codigos: ['EM13CNT101'] },
+        { numero: 7, titulo: REACOES, corrigida: true, codigos: ['EM13CNT301'] },
+        { numero: 9, titulo: 'Soluções', corrigida: true, codigos: ['EM13CNT101'] },
+        { numero: null, titulo: 'Soluções', corrigida: true, codigos: ['EM13CNT101'] },
+      ])
+
+      const nova = await edicaoDoMarcador(escola, alvo)
+
+      const secoes = await secoesDe(escolaId, nova)
+      // As três seções da edição existem (uma falha da herança desfaria a transação e deixaria a lista vazia, que passaria por vazia).
+      expect(secoes).toHaveLength(3)
+      for (const secao of secoes) {
+        expect(secao.corrigida_em, `seção ${String(secao.ordem)}`).toBeNull()
+        expect(await habilidadesDe(escolaId, secao.id)).toEqual([])
+      }
+      expect(await auditoriaDa(bancada, escolaId, 'material.classificacao_herdada')).toEqual([])
+    })
+
+    it('a anterior só com habilidade de `origem: ia` (sem correção) não herda nada: a seção da edição vai à classificação', async () => {
+      const escola = await montarEscolaComTurma()
+      const escolaId = escola.coordenacao.escolaId
+      const { alvo } = await anteriorComCapitulos(escola, [{ numero: 1, titulo: MOL, corrigida: false, codigos: ['EM13CNT301'] }])
+
+      const nova = await edicaoDoMarcador(escola, alvo)
+
+      const primeira = (await secoesDe(escolaId, nova))[0]
+      expect(primeira?.corrigida_em).toBeNull()
+      expect(await habilidadesDe(escolaId, primeira?.id ?? '')).toEqual([])
+      expect(await auditoriaDa(bancada, escolaId, 'material.classificacao_herdada')).toEqual([])
+    })
+
+    it('a edição de PDF sem capítulo não herda: a seção de bloco de páginas não tem número nem título', async () => {
+      const escola = await montarEscolaComTurma()
+      const escolaId = escola.coordenacao.escolaId
+      const { alvo } = await anteriorComCapitulos(escola, [{ numero: 1, titulo: MOL, corrigida: true, codigos: ['EM13CNT301'] }])
+
+      const resposta = await enviarEdicaoDeMaterial(api, escola.coordenacao, alvo, {}, variacaoDoPdf())
+      expect(resposta.status).toBe(201)
+      await esperarExtracao(api)
+
+      const secoes = await secoesDe(escolaId, resposta.corpo['id'] as string)
+      expect(secoes).toHaveLength(1)
+      expect(secoes[0]?.corrigida_em).toBeNull()
+      expect(await auditoriaDa(bancada, escolaId, 'material.classificacao_herdada')).toEqual([])
+    })
+
+    it('a correção de outro material da mesma escola não é herdada: só a da anterior vale, mesmo com o mesmo capítulo e a ordem na frente', async () => {
+      const escola = await montarEscolaComTurma()
+      const escolaId = escola.coordenacao.escolaId
+      // Outro material da mesma escola, com o mesmo capítulo corrigido na ordem 1 (e outro código): é o que um laço sem o filtro do material acharia primeiro.
+      const { secaoDe: doOutro } = await anteriorComCapitulos(escola, [{ numero: 1, titulo: MOL, corrigida: true, codigos: ['EM13CNT101'] }], variacaoDoPdf())
+      const { alvo } = await anteriorComCapitulos(escola, [
+        { numero: 5, titulo: 'Capítulo 5: Outro', corrigida: false, codigos: [] },
+        { numero: 1, titulo: MOL, corrigida: true, codigos: ['EM13CNT301'] },
+      ])
+
+      const nova = await edicaoDoMarcador(escola, alvo)
+
+      const primeira = (await secoesDe(escolaId, nova))[0]
+      expect(await habilidadesDe(escolaId, primeira?.id ?? '')).toEqual([{ codigo: 'EM13CNT301', origem: 'coordenacao' }])
+      // A edição só escreve nas seções dela: a do outro material, com o mesmo capítulo, fica como estava.
+      expect(await habilidadesDe(escolaId, doOutro(0))).toEqual([{ codigo: 'EM13CNT101', origem: 'coordenacao' }])
+    })
+
+    it('as habilidades herdadas guardam a origem que tinham: a da IA que a coordenação manteve continua `ia`, e a que ela pôs continua `coordenacao`', async () => {
+      const escola = await montarEscolaComTurma()
+      const escolaId = escola.coordenacao.escolaId
+      const { alvo, secaoDe } = await anteriorComCapitulos(escola, [{ numero: 1, titulo: MOL, corrigida: true, codigos: ['EM13CNT101', 'EM13CNT301'] }])
+      await bancada.pool.query("update habilidade_da_secao set origem = 'ia' where escola_id = $1 and secao_id = $2 and codigo = 'EM13CNT101'", [escolaId, secaoDe(0)])
+
+      const nova = await edicaoDoMarcador(escola, alvo)
+
+      const primeira = (await secoesDe(escolaId, nova))[0]
+      expect(await habilidadesDe(escolaId, primeira?.id ?? '')).toEqual([
+        { codigo: 'EM13CNT101', origem: 'ia' },
+        { codigo: 'EM13CNT301', origem: 'coordenacao' },
+      ])
+    })
+
+    it('dois capítulos da anterior com o mesmo número e título, os dois corrigidos: vale o primeiro, na ordem', async () => {
+      const escola = await montarEscolaComTurma()
+      const escolaId = escola.coordenacao.escolaId
+      const { alvo } = await anteriorComCapitulos(escola, [
+        { numero: 1, titulo: MOL, corrigida: true, codigos: ['EM13CNT101'] },
+        { numero: 1, titulo: MOL.toUpperCase(), corrigida: true, codigos: ['EM13CNT301'] },
+      ])
+
+      const nova = await edicaoDoMarcador(escola, alvo)
+
+      const primeira = (await secoesDe(escolaId, nova))[0]
+      expect(await habilidadesDe(escolaId, primeira?.id ?? '')).toEqual([{ codigo: 'EM13CNT101', origem: 'coordenacao' }])
+    })
+
+    it('a seção da B, com a anterior da A, no contexto da A: não é lida nem gravada', async () => {
+      const a = await montarEscolaComTurma()
+      const b = await montarEscolaComTurma()
+      const { alvo: alvoDaA } = await anteriorComCapitulos(a, [{ numero: 1, titulo: MOL, corrigida: true, codigos: ['EM13CNT301'] }])
+      const { alvo: deB, secaoDe } = await anteriorComCapitulos(b, [{ numero: 1, titulo: MOL, corrigida: false, codigos: [] }])
+
+      const herdadas = await runInContext({ requisicaoId: randomUUID(), escolaId: a.coordenacao.escolaId }, () => new ExtracaoDoMaterialRepository(api.app.get<Database>(DB)).herdarClassificacao(deB, alvoDaA))
+
+      expect(herdadas).toBe(0)
+      expect((await secoesDe(b.coordenacao.escolaId, deB))[0]?.corrigida_em).toBeNull()
+      expect(await habilidadesDe(b.coordenacao.escolaId, secaoDe(0))).toEqual([])
+    })
+
+    it('a correção da B não é herdada pela A: o repository, no contexto da A, com a anterior da B, não lê nada e não grava marca nem habilidade', async () => {
+      const a = await montarEscolaComTurma()
+      const b = await montarEscolaComTurma()
+      const { alvo: alvoDaB } = await anteriorComCapitulos(b, [{ numero: 1, titulo: MOL, corrigida: true, codigos: ['EM13CNT301'] }])
+      const { alvo: alvoDaA, secaoDe } = await anteriorComCapitulos(a, [{ numero: 1, titulo: MOL, corrigida: false, codigos: [] }])
+
+      const herdadas = await runInContext({ requisicaoId: randomUUID(), escolaId: a.coordenacao.escolaId }, () =>
+        new ExtracaoDoMaterialRepository(api.app.get<Database>(DB)).herdarClassificacao(alvoDaA, alvoDaB),
+      )
+
+      expect(herdadas).toBe(0)
+      expect((await secoesDe(a.coordenacao.escolaId, alvoDaA))[0]?.corrigida_em).toBeNull()
+      expect(await habilidadesDe(a.coordenacao.escolaId, secaoDe(0))).toEqual([])
+    })
+
+    it('a leitura dos capítulos das seções, no contexto da A, com o material da B: vazia, com e sem o filtro das corrigidas; no contexto da B, acha', async () => {
+      const a = await montarEscolaComTurma()
+      const b = await montarEscolaComTurma()
+      const { alvo: alvoDaB } = await anteriorComCapitulos(b, [{ numero: 1, titulo: MOL, corrigida: true, codigos: [] }])
+      const ler = (escolaId: string, soCorrigidas: boolean) =>
+        runInContext({ requisicaoId: randomUUID(), escolaId }, () => new ExtracaoDoMaterialRepository(api.app.get<Database>(DB)).capitulosDasSecoes(alvoDaB, soCorrigidas))
+
+      expect(await ler(a.coordenacao.escolaId, true)).toEqual([])
+      expect(await ler(a.coordenacao.escolaId, false)).toEqual([])
+      expect(await ler(b.coordenacao.escolaId, true)).toHaveLength(1)
+      expect(await ler(b.coordenacao.escolaId, false)).toHaveLength(1)
+    })
+
+    it('a mesma chamada, no contexto da B, acha a correção da B: o caso acima prova o escopo, e não um repository que nunca herda', async () => {
+      const b = await montarEscolaComTurma()
+      const { alvo: anterior } = await anteriorComCapitulos(b, [{ numero: 1, titulo: MOL, corrigida: true, codigos: ['EM13CNT301'] }])
+      const { alvo: nova, secaoDe } = await anteriorComCapitulos(b, [{ numero: 1, titulo: MOL, corrigida: false, codigos: [] }], variacaoDoPdf())
+
+      const herdadas = await runInContext({ requisicaoId: randomUUID(), escolaId: b.coordenacao.escolaId }, () =>
+        new ExtracaoDoMaterialRepository(api.app.get<Database>(DB)).herdarClassificacao(nova, anterior),
+      )
+
+      expect(herdadas).toBe(1)
+      expect(await habilidadesDe(b.coordenacao.escolaId, secaoDe(0))).toEqual([{ codigo: 'EM13CNT301', origem: 'coordenacao' }])
     })
   })
 })

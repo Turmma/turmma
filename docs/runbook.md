@@ -1187,6 +1187,56 @@ resposta inteira** com um valor que não conhece; apagar o objeto em `material-t
 **Depois:** registre no `TODO.md` a janela (de quando a quando), quantos materiais o bloco 1 fechou e quantos receberam série e licença
 no bloco 2, só contagens, e avise a coordenação das escolas que tinham material em "processando".
 
+## Voltar o código depois da classificacao-bncc 2.0 (rollback)
+
+*Procedimento, não alerta: não há regra em `infra/grafana/alertas/`. Vale para qualquer volta de versão que passe pelas migrations `0060` e
+`0061` (as seções do material; classificacao-bncc, tarefa 2.0; Tech Spec, seções 3 e 5). O que o teste prova está em
+`packages/core/src/db/volta-da-2-0.int.test.ts`, que roda o bloco de SQL desta seção.*
+
+**O que as migrations deixaram:** as tabelas `secao_do_material` e `habilidade_da_secao`, o `unique (escola_id, id)` de `capitulo_do_material`, os
+três índices e a ação `material.classificacao_herdada` no check `auditoria_rotina_so_nas_acoes`. Tudo só expande: o código anterior roda sobre isso
+sem erro. **Não reverta nenhuma delas**: a tabela guarda, a partir da 7.0, a correção que a coordenação fez das habilidades de cada seção, e apagá-la
+perde esse trabalho.
+
+**O que o código anterior faz com elas:** nada. Ele não conhece as tabelas, então o material que fica `pronto` pela extração dele (a de um PDF novo e a
+de uma edição) nasce **sem seção**, e a edição nova **não herda** a correção da anterior. A `0061` roda uma vez só, no deploy: nada no sistema cria a
+seção de um material que fique `pronto` depois dela. Sem o roll-forward abaixo, esse material fica sem seção para sempre, e a classificação noturna (5.0)
+não o alcança.
+
+**Antes de voltar:** não há passo. Nenhum job novo existe nesta tarefa (a classificação é da 5.0), e o código anterior sobe sobre o que está no banco.
+
+**Na volta para a versão nova (roll-forward), antes de reabrir o envio:** rode o bloco abaixo uma vez, na entrada do `psql`:
+`docker compose exec -T postgres psql -U educa -1 -v ON_ERROR_STOP=1`. É o mesmo `INSERT … NOT EXISTS` da `0061`, em uma instrução só: dá, ao material `pronto` e
+não excluído que está sem nenhuma seção, uma seção por capítulo, ou um bloco por 10 páginas (o último com as que sobram), **sem execução**, pela mesma
+conta de `planejarSecoes`. Pode rodar de novo: o material que já tem seção não ganha outra. O material de que o código anterior fez a edição não herda a
+correção da anterior (a herança é da extração nova, e não se refaz depois): a coordenação a corrige outra vez na tela da classificação (7.0).
+
+```sql
+-- volta-da-2-0: roll-forward
+insert into secao_do_material (escola_id, material_id, capitulo_id, ordem, pagina_inicial, pagina_final)
+select c.escola_id, c.material_id, c.id, c.ordem, c.pagina_inicial, c.pagina_final
+  from capitulo_do_material c
+  join material m on m.escola_id = c.escola_id and m.id = c.material_id
+ where m.estado = 'pronto' and m.excluido_em is null
+   and not exists (select 1 from secao_do_material s where s.escola_id = m.escola_id and s.material_id = m.id)
+union all
+select m.escola_id, m.id, null::uuid, b.n::smallint, (b.n - 1) * 10 + 1, least(b.n * 10, m.paginas)
+  from material m
+ cross join lateral generate_series(1, (m.paginas + 9) / 10) as b(n)
+ where m.estado = 'pronto' and m.excluido_em is null
+   and not exists (select 1 from capitulo_do_material c where c.escola_id = m.escola_id and c.material_id = m.id)
+   and not exists (select 1 from secao_do_material s where s.escola_id = m.escola_id and s.material_id = m.id);
+```
+
+Confira depois, só com contagens: `select count(*) from material m where m.estado = 'pronto' and m.excluido_em is null and not exists (select 1 from
+secao_do_material s where s.escola_id = m.escola_id and s.material_id = m.id)` deve dar 0.
+
+**Não faça:** apagar `secao_do_material`, `habilidade_da_secao` ou o `unique` do capítulo para "passar" a versão anterior; tirar `material.classificacao_herdada`
+do check da auditoria (a linha que já o usa deixaria o `VALIDATE` do próximo deploy falhar); rodar o bloco sem o código novo de pé para a extração (o
+material que ficar `pronto` entre o bloco e o código novo volta a ficar sem seção, e o bloco se roda de novo).
+
+**Depois:** registre no `TODO.md` a janela (de quando a quando) e quantos materiais receberam seção no bloco, só contagens.
+
 ## Voltar o código depois da 5.0 (a IA no worker) (rollback)
 
 *Procedimento, não alerta: não há regra em `infra/grafana/alertas/`. Vale para a volta da versão em que o `POST` grava o job `ia.executar` e o

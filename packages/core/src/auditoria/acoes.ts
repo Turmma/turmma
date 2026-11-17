@@ -653,6 +653,18 @@ export const ACOES_DE_AUDITORIA = {
     finalidade: null,
   },
   /**
+   * A edição nova de um material ficou pronta e herdou a classificação corrigida da anterior (classificacao-bncc, 2.0; RF6; Tech Spec, seção 5, "Edição nova"). `entidadeId` é a **edição nova**; `herdadoDe`, o
+   * material que ela substituiu, e `secoes`, quantas seções herdaram as habilidades e a marca da correção (o capítulo de mesmo número e título). Quem grava é a extração, no worker, na mesma transação da
+   * substituição: sem pessoa no contexto, o autor é a `rotina` (o check `auditoria_rotina_so_nas_acoes`), e quem corrigiu a anterior está na auditoria dela (`material.classificacao_corrigida`, 7.0). **Nunca o título
+   * do capítulo, nem o código da habilidade.**
+   */
+  'material.classificacao_herdada': {
+    entidade: 'material',
+    antes: null,
+    depois: z.strictObject({ herdadoDe: z.uuid(), secoes: z.number().int().positive() }),
+    finalidade: null,
+  },
+  /**
    * A coordenação corrigiu o título ou as séries de um material (ingestao-do-material, 12.0; RF6). `entidadeId` é o material. `antes` e `depois` levam **as séries** (lidas com a linha travada: dois `PATCH`
    * ao mesmo tempo deixam dois registros, cada um com o "antes" que de fato encontrou) e `depois` diz só **se** o título mudou: **nunca o título**, que é texto livre.
    */

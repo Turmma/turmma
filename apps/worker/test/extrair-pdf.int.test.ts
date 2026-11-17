@@ -1,6 +1,6 @@
 import 'reflect-metadata'
 import { chaveDoTemporario, ExtracaoDoMaterialRepository, InMemoryFileStorage, jobOptions, METRICS, runInContext, WORKER_POOL_OPTIONS_BY_QUEUE, type JobProcessors } from '@educa/core'
-import { PdfExtractor, type ResultadoDaExtracao } from '@educa/core/material'
+import { PdfExtractor, type CapituloLido, type ResultadoDaExtracao } from '@educa/core/material'
 import { JOB_DEFINITIONS, JobFailureCode, TIPO_EXTRAIR_PDF, type JobRegistry } from '@educa/shared'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
@@ -554,7 +554,7 @@ describe('material.extrair-pdf', () => {
       await rodar(c.escolaId, semTexto)
 
       const novas = log.registros().slice(inicio)
-      expect(novas.find((registro) => registro['evento'] === 'material.extraido')).toMatchObject({ materialId: id, paginasTotal: 6, trechosTotal: 6, tentativa: 1, escolaId: c.escolaId })
+      expect(novas.find((registro) => registro['evento'] === 'material.extraido')).toMatchObject({ materialId: id, paginasTotal: 6, trechosTotal: 6, secoesTotal: 1, secoesHerdadasTotal: 0, tentativa: 1, escolaId: c.escolaId })
       expect(novas.find((registro) => registro['evento'] === 'material.extracao_falhou')).toMatchObject({ materialId: semTexto, codigo: 'sem_texto' })
       const todo = JSON.stringify(novas)
       for (const sentinela of ['Título que nunca vai ao log', 'Estequiometria', 'estequiometria', 'reagente']) expect(todo, sentinela).not.toContain(sentinela)
@@ -863,9 +863,9 @@ describe('material.extrair-pdf', () => {
       const deB = await materialComObjeto(b, null)
       const deA = await materialComObjeto(a, null)
       const umCapitulo = [{ ordem: 1, numero: 1, titulo: 'Capítulo 1', paginaInicial: 1, paginaFinal: 2 }]
-      const naA = (funcao: (repositorio: ExtracaoDoMaterialRepository) => Promise<void>): Promise<void> => naEscola(a.escolaId, () => funcao(new ExtracaoDoMaterialRepository(bancada.banco)))
+      const naA = (funcao: (repositorio: ExtracaoDoMaterialRepository) => Promise<unknown>): Promise<unknown> => naEscola(a.escolaId, () => funcao(new ExtracaoDoMaterialRepository(bancada.banco)))
 
-      await expect(naA((repositorio) => repositorio.gravarCapitulos(deA, []))).resolves.toBeUndefined()
+      await expect(naA((repositorio) => repositorio.gravarCapitulos(deA, []))).resolves.toEqual([])
       expect(await capitulos(deA)).toEqual([])
       await expect(naA((repositorio) => repositorio.gravarCapitulos(deB, umCapitulo))).rejects.toMatchObject({ cause: { constraint: 'capitulo_do_material_da_escola_fk' } })
       expect(await capitulos(deB)).toEqual([])
@@ -963,6 +963,201 @@ describe('material.extrair-pdf', () => {
         expect(await quantos(expurgado)).toBe(0)
         expect(await quantos(vizinho)).toBe(1)
       })
+    })
+  })
+
+  describe('seções do material (classificacao-bncc, tarefa 2.0; Tech Spec, seção 5, "Seções")', () => {
+    interface SecaoRow {
+      readonly escola_id: string
+      readonly capitulo_id: string | null
+      readonly ordem: number
+      readonly pagina_inicial: number
+      readonly pagina_final: number
+      readonly execucao_id: string | null
+      readonly falhas_seguidas: number
+      readonly classificada_em: Date | null
+      readonly corrigida_em: Date | null
+    }
+
+    async function secoes(id: string): Promise<SecaoRow[]> {
+      const { rows } = await bancada.pool.query<SecaoRow>(
+        'select escola_id, capitulo_id, ordem, pagina_inicial, pagina_final, execucao_id, falhas_seguidas, classificada_em, corrigida_em from secao_do_material where material_id = $1 order by ordem',
+        [id],
+      )
+      return rows
+    }
+
+    const faixas = (linhas: readonly SecaoRow[]): Array<[number, number]> => linhas.map((secao) => [secao.pagina_inicial, secao.pagina_final])
+
+    /** Um extrator que devolve o resultado dado: o PDF de 25 páginas, ou o capítulo que só começa na página 3, sem montar o arquivo. */
+    const extratorDe = (paginas: number, capitulos: readonly CapituloLido[]): Pick<PdfExtractor, 'extrair'> => ({
+      extrair: () => Promise.resolve({ falha: null, paginas, trechos: Array.from({ length: paginas }, (_, i) => ({ pagina: i + 1, texto: `texto ${String(i + 1)}` })), capitulos }),
+    })
+
+    it('[I] material com capítulos: uma seção por capítulo, na escola do material, na ordem, com o capítulo e sem execução, sem falha e sem marca', async () => {
+      const c = await escolaNova()
+      const id = await materialComObjeto(c, pdfDaAmostra('marcador'))
+
+      await rodar(c.escolaId, id)
+
+      const gravadas = await secoes(id)
+      const capitulosGravados = await bancada.pool.query<{ id: string; ordem: number }>('select id, ordem from capitulo_do_material where material_id = $1 order by ordem', [id])
+      expect(faixas(gravadas)).toEqual([[1, 2], [3, 4], [5, 6]])
+      expect(gravadas.map((secao) => secao.ordem)).toEqual([1, 2, 3])
+      expect(gravadas.map((secao) => secao.capitulo_id)).toEqual(capitulosGravados.rows.map((capitulo) => capitulo.id))
+      for (const secao of gravadas) expect(secao).toMatchObject({ escola_id: c.escolaId, execucao_id: null, falhas_seguidas: 0, classificada_em: null, corrigida_em: null })
+      const { rows } = await bancada.pool.query<{ total: number }>('select count(*)::int as total from habilidade_da_secao where escola_id = $1', [c.escolaId])
+      expect(rows[0]?.total).toBe(0)
+    })
+
+    it('[I] sem capítulo, 25 páginas: 1–10, 11–20 e 21–25, sem capítulo na seção', async () => {
+      const c = await escolaNova()
+      const id = await materialComObjeto(c)
+
+      await rodar(c.escolaId, id, { extratorDoCaso: extratorDe(25, []) })
+
+      const gravadas = await secoes(id)
+      expect(faixas(gravadas)).toEqual([[1, 10], [11, 20], [21, 25]])
+      expect(gravadas.map((secao) => secao.ordem)).toEqual([1, 2, 3])
+      expect(gravadas.map((secao) => secao.capitulo_id)).toEqual([null, null, null])
+    })
+
+    it('[I] páginas antes do capítulo 1: sem seção; a primeira seção começa no capítulo', async () => {
+      const c = await escolaNova()
+      const id = await materialComObjeto(c)
+
+      await rodar(c.escolaId, id, {
+        extratorDoCaso: extratorDe(8, [
+          { ordem: 1, numero: 1, titulo: 'Capítulo 1', paginaInicial: 3, paginaFinal: 5 },
+          { ordem: 2, numero: 2, titulo: 'Capítulo 2', paginaInicial: 6, paginaFinal: 8 },
+        ]),
+      })
+
+      expect(faixas(await secoes(id))).toEqual([[3, 5], [6, 8]])
+      const { rows } = await bancada.pool.query<{ total: number }>('select count(*)::int as total from secao_do_material where material_id = $1 and pagina_inicial < 3', [id])
+      expect(rows[0]?.total).toBe(0)
+    })
+
+    it('[P] dois jobs da mesma extração em `Promise.all`, os dois com os bytes na mão: as seções entram uma vez', async () => {
+      const c = await escolaNova()
+      const dele = new InMemoryFileStorage()
+      const id = await materialComObjeto(c, pdfDaAmostra('marcador'), { armazemDoObjeto: dele })
+      const juntos = barreira()
+      let chegaram = 0
+      dele.aoLerBytes = async () => {
+        chegaram += 1
+        if (chegaram === 2) juntos.soltar()
+        await juntos.espera
+      }
+
+      await Promise.all([rodar(c.escolaId, id, { armazemDoCaso: dele }), rodar(c.escolaId, id, { armazemDoCaso: dele })])
+
+      expect(faixas(await secoes(id))).toEqual([[1, 2], [3, 4], [5, 6]])
+    })
+
+    it('o job repetido depois de `pronto` não grava seção a mais', async () => {
+      const c = await escolaNova()
+      const id = await materialComObjeto(c, pdfDaAmostra('marcador'))
+      await rodar(c.escolaId, id)
+      await rodar(c.escolaId, id)
+      expect(await secoes(id)).toHaveLength(3)
+    })
+
+    it('[I] excluído enquanto o PDF é extraído: nenhuma seção entra', async () => {
+      const c = await escolaNova()
+      const id = await materialComObjeto(c)
+      const extratorQueEExcluido: Pick<PdfExtractor, 'extrair'> = {
+        extrair: async () => {
+          await bancada.pool.query('update material set excluido_em = now() where id = $1', [id])
+          return extratorDe(25, []).extrair(new Uint8Array(), new AbortController().signal)
+        },
+      }
+      await rodar(c.escolaId, id, { extratorDoCaso: extratorQueEExcluido })
+      expect(await secoes(id)).toEqual([])
+    })
+
+    it('[I] a ordem duplicada é recusada pelo `unique (escola_id, material_id, ordem)`', async () => {
+      const c = await escolaNova()
+      const id = await materialComObjeto(c)
+      await rodar(c.escolaId, id, { extratorDoCaso: extratorDe(25, []) })
+      await expect(
+        bancada.pool.query('insert into secao_do_material (escola_id, material_id, ordem, pagina_inicial, pagina_final) values ($1, $2, 1, 1, 2)', [c.escolaId, id]),
+      ).rejects.toMatchObject({ code: '23505', constraint: 'secao_do_material_ordem_unica' })
+    })
+
+    it('[I] a seção da escola A não aponta o capítulo nem o material da B: a FK composta recusa', async () => {
+      const a = await escolaNova()
+      const b = await escolaNova()
+      const deA = await materialComObjeto(a, null)
+      const deB = await materialComObjeto(b, null)
+      const capituloDaB = (await bancada.pool.query<{ id: string }>("insert into capitulo_do_material (escola_id, material_id, ordem, numero, titulo, pagina_inicial, pagina_final) values ($1, $2, 1, 1, 'Capítulo 1', 1, 2) returning id", [b.escolaId, deB])).rows[0]?.id
+      const inserir = (materialId: string, capituloId: string | null): Promise<unknown> =>
+        bancada.pool.query('insert into secao_do_material (escola_id, material_id, capitulo_id, ordem, pagina_inicial, pagina_final) values ($1, $2, $3, 1, 1, 2)', [a.escolaId, materialId, capituloId])
+
+      await expect(inserir(deA, capituloDaB ?? null)).rejects.toMatchObject({ code: '23503', constraint: 'secao_do_material_capitulo_da_escola_fk' })
+      await expect(inserir(deB, null)).rejects.toMatchObject({ code: '23503', constraint: 'secao_do_material_da_escola_fk' })
+      await inserir(deA, null)
+      expect(await secoes(deA)).toHaveLength(1)
+      expect(await secoes(deB)).toEqual([])
+    })
+
+    it('[I] código fora de `habilidade_bncc`: a habilidade da seção o recusa; um código da tabela entra, e o repetido na seção é recusado', async () => {
+      const c = await escolaNova()
+      const id = await materialComObjeto(c)
+      await rodar(c.escolaId, id, { extratorDoCaso: extratorDe(5, []) })
+      const secaoId = (await bancada.pool.query<{ id: string }>('select id from secao_do_material where material_id = $1', [id])).rows[0]?.id ?? ''
+      const gravar = (codigo: string, origem = 'ia'): Promise<unknown> => bancada.pool.query('insert into habilidade_da_secao (escola_id, secao_id, codigo, origem) values ($1, $2, $3, $4)', [c.escolaId, secaoId, codigo, origem])
+
+      await expect(gravar('QUI.EM.05')).rejects.toMatchObject({ code: '23503', constraint: 'habilidade_da_secao_codigo_habilidade_bncc_codigo_fk' })
+      await expect(gravar('EM13CNT301', 'professor')).rejects.toMatchObject({ code: '23514', constraint: 'habilidade_da_secao_origem_valida' })
+      await gravar('EM13CNT301')
+      await expect(gravar('EM13CNT301', 'coordenacao')).rejects.toMatchObject({ code: '23505', constraint: 'habilidade_da_secao_pk' })
+    })
+
+    it('o repository: `gravarSecoes` com o material da B no contexto da A é recusado pela FK composta e nada é gravado; sem página nem capítulo, não grava', async () => {
+      const a = await escolaNova()
+      const b = await escolaNova()
+      const deB = await materialComObjeto(b, null)
+      const deA = await materialComObjeto(a, null)
+      const naA = (funcao: (repositorio: ExtracaoDoMaterialRepository) => Promise<unknown>): Promise<unknown> => naEscola(a.escolaId, () => funcao(new ExtracaoDoMaterialRepository(bancada.banco)))
+
+      await expect(naA((repositorio) => repositorio.gravarSecoes(deA, 0, []))).resolves.toBe(0)
+      await expect(naA((repositorio) => repositorio.gravarSecoes(deB, 12, []))).rejects.toMatchObject({ cause: { constraint: 'secao_do_material_da_escola_fk' } })
+      expect(await secoes(deB)).toEqual([])
+      await naA((repositorio) => repositorio.gravarSecoes(deA, 12, []))
+      expect(faixas(await secoes(deA))).toEqual([[1, 10], [11, 12]])
+    })
+
+    it('o material expurgado leva as seções e as habilidades delas em cascata, e as do vizinho ficam', async () => {
+      const c = await escolaNova()
+      const expurgado = await materialComObjeto(c)
+      const vizinho = await materialComObjeto(c)
+      await rodar(c.escolaId, expurgado, { extratorDoCaso: extratorDe(5, []) })
+      await rodar(c.escolaId, vizinho, { extratorDoCaso: extratorDe(5, []) })
+      await bancada.pool.query(
+        "insert into habilidade_da_secao (escola_id, secao_id, codigo, origem) select escola_id, id, 'EM13CNT301', 'ia' from secao_do_material where escola_id = $1 and material_id in ($2, $3)",
+        [c.escolaId, expurgado, vizinho],
+      )
+
+      await bancada.pool.query('delete from material where escola_id = $1 and id = $2', [c.escolaId, expurgado])
+
+      expect(await secoes(expurgado)).toEqual([])
+      expect(await secoes(vizinho)).toHaveLength(1)
+      const { rows } = await bancada.pool.query<{ total: number }>('select count(*)::int as total from habilidade_da_secao where escola_id = $1', [c.escolaId])
+      expect(rows[0]?.total).toBe(1)
+    })
+
+    it('o log da extração leva só ids e contagens das seções: nenhum título de capítulo', async () => {
+      const c = await escolaNova()
+      const id = await materialComObjeto(c, pdfDaAmostra('marcador'))
+      const inicio = log.registros().length
+
+      await rodar(c.escolaId, id)
+
+      const novas = log.registros().slice(inicio)
+      expect(novas.find((registro) => registro['evento'] === 'material.extraido')).toMatchObject({ materialId: id, capitulosTotal: 3, secoesTotal: 3, secoesHerdadasTotal: 0 })
+      const todo = JSON.stringify(novas)
+      for (const sentinela of ['Mol e massa molar', 'Reações químicas', 'Soluções']) expect(todo, sentinela).not.toContain(sentinela)
     })
   })
 })

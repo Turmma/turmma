@@ -1995,7 +1995,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
       expect(rows[0]).toEqual({ entrada: null, saida: null, envioExterno: true, provedor: null })
     })
 
-    it('o que fica: a execução, as sete FKs que apontam para ela e a soma da governança são as mesmas depois da anonimização', async () => {
+    it('o que fica: a execução, as oito FKs que apontam para ela e a soma da governança são as mesmas depois da anonimização', async () => {
       const a = await escolaNova()
       const professorId = await professorNovo(a)
       const execucaoId = await execucaoComTema(a, QUARTA_1H, '13 months', 'concluida', professorId)
@@ -2015,9 +2015,15 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
          ), lote as (
            insert into entrega (escola_id, ano_letivo_id, turma_id, funcao, tipo, artefato_id, execucao_id, estado, decidida_por, decidida_em)
            values ($1, $2, $3, 'adaptacao', 'versao_adaptada', $8, $5, 'aprovada', $9, $6::timestamptz - interval '1 day') returning id
+         ), material_da_secao as (
+           insert into material (escola_id, disciplina_id, titulo, titularidade, licenca, declaracao, sha256, tamanho_bytes, paginas, estado)
+           values ($1, $10, 'Material da seção', 'escola', 'autoria_da_escola', true, md5(random()::text) || md5(random()::text), 1000, 2, 'pronto') returning id
+         ), secao as (
+           -- A classificação da seção cita a execução que a fez (classificacao-bncc, 2.0): a anonimização da execução não a toca.
+           insert into secao_do_material (escola_id, material_id, ordem, pagina_inicial, pagina_final, execucao_id) select $1, id, 1, 1, 2, $5 from material_da_secao returning id
          )
          insert into resumo_do_analista (escola_id, ano_letivo_id, execucao_id, conteudo) values ($1, $2, $5, '{"recortes":[],"alertas":[]}')`,
-        [a.escolaId, a.anoId, a.turmaId, a.alunoId, execucaoId, QUARTA_1H.toISOString(), umaThread.threadId, artefatoId, professorId],
+        [a.escolaId, a.anoId, a.turmaId, a.alunoId, execucaoId, QUARTA_1H.toISOString(), umaThread.threadId, artefatoId, professorId, doAno.disciplinaId],
       )
       // Quem aprovou e quando (regra 70, item 6): a entrega da execução fica igual.
       const aprovacao = () =>
@@ -2033,7 +2039,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
       const { rows: fks } = await bancada.pool.query<{ tabela: string; nome: string }>(
         "select conrelid::regclass::text as tabela, conname as nome from pg_constraint where confrelid = 'execucao_agente'::regclass and contype = 'f' order by 1",
       )
-      expect(fks.map(({ tabela }) => tabela)).toEqual(['artefato', 'consumo_ia', 'entrega', 'mensagem_agente', 'mensagem_tutor', 'resumo_do_analista', 'sinal_tutor'])
+      expect(fks.map(({ tabela }) => tabela)).toEqual(['artefato', 'consumo_ia', 'entrega', 'mensagem_agente', 'mensagem_tutor', 'resumo_do_analista', 'secao_do_material', 'sinal_tutor'])
       const apontando = async () =>
         Object.fromEntries(
           await Promise.all(

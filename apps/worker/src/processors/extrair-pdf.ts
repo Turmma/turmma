@@ -14,7 +14,7 @@ import {
   type JobProcessor,
   JobFailureError,
 } from '@educa/core'
-import type { PdfExtractor } from '@educa/core/material'
+import type { CapituloGravado, PdfExtractor } from '@educa/core/material'
 import { JOB_DEFINITIONS, JobFailureCode, TIPO_EXTRAIR_PDF, type FalhaDeMaterial } from '@educa/shared'
 
 /** Os limites do histograma da extração, em segundos: de um PDF curto aos dez minutos do prazo do tipo. */
@@ -40,6 +40,32 @@ const registro = new AuditoriaRecorder()
 async function substituirAAnterior(tx: DatabaseTransaction, novaId: string, antigaId: string): Promise<void> {
   if (!(await new ExtracaoDoMaterialRepository(tx).substituirAnterior(novaId, antigaId))) return
   await registro.gravar(tx, 'material.substituido', { entidadeId: antigaId, depois: { substituidoPor: novaId }, autorOperador: 'rotina' })
+}
+
+/**
+ * A edição nova herda a correção da anterior (classificacao-bncc, 2.0): as seções cujo capítulo tem o mesmo número e título de uma seção corrigida da anterior levam as habilidades e a marca, e a herança
+ * fica na auditoria (`material.classificacao_herdada`, a `rotina` como autor, só quando alguma herdou). Devolve quantas seções herdaram, para o log.
+ */
+async function herdarAClassificacao(tx: DatabaseTransaction, novaId: string, antigaId: string): Promise<number> {
+  const herdadas = await new ExtracaoDoMaterialRepository(tx).herdarClassificacao(novaId, antigaId)
+  if (herdadas > 0) await registro.gravar(tx, 'material.classificacao_herdada', { entidadeId: novaId, depois: { herdadoDe: antigaId, secoes: herdadas }, autorOperador: 'rotina' })
+  return herdadas
+}
+
+/**
+ * As seções do material (classificacao-bncc, 2.0) e, se ele é a edição de outro, a substituição da anterior e a herança da correção dela, na transação da extração. Devolve as contagens que o log diz.
+ */
+async function gravarSecoesEFecharAEdicao(
+  tx: DatabaseTransaction,
+  materialId: string,
+  paginas: number,
+  capitulos: readonly CapituloGravado[],
+  substituiId: string | null,
+): Promise<{ secoesTotal: number; secoesHerdadasTotal: number }> {
+  const secoesTotal = await new ExtracaoDoMaterialRepository(tx).gravarSecoes(materialId, paginas, capitulos)
+  if (substituiId === null) return { secoesTotal, secoesHerdadasTotal: 0 }
+  await substituirAAnterior(tx, materialId, substituiId)
+  return { secoesTotal, secoesHerdadasTotal: await herdarAClassificacao(tx, materialId, substituiId) }
 }
 
 /** Como a execução terminou, que é o `resultado` da métrica e o que o log diz. */
@@ -133,17 +159,17 @@ export function criarExtracaoDoPdf({ banco, armazem, extrator, logger, medidor }
         const materiais = new ExtracaoDoMaterialRepository(tx)
         const disciplinaId = await materiais.marcarPronto(materialId, resultado.paginas)
         // Excluído, ou já extraído por outro job, enquanto era lido: nenhum trecho entra, e o objeto é de quem mudou a linha.
-        if (disciplinaId === undefined) return false
+        if (disciplinaId === undefined) return undefined
         await materiais.gravarTrechos(materialId, disciplinaId, resultado.trechos)
-        await materiais.gravarCapitulos(materialId, resultado.capitulos)
-        if (material.substituiId !== null) await substituirAAnterior(tx, materialId, material.substituiId)
-        return true
+        const capitulos = await materiais.gravarCapitulos(materialId, resultado.capitulos)
+        return gravarSecoesEFecharAEdicao(tx, materialId, resultado.paginas, capitulos, material.substituiId)
       })
-      if (!gravou) return 'sem_efeito'
+      if (gravou === undefined) return 'sem_efeito'
       const paginasTotal = resultado.paginas
       const trechosTotal = resultado.trechos.length
       const capitulosTotal = resultado.capitulos.length
-      logger.info({ evento: 'material.extraido', materialId, paginasTotal, trechosTotal, capitulosTotal, tentativa })
+      const { secoesTotal, secoesHerdadasTotal } = gravou
+      logger.info({ evento: 'material.extraido', materialId, paginasTotal, trechosTotal, capitulosTotal, secoesTotal, secoesHerdadasTotal, tentativa })
       await apagarObjeto(materialId)
       return 'pronto'
     }

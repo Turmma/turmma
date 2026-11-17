@@ -61,6 +61,9 @@ export const CLASSIFICACAO_DAS_TABELAS: Readonly<Record<string, ClassificacaoDaT
   // A licença do material de terceiro (ingestao-do-material, 5.0): sai no expurgo de `material_excluido`, contada de `vigente_ate` e só depois do último material que a cite; a sem fim fica até a coordenação a encerrar.
   // Entra no arquivo de quem a registrou (`registrada_por`); o `licenciante` e a `referencia` ficam fora (nome de terceiro e número do documento).
   licenca_de_material: categoria(['material_excluido'], 'registrada_por'),
+  // A seção do material (classificacao-bncc, 2.0): sai em cascata com o material expurgado. Entra no arquivo de quem a corrigiu (`corrigida_por`, a coordenação), com a marca da correção e a faixa de páginas; o `corrigida_por`
+  // fica fora, e a eliminação da pessoa o anula sem desfazer a correção (`corrigida_em` fica). A execução e as falhas seguidas são técnicas.
+  secao_do_material: categoria(['material_excluido'], 'corrigida_por'),
   vinculo: categoria(['vinculo_encerrado'], 'usuario_id'),
   usuario: categoria(['pessoa_desativada'], 'id'),
   // A aula da grade (F2, 2.0) é do professor pelo vínculo e sai com ele, em cascata: o vínculo encerrado vai pelo prazo de
@@ -145,6 +148,8 @@ export const CLASSIFICACAO_DAS_TABELAS: Readonly<Record<string, ClassificacaoDaT
   capitulo_do_material: SEM_PESSOA,
   // As séries declaradas do material (ingestao-do-material, 7.0): só ids da escola. Saem em cascata com o material expurgado.
   material_serie: SEM_PESSOA,
+  // As habilidades da BNCC de cada seção (classificacao-bncc, 2.0): códigos da tabela pública e a origem (`ia` ou `coordenacao`). Sem pessoa; saem em cascata com a seção.
+  habilidade_da_secao: SEM_PESSOA,
   resumo_do_analista: SEM_PESSOA,
   // Guarda o apelido do operador que ajustou, da nossa equipe, e nenhuma pessoa da escola.
   retencao_escola: SEM_PESSOA,

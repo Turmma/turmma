@@ -85,6 +85,15 @@ describe('LEITURAS_DO_ARQUIVO: a forma das leituras', () => {
     }
   })
 
+  it('a seção do material (classificacao-bncc, 2.0) entra no arquivo de quem a corrigiu, pela coluna `corrigida_por`, que fica fora do que se lê; a habilidade dela não tem pessoa e não entra', () => {
+    expect(CLASSIFICACAO_DAS_TABELAS.secao_do_material).toMatchObject({ classe: 'categoria', categorias: ['material_excluido'], arquivo: { entra: true, ligacao: ['corrigida_por'] } })
+    expect(CLASSIFICACAO_DAS_TABELAS.habilidade_da_secao).toMatchObject({ classe: 'sem_pessoa', arquivo: { entra: false } })
+    const leitura = LEITURAS_DO_ARQUIVO.secao_do_material
+    expect(leitura?.colunas).not.toContain('corrigida_por')
+    expect(leitura?.fora['corrigida_por']).toBe('o próprio titular')
+    expect(LEITURAS_DO_ARQUIVO.habilidade_da_secao).toBeUndefined()
+  })
+
   it('a aula da grade (`alocacao`) entra no arquivo do professor pelo vínculo dele, e tem a leitura que a lê (F2, 11.0)', () => {
     expect(CLASSIFICACAO_DAS_TABELAS.alocacao?.arquivo).toEqual({ entra: true, ligacao: ['vinculo_id'] })
     expect(LEITURAS_DO_ARQUIVO.alocacao?.consultas({ ...alvo, versao: 'completa' }).length).toBeGreaterThan(0)
