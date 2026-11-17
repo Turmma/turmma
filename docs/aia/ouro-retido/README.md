@@ -21,6 +21,11 @@ independente.
 | `riscoAVida-retido-2.json` | `riscoAVida` (D36), depois da 93.0 e da 94.0 | 128 (82), ids `RT-129` a `RT-256` | `66d8b95`: 31/75, precisão 0,969 | `3f100df`: padrão 37/75 (0,974); padrão ou modelo, pior de 3 no modelo local, 51/75 (0,962), piso de `homonimo` quebrado pelo modelo (12/13), **fora do alvo** |
 | `saidaQualitativa-retido-1.json` | `saidaQualitativa` (D55), depois da 3.0 | 99 (58), ids `RQ-001` a `RQ-099` | `b5b7d11` (só `atribuiNotaOuConceito`): 0/58, 0 de 41 legítimas barradas | `1f770ea`: 22/58, precisão 0,88, 3 de 41 legítimas barradas, **fora do alvo** |
 | `julgamentoDeTextoDeAluno-retido-1.json` | `julgamentoDeTextoDeAluno` (D55), depois da 3.0 | 90 (57), ids `RJ-001` a `RJ-090` | `b5b7d11`: 32/57, precisão 0,711 | `1f770ea`: 33/57, precisão 0,717, `material_do_professor` 10 de 10 barradas, **fora do alvo** |
+| `classificacao-retido-1.json` | `classificacao_do_material` (classificacao-bncc), depois da 3.0 | 48 seções (38 com conteúdo), ids `CR-001` a `CR-048` | prompt `2026-11-17.1` (`924c6792`), anterior ao lote | pendente: modelo local antes da 10.0; produção pendente da D37 |
+
+O lote da classificação pela BNCC é a exceção ao formato: segue `tasks/prd-classificacao-bncc/cenarios.md`, "Lote retido", e não
+o `ouro`; é lido por `tools/ia/medir-classificacao.ts`, mede uma taxa (não uma política de barra), e as razões do gabarito
+ficam em `classificacao-retido-1.notas.md`, para o professor que o confere.
 
 A 26.0 passa a ler esta pasta no `golden.test.ts` (zod estrito, sha256 do lote contra o `RETIDOS.json`), sem cair da medida
 independente nem da base nas `nao_casa` com piso.
