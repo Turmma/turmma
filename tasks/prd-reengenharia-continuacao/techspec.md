@@ -1,7 +1,7 @@
 # Tech Spec — Reengenharia, continuação (X6)
 
 **PRD:** `tasks/prd-reengenharia-continuacao/prd.md` · **Cenários de teste:** `cenarios.md`
-**Status:** rascunho
+**Status:** implementada em 17/11/2026 (revista em 16/11/2026: RF9 e §5 pela decisão A do Joaquim, na 8.0)
 
 Joaquim, 15/11/2026: o worker de IA é um segundo ponto de entrada do `apps/api`; o modelo menor é opcional, fora do Tutor até a
 medida da D36. Vale o desenho de `tasks/prd-reengenharia/onda-3a.md` e `onda-3c.md` onde esta spec não diz outro.

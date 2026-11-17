@@ -1556,7 +1556,7 @@ qualquer dado real:
 - [ ] **Teto de IA por escola e custo.** Não há coluna de teto nem tabela de preço: `IA_ORCAMENTO_ESGOTADO` nunca
   dispara e `custo_micros` fica em zero (D14, D39).
 - [ ] **Galeria das peças fora do build** de staging e de produção.
-- [ ] **Execução de IA e extração de PDF por fila**, no lugar do processo da API (`TODO(fila)`, D49).
+- [x] *(feito: a IA na X6, tarefa 5.0, 16/11/2026; a extração de PDF na F4)* **Execução de IA e extração de PDF por fila**, no lugar do processo da API (`TODO(fila)`, D49).
 - [ ] **Recusa da D55 no Assistente, estrutural.** A regra por lista de palavras pegou 6 de 47 frases novas escritas
   pelo `conformidade-reviewer` na segunda passada da fase 3 (04/10/2026): foi ajustada às amostras. Para a demonstração
   ela foi aceita; antes de dado real: texto colado na mensagem atual não vai ao modelo, ou é recusado quando não é
@@ -3889,3 +3889,55 @@ aula" em `Retencao.tsx`, o Validador conferiu: a tela já o mostra pela descriç
 - [ ] (reengenharia-continuacao, correção 2026-11-17-prazo-do-pedido-na-virada-do-dia, test-engineer, 1ª, 17/11/2026) **`prazoNaTela` aceita `N` e `N-1` dias sempre, e a tela lida no dia certo passaria com a contagem errada em um dia:** ler o dia também depois da asserção e aceitar a leitura do dia seguinte só quando o dia de fato mudou. Muda o desenho do ajudante e dos casos (duas leituras do relógio por asserção); a contagem exata da tela já é provada pela unidade `textos-do-pedido.test.ts`.
 - [ ] (reengenharia-continuacao, correção 2026-11-17-prazo-do-pedido-na-virada-do-dia, revisor-geral e test-engineer, 2ª, 17/11/2026) **`diaDeHojeNoBanco` (`e2e/support/seed.ts`) devolve `''` se a consulta não trouxer linha:** lançar o erro ali mesmo, como faz `unicoPedidoNoBanco`. É só robustez (a consulta sempre devolve uma linha); mexer no arquivo caduca as aprovações.
 - [ ] (reengenharia-continuacao, correção 2026-11-17-prazo-do-pedido-na-virada-do-dia, test-engineer e revisor-geral, 2ª, 17/11/2026) **Outros pontos dos e2e leem o dia pelo `hoje()` do Node, com a mesma corrida da meia-noite, fora do prazo do pedido:** o dia no diálogo (`e2e/pedidos-do-titular.spec.ts:99`), o `max` e o preenchimento da data (`:154`, `:168`, `:201`) e o nome do arquivo baixado (`e2e/pedido-do-titular.spec.ts:694`, `:701`). Tratar no mesmo molde se algum falhar na esteira. Premissa a lembrar: a tela conta pelo relógio do navegador e o dia da semeadura vem do relógio do banco, e só valem juntos enquanto os dois rodam na mesma máquina.
+
+## Do fechamento da reengenharia-continuacao (X6), fora dela
+
+Menores da validação (`tasks/prd-reengenharia-continuacao/validacao.md`, rodadas 1 e 2, seção 4) e pendências do `estado.md`, anotados pelo
+Orquestrador em 17/11/2026; não seguram o pouso (D79).
+
+- [ ] (X6, validação r1, m1) **A pergunta sem resposta, depois de recarregar, fica sem aviso na tela do Tutor** (`apps/web/src/areas/aluno/Tutor.tsx:153,243`,
+      `pendenteNoTutor` lê o ciclo da sessão): o "Tentar de novo" só existe na sessão que enviou. Anterior à X6, que torna a falha mais frequente (corte
+      de 20 s, teto, D62). Sugestão: `GET /v1/tutor/conversa` dizer, por pergunta, que terminou sem resposta (o `#semResposta` da 9.0) e a tela mostrar o
+      aviso calmo com "Perguntar de novo" (dono: a spec que tocar a tela do Tutor, F9)
+- [ ] (X6, validação r1) **O "nenhum job" do Tutor desligado na escola (D84) e fora da política da turma (D19)** não tem conferência: as duas coisas não
+      existem na API (`techspec.md` §5 "Como a 5.0 ficou" (7), `cenarios.md` §2) (dono: quem criar essas conferências, F9 e a fatia do piloto)
+- [ ] (X6, validação r1, m2) **`8_task.md`, Autoconferência 4:** cita como controle casos da prontidão da API que saíram com a decisão A; a linha "recusa
+      por campo" cita um caso de `soberania.test.ts` com nome antigo; o bloco de mutação de `app.module.ts` prova uma ausência. Só documento (dono: Arquiteto, na retro)
+- [ ] (X6, validação r1, m3) **A D77, item 5 (`docs/decisoes.md:1120-1121`), ainda trata a execução de IA no processo da API como dívida aberta;** a X6 a
+      pagou na 5.0 (a extração de PDF foi da F4). Anotar na D77 (dono: Arquiteto, na retro). O item "Execução de IA e extração de PDF por fila" deste
+      arquivo foi fechado no mesmo fechamento
+- [ ] (X6, validação r1, m4) **Repetir a corrida de carga da manhã com a máquina calma** (`11_task.md`, "A corrida": a de 16/11 rodou com load 2,9 a 5,1 e
+      outras pilhas de pé; passou com folga de duas ordens de grandeza). Roteiro em `docs/runbook.md`, "Rodar a carga da manhã" (dono: Joaquim, antes do piloto)
+- [x] *(feito no fechamento, 17/11/2026: "implementada em 17/11/2026")* (X6, validação r1, m5) **`techspec.md` ainda dizia "Status: rascunho"**; conferir na retro se
+      o histórico de revisões da linha de status ficou completo (dono: Arquiteto)
+- [ ] (X6, triagem da 4.0, m6) **O Analista devolve os agregados inteiros na saída e tem só 6.000 tokens de saída:** com modelo real, entrada válida acima de
+      ~4 mil tokens já falha com `IA_SAIDA_INVALIDA`. Reduzir o schema corta o resumo da coordenação: decisão de produto junto da U03-12 (D32, `/descobrir`),
+      fora da X6 (dono: Joaquim)
+- [ ] (X6, m6) **Antes do primeiro deploy da X6, no `.env` da VPS:** `VAGAS_ESCOLA_FERRAMENTA=4`, `IA_LATENCIA_FALSA_MS_PADRAO=0`, `IA_TOKENS_FALSOS_ENTRADA=0`
+      e `IA_TOKENS_FALSOS_SAIDA=0` (sem as três últimas o deploy para na interpolação do compose; a primeira o runbook já diz). A 5.0 só vai para produção
+      com a 10.0 (teto global `IA_EXECUCOES_TOTAL`); pousam juntas, na mesma spec (dono: Joaquim)
+- [ ] (X6, validação r1, m7) **Critério de pronto que nomeia uma tarefa precisa de uma linha no documento dela:** o `tasks.md` pedia que a 7.0 e a 9.0
+      conferissem o roteiro da demonstração, e nenhum dos dois `N_task.md` o cita (o Validador conferiu: 2 de 2 verdes) (dono: Arquiteto, na retro, D86)
+- [ ] (X6, correção `2026-11-16-reserva-no-mesmo-milissegundo`, validação r2, m8a) **Blocos de mutação para `devolver`, `concluirLink` e `devolverLink`**
+      (`packages/core/src/email/envio.repository.ts:100,133,144`), além do de `concluir` (dono: a próxima tarefa que tocar `envio.repository.ts`, com test-engineer)
+- [ ] (X6, correção `2026-11-16-reserva-no-mesmo-milissegundo`, validação r2, m8b) **`toBeGreaterThan(marcaDaPrimeira)` já não prova nada sozinho**
+      (`apps/worker/test/enviar-email.int.test.ts:337`, `enviar-email-da-conta.int.test.ts:303`): com a marca da primeira 3 min antes, passa sempre; quem
+      prova a regra são o `concluir`/`devolver` → `false` e a linha com `reservadoEm`. Um comentário que diga isso, ou tirar a asserção (dono: Implementador,
+      com test-engineer, na próxima tarefa que tocar esses arquivos)
+- [ ] (X6, correção `2026-11-16-censo-e2e-entrar-na-escola`, validação r2, m8c) **O `e2e/entrar-na-escola.spec.ts:218` a 17,8 s, perto dos 20 s do censo,** e
+      se a nova tentativa do `gotoComNovaTentativa` deve contar no censo (dono: Arquiteto, retro da X6).
+      Na esteira 44014485754 (`eac0008`, fechamento) o `:94` saiu da lista do censo e o `:218` ficou abaixo de dois terços
+- [ ] (X6, correção `2026-11-16-teto-do-verificar-na-esteira`) **Anotação "unidade perto do teto" no resumo de `tools/ci/unidade.ts`,** no molde da do
+      `tools/ci/e2e.ts` (o limite de 7 min por fatia só existe em comentário e no runbook), e **a guarda "o `/N` do nome do job é o tamanho da matriz"**,
+      hoje só no teste da unidade (`tools/ci/esteira.test.ts:385`), juntada ou estendida à infra e ao e2e (dono: Arquiteto, retro da X6)
+- [ ] (X6, correção `2026-11-16-teto-do-verificar-na-esteira`) **`tools/processo/harness/npx-sem-instalar.test.ts` intermitente** (saída do `npx` vazia, duas
+      vezes numa fatia da unidade, verde isolado e no portão): `/corrigir` próprio se voltar a aparecer na esteira (dono: Orquestrador)
+- [ ] (X6, correção `2026-11-16-teto-do-verificar-na-esteira`) **As estimativas de tempo do comentário do `ci.yml`** ("uns 5 min", "200 a 290 s" por fatia)
+      trocadas pela medida da esteira.
+      Medida na esteira 44014485754: as duas fatias levaram 245 s e 257 s de job, dentro dos 200 a 290 s do comentário; trocar a estimativa pela medida (dono: Orquestrador)
+- [ ] (X6, censo do e2e do fechamento, execução 44014485754, `eac0008`, 17/11/2026, dívida da develop) **Onze casos acima de dois terços do prazo, nenhum acima de
+      90%:** `alocacao.spec.ts:85` (73,7 e 69,8 s de 90, o mais perto: 82%), `escola-e-vinculos.spec.ts:211` (24,5 s de 30, nos dois projetos) e `:271` (21,0 e
+      20,4 s), `operacao.spec.ts:125` (63,7 s de 90) e `:45` (20,5 s), `titulo-da-tela.spec.ts:138` (20,4 s), `pedidos-do-titular.spec.ts:338` (20,2 s) e
+      `estrutura.spec.ts:585` (20,1 s). O `pedidos-do-titular.spec.ts` foi tocado pela correção `2026-11-17-prazo-do-pedido-na-virada-do-dia` só nos imports e
+      nos casos do prazo (linhas 643 a 761), sem mudar o `:338`, que já estava no censo antes dela (20,0 s na execução 43989706048): fica como dívida, como o
+      rename da X8. Encurtar ou dividir quando o arquivo for tocado (dono: Implementador)

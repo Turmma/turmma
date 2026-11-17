@@ -1,5 +1,132 @@
 # Validação — reengenharia-continuacao (X6)
 
+## Rodada 3 — 17/11/2026
+
+**Escopo:** funcionalidade completa
+**Commit validado:** `eac00086`
+**Veredito: APROVADA**
+
+Revalidação depois da rodada 2 (`26031b5a`, APROVADA). De `26031b5a` a `eac00086` entraram três commits: `1e35e329` (o registro da
+rodada 2), `490e1fd8` (correção `2026-11-17-prazo-do-pedido-na-virada-do-dia`) e `eac00086` (registro de estado). Só o `490e1fd8` toca
+código, e só código de teste: `e2e/pedido-do-titular.spec.ts`, `e2e/pedidos-do-titular.spec.ts`, `e2e/support/seed.ts`,
+`e2e/support/pedidos-do-titular.ts`, o ajudante novo `e2e/support/prazo-do-pedido.ts` e a unidade nova
+`tools/ci/prazo-do-pedido-no-e2e.test.ts`, mais o `TODO.md` e os documentos da correção. `git diff --stat 26031b5a..eac00086 -- apps
+packages infra docs compose.yaml .github` sai vazio: o código de cada RF é o mesmo das rodadas 1 e 2, e as citações de código delas
+continuam valendo. Os e2e mudados são da F3 (o prazo do pedido do titular), não de um RF da X6.
+
+Lidos nesta rodada: `prd.md` inteiro, `tasks.md` (subagentes e critério de pronto), `estado.md`, o bloco da X6 no `ROADMAP.md`, as
+regras 00, 40, 60 e 80 por extenso (10, 20, 50, 70 e 80 também no contexto), o documento da correção, o diff inteiro do `490e1fd8` e
+as linhas da correção em `tasks/correcoes/achados/indice.md` (1390 a 1397). Conferi o ajudante contra o código que ele espelha
+(`apps/web/src/areas/coordenacao/privacidade/textos-do-pedido.ts:28,79,103,109,113`): o prazo de 15 dias, o singular de `dias` e as
+quatro frases (`Faltam`/`Falta`, `O prazo vence hoje`, `Prazo vencido há`) batem letra por letra; e o `chegouEm` que o caso do registro
+pela tela lê de volta vem como texto `AAAA-MM-DD` (`to_char`, `e2e/support/seed.ts:1314`), o formato que `prazoNaTela` espera.
+
+### 1. RF a RF
+
+| RF | Situação | O que mudou desde a rodada 2 | Evidência desta rodada |
+|---|---|---|---|
+| RF1 | ATENDIDO | nada | `registro-de-comandos.test.ts` verde em `eac00086`; `fila-de-ia.int.test.ts` verde na rodada 2, código sem mudança |
+| RF2 | ATENDIDO | nada | `fila-de-ia.int.test.ts` (rodada 2), código sem mudança |
+| RF3 | ATENDIDO | nada | `execucao-interrompida.int.test.ts` e `fila-de-ia.int.test.ts` (rodada 2), código sem mudança; mutação do escopo em `encerrarRodando` (rodada 1) |
+| RF4 | ATENDIDO | nada | `tutor-modelo.int.test.ts` (rodada 2) e a mutação do sinal da D36 (rodada 2), código sem mudança |
+| RF5 | ATENDIDO | nada | `corte-da-espera.int.test.ts` e `sem-resposta.int.test.ts` (rodada 2) e a mutação da idade de 20 s (rodada 1); fotos da rodada 2 (`.processo/vitrine/validacao-x6--corte--computador.png`, `professora--professor-turmas-01a1e6fc-9444-…--computador.png` e `--celular.png`), com a `apps/web` sem mudança desde elas |
+| RF6 | ATENDIDO | nada | a corrida de 16/11 (`11_task.md`, "A corrida"; `docs/infra.md` §10), não repetida |
+| RF7 | ATENDIDO | nada | `llm-gateway.test.ts` e `token-limiter.test.ts` verdes em `eac00086`; `token-limiter.int.test.ts` (rodada 2) |
+| RF8 | ATENDIDO | nada | `llm-gateway.test.ts` verde em `eac00086`; alertas e runbook sem mudança |
+| RF9 | ATENDIDO | nada | `soberania.test.ts` verde em `eac00086`; `soberania-na-subida.int.test.ts` e a mutação da conferência na subida (rodada 2) |
+| RF10 | ATENDIDO | nada | `llm-gateway.test.ts` (bloco da D62) e `tarefas.test.ts` verdes em `eac00086`; mutação de `exigirSoberania` (rodada 1) |
+| RF11 | ATENDIDO | nada | `client.test.ts` e `respostas.test.ts` verdes em `eac00086` |
+| RF12 | ATENDIDO | nada | `AreaErrorBoundary.test.tsx` verde em `eac00086`; fotos `.processo/vitrine/validacao-x6--falha--computador.png` e `--celular.png` (rodadas 1 e 2), `apps/web` sem mudança |
+| RF13 | ATENDIDO | nada | `espera-do-indisponivel.test.ts` e `SeletorDeEscola.test.tsx` verdes em `eac00086`; `mfa.int.test.ts`, `troca-de-escola.int.test.ts` e `e2e/entrar-na-escola.spec.ts:335,368,400` (rodada 2); fotos `validacao-x6--espera--*.png` e `validacao-x6--espera-erro--*.png`, `apps/web` sem mudança |
+| RF14 | ATENDIDO | nada nos documentos de `docs/` | a leitura da rodada 1 vale. A parte "suíte verde": os e2e mudados pela correção rodaram verdes aqui (seção 3); a esteira do último commit é do Orquestrador, no fechamento |
+
+Não repeti a integração nem as fotos: nenhum arquivo de `apps/`, `packages/`, `infra/` ou `docs/` mudou desde a rodada 2, que as
+rodou e leu em `26031b5a`.
+
+Provas de mutação desta rodada (feitas por mim, uma de cada vez, restauradas com `git checkout --`; árvore limpa no fim). A correção
+não altera código de produção (`--faltando: 0 linhas`), então as mutações recaem sobre o ajudante que ela criou, que é o que decide o
+que o e2e aceita:
+
+| Correção | Cláusula mudada | Teste que ficou vermelho |
+|---|---|---|
+| `prazo-do-pedido-na-virada-do-dia` (o e2e aceita a leitura da virada) | a segunda leitura, `textoDoPrazo(ate, faltamNaSemeadura - 1)`, tirada de `leituras` (`e2e/support/prazo-do-pedido.ts:43`) | `tools/ci/prazo-do-pedido-no-e2e.test.ts`: 3 de 5 vermelhos, entre eles "aceita a leitura do mesmo dia e a da virada, com o mesmo vencimento" (`expected false to be true`) |
+| a mesma (o ajudante não aceita contagem a mais) | `faltamNaSemeadura - 1` trocado por `faltamNaSemeadura + 1` (mesma linha) | o mesmo arquivo: 4 de 5 vermelhos, entre eles "recusa a combinação que a conta antiga esperava depois da virada: o vencimento não anda com o relógio" |
+
+### 2. Regras de negócio, casos de borda e critério de pronto
+
+Sem mudança desde a rodada 1: o código, os testes de cada regra e de cada caso de borda e os documentos são os mesmos. A tabela da
+rodada 1 vale inteira, com a divergência do Tutor desligado (D84) e da política por turma (D19) registrada na Tech Spec §5 ("Como a 5.0
+ficou" (7)) e nos cenários §2.
+
+| Item | Situação | Evidência |
+|---|---|---|
+| A correção nova não muda comportamento de produto | cumprida | o diff só toca e2e, o apoio do e2e e uma unidade em `tools/ci/`; a tela do prazo (`textos-do-pedido.ts`) não mudou, e a contagem exata dela segue provada por `textos-do-pedido.test.ts` (verde aqui) |
+| A correção deixa o e2e mais fraco? | não no que ele prova | o vencimento ("até dd/mm/aaaa") continua exato, fixado pela semeadura; o "Faltam N" passou a aceitar N e N-1. A contagem exata fica com a unidade da tela; a recomendação de aceitar N-1 só quando o dia de fato virou está no `TODO.md` (test-engineer, 1ª rodada) |
+| Pronto: esteira verde no último commit | do fechamento | não entra neste veredito |
+
+### 3. Portão
+
+| Portão | Resultado |
+|---|---|
+| `npm run typecheck`, `npm run lint`, `npm run test`, `test:e2e`, `test:infra` inteiros | não rodados (escopo de funcionalidade, D79): esteira conferida no fechamento |
+| Unidade que serve de evidência dos RF | ✅ `llm-gateway.test.ts`, `soberania.test.ts`, `token-limiter.test.ts`, `tarefas.test.ts`, `registro-de-comandos.test.ts`, `client.test.ts`, `respostas.test.ts`, `AreaErrorBoundary.test.tsx`, `espera-do-indisponivel.test.ts`, `SeletorDeEscola.test.tsx`: 10 arquivos, 308 passaram |
+| Unidade da correção | ✅ `tools/ci/prazo-do-pedido-no-e2e.test.ts` e `apps/web/src/areas/coordenacao/privacidade/textos-do-pedido.test.ts`: 31 passaram |
+| Lint dos arquivos da correção | ✅ `eslint` nos seis arquivos de código do `490e1fd8`: sem erro |
+| e2e da correção | ✅ `node tools/ci/e2e.ts --manter-ambiente e2e/pedido-do-titular.spec.ts e2e/pedidos-do-titular.spec.ts`: 58 passaram (`chromebook` e `celular`), em 4,6 min, entre eles os casos do prazo (`pedido-do-titular.spec.ts:120`, `:457`; `pedidos-do-titular.spec.ts:743` e o da lista com 51 pedidos) |
+| Integração | não repetida: nenhum arquivo de `apps/`, `packages/` ou `infra/` mudou desde a rodada 2, que rodou 11 arquivos e 257 casos verdes |
+| Mutações | ✅ 2 de 2 vermelhas por caso que rodou (seção 1) |
+| Esteira do GitHub | roda no fechamento, depois desta validação (D78, D79): não entra no veredito |
+| Revisões com veto registradas e aprovadas | ✅ a correção nova tem os seis obrigatórios (`privacy-guardian`, `test-engineer`, `revisor-geral`, `tenancy-guardian`, `conformidade-reviewer`, `infra-guardian`): os quatro guardiões e o `revisor-geral` com APROVADO na 1ª; o `test-engineer` reprovou na 1ª e aprovou na 2ª, junto do `revisor-geral` de novo. As 14 tarefas e as correções anteriores, como nas rodadas 1 e 2 |
+
+Observações: o `node_modules` deste andar segue anterior ao `package-lock.json` (14/11 contra 15/11); não rodei `npm ci` (só vale para
+escopo de tarefa), e tudo acima passou com o que está instalado. O e2e rodou com um segundo ambiente de teste de pé na máquina (o da
+linha 1, `educa-teste-1`), e vários casos do pedido levaram de 20 a 30 s; o censo de duração é do fechamento (`esteira.ts --censo`), que
+já tem `pedidos-do-titular:338` na lista do `estado.md`.
+
+Processo: nenhum commit `Fora do processo:` com código (`git log origin/develop..HEAD -i --grep='^Fora do processo:' -- apps packages
+infra e2e tools` vazio), e o único commit de código desde a rodada 2 leva `(correção 2026-11-17-prazo-do-pedido-na-virada-do-dia)`.
+As três recomendações sem aplicar da correção estão no `TODO.md` (as três últimas linhas do arquivo), com o motivo de cada destino
+no documento dela.
+
+### 4. Achados
+
+**Críticos**
+- Nenhum.
+
+**Maiores**
+- Nenhum.
+
+**Menores** (os sete da rodada 1 e os dois da rodada 2 seguem, com os mesmos donos; o 8 da rodada 2 continua aberto: `grep` de
+`reserva-no-mesmo` e `censo-e2e-entrar` no `TODO.md` ainda não acha nada)
+10. `e2e/support/seed.ts:1429` (`diaDeHojeNoBanco`): devolve `''` quando a consulta não traz linha, e o erro só apareceria adiante, como
+    um texto esperado sem sentido. Já está no `TODO.md` (revisor-geral e test-engineer, 2ª). Correção: lançar ali, como faz
+    `unicoPedidoNoBanco` (`e2e/pedido-do-titular.spec.ts:105`). Dono: Orquestrador (já registrado; só conferir no fechamento)
+
+**Positivos**
+- A correção tira o relógio da conta do teste em vez de alargar a espera: o dia da semeadura é lido uma vez, do mesmo relógio que grava a
+  chegada, e o vencimento esperado sai dele. O ajudante é puro e tem unidade própria, que pegou as duas mutações. É o molde para
+  qualquer e2e que conte dias
+
+### 5. Conclusão
+
+APROVADA. Depois da rodada 2 entrou só a correção `2026-11-17-prazo-do-pedido-na-virada-do-dia`, que muda código de teste (e2e, o apoio
+do e2e e uma unidade em `tools/ci/`) e nenhuma linha de `apps/`, `packages/`, `infra/` ou `docs/`. Os 14 RF continuam com código e teste
+efetivo para cada parte do critério de aceite, como nas rodadas 1 e 2. Em `eac00086` rodaram verdes os testes de unidade que servem de
+evidência (308), a unidade da correção e a da tela do prazo (31) e os dois e2e que ela mudou (58, nos dois projetos). As duas mutações
+no ajudante novo ficaram vermelhas. A correção tem os seis revisores obrigatórios com APROVADO. Não há crítico nem maior. O menor
+novo já está no `TODO.md`. A esteira do commit validado fica com o Orquestrador.
+
+### 6. Pendências herdadas
+
+As das rodadas 1 e 2 (tabelas abaixo, na seção 6 de cada uma), mais:
+
+| Pendência | Dono | Arquivo |
+|---|---|---|
+| `prazoNaTela` aceita N e N-1 sempre; `diaDeHojeNoBanco` sem erro na falta de linha; os outros `hoje()` do Node nos e2e dos pedidos | já no `TODO.md`; quem tocar nesses e2e | `e2e/support/prazo-do-pedido.ts`, `e2e/support/seed.ts`, `e2e/pedidos-do-titular.spec.ts:99,154,168,201`, `e2e/pedido-do-titular.spec.ts:694,701` |
+| O menor 8 da rodada 2 (recomendações das correções `reserva-no-mesmo-milissegundo` e `censo-e2e-entrar-na-escola`), ainda sem linha no `TODO.md` | Orquestrador, no fechamento | `TODO.md` |
+
+Commits `Fora do processo:` com código da spec: nenhum.
+
 ## Rodada 2 — 16/11/2026
 
 **Escopo:** funcionalidade completa
