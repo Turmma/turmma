@@ -121,7 +121,9 @@ infere o porte pela contagem de guardiões e avisa que inferiu.
 - **Tarefa que tira, move ou renomeia um lugar leva a busca pelo nome antigo** em `apps/web/src`,
   `e2e/` e `docs/` (`grep -rn '<nome antigo>'`), com cada ocorrência trocada ou justificada no
   documento. E **toda tarefa que muda uma tela que o `docs/interface.md` descreve leva a subtarefa da
-  Parte A daquela tela**: o critério de pronto da spec não tem dono. Na X3 a busca por "Seu time" foi só
+  Parte A daquela tela**: o critério de pronto da spec não tem dono. Pelo mesmo motivo, **item do critério de pronto
+  que nomeia uma tarefa** (na X6, "a 7.0 e a 9.0 conferem o roteiro da demonstração") entra também como subtarefa no
+  `N_task.md` dela, com o teste que confere; na X6 nenhum dos dois o citou, e quem conferiu foi o Validador. Na X3 a busca por "Seu time" foi só
   nos textos de tela (2.3), e só a 2.0 tinha a subtarefa do `interface.md`; a validação achou os dois
 - **Tarefa que cria guarda (regra de lint, teste estrutural, trava) leva duas linhas fixas na tabela
   de testes**: "quem contorna é acusado", uma por forma (reexportação, `import()`, o caminho como

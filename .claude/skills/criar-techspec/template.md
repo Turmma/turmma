@@ -76,6 +76,7 @@ o nível de autonomia do agente. Referência: `.claude/rules/70-conformidade-cne
 | Índices novos | começando pelo escopo |
 | Migration | compatível com o código anterior? |
 | Quando cada dependência cai | banco, Redis, provedor de IA, storage: o que o usuário vê |
+| O erro que não diz se gravou | para cada código de erro novo, ou de sentido mudado, no caminho: de onde ele vem (o servidor, que recusou antes de gravar; o prazo do navegador; a conexão que caiu), se o servidor pode ter gravado, o que a tela afirma e se o cliente repete, com recuo. O prazo do navegador e a conexão que caiu são sempre "pode ter gravado". Na X6, a 12.0 e a 14.0 (seis reprovações e uma escalada) |
 | Métrica e alerta | o que mede, o que alerta, parágrafo do runbook |
 | Cenário de teste de carga | novo ou alterado |
 

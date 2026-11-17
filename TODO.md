@@ -2860,6 +2860,31 @@ repetem aqui.
       retro pendente na árvore, o próximo passo diz "trazer a develop com a retro antes do criar-tasks". Casos novos em
       `tools/processo/estado.test.ts`. Não trava nada: o texto do `/seguir` já cobre. Guardiões: `revisor-geral`, `test-engineer`
 
+## Da retrospectiva da X6 (reengenharia-continuacao, 17/11/2026)
+
+`tasks/prd-reengenharia-continuacao/retro.md`. Aceitas pelo Joaquim em 17/11/2026 ("aprovo"). Os quatro avisos, a M5 e a M6 já aplicados; M1 a
+M4 e M7 mudam código de processo: entram por correção. **Antes das tarefas da F4b, o Orquestrador faz a M3 da F4 (abaixo, aceita em 15/11 e
+ainda aberta):** os workers de pé voltaram na 9.0 da X6, com 14 e 17 de 31 vermelhos na integração ao lado da vitrine. A M4 da F4 vai com a M7.
+
+- [ ] (X6, retro, M1) **A catraca reprova a soma acima do `TETO`, não abaixo.** `tools/guardas/catraca.ts` e `catraca.test.ts`: `somasForaDoTeto`
+      reprova só soma > `TETO`; a soma abaixo vira aviso informativo, e o Orquestrador baixa o `TETO` no fechamento da spec, num commit só, depois do
+      último encontro. A comparação por arquivo com o HEAD continua reprovando a supressão que cresce. O caso "uma supressão a menos sem baixar o
+      `TETO` reprova" vira "passa, com o aviso". Na X6, com linhas em paralelo: 4 correções, 2 divergências de portão e 1 vermelho. Guardiões:
+      `revisor-geral`, `test-engineer`
+- [ ] (X6, retro, M2) **A seção "Revisões" não se perde por script.** `tools/processo/hook-revisoes.ts`: a cada linha escrita, uma cópia da tabela
+      em `.processo/` (fora de `tasks/`, sem commit); antes do commit e a cada linha nova, a linha que sumiu do documento volta e o hook avisa.
+      Casos: o documento reescrito por script sem a seção, e com a seção sem uma rodada. Na X6, a 2.0, a 7.0 e a 10.0 perderam a 1ª rodada
+      por `python3 … open(p,'w')` no Bash (o limite declarado da correção `write-sobre-revisoes`). Guardiões: `revisor-geral`, `test-engineer`
+- [ ] (X6, retro, M3) **O gancho recusa o laço de espera com `pgrep`.** PreToolUse de Bash e de Monitor recusa (saída 2) o comando com
+      `while`/`until` e `pgrep -f`, com "rode com `run_in_background` e espere o aviso do fim". Caso para o laço recusado e para o `pgrep` solto,
+      que passa. Uma hora parada na 8.0 da X6, como na F4. Guardiões: `revisor-geral`, `test-engineer`
+- [ ] (X6, retro, M4) **O `--faltando` junta as linhas de um `and(`/`or(` de várias linhas** antes de partir em termos (a recomendação da correção
+      `faltando-termo-a-termo`, na seção da F2c abaixo). Reprovou a 9.0 da X6 (`this.#semResposta(),`). Guardiões: `test-engineer`, `revisor-geral`
+- [ ] (X6, retro, M7) **O teto de cada job da esteira, com aviso e conta,** junto da M4 da F4, na mesma correção: o `/N` do nome derivado de
+      `strategy.job-total` nos três jobs com matriz (unidade, infra, e2e), e a anotação "perto do teto" no resumo de `tools/ci/unidade.ts`, como a
+      de `tools/ci/e2e.ts`. Três specs seguidas com um job passando do teto sem aviso (a fatia do e2e na F2c e na F4, o infra de 45 min na F4, o
+      `verificar` de 15 min na X6). Guardiões: `infra-guardian`, `revisor-geral`, `test-engineer`
+
 ## Da retrospectiva da F4 (ingestao-do-material, 15/11/2026)
 
 `tasks/prd-ingestao-do-material/retro.md`. Aceitas pelo Joaquim em 15/11/2026 ("aprovo"). Os cinco avisos já aplicados; M1 a M4 mudam código de
@@ -2895,9 +2920,8 @@ processo: entram por correção.
       `defineCommand`) é listada mesmo sem condição de TypeScript. Na F2c foram 8 reprovações do `test-engineer` por cláusula que ele não listava
       (2.0, 4.0, 5.0, 9.0, 10.0, 14.0, 15.0, 16.0), e o modelo já dizia "cada termo". Os casos de `mutacoes.test.ts` ganham fixture de cada forma.
       Guardiões: `test-engineer`, `revisor-geral`
-- [ ] (correção `2026-11-15-faltando-termo-a-termo`, `privacy-guardian` 2ª, `tenancy-guardian` 1ª, `test-engineer` e `revisor-geral` 2ª) **O `--faltando` junta as linhas de um `and(`/`or(` de várias linhas antes de partir em termos.** `tools/processo/mutacoes.ts` (`termosDaLinha`, `linhasSemBloco`): hoje a `eq(t.escolaId, escolaId),` sozinha, num `and(` com um argumento por linha, não tem termo nem condição, e é a cláusula de escopo da regra 10; o limite só está escrito (comentário de `termosDaLinha`, `executar-task`, `task-template.md`) e no item fechado da M1. Entram juntos, na mesma correção: (a) a decisão de a ferramenta recusar o motivo na seção "Mutações" para termo de escopo de tenant (`escolaId`), que só se cobre por bloco, escrita no `executar-task` ou na regra 40; (b) a frase "Docs:" da correção anterior (a regra 40 "passa a dizer o que fica") acompanha, ou os limites entram na regra 40; (c) os casos do ternário e do `and(` de uma linha só, que hoje fixam o limite como teste, ficam vermelhos quando ele for corrigido: trocá-los junto; (d) `prosaSemBlocos` reconhece só o título `## Mutações` de nível 2 e termina a seção na primeira linha que começa com `## `, mesmo dentro de um bloco cercado (o erro é para o lado seguro: a lista sai maior), uma linha no comentário; (e) meia linha de motivo para o `this.#grupos.pop()` do laço de `ler()` (sem ele o laço é infinito e o portão o recusa como estouro de prazo), junto do motivo dos laços. Guardiões: `test-engineer`, `tenancy-guardian`, `revisor-geral`
+- [x] *(aceita na retro da X6, 17/11/2026: vira a M4 da retro da X6, abaixo)* (correção `2026-11-15-faltando-termo-a-termo`, `privacy-guardian` 2ª, `tenancy-guardian` 1ª, `test-engineer` e `revisor-geral` 2ª) **O `--faltando` junta as linhas de um `and(`/`or(` de várias linhas antes de partir em termos.** `tools/processo/mutacoes.ts` (`termosDaLinha`, `linhasSemBloco`): hoje a `eq(t.escolaId, escolaId),` sozinha, num `and(` com um argumento por linha, não tem termo nem condição, e é a cláusula de escopo da regra 10; o limite só está escrito (comentário de `termosDaLinha`, `executar-task`, `task-template.md`) e no item fechado da M1. Entram juntos, na mesma correção: (a) a decisão de a ferramenta recusar o motivo na seção "Mutações" para termo de escopo de tenant (`escolaId`), que só se cobre por bloco, escrita no `executar-task` ou na regra 40; (b) a frase "Docs:" da correção anterior (a regra 40 "passa a dizer o que fica") acompanha, ou os limites entram na regra 40; (c) os casos do ternário e do `and(` de uma linha só, que hoje fixam o limite como teste, ficam vermelhos quando ele for corrigido: trocá-los junto; (d) `prosaSemBlocos` reconhece só o título `## Mutações` de nível 2 e termina a seção na primeira linha que começa com `## `, mesmo dentro de um bloco cercado (o erro é para o lado seguro: a lista sai maior), uma linha no comentário; (e) meia linha de motivo para o `this.#grupos.pop()` do laço de `ler()` (sem ele o laço é infinito e o portão o recusa como estouro de prazo), junto do motivo dos laços. Guardiões: `test-engineer`, `tenancy-guardian`, `revisor-geral`
 - [ ] (correção `2026-11-15-faltando-termo-a-termo`, `revisor-geral`, 1ª rodada) **Uma base comum para `LeitorDeTermos` e `LeitorDeTemplates`.** `tools/processo/mutacoes.ts`: os dois leitores repetem `#comum`, `#aspas` e o grosso de `#barra` (uns 100 linhas). É refatoração de um arquivo que leva mais de cem blocos de mutação, e anularia as provas da correção; entra por correção própria, com os blocos refeitos. Guardiões: `test-engineer`, `revisor-geral`
-- [ ] (F2c, retro, M2) **O `Write` não reescreve documento com a seção "Revisões".** Hook PreToolUse de `Write` em `.claude/settings.json`, com um
 - [x] (F2c, retro, M2) **O `Write` não reescreve documento com a seção "Revisões".** Hook PreToolUse de `Write` em `.claude/settings.json`, com um
       modo novo em `tools/processo/hook-revisoes.ts`: recusa (saída 2, com "use Edit") o `Write` sobre arquivo que já existe em `tasks/` e já tem
       `## Revisões`, quando o conteúdo novo não traz a tabela inteira de antes. A seção sumiu na 3.0 (a 1ª rodada se perdeu de vez), na 5.0 e na
@@ -3901,9 +3925,9 @@ Orquestrador em 17/11/2026; não seguram o pouso (D79).
       aviso calmo com "Perguntar de novo" (dono: a spec que tocar a tela do Tutor, F9)
 - [ ] (X6, validação r1) **O "nenhum job" do Tutor desligado na escola (D84) e fora da política da turma (D19)** não tem conferência: as duas coisas não
       existem na API (`techspec.md` §5 "Como a 5.0 ficou" (7), `cenarios.md` §2) (dono: quem criar essas conferências, F9 e a fatia do piloto)
-- [ ] (X6, validação r1, m2) **`8_task.md`, Autoconferência 4:** cita como controle casos da prontidão da API que saíram com a decisão A; a linha "recusa
+- [x] *(feito na retro da X6, 17/11/2026: nota "Revisto na retro" na autoconferência 4 do `8_task.md`)* (X6, validação r1, m2) **`8_task.md`, Autoconferência 4:** cita como controle casos da prontidão da API que saíram com a decisão A; a linha "recusa
       por campo" cita um caso de `soberania.test.ts` com nome antigo; o bloco de mutação de `app.module.ts` prova uma ausência. Só documento (dono: Arquiteto, na retro)
-- [ ] (X6, validação r1, m3) **A D77, item 5 (`docs/decisoes.md:1120-1121`), ainda trata a execução de IA no processo da API como dívida aberta;** a X6 a
+- [x] *(feito na retro da X6, 17/11/2026: anotação no fim da D77, M6)* (X6, validação r1, m3) **A D77, item 5 (`docs/decisoes.md:1120-1121`), ainda trata a execução de IA no processo da API como dívida aberta;** a X6 a
       pagou na 5.0 (a extração de PDF foi da F4). Anotar na D77 (dono: Arquiteto, na retro). O item "Execução de IA e extração de PDF por fila" deste
       arquivo foi fechado no mesmo fechamento
 - [ ] (X6, validação r1, m4) **Repetir a corrida de carga da manhã com a máquina calma** (`11_task.md`, "A corrida": a de 16/11 rodou com load 2,9 a 5,1 e
@@ -3916,7 +3940,7 @@ Orquestrador em 17/11/2026; não seguram o pouso (D79).
 - [ ] (X6, m6) **Antes do primeiro deploy da X6, no `.env` da VPS:** `VAGAS_ESCOLA_FERRAMENTA=4`, `IA_LATENCIA_FALSA_MS_PADRAO=0`, `IA_TOKENS_FALSOS_ENTRADA=0`
       e `IA_TOKENS_FALSOS_SAIDA=0` (sem as três últimas o deploy para na interpolação do compose; a primeira o runbook já diz). A 5.0 só vai para produção
       com a 10.0 (teto global `IA_EXECUCOES_TOTAL`); pousam juntas, na mesma spec (dono: Joaquim)
-- [ ] (X6, validação r1, m7) **Critério de pronto que nomeia uma tarefa precisa de uma linha no documento dela:** o `tasks.md` pedia que a 7.0 e a 9.0
+- [x] *(feito na retro da X6, 17/11/2026: `criar-tasks/SKILL.md`, M5)* (X6, validação r1, m7) **Critério de pronto que nomeia uma tarefa precisa de uma linha no documento dela:** o `tasks.md` pedia que a 7.0 e a 9.0
       conferissem o roteiro da demonstração, e nenhum dos dois `N_task.md` o cita (o Validador conferiu: 2 de 2 verdes) (dono: Arquiteto, na retro, D86)
 - [ ] (X6, correção `2026-11-16-reserva-no-mesmo-milissegundo`, validação r2, m8a) **Blocos de mutação para `devolver`, `concluirLink` e `devolverLink`**
       (`packages/core/src/email/envio.repository.ts:100,133,144`), além do de `concluir` (dono: a próxima tarefa que tocar `envio.repository.ts`, com test-engineer)
@@ -3924,10 +3948,10 @@ Orquestrador em 17/11/2026; não seguram o pouso (D79).
       (`apps/worker/test/enviar-email.int.test.ts:337`, `enviar-email-da-conta.int.test.ts:303`): com a marca da primeira 3 min antes, passa sempre; quem
       prova a regra são o `concluir`/`devolver` → `false` e a linha com `reservadoEm`. Um comentário que diga isso, ou tirar a asserção (dono: Implementador,
       com test-engineer, na próxima tarefa que tocar esses arquivos)
-- [ ] (X6, correção `2026-11-16-censo-e2e-entrar-na-escola`, validação r2, m8c) **O `e2e/entrar-na-escola.spec.ts:218` a 17,8 s, perto dos 20 s do censo,** e
+- [x] *(respondida na retro da X6, 17/11/2026: sem proposta; o censo mede o caso inteiro, com a nova tentativa, porque é o prazo do caso que estoura; em `eac0008` o `:218` ficou abaixo de dois terços)* (X6, correção `2026-11-16-censo-e2e-entrar-na-escola`, validação r2, m8c) **O `e2e/entrar-na-escola.spec.ts:218` a 17,8 s, perto dos 20 s do censo,** e
       se a nova tentativa do `gotoComNovaTentativa` deve contar no censo (dono: Arquiteto, retro da X6).
       Na esteira 44014485754 (`eac0008`, fechamento) o `:94` saiu da lista do censo e o `:218` ficou abaixo de dois terços
-- [ ] (X6, correção `2026-11-16-teto-do-verificar-na-esteira`) **Anotação "unidade perto do teto" no resumo de `tools/ci/unidade.ts`,** no molde da do
+- [x] *(aceita na retro da X6, 17/11/2026: vira a M7 da retro da X6, abaixo, junto da M4 da F4)* (X6, correção `2026-11-16-teto-do-verificar-na-esteira`) **Anotação "unidade perto do teto" no resumo de `tools/ci/unidade.ts`,** no molde da do
       `tools/ci/e2e.ts` (o limite de 7 min por fatia só existe em comentário e no runbook), e **a guarda "o `/N` do nome do job é o tamanho da matriz"**,
       hoje só no teste da unidade (`tools/ci/esteira.test.ts:385`), juntada ou estendida à infra e ao e2e (dono: Arquiteto, retro da X6)
 - [ ] (X6, correção `2026-11-16-teto-do-verificar-na-esteira`) **`tools/processo/harness/npx-sem-instalar.test.ts` intermitente** (saída do `npx` vazia, duas
