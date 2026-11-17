@@ -294,13 +294,16 @@ describe('sistema.enviar-email-da-conta', () => {
       const primeira = await comoOJob(() => envios.reservarLink(l.linkId))
       if (primeira.resultado !== 'reservado') throw new Error('a primeira reserva devia vir')
       // O processo da primeira reserva morreu: a marca dela passa de 2 min, e outro retoma a linha com a marca dele.
-      await bancada.pool.query("update link_da_conta set envio_reservado_em = now() - interval '3 minutes' where id = $1", [l.linkId])
+      // A marca da primeira é a que a linha passa a guardar (3 min antes da reserva real): sem depender do relógio, que empatava com a da
+      // retomada quando as duas reservas caíam no mesmo milissegundo.
+      const marcaDaPrimeira = new Date(primeira.reserva.getTime() - 3 * 60_000)
+      await bancada.pool.query('update link_da_conta set envio_reservado_em = $2 where id = $1', [l.linkId, marcaDaPrimeira])
       const segunda = await comoOJob(() => envios.reservarLink(l.linkId))
       if (segunda.resultado !== 'reservado') throw new Error('a retomada devia reservar')
-      expect(segunda.reserva.getTime()).toBeGreaterThan(primeira.reserva.getTime())
+      expect(segunda.reserva.getTime()).toBeGreaterThan(marcaDaPrimeira.getTime())
 
-      expect(await comoOJob(() => envios.concluirLink(l.linkId, primeira.reserva, 'enviado'))).toBe(false)
-      expect(await comoOJob(() => envios.devolverLink(l.linkId, primeira.reserva))).toBe(false)
+      expect(await comoOJob(() => envios.concluirLink(l.linkId, marcaDaPrimeira, 'enviado'))).toBe(false)
+      expect(await comoOJob(() => envios.devolverLink(l.linkId, marcaDaPrimeira))).toBe(false)
       expect(await linha(l.linkId)).toMatchObject({ envio: 'enviando', token: expect.any(Buffer) as Buffer, destino: expect.any(Buffer) as Buffer, reservadoEm: segunda.reserva })
 
       expect(await comoOJob(() => envios.concluirLink(l.linkId, segunda.reserva, 'enviado'))).toBe(true)

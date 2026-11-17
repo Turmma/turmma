@@ -327,15 +327,18 @@ describe('email.enviar-convite', () => {
       const c = await conviteNaFila(escolaId)
       const primeira = await naEscola(escolaId, () => envios.reservar(c.conviteId))
       if (primeira.resultado !== 'reservado') throw new Error('a primeira reserva devia vir')
-      // O processo da primeira reserva morreu: a marca dela passa de 2 min, e outro retoma a linha com a marca dele.
-      await bancada.pool.query("update convite set envio_reservado_em = now() - interval '3 minutes' where id = $1", [c.conviteId])
+      // O processo da primeira reserva morreu: a marca dela passa de 2 min, e outro retoma a linha com a marca dele. A marca da primeira é a
+      // que a linha passa a guardar (3 min antes da reserva real, sem depender de relógio): comparar a marca em memória com a da retomada
+      // empatava quando as duas reservas caíam no mesmo milissegundo.
+      const marcaDaPrimeira = new Date(primeira.reserva.getTime() - 3 * 60_000)
+      await bancada.pool.query('update convite set envio_reservado_em = $2 where id = $1', [c.conviteId, marcaDaPrimeira])
       const segunda = await naEscola(escolaId, () => envios.reservar(c.conviteId))
       if (segunda.resultado !== 'reservado') throw new Error('a retomada devia reservar')
-      expect(segunda.reserva.getTime()).toBeGreaterThan(primeira.reserva.getTime())
+      expect(segunda.reserva.getTime()).toBeGreaterThan(marcaDaPrimeira.getTime())
 
-      expect(await naEscola(escolaId, () => envios.concluir(c.conviteId, primeira.reserva, 'enviado'))).toBe(false)
-      expect(await naEscola(escolaId, () => envios.devolver(c.conviteId, primeira.reserva))).toBe(false)
-      expect(await linha(c.conviteId)).toMatchObject({ envio: 'enviando', token: expect.any(Buffer) as Buffer, enviadoEm: null })
+      expect(await naEscola(escolaId, () => envios.concluir(c.conviteId, marcaDaPrimeira, 'enviado'))).toBe(false)
+      expect(await naEscola(escolaId, () => envios.devolver(c.conviteId, marcaDaPrimeira))).toBe(false)
+      expect(await linha(c.conviteId)).toMatchObject({ envio: 'enviando', token: expect.any(Buffer) as Buffer, enviadoEm: null, reservadoEm: segunda.reserva })
 
       expect(await naEscola(escolaId, () => envios.concluir(c.conviteId, segunda.reserva, 'enviado'))).toBe(true)
       expect(await linha(c.conviteId)).toMatchObject({ envio: 'enviado', token: null, destino: null })
