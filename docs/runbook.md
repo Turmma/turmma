@@ -86,6 +86,11 @@ login, na seção do rate limit mais abaixo). Deploy fora do horário letivo.
 **não sobe** fora do `AMBIENTE=local` sem ela. Antes do pouso na `main` que a traz, ponha no `.env` da VPS o que o contrato com o provedor dá em tokens por minuto
 (o do `.env.example`, 2.500.000, é só o exemplo do desenvolvimento): sem a linha, o deploy automático para na interpolação do compose, e o `worker-ia` fica no que estava. O deploy não troca o `.env` sozinho.
 
+**Variável nova no ambiente de produção (adaptador falso, 11.0):** o `infra/compose.yml` lê `IA_LATENCIA_FALSA_MS_PADRAO`, `IA_TOKENS_FALSOS_ENTRADA` e `IA_TOKENS_FALSOS_SAIDA` com `:?`
+nos dois `worker-ia`, então eles **não sobem** sem as três, e o deploy pela `main` (D31) para na interpolação do compose, com a versão nova derrubada e a anterior no que estava (inclusive uma correção urgente). Antes do pouso na
+`main` que as traz, ponha no `.env` da VPS (D82) `IA_LATENCIA_FALSA_MS_PADRAO=0`, `IA_TOKENS_FALSOS_ENTRADA=0` e `IA_TOKENS_FALSOS_SAIDA=0` (zero é ausente: em produção o adaptador é o do provedor, que nunca as lê; elas só
+valem na carga, com `IA_ADAPTADOR=falso`). O deploy não troca o `.env` sozinho. Deploy fora do horário letivo.
+
 **Se nada disso resolver:** reinicie um worker por vez (`docker compose restart worker-interativo-1`,
 depois o 2), que espera os jobs em andamento por até 20 s (a graça) e não perde nenhum: o que passa dela e ainda tem tentativa fica
 `ativo` e outra réplica o retoma; só a última tentativa termina `EXECUCAO_INTERROMPIDA` (veja "Job que falhou de vez"). Continuando, avise a
@@ -1641,6 +1646,23 @@ Se reprovar, a saída diz o critério:
 
 A corrida de 13/11/2026 está em `tasks/prd-ingestao-do-material/9_task.md`, "A corrida da carga". O cenário vale como registro com as condições de "Quando a carga vale como registro" (a máquina calma; o hash
 não entra neste cenário).
+
+## Rodar a carga da manhã
+
+`flock /tmp/educa-carga.lock npm run carga -- --so=sala` roda a carga da manhã (X6, tarefa 11.0; RF6; `docs/infra.md` seção 10) no projeto `educa-carga`, e o derruba no fim. Leva uns 15 min, mais a construção das
+imagens. Não rode junto com o portão, com os testes nem com os outros cenários. O compose sobe com o adaptador falso (a carga nunca chama provedor pago: o script recusa outro `IA_ADAPTADOR`), 6 s por turno do Tutor, 50 s por
+ferramenta e 3.000 + 250 tokens por chamada, e cria dez escolas com seis turmas, 60 alunos e 2 professoras cada. Aos 75 s ele dá `kill -9` no `worker-ia-1`, e o relatório diz quantas execuções esse
+`kill` interrompeu e o teto que ele leu antes. `npm run carga -- --so=base` roda só a base, para a comparação com o build anterior (o mesmo `carga.ts` num `git worktree` do commit de antes).
+
+Se reprovar, a saída diz o critério:
+- **`espera_interativa` ou `espera_ferramenta`:** a espera p95 da escola na fila passou de 2 s ou de 10 s. Veja as vagas por escola (`VAGAS_ESCOLA_INTERATIVA`, `VAGAS_ESCOLA_FERRAMENTA`) e os pools do `worker-ia`.
+- **`interrompidas_acima_do_teto`:** o `kill -9` interrompeu mais execuções que as `rodando` lidas antes dele: uma execução foi encerrada por outro caminho (a varredura, o corte de 20 s da `pendente`).
+- **`kill_sem_efeito`:** o `kill -9` não interrompeu nenhuma execução (o ritmo caiu, ou o worker morto não tinha jobs): a fase não provou a reentrega. Repita.
+- **`indisponivel`:** alguma execução terminou `IA_INDISPONIVEL`: o `LLM_TOKENS_POR_MINUTO` da carga está baixo demais para a espera de 8 s do degrau, ou o modelo menor não resolveu.
+- **`balde_nao_recusou`:** o balde de tokens não esperou nenhuma reserva, e o teto não foi provado: o `LLM_TOKENS_POR_MINUTO` de `infra/carga.env` ficou acima do balde da carga (1,625 milhão por minuto × 80 %).
+- **`falhas_fora_do_kill`:** outro erro além do `EXECUCAO_INTERROMPIDA`. A corrida de 16/11/2026 achou duas causas de montagem: a ferramenta sem trecho (`MATERIAL_INSUFICIENTE`: o tema precisa de palavras que a busca em português ache no capítulo) e 429 do limite geral de 120 pedidos por minuto por pessoa (a consulta da execução a cada 0,5 s; a web consulta a cada 1 s).
+
+O RSS e o pico de conexões do pool saem no relatório. A espera por conexão do pool não tem métrica (`TODO.md`). Vale como registro com as condições da seção seguinte (só a primeira: o cenário não passa pelo hash).
 
 ## Quando a carga vale como registro
 

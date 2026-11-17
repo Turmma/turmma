@@ -27,6 +27,8 @@ export const MOTIVO_SEM_TOKENS_POR_MINUTO =
   'LLM_TOKENS_POR_MINUTO é obrigatória fora de AMBIENTE=local: é o contratado com o provedor, e o limite de tokens por minuto do gateway (80 % dele no balde geral) não tem valor escondido no código (D41)'
 export const MOTIVO_LATENCIA_FALSA_MAIOR_QUE_O_PRAZO =
   'IA_LATENCIA_FALSA_MS precisa ser menor que o prazo de todo perfil (LLM_TIMEOUT_MS, LLM_TIMEOUT_MS_RAPIDO e LLM_TIMEOUT_MS_PADRAO): senão toda chamada ao adaptador falso, em algum perfil, estoura o prazo'
+export const MOTIVO_LATENCIA_FALSA_PADRAO_MAIOR_QUE_O_PRAZO =
+  'IA_LATENCIA_FALSA_MS_PADRAO precisa ser menor que LLM_TIMEOUT_MS_PADRAO: é a espera do adaptador falso no perfil `padrao` (a ferramenta), e uma espera igual ou maior estoura o prazo dele em toda chamada'
 
 /** O mesmo formato da chave do suboperador (Tech Spec do F3, seção 3): é por ela que a chamada se liga ao cadastro. */
 export const FORMATO_DO_PROVEDOR_ID = /^[a-z][a-z0-9_-]{1,39}$/
@@ -110,6 +112,17 @@ export const llmEnvSchema = z
      * item 11). Zero (o padrão) não espera. O adaptador `openai_compat` a ignora: a latência dele é a do provedor.
      */
     IA_LATENCIA_FALSA_MS: inteiro(0, 60_000, 0),
+    /**
+     * A espera simulada do adaptador falso no perfil `padrao` (a ferramenta, ~50 s de um modelo grande; a X6, 11.0). Zero, o padrão, deixa o `padrao` com a
+     * mesma `IA_LATENCIA_FALSA_MS` dos outros perfis. O invariante é o do perfil: menor que `LLM_TIMEOUT_MS_PADRAO`.
+     */
+    IA_LATENCIA_FALSA_MS_PADRAO: inteiro(0, 60_000, 0),
+    /**
+     * Os tokens que o adaptador falso **informa** por chamada, no lugar da estimativa pelo tamanho do texto (X6, 11.0): é o que faz o limite de tokens por
+     * minuto do gateway morder no teste de carga, na escala de `docs/infra.md` 3.2 (3.000 de entrada e 250 de saída por turno). Zero, o padrão, é a estimativa.
+     */
+    IA_TOKENS_FALSOS_ENTRADA: inteiro(0, 1_000_000, 0),
+    IA_TOKENS_FALSOS_SAIDA: inteiro(0, 1_000_000, 0),
   })
   .superRefine((valores, contexto) => {
     const problema = (variavel: string, message: string): void => contexto.addIssue({ code: 'custom', path: [variavel], message })
@@ -119,7 +132,7 @@ export const llmEnvSchema = z
     const prazos = [valores.LLM_TIMEOUT_MS, valores.LLM_TIMEOUT_MS_RAPIDO, valores.LLM_TIMEOUT_MS_PADRAO]
     const menorPrazo = Math.min(...prazos)
     if (valores.LLM_RECUO_MS >= menorPrazo) problema('LLM_RECUO_MS', MOTIVO_RECUO_MAIOR_QUE_O_PRAZO)
-    if (valores.IA_LATENCIA_FALSA_MS >= menorPrazo) problema('IA_LATENCIA_FALSA_MS', MOTIVO_LATENCIA_FALSA_MAIOR_QUE_O_PRAZO)
+    conferirLatenciasFalsas(valores, menorPrazo, problema)
     if (valores.AMBIENTE !== 'local' && valores.LLM_TOKENS_POR_MINUTO === undefined) problema('LLM_TOKENS_POR_MINUTO', MOTIVO_SEM_TOKENS_POR_MINUTO)
     if (valores.IA_ADAPTADOR !== 'openai_compat') return
     if (valores.LLM_BASE_URL === undefined) problema('LLM_BASE_URL', MOTIVO_LLM_SEM_ENDERECO)
@@ -131,6 +144,12 @@ export const llmEnvSchema = z
     const porPerfil = [valores.LLM_MODELO_RAPIDO, valores.LLM_MODELO_PADRAO, valores.LLM_MODELO_COMPLEXO, valores.LLM_MODELO_VISAO]
     if (valores.LLM_MODELO === undefined && porPerfil.includes(undefined)) problema('LLM_MODELO', MOTIVO_LLM_SEM_MODELO)
   })
+
+/** A espera do adaptador falso cabe no prazo: a de todo perfil no menor deles, e a do `padrao` (a ferramenta, ~50 s) no dele, e não no menor de todos. */
+function conferirLatenciasFalsas(valores: ValoresDoFalso & { readonly LLM_TIMEOUT_MS_PADRAO: number }, menorPrazo: number, problema: (variavel: string, message: string) => void): void {
+  if (valores.IA_LATENCIA_FALSA_MS >= menorPrazo) problema('IA_LATENCIA_FALSA_MS', MOTIVO_LATENCIA_FALSA_MAIOR_QUE_O_PRAZO)
+  if (valores.IA_LATENCIA_FALSA_MS_PADRAO >= valores.LLM_TIMEOUT_MS_PADRAO) problema('IA_LATENCIA_FALSA_MS_PADRAO', MOTIVO_LATENCIA_FALSA_PADRAO_MAIOR_QUE_O_PRAZO)
+}
 
 export interface ModelConfig {
   /** A raiz da API do padrão OpenAI, com o `/v1`: o adaptador só acrescenta `/chat/completions`. */
@@ -160,6 +179,23 @@ export interface LLMConfig {
   readonly replicas: number
   /** Só do adaptador falso: a espera simulada de cada chamada (`IA_LATENCIA_FALSA_MS`). Ausente é sem espera. */
   readonly latenciaFalsaMs?: number
+  /** Só do adaptador falso: a espera do perfil `padrao` (`IA_LATENCIA_FALSA_MS_PADRAO`). Ausente, o `padrao` espera `latenciaFalsaMs`. */
+  readonly latenciaFalsaMsPadrao?: number
+  /** Só do adaptador falso: os tokens que ele informa por chamada (`IA_TOKENS_FALSOS_ENTRADA` e `_SAIDA`). Ausente, é a estimativa pelo texto. */
+  readonly tokensFalsos?: { readonly entrada: number; readonly saida: number }
+}
+
+type ValoresDoFalso = { readonly IA_LATENCIA_FALSA_MS: number; readonly IA_LATENCIA_FALSA_MS_PADRAO: number; readonly IA_TOKENS_FALSOS_ENTRADA: number; readonly IA_TOKENS_FALSOS_SAIDA: number }
+
+/** O que só o adaptador falso lê: a espera de cada chamada, a do `padrao` e os tokens que ele informa. Zero é ausente. */
+function opcoesDoAdaptadorFalso(valores: ValoresDoFalso): Pick<LLMConfig, 'latenciaFalsaMs' | 'latenciaFalsaMsPadrao' | 'tokensFalsos'> {
+  return {
+    ...(valores.IA_LATENCIA_FALSA_MS > 0 ? { latenciaFalsaMs: valores.IA_LATENCIA_FALSA_MS } : {}),
+    ...(valores.IA_LATENCIA_FALSA_MS_PADRAO > 0 ? { latenciaFalsaMsPadrao: valores.IA_LATENCIA_FALSA_MS_PADRAO } : {}),
+    ...(valores.IA_TOKENS_FALSOS_ENTRADA > 0 || valores.IA_TOKENS_FALSOS_SAIDA > 0
+      ? { tokensFalsos: { entrada: valores.IA_TOKENS_FALSOS_ENTRADA, saida: valores.IA_TOKENS_FALSOS_SAIDA } }
+      : {}),
+  }
 }
 
 export function loadLLMConfig(ambiente: Record<string, string | undefined>): LLMConfig {
@@ -182,7 +218,7 @@ export function loadLLMConfig(ambiente: Record<string, string | undefined>): LLM
     replicas: valores.IA_REPLICAS,
     ...(valores.LLM_TOKENS_POR_MINUTO === undefined ? {} : { tokensPorMinuto: valores.LLM_TOKENS_POR_MINUTO }),
     ...(menores === undefined ? {} : { modelosMenores: menores }),
-    ...(valores.IA_LATENCIA_FALSA_MS > 0 ? { latenciaFalsaMs: valores.IA_LATENCIA_FALSA_MS } : {}),
+    ...opcoesDoAdaptadorFalso(valores),
   }
   if (valores.IA_ADAPTADOR !== 'openai_compat' || valores.LLM_BASE_URL === undefined) return base
   const doPerfil: Readonly<Record<Perfil, string | undefined>> = {

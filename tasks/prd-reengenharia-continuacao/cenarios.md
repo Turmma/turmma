@@ -230,5 +230,6 @@ bancada, com fixture.
 
 - [C] `justica-entre-escolas.js`, `FASE=base` e `FASE=sala`, build anterior e o da tarefa na mesma sessão, com um `kill -9` num
   `worker-ia`. O falso informa 3.000 + 250 tokens por turno (`docs/infra.md` §3.2), e o `LLM_TOKENS_POR_MINUTO` de
-  `infra/carga.env` sai do piso do contrato (§7c da Tech Spec) nessa escala, para o teto morder. Mede p95 do turno, espera p95 do
+  `infra/carga.env` é 1.950.000, 4 % abaixo da carga das dez escolas (1,625 milhão por minuto), para o teto morder sem estourar os 8 s do degrau (o piso do contrato, §7c da
+  Tech Spec, é outro número e não é o da carga). Mede p95 do turno, espera p95 do
   Tutor e da ferramenta e o número de "indisponível". O relatório leva o RSS do `worker-ia` e o custo de base por professor

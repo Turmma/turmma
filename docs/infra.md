@@ -91,6 +91,10 @@ seção 5, "Calibração", e o staging recalibra.
 | Tokens por mensagem | ~3.000 de entrada (material, histórico, instrução) + ~250 de saída |
 | **Tokens por minuto no pico** | **~1,5 milhão** |
 
+Duas premissas de tokens por mensagem, e o contrato precisa cobrir a **maior** delas até a D37 medir a de verdade: **3.000 + 250** (a da tabela, com o
+material do capítulo e pouco histórico) e **5.000 + 300** (material maior e histórico mais longo). A primeira dá ~1,5 milhão de tokens por minuto no pico e a segunda
+~2,4 milhões (450 mensagens por minuto × 5.300). A ferramenta soma uns 0,2 milhão por minuto nas duas contas (seção 5.3); o piso do contrato de cada uma está na seção 5.4.
+
 ⚠️ Esse último número é o que decide o contrato com o provedor de modelo. O limite de
 tokens por minuto padrão de uma conta nova é muito menor que isso. Cache de prompt (a parte
 fixa: instrução e material do capítulo) reduz bastante a entrada e precisa ser usado desde
@@ -305,7 +309,9 @@ resolveu com um limitador próprio, sem licença (regra 00). O desenho completo 
   (`VAGAS_ESCOLA_PDF`), no worker e no despachante, com pools de 50, 30, 10 e 1 no `worker-interativo`, no `worker-lote` e no `worker-pdf`; os da IA são do `worker-ia` (`WORKER_IA_POOL_INTERATIVA` 50, `WORKER_IA_POOL_FERRAMENTA` 20 e `WORKER_IA_POOL_NORMAL` 2 por réplica, duas réplicas, `IA_REPLICAS`), e o pool do banco dele é 20, porque nenhum job segura conexão durante o modelo. É
   configuração por escola em `configuracao_operacional_escola` (`vagas.ferramenta`, `vagas.interativa`…), nunca constante (D41). A conta: o Tutor usa
   0,75 turno/s × 6 s ≈ 4,5 vagas no pico; a ferramenta, 1,2 vaga nominal e 2,7 no pior caso, das 4. "1 ferramenta por minuto por escola" é premissa, sem fonte
-  na seção 3: a `FASE=sala` do cenário de carga a confere
+  na seção 3: a `FASE=sala` do cenário de carga (seção 10) a exercita, e mediu em 16/11/2026, com a ferramenta a 1 por minuto e mais 4 propostas do Assistente por minuto em
+  cada escola, durante 3 minutos e com o `worker-ia-1` morto no meio: espera p95 da ferramenta entre 133 e 237 ms em todas as dez escolas (o limite é 10 s), as 34 ferramentas e as 129
+  propostas terminaram. Isso mostra que o desenho **aguenta** esse ritmo; **não** mostra que as escolas usam nesse ritmo: a premissa segue sem fonte até o piloto
 - **Lote não urgente** só é reservado fora do horário letivo da escola (seção 5.2)
 - **Entrega pelo menos uma vez** (D49): o processador recebe a chave de idempotência, igual
   em toda reexecução
@@ -343,8 +349,11 @@ Toda chamada de modelo já passa pela porta `LLMProvider` (regra 30). É ali que
   **Tokens por minuto, o contrato (`LLM_TOKENS_POR_MINUTO`):** o balde geral vale 80 % do contratado, e no pico da manhã de segunda
   esperam-se uns 1,5 milhão de tokens por minuto do Tutor mais uns 0,2 milhão da ferramenta (seção 3.2), **~1,7 milhão**. Com a `normal`
   cheia (10 % do contratado, do Analista), o balde geral deixa 70 % para o Tutor e a ferramenta, e o piso do contrato é 1,7 ÷ 0,7 ≈ **2,5 milhões por minuto**:
-  é o número do `.env.example` (`LLM_TOKENS_POR_MINUTO=2500000`), e o que o contrato com o provedor precisa dizer por escrito antes
-  do primeiro aluno real (D29, D37). Contratar menos não derruba o sistema: aumenta a espera e os degraus. Fora do `AMBIENTE=local` a
+  é o número do `.env.example` (`LLM_TOKENS_POR_MINUTO=2500000`) **com a premissa de 3.000 + 250 tokens por mensagem**. Com **5.000 + 300** (a seção 3.2) o Tutor sozinho é ~2,4 milhões, o
+  total ~2,6 milhões, e o piso vai a 2,6 ÷ 0,7 ≈ **3,7 milhões por minuto**. Os dois números são o que o contrato com o provedor precisa dizer por escrito antes
+  do primeiro aluno real (D29, D37): assinar o de 2,5 milhões é apostar na primeira premissa, e a medição de uma escola real (D37) escolhe entre as duas. A carga da manhã usa outro
+  valor, `1950000` em `infra/carga.env`, de propósito: com o adaptador falso informando 3.000 + 250, as dez escolas fazem 1,625 milhão por minuto, e o balde geral (80 %) de 1,56 milhão
+  fica abaixo, para o teto morder (seção 10). Não é número de produção. Contratar menos não derruba o sistema: aumenta a espera e os degraus. Fora do `AMBIENTE=local` a
   variável é obrigatória, e o modelo menor só sobe com preço em `PRECO_DOS_MODELOS` (D14)
 - **Timeout e circuit breaker:** provedor lento não segura conexão da API
 
@@ -468,6 +477,24 @@ com os tempos da seção 3.2.
 
 Roda antes da primeira escola real, e de novo sempre que uma funcionalidade mexer no
 caminho quente.
+
+**Cenário "a carga da manhã" (X6, tarefa 11.0; RF6)**, local, `npm run carga -- --so=sala` (a `FASE=sala` de `infra/k6/justica-entre-escolas.js`): dez escolas, cada uma com
+seis turmas, 60 alunos e 2 professoras. Em cada escola, por minuto, 45 turnos do Tutor (o `rapido`, 6 s no adaptador falso, `IA_LATENCIA_FALSA_MS`), 1 ferramenta (o `padrao`, 50 s,
+`IA_LATENCIA_FALSA_MS_PADRAO`) e 4 propostas do Assistente, por 3 minutos, com o falso informando 3.000 + 250 tokens por chamada (`IA_TOKENS_FALSOS_ENTRADA` e `IA_TOKENS_FALSOS_SAIDA`)
+e o `LLM_TOKENS_POR_MINUTO` da carga abaixo da carga (seção 5.4). Aos 75 s o script lê as execuções em `rodando` e dá `kill -9` no `worker-ia-1`, que volta 5 s depois. **Passa quando**: a espera
+p95 de cada escola na fila `interativa` fica abaixo de 2 s e na `ferramenta` abaixo de 10 s (do banco: `iniciado_em` menos `criado_em` de `job_registro`); o turno do Tutor termina em até
+2 s a mais que a latência do modelo mais o passo de 1 s da consulta, que é o da web; nenhuma execução termina `IA_INDISPONIVEL`; os `EXECUCAO_INTERROMPIDA` não passam do número de execuções
+em `rodando` lido antes do `kill -9` (e há ao menos um); nenhuma outra falha; o balde de tokens recusou reservas (o teto mordeu). O relatório diz também o RSS de cada `worker-ia`, o pico de
+conexões do pool do banco (a espera por conexão **não tem métrica**: só o "em uso", `db_pool_em_uso`) e o consumo por função. É relatório, não portão: a esteira só roda a unidade do script.
+
+*A corrida de 16/11/2026* (`tasks/prd-reengenharia-continuacao/11_task.md`, "A corrida"): passou, com a máquina **não calma** (load de 1 minuto de 3 a 5 e as pilhas de teste de outros andares de pé,
+contra os "abaixo de ~2" do runbook; o hash de senha não entra neste cenário). O turno do Tutor: p95 de 6,1 s no banco (de 6,11 a 6,17 s nas dez escolas) e de 7,15 s no k6, agregado (6 s de modelo, e o k6 soma o passo de 1 s); espera
+p95 do Tutor de 62 a 107 ms e da ferramenta de 133 a 237 ms; nenhuma "indisponível"; 21 execuções interrompidas pelo `kill -9` (teto lido antes: 60; o aluno vê "Tentar de novo", e as perguntas seguintes rodaram) e nenhuma outra falha; 1.341 turnos, 34
+ferramentas e 129 propostas terminados; o balde geral esperou 93 reservas (pico de 0,77 do contratado, e 0,80 é cheio), nenhuma foi ao modelo menor nem terminou indisponível. O RSS do `worker-ia` no pico foi de 156 MiB
+(`worker-ia-1`) e 121 MiB (`worker-ia-2`), ~0,27 GiB os dois: é menos de 7 % de uma VPS de 4 GiB, que é o piso que se discute; o provedor e o tamanho da VPS seguem em aberto (D82), e o RSS dos outros
+serviços não entrou na medida. O pico de conexões do pool em uso foi 11 (o pool é 20 por réplica), e 71 no Postgres. Contra o build anterior à tarefa 5.0 (a IA ainda na API), na mesma sessão e com o mesmo script, a `FASE=base`
+(Tutor da escola B, 30 alunos, 1,5 turno/s): p95 do turno de 335 ms no anterior e 353 ms no da árvore (+18 ms, o limite é 1 s), e espera p95 da B de 17 ms nos dois. O consumo de base de uma professora no ritmo do pico
+(2,5 pedidos de IA por minuto) foi de uns 9 a 10 mil tokens por minuto de uso (626 mil tokens das 20 professoras em ~3 minutos), no adaptador falso: o custo em reais sai do preço do modelo real, que entra com a D37.
 
 **Cenário "justiça entre escolas" com o expurgo (F3, tarefa 19.0)**, local, em `npm run carga`: uma escola, a A, expurga
 **1 milhão de linhas** vencidas e troca um nome (o `retencao.expurgar-escola` e o `titular.eliminar`, pelo worker de lote) enquanto a

@@ -192,6 +192,22 @@ describe('ProvedorDeIa: saída validada e medição', () => {
     // Sem a opção não há espera: a chamada termina antes da que espera 200 ms, qualquer que seja a velocidade da máquina.
     expect(sem).toBeLessThan(com)
   })
+
+  it('criarProvedorDeIa: os tokens falsos e a latência do `padrao` da configuração chegam ao adaptador falso, e a medição leva os 3.000 + 250 (a carga da manhã, X6, 11.0)', async () => {
+    const config = { adaptador: 'falso' as const, prazosMs: PRAZOS, recuoMs: 500, replicas: 1 }
+    const portas = { registro: new InMemoryConsumo(), orcamento: SEMPRE, suspensao: new InMemorySuspensoes() }
+    const ia = withEscolaContextOfRequest(createLLMGateway({ ...config, tokensFalsos: { entrada: 3_000, saida: 250 } }, portas))
+    const { medicao } = await ia.gerar({ tarefa: gerarAtividadeObjetiva, entrada: entradaDeAtividade(), escolaId: ESCOLA_A })
+    expect(medicao).toMatchObject({ tokensDeEntrada: 3_000, tokensDeSaida: 250 })
+    // O `padrao` espera a latência dele: 60 s estouram o prazo de 300 ms do perfil, e o gateway devolve o erro de tempo; o `rapido` não a espera.
+    const lento = withEscolaContextOfRequest(createLLMGateway({ ...config, prazosMs: { ...PRAZOS, padrao: 300 }, latenciaFalsaMsPadrao: 60_000 }, portas))
+    await expect(lento.gerar({ tarefa: gerarAtividadeObjetiva, entrada: entradaDeAtividade(), escolaId: ESCOLA_A })).rejects.toMatchObject({ codigoDeIa: 'IA_TEMPO_ESGOTADO' })
+    // O sinal curto faz o erro aparecer na hora, em vez de o caso ficar pendurado até o prazo do Vitest, se o `rapido` esperasse os 60 s do `padrao`.
+    const rapidoNaoEspera = withEscolaContextOfRequest(createLLMGateway({ ...config, latenciaFalsaMsPadrao: 60_000 }, portas))
+    await expect(
+      rapidoNaoEspera.gerar({ tarefa: turnoDoTutor, entrada: entradaDoTutor('Como acho o reagente limitante?'), escolaId: ESCOLA_A, alunoId: ALUNO_1, sinal: AbortSignal.timeout(1_000) }),
+    ).resolves.toBeDefined()
+  })
 })
 
 describe('criarProvedorDeIa: o adaptador do provedor sai decorado com o prazo do perfil e o recuo da configuração', () => {
@@ -212,6 +228,26 @@ describe('criarProvedorDeIa: o adaptador do provedor sai decorado com o prazo do
     const consumo = new InMemoryConsumo()
     return withEscolaContextOfRequest(createLLMGateway(configuracao, { registro: consumo, orcamento: SEMPRE, suspensao: new InMemorySuspensoes() }))
   }
+
+  it('as opções do adaptador falso (latência, latência do `padrao` e tokens), preenchidas junto do provedor, não chegam a ele: o provedor mede os próprios tokens e não espera nada', async () => {
+    const texto = JSON.stringify(atividadeDeEstequiometria())
+    servidor = await startFakeLlamaServer(() => ({ corpo: chatResponse(texto, { uso: { prompt_tokens: 1_234, completion_tokens: 56 } }) }))
+    const configuracao: LLMConfig = {
+      adaptador: 'openai_compat',
+      prazosMs: { rapido: 2_000, padrao: 2_000, complexo: 2_000, visao: 2_000 },
+      recuoMs: 20,
+      replicas: 1,
+      modelo: { baseUrl: servidor.url, modelos: { rapido: 'm', padrao: 'm', complexo: 'm', visao: 'm' }, processamentoLocal: true },
+      latenciaFalsaMs: 60_000,
+      latenciaFalsaMsPadrao: 60_000,
+      tokensFalsos: { entrada: 3_000, saida: 250 },
+    }
+    const ia = withEscolaContextOfRequest(createLLMGateway(configuracao, { registro: new InMemoryConsumo(), orcamento: SEMPRE, suspensao: new InMemorySuspensoes() }))
+    const inicio = performance.now()
+    const { medicao } = await ia.gerar({ tarefa: gerarAtividadeObjetiva, entrada: entradaDeAtividade(), escolaId: ESCOLA_A })
+    expect(medicao).toMatchObject({ origem: 'openai_compat', tokensDeEntrada: 1_234, tokensDeSaida: 56 })
+    expect(performance.now() - inicio).toBeLessThan(1_500)
+  })
 
   it('o prazo é o do perfil da tarefa: o turno do Tutor (`rapido`) estoura aos 150 ms, e a atividade (`padrao`) espera a mesma demora', async () => {
     const texto = JSON.stringify(atividadeDeEstequiometria())

@@ -541,7 +541,12 @@ function exigirPrecoDosModelosMenores(config: LLMConfig): void {
 function adaptadorInterno(config: LLMConfig): ModelAdapter {
   if (config.adaptador === 'openai_compat' && config.modelo === undefined) throw new InvalidConfigError(['LLM_BASE_URL', 'LLM_MODELO'])
   // A latência simulada é só do adaptador falso (teste de carga, regra 80, item 11): o do provedor tem a do provedor.
-  return config.modelo === undefined ? new FakeAdapter(config.latenciaFalsaMs === undefined ? {} : { latenciaMs: config.latenciaFalsaMs }) : new OpenAICompatAdapter(config.modelo)
+  if (config.modelo !== undefined) return new OpenAICompatAdapter(config.modelo)
+  return new FakeAdapter({
+    ...(config.latenciaFalsaMs === undefined ? {} : { latenciaMs: config.latenciaFalsaMs }),
+    ...(config.latenciaFalsaMsPadrao === undefined ? {} : { latenciaMsPadrao: config.latenciaFalsaMsPadrao }),
+    ...(config.tokensFalsos === undefined ? {} : { tokens: config.tokensFalsos }),
+  })
 }
 
 /**

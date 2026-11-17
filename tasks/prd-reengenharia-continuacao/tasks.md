@@ -75,10 +75,10 @@ paralela desde o começo e não alongam o caminho, que é o da IA (1.0 → 11.0)
   - [x] 10.3 Configuração; métricas; alertas e runbook
   - [x] 10.4 Testes
 
-- [ ] **11.0 — A carga da manhã prova o Tutor dentro da meta com a IA no worker (47.0)**
-  - [ ] 11.1 `FASE=sala` em `justica-entre-escolas.js`, com o `kill -9`; `infra/carga.env`
-  - [ ] 11.2 A corrida de base e a da árvore na mesma sessão; o relatório
-  - [ ] 11.3 `docs/infra.md`: o piso do contrato e as premissas medidas
+- [x] **11.0 — A carga da manhã prova o Tutor dentro da meta com a IA no worker (47.0)**
+  - [x] 11.1 `FASE=sala` em `justica-entre-escolas.js`, com o `kill -9`; `infra/carga.env`
+  - [x] 11.2 A corrida de base e a da árvore na mesma sessão; o relatório
+  - [x] 11.3 `docs/infra.md`: o piso do contrato e as premissas medidas
 
 - [x] **12.0 — Toda chamada da web à API tem prazo, e a resposta de prova pendurada não trava as outras (52.0)**
   - [x] 12.1 `comPrazo` no `apiRequest`, em `material.ts` e em `artefatos.ts`

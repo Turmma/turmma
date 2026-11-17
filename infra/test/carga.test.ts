@@ -1,21 +1,41 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseEnv } from 'node:util'
-import { alcanceDe } from '@educa/shared'
+import { alcanceDe, INTERVALO_DA_CONSULTA_DE_EXECUCAO_MS } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import { parse } from 'yaml'
+import { lerAmbienteDeCarga } from '../../tools/ci/compose.ts'
 import { raizRepositorio } from '../../tools/ci/executar.ts'
 import {
+  adaptadorDoAmbienteDeCarga,
+  ALUNOS_POR_ESCOLA_DA_SALA,
+  ambienteDoFalso,
+  ATRASO_DO_KILL_MS,
+  AMOSTRAS_MINIMAS_DA_SALA,
   argumentosDoCompose,
   argumentosDoK6,
   codigoDeSaida,
   CODIGO_THRESHOLD_CRUZADO,
+  ESCOLAS_DA_SALA,
+  ESPERA_ATE_A_VOLTA_DO_WORKER_MS,
+  ESPERA_P95_DA_FERRAMENTA_MS,
+  ESPERA_P95_DO_TUTOR_MS,
   escolherFaseDoExpurgo,
+  exigirAdaptadorFalso,
   julgarCenario,
+  julgarSala,
+  julgarSoABase,
+  memoriaEmMiB,
+  montarResultadoDaSala,
   NOMES_DAS_ESCOLAS,
+  nomesDasEscolasDaSala,
   lerResumoDoK6,
+  PROFESSORAS_POR_ESCOLA_DA_SALA,
   TOKENS_POR_GRUPO,
+  TURMAS_POR_ESCOLA_DA_SALA,
   type FaseDoExpurgo,
+  type MedidaDaEscolaDaSala,
+  type ResultadoDaSala,
   type ResumoDoK6,
 } from '../scripts/carga.ts'
 import type { ConferenciaDaCarga } from '../scripts/conferir-carga.ts'
@@ -268,5 +288,237 @@ describe('infra/compose.carga.yml', () => {
     expect(k6?.image).toMatch(/^grafana\/k6:\d+\.\d+\.\d+$/)
     expect(k6?.profiles).toEqual(['carga'])
     expect(k6?.environment?.['K6_NO_USAGE_REPORT']).toBe('true')
+  })
+})
+
+// ---------------------------------------------------------------------------------------------------------------------
+// A carga da manhã (X6, tarefa 11.0; RF6): `FASE=sala`
+// ---------------------------------------------------------------------------------------------------------------------
+
+const roteiro = () => lerArquivo('infra/k6/justica-entre-escolas.js')
+const constanteDoK6 = (nome: string): number => Number(new RegExp(`const ${nome} = ([0-9_.]+)`).exec(roteiro())?.[1]?.replaceAll('_', ''))
+const ambienteExemplo = (): Record<string, string | undefined> => parseEnv(lerArquivo('.env.example'))
+
+const escolaDaSala = (nome: string, mudanca: Partial<MedidaDaEscolaDaSala> = {}): MedidaDaEscolaDaSala => ({
+  escola: nome,
+  amostrasDoTutor: 400,
+  esperaDoTutorP95Ms: 300,
+  amostrasDaFerramenta: 40,
+  esperaDaFerramentaP95Ms: 1_200,
+  turnoDoTutorP95Ms: 6_400,
+  ...mudanca,
+})
+const salaLimpa = (mudanca: Partial<ResultadoDaSala> = {}, escolas: readonly MedidaDaEscolaDaSala[] = nomesDasEscolasDaSala().map((nome) => escolaDaSala(nome))): ResultadoDaSala => ({
+  k6: { codigo: 0, cruzados: [], esperaBP95Ms: undefined, interrompidas: 14 },
+  escolas,
+  interrompidas: 14,
+  tetoDeInterrompidas: 40,
+  falhasForaDoKill: 0,
+  indisponiveis: 0,
+  reservasRecusadas: 30,
+  ...mudanca,
+})
+const criterios = (resultado: ResultadoDaSala): string[] => julgarSala(resultado).map((reprovacao) => reprovacao.criterio)
+
+describe('a carga da manhã: o roteiro e o script falam das mesmas dez escolas', () => {
+  it('as constantes do k6 são as do script, e a fase `sala` é uma fase como as outras', () => {
+    expect(constanteDoK6('ESCOLAS_DA_SALA')).toBe(ESCOLAS_DA_SALA)
+    expect(constanteDoK6('ALUNOS_POR_ESCOLA_DA_SALA')).toBe(ALUNOS_POR_ESCOLA_DA_SALA)
+    expect(constanteDoK6('PROFESSORAS_POR_ESCOLA_DA_SALA')).toBe(PROFESSORAS_POR_ESCOLA_DA_SALA)
+    expect(ESCOLAS_DA_SALA).toBe(10)
+    expect(TURMAS_POR_ESCOLA_DA_SALA).toBe(6)
+    expect(nomesDasEscolasDaSala()).toHaveLength(ESCOLAS_DA_SALA)
+    expect(new Set(nomesDasEscolasDaSala()).size).toBe(ESCOLAS_DA_SALA)
+    expect(argumentosDoK6('sala')).toEqual(expect.arrayContaining(['FASE=sala', '/execucao/resumo-sala.json']))
+    // A base segue igual: a comparação do RF6 mede o mesmo turno no build anterior e no da tarefa.
+    expect(argumentosDoK6('base')).toContain('FASE=base')
+    expect(argumentosDoK6('base').some((argumento) => argumento.includes('sala'))).toBe(false)
+  })
+
+  it('a carga é a da tabela de `onda-3a.md`: 0,75 turno por segundo por escola, 1 ferramenta e 4 propostas por minuto, e os alunos e professoras bastam para o teto de pedidos de IA por usuário', () => {
+    const tetoPorUsuario = Number(/export const TETO_DE_PEDIDOS_DE_IA_POR_USUARIO = (\d+)/.exec(lerArquivo('apps/api/src/assistente/ai-request-rate-limit.ts'))?.[1])
+    expect(constanteDoK6('TURNOS_DA_SALA_POR_MINUTO') / 60).toBe(0.75)
+    expect(constanteDoK6('FERRAMENTAS_DA_SALA_POR_MINUTO')).toBe(1)
+    expect(constanteDoK6('PROPOSTAS_DA_SALA_POR_MINUTO')).toBe(4)
+    expect(constanteDoK6('TURNOS_DA_SALA_POR_MINUTO') / ALUNOS_POR_ESCOLA_DA_SALA).toBeLessThan(tetoPorUsuario)
+    expect((constanteDoK6('FERRAMENTAS_DA_SALA_POR_MINUTO') + constanteDoK6('PROPOSTAS_DA_SALA_POR_MINUTO')) / PROFESSORAS_POR_ESCOLA_DA_SALA).toBeLessThan(tetoPorUsuario)
+    // O Tutor espera a execução além do prazo dele (60 s) e da reentrega do worker morto (~15 s); a ferramenta, além dos 150 s dela.
+    expect(constanteDoK6('PRAZO_DO_TURNO_DA_SALA_MS')).toBeGreaterThan(60_000 + 15_000)
+    expect(constanteDoK6('PRAZO_DA_FERRAMENTA_DA_SALA_MS')).toBeGreaterThan(150_000)
+  })
+
+  it('o k6 tem os thresholds por escola (o turno e a ferramenta terminam, o p95 cabe na espera do RF6 mais o modelo) e nenhum "indisponível"', () => {
+    const script = roteiro()
+    const thresholds = [
+      "indisponiveis_sala: ['count==0']",
+      "thresholds[`respostas_429{grupo:${grupo}}`] = ['count==0']",
+      "thresholds[`respostas_inesperadas{grupo:${grupo}}`] = ['count==0']",
+      "thresholds[`turnos_sala_concluidos{escola:${escola}}`] = ['count>0']",
+      "thresholds[`ferramentas_sala_concluidas{escola:${escola}}`] = ['count>0']",
+      'thresholds[`turno_sala{escola:${escola}}`] = [`p(95)<${TURNO_P95_DA_SALA_MS}`]',
+      'thresholds[`ferramenta_sala{escola:${escola}}`] = [`p(95)<${FERRAMENTA_P95_DA_SALA_MS}`]',
+    ]
+    for (const trecho of thresholds) expect(script, trecho).toContain(trecho)
+    // O kill -9 cai aos 75 s, e a fase dura até depois da volta do worker e da reentrega do job: com a carga ainda no ritmo, a pergunta seguinte roda.
+    expect(script).toContain("const DURACAO_DA_SALA = '3m'")
+    expect(ATRASO_DO_KILL_MS + ESPERA_ATE_A_VOLTA_DO_WORKER_MS + 60_000).toBeLessThan(3 * 60_000)
+    // A espera p95 do RF6 mais a latência do falso (6 s no turno, 50 s na ferramenta) e a folga da consulta: é o que o k6 consegue medir de fora.
+    expect(constanteDoK6('TURNO_P95_DA_SALA_MS')).toBe(ESPERA_P95_DO_TUTOR_MS + 6_000 + INTERVALO_DA_CONSULTA_DE_EXECUCAO_MS)
+    expect(constanteDoK6('FERRAMENTA_P95_DA_SALA_MS')).toBe(ESPERA_P95_DA_FERRAMENTA_MS + 50_000 + 1_000)
+    // O passo da consulta é o da web: com 0,5 s, uma professora com a ferramenta de 50 s esperando passa dos 120 pedidos por minuto e leva 429 que a tela real não leva.
+    expect(constanteDoK6('PASSO_DA_CONSULTA_DA_SALA_S') * 1_000).toBe(INTERVALO_DA_CONSULTA_DE_EXECUCAO_MS)
+    expect(ESPERA_P95_DO_TUTOR_MS).toBe(2_000)
+    expect(ESPERA_P95_DA_FERRAMENTA_MS).toBe(10_000)
+  })
+})
+
+describe('a carga da manhã: nenhum provedor pago', () => {
+  it('o ambiente de carga é o do adaptador falso, e o script recusa qualquer outro', () => {
+    expect(() => exigirAdaptadorFalso({ IA_ADAPTADOR: 'falso' })).not.toThrow()
+    expect(() => exigirAdaptadorFalso({ IA_ADAPTADOR: 'openai_compat' })).toThrow(/IA_ADAPTADOR=falso/)
+    expect(() => exigirAdaptadorFalso({})).toThrow(/IA_ADAPTADOR=falso/)
+    // O ambiente de verdade: `infra/carga.env` sobre o `.env.example`, nessa ordem.
+    expect(() => exigirAdaptadorFalso(adaptadorDoAmbienteDeCarga(lerAmbienteDeCarga()))).not.toThrow()
+    expect(adaptadorDoAmbienteDeCarga({ IA_ADAPTADOR: 'openai_compat' })).toEqual({ IA_ADAPTADOR: 'openai_compat' })
+    expect(() => exigirAdaptadorFalso(adaptadorDoAmbienteDeCarga({ IA_ADAPTADOR: 'openai_compat' }))).toThrow(/IA_ADAPTADOR=falso/)
+  })
+
+  it('a latência por perfil e os tokens do falso são os da sala, cabem no prazo de cada perfil, e as outras fases ficam como estavam', () => {
+    const sala = ambienteDoFalso('sala')
+    expect(sala).toEqual({ IA_LATENCIA_FALSA_MS: '6000', IA_LATENCIA_FALSA_MS_PADRAO: '50000', IA_TOKENS_FALSOS_ENTRADA: '3000', IA_TOKENS_FALSOS_SAIDA: '250' })
+    const exemplo = ambienteExemplo()
+    expect(Number(sala['IA_LATENCIA_FALSA_MS'])).toBeLessThan(Number(exemplo['LLM_TIMEOUT_MS_RAPIDO']))
+    expect(Number(sala['IA_LATENCIA_FALSA_MS_PADRAO'])).toBeLessThan(Number(exemplo['LLM_TIMEOUT_MS_PADRAO']))
+    for (const fase of ['base', 'expurgo', 'carga'] as const) {
+      const outra = ambienteDoFalso(fase)
+      // A latência de 300 ms é a de `infra/carga.env`: a fase não a troca, e os tokens voltam à estimativa pelo texto.
+      expect(outra).toEqual({ IA_LATENCIA_FALSA_MS_PADRAO: '0', IA_TOKENS_FALSOS_ENTRADA: '0', IA_TOKENS_FALSOS_SAIDA: '0' })
+    }
+  })
+
+  it('o compose passa a latência do `padrao` e os tokens do falso aos dois `worker-ia`, que são quem chama o modelo', () => {
+    const { services } = parse(lerArquivo('infra/compose.yml'), { merge: true }) as { services: Record<string, { environment?: Record<string, string> }> }
+    for (const nome of ['worker-ia-1', 'worker-ia-2']) {
+      for (const variavel of ['IA_LATENCIA_FALSA_MS_PADRAO', 'IA_TOKENS_FALSOS_ENTRADA', 'IA_TOKENS_FALSOS_SAIDA']) {
+        expect(services[nome]?.environment?.[variavel], `${nome} ${variavel}`).toMatch(new RegExp(`^\\$\\{${variavel}:\\?`))
+      }
+    }
+    for (const variavel of ['IA_LATENCIA_FALSA_MS_PADRAO', 'IA_TOKENS_FALSOS_ENTRADA', 'IA_TOKENS_FALSOS_SAIDA']) expect(ambienteExemplo()[variavel], variavel).toBe('0')
+  })
+})
+
+describe('a carga da manhã: o teto de tokens morde, mas só no fim da janela', () => {
+  it('o `LLM_TOKENS_POR_MINUTO` da carga deixa o balde geral (80 %) um pouco abaixo da carga, e acima do que a espera de 8 s do degrau suporta', () => {
+    const contratado = Number(parseEnv(lerArquivo('infra/carga.env'))['LLM_TOKENS_POR_MINUTO'])
+    const porChamada = Number(ambienteDoFalso('sala')['IA_TOKENS_FALSOS_ENTRADA']) + Number(ambienteDoFalso('sala')['IA_TOKENS_FALSOS_SAIDA'])
+    // Por minuto: 45 turnos, 1 ferramenta e 4 propostas em cada escola.
+    const chamadas = ESCOLAS_DA_SALA * (constanteDoK6('TURNOS_DA_SALA_POR_MINUTO') + constanteDoK6('FERRAMENTAS_DA_SALA_POR_MINUTO') + constanteDoK6('PROPOSTAS_DA_SALA_POR_MINUTO'))
+    const carga = chamadas * porChamada
+    const balde = contratado * 0.8
+    expect(carga).toBe(1_625_000)
+    // Morde: o balde enche antes de a janela de 60 s acabar. E a espera de quem chega depois (até o fim da janela) cabe nos 8 s do degrau: o balde cobre
+    // ao menos 52 s de carga (60 − 8), senão o Tutor termina `IA_INDISPONIVEL`.
+    expect(balde).toBeLessThan(carga)
+    expect(balde / carga).toBeGreaterThanOrEqual((60 - 8) / 60)
+    // Fica abaixo do piso do contrato de produção (2,5 milhões): o valor de produção é outro, e o da carga não o substitui.
+    expect(contratado).toBeLessThan(Number(ambienteExemplo()['LLM_TOKENS_POR_MINUTO']))
+  })
+})
+
+describe('a carga da manhã: o veredito', () => {
+  it('passa com as dez escolas dentro do RF6, o kill interrompendo dentro do teto e o balde recusando', () => {
+    expect(julgarSala(salaLimpa())).toEqual([])
+  })
+
+  it('os `EXECUCAO_INTERROMPIDA` acima do teto lido antes do kill falham a fase, e no teto exato passam', () => {
+    expect(criterios(salaLimpa({ interrompidas: 41, tetoDeInterrompidas: 40 }))).toEqual(['interrompidas_acima_do_teto'])
+    expect(criterios(salaLimpa({ interrompidas: 40, tetoDeInterrompidas: 40 }))).toEqual([])
+  })
+
+  it('o kill que não interrompeu nenhuma execução não prova a reentrega: a fase falha', () => {
+    expect(criterios(salaLimpa({ interrompidas: 0 }))).toEqual(['kill_sem_efeito'])
+  })
+
+  it('qualquer outra falha, e todo "indisponível", falham a fase, mesmo com o k6 limpo', () => {
+    expect(criterios(salaLimpa({ falhasForaDoKill: 1 }))).toEqual(['falhas_fora_do_kill'])
+    expect(criterios(salaLimpa({ indisponiveis: 1 }))).toEqual(['indisponivel'])
+  })
+
+  it('threshold do k6 cruzado reprova com o nome da fase, e o k6 que caiu sem threshold cruzado também', () => {
+    const cruzada = salaLimpa({ k6: { codigo: CODIGO_THRESHOLD_CRUZADO, cruzados: [{ metrica: 'indisponiveis_sala', criterio: 'count==0' }], esperaBP95Ms: undefined, interrompidas: 14 } })
+    expect(criterios(cruzada)).toEqual(['sala:indisponiveis_sala'])
+    expect(criterios(salaLimpa({ k6: { codigo: 107, cruzados: [], esperaBP95Ms: undefined, interrompidas: 14 } }))).toEqual(['k6_sala'])
+    // O k6 saiu com o código do threshold cruzado e o resumo não tem nenhum cruzado, ou o contrário: o resumo e o código se contradizem.
+    expect(criterios(salaLimpa({ k6: { codigo: CODIGO_THRESHOLD_CRUZADO, cruzados: [], esperaBP95Ms: undefined, interrompidas: 14 } }))).toEqual(['k6_sala'])
+    expect(criterios(salaLimpa({ k6: { codigo: 0, cruzados: [{ metrica: 'indisponiveis_sala', criterio: 'count==0' }], esperaBP95Ms: undefined, interrompidas: 14 } }))).toEqual(['sala:indisponiveis_sala', 'k6_sala'])
+  })
+
+  it('a espera p95 de cada escola é julgada contra 2 s no Tutor e 10 s na ferramenta, e o limite exato reprova', () => {
+    const escolas = nomesDasEscolasDaSala().map((nome) => (nome === 'e4' ? escolaDaSala(nome, { esperaDoTutorP95Ms: ESPERA_P95_DO_TUTOR_MS }) : nome === 'e7' ? escolaDaSala(nome, { esperaDaFerramentaP95Ms: ESPERA_P95_DA_FERRAMENTA_MS }) : escolaDaSala(nome)))
+    expect(julgarSala(salaLimpa({}, escolas))).toEqual([
+      { criterio: 'espera_interativa', detalhe: 'sala: e4 espera p95 de 2000 ms na fila interativa, e o limite é 2000 ms' },
+      { criterio: 'espera_ferramenta', detalhe: 'sala: e7 espera p95 de 10000 ms na fila ferramenta, e o limite é 10000 ms' },
+    ])
+    expect(criterios(salaLimpa({}, nomesDasEscolasDaSala().map((nome) => escolaDaSala(nome, { esperaDoTutorP95Ms: ESPERA_P95_DO_TUTOR_MS - 1, esperaDaFerramentaP95Ms: ESPERA_P95_DA_FERRAMENTA_MS - 1 }))))).toEqual([])
+  })
+
+  it('escola sem amostra de uma fila não passa em branco: poucos jobs, ou nenhum p95, reprovam', () => {
+    const poucos = nomesDasEscolasDaSala().map((nome) => (nome === 'e2' ? escolaDaSala(nome, { amostrasDaFerramenta: AMOSTRAS_MINIMAS_DA_SALA - 1 }) : escolaDaSala(nome)))
+    expect(criterios(salaLimpa({}, poucos))).toEqual(['sem_amostra_ferramenta'])
+    const nenhum = nomesDasEscolasDaSala().map((nome) => (nome === 'e9' ? escolaDaSala(nome, { amostrasDoTutor: 0, esperaDoTutorP95Ms: null }) : escolaDaSala(nome)))
+    expect(criterios(salaLimpa({}, nenhum))).toEqual(['sem_amostra_interativa'])
+    // Amostras bastam, mas o p95 não saiu (a consulta não achou o início de nenhum job): não passa em branco.
+    const semP95 = nomesDasEscolasDaSala().map((nome) => (nome === 'e3' ? escolaDaSala(nome, { esperaDoTutorP95Ms: null }) : escolaDaSala(nome)))
+    expect(criterios(salaLimpa({}, semP95))).toEqual(['sem_amostra_interativa'])
+    expect(AMOSTRAS_MINIMAS_DA_SALA).toBe(10)
+    expect(criterios(salaLimpa({}, nomesDasEscolasDaSala().map((nome) => escolaDaSala(nome, { amostrasDoTutor: AMOSTRAS_MINIMAS_DA_SALA }))))).toEqual([])
+  })
+
+  it('o balde que não recusou nenhuma reserva reprova (o teto não mordeu); sem o Prometheus a fase só não diz', () => {
+    expect(criterios(salaLimpa({ reservasRecusadas: 0 }))).toEqual(['balde_nao_recusou'])
+    expect(criterios(salaLimpa({ reservasRecusadas: undefined }))).toEqual([])
+  })
+
+  it('o k6 lê o contador das interrompidas do resumo, e a fase `base` sozinha julga pelo k6 e pela espera da B', () => {
+    expect(lerResumoDoK6(0, { metrics: { execucoes_interrompidas: { count: 12 } } }).interrompidas).toBe(12)
+    expect(lerResumoDoK6(0, { metrics: {} }).interrompidas).toBeUndefined()
+    expect(julgarSoABase({ codigo: 0, cruzados: [], esperaBP95Ms: 40 })).toEqual({ passou: true, reprovacoes: [], reprovadoPelaJustica: false })
+    expect(julgarSoABase({ codigo: CODIGO_THRESHOLD_CRUZADO, cruzados: [{ metrica: 'turno_b', criterio: 'max<30000' }], esperaBP95Ms: 40 }).reprovacoes.map((reprovacao) => reprovacao.criterio)).toEqual(['base:turno_b'])
+    expect(julgarSoABase({ codigo: 0, cruzados: [], esperaBP95Ms: undefined }).reprovacoes.map((reprovacao) => reprovacao.criterio)).toEqual(['base:espera_b'])
+    // O k6 caiu (107) sem threshold cruzado, ou saiu com zero com um cruzado no resumo: o código e o resumo se contradizem.
+    expect(julgarSoABase({ codigo: 107, cruzados: [], esperaBP95Ms: 40 }).reprovacoes.map((reprovacao) => reprovacao.criterio)).toEqual(['k6_base'])
+    expect(julgarSoABase({ codigo: 0, cruzados: [{ metrica: 'turno_b', criterio: 'max<30000' }], esperaBP95Ms: 40 }).reprovacoes.map((reprovacao) => reprovacao.criterio)).toEqual(['base:turno_b', 'k6_base'])
+  })
+
+  it('o resultado da sala separa as falhas do banco: só o `EXECUCAO_INTERROMPIDA` e o `IA_INDISPONIVEL` ficam fora das outras, e o contador do k6 ausente vale zero', () => {
+    const escolas = nomesDasEscolasDaSala().map((nome) => escolaDaSala(nome))
+    const resultado = montarResultadoDaSala({
+      k6: { codigo: 0, cruzados: [], esperaBP95Ms: undefined, interrompidas: 21 },
+      escolas,
+      teto: 60,
+      falhas: { EXECUCAO_INTERROMPIDA: 3, IA_INDISPONIVEL: 1, IA_SAIDA_INVALIDA: 2, IA_TEMPO_ESGOTADO: 4 },
+      reservasRecusadas: 93,
+    })
+    expect(resultado).toMatchObject({ interrompidas: 21, tetoDeInterrompidas: 60, falhasForaDoKill: 6, indisponiveis: 1, reservasRecusadas: 93 })
+    expect(resultado.escolas).toBe(escolas)
+    const semNada = montarResultadoDaSala({ k6: { codigo: 0, cruzados: [], esperaBP95Ms: undefined }, escolas, teto: 5, falhas: {}, reservasRecusadas: undefined })
+    expect(semNada).toMatchObject({ interrompidas: 0, tetoDeInterrompidas: 5, falhasForaDoKill: 0, indisponiveis: 0, reservasRecusadas: undefined })
+    // O que o banco diz entra no veredito: outra falha reprova, e o Prometheus sem resposta não inventa o balde.
+    expect(criterios(montarResultadoDaSala({ k6: { codigo: 0, cruzados: [], esperaBP95Ms: undefined, interrompidas: 21 }, escolas, teto: 60, falhas: { IA_SAIDA_INVALIDA: 1 }, reservasRecusadas: 93 }))).toEqual(['falhas_fora_do_kill'])
+  })
+
+  it('o contador das interrompidas só é lido quando é número', () => {
+    expect(lerResumoDoK6(0, { metrics: { execucoes_interrompidas: { count: '12' } } }).interrompidas).toBeUndefined()
+    expect(lerResumoDoK6(0, { metrics: { execucoes_interrompidas: { count: 0 } } }).interrompidas).toBe(0)
+  })
+
+  it('o RSS do `docker stats` vira MiB, e o que não é memória não vira número', () => {
+    expect(memoriaEmMiB('123.4MiB / 15.5GiB')).toBeCloseTo(123.4)
+    expect(memoriaEmMiB('1.5GiB / 15.5GiB')).toBeCloseTo(1_536)
+    expect(memoriaEmMiB('2048KiB / 15.5GiB')).toBeCloseTo(2)
+    expect(memoriaEmMiB('1048576B / 15.5GiB')).toBeCloseTo(1)
+    expect(memoriaEmMiB('1.2.3MiB / 4GiB')).toBeUndefined()
+    expect(memoriaEmMiB('')).toBeUndefined()
+    expect(memoriaEmMiB('--')).toBeUndefined()
   })
 })

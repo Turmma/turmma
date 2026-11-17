@@ -544,6 +544,10 @@ services:
       IA_PROVEDOR_ID: ${IA_PROVEDOR_ID:?defina IA_PROVEDOR_ID}
       IA_REPLICAS: ${IA_REPLICAS:?defina IA_REPLICAS}
       IA_LATENCIA_FALSA_MS: ${IA_LATENCIA_FALSA_MS:?defina IA_LATENCIA_FALSA_MS}
+      # Só do adaptador falso, e só no processo que o chama (X6, 11.0): a espera do perfil `padrao` e os tokens que ele informa por chamada. A carga da manhã os liga (`FASE=sala`).
+      IA_LATENCIA_FALSA_MS_PADRAO: ${IA_LATENCIA_FALSA_MS_PADRAO:?defina IA_LATENCIA_FALSA_MS_PADRAO}
+      IA_TOKENS_FALSOS_ENTRADA: ${IA_TOKENS_FALSOS_ENTRADA:?defina IA_TOKENS_FALSOS_ENTRADA}
+      IA_TOKENS_FALSOS_SAIDA: ${IA_TOKENS_FALSOS_SAIDA:?defina IA_TOKENS_FALSOS_SAIDA}
       # Métricas OTLP para a observabilidade local. Sem depends_on: fora do ar, perde-se a métrica, e só.
       TELEMETRIA_OTLP_URL: http://observabilidade:4318
       TELEMETRIA_INTERVALO_MS: ${TELEMETRIA_INTERVALO_MS:?defina TELEMETRIA_INTERVALO_MS}

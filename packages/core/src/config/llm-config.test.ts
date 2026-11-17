@@ -6,6 +6,7 @@ import {
   loadLLMConfig,
   MOTIVO_ADAPTADOR_FALSO_EM_PRODUCAO,
   MOTIVO_LATENCIA_FALSA_MAIOR_QUE_O_PRAZO,
+  MOTIVO_LATENCIA_FALSA_PADRAO_MAIOR_QUE_O_PRAZO,
   MOTIVO_LLM_SEM_ENDERECO,
   MOTIVO_LLM_SEM_MODELO,
   MOTIVO_PROCESSAMENTO_LOCAL_EM_ENDERECO_DE_FORA,
@@ -226,6 +227,33 @@ describe('lerConfiguracaoDeIa', () => {
       motivos: [MOTIVO_LATENCIA_FALSA_MAIOR_QUE_O_PRAZO],
     })
     expect(loadLLMConfig({ ...LOCAL, LLM_TIMEOUT_MS: '5000', IA_LATENCIA_FALSA_MS: '4999' }).latenciaFalsaMs).toBe(4_999)
+  })
+
+  it('a latência do perfil `padrao` do adaptador falso (a ferramenta de ~50 s, X6, 11.0): ausente ou zero não existe, e é menor que o prazo do `padrao`, e não que o menor de todos', () => {
+    expect(loadLLMConfig(LOCAL).latenciaFalsaMsPadrao).toBeUndefined()
+    expect(loadLLMConfig(LOCAL).latenciaFalsaMs).toBeUndefined()
+    expect(loadLLMConfig({ ...LOCAL, IA_LATENCIA_FALSA_MS: '0' }).latenciaFalsaMs).toBeUndefined()
+    expect(loadLLMConfig({ ...LOCAL, IA_LATENCIA_FALSA_MS_PADRAO: '0' }).latenciaFalsaMsPadrao).toBeUndefined()
+    expect(loadLLMConfig({ ...LOCAL, IA_LATENCIA_FALSA_MS_PADRAO: '' }).latenciaFalsaMsPadrao).toBeUndefined()
+    // 50 s cabem no prazo de 60 s do `padrao`, mesmo acima do prazo de 20 s do `rapido`: é a regra do perfil, e não a do menor prazo.
+    expect(loadLLMConfig({ ...LOCAL, IA_LATENCIA_FALSA_MS: '6000', IA_LATENCIA_FALSA_MS_PADRAO: '50000' })).toMatchObject({ latenciaFalsaMs: 6_000, latenciaFalsaMsPadrao: 50_000 })
+    expect(erroDe({ ...LOCAL, IA_LATENCIA_FALSA_MS_PADRAO: '60000' })).toMatchObject({
+      variaveis: ['IA_LATENCIA_FALSA_MS_PADRAO'],
+      motivos: [MOTIVO_LATENCIA_FALSA_PADRAO_MAIOR_QUE_O_PRAZO],
+    })
+    expect(erroDe({ ...LOCAL, LLM_TIMEOUT_MS_PADRAO: '5000', IA_LATENCIA_FALSA_MS_PADRAO: '5000' }).variaveis).toEqual(['IA_LATENCIA_FALSA_MS_PADRAO'])
+    expect(loadLLMConfig({ ...LOCAL, LLM_TIMEOUT_MS_PADRAO: '5000', IA_LATENCIA_FALSA_MS_PADRAO: '4999' }).latenciaFalsaMsPadrao).toBe(4_999)
+    expect(erroDe({ ...LOCAL, IA_LATENCIA_FALSA_MS_PADRAO: '60001' }).variaveis).toEqual(['IA_LATENCIA_FALSA_MS_PADRAO'])
+  })
+
+  it('os tokens que o adaptador falso informa (X6, 11.0): sem nenhum dos dois é a estimativa pelo texto, e com um deles o outro vale zero', () => {
+    expect(loadLLMConfig(LOCAL).tokensFalsos).toBeUndefined()
+    expect(loadLLMConfig({ ...LOCAL, IA_TOKENS_FALSOS_ENTRADA: '0', IA_TOKENS_FALSOS_SAIDA: '' }).tokensFalsos).toBeUndefined()
+    expect(loadLLMConfig({ ...LOCAL, IA_TOKENS_FALSOS_ENTRADA: '3000', IA_TOKENS_FALSOS_SAIDA: '250' }).tokensFalsos).toEqual({ entrada: 3_000, saida: 250 })
+    expect(loadLLMConfig({ ...LOCAL, IA_TOKENS_FALSOS_SAIDA: '250' }).tokensFalsos).toEqual({ entrada: 0, saida: 250 })
+    expect(loadLLMConfig({ ...LOCAL, IA_TOKENS_FALSOS_ENTRADA: '3000' }).tokensFalsos).toEqual({ entrada: 3_000, saida: 0 })
+    expect(erroDe({ ...LOCAL, IA_TOKENS_FALSOS_ENTRADA: '-1' }).variaveis).toEqual(['IA_TOKENS_FALSOS_ENTRADA'])
+    expect(erroDe({ ...LOCAL, IA_TOKENS_FALSOS_SAIDA: '1000001' }).variaveis).toEqual(['IA_TOKENS_FALSOS_SAIDA'])
   })
 
   it('a latência simulada cabe no prazo de cada perfil, e não só no global: o `rapido` e o `padrao` têm o seu', () => {

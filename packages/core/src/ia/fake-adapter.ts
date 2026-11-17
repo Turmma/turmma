@@ -27,6 +27,10 @@ function versaoDeterministica<Entrada, Saida>(tarefa: TaskDefinition<Entrada, Sa
 export interface FakeAdapterOptions {
   /** Espera simulada por chamada, para ensaio e teste de carga sem provedor (regra 80, item 11). */
   readonly latenciaMs?: number
+  /** A espera do perfil `padrao` (a ferramenta), quando difere da dos outros: a ferramenta leva ~50 s, e o turno do Tutor, ~6 s (X6, 11.0). */
+  readonly latenciaMsPadrao?: number
+  /** Os tokens que a chamada informa, no lugar da estimativa pelo texto: o teste de carga os põe na escala de `docs/infra.md` 3.2 (X6, 11.0). */
+  readonly tokens?: { readonly entrada: number; readonly saida: number }
 }
 
 /**
@@ -44,7 +48,7 @@ export class FakeAdapter implements ModelAdapter {
   }
 
   async chamar<Entrada, Saida>(chamada: ModelCall<Entrada, Saida>): Promise<ModelResponse> {
-    const latenciaMs = this.opcoes.latenciaMs ?? 0
+    const latenciaMs = (chamada.tarefa.perfil === 'padrao' ? this.opcoes.latenciaMsPadrao : undefined) ?? this.opcoes.latenciaMs ?? 0
     if (latenciaMs > 0) {
       await esperar(latenciaMs, undefined, { signal: chamada.sinal }).catch(() => {
         throw new LLMError('IA_TEMPO_ESGOTADO')
@@ -54,8 +58,8 @@ export class FakeAdapter implements ModelAdapter {
     return {
       texto,
       modelo: chamada.modelo ?? MODELO_FALSO,
-      tokensDeEntrada: estimarTokens(JSON.stringify(chamada.entrada)),
-      tokensDeSaida: estimarTokens(texto),
+      tokensDeEntrada: this.opcoes.tokens?.entrada ?? estimarTokens(JSON.stringify(chamada.entrada)),
+      tokensDeSaida: this.opcoes.tokens?.saida ?? estimarTokens(texto),
     }
   }
 }
