@@ -40,8 +40,13 @@ test.describe('Seu time › Assistente de ensino (11.4)', () => {
     const adaptacao = page.locator('[data-funcao="adaptacao"]')
     await expect(adaptacao).toContainText(FUNCOES.adaptacao.fazSozinha)
     await expect(adaptacao).toContainText(FUNCOES.adaptacao.esperaAprovacao)
-    // Só as funções do Assistente: as do Tutor e do Analista não são dele.
-    await expect(page.locator('[data-funcao]')).toHaveCount(3)
+    // Só as funções do Assistente, as do catálogo, uma a uma: as do Tutor e do Analista não são dele, e função nova dele entra na lista sem mudar este caso.
+    // A ordem também é contrato, e não coincidência: a tela sai de `montarTime`, que percorre o catálogo na ordem dele. Trocar a ordem do catálogo muda a tela, e este caso acusa.
+    const doAssistente = Object.entries(FUNCOES)
+      .filter(([, funcao]) => funcao.agente === 'assistente_de_ensino')
+      .map(([chave]) => chave)
+    await expect(page.locator('[data-funcao]')).toHaveCount(doAssistente.length)
+    expect(await page.locator('[data-funcao]').evaluateAll((itens) => itens.map((item) => item.getAttribute('data-funcao')))).toEqual(doAssistente)
     expect(await horizontalOverflow(page)).toBe(0)
     expect(await seriousViolations(page)).toEqual([])
     await activate(convite.getByRole('button', { name: 'Pedir ao Assistente' }), hasTouch)

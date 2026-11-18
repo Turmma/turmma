@@ -3,6 +3,7 @@ import { abrirNavegacao, entrarComoCoordenacaoNaMesmaAba, esperarPainel, lateral
 import { irPelaCoordenacao, paginaNaoRola } from './support/coordenacao.ts'
 import { conferirAssinaturas, conferirQueAOncaNaoTemNome, conferirTamanhoDoAvatar } from './support/avatar.ts'
 import { auditoriasNoBanco, montarEscolaComEntregas, suspensoesNoBanco, suspenderFuncaoPorOutraPessoa, type EscolaComEntregas } from './support/governanca.ts'
+import { FUNCOES } from '../packages/shared/src/time/funcoes.ts'
 import { expect, test } from './support/profiles.ts'
 import { criarEquipeComSenha, type EquipeDeTeste } from './support/seed.ts'
 import { ALVO_DE_TOQUE_PRINCIPAL_PX, horizontalOverflow, larguraExcedenteDoDialogo, seriousViolations } from './support/checks.ts'
@@ -25,10 +26,16 @@ const cartaoDe = (page: Page, agente: string) => principal(page).locator(`[data-
 /** A opção do seletor "Qual IA", pelo nome de função do agente. */
 const opcaoDe = (page: Page, nome: string) => principal(page).getByRole('radio', { name: nome, exact: true })
 
+/** As chaves das funções que o catálogo dá a um agente, na ordem dele: a lista não se escreve aqui, para função nova não deixar este arquivo para trás. */
+const funcoesDoAgente = (agente: string): string[] =>
+  Object.entries(FUNCOES)
+    .filter(([, funcao]) => funcao.agente === agente)
+    .map(([chave]) => chave)
+
 const IAS = [
-  { agente: 'assistente_de_ensino', nome: 'Assistente de ensino', funcoes: 3 },
-  { agente: 'tutor', nome: 'Tutor', funcoes: 2 },
-  { agente: 'analista_de_desempenho_escolar', nome: 'Analista de desempenho escolar', funcoes: 1 },
+  { agente: 'assistente_de_ensino', nome: 'Assistente de ensino', funcoes: funcoesDoAgente('assistente_de_ensino') },
+  { agente: 'tutor', nome: 'Tutor', funcoes: funcoesDoAgente('tutor') },
+  { agente: 'analista_de_desempenho_escolar', nome: 'Analista de desempenho escolar', funcoes: funcoesDoAgente('analista_de_desempenho_escolar') },
 ] as const
 
 async function activate(alvo: Locator, hasTouch: boolean): Promise<void> {
@@ -110,7 +117,9 @@ test.describe('Como cada IA trabalha', () => {
       await expect(cartaoDe(page, agente).getByRole('heading', { level: 2, name: nome })).toBeVisible()
       await expect(cartaoDe(page, agente).locator('[data-selo-ia]')).toHaveCount(1)
       await expect(cartaoDe(page, agente).locator(`[data-agente="${agente}"]`)).toHaveCount(1)
-      await expect(cartaoDe(page, agente).locator('[data-funcao]')).toHaveCount(funcoes)
+      // As funções do cartão são as do catálogo para aquele agente, uma a uma e na ordem dele: a contagem sozinha deixaria passar uma função trocada por outra, ou de outro agente.
+      await expect(cartaoDe(page, agente).locator('[data-funcao]')).toHaveCount(funcoes.length)
+      expect(await cartaoDe(page, agente).locator('[data-funcao]').evaluateAll((itens) => itens.map((item) => item.getAttribute('data-funcao')))).toEqual(funcoes)
       expect(await conferirAssinaturas(principal(page))).toBe(1)
       // O avatar do cartão é o de 48 px, e a tela inteira não chama nada de "onça" (A28).
       expect(await conferirTamanhoDoAvatar(principal(page), 48)).toBe(1)
