@@ -1,9 +1,9 @@
 # Estado da execução — classificacao-bncc
 
 ## Agora
-- **Espero:** o `RELATÓRIO` do `Implementador` (linha 1) da correção `2026-11-18-integracao-vermelha-da-5-0` (a esteira de `0b70fde8`, execução 44262036782, caiu na integração, que passara em `d89816f5`: `assistente.int.test.ts`, `artefato.int.test.ts`, `leitura-por-serie.int.test.ts` e testes do Tutor, "chamar" chamado 2 vezes; é da tarefa 5.0), pedida em 18/11 05:40, 1ª tentativa. A 6.0 parte na linha 1 depois do encontro dela. E o `RELATÓRIO` do `Arquiteto` (no andar) com a medida local no `RETIDOS.json`: espera o Joaquim subir o llama-server na 8080 (em 18/11 05:05 não há llama-server nem modelo nesta máquina, WSL ou Windows); a da produção fica pendente da D37. E a resposta do Joaquim (A, B ou C) sobre o `3209137c` ("Esperando o Joaquim").
+- **Espero:** o `RELATÓRIO` do `Implementador` (linha 1) da tarefa 6.0 (porte grande), partida em 18/11, 1ª tentativa. A esteira de `9de64089` (soma com a correção da integração) se lê no encontro da 6.0; o `verificar` segue vermelho pelo `3209137c` até a resposta do Joaquim. E o `RELATÓRIO` do `Arquiteto` (no andar) com a medida local no `RETIDOS.json`: espera o Joaquim subir o llama-server na 8080 (em 18/11 05:05 não há llama-server nem modelo nesta máquina, WSL ou Windows); a da produção fica pendente da D37. E a resposta do Joaquim (A, B ou C) sobre o `3209137c` ("Esperando o Joaquim").
 - **Devo ainda:** a 10.0 só parte com a medida do `Arquiteto` registrada; taxa fora do `padrao` é decisão do Joaquim. No fechamento, marcar `[x]` o item "(F4, retro, M3)" do `TODO.md`. Push da `develop` (retro da X6, `46ea2309`) no próximo pouso.
-- **Base:** `spec/classificacao-bncc` em `0b70fde8`
+- **Base:** `spec/classificacao-bncc` em `9de64089`
 
 ## Concluídas
 | Tarefa | Commit | Modelo | Rodadas | Observação |
@@ -16,6 +16,7 @@
 | correção `2026-11-17-esteira-vermelha-desde-a-3-0` (da 3.0, L1) | `a590dafd` | Sonnet | test-engineer e revisor-geral na 2ª; os outros seis na 1ª | dois e2e com o número 3 escrito passam a ler o catálogo `FUNCOES`; o `fila-de-ia` já viera na 4.0; encontro em `63bbb635` |
 | correção `2026-11-17-metricas-com-escola-da-4-0` (da 4.0, L1) | `97baf9f8` | Sonnet | revisor-geral na 2ª; os outros cinco na 1ª | `material.classificacao.espera` fica com `escola_id` (Tech Spec 7c) e entra na lista do teste; encontro em `d89816f5` |
 | 5.0 | `792c2e6b` | Sonnet | os seis revisores na 2ª | carga das 300 apostilas rodada (~00:50 a ~04:00, adaptador falso, ~4 execuções por minuto pelo balde do lote); sem tela; encontro em `0b70fde8` (tipagem e lint da soma passaram) |
+| correção `2026-11-18-integracao-vermelha-da-5-0` (da 5.0, L1) | `b8fbdeea` | Sonnet | os sete revisores na 1ª; revisor-geral e test-engineer também na 2ª | o `esperarExtracao` do teste deixa de enfileirar a classificação, que o FakeAdapter rodava somando chamada e consumo; encontro em `9de64089` |
 
 ## Esperando o Joaquim
 ## 17/11 08:55 — retro da X6, no terminal do `Arquiteto 2`
