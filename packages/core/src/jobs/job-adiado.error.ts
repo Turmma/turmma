@@ -1,5 +1,8 @@
-/** Por que o processador pediu para adiar: o teto do minuto, o Redis de fila fora, ou a reserva de outro processo ainda vigente. */
-export type MotivoDoAdiamento = 'limite' | 'redis' | 'reserva_alheia'
+/**
+ * Por que o processador pediu para adiar: o teto do minuto, o Redis de fila fora, a reserva de outro processo ainda vigente, o horário letivo da escola (o lote não urgente que voltou dentro dele) ou o provedor de IA
+ * (balde de tokens cheio, disjuntor aberto, provedor fora).
+ */
+export type MotivoDoAdiamento = 'limite' | 'redis' | 'reserva_alheia' | 'janela' | 'provedor'
 
 /**
  * O processador não pôde fazer o trabalho **agora**, e isso não é falha: o `JobExecutor` devolve o job à espera da fila, libera a vaga da

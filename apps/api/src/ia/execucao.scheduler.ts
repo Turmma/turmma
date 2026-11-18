@@ -8,7 +8,7 @@ import {
   type SuspensaoDeFuncao,
   type DatabaseTransaction,
 } from '@educa/core'
-import { ErrorCode, execucaoInputSchema, TIPO_EXECUTAR_IA, type ExecucaoInput, type ExecucaoAceitaResponse, type TarefaDeIa } from '@educa/shared'
+import { ErrorCode, execucaoInputSchema, InvariantException, TIPO_EXECUTAR_IA, type ExecucaoInput, type ExecucaoAceitaResponse, type TarefaDeIa } from '@educa/shared'
 import { copiarContextoDeQuemPede } from './execucao-context.js'
 import { ExecucaoDaSessaoRepository } from './execucao.repository.js'
 import type { RegistroDeComandos } from './registro-de-comandos.js'
@@ -54,6 +54,9 @@ export class ExecucaoScheduler {
   async agendar(pedido: ExecucaoComComando): Promise<ExecucaoAceitaResponse> {
     // A tarefa, a função e a fila são as do comando. Sem comando registrado, o `de` lança antes de gravar.
     const comando = this.comandos.de(pedido.comando)
+    // A fila `lote` é da rotina (a classificação do material): nenhuma requisição a pede, e o job dela é `ia.executar-lote`, gravado por quem cria a execução sem pessoa.
+    if (comando.fila === 'lote') throw new InvariantException('a tarefa do lote não se agenda por requisição')
+    const fila = comando.fila
     requireEscolaId()
     // Quem pede precisa estar no contexto (escola, pessoa e ano): a execução grava `solicitada_por` e o ano da requisição.
     copiarContextoDeQuemPede()
@@ -72,7 +75,7 @@ export class ExecucaoScheduler {
       const nova = await execucoes.gravarPendente(comando.tarefa, pedido.chaveEnvio, entradaDaExecucao)
       if (nova !== undefined) {
         await pedido.aoGravar?.(tx, nova)
-        await this.fila.enfileirarUmaVez(tx, TIPO_EXECUTAR_IA, { execucaoId: nova }, nova, { fila: comando.fila })
+        await this.fila.enfileirarUmaVez(tx, TIPO_EXECUTAR_IA, { execucaoId: nova }, nova, { fila })
         return nova
       }
       // A chave entrou entre a leitura e a gravação (o clique duplo em paralelo). Se foi por esta pessoa, é o reenvio: a mesma execução, que já tem o job

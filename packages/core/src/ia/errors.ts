@@ -31,15 +31,34 @@ export const LLM_ERROR_CODES = [
 ] as const
 export type LLMErrorCode = (typeof LLM_ERROR_CODES)[number]
 
+/**
+ * Por que a chamada terminou `IA_INDISPONIVEL`, para quem decide se tenta de novo (a execução do lote, que adia em vez de falhar):
+ * - `soberania`: a D62 recusou o envio (provedor não conferido). É definitivo: esperar não muda a conferência, e a execução termina `falhou`;
+ * - `sem_vaga`: o balde de tokens da fila estava cheio e a espera da vaga acabou, **antes** de a chamada sair; `tenteDeNovoEmSegundos` diz quando o balde libera;
+ * - `disjuntor`: o disjuntor do modelo estava aberto e a chamada nem saiu;
+ * - ausente: o provedor falhou (5xx, rede, 429 que não cedeu) e **a chamada pode ter saído**.
+ * Só os dois do meio garantem que nada foi enviado.
+ */
+export type MotivoDaIndisponibilidade = 'soberania' | 'sem_vaga' | 'disjuntor'
+
 /** Como o `DomainException`, não tem texto livre: não há onde levar prompt, resposta de modelo ou nome. */
 export class LLMError extends DomainException {
   /** O mesmo `codigo`, com o tipo restrito aos da camada de IA. */
   readonly codigoDeIa: LLMErrorCode
 
-  constructor(codigoDeIa: LLMErrorCode, tenteDeNovoEmSegundos?: number) {
+  constructor(
+    codigoDeIa: LLMErrorCode,
+    tenteDeNovoEmSegundos?: number,
+    readonly motivo?: MotivoDaIndisponibilidade,
+  ) {
     super(codigoDeIa, undefined, tenteDeNovoEmSegundos)
     this.name = 'LLMError'
     this.codigoDeIa = codigoDeIa
+  }
+
+  /** `true` quando a chamada com certeza não saiu: o balde cheio e o disjuntor aberto. O provedor que falhou depois de a chamada sair não é. */
+  get semEnvio(): boolean {
+    return this.motivo === 'sem_vaga' || this.motivo === 'disjuntor'
   }
 }
 

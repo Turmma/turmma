@@ -31,13 +31,13 @@
   - [x] 3.5 A AIA revista; a conferência do lote retido pelo professor no `TODO.md`
   - [x] 3.6 Testes: sondas de saída (c1), prompt, checks, governança, medidor
 
-- [ ] **4.0 — A classificação roda no worker, fora da janela letiva, e grava as habilidades da seção**
-  - [ ] 4.1 O job `ia.executar-lote` na fila `lote`, com a vaga por escola
-  - [ ] 4.2 O processador com `quemPediu` ausente só em `daRotina`, a janela e a suspensão
-  - [ ] 4.3 O comando: `preparar` só com seções vivas, `concluir` com as releituras
-  - [ ] 4.4 A degradação do lote e `falhas_seguidas`
-  - [ ] 4.5 Consumo, métrica e log
-  - [ ] 4.6 Testes: caminho feliz, janela, balde e disjuntor, reentrega, P1a, P4, P4b
+- [x] **4.0 — A classificação roda no worker, fora da janela letiva, e grava as habilidades da seção**
+  - [x] 4.1 O job `ia.executar-lote` na fila `lote`, com a vaga por escola
+  - [x] 4.2 O processador com `quemPediu` ausente só em `daRotina`, a janela e a suspensão
+  - [x] 4.3 O comando: `preparar` só com seções vivas, `concluir` com as releituras
+  - [x] 4.4 A degradação do lote e `falhas_seguidas`
+  - [x] 4.5 Consumo, métrica e log
+  - [x] 4.6 Testes: caminho feliz, janela, balde e disjuntor, reentrega, P1a, P4, P4b
 
 - [ ] **5.0 — A classificação é agendada na extração e às 19h, e o atraso vira alerta**
   - [ ] 5.1 As execuções e os jobs na extração

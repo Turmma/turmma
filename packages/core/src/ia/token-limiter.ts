@@ -3,10 +3,10 @@ import { RateLimiterMemory, RateLimiterRedis, RateLimiterRes } from 'rate-limite
 import { insuranceLimit, JANELA_LIMITE_SEGUNDOS } from '../rate-limit/keys.js'
 
 /**
- * A fila de onde o pedido vem. A `interativa` é o Tutor com o aluno esperando; a `ferramenta`, o professor esperando; a `normal`, o resto (o Analista).
+ * A fila de onde o pedido vem. A `interativa` é o Tutor com o aluno esperando; a `ferramenta`, o professor esperando; a `normal`, o resto (o Analista); o `lote`, o trabalho da noite sem ninguém esperando (a classificação do material).
  * O mesmo nome das filas da IA (`apps/api/src/ia/execucao-command.ts`): o limitador só precisa saber em qual balde reservar antes.
  */
-export type FilaDeTokens = 'interativa' | 'ferramenta' | 'normal'
+export type FilaDeTokens = 'interativa' | 'ferramenta' | 'normal' | 'lote'
 
 /** O balde geral de cada `provedor:modelo`: 80 % do contratado (`LLM_TOKENS_POR_MINUTO`), a folga que a regra 80, item 4, pede abaixo do contratado. */
 export const PARTE_DO_BALDE_GERAL = 0.8
@@ -15,10 +15,14 @@ export const PARTE_DO_BALDE_DA_FERRAMENTA = 0.15
 /** A `normal` reserva antes num balde de 10 % do contratado: o "até metade" do geral que o RF7 dá ao que não é do Tutor nem da ferramenta. */
 export const PARTE_DO_BALDE_DA_NORMAL = 0.1
 
+/** O `lote` reserva antes num balde de 5 % do contratado: a classificação noturna nunca leva o que a ferramenta e o Tutor esperam (classificacao-bncc, Tech Spec §7c). */
+export const PARTE_DO_BALDE_DO_LOTE = 0.05
+
 /** O prefixo de cada balde no Redis. A chave final é `{prefixo}:{provedor:modelo}`: nenhum id de escola, de aluno ou de execução entra nela. */
 export const PREFIXO_DO_BALDE_GERAL = 'ia:tok'
 export const PREFIXO_DO_BALDE_DA_FERRAMENTA = 'ia:tok:ferramenta'
 export const PREFIXO_DO_BALDE_DA_NORMAL = 'ia:tok:normal'
+export const PREFIXO_DO_BALDE_DO_LOTE = 'ia:tok:lote'
 
 /** Uma reserva concedida. O uso real só chega depois da chamada: `acertar` troca a estimativa por ele. */
 export interface ReservaDeTokens {
@@ -81,7 +85,7 @@ function criarBalde(cliente: Redis, prefixo: string, pontos: number, replicas: n
  * sair e acertada pelo uso real depois.
  *
  * - **O balde geral** de cada `provedor:modelo` tem 80 % do contratado e vale para toda fila.
- * - **A `ferramenta` e a `normal`** reservam antes num balde só delas (15 % e 10 %), e o devolvem (`reward`) se o geral recusar. Cheio o balde da fila, quem
+ * - **A `ferramenta`, a `normal` e o `lote`** reservam antes num balde só delas (15 %, 10 % e 5 %), e o devolvem (`reward`) se o geral recusar. Cheio o balde da fila, quem
  *   espera é ela, e o Tutor, que só olha o geral, segue.
  * - **Com o Redis fora** (cliente não pronto, ou comando que falha), cada réplica conta sozinha em memória com o teto dividido por `IA_REPLICAS`: nunca libera
  *   sem teto e nunca devolve erro por causa do Redis.
@@ -102,6 +106,7 @@ export class TokenLimiter implements LimiteDeTokens {
     this.#filas = {
       ferramenta: criarBalde(cliente, PREFIXO_DO_BALDE_DA_FERRAMENTA, parte(PARTE_DO_BALDE_DA_FERRAMENTA), opcoes.replicas),
       normal: criarBalde(cliente, PREFIXO_DO_BALDE_DA_NORMAL, parte(PARTE_DO_BALDE_DA_NORMAL), opcoes.replicas),
+      lote: criarBalde(cliente, PREFIXO_DO_BALDE_DO_LOTE, parte(PARTE_DO_BALDE_DO_LOTE), opcoes.replicas),
     }
   }
 

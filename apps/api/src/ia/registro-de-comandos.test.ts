@@ -24,32 +24,43 @@ function arquivosDeProducao(pasta: string): string[] {
  * comando que sai de um módulo (ou que nunca entrou) aparece aqui. Sem a montagem ou sem comando achado, é o alvo que sumiu: lança.
  */
 async function tarefasRegistradasPelosModulos(raiz: string): Promise<TarefaDeIa[]> {
+  return (await comandosRegistradosPelosModulos(raiz)).map((comando) => comando.tarefa)
+}
+
+/** O mesmo que `tarefasRegistradasPelosModulos`, com o que cada comando declara de `daRotina` (rodar sem pessoa e sem ano). */
+async function comandosRegistradosPelosModulos(raiz: string): Promise<Array<{ tarefa: TarefaDeIa; daRotina: boolean }>> {
   const arquivos = arquivosDeProducao(raiz)
   const classes = arquivos
     .filter((arquivo) => arquivo.endsWith('montar-comandos.ts'))
     .flatMap((arquivo) => [...readFileSync(arquivo, 'utf8').matchAll(/comRegistro\(\s*\w+\s*,\s*new\s+(\w+)\(/gu)].map((achado) => achado[1] as string))
   if (classes.length === 0) throw new Error('nenhum módulo registra comando')
-  const tarefas: TarefaDeIa[] = []
+  const comandos: Array<{ tarefa: TarefaDeIa; daRotina: boolean }> = []
   for (const classe of classes) {
     const arquivo = arquivos.find((candidato) => candidato.endsWith('.command.ts') && new RegExp(`export class ${classe}\\b`, 'u').test(readFileSync(candidato, 'utf8')))
     if (arquivo === undefined) throw new Error(`o comando ${classe} não está em nenhum *.command.ts`)
-    const modulo = (await import(pathToFileURL(arquivo).href)) as Record<string, new () => { readonly tarefa: { readonly nome: TarefaDeIa } }>
+    const modulo = (await import(pathToFileURL(arquivo).href)) as Record<string, new () => { readonly tarefa: { readonly nome: TarefaDeIa }; readonly daRotina?: boolean }>
     const Comando = modulo[classe]
     if (Comando === undefined) throw new Error(`o arquivo do comando ${classe} não o exporta`)
     // Os construtores só guardam o que recebem: a tarefa é da classe, e não do banco.
-    tarefas.push(new Comando().tarefa.nome)
+    const comando = new Comando()
+    comandos.push({ tarefa: comando.tarefa.nome, daRotina: comando.daRotina === true })
   }
-  return tarefas
+  return comandos
 }
 
 describe('o registro de comandos de IA', () => {
   it('toda tarefa do catálogo que alguém chama tem o comando que um módulo registra, e só a que ninguém chama fica sem', async () => {
     const registradas = await tarefasRegistradasPelosModulos(RAIZ_DA_API)
     expect(tarefasSemComando(registradas)).toEqual([])
-    expect([...registradas].sort()).toEqual(['adaptar_atividade', 'gerar_atividade_objetiva', 'gerar_plano_de_aula', 'propor_ferramenta', 'resumo_do_analista', 'turno_do_tutor'])
+    expect([...registradas].sort()).toEqual(['adaptar_atividade', 'classificar_secoes', 'gerar_atividade_objetiva', 'gerar_plano_de_aula', 'propor_ferramenta', 'resumo_do_analista', 'turno_do_tutor'])
     expect(TAREFAS_DE_IA.filter((tarefa) => !registradas.includes(tarefa))).toEqual(TAREFAS_SEM_CHAMADOR)
     // A conferência não é "vazia por padrão": tirar um registro deixa a tarefa descoberta.
     expect(tarefasSemComando(registradas.filter((tarefa) => tarefa !== 'turno_do_tutor'))).toEqual(['turno_do_tutor'])
+  })
+
+  it('só a classificação roda sem pessoa: um comando novo que declare `daRotina` reprova aqui até alguém discutir que ele pode rodar sem autor humano', async () => {
+    const daRotina = (await comandosRegistradosPelosModulos(RAIZ_DA_API)).filter((comando) => comando.daRotina).map((comando) => comando.tarefa)
+    expect(daRotina).toEqual(['classificar_secoes'])
   })
 
   it('o alvo que some reprova em vez de passar em branco: registro vazio, catálogo vazio e pasta sem a montagem', async () => {
@@ -72,10 +83,10 @@ describe('o registro de comandos de IA', () => {
     expect(registro.tarefas()).toEqual(['turno_do_tutor'])
   })
 
-  it('as exceções são duas, e ficam de fora porque ninguém as chama: nenhum arquivo da API usa o `relatorio_da_correcao` nem o `classificar_secoes` (a rotina dele chega na 4.0, e ele sai da lista com o comando)', () => {
-    expect(TAREFAS_SEM_CHAMADOR).toEqual(['relatorio_da_correcao', 'classificar_secoes'])
+  it('a exceção é uma, e fica de fora porque ninguém a chama: nenhum arquivo da API usa o `relatorio_da_correcao`; o `classificar_secoes` saiu da lista com o comando da 4.0, e o comando dele é o único arquivo que o cita', () => {
+    expect(TAREFAS_SEM_CHAMADOR).toEqual(['relatorio_da_correcao'])
     const comChamador = arquivosDeProducao(RAIZ_DA_API).filter(
-      (arquivo) => !arquivo.endsWith('registro-de-comandos.ts') && /relatorio_da_correcao|relatorioDaCorrecao|classificar_secoes|classificarSecoes/u.test(readFileSync(arquivo, 'utf8')),
+      (arquivo) => !arquivo.endsWith('registro-de-comandos.ts') && /relatorio_da_correcao|relatorioDaCorrecao/u.test(readFileSync(arquivo, 'utf8')),
     )
     expect(comChamador).toEqual([])
   })

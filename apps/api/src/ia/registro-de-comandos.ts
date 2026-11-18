@@ -39,10 +39,9 @@ export function comRegistro<Comando extends ExecucaoCommand<unknown, unknown, un
  * regra, e o relatório que o professor vê é montado sem modelo), e por isso não tem comando. Tarefa que ganha chamador sai desta
  * lista e ganha comando no mesmo commit.
  *
- * O `classificar_secoes` está aqui **até a tarefa 4.0** da classificacao-bncc: a tarefa e a função existem desde a 3.0, mas quem a chama é a rotina
- * noturna (job da fila `lote`, sem pessoa nem requisição), que só chega na 4.0. Ela sai desta lista no commit que registra o comando.
+ * O `classificar_secoes` já não está aqui: a 4.0 da classificacao-bncc registrou o comando dele (`ClassificarSecoesCommand`, da rotina: job da fila `lote`, sem pessoa nem requisição).
  */
-export const TAREFAS_SEM_CHAMADOR: readonly TarefaDeIa[] = ['relatorio_da_correcao', 'classificar_secoes']
+export const TAREFAS_SEM_CHAMADOR: readonly TarefaDeIa[] = ['relatorio_da_correcao']
 
 /**
  * As tarefas do catálogo que o registro dado não cobre, fora as que ninguém chama. A lista de tarefas vazia, ou o registro vazio,

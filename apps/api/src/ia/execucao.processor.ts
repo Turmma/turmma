@@ -2,24 +2,31 @@ import { randomUUID } from 'node:crypto'
 import {
   currentContext,
   DomainException,
+  estaNaJanela,
   exigirFuncaoAtiva,
+  JobAdiadoError,
   JobFailureError,
   LLMError,
+  MEIO_ABRE_O_DISJUNTOR_EM_MS,
   PRAZO_DA_EXECUCAO_MS,
+  proximaAbertura,
   requireEscolaId,
   runInContext,
   summarizeError,
+  type Clock,
   type Database,
   type DestinoDoAdaptador,
+  type JanelaLetiva,
   type JobExecution,
   type JobProcessor,
   type LLMProvider,
   type LoggerBase,
   type Meter,
+  type OperationalSettings,
   type RequestContext,
   type SuspensaoDeFuncao,
 } from '@educa/core'
-import { ErrorCode, InvariantException, JobFailureCode, resultadoGravadoSchema, type ResultadoGravado } from '@educa/shared'
+import { ErrorCode, InvariantException, JobFailureCode, resultadoGravadoSchema, type ResultadoGravado, type TIPO_EXECUTAR_IA, type TIPO_EXECUTAR_LOTE } from '@educa/shared'
 import type { ComandoExecutavel, GravadorDaConclusao } from './execucao-command.js'
 import { ConsumoRepository } from './consumo.repository.js'
 import { ESPERA_MAXIMA_DA_INTERATIVA_SEGUNDOS, ExecucaoDaSessaoRepository, ExecucaoRepository, type ExecucaoParaIniciar } from './execucao.repository.js'
@@ -40,6 +47,10 @@ export interface ExecucaoProcessorDependencies {
   readonly medidor: Meter
   /** O prazo único de cada perfil. Só o teste troca, para ver o estouro sem esperar 140 s. */
   readonly prazo?: FabricaDePrazo
+  /** O horário letivo da escola do contexto: o job do `lote` que volta dentro dele é adiado até o fim (a classificação nunca roda com a escola em aula, regra 80, item 2). */
+  readonly janelaDaEscola: Pick<OperationalSettings<JanelaLetiva>, 'daEscola'>
+  /** O relógio da janela. Só o teste o troca, para pôr o job às 7h05 sem esperar. */
+  readonly relogio: Clock
 }
 
 /** A conclusão achou a execução já encerrada (a varredura, o prazo): o que o comando gravou foi desfeito, e não há falha a gravar. */
@@ -69,6 +80,11 @@ function duracaoDesde(inicio: number): number {
  *    dos tokens, as duas tentativas e o degrau. Estourado pelo próprio sinal, grava `falhou IA_TEMPO_ESGOTADO`. O abort do job
  *    (desligamento do worker, `prazoMs` do tipo) **não grava**: a reentrega decide.
  * 5. **Log só com ids, tarefa e código** (regra 20, item 9): nunca a mensagem do provedor nem a entrada.
+ *
+ * **O `lote`** (classificacao-bncc, 4.0; Tech Spec §5): o comando da fila `lote` é da rotina, e o mesmo processador o roda em `ia.executar-lote`, com quatro diferenças. (a) Sem pessoa nem ano: só o comando `daRotina` roda com
+ * `quemPediu` ausente, lendo a execução por `paraExecutarDaRotina`. (b) **Antes de `rodando`**, confere a janela letiva (dentro dela, `JobAdiadoError` até a abertura, motivo `janela`, sem modelo e sem transição) e a
+ * suspensão da função (suspensa, `pendente → falhou FUNCAO_SUSPENSA`, sem modelo). (c) O provedor que não atendeu (`IA_INDISPONIVEL` que não é recusa de soberania: balde cheio, disjuntor aberto, provedor fora) **não falha**: a
+ * execução volta a `pendente` e o job é adiado (`provedor`), sem gastar tentativa. (d) Passando a `falhou`, o gancho do comando roda **na mesma transação**, para somar `falhas_seguidas`.
  */
 export class ExecucaoProcessor {
   readonly #metricas: MetricasDaExecucao
@@ -78,7 +94,7 @@ export class ExecucaoProcessor {
   }
 
   /** O processador de `JobExecutor`, ligado a `ia.executar`. */
-  readonly processar: JobProcessor<'ia.executar'> = async ({ execucaoId }, _execucao: JobExecution, sinalDoJob?: AbortSignal) => {
+  readonly processar: JobProcessor<typeof TIPO_EXECUTAR_IA> & JobProcessor<typeof TIPO_EXECUTAR_LOTE> = async ({ execucaoId }, _execucao: JobExecution, sinalDoJob?: AbortSignal) => {
     const { banco, logger } = this.dependencias
     const escolaId = requireEscolaId()
     const execucoes = new ExecucaoRepository(banco)
@@ -90,7 +106,19 @@ export class ExecucaoProcessor {
     }
     // O comando é o da tarefa que a linha diz ter; sem comando registrado, é defeito de montagem e a execução falha em vez de ficar `rodando`.
     const comando = this.#comandoDe(lida.tarefa)
-    if (!(await this.#comecar(execucoes, execucaoId, escolaId, lida, comando))) return
+    if (!(await this.#podeComecar(execucoes, execucaoId, escolaId, lida, comando))) return
+    await this.#executar(comando, lida, execucaoId, escolaId, sinalDoJob)
+  }
+
+  /** O que vem antes do `rodando`: o `lote` confere a janela e a suspensão, e todos passam pelo `pendente → rodando`. */
+  async #podeComecar(execucoes: ExecucaoRepository, execucaoId: string, escolaId: string, lida: ExecucaoParaIniciar, comando: ComandoExecutavel | undefined): Promise<boolean> {
+    if (comando?.fila === 'lote' && (await this.#antesDeRodarOLote(execucoes, execucaoId, escolaId, lida, comando))) return false
+    return this.#comecar(execucoes, execucaoId, escolaId, lida, comando)
+  }
+
+  /** A chamada ao modelo, sob o prazo único da execução; a falha vai a `#aoFalhar`. */
+  async #executar(comando: ComandoExecutavel | undefined, lida: ExecucaoParaIniciar, execucaoId: string, escolaId: string, sinalDoJob: AbortSignal | undefined): Promise<void> {
+    const { logger } = this.dependencias
     const inicio = performance.now()
     const prazo = (this.dependencias.prazo ?? prazoPorTemporizador)(PRAZO_DA_EXECUCAO_MS[comando?.perfil ?? 'padrao'])
     const sinal = sinalDoJob === undefined ? prazo.sinal : AbortSignal.any([sinalDoJob, prazo.sinal])
@@ -101,10 +129,40 @@ export class ExecucaoProcessor {
       const tipo = lida.tarefa
       logger.info({ evento: 'ia.execucao.concluida', execucaoId, escolaId, tipo, duracaoMs })
     } catch (erro) {
-      await this.#aoFalhar(erro, { execucaoId, escolaId, tipo: lida.tarefa, inicio, sinalDoJob, prazo: prazo.sinal })
+      await this.#aoFalhar(erro, { execucaoId, escolaId, tipo: lida.tarefa, inicio, sinalDoJob, prazo: prazo.sinal, comando })
     } finally {
       prazo.cancelar()
     }
+  }
+
+  /**
+   * O que o `lote` confere **antes** de a execução passar a `rodando`, nesta ordem: a janela letiva da escola (dentro dela o job é adiado até a abertura, `JobAdiadoError` com motivo `janela`, e a execução segue `pendente`: nenhum
+   * modelo, nenhuma transição) e a suspensão da função (suspensa, `pendente → falhou FUNCAO_SUSPENSA`, sem modelo e sem consumo). `true` quando o processador deve parar aqui; a janela lança, e a suspensão devolve `true`.
+   */
+  async #antesDeRodarOLote(execucoes: ExecucaoRepository, execucaoId: string, escolaId: string, lida: ExecucaoParaIniciar, comando: ComandoExecutavel): Promise<boolean> {
+    const { janelaDaEscola, relogio, suspensao, logger } = this.dependencias
+    // Só a execução `pendente` espera pela janela: a que já terminou, ou está `rodando`, segue para o `#comecar` e para a reentrega.
+    if (lida.estado !== 'pendente') return false
+    const janela = await janelaDaEscola.daEscola()
+    const agora = relogio.agora()
+    if (estaNaJanela(janela, agora)) {
+      const esperaMs = Math.max(1, proximaAbertura(janela, agora).getTime() - agora.getTime())
+      const tipo = lida.tarefa
+      logger.info({ evento: 'ia.execucao.adiada_pela_janela', execucaoId, escolaId, tipo, esperaMs })
+      throw new JobAdiadoError(esperaMs, 'janela')
+    }
+    try {
+      await exigirFuncaoAtiva(suspensao, comando.funcao)
+    } catch (erro) {
+      const codigo = erro instanceof DomainException ? erro.codigo : ErrorCode.ERRO_INTERNO
+      // Quem a suspensão não alcançou (a leitura da suspensão que falhou) não termina a execução: o job falha e a reentrega decide.
+      if (codigo !== ErrorCode.FUNCAO_SUSPENSA) throw erro
+      await execucoes.falharPendente(execucaoId, ErrorCode.FUNCAO_SUSPENSA)
+      const tipo = lida.tarefa
+      logger.warn({ evento: 'ia.execucao.falhou', execucaoId, escolaId, tipo, codigo })
+      return true
+    }
+    return false
   }
 
   /**
@@ -172,18 +230,17 @@ export class ExecucaoProcessor {
 
   /** No contexto de quem pediu: a suspensão se confere de novo, a execução da sessão se relê, e o comando roda. */
   async #rodar(comando: ComandoExecutavel, lida: ExecucaoParaIniciar, execucaoId: string, escolaId: string, sinal: AbortSignal): Promise<void> {
-    if (lida.quemPediu === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+    // Só o comando da rotina (a classificação do material) roda sem pessoa nem ano: nos outros, a pessoa ausente (desativada, eliminada) ou o ano virado é `NAO_ENCONTRADO`.
+    if (lida.quemPediu === undefined && !comando.daRotina) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     const contexto: RequestContext = {
       requisicaoId: currentContext()?.requisicaoId ?? randomUUID(),
       escolaId,
-      usuarioId: lida.quemPediu.usuarioId,
-      papel: lida.quemPediu.papel,
-      anoLetivoId: lida.quemPediu.anoLetivoId,
+      ...(lida.quemPediu === undefined ? {} : { usuarioId: lida.quemPediu.usuarioId, papel: lida.quemPediu.papel, anoLetivoId: lida.quemPediu.anoLetivoId }),
     }
     await runInContext(contexto, async () => {
       // A suspensão se confere de novo: quem suspendeu a função depois do `202` não gasta busca de material nem modelo.
       await exigirFuncaoAtiva(this.dependencias.suspensao, comando.funcao)
-      const paraRodar = await new ExecucaoDaSessaoRepository(this.dependencias.banco).paraExecutar(execucaoId)
+      const paraRodar = comando.daRotina ? await new ExecucaoRepository(this.dependencias.banco).paraExecutarDaRotina(execucaoId) : await new ExecucaoDaSessaoRepository(this.dependencias.banco).paraExecutar(execucaoId)
       if (paraRodar === undefined || paraRodar.tarefa !== comando.tarefa) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       await comando.executar(paraRodar, this.dependencias.ia, sinal, this.#gravador(execucaoId))
     })
@@ -200,30 +257,76 @@ export class ExecucaoProcessor {
       })
   }
 
-  async #aoFalhar(erro: unknown, { execucaoId, escolaId, tipo, inicio, sinalDoJob, prazo }: { execucaoId: string; escolaId: string; tipo: string; inicio: number; sinalDoJob: AbortSignal | undefined; prazo: AbortSignal }): Promise<void> {
+  async #aoFalhar(
+    erro: unknown,
+    { execucaoId, escolaId, tipo, inicio, sinalDoJob, prazo, comando }: { execucaoId: string; escolaId: string; tipo: string; inicio: number; sinalDoJob: AbortSignal | undefined; prazo: AbortSignal; comando: ComandoExecutavel | undefined },
+  ): Promise<void> {
     const { logger, banco } = this.dependencias
-    // O desligamento do worker e o prazo do job abortam o sinal do job, e não a execução: nada se grava, e a reentrega decide (6.0).
-    if (sinalDoJob?.aborted === true) {
-      logger.warn({ evento: 'ia.execucao.abortada', execucaoId, escolaId, tipo })
-      return
-    }
-    if (erro instanceof ExecucaoJaEncerrada) {
-      logger.warn({ evento: 'ia.execucao.encerrada_por_outro', execucaoId, escolaId, tipo })
+    if (this.#semFalhaParaGravar(erro, { execucaoId, escolaId, tipo, sinalDoJob })) return
+    // O lote não falha por causa do provedor: volta a `pendente` e o job é adiado (a execução que o prazo único estourou, não: `prazo.aborted` vale `IA_TEMPO_ESGOTADO`).
+    if (erro instanceof LLMError && adiavelNoLote(erro, comando, prazo)) {
+      await this.#adiarOLote(erro, { execucaoId, escolaId, tipo })
       return
     }
     // O prazo único estourou pelo próprio sinal: o gateway devolve `IA_TEMPO_ESGOTADO` (ou outro código, se a chamada cedeu antes), e o código é o do prazo.
-    const codigo = prazo.aborted ? ErrorCode.IA_TEMPO_ESGOTADO : erro instanceof DomainException ? erro.codigo : ErrorCode.ERRO_INTERNO
+    const codigo = codigoDaFalha(erro, prazo.aborted)
     // O erro tipado já diz tudo pelo código; o que não é tipado leva o resumo (nome e pilha, nunca a mensagem do provedor).
     const erroDoLog = erro instanceof LLMError || erro instanceof DomainException ? undefined : summarizeError(erro)
     const duracaoMs = duracaoDesde(inicio)
     logger.warn({ evento: 'ia.execucao.falhou', execucaoId, escolaId, tipo, codigo, duracaoMs, erro: erroDoLog })
-    // Sem conseguir gravar a falha, a linha fica `rodando` e a varredura a encerra.
-    await new ExecucaoRepository(banco)
-      .marcarFalhou(execucaoId, codigo)
+    // Sem conseguir gravar a falha, a linha fica `rodando` e a varredura a encerra. O gancho do comando (as `falhas_seguidas` da classificação) roda na mesma transação, e só se a execução passou a `falhou` agora.
+    await banco
+      .transaction(async (tx) => {
+        const passou = await new ExecucaoRepository(tx).marcarFalhou(execucaoId, codigo)
+        if (passou) await comando?.aoFalharDefinitivo?.(codigo, tx, execucaoId)
+        return passou
+      })
       .catch((erroAoGravar: unknown) => {
         // Só ids e o código: a mensagem do erro do banco não vai ao log (regra 20, item 9).
         logger.warn({ evento: 'ia.execucao.falha_nao_gravada', execucaoId, escolaId, codigo, erro: summarizeError(erroAoGravar) })
         return false
       })
   }
+
+  /** O que não grava falha nenhuma: o desligamento do worker e o prazo do job abortam o sinal do job, e não a execução (a reentrega decide, 6.0); e a execução que a varredura já encerrou. */
+  #semFalhaParaGravar(erro: unknown, { execucaoId, escolaId, tipo, sinalDoJob }: { execucaoId: string; escolaId: string; tipo: string; sinalDoJob: AbortSignal | undefined }): boolean {
+    const { logger } = this.dependencias
+    if (sinalDoJob?.aborted === true) {
+      logger.warn({ evento: 'ia.execucao.abortada', execucaoId, escolaId, tipo })
+      return true
+    }
+    if (erro instanceof ExecucaoJaEncerrada) {
+      logger.warn({ evento: 'ia.execucao.encerrada_por_outro', execucaoId, escolaId, tipo })
+      return true
+    }
+    return false
+  }
+
+  /**
+   * O provedor não atendeu o lote (balde cheio, disjuntor aberto, provedor fora): a execução volta a `pendente` e o job é adiado, **sem tentativa** (`JobAdiadoError`, motivo `provedor`). A espera é a que o balde disse
+   * (`tenteDeNovoEmSegundos`) ou, sem ela, a do meio-abre do disjuntor; o executor soma o jitter. Se o `update` não achou a execução `rodando` (a varredura a encerrou), não há o que adiar e o job termina.
+   */
+  async #adiarOLote(erro: LLMError, { execucaoId, escolaId, tipo }: { execucaoId: string; escolaId: string; tipo: string }): Promise<void> {
+    const { logger, banco } = this.dependencias
+    const voltou = await new ExecucaoRepository(banco).voltarAPendente(execucaoId).catch((erroAoGravar: unknown) => {
+      logger.warn({ evento: 'ia.execucao.volta_nao_gravada', execucaoId, escolaId, erro: summarizeError(erroAoGravar) })
+      return false
+    })
+    if (!voltou) return
+    const esperaMs = erro.tenteDeNovoEmSegundos === undefined ? MEIO_ABRE_O_DISJUNTOR_EM_MS : erro.tenteDeNovoEmSegundos * 1_000
+    const codigo = ErrorCode.IA_INDISPONIVEL
+    logger.warn({ evento: 'ia.execucao.adiada_pelo_provedor', execucaoId, escolaId, tipo, codigo, esperaMs })
+    throw new JobAdiadoError(esperaMs, 'provedor')
+  }
+}
+
+/** O lote que o provedor não atendeu (balde cheio, disjuntor aberto, provedor fora) espera; a soberania é recusa definitiva, e o prazo único estourado vale `IA_TEMPO_ESGOTADO`. */
+function adiavelNoLote(erro: LLMError, comando: ComandoExecutavel | undefined, prazo: AbortSignal): boolean {
+  return comando?.fila === 'lote' && !prazo.aborted && erro.codigoDeIa === ErrorCode.IA_INDISPONIVEL && erro.motivo !== 'soberania'
+}
+
+/** O prazo único estourou pelo próprio sinal: o código é o do prazo; senão, o do erro tipado, ou `ERRO_INTERNO`. */
+function codigoDaFalha(erro: unknown, prazoEstourou: boolean): ErrorCode {
+  if (prazoEstourou) return ErrorCode.IA_TEMPO_ESGOTADO
+  return erro instanceof DomainException ? erro.codigo : ErrorCode.ERRO_INTERNO
 }

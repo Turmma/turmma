@@ -176,6 +176,11 @@ describe('o main-worker só consome fila com a D62 conferida (RF9)', () => {
       WORKER_IA_POOL_INTERATIVA: '1',
       WORKER_IA_POOL_FERRAMENTA: '1',
       WORKER_IA_POOL_NORMAL: '1',
+      WORKER_IA_POOL_LOTE: '1',
+      JANELA_LETIVA_FUSO: 'America/Sao_Paulo',
+      JANELA_LETIVA_DIAS: '1,2,3,4,5',
+      JANELA_LETIVA_INICIO: '07:00',
+      JANELA_LETIVA_FIM: '18:00',
       ...ambienteDeIa,
     })
     return { ...base, banco: { ...base.banco, ...banco } }

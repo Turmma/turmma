@@ -61,8 +61,11 @@ type Degrau = (typeof DEGRAUS)[number]
 /**
  * O turno do Tutor nunca vai ao modelo menor (D36, regra 30, item 11): liberar pede a medida de risco à vida e a suíte de recusa de `docs/avaliacao-de-modelos.md`, e uma decisão
  * registrada. Sem vaga, ele termina `IA_INDISPONIVEL`, e quem responde é a regra fixa da D36 quando ela se aplica.
+ *
+ * A classificação do material também não desce a modelo menor **sem medida** (classificacao-bncc, Tech Spec §5, "Degradação do lote"): a taxa mínima de `docs/aia/diagnostico-por-habilidade.md` é
+ * medida no modelo do perfil, e o menor não a atingiu em lugar nenhum. Sem vaga, o lote espera: a execução volta a `pendente` e o job é adiado.
  */
-const TAREFAS_SEM_MODELO_MENOR: ReadonlySet<TarefaDeIa> = new Set<TarefaDeIa>(['turno_do_tutor'])
+const TAREFAS_SEM_MODELO_MENOR: ReadonlySet<TarefaDeIa> = new Set<TarefaDeIa>(['turno_do_tutor', 'classificar_secoes'])
 
 export const MOTIVO_MODELO_MENOR_SEM_PRECO =
   'LLM_MODELO_MENOR_<PERFIL> precisa de preço em PRECO_DOS_MODELOS (packages/core/src/ia/consumo.ts): sem preço o degrau do gateway gastaria sem a conta da D14, e o modelo real só entra com a D37'
@@ -230,6 +233,8 @@ export class LLMGateway implements LLMProvider {
       throw new LLMError('IA_ENTRADA_INVALIDA')
     }
     const entrada = lida.data
+    // O que o registro guarda da entrada: a própria, ou a forma reduzida que a tarefa declara (a classificação do material guarda só os ids das seções, nunca o texto da apostila).
+    const entradaDoRegistro: unknown = tarefa.entradaParaORegistro?.(entrada) ?? entrada
 
     // Função suspensa pela escola não executa nada: nem modelo, nem regra fixa, nem consulta de orçamento (D60).
     try {
@@ -259,14 +264,16 @@ export class LLMGateway implements LLMProvider {
       if (!(erro instanceof LLMError)) this.dependencias.logger?.warn({ evento: 'ia.geracao.erro_inesperado', erro: summarizeError(erro) })
       const medicao = this.medir(pedido, gasto, inicio, false)
       // O registro da falha é o melhor possível: se ele também falhar, o erro que sobe continua sendo o da chamada.
-      await this.dependencias.registro.registrar(this.consumo(pedido, medicao, { ...conteudo({ entrada }), estado: 'falhou', codigoDeErro: codigo })).catch(() => undefined)
+      // O lote adia o que não saiu (balde cheio, disjuntor aberto) e tenta de novo: a tentativa que nem chegou ao provedor não deixa linha de consumo (D14: a conta é do que foi enviado).
+      const adiavelSemEnvio = pedido.fila === 'lote' && erro instanceof LLMError && erro.semEnvio
+      if (!adiavelSemEnvio) await this.dependencias.registro.registrar(this.consumo(pedido, medicao, { ...conteudo({ entrada: entradaDoRegistro }), estado: 'falhou', codigoDeErro: codigo })).catch(() => undefined)
       this.avisar(pedido, codigo, inicio, gasto.tentativas)
       throw erro instanceof LLMError ? erro : new LLMError('IA_INDISPONIVEL')
     }
 
     const medicao = this.medir(pedido, gasto, inicio, fixa !== undefined)
     try {
-      await this.dependencias.registro.registrar(this.consumo(pedido, medicao, { ...conteudo({ entrada, saida }), estado: 'concluida' }))
+      await this.dependencias.registro.registrar(this.consumo(pedido, medicao, { ...conteudo({ entrada: entradaDoRegistro, saida }), estado: 'concluida' }))
     } catch {
       this.avisar(pedido, 'IA_INDISPONIVEL', inicio, gasto.tentativas)
       throw new LLMError('IA_INDISPONIVEL')
@@ -291,7 +298,7 @@ export class LLMGateway implements LLMProvider {
     const tipo = tarefa.nome
     const duracaoMs = Math.round(performance.now() - inicio)
     this.dependencias.logger?.warn({ evento: 'ia.geracao.soberania_recusada', tipo, codigo: 'IA_INDISPONIVEL', escolaId: pedido.escolaId, execucaoId: pedido.execucaoId, provedorId: envio.provedorId, duracaoMs })
-    throw new LLMError('IA_INDISPONIVEL')
+    throw new LLMError('IA_INDISPONIVEL', undefined, 'soberania')
   }
 
   /**
@@ -415,10 +422,12 @@ export class LLMGateway implements LLMProvider {
     const principal = this.dependencias.adaptador.modeloDoPerfil(tarefa.perfil)
     const limiteDaEspera = horaDoProcessoMs() + ESPERA_MAXIMA_DA_VAGA_MS
     let esperou = false
+    let msAteLiberar: number
     for (;;) {
       const resultado = await limite.reservar(this.chaveDoBalde(principal), estimativa, fila)
       this.anotarUsoDoTeto(principal, resultado.usoDoTeto)
       if (resultado.concedida) return { reserva: resultado.reserva }
+      msAteLiberar = resultado.msAteLiberar
       const restante = limiteDaEspera - horaDoProcessoMs()
       if (restante <= 0) break
       if (!esperou) {
@@ -427,10 +436,10 @@ export class LLMGateway implements LLMProvider {
       }
       await esperar(Math.min(Math.max(resultado.msAteLiberar, ESPERA_MINIMA_ENTRE_RESERVAS_MS), restante), pedido.sinal)
     }
-    return this.descerParaOMenor(pedido, estimativa, fila, limite)
+    return this.descerParaOMenor(pedido, estimativa, fila, limite, msAteLiberar)
   }
 
-  private async descerParaOMenor<Entrada, Saida>(pedido: GenerationRequest<Entrada, Saida>, estimativa: number, fila: NonNullable<GenerationRequest<Entrada, Saida>['fila']>, limite: LimiteDeTokens): Promise<Vaga> {
+  private async descerParaOMenor<Entrada, Saida>(pedido: GenerationRequest<Entrada, Saida>, estimativa: number, fila: NonNullable<GenerationRequest<Entrada, Saida>['fila']>, limite: LimiteDeTokens, msAteLiberar: number): Promise<Vaga> {
     const { tarefa } = pedido
     const menor = TAREFAS_SEM_MODELO_MENOR.has(tarefa.nome) ? undefined : this.dependencias.modelosMenores?.[tarefa.perfil]
     if (menor !== undefined) {
@@ -443,7 +452,8 @@ export class LLMGateway implements LLMProvider {
     }
     const modelo = menor ?? this.dependencias.adaptador.modeloDoPerfil(tarefa.perfil)
     this.descer('indisponivel', tarefa.nome, modelo)
-    throw new LLMError('IA_INDISPONIVEL')
+    // O balde diz quando libera: o lote adia o job por esse tempo (`tenteDeNovoEmSegundos`) em vez de falhar.
+    throw new LLMError('IA_INDISPONIVEL', Math.max(1, Math.ceil(msAteLiberar / 1_000)), 'sem_vaga')
   }
 
   /** O balde é do `provedor:modelo`: o modelo menor tem o seu, e dois provedores não dividem balde. */

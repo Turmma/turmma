@@ -2582,6 +2582,55 @@
           "range": true
         }
       ]
+    },
+    {
+      "id": 55,
+      "type": "timeseries",
+      "title": "Espera da classificação do material (p95), por escola",
+      "description": "Quanto o material espera entre o envio e a classificação da seção, em segundos (classificacao-bncc, tarefa 4.0): `classificada_em` menos `enviado_em`, uma observação por seção gravada pela execução. É o que diz se o lote da noite dá conta de uma escola que entra com 300 apostilas. Só a escola no rótulo: nunca o material, a seção, o título nem o código.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 179
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le, escola_id) (rate(material_classificacao_espera_seconds_bucket[1h])))",
+          "legendFormat": "{{escola_id}}",
+          "range": true
+        }
+      ]
     }
   ]
 }

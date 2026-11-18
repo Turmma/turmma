@@ -119,6 +119,11 @@ export const classificarSecoes = defineTask({
   levaTextoDeAluno: false,
   categoriasEnviadas: ['material_da_escola'],
 
+  /** O consumo guarda os ids das seções e a versão do prompt, e a saída (os códigos): nunca o título, o texto nem a lista de candidatas (Tech Spec §7). */
+  entradaParaORegistro(entrada) {
+    return { secoes: entrada.secoes.map((secao) => secao.secaoId), promptVersao: PROMPT_CLASSIFICAR_SECOES.versao }
+  },
+
   montarPedido(entrada) {
     return {
       instrucao: 'Classifique cada seção do material pela BNCC: devolva, para cada uma, de 0 a 3 códigos das habilidades candidatas que o texto dela sustenta, ou nenhum.',

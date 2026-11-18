@@ -34,6 +34,7 @@ export const TABELAS_DO_NUCLEO = [
   'eventoCalendario',
   'execucaoAgente',
   'expurgoExecucao',
+  'habilidadeBncc',
   'habilidadeDaSecao',
   'importacaoPlanilha',
   'incidente',

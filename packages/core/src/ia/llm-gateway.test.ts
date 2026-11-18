@@ -24,6 +24,8 @@ import { gerarAtividadeObjetiva } from './tasks/gerar-atividade-objetiva.js'
 import { proporFerramenta } from './tasks/propor-ferramenta.js'
 import { relatorioDaCorrecao } from './tasks/relatorio-da-correcao.js'
 import { turnoDoTutor } from './tasks/turno-do-tutor.js'
+import { classificarSecoes } from './tasks/classificar-secoes.js'
+import { PROMPT_CLASSIFICAR_SECOES } from './prompts/classificar-secoes.js'
 
 const EXECUCAO = '1d2e3f4a-5b6c-4d7e-8f90-a1b2c3d4e5f6'
 const PRAZOS = { rapido: 5_000, padrao: 5_000, complexo: 5_000, visao: 5_000 } as const
@@ -1023,6 +1025,83 @@ describe('LLMGateway: o limite de tokens e a degradação (49.0; RF7, RF8; regra
     expect(await valorDe(leitor, 'ia.degradacao', 'degrau', 'modelo_menor')).toBe(0)
     expect(await valorDe(leitor, 'ia.degradacao', 'degrau', 'indisponivel')).toBe(1)
     await leitor.encerrar()
+  })
+
+  describe('a classificação do material, do lote (classificacao-bncc, 4.0)', () => {
+    const SECAO = '0190f5a0-0000-7000-8000-0000000000a1'
+    const entradaDaClassificacao = () => ({
+      candidatas: [{ codigo: 'EF07MA01', descricao: 'Resolver problemas com números naturais, inteiros e racionais.' }],
+      secoes: [{ secaoId: SECAO, titulo: 'Capítulo secreto da apostila', comeco: 'Texto do começo que não vai ao consumo.', subtitulos: 'Subtítulo reservado' }],
+    })
+    const pedidoDoLote = () => ({ tarefa: classificarSecoes, entrada: entradaDaClassificacao(), escolaId: ESCOLA_A, execucaoId: EXECUCAO, fila: 'lote' as const })
+
+    it('balde `lote` cheio: termina IA_INDISPONIVEL com `sem_vaga` e a espera do balde, sem nem reservar o modelo menor, sem chamar o provedor e sem linha de consumo', async () => {
+      vi.useFakeTimers()
+      const limite = new LimiteDeMentira(7_200)
+      limite.fechados.add(PRINCIPAL_DO_RAPIDO)
+      const adaptador = new ScriptedAdapter([])
+      const { ia, consumo } = montar({ adaptador, limiteDeTokens: limite, modelosMenores: MENORES, soberania: CONFERIDA })
+      const resultado = erroDe(ia.gerar(pedidoDoLote()))
+      await vi.advanceTimersByTimeAsync(ESPERA_MAXIMA_DA_VAGA_MS)
+      const erro = await resultado
+      expect(erro.codigoDeIa).toBe('IA_INDISPONIVEL')
+      expect(erro.motivo).toBe('sem_vaga')
+      expect(erro.semEnvio).toBe(true)
+      expect(erro.tenteDeNovoEmSegundos).toBe(8)
+      expect(limite.modelosPedidos).not.toContain(MENOR_DO_RAPIDO)
+      expect(limite.pedidos.every((pedido) => pedido.fila === 'lote')).toBe(true)
+      expect(adaptador.chamadas).toBe(0)
+      expect(consumo.registros).toEqual([])
+    })
+
+    it('fora do lote, o balde cheio registra a linha da falha: só o lote adia sem consumo', async () => {
+      vi.useFakeTimers()
+      const limite = new LimiteDeMentira(7_200)
+      limite.fechados.add(PRINCIPAL_DO_RAPIDO)
+      const adaptador = new ScriptedAdapter([])
+      const { ia, consumo } = montar({ adaptador, limiteDeTokens: limite, soberania: CONFERIDA })
+      const resultado = erroDe(ia.gerar({ ...pedidoDoLote(), fila: 'normal' as const }))
+      await vi.advanceTimersByTimeAsync(ESPERA_MAXIMA_DA_VAGA_MS)
+      const erro = await resultado
+      expect(erro.codigoDeIa).toBe('IA_INDISPONIVEL')
+      expect(consumo.registros).toHaveLength(1)
+      expect(consumo.registros[0]).toMatchObject({ estado: 'falhou', codigoDeErro: 'IA_INDISPONIVEL' })
+    })
+
+    it('o provedor que falhou depois de a chamada sair não é `semEnvio`: o motivo fica vazio e a linha de consumo registra a falha', async () => {
+      const adaptador = new ScriptedAdapter([new LLMError('IA_INDISPONIVEL')])
+      const { ia, consumo } = montar({ adaptador, soberania: CONFERIDA })
+      const erro = await erroDe(ia.gerar(pedidoDoLote()))
+      expect(erro.codigoDeIa).toBe('IA_INDISPONIVEL')
+      expect(erro.motivo).toBeUndefined()
+      expect(erro.semEnvio).toBe(false)
+      expect(adaptador.chamadas).toBe(1)
+      expect(consumo.registros).toHaveLength(1)
+      expect(consumo.registros[0]).toMatchObject({ estado: 'falhou', funcao: 'classificacao_do_material', tarefa: 'classificar_secoes' })
+    })
+
+    it('o consumo guarda só os ids das seções e a versão do prompt, e a saída; nunca o título, o texto nem a lista de candidatas', async () => {
+      const { ia, consumo } = montar({ soberania: CONFERIDA })
+      await ia.gerar(pedidoDoLote())
+      const registro = consumo.registros[0]
+      expect(registro).toMatchObject({ estado: 'concluida', funcao: 'classificacao_do_material', tarefa: 'classificar_secoes' })
+      expect(registro?.entrada).toEqual({ secoes: [SECAO], promptVersao: PROMPT_CLASSIFICAR_SECOES.versao })
+      const texto = JSON.stringify(registro)
+      for (const proibido of ['Capítulo secreto', 'começo que não vai', 'Subtítulo reservado', 'Resolver problemas']) expect(texto).not.toContain(proibido)
+      expect(registro?.alunoId).toBeUndefined()
+    })
+
+    it('a classificação não desce a modelo menor nem com o menor configurado: a recusa é a mesma do balde cheio', async () => {
+      vi.useFakeTimers()
+      const limite = new LimiteDeMentira()
+      limite.fechados.add(PRINCIPAL_DO_RAPIDO)
+      const { ia } = montar({ adaptador: new ScriptedAdapter([]), limiteDeTokens: limite, modelosMenores: MENORES, soberania: CONFERIDA })
+      const resultado = erroDe(ia.gerar(pedidoDoLote()))
+      await vi.advanceTimersByTimeAsync(ESPERA_MAXIMA_DA_VAGA_MS)
+      expect((await resultado).codigoDeIa).toBe('IA_INDISPONIVEL')
+      expect(limite.modelosPedidos.length).toBeGreaterThan(0)
+      expect(limite.modelosPedidos.every((modelo) => modelo === PRINCIPAL_DO_RAPIDO)).toBe(true)
+    })
   })
 
   it('sem modelo menor configurado para o perfil, o degrau é pulado e a métrica dele não muda', async () => {

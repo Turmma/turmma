@@ -30,8 +30,8 @@ import type { JobRegistry, QueueName } from '@educa/shared'
 import { Worker } from 'bullmq'
 import { Redis } from 'ioredis'
 
-/** As filas que o worker de IA atende: o Tutor, as ferramentas e o Analista. Cada uma com o pool dela. */
-export const FILAS_DA_IA = ['interativa', 'ferramenta', 'normal'] as const satisfies readonly QueueName[]
+/** As filas que o worker de IA atende: o Tutor, as ferramentas, o Analista e a classificação do material (`lote`, classificacao-bncc 4.0). Cada uma com o pool dela. */
+export const FILAS_DA_IA = ['interativa', 'ferramenta', 'normal', 'lote'] as const satisfies readonly QueueName[]
 export type FilaDaIa = (typeof FILAS_DA_IA)[number]
 
 /** Quanto o SIGTERM espera os jobs em andamento terminarem antes de fechar à força; o `stop_grace_period` do compose é maior. */

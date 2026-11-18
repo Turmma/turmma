@@ -10,6 +10,7 @@ const CONTRATADO = 10_000
 const GERAL = 8_000
 const FERRAMENTA = 1_500
 const NORMAL = 1_000
+const LOTE = 500
 const MODELO = 'provedor:modelo'
 
 const clientes: Redis[] = []
@@ -62,6 +63,19 @@ describe('TokenLimiter: os baldes (49.0)', () => {
     expect((await limite.reservar(MODELO, 1, 'normal')).concedida).toBe(false)
     // O Tutor só olha o geral, que ainda tem 8 000 − 1 500 − 1 000.
     concedida(await limite.reservar(MODELO, GERAL - FERRAMENTA - NORMAL, 'interativa'))
+  })
+
+  it('o `lote` tem o balde de 5 %: no teto dele, espera, e a ferramenta, a `normal` e o Tutor seguem; o que ele reservou desconta do geral', async () => {
+    const limite = limitador()
+    concedida(await limite.reservar(MODELO, LOTE, 'lote'))
+    const recusada = await limite.reservar(MODELO, 1, 'lote')
+    expect(recusada.concedida).toBe(false)
+    if (!recusada.concedida) expect(recusada.msAteLiberar).toBeGreaterThan(0)
+    concedida(await limite.reservar(MODELO, FERRAMENTA, 'ferramenta'))
+    concedida(await limite.reservar(MODELO, NORMAL, 'normal'))
+    // O geral perdeu os 500 do lote, os 1 500 da ferramenta e os 1 000 da normal: sobram 5 000 para o Tutor, e 5 001 não cabem.
+    expect((await limite.reservar(MODELO, GERAL - LOTE - FERRAMENTA - NORMAL + 1, 'interativa')).concedida).toBe(false)
+    concedida(await limite.reservar(MODELO, GERAL - LOTE - FERRAMENTA - NORMAL, 'interativa'))
   })
 
   it('o balde da `ferramenta` cheio recusa sem consultar o geral: a recusa não traz o uso do teto, e o geral não gasta', async () => {

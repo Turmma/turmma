@@ -1,6 +1,7 @@
 import {
   InvalidConfigError,
   isEscolaConcurrencyLimitDisabled,
+  lerJanelaPadrao,
   lerVagasPadrao,
   loadDatabaseConfig,
   loadLLMConfig,
@@ -8,6 +9,7 @@ import {
   validateEnvironment,
   type ConcurrencyByQueue,
   type DatabaseConfig,
+  type JanelaLetiva,
   type LLMConfig,
   type TelemetryConfig,
 } from '@educa/core'
@@ -17,7 +19,7 @@ import { FILAS_DA_IA, type FilaDaIa } from './ia/worker-de-ia.js'
 export { InvalidConfigError }
 
 /**
- * Variável do pool de cada fila da IA: `WORKER_IA_POOL_INTERATIVA`, `WORKER_IA_POOL_FERRAMENTA`, `WORKER_IA_POOL_NORMAL`. Com prefixo próprio porque o
+ * Variável do pool de cada fila da IA: `WORKER_IA_POOL_INTERATIVA`, `WORKER_IA_POOL_FERRAMENTA`, `WORKER_IA_POOL_NORMAL`, `WORKER_IA_POOL_LOTE`. Com prefixo próprio porque o
  * `worker-interativo` lê `WORKER_POOL_INTERATIVA` e `WORKER_POOL_NORMAL` com outros valores (50 e 30), na mesma `.env`.
  */
 export function variavelDoPoolDaIa(fila: FilaDaIa): string {
@@ -36,6 +38,8 @@ export interface MainWorkerConfig {
   readonly pools: Readonly<Record<FilaDaIa, number>>
   /** Vagas por fila da escola sem vagas próprias (D41). */
   readonly vagasPadrao: ConcurrencyByQueue
+  /** O horário letivo de toda escola sem horário próprio (D41): o job do `lote` que volta dentro dele é adiado até o fim (classificacao-bncc, 4.0). */
+  readonly janelaPadrao: JanelaLetiva
   /** Só no controle negativo do cenário de carga; o boot recusa a flag com `AMBIENTE=producao`. */
   readonly vagasPorEscolaDesligadas?: true
   readonly telemetria: TelemetryConfig
@@ -61,9 +65,10 @@ export function loadWorkerConfig(ambiente: Record<string, string | undefined>): 
   const pools = ler(() => validateEnvironment(z.object(Object.fromEntries(FILAS_DA_IA.map((fila) => [variavelDoPoolDaIa(fila), inteiroPositivo]))), ambiente))
   const vagasPadrao = ler(() => lerVagasPadrao(ambiente))
   const vagasDesligadas = ler(() => isEscolaConcurrencyLimitDisabled(ambiente))
+  const janelaPadrao = ler(() => lerJanelaPadrao(ambiente))
   const telemetria = ler(() => loadTelemetryConfig(ambiente))
   const ia = ler(() => loadLLMConfig(ambiente))
-  if (banco === undefined || proprio === undefined || pools === undefined || vagasPadrao === undefined || vagasDesligadas === undefined || telemetria === undefined || ia === undefined) {
+  if (banco === undefined || proprio === undefined || pools === undefined || vagasPadrao === undefined || janelaPadrao === undefined || vagasDesligadas === undefined || telemetria === undefined || ia === undefined) {
     // Sem repetir: o `AMBIENTE` é lido pelo banco e de novo pela IA, que o usa para a trava de produção.
     throw new InvalidConfigError([...new Set(problemas.flatMap((erro) => erro.variaveis))].sort(), problemas.flatMap((erro) => erro.motivos))
   }
@@ -72,6 +77,7 @@ export function loadWorkerConfig(ambiente: Record<string, string | undefined>): 
     redisFilaUrl: proprio.REDIS_FILA_URL,
     pools: Object.fromEntries(FILAS_DA_IA.map((fila) => [fila, Number(pools[variavelDoPoolDaIa(fila)])])) as Record<FilaDaIa, number>,
     vagasPadrao,
+    janelaPadrao,
     ...(vagasDesligadas ? { vagasPorEscolaDesligadas: true as const } : {}),
     telemetria,
     ia,

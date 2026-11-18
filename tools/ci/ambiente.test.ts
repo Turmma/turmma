@@ -173,12 +173,14 @@ describe('.env.example e compose', () => {
       const variaveis = services[nome]?.environment ?? {}
       expect(services[nome]?.command, nome).toEqual(['node', 'dist/main-worker.js'])
       expect(variaveis['IA_REPLICAS'], nome).toMatch(/^\$\{IA_REPLICAS:\?/)
-      for (const fila of ['INTERATIVA', 'FERRAMENTA', 'NORMAL']) expect(variaveis[`WORKER_IA_POOL_${fila}`], `${nome} ${fila}`).toMatch(new RegExp(`^\\$\\{WORKER_IA_POOL_${fila}:\\?`))
+      for (const fila of ['INTERATIVA', 'FERRAMENTA', 'NORMAL', 'LOTE']) expect(variaveis[`WORKER_IA_POOL_${fila}`], `${nome} ${fila}`).toMatch(new RegExp(`^\\$\\{WORKER_IA_POOL_${fila}:\\?`))
+      // A janela letiva, para o lote da IA esperar o fim dela (a classificação do material).
+      for (const chave of ['JANELA_LETIVA_FUSO', 'JANELA_LETIVA_DIAS', 'JANELA_LETIVA_INICIO', 'JANELA_LETIVA_FIM']) expect(variaveis[chave], `${nome} ${chave}`).toMatch(new RegExp(`^\\$\\{${chave}:\\?`))
       // As variáveis do provedor só existem aqui e na API (que as valida): o `FILAS` do worker de jobs não vale para ele.
       expect(variaveis['FILAS'], nome).toBeUndefined()
     }
     expect(Number(ambiente['WORKER_IA_BANCO_POOL_MAXIMO'])).toBe(20)
-    const soma = ['INTERATIVA', 'FERRAMENTA', 'NORMAL'].reduce((total, fila) => total + Number(ambiente[`WORKER_IA_POOL_${fila}`]), 0)
+    const soma = ['INTERATIVA', 'FERRAMENTA', 'NORMAL', 'LOTE'].reduce((total, fila) => total + Number(ambiente[`WORKER_IA_POOL_${fila}`]), 0)
     // Nenhum job segura conexão durante o modelo: com o pool do banco igual à soma, a conta do §5 não valeria.
     expect(Number(ambiente['WORKER_IA_BANCO_POOL_MAXIMO'])).toBeLessThan(soma)
   })

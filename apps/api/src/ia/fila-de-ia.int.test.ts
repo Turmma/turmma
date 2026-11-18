@@ -1,4 +1,4 @@
-import { FOLGA_DO_PRAZO_MS, JobOutbox, JobOutboxRepository, PRAZO_DA_EXECUCAO_MS, gerarAtividadeObjetiva, proporFerramenta, currentContext, runInContext, turnoDoTutor, type DatabaseTransaction } from '@educa/core'
+import { FOLGA_DO_PRAZO_MS, JobOutbox, LLMError, JobOutboxRepository, PRAZO_DA_EXECUCAO_MS, gerarAtividadeObjetiva, proporFerramenta, currentContext, runInContext, turnoDoTutor, type DatabaseTransaction } from '@educa/core'
 import { ErrorCode, JOB_DEFINITIONS, TAREFAS_DE_IA, TIPO_EXECUTAR_IA, type ResultadoGravado } from '@educa/shared'
 import { Redis } from 'ioredis'
 import { randomUUID } from 'node:crypto'
@@ -238,11 +238,11 @@ describe('a IA roda no worker', () => {
     it('a IA não tem tarefa de discursiva nem de redação, e o catálogo e o registro que o worker consome não crescem por fora (D55)', () => {
       expect(TAREFAS_DE_IA.filter((tarefa) => /discursiv|redacao|pre_correcao|corrigir|nota/u.test(tarefa))).toEqual([])
       // O catálogo inteiro, fixo: uma tarefa nova (de texto de aluno, por exemplo) muda esta lista, e a mudança passa por revisão.
-      expect([...TAREFAS_DE_IA]).toEqual(['propor_ferramenta', 'gerar_atividade_objetiva', 'gerar_plano_de_aula', 'adaptar_atividade', 'turno_do_tutor', 'relatorio_da_correcao', 'resumo_do_analista'])
-      // O que o worker executa: os seis comandos de `montarComandos`, todos do catálogo, e nenhum fora dele.
+      expect([...TAREFAS_DE_IA]).toEqual(['propor_ferramenta', 'gerar_atividade_objetiva', 'gerar_plano_de_aula', 'adaptar_atividade', 'turno_do_tutor', 'relatorio_da_correcao', 'resumo_do_analista', 'classificar_secoes'])
+      // O que o worker executa: os sete comandos de `montarComandos`, todos do catálogo, e nenhum fora dele.
       const registro = new RegistroDeComandos()
       montarComandos(registro, {} as never, {} as never, {} as never, {} as never)
-      expect(registro.tarefas().sort()).toEqual(['adaptar_atividade', 'gerar_atividade_objetiva', 'gerar_plano_de_aula', 'propor_ferramenta', 'resumo_do_analista', 'turno_do_tutor'])
+      expect(registro.tarefas().sort()).toEqual(['adaptar_atividade', 'classificar_secoes', 'gerar_atividade_objetiva', 'gerar_plano_de_aula', 'propor_ferramenta', 'resumo_do_analista', 'turno_do_tutor'])
       expect(registro.tarefas().filter((tarefa) => !(TAREFAS_DE_IA as readonly string[]).includes(tarefa))).toEqual([])
     })
   })
@@ -626,6 +626,14 @@ describe('a IA roda no worker', () => {
       expect(JSON.stringify((await sql('select * from job_registro where dados ->> \'execucaoId\' = $1', [execucaoId])).rows)).not.toContain(segredo)
       expect(JSON.stringify((await sql('select * from execucao_agente where id = $1', [execucaoId])).rows)).not.toContain(segredo)
       expect(linhasDeLog.join('\n')).not.toContain(segredo)
+    })
+
+    it('o provedor indisponível numa ferramenta, que não é do lote, não adia: a execução falha com `IA_INDISPONIVEL` e o job termina', async () => {
+      fila.comModelo(() => Promise.reject(new LLMError('IA_INDISPONIVEL', 5, 'sem_vaga')))
+      const { execucaoId } = await agendar(fila, a, pedidoDe(a, 'propor_ferramenta'))
+      await fila.ociosa()
+      expect(await execucaoDe(execucaoId)).toMatchObject({ estado: 'falhou', erro: ErrorCode.IA_INDISPONIVEL })
+      expect((await jobsDa(execucaoId)).map((job) => job.estado)).toEqual(['concluido'])
     })
 
     it('o processador loga só ids, a tarefa e o código, nunca a entrada nem o nome de quem pediu', async () => {

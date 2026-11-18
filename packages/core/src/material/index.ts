@@ -11,3 +11,5 @@ export { chaveDoTemporario, PRAZO_DO_OBJETO_DO_MATERIAL_MS } from './temporario.
 export { EnvioDeMaterialRepository, ESPERA_MAXIMA_PELA_LINHA_DO_ENVIO_MS } from './envio-de-material.repository.js'
 export { VarreduraDoMaterialRepository } from './varredura.repository.js'
 export type { AlvoDaVarredura } from './varredura.repository.js'
+export { CARACTERES_DO_COMECO_DA_SECAO, CARACTERES_DOS_SUBTITULOS_DA_SECAO, CARACTERES_LIDOS_POR_PAGINA, cortarTexto, PAGINAS_LIDAS_POR_SECAO, textoDaSecao } from './texto-das-secoes.js'
+export type { TextoDaSecao } from './texto-das-secoes.js'

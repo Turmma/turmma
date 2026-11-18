@@ -1,4 +1,4 @@
-import { Heartbeat, SoberaniaNaSubida, type Database, type DatabasePool, type DestinoDoAdaptador, type LLMProvider, type LoggerBase, type Meter, type SuspensaoDeFuncao } from '@educa/core'
+import { Heartbeat, OperationalSettings, OperationalSettingsRepository, resolverJanela, SoberaniaNaSubida, systemClock, throttledWarn, type JanelaLetiva, type Database, type DatabasePool, type DestinoDoAdaptador, type LLMProvider, type LoggerBase, type Meter, type SuspensaoDeFuncao } from '@educa/core'
 import { Global, Inject, Module, type DynamicModule, type OnApplicationBootstrap, type OnApplicationShutdown } from '@nestjs/common'
 import { ComandosDeIaModule } from './ia/comandos-de-ia.module.js'
 import { DB, DB_POOL, DatabaseModule } from './database.module.js'
@@ -71,8 +71,13 @@ export class CicloDoWorkerDeIa implements OnApplicationBootstrap, OnApplicationS
 
   #consumir(): void {
     const { config, logger, medidor, batimento } = this.montagem
-    const processador = new ExecucaoProcessor({ banco: this.banco, ia: this.ia, comandos: this.comandos, suspensao: this.suspensao, destino: this.destino, logger, medidor })
-    this.#worker = criarWorkerDeIa(config, { banco: this.banco, pool: this.pool }, { 'ia.executar': processador.processar }, logger, { medidor })
+    // O horário letivo da escola, lido como o despachante e o worker comum o leem: o lote que volta dentro dele espera até o fim (regra 80, item 2).
+    const avisarJanelaDescartada = throttledWarn(() => logger.warn({ evento: 'worker_ia.janela_da_escola_invalida' }))
+    const janelaDaEscola = new OperationalSettings<JanelaLetiva>(new OperationalSettingsRepository(this.banco), (linha) => resolverJanela(config.janelaPadrao, linha, avisarJanelaDescartada), {
+      aoFalhar: throttledWarn(() => logger.warn({ evento: 'worker_ia.configuracao_indisponivel' })),
+    })
+    const processador = new ExecucaoProcessor({ banco: this.banco, ia: this.ia, comandos: this.comandos, suspensao: this.suspensao, destino: this.destino, logger, medidor, janelaDaEscola, relogio: systemClock })
+    this.#worker = criarWorkerDeIa(config, { banco: this.banco, pool: this.pool }, { 'ia.executar': processador.processar, 'ia.executar-lote': processador.processar }, logger, { medidor })
     this.#varredura.iniciar()
     batimento.bater()
     this.#pulso = setInterval(() => batimento.bater(), INTERVALO_DO_BATIMENTO_MS)
@@ -89,7 +94,7 @@ export class CicloDoWorkerDeIa implements OnApplicationBootstrap, OnApplicationS
 
 /**
  * O módulo do `main-worker` (X6, 5.0): o domínio da IA sem a API. Monta o banco, o provedor (`LLM_PROVIDER`, só aqui), os seis comandos
- * e o consumo das filas `api-interativa`, `api-ferramenta` e `api-normal`. Nenhum controller: o contexto de aplicação do Nest sobe sem
+ * e o consumo das filas `api-interativa`, `api-ferramenta`, `api-normal` e `api-lote`. Nenhum controller: o contexto de aplicação do Nest sobe sem
  * HTTP, e a prontidão é o batimento em arquivo.
  */
 @Module({})

@@ -109,6 +109,8 @@ export const resultadoGravadoSchema = z.discriminatedUnion('tipo', [
   z.strictObject({ tipo: z.literal('mensagem_do_tutor'), mensagemId: z.uuid() }),
   z.strictObject({ tipo: z.literal('lote_de_correcao'), entregaId: z.uuid() }),
   z.strictObject({ tipo: z.literal('resumo_do_analista'), resumoId: z.uuid() }),
+  // A classificação do material não produz um objeto com id: grava habilidades em `habilidade_da_secao`, e a execução guarda só quantas seções gravou (0 é a que concluiu sem efeito).
+  z.strictObject({ tipo: z.literal('classificacao_do_material'), secoes: z.number().int().min(0) }),
 ])
 export type ResultadoGravado = z.infer<typeof resultadoGravadoSchema>
 
@@ -128,6 +130,7 @@ export const resultadoDaExecucaoSchema = z.discriminatedUnion('tipo', [
   z.strictObject({ tipo: z.literal('mensagem_do_tutor'), mensagem: mensagemDoTutorAoAlunoSchema }),
   z.strictObject({ tipo: z.literal('lote_de_correcao'), entregaId: z.uuid() }),
   z.strictObject({ tipo: z.literal('resumo_do_analista'), resumoId: z.uuid() }),
+  z.strictObject({ tipo: z.literal('classificacao_do_material'), secoes: z.number().int().min(0) }),
 ])
 export type ResultadoDaExecucao = z.infer<typeof resultadoDaExecucaoSchema>
 

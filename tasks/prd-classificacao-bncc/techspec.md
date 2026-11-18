@@ -48,7 +48,7 @@ casa igual (`DisciplinaRepository.criar`); renomear não o muda. O `PATCH` roda 
 **Migrations** (regra 80, item 9, todas com `lock_timeout`): (1) tabelas, coluna, carga, o `unique` do capítulo;
 `execucao_agente.ano_letivo_id drop not null` (metadado); o check novo do ano e os de função e tarefa de
 `execucao_agente`, `consumo_ia` e `suspensao_de_funcao` (sem o último a coordenação não consegue suspender a função) entram por
-`ADD … NOT VALID` e `VALIDATE` (como a `0036`), antes do código que grava a função; (2) seções dos materiais `pronto` existentes, em lotes de 1.000, sem execução (a rotina das 19h as agenda);
+`ADD … NOT VALID` e `VALIDATE` (como a `0036`), antes do código que grava a função; o check do `resultado` (`execucao_agente_resultado_so_na_concluida`) ganha o tipo `classificacao_do_material` na mesma forma (a `0063`, da 4.0: a execução que conclui sem modelo precisa de `resultado`); (2) seções dos materiais `pronto` existentes, em lotes de 1.000, sem execução (a rotina das 19h as agenda);
 (3) **contração da F4** (abertura, item 4), em três passos: nesta spec, o backfill de séries e licenças de novo
 (idempotente), o check `(titularidade = 'terceiro_com_licenca') = (licenca_id is not null)` com `NOT VALID` e `VALIDATE`,
 a saída dos dois checks de `licenciante` e o código que não lê nem grava a coluna (fora do schema Drizzle); o
@@ -95,14 +95,14 @@ condição (P9). As candidatas são lidas no `preparar`; sem candidatas, conclui
 `quemPediu` ausente só em comando `daRotina` (extração, rotina, reclassificar, D76), que lê a execução sem ano (o `ExecucaoRepository.paraIniciar` já a lê: o `anoLetivoId` de quem pediu é o do `join` com o ano em curso, nunca a coluna nula). Até a 4.0 registrar o comando, `classificar_secoes` fica em `TAREFAS_SEM_CHAMADOR` (`registro-de-comandos.ts`). Antes de
 `rodando`, confere a janela letiva (dentro dela, adia até o fim, motivo `janela`, com jitter) e a suspensão. O `preparar` lê só as seções
 vivas (`execucao_id = :esta`, `corrigida_em` nulo, material `pronto` e não excluído); sem nenhuma, conclui sem modelo e
-sem consumo. A entrada leva, por seção, título, até 1.500 caracteres do começo e até 500 das linhas de subtítulo,
+sem consumo, com o `resultado` `{ tipo: 'classificacao_do_material', secoes }` (o número de seções gravadas, nunca código nem texto). A entrada leva, por seção, título, até 1.500 caracteres do começo e até 500 das linhas de subtítulo,
 delimitados como dado, com as candidatas no começo; saída de 0 a 3 códigos por seção, teto de 800 tokens; fora das
-candidatas ou do formato, `IA_SAIDA_INVALIDA`. O `concluir` relê o material `for share` (`pronto`, não excluído) e grava
+candidatas ou do formato, `IA_SAIDA_INVALIDA`. **A execução é de um recorte** (a 5.0 agrupa as seções por componente e séries do material, em execuções de até 12), mas o comando não confia nisso: as candidatas dos recortes que vierem juntos são unidas, na ordem do código e **sem corte** (acima de 300 o gateway recusa a entrada, `IA_ENTRADA_INVALIDA`, sem chamar o modelo e sem somar `falhas_seguidas`), e o `concluir` só grava o código que é candidato do recorte da **própria** seção (`habilidadeEhCandidata` com o componente e as séries do material dela; senão `IA_SAIDA_INVALIDA`, sem gravar, e a falha soma). A seção de material sem série, ou de disciplina sem componente, não vai ao modelo e volta a `nao_agendada` (o mesmo "limpar" de P11). **Duas entregas ao mesmo tempo** do mesmo job: a segunda acha a execução `rodando` e a encerra `EXECUCAO_INTERROMPIDA` (6.0), a gravação da primeira se desfaz e as seções ficam como estavam; a rotina as agenda de novo. O `concluir` relê o material `for share` (`pronto`, não excluído) e grava
 cada seção `where execucao_id = :esta and corrigida_em is null`, `for update`, zerando `falhas_seguidas`; senão conclui
 sem efeito.
 
 **Degradação do lote.** `classificar_secoes` entra em `TAREFAS_SEM_MODELO_MENOR`: nunca desce a modelo sem medida.
-Balde `lote` cheio, disjuntor aberto ou provedor fora (`IA_INDISPONIVEL` transitório): a execução volta a `pendente` e o
+O gateway marca o `IA_INDISPONIVEL` com o motivo (`sem_vaga`, `disjuntor`, `soberania`) e a chamada que não saiu com `semEnvio`; só a soberania é definitiva. Balde `lote` cheio, disjuntor aberto ou provedor fora (`IA_INDISPONIVEL` transitório): a execução volta a `pendente` e o
 job é adiado (`JobAdiadoError`, motivo `provedor`, `baseMs` do balde ou do disjuntor, com jitter), sem tentativa; consumo
 só se uma chamada saiu. O adiamento que cai na janela letiva é segurado pela conferência acima. Termina `falhou` o erro
 definitivo (`IA_SAIDA_INVALIDA`, `EXECUCAO_INTERROMPIDA`, `FUNCAO_SUSPENSA`, recusa de soberania); só `IA_SAIDA_INVALIDA`
@@ -179,9 +179,9 @@ registrando no `RETIDOS.json`. Sem a taxa no `rapido`, `padrao`; sem ela no
 | Item | Resposta |
 |---|---|
 | Caminho quente | a seção da página, na geração (join por índice); sem classificação no horário letivo |
-| Fila | `lote`, `naoUrgente`; pool `lote` no `worker-ia`, 1 por réplica; a varredura de execuções inclui a `lote` |
+| Fila | `lote`, `naoUrgente`; pool `lote` no `worker-ia`, 1 por réplica; a varredura de execuções inclui a `lote` e casa o tipo do job com a fila (`ia.executar` nas três filas da IA, `ia.executar-lote` na `lote`): incluir só a fila deixaria o job `ia.executar` da `lote` segurar uma `pendente` que nenhum worker leva |
 | Vazão | balde `lote` global, 5 % do contratado (125 mil tokens/min), ~12 mil por execução: ~10 execuções/min. **A 3.0 mediu o recorte maior (§8, a linha de `classificar_secoes`): LP do 6º ao 9º com o Médio pede ~31 mil por execução com 12 seções cheias, e a vazão cai para ~4 execuções/min; a 5.0 dimensiona por essa conta, não pela de 12 mil (a conta está no `TODO.md`, entrada da 3.0).** O pool puxa `réplicas × 1 × 60 / latência` (2 réplicas, ~6 s: ~20/min); o excedente adia, e o adiamento é o regulador. Uma escola de 300 apostilas (~625 execuções) em ~65 min; o resto, na noite seguinte |
-| Limite por escola | vaga `lote` 1 por escola (dividida com expurgo e eliminação: o runbook diz); `FILAS_DA_IA` ganha a `lote` |
+| Limite por escola | vaga `lote` por escola: a do ambiente, 2 (`VAGAS_ESCOLA_LOTE`), dividida com expurgo e eliminação (o runbook diz); `FILAS_DA_IA` ganha a `lote`. Não há teto de custo por escola na classificação: o limitador de custo é o balde `lote`, a vaga por escola e, na rotina (5.0), o limite de execuções por noite e por escola |
 | Corridas | uma linha por trava, ordem forçada e mutação em `cenarios.md`, P1 a P11 |
 | Laços | agendar (rotina e `PATCH`) e D76: lotes de 500 seções por transação, `statement_timeout`, até o sinal |
 | Índices | `secao_do_material (escola_id, material_id, pagina_inicial)`; `habilidade_da_secao (escola_id, codigo)`; parcial `(escola_id, execucao_id)` |

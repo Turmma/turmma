@@ -1,4 +1,4 @@
-import { ErrorCode, JobFailureCode, defineJob, JOB_DEFINITIONS, TIPO_CONSOLIDAR_USO, TIPO_ELIMINAR_TITULAR, TIPO_ENVIAR_CONVITE, TIPO_ENVIAR_EMAIL_DA_CONTA, TIPO_EXECUTAR_IA, TIPO_EXTRAIR_PDF, TIPO_EXPURGAR_ACESSO, TIPO_EXPURGAR_DADO_PESSOAL, TIPO_EXPURGAR_ESCOLA, TIPO_EXPURGAR_JOBS, TIPO_GRAVAR_PLANILHA, TIPO_JOB_SINTETICO, TIPO_MONTAR_ARQUIVO, TIPO_VARRER_TEMPORARIOS_DE_MATERIAL, type QueueName, type JobRegistry, type JobType } from '@educa/shared'
+import { ErrorCode, JobFailureCode, defineJob, JOB_DEFINITIONS, TIPO_CONSOLIDAR_USO, TIPO_ELIMINAR_TITULAR, TIPO_ENVIAR_CONVITE, TIPO_ENVIAR_EMAIL_DA_CONTA, TIPO_EXECUTAR_IA, TIPO_EXECUTAR_LOTE, TIPO_EXTRAIR_PDF, TIPO_EXPURGAR_ACESSO, TIPO_EXPURGAR_DADO_PESSOAL, TIPO_EXPURGAR_ESCOLA, TIPO_EXPURGAR_JOBS, TIPO_GRAVAR_PLANILHA, TIPO_JOB_SINTETICO, TIPO_MONTAR_ARQUIVO, TIPO_VARRER_TEMPORARIOS_DE_MATERIAL, type QueueName, type JobRegistry, type JobType } from '@educa/shared'
 import { DelayedError, UnrecoverableError } from 'bullmq'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
@@ -620,7 +620,7 @@ describe('ExecutorDeJobs e a vaga', () => {
   })
 })
 
-/** O payload que cada um dos 14 tipos tem hoje em `job_registro`: o que o executor precisa aceitar para nenhum job gravado antes quebrar. */
+/** O payload que cada um dos 15 tipos tem hoje em `job_registro`: o que o executor precisa aceitar para nenhum job gravado antes quebrar. */
 const PAYLOAD_DE_HOJE: Readonly<Record<JobType, Record<string, unknown>>> = {
   [TIPO_MONTAR_ARQUIVO]: { pedidoId: '0190f5a0-0000-7000-8000-0000000000c1' },
   [TIPO_ELIMINAR_TITULAR]: { pedidoId: '0190f5a0-0000-7000-8000-0000000000c2' },
@@ -635,6 +635,7 @@ const PAYLOAD_DE_HOJE: Readonly<Record<JobType, Record<string, unknown>>> = {
   [TIPO_EXTRAIR_PDF]: { materialId: '0190f5a0-0000-7000-8000-0000000000c6' },
   [TIPO_VARRER_TEMPORARIOS_DE_MATERIAL]: {},
   [TIPO_EXECUTAR_IA]: { execucaoId: '0190f5a0-0000-7000-8000-0000000000c7' },
+  [TIPO_EXECUTAR_LOTE]: { execucaoId: '0190f5a0-0000-7000-8000-0000000000c8' },
   [TIPO_JOB_SINTETICO]: { cpuMs: 5, falhar: false, efeito: true },
 }
 

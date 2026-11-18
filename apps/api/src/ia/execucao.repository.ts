@@ -129,6 +129,47 @@ export class ExecucaoRepository {
     return concluidas.length > 0
   }
 
+  /**
+   * O que o comando da rotina lê **pelo id** antes de rodar, no escopo da escola do job: a execução **sem pessoa** (`solicitada_por` nulo), com a `entrada` validada de novo. Não olha o ano (a classificação não o tem) nem
+   * a pessoa. A execução que tem pessoa não é achada: o comando da rotina não roda no lugar da de quem pediu (regra 10, item 3).
+   */
+  async paraExecutarDaRotina(id: string): Promise<ExecucaoLida | undefined> {
+    const [linha] = await this.banco
+      .select({ id: execucaoAgente.id, tarefa: execucaoAgente.tarefa, chaveEnvio: execucaoAgente.chaveEnvio, entrada: execucaoAgente.entrada })
+      .from(execucaoAgente)
+      .where(and(eq(execucaoAgente.escolaId, requireEscolaId()), eq(execucaoAgente.id, id), isNull(execucaoAgente.solicitadaPor)))
+    if (linha === undefined) return undefined
+    const entrada = execucaoInputSchema.safeParse(linha.entrada)
+    if (!entrada.success) return undefined
+    return { id: linha.id, tarefa: linha.tarefa, chaveEnvio: linha.chaveEnvio, entrada: entrada.data }
+  }
+
+  /**
+   * `rodando` → `pendente`: o lote que o provedor não atendeu (balde cheio, disjuntor aberto, provedor fora) volta à espera e o job é adiado, sem tentativa. `false` é a execução que já não estava `rodando` (a varredura
+   * a encerrou): quem recebe `false` não adia.
+   */
+  async voltarAPendente(id: string): Promise<boolean> {
+    const voltadas = await this.banco
+      .update(execucaoAgente)
+      .set({ estado: 'pendente', iniciadaEm: null })
+      .where(and(eq(execucaoAgente.escolaId, requireEscolaId()), eq(execucaoAgente.id, id), eq(execucaoAgente.estado, 'rodando')))
+      .returning({ id: execucaoAgente.id })
+    return voltadas.length > 0
+  }
+
+  /**
+   * `pendente` → `falhou`, com o código do contrato, **sem ter passado por `rodando`**: a função suspensa que a conferência achou antes de a execução começar. `false` é a que já não estava `pendente` (outra entrega a pegou):
+   * não grava nada.
+   */
+  async falharPendente(id: string, codigo: CodigoDeFalhaDaExecucao): Promise<boolean> {
+    const falhadas = await this.banco
+      .update(execucaoAgente)
+      .set({ estado: 'falhou', erro: codigo, concluidaEm: sql`now()` })
+      .where(and(eq(execucaoAgente.escolaId, requireEscolaId()), eq(execucaoAgente.id, id), eq(execucaoAgente.estado, 'pendente')))
+      .returning({ id: execucaoAgente.id })
+    return falhadas.length > 0
+  }
+
   /** `rodando` → `falhou`, com o código do contrato. Não mexe em quem não está `rodando`. */
   async marcarFalhou(id: string, codigo: CodigoDeFalhaDaExecucao): Promise<boolean> {
     const falhadas = await this.banco
@@ -172,7 +213,7 @@ export class ExecucaoRepository {
 
   /**
    * A varredura da `pendente` (X6, 6.0): encerra, com `EXECUCAO_INTERROMPIDA`, até `lote` execuções `pendente` **sem job vivo**, em qualquer escola, e devolve quantas. "Sem job vivo" é
-   * não haver, **na mesma escola**, `ia.executar` não finalizado nas filas da IA com o `execucaoId` dela: o predicado é o do `job_registro_pendentes_idx`
+   * não haver, **na mesma escola**, `ia.executar` (ou `ia.executar-lote`, na fila `lote`) não finalizado nas filas da IA com o `execucaoId` dela: o predicado é o do `job_registro_pendentes_idx`
    * (`fila`, `escola_id`, parcial em `estado not in ('concluido', 'falhou')`). Não lê o Redis: com ele fora o job continua vivo no outbox e a execução fica. Sem linha estimada: o modelo
    * nunca foi chamado, a execução não saiu de `pendente`.
    */
@@ -186,8 +227,7 @@ export class ExecucaoRepository {
             and not exists (
               select 1 from job_registro j
               where j.escola_id = p.escola_id
-                and j.fila in ('interativa', 'ferramenta', 'normal')
-                and j.tipo = 'ia.executar'
+                and ((j.tipo = 'ia.executar' and j.fila in ('interativa', 'ferramenta', 'normal')) or (j.tipo = 'ia.executar-lote' and j.fila = 'lote'))
                 and j.dados ->> 'execucaoId' = p.id::text
                 and j.estado not in ('concluido', 'falhou')
             )

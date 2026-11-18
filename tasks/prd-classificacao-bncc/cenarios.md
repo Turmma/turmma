@@ -41,7 +41,7 @@ teste vermelho por um caso que rodou e falhou. Nenhum teste chama provedor: `Scr
 - [I] Execução de 12 seções falha com `IA_SAIDA_INVALIDA` por causa de uma: as 12 somam 1; na noite seguinte saem 12
   execuções de uma seção; as 11 classificam e zeram, e a que provoca a falha chega a 3 sozinha. Uma seção nova da
   mesma noite vai em execução separada das com falha. Mutação: agrupar seção com `falhas_seguidas > 0` com outras
-- [P] Job entregue duas vezes com `IA_SAIDA_INVALIDA`: `falhas_seguidas` soma 1. Mutação: somar sem a passagem a `falhou`
+- [P] Duas entregas ao mesmo tempo, com a ordem forçada, e a saída da primeira inválida: a segunda encerra `EXECUCAO_INTERROMPIDA`, a saída chega tarde e `falhas_seguidas` fica em 0; [I] o job entregue de novo depois de falhar soma 1 só (a segunda acha a execução `falhou`). Mutação: somar sem a passagem a `falhou`
 - [I] Mudança de recorte: a seção classificada com `EF06…`, depois do `PATCH` de séries para o 9º, ganha execução nova
   com as candidatas do 9º; o `PATCH` do componente idem; a corrigida fica. O `PATCH` só enfileira o job (nenhuma execução
   na transação da requisição). Mutação: o `PATCH` com a regra da rotina
@@ -85,7 +85,7 @@ teste vermelho por um caso que rodou e falhou. Nenhum teste chama provedor: `Scr
   conferência
 - [I] Execução sem ano letivo lida pelo código anterior (varredura, expurgo): não quebra; outra função com ano nulo é
   recusada pelo check. Mutação: sem o check
-- [I] Pelo worker real: `FILAS_DA_IA` consome a `lote`; duas execuções da A e uma da B na fila, a segunda da A espera
+- [I] Pelo worker real: `FILAS_DA_IA` consome a `lote`; três execuções da A e uma da B na fila (a vaga `lote` por escola é 2), a terceira da A espera
   a vaga e a da B roda. Mutações: `FILAS_DA_IA` sem a `lote`; a `lote` sem limite por escola
 - [U] Sonda de saída (c1), todas `IA_SAIDA_INVALIDA` sem gravar: código fora das candidatas, 4 códigos, minúscula ou com
   espaço, `EF07LP01A`, de outro componente, do EM em seção do EF, seção inventada, omitida, repetida ou de outra
@@ -101,11 +101,12 @@ teste vermelho por um caso que rodou e falhou. Nenhum teste chama provedor: `Scr
   seguem reservando. Mutações: tratar como `falhou`; tirar a tarefa de `TAREFAS_SEM_MODELO_MENOR`; a `lote` sem balde
   próprio
 - [I] Recusa de soberania: `falhou` na hora, sem adiar
-- [I] Janela: o job adiado que volta às 7h05 não chama o modelo, não passa a `rodando` e é adiado até o fim da janela da
-  escola, com motivo `janela`; a `pendente` segue `pendente` às 10h sem a varredura fechá-la. Mutação: tirar a conferência da janela no
+- [I] Janela: o job adiado (pelo provedor, de madrugada) que volta às 7h05 não chama o modelo, não passa a `rodando` e é adiado até o fim da janela da
+  escola, com motivo `janela`; a `pendente` segue `pendente` às 10h, com o job já adiado e vivo, sem a varredura fechá-la, e só o job que acabou a deixa sem dono. Mutação: tirar a conferência da janela no
   processador
 - [I] `rodando` com o worker morto vira `EXECUCAO_INTERROMPIDA` em até 300 s e a rotina das 19h agenda de novo
-- [P] Job entregue duas vezes (D49): uma chamada, um consumo, uma gravação
+- [P] Duas entregas ao mesmo tempo (D49), com a ordem forçada: o modelo é chamado uma vez, a segunda encerra a execução `EXECUCAO_INTERROMPIDA` e a gravação da primeira se desfaz (as seções ficam como estavam, e a rotina as agenda de novo); [I] o job entregue de novo depois de concluir: uma chamada, um consumo, uma gravação
+- [I] Execução com mais de um recorte (a 5.0 agrupa as seções por recorte, mas o comando não confia): as candidatas dos recortes vêm unidas, na ordem do código e sem corte; cada seção só grava código do próprio recorte (o do Médio na seção do 8º ano: `IA_SAIDA_INVALIDA` sem gravar, com a falha somada); acima de 300 candidatas o gateway recusa a entrada, `IA_ENTRADA_INVALIDA`, sem chamar o modelo e sem tocar nas seções; a seção de material sem série (ou de disciplina sem componente) não vai ao modelo e volta a `nao_agendada`. Mutações: tirar a validação por recorte; cortar a união; mandar a seção sem recorte ao modelo
 
 ## Correção e reclassificação (RF6, RF12)
 

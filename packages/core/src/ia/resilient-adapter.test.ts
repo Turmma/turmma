@@ -518,6 +518,8 @@ describe('AdaptadorResiliente: o que sobe', { timeout: LIMITE_DO_TESTE_MS }, () 
     const aberto = montar(falha('servidor'))
     for (let vez = 0; vez < FALHAS_PARA_ABRIR_O_DISJUNTOR; vez += 1) await chamarEEsperar(aberto.chamar('padrao'), 10)
     esperarErroDeIaSimples(await chamarEEsperar(aberto.chamar('padrao'), 10), 'IA_INDISPONIVEL')
+    // O disjuntor aberto não deixou a chamada sair: o lote o adia em vez de falhar, e por isso o erro diz o motivo.
+    expect((await chamarEEsperar(aberto.chamar('padrao'), 10)).erro).toMatchObject({ codigoDeIa: 'IA_INDISPONIVEL', motivo: 'disjuntor', semEnvio: true })
 
     const controle = new AbortController()
     const desistencia = acompanhar(montar(demora(200_000)).chamar('padrao', controle.signal))

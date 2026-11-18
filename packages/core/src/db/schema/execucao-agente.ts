@@ -106,7 +106,7 @@ export const execucaoAgente = pgTable(
     check('execucao_agente_entrada_da_tarefa', sql`jsonb_typeof(${tabela.entrada}) = 'object' and coalesce(${tabela.entrada} ->> 'tarefa', '') = ${tabela.tarefa}`),
     check(
       'execucao_agente_resultado_so_na_concluida',
-      sql`(${tabela.estado} = 'concluida') = (${tabela.resultado} is not null) and (${tabela.resultado} is null or (jsonb_typeof(${tabela.resultado}) = 'object' and coalesce(${tabela.resultado} ->> 'tipo', '') in ('mensagem', 'artefato', 'mensagem_do_tutor', 'lote_de_correcao', 'resumo_do_analista')))`,
+      sql`(${tabela.estado} = 'concluida') = (${tabela.resultado} is not null) and (${tabela.resultado} is null or (jsonb_typeof(${tabela.resultado}) = 'object' and coalesce(${tabela.resultado} ->> 'tipo', '') in ('mensagem', 'artefato', 'mensagem_do_tutor', 'lote_de_correcao', 'resumo_do_analista', 'classificacao_do_material')))`,
     ),
     // `FORMATO_DO_CODIGO_DE_ERRO` do contrato (`packages/shared`): código nosso, nunca a mensagem do provedor.
     check('execucao_agente_erro_e_codigo', sql`${tabela.erro} is null or ${tabela.erro} ~ '^[A-Z][A-Z0-9_]{2,63}$'`),

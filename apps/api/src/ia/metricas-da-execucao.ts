@@ -1,6 +1,7 @@
 import { METRICS, ROTULO_ESCOLA, type Meter } from '@educa/core'
 
 type MetricCounter = ReturnType<Meter['createCounter']>
+type MetricHistogram = ReturnType<Meter['createHistogram']>
 
 /** De onde veio o encerramento da execução `rodando`: o job que chegou de novo, ou a varredura de 60 s. */
 export type OrigemDaInterrupcao = 'reentrega' | 'varredura'
@@ -13,15 +14,22 @@ export type OrigemDaInterrupcao = 'reentrega' | 'varredura'
 export class MetricasDaExecucao {
   readonly #esperaEstourada: MetricCounter
   readonly #interrompida: MetricCounter
+  readonly #esperaDaClassificacao: MetricHistogram
 
   constructor(medidor: Meter) {
     this.#esperaEstourada = medidor.createCounter(METRICS.esperaEstourada, { description: 'Perguntas do Tutor cortadas por esperar mais de 20 s na fila, por escola' })
     this.#interrompida = medidor.createCounter(METRICS.execucaoInterrompida, { description: 'Execuções de IA encerradas como interrompidas, por escola e origem' })
+    this.#esperaDaClassificacao = medidor.createHistogram(METRICS.esperaDaClassificacao, { unit: 's', description: 'Do envio do material à classificação de cada seção, por escola' })
   }
 
   /** O corte da espera de 20 s devolveu a linha. */
   esperaEstourada(escolaId: string): void {
     this.#esperaEstourada.add(1, { [ROTULO_ESCOLA]: escolaId })
+  }
+
+  /** Uma seção foi classificada: quanto o material esperou desde o envio, em segundos. Só a escola no rótulo. */
+  esperaDaClassificacao(escolaId: string, segundos: number): void {
+    this.#esperaDaClassificacao.record(segundos, { [ROTULO_ESCOLA]: escolaId })
   }
 
   /** A execução `rodando` foi encerrada como `EXECUCAO_INTERROMPIDA` (a que deixa a linha estimada em `consumo_ia`). */

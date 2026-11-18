@@ -22,8 +22,8 @@ import type { EnvioDaChamada } from './port.js'
 
 /** Quantas falhas seguidas abrem o disjuntor (`onda-3c.md`, T10). */
 const FALHAS_PARA_ABRIR_O_DISJUNTOR = 5
-/** Quanto o disjuntor aberto espera antes de deixar passar uma chamada de teste. */
-const MEIO_ABRE_O_DISJUNTOR_EM_MS = 30_000
+/** Quanto o disjuntor aberto espera antes de deixar passar uma chamada de teste (e quanto o job do `lote` espera quando o provedor não diz quando volta). */
+export const MEIO_ABRE_O_DISJUNTOR_EM_MS = 30_000
 /** Só o `rapido` tem chamada lenta: acima de metade do prazo dele a chamada vale, mas pesa no disjuntor. */
 const PERFIL_COM_CHAMADA_LENTA: Perfil = 'rapido'
 
@@ -83,7 +83,7 @@ function esperaSugeridaMs(erro: unknown): number | undefined {
  */
 function traduzir(erro: unknown): unknown {
   if (erro instanceof ProviderError) return new LLMError(erro.codigoDeIa, erro.tenteDeNovoEmSegundos)
-  if (erro instanceof BrokenCircuitError) return new LLMError('IA_INDISPONIVEL')
+  if (erro instanceof BrokenCircuitError) return new LLMError('IA_INDISPONIVEL', undefined, 'disjuntor')
   // O prazo vencido e a desistência de quem chamou abortam o mesmo sinal, e a política de prazo é quem responde primeiro.
   if (erro instanceof TaskCancelledError) return new LLMError('IA_TEMPO_ESGOTADO')
   return erro

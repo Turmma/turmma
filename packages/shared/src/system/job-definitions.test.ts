@@ -8,6 +8,7 @@ import {
   TIPO_ENVIAR_CONVITE,
   TIPO_ENVIAR_EMAIL_DA_CONTA,
   TIPO_EXECUTAR_IA,
+  TIPO_EXECUTAR_LOTE,
   TIPO_EXTRAIR_PDF,
   TIPO_VARRER_TEMPORARIOS_DE_MATERIAL,
   TIPO_EXPURGAR_ACESSO,
@@ -24,7 +25,7 @@ import {
 } from './job-definitions.js'
 import { CPU_MS_MAXIMO_SINTETICO, syntheticJobRequestSchema } from './synthetic-jobs.js'
 
-const OS_14_TIPOS = [
+const OS_15_TIPOS = [
   TIPO_MONTAR_ARQUIVO,
   TIPO_ELIMINAR_TITULAR,
   TIPO_EXPURGAR_ESCOLA,
@@ -38,6 +39,7 @@ const OS_14_TIPOS = [
   TIPO_EXTRAIR_PDF,
   TIPO_VARRER_TEMPORARIOS_DE_MATERIAL,
   TIPO_EXECUTAR_IA,
+  TIPO_EXECUTAR_LOTE,
   TIPO_JOB_SINTETICO,
 ] as const
 
@@ -46,7 +48,7 @@ const UM_UUID = '0191f3a6-6b9e-7c1a-8f35-2d4c5b6a7e80'
 const base = { filas: ['lote'], escopo: 'escola', executor: 'worker', retentativa: { tentativas: 1, recuoMs: 1, jitter: 0 }, prazoMs: 1, naoUrgente: true } as const
 
 describe('o registro de jobs', () => {
-  it('tem os 14 tipos de hoje, com o nome que o banco e o worker já usam', () => {
+  it('tem os 15 tipos de hoje, com o nome que o banco e o worker já usam', () => {
     expect(Object.keys(JOB_DEFINITIONS).sort()).toEqual(
       [
         'titular.montar-arquivo',
@@ -62,10 +64,11 @@ describe('o registro de jobs', () => {
         'material.extrair-pdf',
         'sistema.varrer-temporarios-de-material',
         'ia.executar',
+        'ia.executar-lote',
         'sintetico',
       ].sort(),
     )
-    expect([...OS_14_TIPOS].sort()).toEqual(Object.keys(JOB_DEFINITIONS).sort())
+    expect([...OS_15_TIPOS].sort()).toEqual(Object.keys(JOB_DEFINITIONS).sort())
   })
 
   it('cada tipo declara a fila, o não urgente, o escopo e o executor de hoje', () => {
@@ -84,6 +87,7 @@ describe('o registro de jobs', () => {
       'material.extrair-pdf': [['pdf'], false, 'escola', 'worker'],
       'sistema.varrer-temporarios-de-material': [['lote'], false, 'sistema', 'worker'],
       'ia.executar': [['interativa', 'ferramenta', 'normal'], false, 'escola', 'api'],
+      'ia.executar-lote': [['lote'], true, 'escola', 'api'],
       sintetico: [['interativa', 'normal', 'lote'], 'do-pedido', 'escola', 'worker'],
     })
   })
@@ -118,9 +122,10 @@ describe('o registro de jobs', () => {
       [TIPO_EXTRAIR_PDF]: { materialId: UM_UUID },
       [TIPO_VARRER_TEMPORARIOS_DE_MATERIAL]: {},
       [TIPO_EXECUTAR_IA]: { execucaoId: UM_UUID },
+      [TIPO_EXECUTAR_LOTE]: { execucaoId: UM_UUID },
       [TIPO_JOB_SINTETICO]: { cpuMs: 0, falhar: false },
     }
-    for (const tipo of OS_14_TIPOS) {
+    for (const tipo of OS_15_TIPOS) {
       const { dados } = JOB_DEFINITIONS[tipo]
       expect(dados.safeParse(payloads[tipo]).success, `${tipo} aceita o de hoje`).toBe(true)
       expect(dados.safeParse({ ...payloads[tipo], escolaId: UM_UUID }).success, `${tipo} recusa a chave a mais`).toBe(false)
@@ -128,11 +133,23 @@ describe('o registro de jobs', () => {
   })
 
   it('o prazo é positivo e a retentativa é a de hoje: cinco tentativas, recuo de 2 s e jitter de 0,5; a extração do PDF tem três e a execução de IA, uma', () => {
-    const tentativasDe: Record<string, number> = { [TIPO_EXTRAIR_PDF]: 3, [TIPO_EXECUTAR_IA]: 1 }
+    const tentativasDe: Record<string, number> = { [TIPO_EXTRAIR_PDF]: 3, [TIPO_EXECUTAR_IA]: 1, [TIPO_EXECUTAR_LOTE]: 1 }
     for (const [tipo, definicao] of Object.entries(JOB_DEFINITIONS)) {
       expect(definicao.prazoMs, tipo).toBeGreaterThan(0)
       expect(definicao.retentativa, tipo).toEqual({ tentativas: tentativasDe[tipo] ?? 5, recuoMs: 2_000, jitter: 0.5 })
     }
+  })
+
+  it('a execução do lote (a classificação do material) é da fila `lote`, não urgente, do executor `api`, e leva só o id da execução', () => {
+    const definicao = JOB_DEFINITIONS[TIPO_EXECUTAR_LOTE]
+    expect(definicao.filas).toEqual(['lote'])
+    expect(definicao.naoUrgente).toBe(true)
+    expect(definicao.executor).toBe('api')
+    expect(definicao.escopo).toBe('escola')
+    expect(definicao.dados.safeParse({ execucaoId: UM_UUID }).success).toBe(true)
+    expect(definicao.dados.safeParse({ execucaoId: UM_UUID, escolaId: UM_UUID }).success).toBe(false)
+    expect(definicao.dados.safeParse({ execucaoId: UM_UUID, texto: 'o capítulo' }).success).toBe(false)
+    expect(definicao.dados.safeParse({}).success).toBe(false)
   })
 
   it('a execução de IA recusa payload sem o id da execução, com campo a mais e com id fora do formato uuid (`DADOS_INVALIDOS`, antes do repository)', () => {
@@ -148,8 +165,8 @@ describe('o registro de jobs', () => {
     expect(JOB_DEFINITIONS[TIPO_JOB_SINTETICO].prazoMs).toBeGreaterThan(CPU_MS_MAXIMO_SINTETICO)
   })
 
-  it('o prazo de cada um dos 14 tipos é o conferido na 43.0 (a extração do PDF, na 1.0 da ingestão): o worker corta a tentativa nele, então mudar um valor é decisão de quem mede o tipo', () => {
-    expect(Object.fromEntries(OS_14_TIPOS.map((tipo) => [tipo, JOB_DEFINITIONS[tipo].prazoMs]))).toEqual({
+  it('o prazo de cada um dos 15 tipos é o conferido na 43.0 (a extração do PDF, na 1.0 da ingestão): o worker corta a tentativa nele, então mudar um valor é decisão de quem mede o tipo', () => {
+    expect(Object.fromEntries(OS_15_TIPOS.map((tipo) => [tipo, JOB_DEFINITIONS[tipo].prazoMs]))).toEqual({
       [TIPO_MONTAR_ARQUIVO]: 300_000,
       [TIPO_ELIMINAR_TITULAR]: 600_000,
       [TIPO_EXPURGAR_ESCOLA]: 21_600_000,
@@ -164,6 +181,7 @@ describe('o registro de jobs', () => {
       [TIPO_VARRER_TEMPORARIOS_DE_MATERIAL]: 600_000,
       // A execução de IA: cobre o `padrao` (140 s, o prazo único da execução) e a folga de gravar a falha (X6, 5.0).
       [TIPO_EXECUTAR_IA]: 150_000,
+      [TIPO_EXECUTAR_LOTE]: 150_000,
       [TIPO_JOB_SINTETICO]: 90_000,
     })
   })
@@ -203,7 +221,7 @@ describe('definirJob', () => {
 
 describe('os tipos que o `Enfileirador` lê da definição', () => {
   it('o tipo é uma das chaves do registro, e os dados são os do tipo', () => {
-    expectTypeOf<JobType>().toEqualTypeOf<(typeof OS_14_TIPOS)[number]>()
+    expectTypeOf<JobType>().toEqualTypeOf<(typeof OS_15_TIPOS)[number]>()
     expectTypeOf<JobData<typeof TIPO_MONTAR_ARQUIVO>>().toEqualTypeOf<{ pedidoId: string }>()
     expectTypeOf<JobData<typeof TIPO_EXPURGAR_JOBS>>().toEqualTypeOf<Record<string, never>>()
     // @ts-expect-error tipo que não está no registro

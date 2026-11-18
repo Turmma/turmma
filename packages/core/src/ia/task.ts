@@ -77,6 +77,11 @@ export interface TaskDefinition<Entrada, Saida> {
    * `conversa_do_aluno` aqui (`tarefas.test.ts`).
    */
   readonly categoriasEnviadas: readonly CategoriaDeDadoDoSuboperador[]
+  /**
+   * O que o registro de consumo guarda no lugar da entrada. Sem ela, a própria entrada. É para a tarefa cuja entrada é texto do material (a classificação): o registro leva só os ids e a versão do prompt, e o
+   * texto não é copiado para uma tabela de métrica (regra 20, item 9; Tech Spec §7, `consumo_ia`).
+   */
+  entradaParaORegistro?(entrada: Entrada): unknown
   montarPedido(entrada: Entrada): ModelRequest
   /**
    * Resposta fixa, decidida por regra, **sem chamar o modelo**. É o caminho do assunto delicado no Tutor (D36): o

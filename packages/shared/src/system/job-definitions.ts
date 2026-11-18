@@ -26,6 +26,8 @@ export const TIPO_VARRER_TEMPORARIOS_DE_MATERIAL = 'sistema.varrer-temporarios-d
 export const TIPO_JOB_SINTETICO = 'sintetico'
 /** A execução de uma tarefa de IA (o comando que o `POST` gravou): roda no `main-worker` da API, não no worker (X6, 5.0). */
 export const TIPO_EXECUTAR_IA = 'ia.executar'
+/** A execução de IA do lote (a classificação do material, classificacao-bncc 4.0): a fila `lote`, não urgente, sem pessoa nem ano; roda no `main-worker`, fora do horário letivo da escola. */
+export const TIPO_EXECUTAR_LOTE = 'ia.executar-lote'
 
 /**
  * `escola`: o job pertence a uma escola e nasce no contexto dela. `sistema`: rotina nossa, sem escola, e só nasce de rotina do
@@ -123,7 +125,7 @@ const RETENTATIVA_DA_IA: JobRetry = { tentativas: 1, recuoMs: 2_000, jitter: 0.5
 const RETENTATIVA_DA_EXTRACAO: JobRetry = { tentativas: 3, recuoMs: 2_000, jitter: 0.5 }
 
 /**
- * Os 14 tipos de hoje. `prazoMs` é o maior tempo que o tipo leva, arredondado para cima, e a 43.0 o confere.
+ * Os 15 tipos de hoje. `prazoMs` é o maior tempo que o tipo leva, arredondado para cima, e a 43.0 o confere.
  */
 export const JOB_DEFINITIONS = {
   [TIPO_MONTAR_ARQUIVO]: defineJob({
@@ -257,6 +259,18 @@ export const JOB_DEFINITIONS = {
     retentativa: RETENTATIVA_DA_IA,
     prazoMs: 150_000,
     naoUrgente: false,
+  }),
+  // A classificação do material (classificacao-bncc, 4.0): a execução `classificar_secoes` na fila `lote`, **não urgente** (o despachante a segura na janela letiva da escola, e o processador confere de novo) e sem
+  // ninguém esperando na tela. Executor `api`, como o `ia.executar`: só o `main-worker` o consome. Os mesmos dados (só o id da execução) e o mesmo prazo (150 s): a `rapido` leva 60 s, e a reentrega do worker morto
+  // encerra a `rodando` em até 300 s (`LIMITE_DA_RODANDO_SEGUNDOS`). Uma tentativa só: o adiamento do provedor (`JobAdiadoError`) não gasta tentativa.
+  [TIPO_EXECUTAR_LOTE]: defineJob({
+    filas: ['lote'],
+    escopo: 'escola',
+    executor: 'api',
+    dados: execucaoDeIaSchema,
+    retentativa: RETENTATIVA_DA_IA,
+    prazoMs: 150_000,
+    naoUrgente: true,
   }),
   // O sintético é o job de teste de carga: a fila e o não urgente vêm do corpo do `POST`, e o prazo cobre o teto de CPU dele.
   [TIPO_JOB_SINTETICO]: defineJob({

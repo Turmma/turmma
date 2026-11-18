@@ -121,7 +121,7 @@ async function sobrasParaVarrer(): Promise<number> {
     `select (
         select count(*) from execucao_agente p
          where p.estado = 'pendente'
-           and not exists (select 1 from job_registro j where j.escola_id = p.escola_id and j.fila in ('interativa', 'ferramenta', 'normal') and j.tipo = 'ia.executar' and j.dados ->> 'execucaoId' = p.id::text and j.estado not in ('concluido', 'falhou'))
+           and not exists (select 1 from job_registro j where j.escola_id = p.escola_id and ((j.tipo = 'ia.executar' and j.fila in ('interativa', 'ferramenta', 'normal')) or (j.tipo = 'ia.executar-lote' and j.fila = 'lote')) and j.dados ->> 'execucaoId' = p.id::text and j.estado not in ('concluido', 'falhou'))
       ) + (
         select count(*) from execucao_agente r where r.estado = 'rodando' and r.iniciada_em < now() - make_interval(secs => $1)
       ) as total`,
@@ -522,6 +522,9 @@ describe('a execução interrompida: a reentrega e a varredura (adaptador falso)
         await semearJob(a, id, { estado })
         comJobEmAndamento.push(id)
       }
+      // O job do lote (a classificação do material) é o vivo da execução da rotina, na fila dele; o `ia.executar` na `lote` é de outra fila.
+      const comJobDoLote = await semear(a, { estado: 'pendente', haSegundos: 5 })
+      await semearJob(a, comJobDoLote, { tipo: 'ia.executar-lote', fila: 'lote' })
       const comJobConcluido = await semear(a, { estado: 'pendente', haSegundos: 5 })
       await semearJob(a, comJobConcluido, { estado: 'concluido' })
       const comJobFalhou = await semear(a, { estado: 'pendente', haSegundos: 5 })
@@ -534,7 +537,7 @@ describe('a execução interrompida: a reentrega e a varredura (adaptador falso)
       const deOutraExecucao = await semear(a, { estado: 'pendente', haSegundos: 5 })
       await semearJob(a, deOutraExecucao, { execucaoId: randomUUID() })
       await fila.varredura().varrer()
-      for (const viva of [comJobVivo, ...comJobEmAndamento]) {
+      for (const viva of [comJobVivo, comJobDoLote, ...comJobEmAndamento]) {
         expect((await execucaoDe(viva)).estado).toBe('pendente')
         expect(await linhasDe(viva)).toEqual([])
       }
@@ -734,7 +737,7 @@ describe('a execução interrompida: a reentrega e a varredura (adaptador falso)
         // O que o `not exists` faz por `pendente`: a sondagem em `job_registro` com a escola e o id dela.
         const { rows } = await cliente.query<{ 'QUERY PLAN': Array<{ Plan: Record<string, unknown> }> }>(
           `explain (format json) select 1 from job_registro j
-            where j.escola_id = $1 and j.fila in ('interativa', 'ferramenta', 'normal') and j.tipo = 'ia.executar' and j.dados ->> 'execucaoId' = $2 and j.estado not in ('concluido', 'falhou')`,
+            where j.escola_id = $1 and ((j.tipo = 'ia.executar' and j.fila in ('interativa', 'ferramenta', 'normal')) or (j.tipo = 'ia.executar-lote' and j.fila = 'lote')) and j.dados ->> 'execucaoId' = $2 and j.estado not in ('concluido', 'falhou')`,
           [a.escolaId, randomUUID()],
         )
         const nos: Array<Record<string, unknown>> = []

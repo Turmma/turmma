@@ -8,7 +8,9 @@ import {
   JobOutbox,
   JobOutboxRepository,
   runInContext,
+  systemClock,
   type Clock,
+  type JanelaLetiva,
   type Database,
   type DatabasePool,
   type DestinoDoAdaptador,
@@ -74,6 +76,9 @@ export interface FilaDeIaOptions {
   readonly relogioDasLicencas?: Clock
 }
 
+/** A janela sem dia letivo: nunca está "em aula", então o lote não espera. */
+const JANELA_SEM_AULA: JanelaLetiva = { fuso: 'America/Sao_Paulo', diasLetivos: [], inicio: '07:00', fim: '18:00' }
+
 /** O corte das consultas do pool da bancada: folgado, porque o teste que segura uma escrita com gatilho (`WriteBlockTrigger`) a deixa esperar. */
 const TEMPO_DA_CONSULTA_MS = 30_000
 
@@ -123,6 +128,8 @@ export class FilaDeIa {
   #portao: Promise<void> = Promise.resolve()
   readonly #inicio = new Date()
   #modelo: ModeloDeTeste | undefined
+  #agora: (() => Date) | undefined
+  #janela: JanelaLetiva | undefined
   #worker: WorkerDeIa | undefined
   readonly #opcoes: FilaDeIaOptions
   readonly #logger: LoggerBase
@@ -149,7 +156,7 @@ export class FilaDeIa {
     const trechos = new TrechoSearch(this.banco, opcoes.relogioDasLicencas)
     this.trechos = trechos
     this.registro = opcoes.registro ?? new RegistroDeComandos()
-    if (opcoes.registro === undefined) montarComandos(this.registro, this.banco, trechos, suspensao, new AlcanceDoAluno(this.banco, trechos))
+    if (opcoes.registro === undefined) montarComandos(this.registro, this.banco, trechos, suspensao, new AlcanceDoAluno(this.banco, trechos), medidor)
     this.#despachante = createOutboxRelay(
       { banco: configuracaoDoBanco(3), redisFilaUrl: urlRedisDeFila(), vagasPadrao: vagasPadraoDoAmbiente(), janelaPadrao: janelaPadraoDoAmbiente() },
       this.#logger,
@@ -187,7 +194,18 @@ export class FilaDeIa {
     }
   }
 
+  /**
+   * O instante e o horário letivo que o processador confere para o job do `lote` (classificacao-bncc, 4.0): o teste da janela põe o job às 7h05 sem esperar. Sem chamar isto, a escola não tem dia letivo
+   * e o lote roda a qualquer hora, como o relógio do sistema. `restaurar()` desfaz.
+   */
+  fixarHorario(agora: Date, janela: JanelaLetiva): void {
+    this.#agora = () => agora
+    this.#janela = janela
+  }
+
   restaurar(): void {
+    this.#agora = undefined
+    this.#janela = undefined
     this.#modelo = undefined
     this.#liberarPortao?.()
   }
@@ -228,6 +246,8 @@ export class FilaDeIa {
       destino: this.destino,
       logger: this.#logger,
       medidor: this.#medidor,
+      janelaDaEscola: { daEscola: () => Promise.resolve(this.#janela ?? JANELA_SEM_AULA) },
+      relogio: { agora: () => (this.#agora ?? systemClock.agora)() },
       ...(this.#opcoes.prazo === undefined ? {} : { prazo: this.#opcoes.prazo }),
     }))
   }
@@ -253,11 +273,14 @@ export class FilaDeIa {
     this.#worker = criarWorkerDeIa(
       {
         redisFilaUrl: urlRedisDeFila(),
-        pools: this.#opcoes.pools ?? { interativa: 10, ferramenta: 10, normal: 5 },
+        pools: { interativa: 10, ferramenta: 10, normal: 5, lote: 5, ...this.#opcoes.pools },
         vagasPadrao: vagasPadraoDoAmbiente(),
       },
       { banco: this.banco, pool: this.pool },
-      { 'ia.executar': async (dados, execucao, sinal) => { await this.#portao; return processador.processar(dados, execucao, sinal) } },
+      {
+        'ia.executar': async (dados, execucao, sinal) => { await this.#portao; return processador.processar(dados, execucao, sinal) },
+        'ia.executar-lote': async (dados, execucao, sinal) => { await this.#portao; return processador.processar(dados, execucao, sinal) },
+      },
       this.#logger,
       { prefixo: this.prefixo, ...(this.#opcoes.graca === undefined ? {} : { graca: this.#opcoes.graca }), ...(this.#opcoes.medidor === undefined ? {} : { medidor: this.#opcoes.medidor }) },
     )
@@ -300,8 +323,9 @@ export class FilaDeIa {
         {
           banco: configuracaoDoBanco(5),
           redisFilaUrl: urlRedisDeFila(),
-          pools: { interativa: 1, ferramenta: 1, normal: 1 },
+          pools: { interativa: 1, ferramenta: 1, normal: 1, lote: 1 },
           vagasPadrao: vagasPadraoDoAmbiente(),
+          janelaPadrao: janelaPadraoDoAmbiente(),
           telemetria: config.telemetria,
           ia,
         },
@@ -344,7 +368,7 @@ export class FilaDeIa {
     const prazo = Date.now() + limiteMs
     for (;;) {
       const { rows } = await this.pool.query<{ total: string }>(
-        "select count(*)::text as total from job_registro where tipo = 'ia.executar' and criado_em >= $1 and estado not in ('concluido', 'falhou')",
+        "select count(*)::text as total from job_registro where tipo in ('ia.executar', 'ia.executar-lote') and criado_em >= $1 and estado not in ('concluido', 'falhou')",
         [this.#inicio],
       )
       if (rows[0]?.total === '0') return

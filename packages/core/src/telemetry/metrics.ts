@@ -234,6 +234,11 @@ export const METRICS = {
    * lê (o balde cheio; o runbook diz que é saturação) e o aviso aos 70 %. Vale a última reserva do minuto; sem reserva há um minuto, a série volta a 0.
    */
   usoDoTetoDeTokens: 'ia.tokens.uso_do_teto',
+  /**
+   * Quanto o material esperou entre o envio e a classificação da seção, em segundos (classificacao-bncc, tarefa 4.0; Tech Spec §7c, "Métrica"): `classificada_em - material.enviado_em`, uma observação por
+   * seção gravada pela execução, por `escola_id`. É o que diz se o lote da noite dá conta do onboarding de uma escola de 300 apostilas. Só a escola no rótulo: nunca o material, a seção, o título nem o código.
+   */
+  esperaDaClassificacao: 'material.classificacao.espera',
 } as const
 
 /**
@@ -257,6 +262,7 @@ export const METRICS_WITH_ESCOLA: readonly string[] = [
   METRICS.senhaProvisoriaGerada,
   METRICS.esperaEstourada,
   METRICS.execucaoInterrompida,
+  METRICS.esperaDaClassificacao,
 ]
 
 /** O rótulo da escola nas métricas de job. Rotina do sistema, sem escola, aparece como `sistema`, como na chave da vaga. */
