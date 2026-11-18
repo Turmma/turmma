@@ -226,8 +226,8 @@ describe('métricas na observabilidade local, por rota, fila e escola', () => {
 
     const comEscola = (await consultar('count by (__name__) ({escola_id!=""})')).map(({ metric }) => metric['__name__']).sort()
     expect(comEscola).toEqual(expect.arrayContaining(['job_espera_mais_antiga_s', 'job_pendentes', 'fila_vagas_em_uso']))
-    // A lista fechada de `METRICS_WITH_ESCOLA` (as de job, as três de login, a do expurgo, a do incidente, a do arquivo em preparação, a
-    // da eliminação vencida e a da importação de planilha na fila), com o nome do Prometheus.
+    // A lista fechada de `METRICS_WITH_ESCOLA` (`packages/core/src/telemetry/metrics.ts`), com o nome do Prometheus; a esperada, abaixo,
+    // diz de cada uma a tarefa que a criou.
     const admitidas = new Set<string>(
       (Object.keys(METRICS) as Array<keyof typeof METRICS>).filter((chave) => METRICS_WITH_ESCOLA.includes(METRICS[chave])).flatMap((chave) => NOMES_NO_PROMETHEUS[chave]),
     )
@@ -256,6 +256,8 @@ describe('métricas na observabilidade local, por rota, fila e escola', () => {
         // A pergunta do Tutor cortada por esperar mais de 20 s e a execução de IA encerrada como interrompida, por escola (reengenharia-continuacao, tarefa 7.0; Tech Spec, seção 7c).
         ...NOMES_NO_PROMETHEUS.esperaEstourada,
         ...NOMES_NO_PROMETHEUS.execucaoInterrompida,
+        // A espera do material entre o envio e a classificação da seção, por escola: é o que diz se o lote da noite dá conta do onboarding de uma escola (classificacao-bncc, tarefa 4.0; Tech Spec, seção 7c).
+        ...NOMES_NO_PROMETHEUS.esperaDaClassificacao,
       ].sort(),
     )
     expect(comEscola.filter((nome) => !admitidas.has(nome ?? ''))).toEqual([])

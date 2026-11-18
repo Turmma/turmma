@@ -242,9 +242,10 @@ export const METRICS = {
 } as const
 
 /**
- * As únicas métricas que levam `escola_id`: as de job e, fora de job, as três de login da Tech Spec da identidade (seção
- * 7c), com cardinalidade de uma série por escola: a espera pelo hash, as falhas e o rebaixamento; e as noites sem
- * expurgo (F3, tarefa 3.0) as horas do incidente sem confirmação (F3, tarefa 9.0) as do arquivo em preparação (F3, tarefa 13.0), as da eliminação vencida (F3, tarefa 15.0) os minutos da importação de planilha na fila (F2, tarefa 5.0) e as senhas provisórias geradas (acesso-e-convites, tarefa 9.0). Nenhuma outra pode levar escola, e nenhuma leva usuário.
+ * As únicas métricas que levam `escola_id`, com cardinalidade de uma série por escola: as de job, as de login (Tech Spec da
+ * identidade, seção 7c) e as que a lista abaixo traz, cada uma justificada, com a tarefa que a criou, no teste de cardinalidade
+ * da observabilidade (`infra/test/metricas.int.test.ts`) e em `metrics.test.ts`. A lista é a fonte: quem acrescenta uma entra
+ * nos dois testes, e este comentário não a repete. Nenhuma outra pode levar escola, e nenhuma leva usuário.
  */
 export const METRICS_WITH_ESCOLA: readonly string[] = [
   METRICS.esperaMaisAntiga,
