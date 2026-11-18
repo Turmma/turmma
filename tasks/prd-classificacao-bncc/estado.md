@@ -1,9 +1,9 @@
 # Estado da execução — classificacao-bncc
 
 ## Agora
-- **Espero:** o `RELATÓRIO` do `Implementador` (linha 1) da tarefa 8.0 e o do `Implementador 2` (linha 2, aberta em 18/11 ~10:50) da tarefa 9.0, as duas de porte grande, partidas em 18/11 ~10:52, 1ª tentativa. A esteira de `1a5aa033` (encontro da 7.0) se lê no próximo encontro; o `verificar` fica vermelho pelo `3209137c` até o pouso, por decisão de 18/11 ~13:10 ("O que decidi sem perguntar"). E o `RELATÓRIO` do `Arquiteto` (no andar) com a medida local no `RETIDOS.json`: espera o Joaquim subir o llama-server na 8080 (não está nesta máquina, nem no WSL nem no Windows); a da produção fica pendente da D37.
-- **Devo ainda:** em cada encontro e antes do pouso, rodar `npm run ci:verificar` no andar, porque a esteira o pula atrás do `conferir-entregas` (verde em `1a5aa033`, 18/11 13:12). A 10.0 só parte com a medida do `Arquiteto` registrada; taxa fora do `padrao` é decisão do Joaquim. No fechamento, marcar `[x]` o item "(F4, retro, M3)" do `TODO.md`. Push da `develop` (retro da X6, `46ea2309`) no próximo pouso.
-- **Base:** `spec/classificacao-bncc` em `1a5aa033`
+- **Espero:** o `RELATÓRIO` do `Implementador` (linha 1) da tarefa 8.0, porte grande, partida em 18/11 ~10:52, 1ª tentativa. A linha 2 está ociosa desde o encontro da 9.0 (18/11 ~14:00): a 10.0 espera a 8.0 e a medida. A esteira de `e0ed1252` (encontro da 9.0) se lê no próximo encontro; a de `1a5aa033` caiu só no `verificar`, e os outros jobs passaram. O `verificar` fica vermelho pelo `3209137c` até o pouso, por decisão de 18/11 ~13:10 ("O que decidi sem perguntar"). E o `RELATÓRIO` do `Arquiteto` (no andar) com a medida local no `RETIDOS.json`: espera o Joaquim subir o llama-server na 8080 (não está nesta máquina, nem no WSL nem no Windows); a da produção fica pendente da D37.
+- **Devo ainda:** em cada encontro e antes do pouso, rodar `npm run ci:verificar` e `npm run guarda:segredo` no andar, porque a esteira os pula atrás do `conferir-entregas`. No checkout do andar, o gitleaks do `ci:verificar` lê 0 commits, e o `guarda:segredo` é o que lê o histórico. Os dois deram verde em `1a5aa033` (13:12) e em `e0ed1252` (~14:05; 1.421 commits, nenhum segredo). A 10.0 só parte com a medida do `Arquiteto` registrada; taxa fora do `padrao` é decisão do Joaquim. No fechamento, marcar `[x]` o item "(F4, retro, M3)" do `TODO.md`. Push da `develop` (retro da X6, `46ea2309`) no próximo pouso.
+- **Base:** `spec/classificacao-bncc` em `e0ed1252`
 
 ## Concluídas
 | Tarefa | Commit | Modelo | Rodadas | Observação |
@@ -19,6 +19,7 @@
 | correção `2026-11-18-integracao-vermelha-da-5-0` (da 5.0, L1) | `b8fbdeea` | Sonnet | os sete revisores na 1ª; revisor-geral e test-engineer também na 2ª | o `esperarExtracao` do teste deixa de enfileirar a classificação, que o FakeAdapter rodava somando chamada e consumo; encontro em `9de64089` |
 | 6.0 | `c148527c` | Sonnet | test-engineer na 2ª; tenancy, privacy, conformidade, infra e revisor-geral na 1ª | sem tela; portão verde com 39 mutações vermelhas; recomendações no documento e no `TODO.md`; encontro em `c80b431e` (tipagem e lint da soma passaram) |
 | 7.0 | `5cd7e988` | Sonnet | test-engineer e revisor-geral na 2ª; tenancy, privacy, conformidade e infra na 1ª | sem tela; portão com 78 mutações; 14 linhas novas no `TODO.md`, e o resto sem aplicar em `.processo/ordens/7_task-r2.md`; encontro em `1a5aa033` (tipagem e lint da soma passaram). Esteira de `c80b431e`: só o `verificar` caiu (o `3209137c`), o resto foi cancelado; a reexecução da 44272795124 deixou o infra 3/3 verde |
+| 9.0 (L2) | `ce645ba6` | Sonnet | test-engineer na 2ª; os outros cinco na 1ª | contração da F4 (licença no banco; o código deixa `material.licenciante`); a migration é a `0065` (e não a `0063`), e a volta para antes da F4 pede um passo no runbook, como diz a Tech Spec (divergências no `9_task.md`). O corpo do commit diz "sem o passo do runbook" por engano: vale a Tech Spec, "a menos de um passo". Recomendações sem aplicar no `TODO.md` e no documento. Encontro em `e0ed1252` (tipagem e lint da soma passaram) |
 
 ## Esperando o Joaquim
 ## 17/11 08:55 — retro da X6, no terminal do `Arquiteto 2`
