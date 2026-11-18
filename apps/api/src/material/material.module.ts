@@ -8,7 +8,8 @@ import { LicencaService } from './licenca.service.js'
 import { TrechoSearch } from './trecho-search.js'
 import { MaterialController } from './material.controller.js'
 import { MaterialService } from './material.service.js'
-import { MaterialAtualizarGuard, MaterialUploadGuard } from './material-upload.js'
+import { HabilidadesBnccController } from './habilidades-bncc.controller.js'
+import { MaterialAtualizarGuard, MaterialCorrigirGuard, MaterialReclassificarGuard, MaterialUploadGuard } from './material-upload.js'
 
 /** Fecha o cliente do armazém na descida do processo, antes de o pool do banco fechar. */
 class CicloDoArmazemDoMaterial implements BeforeApplicationShutdown {
@@ -43,7 +44,7 @@ export class MaterialModule {
       opcoes.armazemDeTeste === undefined ? S3FileStorage.criar(opcoes.armazem) : { armazem: opcoes.armazemDeTeste, encerrar: (): void => undefined }
     return {
       module: MaterialModule,
-      controllers: [MaterialController, LicencaController],
+      controllers: [MaterialController, LicencaController, HabilidadesBnccController],
       providers: [
         {
           provide: MaterialService,
@@ -56,6 +57,8 @@ export class MaterialModule {
         { provide: CicloDoArmazemDoMaterial, useFactory: () => new CicloDoArmazemDoMaterial(encerrar) },
         MaterialUploadGuard,
         MaterialAtualizarGuard,
+        MaterialCorrigirGuard,
+        MaterialReclassificarGuard,
       ],
       exports: [TrechoSearch],
     }

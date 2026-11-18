@@ -24,7 +24,7 @@ import type { AuthorCheck } from '../sessao/index.js'
 /** Os tipos que nenhum dos dois comandos mexe: a IA e o pedido do titular (que foi enfileirado uma vez só e tem o próprio caminho). */
 export const PREFIXOS_QUE_A_OPERACAO_NAO_MEXE: readonly string[] = ['ia.', 'titular.']
 
-const FORMATO_DO_CHAMADO = /^[1-9]\d{0,8}$/
+export const FORMATO_DO_CHAMADO = /^[1-9]\d{0,8}$/
 
 export interface PedidoDeJob {
   readonly jobId: string

@@ -39,7 +39,7 @@ execucao_agente   ano_letivo_id passa a aceitar nulo, só em `classificar_secoes
 não tem ano (PRD F4, §6), nem a execução da classificação; a virada não a afeta.
 
 **Carga:** o JSON da release `dados-2026.08` do `bncc-dados` (CC BY 4.0), reduzido a código, texto, componente, anos
-(6 a 9) e área, versionado com a atribuição; `on conflict (codigo) do update`, com a versão. Código nunca sai. Sem
+(6 a 9) e área, versionado com a atribuição; `on conflict (codigo) do update`, com a versão. Código nunca sai. **A lista fechada dos códigos** (7.0): `CODIGOS_DA_BNCC` em `packages/shared/src/bncc/codigos-da-bncc.ts` (os 913 da `dados-2026.08`, em ordem), de onde o `PUT` e a consulta das candidatas tiram o `z.enum` e a auditoria tira o tipo do código (ela só aceita id, enum, booleano, número ou data). O teste `packages/core/src/db/bncc/codigos-da-bncc.test.ts` confere a lista contra o JSON da carga nos dois sentidos, e **carga nova precisa**: gerar a lista de novo (o teste reprova a que ficou para trás) e apontar o teste para o JSON da nova versão. Código com formato válido que a tabela não tem é `ENTRADA_INVALIDA`, e a correção de uma seção que a IA classificou com código fora da lista não existe (o `concluir` só grava candidata do recorte, e a candidata sai da tabela). Sem
 Computação (a D65 fica no `TODO.md`). **Componentes:** `COMPONENTES_BNCC` em `packages/shared` diz as candidatas (EF:
 componente e anos das séries; EM: a área, e Língua Portuguesa com `EM13LP` e `EM13LGG`; série do EF e do EM no mesmo
 material: a união; **a BNCC do Fundamental não tem Biologia, Física nem Química, e o conteúdo delas está em Ciências (`CI`): no EF elas procuram em `CI`, e Filosofia e Sociologia não têm candidata do EF**). A tabela leva, além do check do código, o do recorte da etapa (EF com componente e anos de 6 a 9, EM com área e sem anos) e o dos valores de componente e área; o JSON traz no cabeçalho o hash do PDF e o das habilidades, e a única diferença de texto contra o PDF (`EF07MA33`, o π que a camada de texto dele não traz) fica registrada ali, e o PDF vence. A migration preenche o componente pelo nome sem acento nem caixa; o que não casa fica nulo. A disciplina criada depois
@@ -69,7 +69,7 @@ a saída dos dois checks de `licenciante` e o código que não lê nem grava a c
 **Ordem das respostas:** primeiro o objeto no alcance (material da F4; `artefatoId` só do dono; série da escola), senão
 `NAO_ENCONTRADO`, igual ao inexistente; depois `ENTRADA_INVALIDA` (código fora do recorte atual); depois `CONFLITO`
 (material não `pronto`, disciplina sem componente, artefato aplicado ou com versão adaptada) e `FUNCAO_SUSPENSA`
-(reclassificar suspenso). Sem componente, `GET /v1/habilidades-bncc` devolve lista vazia com `semComponente`, e a
+(reclassificar suspenso). **Na correção** (`PUT`), disciplina sem componente responde `CONFLITO` antes de olhar os códigos: sem componente não há recorte para comparar, então o recorte vem primeiro e depois, com ele, `ENTRADA_INVALIDA` (código fora do recorte) vem antes do `CONFLITO` do material não `pronto`. Em `GET /v1/habilidades-bncc`, a coordenação alcança só `materialId`: o `artefatoId` é do professor dono, e para a coordenação dá `NAO_ENCONTRADO`. Sem componente, `GET /v1/habilidades-bncc` devolve lista vazia com `semComponente`, e a
 troca só aceita `null`. `/cobertura` vem antes de `:id`. Tetos por pessoa e escola (429, `Retry-After`): `PUT` 300/h e
 900/h, reclassificar e troca 100/h e 300/h, contados na auditoria. A rede não alcança nada disto.
 
@@ -110,7 +110,7 @@ soma 1 em `falhas_seguidas` das seções da execução (`execucao_id = :esta`), 
 
 **Reclassificar** (RF12) e o comando D76 (`reclassificar-escola`, com chamado, em lotes de 500): as seções não corrigidas e
 sem execução `pendente` ganham execução nova (`solicitada_por` nulo, `falhas_seguidas` zerada); a antiga conclui sem
-efeito. O texto vem dos `trecho`. **Correção** (RF6):
+efeito. O texto vem dos `trecho`. A trava é só a das seções (`for update ... of secao_do_material`, em ordem de `id`, com o `limit` do lote), a execução de cada uma é lida depois dela, em outro comando, e o lote é lido a partir de um cursor (`depoisDe`, obrigatório; o primeiro é `ANTES_DA_PRIMEIRA_SECAO`). O comando D76 confere a escola e a função ativa **em todo lote**, não só no primeiro: a suspensão entre dois lotes para o comando com `FUNCAO_SUSPENSA` e deixa só o que os lotes anteriores fizeram. **O comando não aplica o limite de execuções por noite da rotina** (`EXECUCOES_POR_NOITE_DA_ESCOLA`): é pedido da operação, por chamado, e o runbook manda rodar fora do horário e avisa disso. **Correção** (RF6):
 `for update` na seção, troca as habilidades (`origem: 'coordenacao'`) e grava `corrigida_em`; é final.
 
 **Suspensão** de `classificacao_do_material`: a geração, a troca e a cobertura ignoram `origem: 'ia'` (vale só a
@@ -142,7 +142,7 @@ novo (a rotina das 19h roda por escola, como o expurgo). Testes efetivos sem a c
 |---|---|
 | Campos pessoais (`docs/lgpd.md`) | `corrigida_por` e as ações, na linha do material, na tarefa da migration |
 | Log | ids, contagens, códigos de erro; nunca título, texto ou código escolhido |
-| Auditoria | `material.classificacao_corrigida` (antes e depois), `material.classificacao_herdada`, `material.reclassificado`, `escola.reclassificada` (chamado), `artefato.habilidade_trocada`, `disciplina.componente_alterado` (a chave do job, §5) |
+| Auditoria | `material.classificacao_corrigida` (antes e depois: os códigos, que são enum da lista fechada, §3), `material.classificacao_herdada`, `material.reclassificado`, `escola.reclassificada` (chamado), `artefato.habilidade_trocada`, `disciplina.componente_alterado` (a chave do job, §5) |
 | Provedor externo | texto do material e lista BNCC, sem pessoa; a tarefa declara `levaTextoDeAluno: false`, `levaTextoLivreDePessoa: false` e a categoria (regra 20, item 13) |
 | `consumo_ia` | entrada só com ids das seções e versão do prompt; saída, os códigos |
 | Retenção | sai com o material |

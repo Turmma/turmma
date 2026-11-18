@@ -66,3 +66,28 @@ export class MaterialAtualizarGuard implements CanActivate {
     return true
   }
 }
+
+/**
+ * O teto das correções de habilidade conferido **antes** de o corpo ser lido (classificacao-bncc, 7.0): 300 por hora por pessoa e 900 por escola, contados na auditoria. Mesma posição dos outros: depois das guardas globais e
+ * antes do pipe que valida o corpo. Acima do teto, `LIMITE_EXCEDIDO` com `Retry-After`.
+ */
+@Injectable()
+export class MaterialCorrigirGuard implements CanActivate {
+  constructor(private readonly materiais: MaterialService) {}
+
+  async canActivate(): Promise<boolean> {
+    await this.materiais.exigirCorrecaoDentroDosTetos()
+    return true
+  }
+}
+
+/** O teto dos pedidos de reclassificar (classificacao-bncc, 7.0): 100 por hora por pessoa e 300 por escola, contados na auditoria, conferido antes de qualquer outra coisa. */
+@Injectable()
+export class MaterialReclassificarGuard implements CanActivate {
+  constructor(private readonly materiais: MaterialService) {}
+
+  async canActivate(): Promise<boolean> {
+    await this.materiais.exigirReclassificacaoDentroDosTetos()
+    return true
+  }
+}

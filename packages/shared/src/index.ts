@@ -204,6 +204,10 @@ export {
   CODIGO_DE_HABILIDADE_BNCC,
 } from './bncc/componentes.js'
 export type { ComponenteBncc, SerieDoRecorte } from './bncc/componentes.js'
+export { CODIGOS_DA_BNCC } from './bncc/codigos-da-bncc.js'
+export type { CodigoDaBncc } from './bncc/codigos-da-bncc.js'
+export { habilidadeCandidataSchema, habilidadesBnccQuerySchema, habilidadesBnccResponseSchema, MAXIMO_DE_HABILIDADES_NA_LISTA } from './material/habilidades-bncc.js'
+export type { HabilidadeCandidataBncc, HabilidadesBnccQuery, HabilidadesBnccResponse } from './material/habilidades-bncc.js'
 export {
   AREAS_DO_CONHECIMENTO,
   disciplinaSchema,
@@ -551,6 +555,13 @@ export type {
 export {
   buscaDeMaterialQuerySchema,
   capituloDoMaterialSchema,
+  corrigirSecaoRequestSchema,
+  habilidadeDaSecaoSchema,
+  MAXIMO_DE_HABILIDADES_POR_SECAO,
+  reclassificarResponseSchema,
+  secaoDoMaterialResponseSchema,
+  SITUACOES_DA_SECAO,
+  situacaoDaSecao,
   materialComCapitulosResponseSchema,
   materiaisQuerySchema,
   materialSchema,
@@ -593,6 +604,11 @@ export {
 export type {
   BuscaDeMaterialQuery,
   CapituloDoMaterial,
+  CorrigirSecaoRequest,
+  HabilidadeDaSecao,
+  ReclassificarResponse,
+  SecaoDoMaterialResponse,
+  SituacaoDaSecao,
   MateriaisQuery,
   EstadoDeMaterial,
   FalhaDeMaterial,

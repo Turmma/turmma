@@ -157,18 +157,28 @@ describe('MATRIZ de permissão', () => {
   // célula trocada; estes testes dizem a regra de cada grupo.
   const RECURSOS_DO_MVP = ['material', 'time', 'assistente', 'execucao', 'ferramenta', 'artefato', 'entrega', 'atividade_aplicada', 'minha_atividade', 'correcao', 'desempenho_da_turma', 'tutor', 'sinal', 'uso_do_tutor', 'governanca', 'analista'] as const
 
-  it('MVP: as quarenta e três rotas têm célula, e a rede não chama nenhuma', () => {
+  it('MVP: as quarenta e cinco rotas têm célula, e a rede não chama nenhuma', () => {
     const acoes = RECURSOS_DO_MVP.flatMap((recurso) => RECURSOS[recurso].map((acao) => [recurso, acao] as const))
-    expect(acoes).toHaveLength(43)
+    expect(acoes).toHaveLength(45)
     for (const [recurso, acao] of acoes) expect(alcanceDe('rede', recurso, acao), `${recurso}.${acao}`).toBe('nunca')
   })
 
   it('MVP: só a coordenação envia e exclui material (D75); o professor lê e busca o das disciplinas dele; o aluno, nada', () => {
-    expect(RECURSOS.material).toEqual(['enviar', 'listar', 'ler', 'excluir', 'buscar', 'resumir'])
+    expect(RECURSOS.material).toEqual(['enviar', 'listar', 'ler', 'excluir', 'buscar', 'resumir', 'corrigir_classificacao', 'reclassificar'])
     for (const acao of RECURSOS.material) expect(alcanceDe('coordenador', 'material', acao), acao).toBe('unidade')
-    for (const acao of ['enviar', 'excluir', 'resumir'] as const) expect(alcanceDe('professor', 'material', acao), acao).toBe('nunca')
+    for (const acao of ['enviar', 'excluir', 'resumir', 'corrigir_classificacao', 'reclassificar'] as const) expect(alcanceDe('professor', 'material', acao), acao).toBe('nunca')
     for (const acao of ['listar', 'ler', 'buscar'] as const) expect(alcanceDe('professor', 'material', acao), acao).toBe('turma_vinculada')
     for (const acao of RECURSOS.material) expect(alcanceDe('aluno', 'material', acao), acao).toBe('nunca')
+  })
+
+  it('classificacao-bncc 7.0: só a coordenação corrige e reclassifica; as candidatas da BNCC são da coordenação e do professor vinculado, nunca do aluno nem da rede', () => {
+    for (const acao of ['corrigir_classificacao', 'reclassificar'] as const) {
+      expect(alcanceDe('coordenador', 'material', acao), acao).toBe('unidade')
+      for (const papel of ['professor', 'aluno', 'rede'] as const) expect(alcanceDe(papel, 'material', acao), `${papel} ${acao}`).toBe('nunca')
+    }
+    expect(alcanceDe('coordenador', 'habilidade_bncc', 'listar')).toBe('unidade')
+    expect(alcanceDe('professor', 'habilidade_bncc', 'listar')).toBe('turma_vinculada')
+    for (const papel of ['aluno', 'rede'] as const) expect(alcanceDe(papel, 'habilidade_bncc', 'listar'), papel).toBe('nunca')
   })
 
   it('MVP: a conversa do professor com o Assistente só ele lê; a coordenação nunca (regra 70, item 8)', () => {

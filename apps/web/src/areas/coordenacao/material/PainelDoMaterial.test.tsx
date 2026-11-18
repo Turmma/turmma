@@ -37,6 +37,8 @@ const material = (n: number, parte: Record<string, unknown> = {}) => ({
   ...parte,
 })
 const PRONTO = material(1, { titulo: 'Apostila de Química' })
+/** O `GET /:id` agora também traz as seções e se a classificação está suspensa (classificacao-bncc, 7.0); a tela delas é a 8.0, e este painel só lê os capítulos. */
+const SEM_CLASSIFICACAO = { secoes: [], classificacaoSuspensa: false }
 const CAPITULOS = [
   { ordem: 1, numero: 1, titulo: 'Substâncias e misturas', paginaInicial: 1, paginaFinal: 5 },
   { ordem: 2, numero: null, titulo: 'Apêndice', paginaInicial: 6, paginaFinal: 6 },
@@ -69,7 +71,7 @@ function instalar(rede: FakeNetwork, { materiais = [PRONTO], detalhe, escrita }:
     const metodo = rede.chamadas.at(-1)?.metodo ?? 'GET'
     if (metodo === 'PATCH') return escrita?.('PATCH') ?? ok({ ...PRONTO, titulo: 'Novo título' })
     const alvo = caminho.split('/').at(-1) ?? ''
-    return detalhe?.(alvo) ?? ok({ ...(materiais.find((candidato) => (candidato as { id: string }).id === alvo) ?? PRONTO), capitulos: CAPITULOS })
+    return detalhe?.(alvo) ?? ok({ ...(materiais.find((candidato) => (candidato as { id: string }).id === alvo) ?? PRONTO), capitulos: CAPITULOS, ...SEM_CLASSIFICACAO })
   })
 }
 
@@ -138,7 +140,7 @@ describe('os capítulos', () => {
   })
 
   it('o PDF sem capítulo diz isso, em vez de uma lista vazia', async () => {
-    instalar(fakeNetwork(), { detalhe: () => ok({ ...PRONTO, capitulos: [] }) })
+    instalar(fakeNetwork(), { detalhe: () => ok({ ...PRONTO, capitulos: [], ...SEM_CLASSIFICACAO }) })
     const painel = await painelAberto('Apostila de Química', PRONTO)
     const secao = within(await painel.findByRole('region', { name: 'Capítulos' }))
     expect(await secao.findByText(/não tem capítulos que a leitura reconheça/)).toBeTruthy()
@@ -149,7 +151,7 @@ describe('os capítulos', () => {
     const usuario = userEvent.setup()
     let falha = true
     const rede = fakeNetwork()
-    instalar(rede, { detalhe: () => (falha ? ERRO('LIMITE_EXCEDIDO', 429) : ok({ ...PRONTO, capitulos: CAPITULOS })) })
+    instalar(rede, { detalhe: () => (falha ? ERRO('LIMITE_EXCEDIDO', 429) : ok({ ...PRONTO, capitulos: CAPITULOS, ...SEM_CLASSIFICACAO })) })
     const painel = await painelAberto('Apostila de Química', PRONTO)
     const secao = within(await painel.findByRole('region', { name: 'Capítulos' }))
     expect((await secao.findByRole('alert')).textContent).toBe('Não foi possível ler os capítulos.')

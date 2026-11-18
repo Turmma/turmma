@@ -178,6 +178,36 @@ describe('contratos de saída: nenhuma resposta traz credencial, segredo ou iden
     expect(shared.capituloDoMaterialSchema.safeParse({ ...capitulo, titulo: 'a'.repeat(shared.TAMANHO_MAXIMO_DO_TITULO_DO_CAPITULO + 1) }).success).toBe(false)
   })
 
+  it('classificacao-bncc 7.0: as seções do `GET /v1/materiais/:id` e a lista de habilidades entram na varredura, e saem sem `corrigidaPor`, sem `execucaoId` e sem `falhasSeguidas`', () => {
+    const nomes = esquemasDeResposta.map(([nome]) => nome)
+    expect(nomes).toEqual(expect.arrayContaining(['materialComCapitulosResponseSchema', 'secaoDoMaterialResponseSchema', 'reclassificarResponseSchema', 'habilidadesBnccResponseSchema']))
+    const campos = camposDoEsquema(shared.materialComCapitulosResponseSchema)
+    expect(campos.filter((campo) => campo.startsWith('secoes'))).toEqual([
+      'secoes',
+      'secoes[].id',
+      'secoes[].ordem',
+      'secoes[].paginaInicial',
+      'secoes[].paginaFinal',
+      'secoes[].capitulo',
+      'secoes[].capitulo.numero',
+      'secoes[].capitulo.titulo',
+      'secoes[].situacao',
+      'secoes[].habilidades',
+      'secoes[].habilidades[].codigo',
+      'secoes[].habilidades[].descricao',
+      'secoes[].habilidades[].origem',
+      'secoes[].corrigida',
+    ])
+    expect(campos).toContain('classificacaoSuspensa')
+    for (const proibido of ['corrigidaPor', 'corrigidaEm', 'execucaoId', 'falhasSeguidas', 'classificadaEm']) expect(campos.filter((campo) => campo.includes(proibido))).toEqual([])
+    for (const nome of ['materialComCapitulosResponseSchema', 'secaoDoMaterialResponseSchema', 'reclassificarResponseSchema', 'habilidadesBnccResponseSchema'] as const) expect(problemasDoContrato(nome, shared[nome])).toEqual([])
+    // A seção é estrita: quem corrigiu e a execução não passam, nem por engano.
+    const secao = { id: '0196c0a8-7b2c-7000-8000-000000000001', ordem: 1, paginaInicial: 1, paginaFinal: 2, capitulo: null, situacao: 'classificada', habilidades: [], corrigida: true }
+    expect(shared.secaoDoMaterialResponseSchema.safeParse(secao).success).toBe(true)
+    expect(shared.secaoDoMaterialResponseSchema.safeParse({ ...secao, corrigidaPor: secao.id }).success).toBe(false)
+    expect(shared.secaoDoMaterialResponseSchema.safeParse({ ...secao, execucaoId: secao.id }).success).toBe(false)
+  })
+
   it('ingestao-do-material 10.0: `GET /v1/artefatos/:id` traz as `fontes` só com materialId, título, edição e substituído: nem hash, nem chave do objeto, nem quem enviou, nem licenciante', () => {
     expect(esquemasDeResposta.map(([nome]) => nome)).toContain('artefatoResponseSchema')
     const campos = camposDoEsquema(shared.artefatoResponseSchema)

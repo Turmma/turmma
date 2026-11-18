@@ -1,5 +1,8 @@
 import { z } from 'zod'
+import { CODIGOS_DA_BNCC } from '../bncc/codigos-da-bncc.js'
+import { CODIGO_DE_HABILIDADE_BNCC } from '../bncc/componentes.js'
 import { paginationQuerySchema, pageSchema } from '../estrutura/pagination.js'
+import type { EstadoDeExecucao } from '../time/execucao.js'
 
 /**
  * O material da escola (MVP, A2; D5, D22, D75): a coordenação sobe o PDF com a titularidade e a licença declaradas, e o
@@ -233,9 +236,84 @@ export const capituloDoMaterialSchema = z.strictObject({
 })
 export type CapituloDoMaterial = z.infer<typeof capituloDoMaterialSchema>
 
-/** Resposta de `GET /v1/materiais/:id`: o material, mais os capítulos lidos do PDF em ordem. Vazio: o PDF sem capítulo, ou ainda `processando`. */
-export const materialComCapitulosResponseSchema = materialSchema.extend({ capitulos: z.array(capituloDoMaterialSchema) })
+/**
+ * Em que ponto está a classificação de uma seção (classificacao-bncc, 7.0; Tech Spec, seção 7c, "Estados da seção"), derivada da execução e das habilidades: `nao_agendada` (sem execução), `aguardando` (execução `pendente` ou
+ * `rodando`), `classificada` (a execução concluiu e a seção tem habilidade), `sem_habilidade` (concluiu e a IA não achou nenhuma) e `nao_classificada` (a execução falhou). A seção **corrigida** pela coordenação
+ * vence todas: é `classificada`, ou `sem_habilidade` se a coordenação a deixou sem código, e `corrigida` é `true`.
+ */
+export const SITUACOES_DA_SECAO = ['nao_agendada', 'aguardando', 'classificada', 'sem_habilidade', 'nao_classificada'] as const
+export type SituacaoDaSecao = (typeof SITUACOES_DA_SECAO)[number]
+
+/**
+ * A situação de uma seção, da execução que a classifica e das habilidades que ela tem (Tech Spec, seção 7c, "Estados da seção"). **A correção vence todas**: a seção corrigida pela coordenação é `classificada`, ou
+ * `sem_habilidade` se ela a deixou sem código, seja qual for a execução. Sem correção: sem execução é `nao_agendada`; execução `pendente` ou `rodando`, `aguardando`; `falhou`, `nao_classificada`; `concluida`, `classificada` ou `sem_habilidade`
+ * conforme tenha habilidade.
+ */
+export function situacaoDaSecao(dela: { readonly corrigida: boolean; readonly estadoDaExecucao: EstadoDeExecucao | null; readonly habilidades: number }): SituacaoDaSecao {
+  const classificada = dela.habilidades > 0 ? 'classificada' : 'sem_habilidade'
+  if (dela.corrigida) return classificada
+  if (dela.estadoDaExecucao === null) return 'nao_agendada'
+  if (dela.estadoDaExecucao === 'pendente' || dela.estadoDaExecucao === 'rodando') return 'aguardando'
+  if (dela.estadoDaExecucao === 'falhou') return 'nao_classificada'
+  return classificada
+}
+
+/** O mais que a coordenação põe numa seção: de zero a cinco habilidades (RF6). */
+export const MAXIMO_DE_HABILIDADES_POR_SECAO = 5
+
+/** Uma habilidade da BNCC numa seção: o código, o texto da BNCC e quem a pôs. Nunca quem corrigiu. */
+export const habilidadeDaSecaoSchema = z.strictObject({
+  codigo: z.string().regex(CODIGO_DE_HABILIDADE_BNCC),
+  descricao: z.string().min(1),
+  origem: z.enum(ORIGENS_DA_HABILIDADE_DA_SECAO),
+})
+export type HabilidadeDaSecao = z.infer<typeof habilidadeDaSecaoSchema>
+
+/**
+ * Uma seção do material (um capítulo, ou um bloco de dez páginas) com o que o painel mostra da classificação: o id (que o `PUT` da correção usa), a posição, as páginas, o capítulo (nulo no bloco de páginas), a situação, as
+ * habilidades e se a coordenação a corrigiu. **Nunca `corrigida_por` nem `execucao_id`**: quem corrigiu é dado de pessoa, e a execução é interna (regra 20, item 4; Tech Spec, seção 4).
+ */
+export const secaoDoMaterialResponseSchema = z.strictObject({
+  id: z.uuid(),
+  ordem: z.number().int().min(1),
+  paginaInicial: z.number().int().min(1),
+  paginaFinal: z.number().int().min(1),
+  capitulo: z.strictObject({ numero: z.number().int().nonnegative().nullable(), titulo: z.string().min(1).max(TAMANHO_MAXIMO_DO_TITULO_DO_CAPITULO) }).nullable(),
+  situacao: z.enum(SITUACOES_DA_SECAO),
+  habilidades: z.array(habilidadeDaSecaoSchema).max(MAXIMO_DE_HABILIDADES_POR_SECAO),
+  corrigida: z.boolean(),
+})
+export type SecaoDoMaterialResponse = z.infer<typeof secaoDoMaterialResponseSchema>
+
+/**
+ * Resposta de `GET /v1/materiais/:id`: o material, os capítulos lidos do PDF em ordem (vazio: o PDF sem capítulo, ou ainda `processando`), as seções com a classificação pela BNCC e se a classificação está suspensa na escola
+ * (a geração e a cobertura passam a valer só pelo que a coordenação corrigiu).
+ */
+export const materialComCapitulosResponseSchema = materialSchema.extend({
+  capitulos: z.array(capituloDoMaterialSchema),
+  secoes: z.array(secaoDoMaterialResponseSchema),
+  classificacaoSuspensa: z.boolean(),
+})
 export type MaterialComCapitulosResponse = z.infer<typeof materialComCapitulosResponseSchema>
+
+/**
+ * O corpo de `PUT /v1/materiais/:id/secoes/:secaoId/habilidades` (RF6): de zero a cinco códigos, sem repetir. Zero é uma correção válida ("esta seção não tem habilidade") e é final como as outras. O formato do código é
+ * o da tabela (sem sufixo estadual); que ele esteja no recorte do material é conferido no serviço, depois de o material ser achado.
+ */
+export const corrigirSecaoRequestSchema = z.strictObject({
+  codigos: z
+    .array(z.enum(CODIGOS_DA_BNCC))
+    .max(MAXIMO_DE_HABILIDADES_POR_SECAO)
+    .refine((codigos) => new Set(codigos).size === codigos.length, { message: 'habilidade repetida' }),
+})
+export type CorrigirSecaoRequest = z.infer<typeof corrigirSecaoRequestSchema>
+
+/** Resposta de `POST /v1/materiais/:id/reclassificar` (202): quantas seções vão à classificação da noite (as de agora e as que já esperavam) e quantas a coordenação corrigiu e por isso ficam como estão. */
+export const reclassificarResponseSchema = z.strictObject({
+  secoes: z.number().int().nonnegative(),
+  preservadas: z.number().int().nonnegative(),
+})
+export type ReclassificarResponse = z.infer<typeof reclassificarResponseSchema>
 
 /**
  * Consulta de `GET /v1/materiais`: a página e, se quiser, a disciplina e a série. A coordenação lê os da escola; o professor, só

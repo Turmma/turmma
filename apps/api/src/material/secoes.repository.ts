@@ -1,22 +1,28 @@
 import {
+  artefato,
   capituloDoMaterial,
   CARACTERES_LIDOS_POR_PAGINA,
   disciplina,
+  execucaoAgente,
   habilidadeBncc,
   habilidadeDaSecao,
   material,
   materialSerie,
   PAGINAS_LIDAS_POR_SECAO,
+  requestSessao,
+  requireAnoEmCurso,
   requireEscolaId,
   secaoDoMaterial,
   serie,
   trecho,
+  turma,
   Unscoped,
   type Database,
   type DatabaseTransaction,
 } from '@educa/core'
-import { habilidadeEhCandidata, type ComponenteBncc, type SerieDoRecorte } from '@educa/shared'
-import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm'
+import { habilidadeEhCandidata, type ComponenteBncc, type EstadoDeExecucao, type OrigemDaHabilidadeDaSecao, type SerieDoRecorte } from '@educa/shared'
+import { and, asc, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm'
+import { comVinculoConfirmadoDoProfessor } from '../assistente/turma-do-professor.repository.js'
 
 /** A seção viva que a execução classifica: o que o `preparar` monta a entrada. O texto vem à parte (`paginasDaSecao`). */
 export interface SecaoParaClassificar {
@@ -31,6 +37,32 @@ export interface SecaoParaClassificar {
 export interface HabilidadeCandidata {
   readonly codigo: string
   readonly descricao: string
+}
+
+/** A seção como o painel a lê (classificacao-bncc, 7.0): as páginas, o capítulo, a execução que a classifica e se a coordenação a corrigiu. Nunca `corrigida_por`, que é dado de pessoa e fica no banco. */
+export interface SecaoLida {
+  readonly id: string
+  readonly ordem: number
+  readonly paginaInicial: number
+  readonly paginaFinal: number
+  readonly capituloNumero: number | null
+  readonly capituloTitulo: string | null
+  readonly estadoDaExecucao: EstadoDeExecucao | null
+  readonly corrigida: boolean
+}
+
+/** Uma habilidade da seção, com o texto da BNCC e quem a pôs. */
+export interface HabilidadeLida {
+  readonly secaoId: string
+  readonly codigo: string
+  readonly descricao: string
+  readonly origem: OrigemDaHabilidadeDaSecao
+}
+
+/** O componente e as séries que decidem quais habilidades da BNCC um material (ou o artefato do professor) pode receber. */
+export interface RecorteDasHabilidades {
+  readonly componente: ComponenteBncc | null
+  readonly series: SerieDoRecorte[]
 }
 
 /** O que a gravação devolve por seção gravada: quanto o material esperou desde o envio, para a métrica (§7c). */
@@ -123,9 +155,10 @@ export class SecoesRepository {
   }
 
   /**
-   * O `concluir` da classificação: relê os materiais **`for share`** (`pronto` e não excluído, P4b: a exclusão que chega no meio espera a gravação, ou a gravação nem acontece) e grava cada seção
-   * `where execucao_id = :esta and corrigida_em is null` (P1a e o `execucao_id` trocado por SQL, P9): `classificada_em`, `falhas_seguidas` zerada, as habilidades `origem: 'ia'` no lugar das que a IA pôs antes.
-   * A seção que o `update` não devolveu (corrigida no meio, execução trocada, material excluído) não ganha nada e a execução conclui sem efeito nela. O `for update` da seção fica para a 7.0.
+   * O `concluir` da classificação: relê os materiais **`for share`** (`pronto` e não excluído, P4b: a exclusão que chega no meio espera a gravação, ou a gravação nem acontece) e **trava as seções `for update`** (P1b), **só as que
+   * ainda são desta execução e não foram corrigidas**: `execucao_id = :esta and corrigida_em is null` é a única conferência (P1a, P2, P9, P10b), feita com a trava já tomada, de modo que a correção, a limpeza ou o reclassificar que
+   * chegam no meio esperam o commit e a execução que perdeu a seção não a grava. Depois, nas seções travadas: as habilidades `origem: 'ia'` no lugar das que a IA pôs antes, `classificada_em` e `falhas_seguidas` zerada. A seção que não foi
+   * travada (corrigida no meio, execução trocada, material excluído) não ganha nada, e a execução conclui sem efeito nela. A correção que esperou a trava aplica **por cima** e lê como "antes" os códigos da IA que ela acabou de ver.
    */
   async gravarClassificacao(execucaoId: string, respostas: ReadonlyArray<{ readonly secaoId: string; readonly codigos: readonly string[] }>): Promise<SecaoGravada[]> {
     const escolaId = requireEscolaId()
@@ -141,28 +174,36 @@ export class SecoesRepository {
       .where(and(eq(material.escolaId, escolaId), inArray(material.id, [...new Set(secoes.map((secao) => secao.materialId))]), eq(material.estado, 'pronto'), isNull(material.excluidoEm)))
       .for('share')
     const vivos = new Set(materiaisVivos.map((linha) => linha.id))
-    const gravadas: SecaoGravada[] = []
-    for (const resposta of respostas) {
+    const aGravar = respostas.filter((resposta) => {
       const secao = secoes.find((candidata) => candidata.id === resposta.secaoId)
-      if (secao === undefined || !vivos.has(secao.materialId)) continue
+      return secao !== undefined && vivos.has(secao.materialId)
+    })
+    const travadas = await this.banco
+      .select({ id: secaoDoMaterial.id })
+      .from(secaoDoMaterial)
+      .where(and(eq(secaoDoMaterial.escolaId, escolaId), inArray(secaoDoMaterial.id, aGravar.map((resposta) => resposta.secaoId)), eq(secaoDoMaterial.execucaoId, execucaoId), isNull(secaoDoMaterial.corrigidaEm)))
+      .orderBy(asc(secaoDoMaterial.id))
+      .for('update')
+    const minhas = new Set(travadas.map((linha) => linha.id))
+    const gravadas: SecaoGravada[] = []
+    for (const resposta of aGravar) {
+      if (!minhas.has(resposta.secaoId)) continue
+      await this.banco.delete(habilidadeDaSecao).where(and(eq(habilidadeDaSecao.escolaId, escolaId), eq(habilidadeDaSecao.secaoId, resposta.secaoId), eq(habilidadeDaSecao.origem, 'ia')))
+      if (resposta.codigos.length > 0) {
+        await this.banco.insert(habilidadeDaSecao).values(resposta.codigos.map((codigo) => ({ escolaId, secaoId: resposta.secaoId, codigo, origem: 'ia' as const })))
+      }
       const atualizada = await this.banco.execute<{ id: string; segundos: string }>(sql`
         update secao_do_material s
            set classificada_em = now(), falhas_seguidas = 0
           from material m
          where s.escola_id = ${escolaId}
-           and s.id = ${secao.id}
-           and s.execucao_id = ${execucaoId}
-           and s.corrigida_em is null
+           and s.id = ${resposta.secaoId}
            and m.escola_id = s.escola_id
            and m.id = s.material_id
         returning s.id, extract(epoch from (now() - m.enviado_em))::text as segundos`)
       const linha = atualizada.rows[0]
       if (linha === undefined) continue
-      await this.banco.delete(habilidadeDaSecao).where(and(eq(habilidadeDaSecao.escolaId, escolaId), eq(habilidadeDaSecao.secaoId, secao.id), eq(habilidadeDaSecao.origem, 'ia')))
-      if (resposta.codigos.length > 0) {
-        await this.banco.insert(habilidadeDaSecao).values(resposta.codigos.map((codigo) => ({ escolaId, secaoId: secao.id, codigo, origem: 'ia' as const })))
-      }
-      gravadas.push({ secaoId: secao.id, segundosDesdeOEnvio: Math.max(0, Number(linha.segundos)) })
+      gravadas.push({ secaoId: resposta.secaoId, segundosDesdeOEnvio: Math.max(0, Number(linha.segundos)) })
     }
     return gravadas
   }
@@ -192,5 +233,111 @@ export class SecoesRepository {
       .update(secaoDoMaterial)
       .set({ falhasSeguidas: sql`${secaoDoMaterial.falhasSeguidas} + 1` })
       .where(and(eq(secaoDoMaterial.escolaId, requireEscolaId()), eq(secaoDoMaterial.execucaoId, execucaoId)))
+  }
+
+  /**
+   * As seções do material da escola do contexto, em ordem, com o capítulo, a execução que as classifica e se foram corrigidas (classificacao-bncc, 7.0; Tech Spec, seção 4). A situação sai de `situacaoDaSecao`. Quem chama já
+   * conferiu que o material é alcançado (`MaterialRepository.porId`); a escola vem do contexto, e a leitura é a do material pedido, nunca a de outro.
+   */
+  async doMaterial(materialId: string, secaoId?: string): Promise<SecaoLida[]> {
+    const linhas = await this.banco
+      .select({
+        id: secaoDoMaterial.id,
+        ordem: secaoDoMaterial.ordem,
+        paginaInicial: secaoDoMaterial.paginaInicial,
+        paginaFinal: secaoDoMaterial.paginaFinal,
+        capituloNumero: capituloDoMaterial.numero,
+        capituloTitulo: capituloDoMaterial.titulo,
+        estadoDaExecucao: execucaoAgente.estado,
+        corrigidaEm: secaoDoMaterial.corrigidaEm,
+      })
+      .from(secaoDoMaterial)
+      .leftJoin(capituloDoMaterial, and(eq(capituloDoMaterial.escolaId, secaoDoMaterial.escolaId), eq(capituloDoMaterial.id, secaoDoMaterial.capituloId)))
+      .leftJoin(execucaoAgente, and(eq(execucaoAgente.escolaId, secaoDoMaterial.escolaId), eq(execucaoAgente.id, secaoDoMaterial.execucaoId)))
+      .where(and(eq(secaoDoMaterial.escolaId, requireEscolaId()), eq(secaoDoMaterial.materialId, materialId), secaoId === undefined ? undefined : eq(secaoDoMaterial.id, secaoId)))
+      .orderBy(asc(secaoDoMaterial.ordem))
+    return linhas.map(({ corrigidaEm, ...resto }) => ({ ...resto, corrigida: corrigidaEm !== null }))
+  }
+
+  /** As habilidades das seções dadas, com o texto da BNCC, na ordem do código. A tabela da BNCC é pública: a escola é a da `habilidade_da_secao`, e só ela entra na junção. */
+  async habilidadesDasSecoes(secaoIds: readonly string[]): Promise<HabilidadeLida[]> {
+    return this.banco
+      .select({ secaoId: habilidadeDaSecao.secaoId, codigo: habilidadeDaSecao.codigo, descricao: habilidadeBncc.descricao, origem: habilidadeDaSecao.origem })
+      .from(habilidadeDaSecao)
+      .innerJoin(habilidadeBncc, eq(habilidadeBncc.codigo, habilidadeDaSecao.codigo))
+      .where(and(eq(habilidadeDaSecao.escolaId, requireEscolaId()), inArray(habilidadeDaSecao.secaoId, [...secaoIds])))
+      .orderBy(asc(habilidadeDaSecao.codigo))
+  }
+
+  /**
+   * A seção que a coordenação vai corrigir, **`for update`** até o fim da transação (P1b, P5): a do material dado, da escola do contexto. A de outro material, a de outra escola e a inexistente não são achadas. O `concluir` da
+   * classificação trava a mesma linha, então a correção espera a gravação da IA e aplica por cima, e duas correções passam uma depois da outra.
+   */
+  async travarParaCorrigir(materialId: string, secaoId: string): Promise<{ id: string } | undefined> {
+    const [linha] = await this.banco
+      .select({ id: secaoDoMaterial.id })
+      .from(secaoDoMaterial)
+      .where(and(eq(secaoDoMaterial.escolaId, requireEscolaId()), eq(secaoDoMaterial.materialId, materialId), eq(secaoDoMaterial.id, secaoId)))
+      .for('update')
+    return linha
+  }
+
+  /** Os códigos que a seção tem agora, de qualquer origem, na ordem do código: o "antes" e o "depois" da auditoria da correção. */
+  async codigosDaSecao(secaoId: string): Promise<string[]> {
+    const linhas = await this.banco
+      .select({ codigo: habilidadeDaSecao.codigo })
+      .from(habilidadeDaSecao)
+      .where(and(eq(habilidadeDaSecao.escolaId, requireEscolaId()), eq(habilidadeDaSecao.secaoId, secaoId)))
+      .orderBy(asc(habilidadeDaSecao.codigo))
+    return linhas.map((linha) => linha.codigo)
+  }
+
+  /**
+   * A correção da coordenação (RF6): as habilidades da seção, **todas**, são trocadas pelas dadas, com `origem: 'coordenacao'`, e a seção ganha `corrigida_em` (a marca; a eliminação do titular não a toca) e `corrigida_por`
+   * (só autoria). Zero códigos é correção válida. Quem chama já travou a seção (`travarParaCorrigir`).
+   */
+  async gravarCorrecao(secaoId: string, codigos: readonly string[]): Promise<void> {
+    const escolaId = requireEscolaId()
+    await this.banco.delete(habilidadeDaSecao).where(and(eq(habilidadeDaSecao.escolaId, escolaId), eq(habilidadeDaSecao.secaoId, secaoId)))
+    if (codigos.length > 0) await this.banco.insert(habilidadeDaSecao).values(codigos.map((codigo) => ({ escolaId, secaoId, codigo, origem: 'coordenacao' as const })))
+    await this.banco
+      .update(secaoDoMaterial)
+      .set({ corrigidaEm: sql`now()`, corrigidaPor: requestSessao().usuarioId })
+      .where(and(eq(secaoDoMaterial.escolaId, escolaId), eq(secaoDoMaterial.id, secaoId)))
+  }
+
+  /** Quantas seções do material a coordenação corrigiu: as que o reclassificar preserva. */
+  async contarCorrigidas(materialId: string): Promise<number> {
+    return this.banco.$count(secaoDoMaterial, and(eq(secaoDoMaterial.escolaId, requireEscolaId()), eq(secaoDoMaterial.materialId, materialId), isNotNull(secaoDoMaterial.corrigidaEm)))
+  }
+
+  /** O recorte de um material: o componente da disciplina e as séries declaradas. Sem série, a lista vem vazia; sem componente, `null`. */
+  async recorteDoMaterial(materialId: string, disciplinaId: string): Promise<RecorteDasHabilidades> {
+    const { componentes, series } = await this.recorteDosMateriais([disciplinaId], [materialId])
+    return { componente: componentes.get(disciplinaId) ?? null, series: series.get(materialId) ?? [] }
+  }
+
+  /**
+   * O recorte de um artefato **do professor da sessão** (classificacao-bncc, 7.0; Tech Spec, seção 4): o componente da disciplina e a série da turma. Só o dono (`criado_por`), com vínculo confirmado nesta disciplina e
+   * turma no ano em curso: o artefato de um colega, de outra escola, de outro ano e o inexistente não são achados.
+   */
+  async recorteDoArtefato(artefatoId: string): Promise<RecorteDasHabilidades | undefined> {
+    const escolaId = requireEscolaId()
+    const [linha] = await this.banco
+      .select({ componente: disciplina.componenteBncc, etapa: serie.etapa, ano: serie.ano })
+      .from(artefato)
+      .innerJoin(turma, and(eq(turma.escolaId, artefato.escolaId), eq(turma.anoLetivoId, artefato.anoLetivoId), eq(turma.id, artefato.turmaId)))
+      .innerJoin(serie, and(eq(serie.escolaId, turma.escolaId), eq(serie.id, turma.serieId)))
+      .innerJoin(disciplina, and(eq(disciplina.escolaId, artefato.escolaId), eq(disciplina.id, artefato.disciplinaId)))
+      .where(
+        and(
+          eq(artefato.escolaId, escolaId),
+          eq(artefato.anoLetivoId, requireAnoEmCurso()),
+          eq(artefato.id, artefatoId),
+          eq(artefato.criadoPor, requestSessao().usuarioId),
+          comVinculoConfirmadoDoProfessor(this.banco, { escolaId: artefato.escolaId, anoLetivoId: artefato.anoLetivoId, turmaId: artefato.turmaId }, artefato.disciplinaId),
+        ),
+      )
+    return linha === undefined ? undefined : { componente: linha.componente, series: [{ etapa: linha.etapa, ano: linha.ano }] }
   }
 }

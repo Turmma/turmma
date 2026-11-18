@@ -94,7 +94,12 @@ export const RECURSOS = {
    * disciplinas em que tem vínculo confirmado; o aluno não lê material (o Tutor lê por ele, no servidor). `resumir` é `GET /v1/materiais/resumo` (ingestao-do-material, 11.0; RF18): só a coordenação, a unidade
    * toda; o professor, o aluno e a rede nunca o alcançam (a recusa por licença é assunto da coordenação).
    */
-  material: ['enviar', 'listar', 'ler', 'excluir', 'buscar', 'resumir'],
+  material: ['enviar', 'listar', 'ler', 'excluir', 'buscar', 'resumir', 'corrigir_classificacao', 'reclassificar'],
+  /**
+   * As habilidades da BNCC que um material ou o artefato pode receber (classificacao-bncc, 7.0), `GET /v1/habilidades-bncc`: a coordenação, as do material da escola; o professor, as do material das disciplinas em que tem vínculo
+   * confirmado e as do artefato dele. O aluno e a rede nunca a alcançam. **O `artefatoId` é só do professor dono:** para a coordenação, mesmo com a célula `unidade`, o artefato dá `NAO_ENCONTRADO` (o filtro exige que quem pede o tenha criado, com vínculo confirmado), e a coordenação alcança só o `materialId`; a tela da 8.0 não deve oferecê-lo a ela.
+   */
+  habilidade_bncc: ['listar'],
   /**
    * A licença do material de terceiro (ingestao-do-material, 5.0; PRD, RF16): `listar`, `registrar` e `alterar` são `GET`, `POST` e `PATCH /:id` de
    * `/v1/licencas`. Só a coordenação: o professor, o aluno e a rede nunca a alcançam (o licenciante pode ser nome de pessoa). Não se exclui.
@@ -249,7 +254,8 @@ export const MATRIZ: { readonly [P in Papel]: CelulasDoPapel } = {
     senha_provisoria: { gerar: 'nunca' },
     professor: { listar: 'nunca', cadastrar: 'nunca', refazer_convite: 'nunca', revogar_convite: 'nunca', corrigir_email: 'nunca' },
     indicador_professor: { ler_agregado: 'agregado', ler_nominal: 'nunca' },
-    material: { enviar: 'nunca', listar: 'nunca', ler: 'nunca', excluir: 'nunca', buscar: 'nunca', resumir: 'nunca' },
+    material: { enviar: 'nunca', listar: 'nunca', ler: 'nunca', excluir: 'nunca', buscar: 'nunca', resumir: 'nunca', corrigir_classificacao: 'nunca', reclassificar: 'nunca' },
+    habilidade_bncc: { listar: 'nunca' },
     licenca: { listar: 'nunca', registrar: 'nunca', alterar: 'nunca' },
     importacao_planilha: { previa: 'nunca', gravar: 'nunca', ler: 'nunca' },
     calendario: { ler: 'nunca' },
@@ -297,7 +303,8 @@ export const MATRIZ: { readonly [P in Papel]: CelulasDoPapel } = {
     senha_provisoria: { gerar: 'unidade' },
     professor: { listar: 'unidade', cadastrar: 'unidade', refazer_convite: 'unidade', revogar_convite: 'unidade', corrigir_email: 'unidade' },
     indicador_professor: { ler_agregado: 'agregado', ler_nominal: 'nominal_auditado' },
-    material: { enviar: 'unidade', listar: 'unidade', ler: 'unidade', excluir: 'unidade', buscar: 'unidade', resumir: 'unidade' },
+    material: { enviar: 'unidade', listar: 'unidade', ler: 'unidade', excluir: 'unidade', buscar: 'unidade', resumir: 'unidade', corrigir_classificacao: 'unidade', reclassificar: 'unidade' },
+    habilidade_bncc: { listar: 'unidade' },
     licenca: { listar: 'unidade', registrar: 'unidade', alterar: 'unidade' },
     importacao_planilha: { previa: 'unidade', gravar: 'unidade', ler: 'unidade' },
     calendario: { ler: 'unidade' },
@@ -345,7 +352,8 @@ export const MATRIZ: { readonly [P in Papel]: CelulasDoPapel } = {
     senha_provisoria: { gerar: 'turma_vinculada' },
     professor: { listar: 'nunca', cadastrar: 'nunca', refazer_convite: 'nunca', revogar_convite: 'nunca', corrigir_email: 'nunca' },
     indicador_professor: { ler_agregado: 'nunca', ler_nominal: 'proprio' },
-    material: { enviar: 'nunca', listar: 'turma_vinculada', ler: 'turma_vinculada', excluir: 'nunca', buscar: 'turma_vinculada', resumir: 'nunca' },
+    material: { enviar: 'nunca', listar: 'turma_vinculada', ler: 'turma_vinculada', excluir: 'nunca', buscar: 'turma_vinculada', resumir: 'nunca', corrigir_classificacao: 'nunca', reclassificar: 'nunca' },
+    habilidade_bncc: { listar: 'turma_vinculada' },
     licenca: { listar: 'nunca', registrar: 'nunca', alterar: 'nunca' },
     importacao_planilha: { previa: 'nunca', gravar: 'nunca', ler: 'nunca' },
     calendario: { ler: 'turma_vinculada' },
@@ -393,7 +401,8 @@ export const MATRIZ: { readonly [P in Papel]: CelulasDoPapel } = {
     senha_provisoria: { gerar: 'nunca' },
     professor: { listar: 'nunca', cadastrar: 'nunca', refazer_convite: 'nunca', revogar_convite: 'nunca', corrigir_email: 'nunca' },
     indicador_professor: { ler_agregado: 'nunca', ler_nominal: 'nunca' },
-    material: { enviar: 'nunca', listar: 'nunca', ler: 'nunca', excluir: 'nunca', buscar: 'nunca', resumir: 'nunca' },
+    material: { enviar: 'nunca', listar: 'nunca', ler: 'nunca', excluir: 'nunca', buscar: 'nunca', resumir: 'nunca', corrigir_classificacao: 'nunca', reclassificar: 'nunca' },
+    habilidade_bncc: { listar: 'nunca' },
     licenca: { listar: 'nunca', registrar: 'nunca', alterar: 'nunca' },
     importacao_planilha: { previa: 'nunca', gravar: 'nunca', ler: 'nunca' },
     calendario: { ler: 'nunca' },

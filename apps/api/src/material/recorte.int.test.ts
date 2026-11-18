@@ -582,7 +582,7 @@ describe('[P] corridas da limpeza (P9, P10a, P10b)', () => {
         const limpeza = executar(escola.escolaId, { materialId: alvo.materialId })
         await parada.esperarParadas(1)
         const concluir = naEscola(escola.escolaId, () => bancoDaApi().transaction((tx) => new SecoesRepository(tx).gravarClassificacao(execucaoId, [{ secaoId, codigos: ['EF09CI01'] }])))
-        await esperarNaTrava(bancada.pool, '%update secao_do_material s%')
+        await esperarNaTrava(bancada.pool, '%"secao_do_material"%"execucao_id" = %for update%')
         await parada.soltar()
         const [, resultado] = await Promise.all([limpeza, concluir])
         return resultado

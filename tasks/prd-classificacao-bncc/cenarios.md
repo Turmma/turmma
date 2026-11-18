@@ -118,9 +118,10 @@ teste vermelho por um caso que rodou e falhou. Nenhum teste chama provedor: `Scr
   códigos antes e depois, sem título; corrigir com 0 códigos é final
 - [I] Eliminado o coordenador que corrigiu: `corrigida_por` nulo, `corrigida` segue `true`, reclassificar mantém. Mutação:
   a marca em `corrigida_por`
-- [I] Recusas: 6 códigos, repetido, sufixo estadual, fora do recorte: `ENTRADA_INVALIDA`; material não `pronto` ou
+- [I] Recusas: 6 códigos, repetido, sufixo estadual, fora do recorte, e código de formato válido que a tabela não tem (a lista fechada `CODIGOS_DA_BNCC`): `ENTRADA_INVALIDA`, com o recorte antes do estado (no material `processando`, o código fora do recorte é `ENTRADA_INVALIDA` e o de dentro é `CONFLITO`); material não `pronto` ou
   disciplina sem componente: `CONFLITO`; reclassificar suspensa: `FUNCAO_SUSPENSA`; `secaoId` de outro material, de
   material excluído ou da B, e código fora do recorte em material da B: `NAO_ENCONTRADO`, igual ao inexistente
+- [I] D76 com a função suspensa entre dois lotes: o comando para com `FUNCAO_SUSPENSA`, e só o primeiro lote deixou execução e auditoria
 - [I] Teto: o 301º `PUT` da pessoa e o 901º da escola na hora, 429 com `Retry-After`; o mesmo no reclassificar e na
   troca (101º, 301º)
 - [I] Reclassificar conclui com o storage vazio (texto dos `trecho`); devolve quantas seções e quantas preservadas;

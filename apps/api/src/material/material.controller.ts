@@ -2,11 +2,13 @@ import { IdPipe, RequirePermissao, ZodValidationPipe } from '@educa/core'
 import {
   atualizarMaterialRequestSchema,
   buscaDeMaterialQuerySchema,
+  corrigirSecaoRequestSchema,
   materiaisQuerySchema,
   enviarMaterialRequestSchema,
   enviarEdicaoRequestSchema,
   type AtualizarMaterialRequest,
   type BuscaDeMaterialQuery,
+  type CorrigirSecaoRequest,
   type MateriaisQuery,
   type EnviarEdicaoRequest,
   type EnviarMaterialRequest,
@@ -14,11 +16,13 @@ import {
   type ListaDeMateriaisResponse,
   type MaterialComCapitulosResponse,
   type MaterialResponse,
+  type ReclassificarResponse,
   type ResumoDoMaterialResponse,
+  type SecaoDoMaterialResponse,
 } from '@educa/shared'
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common'
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Put, Query, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common'
 import { MaterialService } from './material.service.js'
-import { MaterialAtualizarGuard, MaterialUploadGuard, MaterialUploadInterceptor } from './material-upload.js'
+import { MaterialAtualizarGuard, MaterialCorrigirGuard, MaterialReclassificarGuard, MaterialUploadGuard, MaterialUploadInterceptor } from './material-upload.js'
 
 /**
  * `/v1/materiais` (MVP, A2; `docs/mvp-contratos.md`, seção 3): a coordenação envia, lista, lê e exclui o material da
@@ -70,6 +74,30 @@ export class MaterialController {
   @UseGuards(MaterialAtualizarGuard)
   atualizar(@Param('id', IdPipe) materialId: string, @Body(new ZodValidationPipe(atualizarMaterialRequestSchema)) campos: AtualizarMaterialRequest): Promise<MaterialResponse> {
     return this.materiais.atualizar(materialId, campos)
+  }
+
+  /**
+   * A correção da coordenação (classificacao-bncc, 7.0; RF6): as habilidades da BNCC de uma seção, de zero a cinco, e a correção é final. A permissão própria (`material.corrigir_classificacao`, só da coordenação: o professor responde
+   * `NAO_ENCONTRADO`), o corpo pelo contrato estrito e o teto de correções por hora, antes de o corpo ser lido. A ordem das respostas é do service.
+   */
+  @Put(':id/secoes/:secaoId/habilidades')
+  @RequirePermissao('material', 'corrigir_classificacao')
+  @UseGuards(MaterialCorrigirGuard)
+  corrigirSecao(
+    @Param('id', IdPipe) materialId: string,
+    @Param('secaoId', IdPipe) secaoId: string,
+    @Body(new ZodValidationPipe(corrigirSecaoRequestSchema)) corpo: CorrigirSecaoRequest,
+  ): Promise<SecaoDoMaterialResponse> {
+    return this.materiais.corrigirSecao(materialId, secaoId, corpo)
+  }
+
+  /** Classifica de novo as seções não corrigidas do material, à noite (classificacao-bncc, 7.0; RF12): 202, com quantas e quantas a coordenação corrigiu e ficam como estão. O teto de pedidos por hora vem antes do corpo. */
+  @Post(':id/reclassificar')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @RequirePermissao('material', 'reclassificar')
+  @UseGuards(MaterialReclassificarGuard)
+  reclassificar(@Param('id', IdPipe) materialId: string): Promise<ReclassificarResponse> {
+    return this.materiais.reclassificar(materialId)
   }
 
   @Get()

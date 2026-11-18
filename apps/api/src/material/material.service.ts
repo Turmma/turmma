@@ -1,8 +1,14 @@
-import { DEFAULT_RETRY_AFTER_SECONDS, DomainException, AuditoriaRecorder, AuditoriaRepository, diaDeUso, FileStorageUnavailableError, JobOutbox, postgresErrorIn, summarizeError, requestSessao, systemClock, type Clock, type Database, type DatabaseTransaction, type FileStorage, type LoggerBase } from '@educa/core'
+import { AgendamentoDaClassificacaoRepository, ANTES_DA_PRIMEIRA_SECAO, DEFAULT_RETRY_AFTER_SECONDS, DomainException, AuditoriaRecorder, AuditoriaRepository, diaDeUso, SECOES_POR_LOTE_DO_AGENDAMENTO, FileStorageUnavailableError, JobOutbox, postgresErrorIn, summarizeError, requestSessao, systemClock, type Clock, type Database, type DatabaseTransaction, type FileStorage, type LoggerBase } from '@educa/core'
 import {
   alcanceDe,
+  CODIGOS_DA_BNCC,
   DIAS_DAS_RECUSAS_NO_RESUMO,
   ErrorCode,
+  FUNCAO_DA_TAREFA_DE_IA,
+  InvariantException,
+  MAXIMO_DE_HABILIDADES_POR_SECAO,
+  habilidadeEhCandidata,
+  habilidadesBnccResponseSchema,
   TIPO_AGENDAR_CLASSIFICACAO,
   TIPO_EXTRAIR_PDF,
   buscaDeMaterialResponseSchema,
@@ -12,8 +18,15 @@ import {
   motivoDaRecusaDoMaterial,
   MOTIVOS_DA_RECUSA_QUE_O_RESUMO_CONTA,
   resumoDoMaterialResponseSchema,
+  secaoDoMaterialResponseSchema,
   situacaoDaLicenca,
+  situacaoDaSecao,
   type BuscaDeMaterialQuery,
+  type CorrigirSecaoRequest,
+  type HabilidadesBnccQuery,
+  type HabilidadesBnccResponse,
+  type ReclassificarResponse,
+  type SecaoDoMaterialResponse,
   type MateriaisQuery,
   type LicencaDeMaterial,
   type MotivoDaRecusaDoMaterial,
@@ -31,9 +44,12 @@ import {
 import { createHash, randomUUID } from 'node:crypto'
 import { DisciplinaRepository } from '@educa/core/estrutura'
 import { chaveDoTemporario, EnvioDeMaterialRepository, ExtracaoDoMaterialRepository, PRAZO_DO_OBJETO_DO_MATERIAL_MS, temAssinaturaDePdf, uuidV7 } from '@educa/core/material'
+import { z } from 'zod'
 import { paginar } from '../http/pagination.js'
+import { SuspensaoRepository } from '../ia/suspensao.repository.js'
 import { LicencaRepository, type LicencaParaUso, type VigenciaDaLicenca } from './licenca.repository.js'
 import { MaterialRepository, type AlcanceDoMaterial, type MaterialLido } from './material.repository.js'
+import { SecoesRepository, type HabilidadeLida, type SecaoLida } from './secoes.repository.js'
 import { trechoCitado } from './trecho-citado.js'
 
 const registro = new AuditoriaRecorder()
@@ -63,6 +79,35 @@ export const JANELA_DAS_ATUALIZACOES_MS = 60 * 60_000
 export const ATUALIZACOES_POR_USUARIO_NA_JANELA = 100
 /** `PATCH` da escola inteira na janela, somando as pessoas da coordenação: 300 por hora. */
 export const ATUALIZACOES_POR_ESCOLA_NA_JANELA = 300
+
+/** A janela dos tetos da correção da classificação e do reclassificar: a mesma hora, contada à parte (classificacao-bncc, 7.0; Tech Spec, seção 4: "contados na auditoria"). */
+export const JANELA_DA_CLASSIFICACAO_MS = 60 * 60_000
+/** Correções de habilidade de uma pessoa na janela: 300 por hora. Corrigir as 25 seções de 12 apostilas cabe; acima disso é laço. */
+export const CORRECOES_POR_USUARIO_NA_JANELA = 300
+/** Correções da escola inteira na janela, somando a coordenação: 900 por hora. */
+export const CORRECOES_POR_ESCOLA_NA_JANELA = 900
+/** Pedidos de reclassificar de uma pessoa na janela: 100 por hora. */
+export const RECLASSIFICACOES_POR_USUARIO_NA_JANELA = 100
+/** Pedidos de reclassificar da escola inteira na janela: 300 por hora. */
+export const RECLASSIFICACOES_POR_ESCOLA_NA_JANELA = 300
+
+/** Os códigos como a auditoria os aceita: a lista fechada da BNCC (a tabela e a lista andam juntas, `codigos-da-bncc.test.ts`), sem texto livre. */
+const habilidadesDaAuditoriaSchema = z.array(z.enum(CODIGOS_DA_BNCC)).max(MAXIMO_DE_HABILIDADES_POR_SECAO)
+
+/** A seção como o contrato a devolve: a situação sai da execução e das habilidades, e a correção vence. Nunca `corrigida_por` nem `execucao_id`. */
+function paraSecaoResposta(secao: SecaoLida, habilidades: readonly HabilidadeLida[]): SecaoDoMaterialResponse {
+  const dela = habilidades.filter((habilidade) => habilidade.secaoId === secao.id)
+  return secaoDoMaterialResponseSchema.parse({
+    id: secao.id,
+    ordem: secao.ordem,
+    paginaInicial: secao.paginaInicial,
+    paginaFinal: secao.paginaFinal,
+    capitulo: secao.capituloTitulo === null ? null : { numero: secao.capituloNumero, titulo: secao.capituloTitulo },
+    situacao: situacaoDaSecao({ corrigida: secao.corrigida, estadoDaExecucao: secao.estadoDaExecucao, habilidades: dela.length }),
+    habilidades: dela.map(({ codigo, descricao, origem }) => ({ codigo, descricao, origem })),
+    corrigida: secao.corrigida,
+  })
+}
 
 /** A licença registrada vale hoje? `futura` e `vencida` não valem: o dia do fim ainda vale, e a licença sem fim vale até a coordenação a encerrar (RF16 e RF17). */
 function licencaValeEm(hoje: string, licenca: VigenciaDaLicenca): boolean {
@@ -502,7 +547,125 @@ export class MaterialService {
     // `porId` e `capitulos` são duas consultas, sem transação: se o expurgo apagar o material entre as duas, a resposta sai com o material e a lista vazia.
     // Aceito: o material vale até a exclusão, e uma lista vazia de um material que acabou de sumir não expõe nada a quem não o alcançava.
     // A resposta é validada uma vez só, pelo esquema estrito do contrato inteiro.
-    return materialComCapitulosResponseSchema.parse({ ...daLinhaParaOContrato(lido, alcance), capitulos: await materiais.capitulos(id) })
+    const secoes = new SecoesRepository(this.dependencias.banco)
+    const lidas = await secoes.doMaterial(id)
+    const habilidades = await secoes.habilidadesDasSecoes(lidas.map((secao) => secao.id))
+    return materialComCapitulosResponseSchema.parse({
+      ...daLinhaParaOContrato(lido, alcance),
+      capitulos: await materiais.capitulos(id),
+      secoes: lidas.map((secao) => paraSecaoResposta(secao, habilidades)),
+      classificacaoSuspensa: await new SuspensaoRepository(this.dependencias.banco).estaSuspensa(FUNCAO_DA_TAREFA_DE_IA.classificar_secoes),
+    })
+  }
+
+  /**
+   * `PUT /v1/materiais/:id/secoes/:secaoId/habilidades` (classificacao-bncc, 7.0; RF6; Tech Spec, seção 5, "Correção"): a coordenação troca as habilidades da seção por de zero a cinco códigos, e a correção é **final**: vence a
+   * IA, e nem a classificação da noite, nem o reclassificar, nem a mudança de recorte a desfazem. A ordem é a regra (Tech Spec, seção 4):
+   *
+   * 1. o material é da escola da sessão e a seção é dele, ou `NAO_ENCONTRADO` (de outra escola, excluído, inexistente, e a seção de outro material respondem igual, antes de qualquer outra resposta);
+   * 2. a transação trava a seção (`for update`): o `concluir` da classificação em andamento termina antes, e a correção aplica por cima; duas correções passam uma depois da outra, cada uma com o "antes" que de fato achou;
+   * 3. disciplina sem componente: `CONFLITO` (o recorte não existe); com ele, código fora do recorte atual, de outra etapa ou que a tabela da BNCC não tem: `ENTRADA_INVALIDA`; depois, o material que não está `pronto`: `CONFLITO`.
+   *
+   * Grava `material.classificacao_corrigida` (a seção e os códigos de antes e de depois, nunca o título). Devolve a seção.
+   */
+  async corrigirSecao(materialId: string, secaoId: string, pedido: CorrigirSecaoRequest): Promise<SecaoDoMaterialResponse> {
+    const { banco, logger } = this.dependencias
+    const resposta = await banco.transaction(async (tx) => {
+      const alvo = await new MaterialRepository(tx).porId(materialId, 'unidade')
+      if (alvo === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+      const secoes = new SecoesRepository(tx)
+      if ((await secoes.travarParaCorrigir(alvo.id, secaoId)) === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+      const recorte = await secoes.recorteDoMaterial(alvo.id, alvo.disciplinaId)
+      if (recorte.componente === null) throw new DomainException(ErrorCode.CONFLITO)
+      const { componente } = recorte
+      if (pedido.codigos.some((codigo) => !habilidadeEhCandidata(codigo, componente, recorte.series))) throw new DomainException(ErrorCode.ENTRADA_INVALIDA)
+      if (alvo.estado !== 'pronto') throw new DomainException(ErrorCode.CONFLITO)
+      const antes = await secoes.codigosDaSecao(secaoId)
+      await secoes.gravarCorrecao(secaoId, pedido.codigos)
+      await registro.gravar(tx, 'material.classificacao_corrigida', {
+        entidadeId: alvo.id,
+        antes: { secaoId, habilidades: habilidadesDaAuditoriaSchema.parse(antes) },
+        depois: { secaoId, habilidades: [...pedido.codigos].sort() },
+      })
+      const [lida] = await secoes.doMaterial(alvo.id, secaoId)
+      if (lida === undefined) throw new InvariantException('seção corrigida não lida')
+      return paraSecaoResposta(lida, await secoes.habilidadesDasSecoes([secaoId]))
+    })
+    logger.info({ evento: 'material.classificacao_corrigida', materialId, secaoId })
+    return resposta
+  }
+
+  /**
+   * `POST /v1/materiais/:id/reclassificar` (classificacao-bncc, 7.0; RF12; Tech Spec, seção 5, "Reclassificar"): as seções **não corrigidas** do material ganham execução nova, para a classificação da noite, **sem reenviar o PDF**
+   * (o texto vem dos `trecho`, e o storage nem é aberto). A que já tem execução `pendente` fica como está, e a correção da coordenação nunca é tocada. A ordem é a regra: o material da escola, senão `NAO_ENCONTRADO`; material que não
+   * está `pronto` ou disciplina sem componente, `CONFLITO`; função suspensa, `FUNCAO_SUSPENSA`. O pedido só cria as execuções e os jobs (na fila `lote`, para fora do horário letivo): a classificação roda no worker. Responde 202.
+   */
+  async reclassificar(materialId: string): Promise<ReclassificarResponse> {
+    const { banco, enfileirador, logger } = this.dependencias
+    const resposta = await banco.transaction(async (tx) => {
+      const alvo = await new MaterialRepository(tx).porId(materialId, 'unidade')
+      if (alvo === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+      const secoes = new SecoesRepository(tx)
+      const recorte = await secoes.recorteDoMaterial(alvo.id, alvo.disciplinaId)
+      if (alvo.estado !== 'pronto' || recorte.componente === null) throw new DomainException(ErrorCode.CONFLITO)
+      const agendamento = new AgendamentoDaClassificacaoRepository(tx)
+      if (!(await agendamento.funcaoEstaAtiva())) throw new DomainException(ErrorCode.FUNCAO_SUSPENSA)
+      let cursor = ANTES_DA_PRIMEIRA_SECAO
+      let agendadas = 0
+      let aguardando = 0
+      for (;;) {
+        const lote = await agendamento.travarParaReclassificar({ materialId: alvo.id }, SECOES_POR_LOTE_DO_AGENDAMENTO, cursor)
+        if (lote.ultima === undefined) break
+        cursor = lote.ultima
+        aguardando += lote.aguardando
+        agendadas += (await agendamento.agendar(lote.aReclassificar, enfileirador)).secoes
+      }
+      const saida = { secoes: agendadas + aguardando, preservadas: await secoes.contarCorrigidas(alvo.id) }
+      await registro.gravar(tx, 'material.reclassificado', { entidadeId: alvo.id, depois: saida })
+      return saida
+    })
+    logger.info({ evento: 'material.reclassificado', materialId })
+    return resposta
+  }
+
+  /**
+   * `GET /v1/habilidades-bncc` (classificacao-bncc, 7.0; Tech Spec, seção 4): as candidatas do recorte atual de um material (a coordenação, e o professor da disciplina em que tem vínculo confirmado) ou do artefato do próprio
+   * professor (componente da disciplina e série da turma). O objeto primeiro: o material de outra escola, de disciplina sem vínculo, o artefato de outra escola, de colega ou de outro ano, e o inexistente respondem igual
+   * (`NAO_ENCONTRADO`). Sem componente na disciplina, a lista vem vazia com `semComponente`.
+   */
+  async listarHabilidades(consulta: HabilidadesBnccQuery): Promise<HabilidadesBnccResponse> {
+    const { banco } = this.dependencias
+    const secoes = new SecoesRepository(banco)
+    let recorte
+    if ('materialId' in consulta) {
+      const lido = await new MaterialRepository(banco).porId(consulta.materialId.toLowerCase(), alcanceDoMaterial('ler'))
+      if (lido === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+      recorte = await secoes.recorteDoMaterial(lido.id, lido.disciplinaId)
+    } else {
+      recorte = await secoes.recorteDoArtefato(consulta.artefatoId.toLowerCase())
+      if (recorte === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+    }
+    if (recorte.componente === null) return habilidadesBnccResponseSchema.parse({ itens: [], semComponente: true })
+    return habilidadesBnccResponseSchema.parse({ itens: await secoes.candidatas(recorte.componente, recorte.series), semComponente: false })
+  }
+
+  /** O teto das correções antes de o corpo ser lido (`MaterialCorrigirGuard`): 300 por hora por pessoa e 900 por escola, contados na auditoria (`material.classificacao_corrigida`). */
+  exigirCorrecaoDentroDosTetos(): Promise<void> {
+    return this.#exigirDentroDoTetoDaAuditoria('material.classificacao_corrigida', CORRECOES_POR_USUARIO_NA_JANELA, CORRECOES_POR_ESCOLA_NA_JANELA, 'material.teto_de_correcoes')
+  }
+
+  /** O teto dos pedidos de reclassificar antes de o corpo ser lido (`MaterialReclassificarGuard`): 100 por hora por pessoa e 300 por escola, contados na auditoria (`material.reclassificado`). */
+  exigirReclassificacaoDentroDosTetos(): Promise<void> {
+    return this.#exigirDentroDoTetoDaAuditoria('material.reclassificado', RECLASSIFICACOES_POR_USUARIO_NA_JANELA, RECLASSIFICACOES_POR_ESCOLA_NA_JANELA, 'material.teto_de_reclassificacoes')
+  }
+
+  /** Por pessoa e por escola, nunca por IP (regra 80, itens 1 e 3). Leitura sem trava, como a do `PATCH`: protege do laço, e o excesso de pedidos simultâneos que passam juntos pela contagem (lê, depois grava) foi aceito, porque o teto não é cota. Acima do teto, `LIMITE_EXCEDIDO` com o `Retry-After` da janela inteira. */
+  async #exigirDentroDoTetoDaAuditoria(acao: 'material.classificacao_corrigida' | 'material.reclassificado', porUsuario: number, porEscola: number, evento: string): Promise<void> {
+    const feitas = await new AuditoriaRepository(this.dependencias.banco).contarDaEscolaEDaPessoaDesde(acao, new Date(Date.now() - JANELA_DA_CLASSIFICACAO_MS))
+    if (feitas.doUsuario >= porUsuario || feitas.daEscola >= porEscola) {
+      this.dependencias.logger.warn({ evento })
+      throw new DomainException(ErrorCode.LIMITE_EXCEDIDO, undefined, JANELA_DA_CLASSIFICACAO_MS / 1_000)
+    }
   }
 
   /**

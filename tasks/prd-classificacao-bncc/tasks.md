@@ -53,7 +53,7 @@
   - [x] 6.3 O `preparar` sem candidatas limpa só a própria seção
   - [x] 6.4 Testes: recorte, componente apagado, suspensa, P9 (rotina × `PATCH`), P10a, P10b, P11
 
-- [ ] **7.0 — A coordenação lê, corrige e manda reclassificar pela API, e a operação reclassifica uma escola (D76)**
+- [x] **7.0 — A coordenação lê, corrige e manda reclassificar pela API, e a operação reclassifica uma escola (D76)**
   - [ ] 7.1 `GET /v1/materiais/:id` com `secoes[]` e `classificacaoSuspensa`
   - [ ] 7.2 `GET /v1/habilidades-bncc`
   - [ ] 7.3 `PUT …/secoes/:secaoId/habilidades`; o `for update` na seção no `concluir`

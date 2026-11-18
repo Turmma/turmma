@@ -4,6 +4,7 @@ import {
   COMPONENTES_BNCC,
   CHAVES_DE_FUNCAO,
   CHAVES_DE_RETENCAO,
+  CODIGOS_DA_BNCC,
   CONTESTACOES_DE_VINCULO,
   DECISORES_DA_REIVINDICACAO,
   InvariantException,
@@ -25,6 +26,7 @@ import {
   FINALIDADES_DA_REDEFINICAO_DE_MFA,
   LICENCAS_DE_MATERIAL,
   LICENCAS_DECLARAVEIS,
+  MAXIMO_DE_HABILIDADES_POR_SECAO,
   MAXIMO_DE_SERIES_DO_MATERIAL,
   MOTIVOS_DA_RECUSA_DO_MATERIAL,
   MOTIVOS_DA_RECUSA_PELA_LICENCA_REGISTRADA,
@@ -672,6 +674,37 @@ export const ACOES_DE_AUDITORIA = {
     entidade: 'material',
     antes: z.strictObject({ serieIds: z.array(z.uuid()).max(MAXIMO_DE_SERIES_DO_MATERIAL) }),
     depois: z.strictObject({ serieIds: z.array(z.uuid()).max(MAXIMO_DE_SERIES_DO_MATERIAL), tituloAlterado: z.boolean() }),
+    finalidade: null,
+  },
+  /**
+   * A coordenação corrigiu as habilidades da BNCC de uma seção do material (classificacao-bncc, 7.0; RF6; Tech Spec, seção 5, "Correção"). `entidadeId` é o **material**; `antes` e `depois` levam a seção e os códigos que ela tinha e
+   * passou a ter (de zero a cinco, da lista fechada `CODIGOS_DA_BNCC`: a auditoria só aceita id, estado ou data, e o código da BNCC é um estado). Lidos com a seção travada (`for update`): duas correções ao mesmo tempo deixam dois
+   * registros em cadeia, e o "antes" da segunda é o "depois" da primeira. **Nunca o título do capítulo nem o texto do material.**
+   */
+  'material.classificacao_corrigida': {
+    entidade: 'material',
+    antes: z.strictObject({ secaoId: z.uuid(), habilidades: z.array(z.enum(CODIGOS_DA_BNCC)).max(MAXIMO_DE_HABILIDADES_POR_SECAO) }),
+    depois: z.strictObject({ secaoId: z.uuid(), habilidades: z.array(z.enum(CODIGOS_DA_BNCC)).max(MAXIMO_DE_HABILIDADES_POR_SECAO) }),
+    finalidade: null,
+  },
+  /**
+   * A coordenação pediu que as seções de um material fossem classificadas de novo (classificacao-bncc, 7.0; RF12; Tech Spec, seção 5, "Reclassificar"). `entidadeId` é o material; `depois` diz quantas seções vão à
+   * classificação da noite e quantas, corrigidas pela coordenação, ficaram como estão. É também a contagem do teto de 100 por hora por pessoa e 300 por escola (Tech Spec, seção 4). Só contagens.
+   */
+  'material.reclassificado': {
+    entidade: 'material',
+    antes: null,
+    depois: z.strictObject({ secoes: z.number().int().nonnegative(), preservadas: z.number().int().nonnegative() }),
+    finalidade: null,
+  },
+  /**
+   * A operação reclassificou uma escola inteira (classificacao-bncc, 7.0; D76; `ops:reclassificar-escola`), no contexto da escola e sempre com `autor_operador`. `entidadeId` é a escola; `depois` é o chamado que pede a ação e as
+   * contagens do lote que a transação tratou (cada lote de 500 seções grava a sua). Nunca título, texto nem código.
+   */
+  'escola.reclassificada': {
+    entidade: 'escola',
+    antes: null,
+    depois: z.strictObject({ chamado: z.number().int().positive(), secoes: z.number().int().nonnegative(), execucoes: z.number().int().nonnegative() }),
     finalidade: null,
   },
   /**

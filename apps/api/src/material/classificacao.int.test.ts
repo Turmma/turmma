@@ -1137,6 +1137,7 @@ describe('o processador da classificação, com o instante e o provedor escolhid
       expect(await habilidadesDa(a.secoes[0] ?? '')).toEqual([{ codigo: CODIGO_DE_CNT, origem: 'ia' }])
       expect(await habilidadesDa(b.secoes[0] ?? '')).toEqual([])
       expect(await secaoDe(b.secoes[0] ?? '')).toMatchObject({ execucao_id: daB, classificada_em: null })
+      expect(await secaoDe(a.secoes[1] ?? ''), 'a vizinha da mesma escola, fora da execução, não é marcada como classificada').toMatchObject({ classificada_em: null })
     })
 
     it('o job da A com o `execucaoId` da B: nada muda, o modelo não roda, e o job é recusado', async () => {

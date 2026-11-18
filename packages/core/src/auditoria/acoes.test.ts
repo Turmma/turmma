@@ -151,6 +151,30 @@ describe('mapa de ações da auditoria', () => {
     expect(antes?.safeParse({ serieIds: ['Ana Souza'] }).success, 'série é id').toBe(false)
   })
 
+  it('classificacao-bncc 7.0: a correção leva a seção e códigos da BNCC de antes e de depois (até cinco), e o reclassificar e o comando de escola levam só contagens: nunca título, texto nem código solto', () => {
+    const corrigida = ACOES_DE_AUDITORIA['material.classificacao_corrigida']
+    const reclassificado = ACOES_DE_AUDITORIA['material.reclassificado']
+    const daEscola = ACOES_DE_AUDITORIA['escola.reclassificada']
+    expect([corrigida.entidade, reclassificado.entidade, daEscola.entidade]).toEqual(['material', 'material', 'escola'])
+    expect([corrigida.finalidade, reclassificado.finalidade, daEscola.finalidade]).toEqual([null, null, null])
+
+    const cinco = ['EF06CI01', 'EF06CI02', 'EF06CI03', 'EF06CI04', 'EF06CI05']
+    expect(corrigida.antes?.safeParse({ secaoId: UM_ID, habilidades: [] }).success, 'zero é correção válida').toBe(true)
+    expect(corrigida.depois.safeParse({ secaoId: UM_ID, habilidades: cinco }).success).toBe(true)
+    expect(corrigida.depois.safeParse({ secaoId: UM_ID, habilidades: [...cinco, 'EF06CI06'] }).success, 'seis').toBe(false)
+    expect(corrigida.depois.safeParse({ secaoId: UM_ID, habilidades: ['Apostila da Ana'] }).success, 'texto livre no lugar do código').toBe(false)
+    expect(corrigida.depois.safeParse({ secaoId: UM_ID, habilidades: ['EF06CI99'] }).success, 'código que a BNCC não tem').toBe(false)
+    expect(corrigida.depois.safeParse({ secaoId: UM_ID, habilidades: [], titulo: 'Capítulo 1' }).success, 'o título não entra').toBe(false)
+    expect(corrigida.depois.safeParse({ secaoId: 'Capítulo 1', habilidades: [] }).success, 'a seção é id').toBe(false)
+
+    expect(reclassificado.depois.safeParse({ secoes: 3, preservadas: 0 }).success).toBe(true)
+    expect(reclassificado.depois.safeParse({ secoes: 3, preservadas: 0, titulo: 'Apostila' }).success).toBe(false)
+    expect(reclassificado.depois.safeParse({ secoes: -1, preservadas: 0 }).success).toBe(false)
+    expect(daEscola.depois.safeParse({ chamado: 4711, secoes: 500, execucoes: 1 }).success).toBe(true)
+    expect(daEscola.depois.safeParse({ chamado: 4711, secoes: 500, execucoes: 1, texto: 'x' }).success).toBe(false)
+    expect(daEscola.depois.safeParse({ chamado: 'chamado do Enzo', secoes: 500, execucoes: 1 }).success, 'o chamado é número').toBe(false)
+  })
+
   it('a leitura nominal e a do desempenho de aluno pela coordenação só gravam com finalidade de lista fechada', () => {
     for (const acao of ['turma.desempenho_lido', 'analista.nominal_lido'] as const) {
       const { finalidade } = ACOES_DE_AUDITORIA[acao]

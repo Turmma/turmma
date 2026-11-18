@@ -15,6 +15,8 @@ import type { JobOutbox } from '../queue/job-outbox.js'
 export const TETO_DE_FALHAS_SEGUIDAS = 3
 /** As seções que cada lote do agendamento lê e agenda, cada lote numa transação (Tech Spec, seção 7c, "Laços"). */
 export const SECOES_POR_LOTE_DO_AGENDAMENTO = 500
+/** O cursor do primeiro lote de `travarParaReclassificar`: o UUID nulo é menor que qualquer id de seção (v7), então o primeiro lote começa na primeira seção. */
+export const ANTES_DA_PRIMEIRA_SECAO = '00000000-0000-0000-0000-000000000000'
 /**
  * O limite de execuções que o job de uma escola cria numa noite. Mil execuções são 12 mil seções, quase o dobro das 7.500 de 300 apostilas de 25 capítulos (630 execuções, 15 lotes de 42): o onboarding cabe com folga, e o que passar
  * do limite sai na noite seguinte. É o freio de custo da rotina, a R$ 4 a R$ 20 por 630 execuções (Tech Spec, seção 8): a escola nunca passa de ~R$ 32 numa noite.
@@ -151,6 +153,58 @@ export class AgendamentoDaClassificacaoRepository {
   }
 
   /**
+   * **Reclassificar** (classificacao-bncc, 7.0; RF12, D76; Tech Spec, seção 5, "Reclassificar"): o lote seguinte das seções **não corrigidas** de material `pronto` e não excluído, com componente na disciplina, na ordem do id e
+   * depois do cursor, de um material (`materialId`) ou da escola inteira. Trava cada uma **`for update`** (P3, P5: a seção que outro reclassificar já trocou espera, e só então é vista com a execução nova), e só depois, **em
+   * outro comando** (com o retrato do banco já com o que o outro confirmou), lê a execução de cada uma: a que tem execução `pendente` já espera a noite e **fica como está** (`aguardando`, P3), e as outras (sem execução,
+   * `concluida`, `falhou`, `rodando`) são devolvidas para `agendar`, com `falhas_seguidas` zerada aqui e no banco (a que esgotou o teto de três volta à rotina). A execução `rodando` perde a seção para a nova (P2): a antiga conclui sem efeito.
+   * A correção da coordenação nunca entra (`corrigida_em is null`): reclassificar não a toca.
+   *
+   * A leitura do estado da execução não é feita na consulta que trava: com a junção, o Postgres reavalia a linha que esperou a trava e pode dar a execução nova, ainda invisível ao retrato da consulta, como ausente.
+   */
+  async travarParaReclassificar(
+    alvo: { readonly materialId?: string },
+    limite: number,
+    depoisDe: string,
+  ): Promise<{ aReclassificar: SecaoParaAgendar[]; aguardando: number; ultima: string | undefined }> {
+    const escolaId = requireEscolaId()
+    const travadas = await this.tx
+      .select({ id: secaoDoMaterial.id, materialId: secaoDoMaterial.materialId, componente: disciplina.componenteBncc })
+      .from(secaoDoMaterial)
+      .innerJoin(material, and(eq(material.escolaId, secaoDoMaterial.escolaId), eq(material.id, secaoDoMaterial.materialId)))
+      .innerJoin(disciplina, and(eq(disciplina.escolaId, material.escolaId), eq(disciplina.id, material.disciplinaId)))
+      .where(
+        and(
+          eq(secaoDoMaterial.escolaId, escolaId),
+          isNull(secaoDoMaterial.corrigidaEm),
+          eq(material.estado, 'pronto'),
+          isNull(material.excluidoEm),
+          alvo.materialId === undefined ? undefined : eq(secaoDoMaterial.materialId, alvo.materialId),
+          gt(secaoDoMaterial.id, depoisDe),
+        ),
+      )
+      .orderBy(asc(secaoDoMaterial.id))
+      .limit(limite)
+      .for('update', { of: secaoDoMaterial })
+    const ultima = travadas.at(-1)?.id
+    const ids = travadas.map((travada) => travada.id)
+    const lidas = await this.tx
+      .select({ id: secaoDoMaterial.id, execucaoId: secaoDoMaterial.execucaoId })
+      .from(secaoDoMaterial)
+      .where(and(eq(secaoDoMaterial.escolaId, escolaId), inArray(secaoDoMaterial.id, ids)))
+    const execucoes = await this.tx
+      .select({ id: execucaoAgente.id, estado: execucaoAgente.estado })
+      .from(execucaoAgente)
+      .where(and(eq(execucaoAgente.escolaId, escolaId), inArray(execucaoAgente.id, this.tx.select({ id: secaoDoMaterial.execucaoId }).from(secaoDoMaterial).where(and(eq(secaoDoMaterial.escolaId, escolaId), inArray(secaoDoMaterial.id, ids))))))
+    const estadoDe = new Map<string | null, string>(execucoes.map((execucao) => [execucao.id, execucao.estado]))
+    const { aReclassificar, aguardando } = separarAsQueEsperam(travadas, new Map(lidas.map((lida) => [lida.id, { execucaoId: lida.execucaoId, estado: estadoDe.get(lida.execucaoId) }])))
+    await this.tx
+      .update(secaoDoMaterial)
+      .set({ falhasSeguidas: 0 })
+      .where(and(eq(secaoDoMaterial.escolaId, escolaId), inArray(secaoDoMaterial.id, aReclassificar.map((agendada) => agendada.secaoId))))
+    return { aReclassificar, aguardando, ultima }
+  }
+
+  /**
    * Cria as execuções das seções lidas e os jobs delas. `enfileirador` é o `JobOutbox`: o job `ia.executar-lote` nasce na fila `lote`, não urgente, com a **execução por chave**, na mesma transação. A seção cujo
    * material perdeu a série entre a leitura e aqui (corrida com a mudança de séries) fica como está.
    *
@@ -234,4 +288,19 @@ export class AgendamentoDaClassificacaoRepository {
     await enfileirador.enfileirarUmaVez(this.tx, TIPO_EXECUTAR_LOTE, { execucaoId: execucao.id }, execucao.id, { fila: 'lote' })
     return total
   }
+}
+
+/** Das seções travadas, as que já esperam a noite (execução `pendente`, P3) e as que seguem para `agendar`, com `falhas_seguidas` zerada e a execução que foi lida (P9). */
+function separarAsQueEsperam(
+  travadas: ReadonlyArray<{ id: string; materialId: string; componente: SecaoParaAgendar['componente'] | null }>,
+  execucaoDe: ReadonlyMap<string, { execucaoId: string | null; estado: string | undefined }>,
+): { aReclassificar: SecaoParaAgendar[]; aguardando: number } {
+  const aReclassificar: SecaoParaAgendar[] = []
+  let aguardando = 0
+  for (const travada of travadas) {
+    const lida = execucaoDe.get(travada.id)
+    if (lida?.estado === 'pendente') aguardando += 1
+    else if (travada.componente !== null) aReclassificar.push({ secaoId: travada.id, materialId: travada.materialId, execucaoLida: lida?.execucaoId ?? null, falhasSeguidas: 0, componente: travada.componente })
+  }
+  return { aReclassificar, aguardando }
 }
