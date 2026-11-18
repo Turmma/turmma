@@ -68,12 +68,12 @@
   - [x] 8.4 A Parte A do painel no `docs/interface.md`
   - [x] 8.5 Testes: estados, rótulos, avisos, teclado, 360 px, recomeço
 
-- [ ] **9.0 — A contração da F4: o check titularidade e licença vale, e os checks e o código de `material.licenciante` saem**
-  - [ ] 9.1 O backfill de séries e licenças de novo, idempotente
-  - [ ] 9.2 O check `(titularidade = 'terceiro_com_licenca') = (licenca_id is not null)` com `NOT VALID` e `VALIDATE`
-  - [ ] 9.3 Saem os checks de `licenciante`; o código não lê nem grava a coluna
-  - [ ] 9.4 O `DROP COLUMN` no `TODO.md`; `docs/modelo-de-dados.md`
-  - [ ] 9.5 Testes
+- [x] **9.0 — A contração da F4: o check titularidade e licença vale, e os checks e o código de `material.licenciante` saem**
+  - [x] 9.1 O backfill de séries e licenças de novo, idempotente
+  - [x] 9.2 O check `(titularidade = 'terceiro_com_licenca') = (licenca_id is not null)` com `NOT VALID` e `VALIDATE`
+  - [x] 9.3 Saem os checks de `licenciante`; o código não lê nem grava a coluna
+  - [x] 9.4 O `DROP COLUMN` no `TODO.md`; `docs/modelo-de-dados.md`
+  - [x] 9.5 Testes
 
 - [ ] **10.0 — A geração usa a BNCC da seção citada, e o catálogo próprio sai**
   - [ ] 10.1 A busca devolve, com cada trecho, as habilidades da seção da página, pelo recorte atual

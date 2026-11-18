@@ -44,7 +44,7 @@ function colunasDoMaterial(escolaId: string, disciplinaId: string, enviadoPor: s
   const { titularidade = 'escola', licencaId = null, estado = 'pronto', titulo = 'Material sintético da série', substituido = false } = opcoes
   const terceiro = titularidade === 'terceiro_com_licenca'
   const paginas = paginasDe(opcoes)
-  const valores = [escolaId, disciplinaId, titulo, titularidade, terceiro ? 'Editora sintética' : null, terceiro ? 'licenca_comercial_autorizada' : 'autoria_da_escola', licencaId, randomBytes(32).toString('hex'), paginas === 0 ? null : paginas, estado, enviadoPor, substituido]
+  const valores = [escolaId, disciplinaId, titulo, titularidade, terceiro ? 'licenca_comercial_autorizada' : 'autoria_da_escola', licencaId, randomBytes(32).toString('hex'), paginas === 0 ? null : paginas, estado, enviadoPor, substituido]
   return { valores, paginas }
 }
 
@@ -52,8 +52,8 @@ function colunasDoMaterial(escolaId: string, disciplinaId: string, enviadoPor: s
 export async function semearMaterial(pool: Pool, escolaId: string, disciplinaId: string, enviadoPor: string, opcoes: MaterialSemeado): Promise<string> {
   const { valores, paginas } = colunasDoMaterial(escolaId, disciplinaId, enviadoPor, opcoes)
   const { rows } = await pool.query<{ id: string }>(
-    `insert into material (escola_id, disciplina_id, titulo, titularidade, licenciante, licenca, licenca_id, declaracao, sha256, tamanho_bytes, paginas, estado, enviado_por, excluido_em)
-     values ($1, $2, $3, $4, $5, $6, $7, true, $8, 10, $9, $10, $11, case when $12::boolean then now() end) returning id`,
+    `insert into material (escola_id, disciplina_id, titulo, titularidade, licenca, licenca_id, declaracao, sha256, tamanho_bytes, paginas, estado, enviado_por, excluido_em)
+     values ($1, $2, $3, $4, $5, $6, true, $7, 10, $8, $9, $10, case when $11::boolean then now() end) returning id`,
     valores,
   )
   const id = rows[0]?.id

@@ -64,8 +64,8 @@ describe('licença do material', () => {
   /** Um material de terceiro, gravado direto no banco, que aponta a licença. */
   async function materialDaLicenca(escola: Escola, licencaId: string, { excluido = false }: { excluido?: boolean } = {}): Promise<string> {
     const { rows } = await bancada.pool.query<{ id: string }>(
-      `insert into material (escola_id, disciplina_id, titulo, titularidade, licenciante, licenca, licenca_id, declaracao, sha256, tamanho_bytes, estado, paginas, enviado_por, excluido_em)
-       values ($1, $2, 'Material sintético', 'terceiro_com_licenca', 'Editora Exemplo', 'licenca_comercial_autorizada', $3, true, $4, 10, 'pronto', 1, $5, case when $6::boolean then now() end)
+      `insert into material (escola_id, disciplina_id, titulo, titularidade, licenca, licenca_id, declaracao, sha256, tamanho_bytes, estado, paginas, enviado_por, excluido_em)
+       values ($1, $2, 'Material sintético', 'terceiro_com_licenca', 'licenca_comercial_autorizada', $3, true, $4, 10, 'pronto', 1, $5, case when $6::boolean then now() end)
        returning id`,
       [escola.coordenacao.escolaId, escola.disciplinaId, licencaId, randomBytes(32).toString('hex'), escola.coordenacao.usuarioId, excluido],
     )

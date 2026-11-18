@@ -350,6 +350,7 @@ describe('tabelas do MVP de apresentação: o banco recusa o que o contrato pro�
       'execucao_agente',
       'trecho',
       'material',
+      'licenca_de_material',
       'suspensao_de_funcao',
       'configuracao_operacional_escola',
       'usuario',
@@ -644,14 +645,18 @@ describe('tabelas do MVP de apresentação: o banco recusa o que o contrato pro�
   })
 
   describe('material e trecho (D5, D75; busca em português)', () => {
-    it('não existe material sem declaração, com licença fora da lista ou de terceiro sem licenciante', async () => {
+    it('não existe material sem declaração, com licença fora da lista, de terceiro sem licença registrada, nem próprio com ela', async () => {
       const c = await novoCenario()
       expect(await recusa(novoMaterial(c, { declaracao: false }))).toEqual({ codigo: '23514', restricao: 'material_com_declaracao' })
       // `sem_licenca` é o que o formulário manda quando a escola não tem a licença: não cabe na coluna.
       expect(await recusa(novoMaterial(c, { licenca: 'sem_licenca' }))).toEqual({ codigo: '23514', restricao: 'material_licenca_valida' })
-      expect(await recusa(novoMaterial(c, { titularidade: 'terceiro_com_licenca', licenca: 'licenca_comercial_autorizada' }))).toEqual({ codigo: '23514', restricao: 'material_licenciante_so_de_terceiro' })
-      expect(await recusa(novoMaterial(c, { licenciante: 'Editora Sintética' }))).toEqual({ codigo: '23514', restricao: 'material_licenciante_so_de_terceiro' })
-      await expect(novoMaterial(c, { titularidade: 'terceiro_com_licenca', licenca: 'licenca_comercial_autorizada', licenciante: 'Editora Sintética' })).resolves.toMatch(/^[0-9a-f-]{36}$/)
+      const licencaId = await id(
+        "insert into licenca_de_material (escola_id, licenciante, cobertura, referencia, vigente_desde) values ($1, 'Editora Sintética', 'Apostilas', 'contrato sintético', '2026-01-01') returning id",
+        [c.escolaId],
+      )
+      expect(await recusa(novoMaterial(c, { titularidade: 'terceiro_com_licenca', licenca: 'licenca_comercial_autorizada' }))).toEqual({ codigo: '23514', restricao: 'material_terceiro_tem_licenca' })
+      expect(await recusa(novoMaterial(c, { licenca_id: licencaId }))).toEqual({ codigo: '23514', restricao: 'material_terceiro_tem_licenca' })
+      await expect(novoMaterial(c, { titularidade: 'terceiro_com_licenca', licenca: 'licenca_comercial_autorizada', licenca_id: licencaId })).resolves.toMatch(/^[0-9a-f-]{36}$/)
     })
 
     it('o mesmo arquivo enviado duas vezes entra uma vez na escola; o que falhou pode voltar, e outra escola tem o seu', async () => {

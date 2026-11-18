@@ -52,7 +52,9 @@ casa igual (`DisciplinaRepository.criar`); renomear não o muda. O `PATCH` roda 
 (3) **contração da F4** (abertura, item 4), em três passos: nesta spec, o backfill de séries e licenças de novo
 (idempotente), o check `(titularidade = 'terceiro_com_licenca') = (licenca_id is not null)` com `NOT VALID` e `VALIDATE`,
 a saída dos dois checks de `licenciante` e o código que não lê nem grava a coluna (fora do schema Drizzle); o
-`DROP COLUMN` vai ao `TODO.md`, para o deploy seguinte.
+`DROP COLUMN` vai ao `TODO.md`, para o deploy seguinte. **A `0065_contracao_da_f4`** (9.0) faz os quatro passos numa migration só, e o licenciante que a API devolve vem da licença (`licenca_de_material`).
+O check novo é `material_terceiro_tem_licenca`. Ele **impede** a volta para **antes da F4**, a menos de um passo a mais: o bloco 1 do `docs/runbook.md` ("Voltar o código depois da F4") solta o check e copia o licenciante da licença para a linha, e o bloco 2 o põe de volta (`NOT VALID` e `VALIDATE`);
+a volta para o código da F4 anterior à 9.0, que cumpre o check mas **lê** `material.licenciante` (o código da 9.0 não o grava mais), pede só a cópia do licenciante da licença para a linha, no bloco "volta ao código da F4" do mesmo runbook; depois do `DROP COLUMN` essas voltas deixam de existir.
 
 ## 4. API
 

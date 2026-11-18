@@ -189,7 +189,7 @@ teste vermelho por um caso que rodou e falhou. Nenhum teste chama provedor: `Scr
 ## Contração da F4 (migration 3)
 
 - [I] Backfill idempotente; material de terceiro sem licença criado na janela corrigido antes do `VALIDATE`; o envio de
-  terceiro funciona sem os checks de `licenciante`, e o código não lê a coluna
+  terceiro funciona sem os checks de `licenciante`, e o código não lê a coluna; o check `material_terceiro_tem_licenca` recusa os dois lados (`contracao-da-f4.int.test.ts`); com `material.licenciante` renomeada no banco, o envio, a lista, a leitura e a edição passam e o licenciante é o da licença (`material.int.test.ts`); a volta para antes da F4 solta e devolve o check pelo runbook (`volta-da-f4.int.test.ts`); a volta ao código da F4 anterior à 9.0 copia o licenciante para a linha pelo bloco "volta ao código da F4" do runbook, e o material de terceiro volta a ser lido com o nome (`contracao-da-f4.int.test.ts`); a mesma editora escrita de dois jeitos e a licença com começo depois do envio, no backfill
 
 ## Corridas
 

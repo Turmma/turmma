@@ -1672,8 +1672,8 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
     /** O material de terceiro que cita a licença, vivo (`excluidoHa` nulo) ou excluído há `excluidoHa`. */
     async function materialDaLicenca(escola: { escolaId: string }, licencaId: string, excluidoHa: string | null): Promise<string> {
       const { rows } = await bancada.pool.query<{ id: string }>(
-        `insert into material (escola_id, disciplina_id, titulo, titularidade, licenciante, licenca, licenca_id, declaracao, sha256, tamanho_bytes, paginas, estado, excluido_em)
-         values ($1, $2, 'Apostila sintética', 'terceiro_com_licenca', 'Editora sintética', 'licenca_comercial_autorizada', $3, true, md5(random()::text) || md5(random()::text), 1000, 1, 'pronto',
+        `insert into material (escola_id, disciplina_id, titulo, titularidade, licenca, licenca_id, declaracao, sha256, tamanho_bytes, paginas, estado, excluido_em)
+         values ($1, $2, 'Apostila sintética', 'terceiro_com_licenca', 'licenca_comercial_autorizada', $3, true, md5(random()::text) || md5(random()::text), 1000, 1, 'pronto',
            case when $5::text is null then null else $4::timestamptz - $5::interval end) returning id`,
         [escola.escolaId, await disciplinaDa(escola.escolaId), licencaId, QUARTA_1H.toISOString(), excluidoHa],
       )

@@ -18,7 +18,8 @@ import { usuario } from './usuario.js'
  *   licença ou sem declaração **não grava linha aqui**: grava auditoria (`material.recusado`) e responde
  *   `MATERIAL_SEM_LICENCA` antes de abrir o arquivo. O check segura o caminho que não passa pela API (seed, job, insert à mão).
  * - `licenca` só aceita as quatro com que um material entra; `sem_licenca`, que o formulário manda, não cabe na coluna.
- * - `licenciante` é o nome do dono do direito, e existe só, e sempre, no material de terceiro (check).
+ * - O nome do dono do direito (o licenciante) é da licença registrada, nunca da linha do material: a coluna `material.licenciante` **saiu do schema** na contração da F4 (classificacao-bncc, 9.0) e fica no banco, sem
+ *   ninguém que a leia ou grave, até o `DROP COLUMN` do deploy seguinte (`TODO.md`).
  * - `sha256` é o resumo do arquivo, que não fica: o índice único parcial `(escola_id, sha256)` entre os não excluídos e
  *   não falhos faz o mesmo PDF enviado duas vezes, mesmo ao mesmo tempo, entrar uma vez (regra 80, item 7). O que falhou
  *   pode ser enviado de novo, e o mesmo arquivo em outra escola é outro material.
@@ -32,7 +33,8 @@ import { usuario } from './usuario.js'
  *   sai depois do commit da extração, da falha, da exclusão ou do expurgo. `processado_em` é o instante em que o material saiu de `processando`
  *   (`pronto` ou `falhou`), e `objeto_apagado_em`, o instante em que o objeto foi apagado: nulo é "o objeto pode ainda existir". O material de antes
  *   da F4 nasce com `objeto_apagado_em = enviado_em`, porque nunca teve objeto.
- * - `licenca_id` (ingestao-do-material, 5.0): a licença registrada (`licencaDeMaterial`), nula no material que não é de terceiro. `licenciante` continua gravado junto (o código grava as duas, e a contração é da F4b).
+ * - `licenca_id` (ingestao-do-material, 5.0): a licença registrada (`licencaDeMaterial`), nula no material que não é de terceiro. Desde a contração da F4 (classificacao-bncc, 9.0) o check `material_terceiro_tem_licenca`
+ *   exige a licença em todo material de terceiro, e só nele: o licenciante que a API devolve vem dela.
  * - **A edição** (ingestao-do-material, 8.0): `edicao` é o rótulo que a coordenação dá ("2025", "3ª edição"), `substitui_id` aponta o material que a edição substitui e `substituido_por`, a edição que o
  *   substituiu. A anterior segue na busca até a nova ficar `pronta`, e sai na transação da extração (`excluido_em` e `substituido_por` juntos). O índice único parcial `material_uma_edicao_em_andamento` admite
  *   uma edição `processando` por alvo. As colunas nascem nulas, e o código anterior não as conhece.
@@ -48,7 +50,6 @@ export const material = pgTable(
     disciplinaId: uuid().notNull(),
     titulo: text().notNull(),
     titularidade: text().$type<TitularidadeDeMaterial>().notNull(),
-    licenciante: text(),
     licenca: text().$type<LicencaDeMaterial>().notNull(),
     declaracao: boolean().notNull(),
     sha256: text().notNull(),
@@ -94,15 +95,14 @@ export const material = pgTable(
     // Não começa por `escola_id` (regra 80, item 8) porque a varredura é a rotina nossa, entre escolas, `@Unscoped` e com a justificativa escrita na 2.0; o expurgo por
     // escola (`excluidosComObjeto`) se apoia no `material_excluido_idx`, que começa pela escola.
     index('material_objeto_a_apagar_idx').on(tabela.processadoEm, tabela.excluidoEm).where(sql`${tabela.objetoApagadoEm} is null`),
-    // 160 e 120 são `TAMANHO_MAXIMO_TITULO_DO_MATERIAL` e `TAMANHO_MAXIMO_DO_LICENCIANTE` do contrato (`packages/shared`).
+    // 160 é `TAMANHO_MAXIMO_TITULO_DO_MATERIAL`, do contrato (`packages/shared`).
     check('material_titulo_preenchido', sql`char_length(btrim(${tabela.titulo})) between 1 and 160`),
     // 60 é `TAMANHO_MAXIMO_DA_EDICAO` do contrato (`packages/shared`).
     check('material_edicao_preenchida', sql`${tabela.edicao} is null or char_length(btrim(${tabela.edicao})) between 1 and 60`),
     check('material_titularidade_valida', sql`${tabela.titularidade} in ('escola', 'professor', 'terceiro_com_licenca', 'dominio_publico')`),
     check('material_licenca_valida', sql`${tabela.licenca} in ('dominio_publico', 'autoria_da_escola', 'licenca_aberta', 'licenca_comercial_autorizada')`),
     check('material_com_declaracao', sql`${tabela.declaracao}`),
-    check('material_licenciante_so_de_terceiro', sql`(${tabela.titularidade} = 'terceiro_com_licenca') = (${tabela.licenciante} is not null)`),
-    check('material_licenciante_preenchido', sql`${tabela.licenciante} is null or char_length(btrim(${tabela.licenciante})) between 1 and 120`),
+    check('material_terceiro_tem_licenca', sql`(${tabela.titularidade} = 'terceiro_com_licenca') = (${tabela.licencaId} is not null)`),
     check('material_sha256_formato', sql`${tabela.sha256} ~ '^[0-9a-f]{64}$'`),
     // 20 MB, `MAXIMO_DE_BYTES_DO_MATERIAL` do contrato.
     check('material_tamanho_valido', sql`${tabela.tamanhoBytes} between 1 and 20971520`),

@@ -38,8 +38,6 @@ export interface NovoMaterial {
   readonly disciplinaId: string
   readonly titulo: string
   readonly titularidade: TitularidadeDeMaterial
-  /** O licenciante **da licença registrada** (`licencaId`), copiado dela: o pedido não traz nome. Nulo no que não é de terceiro. */
-  readonly licenciante: string | null
   readonly licencaId: string | null
   readonly licenca: LicencaDeMaterial
   readonly sha256: string
@@ -51,7 +49,7 @@ export interface NovoMaterial {
 }
 
 /**
- * O que a edição lê do material que vai substituir, e que **herda**: a disciplina, a titularidade, o licenciante, a licença registrada e a de uso. As séries vêm à parte (`seriesDoMaterial`), lidas
+ * O que a edição lê do material que vai substituir, e que **herda**: a disciplina, a titularidade, a licença registrada e a de uso. As séries vêm à parte (`seriesDoMaterial`), lidas
  * depois da trava. Nunca o resumo do arquivo nem quem enviou.
  */
 export interface AlvoDaEdicao {
@@ -60,7 +58,6 @@ export interface AlvoDaEdicao {
   readonly titulo: string
   readonly disciplinaId: string
   readonly titularidade: TitularidadeDeMaterial
-  readonly licenciante: string | null
   readonly licencaId: string | null
   readonly licenca: LicencaDeMaterial
 }
@@ -121,13 +118,18 @@ const quantosTrechos = sql<number>`(select count(*)::int from "trecho" where "tr
 /** As séries do material, em ordem de id. Nomes qualificados, pelo mesmo motivo de `quantosTrechos`; a lista vazia (sem série) é `{}`, nunca nula. */
 const dasSeries = sql<string[]>`coalesce((select array_agg("material_serie"."serie_id" order by "material_serie"."serie_id") from "material_serie" where "material_serie"."escola_id" = "material"."escola_id" and "material_serie"."material_id" = "material"."id"), '{}'::uuid[])`
 
-/** As colunas da própria linha: o `insert ... returning` só pode devolver estas, porque as séries ainda não foram gravadas. */
+/**
+ * O licenciante **da licença registrada** do material (`licenca_id`), nunca de uma coluna do material: a licença é da mesma escola por FK composta, e o nome de quem licenciou mora só nela. Nulo no que não é de terceiro. Escrito com os
+ * nomes qualificados, pelo mesmo motivo de `quantosTrechos`. O `escola_id` da subconsulta **não é sobra**, ainda que `licenca_id` sozinho já ache a licença: é o escopo de tenant escrito no repository (regra 10, item 3), e a leitura do licenciante de outra escola não depende só de a FK composta se manter.
+ */
+const doLicenciante = sql<string | null>`(select "licenca_de_material"."licenciante" from "licenca_de_material" where "licenca_de_material"."escola_id" = "material"."escola_id" and "licenca_de_material"."id" = "material"."licenca_id")`
+
+/** As colunas da própria linha: o `insert ... returning` só pode devolver estas, porque as séries ainda não foram gravadas e o licenciante é da licença (quem insere já o tem). */
 const colunasDaLinha = {
   id: material.id,
   titulo: material.titulo,
   disciplinaId: material.disciplinaId,
   titularidade: material.titularidade,
-  licenciante: material.licenciante,
   licencaId: material.licencaId,
   licenca: material.licenca,
   edicao: material.edicao,
@@ -139,7 +141,7 @@ const colunasDaLinha = {
   enviadoEm: material.enviadoEm,
 }
 
-const colunas = { ...colunasDaLinha, serieIds: dasSeries }
+const colunas = { ...colunasDaLinha, licenciante: doLicenciante, serieIds: dasSeries }
 
 const colunasDoAlvo = {
   id: material.id,
@@ -147,7 +149,6 @@ const colunasDoAlvo = {
   titulo: material.titulo,
   disciplinaId: material.disciplinaId,
   titularidade: material.titularidade,
-  licenciante: material.licenciante,
   licencaId: material.licencaId,
   licenca: material.licenca,
 }
@@ -264,7 +265,7 @@ export class MaterialRepository {
    * `motivoDaRecusaDoMaterial`). O mesmo arquivo de novo na escola esbarra no índice único `(escola_id, sha256)` entre
    * os não excluídos e não falhos, e sai `CONFLITO` pelo filtro de erro: dois envios ao mesmo tempo gravam um.
    */
-  async inserir(novo: NovoMaterial): Promise<Omit<MaterialLido, 'serieIds'>> {
+  async inserir(novo: NovoMaterial): Promise<Omit<MaterialLido, 'serieIds' | 'licenciante'>> {
     const { usuarioId } = requestSessao()
     const [gravado] = await this.banco
       .insert(material)

@@ -22,7 +22,7 @@ export interface VigenciaDaLicenca {
   readonly vigenteAte: string | null
 }
 
-/** O que o envio do material de terceiro lê da licença: a vigência, para saber se vale hoje, e o licenciante, que o material copia. Nunca a cobertura nem a referência. */
+/** O que o envio do material de terceiro lê da licença: a vigência, para saber se vale hoje, e o licenciante, que a resposta do envio leva (o material não o copia: a leitura vai à licença). Nunca a cobertura nem a referência. */
 export interface LicencaParaUso extends VigenciaDaLicenca {
   readonly licenciante: string
 }
