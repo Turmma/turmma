@@ -72,7 +72,7 @@ export {
   VALIDADE_DA_CONFIGURACAO_MS,
 } from './settings/operational-settings.js'
 export type { CampoDaJanelaDescartado, RateLimits, OperationalSettingsOptions, ConcurrencyByQueue } from './settings/operational-settings.js'
-export { estaNaJanela, fusoValido, msDoHorario, proximaAbertura } from './queue/janela-letiva.js'
+export { estaNaJanela, fusoValido, msDoHorario, proximaAbertura, ultimaNoite } from './queue/janela-letiva.js'
 export type { JanelaLetiva } from './queue/janela-letiva.js'
 export { systemClock } from './clock.js'
 export type { Clock } from './clock.js'
@@ -265,6 +265,9 @@ export type { FileStorage, DownloadUrlOptions, FakeSignedUrl, PrazoDoObjeto } fr
 export { ArquivoDoTitularRepository, objectKey } from './titular/arquivo-do-titular.repository.js'
 // O que a extração do PDF usa sem o `pdfjs`: o extrator em si está em `@educa/core/material`, para o resto do sistema não carregar o leitor de PDF.
 export { ExtracaoDoMaterialRepository } from './material/extracao.repository.js'
+export { AgendamentoDaClassificacaoRepository, EXECUCOES_POR_NOITE_DA_ESCOLA, SECOES_POR_LOTE_DO_AGENDAMENTO, TETO_DE_FALHAS_SEGUIDAS } from './material/agendamento-da-classificacao.repository.js'
+export { ClassificacaoAtrasadaRepository } from './material/classificacao-atrasada.repository.js'
+export type { Agendado, FiltroDoAgendamento, SecaoParaAgendar } from './material/agendamento-da-classificacao.repository.js'
 export type { MaterialParaExtrair } from './material/extracao.repository.js'
 export { chaveDoTemporario, PRAZO_DO_OBJETO_DO_MATERIAL_MS } from './material/temporario.js'
 export { uuidV7 } from './material/uuid-v7.js'

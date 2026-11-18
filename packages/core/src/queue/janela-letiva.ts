@@ -70,6 +70,33 @@ export function proximaAbertura(janela: JanelaLetiva, agora: Date): Date {
   return new Date(instante)
 }
 
+/**
+ * A noite que acabou de passar: de quando a escola fechou, no último dia letivo antes da abertura mais recente, até essa abertura (a última em que a escola entrou em horário letivo, antes ou em `agora`). É o intervalo em
+ * que o lote noturno tem de ter terminado (classificacao-bncc, 5.0): a medição do alerta olha o que aconteceu entre `fechouEm` e `abriuEm`. O fim de semana alonga a noite, e o dia da semana que a escola não declara letivo também; o feriado num dia letivo a `JanelaLetiva` não conhece, e a noite dele não se alonga (como em `estaNaJanela`). `undefined`
+ * se a janela não tem dia letivo, ou tem horário inválido; fuso desconhecido lança, como `estaNaJanela`.
+ */
+export function ultimaNoite(janela: JanelaLetiva, agora: Date): { fechouEm: Date; abriuEm: Date } | undefined {
+  const inicio = msDoHorario(janela.inicio)
+  const fim = msDoHorario(janela.fim)
+  if (inicio === undefined || fim === undefined || inicio >= fim) return undefined
+  const hoje = partesLocais(janela.fuso, agora.getTime())
+  const meiaNoiteDeHoje = hoje.paredeMs - hoje.msDoDia
+  let abriuEm: number | undefined
+  // Duas semanas de volta bastam para qualquer janela com um dia letivo na semana; sem nenhum, o laço acaba sem achar.
+  for (let atras = 0; atras < 15; atras++) {
+    const meiaNoite = meiaNoiteDeHoje - atras * MS_POR_DIA
+    const diaDaSemana = new Date(meiaNoite).getUTCDay() === 0 ? 7 : new Date(meiaNoite).getUTCDay()
+    if (!janela.diasLetivos.includes(diaDaSemana)) continue
+    if (abriuEm === undefined) {
+      const abertura = instanteDaParede(janela.fuso, meiaNoite + inicio, agora.getTime())
+      if (abertura <= agora.getTime()) abriuEm = abertura
+      continue
+    }
+    return { fechouEm: new Date(instanteDaParede(janela.fuso, meiaNoite + fim, abriuEm)), abriuEm: new Date(abriuEm) }
+  }
+  return undefined
+}
+
 function dentro(janela: JanelaLetiva, instanteMs: number): boolean {
   const inicio = msDoHorario(janela.inicio)
   const fim = msDoHorario(janela.fim)

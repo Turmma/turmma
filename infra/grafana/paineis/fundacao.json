@@ -2631,6 +2631,55 @@
           "range": true
         }
       ]
+    },
+    {
+      "id": 56,
+      "type": "timeseries",
+      "title": "Execuções da classificação atrasadas na noite, por escola",
+      "description": "Execuções da classificação do material que falharam entre o fecho e a abertura da janela letiva da escola, ou que ficaram pendentes desde antes do fecho (classificacao-bncc, tarefa 5.0), medidas pelo worker-lote a cada 5 min a partir de execucao_agente. A pendente criada na própria noite não conta. O alerta \"Classificação do material atrasada\" dispara acima de 0. Só a escola no rótulo: nunca a execução, a seção, o material nem o código. O que fazer está no runbook.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 179
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "refId": "A",
+          "expr": "max by (escola_id) (classificacao_execucoes_atrasadas)",
+          "legendFormat": "{{escola_id}}",
+          "range": true
+        }
+      ]
     }
   ]
 }

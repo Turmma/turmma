@@ -67,6 +67,7 @@ export const REGRAS_PROVISIONADAS = {
   expurgoIncompleto: 'educa-expurgo-noites-incompletas',
   incidenteSemConfirmacao: 'educa-incidente-sem-confirmacao',
   arquivoEmPreparacao: 'educa-arquivo-em-preparacao',
+  classificacaoAtrasada: 'educa-classificacao-atrasada',
   eliminacaoVencida: 'educa-eliminacao-vencida',
   jobFalhouDeVez: 'educa-job-falhou-de-vez',
   importacaoFalhou: 'educa-importacao-falhou',

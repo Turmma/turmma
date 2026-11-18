@@ -449,6 +449,13 @@
       "when": 1794952869797,
       "tag": "0063_resultado_da_classificacao",
       "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
+      "when": 1794986425775,
+      "tag": "0064_indice_da_classificacao_atrasada",
+      "breakpoints": true
     }
   ]
 }

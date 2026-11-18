@@ -28,6 +28,10 @@ export const TIPO_JOB_SINTETICO = 'sintetico'
 export const TIPO_EXECUTAR_IA = 'ia.executar'
 /** A execução de IA do lote (a classificação do material, classificacao-bncc 4.0): a fila `lote`, não urgente, sem pessoa nem ano; roda no `main-worker`, fora do horário letivo da escola. */
 export const TIPO_EXECUTAR_LOTE = 'ia.executar-lote'
+/** A rotina das 19h da classificação do material (classificacao-bncc 5.0): sem escola, só grava um `material.agendar-classificacao` por escola, como o expurgo. */
+export const TIPO_AGENDAR_CLASSIFICACAO_DAS_ESCOLAS = 'sistema.agendar-classificacao'
+/** O agendamento da classificação de uma escola (classificacao-bncc 5.0): cria as execuções das seções sem classificação, em lotes de 500, e os jobs `ia.executar-lote` delas. */
+export const TIPO_AGENDAR_CLASSIFICACAO = 'material.agendar-classificacao'
 
 /**
  * `escola`: o job pertence a uma escola e nasce no contexto dela. `sistema`: rotina nossa, sem escola, e só nasce de rotina do
@@ -125,7 +129,7 @@ const RETENTATIVA_DA_IA: JobRetry = { tentativas: 1, recuoMs: 2_000, jitter: 0.5
 const RETENTATIVA_DA_EXTRACAO: JobRetry = { tentativas: 3, recuoMs: 2_000, jitter: 0.5 }
 
 /**
- * Os 15 tipos de hoje. `prazoMs` é o maior tempo que o tipo leva, arredondado para cima, e a 43.0 o confere.
+ * Os 17 tipos de hoje. `prazoMs` é o maior tempo que o tipo leva, arredondado para cima, e a 43.0 o confere.
  */
 export const JOB_DEFINITIONS = {
   [TIPO_MONTAR_ARQUIVO]: defineJob({
@@ -270,6 +274,28 @@ export const JOB_DEFINITIONS = {
     dados: execucaoDeIaSchema,
     retentativa: RETENTATIVA_DA_IA,
     prazoMs: 150_000,
+    naoUrgente: true,
+  }),
+  // A rotina das 19h da classificação (classificacao-bncc, 5.0): sem escola, no `worker-lote`, não urgente. Só lista as escolas e grava o job de cada uma pelo `JobOutbox`, com a data local da noite por chave: o
+  // trabalho de cada escola é o job abaixo. Dez minutos como as outras rotinas do sistema.
+  [TIPO_AGENDAR_CLASSIFICACAO_DAS_ESCOLAS]: defineJob({
+    filas: ['lote'],
+    escopo: 'sistema',
+    executor: 'worker',
+    dados: semDados,
+    retentativa: RETENTATIVA_DE_HOJE,
+    prazoMs: 600_000,
+    naoUrgente: true,
+  }),
+  // O agendamento da classificação de uma escola (classificacao-bncc, 5.0): lê as seções sem classificação em lotes de 500, cada lote numa transação, e para entre dois lotes quando o `sinal` aborta. Roda no `worker-lote`
+  // (só banco e outbox, sem modelo: o pool `lote` do `worker-ia` é 1 por réplica e é do modelo). Meia hora cobre as 7.500 seções de 300 apostilas de 25 capítulos, 15 lotes de poucos segundos; o que sobrar sai na noite seguinte.
+  [TIPO_AGENDAR_CLASSIFICACAO]: defineJob({
+    filas: ['lote'],
+    escopo: 'escola',
+    executor: 'worker',
+    dados: semDados,
+    retentativa: RETENTATIVA_DE_HOJE,
+    prazoMs: 1_800_000,
     naoUrgente: true,
   }),
   // O sintético é o job de teste de carga: a fila e o não urgente vêm do corpo do `POST`, e o prazo cobre o teto de CPU dele.

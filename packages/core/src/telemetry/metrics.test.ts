@@ -153,6 +153,7 @@ describe('métricas com escola', () => {
         METRICS.esperaEstourada,
         METRICS.execucaoInterrompida,
         METRICS.esperaDaClassificacao,
+        METRICS.execucoesAtrasadasDaClassificacao,
       ].sort(),
     )
     expect(METRICS_WITH_ESCOLA).not.toContain(METRICS.limiteEmailIp)

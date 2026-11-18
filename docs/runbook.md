@@ -981,6 +981,42 @@ chegar nele), descarte o job pelo comando e peça à escola que envie o arquivo 
 
 **Depois:** registre no `TODO.md` a hora, o que parou e quantos jobs esperaram, só com ids e contagens. Causa nova vira tarefa com teste que a reproduz.
 
+## Classificação do material atrasada
+
+**Dispara quando:** a escola tem execução da classificação do material (`execucao_agente.tarefa = 'classificar_secoes'`) que **`falhou` durante a noite** (entre o fecho e a abertura da janela letiva dela) ou que ficou **`pendente` desde antes da noite**,
+por 1 min (`max by (escola_id) (classificacao_execucoes_atrasadas{job="educa/worker"}) > 0`, regra `infra/grafana/alertas/classificacao-atrasada.yaml`; Tech Spec da classificacao-bncc, seção 7c). O worker-lote mede a cada 5 min, no fuso e
+no horário da escola; a série traz o `escola_id`, nunca a execução, a seção nem o material. A `pendente` criada na própria noite (o excedente de uma escola que entra com 300 apostilas) não conta: a noite seguinte a termina.
+A medição vale o dia inteiro, e na abertura seguinte a noite que se julga é outra. Sem execução atrasada a escola não tem série.
+
+**Impacto:** o material novo da escola fica sem habilidade da BNCC (`nao_agendada`, `aguardando` ou `nao_classificada`). Nada quebra e nada vai ao aluno: a ferramenta gera a questão sem habilidade e o diagnóstico mostra "Sem habilidade", até a
+classificação terminar. A coordenação vê o aviso no painel do material e pode corrigir à mão.
+
+**Primeiro olhar:** as execuções da escola, só com ids, estados, códigos e datas (nunca título nem texto):
+`docker compose exec postgres psql -U educa -c "select id, estado, erro, criada_em, concluida_em from execucao_agente where escola_id = '<escola_id>' and tarefa = 'classificar_secoes' and (estado = 'falhou' or criada_em > now() - interval '3 days') order by criada_em desc limit 40"`,
+e quantas seções estão em cada estado: `select (execucao_id is null) as sem_execucao, falhas_seguidas, count(*) from secao_do_material where escola_id = '<escola_id>' and corrigida_em is null group by 1, 2`. A coluna `erro` guarda só o código do erro (`IA_SAIDA_INVALIDA`, `EXECUCAO_INTERROMPIDA`…), nunca texto livre nem conteúdo de seção: não a troque por uma coluna de texto livre nem copie o que o modelo devolveu para ela. O log do `worker-ia` traz
+`ia.execucao.falhou` com o código e a tarefa; o do `worker-lote`, `classificacao.agendada` (lotes, execuções e seções do job da noite, e o estado em que parou: `fim`, `limite`, `suspensa` ou `sinal`). O painel "Fundação — rota, fila e escola" mostra a espera
+da classificação (p95) e a vazão do balde `lote`.
+
+**Causas prováveis:**
+1. O provedor de IA está fora ou o balde `lote` está cheio → as execuções voltam a `pendente` e o job é adiado, sem gastar tentativa (`ia.execucao.adiada_pelo_provedor`). É o caso mais comum de `pendente` antiga: com o provedor de volta
+   elas rodam sozinhas, **fora do horário letivo da escola** (o job que volta na janela é adiado até o fim dela: `ia.execucao.adiada_pela_janela`). Veja "Provedor de IA fora" e o painel de IA.
+2. A escola entrou com muito material de uma vez (onboarding de 300 apostilas, 630 execuções, ~2,4 h medidas em 18/11/2026 com 31 mil tokens por execução; o balde `lote` e a vaga por escola, `VAGAS_ESCOLA_LOTE`, dividida com o expurgo e a eliminação, é quem regula). O job da noite cria no máximo
+   `EXECUCOES_POR_NOITE_DA_ESCOLA` (1.000) execuções, e o resto sai na noite seguinte (`classificacao.agendada` com `estado: limite`): não é falha, e o alerta some quando a noite seguinte termina.
+3. Troca de prompt ou de modelo que reprova a saída em massa (`IA_SAIDA_INVALIDA` em quase toda execução) → cada seção que falhou soma 1 em `falhas_seguidas` e **vai numa execução só dela** na noite seguinte; uma escola de 300 apostilas passa de 630 para até
+   1.000 execuções numa noite (o limite do job da escola, `EXECUCOES_POR_NOITE_DA_ESCOLA`; o que passar dele sai nas noites seguintes), contidas pelo balde, pelo adiamento e pelo teto de 3 noites (a quarta não chama o modelo). Pare a perda: **suspenda a função** `classificacao_do_material` na escola (a coordenação, pela tela de governança, ou o comando D76 com chamado)
+   e avise o Arquiteto; a seção com 3 falhas só volta quando a coordenação a reclassifica.
+4. A recusa de soberania (`IA_INDISPONIVEL` com motivo `soberania`: o provedor não tem processamento no Brasil, D62) falha a execução **sem adiar**, e repete **toda noite** para toda escola → confira `docker compose logs --since 1h worker-ia | grep soberania`
+   e o cadastro do suboperador; a classificação só volta com o provedor ou o adaptador local conferido. Não troque a configuração para "passar".
+5. `EXECUCAO_INTERROMPIDA` recorrente (o worker morre no meio da chamada, ou a chamada passa de 300 s) → `docker compose ps worker-ia` e o log com `worker_ia.desligamento_forcado` e `ia.execucao.interrompida`; a execução volta a `falhou` sem somar `falhas_seguidas` e a rotina a agenda
+   de novo. Se repetir noites seguidas para uma escola, suspenda a função nela ou use o D76 com chamado, e abra a correção.
+6. A função está suspensa na escola → a rotina não agenda (`classificacao.agendada` com `estado: suspensa`), as seções ficam `nao_agendada` e o alerta só dispara pelo que sobrou antes da suspensão. Retomada a função, a rotina das 19h agenda.
+7. O `worker-lote` não roda a rotina → sem `classificacao.rotina_disparada` às 19h no log dele, olhe "Job que falhou de vez" e o agendador (`agendamentos.registrados` no boot).
+
+**Se nada disso resolver:** não apague execução nem seção à mão, e não marque a seção como classificada: a coordenação corrige a habilidade na tela do material (a correção vence), e a geração segue sem habilidade onde ela falta. Avise a coordenação das escolas
+com material novo de que a classificação está atrasada e que a habilidade da questão aparece depois (seção "Como avisar as escolas").
+
+**Depois:** registre no `TODO.md` a escola, a noite, quantas execuções e a causa, só com ids e contagens. Causa nova vira tarefa com teste que a reproduz. Falha em massa depois de troca de prompt entra na retro da funcionalidade.
+
 ## Turma sem material da série
 
 *Procedimento, não alerta: não há regra em `infra/grafana/alertas/`. O painel "Fundação — rota, fila e escola" tem o gráfico "Perguntas do Tutor recusadas por

@@ -1,0 +1,7 @@
+-- O índice da medição do alerta `classificacao-atrasada` (classificacao-bncc, tarefa 5.0; Tech Spec, seção 7c, "Alerta"; regra 80, itens 8 e 9). Só expande, e o código anterior ignora o índice: nenhuma coluna, linha ou check muda.
+-- A `ClassificacaoGauge` conta, a cada 5 minutos e por escola, a execução `falhou` na noite (`concluida_em`) e a `pendente` de antes dela. `execucao_agente` ganha uma linha por turno do Tutor e só é anonimizada, de modo que o
+-- índice parcial de `pendente` e `rodando` não serve ao ramo `falhou`, e os outros não filtram o estado. Este é parcial na função da classificação, que tem poucas linhas por escola perto dos turnos do Tutor, e começa pelo escopo.
+-- Sem `concurrently`, a exceção da 0034 e da 0057 (o `migrar` roda todas as migrations numa transação só, e `CREATE INDEX CONCURRENTLY` não roda dentro dela): o índice lê a tabela inteira uma vez e trava a escrita nela enquanto
+-- isso. É seguro hoje (a escola ainda não tem volume, e o deploy roda fora do horário letivo; o `lock_timeout` de 5 s do `migrar` desfaz a transação se a trava não vier). Com volume de produção, esta criação vai para uma migration
+-- à parte e fora do `migrar`, com `concurrently`.
+CREATE INDEX "execucao_agente_classificacao_idx" ON "execucao_agente" USING btree ("escola_id","estado","concluida_em") WHERE "execucao_agente"."funcao" = 'classificacao_do_material';

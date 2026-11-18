@@ -3,6 +3,8 @@ import { z } from 'zod'
 import {
   JOB_DEFINITIONS,
   defineJob,
+  TIPO_AGENDAR_CLASSIFICACAO,
+  TIPO_AGENDAR_CLASSIFICACAO_DAS_ESCOLAS,
   TIPO_CONSOLIDAR_USO,
   TIPO_ELIMINAR_TITULAR,
   TIPO_ENVIAR_CONVITE,
@@ -25,7 +27,7 @@ import {
 } from './job-definitions.js'
 import { CPU_MS_MAXIMO_SINTETICO, syntheticJobRequestSchema } from './synthetic-jobs.js'
 
-const OS_15_TIPOS = [
+const OS_17_TIPOS = [
   TIPO_MONTAR_ARQUIVO,
   TIPO_ELIMINAR_TITULAR,
   TIPO_EXPURGAR_ESCOLA,
@@ -40,6 +42,8 @@ const OS_15_TIPOS = [
   TIPO_VARRER_TEMPORARIOS_DE_MATERIAL,
   TIPO_EXECUTAR_IA,
   TIPO_EXECUTAR_LOTE,
+  TIPO_AGENDAR_CLASSIFICACAO_DAS_ESCOLAS,
+  TIPO_AGENDAR_CLASSIFICACAO,
   TIPO_JOB_SINTETICO,
 ] as const
 
@@ -48,7 +52,7 @@ const UM_UUID = '0191f3a6-6b9e-7c1a-8f35-2d4c5b6a7e80'
 const base = { filas: ['lote'], escopo: 'escola', executor: 'worker', retentativa: { tentativas: 1, recuoMs: 1, jitter: 0 }, prazoMs: 1, naoUrgente: true } as const
 
 describe('o registro de jobs', () => {
-  it('tem os 15 tipos de hoje, com o nome que o banco e o worker já usam', () => {
+  it('tem os 17 tipos de hoje, com o nome que o banco e o worker já usam', () => {
     expect(Object.keys(JOB_DEFINITIONS).sort()).toEqual(
       [
         'titular.montar-arquivo',
@@ -65,10 +69,12 @@ describe('o registro de jobs', () => {
         'sistema.varrer-temporarios-de-material',
         'ia.executar',
         'ia.executar-lote',
+        'sistema.agendar-classificacao',
+        'material.agendar-classificacao',
         'sintetico',
       ].sort(),
     )
-    expect([...OS_15_TIPOS].sort()).toEqual(Object.keys(JOB_DEFINITIONS).sort())
+    expect([...OS_17_TIPOS].sort()).toEqual(Object.keys(JOB_DEFINITIONS).sort())
   })
 
   it('cada tipo declara a fila, o não urgente, o escopo e o executor de hoje', () => {
@@ -88,6 +94,8 @@ describe('o registro de jobs', () => {
       'sistema.varrer-temporarios-de-material': [['lote'], false, 'sistema', 'worker'],
       'ia.executar': [['interativa', 'ferramenta', 'normal'], false, 'escola', 'api'],
       'ia.executar-lote': [['lote'], true, 'escola', 'api'],
+      'sistema.agendar-classificacao': [['lote'], true, 'sistema', 'worker'],
+      'material.agendar-classificacao': [['lote'], true, 'escola', 'worker'],
       sintetico: [['interativa', 'normal', 'lote'], 'do-pedido', 'escola', 'worker'],
     })
   })
@@ -123,9 +131,11 @@ describe('o registro de jobs', () => {
       [TIPO_VARRER_TEMPORARIOS_DE_MATERIAL]: {},
       [TIPO_EXECUTAR_IA]: { execucaoId: UM_UUID },
       [TIPO_EXECUTAR_LOTE]: { execucaoId: UM_UUID },
+      [TIPO_AGENDAR_CLASSIFICACAO_DAS_ESCOLAS]: {},
+      [TIPO_AGENDAR_CLASSIFICACAO]: {},
       [TIPO_JOB_SINTETICO]: { cpuMs: 0, falhar: false },
     }
-    for (const tipo of OS_15_TIPOS) {
+    for (const tipo of OS_17_TIPOS) {
       const { dados } = JOB_DEFINITIONS[tipo]
       expect(dados.safeParse(payloads[tipo]).success, `${tipo} aceita o de hoje`).toBe(true)
       expect(dados.safeParse({ ...payloads[tipo], escolaId: UM_UUID }).success, `${tipo} recusa a chave a mais`).toBe(false)
@@ -165,8 +175,8 @@ describe('o registro de jobs', () => {
     expect(JOB_DEFINITIONS[TIPO_JOB_SINTETICO].prazoMs).toBeGreaterThan(CPU_MS_MAXIMO_SINTETICO)
   })
 
-  it('o prazo de cada um dos 15 tipos é o conferido na 43.0 (a extração do PDF, na 1.0 da ingestão): o worker corta a tentativa nele, então mudar um valor é decisão de quem mede o tipo', () => {
-    expect(Object.fromEntries(OS_15_TIPOS.map((tipo) => [tipo, JOB_DEFINITIONS[tipo].prazoMs]))).toEqual({
+  it('o prazo de cada um dos 17 tipos é o conferido na 43.0 (a extração do PDF, na 1.0 da ingestão): o worker corta a tentativa nele, então mudar um valor é decisão de quem mede o tipo', () => {
+    expect(Object.fromEntries(OS_17_TIPOS.map((tipo) => [tipo, JOB_DEFINITIONS[tipo].prazoMs]))).toEqual({
       [TIPO_MONTAR_ARQUIVO]: 300_000,
       [TIPO_ELIMINAR_TITULAR]: 600_000,
       [TIPO_EXPURGAR_ESCOLA]: 21_600_000,
@@ -182,6 +192,9 @@ describe('o registro de jobs', () => {
       // A execução de IA: cobre o `padrao` (140 s, o prazo único da execução) e a folga de gravar a falha (X6, 5.0).
       [TIPO_EXECUTAR_IA]: 150_000,
       [TIPO_EXECUTAR_LOTE]: 150_000,
+      // A rotina das 19h só grava um job por escola; o da escola lê as seções em lotes de 500 e tem meia hora (classificacao-bncc, 5.0).
+      [TIPO_AGENDAR_CLASSIFICACAO_DAS_ESCOLAS]: 600_000,
+      [TIPO_AGENDAR_CLASSIFICACAO]: 1_800_000,
       [TIPO_JOB_SINTETICO]: 90_000,
     })
   })
@@ -221,7 +234,7 @@ describe('definirJob', () => {
 
 describe('os tipos que o `Enfileirador` lê da definição', () => {
   it('o tipo é uma das chaves do registro, e os dados são os do tipo', () => {
-    expectTypeOf<JobType>().toEqualTypeOf<(typeof OS_15_TIPOS)[number]>()
+    expectTypeOf<JobType>().toEqualTypeOf<(typeof OS_17_TIPOS)[number]>()
     expectTypeOf<JobData<typeof TIPO_MONTAR_ARQUIVO>>().toEqualTypeOf<{ pedidoId: string }>()
     expectTypeOf<JobData<typeof TIPO_EXPURGAR_JOBS>>().toEqualTypeOf<Record<string, never>>()
     // @ts-expect-error tipo que não está no registro

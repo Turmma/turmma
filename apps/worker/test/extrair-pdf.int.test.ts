@@ -1160,6 +1160,171 @@ describe('material.extrair-pdf', () => {
       for (const sentinela of ['Mol e massa molar', 'Reações químicas', 'Soluções']) expect(todo, sentinela).not.toContain(sentinela)
     })
   })
+
+  describe('a classificação agendada na extração (classificacao-bncc, tarefa 5.0; Tech Spec, seção 5, "Seções")', () => {
+    interface ExecucaoRow {
+      readonly id: string
+      readonly estado: string
+      readonly ano_letivo_id: string | null
+      readonly solicitada_por: string | null
+      readonly funcao: string
+      readonly tarefa: string
+      readonly secoes: number
+    }
+
+    /** A escola com a disciplina no componente de Química e o 9º ano, como o professor a deixa na tela da disciplina. */
+    async function escolaComComponente(componente: string | null = 'quimica'): Promise<Cenario & { readonly serieId: string }> {
+      const c = await escolaNova()
+      await bancada.pool.query('update disciplina set componente_bncc = $1 where id = $2', [componente, c.disciplinaId])
+      const { rows } = await bancada.pool.query<{ id: string }>("insert into serie (escola_id, etapa, ano) values ($1, 'ef_anos_finais', 9) returning id", [c.escolaId])
+      return { ...c, serieId: rows[0]?.id ?? '' }
+    }
+
+    async function materialDaSerie(c: Cenario & { readonly serieId: string }, bytes: Uint8Array | null = PDF_DE_DEMONSTRACAO): Promise<string> {
+      const id = await materialComObjeto(c, bytes)
+      await bancada.pool.query('insert into material_serie (escola_id, material_id, serie_id) values ($1, $2, $3)', [c.escolaId, id, c.serieId])
+      return id
+    }
+
+    const capitulosDe = (quantos: number): CapituloLido[] => Array.from({ length: quantos }, (_, i) => ({ ordem: i + 1, numero: i + 1, titulo: `Capítulo ${String(i + 1)}`, paginaInicial: i + 1, paginaFinal: i + 1 }))
+    const extratorDeCapitulos = (quantos: number): Pick<PdfExtractor, 'extrair'> => ({
+      extrair: () => Promise.resolve({ falha: null, paginas: quantos, trechos: Array.from({ length: quantos }, (_, i) => ({ pagina: i + 1, texto: `texto ${String(i + 1)}` })), capitulos: capitulosDe(quantos) }),
+    })
+
+    async function execucoes(materialId: string): Promise<ExecucaoRow[]> {
+      const { rows } = await bancada.pool.query<ExecucaoRow>(
+        `select e.id, e.estado, e.ano_letivo_id, e.solicitada_por, e.funcao, e.tarefa, count(s.id)::int as secoes
+           from execucao_agente e join secao_do_material s on s.escola_id = e.escola_id and s.execucao_id = e.id
+          where s.material_id = $1 group by e.id order by count(s.id) desc, e.id`,
+        [materialId],
+      )
+      return rows
+    }
+
+    const jobsDeExecucao = async (escolaId: string): Promise<Array<{ fila: string; nao_urgente: boolean; execucao: string }>> =>
+      (await bancada.pool.query<{ fila: string; nao_urgente: boolean; execucao: string }>("select fila, nao_urgente, dados ->> 'execucaoId' as execucao from job_registro where escola_id = $1 and tipo = 'ia.executar-lote'", [escolaId])).rows
+
+    it('[I] material com componente e série: as seções entram numa execução pendente, sem ano nem pessoa, e o job dela na `lote`, não urgente, na mesma transação da extração', async () => {
+      const c = await escolaComComponente()
+      const id = await materialDaSerie(c, pdfDaAmostra('marcador'))
+      const inicio = log.registros().length
+
+      await rodar(c.escolaId, id)
+
+      const gravadas = await execucoes(id)
+      expect(gravadas).toEqual([expect.objectContaining({ estado: 'pendente', ano_letivo_id: null, solicitada_por: null, funcao: 'classificacao_do_material', tarefa: 'classificar_secoes', secoes: 3 })])
+      expect(await jobsDeExecucao(c.escolaId)).toEqual([{ fila: 'lote', nao_urgente: true, execucao: gravadas[0]?.id }])
+      expect(log.registros().slice(inicio).find((registro) => registro['evento'] === 'material.extraido')).toMatchObject({ materialId: id, secoesTotal: 3, execucoesTotal: 1 })
+    })
+
+    it('[I] 30 capítulos: três execuções (12, 12 e 6), cada seção em uma, e um job por execução', async () => {
+      const c = await escolaComComponente()
+      const id = await materialDaSerie(c)
+
+      await rodar(c.escolaId, id, { extratorDoCaso: extratorDeCapitulos(30) })
+
+      expect((await execucoes(id)).map((execucao) => execucao.secoes)).toEqual([12, 12, 6])
+      expect(await jobsDeExecucao(c.escolaId)).toHaveLength(3)
+    })
+
+    it('[I] a disciplina sem componente: as seções ficam sem execução, e nenhum job nasce', async () => {
+      const c = await escolaComComponente(null)
+      const id = await materialDaSerie(c, pdfDaAmostra('marcador'))
+
+      await rodar(c.escolaId, id)
+
+      expect(await execucoes(id)).toEqual([])
+      expect(await jobsDeExecucao(c.escolaId)).toEqual([])
+      const { rows } = await bancada.pool.query<{ total: number }>('select count(*)::int as total from secao_do_material where material_id = $1', [id])
+      expect(rows[0]?.total).toBe(3)
+    })
+
+    it('[I] a função suspensa na escola: as seções entram sem execução, e o material fica `pronto`', async () => {
+      const c = await escolaComComponente()
+      const id = await materialDaSerie(c, pdfDaAmostra('marcador'))
+      const { rows: conta } = await bancada.pool.query<{ id: string }>('insert into conta (email) values ($1) returning id', [`coordenacao-${randomUUID()}@teste.invalid`])
+      const { rows: coordenacao } = await bancada.pool.query<{ id: string }>("insert into usuario (escola_id, conta_id, papel, nome) values ($1, $2, 'coordenador', 'Coordenação sintética') returning id", [c.escolaId, conta[0]?.id])
+      await bancada.pool.query("insert into suspensao_de_funcao (escola_id, funcao, motivo, suspensa_por) values ($1, 'classificacao_do_material', 'decisao_da_escola', $2)", [c.escolaId, coordenacao[0]?.id])
+
+      await rodar(c.escolaId, id)
+
+      expect(await execucoes(id)).toEqual([])
+      expect(await jobsDeExecucao(c.escolaId)).toEqual([])
+      expect((await linha(id)).estado).toBe('pronto')
+    })
+
+    it('[I] a seção que herdou a correção da anterior não vai à classificação; as outras, sim', async () => {
+      const c = await escolaComComponente()
+      const anterior = await materialComObjeto(c, null, { estado: 'pronto' })
+      const { rows: capitulo } = await bancada.pool.query<{ id: string }>(
+        "insert into capitulo_do_material (escola_id, material_id, ordem, numero, titulo, pagina_inicial, pagina_final) values ($1, $2, 1, 1, 'Capítulo 1', 1, 1) returning id",
+        [c.escolaId, anterior],
+      )
+      const { rows: secao } = await bancada.pool.query<{ id: string }>(
+        "insert into secao_do_material (escola_id, material_id, capitulo_id, ordem, pagina_inicial, pagina_final, corrigida_em) values ($1, $2, $3, 1, 1, 1, now()) returning id",
+        [c.escolaId, anterior, capitulo[0]?.id],
+      )
+      await bancada.pool.query("insert into habilidade_da_secao (escola_id, secao_id, codigo, origem) values ($1, $2, 'EM13CNT101', 'coordenacao')", [c.escolaId, secao[0]?.id])
+      const nova = await materialDaSerie(c)
+      await bancada.pool.query('update material set substitui_id = $1 where id = $2', [anterior, nova])
+
+      await rodar(c.escolaId, nova, { extratorDoCaso: extratorDeCapitulos(3) })
+
+      const { rows: herdada } = await bancada.pool.query<{ ordem: number; execucao_id: string | null; corrigida_em: Date | null }>('select ordem, execucao_id, corrigida_em from secao_do_material where material_id = $1 order by ordem', [nova])
+      expect(herdada.map((linhaDaSecao) => [linhaDaSecao.ordem, linhaDaSecao.corrigida_em !== null, linhaDaSecao.execucao_id !== null])).toEqual([
+        [1, true, false],
+        [2, false, true],
+        [3, false, true],
+      ])
+      expect((await execucoes(nova)).map((execucao) => execucao.secoes)).toEqual([2])
+    })
+
+    it('[P] dois jobs da mesma extração em `Promise.all`: as seções entram uma vez, e as execuções e os jobs também', async () => {
+      const c = await escolaComComponente()
+      const dele = new InMemoryFileStorage()
+      const id = await materialComObjeto(c, pdfDaAmostra('marcador'), { armazemDoObjeto: dele })
+      await bancada.pool.query('insert into material_serie (escola_id, material_id, serie_id) values ($1, $2, $3)', [c.escolaId, id, c.serieId])
+      const juntos = barreira()
+      let chegaram = 0
+      dele.aoLerBytes = async () => {
+        chegaram += 1
+        if (chegaram === 2) juntos.soltar()
+        await juntos.espera
+      }
+
+      await Promise.all([rodar(c.escolaId, id, { armazemDoCaso: dele }), rodar(c.escolaId, id, { armazemDoCaso: dele })])
+
+      expect((await execucoes(id)).map((execucao) => execucao.secoes)).toEqual([3])
+      expect(await jobsDeExecucao(c.escolaId)).toHaveLength(1)
+    })
+
+    it('o job do material da escola A não cria execução na B', async () => {
+      const a = await escolaComComponente()
+      const b = await escolaComComponente()
+      const daA = await materialDaSerie(a, pdfDaAmostra('marcador'))
+      const daB = await materialDaSerie(b, pdfDaAmostra('marcador'))
+
+      await rodar(a.escolaId, daA)
+
+      expect(await execucoes(daA)).toHaveLength(1)
+      expect(await execucoes(daB)).toEqual([])
+      expect(await jobsDeExecucao(b.escolaId)).toEqual([])
+    })
+
+    it('[I] a extração agenda só as seções do material que extraiu: a seção sem execução de outro material da escola fica para a rotina das 19h', async () => {
+      const c = await escolaComComponente()
+      const outro = await materialDaSerie(c, null)
+      await bancada.pool.query('update material set estado = $1, paginas = 1 where id = $2', ['pronto', outro])
+      await bancada.pool.query('insert into secao_do_material (escola_id, material_id, ordem, pagina_inicial, pagina_final) values ($1, $2, 1, 1, 1)', [c.escolaId, outro])
+      const novo = await materialDaSerie(c, pdfDaAmostra('marcador'))
+
+      await rodar(c.escolaId, novo)
+
+      expect((await execucoes(novo)).map((execucao) => execucao.secoes)).toEqual([3])
+      expect(await execucoes(outro)).toEqual([])
+      expect(await jobsDeExecucao(c.escolaId)).toHaveLength(1)
+    })
+  })
 })
 
 /** O PDF de demonstração com um comentário no fim: o mesmo texto, com outro conteúdo. */

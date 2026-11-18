@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { estaNaJanela, fusoValido, msDoHorario, proximaAbertura, type JanelaLetiva } from './janela-letiva.js'
+import { estaNaJanela, fusoValido, msDoHorario, proximaAbertura, ultimaNoite, type JanelaLetiva } from './janela-letiva.js'
 
 /** O padrão do `.env.example`: São Paulo, de segunda a sexta, das 07:00 às 18:00. */
 const PADRAO: JanelaLetiva = { fuso: 'America/Sao_Paulo', diasLetivos: [1, 2, 3, 4, 5], inicio: '07:00', fim: '18:00' }
@@ -122,5 +122,38 @@ describe('msDoHorario e fusoValido', () => {
     expect(fusoValido('America/Noronha')).toBe(true)
     expect(fusoValido('Brasil/Joinville')).toBe(false)
     expect(fusoValido('')).toBe(false)
+  })
+})
+
+describe('ultimaNoite', () => {
+  it('terça às 10h: a noite foi de segunda às 18h até terça às 7h', () => {
+    expect(ultimaNoite(PADRAO, em('2026-09-15T10:00:00-03:00'))).toEqual({ fechouEm: em('2026-09-14T18:00:00-03:00'), abriuEm: em('2026-09-15T07:00:00-03:00') })
+  })
+
+  it('terça às 3h, antes de a escola abrir: a noite que vale é a da segunda anterior, de sexta às 18h até segunda às 7h', () => {
+    expect(ultimaNoite(PADRAO, em('2026-09-15T03:00:00-03:00'))).toEqual({ fechouEm: em('2026-09-11T18:00:00-03:00'), abriuEm: em('2026-09-14T07:00:00-03:00') })
+  })
+
+  it('segunda às 7h em ponto já abriu: a noite é a do fim de semana, de sexta às 18h até segunda às 7h', () => {
+    expect(ultimaNoite(PADRAO, em('2026-09-14T07:00:00-03:00'))).toEqual({ fechouEm: em('2026-09-11T18:00:00-03:00'), abriuEm: em('2026-09-14T07:00:00-03:00') })
+  })
+
+  it('sábado às 10h: a última abertura foi na sexta às 7h, e a noite, de quinta às 18h até sexta às 7h', () => {
+    expect(ultimaNoite(PADRAO, em('2026-09-19T10:00:00-03:00'))).toEqual({ fechouEm: em('2026-09-17T18:00:00-03:00'), abriuEm: em('2026-09-18T07:00:00-03:00') })
+  })
+
+  it('o horário e o fuso são os da escola: das 8h às 12h em Manaus (uma hora atrás de São Paulo)', () => {
+    const manaus: JanelaLetiva = { fuso: 'America/Manaus', diasLetivos: [1, 2, 3, 4, 5], inicio: '08:00', fim: '12:00' }
+    expect(ultimaNoite(manaus, em('2026-09-16T15:00:00-04:00'))).toEqual({ fechouEm: em('2026-09-15T12:00:00-04:00'), abriuEm: em('2026-09-16T08:00:00-04:00') })
+  })
+
+  it('o domingo é o dia 7 e pode ser letivo: com sexta e domingo, a noite de domingo às 10h vai da sexta às 18h até o domingo às 7h', () => {
+    const sextaEDomingo: JanelaLetiva = { ...PADRAO, diasLetivos: [5, 7] }
+    expect(ultimaNoite(sextaEDomingo, em('2026-09-20T10:00:00-03:00'))).toEqual({ fechouEm: em('2026-09-18T18:00:00-03:00'), abriuEm: em('2026-09-20T07:00:00-03:00') })
+  })
+
+  it('sem dia letivo ou com horário invertido, não há noite', () => {
+    expect(ultimaNoite({ ...PADRAO, diasLetivos: [] }, em('2026-09-15T10:00:00-03:00'))).toBeUndefined()
+    expect(ultimaNoite({ ...PADRAO, inicio: '18:00', fim: '07:00' }, em('2026-09-15T10:00:00-03:00'))).toBeUndefined()
   })
 })

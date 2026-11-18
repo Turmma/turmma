@@ -25,8 +25,11 @@ if (!API || !ARQUIVO_DOS_TOKENS || !DURACAO) throw new Error('defina API_URL, AR
 
 /** Margem declarada sobre a base (PRD, RF18). */
 const MARGEM_SOBRE_A_BASE_MS = 500
-/** Turnos do Tutor da B: 3 a cada 2 s (1,5 por segundo), abaixo do teto de 120 pedidos de IA por minuto por escola. */
-const TURNOS_DA_B_POR_2S = 3
+/**
+ * Turnos do Tutor da B: 3 a cada 2 s (1,5 por segundo), abaixo do teto de 120 pedidos de IA por minuto por escola. `TURNOS_DA_B_POR_2S` troca o ritmo: o cenário da classificação (5.0) dá ao falso os ~31 mil tokens
+ * de uma execução do recorte maior, e o Tutor leva os mesmos, então 90 turnos por minuto passariam do balde interativo (a conta real do Tutor é de ~3 mil).
+ */
+const TURNOS_DA_B_POR_2S = Number(__ENV.TURNOS_DA_B_POR_2S ?? 3)
 const PRAZO_DO_TURNO_MS = 30_000
 const VUS_MAXIMOS_DO_TUTOR_DA_B = 40
 

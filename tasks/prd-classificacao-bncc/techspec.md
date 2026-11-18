@@ -14,8 +14,8 @@ as da seção da página citada, e o catálogo próprio sai.
 
 ## 2. Módulos afetados
 
-`packages/core` (`bncc/`, `db/schema/`, `ia/`); `apps/api/src/` (`ia`, `material`, `ops`, `estrutura`, `artefato`,
-`atividade`, `governanca`, `tutor`); `apps/worker` (extração); `packages/shared` (sai `habilidades.ts`); `apps/web`.
+`packages/core` (`bncc/`, `db/schema/`, `ia/`, `material/`: o agendamento da classificação e a medição do alerta, que a extração e o job da escola usam e que nenhum `app` importa de outro); `apps/api/src/` (`ia`, `material`, `ops`, `estrutura`, `artefato`,
+`atividade`, `governanca`, `tutor`); `apps/worker` (extração; a rotina das 19h, o job da escola e a medição do alerta, no `worker-lote`); `packages/shared` (sai `habilidades.ts`); `apps/web`.
 
 ## 3. Modelo de dados
 
@@ -82,8 +82,8 @@ guarda o `execucao_id`. **Edição nova:** a seção cujo capítulo tem o mesmo 
 seção corrigida da anterior herda as habilidades (com a origem que tinham) e `corrigida_em` (sem `corrigida_por`), com
 `material.classificacao_herdada` na auditoria (autor `rotina`, só quando alguma herdou; leva o material de onde veio e a contagem); as outras vão à IA. **Capítulo sem número não casa**, a seção de bloco de páginas não herda, e a anterior só classificada pela IA (sem `corrigida_em`) não conta.
 
-**Agendar** (job `material.agendar-classificacao`, fila `lote`, `naoUrgente`, por escola, lotes de 500 seções; seção
-com `falhas_seguidas > 0` vai numa execução só dela). (a) **A rotina das 19h** pega a seção não corrigida de material `pronto` com
+**Agendar** (job `material.agendar-classificacao`, fila `lote`, `naoUrgente`, por escola, lotes de 500 seções, cada um numa transação; seção
+com `falhas_seguidas > 0` vai numa execução só dela). O trabalho mora no `core` (`AgendamentoDaClassificacaoRepository`): a extração (fila `pdf`) e o job da escola (`worker-lote`) o chamam na transação deles, e as seções de um mesmo componente e das mesmas séries vão juntas, até 12 por execução. (a) **A rotina das 19h** (`sistema.agendar-classificacao`, em `JOB_SCHEDULES`, `0 19 * * *` de São Paulo) só grava um job por escola, com a data local da noite no fuso dela por chave, e o job da escola faz o laço: cada lote começa depois da última seção do anterior, para quando o sinal aborta, a função está suspensa ou a escola já ganhou **1.000 execuções** na noite (`EXECUCOES_POR_NOITE_DA_ESCOLA`, 12 mil seções: o dobro das 7.500 de 300 apostilas), e o resto sai na noite seguinte. Pega a seção não corrigida de material `pronto` com
 componente **sem execução, ou com a última `falhou` e `falhas_seguidas < 3`**; nunca `classificada` nem `sem_habilidade`.
 (b) **A mudança de recorte** (`PATCH` do componente ou de séries) só enfileira o job do material ou disciplina (chave com
 a auditoria do `PATCH`); ele lê o recorte atual, **limpa** as não corrigidas e, com componente, agenda. **Limpar:** lê a
@@ -179,8 +179,8 @@ registrando no `RETIDOS.json`. Sem a taxa no `rapido`, `padrao`; sem ela no
 | Item | Resposta |
 |---|---|
 | Caminho quente | a seção da página, na geração (join por índice); sem classificação no horário letivo |
-| Fila | `lote`, `naoUrgente`; pool `lote` no `worker-ia`, 1 por réplica; a varredura de execuções inclui a `lote` e casa o tipo do job com a fila (`ia.executar` nas três filas da IA, `ia.executar-lote` na `lote`): incluir só a fila deixaria o job `ia.executar` da `lote` segurar uma `pendente` que nenhum worker leva |
-| Vazão | balde `lote` global, 5 % do contratado (125 mil tokens/min), ~12 mil por execução: ~10 execuções/min. **A 3.0 mediu o recorte maior (§8, a linha de `classificar_secoes`): LP do 6º ao 9º com o Médio pede ~31 mil por execução com 12 seções cheias, e a vazão cai para ~4 execuções/min; a 5.0 dimensiona por essa conta, não pela de 12 mil (a conta está no `TODO.md`, entrada da 3.0).** O pool puxa `réplicas × 1 × 60 / latência` (2 réplicas, ~6 s: ~20/min); o excedente adia, e o adiamento é o regulador. Uma escola de 300 apostilas (~625 execuções) em ~65 min; o resto, na noite seguinte |
+| Fila | `lote`, `naoUrgente`; o job de agendamento da escola e a rotina das 19h rodam no `worker-lote` (só banco e outbox, sem modelo); a execução, no pool `lote` do `worker-ia`, 1 por réplica; a varredura de execuções inclui a `lote` e casa o tipo do job com a fila (`ia.executar` nas três filas da IA, `ia.executar-lote` na `lote`): incluir só a fila deixaria o job `ia.executar` da `lote` segurar uma `pendente` que nenhum worker leva |
+| Vazão | balde `lote` global, 5 % do contratado (125 mil tokens/min), ~12 mil por execução: ~10 execuções/min. **A 3.0 mediu o recorte maior (§8, a linha de `classificar_secoes`): LP do 6º ao 9º com o Médio pede ~31 mil por execução com 12 seções cheias, e a vazão cai para ~4 execuções/min; a 5.0 dimensiona por essa conta, não pela de 12 mil (a conta está no `TODO.md`, entrada da 3.0).** O pool puxa `réplicas × 1 × 60 / latência` (2 réplicas, ~6 s: ~20/min); o excedente adia, e o adiamento é o regulador. Uma escola de 300 apostilas (7.500 seções, **630 execuções**: 15 lotes de 500, 42 cada um) leva **2,4 h** na conta de 31 mil tokens (a carga da 5.0 mediu 4,4 execuções por minuto, com 2 réplicas e o balde de 125 mil), e não os ~65 min da conta de 12 mil; o resto, na noite seguinte |
 | Limite por escola | vaga `lote` por escola: a do ambiente, 2 (`VAGAS_ESCOLA_LOTE`), dividida com expurgo e eliminação (o runbook diz); `FILAS_DA_IA` ganha a `lote`. Não há teto de custo por escola na classificação: o limitador de custo é o balde `lote`, a vaga por escola e, na rotina (5.0), o limite de execuções por noite e por escola |
 | Corridas | uma linha por trava, ordem forçada e mutação em `cenarios.md`, P1 a P11 |
 | Laços | agendar (rotina e `PATCH`) e D76: lotes de 500 seções por transação, `statement_timeout`, até o sinal |
@@ -188,7 +188,7 @@ registrando no `RETIDOS.json`. Sem a taxa no `rapido`, `padrao`; sem ela no
 | Migration | §3; a versão anterior lê execução sem ano e questão com `null` (teste) |
 | Dependência cai | provedor ou balde: adia (§5); Redis: outbox |
 | Métrica | `ia.habilidade_anulada`; envio à classificação (`classificada_em − enviado_em`); correções e trocas pela auditoria, por escola, nunca por professor |
-| Alerta | `classificacao-atrasada`: na abertura da janela, execução `classificar_secoes` `falhou` na noite, ou `pendente` criada antes dela; com runbook |
+| Alerta | `classificacao-atrasada`: na abertura da janela, execução `classificar_secoes` `falhou` na noite, ou `pendente` criada antes dela; com runbook. A métrica é `classificacao.execucoes_atrasadas{escola_id}`, medida de 5 em 5 minutos pelo `worker-lote` (a `EscolaGauge`) na janela letiva **da escola** (`ultimaNoite`: do fecho do último dia letivo à abertura mais recente), sem série para a escola sem atraso; o alerta dispara acima de 0, por 1 min, e traz só a escola. A consulta tem o índice parcial `execucao_agente_classificacao_idx` (`escola_id, estado, concluida_em`, só da função da classificação; migration 0064): `execucao_agente` cresce com o Tutor, e sem ele a medição lê a tabela da escola a cada 5 minutos (22 ms e 11,8 mil buffers com 400 mil turnos; com o índice, 0,075 ms) |
 | Carga | `cenarios.md`, "Carga" |
 
 **Estados da seção** (derivados; `corrigida` vence todos):

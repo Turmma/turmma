@@ -39,13 +39,13 @@
   - [x] 4.5 Consumo, métrica e log
   - [x] 4.6 Testes: caminho feliz, janela, balde e disjuntor, reentrega, P1a, P4, P4b
 
-- [ ] **5.0 — A classificação é agendada na extração e às 19h, e o atraso vira alerta**
-  - [ ] 5.1 As execuções e os jobs na extração
-  - [ ] 5.2 O job `material.agendar-classificacao` e a rotina das 19h
-  - [ ] 5.3 A seção com falha numa execução só dela; o laço em lotes de 500
-  - [ ] 5.4 O alerta `classificacao-atrasada` e o runbook
-  - [ ] 5.5 A carga das 300 apostilas, rodada
-  - [ ] 5.6 Testes: rotina, o teto de 3, laço, P9 (rotina × rotina), alerta, carga
+- [x] **5.0 — A classificação é agendada na extração e às 19h, e o atraso vira alerta**
+  - [x] 5.1 As execuções e os jobs na extração
+  - [x] 5.2 O job `material.agendar-classificacao` e a rotina das 19h
+  - [x] 5.3 A seção com falha numa execução só dela; o laço em lotes de 500
+  - [x] 5.4 O alerta `classificacao-atrasada` e o runbook
+  - [x] 5.5 A carga das 300 apostilas, rodada
+  - [x] 5.6 Testes: rotina, o teto de 3, laço, P9 (rotina × rotina), alerta, carga
 
 - [ ] **6.0 — A mudança de recorte limpa e agenda de novo**
   - [ ] 6.1 Os dois `PATCH` (componente e séries) só enfileiram o job

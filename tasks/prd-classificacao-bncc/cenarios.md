@@ -62,6 +62,9 @@ teste vermelho por um caso que rodou e falhou. Nenhum teste chama provedor: `Scr
   `consumo_ia`, a seção fica `nao_agendada`, e `falhas_seguidas` que estava em 2 vai a 0. Mutação: chamar o modelo com a lista vazia
 - [I] Laço do agendar e do D76: com mais seções que o lote (500), trata o primeiro lote numa transação e o resto nos
   seguintes; com o sinal abortado, para entre lotes sem deixar seção sem execução no meio. Mutação: um lote só
+- [I] Limite da noite: a escola ganha no máximo 1.000 execuções (`EXECUCOES_POR_NOITE_DA_ESCOLA`) e o laço para com `estado: limite` sem passar do que cabe; na noite seguinte, o resto. Mutação: tirar `execucoes < maximoDeExecucoes`
+- [I] A leitura das próximas seções: a de disciplina sem componente e a de material sem série não ocupam vaga do lote (com limite 1, a lida é a agendável); o cursor devolve só o id maior que o dado; o material que perdeu a série ou a seção que a coordenação corrigiu entre a leitura e o agendamento não ganham execução; a suspensão de outra função da escola não suspende a classificação; a extração agenda só as seções do material que extraiu
+- [I] Log da rotina e do job da escola: só ids e contagens (`escolasTotal`, `enfileiradosTotal`, `lotesTotal`, `execucoesTotal`, `secoesTotal`, `estado`), nunca título, texto nem código
 - [I] Edição nova: a seção do capítulo de mesmo número e título (sem acento nem caixa) de uma seção corrigida herda as
   habilidades e `corrigida_em`, com `corrigida_por` nulo e `material.classificacao_herdada`; as outras vão à IA.
   Mutação: tirar a herança
@@ -177,6 +180,8 @@ teste vermelho por um caso que rodou e falhou. Nenhum teste chama provedor: `Scr
 
 - [I] `classificacao-atrasada`: na abertura da janela da escola, uma execução `falhou` na noite, ou `pendente` criada antes
   dela, dispara; a `pendente` criada na própria noite (o excedente planejado do onboarding) não dispara; sem elas, não; a de outra escola não conta (molde: `infra/test/alerta-do-pdf-parado.int.test.ts`); runbook escrito
+- [I] A medição `classificacao.execucoes_atrasadas` (a série que o alerta lê), por escola e na janela dela: conta a `falhou` na noite e a `pendente` de antes dela; deixam de contar a `pendente` da própria noite, a `concluida`, a `rodando`, a falha de antes da noite, a falha depois da abertura e a execução de outra função; a escola sem atraso fica sem série; a janela é a da escola (a que fecha às 22h tem a noite dela); a escola que falha na medição não derruba as outras. Mutação: tirar cada termo do `where` O índice parcial `execucao_agente_classificacao_idx` (0064) existe com essa definição: `classificacao-agendada.int.test.ts` › "a consulta da medição tem o índice parcial"
+- [U] `ultimaNoite`: a noite é do último dia letivo antes da abertura mais recente, com o fuso da escola, o domingo como dia 7 e fim de semana alongando a noite
 - [U] `ia.habilidade_anulada` e o tempo do envio à classificação, por escola
 
 ## Contração da F4 (migration 3)
@@ -257,3 +262,4 @@ ordenadas).
 - [C] Na tarefa da rotina, rodada pelo Implementador antes do pouso: 300 materiais de ~25 capítulos numa noite, adaptador falso com a latência medida do `rapido`, vagas e réplicas da
   §7c escritas no relatório, Tutor da B medido; reprova com seção não classificada na abertura da janela; 10 min de provedor fora no
   meio: os jobs adiam e retomam; `EXPLAIN` da cobertura e do join da busca no cenário da manhã
+  Rodada em 18/11/2026 (5.0), com 31 mil tokens por execução e o Tutor da B a 30 turnos por minuto: 7.500 seções em 630 execuções, nenhuma sem classificação, 4,4 execuções por minuto (2,4 h), 0 concluídas com o `worker-ia` parado e retomada sozinha, Tutor da B +35 ms sobre a base, `EXPLAIN` em 3 e 6 ms. O `EXPLAIN` é o da forma da consulta; a cobertura e a busca de verdade são da 13.0 e da 10.0 (`TODO.md`)

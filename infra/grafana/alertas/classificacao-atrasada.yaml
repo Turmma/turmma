@@ -1,0 +1,64 @@
+# Alerta "Classificação do material atrasada" (classificacao-bncc, tarefa 5.0; Tech Spec, seção 7c; runbook:
+# docs/runbook.md#classificação-do-material-atrasada). Provisionado por arquivo no Grafana da observabilidade local
+# (infra/compose.yml monta esta pasta em provisioning/alerting).
+#
+# `classificacao.execucoes_atrasadas{escola_id}` é medida pelo worker-lote a cada 5 min, de `execucao_agente`: as execuções `classificar_secoes` da escola que
+# `falharam` entre o fecho e a abertura da janela letiva dela e as que ficaram `pendentes` desde antes do fecho. A `pendente` criada na própria noite (o excedente
+# planejado de uma escola que entra com 300 apostilas) não conta, porque a noite seguinte a termina. A medição vale o dia inteiro, e na abertura seguinte a noite que se
+# julga é outra. Dispara por escola quando passa de 0, em qualquer réplica, por 1 min. O alerta traz a escola, nunca a execução, a seção nem o material.
+#
+# Sem dado é normal: só a escola com execução atrasada tem série, e ela some quando a noite seguinte a termina.
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: classificacao-atrasada
+    folder: Educa.ia alertas
+    interval: 10s
+    rules:
+      - uid: educa-classificacao-atrasada
+        title: Classificação do material atrasada
+        condition: C
+        for: 1m
+        noDataState: OK
+        execErrState: Error
+        isPaused: false
+        labels:
+          area: classificacao-do-material
+        annotations:
+          summary: 'A classificação do material da escola {{ $labels.escola_id }} não terminou a noite'
+          description: Há execução da classificação que falhou na noite, ou que ficou pendente desde antes dela. O material novo segue sem habilidade da BNCC. Siga o runbook.
+          runbook_url: https://github.com/Turmma/turmma/blob/main/docs/runbook.md#classificação-do-material-atrasada
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              datasource:
+                type: prometheus
+                uid: prometheus
+              expr: max by (escola_id) (classificacao_execucoes_atrasadas{job="educa/worker"})
+              instant: true
+              range: false
+              intervalMs: 10000
+              maxDataPoints: 43200
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params: [0]

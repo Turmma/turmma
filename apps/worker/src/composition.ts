@@ -15,6 +15,7 @@ import {
   createPool,
   SyntheticEffectRepository,
   JobOutbox,
+  ClassificacaoAtrasadaRepository,
   CronEscolasRepository,
   ExpurgoDaEscolaRepository,
   ExpurgoDeAcessoRepository,
@@ -50,6 +51,8 @@ import {
   type JobProcessors,
 } from '@educa/core'
 import {
+  TIPO_AGENDAR_CLASSIFICACAO,
+  TIPO_AGENDAR_CLASSIFICACAO_DAS_ESCOLAS,
   TIPO_CONSOLIDAR_USO,
   TIPO_ELIMINAR_TITULAR,
   TIPO_ENVIAR_CONVITE,
@@ -73,6 +76,7 @@ import { Queue, Worker } from 'bullmq'
 import { Redis } from 'ioredis'
 import { JOB_SCHEDULES, createScheduleProcessor, SCHEDULES_QUEUE, registerJobSchedulers, type JobSchedule } from './job-schedules.js'
 import type { StorageConfig, WorkerConfig } from './config.js'
+import { criarAgendamentoDaClassificacao, criarRotinaDaClassificacao } from './processors/agendar-classificacao.js'
 import { criarConsolidacaoDeUso } from './processors/consolidar-uso.js'
 import { criarEnvioDoConvite, criarEnvioDoLinkDaConta, criarEnvios, type EnviosDoEmail } from './processors/enviar-email.js'
 import { criarExpurgoDeAcesso } from './processors/expurgar-acesso.js'
@@ -84,6 +88,8 @@ import { criarExtracaoDoPdf } from './processors/extrair-pdf.js'
 import { criarVarreduraDeTemporarios } from './processors/varrer-envios.js'
 import { EliminacaoGauge } from './eliminacao-gauge.js'
 import { ArquivoGauge } from './arquivo-gauge.js'
+import { ClassificacaoGauge } from './classificacao-gauge.js'
+import type { EscolaGauge } from './escola-gauge.js'
 import { ImportacaoGauge } from './importacao-gauge.js'
 import { ExpurgoGauge } from './expurgo-gauge.js'
 import { IncidenteGauge } from './incidente-gauge.js'
@@ -374,6 +380,39 @@ function iniciarMedicaoDaImportacao(dependencias: { escolas: CronEscolasReposito
   return () => medicao.encerrar()
 }
 
+/** O que as medições por escola do worker-lote leem: a lista de escolas, os repositórios que respondem e o horário letivo da escola. */
+interface MedicoesPorEscolaDependencies {
+  escolas: CronEscolasRepository
+  banco: Database
+  expurgoDaEscola: ExpurgoDaEscolaRepository
+  arquivos: ArquivoDoTitularRepository
+  janelaDaEscola: OperationalSettings<JanelaLetiva>
+  relogio: Clock
+  logger: LoggerBase
+  medidor: Meter | undefined
+}
+
+/**
+ * As medições por escola que os alertas leem (as noites do expurgo, o incidente sem confirmação, o arquivo do titular, a eliminação e a classificação do material atrasada): sobem com o worker-lote, medem a cada
+ * volta e param com ele. Sem medidor não há medição. Devolve o que as encerra, uma depois da outra.
+ */
+function iniciarMedicoesPorEscola({ escolas, banco, expurgoDaEscola, arquivos, janelaDaEscola, relogio, logger, medidor }: MedicoesPorEscolaDependencies): () => Promise<void> {
+  const medicoes: EscolaGauge[] =
+    medidor === undefined
+      ? []
+      : [
+          new ExpurgoGauge({ escolas, repositorio: expurgoDaEscola, janelaDaEscola, relogio, logger, medidor }),
+          new IncidenteGauge({ escolas, repositorio: new IncidenteDaEscolaRepository(banco), relogio, logger, medidor }),
+          new ArquivoGauge({ escolas, repositorio: arquivos, relogio, logger, medidor }),
+          new EliminacaoGauge({ escolas, repositorio: expurgoDaEscola, relogio, logger, medidor }),
+          new ClassificacaoGauge({ escolas, repositorio: new ClassificacaoAtrasadaRepository(banco), janelaDaEscola, relogio, logger, medidor }),
+        ]
+  for (const medicao of medicoes) medicao.iniciar()
+  return async () => {
+    for (const medicao of medicoes) await medicao.encerrar()
+  }
+}
+
 /**
  * As rotinas do sistema, que só a réplica de lote executa: consolidação de uso (com o storage),
  * expurgo de `job_registro`, expurgo do acesso (registro de acesso, sessão e convite, 17.0), a varredura horária do PDF que sobrou no storage (ingestao-do-material, 2.0) e o expurgo do dado pessoal
@@ -398,15 +437,8 @@ function createRoutines(
   })
   const escolas = new CronEscolasRepository(banco)
   const expurgoDaEscola = new ExpurgoDaEscolaRepository(banco)
-  const medicao = medidor === undefined ? undefined : new ExpurgoGauge({ escolas, repositorio: expurgoDaEscola, janelaDaEscola, relogio, logger, medidor })
-  medicao?.iniciar()
-  const medicaoDoIncidente = medidor === undefined ? undefined : new IncidenteGauge({ escolas, repositorio: new IncidenteDaEscolaRepository(banco), relogio, logger, medidor })
-  medicaoDoIncidente?.iniciar()
   const arquivos = new ArquivoDoTitularRepository(banco)
-  const medicaoDoArquivo = medidor === undefined ? undefined : new ArquivoGauge({ escolas, repositorio: arquivos, relogio, logger, medidor })
-  medicaoDoArquivo?.iniciar()
-  const medicaoDaEliminacao = medidor === undefined ? undefined : new EliminacaoGauge({ escolas, repositorio: expurgoDaEscola, relogio, logger, medidor })
-  medicaoDaEliminacao?.iniciar()
+  const encerrarMedicoes = iniciarMedicoesPorEscola({ escolas, banco, expurgoDaEscola, arquivos, janelaDaEscola, relogio, logger, medidor })
   const encerrarMedicaoDaImportacao = iniciarMedicaoDaImportacao({ escolas, banco, relogio, logger, medidor })
   return {
     processadores: {
@@ -421,6 +453,8 @@ function createRoutines(
       [TIPO_EXPURGAR_JOBS]: criarExpurgoDeJobs({ repositorio: new ExpurgoDeJobsRepository(banco), logger }),
       [TIPO_EXPURGAR_ACESSO]: criarExpurgoDeAcesso({ repositorio: new ExpurgoDeAcessoRepository(banco), relogio, logger }),
       [TIPO_EXPURGAR_DADO_PESSOAL]: criarRotinaDeExpurgo({ escolas, banco, enfileirador: new JobOutbox(new JobOutboxRepository(banco)), janelaDaEscola, relogio, logger }),
+      [TIPO_AGENDAR_CLASSIFICACAO_DAS_ESCOLAS]: criarRotinaDaClassificacao({ escolas, banco, enfileirador: new JobOutbox(new JobOutboxRepository(banco)), janelaDaEscola, relogio, logger }),
+      [TIPO_AGENDAR_CLASSIFICACAO]: criarAgendamentoDaClassificacao({ banco, enfileirador: new JobOutbox(new JobOutboxRepository(banco)), logger }),
       [TIPO_EXPURGAR_ESCOLA]: criarExpurgoDaEscola({
         repositorio: expurgoDaEscola,
         arquivos,
@@ -436,10 +470,7 @@ function createRoutines(
       [TIPO_VARRER_TEMPORARIOS_DE_MATERIAL]: criarVarreduraDeTemporarios({ banco, armazem, relogio, logger }),
     },
     encerrar: async () => {
-      await medicao?.encerrar()
-      await medicaoDoIncidente?.encerrar()
-      await medicaoDoArquivo?.encerrar()
-      await medicaoDaEliminacao?.encerrar()
+      await encerrarMedicoes()
       await encerrarMedicaoDaImportacao()
       s3.destroy()
     },

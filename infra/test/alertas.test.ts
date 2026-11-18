@@ -160,6 +160,12 @@ describe('regras de alerta provisionadas', () => {
     expect(expressao(arquivo)).toBe('max by (escola_id) (arquivo_horas_em_preparacao{job="educa/worker"})')
     expect(limiar(arquivo)).toEqual({ type: 'gt', params: [HORAS_EM_PREPARACAO_PARA_ALERTAR] })
 
+    // classificacao-bncc, tarefa 5.0: por escola, em qualquer réplica do worker-lote, e a partir de uma execução atrasada na noite (a série só existe com alguma).
+    const classificacao = regraPorUid(REGRAS_PROVISIONADAS.classificacaoAtrasada).regra
+    expect(classificacao.for).toBe('1m')
+    expect(expressao(classificacao)).toBe('max by (escola_id) (classificacao_execucoes_atrasadas{job="educa/worker"})')
+    expect(limiar(classificacao)).toEqual({ type: 'gt', params: [0] })
+
     // F3, tarefa 15.0: por escola, em qualquer réplica do worker-lote, e só acima de 48 h do prazo da eliminação (HORAS_AGENDADO_PARA_ALERTAR).
     const eliminacao = regraPorUid(REGRAS_PROVISIONADAS.eliminacaoVencida).regra
     expect(eliminacao.for).toBe('1m')

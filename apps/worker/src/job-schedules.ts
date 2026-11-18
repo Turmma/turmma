@@ -1,5 +1,5 @@
 import { runInContext, type Database, type JobOutbox, type LoggerBase } from '@educa/core'
-import { TIPO_CONSOLIDAR_USO, TIPO_EXPURGAR_ACESSO, TIPO_EXPURGAR_DADO_PESSOAL, TIPO_EXPURGAR_JOBS, TIPO_VARRER_TEMPORARIOS_DE_MATERIAL, type JobType } from '@educa/shared'
+import { TIPO_AGENDAR_CLASSIFICACAO_DAS_ESCOLAS, TIPO_CONSOLIDAR_USO, TIPO_EXPURGAR_ACESSO, TIPO_EXPURGAR_DADO_PESSOAL, TIPO_EXPURGAR_JOBS, TIPO_VARRER_TEMPORARIOS_DE_MATERIAL, type JobType } from '@educa/shared'
 import { UnrecoverableError, type Job, type Queue } from 'bullmq'
 import { randomUUID } from 'node:crypto'
 
@@ -24,7 +24,7 @@ export interface JobSchedule {
 }
 
 /**
- * As rotinas noturnas do sistema, fora do horário letivo e longe uma da outra. O job nasce não urgente
+ * As rotinas noturnas do sistema, fora do horário letivo e longe uma da outra (a das 19h é a da classificação). O job nasce não urgente
  * na fila de lote: se o disparo atrasar até a manhã, ele fica segurado pela janela letiva padrão até
  * a aula acabar (regra 80, item 2). O expurgo do acesso (17.0) fica às 4h30: uma hora depois do de jobs e duas e meia
  * antes do primeiro turno. O expurgo do dado pessoal (F3, tarefa 3.0) é o primeiro, à 1h: ele só grava um job por
@@ -37,6 +37,9 @@ export const JOB_SCHEDULES: readonly JobSchedule[] = [
   { tipo: TIPO_EXPURGAR_ACESSO, padrao: '30 4 * * *' },
   // De hora em hora, no minuto 10 (longe do :00 e do :30 das outras): o PDF que sobrou no storage (ingestao-do-material, 2.0). Urgente, ao contrário das noturnas.
   { tipo: TIPO_VARRER_TEMPORARIOS_DE_MATERIAL, padrao: '10 * * * *' },
+  // A classificação do material pela BNCC (classificacao-bncc, 5.0): às 19h, uma hora depois de a janela letiva padrão fechar (18h), para o job de cada escola e as execuções dele começarem com a aula acabada. A rotina só
+  // grava um job por escola; o trabalho de cada uma tem as doze horas até a janela abrir às 7h.
+  { tipo: TIPO_AGENDAR_CLASSIFICACAO_DAS_ESCOLAS, padrao: '0 19 * * *' },
 ]
 
 /**

@@ -239,6 +239,12 @@ export const METRICS = {
    * seção gravada pela execução, por `escola_id`. É o que diz se o lote da noite dá conta do onboarding de uma escola de 300 apostilas. Só a escola no rótulo: nunca o material, a seção, o título nem o código.
    */
   esperaDaClassificacao: 'material.classificacao.espera',
+  /**
+   * Execuções da classificação do material que não terminaram a noite (classificacao-bncc, tarefa 5.0; Tech Spec §7c, "Alerta"), por `escola_id`: medida pelo worker-lote a partir de `execucao_agente`. Conta a execução
+   * `falhou` entre o fecho e a abertura da janela letiva da escola e a `pendente` criada antes do fecho; a `pendente` da própria noite não conta. Só a escola com alguma tem série. O alerta "Classificação do material atrasada"
+   * dispara acima de 0.
+   */
+  execucoesAtrasadasDaClassificacao: 'classificacao.execucoes_atrasadas',
 } as const
 
 /**
@@ -264,6 +270,7 @@ export const METRICS_WITH_ESCOLA: readonly string[] = [
   METRICS.esperaEstourada,
   METRICS.execucaoInterrompida,
   METRICS.esperaDaClassificacao,
+  METRICS.execucoesAtrasadasDaClassificacao,
 ]
 
 /** O rótulo da escola nas métricas de job. Rotina do sistema, sem escola, aparece como `sistema`, como na chave da vaga. */

@@ -258,6 +258,8 @@ describe('métricas na observabilidade local, por rota, fila e escola', () => {
         ...NOMES_NO_PROMETHEUS.execucaoInterrompida,
         // A espera do material entre o envio e a classificação da seção, por escola: é o que diz se o lote da noite dá conta do onboarding de uma escola (classificacao-bncc, tarefa 4.0; Tech Spec, seção 7c).
         ...NOMES_NO_PROMETHEUS.esperaDaClassificacao,
+        // As execuções da classificação que não terminaram a noite, por escola: o que o alerta `classificacao-atrasada` lê (classificacao-bncc, tarefa 5.0; Tech Spec, seção 7c).
+        ...NOMES_NO_PROMETHEUS.execucoesAtrasadasDaClassificacao,
       ].sort(),
     )
     expect(comEscola.filter((nome) => !admitidas.has(nome ?? ''))).toEqual([])

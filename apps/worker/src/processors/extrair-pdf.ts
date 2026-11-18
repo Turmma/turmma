@@ -1,6 +1,9 @@
 import {
+  AgendamentoDaClassificacaoRepository,
   AuditoriaRecorder,
   ExtracaoDoMaterialRepository,
+  JobOutbox,
+  JobOutboxRepository,
   chaveDoTemporario,
   METRICS,
   PRAZO_DO_OBJETO_DO_MATERIAL_MS,
@@ -14,7 +17,7 @@ import {
   type JobProcessor,
   JobFailureError,
 } from '@educa/core'
-import type { CapituloGravado, PdfExtractor } from '@educa/core/material'
+import { MAXIMO_DE_CAPITULOS_POR_MATERIAL, type CapituloGravado, type PdfExtractor } from '@educa/core/material'
 import { JOB_DEFINITIONS, JobFailureCode, TIPO_EXTRAIR_PDF, type FalhaDeMaterial } from '@educa/shared'
 
 /** Os limites do histograma da extração, em segundos: de um PDF curto aos dez minutos do prazo do tipo. */
@@ -29,6 +32,8 @@ export interface ExtrairPdfDependencies {
   extrator: Pick<PdfExtractor, 'extrair'>
   logger: LoggerBase
   medidor?: Meter | undefined
+  /** A porta de entrada do job `ia.executar-lote` de cada execução da classificação (5.0). Sem ela, a do banco da réplica. */
+  enfileirador?: Pick<JobOutbox, 'enfileirarUmaVez'>
 }
 
 const registro = new AuditoriaRecorder()
@@ -53,7 +58,20 @@ async function herdarAClassificacao(tx: DatabaseTransaction, novaId: string, ant
 }
 
 /**
- * As seções do material (classificacao-bncc, 2.0) e, se ele é a edição de outro, a substituição da anterior e a herança da correção dela, na transação da extração. Devolve as contagens que o log diz.
+ * As execuções da classificação das seções que acabaram de nascer (classificacao-bncc, 5.0; Tech Spec, seção 5, "Seções"): com a função ativa e a disciplina com componente, as seções sem correção (a herdada tem `corrigida_em`
+ * e fica de fora) ganham execuções de até 12, por componente e séries, e o job de cada uma, na transação da extração. Devolve quantas execuções criou, para o log; sem componente, sem série ou com a função suspensa, zero: as
+ * seções ficam `nao_agendada` e a rotina das 19h as agenda quando o componente for definido ou a função for retomada.
+ */
+async function agendarAClassificacao(tx: DatabaseTransaction, materialId: string, enfileirador: Pick<JobOutbox, 'enfileirarUmaVez'>): Promise<number> {
+  const agendamento = new AgendamentoDaClassificacaoRepository(tx)
+  if (!(await agendamento.funcaoEstaAtiva())) return 0
+  const secoes = await agendamento.proximasSecoes(MAXIMO_DE_CAPITULOS_POR_MATERIAL, { materialId })
+  return (await agendamento.agendar(secoes, enfileirador)).execucoes
+}
+
+/**
+ * As seções do material (classificacao-bncc, 2.0) e, se ele é a edição de outro, a substituição da anterior e a herança da correção dela, e depois as execuções da classificação (5.0), na transação da extração.
+ * Devolve as contagens que o log diz.
  */
 async function gravarSecoesEFecharAEdicao(
   tx: DatabaseTransaction,
@@ -61,11 +79,17 @@ async function gravarSecoesEFecharAEdicao(
   paginas: number,
   capitulos: readonly CapituloGravado[],
   substituiId: string | null,
-): Promise<{ secoesTotal: number; secoesHerdadasTotal: number }> {
+  enfileirador: Pick<JobOutbox, 'enfileirarUmaVez'>,
+): Promise<{ secoesTotal: number; secoesHerdadasTotal: number; execucoesTotal: number }> {
   const secoesTotal = await new ExtracaoDoMaterialRepository(tx).gravarSecoes(materialId, paginas, capitulos)
-  if (substituiId === null) return { secoesTotal, secoesHerdadasTotal: 0 }
-  await substituirAAnterior(tx, materialId, substituiId)
-  return { secoesTotal, secoesHerdadasTotal: await herdarAClassificacao(tx, materialId, substituiId) }
+  const secoesHerdadasTotal = substituiId === null ? 0 : await fecharAEdicao(tx, materialId, substituiId)
+  return { secoesTotal, secoesHerdadasTotal, execucoesTotal: await agendarAClassificacao(tx, materialId, enfileirador) }
+}
+
+/** A edição substitui a anterior e herda a correção dela; devolve quantas seções herdaram. */
+async function fecharAEdicao(tx: DatabaseTransaction, novaId: string, antigaId: string): Promise<number> {
+  await substituirAAnterior(tx, novaId, antigaId)
+  return herdarAClassificacao(tx, novaId, antigaId)
 }
 
 /** Como a execução terminou, que é o `resultado` da métrica e o que o log diz. */
@@ -105,7 +129,7 @@ function quandoAbortar(sinal: AbortSignal): Promise<never> {
  * - **Log e métrica**: ids, códigos e contagens, nunca título, nome de arquivo, licenciante nem texto (regra 20, itens 7 e 9). O objeto ausente
  *   de um material `processando` é `arquivo_ausente`, à parte de `extracao_falhou`: é o sinal de um objeto perdido.
  */
-export function criarExtracaoDoPdf({ banco, armazem, extrator, logger, medidor }: ExtrairPdfDependencies): JobProcessor<typeof TIPO_EXTRAIR_PDF> {
+export function criarExtracaoDoPdf({ banco, armazem, extrator, logger, medidor, enfileirador = new JobOutbox(new JobOutboxRepository(banco)) }: ExtrairPdfDependencies): JobProcessor<typeof TIPO_EXTRAIR_PDF> {
   const porResultado = medidor?.createCounter(METRICS.extracaoDoMaterial, { description: 'Execuções do job de extração do PDF, por resultado' })
   const duracao = medidor?.createHistogram(METRICS.duracaoDaExtracaoDoMaterial, {
     unit: 's',
@@ -162,14 +186,14 @@ export function criarExtracaoDoPdf({ banco, armazem, extrator, logger, medidor }
         if (disciplinaId === undefined) return undefined
         await materiais.gravarTrechos(materialId, disciplinaId, resultado.trechos)
         const capitulos = await materiais.gravarCapitulos(materialId, resultado.capitulos)
-        return gravarSecoesEFecharAEdicao(tx, materialId, resultado.paginas, capitulos, material.substituiId)
+        return gravarSecoesEFecharAEdicao(tx, materialId, resultado.paginas, capitulos, material.substituiId, enfileirador)
       })
       if (gravou === undefined) return 'sem_efeito'
       const paginasTotal = resultado.paginas
       const trechosTotal = resultado.trechos.length
       const capitulosTotal = resultado.capitulos.length
-      const { secoesTotal, secoesHerdadasTotal } = gravou
-      logger.info({ evento: 'material.extraido', materialId, paginasTotal, trechosTotal, capitulosTotal, secoesTotal, secoesHerdadasTotal, tentativa })
+      const { secoesTotal, secoesHerdadasTotal, execucoesTotal } = gravou
+      logger.info({ evento: 'material.extraido', materialId, paginasTotal, trechosTotal, capitulosTotal, secoesTotal, secoesHerdadasTotal, execucoesTotal, tentativa })
       await apagarObjeto(materialId)
       return 'pronto'
     }

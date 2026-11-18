@@ -1392,11 +1392,13 @@ const USO_DA_ROTINA = /\bCronEscolasRepository\b|cron-escolas\.repository/
 const QUEM_USA_A_ROTINA = [
   'apps/worker/src/eliminacao-gauge.ts',
   'apps/worker/src/arquivo-gauge.ts',
+  'apps/worker/src/classificacao-gauge.ts',
   'apps/worker/src/expurgo-gauge.ts',
   'apps/worker/src/incidente-gauge.ts',
   'apps/worker/src/importacao-gauge.ts',
   'apps/worker/src/escola-gauge.ts',
   'apps/worker/src/composition.ts',
+  'apps/worker/src/processors/agendar-classificacao.ts',
   'apps/worker/src/processors/expurgar-dado-pessoal.ts',
   'packages/core/src/index.ts',
   'packages/core/src/cron/cron-escolas.repository.ts',
