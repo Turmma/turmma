@@ -38,6 +38,12 @@ Decisão: o tamanho (uma spec, teto maior, ou F4c) e quem confere o lote de refe
 Decisão: como tirar da esteira o `3209137c` (lote retido, meu), que o `conferir-entregas` recusa por levar código de processo sem a linha `Fora do processo:`. Fica vermelho em todo push da spec até o pouso.
 **Respondida em 18/11 ~13:05, no meu terminal: "faça o melhor".** Decisão em "O que decidi sem perguntar" (18/11 ~13:10).
 
+## 18/11 15:35 — F4b, a medida local antes da 10.0, no terminal do `Arquiteto`
+Decisão: subir o llama-server em 127.0.0.1:8080 com o qwen3.6-35b-a3b e responder "carregado" ao `Arquiteto`. Só a mão do Joaquim: nesta máquina não há o binário nem o modelo (procurado no WSL e no Windows às 15:34).
+Contexto: a 10.0 é a única tarefa liberada e parte só com a medida no `docs/aia/ouro-retido/RETIDOS.json`; 11.0 a 13.0 esperam a 10.0. As duas linhas estão ociosas, e a vigia foi desligada.
+Opções: carregar o modelo na 8080 | apontar outro servidor ou modelo para a medida (decisão de produto, com o `Arquiteto`)
+Recomendo: carregar o qwen3.6-35b-a3b, que é o que a Tech Spec mede.
+
 ## O que falhou
 - 17/11 ~21:10 — tarefa 4.0: ESCALADA da Mesa, o test-engineer reprovou na r1 e na r2 (na r2, faltou afirmar `consumo_ia` nos casos paralelos de entrega dupla). Diagnóstico pedido ao `Arquiteto 2` no checkout da L1. A seção "Revisões" do `4_task.md` sumiu (protocolo, item 5).
 - 17/11 ~22:30 — a esteira está vermelha desde a 3.0 (integração e e2e) e a 4.0 partiu sem correção antes; e o meu commit do lote (`3209137c`) saiu sem a linha `Fora do processo:`, e o `verificar` o recusa. Correção da esteira partiu na L1; o do `verificar` é pergunta ao Joaquim.
