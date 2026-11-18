@@ -1,9 +1,9 @@
 # Estado da execução — classificacao-bncc
 
 ## Agora
-- **Espero:** o `RELATÓRIO` do `Implementador` (linha 1) da correção `2026-11-17-metricas-com-escola-da-4-0`, pedida em 17/11 ~23:25: infra `metricas.int.test.ts` com 20 séries com `escola_id`, esperadas 17 (esteira 44215554483, da 4.0). A 5.0 parte depois do encontro dela. E o `RELATÓRIO` do `Arquiteto` (no andar) com a medida local no `RETIDOS.json`: espera o Joaquim subir o llama-server na 8080; a da produção fica pendente da D37. A L1 está em `…/educaia--specclassificacao-bncc--l1`, sem andar no Maestri.
+- **Espero:** o `RELATÓRIO` do `Implementador` (linha 1) da tarefa 5.0 (porte grande), 1ª tentativa, pedida em 17/11 ~23:55. E o `RELATÓRIO` do `Arquiteto` (no andar) com a medida local no `RETIDOS.json`: espera o Joaquim subir o llama-server na 8080; a da produção fica pendente da D37. E a resposta do Joaquim (A, B ou C) sobre o `3209137c` ("Esperando o Joaquim"); com A, a reescrita se faz num encontro, com a L1 ociosa. Esteira: as execuções de `63bbb635` e `d89816f5` rodam; ler ao fechar a 5.0, descontando o `verificar`. A L1 está em `…/educaia--specclassificacao-bncc--l1`, sem andar no Maestri.
 - **Devo ainda:** a 10.0 só parte com a medida do `Arquiteto` registrada; taxa fora do `padrao` é decisão do Joaquim. No fechamento, marcar `[x]` o item "(F4, retro, M3)" do `TODO.md`. Push da `develop` (retro da X6, `46ea2309`) no próximo pouso.
-- **Base:** `spec/classificacao-bncc` em `63bbb635`
+- **Base:** `spec/classificacao-bncc` em `d89816f5`
 
 ## Concluídas
 | Tarefa | Commit | Modelo | Rodadas | Observação |
@@ -14,6 +14,7 @@
 | 3.0 | `924c6792` | Sonnet | conformidade-reviewer, test-engineer e revisor-geral na 2ª; os outros cinco na 1ª | máquina reiniciou no meio da correção da 1ª rodada; retomada às 18:33; sem tela; encontro em `f78d58ae` |
 | 4.0 | `0adb2983` | Sonnet | test-engineer e revisor-geral na 3ª (escalada na 2ª, diagnóstico do `Arquiteto 2`: faltava afirmar `consumo_ia` em três casos); os outros cinco na 2ª | sem tela; encontro em `75619c5f` (tipagem e lint da soma passaram) |
 | correção `2026-11-17-esteira-vermelha-desde-a-3-0` (da 3.0, L1) | `a590dafd` | Sonnet | test-engineer e revisor-geral na 2ª; os outros seis na 1ª | dois e2e com o número 3 escrito passam a ler o catálogo `FUNCOES`; o `fila-de-ia` já viera na 4.0; encontro em `63bbb635` |
+| correção `2026-11-17-metricas-com-escola-da-4-0` (da 4.0, L1) | `97baf9f8` | Sonnet | revisor-geral na 2ª; os outros cinco na 1ª | `material.classificacao.espera` fica com `escola_id` (Tech Spec 7c) e entra na lista do teste; encontro em `d89816f5` |
 
 ## Esperando o Joaquim
 ## 17/11 08:55 — retro da X6, no terminal do `Arquiteto 2`
