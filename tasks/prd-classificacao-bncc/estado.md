@@ -1,9 +1,9 @@
 # Estado da execução — classificacao-bncc
 
 ## Agora
-- **Espero:** o `RELATÓRIO` do `Implementador` (linha 1) da tarefa 7.0 (porte grande), partida em 18/11, 1ª tentativa. A reexecução do infra 3/3 da 44272795124 (`9de64089`) e a esteira de `c80b431e` (encontro da 6.0) se leem no encontro da 7.0; o `verificar` segue vermelho pelo `3209137c` até a resposta do Joaquim. E o `RELATÓRIO` do `Arquiteto` (no andar) com a medida local no `RETIDOS.json`: espera o Joaquim subir o llama-server na 8080; a da produção fica pendente da D37. E a resposta do Joaquim (A, B ou C) sobre o `3209137c` ("Esperando o Joaquim").
-- **Devo ainda:** a 10.0 só parte com a medida do `Arquiteto` registrada; taxa fora do `padrao` é decisão do Joaquim. No fechamento, marcar `[x]` o item "(F4, retro, M3)" do `TODO.md`. Push da `develop` (retro da X6, `46ea2309`) no próximo pouso.
-- **Base:** `spec/classificacao-bncc` em `c80b431e`
+- **Espero:** o `RELATÓRIO` do `Implementador` (linha 1) da tarefa 8.0 e o do `Implementador 2` (linha 2, aberta em 18/11 ~10:50) da tarefa 9.0, as duas de porte grande, partidas em 18/11 ~10:52, 1ª tentativa. A esteira de `1a5aa033` (encontro da 7.0) se lê no próximo encontro; o `verificar` fica vermelho pelo `3209137c` até o pouso, por decisão de 18/11 ~13:10 ("O que decidi sem perguntar"). E o `RELATÓRIO` do `Arquiteto` (no andar) com a medida local no `RETIDOS.json`: espera o Joaquim subir o llama-server na 8080 (não está nesta máquina, nem no WSL nem no Windows); a da produção fica pendente da D37.
+- **Devo ainda:** em cada encontro e antes do pouso, rodar `npm run ci:verificar` no andar, porque a esteira o pula atrás do `conferir-entregas` (verde em `1a5aa033`, 18/11 13:12). A 10.0 só parte com a medida do `Arquiteto` registrada; taxa fora do `padrao` é decisão do Joaquim. No fechamento, marcar `[x]` o item "(F4, retro, M3)" do `TODO.md`. Push da `develop` (retro da X6, `46ea2309`) no próximo pouso.
+- **Base:** `spec/classificacao-bncc` em `1a5aa033`
 
 ## Concluídas
 | Tarefa | Commit | Modelo | Rodadas | Observação |
@@ -18,6 +18,7 @@
 | 5.0 | `792c2e6b` | Sonnet | os seis revisores na 2ª | carga das 300 apostilas rodada (~00:50 a ~04:00, adaptador falso, ~4 execuções por minuto pelo balde do lote); sem tela; encontro em `0b70fde8` (tipagem e lint da soma passaram) |
 | correção `2026-11-18-integracao-vermelha-da-5-0` (da 5.0, L1) | `b8fbdeea` | Sonnet | os sete revisores na 1ª; revisor-geral e test-engineer também na 2ª | o `esperarExtracao` do teste deixa de enfileirar a classificação, que o FakeAdapter rodava somando chamada e consumo; encontro em `9de64089` |
 | 6.0 | `c148527c` | Sonnet | test-engineer na 2ª; tenancy, privacy, conformidade, infra e revisor-geral na 1ª | sem tela; portão verde com 39 mutações vermelhas; recomendações no documento e no `TODO.md`; encontro em `c80b431e` (tipagem e lint da soma passaram) |
+| 7.0 | `5cd7e988` | Sonnet | test-engineer e revisor-geral na 2ª; tenancy, privacy, conformidade e infra na 1ª | sem tela; portão com 78 mutações; 14 linhas novas no `TODO.md`, e o resto sem aplicar em `.processo/ordens/7_task-r2.md`; encontro em `1a5aa033` (tipagem e lint da soma passaram). Esteira de `c80b431e`: só o `verificar` caiu (o `3209137c`), o resto foi cancelado; a reexecução da 44272795124 deixou o infra 3/3 verde |
 
 ## Esperando o Joaquim
 ## 17/11 08:55 — retro da X6, no terminal do `Arquiteto 2`
@@ -33,6 +34,7 @@ Decisão: o tamanho (uma spec, teto maior, ou F4c) e quem confere o lote de refe
 
 ## 17/11 ~22:35 — o commit do lote retido deixa o `verificar` vermelho, no meu terminal
 Decisão: como tirar da esteira o `3209137c` (lote retido, meu), que o `conferir-entregas` recusa por levar código de processo sem a linha `Fora do processo:`. Fica vermelho em todo push da spec até o pouso.
+**Respondida em 18/11 ~13:05, no meu terminal: "faça o melhor".** Decisão em "O que decidi sem perguntar" (18/11 ~13:10).
 
 ## O que falhou
 - 17/11 ~21:10 — tarefa 4.0: ESCALADA da Mesa, o test-engineer reprovou na r1 e na r2 (na r2, faltou afirmar `consumo_ia` nos casos paralelos de entrega dupla). Diagnóstico pedido ao `Arquiteto 2` no checkout da L1. A seção "Revisões" do `4_task.md` sumiu (protocolo, item 5).
@@ -41,6 +43,7 @@ Decisão: como tirar da esteira o `3209137c` (lote retido, meu), que o `conferir
 - 18/11 ~05:05 — a esteira de `d89816f5` (44225384638) caiu no infra 3/3 (`alertas.int.test.ts`, novo) e no e2e 1/11 (`npm ci` do build do `despachante-2` falhou no runner, antes de qualquer teste: não é código); o `verificar` é o `3209137c`. Correção dos alertas na L1 antes da 6.0.
 - 18/11 ~05:35 — a esteira de `0b70fde8` (44262036782, com a 5.0) caiu na integração (19 testes, `chamar` chamado 2 vezes no adaptador), que passara em `d89816f5`. Correção na L1 antes da 6.0.
 ## O que decidi sem perguntar
+- 18/11 ~13:10 (delegada pelo Joaquim, "faça o melhor"): o `3209137c` fica como está, e o `verificar` vermelho até o pouso. Reescrever a mensagem pede reescrever a `spec/classificacao-bncc` com push forçado e rebasear a L1 e a L2 no meio da 8.0 e da 9.0; mudar o `conferir-entregas` para isentar um hash é furar a barreira; e um commit depois não conserta o de antes. O pouso não confere as entregas, e depois do merge o commit está na `origin/develop` e sai do intervalo. O custo é a esteira pular o `ci:verificar` (tipos, lint, guardas, segredo, dependências), e ele se compensa rodando-o no andar em cada encontro e antes do pouso. Em `1a5aa033`, 18/11 13:12: verde. Na esteira 44336978062, todos os outros jobs passaram.
 - 18/11 ~09:45: a esteira de `9de64089` (44272795124) caiu de novo no infra 3/3, no mesmo `alertas.int.test.ts` (prazo de 540 s do ensaio). Como combinado às 05:39, reexecutei só o job (134693328349) e parti a 7.0. Se cair de novo, na reexecução ou na esteira de `c80b431e`: correção na L1 pedindo a amostragem de numerador e denominador no ensaio.
 - 18/11 05:39: a correção `2026-11-18-alertas-do-ensaio-na-esteira` voltou em FALHA sem commit: não reproduz (local 2/2 verde, a 2ª sob carga) e o infra 3/3 passou na 44262036782; entre `75619c5f` e `d89816f5` nada de runtime de login mudou. Aceitei como intermitência do runner: linha solta (`abandonar 1`), sem mexer na regra; se voltar, reexecutar só o job, e com nova queda pedir a amostragem de numerador e denominador no ensaio.
 - 17/11 18:35: a máquina reiniciou com a 3.0 na correção da 1ª rodada. Religuei o time (Validador e os pares 2 e 3 apontavam para andares apagados da X6: `mkdir` da pasta velha, `recruit --replace`, `rmdir`; pares 2 e 3 parados no térreo) e mandei `PEDIDO de retomada` ao Implementador, com o trabalho na árvore da L1.
