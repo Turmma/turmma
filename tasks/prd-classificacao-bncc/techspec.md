@@ -85,8 +85,8 @@ seção corrigida da anterior herda as habilidades (com a origem que tinham) e `
 **Agendar** (job `material.agendar-classificacao`, fila `lote`, `naoUrgente`, por escola, lotes de 500 seções, cada um numa transação; seção
 com `falhas_seguidas > 0` vai numa execução só dela). O trabalho mora no `core` (`AgendamentoDaClassificacaoRepository`): a extração (fila `pdf`) e o job da escola (`worker-lote`) o chamam na transação deles, e as seções de um mesmo componente e das mesmas séries vão juntas, até 12 por execução. (a) **A rotina das 19h** (`sistema.agendar-classificacao`, em `JOB_SCHEDULES`, `0 19 * * *` de São Paulo) só grava um job por escola, com a data local da noite no fuso dela por chave, e o job da escola faz o laço: cada lote começa depois da última seção do anterior, para quando o sinal aborta, a função está suspensa ou a escola já ganhou **1.000 execuções** na noite (`EXECUCOES_POR_NOITE_DA_ESCOLA`, 12 mil seções: o dobro das 7.500 de 300 apostilas), e o resto sai na noite seguinte. Pega a seção não corrigida de material `pronto` com
 componente **sem execução, ou com a última `falhou` e `falhas_seguidas < 3`**; nunca `classificada` nem `sem_habilidade`.
-(b) **A mudança de recorte** (`PATCH` do componente ou de séries) só enfileira o job do material ou disciplina (chave com
-a auditoria do `PATCH`); ele lê o recorte atual, **limpa** as não corrigidas e, com componente, agenda. **Limpar:** lê a
+(b) **A mudança de recorte** (`PATCH` do componente, ou de séries quando o conjunto muda) só enfileira o job do material ou da
+disciplina (`materialId` ou `disciplinaId` nos dados do mesmo tipo da rotina, que sem dados é a rotina; chave: um UUID novo por `PATCH`, gravado na transação da auditoria, que não devolve o id da linha); ele lê o recorte atual, **limpa** as não corrigidas e, com componente, agenda. **Limpar:** lê a
 seção `for update`, anula o `execucao_id`, apaga as `origem: 'ia'` e zera `falhas_seguidas` (P10). Função suspensa: limpa e não agenda. Agendar troca o `execucao_id` com a mesma
 condição (P9). As candidatas são lidas no `preparar`; sem candidatas, conclui sem modelo e limpa as seções com
 `execucao_id = :esta` (P11).
@@ -208,6 +208,8 @@ registrando no `RETIDOS.json`. Sem a taxa no `rapido`, `padrao`; sem ela no
 
 Custo: ~625 chamadas por onboarding, R$ 4 a 20 por escola; fora do pacote do Tutor (D38). Prompt em `packages/core/src/ia/prompts/classificar-secoes.ts`, versão
 na execução: código só quando o trecho sustenta a habilidade, e "nenhuma" vale.
+
+**Duas consequências da mudança de recorte (6.0).** (1) *Custo de quem troca o componente várias vezes:* o job do `PATCH` (`refazOsRecortes`) não tem o teto de execuções da noite, por decisão registrada (foi a coordenação que pediu). Quem troca o componente de uma disciplina grande várias vezes, depois de as execuções concluírem, paga a classificação inteira de novo a cada troca, até cerca de 630 execuções por troca; a execução cancelada antes de rodar sai sem chamar o modelo (P11). Hoje só o orçamento de IA da escola (D14) segura isso. (2) *Sem histórico do que foi descartado:* a limpeza apaga as habilidades `origem: 'ia'`, e `execucao_agente.resultado` guarda só a referência à classificação, não os códigos. O histórico de uma classificação que a mudança de recorte descartou, sem ninguém ter aprovado, não fica guardado: nada dela chegou a aluno nem virou decisão, e guardar o descartado seria reter inferência sobre o material sem finalidade. Se o dossiê de conformidade (D61) vier a exigir esse histórico, é decisão nova.
 
 ## 9. Frontend
 

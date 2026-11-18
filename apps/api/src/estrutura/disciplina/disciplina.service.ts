@@ -1,6 +1,7 @@
-import { AuditoriaRecorder, DomainException, type Database } from '@educa/core'
+import { AuditoriaRecorder, DomainException, type Database, type JobOutbox } from '@educa/core'
 import {
   ErrorCode,
+  TIPO_AGENDAR_CLASSIFICACAO,
   disciplinaResponseSchema,
   listaDeDisciplinasResponseSchema,
   type PaginationQuery,
@@ -10,6 +11,7 @@ import {
   type ListaDeDisciplinasResponse,
 } from '@educa/shared'
 import { DisciplinaRepository } from '@educa/core/estrutura'
+import { randomUUID } from 'node:crypto'
 import { paginar } from '../../http/pagination.js'
 
 const registro = new AuditoriaRecorder()
@@ -17,12 +19,16 @@ const registro = new AuditoriaRecorder()
 /**
  * A coordenação cria, lista, renomeia e exclui as disciplinas da escola (RF2 do F1; RF3 da A1) e define o componente da BNCC de cada
  * uma (classificacao-bncc, 1.0; RF1). O nome repetido na escola é `CONFLITO`, sem o valor. Trocar ou apagar o componente grava
- * `disciplina.componente_alterado`, com o de antes e o de depois, na mesma transação; o mesmo componente que já estava não grava nada. A 6.0
- * acrescenta o job que refaz a classificação do material, e esta tarefa não agenda nada. Id de outra escola ou inexistente: `NAO_ENCONTRADO`, e nada muda. Excluir a
+ * `disciplina.componente_alterado`, com o de antes e o de depois, na mesma transação; o mesmo componente que já estava não grava nada. Quando o componente muda,
+ * a mesma transação enfileira o job `material.agendar-classificacao` da disciplina (classificacao-bncc, 6.0): o `PATCH` **só enfileira**, e é o job que limpa
+ * a classificação dos materiais dela e a agenda de novo pelo recorte que estiver no banco. Id de outra escola ou inexistente: `NAO_ENCONTRADO`, e nada muda. Excluir a
  * disciplina com vínculo: `CONFLITO`, e nada é apagado.
  */
 export class DisciplinaService {
-  constructor(private readonly banco: Database) {}
+  constructor(
+    private readonly banco: Database,
+    private readonly enfileirador: Pick<JobOutbox, 'enfileirarUmaVez'>,
+  ) {}
 
   async criar(pedido: CriarDisciplinaRequest): Promise<DisciplinaResponse> {
     return disciplinaResponseSchema.parse(await new DisciplinaRepository(this.banco).criar(pedido))
@@ -52,6 +58,8 @@ export class DisciplinaService {
           antes: { componenteBncc: atual.componenteBncc },
           depois: { componenteBncc: pedido.componenteBncc },
         })
+        // A chave é nova a cada troca: o job nasce junto da auditoria, na mesma transação, e dois `PATCH` seguidos são dois jobs (vale o recorte do segundo, lido por ele).
+        await this.enfileirador.enfileirarUmaVez(tx, TIPO_AGENDAR_CLASSIFICACAO, { disciplinaId: atual.id }, randomUUID())
       }
       return disciplinaResponseSchema.parse(resultado)
     })

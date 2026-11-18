@@ -47,11 +47,11 @@
   - [x] 5.5 A carga das 300 apostilas, rodada
   - [x] 5.6 Testes: rotina, o teto de 3, laço, P9 (rotina × rotina), alerta, carga
 
-- [ ] **6.0 — A mudança de recorte limpa e agenda de novo**
-  - [ ] 6.1 Os dois `PATCH` (componente e séries) só enfileiram o job
-  - [ ] 6.2 O job decide pelo recorte atual e limpa; a corrigida fica
-  - [ ] 6.3 O `preparar` sem candidatas limpa só a própria seção
-  - [ ] 6.4 Testes: recorte, componente apagado, suspensa, P9 (rotina × `PATCH`), P10a, P10b, P11
+- [x] **6.0 — A mudança de recorte limpa e agenda de novo**
+  - [x] 6.1 Os dois `PATCH` (componente e séries) só enfileiram o job
+  - [x] 6.2 O job decide pelo recorte atual e limpa; a corrigida fica
+  - [x] 6.3 O `preparar` sem candidatas limpa só a própria seção
+  - [x] 6.4 Testes: recorte, componente apagado, suspensa, P9 (rotina × `PATCH`), P10a, P10b, P11
 
 - [ ] **7.0 — A coordenação lê, corrige e manda reclassificar pela API, e a operação reclassifica uma escola (D76)**
   - [ ] 7.1 `GET /v1/materiais/:id` com `secoes[]` e `classificacaoSuspensa`

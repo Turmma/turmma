@@ -45,6 +45,7 @@ teste vermelho por um caso que rodou e falhou. Nenhum teste chama provedor: `Scr
 - [I] Mudança de recorte: a seção classificada com `EF06…`, depois do `PATCH` de séries para o 9º, ganha execução nova
   com as candidatas do 9º; o `PATCH` do componente idem; a corrigida fica. O `PATCH` só enfileira o job (nenhuma execução
   na transação da requisição). Mutação: o `PATCH` com a regra da rotina
+- [I] O `PATCH` que não muda o recorte (só o título, o mesmo conjunto de séries, o mesmo componente, só o nome) não enfileira job nenhum; o que muda enfileira um, com `materialId` ou `disciplinaId`
 - [I] `PATCH` durante uma execução `rodando`: a antiga conclui sem efeito e a seção fica com a nova
 - [I] `PATCH` de séries com a seção `aguardando` (execução `pendente`): ao rodar, a execução recebe as candidatas do 9º
   (lidas no `preparar`). Mutação: gravar as candidatas no agendar

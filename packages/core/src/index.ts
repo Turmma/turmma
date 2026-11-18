@@ -267,7 +267,7 @@ export { ArquivoDoTitularRepository, objectKey } from './titular/arquivo-do-titu
 export { ExtracaoDoMaterialRepository } from './material/extracao.repository.js'
 export { AgendamentoDaClassificacaoRepository, EXECUCOES_POR_NOITE_DA_ESCOLA, SECOES_POR_LOTE_DO_AGENDAMENTO, TETO_DE_FALHAS_SEGUIDAS } from './material/agendamento-da-classificacao.repository.js'
 export { ClassificacaoAtrasadaRepository } from './material/classificacao-atrasada.repository.js'
-export type { Agendado, FiltroDoAgendamento, SecaoParaAgendar } from './material/agendamento-da-classificacao.repository.js'
+export type { Agendado, AlvoDaMudancaDeRecorte, FiltroDoAgendamento, SecaoParaAgendar } from './material/agendamento-da-classificacao.repository.js'
 export type { MaterialParaExtrair } from './material/extracao.repository.js'
 export { chaveDoTemporario, PRAZO_DO_OBJETO_DO_MATERIAL_MS } from './material/temporario.js'
 export { uuidV7 } from './material/uuid-v7.js'

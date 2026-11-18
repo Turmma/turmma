@@ -168,23 +168,21 @@ export class SecoesRepository {
   }
 
   /**
-   * A execução sem candidata (P11): as seções **não corrigidas** que a citam perdem o `execucao_id` e as habilidades `origem: 'ia'`, e `falhas_seguidas` volta a zero. É o mesmo "limpar" da mudança de recorte, e
-   * volta a seção a `nao_agendada`. A corrigida não se toca. Com `soAsSecoes`, só essas (as seções vivas sem recorte, numa execução que classifica as outras).
+   * A execução sem candidata (P11): as seções **não corrigidas** que a citam perdem o `execucao_id`, e as habilidades `origem: 'ia'` e `falhas_seguidas` voltam a zero. É o mesmo "limpar" da mudança de recorte
+   * (`AgendamentoDaClassificacaoRepository.limparDoRecorte`, no `core`), e volta a seção a `nao_agendada`. A corrigida não se toca. Com `soAsSecoes`, só essas (as seções vivas sem recorte, numa execução que classifica as outras).
+   *
+   * O `update` é um só, com `execucao_id = :esta`, e só as seções que ele devolveu perdem o código da IA: a que o job da mudança de recorte levou a uma execução nova entre o `preparar` e aqui não casa, segue com a execução
+   * nova e com o que ela gravar. Ler as seções antes, em outro comando, abriria a janela em que a limpeza apagaria a execução nova.
    */
   async limparDaExecucao(execucaoId: string, soAsSecoes?: readonly string[]): Promise<number> {
     const escolaId = requireEscolaId()
-    const secoes = await this.banco
-      .select({ id: secaoDoMaterial.id })
-      .from(secaoDoMaterial)
-      .where(and(eq(secaoDoMaterial.escolaId, escolaId), eq(secaoDoMaterial.execucaoId, execucaoId), isNull(secaoDoMaterial.corrigidaEm), soAsSecoes === undefined ? undefined : inArray(secaoDoMaterial.id, [...soAsSecoes])))
-    if (secoes.length === 0) return 0
-    const ids = secoes.map((secao) => secao.id)
-    await this.banco.delete(habilidadeDaSecao).where(and(eq(habilidadeDaSecao.escolaId, escolaId), inArray(habilidadeDaSecao.secaoId, ids), eq(habilidadeDaSecao.origem, 'ia')))
     const limpas = await this.banco
       .update(secaoDoMaterial)
       .set({ execucaoId: null, falhasSeguidas: 0, classificadaEm: null })
-      .where(and(eq(secaoDoMaterial.escolaId, escolaId), eq(secaoDoMaterial.execucaoId, execucaoId), isNull(secaoDoMaterial.corrigidaEm), inArray(secaoDoMaterial.id, ids)))
+      .where(and(eq(secaoDoMaterial.escolaId, escolaId), eq(secaoDoMaterial.execucaoId, execucaoId), isNull(secaoDoMaterial.corrigidaEm), soAsSecoes === undefined ? undefined : inArray(secaoDoMaterial.id, [...soAsSecoes])))
       .returning({ id: secaoDoMaterial.id })
+    if (limpas.length === 0) return 0
+    await this.banco.delete(habilidadeDaSecao).where(and(eq(habilidadeDaSecao.escolaId, escolaId), inArray(habilidadeDaSecao.secaoId, limpas.map((secao) => secao.id)), eq(habilidadeDaSecao.origem, 'ia')))
     return limpas.length
   }
 

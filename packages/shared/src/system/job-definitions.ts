@@ -30,7 +30,7 @@ export const TIPO_EXECUTAR_IA = 'ia.executar'
 export const TIPO_EXECUTAR_LOTE = 'ia.executar-lote'
 /** A rotina das 19h da classificação do material (classificacao-bncc 5.0): sem escola, só grava um `material.agendar-classificacao` por escola, como o expurgo. */
 export const TIPO_AGENDAR_CLASSIFICACAO_DAS_ESCOLAS = 'sistema.agendar-classificacao'
-/** O agendamento da classificação de uma escola (classificacao-bncc 5.0): cria as execuções das seções sem classificação, em lotes de 500, e os jobs `ia.executar-lote` delas. */
+/** O agendamento da classificação de uma escola (classificacao-bncc 5.0 e 6.0): cria as execuções das seções sem classificação, em lotes de 500, e os jobs `ia.executar-lote` delas; com `materialId` ou `disciplinaId`, refaz antes a classificação do recorte que mudou. */
 export const TIPO_AGENDAR_CLASSIFICACAO = 'material.agendar-classificacao'
 
 /**
@@ -117,6 +117,11 @@ const linkDaContaSchema = z.strictObject({ linkId: z.uuid() })
 const materialSchema = z.strictObject({ materialId: z.uuid() })
 /** O job da IA leva só o id da execução: a escola vem da linha do outbox, e a entrada, a pessoa e o ano, da `execucao_agente`. */
 const execucaoDeIaSchema = z.strictObject({ execucaoId: z.uuid() })
+/**
+ * O job da classificação de uma escola (classificacao-bncc 5.0 e 6.0): sem dados é o da rotina das 19h (todas as seções sem execução); com `materialId` ou `disciplinaId` é o da mudança de recorte, do `PATCH` das séries do
+ * material ou do componente da disciplina, e leva só o id do alvo (a escola vem da linha do outbox, e o recorte, do banco na hora de rodar). Os dois ao mesmo tempo é recusado por quem o processa.
+ */
+const agendamentoDaClassificacaoSchema = z.strictObject({ materialId: z.uuid().optional(), disciplinaId: z.uuid().optional() })
 
 /**
  * A execução de IA tenta **uma vez**: a repetição de um job que pode ter chamado (e cobrado) o modelo é decisão do processador, que
@@ -293,7 +298,7 @@ export const JOB_DEFINITIONS = {
     filas: ['lote'],
     escopo: 'escola',
     executor: 'worker',
-    dados: semDados,
+    dados: agendamentoDaClassificacaoSchema,
     retentativa: RETENTATIVA_DE_HOJE,
     prazoMs: 1_800_000,
     naoUrgente: true,

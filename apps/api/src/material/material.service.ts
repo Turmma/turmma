@@ -3,6 +3,7 @@ import {
   alcanceDe,
   DIAS_DAS_RECUSAS_NO_RESUMO,
   ErrorCode,
+  TIPO_AGENDAR_CLASSIFICACAO,
   TIPO_EXTRAIR_PDF,
   buscaDeMaterialResponseSchema,
   listaDeMateriaisResponseSchema,
@@ -27,7 +28,7 @@ import {
   type MaterialResponse,
   type ResumoDoMaterialResponse,
 } from '@educa/shared'
-import { createHash } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { DisciplinaRepository } from '@educa/core/estrutura'
 import { chaveDoTemporario, EnvioDeMaterialRepository, ExtracaoDoMaterialRepository, PRAZO_DO_OBJETO_DO_MATERIAL_MS, temAssinaturaDePdf, uuidV7 } from '@educa/core/material'
 import { paginar } from '../http/pagination.js'
@@ -465,12 +466,22 @@ export class MaterialService {
         antes: { serieIds: antes },
         depois: { serieIds: serieIds?.toSorted() ?? antes, tituloAlterado: pedido.titulo !== undefined },
       })
+      await this.#refazAClassificacaoSeAsSeriesMudaram(tx, alvo.id, serieIds, antes)
     })
     logger.info({ evento: 'material.atualizado', materialId: id })
     const lido = await new MaterialRepository(banco).porId(id, 'unidade')
     if (lido === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     // Quem altera é sempre a coordenação (a célula `material.enviar` é só dela): recebe o que declarou.
     return paraResposta(lido, 'unidade')
+  }
+
+  /**
+   * Só as séries mudam o recorte da classificação (classificacao-bncc, 6.0): o `PATCH` enfileira o job do material, na mesma transação, e é o job que limpa e agenda pelo recorte que estiver no banco. A chave é nova a cada troca.
+   * O mesmo conjunto de séries, ou só o título, não refaz a classificação.
+   */
+  async #refazAClassificacaoSeAsSeriesMudaram(tx: DatabaseTransaction, materialId: string, pedidas: readonly string[] | undefined, antes: readonly string[]): Promise<void> {
+    if (pedidas === undefined || pedidas.toSorted().join() === antes.toSorted().join()) return
+    await this.dependencias.enfileirador.enfileirarUmaVez(tx, TIPO_AGENDAR_CLASSIFICACAO, { materialId }, randomUUID())
   }
 
   /** `GET /v1/materiais`: a coordenação, os da escola; o professor, os das disciplinas dele, com ou sem o filtro. */

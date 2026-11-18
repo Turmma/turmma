@@ -5,7 +5,7 @@ import { requireEscolaId } from '../context/context-escola.js'
 import type { DatabaseTransaction } from '../db/database.js'
 import { disciplina } from '../db/schema/disciplina.js'
 import { execucaoAgente } from '../db/schema/execucao-agente.js'
-import { material, materialSerie, secaoDoMaterial } from '../db/schema/material.js'
+import { habilidadeDaSecao, material, materialSerie, secaoDoMaterial } from '../db/schema/material.js'
 import { serie } from '../db/schema/serie.js'
 import { suspensaoDeFuncao } from '../db/schema/suspensao-de-funcao.js'
 import { SECOES_POR_EXECUCAO } from '../ia/tasks/classificar-secoes.js'
@@ -39,11 +39,15 @@ export interface Agendado {
   readonly secoes: number
 }
 
-/** O que escolhe as seções a agendar além da regra da rotina: as de um material (a extração) ou as depois de um cursor (o laço da rotina). */
+/** O que escolhe as seções a agendar além da regra da rotina: as de um material (a extração), as depois de um cursor (o laço da rotina) ou as que a mudança de recorte acabou de limpar (`secaoIds`). */
 export interface FiltroDoAgendamento {
   readonly materialId?: string
   readonly depoisDe?: string
+  readonly secaoIds?: readonly string[]
 }
+
+/** O que a mudança de recorte refaz: o material cujas séries mudaram, ou a disciplina cujo componente mudou (todos os materiais dela). */
+export type AlvoDaMudancaDeRecorte = { readonly materialId: string } | { readonly disciplinaId: string }
 
 /**
  * O agendamento da classificação (classificacao-bncc, tarefa 5.0; Tech Spec, seções 5 "Seções" e "Agendar" (a), e 7c "Laços"): lê as seções que precisam de execução e cria as execuções `classificar_secoes` delas, com o
@@ -108,11 +112,42 @@ export class AgendamentoDaClassificacaoRepository {
           or(isNull(secaoDoMaterial.execucaoId), and(eq(execucaoAgente.estado, 'falhou'), lt(secaoDoMaterial.falhasSeguidas, TETO_DE_FALHAS_SEGUIDAS))),
           filtro.materialId === undefined ? undefined : eq(secaoDoMaterial.materialId, filtro.materialId),
           filtro.depoisDe === undefined ? undefined : gt(secaoDoMaterial.id, filtro.depoisDe),
+          filtro.secaoIds === undefined ? undefined : inArray(secaoDoMaterial.id, [...filtro.secaoIds]),
         ),
       )
       .orderBy(asc(secaoDoMaterial.id))
       .limit(limite)
     return linhas.flatMap((linha) => (linha.componente === null ? [] : [{ ...linha, componente: linha.componente }]))
+  }
+
+  /**
+   * **Limpar** (Tech Spec, seção 5, "Agendar" (b); P10): o lote seguinte das seções **não corrigidas** do alvo, na ordem do id e depois do cursor. Lê cada uma `for update`, e só então apaga as habilidades `origem: 'ia'`, anula
+   * o `execucao_id` e zera `falhas_seguidas` e `classificada_em`. A ordem é a regra: o `concluir` que ainda não confirmou (P10a) segura a seção, a limpeza espera e apaga os códigos que ele acabou de gravar; o que chega depois
+   * (P10b) acha o `execucao_id` nulo e não grava. A seção corrigida pela coordenação nunca entra: a correção fica. Devolve os ids limpos (os que agendar em seguida) e o último lido, que é o cursor do lote seguinte.
+   *
+   * O `select ... for update` é quem decide quais seções entram (escola, não corrigida, alvo, cursor): o `delete` e o `update` só agem sobre os ids que ele devolveu, já travados, e por isso a corrigida não precisa ser
+   * conferida de novo (ninguém a corrige no meio, a trava é nossa). O material do alvo entra em qualquer estado (`processando`, excluído): o que não é `pronto` não será agendado, e uma seção sem execução nem código é o que ele deve ter. A escola é a do contexto, em toda consulta.
+   */
+  async limparDoRecorte(alvo: AlvoDaMudancaDeRecorte, limite: number, depoisDe?: string): Promise<{ limpas: string[]; ultima: string | undefined }> {
+    const escolaId = requireEscolaId()
+    const doAlvo = 'materialId' in alvo ? eq(secaoDoMaterial.materialId, alvo.materialId) : eq(material.disciplinaId, alvo.disciplinaId)
+    const travadas = await this.tx
+      .select({ id: secaoDoMaterial.id })
+      .from(secaoDoMaterial)
+      .innerJoin(material, and(eq(material.escolaId, secaoDoMaterial.escolaId), eq(material.id, secaoDoMaterial.materialId)))
+      .where(and(eq(secaoDoMaterial.escolaId, escolaId), isNull(secaoDoMaterial.corrigidaEm), doAlvo, depoisDe === undefined ? undefined : gt(secaoDoMaterial.id, depoisDe)))
+      .orderBy(asc(secaoDoMaterial.id))
+      .limit(limite)
+      .for('update', { of: secaoDoMaterial })
+    const ultima = travadas.at(-1)?.id
+    const ids = travadas.map((travada) => travada.id)
+    if (ids.length === 0) return { limpas: [], ultima }
+    await this.tx.delete(habilidadeDaSecao).where(and(eq(habilidadeDaSecao.escolaId, escolaId), inArray(habilidadeDaSecao.secaoId, ids), eq(habilidadeDaSecao.origem, 'ia')))
+    await this.tx
+      .update(secaoDoMaterial)
+      .set({ execucaoId: null, falhasSeguidas: 0, classificadaEm: null })
+      .where(and(eq(secaoDoMaterial.escolaId, escolaId), inArray(secaoDoMaterial.id, ids)))
+    return { limpas: ids, ultima }
   }
 
   /**
