@@ -25,11 +25,14 @@ import {
   type RascunhoDoPainel,
 } from './material-painel'
 import { CampoDeSeries } from './PartesDoEnvioDeMaterial'
+import { ClassificacaoDoMaterial } from './ClassificacaoDoMaterial'
 
 interface Props {
   readonly material: Material
   /** O nome da disciplina do material, como a lista de disciplinas da escola o tem. */
   readonly disciplina: string
+  /** A disciplina do material não tem componente da BNCC (`true`), tem (`false`), ou a lista de disciplinas ainda não chegou (`undefined`): a classificação precisa dele (classificacao-bncc, 8.0). */
+  readonly semComponente: boolean | undefined
   /** Há uma edição sendo lida sobre este material (ou ele é essa edição): a API recusaria o `PATCH` e outra edição, e o painel nem os oferece. */
   readonly edicaoEmAndamento: boolean
   /** Relê a lista de materiais, deu certo ou não. */
@@ -164,13 +167,13 @@ function CorrecaoDoMaterial({ material, edicaoEmAndamento, recarregar }: Pick<Pr
 
 /**
  * O painel do material (X2, 8.0; 12.0; RF4, RF6, RF10, RF15; `?material=<id>`): a situação em texto, o motivo da falha, os capítulos que a leitura achou (ou "sem capítulo"), o que a coordenação declarou ao enviar,
- * o formulário que corrige o título e as séries e, no rodapé, "Enviar edição nova" (só no material `pronto`, sem edição em leitura), "Tentar de novo" (só no que falhou) e "Excluir material", que abre a
+ * a classificação de cada capítulo pela BNCC (`ClassificacaoDoMaterial`, 8.0), o formulário que corrige o título e as séries e, no rodapé, "Enviar edição nova" (só no material `pronto`, sem edição em leitura), "Tentar de novo" (só no que falhou) e "Excluir material", que abre a
  * confirmação de perigo de sempre (D5, D75).
  *
  * **O que vem da API é só o que o painel mostra** (regra 20, itens 4 e 9): os capítulos (ordem, número, título e páginas, nunca o texto lido), o título e as séries. O hash do arquivo e quem enviou não existem em
  * `Material`. O motivo da falha é o texto curto da API para cada código, que diz o que fazer. Cada material é um painel novo (`key` de quem o monta): o rascunho, o foco e o aviso do anterior não sobram.
  */
-export function PainelDoMaterial({ material, disciplina, edicaoEmAndamento, recarregar, aoFechar, aoTentarDeNovo, aoEnviarEdicao, aoExcluir, focoDeReserva }: Props) {
+export function PainelDoMaterial({ material, disciplina, semComponente, edicaoEmAndamento, recarregar, aoFechar, aoTentarDeNovo, aoEnviarEdicao, aoExcluir, focoDeReserva }: Props) {
   return (
     <Sheet
       titulo={material.titulo}
@@ -202,6 +205,7 @@ export function PainelDoMaterial({ material, disciplina, edicaoEmAndamento, reca
           {material.falha !== null && <p className="break-words text-erro">{MENSAGEM_DA_FALHA_DE_MATERIAL[material.falha]}</p>}
         </section>
         <Capitulos material={material} />
+        <ClassificacaoDoMaterial material={material} disciplina={disciplina} semComponente={semComponente} />
         <dl className="flex min-w-0 flex-col gap-4">
           <Dado rotulo="Disciplina">{disciplina}</Dado>
           <Dado rotulo="De quem é o material">{NOME_DA_TITULARIDADE[material.titularidade]}</Dado>

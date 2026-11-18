@@ -225,6 +225,14 @@ material ainda não terminou de processar. Corrija as habilidades quando ele est
 fica desabilitado, com o aviso do componente. Seletor sem resultado: "Nenhuma habilidade com
 esse código ou texto." Disciplina sem componente, no seletor: "Esta disciplina não tem componente da BNCC. A questão fica
 sem habilidade." 429: "Muitas alterações seguidas. Tente de novo em N minutos."
+Capítulo corrigido sem nenhuma habilidade: "Sem habilidade neste capítulo, como a coordenação corrigiu" (não "A IA não achou"). Origem
+`ia` com a função suspensa: "Sugerida pela IA (não vale enquanto a classificação está suspensa)". "Reclassificar" desligado com
+todos os capítulos corrigidos: "Todos os capítulos já foram corrigidos pela coordenação: não há o que classificar de novo."
+Correção: "A correção vale no lugar da IA e não é refeita ao reclassificar. Para mudar de novo, corrija outra vez."
+Falhas do `PUT` (correção): `ENTRADA_INVALIDA` "Alguma habilidade não vale mais para este material. A lista foi atualizada: escolha de novo."; `NAO_ENCONTRADO` "Este capítulo,
+ou o material, já não existe. A lista foi atualizada." Falhas do "Reclassificar": `FUNCAO_SUSPENSA` repete o aviso da suspensão; `CONFLITO` "Este material não pode ser classificado de
+novo agora: ele ainda está sendo lido, ou a disciplina ficou sem componente da BNCC."; `NAO_ENCONTRADO` "Este material já não existe. A lista foi atualizada." As quatro (`NAO_ENCONTRADO`,
+`CONFLITO`, `ENTRADA_INVALIDA`, `FUNCAO_SUSPENSA`) fazem a tela ler o material de novo.
 
 - [U] Painel: carregando, erro com "Tentar de novo", vazio ("Nenhum capítulo classificado ainda. A classificação roda à noite"), com dado; os cinco
   rótulos e a marca de corrigida; corrigir com o seletor de 0 a 5 com filtro por código e texto; reclassificar desabilitado

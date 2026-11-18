@@ -61,12 +61,12 @@
   - [ ] 7.5 Os tetos e as ações de auditoria
   - [ ] 7.6 Testes: correção, recusas, tetos, isolamento, P1b, P2, P3, P5, P9 (rotina × reclassificar)
 
-- [ ] **8.0 — O painel do material mostra a classificação por capítulo, corrige com o seletor e pede a reclassificação**
-  - [ ] 8.1 As habilidades no painel: rótulos, origem, avisos
-  - [ ] 8.2 O seletor de habilidades (peça que a 11.0 reaproveita)
-  - [ ] 8.3 Corrigir e reclassificar, com a confirmação
-  - [ ] 8.4 A Parte A do painel no `docs/interface.md`
-  - [ ] 8.5 Testes: estados, rótulos, avisos, teclado, 360 px, recomeço
+- [x] **8.0 — O painel do material mostra a classificação por capítulo, corrige com o seletor e pede a reclassificação**
+  - [x] 8.1 As habilidades no painel: rótulos, origem, avisos
+  - [x] 8.2 O seletor de habilidades (peça que a 11.0 reaproveita)
+  - [x] 8.3 Corrigir e reclassificar, com a confirmação
+  - [x] 8.4 A Parte A do painel no `docs/interface.md`
+  - [x] 8.5 Testes: estados, rótulos, avisos, teclado, 360 px, recomeço
 
 - [ ] **9.0 — A contração da F4: o check titularidade e licença vale, e os checks e o código de `material.licenciante` saem**
   - [ ] 9.1 O backfill de séries e licenças de novo, idempotente

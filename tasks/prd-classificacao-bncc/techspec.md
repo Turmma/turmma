@@ -223,6 +223,13 @@ na execução: código só quando o trecho sustenta a habilidade, e "nenhuma" va
 
 Estados, textos, 360 px, teclado: `cenarios.md`. A lista da troca traz primeiro as do capítulo.
 
+Painel do material (8.0): o "Reclassificar" do capítulo que não terminou e o do alto abrem a mesma confirmação, porque a API
+reclassifica o material, não o capítulo. Com a função suspensa, o editor de um capítulo parte só do que a coordenação corrigiu.
+`Material.tsx` passa ao painel `semComponente` (da lista de disciplinas já lida), e `undefined` desliga "Corrigir" e
+"Reclassificar" sem mostrar o aviso. Os textos novos estão em `cenarios.md`, "Telas".
+Quando o `PUT` da correção ou o `POST` do reclassificar volta com `NAO_ENCONTRADO`, `CONFLITO`, `ENTRADA_INVALIDA` ou `FUNCAO_SUSPENSA`, a tela
+lê o material de novo (`falhaMudouAClassificacao`): a falha diz que algo mudou por fora, e a lista que ela mostra deixou de valer.
+
 ## 10. Testes
 
 `cenarios.md`. **Tarefas: 13** (`tasks.md`).

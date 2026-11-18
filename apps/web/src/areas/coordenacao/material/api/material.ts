@@ -1,12 +1,19 @@
 import {
   ErrorCode,
+  corrigirSecaoRequestSchema,
+  habilidadesBnccResponseSchema,
   listaDeMateriaisResponseSchema,
   materialComCapitulosResponseSchema,
   materialResponseSchema,
+  reclassificarResponseSchema,
+  secaoDoMaterialResponseSchema,
   type AtualizarMaterialRequest,
+  type CorrigirSecaoRequest,
   type EnviarEdicaoRequest,
   type LicencaDeclarada,
   type Material,
+  type ReclassificarResponse,
+  type SecaoDoMaterialResponse,
   type TitularidadeDeMaterial,
 } from '@educa/shared'
 import { queryOptions } from '@tanstack/react-query'
@@ -141,6 +148,28 @@ export const materialComCapitulosQueryOptions = (id: string, habilitada: boolean
     queryFn: ({ signal }) => authedGet(`${CAMINHO}/${encodeURIComponent(id)}`, materialComCapitulosResponseSchema, signal),
     enabled: habilitada,
   })
+
+/**
+ * As habilidades que o material pode receber (`GET /v1/habilidades-bncc?materialId=`, classificacao-bncc, 8.0): o recorte atual, com o componente da disciplina e as séries do material. A chave leva o id, e quem abre o editor
+ * de um capítulo a lê de novo: o recorte pode ter mudado desde a última vez.
+ */
+export const habilidadesDoMaterialQueryOptions = (id: string) =>
+  queryOptions({
+    queryKey: [...MATERIAL_QUERY_KEY, 'habilidades-bncc', id],
+    queryFn: ({ signal }) => authedGet(`/v1/habilidades-bncc?materialId=${encodeURIComponent(id)}`, habilidadesBnccResponseSchema, signal),
+  })
+
+/** `PUT /v1/materiais/:id/secoes/:secaoId/habilidades` (RF6): a correção de um capítulo, de 0 a 5 códigos. A coordenação decide, e a correção é final. */
+export function corrigirSecaoDoMaterial(materialId: string, secaoId: string, codigos: readonly string[]): Promise<SecaoDoMaterialResponse> {
+  // O contrato confere o teto de 5 e o código da tabela da BNCC antes de o pedido sair; sem `as`, o tipo é o do contrato.
+  const corpo: CorrigirSecaoRequest = corrigirSecaoRequestSchema.parse({ codigos })
+  return authedRequest(`${CAMINHO}/${encodeURIComponent(materialId)}/secoes/${encodeURIComponent(secaoId)}/habilidades`, secaoDoMaterialResponseSchema, { metodo: 'PUT', corpo })
+}
+
+/** `POST /v1/materiais/:id/reclassificar` (RF12): os capítulos que a coordenação não corrigiu vão à classificação da noite de novo. */
+export function reclassificarMaterial(id: string): Promise<ReclassificarResponse> {
+  return authedRequest(`${CAMINHO}/${encodeURIComponent(id)}/reclassificar`, reclassificarResponseSchema, { metodo: 'POST' })
+}
 
 /** `PATCH /v1/materiais/:id` (RF6): corrige o título e as séries; vale na hora para a busca. Responde o material como ficou. */
 export function atualizarMaterial(id: string, campos: AtualizarMaterialRequest): Promise<Material> {

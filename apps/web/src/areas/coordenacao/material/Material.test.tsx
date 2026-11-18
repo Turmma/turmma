@@ -1780,3 +1780,40 @@ describe('o erro do resumo e o da lista juntos', () => {
     expect(doResumo.className.startsWith(buttonVariants({ variante: 'secundario' }))).toBe(true)
   })
 })
+
+describe('as habilidades da BNCC no painel: o componente da disciplina (classificacao-bncc, 8.0)', () => {
+  const SECAO = { id: id(900), ordem: 1, paginaInicial: 1, paginaFinal: 12, capitulo: null, situacao: 'nao_agendada', habilidades: [], corrigida: false }
+  const DETALHE = { ...PRONTO, capitulos: [], secoes: [SECAO], classificacaoSuspensa: false }
+  const AVISO = 'Defina o componente da BNCC de Química na Estrutura para classificar este material'
+
+  function instalarComODetalhe(rede: FakeNetwork, disciplinas: Resposta): void {
+    instalar(rede, { materiais: ok([PRONTO]), disciplinas })
+    rede.responderPor(`/v1/materiais/${PRONTO.id}`, { status: 200, corpo: DETALHE })
+  }
+
+  it('a disciplina sem componente: o aviso a nomeia, e "Corrigir" fica desligado', async () => {
+    instalarComODetalhe(fakeNetwork(), ok([QUIMICA, FISICA]))
+    await montarEEsperar(`/material?material=${PRONTO.id}`)
+    const painel = within(await painelDe('Capítulo pronto'))
+    expect(await painel.findByText(AVISO)).toBeTruthy()
+    expect((painel.getByRole('button', { name: /^Corrigir as habilidades/ }) as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('a disciplina com componente: sem aviso, e "Corrigir" liga', async () => {
+    instalarComODetalhe(fakeNetwork(), ok([{ ...QUIMICA, componenteBncc: 'ciencias' }, FISICA]))
+    await montarEEsperar(`/material?material=${PRONTO.id}`)
+    const painel = within(await painelDe('Capítulo pronto'))
+    const corrigir = (await painel.findByRole('button', { name: /^Corrigir as habilidades/ })) as HTMLButtonElement
+    expect(painel.queryByText(AVISO)).toBeNull()
+    expect(corrigir.disabled).toBe(false)
+  })
+
+  it('a lista de disciplinas ainda não lida: nada se corrige e o aviso não é dito antes de saber', async () => {
+    instalarComODetalhe(fakeNetwork(), nuncaResponde)
+    montar(`/material?material=${PRONTO.id}`)
+    const painel = within(await painelDe('Capítulo pronto'))
+    const corrigir = (await painel.findByRole('button', { name: /^Corrigir as habilidades/ })) as HTMLButtonElement
+    expect(corrigir.disabled).toBe(true)
+    expect(painel.queryByText(AVISO)).toBeNull()
+  })
+})

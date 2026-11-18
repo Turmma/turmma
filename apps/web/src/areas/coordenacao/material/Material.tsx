@@ -170,6 +170,11 @@ function MateriaisDaEscola() {
   const dasDisciplinas = disciplinas.data
   const nomeDaDisciplina = new Map((dasDisciplinas?.itens ?? []).map((disciplina: Disciplina) => [disciplina.id, disciplina.nome]))
   const nomeDe = (disciplinaId: string): string => nomeDaDisciplina.get(disciplinaId) ?? 'Disciplina'
+  /** A disciplina sem componente da BNCC: `undefined` enquanto a lista de disciplinas não chegou (ou a disciplina não está nela). */
+  const semComponenteDa = (disciplinaId: string): boolean | undefined => {
+    const achada = dasDisciplinas?.itens.find((disciplina: Disciplina) => disciplina.id === disciplinaId)
+    return achada === undefined ? undefined : achada.componenteBncc === null
+  }
   const emLeitura = lista === undefined ? 0 : lista.itens.filter((material) => material.estado === 'processando').length
   const semNada = lista !== undefined && lista.itens.length === 0 && recusas.length === 0
   // A tabela mostra `visiveis` linhas, e "Mostrar mais" revela mais `MATERIAIS_POR_VEZ`: a escola com centenas de materiais não desenha todos de uma vez.
@@ -264,6 +269,7 @@ function MateriaisDaEscola() {
             key={doPainel.id}
             material={doPainel}
             disciplina={nomeDe(doPainel.disciplinaId)}
+            semComponente={semComponenteDa(doPainel.disciplinaId)}
             edicaoEmAndamento={lista !== undefined && temEdicaoEmAndamento(doPainel, lista.itens)}
             recarregar={recarregar}
             aoFechar={fecharPainel}

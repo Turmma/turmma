@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto'
+import { randomBytes, randomUUID } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import { Client } from 'pg'
 import { urlDoBancoDeTeste } from '../../tools/ci/compose.ts'
@@ -238,5 +238,117 @@ export function criarEdicaoEmLeituraNoBanco(escolaId: string, alvoId: string, ti
     const id = rows[0]?.id
     if (id === undefined) throw new Error('o seed do e2e não criou a edição em leitura')
     return id
+  })
+}
+
+/** Em que ponto está a classificação de uma seção do seed: sem execução, ou com a execução no estado que a situação pede (a `aguardando` não entra: o worker do ambiente a levaria). */
+export type SituacaoDaSecaoDeTeste = 'nao_agendada' | 'classificada' | 'sem_habilidade' | 'nao_classificada'
+
+export interface SecaoDeTeste {
+  readonly paginaInicial: number
+  readonly paginaFinal: number
+  /** A ordem do capítulo de `criarCapitulosNoBanco` a que a seção pertence; sem ela, é um bloco de páginas. */
+  readonly capituloOrdem?: number
+  readonly situacao: SituacaoDaSecaoDeTeste
+  readonly habilidades?: ReadonlyArray<{ readonly codigo: string; readonly origem: 'ia' | 'coordenacao' }>
+  /** A coordenação a corrigiu (`corrigida_em`, sem autor). */
+  readonly corrigida?: boolean
+}
+
+/**
+ * As seções que a extração e a classificação da noite deixariam no material (classificacao-bncc, 8.0): uma por item, na ordem dada, cada uma com a execução que a situação pede e as habilidades com a origem. O painel as lê de
+ * `GET /v1/materiais/:id`. Devolve os ids, na ordem. Habilidade de código que a tabela pública não tem é recusada pelo banco (FK).
+ */
+export function criarSecoesNoBanco(escolaId: string, materialId: string, secoes: readonly SecaoDeTeste[]): Promise<string[]> {
+  return comBanco(async (banco) => {
+    const ids: string[] = []
+    for (const [indice, item] of secoes.entries()) {
+      const capituloId = await capituloDaSecaoNoBanco(banco, escolaId, materialId, item.capituloOrdem)
+      const execucaoId = await execucaoDaSecaoNoBanco(banco, escolaId, item.situacao)
+      const { rows } = await banco.query<{ id: string }>(
+        `insert into secao_do_material (escola_id, material_id, capitulo_id, ordem, pagina_inicial, pagina_final, execucao_id, classificada_em, corrigida_em)
+         values ($1, $2, $3, $4::smallint, $5, $6, $7, case when $8::boolean then now() end, case when $9::boolean then now() end) returning id`,
+        [escolaId, materialId, capituloId, indice + 1, item.paginaInicial, item.paginaFinal, execucaoId, item.situacao === 'classificada' || item.situacao === 'sem_habilidade', item.corrigida === true],
+      )
+      const id = rows[0]?.id
+      if (id === undefined) throw new Error('o seed do e2e não criou a seção')
+      for (const habilidade of item.habilidades ?? []) await banco.query('insert into habilidade_da_secao (escola_id, secao_id, codigo, origem) values ($1, $2, $3, $4)', [escolaId, id, habilidade.codigo, habilidade.origem])
+      ids.push(id)
+    }
+    return ids
+  })
+}
+
+/** O capítulo de `criarCapitulosNoBanco` de que a seção faz parte, pela ordem; sem ordem, a seção é um bloco de páginas. */
+async function capituloDaSecaoNoBanco(banco: Client, escolaId: string, materialId: string, ordem: number | undefined): Promise<string | null> {
+  if (ordem === undefined) return null
+  const { rows } = await banco.query<{ id: string }>('select id from capitulo_do_material where escola_id = $1 and material_id = $2 and ordem = $3', [escolaId, materialId, ordem])
+  return rows[0]?.id ?? null
+}
+
+/** A execução que a situação pede: nenhuma na `nao_agendada`, a que falhou na `nao_classificada` e a concluída nas outras. */
+async function execucaoDaSecaoNoBanco(banco: Client, escolaId: string, situacao: SituacaoDaSecaoDeTeste): Promise<string | null> {
+  if (situacao === 'nao_agendada') return null
+  const estado = situacao === 'nao_classificada' ? 'falhou' : 'concluida'
+  const { rows } = await banco.query<{ id: string }>(
+    `insert into execucao_agente (escola_id, ano_letivo_id, funcao, tarefa, solicitada_por, chave_envio, entrada, estado, erro, resultado, iniciada_em, concluida_em)
+     values ($1, null, 'classificacao_do_material', 'classificar_secoes', null, $2, '{"tarefa":"classificar_secoes"}'::jsonb, $3::text, $4,
+             case when $3::text = 'concluida' then '{"tipo":"classificacao_do_material","secoes":1}'::jsonb end, now(), now()) returning id`,
+    [escolaId, randomUUID(), estado, estado === 'falhou' ? 'IA_SAIDA_INVALIDA' : null],
+  )
+  return rows[0]?.id ?? null
+}
+
+/** As habilidades que o recorte aceita (o componente e o ano do Ensino Fundamental), em ordem de código, como a tabela pública da BNCC as tem: o seed e a conferência do e2e. */
+export function habilidadesDoRecorteNoBanco(componente: string, ano: number): Promise<Array<{ codigo: string; descricao: string }>> {
+  return comBanco(async (banco) => {
+    const { rows } = await banco.query<{ codigo: string; descricao: string }>('select codigo, descricao from habilidade_bncc where componente = $1 and $2::smallint = any(anos) order by codigo', [componente, ano])
+    return rows
+  })
+}
+
+/** O componente da BNCC da disciplina, direto no banco (a migration só o preenche pelo nome, e a disciplina do seed tem nome com marca). `null` apaga. */
+export function definirComponenteNoBanco(escolaId: string, disciplinaId: string, componente: string | null): Promise<void> {
+  return comBanco(async (banco) => {
+    await banco.query('update disciplina set componente_bncc = $3 where escola_id = $1 and id = $2', [escolaId, disciplinaId, componente])
+  })
+}
+
+export interface SecaoNoBanco {
+  readonly ordem: number
+  readonly corrigida: boolean
+  readonly habilidades: ReadonlyArray<{ readonly codigo: string; readonly origem: string }>
+}
+
+/** As seções do material como estão no banco, em ordem, com a marca de corrigida e as habilidades (código e origem): o que a correção gravou. */
+export function secoesNoBanco(escolaId: string, materialId: string): Promise<SecaoNoBanco[]> {
+  return comBanco(async (banco) => {
+    const { rows } = await banco.query<{ ordem: number; corrigida: boolean; habilidades: Array<{ codigo: string; origem: string }> }>(
+      `select s.ordem, s.corrigida_em is not null as corrigida,
+              coalesce((select json_agg(json_build_object('codigo', h.codigo, 'origem', h.origem) order by h.codigo) from habilidade_da_secao h where h.escola_id = s.escola_id and h.secao_id = s.id), '[]'::json) as habilidades
+         from secao_do_material s where s.escola_id = $1 and s.material_id = $2 order by s.ordem`,
+      [escolaId, materialId],
+    )
+    return rows
+  })
+}
+
+/**
+ * Uma correção que outra pessoa fez por fora da tela: troca as habilidades da seção por estas, com a origem da coordenação, e a marca de corrigida. Só simula, no seed do e2e, o que o `PUT` faria por outra aba:
+ * grava direto no banco, sem a auditoria do caminho do produto (regra 20, item 10), e não é exemplo para código de verdade.
+ */
+export function corrigirSecaoNoBanco(escolaId: string, secaoId: string, codigos: readonly string[]): Promise<void> {
+  return comBanco(async (banco) => {
+    await banco.query('delete from habilidade_da_secao where escola_id = $1 and secao_id = $2', [escolaId, secaoId])
+    for (const codigo of codigos) await banco.query("insert into habilidade_da_secao (escola_id, secao_id, codigo, origem) values ($1, $2, $3, 'coordenacao')", [escolaId, secaoId, codigo])
+    await banco.query('update secao_do_material set corrigida_em = now() where escola_id = $1 and id = $2', [escolaId, secaoId])
+  })
+}
+
+/** Quantas execuções da classificação a escola tem: o "Reclassificar" de verdade cria as da noite. */
+export function execucoesDaClassificacaoNoBanco(escolaId: string): Promise<number> {
+  return comBanco(async (banco) => {
+    const { rows } = await banco.query<{ n: number }>("select count(*)::int as n from execucao_agente where escola_id = $1 and tarefa = 'classificar_secoes'", [escolaId])
+    return rows[0]?.n ?? 0
   })
 }
