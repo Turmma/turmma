@@ -1,9 +1,9 @@
 # Estado da execução — classificacao-bncc
 
 ## Agora
-- **Espero:** o `RELATÓRIO` do `Implementador` (linha 1) da tarefa 3.0 (porte grande), 1ª tentativa. A 1ª rodada reprovou (conformidade-reviewer, test-engineer, revisor-geral; ordem em `.processo/ordens/3_task-r1.md` da L1). A máquina reiniciou no meio da correção (última edição 16:28); às 18:35 religuei o time e mandei `PEDIDO de retomada`. A L1 está em `…/educaia--specclassificacao-bncc--l1`, sem andar no Maestri (o `floor create` recusou; worktree feito pelo git).
-- **Devo ainda:** quando a 3.0 pousar, pedir ao `Arquiteto` a medida do lote retido (ele escreve e mede entre a 3.0 e a 10.0); a 10.0 só parte com ela, e taxa fora do padrão é decisão do Joaquim. No fechamento, marcar `[x]` o item "(F4, retro, M3)" do `TODO.md`. Push da `develop` (retro da X6, `46ea2309`) no próximo pouso. 
-- **Base:** `spec/classificacao-bncc` em `ead27b4d`
+- **Espero:** o `RELATÓRIO` do `Implementador` (linha 1) da tarefa 4.0 (porte grande), 1ª tentativa, pedida em 17/11 às 18:50, em ESCALADA da Mesa (test-engineer reprovou 2 vezes: consumo_ia nos casos paralelos de entrega dupla; ordem `.processo/ordens/4_task-r2.md`): diagnóstico do `Arquiteto 2` em `.processo/ordens/diagnostico-4.md` da L1 (falta asserção de `consumo_ia` em três casos; nem código nem desenho); `PEDIDO de retomada` enviado ao Implementador reiniciado, ~21:25, para a rodada 3. Usei o `Arquiteto 2` porque o `Arquiteto` guarda a pergunta da medida. A seção "Revisões" do `4_task.md` sumiu; a contagem segue pelo `achados/`; e o `RELATÓRIO` do `Arquiteto` (no andar) com a medida local no `RETIDOS.json`. O lote retido está em `3209137c` (commit meu, sem papel: o hook trata `docs/aia/ouro-retido/` como processo); a medida espera o Joaquim subir o llama-server na 8080, e a da produção fica pendente da D37. A L1 está em `…/educaia--specclassificacao-bncc--l1`, sem andar no Maestri (o `floor create` recusou; worktree feito pelo git).
+- **Devo ainda:** a 10.0 só parte com a medida do `Arquiteto` registrada; taxa fora do `padrao` é decisão do Joaquim. No fechamento, marcar `[x]` o item "(F4, retro, M3)" do `TODO.md`. Push da `develop` (retro da X6, `46ea2309`) no próximo pouso.
+- **Base:** `spec/classificacao-bncc` em `f78d58ae`
 
 ## Concluídas
 | Tarefa | Commit | Modelo | Rodadas | Observação |
@@ -11,6 +11,7 @@
 | correção `2026-11-17-integracao-recusa-workers-de-pe` (M3 da F4, P da retro da X6, L1) | `e1670fbe` | Sonnet | test-engineer na 2ª; os outros cinco na 1ª | módulos novos `tools/testes/workers-de-pe.ts` e o `globalSetup` que recusa; 12 mutações; 2 linhas no `TODO.md`; o item (F4, retro, M3) fica `[ ]` até o fechamento; encontro em `95812d4e` |
 | 1.0 | `fb384b1b` | Sonnet | test-engineer na 2ª (e2e do PATCH segurado com troca de disciplina); os outros seis na 1ª | divergência de portão no meio (compose órfão da X6, derrubado); 42 mutações; 8 fotos; recomendações sem aplicar foram ao `TODO.md`; encontro em `c4dddef8`, esteira verde em `95812d4` |
 | 2.0 | `9224ee32` | Sonnet | os seis revisores na 2ª | portão com 59 mutações; sem tela; encontro em `ead27b4d` (tipagem e lint da soma passaram) |
+| 3.0 | `924c6792` | Sonnet | conformidade-reviewer, test-engineer e revisor-geral na 2ª; os outros cinco na 1ª | máquina reiniciou no meio da correção da 1ª rodada; retomada às 18:33; sem tela; encontro em `f78d58ae` |
 
 ## Esperando o Joaquim
 ## 17/11 08:55 — retro da X6, no terminal do `Arquiteto 2`
@@ -29,3 +30,4 @@ Decisão: o tamanho (uma spec, teto maior, ou F4c) e quem confere o lote de refe
 - 17/11 18:35: a máquina reiniciou com a 3.0 na correção da 1ª rodada. Religuei o time (Validador e os pares 2 e 3 apontavam para andares apagados da X6: `mkdir` da pasta velha, `recruit --replace`, `rmdir`; pares 2 e 3 parados no térreo) e mandei `PEDIDO de retomada` ao Implementador, com o trabalho na árvore da L1.
 - 17/11: DIVERGÊNCIA (portão) do Implementador na 1.0: workers de pé em `educa-teste-1` eram órfãos da reengenharia-continuacao (pousada, checkout apagado). Não é defeito de código, então sem `corrigir`: derrubei `educa-teste`, `-1`, `-2` e `-3` e mandei retomar.
 - 17/11: a esteira de `c4dddef` (execução 44124266993, depois da 1.0) caiu no e2e 2/11 antes de qualquer teste: o `docker buildx` do runner morreu (`target worker-interativo-2: failed to receive status: rpc error … EOF`). É falha do runner, não do código: sem `corrigir`; o veredito vem da esteira de `ead27b4d`, que cobre a 1.0 e a 2.0, e a 3.0 partiu.
+- 17/11 ~21:10 — tarefa 4.0: ESCALADA da Mesa, o test-engineer reprovou na r1 e na r2 (na r2, faltou afirmar `consumo_ia` nos casos paralelos de entrega dupla). Diagnóstico pedido ao `Arquiteto 2` no checkout da L1. A seção "Revisões" do `4_task.md` sumiu (protocolo, item 5).
