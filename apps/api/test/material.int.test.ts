@@ -1,6 +1,6 @@
 import { InMemoryFileStorage, runInContext, type Clock, type Database } from '@educa/core'
 import type { ResultadoDaExtracao } from '@educa/core/material'
-import { ErrorCode, buscaDeMaterialResponseSchema, listaDeMateriaisResponseSchema, materialComCapitulosResponseSchema, materialResponseSchema, MAXIMO_DE_BYTES_DO_MATERIAL, TAMANHO_MAXIMO_DO_TRECHO_CITADO } from '@educa/shared'
+import { ErrorCode, TIPO_EXECUTAR_LOTE, buscaDeMaterialResponseSchema, listaDeMateriaisResponseSchema, materialComCapitulosResponseSchema, materialResponseSchema, MAXIMO_DE_BYTES_DO_MATERIAL, TAMANHO_MAXIMO_DO_TRECHO_CITADO } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { linhasDoBloco, normalizarTexto, paginaDoMaterial, PAGINAS_DO_MATERIAL } from '../../../tools/demonstracao/conteudo-estequiometria.ts'
@@ -148,6 +148,21 @@ describe('material da escola', () => {
       expect(await auditoriaDa(bancada, escola.coordenacao.escolaId, 'material.enviado')).toEqual([
         { entidade: 'material', entidade_id: resposta.id, autor_usuario_id: escola.coordenacao.usuarioId, antes: null, depois: { disciplinaId: escola.quimica, titularidade: 'escola', licenca: 'autoria_da_escola', declaracao: true } },
       ])
+    })
+
+    it('a extração do teste não enfileira a classificação: o material de Química fica `pronto` sem job `ia.executar-lote`, para o modelo não ser chamado por quem só quer o material (classificacao-bncc, 5.0)', async () => {
+      const escola = await montarEscolaComTurma(api, bancada)
+      const enviado = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica })
+      expect(enviado.status).toBe(201)
+      await esperarExtracao(api)
+
+      const { escolaId } = escola.coordenacao
+      expect((await materiaisDa(bancada, escolaId)).map((linha) => linha.estado)).toEqual(['pronto'])
+      const jobs = await bancada.pool.query('select 1 from job_registro where escola_id = $1 and tipo = $2', [escolaId, TIPO_EXECUTAR_LOTE])
+      expect(jobs.rowCount).toBe(0)
+      // O que a 5.0 agenda continua nascendo: a execução da seção fica `pendente`, só sem job.
+      const execucoes = await bancada.pool.query<{ estado: string }>('select estado from execucao_agente where escola_id = $1', [escolaId])
+      expect(execucoes.rows).toEqual([{ estado: 'pendente' }])
     })
 
     it('material de terceiro cita a licença registrada e copia o licenciante dela; o pedido não traz nome, e `licencaId` em material próprio é `ENTRADA_INVALIDA` e nada é gravado', async () => {

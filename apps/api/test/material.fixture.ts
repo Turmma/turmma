@@ -1,4 +1,4 @@
-import { createLogger, InMemoryFileStorage, runInContext, type Database } from '@educa/core'
+import { createLogger, InMemoryFileStorage, runInContext, type Database, type JobOutbox } from '@educa/core'
 import { PdfExtractor } from '@educa/core/material'
 import { JOB_DEFINITIONS, TIPO_EXTRAIR_PDF } from '@educa/shared'
 import { sql } from 'drizzle-orm'
@@ -168,6 +168,13 @@ export function extratorDe(api: TestApi): PdfExtractor {
 const CHAVE_DO_TEMPORARIO = /^material-temporario\/([^/]+)\/([^/]+)$/
 
 /**
+ * O enfileirador da extração do teste: não enfileira nada, porque o job da classificação (5.0) chamaria o modelo falso e somaria chamada e consumo nos testes do Assistente, do Tutor e do artefato.
+ * A execução da seção ainda nasce `pendente`, sem job, e conta em `execucao_agente`; o retorno não é lido por `agendar` (`ja_enfileirado` é só o tipo que cabe). Quem quiser a classificação de ponta a ponta
+ * monta o `JobOutbox` real de propósito: os testes dela estão em `apps/worker/test/`.
+ */
+const SEM_JOB_DA_CLASSIFICACAO: Pick<JobOutbox, 'enfileirarUmaVez'> = { enfileirarUmaVez: () => Promise.resolve({ situacao: 'ja_enfileirado', id: null }) }
+
+/**
  * Roda o job `material.extrair-pdf` de cada PDF que a API desta instância guardou e ainda espera no storage dela, como o worker o roda:
  * no contexto da escola do objeto, na última tentativa (o desfecho é o final, sem repetição), com o armazém, o extrator e o log do teste.
  *
@@ -182,7 +189,7 @@ export async function esperarExtracao(api: TestApi): Promise<void> {
     servico: 'worker-teste',
     ...(api.linhasDeLog === undefined ? { nivel: 'silent' as const } : { nivel: 'trace' as const, destino: { write: (linha: string) => void api.linhasDeLog?.push(linha) } }),
   })
-  const processador = criarExtracaoDoPdf({ banco, armazem, extrator: extratorDe(api), logger })
+  const processador = criarExtracaoDoPdf({ banco, armazem, extrator: extratorDe(api), logger, enfileirador: SEM_JOB_DA_CLASSIFICACAO })
   const ultimaTentativa = JOB_DEFINITIONS[TIPO_EXTRAIR_PDF].retentativa.tentativas
   const pendentes = [...armazem.bytes.keys()].flatMap((chave) => {
     const achado = CHAVE_DO_TEMPORARIO.exec(chave)
@@ -203,7 +210,7 @@ export async function esperarExtracao(api: TestApi): Promise<void> {
 export async function extrairMaterial(api: TestApi, escolaId: string, materialId: string): Promise<void> {
   if (!(api.armazem instanceof InMemoryFileStorage)) throw new Error('extrairMaterial precisa de uma API de `subirApi`, com o armazém em memória')
   const logger = createLogger({ servico: 'worker-teste', nivel: 'silent' })
-  const processador = criarExtracaoDoPdf({ banco: api.app.get<Database>(DB), armazem: api.armazem, extrator: extratorDe(api), logger })
+  const processador = criarExtracaoDoPdf({ banco: api.app.get<Database>(DB), armazem: api.armazem, extrator: extratorDe(api), logger, enfileirador: SEM_JOB_DA_CLASSIFICACAO })
   const ultimaTentativa = JOB_DEFINITIONS[TIPO_EXTRAIR_PDF].retentativa.tentativas
   await runInContext({ requisicaoId: randomUUID(), escolaId }, () => processador({ materialId }, jobExecution(randomUUID(), ultimaTentativa), new AbortController().signal))
 }
