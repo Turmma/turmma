@@ -10,10 +10,10 @@ import { listaDeMateriaisAntesDaF4Schema } from './test/schema-antes-da-f4.js'
 
 /**
  * A volta do código depois da F4 (ingestao-do-material, tarefa 8.0; Tech Spec, seções 3 e 5; `docs/runbook.md`, "Voltar o código depois da F4"). Um banco só para este teste, migrado
- * até a 0056 (a última da F4), com o que a F4 grava: material `processando` e `pronto`, edição em andamento e já feita, `falhou` pelos três códigos, de terceiro com licença, e jobs `pdf`.
+ * até a última migration, com o que o código de hoje grava: material `processando` e `pronto`, edição em andamento e já feita, `falhou` pelos três códigos, de terceiro com licença, e jobs `pdf`.
  *
  * O SQL que o teste roda **é o do runbook**: ele é lido dos blocos `-- volta-da-f4` do documento, de modo que o procedimento que a pessoa de plantão copia é o que está provado. Depois do bloco 1
- * as linhas passam pela **cópia congelada** do contrato de antes da F4 (`test/schema-antes-da-f4.ts`): nenhum valor novo em `falha` e nada `processando` para a varredura do código anterior. O `licenciante` preenchido no material de terceiro é gravado pelo código novo, e quem o prova é a API (`apps/api/test/material-edicao.int.test.ts`, a herança; `material.int.test.ts`, o envio): este teste não escreve código de produção, e a linha que ele insere à mão nada diria sobre ele. O bloco 2,
+ * as linhas passam pela **cópia congelada** do contrato de antes da F4 (`test/schema-antes-da-f4.ts`): nenhum valor novo em `falha` e nada `processando` para a varredura do código anterior. Desde a contração da F4 (classificacao-bncc, 9.0, migration 0065) o código novo não grava `material.licenciante` e o banco exige a licença no material de terceiro: o bloco 1 solta esse check e copia o licenciante da licença para a linha, que o código anterior lê, e o bloco 2 o põe de volta. Quem prova o envio sem a coluna é a API (`apps/api/test/material.int.test.ts`). O bloco 2,
  * do roll-forward, conserta o que o código anterior gravou durante a volta (material sem série, e de terceiro sem `licenca_id`).
  */
 
@@ -127,9 +127,9 @@ describe('a volta do código depois da F4', () => {
       [escolaId],
     )
 
-    // O que a F4 grava: o material de terceiro com a licença e o `licenciante` copiado, a edição `processando` sobre ele, a já substituída, e as três falhas.
-    const terceiro = await material('terceiro', { estado: 'pronto', titularidade: 'terceiro_com_licenca', licenciante: 'Editora X', licencaId })
-    await material('edicaoEmAndamento', { estado: 'processando', titularidade: 'terceiro_com_licenca', licenciante: 'Editora X', licencaId, substituiId: terceiro })
+    // O que o código de hoje grava (a contração da F4, 0065): o material de terceiro com a licença e **sem** `licenciante` na linha, a edição `processando` sobre ele, a já substituída, e as três falhas.
+    const terceiro = await material('terceiro', { estado: 'pronto', titularidade: 'terceiro_com_licenca', licencaId })
+    await material('edicaoEmAndamento', { estado: 'processando', titularidade: 'terceiro_com_licenca', licencaId, substituiId: terceiro })
     const antigo = await material('antigoSubstituido', { estado: 'pronto', excluido: true })
     const nova = await material('edicaoPronta', { estado: 'pronto', substituiId: antigo })
     await scratch.query('update material set substituido_por = $2 where id = $1', [antigo, nova])
@@ -167,6 +167,17 @@ describe('a volta do código depois da F4', () => {
     expect(porId.get(casos['semTexto'] ?? '')).toMatchObject({ estado: 'falhou', falha: 'sem_texto', processado_em: null })
     const { rows: jobs } = await scratch.query<{ estado: string; total: number }>("select estado, count(*)::int as total from job_registro where fila = 'pdf' group by estado order by estado")
     expect(jobs).toEqual([{ estado: 'concluido', total: 4 }])
+  })
+
+  it('o bloco 1 solta o check da 0065, que o código anterior à F4 violaria, e copia o licenciante da licença para o material de terceiro que ficou sem ele', async () => {
+    const check = await scratch.query("select 1 from pg_constraint where conname = 'material_terceiro_tem_licenca' and conrelid = 'material'::regclass")
+    expect(check.rowCount).toBe(0)
+    const { rows } = await scratch.query<{ id: string; licenciante: string | null }>('select id, licenciante from material where id = any($1::uuid[])', [[casos['terceiro'], casos['edicaoEmAndamento'], casos['edicaoPronta']]])
+    const porId = new Map(rows.map((linha) => [linha.id, linha.licenciante]))
+    expect(porId.get(casos['terceiro'] ?? '')).toBe('Editora X')
+    expect(porId.get(casos['edicaoEmAndamento'] ?? '')).toBe('Editora X')
+    // O que não é de terceiro não ganha licenciante.
+    expect(porId.get(casos['edicaoPronta'] ?? '')).toBeNull()
   })
 
   it('depois do bloco 1, as linhas da F4 passam pela lista de materiais de antes da F4: nenhum valor novo em `falha`, e nada `processando` para o código anterior varrer', async () => {
@@ -221,6 +232,12 @@ describe('a volta do código depois da F4', () => {
     for (const alvo of [daLicencaExistente, daLicencaNova, propria]) expect(series.rows.filter((linha) => linha.material_id === alvo).map((linha) => linha.serie_id).toSorted()).toEqual([serieId, outraSerie].toSorted())
     // O que já tinha série não ganha outra.
     expect((await scratch.query<{ total: number }>('select count(*)::int as total from material_serie where escola_id = $1 and material_id = $2', [escolaId, casos['terceiro']])).rows[0]?.total).toBe(1)
+
+    // O check da 0065 voltou, validado: material de terceiro sem licença é recusado de novo, e o próprio com licença também.
+    const volta = await scratch.query<{ convalidated: boolean }>("select convalidated from pg_constraint where conname = 'material_terceiro_tem_licenca' and conrelid = 'material'::regclass")
+    expect(volta.rows).toEqual([{ convalidated: true }])
+    await expect(material('terceiroSemLicencaDepoisDoBloco2', { estado: 'pronto', titularidade: 'terceiro_com_licenca', comSerie: false })).rejects.toMatchObject({ constraint: 'material_terceiro_tem_licenca' })
+    await expect(material('proprioComLicencaDepoisDoBloco2', { estado: 'pronto', licencaId, comSerie: false })).rejects.toMatchObject({ constraint: 'material_terceiro_tem_licenca' })
 
     // Rodar de novo não duplica nada: o roll-forward pode ser repetido.
     await scratch.query(`begin; ${blocoDoRunbook('bloco 2')}; commit`)

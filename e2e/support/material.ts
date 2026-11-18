@@ -57,7 +57,7 @@ export interface MaterialDeTeste {
   readonly falha?: 'arquivo_invalido' | 'sem_texto' | 'extracao_falhou'
   /** Páginas do material `pronto`; cada uma ganha um trecho. */
   readonly paginas?: number
-  /** A licença registrada que ele cita (ingestao-do-material, 6.0): vira material de terceiro, com um licenciante sintético. */
+  /** A licença registrada que ele cita (ingestao-do-material, 6.0): vira material de terceiro (o licenciante é o dela). */
   readonly licencaId?: string
 }
 
@@ -69,8 +69,8 @@ export function criarMaterialNoBanco(escolaId: string, disciplinaId: string, mat
   return comBanco(async (banco) => {
     const paginas = material.estado === 'pronto' ? (material.paginas ?? 3) : null
     const { rows } = await banco.query<{ id: string }>(
-      `insert into material (escola_id, disciplina_id, titulo, titularidade, licenca, licenciante, licenca_id, declaracao, sha256, tamanho_bytes, paginas, estado, falha)
-       values ($1, $2, $3, $8, $9, $10, $11, true, $4, 48000, $5, $6, $7) returning id`,
+      `insert into material (escola_id, disciplina_id, titulo, titularidade, licenca, licenca_id, declaracao, sha256, tamanho_bytes, paginas, estado, falha)
+       values ($1, $2, $3, $8, $9, $10, true, $4, 48000, $5, $6, $7) returning id`,
       [escolaId, disciplinaId, material.titulo, randomBytes(32).toString('hex'), paginas, material.estado, falhaDoMaterial(material), ...origemDoMaterial(material)],
     )
     const id = rows[0]?.id
@@ -109,10 +109,10 @@ function falhaDoMaterial(material: MaterialDeTeste): string | null {
   return material.estado === 'falhou' ? (material.falha ?? 'sem_texto') : null
 }
 
-/** A titularidade, a licença e o licenciante: o da licença registrada é material de terceiro, e o resto é autoria da escola. */
-function origemDoMaterial(material: MaterialDeTeste): [string, string, string | null, string | null] {
-  if (material.licencaId === undefined) return ['escola', 'autoria_da_escola', null, null]
-  return ['terceiro_com_licenca', 'licenca_comercial_autorizada', 'Editora sintética do teste', material.licencaId]
+/** A titularidade, a licença de uso e a licença registrada: o que cita a licença registrada é material de terceiro, e o resto é autoria da escola. */
+function origemDoMaterial(material: MaterialDeTeste): [string, string, string | null] {
+  if (material.licencaId === undefined) return ['escola', 'autoria_da_escola', null]
+  return ['terceiro_com_licenca', 'licenca_comercial_autorizada', material.licencaId]
 }
 
 export interface LicencaDeTeste {

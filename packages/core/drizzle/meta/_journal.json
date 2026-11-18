@@ -456,6 +456,13 @@
       "when": 1794986425775,
       "tag": "0064_indice_da_classificacao_atrasada",
       "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "7",
+      "when": 1795016317352,
+      "tag": "0065_contracao_da_f4",
+      "breakpoints": true
     }
   ]
 }

@@ -398,12 +398,19 @@ describe('arquivo do titular (F3, tarefa 13.0): do pedido ao download', () => {
       `insert into reivindicacao (escola_id, ano_letivo_id, turma_id, lista_nome_id, estado, decidida_em, decidida_por, decidida_como) values ($1, $2, $3, $4, 'aprovada', now(), $5, 'professor') returning id`,
       [escolaId, anoLetivoId, turma, listaDoOutro, professor.id],
     )
+    // O material de terceiro cita a licença (o check `material_terceiro_tem_licenca`), que ninguém registrou (`registrada_por` nulo): o nome do licenciante mora nela. A coluna `material.licenciante` já não tem quem a grave, e fica
+    // no banco até o `DROP COLUMN` (`TODO.md`); o sentinela dela segue provando que o valor que sobrar lá nunca entra no arquivo.
+    ids['licenca_do_material'] = await inserir(
+      `insert into licenca_de_material (escola_id, licenciante, cobertura, referencia, vigente_desde) values ($1, $2, 'Cobertura do material', 'Referência do material', '2026-03-01') returning id`,
+      [escolaId, sentinela('licenciante-da-licenca-do-material')],
+    )
     ids['material'] = await inserir(
-      `insert into material (escola_id, disciplina_id, titulo, titularidade, licenca, declaracao, sha256, tamanho_bytes, estado, paginas, enviado_por, licenciante)
-       values ($1, $2, 'Material de teste', 'terceiro_com_licenca', 'licenca_aberta', true, replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', ''), 1024, 'pronto', 3, $3, $4) returning id`,
-      [escolaId, quimica, professor.id, sentinela('licenciante')],
+      `insert into material (escola_id, disciplina_id, titulo, titularidade, licenca, declaracao, sha256, tamanho_bytes, estado, paginas, enviado_por, licenciante, licenca_id)
+       values ($1, $2, 'Material de teste', 'terceiro_com_licenca', 'licenca_aberta', true, replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', ''), 1024, 'pronto', 3, $3, $4, $5) returning id`,
+      [escolaId, quimica, professor.id, sentinela('licenciante'), ids['licenca_do_material']],
     )
     textos['material.licenciante'] = (await bancada.pool.query<{ licenciante: string }>('select licenciante from material where id = $1', [ids['material']])).rows[0]?.licenciante ?? ''
+    textos['licenca_do_material.licenciante'] = (await bancada.pool.query<{ licenciante: string }>('select licenciante from licenca_de_material where id = $1', [ids['licenca_do_material']])).rows[0]?.licenciante ?? ''
     // Retomada na hora, por outra pessoa: o banco só aceita uma suspensão vigente por função, e dois professores da escola semeiam.
     ids['suspensao_de_funcao'] = await inserir(
       `insert into suspensao_de_funcao (escola_id, funcao, motivo, suspensa_por, retomada_por, retomada_em) values ($1, 'adaptacao', 'revisao_pedagogica', $2, $3, now() + interval '1 second') returning id`,
@@ -580,6 +587,7 @@ describe('arquivo do titular (F3, tarefa 13.0): do pedido ao download', () => {
       expect(texto).not.toContain(String(doColega.ids['aula']))
       // O nome do dono do direito do material é de terceiro e não é do titular.
       expect(texto).not.toContain(semeado.textos['material.licenciante'])
+      expect(texto).not.toContain(semeado.textos['licenca_do_material.licenciante'])
       for (const id of Object.values(doColega.ids)) expect(texto, 'linha do colega no arquivo').not.toContain(id)
       expect(texto).not.toContain(artefatoDeB)
       expect(texto).not.toContain('titulo-em-B')

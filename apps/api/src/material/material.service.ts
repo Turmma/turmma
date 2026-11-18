@@ -232,7 +232,7 @@ export class MaterialService {
    * 3. só então o arquivo: precisa existir e ter a assinatura de PDF no conteúdo, ou `ENTRADA_INVALIDA` (o tamanho já
    *    foi limitado no recebimento);
    * 4. os tetos de envio, com a escola travada, **a licença de novo, `for share`** (um `PATCH` da vigência espera o envio; a que deixou de valer desfaz o envio, grava a recusa e responde
-   *    `LICENCA_VENCIDA`), e a gravação do material `processando` com as séries e `material.enviado`, na mesma transação. O licenciante do material é o da licença, nunca o do pedido. O
+   *    `LICENCA_VENCIDA`), e a gravação do material `processando` com as séries e `material.enviado`, na mesma transação. O licenciante da resposta é o da licença, nunca o do pedido, e o material não o grava. O
    *    mesmo arquivo de novo na escola é `CONFLITO`, pelo índice único;
    * 5. o job de extração é pedido e a resposta sai, com o material ainda `processando` (regra 00, item 4).
    *
@@ -276,7 +276,6 @@ export class MaterialService {
           disciplinaId,
           titulo: pedido.titulo,
           titularidade: pedido.titularidade,
-          licenciante: vigente?.licenciante ?? null,
           licencaId: licencaId ?? null,
           licenca,
           sha256,
@@ -285,7 +284,7 @@ export class MaterialService {
         await materiais.gravarSeries(novo.id, serieIds)
         await registro.gravar(tx, 'material.enviado', { entidadeId: novo.id, depois: { disciplinaId, titularidade: pedido.titularidade, licenca, declaracao: true } })
         await this.dependencias.enfileirador.enfileirarUmaVez(tx, TIPO_EXTRAIR_PDF, { materialId: novo.id }, novo.id)
-        return { ...novo, serieIds: serieIds.toSorted() }
+        return { ...novo, licenciante: vigente?.licenciante ?? null, serieIds: serieIds.toSorted() }
       },
       () => this.#registrarRecusa(pedido, disciplinaId, serieIds, 'licenca_vencida'),
     )
@@ -347,7 +346,6 @@ export class MaterialService {
       disciplinaId: alvo.disciplinaId,
       titulo: pedido.titulo ?? alvo.titulo,
       titularidade: alvo.titularidade,
-      licenciante: vigente?.licenciante ?? alvo.licenciante,
       licencaId: alvo.licencaId,
       licenca: alvo.licenca,
       sha256: arquivo.sha256,
@@ -361,7 +359,7 @@ export class MaterialService {
       depois: { substituiId: alvo.id, disciplinaId: alvo.disciplinaId, titularidade: alvo.titularidade, licenca: alvo.licenca, declaracao: true },
     })
     await this.dependencias.enfileirador.enfileirarUmaVez(tx, TIPO_EXTRAIR_PDF, { materialId: nova.id }, nova.id)
-    return { ...nova, serieIds: herdadas }
+    return { ...nova, licenciante: vigente?.licenciante ?? null, serieIds: herdadas }
   }
 
   /** A licença registrada, lida **`for share`** dentro da transação do envio: a que deixou de valer entre a entrada e aqui (ou sumiu) desfaz o envio. Sem `licencaId`, nada a ler. */

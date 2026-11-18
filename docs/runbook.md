@@ -1148,8 +1148,17 @@ resolvê-la é a coordenação, renomeando a turma.
 ## Voltar o código depois da F4 (rollback)
 
 *Procedimento, não alerta: não há regra em `infra/grafana/alertas/`. Vale para qualquer volta de versão que passe pelas migrations
-`0049` a `0056` (ingestão do material, F4; tarefas 1.0 a 8.0; Tech Spec da ingestão, seções 3 e 5). O que o teste prova está em
-`packages/core/src/db/volta-da-f4.int.test.ts`, que roda os dois blocos de SQL desta seção.*
+`0049` a `0056` (ingestão do material, F4; tarefas 1.0 a 8.0; Tech Spec da ingestão, seções 3 e 5), e também pela `0065` (a contração da F4, classificacao-bncc, tarefa 9.0: veja "A `0065`" abaixo). O que o teste prova está em
+`packages/core/src/db/volta-da-f4.int.test.ts`, que roda os dois blocos de SQL desta seção, e em `packages/core/src/db/contracao-da-f4.int.test.ts`, que roda o bloco "volta ao código da F4".*
+
+**A `0065` fecha esta volta, a menos do passo extra dos blocos.** Ela deixou no banco o check `material_terceiro_tem_licenca` (todo material de terceiro leva `licenca_id`, e só ele) e tirou os dois checks de `licenciante`; o código anterior à F4 grava o material de terceiro com o `licenciante` na linha e **sem** `licenca_id`, e o banco o recusaria. Por isso o bloco 1 solta o check antes de o código anterior subir, copia o `licenciante` da licença para a linha do material que ficou sem ele (o código de hoje não o grava) e o bloco 2 o põe de volta depois de ligar o material à licença. O código da F4 anterior à 9.0 (o que grava `licenca_id` e `licenciante`) **sobe sem soltar o check**, que ele cumpre, mas **lê** o licenciante da linha do material, e o código da 9.0 deixou de gravá-lo: todo material de terceiro enviado ou editado desde o deploy da 9.0 aparece à coordenação sem o nome do licenciante. Por isso, antes de subir esse código, rode o bloco "volta ao código da F4" abaixo, com `psql -1`; é a mesma cópia que o bloco 1 faz, sem soltar o check. **Depois do `DROP COLUMN material.licenciante`** (`TODO.md`, deploy seguinte à 9.0) **a volta para antes da F4 deixa de existir**: o código anterior lê a coluna, e esta seção sai do runbook com ele.
+
+```sql
+-- volta-da-f4: volta ao código da F4 (anterior à 9.0), antes de subir
+update material m set licenciante = l.licenciante
+  from licenca_de_material l
+ where l.escola_id = m.escola_id and l.id = m.licenca_id and m.licenciante is null;
+```
 
 **O que as migrations deixaram:** as colunas `material.processado_em`, `objeto_apagado_em`, `licenca_id`, `edicao`, `substitui_id` e
 `substituido_por`, as tabelas `capitulo_do_material`, `licenca_de_material`, `material_serie` e `envio_de_material`, o índice
@@ -1175,11 +1184,15 @@ Tutor a única marca do que a licença cobre e de que série o material é.
   aparece na busca de toda a escola enquanto não houver série, e o aviso de vencimento não o alcança. É o que o bloco 2 conserta no roll-forward.
 
 **Antes de voltar:** pare a API, o `worker-pdf` e o worker de lote (nenhum deles pode tomar um job no meio do passo), e rode o bloco 1 numa
-transação, na entrada do `psql`: `docker compose exec -T postgres psql -U educa -1 -v ON_ERROR_STOP=1`. Ele fecha como `falhou`, com
+transação, na entrada do `psql`: `docker compose exec -T postgres psql -U educa -1 -v ON_ERROR_STOP=1`. Ele solta o check da `0065`, copia o licenciante da licença para o material de terceiro que ficou sem ele, fecha como `falhou`, com
 `extracao_falhou` (nenhum valor novo em `falha`, que o código anterior não conhece) e com `processado_em`, os materiais `processando`, e conclui os jobs `pdf` que não terminaram (`aguardando`, `reservado`, `publicado` e `ativo`). Só então suba o código anterior. A coordenação vê "o arquivo não foi lido" no material fechado e envia de novo.
 
 ```sql
 -- volta-da-f4: bloco 1, antes de subir o código anterior
+alter table material drop constraint if exists material_terceiro_tem_licenca;
+update material m set licenciante = l.licenciante
+  from licenca_de_material l
+ where l.escola_id = m.escola_id and l.id = m.licenca_id and m.licenciante is null;
 update material set estado = 'falhou', falha = 'extracao_falhou', processado_em = now()
  where estado = 'processando' and excluido_em is null;
 update job_registro set estado = 'concluido', concluido_em = now()
@@ -1191,7 +1204,7 @@ deve dar 0, e `select count(*) from job_registro where fila = 'pdf' and estado n
 
 **Na volta para a versão nova (roll-forward), antes de reabrir o envio:** rode o bloco 2, também com `psql -1`. Ele dá a todo material que
 nasceu sem série **todas as séries da escola** (a mesma conta da `0055`), e liga o material de terceiro sem `licenca_id` à licença da
-escola com o mesmo `licenciante`, ou cria uma "registrada durante a volta do código", com o começo no `enviado_em` mais antigo (a mesma conta da `0053`).
+escola com o mesmo `licenciante`, ou cria uma "registrada durante a volta do código", com o começo no `enviado_em` mais antigo (a mesma conta da `0053`). No fim, põe de volta o check da `0065` (`NOT VALID` e `VALIDATE`): material de terceiro sem licença não fica no banco.
 Depois suba o worker: nenhum job `pdf` da época da volta existe mais (o bloco 1 os concluiu), os envios novos entram na fila `pdf` normalmente, e a varredura de 61 minutos limpa o que sobrou no storage.
 
 ```sql
@@ -1212,6 +1225,10 @@ update material m set licenca_id = (
   select l.id from licenca_de_material l
    where l.escola_id = m.escola_id and l.licenciante = m.licenciante order by l.vigente_desde desc, l.id limit 1)
  where m.licenca_id is null and m.licenciante is not null;
+alter table material drop constraint if exists material_terceiro_tem_licenca;
+alter table material add constraint material_terceiro_tem_licenca
+  check ((titularidade = 'terceiro_com_licenca') = (licenca_id is not null)) not valid;
+alter table material validate constraint material_terceiro_tem_licenca;
 ```
 
 Se a licença que o bloco 2 ligou a um material já está vencida, o material sai da busca: a coordenação a estende em Licenças, e ele volta sem

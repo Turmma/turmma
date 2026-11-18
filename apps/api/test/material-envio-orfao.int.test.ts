@@ -491,7 +491,7 @@ describe('o envio de material não deixa PDF para trás', () => {
     expect((await alteracao)?.status).toBe(200)
     expect((await materiaisDa(bancada, escolaId))[0]).toMatchObject({ estado: 'processando' })
     const { rows } = await bancada.pool.query<{ licenciante: string | null; licenca_id: string | null }>('select licenciante, licenca_id from material where escola_id = $1', [escolaId])
-    expect(rows).toEqual([{ licenciante: 'Editora do envio', licenca_id: licencaId }])
+    expect(rows).toEqual([{ licenciante: null, licenca_id: licencaId }])
     await esperarExtracao(api)
   })
 })

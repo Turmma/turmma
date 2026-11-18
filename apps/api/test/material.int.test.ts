@@ -15,6 +15,7 @@ import { montarEscolaComTurma as montarEscola, type EscolaComTurma } from './esc
 import {
   apagarMateriais,
   auditoriaDa,
+  enviarEdicaoDeMaterial,
   enviarMaterial,
   esperarExtracao,
   extrairMaterial,
@@ -165,7 +166,7 @@ describe('material da escola', () => {
       expect(execucoes.rows).toEqual([{ estado: 'pendente' }])
     })
 
-    it('material de terceiro cita a licença registrada e copia o licenciante dela; o pedido não traz nome, e `licencaId` em material próprio é `ENTRADA_INVALIDA` e nada é gravado', async () => {
+    it('material de terceiro cita a licença registrada e a resposta traz o licenciante dela, sem o material o gravar; o pedido não traz nome, e `licencaId` em material próprio é `ENTRADA_INVALIDA` e nada é gravado', async () => {
       const escola = await montarEscolaComTurma(api, bancada)
       const licencaId = await registrarLicencaDeTeste(api, escola.coordenacao)
       const deTerceiro = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica, titularidade: 'terceiro_com_licenca', licenca: 'licenca_comercial_autorizada', licencaId })
@@ -180,8 +181,9 @@ describe('material da escola', () => {
       const comEscola = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica, extra: { escolaId: escola.coordenacao.escolaId } }, { arquivo: variacaoDoPdf() })
       for (const resposta of [licencaIdEmProprio, comLicenciante, comEscola]) expect(erroDe(resposta)).toEqual({ status: 400, codigo: ErrorCode.ENTRADA_INVALIDA })
       expect(await materiaisDa(bancada, escola.coordenacao.escolaId)).toHaveLength(1)
-      const [linha] = await bancada.pool.query<{ licenciante: string; licenca_id: string }>('select licenciante, licenca_id from material where escola_id = $1', [escola.coordenacao.escolaId]).then((r) => r.rows)
-      expect(linha).toEqual({ licenciante: 'Editora sintética', licenca_id: licencaId })
+      // O material só aponta a licença: a coluna `licenciante` (que fica no banco até o `DROP COLUMN`) já não é gravada.
+      const [linha] = await bancada.pool.query<{ licenciante: string | null; licenca_id: string }>('select licenciante, licenca_id from material where escola_id = $1', [escola.coordenacao.escolaId]).then((r) => r.rows)
+      expect(linha).toEqual({ licenciante: null, licenca_id: licencaId })
     })
 
     it('os campos ao lado do arquivo passam pelo ZodValidationPipe: o PDF válido com campo fora do contrato é `ENTRADA_INVALIDA`, e o arquivo nem chega à leitura nem vira material (17.0)', async () => {
@@ -222,6 +224,56 @@ describe('material da escola', () => {
       const listadoPeloProfessor = await get(professor, '/v1/materiais')
       expect(listadoPeloProfessor.corpo['itens']).toEqual([expect.objectContaining({ id, licenciante: null })])
       expect(JSON.stringify([lidoPeloProfessor.corpo, listadoPeloProfessor.corpo])).not.toContain('Editora sintética')
+    })
+
+    describe('a contração da F4 (classificacao-bncc, 9.0): o código não lê nem grava `material.licenciante`', () => {
+      // A coluna fica no banco até o `DROP COLUMN` do deploy seguinte; renomeada, qualquer consulta que ainda a nomeie quebra. Os arquivos de teste rodam um por vez (`fileParallelism: false`).
+      // Idempotente: se um processo anterior caiu entre o `beforeAll` e o `afterAll`, a coluna sobrou renomeada, e o início a devolve antes de renomear (senão o `rename` cairia e o banco ficaria assim até o `EDUCA_BANCO_NOVO=1`).
+      // O caso trava `material` por um instante (o `rename` pede `ACCESS EXCLUSIVE`) e quebra quem consulta a coluna por outro processo no mesmo banco: por isso só roda onde os arquivos rodam um por vez.
+      beforeAll(async () => {
+        await bancada.pool.query(`do $$ begin
+          if exists (select 1 from information_schema.columns where table_name = 'material' and column_name = 'licenciante_renomeada_no_teste')
+             and not exists (select 1 from information_schema.columns where table_name = 'material' and column_name = 'licenciante') then
+            alter table material rename column licenciante_renomeada_no_teste to licenciante;
+          end if;
+          alter table material rename column licenciante to licenciante_renomeada_no_teste;
+        end $$`)
+      })
+      afterAll(async () => {
+        await bancada.pool.query(`do $$ begin
+          if exists (select 1 from information_schema.columns where table_name = 'material' and column_name = 'licenciante_renomeada_no_teste') then
+            alter table material rename column licenciante_renomeada_no_teste to licenciante;
+          end if;
+        end $$`)
+      })
+
+      it('o envio, a lista, a leitura por id e a edição passam; o licenciante da resposta é o que a licença tem hoje, e o professor continua sem ele', async () => {
+        const escola = await montarEscolaComTurma(api, bancada)
+        const escolaId = escola.coordenacao.escolaId
+        const licencaId = await registrarLicencaDeTeste(api, escola.coordenacao, { licenciante: 'Editora do envio' })
+        const proprio = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica }, { arquivo: variacaoDoPdf() })
+        const deTerceiro = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica, titularidade: 'terceiro_com_licenca', licenca: 'licenca_comercial_autorizada', licencaId })
+        expect(proprio.status).toBe(201)
+        expect(proprio.corpo).toMatchObject({ licenciante: null, licencaId: null })
+        expect(deTerceiro.status).toBe(201)
+        expect(deTerceiro.corpo).toMatchObject({ licenciante: 'Editora do envio', licencaId })
+        await esperarExtracao(api)
+        const id = deTerceiro.corpo['id'] as string
+
+        // A coordenação renomeia o licenciante na licença: a leitura traz o nome novo, porque o material não guarda o dele.
+        await bancada.pool.query("update licenca_de_material set licenciante = 'Editora corrigida' where escola_id = $1 and id = $2", [escolaId, licencaId])
+        expect((await get(escola.coordenacao, `/v1/materiais/${id}`)).corpo).toMatchObject({ id, licenciante: 'Editora corrigida' })
+        const lista = listaDeMateriaisResponseSchema.parse((await get(escola.coordenacao, '/v1/materiais')).corpo).itens
+        expect(lista.find((item) => item.id === id)?.licenciante).toBe('Editora corrigida')
+        expect(lista.find((item) => item.id === proprio.corpo['id'])?.licenciante).toBeNull()
+        const professor = await professorCom(escola, escola.quimica, true)
+        expect((await get(professor, `/v1/materiais/${id}`)).corpo).toMatchObject({ id, licenciante: null })
+
+        const edicao = await enviarEdicaoDeMaterial(api, escola.coordenacao, id)
+        expect(edicao.status).toBe(201)
+        expect(edicao.corpo).toMatchObject({ licenciante: 'Editora corrigida', licencaId, substitui: id })
+        await esperarExtracao(api)
+      })
     })
   })
 
