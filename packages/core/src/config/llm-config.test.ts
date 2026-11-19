@@ -35,7 +35,7 @@ function erroDe(ambiente: Record<string, string | undefined>): InvalidConfigErro
   throw new Error('a configuração deveria ter sido recusada')
 }
 
-describe('lerConfiguracaoDeIa', () => {
+describe('loadLLMConfig', () => {
   it('sem nenhuma variável de IA, sobe com o adaptador falso: nada novo é obrigatório', () => {
     expect(loadLLMConfig(LOCAL)).toEqual({ adaptador: 'falso', prazosMs: PRAZOS_PADRAO, recuoMs: 500, replicas: 1 })
   })

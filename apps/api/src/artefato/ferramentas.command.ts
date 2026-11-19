@@ -31,11 +31,11 @@ const trechosDaTarefa = (lido: LidoDaFerramenta) => lido.entregues.map(({ materi
  * e busca os trechos. Os ids dos parâmetros são `jsonb`, sem FK: é a releitura pelo repository, no escopo, que os confere.
  * Quem chama já conferiu que a execução é da tarefa deste comando (`ExecucaoScheduler`), por isso a entrada é a dela.
  */
-async function lerDaFerramenta(banco: Database, trechos: TrechoSearch, parametros: ParametrosDeFerramenta): Promise<LidoDaFerramenta> {
+async function readDaFerramenta(banco: Database, trechos: TrechoSearch, parametros: ParametrosDeFerramenta): Promise<LidoDaFerramenta> {
   const turma = await new TurmaDoProfessorRepository(banco).turmaComDisciplina(parametros.turmaId, parametros.disciplinaId)
   if (turma === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
   // A porta de trechos não confere papel: o vínculo confirmado na disciplina foi conferido logo acima.
-  const achados = await trechos.buscar({ texto: parametros.tema, disciplinaId: parametros.disciplinaId, serieId: turma.serieId, limite: TRECHOS_NA_FERRAMENTA })
+  const achados = await trechos.find({ texto: parametros.tema, disciplinaId: parametros.disciplinaId, serieId: turma.serieId, limite: TRECHOS_NA_FERRAMENTA })
   if (achados.length === 0) throw new LLMError('MATERIAL_INSUFICIENTE')
   // A busca escolhe por relevância; a tarefa recebe as páginas escolhidas na ordem do material, como quem lê o capítulo.
   const entregues = [...achados].sort((a, b) => a.materialId.localeCompare(b.materialId) || a.pagina - b.pagina)
@@ -43,12 +43,12 @@ async function lerDaFerramenta(banco: Database, trechos: TrechoSearch, parametro
 }
 
 /** Na transação que conclui a execução: confere as citações contra o que foi entregue, valida o conteúdo e grava o artefato. */
-async function gravarArtefato(saida: ConteudoDoArtefato, { parametros, entregues }: LidoDaFerramenta, tx: DatabaseTransaction, execucaoId: string): Promise<ResultadoGravado> {
+async function saveArtefato(saida: ConteudoDoArtefato, { parametros, entregues }: LidoDaFerramenta, tx: DatabaseTransaction, execucaoId: string): Promise<ResultadoGravado> {
   const conteudo = conteudoDoArtefatoSchema.safeParse(saida)
   // A versão adaptada só nasce pela Adaptação, com entrega: a geração nunca grava conteúdo com `adaptacao`.
   if (!conteudo.success || (conteudo.data.tipo === 'atividade_objetiva' && conteudo.data.adaptacao !== undefined)) throw new LLMError('IA_SAIDA_INVALIDA')
   exigirCitacoesEntregues(citacoesDoConteudo(conteudo.data), entregues)
-  const artefatoId = await new ArtefatoRepository(tx).criar({ turmaId: parametros.turmaId, disciplinaId: parametros.disciplinaId, conteudo: conteudo.data, execucaoId })
+  const artefatoId = await new ArtefatoRepository(tx).create({ turmaId: parametros.turmaId, disciplinaId: parametros.disciplinaId, conteudo: conteudo.data, execucaoId })
   return { tipo: 'artefato', artefatoId, entregaId: null }
 }
 
@@ -70,7 +70,7 @@ export class GerarAtividadeObjetivaCommand implements ExecucaoCommand<EntradaDaT
   ) {}
 
   async preparar(execucao: ExecucaoLida): Promise<Preparado<EntradaDaTarefa<typeof gerarAtividadeObjetiva>, LidoDaFerramenta>> {
-    const lido = await lerDaFerramenta(this.banco, this.trechos, parametrosGravados(execucao))
+    const lido = await readDaFerramenta(this.banco, this.trechos, parametrosGravados(execucao))
     return {
       lido,
       entrada: { tema: lido.parametros.tema, quantidade: lido.parametros.quantidade ?? QUESTOES_PADRAO_POR_ATIVIDADE, contexto: lido.contexto, habilidades: lido.habilidades, trechos: trechosDaTarefa(lido) },
@@ -78,7 +78,7 @@ export class GerarAtividadeObjetivaCommand implements ExecucaoCommand<EntradaDaT
   }
 
   concluir(saida: SaidaDaTarefa<typeof gerarAtividadeObjetiva>, lido: LidoDaFerramenta, tx: DatabaseTransaction, execucaoId: string): Promise<ResultadoGravado> {
-    return gravarArtefato(saida, lido, tx, execucaoId)
+    return saveArtefato(saida, lido, tx, execucaoId)
   }
 }
 
@@ -93,11 +93,11 @@ export class GerarPlanoDeAulaCommand implements ExecucaoCommand<EntradaDaTarefa<
   ) {}
 
   async preparar(execucao: ExecucaoLida): Promise<Preparado<EntradaDaTarefa<typeof gerarPlanoDeAula>, LidoDaFerramenta>> {
-    const lido = await lerDaFerramenta(this.banco, this.trechos, parametrosGravados(execucao))
+    const lido = await readDaFerramenta(this.banco, this.trechos, parametrosGravados(execucao))
     return { lido, entrada: { tema: lido.parametros.tema, duracaoMinutos: DURACAO_PADRAO_DO_PLANO_DE_AULA_MIN, contexto: lido.contexto, habilidades: lido.habilidades, trechos: trechosDaTarefa(lido) } }
   }
 
   concluir(saida: SaidaDaTarefa<typeof gerarPlanoDeAula>, lido: LidoDaFerramenta, tx: DatabaseTransaction, execucaoId: string): Promise<ResultadoGravado> {
-    return gravarArtefato(saida, lido, tx, execucaoId)
+    return saveArtefato(saida, lido, tx, execucaoId)
   }
 }

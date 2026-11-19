@@ -49,26 +49,26 @@ export class EscolaConcurrencyLimiter {
    * Não garante nada: quem garante é `tomar`, depois da reserva.
    */
   async livres(fila: QueueName, escolaId: string | null, limite: number): Promise<number> {
-    return Number(await this.executar(this.chave(fila, escolaId), 'livres', limite))
+    return Number(await this.run(this.chave(fila, escolaId), 'livres', limite))
   }
 
   /** Vagas tomadas agora na escola e fila, sem as vencidas. É a métrica `fila.vagas_em_uso`. */
   async emUso(fila: QueueName, escolaId: string | null): Promise<number> {
     // `livres` com limite 0 devolve menos as vagas em uso, depois de tirar as vencidas, no mesmo script.
-    return 0 - Number(await this.executar(this.chave(fila, escolaId), 'livres', 0))
+    return 0 - Number(await this.run(this.chave(fila, escolaId), 'livres', 0))
   }
 
   /** Toma vaga para cada job, na ordem, até o limite. Devolve os que ficaram com vaga; job que já tinha, mantém. */
   async tomar(fila: QueueName, escolaId: string | null, limite: number, jobIds: readonly string[]): Promise<ReadonlySet<string>> {
     if (jobIds.length === 0) return new Set()
-    const concedidos = await this.executar(this.chave(fila, escolaId), 'tomar', this.validadeMs, limite, ...jobIds)
+    const concedidos = await this.run(this.chave(fila, escolaId), 'tomar', this.validadeMs, limite, ...jobIds)
     if (!Array.isArray(concedidos)) throw new InvariantException('concurrency-slot.lua devolveu resposta inesperada ao tomar')
     return new Set(concedidos.map(String))
   }
 
   /** Renova a vaga do job em execução por mais uma validade. */
   async renovar(fila: QueueName, escolaId: string | null, jobId: string): Promise<void> {
-    await this.executar(this.chave(fila, escolaId), 'renovar', this.validadeMs, jobId)
+    await this.run(this.chave(fila, escolaId), 'renovar', this.validadeMs, jobId)
   }
 
   /** Os jobs que têm vaga na escola e fila, vencida ou não: no máximo cerca do limite dela. */
@@ -83,16 +83,16 @@ export class EscolaConcurrencyLimiter {
    */
   async manter(fila: QueueName, escolaId: string | null, jobIds: readonly string[]): Promise<void> {
     if (jobIds.length === 0) return
-    await this.executar(this.chave(fila, escolaId), 'manter', this.validadeMs, ...jobIds)
+    await this.run(this.chave(fila, escolaId), 'manter', this.validadeMs, ...jobIds)
   }
 
-  async liberar(fila: QueueName, escolaId: string | null, jobIds: readonly string[]): Promise<void> {
+  async release(fila: QueueName, escolaId: string | null, jobIds: readonly string[]): Promise<void> {
     if (jobIds.length === 0) return
-    await this.executar(this.chave(fila, escolaId), 'liberar', ...jobIds)
+    await this.run(this.chave(fila, escolaId), 'liberar', ...jobIds)
   }
 
   /** `EVALSHA`, e `EVAL` só na primeira vez que este Redis vê o script (ou depois de ele reiniciar sem o cache). */
-  private async executar(chave: string, ...argumentos: Array<string | number>): Promise<unknown> {
+  private async run(chave: string, ...argumentos: Array<string | number>): Promise<unknown> {
     try {
       return await this.redis.evalsha(SHA_DO_SCRIPT, 1, chave, ...argumentos)
     } catch (erro) {

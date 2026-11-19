@@ -70,7 +70,7 @@ export const TEXTO_DO_RASCUNHO_EM_PDF = 'Esta versão ainda espera a sua decisã
 export const TEXTO_DA_REJEITADA_SEM_PDF = 'Esta versão foi rejeitada e não pode ser exportada: ela não vai aos alunos. Peça outra versão adaptada a partir da atividade de origem.'
 
 /** O título só muda enquanto a versão adaptada espera a decisão: depois de decidida, o que foi decidido não muda de nome. */
-export function podeRenomear(entrega: { readonly estado: Entrega['estado'] } | null): boolean {
+export function canRenomear(entrega: { readonly estado: Entrega['estado'] } | null): boolean {
   return entrega === null || entrega.estado === 'pendente'
 }
 
@@ -86,7 +86,7 @@ export const FILTROS_DO_TIME = [
 ] as const
 export type FiltroDoTime = (typeof FILTROS_DO_TIME)[number]['id']
 
-export function ehFiltroDoTime(valor: string): valor is FiltroDoTime {
+export function isFiltroDoTime(valor: string): valor is FiltroDoTime {
   return FILTROS_DO_TIME.some((filtro) => filtro.id === valor)
 }
 

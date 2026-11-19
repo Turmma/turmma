@@ -11,7 +11,7 @@ export class OperadorMeController {
   @Get()
   @OperacaoRoute()
   @Header('Cache-Control', 'no-store')
-  obter(): Promise<EuDoOperadorResponse> {
-    return this.eu.obter()
+  get(): Promise<EuDoOperadorResponse> {
+    return this.eu.get()
   }
 }

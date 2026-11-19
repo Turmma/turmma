@@ -57,7 +57,7 @@ export function houveMudanca(material: Pick<Material, 'titulo' | 'serieIds'>, ra
  * O material tem uma edição sendo lida? É a edição que ainda está `processando` e substitui este material, **ou** o próprio material, se ele é essa edição. Enquanto isso, a API recusa o `PATCH` e outra edição
  * (`EDICAO_EM_ANDAMENTO`), e o painel nem os oferece.
  */
-export function temEdicaoEmAndamento(material: Pick<Material, 'id' | 'estado' | 'substitui'>, lista: readonly Pick<Material, 'estado' | 'substitui'>[]): boolean {
+export function hasEdicaoEmAndamento(material: Pick<Material, 'id' | 'estado' | 'substitui'>, lista: readonly Pick<Material, 'estado' | 'substitui'>[]): boolean {
   if (material.estado === 'processando' && material.substitui !== null) return true
   return lista.some((outro) => outro.estado === 'processando' && outro.substitui === material.id)
 }

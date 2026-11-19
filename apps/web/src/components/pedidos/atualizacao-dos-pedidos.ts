@@ -32,12 +32,12 @@ export interface BrowserTab {
  */
 export function agendarRelitura(atualizar: () => void, aba: BrowserTab, intervaloMs: number): () => void {
   let relogio: ReturnType<typeof setInterval> | undefined
-  function parar(): void {
+  function stop(): void {
     if (relogio !== undefined) clearInterval(relogio)
     relogio = undefined
   }
   function comecar(): void {
-    parar()
+    stop()
     if (aba.visibilityState === 'visible') relogio = setInterval(atualizar, intervaloMs)
   }
   function aoMudarDeVista(): void {
@@ -47,7 +47,7 @@ export function agendarRelitura(atualizar: () => void, aba: BrowserTab, interval
   comecar()
   aba.addEventListener('visibilitychange', aoMudarDeVista)
   return () => {
-    parar()
+    stop()
     aba.removeEventListener('visibilitychange', aoMudarDeVista)
   }
 }
@@ -82,7 +82,7 @@ export function semOsDecididos(marcados: readonly string[], resposta: DecisaoRes
 }
 
 /** Dá para marcar mais um? Uma decisão leva até 40 pedidos (RF12): o 41º fica desligado, com o texto do limite. */
-export function podeMarcarMais(marcados: number): boolean {
+export function canMarcarMais(marcados: number): boolean {
   return marcados < MAXIMO_DE_PEDIDOS_POR_DECISAO
 }
 
@@ -92,7 +92,7 @@ export function podeMarcarMais(marcados: number): boolean {
  */
 export function alternarMarca(marcados: readonly string[], id: string): string[] {
   if (marcados.includes(id)) return marcados.filter((marcado) => marcado !== id)
-  return podeMarcarMais(marcados.length) ? [...marcados, id] : [...marcados]
+  return canMarcarMais(marcados.length) ? [...marcados, id] : [...marcados]
 }
 
 /** Quantos pedidos da lista de agora não estavam na de antes. */

@@ -20,7 +20,7 @@ export class CronEscolasRepository {
       'no worker-lote, precisam saber quais escolas existem; devolve só os ids, sem nenhum outro campo da escola nem dado de ' +
       'pessoa, e não atende requisição de escola nenhuma',
   )
-  async listarIds(): Promise<string[]> {
+  async listIds(): Promise<string[]> {
     const linhas = await this.banco.select({ id: escola.id }).from(escola).orderBy(asc(escola.id))
     return linhas.map(({ id }) => id)
   }

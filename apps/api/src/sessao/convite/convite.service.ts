@@ -30,7 +30,7 @@ import { ConviteRepository } from './convite.repository.js'
 import type { ChallengeIssuer } from '../../credencial/challenge.js'
 import { BYTES_DO_TOKEN_DE_CONVITE, hashDoToken } from '../../credencial/token-hash.js'
 import type { PasswordHasher } from '../../credencial/password-hasher.js'
-import { normalizarEmail } from '../../credencial/login-identifiers.js'
+import { normalizeEmail } from '../../credencial/login-identifiers.js'
 import { TenantResolutionRepository, type PosseDaConta, type UsuarioComConviteAceito } from '../tenant/tenant-resolution.repository.js'
 import type { AuthorCheck } from '../author-check.js'
 
@@ -102,7 +102,7 @@ class PosseNaoProvada extends Error {}
 export class ConviteService {
   constructor(private readonly dependencias: ConviteDependencies) {}
 
-  async consultar(token: string): Promise<ConsultarConviteResponse> {
+  async find(token: string): Promise<ConsultarConviteResponse> {
     const valido = await this.dependencias.resolucao.conviteValidoPorHash(hashDoToken(token))
     if (valido === undefined) throw conviteInvalido()
     const requisicaoId = currentContext()?.requisicaoId ?? randomUUID()
@@ -119,14 +119,14 @@ export class ConviteService {
     if (exigeVerificacao(valido)) return this.#pedirVerificacao(valido.contaId)
     if (!valido.contaTemSenha && pedido.senha === undefined) throw new DomainException(ErrorCode.ENTRADA_INVALIDA)
     // O hash sai antes da transação, para ela não segurar a linha do convite durante o argon2.
-    const senhaHash = !valido.contaTemSenha && pedido.senha !== undefined ? await hash.gerar(pedido.senha) : undefined
+    const senhaHash = !valido.contaTemSenha && pedido.senha !== undefined ? await hash.generate(pedido.senha) : undefined
     const requisicaoId = currentContext()?.requisicaoId ?? randomUUID()
 
     // A escola da trava é a do convite lido pelo hash: o `token_hash` é único, e o `update` abaixo acha o mesmo convite.
     const aceite = await runInContext({ requisicaoId, escolaId: valido.escolaId }, () =>
       banco.transaction(async (tx) => {
         // A trava da escola primeiro, antes de prender a linha do convite: ver o docblock.
-        await new ConviteRepository(tx).travarEscola()
+        await new ConviteRepository(tx).lockEscola()
         const resolucaoNaTransacao = new TenantResolutionRepository(tx)
         const usado = await resolucaoNaTransacao.usarConvitePorHash(tokenHash)
         if (usado === undefined) return undefined
@@ -142,8 +142,8 @@ export class ConviteService {
           // O usuário que não ativa desfaz o uso do convite e a senha: a resposta é a de convite inválido.
           if (senhaDefinida && !(await new ConviteRepository(tx).ativarPorConvite(usado.usuarioId, usado.id))) throw conviteInvalido()
           // O link veio por e-mail: abri-lo prova a posse do endereço. Só a passagem de não verificada a verificada é fato novo.
-          if (valido.canal === 'email' && (await resolucaoNaTransacao.marcarEmailVerificado(valido.contaId))) await registro.gravar(tx, 'conta.email_verificado', { entidadeId: usado.usuarioId })
-          await registro.gravar(tx, 'convite.aceito', { entidadeId: usado.id, depois: { tipo: valido.tipo, usuarioId: usado.usuarioId, usuarioAtivo: senhaDefinida } })
+          if (valido.canal === 'email' && (await resolucaoNaTransacao.marcarEmailVerificado(valido.contaId))) await registro.save(tx, 'conta.email_verificado', { entidadeId: usado.usuarioId })
+          await registro.save(tx, 'convite.aceito', { entidadeId: usado.id, depois: { tipo: valido.tipo, usuarioId: usado.usuarioId, usuarioAtivo: senhaDefinida } })
         })
         return { senhaDefinida, conviteId: usado.id }
       }),
@@ -192,7 +192,7 @@ export class AtivacaoPorConvite {
    */
   async conviteDoBilhete(bilhete: string | undefined, contaId: string): Promise<string | undefined> {
     if (bilhete === undefined) return undefined
-    const verificado = await this.bilhetes.verificar(bilhete)
+    const verificado = await this.bilhetes.verify(bilhete)
     return verificado?.contaId === contaId ? verificado.conviteId : undefined
   }
 
@@ -208,9 +208,9 @@ export class AtivacaoPorConvite {
     await runInContext({ requisicaoId, escolaId: pendente.escolaId, usuarioId: pendente.usuarioId }, () =>
       this.banco.transaction(async (tx) => {
         const convites = new ConviteRepository(tx)
-        await convites.travarEscola()
+        await convites.lockEscola()
         if (!(await convites.ativarPorConvite(pendente.usuarioId, pendente.conviteId))) return
-        await registro.gravar(tx, 'usuario.ativado_por_convite', { entidadeId: pendente.usuarioId, depois: { conviteId: pendente.conviteId } })
+        await registro.save(tx, 'usuario.ativado_por_convite', { entidadeId: pendente.usuarioId, depois: { conviteId: pendente.conviteId } })
       }),
     )
   }
@@ -227,7 +227,7 @@ export type PedidoDeConvite = { readonly email: string; readonly nome: string } 
  * Escola inexistente: `NAO_ENCONTRADO`, antes de qualquer escrita.
  */
 async function coordenacaoSobATrava(convites: ConviteRepository): Promise<{ estado: EstadoDaCoordenacao; ultimoConviteId: string | undefined }> {
-  await convites.travarEscola()
+  await convites.lockEscola()
   const dados = await convites.dadosDaCoordenacao()
   if (dados === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
   return { estado: estadoDaCoordenacao(dados), ultimoConviteId: dados.ultimoConvite?.id }
@@ -249,7 +249,7 @@ async function convidarConta(
 ): Promise<{ conviteId: string; usuarioId: string }> {
   const usuarioId = await convites.usuarioConvidado(contaId, nome, tipo)
   if (usuarioId === undefined) throw new DomainException(ErrorCode.CONFLITO)
-  const conviteId = await convites.criarConvite({ tipo, tokenHash: hashDoToken(token), usuarioId, expiraEm })
+  const conviteId = await convites.createConvite({ tipo, tokenHash: hashDoToken(token), usuarioId, expiraEm })
   return { conviteId, usuarioId }
 }
 
@@ -264,7 +264,7 @@ export async function convidar(
   token: string,
   expiraEm: Date,
 ): Promise<{ conviteId: string; usuarioId: string; contaNova: boolean }> {
-  const conta = await new ContaGlobalRepository(tx).contaParaConvite(normalizarEmail(pessoa.email))
+  const conta = await new ContaGlobalRepository(tx).contaParaConvite(normalizeEmail(pessoa.email))
   return { ...(await convidarConta(tx, convites, 'coordenador', { contaId: conta.id, nome: pessoa.nome }, token, expiraEm)), contaNova: conta.nova }
 }
 
@@ -279,7 +279,7 @@ export async function convidarProfessor(
   token: string,
   expiraEm: Date,
 ): Promise<{ conviteId: string; usuarioId: string }> {
-  const conta = await contaDoProfessor(tx, normalizarEmail(pessoa.email))
+  const conta = await contaDoProfessor(tx, normalizeEmail(pessoa.email))
   return convidarConta(tx, convites, 'professor', { contaId: conta.id, nome: pessoa.nome }, token, expiraEm)
 }
 
@@ -302,9 +302,9 @@ export async function refazerSobATrava(
 ): Promise<{ conviteId: string; usuarioId: string }> {
   const usuarioId = await convites.revogarParaRefazer(origemId, tipo)
   if (usuarioId === undefined) throw new DomainException(ErrorCode.CONFLITO)
-  const conviteId = await convites.criarConvite({ tipo, tokenHash: hashDoToken(token), usuarioId, expiraEm, ...(cifrarParaEnvio === undefined ? {} : { cifrarParaEnvio }) })
+  const conviteId = await convites.createConvite({ tipo, tokenHash: hashDoToken(token), usuarioId, expiraEm, ...(cifrarParaEnvio === undefined ? {} : { cifrarParaEnvio }) })
   const depois = { tipo, origemId, usuarioId, expiraEm: expiraEm.toISOString() }
-  await registro.gravar(tx, 'convite.refeito', autorOperador === undefined ? { entidadeId: conviteId, depois } : { entidadeId: conviteId, depois, autorOperador })
+  await registro.save(tx, 'convite.refeito', autorOperador === undefined ? { entidadeId: conviteId, depois } : { entidadeId: conviteId, depois, autorOperador })
   return { conviteId, usuarioId }
 }
 
@@ -327,7 +327,7 @@ export async function refazerSobATrava(
  * Escola inexistente: `NAO_ENCONTRADO`, antes de criar conta ou usuário. Devolve o id do convite e o token: o painel o
  * devolve uma vez na resposta, e o comando o grava num arquivo 0600. Nunca o token, o nome ou o e-mail em log.
  */
-export async function criarConviteDeCoordenador(banco: Database, autor: AuthorCheck, pedido: PedidoDeConvite, relogio: Clock = systemClock): Promise<{ conviteId: string; token: string }> {
+export async function createConviteDeCoordenador(banco: Database, autor: AuthorCheck, pedido: PedidoDeConvite, relogio: Clock = systemClock): Promise<{ conviteId: string; token: string }> {
   const requisicaoId = currentContext()?.requisicaoId ?? randomUUID()
   const token = tokenNovo()
   const expiraEm = expiraEmDo('coordenador', relogio)
@@ -344,11 +344,11 @@ export async function criarConviteDeCoordenador(banco: Database, autor: AuthorCh
         if (acao === 'conflito') throw new DomainException(ErrorCode.CONFLITO)
         if (acao === 'revogar_o_ultimo_e_criar' && ultimoConviteId !== undefined) {
           if (!(await convites.revogar(ultimoConviteId, 'coordenador'))) throw new DomainException(ErrorCode.CONFLITO)
-          await registro.gravar(tx, 'convite.revogado', { entidadeId: ultimoConviteId, depois: { tipo: 'coordenador' }, autorOperador })
+          await registro.save(tx, 'convite.revogado', { entidadeId: ultimoConviteId, depois: { tipo: 'coordenador' }, autorOperador })
         }
         // Sem coordenador ativo na escola (o estado não é `ativa`), o da conta também não está: `convidar` não recusa aqui.
         const { conviteId: criado, usuarioId, contaNova } = await convidar(tx, convites, pedido, token, expiraEm)
-        await registro.gravar(tx, 'convite.criado', { entidadeId: criado, depois: { tipo: 'coordenador', usuarioId, expiraEm: expiraEm.toISOString(), contaNova }, autorOperador })
+        await registro.save(tx, 'convite.criado', { entidadeId: criado, depois: { tipo: 'coordenador', usuarioId, expiraEm: expiraEm.toISOString(), contaNova }, autorOperador })
         return criado
       })
     }),
@@ -428,7 +428,7 @@ export async function revogarConvitePeloOperador(banco: Database, autor: AuthorC
         // Um convite em aberto que não é o último: o convite mudou.
         if (conviteId !== ultimoConviteId) throw new DomainException(ErrorCode.CONFLITO)
         if (!(await convites.revogar(conviteId, 'coordenador'))) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
-        await registro.gravar(tx, 'convite.revogado', { entidadeId: conviteId, depois: { tipo: 'coordenador' }, autorOperador })
+        await registro.save(tx, 'convite.revogado', { entidadeId: conviteId, depois: { tipo: 'coordenador' }, autorOperador })
       })
       return { escolaId }
     }),

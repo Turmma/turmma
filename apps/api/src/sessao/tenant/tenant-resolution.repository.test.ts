@@ -17,32 +17,32 @@ describe('ResolucaoDeTenantRepository: toda operação sem escopo é marcada e j
       'acessoDaSalaPorCodigo',
       'acessoDaSalaPorToken',
       'acessosDaConta',
-      'apagarMfa',
       'ativarMfa',
       'avancarPassoDoMfa',
       'cancelarLinksAbertos',
+      'clearMfa',
       'contaEmUso',
       'contaPorEmail',
       'conviteValidoPorHash',
-      'criarContas',
-      'criarLinkDaConta',
+      'createContas',
+      'createLinkDaConta',
       'definirSenhaNoAceite',
       'emailDaConta',
       'escolaDoConviteParaOperador',
       'escolaDoUsuarioParaOperador',
       'escolaPorSlug',
       'escolasDaRedeDoIpDeSaida',
-      'gravarFalhaDeLoginPorEmail',
-      'gravarSegredoDeMfa',
+      'hasAcessoSuspenso',
       'introducaoMaisAntigaDaConta',
       'linkValidoPorHash',
+      'lockContaParaRedefinir',
       'marcarEmailVerificado',
       'mfaDaConta',
       'posseDaConta',
+      'saveFalhaDeLoginPorEmail',
+      'saveSegredoDeMfa',
       'segurarContaParaLink',
       'sessaoParaRenovar',
-      'temAcessoSuspenso',
-      'travarContaParaRedefinir',
       'trocarSenha',
       'usarCodigoDeRecuperacao',
       'usarConvitePorHash',
@@ -59,19 +59,19 @@ describe('ResolucaoDeTenantRepository: toda operação sem escopo é marcada e j
     expect(justificativas['acessosDaConta']).toMatch(/credencial da equipe é global/)
     // Telas do aluno, 1.0: a data da introdução entre as escolas da conta, no mesmo papel, que não sai em `acessos` nem no login.
     expect(justificativas['introducaoMaisAntigaDaConta']).toMatch(/credencial da equipe é global.*data mais antiga.*mesmo papel.*viu a introdução.*não sai em acessos nem no login/)
-    expect(justificativas['criarContas']).toMatch(/conta é global/)
-    for (const metodo of ['cancelarLinksAbertos', 'criarLinkDaConta', 'linkValidoPorHash', 'usarLinkPorHash']) expect(justificativas[metodo], metodo).toMatch(/link da conta/)
+    expect(justificativas['createContas']).toMatch(/conta é global/)
+    for (const metodo of ['cancelarLinksAbertos', 'createLinkDaConta', 'linkValidoPorHash', 'usarLinkPorHash']) expect(justificativas[metodo], metodo).toMatch(/link da conta/)
     expect(justificativas['trocarSenha']).toMatch(/credencial da equipe é global/)
     expect(justificativas['contaPorEmail']).toMatch(/credencial da equipe é global/)
-    expect(justificativas['gravarFalhaDeLoginPorEmail']).toMatch(/antes de haver escola/)
+    expect(justificativas['saveFalhaDeLoginPorEmail']).toMatch(/antes de haver escola/)
     for (const metodo of [
       'mfaDaConta',
-      'gravarSegredoDeMfa',
+      'saveSegredoDeMfa',
       'ativarMfa',
       'avancarPassoDoMfa',
       'usarCodigoDeRecuperacao',
-      'travarContaParaRedefinir',
-      'apagarMfa',
+      'lockContaParaRedefinir',
+      'clearMfa',
     ]) {
       expect(justificativas[metodo], metodo).toMatch(/credencial da equipe é global/)
     }

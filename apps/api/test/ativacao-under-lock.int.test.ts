@@ -2,7 +2,7 @@ import { DomainException, type DatabasePool } from '@educa/core'
 import { ErrorCode } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { criarConviteDeCoordenador, refazerConviteDaCoordenacao, revogarConvitePeloOperador } from '../src/sessao/index.js'
+import { createConviteDeCoordenador, refazerConviteDaCoordenacao, revogarConvitePeloOperador } from '../src/sessao/index.js'
 import { ActivationScenario, SENHA_DA_CONTA, SENHA_ERRADA, SENHA_NOVA, type TestConta, type TestConvite } from './ativacao.fixture.js'
 import { aguardar, WriteBlockTrigger } from './write-block-trigger.js'
 import { esperarErro, subirApiDoPainel, type Resposta } from './painel.fixture.js'
@@ -163,7 +163,7 @@ describe('ativação por convite sob a trava da escola (E15)', () => {
       const gatilho = new WriteBlockTrigger(cenario.pool, { tabela: 'convite', evento: 'update', quando: `new.id = '${convite.conviteId}'::uuid and new.revogado_em is not null` })
       await gatilho.armar()
       try {
-        const gerar = criarConviteDeCoordenador(cenario.banco, autorDaBancada, { escolaId: convite.escolaId, email: `outra-${randomUUID()}@escola.invalid`, nome: 'Outra Pessoa' })
+        const gerar = createConviteDeCoordenador(cenario.banco, autorDaBancada, { escolaId: convite.escolaId, email: `outra-${randomUUID()}@escola.invalid`, nome: 'Outra Pessoa' })
         await gatilho.esperarParadas()
         const registrosAntes = await cenario.registrosDeAcesso()
         const chamada = ativacao.disparar()
@@ -188,7 +188,7 @@ describe('ativação por convite sob a trava da escola (E15)', () => {
       await gatilho.armar()
       let novo: { conviteId: string; token: string }
       try {
-        const gerar = criarConviteDeCoordenador(cenario.banco, autorDaBancada, { escolaId: convite.escolaId, email: conta.email, nome: 'Mesma Pessoa' })
+        const gerar = createConviteDeCoordenador(cenario.banco, autorDaBancada, { escolaId: convite.escolaId, email: conta.email, nome: 'Mesma Pessoa' })
         await gatilho.esperarParadas()
         const chamada = ativacao.disparar()
         await esperarNaTravaDaEscola(cenario.pool, convite.escolaId, 1)
@@ -215,7 +215,7 @@ describe('ativação por convite sob a trava da escola (E15)', () => {
       try {
         const chamada = ativacao.disparar()
         await esperarNaTravaDaEscola(cenario.pool, convite.escolaId, 1)
-        const gerar = criarConviteDeCoordenador(cenario.banco, autorDaBancada, { escolaId: convite.escolaId, email: `outra-${randomUUID()}@escola.invalid`, nome: 'Outra Pessoa' }).catch(
+        const gerar = createConviteDeCoordenador(cenario.banco, autorDaBancada, { escolaId: convite.escolaId, email: `outra-${randomUUID()}@escola.invalid`, nome: 'Outra Pessoa' }).catch(
           (erro: unknown) => erro,
         )
         await esperarNaTravaDaEscola(cenario.pool, convite.escolaId, 2)

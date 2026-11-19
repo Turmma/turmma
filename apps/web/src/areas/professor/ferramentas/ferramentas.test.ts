@@ -1,7 +1,7 @@
 import { InvariantException, adaptarArtefatoRequestSchema, gerarComFerramentaRequestSchema, FERRAMENTAS, ROTULOS_DA_ADAPTACAO, TIPOS_DE_ADAPTACAO } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
-import { problemaDaDescricao, validarFormulario, valoresPadrao } from '../../../components/ui/ai/schema-form'
-import { CATALOGO_DE_FERRAMENTAS, CATEGORIAS_DE_FERRAMENTA, catalogoPorCategoria, COMO_VAI_SAIR, descricaoDaFerramenta, ehFerramenta, ferramentaDoCatalogo, iniciaisDoPedido, montarPedido, TEMPOS_EXTRAS, type DescricaoOptions } from './ferramentas'
+import { problemaDaDescricao, validateFormulario, valoresPadrao } from '../../../components/ui/ai/schema-form'
+import { CATALOGO_DE_FERRAMENTAS, CATEGORIAS_DE_FERRAMENTA, catalogoPorCategoria, COMO_VAI_SAIR, descricaoDaFerramenta, isFerramenta, ferramentaDoCatalogo, iniciaisDoPedido, buildPedido, TEMPOS_EXTRAS, type DescricaoOptions } from './ferramentas'
 
 const TURMA = '0190f5a0-0000-7000-8000-00000000002b'
 const DISCIPLINA = '0190f5a0-0000-7000-8000-0000000000c1'
@@ -17,9 +17,9 @@ describe('o catálogo de ferramentas (D74)', () => {
       ['Preparar a aula', ['Adaptação']],
       ['Avaliar', ['Atividade objetiva']],
     ])
-    expect(ehFerramenta('adaptacao')).toBe(true)
+    expect(isFerramenta('adaptacao')).toBe(true)
     // As outras do desenho não existem, nem para o endereço digitado à mão.
-    expect(['prova', 'simulado', 'redacao', 'mapa-mental', ''].map(ehFerramenta)).toEqual([false, false, false, false, false])
+    expect(['prova', 'simulado', 'redacao', 'mapa-mental', ''].map(isFerramenta)).toEqual([false, false, false, false, false])
   })
 
   it('as categorias saem na ordem da D74 e só as que têm ferramenta: "Corrigir" existe na lista da D74 e não aparece, porque nenhuma ferramenta dela existe', () => {
@@ -83,28 +83,28 @@ describe('os campos de cada ferramenta: a ferramenta é dado (P23)', () => {
 })
 
 function validados(ferramenta: (typeof FERRAMENTAS)[number], valores: Record<string, string | readonly string[]>) {
-  const resultado = validarFormulario(descricaoDaFerramenta(ferramenta, OPCOES).campos, valores)
+  const resultado = validateFormulario(descricaoDaFerramenta(ferramenta, OPCOES).campos, valores)
   if (!resultado.ok) throw new Error(`formulário inválido: ${resultado.pendencias.map((pendencia) => pendencia.mensagem).join(' ')}`)
   return resultado.valores
 }
 
 describe('o pedido que sai do formulário', () => {
   it('a atividade leva turma, disciplina, tema e quantidade, e o corpo passa no contrato da rota', () => {
-    const montado = montarPedido('atividade_objetiva', validados('atividade_objetiva', { turma: `${TURMA}:${DISCIPLINA}`, tema: '  Reagente limitante ', quantidade: '8' }))
+    const montado = buildPedido('atividade_objetiva', validados('atividade_objetiva', { turma: `${TURMA}:${DISCIPLINA}`, tema: '  Reagente limitante ', quantidade: '8' }))
     expect(montado).toEqual({ ok: true, pedido: { ferramenta: 'atividade_objetiva', parametros: { turmaId: TURMA, disciplinaId: DISCIPLINA, tema: 'Reagente limitante', quantidade: 8 } } })
     if (!montado.ok || montado.pedido.ferramenta === 'adaptacao') throw new Error('era para montar')
     expect(gerarComFerramentaRequestSchema.safeParse({ ...montado.pedido.parametros, chaveEnvio: CHAVE }).success).toBe(true)
   })
 
   it('o plano de aula não leva quantidade', () => {
-    expect(montarPedido('plano_de_aula', { turma: `${TURMA}:${DISCIPLINA}`, tema: 'Introdução à estequiometria', quantidade: 9 })).toEqual({
+    expect(buildPedido('plano_de_aula', { turma: `${TURMA}:${DISCIPLINA}`, tema: 'Introdução à estequiometria', quantidade: 9 })).toEqual({
       ok: true,
       pedido: { ferramenta: 'plano_de_aula', parametros: { turmaId: TURMA, disciplinaId: DISCIPLINA, tema: 'Introdução à estequiometria' } },
     })
   })
 
   it('a Adaptação leva só a atividade, os tipos e o tempo extra: nada mais do formulário entra no pedido', () => {
-    const montado = montarPedido('adaptacao', { origem: ATIVIDADE, tipos: ['fonte_ampliada', 'tempo_adicional'], tempoExtra: '50', tema: 'texto que não devia existir', observacao: 'aluno com laudo' })
+    const montado = buildPedido('adaptacao', { origem: ATIVIDADE, tipos: ['fonte_ampliada', 'tempo_adicional'], tempoExtra: '50', tema: 'texto que não devia existir', observacao: 'aluno com laudo' })
     expect(montado).toEqual({ ok: true, pedido: { ferramenta: 'adaptacao', artefatoId: ATIVIDADE, tipos: ['fonte_ampliada', 'tempo_adicional'], tempoExtraPercentual: 50 } })
     if (!montado.ok || montado.pedido.ferramenta !== 'adaptacao') throw new Error('era para montar')
     const { ferramenta: _ferramenta, artefatoId: _artefatoId, ...corpo } = montado.pedido
@@ -114,7 +114,7 @@ describe('o pedido que sai do formulário', () => {
   })
 
   it('sem tempo extra escolhido o pedido sai sem ele, e todo tempo extra da lista cabe na faixa do contrato', () => {
-    expect(montarPedido('adaptacao', validados('adaptacao', { origem: ATIVIDADE, tipos: ['linguagem_direta'], tempoExtra: '' }))).toEqual({
+    expect(buildPedido('adaptacao', validados('adaptacao', { origem: ATIVIDADE, tipos: ['linguagem_direta'], tempoExtra: '' }))).toEqual({
       ok: true,
       pedido: { ferramenta: 'adaptacao', artefatoId: ATIVIDADE, tipos: ['linguagem_direta'] },
     })
@@ -124,18 +124,18 @@ describe('o pedido que sai do formulário', () => {
 
   it('tempo extra sem "Tempo adicional" marcado não sai: o campo some do formulário, e o valor que ficou de antes não vai no pedido', () => {
     // O campo é condicional: sem o tipo marcado, o formulário nem o valida, e o pedido sai só com os tipos.
-    const montado = montarPedido('adaptacao', validados('adaptacao', { origem: ATIVIDADE, tipos: ['fonte_ampliada'], tempoExtra: '25' }))
+    const montado = buildPedido('adaptacao', validados('adaptacao', { origem: ATIVIDADE, tipos: ['fonte_ampliada'], tempoExtra: '25' }))
     expect(montado).toEqual({ ok: true, pedido: { ferramenta: 'adaptacao', artefatoId: ATIVIDADE, tipos: ['fonte_ampliada'] } })
     // E quem monta o pedido continua recusando o tempo extra sem o tipo, se os valores chegarem por outro caminho.
-    expect(montarPedido('adaptacao', { origem: ATIVIDADE, tipos: ['fonte_ampliada'], tempoExtra: '25' })).toEqual({
+    expect(buildPedido('adaptacao', { origem: ATIVIDADE, tipos: ['fonte_ampliada'], tempoExtra: '25' })).toEqual({
       ok: false,
       problema: 'O tempo extra só vale com "Tempo adicional" marcado. Marque esse tipo, ou deixe o tempo extra sem escolha.',
     })
   })
 
   it('tipo fora da lista fechada não vira pedido', () => {
-    expect(montarPedido('adaptacao', { origem: ATIVIDADE, tipos: ['fonte_ampliada', 'dislexia'] }).ok).toBe(false)
-    expect(montarPedido('adaptacao', { origem: ATIVIDADE, tipos: [] }).ok).toBe(false)
+    expect(buildPedido('adaptacao', { origem: ATIVIDADE, tipos: ['fonte_ampliada', 'dislexia'] }).ok).toBe(false)
+    expect(buildPedido('adaptacao', { origem: ATIVIDADE, tipos: [] }).ok).toBe(false)
   })
 })
 

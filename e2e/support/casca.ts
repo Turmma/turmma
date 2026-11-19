@@ -422,7 +422,7 @@ export async function entrarPelaTelaComSegundoFator(page: Page, coordenadora: Pi
 }
 
 /**
- * A coordenadora que chega pelo link do convite (`criarConviteDeCoordenador`): aceita, define a senha, configura o segundo fator do jeito
+ * A coordenadora que chega pelo link do convite (`createConviteDeCoordenador`): aceita, define a senha, configura o segundo fator do jeito
  * sem celular, volta à entrada e entra com o código. Termina na tela que a primeira entrada abre; quem chama confere qual é (a
  * introdução, se a pessoa ainda não a viu, ou o Painel).
  */

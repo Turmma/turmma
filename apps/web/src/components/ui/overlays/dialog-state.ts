@@ -26,7 +26,7 @@ export function proximaAbertura<Tipo extends string, Alvo = never>(tipo: Tipo, u
  * da mutação roda mesmo com o diálogo desmontado, e a resposta pode chegar com outro diálogo aberto, do mesmo tipo ou não;
  * esse fica aberto, com o que já foi digitado nele (correção 2026-09-25-resposta-atrasada-fecha-o-dialogo-reaberto).
  */
-export function fecharSeAindaAberta<Tipo extends string, Alvo = never>(
+export function closeSeAindaAberta<Tipo extends string, Alvo = never>(
   aberta: DialogOpening<Tipo, Alvo> | undefined,
   esta: DialogOpening<Tipo, Alvo>,
 ): DialogOpening<Tipo, Alvo> | undefined {
@@ -35,7 +35,7 @@ export function fecharSeAindaAberta<Tipo extends string, Alvo = never>(
 
 /**
  * O diálogo aberto de uma tela, um de cada vez. Quem desenha o diálogo passa a `aberta` para a resposta do pedido dele:
- * o `aoCriar` chama `fecharSeAinda(aberta)` com a abertura em que o pedido saiu, nunca com o tipo.
+ * o `aoCriar` chama `closeSeAinda(aberta)` com a abertura em que o pedido saiu, nunca com o tipo.
  *
  * `abertaNaMontagem` deixa o diálogo desse tipo aberto desde a primeira renderização: é a tela cujo endereço o pede
  * (`?convidar=1`, telas do professor, 13.0). Vale na montagem, sem efeito que abra depois; a abertura de agora é a primeira, e a
@@ -43,10 +43,10 @@ export function fecharSeAindaAberta<Tipo extends string, Alvo = never>(
  */
 export function useDialogState<Tipo extends string, Alvo = never>(abertaNaMontagem?: Tipo): {
   readonly aberta: DialogOpening<Tipo, Alvo> | undefined
-  readonly abrir: (tipo: Tipo, alvo?: Alvo) => void
+  readonly open: (tipo: Tipo, alvo?: Alvo) => void
   /** O "Cancelar" e o Esc: só o diálogo montado os oferece, e ele é o aberto. */
-  readonly fechar: () => void
-  readonly fecharSeAinda: (esta: DialogOpening<Tipo, Alvo>) => void
+  readonly close: () => void
+  readonly closeSeAinda: (esta: DialogOpening<Tipo, Alvo>) => void
 } {
   // Aberto desde a montagem (o endereço o pediu): é a primeira abertura da tela, e a seguinte conta a partir dela.
   const [aberta, definirAberta] = useState<DialogOpening<Tipo, Alvo> | undefined>(() => (abertaNaMontagem === undefined ? undefined : proximaAbertura<Tipo, Alvo>(abertaNaMontagem, 0)))
@@ -57,6 +57,6 @@ export function useDialogState<Tipo extends string, Alvo = never>(abertaNaMontag
     definirAberta(nova)
   }, [])
   const fechar = useCallback(() => definirAberta(undefined), [])
-  const fecharSeAinda = useCallback((esta: DialogOpening<Tipo, Alvo>) => definirAberta((atual) => fecharSeAindaAberta(atual, esta)), [])
-  return { aberta, abrir, fechar, fecharSeAinda }
+  const fecharSeAinda = useCallback((esta: DialogOpening<Tipo, Alvo>) => definirAberta((atual) => closeSeAindaAberta(atual, esta)), [])
+  return { aberta, open: abrir, close: fechar, closeSeAinda: fecharSeAinda }
 }

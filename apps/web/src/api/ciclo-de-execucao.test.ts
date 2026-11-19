@@ -13,7 +13,7 @@ import {
   LIMIAR_DA_DEMORA_MS,
   recusarEnvio,
   registrarExecucao,
-  tentarDeNovo,
+  retry,
   type CicloDeExecucao,
 } from './ciclo-de-execucao'
 import { ApiError } from './client'
@@ -85,26 +85,26 @@ describe('o envio: a chave e o pedido duplo', () => {
 describe('"Tentar de novo": qual chave vai', () => {
   it('o envio que não foi aceito repete com a mesma chave: a mesma chave devolve a mesma execução', () => {
     const falhou = recusarEnvio(comecarEnvio<Pedido>(undefined, PEDIDO, sorteio('chave-1'), 1_000), 'chave-1', new ApiError(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO))
-    expect(tentarDeNovo(falhou, sorteio(), 5_000)).toEqual({ etapa: 'enviando', pedido: PEDIDO, chaveEnvio: 'chave-1', desde: 5_000 })
+    expect(retry(falhou, sorteio(), 5_000)).toEqual({ etapa: 'enviando', pedido: PEDIDO, chaveEnvio: 'chave-1', desde: 5_000 })
   })
 
   it('a consulta que deixou de responder também repete com a mesma chave, para reencontrar a execução', () => {
     const semConsulta = desistirDaConsulta(esperando(), new ApiError(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO))
     expect(semConsulta).toEqual({ etapa: 'falhou', pedido: PEDIDO, chaveEnvio: 'chave-1', erro: 'INDISPONIVEL_TENTE_DE_NOVO' })
-    expect(tentarDeNovo(semConsulta, sorteio(), 5_000)?.chaveEnvio).toBe('chave-1')
+    expect(retry(semConsulta, sorteio(), 5_000)?.chaveEnvio).toBe('chave-1')
   })
 
   it('a execução que falhou repete com chave nova: a antiga devolveria a execução que falhou', () => {
     const falhou = registrarExecucao(esperando(), execucao('falhou', { erro: ErrorCode.IA_INDISPONIVEL }))
     expect(falhou).toEqual({ etapa: 'falhou', pedido: PEDIDO, chaveEnvio: 'chave-1', execucaoId: EXECUCAO, erro: 'IA_INDISPONIVEL' })
-    expect(tentarDeNovo(falhou, sorteio('chave-2'), 5_000)).toEqual({ etapa: 'enviando', pedido: PEDIDO, chaveEnvio: 'chave-2', desde: 5_000 })
+    expect(retry(falhou, sorteio('chave-2'), 5_000)).toEqual({ etapa: 'enviando', pedido: PEDIDO, chaveEnvio: 'chave-2', desde: 5_000 })
   })
 
   it('só a falha se repete: com o pedido no ar, concluído ou sem pedido, nada sai', () => {
-    expect(tentarDeNovo(esperando(), sorteio(), 5_000)).toBeUndefined()
-    expect(tentarDeNovo<Pedido>(undefined, sorteio(), 5_000)).toBeUndefined()
+    expect(retry(esperando(), sorteio(), 5_000)).toBeUndefined()
+    expect(retry<Pedido>(undefined, sorteio(), 5_000)).toBeUndefined()
     const concluida = registrarExecucao(esperando(), execucao('concluida', { resultado: { tipo: 'mensagem', mensagem: MENSAGEM } }))
-    expect(tentarDeNovo(concluida, sorteio(), 5_000)).toBeUndefined()
+    expect(retry(concluida, sorteio(), 5_000)).toBeUndefined()
   })
 })
 
@@ -163,7 +163,7 @@ describe('como a falha aparece: nunca erro cru (regra 80, item 4)', () => {
     expect(aparenciaDaFalha(ErrorCode.LIMITE_EXCEDIDO)).toBe('limite')
     // O envio recusado pelo limite não chegou a virar execução: repetir usa a mesma chave.
     const recusado = recusarEnvio(comecarEnvio<Pedido>(undefined, PEDIDO, sorteio('chave-1'), 1_000), 'chave-1', new ApiError(ErrorCode.LIMITE_EXCEDIDO))
-    expect(tentarDeNovo(recusado, sorteio(), 70_000)?.chaveEnvio).toBe('chave-1')
+    expect(retry(recusado, sorteio(), 70_000)?.chaveEnvio).toBe('chave-1')
   })
 
   it('o que passa sozinho vira aviso com "Tentar de novo"; o que pede mudança vem com a mensagem do catálogo', () => {

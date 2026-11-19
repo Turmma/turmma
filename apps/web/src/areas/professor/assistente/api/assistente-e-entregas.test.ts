@@ -71,7 +71,7 @@ beforeEach(async () => {
   )
   m = await importar()
   fila.push(TOKEN('token-de-acesso'))
-  await m.sessao.abrirSessaoPeloCookie()
+  await m.sessao.openSessaoPeloCookie()
   chamadas.length = 0
 })
 
@@ -83,7 +83,7 @@ afterEach(() => {
 describe('o que cada pedido de IA manda', () => {
   it('a mensagem ao Assistente leva o texto, a turma, a disciplina e a chave do envio, e nada de escola nem de pessoa', async () => {
     fila.push(ACEITA)
-    expect(await m.assistente.enviarMensagemAoAssistente({ texto: 'uma atividade de estequiometria', turmaId: TURMA, disciplinaId: DISCIPLINA, chaveEnvio: CHAVE })).toEqual({ execucaoId: id('f1') })
+    expect(await m.assistente.sendMensagemAoAssistente({ texto: 'uma atividade de estequiometria', turmaId: TURMA, disciplinaId: DISCIPLINA, chaveEnvio: CHAVE })).toEqual({ execucaoId: id('f1') })
     expect(chamadas).toEqual([
       { caminho: '/v1/assistente/mensagens', metodo: 'POST', corpo: { texto: 'uma atividade de estequiometria', turmaId: TURMA, disciplinaId: DISCIPLINA, chaveEnvio: CHAVE }, autorizacao: 'Bearer token-de-acesso' },
     ])
@@ -91,7 +91,7 @@ describe('o que cada pedido de IA manda', () => {
 
   it('a ferramenta vai na rota dela, e a Adaptação manda só os tipos, o tempo extra e a chave', async () => {
     fila.push(ACEITA, ACEITA)
-    await m.ferramentas.gerarComFerramenta('atividade_objetiva', { turmaId: TURMA, disciplinaId: DISCIPLINA, tema: 'Estequiometria', quantidade: 5, chaveEnvio: CHAVE })
+    await m.ferramentas.generateComFerramenta('atividade_objetiva', { turmaId: TURMA, disciplinaId: DISCIPLINA, tema: 'Estequiometria', quantidade: 5, chaveEnvio: CHAVE })
     await m.artefatos.adaptarArtefato(ARTEFATO, { tipos: ['fonte_ampliada', 'tempo_adicional'], tempoExtraPercentual: 50, chaveEnvio: CHAVE })
     expect(chamadas.map(({ caminho, corpo }) => ({ caminho, corpo }))).toEqual([
       { caminho: '/v1/ferramentas/atividade_objetiva/gerar', corpo: { turmaId: TURMA, disciplinaId: DISCIPLINA, tema: 'Estequiometria', quantidade: 5, chaveEnvio: CHAVE } },
@@ -180,9 +180,9 @@ describe('a memória da aba', () => {
   it('guarda o pedido em curso entre duas telas e avisa quem assina', () => {
     const lugar = m.memoria.createTabStore<{ texto: string }>()
     const avisos: (string | undefined)[] = []
-    const cancelar = lugar.assinar(() => avisos.push(lugar.ler()?.texto))
+    const cancelar = lugar.assinar(() => avisos.push(lugar.read()?.texto))
     lugar.guardar({ texto: 'uma atividade de estequiometria' })
-    expect(lugar.ler()).toEqual({ texto: 'uma atividade de estequiometria' })
+    expect(lugar.read()).toEqual({ texto: 'uma atividade de estequiometria' })
     cancelar()
     lugar.guardar(undefined)
     expect(avisos).toEqual(['uma atividade de estequiometria'])
@@ -193,6 +193,6 @@ describe('a memória da aba', () => {
     lugar.guardar({ texto: 'conversa da professora anterior' })
     fila.push({ status: 204 })
     await m.sessao.sair()
-    expect(lugar.ler()).toBeUndefined()
+    expect(lugar.read()).toBeUndefined()
   })
 })

@@ -7,7 +7,7 @@ import {
   EFEITO_DA_ELIMINACAO,
   EFEITO_DO_PEDIDO,
   hojeEmSaoPaulo,
-  ordenarOsPedidos,
+  sortOsPedidos,
   ROTULO_DA_CATEGORIA_NA_PREVIA,
   ROTULO_DE_QUEM_PEDIU,
   ROTULO_DO_TIPO,
@@ -18,7 +18,7 @@ import {
   TEXTOS_DA_FALHA_DA_BUSCA,
   TEXTOS_DA_FALHA_DO_REGISTRO,
   textoDasTurmas,
-  validarOPedido,
+  validateOPedido,
 } from './textos-dos-pedidos'
 
 function titular(parcial: Partial<TitularAchado>): TitularAchado {
@@ -122,40 +122,40 @@ describe('validarOPedido: os três campos contra o contrato, antes de a confirma
   const hoje = '2026-10-10'
 
   it('aceita o pedido inteiro, inclusive chegado hoje', () => {
-    expect(validarOPedido({ tipo: 'eliminacao', solicitante: 'responsavel_legal', chegouEm: hoje }, hoje)).toEqual({
+    expect(validateOPedido({ tipo: 'eliminacao', solicitante: 'responsavel_legal', chegouEm: hoje }, hoje)).toEqual({
       ok: true,
       registro: { tipo: 'eliminacao', solicitante: 'responsavel_legal', chegouEm: hoje },
     })
   })
 
   it('diz o texto de cada campo que falta, e só dele', () => {
-    const vazio = validarOPedido({ tipo: '', solicitante: '', chegouEm: '' }, hoje)
+    const vazio = validateOPedido({ tipo: '', solicitante: '', chegouEm: '' }, hoje)
     expect(vazio.ok).toBe(false)
     if (!vazio.ok) expect(Object.keys(vazio.erros).sort()).toEqual(['chegouEm', 'solicitante', 'tipo'])
-    const soTipo = validarOPedido({ tipo: 'invalido', solicitante: 'titular', chegouEm: hoje }, hoje)
+    const soTipo = validateOPedido({ tipo: 'invalido', solicitante: 'titular', chegouEm: hoje }, hoje)
     expect(soTipo.ok).toBe(false)
     if (!soTipo.ok) expect(Object.keys(soTipo.erros)).toEqual(['tipo'])
-    const soQuemPediu = validarOPedido({ tipo: 'acesso', solicitante: '', chegouEm: hoje }, hoje)
+    const soQuemPediu = validateOPedido({ tipo: 'acesso', solicitante: '', chegouEm: hoje }, hoje)
     expect(soQuemPediu.ok).toBe(false)
     if (!soQuemPediu.ok) expect(Object.keys(soQuemPediu.erros)).toEqual(['solicitante'])
-    const soODia = validarOPedido({ tipo: 'acesso', solicitante: 'titular', chegouEm: '' }, hoje)
+    const soODia = validateOPedido({ tipo: 'acesso', solicitante: 'titular', chegouEm: '' }, hoje)
     expect(soODia.ok).toBe(false)
     if (!soODia.ok) expect(Object.keys(soODia.erros)).toEqual(['chegouEm'])
   })
 
   it('recusa a chegada depois de hoje, como a API, e o dia que não existe', () => {
-    const futuro = validarOPedido({ tipo: 'acesso', solicitante: 'titular', chegouEm: '2026-10-11' }, hoje)
+    const futuro = validateOPedido({ tipo: 'acesso', solicitante: 'titular', chegouEm: '2026-10-11' }, hoje)
     expect(futuro.ok).toBe(false)
-    const inexistente = validarOPedido({ tipo: 'acesso', solicitante: 'titular', chegouEm: '2026-02-31' }, hoje)
+    const inexistente = validateOPedido({ tipo: 'acesso', solicitante: 'titular', chegouEm: '2026-02-31' }, hoje)
     expect(inexistente.ok).toBe(false)
-    const formato = validarOPedido({ tipo: 'acesso', solicitante: 'titular', chegouEm: '10/10/2026' }, hoje)
+    const formato = validateOPedido({ tipo: 'acesso', solicitante: 'titular', chegouEm: '10/10/2026' }, hoje)
     expect(formato.ok).toBe(false)
-    const mesQueNaoExiste = validarOPedido({ tipo: 'acesso', solicitante: 'titular', chegouEm: '2026-13-01' }, hoje)
+    const mesQueNaoExiste = validateOPedido({ tipo: 'acesso', solicitante: 'titular', chegouEm: '2026-13-01' }, hoje)
     expect(mesQueNaoExiste.ok).toBe(false)
   })
 
   it('aceita a chegada no passado, que é o pedido que chegou por escrito dias atrás', () => {
-    expect(validarOPedido({ tipo: 'acesso', solicitante: 'titular', chegouEm: '2026-09-01' }, hoje).ok).toBe(true)
+    expect(validateOPedido({ tipo: 'acesso', solicitante: 'titular', chegouEm: '2026-09-01' }, hoje).ok).toBe(true)
   })
 })
 
@@ -182,7 +182,7 @@ describe('ordenarOsPedidos: a chegada mais recente primeiro, e o id no empate', 
 
   it('ordena por chegada decrescente, desempata por id e não muda a lista que recebeu', () => {
     const entrada = [item('b', '2026-10-01'), item('a', '2026-10-05'), item('c', '2026-10-05')]
-    expect(ordenarOsPedidos(entrada).map(({ id }) => id)).toEqual(['a', 'c', 'b'])
+    expect(sortOsPedidos(entrada).map(({ id }) => id)).toEqual(['a', 'c', 'b'])
     expect(entrada.map(({ id }) => id)).toEqual(['b', 'a', 'c'])
   })
 })

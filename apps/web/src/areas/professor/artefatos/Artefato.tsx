@@ -22,7 +22,7 @@ import { formatDateTime } from '../../../format'
 import { usePageTitle } from '../../../document-title'
 import { AplicacaoDoArtefato } from '../atividades/AplicacaoDoArtefato'
 import { ConteudoDoArtefato } from './ConteudoDoArtefato'
-import { aprovacaoDaEntrega, AVISO_DE_TEXTO_SEM_ALUNO, podeRenomear, saidaEmPdf, TEXTO_DA_REJEITADA_SEM_PDF, TEXTO_DO_RASCUNHO_EM_PDF, textoDaAdaptacao, VERBO_DA_ENTREGA } from './entregas'
+import { aprovacaoDaEntrega, AVISO_DE_TEXTO_SEM_ALUNO, canRenomear, saidaEmPdf, TEXTO_DA_REJEITADA_SEM_PDF, TEXTO_DO_RASCUNHO_EM_PDF, textoDaAdaptacao, VERBO_DA_ENTREGA } from './entregas'
 import { ExportarPdf } from './ExportarPdf'
 import { ferramentaDoCatalogo } from '../ferramentas/ferramentas'
 import { Folha } from './Folha'
@@ -211,7 +211,7 @@ export default function Artefato({ artefatoId }: { artefatoId: string }) {
           <AgentSignature funcao={funcao} />
           <div className="flex min-w-0 flex-wrap items-center gap-2">
               {/* A versão adaptada já decidida não muda de nome: a API recusaria, e a tela não oferece o que ela recusa. */}
-              {podeRenomear(dados.entrega) && (
+              {canRenomear(dados.entrega) && (
                 <Button ref={botaoDeRenomear} variante="discreto" tamanho="compacto" onClick={() => definirNovoTitulo(dados.titulo)} disabled={novoTitulo !== undefined}>
                   <Pencil aria-hidden="true" size={16} strokeWidth={1.75} className="shrink-0" />
                   Renomear

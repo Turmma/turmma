@@ -24,19 +24,19 @@ export class ProvedoresDaEscolaService {
 
   constructor(private readonly banco: Database) {}
 
-  async alterar(pedido: ProvedoresDaEscolaRequest): Promise<ProvedoresDaEscolaResponse> {
+  async update(pedido: ProvedoresDaEscolaRequest): Promise<ProvedoresDaEscolaResponse> {
     const escolaId = currentContext()?.escolaId
     if (escolaId === undefined) throw new DomainException(ErrorCode.NAO_AUTENTICADO)
     const depois = await this.banco.transaction(async (tx) => {
       const repositorio = new ProvedoresLiberadosRepository(tx)
-      if (!(await repositorio.travarEscola())) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+      if (!(await repositorio.lockEscola())) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       const antes = await repositorio.liberados()
       const pedidas = new Set(pedido.provedores.map(chaveDe))
       const atuais = new Set(antes.map(chaveDe))
       await repositorio.retirar(antes.filter((linha) => !pedidas.has(chaveDe(linha))).map((linha) => linha.id))
-      await repositorio.liberar(pedido.provedores.filter((item) => !atuais.has(chaveDe(item))))
+      await repositorio.release(pedido.provedores.filter((item) => !atuais.has(chaveDe(item))))
       const gravados = await repositorio.liberados()
-      await this.#auditoria.gravar(tx, 'escola.provedores_alterados', { entidadeId: escolaId, antes: idsPorProvedor(antes), depois: idsPorProvedor(gravados) })
+      await this.#auditoria.save(tx, 'escola.provedores_alterados', { entidadeId: escolaId, antes: idsPorProvedor(antes), depois: idsPorProvedor(gravados) })
       return gravados
     })
     return provedoresDaEscolaResponseSchema.parse({ provedores: depois.map((linha) => ({ provedor: linha.provedor, valor: linha.valor })) })

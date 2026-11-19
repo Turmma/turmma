@@ -400,13 +400,13 @@ describe('camada de IA na API', () => {
 
     it('a mesma chave de envio em escolas diferentes são execuções diferentes, cada uma na sua', async () => {
       const chave = randomUUID()
-      const naA = await como(a, a.professor, 'professor', () => new ExecucaoDaSessaoRepository(bancada.banco).gravarPendente('propor_ferramenta', chave, { tarefa: 'propor_ferramenta' }))
-      const naB = await como(b, b.professor, 'professor', () => new ExecucaoDaSessaoRepository(bancada.banco).gravarPendente('propor_ferramenta', chave, { tarefa: 'propor_ferramenta' }))
+      const naA = await como(a, a.professor, 'professor', () => new ExecucaoDaSessaoRepository(bancada.banco).savePendente('propor_ferramenta', chave, { tarefa: 'propor_ferramenta' }))
+      const naB = await como(b, b.professor, 'professor', () => new ExecucaoDaSessaoRepository(bancada.banco).savePendente('propor_ferramenta', chave, { tarefa: 'propor_ferramenta' }))
       expect(naA).toBeDefined()
       expect(naB).toBeDefined()
       expect(naA).not.toBe(naB)
       // Na mesma escola, a chave repetida não grava de novo.
-      expect(await como(a, a.outroProfessor, 'professor', () => new ExecucaoDaSessaoRepository(bancada.banco).gravarPendente('propor_ferramenta', chave, { tarefa: 'propor_ferramenta' }))).toBeUndefined()
+      expect(await como(a, a.outroProfessor, 'professor', () => new ExecucaoDaSessaoRepository(bancada.banco).savePendente('propor_ferramenta', chave, { tarefa: 'propor_ferramenta' }))).toBeUndefined()
     })
   })
 
@@ -457,7 +457,7 @@ describe('camada de IA na API', () => {
         // Pela porta, direto, a recusa é a mesma e também não grava consumo.
         const ia = fila.provedor
         const direto = await erroDe(
-          noContextoDe(a, () => ia.gerar({ tarefa: proporFerramenta, escolaId: a.escolaId, entrada: { mensagem: 'bom dia', contexto: { serie: '2º ano', disciplina: 'Química' }, trechos: [], turnosAnteriores: [] } })),
+          noContextoDe(a, () => ia.generate({ tarefa: proporFerramenta, escolaId: a.escolaId, entrada: { mensagem: 'bom dia', contexto: { serie: '2º ano', disciplina: 'Química' }, trechos: [], turnosAnteriores: [] } })),
         )
         expect(direto.codigo).toBe(ErrorCode.FUNCAO_SUSPENSA)
         expect(await contar('consumo_ia', a.escolaId)).toBe(consumoAntes)
@@ -557,7 +557,7 @@ describe('camada de IA na API', () => {
   describe('OrcamentoRepository: o freio diário do Tutor', () => {
     const consulta = (escola: Escola, aluno: TestSessao) => ({ funcao: 'tutor_com_o_aluno' as const, alunoId: aluno.usuarioId, turmaId: escola.turma })
     /** A consulta feita no contexto da escola: é de lá que a porta lê a escola, e a consulta não a traz (8.0). */
-    const consultarEm = (escola: Escola, orcamento: OrcamentoDeIa, pergunta: OrcamentoQuery) => noContextoDe(escola, () => orcamento.consultar(pergunta))
+    const consultarEm = (escola: Escola, orcamento: OrcamentoDeIa, pergunta: OrcamentoQuery) => noContextoDe(escola, () => orcamento.check(pergunta))
 
     it('recusa a 61ª troca do aluno no dia, e não a de outro aluno; a pergunta que falhou não conta', async () => {
       const orcamento = api.app.get<OrcamentoDeIa>(ORCAMENTO_DE_IA)
@@ -658,7 +658,7 @@ describe('camada de IA na API', () => {
           throw erro
         }
         const orcamento = new OrcamentoRepository(bancada.banco)
-        const decisao = await noContextoDe(a, () => orcamento.consultar({ funcao: 'tutor_com_o_aluno', alunoId: alunoDeA.usuarioId, turmaId: b.turma }))
+        const decisao = await noContextoDe(a, () => orcamento.check({ funcao: 'tutor_com_o_aluno', alunoId: alunoDeA.usuarioId, turmaId: b.turma }))
         expect(decisao).toEqual({ permitido: false, codigo: 'PACOTE_DO_TUTOR_ESGOTADO' })
       } finally {
         cliente.release()
@@ -669,14 +669,14 @@ describe('camada de IA na API', () => {
 
     it('sem escola no contexto, o Tutor não é consultado: lança antes de ler o limite, o dia ou o pacote', async () => {
       const orcamento = new OrcamentoRepository(bancada.banco)
-      await expect(orcamento.consultar({ funcao: 'tutor_com_o_aluno', alunoId: a.aluno.usuarioId, turmaId: a.turma })).rejects.toThrow('consulta com escopo sem escola no contexto')
-      await expect(runInContext({ requisicaoId: randomUUID(), rotinaDoSistema: true }, () => orcamento.consultar(consulta(a, a.aluno)))).rejects.toThrow('consulta com escopo sem escola no contexto')
+      await expect(orcamento.check({ funcao: 'tutor_com_o_aluno', alunoId: a.aluno.usuarioId, turmaId: a.turma })).rejects.toThrow('consulta com escopo sem escola no contexto')
+      await expect(runInContext({ requisicaoId: randomUUID(), rotinaDoSistema: true }, () => orcamento.check(consulta(a, a.aluno)))).rejects.toThrow('consulta com escopo sem escola no contexto')
     })
 
     it('sem escola no contexto, a função que não é o Tutor também lança: o exigir vem antes do "permitido" que ela receberia', async () => {
       const orcamento = new OrcamentoRepository(bancada.banco)
-      await expect(orcamento.consultar({ funcao: 'conversa_e_ferramentas' })).rejects.toThrow('consulta com escopo sem escola no contexto')
-      await expect(orcamento.consultar({ funcao: 'tutor_com_o_aluno' })).rejects.toThrow('consulta com escopo sem escola no contexto')
+      await expect(orcamento.check({ funcao: 'conversa_e_ferramentas' })).rejects.toThrow('consulta com escopo sem escola no contexto')
+      await expect(orcamento.check({ funcao: 'tutor_com_o_aluno' })).rejects.toThrow('consulta com escopo sem escola no contexto')
     })
   })
 
@@ -700,8 +700,8 @@ describe('camada de IA na API', () => {
         await perguntasAoTutor(a, alunoDeA, 1)
         await perguntasAoTutor(b, alunoDeB, 1)
         // Uma pergunta em cada escola. Em A, com limite 1, a próxima não cabe; em B, com limite 3, cabe.
-        expect(await noContextoDe(a, () => orcamento.consultar({ funcao: 'tutor_com_o_aluno', alunoId: alunoDeA.usuarioId }))).toEqual({ permitido: false, codigo: 'LIMITE_DIARIO_DO_TUTOR' })
-        expect(await noContextoDe(b, () => orcamento.consultar({ funcao: 'tutor_com_o_aluno', alunoId: alunoDeB.usuarioId }))).toEqual({ permitido: true })
+        expect(await noContextoDe(a, () => orcamento.check({ funcao: 'tutor_com_o_aluno', alunoId: alunoDeA.usuarioId }))).toEqual({ permitido: false, codigo: 'LIMITE_DIARIO_DO_TUTOR' })
+        expect(await noContextoDe(b, () => orcamento.check({ funcao: 'tutor_com_o_aluno', alunoId: alunoDeB.usuarioId }))).toEqual({ permitido: true })
       } finally {
         await sql('delete from configuracao_operacional_escola where escola_id = any($1::uuid[])', [[a.escolaId, b.escolaId]])
       }
@@ -747,7 +747,7 @@ describe('camada de IA na API', () => {
         const turno = (escola: Escola, aluno: TestSessao) =>
           noContextoDe(escola, async () => {
             const suspensa = await suspensao.estaSuspensa('tutor_com_o_aluno')
-            const decisao = await orcamento.consultar({ funcao: 'tutor_com_o_aluno', alunoId: aluno.usuarioId })
+            const decisao = await orcamento.check({ funcao: 'tutor_com_o_aluno', alunoId: aluno.usuarioId })
             await consumo.registrar({ ...doTutor, alunoId: aluno.usuarioId })
             return { suspensa, decisao }
           })
@@ -1022,7 +1022,7 @@ describe('camada de IA na API', () => {
       expect((errada as LLMError).codigo).toBe('IA_ENTRADA_INVALIDA')
       expect(await contar('execucao_agente', a.escolaId, `chave_envio = '${chaveEnvio}'`)).toBe(0)
       // A chave que a pessoa já usou para o resumo do Analista não devolve a execução dele para a atividade.
-      await como(a, a.professor, 'professor', () => new ExecucaoDaSessaoRepository(bancada.banco).gravarPendente('resumo_do_analista', chaveEnvio, { tarefa: 'resumo_do_analista' }))
+      await como(a, a.professor, 'professor', () => new ExecucaoDaSessaoRepository(bancada.banco).savePendente('resumo_do_analista', chaveEnvio, { tarefa: 'resumo_do_analista' }))
       expect((await erroDe(como(a, a.professor, 'professor', () => agendadorDeTeste.agendar(pedirComando(chaveEnvio))))).codigo).toBe(ErrorCode.CONFLITO)
       expect(teste.preparar).not.toHaveBeenCalled()
     })

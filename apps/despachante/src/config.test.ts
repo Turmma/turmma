@@ -33,7 +33,7 @@ function erroDe(ambiente: Record<string, string | undefined>): InvalidConfigErro
   throw new Error('a configuração deveria ter sido recusada')
 }
 
-describe('lerConfiguracao do despachante', () => {
+describe('loadConfig do despachante', () => {
   it('converte o ambiente, com statement_timeout próprio no pool e as vagas padrão por fila', () => {
     expect(loadConfig(ambienteValido)).toEqual({
       banco: { url: ambienteValido.BANCO_URL, maximoConexoes: 3, timeoutConexaoMs: 2000, timeoutConsultaMs: 2000 },

@@ -48,13 +48,13 @@ export class ImportacaoController {
   @ImportacaoRateLimit()
   @RequirePermissao('importacao_planilha', 'gravar')
   @HttpCode(HttpStatus.ACCEPTED)
-  gravar(@Param('tipo', new TipoDePlanilhaPipe()) tipo: TipoDePlanilha, @Body(new ZodValidationPipe(gravarPlanilhaRequestSchema)) pedido: GravarPlanilhaRequest): Promise<GravarPlanilhaResponse> {
-    return this.importacoes.gravar(tipo, pedido)
+  save(@Param('tipo', new TipoDePlanilhaPipe()) tipo: TipoDePlanilha, @Body(new ZodValidationPipe(gravarPlanilhaRequestSchema)) pedido: GravarPlanilhaRequest): Promise<GravarPlanilhaResponse> {
+    return this.importacoes.save(tipo, pedido)
   }
 
   @Get('importacoes/:id')
   @RequirePermissao('importacao_planilha', 'ler')
-  ler(@Param('id', IdPipe) id: string): Promise<Importacao> {
-    return this.importacoes.ler(id)
+  read(@Param('id', IdPipe) id: string): Promise<Importacao> {
+    return this.importacoes.read(id)
   }
 }

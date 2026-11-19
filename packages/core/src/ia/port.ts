@@ -78,5 +78,5 @@ export interface GenerationResult<Saida> {
  * atravessa.
  */
 export interface LLMProvider {
-  gerar<Entrada, Saida>(pedido: GenerationRequest<Entrada, Saida>): Promise<GenerationResult<Saida>>
+  generate<Entrada, Saida>(pedido: GenerationRequest<Entrada, Saida>): Promise<GenerationResult<Saida>>
 }

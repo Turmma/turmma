@@ -23,7 +23,7 @@ export interface ComandosDeIa {
  * Monta os sete comandos e os registra, na ordem do catálogo. É o único lugar que os junta: o `ComandosDeIaModule` (API e `main-worker`) e a
  * bancada de teste (`fila-de-ia.fixture.ts`) chamam esta função, e nenhum outro módulo cria comando de tarefa de IA (X6, 5.0).
  */
-export function montarComandos(registro: RegistroDeComandos, banco: Database, trechos: TrechoSearch, suspensao: SuspensaoDeFuncao, alcance: AlcanceDoAluno, medidor?: Meter): ComandosDeIa {
+export function buildComandos(registro: RegistroDeComandos, banco: Database, trechos: TrechoSearch, suspensao: SuspensaoDeFuncao, alcance: AlcanceDoAluno, medidor?: Meter): ComandosDeIa {
   return {
     turnoDoTutor: comRegistro(registro, new TurnoDoTutorCommand(banco, alcance, trechos, suspensao)),
     proporFerramenta: comRegistro(registro, new ProporFerramentaCommand(banco, trechos)),

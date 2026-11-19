@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { acessoDaEscolaQueryOptions, NOME_DO_PROVEDOR } from '../api/escola'
 import { enderecoParaProvarAContaNaSala } from '../api/salas'
 import { Button } from '../components/ui/Button'
-import { apagarCaminhoDaSala, guardarCaminhoDaSala, type Caminho } from './caminho-da-sala'
+import { deleteCaminhoDaSala, guardarCaminhoDaSala, type Caminho } from './caminho-da-sala'
 
 /**
  * Quanto a lista de provedores da escola vale antes de ser lida de novo **na mesma aba**: evita repetir a leitura quando a seção volta a montar. Não alivia o balde por IP da escola: cada
@@ -34,7 +34,7 @@ export function ContaDaEscolaNaSala({ slug, caminho }: { slug: string; caminho: 
     const restaurada = (evento: PageTransitionEvent) => {
       if (!evento.persisted) return
       definirEntrando(false)
-      apagarCaminhoDaSala()
+      deleteCaminhoDaSala()
     }
     window.addEventListener('pageshow', restaurada)
     return () => window.removeEventListener('pageshow', restaurada)

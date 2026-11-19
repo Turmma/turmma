@@ -6,7 +6,7 @@ import { FormField } from '../../../components/ui/fields/FormField'
 import { Sheet } from '../../../components/ui/overlays/Sheet'
 import { StatusBadge } from '../../../components/ui/StatusBadge'
 import { useSingleSubmit } from '../../../components/dialogs'
-import { atualizarMaterial, materialComCapitulosQueryOptions } from './api/material'
+import { updateMaterial, materialComCapitulosQueryOptions } from './api/material'
 import { RESUMO_DO_MATERIAL_QUERY_KEY } from './api/resumo'
 import { FAMILIA_DA_SITUACAO_DO_MATERIAL, textoDaSituacaoDoMaterial } from './materiais-da-escola'
 import {
@@ -119,7 +119,7 @@ function CorrecaoDoMaterial({ material, edicaoEmAndamento, recarregar }: Pick<Pr
   const [tentou, definirTentou] = useState(false)
   const [salvou, definirSalvou] = useState(false)
   const { enviar, mutacao } = useSingleSubmit({
-    mutationFn: (pedido: NonNullable<ReturnType<typeof pedidoDoPatch>>) => atualizarMaterial(material.id, pedido),
+    mutationFn: (pedido: NonNullable<ReturnType<typeof pedidoDoPatch>>) => updateMaterial(material.id, pedido),
     onSuccess: async () => {
       await recarregar()
       // As séries do material mudaram o que o resumo conta por série: ele se relê.

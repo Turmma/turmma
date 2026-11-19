@@ -10,7 +10,7 @@ import { alcanceDe, calendarioResponseSchema, ErrorCode, type CalendarioQuery, t
 export class CalendarioService {
   constructor(private readonly banco: Database) {}
 
-  async ler(consulta: CalendarioQuery): Promise<CalendarioResponse> {
+  async read(consulta: CalendarioQuery): Promise<CalendarioResponse> {
     const calendario = new CalendarioRepository(this.banco)
     const alcance = alcanceDe(requestSessao().papel, 'calendario', 'ler')
     if (alcance === 'unidade') {

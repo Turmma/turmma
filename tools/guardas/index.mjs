@@ -1,6 +1,7 @@
 import comentarios from '@eslint-community/eslint-plugin-eslint-comments'
 import { erroTipado } from './regras-erro.mjs'
 import { logSemConteudoMontado, logSemDadoPessoal } from './regras-log.mjs'
+import { verboDeMercadoRegra } from './regras-metodo.mjs'
 import { nomeDeMercado } from './regras-nome.mjs'
 import { MENSAGEM_SDK_DE_IA, PASTA_DOS_ADAPTADORES, REGEX_SDK_DE_IA, sdkDeIaSoNoAdaptador } from './regras-ia.mjs'
 import { esperarServicoDoCompose, testeSemDesligar } from './regras-teste.mjs'
@@ -22,6 +23,7 @@ export const guardas = {
     'tabela-so-no-repository': tabelaSoNoRepository,
     'erro-tipado': erroTipado,
     'nome-de-mercado': nomeDeMercado,
+    'verbo-de-mercado': verboDeMercadoRegra,
   },
 }
 
@@ -49,6 +51,13 @@ export const ESCOPO_DO_NOME = [
   'packages/**/*.{js,mjs,cjs,jsx,ts,mts,cts,tsx}',
   'e2e/**/*.{js,mjs,cjs,jsx,ts,mts,cts,tsx}',
 ]
+/**
+ * Método e função nascem com o verbo técnico em inglês (`findByTurma`, `create`), e o domínio fica em português (correção
+ * 2026-11-19-metodos-de-mercado; D81). Vale no `src` de cada app e pacote; o teste e o `__fixtures__` ficam de fora
+ * (`EXCECOES_DAS_GUARDAS`), porque o ajudante de teste (`criarEscolaComProfessor`) é cenário, não API. Entra na segunda passada.
+ */
+export const REGRAS_DE_METODO = ['guardas/verbo-de-mercado']
+export const ESCOPO_DO_METODO = ['apps/*/src/**/*.{ts,tsx}', 'packages/*/src/**/*.{ts,tsx}']
 /**
  * Toda chamada da web à API sai por `apps/web/src/api/client.ts`, que dá o prazo a ela (52.0; RF11): `fetch` solto, no escopo
  * global, reprova em qualquer arquivo de `apps/web/src`, fora o teste e o `__fixtures__`. As formas que o contornam
@@ -89,6 +98,7 @@ export const REGRAS_DAS_GUARDAS = [
   ...REGRAS_DE_TENANT,
   ...REGRAS_DE_ERRO,
   ...REGRAS_DE_NOME,
+  ...REGRAS_DE_METODO,
   ...REGRAS_DE_TESTE,
   ...REGRAS_DE_ENTRADA,
   ...REGRAS_DO_KIT,
@@ -132,6 +142,11 @@ export const EXCECOES_DAS_GUARDAS = [
     // Teste e apoio de teste lançam o que o cenário pede: o `Error` com o caminho no texto ajuda quem depura o teste.
     files: [...ARQUIVOS_DE_TESTE, '**/__fixtures__/**'],
     regras: REGRAS_DE_ERRO,
+  },
+  {
+    // O ajudante de teste e o de `__fixtures__` montam cenário (`criarEscolaComProfessor`): o verbo de mercado vale para a API do código.
+    files: [...ARQUIVOS_DE_TESTE, '**/__fixtures__/**'],
+    regras: REGRAS_DE_METODO,
   },
   {
     // O ponto de entrada da web: o `#raiz` ausente do `index.html` quebra antes de qualquer tela, e não há erro de domínio.
@@ -193,6 +208,10 @@ export const configuracaoDasGuardas = [
   {
     files: ESCOPO_DO_NOME,
     rules: Object.fromEntries(REGRAS_DE_NOME.map((regra) => [regra, 'error'])),
+  },
+  {
+    files: ESCOPO_DO_METODO,
+    rules: Object.fromEntries(REGRAS_DE_METODO.map((regra) => [regra, 'error'])),
   },
   {
     files: ARQUIVOS_DE_TESTE,

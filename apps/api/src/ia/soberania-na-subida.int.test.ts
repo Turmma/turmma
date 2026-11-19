@@ -197,7 +197,7 @@ describe('o main-worker só consome fila com a D62 conferida (RF9)', () => {
     const app = await NestFactory.createApplicationContext(WorkerModule.forRoot(config, logger, medidor.medidor, new Heartbeat(arquivoDoBatimento)), { logger: false })
     A_FECHAR.push(() => app.close())
     const soberania = app.get(SoberaniaNaSubida)
-    await soberania.iniciar()
+    await soberania.start()
     return { app, soberania, bateu: () => existsSync(arquivoDoBatimento) }
   }
 

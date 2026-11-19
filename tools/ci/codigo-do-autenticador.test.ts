@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { codigoDoAutenticador, codigoDoPassoAnterior, esperaPelaViradaDoPasso } from '../../e2e/support/seed.ts'
-import { gerarSegredo, passoDoCodigo, PERIODO_TOTP_SEGUNDOS } from '../../apps/api/src/credencial/totp.ts'
+import { generateSegredo, passoDoCodigo, PERIODO_TOTP_SEGUNDOS } from '../../apps/api/src/credencial/totp.ts'
 
 /**
  * O código que o e2e digita no lugar do aplicativo autenticador (`e2e/support/seed.ts`). O caso que ativa o segundo
@@ -19,7 +19,7 @@ afterEach(() => {
 
 describe('o código do autenticador no e2e (e2e/__fixtures__/sessao.ts)', () => {
   it('o código do passo anterior, gerado a 100 ms da virada, ainda vale quando a API o confere 1 s depois', async () => {
-    const segredo = gerarSegredo()
+    const segredo = generateSegredo()
     vi.useFakeTimers({ now: VIRADA - 100 })
 
     const pendente = codigoDoPassoAnterior(segredo.base32)
@@ -33,7 +33,7 @@ describe('o código do autenticador no e2e (e2e/__fixtures__/sessao.ts)', () => 
   })
 
   it('o código do passo anterior é o do passo anterior ao da hora em que a conferência acontece, e anda para trás só um passo', async () => {
-    const segredo = gerarSegredo()
+    const segredo = generateSegredo()
     vi.useFakeTimers({ now: VIRADA + 10_000 })
 
     const codigo = await codigoDoPassoAnterior(segredo.base32)

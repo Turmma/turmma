@@ -54,19 +54,19 @@ const comToken = () => {
 
 describe('GuardaDeSessao', () => {
   it('sessão válida: grava escola, usuário, papel, sessão e ano no contexto, com uma leitura só', async () => {
-    const leitura: SessaoReader = { lerParaGuarda: vi.fn().mockResolvedValue(linhaValida), marcarAtualApresentado: vi.fn() }
+    const leitura: SessaoReader = { findParaGuarda: vi.fn().mockResolvedValue(linhaValida), marcarAtualApresentado: vi.fn() }
     const contexto = await runInContext({ requisicaoId: 'r' }, async () => {
       expect(await new SessaoGuard(new Reflector(), leitura).canActivate(execucao(comToken()))).toBe(true)
       return currentContext()
     })
     expect(contexto).toEqual({ requisicaoId: 'r', ...token, papel: 'professor', anoLetivoId: null })
-    expect(leitura.lerParaGuarda).toHaveBeenCalledTimes(1)
-    expect(leitura.lerParaGuarda).toHaveBeenCalledWith(token)
+    expect(leitura.findParaGuarda).toHaveBeenCalledTimes(1)
+    expect(leitura.findParaGuarda).toHaveBeenCalledWith(token)
   })
 
   it('falha: erro ou prazo estourado na leitura responde INDISPONIVEL_TENTE_DE_NOVO 503 com espera, nunca 401, e não grava contexto', async () => {
     for (const falha of [Object.assign(new Error('Connection terminated due to connection timeout'), {}), Object.assign(new Error('canceling statement due to statement timeout'), { code: '57014', severity: 'ERROR' })]) {
-      const leitura: SessaoReader = { lerParaGuarda: vi.fn().mockRejectedValue(falha), marcarAtualApresentado: vi.fn() }
+      const leitura: SessaoReader = { findParaGuarda: vi.fn().mockRejectedValue(falha), marcarAtualApresentado: vi.fn() }
       await runInContext({ requisicaoId: 'r' }, async () => {
         await expect(new SessaoGuard(new Reflector(), leitura).canActivate(execucao(comToken()))).rejects.toMatchObject({
           codigo: ErrorCode.INDISPONIVEL_TENTE_DE_NOVO,
@@ -79,7 +79,7 @@ describe('GuardaDeSessao', () => {
   })
 
   it('sessão que não vale (inexistente) responde NAO_AUTENTICADO e não grava contexto', async () => {
-    const leitura: SessaoReader = { lerParaGuarda: vi.fn().mockResolvedValue(undefined), marcarAtualApresentado: vi.fn() }
+    const leitura: SessaoReader = { findParaGuarda: vi.fn().mockResolvedValue(undefined), marcarAtualApresentado: vi.fn() }
     await runInContext({ requisicaoId: 'r' }, async () => {
       await expect(new SessaoGuard(new Reflector(), leitura).canActivate(execucao(comToken()))).rejects.toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO, status: 401 })
       expect(currentContext()?.escolaId).toBeUndefined()
@@ -87,11 +87,11 @@ describe('GuardaDeSessao', () => {
   })
 
   it('sem token verificado na requisição (guarda fora de ordem), falha fechada sem ler o banco', async () => {
-    const leitura: SessaoReader = { lerParaGuarda: vi.fn(), marcarAtualApresentado: vi.fn() }
+    const leitura: SessaoReader = { findParaGuarda: vi.fn(), marcarAtualApresentado: vi.fn() }
     await runInContext({ requisicaoId: 'r' }, async () => {
       await expect(new SessaoGuard(new Reflector(), leitura).canActivate(execucao({}))).rejects.toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
     })
-    expect(leitura.lerParaGuarda).not.toHaveBeenCalled()
+    expect(leitura.findParaGuarda).not.toHaveBeenCalled()
   })
 })
 
@@ -112,7 +112,7 @@ describe('GuardaDeSessao: marcação do token renovado e medida da leitura', () 
   it('o token emitido depois da rotação marca a sessão sem esperar a gravação; o de antes não marca', async () => {
     let terminar: (marcou: boolean) => void = () => undefined
     const leitura: SessaoReader = {
-      lerParaGuarda: vi.fn().mockResolvedValue({ ...linhaValida, rotacionadoEm }),
+      findParaGuarda: vi.fn().mockResolvedValue({ ...linhaValida, rotacionadoEm }),
       // A marcação fica pendurada: a guarda responde mesmo assim.
       marcarAtualApresentado: vi.fn(() => new Promise<boolean>((resolver) => (terminar = resolver))),
     }
@@ -129,7 +129,7 @@ describe('GuardaDeSessao: marcação do token renovado e medida da leitura', () 
 
   it('falha: a marcação que rejeita não derruba a requisição', async () => {
     const leitura: SessaoReader = {
-      lerParaGuarda: vi.fn().mockResolvedValue({ ...linhaValida, rotacionadoEm }),
+      findParaGuarda: vi.fn().mockResolvedValue({ ...linhaValida, rotacionadoEm }),
       marcarAtualApresentado: vi.fn().mockRejectedValue(new Error('canceling statement due to statement timeout')),
     }
     const novo = tokenDe(new Date(rotacionadoEm.getTime() + 1_000))
@@ -143,7 +143,7 @@ describe('GuardaDeSessao: marcação do token renovado e medida da leitura', () 
     medidores.push(medidor)
     const leituras = [vi.fn().mockResolvedValue(linhaValida), vi.fn().mockRejectedValue(new Error('Connection terminated'))]
     for (const lerParaGuarda of leituras) {
-      const guarda = new SessaoGuard(new Reflector(), { lerParaGuarda, marcarAtualApresentado: vi.fn() }, medidor.medidor)
+      const guarda = new SessaoGuard(new Reflector(), { findParaGuarda: lerParaGuarda, marcarAtualApresentado: vi.fn() }, medidor.medidor)
       await runInContext({ requisicaoId: 'r' }, () => guarda.canActivate(execucao(comToken())).catch(() => false))
     }
     const pontos = await medidor.pontos(METRICS.leituraDeSessao)

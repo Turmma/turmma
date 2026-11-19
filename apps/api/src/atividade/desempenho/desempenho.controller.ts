@@ -15,7 +15,7 @@ export class DesempenhoController {
   @Get(':id/desempenho')
   @RequirePermissao('desempenho_da_turma', 'ler')
   @Header('Cache-Control', 'no-store')
-  ler(@Param('id', IdPipe) turmaId: string, @Query(new ZodValidationPipe(desempenhoDaTurmaQuerySchema)) consulta: DesempenhoDaTurmaQuery): Promise<DesempenhoDaTurmaResponse> {
-    return this.desempenho.ler(turmaId, consulta)
+  read(@Param('id', IdPipe) turmaId: string, @Query(new ZodValidationPipe(desempenhoDaTurmaQuerySchema)) consulta: DesempenhoDaTurmaQuery): Promise<DesempenhoDaTurmaResponse> {
+    return this.desempenho.read(turmaId, consulta)
   }
 }

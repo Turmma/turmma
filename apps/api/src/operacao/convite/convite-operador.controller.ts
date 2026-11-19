@@ -37,8 +37,8 @@ export class ConviteDeOperadorController {
   @OperacaoLoginRoute()
   @HttpCode(HttpStatus.OK)
   @Header('Cache-Control', 'no-store')
-  async consultar(@Body(new ZodValidationPipe(consultarConviteDeOperadorRequestSchema)) pedido: ConsultarConviteDeOperadorRequest): Promise<ConsultarConviteDeOperadorResponse> {
-    return consultarConviteDeOperadorResponseSchema.parse(await this.convites.consultar(pedido.token))
+  async find(@Body(new ZodValidationPipe(consultarConviteDeOperadorRequestSchema)) pedido: ConsultarConviteDeOperadorRequest): Promise<ConsultarConviteDeOperadorResponse> {
+    return consultarConviteDeOperadorResponseSchema.parse(await this.convites.find(pedido.token))
   }
 
   @Post('aceitar')

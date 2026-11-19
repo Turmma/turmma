@@ -1,5 +1,5 @@
 import type { readSheet } from 'read-excel-file/browser'
-import { lerArquivoDaLista, tetoPassado } from '../estrutura/ler-arquivo-da-lista'
+import { readArquivoDaLista, tetoPassado } from '../estrutura/ler-arquivo-da-lista'
 
 /**
  * O arquivo da planilha que a coordenação escolhe, lido no navegador e entregue como **texto** (F2, 13.0; Tech Spec, seção 1 e
@@ -52,7 +52,7 @@ export function linhasEmTexto(linhas: readonly CelulasDaLinha[]): string {
   return aproveitadas.map((linha) => (vazia(linha) ? '' : Array.from({ length: Math.max(colunas, linha.length) }, (_, posicao) => textoDaCelula(linha[posicao])).join(';'))).join('\n')
 }
 
-async function lerXlsx(arquivo: Blob): Promise<PlanilhaLida> {
+async function readXlsx(arquivo: Blob): Promise<PlanilhaLida> {
   if (arquivo.size > MAXIMO_DE_BYTES_DO_XLSX) return { ok: false, motivo: 'grande' }
   let leitor: { readonly readSheet: typeof readSheet }
   try {
@@ -75,12 +75,12 @@ function depoisDosTetos(texto: string): PlanilhaLida {
   return { ok: true, texto }
 }
 
-export async function lerPlanilha(arquivo: Blob): Promise<PlanilhaLida> {
+export async function readPlanilha(arquivo: Blob): Promise<PlanilhaLida> {
   try {
     const comeco = new Uint8Array(await arquivo.slice(0, 4).arrayBuffer())
     if (comecaCom(comeco, COMECO_DO_XLS)) return { ok: false, motivo: 'formato' }
-    if (comecaCom(comeco, COMECO_DO_ZIP)) return await lerXlsx(arquivo)
-    const csv = await lerArquivoDaLista(arquivo)
+    if (comecaCom(comeco, COMECO_DO_ZIP)) return await readXlsx(arquivo)
+    const csv = await readArquivoDaLista(arquivo)
     return csv.ok ? depoisDosTetos(csv.texto) : csv
   } catch {
     // A leitura que o navegador recusa não pode virar promessa rejeitada sem aviso na tela.

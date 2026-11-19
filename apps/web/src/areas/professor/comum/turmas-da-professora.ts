@@ -22,7 +22,7 @@ export function valorDoContexto(turmaId: string, disciplinaId: string): string {
 }
 
 /** A turma e a disciplina de um valor do seletor, ou `undefined` para o que não é um. */
-export function lerContexto(valor: string): { readonly turmaId: string; readonly disciplinaId: string } | undefined {
+export function readContexto(valor: string): { readonly turmaId: string; readonly disciplinaId: string } | undefined {
   const [turmaId, disciplinaId, resto] = valor.split(SEPARADOR)
   if (turmaId === undefined || turmaId === '' || disciplinaId === undefined || disciplinaId === '' || resto !== undefined) return undefined
   return { turmaId, disciplinaId }

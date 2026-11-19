@@ -5,7 +5,7 @@ import { alocarProfessor, disciplinasQueryOptions, turmasQueryOptions } from '..
 import { FormDialog, useSingleSubmit } from '../../../components/dialogs'
 import { SELECT_CLASSES } from '../../../components/ui/fields/field-styles'
 import { errorText } from '../../../components/error-text'
-import { ordenarPeloNome, ordenarTurmas } from '../comum/ordem'
+import { sortPeloNome, sortTurmas } from '../comum/ordem'
 
 /** "7ºA · Matemática", ou só a turma quando o vínculo não tem disciplina. */
 function turmaEDisciplina(vinculo: VinculoDaCoordenacao): string {
@@ -27,7 +27,7 @@ interface Props {
   /** O professor ainda pode receber turma, pela lista da escola **de agora**: o convite que venceu com o diálogo aberto tira o envio. */
   readonly alocavel: boolean
   readonly aoFechar: () => void
-  /** O texto do anúncio da alocação feita; quem recebe fecha só a abertura em que o pedido saiu (`fecharSeAinda`). */
+  /** O texto do anúncio da alocação feita; quem recebe fecha só a abertura em que o pedido saiu (`closeSeAinda`). */
   readonly aoAlocar: (anuncio: string) => void
   readonly recarregar: () => unknown
   /** O foco ao fechar quando o botão que abriu saiu do painel (o professor deixou de receber turma). */
@@ -52,8 +52,8 @@ interface Props {
  */
 export function DialogoDeAlocacao({ professor, alocavel, aoFechar, aoAlocar, recarregar, focoDeReserva }: Props) {
   // As listas são as do painel (a mesma chave): ele só oferece o botão com as duas lidas.
-  const turmas = ordenarTurmas(useQuery(turmasQueryOptions).data?.itens ?? [])
-  const disciplinas = ordenarPeloNome(useQuery(disciplinasQueryOptions).data?.itens ?? [])
+  const turmas = sortTurmas(useQuery(turmasQueryOptions).data?.itens ?? [])
+  const disciplinas = sortPeloNome(useQuery(disciplinasQueryOptions).data?.itens ?? [])
   const [turmaId, definirTurmaId] = useState('')
   const [disciplinaId, definirDisciplinaId] = useState('')
   const [faltando, definirFaltando] = useState(false)

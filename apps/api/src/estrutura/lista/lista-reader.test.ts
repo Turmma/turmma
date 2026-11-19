@@ -1,12 +1,12 @@
 import { DomainException } from '@educa/core'
 import { ErrorCode, MAXIMO_DE_BYTES_DA_LISTA, MAXIMO_DE_LINHAS_DA_LISTA } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
-import { lerTextoDaLista } from './lista-reader.js'
+import { readTextoDaLista } from './lista-reader.js'
 
 /** O código do `DomainException` que a leitura lançou, ou `undefined` se ela não lançou. */
 function codigoDaRecusa(texto: string): string | undefined {
   try {
-    lerTextoDaLista(texto)
+    readTextoDaLista(texto)
     return undefined
   } catch (erro) {
     if (erro instanceof DomainException) return erro.codigo
@@ -15,7 +15,7 @@ function codigoDaRecusa(texto: string): string | undefined {
 }
 
 /** Só nome e matrícula, na ordem. */
-const pares = (texto: string) => lerTextoDaLista(texto).map(({ nome, matricula }) => [nome, matricula])
+const pares = (texto: string) => readTextoDaLista(texto).map(({ nome, matricula }) => [nome, matricula])
 
 /** `quantas` linhas de aluno distintas, com o separador. */
 const linhasDeAluno = (quantas: number, separador = ';') => Array.from({ length: quantas }, (_, posicao) => `Aluno ${String(posicao)}${separador}m-${String(posicao)}`)
@@ -83,7 +83,7 @@ describe('E3: a leitura do texto da lista (A1, 2.0, e o teto da planilha, 8.0)',
   })
 
   it('o separador vem da primeira linha que tem um: a linha em branco e o título sem separador antes dela não mudam a leitura', () => {
-    expect(lerTextoDaLista('\n  \nAna;101')).toEqual([{ linha: 3, nome: 'Ana', matricula: '101' }])
+    expect(readTextoDaLista('\n  \nAna;101')).toEqual([{ linha: 3, nome: 'Ana', matricula: '101' }])
     expect(pares('Lista do 8ºA\nAna;101\nBruno;102')).toEqual([
       ['Lista do 8ºA', ''],
       ['Ana', '101'],
@@ -106,7 +106,7 @@ describe('E3: a leitura do texto da lista (A1, 2.0, e o teto da planilha, 8.0)',
   })
 
   it('linha em branco e linha só com separadores são ignoradas, e a numeração é a do arquivo', () => {
-    const lidas = lerTextoDaLista('Nome;Matrícula\r\n\r\nAna;101\n  \n;;\n\t\rBruno;102\n')
+    const lidas = readTextoDaLista('Nome;Matrícula\r\n\r\nAna;101\n  \n;;\n\t\rBruno;102\n')
     expect(lidas).toEqual([
       { linha: 3, nome: 'Ana', matricula: '101' },
       { linha: 7, nome: 'Bruno', matricula: '102' },
@@ -122,7 +122,7 @@ describe('E3: a leitura do texto da lista (A1, 2.0, e o teto da planilha, 8.0)',
 
   it('3.000 linhas de aluno passam; 3.001 recusam com ENTRADA_INVALIDA; o cabeçalho e a linha em branco não contam (o teto da planilha, F2, 8.0)', () => {
     expect(MAXIMO_DE_LINHAS_DA_LISTA).toBe(3000)
-    expect(lerTextoDaLista(['Nome;Matrícula', '', ...linhasDeAluno(3000), ''].join('\n'))).toHaveLength(3000)
+    expect(readTextoDaLista(['Nome;Matrícula', '', ...linhasDeAluno(3000), ''].join('\n'))).toHaveLength(3000)
     expect(codigoDaRecusa(linhasDeAluno(3001).join('\n'))).toBe(ErrorCode.ENTRADA_INVALIDA)
   })
 
@@ -136,7 +136,7 @@ describe('E3: a leitura do texto da lista (A1, 2.0, e o teto da planilha, 8.0)',
     const falta = MAXIMO_DE_BYTES_DA_LISTA - Buffer.byteLength(`${base}\nx;`, 'utf8')
     const noLimite = `${base}\nx;${'1'.repeat(falta)}`
     expect(Buffer.byteLength(noLimite, 'utf8')).toBe(MAXIMO_DE_BYTES_DA_LISTA)
-    expect(lerTextoDaLista(noLimite)).toHaveLength(200)
+    expect(readTextoDaLista(noLimite)).toHaveLength(200)
     expect(codigoDaRecusa(`${noLimite}1`)).toBe(ErrorCode.ENTRADA_INVALIDA)
   })
 

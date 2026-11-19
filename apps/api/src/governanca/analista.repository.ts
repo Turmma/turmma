@@ -228,7 +228,7 @@ export class AnalistaRepository {
   }
 
   /** Grava o resumo já validado, ligado à execução que o produziu (um por execução), e devolve o id. */
-  async gravarResumo(conteudo: ConteudoDoResumoDoAnalista, execucaoId: string): Promise<string> {
+  async saveResumo(conteudo: ConteudoDoResumoDoAnalista, execucaoId: string): Promise<string> {
     const { escolaId, anoLetivoId } = this.#escopo()
     const [criado] = await this.banco.insert(resumoDoAnalista).values({ escolaId, anoLetivoId, execucaoId, conteudo }).returning({ id: resumoDoAnalista.id })
     if (criado === undefined) throw new InvariantException('resumo do Analista não gravado')

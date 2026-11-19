@@ -30,8 +30,8 @@ const PRAZO_DA_GRAVACAO_MS = ESPERA_MAXIMA_DA_GRAVACAO_MS + 1_000
 /**
  * A gravação do texto da aula da professora (F2b, tarefa 4.0; Tech Spec da semana-do-professor, seção 5, "Gravar"). Escola, ano e professora
  * vêm do contexto e da sessão (regra 10, item 3): nenhum método recebe escola, ano nem usuário. Quem chama roda numa transação e na ordem
- * global: `limitarEspera`, o ano em `for share` (`TurmaRepository.travarAnoEmCurso`), `vinculoDaProfessora` (lê **sem** trava de linha, e nunca
- * `VinculoRepository.travar`, que abre o ciclo com `encerrarOsMarcados`), só então `travarVinculo`, e por fim `fimDaAulaGravavel` e a escrita. O texto
+ * global: `limitarEspera`, o ano em `for share` (`TurmaRepository.lockAnoEmCurso`), `vinculoDaProfessora` (lê **sem** trava de linha, e nunca
+ * `VinculoRepository.travar`, que abre o ciclo com `encerrarOsMarcados`), só então `lockVinculo`, e por fim `fimDaAulaGravavel` e a escrita. O texto
  * nunca vai a log nem a auditoria (regra 20, itens 9 e 10; seção 11 da Tech Spec).
  */
 export class AulaRepository {
@@ -75,7 +75,7 @@ export class AulaRepository {
    * Põe a transação na fila da trava do vínculo (`pg_advisory_xact_lock(7_000_004, hashtext(escolaId ‖ vinculoId))`); solta no commit ou no
    * rollback. Só se chama com um vínculo que `vinculoDaProfessora` achou: o id do cliente não vira chave antes da conferência.
    */
-  async travarVinculo(vinculoId: string): Promise<void> {
+  async lockVinculo(vinculoId: string): Promise<void> {
     await this.banco.execute(
       sql`select pg_advisory_xact_lock(${CHAVE_DA_TRAVA_DO_VINCULO_DA_AULA}, hashtext(${requireEscolaId()}::uuid::text || ${vinculoId}::uuid::text))`,
     )
@@ -150,7 +150,7 @@ export class AulaRepository {
    * conferido na escola, ele não é alcançável por dado consistente, e é a segunda camada se a linha for de outra escola. Se ela agisse, o `update` não
    * tocaria a linha e a rota ainda responderia 200: a resposta não refletiria o banco (hoje inalcançável, provado em `aulas.int.test.ts`).
    */
-  async gravar(vinculoId: string, data: string, inicio: string, fim: string, texto: string): Promise<void> {
+  async save(vinculoId: string, data: string, inicio: string, fim: string, texto: string): Promise<void> {
     const escolaId = requireEscolaId()
     await this.banco
       .insert(aula)
@@ -163,7 +163,7 @@ export class AulaRepository {
   }
 
   /** Apaga o registro da aula, se houver: texto vazio é apagar, e apagar o que não existe não é erro. */
-  async apagar(vinculoId: string, data: string, inicio: string): Promise<void> {
+  async delete(vinculoId: string, data: string, inicio: string): Promise<void> {
     await this.banco
       .delete(aula)
       .where(and(eq(aula.escolaId, requireEscolaId()), eq(aula.anoLetivoId, requireAnoEmCurso()), eq(aula.vinculoId, vinculoId), eq(aula.data, data), eq(aula.inicio, inicio)))

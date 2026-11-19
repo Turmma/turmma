@@ -39,7 +39,7 @@ export interface SessaoRow {
 export class SessaoRepository {
   constructor(private readonly banco: Database) {}
 
-  async lerParaGuarda(token: VerifiedToken): Promise<SessaoRow | undefined> {
+  async findParaGuarda(token: VerifiedToken): Promise<SessaoRow | undefined> {
     const [linha] = await this.banco
       .select({
         usuarioId: sessao.usuarioId,

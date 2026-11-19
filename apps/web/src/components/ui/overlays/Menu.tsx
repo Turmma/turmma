@@ -85,7 +85,7 @@ export function Menu({ rotulo, prefixo, icone: Icone, soIcone = false, itens, ao
   const lista = useRef<HTMLDivElement>(null)
   const idDoBotao = useId()
   const idDaLista = useId()
-  const { ancora, posicao } = useFloating<HTMLSpanElement>({ aberto, aoFechar: fecharEVoltar, alinhamento, lado, altura: ALTURA_DO_MENU })
+  const { ancora, posicao } = useFloating<HTMLSpanElement>({ aberto, aoFechar: closeEVoltar, alinhamento, lado, altura: ALTURA_DO_MENU })
   useInertOutside(aberto, ancora)
   const deEscolha = escolhido !== undefined
 
@@ -99,7 +99,7 @@ export function Menu({ rotulo, prefixo, icone: Icone, soIcone = false, itens, ao
     focarItem(lista.current, ponta === 'primeiro' && doEscolhido !== -1 ? doEscolhido : itemInicial(itens, ponta))
   }, [aberto, medido, itens, escolhido])
 
-  function abrir(ponta: 'primeiro' | 'ultimo'): void {
+  function open(ponta: 'primeiro' | 'ultimo'): void {
     entradaPendente.current = ponta
     definirAberto(true)
   }
@@ -108,7 +108,7 @@ export function Menu({ rotulo, prefixo, icone: Icone, soIcone = false, itens, ao
    * Fecha e devolve o foco ao botão, por qualquer caminho: a escolha, o Esc, o Tab, o toque fora e a rolagem por fora. Sem
    * rolar a página até o botão: quem rolou para longe dele não é puxado de volta.
    */
-  function fecharEVoltar(): void {
+  function closeEVoltar(): void {
     definirAberto(false)
     botao.current?.focus({ preventScroll: true })
   }
@@ -116,7 +116,7 @@ export function Menu({ rotulo, prefixo, icone: Icone, soIcone = false, itens, ao
   function teclaNoBotao(evento: KeyboardEvent<HTMLButtonElement>): void {
     if (evento.key === 'ArrowDown' || evento.key === 'ArrowUp') {
       evento.preventDefault()
-      abrir(evento.key === 'ArrowUp' ? 'ultimo' : 'primeiro')
+      open(evento.key === 'ArrowUp' ? 'ultimo' : 'primeiro')
     }
   }
 
@@ -125,7 +125,7 @@ export function Menu({ rotulo, prefixo, icone: Icone, soIcone = false, itens, ao
       evento.preventDefault()
       // O Esc é deste menu: dentro de um diálogo ou da gaveta, ele não fecha o que está em volta.
       evento.stopPropagation()
-      fecharEVoltar()
+      closeEVoltar()
       return
     }
     const atual = Array.from(lista.current?.querySelectorAll('[data-item]') ?? []).findIndex((item) => item === document.activeElement)
@@ -137,7 +137,7 @@ export function Menu({ rotulo, prefixo, icone: Icone, soIcone = false, itens, ao
 
   function escolher(item: MenuItem): void {
     if (item.desabilitado === true) return
-    fecharEVoltar()
+    closeEVoltar()
     aoEscolher(item.id)
   }
 
@@ -151,7 +151,7 @@ export function Menu({ rotulo, prefixo, icone: Icone, soIcone = false, itens, ao
         aria-haspopup="menu"
         aria-expanded={aberto}
         {...(aberto ? { 'aria-controls': idDaLista } : {})}
-        onClick={() => (aberto ? definirAberto(false) : abrir('primeiro'))}
+        onClick={() => (aberto ? definirAberto(false) : open('primeiro'))}
         onKeyDown={teclaNoBotao}
         className={`${buttonVariants({ variante, tamanho: 'compacto' })} max-w-full`}
       >
@@ -166,7 +166,7 @@ export function Menu({ rotulo, prefixo, icone: Icone, soIcone = false, itens, ao
         querer. O resto da página fica inerte enquanto isso (`useInertOutside`); o fundo é o que garante o mesmo no
         navegador antigo, que não conhece `inert`.
       */}
-      {aberto && <span aria-hidden="true" data-fundo-do-menu="" onClick={fecharEVoltar} className="fixed inset-0 z-20" />}
+      {aberto && <span aria-hidden="true" data-fundo-do-menu="" onClick={closeEVoltar} className="fixed inset-0 z-20" />}
       {aberto && (
         <div
           ref={lista}

@@ -1,19 +1,19 @@
 import { InvalidConfigError } from '@educa/core'
 import { describe, expect, it, vi } from 'vitest'
 import { InvalidArgumentError as ArgumentoInvalidoDoComando } from './command.js'
-import { InvalidArgumentError, executarOpsUso, lerPedidoDeUso, urlDoBancoDeOperacao } from './uso.js'
+import { InvalidArgumentError, runOpsUso, readPedidoDeUso, urlDoBancoDeOperacao } from './uso.js'
 
 const ESCOLA_A = '0190f5a0-0000-7000-8000-00000000000a'
 // 01h de 01/01/2027 em São Paulo; em UTC já são 04h.
 const relogio = { agora: () => new Date('2027-01-01T01:00:00-03:00') }
 
-describe('lerPedidoDeUso', () => {
+describe('readPedidoDeUso', () => {
   it('sem --dia, vale o último dia fechado em São Paulo, e o mês dele', () => {
-    expect(lerPedidoDeUso(['--escola', ESCOLA_A], relogio)).toEqual({ escolaId: ESCOLA_A, dia: '2026-12-31', mes: '2026-12' })
+    expect(readPedidoDeUso(['--escola', ESCOLA_A], relogio)).toEqual({ escolaId: ESCOLA_A, dia: '2026-12-31', mes: '2026-12' })
   })
 
   it('--dia e --mes escolhem o período, e a escola sai em minúsculas', () => {
-    expect(lerPedidoDeUso(['--escola', ESCOLA_A.toUpperCase(), '--dia', '2026-09-15', '--mes', '2026-08'], relogio)).toEqual({
+    expect(readPedidoDeUso(['--escola', ESCOLA_A.toUpperCase(), '--dia', '2026-09-15', '--mes', '2026-08'], relogio)).toEqual({
       escolaId: ESCOLA_A,
       dia: '2026-09-15',
       mes: '2026-08',
@@ -27,19 +27,19 @@ describe('lerPedidoDeUso', () => {
     ['dia em outro formato', ['--escola', ESCOLA_A, '--dia', '15/09/2026'], '--dia'],
     ['mês inválido', ['--escola', ESCOLA_A, '--mes', '2026-13'], '--mes'],
   ])('%s: recusa citando só a opção', (_caso, argumentos, opcao) => {
-    expect(() => lerPedidoDeUso(argumentos, relogio)).toThrow(new InvalidArgumentError(opcao))
+    expect(() => readPedidoDeUso(argumentos, relogio)).toThrow(new InvalidArgumentError(opcao))
   })
 
   it('o ArgumentoInvalido do uso é o de comando.ts, uma classe só, com a mensagem de sempre no terminal', () => {
     expect(InvalidArgumentError).toBe(ArgumentoInvalidoDoComando)
-    expect(() => lerPedidoDeUso([], relogio)).toThrow(ArgumentoInvalidoDoComando)
-    expect(() => lerPedidoDeUso([], relogio)).toThrow('Opção inválida ou ausente: --escola')
+    expect(() => readPedidoDeUso([], relogio)).toThrow(ArgumentoInvalidoDoComando)
+    expect(() => readPedidoDeUso([], relogio)).toThrow('Opção inválida ou ausente: --escola')
   })
 
   it('opção desconhecida não repete o valor recebido na mensagem', () => {
-    expect(() => lerPedidoDeUso(['--escola', ESCOLA_A, '--senha', 'segredo_sintetico'], relogio)).toThrow(InvalidArgumentError)
-    expect(() => lerPedidoDeUso(['--escola', ESCOLA_A, '--senha', 'segredo_sintetico'], relogio)).toThrow('Opção inválida ou ausente: --escola, --dia ou --mes')
-    expect(() => lerPedidoDeUso(['--escola', ESCOLA_A, '--senha', 'segredo_sintetico'], relogio)).not.toThrow(/segredo_sintetico/)
+    expect(() => readPedidoDeUso(['--escola', ESCOLA_A, '--senha', 'segredo_sintetico'], relogio)).toThrow(InvalidArgumentError)
+    expect(() => readPedidoDeUso(['--escola', ESCOLA_A, '--senha', 'segredo_sintetico'], relogio)).toThrow('Opção inválida ou ausente: --escola, --dia ou --mes')
+    expect(() => readPedidoDeUso(['--escola', ESCOLA_A, '--senha', 'segredo_sintetico'], relogio)).not.toThrow(/segredo_sintetico/)
   })
 })
 
@@ -61,14 +61,14 @@ describe('urlDoBancoDeOperacao', () => {
   })
 })
 
-describe('executarOpsUso: desde a A0 lê o OPERADOR, conferido antes de abrir o banco', () => {
+describe('runOpsUso: desde a A0 lê o OPERADOR, conferido antes de abrir o banco', () => {
   it.each([
     ['sem OPERADOR', {}],
     ['OPERADOR fora do formato', { OPERADOR: 'Joaquim Paes' }],
   ])('%s: sai com 2 pelo nome da variável, sem abrir o banco', async (_caso, ambiente) => {
     const abrirBanco = vi.fn()
     let erro = ''
-    const codigo = await executarOpsUso(['--escola', ESCOLA_A], ambiente, { saida: () => undefined, erro: (texto) => (erro += texto) }, abrirBanco)
+    const codigo = await runOpsUso(['--escola', ESCOLA_A], ambiente, { saida: () => undefined, erro: (texto) => (erro += texto) }, abrirBanco)
     expect(codigo).toBe(2)
     expect(erro).toBe(`${new InvalidConfigError(['OPERADOR']).message}\n`)
     expect(abrirBanco).not.toHaveBeenCalled()

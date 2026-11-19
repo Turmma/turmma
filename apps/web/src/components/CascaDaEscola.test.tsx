@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
 import { euQueryOptions } from '../api/eu'
-import { abrirSessaoPeloCookie } from '../api/sessao'
+import { openSessaoPeloCookie } from '../api/sessao'
 import { createQueryClient } from '../api/query-client'
 import { ROUTES } from '../paths'
 import { classesOf } from '../__fixtures__/class-colors'
@@ -325,7 +325,7 @@ describe('a saída que a casca oferece à tela (X4, 2.0; D59)', () => {
       'fetch',
       vi.fn(async () => new Response(JSON.stringify({ token: 'token-de-teste', expiraEm: new Date(Date.now() + 600_000).toISOString() }), { status: 200 })),
     )
-    await abrirSessaoPeloCookie()
+    await openSessaoPeloCookie()
     vi.unstubAllGlobals()
   })
 

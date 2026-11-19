@@ -29,8 +29,8 @@ import {
 } from '@educa/shared'
 import { Logger } from '@nestjs/common'
 import { randomUUID } from 'node:crypto'
-import { criarEscola, criarRede } from '../escola/escola.js'
-import { type AuthorCheck, criarConviteDeCoordenador, refazerConviteDaCoordenacao, revogarConvitePeloOperador } from '../../sessao/index.js'
+import { createEscola, createRede } from '../escola/escola.js'
+import { type AuthorCheck, createConviteDeCoordenador, refazerConviteDaCoordenacao, revogarConvitePeloOperador } from '../../sessao/index.js'
 import { OperadorRepository } from '../operador/operador.repository.js'
 import { PainelRepository, type ReferenciaDoUso } from './painel.repository.js'
 
@@ -115,24 +115,24 @@ export class PainelService {
     return usoDoPainelResponseSchema.parse({ pagina, total: lida.total, itens: lida.itens, dia: referencia.dia, mes: referencia.dia.slice(0, 7) })
   }
 
-  async criarRede(pedido: CriarRedeRequest): Promise<CriadoNoPainelResponse> {
+  async createRede(pedido: CriarRedeRequest): Promise<CriadoNoPainelResponse> {
     const autor = autorDaSessao(requireContextOperador())
-    const criada = await criarRede(this.banco, autor, { id: pedido.id.toLowerCase(), nome: pedido.nome, tipo: pedido.tipo })
+    const criada = await createRede(this.banco, autor, { id: pedido.id.toLowerCase(), nome: pedido.nome, tipo: pedido.tipo })
     if (criada.nova) this.#logger.log('operacao.rede.criada')
     return criadoNoPainelResponseSchema.parse({ id: criada.id })
   }
 
-  async criarEscola(pedido: CriarEscolaRequest): Promise<CriadoNoPainelResponse> {
+  async createEscola(pedido: CriarEscolaRequest): Promise<CriadoNoPainelResponse> {
     const autor = autorDaSessao(requireContextOperador())
-    const criada = await criarEscola(this.banco, autor, { id: pedido.id.toLowerCase(), redeId: pedido.redeId.toLowerCase(), nome: pedido.nome, slug: pedido.slug })
+    const criada = await createEscola(this.banco, autor, { id: pedido.id.toLowerCase(), redeId: pedido.redeId.toLowerCase(), nome: pedido.nome, slug: pedido.slug })
     if (criada.nova) naEscola(criada.id, () => this.#logger.log('operacao.escola.criada'))
     return criadoNoPainelResponseSchema.parse({ id: criada.id })
   }
 
   /** Gera o convite da primeira coordenação da escola do `:id`, pela matriz da seção 5. O token sai só nesta resposta. */
-  async gerarConvite(escolaId: string, pedido: ConviteDaCoordenacaoRequest): Promise<ConviteDaCoordenacaoResponse> {
+  async generateConvite(escolaId: string, pedido: ConviteDaCoordenacaoRequest): Promise<ConviteDaCoordenacaoResponse> {
     const autor = autorDaSessao(requireContextOperador())
-    const gerado = await criarConviteDeCoordenador(this.banco, autor, { escolaId, email: pedido.email, nome: pedido.nome })
+    const gerado = await createConviteDeCoordenador(this.banco, autor, { escolaId, email: pedido.email, nome: pedido.nome })
     naEscola(escolaId, () => this.#logger.log('operacao.convite.gerado'))
     return conviteDaCoordenacaoResponseSchema.parse(gerado)
   }

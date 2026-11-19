@@ -1,4 +1,4 @@
-import { CHAVES_DE_FUNCAO, ErrorCode, montarTime, TIPOS_DE_ALERTA_DO_ANALISTA, type AlertaDoAnalista, type FuncaoDaGovernanca, type FuncoesDaGovernancaResponse } from '@educa/shared'
+import { CHAVES_DE_FUNCAO, ErrorCode, buildTime, TIPOS_DE_ALERTA_DO_ANALISTA, type AlertaDoAnalista, type FuncaoDaGovernanca, type FuncoesDaGovernancaResponse } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import { trocarFuncao } from './api/governanca'
 import { textoDaAprovacao } from '../../../components/ui/ai/approval'
@@ -14,7 +14,7 @@ import {
   NOME_DA_AUTONOMIA,
   O_QUE_CHEGA_AO_ALUNO,
   falhaDoResumo,
-  formatarPercentual,
+  formatPercentual,
   fraseDoAlerta,
   nomeDaFuncao,
   OPCOES_DO_ESTADO,
@@ -96,7 +96,7 @@ describe('o alerta do Analista é hipótese com contexto', () => {
   })
 
   it('o percentual sai com vírgula e no máximo uma casa', () => {
-    expect([formatarPercentual(50), formatarPercentual(46.7), formatarPercentual(66.66)]).toEqual(['50%', '46,7%', '66,7%'])
+    expect([formatPercentual(50), formatPercentual(46.7), formatPercentual(66.66)]).toEqual(['50%', '46,7%', '66,7%'])
   })
 })
 
@@ -163,7 +163,7 @@ describe('a suspensão e o dado nominal dizem o que acontece antes de confirmar'
 })
 
 describe('a função que a API devolve entra no lugar da antiga', () => {
-  const lista: FuncoesDaGovernancaResponse = { agentes: montarTime(new Set()).agentes.map((agente) => ({ ...agente, funcoes: agente.funcoes.map((funcao) => ({ ...funcao, suspensao: null })) })) }
+  const lista: FuncoesDaGovernancaResponse = { agentes: buildTime(new Set()).agentes.map((agente) => ({ ...agente, funcoes: agente.funcoes.map((funcao) => ({ ...funcao, suspensao: null })) })) }
   const suspensa: FuncaoDaGovernanca = { ...(lista.agentes[0]?.funcoes[1] as FuncaoDaGovernanca), suspensa: true, suspensao: { suspensaEm: QUANDO, motivo: 'incidente' } }
 
   it('só a função suspensa muda; as outras do mesmo agente e dos outros ficam como estavam', () => {

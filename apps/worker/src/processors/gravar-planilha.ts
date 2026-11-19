@@ -1,7 +1,7 @@
-import { contaDoProfessor, travarContasDoProfessor } from '@educa/core/cadastro-de-professor'
+import { contaDoProfessor, lockContasDoProfessor } from '@educa/core/cadastro-de-professor'
 import {
-  ehFalhaDeTrava,
-  executarPlanilha,
+  isFalhaDeTrava,
+  runPlanilha,
   ImportacaoIlegivelError,
   ImportacaoRepository,
   METRICS,
@@ -28,10 +28,10 @@ export const LIMITES_DO_PASSO_3_S = [0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 0.75, 1,
 
 /**
  * `estrutura.gravar-planilha` (F2, tarefa 4.0; Tech Spec, seção 5, "O job"): no contexto da escola do outbox, lê a importação
- * **dessa escola** pelo id do job, refaz a classificação e grava em três passos (`executarPlanilha`, em `@educa/core`).
+ * **dessa escola** pelo id do job, refaz a classificação e grava em três passos (`runPlanilha`, em `@educa/core`).
  *
  * - **O passo (1) da planilha de professores acha ou cria a conta global** pelo `contaDoProfessor`, e o passo (3) trava e confere
- *   essas contas pelo `travarContasDoProfessor`; este arquivo é o único do worker a importá-los (Tech Spec, seção 6; as duas guardas
+ *   essas contas pelo `lockContasDoProfessor`; este arquivo é o único do worker a importá-los (Tech Spec, seção 6; as duas guardas
  *   de cerca): o motor, no core, recebe as duas funções e não conhece a conta global.
  * - **O job leva só o id da importação**, e a escola é a da linha do job: o id de uma importação de outra escola não é achado, e
  *   o job termina `ignorada` sem tocar nela.
@@ -42,7 +42,7 @@ export const LIMITES_DO_PASSO_3_S = [0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 0.75, 1,
  *   importação sai `falhou` com o código de lista fechada, e o job falha: o alerta do job que falhou de vez a mostra.
  * - **Log**: ids, contagem de tentativa e código. Nunca a linha, o nome, a matrícula nem o e-mail (regra 20, item 9).
  */
-export function criarGravacaoDaPlanilha({ banco, logger, medidor }: GravarPlanilhaDependencies): JobProcessor<typeof TIPO_GRAVAR_PLANILHA> {
+export function createGravacaoDaPlanilha({ banco, logger, medidor }: GravarPlanilhaDependencies): JobProcessor<typeof TIPO_GRAVAR_PLANILHA> {
   const porResultado = medidor?.createCounter(METRICS.importacaoPorResultado, { description: 'Execuções do job da planilha, por resultado' })
   const duracaoDoPasso3 = medidor?.createHistogram(METRICS.duracaoDoPasso3DaImportacao, {
     unit: 's',
@@ -52,7 +52,7 @@ export function criarGravacaoDaPlanilha({ banco, logger, medidor }: GravarPlanil
   return async ({ importacaoId }, execucao) => {
     requireEscolaId()
     try {
-      const estado = await executarPlanilha(banco, importacaoId, { aoMedirOPasso3: (segundos) => duracaoDoPasso3?.record(segundos), acharConta: contaDoProfessor, travarContas: travarContasDoProfessor })
+      const estado = await runPlanilha(banco, importacaoId, { aoMedirOPasso3: (segundos) => duracaoDoPasso3?.record(segundos), acharConta: contaDoProfessor, lockContas: lockContasDoProfessor })
       porResultado?.add(1, { resultado: estado })
       logger.info({ evento: 'importacao.job_terminou', importacaoId, estado, tentativa: execucao.tentativa })
     } catch (erro) {
@@ -63,7 +63,7 @@ export function criarGravacaoDaPlanilha({ banco, logger, medidor }: GravarPlanil
         logger.warn({ evento: 'importacao.job_repetira', importacaoId, tentativa: execucao.tentativa, erro: summarizeError(erro) })
         throw erro
       }
-      const codigo = ehFalhaDeTrava(erro) ? 'trava_esgotada' : 'erro_interno'
+      const codigo = isFalhaDeTrava(erro) ? 'trava_esgotada' : 'erro_interno'
       const fechada = await new ImportacaoRepository(banco).falhar(importacaoId, codigo)
       porResultado?.add(1, { resultado: 'falhou' })
       logger.error({ evento: 'importacao.job_falhou', importacaoId, tentativa: execucao.tentativa, codigo, estado: fechada ? 'falhou' : 'ja_fechada' })

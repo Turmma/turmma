@@ -2,7 +2,7 @@ import { decidirEntregaRequestSchema, type Entrega } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import { textoDaAprovacao, motivoDaRejeicao } from '../../../components/ui/ai/approval'
 import { problemaDoTexto } from '../../../components/ui/fields/text-limits'
-import { aprovacaoDaEntrega, avisoDaFuncaoSuspensa, decideAqui, podeRenomear, saidaEmPdf, entregasDoFiltro, falaDaEntrega, LIMITES_DA_JUSTIFICATIVA, resumoDaAprovacao, textoDaAdaptacao } from './entregas'
+import { aprovacaoDaEntrega, avisoDaFuncaoSuspensa, decideAqui, canRenomear, saidaEmPdf, entregasDoFiltro, falaDaEntrega, LIMITES_DA_JUSTIFICATIVA, resumoDaAprovacao, textoDaAdaptacao } from './entregas'
 
 const TURMA = '0190f5a0-0000-7000-8000-00000000002b'
 const AGORA = new Date('2026-10-05T12:00:00.000Z')
@@ -96,10 +96,10 @@ describe('a conversa de "O que o Assistente fez" (11.4)', () => {
   })
 
   it('a versão adaptada já decidida não muda de nome; a pendente e o artefato sem entrega mudam', () => {
-    expect(podeRenomear(null)).toBe(true)
-    expect(podeRenomear({ estado: 'pendente' })).toBe(true)
-    expect(podeRenomear({ estado: 'aprovada' })).toBe(false)
-    expect(podeRenomear({ estado: 'rejeitada' })).toBe(false)
+    expect(canRenomear(null)).toBe(true)
+    expect(canRenomear({ estado: 'pendente' })).toBe(true)
+    expect(canRenomear({ estado: 'aprovada' })).toBe(false)
+    expect(canRenomear({ estado: 'rejeitada' })).toBe(false)
   })
 
   it('o diálogo de aprovar diz o que é, de qual turma, e que foi a IA que fez', () => {

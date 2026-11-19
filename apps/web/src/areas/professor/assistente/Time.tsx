@@ -30,7 +30,7 @@ import {
   decideAqui,
   EFEITO_DE_APROVAR,
   EFEITO_DE_REJEITAR,
-  ehFiltroDoTime,
+  isFiltroDoTime,
   entregasDoFiltro,
   falaDaEntrega,
   FILTROS_DO_TIME,
@@ -128,7 +128,7 @@ export default function Time() {
   const visiveis = entregasDoFiltro(todas, filtro)
   const assistente = agenteDoTime(time.data, 'assistente_de_ensino')
 
-  function abrir(entrega: Entrega, decisao: DecidirEntregaRequest['decisao']): void {
+  function open(entrega: Entrega, decisao: DecidirEntregaRequest['decisao']): void {
     decidir.reset()
     definirJustificativa('')
     definirTentouRejeitar(false)
@@ -306,7 +306,7 @@ export default function Time() {
               abas={FILTROS_DO_TIME.map((item) => ({ id: item.id, rotulo: item.rotulo, ...(item.id === 'esperando' ? { contador: esperando.length } : {}) }))}
               ativa={filtro}
               aoMudar={(id) => {
-                if (ehFiltroDoTime(id)) definirFiltro(id)
+                if (isFiltroDoTime(id)) definirFiltro(id)
               }}
             >
               {visiveis.length === 0 ? (
@@ -339,10 +339,10 @@ export default function Time() {
                             )}
                             {decideAqui(entrega) && (
                               <>
-                                <Button variante="oficial" onClick={() => abrir(entrega, 'aprovar')}>
+                                <Button variante="oficial" onClick={() => open(entrega, 'aprovar')}>
                                   Aprovar<span className="sr-only"> {entrega.titulo}</span>
                                 </Button>
-                                <Button variante="perigo" onClick={() => abrir(entrega, 'rejeitar')}>
+                                <Button variante="perigo" onClick={() => open(entrega, 'rejeitar')}>
                                   Rejeitar…<span className="sr-only"> {entrega.titulo}</span>
                                 </Button>
                               </>

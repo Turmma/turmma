@@ -17,7 +17,7 @@ export interface FilaDeOperacao {
    * estado que não `failed` não se remove: o job está na fila, e a linha que diz `falhou` está desatualizada. Recusa com `CONFLITO`.
    */
   tirarCopiaDaFalha(job: QueuedJobRef): Promise<void>
-  fechar(): Promise<void>
+  close(): Promise<void>
 }
 
 export interface FilaDeOperacaoOptions {
@@ -29,7 +29,7 @@ export interface FilaDeOperacaoOptions {
  * A fila de operação sobre o Redis de fila (`REDIS_FILA_URL`), com o mesmo cliente do despachante: sem fila offline e com prazo por comando.
  * Uma `Queue` por nome, aberta na primeira vez que o tipo a pede.
  */
-export function abrirFilaDeOperacao(urlDoRedis: string, opcoes: FilaDeOperacaoOptions = {}): FilaDeOperacao {
+export function openFilaDeOperacao(urlDoRedis: string, opcoes: FilaDeOperacaoOptions = {}): FilaDeOperacao {
   const redis: Redis = createQueueRedisClient(urlDoRedis, 'ops-jobs', () => undefined)
   const filas = new Map<string, Queue<QueuedJobData>>()
   const filaDe = (job: QueuedJobRef): Queue<QueuedJobData> => {
@@ -48,7 +48,7 @@ export function abrirFilaDeOperacao(urlDoRedis: string, opcoes: FilaDeOperacaoOp
       if ((await naFila.getState()) !== 'failed') throw new DomainException(ErrorCode.CONFLITO)
       await naFila.remove()
     },
-    async fechar() {
+    async close() {
       await Promise.all([...filas.values()].map((fila) => fila.close()))
       redis.disconnect()
     },

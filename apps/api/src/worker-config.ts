@@ -1,8 +1,8 @@
 import {
   InvalidConfigError,
   isEscolaConcurrencyLimitDisabled,
-  lerJanelaPadrao,
-  lerVagasPadrao,
+  readJanelaPadrao,
+  readVagasPadrao,
   loadDatabaseConfig,
   loadLLMConfig,
   loadTelemetryConfig,
@@ -50,7 +50,7 @@ export interface MainWorkerConfig {
 /** Lê e valida o ambiente do `main-worker`. Todos os problemas saem de uma vez, só pelo nome da variável. */
 export function loadWorkerConfig(ambiente: Record<string, string | undefined>): MainWorkerConfig {
   const problemas: InvalidConfigError[] = []
-  const ler = <T>(leitura: () => T): T | undefined => {
+  const read = <T>(leitura: () => T): T | undefined => {
     try {
       return leitura()
     } catch (erro) {
@@ -59,15 +59,15 @@ export function loadWorkerConfig(ambiente: Record<string, string | undefined>): 
       return undefined
     }
   }
-  const banco = ler(() => loadDatabaseConfig(ambiente))
-  const proprio = ler(() => validateEnvironment(envSchema, ambiente))
+  const banco = read(() => loadDatabaseConfig(ambiente))
+  const proprio = read(() => validateEnvironment(envSchema, ambiente))
   const inteiroPositivo = z.coerce.number().int().positive()
-  const pools = ler(() => validateEnvironment(z.object(Object.fromEntries(FILAS_DA_IA.map((fila) => [variavelDoPoolDaIa(fila), inteiroPositivo]))), ambiente))
-  const vagasPadrao = ler(() => lerVagasPadrao(ambiente))
-  const vagasDesligadas = ler(() => isEscolaConcurrencyLimitDisabled(ambiente))
-  const janelaPadrao = ler(() => lerJanelaPadrao(ambiente))
-  const telemetria = ler(() => loadTelemetryConfig(ambiente))
-  const ia = ler(() => loadLLMConfig(ambiente))
+  const pools = read(() => validateEnvironment(z.object(Object.fromEntries(FILAS_DA_IA.map((fila) => [variavelDoPoolDaIa(fila), inteiroPositivo]))), ambiente))
+  const vagasPadrao = read(() => readVagasPadrao(ambiente))
+  const vagasDesligadas = read(() => isEscolaConcurrencyLimitDisabled(ambiente))
+  const janelaPadrao = read(() => readJanelaPadrao(ambiente))
+  const telemetria = read(() => loadTelemetryConfig(ambiente))
+  const ia = read(() => loadLLMConfig(ambiente))
   if (banco === undefined || proprio === undefined || pools === undefined || vagasPadrao === undefined || janelaPadrao === undefined || vagasDesligadas === undefined || telemetria === undefined || ia === undefined) {
     // Sem repetir: o `AMBIENTE` é lido pelo banco e de novo pela IA, que o usa para a trava de produção.
     throw new InvalidConfigError([...new Set(problemas.flatMap((erro) => erro.variaveis))].sort(), problemas.flatMap((erro) => erro.motivos))

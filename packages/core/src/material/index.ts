@@ -1,4 +1,4 @@
-export { PdfExtractor, MAXIMO_DE_CARACTERES_DO_TRECHO, MINIMO_DE_PAGINAS_PARA_TIRAR_LINHA_REPETIDA, temAssinaturaDePdf, tirarLinhasRepetidas } from './pdf-extractor.js'
+export { PdfExtractor, MAXIMO_DE_CARACTERES_DO_TRECHO, MINIMO_DE_PAGINAS_PARA_TIRAR_LINHA_REPETIDA, hasAssinaturaDePdf, tirarLinhasRepetidas } from './pdf-extractor.js'
 export type { PaginaExtraida, ResultadoDaExtracao } from './pdf-extractor.js'
 export { ChapterReader, CASAMENTOS_QUE_FAZEM_UM_SUMARIO, LINHAS_DO_TOPO_DA_PAGINA, MAXIMO_DE_CAPITULOS_POR_MATERIAL } from './chapter-reader.js'
 export type { CapituloLido, DocumentoComMarcadores } from './chapter-reader.js'

@@ -15,7 +15,7 @@ import { configureApp } from '../src/configure-app.js'
 import { DisciplinaRepository } from '@educa/core/estrutura'
 import { operadorGuardProviders, OPERADOR_SESSIONS, type OperadorSessionReader } from '../src/operacao/operador.guard.js'
 import { OperacaoRoute } from '../src/operacao/decorators.js'
-import { executarOpsOperador } from '../src/ops/operador.js'
+import { runOpsOperador } from '../src/ops/operador.js'
 import { ChallengeIssuer } from '../src/credencial/index.js'
 import { cookieDeRenovacao } from './test-api.js'
 import { testConfig } from './test-config.js'
@@ -113,7 +113,7 @@ class EscolaNaOperacaoController {
     const contexto = currentContext()
     const camposDoContexto = Object.keys(contexto ?? {}).sort()
     try {
-      await new DisciplinaRepository(this.banco).listar({ limite: 1 })
+      await new DisciplinaRepository(this.banco).list({ limite: 1 })
       return { camposDoContexto, operadorId: contexto?.operadorId, erro: undefined }
     } catch (erro) {
       return { camposDoContexto, operadorId: contexto?.operadorId, erro: erro instanceof Error ? erro.message : 'erro sem mensagem' }
@@ -276,7 +276,7 @@ describe('área da operação: as cercas entre a operação e a escola (tarefa 4
       const desativado = await operadores.operadorComSessao()
       expect((await eu(url, desativado.token)).status).toBe(200)
       let erro = ''
-      const codigo = await executarOpsOperador(['desativar', '--apelido', desativado.apelido], { ...ambienteDeTeste, OPERADOR: quemDesativa.apelido }, { saida: () => undefined, erro: (texto) => (erro += texto) })
+      const codigo = await runOpsOperador(['desativar', '--apelido', desativado.apelido], { ...ambienteDeTeste, OPERADOR: quemDesativa.apelido }, { saida: () => undefined, erro: (texto) => (erro += texto) })
       expect({ codigo, erro }).toEqual({ codigo: 0, erro: '' })
       esperarErro(await eu(url, desativado.token), 401, ErrorCode.SESSAO_ENCERRADA)
       expect((await eu(url, quemDesativa.token)).status).toBe(200)

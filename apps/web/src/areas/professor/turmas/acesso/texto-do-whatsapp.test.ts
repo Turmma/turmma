@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { caminhoDaSala } from '../../../../paths'
 import { linkDoConvite } from '../../../../components/link-do-convite'
-import { abrirWhatsApp, enderecoDoWhatsApp, textoDoWhatsApp, type ConviteDaTurma, type JanelaQueAbre } from './texto-do-whatsapp'
+import { openWhatsApp, enderecoDoWhatsApp, textoDoWhatsApp, type ConviteDaTurma, type JanelaQueAbre } from './texto-do-whatsapp'
 
 const TOKEN = 'AbCdEfGhIjKlMnOpQrStUvWxYz0123456789-_abcde'
 const LINK = `https://turmma.test/e/colegio-horizonte/turma#${TOKEN}`
@@ -57,13 +57,13 @@ describe('abrir o WhatsApp', () => {
         return novaAba
       },
     }
-    expect(abrirWhatsApp('o convite', janela)).toBe(true)
+    expect(openWhatsApp('o convite', janela)).toBe(true)
     expect(abertas).toEqual([{ endereco: 'https://wa.me/?text=o%20convite', alvo: '_blank' }])
     expect(novaAba.opener).toBeNull()
   })
 
   it('sem o WhatsApp (o navegador não abriu a aba nova), diz que não abriu, e quem chama copia o texto', () => {
     const janela: JanelaQueAbre = { open: () => null }
-    expect(abrirWhatsApp('o convite', janela)).toBe(false)
+    expect(openWhatsApp('o convite', janela)).toBe(false)
   })
 })

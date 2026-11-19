@@ -13,7 +13,7 @@
  * Sem `lookbehind`, que o Safari anterior ao 16.4 não entende e que derrubaria o pedaço inteiro (`vite.config.ts`): o
  * caractere de antes do sinal é capturado e devolvido.
  */
-export function limparMarcacao(texto: string): string {
+export function clearMarcacao(texto: string): string {
   return (
     texto
       .replaceAll('\r\n', '\n')
@@ -37,7 +37,7 @@ export function limparMarcacao(texto: string): string {
  * dentro do parágrafo (a lista numerada, as alternativas de uma questão).
  */
 export function paragrafosDoTexto(texto: string): string[] {
-  return limparMarcacao(texto)
+  return clearMarcacao(texto)
     .split(/\n[ \t]*\n+/)
     .map((paragrafo) => paragrafo.trim())
     .filter((paragrafo) => paragrafo !== '')

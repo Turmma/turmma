@@ -34,15 +34,15 @@ export class RedefinicaoDeMfa {
       const contaId = await new RedefinicaoDeMfaRepository(tx).contaDoUsuarioAtivo(alvoId)
       if (contaId === undefined) return
       const resolucao = new TenantResolutionRepository(tx)
-      const conta = await resolucao.travarContaParaRedefinir(contaId)
+      const conta = await resolucao.lockContaParaRedefinir(contaId)
       if (conta === undefined) return
       if (conta.escolasAtivas.some((outra) => outra !== escolaId)) {
-        await registro.gravar(tx, 'usuario.mfa_redefinicao_recusada', { entidadeId: alvoId, finalidade })
+        await registro.save(tx, 'usuario.mfa_redefinicao_recusada', { entidadeId: alvoId, finalidade })
         return
       }
-      await resolucao.apagarMfa(contaId)
+      await resolucao.clearMfa(contaId)
       await new ContaGlobalRepository(tx).encerrarSessoesDaConta(contaId, 'mfa_redefinido')
-      await registro.gravar(tx, 'usuario.mfa_redefinido', { entidadeId: alvoId, antes: { mfaAtivo: conta.mfaAtivo }, depois: { mfaAtivo: false }, finalidade })
+      await registro.save(tx, 'usuario.mfa_redefinido', { entidadeId: alvoId, antes: { mfaAtivo: conta.mfaAtivo }, depois: { mfaAtivo: false }, finalidade })
     })
   }
 }
@@ -72,9 +72,9 @@ export async function redefinirMfaPeloOperador(banco: Database, autor: AuthorChe
       if (alvo?.contaId === null || alvo === undefined || !alvo.ativo) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       const { contaId } = alvo
       await runInContext({ requisicaoId, escolaId: alvo.escolaId }, async () => {
-        const conta = await resolucao.travarContaParaRedefinir(contaId)
+        const conta = await resolucao.lockContaParaRedefinir(contaId)
         if (conta === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
-        await resolucao.apagarMfa(contaId)
+        await resolucao.clearMfa(contaId)
         await new ContaGlobalRepository(tx).encerrarSessoesDaConta(contaId, 'mfa_redefinido')
         // Com os agendados para eliminação (14.0): a coordenação de cada escola da conta é avisada, entre em ela ou não.
         const usuarios = await resolucao.usuariosAtivosDaConta(contaId, { comSuspensos: true })
@@ -82,7 +82,7 @@ export async function redefinirMfaPeloOperador(banco: Database, autor: AuthorChe
         for (const ativo of usuarios) if (!porEscola.has(ativo.escolaId)) porEscola.set(ativo.escolaId, ativo.usuarioId)
         for (const [escolaId, entidadeId] of porEscola) {
           await runInContext({ requisicaoId, escolaId }, () =>
-            registro.gravar(tx, 'usuario.mfa_redefinido', {
+            registro.save(tx, 'usuario.mfa_redefinido', {
               entidadeId,
               antes: { mfaAtivo: conta.mfaAtivo },
               depois: { mfaAtivo: false, pedidoDoOperador: pedido },

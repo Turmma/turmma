@@ -10,7 +10,7 @@ export class EscolaSessaoController {
 
   @Put('sessao')
   @RequirePermissao('escola_configuracao', 'alterar')
-  alterar(@Body(new ZodValidationPipe(escolaSessaoRequestSchema)) pedido: EscolaSessaoRequest): Promise<EscolaSessaoResponse> {
-    return this.escolaSessao.alterar(pedido)
+  update(@Body(new ZodValidationPipe(escolaSessaoRequestSchema)) pedido: EscolaSessaoRequest): Promise<EscolaSessaoResponse> {
+    return this.escolaSessao.update(pedido)
   }
 }

@@ -37,7 +37,7 @@ export type TimeResponse = z.infer<typeof timeResponseSchema>
  * Monta a resposta de `GET /v1/time` a partir do catálogo e das funções suspensas na escola. Um lugar só: a tela do
  * professor, a da coordenação e a governança não escrevem a mesma autonomia de dois jeitos (regra 70, item 5).
  */
-export function montarTime(suspensas: ReadonlySet<ChaveDeFuncao>): TimeResponse {
+export function buildTime(suspensas: ReadonlySet<ChaveDeFuncao>): TimeResponse {
   return {
     agentes: AGENTES.map((agente: Agente) => ({
       agente,

@@ -45,8 +45,8 @@ export class MaterialController {
   @RequirePermissao('material', 'enviar')
   @UseGuards(MaterialUploadGuard)
   @UseInterceptors(MaterialUploadInterceptor)
-  enviar(@Body(new ZodValidationPipe(enviarMaterialRequestSchema)) campos: EnviarMaterialRequest, @UploadedFile() arquivo: unknown): Promise<MaterialResponse> {
-    return this.materiais.enviar(campos, arquivo)
+  send(@Body(new ZodValidationPipe(enviarMaterialRequestSchema)) campos: EnviarMaterialRequest, @UploadedFile() arquivo: unknown): Promise<MaterialResponse> {
+    return this.materiais.send(campos, arquivo)
   }
 
   /**
@@ -57,12 +57,12 @@ export class MaterialController {
   @RequirePermissao('material', 'enviar')
   @UseGuards(MaterialUploadGuard)
   @UseInterceptors(MaterialUploadInterceptor)
-  enviarEdicao(
+  sendEdicao(
     @Param('id', IdPipe) alvoId: string,
     @Body(new ZodValidationPipe(enviarEdicaoRequestSchema)) campos: EnviarEdicaoRequest,
     @UploadedFile() arquivo: unknown,
   ): Promise<MaterialResponse> {
-    return this.materiais.enviarEdicao(alvoId, campos, arquivo)
+    return this.materiais.sendEdicao(alvoId, campos, arquivo)
   }
 
   /**
@@ -72,8 +72,8 @@ export class MaterialController {
   @Patch(':id')
   @RequirePermissao('material', 'enviar')
   @UseGuards(MaterialAtualizarGuard)
-  atualizar(@Param('id', IdPipe) materialId: string, @Body(new ZodValidationPipe(atualizarMaterialRequestSchema)) campos: AtualizarMaterialRequest): Promise<MaterialResponse> {
-    return this.materiais.atualizar(materialId, campos)
+  update(@Param('id', IdPipe) materialId: string, @Body(new ZodValidationPipe(atualizarMaterialRequestSchema)) campos: AtualizarMaterialRequest): Promise<MaterialResponse> {
+    return this.materiais.update(materialId, campos)
   }
 
   /**
@@ -102,8 +102,8 @@ export class MaterialController {
 
   @Get()
   @RequirePermissao('material', 'listar')
-  listar(@Query(new ZodValidationPipe(materiaisQuerySchema)) consulta: MateriaisQuery): Promise<ListaDeMateriaisResponse> {
-    return this.materiais.listar(consulta)
+  list(@Query(new ZodValidationPipe(materiaisQuerySchema)) consulta: MateriaisQuery): Promise<ListaDeMateriaisResponse> {
+    return this.materiais.list(consulta)
   }
 
   /** Declarada antes de `:id`, como a `busca`: `resumo` não é id de material. Só a coordenação (`material.resumir`); o professor e o aluno recebem `NAO_ENCONTRADO`, como em toda célula `nunca`. */
@@ -116,20 +116,20 @@ export class MaterialController {
   /** Declarada antes de `:id`: `busca` não é id de material. */
   @Get('busca')
   @RequirePermissao('material', 'buscar')
-  buscar(@Query(new ZodValidationPipe(buscaDeMaterialQuerySchema)) consulta: BuscaDeMaterialQuery): Promise<BuscaDeMaterialResponse> {
-    return this.materiais.buscar(consulta)
+  find(@Query(new ZodValidationPipe(buscaDeMaterialQuerySchema)) consulta: BuscaDeMaterialQuery): Promise<BuscaDeMaterialResponse> {
+    return this.materiais.find(consulta)
   }
 
   @Get(':id')
   @RequirePermissao('material', 'ler')
-  ler(@Param('id', IdPipe) materialId: string): Promise<MaterialComCapitulosResponse> {
-    return this.materiais.ler(materialId)
+  read(@Param('id', IdPipe) materialId: string): Promise<MaterialComCapitulosResponse> {
+    return this.materiais.read(materialId)
   }
 
   @Delete(':id')
   @RequirePermissao('material', 'excluir')
   @HttpCode(HttpStatus.NO_CONTENT)
-  excluir(@Param('id', IdPipe) materialId: string): Promise<void> {
-    return this.materiais.excluir(materialId)
+  delete(@Param('id', IdPipe) materialId: string): Promise<void> {
+    return this.materiais.delete(materialId)
   }
 }

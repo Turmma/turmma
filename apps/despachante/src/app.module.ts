@@ -8,7 +8,7 @@ class OutboxRelayLifecycle implements OnApplicationBootstrap, OnApplicationShutd
   constructor(private readonly montado: OutboxRelayRuntime) {}
 
   onApplicationBootstrap(): void {
-    this.montado.iniciar()
+    this.montado.start()
   }
 
   onApplicationShutdown(): Promise<void> {

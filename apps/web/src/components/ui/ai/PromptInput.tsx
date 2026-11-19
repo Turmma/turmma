@@ -3,7 +3,7 @@ import { ArrowUp, Square } from 'lucide-react'
 import { useEffect, useId, useLayoutEffect, useRef, type FormEvent, type KeyboardEvent, type ReactNode } from 'react'
 import { Button } from '../Button'
 import { COARSE_POINTER, useMediaQuery } from '../media-query'
-import { dicaDoEnter, podeEnviar, teclaEnvia, textoDoPedido, type PromptInputState } from './prompt-input'
+import { dicaDoEnter, canEnviar, teclaEnvia, textoDoPedido, type PromptInputState } from './prompt-input'
 
 type PromptInputProps = {
   /** O nome do campo para o leitor de tela: "Pedido ao Assistente de ensino", "Pergunta para o Tutor". */
@@ -102,7 +102,7 @@ export function PromptInput({ rotulo, exemplo, valor, aoMudar, aoEnviar, aoParar
     return () => observador.disconnect()
   }, [exemplo])
 
-  function enviar(): void {
+  function send(): void {
     const texto = textoDoPedido(valor)
     if (estado !== 'pronta' || texto === undefined) return
     aoEnviar(texto)
@@ -110,32 +110,32 @@ export function PromptInput({ rotulo, exemplo, valor, aoMudar, aoEnviar, aoParar
     campo.current?.focus()
   }
 
-  function parar(): void {
+  function stop(): void {
     aoParar?.()
     campo.current?.focus()
   }
 
   function aoSubmeter(evento: FormEvent<HTMLFormElement>): void {
     evento.preventDefault()
-    enviar()
+    send()
   }
 
   function aoTeclar(evento: KeyboardEvent<HTMLTextAreaElement>): void {
     if (!teclaEnvia({ key: evento.key, shiftKey: evento.shiftKey, isComposing: evento.nativeEvent.isComposing }, ponteiroGrosso)) return
     evento.preventDefault()
-    enviar()
+    send()
   }
 
   // As chaves fazem do "Parar" e do enviar dois botões, e não um que troca de tipo: sem elas o React reaproveitaria o
   // mesmo `button`, que viraria `submit` no meio do clique em "Parar", e o clique enviaria o pedido seguinte.
   const botao =
     estado === 'gerando' && aoParar !== undefined ? (
-      <Button key="parar" variante="secundario" onClick={parar} className="shrink-0">
+      <Button key="parar" variante="secundario" onClick={stop} className="shrink-0">
         <Square aria-hidden="true" size={14} strokeWidth={2.4} className="shrink-0" />
         Parar
       </Button>
     ) : (
-      <Button key="enviar" type="submit" tamanho="icone" aria-label="Enviar" disabled={!podeEnviar(valor, estado)}>
+      <Button key="enviar" type="submit" tamanho="icone" aria-label="Enviar" disabled={!canEnviar(valor, estado)}>
         <ArrowUp aria-hidden="true" size={20} strokeWidth={2} />
       </Button>
     )

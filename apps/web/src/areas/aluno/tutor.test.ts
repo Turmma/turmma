@@ -15,7 +15,7 @@ import {
   pendenteNoTutor,
   questaoDoEndereco,
   recusaVencida,
-  temTelefone,
+  hasTelefone,
   TEXTO_DA_FALHA_DO_TUTOR,
   TEXTO_DA_SUPERVISAO,
   usoDoDia,
@@ -201,17 +201,17 @@ describe('a mensagem de assunto delicado (D36)', () => {
       [{ tipo: 'texto', texto: 'Se você estiver em perigo, ligue ' }, { tipo: 'telefone', numero: '188' }, { tipo: 'texto', texto: ' (CVV). A ligação é gratuita.' }],
       [{ tipo: 'texto', texto: 'Procure um adulto de confiança.' }],
     ])
-    expect(temTelefone(partes)).toBe(true)
+    expect(hasTelefone(partes)).toBe(true)
     // Nada se perde nem se acrescenta ao texto.
     expect(partes.map((paragrafo) => paragrafo.map((parte) => (parte.tipo === 'telefone' ? parte.numero : parte.texto)).join('')).join('\n\n')).toBe(FIXA)
   })
 
   it('o 188 dentro de outro número não é telefone', () => {
-    expect(temTelefone(partesDoEncaminhamento('A página 1188 e o ano de 1885.'))).toBe(false)
+    expect(hasTelefone(partesDoEncaminhamento('A página 1188 e o ano de 1885.'))).toBe(false)
   })
 
   it('a mensagem que não traz o número faz a tela acrescentar a linha dele: o 188 está sempre lá', () => {
-    expect(temTelefone(partesDoEncaminhamento('Procure hoje um adulto de confiança na escola.'))).toBe(false)
+    expect(hasTelefone(partesDoEncaminhamento('Procure hoje um adulto de confiança na escola.'))).toBe(false)
     expect(`${LINHA_DO_CVV.antes}188${LINHA_DO_CVV.depois}`).toBe('Se você estiver em perigo ou pensando em se machucar, ligue 188 (CVV). A ligação é gratuita e funciona a qualquer hora.')
   })
 })

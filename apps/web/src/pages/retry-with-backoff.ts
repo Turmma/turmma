@@ -44,7 +44,7 @@ export type DesfechoDoEnvio =
 
 export interface ReenvioOptions {
   /** Espera os milissegundos dados; na página, o `setTimeout`. */
-  readonly esperar: (ms: number) => Promise<void>
+  readonly wait: (ms: number) => Promise<void>
   /** Um número em [0, 1); na página, o `Math.random`. */
   readonly aleatorio: () => number
   /** Avisa que o 503 chegou e que a página vai repetir: é quando a tela diz "Tentando de novo…". */
@@ -53,23 +53,23 @@ export interface ReenvioOptions {
   readonly valendo: () => boolean
 }
 
-const ehSistemaCheio = (erro: unknown): erro is ApiError => erro instanceof ApiError && erro.codigo === ErrorCode.INDISPONIVEL_TENTE_DE_NOVO
+const isSistemaCheio = (erro: unknown): erro is ApiError => erro instanceof ApiError && erro.codigo === ErrorCode.INDISPONIVEL_TENTE_DE_NOVO
 
 /**
  * Manda o envio e repete o 503 até `MAXIMO_DE_REENVIOS` vezes. `enviar` é sempre o mesmo pedido, com a mesma chave: quem
  * chama monta o pedido uma vez e o fecha aqui dentro.
  */
-export async function enviarComReenvio(enviar: () => Promise<unknown>, opcoes: ReenvioOptions): Promise<DesfechoDoEnvio> {
+export async function sendComReenvio(enviar: () => Promise<unknown>, opcoes: ReenvioOptions): Promise<DesfechoDoEnvio> {
   for (let reenvios = 0; ; reenvios++) {
     try {
       await enviar()
       return opcoes.valendo() ? { tipo: 'enviado' } : { tipo: 'descartado' }
     } catch (erro) {
       if (!opcoes.valendo()) return { tipo: 'descartado' }
-      if (!ehSistemaCheio(erro)) return { tipo: 'falhou', erro }
+      if (!isSistemaCheio(erro)) return { tipo: 'falhou', erro }
       if (reenvios >= MAXIMO_DE_REENVIOS) return { tipo: 'cheio' }
       opcoes.aoEsperar()
-      await opcoes.esperar(esperaDoReenvio(erro.esperaSegundos, opcoes.aleatorio()))
+      await opcoes.wait(esperaDoReenvio(erro.esperaSegundos, opcoes.aleatorio()))
       if (!opcoes.valendo()) return { tipo: 'descartado' }
     }
   }

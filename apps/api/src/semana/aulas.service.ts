@@ -18,19 +18,19 @@ export class AulasService {
     private readonly relogio: Clock = systemClock,
   ) {}
 
-  async gravar({ vinculoId, data, inicio, texto }: GravarAulaRequest): Promise<GravarAulaResponse> {
+  async save({ vinculoId, data, inicio, texto }: GravarAulaRequest): Promise<GravarAulaResponse> {
     const hoje = diaDeUso(this.relogio.agora())
     try {
       await this.banco.transaction(async (tx) => {
         const aulas = new AulaRepository(tx)
         await aulas.limitarEspera()
-        if (!(await new TurmaRepository(tx).travarAnoEmCurso())) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+        if (!(await new TurmaRepository(tx).lockAnoEmCurso())) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
         if (!(await aulas.vinculoDaProfessora(vinculoId))) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
-        await aulas.travarVinculo(vinculoId)
+        await aulas.lockVinculo(vinculoId)
         const fim = await aulas.fimDaAulaGravavel(vinculoId, data, inicio, hoje)
         if (fim === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
-        if (texto === '') await aulas.apagar(vinculoId, data, inicio)
-        else await aulas.gravar(vinculoId, data, inicio, fim, texto)
+        if (texto === '') await aulas.delete(vinculoId, data, inicio)
+        else await aulas.save(vinculoId, data, inicio, fim, texto)
       })
     } catch (erro) {
       if (postgresErrorIn(erro)?.code === TRAVA_NAO_DISPONIVEL) throw new DomainException(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, undefined, DEFAULT_RETRY_AFTER_SECONDS)

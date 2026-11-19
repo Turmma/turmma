@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, type RefObject } from 'react'
 import { emCurso } from '../../../api/ciclo-de-execucao'
 import { useExecutionLifecycle } from '../../../api/execucoes'
-import { resumoDoAnalistaQueryOptions, gerarResumoDoAnalista, lugarDoResumoDoAnalista } from './api/governanca'
+import { resumoDoAnalistaQueryOptions, generateResumoDoAnalista, lugarDoResumoDoAnalista } from './api/governanca'
 import { ProgressBar } from '../../../components/ui/ProgressBar'
 import { Button } from '../../../components/ui/Button'
 import { Card } from '../../../components/ui/Card'
@@ -18,9 +18,9 @@ import { formatDate, formatDateTime, formatQuantity } from '../../../format'
 import { usePageTitle } from '../../../document-title'
 import { DadoNominal } from './DadoNominal'
 import { O_MIOLO_SEM_ABAS_QUE_ROLA } from '../comum/miolo-que-rola'
-import { acertoPercentual, AVISO_DE_HIPOTESE, falhaDoResumo, formatarPercentual, fraseDoAlerta, nomeDoRecorte } from './textos-da-governanca'
+import { acertoPercentual, AVISO_DE_HIPOTESE, falhaDoResumo, formatPercentual, fraseDoAlerta, nomeDoRecorte } from './textos-da-governanca'
 
-const enviarPedido = (_pedido: null, chaveEnvio: string) => gerarResumoDoAnalista(chaveEnvio)
+const sendPedido = (_pedido: null, chaveEnvio: string) => generateResumoDoAnalista(chaveEnvio)
 
 /**
  * Analista de desempenho escolar (MVP, A5; `docs/interface.md` 3; D34, D45, D57, D64; regra 70, itens 7 a 9): o resumo
@@ -40,7 +40,7 @@ export default function Analista() {
   const comMiolo = useMediaQuery(MEDIA_MD)
   const cliente = useQueryClient()
   const resumo = useQuery(resumoDoAnalistaQueryOptions)
-  const { ciclo, demorando, iniciar, repetir, limpar } = useExecutionLifecycle(lugarDoResumoDoAnalista, enviarPedido)
+  const { ciclo, demorando, start: iniciar, repetir, clear: limpar } = useExecutionLifecycle(lugarDoResumoDoAnalista, sendPedido)
   const gerando = emCurso(ciclo)
   const concluiu = ciclo?.etapa === 'concluida'
   // Quando o resumo novo chega, o foco vai para ele: o botão volta a dizer "Gerar resumo", e quem usa teclado não fica perdido.
@@ -177,7 +177,7 @@ function Resumo({ geradoEm, conteudo, foco }: { readonly geradoEm: string; reado
           <Card key={`${recorte.serie.id}:${recorte.disciplina.id}`} titulo={nomeDoRecorte(recorte)} nivel={3}>
             <p className="text-sm break-words text-sutil">
               {formatQuantity(recorte.alunos, 'aluno', 'alunos')} · {formatQuantity(recorte.lotesAprovados, 'correção aprovada', 'correções aprovadas')} · acerto de{' '}
-              {formatarPercentual(recorte.acertoPercentual)}
+              {formatPercentual(recorte.acertoPercentual)}
             </p>
             <div className="mt-3 flex min-w-0 flex-col gap-3">
               {recorte.porHabilidade.map((medida) => (
@@ -185,7 +185,7 @@ function Resumo({ geradoEm, conteudo, foco }: { readonly geradoEm: string; reado
                   key={medida.habilidade.codigo}
                   rotulo={medida.habilidade.descricao}
                   valor={acertoPercentual(medida.acertos, medida.total)}
-                  texto={`${formatarPercentual(acertoPercentual(medida.acertos, medida.total))} · ${String(medida.acertos)} de ${String(medida.total)}`}
+                  texto={`${formatPercentual(acertoPercentual(medida.acertos, medida.total))} · ${String(medida.acertos)} de ${String(medida.total)}`}
                   detalhe={medida.habilidade.codigo}
                 />
               ))}

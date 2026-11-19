@@ -349,13 +349,13 @@ describe('"Preparar esta aula" (RF8)', () => {
     const antes = rede.chamadas.length
     await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Preparar esta aula' }))
 
-    expect(CONTEXTO_ESCOLHIDO.ler()).toBe(valorDoContexto(TURMA.id, MATEMATICA.id))
+    expect(CONTEXTO_ESCOLHIDO.read()).toBe(valorDoContexto(TURMA.id, MATEMATICA.id))
     expect(window.location.pathname).toBe('/nova-conversa')
     expect(rede.chamadas.slice(antes)).toEqual([])
     expect(gravacoes()).toEqual([])
     // O que o campo tinha não foi a lugar nenhum: nem num pedido (corpo ou endereço), nem na caixa de pedido do Início, nem no armazenamento (regra 20, item 12).
     expect(JSON.stringify(vi.mocked(fetch).mock.calls)).not.toContain('Frações')
-    expect(CONTEXTO_ESCOLHIDO.ler()).not.toContain('Fra')
+    expect(CONTEXTO_ESCOLHIDO.read()).not.toContain('Fra')
     expect(JSON.stringify({ ...localStorage, ...sessionStorage })).not.toContain('Fra')
     expect(window.location.href).not.toContain('Fra')
   })

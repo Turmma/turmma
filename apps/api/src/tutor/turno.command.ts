@@ -255,7 +255,7 @@ export class TurnoDoTutorCommand implements ExecucaoCommand<EntradaDaTarefa<type
     const tutor = new TutorDoAlunoRepository(tx, this.relogio)
     if ((await tutor.avaliativaAberta(pergunta.turmaId)) !== undefined) throw new DomainException(ErrorCode.TUTOR_PAUSADO_EM_AVALIACAO)
     exigirCitacoesEntregues(saida.citacoes, entregues)
-    return { tipo: 'mensagem_do_tutor', mensagemId: await this.#gravarTurno(tutor, pergunta, saida) }
+    return { tipo: 'mensagem_do_tutor', mensagemId: await this.#saveTurno(tutor, pergunta, saida) }
   }
 
   /**
@@ -268,24 +268,24 @@ export class TurnoDoTutorCommand implements ExecucaoCommand<EntradaDaTarefa<type
   #encaminhar(pergunta: PerguntaGravada, saida: TutorOutput): Promise<string> {
     return this.banco.transaction(async (proprio) => {
       const tutor = new TutorDoAlunoRepository(proprio, this.relogio)
-      const mensagemId = await tutor.gravarResposta(pergunta, { tipo: 'assunto_delicado', texto: saida.resposta })
+      const mensagemId = await tutor.saveResposta(pergunta, { tipo: 'assunto_delicado', texto: saida.resposta })
       await tutor.tirarReferenciaDaPergunta(pergunta.id)
-      await tutor.gravarSinal(pergunta.execucaoId, pergunta.turmaId, { tipo: 'atencao_humana' })
+      await tutor.saveSinal(pergunta.execucaoId, pergunta.turmaId, { tipo: 'atencao_humana' })
       return mensagemId
     })
   }
 
-  async #gravarTurno(tutor: TutorDoAlunoRepository, pergunta: PerguntaGravada, saida: TutorOutput): Promise<string> {
+  async #saveTurno(tutor: TutorDoAlunoRepository, pergunta: PerguntaGravada, saida: TutorOutput): Promise<string> {
     const { execucaoId, turmaId } = pergunta
-    const mensagemId = await tutor.gravarResposta(pergunta, { tipo: 'texto', texto: saida.resposta, citacoes: saida.citacoes })
+    const mensagemId = await tutor.saveResposta(pergunta, { tipo: 'texto', texto: saida.resposta, citacoes: saida.citacoes })
     if (await this.suspensao.estaSuspensa(FUNCAO_DOS_SINAIS)) return mensagemId
     if (saida.classificacao === 'pediu_resposta_pronta' && pergunta.atividadeAplicadaId !== null && pergunta.questao !== null) {
-      await tutor.gravarSinal(execucaoId, turmaId, { tipo: 'resposta_pronta', atividadeAplicadaId: pergunta.atividadeAplicadaId, questao: pergunta.questao })
+      await tutor.saveSinal(execucaoId, turmaId, { tipo: 'resposta_pronta', atividadeAplicadaId: pergunta.atividadeAplicadaId, questao: pergunta.questao })
     }
     // Sob a trava do aluno: duas respostas concluindo juntas não contam a mesma sequência duas vezes.
-    await tutor.travarAluno()
+    await tutor.lockAluno()
     const atual = { atividadeAplicadaId: pergunta.atividadeAplicadaId, questao: pergunta.questao, materialId: pergunta.materialId, pagina: pergunta.pagina, dia: diaDeUso(pergunta.criadaEm) }
-    for (const sinal of sinaisDeTrabalhoDoTurno(atual, await tutor.turnosRespondidos(pergunta.id, TURNOS_QUE_A_REGRA_OLHA))) await tutor.gravarSinal(execucaoId, turmaId, sinal)
+    for (const sinal of sinaisDeTrabalhoDoTurno(atual, await tutor.turnosRespondidos(pergunta.id, TURNOS_QUE_A_REGRA_OLHA))) await tutor.saveSinal(execucaoId, turmaId, sinal)
     return mensagemId
   }
 
@@ -298,7 +298,7 @@ export class TurnoDoTutorCommand implements ExecucaoCommand<EntradaDaTarefa<type
   async #trechosDoTurno(pergunta: PerguntaGravada, alcance: Alcance, questao: QuestaoEmAndamento | undefined): Promise<TrechoDoMaterial[]> {
     const disciplinaId = alcance.atividade?.disciplinaId ?? alcance.material?.disciplinaId
     if (disciplinaId === undefined) return []
-    const achados = await this.trechos.buscar({
+    const achados = await this.trechos.find({
       texto: `${pergunta.texto} ${questao?.enunciado ?? ''}`,
       disciplinaId,
       serieId: alcance.turma.serieId,

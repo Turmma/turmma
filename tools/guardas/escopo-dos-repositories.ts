@@ -63,12 +63,12 @@ export const REPOSITORIES_SEM_ESCOPO: readonly EntradaSemEscopo[] = [
   {
     arquivo: 'apps/api/src/operacao/operador/operador.repository.ts',
     motivo: 'as tabelas da operação Turmma são da equipe e não têm escola_id: nenhum método do OperadorRepository tem escopo de escola a aplicar',
-    metodos: ['autorAtivoNaTransacao', 'travarOperadores', 'situacaoDoAutor', 'ativoParaAtualizar', 'contarAtivos', 'criar', 'criarConvite', 'revogarConvitePendente', 'desativar', 'apagarCodigosDeRecuperacao', 'encerrarSessoes', 'lerSessaoParaGuarda', 'marcarUsoDaSessao', 'sessaoParaRenovar', 'rotacionarSessao', 'encerrarSessao', 'encerrarSessaoPelaSaida', 'daSessao', 'conviteValidoPorHash', 'aceitarConvite', 'gravarSegredoParaConfigurar', 'trocarCodigosDeRecuperacao', 'ativoParaSegundoFator', 'avancarPassoDoSegundoFator', 'usarCodigoDeRecuperacao', 'ativarSegundoFator', 'abrirSessao', 'credencialDeEntrada', 'registrarFalhaDeEntrada', 'registrarAcesso', 'auditar'],
+    metodos: ['autorAtivoNaTransacao', 'lockOperadores', 'situacaoDoAutor', 'ativoParaAtualizar', 'countAtivos', 'create', 'createConvite', 'revogarConvitePendente', 'desativar', 'deleteCodigosDeRecuperacao', 'encerrarSessoes', 'findSessaoParaGuarda', 'marcarUsoDaSessao', 'sessaoParaRenovar', 'rotacionarSessao', 'encerrarSessao', 'encerrarSessaoPelaSaida', 'daSessao', 'conviteValidoPorHash', 'aceitarConvite', 'saveSegredoParaConfigurar', 'trocarCodigosDeRecuperacao', 'ativoParaSegundoFator', 'avancarPassoDoSegundoFator', 'usarCodigoDeRecuperacao', 'ativarSegundoFator', 'openSessao', 'credencialDeEntrada', 'registrarFalhaDeEntrada', 'registrarAcesso', 'auditar'],
   },
   {
     arquivo: 'apps/api/src/ops/operacao-privacidade.repository.ts',
     motivo: 'suboperador e incidente são da operação e não têm escola_id; só ligarEscola e ligarEscolaAoIncidente gravam por escola, e leem o contexto',
-    metodos: ['cadastrar', 'travarVigente', 'encerrar', 'registrarIncidente'],
+    metodos: ['cadastrar', 'lockVigente', 'encerrar', 'registrarIncidente'],
   },
   {
     arquivo: 'apps/api/src/privacidade/titulares.repository.ts',
@@ -78,7 +78,7 @@ export const REPOSITORIES_SEM_ESCOPO: readonly EntradaSemEscopo[] = [
   {
     arquivo: 'packages/core/src/auditoria/auditoria.repository.ts',
     motivo: 'lê contextoAtual()?.escolaId no próprio método e recusa sem escola, com AuditoriaRecusada: é a cópia local, com erro próprio',
-    metodos: ['listarDaEscola'],
+    metodos: ['listDaEscola'],
   },
   {
     arquivo: 'packages/core/src/auditoria/auditoria-insert.repository.ts',
@@ -88,12 +88,12 @@ export const REPOSITORIES_SEM_ESCOPO: readonly EntradaSemEscopo[] = [
   {
     arquivo: 'packages/core/src/queue/job-outbox.repository.ts',
     motivo: 'a escola, ou a falta dela nos jobs sistema.*, vem de contextoAtual() e do escopoDoJobNoContexto definido neste arquivo, que a guarda só conta quando importado',
-    metodos: ['inserir', 'inserirUmaVez', 'buscarDaEscola', 'localizarParaExecucao', 'iniciarExecucao', 'concluir', 'devolverAoPublicado', 'reabrirFalho', 'descartarFalho', 'avisarVagaLivre', 'registrarFalha'],
+    metodos: ['insert', 'insertUmaVez', 'findDaEscola', 'localizarParaExecucao', 'startExecucao', 'concluir', 'devolverAoPublicado', 'reabrirFalho', 'descartarFalho', 'avisarVagaLivre', 'registrarFalha'],
   },
   {
     arquivo: 'packages/core/src/identidade/sessao.repository.ts',
     motivo: 'é a leitura que cria o contexto da requisição: o escopo é a escola e a sessão do TokenVerificado, e não há contexto para ler',
-    metodos: ['lerParaGuarda', 'marcarAtualApresentado'],
+    metodos: ['findParaGuarda', 'marcarAtualApresentado'],
   },
   {
     arquivo: 'packages/core/src/titular/compartilhamento.repository.ts',

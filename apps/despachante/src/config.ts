@@ -2,8 +2,8 @@ import {
   InvalidConfigError,
   loadDatabaseConfig,
   loadTelemetryConfig,
-  lerJanelaPadrao,
-  lerVagasPadrao,
+  readJanelaPadrao,
+  readVagasPadrao,
   isEscolaConcurrencyLimitDisabled,
   validateEnvironment,
   type DatabaseConfig,
@@ -39,7 +39,7 @@ export interface DespachanteConfig {
 /** Lê e valida o ambiente do despachante. Todos os problemas saem de uma vez, só pelo nome. */
 export function loadConfig(ambiente: Record<string, string | undefined>): DespachanteConfig {
   const problemas: InvalidConfigError[] = []
-  const ler = <T>(leitura: () => T): T | undefined => {
+  const read = <T>(leitura: () => T): T | undefined => {
     try {
       return leitura()
     } catch (erro) {
@@ -48,12 +48,12 @@ export function loadConfig(ambiente: Record<string, string | undefined>): Despac
       return undefined
     }
   }
-  const banco = ler(() => loadDatabaseConfig(ambiente))
-  const proprio = ler(() => validateEnvironment(envSchema, ambiente))
-  const vagasPadrao = ler(() => lerVagasPadrao(ambiente))
-  const janelaPadrao = ler(() => lerJanelaPadrao(ambiente))
-  const vagasDesligadas = ler(() => isEscolaConcurrencyLimitDisabled(ambiente))
-  const telemetria = ler(() => loadTelemetryConfig(ambiente))
+  const banco = read(() => loadDatabaseConfig(ambiente))
+  const proprio = read(() => validateEnvironment(envSchema, ambiente))
+  const vagasPadrao = read(() => readVagasPadrao(ambiente))
+  const janelaPadrao = read(() => readJanelaPadrao(ambiente))
+  const vagasDesligadas = read(() => isEscolaConcurrencyLimitDisabled(ambiente))
+  const telemetria = read(() => loadTelemetryConfig(ambiente))
   if (banco === undefined || proprio === undefined || vagasPadrao === undefined || janelaPadrao === undefined || vagasDesligadas === undefined || telemetria === undefined) {
     throw new InvalidConfigError(problemas.flatMap((erro) => erro.variaveis).sort(), problemas.flatMap((erro) => erro.motivos))
   }

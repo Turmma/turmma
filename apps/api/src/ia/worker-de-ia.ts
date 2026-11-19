@@ -80,7 +80,7 @@ interface PecasDoWorker {
 }
 
 /** Os dois clientes Redis (o do BullMQ e o das vagas) e o `JobExecutor` do `core` com o `processar` da execução de IA. */
-function montarExecutor(config: WorkerDeIaConfig, { banco, pool }: BancoDoWorkerDeIa, processadores: JobProcessors, logger: LoggerBase, opcoes: WorkerDeIaOpcoes): PecasDoWorker {
+function buildExecutor(config: WorkerDeIaConfig, { banco, pool }: BancoDoWorkerDeIa, processadores: JobProcessors, logger: LoggerBase, opcoes: WorkerDeIaOpcoes): PecasDoWorker {
   // O BullMQ exige `maxRetriesPerRequest: null` no worker: o comando bloqueante espera o Redis voltar.
   const redis = new Redis(config.redisFilaUrl, { connectionName: 'worker-ia', maxRetriesPerRequest: null })
   const avisarRedisIndisponivel = throttledWarn(() => logger.warn({ evento: 'worker_ia.redis_indisponivel' }))
@@ -119,7 +119,7 @@ function montarExecutor(config: WorkerDeIaConfig, { banco, pool }: BancoDoWorker
 }
 
 /** Um `Worker` do BullMQ por fila da IA com pool, na fila do executor `api`: o worker comum não a consome, e este não consome a dele. */
-function abrirWorkers(config: WorkerDeIaConfig, { redis, executor, stalled }: PecasDoWorker, logger: LoggerBase, opcoes: WorkerDeIaOpcoes): Map<FilaDaIa, Worker<QueuedJobData>> {
+function openWorkers(config: WorkerDeIaConfig, { redis, executor, stalled }: PecasDoWorker, logger: LoggerBase, opcoes: WorkerDeIaOpcoes): Map<FilaDaIa, Worker<QueuedJobData>> {
   const avisarErroDaFila = throttledWarn(() => logger.warn({ evento: 'worker_ia.fila_com_erro' }))
   const workers = new Map<FilaDaIa, Worker<QueuedJobData>>()
   for (const fila of FILAS_DA_IA) {
@@ -174,10 +174,10 @@ async function encerrarComGraca(workers: ReadonlyMap<FilaDaIa, Worker<QueuedJobD
  * execução de IA. É o que o `main-worker` e a bancada de teste (`apps/api/test/fila-de-ia.fixture.ts`) montam, cada um com o seu
  * pool de banco, que não é fechado aqui: o job não segura conexão durante o modelo, e o pool de uma réplica comporta os jobs ao mesmo tempo.
  */
-export function criarWorkerDeIa(config: WorkerDeIaConfig, banco: BancoDoWorkerDeIa, processadores: JobProcessors, logger: LoggerBase, opcoes: WorkerDeIaOpcoes = {}): WorkerDeIa {
+export function createWorkerDeIa(config: WorkerDeIaConfig, banco: BancoDoWorkerDeIa, processadores: JobProcessors, logger: LoggerBase, opcoes: WorkerDeIaOpcoes = {}): WorkerDeIa {
   if (config.vagasPorEscolaDesligadas === true) logger.warn({ evento: 'worker_ia.vagas_por_escola_desligadas' })
-  const pecas = montarExecutor(config, banco, processadores, logger, opcoes)
-  const workers = abrirWorkers(config, pecas, logger, opcoes)
+  const pecas = buildExecutor(config, banco, processadores, logger, opcoes)
+  const workers = openWorkers(config, pecas, logger, opcoes)
   let encerramento: Promise<void> | undefined
   return { workers, encerrar: () => (encerramento ??= encerrarComGraca(workers, pecas, opcoes.graca ?? GRACA_DO_WORKER_DE_IA_MS, logger)) }
 }

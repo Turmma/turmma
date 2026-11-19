@@ -11,7 +11,7 @@ import { doMaisNovoAoMaisAntigo, OPCOES_DE_LICENCA, textoDoEstado, type Rascunho
 
 /**
  * Quantas linhas da tabela de materiais aparecem de cada vez (ingestao-do-material, 11.0; `cenarios.md`, "Telas"): a escola com 300 apostilas não desenha 300 linhas no Chromebook de uma vez, e "Mostrar mais" revela
- * as próximas. A lista inteira já foi lida (`lerPaginas`) e o painel abre qualquer material pelo endereço; o que se limita é o que se desenha.
+ * as próximas. A lista inteira já foi lida (`readPaginas`) e o painel abre qualquer material pelo endereço; o que se limita é o que se desenha.
  */
 export const MATERIAIS_POR_VEZ = 25
 

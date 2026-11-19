@@ -106,18 +106,18 @@ export class ExecucaoProcessor {
     }
     // O comando é o da tarefa que a linha diz ter; sem comando registrado, é defeito de montagem e a execução falha em vez de ficar `rodando`.
     const comando = this.#comandoDe(lida.tarefa)
-    if (!(await this.#podeComecar(execucoes, execucaoId, escolaId, lida, comando))) return
-    await this.#executar(comando, lida, execucaoId, escolaId, sinalDoJob)
+    if (!(await this.#canComecar(execucoes, execucaoId, escolaId, lida, comando))) return
+    await this.#run(comando, lida, execucaoId, escolaId, sinalDoJob)
   }
 
   /** O que vem antes do `rodando`: o `lote` confere a janela e a suspensão, e todos passam pelo `pendente → rodando`. */
-  async #podeComecar(execucoes: ExecucaoRepository, execucaoId: string, escolaId: string, lida: ExecucaoParaIniciar, comando: ComandoExecutavel | undefined): Promise<boolean> {
+  async #canComecar(execucoes: ExecucaoRepository, execucaoId: string, escolaId: string, lida: ExecucaoParaIniciar, comando: ComandoExecutavel | undefined): Promise<boolean> {
     if (comando?.fila === 'lote' && (await this.#antesDeRodarOLote(execucoes, execucaoId, escolaId, lida, comando))) return false
     return this.#comecar(execucoes, execucaoId, escolaId, lida, comando)
   }
 
   /** A chamada ao modelo, sob o prazo único da execução; a falha vai a `#aoFalhar`. */
-  async #executar(comando: ComandoExecutavel | undefined, lida: ExecucaoParaIniciar, execucaoId: string, escolaId: string, sinalDoJob: AbortSignal | undefined): Promise<void> {
+  async #run(comando: ComandoExecutavel | undefined, lida: ExecucaoParaIniciar, execucaoId: string, escolaId: string, sinalDoJob: AbortSignal | undefined): Promise<void> {
     const { logger } = this.dependencias
     const inicio = performance.now()
     const prazo = (this.dependencias.prazo ?? prazoPorTemporizador)(PRAZO_DA_EXECUCAO_MS[comando?.perfil ?? 'padrao'])
@@ -242,7 +242,7 @@ export class ExecucaoProcessor {
       await exigirFuncaoAtiva(this.dependencias.suspensao, comando.funcao)
       const paraRodar = comando.daRotina ? await new ExecucaoRepository(this.dependencias.banco).paraExecutarDaRotina(execucaoId) : await new ExecucaoDaSessaoRepository(this.dependencias.banco).paraExecutar(execucaoId)
       if (paraRodar === undefined || paraRodar.tarefa !== comando.tarefa) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
-      await comando.executar(paraRodar, this.dependencias.ia, sinal, this.#gravador(execucaoId))
+      await comando.run(paraRodar, this.dependencias.ia, sinal, this.#gravador(execucaoId))
     })
   }
 

@@ -114,7 +114,7 @@ interface AulaAberta {
   readonly aula: AulaDaSemana
   readonly data: string
   readonly chave: string
-  readonly fechar: (atualizar: boolean) => void
+  readonly close: (atualizar: boolean) => void
 }
 
 /**
@@ -134,11 +134,11 @@ function useAulaAberta(dados: SemanaResponse | undefined): AulaAberta | undefine
     if (semDono) navegar(enderecoSemAula(caminho, busca), { replace: true })
   }, [semDono, navegar, caminho, busca])
   if (pedida === undefined || aula === undefined) return undefined
-  const fechar = (atualizar: boolean): void => {
+  const close = (atualizar: boolean): void => {
     navegar(enderecoSemAula(caminho, busca), { replace: true })
     if (atualizar) void cliente.invalidateQueries({ queryKey: SEMANA_QUERY_KEY })
   }
-  return { aula, data: pedida.data, chave: chaveDaAula(pedida.vinculoId, pedida.data, pedida.inicio), fechar }
+  return { aula, data: pedida.data, chave: chaveDaAula(pedida.vinculoId, pedida.data, pedida.inicio), close }
 }
 
 interface CorpoProps {
@@ -288,7 +288,7 @@ export default function Semana() {
           aula={painel.aula}
           data={painel.data}
           hoje={dados.hoje}
-          aoFechar={painel.fechar}
+          aoFechar={painel.close}
           focoDeReserva={() => (document.querySelector<HTMLElement>(`[data-aula="${painel.chave}"]`) ?? focos.titulo.current)?.focus()}
         />
       )}

@@ -52,7 +52,7 @@ export function EsqueciASenha() {
     }
   }
 
-  function enviar(evento: FormEvent<HTMLFormElement>): void {
+  function send(evento: FormEvent<HTMLFormElement>): void {
     evento.preventDefault()
     void pedir(false)
   }
@@ -76,7 +76,7 @@ export function EsqueciASenha() {
     <CascaPublica titulo="Esqueci a senha">
       <p className="text-apoio">Digite o e-mail da sua conta. Mandamos um link para você escolher uma senha nova.</p>
       <p className="text-apoio">Aluno: peça a senha provisória ao professor.</p>
-      <form className="flex flex-col gap-4" onSubmit={enviar}>
+      <form className="flex flex-col gap-4" onSubmit={send}>
         <FormField
           rotulo="E-mail"
           name="email"

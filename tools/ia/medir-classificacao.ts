@@ -444,7 +444,7 @@ export function exigirModeloDaMedida(config: ConfiguracaoLida, argumentos: reado
 }
 
 interface Gateway {
-  gerar(pedido: { tarefa: unknown; entrada: unknown; escolaId: string }): Promise<{ saida: unknown }>
+  generate(pedido: { tarefa: unknown; entrada: unknown; escolaId: string }): Promise<{ saida: unknown }>
 }
 interface NucleoEmDist {
   loadLLMConfig(ambiente: Record<string, string | undefined>): ConfiguracaoLida
@@ -490,7 +490,7 @@ async function principal(argumentos: readonly string[]): Promise<void> {
   const noContexto = <T>(funcao: () => T): T => nucleo.runInContext({ requisicaoId: REQUISICAO_DA_MEDIDA, escolaId: ESCOLA_DA_MEDIDA }, funcao)
   const resultado = await medirClassificacao(lote, {
     candidatasDoRecorte,
-    classificar: async (entrada) => (await noContexto(() => gateway.gerar({ tarefa: tarefa.classificarSecoes, entrada, escolaId: ESCOLA_DA_MEDIDA }))).saida as ClassificarSecoesOutput,
+    classificar: async (entrada) => (await noContexto(() => gateway.generate({ tarefa: tarefa.classificarSecoes, entrada, escolaId: ESCOLA_DA_MEDIDA }))).saida as ClassificarSecoesOutput,
     aoTerminarExecucao: (execucao, execucoes) => process.stderr.write(`execução ${String(execucao)} de ${String(execucoes)} terminada\n`),
   })
   process.stdout.write(`${descreverMedida(resultado)}\n`)
@@ -508,7 +508,7 @@ async function principal(argumentos: readonly string[]): Promise<void> {
         habilidades: habilidades.map(({ codigo, descricao }) => ({ codigo, descricao: descricao.slice(0, 300) })),
         trechos: [{ materialId: MATERIAL_DA_MEDIDA, pagina: 1, texto: linha.texto.slice(0, 8000) }],
       }
-      const { saida } = await noContexto(() => gateway.gerar({ tarefa: atividade.gerarAtividadeObjetiva, entrada, escolaId: ESCOLA_DA_MEDIDA }))
+      const { saida } = await noContexto(() => gateway.generate({ tarefa: atividade.gerarAtividadeObjetiva, entrada, escolaId: ESCOLA_DA_MEDIDA }))
       return (saida as { questoes: { enunciado: string; habilidade: { codigo: string } }[] }).questoes.map((questao) => ({ enunciado: questao.enunciado, habilidadeCodigo: questao.habilidade.codigo }))
     },
   })

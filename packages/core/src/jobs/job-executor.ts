@@ -98,12 +98,12 @@ export const ESPERA_POR_VAGA_MS = 1_000
 export const SORTEIO_DO_ADIAMENTO_MS = 5_000
 
 export interface JobExecutorDependencies {
-  repositorio: Pick<JobOutboxRepository, 'localizarParaExecucao' | 'iniciarExecucao' | 'concluir' | 'registrarFalha' | 'devolverAoPublicado'>
+  repositorio: Pick<JobOutboxRepository, 'localizarParaExecucao' | 'startExecucao' | 'concluir' | 'registrarFalha' | 'devolverAoPublicado'>
   processadores: JobProcessors
   /** O registro de jobs que valida os dados, confere o escopo e dá o prazo de cada tipo. Só o teste troca o de produção. */
   definicoes?: JobRegistry
   logger: LoggerBase
-  vagas: Pick<EscolaConcurrencyLimiter, 'tomar' | 'renovar' | 'liberar'>
+  vagas: Pick<EscolaConcurrencyLimiter, 'tomar' | 'renovar' | 'release'>
   /** Vagas por fila da escola do contexto: as da configuração dela, ou o padrão do ambiente. */
   vagasDaEscola: Pick<OperationalSettings<ConcurrencyByQueue>, 'daEscola'>
   /** Conta cada execução iniciada na escola do job (D30). Disparar e esquecer: nunca atrasa nem falha o job. */
@@ -172,7 +172,7 @@ class SlotRenewal {
     }, intervaloMs)
   }
 
-  parar(): Promise<void> {
+  stop(): Promise<void> {
     clearInterval(this.#temporizador)
     return this.#fila
   }
@@ -233,7 +233,7 @@ export class JobExecutor {
       ...(dados.data.escolaId === null ? { rotinaDoSistema: true } : { escolaId: dados.data.escolaId }),
     }
     return runInContext(contexto, () =>
-      this.executar(job, jobId, token, contexto).catch((erro: unknown) => {
+      this.run(job, jobId, token, contexto).catch((erro: unknown) => {
         if (erro instanceof UnrecoverableError || erro instanceof QueueFacingError || erro instanceof DelayedError) throw erro
         // Banco fora ao marcar o estado: a tentativa conta, e a mensagem original não vai ao Redis.
         logger.warn({ evento: 'job.estado_nao_gravado', jobId, erro: summarizeError(erro) })
@@ -242,7 +242,7 @@ export class JobExecutor {
     )
   }
 
-  private async executar(job: QueuedJob, jobId: string, token: string | undefined, contexto: RequestContext): Promise<void> {
+  private async run(job: QueuedJob, jobId: string, token: string | undefined, contexto: RequestContext): Promise<void> {
     const { repositorio, logger } = this.dependencias
     const alvo = await repositorio.localizarParaExecucao(jobId)
     if (alvo === undefined) {
@@ -255,13 +255,13 @@ export class JobExecutor {
     }
     const vaga: JobSlot = { fila: alvo.fila, escolaId: alvo.escolaId, jobId }
     if (!(await this.tomarVaga(vaga))) {
-      await this.esperarVaga(job, vaga, token)
+      await this.waitVaga(job, vaga, token)
       return
     }
-    const inicio = await repositorio.iniciarExecucao(jobId)
+    const inicio = await repositorio.startExecucao(jobId)
     if (inicio.situacao !== 'iniciado') {
       // Terminou (ou sumiu) entre a localização e o início: a vaga que acabou de ser tomada não fica.
-      await this.liberarVaga(vaga)
+      await this.releaseVaga(vaga)
       if (inicio.situacao === 'nao_encontrado') {
         logger.warn({ evento: 'job.nao_encontrado', jobId })
         throw new UnrecoverableError(ErrorCode.NAO_ENCONTRADO)
@@ -291,10 +291,10 @@ export class JobExecutor {
       }
       // Conclui antes de liberar: se o Postgres falhar aqui, o job volta a tentar ainda dono da vaga.
       await repositorio.concluir(jobId)
-      await renovacao.parar()
-      await this.liberarVaga(vaga)
+      await renovacao.stop()
+      await this.releaseVaga(vaga)
     } finally {
-      await renovacao.parar()
+      await renovacao.stop()
     }
     logger.info({ evento: 'job.concluido', jobId, tentativa })
   }
@@ -307,13 +307,13 @@ export class JobExecutor {
   private async aoNaoConcluir(job: QueuedJob, vaga: JobSlot, token: string | undefined, erro: unknown, emAndamento: InFlightAttempt, renovacao: SlotRenewal): Promise<never> {
     if (emAndamento.interrompida) throw new QueueFacingError(JobFailureCode.EXECUCAO_INTERROMPIDA)
     if (erro instanceof JobAdiadoError) {
-      await renovacao.parar()
+      await renovacao.stop()
       return this.adiar(job, vaga, token, erro)
     }
     const falha = await this.falhar(job, vaga.jobId, erro)
     if (falha instanceof UnrecoverableError || erro instanceof JobTimeoutError) {
-      await renovacao.parar()
-      await this.liberarVaga(vaga)
+      await renovacao.stop()
+      await this.releaseVaga(vaga)
     }
     throw falha
   }
@@ -397,8 +397,8 @@ export class JobExecutor {
       rodando
         .filter(({ ultimaTentativa }) => ultimaTentativa)
         .map(async ({ vaga, contexto }) => {
-          await runInContext(contexto, () => this.gravarFalhaDefinitiva(vaga.jobId, JobFailureCode.EXECUCAO_INTERROMPIDA))
-          await this.liberarVaga(vaga)
+          await runInContext(contexto, () => this.saveFalhaDefinitiva(vaga.jobId, JobFailureCode.EXECUCAO_INTERROMPIDA))
+          await this.releaseVaga(vaga)
         }),
     )
   }
@@ -418,7 +418,7 @@ export class JobExecutor {
    * Devolve o job à espera do BullMQ por um instante, sem contar tentativa e sem marcar `ativo`: a
    * linha continua `publicado`, e o despachante segue renovando a vaga de quem a tem.
    */
-  private async esperarVaga(job: QueuedJob, { fila, escolaId }: JobSlot, token: string | undefined): Promise<never> {
+  private async waitVaga(job: QueuedJob, { fila, escolaId }: JobSlot, token: string | undefined): Promise<never> {
     if (token === undefined) throw new InvariantException('job sem token do BullMQ não pode voltar à espera')
     // Métrica, e não log: com a escola no teto, cada job volta aqui a cada segundo, e uma linha por volta
     // encheria o log sem dizer mais que a contagem por escola.
@@ -437,7 +437,7 @@ export class JobExecutor {
    */
   private async adiar(job: QueuedJob, vaga: JobSlot, token: string | undefined, { baseMs, motivo: tipo }: JobAdiadoError): Promise<never> {
     if (token === undefined) throw new InvariantException('job sem token do BullMQ não pode ser adiado')
-    await this.liberarVaga(vaga)
+    await this.releaseVaga(vaga)
     await this.dependencias.repositorio.devolverAoPublicado(vaga.jobId)
     const esperaMs = baseMs + Math.floor(this.#sortear() * SORTEIO_DO_ADIAMENTO_MS)
     this.dependencias.logger.info({ evento: 'job.adiado', jobId: vaga.jobId, tipo, esperaMs })
@@ -453,9 +453,9 @@ export class JobExecutor {
     }
   }
 
-  private async liberarVaga({ fila, escolaId, jobId }: JobSlot): Promise<void> {
+  private async releaseVaga({ fila, escolaId, jobId }: JobSlot): Promise<void> {
     try {
-      await this.dependencias.vagas.liberar(fila, escolaId, [jobId])
+      await this.dependencias.vagas.release(fila, escolaId, [jobId])
       this.dependencias.aoLiberarVaga?.()
     } catch (erro) {
       this.dependencias.logger.warn({ evento: 'job.vaga_nao_liberada', jobId, erro: summarizeError(erro) })
@@ -472,12 +472,12 @@ export class JobExecutor {
     const definitiva = (erro instanceof JobFailureError && erro.definitiva) || esgotouAsTentativas(job)
     this.dependencias.logger.warn({ evento: 'job.tentativa_falhou', jobId, tentativa, codigo, erro: summarizeError(erro) })
     if (!definitiva) return new QueueFacingError(codigo)
-    await this.gravarFalhaDefinitiva(jobId, codigo)
+    await this.saveFalhaDefinitiva(jobId, codigo)
     return new UnrecoverableError(codigo)
   }
 
   /** `falhou` na linha do job, no contexto de quem chama. Banco fora: o erro vai ao log e o job segue o caminho dele. */
-  private async gravarFalhaDefinitiva(jobId: string, codigo: JobFailureCode): Promise<void> {
+  private async saveFalhaDefinitiva(jobId: string, codigo: JobFailureCode): Promise<void> {
     try {
       // Só afirma a falha no log se a linha mudou: ela pode já ter terminado por outro caminho (a conclusão, o desligamento).
       if (await this.dependencias.repositorio.registrarFalha(jobId, codigo)) this.dependencias.logger.warn({ evento: 'job.falhou', jobId, codigo })

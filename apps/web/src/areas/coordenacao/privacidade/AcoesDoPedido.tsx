@@ -275,31 +275,31 @@ export function AcoesDoPedido(props: PropsDosDialogos) {
       {algumaAcao && (
         <div className="flex flex-wrap gap-3" role="group" aria-label="O que fazer com este pedido">
           {acoes.baixar && (
-            <Button variante="oficial" onClick={() => janela.abrir('baixar')}>
+            <Button variante="oficial" onClick={() => janela.open('baixar')}>
               Baixar a versão da escola
             </Button>
           )}
           {acoes.corrigirNome && (
-            <Button variante="secundario" onClick={() => janela.abrir('corrigir_nome')}>
+            <Button variante="secundario" onClick={() => janela.open('corrigir_nome')}>
               Corrigir nome
             </Button>
           )}
           {acoes.concluir && (
-            <Button variante="secundario" onClick={() => janela.abrir('concluir')}>
+            <Button variante="secundario" onClick={() => janela.open('concluir')}>
               Concluir
             </Button>
           )}
           {acoes.cancelar && (
-            <Button variante="secundario" onClick={() => janela.abrir('cancelar')}>
+            <Button variante="secundario" onClick={() => janela.open('cancelar')}>
               Cancelar eliminação
             </Button>
           )}
         </div>
       )}
-      {aberta?.tipo === 'concluir' && <DialogoDeConcluir key={aberta.numero} props={props} aoFechar={janela.fechar} aoConcluido={() => janela.fecharSeAinda(aberta)} />}
-      {aberta?.tipo === 'cancelar' && <DialogoDeCancelar key={aberta.numero} props={props} aoFechar={janela.fechar} aoConcluido={() => janela.fecharSeAinda(aberta)} />}
-      {aberta?.tipo === 'corrigir_nome' && <DialogoDeCorrigirNome key={aberta.numero} props={props} aoFechar={janela.fechar} aoConcluido={() => janela.fecharSeAinda(aberta)} />}
-      {aberta?.tipo === 'baixar' && <DialogoDeBaixar key={aberta.numero} props={props} aoFechar={janela.fechar} aoConcluido={() => janela.fecharSeAinda(aberta)} />}
+      {aberta?.tipo === 'concluir' && <DialogoDeConcluir key={aberta.numero} props={props} aoFechar={janela.close} aoConcluido={() => janela.closeSeAinda(aberta)} />}
+      {aberta?.tipo === 'cancelar' && <DialogoDeCancelar key={aberta.numero} props={props} aoFechar={janela.close} aoConcluido={() => janela.closeSeAinda(aberta)} />}
+      {aberta?.tipo === 'corrigir_nome' && <DialogoDeCorrigirNome key={aberta.numero} props={props} aoFechar={janela.close} aoConcluido={() => janela.closeSeAinda(aberta)} />}
+      {aberta?.tipo === 'baixar' && <DialogoDeBaixar key={aberta.numero} props={props} aoFechar={janela.close} aoConcluido={() => janela.closeSeAinda(aberta)} />}
     </>
   )
 }

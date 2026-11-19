@@ -131,7 +131,7 @@ export class DispatchRepository {
    * escolas, não o de jobs. A rotina do sistema (sem escola) entra como `escolaId` nulo.
    */
   @Unscoped(JUSTIFICATIVA)
-  async listarEscolasComPendentes(): Promise<EscolaWithPendingJobs[]> {
+  async listEscolasComPendentes(): Promise<EscolaWithPendingJobs[]> {
     const resultado = await this.banco.execute<EscolaWithPendingJobs>(sql`
       with recursive escolas as (
         (
@@ -165,7 +165,7 @@ export class DispatchRepository {
    * `job.pendentes` e `fila.vagas_em_uso`, e vem só de `job_registro`: com o Redis de fila fora, a espera
    * continua medida.
    *
-   * As escolas saem pelo mesmo salto de índice de `listarEscolasComPendentes` (custa o número de escolas).
+   * As escolas saem pelo mesmo salto de índice de `listEscolasComPendentes` (custa o número de escolas).
    * O primeiro da fila desce pelo índice de pendentes, pulando só os `ativo` (no máximo as vagas da escola);
    * o urgente, pelo índice de urgentes, sem atravessar os não urgentes segurados; e a contagem para no teto.
    */
@@ -320,7 +320,7 @@ export class DispatchRepository {
    * varredura passar por todos, e não pelos mesmos `limite` mais antigos a cada vez.
    */
   @Unscoped(JUSTIFICATIVA)
-  async listarParaReconciliar(limite: number, depoisDe?: SweepCursor): Promise<JobToSweep[]> {
+  async listParaReconciliar(limite: number, depoisDe?: SweepCursor): Promise<JobToSweep[]> {
     const continuacao =
       depoisDe === undefined ? sql`` : sql`and (prioridade, criado_em, id) > (${depoisDe.prioridade}, ${depoisDe.criadoEm}::timestamptz, ${depoisDe.id}::uuid)`
     const resultado = await this.banco.execute<JobToSweep>(sql`
@@ -335,7 +335,7 @@ export class DispatchRepository {
 
   /**
    * Toma para republicar os jobs que a fila confirmou não ter: `publicado` ou `ativo` → `reservado`,
-   * com reserva nova. A condição de `listarParaReconciliar` se repete na escrita: duas reconciliações
+   * com reserva nova. A condição de `listParaReconciliar` se repete na escrita: duas reconciliações
    * sobre o mesmo job não o tomam as duas, porque a reserva nova tira o job da idade de reconciliar,
    * e isso vale também quando a outra já o republicou e o worker o recomeçou desde a consulta. Se a
    * publicação falhar, a reserva vence e a rodada comum o publica.

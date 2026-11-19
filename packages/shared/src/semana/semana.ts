@@ -13,13 +13,13 @@ export const TAMANHO_MAXIMO_DO_TEXTO_DA_AULA = 500
 const horario = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/)
 
 /** `AAAA-MM-DD` que cai numa segunda-feira (aritmética de calendário, sem fuso). */
-export function ehSegundaFeira(dia: string): boolean {
+export function isSegundaFeira(dia: string): boolean {
   return new Date(`${dia}T00:00:00Z`).getUTCDay() === 1
 }
 
 /** Consulta de `GET /v1/semana`: a segunda-feira da semana pedida. Outro dia da semana é `ENTRADA_INVALIDA`. */
 export const semanaQuerySchema = z.strictObject({
-  segunda: z.iso.date().refine(ehSegundaFeira, { message: 'segunda deve ser uma segunda-feira' }),
+  segunda: z.iso.date().refine(isSegundaFeira, { message: 'segunda deve ser uma segunda-feira' }),
 })
 export type SemanaQuery = z.infer<typeof semanaQuerySchema>
 

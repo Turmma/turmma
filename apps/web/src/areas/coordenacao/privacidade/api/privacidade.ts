@@ -92,7 +92,7 @@ export const pedidosDoTitularQueryOptions = infiniteQueryOptions({
  * a API nem a web o guardam (regra 20, itens 9 e 10; RF17). É `POST` e não consulta, para o nome digitado e as pessoas
  * achadas ficarem só no estado da tela que as pediu, e não no cache de consultas.
  */
-export function buscarTitulares(termo: string): Promise<BuscaDeTitularesResponse> {
+export function findTitulares(termo: string): Promise<BuscaDeTitularesResponse> {
   return authedRequest('/v1/privacidade/titulares/busca', buscaDeTitularesResponseSchema, { metodo: 'POST', corpo: { termo } })
 }
 

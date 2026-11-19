@@ -9,7 +9,7 @@ import {
 } from '@educa/shared'
 import { Body, Controller, Header, Headers, HttpCode, HttpStatus, Post, Res } from '@nestjs/common'
 import type { ServerResponse } from 'node:http'
-import { lerCookie } from '../../credencial/index.js'
+import { readCookie } from '../../credencial/index.js'
 import { COOKIE_CONTA_PROVADA, CookieContaProvada } from '../../sessao/index.js'
 import { ReivindicacaoService } from '../reivindicacao/reivindicacao.service.js'
 import { SalasService } from './salas.service.js'
@@ -36,8 +36,8 @@ export class SalasController {
   @Post('abrir')
   @HttpCode(HttpStatus.OK)
   @Header('Cache-Control', 'no-store')
-  abrir(@Body(new ZodValidationPipe(abrirSalaRequestSchema)) pedido: AbrirSalaRequest): Promise<SalaAbertaResponse> {
-    return this.salas.abrir(pedido)
+  open(@Body(new ZodValidationPipe(abrirSalaRequestSchema)) pedido: AbrirSalaRequest): Promise<SalaAbertaResponse> {
+    return this.salas.open(pedido)
   }
 
   @Post('reivindicar')
@@ -50,9 +50,9 @@ export class SalasController {
   ): Promise<ReivindicacaoResponse> {
     // Só o pedido sem senha usa o cookie da conta provada (14.0); o com senha não o lê, e o cookie de quem chama não muda nada nele.
     if (pedido.senha !== undefined) return this.reivindicacoes.reivindicar(pedido)
-    const enviado = await this.reivindicacoes.reivindicar(pedido, this.contaProvada.ler(lerCookie(cabecalhoCookie, COOKIE_CONTA_PROVADA)))
+    const enviado = await this.reivindicacoes.reivindicar(pedido, this.contaProvada.read(readCookie(cabecalhoCookie, COOKIE_CONTA_PROVADA)))
     // O cookie vale para um pedido: gravado (ou reenviado) o pedido, ele sai do navegador.
-    resposta.setHeader('Set-Cookie', this.contaProvada.apagar())
+    resposta.setHeader('Set-Cookie', this.contaProvada.delete())
     return enviado
   }
 }

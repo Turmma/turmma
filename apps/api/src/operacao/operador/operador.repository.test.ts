@@ -21,13 +21,13 @@ const ERRO_TIPADO = new DomainException(ErrorCode.ERRO_INTERNO)
 
 describe('OperadorRepository: o que o banco não devolveu sai como erro tipado, com código (regra 00, item 9)', () => {
   it('criar sem a linha do insert', async () => {
-    const erro = await new OperadorRepository(bancoQueDevolve([])).criar({ apelido: 'ana', nome: 'Ana Sintética', email: 'ana@turmma.invalid' }).catch((e: unknown) => e)
+    const erro = await new OperadorRepository(bancoQueDevolve([])).create({ apelido: 'ana', nome: 'Ana Sintética', email: 'ana@turmma.invalid' }).catch((e: unknown) => e)
     expect(erro).toBeInstanceOf(DomainException)
     expect(erro).toEqual(ERRO_TIPADO)
   })
 
-  it('criarConvite sem a linha do insert', async () => {
-    const erro = await new OperadorRepository(bancoQueDevolve([])).criarConvite({ operadorId: 'o', tokenHash: 'h', expiraEm: new Date() }).catch((e: unknown) => e)
+  it('createConvite sem a linha do insert', async () => {
+    const erro = await new OperadorRepository(bancoQueDevolve([])).createConvite({ operadorId: 'o', tokenHash: 'h', expiraEm: new Date() }).catch((e: unknown) => e)
     expect(erro).toBeInstanceOf(DomainException)
     expect(erro).toEqual(ERRO_TIPADO)
   })
@@ -41,7 +41,7 @@ describe('OperadorRepository: o que o banco não devolveu sai como erro tipado, 
   })
 
   it('abrirSessao sem a linha do insert', async () => {
-    const erro = await new OperadorRepository(bancoQueDevolve([])).abrirSessao('o', 'h').catch((e: unknown) => e)
+    const erro = await new OperadorRepository(bancoQueDevolve([])).openSessao('o', 'h').catch((e: unknown) => e)
     expect(erro).toBeInstanceOf(DomainException)
     expect(erro).toEqual(ERRO_TIPADO)
   })

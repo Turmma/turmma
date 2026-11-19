@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { lerAmbienteDeTeste } from '../../../tools/ci/compose.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
-import { executarOpsRevogarAcessosSala } from '../src/ops/revogar-acessos-sala.js'
+import { runOpsRevogarAcessosSala } from '../src/ops/revogar-acessos-sala.js'
 import { chamar, subirApi, type TestApi } from './test-api.js'
 import { FerramentasDaSala, type TestSala } from './sala.fixture.js'
 import { SessaoFixtures } from './sessao.fixture.js'
@@ -45,7 +45,7 @@ describe('ops:revogar-acessos-sala (A1, tarefa 9.0): o operador revoga os acesso
   async function rodar(argumentos: string[], doAmbiente: Record<string, string | undefined> = ambiente): Promise<Execucao> {
     let saida = ''
     let erro = ''
-    const codigo = await executarOpsRevogarAcessosSala(argumentos, doAmbiente, { saida: (texto) => (saida += texto), erro: (texto) => (erro += texto) })
+    const codigo = await runOpsRevogarAcessosSala(argumentos, doAmbiente, { saida: (texto) => (saida += texto), erro: (texto) => (erro += texto) })
     return { codigo, saida, erro }
   }
 

@@ -87,7 +87,7 @@ export class ArtefatoRepository {
    * Uma página dos artefatos no alcance, **do mais novo para o mais antigo** (o id é `uuidv7`), originais e versões
    * adaptadas, com uma linha a mais que diz se há próxima. `turmaId` só restringe: a turma de outro professor não acha nada.
    */
-  listar({ pagina, limite, turmaId }: ArtefatosQuery): Promise<ArtefatoLido[]> {
+  list({ pagina, limite, turmaId }: ArtefatosQuery): Promise<ArtefatoLido[]> {
     return this.#lidos(and(turmaId === undefined ? undefined : eq(artefato.turmaId, turmaId), pagina === undefined ? undefined : lt(artefato.id, pagina)))
       .orderBy(desc(artefato.id))
       .limit(limite + 1)
@@ -181,7 +181,7 @@ export class ArtefatoRepository {
    * Grava o artefato que uma execução produziu, na escola e no ano do contexto, com quem pediu como autor. O tipo e o
    * título saem do conteúdo já validado. O índice único `(escola_id, execucao_id)` faz a execução repetida não criar dois.
    */
-  async criar(novo: NovoArtefato): Promise<string> {
+  async create(novo: NovoArtefato): Promise<string> {
     const [criado] = await this.banco
       .insert(artefato)
       .values({

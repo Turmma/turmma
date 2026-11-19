@@ -22,8 +22,8 @@ import {
   CODIGOS_QUE_MUDAM_OS_MEUS_DADOS,
   EFEITO_DE_BAIXAR,
   linhasDoResumo,
-  ordenarPedidos,
-  podeBaixar,
+  sortPedidos,
+  canBaixar,
   ROTULO_DO_TIPO,
   situacaoDoPedido,
   TEXTO_DO_VAZIO,
@@ -125,10 +125,10 @@ function BotaoDeBaixar({ aoClicar, focoDeReserva }: { readonly aoClicar: () => v
 function ListaDePedidos({ pedidos, agora, aoBaixar, focoDeReserva }: PropsDaLista) {
   return (
     <ul className="flex min-w-0 flex-col gap-3">
-      {ordenarPedidos(pedidos).map((pedido) => {
+      {sortPedidos(pedidos).map((pedido) => {
         const situacao = situacaoDoPedido(pedido, agora)
         // O arquivo que ainda vale: é ele que deixa baixar e que diz até quando.
-        const disponivel = podeBaixar(pedido, agora) ? pedido.arquivo : null
+        const disponivel = canBaixar(pedido, agora) ? pedido.arquivo : null
         return (
           <li key={pedido.id} className="flex min-w-0 flex-col gap-2 rounded-controle border border-linha p-3">
             <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-2">
@@ -231,7 +231,7 @@ export default function MeusDados({ titulo, secao }: Props) {
                   <ListaDePedidos
                     pedidos={dados.pedidos}
                     agora={agora}
-                    aoBaixar={(pedido) => dialogo.abrir('baixar', pedido)}
+                    aoBaixar={(pedido) => dialogo.open('baixar', pedido)}
                     focoDeReserva={() => inicio.current?.focus()}
                   />
                 )}
@@ -246,10 +246,10 @@ export default function MeusDados({ titulo, secao }: Props) {
       {aberta?.tipo === 'baixar' && aberta.alvo !== undefined && (
         <DialogoDeBaixar
           pedido={aberta.alvo}
-          aoFechar={dialogo.fechar}
+          aoFechar={dialogo.close}
           focoDeReserva={() => inicio.current?.focus()}
           aoBaixar={(arquivo) => {
-            dialogo.fecharSeAinda(aberta)
+            dialogo.closeSeAinda(aberta)
             definirAnuncio(anuncioDoArquivoBaixado(arquivo.nome))
           }}
         />

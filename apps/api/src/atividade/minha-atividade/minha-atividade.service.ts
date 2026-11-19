@@ -68,8 +68,8 @@ function paraATela(lida: MinhaAtividadeLida): unknown {
 export class MinhaAtividadeService {
   constructor(private readonly banco: Database) {}
 
-  async listar(consulta: PaginationQuery): Promise<MinhasAtividadesResponse> {
-    const linhas = await new MinhaAtividadeRepository(this.banco).listar(consulta)
+  async list(consulta: PaginationQuery): Promise<MinhasAtividadesResponse> {
+    const linhas = await new MinhaAtividadeRepository(this.banco).list(consulta)
     const { itens, proxima } = paginar(linhas, consulta.limite)
     return minhasAtividadesResponseSchema.parse({ itens: itens.map(paraATela), ...(proxima === undefined ? {} : { proxima }) })
   }
@@ -80,7 +80,7 @@ export class MinhaAtividadeService {
       const atividades = new MinhaAtividadeRepository(tx)
       const prova = await atividades.prova(id, true)
       if (prova === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
-      const tentativa = prova.estado === 'aberta' ? await atividades.abrirTentativa(id) : await atividades.tentativa(id)
+      const tentativa = prova.estado === 'aberta' ? await atividades.openTentativa(id) : await atividades.tentativa(id)
       const respostas = tentativa === undefined ? [] : await atividades.respostas(id)
       return { prova, tentativa, respostas }
     })
@@ -101,12 +101,12 @@ export class MinhaAtividadeService {
   async responder(id: string, questao: number, { alternativa, sequencia }: ResponderQuestaoRequest): Promise<QuestaoSalvaResponse> {
     const salva = await this.banco.transaction(async (tx) => {
       const atividades = new MinhaAtividadeRepository(tx)
-      const atividade = await atividades.travarParaGravar(id)
+      const atividade = await atividades.lockParaGravar(id)
       if (atividade === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       if (atividade.estado !== 'aberta') throw new DomainException(ErrorCode.ATIVIDADE_ENCERRADA)
       // A questão que a atividade não tem não existe.
       if (questao > atividade.questoes) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
-      const tentativa = await atividades.abrirTentativa(id)
+      const tentativa = await atividades.openTentativa(id)
       if (tentativa.enviadaEm !== null) throw new DomainException(ErrorCode.ATIVIDADE_ENCERRADA)
       return atividades.responder(id, questao, alternativa, sequencia)
     })
@@ -114,16 +114,16 @@ export class MinhaAtividadeService {
   }
 
   /** Enviar é uma vez só: enviar de novo devolve o mesmo, com a primeira hora, mesmo depois do encerramento. */
-  async enviar(id: string): Promise<AtividadeEnviadaResponse> {
+  async send(id: string): Promise<AtividadeEnviadaResponse> {
     const enviada = await this.banco.transaction(async (tx) => {
       const atividades = new MinhaAtividadeRepository(tx)
-      const atividade = await atividades.travarParaGravar(id)
+      const atividade = await atividades.lockParaGravar(id)
       if (atividade === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       let tentativa = await atividades.tentativa(id)
       if (tentativa === undefined || tentativa.enviadaEm === null) {
         if (atividade.estado !== 'aberta') throw new DomainException(ErrorCode.ATIVIDADE_ENCERRADA)
-        await atividades.abrirTentativa(id)
-        await atividades.enviar(id)
+        await atividades.openTentativa(id)
+        await atividades.send(id)
         tentativa = await atividades.tentativa(id)
       }
       const respostas = await atividades.respostas(id)

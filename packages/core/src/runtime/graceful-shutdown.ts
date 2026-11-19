@@ -80,7 +80,7 @@ export class GracefulShutdown implements BeforeApplicationShutdown, OnApplicatio
   #prazo: NodeJS.Timeout | undefined
   #servidor: Server | undefined
   #fechaOciosas: NodeJS.Timeout | undefined
-  /** Toda conexão aberta, para achar a que nunca mandou um byte (ver `fecharOciosas`). */
+  /** Toda conexão aberta, para achar a que nunca mandou um byte (ver `closeOciosas`). */
   readonly #conexoes = new Set<Socket>()
   #semBytesNaPassadaAnterior = new Set<Socket>()
 
@@ -135,7 +135,7 @@ export class GracefulShutdown implements BeforeApplicationShutdown, OnApplicatio
     await new Promise((resolver) => setTimeout(resolver, this.config.esperaDaBordaMs))
     const servidor = this.#servidor
     if (servidor !== undefined) {
-      this.#fechaOciosas = setInterval(() => this.fecharOciosas(servidor), INTERVALO_FECHAR_OCIOSAS_MS)
+      this.#fechaOciosas = setInterval(() => this.closeOciosas(servidor), INTERVALO_FECHAR_OCIOSAS_MS)
       this.#fechaOciosas.unref()
     }
   }
@@ -151,7 +151,7 @@ export class GracefulShutdown implements BeforeApplicationShutdown, OnApplicatio
    * Só fecha a que segue sem nenhum byte em duas passagens seguidas: a primeira requisição de uma
    * conexão recém-aberta pode estar a caminho, e depois da espera da borda ela já teria chegado.
    */
-  private fecharOciosas(servidor: Server): void {
+  private closeOciosas(servidor: Server): void {
     servidor.closeIdleConnections()
     const semBytes = new Set<Socket>()
     for (const conexao of this.#conexoes) {

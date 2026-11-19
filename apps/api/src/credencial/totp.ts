@@ -32,7 +32,7 @@ function totp(segredo: Secret, rotulo = ROTULO_TOTP): TOTP {
 }
 
 /** O segredo novo; o rótulo só muda o que o app autenticador mostra (o da escola, sem ele; o do operador, `operação`). */
-export function gerarSegredo(rotulo = ROTULO_TOTP): SegredoNovo {
+export function generateSegredo(rotulo = ROTULO_TOTP): SegredoNovo {
   const segredo = new Secret({ size: BYTES_DO_SEGREDO })
   return { bytes: new Uint8Array(segredo.bytes), base32: segredo.base32, uri: totp(segredo, rotulo).toString() }
 }
@@ -50,7 +50,7 @@ export function passoDoCodigo(segredo: Uint8Array, codigo: string, agora: Date):
 }
 
 /** Os dez códigos de recuperação, sorteados com `randomInt` sobre o alfabeto sem símbolos que se confundem. */
-export function gerarCodigosDeRecuperacao(): string[] {
+export function generateCodigosDeRecuperacao(): string[] {
   return Array.from({ length: QUANTIDADE_DE_CODIGOS_DE_RECUPERACAO }, () =>
     Array.from({ length: TAMANHO_DO_CODIGO_DE_RECUPERACAO }, () => ALFABETO_DO_CODIGO_DE_RECUPERACAO[randomInt(ALFABETO_DO_CODIGO_DE_RECUPERACAO.length)]).join(''),
   )
@@ -62,7 +62,7 @@ const FORMATO_DA_RECUPERACAO = new RegExp(`^[${ALFABETO_DO_CODIGO_DE_RECUPERACAO
  * O código de recuperação como foi gerado: maiúsculas, sem espaço nem hífen (a pessoa copia do papel como der). Fora
  * do alfabeto ou do tamanho, `undefined`: não há código assim, e a tentativa conta como erro.
  */
-export function normalizarRecuperacao(digitado: string): string | undefined {
+export function normalizeRecuperacao(digitado: string): string | undefined {
   const normalizado = digitado.replace(/[\s-]/g, '').toUpperCase()
   return FORMATO_DA_RECUPERACAO.test(normalizado) ? normalizado : undefined
 }

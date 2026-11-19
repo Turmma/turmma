@@ -68,7 +68,7 @@ describe('acesso-e-convites, 5.0: o "esqueci a senha" e o "redefinir" da equipe'
       medidor.medidor,
       { ambiente: { LIMITE_PROXIES_CONFIAVEIS: '127.0.0.1' } },
       linhasDeLog,
-      { ...TEST_APP_OPTIONS, pisoDoEsqueci: { relogio: piso, esperar: piso.esperar } },
+      { ...TEST_APP_OPTIONS, pisoDoEsqueci: { relogio: piso, wait: piso.esperar } },
     )
     hash = api.app.get(PasswordHasher, { strict: false })
     const redis = api.app.get<Redis>(REDIS_LOGIN_CLIENT, { strict: false })
@@ -122,7 +122,7 @@ describe('acesso-e-convites, 5.0: o "esqueci a senha" e o "redefinir" da equipe'
   const inserirConta = async (email: string, mfa: boolean): Promise<string> => {
     const colunas = mfa ? ', mfa_segredo_cifrado, mfa_chave_versao, mfa_ativado_em' : ''
     const valores = mfa ? ", '\\x01'::bytea, 1, now()" : ''
-    const { rows } = await bancada.pool.query<{ id: string }>(`insert into conta (email, senha_hash${colunas}) values ($1, $2${valores}) returning id`, [email, await hash.gerar(SENHA_ANTIGA)])
+    const { rows } = await bancada.pool.query<{ id: string }>(`insert into conta (email, senha_hash${colunas}) values ($1, $2${valores}) returning id`, [email, await hash.generate(SENHA_ANTIGA)])
     return unica(rows).id
   }
 
@@ -302,7 +302,7 @@ describe('acesso-e-convites, 5.0: o "esqueci a senha" e o "redefinir" da equipe'
       expect((await redefinir(novo)).status).toBe(404)
       // Nada trocou a senha.
       const { rows } = await bancada.pool.query<{ senha_hash: string }>('select senha_hash from conta where id = $1', [contaId])
-      expect(await hash.verificar(rows[0]?.senha_hash, SENHA_ANTIGA)).toBe(true)
+      expect(await hash.verify(rows[0]?.senha_hash, SENHA_ANTIGA)).toBe(true)
     })
 
     it('o "esqueci" de uma conta não cancela o link aberto de outra: o de B segue `na_fila`, com os cifrados, e o token dele ainda redefine', async () => {
@@ -323,12 +323,12 @@ describe('acesso-e-convites, 5.0: o "esqueci a senha" e o "redefinir" da equipe'
       const escolaId = await bancada.escola()
       const dona = await pessoa([escolaId])
       const tokenDeVerificar = await linkDeVerificar(dona.contaId)
-      const geracoes = vi.spyOn(hash, 'gerar')
+      const geracoes = vi.spyOn(hash, 'generate')
       const resposta = await redefinir(tokenDeVerificar)
       expect(resposta.status).toBe(404)
       expect(geracoes).not.toHaveBeenCalled()
       const { rows } = await bancada.pool.query<{ senha_hash: string }>('select senha_hash from conta where id = $1', [dona.contaId])
-      expect(await hash.verificar(rows[0]?.senha_hash, SENHA_ANTIGA)).toBe(true)
+      expect(await hash.verify(rows[0]?.senha_hash, SENHA_ANTIGA)).toBe(true)
 
       await esqueci(dona.email)
       await esqueci(dona.email)
@@ -457,15 +457,15 @@ describe('acesso-e-convites, 5.0: o "esqueci a senha" e o "redefinir" da equipe'
       expect(resposta.cabecalhos.get('cache-control')).toBe('no-store')
 
       const depois = await lerConta(dona.contaId)
-      expect(await hash.verificar(depois.senha_hash, SENHA_NOVA)).toBe(true)
-      expect(await hash.verificar(depois.senha_hash, SENHA_ANTIGA)).toBe(false)
+      expect(await hash.verify(depois.senha_hash, SENHA_NOVA)).toBe(true)
+      expect(await hash.verify(depois.senha_hash, SENHA_ANTIGA)).toBe(false)
       // O MFA fica como estava.
       expect(depois.mfa_segredo_cifrado).toEqual(antes.mfa_segredo_cifrado)
       expect(depois.mfa_ativado_em).toEqual(antes.mfa_ativado_em)
       // A senha de outra conta não muda: a troca é da conta do link e de mais nenhuma.
       const deOutraDepois = await lerConta(outra.contaId)
       expect(deOutraDepois.senha_hash).toBe(deOutraAntes.senha_hash)
-      expect(await hash.verificar(deOutraDepois.senha_hash, SENHA_ANTIGA)).toBe(true)
+      expect(await hash.verify(deOutraDepois.senha_hash, SENHA_ANTIGA)).toBe(true)
       // As sessões da conta, nas duas escolas, caíram com o motivo próprio; a de outra conta segue.
       const encerradas = await sessoesEncerradas([...sessoes, sessaoDeOutra])
       const daConta = encerradas.filter((sessao) => sessao.id !== sessaoDeOutra)
@@ -547,7 +547,7 @@ describe('acesso-e-convites, 5.0: o "esqueci a senha" e o "redefinir" da equipe'
       expect((resposta.corpo['erro'] as { codigo: string }).codigo).toBe(ErrorCode.NAO_ENCONTRADO)
       expect(await auditoriaDe(escolaId, 'senha.redefinida')).toEqual([])
       const { rows } = await bancada.pool.query<{ senha_hash: string }>('select senha_hash from conta where id = $1', [dona.contaId])
-      expect(await hash.verificar(rows[0]?.senha_hash, SENHA_ANTIGA)).toBe(true)
+      expect(await hash.verify(rows[0]?.senha_hash, SENHA_ANTIGA)).toBe(true)
     })
 
     it('o usuário desativado depois da leitura do link, antes da transação: a conta travada decide, e a resposta é a do link inválido', async () => {
@@ -556,8 +556,8 @@ describe('acesso-e-convites, 5.0: o "esqueci a senha" e o "redefinir" da equipe'
       await esqueci(dona.email)
       const token = await tokenDoLinkAberto(dona.contaId)
       // Passa pelo pré-confere do token, mas a desativação chega antes da transação do redefinir: o hash foi gerado e a transação confere de novo.
-      const gerar = hash.gerar.bind(hash)
-      vi.spyOn(hash, 'gerar').mockImplementation(async (senha: string) => {
+      const gerar = hash.generate.bind(hash)
+      vi.spyOn(hash, 'generate').mockImplementation(async (senha: string) => {
         await bancada.pool.query('update usuario set desativado_em = now() where id = $1', [dona.usuarioId])
         return gerar(senha)
       })
@@ -565,14 +565,14 @@ describe('acesso-e-convites, 5.0: o "esqueci a senha" e o "redefinir" da equipe'
       expect(resposta.status).toBe(404)
       expect(await auditoriaDe(escolaId, 'senha.redefinida')).toEqual([])
       const { rows } = await bancada.pool.query<{ senha_hash: string }>('select senha_hash from conta where id = $1', [dona.contaId])
-      expect(await hash.verificar(rows[0]?.senha_hash, SENHA_ANTIGA)).toBe(true)
+      expect(await hash.verify(rows[0]?.senha_hash, SENHA_ANTIGA)).toBe(true)
       // O link não foi gasto: a transação foi desfeita inteira.
       expect(await abertosDe(dona.contaId)).toHaveLength(1)
     })
 
     it('token inválido não ocupa o semáforo do argon2: nem o hash da senha nova nem a vez no balde', async () => {
-      const geracoes = vi.spyOn(hash, 'gerar')
-      const semaforo = vi.spyOn(api.app.get(HashBulkhead, { strict: false }), 'executar')
+      const geracoes = vi.spyOn(hash, 'generate')
+      const semaforo = vi.spyOn(api.app.get(HashBulkhead, { strict: false }), 'run')
       for (const token of ['', 'x', randomBytes(32).toString('base64url'), 'a'.repeat(128)]) {
         if (token === '') {
           // O corpo inválido nem chega ao service.
@@ -602,12 +602,12 @@ describe('acesso-e-convites, 5.0: o "esqueci a senha" e o "redefinir" da equipe'
       await esqueci(dona.email)
       const token = await tokenDoLinkAberto(dona.contaId)
       // A ordem forçada: o primeiro leu o link (válido) e espera no argon2; o segundo lê o mesmo link, troca a senha e confirma; só então o primeiro segue para a transação.
-      const gerar = hash.gerar.bind(hash)
+      const gerar = hash.generate.bind(hash)
       let liberar: () => void = () => undefined
       const portao = new Promise<void>((resolver) => (liberar = resolver))
       let primeiroChegou: () => void = () => undefined
       const chegou = new Promise<void>((resolver) => (primeiroChegou = resolver))
-      const geracoes = vi.spyOn(hash, 'gerar').mockImplementationOnce(async (senha: string) => {
+      const geracoes = vi.spyOn(hash, 'generate').mockImplementationOnce(async (senha: string) => {
         primeiroChegou()
         await portao
         return gerar(senha)
@@ -622,8 +622,8 @@ describe('acesso-e-convites, 5.0: o "esqueci a senha" e o "redefinir" da equipe'
       expect(resposta.status).toBe(404)
       expect(await auditoriaDe(escolaId, 'senha.redefinida')).toHaveLength(1)
       const { rows } = await bancada.pool.query<{ senha_hash: string }>('select senha_hash from conta where id = $1', [dona.contaId])
-      expect(await hash.verificar(rows[0]?.senha_hash, SENHA_DO_SEGUNDO)).toBe(true)
-      expect(await hash.verificar(rows[0]?.senha_hash, SENHA_DO_PRIMEIRO)).toBe(false)
+      expect(await hash.verify(rows[0]?.senha_hash, SENHA_DO_SEGUNDO)).toBe(true)
+      expect(await hash.verify(rows[0]?.senha_hash, SENHA_DO_PRIMEIRO)).toBe(false)
     })
   })
 
@@ -651,7 +651,7 @@ describe('acesso-e-convites, 5.0: o "esqueci a senha" e o "redefinir" da equipe'
       const escolaId = await bancada.escola()
       const dona = await pessoa([escolaId])
       // A aplicação montada como no contêiner: 4 instâncias dividem o limite, e o Redis de fila responde em 100 ms (ou nem responde).
-      const instancia = await subirApi(medidor.medidor, { ambiente: { LIMITE_PROXIES_CONFIAVEIS: '127.0.0.1', LIMITE_INSTANCIAS_API: '4' }, login: { prazoDoRedisMs: 100 } }, undefined, { pisoDoEsqueci: { relogio: piso, esperar: piso.esperar } })
+      const instancia = await subirApi(medidor.medidor, { ambiente: { LIMITE_PROXIES_CONFIAVEIS: '127.0.0.1', LIMITE_INSTANCIAS_API: '4' }, login: { prazoDoRedisMs: 100 } }, undefined, { pisoDoEsqueci: { relogio: piso, wait: piso.esperar } })
       try {
         const redis = instancia.app.get<Redis>(REDIS_LOGIN_CLIENT, { strict: false })
         const prazo = performance.now() + 15_000

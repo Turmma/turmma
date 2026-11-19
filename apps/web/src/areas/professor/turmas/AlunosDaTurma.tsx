@@ -17,7 +17,7 @@ import { SectionHeader } from '../../../components/ui/Page'
 import { formatQuantity } from '../../../format'
 import { convitePedido, enderecoSemOConvite, turmaIndisponivel } from './acesso/acesso-da-turma'
 import { AcessoDaTurma } from './acesso/AcessoDaTurma'
-import { montarLinhas, textoDosAcertos, textoPorHabilidade, type LeituraDosAcertos } from './alunos-da-turma'
+import { buildLinhas, textoDosAcertos, textoPorHabilidade, type LeituraDosAcertos } from './alunos-da-turma'
 
 type EscolaDaSessao = Parameters<typeof AcessoDaTurma>[0]['escola']
 
@@ -72,7 +72,7 @@ export default function AlunosDaTurma({ turmaId, turmaNome, escola, aoPerderATur
   const lidos = alunos.data?.pages.flatMap((pagina) => pagina.itens) ?? []
   const listaLida = alunos.data !== undefined
   const listaCompleta = listaLida && !alunos.hasNextPage
-  const linhas = montarLinhas(lidos, desempenho.data, listaCompleta)
+  const linhas = buildLinhas(lidos, desempenho.data, listaCompleta)
   const leituraDosAcertos: LeituraDosAcertos = desempenho.data !== undefined ? 'lida' : desempenho.isError ? 'falhou' : 'lendo'
 
   // A lista de nomes deixou de achar a turma: vale como a leitura dos pedidos que deixa de achá-la.
@@ -88,9 +88,9 @@ export default function AlunosDaTurma({ turmaId, turmaNome, escola, aoPerderATur
     ;(botaoDeVerMais.current ?? fimDaLista.current)?.focus()
   }, [pedidoDeFoco])
 
-  function abrirProvisoria(usuarioId: string): void {
+  function openProvisoria(usuarioId: string): void {
     definirAviso('')
-    dialogo.abrir('provisoria', usuarioId)
+    dialogo.open('provisoria', usuarioId)
   }
 
   async function verMais(): Promise<void> {
@@ -163,7 +163,7 @@ export default function AlunosDaTurma({ turmaId, turmaNome, escola, aoPerderATur
                 // Quem saiu da turma não tem o que fazer aqui: a API não o alcança mais.
                 celula: (linha) =>
                   linha.situacao === 'na_turma' ? (
-                    <Menu rotulo="Ações" prefixo={linha.nome} itens={ITENS_DA_LINHA_DA_SENHA_PROVISORIA} aoEscolher={() => abrirProvisoria(linha.usuarioId)} />
+                    <Menu rotulo="Ações" prefixo={linha.nome} itens={ITENS_DA_LINHA_DA_SENHA_PROVISORIA} aoEscolher={() => openProvisoria(linha.usuarioId)} />
                   ) : (
                     <span className="text-sutil">—</span>
                   ),
@@ -190,10 +190,10 @@ export default function AlunosDaTurma({ turmaId, turmaNome, escola, aoPerderATur
         <DialogoDaSenhaProvisoria
           key={aberta.numero}
           usuarioId={aberta.alvo}
-          aoFechar={dialogo.fechar}
+          aoFechar={dialogo.close}
           aoPerderOAluno={() => {
             definirAviso(TEXTO_DO_ALUNO_QUE_SAIU_DA_TURMA)
-            dialogo.fecharSeAinda(aberta)
+            dialogo.closeSeAinda(aberta)
             void alunos.refetch({ cancelRefetch: false })
           }}
           focoDeReserva={() => (botaoDeVerMais.current ?? fimDaLista.current ?? tituloDoAcesso.current)?.focus()}

@@ -146,8 +146,8 @@ describe('leitura de página por série e licença vigente (9.0)', () => {
       const c = await cenario()
       const porta = api.app.get(TrechoSearch)
       const pedido = { texto: 'reagente limitante', disciplinaId: c.escola.quimica, limite: 20 }
-      expect(await noContexto(c.escola, () => porta.buscar({ ...pedido, serieId: c.serie9 }))).toEqual([])
-      expect(new Set((await noContexto(c.escola, () => porta.buscar({ ...pedido, serieId: c.escola.serieId }))).map((trecho) => trecho.materialId))).toEqual(new Set([c.escola.materialId]))
+      expect(await noContexto(c.escola, () => porta.find({ ...pedido, serieId: c.serie9 }))).toEqual([])
+      expect(new Set((await noContexto(c.escola, () => porta.find({ ...pedido, serieId: c.escola.serieId }))).map((trecho) => trecho.materialId))).toEqual(new Set([c.escola.materialId]))
       // O mesmo para a página aberta: o material do 2º ano, pedido pela série do 9º, não devolve página nenhuma.
       expect(await noContexto(c.escola, () => porta.doMaterial(c.escola.materialId, c.escola.quimica, c.serie9))).toEqual([])
       expect((await noContexto(c.escola, () => porta.doMaterial(c.escola.materialId, c.escola.quimica, c.escola.serieId))).map((trecho) => trecho.pagina)).toEqual([1, 2, 3, 4, 5, 6])
@@ -252,7 +252,7 @@ describe('leitura de página por série e licença vigente (9.0)', () => {
       const porta = api.app.get(TrechoSearch)
       const paginaAberta = () => noContexto(c.escola, () => porta.doMaterial(materialId, c.escola.quimica, c.serie9))
       const existe = () => noContexto(c.escola, () => porta.existeMaterialDaSerie({ serieId: c.serie9, disciplinaId: c.escola.quimica }))
-      const achada = async () => [...new Set((await noContexto(c.escola, () => porta.buscar({ texto: 'reagente limitante', disciplinaId: c.escola.quimica, serieId: c.serie9 }))).map((trecho) => trecho.materialId))]
+      const achada = async () => [...new Set((await noContexto(c.escola, () => porta.find({ texto: 'reagente limitante', disciplinaId: c.escola.quimica, serieId: c.serie9 }))).map((trecho) => trecho.materialId))]
       const naTelaDoAluno = async () => erroDe(await perguntar(c.alunoDe9, { atividadeAplicadaId: c.atividadeDe9, materialId, pagina: 1 }))
       const emUso = async () => (await buscar(c.escola.coordenacao, `&serieId=${c.serie9}`)).length
 
@@ -314,7 +314,7 @@ describe('leitura de página por série e licença vigente (9.0)', () => {
       const c = await cenario()
       await preparar(c)
       const adaptador = vi.spyOn(FakeAdapter.prototype, 'chamar')
-      const buscarTrechos = vi.spyOn(api.app.get(TrechoSearch), 'buscar')
+      const buscarTrechos = vi.spyOn(api.app.get(TrechoSearch), 'find')
       const antes = await gastos(c.escola)
 
       for (const ferramenta of FERRAMENTAS) expect(erroDe(await gerar(c.escola, ferramenta, c.turma9)), ferramenta).toEqual({ status: 422, codigo: ErrorCode.SEM_MATERIAL_DA_SERIE })
@@ -628,7 +628,7 @@ describe('leitura de página por série e licença vigente (9.0)', () => {
       const c = await cenario()
       const licencaId = await licencaDe(c, '2026-01-01')
       const materialId = await materialDe9(c, { titularidade: 'terceiro_com_licenca', licencaId })
-      const buscarTrechos = vi.spyOn(api.app.get(TrechoSearch), 'buscar')
+      const buscarTrechos = vi.spyOn(api.app.get(TrechoSearch), 'find')
       const { execucaoId } = await mudandoEntreO202EAExecucao(c, { atividadeAplicadaId: c.atividadeDe9, materialId, pagina: 1 }, async () => {
         await sql(`update licenca_de_material set vigente_ate = '2026-11-12' where id = $1`, [licencaId])
       })
@@ -728,17 +728,17 @@ describe('leitura de página por série e licença vigente (9.0)', () => {
       // O material da B existe, na série dela, com a mesma palavra: só o escopo da escola o separa.
       const daB = await materialDe9(b, { titulo: 'Material da outra escola' })
       const pedido = { texto: 'reagente limitante', disciplinaId: a.escola.quimica, limite: 20 }
-      expect(await noContexto(a.escola, () => porta.buscar({ ...pedido, serieId: b.serie9 }))).toEqual([])
+      expect(await noContexto(a.escola, () => porta.find({ ...pedido, serieId: b.serie9 }))).toEqual([])
       expect(await noContexto(a.escola, () => porta.doMaterial(daB, a.escola.quimica, b.serie9))).toEqual([])
       expect(await noContexto(a.escola, () => porta.doMaterial(a.escola.materialId, a.escola.quimica, b.serie9))).toEqual([])
       expect(await noContexto(a.escola, () => porta.existeMaterialDaSerie({ serieId: b.serie9, disciplinaId: a.escola.quimica }))).toBe(false)
       expect(await buscar(a.escola.coordenacao, `&serieId=${b.serie9}`)).toEqual([])
       // A disciplina e a série da B juntas, no contexto da A: a disciplina deixa de descartar o material, e só o corte por escola o separa.
       const pedidoDaB = { texto: 'reagente limitante', disciplinaId: b.escola.quimica, limite: 20 }
-      expect(await noContexto(a.escola, () => porta.buscar({ ...pedidoDaB, serieId: b.serie9 }))).toEqual([])
+      expect(await noContexto(a.escola, () => porta.find({ ...pedidoDaB, serieId: b.serie9 }))).toEqual([])
       expect(await noContexto(a.escola, () => porta.existeMaterialDaSerie({ serieId: b.serie9, disciplinaId: b.escola.quimica }))).toBe(false)
       // A mesma série, na escola dona dela, acha o material: o vazio de cima é o escopo, e não a falta de material.
-      expect(await noContexto(b.escola, () => porta.buscar({ ...pedido, disciplinaId: b.escola.quimica, serieId: b.serie9 }))).toHaveLength(2)
+      expect(await noContexto(b.escola, () => porta.find({ ...pedido, disciplinaId: b.escola.quimica, serieId: b.serie9 }))).toHaveLength(2)
     })
 
     it('os dois helpers do filtro carregam o corte por escola: sozinhos, sem o escopo da consulta de fora, não casam material de outra escola', async () => {

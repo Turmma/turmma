@@ -90,7 +90,7 @@ export const ESPERANDO_O_PROFESSOR = 'Esperando o professor'
 const percentual = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 })
 
 /** `46.7` → `46,7%`. */
-export function formatarPercentual(valor: number): string {
+export function formatPercentual(valor: number): string {
   return `${percentual.format(valor)}%`
 }
 
@@ -132,7 +132,7 @@ export function nomeDoRecorte(recorte: { readonly serie: { readonly etapa: Etapa
  */
 export function fraseDoAlerta(alerta: AlertaDoAnalista): string | null {
   if (alerta.tipo !== 'habilidade_com_acerto_baixo' || alerta.habilidade === null) return null
-  return `Em ${nomeDoRecorte(alerta)}, o acerto em "${alerta.habilidade.descricao}" (${alerta.habilidade.codigo}) ficou em ${formatarPercentual(alerta.valor)}, abaixo de ${formatarPercentual(alerta.referencia)}, um limite provisório desta versão, a definir com a escola.`
+  return `Em ${nomeDoRecorte(alerta)}, o acerto em "${alerta.habilidade.descricao}" (${alerta.habilidade.codigo}) ficou em ${formatPercentual(alerta.valor)}, abaixo de ${formatPercentual(alerta.referencia)}, um limite provisório desta versão, a definir com a escola.`
 }
 
 /** O que acompanha todo alerta: é hipótese, e quem conclui é a escola. */

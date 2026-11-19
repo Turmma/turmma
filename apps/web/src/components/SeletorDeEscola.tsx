@@ -4,7 +4,7 @@ import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
 import { useLocation } from 'wouter'
 import { ApiError, errorMessage } from '../api/client'
 import { trocarDeEscola } from '../api/sessao'
-import { AvisoDaEspera, DESCARTADA, ehIndisponivel, useEsperaDoIndisponivel } from '../pages/espera-do-indisponivel'
+import { AvisoDaEspera, DESCARTADA, isIndisponivel, useEsperaDoIndisponivel } from '../pages/espera-do-indisponivel'
 import { LOGIN_STEP_ROUTE } from '../paths'
 import { ROLE_LABELS } from '../roles'
 import { ErrorState } from './states/ErrorState'
@@ -47,7 +47,7 @@ interface FalhaProps {
 
 /** A falha da troca: o 503 de queda vai ao `ErrorState`, que repete a troca que falhou; o resto é a mensagem da troca recusada. */
 function FalhaDaTroca({ falha, ocupado, aoTentarDeNovo }: FalhaProps) {
-  if (ehIndisponivel(falha)) return <ErrorState erro={falha} aoTentarDeNovo={aoTentarDeNovo} tentando={ocupado} />
+  if (isIndisponivel(falha)) return <ErrorState erro={falha} aoTentarDeNovo={aoTentarDeNovo} tentando={ocupado} />
   if (falha === undefined) return null
   return (
     <p role="alert" className="rounded-controle border-2 border-erro bg-erro-cx p-3 text-erro">
@@ -118,7 +118,7 @@ export function SeletorDeEscola({ escolaAtual, acessos, usuarioAtual }: Props) {
     )
   }
 
-  function abrir(): void {
+  function open(): void {
     // Reabrir começa de novo: o aviso da troca recusada é da tentativa anterior, e o foco vai para a escola de agora, e
     // não para a linha que falhou.
     definirFalha(undefined)
@@ -127,7 +127,7 @@ export function SeletorDeEscola({ escolaAtual, acessos, usuarioAtual }: Props) {
     requestAnimationFrame(() => escolhida.current?.focus())
   }
 
-  function fechar(): void {
+  function close(): void {
     definirAberto(false)
     botao.current?.focus()
   }
@@ -137,7 +137,7 @@ export function SeletorDeEscola({ escolaAtual, acessos, usuarioAtual }: Props) {
     if (trocando !== undefined) return
     // A escola em que já se está: nada a trocar. Trocar mesmo assim gravaria uma sessão nova e esvaziaria a tela à toa.
     if (acesso.usuarioId === usuarioAtual) {
-      fechar()
+      close()
       return
     }
     const usuarioDoInicio = usuarioAtual
@@ -146,7 +146,7 @@ export function SeletorDeEscola({ escolaAtual, acessos, usuarioAtual }: Props) {
     definirFalha(undefined)
     try {
       // A repetição só sai para a mesma pessoa: o usuário da escola de agora é o que ela tinha ao clicar.
-      const resposta = await espera.executar(
+      const resposta = await espera.run(
         () => trocarDeEscola(acesso.usuarioId),
         () => usuarioAgora.current === usuarioDoInicio,
       )
@@ -165,7 +165,7 @@ export function SeletorDeEscola({ escolaAtual, acessos, usuarioAtual }: Props) {
     // Dentro da gaveta, o Esc fecharia o `dialog` inteiro: aqui ele fecha só a lista.
     evento.preventDefault()
     evento.stopPropagation()
-    fechar()
+    close()
   }
 
   const daPessoaDeAgora = ultimaTroca?.usuario === usuarioAtual
@@ -178,7 +178,7 @@ export function SeletorDeEscola({ escolaAtual, acessos, usuarioAtual }: Props) {
         aria-label={`Escola: ${nomeDaEscola(atual)}`}
         aria-expanded={aberto}
         aria-controls={idDaLista}
-        onClick={() => (aberto ? fechar() : abrir())}
+        onClick={() => (aberto ? close() : open())}
         className="degrau degrau-borda flex min-h-12 w-full min-w-0 items-center gap-2 rounded-controle border-2 border-borda bg-fundo px-3 py-2 text-left hover:bg-fundo-suave"
       >
         <DadosDaEscola acesso={atual} />

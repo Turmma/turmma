@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { createDatabase, createPool, ehFalhaDeTrava, MotorDePlanilha, runInContext, schema, type Database, type DatabasePool, JobFailureError } from '@educa/core'
+import { createDatabase, createPool, isFalhaDeTrava, MotorDePlanilha, runInContext, schema, type Database, type DatabasePool, JobFailureError } from '@educa/core'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -7,7 +7,7 @@ import { compose, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { esperarNaTrava } from '../../api/test/write-block-trigger.js'
-import { criarGravacaoDaPlanilha } from '../src/processors/gravar-planilha.js'
+import { createGravacaoDaPlanilha } from '../src/processors/gravar-planilha.js'
 import { jobExecution } from './job-execution.fixture.js'
 import { InMemoryLog, QueueFixtures } from './queue.fixture.js'
 
@@ -43,12 +43,12 @@ describe('estrutura.gravar-planilha, planilha de alunos', () => {
   /** O pool dos jobs em corrida e das paradas: o da bancada tem poucas conexões, e cada parada segura uma. */
   let apoio: DatabasePool
   let bancoDoJob: Database
-  let gravacao: ReturnType<typeof criarGravacaoDaPlanilha>
+  let gravacao: ReturnType<typeof createGravacaoDaPlanilha>
 
   beforeAll(() => {
     apoio = createPool({ url: urlDoBancoDeTeste(), maximoConexoes: 10, timeoutConexaoMs: 5_000, timeoutConsultaMs: 30_000 }, () => undefined)
     bancoDoJob = createDatabase(apoio)
-    gravacao = criarGravacaoDaPlanilha({ banco: bancoDoJob, logger: log.logger, medidor: medidor.medidor })
+    gravacao = createGravacaoDaPlanilha({ banco: bancoDoJob, logger: log.logger, medidor: medidor.medidor })
   })
 
   afterAll(async () => {
@@ -91,7 +91,7 @@ describe('estrutura.gravar-planilha, planilha de alunos', () => {
   function gravar(escola: Escola, planilha: string, anoLetivoId?: string): Promise<string> {
     const motor = new MotorDePlanilha(bancada.banco, { enfileirar: () => Promise.resolve(randomUUID()) })
     const contexto = { requisicaoId: randomUUID(), escolaId: escola.escolaId, usuarioId: escola.coordenadorId, papel: 'coordenador' as const, sessaoId: randomUUID(), ...(escola.anoId === undefined ? {} : { anoLetivoId: escola.anoId }) }
-    return runInContext(contexto, async () => (await motor.gravar('alunos', { texto: planilha, marcas: SEM_MARCAS, ...(anoLetivoId === undefined ? {} : { anoLetivoId }) })).id)
+    return runInContext(contexto, async () => (await motor.save('alunos', { texto: planilha, marcas: SEM_MARCAS, ...(anoLetivoId === undefined ? {} : { anoLetivoId }) })).id)
   }
 
   /** Uma tentativa do job, como o executor a entrega: no contexto da escola da linha do outbox. */
@@ -477,7 +477,7 @@ describe('estrutura.gravar-planilha, planilha de alunos', () => {
     const id = await gravar(escola, texto(`8A;Nome Corrigido;${a.aprovado.matricula}`, `8A;Outro Nome;${a.livre.matricula}`))
     const sqlDoJob: string[] = []
     const espiado = drizzle({ client: apoio, schema, casing: 'snake_case', logger: { logQuery: (consulta: string) => void sqlDoJob.push(consulta.toLowerCase()) } }) as unknown as Database
-    const espiao = criarGravacaoDaPlanilha({ banco: espiado, logger: log.logger })
+    const espiao = createGravacaoDaPlanilha({ banco: espiado, logger: log.logger })
 
     await runInContext({ requisicaoId: randomUUID(), escolaId: escola.escolaId }, () => espiao({ importacaoId: id }, jobExecution(randomUUID(), 1)))
 
@@ -688,7 +688,7 @@ describe('estrutura.gravar-planilha, planilha de alunos', () => {
       segurador.release()
     }
 
-    expect(ehFalhaDeTrava(erro)).toBe(true)
+    expect(isFalhaDeTrava(erro)).toBe(true)
     expect(await importacao(id)).toMatchObject({ estado: 'na_fila' })
     expect(await totalDeNomes(escola.escolaId)).toBe(0)
     expect((await turmasDe(escola.escolaId)).map((t) => t.nome)).toEqual(['8A'])
@@ -716,7 +716,7 @@ describe('estrutura.gravar-planilha, planilha de alunos', () => {
         },
       },
     }) as unknown as Database
-    const espiao = criarGravacaoDaPlanilha({ banco: espiado, logger: log.logger })
+    const espiao = createGravacaoDaPlanilha({ banco: espiado, logger: log.logger })
 
     await runInContext({ requisicaoId: randomUUID(), escolaId: escola.escolaId }, () => espiao({ importacaoId: id }, jobExecution(randomUUID(), 1)))
 

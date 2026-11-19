@@ -19,20 +19,20 @@ export class PasswordHasher {
   ) {}
 
   /** Gera o hash fixo com uma senha sorteada que ninguém guarda. */
-  static async criar(parametros: HashParams): Promise<PasswordHasher> {
-    return new PasswordHasher(parametros, await gerarHash(randomBytes(32).toString('base64url'), parametros))
+  static async create(parametros: HashParams): Promise<PasswordHasher> {
+    return new PasswordHasher(parametros, await generateHash(randomBytes(32).toString('base64url'), parametros))
   }
 
   /** O hash de uma senha nova, para gravar (convite, troca de senha). */
-  gerar(senha: string): Promise<string> {
-    return gerarHash(senha, this.parametros)
+  generate(senha: string): Promise<string> {
+    return generateHash(senha, this.parametros)
   }
 
   /**
    * Confere a senha contra o hash guardado, ou contra o hash fixo quando não há. Roda o argon2 uma vez em qualquer
    * caso; hash guardado quebrado conta como senha errada, e não como erro.
    */
-  async verificar(hashGuardado: string | null | undefined, senha: string): Promise<boolean> {
+  async verify(hashGuardado: string | null | undefined, senha: string): Promise<boolean> {
     const alvo = hashGuardado ?? this.hashFixo
     let confere: boolean
     try {
@@ -47,6 +47,6 @@ export class PasswordHasher {
 /** `Algorithm.Argon2id`. O enum do pacote é `const` e ambiente, e não se lê com `isolatedModules`; o hash gerado traz `$argon2id$`. */
 const ARGON2ID = 2 as Algorithm
 
-function gerarHash(senha: string, parametros: HashParams): Promise<string> {
+function generateHash(senha: string, parametros: HashParams): Promise<string> {
   return hash(senha, { algorithm: ARGON2ID, memoryCost: parametros.memoriaKib, timeCost: parametros.iteracoes, parallelism: 1 })
 }

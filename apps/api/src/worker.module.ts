@@ -7,7 +7,7 @@ import { DESTINO_DO_ADAPTADOR, IaDoWorkerModule } from './ia/ia-do-worker.module
 import { LLM_PROVIDER, SUSPENSAO_DE_FUNCAO } from './ia/ia.module.js'
 import { RegistroDeComandos } from './ia/registro-de-comandos.js'
 import { VarreduraDeExecucoes } from './ia/varredura-de-execucoes.js'
-import { criarWorkerDeIa, type WorkerDeIa } from './ia/worker-de-ia.js'
+import { createWorkerDeIa, type WorkerDeIa } from './ia/worker-de-ia.js'
 import { TrechoSearch } from './material/trecho-search.js'
 import type { MainWorkerConfig } from './worker-config.js'
 
@@ -65,11 +65,11 @@ export class CicloDoWorkerDeIa implements OnApplicationBootstrap, OnApplicationS
   onApplicationBootstrap(): void {
     void this.soberania.aguardarConferida().then((conferida) => {
       // O desligamento pode vir entre o fim da leitura do cadastro e este `then`: o consumidor não nasce depois do `onApplicationShutdown`, qualquer que seja a ordem em que o Nest desliga os módulos.
-      if (conferida && !this.#encerrado) this.#consumir()
+      if (conferida && !this.#encerrado) this.#consume()
     })
   }
 
-  #consumir(): void {
+  #consume(): void {
     const { config, logger, medidor, batimento } = this.montagem
     // O horário letivo da escola, lido como o despachante e o worker comum o leem: o lote que volta dentro dele espera até o fim (regra 80, item 2).
     const avisarJanelaDescartada = throttledWarn(() => logger.warn({ evento: 'worker_ia.janela_da_escola_invalida' }))
@@ -77,8 +77,8 @@ export class CicloDoWorkerDeIa implements OnApplicationBootstrap, OnApplicationS
       aoFalhar: throttledWarn(() => logger.warn({ evento: 'worker_ia.configuracao_indisponivel' })),
     })
     const processador = new ExecucaoProcessor({ banco: this.banco, ia: this.ia, comandos: this.comandos, suspensao: this.suspensao, destino: this.destino, logger, medidor, janelaDaEscola, relogio: systemClock })
-    this.#worker = criarWorkerDeIa(config, { banco: this.banco, pool: this.pool }, { 'ia.executar': processador.processar, 'ia.executar-lote': processador.processar }, logger, { medidor })
-    this.#varredura.iniciar()
+    this.#worker = createWorkerDeIa(config, { banco: this.banco, pool: this.pool }, { 'ia.executar': processador.processar, 'ia.executar-lote': processador.processar }, logger, { medidor })
+    this.#varredura.start()
     batimento.bater()
     this.#pulso = setInterval(() => batimento.bater(), INTERVALO_DO_BATIMENTO_MS)
     this.#pulso.unref()

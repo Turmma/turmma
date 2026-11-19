@@ -60,7 +60,7 @@ function FormularioDaSenha({ token, vez, vezAtual }: { token: string; vez: numbe
   }, [])
 
   /** O "Tentar de novo" mantém o aviso até a resposta, para o botão que tem o foco não sair da tela com ele. */
-  async function salvar(deNovo: boolean): Promise<void> {
+  async function save(deNovo: boolean): Promise<void> {
     if (noAr.current) return
     noAr.current = true
     definirSalvando(true)
@@ -96,9 +96,9 @@ function FormularioDaSenha({ token, vez, vezAtual }: { token: string; vez: numbe
     } else definirFalha(erro)
   }
 
-  function enviar(evento: FormEvent<HTMLFormElement>): void {
+  function send(evento: FormEvent<HTMLFormElement>): void {
     evento.preventDefault()
-    void salvar(false)
+    void save(false)
   }
 
   if (invalido) return <LinkQueNaoVale />
@@ -106,7 +106,7 @@ function FormularioDaSenha({ token, vez, vezAtual }: { token: string; vez: numbe
   return (
     <CascaPublica titulo="Redefinir a senha">
       <p className="text-apoio">Escolha a senha nova. Depois de trocar, você volta à entrada para usá-la.</p>
-      <form className="flex flex-col gap-4" onSubmit={enviar}>
+      <form className="flex flex-col gap-4" onSubmit={send}>
         <PasswordInput
           ref={campo}
           rotulo="Senha nova"
@@ -122,7 +122,7 @@ function FormularioDaSenha({ token, vez, vezAtual }: { token: string; vez: numbe
             definirRecusada(false)
           }}
         />
-        {falha !== undefined && <ErrorState erro={falha} aoTentarDeNovo={() => void salvar(true)} tentando={salvando} />}
+        {falha !== undefined && <ErrorState erro={falha} aoTentarDeNovo={() => void save(true)} tentando={salvando} />}
         <Button type="submit" disabled={salvando} className="w-full">
           {salvando ? 'Salvando…' : 'Definir a senha'}
         </Button>

@@ -68,14 +68,14 @@ describe('reconciliação entre job_registro e o BullMQ', () => {
   }
 
   function comoAtivo(id: string): Promise<unknown> {
-    return runInContext({ requisicaoId: randomUUID(), escolaId: ESCOLA_A }, () => bancada.registro.iniciarExecucao(id))
+    return runInContext({ requisicaoId: randomUUID(), escolaId: ESCOLA_A }, () => bancada.registro.startExecucao(id))
   }
 
   /** Uma reconciliação à parte, com cliente e `Queue` próprios, e a consulta à fila embrulhada pelo teste. */
-  function reconciliacaoAParte(nome: string, embrulhar: (consultar: JobPublisher['consultar']) => JobPublisher['consultar'], lote?: number) {
+  function reconciliacaoAParte(nome: string, embrulhar: (consultar: JobPublisher['find']) => JobPublisher['find'], lote?: number) {
     const redis = createQueueRedisClient(urlRedisDeFila(), nome, () => undefined)
     const publicacao = new BullMQJobPublisher((filaDoJob, executor) => new Queue<QueuedJobData>(bullmqQueueName(filaDoJob, executor), { connection: redis, prefix: bancada.prefixo }))
-    const fila: JobPublisher = { publicar: (jobs) => publicacao.publicar(jobs), consultar: embrulhar((job) => publicacao.consultar(job)) }
+    const fila: JobPublisher = { publish: (jobs) => publicacao.publish(jobs), find: embrulhar((job) => publicacao.find(job)) }
     const log = new InMemoryLog(nome)
     return {
       log,
@@ -84,7 +84,7 @@ describe('reconciliação entre job_registro e o BullMQ', () => {
         lote === undefined ? {} : { lote },
       ),
       fechar: async () => {
-        await publicacao.fechar()
+        await publicacao.close()
         await redis.quit()
       },
     }
@@ -373,7 +373,7 @@ describe('reconciliação entre job_registro e o BullMQ', () => {
     it('a falha da fila não muda job que já terminou: o worker lento concluiu antes de a falha ser gravada', async () => {
       const { ids: [id = ''] } = await publicados(new InMemoryLog('despachante'), 1)
       await runInContext({ requisicaoId: randomUUID(), escolaId: ESCOLA_A }, async () => {
-        await bancada.registro.iniciarExecucao(id)
+        await bancada.registro.startExecucao(id)
         await bancada.registro.concluir(id)
       })
 
@@ -388,7 +388,7 @@ describe('reconciliação entre job_registro e o BullMQ', () => {
       const { ids: [id = ''] } = await publicados(log, 1)
       await perderNaFila(id)
       await envelhecer(id)
-      bancada.despachante(log, { intervaloReconciliacaoMs: 300 }).reconciliacao.iniciar()
+      bancada.despachante(log, { intervaloReconciliacaoMs: 300 }).reconciliacao.start()
       await expect.poll(() => log.doEvento('job.republicado').map((registro) => registro['jobId']), { timeout: 5_000 }).toEqual([id])
     })
 
@@ -400,7 +400,7 @@ describe('reconciliação entre job_registro e o BullMQ', () => {
 
       await composeAssincronoOuFalha('stop', 'postgres')
       try {
-        bancada.despachante(log, { intervaloReconciliacaoMs: 300 }).reconciliacao.iniciar()
+        bancada.despachante(log, { intervaloReconciliacaoMs: 300 }).reconciliacao.start()
         await expect.poll(() => log.doEvento('reconciliacao.falhou').length, { timeout: 20_000, interval: 200 }).toBeGreaterThanOrEqual(3)
         expect(log.doEvento('job.republicado')).toEqual([])
       } finally {

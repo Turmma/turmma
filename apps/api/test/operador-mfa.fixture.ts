@@ -10,7 +10,7 @@ import { AppModule } from '../src/app.module.js'
 import type { ApiConfig } from '../src/config.js'
 import { configureApp } from '../src/configure-app.js'
 import { OperadorChallengeIssuer, type OperadorChallengeStep } from '../src/operacao/operador-challenge.js'
-import { gerarCodigosDeRecuperacao, gerarSegredo, hmacDaRecuperacao, PERIODO_TOTP_SEGUNDOS } from '../src/credencial/index.js'
+import { generateCodigosDeRecuperacao, generateSegredo, hmacDaRecuperacao, PERIODO_TOTP_SEGUNDOS } from '../src/credencial/index.js'
 import { testConfig, TEST_APP_OPTIONS } from './test-config.js'
 
 /**
@@ -132,10 +132,10 @@ export function base32DoGravado(operadorId: string, cifrado: Buffer, versao: num
 
 /** O segundo fator ativo gravado direto no banco, com a cifra de produção: o estado depois do primeiro código. Sem sessão. */
 export async function ativarNoBanco(pool: DatabasePool, operadorId: string): Promise<{ base32: string; codigos: string[] }> {
-  const novo = gerarSegredo()
+  const novo = generateSegredo()
   const { cifrado, versao } = cifra.cifrar(novo.bytes, operadorId)
   await pool.query('update operador set mfa_segredo_cifrado = $1, mfa_chave_versao = $2, mfa_versao = mfa_versao + 1, mfa_ativado_em = now(), mfa_ultimo_passo = null where id = $3', [cifrado, versao, operadorId])
-  const codigos = gerarCodigosDeRecuperacao()
+  const codigos = generateCodigosDeRecuperacao()
   for (const codigo of codigos) await pool.query('insert into codigo_recuperacao_operador (operador_id, hmac) values ($1, $2)', [operadorId, hmacDoCodigo(codigo)])
   return { base32: novo.base32, codigos }
 }

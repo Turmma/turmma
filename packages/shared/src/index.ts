@@ -8,7 +8,7 @@ export {
   AVISO_DO_CONVITE_PARA_CONTA_EXISTENTE,
   AVISO_DO_CODIGO_GASTO_SEM_ENTRAR,
   AVISO_DO_SEGUNDO_FATOR_CONSUMIDO,
-  formatarEspera,
+  formatEspera,
   MENSAGENS_DA_ENTRADA,
   MENSAGENS_DA_LIGACAO,
   MENSAGENS_DE_ERRO,
@@ -118,9 +118,9 @@ export {
   VALIDADE_DA_SENHA_PROVISORIA_HORAS,
   VALIDADE_DO_BILHETE_DA_TROCA_MINUTOS,
   alvoDaSenhaProvisoriaResponseSchema,
-  formatarSenhaProvisoria,
+  formatSenhaProvisoria,
   loginMatriculaResponseSchema,
-  normalizarSenhaProvisoria,
+  normalizeSenhaProvisoria,
   senhaProvisoriaResponseSchema,
   trocarSenhaProvisoriaRequestSchema,
   trocasDaProvisoriaResponseSchema,
@@ -411,7 +411,7 @@ export {
   acessoDaTurmaResponseSchema,
   acessoGeradoResponseSchema,
   exibirCodigoDaTurma,
-  normalizarCodigoDaTurma,
+  normalizeCodigoDaTurma,
   TAMANHO_DO_CODIGO_DA_TURMA,
   VALIDADES_DO_ACESSO_DIAS,
 } from './sala/acesso.js'
@@ -481,7 +481,7 @@ export type {
   AceitarConviteDeOperadorResponse,
   ConsultarConviteDeOperadorResponse,
 } from './operacao/convite.js'
-export { AGENTES, CHAVES_DE_FUNCAO, ehChaveDeFuncao, FUNCOES, NIVEIS_DE_AUTONOMIA, NOMES_DOS_AGENTES } from './time/funcoes.js'
+export { AGENTES, CHAVES_DE_FUNCAO, isChaveDeFuncao, FUNCOES, NIVEIS_DE_AUTONOMIA, NOMES_DOS_AGENTES } from './time/funcoes.js'
 export type { Agente, ChaveDeFuncao, DeclaracaoDeFuncao, NivelDeAutonomia } from './time/funcoes.js'
 export {
   ALTERNATIVAS_POR_QUESTAO,
@@ -517,7 +517,7 @@ export {
   chaveDeFuncaoSchema,
   funcaoDoTimeSchema,
   timeResponseSchema,
-  montarTime,
+  buildTime,
 } from './time/time.js'
 export type {
   AgenteDoTime,
@@ -1156,7 +1156,7 @@ export {
   TIPOS_DE_ITEM_DO_DIA,
   aulaDaSemanaSchema,
   diaDaSemanaSchema,
-  ehSegundaFeira,
+  isSegundaFeira,
   eventoDoDiaSchema,
   gravarAulaRequestSchema,
   gravarAulaResponseSchema,

@@ -23,8 +23,8 @@ export class EntregaController {
   @Get()
   @RequirePermissao('entrega', 'listar')
   @Header('Cache-Control', 'no-store')
-  listar(@Query(new ZodValidationPipe(entregasQuerySchema)) consulta: EntregasQuery): Promise<ListaDeEntregasResponse> {
-    return this.entregas.listar(consulta)
+  list(@Query(new ZodValidationPipe(entregasQuerySchema)) consulta: EntregasQuery): Promise<ListaDeEntregasResponse> {
+    return this.entregas.list(consulta)
   }
 
   @Post(':id/decidir')

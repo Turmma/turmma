@@ -76,7 +76,7 @@ function colunasDoCabecalho(campos: readonly string[]): { readonly nome: number;
  * - Nome e matrícula sem espaço nas pontas. Campo que falta vira vazio, e a conferência de cada linha
  *   (a classificação) aponta.
  */
-export function lerTextoDaLista(texto: string): ListaRow[] {
+export function readTextoDaLista(texto: string): ListaRow[] {
   if (Buffer.byteLength(texto, 'utf8') > MAXIMO_DE_BYTES_DA_LISTA) throw new DomainException(ErrorCode.ENTRADA_INVALIDA)
   const fisicas = texto.split(/\r\n|\r|\n/)
   let separador: Separador | undefined

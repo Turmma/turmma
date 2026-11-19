@@ -26,13 +26,13 @@ export interface CommandOutput {
 
 export interface CommandDatabase {
   banco: Database
-  fechar: () => Promise<void>
+  close: () => Promise<void>
 }
 
 /** Pool de uma conexão para o comando, com o banco do ambiente (`BANCO_URL` ou o Postgres da máquina). */
-function abrirBancoDoAmbiente(ambiente: Record<string, string | undefined>): CommandDatabase {
+function openBancoDoAmbiente(ambiente: Record<string, string | undefined>): CommandDatabase {
   const pool = createPool({ ...urlDoBancoDeOperacao(ambiente), maximoConexoes: 1 }, () => undefined)
-  return { banco: createDatabase(pool), fechar: () => pool.end() }
+  return { banco: createDatabase(pool), close: () => pool.end() }
 }
 
 export interface CommandRequest {
@@ -41,7 +41,7 @@ export interface CommandRequest {
   quantidade: number
 }
 
-export function lerPedidoDeSessao(argumentos: string[]): CommandRequest {
+export function readPedidoDeSessao(argumentos: string[]): CommandRequest {
   let valores: { escola?: string; papel?: string; quantidade?: string }
   try {
     valores = parseArgs({
@@ -66,17 +66,17 @@ export function lerPedidoDeSessao(argumentos: string[]): CommandRequest {
  * Executa o comando e devolve o código de saída: 0 criado, 1 erro (`NAO_ENCONTRADO` para escola inexistente, ou
  * `ERRO_INTERNO` resumido), 2 argumento ou ambiente inválido, inclusive `AMBIENTE` diferente de `local` ou ausente.
  */
-export async function executarOpsSessaoSintetica(
+export async function runOpsSessaoSintetica(
   argumentos: string[],
   ambiente: Record<string, string | undefined>,
   terminal: CommandOutput,
-  abrirBanco: (ambiente: Record<string, string | undefined>) => CommandDatabase = abrirBancoDoAmbiente,
+  abrirBanco: (ambiente: Record<string, string | undefined>) => CommandDatabase = openBancoDoAmbiente,
 ): Promise<number> {
   try {
-    const pedido = lerPedidoDeSessao(argumentos)
+    const pedido = readPedidoDeSessao(argumentos)
     // Antes de abrir o banco: fora do local, nem a conexão é aberta.
     syntheticTokenIssuer(ambiente)
-    const { banco, fechar } = abrirBanco(ambiente)
+    const { banco, close: fechar } = abrirBanco(ambiente)
     try {
       const sessoes = await createSyntheticSessions(banco, ambiente, pedido)
       terminal.saida(`${sessoes.map((sessao) => sessao.token).join('\n')}\n`)
@@ -100,7 +100,7 @@ export async function executarOpsSessaoSintetica(
 }
 
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  process.exitCode = await executarOpsSessaoSintetica(process.argv.slice(2), process.env, {
+  process.exitCode = await runOpsSessaoSintetica(process.argv.slice(2), process.env, {
     saida: (texto) => process.stdout.write(texto),
     erro: (texto) => process.stderr.write(texto),
   })

@@ -63,7 +63,7 @@ function erroDe(ambiente: Record<string, string | undefined>): InvalidConfigErro
   throw new Error('a configuração deveria ter sido recusada')
 }
 
-describe('lerConfiguracao do worker', () => {
+describe('loadConfig do worker', () => {
   it('converte o ambiente: só as filas de FILAS, cada uma com o próprio pool', () => {
     const { email, ...configuracao } = loadConfig(ambienteValido)
     expect(email).toMatchObject({ adaptador: 'falso', urlDaWeb: 'http://web.teste:8080' })

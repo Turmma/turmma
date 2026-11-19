@@ -47,22 +47,22 @@ const PARA_OS_PROFESSORES = COORDENACAO_ROUTES.professores
  * Os sete passos. Sem `dados` (a escola ainda não tem ano letivo), nenhum passo tem marca: o vazio mostra o roteiro todo.
  */
 export function passosDoRoteiro(dados: ContagemDoRoteiro | undefined): PassoDoRoteiro[] {
-  const tem = (quantos: number | undefined) => (quantos === undefined ? undefined : quantos > 0)
+  const has = (quantos: number | undefined) => (quantos === undefined ? undefined : quantos > 0)
   return [
     { titulo: 'Ano letivo', texto: 'Crie o ano letivo e abra: as turmas nascem no ano em curso.', acao: 'Crie o ano letivo e abra.', feito: dados?.anoEmCurso, para: PARA_O_ANO },
-    { titulo: 'Séries', texto: 'Do 6º ao 9º ano e do 1º ao 3º do Ensino Médio.', acao: 'Crie as séries que a escola tem.', feito: tem(dados?.series), para: PARA_O_ANO },
-    { titulo: 'Disciplinas', texto: 'As que os professores dão.', acao: 'Crie as disciplinas que os professores dão.', feito: tem(dados?.disciplinas), para: PARA_O_ANO },
-    { titulo: 'Turmas', texto: 'Cada turma numa série do ano em curso.', acao: 'Crie as turmas do ano em curso.', feito: tem(dados?.turmas), para: PARA_AS_TURMAS },
+    { titulo: 'Séries', texto: 'Do 6º ao 9º ano e do 1º ao 3º do Ensino Médio.', acao: 'Crie as séries que a escola tem.', feito: has(dados?.series), para: PARA_O_ANO },
+    { titulo: 'Disciplinas', texto: 'As que os professores dão.', acao: 'Crie as disciplinas que os professores dão.', feito: has(dados?.disciplinas), para: PARA_O_ANO },
+    { titulo: 'Turmas', texto: 'Cada turma numa série do ano em curso.', acao: 'Crie as turmas do ano em curso.', feito: has(dados?.turmas), para: PARA_AS_TURMAS },
     { titulo: 'Lista de nomes', texto: 'Abra cada turma e cole a lista ou envie o arquivo, com nome e matrícula.', acao: 'Abra cada turma e envie a lista de nomes.', feito: undefined, semMarca: true, para: PARA_AS_TURMAS },
     {
       titulo: 'Professores',
       texto: 'Cadastre cada professor com o e-mail dele e mande o convite, em',
       acao: 'Cadastre os professores e mande o convite.',
-      feito: tem(dados?.professores),
+      feito: has(dados?.professores),
       para: PARA_OS_PROFESSORES,
       link: { rotulo: 'Professores', para: PARA_OS_PROFESSORES },
     },
-    { titulo: 'Alocação', texto: 'Ligue cada professor à turma e à disciplina. Ele confirma pelo convite.', acao: 'Ligue cada professor à turma e à disciplina.', feito: tem(dados?.vinculos), para: PARA_OS_PROFESSORES },
+    { titulo: 'Alocação', texto: 'Ligue cada professor à turma e à disciplina. Ele confirma pelo convite.', acao: 'Ligue cada professor à turma e à disciplina.', feito: has(dados?.vinculos), para: PARA_OS_PROFESSORES },
   ]
 }
 

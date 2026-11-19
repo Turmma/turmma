@@ -45,13 +45,13 @@ describe('reivindicação: o hash sempre, pelo semáforo, antes da transação (
     const baldes: LoginBucket[] = []
     let dentroDoSemaforo = false
     const hash = {
-      gerar: vi.fn(async () => {
+      generate: vi.fn(async () => {
         eventos.push(dentroDoSemaforo ? 'hash no semáforo' : 'hash fora do semáforo')
         return '$argon2id$falso'
       }),
     }
     const semaforo = {
-      executar: async <T>(balde: LoginBucket, tarefa: () => Promise<T>): Promise<T> => {
+      run: async <T>(balde: LoginBucket, tarefa: () => Promise<T>): Promise<T> => {
         baldes.push(balde)
         dentroDoSemaforo = true
         try {
@@ -72,11 +72,11 @@ describe('reivindicação: o hash sempre, pelo semáforo, antes da transação (
       return false
     })
     // A trava do ano em curso (10.0, C10), no começo da transação: fora de curso, o pedido volta atrás sem gravar.
-    vi.spyOn(TurmaRepository.prototype, 'travarAnoEmCurso').mockImplementation(async () => {
+    vi.spyOn(TurmaRepository.prototype, 'lockAnoEmCurso').mockImplementation(async () => {
       eventos.push('trava o ano')
       return anoEmCurso
     })
-    vi.spyOn(ReivindicacaoRepository.prototype, 'inserirPendente').mockImplementation(async () => {
+    vi.spyOn(ReivindicacaoRepository.prototype, 'insertPendente').mockImplementation(async () => {
       eventos.push('insert do pedido')
       if (caso.inserir !== 'grava') throw erroDoPostgres(caso.inserir)
     })
@@ -127,8 +127,8 @@ describe('reivindicação: o hash sempre, pelo semáforo, antes da transação (
       )
 
       expect(resultado).toBe(caso.resposta)
-      expect(hash.gerar).toHaveBeenCalledTimes(1)
-      expect(hash.gerar).toHaveBeenCalledWith(pedido.senha)
+      expect(hash.generate).toHaveBeenCalledTimes(1)
+      expect(hash.generate).toHaveBeenCalledWith(pedido.senha)
       expect(baldes).toEqual([{ id: SALA.escolaId, subfila: '', rotulo: SALA.escolaId, rebaixado: false }])
       // A chave é lida antes dos limites e do hash, e a leitura do nome livre, antes dos limites (7.0); o hash roda dentro
       // do semáforo e antes de a transação abrir, e a marca do nome é lida entre os dois; a falha relê a chave e conta na
@@ -143,7 +143,7 @@ describe('reivindicação: o hash sempre, pelo semáforo, antes da transação (
     const { servico, eventos, baldes, hash, limites } = montar(CASOS[0])
     vi.mocked(ReivindicacaoRepository.prototype.chaveGravada).mockResolvedValueOnce(true)
     expect(await servico.reivindicar(pedido)).toEqual({ resultado: 'enviado' })
-    expect(hash.gerar).not.toHaveBeenCalled()
+    expect(hash.generate).not.toHaveBeenCalled()
     expect(baldes).toEqual([])
     expect(eventos).toEqual([])
     for (const limite of Object.values(limites)) expect(limite).not.toHaveBeenCalled()
@@ -172,7 +172,7 @@ describe('reivindicação: o hash sempre, pelo semáforo, antes da transação (
     const { servico, eventos, hash, limites } = montar(CASOS[0])
     limites.antesDoHash.mockRejectedValueOnce(new DomainException(ErrorCode.LIMITE_EXCEDIDO, undefined, 42))
     await expect(servico.reivindicar(pedido)).rejects.toMatchObject({ codigo: ErrorCode.LIMITE_EXCEDIDO, tenteDeNovoEmSegundos: 42 })
-    expect(hash.gerar).not.toHaveBeenCalled()
+    expect(hash.generate).not.toHaveBeenCalled()
     expect(eventos).toEqual(['lê a chave', 'lê o nome livre'])
   })
 

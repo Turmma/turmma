@@ -5,7 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
 import { jobExecution } from '../../../worker/test/job-execution.fixture.js'
 import { InMemoryLog } from '../../../worker/test/queue.fixture.js'
-import { criarAgendamentoDaClassificacao } from '../../../worker/src/processors/agendar-classificacao.js'
+import { createAgendamentoDaClassificacao } from '../../../worker/src/processors/agendar-classificacao.js'
 import { montarEscolaComTurma, type EscolaComTurma } from '../../test/escola-turma.fixture.js'
 import { SessaoFixtures } from '../../test/sessao.fixture.js'
 import { DB } from '../database.module.js'
@@ -139,7 +139,7 @@ async function candidatasDa(escolaId: string, execucaoId: string): Promise<strin
 
 /** O job `material.agendar-classificacao` da escola, como o executor o chama. */
 function executar(escolaId: string, dados: Record<string, unknown>, opcoes: { lote?: number; sinal?: AbortSignal; enfileirador?: Pick<JobOutbox, 'enfileirarUmaVez'> } = {}): Promise<void> {
-  const processador = criarAgendamentoDaClassificacao({
+  const processador = createAgendamentoDaClassificacao({
     banco: bancoDaApi(),
     enfileirador: opcoes.enfileirador ?? enfileirador,
     logger: log.logger,
@@ -286,7 +286,7 @@ describe('o PATCH só enfileira, e o job refaz a classificação pelo recorte at
     await rodarOsJobsDoPatch(escola.escolaId)
     const nova = (await secaoDe(alvo.secoes[0] ?? '')).execucao_id ?? ''
     // A execução antiga termina e tenta gravar o que o modelo devolveu, com as candidatas do 6º.
-    const gravadas = await naEscola(escola.escolaId, () => bancada.banco.transaction((tx) => new SecoesRepository(tx).gravarClassificacao(rodando, [{ secaoId: alvo.secoes[0] ?? '', codigos: [CODIGO_DO_6O] }])))
+    const gravadas = await naEscola(escola.escolaId, () => bancada.banco.transaction((tx) => new SecoesRepository(tx).saveClassificacao(rodando, [{ secaoId: alvo.secoes[0] ?? '', codigos: [CODIGO_DO_6O] }])))
 
     expect(gravadas).toHaveLength(0)
     expect(nova).not.toBe(rodando)
@@ -551,7 +551,7 @@ describe('[P] corridas da limpeza (P9, P10a, P10b)', () => {
     await parada.armar()
     try {
       // O `concluir` grava a seção e o código da IA e para antes do commit, segurando a linha da seção.
-      const concluir = naEscola(escola.escolaId, () => bancoDaApi().transaction((tx) => new SecoesRepository(tx).gravarClassificacao(execucaoId, [{ secaoId, codigos: ['EF09CI01'] }])))
+      const concluir = naEscola(escola.escolaId, () => bancoDaApi().transaction((tx) => new SecoesRepository(tx).saveClassificacao(execucaoId, [{ secaoId, codigos: ['EF09CI01'] }])))
       await parada.esperarParadas(1)
       const limpeza = executar(escola.escolaId, { materialId: alvo.materialId })
       await esperarNaTrava(bancada.pool, '%"secao_do_material"%')
@@ -581,7 +581,7 @@ describe('[P] corridas da limpeza (P9, P10a, P10b)', () => {
       try {
         const limpeza = executar(escola.escolaId, { materialId: alvo.materialId })
         await parada.esperarParadas(1)
-        const concluir = naEscola(escola.escolaId, () => bancoDaApi().transaction((tx) => new SecoesRepository(tx).gravarClassificacao(execucaoId, [{ secaoId, codigos: ['EF09CI01'] }])))
+        const concluir = naEscola(escola.escolaId, () => bancoDaApi().transaction((tx) => new SecoesRepository(tx).saveClassificacao(execucaoId, [{ secaoId, codigos: ['EF09CI01'] }])))
         await esperarNaTrava(bancada.pool, '%"secao_do_material"%"execucao_id" = %for update%')
         await parada.soltar()
         const [, resultado] = await Promise.all([limpeza, concluir])
@@ -652,23 +652,23 @@ describe('a limpeza sem seção não escreve nada', () => {
       },
     })
 
-  it('`limparDoRecorte` de um material só com seção corrigida para depois do `select`, sem `delete` nem `update`', async () => {
+  it('`clearDoRecorte` de um material só com seção corrigida para depois do `select`, sem `delete` nem `update`', async () => {
     const escola = await escolaNova()
     const vazio = await materialNovo(escola, { secoes: 1 })
     await secaoCorrigida(escola, vazio.secoes[0] ?? '')
     const escritas: string[] = []
 
-    const resultado = await naEscola(escola.escolaId, () => bancada.banco.transaction((tx) => new AgendamentoDaClassificacaoRepository(escritasDe(tx, escritas)).limparDoRecorte({ materialId: vazio.materialId }, 500)))
+    const resultado = await naEscola(escola.escolaId, () => bancada.banco.transaction((tx) => new AgendamentoDaClassificacaoRepository(escritasDe(tx, escritas)).clearDoRecorte({ materialId: vazio.materialId }, 500)))
 
     expect(resultado).toEqual({ limpas: [], ultima: undefined })
     expect(escritas).toEqual([])
   })
 
-  it('`limparDaExecucao` de uma execução que nenhuma seção tem para depois do `update`, sem `delete`', async () => {
+  it('`clearDaExecucao` de uma execução que nenhuma seção tem para depois do `update`, sem `delete`', async () => {
     const escola = await escolaNova()
     const escritas: string[] = []
 
-    const limpas = await naEscola(escola.escolaId, () => new SecoesRepository(escritasDe(bancada.banco, escritas)).limparDaExecucao(randomUUID()))
+    const limpas = await naEscola(escola.escolaId, () => new SecoesRepository(escritasDe(bancada.banco, escritas)).clearDaExecucao(randomUUID()))
 
     expect(limpas).toBe(0)
     expect(escritas).toEqual(['update'])

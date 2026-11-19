@@ -168,7 +168,7 @@ describe('renovação', () => {
     vi.useFakeTimers()
     responderCom({ status: 409, corpo: envelope(ErrorCode.JA_RENOVADO) }, { status: 409, corpo: envelope(ErrorCode.JA_RENOVADO) })
 
-    const abertura = sessao.abrirSessaoPeloCookie()
+    const abertura = sessao.openSessaoPeloCookie()
     await vi.advanceTimersByTimeAsync(sessao.ESPERA_DEPOIS_DO_JA_RENOVADO_MS)
     await abertura
 
@@ -307,7 +307,7 @@ describe('chamada com sessão', () => {
 describe('abrir a sessão ao carregar a página', () => {
   it('renova pelo cookie e abre a sessão, sem token nenhum vindo da URL ou de armazenamento', async () => {
     responderCom({ status: 200, corpo: TOKEN_NOVO })
-    await sessao.abrirSessaoPeloCookie()
+    await sessao.openSessaoPeloCookie()
     expect(sessao.estadoDaSessao()).toBe('aberta')
     expect(sessao.tokenDeAcesso()).toBe(TOKEN_NOVO.token)
     expect(chamadas).toEqual([expect.objectContaining({ caminho: sessao.CAMINHO_DA_RENOVACAO, metodo: 'POST', autorizacao: null })])
@@ -315,17 +315,17 @@ describe('abrir a sessão ao carregar a página', () => {
 
   it('cookie que não vale mais deixa a aba anônima, e a rota protegida leva à entrada', async () => {
     responderCom({ status: 401, corpo: envelope(ErrorCode.NAO_AUTENTICADO) })
-    await sessao.abrirSessaoPeloCookie()
+    await sessao.openSessaoPeloCookie()
     expect(sessao.estadoDaSessao()).toBe('anonima')
   })
 
   it('API fora do ar não desloga: o estado é indisponível, e a nova tentativa abre a sessão', async () => {
     responderCom({ status: 503, corpo: envelope(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO) })
-    await sessao.abrirSessaoPeloCookie()
+    await sessao.openSessaoPeloCookie()
     expect(sessao.estadoDaSessao()).toBe('indisponivel')
 
     responderCom({ status: 200, corpo: TOKEN_NOVO })
-    await sessao.abrirSessaoPeloCookie()
+    await sessao.openSessaoPeloCookie()
     expect(sessao.estadoDaSessao()).toBe('aberta')
   })
 
@@ -333,12 +333,12 @@ describe('abrir a sessão ao carregar a página', () => {
     const mudancas: string[] = []
     const cancelar = sessao.assinarSessao(() => mudancas.push(sessao.estadoDaSessao()))
     responderCom({ status: 401, corpo: envelope(ErrorCode.NAO_AUTENTICADO) })
-    await sessao.abrirSessaoPeloCookie()
+    await sessao.openSessaoPeloCookie()
     expect(mudancas).toEqual(['abrindo', 'anonima'])
 
     cancelar()
     responderCom({ status: 200, corpo: TOKEN_NOVO })
-    await sessao.abrirSessaoPeloCookie()
+    await sessao.openSessaoPeloCookie()
     expect(mudancas).toEqual(['abrindo', 'anonima'])
   })
 })
@@ -662,7 +662,7 @@ describe('acesso suspenso', () => {
   /** A aba que abre pelo cookie de quem tem a eliminação agendada: a primeira renovação já é recusada. */
   async function abrirSuspensa(): Promise<void> {
     responderCom(suspenso)
-    await sessao.abrirSessaoPeloCookie()
+    await sessao.openSessaoPeloCookie()
     expect(sessao.estadoDaSessao()).toBe('suspensa')
     chamadas.length = 0
   }
@@ -672,7 +672,7 @@ describe('acesso suspenso', () => {
     sessao.aoTrocarDeSessao(() => limpezas++)
     responderCom(suspenso)
 
-    await sessao.abrirSessaoPeloCookie()
+    await sessao.openSessaoPeloCookie()
 
     // `indisponivel` aqui devolveria à tela o "Tentar de novo" que repete um pedido que a API vai recusar sempre.
     expect(sessao.estadoDaSessao()).toBe('suspensa')
@@ -740,7 +740,7 @@ describe('acesso suspenso', () => {
     expect((await erroDe(sessao.authedGet('/v1/eu', esquemaQualquer))).codigo).toBe(ErrorCode.ACESSO_SUSPENSO)
     expect((await erroDe(sessao.renovarSessao())).codigo).toBe(ErrorCode.ACESSO_SUSPENSO)
     expect((await erroDe(sessao.registrarAtividade())).codigo).toBe(ErrorCode.ACESSO_SUSPENSO)
-    await sessao.abrirSessaoPeloCookie()
+    await sessao.openSessaoPeloCookie()
 
     expect(chamadas).toHaveLength(0)
     expect(sessao.estadoDaSessao()).toBe('suspensa')

@@ -34,8 +34,8 @@ export class MinhaAtividadeController {
   @Get('minhas-atividades')
   @RequirePermissao('minha_atividade', 'listar')
   @Header('Cache-Control', 'no-store')
-  listar(@Query(new ZodValidationPipe(minhasAtividadesQuerySchema)) consulta: MinhasAtividadesQuery): Promise<MinhasAtividadesResponse> {
-    return this.atividades.listar(consulta)
+  list(@Query(new ZodValidationPipe(minhasAtividadesQuerySchema)) consulta: MinhasAtividadesQuery): Promise<MinhasAtividadesResponse> {
+    return this.atividades.list(consulta)
   }
 
   @Get('atividades-aplicadas/:id/prova')
@@ -60,8 +60,8 @@ export class MinhaAtividadeController {
   @RequirePermissao('minha_atividade', 'enviar')
   @HttpCode(HttpStatus.OK)
   @Header('Cache-Control', 'no-store')
-  enviar(@Param('id', IdPipe) atividadeAplicadaId: string, @Body(new ZodValidationPipe(emptyOrMissingBodyRequestSchema)) _corpo: EmptyBodyRequest): Promise<AtividadeEnviadaResponse> {
-    return this.atividades.enviar(atividadeAplicadaId)
+  send(@Param('id', IdPipe) atividadeAplicadaId: string, @Body(new ZodValidationPipe(emptyOrMissingBodyRequestSchema)) _corpo: EmptyBodyRequest): Promise<AtividadeEnviadaResponse> {
+    return this.atividades.send(atividadeAplicadaId)
   }
 
   @Get('atividades-aplicadas/:id/meu-diagnostico')

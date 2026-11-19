@@ -6,7 +6,7 @@ import { randomBytes, randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { CAMINHO_DO_MATERIAL } from '../../../tools/demonstracao/gerar-material.ts'
 import { DB } from '../src/database.module.js'
-import { criarExtracaoDoPdf } from '../../worker/src/processors/extrair-pdf.js'
+import { createExtracaoDoPdf } from '../../worker/src/processors/extrair-pdf.js'
 import { jobExecution } from '../../worker/test/job-execution.fixture.js'
 import { chamar, type TestApi, type RespostaHttp } from './test-api.js'
 import type { SessaoFixtures, TestSessao } from './sessao.fixture.js'
@@ -189,7 +189,7 @@ export async function esperarExtracao(api: TestApi): Promise<void> {
     servico: 'worker-teste',
     ...(api.linhasDeLog === undefined ? { nivel: 'silent' as const } : { nivel: 'trace' as const, destino: { write: (linha: string) => void api.linhasDeLog?.push(linha) } }),
   })
-  const processador = criarExtracaoDoPdf({ banco, armazem, extrator: extratorDe(api), logger, enfileirador: SEM_JOB_DA_CLASSIFICACAO })
+  const processador = createExtracaoDoPdf({ banco, armazem, extrator: extratorDe(api), logger, enfileirador: SEM_JOB_DA_CLASSIFICACAO })
   const ultimaTentativa = JOB_DEFINITIONS[TIPO_EXTRAIR_PDF].retentativa.tentativas
   const pendentes = [...armazem.bytes.keys()].flatMap((chave) => {
     const achado = CHAVE_DO_TEMPORARIO.exec(chave)
@@ -210,7 +210,7 @@ export async function esperarExtracao(api: TestApi): Promise<void> {
 export async function extrairMaterial(api: TestApi, escolaId: string, materialId: string): Promise<void> {
   if (!(api.armazem instanceof InMemoryFileStorage)) throw new Error('extrairMaterial precisa de uma API de `subirApi`, com o armazém em memória')
   const logger = createLogger({ servico: 'worker-teste', nivel: 'silent' })
-  const processador = criarExtracaoDoPdf({ banco: api.app.get<Database>(DB), armazem: api.armazem, extrator: extratorDe(api), logger, enfileirador: SEM_JOB_DA_CLASSIFICACAO })
+  const processador = createExtracaoDoPdf({ banco: api.app.get<Database>(DB), armazem: api.armazem, extrator: extratorDe(api), logger, enfileirador: SEM_JOB_DA_CLASSIFICACAO })
   const ultimaTentativa = JOB_DEFINITIONS[TIPO_EXTRAIR_PDF].retentativa.tentativas
   await runInContext({ requisicaoId: randomUUID(), escolaId }, () => processador({ materialId }, jobExecution(randomUUID(), ultimaTentativa), new AbortController().signal))
 }

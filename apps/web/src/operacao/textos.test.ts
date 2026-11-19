@@ -1,7 +1,7 @@
 import { ErrorCode, MENSAGENS_DE_ERRO } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import { ApiError } from '../api/client'
-import { ehEnderecoRepetido, ehResultadoIncerto, falhaDoConvite, TEXTO_DA_OPERACAO_INDISPONIVEL, TEXTO_DA_SESSAO_ENCERRADA, TEXTO_DO_ENDERECO_REPETIDO, textoDaFalha, textoDoLimite } from './textos'
+import { isEnderecoRepetido, isResultadoIncerto, falhaDoConvite, TEXTO_DA_OPERACAO_INDISPONIVEL, TEXTO_DA_SESSAO_ENCERRADA, TEXTO_DO_ENDERECO_REPETIDO, textoDaFalha, textoDoLimite } from './textos'
 
 /**
  * W10 (mensagens de rede e escola): o que as telas do painel dizem para cada falha. O texto é o do cenário, escrito aqui
@@ -11,7 +11,7 @@ describe('W10: as mensagens do painel para as falhas de rede e escola', () => {
   it('o 429 diz quanto esperar, com o N do Retry-After, e sem ele diz "em instantes"', () => {
     expect(textoDaFalha(new ApiError(ErrorCode.LIMITE_EXCEDIDO, 7))).toBe('Muitas ações seguidas. Tente de novo em 7 segundos.')
     expect(textoDaFalha(new ApiError(ErrorCode.LIMITE_EXCEDIDO, 1))).toBe('Muitas ações seguidas. Tente de novo em 1 segundo.')
-    // Acima de um minuto, o minuto inteiro para cima (`formatarEspera`): dizer menos faria tentar cedo.
+    // Acima de um minuto, o minuto inteiro para cima (`formatEspera`): dizer menos faria tentar cedo.
     expect(textoDaFalha(new ApiError(ErrorCode.LIMITE_EXCEDIDO, 90))).toBe('Muitas ações seguidas. Tente de novo em 2 minutos.')
     expect(textoDaFalha(new ApiError(ErrorCode.LIMITE_EXCEDIDO))).toBe('Muitas ações seguidas. Tente de novo em instantes.')
     expect(textoDoLimite(Number.NaN)).toBe('Muitas ações seguidas. Tente de novo em instantes.')
@@ -24,26 +24,26 @@ describe('W10: as mensagens do painel para as falhas de rede e escola', () => {
 
   it('o CONFLITO do criar escola é o endereço repetido, com o texto do campo; os outros códigos não voltam ao campo', () => {
     expect(TEXTO_DO_ENDERECO_REPETIDO).toBe('Esse endereço já é de outra escola. Escolha outro.')
-    expect(ehEnderecoRepetido(new ApiError(ErrorCode.CONFLITO))).toBe(true)
+    expect(isEnderecoRepetido(new ApiError(ErrorCode.CONFLITO))).toBe(true)
     for (const codigo of [ErrorCode.NAO_ENCONTRADO, ErrorCode.ENTRADA_INVALIDA, ErrorCode.TEMPO_ESGOTADO, ErrorCode.LIMITE_EXCEDIDO]) {
-      expect(ehEnderecoRepetido(new ApiError(codigo))).toBe(false)
+      expect(isEnderecoRepetido(new ApiError(codigo))).toBe(false)
     }
     // O que não veio da API (a tela quebrou) nunca é lido como endereço repetido.
-    expect(ehEnderecoRepetido(new Error('CONFLITO'))).toBe(false)
+    expect(isEnderecoRepetido(new Error('CONFLITO'))).toBe(false)
   })
 
   it('só a conexão que caiu e a resposta fora do contrato deixam incerto se a escola foi criada; recusa do servidor não', () => {
-    expect(ehResultadoIncerto(new ApiError(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO))).toBe(true)
-    expect(ehResultadoIncerto(new ApiError(ErrorCode.ERRO_INTERNO))).toBe(true)
-    expect(ehResultadoIncerto(new Error('a tela quebrou'))).toBe(true)
+    expect(isResultadoIncerto(new ApiError(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO))).toBe(true)
+    expect(isResultadoIncerto(new ApiError(ErrorCode.ERRO_INTERNO))).toBe(true)
+    expect(isResultadoIncerto(new Error('a tela quebrou'))).toBe(true)
     for (const codigo of [ErrorCode.CONFLITO, ErrorCode.TEMPO_ESGOTADO, ErrorCode.LIMITE_EXCEDIDO, ErrorCode.ENTRADA_INVALIDA, ErrorCode.NAO_ENCONTRADO, ErrorCode.SESSAO_ENCERRADA]) {
-      expect(ehResultadoIncerto(new ApiError(codigo))).toBe(false)
+      expect(isResultadoIncerto(new ApiError(codigo))).toBe(false)
     }
   })
 
   it('o estouro do prazo no navegador deixa incerto se a escola foi criada, e o 503 TEMPO_ESGOTADO da API, que é recusa, não', () => {
-    expect(ehResultadoIncerto(new ApiError(ErrorCode.TEMPO_ESGOTADO, undefined, 'cliente'))).toBe(true)
-    expect(ehResultadoIncerto(new ApiError(ErrorCode.TEMPO_ESGOTADO))).toBe(false)
+    expect(isResultadoIncerto(new ApiError(ErrorCode.TEMPO_ESGOTADO, undefined, 'cliente'))).toBe(true)
+    expect(isResultadoIncerto(new ApiError(ErrorCode.TEMPO_ESGOTADO))).toBe(false)
   })
 
   it('o 401 leva à entrada com "Sua sessão terminou. Entre de novo para continuar.", o texto que a sessão do operador deixa na entrada', () => {

@@ -9,7 +9,7 @@ import { ClassificarSecoesCommand } from '../material/classificar-secoes.command
 import { TrechoSearch } from '../material/trecho-search.js'
 import { AlcanceDoAluno, TurnoDoTutorCommand } from '../tutor/turno.command.js'
 import { SUSPENSAO_DE_FUNCAO } from './ia.module.js'
-import { montarComandos, type ComandosDeIa } from './montar-comandos.js'
+import { buildComandos, type ComandosDeIa } from './montar-comandos.js'
 import { RegistroDeComandos } from './registro-de-comandos.js'
 
 /** Os sete comandos juntos, para os providers individuais não montarem cada um o seu. */
@@ -35,7 +35,7 @@ export class ComandosDeIaModule {
         { provide: AlcanceDoAluno, useFactory: (banco: Database, trechos: TrechoSearch) => new AlcanceDoAluno(banco, trechos, undefined, opcoes.medidor), inject: [DB, TrechoSearch] },
         {
           provide: COMANDOS_DE_IA,
-          useFactory: (banco: Database, trechos: TrechoSearch, suspensao: SuspensaoDeFuncao, alcance: AlcanceDoAluno, registro: RegistroDeComandos) => montarComandos(registro, banco, trechos, suspensao, alcance, opcoes.medidor),
+          useFactory: (banco: Database, trechos: TrechoSearch, suspensao: SuspensaoDeFuncao, alcance: AlcanceDoAluno, registro: RegistroDeComandos) => buildComandos(registro, banco, trechos, suspensao, alcance, opcoes.medidor),
           inject: [DB, TrechoSearch, SUSPENSAO_DE_FUNCAO, AlcanceDoAluno, RegistroDeComandos],
         },
         { provide: TurnoDoTutorCommand, useFactory: (comandos: ComandosDeIa) => comandos.turnoDoTutor, inject: [COMANDOS_DE_IA] },

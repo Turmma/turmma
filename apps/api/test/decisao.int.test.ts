@@ -1,4 +1,4 @@
-import { createDatabase, createPool, executarPlanilha, runInContext, type Database, type DatabasePool } from '@educa/core'
+import { createDatabase, createPool, runPlanilha, runInContext, type Database, type DatabasePool } from '@educa/core'
 import {
   ErrorCode,
   alunosDaTurmaResponseSchema,
@@ -63,7 +63,7 @@ describe('decisão dos pedidos (A1, tarefa 8.0): uma pessoa aprova ou recusa, e 
   const post = (sessao: TestSessao, caminho: string, corpo?: unknown) => chamar(api.url, 'POST', caminho, sessao.token, corpo)
   const decidir = (sessao: TestSessao, ids: readonly string[], decisao: 'aprovar' | 'recusar' = 'aprovar') => post(sessao, '/v1/reivindicacoes/decidir', { ids, decisao })
   /** Roda o job da importação uma vez, no contexto da escola dela, como o executor do worker o abre. */
-  const rodar = (escolaId: string, importacaoId: string) => runInContext({ requisicaoId: randomUUID(), escolaId }, () => executarPlanilha(bancoDoJob, importacaoId))
+  const rodar = (escolaId: string, importacaoId: string) => runInContext({ requisicaoId: randomUUID(), escolaId }, () => runPlanilha(bancoDoJob, importacaoId))
   /** Grava o texto na lista da turma pela coordenação (202) e roda o job; devolve como ele terminou. */
   async function gravarTexto(s: TestSala, turmaId: string, texto: string): Promise<string> {
     const gravada = await post(s.coordenacao, `/v1/turmas/${turmaId}/lista`, { texto })
@@ -928,14 +928,14 @@ describe('decisão dos pedidos (A1, tarefa 8.0): uma pessoa aprova ou recusa, e 
           expect(await new ReivindicacaoRepository(bancada.banco).chaveGravada(turmaId, chave), caso).toBe(false)
           expect(await new ListaLivreRepository(bancada.banco).tomar({ turmaId, listaNomeId: livre.id, matricula: livre.matricula }), caso).toBe(false)
           const decisoes = new DecisaoRepository(bancada.banco)
-          expect(await decisoes.travarPendente(pedidoId, 'unidade'), caso).toBeUndefined()
+          expect(await decisoes.lockPendente(pedidoId, 'unidade'), caso).toBeUndefined()
           expect(await decisoes.alcancavel(pedidoId, 'unidade'), caso).toBe(false)
           expect(await decisoes.pendentes(turmaId, { limite: 10 }), caso).toEqual([])
           expect(await decisoes.nomeDoPedido(reivindicado.id), caso).toBeUndefined()
           await decisoes.devolverNome(reivindicado.id)
           await decisoes.aprovarNome(livre.id, a.coordenacao.usuarioId)
           // O fechar só filtra a escola: o pedido de A em outro ano é o mesmo pedido, travado antes pela decisão.
-          if (turmaId === b.turma) await decisoes.fechar(pedidoId, 'recusada', 'coordenacao')
+          if (turmaId === b.turma) await decisoes.close(pedidoId, 'recusada', 'coordenacao')
         })
       }
       expect(await retrato()).toEqual(antes)

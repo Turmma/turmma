@@ -137,17 +137,17 @@ describe('PUT /v1/escola/sessao: a coordenação configura a inatividade da pró
     const naEscola = <T>(escolaId: string, funcao: (repositorio: EscolaSessaoRepository) => Promise<T>) =>
       runInContext({ requisicaoId: randomUUID(), escolaId }, () => bancada.banco.transaction((tx) => funcao(new EscolaSessaoRepository(tx))))
 
-    expect(await naEscola(escolaA, (repositorio) => repositorio.lerParaAlterar())).toEqual({ inatividadeAlunoMin: 10, inatividadeEquipeMin: 50 })
-    expect(await naEscola(escolaB, (repositorio) => repositorio.lerParaAlterar())).toEqual({ inatividadeAlunoMin: 20, inatividadeEquipeMin: 70 })
+    expect(await naEscola(escolaA, (repositorio) => repositorio.findParaAlterar())).toEqual({ inatividadeAlunoMin: 10, inatividadeEquipeMin: 50 })
+    expect(await naEscola(escolaB, (repositorio) => repositorio.findParaAlterar())).toEqual({ inatividadeAlunoMin: 20, inatividadeEquipeMin: 70 })
 
-    expect(await naEscola(escolaA, (repositorio) => repositorio.alterar({ inatividadeAlunoMin: 15, inatividadeEquipeMin: 60 }))).toEqual({ inatividadeAlunoMin: 15, inatividadeEquipeMin: 60 })
+    expect(await naEscola(escolaA, (repositorio) => repositorio.update({ inatividadeAlunoMin: 15, inatividadeEquipeMin: 60 }))).toEqual({ inatividadeAlunoMin: 15, inatividadeEquipeMin: 60 })
     expect(await inatividadeDa(escolaA)).toEqual({ aluno: 15, equipe: 60 })
     expect(await inatividadeDa(escolaB)).toEqual({ aluno: 20, equipe: 70 })
 
     const semEscola = <T>(funcao: (repositorio: EscolaSessaoRepository) => Promise<T>) =>
       runInContext({ requisicaoId: randomUUID() }, () => bancada.banco.transaction((tx) => funcao(new EscolaSessaoRepository(tx))))
-    await expect(semEscola((repositorio) => repositorio.lerParaAlterar())).rejects.toThrow('consulta com escopo sem escola no contexto')
-    await expect(semEscola((repositorio) => repositorio.alterar({ inatividadeAlunoMin: 5, inatividadeEquipeMin: 5 }))).rejects.toThrow('consulta com escopo sem escola no contexto')
+    await expect(semEscola((repositorio) => repositorio.findParaAlterar())).rejects.toThrow('consulta com escopo sem escola no contexto')
+    await expect(semEscola((repositorio) => repositorio.update({ inatividadeAlunoMin: 5, inatividadeEquipeMin: 5 }))).rejects.toThrow('consulta com escopo sem escola no contexto')
     expect(await inatividadeDa(escolaB)).toEqual({ aluno: 20, equipe: 70 })
   })
 })

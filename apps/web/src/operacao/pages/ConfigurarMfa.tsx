@@ -1,4 +1,4 @@
-import { ErrorCode, DIGITOS_DO_CODIGO_MFA, formatarEspera } from '@educa/shared'
+import { ErrorCode, DIGITOS_DO_CODIGO_MFA, formatEspera } from '@educa/shared'
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { Link, useLocation } from 'wouter'
 import { ApiError } from '../../api/client'
@@ -25,7 +25,7 @@ const TITULO = 'Configurar o segundo fator'
 function avisoDaRecusa(erro: unknown): string {
   if (erro instanceof ApiError && erro.codigo === ErrorCode.CONFLITO) return TEXTO_DO_CONFIGURE_DE_NOVO
   if (erro instanceof ApiError && erro.codigo === ErrorCode.CONTA_SEGURADA && erro.esperaSegundos !== undefined) {
-    return `${TEXTO_DA_CONFIGURACAO_RECUSADA} Muitas tentativas nesta conta: espere ${formatarEspera(erro.esperaSegundos)} antes de tentar.`
+    return `${TEXTO_DA_CONFIGURACAO_RECUSADA} Muitas tentativas nesta conta: espere ${formatEspera(erro.esperaSegundos)} antes de tentar.`
   }
   return TEXTO_DA_CONFIGURACAO_RECUSADA
 }
@@ -172,7 +172,7 @@ function Configuracao({ dados, aoAtivar }: { dados: SegundoFatorParaConfigurar; 
   const [ativando, definirAtivando] = useState(false)
   const [falha, definirFalha] = useState<unknown>(undefined)
 
-  async function enviar(evento: FormEvent<HTMLFormElement>): Promise<void> {
+  async function send(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault()
     if (ativando) return
     definirAtivando(true)
@@ -227,7 +227,7 @@ function Configuracao({ dados, aoAtivar }: { dados: SegundoFatorParaConfigurar; 
         <CopyButton texto={dados.codigosRecuperacao.join('\n')} rotulo="Copiar os códigos" avisoDeCopiado="Códigos copiados." />
       </section>
 
-      <form className="flex flex-col gap-4" onSubmit={(evento) => void enviar(evento)}>
+      <form className="flex flex-col gap-4" onSubmit={(evento) => void send(evento)}>
         <FormField
           rotulo="3. Digite o código que o aplicativo mostra"
           dica={`${String(DIGITOS_DO_CODIGO_MFA)} dígitos. Ele ativa o segundo fator e abre a sua sessão.`}

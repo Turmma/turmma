@@ -10,7 +10,7 @@ export const VALIDADE_DA_REDE_DO_IP_MS = 60_000
 const MAXIMO_DE_IPS_NO_CACHE = 10_000
 
 export interface EmailIpRateLimitDependencies {
-  readonly janela: Pick<WindowCounter, 'chaveDe' | 'ler' | 'somar'>
+  readonly janela: Pick<WindowCounter, 'chaveDe' | 'read' | 'somar'>
   /** `LIMITE_LOGIN_EMAIL_IP_MIN`: tentativas por minuto de um IP na rota de e-mail antes de rebaixar. */
   readonly limitePorMinuto: number
   /** Quantas escolas tem a rede cujo IP de saída (`rede.ips_saida`) é este; 0 quando nenhuma. */

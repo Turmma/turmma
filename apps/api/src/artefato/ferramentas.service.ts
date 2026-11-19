@@ -29,8 +29,8 @@ export class FerramentasService {
     private readonly trechos: TrechoSearch,
   ) {}
 
-  async gerar(ferramenta: FerramentaGeradora, pedido: GerarComFerramentaRequest): Promise<ExecucaoAceitaResponse> {
-    await this.limite.contar()
+  async generate(ferramenta: FerramentaGeradora, pedido: GerarComFerramentaRequest): Promise<ExecucaoAceitaResponse> {
+    await this.limite.count()
     const { chaveEnvio, ...resto } = pedido
     const parametros: ParametrosDeFerramenta = { ...resto, turmaId: resto.turmaId.toLowerCase(), disciplinaId: resto.disciplinaId.toLowerCase() }
     const daTurma = await new TurmaDoProfessorRepository(this.banco).turmaComDisciplina(parametros.turmaId, parametros.disciplinaId)

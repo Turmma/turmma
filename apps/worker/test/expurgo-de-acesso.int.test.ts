@@ -10,7 +10,7 @@ import { compose, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
 import { JOB_SCHEDULES, SCHEDULES_QUEUE } from '../src/job-schedules.js'
 import type { StorageConfig } from '../src/config.js'
 import { createWorker, type WorkerRuntime } from '../src/composition.js'
-import { criarExpurgoDeAcesso, type TotaisDoExpurgoDeAcesso } from '../src/processors/expurgar-acesso.js'
+import { createExpurgoDeAcesso, type TotaisDoExpurgoDeAcesso } from '../src/processors/expurgar-acesso.js'
 import { QueueFixtures, configuracaoDoBanco, janelaPadraoDoAmbiente, InMemoryLog, urlRedisDeFila, vagasPadraoDoAmbiente } from './queue.fixture.js'
 import { jobExecution } from './job-execution.fixture.js'
 
@@ -474,19 +474,19 @@ describe('sistema.expurgar-acesso', () => {
   /** Roda como o worker roda um job `sistema.*`: no contexto da rotina do sistema. */
   const expurgar = (lotes: Array<[Passo, number]> = [], lote?: number) => {
     const repositorio = new ExpurgoDeAcessoRepository(bancada.banco)
-    const processador = criarExpurgoDeAcesso({
+    const processador = createExpurgoDeAcesso({
       repositorio: {
-        apagarLoteVencido: async (alvo, agora, limite) => {
-          const apagadas = await repositorio.apagarLoteVencido(alvo, agora, limite)
+        deleteLoteVencido: async (alvo, agora, limite) => {
+          const apagadas = await repositorio.deleteLoteVencido(alvo, agora, limite)
           lotes.push([alvo, apagadas])
           return apagadas
         },
-        limparLoteDeContasSemUso: async (agora, limite) => {
-          const limpas = await repositorio.limparLoteDeContasSemUso(agora, limite)
+        clearLoteDeContasSemUso: async (agora, limite) => {
+          const limpas = await repositorio.clearLoteDeContasSemUso(agora, limite)
           lotes.push(['conta', limpas])
           return limpas
         },
-        fecharEnviosDeLinkParados: (agora, limite) => repositorio.fecharEnviosDeLinkParados(agora, limite),
+        closeEnviosDeLinkParados: (agora, limite) => repositorio.closeEnviosDeLinkParados(agora, limite),
       },
       relogio,
       logger: log.logger,
@@ -562,8 +562,8 @@ describe('sistema.expurgar-acesso', () => {
   it('log: cada contagem da linha acesso.expurgado é a da sua tabela, nunca a de outra', async () => {
     // Uma contagem diferente por tabela, menor que o lote: a troca de duas chaves no log fica visível.
     const porAlvo = Object.fromEntries(ALVOS_DO_EXPURGO_DE_ACESSO.map((alvo, posicao) => [alvo, posicao + 11])) as Record<AlvoDoExpurgoDeAcesso, number>
-    const processador = criarExpurgoDeAcesso({
-      repositorio: { apagarLoteVencido: async (alvo) => porAlvo[alvo], limparLoteDeContasSemUso: async () => 7, fecharEnviosDeLinkParados: async () => 5 },
+    const processador = createExpurgoDeAcesso({
+      repositorio: { deleteLoteVencido: async (alvo) => porAlvo[alvo], clearLoteDeContasSemUso: async () => 7, closeEnviosDeLinkParados: async () => 5 },
       relogio,
       logger: log.logger,
     })
@@ -601,11 +601,11 @@ describe('sistema.expurgar-acesso', () => {
     const repositorio = new ExpurgoDeAcessoRepository(bancada.banco)
     const existem = async () => (await bancada.pool.query<{ id: string }>('select id from convite_operador where id = any($1::uuid[])', [[duzentos, cem, trezentos]])).rows.map(({ id }) => id).sort()
 
-    expect(await repositorio.apagarLoteVencido('convite_operador', AGORA, 1)).toBe(1)
+    expect(await repositorio.deleteLoteVencido('convite_operador', AGORA, 1)).toBe(1)
     expect(await existem()).toEqual([duzentos, cem].sort())
-    expect(await repositorio.apagarLoteVencido('convite_operador', AGORA, 1)).toBe(1)
+    expect(await repositorio.deleteLoteVencido('convite_operador', AGORA, 1)).toBe(1)
     expect(await existem()).toEqual([cem])
-    expect(await repositorio.apagarLoteVencido('convite_operador', AGORA, 1)).toBe(1)
+    expect(await repositorio.deleteLoteVencido('convite_operador', AGORA, 1)).toBe(1)
     expect(await existem()).toEqual([])
   })
 
@@ -619,13 +619,13 @@ describe('sistema.expurgar-acesso', () => {
     const repositorio = new ExpurgoDeAcessoRepository(bancada.banco)
     const existem = async () => (await restantes('incidente', [duzentos, cem, trezentos])).sort()
 
-    expect(await repositorio.apagarLoteVencido('incidente', AGORA, 1)).toBe(1)
+    expect(await repositorio.deleteLoteVencido('incidente', AGORA, 1)).toBe(1)
     expect(await existem()).toEqual([duzentos, cem].sort())
     expect(await secoesDos([trezentos])).toBe(0)
     expect(await secoesDos([duzentos, cem])).toBe(2)
-    expect(await repositorio.apagarLoteVencido('incidente', AGORA, 1)).toBe(1)
+    expect(await repositorio.deleteLoteVencido('incidente', AGORA, 1)).toBe(1)
     expect(await existem()).toEqual([cem])
-    expect(await repositorio.apagarLoteVencido('incidente', AGORA, 1)).toBe(1)
+    expect(await repositorio.deleteLoteVencido('incidente', AGORA, 1)).toBe(1)
     expect(await existem()).toEqual([])
     expect(await secoesDos([duzentos, cem, trezentos])).toBe(0)
   })
@@ -640,13 +640,13 @@ describe('sistema.expurgar-acesso', () => {
       await segurador.query('begin')
       await segurador.query('select id from incidente where id = $1 for update', [maisAntigo])
       // Com o lote de 1, o mais antigo seria o escolhido: preso, ele é pulado, e o lote apaga o seguinte sem esperar o segurador.
-      expect(await new ExpurgoDeAcessoRepository(bancada.banco).apagarLoteVencido('incidente', AGORA, 1)).toBe(1)
+      expect(await new ExpurgoDeAcessoRepository(bancada.banco).deleteLoteVencido('incidente', AGORA, 1)).toBe(1)
       expect(await restantes('incidente', [maisAntigo, seguinte])).toEqual([maisAntigo])
     } finally {
       await segurador.query('rollback')
       segurador.release()
     }
-    expect(await new ExpurgoDeAcessoRepository(bancada.banco).apagarLoteVencido('incidente', AGORA, 1)).toBe(1)
+    expect(await new ExpurgoDeAcessoRepository(bancada.banco).deleteLoteVencido('incidente', AGORA, 1)).toBe(1)
     expect(await restantes('incidente', [maisAntigo, seguinte])).toEqual([])
   })
 
@@ -660,7 +660,7 @@ describe('sistema.expurgar-acesso', () => {
     const execucao = async () => {
       let total = 0
       for (;;) {
-        const doLote = await repositorio.apagarLoteVencido('incidente', AGORA, 1)
+        const doLote = await repositorio.deleteLoteVencido('incidente', AGORA, 1)
         total += doLote
         if (doLote < 1) return total
       }
@@ -690,11 +690,11 @@ describe('sistema.expurgar-acesso', () => {
       semeado.sai[alvo].push(duzentos, cem, trezentos)
       const existem = async () => (await restantes(alvo, [duzentos, cem, trezentos])).sort()
 
-      expect(await repositorio.apagarLoteVencido(alvo, AGORA, 1), alvo).toBe(1)
+      expect(await repositorio.deleteLoteVencido(alvo, AGORA, 1), alvo).toBe(1)
       expect(await existem(), alvo).toEqual([duzentos, cem].sort())
-      expect(await repositorio.apagarLoteVencido(alvo, AGORA, 1), alvo).toBe(1)
+      expect(await repositorio.deleteLoteVencido(alvo, AGORA, 1), alvo).toBe(1)
       expect(await existem(), alvo).toEqual([cem])
-      expect(await repositorio.apagarLoteVencido(alvo, AGORA, 1), alvo).toBe(1)
+      expect(await repositorio.deleteLoteVencido(alvo, AGORA, 1), alvo).toBe(1)
       expect(await existem(), alvo).toEqual([])
     }
   })
@@ -711,7 +711,7 @@ describe('sistema.expurgar-acesso', () => {
     const execucao = async () => {
       let total = 0
       for (;;) {
-        const doLote = await repositorio.apagarLoteVencido('acesso_turma', AGORA, 1)
+        const doLote = await repositorio.deleteLoteVencido('acesso_turma', AGORA, 1)
         total += doLote
         if (doLote < 1) return total
       }
@@ -746,15 +746,15 @@ describe('sistema.expurgar-acesso', () => {
       await segurador.query('begin')
       await segurador.query('select id from importacao_planilha where id = $1 for update', [trezentos])
       // A mais antiga está presa por outra transação: o lote de 1 pula para a seguinte, sem esperar.
-      expect(await repositorio.apagarLoteVencido('importacao_planilha', AGORA, 1)).toBe(1)
+      expect(await repositorio.deleteLoteVencido('importacao_planilha', AGORA, 1)).toBe(1)
       expect(await existem()).toEqual([trezentos, cem].sort())
     } finally {
       await segurador.query('rollback')
       segurador.release()
     }
-    expect(await repositorio.apagarLoteVencido('importacao_planilha', AGORA, 1)).toBe(1)
+    expect(await repositorio.deleteLoteVencido('importacao_planilha', AGORA, 1)).toBe(1)
     expect(await existem()).toEqual([cem])
-    expect(await repositorio.apagarLoteVencido('importacao_planilha', AGORA, 1)).toBe(1)
+    expect(await repositorio.deleteLoteVencido('importacao_planilha', AGORA, 1)).toBe(1)
     expect(await existem()).toEqual([])
   })
 
@@ -817,7 +817,7 @@ describe('sistema.expurgar-acesso', () => {
       const execucao = async () => {
         let total = 0
         for (;;) {
-          const doLote = await repositorio.apagarLoteVencido(alvo, AGORA, 1)
+          const doLote = await repositorio.deleteLoteVencido(alvo, AGORA, 1)
           total += doLote
           if (doLote < 1) return total
         }
@@ -849,7 +849,7 @@ describe('sistema.expurgar-acesso', () => {
 
   it('lotes: cada instrução apaga no máximo um lote, e a rotina segue tabela por tabela até sobrar lote incompleto', async () => {
     const repositorio = new ExpurgoDeAcessoRepository(bancada.banco)
-    expect(await repositorio.apagarLoteVencido('sessao', AGORA, 2)).toBe(2)
+    expect(await repositorio.deleteLoteVencido('sessao', AGORA, 2)).toBe(2)
     expect(await restantes('sessao', semeado.sai.sessao)).toHaveLength(semeado.sai.sessao.length - 2)
     const lotes: Array<[Passo, number]> = []
     await expurgar(lotes, 2)
@@ -942,7 +942,7 @@ describe('sistema.expurgar-acesso', () => {
     // A janela entre a trava e a reconferência: o reconvite (novo convite para o mesmo usuário inativo, que não muda a
     // conta) faz commit noutra conexão com as duas contas já travadas pelo lote. Como o refazer do painel, ele revoga o
     // vencido antes: um convite em aberto por usuário (`convite_pendente_unico`, A0b).
-    const limpas = await new ExpurgoDeAcessoRepository(bancada.banco).limparLoteDeContasSemUso(AGORA, LOTE_DO_EXPURGO, async () => {
+    const limpas = await new ExpurgoDeAcessoRepository(bancada.banco).clearLoteDeContasSemUso(AGORA, LOTE_DO_EXPURGO, async () => {
       await bancada.pool.query('update convite set revogado_em = now() where escola_id = $1 and usuario_id = $2 and revogado_em is null', [escolaId, reconvidada.usuarioId])
       await convite(escolaId, reconvidada.usuarioId, { expiraHa: '-3 days' })
     })
@@ -954,7 +954,7 @@ describe('sistema.expurgar-acesso', () => {
 
   it('permissão: só a rotina do sistema expurga; um job de escola com esse tipo falha sem apagar nada', async () => {
     const escolaId = await bancada.escola()
-    const processador = criarExpurgoDeAcesso({ repositorio: new ExpurgoDeAcessoRepository(bancada.banco), relogio, logger: log.logger })
+    const processador = createExpurgoDeAcesso({ repositorio: new ExpurgoDeAcessoRepository(bancada.banco), relogio, logger: log.logger })
     const jobId = randomUUID()
     await expect(runInContext({ requisicaoId: randomUUID(), escolaId }, () => processador({}, jobExecution(jobId)))).rejects.toMatchObject({
       name: 'JobFailureError',
@@ -1000,7 +1000,7 @@ describe('sistema.expurgar-acesso', () => {
       { prefixo: bancada.prefixo, relogio, agendamentos: JOB_SCHEDULES },
     )
     montados.push(worker)
-    bancada.despachante(log, { relogio }).iniciar()
+    bancada.despachante(log, { relogio }).start()
     const fila = new Queue(SCHEDULES_QUEUE, { connection: bancada.redis, prefix: bancada.prefixo })
     try {
       await fila.add(TIPO_EXPURGAR_ACESSO, {})

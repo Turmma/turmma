@@ -4,15 +4,15 @@ import { randomUUID } from 'node:crypto'
 import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 import { z } from 'zod'
-import { abrirBancoDeOperacao, InvalidArgumentError, autorDoComando, nomeSchema, lerOperador, OperadorRejectedError, type CommandDatabase, type CommandOutput } from './command.js'
-import { criarEscola, criarRede } from '../operacao/escola/escola.js'
+import { openBancoDeOperacao, InvalidArgumentError, autorDoComando, nomeSchema, readOperador, OperadorRejectedError, type CommandDatabase, type CommandOutput } from './command.js'
+import { createEscola, createRede } from '../operacao/escola/escola.js'
 
 // O que é comum aos comandos do operador mora em `command.ts`; reexportado aqui para quem já o importava daqui.
-export { abrirBancoDeOperacao, InvalidArgumentError, lerOperador, type CommandDatabase, type CommandOutput }
+export { openBancoDeOperacao, InvalidArgumentError, readOperador, type CommandDatabase, type CommandOutput }
 
 /**
  * Criação de rede e de escola pelo operador Turmma (RF1, D2): por este comando, ou pelo painel da operação
- * (`POST /v1/operacao/redes` e `/escolas`, A0b); os dois chamam os mesmos `criarRede` e `criarEscola`, que moram em
+ * (`POST /v1/operacao/redes` e `/escolas`, A0b); os dois chamam os mesmos `createRede` e `createEscola`, que moram em
  * `operacao/escola/escola.ts`. Este arquivo é só o terminal. Não há rota de escola nem cadastro público: a escola
  * nasce só por um dos dois.
  *
@@ -30,7 +30,7 @@ export { abrirBancoDeOperacao, InvalidArgumentError, lerOperador, type CommandDa
 
 export type PedidoDoOperador = { entidade: 'rede'; nome: string; tipo: TipoDeRede } | { entidade: 'escola'; redeId: string; nome: string; slug: string }
 
-function lerOpcoes(argumentos: string[]) {
+function readOpcoes(argumentos: string[]) {
   try {
     return parseArgs({
       args: argumentos,
@@ -50,8 +50,8 @@ function nomeValido(valor: string | undefined): string {
   return resultado.data
 }
 
-export function lerPedidoDoOperador(argumentos: string[]): PedidoDoOperador {
-  const { values: valores, positionals: posicionais } = lerOpcoes(argumentos)
+export function readPedidoDoOperador(argumentos: string[]): PedidoDoOperador {
+  const { values: valores, positionals: posicionais } = readOpcoes(argumentos)
   const comando = posicionais.join(' ')
   if (comando === 'rede criar') {
     if (valores.rede !== undefined || valores.slug !== undefined) throw new InvalidArgumentError('--rede e --slug não valem para rede')
@@ -80,22 +80,22 @@ const MENSAGEM_DO_OPERADOR: Partial<Record<ErrorCode, string>> = {
  * `ERRO_INTERNO` resumido), 2 argumento ou ambiente inválido, ou `OPERADOR` que não é operador ativo. Argumento e
  * formato do `OPERADOR` são conferidos antes de abrir o banco; o `OPERADOR` contra os ativos, dentro da transação.
  */
-export async function executarOpsEscola(
+export async function runOpsEscola(
   argumentos: string[],
   ambiente: Record<string, string | undefined>,
   terminal: CommandOutput,
-  abrirBanco: (ambiente: Record<string, string | undefined>) => CommandDatabase = abrirBancoDeOperacao,
+  abrirBanco: (ambiente: Record<string, string | undefined>) => CommandDatabase = openBancoDeOperacao,
 ): Promise<number> {
   try {
-    const pedido = lerPedidoDoOperador(argumentos)
-    const operador = lerOperador(ambiente)
-    const { banco, fechar } = abrirBanco(ambiente)
+    const pedido = readPedidoDoOperador(argumentos)
+    const operador = readOperador(ambiente)
+    const { banco, close: fechar } = abrirBanco(ambiente)
     try {
       const autor = autorDoComando(operador)
       const resposta =
         pedido.entidade === 'rede'
-          ? { redeId: (await criarRede(banco, autor, { id: randomUUID(), nome: pedido.nome, tipo: pedido.tipo })).id }
-          : { escolaId: (await criarEscola(banco, autor, { id: randomUUID(), redeId: pedido.redeId, nome: pedido.nome, slug: pedido.slug })).id }
+          ? { redeId: (await createRede(banco, autor, { id: randomUUID(), nome: pedido.nome, tipo: pedido.tipo })).id }
+          : { escolaId: (await createEscola(banco, autor, { id: randomUUID(), redeId: pedido.redeId, nome: pedido.nome, slug: pedido.slug })).id }
       terminal.saida(`${JSON.stringify(resposta)}\n`)
       return 0
     } finally {
@@ -118,7 +118,7 @@ export async function executarOpsEscola(
 }
 
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  process.exitCode = await executarOpsEscola(process.argv.slice(2), process.env, {
+  process.exitCode = await runOpsEscola(process.argv.slice(2), process.env, {
     saida: (texto) => process.stdout.write(texto),
     erro: (texto) => process.stderr.write(texto),
   })

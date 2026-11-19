@@ -10,10 +10,10 @@ import { Table, type TableColumn } from '../../../components/ui/Table'
 import { formatDate } from '../../../format'
 import { COORDENACAO_ROUTES } from '../../../paths'
 import { enderecoComParametro } from '../comum/endereco-da-tela'
-import { ordenarTurmas } from '../comum/ordem'
+import { sortTurmas } from '../comum/ordem'
 import { calendarioQueryOptions, gradeDaTurmaQueryOptions } from './api/grade'
 import { painelDoEndereco, type PainelDaGrade } from './endereco-da-grade'
-import { montarGrade, type GradeMontada } from './grade-da-turma'
+import { buildGrade, type GradeMontada } from './grade-da-turma'
 import { baixarModeloDoTipo, MODELOS_DE_PLANILHA } from './modelos-de-planilha'
 import { PainelDaImportacaoDaGrade, PainelDaImportacaoDoCalendario } from './PaineisDeImportacao'
 import { NOME_DO_TIPO_DE_EVENTO, TEXTO_DOS_MODELOS, VAZIO_DA_GRADE, VAZIO_DO_CALENDARIO } from './textos-da-grade'
@@ -164,7 +164,7 @@ function GradeDaTurma({ turmas, aoEscolher, escolhida, anuncio, tituloRef, aoImp
       />
     )
   } else {
-    corpo = <TabelaDaGrade nomeDaTurma={escolhida.nome} grade={montarGrade(grade.data.aulas, (id) => (id === null ? undefined : nomes.get(id)))} />
+    corpo = <TabelaDaGrade nomeDaTurma={escolhida.nome} grade={buildGrade(grade.data.aulas, (id) => (id === null ? undefined : nomes.get(id)))} />
   }
 
   return (
@@ -205,7 +205,7 @@ function GradeDaEscola({ anuncio, tituloRef, aoImportar }: { anuncio: string | u
       </Secao>
     )
   }
-  const emOrdem = ordenarTurmas(turmas.data.itens)
+  const emOrdem = sortTurmas(turmas.data.itens)
   const turma = emOrdem.find((candidata) => candidata.id === escolhida) ?? emOrdem[0]
   if (turma === undefined) {
     return (
@@ -227,11 +227,11 @@ function GradeDaEscola({ anuncio, tituloRef, aoImportar }: { anuncio: string | u
 }
 
 /** Os anos que a coordenação pode ler no calendário: o em curso e o planejado. O encerrado não tem calendário a gravar nem a ler por aqui. */
-const ehLegivel = (ano: AnoLetivo): boolean => ano.situacao === 'em_curso' || ano.situacao === 'planejado'
+const isLegivel = (ano: AnoLetivo): boolean => ano.situacao === 'em_curso' || ano.situacao === 'planejado'
 
 function CalendarioDoAno({ anos, anoEmCurso, anuncio, tituloRef, aoImportar }: { anos: readonly AnoLetivo[]; anoEmCurso: AnoLetivo; anuncio: string | undefined; tituloRef: RefObject<HTMLHeadingElement | null>; aoImportar: () => void }) {
   const campo = useId()
-  const legiveis = anos.filter(ehLegivel)
+  const legiveis = anos.filter(isLegivel)
   const [escolhido, definirEscolhido] = useState<string>(anoEmCurso.id)
   const ano = legiveis.find((candidato) => candidato.id === escolhido) ?? anoEmCurso
   const noPlanejado = ano.id !== anoEmCurso.id
@@ -355,11 +355,11 @@ export default function GradeECalendario() {
   const tituloDoCalendario = useRef<HTMLHeadingElement>(null)
   const recarregar = useCallback(() => cliente.invalidateQueries({ queryKey: ESTRUTURA_QUERY_KEY }), [cliente])
 
-  const abrirPainel = (qual: PainelDaGrade): void => {
+  const openPainel = (qual: PainelDaGrade): void => {
     definirAnuncio(undefined)
     navegar(enderecoComParametro(caminho, busca, 'painel', qual))
   }
-  const fecharPainel = (): void => navegar(enderecoComParametro(caminho, busca, 'painel', undefined), { replace: true })
+  const closePainel = (): void => navegar(enderecoComParametro(caminho, busca, 'painel', undefined), { replace: true })
   const concluir = (de: AnunciosDaTela['de'], texto: string) => () => {
     definirAnuncio({ de, texto })
     return recarregar()
@@ -368,12 +368,12 @@ export default function GradeECalendario() {
   return (
     <div className="flex min-w-0 flex-col gap-8">
       <ModelosDePlanilha />
-      <LeituraDaEscola anos={anos} anuncio={anuncio} tituloDaGrade={tituloDaGrade} tituloDoCalendario={tituloDoCalendario} aoImportar={abrirPainel} />
+      <LeituraDaEscola anos={anos} anuncio={anuncio} tituloDaGrade={tituloDaGrade} tituloDoCalendario={tituloDoCalendario} aoImportar={openPainel} />
       {podeImportar && painel === 'importar-grade' && (
-        <PainelDaImportacaoDaGrade aoConcluir={concluir('grade', 'Planilha gravada. A grade abaixo já está atualizada.')} aoFechar={fecharPainel} focoDeReserva={() => tituloDaGrade.current?.focus()} />
+        <PainelDaImportacaoDaGrade aoConcluir={concluir('grade', 'Planilha gravada. A grade abaixo já está atualizada.')} aoFechar={closePainel} focoDeReserva={() => tituloDaGrade.current?.focus()} />
       )}
       {podeImportar && painel === 'importar-calendario' && (
-        <PainelDaImportacaoDoCalendario aoConcluir={concluir('calendario', 'Planilha gravada. O calendário abaixo já está atualizado.')} aoFechar={fecharPainel} focoDeReserva={() => tituloDoCalendario.current?.focus()} />
+        <PainelDaImportacaoDoCalendario aoConcluir={concluir('calendario', 'Planilha gravada. O calendário abaixo já está atualizado.')} aoFechar={closePainel} focoDeReserva={() => tituloDoCalendario.current?.focus()} />
       )}
     </div>
   )

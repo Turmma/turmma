@@ -76,7 +76,7 @@ export class VinculoService {
 
   constructor(private readonly banco: Database) {}
 
-  async criar(pedido: CriarVinculoRequest): Promise<VinculoDaCoordenacaoResponse> {
+  async create(pedido: CriarVinculoRequest): Promise<VinculoDaCoordenacaoResponse> {
     const turmaId = pedido.turmaId.toLowerCase()
     const usuarioId = pedido.usuarioId.toLowerCase()
     const disciplinaId = pedido.disciplinaId?.toLowerCase() ?? null
@@ -84,28 +84,28 @@ export class VinculoService {
       const turmas = new TurmaRepository(tx)
       const vinculos = new VinculoRepository(tx)
       // O ano em curso travado em `FOR SHARE`: o encerramento do ano espera o vínculo nascer, e o que chega depois não nasce.
-      if (!(await turmas.travarAnoEmCurso())) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+      if (!(await turmas.lockAnoEmCurso())) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       if ((await turmas.aberta(turmaId, 'unidade')) === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       // A guarda confere o papel de professor, o único que a coordenação cria (`PAPEIS_DE_VINCULO_PELA_COORDENACAO`):
       // outro papel naquela lista pede outra guarda aqui.
       if (!(await vinculos.professorAlocavel(usuarioId))) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       if (disciplinaId !== null && (await new DisciplinaRepository(tx).porId(disciplinaId)) === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
-      const id = await vinculos.criar({ usuarioId, turmaId, disciplinaId, papel: pedido.papel })
-      await registro.gravar(tx, 'vinculo.criado', { entidadeId: id, depois: { usuarioId, turmaId, disciplinaId, papel: pedido.papel, estado: 'pendente' } })
+      const id = await vinculos.create({ usuarioId, turmaId, disciplinaId, papel: pedido.papel })
+      await registro.save(tx, 'vinculo.criado', { entidadeId: id, depois: { usuarioId, turmaId, disciplinaId, papel: pedido.papel, estado: 'pendente' } })
       return this.#lido(vinculos.porId(id))
     })
     this.#logger.log('vinculo.criado')
     return vinculoDaCoordenacaoResponseSchema.parse(daCoordenacao(criado))
   }
 
-  async listar(consulta: VinculosQuery): Promise<ListaDeVinculosResponse> {
-    const linhas = await new VinculoRepository(this.banco).listar(consulta)
+  async list(consulta: VinculosQuery): Promise<ListaDeVinculosResponse> {
+    const linhas = await new VinculoRepository(this.banco).list(consulta)
     const pagina = paginar(linhas, consulta.limite)
     return listaDeVinculosResponseSchema.parse({ ...pagina, itens: pagina.itens.map(daCoordenacao) })
   }
 
   async meus(consulta: PaginationQuery): Promise<MeusVinculosResponse> {
-    const linhas = await new VinculoRepository(this.banco).listarDoUsuario(consulta)
+    const linhas = await new VinculoRepository(this.banco).listDoUsuario(consulta)
     const pagina = paginar(linhas, consulta.limite)
     return meusVinculosResponseSchema.parse({ ...pagina, itens: pagina.itens.map(doProfessor) })
   }
@@ -125,14 +125,14 @@ export class VinculoService {
       // está no meio termina primeiro, e o acesso dele cai abaixo; o que chega depois espera, reconfere o vínculo e sai
       // `NAO_ENCONTRADO`. O vínculo é relido com a trava: o estado lido aqui pode ter mudado na espera.
       const turmaId = await vinculos.turmaDe(id)
-      if (turmaId === undefined || !(await new TurmaRepository(tx).travarContraOGerar(turmaId, 'no key update'))) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
-      const antes = await vinculos.travar(id, { doUsuario: false })
+      if (turmaId === undefined || !(await new TurmaRepository(tx).lockContraOGerar(turmaId, 'no key update'))) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+      const antes = await vinculos.lock(id, { doUsuario: false })
       if (antes === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       if (antes.estado !== 'encerrado') {
         if (!(await vinculos.encerrar(id, pedido.motivo))) throw new DomainException(ErrorCode.CONFLITO)
-        await registro.gravar(tx, 'vinculo.encerrado', { entidadeId: id, antes: { estado: antes.estado }, depois: { estado: 'encerrado', motivo: pedido.motivo } })
+        await registro.save(tx, 'vinculo.encerrado', { entidadeId: id, antes: { estado: antes.estado }, depois: { estado: 'encerrado', motivo: pedido.motivo } })
         const revogados = await new CicloDeVidaRepository(tx).revogarDeQuemSaiu(antes.usuarioId, antes.turmaId)
-        for (const revogado of revogados) await registro.gravar(tx, 'acesso_turma.revogado', { entidadeId: revogado.id, depois: { turmaId: revogado.turmaId } })
+        for (const revogado of revogados) await registro.save(tx, 'acesso_turma.revogado', { entidadeId: revogado.id, depois: { turmaId: revogado.turmaId } })
         this.#logger.log('vinculo.encerrado')
       }
       return this.#lido(vinculos.porId(id))
@@ -143,7 +143,7 @@ export class VinculoService {
   async #decidir(id: string, decisao: Decisao): Promise<VinculoResponse> {
     const decidido = await this.banco.transaction(async (tx) => {
       const vinculos = new VinculoRepository(tx)
-      const travado = await vinculos.travar(id, { doUsuario: true })
+      const travado = await vinculos.lock(id, { doUsuario: true })
       if (travado === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       const antes = travado.estado
       // Contestar só sai de `pendente` ou `contestado`: o vínculo confirmado, o único que gera acesso, nunca é contestado,
@@ -154,11 +154,11 @@ export class VinculoService {
       }
       if (!(await vinculos.decidir(id, decisao))) throw new DomainException(ErrorCode.CONFLITO)
       if (decisao.estado === 'confirmado') {
-        await registro.gravar(tx, 'vinculo.confirmado', { entidadeId: id, antes: { estado: antes }, depois: { estado: 'confirmado' } })
+        await registro.save(tx, 'vinculo.confirmado', { entidadeId: id, antes: { estado: antes }, depois: { estado: 'confirmado' } })
         this.#logger.log('vinculo.confirmado')
       } else {
         // Só o código: o complemento nunca vai à auditoria nem ao log (Tech Spec, seção 7).
-        await registro.gravar(tx, 'vinculo.contestado', { entidadeId: id, antes: { estado: antes }, depois: { estado: 'contestado', contestacao: decisao.contestacao } })
+        await registro.save(tx, 'vinculo.contestado', { entidadeId: id, antes: { estado: antes }, depois: { estado: 'contestado', contestacao: decisao.contestacao } })
         this.#logger.log('vinculo.contestado')
       }
       return this.#lido(vinculos.porIdDoUsuario(id))

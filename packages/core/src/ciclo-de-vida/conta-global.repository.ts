@@ -13,7 +13,7 @@ import { DomainException } from '../error/domain.exception.js'
  * A conta global (o login da equipe), que não tem escola: as três escritas nela que o ciclo de vida e a redefinição do
  * MFA fazem depois de a escola do usuário ser conhecida (F3, tarefa 1.0; Tech Spec do F3, seção 6), e o achar ou criar
  * a conta pelo e-mail do convite (`contaParaConvite`; onboarding-por-convite, tarefa 1.0) e a trava das contas do passo (3) da
- * planilha de professores (`travarEConferir`; 6.0). Saíram da resolução de tenant
+ * planilha de professores (`lockEConferir`; 6.0). Saíram da resolução de tenant
  * do módulo `sessao` quando o ciclo de vida veio para o `nucleo`, que não importa `apps/api`.
  *
  * O desvio da regra 10, item 9 fica contido por teste: a classe não sai pelo barrel do `@educa/core` (só pelo
@@ -46,12 +46,12 @@ export class ContaGlobalRepository {
    * vê a primeira. É a mesma trava da redefinição do MFA, e na mesma ordem (conta, depois sessão).
    */
   @Unscoped('a credencial da equipe é global: a desativação e a eliminação travam a conta do usuário da escola do contexto, pelo conta_id lido nela, e não devolvem nada')
-  async travarConta(contaId: string): Promise<void> {
+  async lockConta(contaId: string): Promise<void> {
     await this.banco.select({ id: conta.id }).from(conta).where(eq(conta.id, contaId)).for('update')
   }
 
   /**
-   * Com a conta já travada (`travarConta`), limpa a conta que deixou de servir a qualquer escola (17.0; regra 20, item
+   * Com a conta já travada (`lockConta`), limpa a conta que deixou de servir a qualquer escola (17.0; regra 20, item
    * 18): apaga e-mail (e a posse dele), senha, segredo e passo do TOTP e os códigos de recuperação, e encerra as sessões ainda abertas
    * dela (motivo `conta_limpa`), que saem com o expurgo de 30 dias. A linha fica só com o id, que os usuários desativados ainda apontam.
    *
@@ -60,7 +60,7 @@ export class ContaGlobalRepository {
    * deixa de valer, o `sistema.expurgar-acesso` limpa a conta de madrugada, pelo mesmo critério. Devolve se limpou.
    */
   @Unscoped('a credencial da equipe é global: depois de desativar ou eliminar um usuário, confere se a conta ainda tem usuário ativo ou convite válido em alguma escola e, se não tem, apaga a credencial dela; devolve só se limpou')
-  async limparContaSemUso(contaId: string): Promise<boolean> {
+  async clearContaSemUso(contaId: string): Promise<boolean> {
     const conviteValido = this.banco
       .select({ um: sql`1` })
       .from(convite)
@@ -89,7 +89,7 @@ export class ContaGlobalRepository {
    * nada delas sai daqui além do veredito. Chega ao processor pelo `cadastro-de-professor.ts`, que repassa a função ao motor.
    */
   @Unscoped('a conta é global: o passo (3) da planilha de professores trava em FOR SHARE as contas que o passo (1) do próprio job achou, pelo id, e devolve só se cada uma ainda tem o e-mail da linha')
-  async travarEConferir(contas: ReadonlyMap<string, string>): Promise<boolean> {
+  async lockEConferir(contas: ReadonlyMap<string, string>): Promise<boolean> {
     if (contas.size === 0) return true
     const esperado = new Map([...contas].map(([email, id]) => [id, email]))
     const travadas = await this.banco

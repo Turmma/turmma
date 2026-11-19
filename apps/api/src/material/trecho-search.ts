@@ -71,10 +71,10 @@ export class TrechoSearch {
    * nada se a página precisasse ter todas. A página que tem todas vem na frente. Sem palavra que a busca aproveite
    * (só artigo e preposição), devolve vazio — e quem chama responde `MATERIAL_INSUFICIENTE`, ou diz que não achou.
    */
-  async buscar({ texto, disciplinaId, serieId, materialId, limite = TRECHOS_PADRAO_PARA_IA }: PedidoDeTrechos): Promise<TrechoDoMaterial[]> {
+  async find({ texto, disciplinaId, serieId, materialId, limite = TRECHOS_PADRAO_PARA_IA }: PedidoDeTrechos): Promise<TrechoDoMaterial[]> {
     const busca = texto.trim().slice(0, MAXIMO_DE_CARACTERES_DA_BUSCA)
     if (busca === '') return []
-    const achados = await new MaterialRepository(this.banco).buscar(
+    const achados = await new MaterialRepository(this.banco).get(
       { texto: busca, disciplinaId: disciplinaId.toLowerCase(), serieId: serieId.toLowerCase(), hoje: this.hoje(), materialId: materialId?.toLowerCase(), limite: Math.min(Math.max(1, limite), MAXIMO_DE_TRECHOS_PARA_IA), palavras: 'qualquer' },
       'unidade',
     )

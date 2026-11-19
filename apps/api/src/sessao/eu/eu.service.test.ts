@@ -72,27 +72,27 @@ describe('EuService: qual data da introdução vale, e quando o GET grava', () =
 
   it('sem data em lugar nenhum: nulo, e o GET não grava', async () => {
     const cenario = montar(novoMedidor(), {})
-    expect((await comContexto(() => cenario.servico.obter())).introducaoVistaEm).toBeNull()
+    expect((await comContexto(() => cenario.servico.get())).introducaoVistaEm).toBeNull()
     expect(cenario.gravacoes()).toBe(0)
   })
 
   it('só a própria: devolve a própria, sem gravar', async () => {
     const cenario = montar(novoMedidor(), { linha: { introducaoVistaEm: MEIA } })
-    expect((await comContexto(() => cenario.servico.obter())).introducaoVistaEm).toBe(MEIA.toISOString())
+    expect((await comContexto(() => cenario.servico.get())).introducaoVistaEm).toBe(MEIA.toISOString())
     expect(cenario.gravacoes()).toBe(0)
   })
 
   it('só a emprestada, com a linha nula: devolve a emprestada e grava uma vez, pelo método que não recebe data', async () => {
     const cenario = montar(novoMedidor(), { emprestada: ANTIGA })
-    expect((await comContexto(() => cenario.servico.obter())).introducaoVistaEm).toBe(ANTIGA.toISOString())
+    expect((await comContexto(() => cenario.servico.get())).introducaoVistaEm).toBe(ANTIGA.toISOString())
     expect(cenario.gravacoes()).toBe(1)
   })
 
   it('a emprestada mais antiga que a própria vence; a própria mais antiga que a emprestada vence; nenhuma das duas grava', async () => {
     const emprestadaVence = montar(novoMedidor(), { linha: { introducaoVistaEm: RECENTE }, emprestada: ANTIGA })
     const propriaVence = montar(novoMedidor(), { linha: { introducaoVistaEm: ANTIGA }, emprestada: RECENTE })
-    expect((await comContexto(() => emprestadaVence.servico.obter())).introducaoVistaEm).toBe(ANTIGA.toISOString())
-    expect((await comContexto(() => propriaVence.servico.obter())).introducaoVistaEm).toBe(ANTIGA.toISOString())
+    expect((await comContexto(() => emprestadaVence.servico.get())).introducaoVistaEm).toBe(ANTIGA.toISOString())
+    expect((await comContexto(() => propriaVence.servico.get())).introducaoVistaEm).toBe(ANTIGA.toISOString())
     expect([emprestadaVence.gravacoes(), propriaVence.gravacoes()]).toEqual([0, 0])
   })
 
@@ -100,7 +100,7 @@ describe('EuService: qual data da introdução vale, e quando o GET grava', () =
     const medidor = novoMedidor()
     const cenario = montar(medidor, { emprestada: ANTIGA, gravacaoFalha: true })
 
-    expect((await comContexto(() => cenario.servico.obter())).introducaoVistaEm).toBe(ANTIGA.toISOString())
+    expect((await comContexto(() => cenario.servico.get())).introducaoVistaEm).toBe(ANTIGA.toISOString())
 
     expect(await medidor.pontos(METRICS.introducaoFalha)).toEqual([{ atributos: {}, valor: 1 }])
   })
@@ -109,7 +109,7 @@ describe('EuService: qual data da introdução vale, e quando o GET grava', () =
     const medidor = novoMedidor()
     const cenario = montar(medidor, { emprestada: ANTIGA, gravada: null })
 
-    expect((await comContexto(() => cenario.servico.obter())).introducaoVistaEm).toBe(ANTIGA.toISOString())
+    expect((await comContexto(() => cenario.servico.get())).introducaoVistaEm).toBe(ANTIGA.toISOString())
 
     expect(cenario.gravacoes()).toBe(1)
     expect(await medidor.pontos(METRICS.introducaoFalha)).toEqual([{ atributos: {}, valor: 0 }])
@@ -117,7 +117,7 @@ describe('EuService: qual data da introdução vale, e quando o GET grava', () =
 
   it('o aluno não tem conta: não consulta as outras escolas, e vale a própria data', async () => {
     const cenario = montar(novoMedidor(), { linha: { papel: 'aluno', contaId: null, introducaoVistaEm: MEIA } })
-    expect((await comContexto(() => cenario.servico.obter())).introducaoVistaEm).toBe(MEIA.toISOString())
+    expect((await comContexto(() => cenario.servico.get())).introducaoVistaEm).toBe(MEIA.toISOString())
     expect(cenario.consultasDeConta()).toBe(0)
   })
 
@@ -130,7 +130,7 @@ describe('EuService: qual data da introdução vale, e quando o GET grava', () =
 
   it('a pessoa que saiu entre a guarda e a leitura é não autenticada, no GET e no POST; e a marca que não achou a linha também', async () => {
     const semLinha = montar(novoMedidor(), { linha: null })
-    await expect(comContexto(() => semLinha.servico.obter())).rejects.toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
+    await expect(comContexto(() => semLinha.servico.get())).rejects.toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
     await expect(comContexto(() => semLinha.servico.concluirIntroducao())).rejects.toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
     expect(semLinha.gravacoes()).toBe(0)
 

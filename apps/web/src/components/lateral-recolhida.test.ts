@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { SIDEBAR_COLLAPSED_STORAGE_KEY, guardarRecolhida, lerRecolhida } from './lateral-recolhida'
+import { SIDEBAR_COLLAPSED_STORAGE_KEY, guardarRecolhida, readRecolhida } from './lateral-recolhida'
 
 /**
  * A lateral recolhida por escolha (`docs/interface.md` 11.1; RF13, RF24 da X1): o que o navegador guarda é só `sim`, sob
@@ -25,26 +25,26 @@ describe('lateral recolhida', () => {
   })
 
   it('abrir apaga a chave, e a leitura volta a aberta; sem nada guardado a lateral abre aberta', () => {
-    expect(lerRecolhida()).toBe(false)
+    expect(readRecolhida()).toBe(false)
     guardarRecolhida(true)
-    expect(lerRecolhida()).toBe(true)
+    expect(readRecolhida()).toBe(true)
     guardarRecolhida(false)
     expect(window.localStorage.getItem('educa.lateral-recolhida')).toBeNull()
-    expect(lerRecolhida()).toBe(false)
+    expect(readRecolhida()).toBe(false)
   })
 
   it('só `sim` recolhe: outro valor guardado é lateral aberta', () => {
     window.localStorage.setItem('educa.lateral-recolhida', 'true')
-    expect(lerRecolhida()).toBe(false)
+    expect(readRecolhida()).toBe(false)
     window.localStorage.setItem('educa.lateral-recolhida', 'sim')
-    expect(lerRecolhida()).toBe(true)
+    expect(readRecolhida()).toBe(true)
   })
 
   it('`getItem` que lança: abre aberta, sem erro', () => {
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
       throw new DOMException('recusado', 'SecurityError')
     })
-    expect(lerRecolhida()).toBe(false)
+    expect(readRecolhida()).toBe(false)
   })
 
   it('`setItem` e `removeItem` que lançam: a escolha não derruba a tela', () => {
@@ -62,7 +62,7 @@ describe('lateral recolhida', () => {
     vi.spyOn(window, 'localStorage', 'get').mockImplementation(() => {
       throw new DOMException('recusado', 'SecurityError')
     })
-    expect(lerRecolhida()).toBe(false)
+    expect(readRecolhida()).toBe(false)
     expect(() => guardarRecolhida(true)).not.toThrow()
     expect(() => guardarRecolhida(false)).not.toThrow()
   })

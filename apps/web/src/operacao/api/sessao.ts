@@ -229,11 +229,11 @@ export function esquecerDesafioDeOperador(): void {
   desafio = undefined
 }
 
-function ehCodigo(erro: unknown, codigo: ErrorCode): boolean {
+function isCodigo(erro: unknown, codigo: ErrorCode): boolean {
   return erro instanceof ApiError && erro.codigo === codigo
 }
 
-function esperar(ms: number): Promise<void> {
+function wait(ms: number): Promise<void> {
   return new Promise((resolver) => setTimeout(resolver, ms))
 }
 
@@ -294,13 +294,13 @@ export function renovarSessaoDeOperador(): Promise<void> {
  * a aba fica `anonima` **sem aviso**: quem só abriu `/operacao` pela primeira vez não tem sessão nenhuma que tenha
  * terminado. Com a API fora, fica `indisponivel`, e a tela oferece tentar de novo.
  */
-export async function abrirSessaoDeOperadorPeloCookie(): Promise<void> {
+export async function openSessaoDeOperadorPeloCookie(): Promise<void> {
   if (token !== undefined) return
   definirEstado('abrindo')
   try {
     await renovarSessaoDeOperador()
   } catch (erro) {
-    if (ehCodigo(erro, ErrorCode.SESSAO_ENCERRADA) || ehCodigo(erro, ErrorCode.NAO_AUTENTICADO)) {
+    if (isCodigo(erro, ErrorCode.SESSAO_ENCERRADA) || isCodigo(erro, ErrorCode.NAO_AUTENTICADO)) {
       esquecerTudo(undefined)
       return
     }
@@ -320,7 +320,7 @@ async function renovarOuEncerrar(): Promise<void> {
   try {
     await renovarSessaoDeOperador()
   } catch (erro) {
-    if (ehCodigo(erro, ErrorCode.SESSAO_ENCERRADA)) sessaoEncerrada()
+    if (isCodigo(erro, ErrorCode.SESSAO_ENCERRADA)) sessaoEncerrada()
     throw erro
   }
 }
@@ -346,11 +346,11 @@ export async function operadorAuthedRequest<T>(caminho: string, esquema: Respons
     registrarUso(enviadaEm)
     return resposta
   } catch (erro) {
-    if (ehCodigo(erro, ErrorCode.SESSAO_ENCERRADA)) {
+    if (isCodigo(erro, ErrorCode.SESSAO_ENCERRADA)) {
       sessaoEncerrada()
       throw erro
     }
-    if (!ehCodigo(erro, ErrorCode.ACESSO_VENCIDO)) throw erro
+    if (!isCodigo(erro, ErrorCode.ACESSO_VENCIDO)) throw erro
     await renovarOuEncerrar()
     const repetidaEm = Date.now()
     try {
@@ -358,7 +358,7 @@ export async function operadorAuthedRequest<T>(caminho: string, esquema: Respons
       registrarUso(repetidaEm)
       return resposta
     } catch (segundoErro) {
-      if (ehCodigo(segundoErro, ErrorCode.SESSAO_ENCERRADA)) sessaoEncerrada()
+      if (isCodigo(segundoErro, ErrorCode.SESSAO_ENCERRADA)) sessaoEncerrada()
       throw segundoErro
     }
   }
@@ -390,7 +390,7 @@ export async function entrarComoOperador(pedido: EntradaDeOperadorRequest): Prom
       if (espera === undefined) throw erro
       const atraso = Math.max(espera * 1_000, ESPERA_MINIMA_NO_503_MS)
       if (atraso > limite - Date.now()) throw erro
-      await esperar(atraso)
+      await wait(atraso)
     }
   }
 }
@@ -414,13 +414,13 @@ let segundoFatorEmAndamento: Promise<void> | undefined
  * ter chegado ou não: nesses o desafio fica, e a pessoa tenta de novo na mesma tela.
  */
 export function entrarComSegundoFatorDeOperador(codigo: CodigoDoSegundoFatorDeOperador): Promise<void> {
-  segundoFatorEmAndamento ??= enviarSegundoFator(codigo).finally(() => {
+  segundoFatorEmAndamento ??= sendSegundoFator(codigo).finally(() => {
     segundoFatorEmAndamento = undefined
   })
   return segundoFatorEmAndamento
 }
 
-async function enviarSegundoFator(codigo: CodigoDoSegundoFatorDeOperador): Promise<void> {
+async function sendSegundoFator(codigo: CodigoDoSegundoFatorDeOperador): Promise<void> {
   const emAndamento = desafioDeOperador('mfa')
   if (emAndamento === undefined) throw new ApiError(ErrorCode.NAO_AUTENTICADO)
   const enviadaEm = Date.now()
@@ -431,7 +431,7 @@ async function enviarSegundoFator(codigo: CodigoDoSegundoFatorDeOperador): Promi
     })
     guardarAcesso(resposta, enviadaEm, true)
   } catch (erro) {
-    const desafioSegue = ehCodigo(erro, ErrorCode.ENTRADA_INVALIDA) || ehCodigo(erro, ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
+    const desafioSegue = isCodigo(erro, ErrorCode.ENTRADA_INVALIDA) || isCodigo(erro, ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
     if (!desafioSegue) desafio = undefined
     throw erro
   }
@@ -443,7 +443,7 @@ async function sairNaApi(): Promise<boolean> {
     await apiRequest(CAMINHO_DA_SAIDA_DE_OPERADOR, EMPTY_BODY, { metodo: 'POST' })
     return true
   } catch {
-    await esperar(ESPERA_ENTRE_TENTATIVAS_DE_SAIDA_MS)
+    await wait(ESPERA_ENTRE_TENTATIVAS_DE_SAIDA_MS)
     try {
       await apiRequest(CAMINHO_DA_SAIDA_DE_OPERADOR, EMPTY_BODY, { metodo: 'POST' })
       return true

@@ -14,7 +14,7 @@ import {
 } from '../material.js'
 import { PROMPT_TURNO_DO_TUTOR } from '../prompts/turno-do-tutor.js'
 import { defineTask } from '../task.js'
-import { contemTexto, cortar, normalizar, palavras, palavrasDeConteudo, semPontoFinal } from '../text.js'
+import { contemTexto, cortar, normalize, palavras, palavrasDeConteudo, semPontoFinal } from '../text.js'
 
 /**
  * A classificação é do **pedido**, pelo que o aluno escreveu, e é fechada: não existe valor para humor, atenção,
@@ -375,11 +375,11 @@ const INSISTENCIA = /^(e entao|entao|e ai|fala|diz|anda|vai|por favor|responde)\
 const algumCasa = (padroes: readonly RegExp[], texto: string): boolean => padroes.some((padrao) => padrao.test(texto))
 
 export function mencionaRiscoAVida(duvida: string): boolean {
-  return algumCasa(GATILHOS_DE_RISCO_A_VIDA, normalizar(duvida))
+  return algumCasa(GATILHOS_DE_RISCO_A_VIDA, normalize(duvida))
 }
 
-export function ehAssuntoDelicado(duvida: string): boolean {
-  const texto = normalizar(duvida)
+export function isAssuntoDelicado(duvida: string): boolean {
+  const texto = normalize(duvida)
   return algumCasa(GATILHOS_DE_RISCO_A_VIDA, texto) || algumCasa(GATILHOS_DE_ASSUNTO_DELICADO, texto)
 }
 
@@ -394,11 +394,11 @@ function pedeNestaMensagem(texto: string, comQuestao: boolean): boolean {
  */
 export function pedeRespostaPronta(entrada: Pick<TutorInput, 'duvida' | 'questao' | 'turnosAnteriores'>): boolean {
   const comQuestao = entrada.questao !== undefined
-  const texto = normalizar(entrada.duvida)
+  const texto = normalize(entrada.duvida)
   if (pedeNestaMensagem(texto, comQuestao)) return true
   if (!comQuestao || !INSISTENCIA.test(texto)) return false
   const anterior = entrada.turnosAnteriores.findLast((turno) => turno.autor === 'aluno')
-  return anterior !== undefined && pedeNestaMensagem(normalizar(anterior.texto), true)
+  return anterior !== undefined && pedeNestaMensagem(normalize(anterior.texto), true)
 }
 
 function mensagemFixaDoAssuntoDelicado(duvida: string): TutorOutput {
@@ -450,9 +450,9 @@ const TAMANHO_DA_ALTERNATIVA_LONGA = 6
  * da memória ("errou 3 questões"), que são referência e não resposta. Letra sozinha fica com os padrões de letra.
  */
 function repeteAlternativa(texto: string, entrada: TutorInput): boolean {
-  const normalizado = normalizar(texto)
+  const normalizado = normalize(texto)
   return (entrada.questao?.alternativas ?? []).some((alternativa) => {
-    const alvo = normalizar(semPontoFinal(alternativa))
+    const alvo = normalize(semPontoFinal(alternativa))
     if (alvo.length >= TAMANHO_DA_ALTERNATIVA_LONGA) return contemTexto(texto, alternativa)
     if (!/\d/.test(alvo)) return false
     const escapado = alvo.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')
@@ -562,7 +562,7 @@ export function turnosParaOModelo(entrada: TutorInput): TutorInput['turnosAnteri
   let pulaAResposta = false
   for (const turno of entrada.turnosAnteriores) {
     if (turno.autor === 'aluno') {
-      pulaAResposta = ehAssuntoDelicado(turno.texto)
+      pulaAResposta = isAssuntoDelicado(turno.texto)
       if (!pulaAResposta) turnos.push(turno)
       anteriorEraDoAluno = !pulaAResposta
       continue
@@ -594,13 +594,13 @@ function problemasDoTurno(entrada: TutorInput, saida: TutorOutput): string[] {
   const problemas = problemasDasCitacoes(saida.citacoes, entrada.trechos, 'Citações')
   // Assunto delicado só tem uma resposta, a fixa. Texto do modelo no lugar dela é recusado, classifique ele como classificar.
   // A de risco à vida também vale onde o padrão não reconheceu a frase: foi o modelo que a classificou, e o `ajustar` a pôs.
-  if (saida.classificacao === 'assunto_delicado' || ehAssuntoDelicado(entrada.duvida)) {
+  if (saida.classificacao === 'assunto_delicado' || isAssuntoDelicado(entrada.duvida)) {
     const fixa = mensagemFixaDoAssuntoDelicado(entrada.duvida)
     const aceitas = [fixa.resposta, MENSAGEM_DE_RISCO_A_VIDA]
     if (saida.classificacao !== 'assunto_delicado' || !aceitas.includes(saida.resposta)) problemas.push('Assunto pessoal delicado recebe só a mensagem fixa: não escreva resposta própria.')
     return problemas
   }
-  const texto = normalizar(saida.resposta)
+  const texto = normalize(saida.resposta)
   if (AFIRMA_SER_PESSOA.test(texto)) problemas.push('Você é uma inteligência artificial: não diga que é uma pessoa, o professor ou um amigo.')
   if (SIMULA_VINCULO.test(texto)) problemas.push('Não simule amizade, saudade ou carinho, e não peça para o aluno ficar ou voltar.')
   if (algumCasa(ENTREGA_A_RESPOSTA, texto)) problemas.push('Não diga qual alternativa é a certa ou a errada, nem elimine alternativa: conduza por uma pergunta.')
@@ -632,7 +632,7 @@ export const turnoDoTutor = defineTask({
   levaTextoDeAluno: true,
   categoriasEnviadas: ['conversa_do_aluno', 'material_da_escola', 'trabalho_do_aluno'],
 
-  montarPedido(entrada) {
+  buildPedido(entrada) {
     return {
       instrucao: 'Responda ao turno do aluno como o Tutor: um passo pequeno e uma pergunta, sem entregar a resposta.',
       dados: [
@@ -648,7 +648,7 @@ export const turnoDoTutor = defineTask({
 
   /** Assunto delicado não segue para o modelo como conversa a continuar: a resposta é a mensagem fixa (D36). */
   semModelo(entrada) {
-    return ehAssuntoDelicado(entrada.duvida) ? mensagemFixaDoAssuntoDelicado(entrada.duvida) : undefined
+    return isAssuntoDelicado(entrada.duvida) ? mensagemFixaDoAssuntoDelicado(entrada.duvida) : undefined
   },
 
   /**
@@ -662,7 +662,7 @@ export const turnoDoTutor = defineTask({
    */
   ajustar(entrada, saida): TutorOutput {
     if (saida.classificacao === 'risco_a_vida') return { classificacao: 'assunto_delicado', resposta: MENSAGEM_DE_RISCO_A_VIDA, citacoes: [] }
-    if (saida.classificacao === 'assunto_delicado' || ehAssuntoDelicado(entrada.duvida)) return mensagemFixaDoAssuntoDelicado(entrada.duvida)
+    if (saida.classificacao === 'assunto_delicado' || isAssuntoDelicado(entrada.duvida)) return mensagemFixaDoAssuntoDelicado(entrada.duvida)
     return pedeRespostaPronta(entrada) ? { ...saida, classificacao: 'pediu_resposta_pronta' } : saida
   },
 
@@ -674,7 +674,7 @@ export const turnoDoTutor = defineTask({
    * que conduz por pergunta e aponta a página, responde no lugar. Fora disso, falhar continua sendo o certo.
    */
   reservaQuandoInvalida(entrada) {
-    if (ehAssuntoDelicado(entrada.duvida)) return undefined
+    if (isAssuntoDelicado(entrada.duvida)) return undefined
     if (!pedeRespostaPronta(entrada) && entrada.questao === undefined) return undefined
     // A dúvida legítima com a questão aberta recebe o "vamos por partes" de sempre, e não uma recusa que ninguém pediu.
     if (!pedeRespostaPronta(entrada)) return conduzirPorPerguntas(entrada, 'Vamos por partes.', 'normal')
@@ -686,8 +686,8 @@ export const turnoDoTutor = defineTask({
   },
 
   falso(entrada): TutorOutput {
-    if (ehAssuntoDelicado(entrada.duvida)) return mensagemFixaDoAssuntoDelicado(entrada.duvida)
-    const texto = normalizar(entrada.duvida)
+    if (isAssuntoDelicado(entrada.duvida)) return mensagemFixaDoAssuntoDelicado(entrada.duvida)
+    const texto = normalize(entrada.duvida)
     // Antes de tudo: quem pede a resposta junto de outra pergunta continua pedindo a resposta.
     if (pedeRespostaPronta(entrada)) {
       return conduzirPorPerguntas(

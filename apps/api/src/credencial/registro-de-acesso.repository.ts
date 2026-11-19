@@ -10,7 +10,7 @@ import { requireEscolaId, registroAcesso, type Database, type EventoDeAcesso, ty
 export class RegistroDeAcessoRepository {
   constructor(private readonly tx: Database | DatabaseTransaction) {}
 
-  async gravar(evento: Exclude<EventoDeAcesso, 'login_falho'>, usuarioId: string, ip: string): Promise<void> {
+  async save(evento: Exclude<EventoDeAcesso, 'login_falho'>, usuarioId: string, ip: string): Promise<void> {
     await this.tx.insert(registroAcesso).values({ escolaId: requireEscolaId(), usuarioId, evento, ip })
   }
 
@@ -18,7 +18,7 @@ export class RegistroDeAcessoRepository {
    * A falha de login por matrícula, na escola do slug: sem usuário, como a falha por e-mail, para a linha não dizer
    * se a matrícula existe.
    */
-  async gravarFalha(ip: string): Promise<void> {
+  async saveFalha(ip: string): Promise<void> {
     await this.tx.insert(registroAcesso).values({ escolaId: requireEscolaId(), usuarioId: null, evento: 'login_falho', ip })
   }
 }

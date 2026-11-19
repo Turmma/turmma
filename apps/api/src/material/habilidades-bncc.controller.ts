@@ -13,7 +13,7 @@ export class HabilidadesBnccController {
 
   @Get()
   @RequirePermissao('habilidade_bncc', 'listar')
-  listar(@Query(new ZodValidationPipe(habilidadesBnccQuerySchema)) consulta: HabilidadesBnccQuery): Promise<HabilidadesBnccResponse> {
-    return this.materiais.listarHabilidades(consulta)
+  list(@Query(new ZodValidationPipe(habilidadesBnccQuerySchema)) consulta: HabilidadesBnccQuery): Promise<HabilidadesBnccResponse> {
+    return this.materiais.listHabilidades(consulta)
   }
 }

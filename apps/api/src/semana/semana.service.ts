@@ -1,6 +1,6 @@
 import { diaDeUso, FUSO_DO_USO, SemanaRepository, systemClock, type Clock, type Database } from '@educa/core'
 import { semanaResponseSchema, type SemanaQuery, type SemanaResponse } from '@educa/shared'
-import { montarDias, somarDias } from './montar-dias.js'
+import { buildDias, somarDias } from './montar-dias.js'
 
 const formatadorDaHora = new Intl.DateTimeFormat('en-GB', { timeZone: FUSO_DO_USO, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
 
@@ -21,7 +21,7 @@ export class SemanaService {
     private readonly relogio: Clock = systemClock,
   ) {}
 
-  async ler(consulta: SemanaQuery): Promise<SemanaResponse> {
+  async read(consulta: SemanaQuery): Promise<SemanaResponse> {
     const instante = this.relogio.agora()
     const hoje = diaDeUso(instante)
     const agora = horaDeUso(instante)
@@ -40,7 +40,7 @@ export class SemanaService {
     const gradeImportada = await repositorio.gradeImportada(ano.id)
     const calendarioImportado = await repositorio.calendarioImportado(ano.id)
     const itens = await repositorio.itensDaSemana(ano.id, consulta.segunda, domingo)
-    const dias = montarDias({ segunda: consulta.segunda, ano, hoje, vinculos, alocacoes, eventos, registros, itens })
+    const dias = buildDias({ segunda: consulta.segunda, ano, hoje, vinculos, alocacoes, eventos, registros, itens })
     return semanaResponseSchema.parse({ ano: { inicio: ano.inicio, fim: ano.fim }, hoje, agora, gradeImportada, calendarioImportado, dias })
   }
 }

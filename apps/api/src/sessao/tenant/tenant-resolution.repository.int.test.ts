@@ -127,7 +127,7 @@ describe('ResolucaoDeTenantRepository: a resolução antes de haver escola devol
 
   it('contaPorEmail acha a conta sem diferença de caixa e devolve só id, hash e se o MFA está ativo; e-mail que não existe dá nada', async () => {
     const email = `Sintetico-${randomUUID()}@educa.invalid`
-    const [contaId] = await repositorio.criarContas([email])
+    const [contaId] = await repositorio.createContas([email])
     try {
       expect(await repositorio.contaPorEmail(email.toLowerCase())).toEqual({ id: contaId, senhaHash: null, mfaAtivo: false })
       await bancada.pool.query("update conta set senha_hash = 'hash-sintetico', mfa_ativado_em = now() where id = $1", [contaId])
@@ -140,7 +140,7 @@ describe('ResolucaoDeTenantRepository: a resolução antes de haver escola devol
 
   it('gravarFalhaDeLoginPorEmail grava login_falho sem escola e sem usuário, só com o IP', async () => {
     const ip = `10.${String(Math.floor(Math.random() * 250))}.${String(Math.floor(Math.random() * 250))}.7`
-    await repositorio.gravarFalhaDeLoginPorEmail(ip)
+    await repositorio.saveFalhaDeLoginPorEmail(ip)
     const { rows } = await bancada.pool.query<{ escola_id: string | null; usuario_id: string | null; evento: string }>(
       "select escola_id, usuario_id, evento from registro_acesso where ip = $1::inet and em > now() - interval '1 minute'",
       [ip],
@@ -150,14 +150,14 @@ describe('ResolucaoDeTenantRepository: a resolução antes de haver escola devol
 
   it('criarContas grava só o e-mail e devolve só os ids; o mesmo e-mail com outra caixa é recusado', async () => {
     const email = `Sintetico-${randomUUID()}@educa.invalid`
-    const [contaId] = await repositorio.criarContas([email])
+    const [contaId] = await repositorio.createContas([email])
     try {
       expect(contaId).toMatch(/^[0-9a-f-]{36}$/)
-      await expect(repositorio.criarContas([email.toLowerCase()])).rejects.toMatchObject({ cause: { code: '23505' } })
+      await expect(repositorio.createContas([email.toLowerCase()])).rejects.toMatchObject({ cause: { code: '23505' } })
     } finally {
       await bancada.pool.query('delete from conta where id = $1', [contaId])
     }
-    expect(await repositorio.criarContas([])).toEqual([])
+    expect(await repositorio.createContas([])).toEqual([])
   })
   it('ativarMfa só ativa com o segredo que foi conferido: se outra aba configurou um segredo novo no meio, nada é ativado e nenhum código é gravado', async () => {
     const { rows } = await bancada.pool.query<{ id: string }>('insert into conta (email) values ($1) returning id', [`ativacao-${randomUUID()}@escola.invalid`])
@@ -261,7 +261,7 @@ describe('ResolucaoDeTenantRepository: a resolução antes de haver escola devol
       )
       await travada
       try {
-        await new ExpurgoDeAcessoRepository(bancada.banco).limparLoteDeContasSemUso(new Date(), 5_000)
+        await new ExpurgoDeAcessoRepository(bancada.banco).clearLoteDeContasSemUso(new Date(), 5_000)
         expect(await emailDaConta(contaId)).toBe(email)
       } finally {
         // Também quando a asserção cai: sem soltar a transação do convite, o caso ficaria pendurado até o prazo.

@@ -53,7 +53,7 @@ export interface ExternalProviderPort {
    * `reautenticar` (a ligação da conta em "Eu", 15.0): o endereço pede ao provedor que a pessoa prove a conta de novo e escolha qual, em vez de entrar calada na que o
    * computador compartilhado deixou aberta. O login comum não pede.
    */
-  iniciar(provedor: ProvedorExterno, reautenticar?: boolean): Promise<InicioNoProvedor>
+  start(provedor: ProvedorExterno, reautenticar?: boolean): Promise<InicioNoProvedor>
   /**
    * Troca o código do retorno pelos tokens, confere a assinatura, o emissor, o público, o `state`, o `nonce` e o PKCE, e
    * devolve só o que o login usa. Falha com `ExternalProviderError`.

@@ -11,10 +11,10 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { lerAmbienteDeTeste } from '../../../tools/ci/compose.ts'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
 import type { CommandOutput } from '../src/ops/command.js'
-import { executarOpsConviteCoordenador } from '../src/ops/convite-coordenador.js'
+import { runOpsConviteCoordenador } from '../src/ops/convite-coordenador.js'
 import { desativarOperador } from '../src/ops/operador.js'
-import { executarOpsRevogarConvite } from '../src/ops/revogar-convite.js'
-import { ConviteRepository, criarConviteDeCoordenador, refazerConviteDaCoordenacao } from '../src/sessao/index.js'
+import { runOpsRevogarConvite } from '../src/ops/revogar-convite.js'
+import { ConviteRepository, createConviteDeCoordenador, refazerConviteDaCoordenacao } from '../src/sessao/index.js'
 import { esperarNaTrava, WriteBlockTrigger } from './write-block-trigger.js'
 import { ESPERA_DO_AUTOR, esperarErro, nomeQueVemPrimeiro, pedir, PRAZO_DAS_CONSULTAS_MS, segurarODesativar, subirApiDoPainel, type Resposta } from './painel.fixture.js'
 import { OperadorFixtures } from './operador-session.fixture.js'
@@ -163,7 +163,7 @@ describe('painel da operação: o convite da coordenação, gerar e revogar (tar
     const quem = pessoa()
     if (estado === 'sem_convite') return { escolaId, quem, conviteId: undefined, link: undefined }
     if (estado === 'vencido') {
-      const { conviteId, token: link } = await criarConviteDeCoordenador(banco, autorDaBancada, { escolaId, ...quem }, { agora: () => new Date(Date.now() - 73 * HORA_MS) })
+      const { conviteId, token: link } = await createConviteDeCoordenador(banco, autorDaBancada, { escolaId, ...quem }, { agora: () => new Date(Date.now() - 73 * HORA_MS) })
       expect(await estadoDe(escolaId)).toBe('vencido')
       return { escolaId, quem, conviteId, link }
     }
@@ -553,7 +553,7 @@ describe('painel da operação: o convite da coordenação, gerar e revogar (tar
   })
 
   describe('E13 e o revogar pelo comando: os ops:* de convite passam pela mesma matriz do painel', () => {
-    const rodar = async (comando: typeof executarOpsConviteCoordenador, argumentos: string[], operador: string) => {
+    const rodar = async (comando: typeof runOpsConviteCoordenador, argumentos: string[], operador: string) => {
       let saida = ''
       let erro = ''
       const terminal: CommandOutput = { saida: (texto) => (saida += texto), erro: (texto) => (erro += texto) }
@@ -567,7 +567,7 @@ describe('painel da operação: o convite da coordenação, gerar e revogar (tar
       const outra = pessoa()
       const arquivo = join(pasta, `token-${randomUUID()}.txt`)
       const antes = await retrato(escola.escolaId, outra.email)
-      const execucao = await rodar(executarOpsConviteCoordenador, ['--escola', await escolas.slugDe(escola.escolaId), '--email', outra.email, '--nome', outra.nome, '--saida', arquivo], quemRoda.apelido)
+      const execucao = await rodar(runOpsConviteCoordenador, ['--escola', await escolas.slugDe(escola.escolaId), '--email', outra.email, '--nome', outra.nome, '--saida', arquivo], quemRoda.apelido)
       expect(execucao).toEqual({ codigo: 1, saida: '', erro: 'CONFLITO: a escola já tem coordenação ativa ou convite em aberto; revogue o convite antes de gerar outro\n' })
       expect(await retrato(escola.escolaId, outra.email)).toEqual(antes)
       expect(existsSync(arquivo)).toBe(false)
@@ -577,11 +577,11 @@ describe('painel da operação: o convite da coordenação, gerar e revogar (tar
       const [sessao, quemRoda] = await Promise.all([operadores.operadorComSessao(), operadores.operador()])
       const ativa = await escolaEm('ativa', sessao.token)
       const antes = await retrato(ativa.escolaId, ativa.quem.email)
-      expect(await rodar(executarOpsRevogarConvite, ['--convite', ativa.conviteId ?? ''], quemRoda.apelido)).toEqual({ codigo: 1, saida: '', erro: 'CONFLITO\n' })
+      expect(await rodar(runOpsRevogarConvite, ['--convite', ativa.conviteId ?? ''], quemRoda.apelido)).toEqual({ codigo: 1, saida: '', erro: 'CONFLITO\n' })
       expect(await retrato(ativa.escolaId, ativa.quem.email)).toEqual(antes)
 
       const pendente = await escolaEm('pendente', sessao.token)
-      expect(await rodar(executarOpsRevogarConvite, ['--convite', pendente.conviteId ?? ''], quemRoda.apelido)).toEqual({ codigo: 0, saida: 'ok\n', erro: '' })
+      expect(await rodar(runOpsRevogarConvite, ['--convite', pendente.conviteId ?? ''], quemRoda.apelido)).toEqual({ codigo: 0, saida: 'ok\n', erro: '' })
       expect(await auditoriaDe(pendente.escolaId, 'convite.revogado')).toEqual([{ entidade_id: pendente.conviteId, autor_operador: quemRoda.apelido, autor_usuario_id: null, antes: null, depois: { tipo: 'coordenador' } }])
       expect(await estadoDe(pendente.escolaId)).toBe('revogado')
     })

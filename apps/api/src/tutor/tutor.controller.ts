@@ -32,8 +32,8 @@ export class TutorController {
   @Post('mensagens')
   @RequirePermissao('tutor', 'enviar_mensagem')
   @HttpCode(HttpStatus.ACCEPTED)
-  enviar(@Body(new ZodValidationPipe(mensagemAoTutorRequestSchema)) pedido: MensagemAoTutorRequest): Promise<ExecucaoAceitaResponse> {
-    return this.tutor.enviar(pedido)
+  send(@Body(new ZodValidationPipe(mensagemAoTutorRequestSchema)) pedido: MensagemAoTutorRequest): Promise<ExecucaoAceitaResponse> {
+    return this.tutor.send(pedido)
   }
 
   @Get('conversa')

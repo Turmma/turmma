@@ -21,7 +21,7 @@ export const AVISO_DA_ESPERA_DO_INDISPONIVEL = 'Tentando de novo em instantes'
 
 /** O erro é o 503 que pede uma espera curta, com o `Retry-After` dentro do limite? Devolve os segundos (no mínimo o piso da entrada), ou `undefined`. */
 export function esperaDoIndisponivel(erro: unknown): number | undefined {
-  if (!ehIndisponivel(erro)) return undefined
+  if (!isIndisponivel(erro)) return undefined
   // O cliente só entrega o `Retry-After` que é número finito e não negativo (`esperaDaResposta`): sobra o limite.
   const segundos = erro.esperaSegundos
   if (segundos === undefined || segundos > LIMITE_DA_ESPERA_DO_INDISPONIVEL_S) return undefined
@@ -29,7 +29,7 @@ export function esperaDoIndisponivel(erro: unknown): number | undefined {
 }
 
 /** O erro é o 503 de queda (com ou sem `Retry-After`): a tela o mostra no `ErrorState`, e não na mensagem do campo. */
-export function ehIndisponivel(erro: unknown): erro is ApiError {
+export function isIndisponivel(erro: unknown): erro is ApiError {
   return erro instanceof ApiError && erro.codigo === ErrorCode.INDISPONIVEL_TENTE_DE_NOVO
 }
 
@@ -54,7 +54,7 @@ export const DESCARTADA = Symbol('descartada')
 type Resultado<T> = { readonly valor: T } | { readonly erro: unknown }
 
 /** O pedido feito, com o erro como valor: quem o espera confere se ainda é o de agora antes de deixá-lo subir. */
-async function tentar<T>(acao: () => Promise<T>): Promise<Resultado<T>> {
+async function attempt<T>(acao: () => Promise<T>): Promise<Resultado<T>> {
   try {
     return { valor: await acao() }
   } catch (erro) {
@@ -62,7 +62,7 @@ async function tentar<T>(acao: () => Promise<T>): Promise<Resultado<T>> {
   }
 }
 
-const esperarMs = (ms: number): Promise<void> => new Promise((resolver) => setTimeout(resolver, ms))
+const waitMs = (ms: number): Promise<void> => new Promise((resolver) => setTimeout(resolver, ms))
 
 export interface EsperaDoIndisponivel {
   /** Os segundos que faltam para a nova tentativa, enquanto ela espera; `undefined` fora da espera. */
@@ -73,13 +73,13 @@ export interface EsperaDoIndisponivel {
    * ao voltar de qualquer pedido, ela já não é a de agora: outra chamada começou, a tela saiu, ou `aindaVale` deixou de valer
    * (a pessoa da aba é outra). A repetição nunca sai nesse caso: ela levaria o desafio de quem entrou depois.
    */
-  readonly executar: <T>(acao: () => Promise<T>, aindaVale?: () => boolean) => Promise<T | typeof DESCARTADA>
+  readonly run: <T>(acao: () => Promise<T>, aindaVale?: () => boolean) => Promise<T | typeof DESCARTADA>
 }
 
 /**
  * O estado e o relógio da espera única de uma tela. `esperar` só existe para o teste mover o tempo.
  */
-export function useEsperaDoIndisponivel(esperar: (ms: number) => Promise<void> = esperarMs): EsperaDoIndisponivel {
+export function useEsperaDoIndisponivel(esperar: (ms: number) => Promise<void> = waitMs): EsperaDoIndisponivel {
   const geracao = useRef(0)
   const contagem = useRef<ReturnType<typeof setInterval> | undefined>(undefined)
   const [restante, definirRestante] = useState<number | undefined>(undefined)
@@ -106,7 +106,7 @@ export function useEsperaDoIndisponivel(esperar: (ms: number) => Promise<void> =
       const valendo = (): boolean => geracao.current === minha
       // A contagem de uma tentativa anterior não é desta. A tela desliga o botão enquanto uma chamada está no ar: nunca há duas.
       pararContagem()
-      const primeira = await tentar(acao)
+      const primeira = await attempt(acao)
       if (!valendo()) return DESCARTADA
       if ('valor' in primeira) return primeira.valor
       const segundos = esperaDoIndisponivel(primeira.erro)
@@ -129,7 +129,7 @@ export function useEsperaDoIndisponivel(esperar: (ms: number) => Promise<void> =
       if (!valendo() || !aindaVale()) return DESCARTADA
       // O erro da repetição vale o mesmo que o sucesso: depois de a tela sair, ele não sobe para quem chamou (o `CONTA_SEGURADA`
       // tardio apagaria o desafio de quem entrou depois).
-      const segunda = await tentar(acao)
+      const segunda = await attempt(acao)
       if (!valendo()) return DESCARTADA
       if ('valor' in segunda) return segunda.valor
       throw segunda.erro
@@ -137,5 +137,5 @@ export function useEsperaDoIndisponivel(esperar: (ms: number) => Promise<void> =
     [esperar, pararContagem],
   )
 
-  return { restante, executar }
+  return { restante, run: executar }
 }

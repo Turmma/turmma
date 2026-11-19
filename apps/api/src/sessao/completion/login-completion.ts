@@ -2,7 +2,7 @@ import { currentContext, DURACAO_DA_SESSAO_HORAS, DomainException, runInContext,
 import { ErrorCode, InvariantException, type EtapaComDesafio, type LoginResponse } from '@educa/shared'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { MAX_AGE_DO_COOKIE_DISPOSITIVO_SEGUNDOS, type DeviceCookie } from '../../credencial/device-cookie.js'
-import { DEVICE_COOKIE, SESSAO_COOKIE, lerCookie, serializarCookie } from '../../credencial/cookies.js'
+import { DEVICE_COOKIE, SESSAO_COOKIE, readCookie, serializarCookie } from '../../credencial/cookies.js'
 import { SessaoCreateRepository } from '../../credencial/sessao-create.repository.js'
 import type { ChallengeIssuer, SessaoDeOrigemDaTroca } from '../../credencial/challenge.js'
 import { BYTES_DO_REFRESH, hashDoRefresh } from '../../credencial/login-identifiers.js'
@@ -104,13 +104,13 @@ export class ConclusaoDeLogin {
     origem: RequestOrigin,
     troca?: SessaoDeOrigemDaTroca,
   ): Promise<ResultadoDoLogin> {
-    const { token, expiraEm, refresh } = await this.#criarSessao(usuario, contaId, metodo, origem.ip, troca)
+    const { token, expiraEm, refresh } = await this.#createSessao(usuario, contaId, metodo, origem.ip, troca)
     const resposta: LoginResponse = { etapa: 'pronta', token, expiraEm: expiraEm.toISOString() }
     const dispositivo =
       identificadorDoDispositivo === undefined
         ? []
         : [
-            serializarCookie(DEVICE_COOKIE, this.dependencias.dispositivo.comEntrada(lerCookie(origem.cabecalhoCookie, DEVICE_COOKIE), identificadorDoDispositivo), {
+            serializarCookie(DEVICE_COOKIE, this.dependencias.dispositivo.comEntrada(readCookie(origem.cabecalhoCookie, DEVICE_COOKIE), identificadorDoDispositivo), {
               ambiente: this.dependencias.ambiente,
               maxAgeSegundos: MAX_AGE_DO_COOKIE_DISPOSITIVO_SEGUNDOS,
             }),
@@ -136,7 +136,7 @@ export class ConclusaoDeLogin {
    * A `saida` da origem vai ao registro de acesso da escola de origem, e o `login` ao do destino, cada um só com o
    * usuário da própria escola.
    */
-  async #criarSessao(
+  async #createSessao(
     usuario: Pick<UsuarioAtivoDaConta, 'usuarioId' | 'escolaId'>,
     contaId: string | null,
     metodo: MetodoDeSessao,
@@ -155,16 +155,16 @@ export class ConclusaoDeLogin {
             (await runInContext({ requisicaoId, escolaId: troca.escolaId }, async () => {
               const usuarioDaOrigem = await new SessaoDeOrigemRepository(tx).encerrarParaTroca(troca.sessaoId, contaId)
               if (usuarioDaOrigem === undefined) return false
-              await new RegistroDeAcessoRepository(tx).gravar('saida', usuarioDaOrigem, ipParaRegistro(ip))
+              await new RegistroDeAcessoRepository(tx).save('saida', usuarioDaOrigem, ipParaRegistro(ip))
               return true
             }))
           if (!saiu) throw new DomainException(ErrorCode.NAO_AUTENTICADO)
         }
-        const [criada] = await new SessaoCreateRepository(tx).criarSessoes([
+        const [criada] = await new SessaoCreateRepository(tx).createSessoes([
           { usuarioId: usuario.usuarioId, contaId, metodo, refreshHash: hashDoRefresh(refresh), duracaoHoras: DURACAO_DA_SESSAO_HORAS },
         ])
         if (criada === undefined) throw new InvariantException('sessão não criada')
-        await new RegistroDeAcessoRepository(tx).gravar('login', usuario.usuarioId, ipParaRegistro(ip))
+        await new RegistroDeAcessoRepository(tx).save('login', usuario.usuarioId, ipParaRegistro(ip))
         return criada.id
       }),
     )

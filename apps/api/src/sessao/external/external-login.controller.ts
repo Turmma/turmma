@@ -57,18 +57,18 @@ export class ExternalLoginController {
    * do slug, e o login fica preso ao acesso dela (14.0). Com `&intencao=ligar`, o aluno que já entrou liga a conta da escola em "Eu": a sessão dele vem do cookie de renovação (15.0).
    */
   @Get(':provedor/iniciar')
-  async iniciar(
+  async start(
     @Param('provedor', new ZodValidationPipe(provedorSchema, COMO_INEXISTENTE)) provedor: ProvedorExterno,
     @Query(new ZodValidationPipe(consultaDoIniciarSchema, COMO_INEXISTENTE)) consulta: z.infer<typeof consultaDoIniciarSchema>,
     @Req() requisicao: IncomingMessage,
     @Res() resposta: ServerResponse,
   ): Promise<void> {
-    if (consulta.intencao === undefined) return redirecionar(resposta, await this.login.iniciar(provedor, consulta.slug))
-    if (consulta.intencao === 'ligar') return redirecionar(resposta, await this.login.iniciarParaLigar(provedor, consulta.slug, requisicao.headers.cookie))
+    if (consulta.intencao === undefined) return redirecionar(resposta, await this.login.start(provedor, consulta.slug))
+    if (consulta.intencao === 'ligar') return redirecionar(resposta, await this.login.startParaLigar(provedor, consulta.slug, requisicao.headers.cookie))
     const { slug, token, codigo } = consulta
     const entrada = token !== undefined ? { slug, token } : codigo !== undefined ? { slug, codigo } : undefined
     if (entrada === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
-    redirecionar(resposta, await this.login.iniciar(provedor, slug, await this.sala.achar(entrada)))
+    redirecionar(resposta, await this.login.start(provedor, slug, await this.sala.achar(entrada)))
   }
 
   /** `GET /v1/sessao/externa/retorno`: a volta do provedor. A escola vem do cookie `educa_oidc`, nunca da query. */

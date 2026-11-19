@@ -10,7 +10,7 @@ export class MinhaTurmaController {
 
   @Get()
   @RequirePermissao('minha_turma', 'ler')
-  ler(): Promise<MinhaTurmaResponse> {
-    return this.minhaTurma.ler()
+  read(): Promise<MinhaTurmaResponse> {
+    return this.minhaTurma.read()
   }
 }

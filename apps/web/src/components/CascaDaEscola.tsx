@@ -6,7 +6,7 @@ import { euQueryOptions } from '../api/eu'
 import { esquecerEspelhosDeOutroDono } from '../api/espelho-da-fila'
 import { assinarSessao, estadoDaSessao, lembrarQuemEsta, sair } from '../api/sessao'
 import { PERSON_MENU, NAVIGATION, NOME_DO_RODAPE, SIDEBAR_FOOTER, type NavItem } from '../areas/navigation'
-import { ehTelaDeFoco, ROUTES } from '../paths'
+import { isTelaDeFoco, ROUTES } from '../paths'
 import { ROLE_LABELS } from '../roles'
 import { useIdleTimeout } from '../sessao/idle-timeout'
 import { SinoAnchorContext, type SinoAnchorContextValue } from './sino-anchor-context'
@@ -14,7 +14,7 @@ import { BarraDeBaixo, ondeFicamOsItens } from './BarraDeBaixo'
 import { SECONDARY_BUTTON_CLASSES } from './ui/button-variants'
 import { DrawerContext, type DrawerContextValue } from './drawer-context'
 import { Tooltip, ItemDaLateral, ListaDeItens } from './itens-da-lateral'
-import { guardarRecolhida, lerRecolhida } from './lateral-recolhida'
+import { guardarRecolhida, readRecolhida } from './lateral-recolhida'
 import { Logo } from './ui/Logo'
 import { MenuDaPessoa } from './MenuDaPessoa'
 import { SignOutContext, type SignOutContextValue } from './sign-out-context'
@@ -175,7 +175,7 @@ export function CascaDaEscola({ children }: { children: ReactNode }) {
   const eu = useQuery(euQueryOptions)
   const dados = eu.data
   const faixa = useSyncExternalStore(assinarFaixa, faixaDeAgora)
-  const [recolhida, definirRecolhida] = useState(lerRecolhida)
+  const [recolhida, definirRecolhida] = useState(readRecolhida)
   const [gavetaAberta, definirGavetaAberta] = useState(false)
   const gaveta = useRef<HTMLDialogElement>(null)
   const botaoDeAbrir = useRef<HTMLButtonElement>(null)
@@ -200,12 +200,12 @@ export function CascaDaEscola({ children }: { children: ReactNode }) {
     // já fechada, não faz nada.
     gaveta.current?.close()
   }, [])
-  const contextoDaGaveta = useMemo<DrawerContextValue>(() => ({ fechar: fecharGaveta }), [fecharGaveta])
+  const contextoDaGaveta = useMemo<DrawerContextValue>(() => ({ close: fecharGaveta }), [fecharGaveta])
   // A âncora do sino: o elemento vazio de cada largura (`sino-anchor-context.ts`). Estado, e não ref: o sino só se desenha quando ele existe.
   const [ancora, definirAncora] = useState<HTMLElement | null>(null)
   const contextoDaAncora = useMemo<SinoAnchorContextValue>(() => ({ elemento: ancora }), [ancora])
 
-  function abrirGaveta(): void {
+  function openGaveta(): void {
     // Com a gaveta aberta, o resto da página fica inerte: o botão que a abre não é tocado duas vezes.
     gaveta.current?.showModal()
     definirGavetaAberta(true)
@@ -280,7 +280,7 @@ export function CascaDaEscola({ children }: { children: ReactNode }) {
 
   // A tela de foco (a introdução de cada papel): sem lateral, trilho, barra do topo, gaveta nem barra de baixo. Fica o `<main>`,
   // o "Sair" (que a `TelaDeFoco` desenha pelo contexto) e, acima, o relógio de inatividade e a memória de quem está na aba.
-  if (ehTelaDeFoco(caminho)) {
+  if (isTelaDeFoco(caminho)) {
     return (
       <SignOutContext value={saida}>
         <main className="flex min-h-screen w-full min-w-0 flex-col bg-fundo px-4 py-4 text-tinta md:px-8 md:py-6">{children}</main>
@@ -327,7 +327,7 @@ export function CascaDaEscola({ children }: { children: ReactNode }) {
             <header className="sticky top-0 z-10 flex h-14 items-center gap-2 border-b-2 border-borda bg-fundo px-2">
               <button
                 type="button"
-                onClick={abrirGaveta}
+                onClick={openGaveta}
                 aria-haspopup="dialog"
                 aria-expanded={gavetaAberta}
                 className={CLASSE_DO_BOTAO_DE_ICONE}
@@ -371,7 +371,7 @@ export function CascaDaEscola({ children }: { children: ReactNode }) {
                 menuDaPessoa={menuDaPessoa}
                 botaoDeAbrir={botaoDeAbrir}
                 // No computador, abrir desfaz a escolha de recolher; entre 768 e 1023 px, a lateral abre por cima.
-                aoAbrir={() => (faixa === 'larga' ? recolher(false) : abrirGaveta())}
+                aoAbrir={() => (faixa === 'larga' ? recolher(false) : openGaveta())}
                 lateralAberta={faixa === 'media' && gavetaAberta}
                 aoSair={aoSair}
                 saindo={saindo}

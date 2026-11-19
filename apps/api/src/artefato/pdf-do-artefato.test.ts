@@ -1,7 +1,7 @@
 import type { ConteudoDeAtividade, ConteudoDePlanoDeAula, FonteDoArtefato, QuestaoObjetiva } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import { extrairTextoPorPagina } from '../../../../tools/demonstracao/extrair-texto.ts'
-import { AVISO_DE_IA_NO_PDF, AVISO_DE_IA_NO_RASCUNHO, gerarPdfDoArtefato, MARCA_DE_RASCUNHO, nomeDoArquivoDoPdf, textoParaAFontePadrao } from './pdf-do-artefato.js'
+import { AVISO_DE_IA_NO_PDF, AVISO_DE_IA_NO_RASCUNHO, generatePdfDoArtefato, MARCA_DE_RASCUNHO, nomeDoArquivoDoPdf, textoParaAFontePadrao } from './pdf-do-artefato.js'
 
 const MATERIAL = '0190f5a0-0000-7000-8000-0000000000a1'
 const TITULO_DO_MATERIAL = 'Química 2 — Capítulo 7: Estequiometria'
@@ -55,12 +55,12 @@ describe('nomeDoArquivoDoPdf: nada do título entra cru no cabeçalho', () => {
   })
 })
 
-describe('gerarPdfDoArtefato', () => {
+describe('generatePdfDoArtefato', () => {
   it('a atividade de 20 questões sai bem abaixo de dois segundos, com as questões, as alternativas, a página de origem e o gabarito numa página à parte', async () => {
     const conteudo = atividade(20)
-    await gerarPdfDoArtefato(atividade(1), TITULOS) // a primeira geração do processo carrega as métricas da fonte
+    await generatePdfDoArtefato(atividade(1), TITULOS) // a primeira geração do processo carrega as métricas da fonte
     const inicio = performance.now()
-    const bytes = await gerarPdfDoArtefato(conteudo, TITULOS)
+    const bytes = await generatePdfDoArtefato(conteudo, TITULOS)
     const duracaoMs = performance.now() - inicio
     expect(duracaoMs).toBeLessThan(2_000)
 
@@ -91,7 +91,7 @@ describe('gerarPdfDoArtefato', () => {
 
   it('o rodapé de cada questão diz o título, a edição e "edição anterior" da fonte; sem edição, só o título', async () => {
     const rodape = async (fontes: ReturnType<typeof comFonte>, conteudo: ConteudoDeAtividade | ConteudoDePlanoDeAula = atividade(1)) =>
-      (await extrairTextoPorPagina(await gerarPdfDoArtefato(conteudo, fontes))).map(umaLinha).join(' ')
+      (await extrairTextoPorPagina(await generatePdfDoArtefato(conteudo, fontes))).map(umaLinha).join(' ')
     expect(await rodape(comFonte())).toContain(`Fonte: ${TITULO_DO_MATERIAL}, p. 2`)
     expect(await rodape(comFonte({ edicao: '2025' }))).toContain(`Fonte: ${TITULO_DO_MATERIAL} (2025), p. 2`)
     expect(await rodape(comFonte({ edicao: '2024', substituido: true }))).toContain(`Fonte: ${TITULO_DO_MATERIAL} (2024, edição anterior), p. 2`)
@@ -114,22 +114,22 @@ describe('gerarPdfDoArtefato', () => {
   })
 
   it('não tem de onde tirar nome de pessoa nem de turma: só o conteúdo e o título do material entram, e os metadados do arquivo não levam autor', async () => {
-    const bytes = await gerarPdfDoArtefato(atividade(2), TITULOS)
+    const bytes = await generatePdfDoArtefato(atividade(2), TITULOS)
     const cru = bytes.toString('latin1')
     expect(cru).not.toMatch(/\/Author/u)
     expect(cru).toContain('(Turmma)')
     const texto = (await extrairTextoPorPagina(bytes)).map(umaLinha).join(' ')
     expect(texto).not.toMatch(/Professor[a]?:|Turma:|Aluno[a]?:|Nome:/u)
     // Material fora do mapa (de outra escola, ou eliminado) não ganha título inventado.
-    const semTitulo = (await extrairTextoPorPagina(await gerarPdfDoArtefato(atividade(1), new Map()))).map(umaLinha).join(' ')
+    const semTitulo = (await extrairTextoPorPagina(await generatePdfDoArtefato(atividade(1), new Map()))).map(umaLinha).join(' ')
     expect(semTitulo).toContain('Fonte: material da escola, p. 2')
   })
 
   it('a versão adaptada sai com a fonte ampliada, e os tipos de adaptação aparecem só na página do gabarito', async () => {
     const original = atividade(12)
     const adaptada: ConteudoDeAtividade = { ...original, titulo: 'Atividade — estequiometria (versão adaptada)', adaptacao: { tipos: ['fonte_ampliada', 'tempo_adicional'], tempoExtraPercentual: 25 } }
-    const paginasDoOriginal = await extrairTextoPorPagina(await gerarPdfDoArtefato(original, TITULOS))
-    const paginas = (await extrairTextoPorPagina(await gerarPdfDoArtefato(adaptada, TITULOS))).map(umaLinha)
+    const paginasDoOriginal = await extrairTextoPorPagina(await generatePdfDoArtefato(original, TITULOS))
+    const paginas = (await extrairTextoPorPagina(await generatePdfDoArtefato(adaptada, TITULOS))).map(umaLinha)
     expect(paginas.length).toBeGreaterThan(paginasDoOriginal.length)
     expect(paginas.at(-1)).toContain('Versão adaptada: Fonte ampliada, Tempo adicional (+25%).')
     expect(paginas.slice(0, -1).join(' ')).not.toMatch(/Fonte ampliada|Tempo adicional/u)
@@ -137,8 +137,8 @@ describe('gerarPdfDoArtefato', () => {
 
   it('o rascunho leva a marca em toda página, inclusive nas que a quebra criou e na do gabarito, e não diz que foi revisado', async () => {
     const adaptada: ConteudoDeAtividade = { ...atividade(12), adaptacao: { tipos: ['fonte_ampliada'] } }
-    const paginas = (await extrairTextoPorPagina(await gerarPdfDoArtefato(adaptada, TITULOS, { rascunho: true }))).map(umaLinha)
-    const limpas = (await extrairTextoPorPagina(await gerarPdfDoArtefato(adaptada, TITULOS))).map(umaLinha)
+    const paginas = (await extrairTextoPorPagina(await generatePdfDoArtefato(adaptada, TITULOS, { rascunho: true }))).map(umaLinha)
+    const limpas = (await extrairTextoPorPagina(await generatePdfDoArtefato(adaptada, TITULOS))).map(umaLinha)
     // A marca fica fora do fluxo do texto: não cria página nem empurra questão.
     expect(paginas.length).toBe(limpas.length)
     expect(paginas.length).toBeGreaterThan(3)
@@ -154,7 +154,7 @@ describe('gerarPdfDoArtefato', () => {
 
   it('o rascunho com a fonte de "edição anterior": a marca em toda página e o rodapé novo aparecem no mesmo PDF, sem um esconder o outro', async () => {
     const fontes = comFonte({ edicao: '2024', substituido: true })
-    const paginas = (await extrairTextoPorPagina(await gerarPdfDoArtefato(atividade(12), fontes, { rascunho: true }))).map(umaLinha)
+    const paginas = (await extrairTextoPorPagina(await generatePdfDoArtefato(atividade(12), fontes, { rascunho: true }))).map(umaLinha)
     for (const pagina of paginas) expect(pagina).toContain(MARCA_DE_RASCUNHO)
     const todas = paginas.join(' ')
     expect(todas).toContain(`Fonte: ${TITULO_DO_MATERIAL} (2024, edição anterior), p. 2`)
@@ -177,7 +177,7 @@ describe('gerarPdfDoArtefato', () => {
       avaliacao: 'Atividade objetiva curta no fim da aula.',
       citacoes: [citacao, { ...citacao, pagina: 4 }],
     }
-    const texto = (await extrairTextoPorPagina(await gerarPdfDoArtefato(plano, TITULOS))).map(umaLinha).join(' ')
+    const texto = (await extrairTextoPorPagina(await generatePdfDoArtefato(plano, TITULOS))).map(umaLinha).join(' ')
     for (const trecho of [
       'Plano de aula — reagente limitante',
       umaLinha(AVISO_DE_IA_NO_PDF),

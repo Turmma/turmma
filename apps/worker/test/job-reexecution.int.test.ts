@@ -98,9 +98,9 @@ describe('reexecução do mesmo job: a chave de idempotência é a do job, e o e
     const chaveIdempotencia = randomUUID()
     const naEscolaA = <T>(funcao: () => Promise<T>) => runInContext({ requisicaoId: randomUUID(), escolaId: ESCOLA_A }, funcao)
 
-    expect(await naEscolaA(() => repositorio.gravar({ chaveIdempotencia, tentativa: 1 }))).toBe(true)
-    expect(await naEscolaA(() => repositorio.gravar({ chaveIdempotencia, tentativa: 2 }))).toBe(false)
-    await expect(runInContext({ requisicaoId: randomUUID() }, () => repositorio.gravar({ chaveIdempotencia, tentativa: 3 }))).rejects.toThrow(
+    expect(await naEscolaA(() => repositorio.save({ chaveIdempotencia, tentativa: 1 }))).toBe(true)
+    expect(await naEscolaA(() => repositorio.save({ chaveIdempotencia, tentativa: 2 }))).toBe(false)
+    await expect(runInContext({ requisicaoId: randomUUID() }, () => repositorio.save({ chaveIdempotencia, tentativa: 3 }))).rejects.toThrow(
       'consulta com escopo sem escola no contexto',
     )
     expect(await efeitos()).toEqual([{ escolaId: ESCOLA_A, chaveIdempotencia, tentativa: 1 }])
@@ -110,7 +110,7 @@ describe('reexecução do mesmo job: a chave de idempotência é a do job, e o e
     const repositorio = new SyntheticEffectRepository(bancada.banco)
     const chaveIdempotencia = randomUUID()
     // A chave é a mesma e a restrição única começa pela escola: se a segunda chamada usasse a escola da primeira, cairia no conflito.
-    const resultados = await Promise.all([ESCOLA_A, ESCOLA_B].map((escolaId) => runInContext({ requisicaoId: randomUUID(), escolaId }, () => repositorio.gravar({ chaveIdempotencia, tentativa: 1 }))))
+    const resultados = await Promise.all([ESCOLA_A, ESCOLA_B].map((escolaId) => runInContext({ requisicaoId: randomUUID(), escolaId }, () => repositorio.save({ chaveIdempotencia, tentativa: 1 }))))
     expect(resultados).toEqual([true, true])
     expect((await efeitos()).map(({ escolaId }) => escolaId).sort()).toEqual([ESCOLA_A, ESCOLA_B].sort())
   })
@@ -121,7 +121,7 @@ describe('reexecução do mesmo job: a chave de idempotência é a do job, e o e
     // Com "verifica e depois grava", duas passam da verificação juntas e a segunda estoura a chave primária.
     const resultados = await Promise.all(
       Array.from({ length: 8 }, (_, indice) =>
-        runInContext({ requisicaoId: randomUUID(), escolaId: ESCOLA_A }, () => repositorio.gravar({ chaveIdempotencia, tentativa: indice + 1 })),
+        runInContext({ requisicaoId: randomUUID(), escolaId: ESCOLA_A }, () => repositorio.save({ chaveIdempotencia, tentativa: indice + 1 })),
       ),
     )
     expect(resultados.filter((gravou) => gravou)).toHaveLength(1)
@@ -146,7 +146,7 @@ describe('reexecução do mesmo job: a chave de idempotência é a do job, e o e
         },
       },
     })
-    bancada.despachante(new InMemoryLog('despachante')).despachante.iniciar()
+    bancada.despachante(new InMemoryLog('despachante')).despachante.start()
     await gravou.chegou
     expect(await efeitos()).toHaveLength(1)
     expect((await bancada.estado(id))?.estado).toBe('ativo')
@@ -249,7 +249,7 @@ describe('reexecução do mesmo job: a chave de idempotência é a do job, e o e
       },
     })
     // Publicado pelo despachante, com as tentativas e o recuo de verdade.
-    bancada.despachante(new InMemoryLog('despachante')).despachante.iniciar()
+    bancada.despachante(new InMemoryLog('despachante')).despachante.start()
 
     await aguardarEstado(id, 'concluido', 40_000)
 
@@ -278,7 +278,7 @@ describe('reexecução do mesmo job: a chave de idempotência é a do job, e o e
           },
         },
       })
-      bancada.despachante(new InMemoryLog('despachante')).despachante.iniciar()
+      bancada.despachante(new InMemoryLog('despachante')).despachante.start()
       await gravaramOsDois.chegou
       await morto.encerrar()
 

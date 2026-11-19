@@ -1,7 +1,7 @@
 import { ErrorCode } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import { ApiError } from '../api/client'
-import { enviarComReenvio, ESPERA_SEM_RETRY_AFTER_SEGUNDOS, esperaDoReenvio, MAXIMO_DE_REENVIOS, VARIACAO_MAXIMA_MS, type ReenvioOptions } from './retry-with-backoff'
+import { sendComReenvio, ESPERA_SEM_RETRY_AFTER_SEGUNDOS, esperaDoReenvio, MAXIMO_DE_REENVIOS, VARIACAO_MAXIMA_MS, type ReenvioOptions } from './retry-with-backoff'
 
 /**
  * O reenvio da reivindicação no 503 (A1, 17.0; W8): a mesma chave, até três vezes, cada uma depois do `Retry-After` com a
@@ -18,7 +18,7 @@ function relogio(aleatorios: readonly number[] = [0.5]) {
   let sorteio = 0
   let valendo = true
   const opcoes: ReenvioOptions = {
-    esperar: (ms) => {
+    wait: (ms) => {
       esperas.push(ms)
       return Promise.resolve()
     },
@@ -69,11 +69,11 @@ describe('esperaDoReenvio', () => {
   })
 })
 
-describe('enviarComReenvio', () => {
+describe('sendComReenvio', () => {
   it('repete o 503 com a mesma chave até três vezes, pelo Retry-After de cada resposta, e entra no quarto envio', async () => {
     const { opcoes, esperas, avisos } = relogio([0.25])
     const { enviar, pedidos } = servidor([cheio(5), cheio(7), cheio(2), 'ok'], { chaveEnvio: 'chave-1' })
-    expect(await enviarComReenvio(enviar, opcoes)).toEqual({ tipo: 'enviado' })
+    expect(await sendComReenvio(enviar, opcoes)).toEqual({ tipo: 'enviado' })
     expect(pedidos).toEqual(['chave-1', 'chave-1', 'chave-1', 'chave-1'])
     expect(esperas).toEqual([5250, 7250, 2250])
     expect(avisos()).toBe(3)
@@ -82,7 +82,7 @@ describe('enviarComReenvio', () => {
   it('o quarto 503 para: nenhum reenvio sozinho depois do terceiro', async () => {
     const { opcoes, esperas } = relogio()
     const { enviar, pedidos } = servidor([cheio(1), cheio(1), cheio(1), cheio(1), 'ok'], { chaveEnvio: 'chave-1' })
-    expect(await enviarComReenvio(enviar, opcoes)).toEqual({ tipo: 'cheio' })
+    expect(await sendComReenvio(enviar, opcoes)).toEqual({ tipo: 'cheio' })
     expect(pedidos).toHaveLength(MAXIMO_DE_REENVIOS + 1)
     expect(esperas).toHaveLength(MAXIMO_DE_REENVIOS)
   })
@@ -91,7 +91,7 @@ describe('enviarComReenvio', () => {
     for (const erro of [new ApiError(ErrorCode.REIVINDICACAO_RECUSADA), new ApiError(ErrorCode.LIMITE_EXCEDIDO, 600), new ApiError(ErrorCode.NAO_ENCONTRADO)]) {
       const { opcoes, esperas } = relogio()
       const { enviar, pedidos } = servidor([erro], { chaveEnvio: 'chave-1' })
-      expect(await enviarComReenvio(enviar, opcoes)).toEqual({ tipo: 'falhou', erro })
+      expect(await sendComReenvio(enviar, opcoes)).toEqual({ tipo: 'falhou', erro })
       expect(pedidos).toHaveLength(1)
       expect(esperas).toEqual([])
     }
@@ -101,29 +101,29 @@ describe('enviarComReenvio', () => {
     const recusa = new ApiError(ErrorCode.REIVINDICACAO_RECUSADA)
     const { opcoes } = relogio()
     const { enviar, pedidos } = servidor([cheio(1), recusa], { chaveEnvio: 'chave-1' })
-    expect(await enviarComReenvio(enviar, opcoes)).toEqual({ tipo: 'falhou', erro: recusa })
+    expect(await sendComReenvio(enviar, opcoes)).toEqual({ tipo: 'falhou', erro: recusa })
     expect(pedidos).toHaveLength(2)
   })
 
   it('a tela que mudou durante a espera não reenvia, e a que mudou com o envio no ar descarta a resposta', async () => {
     const durante = relogio()
-    const esperarELargar = durante.opcoes.esperar
+    const esperarELargar = durante.opcoes.wait
     const opcoes: ReenvioOptions = {
       ...durante.opcoes,
-      esperar: async (ms) => {
+      wait: async (ms) => {
         await esperarELargar(ms)
         durante.largar()
       },
     }
     const primeiro = servidor([cheio(1), 'ok'], { chaveEnvio: 'chave-1' })
-    expect(await enviarComReenvio(primeiro.enviar, opcoes)).toEqual({ tipo: 'descartado' })
+    expect(await sendComReenvio(primeiro.enviar, opcoes)).toEqual({ tipo: 'descartado' })
     expect(primeiro.pedidos).toHaveLength(1)
 
     for (const resposta of ['ok', cheio(1), new ApiError(ErrorCode.REIVINDICACAO_RECUSADA)] as const) {
       const noAr = relogio()
       noAr.largar()
       const segundo = servidor([resposta], { chaveEnvio: 'chave-2' })
-      expect(await enviarComReenvio(segundo.enviar, noAr.opcoes)).toEqual({ tipo: 'descartado' })
+      expect(await sendComReenvio(segundo.enviar, noAr.opcoes)).toEqual({ tipo: 'descartado' })
       expect(noAr.esperas).toEqual([])
     }
   })

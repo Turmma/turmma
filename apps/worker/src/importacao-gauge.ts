@@ -4,7 +4,7 @@ import { EscolaGauge } from './escola-gauge.js'
 const MS_POR_MINUTO = 60_000
 
 export interface ImportacaoGaugeDependencies {
-  escolas: Pick<CronEscolasRepository, 'listarIds'>
+  escolas: Pick<CronEscolasRepository, 'listIds'>
   repositorio: Pick<ImportacaoRepository, 'criadaEmDaNaFilaMaisAntiga'>
   relogio: Clock
   logger: LoggerBase

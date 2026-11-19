@@ -11,8 +11,8 @@ export type QueuedJobState =
 /** O lado do Redis de fila que o despachante usa: publicar e consultar, sempre com prazo. */
 export interface JobPublisher {
   /** Publica cada job na fila dele, com `jobId` igual ao id da linha: publicar de novo um job que a fila tem não cria outro. */
-  publicar(jobs: readonly ReservedJob[]): Promise<void>
-  consultar(job: Pick<ReservedJob, 'id' | 'fila' | 'tipo'>): Promise<QueuedJobState>
+  publish(jobs: readonly ReservedJob[]): Promise<void>
+  find(job: Pick<ReservedJob, 'id' | 'fila' | 'tipo'>): Promise<QueuedJobState>
 }
 
 /** A parte da `Queue` do BullMQ que o despachante usa. */
@@ -51,7 +51,7 @@ export class BullMQJobPublisher implements JobPublisher {
   }
 
   /** Um `addBulk` por fila e executor, todos dentro do mesmo prazo. */
-  publicar(jobs: readonly ReservedJob[]): Promise<void> {
+  publish(jobs: readonly ReservedJob[]): Promise<void> {
     const porFila = new Map<string, { fila: QueueName; executor: JobExecutor; jobs: ReservedJob[] }>()
     for (const job of jobs) {
       const executor = jobExecutor(job.tipo, this.definicoes)
@@ -77,7 +77,7 @@ export class BullMQJobPublisher implements JobPublisher {
     }, this.prazoMs)
   }
 
-  consultar(job: Pick<ReservedJob, 'id' | 'fila' | 'tipo'>): Promise<QueuedJobState> {
+  find(job: Pick<ReservedJob, 'id' | 'fila' | 'tipo'>): Promise<QueuedJobState> {
     return comPrazo(
       () =>
         this.comFila(job.fila, jobExecutor(job.tipo, this.definicoes), async (queue) => {
@@ -92,7 +92,7 @@ export class BullMQJobPublisher implements JobPublisher {
     )
   }
 
-  async fechar(): Promise<void> {
+  async close(): Promise<void> {
     await Promise.all([...this.#filas.values()].map((queue) => queue.close()))
   }
 

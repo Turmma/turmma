@@ -131,7 +131,7 @@ describe('Drenagem com um servidor HTTP de verdade', () => {
   })
 })
 
-describe('lerConfiguracaoDrenagem', () => {
+describe('loadGracefulShutdownConfig', () => {
   it('lê espera e prazo do ambiente', () => {
     expect(loadGracefulShutdownConfig({ DRENAGEM_ESPERA_BORDA_MS: '4000', DRENAGEM_PRAZO_MS: '10000' })).toEqual(config)
   })

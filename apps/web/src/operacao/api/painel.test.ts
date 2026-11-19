@@ -53,7 +53,7 @@ beforeEach(async () => {
   m = await importar()
   // A sessão aberta pelo cookie, como a aba faz ao chegar a `/operacao`: o token fica em memória.
   fila.push({ status: 200, corpo: { token: 'token-de-acesso', expiraEm: new Date(Date.now() + 600_000).toISOString() } })
-  await m.sessao.abrirSessaoDeOperadorPeloCookie()
+  await m.sessao.openSessaoDeOperadorPeloCookie()
   chamadas.length = 0
 })
 
@@ -64,20 +64,20 @@ afterEach(() => {
 
 describe('a página e a ordem da barra de endereço (Tech Spec da A0b, seção 9)', () => {
   it('lê a página e a ordem da query string, e a busca escrita volta à mesma consulta', () => {
-    expect(m.painel.lerConsultaDaTela('pagina=3&ordem=uso')).toEqual({ pagina: 3, ordem: 'uso' })
-    expect(m.painel.lerConsultaDaTela('?ordem=nome&pagina=2')).toEqual({ pagina: 2, ordem: 'nome' })
+    expect(m.painel.readConsultaDaTela('pagina=3&ordem=uso')).toEqual({ pagina: 3, ordem: 'uso' })
+    expect(m.painel.readConsultaDaTela('?ordem=nome&pagina=2')).toEqual({ pagina: 2, ordem: 'nome' })
     expect(m.painel.buscaDaConsulta({ pagina: 3, ordem: 'uso' })).toBe('pagina=3&ordem=uso')
-    expect(m.painel.lerConsultaDaTela(m.painel.buscaDaConsulta({ pagina: 7, ordem: 'uso' }))).toEqual({ pagina: 7, ordem: 'uso' })
+    expect(m.painel.readConsultaDaTela(m.painel.buscaDaConsulta({ pagina: 7, ordem: 'uso' }))).toEqual({ pagina: 7, ordem: 'uso' })
   })
 
   it('o que não é página nem ordem do contrato volta ao padrão daquele campo, sem levar o resto junto', () => {
-    expect(m.painel.lerConsultaDaTela('')).toEqual({ pagina: 1, ordem: 'nome' })
+    expect(m.painel.readConsultaDaTela('')).toEqual({ pagina: 1, ordem: 'nome' })
     for (const pagina of ['0', '-1', '2.5', 'abc', '1e3', ' 2', '02', String(MAXIMA_PAGINA_DO_PAINEL + 1)]) {
-      expect(m.painel.lerConsultaDaTela(`pagina=${encodeURIComponent(pagina)}&ordem=uso`)).toEqual({ pagina: 1, ordem: 'uso' })
+      expect(m.painel.readConsultaDaTela(`pagina=${encodeURIComponent(pagina)}&ordem=uso`)).toEqual({ pagina: 1, ordem: 'uso' })
     }
-    expect(m.painel.lerConsultaDaTela(`pagina=${String(MAXIMA_PAGINA_DO_PAINEL)}`)).toEqual({ pagina: MAXIMA_PAGINA_DO_PAINEL, ordem: 'nome' })
-    expect(m.painel.lerConsultaDaTela('pagina=4&ordem=USO')).toEqual({ pagina: 4, ordem: 'nome' })
-    expect(m.painel.lerConsultaDaTela('pagina=4&ordem=alunos')).toEqual({ pagina: 4, ordem: 'nome' })
+    expect(m.painel.readConsultaDaTela(`pagina=${String(MAXIMA_PAGINA_DO_PAINEL)}`)).toEqual({ pagina: MAXIMA_PAGINA_DO_PAINEL, ordem: 'nome' })
+    expect(m.painel.readConsultaDaTela('pagina=4&ordem=USO')).toEqual({ pagina: 4, ordem: 'nome' })
+    expect(m.painel.readConsultaDaTela('pagina=4&ordem=alunos')).toEqual({ pagina: 4, ordem: 'nome' })
   })
 
   it('o GET da lista leva a página e a ordem da tela, com o token da sessão, e cada consulta tem a sua chave de cache', async () => {
@@ -141,8 +141,8 @@ describe('as criações com o id do pedido', () => {
     const rede = { id: '9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d', nome: 'Rede sintética', tipo: 'grupo' as const }
     const escola = { id: '1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f', redeId: rede.id, nome: 'Colégio sintético', slug: 'colegio-sintetico' }
     fila.push({ status: 200, corpo: { id: rede.id } }, { status: 200, corpo: { id: escola.id } })
-    expect(await m.painel.criarRedeNoPainel(rede)).toEqual({ id: rede.id })
-    expect(await m.painel.criarEscolaNoPainel(escola)).toEqual({ id: escola.id })
+    expect(await m.painel.createRedeNoPainel(rede)).toEqual({ id: rede.id })
+    expect(await m.painel.createEscolaNoPainel(escola)).toEqual({ id: escola.id })
     expect(chamadas).toEqual([
       { caminho: '/v1/operacao/redes', metodo: 'POST', corpo: rede, autorizacao: 'Bearer token-de-acesso' },
       { caminho: '/v1/operacao/escolas', metodo: 'POST', corpo: escola, autorizacao: 'Bearer token-de-acesso' },
@@ -153,9 +153,9 @@ describe('as criações com o id do pedido', () => {
     const escola = { id: '1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f', redeId: '9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d', nome: 'Colégio', slug: 'colegio' }
     const envelope = (codigo: string) => ({ erro: { codigo, mensagem: 'texto que a tela não usa', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } })
     fila.push({ status: 409, corpo: envelope('CONFLITO') })
-    await expect(m.painel.criarEscolaNoPainel(escola)).rejects.toMatchObject({ codigo: 'CONFLITO' })
+    await expect(m.painel.createEscolaNoPainel(escola)).rejects.toMatchObject({ codigo: 'CONFLITO' })
     vi.mocked(fetch).mockImplementationOnce(async () => new Response(JSON.stringify(envelope('LIMITE_EXCEDIDO')), { status: 429, headers: { 'Retry-After': '12' } }))
-    await expect(m.painel.criarEscolaNoPainel(escola)).rejects.toMatchObject({ codigo: 'LIMITE_EXCEDIDO', esperaSegundos: 12 })
+    await expect(m.painel.createEscolaNoPainel(escola)).rejects.toMatchObject({ codigo: 'LIMITE_EXCEDIDO', esperaSegundos: 12 })
   })
 })
 
@@ -167,7 +167,7 @@ describe('o convite da coordenação (tarefa 7.0)', () => {
 
   it('gerar, refazer e revogar vão às rotas da API com a sessão; o token e o e-mail nunca vão na URL', async () => {
     fila.push({ status: 200, corpo: { conviteId: CONVITE_ID, token: TOKEN } }, { status: 200, corpo: { conviteId: CONVITE_ID, token: TOKEN } }, { status: 204 })
-    expect(await m.painel.gerarConviteNoPainel(ESCOLA_ID, pedido)).toEqual({ conviteId: CONVITE_ID, token: TOKEN })
+    expect(await m.painel.generateConviteNoPainel(ESCOLA_ID, pedido)).toEqual({ conviteId: CONVITE_ID, token: TOKEN })
     expect(await m.painel.refazerConviteNoPainel(CONVITE_ID)).toEqual({ conviteId: CONVITE_ID, token: TOKEN })
     expect(await m.painel.revogarConviteNoPainel(CONVITE_ID)).toBeUndefined()
     expect(chamadas).toEqual([
@@ -179,7 +179,7 @@ describe('o convite da coordenação (tarefa 7.0)', () => {
 
   it('a resposta do gerar fora do contrato (um campo de pessoa a mais) não chega ao diálogo', async () => {
     fila.push({ status: 200, corpo: { conviteId: CONVITE_ID, token: TOKEN, email: pedido.email } })
-    await expect(m.painel.gerarConviteNoPainel(ESCOLA_ID, pedido)).rejects.toMatchObject({ codigo: 'ERRO_INTERNO' })
+    await expect(m.painel.generateConviteNoPainel(ESCOLA_ID, pedido)).rejects.toMatchObject({ codigo: 'ERRO_INTERNO' })
   })
 
   /** Tudo o que o cache de mutações guarda, em texto: é onde o token (e o nome e o e-mail do pedido) poderiam sobrar. */

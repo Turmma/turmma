@@ -13,7 +13,7 @@ import {
 import { EscolaGauge } from './escola-gauge.js'
 
 export interface ExpurgoGaugeDependencies {
-  escolas: Pick<CronEscolasRepository, 'listarIds'>
+  escolas: Pick<CronEscolasRepository, 'listIds'>
   repositorio: Pick<ExpurgoDaEscolaRepository, 'noitesDoAlerta'>
   /** O horário letivo da escola do contexto: dele sai o fuso em que a noite é contada. */
   janelaDaEscola: Pick<OperationalSettings<JanelaLetiva>, 'daEscola'>

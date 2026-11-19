@@ -15,7 +15,7 @@ import type { JobOutbox } from '../queue/job-outbox.js'
 export const TETO_DE_FALHAS_SEGUIDAS = 3
 /** As seções que cada lote do agendamento lê e agenda, cada lote numa transação (Tech Spec, seção 7c, "Laços"). */
 export const SECOES_POR_LOTE_DO_AGENDAMENTO = 500
-/** O cursor do primeiro lote de `travarParaReclassificar`: o UUID nulo é menor que qualquer id de seção (v7), então o primeiro lote começa na primeira seção. */
+/** O cursor do primeiro lote de `lockParaReclassificar`: o UUID nulo é menor que qualquer id de seção (v7), então o primeiro lote começa na primeira seção. */
 export const ANTES_DA_PRIMEIRA_SECAO = '00000000-0000-0000-0000-000000000000'
 /**
  * O limite de execuções que o job de uma escola cria numa noite. Mil execuções são 12 mil seções, quase o dobro das 7.500 de 300 apostilas de 25 capítulos (630 execuções, 15 lotes de 42): o onboarding cabe com folga, e o que passar
@@ -65,7 +65,7 @@ export type AlvoDaMudancaDeRecorte = { readonly materialId: string } | { readonl
  *   troca nada, e a execução que ele acabou de criar sai na mesma transação, sem job e sem chamar o modelo.
  * - **A função suspensa não agenda**: `funcaoEstaAtiva` é a conferência, lida a cada lote por quem chama.
  *
- * **Não tire o termo de escola do `update` cru nem do `delete` da execução que perdeu a corrida (`#criarExecucao`).** Nenhum teste os distingue, porque a leitura com escopo e a FK composta já protegem
+ * **Não tire o termo de escola do `update` cru nem do `delete` da execução que perdeu a corrida (`#createExecucao`).** Nenhum teste os distingue, porque a leitura com escopo e a FK composta já protegem
  * (a seção da B não chega até aqui no contexto da A, e a execução da A não aponta para seção da B): são a defesa em profundidade da regra 10, item 3, e uma refatoração não pode levá-los.
  *
  * A escola é a do contexto, em toda consulta (regra 10, item 3); nenhum método a recebe. Sem pessoa nem ano: a execução da rotina não tem `solicitada_por` nem `ano_letivo_id`.
@@ -130,7 +130,7 @@ export class AgendamentoDaClassificacaoRepository {
    * O `select ... for update` é quem decide quais seções entram (escola, não corrigida, alvo, cursor): o `delete` e o `update` só agem sobre os ids que ele devolveu, já travados, e por isso a corrigida não precisa ser
    * conferida de novo (ninguém a corrige no meio, a trava é nossa). O material do alvo entra em qualquer estado (`processando`, excluído): o que não é `pronto` não será agendado, e uma seção sem execução nem código é o que ele deve ter. A escola é a do contexto, em toda consulta.
    */
-  async limparDoRecorte(alvo: AlvoDaMudancaDeRecorte, limite: number, depoisDe?: string): Promise<{ limpas: string[]; ultima: string | undefined }> {
+  async clearDoRecorte(alvo: AlvoDaMudancaDeRecorte, limite: number, depoisDe?: string): Promise<{ limpas: string[]; ultima: string | undefined }> {
     const escolaId = requireEscolaId()
     const doAlvo = 'materialId' in alvo ? eq(secaoDoMaterial.materialId, alvo.materialId) : eq(material.disciplinaId, alvo.disciplinaId)
     const travadas = await this.tx
@@ -161,7 +161,7 @@ export class AgendamentoDaClassificacaoRepository {
    *
    * A leitura do estado da execução não é feita na consulta que trava: com a junção, o Postgres reavalia a linha que esperou a trava e pode dar a execução nova, ainda invisível ao retrato da consulta, como ausente.
    */
-  async travarParaReclassificar(
+  async lockParaReclassificar(
     alvo: { readonly materialId?: string },
     limite: number,
     depoisDe: string,
@@ -218,7 +218,7 @@ export class AgendamentoDaClassificacaoRepository {
     let agendadas = 0
     for (const grupo of grupos.values()) {
       for (let inicio = 0; inicio < grupo.length && execucoes < maximoDeExecucoes; inicio += SECOES_POR_EXECUCAO) {
-        const trocadas = await this.#criarExecucao(grupo.slice(inicio, inicio + SECOES_POR_EXECUCAO), enfileirador)
+        const trocadas = await this.#createExecucao(grupo.slice(inicio, inicio + SECOES_POR_EXECUCAO), enfileirador)
         if (trocadas === 0) continue
         execucoes += 1
         agendadas += trocadas
@@ -253,7 +253,7 @@ export class AgendamentoDaClassificacaoRepository {
   }
 
   /** A execução de até 12 seções: grava a linha, troca o `execucao_id` com a condição de P9 e, se alguma seção trocou, enfileira o job. Devolve quantas seções trocaram. */
-  async #criarExecucao(secoes: readonly SecaoParaAgendar[], enfileirador: Pick<JobOutbox, 'enfileirarUmaVez'>): Promise<number> {
+  async #createExecucao(secoes: readonly SecaoParaAgendar[], enfileirador: Pick<JobOutbox, 'enfileirarUmaVez'>): Promise<number> {
     const escolaId = requireEscolaId()
     const [execucao] = await this.tx
       .insert(execucaoAgente)

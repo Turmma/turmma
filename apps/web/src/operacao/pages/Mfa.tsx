@@ -1,4 +1,4 @@
-import { ErrorCode, DIGITOS_DO_CODIGO_MFA, formatarEspera, TAMANHO_DO_CODIGO_DE_RECUPERACAO } from '@educa/shared'
+import { ErrorCode, DIGITOS_DO_CODIGO_MFA, formatEspera, TAMANHO_DO_CODIGO_DE_RECUPERACAO } from '@educa/shared'
 import { useState, type FormEvent } from 'react'
 import { Link, useLocation } from 'wouter'
 import { ApiError } from '../../api/client'
@@ -16,7 +16,7 @@ const TAMANHO_MAXIMO_DIGITADO_NA_RECUPERACAO = TAMANHO_DO_CODIGO_DE_RECUPERACAO 
 /** O aviso da entrada quando o código foi recusado: com a espera da conta segurada, quando a API a informou. */
 function avisoDaRecusa(erro: unknown): string {
   if (erro instanceof ApiError && erro.codigo === ErrorCode.CONTA_SEGURADA && erro.esperaSegundos !== undefined) {
-    return `${TEXTO_DO_CODIGO_RECUSADO} Muitas tentativas nesta conta: espere ${formatarEspera(erro.esperaSegundos)} antes de tentar.`
+    return `${TEXTO_DO_CODIGO_RECUSADO} Muitas tentativas nesta conta: espere ${formatEspera(erro.esperaSegundos)} antes de tentar.`
   }
   return TEXTO_DO_CODIGO_RECUSADO
 }
@@ -53,7 +53,7 @@ export function Mfa() {
     )
   }
 
-  async function enviar(evento: FormEvent<HTMLFormElement>): Promise<void> {
+  async function send(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault()
     if (entrando) return
     definirEntrando(true)
@@ -88,7 +88,7 @@ export function Mfa() {
           ? 'Digite um dos códigos de recuperação que você guardou ao configurar o segundo fator. Cada código vale uma vez só.'
           : 'Digite o código que o seu aplicativo autenticador mostra agora. Ele muda a cada 30 segundos.'}
       </p>
-      <form className="flex flex-col gap-4" onSubmit={(evento) => void enviar(evento)}>
+      <form className="flex flex-col gap-4" onSubmit={(evento) => void send(evento)}>
         {recuperacao ? (
           <FormField
             key="recuperacao"

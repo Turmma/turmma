@@ -562,7 +562,7 @@ describe('AdaptadorResiliente: saída inválida não é falha do provedor', { ti
         suspensao: new InMemorySuspensoes(),
       }),
     )
-    const gerar = () => ia.gerar({ tarefa: gerarAtividadeObjetiva, entrada: entradaDeAtividade(), escolaId: ESCOLA_A })
+    const gerar = () => ia.generate({ tarefa: gerarAtividadeObjetiva, entrada: entradaDeAtividade(), escolaId: ESCOLA_A })
     for (let vez = 0; vez < FALHAS_PARA_ABRIR_O_DISJUNTOR; vez += 1) {
       await expect(gerar()).rejects.toMatchObject({ codigoDeIa: 'IA_SAIDA_INVALIDA' })
     }

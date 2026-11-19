@@ -29,20 +29,20 @@ export class TurmaController {
 
   @Post()
   @RequirePermissao('turma', 'criar')
-  criar(@Body(new ZodValidationPipe(criarTurmaRequestSchema)) pedido: CriarTurmaRequest): Promise<TurmaResponse> {
-    return this.turmas.criar(pedido)
+  create(@Body(new ZodValidationPipe(criarTurmaRequestSchema)) pedido: CriarTurmaRequest): Promise<TurmaResponse> {
+    return this.turmas.create(pedido)
   }
 
   @Get()
   @RequirePermissao('turma', 'listar')
-  listar(@Query(new ZodValidationPipe(paginationQuerySchema)) consulta: PaginationQuery): Promise<ListaDeTurmasResponse> {
-    return this.turmas.listar(consulta)
+  list(@Query(new ZodValidationPipe(paginationQuerySchema)) consulta: PaginationQuery): Promise<ListaDeTurmasResponse> {
+    return this.turmas.list(consulta)
   }
 
   @Get(':id')
   @RequirePermissao('turma', 'ler')
-  abrir(@Param('id', IdPipe) id: string, @Query(new ZodValidationPipe(turmaQuerySchema)) consulta: TurmaQuery): Promise<TurmaAbertaResponse> {
-    return this.turmas.abrir(id, consulta)
+  open(@Param('id', IdPipe) id: string, @Query(new ZodValidationPipe(turmaQuerySchema)) consulta: TurmaQuery): Promise<TurmaAbertaResponse> {
+    return this.turmas.open(id, consulta)
   }
 
   @Patch(':id')
@@ -54,8 +54,8 @@ export class TurmaController {
   @Delete(':id')
   @RequirePermissao('turma', 'excluir')
   @HttpCode(HttpStatus.NO_CONTENT)
-  excluir(@Param('id', IdPipe) id: string): Promise<void> {
-    return this.turmas.excluir(id)
+  delete(@Param('id', IdPipe) id: string): Promise<void> {
+    return this.turmas.delete(id)
   }
 
   @Get(':id/alunos')

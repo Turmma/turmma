@@ -25,7 +25,7 @@ export class SalasService {
   ) {}
 
   /** `POST /v1/salas/abrir`: o nome da turma e os nomes livres, lidos a cada abertura. */
-  async abrir(pedido: AbrirSalaRequest): Promise<SalaAbertaResponse> {
+  async open(pedido: AbrirSalaRequest): Promise<SalaAbertaResponse> {
     return this.acessoDaSala.naSala(entradaDaSala(pedido, this.chaveCodigo), async ({ turmaId }) => {
       const lista = new ListaLivreRepository(this.banco)
       const nomeDaTurma = await lista.nomeDaTurma(turmaId)

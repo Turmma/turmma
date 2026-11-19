@@ -8,7 +8,7 @@ import {
 } from '@educa/shared'
 import { Logger } from '@nestjs/common'
 import { randomBytes } from 'node:crypto'
-import { BYTES_DO_REFRESH, type LoginLockout, type DeviceCookie, gerarCodigosDeRecuperacao, gerarSegredo, hashDoRefresh, hmacDaRecuperacao, ipParaRegistro, lerCookie, normalizarEmail, normalizarRecuperacao, passoDoCodigo, ROTULO_TOTP_DA_OPERACAO } from '../../credencial/index.js'
+import { BYTES_DO_REFRESH, type LoginLockout, type DeviceCookie, generateCodigosDeRecuperacao, generateSegredo, hashDoRefresh, hmacDaRecuperacao, ipParaRegistro, readCookie, normalizeEmail, normalizeRecuperacao, passoDoCodigo, ROTULO_TOTP_DA_OPERACAO } from '../../credencial/index.js'
 import { cookiesDaSessaoDeOperador } from '../cookie-de-operador.js'
 import { verifyOperadorChallenge, type OperadorChallengeConsumer, type VerifiedOperadorChallenge, type OperadorChallengeIssuer } from '../operador-challenge.js'
 import { OPERADOR_DEVICE_COOKIE } from '../operador-device-cookie.js'
@@ -24,7 +24,7 @@ export interface OperadorMfaDependencies {
   readonly chaveRecuperacao: Uint8Array
   /** Chave de assinatura do desafio, a mesma do token de acesso. */
   readonly chaveAssinatura: Uint8Array
-  readonly consumo: Pick<OperadorChallengeConsumer, 'consumir'>
+  readonly consumo: Pick<OperadorChallengeConsumer, 'consume'>
   /** O contador do F1, com o prefixo `login-op` e a chave pelo `operador.id` (C34). */
   readonly contador: Pick<LoginLockout, 'chaveDe' | 'reservar' | 'zerar'>
   /** O cookie de dispositivo do operador, com a chave própria (`operador-device-cookie.ts`). */
@@ -105,13 +105,13 @@ export class OperadorMfaService {
   async configurar(pedido: ConfigurarSegundoFatorDeOperadorRequest): Promise<ConfigurarSegundoFatorDeOperadorResponse> {
     const { banco, cifra, chaveRecuperacao, emissorDeDesafio } = this.dependencias
     const verificado = await this.#desafioConsumido(pedido.desafio, 'configurar_mfa')
-    const novo = gerarSegredo(ROTULO_TOTP_DA_OPERACAO)
+    const novo = generateSegredo(ROTULO_TOTP_DA_OPERACAO)
     const { cifrado, versao: chaveVersao } = cifra.cifrar(novo.bytes, verificado.operadorId)
-    const codigosRecuperacao = gerarCodigosDeRecuperacao()
+    const codigosRecuperacao = generateCodigosDeRecuperacao()
     const hmacs = codigosRecuperacao.map((codigo) => hmacDaRecuperacao(chaveRecuperacao, codigo))
     const versao = await banco.transaction(async (tx) => {
       const repositorio = new OperadorRepository(tx)
-      const gravada = await repositorio.gravarSegredoParaConfigurar({ operadorId: verificado.operadorId, segredoCifrado: cifrado, chaveVersao })
+      const gravada = await repositorio.saveSegredoParaConfigurar({ operadorId: verificado.operadorId, segredoCifrado: cifrado, chaveVersao })
       if (gravada !== undefined) await repositorio.trocarCodigosDeRecuperacao(verificado.operadorId, hmacs)
       return gravada
     })
@@ -129,7 +129,7 @@ export class OperadorMfaService {
     if (requisicao === undefined) throw new DomainException(ErrorCode.ERRO_INTERNO)
     const verificado = await this.#desafioConsumido(pedido.desafio, 'mfa')
     const refresh = randomBytes(BYTES_DO_REFRESH).toString('base64url')
-    const cookieDeDispositivo = lerCookie(origem.cabecalhoCookie, OPERADOR_DEVICE_COOKIE)
+    const cookieDeDispositivo = readCookie(origem.cabecalhoCookie, OPERADOR_DEVICE_COOKIE)
 
     const desfecho = await banco.transaction(async (tx): Promise<Desfecho> => {
       const repositorio = new OperadorRepository(tx)
@@ -140,7 +140,7 @@ export class OperadorMfaService {
       const segredo = this.#segredo(linha)
       if (segredo === undefined) return { tipo: 'desafio_invalido' }
 
-      const email = normalizarEmail(linha.email)
+      const email = normalizeEmail(linha.email)
       const chave = contador.chaveDe(linha.id, dispositivo.conhece(cookieDeDispositivo, email) ? 'conhecido' : 'outro', PREFIXO_DO_CONTADOR_DA_OPERACAO)
       const reserva = await contador.reservar(chave)
       if (!reserva.liberada) return { tipo: 'segurada', esperaMs: reserva.esperaMs }
@@ -155,7 +155,7 @@ export class OperadorMfaService {
         if (!(await repositorio.ativarSegundoFator(linha.id, linha.mfaVersao))) throw new DomainException(ErrorCode.ERRO_INTERNO)
         await repositorio.auditar({ autor: linha.apelido, acao: 'operador.mfa_configurado', operadorAlvoId: linha.id })
       }
-      const sessaoId = await repositorio.abrirSessao(linha.id, hashDoRefresh(refresh))
+      const sessaoId = await repositorio.openSessao(linha.id, hashDoRefresh(refresh))
       await repositorio.registrarAcesso('entrada', linha.id, ipParaRegistro(origem.ip))
       return { tipo: 'aberta', sessaoId, email, chave }
     })
@@ -193,7 +193,7 @@ export class OperadorMfaService {
     }
     // Antes da ativação, o código de recuperação não vale (C20): quem ainda não provou ter o app não o pula.
     if (!linha.mfaAtivo) return false
-    const codigo = normalizarRecuperacao(pedido.recuperacao)
+    const codigo = normalizeRecuperacao(pedido.recuperacao)
     return codigo !== undefined && (await repositorio.usarCodigoDeRecuperacao(linha.id, hmacDaRecuperacao(this.dependencias.chaveRecuperacao, codigo)))
   }
 
@@ -211,7 +211,7 @@ export class OperadorMfaService {
   /** O desafio da etapa, conferido e consumido: o `jti` vale uma vez, e com o Redis fora a resposta é 503. */
   async #desafioConsumido(desafio: string, etapa: VerifiedOperadorChallenge['etapa']): Promise<VerifiedOperadorChallenge> {
     const verificado = await verifyOperadorChallenge(desafio, this.dependencias.chaveAssinatura, etapa)
-    await this.dependencias.consumo.consumir(verificado)
+    await this.dependencias.consumo.consume(verificado)
     return verificado
   }
 }

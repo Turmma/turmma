@@ -99,8 +99,8 @@ export default function TurmaHoje({ turmaId, aoPerderATurma }: { turmaId: string
   // As duas leituras da aba caíram juntas: um erro só, e "Tentar de novo" lê as duas (um botão principal por tela).
   const caiuTudo = sinais.isError && sinais.data === undefined && desempenho.isError && dados === undefined
 
-  const abrirOPainel = (): void => navegar(enderecoComOPainelDoTutor(caminho, busca, true))
-  const fecharOPainel = (): void => navegar(enderecoComOPainelDoTutor(caminho, busca, false), { replace: true })
+  const openOPainel = (): void => navegar(enderecoComOPainelDoTutor(caminho, busca, true))
+  const closeOPainel = (): void => navegar(enderecoComOPainelDoTutor(caminho, busca, false), { replace: true })
 
   // O painel aberto pelo endereço (recarregar, ou o Voltar do histórico) não tem botão que o tenha aberto, e o "Ver quem" pode ter
   // saído da tela com o painel aberto (o aviso resolvido): o foco devolvido a "quem abriu" cai no `body`. Ao fechar, se ele está
@@ -125,7 +125,7 @@ export default function TurmaHoje({ turmaId, aoPerderATurma }: { turmaId: string
             {horaDoAviso !== undefined && <p className="min-w-0 text-sm break-words text-tinta">{textoDaHoraDoAviso(horaDoAviso)}</p>}
             <p className="min-w-0 text-sm break-words text-tinta">{textoDaAtencaoHumana(alunosQuePrecisam)}</p>
             <div>
-              <Button variante="secundario" onClick={abrirOPainel}>
+              <Button variante="secundario" onClick={openOPainel}>
                 Ver quem
               </Button>
             </div>
@@ -149,7 +149,7 @@ export default function TurmaHoje({ turmaId, aoPerderATurma }: { turmaId: string
           titulo="Sinais da turma"
           apoio="O que o Tutor viu no trabalho dos alunos: onde travaram, quem pediu a resposta pronta, a dúvida que se repetiu."
           acao={
-            <Button ref={botaoDoPainel} variante="secundario" onClick={abrirOPainel}>
+            <Button ref={botaoDoPainel} variante="secundario" onClick={openOPainel}>
               Ver o uso do Tutor por aluno
             </Button>
           }
@@ -286,7 +286,7 @@ export default function TurmaHoje({ turmaId, aoPerderATurma }: { turmaId: string
           alunosQuePrecisam={alunosQuePrecisam}
           trabalho={trabalho}
           titulosDasAtividades={titulosDasAtividades}
-          aoFechar={fecharOPainel}
+          aoFechar={closeOPainel}
         />
       )}
     </div>

@@ -6,7 +6,7 @@ import { randomUUID } from 'node:crypto'
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { compose, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
-import { criarExpurgoDeJobs } from '../src/processors/expurgar-jobs.js'
+import { createExpurgoDeJobs } from '../src/processors/expurgar-jobs.js'
 import { QueueFixtures, InMemoryLog } from './queue.fixture.js'
 import { jobExecution } from './job-execution.fixture.js'
 
@@ -41,10 +41,10 @@ describe('sistema.expurgar-jobs', () => {
   /** Roda como o worker roda um job `sistema.*`: no contexto da rotina do sistema. */
   const expurgar = (lotes: number[] = []) => {
     const repositorio = new ExpurgoDeJobsRepository(bancada.banco)
-    const processador = criarExpurgoDeJobs({
+    const processador = createExpurgoDeJobs({
       repositorio: {
-        apagarLoteVencido: async (limite) => {
-          const apagadas = await repositorio.apagarLoteVencido(limite)
+        deleteLoteVencido: async (limite) => {
+          const apagadas = await repositorio.deleteLoteVencido(limite)
           lotes.push(apagadas)
           return apagadas
         },
@@ -188,7 +188,7 @@ describe('sistema.expurgar-jobs', () => {
 
   it('cada instrução apaga no máximo um lote, e rodar de novo depois do fim não apaga nada', async () => {
     const repositorio = new ExpurgoDeJobsRepository(bancada.banco)
-    expect(await repositorio.apagarLoteVencido()).toBe(LOTE_DO_EXPURGO)
+    expect(await repositorio.deleteLoteVencido()).toBe(LOTE_DO_EXPURGO)
     expect(await vencidosRestantes()).toBe(VENCIDOS - LOTE_DO_EXPURGO)
     await expurgar()
     const lotes: number[] = []
@@ -208,7 +208,7 @@ describe('sistema.expurgar-jobs', () => {
       [ESCOLA_A, VENCIDOS],
     )
     // O pool do teste tem o statement_timeout de 2 s do worker: a subconsulta repetida por linha passaria dele.
-    expect(await new ExpurgoDeJobsRepository(bancada.banco).apagarLoteVencido()).toBe(LOTE_DO_EXPURGO)
+    expect(await new ExpurgoDeJobsRepository(bancada.banco).deleteLoteVencido()).toBe(LOTE_DO_EXPURGO)
     expect(await contar('true')).toBe(VENCIDOS - LOTE_DO_EXPURGO)
   })
 
@@ -261,7 +261,7 @@ describe('sistema.expurgar-jobs', () => {
   })
 
   it('só a rotina do sistema expurga: um job de escola com esse tipo falha sem apagar nada', async () => {
-    const processador = criarExpurgoDeJobs({ repositorio: new ExpurgoDeJobsRepository(bancada.banco), logger: log.logger })
+    const processador = createExpurgoDeJobs({ repositorio: new ExpurgoDeJobsRepository(bancada.banco), logger: log.logger })
     const jobId = randomUUID()
     await expect(runInContext({ requisicaoId: randomUUID(), escolaId: ESCOLA_A }, () => processador({}, jobExecution(jobId)))).rejects.toThrow()
     expect(await vencidosRestantes()).toBe(VENCIDOS)

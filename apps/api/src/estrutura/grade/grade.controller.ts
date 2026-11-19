@@ -14,7 +14,7 @@ export class GradeController {
 
   @Get('grade')
   @RequirePermissao('grade', 'ler')
-  ler(@Query(new ZodValidationPipe(gradeQuerySchema)) consulta: GradeQuery): Promise<GradeResponse> {
-    return this.grade.ler(consulta)
+  read(@Query(new ZodValidationPipe(gradeQuerySchema)) consulta: GradeQuery): Promise<GradeResponse> {
+    return this.grade.read(consulta)
   }
 }

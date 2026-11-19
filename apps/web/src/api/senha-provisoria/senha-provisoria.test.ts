@@ -2,7 +2,7 @@ import { ALFABETO_DA_SENHA_PROVISORIA, ErrorCode } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import { TEST_AUTHORIZATION, fakeNetwork, setupScreen } from '../../__fixtures__/render-screen'
 import { ApiError } from '../client'
-import { gerarASenhaProvisoria, lerOAlvoDaSenhaProvisoria, senhaSoletrada, TEXTO_DO_ALUNO_DA_CONTA_DA_ESCOLA, TEXTO_DO_ALUNO_QUE_SAIU_DA_TURMA, TEXTOS_DA_FALHA_DA_PROVISORIA } from './senha-provisoria'
+import { generateASenhaProvisoria, readOAlvoDaSenhaProvisoria, senhaSoletrada, TEXTO_DO_ALUNO_DA_CONTA_DA_ESCOLA, TEXTO_DO_ALUNO_QUE_SAIU_DA_TURMA, TEXTOS_DA_FALHA_DA_PROVISORIA } from './senha-provisoria'
 
 /**
  * A senha provisória na web (acesso-e-convites, 12.0; RF13): as duas chamadas, que não passam pelo cache de consultas (a tela do diálogo prova que nada fica), o texto de cada falha e a
@@ -18,7 +18,7 @@ describe('as chamadas', () => {
     const rede = fakeNetwork()
     rede.responder({ status: 200, corpo: ALVO })
 
-    expect(await lerOAlvoDaSenhaProvisoria(ALUNO)).toEqual(ALVO)
+    expect(await readOAlvoDaSenhaProvisoria(ALUNO)).toEqual(ALVO)
     expect(rede.chamadas).toEqual([{ caminho: `/v1/usuarios/${ALUNO}/senha-provisoria`, metodo: 'GET', autorizacao: TEST_AUTHORIZATION }])
   })
 
@@ -26,14 +26,14 @@ describe('as chamadas', () => {
     const rede = fakeNetwork()
     rede.responder({ status: 200, corpo: { ...ALVO, provisoriaExpiraEm: '2026-11-10T00:00:00.000Z' } })
 
-    await expect(lerOAlvoDaSenhaProvisoria(ALUNO)).rejects.toMatchObject({ codigo: ErrorCode.ERRO_INTERNO })
+    await expect(readOAlvoDaSenhaProvisoria(ALUNO)).rejects.toMatchObject({ codigo: ErrorCode.ERRO_INTERNO })
   })
 
   it('gera pelo POST do mesmo caminho, sem corpo, e devolve a senha em dois grupos com a validade', async () => {
     const rede = fakeNetwork()
     rede.responder({ status: 200, corpo: { senha: 'ABCD-2345', expiraEm: '2026-11-10T17:05:00.000Z' } })
 
-    expect(await gerarASenhaProvisoria(ALUNO)).toEqual({ senha: 'ABCD-2345', expiraEm: '2026-11-10T17:05:00.000Z' })
+    expect(await generateASenhaProvisoria(ALUNO)).toEqual({ senha: 'ABCD-2345', expiraEm: '2026-11-10T17:05:00.000Z' })
     expect(rede.chamadas).toEqual([{ caminho: `/v1/usuarios/${ALUNO}/senha-provisoria`, metodo: 'POST', autorizacao: TEST_AUTHORIZATION }])
   })
 
@@ -41,7 +41,7 @@ describe('as chamadas', () => {
     const rede = fakeNetwork()
     rede.responder({ status: 200, corpo: { senha: 'AB0D-2345', expiraEm: '2026-11-10T17:05:00.000Z' } })
 
-    await expect(gerarASenhaProvisoria(ALUNO)).rejects.toBeInstanceOf(ApiError)
+    await expect(generateASenhaProvisoria(ALUNO)).rejects.toBeInstanceOf(ApiError)
     expect(ALFABETO_DA_SENHA_PROVISORIA).not.toContain('0')
   })
 })

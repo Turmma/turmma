@@ -21,7 +21,7 @@ const umaCasa = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 })
  * `1288490189` → `1,2 GB`. Uma casa decimal, no máximo. Quando o arredondamento chega a 1.024 da unidade (1.048.575
  * bytes seriam "1.024 KB"), sobe para a seguinte ("1 MB"): o número mostrado nunca passa de 1.023,9.
  */
-export function formatarBytes(bytes: number): string {
+export function formatBytes(bytes: number): string {
   if (bytes < BASE_DE_BYTES) return formatQuantity(bytes, 'byte', 'bytes')
   let valor = bytes / BASE_DE_BYTES
   let unidade = 0
@@ -38,7 +38,7 @@ const FORMATO_DO_DIA = /^(\d{4})-(\d{2})-(\d{2})$/
  * O dia de referência que a API devolveu (`AAAA-MM-DD`), como se lê: `2026-09-23` → `23/09/2026`. Lido do texto, sem
  * `Date`: o dia é o civil de São Paulo que a API escolheu, e nenhum fuso do navegador o leva para o dia anterior.
  */
-export function formatarDia(dia: string): string {
+export function formatDia(dia: string): string {
   const partes = FORMATO_DO_DIA.exec(dia)
   if (partes === null) return dia
   const [, ano, mes, numero] = partes
@@ -55,10 +55,10 @@ const mesPorExtenso = new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'n
  * → `setembro de 2026, até 23/09`. O mês é contado do dia 1 até o último dia fechado (Tech Spec da A0b, seção 5). A
  * referência fora do formato, que o contrato já recusa, volta como veio, em vez de o `Intl` lançar e derrubar a tela.
  */
-export function formatarMesDeReferencia({ mes, dia }: Pick<UsoDoPainelResponse, 'mes' | 'dia'>): string {
+export function formatMesDeReferencia({ mes, dia }: Pick<UsoDoPainelResponse, 'mes' | 'dia'>): string {
   const partes = FORMATO_DO_MES.exec(mes)
   const nome = partes === null ? mes : mesPorExtenso.format(new Date(Date.UTC(Number(partes[1]), Number(partes[2]) - 1, 15)))
-  return `${nome}, até ${formatarDia(dia).slice(0, 5)}`
+  return `${nome}, até ${formatDia(dia).slice(0, 5)}`
 }
 
 /** Os rótulos de cada medida de uso, em minúsculas, como entram no meio de uma frase. */
@@ -72,6 +72,6 @@ export const ROTULO_DO_USO: Readonly<Record<keyof UsoDoPeriodoDoPainel, string>>
 export const MEDIDAS_DO_USO: readonly (keyof UsoDoPeriodoDoPainel)[] = ['requisicoes', 'jobs', 'bytesStorage']
 
 /** O valor de uma medida: bytes na unidade, o resto como número. */
-export function formatarMedidaDoUso(medida: keyof UsoDoPeriodoDoPainel, valor: number): string {
-  return medida === 'bytesStorage' ? formatarBytes(valor) : formatNumber(valor)
+export function formatMedidaDoUso(medida: keyof UsoDoPeriodoDoPainel, valor: number): string {
+  return medida === 'bytesStorage' ? formatBytes(valor) : formatNumber(valor)
 }

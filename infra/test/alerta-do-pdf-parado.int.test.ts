@@ -2,7 +2,7 @@ import { chaveDoTemporario, runInContext } from '@educa/core'
 import { randomUUID } from 'node:crypto'
 import { parse } from 'yaml'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { abrirArmazemDeOperacao } from '../../apps/api/src/ops/armazem-de-operacao.js'
+import { openArmazemDeOperacao } from '../../apps/api/src/ops/armazem-de-operacao.js'
 import { PDF_DE_DEMONSTRACAO, pdfSemTexto } from '../../apps/api/test/material.fixture.js'
 import { SessaoFixtures } from '../../apps/api/test/sessao.fixture.js'
 import { lerAmbienteDeTeste, valorObrigatorio } from '../../tools/ci/compose.ts'
@@ -30,7 +30,7 @@ const INTERVALO_ENTRE_PDFS_MS = 15_000
 
 const sessoes = new SessaoFixtures()
 const escolas: string[] = []
-const { armazem, encerrar } = abrirArmazemDeOperacao(ambiente)
+const { armazem, encerrar } = openArmazemDeOperacao(ambiente)
 
 /** A expressão da regra como está no arquivo provisionado: a que o Grafana avalia. */
 function expressaoDaRegra(): string {

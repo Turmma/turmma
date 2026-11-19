@@ -70,7 +70,7 @@ export class DecisaoService {
       if ((await new TurmaRepository(tx).aberta(turmaId, alcance)) === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       const cortada = paginar(await new DecisaoRepository(tx).pendentes(turmaId, consulta), consulta.limite)
       if (nominalAuditado && finalidade !== undefined) {
-        await registro.gravar(tx, 'turma.reivindicacoes_lidas', { entidadeId: turmaId, depois: { quantidade: cortada.itens.length }, finalidade })
+        await registro.save(tx, 'turma.reivindicacoes_lidas', { entidadeId: turmaId, depois: { quantidade: cortada.itens.length }, finalidade })
       }
       return {
         ...cortada,
@@ -115,14 +115,14 @@ export class DecisaoService {
   async #ligarConta(tx: DatabaseTransaction, alunoId: string, conta: ContaProvadaDoPedido): Promise<void> {
     const ligacaoId = await new ContaExternalRepository(tx).ligar(alunoId, conta)
     if (ligacaoId === undefined) throw new DomainException(ErrorCode.CONFLITO)
-    await registro.gravar(tx, 'conta_externa.ligada', { entidadeId: ligacaoId, depois: { usuarioId: alunoId, provedor: conta.provedor } })
+    await registro.save(tx, 'conta_externa.ligada', { entidadeId: ligacaoId, depois: { usuarioId: alunoId, provedor: conta.provedor } })
   }
 
   /**
    * A decisão de um pedido (Tech Spec da A1, seção 5, passo 6), numa transação:
    *
    * 1. Trava o ano em curso em `FOR SHARE` (10.0): encerrado no meio do lote, o pedido sai `nao_encontrada`, sem gravar.
-   *    Trava o pedido se ele está no alcance de quem decide e ainda `pendente` (`travarPendente`). Sem linha, uma leitura
+   *    Trava o pedido se ele está no alcance de quem decide e ainda `pendente` (`lockPendente`). Sem linha, uma leitura
    *    com o mesmo alcance, aplicado antes do estado, separa `ja_decidida` de `nao_encontrada`, sem gravar nada (I6, C3).
    * 2. **Aprovada**: o usuário `aluno` com o nome da lista, a credencial com a matrícula da lista e o hash do pedido (ou, no pedido
    *    com a conta da escola, sem hash e com a `conta_externa` ligada e auditada na mesma transação; conta já ligada a outro: `CONFLITO`), o
@@ -137,20 +137,20 @@ export class DecisaoService {
    */
   #decidirUm(id: string, decisao: DecisaoDePedido, alcance: AlcanceDoPedido): Promise<DesfechoDoPedido> {
     return this.banco.transaction(async (tx): Promise<DesfechoDoPedido> => {
-      if (!(await new TurmaRepository(tx).travarAnoEmCurso())) return { resultado: 'nao_encontrada' }
+      if (!(await new TurmaRepository(tx).lockAnoEmCurso())) return { resultado: 'nao_encontrada' }
       const decisoes = new DecisaoRepository(tx)
-      const pedido = await decisoes.travarPendente(id, alcance)
+      const pedido = await decisoes.lockPendente(id, alcance)
       if (pedido === undefined) return { resultado: (await decisoes.alcancavel(id, alcance)) ? 'ja_decidida' : 'nao_encontrada' }
       let alunoId: string | null = null
       let matriculaAprovada: string | undefined
       if (decisao === 'aprovar') {
         const nome = await decisoes.nomeDoPedido(pedido.listaNomeId)
         if (nome === undefined) throw new InvariantException('nome do pedido pendente não encontrado')
-        const [aluno] = await new SessaoCreateRepository(tx).criarUsuarios([{ contaId: null, papel: 'aluno', nome: nome.nome }])
+        const [aluno] = await new SessaoCreateRepository(tx).createUsuarios([{ contaId: null, papel: 'aluno', nome: nome.nome }])
         if (aluno === undefined) throw new InvariantException('aluno não criado')
         if (pedido.contaExterna !== null) await this.#ligarConta(tx, aluno.id, pedido.contaExterna)
-        await new CredencialMatriculaRepository(tx).criar([{ usuarioId: aluno.id, matricula: nome.matricula, senhaHash: pedido.senhaHash }])
-        await new VinculoRepository(tx).criarAlunoConfirmado(aluno.id, pedido.turmaId)
+        await new CredencialMatriculaRepository(tx).create([{ usuarioId: aluno.id, matricula: nome.matricula, senhaHash: pedido.senhaHash }])
+        await new VinculoRepository(tx).createAlunoConfirmado(aluno.id, pedido.turmaId)
         await decisoes.aprovarNome(pedido.listaNomeId, aluno.id)
         alunoId = aluno.id
         matriculaAprovada = nome.matricula
@@ -159,8 +159,8 @@ export class DecisaoService {
       }
       const estado = decisao === 'aprovar' ? 'aprovada' : 'recusada'
       const decididaComo = DECISOR_DO_ALCANCE[alcance]
-      await decisoes.fechar(id, estado, decididaComo)
-      await registro.gravar(tx, 'reivindicacao.decidida', { entidadeId: id, depois: { turmaId: pedido.turmaId, estado, decididaComo, alunoId } })
+      await decisoes.close(id, estado, decididaComo)
+      await registro.save(tx, 'reivindicacao.decidida', { entidadeId: id, depois: { turmaId: pedido.turmaId, estado, decididaComo, alunoId } })
       return matriculaAprovada === undefined ? { resultado: 'decidida' } : { resultado: 'decidida', matriculaAprovada }
     })
   }

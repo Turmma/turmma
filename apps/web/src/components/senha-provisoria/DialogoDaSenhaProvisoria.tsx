@@ -2,7 +2,7 @@ import { ErrorCode, type AlvoDaSenhaProvisoriaResponse, type SenhaProvisoriaResp
 import { useMutation } from '@tanstack/react-query'
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import { ApiError } from '../../api/client'
-import { gerarASenhaProvisoria, lerOAlvoDaSenhaProvisoria, senhaSoletrada, TEXTO_DO_ALUNO_DA_CONTA_DA_ESCOLA, TEXTOS_DA_FALHA_DA_PROVISORIA } from '../../api/senha-provisoria/senha-provisoria'
+import { generateASenhaProvisoria, readOAlvoDaSenhaProvisoria, senhaSoletrada, TEXTO_DO_ALUNO_DA_CONTA_DA_ESCOLA, TEXTOS_DA_FALHA_DA_PROVISORIA } from '../../api/senha-provisoria/senha-provisoria'
 import { aoTrocarDeSessao } from '../../api/sessao'
 import { formatDayAtTime } from '../../format'
 import { CloseConfirmation, CopyStatus, FailureAlert, useCopyToClipboard, useGuardedClose, useStepFocus, type CopyMessages } from '../copy-once'
@@ -41,7 +41,7 @@ const DITOS_DA_SENHA: CopyMessages = {
   selecionado: 'Não foi possível copiar. Anote a senha que está na tela.',
 }
 
-function temCodigo(erro: unknown, codigo: ErrorCode): boolean {
+function hasCodigo(erro: unknown, codigo: ErrorCode): boolean {
   return erro instanceof ApiError && erro.codigo === codigo
 }
 
@@ -64,29 +64,29 @@ function useLeituraDoAlvo(usuarioId: string, perderOAluno: FuncaoEmRef) {
   const [tentativa, definirTentativa] = useState(0)
   useEffect(() => {
     const controle = new AbortController()
-    lerOAlvoDaSenhaProvisoria(usuarioId, controle.signal).then(
+    readOAlvoDaSenhaProvisoria(usuarioId, controle.signal).then(
       (alvo) => {
         definirLeitura({ estado: 'lida', alvo })
       },
       (erro: unknown) => {
         if (controle.signal.aborted) return
-        if (temCodigo(erro, ErrorCode.NAO_ENCONTRADO)) perderOAluno.current()
+        if (hasCodigo(erro, ErrorCode.NAO_ENCONTRADO)) perderOAluno.current()
         else definirLeitura({ estado: 'falhou', erro })
       },
     )
     return () => controle.abort()
   }, [usuarioId, tentativa, perderOAluno])
-  function tentarDeNovo(): void {
+  function retry(): void {
     definirLeitura({ estado: 'lendo' })
     definirTentativa((n) => n + 1)
   }
-  return { leitura, tentarDeNovo }
+  return { leitura, tentarDeNovo: retry }
 }
 
 /** A geração, uma por vez: o segundo clique de um clique duplo chega antes do `isPending`. O `onError` e o `onSettled` são do observador desta abertura. */
 function useGeracao(usuarioId: string, perderOAluno: FuncaoEmRef) {
   const noAr = useRef(false)
-  const gerar = useMutation({ mutationFn: () => gerarASenhaProvisoria(usuarioId), gcTime: 0 })
+  const gerar = useMutation({ mutationFn: () => generateASenhaProvisoria(usuarioId), gcTime: 0 })
   function confirmar(): void {
     if (noAr.current) return
     noAr.current = true
@@ -95,7 +95,7 @@ function useGeracao(usuarioId: string, perderOAluno: FuncaoEmRef) {
         noAr.current = false
       },
       onError: (erro) => {
-        if (temCodigo(erro, ErrorCode.NAO_ENCONTRADO)) perderOAluno.current()
+        if (hasCodigo(erro, ErrorCode.NAO_ENCONTRADO)) perderOAluno.current()
       },
     })
   }
@@ -138,7 +138,7 @@ function AlunoDaConfirmacao({ alvo }: { alvo: AlvoDaSenhaProvisoriaResponse }) {
 
 interface PropsDaConfirmacao {
   readonly leitura: LeituraDoAlvo
-  readonly tentarDeNovo: () => void
+  readonly retry: () => void
   readonly gerar: { readonly isPending: boolean; readonly isError: boolean; readonly error: unknown }
   readonly entraPelaConta: boolean
   readonly aoGerar: () => void
@@ -147,7 +147,7 @@ interface PropsDaConfirmacao {
 }
 
 /** Os botões da confirmação. "Gerar" fica ocupado enquanto o alvo é lido e enquanto a geração anda, e some quando não há senha a gerar (a conta da escola, a leitura que falhou). */
-function BotoesDaConfirmacao({ leitura, gerar, entraPelaConta, aoGerar, aoCancelar }: Omit<PropsDaConfirmacao, 'tentarDeNovo' | 'textoDaConfirmacao'>) {
+function BotoesDaConfirmacao({ leitura, gerar, entraPelaConta, aoGerar, aoCancelar }: Omit<PropsDaConfirmacao, 'retry' | 'textoDaConfirmacao'>) {
   const podeGerar = !entraPelaConta && leitura.estado !== 'falhou'
   return (
     <div className="flex flex-wrap justify-end gap-3">
@@ -165,7 +165,7 @@ function BotoesDaConfirmacao({ leitura, gerar, entraPelaConta, aoGerar, aoCancel
 
 /** A confirmação: o aluno, a consequência e os botões; ou "Carregando…", ou a falha da leitura com "Tentar de novo", ou o aviso da conta da escola. */
 function EtapaDeConfirmar(props: PropsDaConfirmacao) {
-  const { leitura, tentarDeNovo, gerar, entraPelaConta, textoDaConfirmacao } = props
+  const { leitura, retry: tentarDeNovo, gerar, entraPelaConta, textoDaConfirmacao } = props
   const falha = gerar.isError && !entraPelaConta ? errorText(gerar.error, TEXTOS_DA_FALHA_DA_PROVISORIA) : undefined
   return (
     <div className="mt-4 flex flex-col gap-4">
@@ -230,7 +230,7 @@ interface Props {
 /** O aluno entra pela conta da escola: já na leitura do alvo, ou na resposta da geração (outra pessoa a ligou entre as duas). */
 function semSenha(leitura: LeituraDoAlvo, geracao: { readonly isError: boolean; readonly error: unknown }): boolean {
   if (leitura.estado === 'lida' && leitura.alvo.entraPelaContaDaEscola) return true
-  return geracao.isError && temCodigo(geracao.error, ErrorCode.ENTRA_PELA_CONTA_DA_ESCOLA)
+  return geracao.isError && hasCodigo(geracao.error, ErrorCode.ENTRA_PELA_CONTA_DA_ESCOLA)
 }
 
 function nomeDoAluno(leitura: LeituraDoAlvo): string | undefined {
@@ -295,7 +295,7 @@ export function DialogoDaSenhaProvisoria({ usuarioId, aoFechar, aoPerderOAluno, 
       {etapa === 'confirmar' && (
         <EtapaDeConfirmar
           leitura={leitura}
-          tentarDeNovo={tentarDeNovo}
+          retry={tentarDeNovo}
           gerar={gerar}
           entraPelaConta={semSenha(leitura, gerar)}
           aoGerar={confirmar}

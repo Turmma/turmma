@@ -7,8 +7,8 @@ const MENSAGEM = { para: 'professora@escola.invalid', assunto: 'Convite', texto:
 describe('FakeEmailSender', () => {
   it('guarda o que aceitou, na ordem, e conta as tentativas', async () => {
     const falso = new FakeEmailSender()
-    await falso.enviar(MENSAGEM)
-    await falso.enviar({ ...MENSAGEM, assunto: 'Outro' })
+    await falso.send(MENSAGEM)
+    await falso.send({ ...MENSAGEM, assunto: 'Outro' })
     expect(falso.enviadas.map((mensagem) => mensagem.assunto)).toEqual(['Convite', 'Outro'])
     expect(falso.tentativas).toBe(2)
   })
@@ -16,10 +16,10 @@ describe('FakeEmailSender', () => {
   it('a falha programada rejeita com a natureza pedida, na ordem, sem guardar a mensagem, e depois volta a aceitar', async () => {
     const falso = new FakeEmailSender()
     falso.falharProximos('transitoria', 'permanente')
-    await expect(falso.enviar(MENSAGEM)).rejects.toMatchObject({ natureza: 'transitoria' })
-    await expect(falso.enviar(MENSAGEM)).rejects.toBeInstanceOf(EmailSendError)
+    await expect(falso.send(MENSAGEM)).rejects.toMatchObject({ natureza: 'transitoria' })
+    await expect(falso.send(MENSAGEM)).rejects.toBeInstanceOf(EmailSendError)
     expect(falso.enviadas).toEqual([])
-    await falso.enviar(MENSAGEM)
+    await falso.send(MENSAGEM)
     expect(falso.enviadas).toHaveLength(1)
     expect(falso.tentativas).toBe(3)
   })
@@ -27,11 +27,11 @@ describe('FakeEmailSender', () => {
   it('a barreira prende a próxima chamada antes de ela aceitar a mensagem, e só a próxima', async () => {
     const falso = new FakeEmailSender()
     const barreira = falso.segurarNoProximo()
-    const presa = falso.enviar(MENSAGEM)
+    const presa = falso.send(MENSAGEM)
     await barreira.chegou
     expect(falso.tentativas).toBe(1)
     expect(falso.enviadas).toEqual([])
-    await falso.enviar({ ...MENSAGEM, assunto: 'livre' })
+    await falso.send({ ...MENSAGEM, assunto: 'livre' })
     expect(falso.enviadas.map((mensagem) => mensagem.assunto)).toEqual(['livre'])
     barreira.soltar()
     await presa
@@ -42,7 +42,7 @@ describe('FakeEmailSender', () => {
     const falso = new FakeEmailSender()
     const barreira = falso.segurarNoProximo()
     const aborto = new AbortController()
-    const presa = falso.enviar(MENSAGEM, aborto.signal)
+    const presa = falso.send(MENSAGEM, aborto.signal)
     await barreira.chegou
     aborto.abort()
     barreira.soltar()

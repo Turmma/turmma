@@ -38,7 +38,7 @@ export interface CreateOutboxRelayOptions {
   /** Intervalo da reconciliação. Só o teste troca, para provar que ela roda sozinha. */
   intervaloReconciliacaoMs?: number
   /** Troca as vagas. Só o teste usa, para simular outro despachante tomando a vaga no meio da rodada. */
-  embrulharVagas?: (vagas: EscolaConcurrencyLimiter) => Pick<EscolaConcurrencyLimiter, 'membros' | 'manter' | 'livres' | 'tomar' | 'liberar'>
+  embrulharVagas?: (vagas: EscolaConcurrencyLimiter) => Pick<EscolaConcurrencyLimiter, 'membros' | 'manter' | 'livres' | 'tomar' | 'release'>
   /** Validade da vaga. Só o teste troca, para ver a vaga vencer sem esperar 60 s. */
   validadeDaVagaMs?: number
   /** Relógio do horário letivo. Só o teste troca, para ver o lote não urgente de terça às 10h sair às 18h. */
@@ -70,7 +70,7 @@ export interface OutboxRelayRuntime {
    */
   pronto: Promise<void>
   /** Liga o laço de publicação e o de reconciliação. */
-  iniciar(): void
+  start(): void
   /** Para os laços e fecha fila, Redis e pool, nessa ordem. */
   encerrar(): Promise<void>
 }
@@ -180,9 +180,9 @@ export function createOutboxRelay(config: Omit<DespachanteConfig, 'telemetria'>,
 
   let encerramento: Promise<void> | undefined
   const encerrar = async (): Promise<void> => {
-    await Promise.all([despachante.parar(), reconciliacao.parar(), medicao?.parar()])
-    await ouvinte.fechar()
-    await fila.fechar()
+    await Promise.all([despachante.stop(), reconciliacao.stop(), medicao?.stop()])
+    await ouvinte.close()
+    await fila.close()
     await redis.quit().catch(() => redis.disconnect())
     await pool.end()
   }
@@ -191,10 +191,10 @@ export function createOutboxRelay(config: Omit<DespachanteConfig, 'telemetria'>,
     reconciliacao,
     ...(medicao === undefined ? {} : { medicao }),
     pronto,
-    iniciar: () => {
-      despachante.iniciar()
-      reconciliacao.iniciar()
-      medicao?.iniciar()
+    start: () => {
+      despachante.start()
+      reconciliacao.start()
+      medicao?.start()
     },
     // Uma vez só: o SIGTERM e o fim do teste podem pedir o encerramento juntos.
     encerrar: () => (encerramento ??= encerrar()),

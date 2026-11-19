@@ -22,8 +22,8 @@ export class DisciplinaController {
 
   @Post()
   @RequirePermissao('disciplina', 'criar')
-  criar(@Body(new ZodValidationPipe(criarDisciplinaRequestSchema)) pedido: CriarDisciplinaRequest): Promise<DisciplinaResponse> {
-    return this.disciplinas.criar(pedido)
+  create(@Body(new ZodValidationPipe(criarDisciplinaRequestSchema)) pedido: CriarDisciplinaRequest): Promise<DisciplinaResponse> {
+    return this.disciplinas.create(pedido)
   }
 
   @Patch(':id')
@@ -35,13 +35,13 @@ export class DisciplinaController {
   @Delete(':id')
   @RequirePermissao('disciplina', 'excluir')
   @HttpCode(HttpStatus.NO_CONTENT)
-  excluir(@Param('id', IdPipe) id: string): Promise<void> {
-    return this.disciplinas.excluir(id)
+  delete(@Param('id', IdPipe) id: string): Promise<void> {
+    return this.disciplinas.delete(id)
   }
 
   @Get()
   @RequirePermissao('disciplina', 'ler')
-  listar(@Query(new ZodValidationPipe(paginationQuerySchema)) consulta: PaginationQuery): Promise<ListaDeDisciplinasResponse> {
-    return this.disciplinas.listar(consulta)
+  list(@Query(new ZodValidationPipe(paginationQuerySchema)) consulta: PaginationQuery): Promise<ListaDeDisciplinasResponse> {
+    return this.disciplinas.list(consulta)
   }
 }

@@ -10,7 +10,7 @@ import { alcanceDe, ErrorCode, gradeResponseSchema, type GradeQuery, type GradeR
 export class GradeService {
   constructor(private readonly banco: Database) {}
 
-  async ler(consulta: GradeQuery): Promise<GradeResponse> {
+  async read(consulta: GradeQuery): Promise<GradeResponse> {
     const grade = new GradeRepository(this.banco)
     const alcance = alcanceDe(requestSessao().papel, 'grade', 'ler')
     if (alcance === 'unidade') {

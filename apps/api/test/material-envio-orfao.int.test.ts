@@ -2,7 +2,7 @@ import { createLogger, FileStorageUnavailableError, InMemoryFileStorage, runInCo
 import { ErrorCode } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { criarVarreduraDeTemporarios } from '../../worker/src/processors/varrer-envios.js'
+import { createVarreduraDeTemporarios } from '../../worker/src/processors/varrer-envios.js'
 import { jobExecution } from '../../worker/test/job-execution.fixture.js'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { DB } from '../src/database.module.js'
@@ -15,7 +15,7 @@ import { aguardar, esperarNaTrava, WriteBlockTrigger } from './write-block-trigg
 
 // O envio de material que deixa PDF no storage sem commit (ingestao-do-material, tarefa 2.0; Tech Spec, seção 5, "Envio e edição"; onda 3b, 3. Falha, "Órfão"), pela API de verdade,
 // com o armazém em memória: a linha de `envio_de_material` nasce antes do `guardarBytes` e sai na transação; toda saída depois do `guardarBytes` apaga o objeto e só então a
-// linha; a varredura horária (`criarVarreduraDeTemporarios`, a do worker, com o `Clock` do teste) apaga o que sobrou. A varredura em si, sem a API, está em
+// linha; a varredura horária (`createVarreduraDeTemporarios`, a do worker, com o `Clock` do teste) apaga o que sobrou. A varredura em si, sem a API, está em
 // `apps/worker/test/varrer-envios.int.test.ts`.
 
 const MINUTO_MS = 60_000
@@ -66,7 +66,7 @@ describe('o envio de material não deixa PDF para trás', () => {
    */
   function varrer(depoisDeMin: number): Promise<void> {
     const logger = createLogger({ servico: 'worker-teste', nivel: 'silent' })
-    const processador = criarVarreduraDeTemporarios({ banco: api.app.get<Database>(DB), armazem: armazemDe(api), relogio: new RelogioMovel(Date.now() + depoisDeMin * MINUTO_MS), logger })
+    const processador = createVarreduraDeTemporarios({ banco: api.app.get<Database>(DB), armazem: armazemDe(api), relogio: new RelogioMovel(Date.now() + depoisDeMin * MINUTO_MS), logger })
     return runInContext({ requisicaoId: randomUUID(), rotinaDoSistema: true }, () => processador({}, jobExecution(randomUUID())))
   }
 

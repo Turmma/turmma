@@ -4,9 +4,9 @@ import type { EuResponse, QuestaoSalvaResponse } from '@educa/shared'
 import type * as ModuloDaSessao from '../../api/sessao'
 import type * as ModuloDasAtividades from '../../api/atividades-do-aluno'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { esquecerEspelhosDeOutroDono, esquecerTodosOsEspelhos, gravarEspelho, lerEspelho } from '../../api/espelho-da-fila'
+import { esquecerEspelhosDeOutroDono, esquecerTodosOsEspelhos, saveEspelho, readEspelho } from '../../api/espelho-da-fila'
 import { euQueryOptions } from '../../api/eu'
-import { criarFilaDeRespostas, filaDaAtividade } from './fila-de-respostas'
+import { createFilaDeRespostas, filaDaAtividade } from './fila-de-respostas'
 
 /**
  * O espelho da fila de respostas (53.0, RF21): a escolha que o servidor ainda não confirmou sobrevive ao F5, à aba
@@ -85,11 +85,11 @@ describe('a fila acompanha o espelho', () => {
     vi.spyOn(window, 'sessionStorage', 'get').mockImplementation(() => {
       throw new DOMException('negado', 'SecurityError')
     })
-    const fila = criarFilaDeRespostas({ salvar: () => new Promise(() => undefined), aoSalvar: () => undefined, espelho: { atividade: ATIVIDADE, dono: () => ALUNA } })
+    const fila = createFilaDeRespostas({ save: () => new Promise(() => undefined), aoSalvar: () => undefined, espelho: { atividade: ATIVIDADE, dono: () => ALUNA } })
     expect(() => fila.hidratar()).not.toThrow()
     expect(() => fila.escolher(1, 2)).not.toThrow()
-    expect(fila.ler().pendentes).toEqual([{ questao: 1, alternativa: 2, sequencia: 1 }])
-    expect(lerEspelho(ALUNA, ATIVIDADE)).toEqual([])
+    expect(fila.read().pendentes).toEqual([{ questao: 1, alternativa: 2, sequencia: 1 }])
+    expect(readEspelho(ALUNA, ATIVIDADE)).toEqual([])
     expect(() => esquecerEspelhosDeOutroDono(ALUNA)).not.toThrow()
     expect(() => esquecerTodosOsEspelhos()).not.toThrow()
   })
@@ -107,17 +107,17 @@ describe('a fila acompanha o espelho', () => {
     vi.spyOn(Storage.prototype, 'key').mockImplementation(() => {
       throw new DOMException('negado', 'SecurityError')
     })
-    const fila = criarFilaDeRespostas({
-      salvar: (questao, alternativa, sequencia) => new Promise((resolver) => resolver({ questao, alternativa, sequencia, respondidaEm: '2026-10-22T13:10:00.000Z' })),
+    const fila = createFilaDeRespostas({
+      save: (questao, alternativa, sequencia) => new Promise((resolver) => resolver({ questao, alternativa, sequencia, respondidaEm: '2026-10-22T13:10:00.000Z' })),
       aoSalvar: () => undefined,
       espelho: { atividade: ATIVIDADE, dono: () => ALUNA },
     })
     expect(() => fila.hidratar()).not.toThrow()
     expect(() => fila.escolher(1, 2)).not.toThrow()
-    expect(fila.ler().pendentes).toEqual([{ questao: 1, alternativa: 2, sequencia: 1 }])
+    expect(fila.read().pendentes).toEqual([{ questao: 1, alternativa: 2, sequencia: 1 }])
     await assentar()
-    expect(fila.ler()).toMatchObject({ pendentes: [], falha: undefined })
-    expect(lerEspelho(ALUNA, ATIVIDADE)).toEqual([])
+    expect(fila.read()).toMatchObject({ pendentes: [], falha: undefined })
+    expect(readEspelho(ALUNA, ATIVIDADE)).toEqual([])
     expect(() => esquecerEspelhosDeOutroDono(ALUNA)).not.toThrow()
   })
 
@@ -126,14 +126,14 @@ describe('a fila acompanha o espelho', () => {
     const fila = filaDaAtividade(cliente, ATIVIDADE)
     fila.escolher(1, 2)
     fila.escolher(2, 0)
-    expect(lerEspelho(ALUNA, ATIVIDADE)).toEqual([
+    expect(readEspelho(ALUNA, ATIVIDADE)).toEqual([
       { questao: 1, alternativa: 2, sequencia: 1 },
       { questao: 2, alternativa: 0, sequencia: 1 },
     ])
     envios()[0]?.aceitar()
     await assentar()
     // A primeira foi confirmada: sai do espelho. A segunda, no ar, continua nele.
-    expect(lerEspelho(ALUNA, ATIVIDADE)).toEqual([{ questao: 2, alternativa: 0, sequencia: 1 }])
+    expect(readEspelho(ALUNA, ATIVIDADE)).toEqual([{ questao: 2, alternativa: 0, sequencia: 1 }])
     envios()[1]?.aceitar()
     await assentar()
     expect(guardado(ATIVIDADE)).toBeNull()
@@ -149,17 +149,17 @@ describe('a fila acompanha o espelho', () => {
   })
 
   it('a fila parada não hidrata nem manda, e a sem espelho não faz nada ao hidratar', () => {
-    gravarEspelho(ALUNA, ATIVIDADE, [{ questao: 3, alternativa: 1, sequencia: 4 }])
-    const parada = criarFilaDeRespostas({ salvar: () => new Promise(() => undefined), aoSalvar: () => undefined, espelho: { atividade: ATIVIDADE, dono: () => ALUNA } })
-    parada.parar()
+    saveEspelho(ALUNA, ATIVIDADE, [{ questao: 3, alternativa: 1, sequencia: 4 }])
+    const parada = createFilaDeRespostas({ save: () => new Promise(() => undefined), aoSalvar: () => undefined, espelho: { atividade: ATIVIDADE, dono: () => ALUNA } })
+    parada.stop()
     parada.hidratar()
-    expect(parada.ler().pendentes).toEqual([])
+    expect(parada.read().pendentes).toEqual([])
     // O espelho continua intacto: parar não é apagar.
-    expect(lerEspelho(ALUNA, ATIVIDADE)).toHaveLength(1)
-    gravarEspelho(ALUNA, ATIVIDADE, [{ questao: 3, alternativa: 1, sequencia: 4 }])
-    const semEspelho = criarFilaDeRespostas({ salvar: () => new Promise(() => undefined), aoSalvar: () => undefined })
+    expect(readEspelho(ALUNA, ATIVIDADE)).toHaveLength(1)
+    saveEspelho(ALUNA, ATIVIDADE, [{ questao: 3, alternativa: 1, sequencia: 4 }])
+    const semEspelho = createFilaDeRespostas({ save: () => new Promise(() => undefined), aoSalvar: () => undefined })
     expect(() => semEspelho.hidratar()).not.toThrow()
-    expect(semEspelho.ler().pendentes).toEqual([])
+    expect(semEspelho.read().pendentes).toEqual([])
   })
 
   it('sem saber quem é o aluno, nada é gravado; ao saber, o que ele já marcou entra no espelho', () => {
@@ -169,18 +169,18 @@ describe('a fila acompanha o espelho', () => {
     expect(guardado(ATIVIDADE)).toBeNull()
     cliente.setQueryData(euQueryOptions.queryKey, { usuarioId: ALUNA, papel: 'aluno', nome: 'Aluna Sintética', escola: { id: '0197a1c0-0000-7000-8000-00000000c001', nome: 'Escola Sintética', slug: 'escola-sintetica' }, inatividadeMin: 30, introducaoVistaEm: '2026-02-01T10:00:00.000Z', acessos: [] })
     fila.hidratar()
-    expect(lerEspelho(ALUNA, ATIVIDADE)).toEqual([{ questao: 1, alternativa: 2, sequencia: 1 }])
+    expect(readEspelho(ALUNA, ATIVIDADE)).toEqual([{ questao: 1, alternativa: 2, sequencia: 1 }])
   })
 
   it('F5 com duas pendentes: a fila nova hidrata as duas, com a sequência, e as manda', async () => {
-    gravarEspelho(ALUNA, ATIVIDADE, [
+    saveEspelho(ALUNA, ATIVIDADE, [
       { questao: 3, alternativa: 1, sequencia: 4 },
       { questao: 5, alternativa: 0, sequencia: 2 },
     ])
     const fila = filaDaAtividade(abaDe(ALUNA), ATIVIDADE)
-    expect(fila.ler().pendentes).toEqual([])
+    expect(fila.read().pendentes).toEqual([])
     fila.hidratar()
-    expect(fila.ler().pendentes).toEqual([
+    expect(fila.read().pendentes).toEqual([
       { questao: 3, alternativa: 1, sequencia: 4 },
       { questao: 5, alternativa: 0, sequencia: 2 },
     ])
@@ -190,15 +190,15 @@ describe('a fila acompanha o espelho', () => {
     expect(envios()[1]).toMatchObject({ atividade: ATIVIDADE, questao: 5, alternativa: 0, sequencia: 2 })
     // O clique seguinte sai uma acima da hidratada.
     fila.escolher(3, 2)
-    expect(fila.ler().pendentes.find((pendente) => pendente.questao === 3)).toEqual({ questao: 3, alternativa: 2, sequencia: 5 })
+    expect(fila.read().pendentes.find((pendente) => pendente.questao === 3)).toEqual({ questao: 3, alternativa: 2, sequencia: 5 })
   })
 
   it('outro dono, também na aba reaberta, em que o navegador devolve o armazenamento: descarta, nada é mandado nem mostrado', () => {
-    gravarEspelho(OUTRO_ALUNO, ATIVIDADE, [{ questao: 3, alternativa: 1, sequencia: 4 }])
-    gravarEspelho(OUTRO_ALUNO, OUTRA_ATIVIDADE, [{ questao: 1, alternativa: 0, sequencia: 1 }])
+    saveEspelho(OUTRO_ALUNO, ATIVIDADE, [{ questao: 3, alternativa: 1, sequencia: 4 }])
+    saveEspelho(OUTRO_ALUNO, OUTRA_ATIVIDADE, [{ questao: 1, alternativa: 0, sequencia: 1 }])
     const fila = filaDaAtividade(abaDe(ALUNA), ATIVIDADE)
     fila.hidratar()
-    expect(fila.ler().pendentes).toEqual([])
+    expect(fila.read().pendentes).toEqual([])
     expect(envios()).toEqual([])
     // As da pessoa anterior saem inteiras, também as de atividades que esta aluna ainda nem abriu.
     expect(guardado(ATIVIDADE)).toBeNull()
@@ -206,24 +206,24 @@ describe('a fila acompanha o espelho', () => {
   })
 
   it('sem saber quem é o aluno, não hidrata nem apaga: o espelho espera', () => {
-    gravarEspelho(ALUNA, ATIVIDADE, [{ questao: 3, alternativa: 1, sequencia: 4 }])
+    saveEspelho(ALUNA, ATIVIDADE, [{ questao: 3, alternativa: 1, sequencia: 4 }])
     const fila = filaDaAtividade(abaDe(undefined), ATIVIDADE)
     fila.hidratar()
-    expect(fila.ler().pendentes).toEqual([])
+    expect(fila.read().pendentes).toEqual([])
     expect(envios()).toEqual([])
     expect(guardado(ATIVIDADE)).not.toBeNull()
   })
 
   it('duas atividades: cada fila hidrata a sua', () => {
-    gravarEspelho(ALUNA, ATIVIDADE, [{ questao: 1, alternativa: 0, sequencia: 1 }])
-    gravarEspelho(ALUNA, OUTRA_ATIVIDADE, [{ questao: 2, alternativa: 3, sequencia: 6 }])
+    saveEspelho(ALUNA, ATIVIDADE, [{ questao: 1, alternativa: 0, sequencia: 1 }])
+    saveEspelho(ALUNA, OUTRA_ATIVIDADE, [{ questao: 2, alternativa: 3, sequencia: 6 }])
     const cliente = abaDe(ALUNA)
     const primeira = filaDaAtividade(cliente, ATIVIDADE)
     const segunda = filaDaAtividade(cliente, OUTRA_ATIVIDADE)
     primeira.hidratar()
     segunda.hidratar()
-    expect(primeira.ler().pendentes).toEqual([{ questao: 1, alternativa: 0, sequencia: 1 }])
-    expect(segunda.ler().pendentes).toEqual([{ questao: 2, alternativa: 3, sequencia: 6 }])
+    expect(primeira.read().pendentes).toEqual([{ questao: 1, alternativa: 0, sequencia: 1 }])
+    expect(segunda.read().pendentes).toEqual([{ questao: 2, alternativa: 3, sequencia: 6 }])
     expect(envios().map(({ atividade, questao }) => [atividade, questao])).toEqual([
       [ATIVIDADE, 1],
       [OUTRA_ATIVIDADE, 2],
@@ -238,22 +238,22 @@ describe('o que acontece com o espelho quando a sessão acaba', () => {
     primeira.escolher(2, 0)
     // A rede caiu e a sessão venceu: a fila da memória para, o espelho fica.
     trocarDeSessao('vencida')
-    expect(primeira.ler().pendentes).toEqual([])
-    expect(lerEspelho(ALUNA, ATIVIDADE)).toEqual([
+    expect(primeira.read().pendentes).toEqual([])
+    expect(readEspelho(ALUNA, ATIVIDADE)).toEqual([
       { questao: 1, alternativa: 2, sequencia: 1 },
       { questao: 2, alternativa: 0, sequencia: 1 },
     ])
     // A resposta atrasada da fila parada não mexe em nada, nem no espelho.
     envios()[0]?.aceitar()
     await assentar()
-    expect(lerEspelho(ALUNA, ATIVIDADE)).toHaveLength(2)
+    expect(readEspelho(ALUNA, ATIVIDADE)).toHaveLength(2)
 
     // O mesmo aluno entra por cima: a fila nova, do mesmo aluno, hidrata e manda as duas.
     trocarDeSessao('aberta')
     const segunda = filaDaAtividade(abaDe(ALUNA), ATIVIDADE)
     expect(segunda).not.toBe(primeira)
     segunda.hidratar()
-    expect(segunda.ler().pendentes).toEqual([
+    expect(segunda.read().pendentes).toEqual([
       { questao: 1, alternativa: 2, sequencia: 1 },
       { questao: 2, alternativa: 0, sequencia: 1 },
     ])
@@ -267,7 +267,7 @@ describe('o que acontece com o espelho quando a sessão acaba', () => {
     trocarDeSessao('aberta')
     const outra = filaDaAtividade(abaDe(OUTRO_ALUNO), ATIVIDADE)
     outra.hidratar()
-    expect(outra.ler().pendentes).toEqual([])
+    expect(outra.read().pendentes).toEqual([])
     expect(envios()).toHaveLength(1)
     expect(guardado(ATIVIDADE)).toBeNull()
   })

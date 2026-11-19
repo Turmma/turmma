@@ -12,7 +12,7 @@ import { COOKIE_SESSAO_DE_OPERADOR } from '../src/operacao/cookie-de-operador.js
 import { EntradaDoOperadorService } from '../src/operacao/entrada/entrada.service.js'
 import { OperadorRepository } from '../src/operacao/operador/operador.repository.js'
 import { JANELA_DO_REFRESH_ANTERIOR_SEGUNDOS } from '../src/operacao/sessao/sessao-timeouts.js'
-import { executarOpsOperador } from '../src/ops/operador.js'
+import { runOpsOperador } from '../src/ops/operador.js'
 import { testConfig } from './test-config.js'
 import { esperarNaTrava } from './write-block-trigger.js'
 import { barreira, doIp, esperarErro, ipSorteado, pedir, subir, valorDoCookie, type Cabecalhos, type Resposta } from './operador-mfa.fixture.js'
@@ -165,7 +165,7 @@ describe('sessão do operador: renovar, sair e os prazos (tarefa 8.0)', () => {
       await operadores.pool.query(`update sessao_operador set expira_em = now() - interval '1 second' where id = $1`, [oitoHoras.sessaoId])
       expect((await sair(saiu.refresh)).status).toBe(204)
       let erro = ''
-      const codigo = await executarOpsOperador(['desativar', '--apelido', desativado.apelido], { ...ambienteDeTeste, OPERADOR: quemDesativa.apelido }, { saida: () => undefined, erro: (texto) => (erro += texto) })
+      const codigo = await runOpsOperador(['desativar', '--apelido', desativado.apelido], { ...ambienteDeTeste, OPERADOR: quemDesativa.apelido }, { saida: () => undefined, erro: (texto) => (erro += texto) })
       expect({ codigo, erro }).toEqual({ codigo: 0, erro: '' })
 
       for (const sessao of [quase30, quase8]) expect((await renovar(sessao.refresh)).status).toBe(200)

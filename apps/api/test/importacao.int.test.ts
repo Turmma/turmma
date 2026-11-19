@@ -1,4 +1,4 @@
-import { createDatabase, createPool, executarPlanilha, PREFIXO_VAGAS_DA_IMPORTACAO, runInContext, SchoolSemaphore, type Database, type DatabasePool } from '@educa/core'
+import { createDatabase, createPool, runPlanilha, PREFIXO_VAGAS_DA_IMPORTACAO, runInContext, SchoolSemaphore, type Database, type DatabasePool } from '@educa/core'
 import { ErrorCode, importacaoSchema, LIMITE_DA_PLANILHA_POR_MINUTO, MAXIMO_DE_LINHAS_DA_PLANILHA, previaDaPlanilhaResponseSchema, VAGAS_DA_PLANILHA_POR_ESCOLA } from '@educa/shared'
 import type { Redis } from 'ioredis'
 import { randomUUID } from 'node:crypto'
@@ -86,7 +86,7 @@ describe('planilha de calendário (F2, tarefa 4.0): prévia, gravar e job', () =
   }
 
   /** Roda o job uma vez (tentativa 1), no contexto da escola do job, como o executor o abre. */
-  const rodar = (escolaId: string, importacaoId: string) => runInContext({ requisicaoId: randomUUID(), escolaId }, () => executarPlanilha(bancoDoJob, importacaoId))
+  const rodar = (escolaId: string, importacaoId: string) => runInContext({ requisicaoId: randomUUID(), escolaId }, () => runPlanilha(bancoDoJob, importacaoId))
 
   interface LinhaDoEvento {
     readonly tipo: string
@@ -648,7 +648,7 @@ describe('planilha de calendário (F2, tarefa 4.0): prévia, gravar e job', () =
         expect(erroDe(await gravar(e, planilhaPequena))).toEqual(LIMITE_EXCEDIDO)
         expect((await previa(outra, planilhaPequena)).status).toBe(200)
       } finally {
-        await Promise.all(ocupadas.map((vaga) => vaga?.liberar()))
+        await Promise.all(ocupadas.map((vaga) => vaga?.release()))
       }
       expect((await previa(e, planilhaPequena)).status).toBe(200)
       expect(await importacoesDe(e.escolaId)).toEqual([])
@@ -671,13 +671,13 @@ describe('planilha de calendário (F2, tarefa 4.0): prévia, gravar e job', () =
         expect((await emAndamento).status).toBe(202)
       } finally {
         await parada.desarmar()
-        await outraVaga?.liberar()
+        await outraVaga?.release()
       }
       // As duas vagas voltaram: duas prévias seguidas e uma terceira ao mesmo tempo que a segunda passam, uma de cada vez.
       expect((await previa(e, planilhaPequena)).status).toBe(200)
       const ocupadas = await Promise.all([vagasDaApi().ocupar(e.escolaId), vagasDaApi().ocupar(e.escolaId)])
       expect(ocupadas.map((vaga) => vaga !== undefined)).toEqual([true, true])
-      await Promise.all(ocupadas.map((vaga) => vaga?.liberar()))
+      await Promise.all(ocupadas.map((vaga) => vaga?.release()))
     })
 
     it('o pedido que falha dentro do trabalho devolve a vaga: três prévias que dão NAO_ENCONTRADO (ano de outra escola) não deixam a escola cheia', async () => {
@@ -718,12 +718,12 @@ describe('planilha de calendário (F2, tarefa 4.0): prévia, gravar e job', () =
       try {
         expect([deA.length, deB.length]).toEqual([VAGAS_DA_PLANILHA_POR_ESCOLA, VAGAS_DA_PLANILHA_POR_ESCOLA])
       } finally {
-        await Promise.all([...deA, ...deB].map((vaga) => vaga.liberar()))
+        await Promise.all([...deA, ...deB].map((vaga) => vaga.release()))
       }
       // Devolvidas, as duas voltam a ser ocupadas.
       const denovo = await Promise.all(Array.from({ length: 5 }, () => vagasDaApi().ocupar(a)))
       expect(denovo.filter((vaga) => vaga !== undefined)).toHaveLength(VAGAS_DA_PLANILHA_POR_ESCOLA)
-      await Promise.all(denovo.map((vaga) => vaga?.liberar()))
+      await Promise.all(denovo.map((vaga) => vaga?.release()))
     })
 
     it('3.000 linhas entram; 3.001 linhas são ENTRADA_INVALIDA na prévia e no gravar, e nada é gravado', async () => {

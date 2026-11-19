@@ -37,7 +37,7 @@ export function comecarEnvio<Pedido>(atual: CicloDeExecucao<Pedido> | undefined,
  * aceito: a resposta pode ter se perdido depois de a API gravar a execução, e a mesma chave devolve a mesma execução em
  * vez de gerar outra. Quando foi a execução que falhou, a chave é nova: a antiga devolveria a execução que falhou.
  */
-export function tentarDeNovo<Pedido>(atual: CicloDeExecucao<Pedido> | undefined, sortear: () => string, agora: number): CicloDeExecucao<Pedido> | undefined {
+export function retry<Pedido>(atual: CicloDeExecucao<Pedido> | undefined, sortear: () => string, agora: number): CicloDeExecucao<Pedido> | undefined {
   if (atual?.etapa !== 'falhou') return undefined
   return { etapa: 'enviando', pedido: atual.pedido, chaveEnvio: atual.execucaoId === undefined ? atual.chaveEnvio : sortear(), desde: agora }
 }

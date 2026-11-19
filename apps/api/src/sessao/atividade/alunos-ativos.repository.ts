@@ -9,7 +9,7 @@ import { and, count, eq, isNull } from 'drizzle-orm'
 export class AlunosAtivosRepository {
   constructor(private readonly banco: Database | DatabaseTransaction) {}
 
-  async contar(): Promise<number> {
+  async count(): Promise<number> {
     const escolaId = requireEscolaId()
     const [linha] = await this.banco
       .select({ total: count() })

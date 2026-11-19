@@ -485,12 +485,12 @@ describe('edição do material da escola', () => {
       const naEscolaB = <T>(funcao: () => Promise<T>): Promise<T> => runInContext({ requisicaoId: randomUUID(), escolaId: b.coordenacao.escolaId }, funcao)
 
       expect(await naEscolaA(() => new MaterialRepository(banco).alvoDaEdicao(alvo))).toBeUndefined()
-      expect(await naEscolaA(() => banco.transaction((tx) => new MaterialRepository(tx).travarAlvoDaEdicao(alvo)))).toBeUndefined()
+      expect(await naEscolaA(() => banco.transaction((tx) => new MaterialRepository(tx).lockAlvoDaEdicao(alvo)))).toBeUndefined()
       expect(await naEscolaA(() => new MaterialRepository(banco).edicaoEmAndamentoSobre(alvo))).toBe(false)
       expect(await naEscolaB(() => new MaterialRepository(banco).edicaoEmAndamentoSobre(alvo))).toBe(true)
       expect(await naEscolaA(() => new MaterialRepository(banco).seriesDoMaterial(alvo))).toEqual([])
       // Na escola dona, o mesmo id responde.
-      expect(await naEscolaB(() => banco.transaction((tx) => new MaterialRepository(tx).travarAlvoDaEdicao(alvo)))).toMatchObject({ id: alvo })
+      expect(await naEscolaB(() => banco.transaction((tx) => new MaterialRepository(tx).lockAlvoDaEdicao(alvo)))).toMatchObject({ id: alvo })
       expect(await naEscolaB(() => new MaterialRepository(banco).seriesDoMaterial(alvo))).toEqual([b.serieId])
       await esperarExtracao(api)
     })
@@ -567,7 +567,7 @@ describe('edição do material da escola', () => {
       const alvo = await materialPronto(escola)
       const gatilho = new WriteBlockTrigger(bancada.pool, { tabela: 'material', evento: 'insert', quando: `new.escola_id = '${escolaId}' and new.substitui_id is not null` })
       await gatilho.armar()
-      const inserir = vi.spyOn(MaterialRepository.prototype, 'inserir')
+      const inserir = vi.spyOn(MaterialRepository.prototype, 'insert')
       let primeira: RespostaHttp
       let segunda: RespostaHttp
       try {

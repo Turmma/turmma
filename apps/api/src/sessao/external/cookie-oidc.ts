@@ -98,18 +98,18 @@ export class CookieOidc {
   }
 
   /** O `Set-Cookie` com o login em andamento cifrado. */
-  gravar(emAndamento: LoginExternoEmAndamento): string {
+  save(emAndamento: LoginExternoEmAndamento): string {
     const valor = cifrar(this.chave, DADO_AUTENTICADO, { ...emAndamento, emitidoEm: this.agora() })
     return serializarCookie(COOKIE_OIDC, valor, { ambiente: this.ambiente, maxAgeSegundos: VALIDADE_DO_COOKIE_OIDC_SEGUNDOS, sameSite: 'Lax', caminho: CAMINHO_DO_COOKIE_OIDC })
   }
 
   /** O `Set-Cookie` que apaga o cookie no navegador. */
-  apagar(): string {
+  delete(): string {
     return serializarCookie(COOKIE_OIDC, '', { ambiente: this.ambiente, maxAgeSegundos: 0, sameSite: 'Lax', caminho: CAMINHO_DO_COOKIE_OIDC })
   }
 
   /** O login em andamento, ou `undefined` se o cookie não existe, não decifra, está fora do formato ou venceu. */
-  ler(valor: string | undefined): LoginExternoEmAndamento | undefined {
+  read(valor: string | undefined): LoginExternoEmAndamento | undefined {
     const conteudo = decifrar(this.chave, DADO_AUTENTICADO, valor)
     if (conteudo === undefined) return undefined
     const lido = conteudoSchema.safeParse(conteudo)
@@ -167,18 +167,18 @@ export class CookieContaProvada {
   }
 
   /** O `Set-Cookie` com a conta provada cifrada. */
-  gravar(conta: ContaProvada): string {
+  save(conta: ContaProvada): string {
     const valor = cifrar(this.chave, DADO_AUTENTICADO_CONTA_PROVADA, { ...conta, emitidoEm: this.agora() })
     return serializarCookie(COOKIE_CONTA_PROVADA, valor, { ambiente: this.ambiente, maxAgeSegundos: VALIDADE_DO_COOKIE_CONTA_PROVADA_SEGUNDOS, sameSite: 'Lax', caminho: CAMINHO_DO_COOKIE_CONTA_PROVADA })
   }
 
   /** O `Set-Cookie` que apaga o cookie no navegador. */
-  apagar(): string {
+  delete(): string {
     return serializarCookie(COOKIE_CONTA_PROVADA, '', { ambiente: this.ambiente, maxAgeSegundos: 0, sameSite: 'Lax', caminho: CAMINHO_DO_COOKIE_CONTA_PROVADA })
   }
 
   /** A conta provada, ou `undefined` se o cookie não existe, não decifra, está fora do formato ou venceu. */
-  ler(valor: string | undefined): ContaProvada | undefined {
+  read(valor: string | undefined): ContaProvada | undefined {
     const conteudo = decifrar(this.chave, DADO_AUTENTICADO_CONTA_PROVADA, valor)
     if (conteudo === undefined) return undefined
     const lido = contaProvadaSchema.safeParse(conteudo)

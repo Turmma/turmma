@@ -171,12 +171,12 @@ function EsperandoVoce() {
     <section aria-labelledby={idDoTitulo} className="flex min-w-0 flex-col gap-3">
       <SectionHeader id={idDoTitulo} titulo="Esperando você" />
       {fila.situacao === 'carregando' && <LoadingState rotulo="Carregando o que espera você…" />}
-      {fila.situacao === 'erro' && <ErrorState erro={fila.erro} tentando={fila.tentandoDeNovo} aoTentarDeNovo={fila.tentarDeNovo} />}
+      {fila.situacao === 'erro' && <ErrorState erro={fila.erro} tentando={fila.tentandoDeNovo} aoTentarDeNovo={fila.retry} />}
       {fila.situacao === 'parcial' && (
         <Alert
           tom="atencao"
           acao={
-            <Button variante="secundario" disabled={fila.tentandoDeNovo} onClick={fila.tentarDeNovo}>
+            <Button variante="secundario" disabled={fila.tentandoDeNovo} onClick={fila.retry}>
               {fila.tentandoDeNovo ? 'Tentando de novo…' : 'Tentar de novo'}
             </Button>
           }

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { montarTime, type ChaveDeFuncao } from '@educa/shared'
+import { buildTime, type ChaveDeFuncao } from '@educa/shared'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
@@ -27,7 +27,7 @@ const vinculo = (estado: string) => ({ id: id(401), turma: TURMA, disciplina: QU
 const COM_TURMA: FakeResponse = { status: 200, corpo: { itens: [vinculo('confirmado')] } }
 const SEM_VINCULO: FakeResponse = { status: 200, corpo: { itens: [] } }
 const erro = (status: number, codigo: string): FakeResponse => ({ status, corpo: { erro: { codigo, mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } })
-const timeSem = (...suspensas: ChaveDeFuncao[]): FakeResponse => ({ status: 200, corpo: montarTime(new Set(suspensas)) })
+const timeSem = (...suspensas: ChaveDeFuncao[]): FakeResponse => ({ status: 200, corpo: buildTime(new Set(suspensas)) })
 const NAO_ENCONTRADO = erro(404, 'NAO_ENCONTRADO')
 const nuncaResponde = () => new Promise<FakeResponse>(() => undefined)
 /** Confirma que o texto **não** aparece numa janela de 300 ms: a leitura já saiu e a resposta teve tempo de ser desenhada. */

@@ -5,7 +5,7 @@ import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 import { z } from 'zod'
 import { AcessoDaEscolaRepository } from '../credencial/index.js'
-import { abrirBancoDeOperacao, InvalidArgumentError, autorDoComando, lerOperador, OperadorRejectedError, type CommandDatabase, type CommandOutput } from './command.js'
+import { openBancoDeOperacao, InvalidArgumentError, autorDoComando, readOperador, OperadorRejectedError, type CommandDatabase, type CommandOutput } from './command.js'
 import { ContagensDePrivacidadeRepository, type ContagensDoAtendimento } from './contagens-de-privacidade.repository.js'
 import type { AuthorCheck } from '../sessao/index.js'
 
@@ -32,7 +32,7 @@ export interface PedidoDePrivacidade {
   readonly escolaId: string
 }
 
-function lerOpcoes(argumentos: string[]) {
+function readOpcoes(argumentos: string[]) {
   try {
     return parseArgs({ args: argumentos, options: { escola: { type: 'string' } }, strict: true, allowPositionals: false }).values
   } catch {
@@ -41,8 +41,8 @@ function lerOpcoes(argumentos: string[]) {
   }
 }
 
-export function lerPedidoDePrivacidade(argumentos: string[]): PedidoDePrivacidade {
-  const escola = z.uuid().safeParse(lerOpcoes(argumentos).escola)
+export function readPedidoDePrivacidade(argumentos: string[]): PedidoDePrivacidade {
+  const escola = z.uuid().safeParse(readOpcoes(argumentos).escola)
   if (!escola.success) throw new InvalidArgumentError('--escola')
   return { escolaId: escola.data.toLowerCase() }
 }
@@ -57,7 +57,7 @@ export interface RespostaDePrivacidade extends Omit<ContagensDoAtendimento, 'exp
 }
 
 /** As contagens da escola, lidas no contexto dela, numa transação curta que começa pela conferência do autor. */
-export function consultarPrivacidade(banco: Database, autor: AuthorCheck, pedido: PedidoDePrivacidade): Promise<RespostaDePrivacidade> {
+export function findPrivacidade(banco: Database, autor: AuthorCheck, pedido: PedidoDePrivacidade): Promise<RespostaDePrivacidade> {
   const requisicaoId = randomUUID()
   return runInContext({ requisicaoId }, () =>
     banco.transaction(async (tx) => {
@@ -84,18 +84,18 @@ export function consultarPrivacidade(banco: Database, autor: AuthorCheck, pedido
  * ambiente inválido, ou `OPERADOR` que não é operador ativo. Argumento e formato do `OPERADOR` são conferidos antes de abrir
  * o banco; o `OPERADOR`, contra os ativos, dentro da transação.
  */
-export async function executarOpsPrivacidade(
+export async function runOpsPrivacidade(
   argumentos: string[],
   ambiente: Record<string, string | undefined>,
   terminal: CommandOutput,
-  abrirBanco: (ambiente: Record<string, string | undefined>) => CommandDatabase = abrirBancoDeOperacao,
+  abrirBanco: (ambiente: Record<string, string | undefined>) => CommandDatabase = openBancoDeOperacao,
 ): Promise<number> {
   try {
-    const pedido = lerPedidoDePrivacidade(argumentos)
-    const operador = lerOperador(ambiente)
-    const { banco, fechar } = abrirBanco(ambiente)
+    const pedido = readPedidoDePrivacidade(argumentos)
+    const operador = readOperador(ambiente)
+    const { banco, close: fechar } = abrirBanco(ambiente)
     try {
-      terminal.saida(`${JSON.stringify(await consultarPrivacidade(banco, autorDoComando(operador), pedido))}\n`)
+      terminal.saida(`${JSON.stringify(await findPrivacidade(banco, autorDoComando(operador), pedido))}\n`)
       return 0
     } finally {
       await fechar()
@@ -117,7 +117,7 @@ export async function executarOpsPrivacidade(
 }
 
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  process.exitCode = await executarOpsPrivacidade(process.argv.slice(2), process.env, {
+  process.exitCode = await runOpsPrivacidade(process.argv.slice(2), process.env, {
     saida: (texto) => process.stdout.write(texto),
     erro: (texto) => process.stderr.write(texto),
   })

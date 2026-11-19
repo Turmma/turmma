@@ -33,7 +33,7 @@ export interface PrivacidadeModuleOptions {
 export class PrivacidadeModule {
   static forRoot(opcoes: PrivacidadeModuleOptions): DynamicModule {
     const { armazem, encerrar } =
-      opcoes.armazemDeTeste === undefined ? S3FileStorage.criar(opcoes.armazem) : { armazem: opcoes.armazemDeTeste, encerrar: (): void => undefined }
+      opcoes.armazemDeTeste === undefined ? S3FileStorage.create(opcoes.armazem) : { armazem: opcoes.armazemDeTeste, encerrar: (): void => undefined }
     return {
       module: PrivacidadeModule,
       controllers: [PrivacidadeController, MeusDadosController],

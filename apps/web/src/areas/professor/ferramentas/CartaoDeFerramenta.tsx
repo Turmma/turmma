@@ -14,9 +14,9 @@ import type { OpcaoDoCampo, ValoresValidados } from '../../../components/ui/ai/s
 import { SchemaForm } from '../../../components/ui/ai/SchemaForm'
 import type { HeadingLevel } from '../../../components/ui/Page'
 import { AvisoDeSuspensao, FalhaDoPedido } from '../comum/avisos'
-import { descricaoDaFerramenta, ferramentaDoCatalogo, montarPedido, type IniciaisDaFerramenta } from './ferramentas'
+import { descricaoDaFerramenta, ferramentaDoCatalogo, buildPedido, type IniciaisDaFerramenta } from './ferramentas'
 import { IconeDeFerramenta } from './icones-de-ferramenta'
-import { CICLO_DA_FERRAMENTA, enviarPedidoDeFerramenta } from '../assistente/memoria-do-professor'
+import { CICLO_DA_FERRAMENTA, sendPedidoDeFerramenta } from '../assistente/memoria-do-professor'
 import { ResultadoDaFerramenta } from './ResultadoDaFerramenta'
 import { nomesDasTurmas, turmasDaProfessora } from '../comum/turmas-da-professora'
 
@@ -50,7 +50,7 @@ export function CartaoDeFerramenta({ ferramenta, iniciais, aoCancelar, nivel = 3
   // A atividade de onde se veio ("Pedir versão adaptada") pode não estar na primeira página do que já foi gerado.
   const origem = useQuery({ ...artefatoQueryOptions(iniciais?.origem ?? ''), enabled: adaptacao && iniciais?.origem !== undefined })
   const time = useQuery(timeQueryOptions)
-  const { ciclo, demorando, iniciar, repetir, limpar } = useExecutionLifecycle(CICLO_DA_FERRAMENTA[ferramenta], enviarPedidoDeFerramenta)
+  const { ciclo, demorando, start: iniciar, repetir, clear: limpar } = useExecutionLifecycle(CICLO_DA_FERRAMENTA[ferramenta], sendPedidoDeFerramenta)
   const [problema, definirProblema] = useState<string | undefined>(undefined)
 
   if (funcaoSuspensa(time.data, item.funcao)) return <AvisoDeSuspensao funcao={item.funcao} />
@@ -91,7 +91,7 @@ export function CartaoDeFerramenta({ ferramenta, iniciais, aoCancelar, nivel = 3
   const descricao = descricaoDaFerramenta(ferramenta, { turmas: turmas.map((turma) => ({ valor: turma.valor, rotulo: turma.rotulo })), atividades, ...(iniciais === undefined ? {} : { iniciais }) })
 
   function aoGerar(valores: ValoresValidados): void {
-    const montado = montarPedido(ferramenta, valores)
+    const montado = buildPedido(ferramenta, valores)
     if (!montado.ok) {
       definirProblema(montado.problema)
       return

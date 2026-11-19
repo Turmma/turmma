@@ -20,7 +20,7 @@ import { ExecucaoDaSessaoRepository } from '../ia/execucao.repository.js'
 import type { ExecucaoScheduler } from '../ia/execucao.scheduler.js'
 import { ArtefatoRepository, type ArtefatoLido } from './artefato.repository.js'
 import { atividadeOriginal, citacoesDoConteudo, exigirMaterialEmUso } from './conferencia.js'
-import { gerarPdfDoArtefato, nomeDoArquivoDoPdf } from './pdf-do-artefato.js'
+import { generatePdfDoArtefato, nomeDoArquivoDoPdf } from './pdf-do-artefato.js'
 
 export interface PdfDoArtefato {
   readonly nome: string
@@ -80,13 +80,13 @@ export class ArtefatoService {
     private readonly limite: IaRequestRateLimit,
   ) {}
 
-  async listar(consulta: ArtefatosQuery): Promise<ListaDeArtefatosResponse> {
-    const linhas = await new ArtefatoRepository(this.banco).listar({ ...consulta, ...(consulta.turmaId === undefined ? {} : { turmaId: consulta.turmaId.toLowerCase() }) })
+  async list(consulta: ArtefatosQuery): Promise<ListaDeArtefatosResponse> {
+    const linhas = await new ArtefatoRepository(this.banco).list({ ...consulta, ...(consulta.turmaId === undefined ? {} : { turmaId: consulta.turmaId.toLowerCase() }) })
     const { itens, proxima } = paginar(linhas, consulta.limite)
     return listaDeArtefatosResponseSchema.parse({ itens: itens.map(resumido), ...(proxima === undefined ? {} : { proxima }) })
   }
 
-  async ler(id: string): Promise<ArtefatoResponse> {
+  async read(id: string): Promise<ArtefatoResponse> {
     const artefatos = new ArtefatoRepository(this.banco)
     const lido = await artefatos.porId(id)
     if (lido === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
@@ -108,7 +108,7 @@ export class ArtefatoService {
       // Não renomeou: ou o artefato não está no alcance, ou é versão adaptada com a entrega já decidida.
       throw new DomainException((await artefatos.porId(id)) === undefined ? ErrorCode.NAO_ENCONTRADO : ErrorCode.CONFLITO)
     }
-    return this.ler(id)
+    return this.read(id)
   }
 
   async pdf(id: string): Promise<PdfDoArtefato> {
@@ -121,11 +121,11 @@ export class ArtefatoService {
     const conteudo = conteudoDoArtefatoSchema.parse(lido.conteudo)
     // O id do material vem do `jsonb`, sem FK: título e edição são relidos pela escola do contexto, e o que não for dela não aparece.
     const fontes = await fontesDoConteudo(new ArtefatoRepository(this.banco), conteudo)
-    return { nome: nomeDoArquivoDoPdf(rascunho ? `rascunho ${conteudo.titulo}` : conteudo.titulo), bytes: await gerarPdfDoArtefato(conteudo, new Map(fontes.map((fonte) => [fonte.materialId, fonte])), { rascunho }) }
+    return { nome: nomeDoArquivoDoPdf(rascunho ? `rascunho ${conteudo.titulo}` : conteudo.titulo), bytes: await generatePdfDoArtefato(conteudo, new Map(fontes.map((fonte) => [fonte.materialId, fonte])), { rascunho }) }
   }
 
   async adaptar(id: string, pedido: AdaptarArtefatoRequest): Promise<ExecucaoAceitaResponse> {
-    await this.limite.contar()
+    await this.limite.count()
     const lido = await new ArtefatoRepository(this.banco).porId(id)
     if (lido === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     const original = atividadeOriginal(lido)

@@ -38,8 +38,8 @@ import type { StorageConfig } from '../src/config.js'
 import { ExpurgoGauge } from '../src/expurgo-gauge.js'
 import { GovernancaRepository } from '../../api/src/governanca/governanca.repository.js'
 import { createWorker } from '../src/composition.js'
-import { chaveDaNoite, criarRotinaDeExpurgo } from '../src/processors/expurgar-dado-pessoal.js'
-import { criarExpurgoDaEscola } from '../src/processors/expurgar-escola.js'
+import { chaveDaNoite, createRotinaDeExpurgo } from '../src/processors/expurgar-dado-pessoal.js'
+import { createExpurgoDaEscola } from '../src/processors/expurgar-escola.js'
 import { QueueFixtures, configuracaoDoBanco, janelaPadraoDoAmbiente, InMemoryLog, urlRedisDeFila, vagasPadraoDoAmbiente } from './queue.fixture.js'
 import { jobExecution } from './job-execution.fixture.js'
 
@@ -542,7 +542,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
   const janelaDaEscola = () => new OperationalSettings<JanelaLetiva>(new OperationalSettingsRepository(bancada.banco), (linha) => resolverJanela(janelaPadraoDoAmbiente(), linha))
 
   function expurgo(relogio: Clock, opcoes: { lote?: number; repositorio?: ExpurgoDaEscolaRepository; armazem?: FileStorage } = {}): JobProcessor {
-    return criarExpurgoDaEscola({
+    return createExpurgoDaEscola({
       repositorio: opcoes.repositorio ?? new ExpurgoDaEscolaRepository(bancada.banco),
       arquivos: new ArquivoDoTitularRepository(bancada.banco),
       materiais: new ExtracaoDoMaterialRepository(bancada.banco),
@@ -562,8 +562,8 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
   }
 
   function rotina(relogio: Clock, ids: readonly string[]): JobProcessor {
-    return criarRotinaDeExpurgo({
-      escolas: { listarIds: () => Promise.resolve([...ids]) },
+    return createRotinaDeExpurgo({
+      escolas: { listIds: () => Promise.resolve([...ids]) },
       banco: bancada.banco,
       enfileirador: bancada.enfileirador,
       janelaDaEscola: janelaDaEscola(),
@@ -1051,7 +1051,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
       const medidor = new MedidorDeTeste()
       onTestFinished(() => medidor.encerrar())
       await new ExpurgoGauge({
-        escolas: { listarIds: () => Promise.resolve([a.escolaId]) },
+        escolas: { listIds: () => Promise.resolve([a.escolaId]) },
         repositorio: real,
         janelaDaEscola: janelaDaEscola(),
         relogio: relogioEm(new Date('2026-10-07T12:00:00-03:00')),
@@ -1078,7 +1078,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
       const medidor = new MedidorDeTeste()
       onTestFinished(() => medidor.encerrar())
       await new ExpurgoGauge({
-        escolas: { listarIds: () => Promise.resolve([a.escolaId]) },
+        escolas: { listIds: () => Promise.resolve([a.escolaId]) },
         repositorio: real,
         janelaDaEscola: janelaDaEscola(),
         relogio: relogioEm(new Date('2026-10-07T12:00:00-03:00')),
@@ -1390,17 +1390,17 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
       // Três jobs pendentes que só diferem do da chave numa coisa: a chave, o tipo ou a escola. A leitura da colisão não
       // pode devolver nenhum deles.
       const b = await escolaNova()
-      await noContexto(() => bancada.banco.transaction((tx) => bancada.registro.inserirUmaVez(tx, linha, `outra-${chave}`)))
-      await noContexto(() => bancada.banco.transaction((tx) => bancada.registro.inserirUmaVez(tx, { ...linha, tipo: 'retencao.outro-tipo' }, chave)))
-      await runInContext({ requisicaoId: randomUUID(), escolaId: b.escolaId }, () => bancada.banco.transaction((tx) => bancada.registro.inserirUmaVez(tx, linha, chave)))
-      const primeiro = await noContexto(() => bancada.banco.transaction((tx) => bancada.registro.inserirUmaVez(tx, linha, chave)))
+      await noContexto(() => bancada.banco.transaction((tx) => bancada.registro.insertUmaVez(tx, linha, `outra-${chave}`)))
+      await noContexto(() => bancada.banco.transaction((tx) => bancada.registro.insertUmaVez(tx, { ...linha, tipo: 'retencao.outro-tipo' }, chave)))
+      await runInContext({ requisicaoId: randomUUID(), escolaId: b.escolaId }, () => bancada.banco.transaction((tx) => bancada.registro.insertUmaVez(tx, linha, chave)))
+      const primeiro = await noContexto(() => bancada.banco.transaction((tx) => bancada.registro.insertUmaVez(tx, linha, chave)))
       if (primeiro.situacao !== 'enfileirado') throw new Error('o primeiro job deveria ter entrado')
       const terminarOPrimeiro = async () => {
         await bancada.pool.query("update job_registro set estado = 'concluido', concluido_em = now() where id = $1", [primeiro.id])
       }
-      const colisao = await noContexto(() => bancada.banco.transaction((tx) => bancada.registro.inserirUmaVez(tx, linha, chave, terminarOPrimeiro)))
+      const colisao = await noContexto(() => bancada.banco.transaction((tx) => bancada.registro.insertUmaVez(tx, linha, chave, terminarOPrimeiro)))
       expect(colisao).toEqual({ situacao: 'ja_enfileirado', id: null })
-      const depois = await noContexto(() => bancada.banco.transaction((tx) => bancada.registro.inserirUmaVez(tx, linha, chave)))
+      const depois = await noContexto(() => bancada.banco.transaction((tx) => bancada.registro.insertUmaVez(tx, linha, chave)))
       expect(depois.situacao).toBe('enfileirado')
       expect((await jobsDoExpurgo(a.escolaId)).filter((job) => job.chave === chave)).toHaveLength(2)
       expect(await jobsDoExpurgo(b.escolaId)).toHaveLength(1)
@@ -1432,17 +1432,17 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
     it('a chave sem escola é recusada: pelo código, na rotina do sistema, e pelo banco, no insert direto', async () => {
       const linha = { tipo: 'sistema.qualquer-rotina', fila: 'lote' as const, prioridade: QUEUE_PRIORITY.lote, naoUrgente: true, dados: {} }
       await expect(
-        runInContext({ requisicaoId: randomUUID(), rotinaDoSistema: true }, () => bancada.banco.transaction((tx) => bancada.registro.inserirUmaVez(tx, linha, 'sem-escola'))),
+        runInContext({ requisicaoId: randomUUID(), rotinaDoSistema: true }, () => bancada.banco.transaction((tx) => bancada.registro.insertUmaVez(tx, linha, 'sem-escola'))),
       ).rejects.toThrow('chave de idempotência só em job de escola')
       // O job de escola, pedido sem escola no contexto, também é recusado pelo código, antes do banco.
       await expect(
         runInContext({ requisicaoId: randomUUID(), rotinaDoSistema: true }, () =>
-          bancada.banco.transaction((tx) => bancada.registro.inserirUmaVez(tx, { ...linha, tipo: TIPO_EXPURGAR_ESCOLA }, 'sem-escola')),
+          bancada.banco.transaction((tx) => bancada.registro.insertUmaVez(tx, { ...linha, tipo: TIPO_EXPURGAR_ESCOLA }, 'sem-escola')),
         ),
       ).rejects.toThrow('chave de idempotência só em job de escola')
       const a = await escolaNova()
       await expect(
-        runInContext({ requisicaoId: randomUUID(), escolaId: a.escolaId }, () => bancada.banco.transaction((tx) => bancada.registro.inserirUmaVez(tx, linha, 'tipo-de-sistema'))),
+        runInContext({ requisicaoId: randomUUID(), escolaId: a.escolaId }, () => bancada.banco.transaction((tx) => bancada.registro.insertUmaVez(tx, linha, 'tipo-de-sistema'))),
       ).rejects.toThrow('chave de idempotência só em job de escola')
       await expect(
         bancada.pool.query("insert into job_registro (fila, prioridade, tipo, chave_idempotencia) values ('lote', 3, 'sistema.qualquer-rotina', 'sem-escola')"),
@@ -1513,7 +1513,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
     it('a lista de escolas da rotina traz as escolas do banco, só pelo id', async () => {
       const a = await escolaNova()
       const b = await escolaNova()
-      const ids = await new CronEscolasRepository(bancada.banco).listarIds()
+      const ids = await new CronEscolasRepository(bancada.banco).listIds()
       expect(ids).toEqual(expect.arrayContaining([a.escolaId, b.escolaId]))
       expect(ids.every((id) => typeof id === 'string' && /^[0-9a-f-]{36}$/.test(id))).toBe(true)
     })
@@ -2967,7 +2967,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
 
     function medicaoDe(ids: readonly string[], medidor: MedidorDeTeste, repositorio: Pick<ExpurgoDaEscolaRepository, 'noitesDoAlerta'> = new ExpurgoDaEscolaRepository(bancada.banco), listar?: () => Promise<string[]>): ExpurgoGauge {
       return new ExpurgoGauge({
-        escolas: { listarIds: listar ?? (() => Promise.resolve([...ids])) },
+        escolas: { listIds: listar ?? (() => Promise.resolve([...ids])) },
         repositorio,
         janelaDaEscola: janelaDaEscola(),
         relogio: relogioEm(QUARTA_12H),
@@ -2997,7 +2997,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
       const medidor = new MedidorDeTeste()
       onTestFinished(() => medidor.encerrar())
       const medicao = new ExpurgoGauge({
-        escolas: { listarIds: () => Promise.resolve([a.escolaId, b.escolaId, c.escolaId, d.escolaId, e.escolaId]) },
+        escolas: { listIds: () => Promise.resolve([a.escolaId, b.escolaId, c.escolaId, d.escolaId, e.escolaId]) },
         repositorio: new ExpurgoDaEscolaRepository(bancada.banco),
         janelaDaEscola: janelaDaEscola(),
         // Quarta ao meio-dia: as noites contadas são terça (ontem) e segunda.
@@ -3093,7 +3093,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
       const medidor = new MedidorDeTeste()
       onTestFinished(() => medidor.encerrar())
       const medicao = new ExpurgoGauge({
-        escolas: { listarIds: () => Promise.resolve([a.escolaId]) },
+        escolas: { listIds: () => Promise.resolve([a.escolaId]) },
         repositorio: new ExpurgoDaEscolaRepository(bancada.banco),
         janelaDaEscola: janelaDaEscola(),
         // 1h de quarta em São Paulo é 23h de terça em Rio Branco: ontem é segunda, completa. Com o dia de São Paulo, ontem
@@ -3116,7 +3116,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
       const medidor = new MedidorDeTeste()
       onTestFinished(() => medidor.encerrar())
       const medicao = new ExpurgoGauge({
-        escolas: { listarIds: () => Promise.resolve([a.escolaId]) },
+        escolas: { listIds: () => Promise.resolve([a.escolaId]) },
         repositorio: new ExpurgoDaEscolaRepository(bancada.banco),
         janelaDaEscola: janelaDaEscola(),
         relogio: relogioEm(new Date('2026-10-07T12:00:00-03:00')),
@@ -3524,7 +3524,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
         { prefixo: bancada.prefixo, relogio, agendamentos: [] },
       )
       onTestFinished(() => worker.encerrar())
-      bancada.despachante(log, { relogio }).iniciar()
+      bancada.despachante(log, { relogio }).start()
       const enfileirado = await runInContext({ requisicaoId: randomUUID(), escolaId: a.escolaId }, () =>
         bancada.banco.transaction((tx) => bancada.enfileirador.enfileirarUmaVez(tx, TIPO_EXPURGAR_ESCOLA, {}, chaveDaNoite('America/Sao_Paulo', QUARTA_1H))),
       )

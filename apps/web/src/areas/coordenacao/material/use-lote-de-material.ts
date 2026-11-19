@@ -3,9 +3,9 @@ import { useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState, type FormEvent, type RefObject } from 'react'
 import { ApiError } from '../../../api/client'
 import { errorText } from '../../../components/error-text'
-import { enviarMaterial, excluirMaterial, type CamposDoEnvioDeMaterial } from './api/material'
+import { sendMaterial, deleteMaterial, type CamposDoEnvioDeMaterial } from './api/material'
 import { licencasQueryOptions } from './api/licencas'
-import { enviarOLote, type ParadaDoLote } from './envio-em-lote'
+import { sendOLote, type ParadaDoLote } from './envio-em-lote'
 import {
   aceitarNoLote,
   camposDoEnvio,
@@ -17,7 +17,7 @@ import {
   MAXIMO_DE_ARQUIVOS_DO_LOTE,
   motivoDaRecusa,
   resumoDoLote,
-  temErro,
+  hasErro,
   TEXTO_DA_RECUSA,
   TEXTO_DE_UM_ARQUIVO_SO,
   textoDoItem,
@@ -147,9 +147,9 @@ function useArquivosDoLote({ substitui, rascunhoAgora, anunciar }: ArquivosOptio
 }
 
 /** Um envio que já se sabe recusado vai sem arquivo: a recusa fica registrada, e nada sai do computador. Devolve o texto da falha, se houve. */
-async function enviarARecusa(campos: CamposDoEnvioDeMaterial, motivo: MotivoDaRecusaDoMaterial, aoRecusar: LoteDeMaterialOptions['aoRecusar']): Promise<string | undefined> {
+async function sendARecusa(campos: CamposDoEnvioDeMaterial, motivo: MotivoDaRecusaDoMaterial, aoRecusar: LoteDeMaterialOptions['aoRecusar']): Promise<string | undefined> {
   try {
-    await enviarMaterial(campos, undefined)
+    await sendMaterial(campos, undefined)
     return undefined
   } catch (erro) {
     // A recusa que chega com o diálogo já fechado entra na tabela da tela do mesmo jeito: quem a pediu quer vê-la.
@@ -179,12 +179,12 @@ function focarNoPrimeiroErro(erros: ReturnType<typeof errosDoRascunho>, botaoDoA
 function useFimDaVida() {
   const fechado = useRef(false)
   const relogio = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-  const parar = (): void => clearTimeout(relogio.current)
+  const stop = (): void => clearTimeout(relogio.current)
   useEffect(() => {
     fechado.current = false
     return () => {
       fechado.current = true
-      parar()
+      stop()
     }
   }, [])
   return { fechado, relogio }
@@ -199,12 +199,12 @@ interface EnvioDosPendentes {
 }
 
 /** Envia os arquivos um por vez e devolve o que parou o lote, quantos saíram e se a lista da escola mudou (o enviado, ou o repetido que mostrou o que ela já tinha). */
-async function enviarOsPendentes({ alvo, camposDe, substitui, cancelado, aoMudar }: EnvioDosPendentes): Promise<{ parada: ParadaDoLote | undefined; enviados: number; mudouALista: boolean }> {
+async function sendOsPendentes({ alvo, camposDe, substitui, cancelado, aoMudar }: EnvioDosPendentes): Promise<{ parada: ParadaDoLote | undefined; enviados: number; mudouALista: boolean }> {
   const saldo = { enviados: 0, mudouALista: false }
-  const parada = await enviarOLote({
+  const parada = await sendOLote({
     itens: alvo,
     camposDe,
-    enviar: enviarMaterial,
+    send: sendMaterial,
     aoMudar: (chave, parte) => {
       if (cancelado()) return
       aoMudar(chave, parte)
@@ -213,7 +213,7 @@ async function enviarOsPendentes({ alvo, camposDe, substitui, cancelado, aoMudar
     aoEnviar: async () => {
       saldo.enviados += 1
       saldo.mudouALista = true
-      if (substitui !== undefined) await excluirMaterial(substitui).catch(() => undefined)
+      if (substitui !== undefined) await deleteMaterial(substitui).catch(() => undefined)
     },
     cancelado,
   })
@@ -236,9 +236,9 @@ export function useLoteDeMaterial({ inicial, substitui, aoConcluir, aoRecusar, r
   const erros = errosDoRascunho(efetivo, itens)
 
   /** Envia, um por vez, o que ainda não saiu, e diz o que aconteceu. */
-  async function executar(): Promise<void> {
+  async function run(): Promise<void> {
     const alvo = itensAgora.current.filter(devePartir)
-    const { parada: paradaDoLote, enviados, mudouALista } = await enviarOsPendentes({
+    const { parada: paradaDoLote, enviados, mudouALista } = await sendOsPendentes({
       alvo,
       camposDe: (item) => camposDoEnvio(efetivoAgora.current, item.titulo),
       substitui,
@@ -269,14 +269,14 @@ export function useLoteDeMaterial({ inicial, substitui, aoConcluir, aoRecusar, r
     else if (fim === 'resumir') queueMicrotask(() => resumo.current?.focus())
   }
 
-  function iniciar(): void {
+  function start(): void {
     noAr.current = true
     clearTimeout(relogioRef.current)
     dizer({ emCurso: true, falha: undefined, parada: undefined, limiteTexto: undefined })
-    void executar()
+    void run()
   }
   useEffect(() => {
-    continuar.current = iniciar
+    continuar.current = start
   })
 
   function recusar(motivo: MotivoDaRecusaDoMaterial): void {
@@ -284,7 +284,7 @@ export function useLoteDeMaterial({ inicial, substitui, aoConcluir, aoRecusar, r
     if (campos === undefined) return
     noAr.current = true
     dizer({ emCurso: true })
-    void enviarARecusa(campos, motivo, aoRecusar).then((falha) => {
+    void sendARecusa(campos, motivo, aoRecusar).then((falha) => {
       noAr.current = false
       dizer({ emCurso: false, falha })
     })
@@ -295,8 +295,8 @@ export function useLoteDeMaterial({ inicial, substitui, aoConcluir, aoRecusar, r
     if (noAr.current) return
     dizer({ tentou: true, falha: undefined })
     const recusa = motivoDaRecusa(efetivo)
-    if (temErro(erros)) focarNoPrimeiroErro(erros, botaoDoArquivo.current, formulario.current)
-    else if (recusa === null) iniciar()
+    if (hasErro(erros)) focarNoPrimeiroErro(erros, botaoDoArquivo.current, formulario.current)
+    else if (recusa === null) start()
     else recusar(recusa)
   }
 

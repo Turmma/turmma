@@ -33,7 +33,7 @@ export function Entrar() {
     if (estado === 'aberta') navegar(INICIO_DA_OPERACAO, { replace: true })
   }, [estado, navegar])
 
-  async function enviar(evento: FormEvent<HTMLFormElement>): Promise<void> {
+  async function send(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault()
     if (entrando) return
     definirEntrando(true)
@@ -61,7 +61,7 @@ export function Entrar() {
         </p>
       )}
       <p className="text-apoio">Área da equipe Turmma. Use o e-mail e a senha da sua conta de operador.</p>
-      <form className="flex flex-col gap-4" onSubmit={(evento) => void enviar(evento)}>
+      <form className="flex flex-col gap-4" onSubmit={(evento) => void send(evento)}>
         <FormField
           rotulo="E-mail"
           name="email"

@@ -57,7 +57,7 @@ export function situacaoDoArquivo(pedido: PedidoDeMeusDados, agora: Date): Situa
 }
 
 /** O botão "Baixar" só existe com o arquivo disponível. */
-export function podeBaixar(pedido: PedidoDeMeusDados, agora: Date): boolean {
+export function canBaixar(pedido: PedidoDeMeusDados, agora: Date): boolean {
   return situacaoDoArquivo(pedido, agora) === 'disponivel'
 }
 
@@ -101,7 +101,7 @@ export function situacaoDoPedido(pedido: PedidoDeMeusDados, agora: Date): Situac
 }
 
 /** Os mais recentes primeiro, pelo dia em que o pedido chegou à escola, e o id no empate: a API entrega pela ordem do id, que não é cronológica. */
-export function ordenarPedidos(pedidos: readonly PedidoDeMeusDados[]): PedidoDeMeusDados[] {
+export function sortPedidos(pedidos: readonly PedidoDeMeusDados[]): PedidoDeMeusDados[] {
   return [...pedidos].sort((a, b) => b.chegouEm.localeCompare(a.chegouEm) || b.id.localeCompare(a.id))
 }
 

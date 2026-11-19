@@ -55,7 +55,7 @@ export class AuditoriaRepository {
   constructor(private readonly banco: DatabaseExecutor) {}
 
   /** Os registros mais recentes da escola do contexto, do mais novo ao mais antigo. Sem escola, recusa. */
-  async listarDaEscola(limite: number = LIMITE_PADRAO_DA_LISTAGEM): Promise<RegistroAuditado[]> {
+  async listDaEscola(limite: number = LIMITE_PADRAO_DA_LISTAGEM): Promise<RegistroAuditado[]> {
     const escolaId = currentContext()?.escolaId
     if (escolaId === undefined) throw new AuditoriaRejectedError('sem_escola')
     return this.banco
@@ -95,7 +95,7 @@ export class AuditoriaRepository {
    * contagem. A escola e a pessoa vêm do contexto, nunca de argumento (regra 10, item 3); sem escola, `requireEscolaId` recusa, e sem pessoa a contagem dela é zero. O texto de `acao` vai como parâmetro: o
    * índice `auditoria_escola_em_idx` serve à consulta pela escola e pelo instante.
    */
-  async contarDaEscolaEDaPessoaDesde(acao: string, desde: Date): Promise<{ daEscola: number; doUsuario: number }> {
+  async countDaEscolaEDaPessoaDesde(acao: string, desde: Date): Promise<{ daEscola: number; doUsuario: number }> {
     const escolaId = requireEscolaId()
     const usuarioId = currentContext()?.usuarioId
     const resultado = await this.banco.execute<{ da_escola: number; do_usuario: number }>(sql`

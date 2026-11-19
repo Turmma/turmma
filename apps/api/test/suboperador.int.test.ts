@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { lerAmbienteDeTeste } from '../../../tools/ci/compose.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
-import { executarOpsSuboperador } from '../src/ops/suboperador.js'
+import { runOpsSuboperador } from '../src/ops/suboperador.js'
 import { chamar, subirApi, type TestApi } from './test-api.js'
 import { WriteBlockTrigger, esperarNaTrava } from './write-block-trigger.js'
 import { SessaoFixtures, type TestSessao } from './sessao.fixture.js'
@@ -87,7 +87,7 @@ describe('suboperadores: a operação cadastra e encerra por comando, e a coorde
   async function rodar(argumentos: string[], doAmbiente: Record<string, string | undefined> = ambiente): Promise<Execucao> {
     let saida = ''
     let erro = ''
-    const codigo = await executarOpsSuboperador(argumentos, doAmbiente, { saida: (texto) => (saida += texto), erro: (texto) => (erro += texto) })
+    const codigo = await runOpsSuboperador(argumentos, doAmbiente, { saida: (texto) => (saida += texto), erro: (texto) => (erro += texto) })
     return { codigo, saida, erro }
   }
 

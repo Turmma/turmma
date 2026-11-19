@@ -96,7 +96,7 @@ describe('auditoria: uma porta só de escrita', () => {
     ]) {
       expect(ESCRITA_NA_AUDITORIA.test(trecho), trecho).toBe(true)
     }
-    expect(ESCRITA_NA_AUDITORIA.test('new AuditoriaRepository(banco).listarDaEscola()')).toBe(false)
+    expect(ESCRITA_NA_AUDITORIA.test('new AuditoriaRepository(banco).listDaEscola()')).toBe(false)
   })
 
   it('a varredura de importação pega cada forma de importar e deixa o caminho citado como dado', () => {
@@ -128,7 +128,7 @@ describe('auditoria: uma porta só de escrita', () => {
 
   it('o AuditoriaRepository só lê, na escola do contexto: sem método de escrita e sem @SemEscopo', () => {
     const metodos = Object.getOwnPropertyNames(AuditoriaRepository.prototype).filter((nome) => nome !== 'constructor')
-    expect(metodos).toEqual(['listarDaEscola', 'provisoriasAnterioresDoAluno', 'contarDaEscolaEDaPessoaDesde', 'recusasDeMaterialDesde'])
+    expect(metodos).toEqual(['listDaEscola', 'provisoriasAnterioresDoAluno', 'countDaEscolaEDaPessoaDesde', 'recusasDeMaterialDesde'])
     for (const metodo of metodos) expect(unscopedJustification(AuditoriaRepository, metodo), metodo).toBeUndefined()
   })
 })

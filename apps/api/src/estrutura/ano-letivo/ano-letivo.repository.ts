@@ -24,7 +24,7 @@ const colunas = { id: anoLetivo.id, ano: anoLetivo.ano, inicio: anoLetivo.inicio
 export class AnoLetivoRepository {
   constructor(private readonly banco: Database | DatabaseTransaction) {}
 
-  async criar(pedido: CriarAnoLetivoRequest): Promise<AnoLetivo> {
+  async create(pedido: CriarAnoLetivoRequest): Promise<AnoLetivo> {
     const [criado] = await this.banco
       .insert(anoLetivo)
       .values({ escolaId: requireEscolaId(), ano: pedido.ano, inicio: pedido.inicio, fim: pedido.fim, situacao: 'planejado' })
@@ -34,7 +34,7 @@ export class AnoLetivoRepository {
   }
 
   /** Uma página dos anos da escola, em ordem de criação, com uma linha a mais que diz se há próxima. */
-  listar({ pagina, limite }: PaginationQuery): Promise<AnoLetivo[]> {
+  list({ pagina, limite }: PaginationQuery): Promise<AnoLetivo[]> {
     return this.banco
       .select(colunas)
       .from(anoLetivo)
@@ -83,7 +83,7 @@ export class AnoLetivoRepository {
       .set({ revogadoEm: sql`now()` })
       .where(and(eq(acessoTurma.escolaId, escolaId), eq(acessoTurma.anoLetivoId, anoLetivoId), isNull(acessoTurma.revogadoEm)))
       .returning({ id: acessoTurma.id })
-    const encerrados = await new DecisaoRepository(this.banco).fechar({ anoLetivoId }, 'encerrada')
+    const encerrados = await new DecisaoRepository(this.banco).close({ anoLetivoId }, 'encerrada')
     const apagadas = await this.banco
       .delete(listaNome)
       .where(and(eq(listaNome.escolaId, escolaId), eq(listaNome.anoLetivoId, anoLetivoId), inArray(listaNome.estado, ['livre', 'reivindicado'])))

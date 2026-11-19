@@ -37,15 +37,15 @@ export function useGuardedClose(linkEmRisco: boolean, soltar: () => void, aoFech
   // A pergunta só vale enquanto há link em risco. O pedido que falha com ela aberta leva o diálogo de volta à etapa
   // dele, com a falha à vista: a pergunta diria que há um link, e "Fechar sem copiar" esconderia a recusa.
   if (perguntando && !linkEmRisco) definirPerguntando(false)
-  function fecharDeVez(): void {
+  function closeDeVez(): void {
     soltar()
     aoFechar()
   }
   function pedirParaFechar(): void {
-    if (!linkEmRisco || perguntando) fecharDeVez()
+    if (!linkEmRisco || perguntando) closeDeVez()
     else definirPerguntando(true)
   }
-  return { perguntando, pedirParaFechar, fecharDeVez, voltar: () => definirPerguntando(false) }
+  return { perguntando, pedirParaFechar, fecharDeVez: closeDeVez, voltar: () => definirPerguntando(false) }
 }
 
 /** A pergunta antes de fechar sem o link copiado. Voltar e "Fechar sem copiar" do mesmo tamanho (D59). */

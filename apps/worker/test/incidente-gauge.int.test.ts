@@ -57,7 +57,7 @@ describe('medição das horas do incidente sem confirmação', () => {
   }
 
   function medicaoDe(ids: readonly string[], medidor: MedidorDeTeste, repositorio: Pick<IncidenteDaEscolaRepository, 'conhecidoEmDoPendenteMaisAntigo'> = new IncidenteDaEscolaRepository(bancada.banco)): IncidenteGauge {
-    return new IncidenteGauge({ escolas: { listarIds: () => Promise.resolve([...ids]) }, repositorio, relogio, logger: log.logger, medidor: medidor.medidor })
+    return new IncidenteGauge({ escolas: { listIds: () => Promise.resolve([...ids]) }, repositorio, relogio, logger: log.logger, medidor: medidor.medidor })
   }
 
   async function porEscola(medidor: MedidorDeTeste): Promise<Record<string, unknown>> {
@@ -132,7 +132,7 @@ describe('medição das horas do incidente sem confirmação', () => {
     const medidor = new MedidorDeTeste()
     onTestFinished(() => medidor.encerrar())
     const medicao = new IncidenteGauge({
-      escolas: { listarIds: () => Promise.resolve([randomUUID(), a]) },
+      escolas: { listIds: () => Promise.resolve([randomUUID(), a]) },
       repositorio: new IncidenteDaEscolaRepository(bancada.banco),
       relogio: { agora: () => agora },
       logger: log.logger,

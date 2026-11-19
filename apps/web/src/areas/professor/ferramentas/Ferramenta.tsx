@@ -6,7 +6,7 @@ import { NotFoundContent } from '../../../components/NotFound'
 import { SectionHeader, Page } from '../../../components/ui/Page'
 import { usePageTitle } from '../../../document-title'
 import { CartaoDeFerramenta } from './CartaoDeFerramenta'
-import { COMO_VAI_SAIR, ehFerramenta, ferramentaDoCatalogo } from './ferramentas'
+import { COMO_VAI_SAIR, isFerramenta, ferramentaDoCatalogo } from './ferramentas'
 import { esquecerGeracaoTerminada } from '../assistente/memoria-do-professor'
 import { O_MIOLO_DO_DOCUMENTO, useTopoDoMiolo } from '../artefatos/miolo-do-documento'
 
@@ -68,6 +68,6 @@ function Formulario({ ferramenta }: { ferramenta: Parameters<typeof ferramentaDo
  * fora do MVP, ou qualquer outra coisa) responde como página não encontrada.
  */
 export default function Ferramenta({ ferramenta }: { ferramenta: string }) {
-  if (!ehFerramenta(ferramenta)) return <NotFoundContent />
+  if (!isFerramenta(ferramenta)) return <NotFoundContent />
   return <Formulario ferramenta={ferramenta} />
 }

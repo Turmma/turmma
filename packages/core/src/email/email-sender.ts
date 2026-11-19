@@ -16,7 +16,7 @@ export interface EmailSender {
    * endereço e a resposta do servidor ficam de fora do erro (regra 20, item 9). O `sinal` aborta a espera, e o abortado conta
    * como falha transitória.
    */
-  enviar(mensagem: MensagemDeEmail, sinal?: AbortSignal): Promise<void>
+  send(mensagem: MensagemDeEmail, sinal?: AbortSignal): Promise<void>
 }
 
 /**

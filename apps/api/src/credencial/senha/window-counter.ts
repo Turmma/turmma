@@ -113,7 +113,7 @@ export class WindowCounter {
   }
 
   /** O valor na janela, sem somar. */
-  async ler(chave: string): Promise<WindowCount> {
+  async read(chave: string): Promise<WindowCount> {
     if (this.cliente.status === 'ready') {
       try {
         const valor = Number((await this.cliente.get(chave)) ?? 0)

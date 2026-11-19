@@ -37,16 +37,16 @@ const registro = new AuditoriaRecorder()
 export class AnoLetivoService {
   constructor(private readonly banco: Database) {}
 
-  async criar(pedido: CriarAnoLetivoRequest): Promise<AnoLetivoResponse> {
-    return anoLetivoResponseSchema.parse(await new AnoLetivoRepository(this.banco).criar(pedido))
+  async create(pedido: CriarAnoLetivoRequest): Promise<AnoLetivoResponse> {
+    return anoLetivoResponseSchema.parse(await new AnoLetivoRepository(this.banco).create(pedido))
   }
 
-  async listar(consulta: PaginationQuery): Promise<ListaDeAnosLetivosResponse> {
-    const linhas = await new AnoLetivoRepository(this.banco).listar(consulta)
+  async list(consulta: PaginationQuery): Promise<ListaDeAnosLetivosResponse> {
+    const linhas = await new AnoLetivoRepository(this.banco).list(consulta)
     return listaDeAnosLetivosResponseSchema.parse(paginar(linhas, consulta.limite))
   }
 
-  abrir(id: string): Promise<AnoLetivoResponse> {
+  open(id: string): Promise<AnoLetivoResponse> {
     return this.#transitar(this.banco, id, 'planejado', 'em_curso')
   }
 
@@ -55,7 +55,7 @@ export class AnoLetivoService {
       this.#transitar(tx, id, 'em_curso', 'encerrado', async (ano) => {
         const contagens = await new VinculoRepository(tx).virarAno(ano.id)
         const daSala = await new AnoLetivoRepository(tx).virarSala(ano.id)
-        await registro.gravar(tx, 'ano_letivo.encerrado', { entidadeId: ano.id, antes: { situacao: 'em_curso' }, depois: { situacao: 'encerrado', ...contagens, ...daSala } })
+        await registro.save(tx, 'ano_letivo.encerrado', { entidadeId: ano.id, antes: { situacao: 'em_curso' }, depois: { situacao: 'encerrado', ...contagens, ...daSala } })
       }),
     )
   }

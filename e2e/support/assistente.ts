@@ -13,7 +13,7 @@ import type {
   ResultadoDaExecucao,
 } from '../../packages/shared/src/index.ts'
 import type { ChaveDeFuncao } from '../../packages/shared/src/time/funcoes.ts'
-import { montarTime } from '../../packages/shared/src/time/time.ts'
+import { buildTime } from '../../packages/shared/src/time/time.ts'
 
 /**
  * A API das telas do Assistente (A2), **simulada na página** (`page.route`): time, conversa, ferramentas, artefatos,
@@ -178,7 +178,7 @@ export class AssistenteApiMock {
 
   private deSempre(rota: Rota, { corpo, url, ids }: { corpo: unknown; url: URL; ids: readonly string[] }): Resposta {
     const id = ids[0] ?? ''
-    if (rota === 'time') return { status: 200, corpo: montarTime(this.suspensas) }
+    if (rota === 'time') return { status: 200, corpo: buildTime(this.suspensas) }
     if (rota === 'conversa') {
       if (url.searchParams.get('antes') !== null) return { status: 200, corpo: { mensagens: this.conversaAnterior } }
       const primeira = this.conversa[0]

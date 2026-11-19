@@ -51,7 +51,7 @@ export interface ListaDaEstrutura<Item> {
 }
 
 /** Lê as páginas de uma listagem paginada da API, 100 por vez, até a última ou até o teto. */
-export async function lerPaginas<Item>(
+export async function readPaginas<Item>(
   caminho: string,
   esquema: ResponseSchema<{ itens: Item[]; proxima?: string | undefined }>,
   sinal?: AbortSignal,
@@ -71,29 +71,29 @@ export async function lerPaginas<Item>(
 
 export const anosLetivosQueryOptions = queryOptions({
   queryKey: [...ESTRUTURA_QUERY_KEY, 'anos-letivos'],
-  queryFn: ({ signal }) => lerPaginas<AnoLetivo>('/v1/anos-letivos', listaDeAnosLetivosResponseSchema, signal),
+  queryFn: ({ signal }) => readPaginas<AnoLetivo>('/v1/anos-letivos', listaDeAnosLetivosResponseSchema, signal),
 })
 
 export const seriesQueryOptions = queryOptions({
   queryKey: [...ESTRUTURA_QUERY_KEY, 'series'],
-  queryFn: ({ signal }) => lerPaginas<Serie>('/v1/series', listaDeSeriesResponseSchema, signal),
+  queryFn: ({ signal }) => readPaginas<Serie>('/v1/series', listaDeSeriesResponseSchema, signal),
 })
 
 export const disciplinasQueryOptions = queryOptions({
   queryKey: [...ESTRUTURA_QUERY_KEY, 'disciplinas'],
-  queryFn: ({ signal }) => lerPaginas<Disciplina>('/v1/disciplinas', listaDeDisciplinasResponseSchema, signal),
+  queryFn: ({ signal }) => readPaginas<Disciplina>('/v1/disciplinas', listaDeDisciplinasResponseSchema, signal),
 })
 
 /** As turmas do ano em curso. Sem ano em curso a API responde como inexistente: a tela só pergunta quando há um. */
 export const turmasQueryOptions = queryOptions({
   queryKey: [...ESTRUTURA_QUERY_KEY, 'turmas'],
-  queryFn: ({ signal }) => lerPaginas<Turma>('/v1/turmas', listaDeTurmasResponseSchema, signal),
+  queryFn: ({ signal }) => readPaginas<Turma>('/v1/turmas', listaDeTurmasResponseSchema, signal),
 })
 
 /** Os vínculos de professor do ano em curso, como a coordenação os vê (com o `complemento` da contestação). */
 export const vinculosQueryOptions = queryOptions({
   queryKey: [...ESTRUTURA_QUERY_KEY, 'vinculos'],
-  queryFn: ({ signal }) => lerPaginas<VinculoDaCoordenacao>('/v1/vinculos', listaDeVinculosResponseSchema, signal),
+  queryFn: ({ signal }) => readPaginas<VinculoDaCoordenacao>('/v1/vinculos', listaDeVinculosResponseSchema, signal),
 })
 
 /** A turma aberta na Estrutura: o nome e a série (`GET /v1/turmas/:id`). */
@@ -105,20 +105,20 @@ export function turmaAbertaQueryOptions(turmaId: string) {
 }
 
 /** `POST /v1/anos-letivos`: nasce `planejado`. */
-export function criarAnoLetivo(pedido: CriarAnoLetivoRequest): Promise<AnoLetivo> {
+export function createAnoLetivo(pedido: CriarAnoLetivoRequest): Promise<AnoLetivo> {
   return authedRequest('/v1/anos-letivos', anoLetivoResponseSchema, { metodo: 'POST', corpo: pedido })
 }
 
 /** `POST /v1/anos-letivos/:id/abrir`: `planejado` → `em_curso`. As turmas nascem no ano em curso. */
-export function abrirAnoLetivo(id: string): Promise<AnoLetivo> {
+export function openAnoLetivo(id: string): Promise<AnoLetivo> {
   return authedRequest(`/v1/anos-letivos/${encodeURIComponent(id)}/abrir`, anoLetivoResponseSchema, { metodo: 'POST' })
 }
 
-export function criarSerie(pedido: CriarSerieRequest): Promise<Serie> {
+export function createSerie(pedido: CriarSerieRequest): Promise<Serie> {
   return authedRequest('/v1/series', serieResponseSchema, { metodo: 'POST', corpo: pedido })
 }
 
-export function criarDisciplina(pedido: CriarDisciplinaRequest): Promise<Disciplina> {
+export function createDisciplina(pedido: CriarDisciplinaRequest): Promise<Disciplina> {
   return authedRequest('/v1/disciplinas', disciplinaResponseSchema, { metodo: 'POST', corpo: pedido })
 }
 
@@ -131,11 +131,11 @@ export function definirComponenteDaDisciplina(id: string, componenteBncc: Compon
   return authedRequest(`/v1/disciplinas/${encodeURIComponent(id)}`, disciplinaResponseSchema, { metodo: 'PATCH', corpo: { componenteBncc } })
 }
 
-export function excluirDisciplina(id: string): Promise<void> {
+export function deleteDisciplina(id: string): Promise<void> {
   return authedRequest(`/v1/disciplinas/${encodeURIComponent(id)}`, EMPTY_BODY, { metodo: 'DELETE' })
 }
 
-export function criarTurma(pedido: CriarTurmaRequest): Promise<Turma> {
+export function createTurma(pedido: CriarTurmaRequest): Promise<Turma> {
   return authedRequest('/v1/turmas', turmaResponseSchema, { metodo: 'POST', corpo: pedido })
 }
 
@@ -143,7 +143,7 @@ export function renomearTurma(id: string, nome: string): Promise<Turma> {
   return authedRequest(`/v1/turmas/${encodeURIComponent(id)}`, turmaResponseSchema, { metodo: 'PATCH', corpo: { nome } })
 }
 
-export function excluirTurma(id: string): Promise<void> {
+export function deleteTurma(id: string): Promise<void> {
   return authedRequest(`/v1/turmas/${encodeURIComponent(id)}`, EMPTY_BODY, { metodo: 'DELETE' })
 }
 

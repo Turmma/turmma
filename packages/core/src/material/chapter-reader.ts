@@ -1,5 +1,5 @@
 import { TAMANHO_MAXIMO_DO_TITULO_DO_CAPITULO } from '@educa/shared'
-import { limparLinha } from './limpar-linha.js'
+import { clearLinha } from './limpar-linha.js'
 
 /** O maior `int` do Postgres: o número de capítulo que passa dele não cabe na coluna e fica nulo. */
 const MAIOR_INTEIRO = 2_147_483_647n
@@ -62,7 +62,7 @@ function numeroDoBanco(numero: bigint | undefined): number | null {
  * nenhum. As linhas de `linhasPorPagina` são as **de antes** de `tirarLinhasRepetidas`: o cabeçalho corrido já saiu das de depois, e é nele que o número muda.
  */
 export class ChapterReader {
-  async ler(documento: DocumentoComMarcadores, linhasPorPagina: readonly (readonly string[])[]): Promise<CapituloLido[]> {
+  async read(documento: DocumentoComMarcadores, linhasPorPagina: readonly (readonly string[])[]): Promise<CapituloLido[]> {
     try {
       const total = linhasPorPagina.length
       const doMarcador = await this.#doMarcador(documento, total)
@@ -76,7 +76,7 @@ export class ChapterReader {
   }
 
   #capitulo(inicio: InicioDeCapitulo, ordem: number, paginaFinal: number): CapituloLido {
-    const titulo = limparLinha(inicio.titulo).slice(0, TAMANHO_MAXIMO_DO_TITULO_DO_CAPITULO).trimEnd()
+    const titulo = clearLinha(inicio.titulo).slice(0, TAMANHO_MAXIMO_DO_TITULO_DO_CAPITULO).trimEnd()
     return {
       ordem,
       numero: numeroDoBanco(numeroDaLinha(titulo)),

@@ -139,7 +139,7 @@ export class PedidosRepository {
   }
 
   /**
-   * A página de pedidos da escola, **na chave da tela** (`ordenarOsPedidos`, da web): a chegada mais recente primeiro e o id
+   * A página de pedidos da escola, **na chave da tela** (`sortOsPedidos`, da web): a chegada mais recente primeiro e o id
    * crescente no empate. `depoisDe` é o id do último item da página anterior (o `proxima`); o repository acha a chegada dele
    * **na escola do contexto, e entre os pedidos que a pessoa pode ler**, e devolve o que vem depois dele na chave. O cursor de
    * outra escola, o que não existe e o do pedido sobre a própria pessoa de quem lê respondem a mesma coisa, a página vazia
@@ -151,7 +151,7 @@ export class PedidosRepository {
    * A chave não tem índice próprio, de propósito: o `(escola_id, id)` já filtra pelo escopo, e a ordenação roda sobre os pedidos de
    * **uma escola**, que são dezenas por ano e não crescem com o uso do aluno (regra 80, item 8).
    */
-  async listar(depoisDe: string | undefined, limite: number, deQuemPediu: { readonly usuarioId: string; readonly contaId: string | null }): Promise<PedidoAchado[]> {
+  async list(depoisDe: string | undefined, limite: number, deQuemPediu: { readonly usuarioId: string; readonly contaId: string | null }): Promise<PedidoAchado[]> {
     const daLista = and(
       eq(pedidoTitular.escolaId, requireEscolaId()),
       ne(pedidoTitular.titularId, deQuemPediu.usuarioId),

@@ -34,7 +34,7 @@ export function isConnectionError(erro: unknown): boolean {
 
 type Consulta = (...argumentos: unknown[]) => unknown
 
-function ehSubmittable(valor: unknown): boolean {
+function isSubmittable(valor: unknown): boolean {
   return typeof valor === 'object' && valor !== null && typeof (valor as { submit?: unknown }).submit === 'function'
 }
 
@@ -84,7 +84,7 @@ function aguardarReadyForQuery(conexao: pg.PoolClient, limiteMs: number): Promis
 function consultaQueDevolveAConexao(pool: pg.Pool, limiteReadyForQueryMs: number): Consulta {
   const original = pool.query.bind(pool) as Consulta
   return async function consultar(...argumentos: unknown[]): Promise<unknown> {
-    if (typeof argumentos.at(-1) === 'function' || ehSubmittable(argumentos[0])) {
+    if (typeof argumentos.at(-1) === 'function' || isSubmittable(argumentos[0])) {
       return original(...argumentos)
     }
     const [textoOuConfiguracao, valores] = argumentos as [string | pg.QueryConfig, unknown[] | undefined]
@@ -161,7 +161,7 @@ function conexaoQueSaiNoErroDeConexao(pool: pg.Pool): typeof pool.connect {
     conexao.release = devolver
     conexao.query = function (...argumentosDaConsulta: unknown[]): unknown {
       const resultado = consultar.apply(conexao, argumentosDaConsulta)
-      if (typeof argumentosDaConsulta.at(-1) === 'function' || ehSubmittable(argumentosDaConsulta[0])) return resultado
+      if (typeof argumentosDaConsulta.at(-1) === 'function' || isSubmittable(argumentosDaConsulta[0])) return resultado
       return (resultado as Promise<unknown>).catch((erro: unknown) => {
         if (isConnectionError(erro)) devolver(erro instanceof Error ? erro : new Error('consulta falhou'))
         throw erro

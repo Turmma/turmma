@@ -8,7 +8,7 @@ import { createContext } from 'react'
  */
 export interface DrawerContextValue {
   /** Fecha a gaveta **agora**, e não no próximo render: quem chama move o foco logo em seguida. */
-  readonly fechar: () => void
+  readonly close: () => void
 }
 
-export const DrawerContext = createContext<DrawerContextValue>({ fechar: () => undefined })
+export const DrawerContext = createContext<DrawerContextValue>({ close: () => undefined })

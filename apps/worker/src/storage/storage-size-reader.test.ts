@@ -7,8 +7,8 @@ describe('MedidorDeStorage', () => {
     const marcados = Object.getOwnPropertyNames(StorageSizeReader.prototype)
       .filter((metodo) => metodo !== 'constructor' && unscopedJustification(StorageSizeReader, metodo) !== undefined)
       .sort()
-    expect(marcados).toEqual(['listarEscolas'])
-    expect(unscopedJustification(StorageSizeReader, 'listarEscolas')).toMatch(/consolidação/)
+    expect(marcados).toEqual(['listEscolas'])
+    expect(unscopedJustification(StorageSizeReader, 'listEscolas')).toMatch(/consolidação/)
   })
 
   it('o prefixo da escola termina em barra', () => {

@@ -140,13 +140,13 @@ export class QueueGauge {
     return [...this.#series.values()].map(({ vistaEmMs: _vistaEmMs, ...serie }) => serie)
   }
 
-  iniciar(): void {
+  start(): void {
     if (this.#ativa) return
     this.#ativa = true
     this.#laco = this.lacar()
   }
 
-  async parar(): Promise<void> {
+  async stop(): Promise<void> {
     this.#ativa = false
     this.#encerrarEspera?.()
     await this.#laco

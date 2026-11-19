@@ -8,7 +8,7 @@ import { caminhoDoProfessor, COORDENACAO_ROUTES } from '../../../paths'
 import { LoadingState, ErrorState, EmptyState } from '../../../components/states/index'
 import { ListItem } from '../../../components/ui/ListItem'
 import { StatusBadge } from '../../../components/ui/StatusBadge'
-import { ordenarPeloNome, ordenarVinculos } from '../comum/ordem'
+import { sortPeloNome, sortVinculos } from '../comum/ordem'
 import { AvisoDeListaIncompleta } from '../comum/pecas-da-lista'
 
 /**
@@ -75,8 +75,8 @@ export function ProfessoresDaTurma({ turmaId }: { turmaId: string }) {
   const nomeDe = (vinculo: VinculoDaCoordenacao): string => nomes.get(vinculo.usuarioId) ?? 'Nome não carregado'
   // Pelo professor, e dentro dele pela disciplina: as duas disciplinas do mesmo professor ficam juntas. A segunda ordenação é
   // estável, então ela mantém a ordem por disciplina que a primeira deu.
-  const daTurma = ordenarPeloNome(
-    ordenarVinculos(
+  const daTurma = sortPeloNome(
+    sortVinculos(
       vinculos.data.itens.filter((vinculo) => vinculo.papel === 'professor' && vinculo.turma.id === turmaId),
       nomeDe,
     ).map((vinculo) => ({ nome: nomeDe(vinculo), vinculo })),

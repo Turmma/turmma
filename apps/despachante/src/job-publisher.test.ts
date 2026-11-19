@@ -31,7 +31,7 @@ function jobNaFila(estado: string, failedReason = ''): JobNaFila {
 describe('PublicacaoBullMQ', () => {
   it('publica cada job com o id da linha como jobId, as opções de retentativa, e só escola e requisição no data', async () => {
     const addBulk = vi.fn<BullMQQueue['addBulk']>(() => Promise.resolve([]))
-    await new BullMQJobPublisher(() => filaFalsa({ addBulk })).publicar([JOB])
+    await new BullMQJobPublisher(() => filaFalsa({ addBulk })).publish([JOB])
     expect(addBulk).toHaveBeenCalledExactlyOnceWith([
       { name: 'sintetico', data: { escolaId: JOB.escolaId, requisicaoId: JOB.requisicaoId }, opts: { attempts: 5, backoff: { type: 'exponential', delay: 2_000, jitter: 0.5 }, jobId: JOB.id } },
     ])
@@ -44,7 +44,7 @@ describe('PublicacaoBullMQ', () => {
       [TIPO_JOB_SINTETICO]: defineJob({ ...JOB_DEFINITIONS[TIPO_JOB_SINTETICO], retentativa: { tentativas: 2, recuoMs: 10, jitter: 0 } }),
     }
     const montar = { ...JOB, id: '0190f5a0-0000-7000-8000-0000000000f2', tipo: 'titular.montar-arquivo', fila: 'interativa' as const }
-    await new BullMQJobPublisher(() => filaFalsa({ addBulk }), undefined, definicoes).publicar([JOB, montar])
+    await new BullMQJobPublisher(() => filaFalsa({ addBulk }), undefined, definicoes).publish([JOB, montar])
     const opcoes = Object.fromEntries((addBulk.mock.calls[0]?.[0] ?? []).map(({ name, opts }) => [name, opts]))
     expect(opcoes).toEqual({
       sintetico: { attempts: 2, backoff: { type: 'exponential', delay: 10, jitter: 0 }, jobId: JOB.id },
@@ -74,10 +74,10 @@ describe('PublicacaoBullMQ', () => {
     const daApi = { ...JOB, id: '0190f5a0-0000-7000-8000-0000000000f2', tipo: 'teste.da-api' }
     const antigo = { ...JOB, id: '0190f5a0-0000-7000-8000-0000000000f3', tipo: 'tipo.de-uma-versao-antiga', fila: 'normal' as const }
     const publicacao = new BullMQJobPublisher(criar, undefined, definicoes)
-    await publicacao.publicar([JOB, daApi, antigo])
+    await publicacao.publish([JOB, daApi, antigo])
     expect(Object.fromEntries(adicionados)).toEqual({ interativa: [JOB.id], 'api-interativa': [daApi.id], normal: [antigo.id] })
-    await publicacao.consultar(daApi)
-    await publicacao.consultar(JOB)
+    await publicacao.find(daApi)
+    await publicacao.find(JOB)
     expect(consultadas).toEqual(['api-interativa', 'interativa'])
     // As cinco do worker nascem com o despachante; a da API, na primeira vez que um tipo a pede, e uma só, que a consulta reaproveita.
     expect(criadas).toEqual(['interativa', 'ferramenta', 'normal', 'lote', 'pdf', 'api-interativa'])
@@ -94,7 +94,7 @@ describe('PublicacaoBullMQ', () => {
       })
     const lote = { ...JOB, id: '0190f5a0-0000-7000-8000-0000000000f2', fila: 'lote' as const }
     const normal = { ...JOB, id: '0190f5a0-0000-7000-8000-0000000000f3', fila: 'normal' as const }
-    await new BullMQJobPublisher(criar).publicar([JOB, lote, normal])
+    await new BullMQJobPublisher(criar).publish([JOB, lote, normal])
     expect(Object.fromEntries(adicionados)).toEqual({ interativa: [JOB.id], lote: [lote.id], normal: [normal.id] })
   })
 
@@ -107,7 +107,7 @@ describe('PublicacaoBullMQ', () => {
           return Promise.resolve(undefined)
         },
       })
-    await new BullMQJobPublisher(criar).consultar({ id: JOB.id, fila: 'lote', tipo: JOB.tipo })
+    await new BullMQJobPublisher(criar).find({ id: JOB.id, fila: 'lote', tipo: JOB.tipo })
     expect(consultadas).toEqual(['lote'])
   })
 
@@ -115,14 +115,14 @@ describe('PublicacaoBullMQ', () => {
     const nuncaFicaPronta = filaFalsa({ waitUntilReady: () => new Promise(() => undefined) })
     const publicacao = new BullMQJobPublisher(() => nuncaFicaPronta, 50)
     const inicio = performance.now()
-    await expect(publicacao.publicar([JOB])).rejects.toBeInstanceOf(QueueTimeoutError)
-    await expect(publicacao.consultar(JOB)).rejects.toBeInstanceOf(QueueTimeoutError)
+    await expect(publicacao.publish([JOB])).rejects.toBeInstanceOf(QueueTimeoutError)
+    await expect(publicacao.find(JOB)).rejects.toBeInstanceOf(QueueTimeoutError)
     expect(performance.now() - inicio).toBeLessThan(1_000)
   })
 
   it('comando travado: a publicação desiste no prazo, mesmo que o comando nunca responda', async () => {
     const publicacao = new BullMQJobPublisher(() => filaFalsa({ addBulk: () => new Promise(() => undefined) }), 50)
-    await expect(publicacao.publicar([JOB])).rejects.toBeInstanceOf(QueueTimeoutError)
+    await expect(publicacao.publish([JOB])).rejects.toBeInstanceOf(QueueTimeoutError)
   })
 
   it('a preparação da Queue falhou (o BullMQ guarda essa falha para sempre): a operação falha, e a seguinte já usa uma Queue nova', async () => {
@@ -132,9 +132,9 @@ describe('PublicacaoBullMQ', () => {
     const criar = vi.fn((fila: QueueName) => (fila === 'interativa' ? (criadas.shift() ?? filaFalsa()) : filaFalsa()))
     const publicacao = new BullMQJobPublisher(criar)
 
-    await expect(publicacao.publicar([JOB])).rejects.toThrow('Connection is closed.')
+    await expect(publicacao.publish([JOB])).rejects.toThrow('Connection is closed.')
     expect(quebrada.close).toHaveBeenCalledOnce()
-    await publicacao.publicar([JOB])
+    await publicacao.publish([JOB])
     expect(addBulkDaNova).toHaveBeenCalledOnce()
     // As cinco da construção e a nova, só da fila que quebrou.
     expect(criar.mock.calls.map(([fila]) => fila)).toEqual(['interativa', 'ferramenta', 'normal', 'lote', 'pdf', 'interativa'])
@@ -150,9 +150,9 @@ describe('PublicacaoBullMQ', () => {
     const job = { ...JOB, tipo: 'teste.da-api' }
     const publicacao = new BullMQJobPublisher(criar, undefined, definicoes)
 
-    await expect(publicacao.publicar([job])).rejects.toThrow('Connection is closed.')
+    await expect(publicacao.publish([job])).rejects.toThrow('Connection is closed.')
     expect(quebrada.close).toHaveBeenCalledOnce()
-    await publicacao.publicar([job])
+    await publicacao.publish([job])
     expect(addBulkDaNova).toHaveBeenCalledOnce()
     expect(addBulkDoWorker).not.toHaveBeenCalled()
     expect(criar.mock.calls).toEqual([
@@ -169,12 +169,12 @@ describe('PublicacaoBullMQ', () => {
   it('esperar o Redis ficar pronto não é falha da preparação: no prazo, a Queue não é trocada', async () => {
     const criar = vi.fn(() => filaFalsa({ waitUntilReady: () => new Promise(() => undefined) }))
     const publicacao = new BullMQJobPublisher(criar, 20)
-    await expect(publicacao.publicar([JOB])).rejects.toBeInstanceOf(QueueTimeoutError)
+    await expect(publicacao.publish([JOB])).rejects.toBeInstanceOf(QueueTimeoutError)
     expect(criar).toHaveBeenCalledTimes(5)
   })
 
   describe('consultar', () => {
-    const consultar = (job: JobNaFila) => new BullMQJobPublisher(() => filaFalsa({ getJob: () => Promise.resolve(job) })).consultar(JOB)
+    const consultar = (job: JobNaFila) => new BullMQJobPublisher(() => filaFalsa({ getJob: () => Promise.resolve(job) })).find(JOB)
 
     it('inexistente só quando a fila não tem o job', async () => {
       expect(await consultar(undefined)).toEqual({ situacao: 'inexistente' })

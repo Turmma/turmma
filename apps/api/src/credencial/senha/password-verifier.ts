@@ -20,7 +20,7 @@ export interface PasswordAttempt<Credencial extends { readonly senhaHash: string
   readonly chave: string
   readonly senha: string
   /** A leitura da credencial, dentro da vez: `undefined` quando não existe, e aí o hash é o fixo. */
-  readonly lerCredencial: () => Promise<Credencial>
+  readonly readCredencial: () => Promise<Credencial>
   /**
    * Como a senha digitada vira a que o hash lido confere, quando a credencial pede (a provisória se digita com o hífen da tela e em minúsculas: acesso-e-convites, tarefa 10.0). Sem ele,
    * a senha vai como veio. Roda dentro da vez, depois de a credencial ser lida, e uma vez só.
@@ -62,12 +62,12 @@ export class PasswordVerifier {
   /** Espera a vez, reserva a tentativa, lê a credencial e confere a senha. Conta segurada sai daqui com o 429. */
   async conferir<Credencial extends { readonly senhaHash: string | null } | undefined>(tentativa: PasswordAttempt<Credencial>): Promise<VerifiedPassword<Credencial>> {
     const { semaforo, contador, hash } = this.dependencias
-    const resultado = await semaforo.executar(tentativa.balde, async (): Promise<VerifiedPassword<Credencial> | { readonly seguradaPorMs: number }> => {
+    const resultado = await semaforo.run(tentativa.balde, async (): Promise<VerifiedPassword<Credencial> | { readonly seguradaPorMs: number }> => {
       const reserva = await contador.reservar(tentativa.chave)
       if (!reserva.liberada) return { seguradaPorMs: reserva.esperaMs }
-      const credencial = await tentativa.lerCredencial()
+      const credencial = await tentativa.readCredencial()
       const senha = tentativa.senhaParaConferir?.(tentativa.senha, credencial) ?? tentativa.senha
-      return { reserva, credencial, confere: await hash.verificar(credencial?.senhaHash, senha) }
+      return { reserva, credencial, confere: await hash.verify(credencial?.senhaHash, senha) }
     })
     if ('seguradaPorMs' in resultado) return this.#falhar(tentativa, resultado.seguradaPorMs)
     return resultado

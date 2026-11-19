@@ -50,7 +50,7 @@ function montar({ instancias = INSTANCIAS } = {}) {
     instancias,
     medidor: medidor.medidor,
     logger: { warn: (linha: unknown) => linhas.push(linha) } as never,
-    esperar: async (ms) => {
+    wait: async (ms) => {
       esperas.push(ms)
     },
   })

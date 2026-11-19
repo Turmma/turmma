@@ -4,7 +4,7 @@
  */
 
 /** Minúsculas, sem acento e com um espaço só: é como duas escritas da mesma coisa viram iguais. */
-export function normalizar(texto: string): string {
+export function normalize(texto: string): string {
   return texto
     .normalize('NFD')
     .replace(/\p{M}/gu, '')
@@ -42,7 +42,7 @@ const PALAVRAS_VAZIAS = new Set(
 
 /** As palavras que dizem do que o texto trata: sem artigo, preposição e afins, normalizadas, com três letras ou mais. */
 export function palavrasDeConteudo(texto: string): string[] {
-  return palavras(normalizar(texto)).filter((palavra) => palavra.length >= 3 && !PALAVRAS_VAZIAS.has(palavra))
+  return palavras(normalize(texto)).filter((palavra) => palavra.length >= 3 && !PALAVRAS_VAZIAS.has(palavra))
 }
 
 /** Quantas palavras de conteúdo de `a` aparecem em `b`. */
@@ -79,10 +79,10 @@ export function semPontoFinal(texto: string): string {
 
 /** `texto` contém `parte` como palavras inteiras, comparando sem acento nem maiúscula. */
 export function contemTexto(texto: string, parte: string): boolean {
-  const alvo = normalizar(semPontoFinal(parte))
+  const alvo = normalize(semPontoFinal(parte))
   if (alvo.length === 0) return false
   const escapado = alvo.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')
-  return new RegExp(`(?<![\\p{L}\\p{N}])${escapado}(?![\\p{L}\\p{N}])`, 'u').test(normalizar(texto))
+  return new RegExp(`(?<![\\p{L}\\p{N}])${escapado}(?![\\p{L}\\p{N}])`, 'u').test(normalize(texto))
 }
 
 /** Lista em português: "a", "a e b", "a, b e c". */

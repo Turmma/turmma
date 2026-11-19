@@ -15,7 +15,7 @@ import { PgDialect } from 'drizzle-orm/pg-core'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
-import { criarMontagemDoArquivo } from '../../worker/src/processors/montar-arquivo.js'
+import { createMontagemDoArquivo } from '../../worker/src/processors/montar-arquivo.js'
 import { PrivacidadeService } from '../src/privacidade/privacidade.service.js'
 import { instrucaoDoTextoDoModelo } from '../src/privacidade/titulares.repository.js'
 import { subirApi, type TestApi } from './test-api.js'
@@ -114,7 +114,7 @@ describe('arquivo do titular (F3, tarefa 13.0): do pedido ao download', () => {
 
   /** O job, como o worker o roda: no contexto da escola do pedido, com o armazém e o relógio do teste. */
   async function montar(escolaId: string, pedidoId: string): Promise<void> {
-    const processador = criarMontagemDoArquivo({ banco: bancada.banco, armazem, relogio, logger: createLogger({ servico: 'teste', nivel: 'silent' }) })
+    const processador = createMontagemDoArquivo({ banco: bancada.banco, armazem, relogio, logger: createLogger({ servico: 'teste', nivel: 'silent' }) })
     const jobId = randomUUID()
     await runInContext({ requisicaoId: randomUUID(), escolaId }, () => processador({ pedidoId }, jobExecution(jobId)))
   }
@@ -725,7 +725,7 @@ describe('arquivo do titular (F3, tarefa 13.0): do pedido ao download', () => {
 
       const arquivo = await runInContext({ requisicaoId: randomUUID(), escolaId: cenario.escolaId }, () =>
         // `PapelDoTitular` só admite aluno e professor: o papel só decide o uso real do professor na versão completa, que não toca a licença; a coordenação como titular fica para o "Meus dados" dela.
-        new LeituraDoTitular(bancada.banco).montar({ titularId: cenario.coordenacao.usuarioId, papel: 'professor', versao: 'completa', compartilhamento: [], geradoEm: new Date() }),
+        new LeituraDoTitular(bancada.banco).build({ titularId: cenario.coordenacao.usuarioId, papel: 'professor', versao: 'completa', compartilhamento: [], geradoEm: new Date() }),
       )
 
       const linhas = arquivo.tabelas['licenca_de_material'] ?? []
@@ -761,7 +761,7 @@ describe('arquivo do titular (F3, tarefa 13.0): do pedido ao download', () => {
       const deOutraEscola = await secao(outraEscola.escolaId, disciplinaDaB, outraEscola.coordenacao.usuarioId, 1)
 
       const arquivo = await runInContext({ requisicaoId: randomUUID(), escolaId: cenario.escolaId }, () =>
-        new LeituraDoTitular(bancada.banco).montar({ titularId: cenario.coordenacao.usuarioId, papel: 'professor', versao: 'completa', compartilhamento: [], geradoEm: new Date() }),
+        new LeituraDoTitular(bancada.banco).build({ titularId: cenario.coordenacao.usuarioId, papel: 'professor', versao: 'completa', compartilhamento: [], geradoEm: new Date() }),
       )
 
       const linhas = arquivo.tabelas['secao_do_material'] ?? []
@@ -832,7 +832,7 @@ describe('arquivo do titular (F3, tarefa 13.0): do pedido ao download', () => {
     /** O que o arquivo do aluno leva da auditoria, lido como o job o lê (a versão completa, na escola do contexto). */
     async function auditoriaDoArquivo(cenario: Cenario, titularId: string): Promise<Array<Record<string, unknown>>> {
       const documentoLido = await runInContext({ requisicaoId: randomUUID(), escolaId: cenario.escolaId }, () =>
-        new LeituraDoTitular(bancada.banco).montar({ titularId, papel: 'aluno', versao: 'completa', compartilhamento: [], geradoEm: new Date() }),
+        new LeituraDoTitular(bancada.banco).build({ titularId, papel: 'aluno', versao: 'completa', compartilhamento: [], geradoEm: new Date() }),
       )
       return [...(documentoLido.tabelas['auditoria'] ?? [])]
     }
@@ -909,7 +909,7 @@ describe('arquivo do titular (F3, tarefa 13.0): do pedido ao download', () => {
       expect((await auditoriaDoArquivo(cenario, alvo.aluno.id)).map((linha) => linha['id'])).toEqual([transferido])
       // E o arquivo de quem leu, a coordenação, traz o que ela fez (a leitura é ato dela), nunca o do aluno.
       const daCoordenacao = await runInContext({ requisicaoId: randomUUID(), escolaId: cenario.escolaId }, () =>
-        new LeituraDoTitular(bancada.banco).montar({ titularId: cenario.coordenacao.usuarioId, papel: 'professor', versao: 'completa', compartilhamento: [], geradoEm: new Date() }),
+        new LeituraDoTitular(bancada.banco).build({ titularId: cenario.coordenacao.usuarioId, papel: 'professor', versao: 'completa', compartilhamento: [], geradoEm: new Date() }),
       )
       expect((daCoordenacao.tabelas['auditoria'] ?? []).map((linha) => linha['id'])).toContain(lida)
     })
@@ -984,7 +984,7 @@ describe('arquivo do titular (F3, tarefa 13.0): do pedido ao download', () => {
       expect(await papeis()).toEqual(esperado)
       // O arquivo de quem gerou não leva a geração: é ato dele sobre outra pessoa, e o `entidade_id` é o do aluno.
       const daCoordenacao = await runInContext({ requisicaoId: randomUUID(), escolaId: cenario.escolaId }, () =>
-        new LeituraDoTitular(bancada.banco).montar({ titularId: cenario.coordenacao.usuarioId, papel: 'professor', versao: 'completa', compartilhamento: [], geradoEm: new Date() }),
+        new LeituraDoTitular(bancada.banco).build({ titularId: cenario.coordenacao.usuarioId, papel: 'professor', versao: 'completa', compartilhamento: [], geradoEm: new Date() }),
       )
       expect((daCoordenacao.tabelas['auditoria'] ?? []).map((linha) => linha['id'])).not.toContain(geradaPelaCoordenacao)
     })

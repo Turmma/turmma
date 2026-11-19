@@ -20,7 +20,7 @@ import { enderecoDoLoginExterno } from './escola'
  */
 
 /** `POST /v1/salas/abrir`: o nome da turma e os nomes livres da lista. Acesso que não vale responde `NAO_ENCONTRADO`. */
-export function abrirSala(pedido: AbrirSalaRequest): Promise<SalaAbertaResponse> {
+export function openSala(pedido: AbrirSalaRequest): Promise<SalaAbertaResponse> {
   return apiRequest('/v1/salas/abrir', salaAbertaResponseSchema, { metodo: 'POST', corpo: pedido })
 }
 

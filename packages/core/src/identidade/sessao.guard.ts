@@ -14,7 +14,7 @@ import type { VerifiedToken } from './verify-token.js'
 
 /** A leitura que a guarda faz, e a marcação do token renovado. É o `SessaoRepository`; o teste conta as chamadas. */
 export interface SessaoReader {
-  lerParaGuarda(token: VerifiedToken): Promise<SessaoRow | undefined>
+  findParaGuarda(token: VerifiedToken): Promise<SessaoRow | undefined>
   marcarAtualApresentado(token: VerifiedToken): Promise<boolean>
 }
 
@@ -70,7 +70,7 @@ export class SessaoGuard implements CanActivate {
     let linha: SessaoRow | undefined
     const inicio = performance.now()
     try {
-      linha = await this.leitura.lerParaGuarda(token)
+      linha = await this.leitura.findParaGuarda(token)
     } catch (erro) {
       // O logger do Nest leva só o resumo do erro, sem a mensagem nem a consulta (regra 20, item 9).
       this.#liberarAviso()

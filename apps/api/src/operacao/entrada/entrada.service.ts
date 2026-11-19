@@ -1,6 +1,6 @@
 import { DomainException, type Database } from '@educa/core'
 import { ErrorCode, type EntradaDeOperadorRequest, type EntradaDeOperadorResponse } from '@educa/shared'
-import { equipeBucket, type LoginLockout, type DeviceCookie, type PasswordHasher, ipParaRegistro, lerCookie, normalizarEmail, type PrefixoDoContador, type HashBulkhead } from '../../credencial/index.js'
+import { equipeBucket, type LoginLockout, type DeviceCookie, type PasswordHasher, ipParaRegistro, readCookie, normalizeEmail, type PrefixoDoContador, type HashBulkhead } from '../../credencial/index.js'
 import type { OperadorChallengeIssuer, OperadorChallengeStep } from '../operador-challenge.js'
 import { OPERADOR_DEVICE_COOKIE } from '../operador-device-cookie.js'
 import type { OperacaoLoginFailureCounter } from '../login-failure-counter.js'
@@ -12,10 +12,10 @@ export const PREFIXO_DO_CONTADOR_DA_OPERACAO: PrefixoDoContador = 'login-op'
 export interface EntradaDependencies {
   readonly banco: Database
   /** O semáforo do hash do F1, o mesmo do login da escola: o teto é das threads da instância. */
-  readonly semaforo: Pick<HashBulkhead, 'executar'>
+  readonly semaforo: Pick<HashBulkhead, 'run'>
   /** O contador do F1, com o prefixo `login-op`: uma instância só, e o seguro em memória dela vale para os dois. */
   readonly contador: Pick<LoginLockout, 'chaveDe' | 'reservar' | 'zerar'>
-  readonly hash: Pick<PasswordHasher, 'verificar'>
+  readonly hash: Pick<PasswordHasher, 'verify'>
   /** O cookie de dispositivo do operador, com a chave própria (`operador-device-cookie.ts`). */
   readonly dispositivo: Pick<DeviceCookie, 'conhece'>
   readonly emissorDeDesafio: Pick<OperadorChallengeIssuer, 'emitir'>
@@ -67,17 +67,17 @@ export class EntradaDoOperadorService {
 
   async entrar(pedido: EntradaDeOperadorRequest, origem: OrigemDaEntrada): Promise<EntradaDeOperadorResponse> {
     const { banco, semaforo, contador, hash, dispositivo, emissorDeDesafio } = this.dependencias
-    const email = normalizarEmail(pedido.email)
-    const conhecido = dispositivo.conhece(lerCookie(origem.cabecalhoCookie, OPERADOR_DEVICE_COOKIE), email)
+    const email = normalizeEmail(pedido.email)
+    const conhecido = dispositivo.conhece(readCookie(origem.cabecalhoCookie, OPERADOR_DEVICE_COOKIE), email)
     const chave = contador.chaveDe(email, conhecido ? 'conhecido' : 'outro', PREFIXO_DO_CONTADOR_DA_OPERACAO)
     const balde = equipeBucket(origem.ip, !conhecido && origem.acimaDoLimiteDoIp)
 
     // A vez vem antes da tentativa, como no F1: o 503 de quem esperou demais não conta como senha errada.
-    const resultado = await semaforo.executar(balde, async () => {
+    const resultado = await semaforo.run(balde, async () => {
       const reserva = await contador.reservar(chave)
       if (!reserva.liberada) return { seguradaPorMs: reserva.esperaMs }
       const credencial = await new OperadorRepository(banco).credencialDeEntrada(email)
-      return { reserva, credencial, confere: await hash.verificar(credencial?.senhaHash, pedido.senha) }
+      return { reserva, credencial, confere: await hash.verify(credencial?.senhaHash, pedido.senha) }
     })
     // A conta segurada responde sem gravar: sem hash, nada a frearia, e cada repetição seria uma escrita no banco das
     // escolas (regra 80, itens 1 e 3). Ela soma só na métrica, como o F1 faz com o `login_falho`.

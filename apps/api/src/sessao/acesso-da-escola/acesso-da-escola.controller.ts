@@ -14,7 +14,7 @@ export class AcessoDaEscolaController {
   constructor(private readonly acesso: AcessoDaEscolaService) {}
 
   @Get(':slug/acesso')
-  async ler(@Param('slug', new ZodValidationPipe(slugDaEscolaSchema, { errorCode: ErrorCode.NAO_ENCONTRADO })) slug: string): Promise<AcessoDaEscolaResponse> {
-    return acessoDaEscolaResponseSchema.parse(await this.acesso.ler(slug))
+  async read(@Param('slug', new ZodValidationPipe(slugDaEscolaSchema, { errorCode: ErrorCode.NAO_ENCONTRADO })) slug: string): Promise<AcessoDaEscolaResponse> {
+    return acessoDaEscolaResponseSchema.parse(await this.acesso.read(slug))
   }
 }

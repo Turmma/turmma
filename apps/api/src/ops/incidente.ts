@@ -15,7 +15,7 @@ import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 import { z } from 'zod'
 import { AcessoDaEscolaRepository } from '../credencial/index.js'
-import { abrirBancoDeOperacao, InvalidArgumentError, autorDoComando, lerOperador, OperadorRejectedError, type CommandDatabase, type CommandOutput } from './command.js'
+import { openBancoDeOperacao, InvalidArgumentError, autorDoComando, readOperador, OperadorRejectedError, type CommandDatabase, type CommandOutput } from './command.js'
 import { OperacaoPrivacidadeRepository, type SecaoDoIncidente } from './operacao-privacidade.repository.js'
 import type { AuthorCheck } from '../sessao/index.js'
 
@@ -76,7 +76,7 @@ const arquivoSchema = z.strictObject({
   escolas: z.array(secaoSchema).min(1).max(MAXIMO_DE_ESCOLAS_DO_INCIDENTE),
 })
 
-function lerOpcoes(argumentos: string[]) {
+function readOpcoes(argumentos: string[]) {
   try {
     return parseArgs({ args: argumentos, options: { arquivo: { type: 'string' } }, strict: true, allowPositionals: true })
   } catch {
@@ -86,7 +86,7 @@ function lerOpcoes(argumentos: string[]) {
 }
 
 /** O conteúdo do arquivo, ou `InvalidArgumentError` sem o caminho nem o conteúdo: o motivo vai entre parênteses, em texto fixo. */
-async function lerArquivo(caminho: string): Promise<string> {
+async function readArquivo(caminho: string): Promise<string> {
   try {
     if ((await stat(caminho)).size > TAMANHO_MAXIMO_DO_ARQUIVO_DE_INCIDENTE) throw new InvalidArgumentError('--arquivo (maior que 256 KB)')
     return await readFile(caminho, 'utf8')
@@ -100,13 +100,13 @@ async function lerArquivo(caminho: string): Promise<string> {
  * Lê e confere o pedido antes de abrir o banco: a opção, o arquivo, o formato de cada campo e a escola repetida. O erro cita o
  * caminho do campo (`escolas.1.titularesEstimados`) e nunca o valor.
  */
-export async function lerPedidoDeIncidente(argumentos: string[]): Promise<PedidoDeIncidente> {
-  const { values: valores, positionals: posicionais } = lerOpcoes(argumentos)
+export async function readPedidoDeIncidente(argumentos: string[]): Promise<PedidoDeIncidente> {
+  const { values: valores, positionals: posicionais } = readOpcoes(argumentos)
   if (posicionais.join(' ') !== 'registrar') throw new InvalidArgumentError('comando (registrar)')
   if (valores.arquivo === undefined || valores.arquivo === '') throw new InvalidArgumentError('--arquivo')
   let bruto: unknown
   try {
-    bruto = JSON.parse(await lerArquivo(valores.arquivo))
+    bruto = JSON.parse(await readArquivo(valores.arquivo))
   } catch (erro) {
     if (erro instanceof InvalidArgumentError) throw erro
     throw new InvalidArgumentError('--arquivo (não é um JSON válido)')
@@ -187,7 +187,7 @@ export function registrarIncidente(banco: Database, autor: AuthorCheck, pedido: 
       for (const { escolaId, ...secao } of pedido.secoes) {
         await runInContext({ requisicaoId, escolaId }, async () => {
           const secaoId = await repositorio.ligarEscolaAoIncidente(incidenteId, secao)
-          await registro.gravar(tx, 'incidente.registrado', {
+          await registro.save(tx, 'incidente.registrado', {
             entidadeId: secaoId,
             depois: { risco: secao.risco, titularesEstimados: secao.titularesEstimados },
             finalidade: FINALIDADE_DO_REGISTRO_DE_INCIDENTE,
@@ -210,16 +210,16 @@ const MENSAGEM_DO_OPERADOR: Partial<Record<ErrorCode, string>> = {
  * arquivo ou ambiente inválido, texto que cita outra escola, ou `OPERADOR` que não é operador ativo. Argumento, arquivo e formato
  * do `OPERADOR` são conferidos antes de abrir o banco; o `OPERADOR` contra os ativos, dentro da transação.
  */
-export async function executarOpsIncidente(
+export async function runOpsIncidente(
   argumentos: string[],
   ambiente: Record<string, string | undefined>,
   terminal: CommandOutput,
-  abrirBanco: (ambiente: Record<string, string | undefined>) => CommandDatabase = abrirBancoDeOperacao,
+  abrirBanco: (ambiente: Record<string, string | undefined>) => CommandDatabase = openBancoDeOperacao,
 ): Promise<number> {
   try {
-    const pedido = await lerPedidoDeIncidente(argumentos)
-    const operador = lerOperador(ambiente)
-    const { banco, fechar } = abrirBanco(ambiente)
+    const pedido = await readPedidoDeIncidente(argumentos)
+    const operador = readOperador(ambiente)
+    const { banco, close: fechar } = abrirBanco(ambiente)
     try {
       const resposta = await registrarIncidente(banco, autorDoComando(operador), pedido)
       terminal.saida(`${JSON.stringify(resposta)}\n`)
@@ -244,7 +244,7 @@ export async function executarOpsIncidente(
 }
 
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  process.exitCode = await executarOpsIncidente(process.argv.slice(2), process.env, {
+  process.exitCode = await runOpsIncidente(process.argv.slice(2), process.env, {
     saida: (texto) => process.stdout.write(texto),
     erro: (texto) => process.stderr.write(texto),
   })

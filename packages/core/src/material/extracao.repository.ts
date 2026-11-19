@@ -31,7 +31,7 @@ export class ExtracaoDoMaterialRepository {
   constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   /** O material `processando` e não excluído com esse id, na escola do contexto. O de outra escola não é achado. */
-  async lerParaExtrair(id: string): Promise<MaterialParaExtrair | undefined> {
+  async findParaExtrair(id: string): Promise<MaterialParaExtrair | undefined> {
     const [linha] = await this.banco
       .select({ id: material.id, disciplinaId: material.disciplinaId, substituiId: material.substituiId })
       .from(material)
@@ -66,7 +66,7 @@ export class ExtracaoDoMaterialRepository {
   }
 
   /** Grava um trecho por página com texto. A página repetida não entra duas vezes (`trecho_pagina_do_material_unica`). */
-  async gravarTrechos(materialId: string, disciplinaId: string, paginas: readonly PaginaExtraida[]): Promise<void> {
+  async saveTrechos(materialId: string, disciplinaId: string, paginas: readonly PaginaExtraida[]): Promise<void> {
     const escolaId = requireEscolaId()
     for (let inicio = 0; inicio < paginas.length; inicio += TRECHOS_POR_INSERCAO) {
       const lote = paginas.slice(inicio, inicio + TRECHOS_POR_INSERCAO)
@@ -81,7 +81,7 @@ export class ExtracaoDoMaterialRepository {
    * Grava os capítulos que o leitor achou, na ordem, e devolve cada um com o `id` (a seção o guarda). **Só depois de `marcarPronto` ter achado a linha**, na mesma transação: quem não passou pela transição
    * não chama, e o insert não esconde o segundo job com `on conflict` (a violação do `(escola_id, material_id, ordem)` o denunciaria). Sem capítulo, não grava nada e devolve a lista vazia.
    */
-  async gravarCapitulos(materialId: string, capitulos: readonly CapituloLido[]): Promise<CapituloGravado[]> {
+  async saveCapitulos(materialId: string, capitulos: readonly CapituloLido[]): Promise<CapituloGravado[]> {
     if (capitulos.length === 0) return []
     const escolaId = requireEscolaId()
     const gravados = await this.banco
@@ -93,11 +93,11 @@ export class ExtracaoDoMaterialRepository {
   }
 
   /**
-   * Grava as seções do material (classificacao-bncc, 2.0): uma por capítulo, ou um bloco por 10 páginas quando o PDF não tem capítulo (`planejarSecoes`), na escola do contexto. Como `gravarCapitulos`, **só
+   * Grava as seções do material (classificacao-bncc, 2.0): uma por capítulo, ou um bloco por 10 páginas quando o PDF não tem capítulo (`planejarSecoes`), na escola do contexto. Como `saveCapitulos`, **só
    * depois de `marcarPronto` ter achado a linha**, na mesma transação: a reentrega não passa pela transição e não duplica, e a violação do `(escola_id, material_id, ordem)` denunciaria quem tentasse. Sem execução
    * (`nao_agendada`): quem agenda é a 5.0. Devolve quantas seções gravou.
    */
-  async gravarSecoes(materialId: string, paginas: number, capitulos: readonly CapituloGravado[]): Promise<number> {
+  async saveSecoes(materialId: string, paginas: number, capitulos: readonly CapituloGravado[]): Promise<number> {
     const escolaId = requireEscolaId()
     const planejadas = planejarSecoes(paginas, capitulos)
     if (planejadas.length === 0) return 0
@@ -125,7 +125,7 @@ export class ExtracaoDoMaterialRepository {
    * A edição nova herda a correção da anterior (classificacao-bncc, 2.0; Tech Spec, seção 5, "Edição nova"): a seção da nova cujo capítulo tem o **mesmo número e o mesmo título** (sem acento nem caixa) de uma seção
    * **corrigida** da anterior recebe as habilidades dela, com a origem que tinham, e o `corrigida_em`, **sem `corrigida_por`** (a autoria é de quem corrigiu a anterior, e está na auditoria dela). A seção sem
    * correspondente, a de bloco de páginas (sem capítulo) e a da anterior que nunca foi corrigida (só `origem: 'ia'`) não herdam e vão à classificação. Capítulo sem número não casa. Tudo na escola do contexto:
-   * a anterior da B nunca é lida, mesmo com o id dela. Devolve quantas seções herdaram. **Só na transação da extração, depois de `gravarSecoes` e só para quem fez a transição**: as seções da nova acabaram de nascer, sem marca nem habilidade, e é por isso que o `update` e o `insert` não conferem o que já havia.
+   * a anterior da B nunca é lida, mesmo com o id dela. Devolve quantas seções herdaram. **Só na transação da extração, depois de `saveSecoes` e só para quem fez a transição**: as seções da nova acabaram de nascer, sem marca nem habilidade, e é por isso que o `update` e o `insert` não conferem o que já havia.
    */
   async herdarClassificacao(novaId: string, antigaId: string): Promise<number> {
     const escolaId = requireEscolaId()

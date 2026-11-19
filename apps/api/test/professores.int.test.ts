@@ -1,12 +1,12 @@
-import { createDatabase, createPool, executarPlanilha, runInContext, VALIDADE_DO_CONVITE_HORAS_POR_TIPO, type Database, type DatabasePool } from '@educa/core'
-import { contaDoProfessor, travarContasDoProfessor } from '@educa/core/cadastro-de-professor'
+import { createDatabase, createPool, runPlanilha, runInContext, VALIDADE_DO_CONVITE_HORAS_POR_TIPO, type Database, type DatabasePool } from '@educa/core'
+import { contaDoProfessor, lockContasDoProfessor } from '@educa/core/cadastro-de-professor'
 import { ErrorCode, conviteDeProfessorResponseSchema, listaDeProfessoresResponseSchema, MAXIMO_DE_LINHAS_DA_PLANILHA_DE_PROFESSORES, MENSAGENS_DE_ERRO, previaDaPlanilhaResponseSchema, type ConviteDeProfessorResponse } from '@educa/shared'
 import type { Redis } from 'ioredis'
 import { createHash, randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
-import { criarConviteDeCoordenador } from '../src/sessao/index.js'
+import { createConviteDeCoordenador } from '../src/sessao/index.js'
 import { REDIS_LOGIN_CLIENT, PasswordHasher } from '../src/credencial/index.js'
 import { chamar, subirApi, type TestApi } from './test-api.js'
 import { autorDaBancada, SessaoFixtures, type TestSessao } from './sessao.fixture.js'
@@ -157,7 +157,7 @@ describe('professores (A1, tarefa 3.0): a coordenação cadastra, o professor ac
    */
   async function professoraDe(escolaId: string): Promise<{ email: string; contaId: string; usuarioId: string }> {
     const email = `professora-${randomUUID()}@escola.invalid`
-    const { rows: contas } = await bancada.pool.query<{ id: string }>('insert into conta (email, senha_hash, email_verificado_em) values ($1, $2, now()) returning id', [email, await hash.gerar(SENHA_DE_A)])
+    const { rows: contas } = await bancada.pool.query<{ id: string }>('insert into conta (email, senha_hash, email_verificado_em) values ($1, $2, now()) returning id', [email, await hash.generate(SENHA_DE_A)])
     const contaId = contas[0]?.id ?? ''
     const { rows } = await bancada.pool.query<{ id: string }>("insert into usuario (escola_id, conta_id, papel, nome) values ($1, $2, 'professor', 'Pessoa sintética') returning id", [
       escolaId,
@@ -257,7 +257,7 @@ describe('professores (A1, tarefa 3.0): a coordenação cadastra, o professor ac
   it('E9: o convite de professor vale 7 dias, e o de coordenador, 72 h: o de professor vale no 6º dia e cai depois de 7; o de coordenador cai depois de 72 h', async () => {
     const { coordenacao } = await escolaComCoordenacao()
     const deProfessor = await cadastrado(coordenacao)
-    const deCoordenador = await criarConviteDeCoordenador(bancada.banco, autorDaBancada, { escolaId: await bancada.escola(), email: `coordenacao-${randomUUID()}@escola.invalid`, nome: 'Coordenação sintética' })
+    const deCoordenador = await createConviteDeCoordenador(bancada.banco, autorDaBancada, { escolaId: await bancada.escola(), email: `coordenacao-${randomUUID()}@escola.invalid`, nome: 'Coordenação sintética' })
 
     // A validade gravada é a do tipo, contada de agora.
     const { rows } = await bancada.pool.query<{ id: string; horas: number }>('select id, extract(epoch from (expira_em - now())) / 3600 as horas from convite where id = any($1::uuid[])', [
@@ -298,7 +298,7 @@ describe('professores (A1, tarefa 3.0): a coordenação cadastra, o professor ac
     expect((await entrar(professor.email, SENHA_NOVA)).corpo['etapa']).toBe('pronta')
 
     const email = `coordenacao-${randomUUID()}@escola.invalid`
-    const deCoordenador = await criarConviteDeCoordenador(bancada.banco, autorDaBancada, { escolaId: await bancada.escola(), email, nome: 'Coordenação sintética' })
+    const deCoordenador = await createConviteDeCoordenador(bancada.banco, autorDaBancada, { escolaId: await bancada.escola(), email, nome: 'Coordenação sintética' })
     expect((await aceitar(deCoordenador.token, SENHA_NOVA)).corpo).toEqual({ etapa: 'configurar_mfa', desafio: expect.any(String) })
     expect((await entrar(email, SENHA_NOVA)).corpo).toEqual({ etapa: 'configurar_mfa', desafio: expect.any(String) })
     expect(await auditoriaDe(escolaId, 'convite.aceito')).toEqual([
@@ -821,7 +821,7 @@ describe('professores (A1, tarefa 3.0): a coordenação cadastra, o professor ac
   describe('I7 (a coordenação): refazer e revogar pelo usuário só alcançam o convite de professor', () => {
     it('o usuário coordenador com o convite de coordenação em aberto: NAO_ENCONTRADO, igual ao inexistente, e nada é gravado', async () => {
       const escolaId = await bancada.escola()
-      const deCoordenador = await criarConviteDeCoordenador(bancada.banco, autorDaBancada, { escolaId, email: `coordenacao-${randomUUID()}@escola.invalid`, nome: 'Coordenação sintética' })
+      const deCoordenador = await createConviteDeCoordenador(bancada.banco, autorDaBancada, { escolaId, email: `coordenacao-${randomUUID()}@escola.invalid`, nome: 'Coordenação sintética' })
       const coordenacao = await bancada.sessao(escolaId, 'coordenador')
       const { rows } = await bancada.pool.query<{ usuario_id: string }>('select usuario_id from convite where id = $1', [deCoordenador.conviteId])
       const coordenadorConvidado = rows[0]?.usuario_id ?? ''
@@ -891,7 +891,7 @@ describe('professores (A1, tarefa 3.0): a coordenação cadastra, o professor ac
     const emailNovo = (): string => `planilha-${randomUUID()}@escola.invalid`
 
     /** O job uma vez (tentativa 1), no contexto da escola, com o achar-ou-criar conta que o worker passa. */
-    const rodar = (escolaId: string, importacaoId: string) => runInContext({ requisicaoId: randomUUID(), escolaId }, () => executarPlanilha(bancoDoJob, importacaoId, { acharConta: contaDoProfessor, travarContas: travarContasDoProfessor }))
+    const rodar = (escolaId: string, importacaoId: string) => runInContext({ requisicaoId: randomUUID(), escolaId }, () => runPlanilha(bancoDoJob, importacaoId, { acharConta: contaDoProfessor, lockContas: lockContasDoProfessor }))
 
     /** Grava a planilha pela API, roda o job e confere que concluiu. */
     async function importada(coordenacao: TestSessao, planilha: string, desligar: readonly string[] = []): Promise<void> {

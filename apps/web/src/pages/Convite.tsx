@@ -8,7 +8,7 @@ import {
 } from '@educa/shared'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useLocation } from 'wouter'
-import { aceitarConviteNaVez, consultarConvite } from '../api/convite'
+import { aceitarConviteNaVez, findConvite } from '../api/convite'
 import { ApiError } from '../api/client'
 import { definirAvisoDaEntrada } from '../api/sessao'
 import { ROUTES } from '../paths'
@@ -94,7 +94,7 @@ export function Convite() {
     clearFragment()
     if (token === undefined) return undefined
     let atual = true
-    consultarConvite(token).then(
+    findConvite(token).then(
       (resposta) => atual && definirEtapa({ nome: 'confirmar', token, escolaNome: resposta.escolaNome }),
       (erro: unknown) => atual && definirEtapa(erro instanceof ApiError && erro.codigo === ErrorCode.NAO_ENCONTRADO ? { nome: 'invalido' } : { nome: 'falhou', erro }),
     )
@@ -136,7 +136,7 @@ export function Convite() {
   }
 
   /** A consulta de novo, com o token que continua na memória da tela: a tela volta a conferir na hora. */
-  function tentarDeNovo(): void {
+  function retry(): void {
     definirEtapa({ nome: 'consultando' })
     definirTentativa((anterior) => anterior + 1)
   }
@@ -152,7 +152,7 @@ export function Convite() {
   if (etapa.nome === 'falhou') {
     return (
       <CascaPublica titulo="Convite">
-        <ErrorState erro={etapa.erro} aoTentarDeNovo={tentarDeNovo} />
+        <ErrorState erro={etapa.erro} aoTentarDeNovo={retry} />
       </CascaPublica>
     )
   }
@@ -221,13 +221,13 @@ function SenhaNova({ aceitando, aoEnviar }: { aceitando: boolean; aoEnviar: (sen
     campo.current?.focus()
   }, [])
 
-  function enviar(evento: FormEvent<HTMLFormElement>): void {
+  function send(evento: FormEvent<HTMLFormElement>): void {
     evento.preventDefault()
     aoEnviar(senha)
   }
 
   return (
-    <form className="flex flex-col gap-4" onSubmit={enviar}>
+    <form className="flex flex-col gap-4" onSubmit={send}>
       <p className="text-apoio">Crie a senha que você vai usar para entrar.</p>
       <PasswordInput
         ref={campo}

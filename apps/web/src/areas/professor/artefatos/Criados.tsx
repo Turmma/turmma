@@ -17,7 +17,7 @@ import { SectionHeader, Page } from '../../../components/ui/Page'
 import { Toggle } from '../../../components/ui/Toggle'
 import { formatDateTime, formatQuantity } from '../../../format'
 import { usePageTitle } from '../../../document-title'
-import { agruparPorTurma, enderecoComFiltros, FAMILIA_DA_ENTREGA, filtrar, filtrosLigados, lerFiltros, OPCOES_DE_ESTADO, OPCOES_DE_TIPO, rotuloDeVerDocumentos, SELO_DA_ENTREGA, SEM_FILTROS, type FiltrosDeCriados, type OpcaoDeFiltro } from './criados'
+import { agruparPorTurma, enderecoComFiltros, FAMILIA_DA_ENTREGA, filter, filtrosLigados, readFiltros, OPCOES_DE_ESTADO, OPCOES_DE_TIPO, rotuloDeVerDocumentos, SELO_DA_ENTREGA, SEM_FILTROS, type FiltrosDeCriados, type OpcaoDeFiltro } from './criados'
 import { textoDaAdaptacao } from './entregas'
 import { IconeDeFerramenta } from '../ferramentas/icones-de-ferramenta'
 import { nomesDasDisciplinas, nomesDasTurmas, turmasDaProfessora } from '../comum/turmas-da-professora'
@@ -91,7 +91,7 @@ export default function Criados() {
   usePageTitle('Criados')
   const [caminho, navegar] = useLocation()
   const busca = useSearch()
-  const filtros = lerFiltros(busca)
+  const filtros = readFiltros(busca)
   const artefatos = useInfiniteQuery(artefatosQueryOptions(filtros.turma))
   const vinculos = useInfiniteQuery(meusVinculosQueryOptions)
   const noComputador = useMediaQuery(MEDIA_MD)
@@ -107,7 +107,7 @@ export default function Criados() {
   const nomeDaTurma = nomesDasTurmas(vinculosLidos)
   const nomeDaDisciplina = nomesDasDisciplinas(vinculosLidos)
   const lidos = artefatos.data?.pages.flatMap((pagina) => pagina.itens) ?? []
-  const visiveis = filtrar(lidos, filtros)
+  const visiveis = filter(lidos, filtros)
   const porTurma = agruparPorTurma(visiveis, (turmaId) => nomeDaTurma[turmaId], (disciplinaId) => nomeDaDisciplina[disciplinaId])
   const ligados = filtrosLigados(filtros)
   // As turmas do filtro: uma vez cada, mesmo com duas disciplinas nela; o filtro é pela turma.
@@ -132,7 +132,7 @@ export default function Criados() {
     navegar(enderecoComFiltros(caminho, busca, mudanca), { replace: true })
   }
 
-  function limpar(): void {
+  function clear(): void {
     mudar(SEM_FILTROS)
     // O botão que limpou sai da tela com o resultado novo: o foco vai para o título (regra 50, item 11).
     tituloDaTela.current?.focus()
@@ -190,7 +190,7 @@ export default function Criados() {
           />
         )}
         {lido && visiveis.length === 0 && (lidos.length > 0 || ligados > 0) && !artefatos.hasNextPage && (
-          <EmptyState titulo="Nada com estes filtros" descricao="Nenhum documento seu tem este tipo, nesta turma e neste estado." acao={{ rotulo: 'Limpar filtros', aoAcionar: limpar }} />
+          <EmptyState titulo="Nada com estes filtros" descricao="Nenhum documento seu tem este tipo, nesta turma e neste estado." acao={{ rotulo: 'Limpar filtros', aoAcionar: clear }} />
         )}
         {lido && visiveis.length === 0 && artefatos.hasNextPage && (
           <EmptyState titulo="Nada com estes filtros até aqui" descricao="Ainda há documentos mais antigos que não foram lidos. Veja mais para procurar neles." />

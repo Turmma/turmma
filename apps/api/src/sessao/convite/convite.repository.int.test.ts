@@ -164,7 +164,7 @@ describe('ConviteRepository: o convite e o usuário convidado só na escola do c
     }
     const criar = (usuarioId: string) =>
       naEscola(escolaE, (repositorio) =>
-        repositorio.criarConvite({ tipo: 'coordenador', tokenHash: createHash('sha256').update(randomUUID()).digest('hex'), usuarioId, expiraEm: new Date(Date.now() + 72 * 60 * 60 * 1_000) }),
+        repositorio.createConvite({ tipo: 'coordenador', tokenHash: createHash('sha256').update(randomUUID()).digest('hex'), usuarioId, expiraEm: new Date(Date.now() + 72 * 60 * 60 * 1_000) }),
       )
     const convitesDe = async (usuarioId: string) => (await bancada.pool.query<{ id: string }>('select id from convite where usuario_id = $1 order by id', [usuarioId])).rows.map((linha) => linha.id)
 

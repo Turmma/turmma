@@ -444,9 +444,9 @@ describe('ligar a conta da escola em "Eu" (15.0): o aluno com sessão liga a con
       const cookies = new CookieOidc(chaveDoCookie, 'local')
       /** O mesmo login em andamento que o `iniciar` gravou, com o que o teste troca. */
       const forjar = (preparada: Preparada, troca: Record<string, unknown>): Preparada => {
-        const original = cookies.ler(preparada.cookie.slice(`${COOKIE_OIDC}=`.length))
+        const original = cookies.read(preparada.cookie.slice(`${COOKIE_OIDC}=`.length))
         if (original === undefined) throw new Error('cookie do iniciar não decifra')
-        return { consulta: preparada.consulta, cookie: cookies.gravar({ ...original, ...troca }).split(';')[0] ?? '' }
+        return { consulta: preparada.consulta, cookie: cookies.save({ ...original, ...troca }).split(';')[0] ?? '' }
       }
 
       const doAlunoDaA = await preparar(a.slug, alunoA.cookie)

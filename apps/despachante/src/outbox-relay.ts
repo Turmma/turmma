@@ -32,16 +32,16 @@ export const FILA_QUE_SEGURA_NAO_URGENTE: QueueName = 'lote'
 
 export interface PublishDependencies {
   repositorio: Pick<DispatchRepository, 'marcarPublicados' | 'devolverParaAguardando'>
-  fila: Pick<JobPublisher, 'publicar'>
-  vagas: Pick<EscolaConcurrencyLimiter, 'tomar' | 'liberar'>
+  fila: Pick<JobPublisher, 'publish'>
+  vagas: Pick<EscolaConcurrencyLimiter, 'tomar' | 'release'>
   /** Vagas por fila da escola do contexto: as da configuração dela, ou o padrão do ambiente. */
   vagasDaEscola: Pick<OperationalSettings<ConcurrencyByQueue>, 'daEscola'>
   logger: LoggerBase
 }
 
 export interface OutboxRelayDependencies extends PublishDependencies {
-  repositorio: Pick<DispatchRepository, 'listarEscolasComPendentes' | 'publicadosEntre' | 'reservarDaEscola' | 'devolverParaAguardando' | 'marcarPublicados'>
-  vagas: Pick<EscolaConcurrencyLimiter, 'membros' | 'manter' | 'livres' | 'tomar' | 'liberar'>
+  repositorio: Pick<DispatchRepository, 'listEscolasComPendentes' | 'publicadosEntre' | 'reservarDaEscola' | 'devolverParaAguardando' | 'marcarPublicados'>
+  vagas: Pick<EscolaConcurrencyLimiter, 'membros' | 'manter' | 'livres' | 'tomar' | 'release'>
   /** Horário letivo da escola do contexto: o da configuração dela, ou o padrão do ambiente. */
   janelaDaEscola: Pick<OperationalSettings<JanelaLetiva>, 'daEscola'>
   /** De onde vem a hora que decide se a escola está em aula. Só o teste troca. */
@@ -110,14 +110,14 @@ export class OutboxRelay {
     this.#encerrarEspera?.()
   }
 
-  iniciar(): void {
+  start(): void {
     if (this.#ativo) return
     this.#ativo = true
     this.#laco = this.lacar()
   }
 
   /** Termina a rodada em andamento e para. Nada fica reservado pela metade: a reserva vence sozinha. */
-  async parar(): Promise<void> {
+  async stop(): Promise<void> {
     this.#ativo = false
     this.#encerrarEspera?.()
     await this.#laco
@@ -130,7 +130,7 @@ export class OutboxRelay {
    */
   async rodada(): Promise<number> {
     this.#avisoPendente = false
-    const pendentes = await this.dependencias.repositorio.listarEscolasComPendentes()
+    const pendentes = await this.dependencias.repositorio.listEscolasComPendentes()
     let publicados = 0
     for (const fila of QUEUES_BY_PRIORITY) {
       for (const escolaId of this.emRodizio(fila, pendentes)) {
@@ -206,11 +206,11 @@ export class OutboxRelay {
       }
       batimento?.bater()
       // Rodada cheia emenda na seguinte; rodada que publicou pouco, ou que falhou, espera.
-      if (publicados < this.#lote) await this.esperar()
+      if (publicados < this.#lote) await this.wait()
     }
   }
 
-  private esperar(): Promise<void> {
+  private wait(): Promise<void> {
     if (this.#avisoPendente || !this.#ativo) return Promise.resolve()
     return new Promise((resolver) => {
       const encerrar = (): void => {
@@ -237,7 +237,7 @@ export class OutboxRelay {
 export async function publishWithSlot(dependencias: PublishDependencies, jobs: readonly ReservedJob[], evento: 'job.publicado' | 'job.republicado'): Promise<string[]> {
   const publicados: string[] = []
   for (const grupo of agruparPorFilaEEscola(jobs)) {
-    const doGrupo = await runInContext(contextoDaEscola(grupo.escolaId), () => publicarGrupoComVaga(dependencias, grupo, evento))
+    const doGrupo = await runInContext(contextoDaEscola(grupo.escolaId), () => publishGrupoComVaga(dependencias, grupo, evento))
     publicados.push(...doGrupo)
   }
   return publicados
@@ -249,7 +249,7 @@ interface GrupoDeJobs {
   jobs: ReservedJob[]
 }
 
-async function publicarGrupoComVaga(dependencias: PublishDependencies, { fila, escolaId, jobs }: GrupoDeJobs, evento: 'job.publicado' | 'job.republicado'): Promise<string[]> {
+async function publishGrupoComVaga(dependencias: PublishDependencies, { fila, escolaId, jobs }: GrupoDeJobs, evento: 'job.publicado' | 'job.republicado'): Promise<string[]> {
   const { repositorio, vagas, vagasDaEscola, logger } = dependencias
   const ids = jobs.map((job) => job.id)
   let concedidos: ReadonlySet<string>
@@ -264,9 +264,9 @@ async function publicarGrupoComVaga(dependencias: PublishDependencies, { fila, e
   const comVaga = jobs.filter((job) => concedidos.has(job.id))
   if (comVaga.length === 0) return []
   const comVagaIds = comVaga.map((job) => job.id)
-  if (await publicarReservados(dependencias, comVaga, evento)) return comVagaIds
+  if (await publishReservados(dependencias, comVaga, evento)) return comVagaIds
   try {
-    await vagas.liberar(fila, escolaId, comVagaIds)
+    await vagas.release(fila, escolaId, comVagaIds)
   } catch (erro) {
     // A vaga vence sozinha em 60 s.
     logger.warn({ evento: 'despachante.vaga_nao_liberada', jobIds: comVagaIds, erro: summarizeError(erro) })
@@ -290,14 +290,14 @@ function agruparPorFilaEEscola(jobs: readonly ReservedJob[]): GrupoDeJobs[] {
  * reserva vence sozinha. Devolve se publicou. Falha do banco ao marcar lança, e as linhas também
  * voltam pela reserva vencida: a próxima publicação, com o mesmo `jobId`, não duplica.
  */
-async function publicarReservados(
+async function publishReservados(
   { repositorio, fila, logger }: Pick<PublishDependencies, 'repositorio' | 'fila' | 'logger'>,
   jobs: readonly ReservedJob[],
   evento: 'job.publicado' | 'job.republicado',
 ): Promise<boolean> {
   const ids = jobs.map((job) => job.id)
   try {
-    await fila.publicar(jobs)
+    await fila.publish(jobs)
   } catch (erro) {
     logger.warn({ evento: 'despachante.publicacao_falhou', jobIds: ids, erro: summarizeError(erro) })
     return false

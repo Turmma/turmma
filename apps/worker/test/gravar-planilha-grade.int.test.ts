@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { CHAVE_DA_TRAVA_DO_CONVITE_DA_ESCOLA, ContaDaPlanilhaPerdidaError, createDatabase, createPool, ehFalhaDeTrava, ExpurgoDeAcessoRepository, ImportacaoRepository, LOTE_DO_EXPURGO, MotorDePlanilha, runInContext, schema, type Database, type DatabasePool } from '@educa/core'
+import { CHAVE_DA_TRAVA_DO_CONVITE_DA_ESCOLA, ContaDaPlanilhaPerdidaError, createDatabase, createPool, isFalhaDeTrava, ExpurgoDeAcessoRepository, ImportacaoRepository, LOTE_DO_EXPURGO, MotorDePlanilha, runInContext, schema, type Database, type DatabasePool } from '@educa/core'
 import { CicloDeVidaService } from '@educa/core/ciclo-de-vida'
 import { TurmaRepository, VinculoRepository } from '@educa/core/estrutura'
 import { ErrorCode, type PreviaDaPlanilhaResponse } from '@educa/shared'
@@ -10,7 +10,7 @@ import { compose, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { esperarNaTrava, WriteBlockTrigger } from '../../api/test/write-block-trigger.js'
-import { criarGravacaoDaPlanilha } from '../src/processors/gravar-planilha.js'
+import { createGravacaoDaPlanilha } from '../src/processors/gravar-planilha.js'
 import { jobExecution } from './job-execution.fixture.js'
 import { InMemoryLog, QueueFixtures } from './queue.fixture.js'
 
@@ -80,12 +80,12 @@ describe('estrutura.gravar-planilha, planilha da grade', () => {
   /** O pool dos jobs em corrida e das paradas: o da bancada tem poucas conexões, e cada parada segura uma. */
   let apoio: DatabasePool
   let bancoDoJob: Database
-  let gravacao: ReturnType<typeof criarGravacaoDaPlanilha>
+  let gravacao: ReturnType<typeof createGravacaoDaPlanilha>
 
   beforeAll(() => {
     apoio = createPool({ url: urlDoBancoDeTeste(), maximoConexoes: 10, timeoutConexaoMs: 5_000, timeoutConsultaMs: 30_000 }, () => undefined)
     bancoDoJob = createDatabase(apoio)
-    gravacao = criarGravacaoDaPlanilha({ banco: bancoDoJob, logger: log.logger, medidor: medidor.medidor })
+    gravacao = createGravacaoDaPlanilha({ banco: bancoDoJob, logger: log.logger, medidor: medidor.medidor })
   })
 
   afterAll(async () => {
@@ -150,7 +150,7 @@ describe('estrutura.gravar-planilha, planilha da grade', () => {
   /** O gravar da coordenação, pelo motor (sem fila): devolve o id da importação `na_fila`. */
   function gravar(escola: Escola, texto: string, anoLetivoId?: string): Promise<string> {
     const motor = new MotorDePlanilha(bancada.banco, { enfileirar: () => Promise.resolve(randomUUID()) })
-    return runInContext(contextoDa(escola), async () => (await motor.gravar('grade', { texto, marcas: SEM_MARCAS, ...(anoLetivoId === undefined ? {} : { anoLetivoId }) })).id)
+    return runInContext(contextoDa(escola), async () => (await motor.save('grade', { texto, marcas: SEM_MARCAS, ...(anoLetivoId === undefined ? {} : { anoLetivoId }) })).id)
   }
 
   /** A prévia da coordenação, pelo motor. */
@@ -220,14 +220,14 @@ describe('estrutura.gravar-planilha, planilha da grade', () => {
     comoProfessor(escola, usuarioId, anoLetivoId, () =>
       bancada.banco.transaction(async (tx) => {
         const repositorio = new VinculoRepository(tx)
-        if ((await repositorio.travar(vinculoId, { doUsuario: true })) === undefined) return false
+        if ((await repositorio.lock(vinculoId, { doUsuario: true })) === undefined) return false
         return repositorio.decidir(vinculoId, { estado: 'confirmado' })
       }),
     )
 
-  /** Os vínculos que o professor vê no ano do contexto: o que a lista dele (`listarDoUsuario`) devolve. */
+  /** Os vínculos que o professor vê no ano do contexto: o que a lista dele (`listDoUsuario`) devolve. */
   const vinculosQueVe = async (escola: Escola, usuarioId: string, anoLetivoId: string): Promise<string[]> =>
-    (await comoProfessor(escola, usuarioId, anoLetivoId, () => bancada.banco.transaction((tx) => new VinculoRepository(tx).listarDoUsuario({ limite: 50 })))).map(({ id }) => id)
+    (await comoProfessor(escola, usuarioId, anoLetivoId, () => bancada.banco.transaction((tx) => new VinculoRepository(tx).listDoUsuario({ limite: 50 })))).map(({ id }) => id)
 
   /** Se o professor alcança a turma (RF5): a turma vinculada a ele, no ano do contexto. */
   const alcancaATurma = async (escola: Escola, usuarioId: string, anoLetivoId: string, turmaId: string): Promise<boolean> =>
@@ -648,7 +648,7 @@ describe('estrutura.gravar-planilha, planilha da grade', () => {
     expect(aulaDaB).toMatchObject({ dia_semana: 1, inicio: '08:00', fim: '08:50', sala: 'Sala da B' })
 
     const escritas = await runInContext(contextoDa(a), () =>
-      new ImportacaoRepository(bancada.banco).gravarAulas(a.anoId, [{ vinculoId: aulaDaB?.vinculo_id ?? '', diaSemana: 1, inicio: '08:00', fim: '09:30', sala: 'Invasora' }]),
+      new ImportacaoRepository(bancada.banco).saveAulas(a.anoId, [{ vinculoId: aulaDaB?.vinculo_id ?? '', diaSemana: 1, inicio: '08:00', fim: '09:30', sala: 'Invasora' }]),
     )
 
     expect(escritas).toBe(0)
@@ -685,7 +685,7 @@ describe('estrutura.gravar-planilha, planilha da grade', () => {
     await bancada.pool.query("update ano_letivo set situacao = 'em_curso' where id = $1", [planejado])
 
     // Com o 2027 em curso, o vínculo aparece na lista dela, ainda `pendente`: só o confirmar dela o muda.
-    const vistos = await comoProfessor(escola, ana.usuarioId, planejado, () => bancada.banco.transaction((tx) => new VinculoRepository(tx).listarDoUsuario({ limite: 50 })))
+    const vistos = await comoProfessor(escola, ana.usuarioId, planejado, () => bancada.banco.transaction((tx) => new VinculoRepository(tx).listDoUsuario({ limite: 50 })))
     expect(vistos.find(({ id }) => id === vinculo27?.id)).toMatchObject({ estado: 'pendente', turma: { id: turma27 } })
     expect(await confirmar(escola, ana.usuarioId, planejado, vinculo27?.id ?? '')).toBe(true)
     expect(await alcancaATurma(escola, ana.usuarioId, planejado, turma27)).toBe(true)
@@ -832,7 +832,7 @@ describe('estrutura.gravar-planilha, planilha da grade', () => {
         },
       },
     }) as unknown as Database
-    const espiao = criarGravacaoDaPlanilha({ banco: espiado, logger: log.logger })
+    const espiao = createGravacaoDaPlanilha({ banco: espiado, logger: log.logger })
 
     await tentar(escola.escolaId, id, 1, espiao)
 
@@ -897,7 +897,7 @@ describe('estrutura.gravar-planilha, planilha da grade', () => {
     try {
       await segurador.query('begin')
       await segurador.query('select pg_advisory_xact_lock($1, hashtext($2::uuid::text))', [CHAVE_DA_TRAVA_DO_CONVITE_DA_ESCOLA, escola.escolaId])
-      await expect(tentar(escola.escolaId, id, 1)).rejects.toSatisfy(ehFalhaDeTrava)
+      await expect(tentar(escola.escolaId, id, 1)).rejects.toSatisfy(isFalhaDeTrava)
       expect((await importacao(id)).estado).toBe('na_fila')
       expect(await aulasDa(escola.escolaId)).toEqual([])
     } finally {
@@ -979,7 +979,7 @@ describe('estrutura.gravar-planilha, planilha da grade', () => {
     for (let rodada = 0; rodada < 50; rodada++) {
       const restantes = (await bancada.pool.query<{ total: number }>('select count(*)::int as total from conta where email = $1', [email])).rows[0]?.total ?? 0
       if (restantes === 0) break
-      await repositorio.limparLoteDeContasSemUso(depois, LOTE_DO_EXPURGO)
+      await repositorio.clearLoteDeContasSemUso(depois, LOTE_DO_EXPURGO)
     }
     expect((await bancada.pool.query<{ total: number }>('select count(*)::int as total from conta where email = $1', [email])).rows[0]?.total).toBe(0)
   }, 120_000)

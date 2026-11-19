@@ -66,7 +66,7 @@ export function Entrar() {
   const [entrando, definirEntrando] = useState(false)
   const [falha, definirFalha] = useState<unknown>(undefined)
 
-  async function enviar(evento: FormEvent<HTMLFormElement>): Promise<void> {
+  async function send(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault()
     if (entrando) return
     definirEntrando(true)
@@ -91,7 +91,7 @@ export function Entrar() {
     <CascaPublica titulo="Entrar">
       <AvisosDaEntrada />
       <p className="text-apoio">Use o e-mail e a senha que a sua escola cadastrou.</p>
-      <form className="flex flex-col gap-4" onSubmit={(evento) => void enviar(evento)}>
+      <form className="flex flex-col gap-4" onSubmit={(evento) => void send(evento)}>
         <FormField
           rotulo="E-mail"
           name="email"

@@ -20,7 +20,7 @@ export function chaveDaNoite(fuso: string, agora: Date): string {
 }
 
 export interface ExpurgoRoutineDependencies {
-  escolas: Pick<CronEscolasRepository, 'listarIds'>
+  escolas: Pick<CronEscolasRepository, 'listIds'>
   banco: Database
   enfileirador: Pick<JobOutbox, 'enfileirarUmaVez'>
   /** O horário letivo da escola do contexto: dele sai o fuso da data local da chave. */
@@ -39,12 +39,12 @@ export interface ExpurgoRoutineDependencies {
  * Uma escola que falha não segura as outras: a rotina segue e, no fim, falha o job, para a fila tentar de novo (as que
  * já foram enfileiradas colidem na chave). Loga só contagens, e a escola que falhou pelo id.
  */
-export function criarRotinaDeExpurgo({ escolas, banco, enfileirador, janelaDaEscola, relogio, logger }: ExpurgoRoutineDependencies): JobProcessor<typeof TIPO_EXPURGAR_DADO_PESSOAL> {
+export function createRotinaDeExpurgo({ escolas, banco, enfileirador, janelaDaEscola, relogio, logger }: ExpurgoRoutineDependencies): JobProcessor<typeof TIPO_EXPURGAR_DADO_PESSOAL> {
   return async () => {
     const contexto = currentContext()
     if (contexto?.rotinaDoSistema !== true) throw new JobFailureError(JobFailureCode.DADOS_INVALIDOS, true)
     const agora = relogio.agora()
-    const ids = await escolas.listarIds()
+    const ids = await escolas.listIds()
     let enfileiradosTotal = 0
     let jaEnfileiradosTotal = 0
     let falhasTotal = 0

@@ -5,8 +5,8 @@ import { PromptInput } from '../../../components/ui/ai/PromptInput'
 import { Menu, type MenuItem } from '../../../components/ui/overlays/Menu'
 import { Select } from '../../../components/ui/fields/Select'
 import { AtalhosDeFerramenta } from './AtalhosDeFerramenta'
-import { CATALOGO_DE_FERRAMENTAS, ehFerramenta, ferramentaDoCatalogo, iniciaisDoPedido } from '../ferramentas/ferramentas'
-import { abrirCartaoNaConversa, CARTAO_DA_CONVERSA, CONTEXTO_ESCOLHIDO, type PedidoDaConversa } from './memoria-do-professor'
+import { CATALOGO_DE_FERRAMENTAS, isFerramenta, ferramentaDoCatalogo, iniciaisDoPedido } from '../ferramentas/ferramentas'
+import { openCartaoNaConversa, CARTAO_DA_CONVERSA, CONTEXTO_ESCOLHIDO, type PedidoDaConversa } from './memoria-do-professor'
 import type { TurmaDaProfessora } from '../comum/turmas-da-professora'
 
 /** O pedido sem ferramenta escolhida: o Assistente lê o pedido e pergunta antes de abrir uma (D18). */
@@ -26,7 +26,7 @@ interface PropsDaCaixa {
   readonly turmas: readonly TurmaDaProfessora[]
   readonly turma: TurmaDaProfessora
   /** Manda o pedido ao Assistente. Devolve `false`, sem mandar, com outro pedido ainda no ar. */
-  readonly iniciar: (pedido: PedidoDaConversa) => boolean
+  readonly start: (pedido: PedidoDaConversa) => boolean
   /** Um pedido ao Assistente está no ar: outro não sai. */
   readonly respondendo: boolean
   /** A escola suspendeu a função, ou um cartão de ferramenta está aberto: a caixa não aceita pedido. */
@@ -56,31 +56,31 @@ interface PropsDaCaixa {
  *
  * O texto é limpo e o estado muda na hora do envio, sem esperar resposta nenhuma: o segundo Enter não manda de novo.
  */
-export function CaixaDoAssistente({ turmas, turma, iniciar, respondendo, desligada, depois, semMenu = false, funcaoSuspensa = () => false }: PropsDaCaixa) {
+export function CaixaDoAssistente({ turmas, turma, start: iniciar, respondendo, desligada, depois, semMenu = false, funcaoSuspensa = () => false }: PropsDaCaixa) {
   const [texto, definirTexto] = useState('')
   const [ferramenta, definirFerramenta] = useState<Ferramenta | typeof SEM_FERRAMENTA>(SEM_FERRAMENTA)
   const escolhida = ferramenta === SEM_FERRAMENTA ? undefined : ferramentaDoCatalogo(ferramenta)
 
-  function abrirCartao(daFerramenta: Ferramenta, pedido: string): void {
-    abrirCartaoNaConversa({ ferramenta: daFerramenta, iniciais: iniciaisDoPedido(daFerramenta, pedido, turma.valor) })
+  function openCartao(daFerramenta: Ferramenta, pedido: string): void {
+    openCartaoNaConversa({ ferramenta: daFerramenta, iniciais: iniciaisDoPedido(daFerramenta, pedido, turma.valor) })
     definirFerramenta(SEM_FERRAMENTA)
     depois?.()
   }
 
   function aoEscolherFerramenta(id: string): void {
-    if (!ehFerramenta(id)) {
+    if (!isFerramenta(id)) {
       definirFerramenta(SEM_FERRAMENTA)
       return
     }
     // A Adaptação não espera o enviar nem lê a caixa: abre o cartão dela, com a lista de tipos.
-    if (id === 'adaptacao') abrirCartao(id, '')
+    if (id === 'adaptacao') openCartao(id, '')
     else definirFerramenta(id)
   }
 
   function aoEnviar(pedido: string): void {
     if (ferramenta !== SEM_FERRAMENTA) {
       definirTexto('')
-      abrirCartao(ferramenta, pedido)
+      openCartao(ferramenta, pedido)
       return
     }
     // `iniciar` grava o pedido como enviado antes de devolver: o segundo Enter encontra o pedido no ar.
@@ -123,7 +123,7 @@ export function CaixaDoAssistente({ turmas, turma, iniciar, respondendo, desliga
   return (
     <div className="flex min-w-0 flex-col gap-4">
       {caixa}
-      <AtalhosDeFerramenta aoAbrir={(daFerramenta) => abrirCartao(daFerramenta, texto)} desligado={(funcao) => desligada || funcaoSuspensa(funcao)} />
+      <AtalhosDeFerramenta aoAbrir={(daFerramenta) => openCartao(daFerramenta, texto)} desligado={(funcao) => desligada || funcaoSuspensa(funcao)} />
     </div>
   )
 }

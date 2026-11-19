@@ -5,11 +5,11 @@ import {
   falhaDoEnvioDeConvites,
   haEnvioEmAberto,
   horaDoEnvio,
-  iniciarReleituraDoEnvio,
+  startReleituraDoEnvio,
   INTERVALO_DA_RELEITURA_MS,
   PRAZO_DA_RELEITURA_MS,
   esperaOConvite,
-  podeReenviar,
+  canReenviar,
   professoresQueEsperamOConvite,
   rotuloDoEnvio,
   textoDoEnvioEmLote,
@@ -62,7 +62,7 @@ describe('a quem o "Enviar convites" e o "Reenviar" chegam', () => {
 
   it('o "Reenviar" é de quem espera o convite e já teve envio; sem envio, o primeiro é do "Enviar convites"', () => {
     for (const estado of ESTADOS_DO_PROFESSOR) {
-      for (const envio of [null, ...ESTADOS_DO_ENVIO] as const) expect(podeReenviar({ estado, envio }), `${estado} ${String(envio)}`).toBe(ESPERA[estado] && envio !== null)
+      for (const envio of [null, ...ESTADOS_DO_ENVIO] as const) expect(canReenviar({ estado, envio }), `${estado} ${String(envio)}`).toBe(ESPERA[estado] && envio !== null)
     }
   })
 
@@ -105,7 +105,7 @@ describe('a releitura do envio: a cada 5 s, só com a aba visível e linha em en
 
   function comecar(estado: { visivel: boolean; haEnvio: boolean }) {
     const reler = vi.fn()
-    const parar = iniciarReleituraDoEnvio({ reler, haEnvio: () => estado.haEnvio, visivel: () => estado.visivel })
+    const parar = startReleituraDoEnvio({ reler, haEnvio: () => estado.haEnvio, visivel: () => estado.visivel })
     return { reler, parar }
   }
 

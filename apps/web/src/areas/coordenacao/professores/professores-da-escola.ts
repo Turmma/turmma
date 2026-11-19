@@ -1,7 +1,7 @@
 import { ESTADOS_DO_PROFESSOR_ALOCAVEIS, type EstadoDoProfessor, type MotivoDeEncerramentoDeVinculo, type ProfessorDaEscola, type VinculoDaCoordenacao } from '@educa/shared'
 import type { ListaDaEstrutura } from '../../../api/estrutura'
 import { PROFESSOR_PARAM } from '../../../paths'
-import { ordenarPeloNome, ordenarVinculos } from '../comum/ordem'
+import { sortPeloNome, sortVinculos } from '../comum/ordem'
 
 /**
  * O que a aba Professores desenha, sem React (telas da coordenação, 6.0; Tech Spec seção 9, "Professores"): cada professor com as
@@ -33,7 +33,7 @@ function vinculoDaLinha(vinculo: VinculoDaCoordenacao): boolean {
 /** Os nomes, sem repetir pelo id, na ordem do nome. */
 function nomesUnicos(itens: readonly { readonly id: string; readonly nome: string }[]): string[] {
   const porId = new Map(itens.map((item) => [item.id, item]))
-  return ordenarPeloNome([...porId.values()]).map((item) => item.nome)
+  return sortPeloNome([...porId.values()]).map((item) => item.nome)
 }
 
 /**
@@ -49,7 +49,7 @@ export function professoresDaTabela(professores: readonly ProfessorDaEscola[], v
     dele.push(vinculo)
     doProfessor.set(vinculo.usuarioId, dele)
   }
-  return ordenarPeloNome(professores).map((professor) => {
+  return sortPeloNome(professores).map((professor) => {
     const dele = doProfessor.get(professor.usuarioId) ?? []
     return {
       professor,
@@ -108,7 +108,7 @@ export function porQueNaoRecebeTurma(estado: EstadoDoProfessor): string | undefi
  * encerrado, que já não é dele —, pela turma e, dentro dela, pela disciplina (7ºA antes de 10ºA). O vínculo de outra pessoa não entra.
  */
 export function vinculosDoProfessor(vinculos: readonly VinculoDaCoordenacao[], usuarioId: string): VinculoDaCoordenacao[] {
-  return ordenarVinculos(
+  return sortVinculos(
     vinculos.filter((vinculo) => vinculo.papel === 'professor' && vinculo.usuarioId === usuarioId),
     () => '',
   )

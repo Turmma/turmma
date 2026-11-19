@@ -4,7 +4,7 @@ import { createRoot } from 'react-dom/client'
 import { aoAbrirSessao, aoTrocarDeSessao } from './api/sessao'
 import { createQueryClient } from './api/query-client'
 import './index.css'
-import { iniciarLetra, useApplyTextSize } from './text-size'
+import { startLetra, useApplyTextSize } from './text-size'
 import { AppRoutes } from './routes'
 import { initTheme } from './theme'
 
@@ -18,7 +18,7 @@ if (!elementoRaiz) {
 initTheme()
 // A letra do aluno (8.0): o `index.html` já escreveu o `data-letra` no primeiro quadro, e quem o mantém é o `LetraDoAluno`, mais abaixo. Aqui
 // a página só passa a acompanhar as outras abas. Não lê nem grava nada: a chave só é escrita quando o aluno escolhe.
-iniciarLetra()
+startLetra()
 
 const clienteConsultas = createQueryClient()
 

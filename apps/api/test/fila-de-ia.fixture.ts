@@ -36,12 +36,12 @@ import { ConsumoRepository } from '../src/ia/consumo.repository.js'
 import { ExecucaoProcessor } from '../src/ia/execucao.processor.js'
 import type { FabricaDePrazo } from '../src/ia/prazo-por-temporizador.js'
 import { ExecucaoScheduler } from '../src/ia/execucao.scheduler.js'
-import { montarComandos } from '../src/ia/montar-comandos.js'
+import { buildComandos } from '../src/ia/montar-comandos.js'
 import { OrcamentoRepository } from '../src/ia/orcamento.repository.js'
 import { RegistroDeComandos } from '../src/ia/registro-de-comandos.js'
 import { SuspensaoRepository } from '../src/ia/suspensao.repository.js'
 import { VarreduraDeExecucoes } from '../src/ia/varredura-de-execucoes.js'
-import { criarWorkerDeIa, type FilaDaIa, type WorkerDeIa } from '../src/ia/worker-de-ia.js'
+import { createWorkerDeIa, type FilaDaIa, type WorkerDeIa } from '../src/ia/worker-de-ia.js'
 import { AlcanceDoAluno } from '../src/tutor/turno.command.js'
 import { TrechoSearch } from '../src/material/trecho-search.js'
 import { testConfig, type TestOverrides } from './test-config.js'
@@ -156,7 +156,7 @@ export class FilaDeIa {
     const trechos = new TrechoSearch(this.banco, opcoes.relogioDasLicencas)
     this.trechos = trechos
     this.registro = opcoes.registro ?? new RegistroDeComandos()
-    if (opcoes.registro === undefined) montarComandos(this.registro, this.banco, trechos, suspensao, new AlcanceDoAluno(this.banco, trechos), medidor)
+    if (opcoes.registro === undefined) buildComandos(this.registro, this.banco, trechos, suspensao, new AlcanceDoAluno(this.banco, trechos), medidor)
     this.#despachante = createOutboxRelay(
       { banco: configuracaoDoBanco(3), redisFilaUrl: urlRedisDeFila(), vagasPadrao: vagasPadraoDoAmbiente(), janelaPadrao: janelaPadraoDoAmbiente() },
       this.#logger,
@@ -177,8 +177,8 @@ export class FilaDeIa {
 
   /** O provedor do worker: o gateway real com o adaptador falso, ou o modelo que o teste pôs em `comModelo`. */
   readonly provedor: LLMProvider = {
-    gerar: <Entrada, Saida>(pedido: GenerationRequest<Entrada, Saida>): Promise<GenerationResult<Saida>> =>
-      this.#modelo === undefined ? this.#gateway.gerar(pedido) : (this.#modelo(pedido as GenerationRequest<unknown, unknown>) as unknown as Promise<GenerationResult<Saida>>),
+    generate: <Entrada, Saida>(pedido: GenerationRequest<Entrada, Saida>): Promise<GenerationResult<Saida>> =>
+      this.#modelo === undefined ? this.#gateway.generate(pedido) : (this.#modelo(pedido as GenerationRequest<unknown, unknown>) as unknown as Promise<GenerationResult<Saida>>),
   }
 
   /** O gateway de verdade, que o `comModelo` pode chamar para só enfeitar a saída. */
@@ -268,9 +268,9 @@ export class FilaDeIa {
 
   /** Liga o despachante e o consumo das três filas. */
   ligar(): void {
-    this.#despachante.iniciar()
+    this.#despachante.start()
     const processador = this.processador
-    this.#worker = criarWorkerDeIa(
+    this.#worker = createWorkerDeIa(
       {
         redisFilaUrl: urlRedisDeFila(),
         pools: { interativa: 10, ferramenta: 10, normal: 5, lote: 5, ...this.#opcoes.pools },

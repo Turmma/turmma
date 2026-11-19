@@ -27,7 +27,7 @@ import {
   AVISO_DE_AVISAR_AS_EMPRESAS,
   nomeDaEmpresa,
   orientacaoDoPedido,
-  ordenarOCompartilhamento,
+  sortOCompartilhamento,
   periodoDaLinha,
   PRAZO_DA_DECLARACAO_COMPLETA_DIAS,
   prazoDoPedido,
@@ -100,7 +100,7 @@ export default function DetalheDoPedido({ pedidoId }: { readonly pedidoId: strin
     ...suboperadoresQueryOptions,
     enabled: temEmpresas,
   })
-  const linhas = useMemo(() => ordenarOCompartilhamento(pedido?.compartilhamento ?? []), [pedido?.compartilhamento])
+  const linhas = useMemo(() => sortOCompartilhamento(pedido?.compartilhamento ?? []), [pedido?.compartilhamento])
   const colunas: readonly [TableColumn<CompartilhamentoRow>, ...TableColumn<CompartilhamentoRow>[]] = useMemo(
     () => [
       {

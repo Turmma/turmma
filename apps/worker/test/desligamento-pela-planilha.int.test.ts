@@ -12,7 +12,7 @@ import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { DecisaoService } from '../../api/src/sala/decisao/decisao.service.js'
 import { CredencialMatriculaRepository } from '../../api/src/credencial/credencial-matricula.repository.js'
 import { esperarNaTrava, WriteBlockTrigger } from '../../api/test/write-block-trigger.js'
-import { criarGravacaoDaPlanilha } from '../src/processors/gravar-planilha.js'
+import { createGravacaoDaPlanilha } from '../src/processors/gravar-planilha.js'
 import { jobExecution } from './job-execution.fixture.js'
 import { InMemoryLog, QueueFixtures } from './queue.fixture.js'
 
@@ -80,12 +80,12 @@ describe('estrutura.gravar-planilha, desligamento e virada de ano de aluno', () 
   /** O pool dos jobs em corrida e das paradas: o da bancada tem poucas conexões, e cada parada segura uma. */
   let apoio: DatabasePool
   let bancoDoJob: Database
-  let gravacao: ReturnType<typeof criarGravacaoDaPlanilha>
+  let gravacao: ReturnType<typeof createGravacaoDaPlanilha>
 
   beforeAll(() => {
     apoio = createPool({ url: urlDoBancoDeTeste(), maximoConexoes: 12, timeoutConexaoMs: 5_000, timeoutConsultaMs: 30_000 }, () => undefined)
     bancoDoJob = createDatabase(apoio)
-    gravacao = criarGravacaoDaPlanilha({ banco: bancoDoJob, logger: log.logger, medidor: medidor.medidor })
+    gravacao = createGravacaoDaPlanilha({ banco: bancoDoJob, logger: log.logger, medidor: medidor.medidor })
   })
 
   afterAll(async () => {
@@ -205,7 +205,7 @@ describe('estrutura.gravar-planilha, desligamento e virada de ano de aluno', () 
   /** O gravar da coordenação, pelo motor (sem fila), com a marca dos candidatos que `marcar` escolhe (por padrão, nenhum). */
   async function gravar(escola: Escola, planilha: string, marcar: (candidato: CandidatoLido) => boolean = () => false): Promise<string> {
     const marcados = (await candidatosDe(escola, planilha)).filter(marcar).map(({ id }) => id)
-    return runInContext(contextoDe(escola), async () => (await motor().gravar('alunos', { texto: planilha, marcas: { transferir: [], desligar: marcados, encerrar: [] } })).id)
+    return runInContext(contextoDe(escola), async () => (await motor().save('alunos', { texto: planilha, marcas: { transferir: [], desligar: marcados, encerrar: [] } })).id)
   }
 
   /** A marca de quem o rótulo da prévia nomeia (o nome do banco, e a matrícula entre parênteses). */
@@ -393,7 +393,7 @@ describe('estrutura.gravar-planilha, desligamento e virada de ano de aluno', () 
       const c = await cenario()
       const planilha = planilhaDe(c)
       const marcado = (await candidatosDe(c.escola, planilha)).find(quemSe('Aluno Ausente ('))
-      const id = await runInContext(contextoDe(c.escola), async () => (await motor().gravar('alunos', { texto: planilha, marcas: { transferir: [], desligar: [marcado?.id ?? '', marcado?.id ?? ''], encerrar: [] } })).id)
+      const id = await runInContext(contextoDe(c.escola), async () => (await motor().save('alunos', { texto: planilha, marcas: { transferir: [], desligar: [marcado?.id ?? '', marcado?.id ?? ''], encerrar: [] } })).id)
 
       await tentar(c.escola.escolaId, id)
 
@@ -410,7 +410,7 @@ describe('estrutura.gravar-planilha, desligamento e virada de ano de aluno', () 
       const outra = await cenario()
       const planilha = texto(`8A;${c.fica.nome};${c.fica.matricula}`, `8A;${livreQueATrazida.nome};${livreQueATrazida.matricula}`)
       const recusa = (desligar: string[]) =>
-        runInContext(contextoDe(c.escola), () => motor().gravar('alunos', { texto: planilha, marcas: { transferir: [], desligar, encerrar: [] } })).then(
+        runInContext(contextoDe(c.escola), () => motor().save('alunos', { texto: planilha, marcas: { transferir: [], desligar, encerrar: [] } })).then(
           () => 'gravou',
           (erro: unknown) => (erro instanceof DomainException ? erro.codigo : 'outro erro'),
         )
@@ -477,7 +477,7 @@ describe('estrutura.gravar-planilha, desligamento e virada de ano de aluno', () 
       const marcados = (await candidatosDe(c.escola, planilha)).filter(quemSe('Nome Do Lote')).map(({ id }) => id)
       expect(marcados).toHaveLength(MAXIMO_DE_DESLIGAMENTOS_POR_GRAVAR + 1)
 
-      const resposta = await runInContext(contextoDe(c.escola), () => motor().gravar('alunos', { texto: planilha, marcas: { transferir: [], desligar: marcados, encerrar: [] } })).then(
+      const resposta = await runInContext(contextoDe(c.escola), () => motor().save('alunos', { texto: planilha, marcas: { transferir: [], desligar: marcados, encerrar: [] } })).then(
         () => 'gravou',
         (erro: unknown) => (erro instanceof DomainException ? erro.codigo : 'outro erro'),
       )
@@ -633,7 +633,7 @@ describe('estrutura.gravar-planilha, desligamento e virada de ano de aluno', () 
           },
         },
       }) as unknown as Database
-      const espiao = criarGravacaoDaPlanilha({ banco: espiado, logger: log.logger })
+      const espiao = createGravacaoDaPlanilha({ banco: espiado, logger: log.logger })
 
       await runInContext({ requisicaoId: randomUUID(), escolaId: c.escola.escolaId }, () => espiao({ importacaoId: id }, jobExecution(randomUUID(), 1)))
 
@@ -701,7 +701,7 @@ describe('estrutura.gravar-planilha, desligamento e virada de ano de aluno', () 
     const planilhaDoPlanejado = (v: Virada, ...extras: string[]): string =>
       texto(`8A;${v.volta.nome};${v.volta.matricula}`, `8A;${v.reentra.nome};${v.reentra.matricula}`, `8A;${v.jaTem.nome};${v.jaTem.matricula}`, `8A;${v.semLinha.nome};${v.semLinha.matricula}`, ...extras)
     const gravarNoPlanejado = (v: Virada, planilha: string) =>
-      runInContext(contextoDe(v.escola), async () => (await motor().gravar('alunos', { texto: planilha, anoLetivoId: v.planejadoId, marcas: { transferir: [], desligar: [], encerrar: [] } })).id)
+      runInContext(contextoDe(v.escola), async () => (await motor().save('alunos', { texto: planilha, anoLetivoId: v.planejadoId, marcas: { transferir: [], desligar: [], encerrar: [] } })).id)
 
     it('o aluno do ano anterior "volta" com o mesmo login: vínculo confirmado na turma nova, linha `aprovado` na lista do planejado, o mesmo usuário e a mesma credencial; quem já tem vínculo aberto no ano segue "já existe"', async () => {
       const v = await viradaDeAno()

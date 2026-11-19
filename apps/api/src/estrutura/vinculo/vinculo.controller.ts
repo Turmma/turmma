@@ -28,14 +28,14 @@ export class VinculoController {
 
   @Post()
   @RequirePermissao('vinculo', 'criar')
-  criar(@Body(new ZodValidationPipe(criarVinculoRequestSchema)) pedido: CriarVinculoRequest): Promise<VinculoDaCoordenacaoResponse> {
-    return this.vinculos.criar(pedido)
+  create(@Body(new ZodValidationPipe(criarVinculoRequestSchema)) pedido: CriarVinculoRequest): Promise<VinculoDaCoordenacaoResponse> {
+    return this.vinculos.create(pedido)
   }
 
   @Get()
   @RequirePermissao('vinculo', 'ler')
-  listar(@Query(new ZodValidationPipe(vinculosQuerySchema)) consulta: VinculosQuery): Promise<ListaDeVinculosResponse> {
-    return this.vinculos.listar(consulta)
+  list(@Query(new ZodValidationPipe(vinculosQuerySchema)) consulta: VinculosQuery): Promise<ListaDeVinculosResponse> {
+    return this.vinculos.list(consulta)
   }
 
   @Post(':id/encerrar')
@@ -67,7 +67,7 @@ export class MeusVinculosController {
 
   @Get()
   @RequirePermissao('vinculo', 'ler_proprios')
-  listar(@Query(new ZodValidationPipe(paginationQuerySchema)) consulta: PaginationQuery): Promise<MeusVinculosResponse> {
+  list(@Query(new ZodValidationPipe(paginationQuerySchema)) consulta: PaginationQuery): Promise<MeusVinculosResponse> {
     return this.vinculos.meus(consulta)
   }
 }

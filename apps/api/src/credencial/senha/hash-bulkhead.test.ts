@@ -39,14 +39,14 @@ describe('SemaforoDeHash: rodízio entre escolas e, na equipe, entre IPs', () =>
     const semaforo = new HashBulkhead(1, medidor.medidor)
     const atendidos: string[] = []
     const emAndamento = tarefaSegura()
-    const primeiro = semaforo.executar(escolaBucket(ESCOLA_A), emAndamento.tarefa)
+    const primeiro = semaforo.run(escolaBucket(ESCOLA_A), emAndamento.tarefa)
     const daA = Array.from({ length: 3_000 }, (_, posicao) =>
-      semaforo.executar(escolaBucket(ESCOLA_A), () => {
+      semaforo.run(escolaBucket(ESCOLA_A), () => {
         atendidos.push(`A${String(posicao)}`)
         return Promise.resolve()
       }),
     )
-    const daB = semaforo.executar(escolaBucket(ESCOLA_B), () => {
+    const daB = semaforo.run(escolaBucket(ESCOLA_B), () => {
       atendidos.push('B')
       return Promise.resolve()
     })
@@ -67,15 +67,15 @@ describe('SemaforoDeHash: rodízio entre escolas e, na equipe, entre IPs', () =>
     const semaforo = new HashBulkhead(1, medidor.medidor)
     const atendidos: string[] = []
     const emAndamento = tarefaSegura()
-    const primeiro = semaforo.executar(equipeBucket(IP_DA_ESCOLA), emAndamento.tarefa)
+    const primeiro = semaforo.run(equipeBucket(IP_DA_ESCOLA), emAndamento.tarefa)
     atendidos.push(IP_DA_ESCOLA)
     const doMesmoIp = Array.from({ length: 99 }, () =>
-      semaforo.executar(equipeBucket(IP_DA_ESCOLA), () => {
+      semaforo.run(equipeBucket(IP_DA_ESCOLA), () => {
         atendidos.push(IP_DA_ESCOLA)
         return Promise.resolve()
       }),
     )
-    const deOutroIp = semaforo.executar(equipeBucket(IP_DE_FORA), () => {
+    const deOutroIp = semaforo.run(equipeBucket(IP_DE_FORA), () => {
       atendidos.push(IP_DE_FORA)
       return Promise.resolve()
     })
@@ -94,11 +94,11 @@ describe('SemaforoDeHash: rodízio entre escolas e, na equipe, entre IPs', () =>
     const atendidos: string[] = []
     const emAndamento = tarefaSegura()
     const pedido = (balde: LoginBucket, nome: string) =>
-      semaforo.executar(balde, () => {
+      semaforo.run(balde, () => {
         atendidos.push(nome)
         return Promise.resolve()
       })
-    const primeiro = semaforo.executar(escolaBucket(ESCOLA_A), emAndamento.tarefa)
+    const primeiro = semaforo.run(escolaBucket(ESCOLA_A), emAndamento.tarefa)
     const pedidos = [pedido(escolaDesconhecidaBucket(), 'desconhecida-1'), pedido(escolaDesconhecidaBucket(), 'desconhecida-2'), pedido(escolaBucket(ESCOLA_A), 'A'), pedido(equipeBucket(IP_DA_ESCOLA), 'equipe')]
     emAndamento.soltar()
     await Promise.all([primeiro, ...pedidos])
@@ -111,14 +111,14 @@ describe('SemaforoDeHash: rodízio entre escolas e, na equipe, entre IPs', () =>
     const atendidos: string[] = []
     const emAndamento = tarefaSegura()
     const pedido = (ip: string) =>
-      semaforo.executar(equipeBucket(ip), () => {
+      semaforo.run(equipeBucket(ip), () => {
         atendidos.push(ip)
         return Promise.resolve()
       })
     // A professora já entrou uma vez hoje (a vez dela ficou para trás na roda), e agora outro IP está com o hash.
     await pedido(IP_DA_ESCOLA)
     atendidos.length = 0
-    const primeiro = semaforo.executar(equipeBucket('192.0.2.1'), emAndamento.tarefa)
+    const primeiro = semaforo.run(equipeBucket('192.0.2.1'), emAndamento.tarefa)
     const daProfessora = pedido(IP_DA_ESCOLA)
     // Cinquenta IPs novos chegando depois dela, cada um com um pedido: nenhum passa na frente. Se o IP nunca visto
     // entrasse na roda como o mais antigo de todos, os cinquenta passariam na frente de quem já tinha sido atendido.
@@ -134,7 +134,7 @@ describe('SemaforoDeHash: rebaixamento (15.0), fim do balde e nunca recusa', () 
   /** Um pedido que anota o nome quando recebe a vez. */
   function pedidoQueAnota(semaforo: HashBulkhead, atendidos: string[]) {
     return (balde: LoginBucket, nome: string) =>
-      semaforo.executar(balde, () => {
+      semaforo.run(balde, () => {
         atendidos.push(nome)
         return Promise.resolve()
       })
@@ -145,7 +145,7 @@ describe('SemaforoDeHash: rebaixamento (15.0), fim do balde e nunca recusa', () 
     const atendidos: string[] = []
     const pedido = pedidoQueAnota(semaforo, atendidos)
     const emAndamento = tarefaSegura()
-    const primeiro = semaforo.executar(escolaBucket(ESCOLA_A), emAndamento.tarefa)
+    const primeiro = semaforo.run(escolaBucket(ESCOLA_A), emAndamento.tarefa)
     const pedidos = [pedido(escolaBucket(ESCOLA_A, true), 'rebaixado-1'), pedido(escolaBucket(ESCOLA_A, true), 'rebaixado-2'), pedido(escolaBucket(ESCOLA_A), 'normal')]
     emAndamento.soltar()
     await Promise.all([primeiro, ...pedidos])
@@ -158,7 +158,7 @@ describe('SemaforoDeHash: rebaixamento (15.0), fim do balde e nunca recusa', () 
     const atendidos: string[] = []
     const pedido = pedidoQueAnota(semaforo, atendidos)
     const emAndamento = tarefaSegura()
-    const primeiro = semaforo.executar(escolaBucket(ESCOLA_A), emAndamento.tarefa)
+    const primeiro = semaforo.run(escolaBucket(ESCOLA_A), emAndamento.tarefa)
     const pedidos = [
       pedido(escolaBucket(ESCOLA_A, true), 'A-rebaixado-1'),
       pedido(escolaBucket(ESCOLA_A, true), 'A-rebaixado-2'),
@@ -176,7 +176,7 @@ describe('SemaforoDeHash: rebaixamento (15.0), fim do balde e nunca recusa', () 
     const atendidos: string[] = []
     const pedido = pedidoQueAnota(semaforo, atendidos)
     const emAndamento = tarefaSegura()
-    const primeiro = semaforo.executar(equipeBucket(IP_DE_FORA), emAndamento.tarefa)
+    const primeiro = semaforo.run(equipeBucket(IP_DE_FORA), emAndamento.tarefa)
     const pedidos = [
       pedido(equipeBucket(IP_DA_ESCOLA, true), 'script-1'),
       pedido(equipeBucket(IP_DA_ESCOLA, true), 'script-2'),
@@ -189,8 +189,8 @@ describe('SemaforoDeHash: rebaixamento (15.0), fim do balde e nunca recusa', () 
 
   it('o pedido rebaixado com o semáforo livre entra na hora: rebaixar é ir para o fim da fila, não esperar sem fila', async () => {
     const semaforo = new HashBulkhead(1, medidor.medidor)
-    await expect(semaforo.executar(escolaBucket(ESCOLA_A, true), () => Promise.resolve('entrou'))).resolves.toBe('entrou')
-    await expect(semaforo.executar(equipeBucket(IP_DA_ESCOLA, true), () => Promise.resolve('entrou'))).resolves.toBe('entrou')
+    await expect(semaforo.run(escolaBucket(ESCOLA_A, true), () => Promise.resolve('entrou'))).resolves.toBe('entrou')
+    await expect(semaforo.run(equipeBucket(IP_DA_ESCOLA, true), () => Promise.resolve('entrou'))).resolves.toBe('entrou')
   })
 
   it('o rebaixado que desiste pelo prazo sai da fila rebaixada, e a vez seguinte vai a quem ainda espera', async () => {
@@ -198,8 +198,8 @@ describe('SemaforoDeHash: rebaixamento (15.0), fim do balde e nunca recusa', () 
     const semaforo = new HashBulkhead(1, medidor.medidor)
     const atendidos: string[] = []
     const emAndamento = tarefaSegura()
-    const primeiro = semaforo.executar(escolaBucket(ESCOLA_A), emAndamento.tarefa)
-    const desistente = semaforo.executar(escolaBucket(ESCOLA_A, true), () => Promise.resolve()).catch((erro: unknown) => erro)
+    const primeiro = semaforo.run(escolaBucket(ESCOLA_A), emAndamento.tarefa)
+    const desistente = semaforo.run(escolaBucket(ESCOLA_A, true), () => Promise.resolve()).catch((erro: unknown) => erro)
     await vi.advanceTimersByTimeAsync(ESPERA_MAXIMA_PELO_HASH_MS)
     expect(await desistente).toMatchObject({ codigo: ErrorCode.INDISPONIVEL_TENTE_DE_NOVO })
     expect(semaforo.esperando).toBe(0)
@@ -214,26 +214,26 @@ describe('SemaforoDeHash: IP em memória com prazo (15.6)', () => {
   it('a roda esquece, a cada minuto, o IP de quem não está esperando, e guarda o de quem espera', async () => {
     let agora = 0
     const semaforo = new HashBulkhead(1, medidor.medidor, ESPERA_MAXIMA_PELO_HASH_MS, () => agora)
-    for (let posicao = 1; posicao <= 20; posicao++) await semaforo.executar(equipeBucket(`198.18.1.${String(posicao)}`), () => Promise.resolve())
+    for (let posicao = 1; posicao <= 20; posicao++) await semaforo.run(equipeBucket(`198.18.1.${String(posicao)}`), () => Promise.resolve())
     // O balde da equipe e os vinte IPs.
     expect(semaforo.naRoda).toBe(21)
 
     agora += INTERVALO_PARA_ESQUECER_MS - 1
-    await semaforo.executar(equipeBucket('198.18.2.1'), () => Promise.resolve())
+    await semaforo.run(equipeBucket('198.18.2.1'), () => Promise.resolve())
     expect(semaforo.naRoda).toBe(22)
 
     // Passado o intervalo, a próxima vez concedida esquece quem não espera: sobra só quem está com a vez ou na fila.
     agora += 1
     const emAndamento = tarefaSegura()
-    const comAVez = semaforo.executar(equipeBucket('198.18.3.1'), emAndamento.tarefa)
-    const naFila = semaforo.executar(equipeBucket('198.18.3.2'), () => Promise.resolve())
+    const comAVez = semaforo.run(equipeBucket('198.18.3.1'), emAndamento.tarefa)
+    const naFila = semaforo.run(equipeBucket('198.18.3.2'), () => Promise.resolve())
     // Os vinte IPs de antes, vistos há um intervalo, foram esquecidos. Ficam o balde da equipe e o IP de 59,999 s (vistos
     // agora há pouco), o IP com a vez e o IP na fila.
     expect(semaforo.naRoda).toBe(4)
     emAndamento.soltar()
     await Promise.all([comAVez, naFila])
     // A fila andou, e o que foi esquecido volta à roda como novo, sem erro.
-    await semaforo.executar(equipeBucket('198.18.1.1'), () => Promise.resolve())
+    await semaforo.run(equipeBucket('198.18.1.1'), () => Promise.resolve())
     expect(semaforo.esperando).toBe(0)
   })
 })
@@ -245,7 +245,7 @@ describe('SemaforoDeHash: teto de concorrência', () => {
     let maximo = 0
     const seguras = Array.from({ length: 10 }, () => tarefaSegura())
     const execucoes = seguras.map((segura, posicao) =>
-      semaforo.executar(escolaBucket(posicao % 2 === 0 ? ESCOLA_A : ESCOLA_B), async () => {
+      semaforo.run(escolaBucket(posicao % 2 === 0 ? ESCOLA_A : ESCOLA_B), async () => {
         rodando++
         maximo = Math.max(maximo, rodando)
         await segura.tarefa()
@@ -267,9 +267,9 @@ describe('SemaforoDeHash: teto de concorrência', () => {
   it('a tarefa que falha devolve a vez: o erro dela sobe, e o pedido seguinte entra', async () => {
     const semaforo = new HashBulkhead(1, medidor.medidor)
     const falha = new Error('argon2 quebrou')
-    await expect(semaforo.executar(escolaBucket(ESCOLA_A), () => Promise.reject(falha))).rejects.toBe(falha)
+    await expect(semaforo.run(escolaBucket(ESCOLA_A), () => Promise.reject(falha))).rejects.toBe(falha)
     expect(semaforo.emUso).toBe(0)
-    await expect(semaforo.executar(escolaBucket(ESCOLA_A), () => Promise.resolve('entrou'))).resolves.toBe('entrou')
+    await expect(semaforo.run(escolaBucket(ESCOLA_A), () => Promise.resolve('entrou'))).resolves.toBe('entrou')
   })
 
   it('concorrência que não é inteiro positivo não constrói o semáforo', () => {
@@ -282,10 +282,10 @@ describe('SemaforoDeHash: prazo de 2 s', () => {
     vi.useFakeTimers()
     const semaforo = new HashBulkhead(1, medidor.medidor)
     const emAndamento = tarefaSegura()
-    const primeiro = semaforo.executar(escolaBucket(ESCOLA_A), emAndamento.tarefa)
+    const primeiro = semaforo.run(escolaBucket(ESCOLA_A), emAndamento.tarefa)
     const tarefa = vi.fn(() => Promise.resolve())
     let resultado: unknown = 'esperando'
-    const segundo = semaforo.executar(escolaBucket(ESCOLA_B), tarefa).then(
+    const segundo = semaforo.run(escolaBucket(ESCOLA_B), tarefa).then(
       () => (resultado = 'entrou'),
       (erro: unknown) => (resultado = erro),
     )
@@ -315,9 +315,9 @@ describe('SemaforoDeHash: prazo de 2 s', () => {
     vi.useFakeTimers()
     const semaforo = new HashBulkhead(1, medidor.medidor)
     const emAndamento = tarefaSegura()
-    const primeiro = semaforo.executar(escolaBucket(ESCOLA_A), emAndamento.tarefa)
+    const primeiro = semaforo.run(escolaBucket(ESCOLA_A), emAndamento.tarefa)
     const recusas = Array.from({ length: 200 }, () =>
-      semaforo.executar(escolaBucket(ESCOLA_A), () => Promise.resolve()).then(
+      semaforo.run(escolaBucket(ESCOLA_A), () => Promise.resolve()).then(
         () => undefined,
         (erro: unknown) => (erro as DomainException).tenteDeNovoEmSegundos,
       ),
@@ -334,18 +334,18 @@ describe('SemaforoDeHash: prazo de 2 s', () => {
     vi.useFakeTimers()
     const semaforo = new HashBulkhead(1, medidor.medidor)
     const emAndamento = tarefaSegura()
-    const primeiro = semaforo.executar(escolaBucket(ESCOLA_A), emAndamento.tarefa)
+    const primeiro = semaforo.run(escolaBucket(ESCOLA_A), emAndamento.tarefa)
     const desfechos: string[] = []
     const anotar = (nome: string) => [() => desfechos.push(`entrou-${nome}`), () => desfechos.push(`503-${nome}`)] as const
     // A escola C tem um aluno legítimo rebaixado, que chegou antes de todos; a A, o ataque que enche a fila.
-    const daC = semaforo.executar(escolaBucket(ESCOLA_C, true), () => Promise.resolve()).then(...anotar('C'))
+    const daC = semaforo.run(escolaBucket(ESCOLA_C, true), () => Promise.resolve()).then(...anotar('C'))
     const rebaixados = Array.from({ length: MAXIMO_ESPERANDO - 1 }, (_, posicao) =>
-      semaforo.executar(escolaBucket(ESCOLA_A, true), () => Promise.resolve()).then(...anotar(`A${String(posicao)}`)),
+      semaforo.run(escolaBucket(ESCOLA_A, true), () => Promise.resolve()).then(...anotar(`A${String(posicao)}`)),
     )
     expect(semaforo.esperando).toBe(MAXIMO_ESPERANDO)
 
     const tarefaDaB = vi.fn(() => Promise.resolve())
-    const daB = semaforo.executar(escolaBucket(ESCOLA_B), tarefaDaB)
+    const daB = semaforo.run(escolaBucket(ESCOLA_B), tarefaDaB)
     await vi.advanceTimersByTimeAsync(0)
     // Saiu com o 503 o rebaixado mais antigo da fila com mais rebaixados (a A), e não o da C, que era o mais antigo de
     // todos: o ataque da A não despeja o aluno da escola vizinha. A fila não cresceu.
@@ -353,7 +353,7 @@ describe('SemaforoDeHash: prazo de 2 s', () => {
     expect(semaforo.esperando).toBe(MAXIMO_ESPERANDO)
 
     const rebaixadoNovo = vi.fn(() => Promise.resolve())
-    await expect(semaforo.executar(escolaBucket(ESCOLA_A, true), rebaixadoNovo)).rejects.toMatchObject({ codigo: ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, status: 503 })
+    await expect(semaforo.run(escolaBucket(ESCOLA_A, true), rebaixadoNovo)).rejects.toMatchObject({ codigo: ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, status: 503 })
     expect(rebaixadoNovo).not.toHaveBeenCalled()
     expect(semaforo.esperando).toBe(MAXIMO_ESPERANDO)
 
@@ -372,10 +372,10 @@ describe('SemaforoDeHash: prazo de 2 s', () => {
     vi.useFakeTimers()
     const semaforo = new HashBulkhead(1, medidor.medidor)
     const emAndamento = tarefaSegura()
-    const primeiro = semaforo.executar(escolaBucket(ESCOLA_A), emAndamento.tarefa)
+    const primeiro = semaforo.run(escolaBucket(ESCOLA_A), emAndamento.tarefa)
     const despejados: string[] = []
     const esperar = (balde: LoginBucket, nome: string) =>
-      semaforo.executar(balde, () => Promise.resolve()).catch(() => {
+      semaforo.run(balde, () => Promise.resolve()).catch(() => {
         despejados.push(nome)
       })
     // A escola C tem dois alunos de verdade rebaixados (o NAT dela passou do limite), que chegaram antes de todos.
@@ -411,21 +411,21 @@ describe('SemaforoDeHash: prazo de 2 s', () => {
     const semaforo = new HashBulkhead(1, medidor.medidor)
     // Um rebaixado da A espera e é atendido pela vez: saiu da fila, e do índice.
     const antes = tarefaSegura()
-    const vezAntes = semaforo.executar(escolaBucket(ESCOLA_A), antes.tarefa)
-    const atendido = semaforo.executar(escolaBucket(ESCOLA_A, true), () => Promise.resolve('atendido'))
+    const vezAntes = semaforo.run(escolaBucket(ESCOLA_A), antes.tarefa)
+    const atendido = semaforo.run(escolaBucket(ESCOLA_A, true), () => Promise.resolve('atendido'))
     antes.soltar()
     await vezAntes
     await expect(atendido).resolves.toBe('atendido')
     const emAndamento = tarefaSegura()
-    const primeiro = semaforo.executar(escolaBucket(ESCOLA_A), emAndamento.tarefa)
+    const primeiro = semaforo.run(escolaBucket(ESCOLA_A), emAndamento.tarefa)
     // Outro rebaixado da A desiste pelo prazo antes de a fila encher: também não pode voltar a ser escolhido para o despejo.
-    const desistente = semaforo.executar(escolaBucket(ESCOLA_A, true), () => Promise.resolve()).catch((erro: unknown) => erro)
+    const desistente = semaforo.run(escolaBucket(ESCOLA_A, true), () => Promise.resolve()).catch((erro: unknown) => erro)
     await vi.advanceTimersByTimeAsync(ESPERA_MAXIMA_PELO_HASH_MS)
     expect(await desistente).toMatchObject({ codigo: ErrorCode.INDISPONIVEL_TENTE_DE_NOVO })
-    const normais = Array.from({ length: MAXIMO_ESPERANDO }, () => semaforo.executar(escolaBucket(ESCOLA_A), () => Promise.resolve()).catch(() => undefined))
+    const normais = Array.from({ length: MAXIMO_ESPERANDO }, () => semaforo.run(escolaBucket(ESCOLA_A), () => Promise.resolve()).catch(() => undefined))
     expect(semaforo.esperando).toBe(MAXIMO_ESPERANDO)
     const tarefa = vi.fn(() => Promise.resolve())
-    await expect(semaforo.executar(escolaBucket(ESCOLA_B), tarefa)).rejects.toMatchObject({ codigo: ErrorCode.INDISPONIVEL_TENTE_DE_NOVO })
+    await expect(semaforo.run(escolaBucket(ESCOLA_B), tarefa)).rejects.toMatchObject({ codigo: ErrorCode.INDISPONIVEL_TENTE_DE_NOVO })
     expect(tarefa).not.toHaveBeenCalled()
     expect(semaforo.esperando).toBe(MAXIMO_ESPERANDO)
     await vi.advanceTimersByTimeAsync(ESPERA_MAXIMA_PELO_HASH_MS)
@@ -438,11 +438,11 @@ describe('SemaforoDeHash: prazo de 2 s', () => {
     vi.useFakeTimers()
     const semaforo = new HashBulkhead(1, medidor.medidor)
     const emAndamento = tarefaSegura()
-    const primeiro = semaforo.executar(escolaBucket(ESCOLA_A), emAndamento.tarefa)
-    const esperando = Array.from({ length: MAXIMO_ESPERANDO }, () => semaforo.executar(escolaBucket(ESCOLA_A), () => Promise.resolve()).catch(() => undefined))
+    const primeiro = semaforo.run(escolaBucket(ESCOLA_A), emAndamento.tarefa)
+    const esperando = Array.from({ length: MAXIMO_ESPERANDO }, () => semaforo.run(escolaBucket(ESCOLA_A), () => Promise.resolve()).catch(() => undefined))
     expect(semaforo.esperando).toBe(MAXIMO_ESPERANDO)
     const tarefa = vi.fn(() => Promise.resolve())
-    const excedente = semaforo.executar(escolaBucket(ESCOLA_B), tarefa)
+    const excedente = semaforo.run(escolaBucket(ESCOLA_B), tarefa)
     await expect(excedente).rejects.toMatchObject({ codigo: ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, status: 503 })
     expect(tarefa).not.toHaveBeenCalled()
     expect(semaforo.esperando).toBe(MAXIMO_ESPERANDO)
@@ -458,14 +458,14 @@ describe('SemaforoSemProtecao: o controle negativo do cenário de carga (16.0)',
     const semaforo = new UnprotectedHashBulkhead(1, medidor.medidor)
     const atendidos: string[] = []
     const emAndamento = tarefaSegura()
-    const primeiro = semaforo.executar(escolaBucket(ESCOLA_A), emAndamento.tarefa)
+    const primeiro = semaforo.run(escolaBucket(ESCOLA_A), emAndamento.tarefa)
     const anotar = (nome: string) => () => {
       atendidos.push(nome)
       return Promise.resolve()
     }
-    const rebaixado = semaforo.executar(escolaBucket(ESCOLA_A, true), anotar('A-rebaixado'))
-    const daA = Array.from({ length: 3_000 }, (_, posicao) => semaforo.executar(escolaBucket(ESCOLA_A), anotar(`A${String(posicao)}`)))
-    const daB = semaforo.executar(escolaBucket(ESCOLA_B), anotar('B'))
+    const rebaixado = semaforo.run(escolaBucket(ESCOLA_A, true), anotar('A-rebaixado'))
+    const daA = Array.from({ length: 3_000 }, (_, posicao) => semaforo.run(escolaBucket(ESCOLA_A), anotar(`A${String(posicao)}`)))
+    const daB = semaforo.run(escolaBucket(ESCOLA_B), anotar('B'))
     emAndamento.soltar()
     await Promise.all([primeiro, rebaixado, daB, ...daA])
     // Com a proteção, a B seria a primeira e o rebaixado o último: aqui é tudo por ordem de chegada.
@@ -476,7 +476,7 @@ describe('SemaforoSemProtecao: o controle negativo do cenário de carga (16.0)',
 
   it('a espera continua medida com o rótulo do balde de verdade, nunca o do balde único', async () => {
     const semaforo = new UnprotectedHashBulkhead(1, medidor.medidor)
-    await semaforo.executar(escolaBucket(ESCOLA_B), () => Promise.resolve())
+    await semaforo.run(escolaBucket(ESCOLA_B), () => Promise.resolve())
     const rotulos = (await medidor.pontos(METRICS.esperaPeloHash)).map((ponto) => ponto.atributos['escola_id'])
     expect(rotulos).toEqual([ESCOLA_B])
   })
@@ -487,7 +487,7 @@ describe('SemaforoDeHash: métricas', () => {
     const semaforo = new HashBulkhead(2, medidor.medidor)
     expect(await medidor.pontos(METRICS.hashRecusado)).toEqual([{ atributos: {}, valor: 0 }])
     for (const balde of [escolaBucket(ESCOLA_A), escolaBucket(ESCOLA_B), equipeBucket(IP_DA_ESCOLA), equipeBucket(IP_DE_FORA), escolaDesconhecidaBucket()]) {
-      await semaforo.executar(balde, () => Promise.resolve())
+      await semaforo.run(balde, () => Promise.resolve())
     }
     const pontos = await medidor.pontos(METRICS.esperaPeloHash)
     expect(pontos.map(({ atributos }) => atributos)).toEqual([{ escola_id: ESCOLA_A }, { escola_id: ESCOLA_B }, { escola_id: 'equipe' }, { escola_id: 'desconhecida' }])

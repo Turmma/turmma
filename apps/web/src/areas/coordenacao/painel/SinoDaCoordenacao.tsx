@@ -20,9 +20,9 @@ export default function SinoDaCoordenacao() {
       itens={fila.itens}
       situacao={fila.situacao}
       erro={fila.erro}
-      aoTentarDeNovo={fila.tentarDeNovo}
+      aoTentarDeNovo={fila.retry}
       tentandoDeNovo={fila.tentandoDeNovo}
-      aoAtualizar={fila.atualizar}
+      aoAtualizar={fila.update}
       atualizando={fila.atualizando}
       atualizadoEm={fila.atualizadoEm}
       faltaPara="/estrutura?painel=falta"

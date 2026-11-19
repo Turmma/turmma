@@ -33,7 +33,7 @@ export class JobOutbox {
   constructor(private readonly repositorio: JobOutboxRepository) {}
 
   async enfileirar<Tipo extends JobType>(tx: DatabaseTransaction, tipo: Tipo, dados: JobData<Tipo>, ...opcoes: ArgumentosDeOpcoes<Tipo>): Promise<string> {
-    return this.repositorio.inserir(tx, linhaDoPedido(tipo, dados, opcoes[0]))
+    return this.repositorio.insert(tx, linhaDoPedido(tipo, dados, opcoes[0]))
   }
 
   /**
@@ -49,7 +49,7 @@ export class JobOutbox {
     chaveIdempotencia: string,
     ...opcoes: ArgumentosDeOpcoes<Tipo>
   ): Promise<IdempotencyKeyResult> {
-    return this.repositorio.inserirUmaVez(tx, linhaDoPedido(tipo, dados, opcoes[0]), chaveIdempotencia)
+    return this.repositorio.insertUmaVez(tx, linhaDoPedido(tipo, dados, opcoes[0]), chaveIdempotencia)
   }
 }
 

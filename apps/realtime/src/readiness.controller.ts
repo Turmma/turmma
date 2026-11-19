@@ -17,7 +17,7 @@ export class ReadinessController {
 
   @Get()
   @Header('Cache-Control', 'no-store')
-  obter(@Res({ passthrough: true }) resposta: RespostaHttp): ReadinessResponse {
+  get(@Res({ passthrough: true }) resposta: RespostaHttp): ReadinessResponse {
     const { status, corpo } = this.drenagem.prontidao()
     resposta.status(status)
     return corpo

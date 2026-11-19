@@ -17,7 +17,7 @@ import {
 } from '../material.js'
 import { PROMPT_GERAR_ATIVIDADE_OBJETIVA } from '../prompts/gerar-atividade-objetiva.js'
 import { defineTask, MaterialSemConteudoAproveitavelError } from '../task.js'
-import { capitalizar, cortar, hashEstavel, normalizar, palavras, palavrasEmComum } from '../text.js'
+import { capitalizar, cortar, hashEstavel, normalize, palavras, palavrasEmComum } from '../text.js'
 
 export const atividadeObjetivaInputSchema = z.strictObject({
   /** O que o professor pediu, com as palavras dele. Vai ao modelo como dado. */
@@ -44,7 +44,7 @@ export function problemasDasQuestoes(
       problemas.push(`${onde}: a citação aponta para a página ${questao.citacao.pagina}, que não está nos trechos recebidos. Cite só material e página que vieram nos dados.`)
     }
     if (!codigos.has(questao.habilidade.codigo)) problemas.push(`${onde}: a habilidade precisa ser uma das recebidas, copiada como veio.`)
-    if (new Set(questao.alternativas.map(normalizar)).size !== questao.alternativas.length) problemas.push(`${onde}: as quatro alternativas precisam ser diferentes entre si.`)
+    if (new Set(questao.alternativas.map(normalize)).size !== questao.alternativas.length) problemas.push(`${onde}: as quatro alternativas precisam ser diferentes entre si.`)
     return problemas
   })
 }
@@ -68,7 +68,7 @@ const textoDoFato = (fato: Fato): string => `${fato.termo} ${fato.complemento}`
  * confundiria, e por fim as mais próximas no texto. Definição de outro assunto se elimina só de ler.
  */
 function distratoresDoFato(fatos: readonly Fato[], indice: number, certo: Fato): string[] {
-  const usados = new Set([normalizar(alternativaDoFato(certo))])
+  const usados = new Set([normalize(alternativaDoFato(certo))])
   const candidatos = fatos
     .map((fato, posicao) => ({ fato, posicao, afinidade: palavrasEmComum(textoDoFato(certo), textoDoFato(fato)) }))
     .filter(({ posicao }) => posicao !== indice)
@@ -82,8 +82,8 @@ function distratoresDoFato(fatos: readonly Fato[], indice: number, certo: Fato):
   const distratores: string[] = []
   for (const { fato } of candidatos) {
     const alternativa = alternativaDoFato(fato)
-    if (usados.has(normalizar(alternativa))) continue
-    usados.add(normalizar(alternativa))
+    if (usados.has(normalize(alternativa))) continue
+    usados.add(normalize(alternativa))
     distratores.push(alternativa)
     if (distratores.length === 3) break
   }
@@ -92,7 +92,7 @@ function distratoresDoFato(fatos: readonly Fato[], indice: number, certo: Fato):
 
 /** A posição da correta sai do próprio texto: muda de questão para questão e é sempre a mesma para a mesma questão. */
 function comACorretaNaPosicao(correta: string, distratores: readonly string[], semente: string): { alternativas: string[]; gabarito: number } {
-  const gabarito = hashEstavel(normalizar(semente)) % (distratores.length + 1)
+  const gabarito = hashEstavel(normalize(semente)) % (distratores.length + 1)
   const alternativas = [...distratores]
   alternativas.splice(gabarito, 0, correta)
   return { alternativas, gabarito }
@@ -134,7 +134,7 @@ function lacunaDaFrase(frase: FraseDoMaterial): Lacuna | undefined {
 function questaoDaLacuna(lacunas: readonly Lacuna[], indice: number, habilidades: readonly Habilidade[]): QuestaoObjetiva | undefined {
   const lacuna = lacunas[indice]
   if (lacuna === undefined) return undefined
-  const usadas = new Set([normalizar(lacuna.omitida)])
+  const usadas = new Set([normalize(lacuna.omitida)])
   const distratores: string[] = []
   const porProximidade = lacunas
     .map((outra, posicao) => ({ outra, posicao }))
@@ -143,8 +143,8 @@ function questaoDaLacuna(lacunas: readonly Lacuna[], indice: number, habilidades
   for (const { outra } of porProximidade) {
     const palavra = outra.omitida.toLowerCase()
     // Palavra que já está na própria frase não serve de distrator: a frase a denuncia.
-    if (usadas.has(normalizar(palavra)) || normalizar(lacuna.frase).includes(normalizar(palavra))) continue
-    usadas.add(normalizar(palavra))
+    if (usadas.has(normalize(palavra)) || normalize(lacuna.frase).includes(normalize(palavra))) continue
+    usadas.add(normalize(palavra))
     distratores.push(palavra)
     if (distratores.length === 3) break
   }
@@ -249,7 +249,7 @@ export const gerarAtividadeObjetiva = defineTask({
     return semAdaptacao
   },
 
-  montarPedido(entrada) {
+  buildPedido(entrada) {
     return {
       instrucao: `Monte uma atividade com ${entrada.quantidade} questões objetivas sobre o tema pedido, a partir dos trechos do material.`,
       dados: [

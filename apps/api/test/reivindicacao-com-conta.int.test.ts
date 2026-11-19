@@ -71,12 +71,12 @@ describe('a conta da escola no pedido do nome (14.0): prova na sala, pedido sem 
   const linhasDeLog: string[] = []
   let api: TestApi
   let sala: FerramentasDaSala
-  let hashes: MockInstance<PasswordHasher['gerar']>
+  let hashes: MockInstance<PasswordHasher['generate']>
 
   beforeAll(async () => {
     api = await subirApi(medidor.medidor, { ambiente: AMBIENTE }, linhasDeLog)
     sala = new FerramentasDaSala(api, bancada)
-    hashes = vi.spyOn(api.app.get(PasswordHasher), 'gerar')
+    hashes = vi.spyOn(api.app.get(PasswordHasher), 'generate')
   })
 
   afterAll(async () => {
@@ -203,7 +203,7 @@ describe('a conta da escola no pedido do nome (14.0): prova na sala, pedido sem 
     const { chaveDoCookie } = loadExternalLoginConfig(lerAmbienteDeTeste())
     const usada = chave ?? chaveDoCookie
     if (usada === undefined) throw new Error('ambiente de teste sem chave do cookie')
-    const gravado = new CookieContaProvada(usada, 'local', agora).gravar({ ...conta, provedor: 'google', tenant: null, sujeito: SUJEITO_DA_ALUNA })
+    const gravado = new CookieContaProvada(usada, 'local', agora).save({ ...conta, provedor: 'google', tenant: null, sujeito: SUJEITO_DA_ALUNA })
     return gravado.split(';')[0] ?? ''
   }
 
@@ -292,15 +292,15 @@ describe('a conta da escola no pedido do nome (14.0): prova na sala, pedido sem 
       const [a, b] = [await montar(), await montar()]
       const login = api.app.get(ExternalLoginService)
       const acessoDeB = { escolaId: b.escolaId, acessoId: await sala.acessoVigente(b.turma) }
-      await expect(login.iniciar('google', a.slug, acessoDeB)).rejects.toMatchObject({ codigo: ErrorCode.NAO_ENCONTRADO })
-      await expect(login.iniciar('google', a.slug, acessoDeB)).rejects.toBeInstanceOf(DomainException)
-      const doSlug = await login.iniciar('google', a.slug, { escolaId: a.escolaId, acessoId: await sala.acessoVigente(a.turma) })
+      await expect(login.start('google', a.slug, acessoDeB)).rejects.toMatchObject({ codigo: ErrorCode.NAO_ENCONTRADO })
+      await expect(login.start('google', a.slug, acessoDeB)).rejects.toBeInstanceOf(DomainException)
+      const doSlug = await login.start('google', a.slug, { escolaId: a.escolaId, acessoId: await sala.acessoVigente(a.turma) })
       expect(new URL(doSlug.endereco).searchParams.get('code_challenge_method')).toBe('S256')
     })
 
     it('a conta ligada a aluno ativo entra como sempre, com a intenção de reivindicar também; a ligada a aluno desativado é recusada; sem cookie da conta nos dois', async () => {
       const s = await montar()
-      const [alunoId] = await bancada.alunosComMatricula(s.escolaId, [{ matricula: `RA${randomUUID().slice(0, 8)}`, senhaHash: await api.app.get(PasswordHasher).gerar(SENHA_DA_SALA) }])
+      const [alunoId] = await bancada.alunosComMatricula(s.escolaId, [{ matricula: `RA${randomUUID().slice(0, 8)}`, senhaHash: await api.app.get(PasswordHasher).generate(SENHA_DA_SALA) }])
       if (alunoId === undefined) throw new Error('aluno não criado')
       await naEscola(s.escolaId, () => new ContaExternalRepository(bancada.banco).ligar(alunoId, { provedor: 'google', tenant: null, sujeito: SUJEITO_DA_ALUNA }))
 
@@ -398,7 +398,7 @@ describe('a conta da escola no pedido do nome (14.0): prova na sala, pedido sem 
       if (chaveDoCookie === undefined) throw new Error('ambiente de teste sem chave do cookie')
       const valido = { escolaId: a.escolaId, acessoId: acessoDeA }
       const doOidc = new CookieOidc(chaveDoCookie, 'local')
-        .gravar({ escolaId: a.escolaId, slug: a.slug, provedor: 'google', state: 'state-sintetico-0123456789', nonce: 'nonce-sintetico-0123456789', verificador: 'verificador-sintetico-0123456789' })
+        .save({ escolaId: a.escolaId, slug: a.slug, provedor: 'google', state: 'state-sintetico-0123456789', nonce: 'nonce-sintetico-0123456789', verificador: 'verificador-sintetico-0123456789' })
         .split(';')[0]
         ?.replace(`${COOKIE_OIDC}=`, '')
       const bom = cookieForjado(valido)
@@ -542,7 +542,7 @@ describe('a conta da escola no pedido do nome (14.0): prova na sala, pedido sem 
       const nome = await sala.umNome(s)
       await pedirComConta(s, nome)
       const id = await pedidoId(nome.id)
-      const [outroAluno] = await bancada.alunosComMatricula(s.escolaId, [{ matricula: `RA${randomUUID().slice(0, 8)}`, senhaHash: await api.app.get(PasswordHasher).gerar(SENHA_DA_SALA) }])
+      const [outroAluno] = await bancada.alunosComMatricula(s.escolaId, [{ matricula: `RA${randomUUID().slice(0, 8)}`, senhaHash: await api.app.get(PasswordHasher).generate(SENHA_DA_SALA) }])
       if (outroAluno === undefined) throw new Error('aluno não criado')
       await naEscola(s.escolaId, () => new ContaExternalRepository(bancada.banco).ligar(outroAluno, { provedor: 'google', tenant: null, sujeito: SUJEITO_DA_ALUNA }))
       const usuariosAntes = await contar('usuario', s.escolaId)
@@ -571,7 +571,7 @@ describe('a conta da escola no pedido do nome (14.0): prova na sala, pedido sem 
       await pedirComConta(s, segundo)
       expect(semRequisicao(await sala.reivindicar(pedidoDaSala(s, terceiro)))).toEqual(ENVIADO)
       const ids = [await pedidoId(primeiro.id), await pedidoId(segundo.id), await pedidoId(terceiro.id)]
-      const [outroAluno] = await bancada.alunosComMatricula(s.escolaId, [{ matricula: `RA${randomUUID().slice(0, 8)}`, senhaHash: await api.app.get(PasswordHasher).gerar(SENHA_DA_SALA) }])
+      const [outroAluno] = await bancada.alunosComMatricula(s.escolaId, [{ matricula: `RA${randomUUID().slice(0, 8)}`, senhaHash: await api.app.get(PasswordHasher).generate(SENHA_DA_SALA) }])
       if (outroAluno === undefined) throw new Error('aluno não criado')
       await naEscola(s.escolaId, () => new ContaExternalRepository(bancada.banco).ligar(outroAluno, { provedor: 'google', tenant: null, sujeito: SUJEITO_DA_ALUNA }))
 
@@ -608,7 +608,7 @@ describe('a conta da escola no pedido do nome (14.0): prova na sala, pedido sem 
       const porTransferencia = await montar()
       const nomeDaTransferencia = await sala.umNome(porTransferencia)
       await pedirComConta(porTransferencia, nomeDaTransferencia)
-      const fechados = await naEscola(porTransferencia.escolaId, () => new DecisaoRepository(bancada.banco).fechar({ listaNomeIds: [nomeDaTransferencia.id] }, 'encerrada'))
+      const fechados = await naEscola(porTransferencia.escolaId, () => new DecisaoRepository(bancada.banco).close({ listaNomeIds: [nomeDaTransferencia.id] }, 'encerrada'))
       expect(fechados).toHaveLength(1)
       expect(await pedidosDe(nomeDaTransferencia.id)).toEqual([
         { estado: 'encerrada', senha_hash: null, conta_externa: null, chave_envio: null, teve_matricula_errada: null, decidida_em: null, decidida_por: null, decidida_como: null },

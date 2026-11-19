@@ -15,7 +15,7 @@ export class ExecucoesController {
   @Get(':id')
   @RequirePermissao('execucao', 'ler')
   @Header('Cache-Control', 'no-store')
-  ler(@Param('id', IdPipe) id: string): Promise<ExecucaoResponse> {
-    return this.execucoes.ler(id)
+  read(@Param('id', IdPipe) id: string): Promise<ExecucaoResponse> {
+    return this.execucoes.read(id)
   }
 }

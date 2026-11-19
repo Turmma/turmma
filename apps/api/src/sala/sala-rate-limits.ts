@@ -52,14 +52,14 @@ export interface AntesDoHash {
 
 export interface SalaRateLimitsDependencies {
   /** O contador da sala, com a janela de 10 min, no Redis de fila (o mesmo cliente e a mesma chave de HMAC do login). */
-  readonly janela: Pick<WindowCounter, 'chaveDe' | 'ler' | 'somar' | 'restanteMs' | 'proporcaoDoSeguro'>
+  readonly janela: Pick<WindowCounter, 'chaveDe' | 'read' | 'somar' | 'restanteMs' | 'proporcaoDoSeguro'>
   /** Quantas instâncias da API dividem os tetos quando a contagem é do seguro em memória (`LIMITE_INSTANCIAS_API`). */
   readonly instancias: number
   readonly medidor: Meter
   /** O logger JSON do processo: a linha leva o `tipo` e o `escolaId`, que o `Logger` do Nest não carrega. */
   readonly logger: Pick<LoggerBase, 'warn'>
   /** Só o teste troca, para contar a espera sem dormir. */
-  readonly esperar?: (ms: number) => Promise<void>
+  readonly wait?: (ms: number) => Promise<void>
 }
 
 const dormir = (ms: number) => new Promise<void>((resolver) => setTimeout(resolver, ms))
@@ -84,11 +84,11 @@ const dormir = (ms: number) => new Promise<void>((resolver) => setTimeout(resolv
  */
 export class SalaRateLimits implements CodigoRateLimit {
   readonly #limitesAtingidos: ReturnType<Meter['createCounter']>
-  readonly #esperar: (ms: number) => Promise<void>
+  readonly #wait: (ms: number) => Promise<void>
   #esperandoOCodigo = 0
 
   constructor(private readonly dependencias: SalaRateLimitsDependencies) {
-    this.#esperar = dependencias.esperar ?? dormir
+    this.#wait = dependencias.wait ?? dormir
     this.#limitesAtingidos = dependencias.medidor.createCounter(METRICS.limiteDaSala, { description: 'Pedidos da página da sala segurados por um limite, por tipo' })
     // As séries nascem em 0 no boot: a taxa do alerta de código errado em massa (9.0) conta o primeiro.
     for (const tipo of TIPOS_DE_LIMITE_DA_SALA) this.#limitesAtingidos.add(0, { tipo })
@@ -113,7 +113,7 @@ export class SalaRateLimits implements CodigoRateLimit {
     await this.#atingido('escola', escolaId)
     this.#esperandoOCodigo++
     try {
-      await this.#esperar(ESPERA_ACIMA_DO_TETO_DA_ESCOLA_MS)
+      await this.#wait(ESPERA_ACIMA_DO_TETO_DA_ESCOLA_MS)
     } finally {
       this.#esperandoOCodigo--
     }
@@ -133,7 +133,7 @@ export class SalaRateLimits implements CodigoRateLimit {
   async antesDoHash(nome: NomePeloAcesso, turmaId: string, escolaId: string, matriculaErrada: boolean): Promise<AntesDoHash> {
     const { janela, instancias } = this.dependencias
     const chaveDoNome = this.chaveDoNome(nome)
-    const [doNome, daTurma] = await Promise.all([matriculaErrada ? janela.somar(chaveDoNome) : janela.ler(chaveDoNome), janela.ler(this.chaveDaTurma(turmaId))])
+    const [doNome, daTurma] = await Promise.all([matriculaErrada ? janela.somar(chaveDoNome) : janela.read(chaveDoNome), janela.read(this.chaveDaTurma(turmaId))])
     const efetivo = (teto: number, doSeguro: boolean) => (doSeguro ? insuranceLimit(teto, instancias) : teto)
     // A soma já conta esta tentativa: ela passa enquanto não exceder o teto. A leitura conta só as anteriores.
     const anteriores = matriculaErrada ? doNome.valor - 1 : doNome.valor
@@ -151,7 +151,7 @@ export class SalaRateLimits implements CodigoRateLimit {
    * hash, logo antes da transação. As erradas que chegaram junto com a certa já somaram antes do hash delas.
    */
   async teveMatriculaErrada(nome: NomePeloAcesso): Promise<boolean> {
-    return (await this.dependencias.janela.ler(this.chaveDoNome(nome))).valor > 0
+    return (await this.dependencias.janela.read(this.chaveDoNome(nome))).valor > 0
   }
 
   /** O hash rodou e nenhum pedido foi criado (a recusa): conta no teto da turma. */
@@ -160,7 +160,7 @@ export class SalaRateLimits implements CodigoRateLimit {
   }
 
   async #noTeto(chave: string, teto: number): Promise<boolean> {
-    const { valor, doSeguro } = await this.dependencias.janela.ler(chave)
+    const { valor, doSeguro } = await this.dependencias.janela.read(chave)
     return valor >= (doSeguro ? insuranceLimit(teto, this.dependencias.instancias) : teto)
   }
 

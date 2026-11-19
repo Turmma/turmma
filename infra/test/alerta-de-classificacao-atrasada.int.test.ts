@@ -1,4 +1,4 @@
-import { lerJanelaPadrao, ultimaNoite, type JanelaLetiva } from '@educa/core'
+import { readJanelaPadrao, ultimaNoite, type JanelaLetiva } from '@educa/core'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { SessaoFixtures } from '../../apps/api/test/sessao.fixture.js'
@@ -21,7 +21,7 @@ const UID = REGRAS_PROVISIONADAS.classificacaoAtrasada
 const sessoes = new SessaoFixtures()
 const escolas: string[] = []
 
-const JANELA_PADRAO = lerJanelaPadrao(ambiente)
+const JANELA_PADRAO = readJanelaPadrao(ambiente)
 /** A escola que abre às 5h e fecha às 22h: a noite dela não é a da padrão. */
 const JANELA_DA_ESCOLA_TARDIA = { ...JANELA_PADRAO, inicio: '05:00', fim: '22:00' }
 

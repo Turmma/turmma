@@ -34,7 +34,7 @@ export class JobsQueFalharamRepository {
   constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   @Unscoped('comando da operação: lista os jobs que falharam de vez em todas as escolas; devolve só id, escola, tipo, fila, código e data, nunca o dados')
-  async listar(): Promise<JobQueFalhou[]> {
+  async list(): Promise<JobQueFalhou[]> {
     const linhas = await this.banco.select(CAMPOS).from(jobRegistro).where(eq(jobRegistro.estado, 'falhou')).orderBy(desc(jobRegistro.concluidoEm)).limit(LIMITE_DA_LISTA_DE_JOBS_QUE_FALHARAM)
     return linhas.map((linha) => ({ ...linha, fila: linha.fila as QueueName }))
   }
@@ -44,7 +44,7 @@ export class JobsQueFalharamRepository {
    * já não o acha. Devolve o `dados` só com o que o descarte do PDF precisa: o id do material.
    */
   @Unscoped('comando da operação: acha o job que falhou pelo id, em qualquer escola, e o trava; devolve só id, escola, tipo, fila e o id do material do dados, nunca o resto')
-  async travarFalho(id: string): Promise<(JobQueFalhou & { readonly materialId: string | null }) | undefined> {
+  async lockFalho(id: string): Promise<(JobQueFalhou & { readonly materialId: string | null }) | undefined> {
     const [linha] = await this.banco
       .select({ ...CAMPOS, dados: jobRegistro.dados })
       .from(jobRegistro)

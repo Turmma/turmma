@@ -4,11 +4,11 @@ import type { ConclusaoDeLogin } from '../completion/login-completion.js'
 import type { LoginLockout } from '../../credencial/login-lockout.js'
 import type { AtivacaoPorConvite } from '../convite/convite.service.js'
 import type { DeviceCookie } from '../../credencial/device-cookie.js'
-import { DEVICE_COOKIE, lerCookie } from '../../credencial/cookies.js'
+import { DEVICE_COOKIE, readCookie } from '../../credencial/cookies.js'
 import { verifyChallenge, type ChallengeConsumer, type VerifiedChallenge } from '../../credencial/challenge.js'
 import { ipParaRegistro, type RequestOrigin, type ResultadoDoLogin } from '../../credencial/request-origin.js'
 import { TenantResolutionRepository, type MfaDaConta, type UsuarioAtivoDaConta } from '../tenant/tenant-resolution.repository.js'
-import { gerarCodigosDeRecuperacao, gerarSegredo, hmacDaRecuperacao, normalizarRecuperacao, passoDoCodigo } from '../../credencial/totp.js'
+import { generateCodigosDeRecuperacao, generateSegredo, hmacDaRecuperacao, normalizeRecuperacao, passoDoCodigo } from '../../credencial/totp.js'
 
 export interface MfaDependencies {
   readonly banco: Database
@@ -71,9 +71,9 @@ export class MfaService {
     if (conta === undefined) throw naoAutenticado()
     // Com o MFA já ativo, quem recusa é o banco (`where mfa_ativado_em is null`), e não uma leitura anterior: entre as
     // duas, outra aba pode ter ativado.
-    const novo = gerarSegredo()
+    const novo = generateSegredo()
     const { cifrado, versao } = this.dependencias.cifra.cifrar(novo.bytes, conta.id)
-    if (!(await this.dependencias.resolucao.gravarSegredoDeMfa(conta.id, cifrado, versao))) throw naoAutenticado()
+    if (!(await this.dependencias.resolucao.saveSegredoDeMfa(conta.id, cifrado, versao))) throw naoAutenticado()
     return { uri: novo.uri, segredo: novo.base32 }
   }
 
@@ -86,8 +86,8 @@ export class MfaService {
     // Consome antes de gravar: dois pedidos com o mesmo desafio não ativam duas vezes, e o segundo nunca recebe outro
     // lote de códigos. O código errado, acima, não consome. Com dois desafios (duas abas), quem decide é o `update`
     // condicional da ativação, que só passa com o MFA inativo e com o segredo que foi conferido aqui.
-    await this.dependencias.consumo.consumir(verificado)
-    const codigos = gerarCodigosDeRecuperacao()
+    await this.dependencias.consumo.consume(verificado)
+    const codigos = generateCodigosDeRecuperacao()
     const hmacs = codigos.map((texto) => hmacDaRecuperacao(this.dependencias.chaveRecuperacao, texto))
     const segredoConferido = conta.segredoCifrado
     const ativou = await this.dependencias.banco.transaction((tx) => new TenantResolutionRepository(tx).ativarMfa(conta.id, segredoConferido, passo, hmacs))
@@ -101,16 +101,16 @@ export class MfaService {
     const conta = await resolucao.mfaDaConta(verificado.contaId)
     if (conta === undefined || conta.ativadoEm === null) throw naoAutenticado()
 
-    const conhecido = dispositivo.conhece(lerCookie(origem.cabecalhoCookie, DEVICE_COOKIE), conta.email)
+    const conhecido = dispositivo.conhece(readCookie(origem.cabecalhoCookie, DEVICE_COOKIE), conta.email)
     const chave = contador.chaveDe(conta.id, conhecido ? 'conhecido' : 'outro')
     const reserva = await contador.reservar(chave)
     if (!reserva.liberada) throw this.#segurada(reserva.esperaMs)
 
     if (!(await this.#fatorConfere(conta, pedido))) {
-      await resolucao.gravarFalhaDeLoginPorEmail(ipParaRegistro(origem.ip))
+      await resolucao.saveFalhaDeLoginPorEmail(ipParaRegistro(origem.ip))
       if (reserva.esperaSeFalharMs > 0) {
         // O quinto erro seguido gasta o desafio: daí em diante, nem o código certo passa com ele.
-        await this.dependencias.consumo.consumir(verificado).catch(() => undefined)
+        await this.dependencias.consumo.consume(verificado).catch(() => undefined)
         throw this.#segurada(reserva.esperaSeFalharMs)
       }
       throw naoAutenticado()
@@ -156,7 +156,7 @@ export class MfaService {
     // O código já foi gasto (o passo gravado, ou o de recuperação usado): o 503 que manda repetir o mesmo pedido, como o do Redis
     // de fila fora antes da conferência (54.0), faria a web repetir o mesmo código, e a resposta seria "código incorreto". Aqui o
     // erro é outro, `TEMPO_ESGOTADO`, que a web não repete sozinha e que diz para digitar o código seguinte.
-    await consumo.consumir(verificado).catch((erro: unknown) => {
+    await consumo.consume(verificado).catch((erro: unknown) => {
       if (erro instanceof DomainException && erro.codigo === ErrorCode.INDISPONIVEL_TENTE_DE_NOVO) {
         throw new DomainException(ErrorCode.TEMPO_ESGOTADO, undefined, DEFAULT_RETRY_AFTER_SECONDS)
       }
@@ -171,7 +171,7 @@ export class MfaService {
       const passo = passoDoCodigo(this.#segredo(conta), pedido.codigo, this.#relogio.agora())
       return passo !== undefined && (await this.dependencias.resolucao.avancarPassoDoMfa(conta.id, passo))
     }
-    const codigo = normalizarRecuperacao(pedido.recuperacao)
+    const codigo = normalizeRecuperacao(pedido.recuperacao)
     return codigo !== undefined && (await this.dependencias.resolucao.usarCodigoDeRecuperacao(conta.id, hmacDaRecuperacao(this.dependencias.chaveRecuperacao, codigo)))
   }
 

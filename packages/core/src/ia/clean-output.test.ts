@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { descartarRaciocinio, limparSaidaDoModelo, semMarcacao, tirarCercaDeCodigo, tirarMarcacao } from './clean-output.js'
+import { descartarRaciocinio, clearSaidaDoModelo, semMarcacao, tirarCercaDeCodigo, tirarMarcacao } from './clean-output.js'
 
 const JSON_BOM = '{"ok":true}'
 
@@ -32,13 +32,13 @@ describe('tirarCercaDeCodigo e limparSaidaDoModelo', () => {
   })
 
   it('raciocínio, cerca e prosa em volta saem juntos: sobra o objeto', () => {
-    expect(limparSaidaDoModelo('<think>hmm</think>\nAqui está:\n```json\n{"ok":true}\n```')).toBe(JSON_BOM)
-    expect(limparSaidaDoModelo(`Claro! ${JSON_BOM} Espero ter ajudado.`)).toBe(JSON_BOM)
+    expect(clearSaidaDoModelo('<think>hmm</think>\nAqui está:\n```json\n{"ok":true}\n```')).toBe(JSON_BOM)
+    expect(clearSaidaDoModelo(`Claro! ${JSON_BOM} Espero ter ajudado.`)).toBe(JSON_BOM)
   })
 
   it('o que não tem objeto nenhum fica como veio, para a validação recusar', () => {
-    expect(limparSaidaDoModelo('não consegui')).toBe('não consegui')
-    expect(limparSaidaDoModelo('<think>só pensei')).toBe('')
+    expect(clearSaidaDoModelo('não consegui')).toBe('não consegui')
+    expect(clearSaidaDoModelo('<think>só pensei')).toBe('')
   })
 })
 

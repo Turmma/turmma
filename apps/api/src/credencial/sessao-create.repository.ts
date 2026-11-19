@@ -24,7 +24,7 @@ export class SessaoCreateRepository {
   constructor(private readonly tx: DatabaseTransaction) {}
 
   /** Os usuários criados, com a conta de cada um: quem chama casa pela conta, sem depender da ordem do `returning`. */
-  async criarUsuarios(novos: readonly UsuarioNovo[]): Promise<Array<{ id: string; contaId: string | null }>> {
+  async createUsuarios(novos: readonly UsuarioNovo[]): Promise<Array<{ id: string; contaId: string | null }>> {
     if (novos.length === 0) return []
     const escolaId = requireEscolaId()
     return this.tx
@@ -34,7 +34,7 @@ export class SessaoCreateRepository {
   }
 
   /** As sessões criadas, com o usuário de cada uma. */
-  async criarSessoes(novas: readonly SessaoNova[]): Promise<Array<{ id: string; usuarioId: string }>> {
+  async createSessoes(novas: readonly SessaoNova[]): Promise<Array<{ id: string; usuarioId: string }>> {
     if (novas.length === 0) return []
     const escolaId = requireEscolaId()
     const criadas = await this.tx

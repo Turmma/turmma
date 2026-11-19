@@ -86,13 +86,13 @@ export class EliminacaoDoTitular {
 
     return this.banco.transaction(async (tx) => {
       const gravacao = new EliminacaoDoTitularRepository(tx)
-      const travado = await gravacao.travarVencido(pedidoId)
+      const travado = await gravacao.lockVencido(pedidoId)
       if (travado === undefined) return 'sem_efeito' as const
       const ativo = await gravacao.registradorAtivo(travado.registradoPor)
       return this.#comAutor(ativo ? travado.registradoPor : undefined, async (autoria) => {
         const existe = (await gravacao.nomeDoTitular(travado.titularId)) !== undefined
         if (existe) {
-          await gravacao.gravarCompartilhamento(travado.id, await new Compartilhamento(tx, this.relogio).doTitular({ titularId: travado.titularId, papel: travado.papel }))
+          await gravacao.saveCompartilhamento(travado.id, await new Compartilhamento(tx, this.relogio).doTitular({ titularId: travado.titularId, papel: travado.papel }))
           await gravacao.anonimizarExecucoes(travado.titularId, this.relogio.agora())
           // A pessoa que saiu por outro caminho entre a leitura e a trava faz o `eliminar` responder `NAO_ENCONTRADO` antes de qualquer
           // escrita: o job falha, a etapa 3 desfaz e a tentativa seguinte já não a encontra (`existe` falso) e só conclui o pedido.
@@ -100,11 +100,11 @@ export class EliminacaoDoTitular {
         }
         await gravacao.marcarArquivosApagados(travado.titularId)
         for (const outro of await gravacao.concluirOutrosAbertos(travado.titularId, travado.id)) {
-          await registro.gravar(tx, 'pedido.concluido', { entidadeId: outro.id, antes: { estado: outro.estado }, depois: { estado: 'concluido' }, ...autoria })
+          await registro.save(tx, 'pedido.concluido', { entidadeId: outro.id, antes: { estado: outro.estado }, depois: { estado: 'concluido' }, ...autoria })
         }
         // Sob a trava do pedido, `agendado` não muda: se mesmo assim não concluir, a transação inteira (a pessoa, a anonimização) desfaz.
         if (!(await gravacao.concluir(travado.id, { nomeTrocado, homonimo }))) throw new InvariantException('pedido de eliminação não concluído sob a trava')
-        await registro.gravar(tx, 'pedido.concluido', { entidadeId: travado.id, antes: { estado: 'agendado' }, depois: { estado: 'concluido' }, ...autoria })
+        await registro.save(tx, 'pedido.concluido', { entidadeId: travado.id, antes: { estado: 'agendado' }, depois: { estado: 'concluido' }, ...autoria })
         return 'concluida' as const
       })
     })

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { InvalidArgumentError } from './command.js'
-import { executarOpsReclassificarEscola, lerPedidoDeReclassificacao } from './reclassificar-escola.js'
+import { runOpsReclassificarEscola, readPedidoDeReclassificacao } from './reclassificar-escola.js'
 
 /**
  * Os argumentos do `ops:reclassificar-escola` e as recusas antes de abrir o banco (classificacao-bncc, 7.0; D76; Tech Spec, seção 5, "Suspensão"). O que o comando faz no banco (só a escola dada, a correção que fica,
@@ -15,13 +15,13 @@ const proibido = (o: string) => () => {
 async function rodar(argumentos: string[], ambiente: Record<string, string | undefined>): Promise<{ codigo: number; saida: string; erro: string }> {
   let saida = ''
   let erro = ''
-  const codigo = await executarOpsReclassificarEscola(argumentos, ambiente, { saida: (texto) => (saida += texto), erro: (texto) => (erro += texto) }, proibido('o banco') as never)
+  const codigo = await runOpsReclassificarEscola(argumentos, ambiente, { saida: (texto) => (saida += texto), erro: (texto) => (erro += texto) }, proibido('o banco') as never)
   return { codigo, saida, erro }
 }
 
-describe('lerPedidoDeReclassificacao', () => {
+describe('readPedidoDeReclassificacao', () => {
   it('lê a escola em minúsculas e o chamado como inteiro positivo', () => {
-    expect(lerPedidoDeReclassificacao(['--escola', ESCOLA.toUpperCase(), '--chamado', '4711'])).toEqual({ escolaId: ESCOLA, chamado: 4711 })
+    expect(readPedidoDeReclassificacao(['--escola', ESCOLA.toUpperCase(), '--chamado', '4711'])).toEqual({ escolaId: ESCOLA, chamado: 4711 })
   })
 
   it.each([
@@ -34,11 +34,11 @@ describe('lerPedidoDeReclassificacao', () => {
     ['sem --escola', ['--chamado', '7'], '--escola'],
     ['--escola que não é UUID', ['--escola', '1837', '--chamado', '7'], '--escola'],
   ])('%s: InvalidArgumentError citando só a opção', (_caso, argumentos, opcao) => {
-    expect(() => lerPedidoDeReclassificacao(argumentos)).toThrow(new InvalidArgumentError(opcao))
+    expect(() => readPedidoDeReclassificacao(argumentos)).toThrow(new InvalidArgumentError(opcao))
   })
 
   it('opção desconhecida não repete o valor recebido na mensagem', () => {
-    expect(() => lerPedidoDeReclassificacao(['--escola', ESCOLA, '--chamado', '7', '--material', 'Apostila da Ana'])).toThrow(new InvalidArgumentError('--escola e --chamado'))
+    expect(() => readPedidoDeReclassificacao(['--escola', ESCOLA, '--chamado', '7', '--material', 'Apostila da Ana'])).toThrow(new InvalidArgumentError('--escola e --chamado'))
   })
 })
 

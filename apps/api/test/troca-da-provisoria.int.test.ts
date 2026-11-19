@@ -259,7 +259,7 @@ describe('o aluno entra com a senha provisória e troca a senha (acesso-e-convit
       const soComConta = await novoAluno(s)
       await bancada.pool.query('update credencial_matricula set senha_hash = null where usuario_id = $1', [soComConta.usuarioId])
       await bancada.pool.query("insert into conta_externa (escola_id, usuario_id, provedor, sujeito) values ($1, $2, 'google', $3)", [s.escolaId, soComConta.usuarioId, `sujeito-${randomUUID()}`])
-      const verificar = vi.spyOn(hasher, 'verificar')
+      const verificar = vi.spyOn(hasher, 'verify')
 
       const inexistente = await entrar(s.slug, `nao-existe-${randomUUID().slice(0, 8)}`, SENHA_ERRADA)
       const semSenha = await entrar(s.slug, soComConta.matricula, SENHA_ERRADA)
@@ -430,7 +430,7 @@ describe('o aluno entra com a senha provisória e troca a senha (acesso-e-convit
       const senhaNova = await gerarSenha(s.coordenacao, aluno.usuarioId)
 
       // Bilhete que não vale não gasta a vez no semáforo do argon2: o hash da senha nova só se faz para quem pode trocar.
-      const gerarHash = vi.spyOn(hasher, 'gerar')
+      const gerarHash = vi.spyOn(hasher, 'generate')
       expect((await trocar(velho)).status).toBe(401)
       expect(gerarHash).not.toHaveBeenCalled()
       expect((await trocas(velho)).status).toBe(401)
@@ -455,7 +455,7 @@ describe('o aluno entra com a senha provisória e troca a senha (acesso-e-convit
       const bilhete = await bilheteDe(aluno, senha)
       await bancada.pool.query("update usuario set eliminacao_agendada_em = now() + interval '7 days' where id = $1", [aluno.usuarioId])
       const sessoes = await sessoesAbertasDe(aluno.usuarioId)
-      const gerarHash = vi.spyOn(hasher, 'gerar')
+      const gerarHash = vi.spyOn(hasher, 'generate')
       const gravar = vi.spyOn(CredencialMatriculaRepository.prototype, 'trocarProvisoria')
 
       expect((await trocar(bilhete)).status).toBe(401)
@@ -548,7 +548,7 @@ describe('o aluno entra com a senha provisória e troca a senha (acesso-e-convit
       const s = await sala.montar()
       const { aluno, senha } = await alunoComProvisoria(s)
       const bilhete = await bilheteDe(aluno, senha)
-      const espiao = vi.spyOn(api.app.get(HashBulkhead, { strict: false }), 'executar')
+      const espiao = vi.spyOn(api.app.get(HashBulkhead, { strict: false }), 'run')
 
       expect((await trocar(bilhete)).status).toBe(200)
       expect(espiao).toHaveBeenCalledTimes(1)
@@ -562,7 +562,7 @@ describe('o aluno entra com a senha provisória e troca a senha (acesso-e-convit
       await recuar(aluno.usuarioId)
       await gerarSenha(s.coordenacao, aluno.usuarioId)
       // A recusa do semáforo cheio, simulada (o erro é o que o `HashBulkhead` lança na espera esgotada): o que se prova é a ordem, a tentativa só conta depois da vez.
-      const espiao = vi.spyOn(api.app.get(HashBulkhead, { strict: false }), 'executar').mockRejectedValue(new DomainException(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO))
+      const espiao = vi.spyOn(api.app.get(HashBulkhead, { strict: false }), 'run').mockRejectedValue(new DomainException(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO))
 
       for (let vez = 0; vez < 6; vez++) {
         const recusada = await trocar(primeiro)
@@ -703,7 +703,7 @@ describe('o aluno entra com a senha provisória e troca a senha (acesso-e-convit
       const b = await sala.montar()
       const { aluno: doB, senha } = await alunoComProvisoria(b)
       const bilheteDoB = await bilheteDe(doB, senha)
-      const dadosDoB = await bilhetes.verificar(bilheteDoB)
+      const dadosDoB = await bilhetes.verify(bilheteDoB)
       if (dadosDoB === undefined) throw new Error('o bilhete de teste não confere')
       const antes = await credencialDe(doB.usuarioId)
       // O histórico da B existe: no contexto da B a lista acha, no da A não.
@@ -728,7 +728,7 @@ describe('o aluno entra com a senha provisória e troca a senha (acesso-e-convit
     it('repository: a troca só grava a provisória do bilhete e só enquanto vale: a substituída e a vencida dão zero linhas, a vigente grava', async () => {
       const s = await sala.montar()
       const { aluno, senha } = await alunoComProvisoria(s)
-      const velha = (await bilhetes.verificar(await bilheteDe(aluno, senha)))?.provisoriaExpiraEm ?? ''
+      const velha = (await bilhetes.verify(await bilheteDe(aluno, senha)))?.provisoriaExpiraEm ?? ''
       const noRepository = (doBilhete: string) =>
         runInContext({ requisicaoId: randomUUID(), escolaId: s.escolaId }, () => bancada.banco.transaction((tx) => new CredencialMatriculaRepository(tx).trocarProvisoria(aluno.usuarioId, doBilhete, hashAntigo)))
 
@@ -792,7 +792,7 @@ describe('o aluno entra com a senha provisória e troca a senha (acesso-e-convit
       const a = await sala.montar()
       const b = await sala.montar()
       const { aluno: doB, senha } = await alunoComProvisoria(b)
-      const dadosDoB = await bilhetes.verificar(await bilheteDe(doB, senha))
+      const dadosDoB = await bilhetes.verify(await bilheteDe(doB, senha))
       if (dadosDoB === undefined) throw new Error('o bilhete de teste não confere')
       const cruzado = await bilhetes.emitir({ ...dadosDoB, escolaId: a.escolaId })
 

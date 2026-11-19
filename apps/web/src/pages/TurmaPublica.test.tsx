@@ -4,7 +4,7 @@ import { act, fireEvent, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fakeNetwork, renderScreen, setupScreen, type FakeNetwork, type FakeResponse } from '../__fixtures__/render-screen'
-import { CAMINHO_DA_SALA_STORAGE_KEY, guardarCaminhoDaSala, lerCaminhoDaSala, VALIDADE_DO_CAMINHO_DA_SALA_MS } from './caminho-da-sala'
+import { CAMINHO_DA_SALA_STORAGE_KEY, guardarCaminhoDaSala, readCaminhoDaSala, VALIDADE_DO_CAMINHO_DA_SALA_MS } from './caminho-da-sala'
 import { TurmaPublica } from './TurmaPublica'
 
 /**
@@ -437,13 +437,13 @@ describe('o botão "Entrar com a conta da escola"', () => {
 
     await usuario.click(await screen.findByRole('button', { name: BOTAO_DA_CONTA }))
 
-    expect(lerCaminhoDaSala(SLUG)).toEqual({ tipo: 'link', token: TOKEN })
+    expect(readCaminhoDaSala(SLUG)).toEqual({ tipo: 'link', token: TOKEN })
     expect((screen.getByRole('button', { name: 'Entrando…' }) as HTMLButtonElement).disabled).toBe(true)
     expect(screen.getByText('Entrando com a conta da escola…').getAttribute('role')).toBe('status')
     expect(aviso()).toBeNull()
     fireEvent(window, new PageTransitionEvent('pageshow', { persisted: false }))
     expect((screen.getByRole('button', { name: 'Entrando…' }) as HTMLButtonElement).disabled).toBe(true)
-    expect(lerCaminhoDaSala(SLUG)).toEqual({ tipo: 'link', token: TOKEN })
+    expect(readCaminhoDaSala(SLUG)).toEqual({ tipo: 'link', token: TOKEN })
     // A página restaurada do histórico não roda o efeito da sala: o caminho gravado no clique sai aqui, e não fica 15 min na aba.
     fireEvent(window, new PageTransitionEvent('pageshow', { persisted: true }))
     expect(((await screen.findByRole('button', { name: BOTAO_DA_CONTA })) as HTMLButtonElement).disabled).toBe(false)
@@ -463,7 +463,7 @@ describe('o botão "Entrar com a conta da escola"', () => {
 
     await usuario.click(await screen.findByRole('button', { name: BOTAO_DA_CONTA }))
 
-    expect(lerCaminhoDaSala(SLUG)).toEqual({ tipo: 'codigo', codigo: CODIGO })
+    expect(readCaminhoDaSala(SLUG)).toEqual({ tipo: 'codigo', codigo: CODIGO })
     registro.mockRestore()
   })
 

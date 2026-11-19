@@ -111,7 +111,7 @@ export class TitularesRepository {
    * as turmas do ano em curso (aluno) ou as disciplinas e turmas (professor) vêm junto, para a coordenação escolher a
    * pessoa certa entre homônimos.
    */
-  async buscar(termo: string): Promise<TitularAchado[]> {
+  async find(termo: string): Promise<TitularAchado[]> {
     const escolaId = requireEscolaId()
     const procurado = termo.trim().toLowerCase()
     const achados = await this.banco

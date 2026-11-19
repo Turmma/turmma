@@ -71,6 +71,6 @@ export function responderQuestao(atividadeAplicadaId: string, questao: number, a
 }
 
 /** `POST /v1/atividades-aplicadas/:id/enviar`: corpo vazio e estrito. Enviar de novo devolve o mesmo. */
-export function enviarAtividade(atividadeAplicadaId: string): Promise<AtividadeEnviadaResponse> {
+export function sendAtividade(atividadeAplicadaId: string): Promise<AtividadeEnviadaResponse> {
   return authedRequest(`${caminhoDaAtividade(atividadeAplicadaId)}/enviar`, atividadeEnviadaResponseSchema, { metodo: 'POST', corpo: {} })
 }

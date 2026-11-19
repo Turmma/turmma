@@ -12,7 +12,7 @@ import {
   LIMIAR_DA_DEMORA_MS,
   recusarEnvio,
   registrarExecucao,
-  tentarDeNovo,
+  retry,
   type CicloDeExecucao,
 } from './ciclo-de-execucao'
 import { useTabStore, type TabStore } from './tab-store'
@@ -41,11 +41,11 @@ export interface CicloNaTela<Pedido> {
   /** O pedido está no ar há mais tempo que o de costume: a tela avisa, sem contar o tempo (`QueueAlert`). */
   readonly demorando: boolean
   /** Manda um pedido novo. Devolve `false`, sem mandar nada, com outro pedido ainda no ar. */
-  readonly iniciar: (pedido: Pedido) => boolean
+  readonly start: (pedido: Pedido) => boolean
   /** Repete o pedido que falhou. */
   readonly repetir: () => void
   /** Esquece o pedido: o formulário volta a aparecer, a conversa segue. Com o pedido no ar não faz nada. */
-  readonly limpar: () => void
+  readonly clear: () => void
 }
 
 /**
@@ -67,7 +67,7 @@ export function useExecutionLifecycle<Pedido>(lugar: TabStore<CicloDeExecucao<Pe
 
   useEffect(() => {
     if (lida === undefined) return
-    const antes = lugar.ler()
+    const antes = lugar.read()
     const depois = registrarExecucao(antes, lida)
     if (depois === antes) return
     lugar.guardar(depois)
@@ -75,7 +75,7 @@ export function useExecutionLifecycle<Pedido>(lugar: TabStore<CicloDeExecucao<Pe
   }, [lida, lugar, cliente])
 
   useEffect(() => {
-    if (consultaFalhou) lugar.guardar(desistirDaConsulta(lugar.ler(), erroDaConsulta))
+    if (consultaFalhou) lugar.guardar(desistirDaConsulta(lugar.read(), erroDaConsulta))
   }, [consultaFalhou, erroDaConsulta, lugar])
 
   const mandar = useCallback(
@@ -84,18 +84,18 @@ export function useExecutionLifecycle<Pedido>(lugar: TabStore<CicloDeExecucao<Pe
       lugar.guardar(novo)
       const { chaveEnvio } = novo
       enviar(novo.pedido, chaveEnvio).then(
-        (aceita) => lugar.guardar(aceitarEnvio(lugar.ler(), chaveEnvio, aceita.execucaoId)),
-        (erro: unknown) => lugar.guardar(recusarEnvio(lugar.ler(), chaveEnvio, erro)),
+        (aceita) => lugar.guardar(aceitarEnvio(lugar.read(), chaveEnvio, aceita.execucaoId)),
+        (erro: unknown) => lugar.guardar(recusarEnvio(lugar.read(), chaveEnvio, erro)),
       )
       return true
     },
     [lugar, enviar],
   )
 
-  const iniciar = useCallback((pedido: Pedido) => mandar(comecarEnvio(lugar.ler(), pedido, () => crypto.randomUUID(), Date.now())), [lugar, mandar])
-  const repetir = useCallback(() => void mandar(tentarDeNovo(lugar.ler(), () => crypto.randomUUID(), Date.now())), [lugar, mandar])
+  const iniciar = useCallback((pedido: Pedido) => mandar(comecarEnvio(lugar.read(), pedido, () => crypto.randomUUID(), Date.now())), [lugar, mandar])
+  const repetir = useCallback(() => void mandar(retry(lugar.read(), () => crypto.randomUUID(), Date.now())), [lugar, mandar])
   const limpar = useCallback(() => {
-    if (!emCurso(lugar.ler())) lugar.guardar(undefined)
+    if (!emCurso(lugar.read())) lugar.guardar(undefined)
   }, [lugar])
 
   // A demora é dita uma vez, quando o limiar passa: nenhum relógio corre na tela (D59).
@@ -109,5 +109,5 @@ export function useExecutionLifecycle<Pedido>(lugar: TabStore<CicloDeExecucao<Pe
     return () => clearTimeout(relogio)
   }, [chaveNoAr, desde])
 
-  return { ciclo, demorando: chaveNoAr !== undefined && demorouNa === chaveNoAr, iniciar, repetir, limpar }
+  return { ciclo, demorando: chaveNoAr !== undefined && demorouNa === chaveNoAr, start: iniciar, repetir, clear: limpar }
 }

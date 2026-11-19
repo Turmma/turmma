@@ -14,7 +14,7 @@ import {
 } from '@educa/shared'
 import { paginar } from '../../http/pagination.js'
 import { ImportacaoService } from '../importacao/importacao.service.js'
-import { lerTextoDaLista } from './lista-reader.js'
+import { readTextoDaLista } from './lista-reader.js'
 import { ListaRepository, TurmaRepository } from '@educa/core/estrutura'
 
 const registro = new AuditoriaRecorder()
@@ -41,7 +41,7 @@ export class ListaService {
    * responde `ENTRADA_INVALIDA` antes de procurar a turma; a turma de outro ano, de outra escola ou inexistente, `NAO_ENCONTRADO`.
    */
   previa(turmaId: string, { texto }: TextoDaListaRequest): Promise<PreviaDaPlanilhaResponse> {
-    return this.importacoes.previaDaLista(turmaId, texto, lerTextoDaLista(texto))
+    return this.importacoes.previaDaLista(turmaId, texto, readTextoDaLista(texto))
   }
 
   /**
@@ -50,8 +50,8 @@ export class ListaService {
    * conferida na escola e no ano, como na prévia. A matrícula que a escola já tem passa a ser "já existe", "nome corrigido" ou "muda
    * de turma" (candidato a marca), e não mais `CONFLITO`.
    */
-  gravar(turmaId: string, { texto, marcas }: GravarListaRequest): Promise<GravarPlanilhaResponse> {
-    return this.importacoes.gravarDaLista(turmaId, texto, marcas, lerTextoDaLista(texto))
+  save(turmaId: string, { texto, marcas }: GravarListaRequest): Promise<GravarPlanilhaResponse> {
+    return this.importacoes.saveDaLista(turmaId, texto, marcas, readTextoDaLista(texto))
   }
 
   /**
@@ -68,11 +68,11 @@ export class ListaService {
   async acrescentar(turmaId: string, pedido: NomeAvulsoRequest): Promise<NomeDaLista> {
     const criado = await this.banco.transaction(async (tx) => {
       const turmas = new TurmaRepository(tx)
-      if (!(await turmas.travarAnoEmCurso()) || !(await turmas.travarContraExclusao(turmaId))) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+      if (!(await turmas.lockAnoEmCurso()) || !(await turmas.lockContraExclusao(turmaId))) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       const lista = new ListaRepository(tx)
-      const gravado = await lista.inserir(turmaId, pedido)
+      const gravado = await lista.insert(turmaId, pedido)
       if ((await lista.comCredencial([pedido.matricula])).length > 0) throw new DomainException(ErrorCode.CONFLITO)
-      await registro.gravar(tx, 'lista.gravada', { entidadeId: turmaId, depois: { ids: [gravado.id], gravados: 1, jaExistentes: 0 } })
+      await registro.save(tx, 'lista.gravada', { entidadeId: turmaId, depois: { ids: [gravado.id], gravados: 1, jaExistentes: 0 } })
       return gravado
     })
     return nomeDaListaSchema.parse(criado)
@@ -88,7 +88,7 @@ export class ListaService {
       const lista = new ListaRepository(tx)
       const retirado = await lista.retirarLivre(id)
       if (retirado === undefined) throw new DomainException((await lista.existe(id)) ? ErrorCode.CONFLITO : ErrorCode.NAO_ENCONTRADO)
-      await registro.gravar(tx, 'lista_nome.retirado', { entidadeId: id, antes: { turmaId: retirado.turmaId, estado: 'livre' } })
+      await registro.save(tx, 'lista_nome.retirado', { entidadeId: id, antes: { turmaId: retirado.turmaId, estado: 'livre' } })
     })
   }
 
@@ -98,12 +98,12 @@ export class ListaService {
    * de chegar aqui, então a falta dela responde igual para qualquer id. A leitura grava `turma.lista_lida` na mesma
    * transação, a cada leitura: sem registro, sem lista.
    */
-  async ler(turmaId: string, consulta: ListaDaTurmaQuery): Promise<ListaDaTurmaResponse> {
+  async read(turmaId: string, consulta: ListaDaTurmaQuery): Promise<ListaDaTurmaResponse> {
     const { finalidade } = consulta
     const pagina = await this.banco.transaction(async (tx) => {
       if ((await new TurmaRepository(tx).aberta(turmaId, 'unidade')) === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       const cortada = paginar(await new ListaRepository(tx).pagina(turmaId, consulta), consulta.limite)
-      await registro.gravar(tx, 'turma.lista_lida', { entidadeId: turmaId, depois: { quantidade: cortada.itens.length }, finalidade })
+      await registro.save(tx, 'turma.lista_lida', { entidadeId: turmaId, depois: { quantidade: cortada.itens.length }, finalidade })
       return cortada
     })
     return listaDaTurmaResponseSchema.parse(pagina)

@@ -4,17 +4,17 @@ import {
   ETAPA_TROCAR_SENHA,
   MAXIMO_DE_PROVISORIAS_ANTERIORES_NA_TROCA,
   loginMatriculaResponseSchema,
-  normalizarSenhaProvisoria,
+  normalizeSenhaProvisoria,
   trocarSenhaProvisoriaRequestSchema,
   trocasDaProvisoriaResponseSchema,
 } from './senha-provisoria.js'
 
 describe('a senha provisória na troca (acesso-e-convites, tarefa 10.0)', () => {
   it('a digitação vale como a tela mostra: sem hífen nem espaço, em maiúsculas', () => {
-    expect(normalizarSenhaProvisoria('abcd-efgh')).toBe('ABCDEFGH')
-    expect(normalizarSenhaProvisoria(' ab cd - ef gh ')).toBe('ABCDEFGH')
-    expect(normalizarSenhaProvisoria('ABCDEFGH')).toBe('ABCDEFGH')
-    expect(normalizarSenhaProvisoria('abcd-efgh')).not.toBe('abcd-efgh')
+    expect(normalizeSenhaProvisoria('abcd-efgh')).toBe('ABCDEFGH')
+    expect(normalizeSenhaProvisoria(' ab cd - ef gh ')).toBe('ABCDEFGH')
+    expect(normalizeSenhaProvisoria('ABCDEFGH')).toBe('ABCDEFGH')
+    expect(normalizeSenhaProvisoria('abcd-efgh')).not.toBe('abcd-efgh')
   })
 
   it('o login de matrícula devolve a sessão pronta ou o bilhete da troca, e nada misturado', () => {

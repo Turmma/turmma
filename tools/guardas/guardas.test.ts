@@ -6,8 +6,9 @@ import { describe, expect, it } from 'vitest'
 import { raizRepositorio } from '../ci/executar.ts'
 import { criarEslintDasGuardas, violacoesDasGuardas } from './eslint-das-guardas.ts'
 import type { Supressoes } from './catraca.ts'
-import { ARQUIVO_DO_CLIENTE, ARQUIVOS_DE_TESTE, ESCOPO_DO_FETCH, ESCOPO_DO_NOME, EXCECOES_DAS_GUARDAS, REGRAS_DAS_GUARDAS, REGRAS_DE_ENTRADA, REGRAS_DE_ERRO, REGRAS_DE_LOG, REGRAS_DE_NOME, REGRAS_DE_SDK_DE_IA, REGRAS_DE_TAMANHO, REGRAS_DE_TENANT, REGRAS_DE_TESTE, REGRAS_DO_FETCH, REGRAS_EM_TODO_ARQUIVO } from './index.mjs'
+import { ARQUIVO_DO_CLIENTE, ARQUIVOS_DE_TESTE, ESCOPO_DO_FETCH, ESCOPO_DO_METODO, ESCOPO_DO_NOME, EXCECOES_DAS_GUARDAS, REGRAS_DAS_GUARDAS, REGRAS_DE_ENTRADA, REGRAS_DE_ERRO, REGRAS_DE_LOG, REGRAS_DE_METODO, REGRAS_DE_NOME, REGRAS_DE_SDK_DE_IA, REGRAS_DE_TAMANHO, REGRAS_DE_TENANT, REGRAS_DE_TESTE, REGRAS_DO_FETCH, REGRAS_EM_TODO_ARQUIVO } from './index.mjs'
 import { EXCECOES_NOMINAIS, FORMAS } from './nomes-de-mercado.mjs'
+import { VERBOS_DE_MERCADO, verboDeMercado } from './regras-metodo.mjs'
 import { excecoesSemAlvo, sugestoesDoNome } from './regras-nome.mjs'
 import { CHAVES_PESSOAIS, ehChaveOperacional, ehNomePessoal } from './regras-log.mjs'
 
@@ -473,6 +474,71 @@ describe('guarda de erro tipado (RF13; regra 00, item 9; regra 20, item 11)', ()
     const violacoes = resultados.flatMap((resultado) => resultado.messages.filter((mensagem) => mensagem.ruleId === 'guardas/erro-tipado').map((mensagem) => `${resultado.filePath}:${mensagem.line}`))
     expect(violacoes).toEqual([])
   }, 120_000)
+})
+
+describe('guarda de verbo de mercado (correção 2026-11-19-metodos-de-mercado; D81)', { timeout: 120_000 }, () => {
+  const REGRA = 'guardas/verbo-de-mercado'
+  const regras = new Set([REGRA])
+  const RECUSADO = 'verbo-recusado.ts'
+  const PASSA = 'verbo-que-passa.ts'
+
+  it('fica entre as que a passada sem comentários roda, no src de apps e packages, e fora do teste, do __fixtures__, do e2e, de infra e de tools', async () => {
+    expect(REGRAS_DE_METODO).toEqual([REGRA])
+    expect(REGRAS_DAS_GUARDAS).toContain(REGRA)
+    expect(ESCOPO_DO_METODO).toEqual(['apps/*/src/**/*.{ts,tsx}', 'packages/*/src/**/*.{ts,tsx}'])
+    const nivelEm = async (caminho: string) =>
+      ((await eslint.calculateConfigForFile(join(raizRepositorio, caminho))) as { rules: Record<string, [number, ...unknown[]]> }).rules[REGRA]?.[0] ?? 0
+    for (const caminho of ['apps/api/src/x/x.repository.ts', 'apps/web/src/x.tsx', 'apps/worker/src/x.ts', 'packages/core/src/x.ts', 'packages/shared/src/x.ts']) {
+      expect(await nivelEm(caminho), caminho).toBe(2)
+    }
+    for (const caminho of ['apps/api/src/x.test.ts', 'apps/web/src/x.test.tsx', 'apps/web/src/__fixtures__/x.ts', 'apps/api/test/x.int.test.ts', 'apps/api/test/support/x.ts', 'e2e/x.spec.ts', 'tools/ci/x.ts', 'infra/scripts/x.ts']) {
+      expect(await nivelEm(caminho), caminho).toBe(0)
+    }
+  })
+
+  it('recusa função, const com função, método de classe, abstrato, de interface e de objeto, e propriedade de função, no src de cada app e pacote', async () => {
+    for (const caminho of ['apps/api/src/x/x.repository.ts', 'apps/web/src/x.tsx', 'packages/core/src/x.ts', 'packages/shared/src/x.ts']) {
+      expect(await lintar(eslintDasGuardas, RECUSADO, caminho, regras), caminho).toEqual(marcasDeViolacao(RECUSADO))
+    }
+  })
+
+  it('deixa passar o verbo de mercado, o de domínio, a palavra que só começa igual, o que não é função, a função anônima, o computado, o entre aspas e o atalho', async () => {
+    expect(marcas(lerFixture(PASSA))).toEqual([])
+    expect(await lintar(eslintDasGuardas, PASSA, 'apps/api/src/x.ts', regras)).toEqual([])
+  })
+
+  it('o eslint-disable não fura: a passada sem comentários reprova do mesmo jeito', async () => {
+    const texto = `// eslint-disable-next-line guardas/verbo-de-mercado\nexport function lerTurma(): void {}\n`
+    const [resultado] = await eslintDasGuardas.lintText(texto, { filePath: join(raizRepositorio, 'apps/api/src/x.ts') })
+    expect((resultado?.messages ?? []).filter((mensagem) => mensagem.ruleId === REGRA).map((mensagem) => mensagem.line)).toEqual([2])
+  })
+
+  it.each([
+    ['lerTurma', 'readTurma'],
+    ['buscarPorId', 'findPorId'],
+    ['consultar', 'find'],
+    ['criar', 'create'],
+    ['ehAtivo', 'isAtivo'],
+    ['tem2Fatores', 'has2Fatores'],
+    ['apagarConsolidado', 'deleteConsolidado'],
+  ])('a mensagem sugere o verbo de mercado e guarda o domínio: %s vira %s', async (nome, sugestao) => {
+    expect(verboDeMercado(nome)).toBe(sugestao)
+    const [resultado] = await eslintDasGuardas.lintText(`export function ${nome}(): void {}\n`, { filePath: join(raizRepositorio, 'apps/api/src/x.ts') })
+    expect(resultado?.messages.find((mensagem) => mensagem.ruleId === REGRA)?.message).toContain(`\`${sugestao}\``)
+  })
+
+  it('o verbo de domínio não está na lista, e cada verbo da lista tem um de mercado em inglês', () => {
+    for (const dominio of ['aprovar', 'lancar', 'corrigir', 'matricular', 'encerrar', 'eliminar', 'esquecer', 'entregar', 'registrar', 'conferir']) {
+      expect(verboDeMercado(`${dominio}Lote`), dominio).toBeNull()
+    }
+    for (const [verbo, mercado] of Object.entries(VERBOS_DE_MERCADO)) expect(mercado, verbo).toMatch(/^[a-z]+$/)
+  })
+
+  it('o repositório de hoje não tem violação: nenhum método nem função de produção começa por verbo técnico em português', async () => {
+    const resultados = await criarEslintDasGuardas().lintFiles(ESCOPO_DO_METODO)
+    const violacoes = resultados.flatMap((resultado) => resultado.messages.filter((mensagem) => mensagem.ruleId === REGRA).map((mensagem) => `${resultado.filePath}:${mensagem.line}`))
+    expect(violacoes).toEqual([])
+  })
 })
 
 describe('guarda de nome de mercado (RF8; regra 60; D81)', () => {
@@ -998,7 +1064,7 @@ describe('tamanho com catraca (RF11, R37)', () => {
 })
 
 describe('configuração das guardas', { timeout: 60_000 }, () => {
-  it('as únicas exceções são o SDK nos adaptadores, a tabela no repository, no teste e no db/ do núcleo, a própria guarda de tabela, o erro tipado em teste, em __fixtures__ e no main.tsx da web, o `fetch` no cliente da API, no teste e em __fixtures__, o teste do redact e a mensagem repassada pelo LoggerDoNest', () => {
+  it('as únicas exceções são o SDK nos adaptadores, a tabela no repository, no teste e no db/ do núcleo, a própria guarda de tabela, o erro tipado em teste, em __fixtures__ e no main.tsx da web, o verbo de mercado em teste e em __fixtures__, o `fetch` no cliente da API, no teste e em __fixtures__, o teste do redact e a mensagem repassada pelo LoggerDoNest', () => {
     expect(EXCECOES_DAS_GUARDAS).toEqual([
       { files: ['packages/core/src/ia/*-adapter.ts'], regras: REGRAS_DE_SDK_DE_IA },
       { files: ['**/*.repository.ts'], regras: REGRAS_DE_TENANT },
@@ -1006,6 +1072,7 @@ describe('configuração das guardas', { timeout: 60_000 }, () => {
       { files: ['packages/core/src/db/**'], regras: REGRAS_DE_TENANT },
       { files: ['tools/guardas/regras-tenant.mjs'], regras: REGRAS_DE_TENANT },
       { files: [...ARQUIVOS_DE_TESTE, '**/__fixtures__/**'], regras: REGRAS_DE_ERRO },
+      { files: [...ARQUIVOS_DE_TESTE, '**/__fixtures__/**'], regras: REGRAS_DE_METODO },
       { files: ['apps/web/src/main.tsx'], regras: REGRAS_DE_ERRO },
       { files: [ARQUIVO_DO_CLIENTE, ...ARQUIVOS_DE_TESTE, '**/__fixtures__/**'], regras: REGRAS_DO_FETCH },
       { files: ['packages/core/src/log/logger.test.ts'], regras: REGRAS_DE_LOG },

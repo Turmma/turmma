@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DEVICE_COOKIE, SESSAO_COOKIE, lerCookie, serializarCookie } from './cookies.js'
+import { DEVICE_COOKIE, SESSAO_COOKIE, readCookie, serializarCookie } from './cookies.js'
 
 describe('cookies de sessão', () => {
   it('educa_sessao fora do local: HttpOnly, Secure, SameSite=Strict, só em /v1/sessao e sem Max-Age (some ao fechar o navegador)', () => {
@@ -22,8 +22,8 @@ describe('cookies de sessão', () => {
   })
 
   it('lê o cookie pedido, entre outros e com espaço, e nada quando não há', () => {
-    expect(lerCookie('outro=1; educa_dispositivo=1.abc:2 ; educa_sessao=r', DEVICE_COOKIE)).toBe('1.abc:2')
-    expect(lerCookie('educa_sessao=r', DEVICE_COOKIE)).toBeUndefined()
-    expect(lerCookie(undefined, DEVICE_COOKIE)).toBeUndefined()
+    expect(readCookie('outro=1; educa_dispositivo=1.abc:2 ; educa_sessao=r', DEVICE_COOKIE)).toBe('1.abc:2')
+    expect(readCookie('educa_sessao=r', DEVICE_COOKIE)).toBeUndefined()
+    expect(readCookie(undefined, DEVICE_COOKIE)).toBeUndefined()
   })
 })

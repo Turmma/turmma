@@ -36,13 +36,13 @@ export class RetencaoDaEscolaRepository {
    * ela) e diz se ela existe. Dois ajustes da mesma escola ao mesmo tempo passam um de cada vez: o segundo lê os ajustes
    * depois de o primeiro confirmar, e confere as travas e grava o `antes` da auditoria sobre eles.
    */
-  async travarEscola(): Promise<boolean> {
+  async lockEscola(): Promise<boolean> {
     const linhas = await this.banco.select({ id: escola.id }).from(escola).where(eq(escola.id, requireEscolaId())).for('no key update')
     return linhas.length > 0
   }
 
   /** Grava o ajuste da escola do contexto na categoria, por cima do anterior, se houver. */
-  async gravar(ajuste: AjusteAGravar): Promise<void> {
+  async save(ajuste: AjusteAGravar): Promise<void> {
     await this.banco
       .insert(retencaoEscola)
       .values({ escolaId: requireEscolaId(), ...ajuste })

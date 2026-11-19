@@ -35,7 +35,7 @@ export interface RegisteredJobState {
 }
 
 /**
- * O que `inserirUmaVez` fez com a chave: gravou o job, ou a chave já tinha um job não finalizado na escola. Na colisão,
+ * O que `insertUmaVez` fez com a chave: gravou o job, ou a chave já tinha um job não finalizado na escola. Na colisão,
  * `id` é o desse job, ou nulo se ele terminou entre a colisão e a leitura; quem chama trata os dois como "já enfileirado".
  */
 export type IdempotencyKeyResult = { situacao: 'enfileirado'; id: string } | { situacao: 'ja_enfileirado'; id: string | null }
@@ -78,7 +78,7 @@ export class JobOutboxRepository {
    * Grava o job na transação de quem pediu e avisa o despachante. O `pg_notify` só é entregue no
    * commit: se a transação desfizer, nem o job nem o aviso existem.
    */
-  async inserir(tx: DatabaseTransaction, linha: NewJobRow): Promise<string> {
+  async insert(tx: DatabaseTransaction, linha: NewJobRow): Promise<string> {
     const contexto = currentContext()
     const doSistema = linha.tipo.startsWith(PREFIXO_TIPO_SISTEMA)
     const daRequisicao = SISTEMA_DA_REQUISICAO.some((tipo) => tipo === linha.tipo)
@@ -106,7 +106,7 @@ export class JobOutboxRepository {
    *
    * `depoisDaColisao` é só do teste: é a janela entre a colisão e a leitura, em que o job pode terminar.
    */
-  async inserirUmaVez(tx: DatabaseTransaction, linha: NewJobRow, chaveIdempotencia: string, depoisDaColisao?: () => Promise<void>): Promise<IdempotencyKeyResult> {
+  async insertUmaVez(tx: DatabaseTransaction, linha: NewJobRow, chaveIdempotencia: string, depoisDaColisao?: () => Promise<void>): Promise<IdempotencyKeyResult> {
     const contexto = currentContext()
     const escolaId = contexto?.escolaId
     if (escolaId === undefined || linha.tipo.startsWith(PREFIXO_TIPO_SISTEMA)) throw new InvariantException('chave de idempotência só em job de escola, com a escola no contexto')
@@ -138,7 +138,7 @@ export class JobOutboxRepository {
   }
 
   /** O job da escola do token, ou `undefined` (inexistente ou de outra escola, sem distinção). */
-  async buscarDaEscola(id: string): Promise<RegisteredJobState | undefined> {
+  async findDaEscola(id: string): Promise<RegisteredJobState | undefined> {
     const escolaId = currentContext()?.escolaId
     if (escolaId === undefined) throw new InvariantException('consulta de job sem escola no contexto')
     const [linha] = await this.banco
@@ -169,7 +169,7 @@ export class JobOutboxRepository {
    * Passa o job a `ativo` e devolve o que executar. A troca é condicional: um job que já concluiu
    * ou falhou não volta a `ativo` e não roda de novo, mesmo que a fila o entregue outra vez.
    */
-  async iniciarExecucao(id: string): Promise<JobStartResult> {
+  async startExecucao(id: string): Promise<JobStartResult> {
     const escopo = jobScopeInContext()
     const [iniciada] = await this.banco
       .update(jobRegistro)

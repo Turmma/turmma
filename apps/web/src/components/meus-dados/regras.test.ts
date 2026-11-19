@@ -7,8 +7,8 @@ import {
   CODIGOS_QUE_MUDAM_OS_MEUS_DADOS,
   INTERVALO_DA_PREPARACAO_MS,
   linhasDoResumo,
-  ordenarPedidos,
-  podeBaixar,
+  sortPedidos,
+  canBaixar,
   relerEnquantoPrepara,
   situacaoDoArquivo,
   situacaoDoPedido,
@@ -37,19 +37,19 @@ describe('quando o arquivo está disponível, em preparação, apagado ou não e
   it('disponível: a API diz que vale e o instante dele ainda não passou', () => {
     const disponivel = pedido({ arquivo: { situacao: 'disponivel', expiraEm: AMANHA } })
     expect(situacaoDoArquivo(disponivel, AGORA)).toBe('disponivel')
-    expect(podeBaixar(disponivel, AGORA)).toBe(true)
+    expect(canBaixar(disponivel, AGORA)).toBe(true)
   })
 
   it('a aba aberta por dias: o arquivo que a API ainda dizia disponível, mas cujo instante passou, não oferece o botão', () => {
     const vencido = pedido({ arquivo: { situacao: 'disponivel', expiraEm: ONTEM } })
     expect(situacaoDoArquivo(vencido, AGORA)).toBe('apagado')
-    expect(podeBaixar(vencido, AGORA)).toBe(false)
+    expect(canBaixar(vencido, AGORA)).toBe(false)
   })
 
   it('o arquivo que a API diz expirado fica apagado, mesmo com a data adiante: quem manda é a API', () => {
     const expirado = pedido({ arquivo: { situacao: 'expirado', expiraEm: AMANHA } })
     expect(situacaoDoArquivo(expirado, AGORA)).toBe('apagado')
-    expect(podeBaixar(expirado, AGORA)).toBe(false)
+    expect(canBaixar(expirado, AGORA)).toBe(false)
   })
 
   it('acesso e portabilidade em preparação, sem arquivo ainda, estão preparando; os outros tipos em nenhum estado', () => {
@@ -64,12 +64,12 @@ describe('quando o arquivo está disponível, em preparação, apagado ou não e
   it('sem arquivo e fora de preparação não há o que baixar nem o que esperar', () => {
     for (const estado of ESTADOS_DO_PEDIDO.filter((estado) => estado !== 'em_preparacao')) {
       expect(situacaoDoArquivo(pedido({ estado }), AGORA), estado).toBe('nenhum')
-      expect(podeBaixar(pedido({ estado }), AGORA), estado).toBe(false)
+      expect(canBaixar(pedido({ estado }), AGORA), estado).toBe(false)
     }
   })
 
   it('em preparação o botão não existe', () => {
-    expect(podeBaixar(pedido({ estado: 'em_preparacao' }), AGORA)).toBe(false)
+    expect(canBaixar(pedido({ estado: 'em_preparacao' }), AGORA)).toBe(false)
   })
 })
 
@@ -124,14 +124,14 @@ describe('a ordem dos pedidos', () => {
     const antigo = pedido({ id: 'ffffffff-0000-4000-8000-000000000001', chegouEm: '2026-09-01' })
     const recente = pedido({ id: '00000000-0000-4000-8000-000000000002', chegouEm: '2026-10-08' })
     const meio = pedido({ id: '88888888-0000-4000-8000-000000000003', chegouEm: '2026-09-20' })
-    expect(ordenarPedidos([antigo, recente, meio]).map((item) => item.chegouEm)).toEqual(['2026-10-08', '2026-09-20', '2026-09-01'])
+    expect(sortPedidos([antigo, recente, meio]).map((item) => item.chegouEm)).toEqual(['2026-10-08', '2026-09-20', '2026-09-01'])
   })
 
   it('no mesmo dia, o id decide, e a lista de entrada não é alterada', () => {
     const a = pedido({ id: 'aaaaaaaa-0000-4000-8000-000000000001', chegouEm: '2026-10-08' })
     const b = pedido({ id: 'bbbbbbbb-0000-4000-8000-000000000002', chegouEm: '2026-10-08' })
     const entrada = [a, b]
-    expect(ordenarPedidos(entrada).map((item) => item.id)).toEqual([b.id, a.id])
+    expect(sortPedidos(entrada).map((item) => item.id)).toEqual([b.id, a.id])
     expect(entrada.map((item) => item.id)).toEqual([a.id, b.id])
   })
 })

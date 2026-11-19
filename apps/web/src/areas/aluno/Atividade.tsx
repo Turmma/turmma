@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, ArrowRight, Check, CircleAlert, MessageCircleQuestion } from 'lucide-react'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Link } from 'wouter'
-import { meuDiagnosticoQueryOptions, provaQueryOptions, enviarAtividade } from '../../api/atividades-do-aluno'
+import { meuDiagnosticoQueryOptions, provaQueryOptions, sendAtividade } from '../../api/atividades-do-aluno'
 import { MINHAS_ATIVIDADES_QUERY_KEY } from '../../api/chaves-do-aluno'
 import { ApiError, errorMessage } from '../../api/client'
 import { euQueryOptions } from '../../api/eu'
@@ -30,7 +30,7 @@ import {
   AVISO_DE_OUTRA_JANELA,
   avisoDeEscolhasPerdidas,
   comemoracaoNaTela,
-  contarRespostas,
+  countRespostas,
   FALA_DA_ENTREGA,
   faseDaAtividade,
   impedimentoDoEnvio,
@@ -111,7 +111,7 @@ function Respondendo({ prova, fila, estadoDaFila, focoDepoisDeEnviar, aoEntregar
   const numero = questaoValida(atual, prova.questoes.length)
   const questao = prova.questoes[numero - 1]
   const salvas = respostasSalvas(prova)
-  const contagem = contarRespostas(prova, estadoDaFila)
+  const contagem = countRespostas(prova, estadoDaFila)
   const marca = marcaDaQuestao(numero, salvas, estadoDaFila)
   const marcada = alternativaMarcada(numero, salvas, estadoDaFila)
   const impedimento = impedimentoDoEnvio(contagem)
@@ -124,7 +124,7 @@ function Respondendo({ prova, fila, estadoDaFila, focoDepoisDeEnviar, aoEntregar
   }, [numero])
 
   const envio = useMutation({
-    mutationFn: () => enviarAtividade(provaId),
+    mutationFn: () => sendAtividade(provaId),
     onSuccess: (enviada) => {
       // Antes de a leitura da prova ganhar `enviadaEm` e esta fase sair do ar: a tela nunca passa pelo "enviada" sem saber que foi agora.
       aoEntregar()
@@ -227,7 +227,7 @@ function Respondendo({ prova, fila, estadoDaFila, focoDepoisDeEnviar, aoEntregar
           )}
         </div>
         {marca === 'nao_salva' && estadoDaFila.falha === 'passageira' && (
-          <Button variante="secundario" onClick={fila.tentarAgora} className="self-start">
+          <Button variante="secundario" onClick={fila.tryAgora} className="self-start">
             Tentar salvar agora
           </Button>
         )}
@@ -374,7 +374,7 @@ function SemMaisRespostas({ prova, estadoDaFila, entregueAgora }: PropsDoFim) {
   const fase = faseDaAtividade(prova)
   const diagnostico = useQuery(meuDiagnosticoQueryOptions(prova.atividadeAplicadaId))
   const resultado = resultadoNaTela(fase, diagnostico)
-  const contagem = contarRespostas(prova, { ...estadoDaFila, pendentes: [] })
+  const contagem = countRespostas(prova, { ...estadoDaFila, pendentes: [] })
   const perdidas = avisoDeEscolhasPerdidas(estadoDaFila)
 
   return (
@@ -423,7 +423,7 @@ export default function Atividade({ atividadeAplicadaId }: { atividadeAplicadaId
   const cliente = useQueryClient()
   const prova = useQuery(provaQueryOptions(atividadeAplicadaId))
   const fila = filaDaAtividade(cliente, atividadeAplicadaId)
-  const estadoDaFila = useSyncExternalStore(fila.assinar, fila.ler)
+  const estadoDaFila = useSyncExternalStore(fila.assinar, fila.read)
   // Quem é o aluno da sessão, lido do cache (a casca é quem busca o `/v1/eu`): `enabled: false` assina sem buscar de novo.
   const alunoDaSessao = useQuery({ ...euQueryOptions, enabled: false }).data?.usuarioId
   // As escolhas que o servidor ainda não confirmou e ficaram no espelho (o F5, a sessão vencida) voltam e saem, só com o mesmo aluno.

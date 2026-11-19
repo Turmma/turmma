@@ -232,7 +232,7 @@ export function Licencas() {
   const licencas = useQuery(licencasQueryOptions)
   const dialogo = useDialogState<TipoDeDialogo, Licenca>()
   const aberta = dialogo.aberta
-  const fecharDialogo = dialogo.fechar
+  const fecharDialogo = dialogo.close
   const [anuncio, definirAnuncio] = useState('')
   const tituloDaLista = useRef<HTMLHeadingElement>(null)
   const focarOTituloDaMoldura = useFocusPageHeading()
@@ -245,7 +245,7 @@ export function Licencas() {
     mutationFn: ({ pedido }) => registrarLicenca(pedido),
     onSuccess: async (_licenca, { abertura }) => {
       await recarregar()
-      dialogo.fecharSeAinda(abertura)
+      dialogo.closeSeAinda(abertura)
       definirAnuncio(TEXTO_DO_REGISTRO)
     },
     // Com a resposta perdida, o pedido pode ter chegado: a lista relida diz.
@@ -270,10 +270,10 @@ export function Licencas() {
    * Abrir um diálogo apaga o anúncio e a falha da ação anterior: o que eles diziam já não é o que a pessoa está fazendo. Com o registro no ar
    * a falha ainda não existe, e soltar o pedido do observador desligaria o "Registrando…" com ele ainda correndo.
    */
-  function abrir(tipo: TipoDeDialogo, licenca?: Licenca): void {
+  function open(tipo: TipoDeDialogo, licenca?: Licenca): void {
     definirAnuncio('')
     if (!emRegistro) reiniciarORegistro()
-    dialogo.abrir(tipo, licenca)
+    dialogo.open(tipo, licenca)
   }
 
   const doRegistroQueFalhou = registro.isError && aberta?.tipo !== 'registrar'
@@ -283,8 +283,8 @@ export function Licencas() {
       <ConteudoDaAba
         licencas={licencas}
         emRegistro={emRegistro}
-        aoRegistrar={() => abrir('registrar')}
-        aoMudarAVigencia={(licenca) => abrir('vigencia', licenca)}
+        aoRegistrar={() => open('registrar')}
+        aoMudarAVigencia={(licenca) => open('vigencia', licenca)}
         tituloDaLista={tituloDaLista}
       />
       <StatusAnnouncement texto={anuncio} />
@@ -299,7 +299,7 @@ export function Licencas() {
         aoEnviar={enviar}
         aoFechar={fecharDialogo}
         aoAlterar={(abertura) => {
-          dialogo.fecharSeAinda(abertura)
+          dialogo.closeSeAinda(abertura)
           definirAnuncio(TEXTO_DA_VIGENCIA)
         }}
         recarregar={recarregar}

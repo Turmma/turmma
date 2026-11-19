@@ -4,7 +4,7 @@ import { InvalidConfigError } from '../config/validate-config.js'
 import type { ModelAdapter, ModelCall, ModelResponse } from './adapter.js'
 import { estimarTokens } from './fake-adapter.js'
 import { ProviderError } from './errors.js'
-import { limparSaidaDoModelo } from './clean-output.js'
+import { clearSaidaDoModelo } from './clean-output.js'
 import type { Perfil } from './perfis.js'
 import { SEM_ENVIO_EXTERNO, type EnvioDaChamada } from './port.js'
 import { ABRE_DADO, FECHA_DADO, pedidoDeCorrecao, REGRAS_COMUNS } from './prompts/comum.js'
@@ -45,9 +45,9 @@ function jsonOutputSchema(tarefa: TaskDefinition<never, unknown>): string {
 const TAMANHO_MAXIMO_DA_RESPOSTA_REPETIDA = 6_000
 
 /** Sistema: o prompt da tarefa, as regras comuns e o formato. Usuário: a instrução e os dados, cada um na sua cerca. */
-export function montarMensagens<Entrada, Saida>(chamada: Pick<ModelCall<Entrada, Saida>, 'tarefa' | 'entrada' | 'correcao'>): ChatMessage[] {
+export function buildMensagens<Entrada, Saida>(chamada: Pick<ModelCall<Entrada, Saida>, 'tarefa' | 'entrada' | 'correcao'>): ChatMessage[] {
   const { tarefa, entrada, correcao } = chamada
-  const pedido = tarefa.montarPedido(entrada)
+  const pedido = tarefa.buildPedido(entrada)
   const mensagens: ChatMessage[] = [
     { role: 'system', content: [tarefa.prompt.sistema, REGRAS_COMUNS, `JSON Schema da resposta:\n${jsonOutputSchema(tarefa as TaskDefinition<never, unknown>)}`].join('\n\n') },
     { role: 'user', content: [pedido.instrucao, ...pedido.dados.map(renderizarDado)].join('\n\n') },
@@ -105,7 +105,7 @@ export class OpenAICompatAdapter implements ModelAdapter {
 
   async chamar<Entrada, Saida>(chamada: ModelCall<Entrada, Saida>): Promise<ModelResponse> {
     const modelo = chamada.modelo ?? this.modeloDoPerfil(chamada.tarefa.perfil)
-    const mensagens = montarMensagens(chamada)
+    const mensagens = buildMensagens(chamada)
     const corpo = JSON.stringify({
       model: modelo,
       messages: mensagens,
@@ -127,7 +127,7 @@ export class OpenAICompatAdapter implements ModelAdapter {
     if (!lido.success) throw new ProviderError('servidor')
     const conteudo = lido.data.choices[0]?.message.content ?? ''
     return {
-      texto: limparSaidaDoModelo(conteudo),
+      texto: clearSaidaDoModelo(conteudo),
       modelo: lido.data.model !== undefined && lido.data.model.length > 0 ? lido.data.model : modelo,
       tokensDeEntrada: lido.data.usage?.prompt_tokens ?? estimarTokens(mensagens.map((mensagem) => mensagem.content).join('\n')),
       tokensDeSaida: lido.data.usage?.completion_tokens ?? estimarTokens(conteudo),

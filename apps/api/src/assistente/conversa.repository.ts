@@ -65,7 +65,7 @@ export class ConversaRepository {
   }
 
   /** A mensagem do professor, ligada à execução que ela disparou. Roda na transação que grava a execução. */
-  async gravarDoUsuario(threadId: string, execucaoId: string, mensagem: { texto: string; turmaId: string; disciplinaId: string }): Promise<void> {
+  async saveDoUsuario(threadId: string, execucaoId: string, mensagem: { texto: string; turmaId: string; disciplinaId: string }): Promise<void> {
     const { escolaId, anoLetivoId } = this.#dono()
     await this.banco.insert(mensagemAgente).values({
       escolaId,
@@ -80,7 +80,7 @@ export class ConversaRepository {
   }
 
   /** A resposta do Assistente, ligada à execução que a produziu. Roda na transação que conclui a execução. */
-  async gravarDoAgente(threadId: string, execucaoId: string, conteudo: ConteudoDaMensagemDoAgente): Promise<string> {
+  async saveDoAgente(threadId: string, execucaoId: string, conteudo: ConteudoDaMensagemDoAgente): Promise<string> {
     const { escolaId, anoLetivoId } = this.#dono()
     const [gravada] = await this.banco.insert(mensagemAgente).values({ escolaId, anoLetivoId, threadId, execucaoId, autor: 'agente', conteudo }).returning({ id: mensagemAgente.id })
     if (gravada === undefined) throw new InvariantException('mensagem do Assistente não gravada')

@@ -361,7 +361,7 @@ describe('senha provisória (acesso-e-convites, tarefa 9.0): a coordenação e o
       // O segundo dado: outro aluno da escola, com credencial. Sem o filtro por aluno, a leitura do estado enxergaria a dele.
       await novoAluno(s, s.turma)
       const inexistente = semRequisicao(await gerar(s.coordenacao, randomUUID()))
-      const espiao = vi.spyOn(api.app.get(HashBulkhead, { strict: false }), 'executar')
+      const espiao = vi.spyOn(api.app.get(HashBulkhead, { strict: false }), 'run')
 
       expect(semRequisicao(await gerar(s.coordenacao, semCredencial.usuarioId))).toEqual(inexistente)
       expect(semRequisicao(await gerar(s.professor, semCredencial.usuarioId))).toEqual(inexistente)
@@ -485,7 +485,7 @@ describe('senha provisória (acesso-e-convites, tarefa 9.0): a coordenação e o
       const s = await sala.montar()
       const aluno = await novoAluno(s, s.turma)
       const semaforo = api.app.get(HashBulkhead, { strict: false })
-      const espiao = vi.spyOn(semaforo, 'executar')
+      const espiao = vi.spyOn(semaforo, 'run')
 
       expect((await gerar(await professorNaTurma(s, s.outraTurma), aluno.usuarioId)).status).toBe(404)
       expect(espiao).not.toHaveBeenCalled()
@@ -504,12 +504,12 @@ describe('senha provisória (acesso-e-convites, tarefa 9.0): a coordenação e o
       const aluno = await novoAluno(s, s.turma)
       const semaforo = api.app.get(HashBulkhead, { strict: false })
       // O de verdade, ligado antes do espião: o módulo pode registrar uma subclasse do `HashBulkhead`.
-      const executarDeVerdade = semaforo.executar.bind(semaforo)
+      const executarDeVerdade = semaforo.run.bind(semaforo)
       // Enquanto o hash espera a vez, outra conexão tenta prender a linha do usuário do aluno sem esperar: com a transação
       // da geração já aberta e a trava dela segura, viria `55P03` (regra 80, item 5: o hash não segura conexão nem trava).
       // O código é guardado e conferido depois: lançar de dentro do espião viraria um 500 e o caso cairia no `resposta`.
       const travas: Array<string | null> = []
-      vi.spyOn(semaforo, 'executar').mockImplementation(async (balde, tarefa) => {
+      vi.spyOn(semaforo, 'run').mockImplementation(async (balde, tarefa) => {
         const sonda = await bancada.pool.connect()
         try {
           await sonda.query('begin')
@@ -582,7 +582,7 @@ describe('senha provisória (acesso-e-convites, tarefa 9.0): a coordenação e o
       const aluno = await novoAluno(s, s.turma)
       // A recusa do semáforo cheio, simulada: saturar o `HashBulkhead` de verdade pediria segurar a escola inteira de hashes no
       // teste. O erro é o mesmo que ele lança na espera esgotada (`hash-bulkhead.ts`), e o que se prova é a ordem: a cota vem depois.
-      const espiao = vi.spyOn(api.app.get(HashBulkhead, { strict: false }), 'executar').mockRejectedValue(new DomainException(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO))
+      const espiao = vi.spyOn(api.app.get(HashBulkhead, { strict: false }), 'run').mockRejectedValue(new DomainException(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO))
 
       for (let vez = 0; vez <= LIMITE_DE_PROVISORIAS_POR_DIA_E_ALUNO; vez++) {
         const recusada = await gerar(s.coordenacao, aluno.usuarioId)
@@ -930,7 +930,7 @@ describe('senha provisória (acesso-e-convites, tarefa 9.0): a coordenação e o
       const s = await sala.montar()
       const aluno = await novoAluno(s, s.turma)
       const semaforo = api.app.get(HashBulkhead, { strict: false })
-      const espiao = vi.spyOn(semaforo, 'executar')
+      const espiao = vi.spyOn(semaforo, 'run')
       for (let vez = 0; vez < LIMITE_DE_PROVISORIAS_POR_DIA_E_ALUNO + 2; vez++) expect((await ler(s.coordenacao, aluno.usuarioId)).status).toBe(200)
       expect((await ler(s.professor, aluno.usuarioId)).status).toBe(200)
       expect(espiao).not.toHaveBeenCalled()

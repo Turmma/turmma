@@ -27,7 +27,7 @@ function erroDe(ambiente: Record<string, string | undefined>): InvalidConfigErro
   throw new Error('a configuração deveria ter sido recusada')
 }
 
-describe('lerConfiguracao do realtime', () => {
+describe('loadConfig do realtime', () => {
   it('converte o ambiente em configuração tipada', () => {
     expect(loadConfig(ambienteValido)).toEqual({
       porta: 3000,

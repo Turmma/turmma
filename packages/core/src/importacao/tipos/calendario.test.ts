@@ -130,8 +130,8 @@ describe('tipoCalendario.planejar', () => {
   it('`aplicar` apaga o que sai antes de inserir o que entra, e só escreve o que o plano disse', async () => {
     const chamadas: string[] = []
     const gravacao = {
-      apagarEventos: (_ano: string, ids: readonly string[]) => Promise.resolve(void chamadas.push(`apagar ${ids.join(',')}`)),
-      inserirEventos: (_ano: string, eventos: readonly { descricao: string }[]) => Promise.resolve(void chamadas.push(`inserir ${eventos.map((e) => e.descricao).join(',')}`)),
+      deleteEventos: (_ano: string, ids: readonly string[]) => Promise.resolve(void chamadas.push(`apagar ${ids.join(',')}`)),
+      insertEventos: (_ano: string, eventos: readonly { descricao: string }[]) => Promise.resolve(void chamadas.push(`inserir ${eventos.map((e) => e.descricao).join(',')}`)),
     } as unknown as ImportacaoRepository
     const guardado = [{ tipo: 'feriado', inicio: '2026-04-21', fim: '2026-04-21', descricao: 'Tiradentes' }]
     const plano = await tipoCalendario.planejar(repositorioCom([evento('7', '2026-05-01', 'Trabalho')]), ANO, guardado, SEM_MARCAS)

@@ -4,7 +4,7 @@ import { ApiError } from '../../../api/client'
 import { FormDialog, useSingleSubmit } from '../../../components/dialogs'
 import { errorText, listChanged } from '../../../components/error-text'
 import { FormField } from '../../../components/ui/fields/FormField'
-import { alterarLicenca } from './api/licencas'
+import { updateLicenca } from './api/licencas'
 import {
   CAMPOS_DA_LICENCA,
   efeitoDaVigencia,
@@ -163,7 +163,7 @@ export function DialogoDaVigencia({ licenca, hoje, recarregar, aoAlterar, aoFech
   const [rascunho, definirRascunho] = useState<RascunhoDaVigencia>({ vigenteDesde: licenca.vigenteDesde, vigenteAte: licenca.vigenteAte ?? '' })
   const [tentou, definirTentou] = useState(false)
   const { enviar, mutacao } = useSingleSubmit({
-    mutationFn: (pedido: NonNullable<ReturnType<typeof pedidoDeVigencia>>) => alterarLicenca(licenca.id, pedido),
+    mutationFn: (pedido: NonNullable<ReturnType<typeof pedidoDeVigencia>>) => updateLicenca(licenca.id, pedido),
     onSuccess: async () => {
       await recarregar()
       aoAlterar()

@@ -43,7 +43,7 @@ export class AuditoriaRecorder {
    * Confere a ação, a lista fechada de `antes`, `depois` e `finalidade`, o autor e a escola, e grava. A
    * escola e o usuário vêm do contexto, nunca do argumento (regra 10, item 3).
    */
-  async gravar<Acao extends AcaoDeAuditoria>(executor: DatabaseExecutor, acao: Acao, dados: DadosDaAuditoria<Acao>): Promise<void> {
+  async save<Acao extends AcaoDeAuditoria>(executor: DatabaseExecutor, acao: Acao, dados: DadosDaAuditoria<Acao>): Promise<void> {
     const contexto = currentContext()
     if (contexto === undefined) throw new AuditoriaRejectedError('sem_contexto')
     const definicao: DefinicaoDeAcao | undefined = Object.hasOwn(ACOES_DE_AUDITORIA, acao) ? ACOES_DE_AUDITORIA[acao] : undefined

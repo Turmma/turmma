@@ -23,7 +23,7 @@ vi.mock('./api/importacao', async (importarOriginal) => {
       original.acompanharImportacao(ler, {
         ...opcoes,
         agora: () => relogio.agora,
-        esperar: () =>
+        wait: () =>
           new Promise<void>((soltar) => {
             relogio.esperas.push(soltar)
           }),

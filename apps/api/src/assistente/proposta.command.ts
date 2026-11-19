@@ -61,7 +61,7 @@ export class ProporFerramentaCommand implements ExecucaoCommand<EntradaDaTarefa<
     const semProposta = gravada.resposta === 'so_conversar'
     const ultimoPedido = turnosAnteriores.findLast((turno) => turno.autor === 'professor')?.texto
     const procurado = semProposta && ultimoPedido !== undefined ? `${ultimoPedido} ${mensagem}` : mensagem
-    const entregues = await this.trechos.buscar({ texto: procurado, disciplinaId: pergunta.disciplinaId, serieId: turma.serieId, limite: TRECHOS_NA_CONVERSA })
+    const entregues = await this.trechos.find({ texto: procurado, disciplinaId: pergunta.disciplinaId, serieId: turma.serieId, limite: TRECHOS_NA_CONVERSA })
     return {
       lido: { pergunta, entregues },
       entrada: {
@@ -81,6 +81,6 @@ export class ProporFerramentaCommand implements ExecucaoCommand<EntradaDaTarefa<
       saida.tipo === 'texto' ? saida : { ...saida, proposta: { ferramenta: saida.proposta.ferramenta, parametros: { ...saida.proposta.parametros, turmaId: pergunta.turmaId, disciplinaId: pergunta.disciplinaId } } },
     )
     if (!conteudo.success) throw new LLMError('IA_SAIDA_INVALIDA')
-    return { tipo: 'mensagem', mensagemId: await new ConversaRepository(tx).gravarDoAgente(pergunta.threadId, execucaoId, conteudo.data) }
+    return { tipo: 'mensagem', mensagemId: await new ConversaRepository(tx).saveDoAgente(pergunta.threadId, execucaoId, conteudo.data) }
   }
 }

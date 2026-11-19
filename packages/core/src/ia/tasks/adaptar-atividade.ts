@@ -78,7 +78,7 @@ export const adaptarAtividade = defineTask({
     return typeof bruto === 'object' && bruto !== null && !Array.isArray(bruto) ? { ...bruto, adaptacao: entrada.adaptacao } : bruto
   },
 
-  montarPedido(entrada) {
+  buildPedido(entrada) {
     return {
       instrucao: 'Prepare a versão adaptada da atividade, aplicando os tipos de adaptação recebidos.',
       dados: [dadoEmJson('tipos_de_adaptacao', entrada.adaptacao), dadoEmJson('atividade_original', entrada.conteudo)],

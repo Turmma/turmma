@@ -25,11 +25,11 @@ describe('CriacaoDeSessaoRepository: usuário e sessão são gravados na escola 
     // Um objeto que já nasce com a escola de B: a propriedade extra não é do contrato, e o repository a ignora.
     const comEscolaDeFora = { contaId: null, papel: 'aluno', nome: 'Pessoa sintética', escolaId: escolaB } as const
 
-    const usuarios = await naEscola(escolaA, (repositorio) => repositorio.criarUsuarios([comEscolaDeFora]))
+    const usuarios = await naEscola(escolaA, (repositorio) => repositorio.createUsuarios([comEscolaDeFora]))
     const usuarioId = usuarios[0]?.id
     if (usuarioId === undefined) throw new Error('usuário de teste não criado')
     const sessoes = await naEscola(escolaA, (repositorio) =>
-      repositorio.criarSessoes([{ usuarioId, contaId: null, metodo: 'matricula', refreshHash: randomUUID(), duracaoHoras: 1 }]),
+      repositorio.createSessoes([{ usuarioId, contaId: null, metodo: 'matricula', refreshHash: randomUUID(), duracaoHoras: 1 }]),
     )
 
     expect(sessoes).toHaveLength(1)
@@ -44,12 +44,12 @@ describe('CriacaoDeSessaoRepository: usuário e sessão são gravados na escola 
     const semEscola = <T>(funcao: (repositorio: SessaoCreateRepository) => Promise<T>) =>
       runInContext({ requisicaoId: randomUUID() }, () => bancada.banco.transaction((tx) => funcao(new SessaoCreateRepository(tx))))
 
-    await expect(semEscola((repositorio) => repositorio.criarUsuarios([{ contaId: null, papel: 'aluno', nome: 'Pessoa sintética' }]))).rejects.toThrow('consulta com escopo sem escola no contexto')
+    await expect(semEscola((repositorio) => repositorio.createUsuarios([{ contaId: null, papel: 'aluno', nome: 'Pessoa sintética' }]))).rejects.toThrow('consulta com escopo sem escola no contexto')
     await expect(
-      semEscola((repositorio) => repositorio.criarSessoes([{ usuarioId: randomUUID(), contaId: null, metodo: 'matricula', refreshHash: randomUUID(), duracaoHoras: 1 }])),
+      semEscola((repositorio) => repositorio.createSessoes([{ usuarioId: randomUUID(), contaId: null, metodo: 'matricula', refreshHash: randomUUID(), duracaoHoras: 1 }])),
     ).rejects.toThrow('consulta com escopo sem escola no contexto')
-    expect(await semEscola((repositorio) => repositorio.criarUsuarios([]))).toEqual([])
-    expect(await semEscola((repositorio) => repositorio.criarSessoes([]))).toEqual([])
+    expect(await semEscola((repositorio) => repositorio.createUsuarios([]))).toEqual([])
+    expect(await semEscola((repositorio) => repositorio.createSessoes([]))).toEqual([])
     expect(await contagem('usuario', escolaId)).toBe(0)
   })
 })

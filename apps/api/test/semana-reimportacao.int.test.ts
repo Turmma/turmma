@@ -1,4 +1,4 @@
-import { CHAVE_DA_TRAVA_DO_VINCULO_DA_AULA, createDatabase, createPool, executarPlanilha, ImportacaoRepository, runInContext, type Clock, type Database, type DatabasePool } from '@educa/core'
+import { CHAVE_DA_TRAVA_DO_VINCULO_DA_AULA, createDatabase, createPool, runPlanilha, ImportacaoRepository, runInContext, type Clock, type Database, type DatabasePool } from '@educa/core'
 import { ErrorCode, semanaResponseSchema } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import type { PoolClient } from 'pg'
@@ -12,7 +12,7 @@ import { aguardar, WriteBlockTrigger } from './write-block-trigger.js'
 
 /**
  * O texto da aula acompanha a reimportação da grade e do calendário (F2b, tarefa 5.0; `tasks/prd-semana-do-professor/cenarios.md`, "Reimportação da
- * grade", J1 a J16, RF13 e RF14). A reimportação é a real do F2: a planilha vai pela API e o job (`executarPlanilha`) a grava, com o relógio injetado
+ * grade", J1 a J16, RF13 e RF14). A reimportação é a real do F2: a planilha vai pela API e o job (`runPlanilha`) a grava, com o relógio injetado
  * (quarta, 2026-11-04, 10h em Brasília). Postgres real do compose de teste; escolas, anos, e-mails e nomes gerados. As corridas (J11a, J11b, J12 e J16)
  * têm a ordem forçada: o job para num gatilho do banco de teste (`WriteBlockTrigger`) ou na trava consultiva do vínculo, que o teste segura.
  */
@@ -141,7 +141,7 @@ describe('a reimportação da grade e do calendário: o texto da aula acompanha 
   /** O job uma vez, na escola do job, com o relógio pedido: a grade só reaproveita professor que a escola já tem, e por isso o job nunca pede conta global. */
   const rodar = (escolaId: string, importacaoId: string, doJob: Clock = relogio) =>
     runInContext({ requisicaoId: randomUUID(), escolaId }, () =>
-      executarPlanilha(bancoDoJob, importacaoId, { acharConta: () => Promise.reject(new Error('a grade deste teste não cadastra professor')), travarContas: () => Promise.resolve(true), relogio: doJob }),
+      runPlanilha(bancoDoJob, importacaoId, { acharConta: () => Promise.reject(new Error('a grade deste teste não cadastra professor')), lockContas: () => Promise.resolve(true), relogio: doJob }),
     )
 
   /** Grava a planilha (202) e devolve o id da importação. */

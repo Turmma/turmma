@@ -160,7 +160,7 @@ export class SecoesRepository {
    * chegam no meio esperam o commit e a execução que perdeu a seção não a grava. Depois, nas seções travadas: as habilidades `origem: 'ia'` no lugar das que a IA pôs antes, `classificada_em` e `falhas_seguidas` zerada. A seção que não foi
    * travada (corrigida no meio, execução trocada, material excluído) não ganha nada, e a execução conclui sem efeito nela. A correção que esperou a trava aplica **por cima** e lê como "antes" os códigos da IA que ela acabou de ver.
    */
-  async gravarClassificacao(execucaoId: string, respostas: ReadonlyArray<{ readonly secaoId: string; readonly codigos: readonly string[] }>): Promise<SecaoGravada[]> {
+  async saveClassificacao(execucaoId: string, respostas: ReadonlyArray<{ readonly secaoId: string; readonly codigos: readonly string[] }>): Promise<SecaoGravada[]> {
     const escolaId = requireEscolaId()
     if (respostas.length === 0) return []
     const secoes = await this.banco
@@ -210,12 +210,12 @@ export class SecoesRepository {
 
   /**
    * A execução sem candidata (P11): as seções **não corrigidas** que a citam perdem o `execucao_id`, e as habilidades `origem: 'ia'` e `falhas_seguidas` voltam a zero. É o mesmo "limpar" da mudança de recorte
-   * (`AgendamentoDaClassificacaoRepository.limparDoRecorte`, no `core`), e volta a seção a `nao_agendada`. A corrigida não se toca. Com `soAsSecoes`, só essas (as seções vivas sem recorte, numa execução que classifica as outras).
+   * (`AgendamentoDaClassificacaoRepository.clearDoRecorte`, no `core`), e volta a seção a `nao_agendada`. A corrigida não se toca. Com `soAsSecoes`, só essas (as seções vivas sem recorte, numa execução que classifica as outras).
    *
    * O `update` é um só, com `execucao_id = :esta`, e só as seções que ele devolveu perdem o código da IA: a que o job da mudança de recorte levou a uma execução nova entre o `preparar` e aqui não casa, segue com a execução
    * nova e com o que ela gravar. Ler as seções antes, em outro comando, abriria a janela em que a limpeza apagaria a execução nova.
    */
-  async limparDaExecucao(execucaoId: string, soAsSecoes?: readonly string[]): Promise<number> {
+  async clearDaExecucao(execucaoId: string, soAsSecoes?: readonly string[]): Promise<number> {
     const escolaId = requireEscolaId()
     const limpas = await this.banco
       .update(secaoDoMaterial)
@@ -273,7 +273,7 @@ export class SecoesRepository {
    * A seção que a coordenação vai corrigir, **`for update`** até o fim da transação (P1b, P5): a do material dado, da escola do contexto. A de outro material, a de outra escola e a inexistente não são achadas. O `concluir` da
    * classificação trava a mesma linha, então a correção espera a gravação da IA e aplica por cima, e duas correções passam uma depois da outra.
    */
-  async travarParaCorrigir(materialId: string, secaoId: string): Promise<{ id: string } | undefined> {
+  async lockParaCorrigir(materialId: string, secaoId: string): Promise<{ id: string } | undefined> {
     const [linha] = await this.banco
       .select({ id: secaoDoMaterial.id })
       .from(secaoDoMaterial)
@@ -294,9 +294,9 @@ export class SecoesRepository {
 
   /**
    * A correção da coordenação (RF6): as habilidades da seção, **todas**, são trocadas pelas dadas, com `origem: 'coordenacao'`, e a seção ganha `corrigida_em` (a marca; a eliminação do titular não a toca) e `corrigida_por`
-   * (só autoria). Zero códigos é correção válida. Quem chama já travou a seção (`travarParaCorrigir`).
+   * (só autoria). Zero códigos é correção válida. Quem chama já travou a seção (`lockParaCorrigir`).
    */
-  async gravarCorrecao(secaoId: string, codigos: readonly string[]): Promise<void> {
+  async saveCorrecao(secaoId: string, codigos: readonly string[]): Promise<void> {
     const escolaId = requireEscolaId()
     await this.banco.delete(habilidadeDaSecao).where(and(eq(habilidadeDaSecao.escolaId, escolaId), eq(habilidadeDaSecao.secaoId, secaoId)))
     if (codigos.length > 0) await this.banco.insert(habilidadeDaSecao).values(codigos.map((codigo) => ({ escolaId, secaoId, codigo, origem: 'coordenacao' as const })))
@@ -307,7 +307,7 @@ export class SecoesRepository {
   }
 
   /** Quantas seções do material a coordenação corrigiu: as que o reclassificar preserva. */
-  async contarCorrigidas(materialId: string): Promise<number> {
+  async countCorrigidas(materialId: string): Promise<number> {
     return this.banco.$count(secaoDoMaterial, and(eq(secaoDoMaterial.escolaId, requireEscolaId()), eq(secaoDoMaterial.materialId, materialId), isNotNull(secaoDoMaterial.corrigidaEm)))
   }
 

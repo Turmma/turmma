@@ -13,8 +13,8 @@ import { aguardarSaudavel, composeOuFalha } from '../../../tools/testes/compose.
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { AppModule } from '../src/app.module.js'
 import { configureApp } from '../src/configure-app.js'
-import { executarOpsRedefinirMfa } from '../src/ops/redefinir-mfa.js'
-import { REDIS_LOGIN_CLIENT, ChallengeIssuer, LoginLockout, gerarCodigosDeRecuperacao, gerarSegredo, PasswordHasher, hmacDaRecuperacao } from '../src/credencial/index.js'
+import { runOpsRedefinirMfa } from '../src/ops/redefinir-mfa.js'
+import { REDIS_LOGIN_CLIENT, ChallengeIssuer, LoginLockout, generateCodigosDeRecuperacao, generateSegredo, PasswordHasher, hmacDaRecuperacao } from '../src/credencial/index.js'
 import { testConfig, TEST_APP_OPTIONS } from './test-config.js'
 import { SessaoFixtures } from './sessao.fixture.js'
 
@@ -90,7 +90,7 @@ describe('MFA do coordenador: configurar, ativar, entrar com o código e redefin
   async function pessoa(escolaId: string, papel: PapelDeUsuario = 'coordenador'): Promise<Pessoa> {
     const email = `coordenacao-${randomUUID()}@escola.invalid`
     segredosVistos.add(email)
-    const { rows: contas } = await bancada.pool.query<{ id: string }>('insert into conta (email, senha_hash) values ($1, $2) returning id', [email, await hash.gerar(SENHA)])
+    const { rows: contas } = await bancada.pool.query<{ id: string }>('insert into conta (email, senha_hash) values ($1, $2) returning id', [email, await hash.generate(SENHA)])
     const contaId = contas[0]?.id ?? ''
     const { rows: usuarios } = await bancada.pool.query<{ id: string }>("insert into usuario (escola_id, conta_id, papel, nome) values ($1, $2, $3, 'Pessoa sintética') returning id", [escolaId, contaId, papel])
     return { email, contaId, usuarioId: usuarios[0]?.id ?? '', escolaId }
@@ -104,11 +104,11 @@ describe('MFA do coordenador: configurar, ativar, entrar com o código e redefin
 
   /** Liga o MFA direto no banco, com a cifra de produção, e os dez códigos de recuperação: é o estado depois do `ativar`. */
   async function comMfaAtivo(quem: Pessoa): Promise<MfaAtivo> {
-    const novo = gerarSegredo()
+    const novo = generateSegredo()
     segredosVistos.add(novo.base32).add(novo.uri)
     const { cifrado, versao } = cifra.cifrar(novo.bytes, quem.contaId)
     await bancada.pool.query('update conta set mfa_segredo_cifrado = $1, mfa_chave_versao = $2, mfa_ativado_em = now(), mfa_ultimo_passo = null where id = $3', [cifrado, versao, quem.contaId])
-    const codigosRecuperacao = gerarCodigosDeRecuperacao()
+    const codigosRecuperacao = generateCodigosDeRecuperacao()
     for (const codigo of codigosRecuperacao) {
       segredosVistos.add(codigo)
       await bancada.pool.query('insert into codigo_recuperacao (conta_id, hmac) values ($1, $2)', [quem.contaId, hmacDaRecuperacao(configuracao.login.mfa.chaveRecuperacao, codigo)])
@@ -596,7 +596,7 @@ describe('MFA do coordenador: configurar, ativar, entrar com o código e redefin
     async function rodar(argumentos: string[]): Promise<{ codigo: number; saida: string; erro: string }> {
       let saida = ''
       let erro = ''
-      const codigo = await executarOpsRedefinirMfa(argumentos, ambiente, { saida: (texto) => (saida += texto), erro: (texto) => (erro += texto) })
+      const codigo = await runOpsRedefinirMfa(argumentos, ambiente, { saida: (texto) => (saida += texto), erro: (texto) => (erro += texto) })
       return { codigo, saida, erro }
     }
 

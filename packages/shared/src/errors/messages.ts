@@ -130,7 +130,7 @@ export const AVISO_DO_SEGUNDO_FATOR_CONSUMIDO =
  */
 export function avisoDoSegundoFatorConsumido(esperaSegundos?: number): string {
   if (esperaSegundos === undefined || !Number.isFinite(esperaSegundos)) return AVISO_DO_SEGUNDO_FATOR_CONSUMIDO
-  return `${AVISO_DO_SEGUNDO_FATOR_CONSUMIDO} Espere ${formatarEspera(esperaSegundos)} antes de tentar.`
+  return `${AVISO_DO_SEGUNDO_FATOR_CONSUMIDO} Espere ${formatEspera(esperaSegundos)} antes de tentar.`
 }
 
 /**
@@ -204,7 +204,7 @@ export function mensagemDaLigacao(valor: string): string {
  * inteiro acima de um minuto: dizer "2 minutos" quando faltam 90 s atrasa um pouco a pessoa, e dizer "1 minuto" a
  * faria tentar cedo e esticar o bloqueio.
  */
-export function formatarEspera(segundos: number): string {
+export function formatEspera(segundos: number): string {
   const inteiros = Math.max(1, Math.ceil(segundos))
   if (inteiros < 60) return `${String(inteiros)} ${inteiros === 1 ? 'segundo' : 'segundos'}`
   const minutos = Math.ceil(inteiros / 60)
@@ -248,7 +248,7 @@ export function mensagemDoAcessoDaEscola(codigo: ErrorCode): string {
  */
 function mensagemDaTela(textos: Readonly<Partial<Record<ErrorCode, string>>>, codigo: ErrorCode, esperaSegundos?: number): string {
   if (codigo === 'CONTA_SEGURADA' && esperaSegundos !== undefined && Number.isFinite(esperaSegundos)) {
-    return `Muitas tentativas com senha errada nesta conta. Espere ${formatarEspera(esperaSegundos)} e tente de novo.`
+    return `Muitas tentativas com senha errada nesta conta. Espere ${formatEspera(esperaSegundos)} e tente de novo.`
   }
   return textos[codigo] ?? MENSAGENS_DE_ERRO[codigo]
 }

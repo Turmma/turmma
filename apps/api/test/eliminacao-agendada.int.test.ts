@@ -65,8 +65,8 @@ describe('eliminação agendada (F3, tarefa 14.0): suspende o acesso, não revel
   beforeAll(async () => {
     api = await subirApi(medidor.medidor, { ambiente: { LIMITE_REQ_USUARIO_MIN: '1000', LIMITE_REQ_ESCOLA_MIN: '1000', LOGIN_HASH_CONCORRENCIA: '4' } }, linhasDeLog)
     hash = api.app.get(PasswordHasher)
-    verificacoes = vi.spyOn(hash, 'verificar')
-    hashDaSenha = await hash.gerar(SENHA)
+    verificacoes = vi.spyOn(hash, 'verify')
+    hashDaSenha = await hash.generate(SENHA)
   })
 
   beforeEach(() => {

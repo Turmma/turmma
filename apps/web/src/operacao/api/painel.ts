@@ -34,21 +34,21 @@ export const CAMINHO_DO_USO = '/v1/operacao/uso'
 /** A consulta padrão da lista: a primeira página, por nome. */
 export const CONSULTA_PADRAO: PainelQuery = { pagina: 1, ordem: 'nome' }
 
-const ehOrdem = (valor: string | null): valor is OrdemDoPainel => (ORDENS_DO_PAINEL as readonly (string | null)[]).includes(valor)
+const isOrdem = (valor: string | null): valor is OrdemDoPainel => (ORDENS_DO_PAINEL as readonly (string | null)[]).includes(valor)
 
 /**
  * `pagina` e `ordem` da barra de endereço (Tech Spec da A0b, seção 9: a página e a ordem ficam na query string, e o
  * endereço copiado abre a mesma lista). O endereço é digitável: o que não é uma página ou uma ordem do contrato volta ao
  * padrão daquele campo, sem erro na tela, e a API nunca recebe o que o contrato estrito dela recusaria.
  */
-export function lerConsultaDaTela(busca: string): PainelQuery {
+export function readConsultaDaTela(busca: string): PainelQuery {
   const parametros = new URLSearchParams(busca)
   const pagina = parametros.get('pagina')
   const ordem = parametros.get('ordem')
   const numero = pagina !== null && /^[1-9]\d{0,4}$/.test(pagina) ? Number(pagina) : CONSULTA_PADRAO.pagina
   return {
     pagina: numero <= MAXIMA_PAGINA_DO_PAINEL ? numero : CONSULTA_PADRAO.pagina,
-    ordem: ehOrdem(ordem) ? ordem : CONSULTA_PADRAO.ordem,
+    ordem: isOrdem(ordem) ? ordem : CONSULTA_PADRAO.ordem,
   }
 }
 
@@ -99,17 +99,17 @@ export const REDES_QUERY_KEY = dasRedesQueryOptions.queryKey
 export const USO_QUERY_KEY = ['operacao', 'uso'] as const
 
 /** `POST /v1/operacao/redes`, com o id sorteado ao abrir o diálogo. O pedido repetido devolve o mesmo id. */
-export function criarRedeNoPainel(pedido: CriarRedeRequest): Promise<CriadoNoPainelResponse> {
+export function createRedeNoPainel(pedido: CriarRedeRequest): Promise<CriadoNoPainelResponse> {
   return operadorAuthedRequest(CAMINHO_DAS_REDES, criadoNoPainelResponseSchema, { metodo: 'POST', corpo: pedido })
 }
 
 /** `POST /v1/operacao/escolas`, como o da rede. O endereço que já é de outra escola volta `CONFLITO`. */
-export function criarEscolaNoPainel(pedido: CriarEscolaRequest): Promise<CriadoNoPainelResponse> {
+export function createEscolaNoPainel(pedido: CriarEscolaRequest): Promise<CriadoNoPainelResponse> {
   return operadorAuthedRequest(CAMINHO_DAS_ESCOLAS, criadoNoPainelResponseSchema, { metodo: 'POST', corpo: pedido })
 }
 
 /** `POST /v1/operacao/escolas/:id/convite-coordenacao`: o convite novo, com o token que só existe nesta resposta. */
-export function gerarConviteNoPainel(escolaId: string, pedido: ConviteDaCoordenacaoRequest): Promise<ConviteDaCoordenacaoResponse> {
+export function generateConviteNoPainel(escolaId: string, pedido: ConviteDaCoordenacaoRequest): Promise<ConviteDaCoordenacaoResponse> {
   return operadorAuthedRequest(`${CAMINHO_DAS_ESCOLAS}/${encodeURIComponent(escolaId)}/convite-coordenacao`, conviteDaCoordenacaoResponseSchema, {
     metodo: 'POST',
     corpo: pedido,
@@ -136,7 +136,7 @@ export function revogarConviteNoPainel(conviteId: string): Promise<void> {
  */
 export function mutacaoDoGerarConvite(escolaId: string, aoTerminar?: () => Promise<void>) {
   return mutationOptions({
-    mutationFn: (pedido: ConviteDaCoordenacaoRequest) => gerarConviteNoPainel(escolaId, pedido),
+    mutationFn: (pedido: ConviteDaCoordenacaoRequest) => generateConviteNoPainel(escolaId, pedido),
     gcTime: 0,
     ...(aoTerminar === undefined ? {} : { onSettled: aoTerminar }),
   })

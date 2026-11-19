@@ -150,7 +150,7 @@ function CapituloRow({ materialId, secao, suspensa, semComponente, editando, aoE
     }
   }, [aberta, editorVale, aoEditar])
 
-  function fechar(): void {
+  function close(): void {
     aoEditar(undefined)
     botao.current?.focus()
   }
@@ -189,7 +189,7 @@ function CapituloRow({ materialId, secao, suspensa, semComponente, editando, aoE
           Corrigir <span className="sr-only">as habilidades de {titulo}</span>
         </Button>
       </div>
-      {editorVale && <EditorDaSecao materialId={materialId} secao={secao} titulo={titulo} suspensa={suspensa} recarregar={recarregar} aoFechar={fechar} />}
+      {editorVale && <EditorDaSecao materialId={materialId} secao={secao} titulo={titulo} suspensa={suspensa} recarregar={recarregar} aoFechar={close} />}
     </li>
   )
 }

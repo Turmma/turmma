@@ -4,12 +4,12 @@ import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { Button } from '../../components/ui/Button'
 import { FormField } from '../../components/ui/fields/FormField'
 import { LoadingState } from '../../components/states'
-import { ESCOLAS_QUERY_KEY, USO_QUERY_KEY, dasRedesQueryOptions, criarEscolaNoPainel } from '../api/painel'
+import { ESCOLAS_QUERY_KEY, USO_QUERY_KEY, dasRedesQueryOptions, createEscolaNoPainel } from '../api/painel'
 import { ErroDaOperacao } from '../components/CascaDaOperacao'
 import { SECONDARY_BUTTON_CLASSES } from '../../components/ui/button-variants'
 import { DialogoDaOperacao } from '../components/DialogoDaOperacao'
 import { pedidoDeEscola, newRequestId, type CampoDaEscola } from '../pedidos-do-painel'
-import { ehEnderecoRepetido, ehResultadoIncerto, REGRA_DO_ENDERECO, TEXTO_DA_TENTATIVA_INCERTA, TEXTO_DO_ENDERECO_REPETIDO, TEXTO_SEM_REDE, textoDaFalha } from '../textos'
+import { isEnderecoRepetido, isResultadoIncerto, REGRA_DO_ENDERECO, TEXTO_DA_TENTATIVA_INCERTA, TEXTO_DO_ENDERECO_REPETIDO, TEXTO_SEM_REDE, textoDaFalha } from '../textos'
 
 interface Props {
   readonly aoFechar: () => void
@@ -62,20 +62,20 @@ export function NovaEscola({ aoFechar, aoCriar, aoPedirNovaRede, redeSugeridaId 
   const erroDaRede = useId()
   const clienteDeConsultas = useQueryClient()
   const criar = useMutation({
-    mutationFn: criarEscolaNoPainel,
+    mutationFn: createEscolaNoPainel,
     onSuccess: async (_resposta, pedido) => {
       // A escola nova entra na lista e no Uso (com zero): as duas deixam de valer, e a próxima visita ao Uso a traz.
       await Promise.all([clienteDeConsultas.invalidateQueries({ queryKey: ESCOLAS_QUERY_KEY }), clienteDeConsultas.invalidateQueries({ queryKey: USO_QUERY_KEY })])
       aoCriar({ id: pedido.id, nome: pedido.nome })
     },
     onError: (erro, pedido) => {
-      if (ehResultadoIncerto(erro)) {
+      if (isResultadoIncerto(erro)) {
         definirIncerto(pedido)
         return
       }
       // Depois de uma tentativa incerta, o `CONFLITO` com outros dados é o servidor recusando o mesmo id com dados novos: a
       // escola pode já existir com os de antes. Fica no alerta da revisão, com o texto que manda conferir a lista.
-      if (!ehEnderecoRepetido(erro) || (incerto !== undefined && !mesmoPedido(incerto, pedido))) return
+      if (!isEnderecoRepetido(erro) || (incerto !== undefined && !mesmoPedido(incerto, pedido))) return
       definirErros({ slug: TEXTO_DO_ENDERECO_REPETIDO })
       definirRevisando(undefined)
     },
@@ -178,7 +178,7 @@ export function NovaEscola({ aoFechar, aoCriar, aoPedirNovaRede, redeSugeridaId 
           </p>
           {criar.isError && (
             <p role="alert" className="rounded-controle border border-erro bg-erro-cx p-3 text-erro">
-              {incerto !== undefined && ehEnderecoRepetido(criar.error) ? TEXTO_DA_TENTATIVA_INCERTA : textoDaFalha(criar.error)}
+              {incerto !== undefined && isEnderecoRepetido(criar.error) ? TEXTO_DA_TENTATIVA_INCERTA : textoDaFalha(criar.error)}
             </p>
           )}
           <div className="flex flex-wrap gap-3">

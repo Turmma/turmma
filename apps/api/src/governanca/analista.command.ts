@@ -40,7 +40,7 @@ export class ResumoDoAnalistaCommand implements ExecucaoCommand<EntradaDaTarefa<
   async concluir(saida: SaidaDaTarefa<typeof resumoDoAnalista>, _lido: null, tx: DatabaseTransaction, execucaoId: string): Promise<ResultadoGravado> {
     // Validado de novo antes de gravar (regra 30, item 7): o que não cabe no schema estrito não vira resumo.
     const conteudo = conteudoDoResumoDoAnalistaSchema.parse(saida)
-    return { tipo: 'resumo_do_analista', resumoId: await new AnalistaRepository(tx).gravarResumo(conteudo, execucaoId) }
+    return { tipo: 'resumo_do_analista', resumoId: await new AnalistaRepository(tx).saveResumo(conteudo, execucaoId) }
   }
 
   /** Os agregados da escola no ano em curso, na forma que a tarefa recebe. Sem professor, sem turma e sem aluno. */

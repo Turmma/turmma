@@ -4,7 +4,7 @@ import { insuranceLimit } from './keys.js'
 
 /** Uma vaga ocupada. Quem a tem a devolve no `finally`; se o processo morre antes, o prazo de validade a devolve. */
 export interface Vaga {
-  liberar(): Promise<void>
+  release(): Promise<void>
 }
 
 /**
@@ -66,13 +66,13 @@ export class SchoolSemaphore {
     try {
       if (this.cliente.status !== 'ready') return this.#ocuparNoSeguro(escolaId, token)
       const ocupou = await this.cliente.eval(OCUPAR, 1, chave, this.opcoes.maximo, this.opcoes.validadeMs, token)
-      return ocupou === 1 ? { liberar: () => this.#liberarNoRedis(chave, token) } : undefined
+      return ocupou === 1 ? { release: () => this.#releaseNoRedis(chave, token) } : undefined
     } catch {
       return this.#ocuparNoSeguro(escolaId, token)
     }
   }
 
-  async #liberarNoRedis(chave: string, token: string): Promise<void> {
+  async #releaseNoRedis(chave: string, token: string): Promise<void> {
     try {
       await this.cliente.zrem(chave, token)
     } catch {
@@ -90,7 +90,7 @@ export class SchoolSemaphore {
     vagas.set(token, agora + this.opcoes.validadeMs)
     this.#seguro.set(escolaId, vagas)
     return {
-      liberar: () => {
+      release: () => {
         vagas.delete(token)
         if (vagas.size === 0) this.#seguro.delete(escolaId)
         return Promise.resolve()

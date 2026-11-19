@@ -30,8 +30,8 @@ export class AnalistaController {
   @Post('gerar')
   @RequirePermissao('analista', 'gerar')
   @HttpCode(HttpStatus.ACCEPTED)
-  gerar(@Body(new ZodValidationPipe(gerarResumoDoAnalistaRequestSchema)) pedido: GerarResumoDoAnalistaRequest): Promise<ExecucaoAceitaResponse> {
-    return this.analista.gerar(pedido)
+  generate(@Body(new ZodValidationPipe(gerarResumoDoAnalistaRequestSchema)) pedido: GerarResumoDoAnalistaRequest): Promise<ExecucaoAceitaResponse> {
+    return this.analista.generate(pedido)
   }
 
   @Get('nominal')

@@ -6,7 +6,7 @@ import type { OperadorRepository } from '../operador/operador.repository.js'
 export class OperadorMeService {
   constructor(private readonly operadores: Pick<OperadorRepository, 'daSessao'>) {}
 
-  async obter(): Promise<EuDoOperadorResponse> {
+  async get(): Promise<EuDoOperadorResponse> {
     const operador = await this.operadores.daSessao(requireContextOperador())
     // Desativado entre a guarda e aqui: a sessão acabou de terminar.
     if (operador === undefined) throw new DomainException(ErrorCode.SESSAO_ENCERRADA)

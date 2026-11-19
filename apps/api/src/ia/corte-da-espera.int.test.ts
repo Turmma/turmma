@@ -143,7 +143,7 @@ function modeloContado(fila: FilaDeIa) {
   let chamadas = 0
   const modelo: ModeloDeTeste = (pedido) => {
     chamadas += 1
-    return fila.falso().gerar(pedido as Parameters<ReturnType<FilaDeIa['falso']>['gerar']>[0])
+    return fila.falso().generate(pedido as Parameters<ReturnType<FilaDeIa['falso']>['generate']>[0])
   }
   fila.comModelo(modelo)
   return { chamadas: () => chamadas }
@@ -393,7 +393,7 @@ describe('o corte da espera de 20 s (adaptador falso)', () => {
       try {
         const perguntar = (execucaoId: string) =>
           sql(`insert into mensagem_tutor (escola_id, ano_letivo_id, turma_id, aluno_id, execucao_id, autor, texto) values ($1, $2, $3, $4, $5, 'aluno', 'não entendi')`, [a.escolaId, a.anoLetivoId, a.turma, a.aluno.usuarioId, execucaoId])
-        const consultar = () => fila.como(a.escolaId, a.aluno.usuarioId, () => new OrcamentoRepository(fila.banco).consultar({ funcao: 'tutor_com_o_aluno', alunoId: a.aluno.usuarioId }))
+        const consultar = () => fila.como(a.escolaId, a.aluno.usuarioId, () => new OrcamentoRepository(fila.banco).check({ funcao: 'tutor_com_o_aluno', alunoId: a.aluno.usuarioId }))
         const cortada = await semear(a)
         await perguntar(cortada)
         // A pergunta em andamento conta no freio (limite 1): é o controle de que a consulta enxerga a pergunta.

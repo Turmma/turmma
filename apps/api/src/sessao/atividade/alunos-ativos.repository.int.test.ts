@@ -27,9 +27,9 @@ describe('AlunosAtivosRepository: o tamanho da escola que dá o limiar do rebaix
     await alunos(escolaA, 3)
     await alunos(escolaB, 40)
     const repositorio = new AlunosAtivosRepository(bancada.banco)
-    expect(await naEscola(escolaA, () => repositorio.contar())).toBe(3)
-    expect(await naEscola(escolaB, () => repositorio.contar())).toBe(40)
-    await expect(runInContext({ requisicaoId: randomUUID() }, () => repositorio.contar())).rejects.toThrow('consulta com escopo sem escola no contexto')
+    expect(await naEscola(escolaA, () => repositorio.count())).toBe(3)
+    expect(await naEscola(escolaB, () => repositorio.count())).toBe(40)
+    await expect(runInContext({ requisicaoId: randomUUID() }, () => repositorio.count())).rejects.toThrow('consulta com escopo sem escola no contexto')
   })
 
   it('borda: aluno desativado (transferido) e equipe não contam', async () => {
@@ -38,6 +38,6 @@ describe('AlunosAtivosRepository: o tamanho da escola que dá o limiar do rebaix
     await bancada.pool.query('update usuario set desativado_em = now() where escola_id = $1 and id = $2', [escola, transferido])
     await bancada.sessao(escola, 'professor')
     await bancada.sessao(escola, 'coordenador')
-    expect(await naEscola(escola, () => new AlunosAtivosRepository(bancada.banco).contar())).toBe(4)
+    expect(await naEscola(escola, () => new AlunosAtivosRepository(bancada.banco).count())).toBe(4)
   })
 })

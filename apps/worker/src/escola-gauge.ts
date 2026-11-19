@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto'
 export const ESCOLA_GAUGE_INTERVAL_MS = 5 * 60_000
 
 export interface EscolaGaugeDependencies {
-  escolas: Pick<CronEscolasRepository, 'listarIds'>
+  escolas: Pick<CronEscolasRepository, 'listIds'>
   relogio: Clock
   logger: LoggerBase
   medidor: Meter
@@ -63,7 +63,7 @@ export abstract class EscolaGauge {
     const { escolas, relogio } = this.base
     let ids: string[]
     try {
-      ids = await escolas.listarIds()
+      ids = await escolas.listIds()
     } catch (erro) {
       this.#series.clear()
       this.#avisarFalha(erro)
@@ -86,7 +86,7 @@ export abstract class EscolaGauge {
   }
 
   /** Mede agora e, depois, a cada intervalo, até `encerrar`. */
-  iniciar(): void {
+  start(): void {
     if (this.#ativa) return
     this.#ativa = true
     this.#laco = (async () => {

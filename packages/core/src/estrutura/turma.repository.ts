@@ -11,7 +11,7 @@ import { requestSessao } from '../identidade/auth.guard.js'
 import type { AlunoDaTurma, Etapa, PaginationQuery, TurmaAbertaResponse, Turma, Turno } from '@educa/shared'
 import { and, asc, eq, exists, gt, inArray, isNotNull, isNull, not, or, sql, type SQL } from 'drizzle-orm'
 import { chaveDaTurma, InvariantException } from '@educa/shared'
-import { excluirSemReferencia } from './exclusao.js'
+import { deleteSemReferencia } from './exclusao.js'
 
 export interface NovaTurma {
   readonly serieId: string
@@ -54,7 +54,7 @@ export class TurmaRepository {
    * encerramento espera a turma nascer, e a turma que chega depois do encerramento relê o ano já `encerrado` e não
    * nasce: o ano encerrado nunca ganha turma nova, nem na corrida (regra 80, item 7).
    */
-  async travarAnoEmCurso(): Promise<boolean> {
+  async lockAnoEmCurso(): Promise<boolean> {
     const [linha] = await this.banco
       .select({ id: anoLetivo.id })
       .from(anoLetivo)
@@ -68,7 +68,7 @@ export class TurmaRepository {
    * C9): o `delete` da turma que chega depois espera, e sai `CONFLITO` pelo nome que esta transação gravou; o que já
    * apagou a turma faz esta leitura não achar nada. O renomear não espera: não mexe na chave.
    */
-  async travarContraExclusao(id: string): Promise<boolean> {
+  async lockContraExclusao(id: string): Promise<boolean> {
     const [linha] = await this.banco
       .select({ id: turma.id })
       .from(turma)
@@ -84,12 +84,12 @@ export class TurmaRepository {
    * esta transação gravou; o excluir que já apagou a turma faz esta leitura não achar nada, e o gerar sai
    * `NAO_ENCONTRADO` em vez de esbarrar na FK (C11). Dois gerar não se esperam aqui: o único por turma decide (C5).
    */
-  async travarComVinculoDoProfessor(id: string): Promise<boolean> {
+  async lockComVinculoDoProfessor(id: string): Promise<boolean> {
     const daTurmaVinculada = and(eq(turma.escolaId, requireEscolaId()), eq(turma.anoLetivoId, requireAnoEmCurso()), eq(turma.id, id), this.#comVinculoDoProfessor(undefined))
     const [travada] = await this.banco.select({ id: turma.id }).from(turma).where(daTurmaVinculada).for('share')
     if (travada === undefined) return false
     // O vínculo de novo, num comando próprio, depois da trava (correção 2026-10-03-acesso-sobrevive-ao-vinculo): o
-    // encerramento do vínculo e a eliminação do professor travam a turma em `FOR NO KEY UPDATE` (`travarContraOGerar`). Se este
+    // encerramento do vínculo e a eliminação do professor travam a turma em `FOR NO KEY UPDATE` (`lockContraOGerar`). Se este
     // gerar esperou por eles, a linha da turma não mudou e o Postgres não reconfere o `exists` acima, que ficou com o
     // retrato de antes. Em `READ COMMITTED`, este comando já enxerga o vínculo encerrado ou apagado, e o gerar sai
     // `NAO_ENCONTRADO` em vez de entregar um acesso a quem acabou de sair.
@@ -105,13 +105,13 @@ export class TurmaRepository {
    *   de antes do gerar, e a cascata levaria um acesso que acabou de ser entregue ao professor.
    * - O encerrar do vínculo (correção 2026-10-03-acesso-sobrevive-ao-vinculo) trava em `FOR NO KEY UPDATE` antes de
    *   travar o vínculo e de revogar o acesso de quem saiu: o acesso que o gerar do mesmo professor acabou de gravar cai
-   *   junto, e o gerar que chega depois espera e reconfere o vínculo (`travarComVinculoDoProfessor`). O `NO KEY UPDATE`
+   *   junto, e o gerar que chega depois espera e reconfere o vínculo (`lockComVinculoDoProfessor`). O `NO KEY UPDATE`
    *   barra o gerar e deixa passar o `FOR KEY SHARE` das FKs para a turma (o pedido de reivindicação, a lista).
    *
    * **A ordem é sempre a turma, depois o vínculo**, no excluir (a FK do vínculo pede `FOR KEY SHARE` nele no `delete`),
    * no encerrar e na eliminação. Quem travar os dois em outro caminho segue a mesma ordem, ou abre um deadlock.
    */
-  async travarContraOGerar(id: string, modo: 'update' | 'no key update'): Promise<boolean> {
+  async lockContraOGerar(id: string, modo: 'update' | 'no key update'): Promise<boolean> {
     const [linha] = await this.banco
       .select({ id: turma.id })
       .from(turma)
@@ -125,7 +125,7 @@ export class TurmaRepository {
    * Nome fora do padrão ("Turma Azul") deixa a chave nula. Outra turma do ano com a mesma chave, escrita de outro jeito ("8A" contra
    * "8º A"), é barrada pelo único parcial `turma_chave_no_ano_unica`, e o 23505 sai `CONFLITO` como o do nome repetido, sem o valor.
    */
-  async criar(nova: NovaTurma): Promise<TurmaGravada> {
+  async create(nova: NovaTurma): Promise<TurmaGravada> {
     const [criada] = await this.banco
       .insert(turma)
       .values({ escolaId: requireEscolaId(), anoLetivoId: requireAnoEmCurso(), serieId: nova.serieId, nome: nova.nome, chave: chaveDaTurma(nova.nome), turno: nova.turno })
@@ -154,13 +154,13 @@ export class TurmaRepository {
 
   /**
    * Apaga a turma do ano em curso com esse id, se nada aponta para ela e ela não tem acesso vigente, e diz se apagou. Com
-   * vínculo (qualquer estado) ou com nome na lista (2.0), a FK barra e sai `CONFLITO` (`excluirSemReferencia`); a 6.0
+   * vínculo (qualquer estado) ou com nome na lista (2.0), a FK barra e sai `CONFLITO` (`deleteSemReferencia`); a 6.0
    * soma o pedido. Com acesso vigente (não revogado e não vencido, 4.0), nada é apagado e volta `false`; o revogado e o
    * vencido saem com a turma, pela cascata da FK do `acesso_turma`. A turma de outro ano, de outra escola ou inexistente
-   * também volta `false`: quem chama trava a turma antes (`travarContraOGerar`) e separa os dois casos.
+   * também volta `false`: quem chama trava a turma antes (`lockContraOGerar`) e separa os dois casos.
    */
-  excluir(id: string): Promise<boolean> {
-    return excluirSemReferencia(async () => {
+  delete(id: string): Promise<boolean> {
+    return deleteSemReferencia(async () => {
       const escolaId = requireEscolaId()
       const anoLetivoId = requireAnoEmCurso()
       const acessoVigente = this.banco
@@ -203,7 +203,7 @@ export class TurmaRepository {
    * planejado também recebe a planilha). Outra turma do ano com a mesma chave ou o mesmo nome viola o único (23505), e o motor
    * fecha a importação `desatualizada`.
    */
-  async criarNoAno(anoLetivoId: string, nova: Pick<NovaTurma, 'serieId' | 'nome'>): Promise<string> {
+  async createNoAno(anoLetivoId: string, nova: Pick<NovaTurma, 'serieId' | 'nome'>): Promise<string> {
     const [criada] = await this.banco
       .insert(turma)
       .values({ escolaId: requireEscolaId(), anoLetivoId, serieId: nova.serieId, nome: nova.nome, chave: chaveDaTurma(nova.nome) })
@@ -217,7 +217,7 @@ export class TurmaRepository {
    * passo (3)): o gerar acesso (`FOR SHARE`) e a renomeação esperam o fim da transação, e a decisão em sala, que só pede
    * `FOR KEY SHARE`, passa. Quem trava turma em outro caminho trava por id num comando, ou abre um deadlock.
    */
-  async travarNoAno(anoLetivoId: string, ids: readonly string[]): Promise<void> {
+  async lockNoAno(anoLetivoId: string, ids: readonly string[]): Promise<void> {
     if (ids.length === 0) return
     await this.banco
       .select({ id: turma.id })
@@ -228,7 +228,7 @@ export class TurmaRepository {
   }
 
   /** Uma página das turmas do ano em curso, com a série, em ordem de criação e uma linha a mais que diz se há próxima. */
-  async listar({ pagina, limite }: PaginationQuery): Promise<Turma[]> {
+  async list({ pagina, limite }: PaginationQuery): Promise<Turma[]> {
     const escolaId = requireEscolaId()
     const linhas = await this.banco
       .select({ ...colunas, serieId: serie.id, etapa: serie.etapa, ano: serie.ano })

@@ -169,7 +169,7 @@ describe('SandboxDeCpu: o job sintético queima CPU de verdade, fora do event lo
 
 describe('processador sintético', () => {
   const EXECUCAO = { jobId: '0190f5a0-0000-7000-8000-0000000000f1', tentativa: 1, chaveIdempotencia: '0190f5a0-0000-7000-8000-0000000000f1', prazoMs: 90_000 }
-  const semEfeito = { gravar: () => Promise.reject(new Error('sem efeito pedido, nada é gravado')) }
+  const semEfeito = { save: () => Promise.reject(new Error('sem efeito pedido, nada é gravado')) }
 
   it('queima a CPU no sandbox e só então falha, quando pedido', async () => {
     const pedidos: number[] = []
@@ -192,7 +192,7 @@ describe('processador sintético', () => {
     const processar = createSyntheticProcessor(
       { queimar: async () => void passos.push('queimou') },
       {
-        gravar: async (efeito) => {
+        save: async (efeito) => {
           passos.push(`gravou:${efeito.chaveIdempotencia}:${efeito.tentativa}`)
           return true
         },

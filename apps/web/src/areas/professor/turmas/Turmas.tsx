@@ -122,7 +122,7 @@ export default function Turmas() {
     contestar.mutate({ ...contestacao, codigo: contestacao.codigo })
   }
 
-  function abrirContestacao(id: string): void {
+  function openContestacao(id: string): void {
     // Uma contestação por vez. Se o painel está aberto, o resto da página está inerte e este clique não chega; o `contestar.reset`
     // tira o erro da tentativa anterior, que era de outro vínculo.
     contestar.reset()
@@ -140,7 +140,7 @@ export default function Turmas() {
           <Button variante="oficial" onClick={() => confirmar.mutate(vinculo)} disabled={decidindo}>
             {confirmar.isPending && confirmar.variables.id === vinculo.id ? 'Confirmando…' : 'Confirmar'}
           </Button>
-          <Button variante="secundario" onClick={() => abrirContestacao(vinculo.id)} disabled={decidindo}>
+          <Button variante="secundario" onClick={() => openContestacao(vinculo.id)} disabled={decidindo}>
             Contestar
           </Button>
         </div>

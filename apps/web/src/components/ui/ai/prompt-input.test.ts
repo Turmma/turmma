@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dicaDoEnter, podeEnviar, teclaEnvia, textoDoPedido } from './prompt-input'
+import { dicaDoEnter, canEnviar, teclaEnvia, textoDoPedido } from './prompt-input'
 
 describe('caixa de pedido', () => {
   it('Enter envia e Shift+Enter quebra a linha', () => {
@@ -34,12 +34,12 @@ describe('caixa de pedido', () => {
   it('só espaço e quebra de linha não é pedido', () => {
     expect(textoDoPedido('')).toBeUndefined()
     expect(textoDoPedido(' \n\t ')).toBeUndefined()
-    expect(podeEnviar(' \n ', 'pronta')).toBe(false)
+    expect(canEnviar(' \n ', 'pronta')).toBe(false)
   })
 
   it('só a caixa pronta envia: com a resposta chegando ou desligada, um segundo pedido não sai', () => {
-    expect(podeEnviar('oi', 'pronta')).toBe(true)
-    expect(podeEnviar('oi', 'gerando')).toBe(false)
-    expect(podeEnviar('oi', 'desligada')).toBe(false)
+    expect(canEnviar('oi', 'pronta')).toBe(true)
+    expect(canEnviar('oi', 'gerando')).toBe(false)
+    expect(canEnviar('oi', 'desligada')).toBe(false)
   })
 })

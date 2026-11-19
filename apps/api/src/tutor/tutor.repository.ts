@@ -241,13 +241,13 @@ export class TutorDoAlunoRepository {
    * Põe em fila, até o fim da transação, tudo que conta e grava troca deste aluno: dez envios ao mesmo tempo contam um
    * de cada vez, e nenhum passa do freio por ter contado antes de o outro gravar (regra 80, item 7).
    */
-  async travarAluno(): Promise<void> {
+  async lockAluno(): Promise<void> {
     const { escolaId, alunoId } = this.#aluno()
     await this.banco.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`tutor.troca:${escolaId}:${alunoId}`}, 0))`)
   }
 
   /** Grava o que o aluno escreveu, ligado à execução que ele disparou, e devolve o id. É o único lugar em que o texto dele é gravado. */
-  async gravarPergunta(execucaoId: string, turmaId: string, texto: string, onde: ReferenciaDaPergunta): Promise<string> {
+  async savePergunta(execucaoId: string, turmaId: string, texto: string, onde: ReferenciaDaPergunta): Promise<string> {
     const { escolaId, anoLetivoId, alunoId } = this.#aluno()
     const [gravada] = await this.banco
       .insert(mensagemTutor)
@@ -261,7 +261,7 @@ export class TutorDoAlunoRepository {
    * Grava a resposta do Tutor à pergunta, na conversa em que ela foi feita. A reexecução não responde duas vezes: o
    * índice único `(escola_id, execucao_id, autor)` decide, e a segunda relê a que já está gravada (D49).
    */
-  async gravarResposta(pergunta: Pick<PerguntaGravada, 'execucaoId' | 'turmaId' | 'atividadeAplicadaId'>, resposta: RespostaDoTutor): Promise<string> {
+  async saveResposta(pergunta: Pick<PerguntaGravada, 'execucaoId' | 'turmaId' | 'atividadeAplicadaId'>, resposta: RespostaDoTutor): Promise<string> {
     const { escolaId, anoLetivoId, alunoId } = this.#aluno()
     const [gravada] = await this.banco
       .insert(mensagemTutor)
@@ -305,7 +305,7 @@ export class TutorDoAlunoRepository {
    * recebe texto nenhum. O `atencao_humana` vai sem referência (o banco recusa qualquer uma). Reexecução não avisa
    * duas vezes: índice único `(escola_id, execucao_id, tipo)`.
    */
-  async gravarSinal(execucaoId: string, turmaId: string, sinal: SinalAGravar): Promise<void> {
+  async saveSinal(execucaoId: string, turmaId: string, sinal: SinalAGravar): Promise<void> {
     const { escolaId, anoLetivoId, alunoId } = this.#aluno()
     const semReferencia = sinal.tipo === 'atencao_humana'
     await this.banco

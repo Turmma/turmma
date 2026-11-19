@@ -63,24 +63,24 @@ export class RateLimitGuard implements CanActivate {
 
     const requisicao = execucao.switchToHttp().getRequest<IncomingMessage>()
     const marcador = operacaoMarker(this.reflector, execucao)
-    if (marcador === 'rota') return this.#consumirDeOperador(requisicao)
+    if (marcador === 'rota') return this.#consumeDeOperador(requisicao)
     const anonima = isRouteWithoutSessao(this.reflector, execucao)
     const rebaixa = anonima && this.reflector.getAllAndOverride<boolean | undefined>(DOWNGRADE_RATE_LIMIT_KEY, alvos) === true
     if (marcador === 'entrada') {
-      const daOperacao = await this.limitador.consumirDaOperacao(await this.#ipDaRequisicao(requisicao))
+      const daOperacao = await this.limitador.consumeDaOperacao(await this.#ipDaRequisicao(requisicao))
       if (daOperacao.aceita) return true
       if (!rebaixa) throw new DomainException(ErrorCode.LIMITE_EXCEDIDO, undefined, retryAfterSeconds(daOperacao.msAteLiberar))
       ACIMA_DO_LIMITE_DO_IP.add(requisicao)
       return true
     }
     if (rebaixa) {
-      const doLogin = await this.limitador.consumirDoLogin(await this.#ipDaRequisicao(requisicao))
+      const doLogin = await this.limitador.consumeDoLogin(await this.#ipDaRequisicao(requisicao))
       if (!doLogin.aceita) ACIMA_DO_LIMITE_DO_IP.add(requisicao)
       return true
     }
     const resultado = anonima
-      ? await this.limitador.consumirAnonima(await this.#ipDaRequisicao(requisicao))
-      : await this.#consumirAutenticada(requisicao)
+      ? await this.limitador.consumeAnonima(await this.#ipDaRequisicao(requisicao))
+      : await this.#consumeAutenticada(requisicao)
     if (!resultado.aceita) {
       throw new DomainException(ErrorCode.LIMITE_EXCEDIDO, undefined, retryAfterSeconds(resultado.msAteLiberar))
     }
@@ -90,7 +90,7 @@ export class RateLimitGuard implements CanActivate {
       const token = requestToken(requisicao)
       // Sem token verificado (guarda fora de ordem), falha fechada, como no limite autenticado.
       if (token === undefined) throw new DomainException(ErrorCode.NAO_AUTENTICADO)
-      const daBusca = await this.limitador.consumirDaBuscaDeTitulares(token.usuarioId)
+      const daBusca = await this.limitador.consumeDaBuscaDeTitulares(token.usuarioId)
       if (!daBusca.aceita) {
         throw new DomainException(ErrorCode.LIMITE_EXCEDIDO, undefined, retryAfterSeconds(daBusca.msAteLiberar))
       }
@@ -99,7 +99,7 @@ export class RateLimitGuard implements CanActivate {
     if (!anonima && this.reflector.getAllAndOverride<boolean | undefined>(IMPORTACAO_RATE_LIMIT_KEY, alvos) === true) {
       const token = requestToken(requisicao)
       if (token === undefined) throw new DomainException(ErrorCode.NAO_AUTENTICADO)
-      const daImportacao = await this.limitador.consumirDaImportacao(token.usuarioId)
+      const daImportacao = await this.limitador.consumeDaImportacao(token.usuarioId)
       if (!daImportacao.aceita) {
         throw new DomainException(ErrorCode.LIMITE_EXCEDIDO, undefined, retryAfterSeconds(daImportacao.msAteLiberar))
       }
@@ -107,10 +107,10 @@ export class RateLimitGuard implements CanActivate {
     return true
   }
 
-  async #consumirDeOperador(requisicao: IncomingMessage): Promise<true> {
+  async #consumeDeOperador(requisicao: IncomingMessage): Promise<true> {
     const token = await tokenDeOperadorOuNada(requisicao.headers.authorization, this.identidade)
     if (token === undefined) return true
-    const resultado = await this.limitador.consumirDeOperador(token.operadorId)
+    const resultado = await this.limitador.consumeDeOperador(token.operadorId)
     if (!resultado.aceita) {
       throw new DomainException(ErrorCode.LIMITE_EXCEDIDO, undefined, retryAfterSeconds(resultado.msAteLiberar))
     }
@@ -122,7 +122,7 @@ export class RateLimitGuard implements CanActivate {
    * leva a escola do token, do qual a configuração tira o escopo: o contexto da requisição continua sem escola até
    * a `SessaoGuard` conferir a sessão.
    */
-  async #consumirAutenticada(requisicao: IncomingMessage) {
+  async #consumeAutenticada(requisicao: IncomingMessage) {
     const token = requestToken(requisicao)
     // Sem token verificado (guarda fora de ordem), falha fechada.
     if (token === undefined) throw new DomainException(ErrorCode.NAO_AUTENTICADO)
@@ -130,7 +130,7 @@ export class RateLimitGuard implements CanActivate {
     if (requisicaoId === undefined) throw new InvariantException('contexto da requisição ausente')
     const identidade = { escolaId: token.escolaId, usuarioId: token.usuarioId }
     const limites = await runInContext({ requisicaoId, escolaId: token.escolaId }, () => this.limitesDaEscola.daEscola())
-    return this.limitador.consumirAutenticada(identidade, limites)
+    return this.limitador.consumeAutenticada(identidade, limites)
   }
 
   #ipDaRequisicao(requisicao: IncomingMessage): Promise<string> {
@@ -142,11 +142,11 @@ export class RateLimitGuard implements CanActivate {
  * O IP do cliente: o da conexão, ou a última entrada do `X-Forwarded-For` quando a conexão vem da borda. É o mesmo
  * IP da chave de limite anônimo e o que o registro de acesso grava. Pode ser `IP_DESCONHECIDO`.
  */
-export async function requestIp(requisicao: IncomingMessage, proxies: Pick<TrustedProxies, 'ehConfiavel'>): Promise<string> {
+export async function requestIp(requisicao: IncomingMessage, proxies: Pick<TrustedProxies, 'isConfiavel'>): Promise<string> {
   const enderecoDaConexao = requisicao.socket.remoteAddress
   const encaminhado = requisicao.headers['x-forwarded-for']
   // Sem cabeçalho, nem precisa perguntar se a conexão é da borda.
-  const daBorda = encaminhado !== undefined && (await proxies.ehConfiavel(enderecoDaConexao))
+  const daBorda = encaminhado !== undefined && (await proxies.isConfiavel(enderecoDaConexao))
   return clientIp(enderecoDaConexao, encaminhado, daBorda)
 }
 

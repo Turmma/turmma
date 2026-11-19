@@ -77,10 +77,10 @@ describe('o analisador enxerga o código real', () => {
     expect(cegos).toEqual([])
   })
 
-  it('AlunosAtivosRepository.contar é o caso conhecido: toca o banco e prova o escopo pelo contexto', () => {
+  it('AlunosAtivosRepository.count é o caso conhecido: toca o banco e prova o escopo pelo contexto', () => {
     const fonte = repositories.find((candidato) => candidato.caminho === 'apps/api/src/sessao/atividade/alunos-ativos.repository.ts')
     expect(fonte).toBeDefined()
-    const contar = analisarFonte(fonte as ArquivoFonte).metodos.find((metodo) => metodo.nome === 'contar')
+    const contar = analisarFonte(fonte as ArquivoFonte).metodos.find((metodo) => metodo.nome === 'count')
     expect(contar).toMatchObject({ classe: 'AlunosAtivosRepository', tocaBanco: true, prova: 'contexto' })
   })
 
@@ -134,13 +134,13 @@ describe('a lista real só encolhe', () => {
   it('é exatamente esta, por arquivo e por método: uma entrada a mais ou a menos muda este teste', () => {
     expect(REPOSITORIES_SEM_ESCOPO.map((entrada) => [entrada.arquivo, entrada.metodos])).toEqual([
       ['apps/api/src/assistente/turma-do-professor.repository.ts', ['comVinculoConfirmadoDoProfessor', 'disciplinaDoArtefato', 'disciplinaDaEntrega']],
-      ['apps/api/src/operacao/operador/operador.repository.ts', ['autorAtivoNaTransacao', 'travarOperadores', 'situacaoDoAutor', 'ativoParaAtualizar', 'contarAtivos', 'criar', 'criarConvite', 'revogarConvitePendente', 'desativar', 'apagarCodigosDeRecuperacao', 'encerrarSessoes', 'lerSessaoParaGuarda', 'marcarUsoDaSessao', 'sessaoParaRenovar', 'rotacionarSessao', 'encerrarSessao', 'encerrarSessaoPelaSaida', 'daSessao', 'conviteValidoPorHash', 'aceitarConvite', 'gravarSegredoParaConfigurar', 'trocarCodigosDeRecuperacao', 'ativoParaSegundoFator', 'avancarPassoDoSegundoFator', 'usarCodigoDeRecuperacao', 'ativarSegundoFator', 'abrirSessao', 'credencialDeEntrada', 'registrarFalhaDeEntrada', 'registrarAcesso', 'auditar']],
-      ['apps/api/src/ops/operacao-privacidade.repository.ts', ['cadastrar', 'travarVigente', 'encerrar', 'registrarIncidente']],
+      ['apps/api/src/operacao/operador/operador.repository.ts', ['autorAtivoNaTransacao', 'lockOperadores', 'situacaoDoAutor', 'ativoParaAtualizar', 'countAtivos', 'create', 'createConvite', 'revogarConvitePendente', 'desativar', 'deleteCodigosDeRecuperacao', 'encerrarSessoes', 'findSessaoParaGuarda', 'marcarUsoDaSessao', 'sessaoParaRenovar', 'rotacionarSessao', 'encerrarSessao', 'encerrarSessaoPelaSaida', 'daSessao', 'conviteValidoPorHash', 'aceitarConvite', 'saveSegredoParaConfigurar', 'trocarCodigosDeRecuperacao', 'ativoParaSegundoFator', 'avancarPassoDoSegundoFator', 'usarCodigoDeRecuperacao', 'ativarSegundoFator', 'openSessao', 'credencialDeEntrada', 'registrarFalhaDeEntrada', 'registrarAcesso', 'auditar']],
+      ['apps/api/src/ops/operacao-privacidade.repository.ts', ['cadastrar', 'lockVigente', 'encerrar', 'registrarIncidente']],
       ['apps/api/src/privacidade/titulares.repository.ts', ['homonimo']],
-      ['packages/core/src/auditoria/auditoria.repository.ts', ['listarDaEscola']],
+      ['packages/core/src/auditoria/auditoria.repository.ts', ['listDaEscola']],
       ['packages/core/src/auditoria/auditoria-insert.repository.ts', ['insertAuditoria']],
-      ['packages/core/src/queue/job-outbox.repository.ts', ['inserir', 'inserirUmaVez', 'buscarDaEscola', 'localizarParaExecucao', 'iniciarExecucao', 'concluir', 'devolverAoPublicado', 'reabrirFalho', 'descartarFalho', 'avisarVagaLivre', 'registrarFalha']],
-      ['packages/core/src/identidade/sessao.repository.ts', ['lerParaGuarda', 'marcarAtualApresentado']],
+      ['packages/core/src/queue/job-outbox.repository.ts', ['insert', 'insertUmaVez', 'findDaEscola', 'localizarParaExecucao', 'startExecucao', 'concluir', 'devolverAoPublicado', 'reabrirFalho', 'descartarFalho', 'avisarVagaLivre', 'registrarFalha']],
+      ['packages/core/src/identidade/sessao.repository.ts', ['findParaGuarda', 'marcarAtualApresentado']],
       ['packages/core/src/titular/compartilhamento.repository.ts', ['datasDeReferencia']],
     ])
   })

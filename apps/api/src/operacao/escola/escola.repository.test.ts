@@ -25,8 +25,8 @@ function arquivosDeCodigo(): { caminho: string; texto: string }[] {
 const CRIACAO_DE_REDE_OU_ESCOLA = /\binsert\s*\(\s*(?:schema\.)?(?:rede|escola)\b|\binsert\s+into\s+(?:"?public"?\.)?"?(?:rede|escola)"?[\s(]/i
 
 /**
- * Quem, fora de arquivo `.test.ts`, importa o caso de uso (`operacao/escola/escola.ts`, que exporta `criarRede` e
- * `criarEscola`): o painel da operação (`painel.service.ts`, A0b), a única rota que cria rede e escola, só com sessão de
+ * Quem, fora de arquivo `.test.ts`, importa o caso de uso (`operacao/escola/escola.ts`, que exporta `createRede` e
+ * `createEscola`): o painel da operação (`painel.service.ts`, A0b), a única rota que cria rede e escola, só com sessão de
  * operador Turmma; o comando `ops:escola` (`ops/escola.ts`), que é o terminal sobre ele; e o que monta escola sintética: a bancada dos testes de integração da API (que desde a tarefa 2.0 exige sessão real), a
  * bancada da fila (desde a tarefa 3.0 `job_registro` tem FK para `escola`), o ensaio de alertas, que só roda com
  * `AMBIENTE=local`, e os cenários de carga "login às 7h30" (16.0) e "reivindicação em sala" (A1, 9.0), que montam as
@@ -56,8 +56,8 @@ describe('RedeEEscolaRepository: a criação de rede e escola é só do operador
   it('só criarRede e criarEscola saem sem escopo, cada um com justificativa que cita o comando ou o painel do operador', () => {
     const metodos = Object.getOwnPropertyNames(RedeEEscolaRepository.prototype).filter((nome) => nome !== 'constructor')
     const semEscopo = metodos.filter((metodo) => unscopedJustification(RedeEEscolaRepository, metodo) !== undefined)
-    expect(metodos.sort()).toEqual(['criarEscola', 'criarRede'])
-    expect(semEscopo.sort()).toEqual(['criarEscola', 'criarRede'])
+    expect(metodos.sort()).toEqual(['createEscola', 'createRede'])
+    expect(semEscopo.sort()).toEqual(['createEscola', 'createRede'])
     for (const metodo of semEscopo) expect(unscopedJustification(RedeEEscolaRepository, metodo), metodo).toMatch(/comando ou o painel do operador/)
   })
 

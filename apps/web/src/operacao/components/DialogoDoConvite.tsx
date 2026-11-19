@@ -38,7 +38,7 @@ function mandeACoordenadora(escolaNome: string) {
  * convida o professor (A1, 14.0); daqui vêm a moldura da operação, com o aviso de inatividade, os textos e a mutação do
  * painel. O token vive só na mutação deste diálogo: cada abertura é outra instância (a `key` da abertura), e a resposta
  * que chega depois de o diálogo fechar não cai em nenhum outro — nem num aberto para outra escola. Por isso o gerar não
- * chama o `fecharSeAinda` da tela: a resposta dele não fecha nada, e só preenche o diálogo que a pediu.
+ * chama o `closeSeAinda` da tela: a resposta dele não fecha nada, e só preenche o diálogo que a pediu.
  */
 export function GerarConvite({ escola, aoFechar, focoDeReserva }: Props) {
   const clienteDeConsultas = useQueryClient()
@@ -52,7 +52,7 @@ export function GerarConvite({ escola, aoFechar, focoDeReserva }: Props) {
         </>
       }
       rotulos={{ nome: 'Nome da coordenadora', email: 'E-mail da coordenadora' }}
-      validar={pedidoDeConvite}
+      validate={pedidoDeConvite}
       tituloDaRevisao="Confira antes de gerar"
       resumo={(pedido) => [
         { rotulo: 'Escola', valor: escola.nome },

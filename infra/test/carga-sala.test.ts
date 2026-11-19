@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
-import { lerTextoDaLista } from '../../apps/api/src/estrutura/lista/lista-reader.ts'
+import { readTextoDaLista } from '../../apps/api/src/estrutura/lista/lista-reader.ts'
 import { classificar } from '../../packages/core/src/importacao/tipos/alunos.ts'
 import { raizRepositorio } from '../../tools/ci/executar.ts'
 import { CODIGO_THRESHOLD_CRUZADO, lerAmbienteDeCarga } from '../scripts/carga.ts'
@@ -122,7 +122,7 @@ describe('os alunos do cenário "reivindicação em sala"', () => {
   it('a lista que a coordenação cola passa pelo leitor da lista da API sem erro nenhum, e é só da turma', () => {
     for (const fase of FASES_DO_CENARIO) {
       const alunos = montarAlunos(ESCALA[fase])
-      const linhas = lerTextoDaLista(textoDaLista(alunos, 3))
+      const linhas = readTextoDaLista(textoDaLista(alunos, 3))
       expect(linhas, fase).toHaveLength(ALUNOS_POR_TURMA)
       // A classificação da planilha de alunos, com a turma dada: nenhuma linha da lista da carga tem erro.
       const turma = { id: 'turma-da-carga', nome: 'Turma 04', chave: null, serie: { id: 'serie-da-carga', etapa: 'em' as const, ano: 1 } }

@@ -37,7 +37,7 @@ export class SyntheticEffectRepository {
   constructor(private readonly banco: Database) {}
 
   /** Grava o efeito da execução. Devolve `false` quando outra execução do mesmo job já o gravou. */
-  async gravar({ chaveIdempotencia, tentativa }: SyntheticEffect): Promise<boolean> {
+  async save({ chaveIdempotencia, tentativa }: SyntheticEffect): Promise<boolean> {
     const escolaId = requireEscolaId()
     const resultado = await this.banco.execute(sql`
       insert into ${sql.identifier(SYNTHETIC_EFFECT_TABLE)} (escola_id, chave_idempotencia, tentativa)

@@ -80,7 +80,7 @@ export class PrivacidadeController {
   @TitularSearchRateLimit()
   @HttpCode(HttpStatus.OK)
   @Header('Cache-Control', 'no-store')
-  buscarTitulares(@Body(new ZodValidationPipe(buscaDeTitularesSchema)) busca: BuscaDeTitulares): Promise<BuscaDeTitularesResponse> {
+  findTitulares(@Body(new ZodValidationPipe(buscaDeTitularesSchema)) busca: BuscaDeTitulares): Promise<BuscaDeTitularesResponse> {
     return this.privacidade.buscaDeTitulares(busca.termo)
   }
 

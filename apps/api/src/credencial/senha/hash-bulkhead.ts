@@ -137,7 +137,7 @@ export class HashBulkhead {
    * Roda `tarefa` quando o balde tiver a vez, e devolve o resultado dela. A vez é devolvida quando a tarefa termina,
    * com sucesso ou erro. Sem vez em 2 s, lança o 503, e a tarefa não roda.
    */
-  async executar<T>(balde: LoginBucket, tarefa: () => Promise<T>): Promise<T> {
+  async run<T>(balde: LoginBucket, tarefa: () => Promise<T>): Promise<T> {
     await this.#aguardarVez(balde)
     try {
       return await tarefa()
@@ -329,7 +329,7 @@ const BALDE_UNICO = 'unico'
  * A métrica de espera continua com o rótulo do balde de verdade.
  */
 export class UnprotectedHashBulkhead extends HashBulkhead {
-  override executar<T>(balde: LoginBucket, tarefa: () => Promise<T>): Promise<T> {
-    return super.executar({ id: BALDE_UNICO, subfila: '', rotulo: balde.rotulo, rebaixado: false }, tarefa)
+  override run<T>(balde: LoginBucket, tarefa: () => Promise<T>): Promise<T> {
+    return super.run({ id: BALDE_UNICO, subfila: '', rotulo: balde.rotulo, rebaixado: false }, tarefa)
   }
 }

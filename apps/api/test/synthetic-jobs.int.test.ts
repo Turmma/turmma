@@ -130,7 +130,7 @@ describe('POST e GET /v1/sistema/jobs-sinteticos', () => {
 
       expect((await consultar())['estado']).toBe('aguardando')
       bancada.worker(new InMemoryLog('worker'))
-      bancada.despachante(new InMemoryLog('despachante')).despachante.iniciar()
+      bancada.despachante(new InMemoryLog('despachante')).despachante.start()
 
       await expect.poll(async () => (await consultar())['estado'], { timeout: 10_000, interval: 100 }).toBe('ativo')
       expect(await consultar()).toEqual({ estado: 'ativo', criadoEm: expect.any(String), iniciadoEm: expect.any(String) })

@@ -234,7 +234,7 @@ function modeloContado(fila: FilaDeIa, { segurar = false }: { segurar?: boolean 
     chamadas += 1
     chegou()
     await liberacao
-    return fila.falso().gerar(pedido as Parameters<ReturnType<FilaDeIa['falso']>['gerar']>[0])
+    return fila.falso().generate(pedido as Parameters<ReturnType<FilaDeIa['falso']>['generate']>[0])
   }
   fila.comModelo(modelo)
   return { chamadas: () => chamadas, naChamada, liberar }
@@ -323,7 +323,7 @@ describe('a execução interrompida: a reentrega e a varredura (adaptador falso)
       await sql('insert into configuracao_operacional_escola (escola_id, tutor_trocas_por_dia) values ($1, 1) on conflict (escola_id) do update set tutor_trocas_por_dia = 1', [a.escolaId])
       const perguntar = (execucaoId: string) =>
         sql(`insert into mensagem_tutor (escola_id, ano_letivo_id, turma_id, aluno_id, execucao_id, autor, texto) values ($1, $2, $3, $4, $5, 'aluno', 'não entendi')`, [a.escolaId, a.anoLetivoId, a.turma, a.aluno.usuarioId, execucaoId])
-      const consultar = () => fila.como(a.escolaId, a.aluno.usuarioId, () => new OrcamentoRepository(fila.banco).consultar({ funcao: 'tutor_com_o_aluno', alunoId: a.aluno.usuarioId }))
+      const consultar = () => fila.como(a.escolaId, a.aluno.usuarioId, () => new OrcamentoRepository(fila.banco).check({ funcao: 'tutor_com_o_aluno', alunoId: a.aluno.usuarioId }))
       const interrompida = await semear(a, { tarefa: 'turno_do_tutor', por: a.aluno, haSegundos: 20 })
       await perguntar(interrompida)
       // A pergunta em andamento conta no freio (limite 1): é o controle de que a consulta enxerga a pergunta.

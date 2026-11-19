@@ -99,7 +99,7 @@ const colunasDoLote = {
  *
  * **Leitura e decisão são da professora com vínculo `confirmado` na turma do lote e na disciplina do artefato**
  * (regra 10, itens 3 e 4): escola, ano e pessoa vêm do contexto, a turma e a disciplina, da própria linha. O que
- * grava correção (`criarLote`) só é chamado de dentro do encerramento, depois de a aplicação ser achada no alcance e
+ * grava correção (`createLote`) só é chamado de dentro do encerramento, depois de a aplicação ser achada no alcance e
  * travada.
  *
  * Nenhuma coluna daqui guarda nota, conceito ou texto sobre o aluno (D46, D55, D57).
@@ -136,7 +136,7 @@ export class CorrecaoRepository {
    * O lote com esse id de entrega, no alcance, **travado para a decisão** (`for update`): o segundo clique em aprovar
    * espera o primeiro e relê a entrega já decidida (regra 80, item 7). A versão adaptada não é lote: não é achada.
    */
-  async travarLote(entregaId: string): Promise<LoteLido | undefined> {
+  async lockLote(entregaId: string): Promise<LoteLido | undefined> {
     const [linha] = await this.#lotes(eq(entrega.id, entregaId)).for('update', { of: entrega })
     return linha
   }
@@ -148,7 +148,7 @@ export class CorrecaoRepository {
   }
 
   /** Se a aplicação já tem lote que não foi rejeitado (pendente ou aprovado): é o que faz o segundo encerramento não corrigir de novo. */
-  async temLoteVigente(atividadeAplicadaId: string): Promise<boolean> {
+  async hasLoteVigente(atividadeAplicadaId: string): Promise<boolean> {
     const [linha] = await this.banco
       .select({ id: entrega.id })
       .from(entrega)
@@ -220,7 +220,7 @@ export class CorrecaoRepository {
    * O lote e as correções dele, juntos: a entrega nasce `pendente`, da função `correcao_de_objetiva`, na turma da
    * aplicação. O índice único parcial (um lote não rejeitado por aplicação) é a segunda barreira contra o segundo lote.
    */
-  async criarLote(aplicacao: { readonly id: string; readonly turmaId: string }, correcoes: readonly NovaCorrecao[]): Promise<string> {
+  async createLote(aplicacao: { readonly id: string; readonly turmaId: string }, correcoes: readonly NovaCorrecao[]): Promise<string> {
     const escolaId = requireEscolaId()
     const anoLetivoId = requireAnoEmCurso()
     const [criada] = await this.banco
@@ -258,7 +258,7 @@ export class CorrecaoRepository {
    * Registra a abertura do destaque, **uma vez só**: quem abriu e quando (D56). `false` é o destaque que já estava
    * aberto (a primeira hora fica) ou a correção sem destaque, que não se abre.
    */
-  async abrirDestaque(entregaId: string, alunoId: string): Promise<boolean> {
+  async openDestaque(entregaId: string, alunoId: string): Promise<boolean> {
     const abertas = await this.banco
       .update(correcao)
       .set({ destaqueAbertoEm: sql`now()`, destaqueAbertoPor: requestSessao().usuarioId })
@@ -277,7 +277,7 @@ export class CorrecaoRepository {
   }
 
   /** O registro da validação (D56), com a pessoa da sessão como quem confirmou e a hora do banco. Uma por lote (índice único). */
-  async gravarValidacao(lote: { readonly entregaId: string; readonly atividadeAplicadaId: string }, apresentado: LoteApresentado, aberto: DestaquesAbertos): Promise<string> {
+  async saveValidacao(lote: { readonly entregaId: string; readonly atividadeAplicadaId: string }, apresentado: LoteApresentado, aberto: DestaquesAbertos): Promise<string> {
     const [gravada] = await this.banco
       .insert(validacaoDoLote)
       .values({ escolaId: requireEscolaId(), anoLetivoId: requireAnoEmCurso(), entregaId: lote.entregaId, atividadeAplicadaId: lote.atividadeAplicadaId, apresentado, aberto, confirmadaPor: requestSessao().usuarioId })

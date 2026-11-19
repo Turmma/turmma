@@ -98,7 +98,7 @@ export const gerarPlanoDeAula = defineTask({
   levaTextoDeAluno: false,
   categoriasEnviadas: ['material_da_escola'],
 
-  montarPedido(entrada) {
+  buildPedido(entrada) {
     return {
       instrucao: `Monte um plano de aula de ${entrada.duracaoMinutos} minutos sobre o tema pedido, a partir dos trechos do material.`,
       dados: [

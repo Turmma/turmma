@@ -4,9 +4,9 @@ import {
   ContaDaPlanilhaPerdidaError,
   convidarProfessorDaPlanilha,
   createDatabase,
-  ehFalhaDeTrava,
+  isFalhaDeTrava,
   createPool,
-  executarPlanilha,
+  runPlanilha,
   MotorDePlanilha,
   runInContext,
   schema,
@@ -22,7 +22,7 @@ import { compose, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { esperarNaTrava, WriteBlockTrigger } from '../../api/test/write-block-trigger.js'
-import { criarGravacaoDaPlanilha } from '../src/processors/gravar-planilha.js'
+import { createGravacaoDaPlanilha } from '../src/processors/gravar-planilha.js'
 import { jobExecution } from './job-execution.fixture.js'
 import { InMemoryLog, QueueFixtures } from './queue.fixture.js'
 
@@ -65,14 +65,14 @@ describe('estrutura.gravar-planilha, planilha de professores', () => {
   /** O pool dos jobs em corrida e das paradas: o da bancada tem poucas conexões, e cada parada segura uma. */
   let apoio: DatabasePool
   let bancoDoJob: Database
-  let gravacao: ReturnType<typeof criarGravacaoDaPlanilha>
+  let gravacao: ReturnType<typeof createGravacaoDaPlanilha>
   const sqlDoJob: string[] = []
   const parametrosDoJob: unknown[][] = []
 
   beforeAll(() => {
     apoio = createPool({ url: urlDoBancoDeTeste(), maximoConexoes: 10, timeoutConexaoMs: 5_000, timeoutConsultaMs: 30_000 }, () => undefined)
     bancoDoJob = createDatabase(apoio)
-    gravacao = criarGravacaoDaPlanilha({ banco: bancoDoJob, logger: log.logger, medidor: medidor.medidor })
+    gravacao = createGravacaoDaPlanilha({ banco: bancoDoJob, logger: log.logger, medidor: medidor.medidor })
   })
 
   afterAll(async () => {
@@ -123,7 +123,7 @@ describe('estrutura.gravar-planilha, planilha de professores', () => {
   function gravar(escola: Escola, planilha: string, desligar: readonly string[] = []): Promise<string> {
     const motor = new MotorDePlanilha(bancada.banco, { enfileirar: () => Promise.resolve(randomUUID()) })
     const contexto = { requisicaoId: randomUUID(), escolaId: escola.escolaId, usuarioId: escola.coordenadorId, papel: 'coordenador' as const, sessaoId: randomUUID(), ...(escola.anoId === undefined ? {} : { anoLetivoId: escola.anoId }) }
-    return runInContext(contexto, async () => (await motor.gravar('professores', { texto: planilha, marcas: { ...SEM_MARCAS, desligar: [...desligar] } })).id)
+    return runInContext(contexto, async () => (await motor.save('professores', { texto: planilha, marcas: { ...SEM_MARCAS, desligar: [...desligar] } })).id)
   }
 
   /** Uma tentativa do job, como o executor a entrega: no contexto da escola da linha do outbox. */
@@ -423,7 +423,7 @@ describe('estrutura.gravar-planilha, planilha de professores', () => {
         },
       },
     }) as unknown as Database
-    const espiao = criarGravacaoDaPlanilha({ banco: espiado, logger: log.logger })
+    const espiao = createGravacaoDaPlanilha({ banco: espiado, logger: log.logger })
 
     await tentar(escola.escolaId, id, 1, espiao)
 
@@ -594,7 +594,7 @@ describe('estrutura.gravar-planilha, planilha de professores', () => {
     const escola = await escolaNova()
     const id = await gravar(escola, texto(`Sem Worker;${emailDe('sem-worker')}`))
 
-    const rodar = (opcoes: Parameters<typeof executarPlanilha>[2]) => runInContext({ requisicaoId: randomUUID(), escolaId: escola.escolaId }, () => executarPlanilha(bancoDoJob, id, opcoes))
+    const rodar = (opcoes: Parameters<typeof runPlanilha>[2]) => runInContext({ requisicaoId: randomUUID(), escolaId: escola.escolaId }, () => runPlanilha(bancoDoJob, id, opcoes))
 
     await expect(rodar({})).rejects.toThrow('achar-ou-criar conta')
     // Só com o achar-ou-criar: sem a trava das contas o job também não começa, e nenhuma conta nasce.
@@ -642,7 +642,7 @@ describe('estrutura.gravar-planilha, planilha de professores', () => {
     try {
       await segurador.query('begin')
       await segurador.query('select pg_advisory_xact_lock($1, hashtext($2::uuid::text))', [CHAVE_DA_TRAVA_DO_CONVITE_DA_ESCOLA, escola.escolaId])
-      await expect(tentar(escola.escolaId, id, 1)).rejects.toSatisfy(ehFalhaDeTrava)
+      await expect(tentar(escola.escolaId, id, 1)).rejects.toSatisfy(isFalhaDeTrava)
       expect((await importacao(id)).estado).toBe('na_fila')
       expect(await professorDe(escola.escolaId, email)).toBeUndefined()
     } finally {

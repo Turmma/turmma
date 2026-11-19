@@ -3,7 +3,7 @@ import { JOB_DEFINITIONS, QUEUE_NAMES, type QueueName, type JobRegistry } from '
 import { Redis } from 'ioredis'
 import { afterAll, describe, expect, it } from 'vitest'
 import type { StorageConfig } from './config.js'
-import { criarEnvios } from './processors/enviar-email.js'
+import { createEnvios } from './processors/enviar-email.js'
 import { createProcessors, pecasDoEmail } from './composition.js'
 
 // A ligação entre o registro de jobs (`JOB_DEFINITIONS`, em `packages/shared`) e o que cada réplica do worker sabe executar
@@ -30,13 +30,13 @@ async function tiposDaReplicaDa(fila: QueueName, comEmail = true): Promise<strin
     { pools: { [fila]: 1 }, storage: STORAGE, janelaPadrao: JANELA },
     {
       banco,
-      ...(comEmail ? { email: { envios: criarEnvios(banco), emissor: new FakeEmailSender(), cifra: new SecretCipher(1, new Map([[1, new Uint8Array(32)]])), limite: new LimiteDeEmailPorMinuto(redis, 60), urlDaWeb: 'http://web.teste' } } : {}),
+      ...(comEmail ? { email: { envios: createEnvios(banco), emissor: new FakeEmailSender(), cifra: new SecretCipher(1, new Map([[1, new Uint8Array(32)]])), limite: new LimiteDeEmailPorMinuto(redis, 60), urlDaWeb: 'http://web.teste' } } : {}),
       uso: new UsageMeter(redis),
       relogio: { agora: () => new Date('2026-10-22T10:00:00-03:00') },
       logger: createLogger({ servico: 'worker-teste', nivel: 'silent' }),
       medidor: undefined,
       cpu: { queimar: () => Promise.resolve() },
-      efeitos: { gravar: () => Promise.resolve(true) },
+      efeitos: { save: () => Promise.resolve(true) },
       armazem: new InMemoryFileStorage(),
     },
   )

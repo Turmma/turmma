@@ -1,5 +1,5 @@
 import {
-  ehAssuntoDelicado,
+  isAssuntoDelicado,
   DomainException,
   LLMError,
   MODELO_DA_REGRA_FIXA,
@@ -87,7 +87,7 @@ export class TutorService {
   ) {}
 
   /** `POST /v1/tutor/mensagens`: confere, grava a pergunta com a execução e responde o id dela. */
-  async enviar(pedido: MensagemAoTutorRequest): Promise<ExecucaoAceitaResponse> {
+  async send(pedido: MensagemAoTutorRequest): Promise<ExecucaoAceitaResponse> {
     // A turma e a atividade primeiro: o material aberto só se confere depois da D36, para a mensagem fixa nunca depender dele.
     const daTurma = await this.alcanceDoAluno.alcance(pedido)
     const { turmaId } = daTurma.turma
@@ -98,7 +98,7 @@ export class TutorService {
     if (jaAceita !== undefined && jaAceita.tarefa !== turnoDoTutor.nome) throw new DomainException(ErrorCode.CONFLITO)
 
     // Antes de tudo, até da avaliação aberta: a trava existe para o Tutor não ajudar na prova, e a mensagem fixa não ajuda em prova nenhuma.
-    if (ehAssuntoDelicado(pedido.texto)) return jaAceita === undefined ? this.#encaminhar(pedido, daTurma) : { execucaoId: jaAceita.id }
+    if (isAssuntoDelicado(pedido.texto)) return jaAceita === undefined ? this.#encaminhar(pedido, daTurma) : { execucaoId: jaAceita.id }
 
     // Só depois da D36: o material aberto que saiu do alcance (edição substituída, licença vencida) responde como o inexistente, e a turma sem material da série é recusada, sem nada na conversa.
     // No reenvio da chave já aceita, não: o pedido existe, e o material que saiu do alcance depois do `202` falha a execução (o `preparar` do comando), não a resposta do reenvio.
@@ -109,13 +109,13 @@ export class TutorService {
     // Por aluno e por escola, nunca por IP: a turma inteira sai pelo mesmo endereço (regra 80, item 1). Depois do assunto
     // delicado, e não antes: às 10h, com seis turmas, o teto da escola se esgota, e o aluno que escreve sobre se machucar
     // receberia "espere um minuto" no lugar do 188 (D36). O encaminhamento não chama modelo, então não há o que proteger.
-    await this.limite.contar()
+    await this.limite.count()
 
     if (jaAceita === undefined && (await new TutorDoAlunoRepository(this.banco).avaliativaAberta(turmaId)) !== undefined) throw new DomainException(ErrorCode.TUTOR_PAUSADO_EM_AVALIACAO)
 
     if (jaAceita === undefined) {
       // Sem a trava: recusa na hora quem já está no limite. A conta que vale é a de dentro da transação, abaixo.
-      const decisao = await this.orcamento.consultar({ funcao: FUNCAO_DO_TUTOR, alunoId, turmaId })
+      const decisao = await this.orcamento.check({ funcao: FUNCAO_DO_TUTOR, alunoId, turmaId })
       if (!decisao.permitido) throw new LLMError(decisao.codigo, decisao.tenteDeNovoEmSegundos)
     }
 
@@ -127,11 +127,11 @@ export class TutorService {
       // Na requisição, na transação do `pendente`: o freio do dia, o pacote do mês e a pergunta do aluno. O resto é do comando.
       aoGravar: async (tx, execucaoId) => {
         const tutor = new TutorDoAlunoRepository(tx, this.relogio)
-        await tutor.travarAluno()
-        const decisao = await new OrcamentoRepository(tx, this.relogio).consultar({ funcao: FUNCAO_DO_TUTOR, alunoId, turmaId, execucaoId })
+        await tutor.lockAluno()
+        const decisao = await new OrcamentoRepository(tx, this.relogio).check({ funcao: FUNCAO_DO_TUTOR, alunoId, turmaId, execucaoId })
         // Recusar aqui desfaz a transação: nem a execução nem a pergunta ficam gravadas, e a troca não é contada.
         if (!decisao.permitido) throw new LLMError(decisao.codigo, decisao.tenteDeNovoEmSegundos)
-        await tutor.gravarPergunta(execucaoId, turmaId, pedido.texto, onde)
+        await tutor.savePergunta(execucaoId, turmaId, pedido.texto, onde)
       },
     })
   }
@@ -151,7 +151,7 @@ export class TutorService {
     if (fixa === undefined || fixa.classificacao !== 'assunto_delicado') throw new LLMError('IA_SAIDA_INVALIDA')
     const execucaoId = await this.banco.transaction(async (tx) => {
       const execucoes = new ExecucaoDaSessaoRepository(tx)
-      const nova = await execucoes.gravarPendente(turnoDoTutor.nome, pedido.chaveEnvio, { tarefa: 'turno_do_tutor' })
+      const nova = await execucoes.savePendente(turnoDoTutor.nome, pedido.chaveEnvio, { tarefa: 'turno_do_tutor' })
       if (nova === undefined) {
         // A chave entrou entre a consulta e a gravação: se foi este aluno, é o reenvio; se não, é como se não existisse.
         const existente = await execucoes.daChave(pedido.chaveEnvio)
@@ -161,9 +161,9 @@ export class TutorService {
       }
       const tutor = new TutorDoAlunoRepository(tx, this.relogio)
       const naConversa = { execucaoId: nova, turmaId: alcance.turma.turmaId, atividadeAplicadaId: alcance.atividade?.id ?? null }
-      await tutor.gravarPergunta(nova, naConversa.turmaId, pedido.texto, { atividadeAplicadaId: naConversa.atividadeAplicadaId, questao: null, materialId: null, pagina: null })
-      const mensagemId = await tutor.gravarResposta(naConversa, { tipo: 'assunto_delicado', texto: fixa.resposta })
-      await tutor.gravarSinal(nova, naConversa.turmaId, { tipo: 'atencao_humana' })
+      await tutor.savePergunta(nova, naConversa.turmaId, pedido.texto, { atividadeAplicadaId: naConversa.atividadeAplicadaId, questao: null, materialId: null, pagina: null })
+      const mensagemId = await tutor.saveResposta(naConversa, { tipo: 'assunto_delicado', texto: fixa.resposta })
+      await tutor.saveSinal(nova, naConversa.turmaId, { tipo: 'atencao_humana' })
       const estados = new ExecucaoRepository(tx)
       if (!(await estados.marcarRodando(nova)) || !(await estados.concluirRodando(nova, { tipo: 'mensagem_do_tutor', mensagemId }))) throw new LLMError('IA_INDISPONIVEL')
       await new ConsumoRepository(tx).registrar({
@@ -208,7 +208,7 @@ export class TutorService {
     const { usuarioId: alunoId } = requestSessao()
     let estado: EstadoDoTutor = 'ligado'
     if (avaliacaoAberta !== null) estado = 'avaliacao'
-    else if (!(await this.orcamento.consultar({ funcao: FUNCAO_DO_TUTOR, alunoId, turmaId })).permitido) estado = 'limite'
+    else if (!(await this.orcamento.check({ funcao: FUNCAO_DO_TUTOR, alunoId, turmaId })).permitido) estado = 'limite'
     return conversaDoTutorResponseSchema.parse({ estado, uso: await tutor.usoDeHoje(), avaliacaoAberta, mensagens: pagina.reverse().map(paraATela), ...(anterior === undefined ? {} : { anterior }) })
   }
 

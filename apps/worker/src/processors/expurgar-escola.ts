@@ -27,14 +27,14 @@ export const LOTE_DOS_ARQUIVOS_DO_TITULAR = 100
 export const LOTE_DOS_OBJETOS_DE_MATERIAL = 100
 
 export interface ExpurgoDaEscolaDependencies {
-  repositorio: Pick<ExpurgoDaEscolaRepository, 'expurgarLote' | 'expurgarRegistroDoExpurgo' | 'registrar' | 'categoriaPendente' | 'enfileirarEliminacoes' | 'fecharImportacoesParadas' | 'fecharEnviosParados' | 'anularProvisoriasVencidas'>
+  repositorio: Pick<ExpurgoDaEscolaRepository, 'expurgarLote' | 'expurgarRegistroDoExpurgo' | 'registrar' | 'categoriaPendente' | 'enfileirarEliminacoes' | 'closeImportacoesParadas' | 'closeEnviosParados' | 'anularProvisoriasVencidas'>
   /** A porta de entrada do trabalho demorado: o job `titular.eliminar` de cada pedido de eliminação vencido sai por ela (F3, tarefa 15.0). */
   enfileirador: Pick<JobOutbox, 'enfileirarUmaVez'>
   /** Os arquivos do titular vencidos ou marcados `apagado_em` (F3, tarefa 13.0): o objeto sai do storage, e só então a linha. */
-  arquivos: Pick<ArquivoDoTitularRepository, 'aApagar' | 'apagarLinhas'>
+  arquivos: Pick<ArquivoDoTitularRepository, 'aApagar' | 'deleteLinhas'>
   /** Os materiais excluídos cujo objeto ficou no storage (ingestao-do-material, 1.0): o objeto sai primeiro, e a linha registra que saiu. */
   materiais: Pick<ExtracaoDoMaterialRepository, 'excluidosComObjeto' | 'marcarObjetoApagado'>
-  armazem: Pick<FileStorage, 'apagar'>
+  armazem: Pick<FileStorage, 'delete'>
   retencao: Pick<RetencaoDaEscolaRepository, 'ajustes'>
   /** O horário letivo da escola do contexto: o expurgo confere a cada lote, e para quando ele abre. */
   janelaDaEscola: Pick<OperationalSettings<JanelaLetiva>, 'daEscola'>
@@ -75,7 +75,7 @@ export interface ExpurgoDaEscolaDependencies {
  *   no último id visto, para o objeto que o storage não deixou apagar não prender o laço; a linha só registra `objeto_apagado_em` depois de o objeto sair.
  * - Loga só a categoria (sob `tipo`) e as contagens; a escola vai pelo contexto, nunca uma linha.
  */
-export function criarExpurgoDaEscola({ repositorio, arquivos, materiais, armazem, retencao, janelaDaEscola, enfileirador, relogio, logger, lote = LOTE_DO_EXPURGO }: ExpurgoDaEscolaDependencies): JobProcessor<typeof TIPO_EXPURGAR_ESCOLA> {
+export function createExpurgoDaEscola({ repositorio, arquivos, materiais, armazem, retencao, janelaDaEscola, enfileirador, relogio, logger, lote = LOTE_DO_EXPURGO }: ExpurgoDaEscolaDependencies): JobProcessor<typeof TIPO_EXPURGAR_ESCOLA> {
   return async () => {
     if (currentContext()?.escolaId === undefined) throw new JobFailureError(JobFailureCode.DADOS_INVALIDOS, true)
     const agora = relogio.agora()
@@ -84,18 +84,18 @@ export function criarExpurgoDaEscola({ repositorio, arquivos, materiais, armazem
     // job faz o trabalho pesado, e a janela letiva já o segura (não urgente). Falhar aqui falha o job da escola, e a fila repete.
     const { enfileirados: eliminacoesTotal, jaEnfileirados: eliminacoesJaEnfileiradasTotal } = await repositorio.enfileirarEliminacoes(enfileirador)
     // A importação de planilha parada na fila por mais de 1 h (F2, 5.0): fecha `falhou` e perde as linhas e as marcas, antes de o dia de 90 dias contar.
-    const importacoesFechadasTotal = await repositorio.fecharImportacoesParadas(agora)
+    const importacoesFechadasTotal = await repositorio.closeImportacoesParadas(agora)
     // O e-mail do convite que ficou 24 h sem sair (acesso-e-convites, 1.0): fecha `falhou` e perde o token e o endereço cifrados.
-    const enviosFechadosTotal = await repositorio.fecharEnviosParados(agora)
+    const enviosFechadosTotal = await repositorio.closeEnviosParados(agora)
     // A senha provisória vencida (acesso-e-convites, 9.0): perde o hash, a validade e quem a gerou; a auditoria fica.
     const provisoriasAnuladasTotal = await repositorio.anularProvisoriasVencidas(agora)
     const prazos = new Map(retencaoDaEscola(await retencao.ajustes()).map(({ categoria, meses }) => [categoria, meses]))
     const janela = await janelaDaEscola.daEscola()
     // Primeiro os arquivos do titular (F3, tarefa 13.0): o objeto sai do storage e só então a linha. O que o storage não
     // deixou apagar fica com a linha e é tentado de novo na noite seguinte (pelo `apagado_em` ou pelo vencimento).
-    const { apagados: arquivosApagadosTotal, naoApagados: arquivosNaoApagadosTotal } = await apagarArquivosDoTitular({ arquivos, armazem, janela, relogio, agora, logger })
+    const { apagados: arquivosApagadosTotal, naoApagados: arquivosNaoApagadosTotal } = await deleteArquivosDoTitular({ arquivos, armazem, janela, relogio, agora, logger })
     // Depois, o PDF do material que a coordenação excluiu e cujo objeto não saiu na hora (o storage estava fora): é o mesmo que os arquivos do titular.
-    const { apagados: objetosDeMaterialApagadosTotal, naoApagados: objetosDeMaterialNaoApagadosTotal } = await apagarObjetosDosMateriais({ materiais, armazem, janela, relogio, logger })
+    const { apagados: objetosDeMaterialApagadosTotal, naoApagados: objetosDeMaterialNaoApagadosTotal } = await deleteObjetosDosMateriais({ materiais, armazem, janela, relogio, logger })
     const ordem = ordemDaNoite(await repositorio.categoriaPendente())
     let linhasTotal = 0
     for (const categoria of ordem) {
@@ -180,7 +180,7 @@ interface ApagarArquivosDependencies {
  * para o laço, porque os mesmos voltariam; o laço termina quando a leitura volta vazia. O arquivo com 7 dias fica e o com 8 sai
  * (a comparação do repositório é estrita).
  */
-async function apagarArquivosDoTitular({ arquivos, armazem, janela, relogio, agora, logger }: ApagarArquivosDependencies): Promise<{ apagados: number; naoApagados: number }> {
+async function deleteArquivosDoTitular({ arquivos, armazem, janela, relogio, agora, logger }: ApagarArquivosDependencies): Promise<{ apagados: number; naoApagados: number }> {
   let apagados = 0
   let naoApagados = 0
   for (;;) {
@@ -191,7 +191,7 @@ async function apagarArquivosDoTitular({ arquivos, armazem, janela, relogio, ago
     const sairam: string[] = []
     for (const arquivo of doLote) {
       try {
-        await armazem.apagar(arquivo.chaveObjeto)
+        await armazem.delete(arquivo.chaveObjeto)
         sairam.push(arquivo.id)
       } catch (erro) {
         naoApagados += 1
@@ -199,7 +199,7 @@ async function apagarArquivosDoTitular({ arquivos, armazem, janela, relogio, ago
         logger.warn({ evento: 'retencao.arquivo_nao_apagado', erro: summarizeError(erro) })
       }
     }
-    const linhasApagadas = await arquivos.apagarLinhas(sairam)
+    const linhasApagadas = await arquivos.deleteLinhas(sairam)
     apagados += linhasApagadas
     // Nenhum objeto saiu, ou nenhuma linha saiu com eles: o mesmo lote voltaria, e a noite seguinte tenta de novo.
     if (sairam.length === 0 || linhasApagadas === 0) break
@@ -221,7 +221,7 @@ interface ApagarObjetosDeMaterialDependencies {
  * Falha ao apagar um objeto não derruba o job nem os outros: o objeto fica sem registro e a noite seguinte o tenta de novo. O cursor é o último id
  * do lote, para o objeto que ficou não voltar no mesmo laço.
  */
-async function apagarObjetosDosMateriais({ materiais, armazem, janela, relogio, logger }: ApagarObjetosDeMaterialDependencies): Promise<{ apagados: number; naoApagados: number }> {
+async function deleteObjetosDosMateriais({ materiais, armazem, janela, relogio, logger }: ApagarObjetosDeMaterialDependencies): Promise<{ apagados: number; naoApagados: number }> {
   let apagados = 0
   let naoApagados = 0
   let depoisDe: string | undefined
@@ -231,7 +231,7 @@ async function apagarObjetosDosMateriais({ materiais, armazem, janela, relogio, 
     if (estaNaJanela(janela, relogio.agora())) break
     for (const id of ids) {
       try {
-        await armazem.apagar(chaveDoTemporario(id))
+        await armazem.delete(chaveDoTemporario(id))
         await materiais.marcarObjetoApagado(id)
         apagados += 1
       } catch (erro) {

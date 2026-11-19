@@ -78,7 +78,7 @@ export class VinculoRepository {
   constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   /** O vínculo nasce `pendente`, com `criado_por` do contexto. O repetido fora do `encerrado` é barrado pelo índice único. */
-  async criar(novo: NovoVinculo): Promise<string> {
+  async create(novo: NovoVinculo): Promise<string> {
     const { usuarioId: criadoPor } = requestSessao()
     const [criado] = await this.banco
       .insert(vinculo)
@@ -102,7 +102,7 @@ export class VinculoRepository {
    * decisão, sem disciplina, e com quem aprovou em `criado_por`. Com o `decidido_em`, o aluno continua na lista de alunos
    * da turma depois da virada do ano (E19; `TODO.md`).
    */
-  async criarAlunoConfirmado(usuarioId: string, turmaId: string): Promise<void> {
+  async createAlunoConfirmado(usuarioId: string, turmaId: string): Promise<void> {
     await this.banco.insert(vinculo).values({
       escolaId: requireEscolaId(),
       anoLetivoId: requireAnoEmCurso(),
@@ -145,25 +145,25 @@ export class VinculoRepository {
   }
 
   /** Uma página dos vínculos do ano, do estado pedido ou de todos, em ordem de criação, com uma linha a mais. */
-  listar({ pagina, limite, estado }: PaginationQuery & { readonly estado?: EstadoDeVinculo | undefined }): Promise<VinculoLido[]> {
-    return this.#lerComReferencias(
+  list({ pagina, limite, estado }: PaginationQuery & { readonly estado?: EstadoDeVinculo | undefined }): Promise<VinculoLido[]> {
+    return this.#readComReferencias(
       and(estado === undefined ? undefined : eq(vinculo.estado, estado), pagina === undefined ? undefined : gt(vinculo.id, pagina)),
       limite + 1,
     )
   }
 
   /** Uma página dos vínculos do usuário do contexto no ano, em ordem de criação, com uma linha a mais. */
-  listarDoUsuario({ pagina, limite }: PaginationQuery): Promise<VinculoLido[]> {
-    return this.#lerComReferencias(and(this.#doUsuario(), pagina === undefined ? undefined : gt(vinculo.id, pagina)), limite + 1)
+  listDoUsuario({ pagina, limite }: PaginationQuery): Promise<VinculoLido[]> {
+    return this.#readComReferencias(and(this.#doUsuario(), pagina === undefined ? undefined : gt(vinculo.id, pagina)), limite + 1)
   }
 
   async porId(id: string): Promise<VinculoLido | undefined> {
-    const [linha] = await this.#lerComReferencias(eq(vinculo.id, id), 1)
+    const [linha] = await this.#readComReferencias(eq(vinculo.id, id), 1)
     return linha
   }
 
   async porIdDoUsuario(id: string): Promise<VinculoLido | undefined> {
-    const [linha] = await this.#lerComReferencias(and(eq(vinculo.id, id), this.#doUsuario()), 1)
+    const [linha] = await this.#readComReferencias(and(eq(vinculo.id, id), this.#doUsuario()), 1)
     return linha
   }
 
@@ -182,7 +182,7 @@ export class VinculoRepository {
    * estado já mudado (regra 80, item 7). `doUsuario` restringe ao vínculo do usuário do contexto (o professor dono).
    * Devolve também de quem é e a turma, que o encerramento usa para revogar o acesso de quem saiu.
    */
-  async travar(
+  async lock(
     id: string,
     { doUsuario }: { readonly doUsuario: boolean },
   ): Promise<{ readonly estado: EstadoDeVinculo; readonly usuarioId: string; readonly turmaId: string } | undefined> {
@@ -260,7 +260,7 @@ export class VinculoRepository {
    * único (`vinculo_ativo_unico`, 23505), e o motor fecha a importação `desatualizada`. Só aceita ano já conferido na escola (o `anoDeDestino`
    * do motor, nunca um id vindo do cliente); a escola vem do contexto.
    */
-  async criarAlunosDaLista(anoLetivoId: string, alunos: ReadonlyArray<{ readonly usuarioId: string; readonly turmaId: string }>): Promise<Array<{ readonly id: string; readonly usuarioId: string }>> {
+  async createAlunosDaLista(anoLetivoId: string, alunos: ReadonlyArray<{ readonly usuarioId: string; readonly turmaId: string }>): Promise<Array<{ readonly id: string; readonly usuarioId: string }>> {
     if (alunos.length === 0) return []
     const escolaId = requireEscolaId()
     const { usuarioId: criadoPor } = requestIdentity()
@@ -321,7 +321,7 @@ export class VinculoRepository {
    * tripla viola o único (`vinculo_ativo_unico`, 23505), e o motor fecha a importação `desatualizada`. Só aceita ano já conferido na
    * escola (o `anoDeDestino` do motor); a escola vem do contexto.
    */
-  async criarProfessoresDaGrade(
+  async createProfessoresDaGrade(
     anoLetivoId: string,
     novos: ReadonlyArray<{ readonly usuarioId: string; readonly turmaId: string; readonly disciplinaId: string }>,
   ): Promise<Array<{ readonly id: string; readonly usuarioId: string; readonly turmaId: string; readonly disciplinaId: string | null }>> {
@@ -376,7 +376,7 @@ export class VinculoRepository {
     return eq(vinculo.usuarioId, requestSessao().usuarioId)
   }
 
-  async #lerComReferencias(filtro: SQL | undefined, limite: number): Promise<VinculoLido[]> {
+  async #readComReferencias(filtro: SQL | undefined, limite: number): Promise<VinculoLido[]> {
     const linhas = await this.banco
       .select(colunas)
       .from(vinculo)

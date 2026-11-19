@@ -1,6 +1,6 @@
 import { ROTULOS_DA_ADAPTACAO, TIPOS_DE_ADAPTACAO } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
-import { campoVisivel, problemaDaDescricao, resumoDoPedido, validarFormulario, valoresPadrao, type FormFieldDef, type DescricaoDeFerramenta } from './schema-form'
+import { campoVisivel, problemaDaDescricao, resumoDoPedido, validateFormulario, valoresPadrao, type FormFieldDef, type DescricaoDeFerramenta } from './schema-form'
 
 const TURMAS = [
   { valor: 'turma-2b', rotulo: '2ºB' },
@@ -71,14 +71,14 @@ describe('valores padrão', () => {
 
 describe('validação do formulário', () => {
   it('preenchido, devolve os valores prontos: texto aparado e número como número', () => {
-    expect(validarFormulario(ATIVIDADE.campos, { turmaId: 'turma-2b', tema: '  Estequiometria ', quantidade: '8' })).toEqual({
+    expect(validateFormulario(ATIVIDADE.campos, { turmaId: 'turma-2b', tema: '  Estequiometria ', quantidade: '8' })).toEqual({
       ok: true,
       valores: { turmaId: 'turma-2b', tema: 'Estequiometria', quantidade: 8 },
     })
   })
 
   it('diz o que falta, campo a campo, na ordem do formulário', () => {
-    const resultado = validarFormulario(ATIVIDADE.campos, { turmaId: '', tema: '   ', quantidade: '10' })
+    const resultado = validateFormulario(ATIVIDADE.campos, { turmaId: '', tema: '   ', quantidade: '10' })
     expect(resultado).toEqual({
       ok: false,
       pendencias: [
@@ -89,7 +89,7 @@ describe('validação do formulário', () => {
   })
 
   it('o campo opcional em branco fica fora do pedido, sem pendência', () => {
-    expect(validarFormulario(ATIVIDADE.campos, { turmaId: 'turma-2b', tema: 'Estequiometria', quantidade: '' })).toEqual({
+    expect(validateFormulario(ATIVIDADE.campos, { turmaId: 'turma-2b', tema: 'Estequiometria', quantidade: '' })).toEqual({
       ok: true,
       valores: { turmaId: 'turma-2b', tema: 'Estequiometria' },
     })
@@ -97,41 +97,41 @@ describe('validação do formulário', () => {
 
   it('número fora da faixa, quebrado ou que não é número é recusado', () => {
     for (const quantidade of ['0', '21', '2.5', '1e1', 'dez', '-3']) {
-      const resultado = validarFormulario(ATIVIDADE.campos, { turmaId: 'turma-2b', tema: 'Estequiometria', quantidade })
+      const resultado = validateFormulario(ATIVIDADE.campos, { turmaId: 'turma-2b', tema: 'Estequiometria', quantidade })
       expect(resultado, quantidade).toEqual({ ok: false, pendencias: [{ chave: 'quantidade', rotulo: 'Questões', mensagem: 'Use um número inteiro de 1 a 20 em "Questões".' }] })
     }
-    expect(validarFormulario(ATIVIDADE.campos, { turmaId: 'turma-2b', tema: 'Estequiometria', quantidade: '20' })).toMatchObject({ ok: true, valores: { quantidade: 20 } })
+    expect(validateFormulario(ATIVIDADE.campos, { turmaId: 'turma-2b', tema: 'Estequiometria', quantidade: '20' })).toMatchObject({ ok: true, valores: { quantidade: 20 } })
   })
 
   it('texto acima do máximo é recusado, dizendo o limite', () => {
-    const resultado = validarFormulario(ATIVIDADE.campos, { turmaId: 'turma-2b', tema: 'x'.repeat(41), quantidade: '10' })
+    const resultado = validateFormulario(ATIVIDADE.campos, { turmaId: 'turma-2b', tema: 'x'.repeat(41), quantidade: '10' })
     expect(resultado).toEqual({ ok: false, pendencias: [{ chave: 'tema', rotulo: 'Tema', mensagem: 'Use até 40 caracteres em "Tema".' }] })
   })
 
   it('a opção que não está na lista é recusada: o pedido só leva o que a ferramenta declarou', () => {
-    expect(validarFormulario(ATIVIDADE.campos, { turmaId: 'turma-de-outra-escola', tema: 'Estequiometria', quantidade: '10' })).toEqual({
+    expect(validateFormulario(ATIVIDADE.campos, { turmaId: 'turma-de-outra-escola', tema: 'Estequiometria', quantidade: '10' })).toEqual({
       ok: false,
       pendencias: [{ chave: 'turmaId', rotulo: 'Turma', mensagem: 'Escolha uma das opções de "Turma".' }],
     })
-    expect(validarFormulario(ADAPTACAO.campos, { tipos: ['fonte_ampliada', 'laudo de TDAH'], tempoExtraPercentual: '' })).toEqual({
+    expect(validateFormulario(ADAPTACAO.campos, { tipos: ['fonte_ampliada', 'laudo de TDAH'], tempoExtraPercentual: '' })).toEqual({
       ok: false,
       pendencias: [{ chave: 'tipos', rotulo: 'Tipo de adaptação', mensagem: 'Escolha só entre as opções de "Tipo de adaptação".' }],
     })
   })
 
   it('a Adaptação pede pelo menos um tipo, e devolve os tipos na ordem da lista, sem repetição', () => {
-    expect(validarFormulario(ADAPTACAO.campos, { tipos: [], tempoExtraPercentual: '' })).toEqual({
+    expect(validateFormulario(ADAPTACAO.campos, { tipos: [], tempoExtraPercentual: '' })).toEqual({
       ok: false,
       pendencias: [{ chave: 'tipos', rotulo: 'Tipo de adaptação', mensagem: 'Marque pelo menos uma opção em "Tipo de adaptação".' }],
     })
-    expect(validarFormulario(ADAPTACAO.campos, { tipos: ['tempo_adicional', 'fonte_ampliada', 'tempo_adicional'], tempoExtraPercentual: '25' })).toEqual({
+    expect(validateFormulario(ADAPTACAO.campos, { tipos: ['tempo_adicional', 'fonte_ampliada', 'tempo_adicional'], tempoExtraPercentual: '25' })).toEqual({
       ok: true,
       valores: { tipos: ['fonte_ampliada', 'tempo_adicional'], tempoExtraPercentual: 25 },
     })
   })
 
   it('valor de chave que a descrição não tem não sai no pedido', () => {
-    const resultado = validarFormulario(ADAPTACAO.campos, { tipos: ['fonte_ampliada'], tempoExtraPercentual: '', observacao: 'o aluno tem dislexia' })
+    const resultado = validateFormulario(ADAPTACAO.campos, { tipos: ['fonte_ampliada'], tempoExtraPercentual: '', observacao: 'o aluno tem dislexia' })
     expect(resultado).toEqual({ ok: true, valores: { tipos: ['fonte_ampliada'] } })
   })
 })
@@ -150,15 +150,15 @@ describe('campo condicional', () => {
   })
 
   it('escondido, o campo obrigatório não é cobrado e o valor que ficou de antes não sai no pedido', () => {
-    expect(validarFormulario(comCondicao.campos, { tipos: ['fonte_ampliada'], tempoExtraPercentual: '25' })).toEqual({ ok: true, valores: { tipos: ['fonte_ampliada'] } })
+    expect(validateFormulario(comCondicao.campos, { tipos: ['fonte_ampliada'], tempoExtraPercentual: '25' })).toEqual({ ok: true, valores: { tipos: ['fonte_ampliada'] } })
   })
 
   it('à vista, o campo é cobrado e sai no pedido como qualquer outro', () => {
-    expect(validarFormulario(comCondicao.campos, { tipos: ['tempo_adicional'], tempoExtraPercentual: '' })).toEqual({
+    expect(validateFormulario(comCondicao.campos, { tipos: ['tempo_adicional'], tempoExtraPercentual: '' })).toEqual({
       ok: false,
       pendencias: [{ chave: 'tempoExtraPercentual', rotulo: 'Tempo adicional (%)', mensagem: 'Preencha "Tempo adicional (%)".' }],
     })
-    expect(validarFormulario(comCondicao.campos, { tipos: ['tempo_adicional'], tempoExtraPercentual: '25' })).toEqual({ ok: true, valores: { tipos: ['tempo_adicional'], tempoExtraPercentual: 25 } })
+    expect(validateFormulario(comCondicao.campos, { tipos: ['tempo_adicional'], tempoExtraPercentual: '25' })).toEqual({ ok: true, valores: { tipos: ['tempo_adicional'], tempoExtraPercentual: 25 } })
   })
 
   it('a condição só aponta para uma opção de um campo de múltipla escolha: a descrição com outra coisa é recusada', () => {

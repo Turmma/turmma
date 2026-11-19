@@ -5,7 +5,7 @@ import {
   alternativaMarcada,
   avisoDeEscolhasPerdidas,
   comemoracaoNaTela,
-  contarRespostas,
+  countRespostas,
   FALA_DA_ENTREGA,
   faseDaAtividade,
   impedimentoDoEnvio,
@@ -122,7 +122,7 @@ describe('o que a tela diz de cada questão', () => {
   })
 
   it('a confirmação do envio diz quantas ficaram em branco', () => {
-    const contagem = contarRespostas(comDuasSalvas, FILA_VAZIA)
+    const contagem = countRespostas(comDuasSalvas, FILA_VAZIA)
     expect(contagem).toEqual({ questoes: 3, respondidas: 2, emBranco: 1, naoSalvas: 0 })
     expect(textoDasRespondidas(contagem)).toBe('2 de 3 questões')
     expect(textoDasEmBranco(contagem.emBranco)).toBe('1 questão em branco')
@@ -131,8 +131,8 @@ describe('o que a tela diz de cada questão', () => {
   })
 
   it('com escolha ainda não salva, o envio é segurado, e a tela diz por quê', () => {
-    expect(impedimentoDoEnvio(contarRespostas(comDuasSalvas, FILA_VAZIA))).toBeUndefined()
-    const comUmaNaFila = contarRespostas(comDuasSalvas, fila({ pendentes: [{ questao: 3, alternativa: 1, sequencia: 1 }], falha: 'passageira', tentativas: 1 }))
+    expect(impedimentoDoEnvio(countRespostas(comDuasSalvas, FILA_VAZIA))).toBeUndefined()
+    const comUmaNaFila = countRespostas(comDuasSalvas, fila({ pendentes: [{ questao: 3, alternativa: 1, sequencia: 1 }], falha: 'passageira', tentativas: 1 }))
     // A escolha não salva conta como respondida na tela, mas segura o envio.
     expect(comUmaNaFila).toEqual({ questoes: 3, respondidas: 3, emBranco: 0, naoSalvas: 1 })
     expect(impedimentoDoEnvio(comUmaNaFila)).toMatch(/^Uma resposta ainda não foi salva\./)

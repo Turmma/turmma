@@ -65,7 +65,7 @@ interface Consumo {
 }
 
 /** Chama o `rate-limiter-flexible` por balde: o limite e o seguro em memória (`limite ÷ réplicas`), nunca sem teto. */
-function criarBalde(cliente: Redis, prefixo: string, pontos: number, replicas: number): Balde {
+function createBalde(cliente: Redis, prefixo: string, pontos: number, replicas: number): Balde {
   const seguro = new RateLimiterMemory({ keyPrefix: prefixo, points: insuranceLimit(pontos, replicas), duration: JANELA_LIMITE_SEGUNDOS })
   const limitador = new RateLimiterRedis({
     storeClient: cliente,
@@ -102,20 +102,20 @@ export class TokenLimiter implements LimiteDeTokens {
   constructor(cliente: Redis, opcoes: TokenLimiterOptions) {
     this.#relogioMs = opcoes.relogioMs ?? Date.now
     const parte = (fracao: number): number => Math.max(1, Math.floor(opcoes.tokensPorMinuto * fracao))
-    this.#geral = criarBalde(cliente, PREFIXO_DO_BALDE_GERAL, parte(PARTE_DO_BALDE_GERAL), opcoes.replicas)
+    this.#geral = createBalde(cliente, PREFIXO_DO_BALDE_GERAL, parte(PARTE_DO_BALDE_GERAL), opcoes.replicas)
     this.#filas = {
-      ferramenta: criarBalde(cliente, PREFIXO_DO_BALDE_DA_FERRAMENTA, parte(PARTE_DO_BALDE_DA_FERRAMENTA), opcoes.replicas),
-      normal: criarBalde(cliente, PREFIXO_DO_BALDE_DA_NORMAL, parte(PARTE_DO_BALDE_DA_NORMAL), opcoes.replicas),
-      lote: criarBalde(cliente, PREFIXO_DO_BALDE_DO_LOTE, parte(PARTE_DO_BALDE_DO_LOTE), opcoes.replicas),
+      ferramenta: createBalde(cliente, PREFIXO_DO_BALDE_DA_FERRAMENTA, parte(PARTE_DO_BALDE_DA_FERRAMENTA), opcoes.replicas),
+      normal: createBalde(cliente, PREFIXO_DO_BALDE_DA_NORMAL, parte(PARTE_DO_BALDE_DA_NORMAL), opcoes.replicas),
+      lote: createBalde(cliente, PREFIXO_DO_BALDE_DO_LOTE, parte(PARTE_DO_BALDE_DO_LOTE), opcoes.replicas),
     }
   }
 
   async reservar(modelo: string, estimativa: number, fila: FilaDeTokens): Promise<ResultadoDaReserva> {
     const pedido = Math.max(1, Math.ceil(estimativa))
     const baldeDaFila = fila === 'interativa' ? undefined : this.#filas[fila]
-    const naFila = baldeDaFila === undefined ? undefined : await this.#consumir(baldeDaFila, modelo, pedido)
+    const naFila = baldeDaFila === undefined ? undefined : await this.#consume(baldeDaFila, modelo, pedido)
     if (naFila !== undefined && !naFila.aceita) return { concedida: false, msAteLiberar: naFila.msAteLiberar }
-    const noGeral = await this.#consumir(this.#geral, modelo, pedido)
+    const noGeral = await this.#consume(this.#geral, modelo, pedido)
     const usoDoTeto = this.#usoDoTeto(noGeral)
     if (!noGeral.aceita) {
       // O geral recusou: o que o balde da fila reservou volta, ou a fila gastaria o teto dela com chamada que não saiu.
@@ -142,7 +142,7 @@ export class TokenLimiter implements LimiteDeTokens {
     return (ocupado / this.#geral.pontos) * PARTE_DO_BALDE_GERAL
   }
 
-  async #consumir(balde: Balde, modelo: string, pedido: number): Promise<Consumo> {
+  async #consume(balde: Balde, modelo: string, pedido: number): Promise<Consumo> {
     const pontos = Math.min(pedido, balde.pontos)
     const agora = this.#relogioMs()
     try {

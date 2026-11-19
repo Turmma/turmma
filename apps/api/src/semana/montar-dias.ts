@@ -70,7 +70,7 @@ const comoAula = ({ vinculo, ...resto }: Candidata): AulaDaSemana => ({
  * um dos vínculos recebidos. Os itens do dia (RF7) entram no dia do seu `data`, **também no feriado e no recesso**: a atividade aplicada no dia da prova fica, mesmo
  * sem aula. Item de dia que a semana não traz (fim de semana sem grade, fora do ano) não aparece: o contrato só tem os dias que a Tech Spec lista.
  */
-export function montarDias(entrada: EntradaDaMontagem): DiaDaSemana[] {
+export function buildDias(entrada: EntradaDaMontagem): DiaDaSemana[] {
   const vinculos = new Map(entrada.vinculos.map((vinculo) => [vinculo.id, vinculo]))
   const dias: DiaDaSemana[] = []
   for (let deslocamento = 0; deslocamento < 7; deslocamento += 1) {

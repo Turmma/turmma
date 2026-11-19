@@ -38,7 +38,7 @@ export function serializarCookie(nome: string, valor: string, opcoes: CookieOpti
 }
 
 /** O valor de um cookie no cabeçalho `Cookie`, ou `undefined`. Repetido, vale o primeiro, como no navegador. */
-export function lerCookie(cabecalho: string | undefined, nome: string): string | undefined {
+export function readCookie(cabecalho: string | undefined, nome: string): string | undefined {
   if (cabecalho === undefined) return undefined
   for (const parte of cabecalho.split(';')) {
     const igual = parte.indexOf('=')

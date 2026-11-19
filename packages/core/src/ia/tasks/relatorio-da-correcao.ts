@@ -80,7 +80,7 @@ export const relatorioDaCorrecao = defineTask({
   levaTextoDeAluno: false,
   categoriasEnviadas: ['trabalho_do_aluno'],
 
-  montarPedido(entrada) {
+  buildPedido(entrada) {
     return {
       instrucao: 'Escreva o relatório por questão a partir dos números já calculados.',
       dados: [dadoEmJson('numeros_da_correcao', entrada)],

@@ -5,11 +5,11 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { lerAmbienteDeTeste } from '../../../tools/ci/compose.ts'
 import { compose, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
 import { InMemoryLog, QueueFixtures, urlRedisDeFila } from '../../worker/test/queue.fixture.js'
-import { abrirArmazemDeOperacao } from '../src/ops/armazem-de-operacao.js'
-import { abrirFilaDeOperacao, type FilaDeOperacao } from '../src/ops/fila-de-jobs.js'
-import { executarOpsDescartarJob } from '../src/ops/descartar-job.js'
-import { executarOpsJobsQueFalharam } from '../src/ops/jobs-que-falharam.js'
-import { executarOpsReprocessarJob } from '../src/ops/reprocessar-job.js'
+import { openArmazemDeOperacao } from '../src/ops/armazem-de-operacao.js'
+import { openFilaDeOperacao, type FilaDeOperacao } from '../src/ops/fila-de-jobs.js'
+import { runOpsDescartarJob } from '../src/ops/descartar-job.js'
+import { runOpsJobsQueFalharam } from '../src/ops/jobs-que-falharam.js'
+import { runOpsReprocessarJob } from '../src/ops/reprocessar-job.js'
 import { JobsQueFalharamRepository } from '../src/operacao/jobs-que-falharam.repository.js'
 
 /**
@@ -50,7 +50,7 @@ interface AuditoriaDoJob {
 /** A fila que o caso não pode tocar: a recusa vem antes dela. */
 const FILA_PROIBIDA: FilaDeOperacao = {
   tirarCopiaDaFalha: () => Promise.reject(new Error('o comando tocou a fila antes de recusar')),
-  fechar: () => Promise.resolve(),
+  close: () => Promise.resolve(),
 }
 
 beforeAll(() => {
@@ -137,19 +137,19 @@ describe('ops:jobs-que-falharam, ops:reprocessar-job e ops:descartar-job (46.0)'
 
   async function listar(argumentos: string[] = []): Promise<Execucao> {
     const execucao = { saida: '', erro: '' }
-    const codigo = await executarOpsJobsQueFalharam(argumentos, AMBIENTE, terminalEm(execucao))
+    const codigo = await runOpsJobsQueFalharam(argumentos, AMBIENTE, terminalEm(execucao))
     return { codigo, ...execucao }
   }
 
   async function reprocessar(argumentos: string[], fila?: FilaDeOperacao): Promise<Execucao> {
     const execucao = { saida: '', erro: '' }
-    const codigo = await executarOpsReprocessarJob(argumentos, AMBIENTE, terminalEm(execucao), undefined, () => fila ?? abrirFilaDeOperacao(urlRedisDeFila(), { prefixo: bancada.prefixo }))
+    const codigo = await runOpsReprocessarJob(argumentos, AMBIENTE, terminalEm(execucao), undefined, () => fila ?? openFilaDeOperacao(urlRedisDeFila(), { prefixo: bancada.prefixo }))
     return { codigo, ...execucao }
   }
 
   async function descartar(argumentos: string[], doArmazem: FileStorage = armazem): Promise<Execucao> {
     const execucao = { saida: '', erro: '' }
-    const codigo = await executarOpsDescartarJob(argumentos, AMBIENTE, terminalEm(execucao), undefined, () => ({ armazem: doArmazem, encerrar: () => undefined }))
+    const codigo = await runOpsDescartarJob(argumentos, AMBIENTE, terminalEm(execucao), undefined, () => ({ armazem: doArmazem, encerrar: () => undefined }))
     return { codigo, ...execucao }
   }
 
@@ -349,12 +349,12 @@ describe('ops:jobs-que-falharam, ops:reprocessar-job e ops:descartar-job (46.0)'
 
     it('o armazém de operação, com o ambiente de teste (só a porta do host), alcança o storage: guarda, lê e apaga o objeto do material', async () => {
       const materialId = randomUUID()
-      const { armazem: doStorage, encerrar } = abrirArmazemDeOperacao(AMBIENTE)
+      const { armazem: doStorage, encerrar } = openArmazemDeOperacao(AMBIENTE)
       try {
         await naEscola(escolaA, async () => {
           await doStorage.guardarBytes(chaveDoTemporario(materialId), new Uint8Array([7, 8, 9]), { prazoMs: 10_000 })
           expect(await doStorage.existe(chaveDoTemporario(materialId))).toBe(true)
-          await doStorage.apagar(chaveDoTemporario(materialId))
+          await doStorage.delete(chaveDoTemporario(materialId))
           expect(await doStorage.existe(chaveDoTemporario(materialId))).toBe(false)
         })
       } finally {
@@ -426,11 +426,11 @@ describe('ops:jobs-que-falharam, ops:reprocessar-job e ops:descartar-job (46.0)'
       const falho = await job(escolaA, 'material.extrair-pdf', { dados: { materialId }, fila: 'pdf' })
       const pendente = await job(escolaA, 'estrutura.gravar-planilha', { estado: 'aguardando' })
       const repository = new JobsQueFalharamRepository(bancada.banco)
-      expect(await repository.travarFalho(pendente)).toBeUndefined()
-      const achado = await repository.travarFalho(falho)
+      expect(await repository.lockFalho(pendente)).toBeUndefined()
+      const achado = await repository.lockFalho(falho)
       expect(achado).toMatchObject({ id: falho, escolaId: escolaA, tipo: 'material.extrair-pdf', fila: 'pdf', materialId })
       expect(JSON.stringify(achado)).not.toContain(SENTINELA)
-      expect(await repository.travarFalho(randomUUID())).toBeUndefined()
+      expect(await repository.lockFalho(randomUUID())).toBeUndefined()
     })
 
     it('o contexto da rotina do sistema só alcança o job sem escola, e o contexto da escola só o dela', async () => {

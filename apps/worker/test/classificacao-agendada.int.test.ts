@@ -9,7 +9,7 @@ import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import type { StorageConfig } from '../src/config.js'
 import { ClassificacaoGauge } from '../src/classificacao-gauge.js'
 import { createWorker } from '../src/composition.js'
-import { criarRotinaDaClassificacao } from '../src/processors/agendar-classificacao.js'
+import { createRotinaDaClassificacao } from '../src/processors/agendar-classificacao.js'
 import { chaveDaNoite } from '../src/processors/expurgar-dado-pessoal.js'
 import { jobExecution } from './job-execution.fixture.js'
 import { configuracaoDoBanco, InMemoryLog, janelaPadraoDoAmbiente, QueueFixtures, urlRedisDeFila, vagasPadraoDoAmbiente } from './queue.fixture.js'
@@ -48,8 +48,8 @@ describe('a rotina das 19h e o alerta da classificação do material', () => {
   const janelaDaEscola = () => new OperationalSettings<JanelaLetiva>(new OperationalSettingsRepository(bancada.banco), (linha) => resolverJanela(janelaPadraoDoAmbiente(), linha))
 
   function rotina(relogio: Clock, ids: readonly string[]): JobProcessor {
-    return criarRotinaDaClassificacao({
-      escolas: { listarIds: () => Promise.resolve([...ids]) },
+    return createRotinaDaClassificacao({
+      escolas: { listIds: () => Promise.resolve([...ids]) },
       banco: bancada.banco,
       enfileirador: bancada.enfileirador,
       janelaDaEscola: janelaDaEscola(),
@@ -145,7 +145,7 @@ describe('a rotina das 19h e o alerta da classificação do material', () => {
 
     function medicaoDe(ids: readonly string[], medidor: MedidorDeTeste, agora: Date = QUINTA_8H, repositorio: Pick<ClassificacaoAtrasadaRepository, 'atrasadas'> = new ClassificacaoAtrasadaRepository(bancada.banco)): ClassificacaoGauge {
       return new ClassificacaoGauge({
-        escolas: { listarIds: () => Promise.resolve([...ids]) },
+        escolas: { listIds: () => Promise.resolve([...ids]) },
         repositorio,
         janelaDaEscola: janelaDaEscola(),
         relogio: { agora: () => agora },

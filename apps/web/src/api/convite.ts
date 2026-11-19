@@ -19,7 +19,7 @@ export const CAMINHO_DO_ACEITE_DE_CONVITE = '/v1/convites/aceitar'
  * A consulta não passa pelo TanStack Query: o token é o argumento, e uma chave de cache com ele dentro é justamente o
  * que não pode existir.
  */
-export function consultarConvite(token: string): Promise<ConsultarConviteResponse> {
+export function findConvite(token: string): Promise<ConsultarConviteResponse> {
   return apiRequest(CAMINHO_DA_CONSULTA_DE_CONVITE, consultarConviteResponseSchema, { metodo: 'POST', corpo: { token } })
 }
 

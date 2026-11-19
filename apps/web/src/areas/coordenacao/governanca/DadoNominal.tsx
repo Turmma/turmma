@@ -2,7 +2,7 @@ import { FINALIDADES_DA_LEITURA_NOMINAL, NOME_DA_FINALIDADE_NOMINAL, nomeDaSerie
 import { useQuery } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { turmasQueryOptions } from '../../../api/estrutura'
-import { lerDadoNominal } from './api/governanca'
+import { readDadoNominal } from './api/governanca'
 import { ProgressBar } from '../../../components/ui/ProgressBar'
 import { Button } from '../../../components/ui/Button'
 import { Card } from '../../../components/ui/Card'
@@ -12,10 +12,10 @@ import { Select } from '../../../components/ui/fields/Select'
 import { SectionHeader } from '../../../components/ui/Page'
 import { errorText } from '../../../components/error-text'
 import { formatQuantity } from '../../../format'
-import { ordenarTurmas } from '../comum/ordem'
-import { acertoPercentual, AVISO_DO_NOMINAL, EFEITO_DO_NOMINAL, formatarPercentual } from './textos-da-governanca'
+import { sortTurmas } from '../comum/ordem'
+import { acertoPercentual, AVISO_DO_NOMINAL, EFEITO_DO_NOMINAL, formatPercentual } from './textos-da-governanca'
 
-function ehFinalidade(valor: string): valor is FinalidadeDaLeituraNominal {
+function isFinalidade(valor: string): valor is FinalidadeDaLeituraNominal {
   return (FINALIDADES_DA_LEITURA_NOMINAL as readonly string[]).includes(valor)
 }
 
@@ -35,7 +35,7 @@ export function DadoNominal() {
   // Fechar o resultado desmonta o botão que tinha o foco: ele volta para quem abriu (regra 50, item 11).
   const abrir = useRef<HTMLButtonElement>(null)
   const { enviar, mutacao } = useSingleSubmit({
-    mutationFn: ({ turmaId, finalidade }: { turmaId: string; finalidade: FinalidadeDaLeituraNominal }) => lerDadoNominal(turmaId, finalidade),
+    mutationFn: ({ turmaId, finalidade }: { turmaId: string; finalidade: FinalidadeDaLeituraNominal }) => readDadoNominal(turmaId, finalidade),
     onSuccess: () => definirAberto(false),
   })
 
@@ -89,7 +89,7 @@ function PedidoNominal({ aoFechar, aoConfirmar, confirmando, falha }: PropsDoPed
   const turmas = useQuery(turmasQueryOptions)
   const [turmaId, definirTurmaId] = useState('')
   const [finalidade, definirFinalidade] = useState('')
-  const opcoesDeTurma = ordenarTurmas(turmas.data?.itens ?? []).map((turma) => ({ valor: turma.id, rotulo: `${turma.nome} · ${nomeDaSerie(turma.serie)}` }))
+  const opcoesDeTurma = sortTurmas(turmas.data?.itens ?? []).map((turma) => ({ valor: turma.id, rotulo: `${turma.nome} · ${nomeDaSerie(turma.serie)}` }))
   const escolhida = opcoesDeTurma.find((opcao) => opcao.valor === turmaId)
   const semTurmas = turmas.isSuccess && opcoesDeTurma.length === 0
   return (
@@ -98,18 +98,18 @@ function PedidoNominal({ aoFechar, aoConfirmar, confirmando, falha }: PropsDoPed
       familia="oficial"
       resumo={[
         { rotulo: 'Turma', valor: escolhida?.rotulo ?? 'Ainda não escolhida' },
-        { rotulo: 'Finalidade', valor: ehFinalidade(finalidade) ? NOME_DA_FINALIDADE_NOMINAL[finalidade] : 'Ainda não escolhida' },
+        { rotulo: 'Finalidade', valor: isFinalidade(finalidade) ? NOME_DA_FINALIDADE_NOMINAL[finalidade] : 'Ainda não escolhida' },
       ]}
       efeito={EFEITO_DO_NOMINAL}
       aviso={AVISO_DO_NOMINAL}
       rotuloDeConfirmar="Abrir dado nominal"
       rotuloConfirmando="Abrindo…"
       aoConfirmar={() => {
-        if (turmaId !== '' && ehFinalidade(finalidade)) aoConfirmar({ turmaId, finalidade })
+        if (turmaId !== '' && isFinalidade(finalidade)) aoConfirmar({ turmaId, finalidade })
       }}
       aoFechar={aoFechar}
       confirmando={confirmando}
-      impedido={turmaId === '' || !ehFinalidade(finalidade)}
+      impedido={turmaId === '' || !isFinalidade(finalidade)}
       {...(falha === undefined ? (turmas.isError ? { falha: 'Não foi possível ler as turmas da escola. Feche e tente de novo.' } : {}) : { falha })}
     >
       <div className="flex min-w-0 flex-col gap-3">
@@ -182,7 +182,7 @@ function ResultadoNominal({ dado, aoFechar }: PropsDoResultado) {
                     key={medida.habilidade.codigo}
                     rotulo={medida.habilidade.descricao}
                     valor={acertoPercentual(medida.acertos, medida.total)}
-                    texto={`${formatarPercentual(acertoPercentual(medida.acertos, medida.total))} · ${String(medida.acertos)} de ${String(medida.total)}`}
+                    texto={`${formatPercentual(acertoPercentual(medida.acertos, medida.total))} · ${String(medida.acertos)} de ${String(medida.total)}`}
                     detalhe={medida.habilidade.codigo}
                   />
                 ))}

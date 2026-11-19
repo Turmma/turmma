@@ -31,12 +31,12 @@ export async function convidarProfessorDaPlanilha(tx: DatabaseTransaction, { con
   const tokenHash = createHash('sha256').update(randomBytes(BYTES_DO_TOKEN_DESCARTADO).toString('base64url')).digest('hex')
   let conviteId: string
   try {
-    conviteId = await convites.criarConvite({ tipo: 'professor', tokenHash, usuarioId, expiraEm })
+    conviteId = await convites.createConvite({ tipo: 'professor', tokenHash, usuarioId, expiraEm })
   } catch (erro) {
     if (erro instanceof DomainException && erro.codigo === ErrorCode.CONFLITO) return false
     throw erro
   }
-  await registro.gravar(tx, 'professor.cadastrado', { entidadeId: usuarioId })
-  await registro.gravar(tx, 'convite.criado', { entidadeId: conviteId, depois: { tipo: 'professor', usuarioId, expiraEm: expiraEm.toISOString() } })
+  await registro.save(tx, 'professor.cadastrado', { entidadeId: usuarioId })
+  await registro.save(tx, 'convite.criado', { entidadeId: conviteId, depois: { tipo: 'professor', usuarioId, expiraEm: expiraEm.toISOString() } })
   return true
 }

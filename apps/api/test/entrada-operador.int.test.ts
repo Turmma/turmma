@@ -15,7 +15,7 @@ import { configureApp } from '../src/configure-app.js'
 import { verifyOperadorChallenge } from '../src/operacao/operador-challenge.js'
 import { OPERADOR_DEVICE_COOKIE, operadorDeviceCookie } from '../src/operacao/operador-device-cookie.js'
 import { PREFIXO_DO_CONTADOR_DA_OPERACAO } from '../src/operacao/entrada/entrada.service.js'
-import { gerarConviteDeOperador } from '../src/ops/operador.js'
+import { generateConviteDeOperador } from '../src/ops/operador.js'
 import { REDIS_LOGIN_CLIENT, LoginLockout, DEVICE_COOKIE, DeviceCookie, PasswordHasher, HashBulkhead } from '../src/credencial/index.js'
 import { testConfig, TEST_APP_OPTIONS } from './test-config.js'
 import { OperadorFixtures } from './operador-session.fixture.js'
@@ -100,7 +100,7 @@ function preparadorDeOperadores(operadores: OperadorFixtures, contexto: () => { 
   return async function operadorComSenha(): Promise<OperadorComSenha> {
     const { url, banco, autor } = contexto()
     const { operadorId, apelido } = await operadores.operador()
-    const { token } = await gerarConviteDeOperador(banco, autor, apelido)
+    const { token } = await generateConviteDeOperador(banco, autor, apelido)
     const aceite = await pedir(url, '/v1/operacao/convite/aceitar', { token, senha: SENHA }, { 'X-Forwarded-For': ipSorteado() })
     if (aceite.status !== 200) throw new Error(`aceite do convite de teste falhou: ${String(aceite.status)}`)
     return { operadorId, email: `${apelido}@turmma.invalid` }
@@ -125,7 +125,7 @@ describe('POST /v1/operacao/sessao/email: o operador entra por e-mail e senha (t
     banco = app.get<Database>(DB)
     hash = app.get(PasswordHasher)
     autor = (await operadores.operador()).apelido
-    verificacoes = vi.spyOn(hash, 'verificar')
+    verificacoes = vi.spyOn(hash, 'verify')
   })
 
   beforeEach(() => {
@@ -294,7 +294,7 @@ describe('POST /v1/operacao/sessao/email: o operador entra por e-mail e senha (t
       // Sentido 1: o operador segurado, o coordenador com o mesmo e-mail entra na escola.
       const operador = await operadorComSenha()
       const { contaId } = await escolas.equipeComEmail(escolaId, operador.email, 'coordenador')
-      await escolas.pool.query('update conta set senha_hash = $2 where id = $1', [contaId, await hash.gerar(SENHA_DA_COORDENACAO)])
+      await escolas.pool.query('update conta set senha_hash = $2 where id = $1', [contaId, await hash.generate(SENHA_DA_COORDENACAO)])
       for (let falha = 1; falha <= 4; falha++) esperarNaoAutenticado(await entrar(operador.email, SENHA_ERRADA, doIp(ip)))
       esperarSegurada(await entrar(operador.email, SENHA_ERRADA, doIp(ip)), 30)
       const daEscola = await pedir(url, '/v1/sessao/email', { email: operador.email, senha: SENHA_DA_COORDENACAO }, doIp(ip))
@@ -305,7 +305,7 @@ describe('POST /v1/operacao/sessao/email: o operador entra por e-mail e senha (t
       // Sentido 2: o coordenador segurado, o operador com o mesmo e-mail entra na operação.
       const outro = await operadorComSenha()
       const { contaId: outraConta } = await escolas.equipeComEmail(escolaId, outro.email, 'coordenador')
-      await escolas.pool.query('update conta set senha_hash = $2 where id = $1', [outraConta, await hash.gerar(SENHA_DA_COORDENACAO)])
+      await escolas.pool.query('update conta set senha_hash = $2 where id = $1', [outraConta, await hash.generate(SENHA_DA_COORDENACAO)])
       for (let falha = 1; falha <= 4; falha++) esperarNaoAutenticado(await pedir(url, '/v1/sessao/email', { email: outro.email, senha: SENHA_ERRADA }, doIp(ip)))
       esperarSegurada(await pedir(url, '/v1/sessao/email', { email: outro.email, senha: SENHA_ERRADA }, doIp(ip)), 30)
       const daOperacao = await entrar(outro.email, SENHA, doIp(ip))
@@ -436,7 +436,7 @@ describe('POST /v1/operacao/sessao/email: o limite por IP rebaixa, e quem recusa
     const [ip, outro] = [ipSorteado(), ipSorteado()]
     const [segurada, certa, comAparelho, deFora] = [await operadorComSenha(), await operadorComSenha(), await operadorComSenha(), await operadorComSenha()]
     const semaforo = app.get(HashBulkhead)
-    const vezes = vi.spyOn(semaforo, 'executar')
+    const vezes = vi.spyOn(semaforo, 'run')
     try {
       // O dobro do limite, com e-mails que não existem, cada um o seu: nenhum 429, todos 401.
       for (let vez = 0; vez < 2 * LIMITE_POR_IP; vez++) esperarNaoAutenticado(await entrar(`ninguem-${randomUUID()}@turmma.invalid`, SENHA_ERRADA, doIp(ip)))

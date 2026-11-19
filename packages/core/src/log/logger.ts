@@ -79,7 +79,7 @@ const PROFUNDIDADE_MAXIMA = 6
 
 export const TEXTO_TOJSON_FALHOU = '[toJSON falhou]'
 
-function temToJson(valor: object): valor is { toJSON: () => unknown } {
+function hasToJson(valor: object): valor is { toJSON: () => unknown } {
   return typeof (valor as { toJSON?: unknown }).toJSON === 'function'
 }
 
@@ -98,7 +98,7 @@ function resumirErrosEmProfundidade(valor: unknown, profundidade: number, vistos
   if (vistos.has(valor)) return '[ciclo]'
   if (profundidade >= PROFUNDIDADE_MAXIMA) return TEXTO_OMITIDO_POR_PROFUNDIDADE
   vistos.add(valor)
-  if (temToJson(valor)) {
+  if (hasToJson(valor)) {
     let serializado: unknown
     try {
       serializado = valor.toJSON()

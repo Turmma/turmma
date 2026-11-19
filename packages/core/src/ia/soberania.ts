@@ -92,7 +92,7 @@ export class SoberaniaNaSubida implements DeclaracaoDeSoberania, OnApplicationBo
   }
 
   onApplicationBootstrap(): void {
-    void this.iniciar()
+    void this.start()
   }
 
   onApplicationShutdown(): void {
@@ -100,7 +100,7 @@ export class SoberaniaNaSubida implements DeclaracaoDeSoberania, OnApplicationBo
   }
 
   /** Faz a primeira conferência e, se ela não passa, agenda as seguintes. A promessa termina com a primeira conferência, passe ela ou não. */
-  iniciar(): Promise<void> {
+  start(): Promise<void> {
     this.#primeira ??= this.#conferirEAgendar()
     return this.#primeira
   }

@@ -19,7 +19,7 @@ export type { LeituraDaFila }
 
 /**
  * A fila "Esperando você" da coordenação (Tech Spec das telas da coordenação, seção 5, "A fila"; RF4, RF5 e RF7): uma função
- * pura, `montarFila`, sobre leituras que a web já faz, e o gancho que as lê. Nenhuma rota e nenhuma tabela são novas.
+ * pura, `buildFila`, sobre leituras que a web já faz, e o gancho que as lê. Nenhuma rota e nenhuma tabela são novas.
  *
  * **Os tipos são seis e só esses.** Nada aqui deriva de uso, de entrega ou de atividade do professor, e nenhum item leva
  * número por professor (regra 70, itens 8 e 9; D64): quem contestou ou tem convite vencido aparece como o fato, um item por
@@ -183,7 +183,7 @@ function itemDeTurmasSemProfessor(semProfessor: readonly Turma[]): ItemDaFila[] 
  * incompletos. Sem ano em curso, turmas e vínculos nem se leem, e a fila vale com as quatro leituras que existem. `erro` é
  * quando nenhuma leitura que se aplica deu certo; `carregando`, enquanto alguma ainda não respondeu.
  */
-export function montarFila(entrada: EntradaDaFila): FilaDaCoordenacao {
+export function buildFila(entrada: EntradaDaFila): FilaDaCoordenacao {
   const { anos, incidentes, professores, materiais, licencas, turmas, vinculos } = entrada
   const leituras = [anos, incidentes, professores, materiais, licencas, turmas, vinculos]
 
@@ -220,15 +220,15 @@ function leituraDe<Dado>(consulta: UseQueryResult<ListaDaEstrutura<Dado>>, aplic
   return { estado: 'lida', dado: consulta.data.itens, completa: consulta.data.completa }
 }
 
-/** A lista da estrutura que não veio inteira (`lerPaginas` bateu no teto de páginas). */
+/** A lista da estrutura que não veio inteira (`readPaginas` bateu no teto de páginas). */
 function veioTruncada(dado: unknown): boolean {
   return typeof dado === 'object' && dado !== null && 'completa' in dado && dado.completa === false
 }
 
 export interface FilaLida extends FilaDaCoordenacao {
-  readonly tentarDeNovo: () => void
+  readonly retry: () => void
   readonly tentandoDeNovo: boolean
-  readonly atualizar: () => void
+  readonly update: () => void
   readonly atualizando: boolean
   /** Quando a fila ficou pronta pela primeira vez e a cada "Atualizar" que terminou. Sem relógio: só muda por clique. */
   readonly atualizadoEm: Date | undefined
@@ -260,7 +260,7 @@ export function useFilaDaCoordenacao(): FilaLida {
     : incidentes.data === undefined
       ? { estado: 'carregando' }
       : { estado: 'lida', dado: incidentes.data.incidentes, completa: true }
-  const fila = montarFila({
+  const fila = buildFila({
     anos: leituraDosAnos,
     incidentes: leituraDeIncidentes,
     professores: leituraDe(professores),
@@ -297,13 +297,13 @@ export function useFilaDaCoordenacao(): FilaLida {
   ] as const
 
   /** Só o que falhou ou veio truncado: reler o que já está inteiro seria leitura à toa. */
-  function tentarDeNovo(): void {
+  function retry(): void {
     const relidas = leiturasDaFila.filter(({ resultado }) => resultado.isError || veioTruncada(resultado.data)).map(({ consulta }) => reler(consulta))
     definirTentando(true)
     void Promise.allSettled(relidas).then(() => definirTentando(false))
   }
 
-  function atualizar(): void {
+  function update(): void {
     const relidas = leiturasDaFila.filter(({ atualiza }) => atualiza).map(({ consulta }) => reler(consulta))
     definirAtualizando(true)
     void Promise.allSettled(relidas).then(() => {
@@ -312,5 +312,5 @@ export function useFilaDaCoordenacao(): FilaLida {
     })
   }
 
-  return { ...fila, tentarDeNovo, tentandoDeNovo, atualizar, atualizando, atualizadoEm }
+  return { ...fila, retry, tentandoDeNovo, update, atualizando, atualizadoEm }
 }

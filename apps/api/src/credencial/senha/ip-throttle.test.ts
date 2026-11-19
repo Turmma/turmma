@@ -18,7 +18,7 @@ class JanelaDeTeste {
     return `${prefixo}:${identificador}`
   }
 
-  ler(chave: string): Promise<WindowCount> {
+  read(chave: string): Promise<WindowCount> {
     return Promise.resolve({ valor: this.valores.get(chave) ?? 0, doSeguro: this.doSeguro })
   }
 
@@ -60,7 +60,7 @@ describe('RebaixamentoPorEscola', () => {
     const rebaixamento = new EscolaIpThrottle({ janela, alunosAtivos, instancias, medidor: medidor.medidor, relogio })
     const falhas = async (ip: string, escolaId: string, quantidade: number) => {
       escolaDoContexto = escolaId
-      for (let falha = 0; falha < quantidade; falha++) await rebaixamento.contarFalha(ip, escolaId)
+      for (let falha = 0; falha < quantidade; falha++) await rebaixamento.countFalha(ip, escolaId)
     }
     const rebaixar = (ip: string, escolaId: string, conhecido = false) => {
       escolaDoContexto = escolaId

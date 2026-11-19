@@ -53,7 +53,7 @@ export class LicencaRepository {
   constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   /** Uma página das licenças, em ordem de id, com uma linha a mais que diz se há próxima. */
-  listar({ pagina, limite }: LicencasQuery): Promise<LicencaLida[]> {
+  list({ pagina, limite }: LicencasQuery): Promise<LicencaLida[]> {
     return this.banco
       .select(colunas)
       .from(licencaDeMaterial)
@@ -73,7 +73,7 @@ export class LicencaRepository {
 
   /**
    * A licença da escola do contexto que o envio do material de terceiro vai usar. Com `travar`, a linha é lida `for share` até o fim da transação do envio: um `PATCH` da vigência
-   * (`travarVigencia`, `for update`) espera o envio terminar, e o envio nunca grava material sobre uma licença que acabou de ser encurtada. Sem `travar`, é a leitura da conferência
+   * (`lockVigencia`, `for update`) espera o envio terminar, e o envio nunca grava material sobre uma licença que acabou de ser encurtada. Sem `travar`, é a leitura da conferência
    * que vem antes de o arquivo ser lido. A de outra escola e a inexistente não são achadas.
    */
   async paraUso(id: string, travar: boolean): Promise<LicencaParaUso | undefined> {
@@ -86,7 +86,7 @@ export class LicencaRepository {
   }
 
   /** Grava a licença da escola do contexto, registrada pela pessoa da sessão. */
-  async inserir(pedido: RegistrarLicencaRequest): Promise<string> {
+  async insert(pedido: RegistrarLicencaRequest): Promise<string> {
     const [gravada] = await this.banco
       .insert(licencaDeMaterial)
       .values({
@@ -107,7 +107,7 @@ export class LicencaRepository {
    * A vigência da licença da escola, **travada** (`for update`) até o fim da transação: dois `PATCH` da mesma licença passam um depois do outro, e cada um grava
    * a auditoria com o "antes" que de fato encontrou, nunca o de antes do outro. A de outra escola e a inexistente não são achadas.
    */
-  async travarVigencia(id: string): Promise<VigenciaDaLicenca | undefined> {
+  async lockVigencia(id: string): Promise<VigenciaDaLicenca | undefined> {
     const [linha] = await this.banco
       .select({ vigenteDesde: licencaDeMaterial.vigenteDesde, vigenteAte: licencaDeMaterial.vigenteAte })
       .from(licencaDeMaterial)
@@ -117,7 +117,7 @@ export class LicencaRepository {
   }
 
   /** Aplica a alteração à licença da escola e devolve se achou a linha; `alterada_em` é o relógio do banco. Só os campos que vieram mudam. */
-  async alterar(id: string, alteracao: AlterarLicencaRequest): Promise<boolean> {
+  async update(id: string, alteracao: AlterarLicencaRequest): Promise<boolean> {
     const alteradas = await this.banco
       .update(licencaDeMaterial)
       .set({

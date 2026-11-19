@@ -54,13 +54,13 @@ function useEmailDigitado(aoValidar: (pedido: CorrigirEmailDoProfessorRequest) =
     definirEmail(novo)
     definirErro(undefined)
   }
-  function enviar(evento: FormEvent<HTMLFormElement>): void {
+  function send(evento: FormEvent<HTMLFormElement>): void {
     evento.preventDefault()
     const validacao = pedidoDeCorrecaoDoEmail(email)
     if (validacao.ok) aoValidar(validacao.pedido)
     else definirErro(validacao.erro)
   }
-  return { email, erro, mudar, enviar }
+  return { email, erro, mudar, enviar: send }
 }
 
 /** O botão que fez o pedido tinha o foco, e o texto do e-mail que não serve é do campo: o foco volta a ele a cada tentativa recusada. */
@@ -212,7 +212,7 @@ export function DialogoDeCorrigirEmail({ nome, estadoAgora, mutacao, aoEnviarPor
   })
 
   /** O link sai por outro caminho, que o diálogo seguinte oferece: solta o link e entrega a tela ao "Reenviar", sem perguntar. */
-  function enviarPorEmail(): void {
+  function sendPorEmail(): void {
     corrigir.reset()
     aoEnviarPorEmail()
   }
@@ -235,7 +235,7 @@ export function DialogoDeCorrigirEmail({ nome, estadoAgora, mutacao, aoEnviarPor
           token={corrigir.data.token}
           titulo={tituloDoLink}
           copia={copia}
-          aoEnviarPorEmail={enviarPorEmail}
+          aoEnviarPorEmail={sendPorEmail}
           aoFechar={fechamento.pedirParaFechar}
         />
       )}

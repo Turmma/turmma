@@ -23,12 +23,12 @@ function caminhoDaProvisoria(usuarioId: string): string {
  * `GET /v1/usuarios/:usuarioId/senha-provisoria`: o aluno que a confirmação mostra antes de gerar, `{ nome, turma, matricula, entraPelaContaDaEscola }`. Um aluno por vez, lido ao abrir a
  * confirmação e descartado ao fechar. Quem não alcança o aluno recebe `NAO_ENCONTRADO`, igual ao aluno que não existe.
  */
-export function lerOAlvoDaSenhaProvisoria(usuarioId: string, sinal?: AbortSignal): Promise<AlvoDaSenhaProvisoriaResponse> {
+export function readOAlvoDaSenhaProvisoria(usuarioId: string, sinal?: AbortSignal): Promise<AlvoDaSenhaProvisoriaResponse> {
   return authedRequest(caminhoDaProvisoria(usuarioId), alvoDaSenhaProvisoriaResponseSchema, { sinal })
 }
 
 /** `POST /v1/usuarios/:usuarioId/senha-provisoria`: gera a senha, em dois grupos (`ABCD-EFGH`), com a validade. Sem corpo: o aluno é o do caminho. */
-export function gerarASenhaProvisoria(usuarioId: string): Promise<SenhaProvisoriaResponse> {
+export function generateASenhaProvisoria(usuarioId: string): Promise<SenhaProvisoriaResponse> {
   return authedRequest(caminhoDaProvisoria(usuarioId), senhaProvisoriaResponseSchema, { metodo: 'POST' })
 }
 

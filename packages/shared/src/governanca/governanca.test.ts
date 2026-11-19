@@ -22,7 +22,7 @@ import {
 } from './governanca.js'
 import { execucaoInputSchema, FUNCAO_DA_TAREFA_DE_IA, TAREFAS_DE_IA } from '../time/execucao.js'
 import { CHAVES_DE_FUNCAO, FUNCOES } from '../time/funcoes.js'
-import { chaveDeFuncaoSchema, timeResponseSchema, montarTime } from '../time/time.js'
+import { chaveDeFuncaoSchema, timeResponseSchema, buildTime } from '../time/time.js'
 
 /** A mesma expressão de `e2e/support/professor/scenario.ts` (`VOCABULARIO_DE_NOTA`), copiada: o pacote não importa do e2e. */
 const VOCABULARIO_DE_NOTA = /\bnotas?\b|\bconceitos?\b|pontuaç/i
@@ -110,7 +110,7 @@ describe('o que cada função faz sozinha, e a suspensão por função (D9, D60)
     for (const texto of [nome, fazSozinha, esperaAprovacao]) expect(texto).not.toMatch(VOCABULARIO_DE_NOTA)
     expect(chaveDeFuncaoSchema.safeParse('classificacao_do_material').success).toBe(true)
     // Suspensível: a suspensão por função a alcança, e o time a mostra suspensa só quando está.
-    const suspensa = montarTime(new Set(['classificacao_do_material'] as const)).agentes.flatMap((agente) => agente.funcoes)
+    const suspensa = buildTime(new Set(['classificacao_do_material'] as const)).agentes.flatMap((agente) => agente.funcoes)
     expect(suspensa.filter((funcao) => funcao.suspensa).map((funcao) => funcao.chave)).toEqual(['classificacao_do_material'])
   })
 
@@ -124,7 +124,7 @@ describe('o que cada função faz sozinha, e a suspensão por função (D9, D60)
   })
 
   it('o time sai do catálogo: três agentes, as sete funções, e só a função suspensa aparece suspensa', () => {
-    const time = montarTime(new Set(['correcao_de_objetiva'] as const))
+    const time = buildTime(new Set(['correcao_de_objetiva'] as const))
     expect(timeResponseSchema.safeParse(time).success).toBe(true)
     const funcoes = time.agentes.flatMap((agente) => agente.funcoes)
     expect(funcoes.map((funcao) => funcao.chave).sort()).toEqual([...CHAVES_DE_FUNCAO].sort())
@@ -141,7 +141,7 @@ describe('o que cada função faz sozinha, e a suspensão por função (D9, D60)
       expect(funcao.fazSozinha, funcao.chave).toBe(FUNCOES[funcao.chave].fazSozinha)
       expect(funcao.autonomia, funcao.chave).toBe(FUNCOES[funcao.chave].autonomia)
     }
-    expect(montarTime(new Set()).agentes.flatMap((agente) => agente.funcoes).some((funcao) => funcao.suspensa)).toBe(false)
+    expect(buildTime(new Set()).agentes.flatMap((agente) => agente.funcoes).some((funcao) => funcao.suspensa)).toBe(false)
   })
 
   it('a função da rota é uma chave do catálogo, e o motivo da suspensão é de lista fechada, nunca texto', () => {
@@ -154,7 +154,7 @@ describe('o que cada função faz sozinha, e a suspensão por função (D9, D60)
   })
 
   it('as funções da governança mostram a suspensão vigente sem dizer quem suspendeu', () => {
-    const base = montarTime(new Set(['adaptacao'] as const))
+    const base = buildTime(new Set(['adaptacao'] as const))
     const agentes = base.agentes.map((agente) => ({ ...agente, funcoes: agente.funcoes.map((funcao) => ({ ...funcao, suspensao: funcao.suspensa ? { suspensaEm: AGORA, motivo: null } : null })) }))
     expect(funcoesDaGovernancaResponseSchema.safeParse({ agentes }).success).toBe(true)
     const comAutor = agentes.map((agente) => ({ ...agente, funcoes: agente.funcoes.map((funcao) => ({ ...funcao, suspensao: { suspensaEm: AGORA, motivo: null, suspensaPor: { id: UM_ID, nome: 'Renata' } } })) }))

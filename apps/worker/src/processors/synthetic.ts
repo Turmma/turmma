@@ -96,7 +96,7 @@ export class CpuSandbox implements CpuBurner {
 
   #distribuir(): void {
     while (this.#fila.length > 0) {
-      const thread = this.#ociosas.pop() ?? (this.threads < this.threadsMaximo ? this.#criarThread() : undefined)
+      const thread = this.#ociosas.pop() ?? (this.threads < this.threadsMaximo ? this.#createThread() : undefined)
       if (thread === undefined) return
       const pedido = this.#fila.shift()
       if (pedido === undefined) {
@@ -108,7 +108,7 @@ export class CpuSandbox implements CpuBurner {
     }
   }
 
-  #criarThread(): Worker {
+  #createThread(): Worker {
     const thread = new Worker(this.arquivo, { resourceLimits: { maxOldGenerationSizeMb: MEMORIA_DA_THREAD_MB } })
     // Ociosa, a thread não segura o processo: quem o mantém vivo é o worker do BullMQ.
     thread.unref()
@@ -146,10 +146,10 @@ export class CpuSandbox implements CpuBurner {
  * mesma em toda reexecução, e a gravação com a mesma chave não duplica. Falhar depois de gravar é o caso que
  * a retentativa precisa aguentar.
  */
-export function createSyntheticProcessor(cpu: CpuBurner, efeitos: Pick<SyntheticEffectRepository, 'gravar'>): JobProcessor<typeof TIPO_JOB_SINTETICO> {
+export function createSyntheticProcessor(cpu: CpuBurner, efeitos: Pick<SyntheticEffectRepository, 'save'>): JobProcessor<typeof TIPO_JOB_SINTETICO> {
   return async ({ cpuMs, efeito, falhar }, { tentativa, chaveIdempotencia }, sinal) => {
     await cpu.queimar(cpuMs, sinal)
-    if (efeito === true) await efeitos.gravar({ chaveIdempotencia, tentativa })
+    if (efeito === true) await efeitos.save({ chaveIdempotencia, tentativa })
     if (falhar) throw new JobFailureError(JobFailureCode.FALHA_SINTETICA)
   }
 }

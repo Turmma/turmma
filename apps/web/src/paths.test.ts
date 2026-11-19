@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { AREA_BASE_PATH, caminhoDaEtapaDaEntrada, caminhoDaTrocaDaProvisoria, caminhoDoPedidoDoTitular, ehTelaDeFoco, ROUTES, COORDENACAO_ROUTES, ALUNO_ROUTES } from './paths'
+import { AREA_BASE_PATH, caminhoDaEtapaDaEntrada, caminhoDaTrocaDaProvisoria, caminhoDoPedidoDoTitular, isTelaDeFoco, ROUTES, COORDENACAO_ROUTES, ALUNO_ROUTES } from './paths'
 
 describe('o endereço do pedido de titular (F3, 17.0)', () => {
   it('leva só o id do pedido, na aba Pedidos da Privacidade, e nada além dele vira trecho do endereço', () => {
@@ -43,16 +43,16 @@ describe('os endereços do aluno (telas do aluno e primeiro acesso, 2.0)', () =>
   })
 })
 
-describe('ehTelaDeFoco', () => {
+describe('isTelaDeFoco', () => {
   it('é verdadeira nas três introduções, e só no endereço exato dela', () => {
-    for (const caminho of [ROUTES.bemVindoDoAluno, ROUTES.bemVindoDoProfessor, ROUTES.bemVindoDaCoordenacao]) expect(ehTelaDeFoco(caminho), caminho).toBe(true)
-    expect(ehTelaDeFoco('/aluno/bem-vindo-velho')).toBe(false)
-    expect(ehTelaDeFoco('/aluno/bem-vindo/x')).toBe(false)
-    expect(ehTelaDeFoco('/bem-vindo')).toBe(false)
+    for (const caminho of [ROUTES.bemVindoDoAluno, ROUTES.bemVindoDoProfessor, ROUTES.bemVindoDaCoordenacao]) expect(isTelaDeFoco(caminho), caminho).toBe(true)
+    expect(isTelaDeFoco('/aluno/bem-vindo-velho')).toBe(false)
+    expect(isTelaDeFoco('/aluno/bem-vindo/x')).toBe(false)
+    expect(isTelaDeFoco('/bem-vindo')).toBe(false)
   })
 
   it('é falsa em toda tela de dentro da casca, as do aluno inclusive', () => {
-    for (const caminho of [ROUTES.inicio, ROUTES.inicioDoAluno, ROUTES.euDoAluno, ROUTES.atividades, ROUTES.tutor, ROUTES.privacidadeDoAluno, ROUTES.novaConversa, ROUTES.painel, ROUTES.entrar]) expect(ehTelaDeFoco(caminho), caminho).toBe(false)
+    for (const caminho of [ROUTES.inicio, ROUTES.inicioDoAluno, ROUTES.euDoAluno, ROUTES.atividades, ROUTES.tutor, ROUTES.privacidadeDoAluno, ROUTES.novaConversa, ROUTES.painel, ROUTES.entrar]) expect(isTelaDeFoco(caminho), caminho).toBe(false)
   })
 })
 

@@ -85,7 +85,7 @@ export interface ComandoExecutavel {
   /** O perfil da tarefa: é por ele que o processador acha o prazo único da execução (`PRAZO_DA_EXECUCAO_MS`). */
   readonly perfil: Perfil
   /** `preparar` → modelo → `concluir` na transação do `gravar`. Quem chama já conferiu a suspensão e leu a execução. */
-  executar(execucao: ExecucaoLida, ia: LLMProvider, sinal: AbortSignal, gravar: GravadorDaConclusao): Promise<ResultadoGravado>
+  run(execucao: ExecucaoLida, ia: LLMProvider, sinal: AbortSignal, gravar: GravadorDaConclusao): Promise<ResultadoGravado>
 }
 
 export function comoExecutavel<Entrada, Saida, Lido>(comando: ExecucaoCommand<Entrada, Saida, Lido>): ComandoExecutavel {
@@ -96,14 +96,14 @@ export function comoExecutavel<Entrada, Saida, Lido>(comando: ExecucaoCommand<En
     perfil: comando.tarefa.perfil,
     daRotina: comando.daRotina === true,
     ...(comando.aoFalharDefinitivo === undefined ? {} : { aoFalharDefinitivo: (codigo, tx, execucaoId) => comando.aoFalharDefinitivo?.(codigo, tx, execucaoId) ?? Promise.resolve() }),
-    async executar(execucao, ia, sinal, gravar) {
+    async run(execucao, ia, sinal, gravar) {
       const { entrada, lido, alunoId, turmaId, semModelo } = await comando.preparar(execucao)
       if (semModelo === true) {
         if (comando.concluirSemModelo === undefined) throw new InvariantException('o comando pediu para concluir sem modelo e não sabe como')
         const concluirSemModelo = comando.concluirSemModelo.bind(comando)
         return gravar((tx, execucaoId) => concluirSemModelo(lido, tx, execucaoId))
       }
-      const { saida } = await ia.gerar({
+      const { saida } = await ia.generate({
         tarefa: comando.tarefa,
         entrada,
         escolaId: requireEscolaId(),

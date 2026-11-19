@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { hashDoToken } from '../../apps/api/src/credencial/token-hash.ts'
 import { NOME_SINTETICO } from '../../apps/api/src/sessao/tenant/synthetic-sessions.ts'
 import { indiceDaTurma, nomeDaTurma } from '../../packages/core/src/importacao/tipos/alunos.ts'
-import { lerTabela } from '../../packages/core/src/importacao/leitor.ts'
+import { readTabela } from '../../packages/core/src/importacao/leitor.ts'
 import { CABECALHOS_DA_PLANILHA } from '../../packages/shared/src/importacao/modelos.ts'
 import { LIMITE_DA_PLANILHA_POR_MINUTO, MAXIMO_DE_DESLIGAMENTOS_POR_GRAVAR, MAXIMO_DE_LINHAS_DA_PLANILHA, MAXIMO_DE_LINHAS_DA_PLANILHA_DE_PROFESSORES } from '../../packages/shared/src/importacao/contratos.ts'
 import { raizRepositorio } from '../../tools/ci/executar.ts'
@@ -78,7 +78,7 @@ function todosOsResumos(trocas: Record<string, ResumoDaFase> = {}): Map<string, 
 
 /** As linhas de uma planilha de alunos, lidas pelo mesmo leitor do servidor. */
 function linhasDeAlunos(texto: string): Array<{ turma: string; nome: string; matricula: string }> {
-  return lerTabela(texto, CABECALHOS_DA_PLANILHA.alunos).linhas.map(({ campos }) => {
+  return readTabela(texto, CABECALHOS_DA_PLANILHA.alunos).linhas.map(({ campos }) => {
     if (campos === null) throw new Error('linha com número de campos errado')
     return { turma: campos['turma'] ?? '', nome: campos['nome'] ?? '', matricula: campos['matricula'] ?? '' }
   })
@@ -180,7 +180,7 @@ describe('as planilhas do cenário "a escola inteira entra de uma vez"', () => {
 
   it('a planilha da equipe tem uma linha por professor que já tem conta, só com e-mail do domínio que não recebe mensagem, e cabe com os novos de cada volta no teto de 300', () => {
     const emails = Array.from({ length: 200 }, (_, posicao) => `sintetico-${String(posicao)}@educa.invalid`)
-    const tabela = lerTabela(montarPlanilhaDaEquipe(emails), CABECALHOS_DA_PLANILHA.professores)
+    const tabela = readTabela(montarPlanilhaDaEquipe(emails), CABECALHOS_DA_PLANILHA.professores)
     expect(tabela.linhas).toHaveLength(200)
     expect(tabela.linhas.every(({ campos }) => campos !== null && (campos['email'] ?? '').endsWith('@educa.invalid'))).toBe(true)
     const k6 = lerArquivo('infra/k6/importacao-7h30.js')

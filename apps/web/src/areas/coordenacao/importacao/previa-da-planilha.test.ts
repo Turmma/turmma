@@ -21,7 +21,7 @@ import {
   MOTIVO_DO_DOCUMENTO,
   MOTIVO_DO_ERRO_NA_PLANILHA,
   passaDoTeto,
-  podeGravar,
+  canGravar,
   previaEnvelheceu,
   resumoDasMarcas,
   rotuloDoTodosDoGrupo,
@@ -147,27 +147,27 @@ describe('13.0 (unidade): a prévia da planilha em texto', () => {
 
 describe('13.0 (unidade): quando a gravação é oferecida', () => {
   it('com erro, não: o motivo manda corrigir a planilha e escolher o arquivo de novo', () => {
-    expect(podeGravar({ linhas: [linha(2, 'entra'), linha(3, 'erro', { erro: 'sem_nome' })] }, 0)).toEqual({ pode: false, motivo: MOTIVO_DO_ERRO_NA_PLANILHA })
+    expect(canGravar({ linhas: [linha(2, 'entra'), linha(3, 'erro', { erro: 'sem_nome' })] }, 0)).toEqual({ pode: false, motivo: MOTIVO_DO_ERRO_NA_PLANILHA })
     // Nem a marca abre a gravação de uma planilha com erro (RF2).
-    expect(podeGravar({ linhas: [linha(3, 'erro', { erro: 'sem_nome' })] }, 5).pode).toBe(false)
+    expect(canGravar({ linhas: [linha(3, 'erro', { erro: 'sem_nome' })] }, 5).pode).toBe(false)
   })
 
   it('a coluna que parece CPF ou data segura a gravação com o motivo dela; a matrícula de verdade, não', () => {
     for (const qual of [1, 2, 40]) {
       const linhas = Array.from({ length: qual }, (_, posicao) => linha(posicao + 2, 'erro', { erro: 'matricula_parece_documento' }))
-      expect(podeGravar({ linhas }, 0), String(qual)).toEqual({ pode: false, motivo: MOTIVO_DO_DOCUMENTO })
+      expect(canGravar({ linhas }, 0), String(qual)).toEqual({ pode: false, motivo: MOTIVO_DO_DOCUMENTO })
     }
     // Um erro de outro tipo junto: vale o motivo geral.
-    expect(podeGravar({ linhas: [linha(2, 'erro', { erro: 'matricula_parece_documento' }), linha(3, 'erro', { erro: 'sem_nome' })] }, 0)).toEqual({ pode: false, motivo: MOTIVO_DO_ERRO_NA_PLANILHA })
-    expect(podeGravar({ linhas: [linha(2, 'entra')] }, 0)).toEqual({ pode: true })
+    expect(canGravar({ linhas: [linha(2, 'erro', { erro: 'matricula_parece_documento' }), linha(3, 'erro', { erro: 'sem_nome' })] }, 0)).toEqual({ pode: false, motivo: MOTIVO_DO_ERRO_NA_PLANILHA })
+    expect(canGravar({ linhas: [linha(2, 'entra')] }, 0)).toEqual({ pode: true })
   })
 
   it('só grava com algo novo: o nome corrigido e o aluno que volta gravam; "já existe" sozinho não, a não ser com marca', () => {
-    expect(podeGravar({ linhas: [linha(2, 'ja_existe')] }, 0)).toEqual({ pode: false, motivo: MOTIVO_DE_NADA_NOVO })
-    expect(podeGravar({ linhas: [linha(2, 'muda_de_turma')] }, 0).pode).toBe(false)
-    expect(podeGravar({ linhas: [linha(2, 'muda_de_turma')] }, 1)).toEqual({ pode: true })
-    expect(podeGravar({ linhas: [linha(2, 'nome_corrigido')] }, 0)).toEqual({ pode: true })
-    expect(podeGravar({ linhas: [linha(2, 'volta')] }, 0)).toEqual({ pode: true })
+    expect(canGravar({ linhas: [linha(2, 'ja_existe')] }, 0)).toEqual({ pode: false, motivo: MOTIVO_DE_NADA_NOVO })
+    expect(canGravar({ linhas: [linha(2, 'muda_de_turma')] }, 0).pode).toBe(false)
+    expect(canGravar({ linhas: [linha(2, 'muda_de_turma')] }, 1)).toEqual({ pode: true })
+    expect(canGravar({ linhas: [linha(2, 'nome_corrigido')] }, 0)).toEqual({ pode: true })
+    expect(canGravar({ linhas: [linha(2, 'volta')] }, 0)).toEqual({ pode: true })
   })
 })
 
@@ -312,15 +312,15 @@ describe('14.0 (unidade): a grade e o calendário na prévia', () => {
 
   it('a planilha que só tira aula ou evento do ano pode ser gravada; a que não muda nada, não', () => {
     const jaExiste = [linha(2, 'ja_existe'), linha(3, 'ja_existe')]
-    expect(podeGravar({ linhas: jaExiste, contagens: { ja_existem: 2 } }, 0).pode).toBe(false)
-    expect(podeGravar({ linhas: jaExiste, contagens: { ja_existem: 2, aulas_removidas: 1 } }, 0).pode).toBe(true)
-    expect(podeGravar({ linhas: jaExiste, contagens: { ja_existem: 2, eventos_removidos: 3 } }, 0).pode).toBe(true)
-    expect(podeGravar({ linhas: jaExiste, contagens: { ja_existem: 2, aulas_removidas: 0, eventos_removidos: 0 } }, 0).pode).toBe(false)
+    expect(canGravar({ linhas: jaExiste, contagens: { ja_existem: 2 } }, 0).pode).toBe(false)
+    expect(canGravar({ linhas: jaExiste, contagens: { ja_existem: 2, aulas_removidas: 1 } }, 0).pode).toBe(true)
+    expect(canGravar({ linhas: jaExiste, contagens: { ja_existem: 2, eventos_removidos: 3 } }, 0).pode).toBe(true)
+    expect(canGravar({ linhas: jaExiste, contagens: { ja_existem: 2, aulas_removidas: 0, eventos_removidos: 0 } }, 0).pode).toBe(false)
     // Sem contagens (a lista da turma), vale o que valia: só as linhas e as marcas.
-    expect(podeGravar({ linhas: jaExiste }, 0).pode).toBe(false)
-    expect(podeGravar({ linhas: jaExiste }, 1).pode).toBe(true)
+    expect(canGravar({ linhas: jaExiste }, 0).pode).toBe(false)
+    expect(canGravar({ linhas: jaExiste }, 1).pode).toBe(true)
     // Com erro, nada grava, tire o que tirar.
-    expect(podeGravar({ linhas: [linha(2, 'erro', { erro: 'dia_invalido' })], contagens: { aulas_removidas: 2 } }, 0).pode).toBe(false)
+    expect(canGravar({ linhas: [linha(2, 'erro', { erro: 'dia_invalido' })], contagens: { aulas_removidas: 2 } }, 0).pode).toBe(false)
   })
 })
 

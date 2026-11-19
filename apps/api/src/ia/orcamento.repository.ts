@@ -38,7 +38,7 @@ export class OrcamentoRepository implements OrcamentoDeIa {
     private readonly relogio: Clock = systemClock,
   ) {}
 
-  async consultar(consulta: OrcamentoQuery): Promise<OrcamentoDecision> {
+  async check(consulta: OrcamentoQuery): Promise<OrcamentoDecision> {
     const escolaId = requireEscolaId()
     if (consulta.funcao !== 'tutor_com_o_aluno' || consulta.alunoId === undefined) return { permitido: true }
     const { alunoId, turmaId } = consulta

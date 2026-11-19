@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { MENSAGENS_DE_ERRO, montarTime, type ChaveDeFuncao, type Ferramenta as NomeDeFerramenta } from '@educa/shared'
+import { MENSAGENS_DE_ERRO, buildTime, type ChaveDeFuncao, type Ferramenta as NomeDeFerramenta } from '@educa/shared'
 import { cleanup, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -26,7 +26,7 @@ const TURMA_A = { id: id(101), nome: '1º A' }
 const VINCULO: FakeResponse = { status: 200, corpo: { itens: [{ id: id(401), turma: TURMA_A, disciplina: QUIMICA, estado: 'confirmado' }] } }
 const SEM_VINCULO: FakeResponse = { status: 200, corpo: { itens: [] } }
 const erro = (status: number, codigo: string): FakeResponse => ({ status, corpo: { erro: { codigo, mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } })
-const timeSem = (...suspensas: ChaveDeFuncao[]): FakeResponse => ({ status: 200, corpo: montarTime(new Set(suspensas)) })
+const timeSem = (...suspensas: ChaveDeFuncao[]): FakeResponse => ({ status: 200, corpo: buildTime(new Set(suspensas)) })
 const ATIVIDADE = {
   id: id(700),
   tipo: 'atividade_objetiva',

@@ -8,7 +8,7 @@ import {
   JobOutbox,
   runInContext,
   JobOutboxRepository,
-  lerJanelaPadrao,
+  readJanelaPadrao,
   bullmqQueueName,
   QUEUE_PRIORITY,
   resolverVagas,
@@ -30,7 +30,7 @@ import { Redis } from 'ioredis'
 import { randomUUID } from 'node:crypto'
 import { lerAmbienteDeTeste, valorObrigatorio } from '../../../tools/ci/compose.ts'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
-import { criarEscola, criarRede } from '../../api/src/operacao/escola/escola.js'
+import { createEscola, createRede } from '../../api/src/operacao/escola/escola.js'
 import { createOutboxRelay, type OutboxRelayRuntime, type CreateOutboxRelayOptions } from '../../despachante/src/composition.js'
 import { createWorker, type WorkerRuntime } from '../src/composition.js'
 
@@ -66,7 +66,7 @@ export function vagasPadraoDoAmbiente(): ConcurrencyByQueue {
 
 /** O horário letivo padrão de `.env.example` (São Paulo, segunda a sexta, 07:00 às 18:00), lido como o despachante lê. */
 export function janelaPadraoDoAmbiente(): JanelaLetiva {
-  return lerJanelaPadrao(ambiente)
+  return readJanelaPadrao(ambiente)
 }
 
 export function urlRedisDeFila(): string {
@@ -212,8 +212,8 @@ export class QueueFixtures<Registro extends JobRegistry = typeof JOB_DEFINITIONS
   async escola(): Promise<string> {
     // A bancada não é o comando nem o painel: o autor é fixo, sem conferir operador ativo.
     const autor = async () => FIXTURES_OPERADOR
-    const { id: redeId } = await criarRede(this.banco, autor, { id: randomUUID(), nome: 'Rede sintética da fila', tipo: 'independente' })
-    return (await criarEscola(this.banco, autor, { id: randomUUID(), redeId, nome: 'Escola sintética da fila', slug: `fila-${randomUUID()}` })).id
+    const { id: redeId } = await createRede(this.banco, autor, { id: randomUUID(), nome: 'Rede sintética da fila', tipo: 'independente' })
+    return (await createEscola(this.banco, autor, { id: randomUUID(), redeId, nome: 'Escola sintética da fila', slug: `fila-${randomUUID()}` })).id
   }
 
   /**
@@ -226,7 +226,7 @@ export class QueueFixtures<Registro extends JobRegistry = typeof JOB_DEFINITIONS
     const fila = pedido.fila ?? 'interativa'
     return runInContext({ requisicaoId, escolaId }, () =>
       this.banco.transaction((tx) =>
-        this.registro.inserir(tx, {
+        this.registro.insert(tx, {
           tipo: pedido.tipo ?? 'sintetico',
           fila,
           prioridade: QUEUE_PRIORITY[fila],

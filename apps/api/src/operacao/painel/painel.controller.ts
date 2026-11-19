@@ -61,25 +61,25 @@ export class PainelController {
   @Post('redes')
   @OperacaoRoute()
   @Header('Cache-Control', 'no-store')
-  criarRede(@Body(new ZodValidationPipe(criarRedeRequestSchema)) pedido: CriarRedeRequest): Promise<CriadoNoPainelResponse> {
-    return this.painel.criarRede(pedido)
+  createRede(@Body(new ZodValidationPipe(criarRedeRequestSchema)) pedido: CriarRedeRequest): Promise<CriadoNoPainelResponse> {
+    return this.painel.createRede(pedido)
   }
 
   @Post('escolas')
   @OperacaoRoute()
   @Header('Cache-Control', 'no-store')
-  criarEscola(@Body(new ZodValidationPipe(criarEscolaRequestSchema)) pedido: CriarEscolaRequest): Promise<CriadoNoPainelResponse> {
-    return this.painel.criarEscola(pedido)
+  createEscola(@Body(new ZodValidationPipe(criarEscolaRequestSchema)) pedido: CriarEscolaRequest): Promise<CriadoNoPainelResponse> {
+    return this.painel.createEscola(pedido)
   }
 
   @Post('escolas/:id/convite-coordenacao')
   @OperacaoRoute()
   @Header('Cache-Control', 'no-store')
-  gerarConvite(
+  generateConvite(
     @Param('id', IdPipe) escolaId: string,
     @Body(new ZodValidationPipe(conviteDaCoordenacaoRequestSchema)) pedido: ConviteDaCoordenacaoRequest,
   ): Promise<ConviteDaCoordenacaoResponse> {
-    return this.painel.gerarConvite(escolaId, pedido)
+    return this.painel.generateConvite(escolaId, pedido)
   }
 
   @Post('convites/:id/refazer')

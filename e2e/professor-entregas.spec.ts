@@ -41,7 +41,7 @@ test.describe('Seu time › Assistente de ensino (11.4)', () => {
     await expect(adaptacao).toContainText(FUNCOES.adaptacao.fazSozinha)
     await expect(adaptacao).toContainText(FUNCOES.adaptacao.esperaAprovacao)
     // Só as funções do Assistente, as do catálogo, uma a uma: as do Tutor e do Analista não são dele, e função nova dele entra na lista sem mudar este caso.
-    // A ordem também é contrato, e não coincidência: a tela sai de `montarTime`, que percorre o catálogo na ordem dele. Trocar a ordem do catálogo muda a tela, e este caso acusa.
+    // A ordem também é contrato, e não coincidência: a tela sai de `buildTime`, que percorre o catálogo na ordem dele. Trocar a ordem do catálogo muda a tela, e este caso acusa.
     const doAssistente = Object.entries(FUNCOES)
       .filter(([, funcao]) => funcao.agente === 'assistente_de_ensino')
       .map(([chave]) => chave)

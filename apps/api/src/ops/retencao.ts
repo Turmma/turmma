@@ -15,7 +15,7 @@ import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 import { z } from 'zod'
 import { AcessoDaEscolaRepository } from '../credencial/index.js'
-import { abrirBancoDeOperacao, InvalidArgumentError, autorDoComando, lerOperador, OperadorRejectedError, type CommandDatabase, type CommandOutput } from './command.js'
+import { openBancoDeOperacao, InvalidArgumentError, autorDoComando, readOperador, OperadorRejectedError, type CommandDatabase, type CommandOutput } from './command.js'
 import type { AuthorCheck } from '../sessao/index.js'
 
 const registro = new AuditoriaRecorder()
@@ -48,7 +48,7 @@ const CATEGORIAS_ACEITAS: readonly string[] = [...CHAVES_DE_RETENCAO, ...CHAVES_
 const MESES = /^\d{1,4}$/
 const CONTRATO = /^[1-9]\d{0,8}$/
 
-function lerOpcoes(argumentos: string[]) {
+function readOpcoes(argumentos: string[]) {
   try {
     return parseArgs({
       args: argumentos,
@@ -62,8 +62,8 @@ function lerOpcoes(argumentos: string[]) {
   }
 }
 
-export function lerPedidoDeRetencao(argumentos: string[]): PedidoDeRetencao {
-  const { values: valores, positionals: posicionais } = lerOpcoes(argumentos)
+export function readPedidoDeRetencao(argumentos: string[]): PedidoDeRetencao {
+  const { values: valores, positionals: posicionais } = readOpcoes(argumentos)
   const comando = posicionais.join(' ')
   if (comando !== 'listar' && comando !== 'ajustar') throw new InvalidArgumentError('comando (ajustar | listar)')
   const escola = z.uuid().safeParse(valores.escola)
@@ -90,13 +90,13 @@ export function ajustarRetencao(banco: Database, autor: AuthorCheck, pedido: Ext
       const autorOperador = await autor(tx)
       return runInContext({ requisicaoId, escolaId: pedido.escolaId }, async () => {
         const repositorio = new RetencaoDaEscolaRepository(tx)
-        if (!(await repositorio.travarEscola())) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+        if (!(await repositorio.lockEscola())) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
         const ajustes = await repositorio.ajustes()
         const categoria = CHAVES_DE_RETENCAO.find((chave) => chave === pedido.categoria)
         if (categoria === undefined || !ajusteDeRetencaoCabe(categoria, pedido.meses, ajustes)) throw new DomainException(ErrorCode.RETENCAO_FORA_DO_LIMITE)
         const anterior = ajustes.find((ajuste) => ajuste.categoria === categoria)
-        await repositorio.gravar({ categoria, meses: pedido.meses, referenciaContrato: pedido.referenciaContrato, alteradaPor: autorOperador })
-        await registro.gravar(tx, 'retencao.ajustada', {
+        await repositorio.save({ categoria, meses: pedido.meses, referenciaContrato: pedido.referenciaContrato, alteradaPor: autorOperador })
+        await registro.save(tx, 'retencao.ajustada', {
           entidadeId: pedido.escolaId,
           antes: anterior === undefined ? { meses: CATEGORIAS_DE_RETENCAO[categoria].padrao, origem: 'padrao' } : { meses: anterior.meses, origem: 'ajustada' },
           depois: { categoria, meses: pedido.meses, referenciaContrato: pedido.referenciaContrato },
@@ -112,7 +112,7 @@ export function ajustarRetencao(banco: Database, autor: AuthorCheck, pedido: Ext
 }
 
 /** O prazo efetivo de cada categoria da escola, lido no contexto dela, numa transação que começa pelo autor. */
-export function listarRetencao(banco: Database, autor: AuthorCheck, escolaId: string): Promise<RetencaoDaCategoria[]> {
+export function listRetencao(banco: Database, autor: AuthorCheck, escolaId: string): Promise<RetencaoDaCategoria[]> {
   const requisicaoId = randomUUID()
   return runInContext({ requisicaoId }, () =>
     banco.transaction(async (tx) => {
@@ -136,19 +136,19 @@ const MENSAGEM_DO_OPERADOR: Partial<Record<ErrorCode, string>> = {
  * `ERRO_INTERNO` resumido, 2 argumento ou ambiente inválido, ou `OPERADOR` que não é operador ativo. Argumento e formato
  * do `OPERADOR` são conferidos antes de abrir o banco; o `OPERADOR` contra os ativos, dentro da transação.
  */
-export async function executarOpsRetencao(
+export async function runOpsRetencao(
   argumentos: string[],
   ambiente: Record<string, string | undefined>,
   terminal: CommandOutput,
-  abrirBanco: (ambiente: Record<string, string | undefined>) => CommandDatabase = abrirBancoDeOperacao,
+  abrirBanco: (ambiente: Record<string, string | undefined>) => CommandDatabase = openBancoDeOperacao,
 ): Promise<number> {
   try {
-    const pedido = lerPedidoDeRetencao(argumentos)
-    const operador = lerOperador(ambiente)
-    const { banco, fechar } = abrirBanco(ambiente)
+    const pedido = readPedidoDeRetencao(argumentos)
+    const operador = readOperador(ambiente)
+    const { banco, close: fechar } = abrirBanco(ambiente)
     try {
       const autor = autorDoComando(operador)
-      const resposta = pedido.comando === 'listar' ? { categorias: await listarRetencao(banco, autor, pedido.escolaId) } : await ajustarRetencao(banco, autor, pedido)
+      const resposta = pedido.comando === 'listar' ? { categorias: await listRetencao(banco, autor, pedido.escolaId) } : await ajustarRetencao(banco, autor, pedido)
       terminal.saida(`${JSON.stringify(resposta)}\n`)
       return 0
     } finally {
@@ -171,7 +171,7 @@ export async function executarOpsRetencao(
 }
 
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  process.exitCode = await executarOpsRetencao(process.argv.slice(2), process.env, {
+  process.exitCode = await runOpsRetencao(process.argv.slice(2), process.env, {
     saida: (texto) => process.stdout.write(texto),
     erro: (texto) => process.stderr.write(texto),
   })

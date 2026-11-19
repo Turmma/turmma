@@ -19,7 +19,7 @@ import { prazoDoPedido, textoDoPrazo } from './textos-do-pedido'
 import {
   AVISO_DO_ALUNO_DA_LISTA,
   hojeEmSaoPaulo,
-  ordenarOsPedidos,
+  sortOsPedidos,
   ROTULO_DE_QUEM_PEDIU,
   ROTULO_DO_TIPO,
   SITUACAO_DO_PEDIDO,
@@ -96,7 +96,7 @@ function colunasDosPedidos(hoje: string): readonly [TableColumn<ItemDoPedido>, .
 export default function Pedidos() {
   const consulta = useInfiniteQuery(pedidosDoTitularQueryOptions)
   const [anuncio, definirAnuncio] = useState('')
-  const pedidos = useMemo(() => ordenarOsPedidos((consulta.data?.pages ?? []).flatMap((pagina) => pagina.itens)), [consulta.data])
+  const pedidos = useMemo(() => sortOsPedidos((consulta.data?.pages ?? []).flatMap((pagina) => pagina.itens)), [consulta.data])
   const hoje = hojeEmSaoPaulo()
   const colunas = useMemo(() => colunasDosPedidos(hoje), [hoje])
 

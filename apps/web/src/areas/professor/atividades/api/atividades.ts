@@ -71,7 +71,7 @@ export function correcaoDoLoteQueryOptions(atividadeAplicadaId: string) {
  * uma vez só, e devolve as respostas do aluno e o histórico dele. A tela não manda o que mostrou: quem monta o
  * "apresentado" é o servidor.
  */
-export function abrirDestaque(atividadeAplicadaId: string, alunoId: string): Promise<DestaqueAbertoResponse> {
+export function openDestaque(atividadeAplicadaId: string, alunoId: string): Promise<DestaqueAbertoResponse> {
   return authedRequest(`${CAMINHO}/${encodeURIComponent(atividadeAplicadaId)}/correcao/destaques/${encodeURIComponent(alunoId)}/abrir`, destaqueAbertoResponseSchema, { metodo: 'POST', corpo: {} })
 }
 

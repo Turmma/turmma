@@ -92,9 +92,9 @@ export async function createSyntheticSessions(
         const contas: Array<string | null> =
           pedido.papel === 'aluno'
             ? Array.from({ length: pedido.quantidade }, () => null)
-            : await new TenantResolutionRepository(tx).criarContas(Array.from({ length: pedido.quantidade }, () => `sintetico-${randomUUID()}@educa.invalid`))
-        const usuarios = await criacao.criarUsuarios(contas.map((contaId) => ({ contaId, papel: pedido.papel, nome: NOME_SINTETICO })))
-        const sessoes = await criacao.criarSessoes(
+            : await new TenantResolutionRepository(tx).createContas(Array.from({ length: pedido.quantidade }, () => `sintetico-${randomUUID()}@educa.invalid`))
+        const usuarios = await criacao.createUsuarios(contas.map((contaId) => ({ contaId, papel: pedido.papel, nome: NOME_SINTETICO })))
+        const sessoes = await criacao.createSessoes(
           usuarios.map(({ id: usuarioId, contaId }) => ({
             usuarioId,
             contaId,
@@ -131,7 +131,7 @@ export interface AlunoComMatriculaSintetico {
  * aluno sem conta (nome fixo sintético, nunca e-mail) e a `credencial_matricula` dele, numa transação, no contexto da
  * escola. Só com `AMBIENTE=local`, como as sessões sintéticas. Devolve os ids na ordem pedida.
  */
-export async function criarAlunosComMatricula(
+export async function createAlunosComMatricula(
   banco: Database,
   ambiente: Record<string, string | undefined>,
   escolaId: string,
@@ -141,13 +141,13 @@ export async function criarAlunosComMatricula(
   if (alunos.length < 1 || alunos.length > QUANTIDADE_MAXIMA_DE_SESSOES_SINTETICAS) throw new DomainException(ErrorCode.ENTRADA_INVALIDA)
   return runInContext({ requisicaoId: randomUUID(), escolaId }, () =>
     banco.transaction(async (tx) => {
-      const usuarios = await new SessaoCreateRepository(tx).criarUsuarios(alunos.map(() => ({ contaId: null, papel: 'aluno' as const, nome: NOME_SINTETICO })))
+      const usuarios = await new SessaoCreateRepository(tx).createUsuarios(alunos.map(() => ({ contaId: null, papel: 'aluno' as const, nome: NOME_SINTETICO })))
       const credenciais = alunos.map((aluno, posicao) => {
         const usuario = usuarios[posicao]
         if (usuario === undefined) throw new InvariantException('aluno sintético não criado')
         return { usuarioId: usuario.id, matricula: aluno.matricula, senhaHash: aluno.senhaHash }
       })
-      await new CredencialMatriculaRepository(tx).criar(credenciais)
+      await new CredencialMatriculaRepository(tx).create(credenciais)
       return credenciais.map((credencial) => credencial.usuarioId)
     }),
   )

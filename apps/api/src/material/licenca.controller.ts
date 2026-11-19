@@ -23,8 +23,8 @@ export class LicencaController {
 
   @Get()
   @RequirePermissao('licenca', 'listar')
-  listar(@Query(new ZodValidationPipe(licencasQuerySchema)) consulta: LicencasQuery): Promise<ListaDeLicencasResponse> {
-    return this.licencas.listar(consulta)
+  list(@Query(new ZodValidationPipe(licencasQuerySchema)) consulta: LicencasQuery): Promise<ListaDeLicencasResponse> {
+    return this.licencas.list(consulta)
   }
 
   @Post()
@@ -35,7 +35,7 @@ export class LicencaController {
 
   @Patch(':id')
   @RequirePermissao('licenca', 'alterar')
-  alterar(@Param('id', IdPipe) id: string, @Body(new ZodValidationPipe(alterarLicencaRequestSchema)) pedido: AlterarLicencaRequest): Promise<LicencaResponse> {
-    return this.licencas.alterar(id, pedido)
+  update(@Param('id', IdPipe) id: string, @Body(new ZodValidationPipe(alterarLicencaRequestSchema)) pedido: AlterarLicencaRequest): Promise<LicencaResponse> {
+    return this.licencas.update(id, pedido)
   }
 }

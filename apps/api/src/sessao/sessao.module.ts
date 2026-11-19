@@ -137,7 +137,7 @@ export class SessaoModule implements OnApplicationShutdown {
       providers: [
         { provide: REDIS_LOGIN_CLIENT, useFactory: () => createApiRedisClient(opcoes.redisFilaUrl, 'api-login', avisar, opcoes.prazoDoRedisMs ?? opcoes.login.prazoDoRedisMs) },
         { provide: TenantResolutionRepository, useFactory: (banco: Database) => new TenantResolutionRepository(banco), inject: [DB] },
-        { provide: PasswordHasher, useFactory: () => PasswordHasher.criar(opcoes.login.hash) },
+        { provide: PasswordHasher, useFactory: () => PasswordHasher.create(opcoes.login.hash) },
         // Um semáforo por instância, dividido pelo login por e-mail e pelo por matrícula: o teto é das threads do processo.
         // Sem proteção só no controle negativo do cenário "login às 7h30" (16.0), nunca em produção (a configuração recusa).
         {
@@ -154,7 +154,7 @@ export class SessaoModule implements OnApplicationShutdown {
         {
           provide: EscolaIpThrottle,
           useFactory: (banco: Database, janela: WindowCounter) =>
-            new EscolaIpThrottle({ janela, alunosAtivos: () => new AlunosAtivosRepository(banco).contar(), instancias: opcoes.instancias, medidor: opcoes.medidor ?? globalMeter() }),
+            new EscolaIpThrottle({ janela, alunosAtivos: () => new AlunosAtivosRepository(banco).count(), instancias: opcoes.instancias, medidor: opcoes.medidor ?? globalMeter() }),
           inject: [DB, WindowCounter],
         },
         {

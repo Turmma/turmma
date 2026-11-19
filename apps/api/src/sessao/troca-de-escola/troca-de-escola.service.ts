@@ -45,7 +45,7 @@ export class TrocaDeEscolaService {
     const verificado = await verifyChallenge(desafio, this.dependencias.chaveAssinatura, ['escolher'])
     await consumo.conferirLivre(verificado)
     const destino = await this.#destinoDaConta(verificado.contaId, pedido.usuarioId)
-    await consumo.consumir(verificado)
+    await consumo.consume(verificado)
     return this.#entrar(verificado.contaId, destino, verificado.mfaCumprido, undefined, origem)
   }
 

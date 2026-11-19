@@ -127,7 +127,7 @@ export interface TurnoDoTutorLido {
   readonly resposta: string
 }
 export interface ProvedorDeTurnos {
-  gerar(pedido: { tarefa: unknown; entrada: unknown; escolaId: string; alunoId: string }): Promise<{ saida: TurnoDoTutorLido }>
+  generate(pedido: { tarefa: unknown; entrada: unknown; escolaId: string; alunoId: string }): Promise<{ saida: TurnoDoTutorLido }>
 }
 /** O contexto que a requisição dá em produção: a escola de quem pede, que as portas de suspensão, orçamento e consumo leem (8.0). */
 export type ExecutarNoContexto = <T>(contexto: { readonly requisicaoId: string; readonly escolaId: string }, funcao: () => T) => T
@@ -154,7 +154,7 @@ export function medirComProvedor(amostras: readonly Amostra[], pecas: PecasDoNuc
     padrao: pecas.mencionaRiscoAVida,
     turno: async (texto) => {
       const { saida } = await pecas.executarNoContexto({ requisicaoId: REQUISICAO_DA_MEDIDA, escolaId: ESCOLA_DA_MEDIDA }, () =>
-        pecas.provedor.gerar({ tarefa: pecas.turnoDoTutor, entrada: entradaDaMedida(texto), escolaId: ESCOLA_DA_MEDIDA, alunoId: ALUNO_DA_MEDIDA }),
+        pecas.provedor.generate({ tarefa: pecas.turnoDoTutor, entrada: entradaDaMedida(texto), escolaId: ESCOLA_DA_MEDIDA, alunoId: ALUNO_DA_MEDIDA }),
       )
       return saida.resposta === pecas.MENSAGEM_DE_RISCO_A_VIDA
     },

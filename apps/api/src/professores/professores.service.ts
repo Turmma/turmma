@@ -12,7 +12,7 @@ import {
   type ListaDeProfessoresResponse,
 } from '@educa/shared'
 import { paginarPor } from '../http/pagination.js'
-import { cadastrarProfessor, corrigirEmailDoProfessor, enviarConvitesDeProfessores, refazerConviteDeProfessor, revogarConviteDeProfessor, type EnvioDeConvites } from '../sessao/index.js'
+import { cadastrarProfessor, corrigirEmailDoProfessor, sendConvitesDeProfessores, refazerConviteDeProfessor, revogarConviteDeProfessor, type EnvioDeConvites } from '../sessao/index.js'
 import { ProfessoresRepository } from './professores.repository.js'
 
 /**
@@ -38,7 +38,7 @@ export class ProfessoresService {
     return conviteDeProfessorResponseSchema.parse(await cadastrarProfessor(this.banco, pedido))
   }
 
-  async listar(consulta: PaginationQuery): Promise<ListaDeProfessoresResponse> {
+  async list(consulta: PaginationQuery): Promise<ListaDeProfessoresResponse> {
     const lidos = await new ProfessoresRepository(this.banco).pagina(consulta)
     const pagina = paginarPor(lidos, consulta.limite, (lido) => lido.usuarioId)
     return listaDeProfessoresResponseSchema.parse({
@@ -48,8 +48,8 @@ export class ProfessoresService {
   }
 
   /** O "Enviar convites": refaz o convite de quem o espera, com canal `email`, e enfileira o envio (cota de 300/h por escola). A resposta é a contagem, e o e-mail sai depois, pelo worker. */
-  async enviarConvites(pedido: EnviarConvitesRequest): Promise<EnviarConvitesResponse> {
-    return enviarConvitesResponseSchema.parse(await enviarConvitesDeProfessores(this.banco, this.envio, pedido, this.relogio))
+  async sendConvites(pedido: EnviarConvitesRequest): Promise<EnviarConvitesResponse> {
+    return enviarConvitesResponseSchema.parse(await sendConvitesDeProfessores(this.banco, this.envio, pedido, this.relogio))
   }
 
   async refazerConvite(usuarioId: string): Promise<ConviteDeProfessorResponse> {

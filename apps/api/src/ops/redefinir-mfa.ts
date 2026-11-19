@@ -4,7 +4,7 @@ import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 import { z } from 'zod'
 import { redefinirMfaPeloOperador } from '../sessao/index.js'
-import { abrirBancoDeOperacao, InvalidArgumentError, autorDoComando, lerOperador, OperadorRejectedError, type CommandDatabase, type CommandOutput } from './command.js'
+import { openBancoDeOperacao, InvalidArgumentError, autorDoComando, readOperador, OperadorRejectedError, type CommandDatabase, type CommandOutput } from './command.js'
 
 /**
  * Redefinição do MFA pelo operador, a pedido formal da escola (PRD, caso de borda "Único coordenador perde o app
@@ -29,7 +29,7 @@ export interface PedidoDeRedefinicao {
 
 const pedidoSchema = z.coerce.number().int().positive().max(2_147_483_647)
 
-export function lerPedidoDeRedefinicao(argumentos: string[]): PedidoDeRedefinicao {
+export function readPedidoDeRedefinicao(argumentos: string[]): PedidoDeRedefinicao {
   let valores: { usuario?: string | undefined; pedido?: string | undefined }
   try {
     valores = parseArgs({ args: argumentos, options: { usuario: { type: 'string' }, pedido: { type: 'string' } }, strict: true, allowPositionals: false }).values
@@ -48,16 +48,16 @@ export function lerPedidoDeRedefinicao(argumentos: string[]): PedidoDeRedefinica
  * Executa o comando e devolve o código de saída: 0 redefinido, 1 erro (`NAO_ENCONTRADO` ou `ERRO_INTERNO` resumido), 2
  * argumento ou ambiente inválido.
  */
-export async function executarOpsRedefinirMfa(
+export async function runOpsRedefinirMfa(
   argumentos: string[],
   ambiente: Record<string, string | undefined>,
   terminal: CommandOutput,
-  abrirBanco: (ambiente: Record<string, string | undefined>) => CommandDatabase = abrirBancoDeOperacao,
+  abrirBanco: (ambiente: Record<string, string | undefined>) => CommandDatabase = openBancoDeOperacao,
 ): Promise<number> {
   try {
-    const pedido = lerPedidoDeRedefinicao(argumentos)
-    const operador = lerOperador(ambiente)
-    const { banco, fechar } = abrirBanco(ambiente)
+    const pedido = readPedidoDeRedefinicao(argumentos)
+    const operador = readOperador(ambiente)
+    const { banco, close: fechar } = abrirBanco(ambiente)
     try {
       await redefinirMfaPeloOperador(banco, autorDoComando(operador), pedido.usuarioId, pedido.pedido)
       terminal.saida('ok\n')
@@ -82,7 +82,7 @@ export async function executarOpsRedefinirMfa(
 }
 
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  process.exitCode = await executarOpsRedefinirMfa(process.argv.slice(2), process.env, {
+  process.exitCode = await runOpsRedefinirMfa(process.argv.slice(2), process.env, {
     saida: (texto) => process.stdout.write(texto),
     erro: (texto) => process.stderr.write(texto),
   })

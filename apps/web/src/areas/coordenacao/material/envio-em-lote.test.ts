@@ -2,7 +2,7 @@ import { ErrorCode, type Material } from '@educa/shared'
 import { describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../../api/client'
 import type { CamposDoEnvioDeMaterial } from './api/material'
-import { enviarOLote } from './envio-em-lote'
+import { sendOLote } from './envio-em-lote'
 import type { ItemDoLote } from './material-envio'
 
 /** O laço do envio em lote (ingestao-do-material, 7.0; RF14), sem React: um por vez, o que falha não derruba os outros, e o que vale para o lote todo o para. */
@@ -16,10 +16,10 @@ function rodar(lista: ItemDoLote[], resposta: (indice: number) => Promise<Materi
   const textos = new Map<number, string | undefined>()
   const emAndamento = { agora: 0, maximo: 0 }
   let chamadas = 0
-  const resultado = enviarOLote({
+  const resultado = sendOLote({
     itens: lista,
     camposDe: extra.camposDe ?? (() => CAMPOS),
-    enviar: async () => {
+    send: async () => {
       emAndamento.agora += 1
       emAndamento.maximo = Math.max(emAndamento.maximo, emAndamento.agora)
       const indice = chamadas
@@ -40,7 +40,7 @@ function rodar(lista: ItemDoLote[], resposta: (indice: number) => Promise<Materi
   return { resultado, situacoes, textos, emAndamento, chamadas: () => chamadas }
 }
 
-describe('enviarOLote', () => {
+describe('sendOLote', () => {
   it('20 arquivos, um inválido e um repetido: 18 prontos, uma falha, um "já enviado", um por vez', async () => {
     const lista = itens(20)
     const r = rodar(lista, async (indice) => {

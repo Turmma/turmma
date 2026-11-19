@@ -59,8 +59,8 @@ export class AssistenteService {
   }
 
   /** `POST /v1/assistente/mensagens`: grava a pergunta e a execução, e responde o id dela. */
-  async enviar(pedido: MensagemAoAssistenteRequest): Promise<ExecucaoAceitaResponse> {
-    await this.limite.contar()
+  async send(pedido: MensagemAoAssistenteRequest): Promise<ExecucaoAceitaResponse> {
+    await this.limite.count()
     const turmaId = pedido.turmaId.toLowerCase()
     const disciplinaId = pedido.disciplinaId.toLowerCase()
     // A turma e a disciplina de outra pessoa, de outra escola ou inexistentes respondem igual (regra 10, item 6).
@@ -79,7 +79,7 @@ export class AssistenteService {
       // A mensagem de quem pediu fica na requisição, na mesma transação do `pendente`: a execução a relê pelo id.
       aoGravar: async (tx, execucaoId) => {
         const conversa = new ConversaRepository(tx)
-        await conversa.gravarDoUsuario(await conversa.garantirThread(), execucaoId, { texto: pedido.texto, turmaId, disciplinaId })
+        await conversa.saveDoUsuario(await conversa.garantirThread(), execucaoId, { texto: pedido.texto, turmaId, disciplinaId })
       },
     })
   }

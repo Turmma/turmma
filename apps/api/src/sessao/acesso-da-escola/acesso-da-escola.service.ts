@@ -18,7 +18,7 @@ export class AcessoDaEscolaService {
     private readonly ligados: readonly ProvedorExterno[],
   ) {}
 
-  async ler(slug: string): Promise<AcessoDaEscolaResponse> {
+  async read(slug: string): Promise<AcessoDaEscolaResponse> {
     const escolaId = await this.resolucao.escolaPorSlug(slug)
     if (escolaId === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     const lido = await naEscolaSemUsuario({ escolaId }, async () => {

@@ -13,16 +13,16 @@ export class EscolaSessaoService {
 
   constructor(private readonly banco: Database) {}
 
-  async alterar(pedido: EscolaSessaoRequest): Promise<EscolaSessaoResponse> {
+  async update(pedido: EscolaSessaoRequest): Promise<EscolaSessaoResponse> {
     const escolaId = currentContext()?.escolaId
     if (escolaId === undefined) throw new DomainException(ErrorCode.NAO_AUTENTICADO)
     const gravada = await this.banco.transaction(async (tx) => {
       const repositorio = new EscolaSessaoRepository(tx)
-      const antes = await repositorio.lerParaAlterar()
+      const antes = await repositorio.findParaAlterar()
       if (antes === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
-      const depois = await repositorio.alterar(pedido)
+      const depois = await repositorio.update(pedido)
       if (depois === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
-      await this.#auditoria.gravar(tx, 'escola.sessao_alterada', { entidadeId: escolaId, antes: { ...antes }, depois: { ...depois } })
+      await this.#auditoria.save(tx, 'escola.sessao_alterada', { entidadeId: escolaId, antes: { ...antes }, depois: { ...depois } })
       return depois
     })
     return escolaSessaoResponseSchema.parse({ inatividadeAlunoMin: gravada.inatividadeAlunoMin, inatividadeEquipeMin: gravada.inatividadeEquipeMin })

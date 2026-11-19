@@ -31,16 +31,16 @@ export type MotivoDoArquivoRecusado = (typeof MOTIVOS_DO_ARQUIVO_RECUSADO)[numbe
 
 export type ArquivoLido = { readonly ok: true; readonly texto: string } | { readonly ok: false; readonly motivo: MotivoDoArquivoRecusado }
 
-export async function lerArquivoDaLista(arquivo: Blob): Promise<ArquivoLido> {
+export async function readArquivoDaLista(arquivo: Blob): Promise<ArquivoLido> {
   try {
-    return await lerComoTexto(arquivo)
+    return await readComoTexto(arquivo)
   } catch {
     // A leitura que o navegador recusa não pode virar promessa rejeitada sem aviso na tela.
     return { ok: false, motivo: 'ilegivel' }
   }
 }
 
-async function lerComoTexto(arquivo: Blob): Promise<ArquivoLido> {
+async function readComoTexto(arquivo: Blob): Promise<ArquivoLido> {
   if (arquivo.size > MAXIMO_DE_BYTES_DO_ARQUIVO_EM_UTF16) return { ok: false, motivo: 'grande' }
   const bytes = new Uint8Array(await arquivo.arrayBuffer())
   const utf16 = bytes[0] === 0xff && bytes[1] === 0xfe ? 'utf-16le' : bytes[0] === 0xfe && bytes[1] === 0xff ? 'utf-16be' : undefined

@@ -24,7 +24,7 @@ export function prefixoDaEscola(escolaId: string): string {
  * Cliente S3 puro (regra 00, item 7): endereço por caminho, que qualquer storage compatível atende, e
  * prazos de conexão e de requisição.
  */
-export function criarClienteS3(config: StorageConfig): S3Client {
+export function createClienteS3(config: StorageConfig): S3Client {
   return new S3Client({
     endpoint: config.url,
     region: config.regiao,
@@ -50,7 +50,7 @@ export class StorageSizeReader {
     'a consolidação noturna é rotina nossa e mede o storage de todas as escolas; ' +
       'devolve só os ids das pastas, e a medição de cada uma volta ao escopo da escola',
   )
-  async listarEscolas(): Promise<string[]> {
+  async listEscolas(): Promise<string[]> {
     const escolas: string[] = []
     let continuacao: string | undefined
     do {

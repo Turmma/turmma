@@ -71,7 +71,7 @@ export const MOTIVO_MODELO_MENOR_SEM_PRECO =
   'LLM_MODELO_MENOR_<PERFIL> precisa de preço em PRECO_DOS_MODELOS (packages/core/src/ia/consumo.ts): sem preço o degrau do gateway gastaria sem a conta da D14, e o modelo real só entra com a D37'
 
 /** A espera entre duas reservas, cortada pelo sinal de quem chamou (o prazo único da execução, ou o desligamento): o prazo que vence na espera a encerra na hora. */
-function esperar(ms: number, sinal: AbortSignal | undefined): Promise<void> {
+function wait(ms: number, sinal: AbortSignal | undefined): Promise<void> {
   return new Promise((resolver, rejeitar) => {
     if (sinal?.aborted === true) {
       rejeitar(new LLMError('IA_TEMPO_ESGOTADO'))
@@ -109,7 +109,7 @@ interface Medidas {
  */
 const horaDoProcessoMs = (): number => Date.now()
 
-function criarMedidas(medidor: Meter | undefined, usosDoTeto: ReadonlyMap<string, { readonly valor: number; readonly em: number }>): Medidas {
+function createMedidas(medidor: Meter | undefined, usosDoTeto: ReadonlyMap<string, { readonly valor: number; readonly em: number }>): Medidas {
   if (medidor === undefined) return {}
   const pedidosAcimaDoTeto = medidor.createCounter(METRICS.pedidoAcimaDoTeto, { description: 'Pedidos de IA recusados acima do teto de entrada da tarefa, por tarefa' })
   const degradacao = medidor.createCounter(METRICS.degradacaoDeIa, { description: 'Pedidos de IA que desceram um degrau da degradação (espera, modelo menor, indisponível), por degrau' })
@@ -160,10 +160,10 @@ function interpretar<Entrada, Saida>(tarefa: TaskDefinition<Entrada, Saida>, ent
   }
   // A tela mostra o texto como texto: a marcação que o modelo põe por hábito sai antes de validar.
   const limpo = semMarcacao(bruto)
-  return validar(tarefa, entrada, tarefa.prepararResposta?.(entrada, limpo) ?? limpo)
+  return validate(tarefa, entrada, tarefa.prepararResposta?.(entrada, limpo) ?? limpo)
 }
 
-function validar<Entrada, Saida>(tarefa: TaskDefinition<Entrada, Saida>, entrada: Entrada, bruto: unknown): Interpretacao<Saida> {
+function validate<Entrada, Saida>(tarefa: TaskDefinition<Entrada, Saida>, entrada: Entrada, bruto: unknown): Interpretacao<Saida> {
   const lida = tarefa.esquemaDeSaida.safeParse(bruto)
   if (!lida.success) {
     const problemas = lida.error.issues.slice(0, PROBLEMAS_MAXIMOS_NA_REPETICAO).map((problema) => `${problema.path.join('.') || 'resposta'}: ${problema.message}`)
@@ -199,14 +199,14 @@ export class LLMGateway implements LLMProvider {
 
   constructor(private readonly dependencias: LLMGatewayDependencies) {
     this.relogio = dependencias.relogio ?? systemClock
-    const medidas = criarMedidas(dependencias.medidor, this.usosDoTeto)
+    const medidas = createMedidas(dependencias.medidor, this.usosDoTeto)
     this.pedidosAcimaDoTeto = medidas.pedidosAcimaDoTeto
     this.degradacao = medidas.degradacao
     this.duracaoDaChamada = medidas.duracaoDaChamada
     this.errosDaChamada = medidas.errosDaChamada
   }
 
-  async gerar<Entrada, Saida>(pedido: GenerationRequest<Entrada, Saida>): Promise<GenerationResult<Saida>> {
+  async generate<Entrada, Saida>(pedido: GenerationRequest<Entrada, Saida>): Promise<GenerationResult<Saida>> {
     const { tarefa } = pedido
     const { adaptador } = this.dependencias
     const inicio = performance.now()
@@ -321,7 +321,7 @@ export class LLMGateway implements LLMProvider {
     let codigo: LLMErrorCode | undefined
     let tenteDeNovoEmSegundos: number | undefined
     try {
-      const decisao = await this.dependencias.orcamento.consultar({
+      const decisao = await this.dependencias.orcamento.check({
         funcao: pedido.tarefa.funcao,
         ...(pedido.alunoId === undefined ? {} : { alunoId: pedido.alunoId }),
         ...(pedido.turmaId === undefined ? {} : { turmaId: pedido.turmaId }),
@@ -341,7 +341,7 @@ export class LLMGateway implements LLMProvider {
 
   /** A regra fixa também passa pelo schema e pela conferência: texto nosso com defeito não chega a ninguém. */
   private exigirSaidaFixa<Entrada, Saida>(tarefa: TaskDefinition<Entrada, Saida>, entrada: Entrada, fixa: Saida): Saida {
-    const validada = validar(tarefa, entrada, fixa)
+    const validada = validate(tarefa, entrada, fixa)
     if (!validada.ok) throw new LLMError('IA_SAIDA_INVALIDA')
     return validada.saida
   }
@@ -380,7 +380,7 @@ export class LLMGateway implements LLMProvider {
     const { tarefa } = pedido
     const reserva = problemas === undefined ? undefined : tarefa.reservaQuandoInvalida?.(entrada, problemas)
     if (reserva === undefined) return undefined
-    const validada = validar(tarefa, entrada, reserva)
+    const validada = validate(tarefa, entrada, reserva)
     if (!validada.ok) return undefined
     const tipo = tarefa.nome
     this.dependencias.logger?.info({ evento: 'ia.geracao.reserva', tipo, escolaId: pedido.escolaId, execucaoId: pedido.execucaoId, tentativas })
@@ -434,7 +434,7 @@ export class LLMGateway implements LLMProvider {
         esperou = true
         this.descer('espera', tarefa.nome, principal)
       }
-      await esperar(Math.min(Math.max(resultado.msAteLiberar, ESPERA_MINIMA_ENTRE_RESERVAS_MS), restante), pedido.sinal)
+      await wait(Math.min(Math.max(resultado.msAteLiberar, ESPERA_MINIMA_ENTRE_RESERVAS_MS), restante), pedido.sinal)
     }
     return this.descerParaOMenor(pedido, estimativa, fila, limite, msAteLiberar)
   }

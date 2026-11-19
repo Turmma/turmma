@@ -91,7 +91,7 @@ function useLeituraDoResumo() {
     tentando: leituras.some((leitura) => leitura.isFetching),
     pendente: leituras.some((leitura) => leitura.isPending),
     erro: leituras.find((leitura) => leitura.isError)?.error,
-    tentarDeNovo: (): void => {
+    retry: (): void => {
       for (const leitura of leituras) void leitura.refetch({ cancelRefetch: false })
     },
   }
@@ -142,12 +142,12 @@ export function ResumoDoMaterial({ materiais }: Props) {
           releituraFalhou={resumo.isError}
           erro={resumo.error}
           tentando={leitura.tentando}
-          aoTentarDeNovo={leitura.tentarDeNovo}
+          aoTentarDeNovo={leitura.retry}
         />
       ) : leitura.pendente ? (
         <LoadingState rotulo="Carregando o resumo…" />
       ) : (
-        <ErroDoResumo erro={leitura.erro} tentando={leitura.tentando} aoTentarDeNovo={leitura.tentarDeNovo} />
+        <ErroDoResumo erro={leitura.erro} tentando={leitura.tentando} aoTentarDeNovo={leitura.retry} />
       )}
     </section>
   )

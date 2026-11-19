@@ -4,7 +4,7 @@ import { disciplina } from '../db/schema/disciplina.js'
 import type { PaginationQuery, Disciplina, CriarDisciplinaRequest, ComponenteBncc } from '@educa/shared'
 import { and, asc, eq, gt } from 'drizzle-orm'
 import { componenteDoNomeDaDisciplina, InvariantException } from '@educa/shared'
-import { excluirSemReferencia } from './exclusao.js'
+import { deleteSemReferencia } from './exclusao.js'
 
 const colunas = { id: disciplina.id, nome: disciplina.nome, area: disciplina.area, componenteBncc: disciplina.componenteBncc }
 
@@ -18,7 +18,7 @@ const colunas = { id: disciplina.id, nome: disciplina.nome, area: disciplina.are
 export class DisciplinaRepository {
   constructor(private readonly banco: Database | DatabaseTransaction) {}
 
-  async criar(pedido: CriarDisciplinaRequest): Promise<Disciplina> {
+  async create(pedido: CriarDisciplinaRequest): Promise<Disciplina> {
     const [criada] = await this.banco
       .insert(disciplina)
       .values({ escolaId: requireEscolaId(), nome: pedido.nome, area: pedido.area ?? null, componenteBncc: componenteDoNomeDaDisciplina(pedido.nome) })
@@ -28,7 +28,7 @@ export class DisciplinaRepository {
   }
 
   /** Uma página das disciplinas da escola, em ordem de criação, com uma linha a mais que diz se há próxima. */
-  listar({ pagina, limite }: PaginationQuery): Promise<Disciplina[]> {
+  list({ pagina, limite }: PaginationQuery): Promise<Disciplina[]> {
     return this.banco
       .select(colunas)
       .from(disciplina)
@@ -64,7 +64,7 @@ export class DisciplinaRepository {
    * A disciplina da escola com esse id, **com a linha travada** (`for update`) até o fim da transação: quem troca o componente lê o de antes sem que outra troca passe no meio, e a auditoria
    * leva o antes e o depois certos. A de outra escola ou inexistente não é achada.
    */
-  async travarPorId(id: string): Promise<Disciplina | undefined> {
+  async lockPorId(id: string): Promise<Disciplina | undefined> {
     const [linha] = await this.banco
       .select(colunas)
       .from(disciplina)
@@ -85,11 +85,11 @@ export class DisciplinaRepository {
 
   /**
    * Apaga a disciplina da escola com esse id, se nada aponta para ela, e diz se apagou. Com vínculo (qualquer estado,
-   * de qualquer ano), a FK barra e sai `CONFLITO` (`excluirSemReferencia`); a de outra escola ou inexistente não é
+   * de qualquer ano), a FK barra e sai `CONFLITO` (`deleteSemReferencia`); a de outra escola ou inexistente não é
    * achada (`false`).
    */
-  excluir(id: string): Promise<boolean> {
-    return excluirSemReferencia(async () => {
+  delete(id: string): Promise<boolean> {
+    return deleteSemReferencia(async () => {
       const apagadas = await this.banco
         .delete(disciplina)
         .where(and(eq(disciplina.escolaId, requireEscolaId()), eq(disciplina.id, id)))

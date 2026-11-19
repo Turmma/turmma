@@ -62,7 +62,7 @@ export type AlvoDoExpurgoDeAcesso = (typeof ALVOS_DO_EXPURGO_DE_ACESSO)[number]
  *   índice próprio, a ordenação é a de uma tabela pequena.
  * - **Link da conta** (acesso-e-convites, tarefa 5.0): 30 dias depois de usado, substituído ou vencido, pelo `coalesce(usado_em, expira_em)` do índice
  *   `link_da_conta_fim_idx`, com `order by` por ele. Não tem escola: é da conta global. O envio que não saiu (`na_fila` ou `enviando`) com mais de 24 h é
- *   fechado `falhou` antes (`fecharEnviosDeLinkParados`), então nenhum link com cifrado chega a este prazo.
+ *   fechado `falhou` antes (`closeEnviosDeLinkParados`), então nenhum link com cifrado chega a este prazo.
  * - **Acesso da turma** (A1, tarefa 10.0): 30 dias depois de vencer ou ser revogado, o que veio primeiro, pelo mesmo
  *   `least`, com `order by` por ele. Um acesso não revogado por turma, e os revogados saem em 30 dias: a tabela fica na
  *   ordem das turmas da escola vezes os "Gerar novo" de um mês, sem índice próprio, como o convite.
@@ -202,7 +202,7 @@ const SEM_USO = (agora: Date) => sql`
 
 /**
  * A conta da equipe que deixou de servir a qualquer escola depois da desativação, pelo mesmo critério da limpeza na
- * desativação (`limparContaSemUso`, no ciclo de vida), que adia a limpeza enquanto um convite a segura; quando o
+ * desativação (`clearContaSemUso`, no ciclo de vida), que adia a limpeza enquanto um convite a segura; quando o
  * convite vence ou é revogado, é aqui que a conta perde e-mail, senha e segundo fator, e as sessões abertas dela são
  * encerradas com motivo `conta_limpa`. A linha fica só com o id, que os usuários desativados apontam.
  *
@@ -263,7 +263,7 @@ export class ExpurgoDeAcessoRepository {
       'escola e leva as seções delas em cascata; não devolve linha, só a quantidade apagada, ' +
       'e não atende requisição de escola nenhuma',
   )
-  async apagarLoteVencido(alvo: AlvoDoExpurgoDeAcesso, agora: Date, limite: number = LOTE_DO_EXPURGO): Promise<number> {
+  async deleteLoteVencido(alvo: AlvoDoExpurgoDeAcesso, agora: Date, limite: number = LOTE_DO_EXPURGO): Promise<number> {
     const resultado = await this.banco.execute(APAGAR_LOTE[alvo](agora, limite))
     return resultado.rowCount ?? 0
   }
@@ -278,7 +278,7 @@ export class ExpurgoDeAcessoRepository {
     'o expurgo é rotina nossa: o link da conta é da conta global e não tem escola, e o envio parado há mais de 24 horas ' +
       'em qualquer conta é fechado falhou e perde os cifrados; não devolve linha, só a quantidade, e não atende requisição de escola nenhuma',
   )
-  async fecharEnviosDeLinkParados(agora: Date, limite: number = LOTE_DO_EXPURGO): Promise<number> {
+  async closeEnviosDeLinkParados(agora: Date, limite: number = LOTE_DO_EXPURGO): Promise<number> {
     const resultado = await this.banco.execute(sql`
       with parados as (
         select id from link_da_conta
@@ -304,7 +304,7 @@ export class ExpurgoDeAcessoRepository {
     'o expurgo é rotina nossa: a conta da equipe é global e não tem escola, e a que ficou sem usuário ativo e sem convite ' +
       'válido em escola nenhuma perde a credencial; não devolve linha, só a quantidade limpa, e não atende requisição de escola nenhuma',
   )
-  async limparLoteDeContasSemUso(agora: Date, limite: number = LOTE_DO_EXPURGO, depoisDeTravar?: () => Promise<void>): Promise<number> {
+  async clearLoteDeContasSemUso(agora: Date, limite: number = LOTE_DO_EXPURGO, depoisDeTravar?: () => Promise<void>): Promise<number> {
     return this.banco.transaction(async (tx) => {
       const travadas = await tx.execute<{ id: string }>(TRAVAR_CANDIDATAS(agora, limite))
       const ids = travadas.rows.map(({ id }) => id)

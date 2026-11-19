@@ -5,7 +5,7 @@ import { createQueryClient } from '../api/query-client'
 import { LoadingState } from '../components/states'
 import { euDoOperadorQueryOptions } from './api/eu'
 import {
-  abrirSessaoDeOperadorPeloCookie,
+  openSessaoDeOperadorPeloCookie,
   aoTrocarDeSessaoDeOperador,
   assinarSessaoDeOperador,
   erroDaSessaoDeOperador,
@@ -40,7 +40,7 @@ aoTrocarDeSessaoDeOperador(() => {
 function Protegida({ children }: { children: ReactNode }) {
   const estado = useSyncExternalStore(assinarSessaoDeOperador, estadoDaSessaoDeOperador)
   useEffect(() => {
-    if (estado === 'desconhecida') void abrirSessaoDeOperadorPeloCookie()
+    if (estado === 'desconhecida') void openSessaoDeOperadorPeloCookie()
   }, [estado])
 
   if (estado === 'aberta') return children
@@ -48,7 +48,7 @@ function Protegida({ children }: { children: ReactNode }) {
   return (
     <CascaPublicaDaOperacao titulo="Operação Turmma">
       {estado === 'indisponivel' ? (
-        <ErroDaOperacao erro={erroDaSessaoDeOperador()} aoTentarDeNovo={() => void abrirSessaoDeOperadorPeloCookie()} />
+        <ErroDaOperacao erro={erroDaSessaoDeOperador()} aoTentarDeNovo={() => void openSessaoDeOperadorPeloCookie()} />
       ) : (
         <LoadingState rotulo="Abrindo a sua sessão…" />
       )}

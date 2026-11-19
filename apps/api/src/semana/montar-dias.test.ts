@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { diaDaSemanaDe, montarDias, somarDias, type EntradaDaMontagem } from './montar-dias.js'
+import { diaDaSemanaDe, buildDias, somarDias, type EntradaDaMontagem } from './montar-dias.js'
 
 const V1 = '0199b0a0-0000-7000-8000-000000000001'
 const V2 = '0199b0a0-0000-7000-8000-000000000002'
@@ -19,7 +19,7 @@ const base: EntradaDaMontagem = {
   registros: [],
   itens: [],
 }
-const montar = (parcial: Partial<EntradaDaMontagem>) => montarDias({ ...base, ...parcial })
+const montar = (parcial: Partial<EntradaDaMontagem>) => buildDias({ ...base, ...parcial })
 const aloc = (vinculoId: string, diaSemana: number, inicio: string, fim = '08:20', sala: string | null = null) => ({ vinculoId, diaSemana, inicio, fim, sala })
 
 describe('a montagem dos dias da Semana (F2b, tarefa 2.0; S14)', () => {

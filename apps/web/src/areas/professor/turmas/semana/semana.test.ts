@@ -10,7 +10,7 @@ import {
   descricaoDaAula,
   deveAbrirAdeHoje,
   diasFiltrados,
-  ehDataValida,
+  isDataValida,
   emAndamento,
   enderecoDaAbaDeTurmas,
   enderecoDaAula,
@@ -72,11 +72,11 @@ describe('as datas da Semana (sem fuso: aritmética de calendário)', () => {
   })
 
   it('só aceita data que existe no calendário', () => {
-    expect(ehDataValida('2026-11-09')).toBe(true)
-    expect(ehDataValida('2026-02-30')).toBe(false)
-    expect(ehDataValida('09/11/2026')).toBe(false)
-    expect(ehDataValida('2026-13-45')).toBe(false)
-    expect(ehDataValida(null)).toBe(false)
+    expect(isDataValida('2026-11-09')).toBe(true)
+    expect(isDataValida('2026-02-30')).toBe(false)
+    expect(isDataValida('09/11/2026')).toBe(false)
+    expect(isDataValida('2026-13-45')).toBe(false)
+    expect(isDataValida(null)).toBe(false)
   })
 
   it('hoje é o do fuso da escola, e não o do navegador: 02h UTC ainda é o dia anterior em São Paulo', () => {

@@ -19,7 +19,7 @@ import { verifyOperadorChallenge } from '../src/operacao/operador-challenge.js'
 import { OPERADOR_DEVICE_COOKIE, operadorDeviceCookie } from '../src/operacao/operador-device-cookie.js'
 import { PREFIXO_DO_CONTADOR_DA_OPERACAO } from '../src/operacao/entrada/entrada.service.js'
 import { OperadorMfaService } from '../src/operacao/mfa/segundo-fator.service.js'
-import { gerarConviteDeOperador } from '../src/ops/operador.js'
+import { generateConviteDeOperador } from '../src/ops/operador.js'
 import { REDIS_LOGIN_CLIENT, LoginLockout, SESSAO_COOKIE, type OrigemDaTentativa } from '../src/credencial/index.js'
 import { testConfig } from './test-config.js'
 import { caminhoConcreto, rotasDe } from './registered-routes.js'
@@ -114,7 +114,7 @@ describe('segundo fator do operador: configurar e entrar com código (tarefa 7.0
   describe('o caminho feliz, do convite à casca', () => {
     it('aceitar, configurar (segredo, códigos e desafio `mfa` com a versão, sem ativar), o primeiro código ativa e abre a sessão com os dois cookies; depois, e-mail, senha e código entram de novo', async () => {
       const { operadorId, apelido } = await operadores.operador()
-      const convite = await gerarConviteDeOperador(banco, autor, apelido)
+      const convite = await generateConviteDeOperador(banco, autor, apelido)
       const aceite = aceitarConviteDeOperadorResponseSchema.parse(guardar(await pedir(url, 'POST', '/v1/operacao/convite/aceitar', { token: convite.token, senha: SENHA }, doIp())).corpo)
 
       const { resposta: configurado, corpo } = await configurar(url, aceite.desafio)

@@ -30,14 +30,14 @@ describe('ContadorEmJanela: a janela por parâmetro (L8)', () => {
 
     // Passado o minuto do login, a contagem da sala continua.
     relogio.avancar(JANELA_DO_CONTADOR_POR_IP_MS)
-    expect(await contador.ler(chave)).toEqual({ valor: 3, doSeguro: true })
+    expect(await contador.read(chave)).toEqual({ valor: 3, doSeguro: true })
     expect(await contador.restanteMs(chave)).toBe(DEZ_MINUTOS_MS - JANELA_DO_CONTADOR_POR_IP_MS)
 
     relogio.avancar(DEZ_MINUTOS_MS - JANELA_DO_CONTADOR_POR_IP_MS - 1)
-    expect(await contador.ler(chave)).toEqual({ valor: 3, doSeguro: true })
+    expect(await contador.read(chave)).toEqual({ valor: 3, doSeguro: true })
     expect(await contador.restanteMs(chave)).toBe(1)
     relogio.avancar(1)
-    expect(await contador.ler(chave)).toEqual({ valor: 0, doSeguro: true })
+    expect(await contador.read(chave)).toEqual({ valor: 0, doSeguro: true })
     expect(await contador.restanteMs(chave)).toBe(0)
     // A soma seguinte abre uma janela nova, também de 10 min.
     expect(await contador.somar(chave)).toEqual({ valor: 1, doSeguro: true })
@@ -52,9 +52,9 @@ describe('ContadorEmJanela: a janela por parâmetro (L8)', () => {
     const chave = contador.chaveDe('login:teste', 'ip')
     await contador.somar(chave)
     relogio.avancar(JANELA_DO_CONTADOR_POR_IP_MS - 1)
-    expect(await contador.ler(chave)).toEqual({ valor: 1, doSeguro: true })
+    expect(await contador.read(chave)).toEqual({ valor: 1, doSeguro: true })
     relogio.avancar(1)
-    expect(await contador.ler(chave)).toEqual({ valor: 0, doSeguro: true })
+    expect(await contador.read(chave)).toEqual({ valor: 0, doSeguro: true })
   })
 
   it('o aviso do seguro é o que a instância recebeu: a da sala avisa como sala, e o aviso sai espaçado', async () => {

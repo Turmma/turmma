@@ -46,7 +46,7 @@ export function ordemDeNome(a: Pick<AlunoRow, 'nome' | 'usuarioId'>, b: Pick<Alu
  * (`listaCompleta`): enquanto ainda há páginas por ler, ele pode simplesmente estar numa delas, e afirmar que saiu seria
  * dizer o que a tela não sabe. Essa linha não leva acerto nenhum: ele já não conta na turma.
  */
-export function montarLinhas(lidos: readonly AlunoDaTurma[], desempenho: DesempenhoDaTurmaResponse | undefined, listaCompleta: boolean): AlunoRow[] {
+export function buildLinhas(lidos: readonly AlunoDaTurma[], desempenho: DesempenhoDaTurmaResponse | undefined, listaCompleta: boolean): AlunoRow[] {
   const doDesempenho = desempenho?.alunos ?? []
   const acertosDe = new Map(doDesempenho.map((aluno) => [aluno.alunoId, aluno] as const))
   const naLista = new Set(lidos.map((aluno) => aluno.usuarioId))

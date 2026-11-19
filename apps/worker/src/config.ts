@@ -1,10 +1,10 @@
 import {
   InvalidConfigError,
   loadDatabaseConfig,
-  lerJanelaPadrao,
+  readJanelaPadrao,
   loadTelemetryConfig,
   loadEmailConfig,
-  lerVagasPadrao,
+  readVagasPadrao,
   isEscolaConcurrencyLimitDisabled,
   validateEnvironment,
   type DatabaseConfig,
@@ -102,7 +102,7 @@ export interface WorkerConfig {
 /** Lê e valida o ambiente do worker. Todos os problemas saem de uma vez, só pelo nome. */
 export function loadConfig(ambiente: Record<string, string | undefined>): WorkerConfig {
   const problemas: InvalidConfigError[] = []
-  const ler = <T>(leitura: () => T): T | undefined => {
+  const read = <T>(leitura: () => T): T | undefined => {
     try {
       return leitura()
     } catch (erro) {
@@ -111,22 +111,22 @@ export function loadConfig(ambiente: Record<string, string | undefined>): Worker
       return undefined
     }
   }
-  const banco = ler(() => loadDatabaseConfig(ambiente))
-  const proprio = ler(() => validateEnvironment(envSchema, ambiente))
-  const filas = ler(() => validateEnvironment(filasSchema, ambiente))
+  const banco = read(() => loadDatabaseConfig(ambiente))
+  const proprio = read(() => validateEnvironment(envSchema, ambiente))
+  const filas = read(() => validateEnvironment(filasSchema, ambiente))
   // O pool só é exigido para as filas que a réplica atende.
   const esquemaPools = z.object(Object.fromEntries((filas?.FILAS ?? []).map((fila) => [variavelDoPool(fila), inteiroPositivo])))
-  const pools = ler(() => validateEnvironment(esquemaPools, ambiente))
-  const vagasPadrao = ler(() => lerVagasPadrao(ambiente))
-  const vagasDesligadas = ler(() => isEscolaConcurrencyLimitDisabled(ambiente))
+  const pools = read(() => validateEnvironment(esquemaPools, ambiente))
+  const vagasPadrao = read(() => readVagasPadrao(ambiente))
+  const vagasDesligadas = read(() => isEscolaConcurrencyLimitDisabled(ambiente))
   const atendeLote = filas?.FILAS.includes('lote') === true
   // A extração do PDF lê o objeto do storage e o apaga: a réplica da fila `pdf` não sobe sem as variáveis do storage.
   const atendeStorage = atendeLote || filas?.FILAS.includes('normal') === true || filas?.FILAS.includes('pdf') === true
-  const storage = atendeStorage ? ler(() => validateEnvironment(storageSchema, ambiente)) : undefined
-  const janelaPadrao = atendeLote ? ler(() => lerJanelaPadrao(ambiente)) : undefined
+  const storage = atendeStorage ? read(() => validateEnvironment(storageSchema, ambiente)) : undefined
+  const janelaPadrao = atendeLote ? read(() => readJanelaPadrao(ambiente)) : undefined
   const atendeEmail = filas?.FILAS.includes('normal') === true
-  const email = atendeEmail ? ler(() => loadEmailConfig(ambiente)) : undefined
-  const telemetria = ler(() => loadTelemetryConfig(ambiente))
+  const email = atendeEmail ? read(() => loadEmailConfig(ambiente)) : undefined
+  const telemetria = read(() => loadTelemetryConfig(ambiente))
   if (
     telemetria === undefined ||
     banco === undefined ||

@@ -20,14 +20,14 @@ export class SenhaProvisoriaController {
   @RequirePermissao('senha_provisoria', 'gerar')
   @Header('Cache-Control', 'no-store')
   alvo(@Param('usuarioId', IdPipe) alunoId: string): Promise<AlvoDaSenhaProvisoriaResponse> {
-    return this.senhas.lerAlvo(alunoId)
+    return this.senhas.readAlvo(alunoId)
   }
 
   @Post(':usuarioId/senha-provisoria')
   @RequirePermissao('senha_provisoria', 'gerar')
   @HttpCode(HttpStatus.OK)
   @Header('Cache-Control', 'no-store')
-  gerar(@Param('usuarioId', IdPipe) alunoId: string): Promise<SenhaProvisoriaResponse> {
-    return this.senhas.gerar(alunoId)
+  generate(@Param('usuarioId', IdPipe) alunoId: string): Promise<SenhaProvisoriaResponse> {
+    return this.senhas.generate(alunoId)
   }
 }

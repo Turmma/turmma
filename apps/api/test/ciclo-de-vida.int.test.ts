@@ -10,7 +10,7 @@ import { Secret, TOTP } from 'otpauth'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
-import { REDIS_LOGIN_CLIENT, gerarCodigosDeRecuperacao, gerarSegredo, PasswordHasher, hmacDaRecuperacao } from '../src/credencial/index.js'
+import { REDIS_LOGIN_CLIENT, generateCodigosDeRecuperacao, generateSegredo, PasswordHasher, hmacDaRecuperacao } from '../src/credencial/index.js'
 import { anteciparODesativado } from './relogio-que-recua.js'
 import { chamar, subirApi, type TestApi } from './test-api.js'
 import { testConfig } from './test-config.js'
@@ -68,7 +68,7 @@ describe('ciclo de vida da conta: desativação, limpeza da conta global e elimi
     api = await subirApi(medidor.medidor)
     const hash = api.app.get(PasswordHasher)
     await clientePronto(api.app.get<Redis>(REDIS_LOGIN_CLIENT, { strict: false }))
-    hashDaSenha = await hash.gerar(SENHA)
+    hashDaSenha = await hash.generate(SENHA)
   })
 
   afterAll(async () => {
@@ -125,10 +125,10 @@ describe('ciclo de vida da conta: desativação, limpeza da conta global e elimi
   }
 
   async function comMfaAtivo(quem: Pessoa): Promise<string> {
-    const novo = gerarSegredo()
+    const novo = generateSegredo()
     const { cifrado, versao } = cifra.cifrar(novo.bytes, quem.contaId)
     await bancada.pool.query('update conta set mfa_segredo_cifrado = $1, mfa_chave_versao = $2, mfa_ativado_em = now(), mfa_ultimo_passo = null where id = $3', [cifrado, versao, quem.contaId])
-    for (const codigo of gerarCodigosDeRecuperacao()) {
+    for (const codigo of generateCodigosDeRecuperacao()) {
       await bancada.pool.query('insert into codigo_recuperacao (conta_id, hmac) values ($1, $2)', [quem.contaId, hmacDaRecuperacao(configuracao.login.mfa.chaveRecuperacao, codigo)])
     }
     return novo.base32
@@ -1564,7 +1564,7 @@ describe('ciclo de vida da conta: desativação, limpeza da conta global e elimi
       expect(eliminacao?.['depois']).toMatchObject({ linhaDaListaApagada: true, pedidosApagados: 2 })
     })
 
-    it('isolamento: num contexto de A, `apagarDaListaDeNomes` com o aluno aprovado de B não apaga nada em B; com a escola de B, apaga', async () => {
+    it('isolamento: num contexto de A, `deleteDaListaDeNomes` com o aluno aprovado de B não apaga nada em B; com a escola de B, apaga', async () => {
       const a = await sala.montar()
       const b = await sala.montar()
       const nome = await sala.umNome(b)
@@ -1579,7 +1579,7 @@ describe('ciclo de vida da conta: desativação, limpeza da conta global e elimi
         runInContext(contexto(escolaId), () =>
           bancada.banco
             .transaction(async (tx) => {
-              const apagados = await new CicloDeVidaRepository(tx).apagarDaListaDeNomes(alunoDeB)
+              const apagados = await new CicloDeVidaRepository(tx).deleteDaListaDeNomes(alunoDeB)
               throw Object.assign(desfeita, { apagados })
             })
             .catch((erro: unknown) => (erro === desfeita ? (desfeita as Error & { apagados?: unknown }).apagados : Promise.reject(erro))),

@@ -378,7 +378,7 @@ interface Contexto {
 async function criarEscola(contexto: Contexto, rotulo: string, comAno = true): Promise<EscolaBase> {
   const autor = async () => OPERADOR_DA_CARGA_DA_IMPORTACAO
   const slug = `imp-${rotulo}-${randomUUID()}`
-  const { id: escolaId } = await contexto.modulos.escolas.criarEscola(contexto.banco, autor, { id: randomUUID(), redeId: contexto.redeId, nome: `Escola sintética da importação ${rotulo}`, slug })
+  const { id: escolaId } = await contexto.modulos.escolas.createEscola(contexto.banco, autor, { id: randomUUID(), redeId: contexto.redeId, nome: `Escola sintética da importação ${rotulo}`, slug })
   const url = `http://127.0.0.1:${contexto.doArquivo['BORDA_PORTA_HOST'] ?? ''}`
   const coordenacoes = await contexto.modulos.sessoes.createSyntheticSessions(contexto.banco, contexto.doArquivo, { escolaId, papel: 'coordenador', quantidade: COORDENACOES_DA_MONTAGEM })
   let vez = 0
@@ -476,7 +476,7 @@ async function prepararTurmaDaProfessora(contexto: Contexto, escola: EscolaBase,
 
 /** Dá a lista de uma escola aos alunos já aprovados: usuário e credencial por matrícula, a linha da lista `aprovado` e o vínculo `confirmado`. */
 async function aprovarNaLista(contexto: Contexto, escola: EscolaBase, matriculas: readonly string[], anoLetivoId: string): Promise<void> {
-  const usuarios = await contexto.modulos.sessoes.criarAlunosComMatricula(contexto.banco, contexto.doArquivo, escola.escolaId, matriculas.map((matricula) => ({ matricula, senhaHash: contexto.senhaHash })))
+  const usuarios = await contexto.modulos.sessoes.createAlunosComMatricula(contexto.banco, contexto.doArquivo, escola.escolaId, matriculas.map((matricula) => ({ matricula, senhaHash: contexto.senhaHash })))
   const { rows } = await contexto.pool.query<{ turma_id: string; usuario_id: string }>(
     `with par as (select * from unnest($3::text[], $4::uuid[]) as p(matricula, usuario_id))
      update lista_nome l set usuario_id = par.usuario_id, nome = null, matricula = null, estado = 'aprovado'
@@ -508,7 +508,7 @@ async function montarDesligamentosEVirada(contexto: Contexto): Promise<EscolaMon
   const escola = await criarEscola(contexto, 'virada')
   const { texto, matriculas } = montarPlanilhaDaVirada()
   const planejado = await escola.coordenacao('POST', '/v1/anos-letivos', { ano: 2027, inicio: '2027-02-01', fim: '2027-12-15' })
-  await contexto.modulos.sessoes.criarAlunosComMatricula(contexto.banco, contexto.doArquivo, escola.escolaId, matriculas.map((matricula) => ({ matricula, senhaHash: contexto.senhaHash })))
+  await contexto.modulos.sessoes.createAlunosComMatricula(contexto.banco, contexto.doArquivo, escola.escolaId, matriculas.map((matricula) => ({ matricula, senhaHash: contexto.senhaHash })))
   trabalhos.push({ nome: 'virada', tipo: 'alunos', token: escola.coordenacoes[0]?.token ?? '', marcar: [], esperadas: 0, anoLetivoId: String(planejado['id']), texto })
   montadas.push({ escola: { fase: 'desligamentos_e_virada:virada', slug: escola.slug, concluidasMinimas: 1 }, arquivo: {} })
   const [primeira] = montadas
@@ -665,10 +665,10 @@ async function conferirTudo(doArquivo: Record<string, string>, registro: Registr
 async function prepararContexto(modulos: ModulosDaApi, pool: pg.Pool, doArquivo: Record<string, string>): Promise<Contexto> {
   const banco = modulos.nucleo.createDatabase(pool as unknown as Parameters<ModulosDaApi['nucleo']['createDatabase']>[0])
   const senha = randomBytes(18).toString('base64url')
-  const hasher = await modulos.hash.PasswordHasher.criar({ memoriaKib: Number(doArquivo['LOGIN_ARGON2_MEMORIA_KIB']), iteracoes: Number(doArquivo['LOGIN_ARGON2_ITERACOES']) })
+  const hasher = await modulos.hash.PasswordHasher.create({ memoriaKib: Number(doArquivo['LOGIN_ARGON2_MEMORIA_KIB']), iteracoes: Number(doArquivo['LOGIN_ARGON2_ITERACOES']) })
   const autor = async () => OPERADOR_DA_CARGA_DA_IMPORTACAO
-  const { id: redeId } = await modulos.escolas.criarRede(banco, autor, { id: randomUUID(), nome: 'Rede sintética da importação', tipo: 'independente' })
-  return { modulos, banco, pool, doArquivo, redeId, senha, senhaHash: await hasher.gerar(senha) }
+  const { id: redeId } = await modulos.escolas.createRede(banco, autor, { id: randomUUID(), nome: 'Rede sintética da importação', tipo: 'independente' })
+  return { modulos, banco, pool, doArquivo, redeId, senha, senhaHash: await hasher.generate(senha) }
 }
 
 async function rodarFases(compose: Compose, pasta: string, doArquivo: Record<string, string>, fases: readonly FaseDaImportacao[]): Promise<VereditoDaImportacao> {

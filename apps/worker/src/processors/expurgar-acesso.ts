@@ -5,7 +5,7 @@ import { JobFailureCode, type TIPO_EXPURGAR_ACESSO } from '@educa/shared'
 export type TotaisDoExpurgoDeAcesso = Record<AlvoDoExpurgoDeAcesso, number>
 
 export interface ExpurgoDeAcessoDependencies {
-  repositorio: Pick<ExpurgoDeAcessoRepository, 'apagarLoteVencido' | 'fecharEnviosDeLinkParados' | 'limparLoteDeContasSemUso'>
+  repositorio: Pick<ExpurgoDeAcessoRepository, 'deleteLoteVencido' | 'closeEnviosDeLinkParados' | 'clearLoteDeContasSemUso'>
   relogio: Clock
   logger: LoggerBase
   /** Linhas por lote. Só o teste troca. */
@@ -29,31 +29,31 @@ export interface ExpurgoDeAcessoDependencies {
  * pegam linhas diferentes; o lote de um worker que morreu no meio é desfeito pelo Postgres e sai na execução seguinte.
  * Loga só as contagens, nunca linha.
  */
-export function criarExpurgoDeAcesso({ repositorio, relogio, logger, lote = LOTE_DO_EXPURGO }: ExpurgoDeAcessoDependencies): JobProcessor<typeof TIPO_EXPURGAR_ACESSO> {
+export function createExpurgoDeAcesso({ repositorio, relogio, logger, lote = LOTE_DO_EXPURGO }: ExpurgoDeAcessoDependencies): JobProcessor<typeof TIPO_EXPURGAR_ACESSO> {
   return async () => {
     if (currentContext()?.rotinaDoSistema !== true) throw new JobFailureError(JobFailureCode.DADOS_INVALIDOS, true)
     const agora = relogio.agora()
-    const apagar = async (alvo: AlvoDoExpurgoDeAcesso): Promise<number> => {
+    const deleteAlvo = async (alvo: AlvoDoExpurgoDeAcesso): Promise<number> => {
       let total = 0
       for (;;) {
-        const doLote = await repositorio.apagarLoteVencido(alvo, agora, lote)
+        const doLote = await repositorio.deleteLoteVencido(alvo, agora, lote)
         total += doLote
         if (doLote < lote) return total
       }
     }
     // O envio do link da conta parado há mais de 24 h vira `falhou` e perde os cifrados antes do apagar, que olha só o prazo de uso ou de validade.
-    const fecharLinksParados = async (): Promise<number> => {
+    const closeLinksParados = async (): Promise<number> => {
       let total = 0
       for (;;) {
-        const doLote = await repositorio.fecharEnviosDeLinkParados(agora, lote)
+        const doLote = await repositorio.closeEnviosDeLinkParados(agora, lote)
         total += doLote
         if (doLote < lote) return total
       }
     }
-    const limparContas = async (): Promise<number> => {
+    const clearContas = async (): Promise<number> => {
       let total = 0
       for (;;) {
-        const doLote = await repositorio.limparLoteDeContasSemUso(agora, lote)
+        const doLote = await repositorio.clearLoteDeContasSemUso(agora, lote)
         total += doLote
         if (doLote < lote) return total
       }
@@ -61,20 +61,20 @@ export function criarExpurgoDeAcesso({ repositorio, relogio, logger, lote = LOTE
     // Uma tabela depois da outra, na ordem de `ALVOS_DO_EXPURGO_DE_ACESSO` (as propriedades avaliam na ordem em que estão
     // escritas, e o teste "lotes" confere a ordem), e a conta por último: nunca dois lotes do mesmo job ao mesmo tempo.
     // Objeto literal com o tipo declarado, sem afirmação: alvo novo sem total é erro de compilação (tarefa 9.0 da A0b).
-    const enviosDeLinkFechadosTotal = await fecharLinksParados()
+    const enviosDeLinkFechadosTotal = await closeLinksParados()
     const totais: TotaisDoExpurgoDeAcesso = {
-      registro_acesso: await apagar('registro_acesso'),
-      sessao: await apagar('sessao'),
-      convite: await apagar('convite'),
-      link_da_conta: await apagar('link_da_conta'),
-      acesso_turma: await apagar('acesso_turma'),
-      importacao_planilha: await apagar('importacao_planilha'),
-      acesso_operacao: await apagar('acesso_operacao'),
-      sessao_operador: await apagar('sessao_operador'),
-      convite_operador: await apagar('convite_operador'),
-      incidente: await apagar('incidente'),
+      registro_acesso: await deleteAlvo('registro_acesso'),
+      sessao: await deleteAlvo('sessao'),
+      convite: await deleteAlvo('convite'),
+      link_da_conta: await deleteAlvo('link_da_conta'),
+      acesso_turma: await deleteAlvo('acesso_turma'),
+      importacao_planilha: await deleteAlvo('importacao_planilha'),
+      acesso_operacao: await deleteAlvo('acesso_operacao'),
+      sessao_operador: await deleteAlvo('sessao_operador'),
+      convite_operador: await deleteAlvo('convite_operador'),
+      incidente: await deleteAlvo('incidente'),
     }
-    const contasLimpasTotal = await limparContas()
+    const contasLimpasTotal = await clearContas()
     const {
       registro_acesso: registrosDeAcessoTotal,
       sessao: sessoesTotal,

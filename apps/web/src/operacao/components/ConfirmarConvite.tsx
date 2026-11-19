@@ -14,7 +14,7 @@ interface Props {
   readonly aoFechar: () => void
   /**
    * O convite revogado. Roda mesmo com o diálogo já fechado (o pedido saiu e a pessoa cancelou antes da resposta): quem o
-   * recebe fecha só a abertura em que o pedido saiu (`fecharSeAinda`), e nunca outro diálogo aberto depois.
+   * recebe fecha só a abertura em que o pedido saiu (`closeSeAinda`), e nunca outro diálogo aberto depois.
    */
   readonly aoRevogar: () => void
   /** O foco ao fechar quando o "Revogar" que abriu já saiu da linha (a lista recarregou com o `CONFLITO`). */

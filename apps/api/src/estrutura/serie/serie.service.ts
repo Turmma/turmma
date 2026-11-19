@@ -17,12 +17,12 @@ import { SerieRepository } from '@educa/core/estrutura'
 export class SerieService {
   constructor(private readonly banco: Database) {}
 
-  async criar(pedido: CriarSerieRequest): Promise<SerieResponse> {
-    return serieResponseSchema.parse(await new SerieRepository(this.banco).criar(pedido))
+  async create(pedido: CriarSerieRequest): Promise<SerieResponse> {
+    return serieResponseSchema.parse(await new SerieRepository(this.banco).create(pedido))
   }
 
-  async listar(consulta: PaginationQuery): Promise<ListaDeSeriesResponse> {
-    const linhas = await new SerieRepository(this.banco).listar(consulta)
+  async list(consulta: PaginationQuery): Promise<ListaDeSeriesResponse> {
+    const linhas = await new SerieRepository(this.banco).list(consulta)
     return listaDeSeriesResponseSchema.parse(paginar(linhas, consulta.limite))
   }
 }

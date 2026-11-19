@@ -1,6 +1,6 @@
 import type { Turma, VinculoDaCoordenacao } from '@educa/shared'
 import { turmasSemProfessor } from '../painel/fila-da-coordenacao'
-import { ordenarPeloNome, ordenarTurmas } from '../comum/ordem'
+import { sortPeloNome, sortTurmas } from '../comum/ordem'
 
 /**
  * O que a aba Turmas desenha, sem React (telas da coordenação, 5.0; Tech Spec seção 9, "Escola › Turmas"): as turmas do ano
@@ -15,7 +15,7 @@ import { ordenarPeloNome, ordenarTurmas } from '../comum/ordem'
 /** O que a tela diz de um professor cujo nome a lista de professores não trouxe. É o mesmo texto da lista da turma. */
 export const NOME_NAO_CARREGADO = 'Nome não carregado'
 
-/** Os vínculos como a tela os leu: os itens e se vieram inteiros (`lerPaginas` para no teto de páginas). */
+/** Os vínculos como a tela os leu: os itens e se vieram inteiros (`readPaginas` para no teto de páginas). */
 export interface VinculosLidos {
   readonly itens: readonly VinculoDaCoordenacao[]
   readonly completa: boolean
@@ -54,7 +54,7 @@ export function turmasDaTabela(turmas: readonly Turma[], vinculos: VinculosLidos
     nomesPorTurma.set(vinculo.turma.id, daTurma)
   }
   return turmas.map((turma) => {
-    const nomes = ordenarPeloNome(
+    const nomes = sortPeloNome(
       [...(nomesPorTurma.get(turma.id)?.values() ?? [])].map((nome) => ({
         nome,
       })),
@@ -70,7 +70,7 @@ export function turmasDaTabela(turmas: readonly Turma[], vinculos: VinculosLidos
 /** As turmas por série, na ordem da escola (anos finais e depois Ensino Médio, cada série pelo ano) e, dentro dela, pelo nome. */
 export function agruparPorSerie(turmas: readonly TurmaDaTabela[]): GrupoDeSerie[] {
   const grupos: { serie: Turma['serie']; turmas: TurmaDaTabela[] }[] = []
-  for (const item of ordenarTurmas(
+  for (const item of sortTurmas(
     turmas.map((turma) => ({
       nome: turma.turma.nome,
       serie: turma.turma.serie,

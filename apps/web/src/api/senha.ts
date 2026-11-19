@@ -30,6 +30,6 @@ export function redefinirSenha(pedido: RedefinirSenhaRequest): Promise<void> {
  * inexistente chegam iguais, em `NAO_ENCONTRADO`. O pedido é o tipo do `@educa/shared`. Não abre sessão nem aceita convite: a
  * pessoa volta ao convite e aceita de novo.
  */
-export function verificarConta(pedido: VerificarContaRequest): Promise<void> {
+export function verifyConta(pedido: VerificarContaRequest): Promise<void> {
   return apiRequest(CAMINHO_DO_VERIFICAR, EMPTY_BODY, { metodo: 'POST', corpo: pedido })
 }

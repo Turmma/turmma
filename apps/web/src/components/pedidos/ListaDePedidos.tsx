@@ -7,7 +7,7 @@ import { OFFICIAL_BUTTON_CLASSES, DANGER_BUTTON_CLASSES, SECONDARY_BUTTON_CLASSE
 import { useDialogState } from '../ui/overlays/dialog-state'
 import { LoadingState, ErrorState, EmptyState } from '../states'
 import { listChanged } from '../error-text'
-import { agendarAtualizacao, alternarMarca, atualizaSozinha, pedidosQueContinuam, podeMarcarMais, quantosNovos, semOsDecididos } from './atualizacao-dos-pedidos'
+import { agendarAtualizacao, alternarMarca, atualizaSozinha, pedidosQueContinuam, canMarcarMais, quantosNovos, semOsDecididos } from './atualizacao-dos-pedidos'
 import { DialogoDeDecisao } from './DialogoDeDecisao'
 import {
   quantidadeDePedidos,
@@ -97,14 +97,14 @@ export function ListaDePedidos({ turma, quem, vazio, aoPerderATurma, aoDecidir }
   const itens = dados?.itens ?? []
   // Os marcados, na ordem da lista: é a ordem em que o diálogo os mostra e em que a decisão os manda.
   const marcadosNaLista = pedidosQueContinuam(marcados, itens)
-  const noLimite = !podeMarcarMais(marcadosNaLista.length)
+  const noLimite = !canMarcarMais(marcadosNaLista.length)
 
   function alternar(pedido: PedidoDaTurma): void {
     definirMarcados(alternarMarca(marcadosNaLista.map((marcado) => marcado.id), pedido.id))
   }
 
-  const tentarDeNovo = () => void refetch({ cancelRefetch: false })
-  const erroDaLeitura = <ErrorState erro={pedidos.error} tentando={pedidos.isFetching} aoTentarDeNovo={tentarDeNovo} />
+  const retry = () => void refetch({ cancelRefetch: false })
+  const erroDaLeitura = <ErrorState erro={pedidos.error} tentando={pedidos.isFetching} aoTentarDeNovo={retry} />
 
   function conteudo(): ReactNode {
     if (dados === undefined) {
@@ -159,10 +159,10 @@ export function ListaDePedidos({ turma, quem, vazio, aoPerderATurma, aoDecidir }
           <p className="break-words text-apoio">{TEXTO_DE_COMO_DECIDIR}</p>
         ) : (
           <div className="flex flex-wrap items-center gap-3">
-            <button type="button" onClick={() => dialogo.abrir('aprovar', marcadosNaLista.map((pedido) => pedido.id))} className={OFFICIAL_BUTTON_CLASSES}>
+            <button type="button" onClick={() => dialogo.open('aprovar', marcadosNaLista.map((pedido) => pedido.id))} className={OFFICIAL_BUTTON_CLASSES}>
               {rotuloDaDecisao('aprovar', marcadosNaLista.length)}
             </button>
-            <button type="button" onClick={() => dialogo.abrir('recusar', marcadosNaLista.map((pedido) => pedido.id))} className={DANGER_BUTTON_CLASSES}>
+            <button type="button" onClick={() => dialogo.open('recusar', marcadosNaLista.map((pedido) => pedido.id))} className={DANGER_BUTTON_CLASSES}>
               {rotuloDaDecisao('recusar', marcadosNaLista.length)}
             </button>
           </div>
@@ -182,7 +182,7 @@ export function ListaDePedidos({ turma, quem, vazio, aoPerderATurma, aoDecidir }
             <span role="status" className="text-sm text-apoio">
               {pedidos.isFetching ? 'Atualizando…' : ''}
             </span>
-            <button type="button" onClick={tentarDeNovo} className={SECONDARY_BUTTON_CLASSES}>
+            <button type="button" onClick={retry} className={SECONDARY_BUTTON_CLASSES}>
               Atualizar<span className="sr-only"> os pedidos</span>
             </button>
           </div>
@@ -217,7 +217,7 @@ export function ListaDePedidos({ turma, quem, vazio, aoPerderATurma, aoDecidir }
             await descartarListaDepoisDaFalha(cliente, turma.id, quem)
             void aoDecidir?.()
           }}
-          aoFechar={dialogo.fechar}
+          aoFechar={dialogo.close}
           focoDeReserva={() => titulo.current?.focus()}
         />
       )}

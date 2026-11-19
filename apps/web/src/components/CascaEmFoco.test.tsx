@@ -7,14 +7,14 @@ import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
 import { createQueryClient } from '../api/query-client'
 import { euQueryOptions } from '../api/eu'
-import { abrirSessaoPeloCookie, encerrarPorInatividade } from '../api/sessao'
+import { openSessaoPeloCookie, encerrarPorInatividade } from '../api/sessao'
 import { ROUTES } from '../paths'
 import { setupScreen, fakeNetwork, type FakeNetwork } from '../__fixtures__/render-screen'
 import { CascaDaEscola } from './CascaDaEscola'
 import { TelaDeFoco } from './introducao/TelaDeFoco'
 
 /**
- * A casca nos endereços de tela de foco (tarefa 5.0 da X4; `ehTelaDeFoco`; RF3): sem lateral nem barras, um `<main>`, o
+ * A casca nos endereços de tela de foco (tarefa 5.0 da X4; `isTelaDeFoco`; RF3): sem lateral nem barras, um `<main>`, o
  * "Sair" à vista e o relógio de inatividade ligado. O `jsdom` não tem `matchMedia`, e o teste instala o do computador (a
  * largura em que a casca mais desenha). A rede é falsa; a sessão, o cliente de consultas e as rotas são os de verdade.
  */
@@ -40,7 +40,7 @@ beforeEach(async () => {
     'fetch',
     vi.fn(async () => new Response(JSON.stringify({ token: 'token-de-teste', expiraEm: new Date(Date.now() + 600_000).toISOString() }), { status: 200 })),
   )
-  await abrirSessaoPeloCookie()
+  await openSessaoPeloCookie()
   vi.unstubAllGlobals()
   // O computador: a casca desenha a lateral aberta, e é ela que não pode aparecer na tela de foco.
   vi.stubGlobal('matchMedia', (consulta: string) => ({ matches: true, media: consulta, addEventListener: () => undefined, removeEventListener: () => undefined }))
@@ -149,7 +149,7 @@ describe('a casca em foco continua vigiando a sessão', () => {
     await encerrarPorInatividade()
     // O login por cima: outra pessoa abre a sessão sobre a tela da anterior, e o `/v1/eu` volta com ela.
     rede.responder({ status: 200, corpo: { token: 'token-de-teste', expiraEm: new Date(Date.now() + 600_000).toISOString() } })
-    await abrirSessaoPeloCookie()
+    await openSessaoPeloCookie()
     rede.responder(respostaEu('aluno', PESSOA_B, 'Beatriz Lima'))
     await cliente.refetchQueries({ queryKey: euQueryOptions.queryKey })
 

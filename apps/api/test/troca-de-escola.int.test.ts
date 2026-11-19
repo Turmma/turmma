@@ -14,7 +14,7 @@ import { aguardarSaudavel, composeOuFalha } from '../../../tools/testes/compose.
 import { travarRedis } from '../../../tools/testes/redis-travado.ts'
 import { AppModule } from '../src/app.module.js'
 import { configureApp } from '../src/configure-app.js'
-import { CHALLENGE_AUDIENCE, REDIS_LOGIN_CLIENT, ChallengeIssuer, gerarSegredo, PasswordHasher, TIPO_DESAFIO, CHALLENGE_TTL_SECONDS } from '../src/credencial/index.js'
+import { CHALLENGE_AUDIENCE, REDIS_LOGIN_CLIENT, ChallengeIssuer, generateSegredo, PasswordHasher, TIPO_DESAFIO, CHALLENGE_TTL_SECONDS } from '../src/credencial/index.js'
 import { testConfig, TEST_APP_OPTIONS } from './test-config.js'
 import { montarEscolaComTurma } from './escola-turma.fixture.js'
 import { SessaoFixtures } from './sessao.fixture.js'
@@ -121,7 +121,7 @@ describe('POST /v1/sessao/escola e /v1/eu.acessos: quem trabalha em mais de uma 
   async function pessoa(escolaId: string, papel: PapelDeUsuario = 'professor'): Promise<Pessoa> {
     const email = `equipe-${randomUUID()}@escola.invalid`
     segredosVistos.add(email)
-    const { rows: contas } = await bancada.pool.query<{ id: string }>('insert into conta (email, senha_hash) values ($1, $2) returning id', [email, await hash.gerar(SENHA_SINTETICA)])
+    const { rows: contas } = await bancada.pool.query<{ id: string }>('insert into conta (email, senha_hash) values ($1, $2) returning id', [email, await hash.generate(SENHA_SINTETICA)])
     const contaId = contas[0]?.id ?? ''
     const { rows } = await bancada.pool.query<{ id: string }>("insert into usuario (escola_id, conta_id, papel, nome) values ($1, $2, $3, 'Pessoa sintética') returning id", [escolaId, contaId, papel])
     return { email, contaId, usuarioId: rows[0]?.id ?? '', escolaId }
@@ -135,7 +135,7 @@ describe('POST /v1/sessao/escola e /v1/eu.acessos: quem trabalha em mais de uma 
 
   /** Liga o MFA da conta direto no banco, com a cifra de produção: é o estado depois do `ativar`. Devolve o segredo. */
   async function comMfaAtivo(quem: Pessoa): Promise<string> {
-    const novo = gerarSegredo()
+    const novo = generateSegredo()
     segredosVistos.add(novo.base32)
     const { cifrado, versao } = cifra.cifrar(novo.bytes, quem.contaId)
     await bancada.pool.query('update conta set mfa_segredo_cifrado = $1, mfa_chave_versao = $2, mfa_ativado_em = now(), mfa_ultimo_passo = null where id = $3', [cifrado, versao, quem.contaId])

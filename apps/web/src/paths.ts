@@ -150,7 +150,7 @@ export const TELAS_DO_SELETOR_DA_PRIVACIDADE = ['retencao', 'suboperadores', 'in
 export type TelaDoSeletorDaPrivacidade = (typeof TELAS_DO_SELETOR_DA_PRIVACIDADE)[number]
 
 /** O valor do endereço é uma das três telas do seletor? */
-export function ehTelaDoSeletorDaPrivacidade(valor: string): valor is TelaDoSeletorDaPrivacidade {
+export function isTelaDoSeletorDaPrivacidade(valor: string): valor is TelaDoSeletorDaPrivacidade {
   return (TELAS_DO_SELETOR_DA_PRIVACIDADE as readonly string[]).includes(valor)
 }
 
@@ -254,7 +254,7 @@ export const ROUTES = {
   euDoAluno: `${AREA_BASE_PATH.aluno}${ALUNO_ROUTES.eu}`,
   /** "Privacidade" do aluno, pela raiz: a linha de Eu a abre, e Eu fica selecionado nela (F3, 18.0). */
   privacidadeDoAluno: `${AREA_BASE_PATH.aluno}${ALUNO_ROUTES.privacidade}`,
-  /** A introdução de cada papel, pela raiz: telas de foco (`ehTelaDeFoco`). */
+  /** A introdução de cada papel, pela raiz: telas de foco (`isTelaDeFoco`). */
   bemVindoDoAluno: `${AREA_BASE_PATH.aluno}${ALUNO_ROUTES.bemVindo}`,
   bemVindoDoProfessor: `${AREA_BASE_PATH.professor}${PROFESSOR_ROUTES.bemVindo}`,
   bemVindoDaCoordenacao: `${AREA_BASE_PATH.coordenador}${COORDENACAO_ROUTES.bemVindo}`,
@@ -283,7 +283,7 @@ export const ROUTES = {
 const TELAS_DE_FOCO: readonly string[] = [ROUTES.bemVindoDoAluno, ROUTES.bemVindoDoProfessor, ROUTES.bemVindoDaCoordenacao]
 
 /** O caminho é o de uma tela de foco? Só o endereço exato: `/aluno/bem-vindo-velho` e `/aluno/bem-vindo/x` são outra coisa. */
-export function ehTelaDeFoco(caminho: string): boolean {
+export function isTelaDeFoco(caminho: string): boolean {
   return TELAS_DE_FOCO.includes(caminho)
 }
 

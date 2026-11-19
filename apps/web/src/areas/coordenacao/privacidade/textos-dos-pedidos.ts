@@ -174,7 +174,7 @@ export type ValidacaoDoPedido =
  * `AAAA-MM-DD` de um dia que existe, como `z.iso.date()` da API: o `31/02` não passa, e nem `10/10/2026`. O que não é data
  * sai invalidado pelo `Date`, e o que é data de outro mês volta diferente do texto; por isso não há conferência de formato à parte.
  */
-function ehDiaDoCalendario(texto: string): boolean {
+function isDiaDoCalendario(texto: string): boolean {
   const data = new Date(`${texto}T00:00:00Z`)
   return !Number.isNaN(data.getTime()) && data.toISOString().slice(0, 10) === texto
 }
@@ -183,11 +183,11 @@ function ehDiaDoCalendario(texto: string): boolean {
  * Confere os três campos do pedido contra o contrato (`registroDePedidoSchema`): tipo e quem pediu da lista fechada, e o
  * dia no formato `AAAA-MM-DD` e **não depois de hoje**, o mesmo corte da API (`ENTRADA_INVALIDA`). O `hoje` é o dia de São Paulo.
  */
-export function validarOPedido(escolhas: EscolhasDoPedido, hoje: string): ValidacaoDoPedido {
+export function validateOPedido(escolhas: EscolhasDoPedido, hoje: string): ValidacaoDoPedido {
   const erros: Partial<Record<CampoDoPedido, string>> = {}
   const tipo = TIPOS_DE_PEDIDO_DO_TITULAR.find((valor) => valor === escolhas.tipo)
   const solicitante = SOLICITANTES_DO_PEDIDO.find((valor) => valor === escolhas.solicitante)
-  const diaValido = ehDiaDoCalendario(escolhas.chegouEm) && escolhas.chegouEm <= hoje
+  const diaValido = isDiaDoCalendario(escolhas.chegouEm) && escolhas.chegouEm <= hoje
   if (tipo === undefined) erros.tipo = TEXTO_DO_CAMPO_DO_PEDIDO.tipo
   if (solicitante === undefined) erros.solicitante = TEXTO_DO_CAMPO_DO_PEDIDO.solicitante
   if (!diaValido) erros.chegouEm = TEXTO_DO_CAMPO_DO_PEDIDO.chegouEm
@@ -209,6 +209,6 @@ export function hojeEmSaoPaulo(agora: Date = new Date()): string {
  * A ordem da lista: a chegada mais recente primeiro, e o id no empate. É a chave em que a API entrega cada página (`proxima` é o
  * id do último item dela): a tela a repete sobre as páginas já lidas, e por isso "Ver mais pedidos" só acrescenta no fim.
  */
-export function ordenarOsPedidos(itens: readonly ItemDoPedido[]): ItemDoPedido[] {
+export function sortOsPedidos(itens: readonly ItemDoPedido[]): ItemDoPedido[] {
   return [...itens].sort((a, b) => (a.chegouEm === b.chegouEm ? a.id.localeCompare(b.id) : a.chegouEm < b.chegouEm ? 1 : -1))
 }

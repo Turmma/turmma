@@ -75,12 +75,12 @@ describe('salas/reivindicar (A1, tarefa 6.0): o aluno pede o próprio nome, e o 
   let apiDoLimite: TestApi
   /** Com um hash por vez: a saturação do semáforo é determinística, sem depender da CPU (C2 (b), L9). */
   let apiDoSemaforo: TestApi
-  let hashes: MockInstance<PasswordHasher['gerar']>
-  let gerarReal: PasswordHasher['gerar']
-  let hashesDoSemaforo: MockInstance<PasswordHasher['gerar']>
-  let gerarRealDoSemaforo: PasswordHasher['gerar']
-  let verificacoesDoSemaforo: MockInstance<PasswordHasher['verificar']>
-  let verificarRealDoSemaforo: PasswordHasher['verificar']
+  let hashes: MockInstance<PasswordHasher['generate']>
+  let gerarReal: PasswordHasher['generate']
+  let hashesDoSemaforo: MockInstance<PasswordHasher['generate']>
+  let gerarRealDoSemaforo: PasswordHasher['generate']
+  let verificacoesDoSemaforo: MockInstance<PasswordHasher['verify']>
+  let verificarRealDoSemaforo: PasswordHasher['verify']
   /** A leitura dos contadores da sala no Redis de fila (7.0). */
   let limites: FerramentasDaSala
 
@@ -90,13 +90,13 @@ describe('salas/reivindicar (A1, tarefa 6.0): o aluno pede o próprio nome, e o 
     apiDoLimite = await subirApi(medidor.medidor, { ambiente: { ...AMBIENTE, LIMITE_REQ_IP_ANONIMO_MIN: String(LIMITE_POR_IP) } })
     apiDoSemaforo = await subirApi(medidor.medidor, { ambiente: { ...AMBIENTE, LOGIN_HASH_CONCORRENCIA: '1' } })
     const hash = api.app.get(PasswordHasher)
-    gerarReal = hash.gerar.bind(hash)
-    hashes = vi.spyOn(hash, 'gerar')
+    gerarReal = hash.generate.bind(hash)
+    hashes = vi.spyOn(hash, 'generate')
     const doSemaforo = apiDoSemaforo.app.get(PasswordHasher)
-    gerarRealDoSemaforo = doSemaforo.gerar.bind(doSemaforo)
-    hashesDoSemaforo = vi.spyOn(doSemaforo, 'gerar')
-    verificarRealDoSemaforo = doSemaforo.verificar.bind(doSemaforo)
-    verificacoesDoSemaforo = vi.spyOn(doSemaforo, 'verificar')
+    gerarRealDoSemaforo = doSemaforo.generate.bind(doSemaforo)
+    hashesDoSemaforo = vi.spyOn(doSemaforo, 'generate')
+    verificarRealDoSemaforo = doSemaforo.verify.bind(doSemaforo)
+    verificacoesDoSemaforo = vi.spyOn(doSemaforo, 'verify')
   })
 
   beforeEach(() => {
@@ -228,7 +228,7 @@ describe('salas/reivindicar (A1, tarefa 6.0): o aluno pede o próprio nome, e o 
   }
 
   /** Um portão para o próximo hash de `gerar`: ele só termina quando o teste soltar. */
-  function segurarOProximoHash(espiao: MockInstance<PasswordHasher['gerar']>, real: PasswordHasher['gerar']): { soltar: () => void } {
+  function segurarOProximoHash(espiao: MockInstance<PasswordHasher['generate']>, real: PasswordHasher['generate']): { soltar: () => void } {
     let soltar: () => void = () => undefined
     const portao = new Promise<void>((resolver) => (soltar = resolver))
     espiao.mockImplementationOnce(async (senha) => {
@@ -265,7 +265,7 @@ describe('salas/reivindicar (A1, tarefa 6.0): o aluno pede o próprio nome, e o 
           decidida_como: null,
         })
         expect(gravado?.senha_hash).toMatch(/^\$argon2id\$/)
-        expect(await api.app.get(PasswordHasher).verificar(gravado?.senha_hash, SENHA)).toBe(true)
+        expect(await api.app.get(PasswordHasher).verify(gravado?.senha_hash, SENHA)).toBe(true)
         expect(await estadoDoNome(nome.id)).toBe('reivindicado')
       }
       // O nome e a matrícula do reivindicado ficam na lista; ele só sai da página pública.
@@ -343,8 +343,8 @@ describe('salas/reivindicar (A1, tarefa 6.0): o aluno pede o próprio nome, e o 
       const sala = await montar()
       const nome = await umNome(sala)
       const ordem: string[] = []
-      const inserirReal = ReivindicacaoRepository.prototype.inserirPendente
-      const insercoes = vi.spyOn(ReivindicacaoRepository.prototype, 'inserirPendente').mockImplementationOnce(async function (this: ReivindicacaoRepository, novo) {
+      const inserirReal = ReivindicacaoRepository.prototype.insertPendente
+      const insercoes = vi.spyOn(ReivindicacaoRepository.prototype, 'insertPendente').mockImplementationOnce(async function (this: ReivindicacaoRepository, novo) {
         await inserirReal.call(this, novo)
         ordem.push('insert do pedido gravado na transação')
       })
@@ -708,9 +708,9 @@ describe('salas/reivindicar (A1, tarefa 6.0): o aluno pede o próprio nome, e o 
       const sala = await montar()
       const nome = await umNome(sala)
       const corpo = pedido(sala, nome)
-      const inserirReal = ReivindicacaoRepository.prototype.inserirPendente
+      const inserirReal = ReivindicacaoRepository.prototype.insertPendente
       const restricoes: Array<string | undefined> = []
-      const insercoes = vi.spyOn(ReivindicacaoRepository.prototype, 'inserirPendente').mockImplementation(async function (this: ReivindicacaoRepository, novo) {
+      const insercoes = vi.spyOn(ReivindicacaoRepository.prototype, 'insertPendente').mockImplementation(async function (this: ReivindicacaoRepository, novo) {
         try {
           await inserirReal.call(this, novo)
         } catch (falha) {

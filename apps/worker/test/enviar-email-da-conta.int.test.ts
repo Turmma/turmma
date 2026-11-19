@@ -23,7 +23,7 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { compose, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
 import { TenantResolutionRepository } from '../../api/src/sessao/tenant/tenant-resolution.repository.js'
-import { criarEnvioDoConvite, criarEnvioDoLinkDaConta, criarEnvios, TENTATIVAS_DO_ENVIO_DO_LINK_DA_CONTA } from '../src/processors/enviar-email.js'
+import { createEnvioDoConvite, createEnvioDoLinkDaConta, createEnvios, TENTATIVAS_DO_ENVIO_DO_LINK_DA_CONTA } from '../src/processors/enviar-email.js'
 import { jobExecution } from './job-execution.fixture.js'
 import { InMemoryLog, QueueFixtures } from './queue.fixture.js'
 
@@ -50,7 +50,7 @@ class RelogioMovel implements Clock {
 describe('sistema.enviar-email-da-conta', () => {
   const bancada = new QueueFixtures()
   const log = new InMemoryLog('worker-teste')
-  const envios = criarEnvios(bancada.banco)
+  const envios = createEnvios(bancada.banco)
   const contas: string[] = []
   const alto = new LimiteDeEmailPorMinuto(bancada.redis, 100_000, { prefixo: bancada.prefixo })
 
@@ -110,7 +110,7 @@ describe('sistema.enviar-email-da-conta', () => {
   /** Um processador do link com o falso e o limite dados. */
   function processadorCom(limite: LimiteDeEmail = alto, opcoes: { emissor?: FakeEmailSender; relogio?: Clock } = {}) {
     const emissor = opcoes.emissor ?? new FakeEmailSender()
-    const processador = criarEnvioDoLinkDaConta({ envios, emissor, cifra, limite, urlDaWeb: URL_DA_WEB, logger: log.logger, ...(opcoes.relogio === undefined ? {} : { relogio: opcoes.relogio }) })
+    const processador = createEnvioDoLinkDaConta({ envios, emissor, cifra, limite, urlDaWeb: URL_DA_WEB, logger: log.logger, ...(opcoes.relogio === undefined ? {} : { relogio: opcoes.relogio }) })
     /** Como o executor chama o job de sistema: sem escola, no contexto da rotina do sistema. */
     const rodar = (linkId: string, tentativa = 1): Promise<void> =>
       runInContext({ requisicaoId: randomUUID(), rotinaDoSistema: true }, () => processador({ linkId }, jobExecution(randomUUID(), tentativa), new AbortController().signal))
@@ -198,12 +198,12 @@ describe('sistema.enviar-email-da-conta', () => {
       const l = await linkNaFila()
       // O servidor ainda não respondeu quando o "esqueci" seguinte chega; a resposta é "tente depois".
       const emissorDoCancelamento: EmailSender = {
-        enviar: async () => {
+        send: async () => {
           await new TenantResolutionRepository(bancada.banco).cancelarLinksAbertos(l.contaId, 'redefinir')
           throw new EmailSendError('transitoria')
         },
       }
-      const processador = criarEnvioDoLinkDaConta({ envios, emissor: emissorDoCancelamento, cifra, limite: alto, urlDaWeb: URL_DA_WEB, logger: log.logger })
+      const processador = createEnvioDoLinkDaConta({ envios, emissor: emissorDoCancelamento, cifra, limite: alto, urlDaWeb: URL_DA_WEB, logger: log.logger })
       const rodarCancelando = (tentativa: number) => runInContext({ requisicaoId: randomUUID(), rotinaDoSistema: true }, () => processador({ linkId: l.linkId }, jobExecution(randomUUID(), tentativa), new AbortController().signal))
       await expect(rodarCancelando(1)).rejects.toBeInstanceOf(JobFailureError)
       // O `devolver` não casa com a reserva perdida: a linha não volta a `na_fila`.
@@ -326,7 +326,7 @@ describe('sistema.enviar-email-da-conta', () => {
     /** Um job de sistema na fila `normal`, como a API o grava no "esqueci": sem escola e sem `rotinaDoSistema`. */
     async function jobDoSistema(dados: Record<string, unknown>): Promise<{ jobId: string; job: QueuedJob }> {
       const jobId = await runInContext({ requisicaoId: randomUUID() }, () =>
-        bancada.banco.transaction((tx) => bancada.registro.inserir(tx, { tipo: TIPO_ENVIAR_EMAIL_DA_CONTA, fila: 'normal', prioridade: QUEUE_PRIORITY.normal, naoUrgente: false, dados })),
+        bancada.banco.transaction((tx) => bancada.registro.insert(tx, { tipo: TIPO_ENVIAR_EMAIL_DA_CONTA, fila: 'normal', prioridade: QUEUE_PRIORITY.normal, naoUrgente: false, dados })),
       )
       await bancada.pool.query("update job_registro set estado = 'publicado' where id = $1", [jobId])
       const moveToDelayed = vi.fn<QueuedJob['moveToDelayed']>(() => Promise.resolve())
@@ -358,8 +358,8 @@ describe('sistema.enviar-email-da-conta', () => {
       const relogio = new RelogioMovel(INICIO_DO_MINUTO + 5_000)
       const limite = new LimiteDeEmailPorMinuto(bancada.redis, 2, { prefixo: `${bancada.prefixo}:${randomUUID()}`, relogio })
       // O teto do minuto é 2: gastos os dois, o link da conta não tem ponto e o job adia.
-      await limite.consumir('conta')
-      await limite.consumir('conta')
+      await limite.consume('conta')
+      await limite.consume('conta')
       const l = await linkNaFila()
       const outroLink = await linkNaFila()
       const sintetico = vi.fn(() => Promise.resolve())
@@ -384,8 +384,8 @@ describe('sistema.enviar-email-da-conta', () => {
       const relogio = new RelogioMovel(INICIO_DO_MINUTO + 15_000)
       // Teto 4: o convite usa até 4 − ⌊4/2⌋ = 2 pontos por minuto; os outros 2 são do link da conta.
       const limite = new LimiteDeEmailPorMinuto(bancada.redis, 4, { prefixo: `${bancada.prefixo}:${randomUUID()}`, relogio })
-      expect(await limite.consumir('convite')).toMatchObject({ resultado: 'concedido' })
-      expect(await limite.consumir('convite')).toMatchObject({ resultado: 'concedido' })
+      expect(await limite.consume('convite')).toMatchObject({ resultado: 'concedido' })
+      expect(await limite.consume('convite')).toMatchObject({ resultado: 'concedido' })
 
       const l = await linkNaFila()
       const { rodar, enviadasPara } = processadorCom(limite, { relogio })
@@ -396,7 +396,7 @@ describe('sistema.enviar-email-da-conta', () => {
       // O convite a mais: a metade dele está cheia, e o job adia sem tocar na linha.
       const escolaId = await bancada.escola()
       const conviteId = randomUUID()
-      const processadorDoConvite = criarEnvioDoConvite({ envios, emissor: new FakeEmailSender(), cifra, limite, urlDaWeb: URL_DA_WEB, logger: log.logger, relogio })
+      const processadorDoConvite = createEnvioDoConvite({ envios, emissor: new FakeEmailSender(), cifra, limite, urlDaWeb: URL_DA_WEB, logger: log.logger, relogio })
       const adiado = await runInContext({ requisicaoId: randomUUID(), escolaId }, () => processadorDoConvite({ conviteId }, jobExecution(randomUUID(), 1), new AbortController().signal)).then(
         () => undefined,
         (falha: unknown) => falha,

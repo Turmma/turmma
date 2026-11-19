@@ -32,7 +32,7 @@ export class UsageRepository {
    * se a chave de um dia já consolidado renascer com um incremento atrasado. Esse incremento se
    * perde, mas o total do dia não é trocado por ele. Os bytes são a medição do momento e podem descer.
    */
-  async gravarDia(dia: string, valores: Partial<UsagePeriod>): Promise<void> {
+  async saveDia(dia: string, valores: Partial<UsagePeriod>): Promise<void> {
     const escolaId = requireEscolaId()
     const { requisicoes, jobs, bytesStorage } = valores
     const informados = {

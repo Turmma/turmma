@@ -5,12 +5,12 @@ import { useLocation, useSearch } from 'wouter'
 import { LoadingState, EmptyState } from '../../components/states'
 import { MEDIA_MD, useMediaQuery } from '../../components/ui/media-query'
 import { formatQuantity } from '../../format'
-import { buscaDaConsulta, doUsoQueryOptions, lerConsultaDaTela, paginasDoTotal } from '../api/painel'
+import { buscaDaConsulta, doUsoQueryOptions, readConsultaDaTela, paginasDoTotal } from '../api/painel'
 import { INICIO_DA_OPERACAO, USO_DA_OPERACAO } from '../paths'
 import { ErroDaOperacao } from '../components/CascaDaOperacao'
 import { Pagination, SortSelect, VazioAlemDaUltima } from '../components/NavegacaoDaLista'
 import { ScrollableList, useOverflow } from '../components/ScrollableList'
-import { formatarDia, formatarMedidaDoUso, formatarMesDeReferencia, MEDIDAS_DO_USO, ROTULO_DO_USO } from '../format'
+import { formatDia, formatMedidaDoUso, formatMesDeReferencia, MEDIDAS_DO_USO, ROTULO_DO_USO } from '../format'
 import { TEXTO_DO_USO_VAZIO } from '../textos'
 import { useOperacaoPageTitle } from '../document-title'
 
@@ -25,7 +25,7 @@ type Referencia = Pick<UsoDoPainelResponse, 'dia' | 'mes'>
  * São Paulo, e o mês vai do dia 1 até ele (Tech Spec da A0b, seção 5).
  */
 function tituloDoPeriodo(periodo: Periodo, referencia: Referencia): string {
-  return periodo === 'dia' ? `Dia ${formatarDia(referencia.dia)}` : `Mês: ${formatarMesDeReferencia(referencia)}`
+  return periodo === 'dia' ? `Dia ${formatDia(referencia.dia)}` : `Mês: ${formatMesDeReferencia(referencia)}`
 }
 
 /** O rótulo da medida no começo de uma linha ou de uma coluna: "requisições" vira "Requisições". */
@@ -35,7 +35,7 @@ function comoTitulo(rotulo: string): string {
 
 /** Um valor da medida, inteiro na linha: "1.234" e "1,2 GB" nunca quebram no meio (RF23, 14.4). */
 function Valor({ medida, valor }: { medida: keyof UsoDoPeriodoDoPainel; valor: number }) {
-  return <span className="whitespace-nowrap">{formatarMedidaDoUso(medida, valor)}</span>
+  return <span className="whitespace-nowrap">{formatMedidaDoUso(medida, valor)}</span>
 }
 
 /**
@@ -149,7 +149,7 @@ export function Uso() {
   useOperacaoPageTitle('Uso')
   const busca = useSearch()
   const [, navegar] = useLocation()
-  const consulta = lerConsultaDaTela(busca)
+  const consulta = readConsultaDaTela(busca)
   const uso = useQuery(doUsoQueryOptions(consulta))
 
   function irPara(nova: PainelQuery): void {
@@ -189,8 +189,8 @@ export function Uso() {
           {uso.isError && <ErroDaOperacao erro={uso.error} aoTentarDeNovo={() => void uso.refetch()} tentando={uso.isFetching} />}
           <div className="flex flex-col gap-1 text-sm">
             <p className="text-apoio">
-              Último dia fechado: <span className="font-medium text-tinta">{formatarDia(dados.dia)}</span>. Mês:{' '}
-              <span className="font-medium text-tinta">{formatarMesDeReferencia(dados)}</span>. O dia de hoje entra na
+              Último dia fechado: <span className="font-medium text-tinta">{formatDia(dados.dia)}</span>. Mês:{' '}
+              <span className="font-medium text-tinta">{formatMesDeReferencia(dados)}</span>. O dia de hoje entra na
               madrugada seguinte.
             </p>
             <p className="text-sutil">{formatQuantity(dados.total, 'escola', 'escolas')}</p>

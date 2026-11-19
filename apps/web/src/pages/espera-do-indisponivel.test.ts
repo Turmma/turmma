@@ -351,11 +351,11 @@ describe('o segundo fator com o Redis de fila fora', () => {
 
     let primeira: Promise<unknown> = Promise.resolve()
     await act(async () => {
-      primeira = result.current.executar(queda(3))
+      primeira = result.current.run(queda(3))
       await Promise.resolve()
     })
     await act(async () => {
-      void result.current.executar(queda(4))
+      void result.current.run(queda(4))
       await Promise.resolve()
     })
     expect(result.current.restante).toBe(4)

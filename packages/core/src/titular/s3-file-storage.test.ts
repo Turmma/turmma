@@ -99,7 +99,7 @@ describe('ArmazemS3: as chamadas ao storage', () => {
     const { enviados, cliente } = clienteFalso({})
     const armazem = new S3FileStorage(cliente, 'educa-local')
     await armazem.guardar(CHAVE, '{"a":1}')
-    await armazem.apagar(CHAVE)
+    await armazem.delete(CHAVE)
     const [guardar, apagar] = enviados
     expect(guardar).toBeInstanceOf(PutObjectCommand)
     expect((guardar as PutObjectCommand).input).toMatchObject({ Bucket: 'educa-local', Key: CHAVE, Body: '{"a":1}', CacheControl: 'no-store', ContentDisposition: 'attachment' })
@@ -107,7 +107,7 @@ describe('ArmazemS3: as chamadas ao storage', () => {
     expect((apagar as DeleteObjectCommand).input).toEqual({ Bucket: 'educa-local', Key: CHAVE })
   })
 
-  it('`guardarBytes` grava o PDF do material sem cache e com o prazo da chamada, e `lerBytes` o devolve inteiro', async () => {
+  it('`guardarBytes` grava o PDF do material sem cache e com o prazo da chamada, e `readBytes` o devolve inteiro', async () => {
     const bytes = new Uint8Array([37, 80, 68, 70, 0, 255])
     const gravar = clienteFalso({})
     await new S3FileStorage(gravar.cliente, 'educa-local').guardarBytes(CHAVE, bytes, { prazoMs: 5_000 })
@@ -115,19 +115,19 @@ describe('ArmazemS3: as chamadas ao storage', () => {
     expect((gravar.enviados[0] as PutObjectCommand).input).toMatchObject({ Bucket: 'educa-local', Key: CHAVE, Body: bytes, ContentType: 'application/pdf', CacheControl: 'no-store' })
 
     const ler = clienteFalso({ Body: { transformToByteArray: () => Promise.resolve(bytes) } })
-    expect(await new S3FileStorage(ler.cliente, 'educa-local').lerBytes(CHAVE, { prazoMs: 5_000 })).toEqual(bytes)
+    expect(await new S3FileStorage(ler.cliente, 'educa-local').readBytes(CHAVE, { prazoMs: 5_000 })).toEqual(bytes)
     expect(ler.enviados[0]).toBeInstanceOf(GetObjectCommand)
     expect((ler.enviados[0] as GetObjectCommand).input).toEqual({ Bucket: 'educa-local', Key: CHAVE })
   })
 
-  it('`lerBytes` do objeto que não existe devolve `undefined`; qualquer outra falha é indisponibilidade, e nunca "ausente"', async () => {
+  it('`readBytes` do objeto que não existe devolve `undefined`; qualquer outra falha é indisponibilidade, e nunca "ausente"', async () => {
     const ausente = new S3ServiceException({ name: 'NoSuchKey', $fault: 'client', $metadata: { httpStatusCode: 404 }, message: 'sem objeto em http://storage:8333/educa/x' })
-    expect(await new S3FileStorage(clienteFalso(ausente).cliente, 'educa-local').lerBytes(CHAVE, { prazoMs: 5_000 })).toBeUndefined()
+    expect(await new S3FileStorage(clienteFalso(ausente).cliente, 'educa-local').readBytes(CHAVE, { prazoMs: 5_000 })).toBeUndefined()
     const ausenteSemNome = new S3ServiceException({ name: 'UnknownError', $fault: 'client', $metadata: { httpStatusCode: 404 }, message: 'o 404 basta' })
-    expect(await new S3FileStorage(clienteFalso(ausenteSemNome).cliente, 'educa-local').lerBytes(CHAVE, { prazoMs: 5_000 })).toBeUndefined()
+    expect(await new S3FileStorage(clienteFalso(ausenteSemNome).cliente, 'educa-local').readBytes(CHAVE, { prazoMs: 5_000 })).toBeUndefined()
     const proibido = new S3ServiceException({ name: 'AccessDenied', $fault: 'client', $metadata: { httpStatusCode: 403 }, message: 'negado' })
     for (const falha of [proibido, new Error('connect ECONNREFUSED http://storage:8333/educa-local/segredo')]) {
-      const erro = await new S3FileStorage(clienteFalso(falha).cliente, 'educa-local').lerBytes(CHAVE, { prazoMs: 5_000 }).catch((queda: unknown) => queda)
+      const erro = await new S3FileStorage(clienteFalso(falha).cliente, 'educa-local').readBytes(CHAVE, { prazoMs: 5_000 }).catch((queda: unknown) => queda)
       expect(erro).toBeInstanceOf(FileStorageUnavailableError)
       expect(JSON.stringify(erro)).not.toContain('storage:8333')
     }
@@ -135,14 +135,14 @@ describe('ArmazemS3: as chamadas ao storage', () => {
     expect(queda).toBeInstanceOf(FileStorageUnavailableError)
   })
 
-  it('o prazo da chamada corta `guardarBytes` e `lerBytes`: o storage que demora mais vira indisponibilidade, e o que responde dentro dele é atendido', async () => {
+  it('o prazo da chamada corta `guardarBytes` e `readBytes`: o storage que demora mais vira indisponibilidade, e o que responde dentro dele é atendido', async () => {
     const storage = await storageLento(1_000)
-    const { armazem, encerrar } = S3FileStorage.criar({ ...CONFIG, url: storage.url, bucket: 'educa-local', tentativas: 1, timeoutRequisicaoMs: 10_000 })
+    const { armazem, encerrar } = S3FileStorage.create({ ...CONFIG, url: storage.url, bucket: 'educa-local', tentativas: 1, timeoutRequisicaoMs: 10_000 })
     try {
       // O controle: o mesmo storage, com prazo de sobra, atende a gravação.
       await expect(armazem.guardarBytes(CHAVE, new Uint8Array([1]), { prazoMs: 5_000 })).resolves.toBeUndefined()
       await expect(armazem.guardarBytes(CHAVE, new Uint8Array([1]), { prazoMs: 100 })).rejects.toBeInstanceOf(FileStorageUnavailableError)
-      await expect(armazem.lerBytes(CHAVE, { prazoMs: 100 })).rejects.toBeInstanceOf(FileStorageUnavailableError)
+      await expect(armazem.readBytes(CHAVE, { prazoMs: 100 })).rejects.toBeInstanceOf(FileStorageUnavailableError)
     } finally {
       encerrar()
       storage.fechar()
@@ -161,7 +161,7 @@ describe('ArmazemS3: as chamadas ao storage', () => {
     for (const chamada of [
       (armazem: S3FileStorage) => armazem.guardar(CHAVE, '{}'),
       (armazem: S3FileStorage) => armazem.existe(CHAVE),
-      (armazem: S3FileStorage) => armazem.apagar(CHAVE),
+      (armazem: S3FileStorage) => armazem.delete(CHAVE),
     ]) {
       const erro = await chamada(new S3FileStorage(clienteFalso(queda).cliente, 'educa-local')).catch((falha: unknown) => falha)
       expect(erro).toBeInstanceOf(FileStorageUnavailableError)
@@ -174,20 +174,20 @@ describe('ArmazemS3: as chamadas ao storage', () => {
   })
 
   it('`criar` usa o endereço público para assinar e o interno para falar com o storage, e os dois encerram', async () => {
-    const { armazem, encerrar } = S3FileStorage.criar({ ...CONFIG, bucket: 'educa-local', urlPublica: 'https://arquivos.exemplo.test' })
+    const { armazem, encerrar } = S3FileStorage.create({ ...CONFIG, bucket: 'educa-local', urlPublica: 'https://arquivos.exemplo.test' })
     const url = new URL(await armazem.urlDeDownload(CHAVE, { nome: 'meus-dados-2026-10-09.json', validadeSegundos: 300 }))
     expect(url.origin).toBe('https://arquivos.exemplo.test')
     encerrar()
     // Sem endereço público, vale o interno.
-    const interno = S3FileStorage.criar({ ...CONFIG, bucket: 'educa-local' })
+    const interno = S3FileStorage.create({ ...CONFIG, bucket: 'educa-local' })
     expect(new URL(await interno.armazem.urlDeDownload(CHAVE, { nome: 'x.json', validadeSegundos: 300 })).origin).toBe('http://storage:8333')
     interno.encerrar()
   })
 
   it('o prazo corta a chamada: o storage que demora mais que o prazo do cliente vira ArmazemIndisponivel, e o que responde dentro dele é atendido', async () => {
     const storage = await storageLento(1_000)
-    const comPrazoPadrao = S3FileStorage.criar({ ...CONFIG, url: storage.url, bucket: 'educa-local', tentativas: 1 })
-    const comPrazoCurto = S3FileStorage.criar({ ...CONFIG, url: storage.url, bucket: 'educa-local', tentativas: 1, timeoutRequisicaoMs: 100 })
+    const comPrazoPadrao = S3FileStorage.create({ ...CONFIG, url: storage.url, bucket: 'educa-local', tentativas: 1 })
+    const comPrazoCurto = S3FileStorage.create({ ...CONFIG, url: storage.url, bucket: 'educa-local', tentativas: 1, timeoutRequisicaoMs: 100 })
     try {
       // O controle: o mesmo storage, dentro do prazo padrão, responde. A recusa abaixo é do prazo, e não do servidor de teste.
       expect(await comPrazoPadrao.armazem.existe(CHAVE)).toBe(true)
