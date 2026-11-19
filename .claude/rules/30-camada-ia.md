@@ -58,7 +58,7 @@ Serviço de domínio → LLMProvider (porta)
    const r = await openai.chat.completions.create({ model: 'o-caro', ... })
 
    // certo
-   const r = await this.ia.gerar({ perfil: 'rapido', prompt: classificarDuvida, schema })
+   const r = await this.ia.generate({ perfil: 'rapido', prompt: classificarDuvida, schema })
    ```
 
    Checagem: só a revisão garante (`llm-integrator`).

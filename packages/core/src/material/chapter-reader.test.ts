@@ -44,8 +44,8 @@ function documentoFalso({ arvore, destinos = {}, quebraEm }: DocumentoFalsoOptio
 /** Um PDF de `total` páginas sem nenhuma linha de capítulo: o texto corrido de cada uma. */
 const semLinhas = (total: number): string[][] => Array.from({ length: total }, (_, indice) => [`texto da página ${String(indice + 1)}`])
 
-const lerComMarcadores = (arvore: MarcadorFalso[], total = 6) => leitor.ler(documentoFalso({ arvore }), semLinhas(total))
-const lerPelasLinhas = (linhasPorPagina: string[][]) => leitor.ler(documentoFalso({ arvore: null }), linhasPorPagina)
+const lerComMarcadores = (arvore: MarcadorFalso[], total = 6) => leitor.read(documentoFalso({ arvore }), semLinhas(total))
+const lerPelasLinhas = (linhasPorPagina: string[][]) => leitor.read(documentoFalso({ arvore: null }), linhasPorPagina)
 
 describe('ChapterReader: o marcador de primeiro nível', () => {
   it('cada marcador de primeiro nível vira um capítulo, do começo dele até a página antes do seguinte; o último vai até o fim do PDF e a página antes do primeiro fica fora', async () => {
@@ -121,7 +121,7 @@ describe('ChapterReader: o marcador de primeiro nível', () => {
       ],
       destinos: { 'inicio-do-1': paraAPagina(1), 'inicio-do-3': paraAPagina(4) },
     })
-    expect((await leitor.ler(documento, semLinhas(6))).map(({ titulo, paginaInicial, paginaFinal }) => [titulo, paginaInicial, paginaFinal])).toEqual([
+    expect((await leitor.read(documento, semLinhas(6))).map(({ titulo, paginaInicial, paginaFinal }) => [titulo, paginaInicial, paginaFinal])).toEqual([
       ['Capítulo 1: Mol', 1, 3],
       ['Capítulo 3: Soluções', 4, 6],
     ])
@@ -163,13 +163,13 @@ describe('ChapterReader: o marcador de primeiro nível', () => {
   it('marcador que não resolve nenhuma página, ou outline nulo, cai na linha do topo da página', async () => {
     const linhas = [['Capítulo 1: Mol', 'texto'], ['texto'], ['Capítulo 2: Reações', 'texto']]
     const semPagina = documentoFalso({ arvore: [{ title: 'Link', dest: null }] })
-    expect((await leitor.ler(semPagina, linhas)).map(({ titulo }) => titulo)).toEqual(['Capítulo 1: Mol', 'Capítulo 2: Reações'])
+    expect((await leitor.read(semPagina, linhas)).map(({ titulo }) => titulo)).toEqual(['Capítulo 1: Mol', 'Capítulo 2: Reações'])
     expect((await lerPelasLinhas(linhas)).map(({ titulo }) => titulo)).toEqual(['Capítulo 1: Mol', 'Capítulo 2: Reações'])
   })
 
   it('com marcador, a linha do topo não é lida: o marcador manda', async () => {
     const linhas = [['Capítulo 9: Da linha', 'texto'], ['texto'], ['texto']]
-    const capitulos = await leitor.ler(documentoFalso({ arvore: [marcador('Do marcador', 2)] }), linhas)
+    const capitulos = await leitor.read(documentoFalso({ arvore: [marcador('Do marcador', 2)] }), linhas)
     expect(capitulos.map(({ titulo, paginaInicial }) => [titulo, paginaInicial])).toEqual([['Do marcador', 2]])
   })
 
@@ -198,7 +198,7 @@ describe('ChapterReader: o marcador de primeiro nível', () => {
         return falso.getPageIndex(referencia)
       },
     }
-    expect(await leitor.ler(documento, semLinhas(paginas))).toEqual([])
+    expect(await leitor.read(documento, semLinhas(paginas))).toEqual([])
     expect(resolvidos).toBe(MAXIMO_DE_CAPITULOS_POR_MATERIAL + 1)
   })
 
@@ -206,7 +206,7 @@ describe('ChapterReader: o marcador de primeiro nível', () => {
     const paginas = MAXIMO_DE_CAPITULOS_POR_MATERIAL + 1
     const marcadores = Array.from({ length: paginas }, (_, indice) => marcador(`Marcador ${String(indice + 1)}`, indice + 1))
     const linhas = semLinhas(paginas).map((pagina, indice) => (indice === 0 ? ['Capítulo 1', ...pagina] : pagina))
-    expect(await leitor.ler(documentoFalso({ arvore: marcadores }), linhas)).toEqual([])
+    expect(await leitor.read(documentoFalso({ arvore: marcadores }), linhas)).toEqual([])
   })
 
   it('o teto conta páginas distintas: marcadores repetidos na mesma página e os que não resolvem não o estouram', async () => {
@@ -217,7 +217,7 @@ describe('ChapterReader: o marcador de primeiro nível', () => {
 
   it.each(['getOutline', 'getDestination', 'getPageIndex'] as const)('o erro do leitor (%s) dá zero capítulos, sem falhar', async (quebraEm) => {
     const documento = documentoFalso({ arvore: [{ title: 'Capítulo 1', dest: 'destino' }, marcador('Capítulo 2', 3)], destinos: { destino: paraAPagina(1) }, quebraEm })
-    await expect(leitor.ler(documento, semLinhas(6))).resolves.toEqual([])
+    await expect(leitor.read(documento, semLinhas(6))).resolves.toEqual([])
   })
 })
 

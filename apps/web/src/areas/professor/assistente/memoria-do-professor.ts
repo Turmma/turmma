@@ -1,8 +1,8 @@
 import type { Ferramenta, MensagemAoAssistenteRequest, ExecucaoAceitaResponse } from '@educa/shared'
 import { adaptarArtefato } from '../artefatos/api/artefatos'
-import { enviarMensagemAoAssistente } from './api/assistente'
+import { sendMensagemAoAssistente } from './api/assistente'
 import { emCurso, type CicloDeExecucao } from '../../../api/ciclo-de-execucao'
-import { gerarComFerramenta } from '../ferramentas/api/ferramentas'
+import { generateComFerramenta } from '../ferramentas/api/ferramentas'
 import { createTabStore, type TabStore } from '../../../api/tab-store'
 import type { IniciaisDaFerramenta, PedidoDeFerramenta } from '../ferramentas/ferramentas'
 
@@ -18,8 +18,8 @@ export type PedidoDaConversa = Omit<MensagemAoAssistenteRequest, 'chaveEnvio'>
 /** O pedido ao Assistente que está no ar: sai da Home e é acompanhado na Conversa. */
 export const CICLO_DA_CONVERSA = createTabStore<CicloDeExecucao<PedidoDaConversa>>()
 
-export function enviarPedidoDaConversa(pedido: PedidoDaConversa, chaveEnvio: string): Promise<ExecucaoAceitaResponse> {
-  return enviarMensagemAoAssistente({ ...pedido, chaveEnvio })
+export function sendPedidoDaConversa(pedido: PedidoDaConversa, chaveEnvio: string): Promise<ExecucaoAceitaResponse> {
+  return sendMensagemAoAssistente({ ...pedido, chaveEnvio })
 }
 
 /**
@@ -33,10 +33,10 @@ export const CICLO_DA_FERRAMENTA: Readonly<Record<Ferramenta, TabStore<CicloDeEx
 }
 
 /** O `POST` de cada ferramenta. Na Adaptação vão só os tipos e o tempo extra: o pedido não tem onde levar texto. */
-export function enviarPedidoDeFerramenta(pedido: PedidoDeFerramenta, chaveEnvio: string): Promise<ExecucaoAceitaResponse> {
+export function sendPedidoDeFerramenta(pedido: PedidoDeFerramenta, chaveEnvio: string): Promise<ExecucaoAceitaResponse> {
   if (pedido.ferramenta === 'adaptacao')
     return adaptarArtefato(pedido.artefatoId, { tipos: [...pedido.tipos], ...(pedido.tempoExtraPercentual === undefined ? {} : { tempoExtraPercentual: pedido.tempoExtraPercentual }), chaveEnvio })
-  return gerarComFerramenta(pedido.ferramenta, { ...pedido.parametros, chaveEnvio })
+  return generateComFerramenta(pedido.ferramenta, { ...pedido.parametros, chaveEnvio })
 }
 
 /** A turma e a disciplina escolhidas na caixa de pedido (`turmas-da-professora.ts`): a Conversa abre com a mesma da Home. */
@@ -55,11 +55,11 @@ export const CARTAO_DA_CONVERSA = createTabStore<CartaoAberto>()
  */
 export function esquecerGeracaoTerminada(ferramenta: Ferramenta): void {
   const lugar = CICLO_DA_FERRAMENTA[ferramenta]
-  if (!emCurso(lugar.ler())) lugar.guardar(undefined)
+  if (!emCurso(lugar.read())) lugar.guardar(undefined)
 }
 
 /** Abre o cartão de uma ferramenta dentro da conversa, com o que ela já sabe do pedido. */
-export function abrirCartaoNaConversa(cartao: CartaoAberto): void {
+export function openCartaoNaConversa(cartao: CartaoAberto): void {
   esquecerGeracaoTerminada(cartao.ferramenta)
   CARTAO_DA_CONVERSA.guardar(cartao)
 }

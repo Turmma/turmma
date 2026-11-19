@@ -49,8 +49,8 @@ export function equipeBucket(ip: string, rebaixado = false): LoginBucket {
  * O contador `login.rebaixado_ip` (16.5): as tentativas rebaixadas pelo limite por IP das rotas de login, sem rótulo. A
  * série nasce em 0, para a taxa contar a primeira. O login por matrícula e o por e-mail somam no mesmo contador.
  */
-export function contadorDoRebaixamentoPorIp(medidor: Meter): { contar: () => void } {
+export function contadorDoRebaixamentoPorIp(medidor: Meter): { count: () => void } {
   const contador = medidor.createCounter(METRICS.rebaixadoPorIp, { description: 'Tentativas de login rebaixadas pelo limite por IP das rotas de login' })
   contador.add(0)
-  return { contar: () => contador.add(1) }
+  return { count: () => contador.add(1) }
 }

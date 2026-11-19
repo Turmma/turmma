@@ -110,7 +110,7 @@ export interface ApiConfig {
 }
 
 /** Executa a leitura e devolve o erro de configuração em vez de lançar, para somar os problemas. */
-function tentar<T>(ler: () => T): { valor: T } | { erro: InvalidConfigError } {
+function attempt<T>(ler: () => T): { valor: T } | { erro: InvalidConfigError } {
   try {
     return { valor: ler() }
   } catch (erro) {
@@ -124,18 +124,18 @@ function tentar<T>(ler: () => T): { valor: T } | { erro: InvalidConfigError } {
  * token sintético ligado em produção. Todos os problemas saem de uma vez, só pelo nome.
  */
 export function loadConfig(ambiente: Record<string, string | undefined>): ApiConfig {
-  const api = tentar(() => validateEnvironment(envSchema, ambiente))
-  const banco = tentar(() => loadDatabaseConfig(ambiente))
-  const identidade = tentar(() => loadAuthConfig(ambiente))
-  const login = tentar(() => loadLoginConfig(ambiente))
-  const loginExterno = tentar(() => loadExternalLoginConfig(ambiente))
-  const sala = tentar(() => loadSalaConfig(ambiente))
-  const drenagem = tentar(() => loadGracefulShutdownConfig(ambiente))
-  const limite = tentar(() => loadRateLimitConfig(ambiente))
-  const telemetria = tentar(() => loadTelemetryConfig(ambiente))
-  const ia = tentar(() => loadLLMConfig(ambiente))
-  const armazem = tentar(() => loadFileStorageConfig(ambiente))
-  const chaveDoEmail = tentar(() => loadChaveDoTokenDeEmail(ambiente))
+  const api = attempt(() => validateEnvironment(envSchema, ambiente))
+  const banco = attempt(() => loadDatabaseConfig(ambiente))
+  const identidade = attempt(() => loadAuthConfig(ambiente))
+  const login = attempt(() => loadLoginConfig(ambiente))
+  const loginExterno = attempt(() => loadExternalLoginConfig(ambiente))
+  const sala = attempt(() => loadSalaConfig(ambiente))
+  const drenagem = attempt(() => loadGracefulShutdownConfig(ambiente))
+  const limite = attempt(() => loadRateLimitConfig(ambiente))
+  const telemetria = attempt(() => loadTelemetryConfig(ambiente))
+  const ia = attempt(() => loadLLMConfig(ambiente))
+  const armazem = attempt(() => loadFileStorageConfig(ambiente))
+  const chaveDoEmail = attempt(() => loadChaveDoTokenDeEmail(ambiente))
   if ('erro' in api || 'erro' in banco || 'erro' in identidade || 'erro' in login || 'erro' in loginExterno || 'erro' in sala || 'erro' in drenagem || 'erro' in limite || 'erro' in telemetria || 'erro' in ia || 'erro' in armazem || 'erro' in chaveDoEmail) {
     const erros = [api, banco, identidade, login, loginExterno, sala, drenagem, limite, telemetria, ia, armazem, chaveDoEmail].flatMap((leitura) => ('erro' in leitura ? [leitura.erro] : []))
     throw new InvalidConfigError(

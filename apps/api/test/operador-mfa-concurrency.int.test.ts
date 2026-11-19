@@ -40,7 +40,7 @@ const CONFIGURAR_NA_FILA = 'update "operador" set "mfa_segredo_cifrado"%'
 const ENTRAR_NA_FILA = 'select "id", "email", "mfa_segredo_cifrado"%for update'
 const DESATIVAR_NA_FILA = 'select "id", "apelido" from "operador"%for update'
 
-type Metodo = 'trocarCodigosDeRecuperacao' | 'abrirSessao'
+type Metodo = 'trocarCodigosDeRecuperacao' | 'openSessao'
 
 describe('segundo fator do operador: as travas contra a corrida (tarefa 7.0)', () => {
   const operadores = new OperadorFixtures()
@@ -83,10 +83,10 @@ describe('segundo fator do operador: as travas contra a corrida (tarefa 7.0)', (
   /** Segura a primeira `/sessao/mfa` ou o primeiro configurar **depois** de consumir o `jti` e antes da transação. */
   function segurarDepoisDoJti(): { chegou: Promise<void>; soltar: () => void } {
     const consumo = app.get(OperadorChallengeConsumer)
-    const original = consumo.consumir.bind(consumo)
+    const original = consumo.consume.bind(consumo)
     const espera = barreira()
     let primeira = true
-    vi.spyOn(consumo, 'consumir').mockImplementation(async (verificado) => {
+    vi.spyOn(consumo, 'consume').mockImplementation(async (verificado) => {
       await original(verificado)
       if (primeira) {
         primeira = false
@@ -152,7 +152,7 @@ describe('segundo fator do operador: as travas contra a corrida (tarefa 7.0)', (
       const abaA = corpoDe(await configurar(url, await desafio(operadorId, 'configurar_mfa')))
       const desafioB = await desafio(operadorId, 'configurar_mfa')
 
-      const trava = segurarAntesDe('abrirSessao')
+      const trava = segurarAntesDe('openSessao')
       const daAbaA = entrar(url, { desafio: abaA.desafio, codigo: codigoDoPasso(abaA.segredo, passoAtual()) })
       await trava.chegou
       const daAbaB = configurar(url, desafioB)
@@ -217,7 +217,7 @@ describe('segundo fator do operador: as travas contra a corrida (tarefa 7.0)', (
       const { operadorId, apelido } = await operadores.operador()
       const { base32 } = await ativarNoBanco(operadores.pool, operadorId)
 
-      const trava = segurarAntesDe('abrirSessao')
+      const trava = segurarAntesDe('openSessao')
       const pendente = entrar(url, { desafio: await desafio(operadorId, 'mfa'), codigo: codigoDoPasso(base32, passoAtual()) })
       await trava.chegou
       let desativou = false

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { montarTime } from '@educa/shared'
+import { buildTime } from '@educa/shared'
 import { focusManager, QueryClientProvider } from '@tanstack/react-query'
 import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -30,7 +30,7 @@ function instalar(rede: FakeNetwork, sinais?: () => FakeResponse): void {
   rede.responderPor('/v1/tutor/uso', ok({ turmaId: TURMA, limiteDoDia: 60, trocasDaTurmaNoMes: 0, pacoteDaTurmaNoMes: 0, alunos: [] }))
   rede.responderPor(`/v1/turmas/${TURMA}/desempenho`, ok({ turmaId: TURMA, lotesAprovados: 0, porHabilidade: [], alunos: [] }))
   rede.responderPor('/v1/atividades-aplicadas', ok({ itens: [] }))
-  rede.responderPor('/v1/time', ok(montarTime(new Set())))
+  rede.responderPor('/v1/time', ok(buildTime(new Set())))
   rede.responderPor('/v1/materiais', ok({ itens: [] }))
   rede.responderPor(`/v1/turmas/${TURMA}/acesso`, ok({ expiraEm: null }))
   rede.responderPor(`/v1/turmas/${TURMA}/reivindicacoes`, ok({ itens: [] }))

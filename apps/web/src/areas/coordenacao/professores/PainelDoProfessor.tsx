@@ -7,8 +7,8 @@ import { StatusAnnouncement } from '../../../components/dialogs'
 import { LoadingState, ErrorState, EmptyState } from '../../../components/states/index'
 import { Sheet } from '../../../components/ui/overlays/Sheet'
 import { StatusBadge } from '../../../components/ui/StatusBadge'
-import { acoesDoConviteDeProfessor, FAMILIA_DO_ESTADO_DO_PROFESSOR, podeCorrigirOEmail, TEXTO_DO_ESTADO_DO_PROFESSOR } from './convite-de-professor'
-import { podeReenviar, rotuloDoEnvio } from './envio-do-convite'
+import { acoesDoConviteDeProfessor, FAMILIA_DO_ESTADO_DO_PROFESSOR, canCorrigirOEmail, TEXTO_DO_ESTADO_DO_PROFESSOR } from './convite-de-professor'
+import { canReenviar, rotuloDoEnvio } from './envio-do-convite'
 import { descricaoDoQueFalta, oQueFaltaParaAlocar, tituloDoQueFalta } from './o-que-falta-para-alocar'
 import { AvisoDeListaIncompleta } from '../comum/pecas-da-lista'
 import { MOTIVO_DO_ENCERRAMENTO, porQueNaoRecebeTurma, professorAlocavel, vinculosDoProfessor } from './professores-da-escola'
@@ -71,7 +71,7 @@ interface Props {
 /**
  * O painel do professor (X2, 6.0 e 7.0; RF13, RF14; `?professor=<usuarioId>`): o nome no título, a situação do convite em texto,
  * as turmas dele e, no rodapé, **só as ações que o estado permite** — as matrizes de `@educa/shared`, as mesmas do servidor
- * (`acoesDoConviteDeProfessor`) —, "Reenviar" para quem espera o convite e já teve um envio por e-mail (`podeReenviar`; acesso-e-convites, 4.0), "Corrigir o e-mail" para quem espera o convite, pela mesma matriz do servidor (`podeCorrigirOEmail`; 19.0), e "Acrescentar turma" para quem pode receber turma (`professorAlocavel`). O envio do último convite aparece em texto na situação, sem `aria-live`: a região que anuncia a mudança é a da linha da lista. Quem não pode vê por quê,
+ * (`acoesDoConviteDeProfessor`) —, "Reenviar" para quem espera o convite e já teve um envio por e-mail (`canReenviar`; acesso-e-convites, 4.0), "Corrigir o e-mail" para quem espera o convite, pela mesma matriz do servidor (`canCorrigirOEmail`; 19.0), e "Acrescentar turma" para quem pode receber turma (`professorAlocavel`). O envio do último convite aparece em texto na situação, sem `aria-live`: a região que anuncia a mudança é a da linha da lista. Quem não pode vê por quê,
  * na seção das turmas. Estado sem ação nenhuma (o revogado, o desativado) não tem rodapé. Cadastrar não é daqui: é da tela, e cadastra
  * outra pessoa.
  *
@@ -91,8 +91,8 @@ export function PainelDoProfessor({ professor, aoFechar, aoRefazer, aoReenviar, 
   const idDaSituacao = useId()
   const idDasTurmas = useId()
   const alocavel = professorAlocavel(professor.estado)
-  const reenviar = podeReenviar(professor)
-  const corrigirOEmail = podeCorrigirOEmail(professor.estado)
+  const reenviar = canReenviar(professor)
+  const corrigirOEmail = canCorrigirOEmail(professor.estado)
   const envio = rotuloDoEnvio(professor)
 
   const anos = useQuery(anosLetivosQueryOptions)

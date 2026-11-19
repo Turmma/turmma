@@ -43,7 +43,7 @@ describe('medição dos minutos da importação de planilha na fila', () => {
   }
 
   function medicaoDe(ids: readonly string[], medidor: MedidorDeTeste, repositorio: Pick<ImportacaoRepository, 'criadaEmDaNaFilaMaisAntiga'> = new ImportacaoRepository(bancada.banco)): ImportacaoGauge {
-    return new ImportacaoGauge({ escolas: { listarIds: () => Promise.resolve([...ids]) }, repositorio, relogio, logger: log.logger, medidor: medidor.medidor })
+    return new ImportacaoGauge({ escolas: { listIds: () => Promise.resolve([...ids]) }, repositorio, relogio, logger: log.logger, medidor: medidor.medidor })
   }
 
   async function porEscola(medidor: MedidorDeTeste): Promise<Record<string, unknown>> {

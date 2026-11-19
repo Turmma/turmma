@@ -21,7 +21,7 @@ import {
 } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import type { ConclusaoDeLogin } from '../completion/login-completion.js'
-import { lerCookie, SESSAO_COOKIE } from '../../credencial/cookies.js'
+import { readCookie, SESSAO_COOKIE } from '../../credencial/cookies.js'
 import { hashDoRefresh } from '../../credencial/login-identifiers.js'
 import { naEscolaSemUsuario } from '../tenant/escola-sem-usuario.js'
 import { ipParaRegistro, type RequestOrigin } from '../../credencial/request-origin.js'
@@ -147,7 +147,7 @@ export class ExternalLoginService {
    * `sala`, com `intencao=reivindicar`, é o acesso vigente que o controller achou pelo link ou pelo código na escola do slug; a escola dele tem de
    * ser a do slug, senão responde como o inexistente (regra 10, item 6).
    */
-  async iniciar(provedor: ProvedorExterno, slug: string, sala?: SalaDoLogin): Promise<Redirect> {
+  async start(provedor: ProvedorExterno, slug: string, sala?: SalaDoLogin): Promise<Redirect> {
     if (!this.ligados.includes(provedor)) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     const escolaId = await this.dependencias.resolucao.escolaPorSlug(slug)
     if (escolaId === undefined || (sala !== undefined && sala.escolaId !== escolaId)) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
@@ -159,11 +159,11 @@ export class ExternalLoginService {
    * `educa_sessao` (que vai à navegação da própria web) traz, achada na escola do slug: sem o cookie, vencida, encerrada, de professor ou coordenador, ou de outra escola, responde
    * como o inexistente (regra 10, item 6). O aluno e a sessão vão no cookie `educa_oidc`, porque o retorno vem de outro site e o `educa_sessao` (`Strict`) não vai nele.
    */
-  async iniciarParaLigar(provedor: ProvedorExterno, slug: string, cabecalhoCookie: string | undefined): Promise<Redirect> {
+  async startParaLigar(provedor: ProvedorExterno, slug: string, cabecalhoCookie: string | undefined): Promise<Redirect> {
     if (!this.ligados.includes(provedor)) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     const escolaId = await this.dependencias.resolucao.escolaPorSlug(slug)
     if (escolaId === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
-    const refresh = lerCookie(cabecalhoCookie, SESSAO_COOKIE)
+    const refresh = readCookie(cabecalhoCookie, SESSAO_COOKIE)
     const aluno =
       refresh === undefined
         ? undefined
@@ -178,9 +178,9 @@ export class ExternalLoginService {
     if (!liberado) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
 
     try {
-      const inicio = await this.dependencias.provedor.iniciar(provedor, prende.ligarAoAluno !== undefined)
+      const inicio = await this.dependencias.provedor.start(provedor, prende.ligarAoAluno !== undefined)
       const emAndamento: LoginExternoEmAndamento = { escolaId, slug, provedor, state: inicio.state, nonce: inicio.nonce, verificador: inicio.verificador, ...prende }
-      return { endereco: inicio.endereco.href, cookies: [this.dependencias.cookie.gravar(emAndamento)] }
+      return { endereco: inicio.endereco.href, cookies: [this.dependencias.cookie.save(emAndamento)] }
     } catch (erro) {
       if (!(erro instanceof ExternalProviderError)) throw erro
       this.#resultados.add(1, { resultado: 'provedor' })
@@ -194,8 +194,8 @@ export class ExternalLoginService {
    */
   async retorno(consulta: string, origem: RequestOrigin): Promise<Redirect> {
     const { cookie, retorno } = this.dependencias
-    const apagar = cookie.apagar()
-    const emAndamento = cookie.ler(lerCookie(origem.cabecalhoCookie, COOKIE_OIDC))
+    const apagar = cookie.delete()
+    const emAndamento = cookie.read(readCookie(origem.cabecalhoCookie, COOKIE_OIDC))
     if (emAndamento === undefined || retorno === undefined) return this.#falhaDoProvedor(undefined, apagar)
     const parametros = new URLSearchParams(consulta)
     if (parametros.has('error')) return this.#falhaDoProvedor(emAndamento, apagar)
@@ -211,12 +211,12 @@ export class ExternalLoginService {
       if (emAndamento.ligarAoAluno !== undefined) return this.#ligarAoAluno(emAndamento.escolaId, emAndamento.ligarAoAluno, contaNoProvedor, apagar)
       const decisao = await this.#decidir(emAndamento.escolaId, contaNoProvedor, emAndamento.acessoDaSalaId)
       if (decisao.tipo === 'provada') {
-        const provada = this.dependencias.cookieDaConta.gravar(decisao.conta)
+        const provada = this.dependencias.cookieDaConta.save(decisao.conta)
         this.#resultados.add(1, { resultado: 'conta_provada' })
         return { endereco: enderecoDaSala(emAndamento.slug), cookies: [apagar, provada] }
       }
       if (decisao.tipo !== 'entrar') {
-        await new RegistroDeAcessoRepository(this.dependencias.banco).gravarFalha(ipParaRegistro(origem.ip))
+        await new RegistroDeAcessoRepository(this.dependencias.banco).saveFalha(ipParaRegistro(origem.ip))
         this.#resultados.add(1, { resultado: 'recusado' })
         return { endereco: enderecoDaFalha(emAndamento.slug, decisao.tipo === 'suspenso' ? 'acesso_suspenso' : 'conta_externa_nao_ligada'), cookies: [apagar] }
       }
@@ -255,10 +255,10 @@ export class ExternalLoginService {
     return runInContext({ requisicaoId, escolaId, usuarioId: aluno.usuarioId }, () =>
       this.dependencias.banco.transaction(async (tx): Promise<ResultadoDoRetornoDaLigacao> => {
         const repositorio = new ContaExternalRepository(tx)
-        if (!(await repositorio.travarAlunoDaSessao(aluno.usuarioId, aluno.sessaoId))) return 'recusada'
+        if (!(await repositorio.lockAlunoDaSessao(aluno.usuarioId, aluno.sessaoId))) return 'recusada'
         const ligacaoId = await repositorio.ligar(aluno.usuarioId, chave)
         if (ligacaoId !== undefined) {
-          await this.#auditoria.gravar(tx, 'conta_externa.ligada', { entidadeId: ligacaoId, depois: { usuarioId: aluno.usuarioId, provedor: chave.provedor } })
+          await this.#auditoria.save(tx, 'conta_externa.ligada', { entidadeId: ligacaoId, depois: { usuarioId: aluno.usuarioId, provedor: chave.provedor } })
           return 'ligada'
         }
         // O banco recusou: ou esta mesma conta já é dele (clique duplo, outra aba), ou ela é de outro aluno, ou ele já tem outra conta. Só a primeira é `ligada`.
@@ -314,7 +314,7 @@ export class ExternalLoginService {
       this.dependencias.banco.transaction(async (tx) => {
         const ligacaoId = await new ContaExternalRepository(tx).ligar(usuarioId, chave)
         if (ligacaoId === undefined) return false
-        await this.#auditoria.gravar(tx, 'conta_externa.ligada', { entidadeId: ligacaoId, depois: { usuarioId, provedor: chave.provedor } })
+        await this.#auditoria.save(tx, 'conta_externa.ligada', { entidadeId: ligacaoId, depois: { usuarioId, provedor: chave.provedor } })
         return true
       }),
     )

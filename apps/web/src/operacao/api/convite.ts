@@ -18,7 +18,7 @@ export const CAMINHO_DO_ACEITE_DE_CONVITE_DE_OPERADOR = '/v1/operacao/convite/ac
  *
  * Não passa pelo TanStack Query: o token é o argumento, e uma chave de cache com ele dentro é o que não pode existir.
  */
-export function consultarConviteDeOperador(token: string): Promise<ConsultarConviteDeOperadorResponse> {
+export function findConviteDeOperador(token: string): Promise<ConsultarConviteDeOperadorResponse> {
   return apiRequest(CAMINHO_DA_CONSULTA_DE_CONVITE_DE_OPERADOR, consultarConviteDeOperadorResponseSchema, { metodo: 'POST', corpo: { token } })
 }
 
@@ -34,7 +34,7 @@ export async function aceitarConviteDeOperador(pedido: AceitarConviteDeOperadorR
 }
 
 /** O convite que não vale chega como `NAO_ENCONTRADO`, igual nos cinco casos (C9). */
-export function ehConviteInvalido(erro: unknown): boolean {
+export function isConviteInvalido(erro: unknown): boolean {
   return erro instanceof ApiError && erro.codigo === ErrorCode.NAO_ENCONTRADO
 }
 
@@ -58,7 +58,7 @@ export async function aceitarConviteDeOperadorNaVez(pedido: AceitarConviteDeOper
     await aceitarConviteDeOperador(pedido)
   } catch (erro) {
     if (vezDoLink() !== vez) return { tipo: 'descartado' }
-    return ehConviteInvalido(erro) ? { tipo: 'invalido' } : { tipo: 'falhou', erro }
+    return isConviteInvalido(erro) ? { tipo: 'invalido' } : { tipo: 'falhou', erro }
   }
   if (vezDoLink() !== vez) {
     esquecerDesafioDeOperador()

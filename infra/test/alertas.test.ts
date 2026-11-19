@@ -9,7 +9,7 @@ import { ancoraDoTitulo, arquivosDeAlertaDoRepositorio, CAMINHO_DO_RUNBOOK, entr
 import { MedidorDeTeste, NOMES_NO_PROMETHEUS } from '../../tools/testes/metricas.ts'
 import { metricasDa } from '../../tools/testes/promql.ts'
 import { ITERACOES_MINIMAS_ARGON2, THREADS_DE_FOLGA_DO_LIBUV } from '../../apps/api/src/credencial/login-config.ts'
-import { lerEscolaARevogar, OPCAO_DA_ESCOLA } from '../../apps/api/src/ops/revogar-acessos-sala.ts'
+import { readEscolaARevogar, OPCAO_DA_ESCOLA } from '../../apps/api/src/ops/revogar-acessos-sala.ts'
 import { EVENTO_DO_LIMITE_DA_SALA, JANELA_DOS_LIMITES_DA_SALA_MS, SalaRateLimits, TETO_DE_CODIGOS_ERRADOS_POR_ESCOLA } from '../../apps/api/src/sala/sala-rate-limits.ts'
 import { WindowCounter } from '../../apps/api/src/credencial/senha/window-counter.ts'
 import { LIMITES_DO_HISTOGRAMA_HTTP_S } from '../../packages/core/src/telemetry/metrics.ts'
@@ -278,7 +278,7 @@ describe('regras de alerta provisionadas', () => {
       janelaMs: JANELA_DOS_LIMITES_DA_SALA_MS,
       avisarSeguro: () => undefined,
     })
-    const limites = new SalaRateLimits({ janela, instancias: 1, medidor: medidor.medidor, logger: { warn: (linha: unknown) => void linhas.push(linha) }, esperar: async () => undefined })
+    const limites = new SalaRateLimits({ janela, instancias: 1, medidor: medidor.medidor, logger: { warn: (linha: unknown) => void linhas.push(linha) }, wait: async () => undefined })
     const escolaId = randomUUID()
     try {
       for (let vez = 0; vez < TETO_DE_CODIGOS_ERRADOS_POR_ESCOLA; vez++) await limites.codigoErrado(escolaId)
@@ -291,7 +291,7 @@ describe('regras de alerta provisionadas', () => {
     expect(linhas).toEqual([{ evento: EVENTO_DO_LIMITE_DA_SALA, tipo: 'escola', escolaId }])
     const [linha] = linhas as Array<{ escolaId: string }>
     // O comando aceita o campo como o log o entrega, e revoga a escola dele.
-    expect(lerEscolaARevogar([`--${OPCAO_DA_ESCOLA}`, linha?.escolaId ?? ''])).toBe(escolaId)
+    expect(readEscolaARevogar([`--${OPCAO_DA_ESCOLA}`, linha?.escolaId ?? ''])).toBe(escolaId)
 
     // A entrada do runbook cita o evento, o campo e o comando com a opção que o leitor aceita, e o comando existe.
     const entrada = entradasDoRunbook(readFileSync(join(raizRepositorio, CAMINHO_DO_RUNBOOK), 'utf8')).get(ancoraDoTitulo(regraPorUid(REGRAS_DO_ENSAIO.salaCodigoErrado).regra.title)) ?? ''

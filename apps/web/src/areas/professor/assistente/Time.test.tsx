@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { montarTime } from '@educa/shared'
+import { buildTime } from '@educa/shared'
 import { cleanup, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { Router } from 'wouter'
@@ -38,7 +38,7 @@ const entrega = (n: number, estado: 'pendente' | 'aprovada') => ({
 
 function instalar(rede: FakeNetwork, quem: { entregas: readonly unknown[]; maisUma?: boolean }): void {
   rede.responderPor('/v1/meus-vinculos', VINCULO)
-  rede.responderPor('/v1/time', { status: 200, corpo: montarTime(new Set()) })
+  rede.responderPor('/v1/time', { status: 200, corpo: buildTime(new Set()) })
   rede.responderPor(/^\/v1\/entregas(\?|$)/, { status: 200, corpo: { itens: quem.entregas, ...(quem.maisUma === true ? { proxima: id(999) } : {}) } })
 }
 

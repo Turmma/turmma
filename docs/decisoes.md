@@ -62,7 +62,8 @@ mesmo tempo, em linhas.
 **Nome de peça técnica e mecanismo próprio.** Fechado em 22/10/2026 (D81): a peça técnica tem o nome do framework, em
 inglês (`TurmaController`, `ZodValidationPipe`), e o conceito do domínio fica em português, pelo glossário. Mecanismo
 próprio só com o motivo escrito. O que já existe com nome em português é renomeado de uma vez na X8, depois da X4
-(D81 revista em 24/10/2026); "ferramenta" é domínio e fica.
+(D81 revista em 24/10/2026); "ferramenta" é domínio e fica. O método segue a mesma regra desde 19/11/2026
+(`findByTurma`; D81 revista).
 
 **Nome dos agentes.** O desenho da call tinha nomes próprios; os docs usam função. Fica a
 função (D17).
@@ -1626,7 +1627,16 @@ de LLM: o modelo não escolhe nem chama nada, quem roda a tarefa é o servidor. 
 function calling, quando existir. Banco, rota HTTP, código de erro e texto de tela não mudam. Motivo, nas
 palavras dele: "tools já entendo que é a tool que o agente pode usar via MCP… coisa de software podia ser
 inglês como geralmente é chamado"; o rename gradual deixa a base em dois idiomas por tempo indefinido, e
-quem vem do mercado lê a peça traduzida como mecanismo próprio.
+quem vem do mercado lê a peça traduzida como mecanismo próprio. Revista em 19/11/2026, pelo Joaquim: o método e a função
+também levam o verbo técnico em inglês, e o domínio fica em português (`findByTurma`, `listAtivos`, `countPendentes`,
+`create`, `deleteConsolidado`, `isAtivo`); `find` é a leitura que pode não achar, `read` e `get` a que sempre acha. O verbo
+de domínio continua em português (`aprovar`, `lancar`, `corrigir`, `matricular`, `encerrar`, `eliminar`, `registrar`), e o
+ajudante de teste (`criarEscolaComProfessor`) também. Código de permissão, evento de log, tipo de job, rota, banco e texto
+de tela não mudam. A troca foi feita de uma vez, sem spec, na correção `2026-11-19-metodos-de-mercado`, e a guarda
+`guardas/verbo-de-mercado` recusa o verbo antigo no `src`; a tabela dos verbos está no §9 do guia do desenvolvedor. Motivo,
+nas palavras dele: "o pessoal já tá mais acostumado com os métodos assim, com inglês ou inglês misturado com português"; a
+X8 tinha deixado o método de fora, e o mesmo nome em dois idiomas (`TurmaRepository.buscarPorId`) é o que a D81 queria
+evitar.
 
 **D82 — A produção roda em VPS em região Brasil, no lugar da VM de casa; o deploy automático pela `main` continua.**
 A produção do F18 sobe numa VPS contratada, em região Brasil (D28), com o mesmo compose, o mesmo deploy automático pela `main`, fora do horário letivo e com rollback sozinho. O provedor da VPS está em aberto. Banco, Redis e storage seguem em contêiner na própria VPS, e a migração para serviços gerenciados (D26, D42) segue como estava. Revisa a D26, a D31 e a D42. Motivo, nas palavras do Joaquim: disponibilidade. Uma máquina em casa fica sujeita a queda de luz e de internet, o que não combina com os 99,5% no horário letivo (D27) nem com a regra 80, e uma VPS de datacenter tira esse risco sem mudar o compose.

@@ -158,12 +158,12 @@ describe('material: isolamento entre escolas', () => {
     const porta = api.app.get(TrechoSearch)
     const naEscolaA = <T>(funcao: () => Promise<T>): Promise<T> => runInContext({ requisicaoId: randomUUID(), escolaId: a.coordenacao.escolaId }, funcao)
 
-    const achados = await naEscolaA(() => porta.buscar({ texto: 'reagente limitante', disciplinaId: a.quimica, serieId: a.serieId, limite: 20 }))
+    const achados = await naEscolaA(() => porta.find({ texto: 'reagente limitante', disciplinaId: a.quimica, serieId: a.serieId, limite: 20 }))
     expect(achados.length).toBeGreaterThan(0)
     expect(new Set(achados.map((trecho) => trecho.materialId))).toEqual(new Set([a.materialId]))
     // Com a disciplina de B, com o material de B, ou pedindo as páginas do material de B: nada.
-    expect(await naEscolaA(() => porta.buscar({ texto: 'reagente limitante', disciplinaId: b.quimica, serieId: b.serieId }))).toEqual([])
-    expect(await naEscolaA(() => porta.buscar({ texto: 'reagente limitante', disciplinaId: a.quimica, serieId: a.serieId, materialId: b.materialId }))).toEqual([])
+    expect(await naEscolaA(() => porta.find({ texto: 'reagente limitante', disciplinaId: b.quimica, serieId: b.serieId }))).toEqual([])
+    expect(await naEscolaA(() => porta.find({ texto: 'reagente limitante', disciplinaId: a.quimica, serieId: a.serieId, materialId: b.materialId }))).toEqual([])
     expect(await naEscolaA(() => porta.doMaterial(b.materialId, b.quimica, b.serieId))).toEqual([])
     expect(await naEscolaA(() => porta.doMaterial(b.materialId, a.quimica, a.serieId))).toEqual([])
     expect((await naEscolaA(() => porta.doMaterial(a.materialId, a.quimica, a.serieId))).map((trecho) => trecho.pagina)).toEqual([1, 2, 3, 4, 5, 6])

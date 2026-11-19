@@ -13,7 +13,7 @@ export class ProvedoresDaEscolaController {
 
   @Put('provedores')
   @RequirePermissao('escola_configuracao', 'alterar')
-  alterar(@Body(new ZodValidationPipe(provedoresDaEscolaRequestSchema)) pedido: ProvedoresDaEscolaRequest): Promise<ProvedoresDaEscolaResponse> {
-    return this.provedores.alterar(pedido)
+  update(@Body(new ZodValidationPipe(provedoresDaEscolaRequestSchema)) pedido: ProvedoresDaEscolaRequest): Promise<ProvedoresDaEscolaResponse> {
+    return this.provedores.update(pedido)
   }
 }

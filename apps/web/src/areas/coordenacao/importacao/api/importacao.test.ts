@@ -19,7 +19,7 @@ function relogioFalso() {
   return {
     estado,
     agora: () => estado.agora,
-    esperar: (ms: number) => {
+    wait: (ms: number) => {
       estado.esperas.push(ms)
       estado.agora += ms
       return Promise.resolve()

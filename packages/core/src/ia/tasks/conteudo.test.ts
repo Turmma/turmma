@@ -10,14 +10,14 @@ import { LLMError } from '../errors.js'
 import { extrairFatos } from '../material.js'
 import { LLMGateway } from '../llm-gateway.js'
 import { InMemorySuspensoes } from '../suspensao.js'
-import { normalizar, semPontoFinal } from '../text.js'
+import { normalize, semPontoFinal } from '../text.js'
 import { adaptarAtividade } from './adaptar-atividade.js'
 import { gerarAtividadeObjetiva } from './gerar-atividade-objetiva.js'
 import { gerarPlanoDeAula } from './gerar-plano-de-aula.js'
 
-const MATERIAL_INTEIRO = normalizar(PAGINAS_DE_ESTEQUIOMETRIA.join(' '))
+const MATERIAL_INTEIRO = normalize(PAGINAS_DE_ESTEQUIOMETRIA.join(' '))
 const textoDaPagina = (pagina: number): string => PAGINAS_DE_ESTEQUIOMETRIA[pagina - 1] ?? ''
-const doMaterial = (texto: string): boolean => MATERIAL_INTEIRO.includes(normalizar(semPontoFinal(texto)))
+const doMaterial = (texto: string): boolean => MATERIAL_INTEIRO.includes(normalize(semPontoFinal(texto)))
 
 function provedorCom(adaptador: FakeAdapter | ScriptedAdapter): { ia: LLMGateway; consumo: InMemoryConsumo } {
   const consumo = new InMemoryConsumo()
@@ -43,12 +43,12 @@ describe('gerar_atividade_objetiva, versão determinística', () => {
       if (fato === undefined) throw new Error(`a citação de "${questao.enunciado}" não é uma frase do material`)
       expect(questao.enunciado).toContain(fato.termo)
       const correta = questao.alternativas[questao.gabarito] ?? ''
-      expect(normalizar(semPontoFinal(correta))).toBe(normalizar(fato.complemento))
-      expect(new Set(questao.alternativas.map(normalizar)).size).toBe(4)
+      expect(normalize(semPontoFinal(correta))).toBe(normalize(fato.complemento))
+      expect(new Set(questao.alternativas.map(normalize)).size).toBe(4)
       for (const alternativa of questao.alternativas) expect(doMaterial(alternativa), alternativa).toBe(true)
-      const definicoesDeOutros = fatos.filter((outro) => outro.termo !== fato.termo).map((outro) => normalizar(outro.complemento))
+      const definicoesDeOutros = fatos.filter((outro) => outro.termo !== fato.termo).map((outro) => normalize(outro.complemento))
       for (const [indice, alternativa] of questao.alternativas.entries()) {
-        if (indice !== questao.gabarito) expect(definicoesDeOutros).toContain(normalizar(semPontoFinal(alternativa)))
+        if (indice !== questao.gabarito) expect(definicoesDeOutros).toContain(normalize(semPontoFinal(alternativa)))
       }
     }
   })
@@ -105,7 +105,7 @@ describe('gerar_atividade_objetiva, versão determinística', () => {
   it('material sem frase aproveitável não vira atividade inventada: falha com material insuficiente', async () => {
     const { ia } = provedorCom(new FakeAdapter())
     const entrada = { ...entradaDeAtividade(), trechos: [{ materialId: MATERIAL_DE_ESTEQUIOMETRIA, pagina: 1, texto: 'Sumário. Capítulo 7.' }] }
-    expect((await erroDe(ia.gerar({ tarefa: gerarAtividadeObjetiva, entrada, escolaId: ESCOLA_A }))).codigoDeIa).toBe('MATERIAL_INSUFICIENTE')
+    expect((await erroDe(ia.generate({ tarefa: gerarAtividadeObjetiva, entrada, escolaId: ESCOLA_A }))).codigoDeIa).toBe('MATERIAL_INSUFICIENTE')
   })
 })
 
@@ -113,7 +113,7 @@ describe('gerar_atividade_objetiva, conferência da saída de qualquer modelo', 
   it('o "adaptacao" que o modelo acrescentar à atividade comum sai antes do schema, e a atividade vale', async () => {
     const comAdaptacao = { ...atividadeDeEstequiometria(), adaptacao: { tipos: ['fonte_ampliada'] } }
     const adaptador = new ScriptedAdapter([JSON.stringify(comAdaptacao)])
-    const { saida } = await provedorCom(adaptador).ia.gerar({ tarefa: gerarAtividadeObjetiva, entrada: entradaDeAtividade(), escolaId: ESCOLA_A })
+    const { saida } = await provedorCom(adaptador).ia.generate({ tarefa: gerarAtividadeObjetiva, entrada: entradaDeAtividade(), escolaId: ESCOLA_A })
     expect(adaptador.chamadas).toBe(1)
     expect(saida.adaptacao).toBeUndefined()
   })
@@ -156,7 +156,7 @@ describe('gerar_atividade_objetiva, conferência da saída de qualquer modelo', 
       JSON.stringify(boa),
     ])
     const { ia } = provedorCom(adaptador)
-    const { saida, medicao } = await ia.gerar({ tarefa: gerarAtividadeObjetiva, entrada, escolaId: ESCOLA_A })
+    const { saida, medicao } = await ia.generate({ tarefa: gerarAtividadeObjetiva, entrada, escolaId: ESCOLA_A })
     expect(saida).toEqual(boa)
     expect(medicao.tentativas).toBe(2)
     expect(adaptador.correcoes[1]?.problemas.join(' ')).toContain('página 148')
@@ -219,7 +219,7 @@ describe('adaptar_atividade', () => {
     const entrada = { ...entradaDeAdaptacao(), adaptacao: { tipos } }
     const doModelo = { ...entrada.conteudo, adaptacao: { tipos: ['enunciado_simplificado'], tempoExtraPercentual: 0 } }
     const adaptador = new ScriptedAdapter([JSON.stringify(doModelo)])
-    const { saida } = await provedorCom(adaptador).ia.gerar({ tarefa: adaptarAtividade, entrada, escolaId: ESCOLA_A })
+    const { saida } = await provedorCom(adaptador).ia.generate({ tarefa: adaptarAtividade, entrada, escolaId: ESCOLA_A })
     expect(adaptador.chamadas).toBe(1)
     expect(saida.adaptacao).toEqual({ tipos: ['fonte_ampliada', 'linguagem_direta'] })
   })
@@ -299,7 +299,7 @@ describe('adaptar_atividade', () => {
     const boa = adaptarAtividade.falso(entrada)
     const trocada = { ...boa, questoes: boa.questoes.map((questao) => ({ ...questao, gabarito: (questao.gabarito + 1) % 4 })) }
     const { ia, consumo } = provedorCom(new ScriptedAdapter([JSON.stringify(trocada), JSON.stringify(trocada)]))
-    expect((await erroDe(ia.gerar({ tarefa: adaptarAtividade, entrada, escolaId: ESCOLA_A }))).codigoDeIa).toBe('IA_SAIDA_INVALIDA')
+    expect((await erroDe(ia.generate({ tarefa: adaptarAtividade, entrada, escolaId: ESCOLA_A }))).codigoDeIa).toBe('IA_SAIDA_INVALIDA')
     expect(consumo.registros).toMatchObject([{ funcao: 'adaptacao', estado: 'falhou', codigoDeErro: 'IA_SAIDA_INVALIDA', tentativas: 2 }])
     expect(consumo.registros[0]?.saida).toBeUndefined()
   })

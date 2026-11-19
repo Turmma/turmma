@@ -51,7 +51,7 @@ export function professoresQueEsperamOConvite<Professor extends Pick<ProfessorDa
 }
 
 /** O "Reenviar" do painel: só para quem espera o convite e já teve um envio por e-mail. O primeiro envio é do "Enviar convites". */
-export function podeReenviar(professor: Pick<ProfessorDaEscola, 'estado' | 'envio'>): boolean {
+export function canReenviar(professor: Pick<ProfessorDaEscola, 'estado' | 'envio'>): boolean {
   return esperaOConvite(professor) && professor.envio !== null
 }
 
@@ -109,7 +109,7 @@ interface ReleituraOptions {
  * A releitura do envio: a cada 5 s, só com a aba visível e alguma linha em envio, e para de vez 5 minutos depois de começar. Devolve o que a
  * para. Quem chama começa de novo quando a coordenação pede outro envio.
  */
-export function iniciarReleituraDoEnvio({ reler, haEnvio, visivel, agora = Date.now }: ReleituraOptions): () => void {
+export function startReleituraDoEnvio({ reler, haEnvio, visivel, agora = Date.now }: ReleituraOptions): () => void {
   // `setInterval` próprio, e não o `refetchInterval` do TanStack que Material, Time e TurmaHoje usam (D81): o `refetchInterval` não tem prazo de fim, e aqui a
   // releitura para sozinha 5 minutos depois de começar e recomeça a cada envio novo da coordenação, o que ele não expressa.
   const inicio = agora()

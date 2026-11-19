@@ -13,7 +13,7 @@ export function textoDoPedido(valor: string): string | undefined {
 }
 
 /** Dá para enviar agora? Só com a caixa pronta e com texto: enquanto a resposta chega, um segundo pedido não sai. */
-export function podeEnviar(valor: string, estado: PromptInputState): boolean {
+export function canEnviar(valor: string, estado: PromptInputState): boolean {
   return estado === 'pronta' && textoDoPedido(valor) !== undefined
 }
 

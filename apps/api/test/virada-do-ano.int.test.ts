@@ -1,4 +1,4 @@
-import { createDatabase, createPool, executarPlanilha, runInContext, type Database, type DatabasePool } from '@educa/core'
+import { createDatabase, createPool, runPlanilha, runInContext, type Database, type DatabasePool } from '@educa/core'
 import { ErrorCode, decisaoResponseSchema, MENSAGENS_DE_ERRO, type ResultadoDaDecisao } from '@educa/shared'
 import { sql } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
@@ -402,7 +402,7 @@ describe('virada do ano: encerrar o ano letivo encerra os vínculos por `fim_do_
       linhasDeLog.length = 0
 
       // O encerramento do pendente é a função da transferência pela planilha (F2, 9.0), `fechar(…, 'encerrada')`: uma só escrita para os dois caminhos.
-      const fechar = vi.spyOn(DecisaoRepository.prototype, 'fechar')
+      const fechar = vi.spyOn(DecisaoRepository.prototype, 'close')
       let resposta: Awaited<ReturnType<typeof encerrar>>
       try {
         resposta = await encerrar(s)
@@ -675,7 +675,7 @@ describe('virada do ano: encerrar o ano letivo encerra os vínculos por `fim_do_
               ? post(s.coordenacao, `/v1/turmas/${s.turma}/lista/nome`, { nome, matricula }).then((resposta) => resposta.status)
               : post(s.coordenacao, `/v1/turmas/${s.turma}/lista`, { texto: `${nome};${matricula}` }).then((resposta) => {
                   expect(resposta.status).toBe(202)
-                  return runInContext({ requisicaoId: randomUUID(), escolaId: s.escolaId }, () => executarPlanilha(bancoDoJob, resposta.corpo['id'] as string))
+                  return runInContext({ requisicaoId: randomUUID(), escolaId: s.escolaId }, () => runPlanilha(bancoDoJob, resposta.corpo['id'] as string))
                 })
           await parada.esperarParadas()
           const encerrando = encerrar(s)

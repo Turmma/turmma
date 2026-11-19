@@ -39,7 +39,7 @@ export interface RecorteDaSecao {
  * - `preparar`: lê só as seções **vivas** da execução (sem `corrigida_em`, material `pronto` e não excluído); monta o texto delas (título, começo e subtítulos, `textoDaSecao`) e as candidatas do recorte do material
  *   (componente da disciplina e séries). Sem seção viva, ou sem candidata, **conclui sem modelo e sem consumo**. A seção sem recorte não vai ao modelo e volta a `nao_agendada`. A execução é de um recorte (a 5.0 agrupa as
  *   seções por ele), mas o comando não confia: as candidatas dos recortes que vierem juntos são unidas **sem corte** (acima de 300 o gateway recusa a entrada, `IA_ENTRADA_INVALIDA`), e cada código só se grava se for candidato do recorte da própria seção.
- * - `concluir`: grava na transação em que a execução conclui (`SecoesRepository.gravarClassificacao`), e devolve quantas seções gravou.
+ * - `concluir`: grava na transação em que a execução conclui (`SecoesRepository.saveClassificacao`), e devolve quantas seções gravou.
  */
 export class ClassificarSecoesCommand implements ExecucaoCommand<EntradaDaTarefa<typeof classificarSecoes>, SaidaDaTarefa<typeof classificarSecoes>, LidoDaClassificacao> {
   readonly tarefa = classificarSecoes
@@ -106,8 +106,8 @@ export class ClassificarSecoesCommand implements ExecucaoCommand<EntradaDaTarefa
       if (recorte === undefined || resposta.codigos.some((codigo) => !habilidadeEhCandidata(codigo, recorte.componente, recorte.series))) throw new LLMError('IA_SAIDA_INVALIDA')
     }
     const repositorio = new SecoesRepository(tx)
-    const gravadas = await repositorio.gravarClassificacao(execucaoId, saida.secoes)
-    if (lido.semRecorte.length > 0) await repositorio.limparDaExecucao(execucaoId, lido.semRecorte)
+    const gravadas = await repositorio.saveClassificacao(execucaoId, saida.secoes)
+    if (lido.semRecorte.length > 0) await repositorio.clearDaExecucao(execucaoId, lido.semRecorte)
     const escolaId = requireEscolaId()
     for (const gravada of gravadas) this.#metricas.esperaDaClassificacao(escolaId, gravada.segundosDesdeOEnvio)
     return { tipo: 'classificacao_do_material', secoes: gravadas.length }
@@ -115,7 +115,7 @@ export class ClassificarSecoesCommand implements ExecucaoCommand<EntradaDaTarefa
 
   /** Sem seção viva não há o que fazer; sem candidata, as seções não corrigidas da execução voltam a `nao_agendada` (P11). Nos dois, a execução conclui sem modelo e sem consumo. */
   async concluirSemModelo(lido: LidoDaClassificacao, tx: DatabaseTransaction, execucaoId: string): Promise<ResultadoGravado> {
-    if (lido.semCandidatas) await new SecoesRepository(tx).limparDaExecucao(execucaoId)
+    if (lido.semCandidatas) await new SecoesRepository(tx).clearDaExecucao(execucaoId)
     return { tipo: 'classificacao_do_material', secoes: 0 }
   }
 

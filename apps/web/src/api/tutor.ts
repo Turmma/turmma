@@ -45,6 +45,6 @@ export function mensagensDoTutorEmOrdem(paginas: readonly ConversaDoTutorRespons
 }
 
 /** `POST /v1/tutor/mensagens`: responde 202 com a execução. A resposta do Tutor chega pela execução. */
-export function enviarMensagemAoTutor(pedido: MensagemAoTutorRequest): Promise<ExecucaoAceitaResponse> {
+export function sendMensagemAoTutor(pedido: MensagemAoTutorRequest): Promise<ExecucaoAceitaResponse> {
   return authedRequest('/v1/tutor/mensagens', execucaoAceitaResponseSchema, { metodo: 'POST', corpo: pedido })
 }

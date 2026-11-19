@@ -18,7 +18,7 @@ import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 import { z } from 'zod'
 import { AcessoDaEscolaRepository } from '../credencial/index.js'
-import { abrirBancoDeOperacao, InvalidArgumentError, autorDoComando, lerOperador, OperadorRejectedError, type CommandDatabase, type CommandOutput } from './command.js'
+import { openBancoDeOperacao, InvalidArgumentError, autorDoComando, readOperador, OperadorRejectedError, type CommandDatabase, type CommandOutput } from './command.js'
 import { FORMATO_DO_CHAMADO } from './jobs-que-falharam.js'
 import type { AuthorCheck } from '../sessao/index.js'
 
@@ -47,7 +47,7 @@ export interface PedidoDeReclassificacao {
 }
 
 /** `--escola <uuid> --chamado <n>`: o UUID em minúsculas e o inteiro positivo. Ausente ou fora do formato, só a opção na mensagem. */
-export function lerPedidoDeReclassificacao(argumentos: string[]): PedidoDeReclassificacao {
+export function readPedidoDeReclassificacao(argumentos: string[]): PedidoDeReclassificacao {
   let valores: { escola?: string | undefined; chamado?: string | undefined }
   try {
     valores = parseArgs({ args: argumentos, options: { escola: { type: 'string' }, chamado: { type: 'string' } }, strict: true, allowPositionals: false }).values
@@ -90,10 +90,10 @@ export async function reclassificarEscola(banco: Database, autor: AuthorCheck, p
           if ((await new AcessoDaEscolaRepository(tx).nome()) === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
           const agendamento = new AgendamentoDaClassificacaoRepository(tx)
           if (!(await agendamento.funcaoEstaAtiva())) throw new DomainException(ErrorCode.FUNCAO_SUSPENSA)
-          const travadas = await agendamento.travarParaReclassificar({}, lote, cursor)
+          const travadas = await agendamento.lockParaReclassificar({}, lote, cursor)
           if (travadas.ultima === undefined) return undefined
           const agendado = await agendamento.agendar(travadas.aReclassificar, enfileirador)
-          await registro.gravar(tx, 'escola.reclassificada', { entidadeId: pedido.escolaId, depois: { chamado: pedido.chamado, secoes: agendado.secoes, execucoes: agendado.execucoes }, autorOperador })
+          await registro.save(tx, 'escola.reclassificada', { entidadeId: pedido.escolaId, depois: { chamado: pedido.chamado, secoes: agendado.secoes, execucoes: agendado.execucoes }, autorOperador })
           return { ultima: travadas.ultima, agendado }
         })
       }),
@@ -110,17 +110,17 @@ export async function reclassificarEscola(banco: Database, autor: AuthorCheck, p
  * Executa o comando e devolve o código de saída: 0 reclassificado (também zero seções, e o laço que parou no sinal), 1 escola inexistente, função suspensa ou erro, 2 argumento ou ambiente inválido, ou `OPERADOR` que não é operador
  * ativo. Argumento, `OPERADOR` e `--chamado` são conferidos antes de abrir o banco. `sinal` é o do desligamento do processo; o teste passa o dele.
  */
-export async function executarOpsReclassificarEscola(
+export async function runOpsReclassificarEscola(
   argumentos: string[],
   ambiente: Record<string, string | undefined>,
   terminal: CommandOutput,
-  abrirBanco: (ambiente: Record<string, string | undefined>) => CommandDatabase = abrirBancoDeOperacao,
+  abrirBanco: (ambiente: Record<string, string | undefined>) => CommandDatabase = openBancoDeOperacao,
   sinal: AbortSignal = new AbortController().signal,
 ): Promise<number> {
   try {
-    const pedido = lerPedidoDeReclassificacao(argumentos)
-    const operador = lerOperador(ambiente)
-    const { banco, fechar } = abrirBanco(ambiente)
+    const pedido = readPedidoDeReclassificacao(argumentos)
+    const operador = readOperador(ambiente)
+    const { banco, close: fechar } = abrirBanco(ambiente)
     try {
       const resultado = await reclassificarEscola(banco, autorDoComando(operador), pedido, sinal)
       terminal.saida(`${JSON.stringify({ ...resultado, chamado: pedido.chamado })}\n`)
@@ -146,11 +146,11 @@ export async function executarOpsReclassificarEscola(
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const desligamento = new AbortController()
   for (const sinal of ['SIGINT', 'SIGTERM'] as const) process.once(sinal, () => desligamento.abort())
-  process.exitCode = await executarOpsReclassificarEscola(
+  process.exitCode = await runOpsReclassificarEscola(
     process.argv.slice(2),
     process.env,
     { saida: (texto) => process.stdout.write(texto), erro: (texto) => process.stderr.write(texto) },
-    abrirBancoDeOperacao,
+    openBancoDeOperacao,
     desligamento.signal,
   )
 }

@@ -24,7 +24,7 @@ import { CaixaDoAssistente } from './CaixaDoAssistente'
 import { CartaoDeFerramenta } from '../ferramentas/CartaoDeFerramenta'
 import { itensDaConversa, marcaDoFim, mensagensNaTela, pedidoDeSoConversar, pendenteNaConversa, propostaQuePergunta } from './conversa'
 import { ferramentaDoCatalogo } from '../ferramentas/ferramentas'
-import { abrirCartaoNaConversa, CARTAO_DA_CONVERSA, CICLO_DA_CONVERSA, CICLO_DA_FERRAMENTA, CONTEXTO_ESCOLHIDO, enviarPedidoDaConversa, ESCOLHAS_DAS_PROPOSTAS, type EscolhaDaProposta } from './memoria-do-professor'
+import { openCartaoNaConversa, CARTAO_DA_CONVERSA, CICLO_DA_CONVERSA, CICLO_DA_FERRAMENTA, CONTEXTO_ESCOLHIDO, sendPedidoDaConversa, ESCOLHAS_DAS_PROPOSTAS, type EscolhaDaProposta } from './memoria-do-professor'
 import { turmaEscolhida, turmasDaProfessora, valorDoContexto } from '../comum/turmas-da-professora'
 
 /** As duas respostas à pergunta da D18, **do mesmo peso**: nenhuma é a "certa" (D59), e a peça `ChoicePrompt` as desenha iguais. */
@@ -58,7 +58,7 @@ export default function Conversa() {
   const contexto = useTabStore(CONTEXTO_ESCOLHIDO)
   const cartao = useTabStore(CARTAO_DA_CONVERSA)
   const escolhas = useTabStore(ESCOLHAS_DAS_PROPOSTAS) ?? {}
-  const { ciclo, demorando, iniciar, repetir } = useExecutionLifecycle(CICLO_DA_CONVERSA, enviarPedidoDaConversa)
+  const { ciclo, demorando, start: iniciar, repetir } = useExecutionLifecycle(CICLO_DA_CONVERSA, sendPedidoDaConversa)
   const fim = useRef<HTMLDivElement>(null)
   // A geração do cartão aberto, só para saber se ele ainda ocupa a tela: quem a conduz é o próprio cartão.
   const geracaoDoCartao = useTabStore(CICLO_DA_FERRAMENTA[cartao?.ferramenta ?? 'atividade_objetiva'])
@@ -115,7 +115,7 @@ export default function Conversa() {
     if (escolha !== 'ferramenta') return
     const { ferramenta, parametros } = mensagem.proposta
     // O cartão abre com o que o Assistente entendeu do pedido; a professora ajusta antes de gerar.
-    abrirCartaoNaConversa({
+    openCartaoNaConversa({
       ferramenta,
       iniciais: { turma: valorDoContexto(parametros.turmaId, parametros.disciplinaId), tema: parametros.tema, ...(parametros.quantidade === undefined ? {} : { quantidade: parametros.quantidade }) },
     })
@@ -191,7 +191,7 @@ export default function Conversa() {
         <StickyFooter rotulo="Novo pedido" semLinha>
           {/* A barra já tem 12 px de folga; o `pb-3` leva a frase a 24 px do pé da janela. */}
           <div ref={barra} className="flex w-full min-w-0 flex-col gap-2 pb-3">
-            <CaixaDoAssistente turmas={turmas} turma={turma} iniciar={iniciar} respondendo={emCurso(ciclo)} desligada={suspensa || cartaoOcupaATela} />
+            <CaixaDoAssistente turmas={turmas} turma={turma} start={iniciar} respondendo={emCurso(ciclo)} desligada={suspensa || cartaoOcupaATela} />
             <AvisoDeIA />
           </div>
         </StickyFooter>

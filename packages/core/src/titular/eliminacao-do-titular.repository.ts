@@ -50,7 +50,7 @@ export class EliminacaoDoTitularRepository {
    * o segundo relê o estado que o primeiro deixou (`concluido`), então sai sem efeito. A primeira trava da ordem pedido →
    * usuário.
    */
-  async travarVencido(pedidoId: string): Promise<PedidoDeEliminacao | undefined> {
+  async lockVencido(pedidoId: string): Promise<PedidoDeEliminacao | undefined> {
     const [linha] = await this.banco
       .select({ id: pedidoTitular.id, titularId: pedidoTitular.titularId, papel: pedidoTitular.papelTitular, registradoPor: pedidoTitular.registradoPor })
       .from(pedidoTitular)
@@ -88,7 +88,7 @@ export class EliminacaoDoTitularRepository {
   }
 
   /** A foto do compartilhamento refeita, no próprio pedido (a coluna que o expurgo e a eliminação deixam sem o aluno). */
-  async gravarCompartilhamento(pedidoId: string, foto: Compartilhamento): Promise<void> {
+  async saveCompartilhamento(pedidoId: string, foto: Compartilhamento): Promise<void> {
     await this.banco
       .update(pedidoTitular)
       .set({ compartilhamento: foto })

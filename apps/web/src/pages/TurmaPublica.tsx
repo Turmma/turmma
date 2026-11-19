@@ -3,7 +3,7 @@ import {
   codigoDaTurmaValido,
   MENSAGENS_DA_SALA,
   mensagemDaSala,
-  normalizarCodigoDaTurma,
+  normalizeCodigoDaTurma,
   PARAMETRO_DA_CONTA_PROVADA,
   TAMANHO_MAXIMO_CODIGO_DIGITADO,
   TAMANHO_MAXIMO_MATRICULA,
@@ -16,7 +16,7 @@ import {
 import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'wouter'
 import { ApiError } from '../api/client'
-import { abrirSala, reivindicarNome } from '../api/salas'
+import { openSala, reivindicarNome } from '../api/salas'
 import { caminhoDaEscola } from '../paths'
 import { Button } from '../components/ui/Button'
 import { SECONDARY_BUTTON_CLASSES, SECONDARY_LINK_CLASSES } from '../components/ui/button-variants'
@@ -25,10 +25,10 @@ import { PasswordInput } from '../components/ui/fields/PasswordInput'
 import { CascaPublica } from '../components/CascaPublica'
 import { LoadingState } from '../components/states'
 import { usePageTitle } from '../document-title'
-import { apagarCaminhoDaSala, lerCaminhoDaSala, type Caminho } from './caminho-da-sala'
+import { deleteCaminhoDaSala, readCaminhoDaSala, type Caminho } from './caminho-da-sala'
 import { ContaDaEscolaNaSala } from './ContaDaEscolaNaSala'
 import { clearFragment, readFragmentToken } from './url-fragment'
-import { enviarComReenvio } from './retry-with-backoff'
+import { sendComReenvio } from './retry-with-backoff'
 
 type NomeLivre = SalaAbertaResponse['nomes'][number]
 
@@ -66,7 +66,7 @@ function comecar(slug: string): Comeco {
   if (token !== undefined) return { etapa: { nome: 'abrindo' }, foco: 0, abrir: { caminho: { tipo: 'link', token }, conta: false } }
   const voltou = new URL(window.location.href).searchParams.get(PARAMETRO_DA_CONTA_PROVADA) === VALOR_DA_CONTA_PROVADA
   if (!voltou) return { etapa: { nome: 'codigo', abrindo: false }, foco: 0, abrir: undefined }
-  const caminho = lerCaminhoDaSala(slug)
+  const caminho = readCaminhoDaSala(slug)
   if (caminho === undefined) return { etapa: { nome: 'codigo', aviso: CONTA_PERDIDA, abrindo: false }, foco: 1, abrir: undefined }
   return { etapa: { nome: 'abrindo' }, foco: 0, abrir: { caminho, conta: true } }
 }
@@ -130,7 +130,7 @@ export function TurmaPublica({ slug }: { slug: string }) {
   const buscar = useCallback(
     async (caminho: Caminho, minhaVez: number, recarga: boolean, conta: boolean): Promise<void> => {
       try {
-        const resposta = await abrirSala({ slug, ...noPedido(caminho) })
+        const resposta = await openSala({ slug, ...noPedido(caminho) })
         if (vez.current !== minhaVez) return
         definirEtapa({ nome: 'aberta', caminho, turma: resposta.turma.nome, nomes: resposta.nomes, conta })
       } catch (erro) {
@@ -164,7 +164,7 @@ export function TurmaPublica({ slug }: { slug: string }) {
     const contador = vez
     clearFragment()
     tirarAContaDaBarra()
-    apagarCaminhoDaSala()
+    deleteCaminhoDaSala()
     if (comeco.abrir !== undefined) void buscar(comeco.abrir.caminho, ++contador.current, false, comeco.abrir.conta)
     return () => {
       contador.current++
@@ -193,10 +193,10 @@ export function TurmaPublica({ slug }: { slug: string }) {
    * a contagem da escola nem o limite por IP com o erro de digitação. Uma abertura por vez: o segundo Enter de um
    * clique duplo chega antes de a tela desligar o botão.
    */
-  function abrirPeloCodigo(evento: FormEvent<HTMLFormElement>): void {
+  function openPeloCodigo(evento: FormEvent<HTMLFormElement>): void {
     evento.preventDefault()
     if (codigoNoAr.current) return
-    const codigo = normalizarCodigoDaTurma(codigoDigitado)
+    const codigo = normalizeCodigoDaTurma(codigoDigitado)
     if (codigo === '') {
       mostrarCodigo(CODIGO_EM_BRANCO)
       return
@@ -227,7 +227,7 @@ export function TurmaPublica({ slug }: { slug: string }) {
           aoMudar={definirCodigoDigitado}
           aviso={etapa.aviso}
           abrindo={etapa.abrindo}
-          aoEnviar={abrirPeloCodigo}
+          aoEnviar={openPeloCodigo}
         />
       )}
       {etapa.nome === 'abrindo' && <LoadingState rotulo="Abrindo a turma…" />}
@@ -425,7 +425,7 @@ function FormularioDoNome(props: {
     definirCheio(false)
   }
 
-  async function enviar(evento: FormEvent<HTMLFormElement>): Promise<void> {
+  async function send(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault()
     if (noAr.current) return
     if (nomeEscolhido === undefined) {
@@ -445,8 +445,8 @@ function FormularioDoNome(props: {
     definirAviso(undefined)
     definirCheio(false)
     const minhaVez = vezAgora()
-    const desfecho = await enviarComReenvio(() => reivindicarNome(pedido), {
-      esperar: (ms) => new Promise((resolver) => window.setTimeout(resolver, ms)),
+    const desfecho = await sendComReenvio(() => reivindicarNome(pedido), {
+      wait: (ms) => new Promise((resolver) => window.setTimeout(resolver, ms)),
       aleatorio: Math.random,
       aoEsperar: () => definirTentando(true),
       valendo: () => vezAgora() === minhaVez,
@@ -489,7 +489,7 @@ function FormularioDoNome(props: {
   const descritoPor = `${idDoAviso} ${idDoStatus}`
 
   return (
-    <form className="flex flex-col gap-4" onSubmit={(evento) => void enviar(evento)}>
+    <form className="flex flex-col gap-4" onSubmit={(evento) => void send(evento)}>
       <fieldset className="flex min-w-0 flex-col gap-2" aria-describedby={faltaONome && nomeEscolhido === undefined ? idDaFaltaDoNome : undefined}>
         <legend className="mb-2 font-medium">
           Escolha o seu nome

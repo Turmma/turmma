@@ -1,7 +1,7 @@
 import type { ExecucaoAceitaResponse } from '@educa/shared'
 import type { CicloDeExecucao } from '../../api/ciclo-de-execucao'
 import { createTabStore } from '../../api/tab-store'
-import { enviarMensagemAoTutor } from '../../api/tutor'
+import { sendMensagemAoTutor } from '../../api/tutor'
 import type { PedidoAoTutor } from './tutor'
 
 /**
@@ -11,6 +11,6 @@ import type { PedidoAoTutor } from './tutor'
  */
 export const CICLO_DO_TUTOR = createTabStore<CicloDeExecucao<PedidoAoTutor>>()
 
-export function enviarPerguntaAoTutor(pedido: PedidoAoTutor, chaveEnvio: string): Promise<ExecucaoAceitaResponse> {
-  return enviarMensagemAoTutor({ ...pedido, chaveEnvio })
+export function sendPerguntaAoTutor(pedido: PedidoAoTutor, chaveEnvio: string): Promise<ExecucaoAceitaResponse> {
+  return sendMensagemAoTutor({ ...pedido, chaveEnvio })
 }

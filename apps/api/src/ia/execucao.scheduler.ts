@@ -72,7 +72,7 @@ export class ExecucaoScheduler {
       // (o worker, passando-a a `rodando`), e o reenvio esperaria com ele.
       const reenvio = await execucoes.daChave(pedido.chaveEnvio)
       if (reenvio !== undefined) return this.#doReenvio(reenvio, comando.tarefa)
-      const nova = await execucoes.gravarPendente(comando.tarefa, pedido.chaveEnvio, entradaDaExecucao)
+      const nova = await execucoes.savePendente(comando.tarefa, pedido.chaveEnvio, entradaDaExecucao)
       if (nova !== undefined) {
         await pedido.aoGravar?.(tx, nova)
         await this.fila.enfileirarUmaVez(tx, TIPO_EXECUTAR_IA, { execucaoId: nova }, nova, { fila })

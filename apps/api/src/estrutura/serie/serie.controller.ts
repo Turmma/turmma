@@ -10,13 +10,13 @@ export class SerieController {
 
   @Post()
   @RequirePermissao('serie', 'criar')
-  criar(@Body(new ZodValidationPipe(criarSerieRequestSchema)) pedido: CriarSerieRequest): Promise<SerieResponse> {
-    return this.series.criar(pedido)
+  create(@Body(new ZodValidationPipe(criarSerieRequestSchema)) pedido: CriarSerieRequest): Promise<SerieResponse> {
+    return this.series.create(pedido)
   }
 
   @Get()
   @RequirePermissao('serie', 'ler')
-  listar(@Query(new ZodValidationPipe(paginationQuerySchema)) consulta: PaginationQuery): Promise<ListaDeSeriesResponse> {
-    return this.series.listar(consulta)
+  list(@Query(new ZodValidationPipe(paginationQuerySchema)) consulta: PaginationQuery): Promise<ListaDeSeriesResponse> {
+    return this.series.list(consulta)
   }
 }

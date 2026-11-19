@@ -48,7 +48,7 @@ export class BilheteDaTroca {
   }
 
   /** O bilhete conferido (assinatura, `typ`, `aud`, prazo e conteúdo), ou `undefined`: quem chama responde `NAO_AUTENTICADO` sem dizer qual parte falhou. */
-  async verificar(bilhete: string): Promise<DadosDoBilheteDaTroca | undefined> {
+  async verify(bilhete: string): Promise<DadosDoBilheteDaTroca | undefined> {
     const agora = this.relogio.agora()
     let claims: unknown
     try {

@@ -26,7 +26,7 @@ import { chaveDaNoite } from './expurgar-dado-pessoal.js'
 const PRAZO_DO_LOTE_MS = 20_000
 
 export interface RotinaDaClassificacaoDependencies {
-  escolas: Pick<CronEscolasRepository, 'listarIds'>
+  escolas: Pick<CronEscolasRepository, 'listIds'>
   banco: Database
   enfileirador: Pick<JobOutbox, 'enfileirarUmaVez'>
   /** O horário letivo da escola do contexto: dele sai o fuso da data local da chave. */
@@ -40,12 +40,12 @@ export interface RotinaDaClassificacaoDependencies {
  * grava um `material.agendar-classificacao` na fila de lote, não urgente, com a data local da noite no fuso dela por chave. Rodar duas vezes na mesma noite, ou duas réplicas ao mesmo tempo, dá um job por escola. Como a rotina
  * do expurgo, uma escola que falha não segura as outras: a rotina segue e, no fim, falha o job, para a fila tentar de novo (as já enfileiradas colidem na chave). Loga só contagens, e a escola que falhou pelo id.
  */
-export function criarRotinaDaClassificacao({ escolas, banco, enfileirador, janelaDaEscola, relogio, logger }: RotinaDaClassificacaoDependencies): JobProcessor<typeof TIPO_AGENDAR_CLASSIFICACAO_DAS_ESCOLAS> {
+export function createRotinaDaClassificacao({ escolas, banco, enfileirador, janelaDaEscola, relogio, logger }: RotinaDaClassificacaoDependencies): JobProcessor<typeof TIPO_AGENDAR_CLASSIFICACAO_DAS_ESCOLAS> {
   return async () => {
     const contexto = currentContext()
     if (contexto?.rotinaDoSistema !== true) throw new JobFailureError(JobFailureCode.DADOS_INVALIDOS, true)
     const agora = relogio.agora()
-    const ids = await escolas.listarIds()
+    const ids = await escolas.listIds()
     let enfileiradosTotal = 0
     let jaEnfileiradosTotal = 0
     let falhasTotal = 0
@@ -85,7 +85,7 @@ export interface AgendamentoDaClassificacaoDependencies {
  * execução no meio de um lote, quando a função está suspensa e quando a escola já ganhou o limite de execuções da noite (`EXECUCOES_POR_NOITE_DA_ESCOLA`): o resto sai na noite seguinte, pelo mesmo caminho. Cada lote começa
  * depois da última seção do anterior, então a seção que nenhum lote consegue agendar (a que o outro agendamento levou) não prende o laço. Loga só ids e contagens, nunca título, texto nem código.
  */
-export function criarAgendamentoDaClassificacao({ banco, enfileirador, logger, lote = SECOES_POR_LOTE_DO_AGENDAMENTO, limiteDeExecucoes = EXECUCOES_POR_NOITE_DA_ESCOLA }: AgendamentoDaClassificacaoDependencies): JobProcessor<typeof TIPO_AGENDAR_CLASSIFICACAO> {
+export function createAgendamentoDaClassificacao({ banco, enfileirador, logger, lote = SECOES_POR_LOTE_DO_AGENDAMENTO, limiteDeExecucoes = EXECUCOES_POR_NOITE_DA_ESCOLA }: AgendamentoDaClassificacaoDependencies): JobProcessor<typeof TIPO_AGENDAR_CLASSIFICACAO> {
   return async (dados, _execucao, sinal = new AbortController().signal) => {
     const alvo = alvoDoJob(dados)
     if (alvo !== undefined) return refazOsRecortes({ banco, enfileirador, logger, lote }, alvo, sinal)
@@ -138,7 +138,7 @@ function alvoDoJob(dados: { readonly materialId?: string | undefined; readonly d
 
 /**
  * A mudança de recorte (6.0; Tech Spec, seção 5, "Agendar" (b)): o `PATCH` das séries do material ou do componente da disciplina só enfileirou este job, e ele **decide pelo recorte que está no banco agora**, nunca pelo
- * conteúdo do `PATCH`. Em lotes de 500 seções, cada um numa transação (`statement_timeout` de 20 s), **limpa** as seções não corrigidas do alvo (`limparDoRecorte`: lê `for update`, apaga o código da IA, anula a execução,
+ * conteúdo do `PATCH`. Em lotes de 500 seções, cada um numa transação (`statement_timeout` de 20 s), **limpa** as seções não corrigidas do alvo (`clearDoRecorte`: lê `for update`, apaga o código da IA, anula a execução,
  * zera as falhas) e, com a função ativa, agenda as que acabaram de ser limpas e têm componente e série (`proximasSecoes` com `secaoIds`). Sem componente (apagado) nem série, a seção fica `nao_agendada`; com a função
  * suspensa, limpa e não agenda (a retomada devolve as seções à rotina das 19h). Sem teto de execuções da noite: foi a coordenação que pediu, e a execução só roda fora da janela letiva. Para entre dois lotes quando o `sinal`
  * aborta, e o job entregue de novo (retentativa, entrega ao menos uma vez) começa do início: limpa de novo as seções dos lotes que já agendou, e as execuções `pendente` daquela tentativa ficam sem seção, concluem sem modelo e sem consumo (P11), sobrando só a execução e o job à toa. Loga só ids e contagens, nunca título, texto nem código.
@@ -159,7 +159,7 @@ async function refazOsRecortes({ banco, enfileirador, logger, lote = SECOES_POR_
     const feito = await banco.transaction(async (tx) => {
       await tx.execute(sql`select set_config('statement_timeout', ${String(PRAZO_DO_LOTE_MS)}, true)`)
       const repositorio = new AgendamentoDaClassificacaoRepository(tx)
-      const { limpas, ultima } = await repositorio.limparDoRecorte(alvo, lote, cursor)
+      const { limpas, ultima } = await repositorio.clearDoRecorte(alvo, lote, cursor)
       if (ultima === undefined) return undefined
       if (!(await repositorio.funcaoEstaAtiva())) return { ultima, limpas: limpas.length, agendado: { execucoes: 0, secoes: 0 } }
       const proximas = await repositorio.proximasSecoes(limpas.length, { secaoIds: limpas })

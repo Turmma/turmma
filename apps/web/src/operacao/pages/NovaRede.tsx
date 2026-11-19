@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useId, useRef, useState, type FormEvent } from 'react'
 import { Button } from '../../components/ui/Button'
 import { FormField } from '../../components/ui/fields/FormField'
-import { REDES_QUERY_KEY, criarRedeNoPainel } from '../api/painel'
+import { REDES_QUERY_KEY, createRedeNoPainel } from '../api/painel'
 import { SECONDARY_BUTTON_CLASSES } from '../../components/ui/button-variants'
 import { DialogoDaOperacao } from '../components/DialogoDaOperacao'
 import { pedidoDeRede, newRequestId } from '../pedidos-do-painel'
@@ -34,14 +34,14 @@ export function NovaRede({ aoFechar, aoCriar }: Props) {
   const clienteDeConsultas = useQueryClient()
   const grupoDoTipo = useId()
   const criar = useMutation({
-    mutationFn: criarRedeNoPainel,
+    mutationFn: createRedeNoPainel,
     onSuccess: async (_resposta, pedido) => {
       await clienteDeConsultas.invalidateQueries({ queryKey: REDES_QUERY_KEY })
       aoCriar({ id: pedido.id, nome: pedido.nome, tipo: pedido.tipo })
     },
   })
 
-  function enviar(evento: FormEvent<HTMLFormElement>): void {
+  function send(evento: FormEvent<HTMLFormElement>): void {
     evento.preventDefault()
     if (noAr.current) return
     const validacao = pedidoDeRede(id, { nome, tipo })
@@ -56,7 +56,7 @@ export function NovaRede({ aoFechar, aoCriar }: Props) {
 
   return (
     <DialogoDaOperacao titulo="Nova rede" aoFechar={aoFechar}>
-      <form className="mt-4 flex flex-col gap-4" onSubmit={enviar} noValidate>
+      <form className="mt-4 flex flex-col gap-4" onSubmit={send} noValidate>
         <FormField
           rotulo="Nome da rede"
           dica="Como a rede é chamada: a prefeitura, o grupo educacional ou o próprio colégio."

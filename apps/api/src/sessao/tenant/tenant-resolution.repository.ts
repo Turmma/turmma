@@ -166,7 +166,7 @@ export class TenantResolutionRepository {
    * usuário da conta pode entrar: é o que decide entre `ACESSO_SUSPENSO` e a resposta única do login.
    */
   @Unscoped('a credencial da equipe é global: depois da senha verificada e sem usuário que possa entrar, diz se a conta tem uma escola com a eliminação agendada, sem dizer qual')
-  async temAcessoSuspenso(contaId: string): Promise<boolean> {
+  async hasAcessoSuspenso(contaId: string): Promise<boolean> {
     const [linha] = await this.banco
       .select({ id: usuario.id })
       .from(usuario)
@@ -220,12 +220,12 @@ export class TenantResolutionRepository {
   }
 
   @Unscoped('a falha de login por e-mail acontece antes de haver escola: grava o registro de acesso com escola e usuário nulos, só com o evento e o IP')
-  async gravarFalhaDeLoginPorEmail(ip: string): Promise<void> {
+  async saveFalhaDeLoginPorEmail(ip: string): Promise<void> {
     await this.banco.insert(registroAcesso).values({ escolaId: null, usuarioId: null, evento: 'login_falho', ip })
   }
 
   @Unscoped('a conta é global e não tem escola: criar a credencial da equipe grava só o e-mail e devolve só os ids, sem ler conta existente')
-  async criarContas(emails: readonly string[]): Promise<string[]> {
+  async createContas(emails: readonly string[]): Promise<string[]> {
     if (emails.length === 0) return []
     const criadas = await this.banco
       .insert(conta)
@@ -260,7 +260,7 @@ export class TenantResolutionRepository {
    * com MFA não troca o segundo fator. Devolve se gravou.
    */
   @Unscoped('a credencial da equipe é global: configurar o MFA escreve na conta pelo conta_id do desafio verificado, e só com o MFA inativo')
-  async gravarSegredoDeMfa(contaId: string, cifrado: Buffer, versao: number): Promise<boolean> {
+  async saveSegredoDeMfa(contaId: string, cifrado: Buffer, versao: number): Promise<boolean> {
     const gravadas = await this.banco
       .update(conta)
       .set({ mfaSegredoCifrado: cifrado, mfaChaveVersao: versao, mfaUltimoPasso: null })
@@ -322,7 +322,7 @@ export class TenantResolutionRepository {
    * foi gravado antes e aparece aqui, ou espera o commit. Duas redefinições da mesma conta esperam uma pela outra.
    */
   @Unscoped('a credencial da equipe é global: redefinir o MFA confere, com a conta travada, em que escolas ela tem usuário ativo, só pelos ids')
-  async travarContaParaRedefinir(contaId: string): Promise<{ mfaAtivo: boolean; escolasAtivas: string[] } | undefined> {
+  async lockContaParaRedefinir(contaId: string): Promise<{ mfaAtivo: boolean; escolasAtivas: string[] } | undefined> {
     const [linha] = await this.banco.select({ ativadoEm: conta.mfaAtivadoEm }).from(conta).where(eq(conta.id, contaId)).for('update')
     if (linha === undefined) return undefined
     const ativos = await this.banco
@@ -335,7 +335,7 @@ export class TenantResolutionRepository {
 
   /** Apaga o segundo fator da conta: segredo, versão, ativação, último passo e todos os códigos de recuperação. */
   @Unscoped('a credencial da equipe é global: a redefinição do MFA apaga o segundo fator da conta, depois de conferida a escola de todos os usuários ativos dela')
-  async apagarMfa(contaId: string): Promise<void> {
+  async clearMfa(contaId: string): Promise<void> {
     await this.banco.update(conta).set({ mfaSegredoCifrado: null, mfaChaveVersao: null, mfaAtivadoEm: null, mfaUltimoPasso: null }).where(eq(conta.id, contaId))
     await this.banco.delete(codigoRecuperacao).where(eq(codigoRecuperacao.contaId, contaId))
   }
@@ -392,7 +392,7 @@ export class TenantResolutionRepository {
 
   /**
    * A conta serve a alguma escola: tem usuário ativo, ou (`comConvite`, o link de verificar) um usuário que espera um convite ainda válido (não usado, não revogado e no prazo).
-   * É o critério da limpeza da conta (`limparContaSemUso`): enquanto a conta não é limpa, quem tem o convite copiado de outra escola precisa poder provar o e-mail para aceitá-lo, e o
+   * É o critério da limpeza da conta (`clearContaSemUso`): enquanto a conta não é limpa, quem tem o convite copiado de outra escola precisa poder provar o e-mail para aceitá-lo, e o
    * professor que saiu de uma escola com o convite da nova já emitido não pode ficar com um link que nunca funciona.
    */
   #contaEmUso(contaId: SQLWrapper, comConvite: boolean): SQL<boolean> {
@@ -507,7 +507,7 @@ export class TenantResolutionRepository {
    * quem chama desfaz a transação e responde igual a quem ganhou. O erro não é engolido aqui porque o Postgres já abortou a transação.
    */
   @Unscoped('o link da conta é da conta global: o "esqueci" grava o link novo da conta lida pelo e-mail, só com o hash do token e os cifrados do envio, e devolve só o id')
-  async criarLinkDaConta(dados: {
+  async createLinkDaConta(dados: {
     contaId: string
     finalidade: FinalidadeDoLinkDaConta
     tokenHash: string

@@ -55,7 +55,7 @@ export class ReivindicacaoRepository {
    * (7.0). O nome de outra escola ou inexistente sobe como o 23503 da FK; o nome que já tem pendente e a chave já
    * gravada na escola, como o 23505 dos índices únicos. Quem chama decide, sem ler o nome da restrição.
    */
-  async inserirPendente(novo: NovoPedido): Promise<void> {
+  async insertPendente(novo: NovoPedido): Promise<void> {
     await this.banco.insert(reivindicacao).values({
       escolaId: requireEscolaId(),
       anoLetivoId: requireAnoEmCurso(),

@@ -124,15 +124,15 @@ describe('propor_ferramenta: o Assistente pergunta antes de abrir a ferramenta (
       expect(proporFerramenta.conferir?.(entrada, umaProposta)).toHaveLength(1)
       expect(proporFerramenta.conferir?.({ ...entrada, semProposta: false }, umaProposta)).toEqual([])
       expect(proporFerramenta.conferir?.(entradaDoAssistente('monta uma atividade sobre mol'), umaProposta)).toEqual([])
-      expect(proporFerramenta.montarPedido(entrada).instrucao).toContain('só conversar')
-      expect(proporFerramenta.montarPedido(entradaDoAssistente()).instrucao).not.toContain('só conversar')
+      expect(proporFerramenta.buildPedido(entrada).instrucao).toContain('só conversar')
+      expect(proporFerramenta.buildPedido(entradaDoAssistente()).instrucao).not.toContain('só conversar')
       // O modelo que insiste na proposta duas vezes não entrega nada; o que corrige na repetição entrega o texto.
       const insistente = new ScriptedAdapter([JSON.stringify(umaProposta), JSON.stringify(umaProposta)])
-      const erro: unknown = await provedorCom(insistente).ia.gerar({ tarefa: proporFerramenta, entrada, escolaId: ESCOLA_A }).catch((motivo: unknown) => motivo)
+      const erro: unknown = await provedorCom(insistente).ia.generate({ tarefa: proporFerramenta, entrada, escolaId: ESCOLA_A }).catch((motivo: unknown) => motivo)
       expect((erro as LLMError).codigoDeIa).toBe('IA_SAIDA_INVALIDA')
       expect(insistente.correcoes[1]?.problemas.join(' ')).toContain('só conversar')
       const emTexto = { tipo: 'texto', texto: 'O mol é a unidade de quantidade de matéria.', citacoes: [] }
-      const { saida } = await provedorCom(new ScriptedAdapter([JSON.stringify(umaProposta), JSON.stringify(emTexto)])).ia.gerar({ tarefa: proporFerramenta, entrada, escolaId: ESCOLA_A })
+      const { saida } = await provedorCom(new ScriptedAdapter([JSON.stringify(umaProposta), JSON.stringify(emTexto)])).ia.generate({ tarefa: proporFerramenta, entrada, escolaId: ESCOLA_A })
       expect(saida).toEqual(emTexto)
     })
 
@@ -172,7 +172,7 @@ describe('propor_ferramenta e a D55: a IA não julga texto de aluno nem dá nota
     for (const { frase } of recusas) {
       const adaptador = new ScriptedAdapter([])
       const { ia, consumo } = provedorCom(adaptador)
-      const { saida, medicao } = await ia.gerar({ tarefa: proporFerramenta, entrada: entradaDoAssistente(frase), escolaId: ESCOLA_A })
+      const { saida, medicao } = await ia.generate({ tarefa: proporFerramenta, entrada: entradaDoAssistente(frase), escolaId: ESCOLA_A })
       expect(adaptador.chamadas, frase).toBe(0)
       expect(saida).toEqual({ tipo: 'texto', texto: RECUSA_DE_CORRECAO_DE_TEXTO_DE_ALUNO, citacoes: [] })
       expect(medicao).toMatchObject({ origem: 'regra_fixa', envioExterno: false, tokensDeEntrada: 0, tokensDeSaida: 0 })
@@ -237,7 +237,7 @@ describe('propor_ferramenta e a D55: a IA não julga texto de aluno nem dá nota
       const comNota = JSON.stringify({ tipo: 'texto', texto: 'O texto da Bia está razoável. Eu daria nota 6,5: falta desenvolver o argumento.', citacoes: [] })
       const insistente = new ScriptedAdapter([comNota, comNota])
       const { ia, consumo } = provedorCom(insistente)
-      const { saida } = await ia.gerar({ tarefa: proporFerramenta, entrada, escolaId: ESCOLA_A })
+      const { saida } = await ia.generate({ tarefa: proporFerramenta, entrada, escolaId: ESCOLA_A })
       expect(saida).toEqual({ tipo: 'texto', texto: RECUSA_DE_CORRECAO_DE_TEXTO_DE_ALUNO, citacoes: [] })
       expect(insistente.chamadas).toBe(2)
       expect(insistente.correcoes[1]?.problemas.join(' ')).toContain('nota, conceito ou pontuação')
@@ -245,7 +245,7 @@ describe('propor_ferramenta e a D55: a IA não julga texto de aluno nem dá nota
       expect(JSON.stringify(consumo.registros)).not.toMatch(/6,5|razoável|Bia/u)
 
       const semNota = { tipo: 'texto', texto: 'Eu não avalio texto de aluno: a correção é sua.', citacoes: [] }
-      const { saida: corrigida } = await provedorCom(new ScriptedAdapter([comNota, JSON.stringify(semNota)])).ia.gerar({ tarefa: proporFerramenta, entrada, escolaId: ESCOLA_A })
+      const { saida: corrigida } = await provedorCom(new ScriptedAdapter([comNota, JSON.stringify(semNota)])).ia.generate({ tarefa: proporFerramenta, entrada, escolaId: ESCOLA_A })
       expect(corrigida).toEqual(semNota)
     })
 
@@ -317,7 +317,7 @@ describe('a D55 sobre as amostras escritas sem olhar para a regra (a revisão da
       { autor: 'professor' as const, texto: colado },
     ]
     expect(turnosQuePodemIrAoModelo(turnos)).toEqual(turnos.slice(0, 2))
-    const pedido = proporFerramenta.montarPedido({ ...entradaDoAssistente('monta uma atividade de rendimento'), turnosAnteriores: turnos })
+    const pedido = proporFerramenta.buildPedido({ ...entradaDoAssistente('monta uma atividade de rendimento'), turnosAnteriores: turnos })
     const enviado = JSON.stringify(pedido)
     expect(enviado).not.toMatch(/Lucas|cyberbullying/u)
     expect(enviado).toContain('monta uma atividade de mol')
@@ -640,7 +640,7 @@ describe('propor_ferramenta na tarefa 3.0: juízo sobre texto de aluno, na entra
       const entrada = entradaDoAssistente(TEXTO_DA_BIA)
       expect(proporFerramenta.semModelo?.(entrada)).toBeUndefined()
       const { ia, consumo, logger, adaptador } = comLog([juizo, juizo])
-      const { saida } = await ia.gerar({ tarefa: proporFerramenta, entrada, escolaId: ESCOLA_A, execucaoId: EXECUCAO })
+      const { saida } = await ia.generate({ tarefa: proporFerramenta, entrada, escolaId: ESCOLA_A, execucaoId: EXECUCAO })
       expect(saida).toEqual(recusa)
       expect(adaptador.chamadas).toBe(2)
       expect(adaptador.correcoes[1]?.problemas.join(' ')).toContain('julga texto de aluno')
@@ -656,7 +656,7 @@ describe('propor_ferramenta na tarefa 3.0: juízo sobre texto de aluno, na entra
     it('só a nota, duas vezes, entrega a recusa: a última reprovação é da D55 mesmo sem texto de aluno na conversa', async () => {
       const soNota = JSON.stringify({ tipo: 'texto', texto: 'Eu daria nota 7 para essa atividade.', citacoes: [] })
       const { ia, adaptador } = comLog([soNota, soNota])
-      const { saida } = await ia.gerar({ tarefa: proporFerramenta, entrada: entradaDoAssistente('monta uma atividade sobre mol'), escolaId: ESCOLA_A })
+      const { saida } = await ia.generate({ tarefa: proporFerramenta, entrada: entradaDoAssistente('monta uma atividade sobre mol'), escolaId: ESCOLA_A })
       expect(saida).toEqual(recusa)
       expect(adaptador.chamadas).toBe(2)
       expect(adaptador.correcoes[1]?.problemas.join(' ')).toContain('nota, conceito ou pontuação')
@@ -674,19 +674,19 @@ describe('propor_ferramenta na tarefa 3.0: juízo sobre texto de aluno, na entra
 
     it('JSON quebrado duas vezes segue sendo IA_SAIDA_INVALIDA, sem reserva', async () => {
       const { ia, logger } = comLog(['{quebrado', '{quebrado'])
-      await expect(ia.gerar({ tarefa: proporFerramenta, entrada: entradaDoAssistente(TEXTO_DA_BIA), escolaId: ESCOLA_A })).rejects.toMatchObject({ codigoDeIa: 'IA_SAIDA_INVALIDA' })
+      await expect(ia.generate({ tarefa: proporFerramenta, entrada: entradaDoAssistente(TEXTO_DA_BIA), escolaId: ESCOLA_A })).rejects.toMatchObject({ codigoDeIa: 'IA_SAIDA_INVALIDA' })
       expect(logger.info).not.toHaveBeenCalled()
     })
 
     it('citação inválida duas vezes, sem texto de aluno, segue sendo IA_SAIDA_INVALIDA: a reserva é só da D55', async () => {
       const { ia } = comLog([citacaoInvalida, citacaoInvalida])
-      await expect(ia.gerar({ tarefa: proporFerramenta, entrada: entradaDoAssistente('o que é mol?'), escolaId: ESCOLA_A })).rejects.toMatchObject({ codigoDeIa: 'IA_SAIDA_INVALIDA' })
+      await expect(ia.generate({ tarefa: proporFerramenta, entrada: entradaDoAssistente('o que é mol?'), escolaId: ESCOLA_A })).rejects.toMatchObject({ codigoDeIa: 'IA_SAIDA_INVALIDA' })
     })
 
     it('só a última reprovação decide a reserva: juízo e depois citação inválida é falha; citação inválida e depois juízo é a recusa', async () => {
       const entrada = entradaDoAssistente(TEXTO_DA_BIA)
-      await expect(comLog([juizo, citacaoInvalida]).ia.gerar({ tarefa: proporFerramenta, entrada, escolaId: ESCOLA_A })).rejects.toMatchObject({ codigoDeIa: 'IA_SAIDA_INVALIDA' })
-      const { saida } = await comLog([citacaoInvalida, juizo]).ia.gerar({ tarefa: proporFerramenta, entrada, escolaId: ESCOLA_A })
+      await expect(comLog([juizo, citacaoInvalida]).ia.generate({ tarefa: proporFerramenta, entrada, escolaId: ESCOLA_A })).rejects.toMatchObject({ codigoDeIa: 'IA_SAIDA_INVALIDA' })
+      const { saida } = await comLog([citacaoInvalida, juizo]).ia.generate({ tarefa: proporFerramenta, entrada, escolaId: ESCOLA_A })
       expect(saida).toEqual(recusa)
     })
 
@@ -829,7 +829,7 @@ describe('resumo_do_analista: só agregado, em listas fechadas, sem texto do mod
     const comTexto = JSON.stringify({ ...bom, resumo: 'O resultado indica falha do professor da 2ª série.' })
     const adaptador = new ScriptedAdapter([comTexto, comTexto])
     const { ia, consumo } = provedorCom(adaptador)
-    const erro: unknown = await ia.gerar({ tarefa: resumoDoAnalista, entrada, escolaId: ESCOLA_A }).catch((motivo: unknown) => motivo)
+    const erro: unknown = await ia.generate({ tarefa: resumoDoAnalista, entrada, escolaId: ESCOLA_A }).catch((motivo: unknown) => motivo)
     expect(erro).toBeInstanceOf(LLMError)
     expect((erro as LLMError).codigoDeIa).toBe('IA_SAIDA_INVALIDA')
     expect(adaptador.correcoes[1]?.problemas.join(' ')).toContain('resumo')

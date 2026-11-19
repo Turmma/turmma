@@ -20,7 +20,7 @@ function montar(antes: ExecucaoCommand<EntradaDaTarefa<typeof turnoDoTutor>, Sai
     ...(antes === undefined ? {} : { antesDeConcluir: antes }),
     concluir,
   })
-  const ia: LLMProvider = { gerar: () => Promise.resolve({ saida: SAIDA, medicao: {} } as never) }
+  const ia: LLMProvider = { generate: () => Promise.resolve({ saida: SAIDA, medicao: {} } as never) }
   // O gravador de verdade abre uma transação; aqui ele só entrega uma e conta quantas vezes foi aberto.
   const aberturas = vi.fn()
   const gravar: GravadorDaConclusao = (corpo) => {
@@ -29,7 +29,7 @@ function montar(antes: ExecucaoCommand<EntradaDaTarefa<typeof turnoDoTutor>, Sai
   }
   const rodar = () =>
     runInContext({ requisicaoId: randomUUID(), escolaId: randomUUID() }, () =>
-      comando.executar({ id: randomUUID(), tarefa: 'turno_do_tutor', chaveEnvio: randomUUID(), entrada: { tarefa: 'turno_do_tutor' } }, ia, new AbortController().signal, gravar),
+      comando.run({ id: randomUUID(), tarefa: 'turno_do_tutor', chaveEnvio: randomUUID(), entrada: { tarefa: 'turno_do_tutor' } }, ia, new AbortController().signal, gravar),
     )
   return { concluir, aberturas, rodar }
 }

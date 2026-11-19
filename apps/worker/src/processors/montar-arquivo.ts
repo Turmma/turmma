@@ -27,7 +27,7 @@ export interface MontarArquivoDependencies {
  * - O titular que já não existe na escola não tem o que montar: termina sem efeito. O pedido de acesso dele fica
  *   `em_preparacao` e o alerta de duas horas o mostra.
  */
-export function criarMontagemDoArquivo({ banco, armazem, relogio, logger }: MontarArquivoDependencies): JobProcessor<typeof TIPO_MONTAR_ARQUIVO> {
+export function createMontagemDoArquivo({ banco, armazem, relogio, logger }: MontarArquivoDependencies): JobProcessor<typeof TIPO_MONTAR_ARQUIVO> {
   return async ({ pedidoId }) => {
     const escolaId = requireEscolaId()
     const arquivos = new ArquivoDoTitularRepository(banco)
@@ -54,14 +54,14 @@ export function criarMontagemDoArquivo({ banco, armazem, relogio, logger }: Mont
     const leitura = new LeituraDoTitular(banco)
     const prontas: Array<{ versao: VersaoDoArquivo; bytes: number }> = []
     for (const versao of versoes) {
-      const documento = await leitura.montar({ titularId: pedido.titularId, papel: pedido.papel, versao, compartilhamento: pedido.compartilhamento, geradoEm: agora })
+      const documento = await leitura.build({ titularId: pedido.titularId, papel: pedido.papel, versao, compartilhamento: pedido.compartilhamento, geradoEm: agora })
       const json = JSON.stringify(documento)
       await armazem.guardar(objectKey(escolaId, pedido.id, versao), json)
       prontas.push({ versao, bytes: Buffer.byteLength(json, 'utf8') })
     }
     const mudou = await banco.transaction(async (tx) => {
       const gravacao = new ArquivoDoTitularRepository(tx)
-      for (const { versao, bytes } of prontas) await gravacao.gravar(pedido.id, versao, bytes, agora)
+      for (const { versao, bytes } of prontas) await gravacao.save(pedido.id, versao, bytes, agora)
       return gravacao.marcarPronto(pedido.id)
     })
     const versoesTotal = prontas.length

@@ -239,7 +239,7 @@ export class MaterialRepository {
    * Segura os envios da escola do contexto até o fim da transação: dois envios ao mesmo tempo contam um depois do
    * outro, e o teto não é furado pela corrida (regra 80, item 7). A trava é da escola: outra escola não espera.
    */
-  async travarEnviosDaEscola(): Promise<void> {
+  async lockEnviosDaEscola(): Promise<void> {
     await this.banco.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`material.envio:${requireEscolaId()}`}, 0))`)
   }
 
@@ -265,7 +265,7 @@ export class MaterialRepository {
    * `motivoDaRecusaDoMaterial`). O mesmo arquivo de novo na escola esbarra no índice único `(escola_id, sha256)` entre
    * os não excluídos e não falhos, e sai `CONFLITO` pelo filtro de erro: dois envios ao mesmo tempo gravam um.
    */
-  async inserir(novo: NovoMaterial): Promise<Omit<MaterialLido, 'serieIds' | 'licenciante'>> {
+  async insert(novo: NovoMaterial): Promise<Omit<MaterialLido, 'serieIds' | 'licenciante'>> {
     const { usuarioId } = requestSessao()
     const [gravado] = await this.banco
       .insert(material)
@@ -285,14 +285,14 @@ export class MaterialRepository {
   }
 
   /** Declara as séries do material recém-gravado, na escola do contexto. A chave `(escola_id, material_id, serie_id)` não admite a mesma duas vezes. */
-  async gravarSeries(materialId: string, serieIds: readonly string[]): Promise<void> {
+  async saveSeries(materialId: string, serieIds: readonly string[]): Promise<void> {
     const escolaId = requireEscolaId()
     await this.banco.insert(materialSerie).values(serieIds.map((serieId) => ({ escolaId, materialId, serieId })))
   }
 
   /**
    * O material que a edição vai substituir, **antes de ler o arquivo**: o não excluído da escola do contexto, em qualquer estado. O de outra escola, o excluído, o já substituído e o inexistente não são achados
-   * (`undefined`), e quem chama responde `NAO_ENCONTRADO` igual aos quatro. Leitura sem trava: quem decide é `travarAlvoDaEdicao`, na transação.
+   * (`undefined`), e quem chama responde `NAO_ENCONTRADO` igual aos quatro. Leitura sem trava: quem decide é `lockAlvoDaEdicao`, na transação.
    */
   async alvoDaEdicao(id: string): Promise<AlvoDaEdicao | undefined> {
     const [alvo] = await this.banco
@@ -306,7 +306,7 @@ export class MaterialRepository {
    * O alvo da edição, **`for update`**, lido de dentro da transação do envio: só o `pronto` e não excluído. A substituição de outra edição sobre o mesmo alvo (a extração dela, no worker) segura esta linha até o commit, então
    * quem espera aqui e depois acha o alvo excluído não acha nada (`undefined`): o alvo já foi substituído. Quem lê as séries e a licença depois desta linha as lê já com o que o `PATCH` de séries confirmou.
    */
-  async travarAlvoDaEdicao(id: string): Promise<AlvoDaEdicao | undefined> {
+  async lockAlvoDaEdicao(id: string): Promise<AlvoDaEdicao | undefined> {
     const [alvo] = await this.banco
       .select(colunasDoAlvo)
       .from(material)
@@ -317,10 +317,10 @@ export class MaterialRepository {
 
   /**
    * A linha do material que o `PATCH` vai alterar, **`for update`** até o fim da transação (ingestao-do-material, 12.0): o não excluído da escola do contexto, em qualquer estado. O de outra escola, o excluído, o
-   * substituído e o inexistente não são achados (`undefined`), e quem chama responde `NAO_ENCONTRADO` igual aos quatro. A trava é a mesma do alvo da edição (`travarAlvoDaEdicao`): o `PATCH` espera a edição que está
+   * substituído e o inexistente não são achados (`undefined`), e quem chama responde `NAO_ENCONTRADO` igual aos quatro. A trava é a mesma do alvo da edição (`lockAlvoDaEdicao`): o `PATCH` espera a edição que está
    * sendo gravada sobre este material e, quando ela confirma, já enxerga a edição `processando` (`EDICAO_EM_ANDAMENTO`); dois `PATCH` do mesmo material passam um depois do outro.
    */
-  async travarParaAtualizar(id: string): Promise<MaterialParaAtualizar | undefined> {
+  async lockParaAtualizar(id: string): Promise<MaterialParaAtualizar | undefined> {
     const [linha] = await this.banco
       .select({ id: material.id, estado: material.estado, substitui: material.substituiId })
       .from(material)
@@ -329,7 +329,7 @@ export class MaterialRepository {
     return linha
   }
 
-  /** Troca o título do material da escola do contexto. Quem chama já travou a linha (`travarParaAtualizar`). */
+  /** Troca o título do material da escola do contexto. Quem chama já travou a linha (`lockParaAtualizar`). */
   async renomear(id: string, titulo: string): Promise<void> {
     await this.banco
       .update(material)
@@ -337,10 +337,10 @@ export class MaterialRepository {
       .where(and(eq(material.escolaId, requireEscolaId()), eq(material.id, id)))
   }
 
-  /** Troca as séries declaradas do material da escola do contexto pelas dadas (de 1 a 7, sem repetir): as de antes saem e as novas entram. Quem chama já travou a linha (`travarParaAtualizar`) e conferiu as séries. */
+  /** Troca as séries declaradas do material da escola do contexto pelas dadas (de 1 a 7, sem repetir): as de antes saem e as novas entram. Quem chama já travou a linha (`lockParaAtualizar`) e conferiu as séries. */
   async substituirSeries(materialId: string, serieIds: readonly string[]): Promise<void> {
     await this.banco.delete(materialSerie).where(and(eq(materialSerie.escolaId, requireEscolaId()), eq(materialSerie.materialId, materialId)))
-    await this.gravarSeries(materialId, serieIds)
+    await this.saveSeries(materialId, serieIds)
   }
 
   /** Há uma edição deste material sendo lida (`processando`, não excluída)? Sob a trava de envios da escola, é a checagem que o índice `material_uma_edicao_em_andamento` repete. */
@@ -364,7 +364,7 @@ export class MaterialRepository {
   }
 
   /** Uma página dos materiais não excluídos, em ordem de envio, com uma linha a mais que diz se há próxima. */
-  listar({ pagina, limite, disciplinaId, serieId }: MateriaisQuery, alcance: AlcanceDoMaterial): Promise<MaterialLido[]> {
+  list({ pagina, limite, disciplinaId, serieId }: MateriaisQuery, alcance: AlcanceDoMaterial): Promise<MaterialLido[]> {
     return this.banco
       .select(colunas)
       .from(material)
@@ -387,7 +387,7 @@ export class MaterialRepository {
    * volta com `serieId` nulo (a junção à esquerda). Fica de fora o excluído, e com ele o substituído por uma edição pronta (a extração marca `excluido_em` na mesma transação que `substituido_por`). Só a coordenação
    * chega aqui (a célula `material.resumir` da `MATRIZ`): não há alcance por vínculo.
    */
-  contarPorDisciplinaESerie(): Promise<MateriaisContados[]> {
+  countPorDisciplinaESerie(): Promise<MateriaisContados[]> {
     return this.banco
       .select({ disciplinaId: material.disciplinaId, serieId: materialSerie.serieId, estado: material.estado, total: sql<number>`count(*)::int` })
       .from(material)
@@ -418,7 +418,7 @@ export class MaterialRepository {
    * A exclusão lógica: marca o material da escola com esse id, com quem excluiu, e devolve o que ele era. O de outra
    * escola, o inexistente e o já excluído não são achados (`undefined`), e nada muda.
    */
-  async excluir(id: string): Promise<{ disciplinaId: string; estado: EstadoDeMaterial } | undefined> {
+  async softDelete(id: string): Promise<{ disciplinaId: string; estado: EstadoDeMaterial } | undefined> {
     const { usuarioId } = requestSessao()
     const [excluido] = await this.banco
       .update(material)
@@ -429,7 +429,7 @@ export class MaterialRepository {
   }
 
   /** Apaga de fato os trechos do material da escola, e devolve quantos: texto de material excluído não fica na busca. */
-  async apagarTrechos(materialId: string): Promise<number> {
+  async deleteTrechos(materialId: string): Promise<number> {
     const apagados = await this.banco
       .delete(trecho)
       .where(and(eq(trecho.escolaId, requireEscolaId()), eq(trecho.materialId, materialId)))
@@ -444,7 +444,7 @@ export class MaterialRepository {
    *
    * O filtro começa por `trecho.escola_id` e `disciplina_id`, que são o começo do índice GIN (regra 80, item 8).
    */
-  buscar({ texto, disciplinaId, materialId, serieId, hoje, limite, palavras }: FiltroDaBusca, alcance: AlcanceDoMaterial): Promise<TrechoAchado[]> {
+  get({ texto, disciplinaId, materialId, serieId, hoje, limite, palavras }: FiltroDaBusca, alcance: AlcanceDoMaterial): Promise<TrechoAchado[]> {
     const escolaId = requireEscolaId()
     const todas = sql`websearch_to_tsquery('portuguese', ${texto})`
     // `a & b` vira `a | b`: a consulta já saiu do analisador do Postgres, e o texto dela só tem lexemas e operadores.

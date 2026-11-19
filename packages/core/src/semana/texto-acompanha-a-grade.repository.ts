@@ -69,7 +69,7 @@ export function parear(mudanca: MudancaDaGrade): { readonly pares: readonly Par[
 
 /**
  * O texto da aula acompanha a reimportação da grade (F2b, tarefa 5.0; Tech Spec da semana-do-professor, seções 5 e 7c; RF13 e RF14). Roda na
- * transação do passo (3) do job `estrutura.gravar-planilha`, **entre `gravarAulas` e `encerrarOsMarcados`**: a escola é a do job
+ * transação do passo (3) do job `estrutura.gravar-planilha`, **entre `saveAulas` e `encerrarOsMarcados`**: a escola é a do job
  * (`requireEscolaId()`) e o ano é o de destino da planilha; nenhum método recebe escola.
  *
  * Na ordem global da Tech Spec: o ano (`for share`, do motor) → a trava consultiva dos vínculos → a linha do vínculo (o `for update` do
@@ -91,10 +91,10 @@ export class TextoAcompanhaAGradeRepository {
     const escolaId = requireEscolaId()
     const vinculos = [...new Set([...mudanca.saem, ...mudanca.entram].map(({ vinculoId }) => vinculoId))]
     if (vinculos.length === 0) return
-    await this.travarVinculos(escolaId, vinculos)
+    await this.lockVinculos(escolaId, vinculos)
     const { pares, sobras } = parear(mudanca)
     for (let inicio = 0; inicio < pares.length; inicio += TAMANHO_DO_LOTE) await this.rechavear(escolaId, anoLetivoId, pares.slice(inicio, inicio + TAMANHO_DO_LOTE))
-    for (let inicio = 0; inicio < sobras.length; inicio += TAMANHO_DO_LOTE) await this.apagarOFuturo(escolaId, anoLetivoId, sobras.slice(inicio, inicio + TAMANHO_DO_LOTE), hoje)
+    for (let inicio = 0; inicio < sobras.length; inicio += TAMANHO_DO_LOTE) await this.deleteOFuturo(escolaId, anoLetivoId, sobras.slice(inicio, inicio + TAMANHO_DO_LOTE), hoje)
   }
 
   /**
@@ -103,7 +103,7 @@ export class TextoAcompanhaAGradeRepository {
    * A ordem vem do `order by` da subconsulta que o `select` de fora lê: o padrão SQL não a garante, o planejador do Postgres a mantém, e o caso
    * "as travas saem na ordem da chave" (`apps/api/test/semana-reimportacao.int.test.ts`) é quem a guarda.
    */
-  private async travarVinculos(escolaId: string, vinculos: readonly string[]): Promise<void> {
+  private async lockVinculos(escolaId: string, vinculos: readonly string[]): Promise<void> {
     const valores = sql.join(
       vinculos.map((vinculoId) => sql`(${vinculoId}::uuid)`),
       sql`, `,
@@ -137,7 +137,7 @@ export class TextoAcompanhaAGradeRepository {
   }
 
   /** Apaga o texto de hoje em diante das aulas que saíram sem par; o de data anterior a hoje fica. */
-  private async apagarOFuturo(escolaId: string, anoLetivoId: string, sobras: readonly Sobra[], hoje: string): Promise<void> {
+  private async deleteOFuturo(escolaId: string, anoLetivoId: string, sobras: readonly Sobra[], hoje: string): Promise<void> {
     const valores = sql.join(
       sobras.map(({ vinculoId, diaSemana, velho }) => sql`(${vinculoId}::uuid, ${diaSemana}::int, ${velho}::time)`),
       sql`, `,

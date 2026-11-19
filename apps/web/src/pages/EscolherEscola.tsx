@@ -7,7 +7,7 @@ import { CascaPublica } from '../components/CascaPublica'
 import { EmptyState } from '../components/states'
 import { ErrorState } from '../components/states/ErrorState'
 import { ROLE_LABELS } from '../roles'
-import { AvisoDaEspera, DESCARTADA, ehIndisponivel, useEsperaDoIndisponivel } from './espera-do-indisponivel'
+import { AvisoDaEspera, DESCARTADA, isIndisponivel, useEsperaDoIndisponivel } from './espera-do-indisponivel'
 import { SemDesafio } from './SemDesafio'
 
 /** O `id` do botão de uma escola: é por ele que o foco volta ao botão da escolha que falhou. */
@@ -21,7 +21,7 @@ interface FalhaProps {
 
 /** A falha da escolha: o 503 de queda vai ao `ErrorState`, que repete a escolha que falhou; o resto é a mensagem do catálogo. */
 function FalhaDaEscolha({ falha, ocupado, aoTentarDeNovo }: FalhaProps) {
-  if (ehIndisponivel(falha)) return <ErrorState erro={falha} aoTentarDeNovo={aoTentarDeNovo} tentando={ocupado} />
+  if (isIndisponivel(falha)) return <ErrorState erro={falha} aoTentarDeNovo={aoTentarDeNovo} tentando={ocupado} />
   if (falha === undefined) return null
   return (
     <p role="alert" className="rounded-controle border border-erro bg-erro-cx p-4 text-erro">
@@ -71,7 +71,7 @@ export function EscolherEscola() {
     definirFalha(undefined)
     try {
       // A repetição só sai se o desafio é o mesmo: a pessoa seguinte do computador não herda a escolha de quem saiu.
-      const resposta = await espera.executar(
+      const resposta = await espera.run(
         () => escolherEscola(usuarioId),
         () => desafioDaEtapa('escolher') === desafioDaTentativa,
       )
@@ -86,7 +86,7 @@ export function EscolherEscola() {
 
   // A falha de outra pessoa não se mostra, e o "Tentar de novo" dela não manda a escolha dela com o desafio de quem chegou agora.
   const daPessoaDeAgora = (): boolean => ultima.desafio === desafioDaEtapa('escolher')
-  function tentarDeNovo(): void {
+  function retry(): void {
     // Conferido no clique, e não só no desenho da tela: o desafio muda sem a tela desenhar de novo.
     if (daPessoaDeAgora()) void entrar(ultima.usuarioId)
     else definirFalha(undefined)
@@ -119,7 +119,7 @@ export function EscolherEscola() {
           </ul>
         </>
       )}
-      <FalhaDaEscolha falha={daPessoaDeAgora() ? falha : undefined} ocupado={entrando !== undefined} aoTentarDeNovo={tentarDeNovo} />
+      <FalhaDaEscolha falha={daPessoaDeAgora() ? falha : undefined} ocupado={entrando !== undefined} aoTentarDeNovo={retry} />
       <AvisoDaEspera restante={espera.restante} repouso={entrando === undefined ? '' : 'Entrando…'} classe="t-apoio" />
     </CascaPublica>
   )

@@ -16,7 +16,7 @@ import { Button } from '../components/ui/Button'
 import { FormField } from '../components/ui/fields/FormField'
 import { CascaPublica } from '../components/CascaPublica'
 import { ErrorState } from '../components/states/ErrorState'
-import { AvisoDaEspera, DESCARTADA, ehIndisponivel, useEsperaDoIndisponivel } from './espera-do-indisponivel'
+import { AvisoDaEspera, DESCARTADA, isIndisponivel, useEsperaDoIndisponivel } from './espera-do-indisponivel'
 import { SemDesafio } from './SemDesafio'
 
 /** Quanto texto o campo de recuperação aceita: os 12 caracteres do código, com folga para espaço e hífen copiados. */
@@ -40,7 +40,7 @@ function mensagemDaFalhaDoCodigo(falha: unknown): string {
 
 /** A falha do envio: o 503 de queda vai ao `ErrorState`, que repete o pedido; o resto é a mensagem do campo (código errado, conta segurada). */
 function FalhaDoSegundoFator({ falha, entrando, aoTentarDeNovo }: FalhaProps) {
-  if (ehIndisponivel(falha)) return <ErrorState erro={falha} aoTentarDeNovo={aoTentarDeNovo} tentando={entrando} />
+  if (isIndisponivel(falha)) return <ErrorState erro={falha} aoTentarDeNovo={aoTentarDeNovo} tentando={entrando} />
   if (falha === undefined) return null
   return (
     <p role="alert" className="rounded-controle border border-erro bg-erro-cx p-4 text-erro">
@@ -80,10 +80,10 @@ export function Mfa() {
 
   function aoEnviar(evento: FormEvent<HTMLFormElement>): void {
     evento.preventDefault()
-    void enviar()
+    void send()
   }
 
-  async function enviar(): Promise<void> {
+  async function send(): Promise<void> {
     if (entrando) return
     definirEntrando(true)
     definirFalha(undefined)
@@ -91,7 +91,7 @@ export function Mfa() {
     const desafioDaTentativa = desafioDaEtapa('mfa')
     try {
       // A repetição só sai se o desafio é o mesmo: a pessoa seguinte do computador não herda o código de quem saiu.
-      const resposta = await espera.executar(
+      const resposta = await espera.run(
         () => entrarComSegundoFator(pedido),
         () => desafioDaEtapa('mfa') === desafioDaTentativa,
       )
@@ -166,7 +166,7 @@ export function Mfa() {
             onChange={(evento) => definirCodigo(evento.target.value)}
           />
         )}
-        <FalhaDoSegundoFator falha={falha} entrando={entrando} aoTentarDeNovo={() => void enviar()} />
+        <FalhaDoSegundoFator falha={falha} entrando={entrando} aoTentarDeNovo={() => void send()} />
         <Button ref={botao} type="submit" disabled={entrando} className="w-full">
           {entrando ? 'Entrando…' : 'Entrar'}
         </Button>

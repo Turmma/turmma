@@ -101,7 +101,7 @@ function FormularioDaMatricula({ slug }: { slug: string }) {
   const [entrando, definirEntrando] = useState(false)
   const [falha, definirFalha] = useState<unknown>(undefined)
 
-  async function enviar(evento: FormEvent<HTMLFormElement>): Promise<void> {
+  async function send(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault()
     if (entrando) return
     definirEntrando(true)
@@ -119,7 +119,7 @@ function FormularioDaMatricula({ slug }: { slug: string }) {
   }
 
   return (
-    <form className="flex flex-col gap-4" onSubmit={(evento) => void enviar(evento)}>
+    <form className="flex flex-col gap-4" onSubmit={(evento) => void send(evento)}>
       <FormField
         rotulo="Matrícula"
         name="matricula"

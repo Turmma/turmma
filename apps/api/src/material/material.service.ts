@@ -43,7 +43,7 @@ import {
 } from '@educa/shared'
 import { createHash, randomUUID } from 'node:crypto'
 import { DisciplinaRepository } from '@educa/core/estrutura'
-import { chaveDoTemporario, EnvioDeMaterialRepository, ExtracaoDoMaterialRepository, PRAZO_DO_OBJETO_DO_MATERIAL_MS, temAssinaturaDePdf, uuidV7 } from '@educa/core/material'
+import { chaveDoTemporario, EnvioDeMaterialRepository, ExtracaoDoMaterialRepository, PRAZO_DO_OBJETO_DO_MATERIAL_MS, hasAssinaturaDePdf, uuidV7 } from '@educa/core/material'
 import { z } from 'zod'
 import { paginar } from '../http/pagination.js'
 import { SuspensaoRepository } from '../ia/suspensao.repository.js'
@@ -127,7 +127,7 @@ export interface ArquivoRecebido {
   readonly size: number
 }
 
-function ehArquivoRecebido(valor: unknown): valor is ArquivoRecebido {
+function isArquivoRecebido(valor: unknown): valor is ArquivoRecebido {
   return typeof valor === 'object' && valor !== null && 'buffer' in valor && Buffer.isBuffer(valor.buffer) && 'size' in valor && typeof valor.size === 'number'
 }
 
@@ -195,7 +195,7 @@ export class MaterialService {
   /** A recusa fica na auditoria, fora de qualquer transação do envio (o `rollback` dela não a leva), com as séries **já conferidas** da escola. */
   async #registrarRecusa(pedido: Declarado, disciplinaId: string, serieIds: readonly string[], motivo: MotivoDaRecusaDoMaterial | MotivoDaRecusaPelaLicencaRegistrada): Promise<void> {
     await this.dependencias.banco.transaction((tx) =>
-      registro.gravar(tx, 'material.recusado', {
+      registro.save(tx, 'material.recusado', {
         entidadeId: disciplinaId,
         depois: { titularidade: pedido.titularidade, licenca: pedido.licenca, declaracao: pedido.declaracao, serieIds: [...serieIds], motivo },
       }),
@@ -243,7 +243,7 @@ export class MaterialService {
    * `apagar` que falha deixa a linha, e a varredura apaga os dois. A falha do próprio `guardarBytes` tenta apagar o objeto e **deixa a linha**: o PUT
    * atrasado pode gravar depois do `apagar`. O job entra no outbox na mesma transação da linha, então não há material `processando` sem job (D49).
    */
-  async enviar(pedido: EnviarMaterialRequest, arquivo: unknown): Promise<MaterialResponse> {
+  async send(pedido: EnviarMaterialRequest, arquivo: unknown): Promise<MaterialResponse> {
     const { banco, logger } = this.dependencias
     const disciplinaId = pedido.disciplinaId.toLowerCase()
     if ((await new DisciplinaRepository(banco).porId(disciplinaId)) === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
@@ -261,17 +261,17 @@ export class MaterialService {
     const licencaId = pedido.licencaId?.toLowerCase()
     if (licencaId !== undefined) await this.#exigirLicencaVigente(pedido, disciplinaId, serieIds, licencaId)
 
-    if (!ehArquivoRecebido(arquivo) || arquivo.size === 0 || !temAssinaturaDePdf(arquivo.buffer)) throw new DomainException(ErrorCode.ENTRADA_INVALIDA)
+    if (!isArquivoRecebido(arquivo) || arquivo.size === 0 || !hasAssinaturaDePdf(arquivo.buffer)) throw new DomainException(ErrorCode.ENTRADA_INVALIDA)
     const bytes = arquivo.buffer
     const sha256 = createHash('sha256').update(bytes).digest('hex')
 
-    const gravado = await this.#gravarEnvio(
+    const gravado = await this.#saveEnvio(
       bytes,
       async (tx, id) => {
         const materiais = new MaterialRepository(tx)
         // A licença do envio, lida de novo e **travada** (`for share`): o `PATCH` que encurta a vigência (`for update`) espera este envio terminar.
         const vigente = await this.#licencaTravada(tx, licencaId)
-        const novo = await materiais.inserir({
+        const novo = await materiais.insert({
           id,
           disciplinaId,
           titulo: pedido.titulo,
@@ -281,8 +281,8 @@ export class MaterialService {
           sha256,
           tamanhoBytes: bytes.byteLength,
         })
-        await materiais.gravarSeries(novo.id, serieIds)
-        await registro.gravar(tx, 'material.enviado', { entidadeId: novo.id, depois: { disciplinaId, titularidade: pedido.titularidade, licenca, declaracao: true } })
+        await materiais.saveSeries(novo.id, serieIds)
+        await registro.save(tx, 'material.enviado', { entidadeId: novo.id, depois: { disciplinaId, titularidade: pedido.titularidade, licenca, declaracao: true } })
         await this.dependencias.enfileirador.enfileirarUmaVez(tx, TIPO_EXTRAIR_PDF, { materialId: novo.id }, novo.id)
         return { ...novo, licenciante: vigente?.licenciante ?? null, serieIds: serieIds.toSorted() }
       },
@@ -307,7 +307,7 @@ export class MaterialService {
    *
    * O arquivo igual ao de um material da escola é `CONFLITO` (índice `material_arquivo_na_escola_unico`), com o objeto e a linha do envio apagados, como no envio.
    */
-  async enviarEdicao(alvoId: string, pedido: EnviarEdicaoRequest, arquivo: unknown): Promise<MaterialResponse> {
+  async sendEdicao(alvoId: string, pedido: EnviarEdicaoRequest, arquivo: unknown): Promise<MaterialResponse> {
     const { banco, logger } = this.dependencias
     const materiais = new MaterialRepository(banco)
     const alvo = await materiais.alvoDaEdicao(alvoId)
@@ -319,12 +319,12 @@ export class MaterialService {
     const declarado: Declarado = { titularidade: alvo.titularidade, licenca: alvo.licenca, declaracao: true }
     if (alvo.licencaId !== null) await this.#exigirLicencaVigente(declarado, alvo.disciplinaId, seriesDoAlvo, alvo.licencaId)
 
-    if (!ehArquivoRecebido(arquivo) || arquivo.size === 0 || !temAssinaturaDePdf(arquivo.buffer)) throw new DomainException(ErrorCode.ENTRADA_INVALIDA)
+    if (!isArquivoRecebido(arquivo) || arquivo.size === 0 || !hasAssinaturaDePdf(arquivo.buffer)) throw new DomainException(ErrorCode.ENTRADA_INVALIDA)
     const bytes = arquivo.buffer
     const sha256 = createHash('sha256').update(bytes).digest('hex')
-    const gravado = await this.#gravarEnvio(
+    const gravado = await this.#saveEnvio(
       bytes,
-      (tx, id) => this.#gravarEdicao(tx, id, alvo.id, pedido, { sha256, tamanhoBytes: bytes.byteLength }),
+      (tx, id) => this.#saveEdicao(tx, id, alvo.id, pedido, { sha256, tamanhoBytes: bytes.byteLength }),
       () => this.#registrarRecusa(declarado, alvo.disciplinaId, seriesDoAlvo, 'licenca_vencida'),
     )
     const tamanho = bytes.byteLength
@@ -333,15 +333,15 @@ export class MaterialService {
   }
 
   /** A parte da transação do envio que é da edição: o alvo `for update`, a herança lida ali, a edição, as séries, a auditoria e o job. */
-  async #gravarEdicao(tx: DatabaseTransaction, id: string, alvoId: string, pedido: EnviarEdicaoRequest, arquivo: { sha256: string; tamanhoBytes: number }): Promise<MaterialLido> {
+  async #saveEdicao(tx: DatabaseTransaction, id: string, alvoId: string, pedido: EnviarEdicaoRequest, arquivo: { sha256: string; tamanhoBytes: number }): Promise<MaterialLido> {
     const materiais = new MaterialRepository(tx)
-    const alvo = await materiais.travarAlvoDaEdicao(alvoId)
+    const alvo = await materiais.lockAlvoDaEdicao(alvoId)
     // Sem linha: o alvo foi excluído ou substituído enquanto este envio esperava a trava (um `pronto` nunca volta a `processando`).
     if (alvo === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     if (await materiais.edicaoEmAndamentoSobre(alvo.id)) throw new DomainException(ErrorCode.EDICAO_EM_ANDAMENTO)
     const herdadas = await materiais.seriesDoMaterial(alvo.id)
     const vigente = await this.#licencaTravada(tx, alvo.licencaId ?? undefined)
-    const nova = await materiais.inserir({
+    const nova = await materiais.insert({
       id,
       disciplinaId: alvo.disciplinaId,
       titulo: pedido.titulo ?? alvo.titulo,
@@ -353,8 +353,8 @@ export class MaterialService {
       edicao: pedido.edicao ?? null,
       substituiId: alvo.id,
     })
-    if (herdadas.length > 0) await materiais.gravarSeries(nova.id, herdadas)
-    await registro.gravar(tx, 'material.edicao_enviada', {
+    if (herdadas.length > 0) await materiais.saveSeries(nova.id, herdadas)
+    await registro.save(tx, 'material.edicao_enviada', {
       entidadeId: nova.id,
       depois: { substituiId: alvo.id, disciplinaId: alvo.disciplinaId, titularidade: alvo.titularidade, licenca: alvo.licenca, declaracao: true },
     })
@@ -375,7 +375,7 @@ export class MaterialService {
    * **antes** da transação, com o id do material na chave, e a transação a apaga no fim, sob `lock_timeout` curto: a linha precisa existir, e se a varredura já a apagou (o envio foi lento) a transação desfaz com 503,
    * para nunca haver material cujo objeto a varredura levou. `gravar` é o que difere: o que entra na transação, depois da trava de envios, dos tetos e antes de a linha do envio sair.
    */
-  async #gravarEnvio(bytes: Buffer, gravar: (tx: DatabaseTransaction, id: string) => Promise<MaterialLido>, recusarPelaLicenca: () => Promise<void>): Promise<MaterialLido> {
+  async #saveEnvio(bytes: Buffer, gravar: (tx: DatabaseTransaction, id: string) => Promise<MaterialLido>, recusarPelaLicenca: () => Promise<void>): Promise<MaterialLido> {
     const { banco, armazem } = this.dependencias
     // O id nasce aqui, antes da linha: a chave do objeto o leva, e a varredura acha o órfão por ela.
     const id = uuidV7()
@@ -385,11 +385,11 @@ export class MaterialService {
     return banco
       .transaction(async (tx) => {
         const materiais = new MaterialRepository(tx)
-        await materiais.travarEnviosDaEscola()
+        await materiais.lockEnviosDaEscola()
         await this.#exigirDentroDosTetos(materiais)
         const gravado = await gravar(tx, id)
         // A linha sai com o commit. Sem ela, a varredura já a levou (e o objeto com ela): o envio foi lento demais e desfaz, sem material sem objeto.
-        if (!(await new EnvioDeMaterialRepository(tx).apagarNoEnvio(id))) throw new DomainException(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, undefined, DEFAULT_RETRY_AFTER_SECONDS)
+        if (!(await new EnvioDeMaterialRepository(tx).deleteNoEnvio(id))) throw new DomainException(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, undefined, DEFAULT_RETRY_AFTER_SECONDS)
         return gravado
       })
       .catch(async (erro: unknown) => {
@@ -420,7 +420,7 @@ export class MaterialService {
    * tempo podem passar um pouco do número. Acima do teto, `LIMITE_EXCEDIDO` com o `Retry-After` da janela inteira.
    */
   async exigirAtualizacaoDentroDosTetos(): Promise<void> {
-    const feitas = await new AuditoriaRepository(this.dependencias.banco).contarDaEscolaEDaPessoaDesde('material.atualizado', new Date(Date.now() - JANELA_DAS_ATUALIZACOES_MS))
+    const feitas = await new AuditoriaRepository(this.dependencias.banco).countDaEscolaEDaPessoaDesde('material.atualizado', new Date(Date.now() - JANELA_DAS_ATUALIZACOES_MS))
     if (feitas.doUsuario >= ATUALIZACOES_POR_USUARIO_NA_JANELA || feitas.daEscola >= ATUALIZACOES_POR_ESCOLA_NA_JANELA) {
       const tipo = feitas.daEscola >= ATUALIZACOES_POR_ESCOLA_NA_JANELA ? 'escola' : 'usuario'
       this.dependencias.logger.warn({ evento: 'material.teto_de_atualizacoes', tipo })
@@ -447,7 +447,7 @@ export class MaterialService {
     try {
       await armazem.guardarBytes(chaveDoTemporario(id), bytes, { prazoMs: PRAZO_DO_OBJETO_DO_MATERIAL_MS })
     } catch (erro) {
-      await armazem.apagar(chaveDoTemporario(id)).catch((falha: unknown) => this.dependencias.logger.warn({ evento: 'material.objeto_nao_apagado', materialId: id, erro: summarizeError(falha) }))
+      await armazem.delete(chaveDoTemporario(id)).catch((falha: unknown) => this.dependencias.logger.warn({ evento: 'material.objeto_nao_apagado', materialId: id, erro: summarizeError(falha) }))
       if (erro instanceof FileStorageUnavailableError) throw new DomainException(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, undefined, DEFAULT_RETRY_AFTER_SECONDS)
       throw erro
     }
@@ -460,18 +460,18 @@ export class MaterialService {
   async #desfazerEnvio(id: string): Promise<void> {
     const { banco, armazem, logger } = this.dependencias
     try {
-      await armazem.apagar(chaveDoTemporario(id))
+      await armazem.delete(chaveDoTemporario(id))
     } catch (falha) {
       logger.warn({ evento: 'material.objeto_nao_apagado', materialId: id, erro: summarizeError(falha) })
       return
     }
-    await new EnvioDeMaterialRepository(banco).apagar(id).catch((falha: unknown) => logger.warn({ evento: 'material.envio_nao_apagado', materialId: id, erro: summarizeError(falha) }))
+    await new EnvioDeMaterialRepository(banco).delete(id).catch((falha: unknown) => logger.warn({ evento: 'material.envio_nao_apagado', materialId: id, erro: summarizeError(falha) }))
   }
 
-  async #apagarObjetoDoExcluido(id: string): Promise<void> {
+  async #deleteObjetoDoExcluido(id: string): Promise<void> {
     const { banco, armazem, logger } = this.dependencias
     try {
-      await armazem.apagar(chaveDoTemporario(id))
+      await armazem.delete(chaveDoTemporario(id))
       await new ExtracaoDoMaterialRepository(banco).marcarObjetoApagado(id)
     } catch (erro) {
       logger.warn({ evento: 'material.objeto_nao_apagado', materialId: id, erro: summarizeError(erro) })
@@ -490,21 +490,21 @@ export class MaterialService {
    *
    * Dois `PATCH` do mesmo material passam um depois do outro: o último vale, sem `500`.
    */
-  async atualizar(id: string, pedido: AtualizarMaterialRequest): Promise<MaterialResponse> {
+  async update(id: string, pedido: AtualizarMaterialRequest): Promise<MaterialResponse> {
     const { banco, logger } = this.dependencias
     // Em minúsculas, como o banco as devolve: a auditoria leva o mesmo texto que a resposta.
     const serieIds = pedido.serieIds?.map((serieId) => serieId.toLowerCase())
     if (serieIds !== undefined && (await new MaterialRepository(banco).seriesDaEscola(serieIds)).length !== serieIds.length) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     await banco.transaction(async (tx) => {
       const materiais = new MaterialRepository(tx)
-      const alvo = await materiais.travarParaAtualizar(id)
+      const alvo = await materiais.lockParaAtualizar(id)
       if (alvo === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       if (alvo.estado === 'processando' && alvo.substitui !== null) throw new DomainException(ErrorCode.EDICAO_EM_ANDAMENTO)
       if (await materiais.edicaoEmAndamentoSobre(alvo.id)) throw new DomainException(ErrorCode.EDICAO_EM_ANDAMENTO)
       const antes = await materiais.seriesDoMaterial(alvo.id)
       if (pedido.titulo !== undefined) await materiais.renomear(alvo.id, pedido.titulo)
       if (serieIds !== undefined) await materiais.substituirSeries(alvo.id, serieIds)
-      await registro.gravar(tx, 'material.atualizado', {
+      await registro.save(tx, 'material.atualizado', {
         entidadeId: alvo.id,
         antes: { serieIds: antes },
         depois: { serieIds: serieIds?.toSorted() ?? antes, tituloAlterado: pedido.titulo !== undefined },
@@ -528,16 +528,16 @@ export class MaterialService {
   }
 
   /** `GET /v1/materiais`: a coordenação, os da escola; o professor, os das disciplinas dele, com ou sem o filtro. */
-  async listar(consulta: MateriaisQuery): Promise<ListaDeMateriaisResponse> {
+  async list(consulta: MateriaisQuery): Promise<ListaDeMateriaisResponse> {
     const filtro = { ...consulta, ...(consulta.disciplinaId === undefined ? {} : { disciplinaId: consulta.disciplinaId.toLowerCase() }) }
     const alcance = alcanceDoMaterial('listar')
-    const linhas = await new MaterialRepository(this.dependencias.banco).listar(filtro, alcance)
+    const linhas = await new MaterialRepository(this.dependencias.banco).list(filtro, alcance)
     const { itens, proxima } = paginar(linhas, consulta.limite)
     return listaDeMateriaisResponseSchema.parse({ itens: itens.map((item) => paraResposta(item, alcance)), ...(proxima === undefined ? {} : { proxima }) })
   }
 
   /** `GET /v1/materiais/:id`, com os capítulos lidos do PDF. De outra escola, de disciplina sem vínculo, excluído ou inexistente: `NAO_ENCONTRADO`, sem capítulo. */
-  async ler(id: string): Promise<MaterialComCapitulosResponse> {
+  async read(id: string): Promise<MaterialComCapitulosResponse> {
     const alcance = alcanceDoMaterial('ler')
     const materiais = new MaterialRepository(this.dependencias.banco)
     const lido = await materiais.porId(id, alcance)
@@ -572,15 +572,15 @@ export class MaterialService {
       const alvo = await new MaterialRepository(tx).porId(materialId, 'unidade')
       if (alvo === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       const secoes = new SecoesRepository(tx)
-      if ((await secoes.travarParaCorrigir(alvo.id, secaoId)) === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+      if ((await secoes.lockParaCorrigir(alvo.id, secaoId)) === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       const recorte = await secoes.recorteDoMaterial(alvo.id, alvo.disciplinaId)
       if (recorte.componente === null) throw new DomainException(ErrorCode.CONFLITO)
       const { componente } = recorte
       if (pedido.codigos.some((codigo) => !habilidadeEhCandidata(codigo, componente, recorte.series))) throw new DomainException(ErrorCode.ENTRADA_INVALIDA)
       if (alvo.estado !== 'pronto') throw new DomainException(ErrorCode.CONFLITO)
       const antes = await secoes.codigosDaSecao(secaoId)
-      await secoes.gravarCorrecao(secaoId, pedido.codigos)
-      await registro.gravar(tx, 'material.classificacao_corrigida', {
+      await secoes.saveCorrecao(secaoId, pedido.codigos)
+      await registro.save(tx, 'material.classificacao_corrigida', {
         entidadeId: alvo.id,
         antes: { secaoId, habilidades: habilidadesDaAuditoriaSchema.parse(antes) },
         depois: { secaoId, habilidades: [...pedido.codigos].sort() },
@@ -612,14 +612,14 @@ export class MaterialService {
       let agendadas = 0
       let aguardando = 0
       for (;;) {
-        const lote = await agendamento.travarParaReclassificar({ materialId: alvo.id }, SECOES_POR_LOTE_DO_AGENDAMENTO, cursor)
+        const lote = await agendamento.lockParaReclassificar({ materialId: alvo.id }, SECOES_POR_LOTE_DO_AGENDAMENTO, cursor)
         if (lote.ultima === undefined) break
         cursor = lote.ultima
         aguardando += lote.aguardando
         agendadas += (await agendamento.agendar(lote.aReclassificar, enfileirador)).secoes
       }
-      const saida = { secoes: agendadas + aguardando, preservadas: await secoes.contarCorrigidas(alvo.id) }
-      await registro.gravar(tx, 'material.reclassificado', { entidadeId: alvo.id, depois: saida })
+      const saida = { secoes: agendadas + aguardando, preservadas: await secoes.countCorrigidas(alvo.id) }
+      await registro.save(tx, 'material.reclassificado', { entidadeId: alvo.id, depois: saida })
       return saida
     })
     logger.info({ evento: 'material.reclassificado', materialId })
@@ -631,7 +631,7 @@ export class MaterialService {
    * professor (componente da disciplina e série da turma). O objeto primeiro: o material de outra escola, de disciplina sem vínculo, o artefato de outra escola, de colega ou de outro ano, e o inexistente respondem igual
    * (`NAO_ENCONTRADO`). Sem componente na disciplina, a lista vem vazia com `semComponente`.
    */
-  async listarHabilidades(consulta: HabilidadesBnccQuery): Promise<HabilidadesBnccResponse> {
+  async listHabilidades(consulta: HabilidadesBnccQuery): Promise<HabilidadesBnccResponse> {
     const { banco } = this.dependencias
     const secoes = new SecoesRepository(banco)
     let recorte
@@ -659,7 +659,7 @@ export class MaterialService {
 
   /** Por pessoa e por escola, nunca por IP (regra 80, itens 1 e 3). Leitura sem trava, como a do `PATCH`: protege do laço, e o excesso de pedidos simultâneos que passam juntos pela contagem (lê, depois grava) foi aceito, porque o teto não é cota. Acima do teto, `LIMITE_EXCEDIDO` com o `Retry-After` da janela inteira. */
   async #exigirDentroDoTetoDaAuditoria(acao: 'material.classificacao_corrigida' | 'material.reclassificado', porUsuario: number, porEscola: number, evento: string): Promise<void> {
-    const feitas = await new AuditoriaRepository(this.dependencias.banco).contarDaEscolaEDaPessoaDesde(acao, new Date(Date.now() - JANELA_DA_CLASSIFICACAO_MS))
+    const feitas = await new AuditoriaRepository(this.dependencias.banco).countDaEscolaEDaPessoaDesde(acao, new Date(Date.now() - JANELA_DA_CLASSIFICACAO_MS))
     if (feitas.doUsuario >= porUsuario || feitas.daEscola >= porEscola) {
       this.dependencias.logger.warn({ evento })
       throw new DomainException(ErrorCode.LIMITE_EXCEDIDO, undefined, JANELA_DA_CLASSIFICACAO_MS / 1_000)
@@ -671,20 +671,20 @@ export class MaterialService {
    * material; os trechos saem de fato, e a auditoria `material.excluido` é gravada, tudo na mesma transação. De outra
    * escola, já excluído ou inexistente: `NAO_ENCONTRADO`, e nada muda.
    */
-  async excluir(id: string): Promise<void> {
+  async delete(id: string): Promise<void> {
     const { banco, logger } = this.dependencias
     const { trechosTotal, estado } = await banco.transaction(async (tx) => {
       const materiais = new MaterialRepository(tx)
-      const excluido = await materiais.excluir(id)
+      const excluido = await materiais.softDelete(id)
       if (excluido === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
-      const apagados = await materiais.apagarTrechos(id)
-      await registro.gravar(tx, 'material.excluido', { entidadeId: id, antes: { disciplinaId: excluido.disciplinaId, estado: excluido.estado }, depois: { trechosApagados: apagados } })
+      const apagados = await materiais.deleteTrechos(id)
+      await registro.save(tx, 'material.excluido', { entidadeId: id, antes: { disciplinaId: excluido.disciplinaId, estado: excluido.estado }, depois: { trechosApagados: apagados } })
       return { trechosTotal: apagados, estado: excluido.estado }
     })
     logger.info({ evento: 'material.excluido', materialId: id, trechosTotal })
     // Só o `processando` ainda tem o objeto: o `pronto` e o `falhou` já o apagaram. Depois do commit, e sem poder desfazer a exclusão:
     // o que não saiu agora sai no expurgo noturno (`excluidosComObjeto`).
-    if (estado === 'processando') await this.#apagarObjetoDoExcluido(id)
+    if (estado === 'processando') await this.#deleteObjetoDoExcluido(id)
   }
 
   /**
@@ -697,7 +697,7 @@ export class MaterialService {
     const { banco } = this.dependencias
     const desde = new Date(this.#agora().getTime() - DIAS_DAS_RECUSAS_NO_RESUMO * 24 * 60 * 60_000)
     const [materiais, recusas] = await Promise.all([
-      new MaterialRepository(banco).contarPorDisciplinaESerie(),
+      new MaterialRepository(banco).countPorDisciplinaESerie(),
       new AuditoriaRepository(banco).recusasDeMaterialDesde(desde, MOTIVOS_DA_RECUSA_QUE_O_RESUMO_CONTA),
     ])
     const linhas = new Map<string, ResumoDoMaterialRow>()
@@ -726,8 +726,8 @@ export class MaterialService {
    * (`websearch_to_tsquery('portuguese', q)`), dentro da escola do contexto e do alcance de quem pede, **só do material
    * próprio ou de licença vigente hoje** e, com `serieId`, só do declarado para a série (a série **filtra e não autoriza**: a de outra escola não acha nada).
    */
-  async buscar(consulta: BuscaDeMaterialQuery): Promise<BuscaDeMaterialResponse> {
-    const achados = await new MaterialRepository(this.dependencias.banco).buscar(
+  async find(consulta: BuscaDeMaterialQuery): Promise<BuscaDeMaterialResponse> {
+    const achados = await new MaterialRepository(this.dependencias.banco).get(
       { texto: consulta.q, disciplinaId: consulta.disciplinaId?.toLowerCase(), serieId: consulta.serieId?.toLowerCase(), hoje: this.#hoje(), limite: consulta.limite, palavras: 'todas' },
       alcanceDoMaterial('buscar'),
     )

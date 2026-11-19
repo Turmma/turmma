@@ -2,10 +2,10 @@ import { ErrorCode, avisosResponseSchema, MENSAGENS_DE_ERRO } from '@educa/share
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { shouldRetry } from './query-client'
 import { baixarPdfDoArtefato } from '../areas/professor/artefatos/api/artefatos'
-import { enviarEdicao } from '../areas/coordenacao/material/api/material'
+import { sendEdicao } from '../areas/coordenacao/material/api/material'
 import { apiGet, apiRequest, ApiError, comPrazo, errorMessage, estourouNoCliente, EMPTY_BODY, PRAZOS_DA_CHAMADA_MS } from './client'
 import { responderQuestao } from './atividades-do-aluno'
-import { abrirSessaoPeloCookie } from './sessao'
+import { openSessaoPeloCookie } from './sessao'
 
 function responder(status: number, corpo: unknown, cabecalhos?: Record<string, string>): void {
   vi.stubGlobal(
@@ -211,7 +211,7 @@ describe('prazo da chamada (RF11, 52.0)', () => {
   /** A pessoa entrou: `authedRequest` e o envio de arquivo pedem o token da sessão. Com o relógio de verdade, antes dos casos. */
   beforeAll(async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response(JSON.stringify({ token: 'token-do-prazo', expiraEm: new Date(Date.now() + 3_600_000).toISOString() }), { status: 200 }))))
-    await abrirSessaoPeloCookie()
+    await openSessaoPeloCookie()
     vi.unstubAllGlobals()
   })
 
@@ -260,7 +260,7 @@ describe('prazo da chamada (RF11, 52.0)', () => {
   it('envio de arquivo: o prazo é 180 s, contado do envio (a conferência da sessão antes dele não conta)', async () => {
     vi.useFakeTimers()
     penduradoAteAbortar((_caminho, opcoes) => (opcoes.method === 'POST' ? undefined : new Response(JSON.stringify({ itens: [] }), { status: 200 })))
-    const visto = acompanhar(enviarEdicao(ID, { edicao: '2027' }, new File(['%PDF-1.4'], 'material.pdf', { type: 'application/pdf' })))
+    const visto = acompanhar(sendEdicao(ID, { edicao: '2027' }, new File(['%PDF-1.4'], 'material.pdf', { type: 'application/pdf' })))
     await vi.advanceTimersByTimeAsync(179_900)
     expect(visto.situacao).toBe('pendente')
     await vi.advanceTimersByTimeAsync(100)
@@ -304,7 +304,7 @@ describe('prazo da chamada (RF11, 52.0)', () => {
     const casos: [string, number, () => Promise<unknown>, number][] = [
       ['PDF, corpo do arquivo', 200, () => baixarPdfDoArtefato(ID, 'Prova de química'), 30_000],
       ['PDF, corpo do erro', 500, () => baixarPdfDoArtefato(ID, 'Prova de química'), 30_000],
-      ['envio, corpo da resposta', 201, () => enviarEdicao(ID, { edicao: '2027' }, new File(['%PDF-1.4'], 'material.pdf', { type: 'application/pdf' })), 180_000],
+      ['envio, corpo da resposta', 201, () => sendEdicao(ID, { edicao: '2027' }, new File(['%PDF-1.4'], 'material.pdf', { type: 'application/pdf' })), 180_000],
     ]
     for (const [nome, status, chamar, prazo] of casos) {
       vi.useFakeTimers()

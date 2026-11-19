@@ -124,7 +124,7 @@ export const classificarSecoes = defineTask({
     return { secoes: entrada.secoes.map((secao) => secao.secaoId), promptVersao: PROMPT_CLASSIFICAR_SECOES.versao }
   },
 
-  montarPedido(entrada) {
+  buildPedido(entrada) {
     return {
       instrucao: 'Classifique cada seção do material pela BNCC: devolva, para cada uma, de 0 a 3 códigos das habilidades candidatas que o texto dela sustenta, ou nenhum.',
       dados: dadosDaClassificacao(entrada),

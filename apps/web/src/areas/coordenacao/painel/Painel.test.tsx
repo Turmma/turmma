@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { CHAVES_DE_CATEGORIA_DO_INCIDENTE, montarTime, RISCOS_DO_INCIDENTE, type ChaveDeFuncao } from '@educa/shared'
+import { CHAVES_DE_CATEGORIA_DO_INCIDENTE, buildTime, RISCOS_DO_INCIDENTE, type ChaveDeFuncao } from '@educa/shared'
 import { focusManager, onlineManager, QueryClientProvider, QueryObserver, useInfiniteQuery, useQuery, type QueryClient } from '@tanstack/react-query'
 import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -72,7 +72,7 @@ const nuncaResponde = () => new Promise<FakeResponse>(() => undefined)
 const funcoes = (suspensas: readonly ChaveDeFuncao[] = []): FakeResponse => ({
   status: 200,
   corpo: {
-    agentes: montarTime(new Set(suspensas)).agentes.map((agente) => ({
+    agentes: buildTime(new Set(suspensas)).agentes.map((agente) => ({
       ...agente,
       funcoes: agente.funcoes.map((funcao) => ({ ...funcao, suspensao: funcao.suspensa ? { suspensaEm: MOMENTO, motivo: null } : null })),
     })),

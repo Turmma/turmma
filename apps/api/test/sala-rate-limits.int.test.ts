@@ -64,16 +64,16 @@ describe('limites da sala (A1, tarefa 7.0): por escola, por nome e por turma, nu
   /** Com o pool do banco no tamanho mínimo (L3). */
   let apiDoPool: TestApi
   let sala: FerramentasDaSala
-  let hashes: MockInstance<PasswordHasher['gerar']>
-  let gerarReal: PasswordHasher['gerar']
+  let hashes: MockInstance<PasswordHasher['generate']>
+  let gerarReal: PasswordHasher['generate']
 
   beforeAll(async () => {
     api = await subirApi(medidor.medidor, { ambiente: AMBIENTE }, linhasDeLog)
     apiDoPool = await subirApi(medidor.medidor, { ambiente: AMBIENTE, banco: { maximoConexoes: 1 } })
     sala = new FerramentasDaSala(api, bancada)
     const hash = api.app.get(PasswordHasher)
-    gerarReal = hash.gerar.bind(hash)
-    hashes = vi.spyOn(hash, 'gerar')
+    gerarReal = hash.generate.bind(hash)
+    hashes = vi.spyOn(hash, 'generate')
   })
 
   beforeEach(() => {
@@ -355,8 +355,8 @@ describe('limites da sala (A1, tarefa 7.0): por escola, por nome e por turma, nu
       const nomes = await sala.nomes(a, a.turma, 38)
       const semaforo = api.app.get(HashBulkhead)
       const baldes: LoginBucket[] = []
-      const executarReal = semaforo.executar.bind(semaforo)
-      const espiao = vi.spyOn(semaforo, 'executar').mockImplementation(async (balde, tarefa) => {
+      const executarReal = semaforo.run.bind(semaforo)
+      const espiao = vi.spyOn(semaforo, 'run').mockImplementation(async (balde, tarefa) => {
         baldes.push(balde)
         return executarReal(balde, tarefa)
       })
@@ -464,8 +464,8 @@ describe('limites da sala (A1, tarefa 7.0): por escola, por nome e por turma, nu
       expect(semRequisicao(await sala.reivindicar(pedidoDaSala(a, tomado)))).toEqual(ENVIADO)
       const semaforo = api.app.get(HashBulkhead)
       const baldes: LoginBucket[] = []
-      const executarReal = semaforo.executar.bind(semaforo)
-      const espiao = vi.spyOn(semaforo, 'executar').mockImplementation(async (balde, tarefa) => {
+      const executarReal = semaforo.run.bind(semaforo)
+      const espiao = vi.spyOn(semaforo, 'run').mockImplementation(async (balde, tarefa) => {
         baldes.push(balde)
         return executarReal(balde, tarefa)
       })

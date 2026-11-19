@@ -87,7 +87,7 @@ export function nomeNoCabecalho(cabecalho: string | null): string | undefined {
   return nome === undefined || nome === '' ? undefined : nome
 }
 
-function ehCodigoDeErro(valor: unknown): valor is ErrorCode {
+function isCodigoDeErro(valor: unknown): valor is ErrorCode {
   return typeof valor === 'string' && Object.hasOwn(ErrorCode, valor)
 }
 
@@ -97,7 +97,7 @@ async function erroDoPdf(resposta: Response, sinal: AbortSignal): Promise<ApiErr
     const corpo: unknown = await resposta.json()
     if (typeof corpo === 'object' && corpo !== null && 'erro' in corpo) {
       const { erro } = corpo
-      if (typeof erro === 'object' && erro !== null && 'codigo' in erro && ehCodigoDeErro(erro.codigo)) return new ApiError(erro.codigo)
+      if (typeof erro === 'object' && erro !== null && 'codigo' in erro && isCodigoDeErro(erro.codigo)) return new ApiError(erro.codigo)
     }
   } catch (erro) {
     // A leitura abortada (o prazo) não é "sem envelope": o erro sobe, e vira `TEMPO_ESGOTADO`.
@@ -156,7 +156,7 @@ export async function baixarPdfDoArtefato(id: string, titulo: string): Promise<P
 }
 
 /** Entrega o arquivo à pessoa pelo navegador, como um download comum. O endereço temporário é solto em seguida. */
-export function salvarArquivo({ arquivo, nome }: PdfDoArtefato): void {
+export function saveArquivo({ arquivo, nome }: PdfDoArtefato): void {
   const endereco = URL.createObjectURL(arquivo)
   const link = document.createElement('a')
   link.href = endereco

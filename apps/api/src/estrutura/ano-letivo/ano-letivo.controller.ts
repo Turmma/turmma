@@ -17,21 +17,21 @@ export class AnoLetivoController {
 
   @Post()
   @RequirePermissao('ano_letivo', 'criar')
-  criar(@Body(new ZodValidationPipe(criarAnoLetivoRequestSchema)) pedido: CriarAnoLetivoRequest): Promise<AnoLetivoResponse> {
-    return this.anos.criar(pedido)
+  create(@Body(new ZodValidationPipe(criarAnoLetivoRequestSchema)) pedido: CriarAnoLetivoRequest): Promise<AnoLetivoResponse> {
+    return this.anos.create(pedido)
   }
 
   @Get()
   @RequirePermissao('ano_letivo', 'ler')
-  listar(@Query(new ZodValidationPipe(paginationQuerySchema)) consulta: PaginationQuery): Promise<ListaDeAnosLetivosResponse> {
-    return this.anos.listar(consulta)
+  list(@Query(new ZodValidationPipe(paginationQuerySchema)) consulta: PaginationQuery): Promise<ListaDeAnosLetivosResponse> {
+    return this.anos.list(consulta)
   }
 
   @Post(':id/abrir')
   @RequirePermissao('ano_letivo', 'abrir')
   @HttpCode(HttpStatus.OK)
-  abrir(@Param('id', IdPipe) id: string): Promise<AnoLetivoResponse> {
-    return this.anos.abrir(id)
+  open(@Param('id', IdPipe) id: string): Promise<AnoLetivoResponse> {
+    return this.anos.open(id)
   }
 
   @Post(':id/encerrar')

@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
-import { TEXT_SIZE_STORAGE_KEY, escolherLetra, iniciarLetra, lerLetra, noCaminhoDoAluno, resolverLetra, useApplyTextSize } from './text-size'
+import { TEXT_SIZE_STORAGE_KEY, escolherLetra, startLetra, readLetra, noCaminhoDoAluno, resolverLetra, useApplyTextSize } from './text-size'
 
 /**
  * O tamanho da letra do aluno (telas do aluno e primeiro acesso, 8.0; RF11; Tech Spec, seção 5): a conta que lê o valor, o
@@ -122,27 +122,27 @@ describe('o <script> do index.html', () => {
 
 describe('guardar a escolha', () => {
   it('sem escolha a letra é Padrão e o localStorage continua vazio', () => {
-    expect(lerLetra()).toBe('padrao')
+    expect(readLetra()).toBe('padrao')
     expect(guardado()).toEqual([])
   })
 
   it('Grande e Maior gravam só o valor, na chave da letra; Padrão apaga a chave e o armazenamento volta a nada', () => {
     escolherLetra('grande')
     expect(guardado()).toEqual([[TEXT_SIZE_STORAGE_KEY, 'grande']])
-    expect(lerLetra()).toBe('grande')
+    expect(readLetra()).toBe('grande')
 
     escolherLetra('maior')
     expect(guardado()).toEqual([[TEXT_SIZE_STORAGE_KEY, 'maior']])
-    expect(lerLetra()).toBe('maior')
+    expect(readLetra()).toBe('maior')
 
     escolherLetra('padrao')
     expect(guardado()).toEqual([])
-    expect(lerLetra()).toBe('padrao')
+    expect(readLetra()).toBe('padrao')
   })
 
   it('valor inválido na chave vale Padrão', () => {
     window.localStorage.setItem(TEXT_SIZE_STORAGE_KEY, 'xyz')
-    expect(lerLetra()).toBe('padrao')
+    expect(readLetra()).toBe('padrao')
   })
 
   it('a gravação que volta a funcionar vale mais que a escolha que a memória guardava', () => {
@@ -150,14 +150,14 @@ describe('guardar a escolha', () => {
       throw new Error('armazenamento recusado')
     })
     escolherLetra('grande')
-    expect(lerLetra()).toBe('grande')
+    expect(readLetra()).toBe('grande')
     recusa.mockRestore()
 
     escolherLetra('maior')
-    expect(lerLetra()).toBe('maior')
+    expect(readLetra()).toBe('maior')
     // A memória foi esvaziada: apagar a chave volta a Padrão, e não à escolha de antes.
     window.localStorage.removeItem(TEXT_SIZE_STORAGE_KEY)
-    expect(lerLetra()).toBe('padrao')
+    expect(readLetra()).toBe('padrao')
   })
 
   it('armazenamento que recusa leitura e gravação: Padrão na leitura, a escolha vale na sessão e nada lança', () => {
@@ -170,11 +170,11 @@ describe('guardar a escolha', () => {
     vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
       throw new Error('armazenamento recusado')
     })
-    expect(lerLetra()).toBe('padrao')
+    expect(readLetra()).toBe('padrao')
     expect(() => escolherLetra('maior')).not.toThrow()
-    expect(lerLetra()).toBe('maior')
+    expect(readLetra()).toBe('maior')
     expect(() => escolherLetra('padrao')).not.toThrow()
-    expect(lerLetra()).toBe('padrao')
+    expect(readLetra()).toBe('padrao')
   })
 })
 
@@ -187,46 +187,46 @@ describe('as outras abas', () => {
   }
 
   it('o que outra aba gravou vale mais que a escolha que esta guardou na memória; a chave limpa e o armazenamento inteiro limpo também', () => {
-    const desligar = iniciarLetra()
+    const desligar = startLetra()
     try {
       recusarAGravacao()
       escolherLetra('grande')
-      expect(lerLetra()).toBe('grande')
+      expect(readLetra()).toBe('grande')
       vi.restoreAllMocks()
 
       window.localStorage.setItem(TEXT_SIZE_STORAGE_KEY, 'maior')
       window.dispatchEvent(new StorageEvent('storage', { key: TEXT_SIZE_STORAGE_KEY, newValue: 'maior' }))
-      expect(lerLetra()).toBe('maior')
+      expect(readLetra()).toBe('maior')
 
       recusarAGravacao()
       escolherLetra('grande')
       vi.restoreAllMocks()
       window.localStorage.removeItem(TEXT_SIZE_STORAGE_KEY)
       window.dispatchEvent(new StorageEvent('storage', { key: null }))
-      expect(lerLetra()).toBe('padrao')
+      expect(readLetra()).toBe('padrao')
     } finally {
       desligar()
     }
   })
 
   it('chave de outro assunto não conta: a escolha da memória fica', () => {
-    const desligar = iniciarLetra()
+    const desligar = startLetra()
     try {
       recusarAGravacao()
       escolherLetra('grande')
       window.dispatchEvent(new StorageEvent('storage', { key: 'educa.aparencia', newValue: 'escuro' }))
-      expect(lerLetra()).toBe('grande')
+      expect(readLetra()).toBe('grande')
     } finally {
       desligar()
     }
   })
 
   it('desligado, o evento não chega: a escolha da memória fica', () => {
-    iniciarLetra()()
+    startLetra()()
     recusarAGravacao()
     escolherLetra('grande')
     window.dispatchEvent(new StorageEvent('storage', { key: TEXT_SIZE_STORAGE_KEY, newValue: null }))
-    expect(lerLetra()).toBe('grande')
+    expect(readLetra()).toBe('grande')
   })
 })
 
@@ -278,7 +278,7 @@ describe('useTamanhoDaLetra: o data-letra segue o endereço', () => {
   })
 
   it('o que outra aba grava chega à tela montada pelo aviso do evento storage, sem esta aba escolher nada', () => {
-    const desligar = iniciarLetra()
+    const desligar = startLetra()
     try {
       montar('/aluno/eu')
       expect(html().hasAttribute('data-letra')).toBe(false)

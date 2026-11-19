@@ -180,7 +180,7 @@ describe('convite', () => {
 
   it('o token vai no corpo, nunca na URL da API, que fica em log de borda e no histórico', async () => {
     responderCom({ status: 200, corpo: { escolaNome: 'Colégio sintético' } })
-    await convite.consultarConvite(TOKEN)
+    await convite.findConvite(TOKEN)
     expect(chamadas[0]?.caminho).toBe(convite.CAMINHO_DA_CONSULTA_DE_CONVITE)
     expect(chamadas[0]?.caminho).not.toContain(TOKEN)
     expect(chamadas[0]?.corpo).toEqual({ token: TOKEN })

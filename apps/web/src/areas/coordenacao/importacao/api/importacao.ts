@@ -36,12 +36,12 @@ export function previaDaPlanilha(rotas: RotasDaPlanilha, texto: string, sinal?: 
 }
 
 /** `POST …`: enfileira a gravação (202). O gravar refaz a prévia, e o que a coordenação não marcou não muda ninguém. */
-export function gravarPlanilha(rotas: RotasDaPlanilha, texto: string, marcas: MarcasDaPlanilha): Promise<GravarPlanilhaResponse> {
+export function savePlanilha(rotas: RotasDaPlanilha, texto: string, marcas: MarcasDaPlanilha): Promise<GravarPlanilhaResponse> {
   return authedRequest(rotas.gravar, gravarPlanilhaResponseSchema, { metodo: 'POST', corpo: { texto, marcas } })
 }
 
 /** `GET /v1/importacoes/:id`, com o sinal que cancela a leitura quando a tela sai. */
-export function lerImportacao(id: string, sinal?: AbortSignal): Promise<Importacao> {
+export function readImportacao(id: string, sinal?: AbortSignal): Promise<Importacao> {
   return authedGet(`/v1/importacoes/${encodeURIComponent(id)}`, importacaoSchema, sinal)
 }
 
@@ -80,30 +80,30 @@ export interface AcompanhamentoOptions {
   readonly aoDemorar?: () => void
   /** O relógio e a espera, trocáveis no teste. */
   readonly agora?: () => number
-  readonly esperar?: (ms: number, sinal?: AbortSignal) => Promise<void>
+  readonly wait?: (ms: number, sinal?: AbortSignal) => Promise<void>
 }
 
 /** Espera `ms`, ou termina com o motivo do cancelamento se o sinal disparar antes. */
-function esperarComSinal(ms: number, sinal?: AbortSignal): Promise<void> {
+function waitComSinal(ms: number, sinal?: AbortSignal): Promise<void> {
   return new Promise((resolver, rejeitar) => {
     if (sinal?.aborted === true) {
       rejeitar(sinal.reason)
       return
     }
-    const parar = (): void => {
+    const stop = (): void => {
       clearTimeout(relogio)
       rejeitar(sinal?.reason)
     }
     const relogio = setTimeout(() => {
-      sinal?.removeEventListener('abort', parar)
+      sinal?.removeEventListener('abort', stop)
       resolver()
     }, ms)
-    sinal?.addEventListener('abort', parar, { once: true })
+    sinal?.addEventListener('abort', stop, { once: true })
   })
 }
 
 /** O erro de leitura que não derruba o acompanhamento: o job segue na fila, e quem leu é que ficou sem resposta agora. */
-const ehEsperavel = (erro: unknown): erro is ApiError => erro instanceof ApiError && (erro.codigo === ErrorCode.LIMITE_EXCEDIDO || erro.codigo === ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
+const isEsperavel = (erro: unknown): erro is ApiError => erro instanceof ApiError && (erro.codigo === ErrorCode.LIMITE_EXCEDIDO || erro.codigo === ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
 
 type Leitura = { readonly concluida: Importacao } | { readonly esperaMinimaMs: number }
 
@@ -111,14 +111,14 @@ type Leitura = { readonly concluida: Importacao } | { readonly esperaMinimaMs: n
  * Uma leitura da importação: concluída, ou ainda na fila (com a espera mínima até a próxima). `desatualizada` e `falhou` sobem como
  * `ImportacaoNaoConcluidaError`. O 429 e o 503 contam como "ainda na fila", e no 429 a espera é o `Retry-After` ou mais, nunca menos.
  */
-async function lerUmaVez(ler: (sinal?: AbortSignal) => Promise<Importacao>, sinal: AbortSignal | undefined, espera: number): Promise<Leitura> {
+async function readUmaVez(ler: (sinal?: AbortSignal) => Promise<Importacao>, sinal: AbortSignal | undefined, espera: number): Promise<Leitura> {
   try {
     const lida = await ler(sinal)
     if (lida.estado === 'concluida') return { concluida: lida }
     if (lida.estado !== 'na_fila') throw new ImportacaoNaoConcluidaError(lida.estado, lida.erro)
     return { esperaMinimaMs: espera }
   } catch (erro) {
-    if (!ehEsperavel(erro) || sinal?.aborted === true) throw erro
+    if (!isEsperavel(erro) || sinal?.aborted === true) throw erro
     return { esperaMinimaMs: Math.max(espera, (erro.esperaSegundos ?? 0) * 1000) }
   }
 }
@@ -128,7 +128,7 @@ const PADROES = {
   esperaMaximaMs: ESPERA_MAXIMA_ENTRE_LEITURAS_DA_IMPORTACAO_MS,
   avisarDepoisDeMs: PRAZO_PARA_AVISAR_DA_FILA_MS,
   agora: Date.now,
-  esperar: esperarComSinal,
+  wait: waitComSinal,
 }
 
 /**
@@ -138,19 +138,19 @@ const PADROES = {
  */
 export async function acompanharImportacao(ler: (sinal?: AbortSignal) => Promise<Importacao>, opcoes: AcompanhamentoOptions = {}): Promise<Importacao> {
   const { sinal, aoDemorar } = opcoes
-  const { esperaMs, esperaMaximaMs, avisarDepoisDeMs, agora, esperar } = { ...PADROES, ...opcoes }
+  const { esperaMs, esperaMaximaMs, avisarDepoisDeMs, agora, wait } = { ...PADROES, ...opcoes }
   const comeco = agora()
   let espera = esperaMs
   let avisou = false
   for (;;) {
     sinal?.throwIfAborted()
-    const leitura = await lerUmaVez(ler, sinal, espera)
+    const leitura = await readUmaVez(ler, sinal, espera)
     if ('concluida' in leitura) return leitura.concluida
     if (!avisou && agora() - comeco >= avisarDepoisDeMs) {
       avisou = true
       aoDemorar?.()
     }
-    await esperar(leitura.esperaMinimaMs, sinal)
+    await wait(leitura.esperaMinimaMs, sinal)
     espera = Math.min(espera * 1.5, esperaMaximaMs)
   }
 }

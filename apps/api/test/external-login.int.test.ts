@@ -70,7 +70,7 @@ describe('login pela conta Google ou Microsoft da escola, contra o oidc-falso do
 
   beforeAll(async () => {
     api = await subirApi(medidor.medidor, {}, linhasDeLog)
-    hashDoAluno = await api.app.get(PasswordHasher).gerar(SENHA_SINTETICA_DO_ALUNO)
+    hashDoAluno = await api.app.get(PasswordHasher).generate(SENHA_SINTETICA_DO_ALUNO)
   })
 
   afterAll(async () => {
@@ -499,8 +499,8 @@ describe('login pela conta Google ou Microsoft da escola, contra o oidc-falso do
     const { chaveDoCookie } = loadExternalLoginConfig(lerAmbienteDeTeste())
     if (chaveDoCookie === undefined) throw new Error('ambiente de teste sem chave do cookie')
     const emAndamento = { escolaId, slug, provedor: 'google' as const, state: new URL(bom.location).searchParams.get('state') ?? '', nonce: 'nonce-sintetico-0123456789', verificador: 'verificador-sintetico-0123456789' }
-    const vencido = new CookieOidc(chaveDoCookie, 'local', () => Date.now() - 301_000).gravar(emAndamento).split(';')[0]
-    const deOutraChave = new CookieOidc(new Uint8Array(32).fill(7), 'local').gravar(emAndamento).split(';')[0]
+    const vencido = new CookieOidc(chaveDoCookie, 'local', () => Date.now() - 301_000).save(emAndamento).split(';')[0]
+    const deOutraChave = new CookieOidc(new Uint8Array(32).fill(7), 'local').save(emAndamento).split(';')[0]
 
     const semCookie = await retorno(consulta, undefined)
     expect(semCookie.location).toBe(`/?${FALHA_DO_PROVEDOR}`)

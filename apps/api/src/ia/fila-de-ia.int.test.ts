@@ -14,7 +14,7 @@ import { SessaoFixtures, type TestSessao } from '../../test/sessao.fixture.js'
 import type { EntradaDaTarefa, ExecucaoCommand, SaidaDaTarefa } from './execucao-command.js'
 import { ExecucaoRepository } from './execucao.repository.js'
 import type { ExecucaoComComando } from './execucao.scheduler.js'
-import { montarComandos } from './montar-comandos.js'
+import { buildComandos } from './montar-comandos.js'
 import { RegistroDeComandos } from './registro-de-comandos.js'
 
 /**
@@ -239,9 +239,9 @@ describe('a IA roda no worker', () => {
       expect(TAREFAS_DE_IA.filter((tarefa) => /discursiv|redacao|pre_correcao|corrigir|nota/u.test(tarefa))).toEqual([])
       // O catálogo inteiro, fixo: uma tarefa nova (de texto de aluno, por exemplo) muda esta lista, e a mudança passa por revisão.
       expect([...TAREFAS_DE_IA]).toEqual(['propor_ferramenta', 'gerar_atividade_objetiva', 'gerar_plano_de_aula', 'adaptar_atividade', 'turno_do_tutor', 'relatorio_da_correcao', 'resumo_do_analista', 'classificar_secoes'])
-      // O que o worker executa: os sete comandos de `montarComandos`, todos do catálogo, e nenhum fora dele.
+      // O que o worker executa: os sete comandos de `buildComandos`, todos do catálogo, e nenhum fora dele.
       const registro = new RegistroDeComandos()
-      montarComandos(registro, {} as never, {} as never, {} as never, {} as never)
+      buildComandos(registro, {} as never, {} as never, {} as never, {} as never)
       expect(registro.tarefas().sort()).toEqual(['adaptar_atividade', 'classificar_secoes', 'gerar_atividade_objetiva', 'gerar_plano_de_aula', 'propor_ferramenta', 'resumo_do_analista', 'turno_do_tutor'])
       expect(registro.tarefas().filter((tarefa) => !(TAREFAS_DE_IA as readonly string[]).includes(tarefa))).toEqual([])
     })

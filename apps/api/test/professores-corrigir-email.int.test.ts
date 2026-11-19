@@ -302,7 +302,7 @@ describe('acesso-e-convites, 18.0: a coordenação corrige o e-mail do professor
       const certo = emailSorteado()
       expect((await corrigir(coordenacao, errado.usuarioId, { email: certo })).status).toBe(201)
       // Sobra 1 ponto na cota da escola: o "Enviar" do corrigido o gasta, e o seguinte já não cabe.
-      expect((await cota.consumir(escolaId, CONVITES_POR_HORA_POR_ESCOLA - 1)).resultado).toBe('concedido')
+      expect((await cota.consume(escolaId, CONVITES_POR_HORA_POR_ESCOLA - 1)).resultado).toBe('concedido')
       const resposta = await enviar(coordenacao, [errado.usuarioId])
       expect(enviarConvitesResponseSchema.parse(resposta.corpo)).toEqual({ quantidade: 1 })
       const [envio] = (await convitesDe(errado.usuarioId)).filter((convite) => convite.canal === 'email')
@@ -322,7 +322,7 @@ describe('acesso-e-convites, 18.0: a coordenação corrige o e-mail do professor
       const repositorio = new ExpurgoDeAcessoRepository(bancada.banco)
       for (let rodada = 0; rodada < 200; rodada += 1) {
         if ((await estadoDaConta(contaId)).email === null) return
-        if ((await repositorio.limparLoteDeContasSemUso(new Date(), LOTE_DO_EXPURGO)) === 0) return
+        if ((await repositorio.clearLoteDeContasSemUso(new Date(), LOTE_DO_EXPURGO)) === 0) return
       }
     }
 
@@ -546,7 +546,7 @@ describe('acesso-e-convites, 18.0: a coordenação corrige o e-mail do professor
       const [ato] = await auditoriaDe(escolaId, 'usuario.email_corrigido')
       expect(ato).toBeDefined()
       const documento = await runInContext({ requisicaoId: randomUUID(), escolaId }, () =>
-        new LeituraDoTitular(bancada.banco).montar({ titularId: professor.usuarioId, papel: 'professor', versao: 'completa', compartilhamento: [], geradoEm: new Date() }),
+        new LeituraDoTitular(bancada.banco).build({ titularId: professor.usuarioId, papel: 'professor', versao: 'completa', compartilhamento: [], geradoEm: new Date() }),
       )
       const linhas = (documento.tabelas['auditoria'] ?? []).filter((linha) => linha['acao'] === 'usuario.email_corrigido')
       expect(linhas).toEqual([{ id: expect.any(String), acao: 'usuario.email_corrigido', entidade: 'usuario', entidade_id: professor.usuarioId, finalidade: null, em: expect.anything(), papel: 'coordenação' }])

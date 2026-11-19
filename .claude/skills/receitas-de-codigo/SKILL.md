@@ -19,4 +19,8 @@ Leia a seção do guia **antes de escrever**. Copie o exemplo e troque os nomes.
 
 O que se afasta da receita vai à seção 11 da Tech Spec com o motivo (D81).
 
+**Nome de método e função:** o verbo técnico vai em inglês e o domínio em português (`findByTurma`, `listAtivos`, `create`,
+`isAtivo`); `find` quando a leitura pode não achar, `read`/`get` quando sempre acha. O verbo de domínio fica (`aprovar`,
+`lancar`, `corrigir`, `matricular`). A tabela completa está no §9 do guia, e a trava é o Lint `guardas/verbo-de-mercado`.
+
 Quem muda o exemplo no guia muda a linha desta tabela no mesmo commit: a esteira confere o exemplo contra a linha `Exemplo:` da seção.

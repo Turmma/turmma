@@ -45,7 +45,7 @@ export function ReauthDialog() {
     }
   }, [])
 
-  async function enviar(evento: FormEvent<HTMLFormElement>): Promise<void> {
+  async function send(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault()
     if (entrando) return
     definirEntrando(true)
@@ -95,7 +95,7 @@ export function ReauthDialog() {
           ? 'Entre de novo com a sua matrícula e a sua senha para continuar de onde você parou. O que você escreveu continua aqui.'
           : 'Entre de novo com o seu e-mail e a sua senha para continuar de onde você parou. O que você escreveu continua aqui.'}
       </p>
-      <form className="mt-4 flex flex-col gap-4" onSubmit={(evento) => void enviar(evento)}>
+      <form className="mt-4 flex flex-col gap-4" onSubmit={(evento) => void send(evento)}>
         <div className="flex flex-col gap-1">
           <label htmlFor={campoIdentificador} className="t-apoio font-bold text-tinta">
             {porMatricula ? 'Matrícula' : 'E-mail'}

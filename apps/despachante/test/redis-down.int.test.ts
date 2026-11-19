@@ -67,7 +67,7 @@ describe('Redis de fila fora', () => {
       const { token } = await sessoes.escolaComSessao('coordenador')
       const logs = { d1: new InMemoryLog('despachante-1'), d2: new InMemoryLog('despachante-2'), worker: new InMemoryLog('worker') }
       bancada.worker(logs.worker, { concorrencia: 10 })
-      for (const log of [logs.d1, logs.d2]) bancada.despachante(log).despachante.iniciar()
+      for (const log of [logs.d1, logs.d2]) bancada.despachante(log).despachante.start()
 
       await composeAssincronoOuFalha('stop', 'redis-fila')
       const ids: string[] = []
@@ -120,7 +120,7 @@ describe('Redis de fila fora', () => {
     const arquivoDoBatimento = join(mkdtempSync(join(tmpdir(), 'educa-batimento-')), 'batimento')
     const idadeDoBatimento = () => (existsSync(arquivoDoBatimento) ? Date.now() - statSync(arquivoDoBatimento).mtimeMs : Number.POSITIVE_INFINITY)
     // O despachante sobe com o Redis de pé, e o cliente dele conecta: é o Redis que trava depois.
-    bancada.despachante(logDespachante, { batimento: new Heartbeat(arquivoDoBatimento) }).despachante.iniciar()
+    bancada.despachante(logDespachante, { batimento: new Heartbeat(arquivoDoBatimento) }).despachante.start()
     await new Promise((resolver) => setTimeout(resolver, 1_000))
 
     // Escolas reais: desde a tarefa 3.0 `job_registro` tem FK para `escola`. Criadas antes do `pause`,

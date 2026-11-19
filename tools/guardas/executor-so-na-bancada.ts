@@ -17,7 +17,7 @@ export const CAMINHO_DA_BANCADA = 'apps/api/test/fila-de-ia.fixture.ts'
 export const ALVOS_DA_BANCADA: ReadonlyArray<{ readonly nome: string; readonly definidoEm: string }> = [
   { nome: 'LLM_PROVIDER', definidoEm: 'apps/api/src/ia/ia.module.ts' },
   { nome: 'ExecucaoProcessor', definidoEm: 'apps/api/src/ia/execucao.processor.ts' },
-  { nome: 'criarWorkerDeIa', definidoEm: 'apps/api/src/ia/worker-de-ia.ts' },
+  { nome: 'createWorkerDeIa', definidoEm: 'apps/api/src/ia/worker-de-ia.ts' },
   { nome: 'IaDoWorkerModule', definidoEm: 'apps/api/src/ia/ia-do-worker.module.ts' },
   { nome: 'InProcessAgenteExecutor', definidoEm: '' },
   { nome: 'EXECUTOR_DE_AGENTE', definidoEm: '' },

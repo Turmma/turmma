@@ -1,35 +1,35 @@
 import { ErrorCode } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
-import { lerTabela, normalizarTexto } from './leitor.js'
+import { readTabela, normalizeTexto } from './leitor.js'
 
 const COLUNAS = ['inicio', 'fim', 'tipo', 'descricao'] as const
 
 function recusa(texto: string): void {
-  expect(() => lerTabela(texto, COLUNAS)).toThrow(expect.objectContaining({ codigo: ErrorCode.ENTRADA_INVALIDA }) as Error)
+  expect(() => readTabela(texto, COLUNAS)).toThrow(expect.objectContaining({ codigo: ErrorCode.ENTRADA_INVALIDA }) as Error)
 }
 
-describe('lerTabela', () => {
+describe('readTabela', () => {
   it('lê pelo separador do cabeçalho, ponto e vírgula, tab ou vírgula, com os campos pelo nome da coluna', () => {
     for (const separador of [';', '\t', ',']) {
       const texto = ['inicio', 'fim', 'tipo', 'descricao'].join(separador) + '\n' + ['2026-04-21', '2026-04-21', 'feriado', 'Tiradentes'].join(separador)
-      expect(lerTabela(texto, COLUNAS).linhas, separador).toEqual([{ linha: 2, campos: { inicio: '2026-04-21', fim: '2026-04-21', tipo: 'feriado', descricao: 'Tiradentes' } }])
+      expect(readTabela(texto, COLUNAS).linhas, separador).toEqual([{ linha: 2, campos: { inicio: '2026-04-21', fim: '2026-04-21', tipo: 'feriado', descricao: 'Tiradentes' } }])
     }
   })
 
   it('aceita o cabeçalho em outra ordem, com caixa e acento diferentes, e tira o marcador de ordem de byte do Excel', () => {
     const texto = String.fromCharCode(0xfeff) + 'Descrição;TIPO;Fim;Início\nRecesso;recesso;2026-07-24;2026-07-13'
-    expect(lerTabela(texto, COLUNAS).linhas).toEqual([{ linha: 2, campos: { descricao: 'Recesso', tipo: 'recesso', fim: '2026-07-24', inicio: '2026-07-13' } }])
+    expect(readTabela(texto, COLUNAS).linhas).toEqual([{ linha: 2, campos: { descricao: 'Recesso', tipo: 'recesso', fim: '2026-07-24', inicio: '2026-07-13' } }])
   })
 
   it('o campo entre aspas guarda o separador e a aspa dobrada', () => {
     const texto = 'inicio;fim;tipo;descricao\n2026-04-21;2026-04-21;feriado;"Tiradentes; ""dia"" santo"'
-    expect(lerTabela(texto, COLUNAS).linhas[0]?.campos?.['descricao']).toBe('Tiradentes; "dia" santo')
+    expect(readTabela(texto, COLUNAS).linhas[0]?.campos?.['descricao']).toBe('Tiradentes; "dia" santo')
   })
 
   it('a quebra de linha do Windows (CRLF) e a do Mac antigo (CR) separam as linhas, sem sobrar o retorno no último campo', () => {
     for (const quebra of ['\r\n', '\r', '\n']) {
       const texto = ['inicio;fim;tipo;descricao', '2026-04-21;2026-04-21;feriado;Tiradentes', '2026-05-01;2026-05-01;feriado;Trabalho'].join(quebra)
-      expect(lerTabela(texto, COLUNAS).linhas.map((linha) => [linha.linha, linha.campos?.['descricao']]), JSON.stringify(quebra)).toEqual([
+      expect(readTabela(texto, COLUNAS).linhas.map((linha) => [linha.linha, linha.campos?.['descricao']]), JSON.stringify(quebra)).toEqual([
         [2, 'Tiradentes'],
         [3, 'Trabalho'],
       ])
@@ -38,12 +38,12 @@ describe('lerTabela', () => {
 
   it('a aspa no meio do campo é letra, e só a que abre o campo agrupa', () => {
     const texto = 'inicio;fim;tipo;descricao\n2026-04-21;2026-04-21;feriado;Dom "Pedro" II'
-    expect(lerTabela(texto, COLUNAS).linhas[0]?.campos?.['descricao']).toBe('Dom "Pedro" II')
+    expect(readTabela(texto, COLUNAS).linhas[0]?.campos?.['descricao']).toBe('Dom "Pedro" II')
   })
 
   it('linha em branco é ignorada mas conta no número da linha; linha com campos a mais ou a menos volta com `campos: null`', () => {
     const texto = 'inicio;fim;tipo;descricao\n\n2026-04-21;2026-04-21;feriado\n2026-04-22;2026-04-22;feriado;a;b\n2026-04-23;2026-04-23;feriado;ok\r\n'
-    expect(lerTabela(texto, COLUNAS).linhas.map(({ linha, campos }) => [linha, campos === null])).toEqual([
+    expect(readTabela(texto, COLUNAS).linhas.map(({ linha, campos }) => [linha, campos === null])).toEqual([
       [3, true],
       [4, true],
       [5, false],
@@ -64,8 +64,8 @@ describe('lerTabela', () => {
   })
 })
 
-describe('normalizarTexto', () => {
+describe('normalizeTexto', () => {
   it('tira acento, caixa e espaço a mais', () => {
-    expect(normalizarTexto('  Início   DO  Ano ')).toBe('inicio do ano')
+    expect(normalizeTexto('  Início   DO  Ano ')).toBe('inicio do ano')
   })
 })

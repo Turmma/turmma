@@ -41,7 +41,7 @@ export class AlocacaoRepository {
    * apontar. Devolve quantas linhas escreveu (a de `aulas` do `resumo`); a aula de outra escola, na mesma chave, não é tocada nem contada. Duas aulas de mesma chave no mesmo lote são erro de quem chama
    * (a prévia as recusa como `aula_repetida`).
    */
-  async gravar(anoLetivoId: string, aulas: readonly AulaNova[]): Promise<number> {
+  async save(anoLetivoId: string, aulas: readonly AulaNova[]): Promise<number> {
     if (aulas.length === 0) return 0
     const escolaId = requireEscolaId()
     const gravadas = await this.banco
@@ -58,7 +58,7 @@ export class AlocacaoRepository {
    * id, com a escola do contexto e o ano de destino na cláusula (a aula de outra escola, ou de outro ano, nunca sai), e devolve quantas apagou:
    * menos que as pedidas é diferença (outra escrita as tirou depois da leitura do passo (3)), e o motor fecha a importação `desatualizada`.
    */
-  async apagar(anoLetivoId: string, ids: readonly string[]): Promise<number> {
+  async delete(anoLetivoId: string, ids: readonly string[]): Promise<number> {
     if (ids.length === 0) return 0
     const apagadas = await this.banco
       .delete(alocacao)

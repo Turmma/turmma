@@ -143,7 +143,7 @@ function chaveDeCifra(valor: string | undefined): Uint8Array | undefined {
  * As chaves de cifra de todas as versões declaradas até a atual. A atual é obrigatória; uma anterior pode faltar (a
  * versão foi aposentada depois de todo segredo dela ser recifrado), mas, se estiver declarada, precisa ser válida.
  */
-function lerChavesDeCifra(ambiente: Record<string, string | undefined>, versaoAtual: number): Map<number, Uint8Array> {
+function readChavesDeCifra(ambiente: Record<string, string | undefined>, versaoAtual: number): Map<number, Uint8Array> {
   const chaves = new Map<number, Uint8Array>()
   const invalidas: string[] = []
   for (let versao = 1; versao <= versaoAtual; versao++) {
@@ -188,7 +188,7 @@ export function loadLoginConfig(ambiente: Record<string, string | undefined>): L
   if (chaveDispositivo === valores.LOGIN_CHAVE_CONTADOR) {
     throw new InvalidConfigError([variavel], [`${variavel} precisa ser diferente de LOGIN_CHAVE_CONTADOR: cada HMAC tem a própria chave`])
   }
-  const chavesCifra = lerChavesDeCifra(ambiente, valores.IDENTIDADE_CHAVE_CIFRA_VERSAO)
+  const chavesCifra = readChavesDeCifra(ambiente, valores.IDENTIDADE_CHAVE_CIFRA_VERSAO)
   const outrasChaves = [valores.LOGIN_CHAVE_CONTADOR, chaveDispositivo, ambiente[variavelDaChaveDeCifra(valores.IDENTIDADE_CHAVE_CIFRA_VERSAO)]]
   if (outrasChaves.includes(valores.IDENTIDADE_CHAVE_RECUPERACAO)) {
     throw new InvalidConfigError(['IDENTIDADE_CHAVE_RECUPERACAO'], [MOTIVO_CHAVE_DE_RECUPERACAO_REPETIDA])

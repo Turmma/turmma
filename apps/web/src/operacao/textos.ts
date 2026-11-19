@@ -1,4 +1,4 @@
-import { ErrorCode, formatarEspera, MENSAGENS_DE_ERRO, mensagemDaEntrada, mensagemDoSegundoFator, type TipoDeRede } from '@educa/shared'
+import { ErrorCode, formatEspera, MENSAGENS_DE_ERRO, mensagemDaEntrada, mensagemDoSegundoFator, type TipoDeRede } from '@educa/shared'
 import { ApiError, estourouNoCliente } from '../api/client'
 import type { FalhaDoConvite } from '../components/DialogoDoConvite'
 import { errorText as textoDaFalhaPeloCodigo } from '../components/error-text'
@@ -45,7 +45,7 @@ export const TEXTO_DO_TEMPO_ESGOTADO = 'A operação demorou demais. Tente de no
  */
 export function textoDoLimite(esperaSegundos: number | undefined): string {
   if (esperaSegundos === undefined || !Number.isFinite(esperaSegundos)) return 'Muitas ações seguidas. Tente de novo em instantes.'
-  return `Muitas ações seguidas. Tente de novo em ${formatarEspera(esperaSegundos)}.`
+  return `Muitas ações seguidas. Tente de novo em ${formatEspera(esperaSegundos)}.`
 }
 
 /**
@@ -68,7 +68,7 @@ export function textoDaFalha(erro: unknown): string {
 export const TEXTO_DO_ENDERECO_REPETIDO = 'Esse endereço já é de outra escola. Escolha outro.'
 
 /** A falha do criar escola é o endereço repetido? É a única que volta ao campo; as outras ficam no alerta do diálogo. */
-export function ehEnderecoRepetido(erro: unknown): boolean {
+export function isEnderecoRepetido(erro: unknown): boolean {
   return codigoDe(erro) === ErrorCode.CONFLITO
 }
 
@@ -77,7 +77,7 @@ export function ehEnderecoRepetido(erro: unknown): boolean {
  * resposta veio fora do contrato, ou o prazo da chamada estourou no navegador (52.0: o pedido pode ter sido gravado e a resposta
  * não chegou). O 503 da trava (`TEMPO_ESGOTADO` **da API**, sem `origem`), o 429 e os 4xx são recusas: nada foi gravado.
  */
-export function ehResultadoIncerto(erro: unknown): boolean {
+export function isResultadoIncerto(erro: unknown): boolean {
   const codigo = codigoDe(erro)
   return codigo === ErrorCode.INDISPONIVEL_TENTE_DE_NOVO || codigo === ErrorCode.ERRO_INTERNO || estourouNoCliente(erro)
 }

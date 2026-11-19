@@ -39,7 +39,7 @@ describe('ConsumoDeDesafio: o jti vale uma vez só, no Redis de fila', () => {
   it('concorrência: duas conclusões da mesma etapa ao mesmo tempo, com o mesmo desafio, passam uma vez só', async () => {
     const desafio = await verifyChallenge(await new ChallengeIssuer(CHAVE).emitir({ contaId: CONTA, etapa: 'mfa', mfaCumprido: false }), CHAVE, ['mfa'])
     const consumo = new ChallengeConsumer(cliente)
-    const resultados = await Promise.allSettled([consumo.consumir(desafio), consumo.consumir(desafio)])
+    const resultados = await Promise.allSettled([consumo.consume(desafio), consumo.consume(desafio)])
     expect(resultados.filter((resultado) => resultado.status === 'fulfilled')).toHaveLength(1)
     const [recusa] = resultados.flatMap((resultado) => (resultado.status === 'rejected' ? [resultado.reason as unknown] : []))
     expect(recusa).toBeInstanceOf(DomainException)
@@ -55,7 +55,7 @@ describe('ConsumoDeDesafio: o jti vale uma vez só, no Redis de fila', () => {
     try {
       const desafio = await verifyChallenge(await new ChallengeIssuer(CHAVE).emitir({ contaId: CONTA, etapa: 'escolher', mfaCumprido: false }), CHAVE, ['escolher'])
       const consumo = new ChallengeConsumer(fora)
-      await expect(consumo.consumir(desafio)).rejects.toMatchObject({ codigo: ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, status: 503, tenteDeNovoEmSegundos: DEFAULT_RETRY_AFTER_SECONDS })
+      await expect(consumo.consume(desafio)).rejects.toMatchObject({ codigo: ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, status: 503, tenteDeNovoEmSegundos: DEFAULT_RETRY_AFTER_SECONDS })
       await expect(consumo.conferirLivre(desafio)).rejects.toMatchObject({ codigo: ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, status: 503, tenteDeNovoEmSegundos: DEFAULT_RETRY_AFTER_SECONDS })
       // A recusa pelo Redis entra no sinal do seguro (15.5).
       expect(consumo.proporcaoDoSeguro).toBe(1)
@@ -77,7 +77,7 @@ describe('ConsumoDeDesafio: o jti vale uma vez só, no Redis de fila', () => {
 
       const travado = await travarRedis(URL_REDIS_FILA, 3_000)
       await expect(consumo.conferirLivre(noTravamento)).rejects.toMatchObject({ codigo: ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, status: 503 })
-      await expect(consumo.consumir(noTravamento)).rejects.toMatchObject({ codigo: ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, status: 503 })
+      await expect(consumo.consume(noTravamento)).rejects.toMatchObject({ codigo: ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, status: 503 })
       expect(producao.status).toBe('ready')
       expect(consumo.proporcaoDoSeguro).toBe(1)
       // Uma linha só para as duas recusas, e só o evento: nada do desafio, da conta ou da pessoa.
@@ -91,7 +91,7 @@ describe('ConsumoDeDesafio: o jti vale uma vez só, no Redis de fila', () => {
       await expect
         .poll(
           async () =>
-            consumo.consumir(await emitir()).then(
+            consumo.consume(await emitir()).then(
               () => 'aceito',
               (erro: unknown) => (erro instanceof DomainException && erro.codigo === ErrorCode.INDISPONIVEL_TENTE_DE_NOVO ? 'recusado' : `outra recusa: ${String(erro)}`),
             ),

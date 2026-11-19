@@ -14,7 +14,7 @@ import { prazoPorTemporizador } from './prazo-por-temporizador.js'
  */
 const PRAZO_DO_PERFIL_MS = 1_000_000
 const POLITICA = { prazosMs: { rapido: PRAZO_DO_PERFIL_MS, padrao: PRAZO_DO_PERFIL_MS, complexo: PRAZO_DO_PERFIL_MS, visao: PRAZO_DO_PERFIL_MS }, recuoMs: 100, aleatorio: () => 1 } as const
-const SEMPRE = { consultar: async () => ({ permitido: true as const }) }
+const SEMPRE = { check: async () => ({ permitido: true as const }) }
 const MENORES = { padrao: 'menor-padrao', rapido: 'menor-rapido' } as const
 
 /** O modelo de mentira: cada chamada dura o que o roteiro diz (relógio falso) e devolve o texto dela, ou aborta com o sinal, como o `fetch` abortado. */
@@ -100,8 +100,8 @@ function montar(roteiro: readonly { duracaoMs: number; texto: string }[]) {
     const base = { escolaId: ESCOLA_A, execucaoId: '1d2e3f4a-5b6c-4d7e-8f90-a1b2c3d4e5f6', sinal: prazo.sinal }
     return runInContext({ requisicaoId: 'teste-de-prazo', escolaId: ESCOLA_A }, () =>
       tarefa === 'tutor'
-        ? gateway.gerar({ ...base, tarefa: turnoDoTutor, entrada: entradaDoTutor('não entendi'), alunoId: ALUNO_1, fila: 'interativa' })
-        : gateway.gerar({ ...base, tarefa: gerarAtividadeObjetiva, entrada: entradaDeAtividade(), fila: 'ferramenta' }),
+        ? gateway.generate({ ...base, tarefa: turnoDoTutor, entrada: entradaDoTutor('não entendi'), alunoId: ALUNO_1, fila: 'interativa' })
+        : gateway.generate({ ...base, tarefa: gerarAtividadeObjetiva, entrada: entradaDeAtividade(), fila: 'ferramenta' }),
     )
   }
   return { adaptador, consumo, limite, pedir, inicio }

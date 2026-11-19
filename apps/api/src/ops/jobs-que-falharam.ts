@@ -5,7 +5,7 @@ import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 import { z } from 'zod'
 import { JobsQueFalharamRepository, type JobQueFalhou } from '../operacao/jobs-que-falharam.repository.js'
-import { abrirBancoDeOperacao, InvalidArgumentError, autorDoComando, lerOperador, OperadorRejectedError, type CommandDatabase, type CommandOutput } from './command.js'
+import { openBancoDeOperacao, InvalidArgumentError, autorDoComando, readOperador, OperadorRejectedError, type CommandDatabase, type CommandOutput } from './command.js'
 import type { AuthorCheck } from '../sessao/index.js'
 
 /**
@@ -40,7 +40,7 @@ export class JobRecusadoError extends Error {
 }
 
 /** `<id do job> --chamado <n>`: o UUID em minúsculas e o inteiro positivo. Ausente ou fora do formato, só a opção na mensagem. */
-export function lerPedidoDeJob(argumentos: string[]): PedidoDeJob {
+export function readPedidoDeJob(argumentos: string[]): PedidoDeJob {
   let lido: ReturnType<typeof parseArgs<{ options: { chamado: { type: 'string' } }; allowPositionals: true }>>
   try {
     lido = parseArgs({ args: argumentos, options: { chamado: { type: 'string' } }, strict: true, allowPositionals: true })
@@ -76,12 +76,12 @@ export function noContextoDoJob<T>(requisicaoId: string, escolaId: string | null
 }
 
 /** Os jobs que falharam de vez, em todas as escolas, numa transação que começa pela conferência do autor. */
-export function listarJobsQueFalharam(banco: Database, autor: AuthorCheck): Promise<JobQueFalhou[]> {
+export function listJobsQueFalharam(banco: Database, autor: AuthorCheck): Promise<JobQueFalhou[]> {
   const requisicaoId = randomUUID()
   return runInContext({ requisicaoId }, () =>
     banco.transaction(async (tx) => {
       await autor(tx)
-      return new JobsQueFalharamRepository(tx).listar()
+      return new JobsQueFalharamRepository(tx).list()
     }),
   )
 }
@@ -120,18 +120,18 @@ function paraSaida(job: JobQueFalhou) {
  * Executa a lista e devolve o código de saída: 0 listado (também vazio), 2 argumento ou ambiente inválido, ou `OPERADOR` que não é operador
  * ativo, 1 erro. Sem argumento: qualquer um é recusado antes de abrir o banco.
  */
-export async function executarOpsJobsQueFalharam(
+export async function runOpsJobsQueFalharam(
   argumentos: string[],
   ambiente: Record<string, string | undefined>,
   terminal: CommandOutput,
-  abrirBanco: (ambiente: Record<string, string | undefined>) => CommandDatabase = abrirBancoDeOperacao,
+  abrirBanco: (ambiente: Record<string, string | undefined>) => CommandDatabase = openBancoDeOperacao,
 ): Promise<number> {
   try {
     if (argumentos.length > 0) throw new InvalidArgumentError('nenhum argumento')
-    const operador = lerOperador(ambiente)
-    const { banco, fechar } = abrirBanco(ambiente)
+    const operador = readOperador(ambiente)
+    const { banco, close: fechar } = abrirBanco(ambiente)
     try {
-      const jobs = await listarJobsQueFalharam(banco, autorDoComando(operador))
+      const jobs = await listJobsQueFalharam(banco, autorDoComando(operador))
       terminal.saida(`${JSON.stringify({ jobs: jobs.map(paraSaida) })}\n`)
       return 0
     } finally {
@@ -143,7 +143,7 @@ export async function executarOpsJobsQueFalharam(
 }
 
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  process.exitCode = await executarOpsJobsQueFalharam(process.argv.slice(2), process.env, {
+  process.exitCode = await runOpsJobsQueFalharam(process.argv.slice(2), process.env, {
     saida: (texto) => process.stdout.write(texto),
     erro: (texto) => process.stderr.write(texto),
   })

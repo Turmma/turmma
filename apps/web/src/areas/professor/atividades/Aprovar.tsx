@@ -3,7 +3,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tansta
 import { ArrowLeft } from 'lucide-react'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useSearch } from 'wouter'
-import { abrirDestaque, aprovarLote, correcaoDoLoteQueryOptions, recarregarDepoisDoLote } from './api/atividades'
+import { openDestaque, aprovarLote, correcaoDoLoteQueryOptions, recarregarDepoisDoLote } from './api/atividades'
 import { ApiError, errorMessage } from '../../../api/client'
 import { entregasQueryOptions, decidirEntrega } from '../artefatos/api/entregas'
 import { meusVinculosQueryOptions } from '../comum/api/vinculos'
@@ -161,7 +161,7 @@ export default function Aprovar({ atividadeAplicadaId }: { atividadeAplicadaId: 
   const doAberto = verId === undefined ? undefined : abertos[verId]
 
   const abrir = useMutation({
-    mutationFn: (alunoId: string) => abrirDestaque(atividadeAplicadaId, alunoId),
+    mutationFn: (alunoId: string) => openDestaque(atividadeAplicadaId, alunoId),
     onSuccess: (aberto) => {
       definirAbertos((atuais) => ({ ...atuais, [aberto.destaque.alunoId]: aberto }))
       // A abertura ficou registrada: a tela relê o lote, que traz a hora e libera o botão quando for a última. O painel não espera por isso.
@@ -174,7 +174,7 @@ export default function Aprovar({ atividadeAplicadaId }: { atividadeAplicadaId: 
   const lerAbertura = abrir.mutate
 
   /** Abre o destaque: registra a abertura (a primeira vez) e depois mostra o painel. O que já foi lido nesta tela não chama a API de novo. */
-  function abrirOuMostrar(alunoId: string): void {
+  function openOuMostrar(alunoId: string): void {
     // O destaque que o endereço já mostra não ganha outro passo no histórico (o "Tentar de novo" do painel cai aqui).
     const mostrar = () => (verId === alunoId ? undefined : navegar(enderecoDaCorrecao(caminho, busca, { ver: alunoId })))
     if (abertos[alunoId] !== undefined) return mostrar()
@@ -191,13 +191,13 @@ export default function Aprovar({ atividadeAplicadaId }: { atividadeAplicadaId: 
     lerAbertura(verId)
   }, [verId, abertos, lerAbertura])
 
-  const fecharPainel = (): void => navegar(enderecoDaCorrecao(caminho, busca, { ver: null }), { replace: true })
+  const closePainel = (): void => navegar(enderecoDaCorrecao(caminho, busca, { ver: null }), { replace: true })
   const trocarAba = (id: string): void => {
     const nova = ABAS_DA_CORRECAO.find((candidata) => candidata.id === id)
     if (nova !== undefined) navegar(enderecoDaCorrecao(caminho, busca, { aba: nova.id }), { replace: true })
   }
 
-  const fechar = () => definirDecisao(undefined)
+  const close = () => definirDecisao(undefined)
   const decidir = useMutation({
     mutationFn: async (escolha: 'aprovar' | 'rejeitar') => {
       if (dados === undefined) throw new ApiError(ErrorCode.ERRO_INTERNO)
@@ -208,7 +208,7 @@ export default function Aprovar({ atividadeAplicadaId }: { atividadeAplicadaId: 
       definirAviso('')
       // A tela relê o lote antes de o diálogo fechar: a barra de decisão já saiu, e o foco vai para a situação registrada.
       await recarregarDepoisDoLote(cliente)
-      fechar()
+      close()
     },
     onError: async (erro) => {
       if (!(erro instanceof ApiError)) return
@@ -218,7 +218,7 @@ export default function Aprovar({ atividadeAplicadaId }: { atividadeAplicadaId: 
       if (texto === undefined) return
       definirAviso(texto)
       await recarregarDepoisDoLote(cliente)
-      fechar()
+      close()
     },
     onSettled: () => {
       decidindo.current = false
@@ -257,7 +257,7 @@ export default function Aprovar({ atividadeAplicadaId }: { atividadeAplicadaId: 
   const problemaDaJustificativa = problemaDoTexto(justificativa, LIMITES_DA_JUSTIFICATIVA)
   const falha = decidir.isError && !(decidir.error instanceof ApiError && AVISO_DA_DECISAO[decidir.error.codigo] !== undefined) ? errorMessage(decidir.error) : undefined
 
-  function abrirDecisao(escolha: 'aprovar' | 'rejeitar'): void {
+  function openDecisao(escolha: 'aprovar' | 'rejeitar'): void {
     decidir.reset()
     definirJustificativa('')
     definirTentouRejeitar(false)
@@ -287,7 +287,7 @@ export default function Aprovar({ atividadeAplicadaId }: { atividadeAplicadaId: 
           titulo={destaque.nome}
           abaixo={`${motivosDoDestaque(destaque)} · ${acertosDoAluno(destaque)}`}
           fim={abrindo ? <StatusBadge familia="pendente">Abrindo…</StatusBadge> : estado.aberto ? <StatusBadge familia="ok">{estado.texto}</StatusBadge> : <StatusBadge familia="pendente">{estado.texto}</StatusBadge>}
-          {...(acionavel ? { aoAcionar: () => abrirOuMostrar(destaque.alunoId) } : {})}
+          {...(acionavel ? { aoAcionar: () => openOuMostrar(destaque.alunoId) } : {})}
         />
         {abrir.isError && abrir.variables === destaque.alunoId && doPainel?.alunoId !== destaque.alunoId && (
           <p role="alert" className="mx-4 mb-3 rounded-controle bg-erro-cx p-3 break-words text-erro">
@@ -411,18 +411,18 @@ export default function Aprovar({ atividadeAplicadaId }: { atividadeAplicadaId: 
             </span>
           }
         >
-          <Button variante="perigo" onClick={() => abrirDecisao('rejeitar')}>
+          <Button variante="perigo" onClick={() => openDecisao('rejeitar')}>
             {ROTULO_DE_REJEITAR_O_LOTE}
           </Button>
           {/* O contador diz por que o botão está desligado: o leitor de tela o lê junto do botão. */}
-          <Button variante="oficial" disabled={!dados.podeAprovar} aria-describedby={idDoContador} onClick={() => abrirDecisao('aprovar')}>
+          <Button variante="oficial" disabled={!dados.podeAprovar} aria-describedby={idDoContador} onClick={() => openDecisao('aprovar')}>
             {rotuloDeAprovar(resumo.corrigidos)}
           </Button>
         </StickyFooter>
       )}
 
       {doPainel !== undefined && (
-        <Sheet key={doPainel.alunoId} titulo={`Correção de ${doPainel.nome}`} aoFechar={fecharPainel} focoDeReserva={() => situacao.current?.focus()}>
+        <Sheet key={doPainel.alunoId} titulo={`Correção de ${doPainel.nome}`} aoFechar={closePainel} focoDeReserva={() => situacao.current?.focus()}>
           {doAberto !== undefined ? (
             <DestaqueAberto aberto={doAberto} />
           ) : abrir.isError && abrir.variables === doPainel.alunoId ? (
@@ -430,7 +430,7 @@ export default function Aprovar({ atividadeAplicadaId }: { atividadeAplicadaId: 
               <p role="alert" className="rounded-controle bg-erro-cx p-3 break-words text-erro">
                 {errorMessage(abrir.error)}
               </p>
-              <Button variante="secundario" onClick={() => abrirOuMostrar(doPainel.alunoId)}>
+              <Button variante="secundario" onClick={() => openOuMostrar(doPainel.alunoId)}>
                 Tentar de novo
               </Button>
             </div>
@@ -449,7 +449,7 @@ export default function Aprovar({ atividadeAplicadaId }: { atividadeAplicadaId: 
           rotuloDeConfirmar={rotuloDeAprovar(resumo.corrigidos)}
           rotuloConfirmando="Aprovando…"
           aoConfirmar={confirmar}
-          aoFechar={fechar}
+          aoFechar={close}
           confirmando={decidir.isPending}
           focoDeReserva={() => situacao.current?.focus()}
           {...(falha === undefined ? {} : { falha })}
@@ -464,7 +464,7 @@ export default function Aprovar({ atividadeAplicadaId }: { atividadeAplicadaId: 
           rotuloDeConfirmar={ROTULO_DE_REJEITAR_O_LOTE}
           rotuloConfirmando="Rejeitando…"
           aoConfirmar={confirmar}
-          aoFechar={fechar}
+          aoFechar={close}
           confirmando={decidir.isPending}
           focoDeReserva={() => situacao.current?.focus()}
           {...(falha === undefined ? {} : { falha })}

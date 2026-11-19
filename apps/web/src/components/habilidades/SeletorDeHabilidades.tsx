@@ -27,7 +27,7 @@ function semAcentoNemCaixa(texto: string): string {
 }
 
 /** As habilidades que têm **todas** as palavras do filtro no código ou no texto, sem acento nem caixa. Filtro vazio: todas, na ordem em que vieram. */
-export function filtrarHabilidades(itens: readonly HabilidadeCandidataBncc[], filtro: string): HabilidadeCandidataBncc[] {
+export function filterHabilidades(itens: readonly HabilidadeCandidataBncc[], filtro: string): HabilidadeCandidataBncc[] {
   const palavras = semAcentoNemCaixa(filtro)
     .split(/\s+/)
     .filter((palavra) => palavra !== '')
@@ -47,7 +47,7 @@ export interface EntradaDasLinhas {
 /** As linhas da lista: as escolhidas (sempre, no alto), depois as que o filtro acha, até o teto de linhas; `total` é quantas havia antes do corte. */
 export function linhasDoSeletor({ itens, filtro, selecionados }: EntradaDasLinhas): { readonly linhas: HabilidadeCandidataBncc[]; readonly total: number } {
   const escolhidas = itens.filter((item) => selecionados.includes(item.codigo))
-  const achadas = filtrarHabilidades(itens, filtro).filter((item) => !selecionados.includes(item.codigo))
+  const achadas = filterHabilidades(itens, filtro).filter((item) => !selecionados.includes(item.codigo))
   const todas = [...escolhidas, ...achadas]
   return { linhas: todas.slice(0, MAXIMO_DE_LINHAS_DO_SELETOR), total: todas.length }
 }

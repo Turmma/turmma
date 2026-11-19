@@ -30,7 +30,7 @@ export const LOTE_DA_VARREDURA = 500
 /**
  * Quantas falhas de storage seguidas, sem nenhum alvo que passou no meio, e em **pelo menos duas escolas**, dizem que o storage está fora do ar e não
  * uma chave com defeito. O `S3FileStorage` transforma toda falha do `DeleteObject` (403 numa chave, 5xx, prazo do SDK) em `FileStorageUnavailableError`, e o
- * `apagarComPrazo` faz o mesmo no prazo de 10 s: uma chave que falha sempre, ou um `apagar` que passa sempre do prazo, é o alvo que volta primeiro a cada
+ * `deleteComPrazo` faz o mesmo no prazo de 10 s: uma chave que falha sempre, ou um `apagar` que passa sempre do prazo, é o alvo que volta primeiro a cada
  * hora, e parar a varredura nele deixaria o PDF das outras escolas no storage para sempre. Falha em uma escola só, por mais seguida que seja, nunca para a execução.
  */
 export const FALHAS_SEGUIDAS_DO_STORAGE_FORA = 3
@@ -39,7 +39,7 @@ export const PRAZO_DO_APAGAR_DA_VARREDURA_MS = 10_000
 
 export interface VarreduraDeTemporariosDependencies {
   banco: Database
-  armazem: Pick<FileStorage, 'apagar'>
+  armazem: Pick<FileStorage, 'delete'>
   relogio: Clock
   logger: LoggerBase
   /** Alvos por leitura e prazo de cada `apagar`. Só o teste troca. */
@@ -51,7 +51,7 @@ export interface VarreduraDeTemporariosDependencies {
  * `apagar` com prazo: o armazém que não responde não segura a trava da linha nem o job. Estourado, falha como o armazém fora do ar. Se o `sinal` do
  * job aborta (o prazo dele, ou o desligamento além da graça), rejeita na hora, e a transação que segura a linha desfaz e solta a conexão.
  */
-async function apagarComPrazo(armazem: Pick<FileStorage, 'apagar'>, chave: string, prazoMs: number, sinal: AbortSignal): Promise<void> {
+async function deleteComPrazo(armazem: Pick<FileStorage, 'delete'>, chave: string, prazoMs: number, sinal: AbortSignal): Promise<void> {
   let relogio: NodeJS.Timeout | undefined
   let aoAbortar: (() => void) | undefined
   const interrompido = new Promise<never>((_, rejeitar) => {
@@ -61,7 +61,7 @@ async function apagarComPrazo(armazem: Pick<FileStorage, 'apagar'>, chave: strin
     else sinal.addEventListener('abort', aoAbortar, { once: true })
   })
   try {
-    await Promise.race([armazem.apagar(chave), interrompido])
+    await Promise.race([armazem.delete(chave), interrompido])
   } finally {
     clearTimeout(relogio)
     if (aoAbortar) sinal.removeEventListener('abort', aoAbortar)
@@ -111,7 +111,7 @@ function comoTerminou(sinal: AbortSignal, andamento: Andamento): 'cortada' | 'st
  * uma escola só nunca conta como storage fora, e o alvo que passa zera a conta. Tolera reexecução e duas réplicas ao mesmo tempo (D49). Loga só ids e
  * contagens, nunca título, arquivo, licenciante nem a chave do objeto.
  */
-export function criarVarreduraDeTemporarios({
+export function createVarreduraDeTemporarios({
   banco,
   armazem,
   relogio,
@@ -162,9 +162,9 @@ export function criarVarreduraDeTemporarios({
         const apagou = await naEscola(alvo, () =>
           banco.transaction(async (tx) => {
             const envios = new EnvioDeMaterialRepository(tx)
-            if (!(await envios.travarParada(alvo.materialId, linhasAntesDe))) return false
-            await apagarComPrazo(armazem, chaveDoTemporario(alvo.materialId), prazoDoApagarMs, sinal)
-            await envios.apagar(alvo.materialId)
+            if (!(await envios.lockParada(alvo.materialId, linhasAntesDe))) return false
+            await deleteComPrazo(armazem, chaveDoTemporario(alvo.materialId), prazoDoApagarMs, sinal)
+            await envios.delete(alvo.materialId)
             return true
           }),
         )
@@ -178,7 +178,7 @@ export function criarVarreduraDeTemporarios({
       'objeto',
       async (alvo) => {
         await naEscola(alvo, async () => {
-          await apagarComPrazo(armazem, chaveDoTemporario(alvo.materialId), prazoDoApagarMs, sinal)
+          await deleteComPrazo(armazem, chaveDoTemporario(alvo.materialId), prazoDoApagarMs, sinal)
           await new ExtracaoDoMaterialRepository(banco).marcarObjetoApagado(alvo.materialId)
         })
         andamento.objetosApagadosTotal += 1

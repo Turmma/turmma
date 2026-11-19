@@ -69,8 +69,8 @@ describe('ataque de senha nunca bloqueia a escola: rebaixa, por IP e escola, e q
   let api: TestApi
   let semaforo: HashBulkhead
   let hash: PasswordHasher
-  let verificacoes: MockInstance<PasswordHasher['verificar']>
-  let verificarReal: PasswordHasher['verificar']
+  let verificacoes: MockInstance<PasswordHasher['verify']>
+  let verificarReal: PasswordHasher['verify']
   let hashDaSenha: string
   /** Tudo que identifica pessoa, origem ou navegador e passou pelo login: nada disso vira rótulo, log ou linha no banco. */
   const naoPodemAparecer = new Set<string>()
@@ -80,10 +80,10 @@ describe('ataque de senha nunca bloqueia a escola: rebaixa, por IP e escola, e q
     api = await subirApi(medidor.medidor, { ambiente: AMBIENTE_DO_ATAQUE }, linhasDeLog)
     semaforo = api.app.get(HashBulkhead)
     hash = api.app.get(PasswordHasher)
-    verificarReal = hash.verificar.bind(hash)
-    verificacoes = vi.spyOn(hash, 'verificar')
+    verificarReal = hash.verify.bind(hash)
+    verificacoes = vi.spyOn(hash, 'verify')
     await clientePronto(api.app.get<Redis>(REDIS_LOGIN_CLIENT, { strict: false }))
-    hashDaSenha = await hash.gerar(SENHA)
+    hashDaSenha = await hash.generate(SENHA)
   })
 
   /** O hash segurado que o teste ainda não soltou: se ele quebrar no meio, o `afterEach` solta, e a API fecha. */
@@ -151,7 +151,7 @@ describe('ataque de senha nunca bloqueia a escola: rebaixa, por IP e escola, e q
 
   /** Um aluno com senha própria: a ordem em que o semáforo atende é lida pela senha que chega ao hash. */
   async function alunoComSenha(escolaId: string, senha: string): Promise<string> {
-    const [matricula] = await alunos(escolaId, 1, await hash.gerar(senha))
+    const [matricula] = await alunos(escolaId, 1, await hash.generate(senha))
     if (matricula === undefined) throw new Error('aluno não criado')
     return matricula
   }
@@ -537,7 +537,7 @@ describe('ataque de senha nunca bloqueia a escola: rebaixa, por IP e escola, e q
 
   it('falhas: o 503 do semáforo não conta como falha, nem para o IP na escola; a conta segurada (429) conta; e o endereço que não existe conta em `desconhecida` e não rebaixa ninguém', async () => {
     const janela = api.app.get(WindowCounter)
-    const falhasDoIp = async (escolaId: string, ip: string) => (await janela.ler(janela.chaveDe(PREFIXO_FALHAS_POR_IP_NA_ESCOLA, `${escolaId}|${ip}`))).valor
+    const falhasDoIp = async (escolaId: string, ip: string) => (await janela.read(janela.chaveDe(PREFIXO_FALHAS_POR_IP_NA_ESCOLA, `${escolaId}|${ip}`))).valor
     const f = await escola()
     const [aluno] = await alunos(f.escolaId, 1)
     const ip = ipSorteado()
@@ -587,7 +587,7 @@ describe('ataque de senha nunca bloqueia a escola: rebaixa, por IP e escola, e q
       const desafio = await verifyChallenge(await new ChallengeIssuer(chave).emitir({ contaId: randomUUID(), etapa: 'mfa', mfaCumprido: false }), chave, ['mfa'])
       const travado = await travarRedis(testConfig().redisFilaUrl, 3_000)
       const comecou = performance.now()
-      await expect(instancia.app.get(ChallengeConsumer).consumir(desafio)).rejects.toMatchObject({ codigo: ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, status: 503 })
+      await expect(instancia.app.get(ChallengeConsumer).consume(desafio)).rejects.toMatchObject({ codigo: ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, status: 503 })
       // O corte é curto, e é isso que separa esta montagem da do compose: com o prazo da fila chegando até aqui, a
       // recusa só viria depois de 2 s, e a asserção acima continuaria verde sem provar nada.
       expect(performance.now() - comecou).toBeLessThan(TIMEOUT_COMANDO_REDIS_FILA_MS / 2)

@@ -12,8 +12,8 @@ export interface ReivindicacaoDependencies {
   readonly banco: Database
   readonly acessoDaSala: Pick<AcessoDaSala, 'naSala'>
   /** O semáforo do hash do login, um só por instância: o teto que ele guarda é o das threads do processo. */
-  readonly semaforo: Pick<HashBulkhead, 'executar'>
-  readonly hash: Pick<PasswordHasher, 'gerar'>
+  readonly semaforo: Pick<HashBulkhead, 'run'>
+  readonly hash: Pick<PasswordHasher, 'generate'>
   readonly chaveCodigo: Uint8Array
   /** Os três contadores da sala (7.0): o do código errado vai ao `AcessoDaSala`, o do nome e o da turma rodam aqui. */
   readonly limites: Pick<SalaRateLimits, 'antesDaBusca' | 'codigoErrado' | 'antesDoHash' | 'teveMatriculaErrada' | 'hashSemPedido'>
@@ -116,7 +116,7 @@ export class ReivindicacaoService {
   /** O argon2id da senha no semáforo, no balde da escola; sem senha (o pedido com a conta), nenhum hash. */
   async #hashDaSenha(senha: string | undefined, escolaId: string, rebaixado: boolean): Promise<string | null> {
     if (senha === undefined) return null
-    return this.dependencias.semaforo.executar(escolaBucket(escolaId, rebaixado), () => this.dependencias.hash.gerar(senha))
+    return this.dependencias.semaforo.run(escolaBucket(escolaId, rebaixado), () => this.dependencias.hash.generate(senha))
   }
 
   async #reivindicar(pedido: ReivindicarSalaRequest, provada: ContaProvada | undefined): Promise<Desfecho> {
@@ -137,8 +137,8 @@ export class ReivindicacaoService {
         const teveMatriculaErrada = await limites.teveMatriculaErrada(nome)
         try {
           await banco.transaction(async (tx) => {
-            if (!(await new TurmaRepository(tx).travarAnoEmCurso())) throw new NotWrittenError()
-            await new ReivindicacaoRepository(tx).inserirPendente({ turmaId, listaNomeId, chaveEnvio, senhaHash, contaExterna, teveMatriculaErrada })
+            if (!(await new TurmaRepository(tx).lockAnoEmCurso())) throw new NotWrittenError()
+            await new ReivindicacaoRepository(tx).insertPendente({ turmaId, listaNomeId, chaveEnvio, senhaHash, contaExterna, teveMatriculaErrada })
             if (!(await new ListaLivreRepository(tx).tomar({ turmaId, listaNomeId, matricula }))) throw new NotWrittenError()
           })
         } catch (erro) {

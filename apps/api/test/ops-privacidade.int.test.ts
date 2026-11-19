@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { lerAmbienteDeTeste } from '../../../tools/ci/compose.ts'
-import { executarOpsPrivacidade } from '../src/ops/privacidade.js'
+import { runOpsPrivacidade } from '../src/ops/privacidade.js'
 import { SessaoFixtures } from './sessao.fixture.js'
 
 /**
@@ -28,7 +28,7 @@ async function rodar(argumentos: string[], operador: string | null = OPERADOR): 
   let saida = ''
   let erro = ''
   const ambiente = { ...ambienteBase, OPERADOR: operador ?? undefined }
-  const codigo = await executarOpsPrivacidade(argumentos, ambiente, { saida: (texto) => (saida += texto), erro: (texto) => (erro += texto) })
+  const codigo = await runOpsPrivacidade(argumentos, ambiente, { saida: (texto) => (saida += texto), erro: (texto) => (erro += texto) })
   return { codigo, saida, erro }
 }
 

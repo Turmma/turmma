@@ -1,8 +1,8 @@
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { InvalidArgumentError } from './command.js'
-import { executarOpsConviteCoordenador, lerPedidoDoConvite } from './convite-coordenador.js'
-import { executarOpsRevogarConvite, lerConviteARevogar } from './revogar-convite.js'
+import { runOpsConviteCoordenador, readPedidoDoConvite } from './convite-coordenador.js'
+import { runOpsRevogarConvite, readConviteARevogar } from './revogar-convite.js'
 
 const EMAIL = 'Renata.Coordenadora@Escola.Invalid'
 const NOME = 'Renata Sintética'
@@ -16,7 +16,7 @@ function trocar(opcao: string, valor: string): string[] {
 
 describe('ops:convite-coordenador: leitura do pedido', () => {
   it('vira o pedido, com o e-mail em minúsculas e a saída em caminho absoluto', () => {
-    expect(lerPedidoDoConvite(validos)).toEqual({ slug: 'colegio-horizonte', email: 'renata.coordenadora@escola.invalid', nome: NOME, saida: resolve('convite.txt') })
+    expect(readPedidoDoConvite(validos)).toEqual({ slug: 'colegio-horizonte', email: 'renata.coordenadora@escola.invalid', nome: NOME, saida: resolve('convite.txt') })
   })
 
   it.each([
@@ -27,13 +27,13 @@ describe('ops:convite-coordenador: leitura do pedido', () => {
     ['saída vazia', trocar('--saida', ' '), '--saida'],
     ['sem saída', validos.slice(0, 6), '--saida'],
   ])('%s é recusado pelo nome da opção, sem o valor', (_caso, argumentos, opcao) => {
-    const pedido = () => lerPedidoDoConvite(argumentos)
+    const pedido = () => readPedidoDoConvite(argumentos)
     expect(pedido).toThrow(new InvalidArgumentError(opcao))
     for (const valor of argumentos.filter((argumento) => !argumento.startsWith('--') && argumento.trim().length > 2)) expect(pedido).not.toThrow(valor)
   })
 
   it('opção desconhecida é recusada sem repetir o que veio', () => {
-    const pedido = () => lerPedidoDoConvite([...validos, '--token', 'valor-secreto'])
+    const pedido = () => readPedidoDoConvite([...validos, '--token', 'valor-secreto'])
     expect(pedido).toThrow(InvalidArgumentError)
     expect(pedido).not.toThrow('valor-secreto')
   })
@@ -42,7 +42,7 @@ describe('ops:convite-coordenador: leitura do pedido', () => {
     let saida = ''
     let erro = ''
     let abriu = false
-    const codigo = await executarOpsConviteCoordenador(
+    const codigo = await runOpsConviteCoordenador(
       trocar('--saida', '/caminho/que/nao/existe/convite.txt'),
       {},
       { saida: (texto) => (saida += texto), erro: (texto) => (erro += texto) },
@@ -61,12 +61,12 @@ describe('ops:convite-coordenador: leitura do pedido', () => {
 
 describe('ops:revogar-convite: leitura do pedido', () => {
   it('aceita só o uuid do convite, em minúsculas', () => {
-    expect(lerConviteARevogar(['--convite', '0190F5A0-0000-7000-8000-0000000000E1'])).toBe('0190f5a0-0000-7000-8000-0000000000e1')
+    expect(readConviteARevogar(['--convite', '0190F5A0-0000-7000-8000-0000000000E1'])).toBe('0190f5a0-0000-7000-8000-0000000000e1')
   })
 
   it.each([[['--convite', 'colegio-horizonte']], [[]], [['--convite', '0190f5a0-0000-7000-8000-0000000000e1', '--escola', 'x']]])('%j é recusado com 2, sem abrir o banco', async (argumentos) => {
     let erro = ''
-    const codigo = await executarOpsRevogarConvite(argumentos, { OPERADOR: 'operador-teste' }, { saida: () => undefined, erro: (texto) => (erro += texto) }, () => {
+    const codigo = await runOpsRevogarConvite(argumentos, { OPERADOR: 'operador-teste' }, { saida: () => undefined, erro: (texto) => (erro += texto) }, () => {
       throw new Error('não deveria abrir o banco')
     })
     expect(codigo).toBe(2)

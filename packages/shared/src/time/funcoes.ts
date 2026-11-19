@@ -93,6 +93,6 @@ export const FUNCOES = {
 export type ChaveDeFuncao = keyof typeof FUNCOES
 export const CHAVES_DE_FUNCAO = Object.keys(FUNCOES) as ChaveDeFuncao[]
 
-export function ehChaveDeFuncao(valor: string): valor is ChaveDeFuncao {
+export function isChaveDeFuncao(valor: string): valor is ChaveDeFuncao {
   return Object.hasOwn(FUNCOES, valor)
 }

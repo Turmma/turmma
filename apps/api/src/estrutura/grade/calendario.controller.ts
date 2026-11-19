@@ -14,7 +14,7 @@ export class CalendarioController {
 
   @Get('calendario')
   @RequirePermissao('calendario', 'ler')
-  ler(@Query(new ZodValidationPipe(calendarioQuerySchema)) consulta: CalendarioQuery): Promise<CalendarioResponse> {
-    return this.calendario.ler(consulta)
+  read(@Query(new ZodValidationPipe(calendarioQuerySchema)) consulta: CalendarioQuery): Promise<CalendarioResponse> {
+    return this.calendario.read(consulta)
   }
 }

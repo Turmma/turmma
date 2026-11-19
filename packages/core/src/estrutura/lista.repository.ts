@@ -88,7 +88,7 @@ const matriculaDoIndice = sql<string>`btrim(${listaNome.matricula})`
  * A lista de nomes da escola do contexto no ano letivo em curso dela, e só dela (A1, 2.0; regra 10, itens 2 e 3): escola
  * e ano vêm do contexto que a `SessaoGuard` gravou, nunca de argumento. Sem ano em curso, `requireAnoEmCurso` falha
  * fechado com `NAO_ENCONTRADO` antes de qualquer consulta. A turma de cada escrita já foi conferida pelo service
- * (`TurmaRepository.travarContraExclusao`), e a FK composta `(escola_id, ano_letivo_id, turma_id)` é a segunda camada.
+ * (`TurmaRepository.lockContraExclusao`), e a FK composta `(escola_id, ano_letivo_id, turma_id)` é a segunda camada.
  *
  * O nome e a matrícula nunca saem daqui para log: só para a resposta da coordenação.
  */
@@ -235,7 +235,7 @@ export class ListaRepository {
   /**
    * Passa de turma, em lote, a linha `aprovado` de cada aluno (F2, 9.0): ela guarda só o estado e o usuário, e acompanha o aluno à
    * turma nova (a lista da turma e a virada do ano a leem). Condicional à turma que a planilha leu; menos linhas mudadas que pedidas é
-   * diferença. O usuário foi travado antes (`travarUsuarios`). Só aceita ano já conferido na escola (o do motor), nunca um id vindo do cliente.
+   * diferença. O usuário foi travado antes (`lockUsuarios`). Só aceita ano já conferido na escola (o do motor), nunca um id vindo do cliente.
    */
   async transferirAprovados(anoLetivoId: string, transferencias: readonly TransferenciaDeAprovado[]): Promise<number> {
     if (transferencias.length === 0) return 0
@@ -272,7 +272,7 @@ export class ListaRepository {
    * deixa (check `lista_nome_aprovado_sem_nome`), com quem gravou a planilha como autora. É ela que a reimportação seguinte lê para
    * corrigir, transferir ou desligar o aluno no ano. Sem `on conflict`: a matrícula nula não colide, e o vínculo único é o do `vinculo`.
    */
-  async inserirAprovados(anoLetivoId: string, criadoPor: string, alunos: ReadonlyArray<{ readonly usuarioId: string; readonly turmaId: string }>): Promise<void> {
+  async insertAprovados(anoLetivoId: string, criadoPor: string, alunos: ReadonlyArray<{ readonly usuarioId: string; readonly turmaId: string }>): Promise<void> {
     if (alunos.length === 0) return
     const escolaId = requireEscolaId()
     await this.banco.insert(listaNome).values(alunos.map(({ usuarioId, turmaId }) => ({ escolaId, anoLetivoId, turmaId, estado: 'aprovado' as const, usuarioId, criadoPor })))
@@ -283,7 +283,7 @@ export class ListaRepository {
    * matrícula que entrou na lista entre a prévia e a gravação viola o índice único (23505), e o motor fecha a importação
    * `desatualizada` com a transação desfeita.
    */
-  async inserirNoAno(anoLetivoId: string, criadoPor: string, nomes: ReadonlyArray<NomeNovo & { readonly turmaId: string }>): Promise<void> {
+  async insertNoAno(anoLetivoId: string, criadoPor: string, nomes: ReadonlyArray<NomeNovo & { readonly turmaId: string }>): Promise<void> {
     if (nomes.length === 0) return
     const escolaId = requireEscolaId()
     await this.banco.insert(listaNome).values(nomes.map(({ turmaId, nome, matricula }) => ({ escolaId, anoLetivoId, turmaId, nome, matricula, criadoPor })))
@@ -293,7 +293,7 @@ export class ListaRepository {
    * Grava um nome avulso na turma, `livre`. A matrícula que já está na lista da escola neste ano é barrada pelo índice
    * único (23505), que o filtro global traduz em `CONFLITO`, e a transação de quem chamou volta atrás inteira.
    */
-  async inserir(turmaId: string, { nome, matricula }: NomeNovo): Promise<NomeDaLista> {
+  async insert(turmaId: string, { nome, matricula }: NomeNovo): Promise<NomeDaLista> {
     const [criado] = await this.banco
       .insert(listaNome)
       .values({ escolaId: requireEscolaId(), anoLetivoId: requireAnoEmCurso(), turmaId, nome, matricula, criadoPor: requestSessao().usuarioId })

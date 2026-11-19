@@ -20,7 +20,7 @@ describe('@SemEscopo', () => {
 
   it('só as consultas da fila inteira do despachante saem sem escopo, e cada uma diz por quê', () => {
     const semEscopo = metodosDe(DispatchRepository).filter((metodo) => unscopedJustification(DispatchRepository, metodo) !== undefined)
-    expect(semEscopo.sort()).toEqual(['listarEscolasComPendentes', 'listarParaReconciliar', 'medirFalhos', 'medirPendentes', 'registrarFalhaDaFila', 'reservarParaRepublicar'])
+    expect(semEscopo.sort()).toEqual(['listEscolasComPendentes', 'listParaReconciliar', 'medirFalhos', 'medirPendentes', 'registrarFalhaDaFila', 'reservarParaRepublicar'])
     for (const metodo of semEscopo) expect(unscopedJustification(DispatchRepository, metodo), metodo).toMatch(/despachante/)
     // A medição é só leitura para a observabilidade: diz que nada dela chega a resposta de escola.
     expect(unscopedJustification(DispatchRepository, 'medirPendentes')).toMatch(/observabilidade local/)
@@ -38,12 +38,12 @@ describe('@SemEscopo', () => {
       metodosDe(classe)
         .filter((metodo) => unscopedJustification(classe as abstract new (...argumentos: never[]) => unknown, metodo) !== undefined)
         .sort()
-    expect(marcados(UsageMeter)).toEqual(['lerDiasFechados'])
-    expect(marcados(ExpurgoDeJobsRepository)).toEqual(['apagarLoteVencido'])
-    expect(marcados(ExpurgoDeAcessoRepository)).toEqual(['apagarLoteVencido', 'fecharEnviosDeLinkParados', 'limparLoteDeContasSemUso'])
-    for (const metodo of ['apagarLoteVencido', 'fecharEnviosDeLinkParados', 'limparLoteDeContasSemUso']) expect(unscopedJustification(ExpurgoDeAcessoRepository, metodo), metodo).toMatch(/expurgo/)
+    expect(marcados(UsageMeter)).toEqual(['readDiasFechados'])
+    expect(marcados(ExpurgoDeJobsRepository)).toEqual(['deleteLoteVencido'])
+    expect(marcados(ExpurgoDeAcessoRepository)).toEqual(['clearLoteDeContasSemUso', 'closeEnviosDeLinkParados', 'deleteLoteVencido'])
+    for (const metodo of ['deleteLoteVencido', 'closeEnviosDeLinkParados', 'clearLoteDeContasSemUso']) expect(unscopedJustification(ExpurgoDeAcessoRepository, metodo), metodo).toMatch(/expurgo/)
     expect(marcados(UsageRepository)).toEqual([])
-    expect(unscopedJustification(UsageMeter, 'lerDiasFechados')).toMatch(/consolidação/)
-    expect(unscopedJustification(ExpurgoDeJobsRepository, 'apagarLoteVencido')).toMatch(/expurgo/)
+    expect(unscopedJustification(UsageMeter, 'readDiasFechados')).toMatch(/consolidação/)
+    expect(unscopedJustification(ExpurgoDeJobsRepository, 'deleteLoteVencido')).toMatch(/expurgo/)
   })
 })

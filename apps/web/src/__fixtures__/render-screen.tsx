@@ -3,7 +3,7 @@ import { cleanup, render, type RenderResult } from '@testing-library/react'
 import type { ReactElement } from 'react'
 import { afterEach, beforeAll, vi } from 'vitest'
 import { createQueryClient } from '../api/query-client'
-import { abrirSessaoPeloCookie } from '../api/sessao'
+import { openSessaoPeloCookie } from '../api/sessao'
 
 /**
  * O que o teste de componente da web usa (correção `2026-10-12-teste-de-componente`). O arquivo de teste declara o ambiente
@@ -97,7 +97,7 @@ export function setupScreen(): void {
       'fetch',
       vi.fn(async () => new Response(JSON.stringify({ token: TEST_TOKEN, expiraEm: new Date(Date.now() + 600_000).toISOString() }), { status: 200 })),
     )
-    await abrirSessaoPeloCookie()
+    await openSessaoPeloCookie()
     vi.unstubAllGlobals()
   })
   afterEach(() => {

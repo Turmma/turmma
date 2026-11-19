@@ -139,7 +139,7 @@ export function errosDoRascunho(rascunho: RascunhoDoEnvio, itens: readonly Pick<
 }
 
 /** Há algum erro no formulário, em campo ou em título? */
-export function temErro(erros: ReturnType<typeof errosDoRascunho>): boolean {
+export function hasErro(erros: ReturnType<typeof errosDoRascunho>): boolean {
   return erros.titulos.size > 0 || CAMPOS_DO_ENVIO.some((campo) => campo !== 'titulo' && erros[campo] !== undefined)
 }
 
@@ -183,7 +183,7 @@ const ASSINATURA_DO_PDF = [0x25, 0x50, 0x44, 0x46, 0x2d]
 export const BYTES_DA_ASSINATURA = 1024
 
 /** O começo do arquivo tem a assinatura de PDF (`%PDF-`)? Confere o conteúdo, e não o nome nem o tipo. */
-export function temAssinaturaDePdf(comeco: Uint8Array): boolean {
+export function hasAssinaturaDePdf(comeco: Uint8Array): boolean {
   for (let inicio = 0; inicio + ASSINATURA_DO_PDF.length <= comeco.length; inicio += 1) {
     if (ASSINATURA_DO_PDF.every((byte, indice) => comeco[inicio + indice] === byte)) return true
   }
@@ -195,7 +195,7 @@ const MEGABYTES_DO_MAXIMO = MAXIMO_DE_BYTES_DO_MATERIAL / (1024 * 1024)
 /** O que há de errado com o arquivo escolhido, dizendo o que fazer, ou `undefined` se ele pode ser enviado. */
 export function problemaDoArquivo(tamanho: number, comeco: Uint8Array): string | undefined {
   if (tamanho > MAXIMO_DE_BYTES_DO_MATERIAL) return `O arquivo passa de ${String(MEGABYTES_DO_MAXIMO)} MB. Divida o material em capítulos e envie um por vez.`
-  if (tamanho === 0 || !temAssinaturaDePdf(comeco)) return MENSAGEM_DA_FALHA_DE_MATERIAL.arquivo_invalido
+  if (tamanho === 0 || !hasAssinaturaDePdf(comeco)) return MENSAGEM_DA_FALHA_DE_MATERIAL.arquivo_invalido
   return undefined
 }
 

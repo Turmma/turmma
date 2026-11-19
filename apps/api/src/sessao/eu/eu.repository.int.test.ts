@@ -44,12 +44,12 @@ describe('repositories do login com escopo: a escola vem do contexto', () => {
   it('isolamento: o registro de acesso do login grava na escola do contexto, e sem escola no contexto não grava', async () => {
     const professor = await bancada.escolaComSessao('professor')
     await runInContext({ requisicaoId: randomUUID(), escolaId: professor.escolaId }, () =>
-      bancada.banco.transaction((tx) => new RegistroDeAcessoRepository(tx).gravar('login', professor.usuarioId, '10.1.2.3')),
+      bancada.banco.transaction((tx) => new RegistroDeAcessoRepository(tx).save('login', professor.usuarioId, '10.1.2.3')),
     )
     const { rows } = await bancada.pool.query<{ escola_id: string; evento: string; ip: string }>('select escola_id, evento, host(ip) as ip from registro_acesso where usuario_id = $1', [professor.usuarioId])
     expect(rows).toEqual([{ escola_id: professor.escolaId, evento: 'login', ip: '10.1.2.3' }])
     await expect(
-      runInContext({ requisicaoId: randomUUID() }, () => bancada.banco.transaction((tx) => new RegistroDeAcessoRepository(tx).gravar('login', professor.usuarioId, '10.1.2.3'))),
+      runInContext({ requisicaoId: randomUUID() }, () => bancada.banco.transaction((tx) => new RegistroDeAcessoRepository(tx).save('login', professor.usuarioId, '10.1.2.3'))),
     ).rejects.toThrow('consulta com escopo sem escola no contexto')
   })
 })

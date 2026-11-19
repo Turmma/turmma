@@ -6,7 +6,7 @@ import {
   atualizaSozinha,
   INTERVALO_DA_ATUALIZACAO_MS,
   pedidosQueContinuam,
-  podeMarcarMais,
+  canMarcarMais,
   quantosNovos,
   semOsDecididos,
   type BrowserTab,
@@ -173,8 +173,8 @@ describe('W6: até 40 pedidos por decisão', () => {
 
   it('o limite é o do contrato: 40', () => {
     expect(MAXIMO_DE_PEDIDOS_POR_DECISAO).toBe(40)
-    expect(podeMarcarMais(39)).toBe(true)
-    expect(podeMarcarMais(40)).toBe(false)
+    expect(canMarcarMais(39)).toBe(true)
+    expect(canMarcarMais(40)).toBe(false)
   })
 
   it('marca o que não estava e desmarca o que estava', () => {

@@ -21,7 +21,7 @@ export const OPERACAO_IDENTITY = Symbol('OPERACAO_IDENTITY')
 /** A leitura e a marcação da sessão de operador que a guarda faz: o `OperadorRepository`; o teste conta as chamadas. */
 export const OPERADOR_SESSIONS = Symbol('OPERADOR_SESSIONS')
 
-export type OperadorSessionReader = Pick<OperadorRepository, 'lerSessaoParaGuarda' | 'marcarUsoDaSessao'>
+export type OperadorSessionReader = Pick<OperadorRepository, 'findSessaoParaGuarda' | 'marcarUsoDaSessao'>
 
 /**
  * Os provedores que a `OperadorGuard` pede. O `OperacaoModule` os registra; um módulo de teste com rota
@@ -70,7 +70,7 @@ export class OperadorGuard implements CanActivate {
 
     let linha: SessaoDeOperadorForGuard | undefined
     try {
-      linha = await this.sessoes.lerSessaoParaGuarda(token.sessaoId, token.operadorId)
+      linha = await this.sessoes.findSessaoParaGuarda(token.sessaoId, token.operadorId)
       if (sessaoDeOperadorVale(linha) && !token.vencido) await this.sessoes.marcarUsoDaSessao(token.sessaoId, token.operadorId)
     } catch {
       // Nada do erro vai ao log: nem a consulta nem a mensagem (regra 20, item 9).

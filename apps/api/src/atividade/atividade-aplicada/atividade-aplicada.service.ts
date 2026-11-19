@@ -65,11 +65,11 @@ export class AtividadeAplicadaService {
       const aplicacoes = new AtividadeAplicadaRepository(tx)
       const alvo = await aplicacoes.artefatoParaAplicar(artefatoId)
       // O artefato fora do alcance e a turma sem vínculo na disciplina dele respondem igual: nenhum confirma o outro.
-      if (alvo === undefined || !(await aplicacoes.podeAplicarNaTurma(turmaId, alvo.disciplinaId))) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+      if (alvo === undefined || !(await aplicacoes.canAplicarNaTurma(turmaId, alvo.disciplinaId))) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       if (alvo.tipo !== 'atividade_objetiva') throw new DomainException(ErrorCode.ENTRADA_INVALIDA)
       if (alvo.versaoAdaptada && alvo.entregaEstado !== 'aprovada') throw new DomainException(ErrorCode.VERSAO_ADAPTADA_NAO_APROVADA)
-      const id = await aplicacoes.criar({ turmaId, artefatoId, avaliativa: pedido.avaliativa })
-      await registro.gravar(tx, 'atividade.aplicada', { entidadeId: id, depois: { artefatoId, turmaId, avaliativa: pedido.avaliativa, versaoAdaptada: alvo.versaoAdaptada } })
+      const id = await aplicacoes.create({ turmaId, artefatoId, avaliativa: pedido.avaliativa })
+      await registro.save(tx, 'atividade.aplicada', { entidadeId: id, depois: { artefatoId, turmaId, avaliativa: pedido.avaliativa, versaoAdaptada: alvo.versaoAdaptada } })
       const lida = await aplicacoes.porId(id)
       if (lida === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       return lida
@@ -77,8 +77,8 @@ export class AtividadeAplicadaService {
     return atividadeAplicadaResponseSchema.parse(paraATela(criada))
   }
 
-  async listar(consulta: AtividadesAplicadasQuery): Promise<ListaDeAtividadesAplicadasResponse> {
-    const linhas = await new AtividadeAplicadaRepository(this.banco).listar({ ...consulta, turmaId: consulta.turmaId.toLowerCase() })
+  async list(consulta: AtividadesAplicadasQuery): Promise<ListaDeAtividadesAplicadasResponse> {
+    const linhas = await new AtividadeAplicadaRepository(this.banco).list({ ...consulta, turmaId: consulta.turmaId.toLowerCase() })
     const { itens, proxima } = paginar(linhas, consulta.limite)
     return listaDeAtividadesAplicadasResponseSchema.parse({ itens: itens.map(paraATela), ...(proxima === undefined ? {} : { proxima }) })
   }
@@ -86,7 +86,7 @@ export class AtividadeAplicadaService {
   async encerrar(id: string): Promise<AtividadeEncerradaResponse> {
     const encerrada = await this.banco.transaction(async (tx) => {
       const aplicacoes = new AtividadeAplicadaRepository(tx)
-      const travada = await aplicacoes.travar(id)
+      const travada = await aplicacoes.lock(id)
       if (travada === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       if (travada.estado === 'aberta') await aplicacoes.encerrar(id)
       await this.#corrigir(tx, travada)
@@ -116,7 +116,7 @@ export class AtividadeAplicadaService {
    */
   async #corrigir(tx: DatabaseTransaction, aplicacao: AplicacaoTravada): Promise<void> {
     const correcoes = new CorrecaoRepository(tx)
-    if (await correcoes.temLoteVigente(aplicacao.id)) return
+    if (await correcoes.hasLoteVigente(aplicacao.id)) return
     if (await this.#suspensa()) return
     const respostas = await correcoes.respostasPorAluno(aplicacao.id)
     if (respostas.size === 0) return
@@ -132,6 +132,6 @@ export class AtividadeAplicadaService {
       const correcao = corrigirTentativa(questoes, marcadas)
       return { alunoId, ...correcao, destaques: destaquesDaTentativa({ questoes, respostas: marcadas, correcao, historico: historico.get(alunoId), lote }) }
     })
-    await correcoes.criarLote(aplicacao, novas)
+    await correcoes.createLote(aplicacao, novas)
   }
 }

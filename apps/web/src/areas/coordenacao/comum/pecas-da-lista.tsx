@@ -18,7 +18,7 @@ export function ListRow({ titulo, detalhe, children }: { titulo: string; detalhe
   )
 }
 
-/** "Mostrando os primeiros 1.000": a lista passou do teto de páginas que a tela lê (`lerPaginas`). */
+/** "Mostrando os primeiros 1.000": a lista passou do teto de páginas que a tela lê (`readPaginas`). */
 export function AvisoDeListaIncompleta({ completa }: { completa: boolean }) {
   if (completa) return null
   return <p className="text-sm text-apoio">A lista é maior do que esta tela mostra: aparecem só os primeiros.</p>

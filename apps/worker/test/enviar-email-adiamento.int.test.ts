@@ -25,7 +25,7 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { compose, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
-import { criarEnvioDoConvite, criarEnvios, TENTATIVAS_DO_ENVIO_DE_EMAIL } from '../src/processors/enviar-email.js'
+import { createEnvioDoConvite, createEnvios, TENTATIVAS_DO_ENVIO_DE_EMAIL } from '../src/processors/enviar-email.js'
 import { jobExecution } from './job-execution.fixture.js'
 import { InMemoryLog, QueueFixtures, urlRedisDeFila } from './queue.fixture.js'
 
@@ -58,7 +58,7 @@ describe('email.enviar-convite: o EMAIL_POR_MINUTO e a saída de adiar', () => {
   const bancada = new QueueFixtures()
   const log = new InMemoryLog('worker-teste')
   const escolas: string[] = []
-  const envios = criarEnvios(bancada.banco)
+  const envios = createEnvios(bancada.banco)
   /** Outra conexão ao mesmo Redis de fila: o segundo worker. */
   const outroWorker = new Redis(urlRedisDeFila(), { maxRetriesPerRequest: null })
   outroWorker.on('error', () => undefined)
@@ -128,7 +128,7 @@ describe('email.enviar-convite: o EMAIL_POR_MINUTO e a saída de adiar', () => {
   /** Um processador com o falso e o limite dados; devolve também o falso, para o teste contar o que saiu. */
   function processadorCom(limite: LimiteDeEmail, opcoes: { emissor?: FakeEmailSender; relogio?: Clock; medidor?: MedidorDeTeste } = {}) {
     const emissor = opcoes.emissor ?? new FakeEmailSender()
-    const processador = criarEnvioDoConvite({
+    const processador = createEnvioDoConvite({
       envios,
       emissor,
       cifra,
@@ -184,10 +184,10 @@ describe('email.enviar-convite: o EMAIL_POR_MINUTO e a saída de adiar', () => {
       const relogio = new RelogioMovel(INICIO_DO_MINUTO + 10_000)
       const limite = limiteDe(1, relogio)
       const { emissor, enviadasPara } = processadorCom(limite)
-      await limite.consumir('convite')
+      await limite.consume('convite')
       const c = await conviteNaFila(escolaId)
       const marcacoes: string[] = []
-      const executor = executorCom({ [TIPO_ENVIAR_CONVITE]: criarEnvioDoConvite({ envios, emissor, cifra, limite, urlDaWeb: URL_DA_WEB, logger: log.logger, relogio }) }, marcacoes)
+      const executor = executorCom({ [TIPO_ENVIAR_CONVITE]: createEnvioDoConvite({ envios, emissor, cifra, limite, urlDaWeb: URL_DA_WEB, logger: log.logger, relogio }) }, marcacoes)
       const { jobId, job, moveToDelayed } = await jobDeEmail(escolaId, 'email', c.conviteId)
 
       for (let volta = 0; volta < TENTATIVAS_DO_ENVIO_DE_EMAIL + 2; volta += 1) {
@@ -217,13 +217,13 @@ describe('email.enviar-convite: o EMAIL_POR_MINUTO e a saída de adiar', () => {
       const escolaId = await escolaNova()
       const relogio = new RelogioMovel(INICIO_DO_MINUTO + 5_000)
       const limite = limiteDe(1, relogio)
-      await limite.consumir('convite')
+      await limite.consume('convite')
       const c = await conviteNaFila(escolaId)
       const sintetico = vi.fn(() => Promise.resolve())
       const marcacoes: string[] = []
       const executor = executorCom(
         {
-          [TIPO_ENVIAR_CONVITE]: criarEnvioDoConvite({ envios, emissor: new FakeEmailSender(), cifra, limite, urlDaWeb: URL_DA_WEB, logger: log.logger, relogio }),
+          [TIPO_ENVIAR_CONVITE]: createEnvioDoConvite({ envios, emissor: new FakeEmailSender(), cifra, limite, urlDaWeb: URL_DA_WEB, logger: log.logger, relogio }),
           [TIPO_JOB_SINTETICO]: sintetico,
         },
         marcacoes,
@@ -246,8 +246,8 @@ describe('email.enviar-convite: o EMAIL_POR_MINUTO e a saída de adiar', () => {
       const escolaId = await escolaNova()
       const relogio = new RelogioMovel(INICIO_DO_MINUTO + 20_000)
       const limite = limiteDe(1, relogio)
-      await limite.consumir('convite')
-      const executor = executorCom({ [TIPO_ENVIAR_CONVITE]: criarEnvioDoConvite({ envios, emissor: new FakeEmailSender(), cifra, limite, urlDaWeb: URL_DA_WEB, logger: log.logger, relogio }) }, [])
+      await limite.consume('convite')
+      const executor = executorCom({ [TIPO_ENVIAR_CONVITE]: createEnvioDoConvite({ envios, emissor: new FakeEmailSender(), cifra, limite, urlDaWeb: URL_DA_WEB, logger: log.logger, relogio }) }, [])
       for (let volta = 0; volta < 6; volta += 1) {
         const c = await conviteNaFila(escolaId)
         const { job, moveToDelayed } = await jobDeEmail(escolaId, 'email', c.conviteId)
@@ -268,7 +268,7 @@ describe('email.enviar-convite: o EMAIL_POR_MINUTO e a saída de adiar', () => {
       const real = limiteDe(100, new RelogioMovel(INICIO_DO_MINUTO))
       let fora = true
       const oscilante: LimiteDeEmail = {
-        consumir: (classe) => (fora ? Promise.reject(new Error('Redis fora')) : real.consumir(classe)),
+        consume: (classe) => (fora ? Promise.reject(new Error('Redis fora')) : real.consume(classe)),
         devolver: (ponto) => (fora ? Promise.reject(new Error('Redis fora')) : real.devolver(ponto)),
       }
       const { rodar, enviadasPara } = processadorCom(oscilante)
@@ -293,7 +293,7 @@ describe('email.enviar-convite: o EMAIL_POR_MINUTO e a saída de adiar', () => {
       const semRedis = createQueueRedisClient('redis://127.0.0.1:1', 'teste-sem-redis', () => undefined)
       try {
         const limite = new LimiteDeEmailPorMinuto(semRedis, 100_000)
-        await expect(limite.consumir('convite')).rejects.toThrow()
+        await expect(limite.consume('convite')).rejects.toThrow()
         const { rodar, enviadasPara } = processadorCom(limite)
         const c = await conviteNaFila(escolaId)
         const adiamento = await adiamentoDe(rodar(escolaId, c.conviteId))
@@ -335,17 +335,17 @@ describe('email.enviar-convite: o EMAIL_POR_MINUTO e a saída de adiar', () => {
     it('o ponto gasto no segundo 59 e devolvido no minuto seguinte não volta: só se devolve na mesma janela', async () => {
       const relogio = new RelogioMovel(INICIO_DO_MINUTO + 59_000)
       const limite = limiteDe(1, relogio)
-      const gasto = await limite.consumir('convite')
+      const gasto = await limite.consume('convite')
       if (gasto.resultado !== 'concedido') throw new Error('o primeiro ponto do minuto devia ser concedido')
 
       relogio.emMs = INICIO_DO_MINUTO + MINUTO_MS + 500
       expect(await limite.devolver(gasto.ponto)).toBe(false)
       relogio.emMs = INICIO_DO_MINUTO + 59_900
-      expect(await limite.consumir('convite')).toMatchObject({ resultado: 'sem_vaga' })
+      expect(await limite.consume('convite')).toMatchObject({ resultado: 'sem_vaga' })
 
       // Na mesma janela, ele volta.
       expect(await limite.devolver(gasto.ponto)).toBe(true)
-      expect(await limite.consumir('convite')).toMatchObject({ resultado: 'concedido' })
+      expect(await limite.consume('convite')).toMatchObject({ resultado: 'concedido' })
     })
 
     it.each<['permanente' | 'transitoria']>([['permanente'], ['transitoria']])(
@@ -372,10 +372,10 @@ describe('email.enviar-convite: o EMAIL_POR_MINUTO e a saída de adiar', () => {
     it('a queda que não é uma recusa do servidor também gastou o ponto', async () => {
       const escolaId = await escolaNova()
       const limite = limiteDe(1, new RelogioMovel(INICIO_DO_MINUTO + 30_000))
-      const caindo = criarEnvioDoConvite({ envios, emissor: { enviar: () => Promise.reject(new Error('conexão caiu')) }, cifra, limite, urlDaWeb: URL_DA_WEB, logger: log.logger })
+      const caindo = createEnvioDoConvite({ envios, emissor: { send: () => Promise.reject(new Error('conexão caiu')) }, cifra, limite, urlDaWeb: URL_DA_WEB, logger: log.logger })
       const c = await conviteNaFila(escolaId)
       await expect(runInContext({ requisicaoId: randomUUID(), escolaId }, () => caindo({ conviteId: c.conviteId }, jobExecution(randomUUID(), 1)))).rejects.toBeInstanceOf(JobFailureError)
-      expect(await limite.consumir('convite')).toMatchObject({ resultado: 'sem_vaga' })
+      expect(await limite.consume('convite')).toMatchObject({ resultado: 'sem_vaga' })
     })
   })
 
@@ -431,7 +431,7 @@ describe('email.enviar-convite: o EMAIL_POR_MINUTO e a saída de adiar', () => {
       const doPrimeiro = limiteDe(10, relogio, bancada.redis, prefixo)
       const doSegundo = limiteDe(10, relogio, outroWorker, prefixo)
 
-      const respostas = await Promise.all(Array.from({ length: 60 }, (_, indice) => (indice % 2 === 0 ? doPrimeiro : doSegundo).consumir('conta')))
+      const respostas = await Promise.all(Array.from({ length: 60 }, (_, indice) => (indice % 2 === 0 ? doPrimeiro : doSegundo).consume('conta')))
 
       expect(respostas.filter(({ resultado }) => resultado === 'concedido')).toHaveLength(10)
       const recusadas = respostas.filter((resposta) => resposta.resultado === 'sem_vaga')
@@ -446,13 +446,13 @@ describe('email.enviar-convite: o EMAIL_POR_MINUTO e a saída de adiar', () => {
       const doPrimeiro = limiteDe(10, relogio, bancada.redis, prefixo)
       const doSegundo = limiteDe(10, relogio, outroWorker, prefixo)
 
-      const convites = await Promise.all(Array.from({ length: 30 }, (_, indice) => (indice % 2 === 0 ? doPrimeiro : doSegundo).consumir('convite')))
+      const convites = await Promise.all(Array.from({ length: 30 }, (_, indice) => (indice % 2 === 0 ? doPrimeiro : doSegundo).consume('convite')))
       expect(convites.filter(({ resultado }) => resultado === 'concedido')).toHaveLength(tetoDoConvite(10))
       expect(tetoDoConvite(10)).toBe(5)
 
-      const contas = await Promise.all(Array.from({ length: 30 }, () => doPrimeiro.consumir('conta')))
+      const contas = await Promise.all(Array.from({ length: 30 }, () => doPrimeiro.consume('conta')))
       expect(contas.filter(({ resultado }) => resultado === 'concedido')).toHaveLength(5)
-      expect(await doSegundo.consumir('convite')).toMatchObject({ resultado: 'sem_vaga' })
+      expect(await doSegundo.consume('convite')).toMatchObject({ resultado: 'sem_vaga' })
     })
 
     it('o teto de um é o do convite inteiro: com 1 por minuto o convite ainda sai, e com 3 o convite fica com 2 e a conta com o resto', () => {
@@ -483,12 +483,12 @@ describe('email.enviar-convite: o EMAIL_POR_MINUTO e a saída de adiar', () => {
         await adiamentoDe(rodar(escolaId, (await conviteNaFila(escolaId, { envio: 'enviando', reservadoHa: '10 seconds' })).conviteId)) // adiado: reserva_alheia
 
         const semRedis = processadorCom(
-          { consumir: () => Promise.reject(new Error('Redis fora')), devolver: () => Promise.reject(new Error('Redis fora')) },
+          { consume: () => Promise.reject(new Error('Redis fora')), devolver: () => Promise.reject(new Error('Redis fora')) },
           { medidor, relogio },
         )
         await adiamentoDe(semRedis.rodar(escolaId, (await conviteNaFila(escolaId)).conviteId)) // adiado: redis
         const cheio = limiteDe(1, relogio)
-        await cheio.consumir('convite')
+        await cheio.consume('convite')
         const estourado = processadorCom(cheio, { medidor, relogio })
         await adiamentoDe(estourado.rodar(escolaId, (await conviteNaFila(escolaId)).conviteId)) // adiado: limite
 
@@ -508,9 +508,9 @@ describe('email.enviar-convite: o EMAIL_POR_MINUTO e a saída de adiar', () => {
       const medidor = new MedidorDeTeste()
       try {
         const limite = limiteDe(100, new RelogioMovel(INICIO_DO_MINUTO))
-        const caindo = criarEnvioDoConvite({
+        const caindo = createEnvioDoConvite({
           envios,
-          emissor: { enviar: () => Promise.reject(new EmailSendError('transitoria')) },
+          emissor: { send: () => Promise.reject(new EmailSendError('transitoria')) },
           cifra,
           limite,
           urlDaWeb: URL_DA_WEB,
@@ -532,31 +532,31 @@ describe('email.enviar-convite: o EMAIL_POR_MINUTO e a saída de adiar', () => {
       const relogio = new RelogioMovel(INICIO_DO_MINUTO + 10_000)
       const a = limiteDe(1, relogio, bancada.redis, `${bancada.prefixo}:${randomUUID()}`)
       const b = limiteDe(1, relogio, bancada.redis, `${bancada.prefixo}:${randomUUID()}`)
-      expect(await a.consumir('convite')).toMatchObject({ resultado: 'concedido' })
-      expect(await a.consumir('convite')).toMatchObject({ resultado: 'sem_vaga' })
-      expect(await b.consumir('convite')).toMatchObject({ resultado: 'concedido' })
+      expect(await a.consume('convite')).toMatchObject({ resultado: 'concedido' })
+      expect(await a.consume('convite')).toMatchObject({ resultado: 'sem_vaga' })
+      expect(await b.consume('convite')).toMatchObject({ resultado: 'concedido' })
     })
 
     it('o Redis que reiniciou sem o cache do script segue valendo: o `NOSCRIPT` manda o script inteiro, e a contagem continua', async () => {
       const limite = limiteDe(4, new RelogioMovel(INICIO_DO_MINUTO + 10_000))
-      expect(await limite.consumir('convite')).toMatchObject({ resultado: 'concedido' })
+      expect(await limite.consume('convite')).toMatchObject({ resultado: 'concedido' })
       await bancada.redis.script('FLUSH')
-      expect(await limite.consumir('convite')).toMatchObject({ resultado: 'concedido' })
+      expect(await limite.consume('convite')).toMatchObject({ resultado: 'concedido' })
       // A contagem do minuto sobreviveu à troca do script: o terceiro convite passa do teto do convite (2 de 4).
-      expect(await limite.consumir('convite')).toMatchObject({ resultado: 'sem_vaga' })
+      expect(await limite.consume('convite')).toMatchObject({ resultado: 'sem_vaga' })
     })
 
     it('o ponto do link da conta que volta não abre vaga do convite: só o contador do convite volta com o ponto de convite', async () => {
       const limite = limiteDe(4, new RelogioMovel(INICIO_DO_MINUTO + 10_000))
       expect(tetoDoConvite(4)).toBe(2)
-      await limite.consumir('convite')
-      await limite.consumir('convite')
-      const daConta = await limite.consumir('conta')
+      await limite.consume('convite')
+      await limite.consume('convite')
+      const daConta = await limite.consume('conta')
       if (daConta.resultado !== 'concedido') throw new Error('a conta tem a metade dela')
 
       expect(await limite.devolver(daConta.ponto)).toBe(true)
-      expect(await limite.consumir('convite')).toMatchObject({ resultado: 'sem_vaga' })
-      expect(await limite.consumir('conta')).toMatchObject({ resultado: 'concedido' })
+      expect(await limite.consume('convite')).toMatchObject({ resultado: 'sem_vaga' })
+      expect(await limite.consume('conta')).toMatchObject({ resultado: 'concedido' })
     })
   })
 
@@ -574,9 +574,9 @@ describe('email.enviar-convite: o EMAIL_POR_MINUTO e a saída de adiar', () => {
       const limite = new LimiteDeEmailPorMinuto(bancada.redis, 1, { prefixo: `${bancada.prefixo}:${randomUUID()}` })
 
       const antes = await agoraDoRedis()
-      const primeiro = await limite.consumir('convite')
+      const primeiro = await limite.consume('convite')
       const entre = await agoraDoRedis()
-      const segundo = await limite.consumir('convite')
+      const segundo = await limite.consume('convite')
       const depois = await agoraDoRedis()
 
       if (primeiro.resultado !== 'concedido') throw new Error('o primeiro ponto do minuto devia ser concedido')
@@ -594,22 +594,22 @@ describe('email.enviar-convite: o EMAIL_POR_MINUTO e a saída de adiar', () => {
     it('o link da conta não enche o contador do convite: com 4 por minuto, duas contas e depois dois convites saem todos', async () => {
       const limite = limiteDe(4, new RelogioMovel(INICIO_DO_MINUTO + 10_000))
       const respostas = []
-      for (const classe of ['conta', 'conta', 'convite', 'convite'] as const) respostas.push(await limite.consumir(classe))
+      for (const classe of ['conta', 'conta', 'convite', 'convite'] as const) respostas.push(await limite.consume(classe))
       expect(respostas.map(({ resultado }) => resultado)).toEqual(['concedido', 'concedido', 'concedido', 'concedido'])
-      expect(await limite.consumir('conta')).toMatchObject({ resultado: 'sem_vaga' })
+      expect(await limite.consume('conta')).toMatchObject({ resultado: 'sem_vaga' })
     })
 
     it('o mesmo ponto devolvido duas vezes não abre mais do que gastou: os contadores não passam de zero', async () => {
       const limite = limiteDe(4, new RelogioMovel(INICIO_DO_MINUTO + 10_000))
-      const gasto = await limite.consumir('convite')
+      const gasto = await limite.consume('convite')
       if (gasto.resultado !== 'concedido') throw new Error('o primeiro ponto do minuto devia ser concedido')
       await limite.devolver(gasto.ponto)
       await limite.devolver(gasto.ponto)
 
       const convites = []
-      for (let i = 0; i < 5; i += 1) convites.push((await limite.consumir('convite')).resultado)
+      for (let i = 0; i < 5; i += 1) convites.push((await limite.consume('convite')).resultado)
       const contas = []
-      for (let i = 0; i < 5; i += 1) contas.push((await limite.consumir('conta')).resultado)
+      for (let i = 0; i < 5; i += 1) contas.push((await limite.consume('conta')).resultado)
       // Convite: 2 de 4. Conta: o que falta do total, 2. Um contador abaixo de zero daria um a mais em cada.
       expect(convites.filter((resultado) => resultado === 'concedido')).toHaveLength(2)
       expect(contas.filter((resultado) => resultado === 'concedido')).toHaveLength(2)
@@ -653,7 +653,7 @@ describe('email.enviar-convite: o EMAIL_POR_MINUTO e a saída de adiar', () => {
     it('o banco que falha na reserva devolve o ponto e o erro sobe como veio', async () => {
       const escolaId = await escolaNova()
       const limite = limiteDe(1, new RelogioMovel(INICIO_DO_MINUTO + 30_000))
-      const semBanco = criarEnvioDoConvite({
+      const semBanco = createEnvioDoConvite({
         envios: { reservar: () => Promise.reject(new Error('banco fora')), concluir: () => Promise.resolve(false), devolver: () => Promise.resolve(false) },
         emissor: new FakeEmailSender(),
         cifra,
@@ -662,13 +662,13 @@ describe('email.enviar-convite: o EMAIL_POR_MINUTO e a saída de adiar', () => {
         logger: log.logger,
       })
       await expect(runInContext({ requisicaoId: randomUUID(), escolaId }, () => semBanco({ conviteId: randomUUID() }, jobExecution(randomUUID(), 1)))).rejects.toThrow('banco fora')
-      expect(await limite.consumir('convite')).toMatchObject({ resultado: 'concedido' })
+      expect(await limite.consume('convite')).toMatchObject({ resultado: 'concedido' })
     })
 
     it('o Redis que falha ao devolver o ponto não esconde o desfecho do job: o envio já terminado termina o job sem erro', async () => {
       const escolaId = await escolaNova()
       const real = limiteDe(100, new RelogioMovel(INICIO_DO_MINUTO))
-      const { rodar } = processadorCom({ consumir: (classe) => real.consumir(classe), devolver: () => Promise.reject(new Error('Redis fora')) })
+      const { rodar } = processadorCom({ consume: (classe) => real.consume(classe), devolver: () => Promise.reject(new Error('Redis fora')) })
       const terminado = await conviteNaFila(escolaId, { envio: 'enviado' })
       await expect(rodar(escolaId, terminado.conviteId)).resolves.toBeUndefined()
     })
@@ -694,10 +694,10 @@ describe('email.enviar-convite: o EMAIL_POR_MINUTO e a saída de adiar', () => {
         await execucaoAceita
 
         const recusado = await conviteNaFila(escolaId)
-        const recusando = criarEnvioDoConvite({
+        const recusando = createEnvioDoConvite({
           envios,
           emissor: {
-            enviar: async () => {
+            send: async () => {
               await cancelar(recusado.conviteId)
               throw new EmailSendError('permanente')
             },

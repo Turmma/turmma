@@ -9,7 +9,7 @@ class SaudeFalsa {
   private pendentes: (() => void)[] = []
   segurar = false
 
-  verificar(): Promise<{ ok: boolean }> {
+  verify(): Promise<{ ok: boolean }> {
     this.chamadas++
     if (!this.segurar) return Promise.resolve({ ok: this.ok })
     return new Promise((resolver) => this.pendentes.push(() => resolver({ ok: this.ok })))
@@ -36,7 +36,7 @@ function montar() {
 describe('EstadoService', () => {
   it('devolve versão, ambiente e a situação da API e do banco no contrato de packages/shared', async () => {
     const { servico } = montar()
-    const estado = await servico.obter()
+    const estado = await servico.get()
     expect(systemStatusResponseSchema.parse(estado)).toEqual(estado)
     expect(estado).toEqual({
       versao: '3d4099c',
@@ -51,21 +51,21 @@ describe('EstadoService', () => {
   it('com o banco fora, responde assim mesmo, com o banco indisponível', async () => {
     const { servico, saude } = montar()
     saude.ok = false
-    const estado = await servico.obter()
+    const estado = await servico.get()
     expect(estado.componentes.find((componente) => componente.nome === 'banco')?.situacao).toBe('indisponivel')
   })
 
   it('dentro da validade, recargas seguidas não consultam o banco de novo; vencida, consulta', async () => {
     const { servico, saude, avancar } = montar()
-    await servico.obter()
+    await servico.get()
     avancar(VALIDADE_DA_VERIFICACAO_MS - 1)
     saude.ok = false
-    const reaproveitado = await servico.obter()
+    const reaproveitado = await servico.get()
     expect(saude.chamadas).toBe(1)
     expect(reaproveitado.componentes[1]).toMatchObject({ situacao: 'disponivel', verificadoEm: '2026-09-14T10:00:00.000Z' })
 
     avancar(1)
-    const renovado = await servico.obter()
+    const renovado = await servico.get()
     expect(saude.chamadas).toBe(2)
     expect(renovado.componentes[1]).toMatchObject({ situacao: 'indisponivel', verificadoEm: '2026-09-14T10:00:05.000Z' })
   })
@@ -73,7 +73,7 @@ describe('EstadoService', () => {
   it('cem requisições ao mesmo tempo com o banco lento fazem uma consulta só, não cem conexões presas', async () => {
     const { servico, saude } = montar()
     saude.segurar = true
-    const respostas = Array.from({ length: 100 }, () => servico.obter())
+    const respostas = Array.from({ length: 100 }, () => servico.get())
     await Promise.resolve()
     expect(saude.chamadas).toBe(1)
     saude.soltar()

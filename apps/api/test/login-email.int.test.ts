@@ -59,7 +59,7 @@ describe('POST /v1/sessao/email: a equipe entra por e-mail e senha', () => {
     await app.listen(0, '127.0.0.1')
     url = `http://127.0.0.1:${(app.getHttpServer().address() as AddressInfo).port}`
     hash = app.get(PasswordHasher)
-    verificacoes = vi.spyOn(hash, 'verificar')
+    verificacoes = vi.spyOn(hash, 'verify')
     await clientePronto(app.get<Redis>(REDIS_LOGIN_CLIENT, { strict: false }))
   })
 
@@ -77,7 +77,7 @@ describe('POST /v1/sessao/email: a equipe entra por e-mail e senha', () => {
   async function pessoa(escolaId: string, papel: PapelDeUsuario = 'professor', { senha = SENHA as string | null } = {}): Promise<Pessoa> {
     const email = `Equipe-${randomUUID()}@Escola.invalid`
     segredosVistos.add(email).add(email.toLowerCase())
-    const senhaHash = senha === null ? null : await hash.gerar(senha)
+    const senhaHash = senha === null ? null : await hash.generate(senha)
     const { rows: contas } = await bancada.pool.query<{ id: string }>('insert into conta (email, senha_hash) values ($1, $2) returning id', [email, senhaHash])
     const contaId = contas[0]?.id ?? ''
     const { rows: usuarios } = await bancada.pool.query<{ id: string }>("insert into usuario (escola_id, conta_id, papel, nome) values ($1, $2, $3, 'Pessoa sintética') returning id", [escolaId, contaId, papel])

@@ -4,8 +4,8 @@ import { rm } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
-import { criarConviteDeCoordenador, type PedidoDeConvite } from '../sessao/index.js'
-import { abrirBancoDeOperacao, InvalidArgumentError, autorDoComando, criarArquivoDoToken, nomeSchema, lerOperador, OperadorRejectedError, type CommandDatabase, type CommandOutput } from './command.js'
+import { createConviteDeCoordenador, type PedidoDeConvite } from '../sessao/index.js'
+import { openBancoDeOperacao, InvalidArgumentError, autorDoComando, createArquivoDoToken, nomeSchema, readOperador, OperadorRejectedError, type CommandDatabase, type CommandOutput } from './command.js'
 
 /**
  * O convite do primeiro coordenador, pelo operador, depois do contrato (RF1; Tech Spec, seção 5, "Operador"):
@@ -30,7 +30,7 @@ import { abrirBancoDeOperacao, InvalidArgumentError, autorDoComando, criarArquiv
 /** O pedido do comando: a escola sempre pelo endereço, e o arquivo do token. */
 export type PedidoDoConvite = Extract<PedidoDeConvite, { readonly slug: string }> & { readonly saida: string }
 
-export function lerPedidoDoConvite(argumentos: string[]): PedidoDoConvite {
+export function readPedidoDoConvite(argumentos: string[]): PedidoDoConvite {
   let valores: { escola?: string | undefined; email?: string | undefined; nome?: string | undefined; saida?: string | undefined }
   try {
     valores = parseArgs({
@@ -63,21 +63,21 @@ const MENSAGEM_DO_OPERADOR: Partial<Record<ErrorCode, string>> = {
  * Executa o comando e devolve o código de saída: 0 criado, 1 erro (`NAO_ENCONTRADO`, `CONFLITO` ou `ERRO_INTERNO`
  * resumido), 2 argumento, arquivo ou ambiente inválido.
  */
-export async function executarOpsConviteCoordenador(
+export async function runOpsConviteCoordenador(
   argumentos: string[],
   ambiente: Record<string, string | undefined>,
   terminal: CommandOutput,
-  abrirBanco: (ambiente: Record<string, string | undefined>) => CommandDatabase = abrirBancoDeOperacao,
+  abrirBanco: (ambiente: Record<string, string | undefined>) => CommandDatabase = openBancoDeOperacao,
 ): Promise<number> {
   try {
-    const pedido = lerPedidoDoConvite(argumentos)
-    const operador = lerOperador(ambiente)
-    const arquivo = await criarArquivoDoToken(pedido.saida, () => new InvalidArgumentError('--saida (o arquivo já existe ou a pasta não aceita escrita)'))
+    const pedido = readPedidoDoConvite(argumentos)
+    const operador = readOperador(ambiente)
+    const arquivo = await createArquivoDoToken(pedido.saida, () => new InvalidArgumentError('--saida (o arquivo já existe ou a pasta não aceita escrita)'))
     let gravado = false
     try {
-      const { banco, fechar } = abrirBanco(ambiente)
+      const { banco, close: fechar } = abrirBanco(ambiente)
       try {
-        const { conviteId, token } = await criarConviteDeCoordenador(banco, autorDoComando(operador), pedido)
+        const { conviteId, token } = await createConviteDeCoordenador(banco, autorDoComando(operador), pedido)
         await arquivo.writeFile(`${token}\n`)
         gravado = true
         terminal.saida(`${JSON.stringify({ conviteId, arquivo: pedido.saida })}\n`)
@@ -106,7 +106,7 @@ export async function executarOpsConviteCoordenador(
 }
 
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  process.exitCode = await executarOpsConviteCoordenador(process.argv.slice(2), process.env, {
+  process.exitCode = await runOpsConviteCoordenador(process.argv.slice(2), process.env, {
     saida: (texto) => process.stdout.write(texto),
     erro: (texto) => process.stderr.write(texto),
   })

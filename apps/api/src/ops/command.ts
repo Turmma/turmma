@@ -28,7 +28,7 @@ export const nomeSchema = nomeDigitadoSchema
 const operadorEnvSchema = z.object({ OPERADOR: z.string().regex(FORMATO_OPERADOR) })
 
 /** Quem da equipe roda o comando. Ausente ou fora do formato, recusa pelo nome da variável, sem o valor. */
-export function lerOperador(ambiente: Record<string, string | undefined>): string {
+export function readOperador(ambiente: Record<string, string | undefined>): string {
   return validateEnvironment(operadorEnvSchema, ambiente).OPERADOR
 }
 
@@ -57,13 +57,13 @@ export function autorDoComando(apelido: string): AuthorCheck {
   return async (tx) => {
     const ativo = await OperadorRepository.autorAtivoNaTransacao(tx, { apelido })
     if (ativo !== undefined) return ativo
-    if ((await new OperadorRepository(tx).contarAtivos()) === 0) return apelido
+    if ((await new OperadorRepository(tx).countAtivos()) === 0) return apelido
     throw new OperadorRejectedError()
   }
 }
 
 /** Cria o arquivo do token só se ele não existe, com modo 0600: só o dono lê. */
-export async function criarArquivoDoToken(caminho: string, invalido: () => Error): Promise<FileHandle> {
+export async function createArquivoDoToken(caminho: string, invalido: () => Error): Promise<FileHandle> {
   try {
     return await open(caminho, 'wx', 0o600)
   } catch {
@@ -78,12 +78,12 @@ export interface CommandOutput {
 
 export interface CommandDatabase {
   banco: Database
-  fechar: () => Promise<void>
+  close: () => Promise<void>
 }
 
-export function abrirBancoDeOperacao(ambiente: Record<string, string | undefined>): CommandDatabase {
+export function openBancoDeOperacao(ambiente: Record<string, string | undefined>): CommandDatabase {
   const pool = createPool({ ...urlDoBancoDeOperacao(ambiente), maximoConexoes: 1 }, () => undefined)
-  return { banco: createDatabase(pool), fechar: () => pool.end() }
+  return { banco: createDatabase(pool), close: () => pool.end() }
 }
 
 const inteiroPositivo = z.coerce.number().int().positive()

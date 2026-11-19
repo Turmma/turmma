@@ -11,7 +11,7 @@ import { aoTrocarDeSessao } from './sessao'
  * pessoa seguinte não encontra o pedido da anterior.
  */
 export interface TabStore<T> {
-  readonly ler: () => T | undefined
+  readonly read: () => T | undefined
   readonly guardar: (valor: T | undefined) => void
   readonly assinar: (ouvinte: () => void) => () => void
 }
@@ -33,7 +33,7 @@ export function createTabStore<T>(): TabStore<T> {
   }
   esvaziar.add(() => guardar(undefined))
   return {
-    ler: () => valor,
+    read: () => valor,
     guardar,
     assinar: (ouvinte) => {
       ouvintes.add(ouvinte)
@@ -46,5 +46,5 @@ export function createTabStore<T>(): TabStore<T> {
 
 /** O que está guardado no lugar, com a tela refeita quando ele muda. */
 export function useTabStore<T>(lugar: TabStore<T>): T | undefined {
-  return useSyncExternalStore(lugar.assinar, lugar.ler)
+  return useSyncExternalStore(lugar.assinar, lugar.read)
 }

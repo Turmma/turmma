@@ -39,7 +39,7 @@ export interface RealtimeConfig {
 
 type Leitura<T> = { valor: T } | { erro: InvalidConfigError }
 
-function tentar<T>(ler: () => T): Leitura<T> {
+function attempt<T>(ler: () => T): Leitura<T> {
   try {
     return { valor: ler() }
   } catch (erro) {
@@ -54,11 +54,11 @@ function tentar<T>(ler: () => T): Leitura<T> {
  * inválida, e todos os problemas saem de uma vez, só pelo nome da variável.
  */
 export function loadConfig(ambiente: Record<string, string | undefined>): RealtimeConfig {
-  const realtime = tentar(() => validateEnvironment(envSchema, ambiente))
-  const identidade = tentar(() => loadAuthConfig(ambiente))
-  const banco = tentar(() => loadDatabaseConfig(ambiente))
-  const drenagem = tentar(() => loadGracefulShutdownConfig(ambiente))
-  const telemetria = tentar(() => loadTelemetryConfig(ambiente))
+  const realtime = attempt(() => validateEnvironment(envSchema, ambiente))
+  const identidade = attempt(() => loadAuthConfig(ambiente))
+  const banco = attempt(() => loadDatabaseConfig(ambiente))
+  const drenagem = attempt(() => loadGracefulShutdownConfig(ambiente))
+  const telemetria = attempt(() => loadTelemetryConfig(ambiente))
   if ('erro' in realtime || 'erro' in identidade || 'erro' in banco || 'erro' in drenagem || 'erro' in telemetria) {
     const erros = [realtime, identidade, banco, drenagem, telemetria].flatMap((leitura) => ('erro' in leitura ? [leitura.erro] : []))
     throw new InvalidConfigError(

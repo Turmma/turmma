@@ -35,8 +35,8 @@ export class SyntheticJobsService {
   }
 
   /** Estado do job da escola do token. De outra escola ou inexistente, o mesmo 404. */
-  async consultar(id: string): Promise<JobStateResponse> {
-    const registro = await this.repositorio.buscarDaEscola(id)
+  async find(id: string): Promise<JobStateResponse> {
+    const registro = await this.repositorio.findDaEscola(id)
     if (registro === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     return jobStateResponseSchema.parse({
       estado: registro.estado,

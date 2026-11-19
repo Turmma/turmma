@@ -26,8 +26,8 @@ export class ConviteController {
   @Post('consultar')
   @HttpCode(HttpStatus.OK)
   @Header('Cache-Control', 'no-store')
-  async consultar(@Body(new ZodValidationPipe(consultarConviteRequestSchema)) pedido: ConsultarConviteRequest): Promise<ConsultarConviteResponse> {
-    return consultarConviteResponseSchema.parse(await this.convites.consultar(pedido.token))
+  async find(@Body(new ZodValidationPipe(consultarConviteRequestSchema)) pedido: ConsultarConviteRequest): Promise<ConsultarConviteResponse> {
+    return consultarConviteResponseSchema.parse(await this.convites.find(pedido.token))
   }
 
   @Post('aceitar')

@@ -324,8 +324,8 @@ describe('acesso à turma: só o vínculo confirmado abre a turma e os alunos (R
         const naTransacao = await bancada.banco.transaction(async (tx) => {
           const escrita = new VinculoRepository(tx)
           return {
-            travado: await escrita.travar(b.pendente, { doUsuario: true }),
-            travadoPelaCoordenacao: await escrita.travar(b.pendente, { doUsuario: false }),
+            travado: await escrita.lock(b.pendente, { doUsuario: true }),
+            travadoPelaCoordenacao: await escrita.lock(b.pendente, { doUsuario: false }),
             decidido: await escrita.decidir(b.pendente, { estado: 'confirmado' }),
             encerrado: await escrita.encerrar(b.pendente, 'desligamento'),
           }
@@ -334,8 +334,8 @@ describe('acesso à turma: só o vínculo confirmado abre a turma e os alunos (R
           turmaDaCoordenacao: await turmas.aberta(b.turma, 'unidade'),
           turmaDoProfessor: await turmas.aberta(b.turma, 'turma_vinculada'),
           alunos: await turmas.alunos(b.turma, { limite: 50 }),
-          lista: await vinculos.listar({ limite: 50 }),
-          meus: await vinculos.listarDoUsuario({ limite: 50 }),
+          lista: await vinculos.list({ limite: 50 }),
+          meus: await vinculos.listDoUsuario({ limite: 50 }),
           porId: await vinculos.porId(b.vinculo),
           porIdDoUsuario: await vinculos.porIdDoUsuario(b.vinculo),
           professor: await vinculos.professorAlocavel(b.professor.usuarioId),
@@ -364,7 +364,7 @@ describe('acesso à turma: só o vínculo confirmado abre a turma e os alunos (R
       const deB = await runInContext({ ...forjado, escolaId: b.coordenacao.escolaId }, async () => ({
         turma: await new TurmaRepository(bancada.banco).aberta(b.turma, 'turma_vinculada'),
         alunos: (await new TurmaRepository(bancada.banco).alunos(b.turma, { limite: 50 })).length,
-        meus: (await new VinculoRepository(bancada.banco).listarDoUsuario({ limite: 50 })).length,
+        meus: (await new VinculoRepository(bancada.banco).listDoUsuario({ limite: 50 })).length,
         professor: await new VinculoRepository(bancada.banco).professorAlocavel(b.professor.usuarioId),
       }))
       expect(deB).toEqual({ turma: expect.objectContaining({ id: b.turma }), alunos: 2, meus: 2, professor: true })

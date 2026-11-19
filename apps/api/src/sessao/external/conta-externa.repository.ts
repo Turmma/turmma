@@ -138,7 +138,7 @@ export class ContaExternalRepository {
    * A sessão em si não tem trava: a saída do aluno não pega a do usuário, e pode encerrá-la entre esta conferência e o `insert`, caso em que a conta liga do mesmo jeito. A corrida é
    * aceita: é ato do próprio aluno, e a provisória, que é o que a trava protege, segue serializada com a ligação. Só dentro da transação da ligação.
    */
-  async travarAlunoDaSessao(usuarioId: string, sessaoId: string): Promise<boolean> {
+  async lockAlunoDaSessao(usuarioId: string, sessaoId: string): Promise<boolean> {
     const escolaId = requireEscolaId()
     await this.banco
       .select({ id: usuario.id })

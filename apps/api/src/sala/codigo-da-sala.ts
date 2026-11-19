@@ -1,4 +1,4 @@
-import { ALFABETO_DO_CODIGO_DA_TURMA, normalizarCodigoDaTurma, TAMANHO_DO_CODIGO_DA_TURMA } from '@educa/shared'
+import { ALFABETO_DO_CODIGO_DA_TURMA, normalizeCodigoDaTurma, TAMANHO_DO_CODIGO_DA_TURMA } from '@educa/shared'
 import { createHmac, randomBytes, randomInt } from 'node:crypto'
 import { BYTES_DO_TOKEN_DE_CONVITE } from '../credencial/index.js'
 
@@ -20,9 +20,9 @@ export function sortearTokenDaSala(): string {
 
 /**
  * O HMAC-SHA256 do código com a chave da sala, em base64url: é o que `acesso_turma.codigo_hmac` guarda e a página
- * pública procura (5.0). O código passa antes por `normalizarCodigoDaTurma`, a mesma da página: `abcd-2345` e
+ * pública procura (5.0). O código passa antes por `normalizeCodigoDaTurma`, a mesma da página: `abcd-2345` e
  * `ABCD 2345` dão o mesmo HMAC.
  */
 export function hmacDoCodigoDaTurma(chave: Uint8Array, codigo: string): string {
-  return createHmac('sha256', chave).update(normalizarCodigoDaTurma(codigo)).digest('base64url')
+  return createHmac('sha256', chave).update(normalizeCodigoDaTurma(codigo)).digest('base64url')
 }

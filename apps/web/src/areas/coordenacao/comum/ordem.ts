@@ -21,22 +21,22 @@ function compararSeries(a: DaSerie, b: DaSerie): number {
 }
 
 /** As séries na ordem da escola: anos finais, depois Ensino Médio, cada uma pelo ano. */
-export function ordenarSeries<Item extends DaSerie>(series: readonly Item[]): Item[] {
+export function sortSeries<Item extends DaSerie>(series: readonly Item[]): Item[] {
   return [...series].sort(compararSeries)
 }
 
 /** Disciplinas e professores, pelo nome. */
-export function ordenarPeloNome<Item extends { readonly nome: string }>(itens: readonly Item[]): Item[] {
+export function sortPeloNome<Item extends { readonly nome: string }>(itens: readonly Item[]): Item[] {
   return [...itens].sort((a, b) => PELO_NOME.compare(a.nome, b.nome))
 }
 
 /** As turmas pela série e, dentro dela, pelo nome. */
-export function ordenarTurmas<Item extends { readonly nome: string; readonly serie: DaSerie }>(turmas: readonly Item[]): Item[] {
+export function sortTurmas<Item extends { readonly nome: string; readonly serie: DaSerie }>(turmas: readonly Item[]): Item[] {
   return [...turmas].sort((a, b) => compararSeries(a.serie, b.serie) || PELO_NOME.compare(a.nome, b.nome))
 }
 
 /** Os vínculos pela turma, depois pela disciplina e pelo professor: quem dá aula em cada turma fica junto. */
-export function ordenarVinculos<Item extends { readonly turma: { readonly nome: string }; readonly disciplina?: { readonly nome: string } | undefined }>(
+export function sortVinculos<Item extends { readonly turma: { readonly nome: string }; readonly disciplina?: { readonly nome: string } | undefined }>(
   vinculos: readonly Item[],
   nomeDoProfessor: (vinculo: Item) => string,
 ): Item[] {

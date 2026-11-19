@@ -42,7 +42,7 @@ export {
 export type { EmailAdapterKind, EmailConfig } from './email/email-config.js'
 export { EmailSendError } from './email/email-sender.js'
 export type { EmailSender, MensagemDeEmail, NaturezaDaFalhaDeEmail } from './email/email-sender.js'
-export { criarEmailSender } from './email/criar-email-sender.js'
+export { createEmailSender } from './email/criar-email-sender.js'
 export { FakeEmailSender } from './email/fake-email-sender.js'
 export { LimiteDeEmailPorMinuto, tetoDoConvite } from './email/limite-por-minuto.js'
 export type { ClasseDoEmail, ConsumoDeEmail, LimiteDeEmail, PontoDeEmail } from './email/limite-por-minuto.js'
@@ -61,8 +61,8 @@ export { jobRegistro } from './db/schema/job-registro.js'
 export { unscopedJustification, Unscoped, TAMANHO_MINIMO_JUSTIFICATIVA_SEM_ESCOPO } from './db/unscoped.decorator.js'
 export {
   OperationalSettings,
-  lerJanelaPadrao,
-  lerVagasPadrao,
+  readJanelaPadrao,
+  readVagasPadrao,
   NOVA_TENTATIVA_DA_CONFIGURACAO_MS,
   resolverJanela,
   resolverLimites,
@@ -102,7 +102,7 @@ export {
   RETENCAO_JOB_FALHO_SEGUNDOS,
 } from './queue/publishing.js'
 export type { QueuedJobData, PublishedJobOptions } from './queue/publishing.js'
-export { CalendarioRepository, ContaDaPlanilhaPerdidaError, ehFalhaDeTrava, executarPlanilha, GradeRepository, ImportacaoIlegivelError, ImportacaoRepository, MotorDePlanilha, TENTATIVAS_DO_JOB } from './importacao/index.js'
+export { CalendarioRepository, ContaDaPlanilhaPerdidaError, isFalhaDeTrava, runPlanilha, GradeRepository, ImportacaoIlegivelError, ImportacaoRepository, MotorDePlanilha, TENTATIVAS_DO_JOB } from './importacao/index.js'
 export type { DaLista, ImportacaoLida, ListaRow, ResultadoDaExecucao } from './importacao/index.js'
 export { DomainException, HTTP_STATUS_BY_CODE, DEFAULT_RETRY_AFTER_SECONDS } from './error/domain.exception.js'
 export { AllExceptionsFilter } from './error/all-exceptions.filter.js'
@@ -406,7 +406,7 @@ export {
   tutorOutputSchema,
   MENSAGEM_DE_ASSUNTO_DELICADO,
   MENSAGEM_DE_RISCO_A_VIDA,
-  ehAssuntoDelicado,
+  isAssuntoDelicado,
   turnoDoTutor,
 } from './ia/tasks/turno-do-tutor.js'
 export type { ClassificacaoDoTurno, TutorInput, TutorOutput } from './ia/tasks/turno-do-tutor.js'

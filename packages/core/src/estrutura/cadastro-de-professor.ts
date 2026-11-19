@@ -27,6 +27,6 @@ export async function contaDoProfessor(tx: DatabaseTransaction, email: string): 
  * uma ainda tem o e-mail da linha: `false` se alguma perdeu o e-mail ou sumiu, e o job pede nova tentativa (onboarding-por-convite,
  * 6.0). Sai pelo mesmo arquivo cercado, e o processor do job a repassa ao motor, que não alcança a conta global.
  */
-export function travarContasDoProfessor(tx: DatabaseTransaction, contas: ReadonlyMap<string, string>): Promise<boolean> {
-  return new ContaGlobalRepository(tx).travarEConferir(contas)
+export function lockContasDoProfessor(tx: DatabaseTransaction, contas: ReadonlyMap<string, string>): Promise<boolean> {
+  return new ContaGlobalRepository(tx).lockEConferir(contas)
 }

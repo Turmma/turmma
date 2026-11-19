@@ -15,7 +15,7 @@ import { randomUUID } from 'node:crypto'
 import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 import { z } from 'zod'
-import { abrirBancoDeOperacao, InvalidArgumentError, autorDoComando, lerOperador, OperadorRejectedError, type CommandDatabase, type CommandOutput } from './command.js'
+import { openBancoDeOperacao, InvalidArgumentError, autorDoComando, readOperador, OperadorRejectedError, type CommandDatabase, type CommandOutput } from './command.js'
 import type { AuthorCheck } from '../sessao/index.js'
 
 export { InvalidArgumentError }
@@ -48,7 +48,7 @@ export interface RespostaDeUso {
   mes: UsagePeriod & { referencia: string }
 }
 
-function lerOpcoes(argumentos: string[]) {
+function readOpcoes(argumentos: string[]) {
   try {
     return parseArgs({
       args: argumentos,
@@ -62,8 +62,8 @@ function lerOpcoes(argumentos: string[]) {
   }
 }
 
-export function lerPedidoDeUso(argumentos: string[], relogio: Clock = systemClock): PedidoDeUso {
-  const valores = lerOpcoes(argumentos)
+export function readPedidoDeUso(argumentos: string[], relogio: Clock = systemClock): PedidoDeUso {
+  const valores = readOpcoes(argumentos)
   if (valores.escola === undefined || !z.uuid().safeParse(valores.escola).success) throw new InvalidArgumentError('--escola')
   const dia = valores.dia ?? diaAnterior(diaDeUso(relogio.agora()))
   if (!diaValido(dia)) throw new InvalidArgumentError('--dia')
@@ -76,7 +76,7 @@ export function lerPedidoDeUso(argumentos: string[], relogio: Clock = systemCloc
  * O uso da escola do pedido no dia e no mês, lido no contexto dela, numa transação curta que começa pela conferência do
  * autor (Tech Spec da A0b, seção 7c, "Autor ativo"): o comando só lê, e mesmo assim só um operador ativo lê.
  */
-export function consultarUso(banco: Database, autor: AuthorCheck, pedido: PedidoDeUso): Promise<RespostaDeUso> {
+export function findUso(banco: Database, autor: AuthorCheck, pedido: PedidoDeUso): Promise<RespostaDeUso> {
   const requisicaoId = randomUUID()
   return runInContext({ requisicaoId }, () =>
     banco.transaction(async (tx) => {
@@ -96,18 +96,18 @@ export function consultarUso(banco: Database, autor: AuthorCheck, pedido: Pedido
  * operador ativo. Argumento e formato do `OPERADOR` são conferidos antes de abrir o banco; o `OPERADOR`, contra os
  * operadores ativos, na transação da consulta, antes dela.
  */
-export async function executarOpsUso(
+export async function runOpsUso(
   argumentos: string[],
   ambiente: Record<string, string | undefined>,
   terminal: CommandOutput,
-  abrirBanco: (ambiente: Record<string, string | undefined>) => CommandDatabase = abrirBancoDeOperacao,
+  abrirBanco: (ambiente: Record<string, string | undefined>) => CommandDatabase = openBancoDeOperacao,
 ): Promise<number> {
   try {
-    const pedido = lerPedidoDeUso(argumentos)
-    const operador = lerOperador(ambiente)
-    const { banco, fechar } = abrirBanco(ambiente)
+    const pedido = readPedidoDeUso(argumentos)
+    const operador = readOperador(ambiente)
+    const { banco, close: fechar } = abrirBanco(ambiente)
     try {
-      terminal.saida(`${JSON.stringify(await consultarUso(banco, autorDoComando(operador), pedido), null, 2)}\n`)
+      terminal.saida(`${JSON.stringify(await findUso(banco, autorDoComando(operador), pedido), null, 2)}\n`)
       return 0
     } finally {
       await fechar()
@@ -121,7 +121,7 @@ export async function executarOpsUso(
 }
 
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  process.exitCode = await executarOpsUso(process.argv.slice(2), process.env, {
+  process.exitCode = await runOpsUso(process.argv.slice(2), process.env, {
     saida: (texto) => process.stdout.write(texto),
     erro: (texto) => process.stderr.write(texto),
   })

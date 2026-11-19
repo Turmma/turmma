@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { ErrorCode } from '@educa/shared'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { esquecerEspelhosDeOutroDono, gravarEspelho, lerEspelho } from './espelho-da-fila'
+import { esquecerEspelhosDeOutroDono, saveEspelho, readEspelho } from './espelho-da-fila'
 
 /**
  * O espelho da prova em `sessionStorage` (53.0, RF21), **sem a fila e sem a tela da Atividade**: o que ele guarda, o que o
@@ -28,7 +28,7 @@ afterEach(() => {
 
 describe('o espelho guarda só ids, e só o que o esquema estrito aceita', () => {
   it('guarda a atividade, o dono e, por pendente, a questão, a alternativa e a sequência: nada além', () => {
-    gravarEspelho(ALUNA, ATIVIDADE, [
+    saveEspelho(ALUNA, ATIVIDADE, [
       { questao: 3, alternativa: 1, sequencia: 4 },
       { questao: 5, alternativa: 0, sequencia: 2 },
     ])
@@ -40,15 +40,15 @@ describe('o espelho guarda só ids, e só o que o esquema estrito aceita', () =>
         { questao: 5, alternativa: 0, sequencia: 2 },
       ],
     })
-    expect(lerEspelho(ALUNA, ATIVIDADE)).toEqual([
+    expect(readEspelho(ALUNA, ATIVIDADE)).toEqual([
       { questao: 3, alternativa: 1, sequencia: 4 },
       { questao: 5, alternativa: 0, sequencia: 2 },
     ])
   })
 
   it('sem pendente nenhuma, a chave sai: o espelho só existe enquanto há o que não foi confirmado', () => {
-    gravarEspelho(ALUNA, ATIVIDADE, [{ questao: 1, alternativa: 0, sequencia: 1 }])
-    gravarEspelho(ALUNA, ATIVIDADE, [])
+    saveEspelho(ALUNA, ATIVIDADE, [{ questao: 1, alternativa: 0, sequencia: 1 }])
+    saveEspelho(ALUNA, ATIVIDADE, [])
     expect(guardado(ATIVIDADE)).toBeNull()
   })
 
@@ -65,19 +65,19 @@ describe('o espelho guarda só ids, e só o que o esquema estrito aceita', () =>
     ['mais pendentes que questões', { ...BOM, pendentes: Array.from({ length: 21 }, () => ({ questao: 1, alternativa: 0, sequencia: 1 })) }],
   ])('descarta o conjunto inteiro, e apaga a chave: %s', (_caso, conteudo) => {
     window.sessionStorage.setItem(chaveDe(ATIVIDADE), JSON.stringify(conteudo))
-    expect(lerEspelho(ALUNA, ATIVIDADE)).toEqual([])
+    expect(readEspelho(ALUNA, ATIVIDADE)).toEqual([])
     expect(guardado(ATIVIDADE)).toBeNull()
   })
 
   it('o JSON quebrado também é descartado', () => {
     window.sessionStorage.setItem(chaveDe(ATIVIDADE), '{"dono":')
-    expect(lerEspelho(ALUNA, ATIVIDADE)).toEqual([])
+    expect(readEspelho(ALUNA, ATIVIDADE)).toEqual([])
     expect(guardado(ATIVIDADE)).toBeNull()
   })
 
   it('o que é de outro dono não volta, e sai do armazenamento', () => {
-    gravarEspelho(OUTRO_ALUNO, ATIVIDADE, [{ questao: 1, alternativa: 0, sequencia: 1 }])
-    expect(lerEspelho(ALUNA, ATIVIDADE)).toEqual([])
+    saveEspelho(OUTRO_ALUNO, ATIVIDADE, [{ questao: 1, alternativa: 0, sequencia: 1 }])
+    expect(readEspelho(ALUNA, ATIVIDADE)).toEqual([])
     expect(guardado(ATIVIDADE)).toBeNull()
   })
 
@@ -88,8 +88,8 @@ describe('o espelho guarda só ids, e só o que o esquema estrito aceita', () =>
   })
 
   it('esquecer o de outro dono apaga as chaves dele e deixa as do dono atual, e o que for ilegível sai também', () => {
-    gravarEspelho(ALUNA, ATIVIDADE, [{ questao: 1, alternativa: 0, sequencia: 1 }])
-    gravarEspelho(OUTRO_ALUNO, OUTRA_ATIVIDADE, [{ questao: 2, alternativa: 1, sequencia: 3 }])
+    saveEspelho(ALUNA, ATIVIDADE, [{ questao: 1, alternativa: 0, sequencia: 1 }])
+    saveEspelho(OUTRO_ALUNO, OUTRA_ATIVIDADE, [{ questao: 2, alternativa: 1, sequencia: 3 }])
     window.sessionStorage.setItem(chaveDe(TERCEIRA_ATIVIDADE), 'lixo')
     // Do dono certo, mas com a atividade que não é um id: o esquema estrito não a aceita, e ela sai.
     window.sessionStorage.setItem(chaveDe('nao-e-um-id'), JSON.stringify({ dono: ALUNA, atividade: 'nao-e-um-id', pendentes: [{ questao: 1, alternativa: 0, sequencia: 1 }] }))
@@ -116,7 +116,7 @@ describe('o fim da sessão e o espelho, sem a tela da Atividade (a sessão é a 
 
   /** O espelho de três atividades da aluna, e uma chave que não é do espelho. */
   function deixarEspelhos(): void {
-    for (const atividade of [ATIVIDADE, OUTRA_ATIVIDADE, TERCEIRA_ATIVIDADE]) gravarEspelho(ALUNA, atividade, [{ questao: 1, alternativa: 2, sequencia: 3 }])
+    for (const atividade of [ATIVIDADE, OUTRA_ATIVIDADE, TERCEIRA_ATIVIDADE]) saveEspelho(ALUNA, atividade, [{ questao: 1, alternativa: 2, sequencia: 3 }])
     window.sessionStorage.setItem('outra-coisa-da-aba', 'fica')
   }
   const espelhosQueFicaram = () => [ATIVIDADE, OUTRA_ATIVIDADE, TERCEIRA_ATIVIDADE].filter((atividade) => guardado(atividade) !== null)
@@ -166,7 +166,7 @@ describe('o fim da sessão e o espelho, sem a tela da Atividade (a sessão é a 
   it('a sessão suspensa apaga: quem tem a eliminação agendada não volta', async () => {
     deixarEspelhos()
     respostas.push({ status: 403, corpo: envelope(ErrorCode.ACESSO_SUSPENSO) })
-    await sessao.abrirSessaoPeloCookie()
+    await sessao.openSessaoPeloCookie()
     expect(sessao.estadoDaSessao()).toBe('suspensa')
     expect(espelhosQueFicaram()).toEqual([])
   })
@@ -184,7 +184,7 @@ describe('o fim da sessão e o espelho, sem a tela da Atividade (a sessão é a 
   it('o F5 com a sessão vencida: a aba nova abre anônima sem trocar de sessão, e o espelho fica para o mesmo aluno entrar', async () => {
     deixarEspelhos()
     respostas.push({ status: 401, corpo: envelope(ErrorCode.NAO_AUTENTICADO) })
-    await sessao.abrirSessaoPeloCookie()
+    await sessao.openSessaoPeloCookie()
     expect(sessao.estadoDaSessao()).toBe('anonima')
     expect(espelhosQueFicaram()).toHaveLength(3)
 

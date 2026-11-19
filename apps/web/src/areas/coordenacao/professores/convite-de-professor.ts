@@ -80,7 +80,7 @@ const semEspacoSobrando = (nome: string) => nome.trim().replace(/\s+/g, ' ')
  * sobrando. A lista só mostra o nome (E11), e duas linhas iguais levam o link refeito de uma pessoa à outra. É um aviso, e
  * não uma garantia: só enxerga a lista que a tela leu.
  */
-export function temHomonimo(professores: ReadonlyArray<{ readonly nome: string }>, nome: string): boolean {
+export function hasHomonimo(professores: ReadonlyArray<{ readonly nome: string }>, nome: string): boolean {
   return professores.some((professor) => PELO_NOME.compare(semEspacoSobrando(professor.nome), semEspacoSobrando(nome)) === 0)
 }
 
@@ -134,7 +134,7 @@ export function falhaDoRefazerConviteDeProfessor(erro: unknown): FalhaDoConvite 
  * (`CORRIGIR_EMAIL_DO_PROFESSOR_POR_ESTADO`). Quem já entrou alguma vez também é recusado pelo servidor, e a lista não diz quem é: o `CONFLITO`
  * dele tem o texto abaixo.
  */
-export function podeCorrigirOEmail(estado: EstadoDoProfessor): boolean {
+export function canCorrigirOEmail(estado: EstadoDoProfessor): boolean {
   return CORRIGIR_EMAIL_DO_PROFESSOR_POR_ESTADO[estado] === 'corrigir'
 }
 
@@ -162,7 +162,7 @@ export interface FalhaDaCorrecaoDoEmail extends FalhaDoConvite {
  * segue com o campo; se saiu de `pendente` e `vencido`, o convite mudou, e a lista deixou de valer. O resto é o texto do catálogo, e o mesmo botão tenta de novo.
  */
 export function falhaDaCorrecaoDoEmail(erro: unknown, estadoAgora: EstadoDoProfessor | undefined): FalhaDaCorrecaoDoEmail {
-  if (listChanged(erro, [ErrorCode.CONFLITO]) && estadoAgora !== undefined && podeCorrigirOEmail(estadoAgora)) {
+  if (listChanged(erro, [ErrorCode.CONFLITO]) && estadoAgora !== undefined && canCorrigirOEmail(estadoAgora)) {
     return { texto: TEXTO_DO_EMAIL_QUE_NAO_SERVE, listaMudou: false, doCampo: true }
   }
   return { ...falhaDoRefazerConviteDeProfessor(erro), doCampo: false }

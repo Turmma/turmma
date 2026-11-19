@@ -118,7 +118,7 @@ export class OperadorRepository {
   }
 
   /** Põe a transação na fila da trava dos operadores; solta sozinha no commit ou no rollback. */
-  async travarOperadores(): Promise<void> {
+  async lockOperadores(): Promise<void> {
     await this.banco.execute(sql`select pg_advisory_xact_lock(${CHAVE_DA_TRAVA_DOS_OPERADORES})`)
   }
 
@@ -144,19 +144,19 @@ export class OperadorRepository {
     return linha
   }
 
-  async contarAtivos(): Promise<number> {
+  async countAtivos(): Promise<number> {
     const [linha] = await this.banco.select({ total: count() }).from(operador).where(isNull(operador.desativadoEm))
     return linha?.total ?? 0
   }
 
   /** Apelido ou e-mail repetido sai como erro do banco (23505), que o comando traduz sem o valor. */
-  async criar(dados: { apelido: string; nome: string; email: string }): Promise<string> {
+  async create(dados: { apelido: string; nome: string; email: string }): Promise<string> {
     const [criado] = await this.banco.insert(operador).values(dados).returning({ id: operador.id })
     if (criado === undefined) throw new DomainException(ErrorCode.ERRO_INTERNO)
     return criado.id
   }
 
-  async criarConvite(dados: { operadorId: string; tokenHash: string; expiraEm: Date }): Promise<string> {
+  async createConvite(dados: { operadorId: string; tokenHash: string; expiraEm: Date }): Promise<string> {
     const [criado] = await this.banco.insert(conviteOperador).values(dados).returning({ id: conviteOperador.id })
     if (criado === undefined) throw new DomainException(ErrorCode.ERRO_INTERNO)
     return criado.id
@@ -194,7 +194,7 @@ export class OperadorRepository {
     return desativados.length > 0
   }
 
-  async apagarCodigosDeRecuperacao(operadorId: string): Promise<void> {
+  async deleteCodigosDeRecuperacao(operadorId: string): Promise<void> {
     await this.banco.delete(codigoRecuperacaoOperador).where(eq(codigoRecuperacaoOperador.operadorId, operadorId))
   }
 
@@ -209,7 +209,7 @@ export class OperadorRepository {
    * A sessão do token de operador, com o operador dela, para a `OperadorGuard`. Só casa a sessão **deste** operador:
    * um `sid` de outro operador no token não lê nada.
    */
-  async lerSessaoParaGuarda(sessaoId: string, operadorId: string): Promise<SessaoDeOperadorForGuard | undefined> {
+  async findSessaoParaGuarda(sessaoId: string, operadorId: string): Promise<SessaoDeOperadorForGuard | undefined> {
     const [linha] = await this.banco
       .select({
         encerradaEm: sessaoOperador.encerradaEm,
@@ -380,7 +380,7 @@ export class OperadorRepository {
       .returning({ id: operador.id })
     // A linha está travada desde o passo 1: só não casa se alguém mudou a trava; aí nada do aceite fica.
     if (gravados.length === 0) throw new DomainException(ErrorCode.ERRO_INTERNO)
-    await this.apagarCodigosDeRecuperacao(dados.operadorId)
+    await this.deleteCodigosDeRecuperacao(dados.operadorId)
     return ativo.apelido
   }
 
@@ -393,7 +393,7 @@ export class OperadorRepository {
    * Devolve a versão nova, ou `undefined` quando o segundo fator já está ativo ou o operador foi desativado: aí nada
    * foi gravado, e quem chama recusa como desafio inválido.
    */
-  async gravarSegredoParaConfigurar(dados: { operadorId: string; segredoCifrado: Buffer; chaveVersao: number }): Promise<number | undefined> {
+  async saveSegredoParaConfigurar(dados: { operadorId: string; segredoCifrado: Buffer; chaveVersao: number }): Promise<number | undefined> {
     const [gravado] = await this.banco
       .update(operador)
       .set({ mfaSegredoCifrado: dados.segredoCifrado, mfaChaveVersao: dados.chaveVersao, mfaVersao: sql`${operador.mfaVersao} + 1`, mfaUltimoPasso: null })
@@ -404,10 +404,10 @@ export class OperadorRepository {
 
   /**
    * Troca os códigos de recuperação do operador pelos deste segredo: apaga os que houver e insere os novos, na mesma
-   * transação da `gravarSegredoParaConfigurar` (com a linha do operador já travada por ela).
+   * transação da `saveSegredoParaConfigurar` (com a linha do operador já travada por ela).
    */
   async trocarCodigosDeRecuperacao(operadorId: string, hmacs: readonly string[]): Promise<void> {
-    await this.apagarCodigosDeRecuperacao(operadorId)
+    await this.deleteCodigosDeRecuperacao(operadorId)
     if (hmacs.length > 0) await this.banco.insert(codigoRecuperacaoOperador).values(hmacs.map((hmac) => ({ operadorId, hmac })))
   }
 
@@ -472,7 +472,7 @@ export class OperadorRepository {
   }
 
   /** A sessão nova do operador, de 8 h, com o hash do refresh. Devolve o id. */
-  async abrirSessao(operadorId: string, refreshHash: string): Promise<string> {
+  async openSessao(operadorId: string, refreshHash: string): Promise<string> {
     const [criada] = await this.banco
       .insert(sessaoOperador)
       .values({ operadorId, refreshHash, expiraEm: sql`now() + make_interval(hours => ${DURACAO_DA_SESSAO_DE_OPERADOR_HORAS})` })

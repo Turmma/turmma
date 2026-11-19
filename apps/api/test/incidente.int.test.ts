@@ -8,7 +8,7 @@ import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { lerAmbienteDeTeste } from '../../../tools/ci/compose.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
-import { executarOpsIncidente } from '../src/ops/incidente.js'
+import { runOpsIncidente } from '../src/ops/incidente.js'
 import { ChallengeIssuer } from '../src/credencial/index.js'
 import { chamar, subirApi, type TestApi } from './test-api.js'
 import { esperarNaTrava, WriteBlockTrigger } from './write-block-trigger.js'
@@ -128,7 +128,7 @@ describe('incidente: a operação registra por comando, e cada coordenação lê
   async function rodar(argumentos: string[], doAmbiente: Record<string, string | undefined> = ambiente): Promise<Execucao> {
     let saida = ''
     let erro = ''
-    const codigo = await executarOpsIncidente(argumentos, doAmbiente, { saida: (texto) => (saida += texto), erro: (texto) => (erro += texto) })
+    const codigo = await runOpsIncidente(argumentos, doAmbiente, { saida: (texto) => (saida += texto), erro: (texto) => (erro += texto) })
     return { codigo, saida, erro }
   }
 
@@ -584,7 +584,7 @@ describe('incidente: a operação registra por comando, e cada coordenação lê
         [id, a.id],
       )
     }
-    const apagadas = await new ExpurgoDeAcessoRepository(bancada.banco).apagarLoteVencido('incidente', agora)
+    const apagadas = await new ExpurgoDeAcessoRepository(bancada.banco).deleteLoteVencido('incidente', agora)
     expect(apagadas).toBeGreaterThanOrEqual(1)
     const restam = async (tabela: 'incidente' | 'incidente_escola') =>
       (await bancada.pool.query<{ id: string }>(tabela === 'incidente' ? 'select id from incidente where id = any($1::uuid[])' : 'select incidente_id as id from incidente_escola where incidente_id = any($1::uuid[])', [ids])).rows.map((linha) => linha.id)

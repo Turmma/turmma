@@ -542,7 +542,7 @@ export interface PedidoDeLeitura {
 export class LeituraDoTitular {
   constructor(private readonly banco: Database | DatabaseTransaction) {}
 
-  async montar(pedido: PedidoDeLeitura): Promise<DocumentoDoTitular> {
+  async build(pedido: PedidoDeLeitura): Promise<DocumentoDoTitular> {
     const alvo: AlvoDaLeitura = { escolaId: requireEscolaId(), titularId: pedido.titularId, versao: pedido.versao }
     const tabelas: Record<string, TableRows> = {}
     const resumo: Array<{ conteudo: string; registros: number }> = []

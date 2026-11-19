@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { MENSAGENS_DE_ERRO, montarTime, type ChaveDeFuncao } from '@educa/shared'
+import { MENSAGENS_DE_ERRO, buildTime, type ChaveDeFuncao } from '@educa/shared'
 import { cleanup, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -38,7 +38,7 @@ const PROFESSORA: FakeResponse = {
 }
 const erro = (status: number, codigo: string): FakeResponse => ({ status, corpo: { erro: { codigo, mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } })
 const NAO_ENCONTRADO = erro(404, 'NAO_ENCONTRADO')
-const timeSem = (...suspensas: ChaveDeFuncao[]): FakeResponse => ({ status: 200, corpo: montarTime(new Set(suspensas)) })
+const timeSem = (...suspensas: ChaveDeFuncao[]): FakeResponse => ({ status: 200, corpo: buildTime(new Set(suspensas)) })
 
 /** Uma entrega pendente de adaptação: o que o sino mostra e o Início não lê. */
 const ENTREGA_PENDENTE = {
@@ -230,11 +230,11 @@ describe('os atalhos de ferramenta', () => {
     await usuario.selectOptions(await screen.findByLabelText('Turma e disciplina'), VALOR_DA_TURMA_B)
     await usuario.type(await caixa(), 'Equilíbrio químico')
     await usuario.click(atalho('Atividade objetiva'))
-    expect(CARTAO_DA_CONVERSA.ler()).toEqual({ ferramenta: 'atividade_objetiva', iniciais: { turma: VALOR_DA_TURMA_B, tema: 'Equilíbrio químico' } })
+    expect(CARTAO_DA_CONVERSA.read()).toEqual({ ferramenta: 'atividade_objetiva', iniciais: { turma: VALOR_DA_TURMA_B, tema: 'Equilíbrio químico' } })
     expect(localizacao.history.at(-1)).toBe(PROFESSOR_ROUTES.conversa)
 
     await usuario.click(atalho('Plano de aula'))
-    expect(CARTAO_DA_CONVERSA.ler()).toEqual({ ferramenta: 'plano_de_aula', iniciais: { turma: VALOR_DA_TURMA_B, tema: 'Equilíbrio químico' } })
+    expect(CARTAO_DA_CONVERSA.read()).toEqual({ ferramenta: 'plano_de_aula', iniciais: { turma: VALOR_DA_TURMA_B, tema: 'Equilíbrio químico' } })
     // Atalho é a escolha da ferramenta: nenhum pedido sai para o Assistente.
     expect(chamadasA(rede, '/v1/assistente/mensagens')).toHaveLength(0)
   })
@@ -245,7 +245,7 @@ describe('os atalhos de ferramenta', () => {
     montar()
     await caixa()
     await userEvent.setup().click(atalho('Plano de aula'))
-    expect(CARTAO_DA_CONVERSA.ler()).toEqual({ ferramenta: 'plano_de_aula', iniciais: { turma: VALOR_DA_TURMA_A } })
+    expect(CARTAO_DA_CONVERSA.read()).toEqual({ ferramenta: 'plano_de_aula', iniciais: { turma: VALOR_DA_TURMA_A } })
   })
 
   it('a Adaptação abre sem ler a caixa: o que foi escrito não chega a ela por caminho nenhum (D35)', async () => {
@@ -255,8 +255,8 @@ describe('os atalhos de ferramenta', () => {
     const usuario = userEvent.setup()
     await usuario.type(await caixa(), 'prova adaptada para um aluno com laudo')
     await usuario.click(atalho('Adaptação'))
-    expect(CARTAO_DA_CONVERSA.ler()).toEqual({ ferramenta: 'adaptacao', iniciais: {} })
-    expect(JSON.stringify(CARTAO_DA_CONVERSA.ler())).not.toContain('laudo')
+    expect(CARTAO_DA_CONVERSA.read()).toEqual({ ferramenta: 'adaptacao', iniciais: {} })
+    expect(JSON.stringify(CARTAO_DA_CONVERSA.read())).not.toContain('laudo')
     expect(localizacao.history.at(-1)).toBe(PROFESSOR_ROUTES.conversa)
     expect(chamadasA(rede, '/v1/assistente/mensagens')).toHaveLength(0)
   })
@@ -269,7 +269,7 @@ describe('os atalhos de ferramenta', () => {
     await usuario.type(await caixa(), 'Faça uma atividade sobre equilíbrio químico')
     await usuario.click(screen.getByRole('button', { name: 'Enviar' }))
     await waitFor(() => expect(chamadasA(rede, '/v1/assistente/mensagens')).toHaveLength(1))
-    expect(CARTAO_DA_CONVERSA.ler()).toBeUndefined()
+    expect(CARTAO_DA_CONVERSA.read()).toBeUndefined()
     expect(localizacao.history.at(-1)).toBe(PROFESSOR_ROUTES.conversa)
     expect(((await caixa()) as HTMLTextAreaElement).value).toBe('')
   })
@@ -332,7 +332,7 @@ describe('a função suspensa pela escola', () => {
     ])
     // O desligado não aciona: nada abre.
     await userEvent.setup().click(atalho('Adaptação'))
-    expect(CARTAO_DA_CONVERSA.ler()).toBeUndefined()
+    expect(CARTAO_DA_CONVERSA.read()).toBeUndefined()
   })
 })
 
@@ -341,7 +341,7 @@ describe('a mesma caixa na conversa, sem `semMenu`', () => {
     const turma: TurmaDaProfessora = { valor: VALOR_DA_TURMA_A, turmaId: TURMA_A.id, disciplinaId: QUIMICA.id, turmaNome: TURMA_A.nome, rotulo: '1º A · Química' }
     renderScreen(
       <Router hook={memoryLocation({ path: PROFESSOR_ROUTES.conversa }).hook}>
-        <CaixaDoAssistente turmas={[turma]} turma={turma} iniciar={() => true} respondendo={false} desligada={false} />
+        <CaixaDoAssistente turmas={[turma]} turma={turma} start={() => true} respondendo={false} desligada={false} />
       </Router>,
     )
     expect(screen.getByRole('button', { name: 'Ferramenta' })).toBeTruthy()

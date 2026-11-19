@@ -16,7 +16,7 @@ type Separador = (typeof SEPARADORES)[number]
 const ASPAS = '"'
 
 /** O texto sem acento, em minúsculas, sem espaço nas pontas e com os de dentro reduzidos a um: como se reconhece um cabeçalho ou um tipo. */
-export function normalizarTexto(texto: string): string {
+export function normalizeTexto(texto: string): string {
   return texto.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/\s+/g, ' ').trim()
 }
 
@@ -58,7 +58,7 @@ export interface TabelaLida {
 /** O separador e as colunas do cabeçalho, se a linha é o do modelo: as colunas esperadas, nem mais nem menos, em qualquer ordem (com o mesmo número de colunas, todas as esperadas presentes já exclui a repetida). */
 function cabecalhoDe(linha: string, esperadas: readonly string[]): { readonly separador: Separador; readonly colunas: readonly string[] } | undefined {
   for (const separador of SEPARADORES) {
-    const colunas = camposDa(linha, separador).map(normalizarTexto)
+    const colunas = camposDa(linha, separador).map(normalizeTexto)
     if (colunas.length === esperadas.length && esperadas.every((coluna) => colunas.includes(coluna))) return { separador, colunas }
   }
   return undefined
@@ -70,10 +70,10 @@ function cabecalhoDe(linha: string, esperadas: readonly string[]): { readonly se
  * não é o do modelo, texto sem linha de dados ou sem texto nenhum respondem `ENTRADA_INVALIDA`: a planilha errada não chega a ser
  * classificada. Linha com mais ou menos campos que o cabeçalho volta com `campos: null`, para o tipo apontar o erro nela.
  */
-export function lerTabela(texto: string, cabecalho: readonly string[]): TabelaLida {
+export function readTabela(texto: string, cabecalho: readonly string[]): TabelaLida {
   const linhas = texto.split(/\r\n|\r|\n/)
   const primeira = linhas.findIndex((linha) => linha.trim() !== '')
-  const lido = cabecalhoDe(linhas[primeira] ?? '', cabecalho.map(normalizarTexto))
+  const lido = cabecalhoDe(linhas[primeira] ?? '', cabecalho.map(normalizeTexto))
   if (lido === undefined) throw new DomainException(ErrorCode.ENTRADA_INVALIDA)
   const dados: SheetRow[] = []
   linhas.forEach((linha, posicao) => {

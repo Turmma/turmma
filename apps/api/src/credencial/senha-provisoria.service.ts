@@ -6,7 +6,7 @@ import {
   alvoDaSenhaProvisoriaResponseSchema,
   ErrorCode,
   FINALIDADE_DA_LEITURA_DO_ALVO,
-  formatarSenhaProvisoria,
+  formatSenhaProvisoria,
   LIMITE_DE_PROVISORIAS_POR_DIA_E_ALUNO,
   LIMITE_DE_PROVISORIAS_POR_HORA_E_USUARIO,
   senhaProvisoriaResponseSchema,
@@ -34,9 +34,9 @@ const PAPEL_DO_ALCANCE: Readonly<Record<AlcanceDaProvisoria, PapelQueGeraASenhaP
 
 export interface SenhaProvisoriaDependencies {
   readonly banco: Database
-  readonly hash: Pick<PasswordHasher, 'gerar'>
+  readonly hash: Pick<PasswordHasher, 'generate'>
   /** O semáforo do argon2, o mesmo do login: o hash da provisória espera a vez no balde da escola. */
-  readonly semaforo: Pick<HashBulkhead, 'executar'>
+  readonly semaforo: Pick<HashBulkhead, 'run'>
   /** A janela de uma hora, a da cota por quem gera. */
   readonly porHora: Pick<WindowCounter, 'chaveDe' | 'somar' | 'restanteMs'>
   /** A janela de um dia, a da cota por aluno. */
@@ -92,34 +92,34 @@ export class SenhaProvisoriaService {
    * (`unidade`) grava `senha_provisoria.alvo_lido` na mesma transação da leitura (regra 20, item 10): sem registro, sem leitura; o professor com vínculo na turma do aluno não grava.
    * O registro leva o aluno como alvo e a finalidade fixa, nunca o nome nem a matrícula.
    */
-  async lerAlvo(alunoId: string): Promise<AlvoDaSenhaProvisoriaResponse> {
+  async readAlvo(alunoId: string): Promise<AlvoDaSenhaProvisoriaResponse> {
     const alcance = alcanceDaGeracao(requestSessao().papel)
     const alvo = await this.dependencias.banco.transaction(async (tx) => {
-      const achado = await new CredencialMatriculaRepository(tx).lerAlvo(alunoId, alcance)
+      const achado = await new CredencialMatriculaRepository(tx).findAlvo(alunoId, alcance)
       if (achado === undefined) throw naoEncontrado()
-      if (alcance === 'unidade') await registro.gravar(tx, 'senha_provisoria.alvo_lido', { entidadeId: alunoId, finalidade: FINALIDADE_DA_LEITURA_DO_ALVO })
+      if (alcance === 'unidade') await registro.save(tx, 'senha_provisoria.alvo_lido', { entidadeId: alunoId, finalidade: FINALIDADE_DA_LEITURA_DO_ALVO })
       return achado
     })
     return alvoDaSenhaProvisoriaResponseSchema.parse(alvo)
   }
 
-  async gerar(alunoId: string): Promise<SenhaProvisoriaResponse> {
+  async generate(alunoId: string): Promise<SenhaProvisoriaResponse> {
     const { banco, hash, semaforo } = this.dependencias
     const escolaId = requireEscolaId()
     const { usuarioId: quemGera, papel } = requestSessao()
     const alcance = alcanceDaGeracao(papel)
     await this.#conferir(new CredencialMatriculaRepository(banco), alunoId, alcance, false)
     const senha = sortearSenhaProvisoria(this.#sortear)
-    const senhaHash = await semaforo.executar(escolaBucket(escolaId), () => hash.gerar(senha))
+    const senhaHash = await semaforo.run(escolaBucket(escolaId), () => hash.generate(senha))
     const resposta = await banco.transaction(async (tx) => {
       const credenciais = new CredencialMatriculaRepository(tx)
       await this.#conferir(credenciais, alunoId, alcance, true)
       await this.#gastarAsCotas(quemGera, alunoId)
-      const gravada = await credenciais.gravarProvisoria(alunoId, senhaHash, quemGera)
+      const gravada = await credenciais.saveProvisoria(alunoId, senhaHash, quemGera)
       if (gravada === undefined) throw naoEncontrado()
       await new CicloDeVidaRepository(tx).encerrarSessoesDoUsuario(alunoId, 'senha_redefinida')
-      await registro.gravar(tx, 'senha_provisoria.gerada', { entidadeId: alunoId, depois: { papel: PAPEL_DO_ALCANCE[alcance] } })
-      return senhaProvisoriaResponseSchema.parse({ senha: formatarSenhaProvisoria(senha), expiraEm: gravada.expiraEm.toISOString() })
+      await registro.save(tx, 'senha_provisoria.gerada', { entidadeId: alunoId, depois: { papel: PAPEL_DO_ALCANCE[alcance] } })
+      return senhaProvisoriaResponseSchema.parse({ senha: formatSenhaProvisoria(senha), expiraEm: gravada.expiraEm.toISOString() })
     })
     this.#geradas.add(1, { [ROTULO_ESCOLA]: escolaId })
     return resposta
@@ -130,7 +130,7 @@ export class SenhaProvisoriaService {
    * com a linha do usuário travada; sem ele, a primeira, que não segura nada.
    */
   async #conferir(credenciais: CredencialMatriculaRepository, alunoId: string, alcance: AlcanceDaProvisoria, travar: boolean): Promise<void> {
-    const alcancou = travar ? await credenciais.travarAlunoParaProvisoria(alunoId, alcance) : await credenciais.alcancaAluno(alunoId, alcance)
+    const alcancou = travar ? await credenciais.lockAlunoParaProvisoria(alunoId, alcance) : await credenciais.alcancaAluno(alunoId, alcance)
     if (!alcancou) throw naoEncontrado()
     const estado = await credenciais.estadoDaProvisoria(alunoId)
     if (estado.contaLigada) throw new DomainException(ErrorCode.ENTRA_PELA_CONTA_DA_ESCOLA)

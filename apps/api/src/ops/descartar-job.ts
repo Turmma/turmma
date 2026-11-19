@@ -3,9 +3,9 @@ import { ErrorCode, TIPO_EXTRAIR_PDF } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { pathToFileURL } from 'node:url'
 import { JobsQueFalharamRepository } from '../operacao/jobs-que-falharam.repository.js'
-import { abrirArmazemDeOperacao } from './armazem-de-operacao.js'
-import { abrirBancoDeOperacao, autorDoComando, lerOperador, type CommandDatabase, type CommandOutput } from './command.js'
-import { exigirJobDaOperacao, lerPedidoDeJob, noContextoDoJob, terminarComErro, type PedidoDeJob } from './jobs-que-falharam.js'
+import { openArmazemDeOperacao } from './armazem-de-operacao.js'
+import { openBancoDeOperacao, autorDoComando, readOperador, type CommandDatabase, type CommandOutput } from './command.js'
+import { exigirJobDaOperacao, readPedidoDeJob, noContextoDoJob, terminarComErro, type PedidoDeJob } from './jobs-que-falharam.js'
 import type { AuthorCheck } from '../sessao/index.js'
 
 const registro = new AuditoriaRecorder()
@@ -30,19 +30,19 @@ export interface JobDescartado {
  * - O `job.descartado` fica na auditoria da escola do job, com o chamado, na mesma transação. O job de rotina do sistema (`sistema.*`) não tem escola: sai no contexto da rotina
  *   do sistema e a auditoria fica **sem escola**, só com o `autor_operador` (`techspec.md` §11, linha "3.0"). O PDF só é de escola.
  */
-export async function descartarJob(banco: Database, autor: AuthorCheck, armazem: Pick<FileStorage, 'apagar'>, pedido: PedidoDeJob): Promise<JobDescartado> {
+export async function descartarJob(banco: Database, autor: AuthorCheck, armazem: Pick<FileStorage, 'delete'>, pedido: PedidoDeJob): Promise<JobDescartado> {
   const requisicaoId = randomUUID()
   return runInContext({ requisicaoId }, async () => {
     const decisao = await banco.transaction(async (tx) => {
       const autorOperador = await autor(tx)
-      const linha = await new JobsQueFalharamRepository(tx).travarFalho(pedido.jobId)
+      const linha = await new JobsQueFalharamRepository(tx).lockFalho(pedido.jobId)
       if (linha === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       const { escolaId, tipo } = exigirJobDaOperacao(linha, [])
       return noContextoDoJob(requisicaoId, escolaId, async () => {
         const materialId = tipo === TIPO_EXTRAIR_PDF ? linha.materialId : null
         const materialFechado = materialId === null ? false : await new ExtracaoDoMaterialRepository(tx).marcarFalhou(materialId, 'extracao_falhou')
         if (!(await new JobOutboxRepository(tx).descartarFalho(linha.id))) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
-        await registro.gravar(tx, 'job.descartado', { entidadeId: linha.id, depois: { tipo, chamado: pedido.chamado }, autorOperador })
+        await registro.save(tx, 'job.descartado', { entidadeId: linha.id, depois: { tipo, chamado: pedido.chamado }, autorOperador })
         return { id: linha.id, tipo, escolaId, materialId: materialFechado ? materialId : null }
       })
     })
@@ -51,7 +51,7 @@ export async function descartarJob(banco: Database, autor: AuthorCheck, armazem:
     if (materialId === null || escolaId === null) return { id: decisao.id, tipo: decisao.tipo, materialFechado: false, objetoApagado: false }
     const objetoApagado = await runInContext({ requisicaoId, escolaId }, async () => {
       try {
-        await armazem.apagar(chaveDoTemporario(materialId))
+        await armazem.delete(chaveDoTemporario(materialId))
         await new ExtracaoDoMaterialRepository(banco).marcarObjetoApagado(materialId)
         return true
       } catch {
@@ -67,19 +67,19 @@ export async function descartarJob(banco: Database, autor: AuthorCheck, armazem:
  * Executa o comando e devolve o código de saída: 0 descartado, 1 recusa (tipo), `NAO_ENCONTRADO` ou `ERRO_INTERNO` resumido, 2 argumento
  * ou ambiente inválido, ou `OPERADOR` que não é operador ativo. O armazém só é aberto depois de o argumento e o `OPERADOR` serem conferidos.
  */
-export async function executarOpsDescartarJob(
+export async function runOpsDescartarJob(
   argumentos: string[],
   ambiente: Record<string, string | undefined>,
   terminal: CommandOutput,
-  abrirBanco: (ambiente: Record<string, string | undefined>) => CommandDatabase = abrirBancoDeOperacao,
-  abrirArmazem: (ambiente: Record<string, string | undefined>) => { armazem: Pick<FileStorage, 'apagar'>; encerrar: () => void } = abrirArmazemDeOperacao,
+  abrirBanco: (ambiente: Record<string, string | undefined>) => CommandDatabase = openBancoDeOperacao,
+  abrirArmazem: (ambiente: Record<string, string | undefined>) => { armazem: Pick<FileStorage, 'delete'>; encerrar: () => void } = openArmazemDeOperacao,
 ): Promise<number> {
   try {
-    const pedido = lerPedidoDeJob(argumentos)
-    const operador = lerOperador(ambiente)
+    const pedido = readPedidoDeJob(argumentos)
+    const operador = readOperador(ambiente)
     const { armazem, encerrar } = abrirArmazem(ambiente)
     try {
-      const { banco, fechar } = abrirBanco(ambiente)
+      const { banco, close: fechar } = abrirBanco(ambiente)
       try {
         const descartado = await descartarJob(banco, autorDoComando(operador), armazem, pedido)
         terminal.saida(`${JSON.stringify({ descartado: descartado.id, tipo: descartado.tipo, chamado: pedido.chamado, materialFechado: descartado.materialFechado, objetoApagado: descartado.objetoApagado })}\n`)
@@ -96,7 +96,7 @@ export async function executarOpsDescartarJob(
 }
 
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  process.exitCode = await executarOpsDescartarJob(process.argv.slice(2), process.env, {
+  process.exitCode = await runOpsDescartarJob(process.argv.slice(2), process.env, {
     saida: (texto) => process.stdout.write(texto),
     erro: (texto) => process.stderr.write(texto),
   })

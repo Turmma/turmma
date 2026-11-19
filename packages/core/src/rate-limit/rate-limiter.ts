@@ -117,7 +117,7 @@ class LimitesDoPrefixo {
   com(pontos: number): Limite {
     let limite = this.#porPontos.get(pontos)
     if (limite === undefined) {
-      limite = criarLimite(this.cliente, this.prefixo, pontos, this.instancias)
+      limite = createLimite(this.cliente, this.prefixo, pontos, this.instancias)
       this.#porPontos.set(pontos, limite)
     }
     return limite
@@ -126,7 +126,7 @@ class LimitesDoPrefixo {
 
 type Consumo = { aceita: boolean; resposta: RateLimiterRes; doSeguro: boolean }
 
-function criarLimite(cliente: Redis, prefixo: string, pontos: number, instancias: number): Limite {
+function createLimite(cliente: Redis, prefixo: string, pontos: number, instancias: number): Limite {
   const seguro = new InMemoryFallback({ keyPrefix: prefixo, points: insuranceLimit(pontos, instancias), duration: JANELA_LIMITE_SEGUNDOS })
   const redis = new RateLimiterRedis({
     storeClient: cliente,
@@ -170,12 +170,12 @@ export class RateLimiter {
     this.#proporcaoDoSeguro = proporcaoDoSeguro
     this.#usuario = new LimitesDoPrefixo(cliente, PREFIXO_LIMITE_USUARIO, config.instancias)
     this.#escola = new LimitesDoPrefixo(cliente, PREFIXO_LIMITE_ESCOLA, config.instancias)
-    this.#ipAnonimo = criarLimite(cliente, PREFIXO_LIMITE_IP, config.porIpAnonimoMin, config.instancias)
-    this.#ipDoLogin = criarLimite(cliente, PREFIXO_LIMITE_IP_LOGIN, config.porIpAnonimoMin, config.instancias)
-    this.#ipDaOperacao = criarLimite(cliente, PREFIXO_LIMITE_IP_OPERACAO, config.porIpAnonimoMin, config.instancias)
-    this.#operador = criarLimite(cliente, PREFIXO_LIMITE_OPERADOR, config.porOperadorMin, config.instancias)
-    this.#buscaDeTitulares = criarLimite(cliente, PREFIXO_LIMITE_BUSCA_TITULAR, LIMITE_DA_BUSCA_DE_TITULARES_POR_MINUTO, config.instancias)
-    this.#importacao = criarLimite(cliente, PREFIXO_LIMITE_IMPORTACAO, LIMITE_DA_PLANILHA_POR_MINUTO, config.instancias)
+    this.#ipAnonimo = createLimite(cliente, PREFIXO_LIMITE_IP, config.porIpAnonimoMin, config.instancias)
+    this.#ipDoLogin = createLimite(cliente, PREFIXO_LIMITE_IP_LOGIN, config.porIpAnonimoMin, config.instancias)
+    this.#ipDaOperacao = createLimite(cliente, PREFIXO_LIMITE_IP_OPERACAO, config.porIpAnonimoMin, config.instancias)
+    this.#operador = createLimite(cliente, PREFIXO_LIMITE_OPERADOR, config.porOperadorMin, config.instancias)
+    this.#buscaDeTitulares = createLimite(cliente, PREFIXO_LIMITE_BUSCA_TITULAR, LIMITE_DA_BUSCA_DE_TITULARES_POR_MINUTO, config.instancias)
+    this.#importacao = createLimite(cliente, PREFIXO_LIMITE_IMPORTACAO, LIMITE_DA_PLANILHA_POR_MINUTO, config.instancias)
   }
 
   /** 1 enquanto a última requisição limitada foi contada pelo seguro em memória. */
@@ -202,11 +202,11 @@ export class RateLimiter {
    *
    * Os `limites` são os da escola do token, lidos da configuração dela por quem chama.
    */
-  async consumirAutenticada(identidade: Identity, limites: RateLimits): Promise<RateLimitResult> {
+  async consumeAutenticada(identidade: Identity, limites: RateLimits): Promise<RateLimitResult> {
     const limiteDaEscola = this.#escola.com(limites.porEscolaMin)
     const [usuario, escola] = await Promise.all([
-      this.#consumir(this.#usuario.com(limites.porUsuarioMin), identidade.usuarioId),
-      this.#consumir(limiteDaEscola, identidade.escolaId),
+      this.#consume(this.#usuario.com(limites.porUsuarioMin), identidade.usuarioId),
+      this.#consume(limiteDaEscola, identidade.escolaId),
     ])
     this.#registrarSeguro(usuario.doSeguro || escola.doSeguro)
     if (!usuario.aceita) {
@@ -217,16 +217,16 @@ export class RateLimiter {
     return { aceita: true }
   }
 
-  async consumirAnonima(ip: string): Promise<RateLimitResult> {
-    return this.#consumirUmaChave(this.#ipAnonimo, ip)
+  async consumeAnonima(ip: string): Promise<RateLimitResult> {
+    return this.#consumeUmaChave(this.#ipAnonimo, ip)
   }
 
   /**
    * O limite por IP das rotas de login por senha (`@DowngradeRateLimit()`), com o mesmo teto do anônimo e balde próprio.
    * Quem chama não recusa acima dele: só rebaixa a tentativa.
    */
-  async consumirDoLogin(ip: string): Promise<RateLimitResult> {
-    return this.#consumirUmaChave(this.#ipDoLogin, ip)
+  async consumeDoLogin(ip: string): Promise<RateLimitResult> {
+    return this.#consumeUmaChave(this.#ipDoLogin, ip)
   }
 
   /**
@@ -234,16 +234,16 @@ export class RateLimiter {
    * balde próprio: nem a escola atrás do mesmo IP gasta o do operador, nem o contrário. Quem chama recusa acima dele, ou
    * só rebaixa, nas rotas `@DowngradeRateLimit`.
    */
-  async consumirDaOperacao(ip: string): Promise<RateLimitResult> {
-    return this.#consumirUmaChave(this.#ipDaOperacao, ip)
+  async consumeDaOperacao(ip: string): Promise<RateLimitResult> {
+    return this.#consumeUmaChave(this.#ipDaOperacao, ip)
   }
 
   /**
    * O limite do operador Turmma nas rotas `@OperacaoRoute` (`rl:op:{operadorId}`), pelo `sub` do token de operador
    * verificado. Com o Redis fora, o mesmo seguro em memória dos outros limites.
    */
-  async consumirDeOperador(operadorId: string): Promise<RateLimitResult> {
-    return this.#consumirUmaChave(this.#operador, operadorId)
+  async consumeDeOperador(operadorId: string): Promise<RateLimitResult> {
+    return this.#consumeUmaChave(this.#operador, operadorId)
   }
 
   /**
@@ -251,25 +251,25 @@ export class RateLimiter {
    * balde próprio. Conta **além** do limite do usuário e do da escola, que continuam valendo; duas coordenações da
    * mesma escola, atrás do mesmo IP, têm 30 cada (regra 80, item 1).
    */
-  async consumirDaBuscaDeTitulares(usuarioId: string): Promise<RateLimitResult> {
-    return this.#consumirUmaChave(this.#buscaDeTitulares, usuarioId)
+  async consumeDaBuscaDeTitulares(usuarioId: string): Promise<RateLimitResult> {
+    return this.#consumeUmaChave(this.#buscaDeTitulares, usuarioId)
   }
 
   /**
    * O limite da prévia e do gravar de planilha (`rl:importacao:{usuarioId}`, F2, tarefa 5.0): 20 por minuto, por usuário, no mesmo
    * balde para as duas rotas. Conta **além** do limite do usuário e do da escola, que continuam valendo.
    */
-  async consumirDaImportacao(usuarioId: string): Promise<RateLimitResult> {
-    return this.#consumirUmaChave(this.#importacao, usuarioId)
+  async consumeDaImportacao(usuarioId: string): Promise<RateLimitResult> {
+    return this.#consumeUmaChave(this.#importacao, usuarioId)
   }
 
-  async #consumirUmaChave(limite: Limite, chave: string): Promise<RateLimitResult> {
-    const consumo = await this.#consumir(limite, chave)
+  async #consumeUmaChave(limite: Limite, chave: string): Promise<RateLimitResult> {
+    const consumo = await this.#consume(limite, chave)
     this.#registrarSeguro(consumo.doSeguro)
     return consumo.aceita ? { aceita: true } : { aceita: false, msAteLiberar: consumo.resposta.msBeforeNext }
   }
 
-  async #consumir(limite: Limite, chave: string): Promise<Consumo> {
+  async #consume(limite: Limite, chave: string): Promise<Consumo> {
     try {
       const resposta = await limite.redis.consume(chave)
       return { aceita: true, resposta, doSeguro: limite.seguro.respondeu(resposta) }

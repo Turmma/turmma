@@ -8,7 +8,7 @@ import { StatusBadge } from '../../components/ui/StatusBadge'
 import { Table } from '../../components/ui/Table'
 import { formatQuantity } from '../../format'
 import { acoesDoConvite, ROTULO_DA_ACAO, type AcaoDoConvite } from '../acoes-do-convite'
-import { buscaDaConsulta, dasEscolasQueryOptions, lerConsultaDaTela, paginasDoTotal } from '../api/painel'
+import { buscaDaConsulta, dasEscolasQueryOptions, readConsultaDaTela, paginasDoTotal } from '../api/painel'
 import { INICIO_DA_OPERACAO } from '../paths'
 import { SECONDARY_BUTTON_CLASSES } from '../../components/ui/button-variants'
 import { ErroDaOperacao } from '../components/CascaDaOperacao'
@@ -139,7 +139,7 @@ export function Escolas() {
   useOperacaoPageTitle('Escolas')
   const busca = useSearch()
   const [, navegar] = useLocation()
-  const consulta = lerConsultaDaTela(busca)
+  const consulta = readConsultaDaTela(busca)
   const escolas = useQuery(dasEscolasQueryOptions(consulta))
   // O diálogo aberto: um de cada vez, e só enquanto está aberto ele existe; cada abertura é uma instância própria. Os do
   // convite levam a escola da linha, fotografada na abertura.
@@ -174,8 +174,8 @@ export function Escolas() {
     <>
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div className="flex flex-wrap gap-3">
-          <Button onClick={() => dialogo.abrir('escola')}>Nova escola</Button>
-          <button type="button" onClick={() => dialogo.abrir('rede')} className={SECONDARY_BUTTON_CLASSES}>
+          <Button onClick={() => dialogo.open('escola')}>Nova escola</Button>
+          <button type="button" onClick={() => dialogo.open('rede')} className={SECONDARY_BUTTON_CLASSES}>
             Nova rede
           </button>
         </div>
@@ -207,7 +207,7 @@ export function Escolas() {
             colunas={[
               { chave: 'escola', titulo: 'Escola', celula: (escola) => <IdentidadeDaEscola escola={escola} /> },
               { chave: 'rede', titulo: 'Rede', celula: (escola) => <span className="wrap-anywhere">{escola.rede.nome}</span> },
-              { chave: 'coordenacao', titulo: 'Coordenação', celula: (escola) => <CoordenacaoDaEscola escola={escola} aoAcionar={dialogo.abrir} focarNaEscola={focarNaEscola} /> },
+              { chave: 'coordenacao', titulo: 'Coordenação', celula: (escola) => <CoordenacaoDaEscola escola={escola} aoAcionar={dialogo.open} focarNaEscola={focarNaEscola} /> },
               { chave: 'uso', titulo: 'Uso', celula: (escola) => <UsoDaEscola escola={escola} /> },
             ]}
             linhas={dados.itens}
@@ -219,12 +219,12 @@ export function Escolas() {
       {aberta?.tipo === 'rede' && (
         <NovaRede
           key={aberta.numero}
-          aoFechar={dialogo.fechar}
+          aoFechar={dialogo.close}
           aoCriar={(rede) => {
             definirAnuncio(`Rede ${rede.nome} criada. Agora crie a escola dela em Nova escola.`)
             // A resposta pode chegar depois de o diálogo fechar, com outro já aberto, até outro Nova rede: só esta
             // abertura fecha (`dialog-state.ts`).
-            dialogo.fecharSeAinda(aberta)
+            dialogo.closeSeAinda(aberta)
             definirRedeSugerida(rede.id)
           }}
         />
@@ -233,29 +233,29 @@ export function Escolas() {
         <NovaEscola
           key={aberta.numero}
           redeSugeridaId={redeSugerida}
-          aoFechar={dialogo.fechar}
-          aoPedirNovaRede={() => dialogo.abrir('rede')}
+          aoFechar={dialogo.close}
+          aoPedirNovaRede={() => dialogo.open('rede')}
           aoCriar={(escola) => {
             definirAnuncio(`Escola ${escola.nome} criada.`)
-            dialogo.fecharSeAinda(aberta)
+            dialogo.closeSeAinda(aberta)
           }}
         />
       )}
       {/* O gerar e o refazer não fecham sozinhos: a resposta deles só preenche o diálogo que a pediu (`DialogoDoConvite.tsx`). */}
-      {aberta?.tipo === 'gerar' && alvo !== undefined && <GerarConvite key={aberta.numero} escola={alvo} aoFechar={dialogo.fechar} focoDeReserva={() => focarNaEscola(alvo.id)} />}
+      {aberta?.tipo === 'gerar' && alvo !== undefined && <GerarConvite key={aberta.numero} escola={alvo} aoFechar={dialogo.close} focoDeReserva={() => focarNaEscola(alvo.id)} />}
       {aberta?.tipo === 'refazer' && alvo?.conviteId !== undefined && (
-        <RefazerConvite key={aberta.numero} escola={alvo} conviteId={alvo.conviteId} aoFechar={dialogo.fechar} focoDeReserva={() => focarNaEscola(alvo.id)} />
+        <RefazerConvite key={aberta.numero} escola={alvo} conviteId={alvo.conviteId} aoFechar={dialogo.close} focoDeReserva={() => focarNaEscola(alvo.id)} />
       )}
       {aberta?.tipo === 'revogar' && alvo?.conviteId !== undefined && (
         <ConfirmarConvite
           key={aberta.numero}
           escola={alvo}
           conviteId={alvo.conviteId}
-          aoFechar={dialogo.fechar}
+          aoFechar={dialogo.close}
           focoDeReserva={() => focarNaEscola(alvo.id)}
           aoRevogar={() => {
             definirAnuncio(`Convite de ${alvo.nome} revogado.`)
-            dialogo.fecharSeAinda(aberta)
+            dialogo.closeSeAinda(aberta)
           }}
         />
       )}

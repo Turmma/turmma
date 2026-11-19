@@ -16,7 +16,7 @@ import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 import { z } from 'zod'
 import { AcessoDaEscolaRepository } from '../credencial/index.js'
-import { abrirBancoDeOperacao, InvalidArgumentError, autorDoComando, lerOperador, OperadorRejectedError, type CommandDatabase, type CommandOutput } from './command.js'
+import { openBancoDeOperacao, InvalidArgumentError, autorDoComando, readOperador, OperadorRejectedError, type CommandDatabase, type CommandOutput } from './command.js'
 import { OperacaoPrivacidadeRepository } from './operacao-privacidade.repository.js'
 import type { AuthorCheck } from '../sessao/index.js'
 
@@ -69,7 +69,7 @@ const contratoSchema = z.string().regex(FORMATO_DO_CONTRATO_DO_SUBOPERADOR)
 const categoriasSchema = z.array(z.enum(CHAVES_DE_CATEGORIA_DO_SUBOPERADOR)).min(1)
 const escolasSchema = z.array(z.uuid()).min(1).max(MAXIMO_DE_ESCOLAS)
 
-function lerOpcoes(argumentos: string[]) {
+function readOpcoes(argumentos: string[]) {
   try {
     return parseArgs({
       args: argumentos,
@@ -107,8 +107,8 @@ function listaDe(texto: string | undefined, opcao: string, normalizar: (item: st
   return [...new Set(itens)]
 }
 
-export function lerPedidoDeSuboperador(argumentos: string[]): PedidoDeSuboperador {
-  const { values: valores, positionals: posicionais } = lerOpcoes(argumentos)
+export function readPedidoDeSuboperador(argumentos: string[]): PedidoDeSuboperador {
+  const { values: valores, positionals: posicionais } = readOpcoes(argumentos)
   const comando = posicionais.join(' ')
   if (comando !== 'cadastrar' && comando !== 'encerrar') throw new InvalidArgumentError('comando (cadastrar | encerrar)')
   const chave = conferido(chaveSchema, valores.chave, '--chave')
@@ -147,7 +147,7 @@ export function cadastrarSuboperador(banco: Database, autor: AuthorCheck, pedido
           await repositorio.ligarEscola(suboperadorId)
         })
       }
-      await registro.gravar(tx, 'suboperador.cadastrado', {
+      await registro.save(tx, 'suboperador.cadastrado', {
         entidadeId: suboperadorId,
         depois: { alcance: pedido.alcance, escolas: pedido.escolas.length },
         finalidade: FINALIDADE_DO_REGISTRO_DE_SUBOPERADOR,
@@ -165,11 +165,11 @@ export function encerrarSuboperador(banco: Database, autor: AuthorCheck, pedido:
     banco.transaction(async (tx) => {
       const autorOperador = await autor(tx)
       const repositorio = new OperacaoPrivacidadeRepository(tx)
-      const vigente = await repositorio.travarVigente(pedido.chave)
+      const vigente = await repositorio.lockVigente(pedido.chave)
       if (vigente === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       await repositorio.encerrar(vigente.id)
       const ligacoesEncerradas = await repositorio.encerrarLigacoes(vigente.id)
-      await registro.gravar(tx, 'suboperador.encerrado', {
+      await registro.save(tx, 'suboperador.encerrado', {
         entidadeId: vigente.id,
         antes: { alcance: vigente.alcance },
         depois: { ligacoesEncerradas },
@@ -192,16 +192,16 @@ const MENSAGEM_DO_OPERADOR: Partial<Record<ErrorCode, string>> = {
  * resumido, 2 argumento ou ambiente inválido, ou `OPERADOR` que não é operador ativo. Argumento e formato do `OPERADOR` são
  * conferidos antes de abrir o banco; o `OPERADOR` contra os ativos, dentro da transação.
  */
-export async function executarOpsSuboperador(
+export async function runOpsSuboperador(
   argumentos: string[],
   ambiente: Record<string, string | undefined>,
   terminal: CommandOutput,
-  abrirBanco: (ambiente: Record<string, string | undefined>) => CommandDatabase = abrirBancoDeOperacao,
+  abrirBanco: (ambiente: Record<string, string | undefined>) => CommandDatabase = openBancoDeOperacao,
 ): Promise<number> {
   try {
-    const pedido = lerPedidoDeSuboperador(argumentos)
-    const operador = lerOperador(ambiente)
-    const { banco, fechar } = abrirBanco(ambiente)
+    const pedido = readPedidoDeSuboperador(argumentos)
+    const operador = readOperador(ambiente)
+    const { banco, close: fechar } = abrirBanco(ambiente)
     try {
       const autor = autorDoComando(operador)
       const resposta = pedido.comando === 'cadastrar' ? await cadastrarSuboperador(banco, autor, pedido) : await encerrarSuboperador(banco, autor, pedido)
@@ -227,7 +227,7 @@ export async function executarOpsSuboperador(
 }
 
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  process.exitCode = await executarOpsSuboperador(process.argv.slice(2), process.env, {
+  process.exitCode = await runOpsSuboperador(process.argv.slice(2), process.env, {
     saida: (texto) => process.stdout.write(texto),
     erro: (texto) => process.stderr.write(texto),
   })

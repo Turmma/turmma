@@ -1,7 +1,7 @@
 import { MAXIMO_DO_NOME_DO_TITULAR, SOLICITANTES_DO_PEDIDO, TIPOS_DE_PEDIDO_DO_TITULAR, type RegistroDePedido, type PreviaDoTitularResponse, type TitularAchado } from '@educa/shared'
 import { useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query'
 import { useRef, useState, type FormEvent } from 'react'
-import { buscarTitulares, previaDoTitularQueryOptions, registrarPedidoDoTitular, relerPedidosDoTitular } from './api/privacidade'
+import { findTitulares, previaDoTitularQueryOptions, registrarPedidoDoTitular, relerPedidosDoTitular } from './api/privacidade'
 import { Button } from '../../../components/ui/Button'
 import { FormField } from '../../../components/ui/fields/FormField'
 import { Dialog } from '../../../components/ui/overlays/Dialog'
@@ -30,7 +30,7 @@ import {
   TEXTOS_DA_FALHA_DA_BUSCA,
   TEXTOS_DA_FALHA_DO_REGISTRO,
   textoDasTurmas,
-  validarOPedido,
+  validateOPedido,
   type CampoDoPedido,
 } from './textos-dos-pedidos'
 
@@ -64,7 +64,7 @@ function PedidoDaPessoa({ titular, aoFechar, aoContinuar }: PropsDoPedidoDaPesso
 
   function continuar(evento: FormEvent<HTMLFormElement>): void {
     evento.preventDefault()
-    const validacao = validarOPedido({ tipo, solicitante, chegouEm }, hojeEmSaoPaulo())
+    const validacao = validateOPedido({ tipo, solicitante, chegouEm }, hojeEmSaoPaulo())
     if (!validacao.ok) {
       definirErros(validacao.erros)
       return
@@ -121,12 +121,12 @@ function DialogoDeBusca({ aoFechar, aoContinuar }: PropsDoDialogoDeBusca) {
   const [termo, definirTermo] = useState('')
   const [erroDoTermo, definirErroDoTermo] = useState<string | undefined>(undefined)
   const [escolhido, definirEscolhido] = useState<string | undefined>(undefined)
-  const { enviar, mutacao } = useSingleSubmit({ mutationFn: buscarTitulares })
+  const { enviar, mutacao } = useSingleSubmit({ mutationFn: findTitulares })
 
   const achados = mutacao.data?.titulares
   const titular = achados?.find((achado) => achado.id === escolhido)
 
-  function buscar(evento: FormEvent<HTMLFormElement>): void {
+  function find(evento: FormEvent<HTMLFormElement>): void {
     evento.preventDefault()
     const conferido = termoDaBusca(termo)
     if (!conferido.ok) {
@@ -141,7 +141,7 @@ function DialogoDeBusca({ aoFechar, aoContinuar }: PropsDoDialogoDeBusca) {
   return (
     <Dialog titulo="Registrar pedido de titular" aoFechar={aoFechar} focoInicial={campoDoTermo}>
       <div className="mt-4 flex min-w-0 flex-col gap-4">
-        <form role="search" aria-label="Buscar a pessoa" onSubmit={buscar} noValidate className="flex min-w-0 flex-col gap-3">
+        <form role="search" aria-label="Buscar a pessoa" onSubmit={find} noValidate className="flex min-w-0 flex-col gap-3">
           <FormField
             ref={campoDoTermo}
             rotulo="Nome do aluno ou do professor"
@@ -309,16 +309,16 @@ export function RegistrarPedido({ aoRegistrado }: { readonly aoRegistrado: (text
 
   return (
     <>
-      <Button onClick={() => janela.abrir('busca')}>Registrar pedido</Button>
-      {aberta?.tipo === 'busca' && <DialogoDeBusca aoFechar={janela.fechar} aoContinuar={(alvo) => janela.abrir('confirmacao', alvo)} />}
+      <Button onClick={() => janela.open('busca')}>Registrar pedido</Button>
+      {aberta?.tipo === 'busca' && <DialogoDeBusca aoFechar={janela.close} aoContinuar={(alvo) => janela.open('confirmacao', alvo)} />}
       {/* Só a confirmação tem alvo: a abertura da busca nasce sem ele. */}
       {aberta?.alvo !== undefined && (
         <DialogoDoRegistro
           alvo={aberta.alvo}
-          aoFechar={janela.fechar}
+          aoFechar={janela.close}
           aoRegistrado={(nome, tipo) => {
-            // Fecha só a abertura em que o pedido saiu: com outra aberta, ela fica como está (`fecharSeAindaAberta`).
-            janela.fecharSeAinda(aberta)
+            // Fecha só a abertura em que o pedido saiu: com outra aberta, ela fica como está (`closeSeAindaAberta`).
+            janela.closeSeAinda(aberta)
             aoRegistrado(`Pedido registrado: ${ROTULO_DO_TIPO[tipo]}, de ${nome}.`)
           }}
         />

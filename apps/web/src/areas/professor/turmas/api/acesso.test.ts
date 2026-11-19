@@ -48,7 +48,7 @@ beforeEach(async () => {
   m = await importar()
   // A sessão aberta pelo cookie, como a aba faz ao chegar à área: o token fica em memória.
   fila.push({ status: 200, corpo: { token: 'token-de-acesso', expiraEm: new Date(Date.now() + 600_000).toISOString() } })
-  await m.sessao.abrirSessaoPeloCookie()
+  await m.sessao.openSessaoPeloCookie()
   chamadas.length = 0
 })
 
@@ -62,7 +62,7 @@ describe('o acesso da turma (A1, 15.0)', () => {
     fila.push({ status: 200, corpo: { expiraEm: EXPIRA_EM } }, { status: 201, corpo: gerado }, { status: 204 })
     const cliente = new QueryClient()
     expect(await cliente.fetchQuery(m.acesso.acessoDaTurmaQueryOptions(TURMA))).toEqual({ expiraEm: EXPIRA_EM })
-    expect(await m.acesso.gerarAcesso(TURMA, { validadeDias: 30 })).toEqual(gerado)
+    expect(await m.acesso.generateAcesso(TURMA, { validadeDias: 30 })).toEqual(gerado)
     expect(await m.acesso.revogarAcesso(TURMA)).toBeUndefined()
     expect(chamadas).toEqual([
       { caminho: `/v1/turmas/${TURMA}/acesso`, metodo: 'GET', corpo: undefined, autorizacao: 'Bearer token-de-acesso' },
@@ -85,10 +85,10 @@ describe('o acesso da turma (A1, 15.0)', () => {
     fila.push({ status: 200, corpo: { expiraEm: EXPIRA_EM, codigo: CODIGO } })
     await expect(cliente.fetchQuery(m.acesso.acessoDaTurmaQueryOptions(TURMA))).rejects.toMatchObject({ codigo: 'ERRO_INTERNO' })
     fila.push({ status: 201, corpo: { ...gerado, alunos: ['Nome de aluno'] } })
-    await expect(m.acesso.gerarAcesso(TURMA, { validadeDias: 7 })).rejects.toMatchObject({ codigo: 'ERRO_INTERNO' })
+    await expect(m.acesso.generateAcesso(TURMA, { validadeDias: 7 })).rejects.toMatchObject({ codigo: 'ERRO_INTERNO' })
     // O `0` e o `O` não estão no alfabeto do código.
     fila.push({ status: 201, corpo: { ...gerado, codigo: 'ABCD0O45' } })
-    await expect(m.acesso.gerarAcesso(TURMA, { validadeDias: 7 })).rejects.toMatchObject({ codigo: 'ERRO_INTERNO' })
+    await expect(m.acesso.generateAcesso(TURMA, { validadeDias: 7 })).rejects.toMatchObject({ codigo: 'ERRO_INTERNO' })
   })
 })
 

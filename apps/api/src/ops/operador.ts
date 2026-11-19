@@ -19,11 +19,11 @@ import { z } from 'zod'
 import { OperadorRepository } from '../operacao/operador/operador.repository.js'
 import { hashDoTokenDeConvite, sortearTokenDeConvite } from '../operacao/token-do-convite.js'
 import {
-  abrirBancoDeOperacao,
+  openBancoDeOperacao,
   InvalidArgumentError,
-  criarArquivoDoToken,
+  createArquivoDoToken,
   nomeSchema,
-  lerOperador,
+  readOperador,
   OperadorRejectedError,
   type CommandDatabase,
   type CommandOutput,
@@ -89,7 +89,7 @@ function saidaValida(valor: string | undefined): string {
   return resolve(valor)
 }
 
-export function lerPedidoDeOperador(argumentos: string[]): PedidoDeOperador {
+export function readPedidoDeOperador(argumentos: string[]): PedidoDeOperador {
   let lido: { values: { apelido?: string | undefined; nome?: string | undefined; email?: string | undefined; saida?: string | undefined }; positionals: string[] }
   try {
     lido = parseArgs({ args: argumentos, options: OPCOES, strict: true, allowPositionals: true })
@@ -115,7 +115,7 @@ export function lerPedidoDeOperador(argumentos: string[]): PedidoDeOperador {
 
 /** A situação do `OPERADOR` sob a trava; recusado sai daqui. Devolve o autor da auditoria. */
 async function autorSobATrava(repositorio: OperadorRepository, operadorDoAmbiente: string): Promise<string> {
-  await repositorio.travarOperadores()
+  await repositorio.lockOperadores()
   const situacao = await repositorio.situacaoDoAutor(operadorDoAmbiente)
   if (situacao === 'recusado') throw new OperadorRejectedError()
   return situacao === 'bootstrap' ? AUTOR_BOOTSTRAP : operadorDoAmbiente
@@ -135,7 +135,7 @@ export interface ConviteGerado {
  * Cria o operador e o convite dele, com `operador.criado` e `convite_operador.gerado`, numa transação sob a trava.
  * Apelido ou e-mail repetido: `CONFLITO`, sem o valor.
  */
-export async function criarOperador(
+export async function createOperador(
   banco: Database,
   operadorDoAmbiente: string,
   dados: { apelido: string; nome: string; email: string },
@@ -146,8 +146,8 @@ export async function criarOperador(
     return await banco.transaction(async (tx) => {
       const repositorio = new OperadorRepository(tx)
       const autor = await autorSobATrava(repositorio, operadorDoAmbiente)
-      const operadorId = await repositorio.criar(dados)
-      const conviteId = await repositorio.criarConvite({ operadorId, tokenHash: hashDoTokenDeConvite(token), expiraEm: expiracaoDoConvite(relogio) })
+      const operadorId = await repositorio.create(dados)
+      const conviteId = await repositorio.createConvite({ operadorId, tokenHash: hashDoTokenDeConvite(token), expiraEm: expiracaoDoConvite(relogio) })
       await repositorio.auditar({ autor, acao: 'operador.criado', operadorAlvoId: operadorId })
       await repositorio.auditar({ autor, acao: 'convite_operador.gerado', operadorAlvoId: operadorId })
       return { operadorId, conviteId, token }
@@ -170,10 +170,10 @@ export async function desativarOperador(banco: Database, operadorDoAmbiente: str
     const autor = await autorSobATrava(repositorio, operadorDoAmbiente)
     const alvo = await repositorio.ativoParaAtualizar(apelido)
     if (alvo === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
-    if ((await repositorio.contarAtivos()) <= 1) throw new DesativacaoRejectedError('ultimo_ativo')
+    if ((await repositorio.countAtivos()) <= 1) throw new DesativacaoRejectedError('ultimo_ativo')
     if (alvo.apelido === autor) throw new DesativacaoRejectedError('a_si_mesmo')
     await repositorio.desativar(alvo.id)
-    await repositorio.apagarCodigosDeRecuperacao(alvo.id)
+    await repositorio.deleteCodigosDeRecuperacao(alvo.id)
     const revogou = await repositorio.revogarConvitePendente(alvo.id)
     await repositorio.encerrarSessoes(alvo.id, 'desativacao')
     if (revogou) await repositorio.auditar({ autor, acao: 'convite_operador.revogado', operadorAlvoId: alvo.id })
@@ -185,7 +185,7 @@ export async function desativarOperador(banco: Database, operadorDoAmbiente: str
  * Gera um convite novo para o operador ativo do apelido, revogando o pendente na mesma transação, com
  * `convite_operador.revogado` (se havia) e `convite_operador.gerado`. Apelido inexistente ou desativado: `NAO_ENCONTRADO`.
  */
-export async function gerarConviteDeOperador(banco: Database, operadorDoAmbiente: string, apelido: string, relogio: Clock = systemClock): Promise<ConviteGerado> {
+export async function generateConviteDeOperador(banco: Database, operadorDoAmbiente: string, apelido: string, relogio: Clock = systemClock): Promise<ConviteGerado> {
   const token = sortearTokenDeConvite()
   return banco.transaction(async (tx) => {
     const repositorio = new OperadorRepository(tx)
@@ -193,7 +193,7 @@ export async function gerarConviteDeOperador(banco: Database, operadorDoAmbiente
     const alvo = await repositorio.ativoParaAtualizar(apelido)
     if (alvo === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     const revogou = await repositorio.revogarConvitePendente(alvo.id)
-    const conviteId = await repositorio.criarConvite({ operadorId: alvo.id, tokenHash: hashDoTokenDeConvite(token), expiraEm: expiracaoDoConvite(relogio) })
+    const conviteId = await repositorio.createConvite({ operadorId: alvo.id, tokenHash: hashDoTokenDeConvite(token), expiraEm: expiracaoDoConvite(relogio) })
     if (revogou) await repositorio.auditar({ autor, acao: 'convite_operador.revogado', operadorAlvoId: alvo.id })
     await repositorio.auditar({ autor, acao: 'convite_operador.gerado', operadorAlvoId: alvo.id })
     return { operadorId: alvo.id, conviteId, token }
@@ -206,16 +206,16 @@ const MENSAGEM_DO_OPERADOR: Partial<Record<ErrorCode, string>> = {
   CONFLITO: 'já existe operador com este apelido ou e-mail',
 }
 
-async function executarComBanco(pedido: PedidoDeOperador, operadorDoAmbiente: string, banco: Database): Promise<{ resposta: Record<string, string>; token?: string }> {
+async function runComBanco(pedido: PedidoDeOperador, operadorDoAmbiente: string, banco: Database): Promise<{ resposta: Record<string, string>; token?: string }> {
   if (pedido.acao === 'desativar') {
     await desativarOperador(banco, operadorDoAmbiente, pedido.apelido)
     return { resposta: {} }
   }
   if (pedido.acao === 'convite') {
-    const { conviteId, token } = await gerarConviteDeOperador(banco, operadorDoAmbiente, pedido.apelido)
+    const { conviteId, token } = await generateConviteDeOperador(banco, operadorDoAmbiente, pedido.apelido)
     return { resposta: { conviteId, arquivo: pedido.saida }, token }
   }
-  const { operadorId, conviteId, token } = await criarOperador(banco, operadorDoAmbiente, pedido)
+  const { operadorId, conviteId, token } = await createOperador(banco, operadorDoAmbiente, pedido)
   return { resposta: { operadorId, conviteId, arquivo: pedido.saida }, token }
 }
 
@@ -224,22 +224,22 @@ async function executarComBanco(pedido: PedidoDeOperador, operadorDoAmbiente: st
  * resumido), 2 argumento, arquivo ou ambiente inválido, ou `OPERADOR` que não é operador ativo. Argumento, `OPERADOR` e
  * arquivo são conferidos antes de abrir o banco.
  */
-export async function executarOpsOperador(
+export async function runOpsOperador(
   argumentos: string[],
   ambiente: Record<string, string | undefined>,
   terminal: CommandOutput,
-  abrirBanco: (ambiente: Record<string, string | undefined>) => CommandDatabase = abrirBancoDeOperacao,
+  abrirBanco: (ambiente: Record<string, string | undefined>) => CommandDatabase = openBancoDeOperacao,
 ): Promise<number> {
   try {
-    const pedido = lerPedidoDeOperador(argumentos)
-    const operadorDoAmbiente = lerOperador(ambiente)
+    const pedido = readPedidoDeOperador(argumentos)
+    const operadorDoAmbiente = readOperador(ambiente)
     const saida = pedido.acao === 'desativar' ? undefined : pedido.saida
-    const arquivo = saida === undefined ? undefined : await criarArquivoDoToken(saida, () => new InvalidArgumentError('--saida (o arquivo já existe ou a pasta não aceita escrita)'))
+    const arquivo = saida === undefined ? undefined : await createArquivoDoToken(saida, () => new InvalidArgumentError('--saida (o arquivo já existe ou a pasta não aceita escrita)'))
     let gravado = false
     try {
-      const { banco, fechar } = abrirBanco(ambiente)
+      const { banco, close: fechar } = abrirBanco(ambiente)
       try {
-        const { resposta, token } = await executarComBanco(pedido, operadorDoAmbiente, banco)
+        const { resposta, token } = await runComBanco(pedido, operadorDoAmbiente, banco)
         if (arquivo !== undefined && token !== undefined) await arquivo.writeFile(`${token}\n`)
         gravado = true
         terminal.saida(pedido.acao === 'desativar' ? 'ok\n' : `${JSON.stringify(resposta)}\n`)
@@ -274,7 +274,7 @@ export async function executarOpsOperador(
 }
 
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  process.exitCode = await executarOpsOperador(process.argv.slice(2), process.env, {
+  process.exitCode = await runOpsOperador(process.argv.slice(2), process.env, {
     saida: (texto) => process.stdout.write(texto),
     erro: (texto) => process.stderr.write(texto),
   })

@@ -38,8 +38,8 @@ export class ListaController {
   @ImportacaoRateLimit()
   @RequirePermissao('lista_nome', 'gravar')
   @HttpCode(HttpStatus.ACCEPTED)
-  gravar(@Param('id', IdPipe) turmaId: string, @Body(new ZodValidationPipe(gravarListaRequestSchema)) pedido: GravarListaRequest): Promise<GravarPlanilhaResponse> {
-    return this.lista.gravar(turmaId, pedido)
+  save(@Param('id', IdPipe) turmaId: string, @Body(new ZodValidationPipe(gravarListaRequestSchema)) pedido: GravarListaRequest): Promise<GravarPlanilhaResponse> {
+    return this.lista.save(turmaId, pedido)
   }
 
   @Post('turmas/:id/lista/nome')
@@ -50,8 +50,8 @@ export class ListaController {
 
   @Get('turmas/:id/lista')
   @RequirePermissao('lista_nome', 'ler')
-  ler(@Param('id', IdPipe) turmaId: string, @Query(new ZodValidationPipe(listaDaTurmaQuerySchema)) consulta: ListaDaTurmaQuery): Promise<ListaDaTurmaResponse> {
-    return this.lista.ler(turmaId, consulta)
+  read(@Param('id', IdPipe) turmaId: string, @Query(new ZodValidationPipe(listaDaTurmaQuerySchema)) consulta: ListaDaTurmaQuery): Promise<ListaDaTurmaResponse> {
+    return this.lista.read(turmaId, consulta)
   }
 
   @Delete('lista-nomes/:id')

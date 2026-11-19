@@ -114,7 +114,7 @@ export class DecisaoRepository {
    * não a acha (C3): um decide, o outro sai sem linha. É leitura com trava, e não o `update` direto, porque o hash que a
    * aprovação leva à credencial sai na mesma escrita que decide, e o `returning` só devolve o valor novo.
    */
-  async travarPendente(id: string, alcance: AlcanceDoPedido): Promise<PedidoTravado | undefined> {
+  async lockPendente(id: string, alcance: AlcanceDoPedido): Promise<PedidoTravado | undefined> {
     const [linha] = await this.banco
       .select({ turmaId: reivindicacao.turmaId, listaNomeId: reivindicacao.listaNomeId, senhaHash: reivindicacao.senhaHash, contaExterna: reivindicacao.contaExterna })
       .from(reivindicacao)
@@ -135,9 +135,9 @@ export class DecisaoRepository {
    * ler o nome da lista: com o pedido preso pela planilha, a aprovação espera o fim do passo e lê o nome já corrigido; com a
    * aprovação na frente, a planilha espera, relê e sai `desatualizada`. O ano é o de destino da planilha, que não é
    * necessariamente o do contexto (o planejado também recebe planilha), e por isso vem de argumento: quem chama só pode passar um
-   * ano já conferido na escola (o `anoDeDestino` do motor, como o `inserirNoAno` da 7.0), nunca um id vindo do cliente.
+   * ano já conferido na escola (o `anoDeDestino` do motor, como o `insertNoAno` da 7.0), nunca um id vindo do cliente.
    */
-  async travarPendentesDasTurmas(anoLetivoId: string, turmaIds: readonly string[]): Promise<void> {
+  async lockPendentesDasTurmas(anoLetivoId: string, turmaIds: readonly string[]): Promise<void> {
     if (turmaIds.length === 0) return
     await this.banco
       .select({ id: reivindicacao.id })
@@ -148,7 +148,7 @@ export class DecisaoRepository {
   }
 
   /**
-   * Se o pedido com esse id está no alcance de quem decide, em qualquer estado: depois de `travarPendente` sem linha, separa
+   * Se o pedido com esse id está no alcance de quem decide, em qualquer estado: depois de `lockPendente` sem linha, separa
    * `ja_decidida` (alcança, e outra decisão o fechou) de `nao_encontrada`. O alcance vem **antes** do estado: o pedido
    * decidido de outra escola, de outro ano ou, para o professor, de turma sem vínculo confirmado dele responde como o
    * inexistente, e não confirma que existe (I6).
@@ -163,7 +163,7 @@ export class DecisaoRepository {
   }
 
   /**
-   * Fecha o pedido que `travarPendente` travou nesta transação: o estado, quando, quem e como decidiu, e o hash, a chave e
+   * Fecha o pedido que `lockPendente` travou nesta transação: o estado, quando, quem e como decidiu, e o hash, a chave e
    * a conta da escola (14.0) e a marca de matrícula errada apagados na mesma escrita (check `reivindicacao_segredo_so_pendente`; `docs/lgpd.md`). A
    * escola do contexto é a segunda camada: o id já veio da linha travada.
    *
@@ -173,9 +173,9 @@ export class DecisaoRepository {
    * Só o `pendente` é fechado, nunca o pedido que já foi aprovado, recusado ou encerrado; devolve os ids fechados. Quem chama passa um
    * ano já conferido na escola (o `anoDeDestino` do motor, ou o ano que a virada acabou de encerrar), nunca um id vindo do cliente.
    */
-  async fechar(id: string, estado: 'aprovada' | 'recusada', decididaComo: DecisorDaReivindicacao): Promise<void>
-  async fechar(onde: PedidosParaEncerrar, estado: 'encerrada'): Promise<string[]>
-  async fechar(alvo: string | PedidosParaEncerrar, estado: 'aprovada' | 'recusada' | 'encerrada', decididaComo?: DecisorDaReivindicacao): Promise<string[] | void> {
+  async close(id: string, estado: 'aprovada' | 'recusada', decididaComo: DecisorDaReivindicacao): Promise<void>
+  async close(onde: PedidosParaEncerrar, estado: 'encerrada'): Promise<string[]>
+  async close(alvo: string | PedidosParaEncerrar, estado: 'aprovada' | 'recusada' | 'encerrada', decididaComo?: DecisorDaReivindicacao): Promise<string[] | void> {
     if (typeof alvo !== 'string') {
       const fechados = await this.banco
         .update(reivindicacao)

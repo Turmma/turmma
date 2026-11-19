@@ -11,7 +11,7 @@ export class StatusController {
 
   @Get()
   @Header('Cache-Control', 'no-store')
-  obter(): Promise<SystemStatusResponse> {
-    return this.estado.obter()
+  get(): Promise<SystemStatusResponse> {
+    return this.estado.get()
   }
 }

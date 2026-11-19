@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { MENSAGENS_DE_ERRO, montarTime, type ChaveDeFuncao } from '@educa/shared'
+import { MENSAGENS_DE_ERRO, buildTime, type ChaveDeFuncao } from '@educa/shared'
 import { cleanup, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -30,7 +30,7 @@ const UMA_TURMA: FakeResponse = { status: 200, corpo: { itens: [vinculo(1)] } }
 const SEM_CONFIRMADA: FakeResponse = { status: 200, corpo: { itens: [vinculo(1, 'pendente')] } }
 const erro = (status: number, codigo: string): FakeResponse => ({ status, corpo: { erro: { codigo, mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } })
 const NAO_ENCONTRADO = erro(404, 'NAO_ENCONTRADO')
-const timeSem = (...suspensas: ChaveDeFuncao[]): FakeResponse => ({ status: 200, corpo: montarTime(new Set(suspensas)) })
+const timeSem = (...suspensas: ChaveDeFuncao[]): FakeResponse => ({ status: 200, corpo: buildTime(new Set(suspensas)) })
 
 const FRASE_DE_IA = 'O Assistente é uma IA e pode errar · Nada chega à turma sem você aprovar'
 const PERGUNTA = 'Posso fazer isso com a ferramenta Atividade objetiva, ou só conversar.'
@@ -229,7 +229,7 @@ describe('a pergunta da D18', () => {
     expect(usar?.getAttribute('aria-pressed')).toBeNull()
     expect(botoesDaPergunta().map((botao) => botao === document.activeElement)).toEqual([false, false])
     expect(document.querySelector('[data-escolha="feita"]')).toBeNull()
-    expect(ESCOLHAS_DAS_PROPOSTAS.ler()).toBeUndefined()
+    expect(ESCOLHAS_DAS_PROPOSTAS.read()).toBeUndefined()
   })
 })
 
@@ -241,14 +241,14 @@ describe('nenhum cartão sem o "sim"', () => {
     await caixa()
     await waitFor(() => expect(document.querySelector('[data-escolha="aberta"]')).not.toBeNull())
     expect(cartoes()).toHaveLength(0)
-    expect(CARTAO_DA_CONVERSA.ler()).toBeUndefined()
+    expect(CARTAO_DA_CONVERSA.read()).toBeUndefined()
     // Escrever e enviar sem escolher ferramenta manda o pedido ao Assistente e não abre cartão nenhum.
     const usuario = userEvent.setup()
     await usuario.type(await caixa(), 'e uma de equilíbrio químico')
     await usuario.click(screen.getByRole('button', { name: 'Enviar' }))
     await waitFor(() => expect(chamadasA(rede, '/v1/assistente/mensagens')).toHaveLength(1))
     expect(cartoes()).toHaveLength(0)
-    expect(CARTAO_DA_CONVERSA.ler()).toBeUndefined()
+    expect(CARTAO_DA_CONVERSA.read()).toBeUndefined()
   })
 
   it('"Só conversar" manda o pedido ao Assistente e não abre cartão', async () => {
@@ -260,9 +260,9 @@ describe('nenhum cartão sem o "sim"', () => {
     await userEvent.setup().click(within(pergunta()).getByRole('button', { name: /Só conversar/ }))
     await waitFor(() => expect(chamadasA(rede, '/v1/assistente/mensagens')).toHaveLength(1))
     expect(cartoes()).toHaveLength(0)
-    expect(CARTAO_DA_CONVERSA.ler()).toBeUndefined()
+    expect(CARTAO_DA_CONVERSA.read()).toBeUndefined()
     // A escolha ficou marcada na linha que encolheu, e a pergunta não volta.
-    expect(ESCOLHAS_DAS_PROPOSTAS.ler()).toEqual({ [id(2)]: 'conversa' })
+    expect(ESCOLHAS_DAS_PROPOSTAS.read()).toEqual({ [id(2)]: 'conversa' })
     expect(document.querySelector('[data-escolha="aberta"]')).toBeNull()
     expect(document.querySelector('[data-escolha="feita"]')?.textContent).toContain('Só conversar')
   })
@@ -275,7 +275,7 @@ describe('nenhum cartão sem o "sim"', () => {
     await waitFor(() => expect(document.querySelector('[data-escolha="aberta"]')).not.toBeNull())
     await userEvent.setup().click(within(pergunta()).getByRole('button', { name: /Usar a ferramenta Atividade objetiva/ }))
     await waitFor(() => expect(cartoes()).toHaveLength(1))
-    expect(CARTAO_DA_CONVERSA.ler()).toEqual({ ferramenta: 'atividade_objetiva', iniciais: { turma: VALOR_DA_TURMA_A, tema: 'Estequiometria', quantidade: 10 } })
+    expect(CARTAO_DA_CONVERSA.read()).toEqual({ ferramenta: 'atividade_objetiva', iniciais: { turma: VALOR_DA_TURMA_A, tema: 'Estequiometria', quantidade: 10 } })
     // A escolha de "usar" não gasta um pedido ao Assistente.
     expect(chamadasA(rede, '/v1/assistente/mensagens')).toHaveLength(0)
     expect(((await screen.findByLabelText(/^Tema/)) as HTMLInputElement).value).toBe('Estequiometria')
@@ -292,7 +292,7 @@ describe('a Adaptação', () => {
     await usuario.click(within(barra()).getByRole('button', { name: 'Ferramenta' }))
     await usuario.click(await screen.findByRole('menuitemradio', { name: /Adaptação/ }))
     await waitFor(() => expect(cartoes()).toHaveLength(1))
-    expect(CARTAO_DA_CONVERSA.ler()).toEqual({ ferramenta: 'adaptacao', iniciais: {} })
+    expect(CARTAO_DA_CONVERSA.read()).toEqual({ ferramenta: 'adaptacao', iniciais: {} })
     const cartao = document.querySelector('[data-cartao-de-ferramenta="adaptacao"]') as HTMLElement
     expect(cartao.textContent).not.toContain('laudo')
     expect(within(cartao).queryAllByRole('textbox')).toHaveLength(0)

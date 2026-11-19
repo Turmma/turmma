@@ -26,7 +26,7 @@ function erroDe(ambiente: Record<string, string | undefined>, ler: (ambiente: Re
   throw new Error('a configuração deveria ter sido recusada')
 }
 
-describe('lerConfiguracaoIdentidade', () => {
+describe('loadAuthConfig', () => {
   it('devolve só o ambiente e a chave: não há emissor configurável', () => {
     const config = loadAuthConfig(ambienteLocal)
     expect(Object.keys(config).sort()).toEqual(['ambiente', 'chaveAssinatura'])

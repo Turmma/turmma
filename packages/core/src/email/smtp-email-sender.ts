@@ -51,11 +51,11 @@ export class SmtpEmailSender implements EmailSender {
     this.#remetente = config.remetente
   }
 
-  static criar(config: SmtpConfig): SmtpEmailSender {
+  static create(config: SmtpConfig): SmtpEmailSender {
     return new SmtpEmailSender(config, nodemailer.createTransport(opcoesDoTransporte(config)))
   }
 
-  async enviar(mensagem: MensagemDeEmail, sinal?: AbortSignal): Promise<void> {
+  async send(mensagem: MensagemDeEmail, sinal?: AbortSignal): Promise<void> {
     if (sinal?.aborted === true) throw new EmailSendError('transitoria')
     let prazo: NodeJS.Timeout | undefined
     let aoAbortar: (() => void) | undefined

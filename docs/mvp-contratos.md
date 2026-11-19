@@ -63,7 +63,7 @@ material `pronto` e não excluído.
 
 | Rota | Entrada | Saída | Célula | Erros próprios | Auditoria |
 |---|---|---|---|---|---|
-| `GET /time` | | `timeResponseSchema` (`montarTime(suspensas)`) | `time.ler` C `un`, P `un` | | |
+| `GET /time` | | `timeResponseSchema` (`buildTime(suspensas)`) | `time.ler` C `un`, P `un` | | |
 | `GET /assistente/conversa` | `conversaDoAssistenteQuerySchema` | `conversaDoAssistenteResponseSchema` | `assistente.ler_conversa` P `pr` | | |
 | `POST /assistente/mensagens` | `mensagemAoAssistenteRequestSchema` (`texto`, `turmaId`, `disciplinaId`, `chaveEnvio` e, opcional, `resposta: 'so_conversar'`) | 202 | `assistente.enviar_mensagem` P `pr` | `FUNCAO_SUSPENSA`, `LIMITE_EXCEDIDO` | |
 | `GET /execucoes/:id` | | `execucaoResponseSchema` | `execucao.ler` C, P, A `pr` | | |

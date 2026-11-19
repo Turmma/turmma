@@ -15,7 +15,7 @@ import type { LLMProvider, GenerationRequest, GenerationResult } from '../port.j
  */
 export function withEscolaContextOfRequest<Provedor extends LLMProvider>(ia: Provedor): Provedor {
   const envolvido = Object.create(ia) as Provedor
-  envolvido.gerar = <Entrada, Saida>(pedido: GenerationRequest<Entrada, Saida>): Promise<GenerationResult<Saida>> =>
-    currentContext()?.escolaId === undefined ? runInContext({ requisicaoId: 'teste-de-unidade', escolaId: pedido.escolaId }, () => ia.gerar(pedido)) : ia.gerar(pedido)
+  envolvido.generate = <Entrada, Saida>(pedido: GenerationRequest<Entrada, Saida>): Promise<GenerationResult<Saida>> =>
+    currentContext()?.escolaId === undefined ? runInContext({ requisicaoId: 'teste-de-unidade', escolaId: pedido.escolaId }, () => ia.generate(pedido)) : ia.generate(pedido)
   return envolvido
 }

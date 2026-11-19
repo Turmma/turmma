@@ -27,7 +27,7 @@ export interface EliminacaoDoTitularDependencies {
  *   inteira, e o alerta de 48 h aparece se o pedido não concluir.
  * - Loga só o resultado (`status`); nunca o titular, o nome, o termo nem contagem por tabela.
  */
-export function criarEliminacaoDoTitular({ banco, janelaDaEscola, relogio, logger, faixa }: EliminacaoDoTitularDependencies): JobProcessor<typeof TIPO_ELIMINAR_TITULAR> {
+export function createEliminacaoDoTitular({ banco, janelaDaEscola, relogio, logger, faixa }: EliminacaoDoTitularDependencies): JobProcessor<typeof TIPO_ELIMINAR_TITULAR> {
   return async ({ pedidoId }) => {
     const janela = await janelaDaEscola.daEscola()
     const status = await new EliminacaoDoTitular(banco, relogio).eliminar(pedidoId, {

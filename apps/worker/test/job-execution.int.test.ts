@@ -77,7 +77,7 @@ describe('dois despachantes e dois workers sobre a mesma fila', () => {
     const trabalhadores = [bancada.worker(logs.w1, { concorrencia: 10 }), bancada.worker(logs.w2, { concorrencia: 10 })]
     const despachantes = [bancada.despachante(logs.d1), bancada.despachante(logs.d2)]
     // Os dois partem juntos sobre as mesmas 500 linhas: é a disputa que o SKIP LOCKED e a troca condicional resolvem.
-    for (const { despachante } of despachantes) despachante.iniciar()
+    for (const { despachante } of despachantes) despachante.start()
 
     await expect
       .poll(async () => {
@@ -116,7 +116,7 @@ describe('dois despachantes e dois workers sobre a mesma fila', () => {
     const logDespachante = new InMemoryLog('despachante')
     const logWorker = new InMemoryLog('worker')
     const { workers } = bancada.worker(logWorker)
-    bancada.despachante(logDespachante).despachante.iniciar()
+    bancada.despachante(logDespachante).despachante.start()
     await aguardarEstado(bancada, id, 'concluido')
     // O BullMQ guarda o concluído por 1 dia e o falho por 7: é o que ainda deduplica um reenvio.
     for (const worker of workers.values()) {
@@ -134,7 +134,7 @@ describe('dois despachantes e dois workers sobre a mesma fila', () => {
     const logWorker = new InMemoryLog('worker')
     bancada.worker(logWorker)
     const inicio = performance.now()
-    bancada.despachante(new InMemoryLog('despachante')).despachante.iniciar()
+    bancada.despachante(new InMemoryLog('despachante')).despachante.start()
 
     await aguardarEstado(bancada, id, 'falhou', 60_000)
     // Recuo exponencial de 2 s com jitter de 50 %: as quatro esperas somam pelo menos 15 s.
@@ -176,7 +176,7 @@ describe('dois despachantes e dois workers sobre a mesma fila', () => {
 
     // O worker pega o job antes de o despachante gravar `publicado`, e termina.
     await runInContext({ requisicaoId: randomUUID(), escolaId: ESCOLA_A }, async () => {
-      expect((await bancada.registro.iniciarExecucao(id)).situacao).toBe('iniciado')
+      expect((await bancada.registro.startExecucao(id)).situacao).toBe('iniciado')
       // Ainda ativo: a escrita tardia também não o rebaixa.
       expect(await bancada.despacho.marcarPublicados([id])).toBe(0)
       expect((await bancada.estado(id))?.estado).toBe('ativo')
@@ -189,7 +189,7 @@ describe('dois despachantes e dois workers sobre a mesma fila', () => {
     await bancada.pool.query(`update job_registro set reservado_ate = now() - interval '1 minute' where id = $1`, [id])
     expect(await bancada.reservar(ESCOLA_A)).toEqual([])
     await runInContext({ requisicaoId: randomUUID(), escolaId: ESCOLA_A }, async () => {
-      expect((await bancada.registro.iniciarExecucao(id)).situacao).toBe('nao_executavel')
+      expect((await bancada.registro.startExecucao(id)).situacao).toBe('nao_executavel')
       expect(await bancada.registro.registrarFalha(id, JobFailureCode.ERRO_INTERNO)).toBe(false)
     })
     expect((await bancada.estado(id))?.estado).toBe('concluido')
@@ -202,7 +202,7 @@ describe('dois despachantes e dois workers sobre a mesma fila', () => {
     // Antes de vencer, ninguém mais pega.
     expect(await bancada.reservar(ESCOLA_A)).toEqual([])
 
-    await runInContext({ requisicaoId: randomUUID(), escolaId: ESCOLA_A }, () => bancada.registro.iniciarExecucao(emExecucao))
+    await runInContext({ requisicaoId: randomUUID(), escolaId: ESCOLA_A }, () => bancada.registro.startExecucao(emExecucao))
     // O despachante que reservou caiu antes de publicar: a reserva vence.
     await bancada.pool.query(`update job_registro set reservado_ate = now() - interval '1 second'`)
 
@@ -214,7 +214,7 @@ describe('dois despachantes e dois workers sobre a mesma fila', () => {
     const id = await bancada.enfileirar(ESCOLA_A)
     const logWorker = new InMemoryLog('worker')
     bancada.worker(logWorker)
-    bancada.despachante(new InMemoryLog('despachante')).despachante.iniciar()
+    bancada.despachante(new InMemoryLog('despachante')).despachante.start()
     await aguardarEstado(bancada, id, 'concluido')
 
     // A fila perdeu o job e ele foi publicado de novo, com o mesmo id.
@@ -264,7 +264,7 @@ describe('dois despachantes e dois workers sobre a mesma fila', () => {
     it('contexto sem escola e sem a marca de rotina do sistema (rota anônima) não alcança job nenhum', async () => {
       const daEscolaA = await bancada.enfileirar(ESCOLA_A)
       await bancada.reservar(ESCOLA_A)
-      await expect(runInContext({ requisicaoId: randomUUID() }, () => bancada.registro.iniciarExecucao(daEscolaA))).rejects.toThrow(
+      await expect(runInContext({ requisicaoId: randomUUID() }, () => bancada.registro.startExecucao(daEscolaA))).rejects.toThrow(
         'não tem escopo',
       )
       expect((await bancada.estado(daEscolaA))?.estado).toBe('reservado')
@@ -287,7 +287,7 @@ describe('dois despachantes e dois workers sobre a mesma fila', () => {
 
     it('o job é gravado na transação de quem pede: se ela desfaz, não sobra linha nem publicação', async () => {
       const logDespachante = new InMemoryLog('despachante')
-      bancada.despachante(logDespachante).despachante.iniciar()
+      bancada.despachante(logDespachante).despachante.start()
       await expect(
         runInContext({ requisicaoId: randomUUID(), escolaId: ESCOLA_A }, () =>
           bancada.banco.transaction(async (tx) => {
@@ -479,7 +479,7 @@ describe('dois despachantes e dois workers sobre a mesma fila', () => {
       const chamados: string[] = []
       const logWorker = new InMemoryLog('worker')
       bancada.worker(logWorker, { processadores: { [TIPO_JOB_SINTETICO]: () => Promise.resolve(void chamados.push('chamado')) } })
-      bancada.despachante(new InMemoryLog('despachante')).despachante.iniciar()
+      bancada.despachante(new InMemoryLog('despachante')).despachante.start()
 
       for (const id of [chaveAMais, foraDoFormato]) {
         await aguardarEstado(bancada, id, 'falhou')
@@ -500,7 +500,7 @@ describe('dois despachantes e dois workers sobre a mesma fila', () => {
     it('tipo que o registro não tem (uma linha de outra versão) termina falhou com TIPO_DESCONHECIDO, definitivo', async () => {
       const id = await gravarPorSql('tipo.de-uma-versao-antiga', ESCOLA_A, { qualquer: 'coisa' })
       bancada.worker(new InMemoryLog('worker'))
-      bancada.despachante(new InMemoryLog('despachante')).despachante.iniciar()
+      bancada.despachante(new InMemoryLog('despachante')).despachante.start()
 
       await aguardarEstado(bancada, id, 'falhou')
       expect(await bancada.estado(id)).toEqual({ estado: 'falhou', escolaId: ESCOLA_A, codigoFalha: JobFailureCode.TIPO_DESCONHECIDO })
@@ -511,7 +511,7 @@ describe('dois despachantes e dois workers sobre a mesma fila', () => {
       const id = await gravarPorSql(TIPO_EXPURGAR_JOBS, ESCOLA_A, {})
       const chamados: string[] = []
       bancada.worker(new InMemoryLog('worker'), { processadores: { [TIPO_EXPURGAR_JOBS]: () => Promise.resolve(void chamados.push('chamado')) } })
-      bancada.despachante(new InMemoryLog('despachante')).despachante.iniciar()
+      bancada.despachante(new InMemoryLog('despachante')).despachante.start()
 
       await aguardarEstado(bancada, id, 'falhou')
       expect(await bancada.estado(id)).toEqual({ estado: 'falhou', escolaId: ESCOLA_A, codigoFalha: JobFailureCode.DADOS_INVALIDOS })
@@ -522,7 +522,7 @@ describe('dois despachantes e dois workers sobre a mesma fila', () => {
   it('o aviso do NOTIFY acorda o despachante sem esperar a sondagem', async () => {
     const logDespachante = new InMemoryLog('despachante')
     // Sondagem de um minuto: só o aviso explica a publicação em segundos.
-    bancada.despachante(logDespachante, { intervaloMs: 60_000 }).despachante.iniciar()
+    bancada.despachante(logDespachante, { intervaloMs: 60_000 }).despachante.start()
     // A primeira rodada (que abre o LISTEN) já passou, e o laço dorme a sondagem inteira.
     await new Promise((resolver) => setTimeout(resolver, 1_500))
 
@@ -538,7 +538,7 @@ describe('dois despachantes e dois workers sobre a mesma fila', () => {
     await bancada.pool.query(`update job_registro set reservado_ate = now() - interval '1 second' where id = $1`, [id])
 
     const logDespachante = new InMemoryLog('despachante')
-    bancada.despachante(logDespachante).despachante.iniciar()
+    bancada.despachante(logDespachante).despachante.start()
     await expect.poll(() => logDespachante.doEvento('job.publicado').map((registro) => registro['jobId']), { timeout: 5_000 }).toEqual([id])
     expect((await bancada.estado(id))?.estado).toBe('publicado')
 

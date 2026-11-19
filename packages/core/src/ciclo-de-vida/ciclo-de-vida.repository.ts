@@ -63,7 +63,7 @@ export class CicloDeVidaRepository {
    * curso e o planejado); sem, todos os anos em que ele tem vínculo em qualquer estado (a eliminação, que apaga todos e pode
    * rodar sem ano no contexto). O escopo é a escola, nunca um ano recebido.
    */
-  async travarAnosDosVinculos(usuarioId: string, soAbertos: boolean): Promise<void> {
+  async lockAnosDosVinculos(usuarioId: string, soAbertos: boolean): Promise<void> {
     await this.tx
       .select({ id: anoLetivo.id })
       .from(anoLetivo)
@@ -95,7 +95,7 @@ export class CicloDeVidaRepository {
    * o ano do contexto, porque o `encerrar` da coordenação alcança só o vínculo de professor do ano em curso. Os vínculos são
    * lidos com `FOR UPDATE`, em ordem de id (a decisão do professor que chega no meio espera e o relê já `encerrado`), e
    * devolvidos com o estado de antes, para a auditoria `vinculo.encerrado`. Roda **depois** de travar as turmas
-   * (`travarContraOGerarDoProfessor`) e antes de `revogarDeQuemSaiu`, que só deixa de contar o vínculo encerrado.
+   * (`lockContraOGerarDoProfessor`) e antes de `revogarDeQuemSaiu`, que só deixa de contar o vínculo encerrado.
    */
   async encerrarVinculosDaPessoa(
     usuarioId: string,
@@ -141,14 +141,14 @@ export class CicloDeVidaRepository {
   /**
    * Trava em `FOR NO KEY UPDATE`, em ordem de id, toda turma da escola do contexto em que o usuário tem vínculo de
    * professor, em qualquer estado (a eliminação do professor, correção 2026-10-03-acesso-sobrevive-ao-vinculo): é a
-   * `TurmaRepository.travarContraOGerar` de cada turma dele, antes de apagar os vínculos e revogar o acesso que ele
+   * `TurmaRepository.lockContraOGerar` de cada turma dele, antes de apagar os vínculos e revogar o acesso que ele
    * gerou. Qualquer estado, e não só o confirmado: o pendente que ele confirma entre esta trava e o `delete` dos vínculos
    * daria acesso numa turma destravada. A ordem de id evita que duas eliminações se prendam uma à outra; a turma vem
    * antes do vínculo, como no encerrar e no excluir. O escopo é só a escola: a eliminação pode rodar sem ano no contexto
    * (o comando do operador), e o limite de tenant continua sendo a escola.
    */
-  async travarContraOGerarDoProfessor(usuarioId: string): Promise<void> {
-    await this.travarContraOGerarDosProfessores([usuarioId])
+  async lockContraOGerarDoProfessor(usuarioId: string): Promise<void> {
+    await this.lockContraOGerarDosProfessores([usuarioId])
   }
 
   /**
@@ -156,7 +156,7 @@ export class CicloDeVidaRepository {
    * onboarding-por-convite, 6.0): a união das turmas de todos os vínculos deles, em qualquer estado, para duas importações
    * ou a desativação que chegar com as turmas em outra ordem não se prenderem (`40P01`).
    */
-  async travarContraOGerarDosProfessores(usuarioIds: readonly string[]): Promise<void> {
+  async lockContraOGerarDosProfessores(usuarioIds: readonly string[]): Promise<void> {
     if (usuarioIds.length === 0) return
     await this.tx
       .select({ id: turma.id })
@@ -188,7 +188,7 @@ export class CicloDeVidaRepository {
    * Revoga o acesso vigente que o usuário gerou nas turmas em que ele não tem mais vínculo `confirmado` de professor, e
    * devolve o id e a turma de cada um (correção 2026-10-03-acesso-sobrevive-ao-vinculo; regra 20, item 18). Roda na
    * transação que encerra o vínculo (com `turmaId`, só aquela turma) ou que elimina o usuário (sem, todas), depois da
-   * trava da turma (`TurmaRepository.travarContraOGerar`) e da mudança no vínculo: o vínculo encerrado ou apagado já não
+   * trava da turma (`TurmaRepository.lockContraOGerar`) e da mudança no vínculo: o vínculo encerrado ou apagado já não
    * conta. Outro vínculo confirmado dele na mesma turma (outra disciplina) segura o acesso; o acesso gerado por outro
    * professor não é dele, e fica.
    *
@@ -255,7 +255,7 @@ export class CicloDeVidaRepository {
    * muda a chave do usuário: a trava não segura o `FOR KEY SHARE` da FK de quem grava sessão ou auditoria dele. A
    * eliminação apaga a linha, e o `delete` sobe a trava na hora dele.
    */
-  async travarUsuario(usuarioId: string): Promise<UsuarioDoCicloDeVida | undefined> {
+  async lockUsuario(usuarioId: string): Promise<UsuarioDoCicloDeVida | undefined> {
     const [linha] = await this.tx
       .select({
         papel: usuario.papel,
@@ -321,7 +321,7 @@ export class CicloDeVidaRepository {
    * matrícula, que é registro escolar, e o login responde como senha errada. A provisória vai junto (acesso-e-convites, tarefa 9.0):
    * sem isso o aluno desativado entraria com a provisória gerada antes de sair da escola. Devolve se havia hash de senha ou provisória.
    */
-  async apagarSenhaDaMatricula(usuarioId: string): Promise<boolean> {
+  async clearSenhaDaMatricula(usuarioId: string): Promise<boolean> {
     const apagadas = await this.tx
       .update(credencialMatricula)
       .set({ senhaHash: null, provisoriaHash: null, provisoriaExpiraEm: null, provisoriaGeradaPor: null })
@@ -337,7 +337,7 @@ export class CicloDeVidaRepository {
   }
 
   /** Apaga a credencial por matrícula inteira (a eliminação). Devolve se havia. */
-  async apagarCredencialDaMatricula(usuarioId: string): Promise<boolean> {
+  async deleteCredencialDaMatricula(usuarioId: string): Promise<boolean> {
     const apagadas = await this.tx
       .delete(credencialMatricula)
       .where(and(eq(credencialMatricula.escolaId, requireEscolaId()), eq(credencialMatricula.usuarioId, usuarioId)))
@@ -346,7 +346,7 @@ export class CicloDeVidaRepository {
   }
 
   /** Apaga a conta Google ou Microsoft ligada ao usuário. Devolve a ligação que saiu (id e provedor), ou `undefined`. */
-  async apagarContaExterna(usuarioId: string): Promise<{ id: string; provedor: ProvedorExterno } | undefined> {
+  async deleteContaExterna(usuarioId: string): Promise<{ id: string; provedor: ProvedorExterno } | undefined> {
     const [apagada] = await this.tx
       .delete(contaExterna)
       .where(and(eq(contaExterna.escolaId, requireEscolaId()), eq(contaExterna.usuarioId, usuarioId)))
@@ -355,7 +355,7 @@ export class CicloDeVidaRepository {
   }
 
   /** Apaga as sessões do usuário, abertas ou não (a eliminação). Devolve quantas. */
-  async apagarSessoes(usuarioId: string): Promise<number> {
+  async deleteSessoes(usuarioId: string): Promise<number> {
     const apagadas = await this.tx
       .delete(sessao)
       .where(and(eq(sessao.escolaId, requireEscolaId()), eq(sessao.usuarioId, usuarioId)))
@@ -364,7 +364,7 @@ export class CicloDeVidaRepository {
   }
 
   /** Apaga os vínculos do usuário, de todos os anos letivos da escola (a eliminação). Devolve quantos. */
-  async apagarVinculos(usuarioId: string): Promise<number> {
+  async deleteVinculos(usuarioId: string): Promise<number> {
     const apagados = await this.tx
       .delete(vinculo)
       .where(and(eq(vinculo.escolaId, requireEscolaId()), eq(vinculo.usuarioId, usuarioId)))
@@ -381,7 +381,7 @@ export class CicloDeVidaRepository {
    * há índice por `(escola_id, usuario_id)`: a busca percorre as linhas da escola pelo prefixo de `lista_nome_turma_idx`,
    * como a FK do `usuario_id` no `delete` do usuário; a eliminação é rara, e o índice fica no `TODO.md`.
    */
-  async apagarDaListaDeNomes(usuarioId: string): Promise<{ readonly linhaDaListaApagada: boolean; readonly pedidosApagados: number }> {
+  async deleteDaListaDeNomes(usuarioId: string): Promise<{ readonly linhaDaListaApagada: boolean; readonly pedidosApagados: number }> {
     const escolaId = requireEscolaId()
     const doUsuario = and(eq(listaNome.escolaId, escolaId), eq(listaNome.usuarioId, usuarioId))
     const pedidos = await this.tx
@@ -396,7 +396,7 @@ export class CicloDeVidaRepository {
    * Apaga o usuário. O convite dele sai junto (`on delete cascade`); a auditoria de que ele é autor e o vínculo de outra
    * pessoa que ele criou ficam, com o id dele (migration 0013).
    */
-  async apagarUsuario(usuarioId: string): Promise<void> {
+  async deleteUsuario(usuarioId: string): Promise<void> {
     await this.tx.delete(usuario).where(and(eq(usuario.escolaId, requireEscolaId()), eq(usuario.id, usuarioId)))
   }
 }

@@ -26,7 +26,7 @@ export type ResultadoDaExtracao =
   | { readonly falha: FalhaDeMaterial }
 
 /** O arquivo começa como PDF? É a conferência do conteúdo, e não do nome nem do tipo que o navegador declarou. */
-export function temAssinaturaDePdf(bytes: Uint8Array): boolean {
+export function hasAssinaturaDePdf(bytes: Uint8Array): boolean {
   return Buffer.from(bytes.buffer, bytes.byteOffset, Math.min(bytes.byteLength, ALCANCE_DA_ASSINATURA)).includes(ASSINATURA_DO_PDF)
 }
 
@@ -93,7 +93,7 @@ export class PdfExtractor {
     // Lido por função: o prazo pode vencer no meio da leitura, entre uma conferência e outra.
     const abortado = (): boolean => sinal?.aborted === true
     if (abortado()) return { falha: 'extracao_falhou' }
-    if (!temAssinaturaDePdf(bytes)) return { falha: 'arquivo_invalido' }
+    if (!hasAssinaturaDePdf(bytes)) return { falha: 'arquivo_invalido' }
     const tarefa = getDocument({ data: new Uint8Array(bytes), useSystemFonts: false, disableFontFace: true, verbosity: 0 })
     const aoAbortar = (): void => void tarefa.destroy().catch(() => undefined)
     sinal?.addEventListener('abort', aoAbortar, { once: true })
@@ -124,7 +124,7 @@ export class PdfExtractor {
         .filter((pagina) => pagina.texto !== '')
       if (trechos.length === 0) return { falha: 'sem_texto' }
       // Com o documento ainda aberto e as linhas de antes de `tirarLinhasRepetidas`: o cabeçalho corrido é o dado da linha "Capítulo N".
-      return { falha: null, paginas: linhasPorPagina.length, trechos, capitulos: await this.#capitulos.ler(pdf, linhasPorPagina) }
+      return { falha: null, paginas: linhasPorPagina.length, trechos, capitulos: await this.#capitulos.read(pdf, linhasPorPagina) }
     } catch (erro) {
       return { falha: abortado() ? 'extracao_falhou' : falhaDoErro(erro) }
     } finally {

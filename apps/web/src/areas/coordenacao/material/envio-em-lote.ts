@@ -30,7 +30,7 @@ interface Opcoes {
   readonly itens: readonly ItemDoLote[]
   /** O pedido de cada arquivo; `undefined` é item sem pedido válido (o formulário já o barra antes). */
   readonly camposDe: (item: ItemDoLote) => CamposDoEnvioDeMaterial | undefined
-  readonly enviar: (campos: CamposDoEnvioDeMaterial, arquivo: File) => Promise<Material>
+  readonly send: (campos: CamposDoEnvioDeMaterial, arquivo: File) => Promise<Material>
   /** O que mudou no arquivo: o chamador o põe na tela. */
   readonly aoMudar: (chave: number, parte: Partial<Pick<ItemDoLote, 'situacao' | 'texto'>>) => void
   /** O envio já enviado, para o chamador contar (e, no "Tentar de novo", apagar o que o substitui). */
@@ -57,7 +57,7 @@ function paradaDoErro(erro: unknown): ParadaDoLote | undefined {
   }
 }
 
-export async function enviarOLote({ itens, camposDe, enviar, aoMudar, aoEnviar, cancelado }: Opcoes): Promise<ParadaDoLote | undefined> {
+export async function sendOLote({ itens, camposDe, send: enviar, aoMudar, aoEnviar, cancelado }: Opcoes): Promise<ParadaDoLote | undefined> {
   for (const item of itens) {
     if (cancelado()) return { tipo: 'cancelado' }
     const campos = camposDe(item)

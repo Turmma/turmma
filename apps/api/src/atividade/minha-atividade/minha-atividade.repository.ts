@@ -116,7 +116,7 @@ export class MinhaAtividadeRepository {
    * Uma página das atividades das turmas do aluno, da mais nova para a mais antiga, com uma linha a mais que diz se há
    * próxima. `comDiagnostico` só é verdadeiro com correção **dele** em lote `aprovada`: é um sim ou não, sem número.
    */
-  listar({ pagina, limite }: PaginationQuery): Promise<MinhaAtividadeLida[]> {
+  list({ pagina, limite }: PaginationQuery): Promise<MinhaAtividadeLida[]> {
     const { usuarioId } = requestSessao()
     return this.banco
       .select({
@@ -167,7 +167,7 @@ export class MinhaAtividadeRepository {
   }
 
   /** O mesmo alcance e a mesma trava de `prova`, só com o estado e o número de questões: é o que o `PUT` da resposta e o envio leem, sem carregar o conteúdo. */
-  async travarParaGravar(id: string): Promise<{ estado: EstadoDeAtividadeAplicada; questoes: number } | undefined> {
+  async lockParaGravar(id: string): Promise<{ estado: EstadoDeAtividadeAplicada; questoes: number } | undefined> {
     const [linha] = await this.banco
       .select({ estado: atividadeAplicada.estado, questoes: sql<number>`jsonb_array_length(${artefato.conteudo} -> 'questoes')` })
       .from(atividadeAplicada)
@@ -180,10 +180,10 @@ export class MinhaAtividadeRepository {
   /**
    * A tentativa do aluno da sessão, criada se ainda não existe, numa instrução só: abrir a prova em duas abas cria uma
    * (regra 80, item 7). O `do update` não muda nada, mas trava a linha e devolve o estado dela: a resposta que chega
-   * junto com o envio espera por ele e lê a tentativa já enviada. Só se chama depois de `prova` ou `travarParaGravar`
+   * junto com o envio espera por ele e lê a tentativa já enviada. Só se chama depois de `prova` ou `lockParaGravar`
    * achar a atividade na turma do aluno.
    */
-  async abrirTentativa(atividadeAplicadaId: string): Promise<TentativaLida> {
+  async openTentativa(atividadeAplicadaId: string): Promise<TentativaLida> {
     const [linha] = await this.banco
       .insert(tentativaAtividade)
       .values({ escolaId: requireEscolaId(), anoLetivoId: requireAnoEmCurso(), atividadeAplicadaId, alunoId: requestSessao().usuarioId })
@@ -247,7 +247,7 @@ export class MinhaAtividadeRepository {
   }
 
   /** Marca o envio da tentativa do aluno da sessão, com a hora do banco, uma vez só: a já enviada fica com a primeira hora. */
-  async enviar(atividadeAplicadaId: string): Promise<void> {
+  async send(atividadeAplicadaId: string): Promise<void> {
     await this.banco
       .update(tentativaAtividade)
       .set({ enviadaEm: sql`now()` })

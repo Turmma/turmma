@@ -1,4 +1,4 @@
-import { createDatabase, createPool, executarPlanilha, GradeRepository, ImportacaoRepository, runInContext, type Database, type DatabasePool } from '@educa/core'
+import { createDatabase, createPool, runPlanilha, GradeRepository, ImportacaoRepository, runInContext, type Database, type DatabasePool } from '@educa/core'
 import { ErrorCode, gradeResponseSchema, previaDaPlanilhaResponseSchema, type PreviaDaPlanilhaResponse } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -182,7 +182,7 @@ describe('grade: reimportar substitui o ano, e a grade se lê por turma (F2, tar
   /** O job uma vez, na escola do job: a grade só reaproveita professor que a escola já tem, e por isso o job nunca pede conta global. */
   const rodar = (escolaId: string, importacaoId: string) =>
     runInContext({ requisicaoId: randomUUID(), escolaId }, () =>
-      executarPlanilha(bancoDoJob, importacaoId, { acharConta: () => Promise.reject(new Error('a grade deste teste não cadastra professor')), travarContas: () => Promise.resolve(true) }),
+      runPlanilha(bancoDoJob, importacaoId, { acharConta: () => Promise.reject(new Error('a grade deste teste não cadastra professor')), lockContas: () => Promise.resolve(true) }),
     )
 
   /** Grava a planilha da grade (202), com as marcas e o filtro de ano pedidos, e devolve o id da importação. */
@@ -563,7 +563,7 @@ describe('grade: reimportar substitui o ano, e a grade se lê por turma (F2, tar
     const daOutra = (await aulasDe(outra.e))[0]?.id ?? ''
     const apagar = (anoId: string, ids: string[]) =>
       // O banco do job vê todas as escolas: o escopo é só o `runInContext` (ver `bancoDoJob`).
-      runInContext({ requisicaoId: randomUUID(), escolaId: e.escolaId }, () => new ImportacaoRepository(bancoDoJob).apagarAulas(anoId, ids))
+      runInContext({ requisicaoId: randomUUID(), escolaId: e.escolaId }, () => new ImportacaoRepository(bancoDoJob).deleteAulas(anoId, ids))
 
     expect(await apagar(e.planejado, [doAnoEmCurso, daOutra])).toBe(0)
     expect(await apagar(e.emCurso, [doPlanejado, daOutra])).toBe(0)

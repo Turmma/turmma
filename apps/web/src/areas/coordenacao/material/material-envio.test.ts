@@ -21,9 +21,9 @@ import {
   rotuloDoBotaoDeEnvio,
   tituloDaRecusa,
   tituloDoNovoItem,
-  temErro,
+  hasErro,
   tamanhoPorExtenso,
-  temAssinaturaDePdf,
+  hasAssinaturaDePdf,
   TEXTO_DA_RECUSA,
   textoDoEstado,
   textoDoItem,
@@ -74,12 +74,12 @@ describe('Material: o que falta no formulário', () => {
       licenca: 'Escolha a licença de uso. Sem licença declarada, o material não entra.',
       titulos: new Map(),
     })
-    expect(temErro(erros)).toBe(true)
+    expect(hasErro(erros)).toBe(true)
     expect(camposDoEnvio(RASCUNHO_VAZIO, 'Título')).toBeUndefined()
   })
 
   it('o pronto para enviar não tem erro, e vira o pedido com as séries, sem licença registrada', () => {
-    expect(temErro(errosDoRascunho(PRONTO_PARA_ENVIAR, UM))).toBe(false)
+    expect(hasErro(errosDoRascunho(PRONTO_PARA_ENVIAR, UM))).toBe(false)
     expect(camposDoEnvio({ ...PRONTO_PARA_ENVIAR, serieIds: [SERIE, DISCIPLINA], licencaId: 'sobrou de antes' }, '  Química 2 — Capítulo 7  ')).toEqual({
       titulo: 'Química 2 — Capítulo 7',
       disciplinaId: DISCIPLINA,
@@ -103,8 +103,8 @@ describe('Material: o que falta no formulário', () => {
   it('o envio que será recusado segue sem arquivo: a recusa fica registrada e o arquivo não sai do computador', () => {
     const semLicenca: RascunhoDoEnvio = { ...PRONTO_PARA_ENVIAR, licenca: 'sem_licenca' }
     const semDeclaracao: RascunhoDoEnvio = { ...PRONTO_PARA_ENVIAR, declaracao: false }
-    expect(temErro(errosDoRascunho(semLicenca, []))).toBe(false)
-    expect(temErro(errosDoRascunho(semDeclaracao, []))).toBe(false)
+    expect(hasErro(errosDoRascunho(semLicenca, []))).toBe(false)
+    expect(hasErro(errosDoRascunho(semDeclaracao, []))).toBe(false)
     expect(camposDoEnvio(semLicenca, 'Material sem arquivo')).toMatchObject({ licenca: 'sem_licenca', declaracao: true })
     expect(camposDoEnvio(semDeclaracao, 'Material sem arquivo')).toMatchObject({ licenca: 'autoria_da_escola', declaracao: false })
     // O que vai entrar, sem arquivo, não segue.
@@ -130,7 +130,7 @@ describe('Material: o que falta, campo a campo, e o pedido de cada arquivo', () 
   it('o título sem texto, sozinho, já é erro do formulário (e nenhum outro campo precisa errar)', () => {
     const erros = errosDoRascunho(PRONTO_PARA_ENVIAR, [item(1, { titulo: '' })])
     expect(Object.keys(erros)).toEqual(['titulos'])
-    expect(temErro(erros)).toBe(true)
+    expect(hasErro(erros)).toBe(true)
   })
 
   it('cada campo que falta, sozinho, impede o pedido', () => {
@@ -232,11 +232,11 @@ describe('Material: o lote de até 20 PDFs (RF14)', () => {
 
 describe('Material: o arquivo', () => {
   it('é PDF o que tem a assinatura no conteúdo, e não o que tem nome de PDF', () => {
-    expect(temAssinaturaDePdf(pdf())).toBe(true)
-    expect(temAssinaturaDePdf(new TextEncoder().encode('   \n%PDF-1.4'))).toBe(true)
-    expect(temAssinaturaDePdf(new TextEncoder().encode('nome;turma\n'))).toBe(false)
-    expect(temAssinaturaDePdf(new TextEncoder().encode('%PDF'))).toBe(false)
-    expect(temAssinaturaDePdf(new Uint8Array())).toBe(false)
+    expect(hasAssinaturaDePdf(pdf())).toBe(true)
+    expect(hasAssinaturaDePdf(new TextEncoder().encode('   \n%PDF-1.4'))).toBe(true)
+    expect(hasAssinaturaDePdf(new TextEncoder().encode('nome;turma\n'))).toBe(false)
+    expect(hasAssinaturaDePdf(new TextEncoder().encode('%PDF'))).toBe(false)
+    expect(hasAssinaturaDePdf(new Uint8Array())).toBe(false)
   })
 
   it('o arquivo grande demais, o vazio e o que não é PDF dizem o que fazer; o PDF dentro do limite passa', () => {

@@ -92,14 +92,14 @@ export function useModalDialog({ focoInicial, focoDeReserva, cedeAoPrioritario =
     let quemAbriu: HTMLElement | undefined
     let abriu = false
     desmontando.current = false
-    const abrir = () => {
+    const open = () => {
       abriu = true
       // O `body` com o foco é ninguém: o diálogo que abre sozinho (pelo endereço) não tem a quem devolver o foco, e `body.focus()` não faz nada.
       quemAbriu = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : undefined
       if (!atual.open) atual.showModal()
       focoInicial?.current?.focus()
     }
-    const desistir = cedeAoPrioritario ? quandoNaoHouverPrioritario(abrir) : (abrir(), undefined)
+    const desistir = cedeAoPrioritario ? quandoNaoHouverPrioritario(open) : (open(), undefined)
     return () => {
       desistir?.()
       desmontando.current = true

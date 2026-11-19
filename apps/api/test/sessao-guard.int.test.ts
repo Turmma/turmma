@@ -13,7 +13,7 @@ import { aguardarSaudavel, compose, composeOuFalha } from '../../../tools/testes
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
 import { AppModule } from '../src/app.module.js'
 import { configureApp } from '../src/configure-app.js'
-import { executarOpsSessaoSintetica, type CommandDatabase } from '../src/ops/sessao-sintetica.js'
+import { runOpsSessaoSintetica, type CommandDatabase } from '../src/ops/sessao-sintetica.js'
 import { MOTIVO_SESSAO_SINTETICA_FORA_DO_LOCAL } from '../src/sessao/index.js'
 import { testConfig } from './test-config.js'
 import { SessaoFixtures, type TestSessao } from './sessao.fixture.js'
@@ -67,7 +67,7 @@ describe('GuardaDeSessao: toda requisição autenticada é conferida contra a se
     configureApp(app, createLogger({ servico: 'api-teste', nivel: 'silent' }))
     await app.listen(0, '127.0.0.1')
     url = `http://127.0.0.1:${(app.getHttpServer().address() as AddressInfo).port}`
-    leituras = vi.spyOn(app.get(SessaoRepository), 'lerParaGuarda')
+    leituras = vi.spyOn(app.get(SessaoRepository), 'findParaGuarda')
   })
 
   afterAll(async () => {
@@ -284,11 +284,11 @@ describe('ops:sessao-sintetica', () => {
   async function rodar(argumentos: string[], ambiente: Record<string, string | undefined>, abrirBanco?: (ambiente: Record<string, string | undefined>) => CommandDatabase) {
     let saida = ''
     let erro = ''
-    const codigo = await executarOpsSessaoSintetica(argumentos, ambiente, { saida: (texto) => (saida += texto), erro: (texto) => (erro += texto) }, abrirBanco)
+    const codigo = await runOpsSessaoSintetica(argumentos, ambiente, { saida: (texto) => (saida += texto), erro: (texto) => (erro += texto) }, abrirBanco)
     return { codigo, saida, erro }
   }
 
-  const bancoDaBancada = (): CommandDatabase => ({ banco: bancada.banco, fechar: async () => undefined })
+  const bancoDaBancada = (): CommandDatabase => ({ banco: bancada.banco, close: async () => undefined })
 
   it.each([
     ['AMBIENTE=staging', { ...ambienteDeTeste, AMBIENTE: 'staging' }],

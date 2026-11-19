@@ -29,9 +29,9 @@ import type { DatabaseTransaction } from '../../db/database.js'
 import type { AulaGravada, AulaNova } from '../alocacao.repository.js'
 import { ContaDaPlanilhaPerdidaError, DiferencaNaPlanilhaError } from '../erros.js'
 import type { ImportacaoRepository, ProfessorDaEscola } from '../importacao.repository.js'
-import { lerTabela, normalizarTexto } from '../leitor.js'
+import { readTabela, normalizeTexto } from '../leitor.js'
 import type { ContasDoJob, PlanoDaImportacao, PreviaDoTipo, TipoDeImportacao } from '../tipo.js'
-import { criarTurmasNovas, indexarTurmas, indiceDaTurma, nomeDaTurma, type Serie, type TurmaNova } from './alunos.js'
+import { createTurmasNovas, indexarTurmas, indiceDaTurma, nomeDaTurma, type Serie, type TurmaNova } from './alunos.js'
 
 /**
  * A planilha da grade (F2, 11.0, RF7 e RF8; Tech Spec, seção 5, "Gravar", "Grade"): por aula, a turma, a disciplina, o nome e o e-mail do
@@ -161,14 +161,14 @@ const DIAS_PELO_NOME = new Map<string, number>([
   ['seg', 1], ['segunda', 1], ['ter', 2], ['terca', 2], ['qua', 3], ['quarta', 3], ['qui', 4], ['quinta', 4], ['sex', 5], ['sexta', 5], ['sab', 6], ['sabado', 6], ['dom', 7], ['domingo', 7],
 ])
 
-function lerDia(texto: string): number | null {
-  const limpo = normalizarTexto(texto).replace(/[\s-]?feira$/, '')
+function readDia(texto: string): number | null {
+  const limpo = normalizeTexto(texto).replace(/[\s-]?feira$/, '')
   return /^[1-7]$/.test(limpo) ? Number(limpo) : (DIAS_PELO_NOME.get(limpo) ?? null)
 }
 
 /** O horário como `HH:MM`: aceita `8:50`, `08:50`, `08:50:00`, `8h50` e `8h`. Hora ou minuto que não existe é `null`. */
-function lerHorario(texto: string): string | null {
-  const achado = /^(\d{1,2})(?:h(\d{2})?|:(\d{2})(?::\d{2})?)$/.exec(normalizarTexto(texto))
+function readHorario(texto: string): string | null {
+  const achado = /^(\d{1,2})(?:h(\d{2})?|:(\d{2})(?::\d{2})?)$/.exec(normalizeTexto(texto))
   if (achado === null) return null
   const [hora, minuto] = [Number(achado[1]), Number(achado[2] ?? achado[3] ?? '0')]
   return hora > 23 || minuto > 59 ? null : `${String(hora).padStart(2, '0')}:${String(minuto).padStart(2, '0')}`
@@ -176,53 +176,53 @@ function lerHorario(texto: string): string | null {
 
 /** Texto de uma linha: sem espaço a mais, e sem caractere de controle. */
 const compactar = (texto: string): string => texto.replace(/\s+/g, ' ').trim()
-const temControle = (texto: string): boolean => /\p{Cc}/u.test(texto)
+const hasControle = (texto: string): boolean => /\p{Cc}/u.test(texto)
 
 /** O campo de uma linha, ou texto vazio. */
 const campoDe = (campos: Readonly<Record<string, string>>, nome: string): string => campos[nome] ?? ''
 
 /** O professor da linha (nome e e-mail), ou o código do erro. O nome vem antes do e-mail: é a ordem em que a coordenação os lê. */
-function lerProfessor(campos: Readonly<Record<string, string>>): { readonly nome: string; readonly email: string } | ErroDaLinhaDeGrade {
+function readProfessor(campos: Readonly<Record<string, string>>): { readonly nome: string; readonly email: string } | ErroDaLinhaDeGrade {
   const nome = compactar(campoDe(campos, 'professor'))
   const digitado = campoDe(campos, 'email').trim()
   if (nome === '' && digitado === '') return 'sem_professor'
   if (nome === '') return 'nome_vazio'
-  if (nome.length > TAMANHO_MAXIMO_NOME_DIGITADO || temControle(nome)) return 'nome_invalido'
+  if (nome.length > TAMANHO_MAXIMO_NOME_DIGITADO || hasControle(nome)) return 'nome_invalido'
   const email = emailConvidadoSchema.safeParse(digitado)
   return email.success ? { nome, email: email.data } : 'email_invalido'
 }
 
 /** A turma e a disciplina da linha, ou o código do erro: a turma vem antes. */
-function lerOndeEh(campos: Readonly<Record<string, string>>): { readonly turma: string; readonly disciplina: string } | ErroDaLinhaDeGrade {
+function readOndeEh(campos: Readonly<Record<string, string>>): { readonly turma: string; readonly disciplina: string } | ErroDaLinhaDeGrade {
   const turma = nomeDaTurma(campoDe(campos, 'turma'))
   if (turma === '') return 'turma_vazia'
-  if (turma.length > 40 || temControle(turma)) return 'turma_invalida'
+  if (turma.length > 40 || hasControle(turma)) return 'turma_invalida'
   const disciplina = compactar(campoDe(campos, 'disciplina'))
   if (disciplina === '') return 'disciplina_vazia'
-  if (disciplina.length > 80 || temControle(disciplina)) return 'disciplina_invalida'
+  if (disciplina.length > 80 || hasControle(disciplina)) return 'disciplina_invalida'
   return { turma, disciplina }
 }
 
 /** O dia e o horário da linha, ou o código do erro: o dia vem antes. */
-function lerQuando(campos: Readonly<Record<string, string>>): { readonly dia: number; readonly inicio: string; readonly fim: string } | ErroDaLinhaDeGrade {
-  const dia = lerDia(campoDe(campos, 'dia'))
+function readQuando(campos: Readonly<Record<string, string>>): { readonly dia: number; readonly inicio: string; readonly fim: string } | ErroDaLinhaDeGrade {
+  const dia = readDia(campoDe(campos, 'dia'))
   if (dia === null) return 'dia_invalido'
-  const inicio = lerHorario(campoDe(campos, 'inicio'))
-  const fim = lerHorario(campoDe(campos, 'fim'))
+  const inicio = readHorario(campoDe(campos, 'inicio'))
+  const fim = readHorario(campoDe(campos, 'fim'))
   if (inicio === null || fim === null) return 'horario_invalido'
   return inicio >= fim ? 'fim_antes_do_inicio' : { dia, inicio, fim }
 }
 
 /** A aula de uma linha, ou o código do primeiro erro dela, na ordem em que a coordenação os corrige: turma, disciplina, professor, dia, horário e sala. */
-function lerLinha(linha: number, campos: Readonly<Record<string, string>>): AulaLida | ErroDaLinhaDeGrade {
-  const onde = lerOndeEh(campos)
+function readLinha(linha: number, campos: Readonly<Record<string, string>>): AulaLida | ErroDaLinhaDeGrade {
+  const onde = readOndeEh(campos)
   if (typeof onde === 'string') return onde
-  const professor = lerProfessor(campos)
+  const professor = readProfessor(campos)
   if (typeof professor === 'string') return professor
-  const quando = lerQuando(campos)
+  const quando = readQuando(campos)
   if (typeof quando === 'string') return quando
   const sala = compactar(campoDe(campos, 'sala'))
-  if (sala.length > TAMANHO_MAXIMO_DA_SALA_DA_AULA || temControle(sala)) return 'sala_longa'
+  if (sala.length > TAMANHO_MAXIMO_DA_SALA_DA_AULA || hasControle(sala)) return 'sala_longa'
   return { linha, ...onde, nome: professor.nome, email: professor.email, ...quando, sala: sala === '' ? null : sala }
 }
 
@@ -469,7 +469,7 @@ function linhaDaPrevia({ linha, resultado, erro, aviso }: ClassificadaRow): Prev
 }
 
 /** O que a escola já tem para classificar a grade no ano: as turmas, as disciplinas, os professores, os vínculos de professor abertos e as aulas. */
-async function lerDados(repositorio: ImportacaoRepository, anoLetivoId: string): Promise<DadosDaGrade> {
+async function readDados(repositorio: ImportacaoRepository, anoLetivoId: string): Promise<DadosDaGrade> {
   return {
     turmas: await repositorio.turmasDoAno(anoLetivoId),
     disciplinas: await repositorio.disciplinasDaEscola(),
@@ -486,9 +486,9 @@ function planoDe(anoLetivoId: string, classificacao: Classificacao, contas: Cont
     assinatura: classificacao.assinatura,
     resumo: { ...classificacao.resumo, ...(aEncerrar.length === 0 ? {} : { vinculos_encerrados: aEncerrar.length }) },
     aplicar: async (gravacao, { tx, relogio = systemClock }) => {
-      const turmas = await criarTurmasNovas(gravacao, tx, anoLetivoId, classificacao.turmasNovas)
+      const turmas = await createTurmasNovas(gravacao, tx, anoLetivoId, classificacao.turmasNovas)
       const disciplinas = new Map<string, string>()
-      for (const nova of classificacao.disciplinasNovas) disciplinas.set(nova.chave, await gravacao.criarDisciplina(nova.nome))
+      for (const nova of classificacao.disciplinasNovas) disciplinas.set(nova.chave, await gravacao.createDisciplina(nova.nome))
       for (const novo of classificacao.professoresNovos) {
         const contaId = contas.get(novo.email)
         if (contaId === undefined) throw new ContaDaPlanilhaPerdidaError()
@@ -505,10 +505,10 @@ function planoDe(anoLetivoId: string, classificacao: Classificacao, contas: Cont
         turmaId: turma.tipo === 'existente' ? turma.turmaId : idDe(turmas.get(turma.chave)),
         disciplinaId: disciplina.tipo === 'existente' ? disciplina.id : idDe(disciplinas.get(disciplina.chave)),
       }))
-      const criados = await gravacao.criarVinculosDeProfessorDaGrade(anoLetivoId, aCriar)
+      const criados = await gravacao.createVinculosDeProfessorDaGrade(anoLetivoId, aCriar)
       const idDaTripla = new Map(criados.map(({ id, usuarioId, turmaId, disciplinaId }) => [JSON.stringify([usuarioId, turmaId, disciplinaId]), id]))
       for (const { id, usuarioId, turmaId, disciplinaId } of criados) {
-        await registro.gravar(tx, 'vinculo.criado', { entidadeId: id, depois: { usuarioId, turmaId, disciplinaId, papel: 'professor', estado: 'pendente', origem: 'grade' } })
+        await registro.save(tx, 'vinculo.criado', { entidadeId: id, depois: { usuarioId, turmaId, disciplinaId, papel: 'professor', estado: 'pendente', origem: 'grade' } })
       }
       const idDoVinculoNovo = new Map(aCriar.map(({ chave, usuarioId, turmaId, disciplinaId }) => [chave, idDe(idDaTripla.get(JSON.stringify([usuarioId, turmaId, disciplinaId])))]))
       const aulas = classificacao.linhas.flatMap(({ aula, vinculo, resultado }): AulaNova[] => {
@@ -516,8 +516,8 @@ function planoDe(anoLetivoId: string, classificacao: Classificacao, contas: Cont
         return [{ vinculoId: vinculo.tipo === 'existente' ? vinculo.id : idDe(idDoVinculoNovo.get(vinculo.chave)), diaSemana: aula.dia, inicio: aula.inicio, fim: aula.fim, sala: aula.sala }]
       })
       // A grade do ano é a da planilha: a aula que nenhuma linha traz sai antes de as outras entrarem. Menos apagadas que lidas é diferença.
-      if ((await gravacao.apagarAulas(anoLetivoId, classificacao.aulasQueSaem)) !== classificacao.aulasQueSaem.length) throw new DiferencaNaPlanilhaError()
-      await gravacao.gravarAulas(anoLetivoId, aulas)
+      if ((await gravacao.deleteAulas(anoLetivoId, classificacao.aulasQueSaem)) !== classificacao.aulasQueSaem.length) throw new DiferencaNaPlanilhaError()
+      await gravacao.saveAulas(anoLetivoId, aulas)
       // O texto da aula acompanha a grade depois de a `alocacao` mudar e antes de o vínculo marcado encerrar: a ordem global (trava do vínculo, depois a linha dele; Tech Spec da semana-do-professor, seção 7c; o caso J16 de `apps/api/test/semana-reimportacao.int.test.ts` a prova).
       await gravacao.acompanharOTextoDaAula(anoLetivoId, mudancaDaGrade(classificacao), diaDeUso(relogio.agora()))
       await encerrarOsMarcados(gravacao, tx, anoLetivoId, aEncerrar)
@@ -546,8 +546,8 @@ async function encerrarOsMarcados(gravacao: ImportacaoRepository, tx: DatabaseTr
   if (encerrados.length !== ids.length) throw new DiferencaNaPlanilhaError()
   const ciclo = new CicloDeVidaRepository(tx)
   for (const { id, usuarioId, turmaId, estadoAntes } of encerrados) {
-    await registro.gravar(tx, 'vinculo.encerrado', { entidadeId: id, antes: { estado: estadoAntes }, depois: { estado: 'encerrado', motivo: 'realocacao', origem: 'grade' } })
-    for (const revogado of await ciclo.revogarDeQuemSaiu(usuarioId, turmaId)) await registro.gravar(tx, 'acesso_turma.revogado', { entidadeId: revogado.id, depois: { turmaId: revogado.turmaId } })
+    await registro.save(tx, 'vinculo.encerrado', { entidadeId: id, antes: { estado: estadoAntes }, depois: { estado: 'encerrado', motivo: 'realocacao', origem: 'grade' } })
+    for (const revogado of await ciclo.revogarDeQuemSaiu(usuarioId, turmaId)) await registro.save(tx, 'acesso_turma.revogado', { entidadeId: revogado.id, depois: { turmaId: revogado.turmaId } })
   }
 }
 
@@ -566,10 +566,10 @@ export const tipoGrade: TipoDeImportacao = {
   cadastraProfessores: true,
 
   async previa(repositorio, ano, texto): Promise<PreviaDoTipo> {
-    const tabela = lerTabela(texto, CABECALHOS_DA_PLANILHA.grade)
-    const lidas = tabela.linhas.map(({ linha, campos }) => ({ linha, lido: campos === null ? ('linha_incompleta' as const) : lerLinha(linha, campos) }))
+    const tabela = readTabela(texto, CABECALHOS_DA_PLANILHA.grade)
+    const lidas = tabela.linhas.map(({ linha, campos }) => ({ linha, lido: campos === null ? ('linha_incompleta' as const) : readLinha(linha, campos) }))
     const validas = lidas.flatMap(({ lido }) => (typeof lido === 'string' ? [] : [lido]))
-    const classificacao = classificar(ano.id, validas, await lerDados(repositorio, ano.id), lidas.length - validas.length)
+    const classificacao = classificar(ano.id, validas, await readDados(repositorio, ano.id), lidas.length - validas.length)
     const dosErros = lidas.flatMap(({ linha, lido }): PreviaDaPlanilhaRow[] => (typeof lido === 'string' ? [{ linha, resultado: 'erro', erro: lido }] : []))
     const linhas = [...dosErros, ...classificacao.linhas.map(linhaDaPrevia)].sort((a, b) => a.linha - b.linha)
     return { linhas, contagens: classificacao.resumo, candidatos: classificacao.candidatos, guardado: validas, assinatura: classificacao.assinatura }
@@ -593,7 +593,7 @@ export const tipoGrade: TipoDeImportacao = {
    * linhas tocam, em ordem de id e num comando só, como o `desativar` as trava. O professor e a turma de cada vínculo marcado "sai da grade" entram nas
    * mesmas travas (a turma antes do vínculo, como o `encerrar`). O `planejar` lê depois, sob as travas.
    */
-  async travar(repositorio, ano, guardado, marcas, { contas, travarContas }) {
+  async lock(repositorio, ano, guardado, marcas, { contas, lockContas: travarContas }) {
     const lido = guardadoSchema.safeParse(guardado)
     if (!lido.success) return
     const emails = new Set(lido.data.map(({ email }) => email))
@@ -601,14 +601,14 @@ export const tipoGrade: TipoDeImportacao = {
     const aEncerrar = marcados.size === 0 ? [] : (await repositorio.vinculosDeProfessorDoAno(ano.id)).filter(({ id }) => marcados.has(id))
     const professores = await repositorio.professoresDaEscola()
     const usuarios = new Set([...professores.filter(({ email }) => email !== null && emails.has(email)).map(({ usuarioId }) => usuarioId), ...aEncerrar.map(({ usuarioId }) => usuarioId)])
-    await repositorio.travarUsuarios([...usuarios])
+    await repositorio.lockUsuarios([...usuarios])
     if (contas.size > 0 && !(await travarContas(contas))) throw new ContaDaPlanilhaPerdidaError()
     const turmas = new Set([...turmasTocadas(lido.data, await repositorio.turmasDoAno(ano.id)), ...aEncerrar.map(({ turmaId }) => turmaId)])
-    await repositorio.travarTurmas(ano.id, [...turmas].sort())
+    await repositorio.lockTurmas(ano.id, [...turmas].sort())
   },
 
   async planejar(repositorio, ano, guardado, marcas, contas = new Map()) {
     const lido = guardadoSchema.safeParse(guardado)
-    return lido.success ? planoDe(ano.id, classificar(ano.id, lido.data, await lerDados(repositorio, ano.id)), contas, marcas) : undefined
+    return lido.success ? planoDe(ano.id, classificar(ano.id, lido.data, await readDados(repositorio, ano.id)), contas, marcas) : undefined
   },
 }

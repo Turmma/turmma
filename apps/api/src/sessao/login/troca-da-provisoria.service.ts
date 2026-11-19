@@ -17,10 +17,10 @@ const registro = new AuditoriaRecorder()
 
 export interface TrocaDaProvisoriaDependencies {
   readonly banco: Database
-  readonly bilhetes: Pick<BilheteDaTroca, 'verificar'>
+  readonly bilhetes: Pick<BilheteDaTroca, 'verify'>
   /** O hash da senha nova, pela vez no semáforo do argon2 (o mesmo do login). */
-  readonly hash: Pick<PasswordHasher, 'gerar'>
-  readonly semaforo: Pick<HashBulkhead, 'executar'>
+  readonly hash: Pick<PasswordHasher, 'generate'>
+  readonly semaforo: Pick<HashBulkhead, 'run'>
   /** O contador de tentativas da conta do aluno, o mesmo do login. */
   readonly contador: LoginLockout
   readonly dispositivo: DeviceCookie
@@ -58,10 +58,10 @@ export class TrocaDaProvisoria {
       if (aluno === undefined) throw credencialInvalida()
       const { chave, identificador } = chaveDaTentativa(this.dependencias, escolaId, aluno.matricula, origem)
       const vale = aluno.provisoriaVale && !aluno.suspenso
-      const tentativa = await semaforo.executar(escolaBucket(escolaId), async (): Promise<{ readonly seguradaPorMs: number } | { readonly reserva: ReservaLiberada; readonly senhaHash: string | undefined }> => {
+      const tentativa = await semaforo.run(escolaBucket(escolaId), async (): Promise<{ readonly seguradaPorMs: number } | { readonly reserva: ReservaLiberada; readonly senhaHash: string | undefined }> => {
         const reserva = await contador.reservar(chave)
         if (!reserva.liberada) return { seguradaPorMs: reserva.esperaMs }
-        return { reserva, senhaHash: vale ? await hash.gerar(senhaNova) : undefined }
+        return { reserva, senhaHash: vale ? await hash.generate(senhaNova) : undefined }
       })
       if ('seguradaPorMs' in tentativa) throw contaSegurada(tentativa.seguradaPorMs)
       if (tentativa.senhaHash === undefined) throw falhou(tentativa.reserva)
@@ -71,7 +71,7 @@ export class TrocaDaProvisoria {
       const trocou = await runInContext({ requisicaoId, escolaId, usuarioId }, () =>
         banco.transaction(async (tx) => {
           if (!(await new CredencialMatriculaRepository(tx).trocarProvisoria(usuarioId, provisoriaExpiraEm, senhaHash))) return false
-          await registro.gravar(tx, 'senha_provisoria.usada', { entidadeId: usuarioId })
+          await registro.save(tx, 'senha_provisoria.usada', { entidadeId: usuarioId })
           return true
         }),
       )
@@ -95,7 +95,7 @@ export class TrocaDaProvisoria {
   }
 
   async #bilhete(bilhete: string): Promise<DadosDoBilheteDaTroca> {
-    const dados = await this.dependencias.bilhetes.verificar(bilhete)
+    const dados = await this.dependencias.bilhetes.verify(bilhete)
     if (dados === undefined) throw credencialInvalida()
     return dados
   }

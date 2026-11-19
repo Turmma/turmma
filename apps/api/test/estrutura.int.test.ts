@@ -801,7 +801,7 @@ describe('estrutura: a coordenação monta o ano letivo, as séries, as discipli
 
       // O repository sozinho: o escopo da escola está na escrita, e não só na leitura que o service faz antes dela.
       expect(await comoEscola(a.escolaId, (repositorio) => repositorio.definirComponente(String(daB['id']), 'fisica'))).toBeUndefined()
-      expect(await comoEscola(a.escolaId, (repositorio) => repositorio.travarPorId(String(daB['id'])))).toBeUndefined()
+      expect(await comoEscola(a.escolaId, (repositorio) => repositorio.lockPorId(String(daB['id'])))).toBeUndefined()
       expect(await componenteNoBanco(String(daB['id']))).toBe('quimica')
     })
 

@@ -22,10 +22,10 @@ export class FerramentasController {
   @Post(':ferramenta/gerar')
   @RequirePermissao('ferramenta', 'gerar')
   @HttpCode(HttpStatus.ACCEPTED)
-  gerar(
+  generate(
     @Param('ferramenta', new ZodValidationPipe(parametroFerramentaSchema, { errorCode: ErrorCode.NAO_ENCONTRADO })) ferramenta: ParametroFerramenta,
     @Body(new ZodValidationPipe(gerarComFerramentaRequestSchema)) pedido: GerarComFerramentaRequest,
   ): Promise<ExecucaoAceitaResponse> {
-    return this.ferramentas.gerar(ferramenta, pedido)
+    return this.ferramentas.generate(ferramenta, pedido)
   }
 }

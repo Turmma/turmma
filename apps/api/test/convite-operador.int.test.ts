@@ -12,8 +12,8 @@ import { DB } from '../src/database.module.js'
 import { configureApp } from '../src/configure-app.js'
 import { verifyOperadorChallenge } from '../src/operacao/operador-challenge.js'
 import { hashDoTokenDeConvite } from '../src/operacao/token-do-convite.js'
-import { gerarConviteDeOperador } from '../src/ops/operador.js'
-import { criarConviteDeCoordenador } from '../src/sessao/index.js'
+import { generateConviteDeOperador } from '../src/ops/operador.js'
+import { createConviteDeCoordenador } from '../src/sessao/index.js'
 import { PasswordHasher, HashBulkhead } from '../src/credencial/index.js'
 import { cookieDeRenovacao } from './test-api.js'
 import { testConfig, TEST_APP_OPTIONS } from './test-config.js'
@@ -124,7 +124,7 @@ describe('convite do operador: consultar e aceitar (tarefa 5.0)', () => {
   /** Um operador ativo novo e um convite dele, gerado pelo mesmo código do `ops:operador convite`. */
   async function operadorComConvite(relogio?: { agora: () => Date }): Promise<{ operadorId: string; apelido: string; conviteId: string; token: string }> {
     const { operadorId, apelido } = await operadores.operador()
-    const { conviteId, token } = await gerarConviteDeOperador(banco, autor, apelido, relogio)
+    const { conviteId, token } = await generateConviteDeOperador(banco, autor, apelido, relogio)
     return { operadorId, apelido, conviteId, token }
   }
 
@@ -183,9 +183,9 @@ describe('convite do operador: consultar e aceitar (tarefa 5.0)', () => {
    * transação. A consulta do convite já passou: quem recusa, se recusar, é a trava do banco.
    */
   async function aceitarMudandoDuranteOHash(token: string, mudar: () => Promise<void>): Promise<Resposta> {
-    const gerar = hash.gerar.bind(hash)
+    const gerar = hash.generate.bind(hash)
     const espera = barreira()
-    const espiao = vi.spyOn(hash, 'gerar').mockImplementation(async (senha) => {
+    const espiao = vi.spyOn(hash, 'generate').mockImplementation(async (senha) => {
       await espera.esperar()
       return gerar(senha)
     })
@@ -226,7 +226,7 @@ describe('convite do operador: consultar e aceitar (tarefa 5.0)', () => {
       await expect(verifyOperadorChallenge(corpo.desafio, configuracao.identidade.chaveAssinatura, 'configurar_mfa')).resolves.toMatchObject({ operadorId: convite.operadorId, etapa: 'configurar_mfa' })
 
       const linha = await linhaDoOperador(convite.operadorId)
-      expect(await hash.verificar(linha.senha_hash, SENHA)).toBe(true)
+      expect(await hash.verify(linha.senha_hash, SENHA)).toBe(true)
       expect({ ...linha, senha_hash: undefined }).toEqual({ senha_hash: undefined, mfa_segredo_cifrado: null, mfa_ativado_em: null, mfa_ultimo_passo: null, mfa_chave_versao: null, codigos: 0 })
       expect(await usadoEm(convite.conviteId)).not.toBeNull()
     })
@@ -313,7 +313,7 @@ describe('convite do operador: consultar e aceitar (tarefa 5.0)', () => {
     it('C7 (parte): depois de outro `ops:operador convite`, o link antigo responde igual a revogado, e o novo vale', async () => {
       const convite = await operadorComConvite()
       expect((await consultar(convite.token)).status).toBe(200)
-      const novo = await gerarConviteDeOperador(banco, autor, convite.apelido)
+      const novo = await generateConviteDeOperador(banco, autor, convite.apelido)
       // A referência: um convite revogado pelo banco.
       const revogado = await operadorComConvite()
       await operadores.pool.query('update convite_operador set revogado_em = now() where id = $1', [revogado.conviteId])
@@ -353,7 +353,7 @@ describe('convite do operador: consultar e aceitar (tarefa 5.0)', () => {
       const aberta = await operadores.sessao({ operadorId: convite.operadorId, apelido: convite.apelido, nome: 'Pessoa Sintética da Operação' })
       let novo = ''
       const resposta = await aceitarMudandoDuranteOHash(convite.token, async () => {
-        novo = (await gerarConviteDeOperador(banco, autor, convite.apelido)).token
+        novo = (await generateConviteDeOperador(banco, autor, convite.apelido)).token
       })
       expect(forma(resposta)).toEqual(forma(await consultar(randomBytes(32).toString('base64url'))))
       expect(await usadoEm(convite.conviteId)).toBeNull()
@@ -382,9 +382,9 @@ describe('convite do operador: consultar e aceitar (tarefa 5.0)', () => {
       try {
         // A transação do `desativarOperador`, na ordem dele: trava e apaga o operador, e só depois revoga o convite.
         let resposta: Promise<Resposta> | undefined
-        const gerar = hash.gerar.bind(hash)
+        const gerar = hash.generate.bind(hash)
         const espera = barreira()
-        const espiao = vi.spyOn(hash, 'gerar').mockImplementation(async (senha) => {
+        const espiao = vi.spyOn(hash, 'generate').mockImplementation(async (senha) => {
           await espera.esperar()
           return gerar(senha)
         })
@@ -426,10 +426,10 @@ describe('convite do operador: consultar e aceitar (tarefa 5.0)', () => {
   describe('C10: dois aceites juntos', () => {
     it('dois `aceitar` com o mesmo token em Promise.all: uma senha gravada, a de quem recebeu 200, e o outro recusado com NAO_ENCONTRADO', async () => {
       const convite = await operadorComConvite()
-      const gerar = hash.gerar.bind(hash)
+      const gerar = hash.generate.bind(hash)
       // Os dois passam da consulta do convite antes de qualquer transação: só a trava do banco separa um do outro.
       const espera = barreira(2)
-      const espiao = vi.spyOn(hash, 'gerar').mockImplementation(async (senha) => {
+      const espiao = vi.spyOn(hash, 'generate').mockImplementation(async (senha) => {
         const resultado = await gerar(senha)
         await espera.esperar()
         return resultado
@@ -450,8 +450,8 @@ describe('convite do operador: consultar e aceitar (tarefa 5.0)', () => {
       if (recusada === undefined) throw new Error('nenhuma recusa')
       esperarErro(recusada, 404, ErrorCode.NAO_ENCONTRADO)
       const { senha_hash: senhaHash } = await linhaDoOperador(convite.operadorId)
-      expect(await hash.verificar(senhaHash, vencedora)).toBe(true)
-      expect(await hash.verificar(senhaHash, perdedora)).toBe(false)
+      expect(await hash.verify(senhaHash, vencedora)).toBe(true)
+      expect(await hash.verify(senhaHash, perdedora)).toBe(false)
       // Um aceite auditado, o de quem venceu: o que perdeu não grava nada.
       expect(await aceitesAuditados(convite.operadorId)).toHaveLength(1)
     })
@@ -504,7 +504,7 @@ describe('convite do operador: consultar e aceitar (tarefa 5.0)', () => {
       const coordenador = await escolas.sessao(escolaId, 'coordenador')
       const cookie = await cookieDeRenovacao(escolas, coordenador)
       // O convite é de outra escola: a do coordenador já tem coordenação ativa, e não recebe convite (A0b, seção 5).
-      const daEscola = await criarConviteDeCoordenador(banco, async () => autor, { slug: await escolas.slugDe(await escolas.escola()), email: `coord-${randomUUID()}@escola.invalid`, nome: 'Coordenação Sintética' })
+      const daEscola = await createConviteDeCoordenador(banco, async () => autor, { slug: await escolas.slugDe(await escolas.escola()), email: `coord-${randomUUID()}@escola.invalid`, nome: 'Coordenação Sintética' })
       const credenciais = { Authorization: `Bearer ${coordenador.token}`, Cookie: cookie }
       const esperado = forma(await consultar(randomBytes(32).toString('base64url')))
 
@@ -579,7 +579,7 @@ describe('convite do operador: o limite por IP (C32 e C33, parte)', () => {
   it('C33: `convite/aceitar` acima do limite do IP não responde 429: o aceite vai para o fim do balde no semáforo do hash, e o de outro IP não', async () => {
     const [ip, outro] = [ipSorteado(), ipSorteado()]
     const semaforo = app.get(HashBulkhead)
-    const vezes = vi.spyOn(semaforo, 'executar')
+    const vezes = vi.spyOn(semaforo, 'run')
     try {
       // O dobro do limite, com tokens que não existem: nenhum 429.
       for (let vez = 0; vez < 2 * LIMITE_POR_IP; vez++) {
@@ -590,7 +590,7 @@ describe('convite do operador: o limite por IP (C32 e C33, parte)', () => {
 
       const { operadorId: acimaId, apelido: acima } = await operadores.operador()
       const { apelido: dentro } = await operadores.operador()
-      const [doAcima, doDentro] = [await gerarConviteDeOperador(banco, autor, acima), await gerarConviteDeOperador(banco, autor, dentro)]
+      const [doAcima, doDentro] = [await generateConviteDeOperador(banco, autor, acima), await generateConviteDeOperador(banco, autor, dentro)]
       expect((await pedir(url, 'POST', '/v1/operacao/convite/aceitar', { token: doAcima.token, senha: SENHA }, doIp(ip))).status).toBe(200)
       expect((await pedir(url, 'POST', '/v1/operacao/convite/aceitar', { token: doDentro.token, senha: SENHA }, doIp(outro))).status).toBe(200)
       expect(vezes.mock.calls.map(([balde]) => balde)).toEqual([

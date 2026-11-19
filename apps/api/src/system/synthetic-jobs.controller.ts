@@ -20,7 +20,7 @@ export class SyntheticJobsController {
   @RequirePermissao('sistema_job_sintetico', 'criar')
   @HttpCode(HttpStatus.ACCEPTED)
   @Header('Cache-Control', 'no-store')
-  criar(@Body(new ZodValidationPipe(syntheticJobRequestSchema)) pedido: SyntheticJobRequest): Promise<JobAcceptedResponse> {
+  create(@Body(new ZodValidationPipe(syntheticJobRequestSchema)) pedido: SyntheticJobRequest): Promise<JobAcceptedResponse> {
     return this.jobs.enfileirar(pedido)
   }
 }
@@ -33,7 +33,7 @@ export class SyntheticJobsQueryController {
   @Get(':id')
   @RequirePermissao('sistema_job_sintetico', 'ler')
   @Header('Cache-Control', 'no-store')
-  consultar(@Param('id', IdPipe) id: string): Promise<JobStateResponse> {
-    return this.jobs.consultar(id)
+  find(@Param('id', IdPipe) id: string): Promise<JobStateResponse> {
+    return this.jobs.find(id)
   }
 }

@@ -48,7 +48,7 @@ beforeEach(async () => {
   m = await importar()
   // A sessão aberta pelo cookie, como a aba faz ao chegar à área: o token fica em memória.
   fila.push({ status: 200, corpo: { token: 'token-de-acesso', expiraEm: new Date(Date.now() + 600_000).toISOString() } })
-  await m.sessao.abrirSessaoPeloCookie()
+  await m.sessao.openSessaoPeloCookie()
   chamadas.length = 0
 })
 
@@ -139,8 +139,8 @@ describe('o envio do convite por e-mail (acesso-e-convites, 4.0)', () => {
 
   it('vai à rota do envio com a sessão: sem lista o corpo é vazio (todos os que esperam), com lista leva só os ids, e a resposta é a contagem', async () => {
     fila.push({ status: 200, corpo: { quantidade: 3 } }, { status: 200, corpo: { quantidade: 2 } })
-    expect(await m.professores.enviarConvites()).toEqual({ quantidade: 3 })
-    expect(await m.professores.enviarConvites([USUARIO, OUTRO])).toEqual({ quantidade: 2 })
+    expect(await m.professores.sendConvites()).toEqual({ quantidade: 3 })
+    expect(await m.professores.sendConvites([USUARIO, OUTRO])).toEqual({ quantidade: 2 })
     expect(chamadas).toEqual([
       { caminho: '/v1/professores/convites/enviar', metodo: 'POST', corpo: {}, autorizacao: 'Bearer token-de-acesso' },
       { caminho: '/v1/professores/convites/enviar', metodo: 'POST', corpo: { usuarioIds: [USUARIO, OUTRO] }, autorizacao: 'Bearer token-de-acesso' },
@@ -149,7 +149,7 @@ describe('o envio do convite por e-mail (acesso-e-convites, 4.0)', () => {
 
   it('a resposta fora do contrato (o link na resposta) não chega ao diálogo', async () => {
     fila.push({ status: 200, corpo: { quantidade: 1, token: TOKEN } })
-    await expect(m.professores.enviarConvites([USUARIO])).rejects.toBeDefined()
+    await expect(m.professores.sendConvites([USUARIO])).rejects.toBeDefined()
   })
 
   it('o pedido sai do cache (`gcTime: 0`), e o recarregar da lista roda quando ele termina, dê certo ou não', async () => {

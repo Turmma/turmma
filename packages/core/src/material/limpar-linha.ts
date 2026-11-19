@@ -3,7 +3,7 @@
 const CONTROLE = /[\u0000-\u0008\u000B-\u001F\u007F]/g
 
 /** Uma linha com um espaço só entre as palavras, sem caractere de controle e sem espaço nas pontas. */
-export const limparLinha = (linha: string): string => linha.replace(CONTROLE, ' ').replace(/\s+/g, ' ').trim()
+export const clearLinha = (linha: string): string => linha.replace(CONTROLE, ' ').replace(/\s+/g, ' ').trim()
 
 /** Cada linha limpa, e nenhuma linha vazia. */
-export const linhasLimpas = (linhas: readonly string[]): string[] => linhas.map(limparLinha).filter((linha) => linha !== '')
+export const linhasLimpas = (linhas: readonly string[]): string[] => linhas.map(clearLinha).filter((linha) => linha !== '')

@@ -50,7 +50,7 @@ describe('medição das horas do arquivo do titular em preparação', () => {
   }
 
   function medicaoDe(ids: readonly string[], medidor: MedidorDeTeste, repositorio: Pick<ArquivoDoTitularRepository, 'registradoEmDoEmPreparacaoMaisAntigo'> = new ArquivoDoTitularRepository(bancada.banco)): ArquivoGauge {
-    return new ArquivoGauge({ escolas: { listarIds: () => Promise.resolve([...ids]) }, repositorio, relogio, logger: log.logger, medidor: medidor.medidor })
+    return new ArquivoGauge({ escolas: { listIds: () => Promise.resolve([...ids]) }, repositorio, relogio, logger: log.logger, medidor: medidor.medidor })
   }
 
   async function porEscola(medidor: MedidorDeTeste): Promise<Record<string, unknown>> {

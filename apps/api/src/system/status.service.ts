@@ -32,8 +32,8 @@ export class StatusService {
   ) {}
 
   /** Versão, ambiente e situação de cada componente. A API está disponível por estar respondendo. */
-  async obter(): Promise<SystemStatusResponse> {
-    const { bancoDisponivel, verificadoEm } = await this.verificar()
+  async get(): Promise<SystemStatusResponse> {
+    const { bancoDisponivel, verificadoEm } = await this.verify()
     const quando = verificadoEm.toISOString()
     return systemStatusResponseSchema.parse({
       versao: this.versao,
@@ -46,13 +46,13 @@ export class StatusService {
   }
 
   /** Uma consulta por vez e no máximo uma a cada validade: as requisições do meio reaproveitam o resultado. */
-  private verificar(): Promise<Verificacao> {
+  private verify(): Promise<Verificacao> {
     const ultima = this.ultima
     if (ultima && this.agora().getTime() - ultima.verificadoEm.getTime() < VALIDADE_DA_VERIFICACAO_MS) {
       return Promise.resolve(ultima)
     }
     this.emAndamento ??= this.saude
-      .verificar()
+      .verify()
       .then(({ ok }) => {
         this.ultima = { bancoDisponivel: ok, verificadoEm: this.agora() }
         return this.ultima

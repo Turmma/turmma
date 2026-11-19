@@ -45,11 +45,11 @@ export const OPCOES_DE_ESTADO: readonly OpcaoDeFiltro<EstadoFiltrado>[] = [{ id:
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-function ehTipo(valor: string | null): valor is TipoDeArtefato {
+function isTipo(valor: string | null): valor is TipoDeArtefato {
   return valor !== null && (TIPOS_DE_ARTEFATO as readonly string[]).includes(valor)
 }
 
-function ehEstado(valor: string | null): valor is EstadoDeEntrega {
+function isEstado(valor: string | null): valor is EstadoDeEntrega {
   return valor !== null && (ESTADOS_DE_ENTREGA as readonly string[]).includes(valor)
 }
 
@@ -58,15 +58,15 @@ function ehEstado(valor: string | null): valor is EstadoDeEntrega {
  * cai em "todos", e a tela abre em vez de quebrar. **A turma não é conferida contra as da professora**: ela vai ao servidor,
  * que responde a de outra escola como a que não existe (regra 10, itens 4 e 6), e a tela mostra o mesmo para as duas.
  */
-export function lerFiltros(busca: string): FiltrosDeCriados {
+export function readFiltros(busca: string): FiltrosDeCriados {
   const parametros = new URLSearchParams(busca)
   const tipo = parametros.get(TIPO_PARAM)
   const estado = parametros.get(ESTADO_PARAM)
   const turma = parametros.get(TURMA_PARAM)
   return {
-    tipo: ehTipo(tipo) ? tipo : 'todos',
+    tipo: isTipo(tipo) ? tipo : 'todos',
     turma: turma !== null && UUID.test(turma) ? turma.toLowerCase() : undefined,
-    estado: ehEstado(estado) ? estado : 'todos',
+    estado: isEstado(estado) ? estado : 'todos',
   }
 }
 
@@ -96,7 +96,7 @@ export function filtrosLigados(filtros: FiltrosDeCriados): number {
  * O que tipo e estado deixam passar do que já foi lido. **A turma não filtra aqui**: ela vai ao servidor, e a lista que chega já
  * é dela. O estado é o da decisão sobre a versão adaptada: o original não tem entrega, e com um estado escolhido ele não passa.
  */
-export function filtrar(artefatos: readonly ArtefatoResumido[], filtros: Pick<FiltrosDeCriados, 'tipo' | 'estado'>): ArtefatoResumido[] {
+export function filter(artefatos: readonly ArtefatoResumido[], filtros: Pick<FiltrosDeCriados, 'tipo' | 'estado'>): ArtefatoResumido[] {
   return artefatos.filter((artefato) => (filtros.tipo === 'todos' || artefato.tipo === filtros.tipo) && (filtros.estado === 'todos' || artefato.entrega?.estado === filtros.estado))
 }
 

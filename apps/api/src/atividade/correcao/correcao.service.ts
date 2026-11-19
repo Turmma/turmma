@@ -91,18 +91,18 @@ export class CorrecaoService {
     private readonly leitura: LoteReadMarker,
   ) {}
 
-  async #montar(correcoes: CorrecaoRepository, lote: LoteLido): Promise<LoteMontado> {
+  async #build(correcoes: CorrecaoRepository, lote: LoteLido): Promise<LoteMontado> {
     const { questoes } = conteudoDeAtividadeSchema.parse(lote.conteudo)
     const doLote = await correcoes.correcoesDoLote(lote.entregaId)
     const respostas = await correcoes.respostasPorAluno(lote.atividadeAplicadaId)
     return { questoes, correcoes: doLote, apresentado: loteApresentado({ questoes, alunosDaTurma: lote.alunosDaTurma, correcoes: doLote, respostas }) }
   }
 
-  async ler(atividadeAplicadaId: string): Promise<CorrecaoDoLoteResponse> {
+  async read(atividadeAplicadaId: string): Promise<CorrecaoDoLoteResponse> {
     const correcoes = new CorrecaoRepository(this.banco)
     const lote = await correcoes.loteDaAplicacao(atividadeAplicadaId)
     if (lote === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
-    const montado = await this.#montar(correcoes, lote)
+    const montado = await this.#build(correcoes, lote)
     const validacao = await correcoes.validacao(lote.entregaId)
     const destaques = montado.correcoes.filter((correcao) => correcao.destaques.length > 0)
     const destaquesAbertos = destaques.filter((destaque) => destaque.destaqueAbertoEm !== null).length
@@ -122,7 +122,7 @@ export class CorrecaoService {
     return resposta
   }
 
-  async abrirDestaque(atividadeAplicadaId: string, alunoId: string): Promise<DestaqueAbertoResponse> {
+  async openDestaque(atividadeAplicadaId: string, alunoId: string): Promise<DestaqueAbertoResponse> {
     const aberto = await this.banco.transaction(async (tx) => {
       const correcoes = new CorrecaoRepository(tx)
       const lote = await correcoes.loteDaAplicacao(atividadeAplicadaId, true)
@@ -133,8 +133,8 @@ export class CorrecaoService {
       if (destaque.destaqueAbertoEm === null) {
         // Depois da decisão, nenhuma correção do lote muda: o que não foi aberto antes não se abre mais.
         if (lote.estado !== 'pendente') throw new DomainException(ErrorCode.ENTREGA_JA_DECIDIDA)
-        if (await correcoes.abrirDestaque(lote.entregaId, alunoId)) {
-          await registro.gravar(tx, 'correcao.destaque_aberto', { entidadeId: lote.entregaId, depois: { atividadeAplicadaId: lote.atividadeAplicadaId, alunoId, motivos: destaque.destaques } })
+        if (await correcoes.openDestaque(lote.entregaId, alunoId)) {
+          await registro.save(tx, 'correcao.destaque_aberto', { entidadeId: lote.entregaId, depois: { atividadeAplicadaId: lote.atividadeAplicadaId, alunoId, motivos: destaque.destaques } })
         }
         ;[destaque] = await correcoes.correcoesDoLote(lote.entregaId, alunoId)
         if (destaque === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
@@ -152,11 +152,11 @@ export class CorrecaoService {
     const marcaLida = await this.leitura.marcaLida(entregaId)
     const aprovado = await this.banco.transaction(async (tx) => {
       const correcoes = new CorrecaoRepository(tx)
-      const lote = await correcoes.travarLote(entregaId)
+      const lote = await correcoes.lockLote(entregaId)
       if (lote === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       if (lote.estado !== 'pendente') throw new DomainException(ErrorCode.ENTREGA_JA_DECIDIDA)
 
-      const montado = await this.#montar(correcoes, lote)
+      const montado = await this.#build(correcoes, lote)
       // Validação efetiva (D56): quem aprova leu a correção deste lote, e leu o que vai ficar registrado como apresentado.
       if (marcaLida !== marcaDoApresentado(montado.apresentado)) throw new DomainException(ErrorCode.CONFLITO)
 
@@ -166,9 +166,9 @@ export class CorrecaoService {
         .sort((a, b) => (a.alunoId < b.alunoId ? -1 : a.alunoId > b.alunoId ? 1 : 0))
       if (aberto.length < destaques.length) throw new DomainException(ErrorCode.DESTAQUES_NAO_ABERTOS)
 
-      const validacaoId = await correcoes.gravarValidacao(lote, loteApresentadoSchema.parse(montado.apresentado), destaquesAbertosSchema.parse(aberto))
+      const validacaoId = await correcoes.saveValidacao(lote, loteApresentadoSchema.parse(montado.apresentado), destaquesAbertosSchema.parse(aberto))
       if (!(await correcoes.aprovar(entregaId))) throw new DomainException(ErrorCode.ENTREGA_JA_DECIDIDA)
-      await registro.gravar(tx, 'lote.aprovado', {
+      await registro.save(tx, 'lote.aprovado', {
         entidadeId: entregaId,
         antes: { estado: 'pendente' },
         depois: {

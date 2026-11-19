@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { InvalidArgumentError } from './command.js'
-import { executarOpsRevogarAcessosSala, lerEscolaARevogar } from './revogar-acessos-sala.js'
+import { runOpsRevogarAcessosSala, readEscolaARevogar } from './revogar-acessos-sala.js'
 
 /**
  * O leitor de argumentos do `ops:revogar-acessos-sala` e as recusas antes do banco (A1, tarefa 9.0; E29 e L11 de
@@ -18,14 +18,14 @@ const bancoProibido = () => {
 async function rodar(argumentos: string[], ambiente: Record<string, string | undefined>) {
   let saida = ''
   let erro = ''
-  const codigo = await executarOpsRevogarAcessosSala(argumentos, ambiente, { saida: (texto) => (saida += texto), erro: (texto) => (erro += texto) }, bancoProibido)
+  const codigo = await runOpsRevogarAcessosSala(argumentos, ambiente, { saida: (texto) => (saida += texto), erro: (texto) => (erro += texto) }, bancoProibido)
   return { codigo, saida, erro }
 }
 
-describe('lerEscolaARevogar', () => {
+describe('readEscolaARevogar', () => {
   it('aceita o UUID da escola, em minúsculas, como o log o traz ou digitado em maiúsculas', () => {
-    expect(lerEscolaARevogar(['--escola', ESCOLA])).toBe(ESCOLA)
-    expect(lerEscolaARevogar(['--escola', ESCOLA.toUpperCase()])).toBe(ESCOLA)
+    expect(readEscolaARevogar(['--escola', ESCOLA])).toBe(ESCOLA)
+    expect(readEscolaARevogar(['--escola', ESCOLA.toUpperCase()])).toBe(ESCOLA)
   })
 
   it.each([
@@ -34,16 +34,16 @@ describe('lerEscolaARevogar', () => {
     ['o slug no lugar do id', ['--escola', 'colegio-sintetico']],
     ['argumento solto', [ESCOLA]],
   ])('%s: ArgumentoInvalido citando só a opção', (_caso, argumentos) => {
-    expect(() => lerEscolaARevogar(argumentos)).toThrow(new InvalidArgumentError('--escola'))
+    expect(() => readEscolaARevogar(argumentos)).toThrow(new InvalidArgumentError('--escola'))
   })
 
   it('opção desconhecida não repete o valor recebido na mensagem', () => {
-    expect(() => lerEscolaARevogar(['--escola', ESCOLA, '--codigo', 'K7M2XQ9P'])).toThrow(InvalidArgumentError)
-    expect(() => lerEscolaARevogar(['--escola', ESCOLA, '--codigo', 'K7M2XQ9P'])).not.toThrow(/K7M2XQ9P/)
+    expect(() => readEscolaARevogar(['--escola', ESCOLA, '--codigo', 'K7M2XQ9P'])).toThrow(InvalidArgumentError)
+    expect(() => readEscolaARevogar(['--escola', ESCOLA, '--codigo', 'K7M2XQ9P'])).not.toThrow(/K7M2XQ9P/)
   })
 })
 
-describe('executarOpsRevogarAcessosSala: recusa antes de tocar no banco', () => {
+describe('runOpsRevogarAcessosSala: recusa antes de tocar no banco', () => {
   it('sem OPERADOR, ou fora do formato, sai com 2 citando a variável, sem abrir o banco', async () => {
     for (const ambiente of [{}, { OPERADOR: 'Nome Com Espaço' }]) {
       const execucao = await rodar(['--escola', ESCOLA], ambiente)

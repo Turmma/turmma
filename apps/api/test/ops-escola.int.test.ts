@@ -8,8 +8,8 @@ import { lerAmbienteDeTeste } from '../../../tools/ci/compose.ts'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
 import { AppModule } from '../src/app.module.js'
 import { configureApp } from '../src/configure-app.js'
-import { criarEscola, criarRede } from '../src/operacao/escola/escola.js'
-import { abrirBancoDeOperacao, executarOpsEscola, type CommandDatabase } from '../src/ops/escola.js'
+import { createEscola, createRede } from '../src/operacao/escola/escola.js'
+import { openBancoDeOperacao, runOpsEscola, type CommandDatabase } from '../src/ops/escola.js'
 import { testConfig } from './test-config.js'
 
 /** O autor dos casos de uso chamados direto, sem o comando: fixo, sem conferir operador ativo. */
@@ -28,7 +28,7 @@ async function rodar(argumentos: string[], ambiente: Record<string, string | und
   let saida = ''
   let erro = ''
   const terminal = { saida: (texto: string) => (saida += texto), erro: (texto: string) => (erro += texto) }
-  const codigo = await executarOpsEscola(argumentos, ambiente, terminal, abrirBanco)
+  const codigo = await runOpsEscola(argumentos, ambiente, terminal, abrirBanco)
   return { codigo, saida, erro }
 }
 
@@ -91,7 +91,7 @@ describe('npm run ops:escola: rede e escola nascem só por comando do operador',
     ])
 
     // O registro da escola é da própria escola: aparece na listagem com o contexto dela.
-    const daEscola = await runInContext({ requisicaoId: randomUUID(), escolaId: resposta.escolaId }, () => new AuditoriaRepository(banco).listarDaEscola())
+    const daEscola = await runInContext({ requisicaoId: randomUUID(), escolaId: resposta.escolaId }, () => new AuditoriaRepository(banco).listDaEscola())
     expect(daEscola).toEqual([
       expect.objectContaining({
         escolaId: resposta.escolaId,
@@ -107,9 +107,9 @@ describe('npm run ops:escola: rede e escola nascem só por comando do operador',
   })
 
   it('borda: o mesmo slug de novo sai com CONFLITO, sem o slug na mensagem, e não cria nada nem audita', async () => {
-    const { id: redeId } = await criarRede(banco, autorFixo('operador-teste'), { id: randomUUID(), nome: 'Rede Sintética do Conflito', tipo: 'grupo' })
+    const { id: redeId } = await createRede(banco, autorFixo('operador-teste'), { id: randomUUID(), nome: 'Rede Sintética do Conflito', tipo: 'grupo' })
     redes.push(redeId)
-    escolas.push((await criarEscola(banco, autorFixo('operador-teste'), { id: randomUUID(), redeId, nome: 'Colégio Sintético Original', slug: `conflito-${sufixo}` })).id)
+    escolas.push((await createEscola(banco, autorFixo('operador-teste'), { id: randomUUID(), redeId, nome: 'Colégio Sintético Original', slug: `conflito-${sufixo}` })).id)
     const { rows: antes } = await pool.query<{ total: string }>(`select count(*) as total from auditoria where acao = 'escola.criada'`)
 
     const repetida = await rodar(['escola', 'criar', '--rede', redeId, '--nome', 'Outro Colégio Sintético', '--slug', `conflito-${sufixo}`], ambiente)
@@ -135,14 +135,14 @@ describe('npm run ops:escola: rede e escola nascem só por comando do operador',
 
   it('a escola e a rede não nascem sem a auditoria delas: com a gravação recusada, a transação desfaz a criação', async () => {
     const nomeDaRede = `Rede Sintética Sem Auditoria ${sufixo}`
-    await expect(criarRede(banco, autorFixo('Operador Invalido'), { id: randomUUID(), nome: nomeDaRede, tipo: 'independente' })).rejects.toEqual(new AuditoriaRejectedError('sem_autor'))
+    await expect(createRede(banco, autorFixo('Operador Invalido'), { id: randomUUID(), nome: nomeDaRede, tipo: 'independente' })).rejects.toEqual(new AuditoriaRejectedError('sem_autor'))
     const { rows: redesCriadas } = await pool.query('select 1 from rede where nome = $1', [nomeDaRede])
     expect(redesCriadas).toHaveLength(0)
 
-    const { id: redeId } = await criarRede(banco, autorFixo('operador-teste'), { id: randomUUID(), nome: `Rede Sintética Com Auditoria ${sufixo}`, tipo: 'independente' })
+    const { id: redeId } = await createRede(banco, autorFixo('operador-teste'), { id: randomUUID(), nome: `Rede Sintética Com Auditoria ${sufixo}`, tipo: 'independente' })
     redes.push(redeId)
     const slugSemAuditoria = `sem-auditoria-${sufixo}`
-    await expect(criarEscola(banco, autorFixo('Operador Invalido'), { id: randomUUID(), redeId, nome: 'Colégio Sintético', slug: slugSemAuditoria })).rejects.toEqual(new AuditoriaRejectedError('sem_autor'))
+    await expect(createEscola(banco, autorFixo('Operador Invalido'), { id: randomUUID(), redeId, nome: 'Colégio Sintético', slug: slugSemAuditoria })).rejects.toEqual(new AuditoriaRejectedError('sem_autor'))
     const { rows: escolasCriadas } = await pool.query('select 1 from escola where slug = $1', [slugSemAuditoria])
     expect(escolasCriadas).toHaveLength(0)
   })
@@ -155,7 +155,7 @@ describe('npm run ops:escola: rede e escola nascem só por comando do operador',
     let abriuBanco = false
     const abrirBanco = (ambienteDoComando: Record<string, string | undefined>) => {
       abriuBanco = true
-      return abrirBancoDeOperacao(ambienteDoComando)
+      return openBancoDeOperacao(ambienteDoComando)
     }
     const semOperador = { ...ambiente, OPERADOR: operador }
     const slugQueNaoPodeNascer = `sem-operador-${sufixo}`

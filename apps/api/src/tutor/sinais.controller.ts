@@ -15,7 +15,7 @@ export class SinaisController {
   @Get()
   @RequirePermissao('sinal', 'ler')
   @Header('Cache-Control', 'no-store')
-  listar(@Query(new ZodValidationPipe(sinaisQuerySchema)) consulta: SinaisQuery): Promise<SinaisResponse> {
+  list(@Query(new ZodValidationPipe(sinaisQuerySchema)) consulta: SinaisQuery): Promise<SinaisResponse> {
     return this.supervisao.sinais(consulta)
   }
 }

@@ -97,7 +97,7 @@ function Segredo({ segredo, aoAtivar }: { segredo: ConfigurarMfaResponse; aoAtiv
   const [ativando, definirAtivando] = useState(false)
   const [falha, definirFalha] = useState<unknown>(undefined)
 
-  async function enviar(evento: FormEvent<HTMLFormElement>): Promise<void> {
+  async function send(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault()
     if (ativando) return
     definirAtivando(true)
@@ -125,7 +125,7 @@ function Segredo({ segredo, aoAtivar }: { segredo: ConfigurarMfaResponse; aoAtiv
           <p className="min-w-0 flex-1 text-apoio">Se você usa um aplicativo de celular, leia o código ao lado. No computador, cole o segredo.</p>
         </div>
       </section>
-      <form className="flex flex-col gap-4" onSubmit={(evento) => void enviar(evento)}>
+      <form className="flex flex-col gap-4" onSubmit={(evento) => void send(evento)}>
         <FormField
           rotulo="2. Digite o código que o aplicativo mostra"
           dica={`${String(DIGITOS_DO_CODIGO_MFA)} dígitos.`}

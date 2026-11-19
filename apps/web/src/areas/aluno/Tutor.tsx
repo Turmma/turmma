@@ -22,7 +22,7 @@ import { Page } from '../../components/ui/Page'
 import { usePageTitle } from '../../document-title'
 import { EscolhaDaAtividade } from './EscolhaDaAtividade'
 import { FaixaDeSupervisao } from './FaixaDeSupervisao'
-import { CICLO_DO_TUTOR, enviarPerguntaAoTutor } from './memoria-do-aluno'
+import { CICLO_DO_TUTOR, sendPerguntaAoTutor } from './memoria-do-aluno'
 import {
   avisoDaPausa,
   LINHA_DO_CVV,
@@ -35,7 +35,7 @@ import {
   questaoDoEndereco,
   recusaVencida,
   TELEFONE_DO_CVV,
-  temTelefone,
+  hasTelefone,
   usoDoDia,
   type FalhaDaPergunta,
   type PausaDoTutor,
@@ -92,7 +92,7 @@ function Encaminhamento({ texto }: { texto: string }) {
           )}
         </p>
       ))}
-      {!temTelefone(paragrafos) && (
+      {!hasTelefone(paragrafos) && (
         <p className="min-w-0 break-words">
           {LINHA_DO_CVV.antes}
           {telefone}
@@ -143,7 +143,7 @@ function ConversaComOTutor({ atividadeAplicadaId }: { atividadeAplicadaId: strin
   const cliente = useQueryClient()
   const conversa = useInfiniteQuery(conversaDoTutorQueryOptions(atividadeAplicadaId))
   const atividades = useInfiniteQuery(minhasAtividadesInfiniteQueryOptions)
-  const { ciclo, demorando, iniciar, repetir, limpar } = useExecutionLifecycle(CICLO_DO_TUTOR, enviarPerguntaAoTutor)
+  const { ciclo, demorando, start: iniciar, repetir, clear: limpar } = useExecutionLifecycle(CICLO_DO_TUTOR, sendPerguntaAoTutor)
   const questao = questaoDoEndereco(useSearch())
   const [texto, definirTexto] = useState('')
   const fim = useRef<HTMLDivElement>(null)

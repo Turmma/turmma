@@ -10,17 +10,17 @@ import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
 import { CHAVE_DA_TRAVA_DOS_OPERADORES } from '../src/operacao/operador/operador.repository.js'
 import type { CommandDatabase, CommandOutput } from '../src/ops/command.js'
-import { executarOpsConviteCoordenador } from '../src/ops/convite-coordenador.js'
-import { executarOpsEscola } from '../src/ops/escola.js'
-import { executarOpsIncidente } from '../src/ops/incidente.js'
-import { executarOpsOperador } from '../src/ops/operador.js'
-import { executarOpsPrivacidade } from '../src/ops/privacidade.js'
-import { executarOpsRedefinirMfa } from '../src/ops/redefinir-mfa.js'
-import { executarOpsRetencao } from '../src/ops/retencao.js'
-import { executarOpsRevogarAcessosSala } from '../src/ops/revogar-acessos-sala.js'
-import { executarOpsRevogarConvite } from '../src/ops/revogar-convite.js'
-import { executarOpsSuboperador } from '../src/ops/suboperador.js'
-import { executarOpsUso } from '../src/ops/uso.js'
+import { runOpsConviteCoordenador } from '../src/ops/convite-coordenador.js'
+import { runOpsEscola } from '../src/ops/escola.js'
+import { runOpsIncidente } from '../src/ops/incidente.js'
+import { runOpsOperador } from '../src/ops/operador.js'
+import { runOpsPrivacidade } from '../src/ops/privacidade.js'
+import { runOpsRedefinirMfa } from '../src/ops/redefinir-mfa.js'
+import { runOpsRetencao } from '../src/ops/retencao.js'
+import { runOpsRevogarAcessosSala } from '../src/ops/revogar-acessos-sala.js'
+import { runOpsRevogarConvite } from '../src/ops/revogar-convite.js'
+import { runOpsSuboperador } from '../src/ops/suboperador.js'
+import { runOpsUso } from '../src/ops/uso.js'
 import { subirApi, type TestApi } from './test-api.js'
 import { FerramentasDaSala, type TestSala } from './sala.fixture.js'
 import { SessaoFixtures } from './sessao.fixture.js'
@@ -43,7 +43,7 @@ async function rodarComando(comando: Comando, argumentos: string[], operador: st
   return { codigo, saida, erro }
 }
 
-const rodar = (argumentos: string[], operador: string) => rodarComando(executarOpsOperador, argumentos, operador)
+const rodar = (argumentos: string[], operador: string) => rodarComando(runOpsOperador, argumentos, operador)
 
 /** Chaves de suboperador do C2, novas a cada execução: o banco acumula, e `suboperador` é global. */
 const CHAVE_DO_C2_CADASTRO = `c2-${randomUUID().slice(0, 8)}`
@@ -133,7 +133,7 @@ describe('npm run ops:operador: o operador nasce, é reconvidado e é desativado
 
   it('C1: sem operador ativo, criar aceita o OPERADOR do ambiente e grava o autor bootstrap, e não o OPERADOR', async () => {
     // Sem operador ativo, qualquer OPERADOR no formato roda os ops:* (o nascimento).
-    expect((await rodarComando(executarOpsUso, ['--escola', randomUUID()], 'qualquer-pessoa')).codigo).toBe(0)
+    expect((await rodarComando(runOpsUso, ['--escola', randomUUID()], 'qualquer-pessoa')).codigo).toBe(0)
 
     const arquivo = arquivoNovo()
     const execucao = await rodar(['criar', '--apelido', 'ana', '--nome', nomeDe('ana'), '--email', 'Ana@Turmma.invalid', '--saida', arquivo], 'fundadora')
@@ -223,7 +223,7 @@ describe('npm run ops:operador: o operador nasce, é reconvidado e é desativado
     const casos: { nome: string; comando: Comando; argumentos: () => string[]; nadaFeito: () => Promise<void>; passou: (execucao: Execucao) => void | Promise<void> }[] = [
       {
         nome: 'escola',
-        comando: executarOpsEscola,
+        comando: runOpsEscola,
         argumentos: () => ['rede', 'criar', '--nome', 'Rede Sintética do Operador', '--tipo', 'grupo'],
         nadaFeito: async () => expect((await pool.query(`select 1 from rede where nome = 'Rede Sintética do Operador'`)).rows).toHaveLength(0),
         passou: (execucao) => {
@@ -233,28 +233,28 @@ describe('npm run ops:operador: o operador nasce, é reconvidado e é desativado
       },
       {
         nome: 'convite-coordenador',
-        comando: executarOpsConviteCoordenador,
+        comando: runOpsConviteCoordenador,
         argumentos: () => ['--escola', `sem-escola-${randomUUID().slice(0, 8)}`, '--email', 'coordenacao@escola.invalid', '--nome', 'Coordenação Sintética', '--saida', arquivoNovo()],
         nadaFeito: async () => expect((await pool.query(`select 1 from conta where email = 'coordenacao@escola.invalid'`)).rows).toHaveLength(0),
         passou: (execucao) => expect(execucao).toMatchObject({ codigo: 1, erro: 'NAO_ENCONTRADO: escola não encontrada\n' }),
       },
       {
         nome: 'revogar-convite',
-        comando: executarOpsRevogarConvite,
+        comando: runOpsRevogarConvite,
         argumentos: () => ['--convite', randomUUID()],
         nadaFeito: async () => undefined,
         passou: (execucao) => expect(execucao).toMatchObject({ codigo: 1, erro: 'NAO_ENCONTRADO\n' }),
       },
       {
         nome: 'redefinir-mfa',
-        comando: executarOpsRedefinirMfa,
+        comando: runOpsRedefinirMfa,
         argumentos: () => ['--usuario', randomUUID(), '--pedido', '12'],
         nadaFeito: async () => undefined,
         passou: (execucao) => expect(execucao).toMatchObject({ codigo: 1, erro: 'NAO_ENCONTRADO\n' }),
       },
       {
         nome: 'revogar-acessos-sala',
-        comando: executarOpsRevogarAcessosSala,
+        comando: runOpsRevogarAcessosSala,
         argumentos: () => ['--escola', escolaDaSala()],
         // O acesso vigente continua vigente, e a auditoria da escola não tem revogação nenhuma.
         nadaFeito: async () => {
@@ -265,7 +265,7 @@ describe('npm run ops:operador: o operador nasce, é reconvidado e é desativado
       },
       {
         nome: 'retencao ajustar',
-        comando: executarOpsRetencao,
+        comando: runOpsRetencao,
         argumentos: () => ['ajustar', '--escola', escolaDaSala(), '--categoria', 'conversa_tutor', '--meses', '6', '--contrato', '3'],
         // Nenhum ajuste e nenhuma auditoria do ajuste na escola: quem saiu da equipe não muda o prazo de guarda dela (F3, 2.0).
         nadaFeito: async () => {
@@ -276,7 +276,7 @@ describe('npm run ops:operador: o operador nasce, é reconvidado e é desativado
       },
       {
         nome: 'retencao listar',
-        comando: executarOpsRetencao,
+        comando: runOpsRetencao,
         argumentos: () => ['listar', '--escola', escolaDaSala()],
         nadaFeito: async () => undefined,
         passou: (execucao) => {
@@ -287,7 +287,7 @@ describe('npm run ops:operador: o operador nasce, é reconvidado e é desativado
       },
       {
         nome: 'suboperador cadastrar',
-        comando: executarOpsSuboperador,
+        comando: runOpsSuboperador,
         argumentos: () => ['cadastrar', '--chave', CHAVE_DO_C2_CADASTRO, '--nome', 'Empresa Sintética do C2', '--finalidade', 'Hospedagem', '--pais', 'BR', '--categorias', 'cadastro', '--contrato', 'DPA-C2', '--veda-treinamento', 'sim', '--todas'],
         // Nenhum suboperador, e nenhuma auditoria dele: quem saiu da equipe não cadastra empresa que recebe dado das escolas (F3, 8.0).
         nadaFeito: async () => expect((await pool.query('select 1 from suboperador where chave = $1', [CHAVE_DO_C2_CADASTRO])).rows).toEqual([]),
@@ -295,7 +295,7 @@ describe('npm run ops:operador: o operador nasce, é reconvidado e é desativado
       },
       {
         nome: 'suboperador encerrar',
-        comando: executarOpsSuboperador,
+        comando: runOpsSuboperador,
         argumentos: () => ['encerrar', '--chave', CHAVE_DO_C2_ENCERRAMENTO],
         // O suboperador vigente continua vigente: o `encerrar` recusado não pode ter tocado nele.
         nadaFeito: async () => expect((await pool.query('select fim from suboperador where chave = $1 and fim is null', [CHAVE_DO_C2_ENCERRAMENTO])).rows).toHaveLength(1),
@@ -306,7 +306,7 @@ describe('npm run ops:operador: o operador nasce, é reconvidado e é desativado
       },
       {
         nome: 'incidente registrar',
-        comando: executarOpsIncidente,
+        comando: runOpsIncidente,
         argumentos: () => {
           const caminho = arquivoNovo()
           const secao = { escola: escolaDaSala(), circunstancias: 'Circunstância sintética.', categorias: ['cadastro'], titularesEstimados: 3, risco: 'baixo', contencao: 'Contenção sintética.', correcao: 'Correção sintética.' }
@@ -325,14 +325,14 @@ describe('npm run ops:operador: o operador nasce, é reconvidado e é desativado
       },
       {
         nome: 'uso',
-        comando: executarOpsUso,
+        comando: runOpsUso,
         argumentos: () => ['--escola', randomUUID()],
         nadaFeito: async () => undefined,
         passou: (execucao) => expect(execucao).toMatchObject({ codigo: 0, erro: '' }),
       },
       {
         nome: 'privacidade',
-        comando: executarOpsPrivacidade,
+        comando: runOpsPrivacidade,
         argumentos: () => ['--escola', escolaDaSala()],
         // Só lê: a recusa não grava nada, e a leitura do operador ativo é a única que devolve as contagens da escola (F3, 19.0).
         nadaFeito: async () => undefined,
@@ -343,21 +343,21 @@ describe('npm run ops:operador: o operador nasce, é reconvidado e é desativado
       },
       {
         nome: 'operador criar',
-        comando: executarOpsOperador,
+        comando: runOpsOperador,
         argumentos: () => ['criar', '--apelido', 'dora', '--nome', nomeDe('dora'), '--email', emailDe('dora'), '--saida', arquivoNovo()],
         nadaFeito: async () => expect(await idDe('dora')).toBe(''),
         passou: (execucao) => expect(execucao).toMatchObject({ codigo: 0, erro: '' }),
       },
       {
         nome: 'operador desativar',
-        comando: executarOpsOperador,
+        comando: runOpsOperador,
         argumentos: () => ['desativar', '--apelido', 'carla'],
         nadaFeito: async () => expect(await ativos()).toEqual(['ana', 'carla']),
         passou: (execucao) => expect(execucao).toEqual({ codigo: 0, saida: 'ok\n', erro: '' }),
       },
       {
         nome: 'operador convite',
-        comando: executarOpsOperador,
+        comando: runOpsOperador,
         argumentos: () => ['convite', '--apelido', 'ana', '--saida', arquivoNovo()],
         // O pendente de ana continua o mesmo, e nenhum convite novo nasce: um token no arquivo de quem saiu tomaria a conta.
         nadaFeito: async () => {
@@ -636,7 +636,7 @@ describe('npm run ops:operador: o operador nasce, é reconvidado e é desativado
       writeFileSync(arquivo, 'conteúdo anterior')
       let abriuBanco = false
       let erro = ''
-      const codigo = await executarOpsOperador(
+      const codigo = await runOpsOperador(
         ['criar', '--apelido', 'ana', '--nome', nomeDe('ana'), '--email', emailDe('ana'), '--saida', arquivo],
         { ...ambienteBase, OPERADOR: 'fundadora' },
         { saida: () => undefined, erro: (texto) => (erro += texto) },

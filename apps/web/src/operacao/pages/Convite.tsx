@@ -4,7 +4,7 @@ import { Link, useLocation } from 'wouter'
 import { Button } from '../../components/ui/Button'
 import { FormField } from '../../components/ui/fields/FormField'
 import { LoadingState } from '../../components/states'
-import { aceitarConviteDeOperadorNaVez, consultarConviteDeOperador, ehConviteInvalido } from '../api/convite'
+import { aceitarConviteDeOperadorNaVez, findConviteDeOperador, isConviteInvalido } from '../api/convite'
 import { OPERACAO_ROUTES } from '../paths'
 import { CascaPublicaDaOperacao, ErroDaOperacao } from '../components/CascaDaOperacao'
 import { TEXTO_DO_CONVITE_INVALIDO, textoDaFalha } from '../textos'
@@ -28,7 +28,7 @@ function tokenDoFragmento(): string | undefined {
 }
 
 /** Tira o fragmento da barra, sem recarregar e sem entrada nova no histórico. */
-function apagarFragmentoDaBarra(): void {
+function deleteFragmentoDaBarra(): void {
   if (window.location.hash !== '') window.history.replaceState(null, '', window.location.pathname + window.location.search)
 }
 
@@ -72,7 +72,7 @@ export function Convite() {
     function aoMudarOFragmento(): void {
       vezDoLink.current++
       const novo = tokenDoFragmento()
-      apagarFragmentoDaBarra()
+      deleteFragmentoDaBarra()
       definirSenha('')
       definirFalha(undefined)
       definirToken(novo)
@@ -88,19 +88,19 @@ export function Convite() {
   }, [])
 
   useEffect(() => {
-    apagarFragmentoDaBarra()
+    deleteFragmentoDaBarra()
     if (token === undefined) return undefined
     let atual = true
-    consultarConviteDeOperador(token).then(
+    findConviteDeOperador(token).then(
       () => atual && definirEtapa({ nome: 'criar-senha' }),
-      (erro: unknown) => atual && definirEtapa(ehConviteInvalido(erro) ? { nome: 'invalido' } : { nome: 'falhou', erro }),
+      (erro: unknown) => atual && definirEtapa(isConviteInvalido(erro) ? { nome: 'invalido' } : { nome: 'falhou', erro }),
     )
     return () => {
       atual = false
     }
   }, [token, tentativa])
 
-  async function enviar(evento: FormEvent<HTMLFormElement>): Promise<void> {
+  async function send(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault()
     if (aceitando || token === undefined) return
     definirAceitando(true)
@@ -146,7 +146,7 @@ export function Convite() {
         </>
       )}
       {etapa.nome === 'criar-senha' && (
-        <form className="flex flex-col gap-4" onSubmit={(evento) => void enviar(evento)}>
+        <form className="flex flex-col gap-4" onSubmit={(evento) => void send(evento)}>
           <p className="text-apoio">
             Você foi convidado para a equipe de operação do Turmma. Crie a sua senha; depois dela, você configura o segundo
             fator.

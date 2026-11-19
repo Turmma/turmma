@@ -91,7 +91,7 @@ export function handshakeAuth(config: AuthConfig, leitura: SessaoReader, logger:
         const token = await verifyToken(autenticacao.data.token, config)
         let linha: SessaoRow | undefined
         try {
-          linha = await leitura.lerParaGuarda(token)
+          linha = await leitura.findParaGuarda(token)
         } catch (erro) {
           // Erro do Postgres: `INDISPONIVEL_TENTE_DE_NOVO`, nunca `NAO_AUTENTICADO`. O resumo do erro
           // fica no log sem a consulta nem a mensagem crua (regra 20, item 9).

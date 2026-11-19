@@ -1,6 +1,6 @@
 import { situacaoDaLicenca, type AnoLetivo, type IncidenteDaEscola, type Licenca, type Material, type ProfessorDaEscola, type Turma, type VinculoDaCoordenacao } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
-import { montarFila, TIPOS_DA_FILA, turmasSemProfessor, type EntradaDaFila, type LeituraDaFila } from './fila-da-coordenacao'
+import { buildFila, TIPOS_DA_FILA, turmasSemProfessor, type EntradaDaFila, type LeituraDaFila } from './fila-da-coordenacao'
 
 /**
  * A conta da fila "Esperando você" (telas da coordenação, 1.0; RF4 e RF7): cada tipo, os casos de borda da escola e o que a
@@ -107,7 +107,7 @@ function entrada(sobre: Partial<EntradaDaFila> = {}): EntradaDaFila {
 
 describe('montarFila: a conta, tipo a tipo', () => {
   it('os seis tipos viram item, com o endereço certo; vínculo pendente e material processando não viram', () => {
-    const fila = montarFila(
+    const fila = buildFila(
       entrada({
         incidentes: lida([incidente(1, null), incidente(2, '2026-10-02T10:00:00.000Z')]),
         professores: lida([CAMILA, professor(2, 'Paulo Sintético', 'vencido'), professor(3, 'Rita Sintética', 'pendente')]),
@@ -133,7 +133,7 @@ describe('montarFila: a conta, tipo a tipo', () => {
   })
 
   it('o tipo é sempre um dos seis, e só as turmas sem professor levam contador', () => {
-    const fila = montarFila(
+    const fila = buildFila(
       entrada({
         incidentes: lida([incidente(1, null)]),
         professores: lida([CAMILA, professor(2, 'Paulo Sintético', 'vencido')]),
@@ -151,7 +151,7 @@ describe('montarFila: a conta, tipo a tipo', () => {
   })
 
   it('nada do que o professor faz entra na fila: dois professores de pendências diferentes dão só os fatos, sem número por professor', () => {
-    const fila = montarFila(
+    const fila = buildFila(
       entrada({
         professores: lida([CAMILA, PAULO]),
         vinculos: lida([vinculo(1, CAMILA, T1, 'contestado'), vinculo(2, CAMILA, T2, 'contestado'), vinculo(3, PAULO, T1, 'contestado', 'Física'), vinculo(4, CAMILA, T1, 'contestado', 'Física')]),
@@ -173,26 +173,26 @@ describe('montarFila: a conta, tipo a tipo', () => {
   it('homônimos têm itens distintos: o nome é o mesmo e o id, não', () => {
     const rita1 = professor(4, 'Rita Sintética', 'vencido')
     const rita2 = professor(5, 'Rita Sintética', 'vencido')
-    const fila = montarFila(entrada({ professores: lida([rita1, rita2]) }))
+    const fila = buildFila(entrada({ professores: lida([rita1, rita2]) }))
     const ids = fila.itens.filter((item) => item.tipo === 'convite-vencido').map((item) => item.id)
     expect(ids).toHaveLength(2)
     expect(new Set(ids).size).toBe(2)
   })
 
   it('revogar o convite tira o item: o professor deixa de estar vencido', () => {
-    const antes = montarFila(entrada({ professores: lida([professor(2, 'Paulo Sintético', 'vencido')]) }))
-    const depois = montarFila(entrada({ professores: lida([professor(2, 'Paulo Sintético', 'revogado')]) }))
+    const antes = buildFila(entrada({ professores: lida([professor(2, 'Paulo Sintético', 'vencido')]) }))
+    const depois = buildFila(entrada({ professores: lida([professor(2, 'Paulo Sintético', 'revogado')]) }))
     expect(antes.itens.some((item) => item.tipo === 'convite-vencido')).toBe(true)
     expect(depois.itens.some((item) => item.tipo === 'convite-vencido')).toBe(false)
   })
 
   it('só o vínculo de professor contestado é item: o de aluno, mesmo contestado, não', () => {
     const deAluno: VinculoDaCoordenacao = { ...vinculo(1, CAMILA, T1, 'contestado'), papel: 'aluno' }
-    expect(montarFila(entrada({ vinculos: lida([deAluno]) })).itens.some((item) => item.tipo === 'contestacao')).toBe(false)
+    expect(buildFila(entrada({ vinculos: lida([deAluno]) })).itens.some((item) => item.tipo === 'contestacao')).toBe(false)
   })
 
   it('o incidente confirmado não é item', () => {
-    expect(montarFila(entrada({ incidentes: lida([incidente(1, '2026-10-02T10:00:00.000Z')]) })).itens).toEqual([])
+    expect(buildFila(entrada({ incidentes: lida([incidente(1, '2026-10-02T10:00:00.000Z')]) })).itens).toEqual([])
   })
 })
 
@@ -200,28 +200,28 @@ describe('montarFila: os casos de borda', () => {
   it('duas disciplinas na mesma turma: a turma sem professor conta uma vez', () => {
     const semProfessor = turmasSemProfessor([T1, T2], [vinculo(1, CAMILA, T2, 'contestado', 'Química'), vinculo(2, PAULO, T2, 'contestado', 'Física')])
     expect(semProfessor.map((t) => t.id)).toEqual([T1.id, T2.id])
-    const fila = montarFila(entrada({ turmas: lida([T1]), vinculos: lida([vinculo(1, CAMILA, T1, 'encerrado', 'Química'), vinculo(2, PAULO, T1, 'encerrado', 'Física')]) }))
+    const fila = buildFila(entrada({ turmas: lida([T1]), vinculos: lida([vinculo(1, CAMILA, T1, 'encerrado', 'Química'), vinculo(2, PAULO, T1, 'encerrado', 'Física')]) }))
     expect(fila.itens.find((item) => item.tipo === 'turmas-sem-professor')?.contador?.n).toBe(1)
   })
 
   it('uma turma sem professor diz no singular, e duas no plural', () => {
-    const uma = montarFila(entrada({ turmas: lida([T3]), vinculos: lida([]) })).itens.find((item) => item.tipo === 'turmas-sem-professor')
+    const uma = buildFila(entrada({ turmas: lida([T3]), vinculos: lida([]) })).itens.find((item) => item.tipo === 'turmas-sem-professor')
     expect(uma?.titulo).toBe('Uma turma sem professor')
     expect(uma?.contador).toEqual({ n: 1, oQueConta: 'turma sem professor' })
-    const duas = montarFila(entrada({ turmas: lida([T2, T3]), vinculos: lida([]) })).itens.find((item) => item.tipo === 'turmas-sem-professor')
+    const duas = buildFila(entrada({ turmas: lida([T2, T3]), vinculos: lida([]) })).itens.find((item) => item.tipo === 'turmas-sem-professor')
     expect(duas?.titulo).toBe('Turmas sem professor')
     expect(duas?.contador).toEqual({ n: 2, oQueConta: 'turmas sem professor' })
   })
 
   it('turma só com vínculo contestado está sem professor', () => {
-    const fila = montarFila(entrada({ turmas: lida([T1]), vinculos: lida([vinculo(1, CAMILA, T1, 'contestado')]) }))
+    const fila = buildFila(entrada({ turmas: lida([T1]), vinculos: lida([vinculo(1, CAMILA, T1, 'contestado')]) }))
     expect(fila.itens.map((item) => item.tipo)).toEqual(['contestacao', 'turmas-sem-professor'])
   })
 
   it('sem ano em curso (nem turmas nem vínculos se leem): nenhum item de turma, a fila está pronta', () => {
     const planejado: AnoLetivo = { ...ANO, situacao: 'planejado' }
     for (const anos of [[], [planejado], [{ ...ANO, situacao: 'encerrado' as const }]]) {
-      const fila = montarFila(entrada({ anos: lida(anos), turmas: { estado: 'nao-se-aplica' }, vinculos: { estado: 'nao-se-aplica' } }))
+      const fila = buildFila(entrada({ anos: lida(anos), turmas: { estado: 'nao-se-aplica' }, vinculos: { estado: 'nao-se-aplica' } }))
       expect(fila.situacao).toBe('pronta')
       expect(fila.itens).toEqual([])
     }
@@ -233,7 +233,7 @@ describe('montarFila: os casos de borda', () => {
   })
 
   it('contestado e depois encerrado: não há item de contestação', () => {
-    const fila = montarFila(entrada({ turmas: lida([T1]), vinculos: lida([vinculo(1, CAMILA, T1, 'encerrado')]) }))
+    const fila = buildFila(entrada({ turmas: lida([T1]), vinculos: lida([vinculo(1, CAMILA, T1, 'encerrado')]) }))
     expect(fila.itens.some((item) => item.tipo === 'contestacao')).toBe(false)
   })
 
@@ -245,7 +245,7 @@ describe('montarFila: os casos de borda', () => {
   it('a contagem do sino é a do filtro "Sem professor": o item usa a mesma função', () => {
     const turmas = [T1, T2, T3]
     const vinculos = [vinculo(1, CAMILA, T1, 'confirmado')]
-    const fila = montarFila(entrada({ turmas: lida(turmas), vinculos: lida(vinculos) }))
+    const fila = buildFila(entrada({ turmas: lida(turmas), vinculos: lida(vinculos) }))
     expect(fila.itens.find((item) => item.tipo === 'turmas-sem-professor')?.contador?.n).toBe(turmasSemProfessor(turmas, vinculos).length)
   })
 })
@@ -262,7 +262,7 @@ describe('montarFila: a leitura que não veio inteira', () => {
       { vinculos: lida([], false) },
     ]
     for (const caso of casos) {
-      const fila = montarFila(entrada({ ...base, ...caso }))
+      const fila = buildFila(entrada({ ...base, ...caso }))
       expect(fila.situacao).toBe('parcial')
       expect(fila.itens.some((item) => item.tipo === 'incidente')).toBe(true)
     }
@@ -270,35 +270,35 @@ describe('montarFila: a leitura que não veio inteira', () => {
 
   it('turmas ou vínculos truncados, cada um sozinho, suprimem "turmas sem professor"', () => {
     const vazias = [T1, T2, T3]
-    expect(montarFila(entrada({ turmas: lida(vazias, false), vinculos: lida([]) })).itens.some((item) => item.tipo === 'turmas-sem-professor')).toBe(false)
-    expect(montarFila(entrada({ turmas: lida(vazias), vinculos: lida([], false) })).itens.some((item) => item.tipo === 'turmas-sem-professor')).toBe(false)
-    expect(montarFila(entrada({ turmas: lida(vazias), vinculos: lida([]) })).itens.some((item) => item.tipo === 'turmas-sem-professor')).toBe(true)
+    expect(buildFila(entrada({ turmas: lida(vazias, false), vinculos: lida([]) })).itens.some((item) => item.tipo === 'turmas-sem-professor')).toBe(false)
+    expect(buildFila(entrada({ turmas: lida(vazias), vinculos: lida([], false) })).itens.some((item) => item.tipo === 'turmas-sem-professor')).toBe(false)
+    expect(buildFila(entrada({ turmas: lida(vazias), vinculos: lida([]) })).itens.some((item) => item.tipo === 'turmas-sem-professor')).toBe(true)
   })
 
   it('a falha de uma leitura: parcial com a falha, e os itens das outras', () => {
     const falha = new Error('caiu')
-    const fila = montarFila(entrada({ incidentes: lida([incidente(1, null)]), materiais: { estado: 'erro', erro: falha } }))
+    const fila = buildFila(entrada({ incidentes: lida([incidente(1, null)]), materiais: { estado: 'erro', erro: falha } }))
     expect(fila.situacao).toBe('parcial')
     expect(fila.erro).toBe(falha)
     expect(fila.itens).toHaveLength(1)
   })
 
   it('a falha da leitura dos anos: nenhum item de turma, parcial', () => {
-    const fila = montarFila(entrada({ anos: { estado: 'erro', erro: new Error('x') }, turmas: { estado: 'nao-se-aplica' }, vinculos: { estado: 'nao-se-aplica' } }))
+    const fila = buildFila(entrada({ anos: { estado: 'erro', erro: new Error('x') }, turmas: { estado: 'nao-se-aplica' }, vinculos: { estado: 'nao-se-aplica' } }))
     expect(fila.situacao).toBe('parcial')
     expect(fila.itens.some((item) => item.tipo === 'turmas-sem-professor')).toBe(false)
   })
 
   it('nada lido: erro; alguma leitura em curso: carregando', () => {
     const falha: LeituraDaFila<never> = { estado: 'erro', erro: new Error('x') }
-    const tudoFalhou = montarFila({ anos: falha, incidentes: falha, professores: falha, materiais: falha, licencas: falha, turmas: { estado: 'nao-se-aplica' }, vinculos: { estado: 'nao-se-aplica' } })
+    const tudoFalhou = buildFila({ anos: falha, incidentes: falha, professores: falha, materiais: falha, licencas: falha, turmas: { estado: 'nao-se-aplica' }, vinculos: { estado: 'nao-se-aplica' } })
     expect(tudoFalhou.situacao).toBe('erro')
-    expect(montarFila(entrada({ materiais: { estado: 'carregando' } })).situacao).toBe('carregando')
+    expect(buildFila(entrada({ materiais: { estado: 'carregando' } })).situacao).toBe('carregando')
   })
 })
 
 describe('montarFila: a licença de material (RF17)', () => {
-  const itensDeLicenca = (licencas: readonly Licenca[]) => montarFila(entrada({ licencas: lida(licencas) })).itens.filter((item) => item.tipo === 'licenca-vencendo')
+  const itensDeLicenca = (licencas: readonly Licenca[]) => buildFila(entrada({ licencas: lida(licencas) })).itens.filter((item) => item.tipo === 'licenca-vencendo')
 
   it('a 31 dias do fim: sem aviso', () => {
     expect(itensDeLicenca([licenca(1, 31, 3)])).toEqual([])

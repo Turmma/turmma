@@ -32,7 +32,7 @@ export function guardarCaminhoDaSala(slug: string, caminho: Caminho, agora: numb
 }
 
 /** O que o `sessionStorage` guarda, lido do texto: `undefined` se não há, não é JSON ou não é um objeto. */
-function lerObjeto(): Record<string, unknown> | undefined {
+function readObjeto(): Record<string, unknown> | undefined {
   try {
     const texto = window.sessionStorage.getItem(CAMINHO_DA_SALA_STORAGE_KEY)
     const bruto: unknown = texto === null ? undefined : JSON.parse(texto)
@@ -50,8 +50,8 @@ function caminhoDoTipo(tipo: unknown, valor: string): Caminho | undefined {
 }
 
 /** O caminho guardado para esta sala, ou `undefined` se não há, é de outro slug, venceu ou não tem a forma exata. Não apaga. */
-export function lerCaminhoDaSala(slug: string, agora: number = Date.now()): Caminho | undefined {
-  const guardado = lerObjeto()
+export function readCaminhoDaSala(slug: string, agora: number = Date.now()): Caminho | undefined {
+  const guardado = readObjeto()
   if (guardado === undefined) return undefined
   const { slug: doSlug, tipo, valor, em, ...resto } = guardado
   if (Object.keys(resto).length > 0 || doSlug !== slug || typeof valor !== 'string' || typeof em !== 'number') return undefined
@@ -61,7 +61,7 @@ export function lerCaminhoDaSala(slug: string, agora: number = Date.now()): Cami
 }
 
 /** Apaga o caminho guardado. */
-export function apagarCaminhoDaSala(): void {
+export function deleteCaminhoDaSala(): void {
   try {
     window.sessionStorage.removeItem(CAMINHO_DA_SALA_STORAGE_KEY)
   } catch {

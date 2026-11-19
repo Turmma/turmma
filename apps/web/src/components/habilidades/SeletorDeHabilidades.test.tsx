@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
-  filtrarHabilidades,
+  filterHabilidades,
   linhasDoSeletor,
   MAXIMO_DE_LINHAS_DO_SELETOR,
   SeletorDeHabilidades,
@@ -53,15 +53,15 @@ function Peca({ inicial = [], maximo = 5, ...resto }: Partial<React.ComponentPro
 
 describe('o filtro', () => {
   it('acha pelo código, sem caixa e sem o prefixo inteiro', () => {
-    expect(filtrarHabilidades(CANDIDATAS, 'ef06ci03').map((item) => item.codigo)).toEqual(['EF06CI03'])
-    expect(filtrarHabilidades(CANDIDATAS, '06CI0').map((item) => item.codigo)).toHaveLength(7)
+    expect(filterHabilidades(CANDIDATAS, 'ef06ci03').map((item) => item.codigo)).toEqual(['EF06CI03'])
+    expect(filterHabilidades(CANDIDATAS, '06CI0').map((item) => item.codigo)).toHaveLength(7)
   })
 
   it('acha pelo texto, sem acento e com todas as palavras, em qualquer ordem', () => {
-    expect(filtrarHabilidades(CANDIDATAS, 'agua').map((item) => item.codigo)).toEqual(['EF06CI02'])
-    expect(filtrarHabilidades(CANDIDATAS, 'misturas separação').map((item) => item.codigo)).toEqual(['EF06CI03'])
-    expect(filtrarHabilidades(CANDIDATAS, 'agua separação')).toEqual([])
-    expect(filtrarHabilidades(CANDIDATAS, '   ').map((item) => item.codigo)).toHaveLength(7)
+    expect(filterHabilidades(CANDIDATAS, 'agua').map((item) => item.codigo)).toEqual(['EF06CI02'])
+    expect(filterHabilidades(CANDIDATAS, 'misturas separação').map((item) => item.codigo)).toEqual(['EF06CI03'])
+    expect(filterHabilidades(CANDIDATAS, 'agua separação')).toEqual([])
+    expect(filterHabilidades(CANDIDATAS, '   ').map((item) => item.codigo)).toHaveLength(7)
   })
 
   it('na tela: digitar por código e por texto reduz a lista, e o que não acha diz "Nenhuma habilidade com esse código ou texto."', async () => {

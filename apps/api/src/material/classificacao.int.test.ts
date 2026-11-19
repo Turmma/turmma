@@ -205,7 +205,7 @@ describe('a classificação roda pelo worker real, na fila `lote`', () => {
     // Sem aluno na turma, o pacote é o limite por aluno vezes 1: com 1 por mês e nenhuma troca, a turma está em limite − 1, e qualquer troca a mais o esgotaria (`OrcamentoRepository`).
     await sql('update configuracao_operacional_escola set tutor_trocas_por_dia = 50, tutor_trocas_por_mes = 1 where escola_id = $1', [a.escolaId])
     const consulta = { funcao: 'tutor_com_o_aluno' as const, alunoId: randomUUID(), turmaId: a.base.turma }
-    const permitido = () => comoEscola(a.escolaId, () => new OrcamentoRepository(fila.banco).consultar(consulta))
+    const permitido = () => comoEscola(a.escolaId, () => new OrcamentoRepository(fila.banco).check(consulta))
     const mensagensDaTurma = async () => Number((await sql<{ total: string }>('select count(*) as total from mensagem_tutor where escola_id = $1 and turma_id = $2', [a.escolaId, a.base.turma])).rows[0]?.total)
     try {
       const antes = await mensagensDaTurma()
@@ -962,7 +962,7 @@ describe('o processador da classificação, com o instante e o provedor escolhid
       let exclusaoEsperou = false
       await comoEscola(a.escolaId, () =>
         fila.banco.transaction(async (tx) => {
-          const gravadas = await new SecoesRepository(tx).gravarClassificacao(execucaoId, respostas)
+          const gravadas = await new SecoesRepository(tx).saveClassificacao(execucaoId, respostas)
           expect(gravadas).toHaveLength(3)
           const cliente = await bancada.pool.connect()
           try {
@@ -1037,7 +1037,7 @@ describe('o processador da classificação, com o instante e o provedor escolhid
       expect(await repositorio.candidatas('quimica', [])).toEqual([])
     })
 
-    it('`limparDaExecucao` limpa só as seções não corrigidas da execução, e só as habilidades `ia` delas', async () => {
+    it('`clearDaExecucao` limpa só as seções não corrigidas da execução, e só as habilidades `ia` delas', async () => {
       const [primeira = '', segunda = '', terceira = ''] = a.secoes
       const exec1 = await execucaoDaRotina(a, [primeira, segunda])
       const exec2 = await execucaoDaRotina(a, [terceira])
@@ -1046,7 +1046,7 @@ describe('o processador da classificação, com o instante e o provedor escolhid
       for (const secaoId of a.secoes) await poe(secaoId, 'EM13CNT101', 'ia')
       await poe(primeira, 'EM13CNT102', 'coordenacao')
       await sql('update secao_do_material set falhas_seguidas = 3, classificada_em = now() where id = any($1::uuid[])', [a.secoes])
-      expect(await noContextoDaA(() => new SecoesRepository(fila.banco).limparDaExecucao(exec1))).toBe(1)
+      expect(await noContextoDaA(() => new SecoesRepository(fila.banco).clearDaExecucao(exec1))).toBe(1)
       expect(await secaoDe(primeira)).toMatchObject({ execucao_id: null, falhas_seguidas: 0, classificada_em: null })
       expect(await habilidadesDa(primeira)).toEqual([{ codigo: 'EM13CNT102', origem: 'coordenacao' }])
       expect(await secaoDe(segunda)).toMatchObject({ execucao_id: exec1, falhas_seguidas: 3 })
@@ -1062,9 +1062,9 @@ describe('o processador da classificação, com o instante e o provedor escolhid
       expect([(await secaoDe(a.secoes[0] ?? ''))?.falhas_seguidas, (await secaoDe(a.secoes[1] ?? ''))?.falhas_seguidas, (await secaoDe(a.secoes[2] ?? ''))?.falhas_seguidas]).toEqual([1, 1, 0])
     })
 
-    it('`gravarClassificacao` sem resposta não grava nada', async () => {
+    it('`saveClassificacao` sem resposta não grava nada', async () => {
       const execucaoId = await execucaoDaRotina(a)
-      expect(await noContextoDaA(() => new SecoesRepository(fila.banco).gravarClassificacao(execucaoId, []))).toEqual([])
+      expect(await noContextoDaA(() => new SecoesRepository(fila.banco).saveClassificacao(execucaoId, []))).toEqual([])
       expect((await secaoDe(a.secoes[0] ?? ''))?.classificada_em).toBeNull()
     })
   })
@@ -1115,8 +1115,8 @@ describe('o processador da classificação, com o instante e o provedor escolhid
       await comoEscola(a.escolaId, async () => {
         const repositorio = new SecoesRepository(fila.banco)
         expect(await repositorio.vivasDaExecucao(daB, 12)).toEqual([])
-        expect(await repositorio.gravarClassificacao(daB, b.secoes.map((secaoId) => ({ secaoId, codigos: [CODIGO_DE_CNT] })))).toEqual([])
-        expect(await repositorio.limparDaExecucao(daB)).toBe(0)
+        expect(await repositorio.saveClassificacao(daB, b.secoes.map((secaoId) => ({ secaoId, codigos: [CODIGO_DE_CNT] })))).toEqual([])
+        expect(await repositorio.clearDaExecucao(daB)).toBe(0)
         await repositorio.somarFalha(daB)
         expect(await repositorio.paginasDaSecao(b.materialId, 1, 3)).toEqual([])
       })
@@ -1128,7 +1128,7 @@ describe('o processador da classificação, com o instante e o provedor escolhid
       const daA = await execucaoDaRotina(a, [a.secoes[0] ?? ''])
       const daB = await execucaoDaRotina(b, [b.secoes[0] ?? ''])
       const gravadas = await comoEscola(a.escolaId, () =>
-        new SecoesRepository(fila.banco).gravarClassificacao(daA, [
+        new SecoesRepository(fila.banco).saveClassificacao(daA, [
           { secaoId: b.secoes[0] ?? '', codigos: [CODIGO_DE_CNT] },
           { secaoId: a.secoes[0] ?? '', codigos: [CODIGO_DE_CNT] },
         ]),

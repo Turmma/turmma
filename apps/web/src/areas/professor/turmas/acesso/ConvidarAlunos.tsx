@@ -31,7 +31,7 @@ import {
   turmaIndisponivel,
   VALIDADE_PADRAO_DO_ACESSO_DIAS,
 } from './acesso-da-turma'
-import { abrirWhatsApp, textoDoWhatsApp } from './texto-do-whatsapp'
+import { openWhatsApp, textoDoWhatsApp } from './texto-do-whatsapp'
 
 /** A escola da sessão, como o `/v1/eu` a traz: o nome vai no texto do WhatsApp, e o endereço, no link da sala. */
 export interface EscolaDaSessao {
@@ -299,7 +299,7 @@ function AcessoGerado({
 
   async function compartilhar(): Promise<void> {
     const texto = textoDoWhatsApp({ escolaNome: escola.nome, link })
-    if (abrirWhatsApp(texto, window)) {
+    if (openWhatsApp(texto, window)) {
       copia.saiu(TEXTO_DO_WHATSAPP_ABERTO)
       return
     }

@@ -3,9 +3,9 @@ import { ErrorCode, TIPO_EXTRAIR_PDF } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { pathToFileURL } from 'node:url'
 import { JobsQueFalharamRepository } from '../operacao/jobs-que-falharam.repository.js'
-import { abrirBancoDeOperacao, urlDoRedisDeFilaDeOperacao, autorDoComando, lerOperador, type CommandDatabase, type CommandOutput } from './command.js'
-import { abrirFilaDeOperacao, type FilaDeOperacao } from './fila-de-jobs.js'
-import { exigirJobDaOperacao, lerPedidoDeJob, noContextoDoJob, terminarComErro, type PedidoDeJob } from './jobs-que-falharam.js'
+import { openBancoDeOperacao, urlDoRedisDeFilaDeOperacao, autorDoComando, readOperador, type CommandDatabase, type CommandOutput } from './command.js'
+import { openFilaDeOperacao, type FilaDeOperacao } from './fila-de-jobs.js'
+import { exigirJobDaOperacao, readPedidoDeJob, noContextoDoJob, terminarComErro, type PedidoDeJob } from './jobs-que-falharam.js'
 import type { AuthorCheck } from '../sessao/index.js'
 
 const registro = new AuditoriaRecorder()
@@ -28,13 +28,13 @@ export function reprocessarJob(banco: Database, autor: AuthorCheck, fila: FilaDe
   return runInContext({ requisicaoId }, () =>
     banco.transaction(async (tx) => {
       const autorOperador = await autor(tx)
-      const linha = await new JobsQueFalharamRepository(tx).travarFalho(pedido.jobId)
+      const linha = await new JobsQueFalharamRepository(tx).lockFalho(pedido.jobId)
       if (linha === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       const { escolaId, tipo } = exigirJobDaOperacao(linha, [TIPO_EXTRAIR_PDF])
       return noContextoDoJob(requisicaoId, escolaId, async () => {
         await fila.tirarCopiaDaFalha({ id: linha.id, fila: linha.fila, tipo: linha.tipo })
         if (!(await new JobOutboxRepository(tx).reabrirFalho(linha.id))) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
-        await registro.gravar(tx, 'job.reprocessado', { entidadeId: linha.id, depois: { tipo, chamado: pedido.chamado }, autorOperador })
+        await registro.save(tx, 'job.reprocessado', { entidadeId: linha.id, depois: { tipo, chamado: pedido.chamado }, autorOperador })
         return { id: linha.id, tipo }
       })
     }),
@@ -46,19 +46,19 @@ export function reprocessarJob(banco: Database, autor: AuthorCheck, fila: FilaDe
  * resumido, 2 argumento ou ambiente inválido, ou `OPERADOR` que não é operador ativo. Argumento, `OPERADOR` e o endereço do Redis são conferidos
  * antes de abrir o banco.
  */
-export async function executarOpsReprocessarJob(
+export async function runOpsReprocessarJob(
   argumentos: string[],
   ambiente: Record<string, string | undefined>,
   terminal: CommandOutput,
-  abrirBanco: (ambiente: Record<string, string | undefined>) => CommandDatabase = abrirBancoDeOperacao,
-  abrirFila: (ambiente: Record<string, string | undefined>) => FilaDeOperacao = (doAmbiente) => abrirFilaDeOperacao(urlDoRedisDeFilaDeOperacao(doAmbiente)),
+  abrirBanco: (ambiente: Record<string, string | undefined>) => CommandDatabase = openBancoDeOperacao,
+  abrirFila: (ambiente: Record<string, string | undefined>) => FilaDeOperacao = (doAmbiente) => openFilaDeOperacao(urlDoRedisDeFilaDeOperacao(doAmbiente)),
 ): Promise<number> {
   try {
-    const pedido = lerPedidoDeJob(argumentos)
-    const operador = lerOperador(ambiente)
+    const pedido = readPedidoDeJob(argumentos)
+    const operador = readOperador(ambiente)
     const fila = abrirFila(ambiente)
     try {
-      const { banco, fechar } = abrirBanco(ambiente)
+      const { banco, close: fechar } = abrirBanco(ambiente)
       try {
         const reprocessado = await reprocessarJob(banco, autorDoComando(operador), fila, pedido)
         terminal.saida(`${JSON.stringify({ reprocessado: reprocessado.id, tipo: reprocessado.tipo, chamado: pedido.chamado })}\n`)
@@ -67,7 +67,7 @@ export async function executarOpsReprocessarJob(
         await fechar()
       }
     } finally {
-      await fila.fechar()
+      await fila.close()
     }
   } catch (erro) {
     return terminarComErro(erro, terminal)
@@ -75,7 +75,7 @@ export async function executarOpsReprocessarJob(
 }
 
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  process.exitCode = await executarOpsReprocessarJob(process.argv.slice(2), process.env, {
+  process.exitCode = await runOpsReprocessarJob(process.argv.slice(2), process.env, {
     saida: (texto) => process.stdout.write(texto),
     erro: (texto) => process.stderr.write(texto),
   })

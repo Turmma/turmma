@@ -14,7 +14,7 @@ import {
 } from '../material.js'
 import { PROMPT_PROPOR_FERRAMENTA } from '../prompts/propor-ferramenta.js'
 import { defineTask } from '../task.js'
-import { cortar, normalizar } from '../text.js'
+import { cortar, normalize } from '../text.js'
 
 export const assistenteInputSchema = z.strictObject({
   /** O que o professor escreveu agora. Vai ao modelo como dado. */
@@ -68,7 +68,7 @@ export const RECUSA_DE_CORRECAO_DE_TEXTO_DE_ALUNO =
 const NOTA_QUE_NAO_E_DE_ALUNO = /\bnotas? (de aula|de rodape|explicativas?|fiscal|fiscais|musica\w*|tecnicas?|introdutorias?|historicas?|de corte)\b/g
 
 /** Minúsculas, sem acento e sem o que não é nota de aluno: a forma em que as listas comparam. */
-const paraARegra = (mensagem: string): string => normalizar(mensagem).replace(NOTA_QUE_NAO_E_DE_ALUNO, ' ')
+const paraARegra = (mensagem: string): string => normalize(mensagem).replace(NOTA_QUE_NAO_E_DE_ALUNO, ' ')
 /** Sem acento, **com** maiúscula: é por ela que o nome próprio aparece ("o texto do Lucas"). */
 const semAcento = (mensagem: string): string => mensagem.normalize('NFD').replace(/\p{M}/gu, '')
 
@@ -174,9 +174,9 @@ const PARTE_DE_TEXTO = new RegExp(String.raw`\b${TEXTO}\b|\b(conectivos?|ortogra
  */
 function pessoaDonaDoTexto(mensagem: string): boolean {
   const semAcentos = semAcento(mensagem)
-  const ehPessoa = (achado: RegExpMatchArray): boolean => !NAO_E_PESSOA.has(achado[1] ?? achado[2] ?? '')
-  if ([...semAcentos.matchAll(DONO_DO_TEXTO)].some(ehPessoa)) return true
-  return PARTE_DE_TEXTO.test(semAcentos) && [...semAcentos.matchAll(PESSOA_QUE_FEZ)].some(ehPessoa)
+  const isPessoa = (achado: RegExpMatchArray): boolean => !NAO_E_PESSOA.has(achado[1] ?? achado[2] ?? '')
+  if ([...semAcentos.matchAll(DONO_DO_TEXTO)].some(isPessoa)) return true
+  return PARTE_DE_TEXTO.test(semAcentos) && [...semAcentos.matchAll(PESSOA_QUE_FEZ)].some(isPessoa)
 }
 /** Redação e prova discursiva são, por natureza, texto de aluno. */
 const REDACAO_OU_DISCURSIVA = /\b(redac\w+|discursiv\w+|dissertat\w+|producao textual|producoes textuais)\b/
@@ -496,7 +496,7 @@ const SAIDA_SUJEITO_PESSOA = /\b(alun[oa]s?|estudantes?|el[ea]s?)\b/
 type Razao = 'sob_medida' | 'sem_apontar' | 'nivel' | 'julga' | 'desempenho'
 
 /** Uma rubrica inteira (vários critérios ou níveis) é a rubrica de antes da aplicação: o que ela diz do "texto" é descritor. */
-function ehRubricaInteira(frases: readonly string[]): boolean {
+function isRubricaInteira(frases: readonly string[]): boolean {
   const textos = frases.map(paraARegra)
   return textos.filter((texto) => DESCRITOR_DE_CRITERIO.test(texto) || /^[\s\-*•\d.)]*criterios?\b/.test(texto)).length >= 3 || textos.filter((texto) => FALA_DO_CRITERIO.test(texto)).length >= 4
 }
@@ -516,7 +516,7 @@ function razaoNaFrase(frase: string, rubricaInteira: boolean): Razao | undefined
 
 function razaoDoJulgamento(texto: string): Razao[] {
   const frases = texto.split(/[.!?\n;]+/u)
-  const inteira = ehRubricaInteira(frases)
+  const inteira = isRubricaInteira(frases)
   return frases.flatMap((frase) => razaoNaFrase(frase, inteira) ?? [])
 }
 
@@ -565,7 +565,7 @@ const FALA_DE_PESSOA = /\b(alun\w+|estudante\w*|laudo\w*|diagnostic\w*|dislexi\w
 function temaDaMensagem(mensagem: string, disciplina: string): string {
   const achado = TEMA_DEPOIS_DE_SOBRE.exec(mensagem) ?? TEMA_DEPOIS_DA_FERRAMENTA.exec(mensagem)
   const tema = (achado?.[1] ?? '').trim()
-  if (tema.length === 0 || FALA_DE_PESSOA.test(normalizar(tema))) return cortar(disciplina, TAMANHO_MAXIMO_DO_TEMA)
+  if (tema.length === 0 || FALA_DE_PESSOA.test(normalize(tema))) return cortar(disciplina, TAMANHO_MAXIMO_DO_TEMA)
   return cortar(tema, TAMANHO_MAXIMO_DO_TEMA)
 }
 
@@ -580,7 +580,7 @@ function numeroEntre(achado: RegExpExecArray | null, minimo: number, maximo: num
  */
 function respostaSoEmTexto(entrada: AssistenteInput): AssistenteOutput {
   const pedido = entrada.turnosAnteriores.findLast((turno) => turno.autor === 'professor')?.texto ?? entrada.mensagem
-  if (PEDE_ADAPTACAO.test(normalizar(pedido))) {
+  if (PEDE_ADAPTACAO.test(normalize(pedido))) {
     return {
       tipo: 'texto',
       texto: 'Sem abrir ferramenta, então. Para adaptar, abra a atividade e escolha “Adaptar”: ela pede só o tipo de adaptação, sem nenhuma informação sobre o aluno, e a versão adaptada espera a sua aprovação.',
@@ -625,7 +625,7 @@ export const proporFerramenta = defineTask({
     return conversaPedeJulgamentoDeTextoDeAluno(entrada.mensagem, entrada.turnosAnteriores, entrada.semProposta === true) ? { tipo: 'texto', texto: RECUSA_DE_CORRECAO_DE_TEXTO_DE_ALUNO, citacoes: [] } : undefined
   },
 
-  montarPedido(entrada) {
+  buildPedido(entrada) {
     return {
       instrucao:
         entrada.semProposta === true
@@ -664,7 +664,7 @@ export const proporFerramenta = defineTask({
 
   falso(entrada): AssistenteOutput {
     if (entrada.semProposta === true) return respostaSoEmTexto(entrada)
-    const texto = normalizar(entrada.mensagem)
+    const texto = normalize(entrada.mensagem)
     if (PEDE_ADAPTACAO.test(texto)) {
       // O que o professor disse sobre o aluno não é repetido: a resposta só aponta a ferramenta, que pede o tipo.
       return {

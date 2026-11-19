@@ -6,7 +6,7 @@ import { afterEach, beforeAll, vi } from 'vitest'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
 import { createQueryClient } from '../../api/query-client'
-import { abrirSessaoDeOperadorPeloCookie } from '../api/sessao'
+import { openSessaoDeOperadorPeloCookie } from '../api/sessao'
 
 export { fakeNetwork, type FakeNetwork, type FakeResponse } from '../../__fixtures__/render-screen'
 
@@ -31,7 +31,7 @@ export function setupOperacaoScreen(): void {
       'fetch',
       vi.fn(async () => new Response(JSON.stringify({ token: TOKEN_DE_TESTE, expiraEm: new Date(Date.now() + 600_000).toISOString() }), { status: 200 })),
     )
-    await abrirSessaoDeOperadorPeloCookie()
+    await openSessaoDeOperadorPeloCookie()
     vi.unstubAllGlobals()
   })
   afterEach(() => {

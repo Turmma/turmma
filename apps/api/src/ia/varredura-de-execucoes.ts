@@ -48,7 +48,7 @@ export class VarreduraDeExecucoes {
   }
 
   /** Varre uma vez na subida e repete a cada `INTERVALO_DA_VARREDURA_MS`. */
-  iniciar(intervaloMs: number = INTERVALO_DA_VARREDURA_MS): void {
+  start(intervaloMs: number = INTERVALO_DA_VARREDURA_MS): void {
     this.#parar = new AbortController()
     void this.varrer()
     this.#temporizador = setInterval(() => void this.varrer(), intervaloMs)

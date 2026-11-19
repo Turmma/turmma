@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useSearch } from 'wouter'
 import { errorMessage } from '../../../api/client'
 import { disciplinasQueryOptions } from '../../../api/estrutura'
-import { materiaisQueryOptions, excluirMaterial, type CamposDoEnvioDeMaterial } from './api/material'
+import { materiaisQueryOptions, deleteMaterial, type CamposDoEnvioDeMaterial } from './api/material'
 import { RESUMO_DO_MATERIAL_QUERY_KEY } from './api/resumo'
 import { aoTrocarDeSessao } from '../../../api/sessao'
 import { MATERIAL_PARAM, ABA_DO_MATERIAL_PARAM, type AbaDoMaterial } from '../../../paths'
@@ -19,7 +19,7 @@ import { Table, type TableColumn } from '../../../components/ui/Table'
 import { errorText } from '../../../components/error-text'
 import { DialogoDeEdicaoNova } from './DialogoDeEdicaoNova'
 import { DialogoDeEnvioDeMaterial } from './DialogoDeEnvioDeMaterial'
-import { temEdicaoEmAndamento, TEXTO_DA_EDICAO_ENVIADA } from './material-painel'
+import { hasEdicaoEmAndamento, TEXTO_DA_EDICAO_ENVIADA } from './material-painel'
 import { ResumoDoMaterial } from './ResumoDoMaterial'
 import { enderecoComParametro } from '../comum/endereco-da-tela'
 import { RASCUNHO_VAZIO, TEXTO_DA_RECUSA, TEXTOS_DA_FALHA_DA_EXCLUSAO } from './material-envio'
@@ -104,7 +104,7 @@ function MateriaisDaEscola() {
   const dialogo = useDialogState<TipoDeDialogo, MaterialDaEscola>()
   const aberta = dialogo.aberta
   const alvo = aberta?.alvo
-  const fecharDialogo = dialogo.fechar
+  const fecharDialogo = dialogo.close
 
   const [recusas, definirRecusas] = useState<readonly RecusaDeEnvio[]>([])
   const [anuncio, definirAnuncio] = useState('')
@@ -143,17 +143,17 @@ function MateriaisDaEscola() {
     }
   }, [painelAberto])
 
-  const abrirPainel = (materialId: string): void => navegar(enderecoComParametro(caminho, busca, MATERIAL_PARAM, materialId))
-  const fecharPainel = (): void => navegar(enderecoComParametro(caminho, busca, MATERIAL_PARAM, undefined), { replace: true })
+  const openPainel = (materialId: string): void => navegar(enderecoComParametro(caminho, busca, MATERIAL_PARAM, materialId))
+  const closePainel = (): void => navegar(enderecoComParametro(caminho, busca, MATERIAL_PARAM, undefined), { replace: true })
   /** O material saiu da lista (excluído, ou trocado pelo envio novo): o endereço que o abria deixa de apontar para ele. */
   const tirarDoEndereco = (materialId: string): void => {
-    if (new URLSearchParams(busca).get(MATERIAL_PARAM) === materialId) fecharPainel()
+    if (new URLSearchParams(busca).get(MATERIAL_PARAM) === materialId) closePainel()
   }
 
   /** Abrir um diálogo apaga o anúncio da ação anterior: o que ele dizia já não é o que a pessoa está fazendo. */
-  function abrir(tipo: TipoDeDialogo, material?: MaterialDaEscola): void {
+  function open(tipo: TipoDeDialogo, material?: MaterialDaEscola): void {
     definirAnuncio('')
-    dialogo.abrir(tipo, material)
+    dialogo.open(tipo, material)
   }
 
   const erroDaLeitura = (
@@ -212,7 +212,7 @@ function MateriaisDaEscola() {
             <EmptyState
               titulo="Nenhum material ainda"
               descricao="Envie o primeiro PDF da escola, com a licença declarada. É dele que o Assistente e o Tutor tiram as atividades e as explicações, sempre citando a página."
-              acao={{ rotulo: 'Enviar material', aoAcionar: () => abrir('enviar') }}
+              acao={{ rotulo: 'Enviar material', aoAcionar: () => open('enviar') }}
             />
           )
         ) : (
@@ -221,7 +221,7 @@ function MateriaisDaEscola() {
               <h2 ref={tituloDaLista} tabIndex={-1} className="text-lg font-semibold text-tinta">
                 Materiais da escola
               </h2>
-              <Button onClick={() => abrir('enviar')}>Enviar material</Button>
+              <Button onClick={() => open('enviar')}>Enviar material</Button>
             </div>
             {/*
               Com a lista já na tela, a releitura que falhou é dita aqui com o "Tentar de novo" em `secundario`: o `primario`
@@ -242,7 +242,7 @@ function MateriaisDaEscola() {
             )}
             <Table
               rotulo="Lista de materiais"
-              colunas={colunasDosMateriais(nomeDe, abrirPainel, (chave) => definirRecusas((atuais) => atuais.filter((outra) => outra.chave !== chave)))}
+              colunas={colunasDosMateriais(nomeDe, openPainel, (chave) => definirRecusas((atuais) => atuais.filter((outra) => outra.chave !== chave)))}
               linhas={linhas.slice(0, visiveis)}
               chaveDaLinha={(linha) => (linha.tipo === 'material' ? linha.material.id : `recusa-${String(linha.recusa.chave)}`)}
             />
@@ -270,12 +270,12 @@ function MateriaisDaEscola() {
             material={doPainel}
             disciplina={nomeDe(doPainel.disciplinaId)}
             semComponente={semComponenteDa(doPainel.disciplinaId)}
-            edicaoEmAndamento={lista !== undefined && temEdicaoEmAndamento(doPainel, lista.itens)}
+            edicaoEmAndamento={lista !== undefined && hasEdicaoEmAndamento(doPainel, lista.itens)}
             recarregar={recarregar}
-            aoFechar={fecharPainel}
-            aoTentarDeNovo={() => abrir('enviar', doPainel)}
-            aoEnviarEdicao={() => abrir('edicao', doPainel)}
-            aoExcluir={() => abrir('excluir', doPainel)}
+            aoFechar={closePainel}
+            aoTentarDeNovo={() => open('enviar', doPainel)}
+            aoEnviarEdicao={() => open('edicao', doPainel)}
+            aoExcluir={() => open('excluir', doPainel)}
             focoDeReserva={focarNaLista}
           />
         )}
@@ -287,7 +287,7 @@ function MateriaisDaEscola() {
             inicial={alvo === undefined ? RASCUNHO_VAZIO : rascunhoDoMaterialQueFalhou(alvo)}
             {...(alvo === undefined ? {} : { substitui: alvo.id })}
             aoConcluir={({ enviados, substituiu }) => {
-              dialogo.fecharSeAinda(aberta)
+              dialogo.closeSeAinda(aberta)
               definirAnuncio(enviados === 1 ? TEXTO_DO_ENVIO : `${String(enviados)} materiais enviados. A leitura das páginas começa agora e leva alguns instantes.`)
               if (substituiu !== undefined) tirarDoEndereco(substituiu)
             }}
@@ -303,7 +303,7 @@ function MateriaisDaEscola() {
             alvo={alvo}
             recarregar={recarregar}
             aoEnviar={() => {
-              dialogo.fecharSeAinda(aberta)
+              dialogo.closeSeAinda(aberta)
               definirAnuncio(TEXTO_DA_EDICAO_ENVIADA)
               // O painel do material fecha: a edição nova é outra linha da lista, e a anterior segue valendo até ela ficar pronta.
               tirarDoEndereco(alvo.id)
@@ -320,7 +320,7 @@ function MateriaisDaEscola() {
             aoFechar={fecharDialogo}
             aoTerminar={recarregar}
             aoExcluir={() => {
-              dialogo.fecharSeAinda(aberta)
+              dialogo.closeSeAinda(aberta)
               tirarDoEndereco(alvo.id)
               definirAnuncio('Material excluído. A busca do Assistente e do Tutor deixou de achá-lo.')
             }}
@@ -345,7 +345,7 @@ interface PropsDoExcluir {
 /** A confirmação de excluir: diz o que acontece com o que já foi gerado e com a busca, antes de confirmar. */
 function ExcluirMaterial({ material, disciplina, aoFechar, aoTerminar, aoExcluir, focoDeReserva }: PropsDoExcluir) {
   const { enviar, mutacao } = useSingleSubmit({
-    mutationFn: (): Promise<void> => excluirMaterial(material.id),
+    mutationFn: (): Promise<void> => deleteMaterial(material.id),
     onSuccess: async () => {
       await aoTerminar()
       aoExcluir()

@@ -2,7 +2,7 @@ import { METRICS, ultimaNoite, type ClassificacaoAtrasadaRepository, type Clock,
 import { EscolaGauge } from './escola-gauge.js'
 
 export interface ClassificacaoGaugeDependencies {
-  escolas: Pick<CronEscolasRepository, 'listarIds'>
+  escolas: Pick<CronEscolasRepository, 'listIds'>
   repositorio: Pick<ClassificacaoAtrasadaRepository, 'atrasadas'>
   /** O horário letivo da escola do contexto: dele saem o fuso e os dias da noite que se mede. */
   janelaDaEscola: Pick<OperationalSettings<JanelaLetiva>, 'daEscola'>

@@ -22,7 +22,7 @@ export type ConsumoDeEmail =
 
 /** O que o job de e-mail pede ao limite: gastar um ponto antes de falar com o provedor, e devolvê-lo se nada foi enviado. */
 export interface LimiteDeEmail {
-  consumir(classe: ClasseDoEmail): Promise<ConsumoDeEmail>
+  consume(classe: ClasseDoEmail): Promise<ConsumoDeEmail>
   devolver(ponto: PontoDeEmail): Promise<boolean>
 }
 
@@ -127,8 +127,8 @@ export class LimiteDeEmailPorMinuto implements LimiteDeEmail {
   }
 
   /** Gasta um ponto da janela de agora, ou diz quantos milissegundos faltam para a próxima. */
-  async consumir(classe: ClasseDoEmail): Promise<ConsumoDeEmail> {
-    const resposta = await this.executar('consumir', this.#agora(), this.porMinuto, this.#tetoDoConvite, classe)
+  async consume(classe: ClasseDoEmail): Promise<ConsumoDeEmail> {
+    const resposta = await this.run('consumir', this.#agora(), this.porMinuto, this.#tetoDoConvite, classe)
     if (!Array.isArray(resposta) || resposta.length !== 3) throw new InvariantException('o script do limite de e-mail devolveu resposta inesperada')
     const [concedido, janela, msBeforeNext] = resposta.map(Number) as [number, number, number]
     return concedido === 1 ? { resultado: 'concedido', ponto: { classe, janela } } : { resultado: 'sem_vaga', msBeforeNext }
@@ -136,11 +136,11 @@ export class LimiteDeEmailPorMinuto implements LimiteDeEmail {
 
   /** Devolve o ponto se a janela dele ainda é a de agora. `false`: o minuto virou, e o ponto não volta. */
   async devolver(ponto: PontoDeEmail): Promise<boolean> {
-    return Number(await this.executar('devolver', this.#agora(), ponto.janela, ponto.classe)) === 1
+    return Number(await this.run('devolver', this.#agora(), ponto.janela, ponto.classe)) === 1
   }
 
   /** `EVALSHA`, e `EVAL` só na primeira vez que este Redis vê o script (ou depois de ele reiniciar sem o cache). */
-  private async executar(...argumentos: Array<string | number>): Promise<unknown> {
+  private async run(...argumentos: Array<string | number>): Promise<unknown> {
     try {
       return await this.redis.evalsha(SHA_DO_SCRIPT, 1, this.#chave, ...argumentos)
     } catch (erro) {

@@ -47,7 +47,7 @@ describe('CredencialMatriculaRepository: a matrícula é lida só na escola do c
       { matricula: '6666', senhaHash: HASH_SINTETICO },
     ])
     const hashDaProvisoria = '$argon2id$v=19$m=19456,t=2,p=1$cHJvdmlzb3JpYQ$cHJvdmlzb3JpYXByb3Zpc29yaWE'
-    // Gerar a provisória apaga a senha do aluno (`gravarProvisoria`): o estado aqui é o mesmo, com o vencimento escolhido.
+    // Gerar a provisória apaga a senha do aluno (`saveProvisoria`): o estado aqui é o mesmo, com o vencimento escolhido.
     const gravar = (usuarioId: string | undefined, intervalo: string) =>
       bancada.pool.query<{ texto: string }>(
         `update credencial_matricula set senha_hash = null, provisoria_hash = $3, provisoria_expira_em = now() + $4::interval

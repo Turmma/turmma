@@ -16,7 +16,7 @@ interface PropsDaTelaDeFoco {
 }
 
 /**
- * A moldura de uma tela de foco (mockup 2.8; `ehTelaDeFoco`): no topo a barra do passo e o **"Sair", sempre à vista**, no
+ * A moldura de uma tela de foco (mockup 2.8; `isTelaDeFoco`): no topo a barra do passo e o **"Sair", sempre à vista**, no
  * mesmo desenho do "Fechar" (D59: sair nunca é menor que seguir); no meio, a fala e o conteúdo; no pé, os botões. Não é
  * `<main>`: o da casca já envolve a tela (um por página). O "Sair" é o da casca (`SignOutContext`), o mesmo da barra do
  * topo e do menu da pessoa, e por isso faz exatamente a mesma coisa.

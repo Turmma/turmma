@@ -14,14 +14,14 @@ const colunas = { id: serie.id, etapa: serie.etapa, ano: serie.ano }
 export class SerieRepository {
   constructor(private readonly banco: Database | DatabaseTransaction) {}
 
-  async criar(pedido: CriarSerieRequest): Promise<Serie> {
+  async create(pedido: CriarSerieRequest): Promise<Serie> {
     const [criada] = await this.banco.insert(serie).values({ escolaId: requireEscolaId(), etapa: pedido.etapa, ano: pedido.ano }).returning(colunas)
     if (criada === undefined) throw new InvariantException('série não criada')
     return criada
   }
 
   /** Uma página das séries da escola, em ordem de criação, com uma linha a mais que diz se há próxima. */
-  listar({ pagina, limite }: PaginationQuery): Promise<Serie[]> {
+  list({ pagina, limite }: PaginationQuery): Promise<Serie[]> {
     return this.banco
       .select(colunas)
       .from(serie)

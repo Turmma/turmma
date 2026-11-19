@@ -1,6 +1,6 @@
 import { listaDeMateriaisResponseSchema, type Material } from '@educa/shared'
 import { queryOptions } from '@tanstack/react-query'
-import { lerPaginas } from '../../../../api/estrutura'
+import { readPaginas } from '../../../../api/estrutura'
 
 /**
  * O título de cada material que a professora alcança (`GET /v1/materiais`: os das disciplinas em que ela tem vínculo
@@ -13,7 +13,7 @@ import { lerPaginas } from '../../../../api/estrutura'
 export const titulosDosMateriaisQueryOptions = queryOptions({
   queryKey: ['materiais', 'titulos'],
   queryFn: async ({ signal }): Promise<Readonly<Record<string, string>>> => {
-    const { itens } = await lerPaginas<Material>('/v1/materiais', listaDeMateriaisResponseSchema, signal, 3)
+    const { itens } = await readPaginas<Material>('/v1/materiais', listaDeMateriaisResponseSchema, signal, 3)
     return Object.fromEntries(itens.map((material) => [material.id, material.titulo]))
   },
   staleTime: 5 * 60_000,

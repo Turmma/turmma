@@ -8,7 +8,7 @@ import {
   houveMudanca,
   paginasDoCapitulo,
   pedidoDoPatch,
-  temEdicaoEmAndamento,
+  hasEdicaoEmAndamento,
   textoDaFalhaDaEdicao,
   textoDaFalhaDoPatch,
   textoDoLimiteDeAlteracoes,
@@ -57,16 +57,16 @@ describe('o pedido do `PATCH`', () => {
 describe('a edição em andamento', () => {
   const alvo = { id: A, estado: 'pronto' as const, substitui: null }
   it('o material com uma edição `processando` sobre ele, ou que é essa edição, está com edição em andamento', () => {
-    expect(temEdicaoEmAndamento(alvo, [alvo, { estado: 'processando', substitui: A }])).toBe(true)
-    expect(temEdicaoEmAndamento({ id: B, estado: 'processando', substitui: A }, [alvo])).toBe(true)
+    expect(hasEdicaoEmAndamento(alvo, [alvo, { estado: 'processando', substitui: A }])).toBe(true)
+    expect(hasEdicaoEmAndamento({ id: B, estado: 'processando', substitui: A }, [alvo])).toBe(true)
   })
 
   it('a edição que já ficou pronta ou que falhou, a que substitui outro material e o material sem edição não contam', () => {
-    expect(temEdicaoEmAndamento(alvo, [{ estado: 'pronto', substitui: A }])).toBe(false)
-    expect(temEdicaoEmAndamento(alvo, [{ estado: 'falhou', substitui: A }])).toBe(false)
-    expect(temEdicaoEmAndamento(alvo, [{ estado: 'processando', substitui: B }])).toBe(false)
+    expect(hasEdicaoEmAndamento(alvo, [{ estado: 'pronto', substitui: A }])).toBe(false)
+    expect(hasEdicaoEmAndamento(alvo, [{ estado: 'falhou', substitui: A }])).toBe(false)
+    expect(hasEdicaoEmAndamento(alvo, [{ estado: 'processando', substitui: B }])).toBe(false)
     // O material inicial ainda sendo lido não é edição de ninguém: o `PATCH` o aceita.
-    expect(temEdicaoEmAndamento({ id: A, estado: 'processando', substitui: null }, [])).toBe(false)
+    expect(hasEdicaoEmAndamento({ id: A, estado: 'processando', substitui: null }, [])).toBe(false)
   })
 })
 

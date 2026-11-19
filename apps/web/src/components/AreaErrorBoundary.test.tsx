@@ -5,9 +5,9 @@ import { useEffect, useState } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
-import { esquecerTodosOsEspelhos, lerEspelho } from '../api/espelho-da-fila'
+import { esquecerTodosOsEspelhos, readEspelho } from '../api/espelho-da-fila'
 import { createQueryClient } from '../api/query-client'
-import { criarFilaDeRespostas } from '../areas/aluno/fila-de-respostas'
+import { createFilaDeRespostas } from '../areas/aluno/fila-de-respostas'
 import { fakeNetwork, setupScreen, type FakeNetwork } from '../__fixtures__/render-screen'
 import { AppRoutes } from '../routes'
 import { AreaErrorBoundary } from './AreaErrorBoundary'
@@ -176,7 +176,7 @@ describe('a Falha no meio da atividade não perde a resposta', () => {
   function TelaQueQuebraDepoisDeEscolher() {
     const [quebrou, quebrar] = useState(false)
     useState(() => {
-      const fila = criarFilaDeRespostas({ salvar: () => new Promise(() => undefined), aoSalvar: () => undefined, espelho: { atividade: ATIVIDADE, dono: () => ALUNA } })
+      const fila = createFilaDeRespostas({ save: () => new Promise(() => undefined), aoSalvar: () => undefined, espelho: { atividade: ATIVIDADE, dono: () => ALUNA } })
       fila.escolher(1, 2)
     })
     useEffect(() => quebrar(true), [])
@@ -192,9 +192,9 @@ describe('a Falha no meio da atividade não perde a resposta', () => {
       </AreaErrorBoundary>,
     )
     const voltar = await screen.findByRole('link', { name: 'Voltar ao início' })
-    expect(lerEspelho(ALUNA, ATIVIDADE)).toEqual([{ questao: 1, alternativa: 2, sequencia: 1 }])
+    expect(readEspelho(ALUNA, ATIVIDADE)).toEqual([{ questao: 1, alternativa: 2, sequencia: 1 }])
     fireEvent.click(voltar)
-    expect(lerEspelho(ALUNA, ATIVIDADE)).toEqual([{ questao: 1, alternativa: 2, sequencia: 1 }])
+    expect(readEspelho(ALUNA, ATIVIDADE)).toEqual([{ questao: 1, alternativa: 2, sequencia: 1 }])
     esquecerTodosOsEspelhos()
   })
 })

@@ -2,7 +2,7 @@ import { DomainException, DEFAULT_RETRY_AFTER_SECONDS, throttledWarn, type Envir
 import { ErrorCode, type RenovacaoDeOperadorResponse } from '@educa/shared'
 import { Logger } from '@nestjs/common'
 import { randomBytes } from 'node:crypto'
-import { BYTES_DO_REFRESH, hashDoRefresh, ipParaRegistro, lerCookie, serializarCookie } from '../../credencial/index.js'
+import { BYTES_DO_REFRESH, hashDoRefresh, ipParaRegistro, readCookie, serializarCookie } from '../../credencial/index.js'
 import { CAMINHO_DOS_COOKIES_DE_OPERADOR, COOKIE_SESSAO_DE_OPERADOR, cookieDeSessaoDeOperador } from '../cookie-de-operador.js'
 import { OperadorRepository } from '../operador/operador.repository.js'
 import { JANELA_DO_REFRESH_ANTERIOR_SEGUNDOS, sessaoDeOperadorVale } from './sessao-timeouts.js'
@@ -70,7 +70,7 @@ export class SessaoDoOperadorService {
   constructor(private readonly dependencias: SessaoDoOperadorDependencies) {}
 
   async renovar(origem: Pick<OrigemDaSessaoDoOperador, 'cabecalhoCookie'>): Promise<OperadorRefresh> {
-    const refresh = lerCookie(origem.cabecalhoCookie, COOKIE_SESSAO_DE_OPERADOR)
+    const refresh = readCookie(origem.cabecalhoCookie, COOKIE_SESSAO_DE_OPERADOR)
     if (refresh === undefined || !FORMATO_DO_REFRESH.test(refresh)) throw this.#recusada()
     const novoRefresh = randomBytes(BYTES_DO_REFRESH).toString('base64url')
     const decisao = await this.#noBanco(() => this.#decidir(hashDoRefresh(refresh), hashDoRefresh(novoRefresh)))
@@ -89,7 +89,7 @@ export class SessaoDoOperadorService {
   }
 
   async sair(origem: OrigemDaSessaoDoOperador): Promise<readonly string[]> {
-    const refresh = lerCookie(origem.cabecalhoCookie, COOKIE_SESSAO_DE_OPERADOR)
+    const refresh = readCookie(origem.cabecalhoCookie, COOKIE_SESSAO_DE_OPERADOR)
     if (refresh !== undefined && FORMATO_DO_REFRESH.test(refresh)) {
       await this.#noBanco(() =>
         this.dependencias.banco.transaction(async (tx) => {

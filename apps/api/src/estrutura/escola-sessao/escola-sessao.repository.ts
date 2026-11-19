@@ -18,7 +18,7 @@ export class EscolaSessaoRepository {
    * é `FOR NO KEY UPDATE`, que não conflita com o `FOR KEY SHARE` das FKs: o login e a renovação da escola, que gravam
    * sessão, registro de acesso e auditoria com FK para ela, não esperam por esta transação.
    */
-  async lerParaAlterar(): Promise<InatividadeDaEscola | undefined> {
+  async findParaAlterar(): Promise<InatividadeDaEscola | undefined> {
     const [linha] = await this.tx
       .select({ inatividadeAlunoMin: escola.inatividadeAlunoMin, inatividadeEquipeMin: escola.inatividadeEquipeMin })
       .from(escola)
@@ -27,7 +27,7 @@ export class EscolaSessaoRepository {
     return linha
   }
 
-  async alterar(valores: InatividadeDaEscola): Promise<InatividadeDaEscola | undefined> {
+  async update(valores: InatividadeDaEscola): Promise<InatividadeDaEscola | undefined> {
     const [linha] = await this.tx
       .update(escola)
       .set({ inatividadeAlunoMin: valores.inatividadeAlunoMin, inatividadeEquipeMin: valores.inatividadeEquipeMin })

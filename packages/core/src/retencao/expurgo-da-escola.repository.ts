@@ -474,7 +474,7 @@ export class ExpurgoDaEscolaRepository {
    * para a noite seguinte; o `update` repete `estado = 'na_fila'`, e a que o job fechou entre a escolha e a escrita não é tocada.
    * Devolve quantas fechou.
    */
-  async fecharImportacoesParadas(agora: Date): Promise<number> {
+  async closeImportacoesParadas(agora: Date): Promise<number> {
     const escolaId = requireEscolaId()
     const resultado = await this.banco.execute(sql`
       update importacao_planilha
@@ -498,7 +498,7 @@ export class ExpurgoDaEscolaRepository {
    * a noite seguinte, e dois jobs da escola levam linhas diferentes. A escola entra uma vez só, na seleção; o `update` junta
    * pelo id da linha escolhida. Devolve quantos fechou.
    */
-  async fecharEnviosParados(agora: Date): Promise<number> {
+  async closeEnviosParados(agora: Date): Promise<number> {
     const resultado = await this.banco.execute(sql`
       with parados as (
         select id from convite

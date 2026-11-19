@@ -232,7 +232,7 @@ export function partesDoEncaminhamento(texto: string): readonly (readonly ParteD
 }
 
 /** A mensagem já traz o telefone? Se não traz, a tela acrescenta a linha dele. */
-export function temTelefone(paragrafos: readonly (readonly ParteDoEncaminhamento[])[]): boolean {
+export function hasTelefone(paragrafos: readonly (readonly ParteDoEncaminhamento[])[]): boolean {
   return paragrafos.some((paragrafo) => paragrafo.some((parte) => parte.tipo === 'telefone'))
 }
 

@@ -22,7 +22,7 @@ import {
   falhaDoRefazerConviteDeProfessor,
   FAMILIA_DO_ESTADO_DO_PROFESSOR,
   pedidoDeProfessor,
-  temHomonimo,
+  hasHomonimo,
   TEXTO_DA_VALIDADE_DO_CONVITE,
   TEXTO_DO_ESTADO_DO_PROFESSOR,
   TEXTO_DO_LINK_UMA_VEZ,
@@ -32,7 +32,7 @@ import {
 import { DialogoDeAlocacao } from '../estrutura/Alocacao'
 import { DialogoDeCorrigirEmail } from './DialogoDeCorrigirEmail'
 import { DialogoDeEnviarConvites } from './DialogoDeEnviarConvites'
-import { haEnvioEmAberto, iniciarReleituraDoEnvio, professoresQueEsperamOConvite, rotuloDoEnvio, textoDoEnvioEmLote, textoDoReenvio } from './envio-do-convite'
+import { haEnvioEmAberto, startReleituraDoEnvio, professoresQueEsperamOConvite, rotuloDoEnvio, textoDoEnvioEmLote, textoDoReenvio } from './envio-do-convite'
 import { enderecoComParametro } from '../comum/endereco-da-tela'
 import { textoDaListaCurta } from '../estrutura/lista-curta'
 import { useFocusPageHeading } from '../comum/moldura'
@@ -132,7 +132,7 @@ export default function Professores() {
   const vinculos = useQuery({ ...vinculosQueryOptions, enabled: anos.data?.itens.some((ano) => ano.situacao === 'em_curso') === true })
   const dialogo = useDialogState<TipoDeDialogo, ProfessorDaLinha>()
   const aberta = dialogo.aberta
-  const fechar = dialogo.fechar
+  const fechar = dialogo.close
   // O professor da linha, fotografado na abertura: os diálogos de refazer e de revogar só existem com ele.
   const alvo = aberta?.alvo
   // O anúncio é de um professor só: o painel de outro não repete o que a coordenação fez com este.
@@ -165,7 +165,7 @@ export default function Professores() {
   // A lista se relê a cada 5 s enquanto há e-mail por sair, só com a aba à vista, e para depois de 5 minutos. Não cancela a leitura que uma ação pediu.
   useEffect(() => {
     if (!haEnvio) return undefined
-    return iniciarReleituraDoEnvio({
+    return startReleituraDoEnvio({
       reler: () => void cliente.refetchQueries({ queryKey: professoresQueryOptions.queryKey, exact: true }, { cancelRefetch: false }),
       haEnvio: () => haEnvioAgora.current,
       visivel: () => document.visibilityState === 'visible',
@@ -194,21 +194,21 @@ export default function Professores() {
   }, [painelAberto])
 
   /** Abrir um diálogo apaga o anúncio da ação anterior: o que ele dizia já não é o que a pessoa está fazendo. */
-  function abrir(tipo: TipoDeDialogo, professor?: ProfessorDaLinha): void {
+  function open(tipo: TipoDeDialogo, professor?: ProfessorDaLinha): void {
     definirAnuncio(undefined)
-    dialogo.abrir(tipo, professor)
+    dialogo.open(tipo, professor)
   }
 
-  const abrirPainel = (usuarioId: string): void => navegar(enderecoComParametro(caminho, busca, PROFESSOR_PARAM, usuarioId))
-  const fecharPainel = (): void => navegar(enderecoComParametro(caminho, busca, PROFESSOR_PARAM, undefined), { replace: true })
+  const openPainel = (usuarioId: string): void => navegar(enderecoComParametro(caminho, busca, PROFESSOR_PARAM, usuarioId))
+  const closePainel = (): void => navegar(enderecoComParametro(caminho, busca, PROFESSOR_PARAM, undefined), { replace: true })
   // A planilha ao lado: abrir é um passo no histórico, e fechar troca o endereço, como o painel do professor.
-  const abrirImportacao = (): void => navegar(enderecoComParametro(caminho, busca, 'painel', 'importar'))
-  const fecharImportacao = (): void => navegar(enderecoComParametro(caminho, busca, 'painel', undefined), { replace: true })
+  const openImportacao = (): void => navegar(enderecoComParametro(caminho, busca, 'painel', 'importar'))
+  const closeImportacao = (): void => navegar(enderecoComParametro(caminho, busca, 'painel', undefined), { replace: true })
 
   const erroDaLeitura = <ErrorState erro={professores.error} tentando={professores.isFetching} aoTentarDeNovo={() => void professores.refetch({ cancelRefetch: false })} />
   // Os anos ou os vínculos que não vieram: a tabela continua com o que tem, e o aviso diz por que as células de turma e disciplina estão em "—".
   const turmasComFalha = anos.isError || vinculos.isError
-  const lerTurmasDeNovo = () => void (anos.isError ? anos : vinculos).refetch({ cancelRefetch: false })
+  const refetchTurmas = () => void (anos.isError ? anos : vinculos).refetch({ cancelRefetch: false })
   const lendoTurmas = anos.isFetching || vinculos.isFetching
   // O professor do diálogo "Acrescentar turma" como a lista de agora o tem, e não como foi fotografado na abertura: o convite que
   // venceu com o diálogo aberto tira o envio.
@@ -233,10 +233,10 @@ export default function Professores() {
             <EmptyState
               titulo="Nenhum professor ainda"
               descricao="Cadastre cada professor com o nome e o e-mail dele, ou importe a planilha da equipe. O link do convite aparece uma vez, para você copiar e mandar; a pessoa abre o link e cria a senha."
-              acao={{ rotulo: 'Cadastrar professor', aoAcionar: () => abrir('cadastrar') }}
+              acao={{ rotulo: 'Cadastrar professor', aoAcionar: () => open('cadastrar') }}
             />
             <div>
-              <button type="button" onClick={abrirImportacao} className={SECONDARY_BUTTON_CLASSES}>
+              <button type="button" onClick={openImportacao} className={SECONDARY_BUTTON_CLASSES}>
                 Importar professores
               </button>
             </div>
@@ -252,15 +252,15 @@ export default function Professores() {
               <p className="t-apoio text-sutil">{contagemDeProfessores(dados.itens.length)}</p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
-              <button type="button" onClick={abrirImportacao} className={SECONDARY_BUTTON_CLASSES}>
+              <button type="button" onClick={openImportacao} className={SECONDARY_BUTTON_CLASSES}>
                 Importar professores
               </button>
               {quemEspera.length > 0 && (
-                <button type="button" onClick={() => abrir('enviar')} className={SECONDARY_BUTTON_CLASSES}>
+                <button type="button" onClick={() => open('enviar')} className={SECONDARY_BUTTON_CLASSES}>
                   Enviar convites
                 </button>
               )}
-              <Button onClick={() => abrir('cadastrar')}>Cadastrar professor</Button>
+              <Button onClick={() => open('cadastrar')}>Cadastrar professor</Button>
             </div>
           </div>
           {professores.isError && erroDaLeitura}
@@ -268,7 +268,7 @@ export default function Professores() {
             <Alert
               tom="atencao"
               acao={
-                <Button variante="secundario" disabled={lendoTurmas} onClick={lerTurmasDeNovo}>
+                <Button variante="secundario" disabled={lendoTurmas} onClick={refetchTurmas}>
                   {lendoTurmas ? 'Tentando de novo…' : 'Tentar de novo'}
                 </Button>
               }
@@ -276,7 +276,7 @@ export default function Professores() {
               As turmas e as disciplinas dos professores não carregaram
             </Alert>
           )}
-          <Table rotulo="Professores da escola" colunas={colunasDosProfessores(abrirPainel)} linhas={professoresDaTabela(dados.itens, vinculos.data)} chaveDaLinha={(linha) => linha.professor.usuarioId} />
+          <Table rotulo="Professores da escola" colunas={colunasDosProfessores(openPainel)} linhas={professoresDaTabela(dados.itens, vinculos.data)} chaveDaLinha={(linha) => linha.professor.usuarioId} />
           <AvisoDeListaIncompleta completa={dados.completa} />
         </>
       )}
@@ -285,12 +285,12 @@ export default function Professores() {
         <PainelDoProfessor
           key={doPainel.usuarioId}
           professor={doPainel}
-          aoFechar={fecharPainel}
-          aoRefazer={() => abrir('refazer', doPainel)}
-          aoReenviar={() => abrir('reenviar', doPainel)}
-          aoCorrigirEmail={() => abrir('corrigir_email', doPainel)}
-          aoRevogar={() => abrir('revogar', doPainel)}
-          aoAcrescentar={() => abrir('acrescentar', doPainel)}
+          aoFechar={closePainel}
+          aoRefazer={() => open('refazer', doPainel)}
+          aoReenviar={() => open('reenviar', doPainel)}
+          aoCorrigirEmail={() => open('corrigir_email', doPainel)}
+          aoRevogar={() => open('revogar', doPainel)}
+          aoAcrescentar={() => open('acrescentar', doPainel)}
           anuncio={anuncio?.usuarioId === doPainel.usuarioId ? anuncio.texto : ''}
           tituloDaSituacao={tituloDaSituacao}
           tituloDasTurmas={tituloDasTurmas}
@@ -299,7 +299,7 @@ export default function Professores() {
       )}
 
       {/* A planilha fica fora dos estados da lista: a lista que recarrega, ou cai, não remonta a prévia que a coordenação está conferindo. */}
-      {importando && <PainelDaImportacaoDeProfessores aoConcluir={recarregarAEstrutura} aoFechar={fecharImportacao} focoDeReserva={focarNaLista} />}
+      {importando && <PainelDaImportacaoDeProfessores aoConcluir={recarregarAEstrutura} aoFechar={closeImportacao} focoDeReserva={focarNaLista} />}
 
       {/* O cadastro e o refazer não fecham sozinhos: a resposta deles só preenche o diálogo que a pediu. */}
       {aberta?.tipo === 'cadastrar' && (
@@ -309,14 +309,14 @@ export default function Professores() {
           titulo="Cadastrar professor"
           apresentacao="O nome e o e-mail com que a pessoa vai entrar. Você copia o link do convite e manda a ela, que cria a senha ao abrir."
           rotulos={{ nome: 'Nome do professor', email: 'E-mail do professor' }}
-          validar={pedidoDeProfessor}
+          validate={pedidoDeProfessor}
           tituloDaRevisao="Confira antes de cadastrar"
           resumo={(pedido) => [
             { rotulo: 'Nome do professor', valor: pedido.nome },
             { rotulo: 'E-mail', valor: pedido.email },
           ]}
           avisos={[TEXTO_DA_VALIDADE_DO_CONVITE, TEXTO_DO_LINK_UMA_VEZ]}
-          avisosDoPedido={(pedido) => (temHomonimo(dados?.itens ?? [], pedido.nome) ? [TEXTO_DO_NOME_REPETIDO] : [])}
+          avisosDoPedido={(pedido) => (hasHomonimo(dados?.itens ?? [], pedido.nome) ? [TEXTO_DO_NOME_REPETIDO] : [])}
           acao={{ confirmar: 'Cadastrar e gerar o link', confirmando: 'Cadastrando…', anuncio: 'Cadastrando o professor…' }}
           // A lista muda, dê certo ou não. As opções são as de `api/professores.ts`, sem nada por cima: é lá que o
           // `gcTime: 0` tira o token do cache.
@@ -363,7 +363,7 @@ export default function Professores() {
           estadoAgora={alvoAgora?.estado}
           mutacao={mutacaoDaCorrecaoDoEmail(alvo.usuarioId, recarregar)}
           // O link mostrado deixa de valer: "Enviar por e-mail" fecha este diálogo e abre o do "Reenviar" deste professor, que diz isso.
-          aoEnviarPorEmail={() => abrir('reenviar', alvo)}
+          aoEnviarPorEmail={() => open('reenviar', alvo)}
           aoFechar={fechar}
           focoDeReserva={focarNoPainel}
         />
@@ -405,7 +405,7 @@ export default function Professores() {
           aoFechar={fechar}
           aoConcluir={() => {
             definirAnuncio({ usuarioId: alvo.usuarioId, texto: `Convite de ${alvo.nome} revogado.` })
-            dialogo.fecharSeAinda(aberta)
+            dialogo.closeSeAinda(aberta)
           }}
           aoTerminar={recarregar}
           textosDaFalha={TEXTOS_DO_CONVITE_QUE_MUDOU}
@@ -420,7 +420,7 @@ export default function Professores() {
           aoFechar={fechar}
           aoAlocar={(texto) => {
             definirAnuncio({ usuarioId: alvo.usuarioId, texto })
-            dialogo.fecharSeAinda(aberta)
+            dialogo.closeSeAinda(aberta)
           }}
           recarregar={recarregarAEstrutura}
           focoDeReserva={focarNasTurmas}

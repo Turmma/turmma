@@ -25,7 +25,7 @@ type Escolha = (typeof ESCOLHA_DE_AVALIATIVA)[number]['valor']
  * A atividade pode ir para a turma? Só a atividade objetiva; a versão adaptada, só depois de aprovada (regra 70, item
  * 3: o banco também recusa); e não enquanto ela já está aberta para a turma.
  */
-export function podeAplicar(artefato: Pick<ArtefatoResponse, 'tipo' | 'entrega'>, aplicadas: readonly Pick<AtividadeAplicada, 'estado'>[]): boolean {
+export function canAplicar(artefato: Pick<ArtefatoResponse, 'tipo' | 'entrega'>, aplicadas: readonly Pick<AtividadeAplicada, 'estado'>[]): boolean {
   if (artefato.tipo !== 'atividade_objetiva') return false
   if (artefato.entrega !== null && artefato.entrega.estado !== 'aprovada') return false
   return !aplicadas.some((aplicada) => aplicada.estado === 'aberta')
@@ -61,20 +61,20 @@ export function AplicacaoDoArtefato({ artefato, nomeDaTurma }: PropsDaAplicacao)
   const idDaEscolha = useId()
 
   const aplicadas = (atividades.data?.itens ?? []).filter((aplicada) => aplicada.artefatoId === artefato.id)
-  const fechar = () => definirAplicando(false)
+  const close = () => definirAplicando(false)
   const aplicar = useMutation({
     mutationFn: (avaliativa: boolean) => aplicarAtividade({ artefatoId: artefato.id, turmaId: artefato.turmaId, avaliativa }),
     onSuccess: async () => {
       recarregarAtividades(cliente)
       await cliente.invalidateQueries({ queryKey: atividadesAplicadasQueryOptions(artefato.turmaId).queryKey })
-      fechar()
+      close()
     },
     onSettled: () => (decidindo.current = false),
   })
   // Encerrar de novo uma atividade que já está encerrada (a correção que não nasceu): sem confirmação, porque nada muda para os alunos.
   const { corrigirDeNovo, aviso, falha: falhaDaCorrecao, corrigindo } = useCorrigirDeNovo(artefato.turmaId)
 
-  function abrirAplicar(): void {
+  function openAplicar(): void {
     aplicar.reset()
     definirEscolha(undefined)
     definirTentou(false)
@@ -90,7 +90,7 @@ export function AplicacaoDoArtefato({ artefato, nomeDaTurma }: PropsDaAplicacao)
   }
 
   const turma = nomeDaTurma ?? 'Turma da atividade'
-  const aplicavel = atividades.data !== undefined && podeAplicar(artefato, aplicadas)
+  const aplicavel = atividades.data !== undefined && canAplicar(artefato, aplicadas)
   // A versão adaptada que ainda não foi aprovada não vai à turma: a tela diz por quê, em vez de oferecer um botão que a API recusa.
   const esperaAprovacao = artefato.tipo === 'atividade_objetiva' && artefato.entrega !== null && artefato.entrega.estado === 'pendente'
   if (artefato.tipo !== 'atividade_objetiva') return null
@@ -104,7 +104,7 @@ export function AplicacaoDoArtefato({ artefato, nomeDaTurma }: PropsDaAplicacao)
         {...(atividades.data === undefined ? {} : { apoio: aplicadas.length === 0 ? 'Esta atividade ainda não foi aplicada.' : 'Atribuída à turma.' })}
         acao={
           aplicavel ? (
-            <Button variante="oficial" onClick={abrirAplicar}>
+            <Button variante="oficial" onClick={openAplicar}>
               Aplicar à turma
             </Button>
           ) : undefined
@@ -182,7 +182,7 @@ export function AplicacaoDoArtefato({ artefato, nomeDaTurma }: PropsDaAplicacao)
           rotuloDeConfirmar="Aplicar à turma"
           rotuloConfirmando="Aplicando…"
           aoConfirmar={confirmarAplicar}
-          aoFechar={fechar}
+          aoFechar={close}
           confirmando={aplicar.isPending}
           focoDeReserva={() => secao.current?.focus()}
           {...(aplicar.isError ? { falha: errorText(aplicar.error, TEXTOS_DA_APLICACAO) } : {})}

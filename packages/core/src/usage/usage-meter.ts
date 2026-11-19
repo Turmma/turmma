@@ -99,7 +99,7 @@ export class UsageMeter {
    * não entra. Chave que sumiu entre o `SCAN` e o `GET` (outra consolidação a apagou) é ignorada.
    */
   @Unscoped(JUSTIFICATIVA_LEITURA)
-  async lerDiasFechados(hoje: string): Promise<DailyCount[]> {
+  async readDiasFechados(hoje: string): Promise<DailyCount[]> {
     const chaves: Array<{ chave: string; escolaId: string; dia: string; metrica: UsageMetric }> = []
     const vistas = new Set<string>()
     let cursor = '0'
@@ -138,7 +138,7 @@ export class UsageMeter {
    * Depois de gravar no banco, apaga o contador do dia da escola do contexto, se ele ainda tem o
    * valor gravado. Devolve `true` se apagou.
    */
-  async apagarConsolidado(dia: string, metrica: UsageMetric, valorGravado: number): Promise<boolean> {
+  async deleteConsolidado(dia: string, metrica: UsageMetric, valorGravado: number): Promise<boolean> {
     const escolaId = currentContext()?.escolaId
     if (escolaId === undefined) throw new InvariantException('contador de uso sem escola no contexto')
     const apagadas = await this.redis.eval(APAGAR_SE_IGUAL, 1, this.chave(dia, escolaId, metrica), String(valorGravado))

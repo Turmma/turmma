@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto'
 export const BYTES_DO_REFRESH = 32
 
 /** O e-mail como a conta o guarda (`citext`): sem espaço nas pontas e sem diferença de caixa. */
-export function normalizarEmail(email: string): string {
+export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase()
 }
 

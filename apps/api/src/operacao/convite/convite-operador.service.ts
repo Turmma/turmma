@@ -10,9 +10,9 @@ const conviteInvalido = () => new DomainException(ErrorCode.NAO_ENCONTRADO)
 
 export interface ConviteDeOperadorDependencies {
   readonly banco: Database
-  readonly hash: Pick<PasswordHasher, 'gerar'>
+  readonly hash: Pick<PasswordHasher, 'generate'>
   /** O semáforo do hash do F1, o mesmo do login: o argon2 do aceite divide o teto de CPU da instância com ele. */
-  readonly semaforo: Pick<HashBulkhead, 'executar'>
+  readonly semaforo: Pick<HashBulkhead, 'run'>
   readonly emissorDeDesafio: Pick<OperadorChallengeIssuer, 'emitir'>
 }
 
@@ -39,7 +39,7 @@ export interface OrigemDoAceite {
 export class ConviteDeOperadorService {
   constructor(private readonly dependencias: ConviteDeOperadorDependencies) {}
 
-  async consultar(token: string): Promise<ConsultarConviteDeOperadorResponse> {
+  async find(token: string): Promise<ConsultarConviteDeOperadorResponse> {
     const valido = await new OperadorRepository(this.dependencias.banco).conviteValidoPorHash(hashDoTokenDeConvite(token))
     if (valido === undefined) throw conviteInvalido()
     return { valido: true }
@@ -49,7 +49,7 @@ export class ConviteDeOperadorService {
     const { banco, hash, semaforo, emissorDeDesafio } = this.dependencias
     const valido = await new OperadorRepository(banco).conviteValidoPorHash(hashDoTokenDeConvite(pedido.token))
     if (valido === undefined) throw conviteInvalido()
-    const senhaHash = await semaforo.executar(equipeBucket(origem.ip, origem.acimaDoLimiteDoIp), () => hash.gerar(pedido.senha))
+    const senhaHash = await semaforo.run(equipeBucket(origem.ip, origem.acimaDoLimiteDoIp), () => hash.generate(pedido.senha))
     const aceito = await banco.transaction(async (tx) => {
       const repositorio = new OperadorRepository(tx)
       const apelido = await repositorio.aceitarConvite({ ...valido, senhaHash })

@@ -119,7 +119,7 @@ describe('o turno do Tutor acima do teto de entrada', () => {
   }
 
   const consulta = () => ({ funcao: 'tutor_com_o_aluno' as const, alunoId: a.aluno.usuarioId, turmaId: a.turma })
-  const consultarEm = (orcamento: OrcamentoDeIa) => runInContext({ requisicaoId: randomUUID(), escolaId: a.escolaId }, () => orcamento.consultar(consulta()))
+  const consultarEm = (orcamento: OrcamentoDeIa) => runInContext({ requisicaoId: randomUUID(), escolaId: a.escolaId }, () => orcamento.check(consulta()))
   const recusadasPorTeto = async (): Promise<number> =>
     (await medidor.pontos('ia.pedido_acima_do_teto')).filter((ponto) => ponto.atributos['tarefa'] === 'turno_do_tutor').reduce((soma, ponto) => soma + (typeof ponto.valor === 'number' ? ponto.valor : 0), 0)
 

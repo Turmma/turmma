@@ -167,7 +167,7 @@ function pendenciaDe(campo: FormFieldDef, mensagem: string): Pendencia {
  * campo, na ordem do formulário. Valor de chave que a descrição não tem é descartado, e opção fora da lista é recusada:
  * o que sai daqui só tem o que a ferramenta declarou.
  */
-export function validarFormulario(campos: readonly FormFieldDef[], valores: ValoresDoFormulario): ResultadoDaValidacao {
+export function validateFormulario(campos: readonly FormFieldDef[], valores: ValoresDoFormulario): ResultadoDaValidacao {
   const validados: Record<string, ValorDoCampo> = {}
   const pendencias: Pendencia[] = []
   for (const campo of campos) {

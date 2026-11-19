@@ -8,7 +8,7 @@ import {
   createDatabase,
   DONO_DAS_VAGAS_DO_SISTEMA,
   createQueueRedisClient,
-  criarEmailSender,
+  createEmailSender,
   LimiteDeEmailPorMinuto,
   SecretCipher,
   VERSAO_DA_CHAVE_DO_TOKEN_DE_EMAIL,
@@ -76,16 +76,16 @@ import { Queue, Worker } from 'bullmq'
 import { Redis } from 'ioredis'
 import { JOB_SCHEDULES, createScheduleProcessor, SCHEDULES_QUEUE, registerJobSchedulers, type JobSchedule } from './job-schedules.js'
 import type { StorageConfig, WorkerConfig } from './config.js'
-import { criarAgendamentoDaClassificacao, criarRotinaDaClassificacao } from './processors/agendar-classificacao.js'
-import { criarConsolidacaoDeUso } from './processors/consolidar-uso.js'
-import { criarEnvioDoConvite, criarEnvioDoLinkDaConta, criarEnvios, type EnviosDoEmail } from './processors/enviar-email.js'
-import { criarExpurgoDeAcesso } from './processors/expurgar-acesso.js'
-import { criarExpurgoDeJobs } from './processors/expurgar-jobs.js'
-import { criarRotinaDeExpurgo } from './processors/expurgar-dado-pessoal.js'
-import { criarEliminacaoDoTitular } from './processors/eliminar-titular.js'
-import { criarExpurgoDaEscola } from './processors/expurgar-escola.js'
-import { criarExtracaoDoPdf } from './processors/extrair-pdf.js'
-import { criarVarreduraDeTemporarios } from './processors/varrer-envios.js'
+import { createAgendamentoDaClassificacao, createRotinaDaClassificacao } from './processors/agendar-classificacao.js'
+import { createConsolidacaoDeUso } from './processors/consolidar-uso.js'
+import { createEnvioDoConvite, createEnvioDoLinkDaConta, createEnvios, type EnviosDoEmail } from './processors/enviar-email.js'
+import { createExpurgoDeAcesso } from './processors/expurgar-acesso.js'
+import { createExpurgoDeJobs } from './processors/expurgar-jobs.js'
+import { createRotinaDeExpurgo } from './processors/expurgar-dado-pessoal.js'
+import { createEliminacaoDoTitular } from './processors/eliminar-titular.js'
+import { createExpurgoDaEscola } from './processors/expurgar-escola.js'
+import { createExtracaoDoPdf } from './processors/extrair-pdf.js'
+import { createVarreduraDeTemporarios } from './processors/varrer-envios.js'
 import { EliminacaoGauge } from './eliminacao-gauge.js'
 import { ArquivoGauge } from './arquivo-gauge.js'
 import { ClassificacaoGauge } from './classificacao-gauge.js'
@@ -93,10 +93,10 @@ import type { EscolaGauge } from './escola-gauge.js'
 import { ImportacaoGauge } from './importacao-gauge.js'
 import { ExpurgoGauge } from './expurgo-gauge.js'
 import { IncidenteGauge } from './incidente-gauge.js'
-import { criarGravacaoDaPlanilha } from './processors/gravar-planilha.js'
-import { criarMontagemDoArquivo } from './processors/montar-arquivo.js'
+import { createGravacaoDaPlanilha } from './processors/gravar-planilha.js'
+import { createMontagemDoArquivo } from './processors/montar-arquivo.js'
 import { createSyntheticProcessor, CpuSandbox, type CpuBurner } from './processors/synthetic.js'
-import { criarClienteS3, StorageSizeReader } from './storage/storage-size-reader.js'
+import { createClienteS3, StorageSizeReader } from './storage/storage-size-reader.js'
 
 /**
  * Quanto o SIGTERM espera os jobs em andamento terminarem antes de fechar à força (Tech Spec, seção 5; R55). O
@@ -176,7 +176,7 @@ export function createWorker(config: Omit<WorkerConfig, 'telemetria'>, logger: L
   const aguardandoVaga = medidor?.createCounter(METRICS.aguardandoVaga, { description: 'Jobs que chegaram ao worker sem vaga e voltaram a esperar' })
   const stalled = medidor?.createCounter(METRICS.jobsStalled, { description: 'Jobs devolvidos à espera por lock vencido' })
   // O armazém do arquivo do titular (F3, tarefa 13.0): a réplica da fila normal grava o JSON, e a do lote apaga o vencido.
-  const armazemS3 = config.storage === undefined ? undefined : S3FileStorage.criar(config.storage)
+  const armazemS3 = config.storage === undefined ? undefined : S3FileStorage.create(config.storage)
   const sandbox = new CpuSandbox(config.threadsMaximo)
   const repositorio = new JobOutboxRepository(banco)
   // Banco fora: o despachante acorda pela sondagem, e só.
@@ -228,7 +228,7 @@ export function createWorker(config: Omit<WorkerConfig, 'telemetria'>, logger: L
     workers.set(fila, worker)
   }
 
-  const agendamentos = rotinas === undefined ? undefined : montarAgendamentos(redis, banco, logger, opcoes.prefixo, opcoes.agendamentos ?? JOB_SCHEDULES)
+  const agendamentos = rotinas === undefined ? undefined : buildAgendamentos(redis, banco, logger, opcoes.prefixo, opcoes.agendamentos ?? JOB_SCHEDULES)
 
   const batimento = opcoes.batimento
   const pulso = batimento === undefined ? undefined : setInterval(() => batimento.bater(), INTERVALO_BATIMENTO_MS)
@@ -281,7 +281,7 @@ export interface ProcessorParts {
   medidor: Meter | undefined
   /** O sandbox de CPU do job sintético. */
   cpu: CpuBurner
-  efeitos: Pick<SyntheticEffectRepository, 'gravar'>
+  efeitos: Pick<SyntheticEffectRepository, 'save'>
   /** O armazém do storage; sem credencial de storage (`config.storage`), não há. */
   armazem: FileStorage | undefined
   /** O e-mail do convite; só a réplica que atende a fila `normal` o recebe (`config.email`). */
@@ -338,8 +338,8 @@ export function pecasDoEmail(config: Pick<WorkerConfig, 'email'>, banco?: Databa
   const { email } = config
   if (email === undefined || banco === undefined || fila === undefined) return undefined
   return {
-    envios: criarEnvios(banco),
-    emissor: criarEmailSender(email),
+    envios: createEnvios(banco),
+    emissor: createEmailSender(email),
     cifra: new SecretCipher(VERSAO_DA_CHAVE_DO_TOKEN_DE_EMAIL, new Map([[VERSAO_DA_CHAVE_DO_TOKEN_DE_EMAIL, email.chaveDoToken]])),
     limite: new LimiteDeEmailPorMinuto(fila.redis, email.porMinuto, { prefixo: fila.prefixo }),
     urlDaWeb: email.urlDaWeb,
@@ -353,7 +353,7 @@ function processadoresDoSintetico(config: Pick<WorkerConfig, 'pools'>, { cpu, ef
 
 /** Os processadores da fila `pdf`: a extração do PDF do material, que lê o objeto do storage e o apaga (ingestao-do-material, tarefa 1.0). Sem armazém, nenhum. */
 function processadoresDaPdf({ banco, logger, medidor, armazem, extrator }: ProcessorParts): JobProcessors {
-  return armazem === undefined ? {} : { [TIPO_EXTRAIR_PDF]: criarExtracaoDoPdf({ banco, armazem, extrator: extrator ?? new PdfExtractor(), logger, medidor }) }
+  return armazem === undefined ? {} : { [TIPO_EXTRAIR_PDF]: createExtracaoDoPdf({ banco, armazem, extrator: extrator ?? new PdfExtractor(), logger, medidor }) }
 }
 
 /**
@@ -362,9 +362,9 @@ function processadoresDaPdf({ banco, logger, medidor, armazem, extrator }: Proce
  */
 function processadoresDaNormal({ banco, relogio, logger, medidor, armazem, email }: ProcessorParts): JobProcessors {
   return {
-    ...(email === undefined ? {} : { [TIPO_ENVIAR_CONVITE]: criarEnvioDoConvite({ ...email, logger, medidor }), [TIPO_ENVIAR_EMAIL_DA_CONTA]: criarEnvioDoLinkDaConta({ ...email, logger, medidor }) }),
-    ...(armazem === undefined ? {} : { [TIPO_MONTAR_ARQUIVO]: criarMontagemDoArquivo({ banco, armazem, relogio, logger }) }),
-    [TIPO_GRAVAR_PLANILHA]: criarGravacaoDaPlanilha({ banco, logger, ...(medidor === undefined ? {} : { medidor }) }),
+    ...(email === undefined ? {} : { [TIPO_ENVIAR_CONVITE]: createEnvioDoConvite({ ...email, logger, medidor }), [TIPO_ENVIAR_EMAIL_DA_CONTA]: createEnvioDoLinkDaConta({ ...email, logger, medidor }) }),
+    ...(armazem === undefined ? {} : { [TIPO_MONTAR_ARQUIVO]: createMontagemDoArquivo({ banco, armazem, relogio, logger }) }),
+    [TIPO_GRAVAR_PLANILHA]: createGravacaoDaPlanilha({ banco, logger, ...(medidor === undefined ? {} : { medidor }) }),
   }
 }
 
@@ -372,11 +372,11 @@ function processadoresDaNormal({ banco, relogio, logger, medidor, armazem, email
  * Liga a medição dos minutos da importação de planilha na fila (F2, tarefa 5.0) e devolve como encerrá-la. Sem medidor não há o que
  * medir, e o encerrar não faz nada. Fica fora de `createRoutines` para a catraca de complexidade dela não subir.
  */
-function iniciarMedicaoDaImportacao(dependencias: { escolas: CronEscolasRepository; banco: Database; relogio: Clock; logger: LoggerBase; medidor: Meter | undefined }): () => Promise<void> {
+function startMedicaoDaImportacao(dependencias: { escolas: CronEscolasRepository; banco: Database; relogio: Clock; logger: LoggerBase; medidor: Meter | undefined }): () => Promise<void> {
   const { escolas, banco, relogio, logger, medidor } = dependencias
   if (medidor === undefined) return () => Promise.resolve()
   const medicao = new ImportacaoGauge({ escolas, repositorio: new ImportacaoRepository(banco), relogio, logger, medidor })
-  medicao.iniciar()
+  medicao.start()
   return () => medicao.encerrar()
 }
 
@@ -396,7 +396,7 @@ interface MedicoesPorEscolaDependencies {
  * As medições por escola que os alertas leem (as noites do expurgo, o incidente sem confirmação, o arquivo do titular, a eliminação e a classificação do material atrasada): sobem com o worker-lote, medem a cada
  * volta e param com ele. Sem medidor não há medição. Devolve o que as encerra, uma depois da outra.
  */
-function iniciarMedicoesPorEscola({ escolas, banco, expurgoDaEscola, arquivos, janelaDaEscola, relogio, logger, medidor }: MedicoesPorEscolaDependencies): () => Promise<void> {
+function startMedicoesPorEscola({ escolas, banco, expurgoDaEscola, arquivos, janelaDaEscola, relogio, logger, medidor }: MedicoesPorEscolaDependencies): () => Promise<void> {
   const medicoes: EscolaGauge[] =
     medidor === undefined
       ? []
@@ -407,7 +407,7 @@ function iniciarMedicoesPorEscola({ escolas, banco, expurgoDaEscola, arquivos, j
           new EliminacaoGauge({ escolas, repositorio: expurgoDaEscola, relogio, logger, medidor }),
           new ClassificacaoGauge({ escolas, repositorio: new ClassificacaoAtrasadaRepository(banco), janelaDaEscola, relogio, logger, medidor }),
         ]
-  for (const medicao of medicoes) medicao.iniciar()
+  for (const medicao of medicoes) medicao.start()
   return async () => {
     for (const medicao of medicoes) await medicao.encerrar()
   }
@@ -429,7 +429,7 @@ function createRoutines(
   medidor: Meter | undefined,
   armazem: FileStorage,
 ): { processadores: JobProcessors; encerrar(): Promise<void> } {
-  const s3 = criarClienteS3(storage)
+  const s3 = createClienteS3(storage)
   const avisarJanelaDescartada = throttledWarn(() => logger.warn({ evento: 'worker.janela_da_escola_invalida' }))
   // O horário letivo da escola, lido como o despachante lê: o lote não urgente que ele soltou fora da janela para quando ela abre.
   const janelaDaEscola = new OperationalSettings<JanelaLetiva>(new OperationalSettingsRepository(banco), (linha) => resolverJanela(janelaPadrao, linha, avisarJanelaDescartada), {
@@ -438,11 +438,11 @@ function createRoutines(
   const escolas = new CronEscolasRepository(banco)
   const expurgoDaEscola = new ExpurgoDaEscolaRepository(banco)
   const arquivos = new ArquivoDoTitularRepository(banco)
-  const encerrarMedicoes = iniciarMedicoesPorEscola({ escolas, banco, expurgoDaEscola, arquivos, janelaDaEscola, relogio, logger, medidor })
-  const encerrarMedicaoDaImportacao = iniciarMedicaoDaImportacao({ escolas, banco, relogio, logger, medidor })
+  const encerrarMedicoes = startMedicoesPorEscola({ escolas, banco, expurgoDaEscola, arquivos, janelaDaEscola, relogio, logger, medidor })
+  const encerrarMedicaoDaImportacao = startMedicaoDaImportacao({ escolas, banco, relogio, logger, medidor })
   return {
     processadores: {
-      [TIPO_CONSOLIDAR_USO]: criarConsolidacaoDeUso({
+      [TIPO_CONSOLIDAR_USO]: createConsolidacaoDeUso({
         contador,
         repositorio: new UsageRepository(banco),
         storage: new StorageSizeReader(s3, storage.bucket),
@@ -450,12 +450,12 @@ function createRoutines(
         logger,
         ...(medidor === undefined ? {} : { medidor }),
       }),
-      [TIPO_EXPURGAR_JOBS]: criarExpurgoDeJobs({ repositorio: new ExpurgoDeJobsRepository(banco), logger }),
-      [TIPO_EXPURGAR_ACESSO]: criarExpurgoDeAcesso({ repositorio: new ExpurgoDeAcessoRepository(banco), relogio, logger }),
-      [TIPO_EXPURGAR_DADO_PESSOAL]: criarRotinaDeExpurgo({ escolas, banco, enfileirador: new JobOutbox(new JobOutboxRepository(banco)), janelaDaEscola, relogio, logger }),
-      [TIPO_AGENDAR_CLASSIFICACAO_DAS_ESCOLAS]: criarRotinaDaClassificacao({ escolas, banco, enfileirador: new JobOutbox(new JobOutboxRepository(banco)), janelaDaEscola, relogio, logger }),
-      [TIPO_AGENDAR_CLASSIFICACAO]: criarAgendamentoDaClassificacao({ banco, enfileirador: new JobOutbox(new JobOutboxRepository(banco)), logger }),
-      [TIPO_EXPURGAR_ESCOLA]: criarExpurgoDaEscola({
+      [TIPO_EXPURGAR_JOBS]: createExpurgoDeJobs({ repositorio: new ExpurgoDeJobsRepository(banco), logger }),
+      [TIPO_EXPURGAR_ACESSO]: createExpurgoDeAcesso({ repositorio: new ExpurgoDeAcessoRepository(banco), relogio, logger }),
+      [TIPO_EXPURGAR_DADO_PESSOAL]: createRotinaDeExpurgo({ escolas, banco, enfileirador: new JobOutbox(new JobOutboxRepository(banco)), janelaDaEscola, relogio, logger }),
+      [TIPO_AGENDAR_CLASSIFICACAO_DAS_ESCOLAS]: createRotinaDaClassificacao({ escolas, banco, enfileirador: new JobOutbox(new JobOutboxRepository(banco)), janelaDaEscola, relogio, logger }),
+      [TIPO_AGENDAR_CLASSIFICACAO]: createAgendamentoDaClassificacao({ banco, enfileirador: new JobOutbox(new JobOutboxRepository(banco)), logger }),
+      [TIPO_EXPURGAR_ESCOLA]: createExpurgoDaEscola({
         repositorio: expurgoDaEscola,
         arquivos,
         materiais: new ExtracaoDoMaterialRepository(banco),
@@ -466,8 +466,8 @@ function createRoutines(
         relogio,
         logger,
       }),
-      [TIPO_ELIMINAR_TITULAR]: criarEliminacaoDoTitular({ banco, janelaDaEscola, relogio, logger }),
-      [TIPO_VARRER_TEMPORARIOS_DE_MATERIAL]: criarVarreduraDeTemporarios({ banco, armazem, relogio, logger }),
+      [TIPO_ELIMINAR_TITULAR]: createEliminacaoDoTitular({ banco, janelaDaEscola, relogio, logger }),
+      [TIPO_VARRER_TEMPORARIOS_DE_MATERIAL]: createVarreduraDeTemporarios({ banco, armazem, relogio, logger }),
     },
     encerrar: async () => {
       await encerrarMedicoes()
@@ -482,7 +482,7 @@ function createRoutines(
  * `JobOutbox`. O registro dos agendadores não segura o boot: com o Redis de fila fora, ele espera a
  * conexão na fila offline do cliente do BullMQ e completa quando o Redis volta.
  */
-function montarAgendamentos(
+function buildAgendamentos(
   redis: Redis,
   banco: Database,
   logger: LoggerBase,

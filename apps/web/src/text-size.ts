@@ -45,7 +45,7 @@ function escolhaGuardada(): TextSize {
 }
 
 /** O que o aluno escolheu, ou Padrão quando ele não escolheu (ou quando o armazenamento não responde). */
-export function lerLetra(): TextSize {
+export function readLetra(): TextSize {
   return escolhaQueOArmazenamentoRecusou ?? escolhaGuardada()
 }
 
@@ -82,7 +82,7 @@ function aoMudarOArmazenamento(evento: StorageEvent): void {
  * vez por `main.tsx`, como o `initTheme`, e por isso este módulo mora na entrada e não vira pedaço dividido entre a área do
  * aluno e a galeria. Não lê nem escreve nada no armazenamento. Devolve a função que desliga, para o teste.
  */
-export function iniciarLetra(): () => void {
+export function startLetra(): () => void {
   window.addEventListener('storage', aoMudarOArmazenamento)
   return () => window.removeEventListener('storage', aoMudarOArmazenamento)
 }
@@ -96,7 +96,7 @@ function assinar(aoMudar: () => void): () => void {
 
 /** A letra de agora e como mudá-la, para a peça `TamanhoDaLetra`. Acompanha a mudança que vem de outra aba. */
 export function useTextSize(): { readonly letra: TextSize; readonly escolher: (letra: TextSize) => void } {
-  const letra = useSyncExternalStore(assinar, lerLetra, (): TextSize => 'padrao')
+  const letra = useSyncExternalStore(assinar, readLetra, (): TextSize => 'padrao')
   return { letra, escolher: escolherLetra }
 }
 

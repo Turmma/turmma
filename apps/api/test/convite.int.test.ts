@@ -15,10 +15,10 @@ import { lerAmbienteDeTeste } from '../../../tools/ci/compose.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { AppModule } from '../src/app.module.js'
 import { configureApp } from '../src/configure-app.js'
-import { executarOpsConviteCoordenador } from '../src/ops/convite-coordenador.js'
-import { executarOpsRevogarConvite } from '../src/ops/revogar-convite.js'
-import { REDIS_LOGIN_CLIENT, gerarSegredo, PasswordHasher } from '../src/credencial/index.js'
-import { criarConviteDeCoordenador } from '../src/sessao/index.js'
+import { runOpsConviteCoordenador } from '../src/ops/convite-coordenador.js'
+import { runOpsRevogarConvite } from '../src/ops/revogar-convite.js'
+import { REDIS_LOGIN_CLIENT, generateSegredo, PasswordHasher } from '../src/credencial/index.js'
+import { createConviteDeCoordenador } from '../src/sessao/index.js'
 import { anteciparODesativado, desativarDepoisDoUltimoAceite } from './relogio-que-recua.js'
 import { testConfig, TEST_APP_OPTIONS } from './test-config.js'
 import { SessaoFixtures } from './sessao.fixture.js'
@@ -100,14 +100,14 @@ describe('convite do primeiro coordenador: o operador gera, a pessoa consulta e 
   async function rodarConvite(argumentos: string[]): Promise<{ codigo: number; saida: string; erro: string }> {
     let saida = ''
     let erro = ''
-    const codigo = await executarOpsConviteCoordenador(argumentos, ambiente, { saida: (texto) => (saida += texto), erro: (texto) => (erro += texto) })
+    const codigo = await runOpsConviteCoordenador(argumentos, ambiente, { saida: (texto) => (saida += texto), erro: (texto) => (erro += texto) })
     return { codigo, saida, erro }
   }
 
   async function rodarRevogacao(conviteId: string): Promise<{ codigo: number; saida: string; erro: string }> {
     let saida = ''
     let erro = ''
-    const codigo = await executarOpsRevogarConvite(['--convite', conviteId], ambiente, { saida: (texto) => (saida += texto), erro: (texto) => (erro += texto) })
+    const codigo = await runOpsRevogarConvite(['--convite', conviteId], ambiente, { saida: (texto) => (saida += texto), erro: (texto) => (erro += texto) })
     return { codigo, saida, erro }
   }
 
@@ -134,7 +134,7 @@ describe('convite do primeiro coordenador: o operador gera, a pessoa consulta e 
 
   /** O convite pelo serviço que o comando chama, com o relógio escolhido: é como se ele tivesse sido gerado naquela hora. */
   async function convidarEm(escolaId: string, agora: Date, email = `convidada-${randomUUID()}@escola.invalid`): Promise<Convite> {
-    const { conviteId, token } = await criarConviteDeCoordenador(bancada.banco, async () => OPERADOR, { slug: await slugDe(escolaId), email, nome: NOME_DO_CONVIDADO }, { agora: () => agora })
+    const { conviteId, token } = await createConviteDeCoordenador(bancada.banco, async () => OPERADOR, { slug: await slugDe(escolaId), email, nome: NOME_DO_CONVIDADO }, { agora: () => agora })
     const alvo = await alvoDoConvite(conviteId)
     await anteciparODesativado(bancada.pool, alvo.usuarioId)
     return { conviteId, token, email, ...alvo }
@@ -196,13 +196,13 @@ describe('convite do primeiro coordenador: o operador gera, a pessoa consulta e 
    */
   async function coordenadoraDeB(escolaB: string): Promise<{ email: string; contaId: string; usuarioId: string; base32: string }> {
     const email = `coordenadora-b-${randomUUID()}@escola.invalid`
-    const { rows: contas } = await bancada.pool.query<{ id: string }>('insert into conta (email, senha_hash, email_verificado_em) values ($1, $2, now()) returning id', [email, await hash.gerar(SENHA_DE_B)])
+    const { rows: contas } = await bancada.pool.query<{ id: string }>('insert into conta (email, senha_hash, email_verificado_em) values ($1, $2, now()) returning id', [email, await hash.generate(SENHA_DE_B)])
     const contaId = contas[0]?.id ?? ''
     const { rows: usuarios } = await bancada.pool.query<{ id: string }>("insert into usuario (escola_id, conta_id, papel, nome) values ($1, $2, 'coordenador', 'Pessoa sintética') returning id", [
       escolaB,
       contaId,
     ])
-    const novo = gerarSegredo()
+    const novo = generateSegredo()
     const { cifrado, versao } = cifra.cifrar(novo.bytes, contaId)
     await bancada.pool.query('update conta set mfa_segredo_cifrado = $1, mfa_chave_versao = $2, mfa_ativado_em = now() where id = $3', [cifrado, versao, contaId])
     return { email, contaId, usuarioId: usuarios[0]?.id ?? '', base32: novo.base32 }
@@ -211,7 +211,7 @@ describe('convite do primeiro coordenador: o operador gera, a pessoa consulta e 
   /** A professora de B, com senha, sem MFA e com o e-mail verificado (7.0): ver `coordenadoraDeB`. */
   async function professoraDeB(escolaB: string): Promise<{ email: string; contaId: string; usuarioId: string }> {
     const email = `professora-b-${randomUUID()}@escola.invalid`
-    const { rows: contas } = await bancada.pool.query<{ id: string }>('insert into conta (email, senha_hash, email_verificado_em) values ($1, $2, now()) returning id', [email, await hash.gerar(SENHA_DE_B)])
+    const { rows: contas } = await bancada.pool.query<{ id: string }>('insert into conta (email, senha_hash, email_verificado_em) values ($1, $2, now()) returning id', [email, await hash.generate(SENHA_DE_B)])
     const contaId = contas[0]?.id ?? ''
     const { rows: usuarios } = await bancada.pool.query<{ id: string }>("insert into usuario (escola_id, conta_id, papel, nome) values ($1, $2, 'professor', 'Pessoa sintética') returning id", [
       escolaB,
@@ -246,7 +246,7 @@ describe('convite do primeiro coordenador: o operador gera, a pessoa consulta e 
     expect(aceite.setCookie).toEqual([])
     expect(await sessoesDaConta(convite.contaId)).toBe(0)
     expect(await usuarioAtivo(convite.usuarioId)).toBe(true)
-    expect(await hash.verificar(await senhaDaConta(convite.contaId), SENHA_NOVA)).toBe(true)
+    expect(await hash.verify(await senhaDaConta(convite.contaId), SENHA_NOVA)).toBe(true)
 
     // O desafio do aceite não vale como token de acesso; vale para configurar o MFA.
     const desafio = String(aceite.corpo['desafio'])
@@ -321,8 +321,8 @@ describe('convite do primeiro coordenador: o operador gera, a pessoa consulta e 
     expect(respostas[1 - vencedora]?.corpo.erro?.codigo).toBe(ErrorCode.NAO_ENCONTRADO)
 
     const senhaGravada = await senhaDaConta(convite.contaId)
-    expect(await hash.verificar(senhaGravada, senhas[vencedora] ?? '')).toBe(true)
-    expect(await hash.verificar(senhaGravada, senhas[1 - vencedora] ?? '')).toBe(false)
+    expect(await hash.verify(senhaGravada, senhas[vencedora] ?? '')).toBe(true)
+    expect(await hash.verify(senhaGravada, senhas[1 - vencedora] ?? '')).toBe(false)
     expect(await usuarioAtivo(convite.usuarioId)).toBe(true)
     expect((await auditoriaDoConvite(escolaId)).filter((linha) => linha['acao'] === 'convite.aceito')).toHaveLength(1)
   })
@@ -341,8 +341,8 @@ describe('convite do primeiro coordenador: o operador gera, a pessoa consulta e 
     const { rows: usadoDoPerdedor } = await bancada.pool.query<{ usado: boolean }>('select usado_em is not null as usado from convite where id = $1', [perdedor.conviteId])
     expect(usadoDoPerdedor).toEqual([{ usado: false }])
     const senhaGravada = await senhaDaConta(deA.contaId)
-    const valeA = await hash.verificar(senhaGravada, 'senha-escolhida-em-a-1')
-    const valeB = await hash.verificar(senhaGravada, 'senha-escolhida-em-b-2')
+    const valeA = await hash.verify(senhaGravada, 'senha-escolhida-em-a-1')
+    const valeB = await hash.verify(senhaGravada, 'senha-escolhida-em-b-2')
     expect([valeA, valeB].filter(Boolean)).toHaveLength(1)
     // Só o usuário da escola cuja senha ficou é ativado no aceite; o outro espera o login.
     expect(await usuarioAtivo(deA.usuarioId)).toBe(valeA)

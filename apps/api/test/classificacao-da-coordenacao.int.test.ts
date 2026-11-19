@@ -12,7 +12,7 @@ import {
   RECLASSIFICACOES_POR_USUARIO_NA_JANELA,
 } from '../src/material/material.service.js'
 import { SecoesRepository } from '../src/material/secoes.repository.js'
-import { executarOpsReclassificarEscola, reclassificarEscola } from '../src/ops/reclassificar-escola.js'
+import { runOpsReclassificarEscola, reclassificarEscola } from '../src/ops/reclassificar-escola.js'
 import { vincularProfessor } from './escola-assistente.fixture.js'
 import { montarEscolaComTurma, type EscolaComTurma } from './escola-turma.fixture.js'
 import { auditoriaDa } from './material.fixture.js'
@@ -403,7 +403,7 @@ describe('PUT da correção: final, auditada, e a ordem das respostas', () => {
     const execucaoId = await execucaoNaSecao(escola, secoes, 'rodando')
     expect((await corrigir(escola.base.coordenacao, materialId, corrigida, { codigos: [CODIGO_DO_6O] })).status).toBe(200)
 
-    const gravadas = await naEscola(escola.escolaId, () => bancoDaApi().transaction((tx) => new SecoesRepository(tx).gravarClassificacao(execucaoId, [{ secaoId: corrigida, codigos: ['EF06CI02'] }, { secaoId: outra, codigos: ['EF06CI03'] }])))
+    const gravadas = await naEscola(escola.escolaId, () => bancoDaApi().transaction((tx) => new SecoesRepository(tx).saveClassificacao(execucaoId, [{ secaoId: corrigida, codigos: ['EF06CI02'] }, { secaoId: outra, codigos: ['EF06CI03'] }])))
 
     expect(gravadas.map(({ secaoId }) => secaoId)).toEqual([outra])
     expect(await habilidadesDa(corrigida)).toEqual([{ codigo: CODIGO_DO_6O, origem: 'coordenacao' }])
@@ -648,7 +648,7 @@ describe('[P] corridas da correção e do reclassificar', () => {
     await parada.armar()
     let correcao: Promise<RespostaHttp>
     try {
-      const concluir = naEscola(escola.escolaId, () => bancoDaApi().transaction((tx) => new SecoesRepository(tx).gravarClassificacao(execucaoId, [{ secaoId, codigos: ['EF06CI02'] }])))
+      const concluir = naEscola(escola.escolaId, () => bancoDaApi().transaction((tx) => new SecoesRepository(tx).saveClassificacao(execucaoId, [{ secaoId, codigos: ['EF06CI02'] }])))
       await parada.esperarParadas(1)
       correcao = corrigir(escola.base.coordenacao, materialId, secaoId, { codigos: [CODIGO_DO_6O] })
       await esperarNaTrava(bancada.pool, '%"secao_do_material"%for update%')
@@ -672,7 +672,7 @@ describe('[P] corridas da correção e do reclassificar', () => {
     expect((await reclassificar(escola.base.coordenacao, materialId)).status).toBe(202)
     const nova = (await secaoDe(secaoId)).execucao_id ?? ''
     expect(nova).not.toBe(antiga)
-    const gravar = (execucaoId: string, codigo: string) => naEscola(escola.escolaId, () => bancoDaApi().transaction((tx) => new SecoesRepository(tx).gravarClassificacao(execucaoId, [{ secaoId, codigos: [codigo] }])))
+    const gravar = (execucaoId: string, codigo: string) => naEscola(escola.escolaId, () => bancoDaApi().transaction((tx) => new SecoesRepository(tx).saveClassificacao(execucaoId, [{ secaoId, codigos: [codigo] }])))
 
     expect(await gravar(nova, 'EF06CI02')).toHaveLength(1)
     expect(await gravar(antiga, 'EF06CI03')).toHaveLength(0)
@@ -836,11 +836,11 @@ describe('o comando reclassificar-escola (D76)', () => {
   it('o comando de ponta a ponta: 0 com a contagem, 2 com `--chamado` ausente, 1 com escola inexistente ou função suspensa, e só o código tipado na saída', async () => {
     const escola = await escolaNova()
     await materialNovo(escola, { secoes: 2 })
-    const abrir = () => ({ banco: bancoDaApi(), fechar: async () => undefined })
+    const abrir = () => ({ banco: bancoDaApi(), close: async () => undefined })
     const rodar = async (argumentos: string[]) => {
       let saida = ''
       let erro = ''
-      const codigo = await executarOpsReclassificarEscola(argumentos, { OPERADOR: PESSOA_DA_BANCADA }, { saida: (texto) => (saida += texto), erro: (texto) => (erro += texto) }, abrir)
+      const codigo = await runOpsReclassificarEscola(argumentos, { OPERADOR: PESSOA_DA_BANCADA }, { saida: (texto) => (saida += texto), erro: (texto) => (erro += texto) }, abrir)
       return { codigo, saida, erro }
     }
 

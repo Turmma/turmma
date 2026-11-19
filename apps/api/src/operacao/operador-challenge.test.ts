@@ -123,7 +123,7 @@ describe('ConsumoDeDesafioDeOperador com o Redis fora (tarefa 7.0, recomendaçã
       const travado = new OperadorChallengeConsumer({ status: 'ready', set: vi.fn(async () => Promise.reject(new Error('Command timed out'))) } as unknown as Redis)
       for (const consumo of [fora, travado]) {
         for (let vez = 0; vez < 2; vez++) {
-          await expect(consumo.consumir(desafio)).rejects.toMatchObject({ codigo: ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, status: 503, tenteDeNovoEmSegundos: expect.any(Number) as number })
+          await expect(consumo.consume(desafio)).rejects.toMatchObject({ codigo: ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, status: 503, tenteDeNovoEmSegundos: expect.any(Number) as number })
         }
       }
       // Uma linha por instância do consumo nas duas recusas seguidas, e só o evento.
@@ -137,7 +137,7 @@ describe('ConsumoDeDesafioDeOperador com o Redis fora (tarefa 7.0, recomendaçã
     const avisos = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined)
     try {
       const usado = new OperadorChallengeConsumer({ status: 'ready', set: vi.fn(async () => null) } as unknown as Redis)
-      await expect(usado.consumir(desafio)).rejects.toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
+      await expect(usado.consume(desafio)).rejects.toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
       expect(avisos).not.toHaveBeenCalled()
     } finally {
       avisos.mockRestore()

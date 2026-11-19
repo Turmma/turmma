@@ -3,7 +3,7 @@ import { useRef, useState } from 'react'
 import { FormDialog, useSingleSubmit } from '../../../components/dialogs'
 import { FieldError, FormField } from '../../../components/ui/fields/FormField'
 import { SECONDARY_BUTTON_CLASSES } from '../../../components/ui/button-variants'
-import { enviarEdicao } from './api/material'
+import { sendEdicao } from './api/material'
 import { conferirArquivo, tamanhoPorExtenso, type ArquivoConferido } from './material-envio'
 import { erroDoRotuloDaEdicao, falhaMudouOMaterial, MAXIMO_DO_ROTULO_DA_EDICAO, textoDaFalhaDaEdicao, TEXTO_DO_EFEITO_DA_EDICAO_NOVA } from './material-painel'
 
@@ -30,7 +30,7 @@ export function DialogoDeEdicaoNova({ alvo, recarregar, aoEnviar, aoFechar, foco
   const entrada = useRef<HTMLInputElement>(null)
   const botaoDoArquivo = useRef<HTMLButtonElement>(null)
   const { enviar, mutacao } = useSingleSubmit({
-    mutationFn: ({ arquivoEscolhido, nome }: { readonly arquivoEscolhido: File; readonly nome: string }) => enviarEdicao(alvo.id, nome === '' ? {} : { edicao: nome }, arquivoEscolhido),
+    mutationFn: ({ arquivoEscolhido, nome }: { readonly arquivoEscolhido: File; readonly nome: string }) => sendEdicao(alvo.id, nome === '' ? {} : { edicao: nome }, arquivoEscolhido),
     onSuccess: async () => {
       await recarregar()
       aoEnviar()

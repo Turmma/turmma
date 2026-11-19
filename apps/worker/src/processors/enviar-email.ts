@@ -35,7 +35,7 @@ export const TENTATIVAS_DO_ENVIO_DE_EMAIL = JOB_DEFINITIONS[TIPO_ENVIAR_CONVITE]
 export const TENTATIVAS_DO_ENVIO_DO_LINK_DA_CONTA = JOB_DEFINITIONS[TIPO_ENVIAR_EMAIL_DA_CONTA].retentativa.tentativas
 
 /** O repositório do envio, criado aqui e não na composição: este arquivo é o único do worker que o conhece (a regra `cerca-envio`, Tech Spec, seção 6). */
-export function criarEnvios(banco: Database): EnvioRepository {
+export function createEnvios(banco: Database): EnvioRepository {
   return new EnvioRepository(banco)
 }
 
@@ -129,10 +129,10 @@ const resultadoGravado = (gravou: boolean, resultado: 'enviado' | 'falhou'): 'en
 
 /**
  * O processador do e-mail, para o destino dado: no contexto do job, reserva a linha pelo id, decifra o token e o endereço, manda a mensagem
- * pela porta `EmailSender`, fora de qualquer transação, e grava o desfecho só se a linha ainda é dele. Veja `criarEnvioDoConvite` e
- * `criarEnvioDoLinkDaConta` para o que cada job promete.
+ * pela porta `EmailSender`, fora de qualquer transação, e grava o desfecho só se a linha ainda é dele. Veja `createEnvioDoConvite` e
+ * `createEnvioDoLinkDaConta` para o que cada job promete.
  */
-function criarProcessador<Lida extends Reservada>(destino: Destino<Lida>, { emissor, cifra, limite, relogio = systemClock, medidor }: Pecas): (id: string, tentativa: number, sinal: AbortSignal | undefined) => Promise<void> {
+function createProcessador<Lida extends Reservada>(destino: Destino<Lida>, { emissor, cifra, limite, relogio = systemClock, medidor }: Pecas): (id: string, tentativa: number, sinal: AbortSignal | undefined) => Promise<void> {
   const porResultado = medidor?.createCounter(METRICS.emailPorResultado, { description: 'Execuções dos jobs de e-mail (o do convite e o do link da conta), por resultado' })
   const adiados = medidor?.createCounter(METRICS.emailAdiado, { description: 'Jobs de e-mail adiados sem gastar tentativa, por motivo' })
   const { classe, rastro } = destino
@@ -150,12 +150,12 @@ function criarProcessador<Lida extends Reservada>(destino: Destino<Lida>, { emis
   }
 
   /** A mensagem, com o token e o endereço decifrados; ou `undefined`, com o envio já gravado `falhou`, se eles não decifram. */
-  async function montarMensagem(id: string, tentativa: number, linha: Lida): Promise<MensagemDeEmail | undefined> {
+  async function buildMensagem(id: string, tentativa: number, linha: Lida): Promise<MensagemDeEmail | undefined> {
     try {
       // O id da linha é o dado autenticado: o cifrado copiado de outra linha não decifra aqui.
-      const abrir = (cifrado: Buffer): string => Buffer.from(cifra.decifrar({ cifrado, versao: VERSAO_DA_CHAVE_DO_TOKEN_DE_EMAIL }, id)).toString('utf8')
-      const token = abrir(linha.tokenCifrado)
-      const para = abrir(linha.destinoCifrado)
+      const open = (cifrado: Buffer): string => Buffer.from(cifra.decifrar({ cifrado, versao: VERSAO_DA_CHAVE_DO_TOKEN_DE_EMAIL }, id)).toString('utf8')
+      const token = open(linha.tokenCifrado)
+      const para = open(linha.destinoCifrado)
       return destino.mensagem(linha, token, para)
     } catch (erro) {
       if (!(erro instanceof SecretDecryptionError)) throw erro
@@ -169,7 +169,7 @@ function criarProcessador<Lida extends Reservada>(destino: Destino<Lida>, { emis
 
   /** Gasta um ponto do `EMAIL_POR_MINUTO` antes de tocar na linha: sem ponto, ou sem Redis, adia. Nunca envia sem contar. */
   async function gastarPonto(id: string, tentativa: number): Promise<PontoDeEmail> {
-    const consumo = await limite.consumir(classe).catch(() => undefined)
+    const consumo = await limite.consume(classe).catch(() => undefined)
     if (consumo === undefined) adiar(id, tentativa, ESPERA_COM_REDIS_FORA_MS, 'redis')
     if (consumo.resultado === 'sem_vaga') adiar(id, tentativa, consumo.msBeforeNext, 'limite')
     return consumo.ponto
@@ -196,19 +196,19 @@ function criarProcessador<Lida extends Reservada>(destino: Destino<Lida>, { emis
   }
 
   /** O 5xx, ou o 4xx da última tentativa: `falhou`, sem nova tentativa. */
-  async function gravarFalha(id: string, tentativa: number, reserva: Date, tipo: NaturezaDaFalhaDeEmail): Promise<void> {
+  async function saveFalha(id: string, tentativa: number, reserva: Date, tipo: NaturezaDaFalhaDeEmail): Promise<void> {
     const gravou = await destino.concluir(id, reserva, 'falhou')
     porResultado?.add(1, { resultado: resultadoGravado(gravou, 'falhou') })
     rastro.falhou(id, tentativa, tipo, gravou ? 'gravado' : 'reserva_perdida')
   }
 
   /** Manda pela porta e grava o desfecho da reserva: `enviado`; `falhou` no 5xx e na última tentativa; no 4xx e na queda, devolve a linha e a fila repete. */
-  async function enviarEGravar(id: string, tentativa: number, reserva: Date, mensagem: MensagemDeEmail, sinal: AbortSignal | undefined): Promise<void> {
+  async function sendEGravar(id: string, tentativa: number, reserva: Date, mensagem: MensagemDeEmail, sinal: AbortSignal | undefined): Promise<void> {
     try {
-      await emissor.enviar(mensagem, sinal)
+      await emissor.send(mensagem, sinal)
     } catch (erro) {
       const tipo = erro instanceof EmailSendError ? erro.natureza : 'transitoria'
-      if (tipo === 'permanente' || tentativa >= destino.tentativas) return gravarFalha(id, tentativa, reserva, tipo)
+      if (tipo === 'permanente' || tentativa >= destino.tentativas) return saveFalha(id, tentativa, reserva, tipo)
       await destino.devolver(id, reserva)
       porResultado?.add(1, { resultado: 'nova_tentativa' })
       rastro.repetira(id, tentativa, tipo)
@@ -223,12 +223,12 @@ function criarProcessador<Lida extends Reservada>(destino: Destino<Lida>, { emis
     const ponto = await gastarPonto(id, tentativa)
     const reservado = await reservarComPonto(id, tentativa, ponto)
     if (reservado === undefined) return
-    const mensagem = await montarMensagem(id, tentativa, reservado)
+    const mensagem = await buildMensagem(id, tentativa, reservado)
     if (mensagem === undefined) {
       await devolverPonto(ponto)
       return
     }
-    await enviarEGravar(id, tentativa, reservado.reserva, mensagem, sinal)
+    await sendEGravar(id, tentativa, reservado.reserva, mensagem, sinal)
   }
 }
 
@@ -254,8 +254,8 @@ type ConviteReservado = Extract<ReservaDoEnvio, { resultado: 'reservado' }>
  *   `na_fila` e o job repete com o recuo da fila; na última tentativa, `falhou`.
  * - **Log**: ids, a tentativa e o motivo. Nunca o token, o endereço, o nome da escola nem a resposta do servidor (regra 20, item 9).
  */
-export function criarEnvioDoConvite({ envios, logger, urlDaWeb, ...pecas }: EnviarEmailDependencies): JobProcessor<typeof TIPO_ENVIAR_CONVITE> {
-  const processar = criarProcessador<ConviteReservado>(
+export function createEnvioDoConvite({ envios, logger, urlDaWeb, ...pecas }: EnviarEmailDependencies): JobProcessor<typeof TIPO_ENVIAR_CONVITE> {
+  const processar = createProcessador<ConviteReservado>(
     {
       classe: 'convite',
       tentativas: TENTATIVAS_DO_ENVIO_DE_EMAIL,
@@ -284,8 +284,8 @@ type LinkReservado = Extract<ReservaDoLink, { resultado: 'reservado' }>
  *
  * Log: o id do link e a tentativa. Nunca o token, o endereço nem a resposta do servidor.
  */
-export function criarEnvioDoLinkDaConta({ envios, logger, urlDaWeb, ...pecas }: EnviarEmailDaContaDependencies): JobProcessor<typeof TIPO_ENVIAR_EMAIL_DA_CONTA> {
-  const processar = criarProcessador<LinkReservado>(
+export function createEnvioDoLinkDaConta({ envios, logger, urlDaWeb, ...pecas }: EnviarEmailDaContaDependencies): JobProcessor<typeof TIPO_ENVIAR_EMAIL_DA_CONTA> {
+  const processar = createProcessador<LinkReservado>(
     {
       classe: 'conta',
       tentativas: TENTATIVAS_DO_ENVIO_DO_LINK_DA_CONTA,

@@ -350,7 +350,7 @@ describe('ferramentas e artefato', () => {
       await vincularProfessor(bancada, a, a.colega.usuarioId, a.turma, a.quimica)
       const antes = await contarNaEscola(bancada, 'artefato', a.escolaId)
       // O vínculo acaba entre o `202` e a execução.
-      const { execucaoId } = await comoPessoa(a, a.colega, 'professor', () => servicos.ferramentas.gerar('atividade_objetiva', { ...parametros(a, 'mol'), chaveEnvio: randomUUID() }))
+      const { execucaoId } = await comoPessoa(a, a.colega, 'professor', () => servicos.ferramentas.generate('atividade_objetiva', { ...parametros(a, 'mol'), chaveEnvio: randomUUID() }))
       await sql(`update vinculo set estado = 'encerrado', motivo_encerramento = 'realocacao', encerrado_em = now() where escola_id = $1 and usuario_id = $2 and turma_id = $3`, [a.escolaId, a.colega.usuarioId, a.turma])
       liberar()
       expect(chamadasAoModelo).toBe(0)
@@ -380,7 +380,7 @@ describe('ferramentas e artefato', () => {
     it('a atividade e o plano saem pelos parâmetros gravados com a execução, e não pelos do corpo do pedido', async () => {
       for (const [ferramenta, campo] of [['atividade_objetiva', 'tema'], ['plano_de_aula', 'tema']] as const) {
         const { ferramentas, liberar, entradas } = comModelo()
-        const { execucaoId } = await comoPessoa(a, a.professora, 'professor', () => ferramentas.gerar(ferramenta, tema(a, 'reagente limitante')))
+        const { execucaoId } = await comoPessoa(a, a.professora, 'professor', () => ferramentas.generate(ferramenta, tema(a, 'reagente limitante')))
         await sql(`update execucao_agente set entrada = jsonb_set(entrada, '{parametros,tema}', '"reagente em excesso"') where id = $1`, [execucaoId])
         liberar()
         await execucaoTerminada(api, a.professora, execucaoId)
@@ -400,11 +400,11 @@ describe('ferramentas e artefato', () => {
     })
 
     it('a entrada gravada que cita a turma, o artefato ou a disciplina de quem a pessoa não alcança, lida no contexto da A, é NAO_ENCONTRADO: nada da B é lido, nada vai ao modelo, e não há consumo', async () => {
-      const busca = vi.spyOn(fila.trechos, 'buscar')
+      const busca = vi.spyOn(fila.trechos, 'find')
       try {
         const casos = [
-          { rotulo: 'turma da B', pedir: (s: ReturnType<typeof comModelo>) => s.ferramentas.gerar('atividade_objetiva', tema(a, 'reagente limitante')), mexer: `jsonb_set(jsonb_set(entrada, '{parametros,turmaId}', to_jsonb($2::text)), '{parametros,disciplinaId}', to_jsonb($3::text))`, valores: [b.turma, b.quimica] },
-          { rotulo: 'disciplina da B', pedir: (s: ReturnType<typeof comModelo>) => s.ferramentas.gerar('plano_de_aula', tema(a, 'reagente limitante')), mexer: `jsonb_set(entrada, '{parametros,disciplinaId}', to_jsonb($2::text))`, valores: [b.fisica] },
+          { rotulo: 'turma da B', pedir: (s: ReturnType<typeof comModelo>) => s.ferramentas.generate('atividade_objetiva', tema(a, 'reagente limitante')), mexer: `jsonb_set(jsonb_set(entrada, '{parametros,turmaId}', to_jsonb($2::text)), '{parametros,disciplinaId}', to_jsonb($3::text))`, valores: [b.turma, b.quimica] },
+          { rotulo: 'disciplina da B', pedir: (s: ReturnType<typeof comModelo>) => s.ferramentas.generate('plano_de_aula', tema(a, 'reagente limitante')), mexer: `jsonb_set(entrada, '{parametros,disciplinaId}', to_jsonb($2::text))`, valores: [b.fisica] },
           { rotulo: 'artefato da B', pedir: (s: ReturnType<typeof comModelo>) => s.artefatos.adaptar(atividadeDeA, { tipos: ['fonte_ampliada'], chaveEnvio: randomUUID() }), mexer: `jsonb_set(entrada, '{artefatoId}', to_jsonb($2::text))`, valores: [atividadeDeB] },
         ]
         const consumoAntes = await contarNaEscola(bancada, 'consumo_ia', a.escolaId)
@@ -425,7 +425,7 @@ describe('ferramentas e artefato', () => {
     })
 
     it('o vínculo encerrado depois do 202, na adaptação: a execução confere de novo o alcance do artefato, e nada vai ao modelo nem vira versão ou entrega', async () => {
-      const busca = vi.spyOn(fila.trechos, 'buscar')
+      const busca = vi.spyOn(fila.trechos, 'find')
       try {
         await vincularProfessor(bancada, a, a.colega.usuarioId, a.turma, a.quimica)
         const servicos = comModelo()
@@ -448,11 +448,11 @@ describe('ferramentas e artefato', () => {
     })
 
     it('a função suspensa depois do 202, nas três tarefas do módulo, não chega ao `preparar`: nem busca, nem modelo, nem consumo, e a execução falha com FUNCAO_SUSPENSA', async () => {
-      const busca = vi.spyOn(fila.trechos, 'buscar')
+      const busca = vi.spyOn(fila.trechos, 'find')
       try {
         const casos = [
-          { funcao: 'conversa_e_ferramentas' as const, pedir: (s: ReturnType<typeof comModelo>) => s.ferramentas.gerar('atividade_objetiva', tema(a, 'reagente limitante')) },
-          { funcao: 'conversa_e_ferramentas' as const, pedir: (s: ReturnType<typeof comModelo>) => s.ferramentas.gerar('plano_de_aula', tema(a, 'reagente limitante')) },
+          { funcao: 'conversa_e_ferramentas' as const, pedir: (s: ReturnType<typeof comModelo>) => s.ferramentas.generate('atividade_objetiva', tema(a, 'reagente limitante')) },
+          { funcao: 'conversa_e_ferramentas' as const, pedir: (s: ReturnType<typeof comModelo>) => s.ferramentas.generate('plano_de_aula', tema(a, 'reagente limitante')) },
           { funcao: 'adaptacao' as const, pedir: (s: ReturnType<typeof comModelo>) => s.artefatos.adaptar(atividadeDeA, { tipos: ['fonte_ampliada'], chaveEnvio: randomUUID() }) },
         ]
         const consumoAntes = await contarNaEscola(bancada, 'consumo_ia', a.escolaId)
@@ -479,7 +479,7 @@ describe('ferramentas e artefato', () => {
     it('sem trecho do material, o comando falha com MATERIAL_INSUFICIENTE antes do modelo: nenhuma entrada, nenhuma chamada, nenhum artefato', async () => {
       const antes = await contarNaEscola(bancada, 'artefato', a.escolaId)
       const { ferramentas, liberar, entradas } = comModelo()
-      const { execucaoId } = await comoPessoa(a, a.professora, 'professor', () => ferramentas.gerar('atividade_objetiva', tema(a, 'xilofone zumbi')))
+      const { execucaoId } = await comoPessoa(a, a.professora, 'professor', () => ferramentas.generate('atividade_objetiva', tema(a, 'xilofone zumbi')))
       liberar()
       expect(await execucaoTerminada(api, a.professora, execucaoId)).toMatchObject({ estado: 'falhou', erro: 'MATERIAL_INSUFICIENTE', resultado: null })
       expect(entradas).toEqual([])
@@ -487,14 +487,14 @@ describe('ferramentas e artefato', () => {
     })
 
     it('a tarefa recebe os trechos na ordem do material (por material e, no mesmo material, por página), e a quantidade padrão quando a professora não pede', async () => {
-      const busca = vi.spyOn(fila.trechos, 'buscar')
+      const busca = vi.spyOn(fila.trechos, 'find')
       try {
         // A busca devolve por relevância, fora de ordem: dois materiais, e páginas trocadas dentro de cada um.
         const [primeiro = '', segundo = ''] = [a.materialId, 'ffffffff-ffff-4fff-8fff-ffffffffffff'].sort()
         const trecho = (materialId: string, pagina: number) => ({ materialId, disciplinaId: a.quimica, titulo: 'Material', pagina, texto: `${materialId}:${String(pagina)}` })
         busca.mockResolvedValueOnce([trecho(segundo, 1), trecho(primeiro, 5), trecho(primeiro, 2), trecho(segundo, 9)])
         const { ferramentas, liberar, entradas } = comModelo()
-        const { execucaoId } = await comoPessoa(a, a.professora, 'professor', () => ferramentas.gerar('atividade_objetiva', tema(a, 'reagente limitante')))
+        const { execucaoId } = await comoPessoa(a, a.professora, 'professor', () => ferramentas.generate('atividade_objetiva', tema(a, 'reagente limitante')))
         liberar()
         await execucaoTerminada(api, a.professora, execucaoId)
         expect(entradas).toHaveLength(1)
@@ -511,12 +511,12 @@ describe('ferramentas e artefato', () => {
         { rotulo: 'objeto vazio', saida: async () => ({}) },
         {
           rotulo: 'atividade com a marca de adaptação',
-          saida: async (pedido: Parameters<LLMProvider['gerar']>[0]) => ({ ...((await falso().gerar(pedido)).saida as ConteudoDeAtividade), adaptacao: { tipos: ['fonte_ampliada'] } }),
+          saida: async (pedido: Parameters<LLMProvider['generate']>[0]) => ({ ...((await falso().generate(pedido)).saida as ConteudoDeAtividade), adaptacao: { tipos: ['fonte_ampliada'] } }),
         },
       ]
       for (const { rotulo, saida } of saidas) {
-        const servicos = comProvedor((pedido) => saida(pedido as Parameters<LLMProvider['gerar']>[0]))
-        const { execucaoId } = await comoPessoa(a, a.professora, 'professor', () => servicos.ferramentas.gerar('atividade_objetiva', tema(a, 'reagente limitante')))
+        const servicos = comProvedor((pedido) => saida(pedido as Parameters<LLMProvider['generate']>[0]))
+        const { execucaoId } = await comoPessoa(a, a.professora, 'professor', () => servicos.ferramentas.generate('atividade_objetiva', tema(a, 'reagente limitante')))
         expect(await execucaoTerminada(api, a.professora, execucaoId), rotulo).toMatchObject({ estado: 'falhou', erro: 'IA_SAIDA_INVALIDA', resultado: null })
       }
       expect(await contarNaEscola(bancada, 'artefato', a.escolaId)).toBe(antes)
@@ -536,7 +536,7 @@ describe('ferramentas e artefato', () => {
       const antes = [await contarNaEscola(bancada, 'artefato', a.escolaId), await contarNaEscola(bancada, 'entrega', a.escolaId)]
       const servicos = comProvedor(async (pedido) => {
         await sql('delete from artefato where escola_id = $1 and id = $2', [a.escolaId, origem])
-        return (await falso().gerar(pedido as Parameters<LLMProvider['gerar']>[0])).saida
+        return (await falso().generate(pedido as Parameters<LLMProvider['generate']>[0])).saida
       })
       const { execucaoId } = await comoPessoa(a, a.professora, 'professor', () => servicos.artefatos.adaptar(origem, { tipos: ['fonte_ampliada'], chaveEnvio: randomUUID() }))
       expect(await execucaoTerminada(api, a.professora, execucaoId)).toMatchObject({ estado: 'falhou', erro: 'NAO_ENCONTRADO', resultado: null })
@@ -858,13 +858,13 @@ describe('ferramentas e artefato', () => {
       // Enquanto o modelo responde, o prazo encerra a execução: a transação que gravaria as duas linhas não conclui.
       const servicos = comProvedor(async (pedido) => {
         await sql(`update execucao_agente set estado = 'falhou', erro = 'IA_TEMPO_ESGOTADO', concluida_em = now() where id = $1`, [pedido.execucaoId])
-        return (await falso().gerar(pedido as Parameters<LLMProvider['gerar']>[0])).saida
+        return (await falso().generate(pedido as Parameters<LLMProvider['generate']>[0])).saida
       })
       const { execucaoId } = await comoPessoa(a, a.professora, 'professor', () => servicos.artefatos.adaptar(atividadeDeA, { tipos: ['fonte_ampliada'], chaveEnvio: randomUUID() }))
       expect((await execucaoTerminada(api, a.professora, execucaoId)).estado).toBe('falhou')
       expect([await contarNaEscola(bancada, 'artefato', a.escolaId), await contarNaEscola(bancada, 'entrega', a.escolaId)]).toEqual(antes)
       // O mesmo caminho, sem a interrupção, grava as duas, com a mesma execução.
-      const normal = comProvedor((pedido) => falso().gerar(pedido as Parameters<LLMProvider['gerar']>[0]).then((resultado) => resultado.saida))
+      const normal = comProvedor((pedido) => falso().generate(pedido as Parameters<LLMProvider['generate']>[0]).then((resultado) => resultado.saida))
       const aceita = await comoPessoa(a, a.professora, 'professor', () => normal.artefatos.adaptar(atividadeDeA, { tipos: ['fonte_ampliada'], chaveEnvio: randomUUID() }))
       expect((await execucaoTerminada(api, a.professora, aceita.execucaoId)).estado).toBe('concluida')
       expect([await contarNaEscola(bancada, 'artefato', a.escolaId, `execucao_id = '${aceita.execucaoId}'`), await contarNaEscola(bancada, 'entrega', a.escolaId, `execucao_id = '${aceita.execucaoId}' and estado = 'pendente'`)]).toEqual([1, 1])
@@ -1026,16 +1026,16 @@ describe('ferramentas e artefato', () => {
         ['material de outra escola', (citacao: { materialId: string; pagina: number }) => ({ ...citacao, materialId: b.materialId })],
       ] as const) {
         const servicos = comProvedor(async (pedido) => {
-          const conteudo = (await falso().gerar(pedido as Parameters<LLMProvider['gerar']>[0])).saida as ConteudoDeAtividade
+          const conteudo = (await falso().generate(pedido as Parameters<LLMProvider['generate']>[0])).saida as ConteudoDeAtividade
           return { ...conteudo, questoes: conteudo.questoes.map((questao, indice) => (indice === 0 ? { ...questao, citacao: { ...questao.citacao, ...trocar(questao.citacao) } } : questao)) }
         })
-        const { execucaoId } = await comoPessoa(a, a.professora, 'professor', () => servicos.ferramentas.gerar('atividade_objetiva', { ...parametros(a, 'reagente limitante'), chaveEnvio: randomUUID() }))
+        const { execucaoId } = await comoPessoa(a, a.professora, 'professor', () => servicos.ferramentas.generate('atividade_objetiva', { ...parametros(a, 'reagente limitante'), chaveEnvio: randomUUID() }))
         expect(await execucaoTerminada(api, a.professora, execucaoId), caso).toMatchObject({ estado: 'falhou', erro: 'IA_SAIDA_INVALIDA', resultado: null })
       }
       expect(await contarNaEscola(bancada, 'artefato', a.escolaId)).toBe(antes)
       // A saída sem a troca, pelo mesmo caminho, vira artefato: o que recusou foi a citação.
-      const normal = comProvedor((pedido) => falso().gerar(pedido as Parameters<LLMProvider['gerar']>[0]).then((resultado) => resultado.saida))
-      const aceita = await comoPessoa(a, a.professora, 'professor', () => normal.ferramentas.gerar('atividade_objetiva', { ...parametros(a, 'reagente limitante'), chaveEnvio: randomUUID() }))
+      const normal = comProvedor((pedido) => falso().generate(pedido as Parameters<LLMProvider['generate']>[0]).then((resultado) => resultado.saida))
+      const aceita = await comoPessoa(a, a.professora, 'professor', () => normal.ferramentas.generate('atividade_objetiva', { ...parametros(a, 'reagente limitante'), chaveEnvio: randomUUID() }))
       expect((await execucaoTerminada(api, a.professora, aceita.execucaoId)).estado).toBe('concluida')
       expect(await contarNaEscola(bancada, 'artefato', a.escolaId)).toBe(antes + 1)
     })

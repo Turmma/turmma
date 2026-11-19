@@ -10,7 +10,7 @@ import {
 } from '@educa/shared'
 import { mutationOptions, queryOptions } from '@tanstack/react-query'
 import { EMPTY_BODY } from '../../../../api/client'
-import { ESTRUTURA_QUERY_KEY, lerPaginas } from '../../../../api/estrutura'
+import { ESTRUTURA_QUERY_KEY, readPaginas } from '../../../../api/estrutura'
 import { authedRequest } from '../../../../api/sessao'
 
 export const CAMINHO_DOS_PROFESSORES = '/v1/professores'
@@ -22,7 +22,7 @@ export const CAMINHO_DOS_PROFESSORES = '/v1/professores'
  */
 export const professoresQueryOptions = queryOptions({
   queryKey: [...ESTRUTURA_QUERY_KEY, 'professores'],
-  queryFn: ({ signal }) => lerPaginas<ProfessorDaEscola>(CAMINHO_DOS_PROFESSORES, listaDeProfessoresResponseSchema, signal),
+  queryFn: ({ signal }) => readPaginas<ProfessorDaEscola>(CAMINHO_DOS_PROFESSORES, listaDeProfessoresResponseSchema, signal),
 })
 
 /** `POST /v1/professores`: cadastra o professor na escola da sessão; o token do convite só existe nesta resposta. */
@@ -50,7 +50,7 @@ export function corrigirEmailDoProfessor(usuarioId: string, pedido: CorrigirEmai
  * `POST /v1/professores/convites/enviar` (acesso-e-convites, 3.0): enfileira o e-mail do convite de cada professor de `usuarioIds` que espera o
  * convite, e de todos os que esperam quando a lista não vai. A resposta é a contagem de quem entrou na fila; o link nunca sai por aqui.
  */
-export function enviarConvites(usuarioIds?: readonly string[]): Promise<EnviarConvitesResponse> {
+export function sendConvites(usuarioIds?: readonly string[]): Promise<EnviarConvitesResponse> {
   return authedRequest(`${CAMINHO_DOS_PROFESSORES}/convites/enviar`, enviarConvitesResponseSchema, {
     metodo: 'POST',
     corpo: usuarioIds === undefined ? {} : { usuarioIds },
@@ -102,7 +102,7 @@ export function mutacaoDaCorrecaoDoEmail(usuarioId: string, aoTerminar?: () => P
  */
 export function mutacaoDoEnvioDeConvites(usuarioIds?: readonly string[], aoTerminar?: () => Promise<void>) {
   return mutationOptions({
-    mutationFn: () => enviarConvites(usuarioIds),
+    mutationFn: () => sendConvites(usuarioIds),
     gcTime: 0,
     ...(aoTerminar === undefined ? {} : { onSettled: aoTerminar }),
   })

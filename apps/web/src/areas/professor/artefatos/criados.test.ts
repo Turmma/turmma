@@ -1,6 +1,6 @@
 import type { ArtefatoResumido, EstadoDeEntrega } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
-import { agruparPorTurma, enderecoComFiltros, filtrar, filtrosLigados, lerFiltros, rotuloDeVerDocumentos, SEM_FILTROS, TITULO_DA_TURMA_SEM_NOME } from './criados'
+import { agruparPorTurma, enderecoComFiltros, filter, filtrosLigados, readFiltros, rotuloDeVerDocumentos, SEM_FILTROS, TITULO_DA_TURMA_SEM_NOME } from './criados'
 
 /**
  * O que a tela de Criados decide sem rede (telas do professor, 5.0; RF12): os filtros do endereço, o que cada um deixa passar, o
@@ -34,21 +34,21 @@ const ADAPTADA_PENDENTE = artefato(2, { origemId: id(1), adaptacao: ADAPTACAO },
 const ADAPTADA_APROVADA = artefato(3, { origemId: id(1), adaptacao: ADAPTACAO }, 'aprovada')
 const PLANO = artefato(4, { tipo: 'plano_de_aula' })
 
-describe('lerFiltros', () => {
+describe('readFiltros', () => {
   it('lê os três filtros do endereço, e a turma em minúsculas, que é como a chave do cache e o servidor a tratam', () => {
-    expect(lerFiltros(`tipo=plano_de_aula&turma=${TURMA_B.toUpperCase()}&estado=rejeitada`)).toEqual({ tipo: 'plano_de_aula', turma: TURMA_B, estado: 'rejeitada' })
+    expect(readFiltros(`tipo=plano_de_aula&turma=${TURMA_B.toUpperCase()}&estado=rejeitada`)).toEqual({ tipo: 'plano_de_aula', turma: TURMA_B, estado: 'rejeitada' })
   })
 
   it('sem parâmetro, ou com valor que a tela não conhece, cai em "todos": um tipo fora da lista, um estado fora da lista, uma turma que não é um id', () => {
-    expect(lerFiltros('')).toEqual(SEM_FILTROS)
-    expect(lerFiltros('tipo=prova&estado=para_aprovar&turma=7a')).toEqual(SEM_FILTROS)
-    expect(lerFiltros('tipo=&estado=&turma=')).toEqual(SEM_FILTROS)
+    expect(readFiltros('')).toEqual(SEM_FILTROS)
+    expect(readFiltros('tipo=prova&estado=para_aprovar&turma=7a')).toEqual(SEM_FILTROS)
+    expect(readFiltros('tipo=&estado=&turma=')).toEqual(SEM_FILTROS)
     // O valor do estado é o do contrato, e não o rótulo da tela: o texto "Esperando você" não é um estado.
-    expect(lerFiltros('estado=Esperando%20voc%C3%AA').estado).toBe('todos')
+    expect(readFiltros('estado=Esperando%20voc%C3%AA').estado).toBe('todos')
   })
 
   it('a turma que a professora não tem continua sendo a que o endereço diz: quem responde por ela é o servidor, e não a tela', () => {
-    expect(lerFiltros(`turma=${id(777)}`).turma).toBe(id(777))
+    expect(readFiltros(`turma=${id(777)}`).turma).toBe(id(777))
   })
 })
 
@@ -84,23 +84,23 @@ describe('filtrar', () => {
   const TODOS = [ORIGINAL_DE_ATIVIDADE, ADAPTADA_PENDENTE, ADAPTADA_APROVADA, PLANO]
 
   it('sem filtro deixa passar tudo, na ordem em que veio', () => {
-    expect(filtrar(TODOS, SEM_FILTROS)).toEqual(TODOS)
+    expect(filter(TODOS, SEM_FILTROS)).toEqual(TODOS)
   })
 
   it('o tipo deixa passar só os desse tipo, e a versão adaptada é do tipo da atividade de onde saiu', () => {
-    expect(filtrar(TODOS, { tipo: 'plano_de_aula', estado: 'todos' })).toEqual([PLANO])
-    expect(filtrar(TODOS, { tipo: 'atividade_objetiva', estado: 'todos' })).toEqual([ORIGINAL_DE_ATIVIDADE, ADAPTADA_PENDENTE, ADAPTADA_APROVADA])
+    expect(filter(TODOS, { tipo: 'plano_de_aula', estado: 'todos' })).toEqual([PLANO])
+    expect(filter(TODOS, { tipo: 'atividade_objetiva', estado: 'todos' })).toEqual([ORIGINAL_DE_ATIVIDADE, ADAPTADA_PENDENTE, ADAPTADA_APROVADA])
   })
 
   it('o estado é o da decisão sobre a versão adaptada: com "Esperando você" ligado, o original e o plano não passam', () => {
-    expect(filtrar(TODOS, { tipo: 'todos', estado: 'pendente' })).toEqual([ADAPTADA_PENDENTE])
-    expect(filtrar(TODOS, { tipo: 'todos', estado: 'aprovada' })).toEqual([ADAPTADA_APROVADA])
-    expect(filtrar(TODOS, { tipo: 'todos', estado: 'rejeitada' })).toEqual([])
+    expect(filter(TODOS, { tipo: 'todos', estado: 'pendente' })).toEqual([ADAPTADA_PENDENTE])
+    expect(filter(TODOS, { tipo: 'todos', estado: 'aprovada' })).toEqual([ADAPTADA_APROVADA])
+    expect(filter(TODOS, { tipo: 'todos', estado: 'rejeitada' })).toEqual([])
   })
 
   it('tipo e estado juntos: só passa o que tem os dois', () => {
-    expect(filtrar(TODOS, { tipo: 'atividade_objetiva', estado: 'pendente' })).toEqual([ADAPTADA_PENDENTE])
-    expect(filtrar(TODOS, { tipo: 'plano_de_aula', estado: 'pendente' })).toEqual([])
+    expect(filter(TODOS, { tipo: 'atividade_objetiva', estado: 'pendente' })).toEqual([ADAPTADA_PENDENTE])
+    expect(filter(TODOS, { tipo: 'plano_de_aula', estado: 'pendente' })).toEqual([])
   })
 })
 

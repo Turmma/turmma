@@ -1,4 +1,4 @@
-import { createDatabase, createPool, executarPlanilha, MotorDePlanilha, runInContext, schema, type Database, type DatabasePool } from '@educa/core'
+import { createDatabase, createPool, runPlanilha, MotorDePlanilha, runInContext, schema, type Database, type DatabasePool } from '@educa/core'
 import { ErrorCode, MAXIMO_DE_BYTES_DA_PLANILHA, MAXIMO_DE_DESLIGAMENTOS_POR_GRAVAR, MAXIMO_DE_LINHAS_DA_PLANILHA, previaDaPlanilhaResponseSchema } from '@educa/shared'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { randomUUID } from 'node:crypto'
@@ -120,7 +120,7 @@ describe('planilha de alunos (F2, tarefa 7.0): prévia, gravar e as corridas da 
   const nomesDaLista = async (escolaId: string) => (await bancada.pool.query<{ total: number }>('select count(*)::int as total from lista_nome where escola_id = $1', [escolaId])).rows[0]?.total ?? 0
 
   /** Roda o job uma vez (tentativa 1), no contexto da escola do job, como o executor o abre. */
-  const rodar = (escolaId: string, importacaoId: string) => runInContext({ requisicaoId: randomUUID(), escolaId }, () => executarPlanilha(bancoDoJob, importacaoId))
+  const rodar = (escolaId: string, importacaoId: string) => runInContext({ requisicaoId: randomUUID(), escolaId }, () => runPlanilha(bancoDoJob, importacaoId))
 
   it('a turma escrita de três jeitos ("8ºA", "8 A" e "8a") é uma turma só: a prévia diz "turma nova" uma vez, e gravar responde 202 e enfileira', async () => {
     const e = await escolaComAnos()

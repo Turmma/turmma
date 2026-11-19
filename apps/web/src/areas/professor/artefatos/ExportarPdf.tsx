@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query'
 import { FileDown } from 'lucide-react'
-import { baixarPdfDoArtefato, salvarArquivo } from './api/artefatos'
+import { baixarPdfDoArtefato, saveArquivo } from './api/artefatos'
 import { errorMessage } from '../../../api/client'
 import { Button } from '../../../components/ui/Button'
 import type { ButtonVariant } from '../../../components/ui/button-variants'
@@ -24,7 +24,7 @@ interface PropsDoExportar {
  * Quem decide se a versão adaptada rejeitada tem botão é quem usa a peça: ela não exporta (`podeExportar`).
  */
 export function ExportarPdf({ artefatoId, titulo, variante = 'discreto', rascunho = false }: PropsDoExportar) {
-  const exportar = useMutation({ mutationFn: () => baixarPdfDoArtefato(artefatoId, titulo), onSuccess: salvarArquivo })
+  const exportar = useMutation({ mutationFn: () => baixarPdfDoArtefato(artefatoId, titulo), onSuccess: saveArquivo })
   return (
     <>
       <Button variante={variante} tamanho={variante === 'discreto' ? 'compacto' : 'principal'} disabled={exportar.isPending} onClick={() => exportar.mutate()}>

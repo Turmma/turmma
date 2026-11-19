@@ -84,7 +84,7 @@ export async function comPrazo<T>(tipo: TipoDeChamada, sinalDeFora: AbortSignal 
   }
 }
 
-function ehCodigoDeErro(valor: unknown): valor is ErrorCode {
+function isCodigoDeErro(valor: unknown): valor is ErrorCode {
   return typeof valor === 'string' && Object.hasOwn(ErrorCode, valor)
 }
 
@@ -92,7 +92,7 @@ function ehCodigoDeErro(valor: unknown): valor is ErrorCode {
 function codigoDaResposta(corpo: unknown, status: number): ErrorCode {
   if (typeof corpo === 'object' && corpo !== null && 'erro' in corpo) {
     const { erro } = corpo
-    if (typeof erro === 'object' && erro !== null && 'codigo' in erro && ehCodigoDeErro(erro.codigo)) return erro.codigo
+    if (typeof erro === 'object' && erro !== null && 'codigo' in erro && isCodigoDeErro(erro.codigo)) return erro.codigo
   }
   if (status === 429) return ErrorCode.LIMITE_EXCEDIDO
   // Borda sem instância, ou instância drenando: o sistema volta sozinho.
@@ -109,7 +109,7 @@ function esperaDaResposta(resposta: Response): number | undefined {
 }
 
 /** O corpo JSON, ou `undefined` quando não é JSON. A leitura abortada (o prazo, quem cancelou) não é "sem corpo": o erro sobe. */
-export async function lerJson(resposta: Response, sinal: AbortSignal): Promise<unknown> {
+export async function readJson(resposta: Response, sinal: AbortSignal): Promise<unknown> {
   try {
     return await resposta.json()
   } catch (erro) {
@@ -151,7 +151,7 @@ async function chamar<T>(pedir: Pedir, sinal: AbortSignal, caminho: string, esqu
     if (sinal.aborted) throw erro
     throw new ApiError(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
   }
-  const corpoDaResposta = await lerJson(resposta, sinal)
+  const corpoDaResposta = await readJson(resposta, sinal)
   if (!resposta.ok) throw new ApiError(codigoDaResposta(corpoDaResposta, resposta.status), esperaDaResposta(resposta))
   const lido = esquema.safeParse(corpoDaResposta)
   if (!lido.success) throw new ApiError(ErrorCode.ERRO_INTERNO)

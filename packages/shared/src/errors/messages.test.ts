@@ -4,7 +4,7 @@ import { ErrorCode } from './error-code.js'
 import {
   AVISO_DO_CONVITE_COM_SENHA_NOVA,
   AVISO_DO_CONVITE_PARA_CONTA_EXISTENTE,
-  formatarEspera,
+  formatEspera,
   mensagemDaEntrada,
   mensagemDaEntradaPorMatricula,
   mensagemDaFalhaExterna,
@@ -18,21 +18,21 @@ import {
   MENSAGENS_DE_ERRO,
 } from './messages.js'
 
-describe('formatarEspera', () => {
+describe('formatEspera', () => {
   it('diz o tempo por extenso em pt-BR, no singular só no 1, e arredonda para cima', () => {
-    expect(formatarEspera(1)).toBe('1 segundo')
-    expect(formatarEspera(30)).toBe('30 segundos')
-    expect(formatarEspera(30.2)).toBe('31 segundos')
-    expect(formatarEspera(59)).toBe('59 segundos')
-    expect(formatarEspera(60)).toBe('1 minuto')
+    expect(formatEspera(1)).toBe('1 segundo')
+    expect(formatEspera(30)).toBe('30 segundos')
+    expect(formatEspera(30.2)).toBe('31 segundos')
+    expect(formatEspera(59)).toBe('59 segundos')
+    expect(formatEspera(60)).toBe('1 minuto')
     // 90 s vira "2 minutos": dizer "1 minuto" faria a pessoa tentar cedo e esticar o bloqueio.
-    expect(formatarEspera(90)).toBe('2 minutos')
-    expect(formatarEspera(900)).toBe('15 minutos')
+    expect(formatEspera(90)).toBe('2 minutos')
+    expect(formatEspera(900)).toBe('15 minutos')
   })
 
   it('nunca manda tentar em zero segundo, que seria mandar tentar de novo já', () => {
-    expect(formatarEspera(0)).toBe('1 segundo')
-    expect(formatarEspera(-5)).toBe('1 segundo')
+    expect(formatEspera(0)).toBe('1 segundo')
+    expect(formatEspera(-5)).toBe('1 segundo')
   })
 })
 

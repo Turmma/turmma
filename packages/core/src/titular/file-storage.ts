@@ -45,11 +45,11 @@ export interface FileStorage {
    * Lê os bytes de um objeto. Objeto ausente devolve `undefined`: é um desfecho do processador (o material já foi excluído, ou o job
    * repetido já apagou o objeto), e não falha do armazém. Só a falha de verdade, ou o prazo estourado, lança `FileStorageUnavailableError`.
    */
-  lerBytes(chave: string, opcoes: PrazoDoObjeto): Promise<Uint8Array | undefined>
+  readBytes(chave: string, opcoes: PrazoDoObjeto): Promise<Uint8Array | undefined>
   /** Se o objeto existe. Chave que nunca foi gravada devolve `false`, e só falha de verdade (`FileStorageUnavailableError`) lança. */
   existe(chave: string): Promise<boolean>
   /** Apaga o objeto. Apagar o que não existe não falha: a rotina da noite seguinte repete o que a anterior não terminou. */
-  apagar(chave: string): Promise<void>
+  delete(chave: string): Promise<void>
   /**
    * A URL de download assinada, com `Cache-Control: no-store` e `Content-Disposition: attachment` fixados pela
    * assinatura, e a validade pedida. Não confere se o objeto existe: quem entrega a URL chama `existe` antes.
@@ -82,8 +82,8 @@ export class InMemoryFileStorage implements FileStorage {
   /** Quantas vezes `guardar` rodou, inclusive as que sobrescreveram: a prova de que o job repetido não duplica. */
   guardadas = 0
   /**
-   * Chamado por `lerBytes` antes de devolver, com a chave: o teste o segura numa barreira para ver o que acontece com o outro
-   * job entre a leitura da linha e a leitura do objeto. Sem ele, `lerBytes` não espera nada.
+   * Chamado por `readBytes` antes de devolver, com a chave: o teste o segura numa barreira para ver o que acontece com o outro
+   * job entre a leitura da linha e a leitura do objeto. Sem ele, `readBytes` não espera nada.
    */
   aoLerBytes: ((chave: string) => Promise<void>) | undefined
 
@@ -99,7 +99,7 @@ export class InMemoryFileStorage implements FileStorage {
     this.bytes.set(chave, new Uint8Array(conteudo))
   }
 
-  async lerBytes(chave: string, _opcoes: PrazoDoObjeto): Promise<Uint8Array | undefined> {
+  async readBytes(chave: string, _opcoes: PrazoDoObjeto): Promise<Uint8Array | undefined> {
     this.#conferir()
     await this.aoLerBytes?.(chave)
     const lido = this.bytes.get(chave)
@@ -111,7 +111,7 @@ export class InMemoryFileStorage implements FileStorage {
     return this.objetos.has(chave) || this.bytes.has(chave)
   }
 
-  async apagar(chave: string): Promise<void> {
+  async delete(chave: string): Promise<void> {
     this.#conferir()
     if (this.falhaAoApagar) throw new FileStorageUnavailableError()
     this.objetos.delete(chave)

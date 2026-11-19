@@ -4,7 +4,7 @@ import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 import { z } from 'zod'
 import { revogarConvitePeloOperador } from '../sessao/index.js'
-import { abrirBancoDeOperacao, InvalidArgumentError, autorDoComando, lerOperador, OperadorRejectedError, type CommandDatabase, type CommandOutput } from './command.js'
+import { openBancoDeOperacao, InvalidArgumentError, autorDoComando, readOperador, OperadorRejectedError, type CommandDatabase, type CommandOutput } from './command.js'
 
 /**
  * A revogação do convite pelo operador (regra 20, item 8; RF19):
@@ -18,7 +18,7 @@ import { abrirBancoDeOperacao, InvalidArgumentError, autorDoComando, lerOperador
  *   não é o último da escola, ou escola com coordenação ativa ou desativada depois do aceite: `CONFLITO`.
  */
 
-export function lerConviteARevogar(argumentos: string[]): string {
+export function readConviteARevogar(argumentos: string[]): string {
   let valores: { convite?: string | undefined }
   try {
     valores = parseArgs({ args: argumentos, options: { convite: { type: 'string' } }, strict: true, allowPositionals: false }).values
@@ -32,16 +32,16 @@ export function lerConviteARevogar(argumentos: string[]): string {
 }
 
 /** Executa o comando e devolve o código de saída: 0 revogado, 1 erro, 2 argumento ou ambiente inválido. */
-export async function executarOpsRevogarConvite(
+export async function runOpsRevogarConvite(
   argumentos: string[],
   ambiente: Record<string, string | undefined>,
   terminal: CommandOutput,
-  abrirBanco: (ambiente: Record<string, string | undefined>) => CommandDatabase = abrirBancoDeOperacao,
+  abrirBanco: (ambiente: Record<string, string | undefined>) => CommandDatabase = openBancoDeOperacao,
 ): Promise<number> {
   try {
-    const conviteId = lerConviteARevogar(argumentos)
-    const operador = lerOperador(ambiente)
-    const { banco, fechar } = abrirBanco(ambiente)
+    const conviteId = readConviteARevogar(argumentos)
+    const operador = readOperador(ambiente)
+    const { banco, close: fechar } = abrirBanco(ambiente)
     try {
       await revogarConvitePeloOperador(banco, autorDoComando(operador), conviteId)
       terminal.saida('ok\n')
@@ -64,7 +64,7 @@ export async function executarOpsRevogarConvite(
 }
 
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  process.exitCode = await executarOpsRevogarConvite(process.argv.slice(2), process.env, {
+  process.exitCode = await runOpsRevogarConvite(process.argv.slice(2), process.env, {
     saida: (texto) => process.stdout.write(texto),
     erro: (texto) => process.stderr.write(texto),
   })

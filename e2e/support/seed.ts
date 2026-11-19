@@ -4,8 +4,8 @@ import { Secret, TOTP } from 'otpauth'
 import { Client } from 'pg'
 import { BYTES_DO_TOKEN_DE_CONVITE, hashDoToken } from '../../apps/api/src/credencial/token-hash.ts'
 import type { EstadoDoEnvio, EstadoDoProfessor } from '../../packages/shared/src/professores/professores.ts'
-import { ALFABETO_DA_SENHA_PROVISORIA, formatarSenhaProvisoria, TAMANHO_DA_SENHA_PROVISORIA } from '../../packages/shared/src/sessao/senha-provisoria.ts'
-import { ALFABETO_DO_CODIGO_DA_TURMA, normalizarCodigoDaTurma, TAMANHO_DO_CODIGO_DA_TURMA } from '../../packages/shared/src/sala/acesso.ts'
+import { ALFABETO_DA_SENHA_PROVISORIA, formatSenhaProvisoria, TAMANHO_DA_SENHA_PROVISORIA } from '../../packages/shared/src/sessao/senha-provisoria.ts'
+import { ALFABETO_DO_CODIGO_DA_TURMA, normalizeCodigoDaTurma, TAMANHO_DO_CODIGO_DA_TURMA } from '../../packages/shared/src/sala/acesso.ts'
 import { lerAmbienteDeTeste, urlDoBancoDeTeste, valorObrigatorio } from '../../tools/ci/compose.ts'
 
 /**
@@ -234,7 +234,7 @@ export async function gerarProvisoriaNoBanco(aluno: Pick<AlunoDeTeste, 'escolaId
     }
     await gravar('senha_provisoria.gerada', new Date(agoraMs), 'coordenador', 'operador')
   })
-  return formatarSenhaProvisoria(crua)
+  return formatSenhaProvisoria(crua)
 }
 
 /** Faz a provisória do aluno vencer, como o relógio faz depois de 24 h: o bilhete que a levava deixa de valer. */
@@ -1155,7 +1155,7 @@ export async function gerarAcessoDaSalaNoBanco(escolaId: string, turmaId: string
   const token = randomBytes(BYTES_DO_TOKEN_DE_CONVITE).toString('base64url')
   const codigo = Array.from({ length: TAMANHO_DO_CODIGO_DA_TURMA }, () => ALFABETO_DO_CODIGO_DA_TURMA.charAt(randomInt(ALFABETO_DO_CODIGO_DA_TURMA.length))).join('')
   const chave = new TextEncoder().encode(valorObrigatorio(lerAmbienteDeTeste(), 'SALA_CHAVE_CODIGO'))
-  const codigoHmac = createHmac('sha256', chave).update(normalizarCodigoDaTurma(codigo)).digest('base64url')
+  const codigoHmac = createHmac('sha256', chave).update(normalizeCodigoDaTurma(codigo)).digest('base64url')
   await comBanco(async (banco) => {
     const { rows } = await banco.query<{ ano_letivo_id: string }>('select ano_letivo_id from turma where escola_id = $1 and id = $2', [escolaId, turmaId])
     const anoLetivoId = rows[0]?.ano_letivo_id

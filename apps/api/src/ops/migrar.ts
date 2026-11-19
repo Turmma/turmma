@@ -15,7 +15,7 @@ const migrarEnvSchema = z.object({
   MIGRAR_TIMEOUT_CONSULTA_MS: inteiroPositivo,
 })
 
-async function executar(): Promise<void> {
+async function run(): Promise<void> {
   const logger = createLogger({ servico: 'migrar' })
   try {
     const valores = validateEnvironment(migrarEnvSchema, process.env)
@@ -32,5 +32,5 @@ async function executar(): Promise<void> {
 }
 
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  await executar()
+  await run()
 }

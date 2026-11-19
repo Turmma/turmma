@@ -199,13 +199,13 @@ Exemplo: a disciplina (`apps/api/src/estrutura/`, `packages/shared/src/estrutura
    export class DisciplinaController {
      @Post()
      @RequirePermissao('disciplina', 'criar')
-     criar(@Body(new ZodValidationPipe(criarDisciplinaRequestSchema)) pedido: CriarDisciplinaRequest) {
-       return this.disciplinas.criar(pedido)
+     create(@Body(new ZodValidationPipe(criarDisciplinaRequestSchema)) pedido: CriarDisciplinaRequest) {
+       return this.disciplinas.create(pedido)
      }
 
-     @Get(':id')
-     @RequirePermissao('disciplina', 'ler')
-     abrir(@Param('id', IdPipe) id: string) { ... }   // id fora do formato responde 404, como o inexistente
+     @Delete(':id')
+     @RequirePermissao('disciplina', 'excluir')
+     delete(@Param('id', IdPipe) id: string) { ... }   // id fora do formato responde 404, como o inexistente
    }
    ```
    O `ZodValidationPipe` é o da documentação do NestJS (*Pipes → Object schema validation*). Entrada inválida
@@ -459,6 +459,37 @@ Ainda não há `npm run dev` com recarga a quente: a stack sobe pelo compose. O 
 
 A X8 deu às peças técnicas o nome que o mercado dá (D81). O que sobrou com nome próprio é o que mistura uma palavra do
 domínio com a peça, ou o que o nome sozinho não diz. A tabela traz só esses, com o padrão que cada um implementa.
+
+**Método e função** seguem a mesma ideia: o verbo técnico vai em inglês e o domínio fica em português, como no Spring Data
+e no Drizzle (`findByTurma`, `listAtivos`, `countPendentes`, `create`, `deleteConsolidado`, `isAtivo`, `hasVaga`). A
+correção `2026-11-19-metodos-de-mercado` trocou o que existia de uma vez, e a guarda `guardas/verbo-de-mercado`
+(`tools/guardas/regras-metodo.mjs`) recusa o verbo antigo no `src` de cada app e pacote, com a sugestão na mensagem. Ela lê
+também o método e a propriedade privados com `#` (`#lerTurma` vira `#readTurma`). **A trava vale só no `src` de `apps/*` e
+`packages/*`**: não alcança os testes, `tools/`, `infra/scripts/` nem `infra/k6/`. Ali a correção trocou só o chamador das
+APIs renomeadas, e as funções próprias que já estavam com verbo em português (`verificarRepositories`, `gerarAcesso`)
+continuam como estão; função nova em `tools/` e `infra/` deve nascer com o verbo de mercado, mesmo sem a trava:
+
+| Em português | De mercado | Quando |
+|---|---|---|
+| `ler`, `obter` | `read`, `get` | leitura que sempre acha (ou lança) |
+| `buscar`, `consultar` | `find` | leitura que pode não achar (devolve `null` ou `undefined`) |
+| `listar`, `contar` | `list`, `count` | lista e contagem |
+| `criar`, `inserir`, `gravar`, `salvar` | `create`, `insert`, `save` | escrita nova; `save` é o upsert |
+| `atualizar`, `alterar` | `update` | |
+| `apagar`, `excluir` | `delete` (`softDelete` na exclusão lógica) | |
+| `travar`, `liberar` | `lock`, `release` | trava e semáforo |
+| `montar`, `gerar` | `build`, `generate` | |
+| `formatar`, `ordenar`, `filtrar`, `normalizar` | `format`, `sort`, `filter`, `normalize` | |
+| `validar`, `verificar` | `validate`, `verify` | |
+| `executar`, `iniciar`, `parar`, `esperar`, `tentar` | `run`, `start`, `stop`, `wait`, `try` (`retry`) | |
+| `enviar`, `publicar`, `consumir` | `send`, `publish`, `consume` | |
+| `limpar`, `abrir`, `fechar` | `clear`, `open`, `close` | |
+| `eh`, `tem`, `pode` | `is`, `has`, `can` | predicado |
+
+O **verbo de domínio** fica em português, porque é o que a escola faz e está no glossário: `aprovar`, `lancar`,
+`corrigir`, `matricular`, `encerrar`, `eliminar`, `esquecer`, `entregar`, `registrar`, `conferir`, `renomear`. O ajudante de
+teste (`criarEscolaComProfessor`) é cenário, não API, e fica como está. O que não muda com o nome do método: código de
+permissão (`'disciplina', 'criar'`), nome de evento de log, rota, valor gravado no banco e texto de tela.
 
 | Aqui | Padrão de mercado |
 |---|---|

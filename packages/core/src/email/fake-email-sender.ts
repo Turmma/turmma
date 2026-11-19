@@ -43,7 +43,7 @@ export class FakeEmailSender implements EmailSender {
     return { chegou: presa, soltar }
   }
 
-  async enviar(mensagem: MensagemDeEmail, sinal?: AbortSignal): Promise<void> {
+  async send(mensagem: MensagemDeEmail, sinal?: AbortSignal): Promise<void> {
     this.#tentativas += 1
     const falha = this.#falhas.shift()
     if (falha !== undefined) throw new EmailSendError(falha)

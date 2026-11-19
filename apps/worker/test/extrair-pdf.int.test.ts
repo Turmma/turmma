@@ -10,7 +10,7 @@ import { AMOSTRAS_DE_CAPITULOS, montarPdfDaAmostra } from '../../../tools/demons
 import { CAMINHO_DO_MATERIAL } from '../../../tools/demonstracao/gerar-material.ts'
 import { compose, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
-import { criarExtracaoDoPdf } from '../src/processors/extrair-pdf.js'
+import { createExtracaoDoPdf } from '../src/processors/extrair-pdf.js'
 import { jobExecution } from './job-execution.fixture.js'
 import { InMemoryLog, QueueFixtures } from './queue.fixture.js'
 
@@ -125,7 +125,7 @@ describe('material.extrair-pdf', () => {
 
   /** O job, como o executor o chama: no contexto da escola, com a tentativa e o sinal. */
   function rodar(escolaId: string, materialId: string, opcoes: Opcoes = {}): Promise<void> {
-    const processador = criarExtracaoDoPdf({
+    const processador = createExtracaoDoPdf({
       banco: bancada.banco,
       armazem: opcoes.armazemDoCaso ?? armazem,
       extrator: opcoes.extratorDoCaso ?? extrator,
@@ -148,9 +148,9 @@ describe('material.extrair-pdf', () => {
     it('`pronto`, um trecho por página, as duas colunas; o objeto só sai depois do commit', async () => {
       const c = await escolaNova()
       const id = await materialComObjeto(c)
-      const apagar = armazem.apagar.bind(armazem)
+      const apagar = armazem.delete.bind(armazem)
       const vistoNoApagar: Array<{ estado: string; trechos: number }> = []
-      armazem.apagar = async (chave) => {
+      armazem.delete = async (chave) => {
         // Outra conexão: só enxerga o que já deu commit.
         vistoNoApagar.push({ estado: (await linha(id)).estado, trechos: (await trechos(id)).length })
         return apagar(chave)
@@ -158,7 +158,7 @@ describe('material.extrair-pdf', () => {
       try {
         await rodar(c.escolaId, id)
       } finally {
-        armazem.apagar = apagar
+        armazem.delete = apagar
       }
 
       expect(vistoNoApagar).toEqual([{ estado: 'pronto', trechos: 6 }])
@@ -343,14 +343,14 @@ describe('material.extrair-pdf', () => {
   })
 
   describe('concorrência (D49: o job repetido e o segundo job do mesmo material)', () => {
-    it('[P] excluído entre `lerParaExtrair` e `lerBytes`: sem efeito, sem `falhou`, sem falha de job; a métrica diz `sem_efeito`', async () => {
+    it('[P] excluído entre `findParaExtrair` e `readBytes`: sem efeito, sem `falhou`, sem falha de job; a métrica diz `sem_efeito`', async () => {
       const c = await escolaNova()
       const dele = new InMemoryFileStorage()
       const id = await materialComObjeto(c, PDF_DE_DEMONSTRACAO, { armazemDoObjeto: dele })
       // O job leu a linha e vai ler o objeto; a coordenação exclui entre as duas coisas (e a API apaga o objeto).
       dele.aoLerBytes = async (chave) => {
         await bancada.pool.query('update material set excluido_em = now() where id = $1', [id])
-        await dele.apagar(chave)
+        await dele.delete(chave)
       }
       const medidor = new MedidorDeTeste()
 
@@ -473,16 +473,16 @@ describe('material.extrair-pdf', () => {
   })
 
   describe('isolamento entre escolas (regra 10)', () => {
-    it('o repository: `lerParaExtrair` com o id da B no contexto da A não acha nada, e o da A acha', async () => {
+    it('o repository: `findParaExtrair` com o id da B no contexto da A não acha nada, e o da A acha', async () => {
       const a = await escolaNova()
       const b = await escolaNova()
       const deB = await materialComObjeto(b)
       const deA = await materialComObjeto(a)
 
-      expect(await naEscola(a.escolaId, () => new ExtracaoDoMaterialRepository(bancada.banco).lerParaExtrair(deB))).toBeUndefined()
-      expect(await naEscola(a.escolaId, () => new ExtracaoDoMaterialRepository(bancada.banco).lerParaExtrair(deA))).toEqual({ id: deA, disciplinaId: a.disciplinaId, substituiId: null })
+      expect(await naEscola(a.escolaId, () => new ExtracaoDoMaterialRepository(bancada.banco).findParaExtrair(deB))).toBeUndefined()
+      expect(await naEscola(a.escolaId, () => new ExtracaoDoMaterialRepository(bancada.banco).findParaExtrair(deA))).toEqual({ id: deA, disciplinaId: a.disciplinaId, substituiId: null })
       // Sem escola no contexto, falha fechado.
-      await expect(runInContext({ requisicaoId: randomUUID() }, () => new ExtracaoDoMaterialRepository(bancada.banco).lerParaExtrair(deA))).rejects.toThrow()
+      await expect(runInContext({ requisicaoId: randomUUID() }, () => new ExtracaoDoMaterialRepository(bancada.banco).findParaExtrair(deA))).rejects.toThrow()
     })
 
     it('o repository: marcar pronto, falhou ou objeto apagado, e listar os excluídos, com a escola A no contexto, não alcançam o material da B', async () => {
@@ -662,7 +662,7 @@ describe('material.extrair-pdf', () => {
       const montado = bancadaDoCaso.worker(logDoWorker, {
         pools: { pdf: 1 },
         ...doWorker,
-        processadores: { [TIPO_EXTRAIR_PDF]: processadorDoCaso ?? criarExtracaoDoPdf({ banco: bancadaDoCaso.banco, armazem, extrator: extratorDoCaso, logger: logDoWorker.logger }) },
+        processadores: { [TIPO_EXTRAIR_PDF]: processadorDoCaso ?? createExtracaoDoPdf({ banco: bancadaDoCaso.banco, armazem, extrator: extratorDoCaso, logger: logDoWorker.logger }) },
       })
       return { montado, logDoWorker }
     }
@@ -777,7 +777,7 @@ describe('material.extrair-pdf', () => {
         const logDoWorker = new InMemoryLog('worker-pdf')
         const montado = bancadaDoCaso.worker(logDoWorker, {
           pools: { pdf: 6 },
-          processadores: { [TIPO_EXTRAIR_PDF]: criarExtracaoDoPdf({ banco: bancadaDoCaso.banco, armazem, extrator: lento, logger: logDoWorker.logger }) },
+          processadores: { [TIPO_EXTRAIR_PDF]: createExtracaoDoPdf({ banco: bancadaDoCaso.banco, armazem, extrator: lento, logger: logDoWorker.logger }) },
         })
 
         try {
@@ -857,7 +857,7 @@ describe('material.extrair-pdf', () => {
       expect((await capitulos(id)).map(({ escola_id: _escola, ...resto }) => resto)).toEqual(CAPITULOS_DO_MARCADOR)
     })
 
-    it('o repository: `gravarCapitulos` sem capítulo não grava nada e não falha; com o id da B no contexto da A, a FK composta o recusa e nada é gravado', async () => {
+    it('o repository: `saveCapitulos` sem capítulo não grava nada e não falha; com o id da B no contexto da A, a FK composta o recusa e nada é gravado', async () => {
       const a = await escolaNova()
       const b = await escolaNova()
       const deB = await materialComObjeto(b, null)
@@ -865,11 +865,11 @@ describe('material.extrair-pdf', () => {
       const umCapitulo = [{ ordem: 1, numero: 1, titulo: 'Capítulo 1', paginaInicial: 1, paginaFinal: 2 }]
       const naA = (funcao: (repositorio: ExtracaoDoMaterialRepository) => Promise<unknown>): Promise<unknown> => naEscola(a.escolaId, () => funcao(new ExtracaoDoMaterialRepository(bancada.banco)))
 
-      await expect(naA((repositorio) => repositorio.gravarCapitulos(deA, []))).resolves.toEqual([])
+      await expect(naA((repositorio) => repositorio.saveCapitulos(deA, []))).resolves.toEqual([])
       expect(await capitulos(deA)).toEqual([])
-      await expect(naA((repositorio) => repositorio.gravarCapitulos(deB, umCapitulo))).rejects.toMatchObject({ cause: { constraint: 'capitulo_do_material_da_escola_fk' } })
+      await expect(naA((repositorio) => repositorio.saveCapitulos(deB, umCapitulo))).rejects.toMatchObject({ cause: { constraint: 'capitulo_do_material_da_escola_fk' } })
       expect(await capitulos(deB)).toEqual([])
-      await naA((repositorio) => repositorio.gravarCapitulos(deA, umCapitulo))
+      await naA((repositorio) => repositorio.saveCapitulos(deA, umCapitulo))
       expect(await capitulos(deA)).toHaveLength(1)
     })
 
@@ -1114,17 +1114,17 @@ describe('material.extrair-pdf', () => {
       await expect(gravar('EM13CNT301', 'coordenacao')).rejects.toMatchObject({ code: '23505', constraint: 'habilidade_da_secao_pk' })
     })
 
-    it('o repository: `gravarSecoes` com o material da B no contexto da A é recusado pela FK composta e nada é gravado; sem página nem capítulo, não grava', async () => {
+    it('o repository: `saveSecoes` com o material da B no contexto da A é recusado pela FK composta e nada é gravado; sem página nem capítulo, não grava', async () => {
       const a = await escolaNova()
       const b = await escolaNova()
       const deB = await materialComObjeto(b, null)
       const deA = await materialComObjeto(a, null)
       const naA = (funcao: (repositorio: ExtracaoDoMaterialRepository) => Promise<unknown>): Promise<unknown> => naEscola(a.escolaId, () => funcao(new ExtracaoDoMaterialRepository(bancada.banco)))
 
-      await expect(naA((repositorio) => repositorio.gravarSecoes(deA, 0, []))).resolves.toBe(0)
-      await expect(naA((repositorio) => repositorio.gravarSecoes(deB, 12, []))).rejects.toMatchObject({ cause: { constraint: 'secao_do_material_da_escola_fk' } })
+      await expect(naA((repositorio) => repositorio.saveSecoes(deA, 0, []))).resolves.toBe(0)
+      await expect(naA((repositorio) => repositorio.saveSecoes(deB, 12, []))).rejects.toMatchObject({ cause: { constraint: 'secao_do_material_da_escola_fk' } })
       expect(await secoes(deB)).toEqual([])
-      await naA((repositorio) => repositorio.gravarSecoes(deA, 12, []))
+      await naA((repositorio) => repositorio.saveSecoes(deA, 12, []))
       expect(faixas(await secoes(deA))).toEqual([[1, 10], [11, 12]])
     })
 

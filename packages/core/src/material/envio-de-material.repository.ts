@@ -28,7 +28,7 @@ export class EnvioDeMaterialRepository {
    * foi lento demais): quem chama desfaz o envio com 503, para o material nunca existir sem o objeto que a varredura apagou. O `55P03` da espera
    * pela trava da varredura sobe como erro, e quem chama também o trata como 503. Só vale dentro de transação: o `set local` morre com ela.
    */
-  async apagarNoEnvio(materialId: string): Promise<boolean> {
+  async deleteNoEnvio(materialId: string): Promise<boolean> {
     const escolaId = requireEscolaId()
     await this.banco.execute(sql`select set_config('lock_timeout', ${String(ESPERA_MAXIMA_PELA_LINHA_DO_ENVIO_MS)}, true)`)
     const apagadas = await this.banco
@@ -39,7 +39,7 @@ export class EnvioDeMaterialRepository {
   }
 
   /** Apaga a linha sem transação: o `catch` do envio e a varredura a chamam **depois** de o objeto sair do storage. Linha que não existe não é erro. */
-  async apagar(materialId: string): Promise<void> {
+  async delete(materialId: string): Promise<void> {
     await this.banco.delete(envioDeMaterial).where(and(eq(envioDeMaterial.escolaId, requireEscolaId()), eq(envioDeMaterial.materialId, materialId)))
   }
 
@@ -48,7 +48,7 @@ export class EnvioDeMaterialRepository {
    * skip locked`: a linha que um envio em andamento já travou (ele a apaga no fim da transação dele) é pulada, e o objeto fica para o envio. Devolve se
    * a linha foi travada. Só vale dentro da transação da varredura: a trava morre com ela.
    */
-  async travarParada(materialId: string, criadaAntesDe: Date): Promise<boolean> {
+  async lockParada(materialId: string, criadaAntesDe: Date): Promise<boolean> {
     const travadas = await this.banco
       .select({ materialId: envioDeMaterial.materialId })
       .from(envioDeMaterial)

@@ -18,7 +18,7 @@ const NOMES_CURTOS_DOS_DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 const NOMES_DOS_MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'] as const
 
 /** `AAAA-MM-DD` que existe no calendário (`2026-02-30` não). */
-export function ehDataValida(texto: string | null): texto is string {
+export function isDataValida(texto: string | null): texto is string {
   if (texto === null || !/^\d{4}-\d{2}-\d{2}$/.test(texto)) return false
   const data = new Date(`${texto}T00:00:00Z`)
   return !Number.isNaN(data.getTime()) && data.toISOString().slice(0, 10) === texto
@@ -130,7 +130,7 @@ export interface FiltroDaSemana {
 /** A semana do endereço (`?semana=`), como segunda-feira. Sem o parâmetro, ou com texto que não é data, não há semana pedida. */
 export function semanaDoEndereco(busca: string): string | undefined {
   const pedida = new URLSearchParams(busca).get('semana')
-  return ehDataValida(pedida) ? segundaDe(pedida) : undefined
+  return isDataValida(pedida) ? segundaDe(pedida) : undefined
 }
 
 /** O filtro do endereço. Com o formato errado, é como se não houvesse filtro. */
@@ -181,7 +181,7 @@ export function aulaDoEndereco(busca: string): AulaDoEndereco | undefined {
   const partes = (new URLSearchParams(busca).get('aula') ?? '').split('.')
   const [vinculoId, data, hora] = partes
   if (partes.length !== 3 || vinculoId === undefined || data === undefined || hora === undefined) return undefined
-  if (!UUID.test(vinculoId) || !ehDataValida(data) || !/^([01]\d|2[0-3])[0-5]\d$/.test(hora)) return undefined
+  if (!UUID.test(vinculoId) || !isDataValida(data) || !/^([01]\d|2[0-3])[0-5]\d$/.test(hora)) return undefined
   return { vinculoId, data, inicio: `${hora.slice(0, 2)}:${hora.slice(2)}` }
 }
 

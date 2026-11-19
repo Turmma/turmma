@@ -129,7 +129,7 @@ export class OperadorChallengeConsumer {
     private readonly relogio: Clock = systemClock,
   ) {}
 
-  async consumir(desafio: Pick<VerifiedOperadorChallenge, 'jti' | 'expiraEm'>): Promise<void> {
+  async consume(desafio: Pick<VerifiedOperadorChallenge, 'jti' | 'expiraEm'>): Promise<void> {
     if (this.cliente.status !== 'ready') throw this.#semRedis()
     const prazoMs = Math.max(1, desafio.expiraEm.getTime() - this.relogio.agora().getTime())
     let marcado: string | null

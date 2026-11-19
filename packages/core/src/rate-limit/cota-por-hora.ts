@@ -104,16 +104,16 @@ export class CotaPorHora {
   }
 
   /** Gasta `pontos` do dono, ou diz em quantos milissegundos a janela fecha. Pedido maior que a cota inteira também é recusado. */
-  async consumir(dono: string, pontos: number): Promise<ConsumoDaCota> {
+  async consume(dono: string, pontos: number): Promise<ConsumoDaCota> {
     if (!Number.isInteger(pontos) || pontos < 1) throw new InvariantException('pontos da cota precisam ser um inteiro positivo')
     try {
-      const resposta = await this.executar(dono, 'consumir', this.#agora(), pontos, this.opcoes.porHora)
+      const resposta = await this.run(dono, 'consumir', this.#agora(), pontos, this.opcoes.porHora)
       if (!Array.isArray(resposta) || resposta.length !== 3) throw new InvariantException('o script da cota por hora devolveu resposta inesperada')
       const [concedido, janela, msAteLiberar] = resposta.map(Number) as [number, number, number]
       return concedido === 1 ? { resultado: 'concedido', gasto: { dono, pontos, janela, origem: 'redis' } } : { resultado: 'recusado', msAteLiberar }
     } catch (erro) {
       if (erro instanceof InvariantException) throw erro
-      return this.consumirNoSeguro(dono, pontos)
+      return this.consumeNoSeguro(dono, pontos)
     }
   }
 
@@ -121,7 +121,7 @@ export class CotaPorHora {
   async devolver(gasto: PontosGastos): Promise<boolean> {
     if (gasto.origem === 'memoria') return this.devolverAoSeguro(gasto)
     try {
-      return Number(await this.executar(gasto.dono, 'devolver', this.#agora(), gasto.pontos, gasto.janela)) === 1
+      return Number(await this.run(gasto.dono, 'devolver', this.#agora(), gasto.pontos, gasto.janela)) === 1
     } catch {
       return false
     }
@@ -135,7 +135,7 @@ export class CotaPorHora {
     return this.opcoes.relogio === undefined ? Date.now() : this.opcoes.relogio.agora().getTime()
   }
 
-  private consumirNoSeguro(dono: string, pontos: number): ConsumoDaCota {
+  private consumeNoSeguro(dono: string, pontos: number): ConsumoDaCota {
     this.opcoes.aoUsarOSeguro?.()
     const agora = this.#agoraNoSeguro()
     const teto = insuranceLimit(this.opcoes.porHora, this.opcoes.instancias)
@@ -157,7 +157,7 @@ export class CotaPorHora {
   }
 
   /** `EVALSHA`, e `EVAL` só na primeira vez que este Redis vê o script (ou depois de ele reiniciar sem o cache). */
-  private async executar(dono: string, ...argumentos: Array<string | number>): Promise<unknown> {
+  private async run(dono: string, ...argumentos: Array<string | number>): Promise<unknown> {
     const chave = `${this.#chaveBase}:${dono}`
     try {
       return await this.redis.evalsha(SHA_DO_SCRIPT, 1, chave, ...argumentos)

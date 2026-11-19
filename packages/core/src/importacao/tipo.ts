@@ -66,7 +66,7 @@ interface TipoBase {
 export interface ContasDoPasso3 {
   readonly contas: ContasDoJob
   /** Trava em `FOR SHARE` as contas e confere o e-mail de cada uma; `false` se alguma o perdeu. */
-  readonly travarContas: TravaDasContas
+  readonly lockContas: TravaDasContas
 }
 
 /** O tipo que grava num ano letivo: o calendário, a grade e a lista de alunos. */
@@ -90,7 +90,7 @@ export interface TipoDeImportacao extends TipoBase {
    * validadas contra os candidatos pelo gravar; o `passo3` só é usado por quem cadastra professor, e a `tx` é a do passo (3), para quem trava
    * por outro repository (os anos dos vínculos de quem vai desligar).
    */
-  travar?(repositorio: ImportacaoRepository, ano: AnoDeDestino, guardado: unknown, marcas: MarcasDaPlanilha, passo3: ContasDoPasso3, tx: DatabaseTransaction): Promise<void>
+  lock?(repositorio: ImportacaoRepository, ano: AnoDeDestino, guardado: unknown, marcas: MarcasDaPlanilha, passo3: ContasDoPasso3, tx: DatabaseTransaction): Promise<void>
   /** `undefined` quando o que o gravar guardou não tem a forma do tipo: o job falha de vez, sem repetir. As `contas` são as do passo (1), que só a grade usa; sem elas, vazias. */
   planejar(repositorio: ImportacaoRepository, ano: AnoDeDestino, guardado: unknown, marcas: MarcasDaPlanilha, contas?: ContasDoJob): Promise<PlanoDaImportacao | undefined>
   /**
@@ -119,7 +119,7 @@ export interface TipoSemAno extends TipoBase {
    * A trava do passo (3) depois da importação, na ordem global da Tech Spec (seção 5): a trava do convite da escola, os anos, os
    * usuários que vai escrever, as contas (`FOR SHARE`, com o e-mail conferido) e as turmas. Sem ela o `planejar` não lê.
    */
-  travar(repositorio: ImportacaoRepository, tx: DatabaseTransaction, guardado: unknown, marcas: MarcasDaPlanilha, contas: ContasDoJob, travarContas: TravaDasContas): Promise<void>
+  lock(repositorio: ImportacaoRepository, tx: DatabaseTransaction, guardado: unknown, marcas: MarcasDaPlanilha, contas: ContasDoJob, travarContas: TravaDasContas): Promise<void>
   /** `undefined` quando o que o gravar guardou não tem a forma do tipo. */
   planejar(repositorio: ImportacaoRepository, guardado: unknown, marcas: MarcasDaPlanilha, contas: ContasDoJob): Promise<PlanoDaImportacao | undefined>
 }

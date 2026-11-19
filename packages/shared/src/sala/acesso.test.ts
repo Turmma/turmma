@@ -5,7 +5,7 @@ import {
   gerarAcessoRequestSchema,
   acessoGeradoResponseSchema,
   exibirCodigoDaTurma,
-  normalizarCodigoDaTurma,
+  normalizeCodigoDaTurma,
   TAMANHO_DO_CODIGO_DA_TURMA,
 } from './acesso.js'
 
@@ -32,13 +32,13 @@ describe('código da turma (A1, 4.0, E15)', () => {
 
   it('a entrada com espaço, hífen, tabulação e minúscula normaliza para o mesmo código', () => {
     for (const digitado of ['ABCD2345', 'ABCD 2345', 'abcd-2345', ' abcd 2345 ', 'Ab-Cd\t23 45', exibirCodigoDaTurma('ABCD2345')]) {
-      expect(normalizarCodigoDaTurma(digitado), digitado).toBe('ABCD2345')
+      expect(normalizeCodigoDaTurma(digitado), digitado).toBe('ABCD2345')
     }
   })
 
   it('a normalização não recusa nem troca caractere fora do alfabeto: o código errado continua errado', () => {
-    expect(normalizarCodigoDaTurma('abcd-234o')).toBe('ABCD234O')
-    expect(codigoDaTurmaValido(normalizarCodigoDaTurma('abcd-234o'))).toBe(false)
+    expect(normalizeCodigoDaTurma('abcd-234o')).toBe('ABCD234O')
+    expect(codigoDaTurmaValido(normalizeCodigoDaTurma('abcd-234o'))).toBe(false)
   })
 })
 

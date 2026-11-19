@@ -82,7 +82,7 @@ describe('MedicaoDaFila', () => {
   })
 
   afterEach(async () => {
-    await medicaoDaFila.parar()
+    await medicaoDaFila.stop()
     await medidor.encerrar()
   })
 
@@ -201,7 +201,7 @@ describe('MedicaoDaFila', () => {
     })
     await comLog.medir()
     expect(linhas.map((linha) => JSON.parse(linha) as { evento?: string }).filter(({ evento }) => evento === 'despachante.medicao_indisponivel')).toHaveLength(1)
-    await comLog.parar()
+    await comLog.stop()
   })
 
   it('borda: a fila da escola esvaziou → série em zero, e não a última espera, até a retenção vencer; depois some', async () => {
@@ -254,6 +254,6 @@ describe('MedicaoDaFila', () => {
       { escolaId: ESCOLA_A, esperaS: undefined },
       { escolaId: ESCOLA_B, esperaS: 600 },
     ])
-    await outra.parar()
+    await outra.stop()
   })
 })

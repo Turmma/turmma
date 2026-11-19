@@ -71,7 +71,7 @@ export function areaDoModulo(idDoModulo: string): AreaDaEscola | undefined {
 }
 
 /** A fachada da área é o `routes.tsx` da pasta dela, e só ele: qualquer outro módulo de lá que vire pedaço é tela. */
-function ehFachadaDaArea(idDoModulo: string, area: AreaDaEscola): boolean {
+function isFachadaDaArea(idDoModulo: string, area: AreaDaEscola): boolean {
   return new RegExp(`${PASTA_DAS_AREAS}${area}/routes\\.tsx?$`).test(idDoModulo.replaceAll('\\', '/').replace(/[?#].*$/, ''))
 }
 
@@ -141,7 +141,7 @@ export const PECAS_FORA_DA_ENTRADA = [
 ] as const
 
 /** O módulo é uma peça que fica fora do primeiro carregamento? */
-export function ehPecaForaDaEntrada(idDoModulo: string): boolean {
+export function isPecaForaDaEntrada(idDoModulo: string): boolean {
   const id = idDoModulo.replaceAll('\\', '/').replace(/[?#].*$/, '')
   if (id.includes(PASTA_DAS_PECAS_DE_IA)) return true
   const posicao = id.indexOf(PASTA_DOS_COMPONENTES)
@@ -158,7 +158,7 @@ export function ehPecaForaDaEntrada(idDoModulo: string): boolean {
  */
 function soTemPecas(idsDosModulos: readonly string[]): boolean {
   const daWeb = idsDosModulos.filter((id) => id.replaceAll('\\', '/').includes(PASTA_DA_WEB))
-  return daWeb.length > 0 && daWeb.every(ehPecaForaDaEntrada)
+  return daWeb.length > 0 && daWeb.every(isPecaForaDaEntrada)
 }
 
 /** O nome do pedaço sem fachada: o que as telas de uma área dividem é da área, o que só tem peças é `pecas-*`, e o resto é `parte-*`. */
@@ -173,10 +173,10 @@ function nomeDoPedacoSemFachada(modulos: readonly string[]): string {
 /** O nome do pedaço que tem fachada fora da operação e da galeria: a fachada de uma área, uma tela dela, uma peça ou o resto. */
 function nomeDoPedacoComFachada(fachada: string, modulos: readonly string[] | undefined): string {
   const area = areaDoModulo(fachada)
-  if (area !== undefined) return ehFachadaDaArea(fachada, area) ? `assets/${area}-[hash].js` : `assets/tela-${area}-[name]-[hash].js`
+  if (area !== undefined) return isFachadaDaArea(fachada, area) ? `assets/${area}-[hash].js` : `assets/tela-${area}-[name]-[hash].js`
   // A peça que a entrada busca por `import()` (a onça da marca da `CascaPublica`) tem fachada, e por isso o ramo do pedaço sem
   // fachada não a alcança: sem esta linha ela cairia em `parte-*`, que o teto do primeiro carregamento mede sem ela estar nele.
-  if (ehPecaForaDaEntrada(fachada) && soTemPecas(modulos ?? [fachada])) return 'assets/pecas-[name]-[hash].js'
+  if (isPecaForaDaEntrada(fachada) && soTemPecas(modulos ?? [fachada])) return 'assets/pecas-[name]-[hash].js'
   return 'assets/parte-[name]-[hash].js'
 }
 

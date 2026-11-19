@@ -155,9 +155,9 @@ function AbaDeAtividades({ turmaId }: { turmaId: string }) {
     if (pedidoDeFoco > 0) filtroNaTela.current?.querySelector<HTMLElement>('[role="radio"][tabindex="0"]')?.focus()
   }, [pedidoDeFoco])
 
-  const abrir = (id: string): void => navegar(enderecoComAAtividade(caminho, busca, id))
-  const fechar = (): void => navegar(enderecoComAAtividade(caminho, busca, null), { replace: true })
-  function limparOFiltro(): void {
+  const open = (id: string): void => navegar(enderecoComAAtividade(caminho, busca, id))
+  const close = (): void => navegar(enderecoComAAtividade(caminho, busca, null), { replace: true })
+  function clearOFiltro(): void {
     definirFiltro('todas')
     definirPedidoDeFoco((n) => n + 1)
   }
@@ -193,7 +193,7 @@ function AbaDeAtividades({ turmaId }: { turmaId: string }) {
         </div>
       )}
       {todas.length > 0 && visiveis.length === 0 && (
-        <EmptyState titulo="Nada com este filtro" descricao="Nenhuma atividade desta turma está nesta situação." acao={{ rotulo: 'Limpar filtro', aoAcionar: limparOFiltro }} />
+        <EmptyState titulo="Nada com este filtro" descricao="Nenhuma atividade desta turma está nesta situação." acao={{ rotulo: 'Limpar filtro', aoAcionar: clearOFiltro }} />
       )}
       {visiveis.length > 0 && (
         <ul className="divide-y-2 divide-borda overflow-hidden rounded-cartao border-2 border-borda bg-superficie">
@@ -210,7 +210,7 @@ function AbaDeAtividades({ turmaId }: { turmaId: string }) {
                 data-estado-da-atividade={estadoDaAtividade(aplicada)}
               >
                 <ListItem
-                  aoAcionar={() => abrir(aplicada.id)}
+                  aoAcionar={() => open(aplicada.id)}
                   titulo={aplicada.titulo}
                   inicio={<IconeDeFerramenta ferramenta="atividade_objetiva" tamanho={40} />}
                   abaixo={situacaoDaAplicacao(aplicada)}
@@ -221,7 +221,7 @@ function AbaDeAtividades({ turmaId }: { turmaId: string }) {
           })}
         </ul>
       )}
-      {aberta !== undefined && <PainelDaAtividade aplicada={aberta} nomeDaTurma={turma.data?.nome ?? 'Turma da atividade'} turmaId={turmaId} aoFechar={fechar} />}
+      {aberta !== undefined && <PainelDaAtividade aplicada={aberta} nomeDaTurma={turma.data?.nome ?? 'Turma da atividade'} turmaId={turmaId} aoFechar={close} />}
     </section>
   )
 }

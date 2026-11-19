@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { lazy, Suspense, useEffect, useState, useSyncExternalStore, type ComponentType, type LazyExoticComponent, type ReactNode } from 'react'
 import { Redirect, Route, Switch, useLocation } from 'wouter'
 import { euQueryOptions } from './api/eu'
-import { abrirSessaoPeloCookie, assinarSessao, erroDaSessao, estadoDaSessao } from './api/sessao'
+import { openSessaoPeloCookie, assinarSessao, erroDaSessao, estadoDaSessao } from './api/sessao'
 import { AREA_BASE_PATH, ROUTES } from './paths'
 import { CascaDaEscola } from './components/CascaDaEscola'
 import { LoadingState, ErrorState } from './components/states'
@@ -95,7 +95,7 @@ function Protegida({ children }: { children: ReactNode }) {
   const estado = useSyncExternalStore(assinarSessao, estadoDaSessao)
   // Só na aba que acabou de abrir: depois disso, quem muda o estado é a entrada, a saída ou o "Tentar de novo".
   useEffect(() => {
-    if (estado === 'desconhecida') void abrirSessaoPeloCookie()
+    if (estado === 'desconhecida') void openSessaoPeloCookie()
   }, [estado])
 
   if (estado === 'aberta') return children
@@ -111,7 +111,7 @@ function Protegida({ children }: { children: ReactNode }) {
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-4 px-4 py-6 sm:px-6">
       {estado === 'indisponivel' ? (
-        <ErrorState erro={erroDaSessao()} aoTentarDeNovo={() => void abrirSessaoPeloCookie()} />
+        <ErrorState erro={erroDaSessao()} aoTentarDeNovo={() => void openSessaoPeloCookie()} />
       ) : (
         <LoadingState rotulo="Abrindo a sua sessão…" />
       )}

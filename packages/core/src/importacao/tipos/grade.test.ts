@@ -13,7 +13,7 @@ import { classificar, tipoGrade } from './grade.js'
 
 const auditar = vi.hoisted(() => vi.fn())
 vi.mock('../../convite/convidar-professor-da-planilha.js', () => ({ convidarProfessorDaPlanilha: vi.fn() }))
-vi.mock('../../auditoria/auditoria-recorder.js', () => ({ AuditoriaRecorder: class { gravar = auditar } }))
+vi.mock('../../auditoria/auditoria-recorder.js', () => ({ AuditoriaRecorder: class { save = auditar } }))
 const revogar = vi.hoisted(() => vi.fn())
 vi.mock('../../ciclo-de-vida/ciclo-de-vida.repository.js', () => ({ CicloDeVidaRepository: class { revogarDeQuemSaiu = revogar } }))
 const convidar = vi.mocked(convidarProfessorDaPlanilha)
@@ -58,19 +58,19 @@ function gravacaoFalsa(apagadasAMenos = 0, encerradosAMenos = 0) {
   const chamadas: string[] = []
   const gravacao = {
     seriesDaEscola: () => Promise.resolve([]),
-    criarSerie: () => Promise.resolve('serie-nova'),
-    criarTurma: (_ano: string, { nome }: { nome: string }) => Promise.resolve(`turma-${nome}`),
-    criarDisciplina: (nome: string) => Promise.resolve(`disciplina-${nome}`),
+    createSerie: () => Promise.resolve('serie-nova'),
+    createTurma: (_ano: string, { nome }: { nome: string }) => Promise.resolve(`turma-${nome}`),
+    createDisciplina: (nome: string) => Promise.resolve(`disciplina-${nome}`),
     professoresDaEscola: () => Promise.resolve([professor('u-novo', 'ana@escola.invalid', 'pendente')]),
-    criarVinculosDeProfessorDaGrade: (_ano: string, novos: ReadonlyArray<{ usuarioId: string; turmaId: string; disciplinaId: string }>) => {
+    createVinculosDeProfessorDaGrade: (_ano: string, novos: ReadonlyArray<{ usuarioId: string; turmaId: string; disciplinaId: string }>) => {
       chamadas.push(`vinculos:${String(novos.length)}`)
       return Promise.resolve(novos.map(({ usuarioId, turmaId, disciplinaId }, posicao) => ({ id: `v-${String(posicao)}`, usuarioId, turmaId, disciplinaId })))
     },
-    apagarAulas: (_ano: string, ids: readonly string[]) => {
+    deleteAulas: (_ano: string, ids: readonly string[]) => {
       chamadas.push(`apagadas:${ids.join(',')}`)
       return Promise.resolve(ids.length - apagadasAMenos)
     },
-    gravarAulas: (_ano: string, aulas: readonly unknown[]) => {
+    saveAulas: (_ano: string, aulas: readonly unknown[]) => {
       chamadas.push(`aulas:${String(aulas.length)}`)
       return Promise.resolve(aulas.length)
     },
@@ -387,7 +387,7 @@ describe('tipoGrade.planejar e travar', () => {
   it('o que o gravar guardou sem a forma da grade: sem plano e sem trava', async () => {
     expect(await tipoGrade.planejar(repositorioCom(), ANO, [{ lixo: true }], SEM_MARCAS)).toBeUndefined()
     const travar = vi.fn()
-    await tipoGrade.travar?.({ travarUsuarios: travar, travarTurmas: travar } as unknown as ImportacaoRepository, ANO, [{ lixo: true }], SEM_MARCAS, { contas: new Map(), travarContas: () => Promise.resolve(true) }, TX)
+    await tipoGrade.lock?.({ lockUsuarios: travar, lockTurmas: travar } as unknown as ImportacaoRepository, ANO, [{ lixo: true }], SEM_MARCAS, { contas: new Map(), lockContas: () => Promise.resolve(true) }, TX)
     expect(travar).not.toHaveBeenCalled()
   })
 
@@ -396,26 +396,26 @@ describe('tipoGrade.planejar e travar', () => {
     const banco = { turmas: [T8A, T8B, turma('t-9a', '9º A', '9a')], professores: [ANA, professor('u-bia', 'bia@escola.invalid', 'ativo')] }
     const repositorio = {
       ...repositorioCom(banco),
-      travarUsuarios: (ids: readonly string[]) => Promise.resolve(void ordem.push(`usuarios:${ids.join(',')}`)),
-      travarTurmas: (_ano: string, ids: readonly string[]) => Promise.resolve(void ordem.push(`turmas:${ids.join(',')}`)),
+      lockUsuarios: (ids: readonly string[]) => Promise.resolve(void ordem.push(`usuarios:${ids.join(',')}`)),
+      lockTurmas: (_ano: string, ids: readonly string[]) => Promise.resolve(void ordem.push(`turmas:${ids.join(',')}`)),
     } as unknown as ImportacaoRepository
     const guardado = await guardadoDe([linha('8B', '1', '8:00', '8:50'), linha('8º A', '2', '8:00', '8:50'), linha('7A', '2', '9:00', '9:50', { professor: 'Nova', email: 'nova@escola.invalid' })], banco)
     const travarContas = vi.fn(() => {
       ordem.push('contas')
       return Promise.resolve(true)
     })
-    await tipoGrade.travar?.(repositorio, ANO, guardado, SEM_MARCAS, { contas: new Map([['nova@escola.invalid', 'c-1']]), travarContas }, TX)
+    await tipoGrade.lock?.(repositorio, ANO, guardado, SEM_MARCAS, { contas: new Map([['nova@escola.invalid', 'c-1']]), lockContas: travarContas }, TX)
     expect(ordem).toEqual(['usuarios:u-ana', 'contas', 'turmas:t-8a,t-8b'])
     ordem.length = 0
-    await tipoGrade.travar?.(repositorio, ANO, guardado, SEM_MARCAS, { contas: new Map(), travarContas }, TX)
+    await tipoGrade.lock?.(repositorio, ANO, guardado, SEM_MARCAS, { contas: new Map(), lockContas: travarContas }, TX)
     expect(ordem).toEqual(['usuarios:u-ana', 'turmas:t-8a,t-8b'])
   })
 
   it('conta que perdeu o e-mail entre o passo (1) e o (3): ContaDaPlanilhaPerdidaError, antes de travar as turmas', async () => {
     const travarTurmas = vi.fn()
-    const repositorio = { ...repositorioCom(), travarUsuarios: vi.fn(), travarTurmas } as unknown as ImportacaoRepository
+    const repositorio = { ...repositorioCom(), lockUsuarios: vi.fn(), lockTurmas: travarTurmas } as unknown as ImportacaoRepository
     const guardado = await guardadoDe([linha('8A', '1', '8:00', '8:50')])
-    await expect(tipoGrade.travar?.(repositorio, ANO, guardado, SEM_MARCAS, { contas: new Map([['ana@escola.invalid', 'c-1']]), travarContas: () => Promise.resolve(false) }, TX)).rejects.toBeInstanceOf(ContaDaPlanilhaPerdidaError)
+    await expect(tipoGrade.lock?.(repositorio, ANO, guardado, SEM_MARCAS, { contas: new Map([['ana@escola.invalid', 'c-1']]), lockContas: () => Promise.resolve(false) }, TX)).rejects.toBeInstanceOf(ContaDaPlanilhaPerdidaError)
     expect(travarTurmas).not.toHaveBeenCalled()
   })
 
@@ -570,14 +570,14 @@ describe('tipoGrade, reimportar substitui a grade do ano (12.0, RF9)', () => {
     const dados = escola([vinculo('v-8a'), vinculo('v-9b', { turmaId: 't-9b', usuarioId: 'u-bia' }), vinculo('v-8b', { turmaId: 't-8b', usuarioId: 'u-caio' }), vinculo('v-9c', { turmaId: 't-9c', usuarioId: 'u-dani' })])
     const repositorio = {
       ...repositorioCom({ ...dados, professores: [ANA, professor('u-bia', 'bia@escola.invalid', 'ativo'), professor('u-caio', 'caio@escola.invalid', 'ativo'), professor('u-dani', 'dani@escola.invalid', 'ativo')] }),
-      travarUsuarios: (ids: readonly string[]) => Promise.resolve(void ordem.push(`usuarios:${[...ids].sort().join(',')}`)),
-      travarTurmas: (_ano: string, ids: readonly string[]) => Promise.resolve(void ordem.push(`turmas:${ids.join(',')}`)),
+      lockUsuarios: (ids: readonly string[]) => Promise.resolve(void ordem.push(`usuarios:${[...ids].sort().join(',')}`)),
+      lockTurmas: (_ano: string, ids: readonly string[]) => Promise.resolve(void ordem.push(`turmas:${ids.join(',')}`)),
     } as unknown as ImportacaoRepository
     const guardado = (await previa([daAna8A], dados)).guardado
-    await tipoGrade.travar?.(repositorio, ANO, guardado, { ...SEM_MARCAS, encerrar: ['v-9b', 'v-8b'] }, { contas: new Map(), travarContas: () => Promise.resolve(true) }, TX)
+    await tipoGrade.lock?.(repositorio, ANO, guardado, { ...SEM_MARCAS, encerrar: ['v-9b', 'v-8b'] }, { contas: new Map(), lockContas: () => Promise.resolve(true) }, TX)
     expect(ordem).toEqual(['usuarios:u-ana,u-bia,u-caio', 'turmas:t-8a,t-8b,t-9b'])
     ordem.length = 0
-    await tipoGrade.travar?.(repositorio, ANO, guardado, SEM_MARCAS, { contas: new Map(), travarContas: () => Promise.resolve(true) }, TX)
+    await tipoGrade.lock?.(repositorio, ANO, guardado, SEM_MARCAS, { contas: new Map(), lockContas: () => Promise.resolve(true) }, TX)
     expect(ordem).toEqual(['usuarios:u-ana', 'turmas:t-8a'])
   })
 })

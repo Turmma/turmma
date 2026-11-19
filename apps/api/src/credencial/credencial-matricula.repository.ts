@@ -163,7 +163,7 @@ export class CredencialMatriculaRepository {
    * entra só pela conta da escola (acesso-e-convites, 14.0): a credencial guarda a matrícula, e o login por matrícula o recusa como
    * qualquer credencial sem senha.
    */
-  async criar(novas: ReadonlyArray<{ usuarioId: string; matricula: string; senhaHash: string | null }>): Promise<void> {
+  async create(novas: ReadonlyArray<{ usuarioId: string; matricula: string; senhaHash: string | null }>): Promise<void> {
     if (novas.length === 0) return
     const escolaId = requireEscolaId()
     await this.banco.insert(credencialMatricula).values(novas.map((nova) => ({ ...nova, escolaId })))
@@ -171,7 +171,7 @@ export class CredencialMatriculaRepository {
 
   /**
    * Se quem pede alcança o aluno, **sem travar nada** (acesso-e-convites, tarefa 9.0): a primeira conferência da geração, antes do hash, para quem não o alcança não ocupar o
-   * semáforo do argon2 nem uma conexão do pool (regra 80, item 5). O escopo é o de `travarAlunoParaProvisoria`, que repete a conferência dentro da transação curta.
+   * semáforo do argon2 nem uma conexão do pool (regra 80, item 5). O escopo é o de `lockAlunoParaProvisoria`, que repete a conferência dentro da transação curta.
    */
   async alcancaAluno(usuarioId: string, alcance: AlcanceDaProvisoria): Promise<boolean> {
     const [achado] = await this.#alunoQueAlcanca(usuarioId, alcance)
@@ -190,7 +190,7 @@ export class CredencialMatriculaRepository {
    * O professor, o coordenador, o aluno de outra escola e o id que não existe dão o mesmo `false`: quem chama responde `NAO_ENCONTRADO` igual.
    * Nunca devolve nome nem matrícula.
    */
-  async travarAlunoParaProvisoria(usuarioId: string, alcance: AlcanceDaProvisoria): Promise<boolean> {
+  async lockAlunoParaProvisoria(usuarioId: string, alcance: AlcanceDaProvisoria): Promise<boolean> {
     const [travado] = await this.#alunoQueAlcanca(usuarioId, alcance).for('no key update')
     return travado !== undefined
   }
@@ -219,7 +219,7 @@ export class CredencialMatriculaRepository {
    * o coordenador, o aluno de outra escola, o de outra turma e o id que não existe dão o mesmo `undefined`. A turma é a do vínculo `confirmado` do aluno no ano em curso; sem ano em curso
    * (só a coordenação chega aqui sem ele), `null`. Devolve o nome e a matrícula, que quem chama nunca grava em log nem em auditoria.
    */
-  async lerAlvo(usuarioId: string, alcance: AlcanceDaProvisoria): Promise<AlvoDaProvisoria | undefined> {
+  async findAlvo(usuarioId: string, alcance: AlcanceDaProvisoria): Promise<AlvoDaProvisoria | undefined> {
     const escolaId = requireEscolaId()
     const { anoLetivoId } = requestSessao()
     const doAluno = alias(vinculo, 'vinculo_do_alvo')
@@ -293,7 +293,7 @@ export class CredencialMatriculaRepository {
    * O estado da credencial do aluno que acabou de ser travado: se ela existe, se a conta da escola está ligada e se há provisória não usada gerada
    * há menos de 10 s (acesso-e-convites, tarefa 9.0). A provisória usada ou vencida e anulada não conta: as três colunas estão nulas. O relógio é o do
    * banco (`clock_timestamp()`, depois da trava): quem esperou a trava enxerga a geração que acabou de terminar. Só chamar depois de
-   * `travarAlunoParaProvisoria`. Nunca devolve hash, matrícula nem nome.
+   * `lockAlunoParaProvisoria`. Nunca devolve hash, matrícula nem nome.
    */
   async estadoDaProvisoria(usuarioId: string): Promise<EstadoDaProvisoria> {
     const escolaId = requireEscolaId()
@@ -316,7 +316,7 @@ export class CredencialMatriculaRepository {
    * Grava a provisória no lugar da senha: apaga o `senha_hash` e a provisória anterior (a troca é um `update` só), guarda o hash novo, a validade de 24 h
    * contada do relógio do banco e quem gerou (acesso-e-convites, tarefa 9.0). `undefined` se o aluno não tem credencial. Só chamar com o usuário travado.
    */
-  async gravarProvisoria(usuarioId: string, hash: string, geradaPor: string): Promise<ProvisoriaGravada | undefined> {
+  async saveProvisoria(usuarioId: string, hash: string, geradaPor: string): Promise<ProvisoriaGravada | undefined> {
     const [gravada] = await this.banco
       .update(credencialMatricula)
       .set({

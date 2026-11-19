@@ -7,7 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { DB } from '../src/database.module.js'
 import { COOKIE_SESSAO_DE_OPERADOR } from '../src/operacao/cookie-de-operador.js'
-import { criarOperador, desativarOperador, gerarConviteDeOperador } from '../src/ops/operador.js'
+import { createOperador, desativarOperador, generateConviteDeOperador } from '../src/ops/operador.js'
 import { codigoDoPasso, configurar, doIp, entrar, esperarErro, ipSorteado, passoAtual, pedir, subir, valorDoCookie } from './operador-mfa.fixture.js'
 import { OperadorFixtures } from './operador-session.fixture.js'
 
@@ -69,9 +69,9 @@ describe('registros da operação: acesso e auditoria (C37, tarefa 8.0)', () => 
   it('pela API: a entrada grava `entrada` com operador e IP; o primeiro código grava `operador.mfa_configurado` com o próprio operador como autor, uma vez só; a saída grava `saida` com o IP', async () => {
     const { operadorId, apelido } = await operadores.operador()
     // Dois convites pelo comando: o segundo revoga o primeiro.
-    await gerarConviteDeOperador(banco, autor, apelido)
+    await generateConviteDeOperador(banco, autor, apelido)
     const [ipDoAceite, ipDaEntrada, ipDaSegunda, ipDaSaida] = [ipSorteado(), ipSorteado(), ipSorteado(), ipSorteado()]
-    const token = (await gerarConviteDeOperador(banco, autor, apelido)).token
+    const token = (await generateConviteDeOperador(banco, autor, apelido)).token
     const aceite = aceitarConviteDeOperadorResponseSchema.parse((await pedir(url, 'POST', '/v1/operacao/convite/aceitar', { token, senha: SENHA }, doIp(ipDoAceite))).corpo)
     const { corpo: configurado } = await configurar(url, aceite.desafio)
     if (configurado === undefined) throw new Error('configurar recusado')
@@ -105,7 +105,7 @@ describe('registros da operação: acesso e auditoria (C37, tarefa 8.0)', () => 
 
   it('a falha de entrada, pela senha e pelo código, grava `entrada_falha` com o IP e sem operador, e soma na métrica; a senha certa e o código certo não', async () => {
     const { operadorId, apelido } = await operadores.operador()
-    const token = (await gerarConviteDeOperador(banco, autor, apelido)).token
+    const token = (await generateConviteDeOperador(banco, autor, apelido)).token
     const aceite = aceitarConviteDeOperadorResponseSchema.parse((await pedir(url, 'POST', '/v1/operacao/convite/aceitar', { token, senha: SENHA }, doIp())).corpo)
     const { corpo: configurado } = await configurar(url, aceite.desafio)
     if (configurado === undefined) throw new Error('configurar recusado')
@@ -132,9 +132,9 @@ describe('registros da operação: acesso e auditoria (C37, tarefa 8.0)', () => 
 
   it('pelo comando: criar, convite, desativar gravam a auditoria com o autor do OPERADOR e o alvo certo, e nenhum acesso', async () => {
     const apelido = `r-${randomBytes(6).toString('hex')}`
-    const { operadorId } = await criarOperador(banco, autor, { apelido, nome: 'Pessoa Sintética dos Registros', email: `${apelido}@turmma.invalid` })
+    const { operadorId } = await createOperador(banco, autor, { apelido, nome: 'Pessoa Sintética dos Registros', email: `${apelido}@turmma.invalid` })
     criadosAqui.push(operadorId)
-    await gerarConviteDeOperador(banco, autor, apelido)
+    await generateConviteDeOperador(banco, autor, apelido)
     await desativarOperador(banco, autor, apelido)
     expect(await auditoriaDe(operadorId)).toEqual([
       { autor, acao: 'operador.criado' },

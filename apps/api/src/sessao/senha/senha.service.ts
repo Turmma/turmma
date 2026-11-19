@@ -7,7 +7,7 @@ import type { PasswordHasher } from '../../credencial/password-hasher.js'
 import type { HashBulkhead } from '../../credencial/senha/hash-bulkhead.js'
 import { equipeBucket } from '../../credencial/senha/login-buckets.js'
 import type { WindowCounter } from '../../credencial/senha/window-counter.js'
-import { normalizarEmail } from '../../credencial/login-identifiers.js'
+import { normalizeEmail } from '../../credencial/login-identifiers.js'
 import { hashDoToken } from '../../credencial/token-hash.js'
 import { tokenNovo } from '../convite/convite.service.js'
 import { linkJaAberto, TenantResolutionRepository, type UsuarioAtivoDaConta } from '../tenant/tenant-resolution.repository.js'
@@ -36,15 +36,15 @@ type AcaoPorEscola = 'senha.redefinida' | 'conta.email_verificado'
 /** O relógio e a espera do piso: o teste os troca para provar os 400 ms por relógio falso. */
 export interface PisoDoEsqueci {
   readonly relogio: Clock
-  readonly esperar: (ms: number) => Promise<void>
+  readonly wait: (ms: number) => Promise<void>
 }
 
 export interface SenhaDependencies {
   readonly banco: Database
   readonly resolucao: TenantResolutionRepository
-  readonly hash: Pick<PasswordHasher, 'gerar'>
+  readonly hash: Pick<PasswordHasher, 'generate'>
   /** O semáforo do argon2, o mesmo do login: a senha nova espera a vez no balde da equipe, por IP. */
-  readonly semaforo: Pick<HashBulkhead, 'executar'>
+  readonly semaforo: Pick<HashBulkhead, 'run'>
   /** A janela de um minuto, a do balde por IP. */
   readonly porMinuto: Pick<WindowCounter, 'chaveDe' | 'somar'>
   /** A janela de uma hora, a do balde por e-mail. */
@@ -58,11 +58,11 @@ export interface SenhaDependencies {
   readonly logger: Pick<LoggerBase, 'info'>
   readonly relogio?: Clock
   /** A espera até o piso. Só o teste troca, para provar o piso por relógio falso e nunca por cronômetro. */
-  readonly esperar?: (ms: number) => Promise<void>
+  readonly wait?: (ms: number) => Promise<void>
 }
 
 const linkInvalido = () => new DomainException(ErrorCode.NAO_ENCONTRADO)
-const esperarDeVerdade = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
+const waitDeVerdade = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
 
 /**
  * O "esqueci a senha" e o "redefinir" da equipe (acesso-e-convites, tarefa 5.0, RF12; Tech Spec, seção 5, "Esqueci"). Anônimos: não há escola nem usuário no contexto.
@@ -95,33 +95,33 @@ const esperarDeVerdade = (ms: number): Promise<void> => new Promise((resolve) =>
 export class SenhaService {
   readonly #logger = new Logger('senha')
   readonly #relogio: Clock
-  readonly #esperar: (ms: number) => Promise<void>
+  readonly #wait: (ms: number) => Promise<void>
 
   constructor(private readonly dependencias: SenhaDependencies) {
     this.#relogio = dependencias.relogio ?? systemClock
-    this.#esperar = dependencias.esperar ?? esperarDeVerdade
+    this.#wait = dependencias.wait ?? waitDeVerdade
   }
 
   async esqueci(pedido: EsqueciSenhaRequest, ip: string): Promise<void> {
     const inicio = this.#relogio.agora().getTime()
-    await this.#pedir(normalizarEmail(pedido.email), ip)
+    await this.#pedir(normalizeEmail(pedido.email), ip)
     const falta = PISO_DO_ESQUECI_MS - (this.#relogio.agora().getTime() - inicio)
-    if (falta > 0) await this.#esperar(falta)
+    if (falta > 0) await this.#wait(falta)
   }
 
   async #pedir(email: string, ip: string): Promise<void> {
     const { resolucao } = this.dependencias
     // Os dois contadores andam sempre, antes de olhar a conta: nem o tempo nem o limite dizem se ela existe.
-    const [doIp, doEmail] = await Promise.all([this.#contar('porMinuto', PREFIXO_DO_BALDE_DO_ESQUECI_POR_IP, ip, LIMITE_DO_ESQUECI_POR_IP_MIN), this.#contar('porHora', PREFIXO_DO_ESQUECI_POR_EMAIL, email, LIMITE_DO_ESQUECI_POR_EMAIL_HORA)])
+    const [doIp, doEmail] = await Promise.all([this.#count('porMinuto', PREFIXO_DO_BALDE_DO_ESQUECI_POR_IP, ip, LIMITE_DO_ESQUECI_POR_IP_MIN), this.#count('porHora', PREFIXO_DO_ESQUECI_POR_EMAIL, email, LIMITE_DO_ESQUECI_POR_EMAIL_HORA)])
     if (doIp || doEmail) return
     const achada = await resolucao.contaPorEmail(email)
     if (achada === undefined) return
     if ((await resolucao.usuariosAtivosDaConta(achada.id, { comSuspensos: true })).length === 0) return
-    await this.#abrirLink('redefinir', achada.id, email, VALIDADE_DO_LINK_DE_REDEFINIR_MS)
+    await this.#openLink('redefinir', achada.id, email, VALIDADE_DO_LINK_DE_REDEFINIR_MS)
   }
 
   /** Soma um no contador e diz se o pedido passou do limite dele (dividido pelas instâncias no seguro em memória). */
-  async #contar(janela: 'porMinuto' | 'porHora', prefixo: string, identificador: string, limite: number): Promise<boolean> {
+  async #count(janela: 'porMinuto' | 'porHora', prefixo: string, identificador: string, limite: number): Promise<boolean> {
     const contador = this.dependencias[janela]
     const { valor, doSeguro } = await contador.somar(contador.chaveDe(prefixo, identificador))
     return valor > (doSeguro ? insuranceLimit(limite, this.dependencias.instancias) : limite)
@@ -132,13 +132,13 @@ export class SenhaService {
    * sem e-mail e a corrida do índice único terminam todos sem link novo, e o aceite diz o mesmo `VERIFICACAO_PENDENTE`.
    */
   async pedirVerificacao(contaId: string): Promise<void> {
-    if (await this.#contar('porHora', PREFIXO_DA_VERIFICACAO_POR_CONTA, contaId, LIMITE_DA_VERIFICACAO_POR_CONTA_HORA)) return
+    if (await this.#count('porHora', PREFIXO_DA_VERIFICACAO_POR_CONTA, contaId, LIMITE_DA_VERIFICACAO_POR_CONTA_HORA)) return
     const email = await this.dependencias.resolucao.emailDaConta(contaId)
     if (email === undefined) return
-    await this.#abrirLink('verificar', contaId, email, VALIDADE_DO_LINK_DE_VERIFICAR_MS)
+    await this.#openLink('verificar', contaId, email, VALIDADE_DO_LINK_DE_VERIFICAR_MS)
   }
 
-  async #abrirLink(finalidade: FinalidadeDoLinkDaConta, contaId: string, email: string, validadeMs: number): Promise<void> {
+  async #openLink(finalidade: FinalidadeDoLinkDaConta, contaId: string, email: string, validadeMs: number): Promise<void> {
     const { banco, cifra, fila } = this.dependencias
     const token = tokenNovo()
     const expiraEm = new Date(this.#relogio.agora().getTime() + validadeMs)
@@ -152,7 +152,7 @@ export class SenhaService {
         // A conta primeiro, na ordem do redefinir e do verificar: ver `segurarContaParaLink`.
         await resolucao.segurarContaParaLink(contaId)
         await resolucao.cancelarLinksAbertos(contaId, finalidade)
-        const id = await resolucao.criarLinkDaConta({ contaId, finalidade, tokenHash: hashDoToken(token), expiraEm, cifrarParaEnvio })
+        const id = await resolucao.createLinkDaConta({ contaId, finalidade, tokenHash: hashDoToken(token), expiraEm, cifrarParaEnvio })
         await fila.enfileirar(tx, TIPO_ENVIAR_EMAIL_DA_CONTA, { linkId: id })
         return id
       })
@@ -170,12 +170,12 @@ export class SenhaService {
     // O token se confere antes do argon2: o inválido não ocupa o semáforo.
     const valido = await resolucao.linkValidoPorHash(tokenHash, 'redefinir')
     if (valido === undefined) throw linkInvalido()
-    const senhaHash = await semaforo.executar(equipeBucket(ip), () => hash.gerar(pedido.senha))
+    const senhaHash = await semaforo.run(equipeBucket(ip), () => hash.generate(pedido.senha))
     const requisicaoId = currentContext()?.requisicaoId ?? randomUUID()
     await banco.transaction(async (tx) => {
       const naTransacao = new TenantResolutionRepository(tx)
       // A conta primeiro: dois redefinir da mesma conta, e a desativação de um usuário dela, esperam uns pelos outros.
-      if ((await naTransacao.travarContaParaRedefinir(valido.contaId)) === undefined) throw linkInvalido()
+      if ((await naTransacao.lockContaParaRedefinir(valido.contaId)) === undefined) throw linkInvalido()
       const usado = await naTransacao.usarLinkPorHash(tokenHash, 'redefinir')
       if (usado === undefined || usado.contaId !== valido.contaId) throw linkInvalido()
       // Sem usuário ativo agora, não há escola a avisar nem quem entre com a senha nova: o link já não serve.
@@ -190,7 +190,7 @@ export class SenhaService {
     this.#logger.log('senha.redefinida')
   }
 
-  async verificar(pedido: VerificarContaRequest): Promise<void> {
+  async verify(pedido: VerificarContaRequest): Promise<void> {
     const { banco, resolucao } = this.dependencias
     const tokenHash = hashDoToken(pedido.token)
     const valido = await resolucao.linkValidoPorHash(tokenHash, 'verificar')
@@ -199,7 +199,7 @@ export class SenhaService {
     await banco.transaction(async (tx) => {
       const naTransacao = new TenantResolutionRepository(tx)
       // A conta primeiro, na ordem do redefinir: dois verificar da mesma conta, e a desativação de um usuário dela, esperam uns pelos outros.
-      if ((await naTransacao.travarContaParaRedefinir(valido.contaId)) === undefined) throw linkInvalido()
+      if ((await naTransacao.lockContaParaRedefinir(valido.contaId)) === undefined) throw linkInvalido()
       const usado = await naTransacao.usarLinkPorHash(tokenHash, 'verificar')
       if (usado === undefined || usado.contaId !== valido.contaId) throw linkInvalido()
       const usuarios = await naTransacao.usuariosAtivosDaConta(valido.contaId, { comSuspensos: true })
@@ -216,7 +216,7 @@ export class SenhaService {
     const porEscola = new Map<string, string>()
     for (const ativo of usuarios) if (!porEscola.has(ativo.escolaId)) porEscola.set(ativo.escolaId, ativo.usuarioId)
     for (const [escolaId, usuarioId] of porEscola) {
-      await runInContext({ requisicaoId, escolaId, usuarioId }, () => registro.gravar(tx, acao, { entidadeId: usuarioId }))
+      await runInContext({ requisicaoId, escolaId, usuarioId }, () => registro.save(tx, acao, { entidadeId: usuarioId }))
     }
   }
 }

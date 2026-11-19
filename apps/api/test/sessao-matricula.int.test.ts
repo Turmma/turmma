@@ -55,10 +55,10 @@ describe('POST /v1/sessao/matricula: o aluno entra pelo endereço da escola com 
     // vazão que tinha antes do semáforo (14.0). O semáforo com teto baixo tem prova própria (login-bulkhead.int.test.ts).
     api = await subirApi(medidor.medidor, { ambiente: { LOGIN_HASH_CONCORRENCIA: '4' } }, linhasDeLog)
     hash = api.app.get(PasswordHasher)
-    verificacoes = vi.spyOn(hash, 'verificar')
+    verificacoes = vi.spyOn(hash, 'verify')
     await clientePronto(api.app.get<Redis>(REDIS_LOGIN_CLIENT, { strict: false }))
-    hashDeA = await hash.gerar(SENHA_DE_A)
-    hashDeB = await hash.gerar(SENHA_DE_B)
+    hashDeA = await hash.generate(SENHA_DE_A)
+    hashDeB = await hash.generate(SENHA_DE_B)
   })
 
   beforeEach(() => {

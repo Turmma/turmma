@@ -134,7 +134,7 @@ export interface ContagemDasRespostas {
   readonly naoSalvas: number
 }
 
-export function contarRespostas(prova: Pick<ProvaResponse, 'questoes' | 'respostas'>, fila: EstadoDaFila): ContagemDasRespostas {
+export function countRespostas(prova: Pick<ProvaResponse, 'questoes' | 'respostas'>, fila: EstadoDaFila): ContagemDasRespostas {
   const salvas = respostasSalvas(prova)
   const respondidas = prova.questoes.filter((questao) => alternativaMarcada(questao.numero, salvas, fila) !== undefined).length
   return { questoes: prova.questoes.length, respondidas, emBranco: prova.questoes.length - respondidas, naoSalvas: fila.pendentes.length }

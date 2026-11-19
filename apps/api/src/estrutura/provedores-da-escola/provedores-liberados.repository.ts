@@ -20,7 +20,7 @@ export class ProvedoresLiberadosRepository {
    * Trava a linha da escola até o fim da transação: duas trocas da lista ao mesmo tempo passam uma depois da outra, e
    * a segunda lê o `antes` já com a primeira. `FOR NO KEY UPDATE`, que não segura o login nem a renovação da escola.
    */
-  async travarEscola(): Promise<boolean> {
+  async lockEscola(): Promise<boolean> {
     const [linha] = await this.tx.select({ id: escola.id }).from(escola).where(eq(escola.id, requireEscolaId())).for('no key update')
     return linha !== undefined
   }
@@ -44,7 +44,7 @@ export class ProvedoresLiberadosRepository {
   }
 
   /** Libera os domínios e tenants novos na escola do contexto. */
-  async liberar(novos: ReadonlyArray<{ provedor: ProvedorExterno; valor: string }>): Promise<void> {
+  async release(novos: ReadonlyArray<{ provedor: ProvedorExterno; valor: string }>): Promise<void> {
     if (novos.length === 0) return
     const escolaId = requireEscolaId()
     await this.tx.insert(provedorEscola).values(novos.map((novo) => ({ escolaId, provedor: novo.provedor, valor: novo.valor })))

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { linhasDoBloco, normalizarTexto, paginaDoMaterial, PAGINAS_DO_MATERIAL, rodapeDaPagina } from '../../../../tools/demonstracao/conteudo-estequiometria.ts'
 import { CAMINHO_DO_MATERIAL } from '../../../../tools/demonstracao/gerar-material.ts'
-import { PdfExtractor, MAXIMO_DE_CARACTERES_DO_TRECHO, temAssinaturaDePdf, tirarLinhasRepetidas } from './pdf-extractor.js'
+import { PdfExtractor, MAXIMO_DE_CARACTERES_DO_TRECHO, hasAssinaturaDePdf, tirarLinhasRepetidas } from './pdf-extractor.js'
 
 const extrator = new PdfExtractor()
 const demonstracao = (): Uint8Array => new Uint8Array(readFileSync(CAMINHO_DO_MATERIAL))
@@ -63,10 +63,10 @@ describe('extração do PDF por página', () => {
   })
 
   it('a assinatura é conferida no conteúdo, nos primeiros 1024 bytes', () => {
-    expect(temAssinaturaDePdf(demonstracao())).toBe(true)
-    expect(temAssinaturaDePdf(Buffer.concat([Buffer.alloc(100, 0x20), Buffer.from('%PDF-1.4')]))).toBe(true)
-    expect(temAssinaturaDePdf(Buffer.concat([Buffer.alloc(2000, 0x20), Buffer.from('%PDF-1.4')]))).toBe(false)
-    expect(temAssinaturaDePdf(Buffer.from('PK\u0003\u0004 planilha.pdf'))).toBe(false)
+    expect(hasAssinaturaDePdf(demonstracao())).toBe(true)
+    expect(hasAssinaturaDePdf(Buffer.concat([Buffer.alloc(100, 0x20), Buffer.from('%PDF-1.4')]))).toBe(true)
+    expect(hasAssinaturaDePdf(Buffer.concat([Buffer.alloc(2000, 0x20), Buffer.from('%PDF-1.4')]))).toBe(false)
+    expect(hasAssinaturaDePdf(Buffer.from('PK\u0003\u0004 planilha.pdf'))).toBe(false)
   })
 
   it('o teto do trecho é o da coluna `trecho.texto`', () => {

@@ -123,7 +123,7 @@ barril `@educa/core/estrutura`), e quem o chama também é cercado: só o `sessa
 planilha (`apps/worker/src/processors/gravar-planilha.ts`, que o chama no passo (1) e passa a função ao motor; onboarding-por-convite,
 6.0), pela entrada `contaDoProfessor` do `architecture.test.ts` e pela regra `cerca-cadastro-de-professor` do `camadas.cjs`. A cerca de `estrutura/` é o arquivo, e não a pasta: um vizinho que a importe, por import, reexport, `import()`,
 `require` ou o caminho como texto, reprova o `architecture.test.ts` e o `cerca-conta-global` de
-`tools/guardas/camadas.cjs`. As quatro primeiras são exceções antigas que mudaram de lugar, e a quinta (a trava das contas do passo (3) da planilha de professores, `travarEConferir`, `@Unscoped`, que o processor injeta no motor por `travarContasDoProfessor`, onboarding-por-convite, 6.0) está no mesmo arquivo cercado; já estão no ponto que a regra 10,
+`tools/guardas/camadas.cjs`. As quatro primeiras são exceções antigas que mudaram de lugar, e a quinta (a trava das contas do passo (3) da planilha de professores, `lockEConferir`, `@Unscoped`, que o processor injeta no motor por `lockContasDoProfessor`, onboarding-por-convite, 6.0) está no mesmo arquivo cercado; já estão no ponto que a regra 10,
 item 9 aponta como sinal de desenho errado: qualquer outra ali é mudança de spec, discutida antes, e não acréscimo de
 tarefa. A única leitura nova (F3, tarefa 13.0) é a do e-mail da `Conta` pelo arquivo do titular
 (`LeituraDoTitular`, tabela `conta`, que a Tech Spec do F3, seção 3, manda levar "só o e-mail, nas duas
@@ -384,7 +384,7 @@ código:
 | `PainelRepository.redes` | a lista de redes para criar escola | acima do tenant; só id, nome e tipo, até 200, sem escola nem pessoa |
 | `PainelRepository.escolas` | a lista de escolas, com o estado da coordenação e as contagens do ano em curso | só id, nome, endereço e número, sem pessoa |
 | `PainelRepository.uso` | o uso de infra de cada escola no último dia fechado e no mês dele | só id, nome e número, sem pessoa |
-| `RedeEEscolaRepository.criarRede`, `criarEscola` | cria, ou lê pelo id o pedido repetido | a rede fica acima do tenant, e a escola é o próprio tenant, que nasce ali; só o comando ou o painel cria, e devolve só o id |
+| `RedeEEscolaRepository.createRede`, `createEscola` | cria, ou lê pelo id o pedido repetido | a rede fica acima do tenant, e a escola é o próprio tenant, que nasce ali; só o comando ou o painel cria, e devolve só o id |
 | `ContaGlobalRepository.contaParaConvite` | acha ou cria a conta pelo e-mail no convite da coordenação e no cadastro do professor | a conta é global e não tem escola; não lê nada dela e devolve só o id e se é nova (o cadastro do professor descarta o `nova`) |
 | `TenantResolutionRepository.escolaDoConviteParaOperador` | a escola do convite de coordenação | recebe só o id do convite, e a escola dele vira o contexto, nunca o argumento |
 
@@ -774,7 +774,7 @@ com dono único no teste de arquitetura. Escola que não existe responde `NAO_EN
 
 **O expurgo noturno da escola (F3, tarefa 3.0).** À 1h, a rotina do sistema `sistema.expurgar-dado-pessoal` lista as
 escolas pela `CronEscolasRepository` (em `packages/core/src/cron`), a **única consulta sem escopo do expurgo**:
-`listarIds`, `@Unscoped` com a justificativa da rotina, devolve só os ids. Ela não é de retenção: é a infraestrutura de
+`listIds`, `@Unscoped` com a justificativa da rotina, devolve só os ids. Ela não é de retenção: é a infraestrutura de
 que a rotina, sem escola, precisa para abrir o contexto de cada escola, e o teste de arquitetura confere que só o
 worker-lote a usa (a rotina e a medição do alerta). No contexto de cada escola, a rotina grava um
 `retencao.expurgar-escola` na fila de lote, não urgente, pelo `JobOutbox.enfileirarUmaVez`, com a **chave de
@@ -856,7 +856,7 @@ liga a decisão sobre o professor (D45, regra 70 item 8). Os dois estão no mapa
    - o `Incidente` (F3), o que as escolas afetadas por um incidente de segurança dividem, da nossa operação: só o
      `OperacaoPrivacidadeRepository` escreve, o `IncidenteDaEscolaRepository` lê pela `IncidenteEscola` (esta tem `escolaId`) e
      o expurgo de acesso apaga por prazo — ver "Comunicação, conta e conformidade".
-   A lista de escolas da rotina noturna (`CronEscolasRepository.listarIds`, F3) não é tabela sem escola: é a
+   A lista de escolas da rotina noturna (`CronEscolasRepository.listIds`, F3) não é tabela sem escola: é a
    consulta sem escopo que abre o contexto de cada escola — ver "Comunicação, conta e conformidade".
 2. Id é UUID. Nunca sequencial.
 3. Nada é apagado de verdade: exclusão é lógica, com data e autor — exceto em pedido de

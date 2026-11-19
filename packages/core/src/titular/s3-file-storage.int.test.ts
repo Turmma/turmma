@@ -10,7 +10,7 @@ import { S3FileStorage } from './s3-file-storage.js'
 
 const ambiente = lerAmbienteDeTeste()
 const ENDERECO = `http://127.0.0.1:${valorObrigatorio(ambiente, 'STORAGE_PORTA_HOST')}`
-const { armazem, encerrar } = S3FileStorage.criar({
+const { armazem, encerrar } = S3FileStorage.create({
   url: ENDERECO,
   regiao: valorObrigatorio(ambiente, 'STORAGE_REGIAO'),
   bucket: valorObrigatorio(ambiente, 'STORAGE_BUCKET'),
@@ -49,29 +49,29 @@ describe('ArmazemS3 no SeaweedFS', () => {
     expect(resposta.headers.get('cache-control')).toBe('no-store')
     expect(resposta.headers.get('content-disposition')).toBe('attachment; filename="meus-dados-2026-10-09.json"')
 
-    await armazem.apagar(chave)
+    await armazem.delete(chave)
     expect(await armazem.existe(chave)).toBe(false)
     // Apagar o que não existe não falha: a noite seguinte repete o que a anterior não terminou.
-    await armazem.apagar(chave)
+    await armazem.delete(chave)
   })
 
-  it('o PDF do material: `guardarBytes` e `lerBytes` devolvem os mesmos bytes, o objeto ausente é `undefined`, e depois de apagado também', async () => {
+  it('o PDF do material: `guardarBytes` e `readBytes` devolvem os mesmos bytes, o objeto ausente é `undefined`, e depois de apagado também', async () => {
     const chave = `material-temporario/${randomUUID()}/${randomUUID()}`
     const bytes = new Uint8Array([37, 80, 68, 70, 45, 49, 46, 52, 10, 0, 255, 128, 7])
-    expect(await armazem.lerBytes(chave, { prazoMs: 5_000 })).toBeUndefined()
+    expect(await armazem.readBytes(chave, { prazoMs: 5_000 })).toBeUndefined()
     await armazem.guardarBytes(chave, bytes, { prazoMs: 5_000 })
     try {
       expect(await armazem.existe(chave)).toBe(true)
-      expect(await armazem.lerBytes(chave, { prazoMs: 5_000 })).toEqual(bytes)
+      expect(await armazem.readBytes(chave, { prazoMs: 5_000 })).toEqual(bytes)
       // O bucket nunca teve versionamento (nem `Enabled`, nem `Suspended`): o status vem vazio. Depois de apagado, não sobra versão nem marcador de exclusão.
       expect((await inspetor.send(new GetBucketVersioningCommand({ Bucket: BUCKET }))).Status).toBeUndefined()
-      await armazem.apagar(chave)
-      expect(await armazem.lerBytes(chave, { prazoMs: 5_000 })).toBeUndefined()
+      await armazem.delete(chave)
+      expect(await armazem.readBytes(chave, { prazoMs: 5_000 })).toBeUndefined()
       expect(await armazem.existe(chave)).toBe(false)
       const versoes = await inspetor.send(new ListObjectVersionsCommand({ Bucket: BUCKET, Prefix: chave }))
       expect([...(versoes.Versions ?? []), ...(versoes.DeleteMarkers ?? [])]).toEqual([])
     } finally {
-      await armazem.apagar(chave)
+      await armazem.delete(chave)
     }
   })
 
@@ -91,8 +91,8 @@ describe('ArmazemS3 no SeaweedFS', () => {
       await new Promise((resolver) => setTimeout(resolver, 2_500))
       expect((await fetch(curta)).status).toBe(403)
     } finally {
-      await armazem.apagar(chave)
-      await armazem.apagar(outra)
+      await armazem.delete(chave)
+      await armazem.delete(outra)
     }
   }, 20_000)
 
@@ -103,7 +103,7 @@ describe('ArmazemS3 no SeaweedFS', () => {
       const semAssinatura = await fetch(`${ENDERECO}/${valorObrigatorio(ambiente, 'STORAGE_BUCKET')}/${chave}`)
       expect(semAssinatura.status).toBeGreaterThanOrEqual(400)
     } finally {
-      await armazem.apagar(chave)
+      await armazem.delete(chave)
     }
   })
 })

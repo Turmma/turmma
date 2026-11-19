@@ -48,8 +48,8 @@ describe('semáforo do hash no login: fila justa com prazo, sem revelar quem exi
   const medidor = new MedidorDeTeste()
   let api: TestApi
   let hash: PasswordHasher
-  let verificacoes: MockInstance<PasswordHasher['verificar']>
-  let verificarReal: PasswordHasher['verificar']
+  let verificacoes: MockInstance<PasswordHasher['verify']>
+  let verificarReal: PasswordHasher['verify']
   let hashDaSenha: string
   /** Tudo que identifica pessoa ou origem e passou pelo login: nada disso pode virar rótulo de métrica. */
   const naoPodemSerRotulo = new Set<string>(['127.0.0.1'])
@@ -57,10 +57,10 @@ describe('semáforo do hash no login: fila justa com prazo, sem revelar quem exi
   beforeAll(async () => {
     api = await subirApi(medidor.medidor, { ambiente: { LOGIN_HASH_CONCORRENCIA: CONCORRENCIA_DE_TESTE } })
     hash = api.app.get(PasswordHasher)
-    verificarReal = hash.verificar.bind(hash)
-    verificacoes = vi.spyOn(hash, 'verificar')
+    verificarReal = hash.verify.bind(hash)
+    verificacoes = vi.spyOn(hash, 'verify')
     await clientePronto(api.app.get<Redis>(REDIS_LOGIN_CLIENT, { strict: false }))
-    hashDaSenha = await hash.gerar(SENHA)
+    hashDaSenha = await hash.generate(SENHA)
   })
 
   beforeEach(() => {

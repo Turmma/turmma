@@ -3,9 +3,9 @@ import type { PapelDeUsuario } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { lerAmbienteDeTeste } from '../../../tools/ci/compose.ts'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
-import { criarEscola, criarRede } from '../src/operacao/escola/escola.js'
+import { createEscola, createRede } from '../src/operacao/escola/escola.js'
 import { SessaoCreateRepository } from '../src/credencial/index.js'
-import { type AlunoComMatriculaSintetico, criarAlunosComMatricula, createSyntheticSessions, syntheticTokenIssuer, NOME_SINTETICO } from '../src/sessao/index.js'
+import { type AlunoComMatriculaSintetico, createAlunosComMatricula, createSyntheticSessions, syntheticTokenIssuer, NOME_SINTETICO } from '../src/sessao/index.js'
 
 /** O operador que os testes gravam na auditoria da rede e da escola que criam. */
 export const OPERADOR_DE_TESTE = 'teste-integracao'
@@ -82,8 +82,8 @@ export class SessaoFixtures {
    * procura a escola numa página da lista do painel.
    */
   async escola(nome = 'Escola sintética de teste'): Promise<string> {
-    const { id: redeId } = await criarRede(this.banco, autorDaBancada, { id: randomUUID(), nome: 'Rede sintética de teste', tipo: 'independente' })
-    const { id: escolaId } = await criarEscola(this.banco, autorDaBancada, { id: randomUUID(), redeId, nome, slug: `teste-${randomUUID()}` })
+    const { id: redeId } = await createRede(this.banco, autorDaBancada, { id: randomUUID(), nome: 'Rede sintética de teste', tipo: 'independente' })
+    const { id: escolaId } = await createEscola(this.banco, autorDaBancada, { id: randomUUID(), redeId, nome, slug: `teste-${randomUUID()}` })
     this.#escolas.push(escolaId)
     return escolaId
   }
@@ -93,11 +93,11 @@ export class SessaoFixtures {
    * F1 só se grava por comando ou seed: a tela é do F14). As escolas voltam na ordem em que nasceram.
    */
   async redeComEscolas(quantidade: number, ipsDeSaida: readonly string[]): Promise<string[]> {
-    const { id: redeId } = await criarRede(this.banco, autorDaBancada, { id: randomUUID(), nome: 'Rede municipal sintética de teste', tipo: 'prefeitura' })
+    const { id: redeId } = await createRede(this.banco, autorDaBancada, { id: randomUUID(), nome: 'Rede municipal sintética de teste', tipo: 'prefeitura' })
     await this.pool.query('update rede set ips_saida = $1::inet[] where id = $2', [ipsDeSaida, redeId])
     const escolas: string[] = []
     for (let posicao = 0; posicao < quantidade; posicao++) {
-      const { id: escolaId } = await criarEscola(this.banco, autorDaBancada, { id: randomUUID(), redeId, nome: 'Escola municipal sintética de teste', slug: `teste-${randomUUID()}` })
+      const { id: escolaId } = await createEscola(this.banco, autorDaBancada, { id: randomUUID(), redeId, nome: 'Escola municipal sintética de teste', slug: `teste-${randomUUID()}` })
       this.#escolas.push(escolaId)
       escolas.push(escolaId)
     }
@@ -135,9 +135,9 @@ export class SessaoFixtures {
     const criada = await runInContext({ requisicaoId: randomUUID(), escolaId }, () =>
       this.banco.transaction(async (tx) => {
         const criacao = new SessaoCreateRepository(tx)
-        const [usuario] = await criacao.criarUsuarios([{ contaId, papel: origem.papel, nome: NOME_SINTETICO }])
+        const [usuario] = await criacao.createUsuarios([{ contaId, papel: origem.papel, nome: NOME_SINTETICO }])
         if (usuario === undefined) throw new Error('usuário não criado')
-        const [sessao] = await criacao.criarSessoes([{ usuarioId: usuario.id, contaId, metodo: 'email', refreshHash: randomUUID(), duracaoHoras: DURACAO_DA_SESSAO_HORAS }])
+        const [sessao] = await criacao.createSessoes([{ usuarioId: usuario.id, contaId, metodo: 'email', refreshHash: randomUUID(), duracaoHoras: DURACAO_DA_SESSAO_HORAS }])
         if (sessao === undefined) throw new Error('sessão não criada')
         return { usuarioId: usuario.id, sessaoId: sessao.id }
       }),
@@ -149,7 +149,7 @@ export class SessaoFixtures {
   async outraSessaoDoUsuario(escolaId: string, usuarioId: string): Promise<string> {
     return runInContext({ requisicaoId: randomUUID(), escolaId }, () =>
       this.banco.transaction(async (tx) => {
-        const [sessao] = await new SessaoCreateRepository(tx).criarSessoes([{ usuarioId, contaId: null, metodo: 'matricula', refreshHash: randomUUID(), duracaoHoras: DURACAO_DA_SESSAO_HORAS }])
+        const [sessao] = await new SessaoCreateRepository(tx).createSessoes([{ usuarioId, contaId: null, metodo: 'matricula', refreshHash: randomUUID(), duracaoHoras: DURACAO_DA_SESSAO_HORAS }])
         if (sessao === undefined) throw new Error('sessão não criada')
         return sessao.id
       }),
@@ -158,7 +158,7 @@ export class SessaoFixtures {
 
   /** Alunos com credencial por matrícula na escola, pelo seed sintético da 11.0; os ids voltam na ordem pedida. */
   async alunosComMatricula(escolaId: string, alunos: readonly AlunoComMatriculaSintetico[]): Promise<string[]> {
-    return criarAlunosComMatricula(this.banco, this.#ambiente, escolaId, alunos)
+    return createAlunosComMatricula(this.banco, this.#ambiente, escolaId, alunos)
   }
 
   /**

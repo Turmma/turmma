@@ -22,9 +22,9 @@ import {
   seriesQueryOptions,
   turmasQueryOptions,
   vinculosQueryOptions,
-  criarTurma,
-  excluirDisciplina,
-  excluirTurma,
+  createTurma,
+  deleteDisciplina,
+  deleteTurma,
   type ListaDaEstrutura,
   definirComponenteDaDisciplina,
   renomearDisciplina,
@@ -64,7 +64,7 @@ import { textoDaListaCurta } from './lista-curta'
 import { NOME_DO_TURNO } from './nome-do-turno'
 import { oQueFaltaDaEscola, passosDoRoteiro } from './o-que-falta-da-escola'
 import { PainelDoQueFalta, Roteiro } from './OQueFalta'
-import { ordenarSeries } from '../comum/ordem'
+import { sortSeries } from '../comum/ordem'
 import { AvisoDeListaIncompleta } from '../comum/pecas-da-lista'
 import { professorAlocavel } from '../professores/professores-da-escola'
 import {
@@ -194,18 +194,18 @@ export default function Estrutura() {
   const recarregar = useCallback(() => cliente.invalidateQueries({ queryKey: ESTRUTURA_QUERY_KEY }), [cliente])
 
   /** Abrir um diálogo apaga o anúncio da ação anterior: o que ele dizia já não é o que a pessoa está fazendo. */
-  function abrir(tipo: TipoDeDialogo, item?: AlvoDoDialogo): void {
+  function open(tipo: TipoDeDialogo, item?: AlvoDoDialogo): void {
     definirAnuncio(undefined)
-    dialogo.abrir(tipo, item)
+    dialogo.open(tipo, item)
   }
 
   /** Abre ou fecha o que está por cima da tela. Abrir é um passo no histórico; fechar e filtrar trocam o endereço, sem passo novo. */
-  const abrirPainel = (qual: PainelDaEstrutura): void => navegar(enderecoComParametro(caminho, busca, 'painel', qual))
-  const fecharPainel = (): void =>
+  const openPainel = (qual: PainelDaEstrutura): void => navegar(enderecoComParametro(caminho, busca, 'painel', qual))
+  const closePainel = (): void =>
     navegar(enderecoComParametro(caminho, busca, 'painel', undefined), {
       replace: true,
     })
-  const filtrarPor = (nova: SituacaoDasTurmas): void => navegar(enderecoComParametro(caminho, busca, 'situacao', nova === 'todas' ? undefined : nova), { replace: true })
+  const filterPor = (nova: SituacaoDasTurmas): void => navegar(enderecoComParametro(caminho, busca, 'situacao', nova === 'todas' ? undefined : nova), { replace: true })
   /** O foco de quem abriu o painel e saiu da página (o aviso que some com o último passo): o título das turmas. */
   const focoNoTituloDasTurmas = (): void => tituloDasTurmas.current?.focus()
   // A página aberta já com o painel (pelo endereço, ou o Voltar do histórico) não tem botão que o tenha aberto: o foco devolvido a "quem abriu" cai no
@@ -246,7 +246,7 @@ export default function Estrutura() {
             descricao="A escola se monta nesta ordem, e cada passo abre o seguinte. As turmas nascem no ano letivo em curso."
             acao={{
               rotulo: 'Criar o ano letivo',
-              aoAcionar: () => abrir('ano'),
+              aoAcionar: () => open('ano'),
             }}
           />
           <Roteiro titulo="O roteiro até a alocação" passos={passos} />
@@ -258,7 +258,7 @@ export default function Estrutura() {
               tom="info"
               titulo="Para terminar a escola"
               acao={
-                <button type="button" onClick={() => abrirPainel('falta')} className={SECONDARY_BUTTON_CLASSES}>
+                <button type="button" onClick={() => openPainel('falta')} className={SECONDARY_BUTTON_CLASSES}>
                   Ver o que falta
                 </button>
               }
@@ -273,15 +273,15 @@ export default function Estrutura() {
             anuncio={anuncioDa('turmas')}
             acao={
               <div className="flex flex-wrap items-center gap-3">
-                <button type="button" onClick={() => abrirPainel('ano')} className={SECONDARY_BUTTON_CLASSES}>
+                <button type="button" onClick={() => openPainel('ano')} className={SECONDARY_BUTTON_CLASSES}>
                   Ano letivo e disciplinas
                 </button>
                 {anoEmCurso !== undefined && (
-                  <button type="button" onClick={() => abrirPainel('importar')} className={SECONDARY_BUTTON_CLASSES}>
+                  <button type="button" onClick={() => openPainel('importar')} className={SECONDARY_BUTTON_CLASSES}>
                     Importar alunos
                   </button>
                 )}
-                {anoEmCurso !== undefined && <Button onClick={() => abrir('turma')}>Nova turma</Button>}
+                {anoEmCurso !== undefined && <Button onClick={() => open('turma')}>Nova turma</Button>}
               </div>
             }
           >
@@ -299,8 +299,8 @@ export default function Estrutura() {
                 vinculos={vinculos}
                 nomes={new Map((professores.data?.itens ?? []).map((professor) => [professor.usuarioId, professor.nome]))}
                 situacao={situacao}
-                aoFiltrar={filtrarPor}
-                aoEscolher={(turma, acao) => abrir(acao === 'excluir' ? 'excluir_turma' : 'renomear_turma', turma)}
+                aoFiltrar={filterPor}
+                aoEscolher={(turma, acao) => open(acao === 'excluir' ? 'excluir_turma' : 'renomear_turma', turma)}
               />
             )}
           </Secao>
@@ -312,12 +312,12 @@ export default function Estrutura() {
               disciplinas={disciplinas}
               anuncioDa={anuncioDa}
               aoAnunciar={anunciar}
-              aoAbrir={abrir}
+              aoAbrir={open}
               recarregar={recarregar}
               tituloDoAno={tituloDoAno}
               tituloDasSeries={tituloDasSeries}
               tituloDasDisciplinas={tituloDasDisciplinas}
-              aoFechar={fecharPainel}
+              aoFechar={closePainel}
               focoDeReserva={focoNoTituloDasTurmas}
             />
           )}
@@ -327,23 +327,23 @@ export default function Estrutura() {
                 anunciar('turmas', 'Planilha gravada. As turmas abaixo já estão atualizadas.')
                 return recarregar()
               }}
-              aoFechar={fecharPainel}
+              aoFechar={closePainel}
               focoDeReserva={focoNoTituloDasTurmas}
             />
           )}
-          {painel === 'falta' && <PainelDoQueFalta passos={passos} aoFechar={fecharPainel} focoDeReserva={focoNoTituloDasTurmas} />}
+          {painel === 'falta' && <PainelDoQueFalta passos={passos} aoFechar={closePainel} focoDeReserva={focoNoTituloDasTurmas} />}
         </>
       )}
 
       {aberta?.tipo === 'ano' && (
         <NovoAnoLetivo
           key={aberta.numero}
-          aoFechar={dialogo.fechar}
+          aoFechar={dialogo.close}
           aoCriar={(ano) => {
             anunciar('ano', `Ano letivo ${String(ano.ano)} criado. Abra o ano para criar as turmas.`)
-            dialogo.fecharSeAinda(aberta)
+            dialogo.closeSeAinda(aberta)
             // O ano criado a partir do vazio (a escola sem nenhum) leva ao painel dele: é nele que o ano se abre e que o anúncio mora.
-            if (painel !== 'ano') abrirPainel('ano')
+            if (painel !== 'ano') openPainel('ano')
           }}
           recarregar={recarregar}
           // O "Criar o ano letivo" do vazio sai da tela quando o primeiro ano chega: o foco vai para a seção do ano.
@@ -354,10 +354,10 @@ export default function Estrutura() {
         <NovaSerie
           key={aberta.numero}
           existentes={series.data?.itens ?? []}
-          aoFechar={dialogo.fechar}
+          aoFechar={dialogo.close}
           aoCriar={(serie) => {
             anunciar('series', `${nomeDaSerie(serie)} criado.`)
-            dialogo.fecharSeAinda(aberta)
+            dialogo.closeSeAinda(aberta)
           }}
           recarregar={recarregar}
         />
@@ -365,10 +365,10 @@ export default function Estrutura() {
       {aberta?.tipo === 'disciplina' && (
         <NovaDisciplina
           key={aberta.numero}
-          aoFechar={dialogo.fechar}
+          aoFechar={dialogo.close}
           aoCriar={(disciplina) => {
             anunciar('disciplinas', `Disciplina ${disciplina.nome} criada.`)
-            dialogo.fecharSeAinda(aberta)
+            dialogo.closeSeAinda(aberta)
           }}
           recarregar={recarregar}
         />
@@ -378,10 +378,10 @@ export default function Estrutura() {
           key={aberta.numero}
           anoLetivo={anoEmCurso}
           series={series.data?.itens ?? []}
-          aoFechar={dialogo.fechar}
+          aoFechar={dialogo.close}
           aoCriar={(turma) => {
             anunciar('turmas', `Turma ${turma.nome} criada. Abra a turma para subir a lista de nomes.`)
-            dialogo.fecharSeAinda(aberta)
+            dialogo.closeSeAinda(aberta)
           }}
           recarregar={recarregar}
         />
@@ -395,10 +395,10 @@ export default function Estrutura() {
           maximo={TAMANHO_MAXIMO_NOME_DISCIPLINA}
           renomear={(nome) => renomearDisciplina(alvo.id, nome)}
           conflito="Já existe uma disciplina com este nome na escola. Escolha outro."
-          aoFechar={dialogo.fechar}
+          aoFechar={dialogo.close}
           aoRenomear={(nome) => {
             anunciar('disciplinas', `Disciplina renomeada para ${nome}.`)
-            dialogo.fecharSeAinda(aberta)
+            dialogo.closeSeAinda(aberta)
           }}
           recarregar={recarregar}
           focoDeReserva={() => tituloDasDisciplinas.current?.focus()}
@@ -409,8 +409,8 @@ export default function Estrutura() {
           key={aberta.numero}
           atual={alvo.componenteBncc ?? null}
           nome={alvo.nome}
-          salvar={(componente) => definirComponenteDaDisciplina(alvo.id, componente)}
-          aoFechar={dialogo.fechar}
+          save={(componente) => definirComponenteDaDisciplina(alvo.id, componente)}
+          aoFechar={dialogo.close}
           aoSalvar={(disciplina) => {
             anunciar(
               'disciplinas',
@@ -418,7 +418,7 @@ export default function Estrutura() {
                 ? `Componente da BNCC de ${disciplina.nome} apagado.`
                 : `Componente da BNCC de ${disciplina.nome}: ${NOME_DO_COMPONENTE[disciplina.componenteBncc]}.`,
             )
-            dialogo.fecharSeAinda(aberta)
+            dialogo.closeSeAinda(aberta)
           }}
           recarregar={recarregar}
           focoDeReserva={() => tituloDasDisciplinas.current?.focus()}
@@ -433,10 +433,10 @@ export default function Estrutura() {
           maximo={TAMANHO_MAXIMO_NOME_TURMA}
           renomear={(nome) => renomearTurma(alvo.id, nome)}
           conflito="Já existe uma turma com este nome neste ano letivo. Escolha outro."
-          aoFechar={dialogo.fechar}
+          aoFechar={dialogo.close}
           aoRenomear={(nome) => {
             anunciar('turmas', `Turma renomeada para ${nome}.`)
-            dialogo.fecharSeAinda(aberta)
+            dialogo.closeSeAinda(aberta)
           }}
           recarregar={recarregar}
           focoDeReserva={() => tituloDasTurmas.current?.focus()}
@@ -453,11 +453,11 @@ export default function Estrutura() {
           }
           rotuloDaAcao="Excluir disciplina"
           rotuloEmAndamento="Excluindo…"
-          acao={() => excluirDisciplina(alvo.id)}
-          aoFechar={dialogo.fechar}
+          acao={() => deleteDisciplina(alvo.id)}
+          aoFechar={dialogo.close}
           aoConcluir={() => {
             anunciar('disciplinas', `Disciplina ${alvo.nome} excluída.`)
-            dialogo.fecharSeAinda(aberta)
+            dialogo.closeSeAinda(aberta)
           }}
           aoTerminar={recarregar}
           textosDaFalha={{
@@ -479,11 +479,11 @@ export default function Estrutura() {
           }
           rotuloDaAcao="Excluir turma"
           rotuloEmAndamento="Excluindo…"
-          acao={() => excluirTurma(alvo.id)}
-          aoFechar={dialogo.fechar}
+          acao={() => deleteTurma(alvo.id)}
+          aoFechar={dialogo.close}
           aoConcluir={() => {
             anunciar('turmas', `Turma ${alvo.nome} excluída.`)
-            dialogo.fecharSeAinda(aberta)
+            dialogo.closeSeAinda(aberta)
           }}
           aoTerminar={recarregar}
           textosDaFalha={{
@@ -576,7 +576,7 @@ function TurmasDoAno({ turmas, vinculos, nomes, situacao, aoFiltrar, aoEscolher 
 }
 
 function NovaTurma({ anoLetivo, series, aoFechar, aoCriar, recarregar }: PropsDeCriar<Turma> & { anoLetivo: AnoLetivo; series: readonly Serie[] }) {
-  const ordenadas = ordenarSeries(series)
+  const ordenadas = sortSeries(series)
   const [serieId, definirSerieId] = useState(() => ordenadas[0]?.id ?? '')
   // A série escolhida só vale enquanto está na lista: a que outra pessoa excluiu com o diálogo aberto sai da escolha
   // quando a lista recarrega, e o envio seguinte manda a série que a tela mostra, e não a que a API acabou de recusar.
@@ -588,7 +588,7 @@ function NovaTurma({ anoLetivo, series, aoFechar, aoCriar, recarregar }: PropsDe
   const campoDoTurno = useId()
   const campoDoNome = useRef<HTMLInputElement>(null)
   const { enviar, mutacao } = useSingleSubmit({
-    mutationFn: criarTurma,
+    mutationFn: createTurma,
     ...depoisDeCriar(aoCriar, recarregar),
   })
 

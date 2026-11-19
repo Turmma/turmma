@@ -56,7 +56,7 @@ export class ConviteDaEscolaRepository {
    * cifra leva o **id da linha** como dado autenticado, e por isso o id (`uuidv7()`, o mesmo do padrão da coluna, que ordena o desempate do "último
    * convite") sai do banco antes do insert. Sem ele, o convite é o `copiado` de sempre.
    */
-  async criarConvite(dados: {
+  async createConvite(dados: {
     tipo: TipoDeConvite
     tokenHash: string
     usuarioId: string
@@ -93,7 +93,7 @@ export class ConviteDaEscolaRepository {
    * de ler o estado da coordenação, e quem ativa pelo convite a pega como primeira instrução da transação: dois pedidos
    * na mesma escola decidem um depois do outro, cada um vendo o que o anterior gravou.
    */
-  async travarEscola(): Promise<void> {
+  async lockEscola(): Promise<void> {
     await this.banco.execute(sql`select pg_advisory_xact_lock(${CHAVE_DA_TRAVA_DO_CONVITE_DA_ESCOLA}, hashtext(${requireEscolaId()}::uuid::text))`)
   }
 }

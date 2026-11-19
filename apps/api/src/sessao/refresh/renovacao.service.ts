@@ -12,7 +12,7 @@ import {
 } from '@educa/core'
 import { ErrorCode, InvariantException, JANELA_DE_RENOVACAO_SIMULTANEA_MS, type RenovacaoResponse } from '@educa/shared'
 import { randomBytes, randomUUID } from 'node:crypto'
-import { SESSAO_COOKIE, lerCookie, serializarCookie } from '../../credencial/cookies.js'
+import { SESSAO_COOKIE, readCookie, serializarCookie } from '../../credencial/cookies.js'
 import { BYTES_DO_REFRESH, hashDoRefresh } from '../../credencial/login-identifiers.js'
 import { ipParaRegistro, type RequestOrigin } from '../../credencial/request-origin.js'
 import { RegistroDeAcessoRepository } from '../../credencial/registro-de-acesso.repository.js'
@@ -100,7 +100,7 @@ export class RefreshService {
   }
 
   async renovar(origem: RequestOrigin): Promise<RefreshHttpResult> {
-    const refresh = lerCookie(origem.cabecalhoCookie, SESSAO_COOKIE)
+    const refresh = readCookie(origem.cabecalhoCookie, SESSAO_COOKIE)
     const decisao = refresh !== undefined && FORMATO_DO_REFRESH.test(refresh) ? await this.#decidir(hashDoRefresh(refresh), origem.ip) : { resultado: 'recusada' as const }
     this.#renovacoes.add(1, { resultado: decisao.resultado })
     switch (decisao.resultado) {
@@ -142,12 +142,12 @@ export class RefreshService {
         if (resultado === 'ja_renovado') return { resultado }
         if (resultado === 'reuso') {
           const sessoesEncerradas = await sessoes.encerrarFamilia(achada.familia, 'reuso_de_refresh')
-          await this.#auditoria.gravar(tx, 'sessao.reuso_de_refresh', { entidadeId: achada.id, depois: { familia: achada.familia, sessoesEncerradas } })
+          await this.#auditoria.save(tx, 'sessao.reuso_de_refresh', { entidadeId: achada.id, depois: { familia: achada.familia, sessoesEncerradas } })
           return { resultado }
         }
         const rotacionadoEm = await sessoes.rotacionar(achada.id, hashDoRefresh(novoRefresh), resultado === 'ok')
         if (rotacionadoEm === undefined) throw new InvariantException('sessão travada não rotacionou')
-        await new RegistroDeAcessoRepository(tx).gravar('renovacao', achada.usuarioId, ipParaRegistro(ip))
+        await new RegistroDeAcessoRepository(tx).save('renovacao', achada.usuarioId, ipParaRegistro(ip))
         return { resultado, sessao: achada, rotacionadoEm, novoRefresh }
       })
     })

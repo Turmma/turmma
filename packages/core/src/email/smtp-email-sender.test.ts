@@ -78,12 +78,12 @@ describe('naturezaDaFalhaSmtp', () => {
 describe('SmtpEmailSender', () => {
   it('entrega ao transporte o remetente da configuração, o destinatário, o assunto e o texto, e nada mais', async () => {
     const sendMail = vi.fn(() => Promise.resolve({} as SMTPTransport.SentMessageInfo))
-    await new SmtpEmailSender(CONFIG, { sendMail }).enviar(MENSAGEM)
+    await new SmtpEmailSender(CONFIG, { sendMail }).send(MENSAGEM)
     expect(sendMail).toHaveBeenCalledExactlyOnceWith({ from: CONFIG.remetente, to: MENSAGEM.para, subject: MENSAGEM.assunto, text: MENSAGEM.texto })
   })
 
   it('a recusa 5xx sobe como falha permanente, e a 4xx como transitória, sem a mensagem do servidor nem o endereço', async () => {
-    const com = (codigo: number) => new SmtpEmailSender(CONFIG, { sendMail: () => Promise.reject(respostaDoServidor(codigo)) }).enviar(MENSAGEM)
+    const com = (codigo: number) => new SmtpEmailSender(CONFIG, { sendMail: () => Promise.reject(respostaDoServidor(codigo)) }).send(MENSAGEM)
     const permanente = await recusa(com(550))
     expect(permanente.natureza).toBe('permanente')
     expect((await recusa(com(451))).natureza).toBe('transitoria')
@@ -96,7 +96,7 @@ describe('SmtpEmailSender', () => {
     vi.useFakeTimers()
     try {
       const emissor = new SmtpEmailSender(CONFIG, { sendMail: () => new Promise(() => undefined) })
-      const pendente = recusa(emissor.enviar(MENSAGEM))
+      const pendente = recusa(emissor.send(MENSAGEM))
       await vi.advanceTimersByTimeAsync(PRAZO_DO_ENVIO_SMTP_MS - 1)
       let terminou = false
       void pendente.then(() => {
@@ -114,9 +114,9 @@ describe('SmtpEmailSender', () => {
   it('o envio que termina, bem ou mal, não deixa o relógio do prazo armado', async () => {
     vi.useFakeTimers()
     try {
-      await new SmtpEmailSender(CONFIG, { sendMail: () => Promise.resolve({} as SMTPTransport.SentMessageInfo) }).enviar(MENSAGEM)
+      await new SmtpEmailSender(CONFIG, { sendMail: () => Promise.resolve({} as SMTPTransport.SentMessageInfo) }).send(MENSAGEM)
       expect(vi.getTimerCount()).toBe(0)
-      await recusa(new SmtpEmailSender(CONFIG, { sendMail: () => Promise.reject(respostaDoServidor(550)) }).enviar(MENSAGEM))
+      await recusa(new SmtpEmailSender(CONFIG, { sendMail: () => Promise.reject(respostaDoServidor(550)) }).send(MENSAGEM))
       expect(vi.getTimerCount()).toBe(0)
     } finally {
       vi.useRealTimers()
@@ -125,9 +125,9 @@ describe('SmtpEmailSender', () => {
 
   it('o envio que termina sem o sinal disparar não deixa o ouvinte de `abort` no sinal do job, que vive mais que ele', async () => {
     const sinal = new AbortController().signal
-    await new SmtpEmailSender(CONFIG, { sendMail: () => Promise.resolve({} as SMTPTransport.SentMessageInfo) }).enviar(MENSAGEM, sinal)
+    await new SmtpEmailSender(CONFIG, { sendMail: () => Promise.resolve({} as SMTPTransport.SentMessageInfo) }).send(MENSAGEM, sinal)
     expect(getEventListeners(sinal, 'abort')).toHaveLength(0)
-    await recusa(new SmtpEmailSender(CONFIG, { sendMail: () => Promise.reject(respostaDoServidor(550)) }).enviar(MENSAGEM, sinal))
+    await recusa(new SmtpEmailSender(CONFIG, { sendMail: () => Promise.reject(respostaDoServidor(550)) }).send(MENSAGEM, sinal))
     expect(getEventListeners(sinal, 'abort')).toHaveLength(0)
   })
 
@@ -136,11 +136,11 @@ describe('SmtpEmailSender', () => {
     const emissor = new SmtpEmailSender(CONFIG, { sendMail })
     const jaAbortado = new AbortController()
     jaAbortado.abort()
-    expect((await recusa(emissor.enviar(MENSAGEM, jaAbortado.signal))).natureza).toBe('transitoria')
+    expect((await recusa(emissor.send(MENSAGEM, jaAbortado.signal))).natureza).toBe('transitoria')
     expect(sendMail).not.toHaveBeenCalled()
 
     const durante = new AbortController()
-    const pendente = recusa(emissor.enviar(MENSAGEM, durante.signal))
+    const pendente = recusa(emissor.send(MENSAGEM, durante.signal))
     durante.abort()
     expect((await pendente).natureza).toBe('transitoria')
     expect(sendMail).toHaveBeenCalledOnce()

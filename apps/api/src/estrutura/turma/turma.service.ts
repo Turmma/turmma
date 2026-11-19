@@ -46,15 +46,15 @@ function alcanceDaTurma(recurso: 'turma' | 'aluno_da_turma'): AlcanceDaTurma {
 export class TurmaService {
   constructor(private readonly banco: Database) {}
 
-  async criar(pedido: CriarTurmaRequest): Promise<TurmaResponse> {
+  async create(pedido: CriarTurmaRequest): Promise<TurmaResponse> {
     const anoEmCurso = requireAnoEmCurso()
     if (pedido.anoLetivoId !== undefined && pedido.anoLetivoId.toLowerCase() !== anoEmCurso) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     const criada = await this.banco.transaction(async (tx) => {
       const turmas = new TurmaRepository(tx)
-      if (!(await turmas.travarAnoEmCurso())) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+      if (!(await turmas.lockAnoEmCurso())) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       const serie = await new SerieRepository(tx).porId(pedido.serieId.toLowerCase())
       if (serie === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
-      return { ...(await turmas.criar({ serieId: serie.id, nome: pedido.nome, turno: pedido.turno ?? null })), serie }
+      return { ...(await turmas.create({ serieId: serie.id, nome: pedido.nome, turno: pedido.turno ?? null })), serie }
     })
     return turmaResponseSchema.parse(criada)
   }
@@ -83,16 +83,16 @@ export class TurmaService {
    * A turma é travada em `FOR UPDATE` num comando próprio, antes do `delete` (C11): o gerar acesso que está no meio
    * termina primeiro, e o `delete` enxerga o acesso dele. Travada e não apagada, a turma só pode ter acesso vigente.
    */
-  async excluir(id: string): Promise<void> {
+  async delete(id: string): Promise<void> {
     await this.banco.transaction(async (tx) => {
       const turmas = new TurmaRepository(tx)
-      if (!(await turmas.travarContraOGerar(id, 'update'))) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
-      if (!(await turmas.excluir(id))) throw new DomainException(ErrorCode.CONFLITO)
+      if (!(await turmas.lockContraOGerar(id, 'update'))) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+      if (!(await turmas.delete(id))) throw new DomainException(ErrorCode.CONFLITO)
     })
   }
 
-  async listar(consulta: PaginationQuery): Promise<ListaDeTurmasResponse> {
-    const linhas = await new TurmaRepository(this.banco).listar(consulta)
+  async list(consulta: PaginationQuery): Promise<ListaDeTurmasResponse> {
+    const linhas = await new TurmaRepository(this.banco).list(consulta)
     return listaDeTurmasResponseSchema.parse(paginar(linhas, consulta.limite))
   }
 
@@ -105,7 +105,7 @@ export class TurmaService {
    * vínculo; o professor, só a turma em que o vínculo chegou confirmado ao fim do ano (nem `desligamento`, nem
    * `realocacao`, nem outra turma do mesmo ano). O ano em curso, de outra escola ou inexistente: o mesmo 404.
    */
-  async abrir(id: string, { anoLetivoId }: TurmaQuery): Promise<TurmaAbertaResponse> {
+  async open(id: string, { anoLetivoId }: TurmaQuery): Promise<TurmaAbertaResponse> {
     const aberta = await new TurmaRepository(this.banco).aberta(id, alcanceDaTurma('turma'), anoLetivoId?.toLowerCase())
     if (aberta === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     return turmaAbertaResponseSchema.parse(aberta)
@@ -133,7 +133,7 @@ export class TurmaService {
       if ((await turmas.aberta(id, alcance, anoEncerrado)) === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       const cortada = paginarPor(await turmas.alunos(id, consulta, anoEncerrado), consulta.limite, (aluno) => aluno.usuarioId)
       if (nominalAuditado && finalidade !== undefined) {
-        await registro.gravar(tx, 'turma.alunos_lidos', { entidadeId: id, depois: { quantidade: cortada.itens.length }, finalidade })
+        await registro.save(tx, 'turma.alunos_lidos', { entidadeId: id, depois: { quantidade: cortada.itens.length }, finalidade })
       }
       return cortada
     })

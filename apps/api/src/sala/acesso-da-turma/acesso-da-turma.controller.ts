@@ -21,15 +21,15 @@ export class AcessoDaTurmaController {
   @Post()
   @RequirePermissao('acesso_turma', 'gerar')
   @Header('Cache-Control', 'no-store')
-  gerar(@Param('id', IdPipe) turmaId: string, @Body(new ZodValidationPipe(gerarAcessoRequestSchema)) pedido: GerarAcessoRequest): Promise<AcessoGeradoResponse> {
-    return this.acessos.gerar(turmaId, pedido)
+  generate(@Param('id', IdPipe) turmaId: string, @Body(new ZodValidationPipe(gerarAcessoRequestSchema)) pedido: GerarAcessoRequest): Promise<AcessoGeradoResponse> {
+    return this.acessos.generate(turmaId, pedido)
   }
 
   @Get()
   @RequirePermissao('acesso_turma', 'ler')
   @Header('Cache-Control', 'no-store')
-  ler(@Param('id', IdPipe) turmaId: string): Promise<AcessoDaTurmaResponse> {
-    return this.acessos.ler(turmaId)
+  read(@Param('id', IdPipe) turmaId: string): Promise<AcessoDaTurmaResponse> {
+    return this.acessos.read(turmaId)
   }
 
   @Post('revogar')

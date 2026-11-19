@@ -30,7 +30,7 @@ const concurrencyLimitEnvSchema = z.object({
  * Vagas por fila de toda escola sem vagas próprias (D41). Despachante e worker leem o mesmo padrão:
  * o despachante toma a vaga ao publicar, e o worker a confere ao começar.
  */
-export function lerVagasPadrao(ambiente: Record<string, string | undefined>): ConcurrencyByQueue {
+export function readVagasPadrao(ambiente: Record<string, string | undefined>): ConcurrencyByQueue {
   const valores = validateEnvironment(concurrencyLimitEnvSchema, ambiente)
   return { interativa: valores.VAGAS_ESCOLA_INTERATIVA, ferramenta: valores.VAGAS_ESCOLA_FERRAMENTA, normal: valores.VAGAS_ESCOLA_NORMAL, lote: valores.VAGAS_ESCOLA_LOTE, pdf: valores.VAGAS_ESCOLA_PDF }
 }
@@ -76,7 +76,7 @@ const windowEnvSchema = z
  * Horário letivo de toda escola sem horário próprio (D41, `docs/infra.md` seção 6). No
  * `.env.example`: `America/Sao_Paulo`, de segunda a sexta, das 07:00 às 18:00.
  */
-export function lerJanelaPadrao(ambiente: Record<string, string | undefined>): JanelaLetiva {
+export function readJanelaPadrao(ambiente: Record<string, string | undefined>): JanelaLetiva {
   const valores = validateEnvironment(windowEnvSchema, ambiente)
   return { fuso: valores.JANELA_LETIVA_FUSO, diasLetivos: valores.JANELA_LETIVA_DIAS, inicio: valores.JANELA_LETIVA_INICIO, fim: valores.JANELA_LETIVA_FIM }
 }
@@ -169,7 +169,7 @@ export class OperationalSettings<T> {
     const escolaId = contexto.escolaId
     const entrada = this.#entradas.get(escolaId)
     if (entrada !== undefined && this.#agora() < entrada.validaAte) return Promise.resolve(entrada.valor)
-    const leitura = this.#leituras.get(escolaId) ?? this.ler(escolaId, entrada)
+    const leitura = this.#leituras.get(escolaId) ?? this.read(escolaId, entrada)
     return entrada === undefined ? leitura : Promise.resolve(entrada.valor)
   }
 
@@ -177,7 +177,7 @@ export class OperationalSettings<T> {
    * Uma leitura por escola de cada vez, no contexto em andamento: é dele que o repository tira o
    * escopo, e ele é da mesma escola da chave.
    */
-  private ler(escolaId: string, anterior: Entrada<T> | undefined): Promise<T> {
+  private read(escolaId: string, anterior: Entrada<T> | undefined): Promise<T> {
     const leitura = this.repositorio
       .daEscola()
       .then(

@@ -7,14 +7,14 @@ import { memoryLocation } from 'wouter/memory-location'
 import { setupScreen, fakeNetwork, renderScreen, type FakeNetwork, type FakeResponse } from '../../../__fixtures__/render-screen'
 import { TEXTO_DO_ESTADO_DO_PROFESSOR } from './convite-de-professor'
 import type * as EnvioDoConvite from './envio-do-convite'
-import { iniciarReleituraDoEnvio } from './envio-do-convite'
+import { startReleituraDoEnvio } from './envio-do-convite'
 import Professores from './Professores'
 
 // A releitura do envio é uma peça com teste de unidade próprio (`envio-do-convite.test.ts`): aqui ela vira um espião que, fora do bloco do envio,
 // segue sendo a peça de verdade, e o que se prova é a ligação da tela com ela.
 vi.mock('./envio-do-convite', async (importarOriginal) => {
   const original = await importarOriginal<typeof EnvioDoConvite>()
-  return { ...original, iniciarReleituraDoEnvio: vi.fn(original.iniciarReleituraDoEnvio) }
+  return { ...original, startReleituraDoEnvio: vi.fn(original.startReleituraDoEnvio) }
 })
 
 /**
@@ -733,19 +733,19 @@ describe('o envio do convite por e-mail (acesso-e-convites, 4.0; RF11)', () => {
       .map(([, opcoes]) => JSON.parse(String(opcoes?.body)) as unknown)
   /** As opções da releitura que a tela pediu na n-ésima vez. */
   const releituraPedida = (vez: number) => {
-    const opcoes = vi.mocked(iniciarReleituraDoEnvio).mock.calls[vez]?.[0]
+    const opcoes = vi.mocked(startReleituraDoEnvio).mock.calls[vez]?.[0]
     if (opcoes === undefined) throw new Error('a tela não pediu a releitura')
     return opcoes
   }
 
   beforeEach(() => {
     parar.mockClear()
-    vi.mocked(iniciarReleituraDoEnvio).mockClear()
-    vi.mocked(iniciarReleituraDoEnvio).mockImplementation(() => parar)
+    vi.mocked(startReleituraDoEnvio).mockClear()
+    vi.mocked(startReleituraDoEnvio).mockImplementation(() => parar)
   })
   afterEach(async () => {
     const real = await vi.importActual<typeof EnvioDoConvite>('./envio-do-convite')
-    vi.mocked(iniciarReleituraDoEnvio).mockImplementation(real.iniciarReleituraDoEnvio)
+    vi.mocked(startReleituraDoEnvio).mockImplementation(real.startReleituraDoEnvio)
     Reflect.deleteProperty(document, 'visibilityState')
   })
 
@@ -970,7 +970,7 @@ describe('o envio do convite por e-mail (acesso-e-convites, 4.0; RF11)', () => {
   it('a releitura só começa com linha em `na_fila` ou `enviando`, e para quando a tela sai', async () => {
     instalar(fakeNetwork(), { professores: ok([{ ...BRUNO, envio: 'enviando' }, ANA]) })
     await montarEEsperar()
-    await waitFor(() => expect(iniciarReleituraDoEnvio).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(startReleituraDoEnvio).toHaveBeenCalledTimes(1))
     expect(parar).not.toHaveBeenCalled()
     cleanup()
     expect(parar).toHaveBeenCalledTimes(1)
@@ -979,7 +979,7 @@ describe('o envio do convite por e-mail (acesso-e-convites, 4.0; RF11)', () => {
   it('sem nenhuma linha em envio, a tela não pede a releitura', async () => {
     instalar(fakeNetwork(), { professores: ok([{ ...BRUNO, envio: 'enviado', enviadoEm: HORA }, { ...CAIO, envio: 'falhou' }, { ...DAVI, envio: 'cancelado' }, ANA]) })
     await montarEEsperar()
-    expect(iniciarReleituraDoEnvio).not.toHaveBeenCalled()
+    expect(startReleituraDoEnvio).not.toHaveBeenCalled()
   })
 
   it('a aba oculta não conta como visível: `visivel` segue o `document.visibilityState`', async () => {
@@ -1029,12 +1029,12 @@ describe('o envio do convite por e-mail (acesso-e-convites, 4.0; RF11)', () => {
     instalar(rede, { professores: ok([{ ...BRUNO, envio: 'na_fila' }, CAIO]) })
     rede.responderPor(ENVIAR, { status: 200, corpo: { quantidade: 2 } })
     await montarEEsperar()
-    await waitFor(() => expect(iniciarReleituraDoEnvio).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(startReleituraDoEnvio).toHaveBeenCalledTimes(1))
     await usuario.click(enviarConvites())
     const dialogo = await screen.findByRole('dialog', { name: 'Enviar convites' })
     await usuario.click(within(dialogo).getByRole('button', { name: 'Enviar convites' }))
     expect(await within(dialogo).findByText(/2 convites entraram na fila/)).toBeTruthy()
-    await waitFor(() => expect(iniciarReleituraDoEnvio).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(startReleituraDoEnvio).toHaveBeenCalledTimes(2))
     expect(parar).toHaveBeenCalledTimes(1)
   })
 })

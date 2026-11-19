@@ -66,7 +66,7 @@ export class OpenIdClientAdapter implements ExternalProviderPort {
     this.ligados = [...configuracao.provedores.keys()]
   }
 
-  async iniciar(provedor: ProvedorExterno, reautenticar = false): Promise<InicioNoProvedor> {
+  async start(provedor: ProvedorExterno, reautenticar = false): Promise<InicioNoProvedor> {
     const { retorno } = this.configuracao
     if (retorno === undefined) throw new ExternalProviderError()
     return comPrazo(

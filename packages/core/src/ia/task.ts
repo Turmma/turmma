@@ -51,7 +51,7 @@ export interface TaskDefinition<Entrada, Saida> {
   /** Teto de tokens de saída por chamada: tarefa que não sabe parar queima a margem (D14). */
   readonly maximoDeTokensDeSaida: number
   /**
-   * Teto de tokens do **pedido** que a tarefa monta, pelo pior pedido válido: o `montarPedido` com cada campo do
+   * Teto de tokens do **pedido** que a tarefa monta, pelo pior pedido válido: o `buildPedido` com cada campo do
    * `esquemaDeEntrada` no limite, mais o prompt do sistema, estimado como em `tokensDoPedido` (`teto-de-entrada.ts`). O gateway
    * recusa o pedido acima dele (`PEDIDO_ACIMA_DO_TETO`), antes do orçamento e do envio. Obrigatório: a tarefa sem ele não compila,
    * e o número é conferido contra o gerador do pior pedido (um teto abaixo dele, ou muito acima, reprova o teste).
@@ -82,7 +82,7 @@ export interface TaskDefinition<Entrada, Saida> {
    * texto não é copiado para uma tabela de métrica (regra 20, item 9; Tech Spec §7, `consumo_ia`).
    */
   entradaParaORegistro?(entrada: Entrada): unknown
-  montarPedido(entrada: Entrada): ModelRequest
+  buildPedido(entrada: Entrada): ModelRequest
   /**
    * Resposta fixa, decidida por regra, **sem chamar o modelo**. É o caminho do assunto delicado no Tutor (D36): o
    * texto do aluno não segue para o provedor como conversa a continuar.

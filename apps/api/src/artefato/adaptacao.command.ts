@@ -46,9 +46,9 @@ export class AdaptarAtividadeCommand implements ExecucaoCommand<EntradaDaTarefa<
     const origem = await new ArtefatoRepository(tx).porId(lido.artefatoId)
     if (origem === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     exigirAdaptacaoFiel(atividadeOriginal(origem), adaptada.data, lido.adaptacao)
-    const artefatoId = await new ArtefatoRepository(tx).criar({ turmaId: origem.turmaId, disciplinaId: origem.disciplinaId, conteudo: adaptada.data, execucaoId, origemId: origem.id })
+    const artefatoId = await new ArtefatoRepository(tx).create({ turmaId: origem.turmaId, disciplinaId: origem.disciplinaId, conteudo: adaptada.data, execucaoId, origemId: origem.id })
     // A entrega nasce pendente, aqui, junto da versão: ou ficam as duas, ou nenhuma.
-    const entregaId = await new EntregaRepository(tx).criarDaVersaoAdaptada({ turmaId: origem.turmaId, artefatoId, execucaoId })
+    const entregaId = await new EntregaRepository(tx).createDaVersaoAdaptada({ turmaId: origem.turmaId, artefatoId, execucaoId })
     return { tipo: 'artefato', artefatoId, entregaId }
   }
 }

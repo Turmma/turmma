@@ -258,14 +258,14 @@ describe('isolamento da atividade e da correção', () => {
       const pagina = { limite: 50 }
       const daProfessora: Record<string, () => Promise<unknown>> = {
         'aplicação por id': () => new AtividadeAplicadaRepository(banco).porId(aberta),
-        'aplicações da turma': () => new AtividadeAplicadaRepository(banco).listar({ turmaId: a.turma, ...pagina }),
-        'aplicação travada': () => new AtividadeAplicadaRepository(banco).travar(aberta),
+        'aplicações da turma': () => new AtividadeAplicadaRepository(banco).list({ turmaId: a.turma, ...pagina }),
+        'aplicação travada': () => new AtividadeAplicadaRepository(banco).lock(aberta),
         'artefato para aplicar': () => new AtividadeAplicadaRepository(banco).artefatoParaAplicar(artefatoDeA),
-        'turma em que pode aplicar': () => new AtividadeAplicadaRepository(banco).podeAplicarNaTurma(a.turma, a.quimica),
+        'turma em que pode aplicar': () => new AtividadeAplicadaRepository(banco).canAplicarNaTurma(a.turma, a.quimica),
         'lote da aplicação': () => new CorrecaoRepository(banco).loteDaAplicacao(corrigida.id),
         'lote por id': () => new CorrecaoRepository(banco).lote(corrigida.entregaId),
-        'lote travado': () => new CorrecaoRepository(banco).travarLote(corrigida.entregaId),
-        'lote vigente': () => new CorrecaoRepository(banco).temLoteVigente(corrigida.id),
+        'lote travado': () => new CorrecaoRepository(banco).lockLote(corrigida.entregaId),
+        'lote vigente': () => new CorrecaoRepository(banco).hasLoteVigente(corrigida.id),
         'respostas da aplicação': () => new CorrecaoRepository(banco).respostasPorAluno(corrigida.id),
         'correções do lote': () => new CorrecaoRepository(banco).correcoesDoLote(corrigida.entregaId),
         'histórico aprovado': () => new CorrecaoRepository(banco).historicoAprovado([a.aluno.usuarioId], a.quimica),
@@ -278,9 +278,9 @@ describe('isolamento da atividade e da correção', () => {
         'alunos da turma': () => new DesempenhoRepository(banco).alunos(a.turma),
       }
       const doAluno: Record<string, () => Promise<unknown>> = {
-        'minhas atividades': () => new MinhaAtividadeRepository(banco).listar(pagina),
+        'minhas atividades': () => new MinhaAtividadeRepository(banco).list(pagina),
         'prova': () => new MinhaAtividadeRepository(banco).prova(aberta),
-        'atividade para gravar': () => new MinhaAtividadeRepository(banco).travarParaGravar(aberta),
+        'atividade para gravar': () => new MinhaAtividadeRepository(banco).lockParaGravar(aberta),
         'minha tentativa': () => new MinhaAtividadeRepository(banco).tentativa(aberta),
         'minhas respostas': () => new MinhaAtividadeRepository(banco).respostas(aberta),
         'meu diagnóstico': () => new MinhaAtividadeRepository(banco).diagnostico(aprovada.id),
@@ -308,11 +308,11 @@ describe('isolamento da atividade e da correção', () => {
 
       const daProfessora: Record<string, () => Promise<unknown>> = {
         'aplicação por id': () => new AtividadeAplicadaRepository(banco).porId(aplicacaoId),
-        'aplicações da turma': () => new AtividadeAplicadaRepository(banco).listar({ turmaId: anterior.turmaId, limite: 50 }),
-        'aplicação travada': () => new AtividadeAplicadaRepository(banco).travar(aplicacaoId),
+        'aplicações da turma': () => new AtividadeAplicadaRepository(banco).list({ turmaId: anterior.turmaId, limite: 50 }),
+        'aplicação travada': () => new AtividadeAplicadaRepository(banco).lock(aplicacaoId),
         'lote da aplicação': () => new CorrecaoRepository(banco).loteDaAplicacao(aplicacaoId),
         'lote por id': () => new CorrecaoRepository(banco).lote(entregaId),
-        'lote vigente': () => new CorrecaoRepository(banco).temLoteVigente(aplicacaoId),
+        'lote vigente': () => new CorrecaoRepository(banco).hasLoteVigente(aplicacaoId),
         'respostas da aplicação': () => new CorrecaoRepository(banco).respostasPorAluno(aplicacaoId),
         'correções do lote': () => new CorrecaoRepository(banco).correcoesDoLote(entregaId),
         'histórico aprovado': () => new CorrecaoRepository(banco).historicoAprovado([antigo.usuarioId], a.quimica),
@@ -325,7 +325,7 @@ describe('isolamento da atividade e da correção', () => {
         'alunos da turma': () => new DesempenhoRepository(banco).alunos(anterior.turmaId),
       }
       const doAluno: Record<string, () => Promise<unknown>> = {
-        'minhas atividades': () => new MinhaAtividadeRepository(banco).listar({ limite: 50 }),
+        'minhas atividades': () => new MinhaAtividadeRepository(banco).list({ limite: 50 }),
         'minha tentativa': () => new MinhaAtividadeRepository(banco).tentativa(aplicacaoId),
         'meu diagnóstico': () => new MinhaAtividadeRepository(banco).diagnostico(aplicacaoId),
       }
@@ -348,9 +348,9 @@ describe('isolamento da atividade e da correção', () => {
         const comoProfessora = <T>(funcao: () => Promise<T>) => runInContext(contexto(escolaId, anoLetivoId, a.professora, 'professor'), funcao)
         const comoAluno = <T>(funcao: () => Promise<T>) => runInContext(contexto(escolaId, anoLetivoId, a.aluno, 'aluno'), funcao)
         await comoProfessora(() => new AtividadeAplicadaRepository(banco).encerrar(aberta))
-        expect(await comoProfessora(() => new CorrecaoRepository(banco).abrirDestaque(corrigida.entregaId, bia.usuarioId))).toBe(false)
+        expect(await comoProfessora(() => new CorrecaoRepository(banco).openDestaque(corrigida.entregaId, bia.usuarioId))).toBe(false)
         expect(await comoProfessora(() => new CorrecaoRepository(banco).aprovar(corrigida.entregaId))).toBe(false)
-        await comoAluno(() => new MinhaAtividadeRepository(banco).enviar(aberta))
+        await comoAluno(() => new MinhaAtividadeRepository(banco).send(aberta))
       }
       expect(await retrato()).toEqual(antes)
     })
@@ -360,18 +360,18 @@ describe('isolamento da atividade e da correção', () => {
       for (const sessao of [a.colega, a.deFisica, pendente, a.coordenacao]) {
         const comoEla = <T>(funcao: () => Promise<T>) => runInContext(contexto(a.escolaId, a.anoLetivoId, sessao, 'professor'), funcao)
         expect(await comoEla(() => new AtividadeAplicadaRepository(banco).porId(aberta))).toBeUndefined()
-        expect(await comoEla(() => new AtividadeAplicadaRepository(banco).travar(aberta))).toBeUndefined()
+        expect(await comoEla(() => new AtividadeAplicadaRepository(banco).lock(aberta))).toBeUndefined()
         expect(await comoEla(() => new AtividadeAplicadaRepository(banco).artefatoParaAplicar(artefatoDeA))).toBeUndefined()
         expect(await comoEla(() => new CorrecaoRepository(banco).loteDaAplicacao(corrigida.id))).toBeUndefined()
-        expect(await comoEla(() => new CorrecaoRepository(banco).travarLote(corrigida.entregaId))).toBeUndefined()
+        expect(await comoEla(() => new CorrecaoRepository(banco).lockLote(corrigida.entregaId))).toBeUndefined()
         expect(await comoEla(() => new CorrecaoRepository(banco).aprovar(corrigida.entregaId))).toBe(false)
       }
       // O aluno de outra turma, no contexto da própria escola.
       const comoAlunoDoC = <T>(funcao: () => Promise<T>) => runInContext(contexto(a.escolaId, a.anoLetivoId, alunoDoC, 'aluno'), funcao)
       expect(await comoAlunoDoC(() => new MinhaAtividadeRepository(banco).prova(aberta))).toBeUndefined()
-      expect(await comoAlunoDoC(() => new MinhaAtividadeRepository(banco).travarParaGravar(aberta))).toBeUndefined()
+      expect(await comoAlunoDoC(() => new MinhaAtividadeRepository(banco).lockParaGravar(aberta))).toBeUndefined()
       expect(await comoAlunoDoC(() => new MinhaAtividadeRepository(banco).diagnostico(aprovada.id))).toBeUndefined()
-      expect(await comoAlunoDoC(() => new MinhaAtividadeRepository(banco).listar({ limite: 50 }))).toEqual([])
+      expect(await comoAlunoDoC(() => new MinhaAtividadeRepository(banco).list({ limite: 50 }))).toEqual([])
       // A colega da mesma turma não lê a tentativa nem as respostas do Caio: as leituras são sempre as dela.
       const comoBia = <T>(funcao: () => Promise<T>) => runInContext(contexto(a.escolaId, a.anoLetivoId, bia, 'aluno'), funcao)
       expect(await comoBia(() => new MinhaAtividadeRepository(banco).diagnostico(aprovada.id))).toBeUndefined()

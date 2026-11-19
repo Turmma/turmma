@@ -490,7 +490,7 @@ export function paginaDoMaterial(numero: number): PaginaDoMaterial {
 /**
  * O texto de uma página como ele é impresso: um bloco por linha, na ordem, com o rodapé no fim. É o que a
  * extração do PDF devolve para a página, a menos da quebra de linha, que o PDF faz na largura do papel
- * (`normalizarTexto` tira essa diferença dos dois lados).
+ * (`normalizeTexto` tira essa diferença dos dois lados).
  */
 export function textoDaPagina(numero: number): string {
   return [...paginaDoMaterial(numero).blocos.flatMap(linhasDoBloco), rodapeDaPagina(numero)].join('\n')

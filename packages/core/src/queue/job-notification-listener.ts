@@ -26,20 +26,20 @@ export class JobNotificationListener {
   /** Abre a conexão de escuta se não houver uma. Falha é silenciosa: o sondar a cada 500 ms segue valendo. */
   garantir(): Promise<void> {
     if (this.#conexao !== undefined) return Promise.resolve()
-    this.#abrindo ??= this.abrir().finally(() => {
+    this.#abrindo ??= this.open().finally(() => {
       this.#abrindo = undefined
     })
     return this.#abrindo
   }
 
-  async fechar(): Promise<void> {
+  async close(): Promise<void> {
     await this.#abrindo
     const conexao = this.#conexao
     this.#conexao = undefined
     conexao?.release(true)
   }
 
-  private async abrir(): Promise<void> {
+  private async open(): Promise<void> {
     let conexao: pg.PoolClient
     try {
       conexao = await this.pool.connect()

@@ -60,7 +60,7 @@ function montar({
   let sequencia = 0
 
   const repositorio: OutboxRelayDependencies['repositorio'] = {
-    listarEscolasComPendentes: () => Promise.resolve(pendentes),
+    listEscolasComPendentes: () => Promise.resolve(pendentes),
     publicadosEntre: (ids: readonly string[]) => {
       consultasDePublicados.push([...ids])
       return Promise.resolve(publicadosDaEscola)
@@ -84,7 +84,7 @@ function montar({
   const dependencias: OutboxRelayDependencies = {
     repositorio,
     fila: {
-      publicar: (jobs) => {
+      publish: (jobs) => {
         if (publicacaoFalha) return Promise.reject(new Error('Redis fora'))
         publicados.push(...jobs.map((job) => job.id))
         return Promise.resolve()
@@ -108,7 +108,7 @@ function montar({
         tomadas.push({ fila, escolaId, limite, ids })
         return Promise.resolve(new Set(conceder(ids)))
       },
-      liberar: (_fila, _escolaId, ids) => {
+      release: (_fila, _escolaId, ids) => {
         liberados.push(...ids)
         return Promise.resolve()
       },

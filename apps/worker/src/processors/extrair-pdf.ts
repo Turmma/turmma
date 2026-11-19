@@ -28,7 +28,7 @@ const TENTATIVAS_DA_EXTRACAO = JOB_DEFINITIONS[TIPO_EXTRAIR_PDF].retentativa.ten
 
 export interface ExtrairPdfDependencies {
   banco: Database
-  armazem: Pick<FileStorage, 'lerBytes' | 'apagar'>
+  armazem: Pick<FileStorage, 'readBytes' | 'delete'>
   extrator: Pick<PdfExtractor, 'extrair'>
   logger: LoggerBase
   medidor?: Meter | undefined
@@ -44,7 +44,7 @@ const registro = new AuditoriaRecorder()
  */
 async function substituirAAnterior(tx: DatabaseTransaction, novaId: string, antigaId: string): Promise<void> {
   if (!(await new ExtracaoDoMaterialRepository(tx).substituirAnterior(novaId, antigaId))) return
-  await registro.gravar(tx, 'material.substituido', { entidadeId: antigaId, depois: { substituidoPor: novaId }, autorOperador: 'rotina' })
+  await registro.save(tx, 'material.substituido', { entidadeId: antigaId, depois: { substituidoPor: novaId }, autorOperador: 'rotina' })
 }
 
 /**
@@ -53,7 +53,7 @@ async function substituirAAnterior(tx: DatabaseTransaction, novaId: string, anti
  */
 async function herdarAClassificacao(tx: DatabaseTransaction, novaId: string, antigaId: string): Promise<number> {
   const herdadas = await new ExtracaoDoMaterialRepository(tx).herdarClassificacao(novaId, antigaId)
-  if (herdadas > 0) await registro.gravar(tx, 'material.classificacao_herdada', { entidadeId: novaId, depois: { herdadoDe: antigaId, secoes: herdadas }, autorOperador: 'rotina' })
+  if (herdadas > 0) await registro.save(tx, 'material.classificacao_herdada', { entidadeId: novaId, depois: { herdadoDe: antigaId, secoes: herdadas }, autorOperador: 'rotina' })
   return herdadas
 }
 
@@ -73,7 +73,7 @@ async function agendarAClassificacao(tx: DatabaseTransaction, materialId: string
  * As seções do material (classificacao-bncc, 2.0) e, se ele é a edição de outro, a substituição da anterior e a herança da correção dela, e depois as execuções da classificação (5.0), na transação da extração.
  * Devolve as contagens que o log diz.
  */
-async function gravarSecoesEFecharAEdicao(
+async function saveSecoesEFecharAEdicao(
   tx: DatabaseTransaction,
   materialId: string,
   paginas: number,
@@ -81,13 +81,13 @@ async function gravarSecoesEFecharAEdicao(
   substituiId: string | null,
   enfileirador: Pick<JobOutbox, 'enfileirarUmaVez'>,
 ): Promise<{ secoesTotal: number; secoesHerdadasTotal: number; execucoesTotal: number }> {
-  const secoesTotal = await new ExtracaoDoMaterialRepository(tx).gravarSecoes(materialId, paginas, capitulos)
-  const secoesHerdadasTotal = substituiId === null ? 0 : await fecharAEdicao(tx, materialId, substituiId)
+  const secoesTotal = await new ExtracaoDoMaterialRepository(tx).saveSecoes(materialId, paginas, capitulos)
+  const secoesHerdadasTotal = substituiId === null ? 0 : await closeAEdicao(tx, materialId, substituiId)
   return { secoesTotal, secoesHerdadasTotal, execucoesTotal: await agendarAClassificacao(tx, materialId, enfileirador) }
 }
 
 /** A edição substitui a anterior e herda a correção dela; devolve quantas seções herdaram. */
-async function fecharAEdicao(tx: DatabaseTransaction, novaId: string, antigaId: string): Promise<number> {
+async function closeAEdicao(tx: DatabaseTransaction, novaId: string, antigaId: string): Promise<number> {
   await substituirAAnterior(tx, novaId, antigaId)
   return herdarAClassificacao(tx, novaId, antigaId)
 }
@@ -129,7 +129,7 @@ function quandoAbortar(sinal: AbortSignal): Promise<never> {
  * - **Log e métrica**: ids, códigos e contagens, nunca título, nome de arquivo, licenciante nem texto (regra 20, itens 7 e 9). O objeto ausente
  *   de um material `processando` é `arquivo_ausente`, à parte de `extracao_falhou`: é o sinal de um objeto perdido.
  */
-export function criarExtracaoDoPdf({ banco, armazem, extrator, logger, medidor, enfileirador = new JobOutbox(new JobOutboxRepository(banco)) }: ExtrairPdfDependencies): JobProcessor<typeof TIPO_EXTRAIR_PDF> {
+export function createExtracaoDoPdf({ banco, armazem, extrator, logger, medidor, enfileirador = new JobOutbox(new JobOutboxRepository(banco)) }: ExtrairPdfDependencies): JobProcessor<typeof TIPO_EXTRAIR_PDF> {
   const porResultado = medidor?.createCounter(METRICS.extracaoDoMaterial, { description: 'Execuções do job de extração do PDF, por resultado' })
   const duracao = medidor?.createHistogram(METRICS.duracaoDaExtracaoDoMaterial, {
     unit: 's',
@@ -143,9 +143,9 @@ export function criarExtracaoDoPdf({ banco, armazem, extrator, logger, medidor, 
   }
 
   /** O objeto sai do storage e a linha registra: o que falha aqui fica para a varredura, e o job não falha por isso. */
-  const apagarObjeto = async (materialId: string): Promise<void> => {
+  const deleteObjeto = async (materialId: string): Promise<void> => {
     try {
-      await armazem.apagar(chaveDoTemporario(materialId))
+      await armazem.delete(chaveDoTemporario(materialId))
       await new ExtracaoDoMaterialRepository(banco).marcarObjetoApagado(materialId)
     } catch (erro) {
       logger.warn({ evento: 'material.objeto_nao_apagado', materialId, erro: summarizeError(erro) })
@@ -160,7 +160,7 @@ export function criarExtracaoDoPdf({ banco, armazem, extrator, logger, medidor, 
     const mudou = await new ExtracaoDoMaterialRepository(banco).marcarFalhou(materialId, codigo)
     if (!mudou) return false
     logger.warn({ evento, materialId, tentativa, codigo })
-    await apagarObjeto(materialId)
+    await deleteObjeto(materialId)
     return true
   }
 
@@ -172,9 +172,9 @@ export function criarExtracaoDoPdf({ banco, armazem, extrator, logger, medidor, 
     const ultimaTentativa = tentativa >= TENTATIVAS_DA_EXTRACAO
 
     const extrair = async (): Promise<Desfecho> => {
-      const material = await new ExtracaoDoMaterialRepository(banco).lerParaExtrair(materialId)
+      const material = await new ExtracaoDoMaterialRepository(banco).findParaExtrair(materialId)
       if (material === undefined) return 'sem_efeito'
-      const bytes = await armazem.lerBytes(chaveDoTemporario(materialId), { prazoMs: PRAZO_DO_OBJETO_DO_MATERIAL_MS })
+      const bytes = await armazem.readBytes(chaveDoTemporario(materialId), { prazoMs: PRAZO_DO_OBJETO_DO_MATERIAL_MS })
       if (bytes === undefined) return (await falharDeVez(materialId, 'extracao_falhou', 'material.arquivo_ausente', tentativa)) ? 'arquivo_ausente' : 'sem_efeito'
       const resultado = await Promise.race([extrator.extrair(bytes, sinal), quandoAbortar(sinal)])
       if (resultado.falha === 'extracao_falhou') throw new JobFailureError(JobFailureCode.ERRO_INTERNO)
@@ -184,9 +184,9 @@ export function criarExtracaoDoPdf({ banco, armazem, extrator, logger, medidor, 
         const disciplinaId = await materiais.marcarPronto(materialId, resultado.paginas)
         // Excluído, ou já extraído por outro job, enquanto era lido: nenhum trecho entra, e o objeto é de quem mudou a linha.
         if (disciplinaId === undefined) return undefined
-        await materiais.gravarTrechos(materialId, disciplinaId, resultado.trechos)
-        const capitulos = await materiais.gravarCapitulos(materialId, resultado.capitulos)
-        return gravarSecoesEFecharAEdicao(tx, materialId, resultado.paginas, capitulos, material.substituiId, enfileirador)
+        await materiais.saveTrechos(materialId, disciplinaId, resultado.trechos)
+        const capitulos = await materiais.saveCapitulos(materialId, resultado.capitulos)
+        return saveSecoesEFecharAEdicao(tx, materialId, resultado.paginas, capitulos, material.substituiId, enfileirador)
       })
       if (gravou === undefined) return 'sem_efeito'
       const paginasTotal = resultado.paginas
@@ -194,7 +194,7 @@ export function criarExtracaoDoPdf({ banco, armazem, extrator, logger, medidor, 
       const capitulosTotal = resultado.capitulos.length
       const { secoesTotal, secoesHerdadasTotal, execucoesTotal } = gravou
       logger.info({ evento: 'material.extraido', materialId, paginasTotal, trechosTotal, capitulosTotal, secoesTotal, secoesHerdadasTotal, execucoesTotal, tentativa })
-      await apagarObjeto(materialId)
+      await deleteObjeto(materialId)
       return 'pronto'
     }
 

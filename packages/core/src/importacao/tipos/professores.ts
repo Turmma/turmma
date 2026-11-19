@@ -18,7 +18,7 @@ import { convidarProfessorDaPlanilha } from '../../convite/convidar-professor-da
 import { DomainException } from '../../error/domain.exception.js'
 import { ContaDaPlanilhaPerdidaError, DiferencaNaPlanilhaError } from '../erros.js'
 import type { ProfessorDaEscola } from '../importacao.repository.js'
-import { lerTabela } from '../leitor.js'
+import { readTabela } from '../leitor.js'
 import type { ContasDoJob, PlanoDaImportacao, PreviaDoTipo, TipoSemAno } from '../tipo.js'
 
 /**
@@ -57,15 +57,15 @@ const ESTADOS_QUE_SAEM: ReadonlySet<EstadoDoProfessor> = new Set(['ativo', 'acei
 type ErroDaLinhaDeProfessor = 'linha_incompleta' | 'acima_do_teto' | 'nome_vazio' | 'nome_invalido' | 'email_invalido'
 
 /** O nome sem espaço a mais, ou o erro dele: não vazio, até 200 caracteres e de uma linha. */
-function lerNome(texto: string): { readonly nome: string } | { readonly erro: ErroDaLinhaDeProfessor } {
+function readNome(texto: string): { readonly nome: string } | { readonly erro: ErroDaLinhaDeProfessor } {
   const nome = texto.replace(/\s+/g, ' ').trim()
   if (nome === '') return { erro: 'nome_vazio' }
   return nome.length > TAMANHO_MAXIMO_NOME_DIGITADO || /\p{Cc}/u.test(nome) ? { erro: 'nome_invalido' } : { nome }
 }
 
 /** O professor da linha, ou o código do primeiro erro dela. O nome vem antes do e-mail: é a ordem em que a coordenação os lê. */
-function lerLinha(campos: Readonly<Record<string, string>>): ProfessorLido | ErroDaLinhaDeProfessor {
-  const nome = lerNome(campos['nome'] ?? '')
+function readLinha(campos: Readonly<Record<string, string>>): ProfessorLido | ErroDaLinhaDeProfessor {
+  const nome = readNome(campos['nome'] ?? '')
   if ('erro' in nome) return nome.erro
   const email = emailConvidadoSchema.safeParse(campos['email'] ?? '')
   return email.success ? { nome: nome.nome, email: email.data } : 'email_invalido'
@@ -145,10 +145,10 @@ export const tipoProfessores: TipoSemAno = {
   usaAno: false,
 
   async previa(repositorio, texto): Promise<PreviaDoTipo> {
-    const tabela = lerTabela(texto, CABECALHOS_DA_PLANILHA.professores)
+    const tabela = readTabela(texto, CABECALHOS_DA_PLANILHA.professores)
     const lidas = tabela.linhas.map(({ linha, campos }, posicao) => ({
       linha,
-      lido: posicao >= MAXIMO_DE_LINHAS_DA_PLANILHA_DE_PROFESSORES ? ('acima_do_teto' as const) : campos === null ? ('linha_incompleta' as const) : lerLinha(campos),
+      lido: posicao >= MAXIMO_DE_LINHAS_DA_PLANILHA_DE_PROFESSORES ? ('acima_do_teto' as const) : campos === null ? ('linha_incompleta' as const) : readLinha(campos),
     }))
     // O e-mail repetido é a mesma pessoa: a primeira linha vale, e as outras são aviso, não erro.
     const validos: ProfessorLido[] = []
@@ -176,15 +176,15 @@ export const tipoProfessores: TipoSemAno = {
     return lido.success ? lido.data.map((professor) => professor.email).sort() : undefined
   },
 
-  async travar(repositorio, tx, guardado, marcas, contas, travarContas) {
+  async lock(repositorio, tx, guardado, marcas, contas, travarContas) {
     const lido = guardadoSchema.safeParse(guardado)
     if (!lido.success) return
-    await new ConviteDaEscolaRepository(tx).travarEscola()
+    await new ConviteDaEscolaRepository(tx).lockEscola()
     const ciclo = new CicloDeVidaRepository(tx)
-    for (const usuarioId of [...marcas.desligar].sort()) await ciclo.travarAnosDosVinculos(usuarioId, true)
-    await repositorio.travarUsuarios(usuariosDoPassoTres(lido.data, await repositorio.professoresDaEscola(), marcas))
+    for (const usuarioId of [...marcas.desligar].sort()) await ciclo.lockAnosDosVinculos(usuarioId, true)
+    await repositorio.lockUsuarios(usuariosDoPassoTres(lido.data, await repositorio.professoresDaEscola(), marcas))
     if (!(await travarContas(contas))) throw new ContaDaPlanilhaPerdidaError()
-    await ciclo.travarContraOGerarDosProfessores([...marcas.desligar].sort())
+    await ciclo.lockContraOGerarDosProfessores([...marcas.desligar].sort())
   },
 
   async planejar(repositorio, guardado, marcas, contas) {

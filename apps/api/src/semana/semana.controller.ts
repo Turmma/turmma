@@ -14,7 +14,7 @@ export class SemanaController {
 
   @Get('semana')
   @RequirePermissao('aula', 'ler')
-  ler(@Query(new ZodValidationPipe(semanaQuerySchema)) consulta: SemanaQuery): Promise<SemanaResponse> {
-    return this.semana.ler(consulta)
+  read(@Query(new ZodValidationPipe(semanaQuerySchema)) consulta: SemanaQuery): Promise<SemanaResponse> {
+    return this.semana.read(consulta)
   }
 }

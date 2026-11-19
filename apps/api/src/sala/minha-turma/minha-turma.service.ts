@@ -10,7 +10,7 @@ import { MinhaTurmaRepository } from './minha-turma.repository.js'
 export class MinhaTurmaService {
   constructor(private readonly banco: Database) {}
 
-  async ler(): Promise<MinhaTurmaResponse> {
+  async read(): Promise<MinhaTurmaResponse> {
     const minha = await new MinhaTurmaRepository(this.banco).daSessao()
     if (minha === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     return minhaTurmaResponseSchema.parse(minha)

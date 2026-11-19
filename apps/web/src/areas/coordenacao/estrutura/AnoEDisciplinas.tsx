@@ -19,7 +19,7 @@ import {
 } from '@educa/shared'
 import type { UseQueryResult } from '@tanstack/react-query'
 import { useId, useRef, useState, type ReactNode, type RefObject } from 'react'
-import { abrirAnoLetivo, criarAnoLetivo, criarDisciplina, criarSerie, type ListaDaEstrutura } from '../../../api/estrutura'
+import { openAnoLetivo, createAnoLetivo, createDisciplina, createSerie, type ListaDaEstrutura } from '../../../api/estrutura'
 import { DANGER_BUTTON_CLASSES, SECONDARY_BUTTON_CLASSES } from '../../../components/ui/button-variants'
 import { FormField } from '../../../components/ui/fields/FormField'
 import { Select } from '../../../components/ui/fields/Select'
@@ -29,7 +29,7 @@ import { Sheet } from '../../../components/ui/overlays/Sheet'
 import { SELECT_CLASSES } from '../../../components/ui/fields/field-styles'
 import { errorText, listChanged } from '../../../components/error-text'
 import { formatDate } from '../../../format'
-import { ordenarPeloNome, ordenarSeries } from '../comum/ordem'
+import { sortPeloNome, sortSeries } from '../comum/ordem'
 import { AvisoDeListaIncompleta, ListRow } from '../comum/pecas-da-lista'
 
 /**
@@ -124,7 +124,7 @@ function AnosLetivos({
   const temEmCurso = anos.some((ano) => ano.situacao === 'em_curso')
   // O "Abrir" sai da linha com o ano aberto: depois de recarregar, o foco vai para o título da seção.
   const { enviar, mutacao } = useSingleSubmit({
-    mutationFn: abrirAnoLetivo,
+    mutationFn: openAnoLetivo,
     onSuccess: async (ano) => {
       await recarregar()
       aoAnunciar(`Ano letivo ${String(ano.ano)} aberto. Agora crie as turmas.`)
@@ -211,7 +211,7 @@ export function NovoAnoLetivo({ aoFechar, aoCriar, recarregar, focoDeReserva }: 
   const campoDoInicio = useRef<HTMLInputElement>(null)
   const campoDoFim = useRef<HTMLInputElement>(null)
   const { enviar, mutacao } = useSingleSubmit({
-    mutationFn: criarAnoLetivo,
+    mutationFn: createAnoLetivo,
     ...depoisDeCriar(aoCriar, recarregar),
   })
 
@@ -300,7 +300,7 @@ export function NovaSerie({ existentes, aoFechar, aoCriar, recarregar }: PropsDe
   const [escolhida, definirEscolhida] = useState(() => (disponiveis[0] === undefined ? '' : `${disponiveis[0].etapa}:${String(disponiveis[0].ano)}`))
   const campo = useId()
   const { enviar, mutacao } = useSingleSubmit({
-    mutationFn: criarSerie,
+    mutationFn: createSerie,
     ...depoisDeCriar(aoCriar, recarregar),
   })
 
@@ -351,7 +351,7 @@ export function NovaDisciplina({ aoFechar, aoCriar, recarregar }: PropsDeCriar<D
   const [erroDoNome, definirErroDoNome] = useState<string | undefined>(undefined)
   const campo = useRef<HTMLInputElement>(null)
   const { enviar, mutacao } = useSingleSubmit({
-    mutationFn: criarDisciplina,
+    mutationFn: createDisciplina,
     ...depoisDeCriar(aoCriar, recarregar),
   })
 
@@ -408,7 +408,7 @@ const OPCOES_DO_COMPONENTE = [{ valor: SEM_COMPONENTE, rotulo: 'Sem componente' 
 export function ComponenteDaDisciplina({
   atual,
   nome,
-  salvar,
+  save: salvar,
   aoFechar,
   aoSalvar,
   recarregar,
@@ -416,7 +416,7 @@ export function ComponenteDaDisciplina({
 }: {
   readonly atual: ComponenteBncc | null
   readonly nome: string
-  readonly salvar: (componente: ComponenteBncc | null) => Promise<Disciplina>
+  readonly save: (componente: ComponenteBncc | null) => Promise<Disciplina>
   readonly aoFechar: () => void
   readonly aoSalvar: (disciplina: Disciplina) => void
   readonly recarregar: () => unknown
@@ -533,7 +533,7 @@ export function PainelDoAnoEDisciplinas({
             <p className="text-apoio">Nenhuma série ainda. Crie as séries que a escola tem, do 6º ano ao 3º do Ensino Médio.</p>
           ) : (
             <ul className="flex flex-wrap gap-2">
-              {ordenarSeries(series.data.itens).map((serie) => (
+              {sortSeries(series.data.itens).map((serie) => (
                 <li key={serie.id} className="rounded-controle border border-linha bg-superficie px-3 py-2 break-words">
                   {nomeDaSerie(serie)}
                 </li>
@@ -561,7 +561,7 @@ export function PainelDoAnoEDisciplinas({
           ) : (
             <>
               <ul className="flex flex-col gap-3">
-                {ordenarPeloNome(disciplinas.data.itens).map((disciplina) => (
+                {sortPeloNome(disciplinas.data.itens).map((disciplina) => (
                   <ListRow key={disciplina.id} titulo={disciplina.nome} detalhe={textoDoComponente(disciplina.componenteBncc)}>
                     <AcoesDaLinha
                       nome={disciplina.nome}

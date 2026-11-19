@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { CABECALHOS_DA_PLANILHA, TAMANHO_MAXIMO_DA_DESCRICAO_DO_EVENTO, TIPOS_DE_EVENTO_DO_CALENDARIO, type PreviaDaPlanilhaRow, type TipoDeEventoDoCalendario } from '@educa/shared'
 import { z } from 'zod'
 import type { AnoDeDestino, EventoGravado, EventoNovo } from '../importacao.repository.js'
-import { lerTabela, normalizarTexto } from '../leitor.js'
+import { readTabela, normalizeTexto } from '../leitor.js'
 import type { PlanoDaImportacao, PreviaDoTipo, TipoDeImportacao } from '../tipo.js'
 
 /**
@@ -29,7 +29,7 @@ const FORMATO_ISO = /^(\d{4})-(\d{2})-(\d{2})$/
 const FORMATO_BRASILEIRO = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/
 
 /** A data como `AAAA-MM-DD`, aceitando `AAAA-MM-DD` e `DD/MM/AAAA`; dia que não existe ("31/02/2026") é `null`. */
-function lerData(texto: string): string | null {
+function readData(texto: string): string | null {
   const limpo = texto.trim()
   const iso = FORMATO_ISO.exec(limpo)
   const brasileiro = FORMATO_BRASILEIRO.exec(limpo)
@@ -44,28 +44,28 @@ function lerData(texto: string): string | null {
 type EventoLido = z.infer<typeof eventoGuardadoSchema>
 
 /** O período da linha, ou o código do erro: datas que existem, fim depois do início, tudo dentro do ano. */
-function lerPeriodo(campos: Readonly<Record<string, string>>, ano: AnoDeDestino): { readonly inicio: string; readonly fim: string } | ErroDaLinhaDoCalendario {
-  const inicio = lerData(campos['inicio'] ?? '')
-  const fim = lerData(campos['fim'] ?? '')
+function readPeriodo(campos: Readonly<Record<string, string>>, ano: AnoDeDestino): { readonly inicio: string; readonly fim: string } | ErroDaLinhaDoCalendario {
+  const inicio = readData(campos['inicio'] ?? '')
+  const fim = readData(campos['fim'] ?? '')
   if (inicio === null || fim === null) return 'data_invalida'
   if (fim < inicio) return 'fim_antes_do_inicio'
   return inicio < ano.inicio || fim > ano.fim ? 'fora_do_ano' : { inicio, fim }
 }
 
 /** A descrição sem espaço a mais, ou o erro dela: não vazia, até 120 caracteres. O texto é do usuário, e por isso o erro vai num objeto. */
-function lerDescricao(texto: string): { readonly descricao: string } | { readonly erro: ErroDaLinhaDoCalendario } {
+function readDescricao(texto: string): { readonly descricao: string } | { readonly erro: ErroDaLinhaDoCalendario } {
   const descricao = texto.replace(/\s+/g, ' ').trim()
   if (descricao === '') return { erro: 'descricao_vazia' }
   return descricao.length > TAMANHO_MAXIMO_DA_DESCRICAO_DO_EVENTO ? { erro: 'descricao_longa' } : { descricao }
 }
 
 /** O evento de uma linha, ou o código do primeiro erro dela. A ordem dos testes é a ordem em que a coordenação os corrige. */
-function lerLinha(campos: Readonly<Record<string, string>>, ano: AnoDeDestino): EventoLido | ErroDaLinhaDoCalendario {
-  const periodo = lerPeriodo(campos, ano)
+function readLinha(campos: Readonly<Record<string, string>>, ano: AnoDeDestino): EventoLido | ErroDaLinhaDoCalendario {
+  const periodo = readPeriodo(campos, ano)
   if (typeof periodo === 'string') return periodo
-  const tipo = TIPOS_DE_EVENTO_DO_CALENDARIO.find((candidato) => candidato === normalizarTexto(campos['tipo'] ?? ''))
+  const tipo = TIPOS_DE_EVENTO_DO_CALENDARIO.find((candidato) => candidato === normalizeTexto(campos['tipo'] ?? ''))
   if (tipo === undefined) return 'tipo_invalido'
-  const descricao = lerDescricao(campos['descricao'] ?? '')
+  const descricao = readDescricao(campos['descricao'] ?? '')
   return 'erro' in descricao ? descricao.erro : { tipo, ...periodo, descricao: descricao.descricao }
 }
 
@@ -93,8 +93,8 @@ function planejarContra(ano: AnoDeDestino, eventos: readonly EventoLido[], exist
     assinatura,
     resumo: { entram: entram.length, ja_existem: daPlanilha.size - entram.length, eventos_removidos: saem.length },
     aplicar: async (gravacao) => {
-      await gravacao.apagarEventos(ano.id, saem)
-      await gravacao.inserirEventos(ano.id, entram)
+      await gravacao.deleteEventos(ano.id, saem)
+      await gravacao.insertEventos(ano.id, entram)
     },
   }
 }
@@ -105,14 +105,14 @@ export const tipoCalendario: TipoDeImportacao = {
   usaAno: true,
 
   async previa(repositorio, ano, texto): Promise<PreviaDoTipo> {
-    const tabela = lerTabela(texto, CABECALHOS_DA_PLANILHA.calendario)
+    const tabela = readTabela(texto, CABECALHOS_DA_PLANILHA.calendario)
     const existentes = await repositorio.eventosDoAno(ano.id)
     const noBanco = new Set(existentes.map(chaveDoEvento))
     const linhas: PreviaDaPlanilhaRow[] = []
     const validos: EventoLido[] = []
     const vistos = new Set<string>()
     for (const { linha, campos } of tabela.linhas) {
-      const lido = campos === null ? 'linha_incompleta' : lerLinha(campos, ano)
+      const lido = campos === null ? 'linha_incompleta' : readLinha(campos, ano)
       if (typeof lido === 'string') {
         linhas.push({ linha, resultado: 'erro', erro: lido })
       } else if (vistos.has(chaveDoEvento(lido))) {

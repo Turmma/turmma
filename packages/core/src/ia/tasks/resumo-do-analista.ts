@@ -90,7 +90,7 @@ export const resumoDoAnalista = defineTask({
   levaTextoDeAluno: false,
   categoriasEnviadas: ['trabalho_do_aluno'],
 
-  montarPedido(entrada) {
+  buildPedido(entrada) {
     return {
       instrucao: 'Monte o resumo da coordenação: devolva os agregados como vieram e acrescente os alertas das habilidades abaixo do limiar.',
       dados: [dadoEmJson('agregados_por_serie_e_disciplina', entrada)],

@@ -7,7 +7,7 @@ import { DB_POOL } from '../database.module.js'
 export class HealthService {
   constructor(@Inject(DB_POOL) private readonly pool: DatabasePool) {}
 
-  async verificar(): Promise<HealthResponse> {
+  async verify(): Promise<HealthResponse> {
     return { ok: await pingDatabase(this.pool) }
   }
 }

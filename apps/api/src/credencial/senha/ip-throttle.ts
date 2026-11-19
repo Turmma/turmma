@@ -20,7 +20,7 @@ export function limiarDeFalhas(alunosAtivos: number): number {
 }
 
 export interface EscolaIpThrottleDependencies {
-  readonly janela: Pick<WindowCounter, 'chaveDe' | 'ler' | 'somar'>
+  readonly janela: Pick<WindowCounter, 'chaveDe' | 'read' | 'somar'>
   /** Quantos alunos ativos a escola do contexto tem: quem chama já está no contexto da escola do endereço. */
   readonly alunosAtivos: () => Promise<number>
   /** Quantas instâncias da API dividem o limiar quando a contagem é do seguro em memória (`LIMITE_INSTANCIAS_API`). */
@@ -68,7 +68,7 @@ export class EscolaIpThrottle {
   async rebaixar(ip: string, escolaId: string, conhecido: boolean): Promise<boolean> {
     if (conhecido) return false
     const { janela, instancias } = this.dependencias
-    const { valor, doSeguro } = await janela.ler(this.#chave(ip, escolaId))
+    const { valor, doSeguro } = await janela.read(this.#chave(ip, escolaId))
     const efetivo = (limiar: number) => (doSeguro ? insuranceLimit(limiar, instancias) : limiar)
     if (valor <= efetivo(LIMIAR_MINIMO_DE_FALHAS_POR_IP)) return false
     if (valor <= efetivo(limiarDeFalhas(await this.#alunosAtivos(escolaId)))) return false
@@ -77,7 +77,7 @@ export class EscolaIpThrottle {
   }
 
   /** Conta uma falha deste IP nesta escola: senha errada, matrícula que não existe ou conta segurada. */
-  async contarFalha(ip: string, escolaId: string): Promise<void> {
+  async countFalha(ip: string, escolaId: string): Promise<void> {
     await this.dependencias.janela.somar(this.#chave(ip, escolaId))
   }
 

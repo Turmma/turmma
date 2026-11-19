@@ -271,7 +271,7 @@ export class ExecucaoDaSessaoRepository {
    * Grava a execução `pendente`, de quem está na sessão, e devolve o id. Com a chave de envio já usada na escola,
    * não grava e devolve `undefined`: o índice único decide, sem "verifica e depois grava" (regra 80, item 7).
    */
-  async gravarPendente(tarefa: TarefaDeIa, chaveEnvio: string, entrada: ExecucaoInput): Promise<string | undefined> {
+  async savePendente(tarefa: TarefaDeIa, chaveEnvio: string, entrada: ExecucaoInput): Promise<string | undefined> {
     const [gravada] = await this.banco
       .insert(execucaoAgente)
       .values({

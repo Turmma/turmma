@@ -54,9 +54,9 @@ function causaNaEscola(erro: unknown): CausaDaEscolaIgnorada | undefined {
 }
 
 export interface UsageConsolidationDependencies {
-  contador: Pick<UsageMeter, 'lerDiasFechados' | 'apagarConsolidado'>
-  repositorio: Pick<UsageRepository, 'gravarDia'>
-  storage: Pick<StorageSizeReader, 'listarEscolas' | 'bytesDaEscola'>
+  contador: Pick<UsageMeter, 'readDiasFechados' | 'deleteConsolidado'>
+  repositorio: Pick<UsageRepository, 'saveDia'>
+  storage: Pick<StorageSizeReader, 'listEscolas' | 'bytesDaEscola'>
   /** De onde vem a hora que decide quais dias fecharam. Só o teste troca. */
   relogio: Clock
   logger: LoggerBase
@@ -90,7 +90,7 @@ export interface UsageConsolidationDependencies {
  * banco; também dispara numa noite em que todas as encontradas são resto de escola eliminada, até a eliminação apagar o
  * resto de uso (`TODO.md`). Uma inexistente entre escolas que existem continua só pulada.
  */
-export function criarConsolidacaoDeUso(dependencias: UsageConsolidationDependencies): JobProcessor<typeof TIPO_CONSOLIDAR_USO> {
+export function createConsolidacaoDeUso(dependencias: UsageConsolidationDependencies): JobProcessor<typeof TIPO_CONSOLIDAR_USO> {
   const { contador, repositorio, storage, relogio, logger, medidor } = dependencias
   const escolaIgnorada = medidor?.createCounter(METRICS.escolaIgnoradaNoUso, {
     description: 'Gravações de uso de uma escola que a consolidação noturna pulou, por origem e causa',
@@ -113,9 +113,9 @@ export function criarConsolidacaoDeUso(dependencias: UsageConsolidationDependenc
       logger.warn({ evento: 'uso.escola_ignorada', escolaId, origem, causa, erro: summarizeError(erro) })
     }
     /** Grava o dia da escola, ou devolve a causa se o banco o recusou por causa dela. Erro do banco sobe. */
-    const gravar = async (escolaId: string, dia: string, valores: Partial<UsagePeriod>): Promise<{ causa: CausaDaEscolaIgnorada; erro: unknown } | undefined> => {
+    const save = async (escolaId: string, dia: string, valores: Partial<UsagePeriod>): Promise<{ causa: CausaDaEscolaIgnorada; erro: unknown } | undefined> => {
       try {
-        await naEscola(escolaId, () => repositorio.gravarDia(dia, valores))
+        await naEscola(escolaId, () => repositorio.saveDia(dia, valores))
         return undefined
       } catch (erro) {
         const causa = causaNaEscola(erro)
@@ -125,25 +125,25 @@ export function criarConsolidacaoDeUso(dependencias: UsageConsolidationDependenc
     }
 
     const hoje = diaDeUso(relogio.agora())
-    const contagens = await contador.lerDiasFechados(hoje)
+    const contagens = await contador.readDiasFechados(hoje)
     for (const { escolaId, dia, requisicoes, jobs } of contagens) {
       const valores: Partial<UsagePeriod> = {
         ...(requisicoes === undefined ? {} : { requisicoes }),
         ...(jobs === undefined ? {} : { jobs }),
       }
-      const recusa = await gravar(escolaId, dia, valores)
+      const recusa = await save(escolaId, dia, valores)
       if (recusa !== undefined) {
         ignorar(escolaId, 'contador', recusa.causa, recusa.erro)
         continue
       }
       await naEscola(escolaId, async () => {
-        if (requisicoes !== undefined) await contador.apagarConsolidado(dia, 'req', requisicoes)
-        if (jobs !== undefined) await contador.apagarConsolidado(dia, 'jobs', jobs)
+        if (requisicoes !== undefined) await contador.deleteConsolidado(dia, 'req', requisicoes)
+        if (jobs !== undefined) await contador.deleteConsolidado(dia, 'jobs', jobs)
       })
     }
 
     const ontem = diaAnterior(hoje)
-    const escolas = await storage.listarEscolas()
+    const escolas = await storage.listEscolas()
     let falhaDeStorage: unknown
     let falhasSeguidas = 0
     for (const escolaId of escolas) {
@@ -157,7 +157,7 @@ export function criarConsolidacaoDeUso(dependencias: UsageConsolidationDependenc
         falhaDeStorage ??= erro
         continue
       }
-      const recusa = await gravar(escolaId, ontem, { bytesStorage })
+      const recusa = await save(escolaId, ontem, { bytesStorage })
       if (recusa !== undefined) ignorar(escolaId, 'storage', recusa.causa, recusa.erro)
     }
     const diasTotal = contagens.length

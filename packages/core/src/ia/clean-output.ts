@@ -22,7 +22,7 @@ export function tirarCercaDeCodigo(texto: string): string {
 }
 
 /** Raciocínio fora, cerca fora e, se sobrou prosa em volta, só o que vai da primeira chave à última. */
-export function limparSaidaDoModelo(texto: string): string {
+export function clearSaidaDoModelo(texto: string): string {
   const semCerca = tirarCercaDeCodigo(descartarRaciocinio(texto))
   if (semCerca.startsWith('{')) return semCerca
   const inicio = semCerca.indexOf('{')

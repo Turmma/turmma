@@ -239,7 +239,7 @@ describe('medição das filas por escola, no despachante', () => {
     await medicao.medir()
     expect(await porTipo()).toEqual({ sintetico: 2, 'ia.geracao.concluida': 1, 'titular.eliminar': 1 })
 
-    expect(await new ExpurgoDeJobsRepository(bancada.banco).apagarLoteVencido()).toBe(2)
+    expect(await new ExpurgoDeJobsRepository(bancada.banco).deleteLoteVencido()).toBe(2)
     await medicao.medir()
     expect(await porTipo()).toEqual({ 'ia.geracao.concluida': 1, 'titular.eliminar': 1 })
   })

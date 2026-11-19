@@ -273,7 +273,7 @@ describe('o plano da reimportação: a escrita condicional que muda menos linhas
 
   /** A gravação que diz ter mudado `mudadasNaLista` linhas da lista e `mudadosAlunos` alunos. */
   const gravacaoQueMuda = (mudadasNaLista: number, mudadosAlunos: number) =>
-    ({ corrigirNomesNaLista: () => Promise.resolve(mudadasNaLista), corrigirNomesDosAlunos: () => Promise.resolve(mudadosAlunos), seriesDaEscola: () => Promise.resolve([]), inserirNomes: () => Promise.resolve(), encerrarPedidosDosNomes: () => Promise.resolve(), transferirNomes: () => Promise.resolve(0), encerrarVinculosDosAlunos: () => Promise.resolve([]), criarVinculosDosAlunos: () => Promise.resolve([]), transferirAprovados: () => Promise.resolve(0) }) as unknown as ImportacaoRepository
+    ({ corrigirNomesNaLista: () => Promise.resolve(mudadasNaLista), corrigirNomesDosAlunos: () => Promise.resolve(mudadosAlunos), seriesDaEscola: () => Promise.resolve([]), insertNomes: () => Promise.resolve(), encerrarPedidosDosNomes: () => Promise.resolve(), transferirNomes: () => Promise.resolve(0), encerrarVinculosDosAlunos: () => Promise.resolve([]), createVinculosDosAlunos: () => Promise.resolve([]), transferirAprovados: () => Promise.resolve(0) }) as unknown as ImportacaoRepository
 
   async function aplicar(comAprovado: boolean, mudadasNaLista: number, mudadosAlunos: number) {
     const plano = await tipoAlunos.planejar?.(leitura(comAprovado), { id: ANO } as never, guardado, { transferir: [], desligar: [], encerrar: [] })
@@ -379,13 +379,13 @@ describe('o plano do desligamento: a marca que não acha mais o candidato, ou o 
   const gravacao = (retirados: string[]): ImportacaoRepository =>
     ({
       seriesDaEscola: () => Promise.resolve([]),
-      inserirNomes: () => Promise.resolve(),
+      insertNomes: () => Promise.resolve(),
       corrigirNomesNaLista: () => Promise.resolve(0),
       corrigirNomesDosAlunos: () => Promise.resolve(0),
       encerrarPedidosDosNomes: () => Promise.resolve(),
       transferirNomes: () => Promise.resolve(0),
       encerrarVinculosDosAlunos: () => Promise.resolve([]),
-      criarVinculosDosAlunos: () => Promise.resolve([]),
+      createVinculosDosAlunos: () => Promise.resolve([]),
       transferirAprovados: () => Promise.resolve(0),
       retirarNomes: () => Promise.resolve(retirados),
     }) as unknown as ImportacaoRepository

@@ -6,7 +6,7 @@ import {
   type RegistrarLicencaRequest,
 } from '@educa/shared'
 import { queryOptions } from '@tanstack/react-query'
-import { lerPaginas } from '../../../../api/estrutura'
+import { readPaginas } from '../../../../api/estrutura'
 import { authedRequest } from '../../../../api/sessao'
 import { MATERIAL_QUERY_KEY } from './material'
 
@@ -26,7 +26,7 @@ export const LICENCAS_QUERY_KEY = [...MATERIAL_QUERY_KEY, 'licencas'] as const
  */
 export const licencasQueryOptions = queryOptions({
   queryKey: LICENCAS_QUERY_KEY,
-  queryFn: ({ signal }) => lerPaginas<Licenca>(CAMINHO, listaDeLicencasResponseSchema, signal),
+  queryFn: ({ signal }) => readPaginas<Licenca>(CAMINHO, listaDeLicencasResponseSchema, signal),
 })
 
 /**
@@ -38,6 +38,6 @@ export function registrarLicenca(pedido: RegistrarLicencaRequest): Promise<Licen
 }
 
 /** `PATCH /v1/licencas/:id`: a vigência (e, para a API, a cobertura e a referência, que a tela não muda). */
-export function alterarLicenca(id: string, pedido: AlterarLicencaRequest): Promise<Licenca> {
+export function updateLicenca(id: string, pedido: AlterarLicencaRequest): Promise<Licenca> {
   return authedRequest(`${CAMINHO}/${encodeURIComponent(id)}`, licencaResponseSchema, { metodo: 'PATCH', corpo: pedido })
 }

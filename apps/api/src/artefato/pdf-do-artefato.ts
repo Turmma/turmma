@@ -256,7 +256,7 @@ function escreverPlano(folha: Folha, conteudo: ConteudoDePlanoDeAula, fontes: Fo
  * diz título, edição e "edição anterior" (`rotuloDaFonte`, o mesmo texto da tela); material que não está no mapa sai como
  * "material da escola".
  */
-export function gerarPdfDoArtefato(conteudo: ConteudoDoArtefato, fontes: FontesDoPdf, { rascunho = false }: PdfOptions = {}): Promise<Buffer> {
+export function generatePdfDoArtefato(conteudo: ConteudoDoArtefato, fontes: FontesDoPdf, { rascunho = false }: PdfOptions = {}): Promise<Buffer> {
   return new Promise((resolver, rejeitar) => {
     const documento = new PDFDocument({
       size: 'A4',

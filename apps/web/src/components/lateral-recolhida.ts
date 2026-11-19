@@ -11,7 +11,7 @@ export const SIDEBAR_COLLAPSED_STORAGE_KEY = 'educa.lateral-recolhida'
  * Chromebook gerenciado: o acesso à propriedade, `getItem` ou a leitura lançam), a lateral abre aberta, como na primeira
  * vez, e nenhum erro sai dali.
  */
-export function lerRecolhida(): boolean {
+export function readRecolhida(): boolean {
   try {
     return window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === 'sim'
   } catch {

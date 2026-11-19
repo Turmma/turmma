@@ -86,7 +86,7 @@ export class OperacaoPrivacidadeRepository {
    * ligação). Dois encerramentos da mesma chave ao mesmo tempo passam um de cada vez: o segundo relê depois de o primeiro
    * confirmar e não acha vigente.
    */
-  async travarVigente(chave: string): Promise<SuboperadorVigente | undefined> {
+  async lockVigente(chave: string): Promise<SuboperadorVigente | undefined> {
     const [vigente] = await this.banco
       .select({ id: suboperador.id, alcance: suboperador.alcance })
       .from(suboperador)
@@ -95,7 +95,7 @@ export class OperacaoPrivacidadeRepository {
     return vigente
   }
 
-  /** Encerra o suboperador agora (o `travarVigente` acabou de achá-lo vigente e o segura). Ele fica como histórico. */
+  /** Encerra o suboperador agora (o `lockVigente` acabou de achá-lo vigente e o segura). Ele fica como histórico. */
   async encerrar(suboperadorId: string): Promise<void> {
     await this.banco.update(suboperador).set({ fim: sql`now()` }).where(eq(suboperador.id, suboperadorId))
   }

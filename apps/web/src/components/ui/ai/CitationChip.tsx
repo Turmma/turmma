@@ -34,7 +34,7 @@ export function CitationChip({ citacao, materiais }: CitationChipProps) {
   const [aberto, definirAberto] = useState(false)
   const botao = useRef<HTMLButtonElement>(null)
   const idDoCartao = useId()
-  const { ancora, posicao } = useFloating<HTMLSpanElement>({ aberto, aoFechar: fechar, alinhamento: 'inicio', lado: 'auto', altura: ALTURA_DO_CARTAO })
+  const { ancora, posicao } = useFloating<HTMLSpanElement>({ aberto, aoFechar: close, alinhamento: 'inicio', lado: 'auto', altura: ALTURA_DO_CARTAO })
   const nome = nomeDoChip(citacao, materiais)
   const visivel = textoDoChip(citacao.pagina)
 
@@ -42,7 +42,7 @@ export function CitationChip({ citacao, materiais }: CitationChipProps) {
    * Fecha pelo toque fora e pela rolagem por fora. Se o foco estava dentro do cartão, que some, volta para o chip — sem
    * rolar a página até ele.
    */
-  function fechar(): void {
+  function close(): void {
     const focoNoCartao = document.activeElement !== botao.current && ancora.current?.contains(document.activeElement) === true
     definirAberto(false)
     if (focoNoCartao) botao.current?.focus({ preventScroll: true })

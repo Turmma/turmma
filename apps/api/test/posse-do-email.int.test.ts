@@ -7,7 +7,7 @@ import { lerAmbienteDeTeste } from '../../../tools/ci/compose.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { travarRedis } from '../../../tools/testes/redis-travado.ts'
 import { PasswordHasher, REDIS_LOGIN_CLIENT } from '../src/credencial/index.js'
-import { criarConviteDeCoordenador } from '../src/sessao/index.js'
+import { createConviteDeCoordenador } from '../src/sessao/index.js'
 import { autorDaBancada, SessaoFixtures } from './sessao.fixture.js'
 import { subirApi, type TestApi } from './test-api.js'
 import { TEST_APP_OPTIONS, testConfig } from './test-config.js'
@@ -83,7 +83,7 @@ describe('acesso-e-convites, 7.0: a posse do e-mail antes de a conta cruzar esco
     const email = `posse-${randomUUID()}@escola.invalid`
     const { rows } = await bancada.pool.query<{ id: string }>(
       `insert into conta (email, senha_hash, email_verificado_em) values ($1, $2, ${verificada ? 'now()' : 'null'}) returning id`,
-      [email, senha ? await hash.gerar(SENHA_DA_CONTA) : null],
+      [email, senha ? await hash.generate(SENHA_DA_CONTA) : null],
     )
     return { email, contaId: unica(rows).id }
   }
@@ -266,7 +266,7 @@ describe('acesso-e-convites, 7.0: a posse do e-mail antes de a conta cruzar esco
       const [escolaA, escolaB] = [await bancada.escola(), await bancada.escola()]
       const { email, contaId } = await conta()
       await usuarioEm(contaId, escolaA)
-      const { conviteId, token } = await criarConviteDeCoordenador(bancada.banco, autorDaBancada, { escolaId: escolaB, email, nome: 'Coordenação Sintética Convidada' })
+      const { conviteId, token } = await createConviteDeCoordenador(bancada.banco, autorDaBancada, { escolaId: escolaB, email, nome: 'Coordenação Sintética Convidada' })
 
       const aceite = await aceitar(token)
 

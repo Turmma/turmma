@@ -39,8 +39,8 @@ export class AtividadeAplicadaController {
   @Get()
   @RequirePermissao('atividade_aplicada', 'listar')
   @Header('Cache-Control', 'no-store')
-  listar(@Query(new ZodValidationPipe(atividadesAplicadasQuerySchema)) consulta: AtividadesAplicadasQuery): Promise<ListaDeAtividadesAplicadasResponse> {
-    return this.atividades.listar(consulta)
+  list(@Query(new ZodValidationPipe(atividadesAplicadasQuerySchema)) consulta: AtividadesAplicadasQuery): Promise<ListaDeAtividadesAplicadasResponse> {
+    return this.atividades.list(consulta)
   }
 
   @Post(':id/encerrar')
@@ -54,18 +54,18 @@ export class AtividadeAplicadaController {
   @RequirePermissao('correcao', 'ler')
   @Header('Cache-Control', 'no-store')
   correcao(@Param('id', IdPipe) atividadeAplicadaId: string): Promise<CorrecaoDoLoteResponse> {
-    return this.correcoes.ler(atividadeAplicadaId)
+    return this.correcoes.read(atividadeAplicadaId)
   }
 
   @Post(':id/correcao/destaques/:alunoId/abrir')
   @RequirePermissao('correcao', 'abrir_destaque')
   @HttpCode(HttpStatus.OK)
   @Header('Cache-Control', 'no-store')
-  abrirDestaque(
+  openDestaque(
     @Param('id', IdPipe) atividadeAplicadaId: string,
     @Param('alunoId', IdPipe) aluno: string,
     @Body(new ZodValidationPipe(emptyOrMissingBodyRequestSchema)) _corpo: EmptyBodyRequest,
   ): Promise<DestaqueAbertoResponse> {
-    return this.correcoes.abrirDestaque(atividadeAplicadaId, aluno)
+    return this.correcoes.openDestaque(atividadeAplicadaId, aluno)
   }
 }

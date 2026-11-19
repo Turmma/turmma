@@ -253,7 +253,7 @@ aberta, e **tarefa** é o nome na navegação e no título da lista (X4).
 Sair. Tomou o lugar de "Minha turma", cujo endereço leva até ele. Só do próprio aluno, sem colega (regra 50, item 9).
 
 **Tela de foco** — A tela em que a casca some a lateral e as barras e deixa só o conteúdo, o "Sair" e o relógio de
-inatividade. Os endereços estão em `ehTelaDeFoco` (`apps/web/src/paths.ts`): hoje, a introdução de cada papel
+inatividade. Os endereços estão em `isTelaDeFoco` (`apps/web/src/paths.ts`): hoje, a introdução de cada papel
 (`/<área>/bem-vindo`).
 
 **Introdução** — Os passos que cada papel vê na primeira entrada (`components/introducao/Introducao.tsx`): a onça

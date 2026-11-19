@@ -30,8 +30,8 @@ export class DisciplinaService {
     private readonly enfileirador: Pick<JobOutbox, 'enfileirarUmaVez'>,
   ) {}
 
-  async criar(pedido: CriarDisciplinaRequest): Promise<DisciplinaResponse> {
-    return disciplinaResponseSchema.parse(await new DisciplinaRepository(this.banco).criar(pedido))
+  async create(pedido: CriarDisciplinaRequest): Promise<DisciplinaResponse> {
+    return disciplinaResponseSchema.parse(await new DisciplinaRepository(this.banco).create(pedido))
   }
 
   /**
@@ -41,7 +41,7 @@ export class DisciplinaService {
   renomear(id: string, pedido: RenomearDisciplinaRequest): Promise<DisciplinaResponse> {
     return this.banco.transaction(async (tx) => {
       const repositorio = new DisciplinaRepository(tx)
-      const atual = await repositorio.travarPorId(id)
+      const atual = await repositorio.lockPorId(id)
       if (atual === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       let resultado = atual
       if (pedido.nome !== undefined) {
@@ -53,7 +53,7 @@ export class DisciplinaService {
         const alterada = await repositorio.definirComponente(id, pedido.componenteBncc)
         if (alterada === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
         resultado = alterada
-        await registro.gravar(tx, 'disciplina.componente_alterado', {
+        await registro.save(tx, 'disciplina.componente_alterado', {
           entidadeId: id,
           antes: { componenteBncc: atual.componenteBncc },
           depois: { componenteBncc: pedido.componenteBncc },
@@ -65,12 +65,12 @@ export class DisciplinaService {
     })
   }
 
-  async excluir(id: string): Promise<void> {
-    if (!(await new DisciplinaRepository(this.banco).excluir(id))) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+  async delete(id: string): Promise<void> {
+    if (!(await new DisciplinaRepository(this.banco).delete(id))) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
   }
 
-  async listar(consulta: PaginationQuery): Promise<ListaDeDisciplinasResponse> {
-    const linhas = await new DisciplinaRepository(this.banco).listar(consulta)
+  async list(consulta: PaginationQuery): Promise<ListaDeDisciplinasResponse> {
+    const linhas = await new DisciplinaRepository(this.banco).list(consulta)
     return listaDeDisciplinasResponseSchema.parse(paginar(linhas, consulta.limite))
   }
 }

@@ -70,7 +70,7 @@ export class ExpurgoDeJobsRepository {
     'o expurgo é rotina nossa e aplica a mesma retenção de job a todas as escolas; ' +
       'não devolve linha, só a quantidade apagada, e não atende requisição de escola nenhuma',
   )
-  async apagarLoteVencido(limite: number = LOTE_DO_EXPURGO): Promise<number> {
+  async deleteLoteVencido(limite: number = LOTE_DO_EXPURGO): Promise<number> {
     const resultado = await this.banco.execute(APAGAR_LOTE_VENCIDO(limite))
     return resultado.rowCount ?? 0
   }

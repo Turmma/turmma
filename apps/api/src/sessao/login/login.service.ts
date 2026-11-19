@@ -4,8 +4,8 @@ import type { ConclusaoDeLogin } from '../completion/login-completion.js'
 import type { AtivacaoPorConvite } from '../convite/convite.service.js'
 import type { LoginLockout } from '../../credencial/login-lockout.js'
 import type { DeviceCookie } from '../../credencial/device-cookie.js'
-import { DEVICE_COOKIE, lerCookie } from '../../credencial/cookies.js'
-import { normalizarEmail } from '../../credencial/login-identifiers.js'
+import { DEVICE_COOKIE, readCookie } from '../../credencial/cookies.js'
+import { normalizeEmail } from '../../credencial/login-identifiers.js'
 import { ipParaRegistro, type RequestOrigin, type ResultadoDoLogin } from '../../credencial/request-origin.js'
 import type { TenantResolutionRepository, UsuarioAtivoDaConta, UsuarioComConviteAceito } from '../tenant/tenant-resolution.repository.js'
 import { equipeBucket, contadorDoRebaixamentoPorIp } from '../../credencial/senha/login-buckets.js'
@@ -61,7 +61,7 @@ type CredencialDaConta = Awaited<ReturnType<TenantResolutionRepository['contaPor
  */
 export class LoginService {
   readonly #duracao: LoginDurationHistogram
-  readonly #rebaixadasPeloIp: { contar: () => void }
+  readonly #rebaixadasPeloIp: { count: () => void }
 
   constructor(private readonly dependencias: LoginDependencies) {
     this.#duracao = new LoginDurationHistogram(dependencias.medidor, 'email')
@@ -74,19 +74,19 @@ export class LoginService {
 
   async #entrarPorEmail(pedido: LoginEmailRequest, origem: RequestOrigin): Promise<ResultadoDoLogin> {
     const { resolucao, conferencia, contador, dispositivo, limitePorIp } = this.dependencias
-    const email = normalizarEmail(pedido.email)
-    const conhecido = dispositivo.conhece(lerCookie(origem.cabecalhoCookie, DEVICE_COOKIE), email)
+    const email = normalizeEmail(pedido.email)
+    const conhecido = dispositivo.conhece(readCookie(origem.cabecalhoCookie, DEVICE_COOKIE), email)
     const chave = contador.chaveDe(email, conhecido ? 'conhecido' : 'outro')
     // As duas contagens andam sempre: a do limite da rota de e-mail e, na guarda, a do limite por IP do login.
     const acimaDoLimiteDaRota = await limitePorIp.rebaixar(origem.ip, conhecido)
     const peloIp = !conhecido && origem.acimaDoLimiteDoIp === true
-    if (peloIp) this.#rebaixadasPeloIp.contar()
+    if (peloIp) this.#rebaixadasPeloIp.count()
     const rebaixado = acimaDoLimiteDaRota || peloIp
     const tentativa: PasswordAttempt<CredencialDaConta> = {
       balde: equipeBucket(origem.ip, rebaixado),
       chave,
       senha: pedido.senha,
-      lerCredencial: () => resolucao.contaPorEmail(email),
+      readCredencial: () => resolucao.contaPorEmail(email),
     }
 
     const { reserva, credencial, confere } = await conferencia.conferir(tentativa)
@@ -107,7 +107,7 @@ export class LoginService {
       if (conviteId === undefined) {
         // A senha está certa e nenhum usuário pode entrar: se é porque a eliminação está agendada (14.0), é só agora que a
         // resposta diz que o acesso está suspenso. Conta sem usuário ativo nenhum segue como a senha errada.
-        if (await this.dependencias.resolucao.temAcessoSuspenso(credencial.id)) {
+        if (await this.dependencias.resolucao.hasAcessoSuspenso(credencial.id)) {
           await contador.zerar(chave)
           throw new DomainException(ErrorCode.ACESSO_SUSPENSO)
         }
@@ -143,7 +143,7 @@ export class LoginService {
 
   /** Senha errada, e-mail que não existe e conta sem usuário ativo: `login_falho` e a resposta única (RF6). */
   async #recusar(tentativa: PasswordAttempt<CredencialDaConta>, reserva: VerifiedPassword<unknown>['reserva'], origem: RequestOrigin): Promise<never> {
-    await this.dependencias.resolucao.gravarFalhaDeLoginPorEmail(ipParaRegistro(origem.ip))
+    await this.dependencias.resolucao.saveFalhaDeLoginPorEmail(ipParaRegistro(origem.ip))
     return this.dependencias.conferencia.recusar(tentativa, reserva)
   }
 

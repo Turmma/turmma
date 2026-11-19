@@ -13,7 +13,7 @@ const NOME_DO_AMBIENTE: Record<SystemStatusResponse['ambiente'], string> = { loc
  * Busca de novo sem cancelar a busca em andamento: em rede lenta, toques repetidos em "Tentar de novo"
  * reiniciariam a busca a cada toque, e a resposta nunca chegaria.
  */
-function buscarDeNovo(consulta: UseQueryResult): void {
+function refetch(consulta: UseQueryResult): void {
   void consulta.refetch({ cancelRefetch: false })
 }
 
@@ -99,7 +99,7 @@ function ConteudoDaConsulta<T>({
 }) {
   if (consulta.isPending) return <LoadingState rotulo={carregando} />
   const erro = consulta.isError ? (
-    <ErrorState erro={consulta.error} tentando={consulta.isFetching} aoTentarDeNovo={() => buscarDeNovo(consulta)} />
+    <ErrorState erro={consulta.error} tentando={consulta.isFetching} aoTentarDeNovo={() => refetch(consulta)} />
   ) : null
   if (consulta.data === undefined) return erro
   return (
@@ -141,7 +141,7 @@ export function Casca() {
                   <EmptyState
                     titulo="Nenhum componente informado"
                     descricao="A API respondeu sem a situação dos componentes. Verifique de novo em instantes."
-                    acao={{ rotulo: 'Verificar de novo', aoAcionar: () => buscarDeNovo(estado), emAndamento: estado.isFetching && !estado.isError }}
+                    acao={{ rotulo: 'Verificar de novo', aoAcionar: () => refetch(estado), emAndamento: estado.isFetching && !estado.isError }}
                   />
                 ) : null
               }
@@ -157,7 +157,7 @@ export function Casca() {
                   <EmptyState
                     titulo="Nenhum aviso por enquanto"
                     descricao="Manutenção e atualização do sistema são avisadas aqui. Verifique de novo quando quiser."
-                    acao={{ rotulo: 'Verificar de novo', aoAcionar: () => buscarDeNovo(avisos), emAndamento: avisos.isFetching && !avisos.isError }}
+                    acao={{ rotulo: 'Verificar de novo', aoAcionar: () => refetch(avisos), emAndamento: avisos.isFetching && !avisos.isError }}
                   />
                 ) : null
               }

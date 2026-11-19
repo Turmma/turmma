@@ -39,6 +39,6 @@ export function mensagensEmOrdem(paginas: readonly ConversaDoAssistenteResponse[
 }
 
 /** `POST /v1/assistente/mensagens`: responde 202 com a execução. A resposta do Assistente chega pela execução. */
-export function enviarMensagemAoAssistente(pedido: MensagemAoAssistenteRequest): Promise<ExecucaoAceitaResponse> {
+export function sendMensagemAoAssistente(pedido: MensagemAoAssistenteRequest): Promise<ExecucaoAceitaResponse> {
   return authedRequest('/v1/assistente/mensagens', execucaoAceitaResponseSchema, { metodo: 'POST', corpo: pedido })
 }

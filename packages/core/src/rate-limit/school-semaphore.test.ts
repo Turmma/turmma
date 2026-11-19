@@ -39,8 +39,8 @@ describe('SchoolSemaphore com o Redis fora (F2, tarefa 5.0)', () => {
     await semaforo.ocupar('escola-a')
     expect(await semaforo.ocupar('escola-a')).toBeUndefined()
 
-    await primeira?.liberar()
-    await primeira?.liberar()
+    await primeira?.release()
+    await primeira?.release()
 
     expect(await semaforo.ocupar('escola-a')).toBeDefined()
     expect(await semaforo.ocupar('escola-a')).toBeUndefined()
@@ -95,7 +95,7 @@ describe('SchoolSemaphore com o Redis fora (F2, tarefa 5.0)', () => {
     const vaga = await semaforo.ocupar('escola-a')
     expect(vaga).toBeDefined()
     expect(await semaforo.ocupar('escola-a')).toBeUndefined()
-    await vaga?.liberar()
+    await vaga?.release()
 
     expect(removidos).toHaveLength(1)
     expect(removidos[0]?.[0]).toBe('sem:teste:escola-a')

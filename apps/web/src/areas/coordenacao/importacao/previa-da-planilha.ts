@@ -108,7 +108,7 @@ export function frasesDasContagens(contagens: ResumoDaImportacao): string[] {
 }
 
 /** Quantas linhas de cada resultado a prévia tem. */
-export function contarPorResultado(linhas: readonly PreviaDaPlanilhaRow[]): Readonly<Partial<Record<ResultadoDaLinhaDaPlanilha, number>>> {
+export function countPorResultado(linhas: readonly PreviaDaPlanilhaRow[]): Readonly<Partial<Record<ResultadoDaLinhaDaPlanilha, number>>> {
   const contagem: Partial<Record<ResultadoDaLinhaDaPlanilha, number>> = {}
   for (const { resultado } of linhas) contagem[resultado] = (contagem[resultado] ?? 0) + 1
   return contagem
@@ -116,7 +116,7 @@ export function contarPorResultado(linhas: readonly PreviaDaPlanilhaRow[]): Read
 
 /** A contagem do resto numa frase por resultado, na ordem da tela. Resultado que não houve não aparece. */
 export function frasesDoResto(linhas: readonly PreviaDaPlanilhaRow[]): string[] {
-  const contagem = contarPorResultado(linhas)
+  const contagem = countPorResultado(linhas)
   return ORDEM_DAS_FRASES.flatMap((resultado) => {
     const quantas = contagem[resultado] ?? 0
     return quantas === 0 ? [] : [formatQuantity(quantas, `linha ${FRASE_DO_RESULTADO[resultado][0]}`, `linhas ${FRASE_DO_RESULTADO[resultado][1]}`)]
@@ -250,7 +250,7 @@ export const MOTIVO_DE_NADA_NOVO = 'Nada novo para gravar: tudo o que a planilha
  * A gravação que a tela oferece: sem linha de erro (a API recusaria), com algo a fazer (uma linha que grava, ou ao menos uma marca).
  * Se todo erro é de coluna que parece documento, o motivo é o da coluna (regra 20, item 2), sem repetir o texto de cada linha.
  */
-export function podeGravar(previa: Pick<PreviaDaPlanilhaResponse, 'linhas'> & { readonly contagens?: ResumoDaImportacao }, marcas: number): { readonly pode: true } | { readonly pode: false; readonly motivo: string } {
+export function canGravar(previa: Pick<PreviaDaPlanilhaResponse, 'linhas'> & { readonly contagens?: ResumoDaImportacao }, marcas: number): { readonly pode: true } | { readonly pode: false; readonly motivo: string } {
   const erros = previa.linhas.filter((linha) => linha.resultado === 'erro')
   if (erros.length > 0) return { pode: false, motivo: erros.every((linha) => linha.erro === 'matricula_parece_documento') ? MOTIVO_DO_DOCUMENTO : MOTIVO_DO_ERRO_NA_PLANILHA }
   const grava = previa.linhas.some((linha) => linha.resultado === 'entra' || linha.resultado === 'nome_corrigido' || linha.resultado === 'volta' || linha.resultado === 'novo')
@@ -298,7 +298,7 @@ export function textoDaConclusao(resumo: ResumoDaImportacao | null, deFora: Linh
  * tipos delas.
  */
 export function linhasDeFora(linhas: readonly PreviaDaPlanilhaRow[], marcas: MarcasEscolhidas, resumo: ResumoDaImportacao | null): LinhasDeFora {
-  const contagem = contarPorResultado(linhas)
+  const contagem = countPorResultado(linhas)
   const naPrevia = (...resultados: ResultadoDaLinhaDaPlanilha[]): number => resultados.reduce((soma, resultado) => soma + (contagem[resultado] ?? 0), 0)
   const noResumo = (...chaves: (keyof ResumoDaImportacao)[]): number => chaves.reduce((soma, chave) => soma + (resumo?.[chave] ?? 0), 0)
   return {

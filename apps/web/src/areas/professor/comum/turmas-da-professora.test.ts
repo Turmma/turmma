@@ -1,6 +1,6 @@
 import type { Vinculo } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
-import { lerContexto, turmaEscolhida, turmasDaProfessora, valorDoContexto } from './turmas-da-professora'
+import { readContexto, turmaEscolhida, turmasDaProfessora, valorDoContexto } from './turmas-da-professora'
 
 const TURMA_2B = '0190f5a0-0000-7000-8000-00000000002b'
 const TURMA_1C = '0190f5a0-0000-7000-8000-00000000001c'
@@ -41,11 +41,11 @@ describe('as turmas com que a professora pede ao Assistente', () => {
   })
 
   it('o valor do seletor vai e volta, e o que não é um valor não vira turma', () => {
-    expect(lerContexto(valorDoContexto(TURMA_2B, QUIMICA))).toEqual({ turmaId: TURMA_2B, disciplinaId: QUIMICA })
-    expect(lerContexto('')).toBeUndefined()
-    expect(lerContexto(TURMA_2B)).toBeUndefined()
-    expect(lerContexto(`${TURMA_2B}:`)).toBeUndefined()
-    expect(lerContexto(`${TURMA_2B}:${QUIMICA}:mais`)).toBeUndefined()
+    expect(readContexto(valorDoContexto(TURMA_2B, QUIMICA))).toEqual({ turmaId: TURMA_2B, disciplinaId: QUIMICA })
+    expect(readContexto('')).toBeUndefined()
+    expect(readContexto(TURMA_2B)).toBeUndefined()
+    expect(readContexto(`${TURMA_2B}:`)).toBeUndefined()
+    expect(readContexto(`${TURMA_2B}:${QUIMICA}:mais`)).toBeUndefined()
   })
 
   it('a turma escolhida que deixou de ser dela dá lugar à primeira, e sem turma não há escolhida', () => {

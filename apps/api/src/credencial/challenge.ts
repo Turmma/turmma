@@ -181,7 +181,7 @@ export class ChallengeConsumer {
     if (usado !== 0) throw new DomainException(ErrorCode.NAO_AUTENTICADO)
   }
 
-  async consumir(desafio: Pick<VerifiedChallenge, 'jti' | 'expiraEm'>): Promise<void> {
+  async consume(desafio: Pick<VerifiedChallenge, 'jti' | 'expiraEm'>): Promise<void> {
     const prazoMs = Math.max(1, desafio.expiraEm.getTime() - this.relogio.agora().getTime())
     let marcado: string | null
     try {

@@ -135,7 +135,7 @@ export class ImportacaoRepository {
    * com `for update nowait`: se um job a segura, o gravar responde `CONFLITO` sem esperar. A `na_fila` de menos de 1 h não é
    * tocada, e o único parcial da escola barra a segunda com `CONFLITO`.
    */
-  async fecharAExpirada(): Promise<void> {
+  async closeAExpirada(): Promise<void> {
     const escolaId = requireEscolaId()
     try {
       const velhas = await this.banco
@@ -155,7 +155,7 @@ export class ImportacaoRepository {
   }
 
   /** Grava a importação `na_fila`, com quem a gravou. A segunda `na_fila` da escola viola o único parcial: 23505, que o filtro global de erros responde como `CONFLITO`. */
-  async criar(nova: NovaImportacao): Promise<string> {
+  async create(nova: NovaImportacao): Promise<string> {
     const [criada] = await this.banco
       .insert(importacaoPlanilha)
       .values({
@@ -174,15 +174,15 @@ export class ImportacaoRepository {
 
   /** A importação da escola do contexto, sem trava. Id de outra escola, ou inexistente, não é achado. */
   async paraExecutar(id: string): Promise<ImportacaoParaExecutar | undefined> {
-    return this.ler(id, false)
+    return this.find(id, false)
   }
 
   /** O mesmo, com `for update`: o passo (3) trava a importação primeiro (a ordem global da Tech Spec, seção 5). */
-  async travar(id: string): Promise<ImportacaoParaExecutar | undefined> {
-    return this.ler(id, true)
+  async lock(id: string): Promise<ImportacaoParaExecutar | undefined> {
+    return this.find(id, true)
   }
 
-  private async ler(id: string, travar: boolean): Promise<ImportacaoParaExecutar | undefined> {
+  private async find(id: string, travar: boolean): Promise<ImportacaoParaExecutar | undefined> {
     const consulta = this.banco
       .select({
         id: importacaoPlanilha.id,
@@ -205,7 +205,7 @@ export class ImportacaoRepository {
    * planilha em trânsito e não saem por rota nenhuma. Só exige a escola, e não o ano em curso: a coordenação acompanha a
    * importação mesmo na escola que ainda não abriu o ano. Id de outra escola, ou inexistente, não é achado.
    */
-  async lerPorId(id: string): Promise<ImportacaoLida | undefined> {
+  async findPorId(id: string): Promise<ImportacaoLida | undefined> {
     const [linha] = await this.banco
       .select({
         id: importacaoPlanilha.id,
@@ -270,7 +270,7 @@ export class ImportacaoRepository {
   }
 
   /** Apaga os eventos do ano com esses ids, em lotes. O de outro ano, ou de outra escola, não é tocado. */
-  async apagarEventos(anoLetivoId: string, ids: readonly string[]): Promise<void> {
+  async deleteEventos(anoLetivoId: string, ids: readonly string[]): Promise<void> {
     const escolaId = requireEscolaId()
     for (let inicio = 0; inicio < ids.length; inicio += TAMANHO_DO_LOTE) {
       await this.banco
@@ -280,7 +280,7 @@ export class ImportacaoRepository {
   }
 
   /** Grava os eventos no ano, em lotes de `TAMANHO_DO_LOTE`. */
-  async inserirEventos(anoLetivoId: string, eventos: readonly EventoNovo[]): Promise<void> {
+  async insertEventos(anoLetivoId: string, eventos: readonly EventoNovo[]): Promise<void> {
     const escolaId = requireEscolaId()
     for (let inicio = 0; inicio < eventos.length; inicio += TAMANHO_DO_LOTE) {
       await this.banco.insert(eventoCalendario).values(eventos.slice(inicio, inicio + TAMANHO_DO_LOTE).map((evento) => ({ escolaId, anoLetivoId, ...evento })))
@@ -317,7 +317,7 @@ export class ImportacaoRepository {
   }
 
   /** Trava os usuários da escola em `FOR NO KEY UPDATE`, em ordem de id e num comando só: o `desativar` e o aceite esperam o fim do passo (3), ou o passo (3) os espera. */
-  async travarUsuarios(ids: readonly string[]): Promise<void> {
+  async lockUsuarios(ids: readonly string[]): Promise<void> {
     if (ids.length === 0) return
     await this.banco
       .select({ id: usuario.id })
@@ -344,9 +344,9 @@ export class ImportacaoRepository {
   }
 
   /** Trava as turmas do ano em `FOR NO KEY UPDATE`, em ordem de id e num comando só (passo (3) da planilha de alunos). */
-  travarTurmas(anoLetivoId: string, ids: readonly string[]): Promise<void> {
+  lockTurmas(anoLetivoId: string, ids: readonly string[]): Promise<void> {
     requireEscolaId()
-    return new TurmaRepository(this.banco).travarNoAno(anoLetivoId, ids)
+    return new TurmaRepository(this.banco).lockNoAno(anoLetivoId, ids)
   }
 
   /**
@@ -368,9 +368,9 @@ export class ImportacaoRepository {
   }
 
   /** Trava os pedidos pendentes das turmas do ano (`FOR UPDATE`, por id num comando): a última trava da ordem global do passo (3). */
-  travarPedidosPendentes(anoLetivoId: string, turmaIds: readonly string[]): Promise<void> {
+  lockPedidosPendentes(anoLetivoId: string, turmaIds: readonly string[]): Promise<void> {
     requireEscolaId()
-    return new DecisaoRepository(this.banco).travarPendentesDasTurmas(anoLetivoId, turmaIds)
+    return new DecisaoRepository(this.banco).lockPendentesDasTurmas(anoLetivoId, turmaIds)
   }
 
   /** Corrige, em lotes de `TAMANHO_DO_LOTE`, o nome de quem ainda não foi aprovado; devolve quantos mudaram (menos que os pedidos é diferença). */
@@ -384,7 +384,7 @@ export class ImportacaoRepository {
 
   /**
    * Corrige o nome do aluno aprovado (planilha de alunos, 8.0), em lotes: a linha só muda se o aluno segue ativo e com o nome que a
-   * planilha leu. O usuário foi travado antes (`travarUsuarios`); devolve quantos mudaram, e menos que os pedidos é diferença.
+   * planilha leu. O usuário foi travado antes (`lockUsuarios`); devolve quantos mudaram, e menos que os pedidos é diferença.
    */
   async corrigirNomesDosAlunos(correcoes: ReadonlyArray<{ readonly usuarioId: string; readonly nomeLido: string; readonly nome: string }>): Promise<number> {
     const escolaId = requireEscolaId()
@@ -404,12 +404,12 @@ export class ImportacaoRepository {
   /**
    * Fecha, sem decisão, os pedidos `pendente` desses nomes (planilha de alunos, 9.0): o nome `reivindicado` que a transferência leva à
    * turma nova volta `livre`, e o pedido que o prendia à turma antiga é `encerrada`, pela mesma função da virada do ano. Em lotes de
-   * `TAMANHO_DO_LOTE`; os pedidos já foram travados no passo (3) (`travarPedidosPendentes`).
+   * `TAMANHO_DO_LOTE`; os pedidos já foram travados no passo (3) (`lockPedidosPendentes`).
    */
   async encerrarPedidosDosNomes(listaNomeIds: readonly string[]): Promise<void> {
     requireEscolaId()
     const decisao = new DecisaoRepository(this.banco)
-    for (let inicio = 0; inicio < listaNomeIds.length; inicio += TAMANHO_DO_LOTE) await decisao.fechar({ listaNomeIds: listaNomeIds.slice(inicio, inicio + TAMANHO_DO_LOTE) }, 'encerrada')
+    for (let inicio = 0; inicio < listaNomeIds.length; inicio += TAMANHO_DO_LOTE) await decisao.close({ listaNomeIds: listaNomeIds.slice(inicio, inicio + TAMANHO_DO_LOTE) }, 'encerrada')
   }
 
   /**
@@ -425,11 +425,11 @@ export class ImportacaoRepository {
   }
 
   /** Grava a linha `aprovado` de cada aluno que volta, em lotes, com a coordenação que gravou a planilha como autora (a virada de ano, 10.0). */
-  async inserirAprovados(anoLetivoId: string, alunos: ReadonlyArray<{ readonly usuarioId: string; readonly turmaId: string }>): Promise<void> {
+  async insertAprovados(anoLetivoId: string, alunos: ReadonlyArray<{ readonly usuarioId: string; readonly turmaId: string }>): Promise<void> {
     requireEscolaId()
     const lista = new ListaRepository(this.banco)
     const { usuarioId } = requestIdentity()
-    for (let inicio = 0; inicio < alunos.length; inicio += TAMANHO_DO_LOTE) await lista.inserirAprovados(anoLetivoId, usuarioId, alunos.slice(inicio, inicio + TAMANHO_DO_LOTE))
+    for (let inicio = 0; inicio < alunos.length; inicio += TAMANHO_DO_LOTE) await lista.insertAprovados(anoLetivoId, usuarioId, alunos.slice(inicio, inicio + TAMANHO_DO_LOTE))
   }
 
   /** Passa de turma os nomes ainda não aprovados, em lotes de `TAMANHO_DO_LOTE`; devolve quantos mudaram (menos que os pedidos é diferença). */
@@ -464,11 +464,11 @@ export class ImportacaoRepository {
   }
 
   /** Abre o vínculo confirmado de cada aluno na turma nova, em lotes, com a coordenação que gravou a planilha como autora. */
-  async criarVinculosDosAlunos(anoLetivoId: string, alunos: ReadonlyArray<{ readonly usuarioId: string; readonly turmaId: string }>): Promise<Array<{ readonly id: string; readonly usuarioId: string }>> {
+  async createVinculosDosAlunos(anoLetivoId: string, alunos: ReadonlyArray<{ readonly usuarioId: string; readonly turmaId: string }>): Promise<Array<{ readonly id: string; readonly usuarioId: string }>> {
     requireEscolaId()
     const vinculos = new VinculoRepository(this.banco)
     const criados: Array<{ readonly id: string; readonly usuarioId: string }> = []
-    for (let inicio = 0; inicio < alunos.length; inicio += TAMANHO_DO_LOTE) criados.push(...(await vinculos.criarAlunosDaLista(anoLetivoId, alunos.slice(inicio, inicio + TAMANHO_DO_LOTE))))
+    for (let inicio = 0; inicio < alunos.length; inicio += TAMANHO_DO_LOTE) criados.push(...(await vinculos.createAlunosDaLista(anoLetivoId, alunos.slice(inicio, inicio + TAMANHO_DO_LOTE))))
     return criados
   }
 
@@ -477,9 +477,9 @@ export class ImportacaoRepository {
    * primeira da ordem global do passo (3) depois da importação: a grade cadastra professor novo pelo `convidar`, e o `convidar` pede essa trava
    * antes de ler o estado do professor.
    */
-  travarConviteDaEscola(): Promise<void> {
+  lockConviteDaEscola(): Promise<void> {
     requireEscolaId()
-    return new ConviteDaEscolaRepository(this.banco).travarEscola()
+    return new ConviteDaEscolaRepository(this.banco).lockEscola()
   }
 
   /** As disciplinas da escola numa consulta só. */
@@ -489,9 +489,9 @@ export class ImportacaoRepository {
   }
 
   /** Cria a disciplina que a planilha da grade trouxe e a escola ainda não tinha; o nome repetido (sem diferenciar caixa) viola o único (23505), e o motor fecha `desatualizada`. */
-  async criarDisciplina(nome: string): Promise<string> {
+  async createDisciplina(nome: string): Promise<string> {
     requireEscolaId()
-    return (await new DisciplinaRepository(this.banco).criar({ nome })).id
+    return (await new DisciplinaRepository(this.banco).create({ nome })).id
   }
 
   /** Os vínculos de professor ainda abertos do ano de destino, numa consulta só. */
@@ -501,14 +501,14 @@ export class ImportacaoRepository {
   }
 
   /** Cria, em lotes de `TAMANHO_DO_LOTE`, os vínculos pendentes de `origem = grade`, com a coordenação que gravou a planilha como autora. */
-  async criarVinculosDeProfessorDaGrade(
+  async createVinculosDeProfessorDaGrade(
     anoLetivoId: string,
     novos: ReadonlyArray<{ readonly usuarioId: string; readonly turmaId: string; readonly disciplinaId: string }>,
   ): Promise<Array<{ readonly id: string; readonly usuarioId: string; readonly turmaId: string; readonly disciplinaId: string | null }>> {
     requireEscolaId()
     const vinculos = new VinculoRepository(this.banco)
     const criados: Array<{ readonly id: string; readonly usuarioId: string; readonly turmaId: string; readonly disciplinaId: string | null }> = []
-    for (let inicio = 0; inicio < novos.length; inicio += TAMANHO_DO_LOTE) criados.push(...(await vinculos.criarProfessoresDaGrade(anoLetivoId, novos.slice(inicio, inicio + TAMANHO_DO_LOTE))))
+    for (let inicio = 0; inicio < novos.length; inicio += TAMANHO_DO_LOTE) criados.push(...(await vinculos.createProfessoresDaGrade(anoLetivoId, novos.slice(inicio, inicio + TAMANHO_DO_LOTE))))
     return criados
   }
 
@@ -519,25 +519,25 @@ export class ImportacaoRepository {
   }
 
   /** Grava as aulas, em lotes de `TAMANHO_DO_LOTE`; a que já existe para (vínculo, dia, início) muda de fim e de sala e mantém o id. Devolve quantas escreveu. */
-  async gravarAulas(anoLetivoId: string, aulas: readonly AulaNova[]): Promise<number> {
+  async saveAulas(anoLetivoId: string, aulas: readonly AulaNova[]): Promise<number> {
     requireEscolaId()
     const alocacoes = new AlocacaoRepository(this.banco)
     let gravadas = 0
-    for (let inicio = 0; inicio < aulas.length; inicio += TAMANHO_DO_LOTE) gravadas += await alocacoes.gravar(anoLetivoId, aulas.slice(inicio, inicio + TAMANHO_DO_LOTE))
+    for (let inicio = 0; inicio < aulas.length; inicio += TAMANHO_DO_LOTE) gravadas += await alocacoes.save(anoLetivoId, aulas.slice(inicio, inicio + TAMANHO_DO_LOTE))
     return gravadas
   }
 
   /** Tira do ano as aulas que a grade reimportada não traz, em lotes de `TAMANHO_DO_LOTE`. Devolve quantas apagou. */
-  async apagarAulas(anoLetivoId: string, ids: readonly string[]): Promise<number> {
+  async deleteAulas(anoLetivoId: string, ids: readonly string[]): Promise<number> {
     requireEscolaId()
     const alocacoes = new AlocacaoRepository(this.banco)
     let apagadas = 0
-    for (let inicio = 0; inicio < ids.length; inicio += TAMANHO_DO_LOTE) apagadas += await alocacoes.apagar(anoLetivoId, ids.slice(inicio, inicio + TAMANHO_DO_LOTE))
+    for (let inicio = 0; inicio < ids.length; inicio += TAMANHO_DO_LOTE) apagadas += await alocacoes.delete(anoLetivoId, ids.slice(inicio, inicio + TAMANHO_DO_LOTE))
     return apagadas
   }
 
   /**
-   * O texto da aula acompanha a grade (F2b, tarefa 5.0): depois de `gravarAulas` e antes de `encerrarOsMarcados`, pela mesma transação. Re-chaveia o
+   * O texto da aula acompanha a grade (F2b, tarefa 5.0): depois de `saveAulas` e antes de `encerrarOsMarcados`, pela mesma transação. Re-chaveia o
    * texto da aula que só mudou de horário e apaga o das datas de hoje em diante da que saiu sem par; `hoje` é o dia de Brasília (`diaDeUso`).
    */
   async acompanharOTextoDaAula(anoLetivoId: string, mudanca: MudancaDaGrade, hoje: string): Promise<void> {
@@ -566,21 +566,21 @@ export class ImportacaoRepository {
   }
 
   /** Cria a série que a planilha de alunos tirou do nome da turma e a escola ainda não tinha. */
-  async criarSerie(pedido: CriarSerieRequest): Promise<string> {
+  async createSerie(pedido: CriarSerieRequest): Promise<string> {
     requireEscolaId()
-    return (await new SerieRepository(this.banco).criar(pedido)).id
+    return (await new SerieRepository(this.banco).create(pedido)).id
   }
 
   /** Cria a turma nova no ano de destino, com a `chave` do nome. */
-  criarTurma(anoLetivoId: string, nova: { readonly serieId: string; readonly nome: string }): Promise<string> {
+  createTurma(anoLetivoId: string, nova: { readonly serieId: string; readonly nome: string }): Promise<string> {
     requireEscolaId()
-    return new TurmaRepository(this.banco).criarNoAno(anoLetivoId, nova)
+    return new TurmaRepository(this.banco).createNoAno(anoLetivoId, nova)
   }
 
   /** Grava os nomes `livre` na turma de cada um, em lotes de `TAMANHO_DO_LOTE`, com a coordenação que gravou a planilha como autora. */
-  async inserirNomes(anoLetivoId: string, nomes: ReadonlyArray<{ readonly turmaId: string; readonly nome: string; readonly matricula: string }>): Promise<void> {
+  async insertNomes(anoLetivoId: string, nomes: ReadonlyArray<{ readonly turmaId: string; readonly nome: string; readonly matricula: string }>): Promise<void> {
     const lista = new ListaRepository(this.banco)
     const { usuarioId } = requestIdentity()
-    for (let inicio = 0; inicio < nomes.length; inicio += TAMANHO_DO_LOTE) await lista.inserirNoAno(anoLetivoId, usuarioId, nomes.slice(inicio, inicio + TAMANHO_DO_LOTE))
+    for (let inicio = 0; inicio < nomes.length; inicio += TAMANHO_DO_LOTE) await lista.insertNoAno(anoLetivoId, usuarioId, nomes.slice(inicio, inicio + TAMANHO_DO_LOTE))
   }
 }

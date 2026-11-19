@@ -1,12 +1,12 @@
 import type { z } from 'zod'
 import type { RepairHint } from './adapter.js'
 import { estimarTokens } from './fake-adapter.js'
-import { montarMensagens } from './openai-compat-adapter.js'
+import { buildMensagens } from './openai-compat-adapter.js'
 import type { TaskDefinition } from './task.js'
 
 /**
  * O teto de entrada de cada tarefa (`TaskDefinition.maximoDeTokensDeEntrada`): o tamanho do **pior pedido válido**, isto é, o que o
- * `montarPedido` monta quando cada campo do `esquemaDeEntrada` está no seu limite, somado ao prompt do sistema. O gateway
+ * `buildPedido` monta quando cada campo do `esquemaDeEntrada` está no seu limite, somado ao prompt do sistema. O gateway
  * recusa o pedido que passa dele (`PEDIDO_ACIMA_DO_TETO`), antes do orçamento e do envio: entrada que passou pelo schema e mesmo
  * assim estoura é defeito nosso (o teto não acompanhou um campo ou um prompt que cresceu), e não pedido de quem usa.
  *
@@ -187,12 +187,12 @@ export function piorEntradaDaTarefa<Entrada, Saida>(tarefa: Pick<TaskDefinition<
 /**
  * O tamanho estimado do pedido de uma tarefa, na primeira chamada: as mensagens que o adaptador monta (sistema com as regras
  * comuns e o JSON Schema da saída, e a instrução com os dados), a quatro caracteres por token (`estimarTokens`). As mensagens são
- * as do formato do `openai-compat-adapter` (`montarMensagens`): se um adaptador montar as dele de outro jeito, o teto passa a medir uma
+ * as do formato do `openai-compat-adapter` (`buildMensagens`): se um adaptador montar as dele de outro jeito, o teto passa a medir uma
  * coisa e o envio outra, e quem o troca confere esta conta. A repetição depois de uma saída inválida soma a resposta anterior e a
  * correção, e elas só entram quando quem chama as passa (a reserva de tokens da repetição, 49.0): o teto de entrada é do pedido que a tarefa monta, sem elas.
  */
 export function tokensDoPedido<Entrada, Saida>(tarefa: TaskDefinition<Entrada, Saida>, entrada: Entrada, correcao?: RepairHint): number {
-  return montarMensagens({ tarefa, entrada, ...(correcao === undefined ? {} : { correcao }) }).reduce((soma, mensagem) => soma + estimarTokens(mensagem.content), 0)
+  return buildMensagens({ tarefa, entrada, ...(correcao === undefined ? {} : { correcao }) }).reduce((soma, mensagem) => soma + estimarTokens(mensagem.content), 0)
 }
 
 /** O tamanho estimado do pior pedido válido da tarefa: o que o `maximoDeTokensDeEntrada` dela precisa cobrir. */

@@ -45,7 +45,7 @@ function TrocaDoAluno({ slug, numeroDoBilhete }: { slug: string; numeroDoBilhete
   const anteriores = useQuery(trocasDaProvisoriaQueryOptions(numeroDoBilhete))
   const [naoVale, definirNaoVale] = useState(false)
 
-  if (naoVale || ehNaoAutenticado(anteriores.error)) return <ProvisoriaQueNaoVale slug={slug} />
+  if (naoVale || isNaoAutenticado(anteriores.error)) return <ProvisoriaQueNaoVale slug={slug} />
 
   return (
     <CascaPublica titulo={TITULO}>
@@ -85,7 +85,7 @@ function FormularioDaTroca({ aoNaoValer }: { aoNaoValer: () => void }) {
   }, [])
 
   /** O "Tentar de novo" da troca mantém o aviso até a resposta, para o botão que tem o foco não sair da tela com ele. */
-  async function salvar(deNovo: boolean): Promise<void> {
+  async function save(deNovo: boolean): Promise<void> {
     if (noAr.current) return
     noAr.current = true
     definirSalvando(true)
@@ -110,13 +110,13 @@ function FormularioDaTroca({ aoNaoValer }: { aoNaoValer: () => void }) {
     }
   }
 
-  function enviar(evento: FormEvent<HTMLFormElement>): void {
+  function send(evento: FormEvent<HTMLFormElement>): void {
     evento.preventDefault()
-    void salvar(false)
+    void save(false)
   }
 
   return (
-    <form className="flex flex-col gap-4" onSubmit={enviar}>
+    <form className="flex flex-col gap-4" onSubmit={send}>
       <PasswordInput
         ref={campo}
         rotulo="Senha nova"
@@ -133,12 +133,12 @@ function FormularioDaTroca({ aoNaoValer }: { aoNaoValer: () => void }) {
         }}
       />
       {falha !== undefined &&
-        (ehContaSegurada(falha) ? (
+        (isContaSegurada(falha) ? (
           <p role="alert" className="rounded-controle border border-erro bg-erro-cx p-4 text-erro">
             {mensagemDaEntradaPorMatricula(ErrorCode.CONTA_SEGURADA, falha.esperaSegundos)}
           </p>
         ) : (
-          <ErrorState erro={falha} aoTentarDeNovo={() => void salvar(true)} tentando={salvando} />
+          <ErrorState erro={falha} aoTentarDeNovo={() => void save(true)} tentando={salvando} />
         ))}
       <Button type="submit" disabled={salvando} className="w-full">
         {salvando ? 'Salvando…' : 'Criar a senha e entrar'}
@@ -179,11 +179,11 @@ function EsqueletoDaLista() {
   )
 }
 
-function ehNaoAutenticado(erro: unknown): boolean {
+function isNaoAutenticado(erro: unknown): boolean {
   return erro instanceof ApiError && erro.codigo === ErrorCode.NAO_AUTENTICADO
 }
 
-function ehContaSegurada(erro: unknown): erro is ApiError {
+function isContaSegurada(erro: unknown): erro is ApiError {
   return erro instanceof ApiError && erro.codigo === ErrorCode.CONTA_SEGURADA
 }
 

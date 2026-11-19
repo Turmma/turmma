@@ -89,7 +89,7 @@ describe('o corpo fora do esquema conta no balde do IP, como antes do pipe', () 
   it.each(ROTAS_DE_LOGIN)('%s: o corpo inválido conta no balde do IP, e a tentativa válida que vem depois sai rebaixada no semáforo do hash, nunca em 429', async (caminho, balde, valido) => {
     const [ip, outro] = [ipSorteado(), ipSorteado()]
     const semaforo = api.app.get(HashBulkhead)
-    const vezes = vi.spyOn(semaforo, 'executar')
+    const vezes = vi.spyOn(semaforo, 'run')
     try {
       for (let vez = 1; vez <= 2 * LIMITE_POR_IP; vez++) expect(await postarContado(caminho, {}, ip), `${caminho} vez ${String(vez)}`).toEqual({ status: 400, codigo: ErrorCode.ENTRADA_INVALIDA })
       expect(vezes).not.toHaveBeenCalled()

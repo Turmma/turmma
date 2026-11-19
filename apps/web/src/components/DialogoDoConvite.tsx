@@ -129,7 +129,7 @@ interface PropsDoConviteNovo<Pedido, Resposta extends { readonly token: string }
   readonly apresentacao: ReactNode
   readonly rotulos: Readonly<Record<CampoDoConvite, string>>
   /** O pedido pelo contrato estrito da API, ou o texto de cada campo (`pedido-de-convite.ts`). */
-  readonly validar: (campos: { readonly nome: string; readonly email: string }) => ValidacaoDoConvite<Pedido>
+  readonly validate: (campos: { readonly nome: string; readonly email: string }) => ValidacaoDoConvite<Pedido>
   readonly tituloDaRevisao: string
   /** O que vai ao servidor, linha a linha, para a pessoa conferir antes de enviar (regra 50, item 8). */
   readonly resumo: (pedido: Pedido) => ReadonlyArray<{ readonly rotulo: string; readonly valor: string }>
@@ -150,7 +150,7 @@ export function DialogoDeConviteNovo<Pedido, Resposta extends { readonly token: 
   titulo,
   apresentacao,
   rotulos,
-  validar,
+  validate: validar,
   tituloDaRevisao,
   resumo,
   avisos,

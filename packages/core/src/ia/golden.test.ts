@@ -26,7 +26,7 @@ import {
   turnosDoProfessor,
 } from './__fixtures__/golden.js'
 import { atribuiNotaOuConceito, conversaPedeJulgamentoDeTextoDeAluno, conversaTrazTextoDeAluno, julgaTextoDeAluno } from './tasks/propor-ferramenta.js'
-import { ehAssuntoDelicado, mencionaRiscoAVida, pedeRespostaPronta } from './tasks/turno-do-tutor.js'
+import { isAssuntoDelicado, mencionaRiscoAVida, pedeRespostaPronta } from './tasks/turno-do-tutor.js'
 
 /**
  * O `ouro` (`docs/aia/ouro/`) contra as funções de hoje. A 1.0 reproduziu a `base` que o Arquiteto gravou em 21/10/2026,
@@ -65,7 +65,7 @@ function quaisErraram(amostras: readonly Amostra[], barra: (amostra: Amostra) =>
 
 const BARRAS: Record<Politica, (amostra: Amostra) => boolean> = {
   riscoAVida: (amostra) => mencionaRiscoAVida(amostra.texto),
-  assuntoDelicado: (amostra) => ehAssuntoDelicado(amostra.texto),
+  assuntoDelicado: (amostra) => isAssuntoDelicado(amostra.texto),
   pedidoDeRespostaPronta: (amostra) => pedeRespostaPronta(entradaDoPedidoDeRespostaPronta(amostra)),
   julgamentoDeTextoDeAluno: (amostra) => conversaPedeJulgamentoDeTextoDeAluno(amostra.texto, turnosDoProfessor(amostra)),
   saidaComNota: (amostra) => atribuiNotaOuConceito(amostra.texto),

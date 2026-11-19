@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { afterAll, describe, expect, it } from 'vitest'
 import { jobExecution } from '../../../worker/test/job-execution.fixture.js'
 import { InMemoryLog } from '../../../worker/test/queue.fixture.js'
-import { criarAgendamentoDaClassificacao } from '../../../worker/src/processors/agendar-classificacao.js'
+import { createAgendamentoDaClassificacao } from '../../../worker/src/processors/agendar-classificacao.js'
 import { SessaoFixtures } from '../../test/sessao.fixture.js'
 
 /**
@@ -113,7 +113,7 @@ const jobsDe = async (escolaId: string) =>
 
 /** O job `material.agendar-classificacao` da escola, como o executor o chama. */
 function agendar(escolaId: string, opcoes: { lote?: number; limiteDeExecucoes?: number; sinal?: AbortSignal; enfileirador?: Pick<JobOutbox, 'enfileirarUmaVez'> } = {}): Promise<void> {
-  const processador = criarAgendamentoDaClassificacao({
+  const processador = createAgendamentoDaClassificacao({
     banco: bancada.banco,
     enfileirador: opcoes.enfileirador ?? enfileirador,
     logger: log.logger,

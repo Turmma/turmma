@@ -14,8 +14,8 @@ export class MeController {
   @Get()
   @RequirePermissao('eu', 'ler')
   @Header('Cache-Control', 'no-store')
-  obter(): Promise<EuResponse> {
-    return this.eu.obter()
+  get(): Promise<EuResponse> {
+    return this.eu.get()
   }
 
   @Post('introducao')

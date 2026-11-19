@@ -11,7 +11,7 @@ export class ContextController {
   @Get()
   @RequirePermissao('sistema_contexto', 'ler')
   @Header('Cache-Control', 'no-store')
-  obter(): ContextResponse {
+  get(): ContextResponse {
     return contextResponseSchema.parse(requestSessao())
   }
 }

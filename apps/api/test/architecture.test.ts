@@ -187,9 +187,9 @@ describe('arquitetura: a conta global só pelo módulo sessao e pelo ciclo de vi
     // O barril da estrutura é lido de verdade (os repositories saem por ele) e não repassa o cadastro: o `contaDoProfessor` tem o subcaminho próprio, cercado.
     expect(Object.keys(estrutura)).toContain('TurmaRepository')
     expect(Object.keys(estrutura)).not.toContain('contaDoProfessor')
-    expect(Object.keys(estrutura)).not.toContain('travarContasDoProfessor')
+    expect(Object.keys(estrutura)).not.toContain('lockContasDoProfessor')
     // O subcaminho do cadastro entrega as duas funções que repassam a conta sem escopo (6.0): achar ou criar, e travar as do passo (3).
-    expect(Object.keys(cadastro).sort()).toEqual(['contaDoProfessor', 'travarContasDoProfessor'])
+    expect(Object.keys(cadastro).sort()).toEqual(['contaDoProfessor', 'lockContasDoProfessor'])
   })
 
   it('nem o barrel de credencial/ exporta a ResolucaoDeTenantRepository nem a ContaGlobalRepository, com o nome dela ou outro (33.0)', async () => {
@@ -374,16 +374,16 @@ describe('arquitetura: as seis tabelas da operação só pelo OperadorRepository
     expect(quemTocaAOperacao(arquivosDoRepositorio()).sort()).toEqual([...QUEM_PODE_TOCAR_A_OPERACAO].sort())
   })
 
-  it('o expurgo toca da operação só o acesso, a sessão e o convite, e continua com os métodos @Unscoped que a rotina precisa (C45, tarefa 9.0; o `fecharEnviosDeLinkParados` entra na 5.0 de acesso-e-convites)', () => {
+  it('o expurgo toca da operação só o acesso, a sessão e o convite, e continua com os métodos @Unscoped que a rotina precisa (C45, tarefa 9.0; o `closeEnviosDeLinkParados` entra na 5.0 de acesso-e-convites)', () => {
     const expurgo = arquivosDoRepositorio().find((arquivo) => arquivo.caminho === EXPURGO_DA_OPERACAO)
     expect(expurgo && [...new Set(usosDaOperacao(expurgo.texto))].sort()).toEqual(EXPURGAVEIS_DA_OPERACAO)
-    // Os alvos do job são exatamente as tabelas que o arquivo cita: nenhuma a mais passa pelo `apagarLoteVencido`.
+    // Os alvos do job são exatamente as tabelas que o arquivo cita: nenhuma a mais passa pelo `deleteLoteVencido`.
     expect(nucleo.ALVOS_DO_EXPURGO_DE_ACESSO.filter((alvo) => FISICOS_DA_OPERACAO.has(alvo)).sort()).toEqual(EXPURGAVEIS_DA_OPERACAO)
     const metodos = Object.getOwnPropertyNames(nucleo.ExpurgoDeAcessoRepository.prototype).filter((metodo) => metodo !== 'constructor')
     const marcados = metodos.filter((metodo) => nucleo.unscopedJustification(nucleo.ExpurgoDeAcessoRepository, metodo) !== undefined)
-    expect(marcados.sort()).toEqual(['apagarLoteVencido', 'fecharEnviosDeLinkParados', 'limparLoteDeContasSemUso'])
-    // A justificativa do `apagarLoteVencido` cobre as tabelas da equipe, que não têm escola (9.2).
-    expect(nucleo.unscopedJustification(nucleo.ExpurgoDeAcessoRepository, 'apagarLoteVencido')).toMatch(/operação Turmma.*não têm escola/)
+    expect(marcados.sort()).toEqual(['clearLoteDeContasSemUso', 'closeEnviosDeLinkParados', 'deleteLoteVencido'])
+    // A justificativa do `deleteLoteVencido` cobre as tabelas da equipe, que não têm escola (9.2).
+    expect(nucleo.unscopedJustification(nucleo.ExpurgoDeAcessoRepository, 'deleteLoteVencido')).toMatch(/operação Turmma.*não têm escola/)
   })
 
   it('a checagem do expurgo reprova o que apaga operador, código de recuperação ou auditoria da operação', () => {
@@ -476,7 +476,7 @@ describe('arquitetura: o suboperador só pelo OperacaoPrivacidadeRepository, que
   it('o único @SemEscopo do escritor é o encerramento das ligações em todas as escolas; na leitura da escola, só a conferência da D62 da subida, e o que a escola lê não tem nenhum', async () => {
     const escritor = await import('../src/ops/operacao-privacidade.repository.js')
     const metodos = Object.getOwnPropertyNames(escritor.OperacaoPrivacidadeRepository.prototype).filter((metodo) => metodo !== 'constructor')
-    expect(metodos.toSorted()).toEqual(['cadastrar', 'encerrar', 'encerrarLigacoes', 'ligarEscola', 'ligarEscolaAoIncidente', 'registrarIncidente', 'travarVigente'])
+    expect(metodos.toSorted()).toEqual(['cadastrar', 'encerrar', 'encerrarLigacoes', 'ligarEscola', 'ligarEscolaAoIncidente', 'lockVigente', 'registrarIncidente'])
     expect(metodos.filter((metodo) => nucleo.unscopedJustification(escritor.OperacaoPrivacidadeRepository, metodo) !== undefined)).toEqual(['encerrarLigacoes'])
     const leitura = Object.getOwnPropertyNames(nucleo.SuboperadorDaEscolaRepository.prototype).filter((metodo) => metodo !== 'constructor')
     expect(leitura).toEqual(['daEscola', 'vigenteDoProvedor'])
@@ -761,11 +761,11 @@ describe('arquitetura: toda rota @RotaDeOperacao conta pelo rl:op:{sub} (C36, pa
 
   function guardaComLimitador(resultado: nucleo.RateLimitResult = { aceita: true }) {
     const limitador = {
-      consumirDeOperador: vi.fn(async (_operadorId: string) => resultado),
-      consumirAnonima: vi.fn(async () => ({ aceita: true }) as const),
-      consumirDoLogin: vi.fn(async () => ({ aceita: true }) as const),
-      consumirDaOperacao: vi.fn(async () => ({ aceita: true }) as const),
-      consumirAutenticada: vi.fn(async () => ({ aceita: true }) as const),
+      consumeDeOperador: vi.fn(async (_operadorId: string) => resultado),
+      consumeAnonima: vi.fn(async () => ({ aceita: true }) as const),
+      consumeDoLogin: vi.fn(async () => ({ aceita: true }) as const),
+      consumeDaOperacao: vi.fn(async () => ({ aceita: true }) as const),
+      consumeAutenticada: vi.fn(async () => ({ aceita: true }) as const),
     }
     const guarda = new nucleo.RateLimitGuard(new Reflector(), limitador as unknown as nucleo.RateLimiter, new nucleo.TrustedProxies(['127.0.0.1']), { daEscola: async () => ({ porUsuarioMin: 1, porEscolaMin: 1 }) }, identidade)
     return { guarda, limitador }
@@ -790,8 +790,8 @@ describe('arquitetura: toda rota @RotaDeOperacao conta pelo rl:op:{sub} (C36, pa
     for (const rota of rotas) {
       const { guarda, limitador } = guardaComLimitador()
       expect(await guarda.canActivate(execucao(rota, await tokenDeOperador())), nomeDaRota(rota)).toBe(true)
-      expect(limitador.consumirDeOperador.mock.calls, nomeDaRota(rota)).toEqual([[OPERADOR]])
-      expect([limitador.consumirAnonima, limitador.consumirDoLogin, limitador.consumirDaOperacao, limitador.consumirAutenticada].map((consumo) => consumo.mock.calls.length), nomeDaRota(rota)).toEqual([0, 0, 0, 0])
+      expect(limitador.consumeDeOperador.mock.calls, nomeDaRota(rota)).toEqual([[OPERADOR]])
+      expect([limitador.consumeAnonima, limitador.consumeDoLogin, limitador.consumeDaOperacao, limitador.consumeAutenticada].map((consumo) => consumo.mock.calls.length), nomeDaRota(rota)).toEqual([0, 0, 0, 0])
     }
   })
 
@@ -852,11 +852,11 @@ describe('arquitetura: toda rota @EntradaDeOperacao está num dos três grupos d
   async function acimaDoLimite(rota: RegisteredRoute): Promise<{ contou: string[]; recusou: boolean; rebaixou: boolean }> {
     const recusa = { aceita: false, msAteLiberar: 1_000 } as const
     const limitador = {
-      consumirDeOperador: vi.fn(async () => recusa),
-      consumirAnonima: vi.fn(async () => recusa),
-      consumirDoLogin: vi.fn(async () => recusa),
-      consumirDaOperacao: vi.fn(async () => recusa),
-      consumirAutenticada: vi.fn(async () => recusa),
+      consumeDeOperador: vi.fn(async () => recusa),
+      consumeAnonima: vi.fn(async () => recusa),
+      consumeDoLogin: vi.fn(async () => recusa),
+      consumeDaOperacao: vi.fn(async () => recusa),
+      consumeAutenticada: vi.fn(async () => recusa),
     }
     const guarda = new nucleo.RateLimitGuard(new Reflector(), limitador as unknown as nucleo.RateLimiter, new nucleo.TrustedProxies(['127.0.0.1']), { daEscola: async () => ({ porUsuarioMin: 1, porEscolaMin: 1 }) }, identidade)
     const requisicao = { headers: {}, socket: { remoteAddress: '127.0.0.1' } }
@@ -883,9 +883,9 @@ describe('arquitetura: toda rota @EntradaDeOperacao está num dos três grupos d
     const entradas = rotasDaApi().filter((rota) => rota.marcador === 'entrada')
     expect(entradas.map(nomeDaRota).sort()).toEqual(Object.keys(GRUPOS).sort())
     const esperado = {
-      recusa_pelo_ip: { contou: ['consumirDaOperacao'], recusou: true, rebaixou: false },
-      rebaixa_no_hash: { contou: ['consumirDaOperacao'], recusou: false, rebaixou: true },
-      contador_do_operador: { contou: ['consumirDaOperacao'], recusou: false, rebaixou: true },
+      recusa_pelo_ip: { contou: ['consumeDaOperacao'], recusou: true, rebaixou: false },
+      rebaixa_no_hash: { contou: ['consumeDaOperacao'], recusou: false, rebaixou: true },
+      contador_do_operador: { contou: ['consumeDaOperacao'], recusou: false, rebaixou: true },
     }
     for (const rota of entradas) {
       const grupo = GRUPOS[nomeDaRota(rota)]
@@ -897,9 +897,9 @@ describe('arquitetura: toda rota @EntradaDeOperacao está num dos três grupos d
 
 /**
  * C44 (Tech Spec da A0, seção 6; PRD, RF1): o operador e o convite dele nascem só pelo `ops:operador`. Os únicos
- * métodos que os inserem são o `criar` e o `criarConvite` do `OperadorRepository` (e só ele toca as tabelas, C45); aqui
- * se prova que só o comando os chama, e que nenhum módulo da API importa o código dos comandos, sem exceção: `criarRede` e
- * `criarEscola`, o caso de uso das duas rotas de criação do painel da operação (A0b), moram em `operacao/escola/`, e
+ * métodos que os inserem são o `create` e o `createConvite` do `OperadorRepository` (e só ele toca as tabelas, C45); aqui
+ * se prova que só o comando os chama, e que nenhum módulo da API importa o código dos comandos, sem exceção: `createRede` e
+ * `createEscola`, o caso de uso das duas rotas de criação do painel da operação (A0b), moram em `operacao/escola/`, e
  * `ops/` só tem terminal (X5, 35.0). Que nenhum arquivo da API fora de `ops/` importe o código dos comandos é a regra
  * `api-nao-importa-ops` do `guarda:camadas` (X5, 12.0); aqui fica a chamada pelo nome. Quem importa o caso de uso fica
  * preso em `escola.repository.test.ts` (I2).
@@ -913,8 +913,8 @@ function quemCriaOperadorForaDoComando(arquivos: readonly Arquivo[]): string[] {
     .filter((arquivo) => /^(apps|packages)\/[^/]+\/src\//.test(arquivo.caminho) && !deTeste(arquivo.caminho))
     .filter((arquivo) => {
       const codigo = semComentarios(arquivo.texto)
-      const chamaORepository = /\bOperadorRepository\b/.test(codigo) && /\.(?:criar|criarConvite)\s*\(/.test(codigo) && arquivo.caminho !== COMANDO_DO_OPERADOR
-      const chamaOComando = /\b(?:criarOperador|gerarConviteDeOperador|executarOpsOperador)\s*\(/.test(codigo) && !arquivo.caminho.startsWith(PASTA_DOS_COMANDOS)
+      const chamaORepository = /\bOperadorRepository\b/.test(codigo) && /\.(?:create|createConvite)\s*\(/.test(codigo) && arquivo.caminho !== COMANDO_DO_OPERADOR
+      const chamaOComando = /\b(?:createOperador|generateConviteDeOperador|runOpsOperador)\s*\(/.test(codigo) && !arquivo.caminho.startsWith(PASTA_DOS_COMANDOS)
       return chamaORepository || chamaOComando
     })
     .map((arquivo) => arquivo.caminho)
@@ -924,22 +924,22 @@ describe('arquitetura: nenhuma rota registrada cria operador (C44)', () => {
   it('só o comando cria operador e convite de operador', () => {
     const arquivos = arquivosDoRepositorio()
     // A varredura enxerga o código: o comando cria pelo repository.
-    expect(arquivos.find((arquivo) => arquivo.caminho === COMANDO_DO_OPERADOR)?.texto).toMatch(/repositorio\.criar\(/)
+    expect(arquivos.find((arquivo) => arquivo.caminho === COMANDO_DO_OPERADOR)?.texto).toMatch(/repositorio\.create\(/)
     expect(quemCriaOperadorForaDoComando(arquivos)).toEqual([])
   })
 
   it('a varredura reprova a rota que cria pelo repository ou pelo comando; não confunde comentário, teste nem outro repository', () => {
     const fora = [
-      { caminho: 'apps/api/src/operacao/painel/painel.service.ts', texto: "import { OperadorRepository } from './operador.repository.js'\nawait new OperadorRepository(tx).criar(dados)" },
-      { caminho: 'apps/api/src/operacao/convite.service.ts', texto: "import { OperadorRepository } from './operador.repository.js'\nawait repositorio.criarConvite({ operadorId })" },
-      { caminho: 'apps/api/src/operacao/atalho.controller.ts', texto: "import { criarOperador } from '../ops/operador.js'\nawait criarOperador(banco, autor, dados)" },
+      { caminho: 'apps/api/src/operacao/painel/painel.service.ts', texto: "import { OperadorRepository } from './operador.repository.js'\nawait new OperadorRepository(tx).create(dados)" },
+      { caminho: 'apps/api/src/operacao/convite.service.ts', texto: "import { OperadorRepository } from './operador.repository.js'\nawait repositorio.createConvite({ operadorId })" },
+      { caminho: 'apps/api/src/operacao/atalho.controller.ts', texto: "import { createOperador } from '../ops/operador.js'\nawait createOperador(banco, autor, dados)" },
     ]
     const inocentes = [
-      { caminho: COMANDO_DO_OPERADOR, texto: "import { OperadorRepository } from '../operacao/operador/operador.repository.js'\nawait repositorio.criar(dados)" },
-      { caminho: 'apps/api/src/estrutura/turma/turma.service.ts', texto: 'await turmas.criar({ nome })' },
-      { caminho: 'apps/api/src/operacao/eu/eu.service.ts', texto: "import type { OperadorRepository } from './operador.repository.js'\n// nunca chama .criar( daqui" },
-      { caminho: 'apps/api/test/registros-operador.int.test.ts', texto: "import { criarOperador } from '../src/ops/operador.js'\nawait criarOperador(banco, autor, dados)" },
-      { caminho: 'apps/api/src/operacao/painel/painel.service.ts', texto: "import { criarEscola, criarRede } from '../escola/escola.js'" },
+      { caminho: COMANDO_DO_OPERADOR, texto: "import { OperadorRepository } from '../operacao/operador/operador.repository.js'\nawait repositorio.create(dados)" },
+      { caminho: 'apps/api/src/estrutura/turma/turma.service.ts', texto: 'await turmas.create({ nome })' },
+      { caminho: 'apps/api/src/operacao/eu/eu.service.ts', texto: "import type { OperadorRepository } from './operador.repository.js'\n// nunca chama .create( daqui" },
+      { caminho: 'apps/api/test/registros-operador.int.test.ts', texto: "import { createOperador } from '../src/ops/operador.js'\nawait createOperador(banco, autor, dados)" },
+      { caminho: 'apps/api/src/operacao/painel/painel.service.ts', texto: "import { createEscola, createRede } from '../escola/escola.js'" },
     ]
     expect(quemCriaOperadorForaDoComando([...fora, ...inocentes])).toEqual(fora.map((arquivo) => arquivo.caminho))
   })
@@ -1405,10 +1405,10 @@ const QUEM_USA_A_ROTINA = [
 ]
 
 describe('arquitetura: a rotina noturna é a única consulta sem escopo do expurgo da escola (F3, tarefa 3.0; Tech Spec do F3, seção 6)', () => {
-  it('a EscolasDaRotinaRepository tem um método só, `listarIds`, @SemEscopo com a justificativa da rotina', () => {
+  it('a EscolasDaRotinaRepository tem um método só, `listIds`, @SemEscopo com a justificativa da rotina', () => {
     const metodos = Object.getOwnPropertyNames(nucleo.CronEscolasRepository.prototype).filter((metodo) => metodo !== 'constructor')
-    expect(metodos).toEqual(['listarIds'])
-    expect(nucleo.unscopedJustification(nucleo.CronEscolasRepository, 'listarIds')).toMatch(/^rotina noturna: .*só os ids/)
+    expect(metodos).toEqual(['listIds'])
+    expect(nucleo.unscopedJustification(nucleo.CronEscolasRepository, 'listIds')).toMatch(/^rotina noturna: .*só os ids/)
   })
 
   it('o ExpurgoDaEscolaRepository não tem nenhum @SemEscopo: tudo nele vem da escola do contexto', () => {

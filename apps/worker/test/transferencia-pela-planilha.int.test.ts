@@ -10,7 +10,7 @@ import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { DecisaoService } from '../../api/src/sala/decisao/decisao.service.js'
 import { esperarNaTrava, WriteBlockTrigger } from '../../api/test/write-block-trigger.js'
-import { criarGravacaoDaPlanilha } from '../src/processors/gravar-planilha.js'
+import { createGravacaoDaPlanilha } from '../src/processors/gravar-planilha.js'
 import { jobExecution } from './job-execution.fixture.js'
 import { InMemoryLog, QueueFixtures } from './queue.fixture.js'
 
@@ -76,12 +76,12 @@ describe('estrutura.gravar-planilha, transferência de aluno', () => {
   /** O pool dos jobs em corrida e das paradas: o da bancada tem poucas conexões, e cada parada segura uma. */
   let apoio: DatabasePool
   let bancoDoJob: Database
-  let gravacao: ReturnType<typeof criarGravacaoDaPlanilha>
+  let gravacao: ReturnType<typeof createGravacaoDaPlanilha>
 
   beforeAll(() => {
     apoio = createPool({ url: urlDoBancoDeTeste(), maximoConexoes: 10, timeoutConexaoMs: 5_000, timeoutConsultaMs: 30_000 }, () => undefined)
     bancoDoJob = createDatabase(apoio)
-    gravacao = criarGravacaoDaPlanilha({ banco: bancoDoJob, logger: log.logger, medidor: medidor.medidor })
+    gravacao = createGravacaoDaPlanilha({ banco: bancoDoJob, logger: log.logger, medidor: medidor.medidor })
   })
 
   afterAll(async () => {
@@ -178,7 +178,7 @@ describe('estrutura.gravar-planilha, transferência de aluno', () => {
   /** O gravar da coordenação, pelo motor (sem fila), com a marca dos candidatos que `marcar` escolhe (por padrão, todo `transferir`). */
   async function gravar(escola: Escola, planilha: string, marcar: (candidato: CandidatoLido) => boolean = (candidato) => candidato.acao === 'transferir'): Promise<string> {
     const marcados = (await candidatosDe(escola, planilha)).filter(marcar).map(({ id }) => id)
-    return runInContext(contextoDe(escola), async () => (await motor().gravar('alunos', { texto: planilha, marcas: { transferir: marcados, desligar: [], encerrar: [] } })).id)
+    return runInContext(contextoDe(escola), async () => (await motor().save('alunos', { texto: planilha, marcas: { transferir: marcados, desligar: [], encerrar: [] } })).id)
   }
 
   /** Uma tentativa do job, como o executor a entrega: no contexto da escola da linha do outbox. */
@@ -589,7 +589,7 @@ describe('estrutura.gravar-planilha, transferência de aluno', () => {
     }
     const chamar = (escola: Escola) =>
       runInContext(contextoDe(escola), async () => ({
-        pedidos: await new DecisaoRepository(bancoDoJob).fechar({ listaNomeIds: [b.pendente.id] }, 'encerrada'),
+        pedidos: await new DecisaoRepository(bancoDoJob).close({ listaNomeIds: [b.pendente.id] }, 'encerrada'),
         nomes: await new ListaRepository(bancoDoJob).transferirNomes(b.escola.anoId, doB.nomes),
         aprovados: await new ListaRepository(bancoDoJob).transferirAprovados(b.escola.anoId, doB.aprovados),
         vinculos: (await new VinculoRepository(bancoDoJob).encerrarDosAlunos(b.escola.anoId, doB.vinculos, 'realocacao')).length,
@@ -615,7 +615,7 @@ describe('estrutura.gravar-planilha, transferência de aluno', () => {
     const antesDaB = await retrato(b.escola.escolaId)
 
     const recusa = async (marcas: { transferir: string[]; desligar: string[] }) =>
-      runInContext(contextoDe(a.escola), () => motor().gravar('alunos', { texto: planilhaDe(a), marcas: { ...marcas, encerrar: [] } })).then(
+      runInContext(contextoDe(a.escola), () => motor().save('alunos', { texto: planilhaDe(a), marcas: { ...marcas, encerrar: [] } })).then(
         () => 'gravou',
         (erro: unknown) => (erro instanceof DomainException ? erro.codigo : 'outro erro'),
       )

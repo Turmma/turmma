@@ -11,7 +11,7 @@ import { Sheet } from '../../../../components/ui/overlays/Sheet'
 import { PROFESSOR_ROUTES } from '../../../../paths'
 import { CONTEXTO_ESCOLHIDO } from '../../assistente/memoria-do-professor'
 import { valorDoContexto } from '../../comum/turmas-da-professora'
-import { gravarAula } from '../api/aulas'
+import { saveAula } from '../api/aulas'
 import { comTextoGravado, DICA_DO_TEXTO_DA_AULA, FRASE_DA_AULA_QUE_SAIU, FRASE_DA_FALHA_AO_SALVAR, horarioDaAula, nomeCompletoDoDia, rotuloDoTexto } from './semana'
 
 interface Props {
@@ -48,7 +48,7 @@ export function PainelDaAula({ aula, data, hoje, aoFechar, focoDeReserva }: Prop
   const valor = escrito ?? aula.texto ?? ''
 
   const gravar = useMutation({
-    mutationFn: (texto: string) => gravarAula({ vinculoId: aula.vinculoId, data, inicio: aula.inicio, texto }),
+    mutationFn: (texto: string) => saveAula({ vinculoId: aula.vinculoId, data, inicio: aula.inicio, texto }),
     // No `useMutation`, e não no `mutate`: a resposta que chega depois de o painel fechar ainda põe o texto no cartão dela. O que o painel
     // fecha, e o erro que ele mostra, são do `mutate`, que só roda enquanto este painel (desta aula) está na tela.
     onSuccess: (gravado) => {
@@ -60,7 +60,7 @@ export function PainelDaAula({ aula, data, hoje, aoFechar, focoDeReserva }: Prop
   })
   const saiuDaGrade = gravar.error instanceof ApiError && gravar.error.codigo === ErrorCode.NAO_ENCONTRADO
 
-  function salvar(): void {
+  function save(): void {
     // O `isPending` do TanStack chega à tela depois do clique (as notificações são agrupadas): o segundo clique da mesma tarefa ainda acharia o
     // botão ligado. A trava é síncrona.
     if (gravando.current) return
@@ -86,7 +86,7 @@ export function PainelDaAula({ aula, data, hoje, aoFechar, focoDeReserva }: Prop
           <Button variante="secundario" onClick={preparar}>
             Preparar esta aula
           </Button>
-          <Button onClick={salvar} disabled={gravar.isPending}>
+          <Button onClick={save} disabled={gravar.isPending}>
             {gravar.isPending ? 'Salvando…' : 'Salvar'}
           </Button>
         </>

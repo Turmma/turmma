@@ -109,7 +109,7 @@ export class AtividadeAplicadaRepository {
   }
 
   /** Uma página das aplicações da turma no alcance, da mais nova para a mais antiga, com uma linha a mais que diz se há próxima. */
-  listar({ turmaId, pagina, limite }: AtividadesAplicadasQuery): Promise<AplicacaoLida[]> {
+  list({ turmaId, pagina, limite }: AtividadesAplicadasQuery): Promise<AplicacaoLida[]> {
     return this.#lidas(and(eq(atividadeAplicada.turmaId, turmaId), pagina === undefined ? undefined : lt(atividadeAplicada.id, pagina)))
       .orderBy(desc(atividadeAplicada.id))
       .limit(limite + 1)
@@ -136,7 +136,7 @@ export class AtividadeAplicadaRepository {
   }
 
   /** A turma do ano em curso em que a professora do contexto tem vínculo confirmado naquela disciplina: é onde ela pode aplicar. */
-  async podeAplicarNaTurma(turmaId: string, disciplinaId: string): Promise<boolean> {
+  async canAplicarNaTurma(turmaId: string, disciplinaId: string): Promise<boolean> {
     const [linha] = await this.banco
       .select({ id: turma.id })
       .from(turma)
@@ -155,7 +155,7 @@ export class AtividadeAplicadaRepository {
    * Grava a aplicação, `aberta`, com a pessoa da sessão como quem aplicou (regra 70, item 3). A segunda aberta da mesma
    * turma e do mesmo artefato cai no índice único (23505), que o filtro global traduz em `CONFLITO`.
    */
-  async criar(nova: NovaAplicacao): Promise<string> {
+  async create(nova: NovaAplicacao): Promise<string> {
     const [criada] = await this.banco
       .insert(atividadeAplicada)
       .values({ escolaId: requireEscolaId(), anoLetivoId: requireAnoEmCurso(), turmaId: nova.turmaId, artefatoId: nova.artefatoId, avaliativa: nova.avaliativa, aplicadaPor: requestSessao().usuarioId })
@@ -169,7 +169,7 @@ export class AtividadeAplicadaRepository {
    * e a resposta, a tentativa e o envio do aluno, que travam a mesma linha em `for share`, esperam ou são esperados. É
    * o que faz o conjunto de tentativas e respostas ficar parado antes da correção (regra 80, item 7).
    */
-  async travar(id: string): Promise<AplicacaoTravada | undefined> {
+  async lock(id: string): Promise<AplicacaoTravada | undefined> {
     const [linha] = await this.banco
       .select({ id: atividadeAplicada.id, turmaId: atividadeAplicada.turmaId, estado: atividadeAplicada.estado, disciplinaId: artefato.disciplinaId, conteudo: artefato.conteudo })
       .from(atividadeAplicada)

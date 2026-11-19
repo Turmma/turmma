@@ -78,7 +78,7 @@ export function IconeDoLugar({ icone }: { icone: NavItemIcon }) {
  */
 export function ItemDaLateral({ item, trilho }: { item: NavItem; trilho: boolean }) {
   const [caminho] = useLocation()
-  const { fechar } = useContext(DrawerContext)
+  const { close: fechar } = useContext(DrawerContext)
   const aqui = estaNoItem(caminho, item)
   return (
     <li>

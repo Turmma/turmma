@@ -26,7 +26,7 @@ import { listChanged, errorText } from './error-text'
 export function useSingleSubmit<Entrada, Saida>(opcoes: UseMutationOptions<Saida, Error, Entrada>) {
   const noAr = useRef(false)
   const mutacao = useMutation({ ...opcoes, gcTime: 0 })
-  function enviar(entrada: Entrada): void {
+  function send(entrada: Entrada): void {
     if (noAr.current) return
     noAr.current = true
     // A trava solta pela promessa do próprio pedido, que termina com ele: o `onSettled` passado ao `mutate` é do observador,
@@ -36,7 +36,7 @@ export function useSingleSubmit<Entrada, Saida>(opcoes: UseMutationOptions<Saida
     }
     void mutacao.mutateAsync(entrada).then(soltar, soltar)
   }
-  return { enviar, mutacao }
+  return { enviar: send, mutacao }
 }
 
 /**
@@ -99,13 +99,13 @@ interface PropsDoFormulario {
  * tela dizer o erro de cada campo em português, em vez do balão do navegador.
  */
 export function FormDialog({ titulo, aoFechar, aoEnviar, enviando, rotuloDoEnvio, rotuloEnviando, falha, semNovaTentativa = false, focoDeReserva, children }: PropsDoFormulario) {
-  function enviar(evento: FormEvent<HTMLFormElement>): void {
+  function send(evento: FormEvent<HTMLFormElement>): void {
     evento.preventDefault()
     if (!semNovaTentativa) aoEnviar()
   }
   return (
     <Dialog titulo={titulo} aoFechar={aoFechar} {...(focoDeReserva === undefined ? {} : { focoDeReserva })}>
-      <form className="mt-4 flex min-w-0 flex-col gap-4" onSubmit={enviar} noValidate>
+      <form className="mt-4 flex min-w-0 flex-col gap-4" onSubmit={send} noValidate>
         {children}
         {falha !== undefined && <ErrorAlert texto={falha} />}
         <div className="flex flex-wrap justify-end gap-3">
@@ -136,7 +136,7 @@ interface PropsDaConfirmacao {
   readonly aoFechar: () => void
   /**
    * Roda depois de a lista recarregar, mesmo com o diálogo já fechado: quem recebe fecha só a abertura em que o pedido
-   * saiu (`fecharSeAinda`).
+   * saiu (`closeSeAinda`).
    */
   readonly aoConcluir: () => void
   /** Recarrega a lista depois do pedido, deu certo ou não: o `CONFLITO` e o `NAO_ENCONTRADO` dizem que ela mudou. */

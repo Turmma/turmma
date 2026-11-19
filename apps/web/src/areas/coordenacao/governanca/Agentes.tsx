@@ -33,7 +33,7 @@ const OPCOES_DE_IA: SegmentedOptions<Agente> = [
 
 const OPCOES_DE_MOTIVO = MOTIVOS_DE_SUSPENSAO.map((motivo) => ({ valor: motivo, rotulo: NOME_DO_MOTIVO_DE_SUSPENSAO[motivo] }))
 
-function ehMotivo(valor: string): valor is MotivoDeSuspensao {
+function isMotivo(valor: string): valor is MotivoDeSuspensao {
   return (MOTIVOS_DE_SUSPENSAO as readonly string[]).includes(valor)
 }
 
@@ -253,7 +253,7 @@ interface PropsDoSuspender {
 function SuspenderFuncao({ alvo, aoFechar, aoSuspender, focoDeReserva }: PropsDoSuspender) {
   const [motivo, definirMotivo] = useState('')
   const { enviar, mutacao } = useSingleSubmit({
-    mutationFn: () => suspenderFuncao(alvo.funcao.chave, ehMotivo(motivo) ? motivo : undefined),
+    mutationFn: () => suspenderFuncao(alvo.funcao.chave, isMotivo(motivo) ? motivo : undefined),
     onSuccess: aoSuspender,
   })
   return (

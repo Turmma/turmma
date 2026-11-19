@@ -80,7 +80,7 @@ describe('SoberaniaNaSubida', () => {
     const logger = registrador()
     const soberania = new SoberaniaNaSubida({ config, leitura, logger })
     expect(soberania.conferida).toBe(true)
-    await soberania.iniciar()
+    await soberania.start()
     expect(leitura.vigenteDoProvedor).not.toHaveBeenCalled()
     // Nem o aviso de "conferida" sai: não houve conferência.
     expect(logger.info).not.toHaveBeenCalled()
@@ -93,7 +93,7 @@ describe('SoberaniaNaSubida', () => {
     const logger = registrador()
     const soberania = new SoberaniaNaSubida({ config: externo, leitura, logger })
     expect(soberania.conferida).toBe(false)
-    await soberania.iniciar()
+    await soberania.start()
     expect(leitura.vigenteDoProvedor).toHaveBeenCalledExactlyOnceWith(PROVEDOR)
     expect(soberania.conferida).toBe(true)
     expect(logger.info).toHaveBeenCalledWith({ evento: 'ia.soberania_conferida', provedorId: PROVEDOR })
@@ -104,7 +104,7 @@ describe('SoberaniaNaSubida', () => {
     const leitura = leituraDe({ 'outro-provedor': cobre() })
     const logger = registrador()
     const soberania = new SoberaniaNaSubida({ config: externo, leitura, logger, intervaloMs: 60_000 })
-    await soberania.iniciar()
+    await soberania.start()
     expect(soberania.conferida).toBe(false)
     expect(leitura.vigenteDoProvedor).toHaveBeenCalledWith(PROVEDOR)
     expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ evento: 'ia.soberania_na_subida_recusada', provedorId: PROVEDOR, codigo: 'sem_suboperador_vigente' }))
@@ -115,7 +115,7 @@ describe('SoberaniaNaSubida', () => {
     const cadastro: Record<string, SuboperadorParaAConferenciaDaD62 | undefined> = { [PROVEDOR]: { ...cobre(), pais: 'US' } }
     const logger = registrador()
     const soberania = new SoberaniaNaSubida({ config: externo, leitura: leituraDe(cadastro), logger, intervaloMs: 10 })
-    await soberania.iniciar()
+    await soberania.start()
     expect(soberania.conferida).toBe(false)
     expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ evento: 'ia.soberania_na_subida_recusada', codigo: 'pais_fora_do_brasil' }))
     const espera = soberania.aguardarConferida()
@@ -129,7 +129,7 @@ describe('SoberaniaNaSubida', () => {
     const cadastro: Record<string, SuboperadorParaAConferenciaDaD62 | Error | undefined> = { [PROVEDOR]: new Error('connect ECONNREFUSED 127.0.0.1:5432') }
     const logger = registrador()
     const soberania = new SoberaniaNaSubida({ config: externo, leitura: leituraDe(cadastro), logger, intervaloMs: 10 })
-    await soberania.iniciar()
+    await soberania.start()
     expect(soberania.conferida).toBe(false)
     expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ evento: 'ia.soberania_na_subida_sem_banco', provedorId: PROVEDOR }))
     expect(logger.warn).not.toHaveBeenCalledWith(expect.objectContaining({ evento: 'ia.soberania_na_subida_recusada' }))
@@ -150,7 +150,7 @@ describe('SoberaniaNaSubida', () => {
       const logger = registrador()
       const leitura = leituraDe(cadastro)
       const soberania = new SoberaniaNaSubida({ config: externo, leitura, logger, intervaloMs: 10 })
-      await soberania.iniciar()
+      await soberania.start()
       await vi.advanceTimersByTimeAsync(10 * 5)
       soberania.encerrar()
       expect(leitura.vigenteDoProvedor).toHaveBeenCalledTimes(6)
@@ -161,7 +161,7 @@ describe('SoberaniaNaSubida', () => {
       vi.useFakeTimers()
       const logger = registrador()
       const soberania = new SoberaniaNaSubida({ config: externo, leitura: leituraDe({ [PROVEDOR]: undefined }), logger, intervaloMs: 10 })
-      await soberania.iniciar()
+      await soberania.start()
       await vi.advanceTimersByTimeAsync(10 * 11)
       soberania.encerrar()
       expect(logger.warn.mock.calls.map(([linha]) => (linha as { tentativas: number }).tentativas)).toEqual([1, 12])
@@ -172,7 +172,7 @@ describe('SoberaniaNaSubida', () => {
       const cadastro: Record<string, SuboperadorParaAConferenciaDaD62 | Error | undefined> = { [PROVEDOR]: undefined }
       const logger = registrador()
       const soberania = new SoberaniaNaSubida({ config: externo, leitura: leituraDe(cadastro), logger, intervaloMs: 10 })
-      await soberania.iniciar()
+      await soberania.start()
       cadastro[PROVEDOR] = { ...cobre(), pais: 'US' }
       await vi.advanceTimersByTimeAsync(10 * 12)
       soberania.encerrar()
@@ -185,7 +185,7 @@ describe('SoberaniaNaSubida', () => {
       const cadastro: Record<string, SuboperadorParaAConferenciaDaD62 | Error | undefined> = { [PROVEDOR]: undefined }
       const logger = registrador()
       const soberania = new SoberaniaNaSubida({ config: externo, leitura: leituraDe(cadastro), logger, intervaloMs: 10 })
-      await soberania.iniciar()
+      await soberania.start()
       cadastro[PROVEDOR] = { ...cobre(), pais: 'US' }
       await vi.advanceTimersByTimeAsync(10)
       soberania.encerrar()
@@ -197,7 +197,7 @@ describe('SoberaniaNaSubida', () => {
     for (const categoria of EXIGIDAS) {
       const leitura = leituraDe({ [PROVEDOR]: { ...cobre(), categorias: EXIGIDAS.filter((outra) => outra !== categoria) } })
       const soberania = new SoberaniaNaSubida({ config: externo, leitura, logger: registrador(), intervaloMs: 60_000 })
-      await soberania.iniciar()
+      await soberania.start()
       expect(soberania.conferida, categoria).toBe(false)
       soberania.encerrar()
     }
@@ -206,8 +206,8 @@ describe('SoberaniaNaSubida', () => {
   it('iniciar é idempotente: quem espera a primeira conferência e o bootstrap dividem a mesma leitura', async () => {
     const leitura = leituraDe({ [PROVEDOR]: cobre() })
     const soberania = new SoberaniaNaSubida({ config: externo, leitura, logger: registrador() })
-    await Promise.all([soberania.iniciar(), soberania.iniciar()])
-    await soberania.iniciar()
+    await Promise.all([soberania.start(), soberania.start()])
+    await soberania.start()
     expect(leitura.vigenteDoProvedor).toHaveBeenCalledTimes(1)
   })
 
@@ -215,7 +215,7 @@ describe('SoberaniaNaSubida', () => {
     const encerradaAntes = leituraDe({ [PROVEDOR]: cobre() })
     const antes = new SoberaniaNaSubida({ config: externo, leitura: encerradaAntes, logger: registrador() })
     antes.encerrar()
-    await antes.iniciar()
+    await antes.start()
     expect(encerradaAntes.vigenteDoProvedor).not.toHaveBeenCalled()
     expect(antes.conferida).toBe(false)
 
@@ -225,7 +225,7 @@ describe('SoberaniaNaSubida', () => {
       let devolver: (valor: undefined) => void = () => undefined
       const vigenteDoProvedor = vi.fn(() => new Promise<undefined>((resolver) => (devolver = resolver)))
       const durante = new SoberaniaNaSubida({ config: externo, leitura: { vigenteDoProvedor }, logger: registrador(), intervaloMs: 1 })
-      const primeira = durante.iniciar()
+      const primeira = durante.start()
       durante.encerrar()
       devolver(undefined)
       await primeira
@@ -240,7 +240,7 @@ describe('SoberaniaNaSubida', () => {
     let devolverCobre: (valor: SuboperadorParaAConferenciaDaD62) => void = () => undefined
     const logger = registrador()
     const passando = new SoberaniaNaSubida({ config: externo, leitura: { vigenteDoProvedor: () => new Promise((resolver) => (devolverCobre = resolver)) }, logger })
-    const primeira = passando.iniciar()
+    const primeira = passando.start()
     passando.encerrar()
     devolverCobre(cobre())
     await primeira
@@ -252,7 +252,7 @@ describe('SoberaniaNaSubida', () => {
   it('encerrar para as conferências e solta quem esperava com false', async () => {
     const leitura = leituraDe({ [PROVEDOR]: undefined })
     const soberania = new SoberaniaNaSubida({ config: externo, leitura, logger: registrador(), intervaloMs: 5 })
-    await soberania.iniciar()
+    await soberania.start()
     const espera = soberania.aguardarConferida()
     soberania.encerrar()
     await expect(espera).resolves.toBe(false)
@@ -265,7 +265,7 @@ describe('SoberaniaNaSubida', () => {
   it('depois de conferida, a instância não lê o cadastro de novo: encerrar o suboperador pede reiniciar (runbook)', async () => {
     const leitura = leituraDe({ [PROVEDOR]: cobre() })
     const soberania = new SoberaniaNaSubida({ config: externo, leitura, logger: registrador(), intervaloMs: 5 })
-    await soberania.iniciar()
+    await soberania.start()
     await new Promise((resolver) => setTimeout(resolver, 30))
     expect(leitura.vigenteDoProvedor).toHaveBeenCalledTimes(1)
     soberania.encerrar()

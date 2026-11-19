@@ -1,10 +1,10 @@
 import { DomainException, FORMATO_SLUG, TAMANHO_MAXIMO_SLUG, type Database, type Meter } from '@educa/core'
-import { ErrorCode, ETAPA_TROCAR_SENHA, normalizarSenhaProvisoria, type LoginMatriculaRequest } from '@educa/shared'
+import { ErrorCode, ETAPA_TROCAR_SENHA, normalizeSenhaProvisoria, type LoginMatriculaRequest } from '@educa/shared'
 import type { BilheteDaTroca } from '../../credencial/bilhete-da-troca.js'
 import type { ConclusaoDeLogin } from '../completion/login-completion.js'
 import type { LoginLockout } from '../../credencial/login-lockout.js'
 import type { DeviceCookie } from '../../credencial/device-cookie.js'
-import { DEVICE_COOKIE, lerCookie } from '../../credencial/cookies.js'
+import { DEVICE_COOKIE, readCookie } from '../../credencial/cookies.js'
 import { CredencialMatriculaRepository } from '../../credencial/credencial-matricula.repository.js'
 import { naEscolaSemUsuario } from '../tenant/escola-sem-usuario.js'
 import { identificadorDoAluno } from '../../credencial/identificador-do-aluno.js'
@@ -54,7 +54,7 @@ export interface ChaveDaTentativa {
 export function chaveDaTentativa(dependencias: Pick<LoginPorMatriculaDependencies, 'contador' | 'dispositivo'>, escolaId: string, matricula: string, origem: RequestOrigin): ChaveDaTentativa {
   const { contador, dispositivo } = dependencias
   const identificador = identificadorDoAluno(escolaId, matricula)
-  const conhecido = dispositivo.conhece(lerCookie(origem.cabecalhoCookie, DEVICE_COOKIE), identificador)
+  const conhecido = dispositivo.conhece(readCookie(origem.cabecalhoCookie, DEVICE_COOKIE), identificador)
   return { chave: contador.chaveDe(identificador, conhecido ? 'conhecido' : 'outro'), identificador, conhecido }
 }
 
@@ -90,7 +90,7 @@ export function chaveDaTentativa(dependencias: Pick<LoginPorMatriculaDependencie
  */
 export class LoginPorMatricula {
   readonly #duracao: LoginDurationHistogram
-  readonly #rebaixadasPeloIp: { contar: () => void }
+  readonly #rebaixadasPeloIp: { count: () => void }
 
   constructor(private readonly dependencias: LoginPorMatriculaDependencies) {
     this.#duracao = new LoginDurationHistogram(dependencias.medidor, 'matricula')
@@ -108,20 +108,20 @@ export class LoginPorMatricula {
       const { banco, conferencia, contador, conclusao, rebaixamento } = this.dependencias
       const { chave, identificador, conhecido } = chaveDaTentativa(this.dependencias, escolaId, pedido.matricula, origem)
       const peloIp = !conhecido && origem.acimaDoLimiteDoIp === true
-      if (peloIp) this.#rebaixadasPeloIp.contar()
+      if (peloIp) this.#rebaixadasPeloIp.count()
       const rebaixado = (await rebaixamento.rebaixar(origem.ip, escolaId, conhecido)) || peloIp
       const tentativa: PasswordAttempt<CredencialDoAluno> = {
         balde: escolaBucket(escolaId, rebaixado),
         chave,
         senha: pedido.senha,
-        lerCredencial: () => new CredencialMatriculaRepository(banco).doAlunoAtivo(pedido.matricula),
+        readCredencial: () => new CredencialMatriculaRepository(banco).doAlunoAtivo(pedido.matricula),
         // A provisória se digita como a tela a mostra (`ABCD-EFGH`, até em minúsculas); a senha comum vai como veio.
-        senhaParaConferir: (senha, credencial) => (credencial?.provisoriaExpiraEm == null ? senha : normalizarSenhaProvisoria(senha)),
-        aoFalhar: () => rebaixamento.contarFalha(origem.ip, escolaId),
+        senhaParaConferir: (senha, credencial) => (credencial?.provisoriaExpiraEm == null ? senha : normalizeSenhaProvisoria(senha)),
+        aoFalhar: () => rebaixamento.countFalha(origem.ip, escolaId),
       }
       const { reserva, credencial, confere } = await conferencia.conferir(tentativa)
       if (credencial === undefined || !confere) {
-        await new RegistroDeAcessoRepository(banco).gravarFalha(ipParaRegistro(origem.ip))
+        await new RegistroDeAcessoRepository(banco).saveFalha(ipParaRegistro(origem.ip))
         return conferencia.recusar(tentativa, reserva)
       }
 
@@ -129,7 +129,7 @@ export class LoginPorMatricula {
       // A eliminação agendada (F3, 14.0): a senha está certa, e é só agora que se diz que o acesso está suspenso. Nada é
       // emitido e nenhuma sessão nasce; o registro de acesso é o de uma tentativa que não entrou.
       if (credencial.suspenso) {
-        await new RegistroDeAcessoRepository(banco).gravarFalha(ipParaRegistro(origem.ip))
+        await new RegistroDeAcessoRepository(banco).saveFalha(ipParaRegistro(origem.ip))
         throw new DomainException(ErrorCode.ACESSO_SUSPENSO)
       }
       // A senha certa era a provisória: o aluno ainda não tem sessão, só o bilhete que o deixa criar a senha nova.
@@ -153,13 +153,13 @@ export class LoginPorMatricula {
    */
   async #recusar(escolaId: string, pedido: LoginMatriculaRequest, origem: RequestOrigin): Promise<never> {
     const { conferencia } = this.dependencias
-    if (origem.acimaDoLimiteDoIp === true) this.#rebaixadasPeloIp.contar()
+    if (origem.acimaDoLimiteDoIp === true) this.#rebaixadasPeloIp.count()
     const tentativa: PasswordAttempt<undefined> = {
       // O IP acima do limite por IP do login também vai para o fim deste balde, que não tem conta de verdade.
       balde: escolaDesconhecidaBucket(origem.acimaDoLimiteDoIp === true),
       chave: chaveDaTentativa(this.dependencias, escolaId, pedido.matricula, origem).chave,
       senha: pedido.senha,
-      lerCredencial: () => Promise.resolve(undefined),
+      readCredencial: () => Promise.resolve(undefined),
     }
     const { reserva } = await conferencia.conferir(tentativa)
     return conferencia.recusar(tentativa, reserva)

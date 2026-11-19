@@ -83,7 +83,7 @@ export class EntregaRepository {
    * Uma página das entregas no alcance, **da mais nova para a mais antiga** (o id é `uuidv7`), com uma linha a mais que
    * diz se há próxima. `estado` e `turmaId` só restringem: a turma de outro professor não acha nada.
    */
-  listar({ pagina, limite, estado, turmaId }: EntregasQuery): Promise<EntregaLida[]> {
+  list({ pagina, limite, estado, turmaId }: EntregasQuery): Promise<EntregaLida[]> {
     return this.#lidas(and(estado === undefined ? undefined : eq(entrega.estado, estado), turmaId === undefined ? undefined : eq(entrega.turmaId, turmaId), pagina === undefined ? undefined : lt(entrega.id, pagina)))
       .orderBy(desc(entrega.id))
       .limit(limite + 1)
@@ -112,7 +112,7 @@ export class EntregaRepository {
    * A entrega `pendente` da versão adaptada, na transação que grava o artefato dela (regra 70, item 3): ou nascem as
    * duas, ou nenhuma. A função é a `adaptacao`; o banco prende a turma à do artefato e aceita uma entrega por versão.
    */
-  async criarDaVersaoAdaptada(nova: NovaEntregaDeVersaoAdaptada): Promise<string> {
+  async createDaVersaoAdaptada(nova: NovaEntregaDeVersaoAdaptada): Promise<string> {
     const [criada] = await this.banco
       .insert(entrega)
       .values({ escolaId: requireEscolaId(), anoLetivoId: requireAnoEmCurso(), turmaId: nova.turmaId, funcao: 'adaptacao', tipo: 'versao_adaptada', artefatoId: nova.artefatoId, execucaoId: nova.execucaoId })

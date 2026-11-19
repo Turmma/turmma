@@ -12,7 +12,7 @@ export class NoticesController {
 
   @Get()
   @Header('Cache-Control', 'no-store')
-  listar(): AvisosResponse {
+  list(): AvisosResponse {
     return avisosResponseSchema.parse({ itens: this.avisos })
   }
 }

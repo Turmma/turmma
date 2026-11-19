@@ -1,17 +1,17 @@
 import { InvalidConfigError } from '@educa/core'
 import { describe, expect, it } from 'vitest'
-import { InvalidArgumentError, lerOperador, lerPedidoDoOperador } from './escola.js'
+import { InvalidArgumentError, readOperador, readPedidoDoOperador } from './escola.js'
 
 const REDE = '0190f5a0-0000-7000-8000-0000000000e1'
 
-describe('lerPedidoDoOperador', () => {
+describe('readPedidoDoOperador', () => {
   it('rede criar e escola criar viram o pedido, com o nome aparado e a rede em minúsculas', () => {
-    expect(lerPedidoDoOperador(['rede', 'criar', '--nome', '  Rede Municipal Sintética ', '--tipo', 'prefeitura'])).toEqual({
+    expect(readPedidoDoOperador(['rede', 'criar', '--nome', '  Rede Municipal Sintética ', '--tipo', 'prefeitura'])).toEqual({
       entidade: 'rede',
       nome: 'Rede Municipal Sintética',
       tipo: 'prefeitura',
     })
-    expect(lerPedidoDoOperador(['escola', 'criar', '--rede', REDE.toUpperCase(), '--nome', 'Colégio Sintético', '--slug', 'colegio-horizonte-2'])).toEqual({
+    expect(readPedidoDoOperador(['escola', 'criar', '--rede', REDE.toUpperCase(), '--nome', 'Colégio Sintético', '--slug', 'colegio-horizonte-2'])).toEqual({
       entidade: 'escola',
       redeId: REDE,
       nome: 'Colégio Sintético',
@@ -21,7 +21,7 @@ describe('lerPedidoDoOperador', () => {
 
   // O endereço da escola escrito de três jeitos, como a turma na planilha suja.
   it.each(['Colégio Horizonte', 'colegio_horizonte', 'COLEGIO-HORIZONTE', 'colegio--horizonte', 'colegio-', 'a'.repeat(64)])('slug "%s" é recusado, sem o valor na mensagem', (slug) => {
-    const pedido = () => lerPedidoDoOperador(['escola', 'criar', '--rede', REDE, '--nome', 'Colégio Sintético', '--slug', slug])
+    const pedido = () => readPedidoDoOperador(['escola', 'criar', '--rede', REDE, '--nome', 'Colégio Sintético', '--slug', slug])
     expect(pedido).toThrow(new InvalidArgumentError('--slug'))
     expect(pedido).not.toThrow(slug)
   })
@@ -37,23 +37,23 @@ describe('lerPedidoDoOperador', () => {
     ['comando desconhecido', ['escola', 'listar'], 'comando (rede criar | escola criar)'],
     ['sem comando', [], 'comando (rede criar | escola criar)'],
   ])('%s: recusa citando só a opção', (_caso, argumentos, opcao) => {
-    expect(() => lerPedidoDoOperador(argumentos)).toThrow(new InvalidArgumentError(opcao))
+    expect(() => readPedidoDoOperador(argumentos)).toThrow(new InvalidArgumentError(opcao))
   })
 
   it('opção desconhecida não repete o valor recebido na mensagem', () => {
-    const pedido = () => lerPedidoDoOperador(['rede', 'criar', '--nome', 'Rede Sintética', '--tipo', 'grupo', '--matricula', 'segredo_sintetico'])
+    const pedido = () => readPedidoDoOperador(['rede', 'criar', '--nome', 'Rede Sintética', '--tipo', 'grupo', '--matricula', 'segredo_sintetico'])
     // A mensagem é a nossa, fixa: repassar a do parseArgs quebraria aqui.
     expect(pedido).toThrow(new InvalidArgumentError('--nome, --tipo, --rede ou --slug'))
   })
 })
 
-describe('lerOperador', () => {
+describe('readOperador', () => {
   it('aceita o identificador curto da pessoa da equipe', () => {
-    expect(lerOperador({ OPERADOR: 'gabriel-s' })).toBe('gabriel-s')
+    expect(readOperador({ OPERADOR: 'gabriel-s' })).toBe('gabriel-s')
   })
 
   it.each([undefined, '', 'Joaquim', 'joaquim@educa.ia', 'j', 'a'.repeat(33)])('"%s" é recusado pelo nome da variável, sem o valor', (operador) => {
-    expect(() => lerOperador({ OPERADOR: operador })).toThrow(new InvalidConfigError(['OPERADOR']))
-    if (operador !== undefined && operador !== '') expect(() => lerOperador({ OPERADOR: operador })).not.toThrow(operador)
+    expect(() => readOperador({ OPERADOR: operador })).toThrow(new InvalidConfigError(['OPERADOR']))
+    if (operador !== undefined && operador !== '') expect(() => readOperador({ OPERADOR: operador })).not.toThrow(operador)
   })
 })

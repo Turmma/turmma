@@ -6,8 +6,8 @@ import { randomUUID } from 'node:crypto'
 import { Secret, TOTP } from 'otpauth'
 import { expect } from 'vitest'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
-import { REDIS_LOGIN_CLIENT, LoginLockout, gerarSegredo, PasswordHasher } from '../src/credencial/index.js'
-import { ConviteRepository, criarConviteDeCoordenador } from '../src/sessao/index.js'
+import { REDIS_LOGIN_CLIENT, LoginLockout, generateSegredo, PasswordHasher } from '../src/credencial/index.js'
+import { ConviteRepository, createConviteDeCoordenador } from '../src/sessao/index.js'
 import { testConfig } from './test-config.js'
 import { pedir, PRAZO_DAS_CONSULTAS_MS, subirApiDoPainel, type Resposta } from './painel.fixture.js'
 import { autorDaBancada, SessaoFixtures } from './sessao.fixture.js'
@@ -91,10 +91,10 @@ export class ActivationScenario {
    */
   async conta({ mfa }: { mfa: boolean }): Promise<TestConta> {
     const email = `convidada-${randomUUID()}@escola.invalid`
-    const { rows } = await this.pool.query<{ id: string }>('insert into conta (email, senha_hash, email_verificado_em) values ($1, $2, now()) returning id', [email, await this.#hash.gerar(SENHA_DA_CONTA)])
+    const { rows } = await this.pool.query<{ id: string }>('insert into conta (email, senha_hash, email_verificado_em) values ($1, $2, now()) returning id', [email, await this.#hash.generate(SENHA_DA_CONTA)])
     const contaId = rows[0]?.id ?? ''
     if (!mfa) return { email, contaId, base32: undefined }
-    const novo = gerarSegredo()
+    const novo = generateSegredo()
     const { cifrado, versao } = this.#cifra.cifrar(novo.bytes, contaId)
     await this.pool.query('update conta set mfa_segredo_cifrado = $1, mfa_chave_versao = $2, mfa_ativado_em = now() where id = $3', [cifrado, versao, contaId])
     return { email, contaId, base32: novo.base32 }
@@ -109,7 +109,7 @@ export class ActivationScenario {
 
   /** O gerar do operador, pelo caso de uso que o painel e o comando chamam. */
   async convidar(escolaId: string, email: string): Promise<TestConvite> {
-    const { conviteId, token } = await criarConviteDeCoordenador(this.banco, autorDaBancada, { escolaId, email, nome: NOME })
+    const { conviteId, token } = await createConviteDeCoordenador(this.banco, autorDaBancada, { escolaId, email, nome: NOME })
     const { rows } = await this.pool.query<{ usuario_id: string }>('select usuario_id from convite where id = $1', [conviteId])
     return { escolaId, conviteId, token, usuarioId: rows[0]?.usuario_id ?? '' }
   }

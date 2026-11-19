@@ -163,9 +163,9 @@ function ConteudoDaLista({ turmaId, turmaNome, aoPerderATurma }: { turmaId: stri
   // Os aprovados vêm sem nome nem matrícula: não são linha desta tabela, e a seção "Alunos aprovados" os lê pelo nome.
   const semAprovados = itens.filter((nome): nome is NomeAindaNaLista => nome.estado !== 'aprovado' && nome.nome !== null && nome.matricula !== null)
 
-  function abrir(tipo: 'acrescentar' | 'retirar', item?: NomeDaLista): void {
+  function open(tipo: 'acrescentar' | 'retirar', item?: NomeDaLista): void {
     definirAnuncio('')
-    dialogo.abrir(tipo, item)
+    dialogo.open(tipo, item)
   }
 
   return (
@@ -183,7 +183,7 @@ function ConteudoDaLista({ turmaId, turmaNome, aoPerderATurma }: { turmaId: stri
               <h2 ref={tituloDosNomes} id={idDoTitulo} tabIndex={-1} className="text-lg font-semibold text-tinta">
                 Nomes da turma
               </h2>
-              <button type="button" onClick={() => abrir('acrescentar')} className={SECONDARY_BUTTON_CLASSES}>
+              <button type="button" onClick={() => open('acrescentar')} className={SECONDARY_BUTTON_CLASSES}>
                 Acrescentar um nome
               </button>
             </div>
@@ -202,7 +202,7 @@ function ConteudoDaLista({ turmaId, turmaNome, aoPerderATurma }: { turmaId: stri
                 </p>
                 {/* Só aprovados: a tabela ficaria só com o cabeçalho, e os aprovados estão na seção própria. */}
                 {semAprovados.length > 0 && (
-                  <Table rotulo="Cada nome com a matrícula e a situação" colunas={colunasDosNomes((nome) => abrir('retirar', nome))} linhas={semAprovados} chaveDaLinha={(nome) => nome.id} />
+                  <Table rotulo="Cada nome com a matrícula e a situação" colunas={colunasDosNomes((nome) => open('retirar', nome))} linhas={semAprovados} chaveDaLinha={(nome) => nome.id} />
                 )}
                 {nomes.hasNextPage && (
                   <button type="button" onClick={() => void nomes.fetchNextPage()} disabled={nomes.isFetchingNextPage} className={`${SECONDARY_BUTTON_CLASSES} self-start`}>
@@ -235,10 +235,10 @@ function ConteudoDaLista({ turmaId, turmaNome, aoPerderATurma }: { turmaId: stri
         <NomeAvulso
           key={aberta.numero}
           turmaId={turmaId}
-          aoFechar={dialogo.fechar}
+          aoFechar={dialogo.close}
           aoAcrescentar={() => {
             definirAnuncio('Nome acrescentado à lista da turma.')
-            dialogo.fecharSeAinda(aberta)
+            dialogo.closeSeAinda(aberta)
           }}
           recarregar={recarregarNomes}
         />
@@ -257,10 +257,10 @@ function ConteudoDaLista({ turmaId, turmaNome, aoPerderATurma }: { turmaId: stri
           rotuloDaAcao="Retirar da lista"
           rotuloEmAndamento="Retirando…"
           acao={() => retirarNome(alvo.id)}
-          aoFechar={dialogo.fechar}
+          aoFechar={dialogo.close}
           aoConcluir={() => {
             definirAnuncio('Nome retirado da lista.')
-            dialogo.fecharSeAinda(aberta)
+            dialogo.closeSeAinda(aberta)
           }}
           aoTerminar={recarregarNomes}
           textosDaFalha={{
@@ -341,9 +341,9 @@ function AlunosAprovados({ turmaId }: { turmaId: string }) {
   const tituloDaSecao = useRef<HTMLHeadingElement>(null)
   const idDoTitulo = useId()
 
-  function abrirProvisoria(usuarioId: string): void {
+  function openProvisoria(usuarioId: string): void {
     definirAviso('')
-    dialogo.abrir('provisoria', usuarioId)
+    dialogo.open('provisoria', usuarioId)
   }
 
   return (
@@ -363,15 +363,15 @@ function AlunosAprovados({ turmaId }: { turmaId: string }) {
         )}
       </div>
       <StatusAnnouncement texto={aviso} />
-      {mostrando ? <CorpoDosAprovados alunos={alunos} aoGerarASenha={abrirProvisoria} /> : <p className="text-sm text-sutil">{TEXTO_ANTES_DOS_APROVADOS}</p>}
+      {mostrando ? <CorpoDosAprovados alunos={alunos} aoGerarASenha={openProvisoria} /> : <p className="text-sm text-sutil">{TEXTO_ANTES_DOS_APROVADOS}</p>}
       {aberta?.tipo === 'provisoria' && aberta.alvo !== undefined && (
         <DialogoDaSenhaProvisoria
           key={aberta.numero}
           usuarioId={aberta.alvo}
-          aoFechar={dialogo.fechar}
+          aoFechar={dialogo.close}
           aoPerderOAluno={() => {
             definirAviso(TEXTO_DO_ALUNO_QUE_SAIU_DA_TURMA)
-            dialogo.fecharSeAinda(aberta)
+            dialogo.closeSeAinda(aberta)
             void alunos.refetch({ cancelRefetch: false })
           }}
           focoDeReserva={() => tituloDaSecao.current?.focus()}

@@ -19,7 +19,7 @@ import {
   nomeDaEmpresa,
   nomeNovoDoTitular,
   orientacaoDoPedido,
-  ordenarOCompartilhamento,
+  sortOCompartilhamento,
   periodoDaLinha,
   PRAZO_DA_DECLARACAO_COMPLETA_DIAS,
   prazoDoPedido,
@@ -351,7 +351,7 @@ describe('RF13: as empresas da foto do compartilhamento', () => {
   })
 
   it('a ordem é a do primeiro dado e, no empate, a da chave', () => {
-    const ordenadas = ordenarOCompartilhamento([
+    const ordenadas = sortOCompartilhamento([
       linha({ chave: 'b', primeiroEm: '2026-09-12T00:00:00.000Z' }),
       linha({ chave: 'z', primeiroEm: '2026-09-10T00:00:00.000Z' }),
       linha({ chave: 'a', primeiroEm: '2026-09-12T00:00:00.000Z' }),

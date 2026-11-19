@@ -25,7 +25,7 @@ import type { AlunoAprovado, AlunoDaVirada, AlunosParaReimportar, NomeNaoAprovad
 import type { TurmaDoAno } from '../../estrutura/turma.repository.js'
 import { DiferencaNaPlanilhaError } from '../erros.js'
 import type { AnoDeDestino, ImportacaoRepository } from '../importacao.repository.js'
-import { lerTabela, normalizarTexto } from '../leitor.js'
+import { readTabela, normalizeTexto } from '../leitor.js'
 import type { PlanoDaImportacao, PreviaDoTipo, TipoDeImportacao } from '../tipo.js'
 
 /**
@@ -171,7 +171,7 @@ export function nomeDaTurma(texto: string): string {
  */
 export function indiceDaTurma(nome: string, chave: string | null): string {
   const doNome = chaveDaTurma(nome)
-  return chave ?? doNome ?? `n:${normalizarTexto(nome)}`
+  return chave ?? doNome ?? `n:${normalizeTexto(nome)}`
 }
 
 export function indexarTurmas(turmas: readonly TurmaDoAno[]): Map<string, TurmaDoAno[]> {
@@ -384,8 +384,8 @@ async function corrigirNomes(gravacao: ImportacaoRepository, tx: DatabaseTransac
   const dosAlunos = corrigidas.flatMap(({ alvo, nome }) => (alvo.tipo === 'usuario' ? [{ usuarioId: alvo.id, nomeLido: alvo.nome, nome }] : []))
   if ((await gravacao.corrigirNomesNaLista(anoLetivoId, daLista)) !== daLista.length) throw new DiferencaNaPlanilhaError()
   if ((await gravacao.corrigirNomesDosAlunos(dosAlunos)) !== dosAlunos.length) throw new DiferencaNaPlanilhaError()
-  for (const { id } of daLista) await registro.gravar(tx, 'lista.nome_corrigido', { entidadeId: id })
-  for (const { usuarioId } of dosAlunos) await registro.gravar(tx, 'usuario.nome_corrigido', { entidadeId: usuarioId })
+  for (const { id } of daLista) await registro.save(tx, 'lista.nome_corrigido', { entidadeId: id })
+  for (const { usuarioId } of dosAlunos) await registro.save(tx, 'usuario.nome_corrigido', { entidadeId: usuarioId })
 }
 
 /** Uma transferência marcada: a matrícula "muda de turma" que a coordenação marcou, com quem ela é no banco e a turma para onde vai. */
@@ -413,18 +413,18 @@ async function transferir(gravacao: ImportacaoRepository, tx: DatabaseTransactio
   const alunos = transferencias.flatMap(({ alvo, destino }) => (alvo.tipo === 'usuario' ? [{ usuarioId: alvo.id, turmaLidaId: alvo.turmaId, turmaId: idDaTurma(destino, turmasNovas) }] : []))
   await gravacao.encerrarPedidosDosNomes(nomes.filter(({ estadoLido }) => estadoLido === 'reivindicado').map(({ id }) => id))
   if ((await gravacao.transferirNomes(anoLetivoId, nomes)) !== nomes.length) throw new DiferencaNaPlanilhaError()
-  for (const { id, turmaLidaId, turmaId } of nomes) await registro.gravar(tx, 'lista.transferida', { entidadeId: id, depois: { turmaOrigemId: turmaLidaId, turmaDestinoId: turmaId } })
+  for (const { id, turmaLidaId, turmaId } of nomes) await registro.save(tx, 'lista.transferida', { entidadeId: id, depois: { turmaOrigemId: turmaLidaId, turmaDestinoId: turmaId } })
 
   const encerrados = await gravacao.encerrarVinculosDosAlunos(anoLetivoId, alunos.map(({ usuarioId, turmaLidaId }) => ({ usuarioId, turmaId: turmaLidaId })), 'realocacao')
   if (encerrados.length !== alunos.length) throw new DiferencaNaPlanilhaError()
-  for (const { id, estadoAntes } of encerrados) await registro.gravar(tx, 'vinculo.encerrado', { entidadeId: id, antes: { estado: estadoAntes }, depois: { estado: 'encerrado', motivo: 'realocacao', origem: 'lista' } })
-  const criados = await gravacao.criarVinculosDosAlunos(anoLetivoId, alunos.map(({ usuarioId, turmaId }) => ({ usuarioId, turmaId })))
+  for (const { id, estadoAntes } of encerrados) await registro.save(tx, 'vinculo.encerrado', { entidadeId: id, antes: { estado: estadoAntes }, depois: { estado: 'encerrado', motivo: 'realocacao', origem: 'lista' } })
+  const criados = await gravacao.createVinculosDosAlunos(anoLetivoId, alunos.map(({ usuarioId, turmaId }) => ({ usuarioId, turmaId })))
   const destinoDe = new Map(alunos.map(({ usuarioId, turmaId }) => [usuarioId, turmaId]))
   for (const { id, usuarioId } of criados) {
-    await registro.gravar(tx, 'vinculo.criado', { entidadeId: id, depois: { usuarioId, turmaId: destinoDe.get(usuarioId) ?? '', disciplinaId: null, papel: 'aluno', estado: 'confirmado', origem: 'lista' } })
+    await registro.save(tx, 'vinculo.criado', { entidadeId: id, depois: { usuarioId, turmaId: destinoDe.get(usuarioId) ?? '', disciplinaId: null, papel: 'aluno', estado: 'confirmado', origem: 'lista' } })
   }
   if ((await gravacao.transferirAprovados(anoLetivoId, alunos)) !== alunos.length) throw new DiferencaNaPlanilhaError()
-  for (const { usuarioId, turmaLidaId, turmaId } of alunos) await registro.gravar(tx, 'aluno.transferido', { entidadeId: usuarioId, depois: { turmaOrigemId: turmaLidaId, turmaDestinoId: turmaId } })
+  for (const { usuarioId, turmaLidaId, turmaId } of alunos) await registro.save(tx, 'aluno.transferido', { entidadeId: usuarioId, depois: { turmaOrigemId: turmaLidaId, turmaDestinoId: turmaId } })
 }
 
 /**
@@ -466,7 +466,7 @@ async function desligar(gravacao: ImportacaoRepository, tx: DatabaseTransaction,
     desligamentos.nomes.map(({ id, estado, turmaId }) => ({ id, estadoLido: estado, turmaLidaId: turmaId })),
   )
   if (retirados.length !== desligamentos.nomes.length) throw new DiferencaNaPlanilhaError()
-  for (const { id, estado, turmaId } of desligamentos.nomes) await registro.gravar(tx, 'lista_nome.retirado', { entidadeId: id, antes: { turmaId, estado } })
+  for (const { id, estado, turmaId } of desligamentos.nomes) await registro.save(tx, 'lista_nome.retirado', { entidadeId: id, antes: { turmaId, estado } })
 }
 
 /** O aluno que volta: o `usuario` da credencial e a turma da linha, na planilha do ano planejado. */
@@ -487,30 +487,30 @@ function voltasDe(linhas: readonly ClassificadaRow[], turmasNovas: ReadonlyMap<s
  */
 async function voltar(gravacao: ImportacaoRepository, tx: DatabaseTransaction, anoLetivoId: string, voltas: readonly Volta[]): Promise<void> {
   if (voltas.length === 0) return
-  const criados = await gravacao.criarVinculosDosAlunos(anoLetivoId, voltas)
+  const criados = await gravacao.createVinculosDosAlunos(anoLetivoId, voltas)
   const turmaDe = new Map(voltas.map(({ usuarioId, turmaId }) => [usuarioId, turmaId]))
   for (const { id, usuarioId } of criados) {
     const turmaId = turmaDe.get(usuarioId)
     if (turmaId === undefined) throw new InvariantException('vínculo criado para quem não volta')
-    await registro.gravar(tx, 'vinculo.criado', { entidadeId: id, depois: { usuarioId, turmaId, disciplinaId: null, papel: 'aluno', estado: 'confirmado', origem: 'lista' } })
+    await registro.save(tx, 'vinculo.criado', { entidadeId: id, depois: { usuarioId, turmaId, disciplinaId: null, papel: 'aluno', estado: 'confirmado', origem: 'lista' } })
   }
-  await gravacao.inserirAprovados(anoLetivoId, voltas)
+  await gravacao.insertAprovados(anoLetivoId, voltas)
 }
 
 /**
  * Cria as turmas que a planilha trouxe e a escola ainda não tinha (alunos, 7.0, e grade, 11.0), cada uma na série que o nome diz, criada
  * se faltar, com a ação `turma.criada` (série e origem `planilha`). Devolve o id de cada turma pela `chave`.
  */
-export async function criarTurmasNovas(gravacao: ImportacaoRepository, tx: DatabaseTransaction, anoLetivoId: string, turmasACriar: readonly TurmaNova[]): Promise<Map<string, string>> {
+export async function createTurmasNovas(gravacao: ImportacaoRepository, tx: DatabaseTransaction, anoLetivoId: string, turmasACriar: readonly TurmaNova[]): Promise<Map<string, string>> {
   const series = new Map((await gravacao.seriesDaEscola()).map((serie) => [`${serie.etapa}:${String(serie.ano)}`, serie.id]))
   const novas = new Map<string, string>()
   for (const nova of turmasACriar) {
     const chaveDaSerie = `${nova.serie.etapa}:${String(nova.serie.ano)}`
-    const serieId = series.get(chaveDaSerie) ?? (await gravacao.criarSerie(pedidoDaSerie(nova.serie)))
+    const serieId = series.get(chaveDaSerie) ?? (await gravacao.createSerie(pedidoDaSerie(nova.serie)))
     series.set(chaveDaSerie, serieId)
-    const turmaId = await gravacao.criarTurma(anoLetivoId, { serieId, nome: nova.nome })
+    const turmaId = await gravacao.createTurma(anoLetivoId, { serieId, nome: nova.nome })
     novas.set(nova.chave, turmaId)
-    await registro.gravar(tx, 'turma.criada', { entidadeId: turmaId, depois: { serie: nova.serie, origem: 'planilha' } })
+    await registro.save(tx, 'turma.criada', { entidadeId: turmaId, depois: { serie: nova.serie, origem: 'planilha' } })
   }
   return novas
 }
@@ -537,9 +537,9 @@ function planoDe(anoLetivoId: string, classificacao: Classificacao, marcas: Marc
     aplicar: async (gravacao, { tx, ciclo }) => {
       // Marca sem candidato é diferença (o passo (2) só compara a assinatura): o `desatualizada` sai aqui, antes de qualquer escrita.
       const aDesligarAgora = desligamentosDe(classificacao.candidatos, marcas)
-      const novas = await criarTurmasNovas(gravacao, tx, anoLetivoId, turmasACriar)
+      const novas = await createTurmasNovas(gravacao, tx, anoLetivoId, turmasACriar)
       const entram = classificacao.linhas.filter((linha) => linha.resultado === 'entra')
-      await gravacao.inserirNomes(anoLetivoId, entram.map(({ destino, nome, matricula }) => ({ turmaId: idDaTurma(destino, novas), nome, matricula })))
+      await gravacao.insertNomes(anoLetivoId, entram.map(({ destino, nome, matricula }) => ({ turmaId: idDaTurma(destino, novas), nome, matricula })))
       await corrigirNomes(gravacao, tx, anoLetivoId, classificacao.linhas)
       await transferir(gravacao, tx, anoLetivoId, transferencias, novas)
       await voltar(gravacao, tx, anoLetivoId, voltasDe(classificacao.linhas, novas))
@@ -575,7 +575,7 @@ export const tipoAlunos: TipoDeImportacao = {
   usaAno: true,
 
   async previa(repositorio, ano, texto): Promise<PreviaDoTipo> {
-    const tabela = lerTabela(texto, CABECALHOS_DA_PLANILHA.alunos)
+    const tabela = readTabela(texto, CABECALHOS_DA_PLANILHA.alunos)
     const completas: LidaRow[] = []
     for (const { linha, campos } of tabela.linhas) {
       if (campos !== null) completas.push({ linha, turma: (campos['turma'] ?? '').trim(), nome: (campos['nome'] ?? '').trim(), matricula: (campos['matricula'] ?? '').trim() })
@@ -600,7 +600,7 @@ export const tipoAlunos: TipoDeImportacao = {
    * mais simples do que repetir a classificação para escolher. Os pedidos pendentes presos, o `planejar` lê o nome da lista já sem
    * que uma aprovação possa passar o nome antigo ao `usuario`.
    */
-  async travar(repositorio, ano, guardado, marcas, _passo3, tx) {
+  async lock(repositorio, ano, guardado, marcas, _passo3, tx) {
     const lido = guardadoSchema.safeParse(guardado)
     if (!lido.success) return
     const turmas = await repositorio.turmasDoAno(ano.id)
@@ -610,17 +610,17 @@ export const tipoAlunos: TipoDeImportacao = {
     const desligados = antes.candidatos.flatMap(({ acao, id, alvo }) => (acao === 'desligar' && alvo.tipo === 'usuario' && marcadosParaDesligar.has(id) ? [id] : [])).sort()
     // Os anos em que cada desligado tem vínculo aberto: o `desativar` os trava primeiro, e a ordem global tem o ano antes do usuário.
     const ciclo = new CicloDeVidaRepository(tx)
-    for (const usuarioId of desligados) await ciclo.travarAnosDosVinculos(usuarioId, true)
+    for (const usuarioId of desligados) await ciclo.lockAnosDosVinculos(usuarioId, true)
     const aTravar = [
       ...antes.linhas.flatMap(({ resultado, alvo, volta }) => (resultado === 'nome_corrigido' && alvo?.tipo === 'usuario' ? [alvo.id] : resultado === 'volta' && volta !== undefined ? [volta] : [])),
       ...transferidos.flatMap(({ alvo }) => (alvo.tipo === 'usuario' ? [alvo.id] : [])),
       ...desligados,
     ]
-    await repositorio.travarUsuarios(aTravar)
+    await repositorio.lockUsuarios(aTravar)
     // Destino e origem de todo marcado: o gerar acesso e a decisão em sala da turma antiga esperam, como os da nova.
     const tocadas = [...new Set([...turmasTocadas(lido.data, turmas), ...transferidos.map(({ alvo }) => alvo.turmaId)])].sort()
-    await repositorio.travarTurmas(ano.id, tocadas)
-    await repositorio.travarPedidosPendentes(ano.id, tocadas)
+    await repositorio.lockTurmas(ano.id, tocadas)
+    await repositorio.lockPedidosPendentes(ano.id, tocadas)
   },
 
   async planejar(repositorio, ano, guardado, marcas) {

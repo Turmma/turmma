@@ -25,7 +25,7 @@ beforeEach(async () => {
   )
   modulos = await importar()
   fila.push({ status: 200, corpo: { token: 'token-de-acesso', expiraEm: new Date(Date.now() + 600_000).toISOString() } })
-  await modulos.sessao.abrirSessaoPeloCookie()
+  await modulos.sessao.openSessaoPeloCookie()
   chamadas.length = 0
 })
 

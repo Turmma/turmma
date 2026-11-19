@@ -164,7 +164,7 @@ export class TrocaDeNome {
           if (AUDITADAS.has(coluna.tabela)) {
             const tabela = coluna.tabela as (typeof TABELAS_AUDITADAS_NA_TROCA_DE_NOME)[number]
             const novas = alteradas.rows.map(({ id }) => id).filter((id) => !auditadas.has(`${tabela}/${id}`))
-            for (const id of novas) await registro.gravar(tx, 'titular.nome_trocado', { entidadeId: id, depois: { tabela, pedidoId }, ...autoria })
+            for (const id of novas) await registro.save(tx, 'titular.nome_trocado', { entidadeId: id, depois: { tabela, pedidoId }, ...autoria })
             // Só marca depois de gravar: a faixa que desfaz (transação) não deixa a linha como já assinada.
             for (const id of novas) auditadas.add(`${tabela}/${id}`)
           }

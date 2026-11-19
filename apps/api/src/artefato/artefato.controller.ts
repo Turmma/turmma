@@ -27,15 +27,15 @@ export class ArtefatoController {
   @Get()
   @RequirePermissao('artefato', 'listar')
   @Header('Cache-Control', 'no-store')
-  listar(@Query(new ZodValidationPipe(artefatosQuerySchema)) consulta: ArtefatosQuery): Promise<ListaDeArtefatosResponse> {
-    return this.artefatos.listar(consulta)
+  list(@Query(new ZodValidationPipe(artefatosQuerySchema)) consulta: ArtefatosQuery): Promise<ListaDeArtefatosResponse> {
+    return this.artefatos.list(consulta)
   }
 
   @Get(':id')
   @RequirePermissao('artefato', 'ler')
   @Header('Cache-Control', 'no-store')
-  ler(@Param('id', IdPipe) artefatoId: string): Promise<ArtefatoResponse> {
-    return this.artefatos.ler(artefatoId)
+  read(@Param('id', IdPipe) artefatoId: string): Promise<ArtefatoResponse> {
+    return this.artefatos.read(artefatoId)
   }
 
   @Patch(':id')

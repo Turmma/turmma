@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { MENSAGENS_DE_ERRO, montarTime, type ChaveDeFuncao } from '@educa/shared'
+import { MENSAGENS_DE_ERRO, buildTime, type ChaveDeFuncao } from '@educa/shared'
 import { cleanup, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -28,7 +28,7 @@ const VALOR_DA_TURMA_A = `${TURMA_A.id}:${QUIMICA.id}`
 const VINCULO: FakeResponse = { status: 200, corpo: { itens: [{ id: id(401), turma: TURMA_A, disciplina: QUIMICA, estado: 'confirmado' }] } }
 const SEM_VINCULO: FakeResponse = { status: 200, corpo: { itens: [] } }
 const erro = (status: number, codigo: string): FakeResponse => ({ status, corpo: { erro: { codigo, mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } })
-const timeSem = (...suspensas: ChaveDeFuncao[]): FakeResponse => ({ status: 200, corpo: montarTime(new Set(suspensas)) })
+const timeSem = (...suspensas: ChaveDeFuncao[]): FakeResponse => ({ status: 200, corpo: buildTime(new Set(suspensas)) })
 
 /** Uma atividade objetiva já gerada: o que a Adaptação precisa ter para abrir o formulário. */
 const ATIVIDADE = {

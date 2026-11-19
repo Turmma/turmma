@@ -1,7 +1,7 @@
 import { ErrorCode } from '@educa/shared'
 import { useEffect, useRef, useState } from 'react'
 import { ApiError } from '../api/client'
-import { verificarConta } from '../api/senha'
+import { verifyConta } from '../api/senha'
 import { CascaPublica } from '../components/CascaPublica'
 import { ErrorState, LoadingState } from '../components/states'
 import { clearFragment, readFragmentToken } from './url-fragment'
@@ -39,7 +39,7 @@ type Etapa =
  * falha (link que não vale, ou rede) recomeça: o aviso sai e o pedido é refeito.
  */
 export function VerificarEmail() {
-  const { etapa, tentarDeNovo } = useLinkDeVerificar()
+  const { etapa, retry: tentarDeNovo } = useLinkDeVerificar()
   const confirmacao = useRef<HTMLParagraphElement>(null)
 
   // O "Confirmando…" saiu da tela com a resposta: o foco vai para o resultado, e o leitor de tela o diz.
@@ -87,7 +87,7 @@ export function VerificarEmail() {
  * O estado do link: o token lido do fragmento, a etapa, o pedido de uso único e o recomeço. Fora do componente só para a tela caber nas
  * 80 linhas de função que o lint permite; nada aqui é de outra tela.
  */
-function useLinkDeVerificar(): { etapa: Etapa; tentarDeNovo: () => void } {
+function useLinkDeVerificar(): { etapa: Etapa; retry: () => void } {
   const [token, definirToken] = useState(readFragmentToken)
   const [etapa, definirEtapa] = useState<Etapa>(token === undefined ? { nome: 'sem-token' } : { nome: 'confirmando' })
   // Sobe a cada link novo nesta aba. No `ref`, para o pedido no ar conferir a vez de agora quando volta; no estado, para o efeito recomeçar.
@@ -123,7 +123,7 @@ function useLinkDeVerificar(): { etapa: Etapa; tentarDeNovo: () => void } {
     if (pedidoFeito.current === chave) return
     pedidoFeito.current = chave
     tokenGasto.current = token
-    verificarConta({ token }).then(
+    verifyConta({ token }).then(
       () => {
         if (vezDoLink.current === vez) definirEtapa({ nome: 'confirmado' })
       },
@@ -138,10 +138,10 @@ function useLinkDeVerificar(): { etapa: Etapa; tentarDeNovo: () => void } {
   }, [token, vez, tentativa])
 
   /** O pedido de novo, com o token que continua na memória da tela: recarregar o perderia, porque ele já saiu da barra. */
-  function tentarDeNovo(): void {
+  function retry(): void {
     definirEtapa({ nome: 'confirmando' })
     definirTentativa((anterior) => anterior + 1)
   }
 
-  return { etapa, tentarDeNovo }
+  return { etapa, retry }
 }

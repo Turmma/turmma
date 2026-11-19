@@ -42,8 +42,8 @@ export class AnalistaService {
     return resumoDoAnalistaResponseSchema.parse({ resumo: ultimo === undefined ? null : { id: ultimo.id, geradoEm: ultimo.geradoEm.toISOString(), conteudo: ultimo.conteudo } })
   }
 
-  async gerar({ chaveEnvio }: GerarResumoDoAnalistaRequest): Promise<ExecucaoAceitaResponse> {
-    await this.limite.contar()
+  async generate({ chaveEnvio }: GerarResumoDoAnalistaRequest): Promise<ExecucaoAceitaResponse> {
+    await this.limite.count()
     return this.agendador.agendar({ comando: 'resumo_do_analista', chaveEnvio, entradaDaExecucao: { tarefa: 'resumo_do_analista' } })
   }
 
@@ -70,7 +70,7 @@ export class AnalistaService {
         sinais: { travou: sinais.get('travou') ?? 0, resposta_pronta: sinais.get('resposta_pronta') ?? 0, duvida_repetida: sinais.get('duvida_repetida') ?? 0 },
       }
       // A cada leitura, na mesma transação, antes de responder (regra 20, item 10; regra 70, item 8).
-      await registro.gravar(tx, 'analista.nominal_lido', { entidadeId: turma.id, depois: { professores: new Set(professores.map((professor) => professor.id)).size }, finalidade })
+      await registro.save(tx, 'analista.nominal_lido', { entidadeId: turma.id, depois: { professores: new Set(professores.map((professor) => professor.id)).size }, finalidade })
       return montada
     })
     return analistaNominalResponseSchema.parse(resposta)

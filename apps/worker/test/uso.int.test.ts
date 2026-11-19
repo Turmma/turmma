@@ -11,8 +11,8 @@ import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { JOB_SCHEDULES, createScheduleProcessor, SCHEDULES_QUEUE, SCHEDULE_TIMEZONE, registerJobSchedulers } from '../src/job-schedules.js'
 import type { StorageConfig } from '../src/config.js'
 import { createWorker, type WorkerRuntime } from '../src/composition.js'
-import { criarConsolidacaoDeUso, FALHAS_DE_STORAGE_SEGUIDAS_ATE_DESISTIR } from '../src/processors/consolidar-uso.js'
-import { criarClienteS3, StorageSizeReader } from '../src/storage/storage-size-reader.js'
+import { createConsolidacaoDeUso, FALHAS_DE_STORAGE_SEGUIDAS_ATE_DESISTIR } from '../src/processors/consolidar-uso.js'
+import { createClienteS3, StorageSizeReader } from '../src/storage/storage-size-reader.js'
 import { QueueFixtures, configuracaoDoBanco, janelaPadraoDoAmbiente, InMemoryLog, urlRedisDeFila, vagasPadraoDoAmbiente } from './queue.fixture.js'
 import { jobExecution } from './job-execution.fixture.js'
 
@@ -70,7 +70,7 @@ describe('uso por escola: contagem, consolidação e bytes', () => {
     expect.poll(() => bancada.redis.get(`${bancada.prefixo}:uso:${dia}:${escolaId}:${metrica}`), { timeout: 5_000, interval: 50 }).toBe(String(valor))
 
   const consolidacao = () =>
-    criarConsolidacaoDeUso({ contador, repositorio, storage: new StorageSizeReader(s3, STORAGE.bucket), relogio, logger: log.logger })
+    createConsolidacaoDeUso({ contador, repositorio, storage: new StorageSizeReader(s3, STORAGE.bucket), relogio, logger: log.logger })
 
   /** Roda como o worker roda um job `sistema.*`: no contexto da rotina do sistema, sem escola. */
   const consolidar = (processador = consolidacao()) => {
@@ -96,7 +96,7 @@ describe('uso por escola: contagem, consolidação e bytes', () => {
     agora = TERCA_10H
     contador = new UsageMeter(bancada.redis, { relogio, prefixo: bancada.prefixo })
     repositorio = new UsageRepository(bancada.banco)
-    s3 = criarClienteS3(STORAGE)
+    s3 = createClienteS3(STORAGE)
     log.linhas.length = 0
   })
 
@@ -124,7 +124,7 @@ describe('uso por escola: contagem, consolidação e bytes', () => {
       relogio,
     })
     montados.push(worker)
-    bancada.despachante(log, { relogio }).iniciar()
+    bancada.despachante(log, { relogio }).start()
     const jobs = await Promise.all([1, 2, 3].map(() => bancada.enfileirar(escolaA)))
     await expect.poll(async () => Promise.all(jobs.map(async (id) => (await bancada.estado(id))?.estado)), { timeout: 20_000, interval: 100 }).toEqual([
       'concluido',
@@ -164,12 +164,12 @@ describe('uso por escola: contagem, consolidação e bytes', () => {
     const naEscola = <T>(escolaId: string, funcao: () => Promise<T>) => runInContext({ requisicaoId: randomUUID(), escolaId }, funcao)
     const semEscola = <T>(funcao: () => Promise<T>) => runInContext({ requisicaoId: randomUUID() }, funcao)
 
-    await expect(semEscola(() => repositorio.gravarDia('2026-09-15', { requisicoes: 1 }))).rejects.toThrow('consulta com escopo sem escola no contexto')
+    await expect(semEscola(() => repositorio.saveDia('2026-09-15', { requisicoes: 1 }))).rejects.toThrow('consulta com escopo sem escola no contexto')
     await expect(semEscola(() => repositorio.doDia('2026-09-15'))).rejects.toThrow('consulta com escopo sem escola no contexto')
     await expect(semEscola(() => repositorio.doMes('2026-09'))).rejects.toThrow('consulta com escopo sem escola no contexto')
 
     // As duas chamadas começam juntas na mesma instância: a escola é a de cada contexto, lida a cada chamada.
-    await Promise.all([naEscola(escolaA, () => repositorio.gravarDia('2026-09-15', { requisicoes: 3, jobs: 1 })), naEscola(escolaB, () => repositorio.gravarDia('2026-09-15', { requisicoes: 8, jobs: 2 }))])
+    await Promise.all([naEscola(escolaA, () => repositorio.saveDia('2026-09-15', { requisicoes: 3, jobs: 1 })), naEscola(escolaB, () => repositorio.saveDia('2026-09-15', { requisicoes: 8, jobs: 2 }))])
 
     expect(await usoDoDia(escolaA, '2026-09-15')).toEqual({ requisicoes: 3, jobs: 1, bytesStorage: 0 })
     expect(await usoDoDia(escolaB, '2026-09-15')).toEqual({ requisicoes: 8, jobs: 2, bytesStorage: 0 })
@@ -195,10 +195,10 @@ describe('uso por escola: contagem, consolidação e bytes', () => {
     await aguardarContador(escolaA, '2026-09-15', 'req', 6)
     agora = QUARTA_2H
     // A primeira execução grava e morre antes do DEL.
-    const morreAntesDeApagar = criarConsolidacaoDeUso({
+    const morreAntesDeApagar = createConsolidacaoDeUso({
       contador: {
-        lerDiasFechados: (hoje) => contador.lerDiasFechados(hoje),
-        apagarConsolidado: () => Promise.reject(new Error('worker morto')),
+        readDiasFechados: (hoje) => contador.readDiasFechados(hoje),
+        deleteConsolidado: () => Promise.reject(new Error('worker morto')),
       },
       repositorio,
       storage: new StorageSizeReader(s3, STORAGE.bucket),
@@ -219,7 +219,7 @@ describe('uso por escola: contagem, consolidação e bytes', () => {
     await runInContext({ requisicaoId: randomUUID(), escolaId: escolaA }, async () => {
       await bancada.redis.incr(`${bancada.prefixo}:uso:2026-09-15:${escolaA}:req`)
       // A consolidação leu 2; o contador já está em 3.
-      expect(await contador.apagarConsolidado('2026-09-15', 'req', 2)).toBe(false)
+      expect(await contador.deleteConsolidado('2026-09-15', 'req', 2)).toBe(false)
     })
     agora = QUARTA_2H
     await consolidar()
@@ -320,15 +320,15 @@ describe('uso por escola: contagem, consolidação e bytes', () => {
      * precisa da escola recusada antes da boa para provar que o laço segue depois da recusa.
      */
     const contadorComPrimeiro = (...primeiro: string[]) => ({
-      lerDiasFechados: async (hoje: string) => {
+      readDiasFechados: async (hoje: string) => {
         const posicao = (escolaId: string) => (primeiro.includes(escolaId) ? primeiro.indexOf(escolaId) : primeiro.length)
-        return (await contador.lerDiasFechados(hoje)).sort((a, b) => posicao(a.escolaId) - posicao(b.escolaId))
+        return (await contador.readDiasFechados(hoje)).sort((a, b) => posicao(a.escolaId) - posicao(b.escolaId))
       },
-      apagarConsolidado: (dia: string, metrica: 'req' | 'jobs', valor: number) => contador.apagarConsolidado(dia, metrica, valor),
+      deleteConsolidado: (dia: string, metrica: 'req' | 'jobs', valor: number) => contador.deleteConsolidado(dia, metrica, valor),
     })
 
-    const consolidacaoMedida = (sobrepor: Partial<Parameters<typeof criarConsolidacaoDeUso>[0]> = {}) =>
-      criarConsolidacaoDeUso({ contador, repositorio, storage: new StorageSizeReader(s3, STORAGE.bucket), relogio, logger: log.logger, medidor: medidor.medidor, ...sobrepor })
+    const consolidacaoMedida = (sobrepor: Partial<Parameters<typeof createConsolidacaoDeUso>[0]> = {}) =>
+      createConsolidacaoDeUso({ contador, repositorio, storage: new StorageSizeReader(s3, STORAGE.bucket), relogio, logger: log.logger, medidor: medidor.medidor, ...sobrepor })
 
     /** A métrica por origem e causa. Ela não leva escola: o teste a confere contra os avisos do log. */
     const ignoradas = async () =>
@@ -414,7 +414,7 @@ describe('uso por escola: contagem, consolidação e bytes', () => {
       marcarRequisicoes(orfaC, 1)
       await aguardarContador(orfaA, '2026-09-15', 'req', 5)
       await aguardarContador(orfaC, '2026-09-15', 'req', 1)
-      const storage = { listarEscolas: () => Promise.resolve([orfaA, orfaB]), bytesDaEscola: () => Promise.resolve(3) }
+      const storage = { listEscolas: () => Promise.resolve([orfaA, orfaB]), bytesDaEscola: () => Promise.resolve(3) }
 
       agora = QUARTA_2H
       const falha = await consolidar(consolidacaoMedida({ storage })).then(
@@ -450,14 +450,14 @@ describe('uso por escola: contagem, consolidação e bytes', () => {
       marcarRequisicoes(real, 2)
       await aguardarContador(real, '2026-09-15', 'req', 2)
       agora = QUARTA_2H
-      await consolidar(consolidacaoMedida({ storage: { listarEscolas: () => Promise.resolve([orfaDoStorage]), bytesDaEscola: () => Promise.resolve(3) } }))
+      await consolidar(consolidacaoMedida({ storage: { listEscolas: () => Promise.resolve([orfaDoStorage]), bytesDaEscola: () => Promise.resolve(3) } }))
       expect((await usoDoDia(real, '2026-09-15')).requisicoes).toBe(2)
 
       agora = TERCA_10H
       marcarRequisicoes(orfaDoContador, 4)
       await aguardarContador(orfaDoContador, '2026-09-15', 'req', 4)
       agora = QUARTA_2H
-      await consolidar(consolidacaoMedida({ storage: { listarEscolas: () => Promise.resolve([real]), bytesDaEscola: () => Promise.resolve(8) } }))
+      await consolidar(consolidacaoMedida({ storage: { listEscolas: () => Promise.resolve([real]), bytesDaEscola: () => Promise.resolve(8) } }))
       expect((await usoDoDia(real, '2026-09-15')).bytesStorage).toBe(8)
       expect(avisosDas([orfaDoStorage, orfaDoContador])).toEqual([
         { escolaId: orfaDoStorage, origem: 'storage', causa: 'escola_inexistente' },
@@ -468,7 +468,7 @@ describe('uso por escola: contagem, consolidação e bytes', () => {
 
     it('sem escola nenhuma encontrada (nenhum contador, storage vazio), a consolidação termina sem falha', async () => {
       agora = QUARTA_2H
-      await consolidar(consolidacaoMedida({ contador: { lerDiasFechados: () => Promise.resolve([]), apagarConsolidado: () => Promise.resolve(true) }, storage: { listarEscolas: () => Promise.resolve([]), bytesDaEscola: () => Promise.resolve(0) } }))
+      await consolidar(consolidacaoMedida({ contador: { readDiasFechados: () => Promise.resolve([]), deleteConsolidado: () => Promise.resolve(true) }, storage: { listEscolas: () => Promise.resolve([]), bytesDaEscola: () => Promise.resolve(0) } }))
       expect(log.doEvento('uso.nenhuma_escola_no_banco')).toEqual([])
       expect(log.doEvento('uso.consolidado')).toEqual([expect.objectContaining({ diasTotal: 0, escolasTotal: 0, ignoradasTotal: 0 })])
     })
@@ -507,7 +507,7 @@ describe('uso por escola: contagem, consolidação e bytes', () => {
       // 23503 de outra restrição não é "a escola não existe": só a FK da escola libera o pulo.
       const outraFk = Object.assign(new Error('insert or update violates foreign key constraint'), { code: '23503', severity: 'ERROR', constraint: 'outra_tabela_fk' })
       for (const erro of [bancoFora, conexaoDerrubada, outraFk]) {
-        await expect(consolidar(consolidacaoMedida({ repositorio: { gravarDia: () => Promise.reject(erro) } }))).rejects.toBe(erro)
+        await expect(consolidar(consolidacaoMedida({ repositorio: { saveDia: () => Promise.reject(erro) } }))).rejects.toBe(erro)
       }
       expect(log.doEvento('uso.escola_ignorada')).toEqual([])
       expect(await ignoradas()).toEqual({})
@@ -520,7 +520,7 @@ describe('uso por escola: contagem, consolidação e bytes', () => {
       const real = new StorageSizeReader(s3, STORAGE.bucket)
       const pastaQuebrada = Object.assign(new Error('AccessDenied'), { name: 'AccessDenied' })
       const storage = {
-        listarEscolas: () => Promise.resolve([escolaA, escolaB, escolaC]),
+        listEscolas: () => Promise.resolve([escolaA, escolaB, escolaC]),
         bytesDaEscola: () => (currentContext()?.escolaId === escolaB ? Promise.reject(pastaQuebrada) : real.bytesDaEscola()),
       }
       await guardar(`escolas/${escolaA}/a.pdf`, 11)
@@ -541,7 +541,7 @@ describe('uso por escola: contagem, consolidação e bytes', () => {
       const erros = new Map(comErro.map((escolaId, indice) => [escolaId, Object.assign(new Error(`AccessDenied ${indice}`), { name: 'AccessDenied' })]))
       const medidas: string[] = []
       const storage = {
-        listarEscolas: () => Promise.resolve(escolas),
+        listEscolas: () => Promise.resolve(escolas),
         bytesDaEscola: () => {
           const escolaId = currentContext()?.escolaId ?? ''
           medidas.push(escolaId)
@@ -562,7 +562,7 @@ describe('uso por escola: contagem, consolidação e bytes', () => {
       const storageFora = Object.assign(new Error('connect ECONNREFUSED'), { code: 'ECONNREFUSED' })
       let medicoes = 0
       const storage = {
-        listarEscolas: () => Promise.resolve(escolas),
+        listEscolas: () => Promise.resolve(escolas),
         bytesDaEscola: () => {
           medicoes++
           return Promise.reject(storageFora)
@@ -633,7 +633,7 @@ describe('uso por escola: contagem, consolidação e bytes', () => {
       )
       montados.push(worker)
       expect(worker.agendamentos).toBeDefined()
-      bancada.despachante(log, { relogio }).iniciar()
+      bancada.despachante(log, { relogio }).start()
 
       await fila.add(TIPO_CONSOLIDAR_USO, {})
       await expect.poll(() => usoDoDia(escolaA, '2026-09-15'), { timeout: 20_000, interval: 100 }).toEqual({ requisicoes: 8, jobs: 0, bytesStorage: 0 })

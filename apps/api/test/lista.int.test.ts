@@ -1,4 +1,4 @@
-import { createDatabase, createPool, executarPlanilha, runInContext, SchoolSemaphore, type Database, type DatabasePool } from '@educa/core'
+import { createDatabase, createPool, runPlanilha, runInContext, SchoolSemaphore, type Database, type DatabasePool } from '@educa/core'
 import { ErrorCode, LIMITE_DA_PLANILHA_POR_MINUTO, listaDaTurmaResponseSchema, previaDaPlanilhaResponseSchema, MAXIMO_DE_BYTES_DA_LISTA, MAXIMO_DE_LINHAS_DA_LISTA, MENSAGENS_DE_ERRO, VAGAS_DA_PLANILHA_POR_ESCOLA } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -15,7 +15,7 @@ import { SessaoFixtures, type TestSessao } from './sessao.fixture.js'
  * com forma de documento (G2), e o log. Desde a tarefa 8.0 da F2 (`tasks/prd-onboarding-por-convite/`, "A1 que muda de
  * regra") a prévia e a gravação do texto seguem a planilha de alunos: o contrato da importação (as linhas só com número,
  * resultado e código; as contagens; os candidatos), a gravação responde 202 e o job `estrutura.gravar-planilha` grava (aqui
- * rodado pelo `executarPlanilha`, como o worker o roda), o teto é o da planilha (3.000 linhas, 512 KB), e a matrícula que a
+ * rodado pelo `runPlanilha`, como o worker o roda), o teto é o da planilha (3.000 linhas, 512 KB), e a matrícula que a
  * escola já tem deixa de ser `CONFLITO`: é "já existe", "nome corrigido" ou "muda de turma". As varreduras I3, P1, A1, A3 e A4
  * das cinco rotas moram em `escola-montada.int.test.ts`, e o E3 (a leitura do texto) em `lista-reader.test.ts`.
  * Postgres real do compose de teste; nomes e matrículas gerados.
@@ -105,7 +105,7 @@ describe('lista de nomes da turma (A1, tarefa 2.0): prévia, gravação, avulso,
   }
 
   /** Roda o job uma vez (tentativa 1), no contexto da escola do job, como o executor do worker o abre. */
-  const rodar = (escolaId: string, importacaoId: string) => runInContext({ requisicaoId: randomUUID(), escolaId }, () => executarPlanilha(bancoDoJob, importacaoId))
+  const rodar = (escolaId: string, importacaoId: string) => runInContext({ requisicaoId: randomUUID(), escolaId }, () => runPlanilha(bancoDoJob, importacaoId))
 
   /** O estado e o resumo da importação, como ficaram no banco. */
   async function importacaoDe(id: string): Promise<{ estado: string; resumo: Record<string, number> | null }> {
@@ -877,7 +877,7 @@ describe('lista de nomes da turma (A1, tarefa 2.0): prévia, gravação, avulso,
         expect(erroDe(await gravar(e, e.t1, lista))).toEqual(LIMITE_EXCEDIDO)
         expect((await previa(outra, outra.t1, lista)).status).toBe(200)
       } finally {
-        await Promise.all(ocupadas.map((vaga) => vaga?.liberar()))
+        await Promise.all(ocupadas.map((vaga) => vaga?.release()))
       }
       expect((await previa(e, e.t1, lista)).status).toBe(200)
       expect(await importacoesDe(e.escolaId)).toEqual([])

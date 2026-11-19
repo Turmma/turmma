@@ -128,7 +128,7 @@ export class ResilientAdapter implements ModelAdapter {
   async chamar<Entrada, Saida>(chamada: ModelCall<Entrada, Saida>): Promise<ModelResponse> {
     const perfil = chamada.tarefa.perfil
     try {
-      const { resposta } = await this.resiliencia(perfil, chamada.modelo ?? this.interno.modeloDoPerfil(perfil)).execute((contexto) => this.tentar(chamada, contexto.signal), chamada.sinal)
+      const { resposta } = await this.resiliencia(perfil, chamada.modelo ?? this.interno.modeloDoPerfil(perfil)).execute((contexto) => this.attempt(chamada, contexto.signal), chamada.sinal)
       return resposta
     } catch (erro) {
       throw traduzir(erro)
@@ -136,7 +136,7 @@ export class ResilientAdapter implements ModelAdapter {
   }
 
   /** Uma tentativa. O `cockatiel` não corta a espera da repetição, e por isso uma tentativa que começa com o prazo já vencido não sai. */
-  private async tentar<Entrada, Saida>(chamada: ModelCall<Entrada, Saida>, sinal: AbortSignal): Promise<Tentativa> {
+  private async attempt<Entrada, Saida>(chamada: ModelCall<Entrada, Saida>, sinal: AbortSignal): Promise<Tentativa> {
     if (sinal.aborted) throw new ChamadaCancelada()
     const perfil = chamada.tarefa.perfil
     const inicio = Date.now()

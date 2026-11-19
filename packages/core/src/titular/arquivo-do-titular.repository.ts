@@ -94,7 +94,7 @@ export class ArquivoDoTitularRepository {
    * **O `apagado_em` não é limpo**: o que a eliminação do titular marcou fica marcado, e o job não o ressuscita.
    * A chave do objeto é a do check `arquivo_titular_chave_da_escola`: `titular/<escola>/<pedido>/<versao>.json`.
    */
-  async gravar(pedidoId: string, versao: VersaoDoArquivo, bytes: number, prontoEm: Date): Promise<string> {
+  async save(pedidoId: string, versao: VersaoDoArquivo, bytes: number, prontoEm: Date): Promise<string> {
     const escolaId = requireEscolaId()
     const chaveObjeto = objectKey(escolaId, pedidoId, versao)
     const expiraEm = new Date(prontoEm.getTime() + VALIDADE_DO_ARQUIVO_DIAS * MS_POR_DIA)
@@ -149,7 +149,7 @@ export class ArquivoDoTitularRepository {
   }
 
   /** Apaga as linhas cujo objeto já saiu do storage. O `id` que outra execução já apagou não conta. */
-  async apagarLinhas(ids: readonly string[]): Promise<number> {
+  async deleteLinhas(ids: readonly string[]): Promise<number> {
     if (ids.length === 0) return 0
     const apagadas = await this.banco
       .delete(arquivoTitular)

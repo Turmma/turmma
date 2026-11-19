@@ -33,7 +33,7 @@ export interface JanelaQueAbre {
  * do computador da escola) devolve `null`, e aí quem chama copia o texto. A aba nova não fica com a referência desta
  * (`opener`), que a deixaria trocar o endereço da tela do professor.
  */
-export function abrirWhatsApp(texto: string, janela: JanelaQueAbre): boolean {
+export function openWhatsApp(texto: string, janela: JanelaQueAbre): boolean {
   const aberta = janela.open(enderecoDoWhatsApp(texto), '_blank')
   if (aberta === null) return false
   aberta.opener = null

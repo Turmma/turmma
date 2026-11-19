@@ -301,7 +301,7 @@ function guardarToken(resposta: RenovacaoResponse, sessaoNova = false): void {
   bilheteDaTrocaGuardado = undefined
   avisoParaAEntrada = undefined
   anunciar()
-  if (sessaoNova) limparDadosDaEscola()
+  if (sessaoNova) clearDadosDaEscola()
   else if (voltouAValer) for (const ouvinte of aoAbrir) ouvinte()
 }
 
@@ -310,7 +310,7 @@ function guardarToken(resposta: RenovacaoResponse, sessaoNova = false): void {
  * e em toda sessão nova, inclusive a da troca de escola, que não encerra nada nesta aba mas muda o mundo inteiro que
  * a tela mostra (RF14).
  */
-function limparDadosDaEscola(): void {
+function clearDadosDaEscola(): void {
   for (const ouvinte of aoTrocar) ouvinte()
 }
 
@@ -352,7 +352,7 @@ function encerrarLocalmente(destino: 'anonima' | 'vencida' | 'suspensa'): void {
   // Avisa antes de limpar: assim o React já tem o desmonte da área autenticada agendado quando o cache esvazia, e
   // nenhum observador ainda montado recria a consulta que acabou de sair.
   anunciar()
-  limparDadosDaEscola()
+  clearDadosDaEscola()
 }
 
 /** O fim de sessão pedido pela pessoa: a entrada é o caminho, e nada desta aba continua. */
@@ -406,7 +406,7 @@ export function lembrarQuemEsta(eu: { usuarioId: string; papel: PapelDeUsuario; 
   return outraPessoa
 }
 
-function esperar(ms: number): Promise<void> {
+function wait(ms: number): Promise<void> {
   return new Promise((resolver) => setTimeout(resolver, ms))
 }
 
@@ -415,7 +415,7 @@ function erroDaApi(erro: unknown, codigo: ErrorCode): ApiError | undefined {
   return erro instanceof ApiError && erro.codigo === codigo ? erro : undefined
 }
 
-function ehCodigo(erro: unknown, codigo: ErrorCode): boolean {
+function isCodigo(erro: unknown, codigo: ErrorCode): boolean {
   return erroDaApi(erro, codigo) !== undefined
 }
 
@@ -449,8 +449,8 @@ async function pedirRenovacao(): Promise<RenovacaoResponse> {
   try {
     return await rotacionar()
   } catch (erro) {
-    if (!ehCodigo(erro, ErrorCode.JA_RENOVADO)) throw erro
-    await esperar(ESPERA_DEPOIS_DO_JA_RENOVADO_MS)
+    if (!isCodigo(erro, ErrorCode.JA_RENOVADO)) throw erro
+    await wait(ESPERA_DEPOIS_DO_JA_RENOVADO_MS)
     return rotacionar()
   }
 }
@@ -465,7 +465,7 @@ export function renovarSessao(): Promise<void> {
   // Sessão já encerrada nesta aba: renovar aqui ressuscitaria, pelo cookie que pode ter sobrevivido a um "Sair" que
   // a API não confirmou, justamente a sessão que a pessoa acabou de encerrar — e apagaria o aviso disso. Na sessão
   // `vencida`, renovar devolveria a área autenticada por baixo do diálogo de login sem ninguém ter entrado. Quem abre
-  // a aba de novo passa por `abrirSessaoPeloCookie`, que sai de `desconhecida`, e o login passa por `guardarToken`.
+  // a aba de novo passa por `openSessaoPeloCookie`, que sai de `desconhecida`, e o login passa por `guardarToken`.
   if (estado === 'anonima' || estado === 'vencida') return Promise.reject(new ApiError(ErrorCode.NAO_AUTENTICADO))
   // `suspensa`: a API já recusou, e repetir o pedido só renderia outro 403 (regra 80: nenhuma chamada sai da aba).
   if (estado === 'suspensa') return Promise.reject(new ApiError(ErrorCode.ACESSO_SUSPENSO))
@@ -473,7 +473,7 @@ export function renovarSessao(): Promise<void> {
     .then(guardarToken, (erro: unknown) => {
       // O lugar único do `ACESSO_SUSPENSO` (Tech Spec, seção 9, "Login suspenso"): serve à aba que abre pelo cookie, à
       // chamada que voltou 401 e ao "Sair". A sessão acaba aqui, e quem chamou ainda recebe o erro.
-      if (ehCodigo(erro, ErrorCode.ACESSO_SUSPENSO)) suspenderSessao()
+      if (isCodigo(erro, ErrorCode.ACESSO_SUSPENSO)) suspenderSessao()
       throw erro
     })
     .finally(() => {
@@ -492,7 +492,7 @@ export function renovarSessao(): Promise<void> {
  * - Qualquer outra falha (5xx, sem rede): fica `indisponivel`. Ninguém é mandado para o login por causa de uma
  *   queda do Postgres ou da rede da escola (Tech Spec, seção 7c; regra 80, item 6).
  */
-export async function abrirSessaoPeloCookie(): Promise<void> {
+export async function openSessaoPeloCookie(): Promise<void> {
   if (token !== undefined) return
   // Suspensa, a aba não tenta de novo: a tela é final, e o único caminho é o link dela.
   if (estado === 'suspensa') return
@@ -504,7 +504,7 @@ export async function abrirSessaoPeloCookie(): Promise<void> {
     // traria de volta o "Tentar de novo" que não adianta. Lido por `estadoDaSessao()`, que a guarda de cima não restringe.
     if (estadoDaSessao() === 'suspensa') return
     ultimoErro = erro
-    definirEstado(ehCodigo(erro, ErrorCode.NAO_AUTENTICADO) ? 'anonima' : 'indisponivel')
+    definirEstado(isCodigo(erro, ErrorCode.NAO_AUTENTICADO) ? 'anonima' : 'indisponivel')
   }
 }
 
@@ -527,7 +527,7 @@ export async function authedRequest<T>(caminho: string, esquema: ResponseSchema<
   try {
     return await apiRequest(caminho, esquema, { ...opcoes, token: usado })
   } catch (erro) {
-    if (!ehCodigo(erro, ErrorCode.NAO_AUTENTICADO)) throw erro
+    if (!isCodigo(erro, ErrorCode.NAO_AUTENTICADO)) throw erro
     // A sessão acabou enquanto esta chamada estava no ar (o "Sair" da pessoa, por exemplo): repetir agora só mandaria
     // uma requisição sem credencial nenhuma à API, para ouvir o mesmo 401. Lido por `estadoDaSessao()` de propósito:
     // o estado pode ter mudado durante o `await`, e a variável já estava restringida pela guarda do começo.
@@ -538,7 +538,7 @@ export async function authedRequest<T>(caminho: string, esquema: ResponseSchema<
       return await apiRequest(caminho, esquema, { ...opcoes, token })
     } catch (segundoErro) {
       // Recusada com o token recém-emitido: a sessão acabou mesmo (encerrada, inatividade, usuário desativado).
-      if (ehCodigo(segundoErro, ErrorCode.NAO_AUTENTICADO)) vencerSessao()
+      if (isCodigo(segundoErro, ErrorCode.NAO_AUTENTICADO)) vencerSessao()
       throw segundoErro
     }
   }
@@ -558,7 +558,7 @@ async function renovarComTokenVencido(usado: string | undefined): Promise<void> 
   try {
     await renovarSessao()
   } catch (erro) {
-    if (ehCodigo(erro, ErrorCode.NAO_AUTENTICADO)) vencerSessao()
+    if (isCodigo(erro, ErrorCode.NAO_AUTENTICADO)) vencerSessao()
     throw erro
   }
 }
@@ -579,7 +579,7 @@ function guardarEtapa(resposta: LoginResponse): void {
   else guardarDesafio(resposta.etapa, resposta.desafio)
 }
 
-async function enviarEtapa(caminho: string, pedido: unknown, desafioAtual?: string): Promise<LoginResponse> {
+async function sendEtapa(caminho: string, pedido: unknown, desafioAtual?: string): Promise<LoginResponse> {
   const resposta = await apiRequest(caminho, loginResponseSchema, { metodo: 'POST', corpo: pedido, token: desafioAtual })
   guardarEtapa(resposta)
   return resposta
@@ -591,7 +591,7 @@ async function enviarEtapa(caminho: string, pedido: unknown, desafioAtual?: stri
  * tentativa do contador da conta por causa de uma instância caindo.
  */
 async function etapaComFilaDoSemaforo(caminho: string, pedido: unknown): Promise<LoginResponse> {
-  return comFilaDoSemaforo(() => enviarEtapa(caminho, pedido))
+  return comFilaDoSemaforo(() => sendEtapa(caminho, pedido))
 }
 
 /** A repetição do 503 do semáforo, para toda chamada que faz hash de senha: a entrada e a troca da provisória. */
@@ -609,7 +609,7 @@ async function comFilaDoSemaforo<T>(tentar: () => Promise<T>): Promise<T> {
       // Esperar mais do que resta do orçamento só atrasaria a mensagem: a resposta não chegaria dentro dos 30 s de
       // "Entrando…" que a tela promete, e a pessoa ficaria olhando o botão sem saber que não entrou.
       if (atraso > limite - Date.now()) throw erro
-      await esperar(atraso)
+      await wait(atraso)
     }
   }
 }
@@ -666,7 +666,7 @@ export function trocarSenhaProvisoria(senha: string): Promise<LoginResponse> {
 export function entrarComSegundoFator(pedido: MfaRequest): Promise<LoginResponse> {
   const emAndamento = desafioDaEtapa('mfa')
   if (emAndamento === undefined) return Promise.reject(new ApiError(ErrorCode.NAO_AUTENTICADO))
-  return enviarEtapa(CAMINHO_DO_SEGUNDO_FATOR, pedido, emAndamento)
+  return sendEtapa(CAMINHO_DO_SEGUNDO_FATOR, pedido, emAndamento)
 }
 
 /**
@@ -684,7 +684,7 @@ async function encerrarNaApi(): Promise<void> {
       // Cookie recusado: a sessão acabou mesmo, e não há o que encerrar. Com `ACESSO_SUSPENSO` é igual: a API já
       // encerrou as sessões e apagou o cookie, e avisar "não foi possível sair" aí seria aviso à toa (20.0). Qualquer
       // outra falha é falha da saída.
-      if (ehCodigo(erro, ErrorCode.NAO_AUTENTICADO) || ehCodigo(erro, ErrorCode.ACESSO_SUSPENSO)) return
+      if (isCodigo(erro, ErrorCode.NAO_AUTENTICADO) || isCodigo(erro, ErrorCode.ACESSO_SUSPENSO)) return
       throw erro
     }
   }
@@ -692,15 +692,15 @@ async function encerrarNaApi(): Promise<void> {
     await apiRequest(CAMINHO_DA_SESSAO, EMPTY_BODY, { metodo: 'DELETE', token })
   } catch (erro) {
     // Recusada com o token em dia: não há mais sessão para encerrar.
-    if (ehCodigo(erro, ErrorCode.NAO_AUTENTICADO)) return
+    if (isCodigo(erro, ErrorCode.NAO_AUTENTICADO)) return
     // A saída acontece no fim da aula, com a rede da escola oscilando: uma repetição resolve a maioria dos casos.
-    await esperar(ESPERA_ENTRE_TENTATIVAS_DE_SAIDA_MS)
+    await wait(ESPERA_ENTRE_TENTATIVAS_DE_SAIDA_MS)
     try {
       await apiRequest(CAMINHO_DA_SESSAO, EMPTY_BODY, { metodo: 'DELETE', token })
     } catch (segundoErro) {
       // Resposta perdida na primeira tentativa: o pedido chegou, matou a sessão, e só a resposta se perdeu. Avisar
       // "não foi possível encerrar" aí é aviso à toa, e aviso à toa é aviso que ninguém lê.
-      if (ehCodigo(segundoErro, ErrorCode.NAO_AUTENTICADO)) return
+      if (isCodigo(segundoErro, ErrorCode.NAO_AUTENTICADO)) return
       throw segundoErro
     }
   }
@@ -732,7 +732,7 @@ export async function sair(): Promise<void> {
 export function escolherEscola(usuarioId: string): Promise<LoginResponse> {
   const emAndamento = desafioDaEtapa('escolher')
   if (emAndamento === undefined) return Promise.reject(new ApiError(ErrorCode.NAO_AUTENTICADO))
-  return enviarEtapa(CAMINHO_DA_ESCOLA_DA_SESSAO, { usuarioId }, emAndamento)
+  return sendEtapa(CAMINHO_DA_ESCOLA_DA_SESSAO, { usuarioId }, emAndamento)
 }
 
 /**

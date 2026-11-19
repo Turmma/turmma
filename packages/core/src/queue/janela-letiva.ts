@@ -46,7 +46,7 @@ export function fusoValido(fuso: string): boolean {
 
 /**
  * Se `agora` cai no horário letivo da escola: dia letivo no fuso dela, com a hora local em
- * `[inicio, fim)`. Fuso desconhecido lança: quem monta a janela o confere antes (`resolverJanela`, `lerJanelaPadrao`).
+ * `[inicio, fim)`. Fuso desconhecido lança: quem monta a janela o confere antes (`resolverJanela`, `readJanelaPadrao`).
  */
 export function estaNaJanela(janela: JanelaLetiva, agora: Date): boolean {
   return dentro(janela, agora.getTime())

@@ -8,7 +8,7 @@ import { lerAmbienteDeTeste, valorObrigatorio } from '../../../tools/ci/compose.
 import { compose, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
 import type { StorageConfig } from '../src/config.js'
 import { createWorker } from '../src/composition.js'
-import { criarMontagemDoArquivo } from '../src/processors/montar-arquivo.js'
+import { createMontagemDoArquivo } from '../src/processors/montar-arquivo.js'
 import { QueueFixtures, configuracaoDoBanco, InMemoryLog, urlRedisDeFila, vagasPadraoDoAmbiente } from './queue.fixture.js'
 import { jobExecution } from './job-execution.fixture.js'
 
@@ -61,7 +61,7 @@ describe('titular.montar-arquivo', () => {
   }
 
   function job(armazem: InMemoryFileStorage) {
-    return criarMontagemDoArquivo({ banco: bancada.banco, armazem, relogio, logger: log.logger })
+    return createMontagemDoArquivo({ banco: bancada.banco, armazem, relogio, logger: log.logger })
   }
 
   function rodar(escolaId: string | undefined, armazem: InMemoryFileStorage, dados: { pedidoId: string }): Promise<void> {
@@ -295,11 +295,11 @@ describe('titular.montar-arquivo', () => {
       { prefixo: bancada.prefixo, relogio },
     )
     onTestFinished(() => worker.encerrar())
-    const armazem = S3FileStorage.criar(STORAGE)
+    const armazem = S3FileStorage.create(STORAGE)
     onTestFinished(() => armazem.encerrar())
-    bancada.despachante(log, { relogio }).iniciar()
+    bancada.despachante(log, { relogio }).start()
     const chave = `titular/${escolaId}/${pedidoId}/completa.json`
-    onTestFinished(() => armazem.armazem.apagar(chave))
+    onTestFinished(() => armazem.armazem.delete(chave))
     const jobId = await runInContext({ requisicaoId: randomUUID(), escolaId }, () =>
       bancada.banco.transaction((tx) => bancada.enfileirador.enfileirar(tx, TIPO_MONTAR_ARQUIVO, { pedidoId })),
     )

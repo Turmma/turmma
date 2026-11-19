@@ -14,7 +14,7 @@ export class AulasController {
 
   @Put('aulas')
   @RequirePermissao('aula', 'gravar')
-  gravar(@Body(new ZodValidationPipe(gravarAulaRequestSchema)) corpo: GravarAulaRequest): Promise<GravarAulaResponse> {
-    return this.aulas.gravar(corpo)
+  save(@Body(new ZodValidationPipe(gravarAulaRequestSchema)) corpo: GravarAulaRequest): Promise<GravarAulaResponse> {
+    return this.aulas.save(corpo)
   }
 }

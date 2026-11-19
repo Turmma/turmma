@@ -30,7 +30,7 @@ export class AssistenteController {
   @Post('mensagens')
   @RequirePermissao('assistente', 'enviar_mensagem')
   @HttpCode(HttpStatus.ACCEPTED)
-  enviar(@Body(new ZodValidationPipe(mensagemAoAssistenteRequestSchema)) pedido: MensagemAoAssistenteRequest): Promise<ExecucaoAceitaResponse> {
-    return this.assistente.enviar(pedido)
+  send(@Body(new ZodValidationPipe(mensagemAoAssistenteRequestSchema)) pedido: MensagemAoAssistenteRequest): Promise<ExecucaoAceitaResponse> {
+    return this.assistente.send(pedido)
   }
 }

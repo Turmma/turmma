@@ -11,7 +11,7 @@ export class TimeController {
   @Get()
   @RequirePermissao('time', 'ler')
   @Header('Cache-Control', 'no-store')
-  ler(): Promise<TimeResponse> {
-    return this.time.ler()
+  read(): Promise<TimeResponse> {
+    return this.time.read()
   }
 }

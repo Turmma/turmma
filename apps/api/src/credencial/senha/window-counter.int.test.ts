@@ -58,8 +58,8 @@ describe('ContadorEmJanela: os contadores por IP do login (15.0), no Redis de fi
     expect(await contador.somar(chave)).toEqual({ valor: 2, doSeguro: false })
     // O segundo não renovou o prazo: ele só diminuiu. Com o prazo renovado a cada soma, um IP nunca sairia da janela.
     expect(await cliente.pttl(chave)).toBeLessThan(primeiroPrazo)
-    expect(await contador.ler(chave)).toEqual({ valor: 2, doSeguro: false })
-    expect(await contador.ler(contador.chaveDe(PREFIXO_EMAIL_POR_IP, ipSorteado()))).toEqual({ valor: 0, doSeguro: false })
+    expect(await contador.read(chave)).toEqual({ valor: 2, doSeguro: false })
+    expect(await contador.read(contador.chaveDe(PREFIXO_EMAIL_POR_IP, ipSorteado()))).toEqual({ valor: 0, doSeguro: false })
     // Nenhuma chave com o IP em texto, em lugar nenhum do Redis de fila.
     expect(await cliente.keys(`*${ip}*`)).toEqual([])
     expect(contador.proporcaoDoSeguro).toBe(0)
@@ -98,13 +98,13 @@ describe('ContadorEmJanela: os contadores por IP do login (15.0), no Redis de fi
       const contador = new WindowCounter(fora, CHAVE, { relogio })
       const chave = contador.chaveDe(PREFIXO_FALHAS_POR_IP_NA_ESCOLA, `${ESCOLA}|${ipSorteado()}`)
       for (let soma = 1; soma <= 3; soma++) expect(await contador.somar(chave)).toEqual({ valor: soma, doSeguro: true })
-      expect(await contador.ler(chave)).toEqual({ valor: 3, doSeguro: true })
+      expect(await contador.read(chave)).toEqual({ valor: 3, doSeguro: true })
       expect(contador.proporcaoDoSeguro).toBe(1)
 
       relogio.avancar(JANELA_DO_CONTADOR_POR_IP_MS - 1)
-      expect(await contador.ler(chave)).toEqual({ valor: 3, doSeguro: true })
+      expect(await contador.read(chave)).toEqual({ valor: 3, doSeguro: true })
       relogio.avancar(1)
-      expect(await contador.ler(chave)).toEqual({ valor: 0, doSeguro: true })
+      expect(await contador.read(chave)).toEqual({ valor: 0, doSeguro: true })
       // A soma seguinte, de outra chave, varre o que venceu: o HMAC do IP não fica na memória depois do minuto.
       await contador.somar(contador.chaveDe(PREFIXO_EMAIL_POR_IP, ipSorteado()))
       expect(contador.noSeguro).toBe(1)
@@ -124,7 +124,7 @@ describe('ContadorEmJanela: os contadores por IP do login (15.0), no Redis de fi
       for (let soma = 0; soma < 3; soma++) somas.push(await contador.somar(chave))
       expect(producao.status).toBe('ready')
       expect(somas).toEqual([1, 2, 3].map((valor) => ({ valor, doSeguro: true })))
-      expect(await contador.ler(chave)).toEqual({ valor: 3, doSeguro: true })
+      expect(await contador.read(chave)).toEqual({ valor: 3, doSeguro: true })
       expect(contador.proporcaoDoSeguro).toBe(1)
       await travado.fim
       // Os scripts que passaram do prazo rodaram quando a pausa acabou: contados no Redis também, para o lado de rebaixar.

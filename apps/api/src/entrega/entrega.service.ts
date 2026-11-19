@@ -41,8 +41,8 @@ function paraATela(lida: EntregaLida): unknown {
 export class EntregaService {
   constructor(private readonly banco: Database) {}
 
-  async listar(consulta: EntregasQuery): Promise<ListaDeEntregasResponse> {
-    const linhas = await new EntregaRepository(this.banco).listar({ ...consulta, ...(consulta.turmaId === undefined ? {} : { turmaId: consulta.turmaId.toLowerCase() }) })
+  async list(consulta: EntregasQuery): Promise<ListaDeEntregasResponse> {
+    const linhas = await new EntregaRepository(this.banco).list({ ...consulta, ...(consulta.turmaId === undefined ? {} : { turmaId: consulta.turmaId.toLowerCase() }) })
     const { itens, proxima } = paginar(linhas, consulta.limite)
     return listaDeEntregasResponseSchema.parse({ itens: itens.map(paraATela), ...(proxima === undefined ? {} : { proxima }) })
   }
@@ -56,7 +56,7 @@ export class EntregaService {
       const estado = pedido.decisao === 'aprovar' ? 'aprovada' : 'rejeitada'
       const gravou = await entregas.decidir(id, estado, pedido.decisao === 'rejeitar' ? pedido.justificativa : null)
       if (!gravou) throw new DomainException(ErrorCode.ENTREGA_JA_DECIDIDA)
-      await registro.gravar(tx, 'entrega.decidida', {
+      await registro.save(tx, 'entrega.decidida', {
         entidadeId: id,
         antes: { estado: 'pendente' },
         depois: { tipo: pendente.tipo, funcao: pendente.funcao, turmaId: pendente.turmaId, estado, artefatoId: pendente.artefatoId, atividadeAplicadaId: pendente.atividadeAplicadaId },

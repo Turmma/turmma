@@ -16,7 +16,7 @@ export class ContaController {
   @Post('verificar')
   @HttpCode(HttpStatus.NO_CONTENT)
   @Header('Cache-Control', 'no-store')
-  async verificar(@Body(new ZodValidationPipe(verificarContaRequestSchema)) pedido: VerificarContaRequest): Promise<void> {
-    await this.senha.verificar(pedido)
+  async verify(@Body(new ZodValidationPipe(verificarContaRequestSchema)) pedido: VerificarContaRequest): Promise<void> {
+    await this.senha.verify(pedido)
   }
 }

@@ -41,7 +41,7 @@ export class TrustedProxies {
     this.#nomes = entradas.filter((entrada) => isIP(entrada) === 0)
   }
 
-  async ehConfiavel(enderecoDaConexao: string | undefined): Promise<boolean> {
+  async isConfiavel(enderecoDaConexao: string | undefined): Promise<boolean> {
     const ip = normalizeIp(enderecoDaConexao)
     if (ip === undefined) return false
     if (this.#ipsFixos.has(ip) || this.#ipsResolvidos.has(ip)) return true

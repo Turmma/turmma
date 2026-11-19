@@ -325,7 +325,7 @@ describe('Assistente de ensino', () => {
       const servico = new AssistenteService(bancada.banco, fila.agendador(), api.app.get(IaRequestRateLimit), api.app.get(TrechoSearch))
 
       await vincularProfessor(bancada, b, b.colega.usuarioId, b.turma, b.quimica)
-      const { execucaoId } = await comoPessoa(b, b.colega, 'professor', () => servico.enviar({ texto: 'o que é o reagente limitante?', turmaId: b.turma, disciplinaId: b.quimica, chaveEnvio: randomUUID() }))
+      const { execucaoId } = await comoPessoa(b, b.colega, 'professor', () => servico.send({ texto: 'o que é o reagente limitante?', turmaId: b.turma, disciplinaId: b.quimica, chaveEnvio: randomUUID() }))
       await sql(`update vinculo set estado = 'encerrado', motivo_encerramento = 'realocacao', encerrado_em = now() where escola_id = $1 and usuario_id = $2 and turma_id = $3`, [b.escolaId, b.colega.usuarioId, b.turma])
       liberar()
       expect(await execucaoTerminada(api, b.colega, execucaoId)).toMatchObject({ estado: 'falhou', erro: 'NAO_ENCONTRADO', resultado: null })
@@ -373,7 +373,7 @@ describe('Assistente de ensino', () => {
       const agendador = fila.agendador()
       return { servico: new AssistenteService(bancada.banco, agendador, api.app.get(IaRequestRateLimit), api.app.get(TrechoSearch)), liberar, entradas }
     }
-    const pedir = (escola: EscolaComAssistente, servico: AssistenteService, texto: string) => comoPessoa(escola, escola.professora, 'professor', () => servico.enviar({ texto, turmaId: escola.turma, disciplinaId: escola.quimica, chaveEnvio: randomUUID() }))
+    const pedir = (escola: EscolaComAssistente, servico: AssistenteService, texto: string) => comoPessoa(escola, escola.professora, 'professor', () => servico.send({ texto, turmaId: escola.turma, disciplinaId: escola.quimica, chaveEnvio: randomUUID() }))
 
     it('a execução produz pelo que ficou gravado, e não pelo que o corpo do pedido dizia: a pergunta e a marca de "só conversar" vêm do banco', async () => {
       const { servico, liberar, entradas } = servicoComModelo()
@@ -388,7 +388,7 @@ describe('Assistente de ensino', () => {
 
     it('depois do 202, a pergunta que saiu da conversa, a disciplina em que a professora não tem vínculo e o material que saiu de uso não chegam à busca nem ao modelo', async () => {
       const c = await montarEscolaComAssistente(api, bancada)
-      const busca = vi.spyOn(fila.trechos, 'buscar')
+      const busca = vi.spyOn(fila.trechos, 'find')
       const existe = vi.spyOn(fila.trechos, 'existeMaterialDaSerie')
       try {
         const casos = [
@@ -418,7 +418,7 @@ describe('Assistente de ensino', () => {
 
     it('a pergunta lida é a da própria professora: a linha que está na thread da colega, ou que aponta para a turma da colega, é NAO_ENCONTRADO (a de outra escola nem existe: a turma e a thread vão por FK composta com a escola)', async () => {
       const c = await montarEscolaComAssistente(api, bancada)
-      const busca = vi.spyOn(fila.trechos, 'buscar')
+      const busca = vi.spyOn(fila.trechos, 'find')
       try {
         await sql(`insert into thread_agente (escola_id, ano_letivo_id, usuario_id, agente) values ($1, $2, $3, 'assistente_de_ensino') on conflict do nothing`, [c.escolaId, c.anoLetivoId, c.colega.usuarioId])
         const { rows } = await sql(`select id from thread_agente where escola_id = $1 and usuario_id = $2 and agente = 'assistente_de_ensino'`, [c.escolaId, c.colega.usuarioId])
@@ -444,7 +444,7 @@ describe('Assistente de ensino', () => {
 
     it('a função suspensa depois do 202 não chega ao `preparar`: nem leitura da conversa, nem busca, nem modelo, nem consumo', async () => {
       const c = await montarEscolaComAssistente(api, bancada)
-      const busca = vi.spyOn(fila.trechos, 'buscar')
+      const busca = vi.spyOn(fila.trechos, 'find')
       const { servico, liberar, entradas } = servicoComModelo()
       try {
         const { execucaoId } = await pedir(c, servico, 'o que é o reagente limitante?')
@@ -462,11 +462,11 @@ describe('Assistente de ensino', () => {
 
     it('a conversa anterior acompanha a nova como turnos, na ordem, com o autor da função; e só com "só conversar" a busca leva também o último pedido dela', async () => {
       const c = await montarEscolaComAssistente(api, bancada)
-      const busca = vi.spyOn(fila.trechos, 'buscar')
+      const busca = vi.spyOn(fila.trechos, 'find')
       try {
         const { servico, liberar, entradas } = servicoComModelo()
         const enviar = async (texto: string, resposta?: 'so_conversar') => {
-          const { execucaoId } = await comoPessoa(c, c.professora, 'professor', () => servico.enviar({ texto, turmaId: c.turma, disciplinaId: c.quimica, chaveEnvio: randomUUID(), ...(resposta === undefined ? {} : { resposta }) }))
+          const { execucaoId } = await comoPessoa(c, c.professora, 'professor', () => servico.send({ texto, turmaId: c.turma, disciplinaId: c.quimica, chaveEnvio: randomUUID(), ...(resposta === undefined ? {} : { resposta }) }))
           liberar()
           expect(await execucaoTerminada(api, c.professora, execucaoId)).toMatchObject({ estado: 'concluida' })
         }

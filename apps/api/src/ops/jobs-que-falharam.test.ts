@@ -3,9 +3,9 @@ import { ErrorCode } from '@educa/shared'
 import pg from 'pg'
 import { describe, expect, it } from 'vitest'
 import { InvalidArgumentError, OperadorRejectedError, urlDoRedisDeFilaDeOperacao } from './command.js'
-import { executarOpsDescartarJob } from './descartar-job.js'
-import { exigirJobDaOperacao, executarOpsJobsQueFalharam, JobRecusadoError, lerPedidoDeJob, terminarComErro } from './jobs-que-falharam.js'
-import { executarOpsReprocessarJob } from './reprocessar-job.js'
+import { runOpsDescartarJob } from './descartar-job.js'
+import { exigirJobDaOperacao, runOpsJobsQueFalharam, JobRecusadoError, readPedidoDeJob, terminarComErro } from './jobs-que-falharam.js'
+import { runOpsReprocessarJob } from './reprocessar-job.js'
 import type { JobQueFalhou } from '../operacao/jobs-que-falharam.repository.js'
 
 /**
@@ -22,7 +22,7 @@ const proibido = (o: string) => () => {
   throw new Error(`o comando abriu ${o} antes de recusar`)
 }
 
-async function rodar(executar: typeof executarOpsReprocessarJob | typeof executarOpsDescartarJob, argumentos: string[], ambiente: Record<string, string | undefined>) {
+async function rodar(executar: typeof runOpsReprocessarJob | typeof runOpsDescartarJob, argumentos: string[], ambiente: Record<string, string | undefined>) {
   let saida = ''
   let erro = ''
   const codigo = await executar(argumentos, ambiente, { saida: (texto) => (saida += texto), erro: (texto) => (erro += texto) }, proibido('o banco'), proibido('a fila ou o storage') as never)
@@ -31,10 +31,10 @@ async function rodar(executar: typeof executarOpsReprocessarJob | typeof executa
 
 const linha = (tipo: string, escolaId: string | null = ESCOLA): JobQueFalhou => ({ id: JOB, escolaId, tipo, fila: 'normal', codigoFalha: 'ERRO_INTERNO', concluidoEm: new Date('2026-11-11T12:00:00Z') })
 
-describe('lerPedidoDeJob', () => {
+describe('readPedidoDeJob', () => {
   it('aceita o UUID do job, em minúsculas ou maiúsculas, e o chamado inteiro positivo', () => {
-    expect(lerPedidoDeJob([JOB, '--chamado', '4711'])).toEqual({ jobId: JOB, chamado: 4711 })
-    expect(lerPedidoDeJob(['--chamado', '1', JOB.toUpperCase()])).toEqual({ jobId: JOB, chamado: 1 })
+    expect(readPedidoDeJob([JOB, '--chamado', '4711'])).toEqual({ jobId: JOB, chamado: 4711 })
+    expect(readPedidoDeJob(['--chamado', '1', JOB.toUpperCase()])).toEqual({ jobId: JOB, chamado: 1 })
   })
 
   it.each([
@@ -51,18 +51,18 @@ describe('lerPedidoDeJob', () => {
     ['--chamado com dez dígitos', [JOB, '--chamado', '1234567890'], '--chamado'],
     ['--chamado vazio', [JOB, '--chamado', ''], '--chamado'],
   ])('%s: InvalidArgumentError citando só a opção', (_caso, argumentos, opcao) => {
-    expect(() => lerPedidoDeJob(argumentos)).toThrow(new InvalidArgumentError(opcao))
+    expect(() => readPedidoDeJob(argumentos)).toThrow(new InvalidArgumentError(opcao))
   })
 
   it('opção desconhecida não repete o valor recebido na mensagem', () => {
-    expect(() => lerPedidoDeJob([JOB, '--chamado', '7', '--dados', 'Enzo Martins'])).toThrow(new InvalidArgumentError('<id do job> e --chamado'))
+    expect(() => readPedidoDeJob([JOB, '--chamado', '7', '--dados', 'Enzo Martins'])).toThrow(new InvalidArgumentError('<id do job> e --chamado'))
   })
 })
 
 describe('os comandos recusam antes de abrir o banco, a fila e o storage', () => {
   it.each([
-    ['ops:reprocessar-job', executarOpsReprocessarJob],
-    ['ops:descartar-job', executarOpsDescartarJob],
+    ['ops:reprocessar-job', runOpsReprocessarJob],
+    ['ops:descartar-job', runOpsDescartarJob],
   ])('%s: --chamado inválido e OPERADOR ausente ou fora do formato saem com 2, sem repetir o valor', async (_nome, executar) => {
     expect(await rodar(executar, [JOB, '--chamado', '0'], { OPERADOR: 'joaquim' })).toEqual({ codigo: 2, saida: '', erro: 'Opção inválida ou ausente: --chamado\n' })
     expect(await rodar(executar, [JOB, '--chamado', 'abc'], { OPERADOR: 'joaquim' })).toMatchObject({ codigo: 2, saida: '' })
@@ -76,8 +76,8 @@ describe('os comandos recusam antes de abrir o banco, a fila e o storage', () =>
 
   it('ops:jobs-que-falharam não aceita argumento, e sem OPERADOR sai com 2', async () => {
     const terminal = { saida: () => undefined, erro: () => undefined }
-    expect(await executarOpsJobsQueFalharam(['--escola', ESCOLA], { OPERADOR: 'joaquim' }, terminal, proibido('o banco') as never)).toBe(2)
-    expect(await executarOpsJobsQueFalharam([], {}, terminal, proibido('o banco') as never)).toBe(2)
+    expect(await runOpsJobsQueFalharam(['--escola', ESCOLA], { OPERADOR: 'joaquim' }, terminal, proibido('o banco') as never)).toBe(2)
+    expect(await runOpsJobsQueFalharam([], {}, terminal, proibido('o banco') as never)).toBe(2)
   })
 })
 

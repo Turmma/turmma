@@ -31,7 +31,7 @@ export { TIPOS_DE_CONVITE, VALIDADE_DO_CONVITE_HORAS, VALIDADE_DO_CONVITE_HORAS_
  * - O índice `(escola_id, usuario_id)` serve à ativação no login.
  * - No máximo um convite em aberto (nem usado, nem revogado) por usuário na escola (`convite_pendente_unico`, A0b): a
  *   rede de segurança da trava da escola (Tech Spec da A0b, seção 7c), que deixa um só em aberto por escola. O 23505
- *   dele vira `CONFLITO` (`ConviteRepository.criarConvite`).
+ *   dele vira `CONFLITO` (`ConviteRepository.createConvite`).
  * - Sem nome e sem e-mail: esses ficam no `usuario` e na `conta` (`docs/lgpd.md`, "Convite de coordenador").
  * - **O envio por e-mail** (acesso-e-convites, 1.0): `canal`, `envio`, `envio_reservado_em` e `enviado_em` dizem em que pé está o
  *   e-mail do convite de canal `email`. O token e o endereço ficam cifrados (AES-GCM, o id da linha como dado autenticado) só

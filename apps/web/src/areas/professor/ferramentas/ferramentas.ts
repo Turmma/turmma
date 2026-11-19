@@ -16,7 +16,7 @@ import {
 } from '@educa/shared'
 import { ListChecks, NotebookPen, SlidersHorizontal, type LucideIcon } from 'lucide-react'
 import type { CampoDeMultipla, CampoDeNumero, CampoDeSelecao, CampoDeTexto, DescricaoDeFerramenta, OpcaoDoCampo, ValoresValidados } from '../../../components/ui/ai/schema-form'
-import { lerContexto } from '../comum/turmas-da-professora'
+import { readContexto } from '../comum/turmas-da-professora'
 
 /**
  * **As ferramentas do Assistente, como dado** (D74; P23; `docs/interface.md` 1.2): o catálogo e os campos de cada uma.
@@ -106,7 +106,7 @@ export const COMO_VAI_SAIR: Readonly<Record<Ferramenta, readonly string[]>> = {
   ],
 }
 
-export function ehFerramenta(valor: string): valor is Ferramenta {
+export function isFerramenta(valor: string): valor is Ferramenta {
   return (FERRAMENTAS as readonly string[]).includes(valor)
 }
 
@@ -218,7 +218,7 @@ export type PedidoMontado = { readonly ok: true; readonly pedido: PedidoDeFerram
 
 const NAO_FOI_POSSIVEL_MONTAR = 'Confira os campos e tente de novo.'
 
-function ehTipoDeAdaptacao(valor: string): valor is TipoDeAdaptacao {
+function isTipoDeAdaptacao(valor: string): valor is TipoDeAdaptacao {
   return (TIPOS_DE_ADAPTACAO as readonly string[]).includes(valor)
 }
 
@@ -227,11 +227,11 @@ function ehTipoDeAdaptacao(valor: string): valor is TipoDeAdaptacao {
  * tipos da lista fechada e o tempo extra**: nenhum outro valor do formulário é copiado, e o que não é tipo de adaptação
  * é recusado. O tempo extra sem "Tempo adicional" marcado é recusado aqui, com o que fazer, antes de a API recusar.
  */
-export function montarPedido(ferramenta: Ferramenta, valores: ValoresValidados): PedidoMontado {
+export function buildPedido(ferramenta: Ferramenta, valores: ValoresValidados): PedidoMontado {
   if (ferramenta === 'adaptacao') {
     const { origem, tipos: marcados, tempoExtra } = valores
     if (typeof origem !== 'string' || !Array.isArray(marcados)) return { ok: false, problema: NAO_FOI_POSSIVEL_MONTAR }
-    const tipos = marcados.filter((tipo): tipo is TipoDeAdaptacao => typeof tipo === 'string' && ehTipoDeAdaptacao(tipo))
+    const tipos = marcados.filter((tipo): tipo is TipoDeAdaptacao => typeof tipo === 'string' && isTipoDeAdaptacao(tipo))
     if (tipos.length === 0 || tipos.length !== marcados.length) return { ok: false, problema: NAO_FOI_POSSIVEL_MONTAR }
     if (tempoExtra === undefined) return { ok: true, pedido: { ferramenta, artefatoId: origem, tipos } }
     if (!tipos.includes('tempo_adicional')) return { ok: false, problema: 'O tempo extra só vale com "Tempo adicional" marcado. Marque esse tipo, ou deixe o tempo extra sem escolha.' }
@@ -239,7 +239,7 @@ export function montarPedido(ferramenta: Ferramenta, valores: ValoresValidados):
     if (percentual === undefined) return { ok: false, problema: NAO_FOI_POSSIVEL_MONTAR }
     return { ok: true, pedido: { ferramenta, artefatoId: origem, tipos, tempoExtraPercentual: Number(percentual.valor) } }
   }
-  const contexto = typeof valores['turma'] === 'string' ? lerContexto(valores['turma']) : undefined
+  const contexto = typeof valores['turma'] === 'string' ? readContexto(valores['turma']) : undefined
   if (contexto === undefined) return { ok: false, problema: NAO_FOI_POSSIVEL_MONTAR }
   // A quantidade é da atividade: o plano de aula não a leva, mesmo que um valor com esse nome apareça.
   const parametros = parametrosDeFerramentaSchema.safeParse({ ...contexto, tema: valores['tema'], ...(ferramenta === 'atividade_objetiva' ? { quantidade: valores['quantidade'] } : {}) })

@@ -76,7 +76,7 @@ describe('PATCH do material da escola', () => {
   /** Os materiais que a porta de leitura do Assistente e do Tutor (`TrechoSearch`) acha para a série da turma: é por ela que os dois agentes leem o PDF. */
   async function idsDaPortaDeLeitura(escola: EscolaComTurma, serieId: string): Promise<string[]> {
     const trechos = await runInContext({ requisicaoId: randomUUID(), escolaId: escola.coordenacao.escolaId }, () =>
-      api.app.get(TrechoSearch).buscar({ texto: 'reagente limitante', disciplinaId: escola.quimica, serieId, limite: 20 }),
+      api.app.get(TrechoSearch).find({ texto: 'reagente limitante', disciplinaId: escola.quimica, serieId, limite: 20 }),
     )
     return [...new Set(trechos.map((trecho) => trecho.materialId))]
   }
@@ -284,14 +284,14 @@ describe('PATCH do material da escola', () => {
         const naEscolaA = <T>(funcao: () => Promise<T>): Promise<T> => runInContext({ requisicaoId: randomUUID(), escolaId: a.coordenacao.escolaId }, funcao)
         const naEscolaB = <T>(funcao: () => Promise<T>): Promise<T> => runInContext({ requisicaoId: randomUUID(), escolaId: b.coordenacao.escolaId }, funcao)
 
-        expect(await naEscolaA(() => banco.transaction((tx) => new MaterialRepository(tx).travarParaAtualizar(alvo)))).toBeUndefined()
+        expect(await naEscolaA(() => banco.transaction((tx) => new MaterialRepository(tx).lockParaAtualizar(alvo)))).toBeUndefined()
         await naEscolaA(() => new MaterialRepository(banco).renomear(alvo, 'Título trocado pela A'))
         expect(await tituloDe(b.coordenacao.escolaId, alvo)).toBe(titulo)
         // O `delete` das séries sai antes do `insert`, que a própria FK da escola recusa: sem autocommit nem transação aqui, o que o `delete` apagasse da B ficaria apagado.
         await expect(naEscolaA(() => new MaterialRepository(banco).substituirSeries(alvo, [a.serieId]))).rejects.toThrow()
         expect(await seriesDe(b.coordenacao.escolaId, alvo)).toEqual([b.serieId])
         // Na escola dona, as mesmas chamadas valem.
-        expect(await naEscolaB(() => banco.transaction((tx) => new MaterialRepository(tx).travarParaAtualizar(alvo)))).toMatchObject({ id: alvo, estado: 'pronto', substitui: null })
+        expect(await naEscolaB(() => banco.transaction((tx) => new MaterialRepository(tx).lockParaAtualizar(alvo)))).toMatchObject({ id: alvo, estado: 'pronto', substitui: null })
         await naEscolaB(() => new MaterialRepository(banco).renomear(alvo, 'Título trocado pela B'))
         expect(await tituloDe(b.coordenacao.escolaId, alvo)).toBe('Título trocado pela B')
       })

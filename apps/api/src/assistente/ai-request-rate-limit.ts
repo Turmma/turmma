@@ -50,7 +50,7 @@ export class IaRequestRateLimit {
   constructor(private readonly dependencias: IaRequestRateLimitDependencies) {}
 
   /** Conta o pedido da pessoa e da escola da sessão, e recusa o que passa do teto. */
-  async contar(): Promise<void> {
+  async count(): Promise<void> {
     const { escolaId, usuarioId } = requestSessao()
     await this.#somar('usuario', this.chaveDoUsuario(escolaId, usuarioId), TETO_DE_PEDIDOS_DE_IA_POR_USUARIO, escolaId, usuarioId)
     await this.#somar('escola', this.chaveDaEscola(escolaId), TETO_DE_PEDIDOS_DE_IA_POR_ESCOLA, escolaId, usuarioId)

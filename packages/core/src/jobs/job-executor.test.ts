@@ -68,7 +68,7 @@ function montar({
         eventos.push(`localizar:${currentContext()?.escolaId ?? ''}`)
         return Promise.resolve(alvo ?? undefined)
       },
-      iniciarExecucao: (): Promise<JobStartResult> => {
+      startExecucao: (): Promise<JobStartResult> => {
         eventos.push('iniciar')
         return Promise.resolve({ situacao: 'iniciado', tipo, dados })
       },
@@ -101,7 +101,7 @@ function montar({
         eventos.push('renovar')
         return renovar(eventos)
       },
-      liberar: () => {
+      release: () => {
         eventos.push('liberar')
         return liberar()
       },

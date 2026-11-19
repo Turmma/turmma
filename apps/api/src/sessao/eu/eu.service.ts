@@ -25,14 +25,14 @@ export class MeService {
     this.#naoGravadas.add(0)
   }
 
-  async obter(): Promise<EuResponse> {
+  async get(): Promise<EuResponse> {
     const linha = await this.eu.doContexto()
     // A guarda acabou de ler este usuário ativo; sumir entre as duas leituras é o mesmo que não estar autenticado.
     if (linha === undefined) throw new DomainException(ErrorCode.NAO_AUTENTICADO)
     const acessos = linha.contaId === null ? [] : await this.resolucao.acessosDaConta(linha.contaId)
     const emprestada = await this.#emprestada(linha)
     let propria = linha.introducaoVistaEm
-    if (propria === null && emprestada !== null) propria = await this.#gravarSemEmprestar()
+    if (propria === null && emprestada !== null) propria = await this.#saveSemEmprestar()
     return euResponseSchema.parse({
       usuarioId: linha.usuarioId,
       papel: linha.papel,
@@ -60,7 +60,7 @@ export class MeService {
   }
 
   /** O mesmo método do `POST`: sem data na entrada, só `now()` na linha da sessão. A falha não derruba o `GET`. */
-  async #gravarSemEmprestar(): Promise<Date | null> {
+  async #saveSemEmprestar(): Promise<Date | null> {
     try {
       return (await this.eu.marcarIntroducaoVista()) ?? null
     } catch {

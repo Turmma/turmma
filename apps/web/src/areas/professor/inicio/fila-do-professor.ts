@@ -273,9 +273,9 @@ export function esperandoVoce(entregas: readonly Entrega[], nomesDasTurmasPorId:
 }
 
 export interface FilaLidaDoProfessor extends FilaDoProfessor {
-  readonly tentarDeNovo: () => void
+  readonly retry: () => void
   readonly tentandoDeNovo: boolean
-  readonly atualizar: () => void
+  readonly update: () => void
   readonly atualizando: boolean
   /** Quando a fila ficou pronta pela primeira vez e a cada "Atualizar" que terminou. Sem relógio: só muda por clique. */
   readonly atualizadoEm: Date | undefined
@@ -372,7 +372,7 @@ export function useFilaDoProfessor(): FilaLidaDoProfessor {
   }
 
   /** Só o que falhou ou veio truncado: reler o que já está inteiro seria leitura à toa. */
-  function tentarDeNovo(): void {
+  function retry(): void {
     const entregasAReler = consultaDeEntregas.isError || (entregas.estado === 'lida' && !entregas.completa)
     const vinculosAReler = consultaDeVinculos.isError || consultaDeVinculos.hasNextPage
     const turmasComFalha = emLeitura.filter((_, indice) => leiturasDasTurmas[indice]?.isError === true).map((turma) => turma.turmaId)
@@ -383,7 +383,7 @@ export function useFilaDoProfessor(): FilaLidaDoProfessor {
     })().finally(() => definirTentando(false))
   }
 
-  function atualizar(): void {
+  function update(): void {
     definirAtualizando(true)
     void (async () => {
       await Promise.allSettled([reler(entregasPendentesQueryOptions), reler(meusVinculosQueryOptions)])
@@ -394,5 +394,5 @@ export function useFilaDoProfessor(): FilaLidaDoProfessor {
     })
   }
 
-  return { ...fila, tentarDeNovo, tentandoDeNovo, atualizar, atualizando, atualizadoEm }
+  return { ...fila, retry, tentandoDeNovo, update, atualizando, atualizadoEm }
 }

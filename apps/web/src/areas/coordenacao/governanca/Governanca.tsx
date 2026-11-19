@@ -76,7 +76,7 @@ export default function Governanca() {
   const numeros = todos.data.pages.at(-1)?.numeros ?? { geradoPorIa: 0, aprovadoPorPessoa: 0, rejeitado: 0, esperando: 0 }
   const nadaGerado = numeros.geradoPorIa === 0 && numeros.aprovadoPorPessoa + numeros.rejeitado + numeros.esperando === 0
   const itens = lista.data?.pages.flatMap((pagina) => pagina.itens) ?? []
-  const filtrar = (novo: FiltroDeEstado): void => navegar(enderecoComParametro(caminho, busca, 'estado', novo === 'todos' ? undefined : novo), { replace: true })
+  const filter = (novo: FiltroDeEstado): void => navegar(enderecoComParametro(caminho, busca, 'estado', novo === 'todos' ? undefined : novo), { replace: true })
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
@@ -99,7 +99,7 @@ export default function Governanca() {
         <section className="flex min-w-0 flex-col gap-3" aria-labelledby="titulo-registro">
           <SectionHeader id="titulo-registro" titulo="O que a IA gerou e quem aprovou" apoio="Da mais nova para a mais antiga. Cada linha diz o que foi gerado, por qual função, e se uma pessoa já decidiu." />
           <div className="max-w-3xl">
-            <SegmentedControl rotulo="Estado" rotuloVisivel opcoes={OPCOES_DO_ESTADO} valor={estado ?? 'todos'} aoMudar={filtrar} emDuasColunasNoCelular />
+            <SegmentedControl rotulo="Estado" rotuloVisivel opcoes={OPCOES_DO_ESTADO} valor={estado ?? 'todos'} aoMudar={filter} emDuasColunasNoCelular />
           </div>
           {lista.isPending && <LoadingState rotulo="Carregando a lista…" />}
           {lista.isError && lista.data === undefined && <ErrorState erro={lista.error} tentando={lista.isFetching} aoTentarDeNovo={() => void lista.refetch({ cancelRefetch: false })} />}

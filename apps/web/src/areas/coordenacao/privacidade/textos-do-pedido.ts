@@ -305,6 +305,6 @@ export function periodoDaLinha(linha: Pick<CompartilhamentoRow, 'primeiroEm' | '
 }
 
 /** A foto do compartilhamento vem sem ordem: aqui vai do primeiro a ter dado ao último, e a chave desempata. */
-export function ordenarOCompartilhamento(linhas: readonly CompartilhamentoRow[]): CompartilhamentoRow[] {
+export function sortOCompartilhamento(linhas: readonly CompartilhamentoRow[]): CompartilhamentoRow[] {
   return [...linhas].sort((a, b) => (a.primeiroEm === b.primeiroEm ? a.chave.localeCompare(b.chave) : a.primeiroEm < b.primeiroEm ? -1 : 1))
 }

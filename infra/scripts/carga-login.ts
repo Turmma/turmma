@@ -6,9 +6,9 @@ import { setTimeout as esperar } from 'node:timers/promises'
 import { pathToFileURL } from 'node:url'
 import pg from 'pg'
 import { ALFABETO_DA_SENHA_PROVISORIA, TAMANHO_DA_SENHA_PROVISORIA } from '@educa/shared'
-import type { criarEscola, criarRede } from '../../apps/api/src/operacao/escola/escola.ts'
+import type { createEscola, createRede } from '../../apps/api/src/operacao/escola/escola.ts'
 import type { PasswordHasher } from '../../apps/api/src/credencial/password-hasher.ts'
-import type { criarAlunosComMatricula, createSyntheticSessions } from '../../apps/api/src/sessao/tenant/synthetic-sessions.ts'
+import type { createAlunosComMatricula, createSyntheticSessions } from '../../apps/api/src/sessao/tenant/synthetic-sessions.ts'
 import type { createDatabase, createPool } from '@educa/core'
 import { raizRepositorio } from '../../tools/ci/executar.ts'
 import { argumentosDoCompose, CODIGO_THRESHOLD_CRUZADO, lerAmbienteDeCarga, NOMES_DAS_ESCOLAS, rodar, type NomeDeEscola } from './carga.ts'
@@ -376,8 +376,8 @@ function escrever(linha: string): void {
 
 interface ModulosDaApi {
   nucleo: { createDatabase: typeof createDatabase; createPool: typeof createPool }
-  escolas: { criarRede: typeof criarRede; criarEscola: typeof criarEscola }
-  sessoes: { criarAlunosComMatricula: typeof criarAlunosComMatricula; createSyntheticSessions: typeof createSyntheticSessions }
+  escolas: { createRede: typeof createRede; createEscola: typeof createEscola }
+  sessoes: { createAlunosComMatricula: typeof createAlunosComMatricula; createSyntheticSessions: typeof createSyntheticSessions }
   hash: { PasswordHasher: typeof PasswordHasher }
 }
 
@@ -524,22 +524,22 @@ export async function semearContas(doArquivo: Record<string, string>): Promise<C
   try {
     const senha = randomBytes(18).toString('base64url')
     const senhaErrada = randomBytes(18).toString('base64url')
-    const hasher = await hash.PasswordHasher.criar({ memoriaKib: Number(doArquivo['LOGIN_ARGON2_MEMORIA_KIB']), iteracoes: Number(doArquivo['LOGIN_ARGON2_ITERACOES']) })
-    const senhaHash = await hasher.gerar(senha)
+    const hasher = await hash.PasswordHasher.create({ memoriaKib: Number(doArquivo['LOGIN_ARGON2_MEMORIA_KIB']), iteracoes: Number(doArquivo['LOGIN_ARGON2_ITERACOES']) })
+    const senhaHash = await hasher.generate(senha)
     // A provisória como a tela a mostra, e a senha nova da troca: geradas agora, só na pasta temporária da execução.
     const provisoria = sortearProvisoria()
     const senhaNova = randomBytes(18).toString('base64url')
-    const provisoriaHash = await hasher.gerar(provisoria)
+    const provisoriaHash = await hasher.generate(provisoria)
     // A carga não é o comando nem o painel: o autor é fixo, sem conferir operador ativo.
     const autor = async () => OPERADOR_DA_CARGA_DE_LOGIN
-    const { id: redeId } = await ops.criarRede(banco, autor, { id: randomUUID(), nome: 'Rede sintética do login', tipo: 'independente' })
+    const { id: redeId } = await ops.createRede(banco, autor, { id: randomUUID(), nome: 'Rede sintética do login', tipo: 'independente' })
     const slugs = {} as Record<NomeDeEscola, string>
     const emails = {} as Record<NomeDeEscola, string[]>
     for (const nome of NOMES_DAS_ESCOLAS) {
       const slug = `login-${nome.toLowerCase()}-${randomUUID()}`
-      const { id: escolaId } = await ops.criarEscola(banco, autor, { id: randomUUID(), redeId, nome: `Escola sintética ${nome}`, slug })
+      const { id: escolaId } = await ops.createEscola(banco, autor, { id: randomUUID(), redeId, nome: `Escola sintética ${nome}`, slug })
       slugs[nome] = slug
-      const alunoIds = await sessoes.criarAlunosComMatricula(banco, doArquivo, escolaId, Array.from({ length: ALUNOS_POR_ESCOLA }, (_, posicao) => ({ matricula: matriculaSintetica(posicao), senhaHash })))
+      const alunoIds = await sessoes.createAlunosComMatricula(banco, doArquivo, escolaId, Array.from({ length: ALUNOS_POR_ESCOLA }, (_, posicao) => ({ matricula: matriculaSintetica(posicao), senhaHash })))
       await semearAsContasDoTipo(pool, { escolaId, alunoIds, provisoriaHash })
       const equipe = await sessoes.createSyntheticSessions(banco, doArquivo, { escolaId, papel: 'professor', quantidade: EQUIPE_POR_ESCOLA })
       const [professor] = equipe

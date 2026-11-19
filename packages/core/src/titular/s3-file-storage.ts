@@ -53,7 +53,7 @@ export class S3FileStorage implements FileStorage {
   ) {}
 
   /** O armazém pronto para a configuração: o cliente interno e, se houver endereço público, o assinador dele. */
-  static criar(config: S3FileStorageConfig): { armazem: S3FileStorage; encerrar(): void } {
+  static create(config: S3FileStorageConfig): { armazem: S3FileStorage; encerrar(): void } {
     const cliente = createS3Client(config)
     const assinador = config.urlPublica === undefined || config.urlPublica === config.url ? cliente : createS3Client({ ...config, url: config.urlPublica })
     return {
@@ -66,7 +66,7 @@ export class S3FileStorage implements FileStorage {
   }
 
   async guardar(chave: string, conteudo: string): Promise<void> {
-    await this.#enviar(
+    await this.#send(
       new PutObjectCommand({
         Bucket: this.bucket,
         Key: chave,
@@ -80,13 +80,13 @@ export class S3FileStorage implements FileStorage {
   }
 
   async guardarBytes(chave: string, bytes: Uint8Array, { prazoMs }: PrazoDoObjeto): Promise<void> {
-    await this.#enviar(
+    await this.#send(
       new PutObjectCommand({ Bucket: this.bucket, Key: chave, Body: bytes, ContentType: 'application/pdf', CacheControl: 'no-store', ContentDisposition: 'attachment' }),
       prazoMs,
     )
   }
 
-  async lerBytes(chave: string, { prazoMs }: PrazoDoObjeto): Promise<Uint8Array | undefined> {
+  async readBytes(chave: string, { prazoMs }: PrazoDoObjeto): Promise<Uint8Array | undefined> {
     try {
       const resposta = await this.cliente.send(new GetObjectCommand({ Bucket: this.bucket, Key: chave }), { abortSignal: AbortSignal.timeout(prazoMs) })
       // O corpo também respeita o prazo: o sinal que cortou a resposta corta a leitura dele.
@@ -107,8 +107,8 @@ export class S3FileStorage implements FileStorage {
     }
   }
 
-  async apagar(chave: string): Promise<void> {
-    await this.#enviar(new DeleteObjectCommand({ Bucket: this.bucket, Key: chave }))
+  async delete(chave: string): Promise<void> {
+    await this.#send(new DeleteObjectCommand({ Bucket: this.bucket, Key: chave }))
   }
 
   async urlDeDownload(chave: string, opcoes: DownloadUrlOptions): Promise<string> {
@@ -128,7 +128,7 @@ export class S3FileStorage implements FileStorage {
     }
   }
 
-  async #enviar(comando: PutObjectCommand | DeleteObjectCommand, prazoMs?: number): Promise<void> {
+  async #send(comando: PutObjectCommand | DeleteObjectCommand, prazoMs?: number): Promise<void> {
     try {
       await this.cliente.send(comando, prazoMs === undefined ? undefined : { abortSignal: AbortSignal.timeout(prazoMs) })
     } catch {

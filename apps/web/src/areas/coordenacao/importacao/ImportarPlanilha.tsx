@@ -7,8 +7,8 @@ import { useSingleSubmit } from '../../../components/dialogs'
 import { EmptyState, LoadingState } from '../../../components/states/index'
 import { formatNumber, formatQuantity } from '../../../format'
 import { baixarModelo } from '../grade/modelos-de-planilha'
-import { acompanharImportacao, gravarPlanilha, lerImportacao, previaDaPlanilha, type RotasDaPlanilha } from './api/importacao'
-import { lerPlanilha, type MotivoDaPlanilhaRecusada } from './ler-planilha'
+import { acompanharImportacao, savePlanilha, readImportacao, previaDaPlanilha, type RotasDaPlanilha } from './api/importacao'
+import { readPlanilha, type MotivoDaPlanilhaRecusada } from './ler-planilha'
 import {
   ACOES_DE_MARCA,
   alternarMarca,
@@ -24,7 +24,7 @@ import {
   linhasDeFora,
   marcasParaEnviar,
   passaDoTeto,
-  podeGravar,
+  canGravar,
   resumoDasMarcas,
   previaEnvelheceu,
   rotuloDoTodosDoGrupo,
@@ -157,8 +157,8 @@ function useGravacao(configuracao: PlanilhaConfig, aoConcluir: () => unknown, mu
   }, [])
   return useSingleSubmit({
     mutationFn: async ({ texto, marcadas }: PedidoDeGravar) => {
-      const { id } = await gravarPlanilha(configuracao.rotas, texto, marcasParaEnviar(marcadas))
-      return acompanharImportacao((sinal) => lerImportacao(id, sinal), { sinal: controle.current?.signal, aoDemorar: () => mudar({ demorando: true }) })
+      const { id } = await savePlanilha(configuracao.rotas, texto, marcasParaEnviar(marcadas))
+      return acompanharImportacao((sinal) => readImportacao(id, sinal), { sinal: controle.current?.signal, aoDemorar: () => mudar({ demorando: true }) })
     },
     onSuccess: async (importacao, { linhas, marcadas }) => {
       mudar({
@@ -187,7 +187,7 @@ function useArquivoEPrevia(rotas: RotasDaPlanilha, mudar: Mudar, foco: Foco, aoR
     gcTime: 0,
   })
 
-  function enviar(numero: number, texto: string): void {
+  function send(numero: number, texto: string): void {
     controle.current?.abort()
     const daPrevia = new AbortController()
     controle.current = daPrevia
@@ -224,7 +224,7 @@ function useArquivoEPrevia(rotas: RotasDaPlanilha, mudar: Mudar, foco: Foco, aoR
     if (arquivo === undefined) return
     const numero = recomecar()
     mudar({ escolha: { numero, nome: arquivo.name, texto: undefined } })
-    const lida = await lerPlanilha(arquivo)
+    const lida = await readPlanilha(arquivo)
     if (numero !== contador.current) return
     if (!lida.ok) {
       mudar({ escolha: undefined, recusa: lida.motivo })
@@ -232,10 +232,10 @@ function useArquivoEPrevia(rotas: RotasDaPlanilha, mudar: Mudar, foco: Foco, aoR
       return
     }
     mudar({ escolha: { numero, nome: arquivo.name, texto: lida.texto } })
-    enviar(numero, lida.texto)
+    send(numero, lida.texto)
   }
 
-  return { pedido, enviar, escolher }
+  return { pedido, enviar: send, escolher }
 }
 
 /** O que o alerta da tela diz, se há um: a planilha recusada, a prévia que falhou (do arquivo de agora) ou a gravação que falhou. */
@@ -263,12 +263,12 @@ interface PropsDaPreviaDaEscolha {
   readonly estado: PlanilhaState
   readonly mudar: Mudar
   readonly foco: Foco
-  readonly gravar: (pedido: PedidoDeGravar) => void
+  readonly save: (pedido: PedidoDeGravar) => void
   readonly gravando: boolean
 }
 
 /** A prévia do arquivo de agora, com as marcas e o gravar; nada, se a prévia ainda não chegou ou saiu. */
-function PreviaDaEscolha({ configuracao, estado, mudar, foco, gravar, gravando }: PropsDaPreviaDaEscolha) {
+function PreviaDaEscolha({ configuracao, estado, mudar, foco, save: gravar, gravando }: PropsDaPreviaDaEscolha) {
   const { previa, marcas, escolha } = estado
   if (previa === undefined || escolha?.texto === undefined) return null
   const texto = escolha.texto
@@ -320,7 +320,7 @@ export function ImportarPlanilha({ configuracao, aoConcluir = () => undefined }:
       />
       <ConviteOuLeitura configuracao={configuracao} estado={estado} previaNoAr={pedido.isPending} />
       {alerta !== undefined && <AlertaDaPlanilha texto={alerta} alvo={foco.alerta} aoTentarDeNovo={tentarDeNovo} tentando={pedido.isPending} />}
-      <PreviaDaEscolha configuracao={configuracao} estado={estado} mudar={mudar} foco={foco} gravar={gravar.enviar} gravando={gravar.mutacao.isPending} />
+      <PreviaDaEscolha configuracao={configuracao} estado={estado} mudar={mudar} foco={foco} save={gravar.enviar} gravando={gravar.mutacao.isPending} />
       {estado.conclusao !== undefined && <ConclusaoDaPlanilha texto={estado.conclusao} tituloRef={foco.conclusao} />}
     </div>
   )
@@ -458,7 +458,7 @@ function PreviaDaPlanilha({
         <MarcasDaPrevia candidatos={previa.candidatos} marcas={marcas} textos={textosDosGruposDeMarca} aoMarcar={aoMarcar} aoMarcarTodos={aoMarcarTodos} />
       )}
       <RestoDaPlanilha linhas={previa.linhas} contagens={previa.contagens} />
-      <GravarDaPrevia gravacao={podeGravar(previa, totalDeMarcas(marcas))} resumoDasMarcas={resumoDasMarcas(marcas, frasesDoResumoDeMarcas)} rotulo={rotuloDoGravar} gravando={gravando} demorando={demorando} aoGravar={aoGravar} />
+      <GravarDaPrevia gravacao={canGravar(previa, totalDeMarcas(marcas))} resumoDasMarcas={resumoDasMarcas(marcas, frasesDoResumoDeMarcas)} rotulo={rotuloDoGravar} gravando={gravando} demorando={demorando} aoGravar={aoGravar} />
     </section>
   )
 }
@@ -485,7 +485,7 @@ function RestoDaPlanilha({ linhas, contagens }: { linhas: readonly PreviaDaPlani
 }
 
 interface PropsDoGravar {
-  readonly gravacao: ReturnType<typeof podeGravar>
+  readonly gravacao: ReturnType<typeof canGravar>
   /** O que as marcas escolhidas vão fazer ao gravar, em uma frase; `undefined` sem marca (regra 50, item 8). */
   readonly resumoDasMarcas: string | undefined
   readonly rotulo: string

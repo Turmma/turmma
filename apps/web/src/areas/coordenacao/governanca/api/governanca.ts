@@ -34,7 +34,7 @@ const CAMINHO_DA_GOVERNANCA = '/v1/governanca'
 const CAMINHO_DO_ANALISTA = '/v1/analista'
 
 /** `resumo`, `resumo?pagina=…`, `resumo?estado=…` ou `resumo?estado=…&pagina=…`: só valor de lista fechada e o cursor da API, nunca professor nem turma. */
-const lerPaginaDoResumo = (pagina: string | undefined, signal: AbortSignal, estado?: EstadoDeEntrega) => {
+const readPaginaDoResumo = (pagina: string | undefined, signal: AbortSignal, estado?: EstadoDeEntrega) => {
   const consulta = new URLSearchParams()
   if (estado !== undefined) consulta.set('estado', estado)
   if (pagina !== undefined) consulta.set('pagina', pagina)
@@ -45,7 +45,7 @@ const lerPaginaDoResumo = (pagina: string | undefined, signal: AbortSignal, esta
 /** "O que a IA gerou e quem aprovou", da mais nova para a mais antiga, uma página por vez (`proxima`). Os números vêm em toda página. */
 export const resumoDaGovernancaQueryOptions = infiniteQueryOptions({
   queryKey: [...GOVERNANCA_QUERY_KEY, 'resumo'],
-  queryFn: ({ pageParam, signal }) => lerPaginaDoResumo(pageParam, signal),
+  queryFn: ({ pageParam, signal }) => readPaginaDoResumo(pageParam, signal),
   initialPageParam: undefined as string | undefined,
   getNextPageParam: (ultima) => ultima.proxima,
 })
@@ -53,7 +53,7 @@ export const resumoDaGovernancaQueryOptions = infiniteQueryOptions({
 function resumoDoEstadoQueryOptions(estado: EstadoDeEntrega) {
   return infiniteQueryOptions({
     queryKey: [...GOVERNANCA_QUERY_KEY, 'resumo', estado],
-    queryFn: ({ pageParam, signal }) => lerPaginaDoResumo(pageParam, signal, estado),
+    queryFn: ({ pageParam, signal }) => readPaginaDoResumo(pageParam, signal, estado),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (ultima) => ultima.proxima,
   })
@@ -83,7 +83,7 @@ export const resumoPorEstadoQueryOptions = (estado: EstadoDeEntrega) => CONSULTA
  */
 export const primeiraPaginaDoResumoQueryOptions = queryOptions({
   queryKey: [...GOVERNANCA_QUERY_KEY, 'resumo', 'primeira-pagina'],
-  queryFn: ({ signal }) => lerPaginaDoResumo(undefined, signal),
+  queryFn: ({ signal }) => readPaginaDoResumo(undefined, signal),
 })
 
 /** O consumo do mês corrente, somado por função. */
@@ -132,7 +132,7 @@ export const resumoDoAnalistaQueryOptions = queryOptions({
 })
 
 /** `POST /v1/analista/gerar`: 202 com a execução, que a tela acompanha pelo ciclo de `execucoes.ts`. */
-export function gerarResumoDoAnalista(chaveEnvio: string): Promise<ExecucaoAceitaResponse> {
+export function generateResumoDoAnalista(chaveEnvio: string): Promise<ExecucaoAceitaResponse> {
   return authedRequest(`${CAMINHO_DO_ANALISTA}/gerar`, execucaoAceitaResponseSchema, { metodo: 'POST', corpo: { chaveEnvio } })
 }
 
@@ -143,6 +143,6 @@ export const lugarDoResumoDoAnalista = createTabStore<CicloDeExecucao<null>>()
  * `GET /v1/analista/nominal`: o detalhe de uma turma, que nomeia os professores dela. **Cada chamada grava auditoria**,
  * com a finalidade, e por isso não é consulta com cache: é uma leitura pedida uma vez, de dentro do diálogo que avisa.
  */
-export function lerDadoNominal(turmaId: string, finalidade: FinalidadeDaLeituraNominal): Promise<AnalistaNominalResponse> {
+export function readDadoNominal(turmaId: string, finalidade: FinalidadeDaLeituraNominal): Promise<AnalistaNominalResponse> {
   return authedRequest(`${CAMINHO_DO_ANALISTA}/nominal?turmaId=${encodeURIComponent(turmaId)}&finalidade=${encodeURIComponent(finalidade)}`, analistaNominalResponseSchema)
 }

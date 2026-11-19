@@ -8,7 +8,7 @@ import {
   MAXIMO_DO_TEXTO,
   problemaDaDescricao,
   resumoDoPedido,
-  validarFormulario,
+  validateFormulario,
   valoresPadrao,
   type CampoDeMultipla,
   type FormFieldDef,
@@ -143,7 +143,7 @@ export function SchemaForm({ descricao, estado, aoGerar, aoCancelar, aoEditar, f
 
   function aoSubmeter(evento: FormEvent<HTMLFormElement>): void {
     evento.preventDefault()
-    const resultado = validarFormulario(campos, valores)
+    const resultado = validateFormulario(campos, valores)
     if (!resultado.ok) {
       definirPendencias(resultado.pendencias)
       const primeira = resultado.pendencias[0]?.chave

@@ -21,8 +21,8 @@ export class ImportacaoService {
     return this.comVaga(() => this.motor.previa(tipo, pedido))
   }
 
-  gravar(tipo: TipoDePlanilha, pedido: GravarPlanilhaRequest): Promise<GravarPlanilhaResponse> {
-    return this.comVaga(async () => gravarPlanilhaResponseSchema.parse(await this.motor.gravar(tipo, pedido)))
+  save(tipo: TipoDePlanilha, pedido: GravarPlanilhaRequest): Promise<GravarPlanilhaResponse> {
+    return this.comVaga(async () => gravarPlanilhaResponseSchema.parse(await this.motor.save(tipo, pedido)))
   }
 
   /** A prévia da lista de uma turma (A1, 8.0): a planilha de alunos com a turma dada, na mesma vaga e no mesmo motor. */
@@ -31,13 +31,13 @@ export class ImportacaoService {
   }
 
   /** O gravar da lista de uma turma (A1, 8.0): o mesmo job da planilha de alunos, responde o id da importação. */
-  gravarDaLista(turmaId: string, texto: string, marcas: MarcasDaPlanilha, linhas: readonly ListaRow[]): Promise<GravarPlanilhaResponse> {
-    return this.comVaga(async () => gravarPlanilhaResponseSchema.parse(await this.motor.gravar('alunos', { texto, marcas }, { turmaId, linhas })))
+  saveDaLista(turmaId: string, texto: string, marcas: MarcasDaPlanilha, linhas: readonly ListaRow[]): Promise<GravarPlanilhaResponse> {
+    return this.comVaga(async () => gravarPlanilhaResponseSchema.parse(await this.motor.save('alunos', { texto, marcas }, { turmaId, linhas })))
   }
 
   /** `GET /v1/importacoes/:id`: o estado e as contagens da importação da escola da sessão. Id de outra escola é igual a inexistente. */
-  async ler(id: string): Promise<Importacao> {
-    const lida = await new ImportacaoRepository(this.banco).lerPorId(id)
+  async read(id: string): Promise<Importacao> {
+    const lida = await new ImportacaoRepository(this.banco).findPorId(id)
     if (lida === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     return importacaoSchema.parse({ ...lida, criadoEm: lida.criadoEm.toISOString(), concluidaEm: lida.concluidaEm?.toISOString() ?? null })
   }
@@ -49,7 +49,7 @@ export class ImportacaoService {
     try {
       return await trabalho()
     } finally {
-      await vaga.liberar()
+      await vaga.release()
     }
   }
 }

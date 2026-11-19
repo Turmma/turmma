@@ -46,7 +46,7 @@ const SQLSTATE_UNICO_VIOLADO = '23505'
 const registro = new AuditoriaRecorder()
 
 /** Resume uma falha do passo (3): trava e deadlock repetem com espera; o resto, não. */
-export function ehFalhaDeTrava(erro: unknown): boolean {
+export function isFalhaDeTrava(erro: unknown): boolean {
   const codigo = postgresErrorIn(erro)?.code
   return codigo !== undefined && SQLSTATE_DE_TRAVA.has(codigo)
 }
@@ -84,7 +84,7 @@ export class MotorDePlanilha {
   private async auditarLeituras({ leituras }: PreviaDoTipo): Promise<void> {
     if (leituras === undefined || leituras.length === 0) return
     await this.banco.transaction(async (tx) => {
-      for (const { turmaId, quantidade } of leituras) await registro.gravar(tx, 'turma.alunos_lidos', { entidadeId: turmaId, depois: { quantidade }, finalidade: 'conferencia_de_cadastro' })
+      for (const { turmaId, quantidade } of leituras) await registro.save(tx, 'turma.alunos_lidos', { entidadeId: turmaId, depois: { quantidade }, finalidade: 'conferencia_de_cadastro' })
     })
   }
 
@@ -93,8 +93,8 @@ export class MotorDePlanilha {
    * fecha `falhou` a `na_fila` de mais de 1 h e enfileira o job `estrutura.gravar-planilha`, na mesma transação da importação.
    * Já há uma `na_fila` na escola (o único parcial), ou a velha está sob um job que roda: `CONFLITO`, sem esperar.
    */
-  async gravar(tipo: TipoDePlanilha, pedido: GravarPlanilhaRequest, daLista?: DaLista): Promise<{ readonly id: string }> {
-    // As marcas passam pelo schema que o job relê (`lerMarcas`), com o teto de desligamentos: quem chama o motor
+  async save(tipo: TipoDePlanilha, pedido: GravarPlanilhaRequest, daLista?: DaLista): Promise<{ readonly id: string }> {
+    // As marcas passam pelo schema que o job relê (`readMarcas`), com o teto de desligamentos: quem chama o motor
     // sem o pipe da rota recebe `ENTRADA_INVALIDA` aqui, e não uma importação que o job fecha `falhou`.
     const lidas = marcasDaPlanilhaSchema.safeParse(pedido.marcas)
     if (!lidas.success) throw new DomainException(ErrorCode.ENTRADA_INVALIDA)
@@ -108,8 +108,8 @@ export class MotorDePlanilha {
     // Já há `na_fila` na escola: o único parcial viola `23505`, que o filtro global de erros responde como `CONFLITO`.
     return this.banco.transaction(async (tx) => {
       const importacoes = new ImportacaoRepository(tx)
-      await importacoes.fecharAExpirada()
-      const id = await importacoes.criar({ tipo, anoLetivoId: ano?.id ?? null, linhas: previa.guardado, marcas, assinatura: previa.assinatura })
+      await importacoes.closeAExpirada()
+      const id = await importacoes.create({ tipo, anoLetivoId: ano?.id ?? null, linhas: previa.guardado, marcas, assinatura: previa.assinatura })
       await this.enfileirador.enfileirar(tx, TIPO_GRAVAR_PLANILHA, { importacaoId: id })
       return { id }
     })
@@ -153,7 +153,7 @@ export interface ExecucaoOptions {
    * Trava em `FOR SHARE` as contas que o passo (1) achou e confere o e-mail de cada uma (passo (3)), na transação do passo; `false`
    * se alguma o perdeu. Também é do worker, pelo mesmo motivo do `acharConta`. Obrigatória na planilha de professores.
    */
-  readonly travarContas?: (tx: DatabaseTransaction, contas: ReadonlyMap<string, string>) => Promise<boolean>
+  readonly lockContas?: (tx: DatabaseTransaction, contas: ReadonlyMap<string, string>) => Promise<boolean>
 }
 
 /** A importação guardada não tem a forma do tipo, ou o tipo não existe: repetir não muda nada. */
@@ -179,7 +179,7 @@ export class ImportacaoIlegivelError extends Error {
  * importação sai `desatualizada`, nunca `falhou`. Conta que perdeu o e-mail entre o (1) e o (3) também desfaz, mas sobe como erro:
  * a nova tentativa refaz o (1).
  */
-export async function executarPlanilha(banco: Database, importacaoId: string, opcoes: ExecucaoOptions = {}): Promise<ResultadoDaExecucao> {
+export async function runPlanilha(banco: Database, importacaoId: string, opcoes: ExecucaoOptions = {}): Promise<ResultadoDaExecucao> {
   const repositorio = new ImportacaoRepository(banco)
   const lida = await repositorio.paraExecutar(importacaoId)
   if (lida?.estado !== 'na_fila') return 'ignorada'
@@ -201,10 +201,10 @@ export async function executarPlanilha(banco: Database, importacaoId: string, op
 function alvoDe({ id, tipo, anoLetivoId, assinatura, marcas }: ImportacaoParaExecutar): Alvo {
   const doTipo = TIPOS_DO_MOTOR[tipo]
   if (doTipo === undefined || (doTipo.usaAno && anoLetivoId === null)) throw new ImportacaoIlegivelError()
-  return { importacaoId: id, anoLetivoId, tipo: doTipo, assinatura, marcas: lerMarcas(marcas) }
+  return { importacaoId: id, anoLetivoId, tipo: doTipo, assinatura, marcas: readMarcas(marcas) }
 }
 
-function lerMarcas(guardadas: unknown): MarcasDaPlanilha {
+function readMarcas(guardadas: unknown): MarcasDaPlanilha {
   const lidas = marcasDaPlanilhaSchema.safeParse(guardadas)
   if (!lidas.success) throw new ImportacaoIlegivelError()
   return lidas.data
@@ -218,7 +218,7 @@ async function passo1(banco: Database, repositorio: ImportacaoRepository, { tipo
   if (tipo.usaAno && tipo.emailsDasContas === undefined) return new Map()
   const emails = tipo.usaAno ? await tipo.emailsDasContas?.(repositorio, linhas) : tipo.emailsDasContas(linhas)
   const achar = opcoes.acharConta
-  const travar = opcoes.travarContas
+  const travar = opcoes.lockContas
   if (emails === undefined) throw new ImportacaoIlegivelError()
   if (achar === undefined || travar === undefined) throw new InvariantException('a planilha que cadastra professor precisa do achar-ou-criar conta e da trava das contas do worker')
   const contas = new Map<string, string>()
@@ -258,12 +258,12 @@ interface Alvo {
 async function passo3(banco: Database, gravacao: ImportacaoRepository, tx: DatabaseTransaction, alvo: Alvo, contas: ContasDoJob, opcoes: ExecucaoOptions): Promise<ResultadoDaExecucao> {
   const { importacaoId, assinatura } = alvo
   await gravacao.limitesDoPasso3()
-  const travada = await gravacao.travar(importacaoId)
+  const travada = await gravacao.lock(importacaoId)
   if (travada?.estado !== 'na_fila') return 'ignorada'
   // Quem gravou já saiu (a eliminação da pessoa anula `criado_por`): sem autor humano a gravação não tem de quem ser a auditoria.
   if (travada.criadoPor === null) return desatualizar(gravacao, importacaoId)
   const autor = travada.criadoPor
-  const plano = await planejarSobTrava(gravacao, tx, alvo, travada.linhas, lerMarcas(travada.marcas), contas, opcoes)
+  const plano = await planejarSobTrava(gravacao, tx, alvo, travada.linhas, readMarcas(travada.marcas), contas, opcoes)
   if (plano === 'encerrado') return desatualizar(gravacao, importacaoId)
   if (plano.assinatura !== assinatura) return desatualizar(gravacao, importacaoId)
   await comAutora(autor, () => plano.aplicar(gravacao, { tx, ciclo: new CicloDeVidaService(banco), relogio: opcoes.relogio ?? systemClock }))
@@ -275,19 +275,19 @@ async function passo3(banco: Database, gravacao: ImportacaoRepository, tx: Datab
 /** O plano de agora, lido já com as travas do tipo; `encerrado` é o ano que deixou de aceitar a planilha entre o (2) e o (3). */
 async function planejarSobTrava(gravacao: ImportacaoRepository, tx: DatabaseTransaction, { anoLetivoId, tipo }: Alvo, linhas: unknown, marcas: MarcasDaPlanilha, contas: ContasDoJob, opcoes: ExecucaoOptions): Promise<PlanoDaImportacao | 'encerrado'> {
   if (!tipo.usaAno) {
-    const travarContas = opcoes.travarContas
+    const travarContas = opcoes.lockContas
     if (travarContas === undefined) throw new InvariantException('a planilha de professores precisa da trava das contas do worker')
-    await tipo.travar(gravacao, tx, linhas, marcas, contas, (daVez) => travarContas(tx, daVez))
+    await tipo.lock(gravacao, tx, linhas, marcas, contas, (daVez) => travarContas(tx, daVez))
     const plano = await tipo.planejar(gravacao, linhas, marcas, contas)
     if (plano === undefined) throw new ImportacaoIlegivelError()
     return plano
   }
   // O tipo que cadastra professor pega a trava do convite da escola antes do ano: a ordem global do passo (3), a mesma do `desativar` e do `convidar`.
-  if (tipo.cadastraProfessores === true) await gravacao.travarConviteDaEscola()
+  if (tipo.cadastraProfessores === true) await gravacao.lockConviteDaEscola()
   const ano = anoLetivoId === null ? undefined : await gravacao.anoPorId(anoLetivoId, true)
   if (ano === undefined || ano.situacao === 'encerrado') return 'encerrado'
-  const travarContas = opcoes.travarContas
-  await tipo.travar?.(gravacao, ano, linhas, marcas, { contas, travarContas: (daVez) => (travarContas === undefined ? Promise.resolve(true) : travarContas(tx, daVez)) }, tx)
+  const travarContas = opcoes.lockContas
+  await tipo.lock?.(gravacao, ano, linhas, marcas, { contas, lockContas: (daVez) => (travarContas === undefined ? Promise.resolve(true) : travarContas(tx, daVez)) }, tx)
   const plano = await tipo.planejar(gravacao, ano, linhas, marcas, contas)
   if (plano === undefined) throw new ImportacaoIlegivelError()
   return plano
@@ -311,7 +311,7 @@ function comAutora<T>(autor: string, acao: () => Promise<T>): Promise<T> {
 async function auditar(tx: DatabaseTransaction, importacaoId: string, tipo: TipoDePlanilha, resumo: ResumoDaImportacao, autor: string): Promise<void> {
   const { nomes_corrigidos: corrigidos, ...resto } = resumo
   const depois = { tipo, contagens: { ...resto, ...(corrigidos === undefined ? {} : { corrigidos }) } }
-  await comAutora(autor, () => registro.gravar(tx, 'planilha.gravada', { entidadeId: importacaoId, depois }))
+  await comAutora(autor, () => registro.save(tx, 'planilha.gravada', { entidadeId: importacaoId, depois }))
 }
 
 /** Quantas tentativas o BullMQ dá ao job; a última é a que decide `falhou`. */

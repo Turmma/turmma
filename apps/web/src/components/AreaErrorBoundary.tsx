@@ -37,7 +37,7 @@ interface PropsDaFalha {
  */
 function Falha({ tituloDaAba, titulo, texto, paginaInteira = false, voltarPara = ROUTES.inicio }: PropsDaFalha) {
   useTabTitle(tituloDaAba)
-  const { fechar } = useContext(DrawerContext)
+  const { close: fechar } = useContext(DrawerContext)
   const tituloDaFalha = useRef<HTMLHeadingElement>(null)
   useEffect(() => {
     fechar()

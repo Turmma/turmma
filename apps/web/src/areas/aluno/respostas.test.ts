@@ -1,7 +1,7 @@
 import { ErrorCode, type QuestaoSalvaResponse } from '@educa/shared'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../api/client'
-import { criarFilaDeRespostas, provaComRespostaSalva } from './fila-de-respostas'
+import { createFilaDeRespostas, provaComRespostaSalva } from './fila-de-respostas'
 import { adotarLeitura, alteradaEmOutraJanela, comecarEnvio, confirmarEnvio, escolher, esperaAntesDeTentar, falharEnvio, FILA_VAZIA, hidratarDoEspelho, MAIOR_ESPERA_DA_FILA_MS, proximoEnvio, tipoDaFalha, type EstadoDaFila } from './respostas'
 
 /** A confirmação do servidor de uma escolha que ele gravou como veio. */
@@ -267,14 +267,14 @@ describe('o reenvio das respostas', () => {
     const servidor = servidorDeMentira()
     const relogio = relogioDeMentira()
     const salvas: QuestaoSalvaResponse[] = []
-    const fila = criarFilaDeRespostas({ salvar: servidor.salvar, aoSalvar: (salva) => salvas.push(salva), agendar: relogio.agendar })
+    const fila = createFilaDeRespostas({ save: servidor.salvar, aoSalvar: (salva) => salvas.push(salva), agendar: relogio.agendar })
 
     fila.escolher(3, 1)
     expect(servidor.chamadas).toHaveLength(1)
     servidor.chamadas[0]?.recusar(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
     await assentar()
     // Falhou: a escolha fica, nada foi dado como salvo, e a tentativa seguinte está agendada.
-    expect(fila.ler()).toMatchObject({ pendentes: [{ questao: 3, alternativa: 1, sequencia: 1 }], falha: 'passageira', tentativas: 1 })
+    expect(fila.read()).toMatchObject({ pendentes: [{ questao: 3, alternativa: 1, sequencia: 1 }], falha: 'passageira', tentativas: 1 })
     expect(salvas).toEqual([])
     expect(relogio.agendados.map((item) => item.esperaMs)).toEqual([2_000])
 
@@ -290,7 +290,7 @@ describe('o reenvio das respostas', () => {
     relogio.agendados[1]?.funcao()
     servidor.chamadas[2]?.aceitar()
     await assentar()
-    expect(fila.ler()).toMatchObject({ pendentes: [], noAr: undefined, falha: undefined, alteradas: [] })
+    expect(fila.read()).toMatchObject({ pendentes: [], noAr: undefined, falha: undefined, alteradas: [] })
     expect(salvas).toEqual([{ questao: 3, alternativa: 1, sequencia: 1, respondidaEm: '2026-10-05T13:10:00.000Z' }])
     expect(servidor.chamadas).toHaveLength(3)
     expect(servidor.chamadas.map((chamada) => chamada.sequencia)).toEqual([1, 1, 1])
@@ -299,15 +299,15 @@ describe('o reenvio das respostas', () => {
   it('"tentar agora" (a rede voltou, a sessão voltou) não espera o relógio, e cancela a espera para não mandar duas vezes', async () => {
     const servidor = servidorDeMentira()
     const relogio = relogioDeMentira()
-    const fila = criarFilaDeRespostas({ salvar: servidor.salvar, aoSalvar: () => undefined, agendar: relogio.agendar })
+    const fila = createFilaDeRespostas({ save: servidor.salvar, aoSalvar: () => undefined, agendar: relogio.agendar })
     fila.escolher(1, 0)
     servidor.chamadas[0]?.recusar(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
     await assentar()
-    fila.tentarAgora()
+    fila.tryAgora()
     expect(servidor.chamadas).toHaveLength(2)
     expect(relogio.agendados[0]?.cancelado).toBe(true)
     // Com um envio no ar, pedir de novo não manda outro.
-    fila.tentarAgora()
+    fila.tryAgora()
     expect(servidor.chamadas).toHaveLength(2)
   })
 
@@ -315,7 +315,7 @@ describe('o reenvio das respostas', () => {
     const servidor = servidorDeMentira()
     const relogio = relogioDeMentira()
     const salvas: number[] = []
-    const fila = criarFilaDeRespostas({ salvar: servidor.salvar, aoSalvar: (salva) => salvas.push(salva.questao), agendar: relogio.agendar })
+    const fila = createFilaDeRespostas({ save: servidor.salvar, aoSalvar: (salva) => salvas.push(salva.questao), agendar: relogio.agendar })
     fila.escolher(1, 0)
     servidor.chamadas[0]?.recusar(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
     await assentar()
@@ -328,19 +328,19 @@ describe('o reenvio das respostas', () => {
     servidor.chamadas[2]?.aceitar()
     await assentar()
     expect(salvas).toEqual([1, 2])
-    expect(fila.ler()).toMatchObject({ pendentes: [], noAr: undefined, falha: undefined })
+    expect(fila.read()).toMatchObject({ pendentes: [], noAr: undefined, falha: undefined })
   })
 
   it('com a atividade encerrada pelo servidor, a fila não tenta de novo', async () => {
     const servidor = servidorDeMentira()
     const relogio = relogioDeMentira()
-    const fila = criarFilaDeRespostas({ salvar: servidor.salvar, aoSalvar: () => undefined, agendar: relogio.agendar })
+    const fila = createFilaDeRespostas({ save: servidor.salvar, aoSalvar: () => undefined, agendar: relogio.agendar })
     fila.escolher(3, 1)
     servidor.chamadas[0]?.recusar(ErrorCode.ATIVIDADE_ENCERRADA)
     await assentar()
-    expect(fila.ler()).toMatchObject({ falha: 'encerrada', pendentes: [{ questao: 3, alternativa: 1, sequencia: 1 }] })
+    expect(fila.read()).toMatchObject({ falha: 'encerrada', pendentes: [{ questao: 3, alternativa: 1, sequencia: 1 }] })
     expect(relogio.agendados).toEqual([])
-    fila.tentarAgora()
+    fila.tryAgora()
     fila.escolher(1, 0)
     expect(servidor.chamadas).toHaveLength(1)
   })
@@ -349,10 +349,10 @@ describe('o reenvio das respostas', () => {
     const servidor = servidorDeMentira()
     const relogio = relogioDeMentira()
     const salvas: QuestaoSalvaResponse[] = []
-    const fila = criarFilaDeRespostas({ salvar: servidor.salvar, aoSalvar: (salva) => salvas.push(salva), agendar: relogio.agendar })
+    const fila = createFilaDeRespostas({ save: servidor.salvar, aoSalvar: (salva) => salvas.push(salva), agendar: relogio.agendar })
     fila.escolher(3, 1)
-    fila.parar()
-    expect(fila.ler()).toEqual(FILA_VAZIA)
+    fila.stop()
+    expect(fila.read()).toEqual(FILA_VAZIA)
     // A resposta que volta depois não mexe em nada, e nenhuma escolha nova sai.
     servidor.chamadas[0]?.aceitar()
     await assentar()
@@ -365,7 +365,7 @@ describe('o reenvio das respostas', () => {
     const servidor = servidorDeMentira()
     const relogio = relogioDeMentira()
     const salvas: QuestaoSalvaResponse[] = []
-    const fila = criarFilaDeRespostas({ salvar: servidor.salvar, aoSalvar: (salva) => salvas.push(salva), agendar: relogio.agendar })
+    const fila = createFilaDeRespostas({ save: servidor.salvar, aoSalvar: (salva) => salvas.push(salva), agendar: relogio.agendar })
     fila.escolher(3, 1)
     servidor.chamadas[0]?.gravadaPorOutraJanela(2, 8)
     await assentar()
@@ -373,29 +373,29 @@ describe('o reenvio das respostas', () => {
     expect(servidor.chamadas).toHaveLength(1)
     expect(relogio.agendados).toEqual([])
     expect(salvas).toEqual([{ questao: 3, alternativa: 2, sequencia: 8, respondidaEm: '2026-10-05T13:10:00.000Z' }])
-    expect(fila.ler()).toMatchObject({ pendentes: [], noAr: undefined, falha: undefined, alteradas: [3] })
+    expect(fila.read()).toMatchObject({ pendentes: [], noAr: undefined, falha: undefined, alteradas: [3] })
     // O clique seguinte sai com `servidor + 1` e vence.
     fila.escolher(3, 0)
     expect(servidor.chamadas[1]).toMatchObject({ questao: 3, alternativa: 0, sequencia: 9 })
     servidor.chamadas[1]?.aceitar()
     await assentar()
-    expect(fila.ler()).toMatchObject({ pendentes: [], alteradas: [] })
+    expect(fila.read()).toMatchObject({ pendentes: [], alteradas: [] })
   })
 
   it('a leitura da prova com uma escolha mais nova (a aba que venceu) é adotada com o aviso, e a escolha nova sai uma acima', async () => {
     const servidor = servidorDeMentira()
-    const fila = criarFilaDeRespostas({ salvar: servidor.salvar, aoSalvar: () => undefined, agendar: relogioDeMentira().agendar })
+    const fila = createFilaDeRespostas({ save: servidor.salvar, aoSalvar: () => undefined, agendar: relogioDeMentira().agendar })
     fila.escolher(1, 0)
     servidor.chamadas[0]?.aceitar()
     await assentar()
     fila.adotar([{ questao: 1, alternativa: 3, sequencia: 6 }])
-    expect(fila.ler()).toMatchObject({ alteradas: [1], conhecidas: { 1: { alternativa: 3, sequencia: 6 } } })
+    expect(fila.read()).toMatchObject({ alteradas: [1], conhecidas: { 1: { alternativa: 3, sequencia: 6 } } })
     fila.escolher(1, 2)
     expect(servidor.chamadas[1]).toMatchObject({ questao: 1, alternativa: 2, sequencia: 7 })
     // Parada a fila, a leitura não muda mais nada.
-    fila.parar()
+    fila.stop()
     fila.adotar([{ questao: 1, alternativa: 0, sequencia: 20 }])
-    expect(fila.ler()).toEqual(FILA_VAZIA)
+    expect(fila.read()).toEqual(FILA_VAZIA)
   })
 
   it('a resposta confirmada entra na prova lida, no lugar da anterior da mesma questão', () => {
@@ -447,7 +447,7 @@ describe('a resposta de prova pendurada não trava as outras (RF11; regra 80, it
     const servidor = servidorDeMentira()
     const relogio = relogioDeMentira()
     const salvas: number[] = []
-    const fila = criarFilaDeRespostas({ salvar: servidor.salvar, aoSalvar: (salva) => salvas.push(salva.questao), agendar: relogio.agendar })
+    const fila = createFilaDeRespostas({ save: servidor.salvar, aoSalvar: (salva) => salvas.push(salva.questao), agendar: relogio.agendar })
     fila.escolher(1, 0)
     fila.escolher(2, 1)
     expect(servidor.chamadas).toHaveLength(1)
@@ -457,7 +457,7 @@ describe('a resposta de prova pendurada não trava as outras (RF11; regra 80, it
     expect(servidor.chamadas).toHaveLength(2)
     expect(servidor.chamadas[1]).toMatchObject({ questao: 2, alternativa: 1, sequencia: 1 })
     expect(relogio.agendados).toEqual([])
-    expect(escolhas(fila.ler())).toEqual(['2:1:1', '1:0:1'])
+    expect(escolhas(fila.read())).toEqual(['2:1:1', '1:0:1'])
     servidor.chamadas[1]?.aceitar()
     await assentar()
     // Recomeço: a mesma questão sai de novo, com a mesma sequência (o servidor grava uma vez só).
@@ -466,13 +466,13 @@ describe('a resposta de prova pendurada não trava as outras (RF11; regra 80, it
     servidor.chamadas[2]?.aceitar()
     await assentar()
     expect(salvas).toEqual([2, 1])
-    expect(fila.ler()).toMatchObject({ pendentes: [], noAr: undefined, falha: undefined })
+    expect(fila.read()).toMatchObject({ pendentes: [], noAr: undefined, falha: undefined })
   })
 
   it('duas penduradas se revezam: cada estouro manda a outra, e nenhuma fica esquecida', async () => {
     const servidor = servidorDeMentira()
     const relogio = relogioDeMentira()
-    const fila = criarFilaDeRespostas({ salvar: servidor.salvar, aoSalvar: () => undefined, agendar: relogio.agendar })
+    const fila = createFilaDeRespostas({ save: servidor.salvar, aoSalvar: () => undefined, agendar: relogio.agendar })
     fila.escolher(1, 0)
     fila.escolher(2, 1)
     servidor.chamadas[0]?.estourar()
@@ -480,14 +480,14 @@ describe('a resposta de prova pendurada não trava as outras (RF11; regra 80, it
     servidor.chamadas[1]?.estourar()
     await assentar()
     expect(servidor.chamadas.map((chamada) => `${String(chamada.questao)}:${String(chamada.sequencia)}`)).toEqual(['1:1', '2:1', '1:1'])
-    expect(escolhas(fila.ler())).toEqual(['1:0:1', '2:1:1'])
+    expect(escolhas(fila.read())).toEqual(['1:0:1', '2:1:1'])
   })
 
   it('o TEMPO_ESGOTADO que a API devolve (o 503 rápido do banco sobrecarregado) passa pelo recuo, mesmo com duas na fila: só o estouro do cliente libera a seguinte', async () => {
     semJitter()
     const servidor = servidorDeMentira()
     const relogio = relogioDeMentira()
-    const fila = criarFilaDeRespostas({ salvar: servidor.salvar, aoSalvar: () => undefined, agendar: relogio.agendar })
+    const fila = createFilaDeRespostas({ save: servidor.salvar, aoSalvar: () => undefined, agendar: relogio.agendar })
     fila.escolher(1, 0)
     fila.escolher(2, 1)
     servidor.chamadas[0]?.recusar(ErrorCode.TEMPO_ESGOTADO)
@@ -500,7 +500,7 @@ describe('a resposta de prova pendurada não trava as outras (RF11; regra 80, it
     semJitter()
     const servidor = servidorDeMentira()
     const relogio = relogioDeMentira()
-    const fila = criarFilaDeRespostas({ salvar: servidor.salvar, aoSalvar: () => undefined, agendar: relogio.agendar })
+    const fila = createFilaDeRespostas({ save: servidor.salvar, aoSalvar: () => undefined, agendar: relogio.agendar })
     fila.escolher(1, 0)
     servidor.chamadas[0]?.estourar()
     await assentar()
@@ -512,14 +512,14 @@ describe('a resposta de prova pendurada não trava as outras (RF11; regra 80, it
     semJitter()
     const servidor = servidorDeMentira()
     const relogio = relogioDeMentira()
-    const fila = criarFilaDeRespostas({ salvar: servidor.salvar, aoSalvar: () => undefined, agendar: relogio.agendar })
+    const fila = createFilaDeRespostas({ save: servidor.salvar, aoSalvar: () => undefined, agendar: relogio.agendar })
     fila.escolher(1, 0)
     fila.escolher(2, 1)
     servidor.chamadas[0]?.recusar(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
     await assentar()
     expect(servidor.chamadas).toHaveLength(1)
     expect(relogio.agendados.map((item) => item.esperaMs)).toEqual([2_000])
-    expect(escolhas(fila.ler())).toEqual(['1:0:1', '2:1:1'])
+    expect(escolhas(fila.read())).toEqual(['1:0:1', '2:1:1'])
   })
 
   it('resposta velha: a escolha trocada enquanto a anterior pendurava é a que vale, e a velha, que o servidor receba atrasada, não a troca no cache', async () => {
@@ -527,21 +527,21 @@ describe('a resposta de prova pendurada não trava as outras (RF11; regra 80, it
     const servidor = servidorDeMentira()
     const relogio = relogioDeMentira()
     const salvas: QuestaoSalvaResponse[] = []
-    const fila = criarFilaDeRespostas({ salvar: servidor.salvar, aoSalvar: (salva) => salvas.push(salva), agendar: relogio.agendar })
+    const fila = createFilaDeRespostas({ save: servidor.salvar, aoSalvar: (salva) => salvas.push(salva), agendar: relogio.agendar })
     fila.escolher(1, 0)
     // A gravação da alternativa 0 está pendurada no ar; a pessoa muda de ideia e marca a 2: ela espera na fila, uma acima.
     fila.escolher(1, 2)
-    expect(escolhas(fila.ler())).toEqual(['1:2:2'])
+    expect(escolhas(fila.read())).toEqual(['1:2:2'])
     servidor.chamadas[0]?.estourar()
     await assentar()
     // A velha estourou e não volta: a fila só tem a nova, com a sequência dela.
-    expect(escolhas(fila.ler())).toEqual(['1:2:2'])
+    expect(escolhas(fila.read())).toEqual(['1:2:2'])
     relogio.agendados[0]?.funcao()
     expect(servidor.chamadas[1]).toMatchObject({ questao: 1, alternativa: 2, sequencia: 2 })
     servidor.chamadas[1]?.aceitar()
     await assentar()
     expect(salvas).toEqual([{ questao: 1, alternativa: 2, sequencia: 2, respondidaEm: '2026-10-05T13:10:00.000Z' }])
-    expect(fila.ler()).toMatchObject({ pendentes: [], alteradas: [], conhecidas: { 1: { alternativa: 2, sequencia: 2 } } })
+    expect(fila.read()).toMatchObject({ pendentes: [], alteradas: [], conhecidas: { 1: { alternativa: 2, sequencia: 2 } } })
     // A velha chega ao servidor depois da nova e a tela a recebe: o cache da prova fica com a nova.
     const prova = { atividadeAplicadaId: 'x', titulo: 't', avaliativa: false, estado: 'aberta' as const, adaptacao: null, questoes: [], respostas: [{ questao: 1, alternativa: 2, sequencia: 2 }], enviadaEm: null }
     expect(provaComRespostaSalva(prova, { questao: 1, alternativa: 0, sequencia: 1 })).toBe(prova)

@@ -26,7 +26,7 @@ export function acessoDaTurmaQueryOptions(turmaId: string) {
 }
 
 /** `POST /v1/turmas/:id/acesso`: gera o link e o código, e derruba os anteriores da turma. Os dois só existem nesta resposta. */
-export function gerarAcesso(turmaId: string, pedido: GerarAcessoRequest): Promise<AcessoGeradoResponse> {
+export function generateAcesso(turmaId: string, pedido: GerarAcessoRequest): Promise<AcessoGeradoResponse> {
   return authedRequest(caminhoDoAcesso(turmaId), acessoGeradoResponseSchema, { metodo: 'POST', corpo: pedido })
 }
 
@@ -45,7 +45,7 @@ export function revogarAcesso(turmaId: string): Promise<void> {
  */
 export function mutacaoDoGerarAcesso(turmaId: string, aoTerminar?: () => Promise<void>) {
   return mutationOptions({
-    mutationFn: (pedido: GerarAcessoRequest) => gerarAcesso(turmaId, pedido),
+    mutationFn: (pedido: GerarAcessoRequest) => generateAcesso(turmaId, pedido),
     gcTime: 0,
     ...(aoTerminar === undefined ? {} : { onSettled: aoTerminar }),
   })

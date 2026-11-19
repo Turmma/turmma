@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { lerAmbienteDeTeste } from '../../../tools/ci/compose.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { AppModule } from '../src/app.module.js'
-import { executarOpsRetencao } from '../src/ops/retencao.js'
+import { runOpsRetencao } from '../src/ops/retencao.js'
 import { ChallengeIssuer } from '../src/credencial/index.js'
 import { chamar, subirApi, type TestApi } from './test-api.js'
 import { testConfig } from './test-config.js'
@@ -57,7 +57,7 @@ describe('retenção da escola: a operação ajusta por comando, e a coordenaç�
   async function rodar(argumentos: string[], doAmbiente: Record<string, string | undefined> = ambiente): Promise<Execucao> {
     let saida = ''
     let erro = ''
-    const codigo = await executarOpsRetencao(argumentos, doAmbiente, { saida: (texto) => (saida += texto), erro: (texto) => (erro += texto) })
+    const codigo = await runOpsRetencao(argumentos, doAmbiente, { saida: (texto) => (saida += texto), erro: (texto) => (erro += texto) })
     return { codigo, saida, erro }
   }
 

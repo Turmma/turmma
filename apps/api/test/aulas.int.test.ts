@@ -1,4 +1,4 @@
-import { CHAVE_DA_TRAVA_DO_VINCULO_DA_AULA, createDatabase, createPool, executarPlanilha, runInContext, type Clock, type Database, type DatabasePool } from '@educa/core'
+import { CHAVE_DA_TRAVA_DO_VINCULO_DA_AULA, createDatabase, createPool, runPlanilha, runInContext, type Clock, type Database, type DatabasePool } from '@educa/core'
 import { ErrorCode, gravarAulaResponseSchema } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -12,7 +12,7 @@ import { aguardar, esperarNaTrava, WriteBlockTrigger } from './write-block-trigg
 /**
  * A professora grava o que vai dar (F2b, tarefa 4.0; `tasks/prd-semana-do-professor/cenarios.md`, "Gravação", R1, R1b, R4, R7, S6, S16, J13 e J14):
  * `PUT /v1/aulas`. Postgres real do compose de teste e relógio injetado (quarta, 2026-11-04, 10h em Brasília); escolas, anos e nomes gerados. A
- * grade do R4 é gravada pela reimportação real do F2 (`executarPlanilha`). A gravação passa pelo vínculo dela, pelo ano em curso e pela trava do
+ * grade do R4 é gravada pela reimportação real do F2 (`runPlanilha`). A gravação passa pelo vínculo dela, pelo ano em curso e pela trava do
  * vínculo, nesta ordem; o que não é dela responde como o inexistente.
  */
 
@@ -185,7 +185,7 @@ describe('PUT /v1/aulas: a professora grava o que vai dar (F2b, tarefa 4.0)', ()
     const planilha = ['turma;disciplina;professor;email;dia;inicio;fim;sala', ...linhas].join('\n')
     const id = await criado(pedir(e.coordenacao, 'POST', '/v1/importacoes/grade', { texto: planilha, marcas: { transferir: [], desligar: [], encerrar } }), 202)
     await runInContext({ requisicaoId: randomUUID(), escolaId: e.escolaId }, () =>
-      executarPlanilha(bancoDoJob, id, { acharConta: () => Promise.reject(new Error('a grade deste teste não cadastra professor')), travarContas: () => Promise.resolve(true) }),
+      runPlanilha(bancoDoJob, id, { acharConta: () => Promise.reject(new Error('a grade deste teste não cadastra professor')), lockContas: () => Promise.resolve(true) }),
     )
     const { rows } = await bancada.pool.query<{ estado: string }>('select estado from importacao_planilha where id = $1', [id])
     expect(rows[0]?.estado).toBe('concluida')

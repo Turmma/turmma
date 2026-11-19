@@ -141,7 +141,7 @@ export type OrcamentoDecision =
  * constante no código (D41): quem os conhece é a implementação, não o provedor.
  */
 export interface OrcamentoDeIa {
-  consultar(consulta: OrcamentoQuery): Promise<OrcamentoDecision>
+  check(consulta: OrcamentoQuery): Promise<OrcamentoDecision>
 }
 
 /** O que o registro em memória guarda: o consumo e a escola do contexto em que ele foi registrado. */
@@ -171,7 +171,7 @@ export class InMemoryOrcamento implements OrcamentoDeIa {
     private readonly relogio: Clock = systemClock,
   ) {}
 
-  async consultar(consulta: OrcamentoQuery): Promise<OrcamentoDecision> {
+  async check(consulta: OrcamentoQuery): Promise<OrcamentoDecision> {
     const escolaId = requireEscolaId()
     const hoje = diaDeUso(this.relogio.agora())
     const mes = hoje.slice(0, 7)

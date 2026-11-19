@@ -13,7 +13,7 @@ export interface NovoAcesso {
 /**
  * O acesso da turma na escola do contexto, no ano letivo em curso dela (A1, tarefa 4.0; regra 10, itens 2 e 3): escola
  * e ano vêm do contexto que a `SessaoGuard` gravou, nunca de argumento. Quem chama confere antes que a turma é do
- * professor (`TurmaRepository.travarComVinculoDoProfessor` ou `aberta` com `turma_vinculada`); aqui a turma é só um
+ * professor (`TurmaRepository.lockComVinculoDoProfessor` ou `aberta` com `turma_vinculada`); aqui a turma é só um
  * filtro, e as FKs compostas `(escola_id, ano_letivo_id, turma_id)` e `(escola_id, criado_por)` são a segunda camada.
  *
  * Vigente é o não revogado com `expira_em > now()`. Nada daqui devolve o hash do token nem o HMAC do código.
@@ -45,7 +45,7 @@ export class AcessoDaTurmaRepository {
    * o código repetidos entre os não revogados, ou a turma que já tem um não revogado, sobem como o 23505 do índice único:
    * quem chama grava num savepoint e decide.
    */
-  async inserir(novo: NovoAcesso): Promise<{ readonly id: string; readonly expiraEm: Date }> {
+  async insert(novo: NovoAcesso): Promise<{ readonly id: string; readonly expiraEm: Date }> {
     const [gravado] = await this.banco
       .insert(acessoTurma)
       .values({
@@ -64,7 +64,7 @@ export class AcessoDaTurmaRepository {
   }
 
   /** Se a turma tem acesso não revogado: depois de um 23505, separa a turma que outro gerar tomou da colisão do código. */
-  async temNaoRevogado(turmaId: string): Promise<boolean> {
+  async hasNaoRevogado(turmaId: string): Promise<boolean> {
     const [linha] = await this.banco
       .select({ id: acessoTurma.id })
       .from(acessoTurma)

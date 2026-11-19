@@ -14,7 +14,7 @@ import { Page } from '../../../components/ui/Page'
 import { usePageTitle } from '../../../document-title'
 import { AvisoDeIA, AvisoDeSuspensao } from '../comum/avisos'
 import { CaixaDoAssistente } from '../assistente/CaixaDoAssistente'
-import { CICLO_DA_CONVERSA, CONTEXTO_ESCOLHIDO, enviarPedidoDaConversa } from '../assistente/memoria-do-professor'
+import { CICLO_DA_CONVERSA, CONTEXTO_ESCOLHIDO, sendPedidoDaConversa } from '../assistente/memoria-do-professor'
 import { saudacao } from './saudacao'
 import { turmaEscolhida, turmasDaProfessora } from '../comum/turmas-da-professora'
 
@@ -43,7 +43,7 @@ export default function Home() {
   const vinculos = useInfiniteQuery(meusVinculosQueryOptions)
   const time = useQuery(timeQueryOptions)
   const contexto = useTabStore(CONTEXTO_ESCOLHIDO)
-  const { ciclo, iniciar } = useExecutionLifecycle(CICLO_DA_CONVERSA, enviarPedidoDaConversa)
+  const { ciclo, start: iniciar } = useExecutionLifecycle(CICLO_DA_CONVERSA, sendPedidoDaConversa)
   // A hora de quando a tela abriu: a saudação não muda com a professora olhando para ela.
   const [agora] = useState(() => new Date())
 
@@ -84,7 +84,7 @@ export default function Home() {
               <CaixaDoAssistente
                 turmas={turmas}
                 turma={turma}
-                iniciar={iniciar}
+                start={iniciar}
                 respondendo={respondendo}
                 desligada={suspensa}
                 depois={() => navegar(PROFESSOR_ROUTES.conversa)}

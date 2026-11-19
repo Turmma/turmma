@@ -9,13 +9,13 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { lerAmbienteDeTeste } from '../../../tools/ci/compose.ts'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
 import type { CommandDatabase, CommandOutput } from '../src/ops/command.js'
-import { executarOpsConviteCoordenador } from '../src/ops/convite-coordenador.js'
-import { executarOpsEscola } from '../src/ops/escola.js'
+import { runOpsConviteCoordenador } from '../src/ops/convite-coordenador.js'
+import { runOpsEscola } from '../src/ops/escola.js'
 import { desativarOperador } from '../src/ops/operador.js'
-import { executarOpsRedefinirMfa } from '../src/ops/redefinir-mfa.js'
-import { executarOpsRevogarConvite } from '../src/ops/revogar-convite.js'
-import { executarOpsUso } from '../src/ops/uso.js'
-import { criarConviteDeCoordenador } from '../src/sessao/index.js'
+import { runOpsRedefinirMfa } from '../src/ops/redefinir-mfa.js'
+import { runOpsRevogarConvite } from '../src/ops/revogar-convite.js'
+import { runOpsUso } from '../src/ops/uso.js'
+import { createConviteDeCoordenador } from '../src/sessao/index.js'
 import { esperarNaTrava, WriteBlockTrigger } from './write-block-trigger.js'
 import { ESPERA_DO_AUTOR, esperarErro, nomeQueVemPrimeiro, pedir, PRAZO_DAS_CONSULTAS_MS, segurarODesativar as segurarODesativarNoBanco, subirApiDoPainel as subir } from './painel.fixture.js'
 import { OperadorFixtures, type TestOperadorSessao } from './operador-session.fixture.js'
@@ -360,7 +360,7 @@ describe('painel da operação: rede e escola, com o autor conferido na transaç
       const casos: Caso[] = [
         {
           nome: 'escola',
-          comando: executarOpsEscola,
+          comando: runOpsEscola,
           preparar: async () => {
             const nome = `Rede Sintética do Comando ${randomUUID().slice(0, 8)}`
             return {
@@ -371,7 +371,7 @@ describe('painel da operação: rede e escola, com o autor conferido na transaç
         },
         {
           nome: 'convite-coordenador',
-          comando: executarOpsConviteCoordenador,
+          comando: runOpsConviteCoordenador,
           preparar: async () => {
             const escolaId = await escolasDaBancada.escola()
             const email = `coordenacao-${randomUUID()}@escola.invalid`
@@ -389,11 +389,11 @@ describe('painel da operação: rede e escola, com o autor conferido na transaç
         },
         {
           nome: 'revogar-convite',
-          comando: executarOpsRevogarConvite,
+          comando: runOpsRevogarConvite,
           preparar: async () => {
             const escolaId = await escolasDaBancada.escola()
             escolasComConvite.push(escolaId)
-            const { conviteId } = await criarConviteDeCoordenador(banco, autorDaBancada, {
+            const { conviteId } = await createConviteDeCoordenador(banco, autorDaBancada, {
               slug: await escolasDaBancada.slugDe(escolaId),
               email: `coordenacao-${randomUUID()}@escola.invalid`,
               nome: 'Coordenação Sintética',
@@ -409,7 +409,7 @@ describe('painel da operação: rede e escola, com o autor conferido na transaç
         },
         {
           nome: 'redefinir-mfa',
-          comando: executarOpsRedefinirMfa,
+          comando: runOpsRedefinirMfa,
           preparar: async () => {
             const escolaId = await escolasDaBancada.escola()
             const coordenador = await escolasDaBancada.sessao(escolaId, 'coordenador')
@@ -425,7 +425,7 @@ describe('painel da operação: rede e escola, com o autor conferido na transaç
         },
         {
           nome: 'uso',
-          comando: executarOpsUso,
+          comando: runOpsUso,
           preparar: async () => ({ argumentos: ['--escola', await escolasDaBancada.escola()], nadaGravado: async () => undefined }),
         },
       ]

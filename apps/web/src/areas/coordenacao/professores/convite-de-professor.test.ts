@@ -10,8 +10,8 @@ import {
   FAMILIA_DO_ESTADO_DO_PROFESSOR,
   pedidoDeCorrecaoDoEmail,
   pedidoDeProfessor,
-  podeCorrigirOEmail,
-  temHomonimo,
+  canCorrigirOEmail,
+  hasHomonimo,
   TEXTO_DA_VALIDADE_DO_CONVITE,
   TEXTO_DO_EMAIL_QUE_NAO_SERVE,
   TEXTO_DO_ESTADO_DO_PROFESSOR,
@@ -75,16 +75,16 @@ describe('o convite do professor na tela Professores (A1, 14.0)', () => {
 
   it('o nome que já está na lista é reconhecido sem contar maiúscula, acento nem espaço sobrando; outro nome, não', () => {
     const lista = [{ nome: 'José Silva' }, { nome: 'Ana Souza' }]
-    expect(temHomonimo(lista, 'José Silva')).toBe(true)
-    expect(temHomonimo(lista, '  jose silva ')).toBe(true)
-    expect(temHomonimo(lista, 'JOSÉ SILVA')).toBe(true)
+    expect(hasHomonimo(lista, 'José Silva')).toBe(true)
+    expect(hasHomonimo(lista, '  jose silva ')).toBe(true)
+    expect(hasHomonimo(lista, 'JOSÉ SILVA')).toBe(true)
     // O espaço dobrado no meio, de um lado ou do outro, não faz dois nomes.
-    expect(temHomonimo(lista, 'José  Silva')).toBe(true)
-    expect(temHomonimo([{ nome: 'Ana   Souza' }], 'Ana Souza')).toBe(true)
+    expect(hasHomonimo(lista, 'José  Silva')).toBe(true)
+    expect(hasHomonimo([{ nome: 'Ana   Souza' }], 'Ana Souza')).toBe(true)
     // O sobrenome a mais é o que distingue os dois, e é o que o aviso pede.
-    expect(temHomonimo(lista, 'José Silva Neto')).toBe(false)
-    expect(temHomonimo(lista, 'José')).toBe(false)
-    expect(temHomonimo([], 'José Silva')).toBe(false)
+    expect(hasHomonimo(lista, 'José Silva Neto')).toBe(false)
+    expect(hasHomonimo(lista, 'José')).toBe(false)
+    expect(hasHomonimo([], 'José Silva')).toBe(false)
   })
 
   it('o CONFLITO do cadastro é do e-mail digitado: diz o que fazer, sem dizer de quem é, e deixa a pessoa voltar e corrigir', () => {
@@ -120,7 +120,7 @@ describe('o "Corrigir o e-mail" (acesso-e-convites, 19.0)', () => {
 
   it('só o convite em aberto, pendente ou vencido, tem o botão, pela matriz do servidor escrita aqui por extenso', () => {
     const esperado: Readonly<Record<EstadoDoProfessor, boolean>> = { pendente: true, vencido: true, revogado: false, aceito: false, ativo: false, desativado: false }
-    for (const estado of ESTADOS_DO_PROFESSOR) expect(podeCorrigirOEmail(estado), estado).toBe(esperado[estado])
+    for (const estado of ESTADOS_DO_PROFESSOR) expect(canCorrigirOEmail(estado), estado).toBe(esperado[estado])
   })
 
   it('o pedido sai pelo contrato estrito da API: e-mail sem as pontas e em minúsculas; o que ele recusa volta com o texto do cadastro', () => {

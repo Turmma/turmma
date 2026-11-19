@@ -25,7 +25,7 @@ interface Soma {
 export class DesempenhoService {
   constructor(private readonly banco: Database) {}
 
-  async ler(turmaId: string, { finalidade }: DesempenhoDaTurmaQuery): Promise<DesempenhoDaTurmaResponse> {
+  async read(turmaId: string, { finalidade }: DesempenhoDaTurmaQuery): Promise<DesempenhoDaTurmaResponse> {
     const alcance = alcanceDe(requestSessao().papel, 'desempenho_da_turma', 'ler')
     const nominalAuditado = alcance === 'nominal_auditado'
     if (!nominalAuditado && alcance !== 'turma_vinculada') throw new DomainException(ErrorCode.NAO_ENCONTRADO)
@@ -79,7 +79,7 @@ export class DesempenhoService {
         }),
       }
       if (nominalAuditado && finalidade !== undefined) {
-        await registro.gravar(tx, 'turma.desempenho_lido', { entidadeId: turmaId, depois: { quantidade: montada.alunos.length, lotesAprovados }, finalidade })
+        await registro.save(tx, 'turma.desempenho_lido', { entidadeId: turmaId, depois: { quantidade: montada.alunos.length, lotesAprovados }, finalidade })
       }
       return montada
     })

@@ -246,14 +246,14 @@ describe('as três respostas da conferência da sessão', () => {
 describe('abrir a aba pelo cookie', () => {
   it('sem sessão no cookie, fica anônima sem aviso: quem só abriu a operação não teve sessão nenhuma terminada', async () => {
     responderCom({ status: 401, corpo: envelope(ErrorCode.SESSAO_ENCERRADA) })
-    await sessao.abrirSessaoDeOperadorPeloCookie()
+    await sessao.openSessaoDeOperadorPeloCookie()
     expect(sessao.estadoDaSessaoDeOperador()).toBe('anonima')
     expect(sessao.avisoDaEntradaDeOperador()).toBeUndefined()
   })
 
   it('com a API fora, fica indisponível, e não anônima: ninguém vai à entrada porque o banco caiu', async () => {
     responderCom({ status: 503, corpo: envelope(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO) })
-    await sessao.abrirSessaoDeOperadorPeloCookie()
+    await sessao.openSessaoDeOperadorPeloCookie()
     expect(sessao.estadoDaSessaoDeOperador()).toBe('indisponivel')
   })
 
@@ -261,7 +261,7 @@ describe('abrir a aba pelo cookie', () => {
     const pedidas: string[] = []
     vi.stubGlobal('navigator', { locks: { request: (nome: string, tarefa: () => Promise<unknown>) => (pedidas.push(nome), tarefa()) } })
     responderCom({ status: 200, corpo: { token: ANA.token, expiraEm: DAQUI_A_MUITO } })
-    await sessao.abrirSessaoDeOperadorPeloCookie()
+    await sessao.openSessaoDeOperadorPeloCookie()
     expect(pedidas).toEqual(['turmma-operacao-renovacao'])
     expect(sessao.estadoDaSessaoDeOperador()).toBe('aberta')
     // Renovar não é uso (tarefa 8.0): o relógio de inatividade só começa na primeira requisição aceita.
@@ -450,7 +450,7 @@ describe('duas abas da operação', () => {
     vi.resetModules()
     const outraAba = await importarSessao()
     responderCom({ status: 200, corpo: { token: 'token-da-outra-aba', expiraEm: DAQUI_A_MUITO } })
-    await outraAba.abrirSessaoDeOperadorPeloCookie()
+    await outraAba.openSessaoDeOperadorPeloCookie()
     // A outra aba liga o canal ao assinar a sessão, como a tela faz ao montar.
     outraAba.assinarSessaoDeOperador(() => undefined)
     sessao.assinarSessaoDeOperador(() => undefined)
@@ -473,7 +473,7 @@ describe('duas abas da operação', () => {
 
   it('a sessão nova aberta numa aba tira da outra o que era da sessão anterior', async () => {
     responderCom({ status: 200, corpo: { token: 'token-antigo', expiraEm: DAQUI_A_MUITO } })
-    await sessao.abrirSessaoDeOperadorPeloCookie()
+    await sessao.openSessaoDeOperadorPeloCookie()
     sessao.assinarSessaoDeOperador(() => undefined)
     vi.resetModules()
     const outraAba = await importarSessao()
@@ -492,7 +492,7 @@ describe('duas abas da operação', () => {
     const outraAba = await importarSessao()
     outraAba.assinarSessaoDeOperador(() => undefined)
     responderCom({ status: 200, corpo: { token: 'token-da-outra-aba', expiraEm: DAQUI_A_MUITO } }, { status: 200, corpo: EU })
-    await outraAba.abrirSessaoDeOperadorPeloCookie()
+    await outraAba.openSessaoDeOperadorPeloCookie()
     const antes = sessao.ultimoUsoDaSessaoDeOperador() ?? 0
 
     await new Promise((resolver) => setTimeout(resolver, 5))

@@ -95,7 +95,7 @@ describe('lote não urgente segurado no horário letivo da escola', () => {
     const urgentes = [await enfileirar(ESCOLA_A, 'lote', false), await enfileirar(ESCOLA_A, 'lote', false)]
     const processador: JobProcessor = () => new Promise<void>((resolver) => soltar.push(resolver))
     bancada.worker(new InMemoryLog('worker-lote'), { pools: { lote: 10 }, processadores: { sintetico: processador } })
-    bancada.despachante(new InMemoryLog('despachante'), { relogio }).despachante.iniciar()
+    bancada.despachante(new InMemoryLog('despachante'), { relogio }).despachante.start()
 
     for (const id of urgentes) await expect.poll(async () => (await linha(id))?.estado, { timeout: 5_000, interval: 50 }).toBe('ativo')
     // As duas vagas de lote da A são dos urgentes; nenhum segurado foi reservado nem publicado.
@@ -152,7 +152,7 @@ describe('lote não urgente segurado no horário letivo da escola', () => {
         manter: vagas.manter.bind(vagas),
         livres: vagas.livres.bind(vagas),
         tomar: vagas.tomar.bind(vagas),
-        liberar: vagas.liberar.bind(vagas),
+        release: vagas.release.bind(vagas),
       }),
     })
 

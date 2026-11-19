@@ -23,7 +23,7 @@ export class RedeEEscolaRepository {
   constructor(private readonly banco: DatabaseExecutor) {}
 
   @Unscoped('a rede fica acima do tenant e ainda não tem escola; só o comando ou o painel do operador cria, e devolve só o id')
-  async criarRede(dados: { id: string; nome: string; tipo: TipoDeRede }): Promise<Criada> {
+  async createRede(dados: { id: string; nome: string; tipo: TipoDeRede }): Promise<Criada> {
     const [criada] = await this.banco.insert(rede).values(dados).onConflictDoNothing().returning({ id: rede.id })
     if (criada !== undefined) return { id: criada.id, nova: true }
     const [existente] = await this.banco.select({ nome: rede.nome, tipo: rede.tipo }).from(rede).where(eq(rede.id, dados.id)).limit(1)
@@ -32,7 +32,7 @@ export class RedeEEscolaRepository {
   }
 
   @Unscoped('a escola é o próprio tenant e nasce aqui, antes de existir contexto dela; só o comando ou o painel do operador cria, e devolve só o id')
-  async criarEscola(dados: { id: string; redeId: string; nome: string; slug: string }): Promise<Criada> {
+  async createEscola(dados: { id: string; redeId: string; nome: string; slug: string }): Promise<Criada> {
     const [criada] = await this.banco.insert(escola).values(dados).onConflictDoNothing().returning({ id: escola.id })
     if (criada !== undefined) return { id: criada.id, nova: true }
     const [existente] = await this.banco.select({ redeId: escola.redeId, nome: escola.nome, slug: escola.slug }).from(escola).where(eq(escola.id, dados.id)).limit(1)

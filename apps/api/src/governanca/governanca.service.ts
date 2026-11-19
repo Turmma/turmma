@@ -6,7 +6,7 @@ import {
   funcaoDaGovernancaResponseSchema,
   funcoesDaGovernancaResponseSchema,
   resumoDaGovernancaResponseSchema,
-  montarTime,
+  buildTime,
   TROCAS_POR_DIA_PADRAO_DO_TUTOR,
   TROCAS_POR_MES_PADRAO_DO_TUTOR,
   type ChaveDeFuncao,
@@ -78,7 +78,7 @@ export class GovernancaService {
 
   #agentes(vigentes: readonly SuspensaoLida[]): FuncoesDaGovernancaResponse['agentes'] {
     const porFuncao = new Map(vigentes.map((suspensao) => [suspensao.funcao, suspensao]))
-    return montarTime(new Set(porFuncao.keys())).agentes.map((agente) => ({
+    return buildTime(new Set(porFuncao.keys())).agentes.map((agente) => ({
       ...agente,
       funcoes: agente.funcoes.map((funcao) => {
         const suspensao = porFuncao.get(funcao.chave)
@@ -100,7 +100,7 @@ export class GovernancaService {
       const governanca = new GovernancaRepository(tx)
       const suspensaoId = await governanca.suspender(chave, motivo ?? null)
       // Só a suspensão que nasceu agora é auditada: o segundo clique acha a vigente e não repete o registro.
-      if (suspensaoId !== undefined) await registro.gravar(tx, 'funcao.suspensa', { entidadeId: suspensaoId, depois: { funcao: chave, motivo: motivo ?? null } })
+      if (suspensaoId !== undefined) await registro.save(tx, 'funcao.suspensa', { entidadeId: suspensaoId, depois: { funcao: chave, motivo: motivo ?? null } })
       return this.#funcao(await governanca.suspensoesVigentes(), chave)
     })
   }
@@ -110,7 +110,7 @@ export class GovernancaService {
       const governanca = new GovernancaRepository(tx)
       const retomada = await governanca.retomar(chave)
       if (retomada === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
-      await registro.gravar(tx, 'funcao.retomada', {
+      await registro.save(tx, 'funcao.retomada', {
         entidadeId: retomada.id,
         antes: { funcao: chave, suspensaEm: retomada.suspensaEm.toISOString() },
         depois: { retomadaEm: retomada.retomadaEm.toISOString() },

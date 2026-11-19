@@ -41,7 +41,7 @@ export interface MaterialModuleOptions {
 export class MaterialModule {
   static forRoot(opcoes: MaterialModuleOptions): DynamicModule {
     const { armazem, encerrar } =
-      opcoes.armazemDeTeste === undefined ? S3FileStorage.criar(opcoes.armazem) : { armazem: opcoes.armazemDeTeste, encerrar: (): void => undefined }
+      opcoes.armazemDeTeste === undefined ? S3FileStorage.create(opcoes.armazem) : { armazem: opcoes.armazemDeTeste, encerrar: (): void => undefined }
     return {
       module: MaterialModule,
       controllers: [MaterialController, LicencaController, HabilidadesBnccController],

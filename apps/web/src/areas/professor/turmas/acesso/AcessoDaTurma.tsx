@@ -43,7 +43,7 @@ export function AcessoDaTurma({ turmaId, escola, titulo, convidarPeloEndereco = 
   const acesso = useQuery(acessoDaTurmaQueryOptions(turmaId))
   // O endereço pede o diálogo: ele abre na montagem da aba, uma vez. Fechar tira o pedido do endereço, e a aba que monta de novo
   // (a turma aberta outra vez) o abre só se o endereço ainda o pede.
-  const { aberta, abrir: abrirDialogo, fechar: fecharDialogo, fecharSeAinda } = useDialogState<'convidar'>(convidarPeloEndereco ? 'convidar' : undefined)
+  const { aberta, open: abrirDialogo, close: fecharDialogo, closeSeAinda: fecharSeAinda } = useDialogState<'convidar'>(convidarPeloEndereco ? 'convidar' : undefined)
   const [anuncio, definirAnuncio] = useState('')
   const idDoTitulo = useId()
   const botaoConvidar = useRef<HTMLButtonElement>(null)
@@ -59,7 +59,7 @@ export function AcessoDaTurma({ turmaId, escola, titulo, convidarPeloEndereco = 
     abrirDialogo('convidar')
   }, [abrirDialogo])
 
-  function fechar(): void {
+  function close(): void {
     fecharDialogo()
     aoFecharOConvite?.()
   }
@@ -104,7 +104,7 @@ export function AcessoDaTurma({ turmaId, escola, titulo, convidarPeloEndereco = 
           turmaId={turmaId}
           escola={escola}
           aoTerminar={recarregar}
-          aoFechar={fechar}
+          aoFechar={close}
           aoRevogar={() => {
             definirAnuncio('Acesso revogado. O link e o código não valem mais.')
             // Só a abertura em que o pedido saiu: o revogar que responde com outro diálogo aberto não o fecha.

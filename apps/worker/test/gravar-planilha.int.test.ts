@@ -5,7 +5,7 @@ import { afterAll, beforeAll, describe, expect, it, onTestFinished } from 'vites
 import { compose, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { esperarNaTrava, WriteBlockTrigger } from '../../api/test/write-block-trigger.js'
-import { criarGravacaoDaPlanilha } from '../src/processors/gravar-planilha.js'
+import { createGravacaoDaPlanilha } from '../src/processors/gravar-planilha.js'
 import { jobExecution } from './job-execution.fixture.js'
 import { InMemoryLog, QueueFixtures } from './queue.fixture.js'
 
@@ -37,7 +37,7 @@ describe('estrutura.gravar-planilha', () => {
   const bancada = new QueueFixtures()
   const log = new InMemoryLog('worker-teste')
   const medidor = new MedidorDeTeste()
-  const gravacao = criarGravacaoDaPlanilha({ banco: bancada.banco, logger: log.logger, medidor: medidor.medidor })
+  const gravacao = createGravacaoDaPlanilha({ banco: bancada.banco, logger: log.logger, medidor: medidor.medidor })
 
   afterAll(async () => {
     await medidor.encerrar()
@@ -66,7 +66,7 @@ describe('estrutura.gravar-planilha', () => {
   function gravar(escola: Escola, texto: string): Promise<string> {
     const motor = new MotorDePlanilha(bancada.banco, { enfileirar: () => Promise.resolve(randomUUID()) })
     const contexto = { requisicaoId: randomUUID(), escolaId: escola.escolaId, usuarioId: escola.coordenadorId, papel: 'coordenador' as const, sessaoId: randomUUID(), anoLetivoId: escola.anoId }
-    return runInContext(contexto, async () => (await motor.gravar('calendario', { texto, marcas: SEM_MARCAS })).id)
+    return runInContext(contexto, async () => (await motor.save('calendario', { texto, marcas: SEM_MARCAS })).id)
   }
 
   /** Uma tentativa do job, como o executor a entrega: no contexto da escola da linha do outbox, com o payload dado. */
@@ -338,24 +338,24 @@ describe('estrutura.gravar-planilha', () => {
     expect(resumo[0]?.resumo).toEqual({ entram: 2, ja_existem: 0, eventos_removidos: 0 })
 
     // O calendário: o ano de B, lido e apagado no contexto de A, não aparece nem sai; o ano de A, com os ids de outro ano, também não.
-    await noContexto(b, (repositorio) => repositorio.inserirEventos(b.anoId, [{ tipo: 'evento', inicio: '2026-06-01', fim: '2026-06-01', descricao: `${PREFIXO} da B` }]))
+    await noContexto(b, (repositorio) => repositorio.insertEventos(b.anoId, [{ tipo: 'evento', inicio: '2026-06-01', fim: '2026-06-01', descricao: `${PREFIXO} da B` }]))
     const daB = await noContexto(b, (repositorio) => repositorio.eventosDoAno(b.anoId))
     expect(daB).toHaveLength(1)
     expect(await noContexto(a, (repositorio) => repositorio.eventosDoAno(b.anoId))).toEqual([])
-    await noContexto(a, (repositorio) => repositorio.apagarEventos(b.anoId, daB.map((evento) => evento.id)))
+    await noContexto(a, (repositorio) => repositorio.deleteEventos(b.anoId, daB.map((evento) => evento.id)))
     expect(await eventosDe(b)).toBe(1)
     // Inserir no ano de B com o contexto de A é recusado (a FK composta do evento prende o ano à escola) e nada entra em nenhuma das duas.
-    await expect(noContexto(a, (repositorio) => repositorio.inserirEventos(b.anoId, [{ tipo: 'evento', inicio: '2026-06-03', fim: '2026-06-03', descricao: `${PREFIXO} de A no ano de B` }]))).rejects.toThrow()
+    await expect(noContexto(a, (repositorio) => repositorio.insertEventos(b.anoId, [{ tipo: 'evento', inicio: '2026-06-03', fim: '2026-06-03', descricao: `${PREFIXO} de A no ano de B` }]))).rejects.toThrow()
     expect(await eventosDe(b)).toBe(1)
     expect(await eventosDe(a)).toBe(0)
     // O mesmo na escola de A: o evento de outro ano dela, pedido com o ano em curso, não sai.
     const { rows: outroAno } = await bancada.pool.query<{ id: string }>("insert into ano_letivo (escola_id, ano, inicio, fim, situacao) values ($1, 2027, '2027-02-01', '2027-12-15', 'planejado') returning id", [a.escolaId])
-    await noContexto(a, (repositorio) => repositorio.inserirEventos(outroAno[0]?.id ?? '', [{ tipo: 'evento', inicio: '2027-06-02', fim: '2027-06-02', descricao: `${PREFIXO} de 2027` }]))
+    await noContexto(a, (repositorio) => repositorio.insertEventos(outroAno[0]?.id ?? '', [{ tipo: 'evento', inicio: '2027-06-02', fim: '2027-06-02', descricao: `${PREFIXO} de 2027` }]))
     const de2027 = await noContexto(a, (repositorio) => repositorio.eventosDoAno(outroAno[0]?.id ?? ''))
-    await noContexto(a, (repositorio) => repositorio.apagarEventos(a.anoId, de2027.map((evento) => evento.id)))
+    await noContexto(a, (repositorio) => repositorio.deleteEventos(a.anoId, de2027.map((evento) => evento.id)))
     expect(await noContexto(a, (repositorio) => repositorio.eventosDoAno(outroAno[0]?.id ?? ''))).toHaveLength(1)
     // Na escola e no ano certos, apaga.
-    await noContexto(b, (repositorio) => repositorio.apagarEventos(b.anoId, daB.map((evento) => evento.id)))
+    await noContexto(b, (repositorio) => repositorio.deleteEventos(b.anoId, daB.map((evento) => evento.id)))
     expect(await eventosDe(b)).toBe(0)
   })
 

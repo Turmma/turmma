@@ -1,7 +1,7 @@
 import { createDatabase, createPool, type Database, type DatabasePool } from '@educa/core'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
-import { consultarUso } from '../src/ops/uso.js'
+import { findUso } from '../src/ops/uso.js'
 import { autorDaBancada, SessaoFixtures } from './sessao.fixture.js'
 
 describe('npm run ops:uso: consulta de uso por escola no dia e no mês', () => {
@@ -37,7 +37,7 @@ describe('npm run ops:uso: consulta de uso por escola no dia e no mês', () => {
     await gravar(escolaA, '2026-10-01', 999, 999, 99_999)
     await gravar(escolaA, '2026-08-31', 999, 999, 99_999)
 
-    expect(await consultarUso(banco, autorDaBancada, { escolaId: escolaA, dia: '2026-09-15', mes: '2026-09' })).toEqual({
+    expect(await findUso(banco, autorDaBancada, { escolaId: escolaA, dia: '2026-09-15', mes: '2026-09' })).toEqual({
       escolaId: escolaA,
       dia: { data: '2026-09-15', requisicoes: 40, jobs: 4, bytesStorage: 8_000 },
       mes: { referencia: '2026-09', requisicoes: 141, jobs: 15, bytesStorage: 8_000 },
@@ -46,11 +46,11 @@ describe('npm run ops:uso: consulta de uso por escola no dia e no mês', () => {
 
   it('isolamento: a escola B com uso no mesmo dia não aparece na consulta da A, e dia sem uso é zero', async () => {
     await gravar(escolaB, '2026-09-15', 70, 7, 700)
-    expect(await consultarUso(banco, autorDaBancada, { escolaId: escolaA, dia: '2026-09-15', mes: '2026-09' })).toEqual({
+    expect(await findUso(banco, autorDaBancada, { escolaId: escolaA, dia: '2026-09-15', mes: '2026-09' })).toEqual({
       escolaId: escolaA,
       dia: { data: '2026-09-15', requisicoes: 0, jobs: 0, bytesStorage: 0 },
       mes: { referencia: '2026-09', requisicoes: 0, jobs: 0, bytesStorage: 0 },
     })
-    expect((await consultarUso(banco, autorDaBancada, { escolaId: escolaB, dia: '2026-09-15', mes: '2026-09' })).mes.requisicoes).toBe(70)
+    expect((await findUso(banco, autorDaBancada, { escolaId: escolaB, dia: '2026-09-15', mes: '2026-09' })).mes.requisicoes).toBe(70)
   })
 })

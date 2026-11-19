@@ -542,7 +542,7 @@ describe('Tutor e sinais', () => {
       const chaveEnvio = randomUUID()
       const corpo = { texto, ...naQuestao(3), materialId: a.materialId, pagina: 4, chaveEnvio }
       // O turno roda no worker, com a busca de trechos da bancada: é ela que se espia (a da API não é chamada pelo Tutor).
-      const buscar = vi.spyOn(fila.trechos, 'buscar')
+      const buscar = vi.spyOn(fila.trechos, 'find')
       try {
         // O controle: um turno comum chama o espião, e por isso o "nenhuma chamada" abaixo pode falhar.
         const marcaDoControle = `controle${randomUUID().slice(0, 8)}`
@@ -601,7 +601,7 @@ describe('Tutor e sinais', () => {
 
     it('o comando relê o contexto ao rodar: o vínculo encerrado, a pergunta eliminada, o material que saiu do alcance e a função suspensa depois do 202 falham a execução, sem trecho, sem modelo e sem consumo', async () => {
       // O turno roda no worker, com a busca de trechos da bancada: é ela que se espia (a da API não é chamada pelo Tutor).
-      const buscar = vi.spyOn(fila.trechos, 'buscar')
+      const buscar = vi.spyOn(fila.trechos, 'find')
       try {
         // O controle: um turno comum chama o espião, e por isso o "nenhuma chamada" de cada caso pode falhar.
         const marcaDoControle = `controle${randomUUID().slice(0, 8)}`
@@ -893,7 +893,7 @@ describe('Tutor e sinais', () => {
       const daOutraEscola = (await turno(deOutraEscola, `o que é reagente limitante ${marca}?`)).execucaoId
       const meu = (await turno(dono, 'o que é reagente limitante?', naQuestao(3))).execucaoId
       const lida = (id: string) => ({ id, tarefa: 'turno_do_tutor' as const, chaveEnvio: randomUUID(), entrada: { tarefa: 'turno_do_tutor' as const } })
-      const buscar = vi.spyOn(api.app.get(TrechoSearch), 'buscar')
+      const buscar = vi.spyOn(api.app.get(TrechoSearch), 'find')
       try {
         for (const [rotulo, id] of [['a do colega da mesma turma', doColega], ['a de outra escola', daOutraEscola]] as const) {
           await expect(comoPessoa(a, dono, 'aluno', () => comando.preparar(lida(id))), rotulo).rejects.toMatchObject({ codigo: 'NAO_ENCONTRADO' })

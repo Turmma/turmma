@@ -17,7 +17,7 @@ export const CARACTERES_LIDOS_POR_PAGINA = 6_000
 const MAXIMO_DA_LINHA_DE_SUBTITULO = 80
 const MINIMO_DA_LINHA_DE_SUBTITULO = 4
 
-const ehSubtitulo = (linha: string): boolean =>
+const isSubtitulo = (linha: string): boolean =>
   linha.length >= MINIMO_DA_LINHA_DE_SUBTITULO &&
   linha.length <= MAXIMO_DA_LINHA_DE_SUBTITULO &&
   /\p{L}/u.test(linha) &&
@@ -50,7 +50,7 @@ export function textoDaSecao(paginas: readonly string[], titulo: string | null):
   const escolhidas: string[] = []
   let tamanho = 0
   for (const linha of linhas) {
-    if (!ehSubtitulo(linha)) continue
+    if (!isSubtitulo(linha)) continue
     const chave = chaveDaLinha(linha)
     if (chave === doTitulo || vistas.has(chave)) continue
     const acrescimo = linha.length + (escolhidas.length === 0 ? 0 : 1)

@@ -24,7 +24,7 @@ export class ExecucoesService {
     private readonly logger: LoggerBase,
   ) {}
 
-  async ler(id: string): Promise<ExecucaoResponse> {
+  async read(id: string): Promise<ExecucaoResponse> {
     const execucoes = new ExecucaoDaSessaoRepository(this.banco)
     let execucao = await execucoes.deQuemPediu(id)
     if (execucao === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)

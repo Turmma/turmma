@@ -11,7 +11,7 @@ import {
   type EnviarConvitesRequest,
   type EnviarConvitesResponse,
 } from '@educa/shared'
-import { normalizarEmail } from '../../credencial/login-identifiers.js'
+import { normalizeEmail } from '../../credencial/login-identifiers.js'
 import { ConviteRepository, type ProfessorParaEnvio } from './convite.repository.js'
 import { convidarProfessor, expiraEmDo, refazerSobATrava, tokenNovo } from './convite.service.js'
 
@@ -36,7 +36,7 @@ export interface ConviteDeProfessorGerado {
  * de professor nenhum, usuário de outro papel, de outra escola ou inexistente dão `NAO_ENCONTRADO` (I7).
  */
 async function professorSobATrava(convites: ConviteRepository, usuarioId: string) {
-  await convites.travarEscola()
+  await convites.lockEscola()
   const dados = await convites.dadosDoProfessor(usuarioId)
   if (dados === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
   return { estado: estadoDoProfessor(dados), conviteId: dados.ultimoConvite.id }
@@ -61,10 +61,10 @@ export async function cadastrarProfessor(banco: Database, pedido: CadastrarProfe
   const expiraEm = expiraEmDo('professor', relogio)
   return banco.transaction(async (tx) => {
     const convites = new ConviteRepository(tx)
-    await convites.travarEscola()
+    await convites.lockEscola()
     const { conviteId, usuarioId } = await convidarProfessor(tx, convites, pedido, token, expiraEm)
-    await registro.gravar(tx, 'professor.cadastrado', { entidadeId: usuarioId })
-    await registro.gravar(tx, 'convite.criado', { entidadeId: conviteId, depois: { tipo: 'professor', usuarioId, expiraEm: expiraEm.toISOString() } })
+    await registro.save(tx, 'professor.cadastrado', { entidadeId: usuarioId })
+    await registro.save(tx, 'convite.criado', { entidadeId: conviteId, depois: { tipo: 'professor', usuarioId, expiraEm: expiraEm.toISOString() } })
     return { usuarioId, conviteId, token }
   })
 }
@@ -101,13 +101,13 @@ export async function corrigirEmailDoProfessor(banco: Database, usuarioId: strin
     const { estado, conviteId } = await professorSobATrava(convites, usuarioId)
     if (CORRIGIR_EMAIL_DO_PROFESSOR_POR_ESTADO[estado] === 'conflito') throw new DomainException(ErrorCode.CONFLITO)
     if (await convites.jaEntrou(usuarioId)) throw new DomainException(ErrorCode.CONFLITO)
-    const contaNova = await contaDoProfessor(tx, normalizarEmail(pedido.email))
+    const contaNova = await contaDoProfessor(tx, normalizeEmail(pedido.email))
     // O e-mail que já é de outro professor da escola cai no `usuario_escola_conta_papel_unico` (23505): o `mapPostgresError` do filtro global o traduz em `CONFLITO`, e o erro que
     // sobe desfaz a transação, com a conta que o passo (3) criou. Nada mais roda nela depois do 23505 (a transação abortada), e por isso não há `catch` aqui.
     const trocou = await convites.trocarContaDoProfessor(usuarioId, contaNova.id)
     if (!trocou) throw new DomainException(ErrorCode.CONFLITO)
     const refeito = await refazerSobATrava(tx, convites, 'professor', conviteId, token, expiraEm)
-    await registro.gravar(tx, 'usuario.email_corrigido', { entidadeId: refeito.usuarioId })
+    await registro.save(tx, 'usuario.email_corrigido', { entidadeId: refeito.usuarioId })
     return { usuarioId: refeito.usuarioId, conviteId: refeito.conviteId, token }
   })
 }
@@ -128,13 +128,13 @@ export async function revogarConviteDeProfessor(banco: Database, usuarioId: stri
     // Sob a trava, o convite em aberto não muda de estado entre a leitura e aqui: o aceite, que o usaria, pega a mesma
     // trava antes. O `update` só não revogaria o convite já revogado.
     if (!(await convites.revogar(conviteId, 'professor'))) throw new DomainException(ErrorCode.CONFLITO)
-    await registro.gravar(tx, 'convite.revogado', { entidadeId: conviteId, depois: { tipo: 'professor' } })
+    await registro.save(tx, 'convite.revogado', { entidadeId: conviteId, depois: { tipo: 'professor' } })
   })
 }
 
 /** O que o "Enviar convites" usa fora do banco: a cota da escola, a cifra do token e do endereço na fila de envio, e a porta do job. */
 export interface EnvioDeConvites {
-  readonly cota: Pick<CotaPorHora, 'consumir' | 'devolver'>
+  readonly cota: Pick<CotaPorHora, 'consume' | 'devolver'>
   readonly cifra: Pick<SecretCipher, 'cifrar'>
   readonly fila: JobOutbox
 }
@@ -164,18 +164,18 @@ function quemEsperaOConvitePorEmail({ email, dados }: ProfessorParaEnvio): { ema
  *
  * Não exige ano letivo em curso: o convite é da escola. Nunca o token, o nome ou o e-mail em log.
  */
-export async function enviarConvitesDeProfessores(banco: Database, envio: EnvioDeConvites, pedido: EnviarConvitesRequest, relogio: Clock = systemClock): Promise<EnviarConvitesResponse> {
+export async function sendConvitesDeProfessores(banco: Database, envio: EnvioDeConvites, pedido: EnviarConvitesRequest, relogio: Clock = systemClock): Promise<EnviarConvitesResponse> {
   const escolaId = requireEscolaId()
   const expiraEm = expiraEmDo('professor', relogio)
   let gasto: PontosGastos | undefined
   try {
     return await banco.transaction(async (tx) => {
       const convites = new ConviteRepository(tx)
-      await convites.travarEscola()
+      await convites.lockEscola()
       const lidos = await convites.professoresParaEnvio(pedido.usuarioIds === undefined ? undefined : [...new Set(pedido.usuarioIds)])
       const entram = lidos.map(quemEsperaOConvitePorEmail).filter((pedido) => pedido !== undefined)
       if (entram.length === 0) return { quantidade: 0 }
-      const consumo = await envio.cota.consumir(escolaId, entram.length)
+      const consumo = await envio.cota.consume(escolaId, entram.length)
       if (consumo.resultado === 'recusado') throw new DomainException(ErrorCode.LIMITE_EXCEDIDO, undefined, retryAfterSeconds(consumo.msAteLiberar))
       gasto = consumo.gasto
       for (const { email, origemId } of entram) {
@@ -186,7 +186,7 @@ export async function enviarConvitesDeProfessores(banco: Database, envio: EnvioD
         })
         const refeito = await refazerSobATrava(tx, convites, 'professor', origemId, token, expiraEm, undefined, cifrarParaEnvio)
         await envio.fila.enfileirar(tx, TIPO_ENVIAR_CONVITE, { conviteId: refeito.conviteId })
-        await registro.gravar(tx, 'convite.enviado', { entidadeId: refeito.conviteId, depois: { tipo: 'professor', canal: 'email' } })
+        await registro.save(tx, 'convite.enviado', { entidadeId: refeito.conviteId, depois: { tipo: 'professor', canal: 'email' } })
       }
       return { quantidade: entram.length }
     })

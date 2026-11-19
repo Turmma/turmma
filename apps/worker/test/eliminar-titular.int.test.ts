@@ -25,8 +25,8 @@ import { lerAmbienteDeTeste, valorObrigatorio } from '../../../tools/ci/compose.
 import { compose, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
 import type { StorageConfig } from '../src/config.js'
 import { createWorker } from '../src/composition.js'
-import { criarEliminacaoDoTitular } from '../src/processors/eliminar-titular.js'
-import { criarExpurgoDaEscola } from '../src/processors/expurgar-escola.js'
+import { createEliminacaoDoTitular } from '../src/processors/eliminar-titular.js'
+import { createExpurgoDaEscola } from '../src/processors/expurgar-escola.js'
 import { QueueFixtures, configuracaoDoBanco, janelaPadraoDoAmbiente, InMemoryLog, urlRedisDeFila, vagasPadraoDoAmbiente } from './queue.fixture.js'
 import { jobExecution } from './job-execution.fixture.js'
 
@@ -142,7 +142,7 @@ describe('titular.eliminar', () => {
 
   /** Roda o processador `titular.eliminar` na escola dada, com o relógio, a faixa e os dados. */
   async function rodar(escolaId: string | undefined, dados: { pedidoId: string }, opcoes: { relogio?: Clock; faixa?: number } = {}): Promise<void> {
-    const processador = criarEliminacaoDoTitular({
+    const processador = createEliminacaoDoTitular({
       banco: bancada.banco,
       janelaDaEscola: await janelaDaEscola(),
       relogio: opcoes.relogio ?? relogioEm(QUARTA_1H),
@@ -886,7 +886,7 @@ describe('titular.eliminar', () => {
       await bancada.pool.query("update usuario set desativado_em = now() - interval '61 months' where id = $1", [c.alunoId])
       const pedidoId = await agendar(c, c.alunoId)
       const relogio = relogioEm(QUARTA_1H)
-      const expurgo = criarExpurgoDaEscola({
+      const expurgo = createExpurgoDaEscola({
         repositorio: new ExpurgoDaEscolaRepository(bancada.banco),
         enfileirador: bancada.enfileirador,
         arquivos: new ArquivoDoTitularRepository(bancada.banco),
@@ -988,7 +988,7 @@ describe('titular.eliminar', () => {
           const repositorio = new EliminacaoDoTitularRepository(tx)
           return {
             vencido: await repositorio.vencido(pedidoId),
-            travado: await repositorio.travarVencido(pedidoId),
+            travado: await repositorio.lockVencido(pedidoId),
             nome: await repositorio.nomeDoTitular(a.alunoId),
             registrador: await repositorio.registradorAtivo(a.coordenadoraId),
             execucoes: await repositorio.anonimizarExecucoes(a.alunoId, new Date()),
@@ -1000,7 +1000,7 @@ describe('titular.eliminar', () => {
         }),
       )
       expect(resultado).toEqual({ vencido: undefined, travado: undefined, nome: undefined, registrador: false, execucoes: 0, arquivos: 0, abertos: [], concluiu: false, homonimo: false })
-      await runInContext({ requisicaoId: randomUUID(), escolaId: b.escolaId }, () => new EliminacaoDoTitularRepository(bancada.banco).gravarCompartilhamento(pedidoId, [{ suboperadorId: null, chave: 'x', primeiroEm: new Date().toISOString(), ultimoEm: new Date().toISOString(), origem: 'rastro' }]))
+      await runInContext({ requisicaoId: randomUUID(), escolaId: b.escolaId }, () => new EliminacaoDoTitularRepository(bancada.banco).saveCompartilhamento(pedidoId, [{ suboperadorId: null, chave: 'x', primeiroEm: new Date().toISOString(), ultimoEm: new Date().toISOString(), origem: 'rastro' }]))
 
       // A linha de A continua como estava.
       expect((await pedido(pedidoId)).estado).toBe('agendado')
@@ -1049,7 +1049,7 @@ describe('titular.eliminar', () => {
         { prefixo: bancada.prefixo, relogio, agendamentos: [] },
       )
       onTestFinished(() => worker.encerrar())
-      bancada.despachante(log, { relogio }).iniciar()
+      bancada.despachante(log, { relogio }).start()
       const enfileirado = await runInContext({ requisicaoId: randomUUID(), escolaId: c.escolaId }, () =>
         bancada.banco.transaction((tx) =>
           bancada.enfileirador.enfileirarUmaVez(tx, TIPO_ELIMINAR_TITULAR, { pedidoId }, `eliminacao:${pedidoId}`),

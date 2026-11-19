@@ -20,7 +20,7 @@ export class LogoutService {
     const { sessaoId, usuarioId } = requestSessaoDeRequisicao()
     await this.banco.transaction(async (tx) => {
       if (await new SessaoWriteRepository(tx).encerrar(sessaoId, 'saida')) {
-        await new RegistroDeAcessoRepository(tx).gravar('saida', usuarioId, ipParaRegistro(ip))
+        await new RegistroDeAcessoRepository(tx).save('saida', usuarioId, ipParaRegistro(ip))
       }
     })
     return [serializarCookie(SESSAO_COOKIE, '', { ambiente: this.ambiente, maxAgeSegundos: 0 })]

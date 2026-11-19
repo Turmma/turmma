@@ -71,14 +71,14 @@ export class OutboxSweeper {
     this.#lote = opcoes.lote ?? LOTE_DE_RECONCILIACAO
   }
 
-  iniciar(): void {
+  start(): void {
     if (this.#ativa) return
     this.#ativa = true
     this.#laco = this.lacar()
   }
 
   /** Termina a reconciliação em andamento e para. */
-  async parar(): Promise<void> {
+  async stop(): Promise<void> {
     this.#ativa = false
     this.#parando = true
     this.#encerrarEspera?.()
@@ -96,7 +96,7 @@ export class OutboxSweeper {
     const resultado: SweepResult = { conferidos: 0, republicados: [], falhasRegistradas: [], semConfirmacao: 0 }
     const inicio = performance.now()
     do {
-      const pagina = await this.dependencias.repositorio.listarParaReconciliar(this.#lote, this.#cursor)
+      const pagina = await this.dependencias.repositorio.listParaReconciliar(this.#lote, this.#cursor)
       const semConfirmacao = await this.reconciliarPagina(pagina, resultado)
       if (pagina.length > 0 && semConfirmacao === pagina.length) break
       const ultimo = pagina.at(-1)
@@ -108,7 +108,7 @@ export class OutboxSweeper {
   /** Confere uma página e soma ao resultado. Devolve quantas consultas ficaram sem resposta. */
   private async reconciliarPagina(pagina: readonly JobToSweep[], resultado: SweepResult): Promise<number> {
     const { repositorio, fila, vagas, logger } = this.dependencias
-    const consultas = await Promise.allSettled(pagina.map((job) => fila.consultar(job)))
+    const consultas = await Promise.allSettled(pagina.map((job) => fila.find(job)))
 
     const inexistentes: string[] = []
     const falhos: Array<{ job: JobToSweep; codigo: JobFailureCode }> = []
@@ -130,7 +130,7 @@ export class OutboxSweeper {
       resultado.falhasRegistradas.push(job.id)
       runInContext(contextoDoJob(job), () => logger.warn({ evento: 'job.falha_reconciliada', jobId: job.id, codigo }))
       // O worker que não gravou a falha também não liberou a vaga; sem isto, ela só venceria em 60 s.
-      await vagas.liberar(job.fila, job.escolaId, [job.id]).catch((erro: unknown) =>
+      await vagas.release(job.fila, job.escolaId, [job.id]).catch((erro: unknown) =>
         logger.warn({ evento: 'reconciliacao.vaga_nao_liberada', jobId: job.id, erro: summarizeError(erro) }),
       )
     }
@@ -144,7 +144,7 @@ export class OutboxSweeper {
 
   private async lacar(): Promise<void> {
     while (this.#ativa) {
-      await this.esperar()
+      await this.wait()
       if (!this.#ativa) return
       try {
         await this.reconciliar()
@@ -155,7 +155,7 @@ export class OutboxSweeper {
     }
   }
 
-  private esperar(): Promise<void> {
+  private wait(): Promise<void> {
     return new Promise((resolver) => {
       const encerrar = (): void => {
         clearTimeout(prazo)

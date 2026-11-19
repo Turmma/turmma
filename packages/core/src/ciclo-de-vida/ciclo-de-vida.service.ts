@@ -74,25 +74,25 @@ export class CicloDeVidaService {
       const repositorio = new CicloDeVidaRepository(tx)
       // Depois do ano, do usuário e da conta (`#naTransacao`): as turmas dele, num comando só e em ordem de id, antes de
       // qualquer vínculo (turma → vínculo, a ordem do encerrar, do excluir e da eliminação).
-      await repositorio.travarContraOGerarDoProfessor(usuarioId)
+      await repositorio.lockContraOGerarDoProfessor(usuarioId)
       const desativadoEm = await repositorio.desativar(usuarioId)
       if (desativadoEm === undefined) throw naoEncontrado()
       // Os vínculos, no ano em curso e no planejado, e só então o acesso da turma que ele gerou: com o vínculo encerrado, nenhum
       // vínculo `confirmado` o segura (regra 20, item 18).
       const vinculosEncerrados = await repositorio.encerrarVinculosDaPessoa(usuarioId, 'desligamento')
       for (const encerrado of vinculosEncerrados) {
-        await registro.gravar(tx, 'vinculo.encerrado', { entidadeId: encerrado.id, antes: { estado: encerrado.estadoAntes }, depois: { estado: 'encerrado', motivo: 'desligamento' }, ...autoria })
+        await registro.save(tx, 'vinculo.encerrado', { entidadeId: encerrado.id, antes: { estado: encerrado.estadoAntes }, depois: { estado: 'encerrado', motivo: 'desligamento' }, ...autoria })
       }
       for (const revogado of await repositorio.revogarDeQuemSaiu(usuarioId)) {
-        await registro.gravar(tx, 'acesso_turma.revogado', { entidadeId: revogado.id, depois: { turmaId: revogado.turmaId }, ...autoria })
+        await registro.save(tx, 'acesso_turma.revogado', { entidadeId: revogado.id, depois: { turmaId: revogado.turmaId }, ...autoria })
       }
       const conviteRevogado = await repositorio.revogarConviteAberto(usuarioId)
-      if (conviteRevogado !== undefined) await registro.gravar(tx, 'convite.revogado', { entidadeId: conviteRevogado.id, depois: { tipo: conviteRevogado.tipo }, ...autoria })
+      if (conviteRevogado !== undefined) await registro.save(tx, 'convite.revogado', { entidadeId: conviteRevogado.id, depois: { tipo: conviteRevogado.tipo }, ...autoria })
       const sessoesEncerradas = await repositorio.encerrarSessoesDoUsuario(usuarioId, 'desativacao')
-      const credencialApagada = await repositorio.apagarSenhaDaMatricula(usuarioId)
-      const contaExternaDesligada = (await repositorio.apagarContaExterna(usuarioId)) !== undefined
-      const contaLimpa = alvo.contaId !== null && (await new ContaGlobalRepository(tx).limparContaSemUso(alvo.contaId))
-      await registro.gravar(tx, 'usuario.desativado', {
+      const credencialApagada = await repositorio.clearSenhaDaMatricula(usuarioId)
+      const contaExternaDesligada = (await repositorio.deleteContaExterna(usuarioId)) !== undefined
+      const contaLimpa = alvo.contaId !== null && (await new ContaGlobalRepository(tx).clearContaSemUso(alvo.contaId))
+      await registro.save(tx, 'usuario.desativado', {
         entidadeId: usuarioId,
         antes: { papel: alvo.papel },
         depois: { desativadoEm: desativadoEm.toISOString(), sessoesEncerradas, credencialApagada, contaExternaDesligada, contaLimpa },
@@ -104,20 +104,20 @@ export class CicloDeVidaService {
   async eliminar(usuarioId: string, autoria: AutoriaDoCicloDeVida = {}, transacao?: DatabaseTransaction): Promise<void> {
     await this.#naTransacao(usuarioId, transacao, 'todos', false, async (tx, alvo) => {
       const repositorio = new CicloDeVidaRepository(tx)
-      const sessoesApagadas = await repositorio.apagarSessoes(usuarioId)
+      const sessoesApagadas = await repositorio.deleteSessoes(usuarioId)
       // As turmas dele em `FOR NO KEY UPDATE` antes de apagar os vínculos (turma → vínculo, como o encerrar e o excluir): o gerar que está no meio termina primeiro, e o acesso
       // dele cai abaixo; o que chega depois espera, reconfere o vínculo e sai `NAO_ENCONTRADO`. A revogação vem antes do
       // `delete` do usuário, que anula o `criado_por` pela FK.
-      await repositorio.travarContraOGerarDoProfessor(usuarioId)
-      const vinculosApagados = await repositorio.apagarVinculos(usuarioId)
+      await repositorio.lockContraOGerarDoProfessor(usuarioId)
+      const vinculosApagados = await repositorio.deleteVinculos(usuarioId)
       const acessosRevogados = await repositorio.revogarDeQuemSaiu(usuarioId)
-      for (const revogado of acessosRevogados) await registro.gravar(tx, 'acesso_turma.revogado', { entidadeId: revogado.id, depois: { turmaId: revogado.turmaId }, ...autoria })
-      const credencialApagada = await repositorio.apagarCredencialDaMatricula(usuarioId)
-      const contaExternaApagada = (await repositorio.apagarContaExterna(usuarioId)) !== undefined
-      const { linhaDaListaApagada, pedidosApagados } = await repositorio.apagarDaListaDeNomes(usuarioId)
-      await repositorio.apagarUsuario(usuarioId)
-      const contaLimpa = alvo.contaId !== null && (await new ContaGlobalRepository(tx).limparContaSemUso(alvo.contaId))
-      await registro.gravar(tx, 'usuario.eliminado', {
+      for (const revogado of acessosRevogados) await registro.save(tx, 'acesso_turma.revogado', { entidadeId: revogado.id, depois: { turmaId: revogado.turmaId }, ...autoria })
+      const credencialApagada = await repositorio.deleteCredencialDaMatricula(usuarioId)
+      const contaExternaApagada = (await repositorio.deleteContaExterna(usuarioId)) !== undefined
+      const { linhaDaListaApagada, pedidosApagados } = await repositorio.deleteDaListaDeNomes(usuarioId)
+      await repositorio.deleteUsuario(usuarioId)
+      const contaLimpa = alvo.contaId !== null && (await new ContaGlobalRepository(tx).clearContaSemUso(alvo.contaId))
+      await registro.save(tx, 'usuario.eliminado', {
         entidadeId: usuarioId,
         antes: { papel: alvo.papel, desativadoEm: alvo.desativadoEm?.toISOString() ?? null },
         depois: { sessoesApagadas, vinculosApagados, credencialApagada, contaExternaApagada, linhaDaListaApagada, pedidosApagados, contaLimpa },
@@ -139,7 +139,7 @@ export class CicloDeVidaService {
   async agendarEliminacao(usuarioId: string, transacao: DatabaseTransaction): Promise<{ readonly agendadaEm: Date; readonly sessoesEncerradas: number }> {
     this.#conferirAlvo(usuarioId)
     const repositorio = new CicloDeVidaRepository(transacao)
-    if ((await repositorio.travarUsuario(usuarioId)) === undefined) throw naoEncontrado()
+    if ((await repositorio.lockUsuario(usuarioId)) === undefined) throw naoEncontrado()
     const agendadaEm = await repositorio.suspender(usuarioId)
     if (agendadaEm === undefined) throw new DomainException(ErrorCode.PEDIDO_EM_ESTADO_INVALIDO)
     return { agendadaEm, sessoesEncerradas: await repositorio.encerrarSessoesDoUsuario(usuarioId, 'eliminacao_agendada') }
@@ -154,16 +154,16 @@ export class CicloDeVidaService {
   async cancelarEliminacao(usuarioId: string, transacao: DatabaseTransaction): Promise<boolean> {
     this.#conferirAlvo(usuarioId)
     const repositorio = new CicloDeVidaRepository(transacao)
-    if ((await repositorio.travarUsuario(usuarioId)) === undefined) return false
+    if ((await repositorio.lockUsuario(usuarioId)) === undefined) return false
     return repositorio.devolverAcesso(usuarioId)
   }
 
   async desligarContaExterna(usuarioId: string, autoria: AutoriaDoCicloDeVida = {}): Promise<void> {
     await this.#naTransacao(usuarioId, undefined, 'nenhum', false, async (tx, alvo) => {
       if (alvo.desativadoEm !== null) throw naoEncontrado()
-      const desligada = await new CicloDeVidaRepository(tx).apagarContaExterna(usuarioId)
+      const desligada = await new CicloDeVidaRepository(tx).deleteContaExterna(usuarioId)
       if (desligada === undefined) throw naoEncontrado()
-      await registro.gravar(tx, 'conta_externa.desligada', { entidadeId: desligada.id, antes: { usuarioId, provedor: desligada.provedor }, ...autoria })
+      await registro.save(tx, 'conta_externa.desligada', { entidadeId: desligada.id, antes: { usuarioId, provedor: desligada.provedor }, ...autoria })
     })
   }
 
@@ -199,13 +199,13 @@ export class CicloDeVidaService {
     if (currentContext()?.usuarioId === usuarioId.toLowerCase()) throw naoEncontrado()
     const rodar = async (tx: DatabaseTransaction): Promise<void> => {
       const repositorio = new CicloDeVidaRepository(tx)
-      if (anos !== 'nenhum') await repositorio.travarAnosDosVinculos(usuarioId, anos === 'abertos')
-      const alvo = await repositorio.travarUsuario(usuarioId)
+      if (anos !== 'nenhum') await repositorio.lockAnosDosVinculos(usuarioId, anos === 'abertos')
+      const alvo = await repositorio.lockUsuario(usuarioId)
       if (alvo === undefined) throw naoEncontrado()
       // O inativo que o login não ativaria (pendente, vencido, revogado, desativado) é recusado antes de pedir a conta: o aceite
       // com conta sem senha trava conta e depois usuário, e esta transação já tem o usuário (`40P01`). O à espera passa.
       if (recusarInativo && alvo.desativadoEm !== null && !alvo.aEsperaDaPrimeiraEntrada) throw naoEncontrado()
-      if (alvo.contaId !== null) await new ContaGlobalRepository(tx).travarConta(alvo.contaId)
+      if (alvo.contaId !== null) await new ContaGlobalRepository(tx).lockConta(alvo.contaId)
       await acao(tx, alvo)
     }
     await (transacao === undefined ? this.banco.transaction(rodar) : rodar(transacao))

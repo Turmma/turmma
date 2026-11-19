@@ -16,7 +16,7 @@ const LINHA_AINDA_REFERENCIADA = '23503'
  *
  * `excluir` devolve se apagou a linha; `false` quer dizer que ela não estava no alcance de quem pediu.
  */
-export async function excluirSemReferencia(excluir: () => Promise<boolean>): Promise<boolean> {
+export async function deleteSemReferencia(excluir: () => Promise<boolean>): Promise<boolean> {
   try {
     return await excluir()
   } catch (erro) {

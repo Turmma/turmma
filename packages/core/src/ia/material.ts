@@ -1,7 +1,7 @@
 import { InvariantException, habilidadeSchema, type Citacao, type Habilidade } from '@educa/shared'
 import { z } from 'zod'
 import type { PromptData } from './task.js'
-import { contemTexto, cortar, frases, normalizar, palavras, palavrasEmComum, semPontoFinal } from './text.js'
+import { contemTexto, cortar, frases, normalize, palavras, palavrasEmComum, semPontoFinal } from './text.js'
 
 /**
  * Um trecho do material da escola, como a busca devolve: a página e o texto dela. É a única forma de conteúdo de
@@ -102,7 +102,7 @@ function minusculaInicial(texto: string): string {
 }
 
 /** O complemento é um valor, e só um valor: conta de exemplo ("250 g × 80 / 100 = 200 g, ou 2 mol") não é fato do material. */
-function ehValor(complemento: string): boolean {
+function isValor(complemento: string): boolean {
   return /^\d/u.test(complemento) && complemento.length <= 60 && !/=|, /u.test(complemento)
 }
 
@@ -149,13 +149,13 @@ function fatoDaFrase(frase: string, trecho: Trecho): Fato | undefined {
   const comArtigo = COM_ARTIGO.exec(sujeito)
   const artigo = (comArtigo?.[1] ?? '').toLowerCase()
   const termo = comArtigo?.[2] ?? minusculaInicial(sujeito)
-  const palavrasDoTermo = palavras(normalizar(termo))
+  const palavrasDoTermo = palavras(normalize(termo))
   if (palavrasDoTermo.length === 0 || palavrasDoTermo.length > PALAVRAS_MAXIMAS_DO_TERMO) return undefined
   if (NAO_ABRE_TERMO.has(palavrasDoTermo[0] ?? '') || NAO_FECHA_TERMO.has(palavrasDoTermo.at(-1) ?? '')) return undefined
 
   // O que vem depois do ponto e vírgula é outra informação ("; seu símbolo é n…"), não a definição.
   const complemento = (depoisDoVerbo.split(';')[0] ?? '').trim()
-  const numerico = ehValor(complemento)
+  const numerico = isValor(complemento)
   if (!numerico) {
     if (/^\d/u.test(complemento)) return undefined
     // "corresponde a" e "equivale a" já dizem que a frase define; com "é" e "são", quem diz é a forma do complemento.
@@ -183,7 +183,7 @@ export function extrairFatos(trechos: readonly Trecho[]): Fato[] {
     for (const frase of frases(trecho.texto)) {
       const fato = fatoDaFrase(frase, trecho)
       if (fato === undefined) continue
-      const chave = normalizar(fato.termo)
+      const chave = normalize(fato.termo)
       if (vistos.has(chave)) continue
       vistos.add(chave)
       fatos.push(fato)

@@ -30,7 +30,7 @@ export const PAPEIS_QUE_GERAM_A_SENHA_PROVISORIA = ['coordenador', 'professor'] 
 export type PapelQueGeraASenhaProvisoria = (typeof PAPEIS_QUE_GERAM_A_SENHA_PROVISORIA)[number]
 
 /** A senha em dois grupos separados por hífen, como a tela a mostra: `ABCD-EFGH`. */
-export function formatarSenhaProvisoria(senha: string): string {
+export function formatSenhaProvisoria(senha: string): string {
   return `${senha.slice(0, CARACTERES_POR_GRUPO_DA_SENHA_PROVISORIA)}-${senha.slice(CARACTERES_POR_GRUPO_DA_SENHA_PROVISORIA)}`
 }
 
@@ -38,7 +38,7 @@ export function formatarSenhaProvisoria(senha: string): string {
  * A senha provisória como o aluno a digita vira a que foi sorteada: sem o hífen nem os espaços da tela, e em maiúsculas (o alfabeto só tem maiúsculas e algarismos). O login de matrícula
  * só a aplica quando o hash que confere é o da provisória: a senha comum do aluno vai como veio.
  */
-export function normalizarSenhaProvisoria(digitada: string): string {
+export function normalizeSenhaProvisoria(digitada: string): string {
   return digitada.replace(/[\s-]/g, '').toUpperCase()
 }
 

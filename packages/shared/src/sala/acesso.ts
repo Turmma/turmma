@@ -27,7 +27,7 @@ const FORMATO_DO_CODIGO_DA_TURMA = new RegExp(`^[${ALFABETO_DO_CODIGO_DA_TURMA}]
  * hífen e em maiúsculas. Não recusa nada: um caractere fora do alfabeto continua lá, e a busca pelo código não acha
  * (o aluno recebe a mesma resposta do código errado). A página pública (17.0) e a API (5.0) usam esta mesma função.
  */
-export function normalizarCodigoDaTurma(digitado: string): string {
+export function normalizeCodigoDaTurma(digitado: string): string {
   return digitado.replace(/[\s-]/g, '').toUpperCase()
 }
 

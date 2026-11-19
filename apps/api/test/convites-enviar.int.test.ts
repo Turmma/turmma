@@ -225,7 +225,7 @@ describe('acesso-e-convites, 3.0: a coordenação envia os convites por e-mail',
       expect(resposta).toMatchObject({ status: 200, corpo: { quantidade: 0 } })
       expect(await jobsDe(escolaId)).toEqual([])
       // Os 300 pontos continuam inteiros.
-      expect((await cota.consumir(escolaId, CONVITES_POR_HORA_POR_ESCOLA)).resultado).toBe('concedido')
+      expect((await cota.consume(escolaId, CONVITES_POR_HORA_POR_ESCOLA)).resultado).toBe('concedido')
     })
 
     it('sem corpo vale `{}`: todos os que esperam, e a resposta não leva link nem endereço', async () => {
@@ -253,7 +253,7 @@ describe('acesso-e-convites, 3.0: a coordenação envia os convites por e-mail',
       expect(await convitesDe(semEndereco.usuarioId)).toHaveLength(1)
       expect(await jobsDe(escolaId)).toHaveLength(1)
       // Só um ponto foi gasto: os outros 299 ainda cabem.
-      expect((await cota.consumir(escolaId, CONVITES_POR_HORA_POR_ESCOLA - 1)).resultado).toBe('concedido')
+      expect((await cota.consume(escolaId, CONVITES_POR_HORA_POR_ESCOLA - 1)).resultado).toBe('concedido')
     })
 
     it('corpo inválido é ENTRADA_INVALIDA e não grava nada: campo a mais, lista vazia, id que não é UUID', async () => {
@@ -310,7 +310,7 @@ describe('acesso-e-convites, 3.0: a coordenação envia os convites por e-mail',
   describe('a cota de 300 convites por hora, por escola', () => {
     it('conta o que entra, não a seleção: com 2 pontos restantes, a seleção de 6 (2 que entram) passa, e um "Enviar" de 1 logo depois recebe 429', async () => {
       const { escolaId, coordenacao } = await escolaComCoordenacao()
-      expect((await cota.consumir(escolaId, CONVITES_POR_HORA_POR_ESCOLA - 2)).resultado).toBe('concedido')
+      expect((await cota.consume(escolaId, CONVITES_POR_HORA_POR_ESCOLA - 2)).resultado).toBe('concedido')
       const estados: EstadoSemeado[] = ['pendente', 'vencido', 'aceito', 'revogado', 'ativo', 'desativado']
       const professores = await Promise.all(estados.map((estado) => semear(escolaId, estado)))
       const resposta = await enviar(coordenacao, { usuarioIds: professores.map((professor) => professor.usuarioId) })
@@ -324,7 +324,7 @@ describe('acesso-e-convites, 3.0: a coordenação envia os convites por e-mail',
 
     it('cota esgotada, relógio falso: 429 com `Retry-After` aos 59 min, e passa aos 61 min', async () => {
       const { escolaId, coordenacao } = await escolaComCoordenacao()
-      expect((await cota.consumir(escolaId, CONVITES_POR_HORA_POR_ESCOLA)).resultado).toBe('concedido')
+      expect((await cota.consume(escolaId, CONVITES_POR_HORA_POR_ESCOLA)).resultado).toBe('concedido')
       const pendente = await semear(escolaId, 'pendente')
 
       const logoDepois = await enviar(coordenacao)
@@ -344,7 +344,7 @@ describe('acesso-e-convites, 3.0: a coordenação envia os convites por e-mail',
 
     it('lote maior que o que resta: 429 inteiro, nada na fila nem na auditoria; 40 com 30 restantes recusa, e logo depois um de 30 passa', async () => {
       const { escolaId, coordenacao } = await escolaComCoordenacao()
-      expect((await cota.consumir(escolaId, CONVITES_POR_HORA_POR_ESCOLA - 30)).resultado).toBe('concedido')
+      expect((await cota.consume(escolaId, CONVITES_POR_HORA_POR_ESCOLA - 30)).resultado).toBe('concedido')
       const professores: Array<Awaited<ReturnType<typeof semear>>> = []
       for (let i = 0; i < 40; i += 1) professores.push(await semear(escolaId, 'pendente'))
       const antes = await totalDeConvites(escolaId)
@@ -379,13 +379,13 @@ describe('acesso-e-convites, 3.0: a coordenação envia os convites por e-mail',
       expect(await jobsDe(escolaId)).toEqual([])
       expect(await auditoriaDe(escolaId, 'convite.enviado')).toEqual([])
       // Os 3 pontos voltaram: a escola ainda tem os 300 inteiros.
-      expect((await cota.consumir(escolaId, CONVITES_POR_HORA_POR_ESCOLA)).resultado).toBe('concedido')
+      expect((await cota.consume(escolaId, CONVITES_POR_HORA_POR_ESCOLA)).resultado).toBe('concedido')
     })
 
     it('isolamento: a escola A sem cota recebe 429 e a B segue enviando', async () => {
       const a = await escolaComCoordenacao()
       const b = await escolaComCoordenacao()
-      expect((await cota.consumir(a.escolaId, CONVITES_POR_HORA_POR_ESCOLA)).resultado).toBe('concedido')
+      expect((await cota.consume(a.escolaId, CONVITES_POR_HORA_POR_ESCOLA)).resultado).toBe('concedido')
       await semear(a.escolaId, 'pendente')
       await semear(b.escolaId, 'pendente')
       expect((await enviar(a.coordenacao)).status).toBe(429)
@@ -395,11 +395,11 @@ describe('acesso-e-convites, 3.0: a coordenação envia os convites por e-mail',
     it('[P] dois lotes de 200 com 300 restantes, ao mesmo tempo: um passa, o outro é recusado, e a soma nunca passa de 300', async () => {
       const dono = randomUUID()
       const emParalelo = new CotaPorHora(redis, { porHora: CONVITES_POR_HORA_POR_ESCOLA, instancias: 2, prefixo: `teste-${randomUUID()}` })
-      const resultados = await Promise.all([emParalelo.consumir(dono, 200), emParalelo.consumir(dono, 200)])
+      const resultados = await Promise.all([emParalelo.consume(dono, 200), emParalelo.consume(dono, 200)])
       expect(resultados.map((resultado) => resultado.resultado).sort()).toEqual(['concedido', 'recusado'])
       // Dez de uma vez, de 40: cabem sete (280), e os três últimos são recusados.
       const outroDono = randomUUID()
-      const dez = await Promise.all(Array.from({ length: 10 }, () => emParalelo.consumir(outroDono, 40)))
+      const dez = await Promise.all(Array.from({ length: 10 }, () => emParalelo.consume(outroDono, 40)))
       expect(dez.filter((resultado) => resultado.resultado === 'concedido')).toHaveLength(7)
     })
 
@@ -407,17 +407,17 @@ describe('acesso-e-convites, 3.0: a coordenação envia os convites por e-mail',
       const dono = randomUUID()
       const tempo = new RelogioDeslocavel()
       const limitada = new CotaPorHora(redis, { porHora: 10, instancias: 1, relogio: tempo, prefixo: `teste-${randomUUID()}` })
-      const gasto = await limitada.consumir(dono, 10)
+      const gasto = await limitada.consume(dono, 10)
       if (gasto.resultado !== 'concedido') throw new Error('o primeiro consumo devia passar')
       expect(await limitada.devolver(gasto.gasto)).toBe(true)
-      const deNovo = await limitada.consumir(dono, 10)
+      const deNovo = await limitada.consume(dono, 10)
       if (deNovo.resultado !== 'concedido') throw new Error('os pontos devolvidos deviam estar livres')
       tempo.avancar(61 * MINUTO_MS)
-      const daOutraJanela = await limitada.consumir(dono, 4)
+      const daOutraJanela = await limitada.consume(dono, 4)
       expect(daOutraJanela.resultado).toBe('concedido')
       // O ponto da janela que fechou não é mais ponto de ninguém.
       expect(await limitada.devolver(deNovo.gasto)).toBe(false)
-      expect((await limitada.consumir(dono, 7)).resultado).toBe('recusado')
+      expect((await limitada.consume(dono, 7)).resultado).toBe('recusado')
     })
 
     it('Redis de fila fora: vale o seguro em memória, 300 ÷ instâncias, a devolução volta ao seguro, e a janela de uma hora vale lá também', async () => {
@@ -427,25 +427,25 @@ describe('acesso-e-convites, 3.0: a coordenação envia os convites por e-mail',
         const dono = randomUUID()
         const tempo = new RelogioDeslocavel()
         const seguro = new CotaPorHora(caido, { porHora: CONVITES_POR_HORA_POR_ESCOLA, instancias: 3, relogio: tempo, aoUsarOSeguro: () => (avisos += 1) })
-        const cem = await seguro.consumir(dono, 100)
+        const cem = await seguro.consume(dono, 100)
         expect(cem.resultado).toBe('concedido')
-        expect((await seguro.consumir(dono, 1)).resultado).toBe('recusado')
+        expect((await seguro.consume(dono, 1)).resultado).toBe('recusado')
         expect(avisos).toBe(2)
         if (cem.resultado !== 'concedido') return
         expect(cem.gasto.origem).toBe('memoria')
         expect(await seguro.devolver(cem.gasto)).toBe(true)
-        const deNovo = await seguro.consumir(dono, 100)
+        const deNovo = await seguro.consume(dono, 100)
         expect(deNovo.resultado).toBe('concedido')
         // Outra escola não divide o seguro com esta.
-        expect((await seguro.consumir(randomUUID(), 100)).resultado).toBe('concedido')
+        expect((await seguro.consume(randomUUID(), 100)).resultado).toBe('concedido')
 
         // Passada a hora, o seguro libera; e o ponto da janela que fechou não volta para a nova.
         tempo.avancar(61 * MINUTO_MS)
-        const daOutraJanela = await seguro.consumir(dono, 60)
+        const daOutraJanela = await seguro.consume(dono, 60)
         expect(daOutraJanela.resultado).toBe('concedido')
         if (deNovo.resultado !== 'concedido') return
         expect(await seguro.devolver(deNovo.gasto)).toBe(false)
-        expect((await seguro.consumir(dono, 41)).resultado).toBe('recusado')
+        expect((await seguro.consume(dono, 41)).resultado).toBe('recusado')
       } finally {
         caido.disconnect()
       }
@@ -483,8 +483,8 @@ describe('acesso-e-convites, 3.0: a coordenação envia os convites por e-mail',
     it('o que não é pedido de cota válido é recusado antes de gastar: pontos zero ou fracionados, cota e instâncias fora do inteiro positivo', async () => {
       const limitada = new CotaPorHora(redis, { porHora: 10, instancias: 1, prefixo: `teste-${randomUUID()}` })
       const dono = randomUUID()
-      for (const pontos of [0, -1, 1.5]) await expect(limitada.consumir(dono, pontos), String(pontos)).rejects.toBeInstanceOf(InvariantException)
-      expect((await limitada.consumir(dono, 10)).resultado).toBe('concedido')
+      for (const pontos of [0, -1, 1.5]) await expect(limitada.consume(dono, pontos), String(pontos)).rejects.toBeInstanceOf(InvariantException)
+      expect((await limitada.consume(dono, 10)).resultado).toBe('concedido')
       for (const porHora of [0, 1.5, -3]) expect(() => new CotaPorHora(redis, { porHora, instancias: 1 }), `porHora ${String(porHora)}`).toThrow(InvariantException)
       for (const instancias of [0, 1.5, -2]) expect(() => new CotaPorHora(redis, { porHora: 10, instancias }), `instâncias ${String(instancias)}`).toThrow(InvariantException)
     })
@@ -501,12 +501,12 @@ describe('acesso-e-convites, 3.0: a coordenação envia os convites por e-mail',
           return [1, 1_000, 0]
         },
       } as unknown as Redis
-      const carregada = await new CotaPorHora(semScript, { porHora: 10, instancias: 1 }).consumir(randomUUID(), 3)
+      const carregada = await new CotaPorHora(semScript, { porHora: 10, instancias: 1 }).consume(randomUUID(), 3)
       expect(carregada).toMatchObject({ resultado: 'concedido', gasto: { pontos: 3, janela: 1_000, origem: 'redis' } })
       expect(chamadas).toEqual(['evalsha', 'eval'])
 
       const estranho = { evalsha: async () => [1] } as unknown as Redis
-      await expect(new CotaPorHora(estranho, { porHora: 10, instancias: 1 }).consumir(randomUUID(), 3)).rejects.toBeInstanceOf(InvariantException)
+      await expect(new CotaPorHora(estranho, { porHora: 10, instancias: 1 }).consume(randomUUID(), 3)).rejects.toBeInstanceOf(InvariantException)
 
       // Um erro de outra natureza (sem ser NOSCRIPT) não tenta o `eval`: vai ao seguro.
       const chamadasDoOutro: string[] = []
@@ -520,7 +520,7 @@ describe('acesso-e-convites, 3.0: a coordenação envia os convites por e-mail',
           return [1, 1_000, 0]
         },
       } as unknown as Redis
-      const noSeguro = await new CotaPorHora(quebrado, { porHora: 10, instancias: 1 }).consumir(randomUUID(), 3)
+      const noSeguro = await new CotaPorHora(quebrado, { porHora: 10, instancias: 1 }).consume(randomUUID(), 3)
       expect(noSeguro).toMatchObject({ resultado: 'concedido', gasto: { origem: 'memoria' } })
       expect(chamadasDoOutro).toEqual(['evalsha'])
     })
@@ -589,7 +589,7 @@ describe('acesso-e-convites, 3.0: a coordenação envia os convites por e-mail',
         expect((await consultar(copiado.token)).status).toBe(200)
         return copiado
       }
-      const expurgar = (agora: Date) => runInContext({ requisicaoId: randomUUID(), escolaId }, () => new ExpurgoDaEscolaRepository(bancada.banco).fecharEnviosParados(agora))
+      const expurgar = (agora: Date) => runInContext({ requisicaoId: randomUUID(), escolaId }, () => new ExpurgoDaEscolaRepository(bancada.banco).closeEnviosParados(agora))
 
       // "Enviar" (todos os que esperam) sobre o copiado de 2 dias.
       const doEnviar = await cadastrar('Professor Sintético do Enviar')

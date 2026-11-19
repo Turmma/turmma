@@ -38,8 +38,8 @@ export class ProfessoresController {
 
   @Get()
   @RequirePermissao('professor', 'listar')
-  listar(@Query(new ZodValidationPipe(paginationQuerySchema)) consulta: PaginationQuery): Promise<ListaDeProfessoresResponse> {
-    return this.professores.listar(consulta)
+  list(@Query(new ZodValidationPipe(paginationQuerySchema)) consulta: PaginationQuery): Promise<ListaDeProfessoresResponse> {
+    return this.professores.list(consulta)
   }
 
   /**
@@ -50,8 +50,8 @@ export class ProfessoresController {
   @HttpCode(HttpStatus.OK)
   @RequirePermissao('professor', 'refazer_convite')
   @Header('Cache-Control', 'no-store')
-  enviarConvites(@Body(new ZodValidationPipe(enviarConvitesRequestSchema.default({}))) pedido: EnviarConvitesRequest): Promise<EnviarConvitesResponse> {
-    return this.professores.enviarConvites(pedido)
+  sendConvites(@Body(new ZodValidationPipe(enviarConvitesRequestSchema.default({}))) pedido: EnviarConvitesRequest): Promise<EnviarConvitesResponse> {
+    return this.professores.sendConvites(pedido)
   }
 
   @Post(':usuarioId/convite/refazer')

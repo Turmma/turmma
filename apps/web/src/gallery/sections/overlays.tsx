@@ -26,7 +26,7 @@ function DemonstracaoDaConfirmacao() {
   const [justificativa, definirJustificativa] = useState('')
   const resultado = useRef<HTMLParagraphElement>(null)
   const aprovado = decisao === 'Aprovado'
-  const fechar = () => definirDialogo(undefined)
+  const close = () => definirDialogo(undefined)
   const decidir = (texto: string) => {
     definirDecisao(texto)
     definirDialogo(undefined)
@@ -66,7 +66,7 @@ function DemonstracaoDaConfirmacao() {
           confirmando={dialogo === 'andamento'}
           {...(dialogo === 'falha' ? { falha: 'Não foi possível aprovar. Tente de novo em instantes.' } : {})}
           aoConfirmar={() => (dialogo === 'aprovar' ? decidir('Aprovado') : undefined)}
-          aoFechar={fechar}
+          aoFechar={close}
           focoDeReserva={() => resultado.current?.focus()}
         />
       )}
@@ -79,7 +79,7 @@ function DemonstracaoDaConfirmacao() {
           rotuloDeConfirmar="Rejeitar 32 correções"
           impedido={problemaDoTexto(justificativa, justificativas) !== undefined}
           aoConfirmar={() => decidir('Rejeitado')}
-          aoFechar={fechar}
+          aoFechar={close}
         >
           <Textarea rotulo="Motivo da rejeição" obrigatorio dica="De 8 a 500 caracteres. O Assistente usa o motivo para refazer." valor={justificativa} aoMudar={definirJustificativa} {...justificativas} />
         </ConfirmDialog>
@@ -93,7 +93,7 @@ function DemonstracaoDaConfirmacao() {
           aviso="A suspensão fica na auditoria da escola."
           rotuloDeConfirmar="Suspender a função"
           aoConfirmar={() => decidir('Suspensa')}
-          aoFechar={fechar}
+          aoFechar={close}
         />
       )}
     </>
@@ -113,7 +113,7 @@ function DemonstracaoDoDialogo() {
   const [turma, definirTurma] = useState(TURMAS[0]?.valor ?? '')
   const [resultado, definirResultado] = useState('')
   const textoDoResultado = useRef<HTMLParagraphElement>(null)
-  const fechar = () => definirDialogo(undefined)
+  const close = () => definirDialogo(undefined)
   const rotuloDaTurma = TURMAS.find((item) => item.valor === turma)?.rotulo ?? ''
   return (
     <>
@@ -135,7 +135,7 @@ function DemonstracaoDoDialogo() {
       {dialogo === 'formulario' && (
         <FormDialog
           titulo="Nova disciplina"
-          aoFechar={fechar}
+          aoFechar={close}
           aoEnviar={() => {
             definirResultado(`Disciplina criada: ${disciplina}`)
             definirDialogo(undefined)
@@ -155,7 +155,7 @@ function DemonstracaoDoDialogo() {
           rotuloDaAcao="Excluir a turma"
           rotuloEmAndamento="Excluindo…"
           acao={() => Promise.resolve()}
-          aoFechar={fechar}
+          aoFechar={close}
           aoConcluir={() => {
             definirResultado('Turma excluída: 2ºB')
             definirDialogo(undefined)
@@ -166,12 +166,12 @@ function DemonstracaoDoDialogo() {
         />
       )}
       {dialogo === 'menu' && (
-        <Dialog titulo="Atribuir à turma" aoFechar={fechar}>
+        <Dialog titulo="Atribuir à turma" aoFechar={close}>
           <div className="mt-4 flex min-w-0 flex-col gap-4">
             <p className="text-apoio">Escolha a turma que recebe a atividade. O Esc de dentro do menu fecha só o menu.</p>
             <Menu rotulo={rotuloDaTurma} prefixo="Turma" titulo="Turmas" itens={TURMAS.map((item) => ({ id: item.valor, rotulo: item.rotulo }))} escolhido={turma} aoEscolher={definirTurma} />
             <div className="flex flex-wrap justify-end gap-3">
-              <Button variante="secundario" onClick={fechar}>
+              <Button variante="secundario" onClick={close}>
                 Fechar
               </Button>
             </div>
@@ -191,7 +191,7 @@ function DemonstracaoDoPainel() {
   const [decisao, definirDecisao] = useState('')
   const [ordem, definirOrdem] = useState('nome')
   const resultado = useRef<HTMLParagraphElement>(null)
-  const fechar = () => definirAberto(false)
+  const close = () => definirAberto(false)
   return (
     <>
       <div className="flex min-w-0 flex-wrap items-center gap-3">
@@ -206,11 +206,11 @@ function DemonstracaoDoPainel() {
       {aberto && (
         <Sheet
           titulo="Turma 2ºB · Química"
-          aoFechar={fechar}
+          aoFechar={close}
           focoDeReserva={() => resultado.current?.focus()}
           rodape={
             <>
-              <Button variante="secundario" onClick={fechar}>
+              <Button variante="secundario" onClick={close}>
                 Cancelar
               </Button>
               <Button

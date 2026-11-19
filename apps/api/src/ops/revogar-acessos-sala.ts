@@ -6,7 +6,7 @@ import { parseArgs } from 'node:util'
 import { z } from 'zod'
 import { AcessoDaTurmaRepository } from '../sala/acesso-da-turma/acesso-da-turma.repository.js'
 import { AcessoDaEscolaRepository } from '../credencial/index.js'
-import { abrirBancoDeOperacao, InvalidArgumentError, autorDoComando, lerOperador, OperadorRejectedError, type CommandDatabase, type CommandOutput } from './command.js'
+import { openBancoDeOperacao, InvalidArgumentError, autorDoComando, readOperador, OperadorRejectedError, type CommandDatabase, type CommandOutput } from './command.js'
 import type { AuthorCheck } from '../sessao/index.js'
 
 const registro = new AuditoriaRecorder()
@@ -28,7 +28,7 @@ const registro = new AuditoriaRecorder()
 /** A opção do comando: é o nome do campo do log que o runbook manda copiar. */
 export const OPCAO_DA_ESCOLA = 'escola'
 
-export function lerEscolaARevogar(argumentos: string[]): string {
+export function readEscolaARevogar(argumentos: string[]): string {
   let valores: { escola?: string | undefined }
   try {
     valores = parseArgs({ args: argumentos, options: { [OPCAO_DA_ESCOLA]: { type: 'string' } }, strict: true, allowPositionals: false }).values
@@ -53,7 +53,7 @@ export function revogarAcessosDaEscola(banco: Database, autor: AuthorCheck, esco
       return runInContext({ requisicaoId, escolaId }, async () => {
         if ((await new AcessoDaEscolaRepository(tx).nome()) === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
         const revogados = await new AcessoDaTurmaRepository(tx).revogarVigentesDaEscola()
-        for (const { id, turmaId } of revogados) await registro.gravar(tx, 'acesso_turma.revogado', { entidadeId: id, depois: { turmaId }, autorOperador })
+        for (const { id, turmaId } of revogados) await registro.save(tx, 'acesso_turma.revogado', { entidadeId: id, depois: { turmaId }, autorOperador })
         return revogados.length
       })
     }),
@@ -65,16 +65,16 @@ export function revogarAcessosDaEscola(banco: Database, autor: AuthorCheck, esco
  * argumento ou ambiente inválido, ou `OPERADOR` que não é operador ativo. Argumento e formato do `OPERADOR` são conferidos
  * antes de abrir o banco.
  */
-export async function executarOpsRevogarAcessosSala(
+export async function runOpsRevogarAcessosSala(
   argumentos: string[],
   ambiente: Record<string, string | undefined>,
   terminal: CommandOutput,
-  abrirBanco: (ambiente: Record<string, string | undefined>) => CommandDatabase = abrirBancoDeOperacao,
+  abrirBanco: (ambiente: Record<string, string | undefined>) => CommandDatabase = openBancoDeOperacao,
 ): Promise<number> {
   try {
-    const escolaId = lerEscolaARevogar(argumentos)
-    const operador = lerOperador(ambiente)
-    const { banco, fechar } = abrirBanco(ambiente)
+    const escolaId = readEscolaARevogar(argumentos)
+    const operador = readOperador(ambiente)
+    const { banco, close: fechar } = abrirBanco(ambiente)
     try {
       const revogados = await revogarAcessosDaEscola(banco, autorDoComando(operador), escolaId)
       terminal.saida(`${JSON.stringify({ revogados })}\n`)
@@ -97,7 +97,7 @@ export async function executarOpsRevogarAcessosSala(
 }
 
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  process.exitCode = await executarOpsRevogarAcessosSala(process.argv.slice(2), process.env, {
+  process.exitCode = await runOpsRevogarAcessosSala(process.argv.slice(2), process.env, {
     saida: (texto) => process.stdout.write(texto),
     erro: (texto) => process.stderr.write(texto),
   })

@@ -52,7 +52,7 @@ export class ConviteTicket {
    * O bilhete conferido (assinatura, `typ`, `aud`, prazo), ou `undefined` quando não vale: o login segue como se ele não
    * tivesse vindo, sem dizer por quê.
    */
-  async verificar(bilhete: string): Promise<VerifiedConviteTicket | undefined> {
+  async verify(bilhete: string): Promise<VerifiedConviteTicket | undefined> {
     let claims: unknown
     const agora = this.relogio.agora()
     try {

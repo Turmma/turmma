@@ -53,7 +53,7 @@ describe('medição das horas da eliminação do titular vencida', () => {
   }
 
   function medicaoDe(ids: readonly string[], medidor: MedidorDeTeste, repositorio: Pick<ExpurgoDaEscolaRepository, 'vencimentoDoAgendadoMaisAntigo'> = new ExpurgoDaEscolaRepository(bancada.banco)): EliminacaoGauge {
-    return new EliminacaoGauge({ escolas: { listarIds: () => Promise.resolve([...ids]) }, repositorio, relogio, logger: log.logger, medidor: medidor.medidor })
+    return new EliminacaoGauge({ escolas: { listIds: () => Promise.resolve([...ids]) }, repositorio, relogio, logger: log.logger, medidor: medidor.medidor })
   }
 
   async function porEscola(medidor: MedidorDeTeste): Promise<Record<string, unknown>> {

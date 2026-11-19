@@ -175,7 +175,7 @@ describe('vagas por escola e filas por prioridade', () => {
     bancada.worker(new InMemoryLog('worker-lote'), { pools: { lote: 10 }, processadores: { sintetico: lotes.processar } })
     const logInterativo = new InMemoryLog('worker-interativo')
     bancada.worker(logInterativo, { pools: { interativa: 5, normal: 5 } })
-    bancada.despachante(new InMemoryLog('despachante')).despachante.iniciar()
+    bancada.despachante(new InMemoryLog('despachante')).despachante.start()
 
     // O pool de lote está cheio, com 990 lotes publicados atrás dele.
     await expect.poll(() => bancada.filas.lote.getJobCounts('active', 'waiting'), { timeout: 30_000, interval: 200 }).toEqual({ active: 10, waiting: 990 })
@@ -195,7 +195,7 @@ describe('vagas por escola e filas por prioridade', () => {
     const processador = contado()
     await inserirJobs(ESCOLA_A, 'ferramenta', VAGAS_DA_FERRAMENTA + 1, 'F')
     bancada.worker(new InMemoryLog('worker-ia'), { pools: { interativa: 5, ferramenta: 20 }, processadores: { sintetico: processador.processar } })
-    bancada.despachante(new InMemoryLog('despachante')).despachante.iniciar()
+    bancada.despachante(new InMemoryLog('despachante')).despachante.start()
     await expect.poll(() => processador.iniciados('F'), { timeout: 10_000, interval: 50 }).toBe(VAGAS_DA_FERRAMENTA)
 
     // Com as 4 vagas da ferramenta tomadas, o Tutor da mesma escola começa: a vaga dele é outra.
@@ -222,7 +222,7 @@ describe('vagas por escola e filas por prioridade', () => {
     const ferramentas = contado(50)
     const logFerramenta = new InMemoryLog('worker-ia')
     bancada.worker(logFerramenta, { pools: { ferramenta: 5 }, processadores: { sintetico: ferramentas.processar } })
-    bancada.despachante(new InMemoryLog('despachante')).despachante.iniciar()
+    bancada.despachante(new InMemoryLog('despachante')).despachante.start()
 
     await expect.poll(() => bancada.filas.normal.getJobCounts('active', 'waiting'), { timeout: 30_000, interval: 200 }).toEqual({ active: 10, waiting: 990 })
 
@@ -244,7 +244,7 @@ describe('vagas por escola e filas por prioridade', () => {
     const processador = contado(200)
     for (const [escolaId, rotulo] of [[ESCOLA_A, 'A'], [ESCOLA_B, 'B'], [ESCOLA_C, 'C']] as const) await inserirJobs(escolaId, 'ferramenta', 40, rotulo)
     bancada.worker(new InMemoryLog('worker-ia'), { pools: { ferramenta: 20 }, processadores: { sintetico: processador.processar } })
-    bancada.despachante(new InMemoryLog('despachante')).despachante.iniciar()
+    bancada.despachante(new InMemoryLog('despachante')).despachante.start()
 
     await expect
       .poll(() => [processador.iniciados('A') >= 6, processador.iniciados('B') >= 12, processador.iniciados('C') >= 12], { timeout: 30_000, interval: 100 })
@@ -256,7 +256,7 @@ describe('vagas por escola e filas por prioridade', () => {
     const processador = contado(150)
     await inserirJobs(ESCOLA_A, 'lote', 1_000, 'A')
     bancada.worker(new InMemoryLog('worker-lote'), { pools: { lote: 10 }, processadores: { sintetico: processador.processar } })
-    for (const nome of ['despachante-1', 'despachante-2']) bancada.despachante(new InMemoryLog(nome)).despachante.iniciar()
+    for (const nome of ['despachante-1', 'despachante-2']) bancada.despachante(new InMemoryLog(nome)).despachante.start()
 
     // Vários ciclos de vaga da A, conferindo o ZSET a cada 20 ms.
     let maiorEmUso = 0
@@ -282,7 +282,7 @@ describe('vagas por escola e filas por prioridade', () => {
     const processador = contado(200)
     bancada.worker(new InMemoryLog('worker-interativo'), { pools: { interativa: 5 }, processadores: { sintetico: processador.processar } })
     // Sondagem de 30 s: se o próximo job saísse só nela, os cinco levariam dois minutos.
-    bancada.despachante(new InMemoryLog('despachante'), { intervaloMs: 30_000 }).despachante.iniciar()
+    bancada.despachante(new InMemoryLog('despachante'), { intervaloMs: 30_000 }).despachante.start()
     const ids = await inserirJobs(ESCOLA_A, 'interativa', 5, 'A')
     const inicio = performance.now()
     for (const id of ids) await aguardarEstado(id, 'concluido', 15_000)
@@ -294,7 +294,7 @@ describe('vagas por escola e filas por prioridade', () => {
     const processador = contado()
     const log = new InMemoryLog('worker-interativo')
     bancada.worker(log, { pools: { interativa: 20 }, processadores: { sintetico: processador.processar }, vagasPorEscolaDesligadas: true })
-    bancada.despachante(new InMemoryLog('despachante'), {}, true).despachante.iniciar()
+    bancada.despachante(new InMemoryLog('despachante'), {}, true).despachante.start()
     await inserirJobs(ESCOLA_A, 'interativa', 15, 'A')
     // Com o teto padrão de 10 vagas interativas no despachante, só 10 começariam. O worker confere a vaga que o
     // despachante já tomou; a flag nele vale para a vaga que venceu no caminho, e o log prova que ela chegou lá.
@@ -341,7 +341,7 @@ describe('vagas por escola e filas por prioridade', () => {
         membros: (fila, escolaId) => vagas.membros(fila, escolaId),
         manter: (fila, escolaId, jobIds) => vagas.manter(fila, escolaId, jobIds),
         tomar: (fila, escolaId, limite, jobIds) => vagas.tomar(fila, escolaId, limite, jobIds),
-        liberar: (fila, escolaId, jobIds) => vagas.liberar(fila, escolaId, jobIds),
+        release: (fila, escolaId, jobIds) => vagas.release(fila, escolaId, jobIds),
       }),
     })
 
@@ -354,7 +354,7 @@ describe('vagas por escola e filas por prioridade', () => {
     expect(log.doEvento('job.publicado')).toEqual([])
 
     // O outro terminou: a rodada seguinte, sem esperar reserva vencer, publica com a vaga do próprio job.
-    await bancada.vagas.liberar('lote', ESCOLA_A, deOutroDespachante)
+    await bancada.vagas.release('lote', ESCOLA_A, deOutroDespachante)
     expect(await montado.despachante.rodada()).toBe(1)
     expect((await bancada.estado(id))?.estado).toBe('publicado')
     expect(await membrosDaVaga('lote', ESCOLA_A)).toEqual([id])
@@ -375,7 +375,7 @@ describe('vagas por escola e filas por prioridade', () => {
 
     const id = await bancada.enfileirar(ESCOLA_A, { fila: 'lote' })
     bancada.worker(new InMemoryLog('worker'), { pools: { lote: 10 } })
-    bancada.despachante(new InMemoryLog('despachante')).despachante.iniciar()
+    bancada.despachante(new InMemoryLog('despachante')).despachante.start()
     await esperar(1_500)
     expect((await bancada.estado(id))?.estado).toBe('aguardando')
 
@@ -401,7 +401,7 @@ describe('vagas por escola e filas por prioridade', () => {
     const id = await bancada.enfileirar(ESCOLA_A, { fila: 'normal' })
     const chave = bancada.vagas.chave('normal', ESCOLA_A)
     bancada.worker(new InMemoryLog('worker'), { pools: { normal: 5 }, processadores: { sintetico: processador }, intervaloRenovacaoDaVagaMs: 200 })
-    bancada.despachante(new InMemoryLog('despachante')).despachante.iniciar()
+    bancada.despachante(new InMemoryLog('despachante')).despachante.start()
 
     await aguardarEstado(id, 'ativo')
     const primeiro = Number(await bancada.redis.zscore(chave, id))
@@ -450,7 +450,7 @@ describe('vagas por escola e filas por prioridade', () => {
     // folga para a máquina carregada, não prova a latência da B. Que a B passa na frente da pilha da A está provado no caso das 1.000 lotes da A.
     const processador = contado(300)
     bancada.worker(new InMemoryLog('worker-lote'), { pools: { lote: 10 }, processadores: { sintetico: processador.processar } })
-    despachante.iniciar()
+    despachante.start()
     const [daEscolaB = ''] = await inserirJobs(ESCOLA_B, 'lote', 1, 'B')
     await expect.poll(() => processador.iniciados('B'), { timeout: 10_000, interval: 20 }).toBe(1)
     await aguardarEstado(daEscolaB, 'concluido')
@@ -564,7 +564,7 @@ describe('vagas por escola e filas por prioridade', () => {
     const processador = contado(200)
     for (const [escolaId, rotulo] of [[ESCOLA_A, 'A'], [ESCOLA_B, 'B'], [ESCOLA_C, 'C']] as const) await inserirJobs(escolaId, 'lote', 40, rotulo)
     bancada.worker(new InMemoryLog('worker-lote'), { pools: { lote: 20 }, processadores: { sintetico: processador.processar } })
-    bancada.despachante(new InMemoryLog('despachante')).despachante.iniciar()
+    bancada.despachante(new InMemoryLog('despachante')).despachante.start()
 
     await expect
       .poll(() => [processador.iniciados('A') >= 15, processador.iniciados('B') >= 6, processador.iniciados('C') >= 6], { timeout: 30_000, interval: 100 })
@@ -578,7 +578,7 @@ describe('vagas por escola e filas por prioridade', () => {
       await bancada.vagas.tomar('interativa', ESCOLA_A, VAGAS_DA_INTERATIVA, ocupantes)
       const daEscolaA = await Promise.all(Array.from({ length: 20 }, () => bancada.enfileirar(ESCOLA_A)))
       bancada.worker(new InMemoryLog('worker'), { pools: { interativa: 5 } })
-      bancada.despachante(new InMemoryLog('despachante')).despachante.iniciar()
+      bancada.despachante(new InMemoryLog('despachante')).despachante.start()
 
       const daEscolaB = await bancada.enfileirar(ESCOLA_B)
       await aguardarEstado(daEscolaB, 'concluido', 3_000)
@@ -592,7 +592,7 @@ describe('vagas por escola e filas por prioridade', () => {
       const daEscolaA = await inserirJobs(ESCOLA_A, 'ferramenta', 20, 'A')
       const processador = contado(50)
       bancada.worker(new InMemoryLog('worker-ia'), { pools: { ferramenta: 5 }, processadores: { sintetico: processador.processar } })
-      bancada.despachante(new InMemoryLog('despachante')).despachante.iniciar()
+      bancada.despachante(new InMemoryLog('despachante')).despachante.start()
 
       const [daEscolaB = ''] = await inserirJobs(ESCOLA_B, 'ferramenta', 1, 'B')
       await aguardarEstado(daEscolaB, 'concluido', 3_000)
@@ -656,7 +656,7 @@ describe('vagas por escola e filas por prioridade', () => {
       bancada.banco.transaction((tx) => bancada.enfileirador.enfileirar(tx, TIPO_EXPURGAR_JOBS, {})),
     )
 
-    const lista = await bancada.despacho.listarEscolasComPendentes()
+    const lista = await bancada.despacho.listEscolasComPendentes()
     expect([...lista].sort((a, b) => `${a.fila}${a.escolaId}`.localeCompare(`${b.fila}${b.escolaId}`))).toEqual([
       { fila: 'interativa', escolaId: ESCOLA_A },
       { fila: 'lote', escolaId: ESCOLA_A },

@@ -166,7 +166,7 @@ export class PrivacidadeService {
     await this.banco.transaction(async (tx) => {
       const incidentes = new IncidenteDaEscolaRepository(tx)
       if (await incidentes.confirmar(id)) {
-        await registro.gravar(tx, 'incidente.confirmado', { entidadeId: id, finalidade: FINALIDADE_DO_REGISTRO_DE_INCIDENTE })
+        await registro.save(tx, 'incidente.confirmado', { entidadeId: id, finalidade: FINALIDADE_DO_REGISTRO_DE_INCIDENTE })
         return
       }
       if (!(await incidentes.existe(id))) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
@@ -180,8 +180,8 @@ export class PrivacidadeService {
    */
   async buscaDeTitulares(termo: string): Promise<BuscaDeTitularesResponse> {
     return this.banco.transaction(async (tx) => {
-      const achados = await new TitularesRepository(tx).buscar(termo)
-      await registro.gravar(tx, 'titular.buscado', { entidadeId: this.#escola(), depois: { ids: achados.map(({ id }) => id) }, finalidade: FINALIDADE_DO_ATENDIMENTO_DO_TITULAR })
+      const achados = await new TitularesRepository(tx).find(termo)
+      await registro.save(tx, 'titular.buscado', { entidadeId: this.#escola(), depois: { ids: achados.map(({ id }) => id) }, finalidade: FINALIDADE_DO_ATENDIMENTO_DO_TITULAR })
       return buscaDeTitularesResponseSchema.parse({ titulares: achados })
     })
   }
@@ -197,7 +197,7 @@ export class PrivacidadeService {
     return this.banco.transaction(async (tx) => {
       const titulares = new TitularesRepository(tx)
       const titular = await this.#titularAlvo(titulares, titularId)
-      await registro.gravar(tx, 'titular.previa_lida', { entidadeId: titular.id, finalidade: FINALIDADE_DO_ATENDIMENTO_DO_TITULAR })
+      await registro.save(tx, 'titular.previa_lida', { entidadeId: titular.id, finalidade: FINALIDADE_DO_ATENDIMENTO_DO_TITULAR })
       const base = { id: titular.id, nome: titular.nome, homonimo: await titulares.homonimo(titular.id) }
       if (titular.papel === 'professor') {
         return previaDoTitularResponseSchema.parse({ ...base, papel: 'professor', categorias: [...titulares.categoriasDoProfessor()] })
@@ -232,18 +232,18 @@ export class PrivacidadeService {
       // Compartilhamento e correção não têm o que montar e nascem `recebido`.
       const geraArquivo = TIPOS_DE_PEDIDO_COM_ARQUIVO.some((tipo) => tipo === pedido.tipo)
       const estado = geraArquivo ? 'em_preparacao' : pedido.tipo === 'eliminacao' ? 'agendado' : 'recebido'
-      const registrado = await this.#gravarPedido(pedidos, { ...pedido, papelTitular: titular.papel, homonimo, compartilhamento, estado })
+      const registrado = await this.#savePedido(pedidos, { ...pedido, papelTitular: titular.papel, homonimo, compartilhamento, estado })
       const id = registrado?.id
       if (registrado !== undefined) {
         if (geraArquivo) await this.dependencias.enfileirador.enfileirar(tx, TIPO_MONTAR_ARQUIVO, { pedidoId: registrado.id })
-        await registro.gravar(tx, 'pedido.registrado', {
+        await registro.save(tx, 'pedido.registrado', {
           entidadeId: registrado.id,
           depois: { titularId: titular.id, papelTitular: titular.papel, tipo: pedido.tipo, solicitante: pedido.solicitante, chegouEm: pedido.chegouEm },
         })
         if (registrado.eliminarEm !== null) {
           // Pedido → usuário, nesta ordem (a mesma do cancelar): o pedido acabou de ser inserido, e só então o usuário é travado.
           const { sessoesEncerradas } = await new CicloDeVidaService(this.banco).agendarEliminacao(titular.id, tx)
-          await registro.gravar(tx, 'pedido.agendado', { entidadeId: registrado.id, depois: { eliminarEm: registrado.eliminarEm.toISOString(), sessoesEncerradas } })
+          await registro.save(tx, 'pedido.agendado', { entidadeId: registrado.id, depois: { eliminarEm: registrado.eliminarEm.toISOString(), sessoesEncerradas } })
         }
       }
       const lido = id === undefined ? await pedidos.daChave(pedido.chaveEnvio) : await pedidos.de(id)
@@ -253,7 +253,7 @@ export class PrivacidadeService {
       if (id === undefined && (lido.titularId !== pedido.titularId || lido.tipo !== pedido.tipo || lido.solicitante !== pedido.solicitante || lido.chegouEm !== pedido.chegouEm)) {
         throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       }
-      return this.#montarPedido(lido, await titulares.titularesParaOPedido([lido.titularId]))
+      return this.#buildPedido(lido, await titulares.titularesParaOPedido([lido.titularId]))
     })
   }
 
@@ -266,12 +266,12 @@ export class PrivacidadeService {
     return this.banco.transaction(async (tx) => {
       const titulares = new TitularesRepository(tx)
       const { usuarioId } = requestIdentity()
-      const pedidos = await new PedidosRepository(tx).listar(consulta.pagina, consulta.limite, { usuarioId, contaId: await titulares.contaDeQuemPediu() })
+      const pedidos = await new PedidosRepository(tx).list(consulta.pagina, consulta.limite, { usuarioId, contaId: await titulares.contaDeQuemPediu() })
       const daPágina = pedidos.slice(0, consulta.limite)
-      await registro.gravar(tx, 'pedidos.listados', { entidadeId: this.#escola(), depois: { ids: daPágina.map(({ id }) => id) }, finalidade: FINALIDADE_DO_ATENDIMENTO_DO_TITULAR })
+      await registro.save(tx, 'pedidos.listados', { entidadeId: this.#escola(), depois: { ids: daPágina.map(({ id }) => id) }, finalidade: FINALIDADE_DO_ATENDIMENTO_DO_TITULAR })
       const nomes = await titulares.titularesParaOPedido(daPágina.map(({ titularId }) => titularId))
       const itens: ItemDoPedido[] = daPágina.map((pedido) => {
-        const { id, tipo, solicitante, chegouEm, estado } = this.#montarPedido(pedido, nomes)
+        const { id, tipo, solicitante, chegouEm, estado } = this.#buildPedido(pedido, nomes)
         return { id, tipo, solicitante, chegouEm, estado, titular: this.#titularDe(pedido, nomes) }
       })
       return pedidosResponseSchema.parse({ itens, ...(pedidos.length > consulta.limite ? { proxima: daPágina.at(-1)?.id } : {}) })
@@ -284,8 +284,8 @@ export class PrivacidadeService {
       const titulares = new TitularesRepository(tx)
       const pedidos = new PedidosRepository(tx)
       const pedido = await this.#pedidoAlvo(pedidos, titulares, id)
-      await registro.gravar(tx, 'pedido.lido', { entidadeId: pedido.id, finalidade: FINALIDADE_DO_ATENDIMENTO_DO_TITULAR })
-      return this.#montarPedido(pedido, await titulares.titularesParaOPedido([pedido.titularId]))
+      await registro.save(tx, 'pedido.lido', { entidadeId: pedido.id, finalidade: FINALIDADE_DO_ATENDIMENTO_DO_TITULAR })
+      return this.#buildPedido(pedido, await titulares.titularesParaOPedido([pedido.titularId]))
     })
   }
 
@@ -301,7 +301,7 @@ export class PrivacidadeService {
       // O estado anterior vem do próprio `update`: o job do arquivo (13.0) passa `em_preparacao` para `pronto` por fora.
       const anterior = await pedidos.concluir(pedido.id)
       if (anterior === undefined) throw pedidoEmEstadoInvalido()
-      await registro.gravar(tx, 'pedido.concluido', { entidadeId: pedido.id, antes: { estado: anterior }, depois: { estado: 'concluido' } })
+      await registro.save(tx, 'pedido.concluido', { entidadeId: pedido.id, antes: { estado: anterior }, depois: { estado: 'concluido' } })
     })
   }
 
@@ -319,7 +319,7 @@ export class PrivacidadeService {
       const cancelado = await pedidos.cancelar(pedido.id)
       if (cancelado === undefined) throw pedidoEmEstadoInvalido()
       const acessoDevolvido = await new CicloDeVidaService(this.banco).cancelarEliminacao(cancelado.titularId, tx)
-      await registro.gravar(tx, 'pedido.cancelado', { entidadeId: pedido.id, antes: { estado: 'agendado' }, depois: { estado: 'cancelado', acessoDevolvido } })
+      await registro.save(tx, 'pedido.cancelado', { entidadeId: pedido.id, antes: { estado: 'agendado' }, depois: { estado: 'cancelado', acessoDevolvido } })
     })
   }
 
@@ -334,7 +334,7 @@ export class PrivacidadeService {
       const pedidos = new PedidosRepository(tx)
       const pedido = await this.#pedidoAlvo(pedidos, new TitularesRepository(tx), id)
       if (!(await pedidos.corrigirNome(pedido.id, nome))) throw pedidoEmEstadoInvalido()
-      await registro.gravar(tx, 'pedido.nome_corrigido', { entidadeId: pedido.id })
+      await registro.save(tx, 'pedido.nome_corrigido', { entidadeId: pedido.id })
     })
   }
 
@@ -358,7 +358,7 @@ export class PrivacidadeService {
     const resposta = await this.#assinar(arquivo, agora)
     // A auditoria é a transação curta, e vem antes de a resposta sair: se ela falhar, a URL não sai.
     await this.banco.transaction(async (tx) => {
-      await registro.gravar(tx, 'titular.arquivo_baixado', { entidadeId: pedido.id, depois: { versao: 'coordenacao' satisfies VersaoDoArquivo }, finalidade })
+      await registro.save(tx, 'titular.arquivo_baixado', { entidadeId: pedido.id, depois: { versao: 'coordenacao' satisfies VersaoDoArquivo }, finalidade })
     })
     return resposta
   }
@@ -399,7 +399,7 @@ export class PrivacidadeService {
     if (arquivo === undefined || !this.#vale(arquivo, agora)) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     const resposta = await this.#assinar(arquivo, agora)
     await this.banco.transaction(async (tx) => {
-      await registro.gravar(tx, 'titular.arquivo_baixado', {
+      await registro.save(tx, 'titular.arquivo_baixado', {
         entidadeId: pedidoId,
         depois: { versao: 'completa' satisfies VersaoDoArquivo },
         finalidade: FINALIDADE_DO_ARQUIVO_DO_PROPRIO_TITULAR,
@@ -412,7 +412,7 @@ export class PrivacidadeService {
    * Grava o pedido. A segunda eliminação `agendada` do mesmo titular (outra chave de envio) cai no único parcial e responde
    * `PEDIDO_EM_ESTADO_INVALIDO`, sem dizer o que existe. Qualquer outro erro do banco segue como veio.
    */
-  async #gravarPedido(pedidos: PedidosRepository, pedido: Parameters<PedidosRepository['registrar']>[0]): ReturnType<PedidosRepository['registrar']> {
+  async #savePedido(pedidos: PedidosRepository, pedido: Parameters<PedidosRepository['registrar']>[0]): ReturnType<PedidosRepository['registrar']> {
     try {
       return await pedidos.registrar(pedido)
     } catch (erro) {
@@ -446,7 +446,7 @@ export class PrivacidadeService {
   /** O titular do pedido, ou `NAO_ENCONTRADO` como o inexistente: outra escola, o de quem pediu e o id de ninguém. */
   async #titularAlvo(titulares: TitularesRepository, titularId: string): Promise<TitularAchadoNoBanco> {
     const titular = await titulares.paraOPedido(titularId)
-    if (titular === undefined || (await this.#ehDeQuemPediu(titulares, titular))) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+    if (titular === undefined || (await this.#isDeQuemPediu(titulares, titular))) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     return titular
   }
 
@@ -463,7 +463,7 @@ export class PrivacidadeService {
   }
 
   /** O pedido sobre a própria pessoa, pelo mesmo `conta_id` (ou pelo próprio id): quem atende não atende a si. */
-  async #ehDeQuemPediu(titulares: TitularesRepository, titular: TitularAchadoNoBanco): Promise<boolean> {
+  async #isDeQuemPediu(titulares: TitularesRepository, titular: TitularAchadoNoBanco): Promise<boolean> {
     const { usuarioId } = requestIdentity()
     if (titular.id === usuarioId) return true
     return titular.contaId !== null && titular.contaId === (await titulares.contaDeQuemPediu())
@@ -478,7 +478,7 @@ export class PrivacidadeService {
   }
 
   /** O pedido como a coordenação o lê: sem nome de quem registrou, sem matrícula e sem texto. */
-  #montarPedido(pedido: PedidoAchado, titulares: ReadonlyMap<string, TitularParaOPedido>): PedidoDoTitular {
+  #buildPedido(pedido: PedidoAchado, titulares: ReadonlyMap<string, TitularParaOPedido>): PedidoDoTitular {
     return pedidoDoTitularSchema.parse({
       id: pedido.id,
       tipo: pedido.tipo,

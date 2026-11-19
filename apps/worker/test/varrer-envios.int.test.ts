@@ -15,8 +15,8 @@ import { JobFailureCode } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { compose, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
-import { criarExtracaoDoPdf } from '../src/processors/extrair-pdf.js'
-import { criarVarreduraDeTemporarios, FALHAS_SEGUIDAS_DO_STORAGE_FORA, FOLGA_DA_LINHA_DO_ENVIO_MS, FOLGA_DO_OBJETO_QUE_SOBROU_MS } from '../src/processors/varrer-envios.js'
+import { createExtracaoDoPdf } from '../src/processors/extrair-pdf.js'
+import { createVarreduraDeTemporarios, FALHAS_SEGUIDAS_DO_STORAGE_FORA, FOLGA_DA_LINHA_DO_ENVIO_MS, FOLGA_DO_OBJETO_QUE_SOBROU_MS } from '../src/processors/varrer-envios.js'
 import { jobExecution } from './job-execution.fixture.js'
 import { InMemoryLog, QueueFixtures } from './queue.fixture.js'
 
@@ -131,7 +131,7 @@ describe('sistema.varrer-temporarios-de-material', () => {
   }
 
   interface Opcoes {
-    readonly armazemDoCaso?: Pick<InMemoryFileStorage, 'apagar'>
+    readonly armazemDoCaso?: Pick<InMemoryFileStorage, 'delete'>
     readonly lote?: number
     readonly prazoDoApagarMs?: number
     /** `false` roda a rotina fora do contexto do sistema, como um job de escola a chamaria. */
@@ -142,7 +142,7 @@ describe('sistema.varrer-temporarios-de-material', () => {
 
   /** O job, como o executor o chama: rotina do sistema, sem escola, no instante do relógio. */
   function rodar(relogio: Clock, opcoes: Opcoes = {}): Promise<void> {
-    const processador = criarVarreduraDeTemporarios({
+    const processador = createVarreduraDeTemporarios({
       banco: bancada.banco,
       armazem: opcoes.armazemDoCaso ?? armazem,
       relogio,
@@ -187,7 +187,7 @@ describe('sistema.varrer-temporarios-de-material', () => {
       expect(await temLinha(c.escolaId, id)).toBe(false)
     })
 
-    it('o `apagar` falhando uma vez: a linha e o objeto ficam, o job falha para a fila repetir, e na hora seguinte saem', async () => {
+    it('o `delete` falhando uma vez: a linha e o objeto ficam, o job falha para a fila repetir, e na hora seguinte saem', async () => {
       const c = await escolaNova()
       const dele = new InMemoryFileStorage()
       const relogio = new RelogioMovel(Date.now())
@@ -206,12 +206,12 @@ describe('sistema.varrer-temporarios-de-material', () => {
       expect(await temObjeto(c.escolaId, id, dele)).toBe(false)
     })
 
-    it('o `apagar` que não responde estoura o prazo curto: a linha fica, e o job não espera o armazém', async () => {
+    it('o `delete` que não responde estoura o prazo curto: a linha fica, e o job não espera o armazém', async () => {
       const c = await escolaNova()
       const relogio = new RelogioMovel(Date.now())
       const id = await envio(c, relogio)
       relogio.emMs += 61 * MINUTO_MS
-      const mudo = { apagar: () => new Promise<void>(() => undefined) }
+      const mudo = { delete: () => new Promise<void>(() => undefined) }
 
       // O prazo curto é o que solta o job: sem ele o armazém mudo o seguraria para sempre, e o caso cairia aqui, em 5 s, em vez de pelo tempo do teste.
       let relogioDaEspera: NodeJS.Timeout | undefined
@@ -251,7 +251,7 @@ describe('sistema.varrer-temporarios-de-material', () => {
       expect(await temObjeto(c.escolaId, id)).toBe(true)
     })
 
-    it('duas escolas: cada `apagar` roda no contexto da sua, com a chave dela', async () => {
+    it('duas escolas: cada `delete` roda no contexto da sua, com a chave dela', async () => {
       const a = await escolaNova()
       const b = await escolaNova()
       const relogio = new RelogioMovel(Date.now())
@@ -259,7 +259,7 @@ describe('sistema.varrer-temporarios-de-material', () => {
       const idB = await envio(b, relogio)
       relogio.emMs += 61 * MINUTO_MS
       const apagadas: string[] = []
-      const registrando = { apagar: (chave: string) => (apagadas.push(chave), armazem.apagar(chave)) }
+      const registrando = { delete: (chave: string) => (apagadas.push(chave), armazem.delete(chave)) }
 
       await rodar(relogio, { armazemDoCaso: registrando })
 
@@ -278,7 +278,7 @@ describe('sistema.varrer-temporarios-de-material', () => {
       const idB = await envio(b, relogio)
       relogio.emMs += 61 * MINUTO_MS
       const recusaA = {
-        apagar: (chave: string) => (chave.includes(a.escolaId) ? Promise.reject(new FileStorageUnavailableError()) : armazem.apagar(chave)),
+        delete: (chave: string) => (chave.includes(a.escolaId) ? Promise.reject(new FileStorageUnavailableError()) : armazem.delete(chave)),
       }
 
       await expect(rodar(relogio, { armazemDoCaso: recusaA })).rejects.toThrow('objeto de material não apagado')
@@ -320,13 +320,13 @@ describe('sistema.varrer-temporarios-de-material', () => {
       expect((await linhaDoMaterial(novo)).objeto_apagado_em).toBeNull()
     })
 
-    it('`falhou` há 25 h com o `apagar` da extração caído: o `processado_em` da falha o leva à varredura, que apaga', async () => {
+    it('`falhou` há 25 h com o `delete` da extração caído: o `processado_em` da falha o leva à varredura, que apaga', async () => {
       const c = await escolaNova()
       const dele = new InMemoryFileStorage()
       const id = await material(c, { estado: 'processando', onde: dele, comObjeto: false })
       await naEscola(c.escolaId, () => dele.guardarBytes(chaveDoTemporario(id), pdfSemTexto(), { prazoMs: 5_000 }))
       dele.falhaAoApagar = true
-      const extracao = criarExtracaoDoPdf({ banco: bancada.banco, armazem: dele, extrator: new PdfExtractor(), logger: log.logger })
+      const extracao = createExtracaoDoPdf({ banco: bancada.banco, armazem: dele, extrator: new PdfExtractor(), logger: log.logger })
       await naEscola(c.escolaId, () => extracao({ materialId: id }, jobExecution(randomUUID(), 1), new AbortController().signal))
       expect(await linhaDoMaterial(id)).toMatchObject({ estado: 'falhou', objeto_apagado_em: null })
       expect(await temObjeto(c.escolaId, id, dele)).toBe(true)
@@ -345,7 +345,7 @@ describe('sistema.varrer-temporarios-de-material', () => {
       await bancada.pool.query("update material set enviado_em = now() - interval '25 hours' where id = $1", [processando])
       const antigo = await material(c, { estado: 'pronto', processadoHaHoras: 100, objetoApagado: true })
       const apagadas: string[] = []
-      const registrando = { apagar: (chave: string) => (apagadas.push(chave), armazem.apagar(chave)) }
+      const registrando = { delete: (chave: string) => (apagadas.push(chave), armazem.delete(chave)) }
 
       await rodar(new RelogioMovel(Date.now()), { armazemDoCaso: registrando })
 
@@ -357,13 +357,13 @@ describe('sistema.varrer-temporarios-de-material', () => {
       expect(apagadas).not.toContain(chaveDe(c.escolaId, processando))
     })
 
-    it('duas escolas: cada `apagar` roda no contexto da sua e a marca vai só para a linha dela', async () => {
+    it('duas escolas: cada `delete` roda no contexto da sua e a marca vai só para a linha dela', async () => {
       const a = await escolaNova()
       const b = await escolaNova()
       const daA = await material(a, { estado: 'pronto', processadoHaHoras: 26 })
       const daB = await material(b, { estado: 'falhou', processadoHaHoras: 26 })
       const apagadas: string[] = []
-      const registrando = { apagar: (chave: string) => (apagadas.push(chave), armazem.apagar(chave)) }
+      const registrando = { delete: (chave: string) => (apagadas.push(chave), armazem.delete(chave)) }
 
       await rodar(new RelogioMovel(Date.now()), { armazemDoCaso: registrando })
 
@@ -389,7 +389,7 @@ describe('sistema.varrer-temporarios-de-material', () => {
       expect((await linhaDoMaterial(segundo)).objeto_apagado_em).toBeInstanceOf(Date)
     })
 
-    it('o `apagar` que falha deixa a marca nula, e a hora seguinte o tenta de novo', async () => {
+    it('o `delete` que falha deixa a marca nula, e a hora seguinte o tenta de novo', async () => {
       const c = await escolaNova()
       const dele = new InMemoryFileStorage()
       const id = await material(c, { estado: 'pronto', processadoHaHoras: 30, onde: dele })
@@ -407,12 +407,12 @@ describe('sistema.varrer-temporarios-de-material', () => {
   })
 
   describe('o corte do job e o storage fora do ar', () => {
-    /** Um armazém que conta os `apagar` e responde como o caso manda: o que o corte ou o storage fora do ar impede de chamar não conta. */
-    function armazemQueConta(responde: (chave: string) => Promise<void>): { readonly armazemDoCaso: Pick<InMemoryFileStorage, 'apagar'>; readonly chamadas: () => number } {
+    /** Um armazém que conta os `delete` e responde como o caso manda: o que o corte ou o storage fora do ar impede de chamar não conta. */
+    function armazemQueConta(responde: (chave: string) => Promise<void>): { readonly armazemDoCaso: Pick<InMemoryFileStorage, 'delete'>; readonly chamadas: () => number } {
       let total = 0
       return {
         armazemDoCaso: {
-          apagar: (chave: string) => {
+          delete: (chave: string) => {
             total += 1
             return responde(chave)
           },
@@ -436,7 +436,7 @@ describe('sistema.varrer-temporarios-de-material', () => {
       }
     }
 
-    it('o `sinal` já abortado: nenhum `apagar` é chamado, nas duas passadas, e tudo fica para a hora seguinte', async () => {
+    it('o `sinal` já abortado: nenhum `delete` é chamado, nas duas passadas, e tudo fica para a hora seguinte', async () => {
       const c = await escolaNova()
       const relogio = new RelogioMovel(Date.now())
       const id = await envio(c, relogio)
@@ -454,12 +454,12 @@ describe('sistema.varrer-temporarios-de-material', () => {
       expect(ultimoResumo()).toMatchObject({ estado: 'cortada', falhasTotal: 0, enviosApagadosTotal: 0, objetosApagadosTotal: 0 })
     })
 
-    it('o `sinal` aborta com o armazém mudo: o `apagar` para, o job volta, a transação desfaz e nenhum outro alvo é tentado', async () => {
+    it('o `sinal` aborta com o armazém mudo: o `delete` para, o job volta, a transação desfaz e nenhum outro alvo é tentado', async () => {
       const c = await escolaNova()
       const relogio = new RelogioMovel(Date.now())
       const ids = [await envio(c, relogio), await envio(c, relogio), await envio(c, relogio)]
       relogio.emMs += 61 * MINUTO_MS
-      // O armazém nunca responde, e o prazo curto do `apagar` é longo de propósito: só o `sinal` solta o job.
+      // O armazém nunca responde, e o prazo curto do `delete` é longo de propósito: só o `sinal` solta o job.
       const { armazemDoCaso, chamadas } = armazemQueConta(() => new Promise<void>(() => undefined))
       const controle = new AbortController()
       const execucao = rodar(relogio, { armazemDoCaso, prazoDoApagarMs: 60_000, sinal: controle.signal })
@@ -509,7 +509,7 @@ describe('sistema.varrer-temporarios-de-material', () => {
       expect((await linhaDoMaterial(velho)).objeto_apagado_em).toBeNull()
     })
 
-    it('o storage fora do ar também para a passada do objeto que sobrou: três `apagar` e a marca fica nula', async () => {
+    it('o storage fora do ar também para a passada do objeto que sobrou: três `delete` e a marca fica nula', async () => {
       const a = await escolaNova()
       const b = await escolaNova()
       const velhos = [
@@ -535,7 +535,7 @@ describe('sistema.varrer-temporarios-de-material', () => {
       const [idA1 = '', idA2 = '', idA3 = '', idB = ''] = await enviosNaOrdem([a, a, a, b], base)
       const idsA = [idA1, idA2, idA3]
       const relogio = new RelogioMovel(base + 61 * MINUTO_MS)
-      const { armazemDoCaso, chamadas } = armazemQueConta((chave) => (chave.includes(a.escolaId) ? recusa() : armazem.apagar(chave)))
+      const { armazemDoCaso, chamadas } = armazemQueConta((chave) => (chave.includes(a.escolaId) ? recusa() : armazem.delete(chave)))
 
       await expect(rodar(relogio, { armazemDoCaso })).rejects.toThrow('objeto de material não apagado')
 
@@ -571,7 +571,7 @@ describe('sistema.varrer-temporarios-de-material', () => {
       for (const [posicao, escola] of ordem.entries()) ids.push(await envio(escola, new RelogioMovel(base + posicao * 1_000)))
       const relogio = new RelogioMovel(base + 61 * MINUTO_MS)
       // O storage recusa as chaves da A e da B e aceita as da C.
-      const { armazemDoCaso, chamadas } = armazemQueConta((chave) => (chave.includes(c.escolaId) ? armazem.apagar(chave) : recusa()))
+      const { armazemDoCaso, chamadas } = armazemQueConta((chave) => (chave.includes(c.escolaId) ? armazem.delete(chave) : recusa()))
 
       await expect(rodar(relogio, { armazemDoCaso })).rejects.toThrow('objeto de material não apagado')
 
@@ -605,7 +605,7 @@ describe('sistema.varrer-temporarios-de-material', () => {
       const velho = await material(c, { estado: 'pronto', processadoHaHoras: 30 })
       relogio.emMs += 61 * MINUTO_MS
       // O erro que o storage lança de fato: uma falha por passada não chega a 3 seguidas, então as duas passadas rodam, e cada uma falha no seu alvo.
-      const recusa = { apagar: () => Promise.reject(new FileStorageUnavailableError()) }
+      const recusa = { delete: () => Promise.reject(new FileStorageUnavailableError()) }
       const inicio = log.linhas.length
 
       await rodar(relogio, { armazemDoCaso: recusa }).catch(() => undefined)
@@ -646,7 +646,7 @@ describe('sistema.varrer-temporarios-de-material', () => {
       for (const alvo of [...envios, ...objetos]) expect(Object.keys(alvo).toSorted()).toEqual(['escolaId', 'materialId'])
     })
 
-    it('o repository da linha, com a escola A no contexto, não alcança a linha da B: nem trava, nem apaga, nem o `apagarNoEnvio`', async () => {
+    it('o repository da linha, com a escola A no contexto, não alcança a linha da B: nem trava, nem apaga, nem o `deleteNoEnvio`', async () => {
       const a = await escolaNova()
       const b = await escolaNova()
       const relogio = new RelogioMovel(Date.now())
@@ -657,23 +657,23 @@ describe('sistema.varrer-temporarios-de-material', () => {
         const repositorio = new EnvioDeMaterialRepository(bancada.banco)
         await bancada.banco.transaction(async (tx) => {
           const dentro = new EnvioDeMaterialRepository(tx)
-          expect(await dentro.travarParada(idB, depois)).toBe(false)
-          expect(await dentro.apagarNoEnvio(idB)).toBe(false)
+          expect(await dentro.lockParada(idB, depois)).toBe(false)
+          expect(await dentro.deleteNoEnvio(idB)).toBe(false)
         })
-        await repositorio.apagar(idB)
+        await repositorio.delete(idB)
       })
 
       expect(await temLinha(b.escolaId, idB)).toBe(true)
       // E com a escola dela no contexto, a mesma linha é achada, travada e apagada.
       await naEscola(b.escolaId, () => bancada.banco.transaction(async (tx) => {
         const dentro = new EnvioDeMaterialRepository(tx)
-        expect(await dentro.travarParada(idB, depois)).toBe(true)
-        expect(await dentro.apagarNoEnvio(idB)).toBe(true)
+        expect(await dentro.lockParada(idB, depois)).toBe(true)
+        expect(await dentro.deleteNoEnvio(idB)).toBe(true)
       }))
       expect(await temLinha(b.escolaId, idB)).toBe(false)
     })
 
-    it('`apagarNoEnvio` e `apagar` tiram só a linha do id, e `apagarNoEnvio` diz se havia a linha', async () => {
+    it('`deleteNoEnvio` e `delete` tiram só a linha do id, e `deleteNoEnvio` diz se havia a linha', async () => {
       const c = await escolaNova()
       const um = randomUUID()
       const dois = randomUUID()
@@ -682,20 +682,20 @@ describe('sistema.varrer-temporarios-de-material', () => {
       const respostas = await naEscola(c.escolaId, () =>
         bancada.banco.transaction(async (tx) => {
           const dentro = new EnvioDeMaterialRepository(tx)
-          return [await dentro.apagarNoEnvio(um), await dentro.apagarNoEnvio(um)]
+          return [await dentro.deleteNoEnvio(um), await dentro.deleteNoEnvio(um)]
         }),
       )
 
       expect(respostas).toEqual([true, false])
       expect(await temLinha(c.escolaId, um)).toBe(false)
       expect(await temLinha(c.escolaId, dois)).toBe(true)
-      await naEscola(c.escolaId, () => new EnvioDeMaterialRepository(bancada.banco).apagar(um))
+      await naEscola(c.escolaId, () => new EnvioDeMaterialRepository(bancada.banco).delete(um))
       expect(await temLinha(c.escolaId, dois)).toBe(true)
-      await naEscola(c.escolaId, () => new EnvioDeMaterialRepository(bancada.banco).apagar(dois))
+      await naEscola(c.escolaId, () => new EnvioDeMaterialRepository(bancada.banco).delete(dois))
       expect(await temLinha(c.escolaId, dois)).toBe(false)
     })
 
-    it('`registrar` grava a escola do contexto, e `travarParada` só alcança a linha com mais de 1 h', async () => {
+    it('`registrar` grava a escola do contexto, e `lockParada` só alcança a linha com mais de 1 h', async () => {
       const c = await escolaNova()
       const id = randomUUID()
       await naEscola(c.escolaId, () => new EnvioDeMaterialRepository(bancada.banco).registrar(id))
@@ -705,10 +705,10 @@ describe('sistema.varrer-temporarios-de-material', () => {
       await naEscola(c.escolaId, () =>
         bancada.banco.transaction(async (tx) => {
           const dentro = new EnvioDeMaterialRepository(tx)
-          expect(await dentro.travarParada(id, new Date(Date.now() - HORA_MS))).toBe(false)
+          expect(await dentro.lockParada(id, new Date(Date.now() - HORA_MS))).toBe(false)
           // Outro id da mesma escola, que a escola não tem na tabela de envios: nem a linha de um vizinho o responde.
-          expect(await dentro.travarParada(randomUUID(), new Date(Date.now() + HORA_MS))).toBe(false)
-          expect(await dentro.travarParada(id, new Date(Date.now() + HORA_MS))).toBe(true)
+          expect(await dentro.lockParada(randomUUID(), new Date(Date.now() + HORA_MS))).toBe(false)
+          expect(await dentro.lockParada(id, new Date(Date.now() + HORA_MS))).toBe(true)
         }),
       )
     })

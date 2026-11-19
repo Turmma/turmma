@@ -1,4 +1,4 @@
-import { createDatabase, createPool, executarPlanilha, runInContext, SemanaRepository, type Clock, type Database, type DatabasePool } from '@educa/core'
+import { createDatabase, createPool, runPlanilha, runInContext, SemanaRepository, type Clock, type Database, type DatabasePool } from '@educa/core'
 import { ErrorCode, semanaResponseSchema, type SemanaResponse } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -12,7 +12,7 @@ import { TEST_APP_OPTIONS } from './test-config.js'
  * A Semana da professora (F2b, tarefa 2.0; `tasks/prd-semana-do-professor/cenarios.md`, "Leitura da semana", R2, R3, R4 e R7): `GET /v1/semana`.
  * As aulas são as alocações dos vínculos `confirmado` da professora da sessão, no ano em curso da escola do token, sem feriado e recesso, com o
  * registro de texto e o que saiu da grade. Postgres real do compose de teste, relógio injetado; escolas, anos e nomes gerados. O calendário do S4
- * e a grade do R4 são gravados pela reimportação real do F2 (`executarPlanilha`).
+ * e a grade do R4 são gravados pela reimportação real do F2 (`runPlanilha`).
  */
 
 const NAO_ENCONTRADO = { status: 404, codigo: ErrorCode.NAO_ENCONTRADO }
@@ -171,7 +171,7 @@ describe('GET /v1/semana: a professora vê a semana dela (F2b, tarefa 2.0)', () 
     const texto = ['inicio;fim;tipo;descricao', ...linhas].join('\n')
     const id = await criado(pedir(e.coordenacao, 'POST', '/v1/importacoes/calendario', { texto, marcas: { transferir: [], desligar: [], encerrar: [] } }), 202)
     await runInContext({ requisicaoId: randomUUID(), escolaId: e.escolaId }, () =>
-      executarPlanilha(bancoDoJob, id, { acharConta: () => Promise.reject(new Error('o calendário não cadastra professor')), travarContas: () => Promise.resolve(true) }),
+      runPlanilha(bancoDoJob, id, { acharConta: () => Promise.reject(new Error('o calendário não cadastra professor')), lockContas: () => Promise.resolve(true) }),
     )
     const { rows } = await bancada.pool.query<{ estado: string }>('select estado from importacao_planilha where id = $1', [id])
     expect(rows[0]?.estado).toBe('concluida')
@@ -182,7 +182,7 @@ describe('GET /v1/semana: a professora vê a semana dela (F2b, tarefa 2.0)', () 
     const texto = ['turma;disciplina;professor;email;dia;inicio;fim;sala', ...linhas].join('\n')
     const id = await criado(pedir(e.coordenacao, 'POST', '/v1/importacoes/grade', { texto, marcas: { transferir: [], desligar: [], encerrar } }), 202)
     await runInContext({ requisicaoId: randomUUID(), escolaId: e.escolaId }, () =>
-      executarPlanilha(bancoDoJob, id, { acharConta: () => Promise.reject(new Error('a grade deste teste não cadastra professor')), travarContas: () => Promise.resolve(true) }),
+      runPlanilha(bancoDoJob, id, { acharConta: () => Promise.reject(new Error('a grade deste teste não cadastra professor')), lockContas: () => Promise.resolve(true) }),
     )
     const { rows } = await bancada.pool.query<{ estado: string }>('select estado from importacao_planilha where id = $1', [id])
     expect(rows[0]?.estado).toBe('concluida')

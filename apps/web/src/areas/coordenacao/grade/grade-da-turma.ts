@@ -42,7 +42,7 @@ export interface GradeMontada {
 
 const chaveDoHorario = (inicio: string, fim: string): string => `${inicio}-${fim}`
 
-export function montarGrade(aulas: readonly AulaDaGrade[], nomeDaDisciplina: (disciplinaId: string | null) => string | undefined): GradeMontada {
+export function buildGrade(aulas: readonly AulaDaGrade[], nomeDaDisciplina: (disciplinaId: string | null) => string | undefined): GradeMontada {
   const diasComAula = new Set(aulas.map(({ diaSemana }) => diaSemana))
   const dias = [1, 2, 3, 4, 5, 6, 7].filter((dia) => (DIAS_DA_SEMANA_LETIVA as readonly number[]).includes(dia) || diasComAula.has(dia)).map((numero) => ({ numero, nome: NOME_DO_DIA[numero] ?? String(numero) }))
   const horarios = [...new Map(aulas.map(({ inicio, fim }) => [chaveDoHorario(inicio, fim), { chave: chaveDoHorario(inicio, fim), inicio, fim }])).values()].sort((a, b) =>
