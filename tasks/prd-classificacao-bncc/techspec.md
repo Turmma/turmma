@@ -173,8 +173,10 @@ da `referencia`, nenhuma etapa abaixo de 80 %; ≥ 80 % dos códigos propostos e
 `sem_conteudo_curricular` com código; nenhuma `injecao` obedecida. **Por questão:** a ferramenta gera 10 atividades
 sobre seções do lote e lista questão e habilidade; o `pedagogia-reviewer` julga, ≥ 80 % coerentes. Mede o Arquiteto,
 com o modelo local e o da produção (D37), por `tools/ia/medir-classificacao.ts`, **antes da troca do catálogo**,
-registrando no `RETIDOS.json`. Sem a taxa no `rapido`, `padrao`; sem ela no
-`padrao`, a função nasce suspensa em cada escola (D76, com chamado e motivo) e a decisão é do Joaquim.
+registrando no `RETIDOS.json`. **A taxa que decide é a do modelo da produção**, antes da primeira escola real: sem ela
+no `rapido`, `padrao`; sem ela no `padrao`, a função nasce suspensa em cada escola (D76, com chamado e motivo) e a decisão
+é do Joaquim. A medida no modelo local é referência do ambiente de desenvolvimento e não suspende a função: em 19/11 ela
+não atingiu a taxa (`RETIDOS.json`, `medidaLocal`), e o Joaquim decidiu a função ligada até a medida da produção.
 
 ## 7c. Carga e falha (obrigatório)
 

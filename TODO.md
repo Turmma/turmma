@@ -1231,12 +1231,13 @@ código"), com o destino de cada uma. As pequenas foram fechadas na correção `
       revisto pelo `pedagogia-reviewer` e pelo `conformidade-reviewer`, e a taxa mede a concordância com ele; sem um professor da área conferir a `referencia` e os `aceitaveis`, o gabarito não foi validado
       por quem ensina. O sha256 do lote muda se o professor alterar um dos dois, e a medida se refaz (`tools/ia/medir-classificacao.ts`). É a etapa 2 da AIA (`docs/aia/diagnostico-por-habilidade.md`, 1.10, item 7;
       dono: Joaquim, com um professor da escola do piloto)
-- [ ] (classificacao-bncc, medida local, 19/11) **A classificação nasce suspensa em cada escola: a taxa não foi atingida no modelo local.** No qwen3.6-35b-a3b, prompt `2026-11-17.1`, pior de três: 86,8 %
-      das seções com conteúdo (alvo 90 %), Médio 72,2 % (alvo 80 %) e 2 de 4 injeções obedecidas (alvo 0); o resto passa (`docs/aia/ouro-retido/RETIDOS.json`, `medidaLocal`). O Joaquim decidiu em 19/11
-      seguir com a 10.0 e a função suspensa (Tech Spec §7b). Antes da medida com o provedor da produção (D37): uma versão nova do prompt, por correção, contra a injeção que não cita código (a que pede a
-      lista vazia e a que descreve a habilidade) e para o Médio de Humanas e Linguagens, escrita sobre o conjunto `dev`, sem abrir o lote retido nem receber os ids que falharam; depois, a medida local de
-      novo e a da produção. Conferir também o prazo do `rapido` (20 s): o pedido de LP com 105 a 120 candidatas levou ~94 s na GPU local. A função só sai da suspensão com a taxa atingida no modelo da
-      produção (dono: Arquiteto, com o Orquestrador abrindo a correção do prompt)
+- [ ] (classificacao-bncc, medida local, 19/11) **A taxa da classificação não foi atingida no modelo local, e a função segue ligada até a medida da produção.** No qwen3.6-35b-a3b, prompt
+      `2026-11-17.1`, pior de três: 86,8 % das seções com conteúdo (alvo 90 %), Médio 72,2 % (alvo 80 %) e 2 de 4 injeções obedecidas (alvo 0); o resto passa (`docs/aia/ouro-retido/RETIDOS.json`,
+      `medidaLocal`). O modelo local é só do desenvolvimento, e o Joaquim decidiu em 19/11 a função ligada; quem decide a suspensão é a medida com a API da produção (D37), antes da primeira escola real
+      (Tech Spec §7b). Antes dela: uma versão nova do prompt, por correção, contra a injeção que não cita código (a que pede a lista vazia e a que descreve a habilidade) e para o Médio de Humanas e
+      Linguagens, escrita sobre o conjunto `dev`, sem abrir o lote retido nem receber os ids que falharam; depois, a medida local de novo e a da produção. Conferir também o prazo do `rapido` (20 s): o
+      pedido de LP com 105 a 120 candidatas levou ~94 s na GPU local. A mensagem de `TAXA NÃO ATINGIDA` de `tools/ia/medir-classificacao.ts` ainda diz que a função nasce suspensa sem distinguir o modelo
+      (dono: Arquiteto, com o Orquestrador abrindo a correção do prompt)
 - [ ] (classificacao-bncc, 3.0) **O pedido da classificação é maior que os ~12 mil tokens da Tech Spec:** medido sobre `dados-2026.08`, o maior recorte (Língua Portuguesa, 6º ao 9º mais o Médio, 267 habilidades)
       com 12 seções cheias pede ~31 mil tokens, e o teto de entrada da tarefa é 121.600 (o pior que o schema aceita). A vazão da §7c (balde `lote` de 125 mil tokens/min, ~10 execuções/min) foi calculada com 12 mil;
       com Matemática ou Ciências (recortes menores) fica perto disso, com LP pode cair a um terço. Rever a conta na carga das 300 apostilas (5.5) e, se pesar, reduzir as candidatas por série em vez de por
