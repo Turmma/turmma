@@ -1,4 +1,6 @@
 import { randomUUID } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { Client } from 'pg'
 import { urlDoBancoDeTeste } from '../../tools/ci/compose.ts'
 
@@ -19,8 +21,21 @@ export interface EscolaComEntregas {
   readonly aluno: string
 }
 
-const HABILIDADE_MASSA = { codigo: 'EM13CNT102', descricao: 'Calcular a massa de reagentes e produtos numa reação' }
-const HABILIDADE_LIMITANTE = { codigo: 'EM13CNT103', descricao: 'Identificar o reagente limitante' }
+/**
+ * As duas habilidades da semente são códigos reais da BNCC, e a descrição é a **da tabela** (carga `dados-2026.08`): o diagnóstico e o Analista a leem de `habilidade_bncc` pelo código, e não do conteúdo gravado
+ * (classificacao-bncc, correção `descricao-oficial-da-habilidade`). Os dois códigos foram escolhidos com descrição de até 300 caracteres, o tamanho do contrato, para a semente e a tela dizerem o mesmo texto sem corte.
+ */
+const MAXIMO_DA_DESCRICAO = 300
+const carga = JSON.parse(readFileSync(join(import.meta.dirname, '../../packages/core/src/db/bncc/dados-2026.08.json'), 'utf8')) as { habilidades: Array<{ codigo: string; descricao: string }> }
+function habilidadeOficial(codigo: string): { readonly codigo: string; readonly descricao: string } {
+  const lida = carga.habilidades.find((habilidade) => habilidade.codigo === codigo)
+  if (lida === undefined) throw new Error(`o código ${codigo} não está na carga da BNCC`)
+  if (lida.descricao.length > MAXIMO_DA_DESCRICAO) throw new Error(`a descrição de ${codigo} passa de ${String(MAXIMO_DA_DESCRICAO)} caracteres: escolha outro código, ou corte como o contrato`)
+  return { codigo, descricao: lida.descricao }
+}
+const HABILIDADE_MASSA = habilidadeOficial('EM13CNT105')
+/** A habilidade com 50% de acerto na semente: é a do alerta do Analista. */
+export const HABILIDADE_LIMITANTE = habilidadeOficial('EM13CNT103')
 
 async function comBanco<T>(tarefa: (banco: Client) => Promise<T>): Promise<T> {
   const banco = new Client({ connectionString: urlDoBancoDeTeste() })

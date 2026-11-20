@@ -1,4 +1,6 @@
-import { conteudoDeAtividadeSchema, type ConteudoDeAtividade } from '@educa/shared'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { conteudoDeAtividadeSchema, descricaoParaOModelo, type ConteudoDeAtividade } from '@educa/shared'
 import { chamar, type TestApi, type RespostaHttp } from './test-api.js'
 import type { EscolaComAssistente } from './escola-assistente.fixture.js'
 import type { SessaoFixtures, TestSessao } from './sessao.fixture.js'
@@ -10,8 +12,15 @@ import type { SessaoFixtures, TestSessao } from './sessao.fixture.js'
 
 /** O gabarito da atividade de teste, pelo índice da alternativa: questão 1 → A, 2 → B, 3 → C, 4 → D, 5 → A. */
 export const GABARITO_DE_TESTE = [0, 1, 2, 3, 0] as const
-export const HABILIDADE_DAS_TRES_PRIMEIRAS = { codigo: 'EM13CNT102', descricao: 'Calcular a massa de reagentes e produtos numa reação' }
-export const HABILIDADE_DAS_DUAS_ULTIMAS = { codigo: 'EM13CNT103', descricao: 'Identificar o reagente limitante' }
+const bncc = JSON.parse(readFileSync(join(import.meta.dirname, '../../../packages/core/src/db/bncc/dados-2026.08.json'), 'utf8')) as { habilidades: { codigo: string; descricao: string }[] }
+/** A habilidade como a gravação a deixa: o código e o **texto da tabela `habilidade_bncc`** no tamanho do contrato, nunca uma paráfrase (classificacao-bncc, correção `descricao-oficial-da-habilidade`). */
+const habilidadeOficial = (codigo: string): { codigo: string; descricao: string } => {
+  const lida = bncc.habilidades.find((habilidade) => habilidade.codigo === codigo)
+  if (lida === undefined) throw new Error(`o código ${codigo} não está na carga da BNCC`)
+  return { codigo, descricao: descricaoParaOModelo(lida.descricao) }
+}
+export const HABILIDADE_DAS_TRES_PRIMEIRAS = habilidadeOficial('EM13CNT102')
+export const HABILIDADE_DAS_DUAS_ULTIMAS = habilidadeOficial('EM13CNT103')
 /** O texto que nunca pode chegar ao aluno antes da aprovação. */
 export const EXPLICACAO_DE_TESTE = 'Explicação sintética do gabarito que só aparece depois da aprovação'
 

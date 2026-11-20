@@ -53,6 +53,13 @@ describe('BnccRepository: as habilidades da tabela pública', () => {
     expect(await repositorio.habilidades({ codigo: 'EF07CI99' })).toEqual([])
   })
 
+  it('por vários códigos: só os pedidos, na ordem do código, e o que a tabela não tem fica de fora', async () => {
+    const repositorio = new BnccRepository(banco)
+    const lidas = await repositorio.habilidades({ codigos: ['EM13CNT101', 'EF07CI01', 'QUI.EM.05'] })
+    expect(lidas.map((habilidade) => habilidade.codigo)).toEqual(['EF07CI01', 'EM13CNT101'])
+    expect(await repositorio.habilidades({ codigos: [] })).toEqual([])
+  })
+
   it('o grupo é o componente no Fundamental e a área no Médio (as `EM13LP` têm os dois, e a área vence)', async () => {
     const repositorio = new BnccRepository(banco)
     const [fundamental] = await repositorio.habilidades({ codigo: 'EF07CI01' })

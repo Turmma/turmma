@@ -128,6 +128,19 @@ describe('anularHabilidadesForaDaSecao (classificacao-bncc, 10.0)', () => {
     expect(anularHabilidadesForaDaSecao(conteudo, entregues)).toEqual({ conteudo, anuladas: 0 })
   })
 
+  it('a questão com o código certo e a descrição do modelo sai com a descrição da tabela, a do trecho entregue, e isso não conta como anulada', () => {
+    const doModelo = { codigo: CAP_7.codigo, descricao: 'Calcular quantidades em reações químicas (texto inventado pelo modelo)' }
+    const conteudo: ConteudoDeAtividade = { ...original, questoes: [com(1, CAP_3), com(2, doModelo)] }
+    const { conteudo: gravado, anuladas } = anularHabilidadesForaDaSecao(conteudo, entregues)
+    expect(anuladas).toBe(0)
+    expect((gravado as ConteudoDeAtividade).questoes.map((q) => q.habilidade)).toEqual([CAP_3, CAP_7])
+  })
+
+  it('a questão com a habilidade da seção e a descrição em branco ou de outra habilidade também sai com a da tabela', () => {
+    const conteudo: ConteudoDeAtividade = { ...original, questoes: [com(1, { codigo: CAP_3.codigo, descricao: CAP_7.descricao }), com(2, { codigo: CAP_7.codigo, descricao: ' ' })] }
+    expect((anularHabilidadesForaDaSecao(conteudo, entregues).conteudo as ConteudoDeAtividade).questoes.map((q) => q.habilidade)).toEqual([CAP_3, CAP_7])
+  })
+
   it('a questão que cita o capítulo 7 com a habilidade do 3 sai sem habilidade, e a conta soma', () => {
     const conteudo: ConteudoDeAtividade = { ...original, questoes: [com(2, CAP_3), com(1, CAP_3)] }
     const { conteudo: gravado, anuladas } = anularHabilidadesForaDaSecao(conteudo, entregues)
@@ -165,6 +178,23 @@ describe('anularHabilidadesForaDaSecao (classificacao-bncc, 10.0)', () => {
     }
     const { conteudo: gravado, anuladas } = anularHabilidadesForaDaSecao(plano, entregues)
     expect(anuladas).toBe(1)
+    expect((gravado as ConteudoDePlanoDeAula).habilidades).toEqual([CAP_7])
+  })
+
+  it('o plano que cita o capítulo 7 com o código certo e a descrição do modelo guarda a da tabela', () => {
+    const citacao = { materialId: MATERIAL, pagina: 2, trecho: 'trecho da página' }
+    const plano: ConteudoDePlanoDeAula = {
+      tipo: 'plano_de_aula',
+      titulo: 'Plano',
+      objetivos: ['Entender o capítulo 7'],
+      habilidades: [{ codigo: CAP_7.codigo, descricao: 'Texto inventado pelo modelo' }],
+      duracaoMinutos: 50,
+      etapas: [{ titulo: 'Abertura', minutos: 10, descricao: 'Retoma o capítulo.', citacao }],
+      avaliacao: 'Pergunta de fechamento.',
+      citacoes: [citacao],
+    }
+    const { conteudo: gravado, anuladas } = anularHabilidadesForaDaSecao(plano, entregues)
+    expect(anuladas).toBe(0)
     expect((gravado as ConteudoDePlanoDeAula).habilidades).toEqual([CAP_7])
   })
 })

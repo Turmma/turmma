@@ -3,7 +3,7 @@ import { entrarPelaTelaComSegundoFator, esperarPainel, SIGN_IN_TIMEOUT_MS } from
 import { abrirPelaApiSemMedirAPrimeiraCarga, configurarSegundoFatorPelaApi } from './support/mfa.ts'
 import { irPelaCoordenacao } from './support/coordenacao.ts'
 import { conferirAssinaturas, conferirTamanhoDoAvatar } from './support/avatar.ts'
-import { auditoriasNoBanco, montarEscolaComEntregas, type EscolaComEntregas } from './support/governanca.ts'
+import { auditoriasNoBanco, HABILIDADE_LIMITANTE, montarEscolaComEntregas, type EscolaComEntregas } from './support/governanca.ts'
 import { expect, test } from './support/profiles.ts'
 import { criarEquipeComSenha, type EquipeDeTeste } from './support/seed.ts'
 import { horizontalOverflow, larguraExcedenteDoDialogo, seriousViolations } from './support/checks.ts'
@@ -148,7 +148,7 @@ test.describe('Analista', () => {
 
     const alerta = resumo.locator('[data-alerta="habilidade_com_acerto_baixo"]')
     await expect(alerta).toHaveCount(1)
-    await expect(alerta).toContainText(`Em ${escola.serieNome} · Química, o acerto em "Identificar o reagente limitante" (EM13CNT103) ficou em 50%, abaixo de 60%, um limite provisório desta versão, a definir com a escola.`)
+    await expect(alerta).toContainText(`Em ${escola.serieNome} · Química, o acerto em "${HABILIDADE_LIMITANTE.descricao}" (${HABILIDADE_LIMITANTE.codigo}) ficou em 50%, abaixo de 60%, um limite provisório desta versão, a definir com a escola.`)
     await expect(alerta).toContainText('Hipóteses a conferir')
     // O selo diz "Hipótese" em texto, e a coluna é a de leitura (880 px).
     await expect(alerta.locator('[data-estado="info"]')).toHaveText('Hipótese')

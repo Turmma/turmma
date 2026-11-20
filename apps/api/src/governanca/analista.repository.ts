@@ -1,6 +1,7 @@
 import {
   anoLetivo,
   artefato,
+  BnccRepository,
   atividadeAplicada,
   correcao,
   disciplina,
@@ -21,6 +22,7 @@ import {
 import type { ConteudoDoResumoDoAnalista, Etapa, TipoDeSinal } from '@educa/shared'
 import { and, asc, count, desc, eq, isNull, ne, notExists, sql, type SQL } from 'drizzle-orm'
 import { InvariantException } from '@educa/shared'
+import { descricoesDoDiagnostico } from '../material/habilidades-do-recorte.js'
 import { anoEmCursoOuNulo } from './governanca.repository.js'
 
 /** O recorte do Analista: série × disciplina. Nunca turma, nunca professor. */
@@ -212,7 +214,7 @@ export class AnalistaRepository {
       .orderBy(sql`habilidade.codigo nulls last`)
   }
 
-  /** A descrição de cada habilidade das atividades dos lotes aprovados (da turma, se dada), pelo código: o catálogo é nosso, em código. */
+  /** A descrição de cada habilidade das atividades dos lotes aprovados (da turma, se dada), pelo código: a de `habilidade_bncc`, e não a que o conteúdo da questão guarda (`descricoesDoDiagnostico`). */
   async descricoesDasHabilidades(turmaId?: string): Promise<Map<string, string>> {
     const questao = sql`jsonb_array_elements(${artefato.conteudo} -> 'questoes') as questao`
     const linhas = await this.banco
@@ -226,7 +228,7 @@ export class AnalistaRepository {
     const descricoes = new Map<string, string>()
     // A questão sem habilidade (`habilidade: null` no conteúdo) não tem código nem descrição para guardar.
     for (const linha of linhas) if (linha.codigo !== null && linha.descricao !== null && !descricoes.has(linha.codigo)) descricoes.set(linha.codigo, linha.descricao)
-    return descricoes
+    return descricoesDoDiagnostico(new BnccRepository(this.banco), descricoes)
   }
 
   /** Grava o resumo já validado, ligado à execução que o produziu (um por execução), e devolve o id. */

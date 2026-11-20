@@ -1,5 +1,5 @@
 import { resumoDoAnalista } from '@educa/core'
-import { analistaNominalResponseSchema, conteudoDeAtividadeSchema, resumoDoAnalistaResponseSchema, type ConteudoDoResumoDoAnalista } from '@educa/shared'
+import { analistaNominalResponseSchema, conteudoDeAtividadeSchema, desempenhoDaTurmaResponseSchema, resumoDoAnalistaResponseSchema, type ConteudoDoResumoDoAnalista } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
@@ -34,6 +34,7 @@ import {
 } from '../../test/escola-assistente.fixture.js'
 import { aplicarAtividade as gravarAplicacao, lancarLote, trocasJaFeitas } from '../../test/escola-tutor.fixture.js'
 import { SessaoFixtures, type TestSessao } from '../../test/sessao.fixture.js'
+import { DesempenhoRepository } from '../atividade/desempenho/desempenho.repository.js'
 import { TETO_DE_PEDIDOS_DE_IA_POR_USUARIO } from '../assistente/ai-request-rate-limit.js'
 import { LIMIAR_DE_ACERTO_BAIXO_PERCENTUAL, MAXIMO_DE_HABILIDADES_POR_RECORTE, ResumoDoAnalistaCommand } from './analista.command.js'
 import { AnalistaRepository } from './analista.repository.js'
@@ -459,6 +460,67 @@ describe('Analista de desempenho escolar', () => {
         { habilidade: HABILIDADE_DAS_TRES_PRIMEIRAS, acertos: 6, total: 6 },
         { habilidade: null, acertos: 3, total: 4 },
       ])
+    })
+  })
+
+  describe('a descrição da habilidade no diagnóstico', () => {
+    const INVENTADA = 'Calcular quantidades em reações químicas (texto inventado pelo modelo)'
+
+    it('é a de `habilidade_bncc`, pelo código, mesmo que o artefato gravado traga a do modelo: no Analista, na leitura da turma, na rota do desempenho e no dado nominal', async () => {
+      const c = await montarEscolaComAssistente(api, bancada)
+      const [aluno] = (await alunosComSessao(bancada, c, c.turma, ['Aluna Sintética Elis Prado'])) as [TestSessao]
+      const base = conteudoDeTeste(c.materialId, `Lista com descrição do modelo ${randomUUID()}`)
+      // Um artefato gravado antes da correção: o código é da BNCC, a descrição é paráfrase do modelo; a questão 4 é do antigo catálogo (`QUI.EM.05`), que a tabela não tem.
+      const conteudo = {
+        ...base,
+        questoes: base.questoes.map((questao, indice) =>
+          indice < 3 ? { ...questao, habilidade: { codigo: HABILIDADE_DAS_TRES_PRIMEIRAS.codigo, descricao: INVENTADA } } : indice === 3 ? { ...questao, habilidade: { codigo: 'QUI.EM.05', descricao: 'Reagente limitante, do catálogo antigo.' } } : questao,
+        ),
+      }
+      const id = await aplicarAtividade(rotas, c.professora, await criarAtividade(bancada, c, { conteudo }), c.turma)
+      await responderProva(rotas, aluno, id, [...TODAS_CERTAS])
+      if ((await encerrarAtividade(rotas, c.professora, id)) === null) throw new Error('o lote não nasceu')
+      await aprovarOLote(rotas, c.professora, id)
+
+      const lidos = await comoPessoa(c, c.coordenacao, 'coordenador', async () => ({
+        doAnalista: await new AnalistaRepository(bancada.banco).descricoesDasHabilidades(c.turma),
+        daTurma: await new DesempenhoRepository(bancada.banco).descricoesDasHabilidades(c.turma, 'todas'),
+      }))
+      for (const descricoes of [lidos.doAnalista, lidos.daTurma]) {
+        expect(descricoes.get(HABILIDADE_DAS_TRES_PRIMEIRAS.codigo)).toBe(HABILIDADE_DAS_TRES_PRIMEIRAS.descricao)
+        // O código que a tabela não tem (o antigo catálogo, que era nosso) segue com o texto que foi gravado.
+        expect(descricoes.get('QUI.EM.05')).toBe('Reagente limitante, do catálogo antigo.')
+      }
+
+      const doDesempenho = desempenhoDaTurmaResponseSchema.parse((await rotas.desempenho(c.professora, c.turma)).corpo)
+      expect(doDesempenho.porHabilidade.find((linha) => linha.habilidade?.codigo === HABILIDADE_DAS_TRES_PRIMEIRAS.codigo)?.habilidade).toEqual(HABILIDADE_DAS_TRES_PRIMEIRAS)
+      const doNominal = analistaNominalResponseSchema.parse((await nominal(c.coordenacao, c.turma)).corpo)
+      expect(doNominal.porHabilidade.find((linha) => linha.habilidade?.codigo === HABILIDADE_DAS_TRES_PRIMEIRAS.codigo)?.habilidade).toEqual(HABILIDADE_DAS_TRES_PRIMEIRAS)
+    })
+
+    it('o texto gravado do código que a tabela não tem (`QUI.EM.05`) é o da própria escola: a outra escola grava outro, e nenhuma lê o da outra', async () => {
+      const gravar = async (escola: EscolaComAssistente, texto: string): Promise<void> => {
+        const [aluno] = (await alunosComSessao(bancada, escola, escola.turma, [`Aluna Sintética ${randomUUID().slice(0, 8)}`])) as [TestSessao]
+        const base = conteudoDeTeste(escola.materialId, `Lista do catálogo antigo ${randomUUID()}`)
+        const conteudo = { ...base, questoes: base.questoes.map((questao) => ({ ...questao, habilidade: { codigo: 'QUI.EM.05', descricao: texto } })) }
+        const id = await aplicarAtividade(rotas, escola.professora, await criarAtividade(bancada, escola, { conteudo }), escola.turma)
+        await responderProva(rotas, aluno, id, [...TODAS_CERTAS])
+        if ((await encerrarAtividade(rotas, escola.professora, id)) === null) throw new Error('o lote não nasceu')
+        await aprovarOLote(rotas, escola.professora, id)
+      }
+      const [daUma, daOutra] = [await montarEscolaComAssistente(api, bancada), await montarEscolaComAssistente(api, bancada)]
+      // O texto da primeira escola ordena depois do da segunda: sem o escopo da escola, a leitura da primeira devolveria o da outra.
+      const TEXTO_DA_UMA = 'Z. Reagente limitante, texto gravado pela primeira escola.'
+      const TEXTO_DA_OUTRA = 'A. Reagente em excesso, texto gravado pela outra escola.'
+      await gravar(daUma, TEXTO_DA_UMA)
+      await gravar(daOutra, TEXTO_DA_OUTRA)
+
+      const lidos = await comoPessoa(daUma, daUma.coordenacao, 'coordenador', async () => ({
+        doAnalista: await new AnalistaRepository(bancada.banco).descricoesDasHabilidades(),
+        daTurma: await new DesempenhoRepository(bancada.banco).descricoesDasHabilidades(daUma.turma, 'todas'),
+      }))
+      expect(lidos.doAnalista.get('QUI.EM.05')).toBe(TEXTO_DA_UMA)
+      expect(lidos.daTurma.get('QUI.EM.05')).toBe(TEXTO_DA_UMA)
     })
   })
 

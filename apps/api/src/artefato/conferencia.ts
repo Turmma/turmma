@@ -6,7 +6,8 @@ import type { ArtefatoLido, ArtefatoRepository } from './artefato.repository.js'
 /**
  * A habilidade que não é da **seção da página citada** sai na gravação (classificacao-bncc, 10.0; Tech Spec, seção 5, "Geração"): a questão fica com `habilidade: null` e o plano perde aquele código. A conferência da
  * saída da tarefa já barrou o código que não veio em trecho nenhum; este é o caso do código que veio, mas de outra seção (o capítulo 3 na questão que cita o capítulo 7). O plano vale a **união das seções que cita**
- * (as citações da lista e as de cada etapa). Devolve o conteúdo e quantas habilidades anulou, para a métrica `ia.habilidade_anulada`.
+ * (as citações da lista e as de cada etapa). A que fica é gravada **com a descrição da tabela**, a do trecho entregue (`habilidade_bncc`, no tamanho do contrato), e nunca a que o modelo escreveu: o texto que a tela e o
+ * diagnóstico mostram como da BNCC é o da BNCC. Devolve o conteúdo e quantas habilidades anulou, para a métrica `ia.habilidade_anulada`.
  */
 export function anularHabilidadesForaDaSecao(conteudo: ConteudoDoArtefato, entregues: readonly TrechoComHabilidades[]): { readonly conteudo: ConteudoDoArtefato; readonly anuladas: number } {
   const doTrecho = (citacao: Citacao): readonly Habilidade[] => entregues.find((trecho) => trecho.materialId === citacao.materialId && trecho.pagina === citacao.pagina)?.habilidades ?? []
@@ -14,14 +15,19 @@ export function anularHabilidadesForaDaSecao(conteudo: ConteudoDoArtefato, entre
     let anuladas = 0
     const questoes = conteudo.questoes.map((questao) => {
       const { habilidade } = questao
-      if (habilidade === null || doTrecho(questao.citacao).some((daPagina) => daPagina.codigo === habilidade.codigo)) return questao
+      if (habilidade === null) return questao
+      const oficial = doTrecho(questao.citacao).find((daPagina) => daPagina.codigo === habilidade.codigo)
+      if (oficial !== undefined) return { ...questao, habilidade: { codigo: oficial.codigo, descricao: oficial.descricao } }
       anuladas += 1
       return { ...questao, habilidade: null }
     })
     return { conteudo: { ...conteudo, questoes }, anuladas }
   }
-  const dasSecoesCitadas = new Set(citacoesDoConteudo(conteudo).flatMap((citacao) => doTrecho(citacao).map((habilidade) => habilidade.codigo)))
-  const habilidades = conteudo.habilidades.filter((habilidade) => dasSecoesCitadas.has(habilidade.codigo))
+  const dasSecoesCitadas = new Map(citacoesDoConteudo(conteudo).flatMap((citacao) => doTrecho(citacao).map((habilidade): [string, Habilidade] => [habilidade.codigo, habilidade])))
+  const habilidades = conteudo.habilidades.flatMap((habilidade) => {
+    const oficial = dasSecoesCitadas.get(habilidade.codigo)
+    return oficial === undefined ? [] : [{ codigo: oficial.codigo, descricao: oficial.descricao }]
+  })
   return { conteudo: { ...conteudo, habilidades }, anuladas: conteudo.habilidades.length - habilidades.length }
 }
 

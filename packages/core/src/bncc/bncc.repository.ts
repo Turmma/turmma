@@ -13,16 +13,18 @@ export interface HabilidadeDaBncc {
 
 /**
  * Como a leitura recorta a tabela: por **etapas** (as candidatas de um recorte, que quem chama filtra pelo componente e pelas séries), por **série** (as que a série tem: no Fundamental as que listam o ano, no Médio todas, porque a
- * BNCC do Médio não é seriada) ou por **código** (o texto oficial de uma habilidade).
+ * BNCC do Médio não é seriada), por **código** (o texto oficial de uma habilidade) ou por **vários códigos** (o texto oficial de cada habilidade que o diagnóstico mostra).
  */
 export type FiltroDeHabilidades =
   | { readonly etapas: readonly Etapa[] }
   | { readonly etapa: Etapa; readonly ano: number }
   | { readonly codigo: string }
+  | { readonly codigos: readonly string[] }
 
 function recorteDe(filtro: FiltroDeHabilidades): SQL | undefined {
   if ('etapas' in filtro) return inArray(habilidadeBncc.etapa, [...filtro.etapas])
   if ('codigo' in filtro) return eq(habilidadeBncc.codigo, filtro.codigo)
+  if ('codigos' in filtro) return inArray(habilidadeBncc.codigo, [...filtro.codigos])
   return and(eq(habilidadeBncc.etapa, filtro.etapa), filtro.etapa === 'em' ? undefined : sql`${habilidadeBncc.anos} @> array[${filtro.ano}]::smallint[]`)
 }
 

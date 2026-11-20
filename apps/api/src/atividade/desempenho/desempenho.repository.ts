@@ -1,6 +1,7 @@
-import { artefato, atividadeAplicada, correcao, entrega, requireAnoEmCurso, requireEscolaId, requestSessao, turma, usuario, vinculo, type Database, type DatabaseTransaction } from '@educa/core'
+import { artefato, atividadeAplicada, BnccRepository, correcao, entrega, requireAnoEmCurso, requireEscolaId, requestSessao, turma, usuario, vinculo, type Database, type DatabaseTransaction } from '@educa/core'
 import { MAXIMO_DE_ALUNOS_NO_DESEMPENHO } from '@educa/shared'
 import { and, asc, eq, inArray, isNull, sql, type SQL } from 'drizzle-orm'
+import { descricoesDoDiagnostico } from '../../material/habilidades-do-recorte.js'
 
 /** De que disciplinas a leitura é: todas as da turma (coordenação), ou só as que a professora leciona nela. */
 export type DisciplinasDaLeitura = 'todas' | readonly string[]
@@ -91,7 +92,7 @@ export class DesempenhoRepository {
       .groupBy(correcao.alunoId, sql`habilidade.codigo`)
   }
 
-  /** A descrição de cada habilidade que aparece nas atividades dos lotes aprovados, pelo código (o catálogo é nosso, em código). */
+  /** A descrição de cada habilidade que aparece nas atividades dos lotes aprovados, pelo código: a de `habilidade_bncc`, e não a que o conteúdo da questão guarda (`descricoesDoDiagnostico`). */
   async descricoesDasHabilidades(turmaId: string, disciplinas: DisciplinasDaLeitura): Promise<Map<string, string>> {
     const questao = sql`jsonb_array_elements(${artefato.conteudo} -> 'questoes') as questao`
     const linhas = await this.banco
@@ -105,7 +106,7 @@ export class DesempenhoRepository {
     const descricoes = new Map<string, string>()
     // A questão sem habilidade (`habilidade: null` no conteúdo) não tem código nem descrição para guardar.
     for (const linha of linhas) if (linha.codigo !== null && linha.descricao !== null && !descricoes.has(linha.codigo)) descricoes.set(linha.codigo, linha.descricao)
-    return descricoes
+    return descricoesDoDiagnostico(new BnccRepository(this.banco), descricoes)
   }
 
   /** Os alunos da turma agora: vínculo de aluno `confirmado`, de usuário ativo, em ordem de nome e, no nome repetido, de id. Só id e nome. */

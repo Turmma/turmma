@@ -1,5 +1,5 @@
 import { type LLMProvider } from '@educa/core'
-import { artefatoResponseSchema, conteudoDeAtividadeSchema, conteudoDePlanoDeAulaSchema, descricaoParaOModelo, MAXIMO_DE_HABILIDADES_DO_PLANO, type ChaveDeFuncao, type ConteudoDeAtividade } from '@educa/shared'
+import { artefatoResponseSchema, conteudoDeAtividadeSchema, conteudoDePlanoDeAulaSchema, descricaoParaOModelo, MAXIMO_DE_HABILIDADES_DO_PLANO, type ChaveDeFuncao, type ConteudoDeAtividade, type ConteudoDePlanoDeAula } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -15,6 +15,12 @@ import { FilaDeIa } from './fila-de-ia.fixture.js'
 import { criarAtividade, conteudoDeTeste } from './atividade.fixture.js'
 import { SessaoFixtures, type TestSessao } from './sessao.fixture.js'
 import { chamar, type TestApi } from './test-api.js'
+
+type EntradaDaGeracao = { trechos: { pagina: number; habilidades: { codigo: string; descricao: string }[] }[] }
+interface GeracaoConcluida {
+  readonly artefato: ReturnType<typeof artefatoResponseSchema.parse>
+  readonly entrada: EntradaDaGeracao | undefined
+}
 
 /**
  * A geração usa a BNCC da seção da página citada, e o catálogo próprio saiu (classificacao-bncc, 10.0; Tech Spec, seção 5, "Geração").
@@ -67,12 +73,12 @@ describe('a geração usa a BNCC da seção da página citada', () => {
     ])
 
   /** Os services atrás de um modelo que guarda a entrada da tarefa e devolve o que `saida` decidir (por padrão, a saída do adaptador falso). */
-  function geracao(saida?: (conteudo: ConteudoDeAtividade) => ConteudoDeAtividade) {
-    const entradas: { trechos: { pagina: number; habilidades: { codigo: string; descricao: string }[] }[] }[] = []
+  function geracao(saida?: (conteudo: never) => unknown) {
+    const entradas: EntradaDaGeracao[] = []
     fila.comModelo(async (pedido) => {
-      entradas.push(pedido.entrada as (typeof entradas)[number])
+      entradas.push(pedido.entrada as EntradaDaGeracao)
       const falso = (await fila.falso().generate(pedido as Parameters<LLMProvider['generate']>[0])).saida
-      return { saida: saida === undefined ? falso : saida(falso as ConteudoDeAtividade), medicao: {} }
+      return { saida: saida === undefined ? falso : saida(falso as never), medicao: {} }
     })
     const agendador = fila.agendador()
     const limite = api.app.get(IaRequestRateLimit)
@@ -81,7 +87,9 @@ describe('a geração usa a BNCC da seção da página citada', () => {
   }
 
   /** A professora gera a ferramenta e o teste espera a execução: devolve o artefato gravado e a entrada que o modelo recebeu. */
-  async function gerar(escola: EscolaComAssistente, ferramenta: 'atividade_objetiva' | 'plano_de_aula', saida?: (conteudo: ConteudoDeAtividade) => ConteudoDeAtividade) {
+  async function gerar(escola: EscolaComAssistente, ferramenta: 'atividade_objetiva', saida?: (conteudo: ConteudoDeAtividade) => ConteudoDeAtividade): Promise<GeracaoConcluida>
+  async function gerar(escola: EscolaComAssistente, ferramenta: 'plano_de_aula', saida?: (conteudo: ConteudoDePlanoDeAula) => ConteudoDePlanoDeAula): Promise<GeracaoConcluida>
+  async function gerar(escola: EscolaComAssistente, ferramenta: 'atividade_objetiva' | 'plano_de_aula', saida?: (conteudo: never) => unknown): Promise<GeracaoConcluida> {
     const { entradas, ferramentas } = geracao(saida)
     const parametros = { turmaId: escola.turma, disciplinaId: escola.quimica, tema: 'reagente limitante e reagente em excesso', chaveEnvio: randomUUID() }
     const { execucaoId } = await comoPessoa(escola, escola.professora, 'professor', () => ferramentas.generate(ferramenta, parametros))
@@ -203,6 +211,23 @@ describe('a geração usa a BNCC da seção da página citada', () => {
       expect(await anuladasDe(b)).toBe(antesDeB)
     })
 
+    it('a descrição que o modelo escreve para a habilidade certa não é gravada: a questão guarda a de `habilidade_bncc`', async () => {
+      const antes = await anuladasDe(a)
+      const { artefato } = await gerar(a, 'atividade_objetiva', (conteudo) => ({
+        ...conteudo,
+        questoes: conteudo.questoes.map((questao) => (questao.habilidade === null ? questao : { ...questao, habilidade: { codigo: questao.habilidade.codigo, descricao: 'Calcular quantidades em reações químicas (texto inventado pelo modelo)' } })),
+      }))
+      const comHabilidade = conteudoDeAtividadeSchema.parse(artefato.conteudo).questoes.flatMap((questao) => (questao.habilidade === null ? [] : [questao.habilidade]))
+      expect(comHabilidade.length, 'alguma questão cita página de seção com habilidade').toBeGreaterThan(0)
+      for (const habilidade of comHabilidade) {
+        const { rows } = await sql<{ descricao: string }>('select descricao from habilidade_bncc where codigo = $1', [habilidade.codigo])
+        expect(habilidade.descricao, habilidade.codigo).toBe(descricaoParaOModelo(rows[0]?.descricao ?? ''))
+      }
+      expect(JSON.stringify(artefato.conteudo)).not.toContain('texto inventado pelo modelo')
+      // A descrição trocada não é habilidade anulada: o código estava certo.
+      expect(await anuladasDe(a)).toBe(antes)
+    })
+
     it('o código do antigo catálogo (`QUI.EM.05`) que chegasse à gravação não é de seção nenhuma: sai anulado, e nenhuma questão o guarda', async () => {
       const antes = await anuladasDe(a)
       const { artefato } = await gerar(a, 'atividade_objetiva', (conteudo) => ({ ...conteudo, questoes: conteudo.questoes.map((questao) => ({ ...questao, habilidade: { codigo: 'QUI.EM.05', descricao: 'Reagente limitante.' } })) }))
@@ -214,6 +239,19 @@ describe('a geração usa a BNCC da seção da página citada', () => {
   })
 
   describe('o plano de aula', () => {
+    it('a descrição que o modelo escreve para a habilidade do plano não é gravada: o plano guarda a de `habilidade_bncc`', async () => {
+      const antes = await anuladasDe(a)
+      const { artefato } = await gerar(a, 'plano_de_aula', (conteudo) => ({ ...conteudo, habilidades: conteudo.habilidades.map((habilidade) => ({ codigo: habilidade.codigo, descricao: 'Texto inventado pelo modelo' })) }))
+      const plano = conteudoDePlanoDeAulaSchema.parse(artefato.conteudo)
+      expect(plano.habilidades.length).toBeGreaterThan(0)
+      for (const habilidade of plano.habilidades) {
+        const { rows } = await sql<{ descricao: string }>('select descricao from habilidade_bncc where codigo = $1', [habilidade.codigo])
+        expect(habilidade.descricao, habilidade.codigo).toBe(descricaoParaOModelo(rows[0]?.descricao ?? ''))
+      }
+      // A descrição trocada não é habilidade anulada: o código estava certo.
+      expect(await anuladasDe(a)).toBe(antes)
+    })
+
     it('leva a união das habilidades das seções que cita, e a lista pode ser vazia quando nenhuma seção citada tem habilidade', async () => {
       const { artefato } = await gerar(a, 'plano_de_aula')
       const plano = conteudoDePlanoDeAulaSchema.parse(artefato.conteudo)

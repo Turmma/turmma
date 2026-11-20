@@ -20,3 +20,16 @@ export async function descricaoOficialDaHabilidade(bncc: BnccRepository, codigo:
   const [lida] = await bncc.habilidades({ codigo })
   return lida === undefined ? undefined : descricaoParaOModelo(lida.descricao)
 }
+
+/**
+ * O texto de cada habilidade que o **diagnóstico** mostra (Turmas, resultado do aluno, Analista; classificacao-bncc, correção `descricao-oficial-da-habilidade`): o da tabela `habilidade_bncc`, pelo código, no tamanho do
+ * contrato, e **nunca o que ficou gravado no conteúdo da questão**, que num artefato anterior à correção pode ser a paráfrase do modelo. O código que a tabela não tem (o do antigo catálogo, que era nosso) segue com o texto
+ * gravado, que é o único que existe para ele. `gravadas` é o que o conteúdo das atividades trouxe, por código.
+ */
+export async function descricoesDoDiagnostico(bncc: BnccRepository, gravadas: ReadonlyMap<string, string>): Promise<Map<string, string>> {
+  if (gravadas.size === 0) return new Map()
+  const oficiais = await bncc.habilidades({ codigos: [...gravadas.keys()] })
+  const descricoes = new Map(gravadas)
+  for (const oficial of oficiais) descricoes.set(oficial.codigo, descricaoParaOModelo(oficial.descricao))
+  return descricoes
+}
