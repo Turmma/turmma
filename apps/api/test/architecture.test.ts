@@ -1597,3 +1597,31 @@ describe('arquitetura: o gateway de IA de produção recebe a declaração da D6
     expect(gatewaysDeProducaoSemASoberania([emVariavel])).toEqual({ chamadas: 1, sem: [emVariavel.caminho] })
   })
 })
+
+/**
+ * Regra 10, item 9, e a Tech Spec da classificacao-bncc (seção 6): a tabela pública `habilidade_bncc` é lida por um repository só, o `BnccRepository`, com um único método `@Unscoped`. Os repositories
+ * do módulo `material`, que têm escopo de escola, não levam nenhuma exceção: a terceira no mesmo módulo era o sinal de que a leitura da BNCC não tinha dono (correção `bncc-repository-unico`).
+ */
+describe('arquitetura: a leitura da tabela pública da BNCC é do BnccRepository, com um único método @Unscoped, e o módulo `material` não tem exceção', () => {
+  it('o BnccRepository tem exatamente o método `habilidades`, @Unscoped com a justificativa da tabela pública', () => {
+    const metodos = Object.getOwnPropertyNames(nucleo.BnccRepository.prototype).filter((nome) => nome !== 'constructor')
+    expect(metodos).toEqual(['habilidades'])
+    expect(nucleo.unscopedJustification(nucleo.BnccRepository, 'habilidades')).toMatch(/a tabela da BNCC é pública.*regra 10, item 1/)
+  })
+
+  it('nenhum arquivo do módulo `material` da API, em qualquer subpasta, usa @Unscoped', () => {
+    const comExcecao = arquivosDoRepositorio()
+      .filter((arquivo) => arquivo.caminho.startsWith('apps/api/src/material/') && !arquivo.caminho.endsWith('.test.ts'))
+      .filter((arquivo) => arquivo.texto.includes('@Unscoped('))
+      .map((arquivo) => arquivo.caminho)
+    expect(comExcecao).toEqual([])
+  })
+
+  it('só o BnccRepository lê a tabela `habilidade_bncc` por `.from(habilidadeBncc)`: a leitura nova, em outro módulo ou app, entra por ele', () => {
+    const leitores = arquivosDoRepositorio()
+      .filter((arquivo) => !/\.test\.tsx?$/.test(arquivo.caminho) && !arquivo.caminho.split('/').some((parte) => parte === 'test' || parte === '__fixtures__'))
+      .filter((arquivo) => /\.from\(\s*habilidadeBncc\s*\)/.test(arquivo.texto))
+      .map((arquivo) => arquivo.caminho)
+    expect(leitores).toEqual(['packages/core/src/bncc/bncc.repository.ts'])
+  })
+})

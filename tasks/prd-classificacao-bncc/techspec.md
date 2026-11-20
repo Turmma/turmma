@@ -143,7 +143,12 @@ artefato).
 ## 6. Isolamento (obrigatório)
 
 FK composta com a escola; escopo do contexto em todo método (no worker, `job_registro.escola_id`); nenhum `@Unscoped`
-novo (a rotina das 19h roda por escola, como o expurgo). Testes efetivos sem a cláusula: `cenarios.md`, "Isolamento".
+novo nos repositories com escopo de escola (a rotina das 19h roda por escola, como o expurgo). Testes efetivos sem a cláusula: `cenarios.md`, "Isolamento".
+
+**A leitura da tabela pública `habilidade_bncc` é um repository só, com um único `@Unscoped`** (correção `bncc-repository-unico`, 20/11/2026; ressalva maior 1 da validação): o `BnccRepository`, em
+`packages/core/src/bncc/`, com um método, `habilidades(filtro)` (por etapas, por série ou por código), que devolve código, texto e grupo, nunca dado de escola nem de pessoa. A classificação (as candidatas do recorte), a
+troca da habilidade da questão (o texto oficial de um código) e a cobertura (as habilidades da série) passam por ele, e o que é regra de cada uma (`habilidadeEhCandidata` e `descricaoParaOModelo`) fica fora do banco, em
+`apps/api/src/material/habilidades-do-recorte.ts`. O grupo da cobertura (o componente no Fundamental, a área no Médio) é calculado no SQL do próprio `BnccRepository` (`coalesce(area, componente)`) e a cobertura o lê direto. Nenhum repository do módulo `material` leva `@Unscoped`; o teste de `apps/api/test/architecture.test.ts` o prova.
 
 ## 7. Dado pessoal (obrigatório)
 
@@ -251,6 +256,7 @@ lê o material de novo (`falhaMudouAClassificacao`): a falha diz que algo mudou 
 |---|---|
 | 00, 20, 70, 80 | nenhum |
 | 10, item 1 | `habilidade_bncc` sem escola: tabela pública sem dono |
+| 10, item 9 | um `@Unscoped` novo, o de `BnccRepository.habilidades`, que lê a tabela pública `habilidade_bncc` para a classificação, a troca da habilidade e a cobertura. Nasceram três, um em cada repository do módulo `material` (11.0 e 13.0), contra a §6 e sem registro; a correção `bncc-repository-unico` os juntou em um, no núcleo, e a §6 passou a dizê-lo |
 | 10, item 2 | execução de `classificar_secoes` sem ano: classifica o material, que não tem ano (F4, §6) |
 | 30, item 8 | consumo por escola e função, sem teto por escola: o contrato não o tem (`OrcamentoRepository`) |
 | 40, item 4 | a taxa da classificação fica fora do portão (modelo de verdade): mede o Arquiteto antes da troca do catálogo |

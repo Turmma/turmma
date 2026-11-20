@@ -1,4 +1,4 @@
-import { CANDIDATAS_MAXIMAS, JobAdiadoError, JobOutbox, JobOutboxRepository, LLMError, proporFerramenta, runInContext, SECOES_POR_EXECUCAO, type ClassificarSecoesInput } from '@educa/core'
+import { BnccRepository, CANDIDATAS_MAXIMAS, JobAdiadoError, JobOutbox, JobOutboxRepository, LLMError, proporFerramenta, runInContext, SECOES_POR_EXECUCAO, type ClassificarSecoesInput } from '@educa/core'
 import { ErrorCode, habilidadeEhCandidata, TIPO_EXECUTAR_LOTE, type ResultadoGravado, type SerieDoRecorte } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
@@ -13,6 +13,7 @@ import { ExecucaoRepository } from '../ia/execucao.repository.js'
 import { OrcamentoRepository } from '../ia/orcamento.repository.js'
 import type { EntradaDaTarefa, ExecucaoCommand, SaidaDaTarefa } from '../ia/execucao-command.js'
 import { RegistroDeComandos } from '../ia/registro-de-comandos.js'
+import { candidatasDoRecorte } from './habilidades-do-recorte.js'
 import { SecoesRepository } from './secoes.repository.js'
 
 /**
@@ -1028,13 +1029,13 @@ describe('o processador da classificação, com o instante e o provedor escolhid
       }
     })
 
-    it('`candidatas`: só as do componente e das séries, e nenhuma sem série', async () => {
-      const repositorio = new SecoesRepository(fila.banco)
-      const doMedio = await repositorio.candidatas('quimica', [{ etapa: 'em', ano: 2 }])
+    it('`candidatasDoRecorte`: só as do componente e das séries, e nenhuma sem série', async () => {
+      const bncc = new BnccRepository(fila.banco)
+      const doMedio = await candidatasDoRecorte(bncc, 'quimica', [{ etapa: 'em', ano: 2 }])
       expect(doMedio.length).toBeGreaterThan(1)
       expect(doMedio.every((candidata) => candidata.codigo.startsWith('EM13CNT'))).toBe(true)
       expect(doMedio.map((candidata) => candidata.codigo)).toEqual(doMedio.map((candidata) => candidata.codigo).sort())
-      expect(await repositorio.candidatas('quimica', [])).toEqual([])
+      expect(await candidatasDoRecorte(bncc, 'quimica', [])).toEqual([])
     })
 
     it('`clearDaExecucao` limpa só as seções não corrigidas da execução, e só as habilidades `ia` delas', async () => {

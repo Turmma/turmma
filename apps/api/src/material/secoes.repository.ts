@@ -16,11 +16,10 @@ import {
   serie,
   trecho,
   turma,
-  Unscoped,
   type Database,
   type DatabaseTransaction,
 } from '@educa/core'
-import { descricaoParaOModelo, habilidadeEhCandidata, MAXIMO_DE_HABILIDADES_POR_SECAO, type ComponenteBncc, type EstadoDeExecucao, type OrigemDaHabilidadeDaSecao, type SecaoDaQuestao, type SerieDoRecorte } from '@educa/shared'
+import { descricaoParaOModelo, habilidadeEhCandidata, MAXIMO_DE_HABILIDADES_POR_SECAO, type ComponenteBncc, type HabilidadeCandidataBncc, type EstadoDeExecucao, type OrigemDaHabilidadeDaSecao, type SecaoDaQuestao, type SerieDoRecorte } from '@educa/shared'
 import { and, asc, eq, gte, inArray, isNotNull, isNull, lte, or, sql } from 'drizzle-orm'
 import { comVinculoConfirmadoDoProfessor } from '../assistente/turma-do-professor.repository.js'
 
@@ -32,11 +31,6 @@ export interface SecaoParaClassificar {
   readonly paginaInicial: number
   readonly paginaFinal: number
   readonly disciplinaId: string
-}
-
-export interface HabilidadeCandidata {
-  readonly codigo: string
-  readonly descricao: string
 }
 
 /** A seção como o painel a lê (classificacao-bncc, 7.0): as páginas, o capítulo, a execução que a classifica e se a coordenação a corrigiu. Nunca `corrigida_por`, que é dado de pessoa e fica no banco. */
@@ -139,22 +133,6 @@ export class SecoesRepository {
   }
 
   /**
-   * As habilidades candidatas de um recorte: as da tabela pública da BNCC (sem escola, regra 10, item 1) que `habilidadeEhCandidata` aceita para o componente e as séries, na ordem do código. Um conjunto por par
-   * componente e séries; quem junta vários recortes (a execução com mais de um material) une os conjuntos.
-   */
-  @Unscoped('a tabela da BNCC é pública e não tem escola_id (regra 10, item 1): devolve só código e descrição de habilidade, nunca dado de escola nem de pessoa')
-  async candidatas(componente: ComponenteBncc, series: readonly SerieDoRecorte[]): Promise<HabilidadeCandidata[]> {
-    const etapas = [...new Set(series.map((serie) => serie.etapa))]
-    if (etapas.length === 0) return []
-    const linhas = await this.banco
-      .select({ codigo: habilidadeBncc.codigo, descricao: habilidadeBncc.descricao })
-      .from(habilidadeBncc)
-      .where(inArray(habilidadeBncc.etapa, etapas))
-      .orderBy(asc(habilidadeBncc.codigo))
-    return linhas.filter((linha) => habilidadeEhCandidata(linha.codigo, componente, series))
-  }
-
-  /**
    * A consulta que `habilidadesDasPaginas` roda, sem executá-la: o `EXPLAIN` da Tech Spec, seção 7c, a lê daqui (`.toSQL()`), e não de uma cópia escrita à mão. O `or(...)` de páginas traz de uma vez as
    * seções candidatas de todas as páginas da busca (até 20), cada uma presa à escola e ao material pelo índice `(escola_id, material_id, pagina_inicial)`.
    */
@@ -193,8 +171,8 @@ export class SecoesRepository {
     paginas: ReadonlyArray<{ readonly materialId: string; readonly pagina: number }>,
     recorte: { readonly disciplinaId: string; readonly serieId: string },
     soDaCoordenacao: boolean,
-  ): Promise<Map<string, HabilidadeCandidata[]>> {
-    const porPagina = new Map<string, HabilidadeCandidata[]>()
+  ): Promise<Map<string, HabilidadeCandidataBncc[]>> {
+    const porPagina = new Map<string, HabilidadeCandidataBncc[]>()
     if (paginas.length === 0) return porPagina
     const escolaId = requireEscolaId()
     const [turmaDoPedido] = await this.banco
@@ -259,16 +237,6 @@ export class SecoesRepository {
       })
     }
     return porPagina
-  }
-
-  /**
-   * O texto da BNCC de um código, no tamanho do contrato da geração (`descricaoParaOModelo`, o mesmo da questão que a IA gera), para a troca da habilidade da questão (classificacao-bncc, 11.0). A tabela é pública e o código já foi conferido
-   * contra o recorte: código que ela não tem devolve `undefined`.
-   */
-  @Unscoped('a tabela da BNCC é pública e não tem escola_id (regra 10, item 1): devolve só o texto de uma habilidade, nunca dado de escola nem de pessoa')
-  async descricaoDaHabilidade(codigo: string): Promise<string | undefined> {
-    const [linha] = await this.banco.select({ descricao: habilidadeBncc.descricao }).from(habilidadeBncc).where(eq(habilidadeBncc.codigo, codigo))
-    return linha === undefined ? undefined : descricaoParaOModelo(linha.descricao)
   }
 
   /**
