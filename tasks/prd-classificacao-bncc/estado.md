@@ -1,12 +1,13 @@
 # Estado da execução — classificacao-bncc
 
 ## Agora
-- **Espero:** (1) o `RELATÓRIO` do `Implementador` (L1) da 13.0, a última, 1ª tentativa, porte grande (partida 20/11 ~09:xx). Depois: portão completo e `Validador` (passo 8). (2) a palavra do Joaquim para pousá-la na `develop` (parada, em "Esperando o Joaquim"); conferida às ~02:50, 7 revisores APROVADO na 2ª. 12.0 e 13.0 esperam a 11.0.
+- **Espero:** (1) o `RELATÓRIO` do `Validador` (funcionalidade completa, sobre `8be34721`), 1ª rodada; esteira de `8be34721` corre ao lado. (2) a palavra do Joaquim para pousá-la na `develop` (parada, em "Esperando o Joaquim"); conferida às ~02:50, 7 revisores APROVADO na 2ª. 12.0 e 13.0 esperam a 11.0.
 - **Devo ainda:** em cada encontro e antes do pouso, rodar `npm run ci:verificar` e `npm run guarda:segredo` no andar, porque a esteira os pula atrás do `conferir-entregas`. No checkout do andar, o gitleaks do `ci:verificar` lê 0 commits, e o `guarda:segredo` é o que lê o histórico. Os dois deram verde em `e28ce2ee` (20/11), em `2ec4b202` (20/11 ~06:1x), em `eefbace7` (20/11 ~02:45; 1.431 commits, nenhum segredo), em `1a5aa033` (13:12), em `e0ed1252` (~14:05) e em `ff4b3728` (~15:25; 1.423 commits, nenhum segredo). A 10.0 só parte com a medida do `Arquiteto` registrada; taxa fora do `padrao` é decisão do Joaquim. No fechamento, marcar `[x]` o item "(F4, retro, M3)" do `TODO.md`. Push da `develop` (retro da X6, `46ea2309`) no próximo pouso.
 - **Correção `metodos-de-mercado` na spec (19/11 ~18:20, com a palavra do Joaquim):** merge `8e5c8b32` com push; L1 e L2 avançadas para ele (fast-forward, push; o lock não mudou); andar da correção apagado. Para o `Validador`: `openAnoLetivo` (antes `abrirAnoLetivo`) talvez seja ato de domínio (no documento da correção); o `TODO.md` ganhou 6 entradas.
-- **Base:** `spec/classificacao-bncc` em `e28ce2ee`
+- **Base:** `spec/classificacao-bncc` em `8be34721`
 
 ## Concluídas
+- 13.0: `a2285bfe`, encontro em `8be34721` (20/11); 7 revisores APROVADO na 2ª. 13 de 13.
 - 12.0: `c5a0afe5`, encontro em `e28ce2ee` (20/11); 5 revisores APROVADO na 1ª, `revisor-geral` e `test-engineer` na 2ª. A vitrine não tem questão sem habilidade: o estado novo é provado por teste e e2e.
 - 11.0: `35fce4cb`, encontro em `2ec4b202` (20/11 ~05:5x); 7 revisores APROVADO na 2ª. Para o `Validador`: o seletor do Trocar aberto não sai nas fotos (a vitrine não tem artefato com Trocar ativo).
 - 10.0: `b87be5a4`, encontro em `eefbace7` (20/11 ~02:40); r1 com divergência de ordem (triagem do `Arquiteto`, caminho a), r2 com escalada do `revisor-geral` (diagnóstico de documento), r3 aprovada. Esteira vermelha só pelo `conferir-entregas` já conhecido.
