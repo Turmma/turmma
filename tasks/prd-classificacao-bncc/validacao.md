@@ -1,5 +1,127 @@
 # Validação — classificacao-bncc (F4b)
 
+## Rodada 2 — 20/11/2026
+
+**Escopo:** funcionalidade completa (tarefas 1.0 a 13.0, mais as correções `bncc-repository-unico`, `merge-da-develop-leitura-de-null` e `descricao-oficial-da-habilidade`)
+**Commit validado:** `b65d4ab0`
+**Veredito: APROVADA**
+
+Revalidação depois das duas ressalvas maiores da rodada 1. Entre `4538566c` e `b65d4ab0` entraram, com código: `e2e3213c` (correção da
+`develop`, leitura de `habilidade: null`, trazida pelo merge), `54f6cd09` (ressalva 1), `133f1e2a` (resolução do merge da `develop` na L2) e
+`4d08de34` (ressalva 2). Li por completo os arquivos de produção que eles tocam: `packages/core/src/bncc/bncc.repository.ts`,
+`apps/api/src/material/habilidades-do-recorte.ts`, `secoes.repository.ts`, `cobertura.repository.ts`, `apps/api/src/artefato/conferencia.ts`,
+`artefato.service.ts` (`trocarHabilidade`), `desempenho.repository.ts`, `analista.repository.ts`, `correcao-de-objetiva.ts`,
+`minha-atividade.service.ts`, `relatorio-da-correcao.ts`, `pdf-do-artefato.ts` e `ConteudoDoArtefato.tsx`. Os RF que a rodada 1 deu por
+atendidos e que esses commits não tocam ficam com a evidência dela (abaixo, na rodada 1).
+
+### 1. RF a RF
+
+| RF | Situação | Código | Teste | Observação |
+|---|---|---|---|---|
+| RF1 | ATENDIDO | sem mudança desde a rodada 1 | rodada 1 | — |
+| RF2 | ATENDIDO | `133f1e2a`: a leitura de `habilidade: null` e `codigo: null` fica a da spec; o plano vazio ganha o rótulo "Sem habilidade" (`ConteudoDoArtefato.tsx:149`, `pdf-do-artefato.ts:238`) | `e2e/classificacao-bncc.spec.ts` (rodado nesta rodada: 12 de 12 verdes, `chromebook` e `celular`, 39,9 s), com "Sem habilidade" em Turmas e no resultado da aluna; `Artefato.test.tsx` e `pdf-do-artefato.test.ts` (o rótulo do plano) | A descrição exibida em Turmas, no Analista e no resultado da aluna é agora a da BNCC (ver RF7). A tela "Sem habilidade" da questão: V `professora--professor-artefatos-01a1f8fa-…--celular-2.png`, relida nesta rodada. O plano sem habilidade não foi fotografado (menor 2) |
+| RF5 | ATENDIDO | `classificar-secoes.command.ts` lê as candidatas por `candidatasDoRecorte(new BnccRepository(tx), …)` (`habilidades-do-recorte.ts`), sem `@Unscoped` no módulo | `classificacao.int.test.ts` (ajustado na `54f6cd09`); `habilidades-do-recorte.test.ts` (o filtro por etapas e a regra `habilidadeEhCandidata` fora do banco); `bncc.repository.int.test.ts` | A taxa no modelo da produção segue pendente (seção 6, herdada da rodada 1) |
+| RF6 | ATENDIDO | sem mudança desde a rodada 1 | rodada 1 (mutação M1 da rodada 1) | — |
+| RF7 | ATENDIDO | `apps/api/src/artefato/conferencia.ts:12-32`: a habilidade que fica na questão e no plano é gravada com a descrição do trecho entregue (`habilidade_bncc` cortada em 300, `secoes.repository.ts:147,192`), nunca com a do modelo. Todos os caminhos de gravação conferidos: geração (`ferramentas.command.ts:54`), troca (`artefato.service.ts:207`, relê a tabela) e adaptação (`exigirAdaptacaoFiel` compara código **e** descrição, `conferencia.ts:41`) | `conferencia.test.ts` (questão e plano com a descrição do modelo saem com a da tabela, sem contar como anulada); `geracao-pela-secao.int.test.ts` ("a descrição que o modelo escreve para a habilidade certa não é gravada", na atividade e no plano; rodado, 24 de 24 com o `bncc.repository.int.test.ts`); e2e `classificacao-bncc.spec.ts:249-251` (a aluna vê a descrição oficial da corrigida e da trocada, e não a da sugerida) | **Ressalva maior 2 da rodada 1 fechada.** Mutação R2-M1 vermelha. Fotos: V `professora--professor-artefatos-01a1f8fa-…--{computador,celular-2}.png`, relidas: o componente da questão não mudou nesta rodada, só a origem do texto, e o e2e confere o texto oficial na tela |
+| RF9 | ATENDIDO | `artefato.service.ts:207`: `descricaoDaHabilidadeDoRecorte(new BnccRepository(tx), …)` no lugar do `@Unscoped` de `secoes.repository.ts` | `troca-de-habilidade.int.test.ts` (rodada 1); `habilidades-do-recorte.test.ts` ("o texto oficial de uma habilidade") | — |
+| RF12 | ATENDIDO | sem mudança desde a rodada 1 | rodada 1 | — |
+| RF15 | ATENDIDO | sem mudança desde a rodada 1 | carga da 5.0 (rodada 1) | — |
+| RF19 | ATENDIDO | `material.service.ts` lê as habilidades da série por `BnccRepository.habilidades({ etapa, ano })`; o grupo (`coalesce(area, componente)`) passou ao SQL do `BnccRepository` | `cobertura.int.test.ts` (rodada 1, mutação M3); `bncc.repository.int.test.ts` (Fundamental pelo ano, Médio inteiro, grupo por área no EM) | — |
+| RF20 | ATENDIDO | nenhum `@Unscoped` no módulo `material`; o único da leitura da BNCC é `BnccRepository.habilidades` (`packages/core/src/bncc/bncc.repository.ts:40`), sobre a tabela pública; os dois `innerJoin(habilidadeBncc)` de `secoes.repository.ts:151,352` partem de `habilidade_da_secao` com `escola_id` do contexto. A descrição do código do antigo catálogo (`QUI.EM.*`) no diagnóstico sai do conteúdo da própria escola | `apps/api/test/architecture.test.ts` (o método único, o módulo sem `@Unscoped`, só o `BnccRepository` faz `.from(habilidadeBncc)`); `analista.int.test.ts` ("o texto gravado do código que a tabela não tem é o da própria escola") | **Ressalva maior 1 da rodada 1 fechada**, com o registro na Tech Spec §6 e §11. Mutação R2-M3 vermelha |
+
+Diagnóstico (Turmas e Analista), parte do RF2 e do RF7: `descricoesDoDiagnostico` (`habilidades-do-recorte.ts:29`) relê a descrição de
+`habilidade_bncc` pelo código, nos dois `descricoesDasHabilidades` (`desempenho.repository.ts:109`, `analista.repository.ts:231`); o comentário
+"o catálogo é nosso" saiu. Teste: `analista.int.test.ts` › "a descrição da habilidade no diagnóstico" (rodado, 2 de 2): o artefato gravado com a
+paráfrase do modelo sai com o texto oficial no Analista, na leitura da turma, na rota do desempenho e no dado nominal. Mutação R2-M2 vermelha.
+O resultado do aluno, a memória do Tutor, o relatório e o PDF continuam lendo o texto gravado: seguro porque toda gravação agora é oficial,
+registrado na Tech Spec §5 e no `TODO.md` (dono: a próxima tarefa que mexer nesses leitores).
+
+Provas de mutação (cada uma restaurada com `git checkout -- <arquivo>`; a árvore terminou limpa):
+
+| RF | Cláusula removida | Teste que ficou vermelho |
+|---|---|---|
+| RF7 | a troca pela descrição oficial em `anularHabilidadesForaDaSecao` (`if (oficial !== undefined) return questao`, `apps/api/src/artefato/conferencia.ts:20`) | `apps/api/src/artefato/conferencia.test.ts` › "a questão com o código certo e a descrição do modelo sai com a descrição da tabela…" e "…descrição em branco ou de outra habilidade…" (2 vermelhos, "expected [ Array(2) ] to deeply equal [ Array(2) ]") |
+| RF2/RF7 (diagnóstico) | o laço que põe a descrição oficial em `descricoesDoDiagnostico` (`apps/api/src/material/habilidades-do-recorte.ts:33`) | `apps/api/src/governanca/analista.int.test.ts` › "é a de `habilidade_bncc`, pelo código, mesmo que o artefato gravado traga a do modelo…" ("expected 'Calcular quantidades em reações quími…' to be 'Realizar previsões, avaliar intervenç…'") |
+| RF20 | `@Unscoped(` de volta num arquivo do módulo `material` (`apps/api/src/material/cobertura.repository.ts`) | `apps/api/test/architecture.test.ts` › "nenhum arquivo do módulo `material` da API, em qualquer subpasta, usa @Unscoped" ("expected [ Array(1) ] to deeply equal []") |
+
+### 2. Regras de negócio, casos de borda e critério de pronto
+
+Sem mudança de situação desde a rodada 1 (todas cumpridas, cobertas ou justificadas). O que muda:
+
+| Item | Situação | Evidência |
+|---|---|---|
+| Pronto: habilidade da seção ou nenhuma; troca antes de aplicar; Tutor sem a habilidade (RF7, RF9) | cumprido, agora sem a ressalva da descrição | RF7 acima, R2-M1, R2-M2 |
+| Pronto: nada de uma escola aparece para outra (RF20) | cumprido | RF20 acima; o texto do `QUI.EM.*` lido só da própria escola |
+| Pronto do ROADMAP (F4b) | cumprido | o código **e** o texto da habilidade usados na geração e no diagnóstico são os da BNCC |
+| Regra 70, item 6 ("o que a IA gerou, quem aprovou e quando") | cumprida | a descrição do modelo deixou de ser gravada como se fosse da BNCC; a auditoria da correção e da troca segue como na rodada 1 |
+| Regra 70 nos commits desta rodada que tocam correção (`correcao-de-objetiva.ts`, `relatorio-da-correcao.ts`) | cumprida | só comentário e texto do relatório ("revisão rápida do conteúdo desta questão"); nenhuma escrita de nota nem de `lancadaPor` |
+
+### 3. Portão
+
+Escopo de funcionalidade completa: não rodei suíte inteira (D79). Rodei só os testes que servem de evidência, isolados, no ambiente de teste
+deste andar (`educa-teste`). `node_modules` em dia com o `package-lock.json`: sem `npm ci`.
+
+| Portão | Resultado |
+|---|---|
+| `npm run typecheck` | não rodado: esteira |
+| `npm run lint` | não rodado: esteira |
+| Unidade: `conferencia.test.ts`, `habilidades-do-recorte.test.ts`, `architecture.test.ts` | ✅ 105 passaram; R2-M1 e R2-M3 ficaram ❌ com a mutação e voltaram ao verde |
+| Integração: `analista.int.test.ts` › "a descrição da habilidade no diagnóstico" | ✅ 2 passaram; R2-M2 ficou ❌ e voltou ao verde |
+| Integração: `geracao-pela-secao.int.test.ts`, `bncc.repository.int.test.ts` | ✅ 24 passaram |
+| `node tools/ci/e2e.ts --manter-ambiente e2e/classificacao-bncc.spec.ts` | ✅ 12 passaram (39,9 s), `chromebook` e `celular`. Depois parei os workers e o despachante do `educa-teste`, para não deixar a integração do andar recusar por job de pé |
+| Esteira do GitHub | esteira: conferida no fechamento (D79), não entra no veredito |
+| Revisões com veto registradas e aprovadas | ✅ nas três correções a última rodada de cada revisor é APROVADO: `bncc-repository-unico` (6 revisores, 2ª), `merge-da-develop-leitura-de-null` (8, test-engineer e revisor-geral na 2ª), `descricao-oficial-da-habilidade` (7, test-engineer e revisor-geral na 2ª). As tarefas 1.0 a 13.0, como na rodada 1 |
+
+Processo:
+- Todo commit com código desta rodada leva `(correção …)`; o `d7edaae1` é o merge da spec na L2, sem código próprio. Nenhum commit `Fora do processo:` (`git log origin/develop..HEAD -i --grep='^Fora do processo:' -- apps packages infra e2e tools` vazio).
+- As três correções declaram blocos `mutacao`.
+- Divergências registradas: a §6 e a §11 (o `@Unscoped` único no núcleo) e a §5 (os quatro leitores que ainda leem o texto gravado).
+
+### 4. Achados
+
+**Críticos**
+- Nenhum.
+
+**Maiores**
+- Nenhum. As duas da rodada 1 estão fechadas (RF20 e RF7 acima).
+
+**Menores** (a lista com dono e arquivo está na seção 6)
+1. `tasks/correcoes/2026-11-20-bncc-repository-unico.md:123-124`: duas recomendações dos revisores dizem "destino: `TODO.md`" e não estão lá: endurecer a guarda da leitura da BNCC além de `.from(habilidadeBncc)` (o `innerJoin`, o apelido de import, `db.query`) e o nome do caso que promete mais que prova (tenancy, infra e test-engineer, 2ª); e a nota de que `architecture.test.ts` se roda pela raiz, porque de `apps/api` carrega o `dist` velho do `@educa/core` (infra, 2ª). No mesmo assunto, a Tech Spec §6 (`techspec.md:148`) diz "a leitura da tabela pública `habilidade_bncc` é um repository só", e `secoes.repository.ts:151,352` ainda a junta, com escopo de escola. Não é vazamento; é texto que promete mais que o código. Correção: levar os dois itens ao `TODO.md` e dizer na §6 "a leitura sem escola".
+2. O rótulo "Sem habilidade" do **plano** sem habilidade (`ConteudoDoArtefato.tsx:149`, do merge) não foi fotografado por esta validação: a vitrine não tem plano de aula, e semear um à mão no banco de teste não cabia nesta rodada. Tem teste de componente (`Artefato.test.tsx`) e passou pelo `frontend-reviewer` na correção do merge.
+3. Os menores da rodada 1 seguem pendentes do fechamento (`openAnoLetivo`, subitens do `tasks.md`, status da Tech Spec, vitrine sem material classificado, botões das disciplinas): seção 6.
+
+**Positivos**
+- A correção da descrição fechou todos os caminhos de gravação, e não só o achado: geração, plano, troca e adaptação (esta compara a descrição também), com um teste por caminho e a prova de isolamento do único texto que ainda sai do conteúdo da escola (`QUI.EM.*`).
+- A guarda de arquitetura transforma a regra 10, item 9, em teste para o módulo inteiro: o quarto `@Unscoped` não entra mais sem alguém ver.
+
+### 5. Conclusão
+
+APROVADA. Os 10 RF estão ATENDIDOS, com código, teste lido e, nos que têm tela, foto lida e e2e verde. As duas ressalvas maiores da rodada 1
+foram corrigidas pela skill `corrigir`, com revisores aprovados, registro na Tech Spec e teste efetivo: as três mutações desta rodada ficaram
+vermelhas. O critério de pronto e o "Pronto quando" do ROADMAP estão cumpridos. Não há crítico, maior nem teste vermelho entre os que rodei. Os
+menores não mudam o veredito e vão ao `TODO.md` no fechamento.
+
+### 6. Pendências herdadas
+
+| Pendência | Dono | Arquivo | Destino |
+|---|---|---|---|
+| Guarda da leitura da BNCC além do `.from(` e nome do caso; `architecture.test.ts` pela raiz | Orquestrador | `apps/api/test/architecture.test.ts:1620`, `docs/guia-do-desenvolvedor.md` | `TODO.md` (prometido em `tasks/correcoes/2026-11-20-bncc-repository-unico.md:123-124`) |
+| Texto da §6: "a leitura sem escola da `habilidade_bncc` é um repository só" | Arquiteto | `tasks/prd-classificacao-bncc/techspec.md:148` | no fechamento |
+| Os quatro leitores que leem a descrição gravada (resultado do aluno, memória do Tutor, relatório, PDF) | próxima tarefa que mexer neles | `TODO.md` (já está) | `TODO.md` |
+| Foto do plano sem habilidade | Arquiteto | `tools/vitrine/` | `TODO.md`, junto com a vitrine sem material classificado |
+| Taxa da classificação no modelo da produção (90 % geral, 80 % EM, injeção 0) antes da primeira escola real | Joaquim (D37) | `docs/aia/ouro-retido/RETIDOS.json`, `ROADMAP.md` | `TODO.md` (já está) e ROADMAP (herdada da rodada 1) |
+| Conferência da classificação por professor de cada área, no lote retido | Joaquim | `docs/aia/ouro-retido/` | `TODO.md` (já está) |
+| Tempo de RF15 com o modelo real | Arquiteto | `tasks/prd-classificacao-bncc/5_task.md` | junto com a medida da produção |
+| `openAnoLetivo` → `abrirAnoLetivo` | Implementador | `apps/web/src/api/estrutura.ts:113` | `TODO.md` (ainda não está) |
+| Marcar os subitens do `tasks.md` (14 ainda `[ ]`) | Orquestrador | `tasks/prd-classificacao-bncc/tasks.md` | no fechamento |
+| Tech Spec de "rascunho" para o status final | Arquiteto | `tasks/prd-classificacao-bncc/techspec.md:4` | no fechamento |
+| O `domain-researcher` contado pelo hook como rodada | Arquiteto | `.claude/skills/seguir/time.md` e o hook | retro |
+| Vitrine com material classificado e artefato com habilidade; foto escolher `<select>`; nome da foto com a query | Arquiteto | `tools/vitrine/` | `TODO.md` |
+| Botões das disciplinas quebrando de jeito diferente por linha | Implementador | `apps/web/src/areas/coordenacao/estrutura/` | `TODO.md` |
+| Histórico das habilidades `origem: 'ia'` descartadas (Tech Spec §8) | Arquiteto | `docs/conformidade-mec.md` | próxima spec que mexer no dossiê |
+| Commits `Fora do processo:` com código | — | — | nenhum nesta spec |
+
+
 ## Rodada 1 — 20/11/2026
 
 **Escopo:** funcionalidade completa (tarefas 1.0 a 13.0)

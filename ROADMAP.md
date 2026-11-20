@@ -593,7 +593,8 @@ só entra com escola real, fonte definida e licença do dono do conteúdo (D22),
 perder o que foi gerado, e o artefato antigo continua apontando a página da edição que citou; a licença vencida tira o material da
 busca; 300 apostilas ficam prontas numa noite, com o PDF apagado; e a coordenação vê num painel o estado de toda a ingestão.
 
-## F4b — `classificacao-bncc` [~]
+## F4b — `classificacao-bncc` [x]
+Concluída em 20/11/2026, validada em tasks/prd-classificacao-bncc/validacao.md.
 **Depende de:** F4
 
 **Vem da X6 (14/11/2026):** a troca do material que falhou numa transação só (41.0 da X5).

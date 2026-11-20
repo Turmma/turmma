@@ -1,8 +1,8 @@
 # Estado da execução — classificacao-bncc
 
 ## Agora
-- **Espero:** o `RELATÓRIO` do `Validador` da rodada 2 (revalidação depois das duas ressalvas e do merge da `develop`), sobre `c53c062c`. Ressalva 1 FEITA (`54f6cd09`, encontro `ea37c691`); merge da `develop` FEITO (`133f1e2a`, encontro `09d4e4fd`); ressalva 2 FEITA (`4d08de34`, encontro `c53c062c`). L1 e L2 ociosas. Enquanto ele valida, ninguém usa o compose. Depois: fechamento (esteira do `c53c062c` verde, censo, `linhas.ts fechar`) e pedido de pouso.
-- **Devo ainda:** no fechamento, levar ao `TODO.md` as duas da ordem r2 da correção `bncc-repository-unico` (endurecer a guarda da BNCC além de `.from(`; nota no guia de rodar o `architecture.test.ts` pela raiz). em cada encontro e antes do pouso, rodar `npm run ci:verificar` e `npm run guarda:segredo` no andar, porque a esteira os pula atrás do `conferir-entregas`. No checkout do andar, o gitleaks do `ci:verificar` lê 0 commits, e o `guarda:segredo` é o que lê o histórico. Os dois deram verde em `09d4e4fd` (20/11 ~18:55; 1.443 commits, nenhum segredo), em `e28ce2ee` (20/11), em `2ec4b202` (20/11 ~06:1x), em `eefbace7` (20/11 ~02:45; 1.431 commits, nenhum segredo), em `1a5aa033` (13:12), em `e0ed1252` (~14:05) e em `ff4b3728` (~15:25; 1.423 commits, nenhum segredo). A 10.0 só parte com a medida do `Arquiteto` registrada; taxa fora do `padrao` é decisão do Joaquim. No fechamento, marcar `[x]` o item "(F4, retro, M3)" do `TODO.md`.
+- **Espero:** a palavra do Joaquim para o pouso (pedida em 20/11 ~23:xx). Validação r2 APROVADA sobre `b65d4ab0`; esteira 44831599999: tudo verde menos o `verificar` (os commits do lote retido, decisão de 18/11); censo: 9 casos, todos dívida da `develop`, nenhum acima de 90%; linhas fechadas; fechamento commitado.
+- **Devo ainda:** antes do pouso, rodar `npm run ci:verificar` e `npm run guarda:segredo` no andar (verdes em `b65d4ab0`, 20/11 ~22:46; 1.446 commits). No pedido de pouso: nenhum commit `Fora do processo:` com código; a esteira da spec segue vermelha no `verificar` pelos `3209137c`/`080e774f` (decisão de 18/11). Depois do pouso: apagar os andares L1 e L2, retro (`Arquiteto 2`) ao lado da próxima spec.
 - **Correção `metodos-de-mercado` na spec (19/11 ~18:20, com a palavra do Joaquim):** merge `8e5c8b32` com push; L1 e L2 avançadas para ele (fast-forward, push; o lock não mudou); andar da correção apagado. Para o `Validador`: `openAnoLetivo` (antes `abrirAnoLetivo`) talvez seja ato de domínio (no documento da correção); o `TODO.md` ganhou 6 entradas.
 - **Base:** `spec/classificacao-bncc` em `c53c062c`
 
@@ -30,6 +30,11 @@
 | 8.0 (L1) | `6daa198b` | Sonnet | revisor-geral e test-engineer na 2ª; frontend, conformidade, tenancy, privacy e infra na 1ª e na 2ª | tela: o painel do material mostra a classificação por capítulo, corrige com o seletor e pede a reclassificação; fotos pelo Implementador (6) e pela Mesa (10). Encontro em `ff4b3728` (tipagem e lint da soma passaram) |
 
 ## Esperando o Joaquim
+## 20/11 ~23:xx — pouso da F4b, no meu terminal
+Decisão: pousar a `spec/classificacao-bncc` na `develop`, com push.
+Contexto: validação r2 APROVADA, 10 de 10 RF; esteira toda verde menos o `verificar` (lote retido, conhecido); nenhum commit `Fora do processo:` com código. A correção da leitura de `null` já está na `develop` (`e2e3213c`), como o §7c pedia.
+Opções: pousar agora | esperar. Recomendo: pousar.
+
 ## 17/11 08:55 — retro da X6, no terminal do `Arquiteto 2`
 Decisão: as propostas de confirmação M1 a M7 e o P (fazer a M3 da F4 antes das tarefas da F4b; a M4 da F4 com a M7). Os avisos 1 a 4 aplicam às 09:25 sem objeção.
 Arquivo: `tasks/prd-reengenharia-continuacao/retro.md` (térreo, sem commit). Responde-se "aprovo" ou os números recusados, no terminal do `Arquiteto 2`.
@@ -80,6 +85,7 @@ Recomendo: correção na L2; depois dela, a ressalva 2 na mesma linha.
 - 18/11 ~05:05 — a esteira de `d89816f5` (44225384638) caiu no infra 3/3 (`alertas.int.test.ts`, novo) e no e2e 1/11 (`npm ci` do build do `despachante-2` falhou no runner, antes de qualquer teste: não é código); o `verificar` é o `3209137c`. Correção dos alertas na L1 antes da 6.0.
 - 18/11 ~05:35 — a esteira de `0b70fde8` (44262036782, com a 5.0) caiu na integração (19 testes, `chamar` chamado 2 vezes no adaptador), que passara em `d89816f5`. Correção na L1 antes da 6.0.
 ## O que decidi sem perguntar
+- 20/11 ~23:xx: o `esteira.ts --censo` leu a execução de 17/11 (`ead27b4`), a última toda verde, porque o `verificar` cai desde o lote retido. Rodei `fazerOCenso` à mão sobre a 44831599999 (`b65d4ab`), cujas 11 fatias de e2e estão verdes: 9 casos, nenhum em arquivo da spec, nenhum acima de 90%. Uma linha no `TODO.md` para a dívida e outra para o Arquiteto ensinar o censo a ler a execução com o e2e verde.
 - 20/11 ~00:30: correção da leitura de `null` aberta como avulsa na `develop` (decisão do `Arquiteto`, §7c), com o par da L2, que não tem tarefa liberada até a 10.0 se encontrar. O portão das duas entra na fila do `flock`.
 - 18/11 ~13:10 (delegada pelo Joaquim, "faça o melhor"): o `3209137c` fica como está, e o `verificar` vermelho até o pouso. Reescrever a mensagem pede reescrever a `spec/classificacao-bncc` com push forçado e rebasear a L1 e a L2 no meio da 8.0 e da 9.0; mudar o `conferir-entregas` para isentar um hash é furar a barreira; e um commit depois não conserta o de antes. O pouso não confere as entregas, e depois do merge o commit está na `origin/develop` e sai do intervalo. O custo é a esteira pular o `ci:verificar` (tipos, lint, guardas, segredo, dependências), e ele se compensa rodando-o no andar em cada encontro e antes do pouso. Em `1a5aa033`, 18/11 13:12: verde. Na esteira 44336978062, todos os outros jobs passaram.
 - 18/11 ~09:45: a esteira de `9de64089` (44272795124) caiu de novo no infra 3/3, no mesmo `alertas.int.test.ts` (prazo de 540 s do ensaio). Como combinado às 05:39, reexecutei só o job (134693328349) e parti a 7.0. Se cair de novo, na reexecução ou na esteira de `c80b431e`: correção na L1 pedindo a amostragem de numerador e denominador no ensaio.

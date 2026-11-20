@@ -1256,6 +1256,15 @@ código"), com o destino de cada uma. As pequenas foram fechadas na correção `
       "Telas" (RF7 e RF9), que o Implementador não muda; o revisor-geral pede uma variante no plural e a entrada dela no `cenarios.md` (dono: o Arquiteto, antes da validação da classificacao-bncc)
 - [ ] (classificacao-bncc, 12.0, frontend-reviewer, 1ª) **Em Alunos, a 360 px, a coluna "Por habilidade" é texto corrido:** hoje quebra bem, como nas fotos, mas com muitas habilidades ficaria comprida;
       uma habilidade por linha resolveria (dono: a tarefa que tocar `AlunosDaTurma.tsx`)
+- [ ] (classificacao-bncc, correção bncc-repository-unico, r2, tenancy/infra/test-engineer, 20/11/2026) **Endurecer a guarda da leitura da BNCC além de `.from(habilidadeBncc)`:** pegar também o `innerJoin`, o apelido de import e o `db.query`, e dar ao caso de `apps/api/test/architecture.test.ts:1620` um nome que não prometa mais que prova (dono: Implementador, por correção)
+- [ ] (classificacao-bncc, correção bncc-repository-unico, r2, infra-guardian, 20/11/2026) **Nota no `docs/guia-do-desenvolvedor.md`: `architecture.test.ts` se roda pela raiz**, porque de `apps/api` ele carrega o `dist` velho do `@educa/core` (dono: Implementador, junto da entrada acima)
+- [ ] (classificacao-bncc, validação r2, menor 1, 20/11/2026) **Tech Spec §6 (`tasks/prd-classificacao-bncc/techspec.md:148`) diz "a leitura da tabela pública `habilidade_bncc` é um repository só"**, e `secoes.repository.ts:151,352` ainda a junta, com escopo de escola: dizer "a leitura sem escola" (dono: Arquiteto; não é vazamento, é texto que promete mais que o código)
+- [ ] (classificacao-bncc, validação r2, menor 2, 20/11/2026) **Vitrine sem plano de aula, sem material classificado e sem artefato com habilidade:** o rótulo "Sem habilidade" do plano (`ConteudoDoArtefato.tsx:149`) não foi fotografado, nem o seletor do Trocar aberto; a foto não escolhe opção de `<select>` e o nome da foto não leva a query (dono: Arquiteto, `tools/vitrine/`)
+- [ ] (classificacao-bncc, validação r1, menor, 20/11/2026) **`openAnoLetivo` (`apps/web/src/api/estrutura.ts:113`, da correção `metodos-de-mercado`) talvez seja ato de domínio:** pela convenção da X8, voltaria a `abrirAnoLetivo` (dono: Implementador, avaliar na próxima tarefa que tocar `estrutura.ts`)
+- [ ] (classificacao-bncc, validação r1, menor, 20/11/2026) **Os botões das disciplinas em "Ano letivo e disciplinas" quebram de jeito diferente por linha** (`apps/web/src/areas/coordenacao/estrutura/`; mesmo assunto da entrada dos três botões, acima) (dono: Implementador, a tarefa que tocar a tela)
+- [ ] (classificacao-bncc, validação r1, menor, 20/11/2026) **14 subitens do `tasks/prd-classificacao-bncc/tasks.md` seguem `[ ]`** com as 13 tarefas concluídas: marcar, e o `linhas.ts fechar` ou o template das tarefas passa a fazer isso (dono: Arquiteto, na retro)
+- [ ] (classificacao-bncc, correção merge-da-develop-leitura-de-null, r1, 20/11/2026) **Renomear `habilidadesDaAtividade`**, que depois do merge lê também o plano (dono: Implementador, a tarefa que tocar o leitor)
+- [ ] (classificacao-bncc, correção merge-da-develop-leitura-de-null, r1, 20/11/2026) **Caminho absoluto gravado em `achados/`:** o hook grava o caminho da máquina no achado; gravar relativo à raiz do checkout (dono: Arquiteto, na retro)
 
 ## Produto
 
@@ -2972,7 +2981,7 @@ duas causas voltaram na F4 (3 das 6 cláusulas sem prova, e a 9.0 perdeu a 1ª r
       `packages/core/drizzle/` puxa `packages/core/src/db/schema/mvp/mvp-tables.int.test.ts`; `infra/compose.yml` puxa `tools/ci/compose.int.test.ts`.
       A tabela "caminho → inventário" fica num lugar só, com teste. Na F4, três vermelhos da esteira (a FK do catálogo, duas vezes na 5.0, e o
       compose). Guardiões: `revisor-geral`, `test-engineer`, `infra-guardian`
-- [ ] (F4, retro, M3) **A integração à mão recusa os workers de pé.** `tools/testes/integracao.setup.ts`: o `globalSetup` confere se há worker de pé
+- [x] (F4, retro, M3) **A integração à mão recusa os workers de pé.** `tools/testes/integracao.setup.ts`: o `globalSetup` confere se há worker de pé
       no compose de teste e, havendo, recusa com a mensagem e o comando que os para (o mesmo `stop` da sequência do portão). Não derruba sozinho: o
       ambiente de pé pode ser a vitrine ou o e2e de alguém. Na F4, três vermelhos falsos, um deles na validação (menor 5 da r2). Caso de teste para
       cada lado. Guardiões: `revisor-geral`, `test-engineer`, `infra-guardian`
@@ -4141,3 +4150,8 @@ Orquestrador em 17/11/2026; não seguram o pouso (D79).
 - [ ] (idem) **Comentário de `saveArtefato`** (`apps/api/src/artefato/ferramentas.command.ts`) diz só que a habilidade fora da seção é anulada: dizer também que a que fica sai com a descrição da tabela.
 - [ ] (idem) **Métrica agregada de "descrição corrigida"** (D61, D37): quantas vezes o modelo parafraseia a BNCC. A regra 70 não a exige; é medida de produto.
 - [ ] (idem) **A chamada de `descricoesDoDiagnostico` está nos dois repositories** (`desempenho.repository.ts`, `analista.repository.ts`): a regra 00 pede a regra de negócio no service; mover para `desempenho.service.ts`, `analista.service.ts` e `analista.command.ts` mexe nos blocos de mutação dos dois.
+
+## Do fechamento da classificacao-bncc (F4b, 20/11/2026), fora dela
+
+- [ ] (censo do e2e do fechamento da classificacao-bncc, execução 44831599999, 20/11/2026, dívida da develop: arquivos que a spec não alterou) **Nove casos acima de dois terços do prazo, nenhum acima de 90%:** `alocacao.spec.ts:85` (77,8 e 70,0 s de 90, o mais perto: 86%), `operacao.spec.ts:125` (61,2 s de 90), `escola-e-vinculos.spec.ts:211` (23,6 e 22,2 s de 30) e `:271` (21,5 e 20,3 s), `titulo-da-tela.spec.ts:138` (20,6 e 20,1 s). Os mesmos dos censos da F2, F2b e F4 (dono: Orquestrador)
+- [ ] (fechamento da classificacao-bncc, 20/11/2026) **`esteira.ts --censo` lê só execução toda verde, e com o `verificar` vermelho até o pouso (os commits do lote retido) ele leu a de 17/11 (44145984577, `ead27b4`), três dias e cinco tarefas atrás.** O censo depende só do e2e: ler a execução mais nova com todas as fatias de e2e verdes, mesmo com outro job vermelho. Desta vez o Orquestrador rodou `fazerOCenso` à mão sobre a 44831599999 (dono: Arquiteto, na retro)

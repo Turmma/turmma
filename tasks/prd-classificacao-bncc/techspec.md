@@ -1,7 +1,7 @@
 # Tech Spec — Classificação do material pela BNCC (F4b)
 
 **PRD:** `prd.md` · **Cenários:** `cenarios.md`
-**Status:** rascunho · **Teto:** 2.800 palavras e 13 tarefas (Joaquim, 17/11/2026: uma spec só)
+**Status:** implementada em 20/11/2026 (antes: rascunho) · **Teto:** 2.800 palavras e 13 tarefas (Joaquim, 17/11/2026: uma spec só)
 
 Joaquim, 17/11/2026: rotina no `main-worker`, fila `lote`, à noite; capítulo sem habilidade dá questão sem habilidade;
 componente na disciplina; professor confere o lote retido antes do primeiro aluno real.
