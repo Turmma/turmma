@@ -1,8 +1,8 @@
 # Estado da execução — classificacao-bncc
 
 ## Agora
-- **Espero:** (1) a palavra do Joaquim sobre as 2 ressalvas maiores da validação (APROVADA COM RESSALVAS, rodada 1, sobre `4538566c`; "Esperando o Joaquim"). (2) a palavra do Joaquim para pousá-la na `develop` (parada, em "Esperando o Joaquim"); conferida às ~02:50, 7 revisores APROVADO na 2ª. 12.0 e 13.0 esperam a 11.0.
-- **Devo ainda:** em cada encontro e antes do pouso, rodar `npm run ci:verificar` e `npm run guarda:segredo` no andar, porque a esteira os pula atrás do `conferir-entregas`. No checkout do andar, o gitleaks do `ci:verificar` lê 0 commits, e o `guarda:segredo` é o que lê o histórico. Os dois deram verde em `e28ce2ee` (20/11), em `2ec4b202` (20/11 ~06:1x), em `eefbace7` (20/11 ~02:45; 1.431 commits, nenhum segredo), em `1a5aa033` (13:12), em `e0ed1252` (~14:05) e em `ff4b3728` (~15:25; 1.423 commits, nenhum segredo). A 10.0 só parte com a medida do `Arquiteto` registrada; taxa fora do `padrao` é decisão do Joaquim. No fechamento, marcar `[x]` o item "(F4, retro, M3)" do `TODO.md`. Push da `develop` (retro da X6, `46ea2309`) no próximo pouso.
+- **Espero:** (1) o `RELATÓRIO` do `Implementador` (L1) da correção `2026-11-20-leitura-unica-da-bncc` (ressalva maior 1). (2) o `RELATÓRIO` do `Implementador 2` (L2) da correção `2026-11-20-merge-da-develop-leitura-de-null`, que resolve o merge da `develop` na spec (conflito em ~30 arquivos (a correção da leitura de `null`, já pousada, mexeu nos mesmos leitores que a 10.0). A ressalva 2 (descrição oficial da habilidade) espera esse merge, porque toca `conferencia.ts` e `desempenho.repository.ts`, que estão no conflito. Depois das duas: revalidação.
+- **Devo ainda:** em cada encontro e antes do pouso, rodar `npm run ci:verificar` e `npm run guarda:segredo` no andar, porque a esteira os pula atrás do `conferir-entregas`. No checkout do andar, o gitleaks do `ci:verificar` lê 0 commits, e o `guarda:segredo` é o que lê o histórico. Os dois deram verde em `e28ce2ee` (20/11), em `2ec4b202` (20/11 ~06:1x), em `eefbace7` (20/11 ~02:45; 1.431 commits, nenhum segredo), em `1a5aa033` (13:12), em `e0ed1252` (~14:05) e em `ff4b3728` (~15:25; 1.423 commits, nenhum segredo). A 10.0 só parte com a medida do `Arquiteto` registrada; taxa fora do `padrao` é decisão do Joaquim. No fechamento, marcar `[x]` o item "(F4, retro, M3)" do `TODO.md`.
 - **Correção `metodos-de-mercado` na spec (19/11 ~18:20, com a palavra do Joaquim):** merge `8e5c8b32` com push; L1 e L2 avançadas para ele (fast-forward, push; o lock não mudou); andar da correção apagado. Para o `Validador`: `openAnoLetivo` (antes `abrirAnoLetivo`) talvez seja ato de domínio (no documento da correção); o `TODO.md` ganhou 6 entradas.
 - **Base:** `spec/classificacao-bncc` em `8be34721`
 
@@ -53,13 +53,22 @@ Recomendo: carregar o qwen3.6-35b-a3b, que é o que a Tech Spec mede.
 Decisão: pousar na `develop` (com push) a correção que ensina a versão de hoje a ler `habilidade: null`, `habilidades: []` e `codigo: null`. Precisa chegar à `main` ANTES da classificacao-bncc (§7c, `TODO.md`).
 Contexto: `e2e3213c`, conferida; 7 revisores APROVADO na 2ª; esteira da branch VERDE em 44683309238 (~03:20). A develop local leva junto a retro da X6 (`46ea2309`), sem push até aqui.
 Opções: pousar agora | esperar a spec. Recomendo: pousar com a esteira verde.
+**Respondida em 20/11 ~16:30: "pode pousar a correção".** Pousada em `e2e3213c`, push da `develop` (com a retro da X6), esteira 44802878978 VERDE.
 
 ## 20/11 ~10:00 — ressalvas maiores da validação da F4b, no meu terminal
 Decisão: corrigir agora e revalidar, ou aceitar, cada uma. (1) três `@Unscoped` novos sobre `habilidade_bncc` no módulo material, contra a §6 e sem registro na §11 (regra 10, item 9; não é vazamento); (2) a descrição da habilidade gravada na questão é a do modelo, sem conferência, e aparece no artefato e no diagnóstico como texto da BNCC.
 Arquivo: `tasks/prd-classificacao-bncc/validacao.md`, seção 4.
 Recomendo: corrigir as duas agora (`corrigir`, uma por achado, em L1 e L2) e revalidar.
+**Respondida em 20/11 ~16:30: "corrige as duas".**
+
+## 20/11 ~16:35 — conflito no merge da `develop` na spec, no meu terminal
+Decisão: como resolver o conflito (~30 arquivos de leitura de `habilidade`/`codigo` na API, na web e no core) entre a correção pousada e a spec.
+Opções: correção na L2 (o `Implementador 2` faz o merge, fica com o comportamento da spec, mantém os testes dos três formatos da correção, portão e Mesa) | outra.
+Recomendo: correção na L2; depois dela, a ressalva 2 na mesma linha.
+**Respondida em 20/11: "resolve o conflito na L2".**
 
 ## O que falhou
+- 20/11: o `recruit --replace` do par 2 falhou ("WSL working directory does not exist"): os terminais apontavam para o andar da correção já pousado. Conserto conhecido (pasta velha vazia, replace, rmdir). O pedido caiu antes na sessão velha, que começou o `git merge develop` na L2; a sessão nova continua dele.
 - 20/11: esteira de `eefbace7` (depois da 10.0) VERMELHA também na integração: `atividade.int.test.ts` › "encerrar corrige" (o portão da tarefa roda só os alvos alterados). Correção na L1 antes da 12.0.
 - 20/11: `tools/processo/revisoes.test.ts` › "o índice compartilhado não perde linha com rodadas terminando ao mesmo tempo" caiu uma vez sob carga no 2º portão da correção (código de saída 1 em vez de 0) e passou isolado duas vezes e no portão seguinte. Instável; se repetir, correção que o torne independente da carga.
 - 17/11 ~21:10 — tarefa 4.0: ESCALADA da Mesa, o test-engineer reprovou na r1 e na r2 (na r2, faltou afirmar `consumo_ia` nos casos paralelos de entrega dupla). Diagnóstico pedido ao `Arquiteto 2` no checkout da L1. A seção "Revisões" do `4_task.md` sumiu (protocolo, item 5).
