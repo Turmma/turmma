@@ -1,12 +1,13 @@
 # Estado da execução — classificacao-bncc
 
 ## Agora
-- **Espero:** (1) o `RELATÓRIO` do `Implementador` (L1) da 11.0, 1ª tentativa, porte grande (partida 20/11 ~02:4x). (2) a palavra do Joaquim para pousá-la na `develop` (parada, em "Esperando o Joaquim"); conferida às ~02:50, 7 revisores APROVADO na 2ª. 12.0 e 13.0 esperam a 11.0.
-- **Devo ainda:** em cada encontro e antes do pouso, rodar `npm run ci:verificar` e `npm run guarda:segredo` no andar, porque a esteira os pula atrás do `conferir-entregas`. No checkout do andar, o gitleaks do `ci:verificar` lê 0 commits, e o `guarda:segredo` é o que lê o histórico. Os dois deram verde em `eefbace7` (20/11 ~02:45; 1.431 commits, nenhum segredo), em `1a5aa033` (13:12), em `e0ed1252` (~14:05) e em `ff4b3728` (~15:25; 1.423 commits, nenhum segredo). A 10.0 só parte com a medida do `Arquiteto` registrada; taxa fora do `padrao` é decisão do Joaquim. No fechamento, marcar `[x]` o item "(F4, retro, M3)" do `TODO.md`. Push da `develop` (retro da X6, `46ea2309`) no próximo pouso.
+- **Espero:** (1) o `RELATÓRIO` do `Implementador` (L1) da 12.0, 1ª tentativa, porte grande (partida 20/11 ~06:1x). A correção `encerrar-corrige-depois-da-10` fechou sem commit: a 11.0 (`35fce4cb`) já tinha consertado; confirmado na esteira de `2ec4b202` (44703827934): integração, unidade, infra e os 11 e2e verdes; só o `verificar` vermelho, pelo `conferir-entregas` já conhecido. 13.0 espera a 12.0 (`docs/interface.md`). (2) a palavra do Joaquim para pousá-la na `develop` (parada, em "Esperando o Joaquim"); conferida às ~02:50, 7 revisores APROVADO na 2ª. 12.0 e 13.0 esperam a 11.0.
+- **Devo ainda:** em cada encontro e antes do pouso, rodar `npm run ci:verificar` e `npm run guarda:segredo` no andar, porque a esteira os pula atrás do `conferir-entregas`. No checkout do andar, o gitleaks do `ci:verificar` lê 0 commits, e o `guarda:segredo` é o que lê o histórico. Os dois deram verde em `2ec4b202` (20/11 ~06:1x), em `eefbace7` (20/11 ~02:45; 1.431 commits, nenhum segredo), em `1a5aa033` (13:12), em `e0ed1252` (~14:05) e em `ff4b3728` (~15:25; 1.423 commits, nenhum segredo). A 10.0 só parte com a medida do `Arquiteto` registrada; taxa fora do `padrao` é decisão do Joaquim. No fechamento, marcar `[x]` o item "(F4, retro, M3)" do `TODO.md`. Push da `develop` (retro da X6, `46ea2309`) no próximo pouso.
 - **Correção `metodos-de-mercado` na spec (19/11 ~18:20, com a palavra do Joaquim):** merge `8e5c8b32` com push; L1 e L2 avançadas para ele (fast-forward, push; o lock não mudou); andar da correção apagado. Para o `Validador`: `openAnoLetivo` (antes `abrirAnoLetivo`) talvez seja ato de domínio (no documento da correção); o `TODO.md` ganhou 6 entradas.
-- **Base:** `spec/classificacao-bncc` em `eefbace7`
+- **Base:** `spec/classificacao-bncc` em `2ec4b202`
 
 ## Concluídas
+- 11.0: `35fce4cb`, encontro em `2ec4b202` (20/11 ~05:5x); 7 revisores APROVADO na 2ª. Para o `Validador`: o seletor do Trocar aberto não sai nas fotos (a vitrine não tem artefato com Trocar ativo).
 - 10.0: `b87be5a4`, encontro em `eefbace7` (20/11 ~02:40); r1 com divergência de ordem (triagem do `Arquiteto`, caminho a), r2 com escalada do `revisor-geral` (diagnóstico de documento), r3 aprovada. Esteira vermelha só pelo `conferir-entregas` já conhecido.
 | Tarefa | Commit | Modelo | Rodadas | Observação |
 |---|---|---|---|---|
@@ -52,6 +53,7 @@ Contexto: `e2e3213c`, conferida; 7 revisores APROVADO na 2ª; esteira da branch 
 Opções: pousar agora | esperar a spec. Recomendo: pousar com a esteira verde.
 
 ## O que falhou
+- 20/11: esteira de `eefbace7` (depois da 10.0) VERMELHA também na integração: `atividade.int.test.ts` › "encerrar corrige" (o portão da tarefa roda só os alvos alterados). Correção na L1 antes da 12.0.
 - 20/11: `tools/processo/revisoes.test.ts` › "o índice compartilhado não perde linha com rodadas terminando ao mesmo tempo" caiu uma vez sob carga no 2º portão da correção (código de saída 1 em vez de 0) e passou isolado duas vezes e no portão seguinte. Instável; se repetir, correção que o torne independente da carga.
 - 17/11 ~21:10 — tarefa 4.0: ESCALADA da Mesa, o test-engineer reprovou na r1 e na r2 (na r2, faltou afirmar `consumo_ia` nos casos paralelos de entrega dupla). Diagnóstico pedido ao `Arquiteto 2` no checkout da L1. A seção "Revisões" do `4_task.md` sumiu (protocolo, item 5).
 - 17/11 ~22:30 — a esteira está vermelha desde a 3.0 (integração e e2e) e a 4.0 partiu sem correção antes; e o meu commit do lote (`3209137c`) saiu sem a linha `Fora do processo:`, e o `verificar` o recusa. Correção da esteira partiu na L1; o do `verificar` é pergunta ao Joaquim.
