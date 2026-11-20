@@ -1,12 +1,13 @@
 # Estado da execução — classificacao-bncc
 
 ## Agora
-- **Espero:** (1) o `RELATÓRIO` do `Implementador` (L1) da 10.0, rodada 3 (só `revisor-geral`), aplicando `.processo/ordens/diagnostico-10.md` (causa de documento: divergência do Tutor fora do `cenarios.md`; ~02:00). Origem: ESCALADA da Mesa (20/11), o `revisor-geral` reprovou r1 e r2 pelo mesmo defeito (divergência não levada ao `cenarios.md`), os outros 7 aprovaram na r2; ordem `.processo/ordens/10_task-r2.md`; depois, `PEDIDO de retomada` com `diagnostico-10.md`. Antes: a triagem do `Arquiteto` (20/11 ~00:25) decidiu o item 2 da r1 pelo caminho (a), na §7c (linha Migration); o commit da 10.0 leva a §7c, o `TODO.md` (ordem dos pousos) e um parágrafo no runbook. (2) o `RELATÓRIO` do `Implementador 2` da correção `2026-11-20-leitura-de-habilidade-nula`, no andar `correcao/…` (par da L2, ocioso até a 10.0): só a leitura de `habilidade: null`, `habilidades: []` e `codigo: null`; guardiões ditados: conformidade, tenancy, frontend. Ela pousa na `develop` e chega à `main` ANTES da spec; o pouso é parada.
-- **Devo ainda:** em cada encontro e antes do pouso, rodar `npm run ci:verificar` e `npm run guarda:segredo` no andar, porque a esteira os pula atrás do `conferir-entregas`. No checkout do andar, o gitleaks do `ci:verificar` lê 0 commits, e o `guarda:segredo` é o que lê o histórico. Os dois deram verde em `1a5aa033` (13:12), em `e0ed1252` (~14:05) e em `ff4b3728` (~15:25; 1.423 commits, nenhum segredo). A 10.0 só parte com a medida do `Arquiteto` registrada; taxa fora do `padrao` é decisão do Joaquim. No fechamento, marcar `[x]` o item "(F4, retro, M3)" do `TODO.md`. Push da `develop` (retro da X6, `46ea2309`) no próximo pouso.
+- **Espero:** (1) o `RELATÓRIO` do `Implementador` (L1) da 11.0, 1ª tentativa, porte grande (partida 20/11 ~02:4x). (2) a palavra do Joaquim para pousá-la na `develop` (parada, em "Esperando o Joaquim"); conferida às ~02:50, 7 revisores APROVADO na 2ª. 12.0 e 13.0 esperam a 11.0.
+- **Devo ainda:** em cada encontro e antes do pouso, rodar `npm run ci:verificar` e `npm run guarda:segredo` no andar, porque a esteira os pula atrás do `conferir-entregas`. No checkout do andar, o gitleaks do `ci:verificar` lê 0 commits, e o `guarda:segredo` é o que lê o histórico. Os dois deram verde em `eefbace7` (20/11 ~02:45; 1.431 commits, nenhum segredo), em `1a5aa033` (13:12), em `e0ed1252` (~14:05) e em `ff4b3728` (~15:25; 1.423 commits, nenhum segredo). A 10.0 só parte com a medida do `Arquiteto` registrada; taxa fora do `padrao` é decisão do Joaquim. No fechamento, marcar `[x]` o item "(F4, retro, M3)" do `TODO.md`. Push da `develop` (retro da X6, `46ea2309`) no próximo pouso.
 - **Correção `metodos-de-mercado` na spec (19/11 ~18:20, com a palavra do Joaquim):** merge `8e5c8b32` com push; L1 e L2 avançadas para ele (fast-forward, push; o lock não mudou); andar da correção apagado. Para o `Validador`: `openAnoLetivo` (antes `abrirAnoLetivo`) talvez seja ato de domínio (no documento da correção); o `TODO.md` ganhou 6 entradas.
-- **Base:** `spec/classificacao-bncc` em `4e8abd0f`
+- **Base:** `spec/classificacao-bncc` em `eefbace7`
 
 ## Concluídas
+- 10.0: `b87be5a4`, encontro em `eefbace7` (20/11 ~02:40); r1 com divergência de ordem (triagem do `Arquiteto`, caminho a), r2 com escalada do `revisor-geral` (diagnóstico de documento), r3 aprovada. Esteira vermelha só pelo `conferir-entregas` já conhecido.
 | Tarefa | Commit | Modelo | Rodadas | Observação |
 |---|---|---|---|---|
 | correção `2026-11-17-integracao-recusa-workers-de-pe` (M3 da F4, P da retro da X6, L1) | `e1670fbe` | Sonnet | test-engineer na 2ª; os outros cinco na 1ª | módulos novos `tools/testes/workers-de-pe.ts` e o `globalSetup` que recusa; 12 mutações; 2 linhas no `TODO.md`; o item (F4, retro, M3) fica `[ ]` até o fechamento; encontro em `95812d4e` |
@@ -45,7 +46,13 @@ Contexto: a 10.0 é a única tarefa liberada e parte só com a medida no `docs/a
 Opções: carregar o modelo na 8080 | apontar outro servidor ou modelo para a medida (decisão de produto, com o `Arquiteto`)
 Recomendo: carregar o qwen3.6-35b-a3b, que é o que a Tech Spec mede.
 
+## 20/11 ~02:50 — pouso da correção `2026-11-20-leitura-de-habilidade-nula`, no meu terminal
+Decisão: pousar na `develop` (com push) a correção que ensina a versão de hoje a ler `habilidade: null`, `habilidades: []` e `codigo: null`. Precisa chegar à `main` ANTES da classificacao-bncc (§7c, `TODO.md`).
+Contexto: `e2e3213c`, conferida; 7 revisores APROVADO na 2ª; esteira da branch VERDE em 44683309238 (~03:20). A develop local leva junto a retro da X6 (`46ea2309`), sem push até aqui.
+Opções: pousar agora | esperar a spec. Recomendo: pousar com a esteira verde.
+
 ## O que falhou
+- 20/11: `tools/processo/revisoes.test.ts` › "o índice compartilhado não perde linha com rodadas terminando ao mesmo tempo" caiu uma vez sob carga no 2º portão da correção (código de saída 1 em vez de 0) e passou isolado duas vezes e no portão seguinte. Instável; se repetir, correção que o torne independente da carga.
 - 17/11 ~21:10 — tarefa 4.0: ESCALADA da Mesa, o test-engineer reprovou na r1 e na r2 (na r2, faltou afirmar `consumo_ia` nos casos paralelos de entrega dupla). Diagnóstico pedido ao `Arquiteto 2` no checkout da L1. A seção "Revisões" do `4_task.md` sumiu (protocolo, item 5).
 - 17/11 ~22:30 — a esteira está vermelha desde a 3.0 (integração e e2e) e a 4.0 partiu sem correção antes; e o meu commit do lote (`3209137c`) saiu sem a linha `Fora do processo:`, e o `verificar` o recusa. Correção da esteira partiu na L1; o do `verificar` é pergunta ao Joaquim.
 - 17/11 ~23:20 — a esteira da 4.0 (44215554483) trouxe um vermelho novo: infra `metricas.int.test.ts`, 20 séries com `escola_id` contra 17. Correção na L1 antes da 5.0.
