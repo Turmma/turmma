@@ -151,6 +151,20 @@ describe('mapa de ações da auditoria', () => {
     expect(antes?.safeParse({ serieIds: ['Ana Souza'] }).success, 'série é id').toBe(false)
   })
 
+  it('classificacao-bncc 11.0: a troca da habilidade da questão leva a posição e o código da BNCC (ou nulo), e o código do catálogo antigo sai como `legado`: nunca título, enunciado nem descrição', () => {
+    const trocada = ACOES_DE_AUDITORIA['artefato.habilidade_trocada']
+    expect(trocada.entidade).toBe('artefato')
+    expect(trocada.finalidade).toBeNull()
+    expect(trocada.antes?.safeParse({ indice: 0, codigo: 'EF06CI01', legado: false }).success).toBe(true)
+    expect(trocada.antes?.safeParse({ indice: 19, codigo: null, legado: true }).success, 'o catálogo antigo e a questão sem habilidade').toBe(true)
+    expect(trocada.antes?.safeParse({ indice: 0, codigo: 'QUI.EM.05', legado: true }).success, 'o código antigo não entra').toBe(false)
+    expect(trocada.depois.safeParse({ indice: 3, codigo: null }).success, 'trocar por nenhuma').toBe(true)
+    expect(trocada.depois.safeParse({ indice: 3, codigo: 'EF06CI99' }).success, 'código que a BNCC não tem').toBe(false)
+    expect(trocada.depois.safeParse({ indice: 20, codigo: null }).success, 'a atividade tem até 20 questões').toBe(false)
+    expect(trocada.depois.safeParse({ indice: 3, codigo: null, titulo: 'Prova de frações' }).success, 'o título não entra').toBe(false)
+    expect(trocada.depois.safeParse({ indice: 3, codigo: 'Mudar as frações' }).success, 'texto livre no lugar do código').toBe(false)
+  })
+
   it('classificacao-bncc 7.0: a correção leva a seção e códigos da BNCC de antes e de depois (até cinco), e o reclassificar e o comando de escola levam só contagens: nunca título, texto nem código solto', () => {
     const corrigida = ACOES_DE_AUDITORIA['material.classificacao_corrigida']
     const reclassificado = ACOES_DE_AUDITORIA['material.reclassificado']

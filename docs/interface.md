@@ -91,7 +91,21 @@ existe e onde nasce o que falta: a **X1** troca a pele e a casca com os itens de
   Conteúdo, a folha de 760 px sobre a `mesa` (sem mesa e sem borda abaixo de 768 px), com o
   interruptor "Gabarito" e a página de origem de cada questão. A assinatura da IA e a situação
   da versão adaptada ficam acima das abas. "Aplicar à turma" e "Encerrar a atividade" moram em
-  Na turma, como atos à parte da aprovação da versão adaptada (regra 70, itens 3 e 6)
+  Na turma, como atos à parte da aprovação da versão adaptada (regra 70, itens 3 e 6).
+  **A habilidade de cada questão** (classificacao-bncc, 11.0; RF9) vem na folha como "Habilidade EM13CNT102: texto" com o
+  **capítulo** da página que a questão cita ("Capítulo 3 · Reações químicas (Páginas 1 a 3)", ou "Páginas 4 a 6" no bloco de
+  páginas; sem seção, nenhuma linha de capítulo), ou como "Sem habilidade". Ao lado, o botão **"Trocar"** (discreto; o leitor
+  de tela ouve "Trocar a habilidade da questão N") abre o seletor da 8.0 dentro da linha, com **uma só escolha**: marcar uma
+  habilidade troca na hora; "Deixar sem habilidade" tira a da questão; Esc ou "Cancelar" fecham só o seletor e devolvem o foco
+  ao "Trocar". A lista traz **as habilidades do capítulo da questão primeiro** e as outras do recorte depois (a série da turma
+  e o componente da disciplina); **com a classificação pela IA suspensa, a sugestão da IA não sobe**, só a corrigida pela
+  coordenação. Disciplina sem componente: o seletor diz "Esta disciplina não tem componente da BNCC. A questão fica sem
+  habilidade." e só "Deixar sem habilidade" vale. **Depois da aplicação, ou com versão adaptada, "Trocar" fica desligado** e a
+  linha diz por quê ("Esta atividade já foi aplicada (ou tem versão adaptada). Gere a atividade de novo para mudar a
+  habilidade."; na versão adaptada, que ela repete a da origem). As falhas: o `CONFLITO` diz o mesmo texto da aplicação e a
+  leitura é refeita; o 429 diz "Muitas alterações seguidas. Tente de novo em N minutos."; o resto, "Não foi possível trocar a
+  habilidade. Tente de novo". A troca muda só o artefato da professora, nunca a classificação do material, e o diagnóstico da
+  atividade aplicada depois usa a habilidade trocada
 - **Conversas**, embaixo dos lugares, lista as conversas do professor, agrupadas por data (hoje,
   ontem, 7 dias, mais antigas), cada uma no próprio endereço. A coordenação nunca vê (regra 70,
   item 8; P06). O MVP tem uma conversa só por professora (decisão 19 de `docs/mvp-rapido.md`); a

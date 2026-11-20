@@ -214,6 +214,19 @@ describe('contratos de saída: nenhuma resposta traz credencial, segredo ou iden
     expect(campos.filter((campo) => campo.startsWith('fontes'))).toEqual(['fontes', 'fontes[].materialId', 'fontes[].titulo', 'fontes[].edicao', 'fontes[].substituido'])
     for (const proibido of ['sha256', 'chave', 'enviadoPor', 'licenciante', 'licencaId', 'licenca', 'titularidade']) expect(campos.filter((campo) => campo.startsWith('fontes'))).not.toContain(`fontes[].${proibido}`)
     expect(problemasDoContrato('artefatoResponseSchema', shared.artefatoResponseSchema)).toEqual([])
+    // A seção de cada questão (classificacao-bncc, 11.0): o capítulo, as páginas e as habilidades com a origem; nunca quem corrigiu nem a execução.
+    expect(campos.filter((campo) => campo.startsWith('secoesDasQuestoes'))).toEqual([
+      'secoesDasQuestoes',
+      'secoesDasQuestoes[].capitulo',
+      'secoesDasQuestoes[].capitulo.numero',
+      'secoesDasQuestoes[].capitulo.titulo',
+      'secoesDasQuestoes[].paginaInicial',
+      'secoesDasQuestoes[].paginaFinal',
+      'secoesDasQuestoes[].habilidades',
+      'secoesDasQuestoes[].habilidades[].codigo',
+      'secoesDasQuestoes[].habilidades[].origem',
+    ])
+    for (const proibido of ['corrigidaPor', 'corrigida_por', 'execucaoId', 'execucao_id']) expect(campos.filter((campo) => campo.includes(proibido)), proibido).toEqual([])
     // A fonte é estrita: campo a mais (o licenciante, o hash) é recusado.
     const fonte = { materialId: randomUUID(), titulo: 'Química 2', edicao: '2025', substituido: false }
     expect(shared.fonteDoArtefatoSchema.safeParse(fonte).success).toBe(true)

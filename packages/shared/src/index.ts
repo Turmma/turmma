@@ -728,6 +728,9 @@ export {
   gerarComFerramentaRequestSchema,
   renomearArtefatoRequestSchema,
   artefatoResponseSchema,
+  indiceDaQuestaoSchema,
+  secaoDaQuestaoSchema,
+  trocarHabilidadeRequestSchema,
   listaDeArtefatosResponseSchema,
   MAXIMO_DE_VERSOES_NO_ARTEFATO,
   MAXIMO_DE_FONTES_NO_ARTEFATO,
@@ -743,6 +746,8 @@ export type {
   GerarComFerramentaRequest,
   RenomearArtefatoRequest,
   ArtefatoResponse,
+  SecaoDaQuestao,
+  TrocarHabilidadeRequest,
   FonteDoArtefato,
   ListaDeArtefatosResponse,
 } from './assistente/artefato.js'

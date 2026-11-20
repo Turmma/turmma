@@ -42,8 +42,11 @@ export class AdaptarAtividadeCommand implements ExecucaoCommand<EntradaDaTarefa<
   async concluir(saida: SaidaDaTarefa<typeof adaptarAtividade>, lido: LidoDaAdaptacao, tx: DatabaseTransaction, execucaoId: string): Promise<ResultadoGravado> {
     const adaptada = conteudoDeAtividadeSchema.safeParse(saida)
     if (!adaptada.success) throw new LLMError('IA_SAIDA_INVALIDA')
-    // O original relido dentro da transação: é a turma **dele**, e não a do pedido, que a versão e a entrega levam.
-    const origem = await new ArtefatoRepository(tx).porId(lido.artefatoId)
+    // O original relido dentro da transação, **com o artefato travado** (`for update`; classificacao-bncc, 11.0): é a turma **dele**, e não a do pedido, que a versão e a entrega levam, e a troca da habilidade de uma questão toma a
+    // mesma trava. A troca que chegou antes já está no que se lê aqui (a versão repete a habilidade trocada); a que chega depois espera o commit da versão e responde `CONFLITO` (P8).
+    // Há uma terceira janela: a troca que acontece **enquanto o modelo gera** (depois do `preparar`, que leu o original, e antes deste `concluir`). O original relido aqui já tem a habilidade nova e a versão gerada repete a antiga:
+    // `exigirAdaptacaoFiel` recusa com `IA_SAIDA_INVALIDA`, nenhuma versão nasce, e pedir a adaptação de novo lê o original já trocado. É seguro (nada vai à turma) e está escrito em `cenarios.md`, "Troca pelo professor".
+    const origem = await new ArtefatoRepository(tx).porIdTravado(lido.artefatoId)
     if (origem === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     exigirAdaptacaoFiel(atividadeOriginal(origem), adaptada.data, lido.adaptacao)
     const artefatoId = await new ArtefatoRepository(tx).create({ turmaId: origem.turmaId, disciplinaId: origem.disciplinaId, conteudo: adaptada.data, execucaoId, origemId: origem.id })

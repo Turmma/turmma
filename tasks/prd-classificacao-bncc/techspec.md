@@ -67,6 +67,7 @@ a volta para o código da F4 anterior à 9.0, que cumpre o check mas **lê** `ma
 | GET | `/v1/materiais/cobertura` | coordenação | `serieId` | por componente (área, no EM): `semMaterial[]`, `total`, `secoesSemClassificacao` |
 | PATCH | `/v1/disciplinas/:id` | coordenação | + `componenteBncc` (nulo apaga) | `Disciplina` |
 | PATCH | `/v1/artefatos/:id/questoes/:indice/habilidade` | professor | `codigo` ou `null` | `Artefato` |
+| GET | `/v1/artefatos/:id` | professor | — | + `secoesDasQuestoes[]` (uma posição por questão: o capítulo ou as páginas e as habilidades da seção **de agora**, com a `origem`; `null` sem seção) e `classificacaoSuspensa`, para a tela pôr o capítulo e as da seção primeiro na troca (11.0; sem `corrigida_por` nem `execucao_id`) |
 
 **Ordem das respostas:** primeiro o objeto no alcance (material da F4; `artefatoId` só do dono; série da escola), senão
 `NAO_ENCONTRADO`, igual ao inexistente; depois `ENTRADA_INVALIDA` (código fora do recorte atual); depois `CONFLITO`

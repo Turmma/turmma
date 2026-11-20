@@ -155,6 +155,12 @@ teste vermelho por um caso que rodou e falhou. Nenhum teste chama provedor: `Scr
   `null`; coordenação no `PATCH` da troca: recusa
 - [I] Aplicado ou com versão adaptada: `CONFLITO`; de outro professor da escola ou da B: `NAO_ENCONTRADO`, nunca
   `CONFLITO`; código de outra disciplina do mesmo professor na mesma turma: `ENTRADA_INVALIDA`
+- [I] A leitura do artefato (`GET /v1/artefatos/:id`) traz `secoesDasQuestoes` (o capítulo da página que cada questão cita, lido pela escola do
+  contexto: o material da B ou o excluído dá `null`) e `classificacaoSuspensa`; sem `corrigida_por` nem `execucao_id` (11.0)
+- Janela conhecida, sem caso próprio (11.0, rodada 1): a troca que chega **enquanto o modelo gera** a versão adaptada (depois de o `preparar` ler o
+  original e antes do `concluir`) faz o `exigirAdaptacaoFiel` recusar com `IA_SAIDA_INVALIDA`. Nenhuma versão nasce e nada vai à turma; a
+  professora pede a adaptação de novo e ela lê o original já trocado. Não é a corrida P8 (a troca que chega **depois** de o `concluir` tomar
+  a trava espera e recebe `CONFLITO`). Desligar o "Trocar" enquanto houver adaptação pendente muda a tela e está no `TODO.md`
 
 ## Cobertura (RF19)
 
@@ -246,7 +252,7 @@ novo agora: ele ainda está sendo lido, ou a disciplina ficou sem componente da 
 - [U] Seletor de habilidades: carregando, erro com "Tentar de novo", sem resultado, sem componente, com dado; com a
   função suspensa, as `origem: 'ia'` do capítulo não vêm primeiro
 - [U] Painel sem componente: "Corrigir" desabilitado, com o aviso
-- [U] Artefato: carregando, erro da troca ("Não foi possível trocar a habilidade. Tente de novo"), habilidade com o
+- [U] Artefato: carregando, erro da troca ("Não foi possível trocar a habilidade. Tente de novo."), habilidade com o
   capítulo; "Sem habilidade"; trocar desabilitado depois da aplicação, com o motivo
 - [U] Estrutura: carregando, erro ao salvar, componente na disciplina, com "Sem componente"
 - [E] A coordenação corrige; o professor gera, vê a corrigida, troca e aplica; Turmas mostra a trocada; nos projetos

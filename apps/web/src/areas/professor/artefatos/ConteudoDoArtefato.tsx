@@ -1,5 +1,6 @@
 import { ROTULO_SEM_HABILIDADE, type Citacao, type ConteudoDoArtefato as Conteudo, type ConteudoDeAtividade, type ConteudoDePlanoDeAula } from '@educa/shared'
 import { Check } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { CitationChip } from '../../../components/ui/ai/CitationChip'
 import { Sources } from '../../../components/ui/ai/Sources'
 import { PageThumbnail } from '../../../components/ui/ai/PageThumbnail'
@@ -27,9 +28,13 @@ interface PropsDoConteudo {
    * (telas do professor, 6.0). Só muda o que se vê: o conteúdo é o mesmo, e a página de origem de cada questão fica.
    */
   readonly comGabarito?: boolean
+  /**
+   * Quem desenha a linha da habilidade de cada questão, no artefato aberto (classificacao-bncc, 11.0): a tela do artefato põe ali a habilidade com o capítulo e o botão "Trocar". Sem ele, vale a linha simples (a conversa não troca nada).
+   */
+  readonly habilidadeDaQuestao?: (questao: ConteudoDeAtividade['questoes'][number], indice: number) => ReactNode
 }
 
-function Atividade({ conteudo, materiais, resumido, comGabarito }: { conteudo: ConteudoDeAtividade; materiais: TitulosDosMateriais; resumido: boolean; comGabarito: boolean }) {
+function Atividade({ conteudo, materiais, resumido, comGabarito, habilidadeDaQuestao }: { conteudo: ConteudoDeAtividade; materiais: TitulosDosMateriais; resumido: boolean; comGabarito: boolean; habilidadeDaQuestao: PropsDoConteudo['habilidadeDaQuestao'] }) {
   return (
     <ol className="flex min-w-0 flex-col gap-4">
       {conteudo.questoes.map((questao, indice) => (
@@ -67,16 +72,20 @@ function Atividade({ conteudo, materiais, resumido, comGabarito }: { conteudo: C
                       {questao.explicacao}
                     </p>
                   )}
-                  <p className="min-w-0 text-sm break-words text-sutil">
-                    {questao.habilidade === null ? (
-                      <span className="font-medium">{ROTULO_SEM_HABILIDADE}</span>
-                    ) : (
-                      <>
-                        <span className="font-medium">Habilidade {questao.habilidade.codigo}: </span>
-                        {questao.habilidade.descricao}
-                      </>
-                    )}
-                  </p>
+                  {habilidadeDaQuestao === undefined ? (
+                    <p className="min-w-0 text-sm break-words text-sutil">
+                      {questao.habilidade === null ? (
+                        <span className="font-medium">{ROTULO_SEM_HABILIDADE}</span>
+                      ) : (
+                        <>
+                          <span className="font-medium">Habilidade {questao.habilidade.codigo}: </span>
+                          {questao.habilidade.descricao}
+                        </>
+                      )}
+                    </p>
+                  ) : (
+                    habilidadeDaQuestao(questao, indice)
+                  )}
                 </>
               )}
             </div>
@@ -159,10 +168,10 @@ function Plano({ conteudo, materiais, resumido }: { conteudo: ConteudoDePlanoDeA
  * O texto do modelo entra como texto, com as quebras de linha dele, e nunca como HTML. A assinatura da IA é de quem usa
  * a peça: o artefato aberto e a resposta da conversa a põem em cima.
  */
-export function ConteudoDoArtefato({ conteudo, materiais, resumido = false, comGabarito = true }: PropsDoConteudo) {
+export function ConteudoDoArtefato({ conteudo, materiais, resumido = false, comGabarito = true, habilidadeDaQuestao }: PropsDoConteudo) {
   return (
     <div className="flex min-w-0 flex-col gap-3">
-      {conteudo.tipo === 'atividade_objetiva' ? <Atividade conteudo={conteudo} materiais={materiais} resumido={resumido} comGabarito={comGabarito} /> : <Plano conteudo={conteudo} materiais={materiais} resumido={resumido} />}
+      {conteudo.tipo === 'atividade_objetiva' ? <Atividade conteudo={conteudo} materiais={materiais} resumido={resumido} comGabarito={comGabarito} habilidadeDaQuestao={habilidadeDaQuestao} /> : <Plano conteudo={conteudo} materiais={materiais} resumido={resumido} />}
       <Sources citacoes={citacoesDoConteudo(conteudo)} materiais={materiais} />
     </div>
   )

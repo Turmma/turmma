@@ -142,10 +142,10 @@ export const RECURSOS = {
   ferramenta: ['gerar'],
   /**
    * O artefato (MVP, A2): `listar` e `ler` são `GET /v1/artefatos` e `GET /v1/artefatos/:id`; `renomear`, o `PATCH`;
-   * `exportar`, `GET /v1/artefatos/:id/pdf`; `adaptar`, `POST /v1/artefatos/:id/adaptar`. Só o professor da turma do
+   * `exportar`, `GET /v1/artefatos/:id/pdf`; `adaptar`, `POST /v1/artefatos/:id/adaptar`; `trocar_habilidade`, `PATCH /v1/artefatos/:id/questoes/:indice/habilidade` (classificacao-bncc, 11.0; RF9). Só o professor da turma do
    * artefato. O aluno nunca lê artefato: recebe a prova pela atividade aplicada.
    */
-  artefato: ['listar', 'ler', 'renomear', 'exportar', 'adaptar'],
+  artefato: ['listar', 'ler', 'renomear', 'exportar', 'adaptar', 'trocar_habilidade'],
   /**
    * A entrega pendente de decisão (MVP; regra 70, item 3): `listar` é `GET /v1/entregas`; `decidir`,
    * `POST /v1/entregas/:id/decidir`; `aprovar_lote`, `POST /v1/entregas/:id/aprovar-lote`, com o registro da validação
@@ -265,7 +265,7 @@ export const MATRIZ: { readonly [P in Papel]: CelulasDoPapel } = {
     assistente: { ler_conversa: 'nunca', enviar_mensagem: 'nunca' },
     execucao: { ler: 'nunca' },
     ferramenta: { gerar: 'nunca' },
-    artefato: { listar: 'nunca', ler: 'nunca', renomear: 'nunca', exportar: 'nunca', adaptar: 'nunca' },
+    artefato: { listar: 'nunca', ler: 'nunca', renomear: 'nunca', exportar: 'nunca', adaptar: 'nunca', trocar_habilidade: 'nunca' },
     entrega: { listar: 'nunca', decidir: 'nunca', aprovar_lote: 'nunca' },
     atividade_aplicada: { aplicar: 'nunca', listar: 'nunca', encerrar: 'nunca' },
     minha_atividade: { listar: 'nunca', ler_prova: 'nunca', responder: 'nunca', enviar: 'nunca', ler_diagnostico: 'nunca' },
@@ -314,7 +314,7 @@ export const MATRIZ: { readonly [P in Papel]: CelulasDoPapel } = {
     assistente: { ler_conversa: 'nunca', enviar_mensagem: 'nunca' },
     execucao: { ler: 'proprio' },
     ferramenta: { gerar: 'nunca' },
-    artefato: { listar: 'nunca', ler: 'nunca', renomear: 'nunca', exportar: 'nunca', adaptar: 'nunca' },
+    artefato: { listar: 'nunca', ler: 'nunca', renomear: 'nunca', exportar: 'nunca', adaptar: 'nunca', trocar_habilidade: 'nunca' },
     entrega: { listar: 'nunca', decidir: 'nunca', aprovar_lote: 'nunca' },
     atividade_aplicada: { aplicar: 'nunca', listar: 'nunca', encerrar: 'nunca' },
     minha_atividade: { listar: 'nunca', ler_prova: 'nunca', responder: 'nunca', enviar: 'nunca', ler_diagnostico: 'nunca' },
@@ -363,7 +363,7 @@ export const MATRIZ: { readonly [P in Papel]: CelulasDoPapel } = {
     assistente: { ler_conversa: 'proprio', enviar_mensagem: 'proprio' },
     execucao: { ler: 'proprio' },
     ferramenta: { gerar: 'turma_vinculada' },
-    artefato: { listar: 'turma_vinculada', ler: 'turma_vinculada', renomear: 'turma_vinculada', exportar: 'turma_vinculada', adaptar: 'turma_vinculada' },
+    artefato: { listar: 'turma_vinculada', ler: 'turma_vinculada', renomear: 'turma_vinculada', exportar: 'turma_vinculada', adaptar: 'turma_vinculada', trocar_habilidade: 'turma_vinculada' },
     entrega: { listar: 'turma_vinculada', decidir: 'turma_vinculada', aprovar_lote: 'turma_vinculada' },
     atividade_aplicada: { aplicar: 'turma_vinculada', listar: 'turma_vinculada', encerrar: 'turma_vinculada' },
     minha_atividade: { listar: 'nunca', ler_prova: 'nunca', responder: 'nunca', enviar: 'nunca', ler_diagnostico: 'nunca' },
@@ -412,7 +412,7 @@ export const MATRIZ: { readonly [P in Papel]: CelulasDoPapel } = {
     assistente: { ler_conversa: 'nunca', enviar_mensagem: 'nunca' },
     execucao: { ler: 'proprio' },
     ferramenta: { gerar: 'nunca' },
-    artefato: { listar: 'nunca', ler: 'nunca', renomear: 'nunca', exportar: 'nunca', adaptar: 'nunca' },
+    artefato: { listar: 'nunca', ler: 'nunca', renomear: 'nunca', exportar: 'nunca', adaptar: 'nunca', trocar_habilidade: 'nunca' },
     entrega: { listar: 'nunca', decidir: 'nunca', aprovar_lote: 'nunca' },
     atividade_aplicada: { aplicar: 'nunca', listar: 'nunca', encerrar: 'nunca' },
     minha_atividade: { listar: 'proprio', ler_prova: 'proprio', responder: 'proprio', enviar: 'proprio', ler_diagnostico: 'proprio' },

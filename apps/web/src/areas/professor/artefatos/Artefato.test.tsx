@@ -58,6 +58,8 @@ function atividade(n: number, campos: Record<string, unknown> = {}) {
     versoesAdaptadas: [],
     aplicacoes: [],
     fontes: [{ materialId: MATERIAL, titulo: TITULO_DO_MATERIAL, edicao: null, substituido: false }],
+    secoesDasQuestoes: [null],
+    classificacaoSuspensa: false,
     ...campos,
   }
 }
@@ -66,7 +68,7 @@ function atividade(n: number, campos: Record<string, unknown> = {}) {
 function versao(n: number, origem: { id: string }, entrega: Entrega) {
   return atividade(n, { titulo: `Versão ${String(n)}`, origemId: origem.id, adaptacao: { tipos: ['fonte_ampliada'] }, entrega: { id: entrega.id, estado: entrega.estado, decididaEm: entrega.decididaEm } })
 }
-const resumo = ({ conteudo: _conteudo, versoesAdaptadas: _versoes, aplicacoes: _aplicacoes, fontes: _fontes, ...resumido }: ReturnType<typeof atividade>) => resumido
+const resumo = ({ conteudo: _conteudo, versoesAdaptadas: _versoes, aplicacoes: _aplicacoes, fontes: _fontes, secoesDasQuestoes: _secoes, classificacaoSuspensa: _suspensa, ...resumido }: ReturnType<typeof atividade>) => resumido
 
 const entregaDe = (n: number, estado: Entrega['estado']): Entrega => ({ id: id(900 + n), estado, decididaEm: estado === 'pendente' ? null : '2026-10-05T13:42:00.000Z' })
 const entregaCompleta = (artefato: { id: string; titulo: string }, entrega: Entrega) => ({

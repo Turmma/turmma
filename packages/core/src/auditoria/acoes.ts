@@ -738,6 +738,18 @@ export const ACOES_DE_AUDITORIA = {
     finalidade: null,
   },
   /**
+   * O professor trocou a habilidade da BNCC de uma questão do artefato dele, antes de aplicar (classificacao-bncc, 11.0; RF9; Tech Spec, seção 5, "Troca"). `entidadeId` é o **artefato**; `antes` e `depois` levam a posição
+   * da questão (a partir de zero) e o código (da lista fechada `CODIGOS_DA_BNCC`, ou `null` para a questão sem habilidade). O código de antes que não está na lista é o do catálogo antigo (D82): `antes.codigo` é `null` e `legado`
+   * é `true`. Lidos com o artefato travado (`for update`): duas trocas ao mesmo tempo deixam dois registros em cadeia. É também a contagem do teto de 100 por hora por pessoa e 300 por escola (Tech Spec, seção 4).
+   * **Nunca o título do artefato, o enunciado nem a descrição da habilidade.**
+   */
+  'artefato.habilidade_trocada': {
+    entidade: 'artefato',
+    antes: z.strictObject({ indice: z.number().int().min(0).max(19), codigo: z.enum(CODIGOS_DA_BNCC).nullable(), legado: z.boolean() }),
+    depois: z.strictObject({ indice: z.number().int().min(0).max(19), codigo: z.enum(CODIGOS_DA_BNCC).nullable() }),
+    finalidade: null,
+  },
+  /**
    * O professor aplicou uma atividade à turma (MVP, A3; regra 70, item 3; regra 20, item 10): é o ato humano que leva a
    * saída da IA ao aluno. `entidadeId` é a atividade aplicada; `versaoAdaptada` diz se o artefato era versão adaptada, que
    * só se aplica com a entrega aprovada.

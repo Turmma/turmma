@@ -2,6 +2,7 @@ import {
   ErrorCode,
   artefatoResponseSchema,
   execucaoAceitaResponseSchema,
+  habilidadesBnccResponseSchema,
   listaDeArtefatosResponseSchema,
   type AdaptarArtefatoRequest,
   type ArtefatoResponse,
@@ -49,6 +50,24 @@ export function artefatoQueryOptions(id: string) {
 /** `PATCH /v1/artefatos/:id`: só o título. O conteúdo gerado não se edita por aqui. */
 export function renomearArtefato(id: string, titulo: string): Promise<ArtefatoResponse> {
   return authedRequest(`${CAMINHO_DOS_ARTEFATOS}/${encodeURIComponent(id)}`, artefatoResponseSchema, { metodo: 'PATCH', corpo: { titulo } })
+}
+
+/**
+ * As habilidades que a questão do artefato pode receber (`GET /v1/habilidades-bncc?artefatoId=`, classificacao-bncc, 11.0): o recorte atual, com o componente da disciplina e a série da turma, e `semComponente` quando a disciplina não
+ * tem componente da BNCC. A chave leva o id do artefato e começa por `artefatos`: quem invalida `ARTEFATOS_QUERY_KEY` a alcança.
+ */
+export function habilidadesDoArtefatoQueryOptions(artefatoId: string) {
+  return queryOptions({
+    queryKey: [...ARTEFATOS_QUERY_KEY, 'habilidades-bncc', artefatoId],
+    queryFn: ({ signal }) => authedGet(`/v1/habilidades-bncc?artefatoId=${encodeURIComponent(artefatoId)}`, habilidadesBnccResponseSchema, signal),
+  })
+}
+
+/**
+ * `PATCH /v1/artefatos/:id/questoes/:indice/habilidade`: a questão passa a ter o `codigo` da BNCC, ou nenhuma (`null`). O texto da habilidade não vai: o servidor o lê da tabela da BNCC. Responde o artefato inteiro, já com a troca.
+ */
+export function trocarHabilidadeDaQuestao(id: string, indice: number, codigo: string | null): Promise<ArtefatoResponse> {
+  return authedRequest(`${CAMINHO_DOS_ARTEFATOS}/${encodeURIComponent(id)}/questoes/${String(indice)}/habilidade`, artefatoResponseSchema, { metodo: 'PATCH', corpo: { codigo } })
 }
 
 /**

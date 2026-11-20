@@ -22,6 +22,7 @@ import { formatDateTime } from '../../../format'
 import { usePageTitle } from '../../../document-title'
 import { AplicacaoDoArtefato } from '../atividades/AplicacaoDoArtefato'
 import { ConteudoDoArtefato } from './ConteudoDoArtefato'
+import { HabilidadeDaQuestao } from './TrocaDeHabilidade'
 import { aprovacaoDaEntrega, AVISO_DE_TEXTO_SEM_ALUNO, canRenomear, saidaEmPdf, TEXTO_DA_REJEITADA_SEM_PDF, TEXTO_DO_RASCUNHO_EM_PDF, textoDaAdaptacao, VERBO_DA_ENTREGA } from './entregas'
 import { ExportarPdf } from './ExportarPdf'
 import { ferramentaDoCatalogo } from '../ferramentas/ferramentas'
@@ -271,7 +272,12 @@ export default function Artefato({ artefatoId }: { artefatoId: string }) {
                 </div>
               )}
               <Folha rotulo={dados.titulo}>
-                <ConteudoDoArtefato conteudo={dados.conteudo} materiais={titulosDasFontes(dados.fontes)} comGabarito={comGabarito} />
+                <ConteudoDoArtefato
+                  conteudo={dados.conteudo}
+                  materiais={titulosDasFontes(dados.fontes)}
+                  comGabarito={comGabarito}
+                  habilidadeDaQuestao={(questao, indice) => <HabilidadeDaQuestao artefato={dados} indice={indice} questao={questao} secao={dados.secoesDasQuestoes[indice] ?? null} />}
+                />
               </Folha>
             </div>
           )}

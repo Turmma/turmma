@@ -3,7 +3,7 @@ import { expect, type Page } from '@playwright/test'
 import { Client } from 'pg'
 import { urlDoBancoDeTeste } from '../../../tools/ci/compose.ts'
 import { mockAssistenteApi } from '../assistente.ts'
-import { entrarPelaApi, irPelaNavegacao, SIGN_IN_TIMEOUT_MS } from '../casca.ts'
+import { entrarPelaApi, entrarPelaApiSemMedirAPrimeiraCarga, irPelaNavegacao, SIGN_IN_TIMEOUT_MS } from '../casca.ts'
 import { confirmarVinculosNoBanco, criarAlocacaoDoProfessor, criarEquipeComSenha } from '../seed.ts'
 import type { Scenario } from './scenario.ts'
 
@@ -61,8 +61,14 @@ export async function criarArtefatoDoVinculo(escolaId: string, vinculoId: string
  * A professora de uma turma de Química, com a API do Assistente simulada, **entrando pela API e abrindo direto o endereço** (por
  * padrão, Criados): o login pela tela e o Início, que os casos de Criados não provam, ficam de fora. `antes` monta o que a
  * escola já tinha antes de ela abrir a tela, com a turma e a disciplina dela já conhecidas.
+ *
+ * `semMedirACarga` abre a primeira tela sem a rede do perfil (`entrarPelaApiSemMedirAPrimeiraCarga`): é para o caso cujo assunto é o que a
+ * tela faz depois de aberta, e não quanto ela leva para baixar; a CPU do perfil continua. O padrão mede, como sempre.
  */
-export async function entrarEmCriados(page: Page, { endereco = '/professor/criados', antes }: { endereco?: string; antes?: (cena: Scenario) => void } = {}): Promise<Scenario> {
+export async function entrarEmCriados(
+  page: Page,
+  { endereco = '/professor/criados', antes, semMedirACarga = false }: { endereco?: string; antes?: (cena: Scenario) => void; semMedirACarga?: boolean } = {},
+): Promise<Scenario> {
   const api = await mockAssistenteApi(page)
   const professora = await criarEquipeComSenha()
   const alocacao = await criarAlocacaoDoProfessor(professora.escolaId, professora.usuarioId, ['Química'])
@@ -75,7 +81,12 @@ export async function entrarEmCriados(page: Page, { endereco = '/professor/criad
     .finally(() => banco.end())
   const cena: Scenario = { api, professora, turmaId: alocacao.turmaId, turmaNome: alocacao.turmaNome, disciplinaId }
   antes?.(cena)
-  await entrarPelaApi(page, professora, endereco)
-  await expect(page.getByRole('main').getByRole('heading', { level: 1 })).toBeAttached({ timeout: SIGN_IN_TIMEOUT_MS })
+  const aberta = () => expect(page.getByRole('main').getByRole('heading', { level: 1 })).toBeAttached({ timeout: SIGN_IN_TIMEOUT_MS })
+  if (semMedirACarga) {
+    await entrarPelaApiSemMedirAPrimeiraCarga(page, professora, endereco, aberta)
+  } else {
+    await entrarPelaApi(page, professora, endereco)
+    await aberta()
+  }
   return cena
 }

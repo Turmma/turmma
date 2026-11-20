@@ -1,8 +1,10 @@
 import { z } from 'zod'
+import { CODIGOS_DA_BNCC } from '../bncc/codigos-da-bncc.js'
 import { paginationQuerySchema, pageSchema } from '../estrutura/pagination.js'
+import { habilidadeDaSecaoSchema, MAXIMO_DE_HABILIDADES_POR_SECAO, secaoDoMaterialResponseSchema } from '../material/material.js'
 import { idempotencyKeySchema } from '../time/idempotency-key.js'
 import { adaptacaoAplicadaSchema, conteudoDoArtefatoSchema, TIPOS_DE_ADAPTACAO, TIPOS_DE_ARTEFATO } from './conteudo.js'
-import { parametrosDeFerramentaSchema, FERRAMENTAS_GERADORAS } from './conversa.js'
+import { parametrosDeFerramentaSchema, FERRAMENTAS_GERADORAS, MAXIMO_DE_QUESTOES_POR_ATIVIDADE } from './conversa.js'
 import { ESTADOS_DE_ENTREGA } from './entrega.js'
 import { ESTADOS_DE_ATIVIDADE_APLICADA } from '../atividade/atividade-aplicada.js'
 
@@ -93,9 +95,21 @@ export function rotuloDaFonte({ titulo, edicao, substituido }: Pick<FonteDoArtef
 }
 
 /**
+ * A seção da página que a questão cita (classificacao-bncc, 11.0; RF9): o capítulo (nulo no bloco de páginas), as páginas e as habilidades que a seção tem **agora**, cada uma com quem a pôs. É o que a tela do artefato mostra
+ * como "o capítulo" da habilidade e põe primeiro na lista da troca. Sem `corrigida_por` nem `execucao_id` (regra 20, item 4); a posição na lista é a da questão.
+ */
+export const secaoDaQuestaoSchema = secaoDoMaterialResponseSchema.pick({ capitulo: true, paginaInicial: true, paginaFinal: true }).extend({
+  habilidades: z.array(habilidadeDaSecaoSchema.pick({ codigo: true, origem: true })).max(MAXIMO_DE_HABILIDADES_POR_SECAO),
+})
+export type SecaoDaQuestao = z.infer<typeof secaoDaQuestaoSchema>
+
+/**
  * Resposta de `GET /v1/artefatos/:id` e de `PATCH /v1/artefatos/:id`: o artefato inteiro, com o conteúdo (questões com
  * gabarito e página citada, ou o plano), as versões adaptadas que saíram dele, as aplicações e as `fontes`: o título e a
  * edição de cada material citado, e se a edição foi substituída. Só o professor da turma.
+ *
+ * `secoesDasQuestoes` tem uma posição por questão da atividade (vazia no plano de aula): a seção da página que a questão cita, ou `null` quando a página é de antes do primeiro capítulo ou o material saiu (excluído, ainda não pronto ou de
+ * outra escola). O componente da disciplina não entra aqui: ele só decide a lista da troca (`GET /v1/habilidades-bncc`). `classificacaoSuspensa` é a suspensão da função na escola: com ela, a sugestão da IA (`origem: 'ia'`) não vale (Tech Spec, seção 5, "Suspensão").
  */
 export const artefatoResponseSchema = artefatoResumidoSchema
   .extend({
@@ -103,9 +117,28 @@ export const artefatoResponseSchema = artefatoResumidoSchema
     versoesAdaptadas: z.array(artefatoResumidoSchema).max(MAXIMO_DE_VERSOES_NO_ARTEFATO),
     aplicacoes: z.array(aplicacaoDoArtefatoSchema).max(MAXIMO_DE_VERSOES_NO_ARTEFATO),
     fontes: z.array(fonteDoArtefatoSchema).max(MAXIMO_DE_FONTES_NO_ARTEFATO),
+    secoesDasQuestoes: z.array(secaoDaQuestaoSchema.nullable()).max(MAXIMO_DE_QUESTOES_POR_ATIVIDADE),
+    classificacaoSuspensa: z.boolean(),
   })
   .strict()
 export type ArtefatoResponse = z.infer<typeof artefatoResponseSchema>
+
+/**
+ * O `:indice` de `PATCH /v1/artefatos/:id/questoes/:indice/habilidade` (classificacao-bncc, 11.0): a posição da questão na atividade, **a partir de zero**, com um ou dois dígitos e só dígitos (o `coerce` aceitaria `'0x3'`,
+ * `'+3'` e `'001'`, e nenhum deles é a posição de uma questão). Um índice dentro do formato que a atividade não tem é `ENTRADA_INVALIDA` do service, depois de achar o artefato.
+ */
+export const indiceDaQuestaoSchema = z
+  .string()
+  .regex(/^\d{1,2}$/)
+  .transform(Number)
+  .pipe(z.number().min(0).max(MAXIMO_DE_QUESTOES_POR_ATIVIDADE - 1))
+
+/**
+ * Corpo de `PATCH /v1/artefatos/:id/questoes/:indice/habilidade` (RF9): o código da BNCC que a questão passa a ter, ou `null` para deixá-la sem habilidade. O código é da lista fechada `CODIGOS_DA_BNCC` (formato válido que a tabela não
+ * tem é `ENTRADA_INVALIDA`); estar no recorte da turma e da disciplina é conferido pelo service. Sem componente na disciplina, só `null` vale. A descrição não vem do cliente: o servidor a lê da tabela da BNCC.
+ */
+export const trocarHabilidadeRequestSchema = z.strictObject({ codigo: z.enum(CODIGOS_DA_BNCC).nullable() })
+export type TrocarHabilidadeRequest = z.infer<typeof trocarHabilidadeRequestSchema>
 
 /** Corpo de `PATCH /v1/artefatos/:id`: só o título. O conteúdo gerado não se edita por aqui, e o artefato aplicado não muda. */
 export const renomearArtefatoRequestSchema = z.strictObject({ titulo: z.string().trim().min(1).max(160) })

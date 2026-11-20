@@ -109,6 +109,7 @@ const ROTAS: readonly Rota[] = [
   { nome: 'GET /v1/artefatos', papel: 'professor', outro: 'aluno', metodo: 'GET', caminho: () => '/v1/artefatos', consulta: '?limite=10', consultaInvalida: `?${CONSULTA_A_MAIS()}` },
   { nome: 'GET /v1/artefatos/:id', papel: 'professor', outro: 'aluno', metodo: 'GET', caminho: (id) => `/v1/artefatos/${id}`, parametro: true },
   { nome: 'PATCH /v1/artefatos/:id', papel: 'professor', outro: 'aluno', metodo: 'PATCH', caminho: (id) => `/v1/artefatos/${id}`, parametro: true, corpo: { titulo: 'Outro título' }, corpoInvalido: { titulo: '' } },
+  { nome: 'PATCH /v1/artefatos/:id/questoes/:indice/habilidade', papel: 'professor', outro: 'aluno', metodo: 'PATCH', caminho: (id) => `/v1/artefatos/${id}/questoes/0/habilidade`, parametro: true, corpo: { codigo: null }, corpoInvalido: { codigo: 'EM13CNT999' } },
   { nome: 'GET /v1/artefatos/:id/pdf', papel: 'professor', outro: 'aluno', metodo: 'GET', caminho: (id) => `/v1/artefatos/${id}/pdf`, parametro: true },
   {
     nome: 'POST /v1/artefatos/:id/adaptar',

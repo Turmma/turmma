@@ -44,6 +44,8 @@ const artefato = (fontes: unknown[]) => ({
   versoesAdaptadas: [],
   aplicacoes: [],
   fontes,
+  secoesDasQuestoes: [null],
+  classificacaoSuspensa: false,
 })
 
 function montar() {

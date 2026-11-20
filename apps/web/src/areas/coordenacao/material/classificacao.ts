@@ -1,7 +1,7 @@
 import { ErrorCode, type HabilidadeDaSecao, type OrigemDaHabilidadeDaSecao, type ReclassificarResponse, type SecaoDoMaterialResponse, type SituacaoDaSecao } from '@educa/shared'
 import { ApiError, errorMessage } from '../../../api/client'
 import type { StatusFamily } from '../../../components/ui/StatusBadge'
-import { paginasDoCapitulo, tituloDoCapitulo } from './material-painel'
+import { paginasDaSecao, textoDoLimiteDeAlteracoesSeguidas, tituloDaSecao } from '../../../components/habilidades/nome-da-secao'
 
 /**
  * O que a seção "Habilidades da BNCC" do painel do material diz, sem React (classificacao-bncc, 8.0; RF6, RF12; `cenarios.md`, "Telas"): o nome de cada capítulo, o rótulo de cada situação, de quem é cada habilidade,
@@ -33,15 +33,7 @@ export function textoDoComponenteQueFalta(disciplina: string): string {
   return `Defina o componente da BNCC de ${disciplina} na Estrutura para classificar este material`
 }
 
-/** O nome do capítulo: "Capítulo 3 · Frações", o título sozinho quando o PDF não o numera, e "Páginas 1 a 10" no bloco de páginas. */
-export function tituloDaSecao(secao: Pick<SecaoDoMaterialResponse, 'capitulo' | 'paginaInicial' | 'paginaFinal'>): string {
-  return secao.capitulo === null ? paginasDoCapitulo(secao) : tituloDoCapitulo(secao.capitulo)
-}
-
-/** As páginas do capítulo, em linha própria; o bloco de páginas já as diz no nome. */
-export function paginasDaSecao(secao: Pick<SecaoDoMaterialResponse, 'capitulo' | 'paginaInicial' | 'paginaFinal'>): string | undefined {
-  return secao.capitulo === null ? undefined : paginasDoCapitulo(secao)
-}
+export { paginasDaSecao, tituloDaSecao }
 
 /** O que a linha diz da situação e a família do selo; `classificada` não diz nada: as habilidades são o que ela mostra. */
 export interface RotuloDaSecao {
@@ -85,12 +77,8 @@ export function textoDoReclassificarPedido(resposta: Pick<ReclassificarResponse,
   return `Pedido feito. ${textoDaConfirmacaoDoReclassificar(resposta.secoes, resposta.preservadas)}`
 }
 
-/** O 429 da correção e do reclassificar: "Tente de novo em N minutos", arredondando para cima; sem `Retry-After`, "em instantes". */
-export function textoDoLimiteDaClassificacao(esperaSegundos: number | undefined): string {
-  if (esperaSegundos === undefined) return 'Muitas alterações seguidas. Tente de novo em instantes.'
-  const minutos = Math.max(1, Math.ceil(esperaSegundos / 60))
-  return `Muitas alterações seguidas. Tente de novo em ${String(minutos)} ${minutos === 1 ? 'minuto' : 'minutos'}.`
-}
+/** O 429 da correção e do reclassificar: "Tente de novo em N minutos", arredondando para cima; sem `Retry-After`, "em instantes". É o mesmo texto da troca da habilidade da questão (11.0). */
+export const textoDoLimiteDaClassificacao = textoDoLimiteDeAlteracoesSeguidas
 
 /** O texto de cada falha da correção; o resto cai no catálogo, que diz o que fazer. */
 export function textoDaFalhaDaCorrecao(erro: unknown): string {

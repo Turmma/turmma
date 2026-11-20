@@ -4,7 +4,7 @@ import { IaRequestRateLimit } from '../assistente/ai-request-rate-limit.js'
 import { DB } from '../database.module.js'
 import { ExecucaoScheduler } from '../ia/execucao.scheduler.js'
 import { TrechoSearch } from '../material/trecho-search.js'
-import { ArtefatoController } from './artefato.controller.js'
+import { ArtefatoController, ArtefatoTrocarHabilidadeGuard } from './artefato.controller.js'
 import { ArtefatoService } from './artefato.service.js'
 import { FerramentasController } from './ferramentas.controller.js'
 import { FerramentasService } from './ferramentas.service.js'
@@ -17,6 +17,7 @@ import { FerramentasService } from './ferramentas.service.js'
 @Module({
   controllers: [FerramentasController, ArtefatoController],
   providers: [
+    ArtefatoTrocarHabilidadeGuard,
     {
       provide: FerramentasService,
       useFactory: (banco: Database, agendador: ExecucaoScheduler, limite: IaRequestRateLimit, trechos: TrechoSearch) => new FerramentasService(banco, agendador, limite, trechos),

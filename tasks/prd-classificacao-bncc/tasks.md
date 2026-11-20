@@ -82,11 +82,11 @@
   - [x] 10.4 O passo 1 do roteiro ganha a correção do capítulo pelo painel
   - [x] 10.5 Testes
 
-- [ ] **11.0 — O professor troca a habilidade da questão no artefato, com a trava que aplicar e adaptar também tomam**
-  - [ ] 11.1 `PATCH /v1/artefatos/:id/questoes/:indice/habilidade`
-  - [ ] 11.2 Aplicar e adaptar tomam o `for update` no artefato
-  - [ ] 11.3 A tela do artefato: a habilidade com o capítulo e "Trocar"; a Parte A no `docs/interface.md`
-  - [ ] 11.4 Testes: recusas, P6a, P6b, P7, P8, isolamento, estados, recomeço
+- [x] **11.0 — O professor troca a habilidade da questão no artefato, com a trava que aplicar e adaptar também tomam**
+  - [x] 11.1 `PATCH /v1/artefatos/:id/questoes/:indice/habilidade`
+  - [x] 11.2 Aplicar e adaptar tomam o `for update` no artefato
+  - [x] 11.3 A tela do artefato: a habilidade com o capítulo e "Trocar"; a Parte A no `docs/interface.md`
+  - [x] 11.4 Testes: recusas, P6a, P6b, P7, P8, isolamento, estados, recomeço
 
 - [ ] **12.0 — "Sem habilidade" em Turmas, no aluno e no Analista, e o fluxo inteiro passa no e2e**
   - [ ] 12.1 A linha "Sem habilidade", com a explicação, nas três leituras

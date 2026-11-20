@@ -46,6 +46,8 @@ type Rota =
   | 'artefatos'
   | 'artefato'
   | 'renomear'
+  | 'trocarHabilidade'
+  | 'habilidadesBncc'
   | 'pdf'
   | 'adaptar'
   | 'entregas'
@@ -70,6 +72,8 @@ const ROTAS: readonly { readonly rota: Rota; readonly metodo: string; readonly c
   { rota: 'artefatos', metodo: 'GET', caminho: /^\/v1\/artefatos$/ },
   { rota: 'pdf', metodo: 'GET', caminho: /^\/v1\/artefatos\/([^/]+)\/pdf$/ },
   { rota: 'adaptar', metodo: 'POST', caminho: /^\/v1\/artefatos\/([^/]+)\/adaptar$/ },
+  { rota: 'trocarHabilidade', metodo: 'PATCH', caminho: /^\/v1\/artefatos\/([^/]+)\/questoes\/(\d+)\/habilidade$/ },
+  { rota: 'habilidadesBncc', metodo: 'GET', caminho: /^\/v1\/habilidades-bncc$/ },
   { rota: 'artefato', metodo: 'GET', caminho: /^\/v1\/artefatos\/([^/]+)$/ },
   { rota: 'renomear', metodo: 'PATCH', caminho: /^\/v1\/artefatos\/([^/]+)$/ },
   { rota: 'entregas', metodo: 'GET', caminho: /^\/v1\/entregas$/ },
@@ -122,6 +126,15 @@ export class AssistenteApiMock {
   uso: UsoDoTutorResponse | undefined
   entregas: Entrega[] = []
   artefatos: ArtefatoResponse[] = []
+  /** As habilidades que a troca da questão oferece (`GET /v1/habilidades-bncc?artefatoId=`, classificacao-bncc, 11.0), na ordem do código. */
+  candidatas: { codigo: string; descricao: string }[] = [
+    { codigo: 'EM13CNT101', descricao: 'Analisar e representar as transformações e conservações em sistemas.' },
+    { codigo: 'EM13CNT102', descricao: 'Realizar previsões em situações cotidianas que envolvam transformações.' },
+    { codigo: 'EM13CNT103', descricao: 'Utilizar o conhecimento sobre as radiações e suas origens.' },
+    { codigo: 'EM13CNT104', descricao: 'Avaliar potenciais prejuízos de substâncias e radiações.' },
+  ]
+  /** A disciplina não tem componente da BNCC: a lista vem vazia, e a troca só aceita "nenhuma". */
+  semComponente = false
   suspensas = new Set<ChaveDeFuncao>()
   readonly execucoes = new Map<string, ExecucaoResponse>()
   /** Todo `POST` e `PATCH` que a tela mandou, na ordem. */
@@ -196,7 +209,23 @@ export class AssistenteApiMock {
       // Como a API: `?turmaId=` só restringe a lista (telas do professor, 5.0). Turma que não é da professora devolve a página vazia.
       const turma = url.searchParams.get('turmaId')
       const daTurma = turma === null ? this.artefatos : this.artefatos.filter((item) => item.turmaId === turma)
-      return { status: 200, corpo: this.pagina(daTurma.map(({ conteudo: _conteudo, versoesAdaptadas: _versoes, aplicacoes: _aplicacoes, fontes: _fontes, ...resumido }) => resumido), url) }
+      return { status: 200, corpo: this.pagina(daTurma.map(({ conteudo: _conteudo, versoesAdaptadas: _versoes, aplicacoes: _aplicacoes, fontes: _fontes, secoesDasQuestoes: _secoes, classificacaoSuspensa: _suspensa, ...resumido }) => resumido), url) }
+    }
+    if (rota === 'habilidadesBncc') return { status: 200, corpo: { itens: this.semComponente ? [] : this.candidatas, semComponente: this.semComponente } }
+    if (rota === 'trocarHabilidade') {
+      const artefato = this.artefatos.find((item) => item.id === id)
+      if (artefato === undefined) return apiError(404, 'NAO_ENCONTRADO')
+      // Como a API: aplicado, com versão adaptada ou versão adaptada, é `CONFLITO`; a troca muda só a questão pedida e traz o texto da tabela.
+      if (artefato.origemId !== null || artefato.aplicacoes.length > 0 || artefato.versoesAdaptadas.length > 0) return apiError(409, 'CONFLITO')
+      const codigo = typeof corpo === 'object' && corpo !== null && 'codigo' in corpo && typeof corpo.codigo === 'string' ? corpo.codigo : null
+      const candidata = this.candidatas.find((item) => item.codigo === codigo)
+      if (codigo !== null && candidata === undefined) return apiError(400, 'ENTRADA_INVALIDA')
+      const indice = Number(ids[1])
+      if (artefato.conteudo.tipo !== 'atividade_objetiva' || indice >= artefato.conteudo.questoes.length) return apiError(400, 'ENTRADA_INVALIDA')
+      const questoes = artefato.conteudo.questoes.map((questao, posicao) => (posicao === indice ? { ...questao, habilidade: candidata === undefined ? null : { codigo: candidata.codigo, descricao: candidata.descricao } } : questao))
+      const trocado = { ...artefato, conteudo: { ...artefato.conteudo, questoes } }
+      this.artefatos = this.artefatos.map((item) => (item.id === id ? trocado : item))
+      return { status: 200, corpo: trocado }
     }
     if (rota === 'artefato' || rota === 'renomear' || rota === 'pdf') {
       const artefato = this.artefatos.find((item) => item.id === id)
@@ -346,7 +375,7 @@ export class AssistenteApiMock {
   }
 
   async ligar(page: Page): Promise<void> {
-    await page.route(/\/v1\/(time|assistente|execucoes|ferramentas|artefatos|entregas|materiais|atividades-aplicadas|sinais|tutor\/uso)(\/|\?|$)/, (route) => this.atender(route))
+    await page.route(/\/v1\/(time|assistente|execucoes|ferramentas|artefatos|entregas|materiais|atividades-aplicadas|sinais|tutor\/uso|habilidades-bncc)(\/|\?|$)/, (route) => this.atender(route))
     // Das turmas, só o desempenho é simulado: a turma aberta, o acesso e os pedidos são os da A1, de verdade.
     await page.route(/\/v1\/turmas\/[^/]+\/desempenho(\?|$)/, (route) => this.atender(route))
   }
@@ -400,6 +429,9 @@ export function atividadeSintetica(turmaId: string, disciplinaId: string, campos
     aplicacoes: [],
     // As `fontes` do artefato (ingestao-do-material, 10.0): o título do material vem daqui, e não da lista de materiais.
     fontes: [{ materialId: MATERIAL, titulo: TITULO_DO_MATERIAL, edicao: null, substituido: false }],
+    // A seção de cada questão (classificacao-bncc, 11.0): sem seção, o artefato não mostra capítulo nenhum.
+    secoesDasQuestoes: [null, null],
+    classificacaoSuspensa: false,
     ...campos,
   }
 }
@@ -439,7 +471,7 @@ export function versaoAdaptada(origem: ArtefatoResponse, estado: Entrega['estado
 }
 
 /** O resumo de um artefato, como ele aparece na lista de versões da origem. */
-export function resumoDoArtefato({ conteudo: _conteudo, versoesAdaptadas: _versoes, aplicacoes: _aplicacoes, fontes: _fontes, ...resumido }: ArtefatoResponse): ArtefatoResponse['versoesAdaptadas'][number] {
+export function resumoDoArtefato({ conteudo: _conteudo, versoesAdaptadas: _versoes, aplicacoes: _aplicacoes, fontes: _fontes, secoesDasQuestoes: _secoes, classificacaoSuspensa: _suspensa, ...resumido }: ArtefatoResponse): ArtefatoResponse['versoesAdaptadas'][number] {
   return resumido
 }
 

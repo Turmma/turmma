@@ -144,7 +144,7 @@ describe('atividade aplicada', () => {
       expect(prova.questoes).toHaveLength(5)
       for (const questao of prova.questoes) expect(Object.keys(questao).sort()).toEqual(['alternativas', 'enunciado', 'numero'])
       const texto = JSON.stringify(resposta.corpo)
-      for (const proibido of ['gabarito', 'explicacao', EXPLICACAO_DE_TESTE, 'habilidade', 'QUI.EM', 'citacao', 'correta', 'acertos']) expect(texto).not.toContain(proibido)
+      for (const proibido of ['gabarito', 'explicacao', EXPLICACAO_DE_TESTE, 'habilidade', 'QUI.EM', 'EM13CNT', 'citacao', 'correta', 'acertos']) expect(texto).not.toContain(proibido)
     })
 
     it('abrir a prova cria a tentativa do aluno, uma só, mesmo em duas abas ao mesmo tempo', async () => {
@@ -478,8 +478,8 @@ describe('atividade aplicada', () => {
         total: 5,
         em_branco: 0,
         por_habilidade: [
-          { codigo: 'QUI.EM.05', acertos: 3, total: 3 },
-          { codigo: 'QUI.EM.06', acertos: 1, total: 2 },
+          { codigo: 'EM13CNT102', acertos: 3, total: 3 },
+          { codigo: 'EM13CNT103', acertos: 1, total: 2 },
         ],
         destaques: [],
       })

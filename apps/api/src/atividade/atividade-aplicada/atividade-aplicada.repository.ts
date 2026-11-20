@@ -118,6 +118,10 @@ export class AtividadeAplicadaRepository {
   /**
    * O artefato que se quer aplicar, se a professora do contexto o alcança: vínculo confirmado na turma **dele**, na
    * disciplina **dele**. Com a entrega da versão adaptada, quando ele é uma.
+   *
+   * **Trava o artefato (`for update`) até o fim da transação** (classificacao-bncc, 11.0; Tech Spec, seção 5, "Troca"): a troca da habilidade de uma questão toma a mesma trava, então uma espera a outra. Aplicar depois da troca
+   * aplica com a habilidade trocada, e a troca depois de aplicar encontra a aplicação e responde `CONFLITO` (P6a, P6b). A trava é só da linha do artefato (`of: artefato`): a entrega da versão adaptada, do outro lado da junção, não se trava.
+   * Ela **não exige o dono do artefato** (`criado_por`), como a troca exige (`ArtefatoRepository.lockParaTrocar`): aqui vale o vínculo na turma e na disciplina, e a diferença é de propósito.
    */
   async artefatoParaAplicar(artefatoId: string): Promise<ArtefatoParaAplicar | undefined> {
     const [linha] = await this.banco
@@ -132,6 +136,7 @@ export class AtividadeAplicadaRepository {
           comVinculoConfirmadoDoProfessor(this.banco, artefato, artefato.disciplinaId),
         ),
       )
+      .for('update', { of: artefato })
     return linha === undefined ? undefined : { id: linha.id, tipo: linha.tipo, disciplinaId: linha.disciplinaId, versaoAdaptada: linha.origemId !== null, entregaEstado: linha.entregaEstado }
   }
 

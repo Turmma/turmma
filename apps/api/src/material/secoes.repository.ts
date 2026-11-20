@@ -20,7 +20,7 @@ import {
   type Database,
   type DatabaseTransaction,
 } from '@educa/core'
-import { descricaoParaOModelo, habilidadeEhCandidata, MAXIMO_DE_HABILIDADES_POR_SECAO, type ComponenteBncc, type EstadoDeExecucao, type OrigemDaHabilidadeDaSecao, type SerieDoRecorte } from '@educa/shared'
+import { descricaoParaOModelo, habilidadeEhCandidata, MAXIMO_DE_HABILIDADES_POR_SECAO, type ComponenteBncc, type EstadoDeExecucao, type OrigemDaHabilidadeDaSecao, type SecaoDaQuestao, type SerieDoRecorte } from '@educa/shared'
 import { and, asc, eq, gte, inArray, isNotNull, isNull, lte, or, sql } from 'drizzle-orm'
 import { comVinculoConfirmadoDoProfessor } from '../assistente/turma-do-professor.repository.js'
 
@@ -215,6 +215,60 @@ export class SecoesRepository {
       porPagina.set(`${materialId}:${String(pagina)}`, daPagina)
     }
     return porPagina
+  }
+
+  /**
+   * A seção de cada página dada (classificacao-bncc, 11.0; RF9): o capítulo (nulo no bloco de páginas), as páginas e as habilidades que ela tem agora, de qualquer origem, na ordem do código. É o que a tela do artefato mostra como
+   * "o capítulo" da questão e põe primeiro na lista da troca. Só o material `pronto` e não excluído: a página de um material que saiu, de antes do primeiro capítulo ou de seção que não existe não tem entrada. A escola é a do contexto
+   * e entra em toda junção; **só se chama com as páginas de um artefato já achado no alcance** (a citação vem do `jsonb`, sem FK, e a escola do contexto é o que impede ler a seção de outra). Chave: `materialId:pagina`.
+   */
+  async daPagina(paginas: ReadonlyArray<{ readonly materialId: string; readonly pagina: number }>): Promise<Map<string, SecaoDaQuestao>> {
+    const porPagina = new Map<string, SecaoDaQuestao>()
+    if (paginas.length === 0) return porPagina
+    const escolaId = requireEscolaId()
+    const secoes = await this.banco
+      .select({
+        id: secaoDoMaterial.id,
+        materialId: secaoDoMaterial.materialId,
+        paginaInicial: secaoDoMaterial.paginaInicial,
+        paginaFinal: secaoDoMaterial.paginaFinal,
+        capituloNumero: capituloDoMaterial.numero,
+        capituloTitulo: capituloDoMaterial.titulo,
+      })
+      .from(secaoDoMaterial)
+      .innerJoin(material, and(eq(material.escolaId, secaoDoMaterial.escolaId), eq(material.id, secaoDoMaterial.materialId)))
+      .leftJoin(capituloDoMaterial, and(eq(capituloDoMaterial.escolaId, secaoDoMaterial.escolaId), eq(capituloDoMaterial.id, secaoDoMaterial.capituloId)))
+      .where(
+        and(
+          eq(secaoDoMaterial.escolaId, escolaId),
+          eq(material.estado, 'pronto'),
+          isNull(material.excluidoEm),
+          or(...paginas.map((pagina) => and(eq(secaoDoMaterial.materialId, pagina.materialId), lte(secaoDoMaterial.paginaInicial, pagina.pagina), gte(secaoDoMaterial.paginaFinal, pagina.pagina)))),
+        ),
+      )
+    if (secoes.length === 0) return porPagina
+    const habilidades = await this.habilidadesDasSecoes(secoes.map((secao) => secao.id))
+    for (const { materialId, pagina } of paginas) {
+      const secao = secoes.find((candidata) => candidata.materialId === materialId && candidata.paginaInicial <= pagina && pagina <= candidata.paginaFinal)
+      if (secao === undefined) continue
+      porPagina.set(`${materialId}:${String(pagina)}`, {
+        capitulo: secao.capituloTitulo === null ? null : { numero: secao.capituloNumero, titulo: secao.capituloTitulo },
+        paginaInicial: secao.paginaInicial,
+        paginaFinal: secao.paginaFinal,
+        habilidades: habilidades.filter((habilidade) => habilidade.secaoId === secao.id).map(({ codigo, origem }) => ({ codigo, origem })),
+      })
+    }
+    return porPagina
+  }
+
+  /**
+   * O texto da BNCC de um código, no tamanho do contrato da geração (`descricaoParaOModelo`, o mesmo da questão que a IA gera), para a troca da habilidade da questão (classificacao-bncc, 11.0). A tabela é pública e o código já foi conferido
+   * contra o recorte: código que ela não tem devolve `undefined`.
+   */
+  @Unscoped('a tabela da BNCC é pública e não tem escola_id (regra 10, item 1): devolve só o texto de uma habilidade, nunca dado de escola nem de pessoa')
+  async descricaoDaHabilidade(codigo: string): Promise<string | undefined> {
+    const [linha] = await this.banco.select({ descricao: habilidadeBncc.descricao }).from(habilidadeBncc).where(eq(habilidadeBncc.codigo, codigo))
+    return linha === undefined ? undefined : descricaoParaOModelo(linha.descricao)
   }
 
   /**

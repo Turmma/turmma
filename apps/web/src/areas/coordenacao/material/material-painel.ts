@@ -1,4 +1,4 @@
-import { ErrorCode, TAMANHO_MAXIMO_DA_EDICAO, type AtualizarMaterialRequest, type CapituloDoMaterial, type Material } from '@educa/shared'
+import { ErrorCode, TAMANHO_MAXIMO_DA_EDICAO, type AtualizarMaterialRequest, type Material } from '@educa/shared'
 import { ApiError, errorMessage } from '../../../api/client'
 import { erroDoTitulo, horaDaEspera, TEXTOS_DA_FALHA_DO_ENVIO } from './material-envio'
 
@@ -70,15 +70,8 @@ export const TEXTO_DO_EFEITO_DA_EDICAO_NOVA = 'A edição anterior sai da busca 
 export const TEXTO_DO_PATCH_SALVO = 'Alterações salvas. A busca do Assistente e do Tutor já usa as séries novas.'
 export const TEXTO_DA_EDICAO_ENVIADA = 'Edição enviada. A leitura das páginas começa agora; a anterior sai da busca quando a nova ficar pronta.'
 
-/** "Páginas 12 a 20", ou "Página 12" no capítulo de uma página só. */
-export function paginasDoCapitulo(capitulo: Pick<CapituloDoMaterial, 'paginaInicial' | 'paginaFinal'>): string {
-  return capitulo.paginaInicial === capitulo.paginaFinal ? `Página ${String(capitulo.paginaInicial)}` : `Páginas ${String(capitulo.paginaInicial)} a ${String(capitulo.paginaFinal)}`
-}
-
-/** O título do capítulo, com o número que o PDF escreve quando há: "Capítulo 3 · Frações". */
-export function tituloDoCapitulo(capitulo: Pick<CapituloDoMaterial, 'numero' | 'titulo'>): string {
-  return capitulo.numero === null ? capitulo.titulo : `Capítulo ${String(capitulo.numero)} · ${capitulo.titulo}`
-}
+// O nome do capítulo é o mesmo no painel do material e no artefato do professor: a peça vive em `components/habilidades`.
+export { paginasDoCapitulo, tituloDoCapitulo } from '../../../components/habilidades/nome-da-secao'
 
 export const TEXTO_SEM_CAPITULO = 'O PDF não tem capítulos que a leitura reconheça. A busca continua achando o material pelas páginas.'
 export const TEXTO_DOS_CAPITULOS_AINDA_NAO = 'Os capítulos aparecem quando a leitura terminar.'

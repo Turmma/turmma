@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { adaptarArtefatoRequestSchema, gerarComFerramentaRequestSchema, renomearArtefatoRequestSchema, artefatoResponseSchema, rotuloDaFonte, TITULO_DA_FONTE_SEM_LINHA } from './artefato.js'
+import { adaptarArtefatoRequestSchema, gerarComFerramentaRequestSchema, indiceDaQuestaoSchema, renomearArtefatoRequestSchema, artefatoResponseSchema, secaoDaQuestaoSchema, trocarHabilidadeRequestSchema, rotuloDaFonte, TITULO_DA_FONTE_SEM_LINHA } from './artefato.js'
 import { conteudoDeAtividadeSchema, conteudoDePlanoDeAulaSchema, conteudoDoArtefatoSchema, habilidadeSchema, MAXIMO_DE_CARACTERES_DA_HABILIDADE, descricaoParaOModelo, questaoObjetivaSchema, TIPOS_DE_ADAPTACAO } from './conteudo.js'
 import {
   conversaDoAssistenteQuerySchema,
@@ -142,15 +142,32 @@ describe('ferramentas e artefato', () => {
   it('a resposta do artefato traz a versão adaptada com os tipos e o estado da entrega, e nada sobre aluno', () => {
     const resumido = { id: UM_ID, tipo: 'atividade_objetiva', titulo: 'Lista', turmaId: UM_ID, disciplinaId: OUTRO_ID, origemId: null, adaptacao: null, entrega: null, criadoEm: AGORA }
     const adaptada = { ...resumido, id: OUTRO_ID, origemId: UM_ID, adaptacao: { tipos: ['fonte_ampliada'] }, entrega: { id: UM_ID, estado: 'pendente', decididaEm: null } }
-    const resposta = { ...resumido, conteudo: atividade, versoesAdaptadas: [adaptada], aplicacoes: [], fontes: [] }
+    const resposta = { ...resumido, conteudo: atividade, versoesAdaptadas: [adaptada], aplicacoes: [], fontes: [], secoesDasQuestoes: [], classificacaoSuspensa: false }
     expect(artefatoResponseSchema.safeParse(resposta).success).toBe(true)
     expect(artefatoResponseSchema.safeParse({ ...resposta, versoesAdaptadas: [{ ...adaptada, alunos: [UM_ID] }] }).success).toBe(false)
     expect(artefatoResponseSchema.safeParse({ ...resposta, versoesAdaptadas: [{ ...adaptada, adaptacao: { tipos: ['fonte_ampliada'], paraQuem: 'Ana' } }] }).success).toBe(false)
   })
 
+  it('a troca da habilidade da questão (classificacao-bncc, 11.0): o corpo é só o código da lista da BNCC ou `null`, e o índice é a posição, com um ou dois dígitos', () => {
+    expect(trocarHabilidadeRequestSchema.parse({ codigo: 'EM13CNT102' })).toEqual({ codigo: 'EM13CNT102' })
+    expect(trocarHabilidadeRequestSchema.parse({ codigo: null })).toEqual({ codigo: null })
+    // O texto da habilidade nunca vem do cliente; código fora da lista, minúsculo, ausente ou com campo a mais é recusado.
+    for (const corpo of [{ codigo: 'EM13CNT999' }, { codigo: 'em13cnt102' }, { codigo: '' }, {}, { codigo: 'EM13CNT102', descricao: 'Texto do cliente' }, { codigo: 7 }]) expect(trocarHabilidadeRequestSchema.safeParse(corpo).success, JSON.stringify(corpo)).toBe(false)
+    expect(['0', '7', '19'].map((indice) => indiceDaQuestaoSchema.parse(indice))).toEqual([0, 7, 19])
+    for (const indice of ['20', '-1', '001', '0x1', '1e1', '+3', ' 3', '']) expect(indiceDaQuestaoSchema.safeParse(indice).success, indice).toBe(false)
+  })
+
+  it('a seção da questão traz o capítulo, as páginas e as habilidades com a origem, e nada de quem corrigiu', () => {
+    const daQuestao = { capitulo: { numero: 3, titulo: 'Reações químicas' }, paginaInicial: 1, paginaFinal: 3, habilidades: [{ codigo: 'EM13CNT101', origem: 'ia' }] }
+    expect(secaoDaQuestaoSchema.safeParse(daQuestao).success).toBe(true)
+    expect(secaoDaQuestaoSchema.safeParse({ ...daQuestao, capitulo: null }).success).toBe(true)
+    expect(secaoDaQuestaoSchema.safeParse({ ...daQuestao, habilidades: [{ codigo: 'EM13CNT101', origem: 'ia', corrigidaPor: UM_ID }] }).success).toBe(false)
+    expect(secaoDaQuestaoSchema.safeParse({ ...daQuestao, habilidades: Array.from({ length: 6 }, () => ({ codigo: 'EM13CNT101', origem: 'ia' })) }).success, 'mais de cinco').toBe(false)
+  })
+
   it('as fontes do artefato (10.0): a resposta as exige, a fonte é estrita, e o rótulo é o mesmo texto da tela e do PDF', () => {
     const resumido = { id: UM_ID, tipo: 'atividade_objetiva', titulo: 'Lista', turmaId: UM_ID, disciplinaId: OUTRO_ID, origemId: null, adaptacao: null, entrega: null, criadoEm: AGORA }
-    const resposta = { ...resumido, conteudo: atividade, versoesAdaptadas: [], aplicacoes: [] }
+    const resposta = { ...resumido, conteudo: atividade, versoesAdaptadas: [], aplicacoes: [], secoesDasQuestoes: [], classificacaoSuspensa: false }
     expect(artefatoResponseSchema.safeParse(resposta).success, 'sem fontes').toBe(false)
     const fonte = { materialId: UM_ID, titulo: 'Química 2', edicao: '2024', substituido: true }
     expect(artefatoResponseSchema.safeParse({ ...resposta, fontes: [fonte] }).success).toBe(true)

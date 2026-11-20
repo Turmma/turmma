@@ -20,6 +20,14 @@ export interface ArtefatoLido {
   readonly entregaDecididaEm: Date | null
 }
 
+/** O artefato que o professor quer mudar a habilidade de uma questão, **travado** (`for update`) até o fim da transação: só o que a troca precisa. */
+export interface ArtefatoParaTrocar {
+  readonly id: string
+  readonly tipo: TipoDeArtefato
+  readonly origemId: string | null
+  readonly conteudo: unknown
+}
+
 export interface AplicacaoLida {
   readonly id: string
   readonly turmaId: string
@@ -81,6 +89,58 @@ export class ArtefatoRepository {
   async porId(id: string): Promise<ArtefatoLido | undefined> {
     const [linha] = await this.#lidos(eq(artefato.id, id))
     return linha
+  }
+
+  /**
+   * O mesmo artefato de `porId`, **travado até o fim da transação** (`for update`; classificacao-bncc, 11.0; Tech Spec, seção 5, "Troca"): é a trava que a troca da habilidade, a aplicação e a conclusão da adaptação tomam primeiro, e
+   * por isso a leitura que vem depois dela vale (P6, P7, P8). A adaptação a toma para ler o original que vai conferir e para criar a versão sem uma troca no meio.
+   *
+   * **Não exige o dono (`criado_por`), de propósito**: quem a chama (aplicar, concluir a adaptação) já tem o próprio escopo de vínculo na turma e na disciplina, e `#noAlcance` mantém escola, ano e vínculo. Só a troca é do dono do artefato
+   * (`lockParaTrocar`): a diferença é de regra, não esquecimento: igualar uma à outra abriria a troca ao colega da mesma turma, ou fecharia a aplicação e a adaptação a quem tem o vínculo e não é o dono.
+   */
+  async porIdTravado(id: string): Promise<ArtefatoLido | undefined> {
+    const [linha] = await this.#lidos(eq(artefato.id, id)).for('update', { of: artefato })
+    return linha
+  }
+
+  /**
+   * O artefato **do professor da sessão** que a troca da habilidade vai mudar, travado (`for update`): só o dono (`criado_por`), com vínculo confirmado nesta turma e nesta disciplina no ano em curso (a mesma regra de
+   * `SecoesRepository.recorteDoArtefato`, que lê o recorte). O de um colega da mesma turma, de outra escola, de outro ano e o inexistente não são achados, e a resposta é a mesma (regra 10, item 6).
+   * É a única das travas do artefato que exige o dono: `porIdTravado` e `artefatoParaAplicar` travam pelo vínculo, sem `criado_por`, de propósito (aplicar e adaptar não são só do dono).
+   */
+  async lockParaTrocar(id: string): Promise<ArtefatoParaTrocar | undefined> {
+    const [linha] = await this.banco
+      .select({ id: artefato.id, tipo: artefato.tipo, origemId: artefato.origemId, conteudo: artefato.conteudo })
+      .from(artefato)
+      .where(and(this.#noAlcance(), eq(artefato.id, id), eq(artefato.criadoPor, requestSessao().usuarioId)))
+      .for('update', { of: artefato })
+    return linha
+  }
+
+  /** O artefato já foi aplicado a alguma turma, ou já tem versão adaptada? Qualquer aplicação (aberta ou encerrada) e qualquer versão (pendente, aprovada ou rejeitada) contam. Só se chama com o artefato já travado. */
+  async hasAplicacaoOuVersao(id: string): Promise<boolean> {
+    const escolaId = requireEscolaId()
+    const anoLetivoId = requireAnoEmCurso()
+    const [aplicada] = await this.banco
+      .select({ um: atividadeAplicada.id })
+      .from(atividadeAplicada)
+      .where(and(eq(atividadeAplicada.escolaId, escolaId), eq(atividadeAplicada.anoLetivoId, anoLetivoId), eq(atividadeAplicada.artefatoId, id)))
+      .limit(1)
+    if (aplicada !== undefined) return true
+    const [versao] = await this.banco
+      .select({ um: artefato.id })
+      .from(artefato)
+      .where(and(eq(artefato.escolaId, escolaId), eq(artefato.anoLetivoId, anoLetivoId), eq(artefato.origemId, id)))
+      .limit(1)
+    return versao !== undefined
+  }
+
+  /** Grava o conteúdo que a troca montou, com o artefato já travado. O título, a coluna e o resto não mudam. */
+  async saveConteudo(id: string, conteudo: ConteudoDoArtefato): Promise<void> {
+    await this.banco
+      .update(artefato)
+      .set({ conteudo, atualizadoEm: sql`now()` })
+      .where(and(eq(artefato.escolaId, requireEscolaId()), eq(artefato.anoLetivoId, requireAnoEmCurso()), eq(artefato.id, id)))
   }
 
   /**
