@@ -208,6 +208,8 @@ export { CODIGOS_DA_BNCC } from './bncc/codigos-da-bncc.js'
 export type { CodigoDaBncc } from './bncc/codigos-da-bncc.js'
 export { habilidadeCandidataSchema, habilidadesBnccQuerySchema, habilidadesBnccResponseSchema, MAXIMO_DE_HABILIDADES_NA_LISTA } from './material/habilidades-bncc.js'
 export type { HabilidadeCandidataBncc, HabilidadesBnccQuery, HabilidadesBnccResponse } from './material/habilidades-bncc.js'
+export { coberturaQuerySchema, coberturaResponseSchema, grupoDaCoberturaDoComponente, grupoDaCoberturaSchema, habilidadeSemMaterialSchema, NOME_DA_AREA_DA_BNCC, nomeDoGrupoDaCobertura } from './material/cobertura.js'
+export type { CoberturaQuery, CoberturaResponse, GrupoDaCobertura, GrupoDaCoberturaResponse, HabilidadeSemMaterial } from './material/cobertura.js'
 export {
   AREAS_DO_CONHECIMENTO,
   disciplinaSchema,

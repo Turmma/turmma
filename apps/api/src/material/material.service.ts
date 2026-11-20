@@ -12,6 +12,9 @@ import {
   TIPO_AGENDAR_CLASSIFICACAO,
   TIPO_EXTRAIR_PDF,
   buscaDeMaterialResponseSchema,
+  coberturaResponseSchema,
+  grupoDaCoberturaDoComponente,
+  nomeDoGrupoDaCobertura,
   listaDeMateriaisResponseSchema,
   materialComCapitulosResponseSchema,
   materialResponseSchema,
@@ -22,6 +25,10 @@ import {
   situacaoDaLicenca,
   situacaoDaSecao,
   type BuscaDeMaterialQuery,
+  type CoberturaQuery,
+  type CoberturaResponse,
+  type GrupoDaCobertura,
+  type GrupoDaCoberturaResponse,
   type CorrigirSecaoRequest,
   type HabilidadesBnccQuery,
   type HabilidadesBnccResponse,
@@ -47,6 +54,7 @@ import { chaveDoTemporario, EnvioDeMaterialRepository, ExtracaoDoMaterialReposit
 import { z } from 'zod'
 import { paginar } from '../http/pagination.js'
 import { SuspensaoRepository } from '../ia/suspensao.repository.js'
+import { CoberturaRepository } from './cobertura.repository.js'
 import { LicencaRepository, type LicencaParaUso, type VigenciaDaLicenca } from './licenca.repository.js'
 import { MaterialRepository, type AlcanceDoMaterial, type MaterialLido } from './material.repository.js'
 import { SecoesRepository, type HabilidadeLida, type SecaoLida } from './secoes.repository.js'
@@ -719,6 +727,43 @@ export class MaterialService {
     }
     // A ordem é da tela, que a faz pelo nome da disciplina e pela posição da série (`linhasDoResumo`).
     return resumoDoMaterialResponseSchema.parse({ linhas: [...linhas.values()], semSerie })
+  }
+
+  /**
+   * `GET /v1/materiais/cobertura?serieId=` (classificacao-bncc, 13.0; RF19; Tech Spec, seções 4 e 5, "Cobertura"): só a coordenação (a célula `material.resumir`). Por grupo (o componente no Fundamental, a área no Médio),
+   * as habilidades da BNCC que a série tem e que nenhum material em uso cobre. Cobre a seção **classificada** (a corrigida pela coordenação, ou a que a execução concluiu) de material `pronto`, não excluído, declarado para
+   * a série e próprio ou de licença vigente hoje, e só o código que é candidato do componente da disciplina do material nesta série (`habilidadeEhCandidata`: o `EF69LP01` num material só do 6º não cobre o 7º). Com a
+   * função suspensa, vale só a correção. Além disso, quantas seções desses materiais ainda não terminaram a classificação. A série de outra escola e a inexistente respondem `NAO_ENCONTRADO`, igual (regra 10, item 6).
+   * Só códigos e contagens: nenhum título de material. Sem paginação: a lista de uma série cabe em ~200 habilidades.
+   */
+  async cobertura(consulta: CoberturaQuery): Promise<CoberturaResponse> {
+    const { banco } = this.dependencias
+    const cobertura = new CoberturaRepository(banco)
+    const serieId = consulta.serieId.toLowerCase()
+    const recorte = await cobertura.serieDaEscola(serieId)
+    if (recorte === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+    const suspensa = await new SuspensaoRepository(banco).estaSuspensa(FUNCAO_DA_TAREFA_DE_IA.classificar_secoes)
+    const hoje = this.#hoje()
+    const [materiaisEmUso, daSerie, cobertas, semClassificacao] = await Promise.all([
+      cobertura.materiaisEmUso(serieId, hoje),
+      cobertura.habilidadesDaSerie(recorte),
+      cobertura.habilidadesCobertas(serieId, hoje, suspensa),
+      cobertura.secoesSemClassificacao(serieId, hoje, suspensa),
+    ])
+    const codigosCobertos = new Set(cobertas.filter(({ componente, codigo }) => habilidadeEhCandidata(codigo, componente, [recorte])).map(({ codigo }) => codigo))
+    // As seções sem classificação por grupo: a Química e a Física somam no mesmo grupo (Ciências no Fundamental), e o componente sem grupo na etapa (`null`) fica na chave dele, que nenhum grupo da série lê.
+    const semClassificacaoPorGrupo = new Map<GrupoDaCobertura | null, number>()
+    for (const { componente, total } of semClassificacao) {
+      const grupo = grupoDaCoberturaDoComponente(componente, recorte.etapa)
+      semClassificacaoPorGrupo.set(grupo, (semClassificacaoPorGrupo.get(grupo) ?? 0) + total)
+    }
+    const grupos = new Map<GrupoDaCobertura, GrupoDaCoberturaResponse>()
+    for (const { codigo, descricao, grupo } of daSerie) {
+      const atual = grupos.get(grupo) ?? { chave: grupo, total: 0, semMaterial: [], secoesSemClassificacao: semClassificacaoPorGrupo.get(grupo) ?? 0 }
+      grupos.set(grupo, { ...atual, total: atual.total + 1, semMaterial: codigosCobertos.has(codigo) ? atual.semMaterial : [...atual.semMaterial, { codigo, descricao }] })
+    }
+    const ordenados = [...grupos.values()].sort((a, b) => nomeDoGrupoDaCobertura(a.chave, recorte.etapa).localeCompare(nomeDoGrupoDaCobertura(b.chave, recorte.etapa), 'pt-BR'))
+    return coberturaResponseSchema.parse({ serieId, etapa: recorte.etapa, materiaisEmUso, grupos: ordenados, classificacaoSuspensa: suspensa })
   }
 
   /**

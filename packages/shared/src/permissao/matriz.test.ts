@@ -169,6 +169,8 @@ describe('MATRIZ de permissão', () => {
     for (const acao of ['enviar', 'excluir', 'resumir', 'corrigir_classificacao', 'reclassificar'] as const) expect(alcanceDe('professor', 'material', acao), acao).toBe('nunca')
     for (const acao of ['listar', 'ler', 'buscar'] as const) expect(alcanceDe('professor', 'material', acao), acao).toBe('turma_vinculada')
     for (const acao of RECURSOS.material) expect(alcanceDe('aluno', 'material', acao), acao).toBe('nunca')
+    // A cobertura da BNCC por série (`GET /v1/materiais/cobertura`, classificacao-bncc 13.0) pede `material.resumir`: a rede nunca a alcança.
+    for (const acao of RECURSOS.material) expect(alcanceDe('rede', 'material', acao), acao).toBe('nunca')
   })
 
   it('classificacao-bncc 7.0: só a coordenação corrige e reclassifica; as candidatas da BNCC são da coordenação e do professor vinculado, nunca do aluno nem da rede', () => {

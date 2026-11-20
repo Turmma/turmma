@@ -95,7 +95,7 @@
   - [ ] 12.4 O roteiro conferido de novo
   - [ ] 12.5 Testes
 
-- [ ] **13.0 — A coordenação vê, por série, as habilidades sem material**
+- [x] **13.0 — A coordenação vê, por série, as habilidades sem material**
   - [ ] 13.1 `GET /v1/materiais/cobertura`, antes de `:id`
   - [ ] 13.2 A aba Cobertura em Material; a Parte A no `docs/interface.md`
   - [ ] 13.3 Testes: filtro da F4, ano do bloco, área, suspensão, isolamento, `EXPLAIN`

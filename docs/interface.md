@@ -643,8 +643,8 @@ os quatro estados; o vazio da grade convida a "Baixar modelo".
 - **Material**: **só a coordenação sobe material para a base da escola**; professor e aluno não
   sobem (D75). Fontes com titularidade e licença, upload, estado da ingestão com o que entrou,
   o que falhou, o que está pendente e o que foi recusado por falta de licença (F4,
-  D5 revista). **Material tem duas abas dentro dela, Materiais e Licenças**, e a aba é o endereço
-  (`?aba=licencas`; sem o parâmetro abre Materiais). **Licenças** (ingestao-do-material, 6.0; RF16 e RF17)
+  D5 revista). **Material tem três abas dentro dela, Materiais, Licenças e Cobertura**, e a aba é o endereço
+  (`?aba=licencas` e `?aba=cobertura`; sem o parâmetro abre Materiais). **Licenças** (ingestao-do-material, 6.0; RF16 e RF17)
   é uma tabela com cada licença de material: quem a deu e o que cobre, a **situação em texto e em cor**
   (Vigente, "Vence em dd/mm/aaaa", "Vencida em dd/mm/aaaa", "Começa em dd/mm/aaaa"), a vigência com
   as datas em dd/mm/aaaa e o rótulo de cada uma ("Começa em", "Termina em", ou "Sem data de fim") e
@@ -697,7 +697,13 @@ os quatro estados; o vazio da grade convida a "Baixar modelo".
   confira a série de cada um (o material de antes da declaração de séries ganhou todas, e o aviso também aparece quando algum tem todas as séries da escola). Os quatro estados valem para o resumo (carregando, erro com "Tentar de novo", vazio que diz o que
   acontece quando o primeiro PDF chega, e a tabela); se a releitura falha com o resumo já na tela, o erro vem ao lado e o número de antes fica. O resumo **não tem laço próprio**: se relê quando a lista mostra que um material mudou de estado (terminou, entrou ou saiu: o envio e a exclusão passam por aí) e quando um envio é recusado. O "Tentar de novo o resumo" é o botão secundário dele, com nome próprio, para não repetir o da lista quando as duas leituras caem juntas.
   **A tabela de materiais mostra 25 por vez**, com "Mostrando 25 de N" e o botão secundário **"Mostrar mais"**, que revela mais 25, anuncia quantos estão à vista e, ao revelar o último, leva o foco ao título da lista.
-  Só a coordenação vê o resumo; o professor não alcança a aba
+  Só a coordenação vê o resumo; o professor não alcança a aba.
+  **A aba Cobertura** (classificacao-bncc, 13.0; RF19 e RF20; `?aba=cobertura`) mostra, de uma série, as habilidades da BNCC que nenhum material em uso cobre. Sob o título, o subtítulo diz que a lista é por componente (por área, no Ensino Médio) e que **os capítulos são classificados pela IA e a coordenação corrige a classificação em Material** (a saída de IA vem rotulada como IA, regra 70, item 4a). Abre **sem série escolhida**, com a escolha **"Série"** ("Escolha a série"; o Fundamental antes do Médio e o ano em ordem)
+  e o convite "Escolha uma série para ver as habilidades que ainda não têm material."; **a série não vai ao endereço e some com a sessão**: a pessoa seguinte do mesmo computador começa sem série. Escolhida, a tela lê a cobertura **daquela série** e só a mostra: trocar de série não deixa a resposta atrasada de uma sob a outra,
+  e não há laço de releitura (relê ao escolher e em "Tentar de novo"; a classificação roda à noite). **Um grupo por componente** (por **área** no Ensino Médio: Linguagens, Matemática, Ciências da Natureza, Ciências Humanas), com "N de M habilidades sem material" (ou "Todas as M habilidades têm material"), ao lado
+  **"N capítulos ainda sem classificação"** quando há (o capítulo que a IA não terminou ou que ainda não foi à noite não cobre nada, e um aviso diz que a lista pode trazer habilidade que o material já cobre) e, por baixo, cada habilidade sem material com o **código e a descrição**. Com a função suspensa, o aviso "A classificação pela IA está suspensa na escola. Valem só as habilidades
+  corrigidas pela coordenação." vem no alto. Os quatro estados: "Carregando a cobertura…"; a falha com "Tentar de novo", que não afirma que não há material; o vazio da série sem material em uso ("Nenhum material desta série ainda. Envie material desta série para ver a cobertura."); e os grupos. **É só leitura** (corrigir e reclassificar são do painel do material), traz só códigos,
+  descrições e contagens, **nunca título de material**, e **o professor não a vê** (RF20): a rota pede a permissão de resumir material.
 
 **Registros** tem três abas, **IA, Pedidos e Privacidade**, que recebem a tabela da Governança, o
 item Agentes e o item Privacidade de hoje.

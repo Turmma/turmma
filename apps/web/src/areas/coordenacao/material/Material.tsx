@@ -27,6 +27,7 @@ import { FAMILIA_DA_SITUACAO_DO_MATERIAL, linhasDosMateriais, MATERIAIS_POR_VEZ,
 import { useFocusPageHeading } from '../comum/moldura'
 import { AvisoDeListaIncompleta, CLASSES_DO_BOTAO_DA_LINHA } from '../comum/pecas-da-lista'
 import { PainelDoMaterial } from './PainelDoMaterial'
+import { Cobertura } from './Cobertura'
 import { Licencas } from './Licencas'
 import { Tabs, type TabItem } from '../../../components/ui/Tabs'
 
@@ -373,23 +374,25 @@ function ExcluirMaterial({ material, disciplina, aoFechar, aoTerminar, aoExcluir
   )
 }
 
-/** As duas seções de Material, na ordem em que a coordenação as usa: o que a escola enviou, e as licenças que o material de terceiro cita. */
+/** As seções de Material, na ordem em que a coordenação as usa: o que a escola enviou, as licenças que o material de terceiro cita e a cobertura da BNCC por série. */
 const SECOES: readonly (TabItem & { readonly id: AbaDoMaterial })[] = [
   { id: 'materiais', rotulo: 'Materiais' },
   { id: 'licencas', rotulo: 'Licenças' },
+  { id: 'cobertura', rotulo: 'Cobertura' },
 ]
 
 /**
- * A seção de Material que o endereço pede (`?aba=licencas`); qualquer outro valor, ou nenhum, abre "Materiais". O endereço só leva um valor de
+ * A seção de Material que o endereço pede (`?aba=licencas` ou `?aba=cobertura`); qualquer outro valor, ou nenhum, abre "Materiais". O endereço só leva um valor de
  * lista fechada, nunca nome (regra 20, item 9).
  */
 export function abaDoEndereco(busca: string): AbaDoMaterial {
-  return new URLSearchParams(busca).get(ABA_DO_MATERIAL_PARAM) === 'licencas' ? 'licencas' : 'materiais'
+  const aba = new URLSearchParams(busca).get(ABA_DO_MATERIAL_PARAM)
+  return aba === 'licencas' || aba === 'cobertura' ? aba : 'materiais'
 }
 
 /**
- * Escola › Material: duas seções em abas, **Materiais** (a tabela do que a escola enviou, o envio e o painel) e **Licenças** (RF16 e RF17: a
- * licença de cada material de terceiro, com a vigência). A seção é o endereço (`?aba=licencas`), e é o endereço que o item `licenca-vencendo`
+ * Escola › Material: três seções em abas, **Materiais** (a tabela do que a escola enviou, o envio e o painel) e **Licenças** (RF16 e RF17: a
+ * licença de cada material de terceiro, com a vigência) e **Cobertura** (classificacao-bncc, 13.0; RF19: as habilidades da BNCC de cada série que nenhum material cobre). A seção é o endereço (`?aba=licencas`, `?aba=cobertura`), e é o endereço que o item `licenca-vencendo`
  * do sino abre; trocar de seção troca só o parâmetro, sem tirar o `?material=`.
  */
 export default function Material() {
@@ -401,9 +404,9 @@ export default function Material() {
       rotulo="Seções de Material"
       abas={SECOES}
       ativa={ativa}
-      aoMudar={(id) => navegar(enderecoComParametro(caminho, busca, ABA_DO_MATERIAL_PARAM, id === 'licencas' ? 'licencas' : undefined), { replace: true })}
+      aoMudar={(id) => navegar(enderecoComParametro(caminho, busca, ABA_DO_MATERIAL_PARAM, id === 'licencas' || id === 'cobertura' ? id : undefined), { replace: true })}
     >
-      {ativa === 'licencas' ? <Licencas /> : <MateriaisDaEscola />}
+      {ativa === 'licencas' ? <Licencas /> : ativa === 'cobertura' ? <Cobertura /> : <MateriaisDaEscola />}
     </Tabs>
   )
 }

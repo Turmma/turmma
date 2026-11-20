@@ -112,11 +112,11 @@ export const PROFESSOR_PARAM = 'professor'
 export const MATERIAL_PARAM = 'material'
 
 /**
- * O nome do parâmetro que escolhe a seção de Material (ingestao-do-material, 6.0): sem ele abre "Materiais", e `licencas` abre a aba Licenças.
+ * O nome do parâmetro que escolhe a seção de Material (ingestao-do-material, 6.0): sem ele abre "Materiais", `licencas` abre a aba Licenças e `cobertura`, a Cobertura da BNCC (classificacao-bncc, 13.0).
  * Só o valor de uma lista fechada vai ao endereço (regra 20, item 9).
  */
 export const ABA_DO_MATERIAL_PARAM = 'aba'
-export const ABAS_DO_MATERIAL = ['materiais', 'licencas'] as const
+export const ABAS_DO_MATERIAL = ['materiais', 'licencas', 'cobertura'] as const
 export type AbaDoMaterial = (typeof ABAS_DO_MATERIAL)[number]
 
 /** O endereço da aba Licenças de Material, **relativo à área**: é para onde o item `licenca-vencendo` do sino leva (6.0; RF17). */

@@ -2,12 +2,15 @@ import { IdPipe, RequirePermissao, ZodValidationPipe } from '@educa/core'
 import {
   atualizarMaterialRequestSchema,
   buscaDeMaterialQuerySchema,
+  coberturaQuerySchema,
   corrigirSecaoRequestSchema,
   materiaisQuerySchema,
   enviarMaterialRequestSchema,
   enviarEdicaoRequestSchema,
   type AtualizarMaterialRequest,
   type BuscaDeMaterialQuery,
+  type CoberturaQuery,
+  type CoberturaResponse,
   type CorrigirSecaoRequest,
   type MateriaisQuery,
   type EnviarEdicaoRequest,
@@ -111,6 +114,16 @@ export class MaterialController {
   @RequirePermissao('material', 'resumir')
   resumir(): Promise<ResumoDoMaterialResponse> {
     return this.materiais.resumir()
+  }
+
+  /**
+   * Declarada antes de `:id`, como o `resumo` e a `busca`: `cobertura` não é id de material (classificacao-bncc, 13.0; RF19). Só a coordenação, pela mesma célula do resumo (`material.resumir`): o professor, o aluno e a rede
+   * recebem `NAO_ENCONTRADO`. A série vem do contrato estrito da consulta, e a de outra escola responde o mesmo que a inexistente.
+   */
+  @Get('cobertura')
+  @RequirePermissao('material', 'resumir')
+  cobrir(@Query(new ZodValidationPipe(coberturaQuerySchema)) consulta: CoberturaQuery): Promise<CoberturaResponse> {
+    return this.materiais.cobertura(consulta)
   }
 
   /** Declarada antes de `:id`: `busca` não é id de material. */

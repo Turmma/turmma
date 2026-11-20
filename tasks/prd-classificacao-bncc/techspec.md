@@ -64,7 +64,7 @@ a volta para o código da F4 anterior à 9.0, que cumpre o check mas **lê** `ma
 | PUT | `/v1/materiais/:id/secoes/:secaoId/habilidades` | coordenação | `codigos[]` (0 a 5, sem repetir) | a seção |
 | POST | `/v1/materiais/:id/reclassificar` | coordenação | — | `202`, com quantas seções e quantas preservadas |
 | GET | `/v1/habilidades-bncc` | coordenação, professor | `materialId` ou `artefatoId` | as candidatas do recorte (até ~200) |
-| GET | `/v1/materiais/cobertura` | coordenação | `serieId` | por componente (área, no EM): `semMaterial[]`, `total`, `secoesSemClassificacao` |
+| GET | `/v1/materiais/cobertura` | coordenação | `serieId` | `serieId`, `etapa`, `materiaisEmUso` (quantos materiais em uso a série tem: zero é o vazio da tela), `classificacaoSuspensa` e `grupos[]`, um por componente (área, no EM): `chave`, `total`, `semMaterial[]` (`codigo`, `descricao`), `secoesSemClassificacao` |
 | PATCH | `/v1/disciplinas/:id` | coordenação | + `componenteBncc` (nulo apaga) | `Disciplina` |
 | PATCH | `/v1/artefatos/:id/questoes/:indice/habilidade` | professor | `codigo` ou `null` | `Artefato` |
 | GET | `/v1/artefatos/:id` | professor | — | + `secoesDasQuestoes[]` (uma posição por questão: o capítulo ou as páginas e as habilidades da seção **de agora**, com a `origem`; `null` sem seção) e `classificacaoSuspensa`, para a tela pôr o capítulo e as da seção primeiro na troca (11.0; sem `corrigida_por` nem `execucao_id`) |

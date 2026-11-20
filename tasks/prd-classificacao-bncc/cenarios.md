@@ -167,6 +167,7 @@ teste vermelho por um caso que rodou e falhou. Nenhum teste chama provedor: `Scr
 - [I] Excluído o único material de uma habilidade, ela aparece; licença vencida, `processando`, `falhou`, substituído e
   seção `aguardando` não cobrem, e a não classificada conta em `secoesSemClassificacao`
 - [I] `EF69LP01` num material só do 6º não cobre o 7º; no EM, por área
+- [I] `materiaisEmUso` conta só o material em uso da série (`pronto`, não excluído, de licença vigente, declarado para ela): zero é o vazio da tela, que convida a enviar
 
 ## Permissão e isolamento (RF20)
 
