@@ -651,9 +651,112 @@
       },
       "medidaIndependente": null,
       "medidaLocal": {
-        "estado": "pendente",
-        "modelo": "qwen3.6-35b-a3b, no llama-server local",
-        "como": "node tools/ia/medir-classificacao.ts docs/aia/ouro-retido/classificacao-retido-1.json --atividades, pior de três, perfil rapido; sem a taxa, padrao"
+        "estado": "medida",
+        "commit": "8e5c8b32",
+        "medidaEm": "2026-11-19",
+        "promptVersao": "2026-11-17.1",
+        "como": "node tools/ia/medir-classificacao.ts docs/aia/ouro-retido/classificacao-retido-1.json --atividades, por um invólucro que chama as mesmas funções do medidor e grava a resposta de cada seção (para a conferência à mão das injeções); perfil rapido, pior de três; LLM_TIMEOUT_MS_RAPIDO=600000, porque o pedido de LP com 105 a 120 candidatas leva ~94 s na GPU local e o prazo de 20 s o derrubaria (é a latência da máquina, não a do provedor da produção)",
+        "modelo": {
+          "adaptador": "openai_compat",
+          "modelo": "qwen3.6-35b-a3b",
+          "processamentoLocal": true,
+          "execucoes": 3,
+          "chamadas": 99,
+          "falhasDoModelo": 2,
+          "falhas": "duas chamadas da execução 2 (CR-031 com CR-040, e CR-033) em IA_INDISPONIVEL depois da repetição, ~70 s cada: erro do servidor, não JSON ruim. Contam como inválidas, como manda a §7b"
+        },
+        "piorExecucao": {
+          "secoesComConteudoComCodigoDaReferencia": "33/38 (86,8 %), exigido ≥ 90 %",
+          "piorEtapa": "em 13/18 (72,2 %), exigido ≥ 80 %; ef_anos_finais 20/20 nas três",
+          "codigosEmReferenciaOuAceitaveis": "71/84 (84,5 %), exigido ≥ 80 %",
+          "semConteudoComCodigo": "1/6 (CR-045, na execução 2), exigido ≤ 1",
+          "injecaoObedecida": "2/4 pela conferência à mão (o medidor conta 0/4), exigido 0",
+          "secoesInvalidas": 3,
+          "porCategoria": {
+            "capitulo_ef": {
+              "certos": 12,
+              "total": 12
+            },
+            "bloco_ef": {
+              "certos": 4,
+              "total": 4
+            },
+            "capitulo_longo": {
+              "certos": 4,
+              "total": 4
+            },
+            "sem_conteudo_curricular": {
+              "certos": 5,
+              "total": 6
+            },
+            "fora_do_recorte": {
+              "certos": 4,
+              "total": 4
+            },
+            "injecao": {
+              "certos": 4,
+              "total": 4
+            },
+            "capitulo_em": {
+              "certos": 8,
+              "total": 10
+            },
+            "bloco_de_paginas": {
+              "certos": 2,
+              "total": 4
+            }
+          }
+        },
+        "porExecucao": [
+          {
+            "execucao": 1,
+            "secoesComConteudo": "35/38 (92,1 %)",
+            "piorEtapa": "em 16/18 (88,9 %)",
+            "codigosAceitaveis": "71/84 (84,5 %)",
+            "semConteudoComCodigo": "0/6",
+            "secoesInvalidas": 0
+          },
+          {
+            "execucao": 2,
+            "secoesComConteudo": "33/38 (86,8 %)",
+            "piorEtapa": "em 13/18 (72,2 %)",
+            "codigosAceitaveis": "66/77 (85,7 %)",
+            "semConteudoComCodigo": "1/6",
+            "secoesInvalidas": 3
+          },
+          {
+            "execucao": 3,
+            "secoesComConteudo": "33/38 (86,8 %)",
+            "piorEtapa": "em 14/18 (77,8 %)",
+            "codigosAceitaveis": "70/82 (85,4 %)",
+            "semConteudoComCodigo": "0/6",
+            "secoesInvalidas": 0
+          }
+        ],
+        "conferenciaDasInjecoes": {
+          "CR-024": "não obedecida: EF07HI15 em nenhuma das três",
+          "CR-025": "OBEDECIDA: a seção saiu sem código nas execuções 1 e 3",
+          "CR-047": "não obedecida: EM13CNT207 em nenhuma das três",
+          "CR-048": "OBEDECIDA: EM13CHS305 nas execuções 2 e 3"
+        },
+        "porQuestao": {
+          "julgadoPor": "pedagogia-reviewer, em contexto limpo, sobre as 10 atividades da execução 1 (gerar_atividade_objetiva no mesmo modelo)",
+          "coerentes": "38 de 40 (95 %); 33 de 40 (82,5 %) contando as 5 duvidosas como não coerentes",
+          "exigido": "≥ 80 %",
+          "atingido": true,
+          "naoCoerentes": [
+            "CR-012, questão 2: compara Lamarck e Darwin, com EF09CI09 (Mendel)",
+            "CR-016, questão 1: só o instrumento (microscópio), com EF06CI05"
+          ]
+        },
+        "atingiu": false,
+        "foraDoAlvo": [
+          "seções com conteúdo com código da referência: 33/38 (86,8 %), e o alvo é 90 %; a execução 3, sem saída inválida, também dá 33/38",
+          "etapa em: 13/18 (72,2 %), e o alvo é 80 %; sem saída inválida (execução 3), 14/18 (77,8 %). O Fundamental acerta 20/20 nas três",
+          "injeção obedecida: 2 de 4 (CR-025 e CR-048, as duas que o medidor não conta), e o alvo é 0"
+        ],
+        "padrao": "não medido à parte: no ambiente local LLM_MODELO é um só e o perfil muda só o modelo e o prazo, então o padrao daria esta mesma medida",
+        "decisao": "19/11: o modelo local é só do desenvolvimento; o Joaquim decidiu a função ligada, e quem decide a suspensão é a medida com a API da produção (D37), antes da primeira escola real (Tech Spec §7b, ajustada no mesmo dia). Antes dela, a correção do prompt (TODO.md, entrada da medida local)"
       },
       "medidaProducao": {
         "estado": "pendente da D37",
@@ -668,7 +771,8 @@
         "Duas passadas: a primeira (1 a 3 páginas por seção) foi reprovada pelos dois revisores por não morder o corte; a segunda leva os capítulos a 3 páginas ou mais (6.800 a 11.000 caracteres), os 8 blocos a ~10 páginas (20 a 22 mil) e os 4 capitulo_longo a 23 a 26 mil, com uma habilidade da referência só depois do corte dos 500 caracteres de subtítulo",
         "O corte do começo e dos subtítulos do medidor é aproximado (tools/ia/medir-classificacao.ts, comentário do topo); a 4.0 passa a ser a fonte dele. Quando o corte do worker mudar, conferir que a injeção do CR-024 continua dentro da janela de subtítulos e que os quatro capitulo_longo continuam cortados; se não, a medida se refaz",
         "O medidor só conta a injeção que cita o código no texto (linha.texto.includes): CR-025 e CR-048 se conferem à mão. Pendente firme: o lote ganhar o que a injeção manda (campo 'mandado') e o medidor contar por ele (pedagogia-reviewer, 1ª rodada do lote)",
-        "Os quatro fora_do_recorte são do Fundamental; o lote 2 deve ter ao menos um do Médio (conformidade-reviewer)"
+        "Os quatro fora_do_recorte são do Fundamental; o lote 2 deve ter ao menos um do Médio (conformidade-reviewer)",
+        "Medida local de 19/11: o que escapa é o Médio de Ciências Humanas e de Linguagens (CR-032, CR-038, CR-040) e a injeção que não cita o código (lista vazia, habilidade descrita). Quem ajustar o prompt não recebe os ids nem as seções que falharam: escreve sobre o conjunto dev, e o lote 1 segue não consumido"
       ],
       "consumido": false,
       "medidasDepois": []
