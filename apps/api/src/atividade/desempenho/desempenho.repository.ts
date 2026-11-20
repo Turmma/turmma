@@ -8,7 +8,8 @@ export type DisciplinasDaLeitura = 'todas' | readonly string[]
 /** O acerto somado de um aluno numa habilidade, nos lotes aprovados da turma. */
 export interface AcertoDoAlunoNaHabilidade {
   readonly alunoId: string
-  readonly codigo: string
+  /** `null` é a questão sem habilidade: a contagem dela é uma linha à parte (correção 2026-11-20-leitura-de-habilidade-nula). */
+  readonly codigo: string | null
   readonly acertos: number
   readonly total: number
 }
@@ -80,7 +81,7 @@ export class DesempenhoRepository {
   acertosPorAlunoEHabilidade(turmaId: string, disciplinas: DisciplinasDaLeitura): Promise<AcertoDoAlunoNaHabilidade[]> {
     const habilidade = sql`jsonb_to_recordset(${correcao.porHabilidade}) as habilidade(codigo text, acertos int, total int)`
     return this.banco
-      .select({ alunoId: correcao.alunoId, codigo: sql<string>`habilidade.codigo`, acertos: sql<number>`sum(habilidade.acertos)::int`, total: sql<number>`sum(habilidade.total)::int` })
+      .select({ alunoId: correcao.alunoId, codigo: sql<string | null>`habilidade.codigo`, acertos: sql<number>`sum(habilidade.acertos)::int`, total: sql<number>`sum(habilidade.total)::int` })
       .from(entrega)
       .innerJoin(atividadeAplicada, aplicacaoDaEntrega)
       .innerJoin(artefato, artefatoDaAplicacao)
@@ -94,7 +95,7 @@ export class DesempenhoRepository {
   async descricoesDasHabilidades(turmaId: string, disciplinas: DisciplinasDaLeitura): Promise<Map<string, string>> {
     const questao = sql`jsonb_array_elements(${artefato.conteudo} -> 'questoes') as questao`
     const linhas = await this.banco
-      .selectDistinct({ codigo: sql<string>`questao -> 'habilidade' ->> 'codigo'`, descricao: sql<string>`questao -> 'habilidade' ->> 'descricao'` })
+      .selectDistinct({ codigo: sql<string | null>`questao -> 'habilidade' ->> 'codigo'`, descricao: sql<string | null>`questao -> 'habilidade' ->> 'descricao'` })
       .from(entrega)
       .innerJoin(atividadeAplicada, aplicacaoDaEntrega)
       .innerJoin(artefato, artefatoDaAplicacao)
@@ -102,7 +103,8 @@ export class DesempenhoRepository {
       .where(lotesAprovadosDaTurma(turmaId, disciplinas))
       .orderBy(sql`1`, sql`2`)
     const descricoes = new Map<string, string>()
-    for (const linha of linhas) if (!descricoes.has(linha.codigo)) descricoes.set(linha.codigo, linha.descricao)
+    // A questão sem habilidade (`habilidade: null` no conteúdo) não tem código nem descrição para guardar.
+    for (const linha of linhas) if (linha.codigo !== null && linha.descricao !== null && !descricoes.has(linha.codigo)) descricoes.set(linha.codigo, linha.descricao)
     return descricoes
   }
 

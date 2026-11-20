@@ -49,14 +49,17 @@ export function questaoDoReagenteLimitante(): ConteudoDeAtividade['questoes'][nu
 
 export function entradaDoTutor(duvida: string): TutorInput {
   const questao = questaoDoReagenteLimitante()
+  // A questão gerada de hoje sempre tem habilidade: o `null` é só o que a leitura aceita.
+  const habilidadeDaQuestao = questao.habilidade
+  if (habilidadeDaQuestao === null) throw new Error('a questão de teste deveria ter habilidade')
   return {
     duvida,
     contexto: { ...CONTEXTO_DE_QUIMICA },
     trechos: trechosDeEstequiometria(),
-    questao: { numero: 5, enunciado: questao.enunciado, alternativas: questao.alternativas, habilidade: questao.habilidade },
+    questao: { numero: 5, enunciado: questao.enunciado, alternativas: questao.alternativas, habilidade: habilidadeDaQuestao },
     memoria: [
-      { habilidade: questao.habilidade, acertos: 1, erros: 3 },
-      { habilidade: habilidades[0] ?? questao.habilidade, acertos: 4, erros: 0 },
+      { habilidade: habilidadeDaQuestao, acertos: 1, erros: 3 },
+      { habilidade: habilidades[0] ?? habilidadeDaQuestao, acertos: 4, erros: 0 },
     ],
     turnosAnteriores: [],
   }

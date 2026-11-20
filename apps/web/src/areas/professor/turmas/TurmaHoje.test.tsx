@@ -636,6 +636,21 @@ describe('Hoje: o acerto por habilidade é só de correção aprovada, em barra 
     expect(seNomes(textoDaPagina())).toEqual([])
   })
 
+  it('a questão sem habilidade (correção 2026-11-20-leitura-de-habilidade-nula) é uma barra com o rótulo "Sem habilidade", sem código, ao lado das que têm', async () => {
+    const rede = fakeNetwork()
+    instalar(rede, { desempenho: ok({ ...DESEMPENHO, porHabilidade: [...DESEMPENHO.porHabilidade, { habilidade: null, acertos: 3, total: 6, alunosAbaixoDaMetade: 2 }] }) })
+    montar()
+    const regiao = await screen.findByRole('region', { name: 'Acerto por habilidade' })
+    await waitFor(() => expect(regiao.textContent).toContain('QUI.EM.04'))
+    expect(regiao.textContent).toContain('Sem habilidade')
+    expect(regiao.textContent).toContain('3 de 6')
+    // A linha sem habilidade tem frase própria (não "desta habilidade"), e a barra dela não ganha código de habilidade.
+    expect(regiao.textContent).toContain('2 alunos acertaram menos da metade das questões sem habilidade nas atividades aprovadas.')
+    const barra = within(regiao).getByText('Sem habilidade').closest('div')
+    expect(barra?.textContent).not.toMatch(/[A-Z]{3}\.[A-Z]{2}\.\d+/)
+    expect(barra?.textContent).not.toContain('desta habilidade')
+  })
+
   it('só de correção aprovada: com `lotesAprovados` zero não há barra, e o vazio diz o que falta', async () => {
     const rede = fakeNetwork()
     instalar(rede, { desempenho: ok({ ...DESEMPENHO_VAZIO, porHabilidade: [] }) })

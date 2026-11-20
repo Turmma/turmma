@@ -43,7 +43,8 @@ export function problemasDasQuestoes(
     if (!citacaoVeioDosTrechos(questao.citacao, entrada.trechos)) {
       problemas.push(`${onde}: a citação aponta para a página ${questao.citacao.pagina}, que não está nos trechos recebidos. Cite só material e página que vieram nos dados.`)
     }
-    if (!codigos.has(questao.habilidade.codigo)) problemas.push(`${onde}: a habilidade precisa ser uma das recebidas, copiada como veio.`)
+    // A geração de hoje não grava questão sem habilidade (`null` é só o que a leitura aceita): a questão leva uma das recebidas.
+    if (questao.habilidade === null || !codigos.has(questao.habilidade.codigo)) problemas.push(`${onde}: a habilidade precisa ser uma das recebidas, copiada como veio.`)
     if (new Set(questao.alternativas.map(normalizar)).size !== questao.alternativas.length) problemas.push(`${onde}: as quatro alternativas precisam ser diferentes entre si.`)
     return problemas
   })

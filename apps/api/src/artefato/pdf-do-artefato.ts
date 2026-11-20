@@ -1,4 +1,4 @@
-import { ROTULOS_DA_ADAPTACAO, rotuloDaFonte, TITULO_DA_FONTE_SEM_LINHA, type Citacao, type ConteudoDeAtividade, type ConteudoDePlanoDeAula, type ConteudoDoArtefato, type FonteDoArtefato } from '@educa/shared'
+import { ROTULO_SEM_HABILIDADE, ROTULOS_DA_ADAPTACAO, rotuloDaFonte, TITULO_DA_FONTE_SEM_LINHA, type Citacao, type ConteudoDeAtividade, type ConteudoDePlanoDeAula, type ConteudoDoArtefato, type FonteDoArtefato } from '@educa/shared'
 import PDFDocument from 'pdfkit'
 
 /**
@@ -222,7 +222,7 @@ function escreverAtividade(folha: Folha, conteudo: ConteudoDeAtividade, fontes: 
     folha.escrever(`Versão adaptada: ${rotulos.join(', ')}.`, { ...doProfessor.corpo, depois: 12 })
   }
   conteudo.questoes.forEach((questao, indice) => {
-    folha.escrever(`${String(indice + 1)}. ${LETRAS[questao.gabarito] ?? '?'} — ${questao.habilidade.codigo}`, doProfessor.corpo)
+    folha.escrever(`${String(indice + 1)}. ${LETRAS[questao.gabarito] ?? '?'} — ${questao.habilidade?.codigo ?? ROTULO_SEM_HABILIDADE}`, doProfessor.corpo)
   })
 }
 
@@ -234,6 +234,8 @@ function escreverPlano(folha: Folha, conteudo: ConteudoDePlanoDeAula, fontes: Fo
   folha.escrever('Objetivos', estilos.secao)
   conteudo.objetivos.forEach((objetivo, indice) => folha.escrever(`• ${objetivo}`, { ...estilos.item, depois: indice === conteudo.objetivos.length - 1 ? 14 : 4 }))
   folha.escrever('Habilidades', estilos.secao)
+  // Plano sem habilidade (nenhuma seção citada tem): a seção diz isso, em vez de ficar sem item.
+  if (conteudo.habilidades.length === 0) folha.escrever(`• ${ROTULO_SEM_HABILIDADE}`, { ...estilos.item, depois: 14 })
   conteudo.habilidades.forEach((habilidade, indice) => folha.escrever(`• ${habilidade.codigo} — ${habilidade.descricao}`, { ...estilos.item, depois: indice === conteudo.habilidades.length - 1 ? 14 : 4 }))
   folha.escrever('Etapas', estilos.secao)
   conteudo.etapas.forEach((etapa, indice) => {

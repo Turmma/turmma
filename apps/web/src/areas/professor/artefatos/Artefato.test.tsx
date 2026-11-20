@@ -194,6 +194,45 @@ describe('o documento: os quatro estados', () => {
     expect(within(folha).getByText(EXPLICACAO)).toBeTruthy()
     expect(within(folha).getByText('Gabarito', { exact: true })).toBeTruthy()
   })
+
+  it('a questão sem habilidade (correção 2026-11-20-leitura-de-habilidade-nula) abre, e a folha diz "Sem habilidade" em vez de inventar um código', async () => {
+    const rede = fakeNetwork()
+    const semHabilidade = atividade(2, { conteudo: { tipo: 'atividade_objetiva', titulo: 'Atividade 2', questoes: [{ ...questao, habilidade: null }] } })
+    instalar(rede, { artefatos: [semHabilidade] })
+    montar(id(2))
+    const folha = await screen.findByRole('article', { name: 'Atividade 2' })
+    expect(within(folha).getByText('Sem habilidade')).toBeTruthy()
+    expect(within(folha).queryByText(/^Habilidade /)).toBeNull()
+  })
+
+  it('a questão com habilidade segue mostrando o código e o texto dela', async () => {
+    const rede = fakeNetwork()
+    instalar(rede, { artefatos: [atividade(1)] })
+    montar(id(1))
+    const folha = await screen.findByRole('article', { name: 'Atividade 1' })
+    expect(within(folha).getByText('Habilidade QUI.EM.04:')).toBeTruthy()
+    expect(within(folha).getByText('Usar a proporção da equação balanceada.')).toBeTruthy()
+  })
+
+  it('o plano sem habilidade (`habilidades: []`, correção 2026-11-20-leitura-de-habilidade-nula) abre, e a seção diz "Sem habilidade"; com habilidade, lista a dela', async () => {
+    const rede = fakeNetwork()
+    instalar(rede, { artefatos: [{ ...PLANO, conteudo: { ...PLANO.conteudo, habilidades: [] } }] })
+    montar(PLANO.id)
+    const folha = await screen.findByRole('article', { name: 'Plano de ondas' })
+    const secao = within(folha).getByRole('heading', { name: 'Habilidades' }).parentElement
+    expect(secao?.textContent).toContain('Sem habilidade')
+    expect(within(folha).queryByText(/FIS\.EM\.01/)).toBeNull()
+  })
+
+  it('o plano com habilidade lista o código e o texto, sem o rótulo de "sem habilidade"', async () => {
+    const rede = fakeNetwork()
+    instalar(rede, { artefatos: [PLANO] })
+    montar(PLANO.id)
+    const folha = await screen.findByRole('article', { name: 'Plano de ondas' })
+    const secao = within(folha).getByRole('heading', { name: 'Habilidades' }).parentElement
+    expect(secao?.textContent).toContain('FIS.EM.01')
+    expect(secao?.textContent).not.toContain('Sem habilidade')
+  })
 })
 
 describe('as fontes do artefato (ingestao-do-material, 10.0; RF11): o chip diz título, edição e "edição anterior"', () => {

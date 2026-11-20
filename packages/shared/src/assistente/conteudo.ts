@@ -24,6 +24,9 @@ export const habilidadeSchema = z.strictObject({
 })
 export type Habilidade = z.infer<typeof habilidadeSchema>
 
+/** O que as leituras mostram no lugar da habilidade da questão que não tem nenhuma (`habilidade: null`; correção 2026-11-20-leitura-de-habilidade-nula). */
+export const ROTULO_SEM_HABILIDADE = 'Sem habilidade'
+
 export const TIPOS_DE_ADAPTACAO = [
   'fonte_ampliada',
   'tempo_adicional',
@@ -57,7 +60,8 @@ export const questaoObjetivaSchema = z.strictObject({
   alternativas: z.array(z.string().min(1).max(400)).length(ALTERNATIVAS_POR_QUESTAO),
   /** Índice da alternativa correta, de 0 a 3. */
   gabarito: z.number().int().min(0).max(ALTERNATIVAS_POR_QUESTAO - 1),
-  habilidade: habilidadeSchema,
+  /** `null` é a questão sem habilidade da BNCC: a leitura a aceita (a geração de hoje não a grava). */
+  habilidade: habilidadeSchema.nullable(),
   citacao: citacaoSchema,
   /** Por que a alternativa é a correta: alimenta o relatório por questão. Nunca chega ao aluno antes da aprovação. */
   explicacao: z.string().min(1).max(600),
@@ -84,7 +88,8 @@ export const conteudoDePlanoDeAulaSchema = z.strictObject({
   tipo: z.literal('plano_de_aula'),
   titulo: z.string().min(1).max(160),
   objetivos: z.array(z.string().min(1).max(300)).min(1).max(6),
-  habilidades: z.array(habilidadeSchema).min(1).max(6),
+  /** Vazia quando nenhuma seção citada tem habilidade: a leitura a aceita (a geração de hoje não a grava). */
+  habilidades: z.array(habilidadeSchema).max(6),
   duracaoMinutos: z.number().int().min(10).max(240),
   etapas: z.array(etapaDoPlanoSchema).min(1).max(8),
   avaliacao: z.string().min(1).max(600),

@@ -47,14 +47,15 @@ export class DesempenhoService {
       const acertos = lotesAprovados === 0 ? [] : await desempenho.acertosPorAlunoEHabilidade(turmaId, disciplinas)
       const descricoes = lotesAprovados === 0 ? new Map<string, string>() : await desempenho.descricoesDasHabilidades(turmaId, disciplinas)
 
-      const habilidade = (codigo: string) => ({ codigo, descricao: descricoes.get(codigo) ?? codigo })
+      // `null` é a questão sem habilidade: a linha dela fica à parte, sem código nem descrição inventados e nunca somada à de uma habilidade.
+      const habilidade = (codigo: string | null) => (codigo === null ? null : { codigo, descricao: descricoes.get(codigo) ?? codigo })
       const daTurma = new Set(alunos.map((aluno) => aluno.alunoId))
-      const porAluno = new Map<string, Map<string, Soma>>()
-      const porHabilidade = new Map<string, Soma & { alunosAbaixoDaMetade: number }>()
+      const porAluno = new Map<string, Map<string | null, Soma>>()
+      const porHabilidade = new Map<string | null, Soma & { alunosAbaixoDaMetade: number }>()
       for (const linha of acertos) {
         // Quem saiu da turma não é mais aluno desta professora: o resultado dele sai do painel da turma (regra 20, item 5).
         if (!daTurma.has(linha.alunoId)) continue
-        const doAluno = porAluno.get(linha.alunoId) ?? new Map<string, Soma>()
+        const doAluno = porAluno.get(linha.alunoId) ?? new Map<string | null, Soma>()
         doAluno.set(linha.codigo, { acertos: linha.acertos, total: linha.total })
         porAluno.set(linha.alunoId, doAluno)
         const soma = porHabilidade.get(linha.codigo) ?? { acertos: 0, total: 0, alunosAbaixoDaMetade: 0 }
@@ -63,14 +64,15 @@ export class DesempenhoService {
         if (linha.acertos * 2 < linha.total) soma.alunosAbaixoDaMetade += 1
         porHabilidade.set(linha.codigo, soma)
       }
-      const codigos = [...porHabilidade.keys()].sort().slice(0, MAXIMO_DE_HABILIDADES_NO_DESEMPENHO)
+      // Na ordem do código, e a linha sem habilidade por último.
+      const codigos = [...porHabilidade.keys()].sort((a, b) => (a === b ? 0 : a === null ? 1 : b === null ? -1 : a < b ? -1 : 1)).slice(0, MAXIMO_DE_HABILIDADES_NO_DESEMPENHO)
 
       const montada = {
         turmaId,
         lotesAprovados,
         porHabilidade: codigos.map((codigo) => ({ habilidade: habilidade(codigo), ...(porHabilidade.get(codigo) ?? { acertos: 0, total: 1, alunosAbaixoDaMetade: 0 }) })),
         alunos: alunos.map((aluno) => {
-          const doAluno = porAluno.get(aluno.alunoId) ?? new Map<string, Soma>()
+          const doAluno = porAluno.get(aluno.alunoId) ?? new Map<string | null, Soma>()
           const partes = codigos.flatMap((codigo) => {
             const soma = doAluno.get(codigo)
             return soma === undefined ? [] : [{ habilidade: habilidade(codigo), acertos: soma.acertos, total: soma.total }]

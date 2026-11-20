@@ -23,10 +23,13 @@ export interface DadosDoLote {
 
 const SEM_RESPOSTAS: RespostasDaTentativa = new Map()
 
-/** A descrição de cada habilidade da atividade, pelo código: o diagnóstico gravado só tem o código. */
-export function habilidadesDaAtividade(questoes: readonly QuestaoObjetiva[]): Map<string, Habilidade> {
-  const habilidades = new Map<string, Habilidade>()
-  for (const questao of questoes) if (!habilidades.has(questao.habilidade.codigo)) habilidades.set(questao.habilidade.codigo, questao.habilidade)
+/**
+ * A descrição de cada habilidade da atividade, pelo código: o diagnóstico gravado só tem o código. A questão sem habilidade
+ * entra com a chave e o valor `null`: é a linha à parte do diagnóstico, na ordem em que aparece na atividade.
+ */
+export function habilidadesDaAtividade(questoes: readonly QuestaoObjetiva[]): Map<string | null, Habilidade | null> {
+  const habilidades = new Map<string | null, Habilidade | null>()
+  for (const { habilidade } of questoes) if (!habilidades.has(habilidade?.codigo ?? null)) habilidades.set(habilidade?.codigo ?? null, habilidade)
   return habilidades
 }
 
@@ -46,7 +49,7 @@ export function habilidadesDaAtividade(questoes: readonly QuestaoObjetiva[]): Ma
 export function resumoDoLote({ questoes, alunosDaTurma, correcoes, respostas }: DadosDoLote): ResumoDoLote {
   const somaDeAcertos = correcoes.reduce((soma, correcao) => soma + correcao.acertos, 0)
   const habilidades = habilidadesDaAtividade(questoes)
-  const porHabilidade = new Map<string, { acertos: number; total: number }>()
+  const porHabilidade = new Map<string | null, { acertos: number; total: number }>()
   for (const correcao of correcoes) {
     for (const parte of correcao.porHabilidade) {
       const soma = porHabilidade.get(parte.codigo) ?? { acertos: 0, total: 0 }
@@ -63,7 +66,7 @@ export function resumoDoLote({ questoes, alunosDaTurma, correcoes, respostas }: 
     distribuicao: Array.from({ length: questoes.length + 1 }, (_, acertos) => ({ de: acertos, ate: acertos, alunos: correcoes.filter((correcao) => correcao.acertos === acertos).length })),
     // Na ordem em que a habilidade aparece na atividade. A que não é da atividade (não acontece: o artefato não muda) fica de fora.
     porHabilidade: [...habilidades.values()].flatMap((habilidade) => {
-      const soma = porHabilidade.get(habilidade.codigo)
+      const soma = porHabilidade.get(habilidade?.codigo ?? null)
       return soma === undefined ? [] : [{ habilidade, acertos: soma.acertos, total: soma.total }]
     }),
     porQuestao: questoes.map((questao, indice) => {

@@ -156,7 +156,8 @@ export type AtividadeEnviadaResponse = z.infer<typeof atividadeEnviadaResponseSc
 
 /** O acerto numa habilidade: quantas questões dela o aluno acertou, de quantas. Contagem, não nota (D46). */
 export const acertoPorHabilidadeSchema = z.strictObject({
-  habilidade: habilidadeSchema,
+  /** `null` é a questão sem habilidade: a contagem dela é uma linha à parte, nunca somada à de uma habilidade. */
+  habilidade: habilidadeSchema.nullable(),
   acertos: z.number().int().nonnegative(),
   total: z.number().int().min(1),
 })

@@ -1,4 +1,4 @@
-import type { AlunoDaTurma, DesempenhoDaTurmaResponse } from '@educa/shared'
+import { ROTULO_SEM_HABILIDADE, type AlunoDaTurma, type DesempenhoDaTurmaResponse } from '@educa/shared'
 
 /**
  * O que a aba Alunos decide sem tocar a rede (telas do professor, 12.0; RF18, RF21): a ordem de nome, a junção da lista de nomes
@@ -78,5 +78,5 @@ export function textoDosAcertos(linha: AlunoRow, leitura: LeituraDosAcertos): st
 export function textoPorHabilidade(linha: AlunoRow): string {
   const itens = linha.desempenho?.porHabilidade ?? []
   if (itens.length === 0) return TEXTO_SEM_HABILIDADE
-  return itens.map((item) => `${item.habilidade.codigo}: ${String(item.acertos)} de ${String(item.total)}`).join(' · ')
+  return itens.map((item) => `${item.habilidade?.codigo ?? ROTULO_SEM_HABILIDADE}: ${String(item.acertos)} de ${String(item.total)}`).join(' · ')
 }

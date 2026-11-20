@@ -21,7 +21,18 @@ function janelaDe(largura: number): void {
   }))
 }
 
-beforeEach(() => janelaDe(1366))
+beforeEach(() => {
+  janelaDe(1366)
+  // O `jsdom` não implementa o `dialog` modal: o teste instala o `showModal` e o `close`.
+  HTMLDialogElement.prototype.showModal = function showModal(this: HTMLDialogElement) {
+    this.setAttribute('open', '')
+  }
+  HTMLDialogElement.prototype.close = function close(this: HTMLDialogElement) {
+    if (!this.hasAttribute('open')) return
+    this.removeAttribute('open')
+    this.dispatchEvent(new Event('close'))
+  }
+})
 
 const id = (n: number) => `0197a1c0-0000-7000-8000-${String(n).padStart(12, '0')}`
 const SERIE = { id: id(200), etapa: 'ef_anos_finais', ano: 7 }
@@ -44,6 +55,52 @@ const SEM_RESUMO: FakeResponse = { status: 200, corpo: { resumo: null } }
 const botoes = (nome: string) => screen.queryAllByRole('button', { name: nome })
 
 describe('o Analista: os estados', () => {
+  it('a questão sem habilidade (correção 2026-11-20-leitura-de-habilidade-nula) entra no recorte como "Sem habilidade", sem código, depois da que tem', async () => {
+    const rede = fakeNetwork()
+    const recorte = CONTEUDO.recortes[0]
+    rede.responderPor('/v1/analista/resumo', resumoComConteudo({ ...CONTEUDO, recortes: [{ ...recorte, porHabilidade: [...(recorte?.porHabilidade ?? []), { habilidade: null, acertos: 5, total: 10 }] }] }))
+    renderScreen(<Analista />)
+    const regiao = await screen.findByRole('region', { name: /Matemática/ })
+    expect(regiao.textContent).toContain('Resolver problemas com números inteiros')
+    expect(regiao.textContent).toContain('EF07MA01')
+    expect(regiao.textContent).toContain('Sem habilidade')
+    expect(regiao.textContent).toContain('5 de 10')
+  })
+
+  it('o dado nominal da turma (correção 2026-11-20-leitura-de-habilidade-nula) mostra a linha sem habilidade como "Sem habilidade", sem código, depois da que tem', async () => {
+    const usuario = userEvent.setup()
+    const rede = fakeNetwork()
+    const turma = { id: id(300), anoLetivoId: id(301), nome: '7º A', turno: null, serie: SERIE }
+    rede.responderPor('/v1/analista/resumo', SEM_RESUMO)
+    rede.responderPor('/v1/turmas', { status: 200, corpo: { itens: [turma] } })
+    rede.responderPor(/^\/v1\/analista\/nominal\?/, {
+      status: 200,
+      corpo: {
+        turma: { id: turma.id, nome: turma.nome, serie: SERIE },
+        professores: [{ id: id(400), nome: 'Professora Sintética', disciplina: MATEMATICA }],
+        lotesAprovados: 2,
+        porHabilidade: [
+          { habilidade: HABILIDADE, acertos: 15, total: 30 },
+          { habilidade: null, acertos: 5, total: 10 },
+        ],
+        sinais: { travou: 0, resposta_pronta: 0, duvida_repetida: 0 },
+      },
+    })
+    renderScreen(<Analista />)
+    await usuario.click(await screen.findByRole('button', { name: 'Abrir dado nominal de uma turma' }))
+    const dialogo = await screen.findByRole('alertdialog')
+    await usuario.selectOptions(await within(dialogo).findByLabelText(/Turma/), turma.id)
+    await usuario.selectOptions(within(dialogo).getByLabelText(/Finalidade/), 'apoio_a_aluno_em_risco')
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Abrir dado nominal' }))
+    const regiao = await screen.findByRole('region', { name: 'Dado nominal da turma 7º A' })
+    expect(regiao.textContent).toContain('Resolver problemas com números inteiros')
+    expect(regiao.textContent).toContain('EF07MA01')
+    expect(regiao.textContent).toContain('Sem habilidade')
+    expect(regiao.textContent).toContain('5 de 10')
+    // A linha sem habilidade não ganha código: só uma barra tem o detalhe do código.
+    expect(regiao.textContent?.match(/EF07MA\d+/gu)).toEqual(['EF07MA01'])
+  })
+
   it('carregando: só o aviso de leitura, e nenhum dos três vazios de dentro enquanto a leitura não terminou', async () => {
     const rede = fakeNetwork()
     const lida = rede.segurar()

@@ -33,6 +33,9 @@ export function citacoesDoConteudo(conteudo: ConteudoDoArtefato): Citacao[] {
   return [...conteudo.citacoes, ...conteudo.etapas.flatMap((etapa) => (etapa.citacao === undefined ? [] : [etapa.citacao]))]
 }
 
+/** A mesma habilidade, ou nenhuma nas duas: a questão sem habilidade continua sem ela na versão adaptada. */
+const mesmaHabilidade = (a: Habilidade | null, b: Habilidade | null): boolean => a?.codigo === b?.codigo && a?.descricao === b?.descricao
+
 const mesmosTipos = (a: readonly string[], b: readonly string[]): boolean => [...a].sort().join(',') === [...b].sort().join(',')
 
 /**
@@ -50,8 +53,7 @@ export function exigirAdaptacaoFiel(original: ConteudoDeAtividade, adaptada: Con
         origem !== undefined &&
         questao.gabarito === origem.gabarito &&
         questao.alternativas.length === origem.alternativas.length &&
-        questao.habilidade.codigo === origem.habilidade.codigo &&
-        questao.habilidade.descricao === origem.habilidade.descricao &&
+        mesmaHabilidade(questao.habilidade, origem.habilidade) &&
         questao.citacao.materialId === origem.citacao.materialId &&
         questao.citacao.pagina === origem.citacao.pagina &&
         questao.citacao.trecho === origem.citacao.trecho

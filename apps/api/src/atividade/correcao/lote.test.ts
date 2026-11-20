@@ -8,8 +8,8 @@ const ANA = '018f4e2a-7b1c-7d3e-9a4b-00000000000a'
 const BIA = '018f4e2a-7b1c-7d3e-9a4b-00000000000b'
 const CAIO = '018f4e2a-7b1c-7d3e-9a4b-00000000000c'
 
-function questao(gabarito: number, codigo: string): QuestaoObjetiva {
-  return { enunciado: 'Enunciado sintético', alternativas: ['a', 'b', 'c', 'd'], gabarito, habilidade: { codigo, descricao: `Habilidade ${codigo}` }, citacao: { materialId: MATERIAL, pagina: 1, trecho: 'trecho' }, explicacao: 'explicação' }
+function questao(gabarito: number, codigo: string | null): QuestaoObjetiva {
+  return { enunciado: 'Enunciado sintético', alternativas: ['a', 'b', 'c', 'd'], gabarito, habilidade: codigo === null ? null : { codigo, descricao: `Habilidade ${codigo}` }, citacao: { materialId: MATERIAL, pagina: 1, trecho: 'trecho' }, explicacao: 'explicação' }
 }
 
 const QUESTOES = [questao(0, 'QUI.EM.05'), questao(1, 'QUI.EM.05'), questao(2, 'QUI.EM.06')]
@@ -21,6 +21,33 @@ function dados(tentativas: Record<string, (number | null)[]>, destaques: Record<
   const correcoes = [...respostas].map(([alunoId, marcadas]) => ({ alunoId, ...corrigirTentativa(QUESTOES, marcadas), destaques: destaques[alunoId] ?? [], destaqueAbertoEm: null }))
   return { questoes: QUESTOES, alunosDaTurma, correcoes, respostas }
 }
+
+describe('resumo do lote com questão sem habilidade (correção 2026-11-20-leitura-de-habilidade-nula)', () => {
+  it('a linha sem habilidade soma as questões de todos os alunos, vem na ordem em que aparece na atividade e não toca a de nenhum código', () => {
+    const questoes = [questao(0, 'EM13CNT101'), questao(1, null), questao(2, null)]
+    const respostas = new Map<string, RespostasDaTentativa>([
+      [ANA, new Map([[1, 0], [2, 1], [3, 2]])],
+      [BIA, new Map([[1, 3], [2, 1], [3, 0]])],
+    ])
+    const correcoes = [...respostas].map(([alunoId, marcadas]) => ({ alunoId, ...corrigirTentativa(questoes, marcadas), destaques: [], destaqueAbertoEm: null }))
+    const resumo = resumoDoLote({ questoes, alunosDaTurma: 2, correcoes, respostas })
+    expect(resumo.porHabilidade).toEqual([
+      { habilidade: questoes[0]?.habilidade, acertos: 1, total: 2 },
+      { habilidade: null, acertos: 3, total: 4 },
+    ])
+    expect(resumo.porQuestao.map((linha) => linha.habilidade?.codigo ?? null)).toEqual(['EM13CNT101', null, null])
+  })
+})
+
+describe('a ordem da linha sem habilidade no resumo do lote (correção 2026-11-20-leitura-de-habilidade-nula)', () => {
+  it('segue a ordem da atividade, e não vai para o fim: com a questão 1 sem habilidade, ela vem primeiro', () => {
+    const questoes = [questao(0, null), questao(1, 'EM13CNT101'), questao(2, 'EM13CNT102')]
+    const respostas = new Map<string, RespostasDaTentativa>([[ANA, new Map([[1, 0], [2, 1], [3, 3]])]])
+    const correcoes = [...respostas].map(([alunoId, marcadas]) => ({ alunoId, ...corrigirTentativa(questoes, marcadas), destaques: [], destaqueAbertoEm: null }))
+    const resumo = resumoDoLote({ questoes, alunosDaTurma: 1, correcoes, respostas })
+    expect(resumo.porHabilidade.map((linha) => [linha.habilidade?.codigo ?? null, linha.acertos, linha.total])).toEqual([[null, 1, 1], ['EM13CNT101', 1, 1], ['EM13CNT102', 0, 1]])
+  })
+})
 
 describe('resumo do lote', () => {
   const lote = dados({ [ANA]: [0, 1, 2], [BIA]: [0, 3, null], [CAIO]: [null, null, null] })

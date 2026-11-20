@@ -1,4 +1,4 @@
-import type { Citacao, ConteudoDoArtefato as Conteudo, ConteudoDeAtividade, ConteudoDePlanoDeAula } from '@educa/shared'
+import { ROTULO_SEM_HABILIDADE, type Citacao, type ConteudoDoArtefato as Conteudo, type ConteudoDeAtividade, type ConteudoDePlanoDeAula } from '@educa/shared'
 import { Check } from 'lucide-react'
 import { CitationChip } from '../../../components/ui/ai/CitationChip'
 import { Sources } from '../../../components/ui/ai/Sources'
@@ -68,8 +68,14 @@ function Atividade({ conteudo, materiais, resumido, comGabarito }: { conteudo: C
                     </p>
                   )}
                   <p className="min-w-0 text-sm break-words text-sutil">
-                    <span className="font-medium">Habilidade {questao.habilidade.codigo}: </span>
-                    {questao.habilidade.descricao}
+                    {questao.habilidade === null ? (
+                      <span className="font-medium">{ROTULO_SEM_HABILIDADE}</span>
+                    ) : (
+                      <>
+                        <span className="font-medium">Habilidade {questao.habilidade.codigo}: </span>
+                        {questao.habilidade.descricao}
+                      </>
+                    )}
                   </p>
                 </>
               )}
@@ -131,6 +137,7 @@ function Plano({ conteudo, materiais, resumido }: { conteudo: ConteudoDePlanoDeA
           <section className="flex min-w-0 flex-col gap-1.5">
             <h3 className="text-base font-semibold text-tinta">Habilidades</h3>
             <ul className="flex min-w-0 flex-col gap-1 text-sm text-sutil">
+              {conteudo.habilidades.length === 0 && <li className="break-words">{ROTULO_SEM_HABILIDADE}</li>}
               {conteudo.habilidades.map((habilidade) => (
                 <li key={habilidade.codigo} className="break-words">
                   <span className="font-medium">{habilidade.codigo}: </span>

@@ -261,13 +261,13 @@ const ENVIADA_EM = '2026-10-22T13:30:00.000Z'
 const respostaDe = (questaoNumero: number, alternativa: number) => ({ questao: questaoNumero, alternativa, sequencia: 1 })
 const DUAS_RESPONDIDAS = [respostaDe(1, 1), respostaDe(2, 0)]
 
-function diagnosticoDe(atividadeAplicadaId: string): FakeResponse {
+function diagnosticoDe(atividadeAplicadaId: string, habilidade: MeuDiagnosticoResponse['porHabilidade'][number]['habilidade'] = { codigo: 'QUI.EM.05', descricao: 'Calcular a massa molar de uma substância' }): FakeResponse {
   const corpo: MeuDiagnosticoResponse = {
     atividadeAplicadaId,
     titulo: 'Lista sintética',
     acertos: 2,
     total: 3,
-    porHabilidade: [{ habilidade: { codigo: 'QUI.EM.05', descricao: 'Calcular a massa molar de uma substância' }, acertos: 2, total: 3 }],
+    porHabilidade: [{ habilidade, acertos: 2, total: 3 }],
     questoes: [{ numero: 1, alternativa: 1, gabarito: 1, correta: true, explicacao: 'Porque sim.', citacao: { materialId: '0190f5a0-0000-7000-8000-0000000000b1', pagina: 3, trecho: 'Trecho sintético.' } }],
     aprovadoPor: { nome: 'Professora Sintética' },
     aprovadoEm: '2026-10-22T15:00:00.000Z',
@@ -371,6 +371,17 @@ describe('a comemoração do envio (X4, 6.0; RF8; D59)', () => {
     montar(id)
     await screen.findByRole('region', { name: 'Seu resultado' })
     expect(comemoracoes()).toHaveLength(0)
+  })
+
+  it('a questão sem habilidade (correção 2026-11-20-leitura-de-habilidade-nula) entra no resultado da aluna como "Sem habilidade", sem texto de habilidade inventado', async () => {
+    const id = idDaAtividade(15)
+    const rede = fakeNetwork()
+    rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id, DUAS_RESPONDIDAS, { enviadaEm: ENVIADA_EM }))
+    rede.responderPor(`/v1/atividades-aplicadas/${id}/meu-diagnostico`, diagnosticoDe(id, null))
+    montar(id)
+    const resultado = await screen.findByRole('region', { name: 'Seu resultado' })
+    expect(within(resultado).getByText('Sem habilidade')).toBeTruthy()
+    expect(within(resultado).queryByText('Calcular a massa molar de uma substância')).toBeNull()
   })
 
   it('a lista "Questão por questão" rola por dentro e ganha foco só a partir de 1024 px; abaixo disso a página é que rola', async () => {

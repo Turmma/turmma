@@ -96,7 +96,7 @@ export const adaptarAtividade = defineTask({
       if (adaptada === undefined) return
       const onde = `Questão ${indice + 1}`
       if (adaptada.gabarito !== original.gabarito) problemas.push(`${onde}: o gabarito e a ordem das alternativas não mudam na adaptação.`)
-      if (adaptada.habilidade.codigo !== original.habilidade.codigo) problemas.push(`${onde}: a habilidade é a da questão original, copiada como veio.`)
+      if (adaptada.habilidade?.codigo !== original.habilidade?.codigo) problemas.push(`${onde}: a habilidade é a da questão original, copiada como veio.`)
       if (adaptada.citacao.materialId !== original.citacao.materialId || adaptada.citacao.pagina !== original.citacao.pagina || adaptada.citacao.trecho !== original.citacao.trecho) {
         problemas.push(`${onde}: a citação é a da questão original, copiada como veio.`)
       }

@@ -118,7 +118,8 @@ export const gerarPlanoDeAula = defineTask({
       else problemas.push(...problemasDasCitacoes([etapa.citacao], entrada.trechos, `Etapa ${indice + 1}`))
     })
     const codigos = new Set(entrada.habilidades.map((habilidade) => habilidade.codigo))
-    if (saida.habilidades.some((habilidade) => !codigos.has(habilidade.codigo))) problemas.push('As habilidades do plano precisam ser das recebidas, copiadas como vieram.')
+    // A geração de hoje não grava plano sem habilidade (`[]` é só o que a leitura aceita).
+    if (saida.habilidades.length === 0 || saida.habilidades.some((habilidade) => !codigos.has(habilidade.codigo))) problemas.push('As habilidades do plano precisam ser das recebidas, copiadas como vieram.')
     const soma = saida.etapas.reduce((total, etapa) => total + etapa.minutos, 0)
     if (soma > entrada.duracaoMinutos) problemas.push(`As etapas somam ${soma} minutos, e a aula tem ${entrada.duracaoMinutos}. A soma não pode passar da duração.`)
     if (saida.duracaoMinutos !== entrada.duracaoMinutos) problemas.push(`"duracaoMinutos" precisa ser a duração pedida: ${entrada.duracaoMinutos}.`)

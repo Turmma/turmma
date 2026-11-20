@@ -1,4 +1,4 @@
-import type { Sinal, UsoDoAluno } from '@educa/shared'
+import { ROTULO_SEM_HABILIDADE, type Sinal, type UsoDoAluno } from '@educa/shared'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { ChartNoAxesColumn, ChevronRight, HeartHandshake } from 'lucide-react'
 import { useEffect, useId, useRef } from 'react'
@@ -44,6 +44,9 @@ const INTERVALO_DOS_SINAIS_MS = 15_000
 
 type SinalDeAtencao = Extract<Sinal, { tipo: 'atencao_humana' }>
 type SinalDeTrabalho = Exclude<Sinal, { tipo: 'atencao_humana' }>
+
+/** De que questões o número fala: as da habilidade, ou, na linha sem habilidade, as que não têm (a frase não diz "desta habilidade" de quem não tem). */
+const questoesDaHabilidade = (habilidade: object | null): string => (habilidade === null ? 'questões sem habilidade' : 'questões desta habilidade')
 
 /**
  * A aba Hoje da turma aberta (`docs/interface.md` 11.1; D8, D34, D36, D46, D47; regra 20, item 14; regra 50, item 10;
@@ -260,16 +263,16 @@ export default function TurmaHoje({ turmaId, aoPerderATurma }: { turmaId: string
           <div className="flex min-w-0 flex-col gap-3 rounded-cartao border border-linha bg-superficie p-4">
             {dados.porHabilidade.map((item) => (
               <ProgressBar
-                key={item.habilidade.codigo}
-                rotulo={`${item.habilidade.codigo} · ${item.habilidade.descricao}`}
+                key={item.habilidade?.codigo ?? 'sem-habilidade'}
+                rotulo={item.habilidade === null ? ROTULO_SEM_HABILIDADE : `${item.habilidade.codigo} · ${item.habilidade.descricao}`}
                 valor={item.acertos}
                 maximo={item.total}
                 texto={`${String(item.acertos)} de ${String(item.total)}`}
                 // De onde vem o número: a metade é o limiar provisório (os limiares são decisão em aberto), e a tela diz qual é.
                 detalhe={
                   item.alunosAbaixoDaMetade === 0
-                    ? 'Nenhum aluno acertou menos da metade das questões desta habilidade nas atividades aprovadas.'
-                    : `${textoDeAlunos(item.alunosAbaixoDaMetade)} ${item.alunosAbaixoDaMetade === 1 ? 'acertou' : 'acertaram'} menos da metade das questões desta habilidade nas atividades aprovadas.`
+                    ? `Nenhum aluno acertou menos da metade das ${questoesDaHabilidade(item.habilidade)} nas atividades aprovadas.`
+                    : `${textoDeAlunos(item.alunosAbaixoDaMetade)} ${item.alunosAbaixoDaMetade === 1 ? 'acertou' : 'acertaram'} menos da metade das ${questoesDaHabilidade(item.habilidade)} nas atividades aprovadas.`
                 }
               />
             ))}

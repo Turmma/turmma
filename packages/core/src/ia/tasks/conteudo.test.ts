@@ -59,15 +59,15 @@ describe('gerar_atividade_objetiva, versão determinística', () => {
       expect(questao.citacao.materialId).toBe(MATERIAL_DE_ESTEQUIOMETRIA)
       expect(textoDaPagina(questao.citacao.pagina)).toContain(questao.citacao.trecho)
       expect(questao.explicacao).toContain(`página ${questao.citacao.pagina}`)
-      expect(codigos).toContain(questao.habilidade.codigo)
+      expect(codigos).toContain(questao.habilidade?.codigo)
     }
   })
 
   it('espalha as questões pelas páginas antes de repetir assunto, e a habilidade acompanha o assunto da página', () => {
     const { questoes } = atividadeDeEstequiometria()
     expect(questoes.map((questao) => questao.citacao.pagina)).toEqual([1, 2, 3, 4, 5, 6])
-    expect(questoes.find((questao) => questao.citacao.pagina === 5)?.habilidade.codigo).toBe('EM13CNT301')
-    expect(questoes.find((questao) => questao.citacao.pagina === 2)?.habilidade.codigo).toBe('EM13CNT104')
+    expect(questoes.find((questao) => questao.citacao.pagina === 5)?.habilidade?.codigo).toBe('EM13CNT301')
+    expect(questoes.find((questao) => questao.citacao.pagina === 2)?.habilidade?.codigo).toBe('EM13CNT104')
   })
 
   it('a posição da correta varia entre as questões, sem ser sempre a mesma letra', () => {
@@ -145,6 +145,8 @@ describe('gerar_atividade_objetiva, conferência da saída de qualquer modelo', 
 
   it('habilidade fora da entrada, alternativa repetida, questão a mais e campo de adaptação são recusados', () => {
     expect(gerarAtividadeObjetiva.conferir?.(entrada, comPrimeira({ habilidade: { codigo: 'EF09CI99', descricao: 'inventada' } }))).toHaveLength(1)
+    // A leitura aceita `habilidade: null`, mas a geração de hoje não a grava: a questão do modelo sem habilidade é recusada.
+    expect(gerarAtividadeObjetiva.conferir?.(entrada, comPrimeira({ habilidade: null }))).toEqual(['Questão 1: a habilidade precisa ser uma das recebidas, copiada como veio.'])
     expect(gerarAtividadeObjetiva.conferir?.(entrada, comPrimeira({ alternativas: ['a mesma', 'A Mesma', 'outra', 'mais uma'] }))).toHaveLength(1)
     expect(gerarAtividadeObjetiva.conferir?.({ ...entrada, quantidade: 5 }, boa)).toHaveLength(1)
     expect(gerarAtividadeObjetiva.conferir?.(entrada, { ...boa, adaptacao: { tipos: ['fonte_ampliada'] } })).toHaveLength(1)
@@ -198,6 +200,9 @@ describe('gerar_plano_de_aula', () => {
     expect(gerarPlanoDeAula.conferir?.(entrada, comPrimeiraEtapa((etapa) => ({ ...etapa, citacao: { materialId: MATERIAL_DE_ESTEQUIOMETRIA, pagina: 77, trecho: 'x' } })))).toHaveLength(1)
     expect(gerarPlanoDeAula.conferir?.(entrada, comPrimeiraEtapa((etapa) => ({ ...etapa, minutos: etapa.minutos + 1 })))).toHaveLength(1)
     expect(gerarPlanoDeAula.conferir?.(entrada, { ...bom, habilidades: [{ codigo: 'EF09CI99', descricao: 'inventada' }] })).toHaveLength(1)
+    // A leitura aceita o plano sem habilidade (`[]`), mas a geração de hoje não o grava.
+    expect(gerarPlanoDeAula.esquemaDeSaida.safeParse({ ...bom, habilidades: [] }).success).toBe(true)
+    expect(gerarPlanoDeAula.conferir?.(entrada, { ...bom, habilidades: [] })).toEqual(['As habilidades do plano precisam ser das recebidas, copiadas como vieram.'])
     expect(gerarPlanoDeAula.conferir?.(entrada, { ...bom, citacoes: [{ materialId: MATERIAL_DE_ESTEQUIOMETRIA, pagina: 77, trecho: 'x' }] })).toHaveLength(1)
   })
 
@@ -288,10 +293,23 @@ describe('adaptar_atividade', () => {
     expect(adaptarAtividade.conferir?.(entrada, comPrimeira({ gabarito: (primeira.gabarito + 1) % 4 }))).toEqual(['Questão 1: o gabarito e a ordem das alternativas não mudam na adaptação.'])
     expect(adaptarAtividade.conferir?.(entrada, comPrimeira({ citacao: { ...primeira.citacao, pagina: primeira.citacao.pagina + 1 } }))).toHaveLength(1)
     expect(adaptarAtividade.conferir?.(entrada, comPrimeira({ habilidade: { codigo: 'EF09CI99', descricao: 'outra' } }))).toHaveLength(1)
+    // A questão que perdeu a habilidade (virou `null`) também é outra habilidade.
+    expect(adaptarAtividade.conferir?.(entrada, comPrimeira({ habilidade: null }))).toEqual(['Questão 1: a habilidade é a da questão original, copiada como veio.'])
     expect(adaptarAtividade.conferir?.(entrada, { ...boa, questoes: boa.questoes.slice(1) }).length).toBeGreaterThan(0)
     expect(adaptarAtividade.conferir?.(entrada, { ...boa, adaptacao: { tipos: ['fonte_ampliada'] } })).toHaveLength(1)
     const { adaptacao: _adaptacao, ...semAdaptacao } = boa
     expect(adaptarAtividade.conferir?.(entrada, semAdaptacao)).toHaveLength(1)
+  })
+
+  it('a questão sem habilidade continua sem ela na versão adaptada, e a adaptação não dá habilidade a quem não tinha', () => {
+    const base = entradaDeAdaptacao()
+    const semHabilidade = { ...base, conteudo: { ...base.conteudo, questoes: base.conteudo.questoes.map((questao, indice) => (indice === 0 ? { ...questao, habilidade: null } : questao)) } }
+    const adaptada = adaptarAtividade.falso(semHabilidade)
+    expect(adaptada.questoes[0]?.habilidade).toBeNull()
+    expect(adaptarAtividade.esquemaDeEntrada.safeParse(semHabilidade).success).toBe(true)
+    expect(adaptarAtividade.conferir?.(semHabilidade, adaptada)).toEqual([])
+    const comHabilidadeNova: ConteudoDeAtividade = { ...adaptada, questoes: adaptada.questoes.map((questao, indice) => (indice === 0 ? { ...questao, habilidade: { codigo: 'EM13CNT101', descricao: 'Inventada.' } } : questao)) }
+    expect(adaptarAtividade.conferir?.(semHabilidade, comHabilidadeNova)).toEqual(['Questão 1: a habilidade é a da questão original, copiada como veio.'])
   })
 
   it('pelo provedor, o gasto é da função de adaptação e a saída de um modelo que troca o gabarito duas vezes não é entregue', async () => {

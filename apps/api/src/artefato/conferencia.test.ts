@@ -83,6 +83,36 @@ describe('exigirAdaptacaoFiel: a versão adaptada muda a forma, nunca o que é c
   })
 })
 
+describe('exigirAdaptacaoFiel: a questão sem habilidade (correção 2026-11-20-leitura-de-habilidade-nula)', () => {
+  const semHabilidade: ConteudoDeAtividade = { ...structuredClone(original), questoes: [{ ...questao(1, 0), habilidade: null }, questao(2, 3)] }
+  const adaptadaDe = (base: ConteudoDeAtividade, mudanca: Partial<QuestaoObjetiva>): ConteudoDeAtividade => ({
+    ...structuredClone(base),
+    titulo: 'Atividade (versão adaptada)',
+    questoes: base.questoes.map((item, posicao) => (posicao === 0 ? { ...item, ...mudanca } : item)),
+    adaptacao: { tipos: ['tempo_adicional', 'fonte_ampliada'], tempoExtraPercentual: 25 },
+  })
+
+  it('a questão sem habilidade continua sem ela na versão adaptada', () => {
+    expect(recusa(() => exigirAdaptacaoFiel(semHabilidade, adaptadaDe(semHabilidade, {}), pedida))).toBeUndefined()
+  })
+
+  it('a versão adaptada não dá habilidade à questão que não tinha, nem tira a de quem tinha', () => {
+    const nova = adaptadaDe(semHabilidade, { habilidade: { codigo: 'EM13CNT101', descricao: 'Habilidade do capítulo 3.' } })
+    const erro = recusa(() => exigirAdaptacaoFiel(semHabilidade, nova, pedida))
+    expect(erro).toBeInstanceOf(LLMError)
+    expect((erro as LLMError).codigo).toBe('IA_SAIDA_INVALIDA')
+    const perdida = recusa(() => exigirAdaptacaoFiel(original, adaptadaDe(original, { habilidade: null }), pedida))
+    expect(perdida).toBeInstanceOf(LLMError)
+  })
+
+  it('o código e a descrição da habilidade são, cada um, os da original', () => {
+    const descricao = 'Identificar o reagente limitante e o reagente em excesso.'
+    expect(recusa(() => exigirAdaptacaoFiel(original, adaptadaDe(original, { habilidade: { codigo: 'QUI.EM.05', descricao: 'outra descrição' } }), pedida))).toBeInstanceOf(LLMError)
+    expect(recusa(() => exigirAdaptacaoFiel(original, adaptadaDe(original, { habilidade: { codigo: 'QUI.EM.99', descricao } }), pedida))).toBeInstanceOf(LLMError)
+    expect(recusa(() => exigirAdaptacaoFiel(original, adaptadaDe(original, { habilidade: { codigo: 'QUI.EM.05', descricao } }), pedida))).toBeUndefined()
+  })
+})
+
 describe('habilidadesParaOTema', () => {
   it('no máximo seis, só código e descrição, com as do tema pedido na frente', () => {
     const habilidades = habilidadesParaOTema('Química', 'em', 'estequiometria e reagente limitante')

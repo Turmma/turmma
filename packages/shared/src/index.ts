@@ -474,6 +474,7 @@ export {
   conteudoDePlanoDeAulaSchema,
   conteudoDoArtefatoSchema,
   habilidadeSchema,
+  ROTULO_SEM_HABILIDADE,
   questaoObjetivaSchema,
   FERRAMENTAS,
   ROTULOS_DA_ADAPTACAO,

@@ -18,9 +18,12 @@ export interface CorrecaoCalculada {
   readonly porHabilidade: DiagnosticoGravado
 }
 
-/** Compara as respostas com o gabarito. A habilidade sai na ordem em que aparece na atividade. */
+/**
+ * Compara as respostas com o gabarito. A habilidade sai na ordem em que aparece na atividade. A questão sem habilidade
+ * (`habilidade: null`) conta numa linha à parte, com `codigo: null`: nunca soma à de um código (correção 2026-11-20-leitura-de-habilidade-nula).
+ */
 export function corrigirTentativa(questoes: readonly QuestaoObjetiva[], respostas: RespostasDaTentativa): CorrecaoCalculada {
-  const porHabilidade = new Map<string, { codigo: string; acertos: number; total: number }>()
+  const porHabilidade = new Map<string | null, { codigo: string | null; acertos: number; total: number }>()
   let acertos = 0
   let emBranco = 0
   questoes.forEach((questao, indice) => {
@@ -28,7 +31,8 @@ export function corrigirTentativa(questoes: readonly QuestaoObjetiva[], resposta
     const acertou = marcada === questao.gabarito
     if (marcada === undefined) emBranco += 1
     if (acertou) acertos += 1
-    const habilidade = porHabilidade.get(questao.habilidade.codigo) ?? { codigo: questao.habilidade.codigo, acertos: 0, total: 0 }
+    const codigo = questao.habilidade?.codigo ?? null
+    const habilidade = porHabilidade.get(codigo) ?? { codigo, acertos: 0, total: 0 }
     habilidade.total += 1
     if (acertou) habilidade.acertos += 1
     porHabilidade.set(habilidade.codigo, habilidade)

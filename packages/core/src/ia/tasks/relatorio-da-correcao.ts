@@ -21,7 +21,8 @@ export const relatorioInputSchema = z.strictObject({
     .array(
       z.strictObject({
         numero: z.number().int().min(1).max(20),
-        habilidade: habilidadeSchema,
+        /** `null` é a questão sem habilidade (a leitura a aceita; correção 2026-11-20-leitura-de-habilidade-nula). */
+        habilidade: habilidadeSchema.nullable(),
         gabarito: z.number().int().min(0).max(ALTERNATIVAS_POR_QUESTAO - 1),
         /** Quantas respostas em cada alternativa, na ordem da questão. */
         marcacoes: z.array(contagem).length(ALTERNATIVAS_POR_QUESTAO),
@@ -51,6 +52,12 @@ function numerosDaQuestao(questao: QuestaoCorrigida): { acertos: number; total: 
   return { acertos, total, percentual: total === 0 ? 0 : Math.round((acertos / total) * 100) }
 }
 
+/** O que retomar: a habilidade, ou, na questão sem habilidade, o conteúdo da própria questão. */
+const retomarDaQuestao = (questao: QuestaoCorrigida): string => (questao.habilidade === null ? 'o conteúdo desta questão' : `“${questao.habilidade.descricao}”`)
+
+/** A revisão rápida, com a preposição já concordada: "de “…”" para a habilidade, "do conteúdo desta questão" para a que não tem. */
+const revisaoDaQuestao = (questao: QuestaoCorrigida): string => (questao.habilidade === null ? 'do conteúdo desta questão' : `de “${questao.habilidade.descricao}”`)
+
 function textoDaQuestao(questao: QuestaoCorrigida): string {
   const { acertos, total, percentual } = numerosDaQuestao(questao)
   if (total === 0) return 'Ninguém respondeu a esta questão.'
@@ -62,8 +69,8 @@ function textoDaQuestao(questao: QuestaoCorrigida): string {
   if (maisMarcada >= 0) partes.push(`A errada mais marcada foi a ${letra(maisMarcada)}, com ${plural(questao.marcacoes[maisMarcada] ?? 0, 'resposta', 'respostas')}.`)
   if (questao.emBranco > 0) partes.push(`${plural(questao.emBranco, 'ficou', 'ficaram')} em branco.`)
   if (acertos === total) partes.push('Todos acertaram.')
-  else if (acertos * 2 < total) partes.push(`Menos da metade acertou: vale retomar “${questao.habilidade.descricao}”.`)
-  else partes.push(`A maioria acertou; os erros pedem uma revisão rápida de “${questao.habilidade.descricao}”.`)
+  else if (acertos * 2 < total) partes.push(`Menos da metade acertou: vale retomar ${retomarDaQuestao(questao)}.`)
+  else partes.push(`A maioria acertou; os erros pedem uma revisão rápida ${revisaoDaQuestao(questao)}.`)
   return cortar(partes.join(' '), 500)
 }
 

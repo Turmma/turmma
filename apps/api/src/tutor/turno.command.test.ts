@@ -44,6 +44,25 @@ describe('questaoSemGabarito: o que o Tutor recebe da questão em que o aluno es
   })
 })
 
+describe('a questão sem habilidade (correção 2026-11-20-leitura-de-habilidade-nula)', () => {
+  const comUmaSemHabilidade = {
+    ...conteudo(['QUI.1', 'QUI.2']),
+    questoes: conteudo(['QUI.1', 'QUI.2']).questoes.map((questao, indice) => (indice === 0 ? { ...questao, habilidade: null } : questao)),
+  }
+
+  it('o Tutor recebe a questão com `habilidade: null`, e continua sem gabarito, explicação e citação', () => {
+    const questao = questaoSemGabarito(comUmaSemHabilidade, 1)
+    expect(questao).toEqual({ numero: 1, enunciado: 'Enunciado 1', alternativas: ['A', 'B', 'C', 'D'], habilidade: null })
+    expect(JSON.stringify(questao)).not.toMatch(/gabarito|explicacao|citacao/u)
+    expect(questaoSemGabarito(comUmaSemHabilidade, 2)?.habilidade).toEqual(habilidade('QUI.2'))
+  })
+
+  it('a linha `codigo: null` do diagnóstico conta no lote, mas não vira memória: a memória é por habilidade (D66)', () => {
+    const memoria = memoriaDoTrabalho([{ ...trabalho([], [{ codigo: null, acertos: 0, total: 3 }, { codigo: 'QUI.2', acertos: 1, total: 2 }]), conteudo: comUmaSemHabilidade }])
+    expect(memoria).toEqual([{ habilidade: habilidade('QUI.2'), acertos: 1, erros: 1 }])
+  })
+})
+
 describe('memoriaDoTrabalho: só o diagnóstico por habilidade, de lote aprovado (D66)', () => {
   it('soma acertos e erros por habilidade do catálogo, e põe na frente a que mais errou, com o código desempatando', () => {
     const memoria = memoriaDoTrabalho([

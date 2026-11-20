@@ -385,6 +385,17 @@ describe('Revisar a correção: a aba pelo endereço', () => {
     expect(barra()).toBeTruthy()
   })
 
+  it('a questão sem habilidade (correção 2026-11-20-leitura-de-habilidade-nula) aparece no Resumo como "Sem habilidade", no acerto por habilidade e na tabela por questão, sem código inventado', async () => {
+    const rede = fakeNetwork()
+    const doLote = lote()
+    instalar(rede, () => ok({ ...doLote, resumo: { ...doLote.resumo, porHabilidade: [{ habilidade: null, acertos: 20, total: 28 }], porQuestao: [{ ...doLote.resumo.porQuestao[0], habilidade: null }] } }))
+    montar('aba=resumo')
+    const porHabilidade = await screen.findByRole('region', { name: 'Acerto por habilidade' })
+    expect(within(porHabilidade).getByText('Sem habilidade')).toBeTruthy()
+    expect(within(porHabilidade).queryByText(/QUI\.EM/)).toBeNull()
+    expect(within(screen.getByRole('region', { name: 'Por questão' })).getByText('Sem habilidade')).toBeTruthy()
+  })
+
   it('um valor que não é aba cai em Destaques', async () => {
     const rede = fakeNetwork()
     instalar(rede)

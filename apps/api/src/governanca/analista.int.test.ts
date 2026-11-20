@@ -8,6 +8,7 @@ import {
   alunosComSessao,
   aplicarAtividade,
   aprovarOLote,
+  conteudoDeTeste,
   criarAtividade,
   encerrarAtividade,
   HABILIDADE_DAS_DUAS_ULTIMAS,
@@ -319,6 +320,69 @@ describe('Analista de desempenho escolar', () => {
     })
   })
 
+  describe('a questão sem habilidade, lida pelo Analista (correção 2026-11-20-leitura-de-habilidade-nula)', () => {
+    const execucao = () => ({ id: randomUUID(), tarefa: 'resumo_do_analista' as const, chaveEnvio: randomUUID(), entrada: { tarefa: 'resumo_do_analista' as const } })
+
+    it('entra no recorte numa linha própria, com `habilidade: null`, depois das que têm código, e a conta do acerto a inclui', async () => {
+      const doPrimeiro = { serieId: 'serie-0', disciplinaId: 'disciplina' }
+      const recorte = { serieId: 'serie-0', etapa: 'em' as const, ano: 1, disciplinaId: 'disciplina', disciplina: 'Química', lotesAprovados: 2, alunos: 10, professores: 2 }
+      const espioes = [
+        vi.spyOn(AnalistaRepository.prototype, 'recortesComLotes').mockResolvedValue([recorte]),
+        vi.spyOn(AnalistaRepository.prototype, 'acertosPorRecorte').mockResolvedValue([
+          { ...doPrimeiro, codigo: 'H0', acertos: 1, total: 2 },
+          { ...doPrimeiro, codigo: null, acertos: 3, total: 4 },
+        ]),
+        vi.spyOn(AnalistaRepository.prototype, 'descricoesDasHabilidades').mockResolvedValue(new Map([['H0', 'Descrição de H0']])),
+      ]
+      try {
+        const { entrada } = await comoPessoa(a, a.coordenacao, 'coordenador', () => new ResumoDoAnalistaCommand(bancada.banco).preparar(execucao()))
+        const [primeiro] = entrada.recortes
+        expect(primeiro?.porHabilidade).toEqual([
+          { habilidade: { codigo: 'H0', descricao: 'Descrição de H0' }, acertos: 1, total: 2 },
+          { habilidade: null, acertos: 3, total: 4 },
+        ])
+        // A conta é a das duas linhas: 4 de 6.
+        expect(primeiro?.acertoPercentual).toBe(66.7)
+      } finally {
+        for (const espiao of espioes) espiao.mockRestore()
+      }
+    })
+
+    it('no banco: o `codigo: null` do diagnóstico agrupa numa linha só, vem por último, e a descrição que o conteúdo não tem não vira entrada; o dado nominal da turma a mostra', async () => {
+      const c = await montarEscolaComAssistente(api, bancada)
+      const [alunoDoC1, alunoDoC2] = (await alunosComSessao(bancada, c, c.turma, ['Aluna Sintética Cecília Lopes', 'Aluno Sintético Dante Alves'])) as [TestSessao, TestSessao]
+      const base = conteudoDeTeste(c.materialId, `Lista sem habilidade ${randomUUID()}`)
+      // As três primeiras com a habilidade; as duas últimas sem nenhuma (`null`).
+      const conteudo = { ...base, questoes: base.questoes.map((questao, indice) => (indice < 3 ? questao : { ...questao, habilidade: null })) }
+      const id = await aplicarAtividade(rotas, c.professora, await criarAtividade(bancada, c, { conteudo }), c.turma)
+      await responderProva(rotas, alunoDoC1, id, [0, 1, 2, 3, 1])
+      await responderProva(rotas, alunoDoC2, id, [...TODAS_CERTAS])
+      if ((await encerrarAtividade(rotas, c.professora, id)) === null) throw new Error('o lote não nasceu')
+      await aprovarOLote(rotas, c.professora, id)
+
+      const repositorio = new AnalistaRepository(bancada.banco)
+      const lidos = await comoPessoa(c, c.coordenacao, 'coordenador', async () => ({
+        recortes: await repositorio.acertosPorRecorte(),
+        daTurma: await repositorio.acertosDaTurma(c.turma),
+        descricoes: await repositorio.descricoesDasHabilidades(),
+      }))
+      // Uma linha com o código (3 questões × 2 alunos) e uma com `null` (2 × 2), e só.
+      const sem = (linhas: readonly { codigo: string | null; acertos: number; total: number }[]) => linhas.map((linha) => [linha.codigo, linha.acertos, linha.total])
+      const esperado = [[HABILIDADE_DAS_TRES_PRIMEIRAS.codigo, 6, 6], [null, 3, 4]]
+      expect(sem(lidos.recortes)).toEqual(esperado)
+      expect(sem(lidos.daTurma)).toEqual(esperado)
+      expect([...lidos.descricoes.keys()]).toEqual([HABILIDADE_DAS_TRES_PRIMEIRAS.codigo])
+      expect(lidos.descricoes.get(HABILIDADE_DAS_TRES_PRIMEIRAS.codigo)).toBe(HABILIDADE_DAS_TRES_PRIMEIRAS.descricao)
+
+      const resposta = await nominal(c.coordenacao, c.turma)
+      expect(resposta.status).toBe(200)
+      expect(analistaNominalResponseSchema.parse(resposta.corpo).porHabilidade).toEqual([
+        { habilidade: HABILIDADE_DAS_TRES_PRIMEIRAS, acertos: 6, total: 6 },
+        { habilidade: null, acertos: 3, total: 4 },
+      ])
+    })
+  })
+
   describe('o dado nominal', () => {
     it('sem finalidade, ou com finalidade fora da lista, é recusado antes de procurar a turma, e nada é auditado', async () => {
       const antes = (await leiturasNominais(a)).length
@@ -329,6 +393,26 @@ describe('Analista de desempenho escolar', () => {
       expect(erro(await get(a.coordenacao, `/v1/analista/nominal?finalidade=${FINALIDADE}`))).toEqual(ENTRADA_INVALIDA)
       expect(erro(await get(a.coordenacao, `/v1/analista/nominal?turmaId=${a.turma}&finalidade=${FINALIDADE}&professorId=${a.professora.usuarioId}`))).toEqual(ENTRADA_INVALIDA)
       expect(await leiturasNominais(a)).toHaveLength(antes)
+    })
+
+    it('o dado nominal da turma também leva a linha `habilidade: null` (correção 2026-11-20-leitura-de-habilidade-nula), sem código nem descrição inventados', async () => {
+      const espioes = [
+        vi.spyOn(AnalistaRepository.prototype, 'acertosDaTurma').mockResolvedValue([
+          { codigo: 'H0', acertos: 1, total: 2 },
+          { codigo: null, acertos: 3, total: 4 },
+        ]),
+        vi.spyOn(AnalistaRepository.prototype, 'descricoesDasHabilidades').mockResolvedValue(new Map([['H0', 'Descrição de H0']])),
+      ]
+      try {
+        const resposta = await nominal(a.coordenacao, a.turma)
+        expect(resposta.status).toBe(200)
+        expect(analistaNominalResponseSchema.parse(resposta.corpo).porHabilidade).toEqual([
+          { habilidade: { codigo: 'H0', descricao: 'Descrição de H0' }, acertos: 1, total: 2 },
+          { habilidade: null, acertos: 3, total: 4 },
+        ])
+      } finally {
+        for (const espiao of espioes) espiao.mockRestore()
+      }
     })
 
     it('com finalidade, traz a turma, os professores dela, o acerto por habilidade e os sinais de trabalho; nada de aluno', async () => {

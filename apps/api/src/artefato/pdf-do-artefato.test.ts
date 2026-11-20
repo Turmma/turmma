@@ -1,4 +1,4 @@
-import type { ConteudoDeAtividade, ConteudoDePlanoDeAula, FonteDoArtefato, QuestaoObjetiva } from '@educa/shared'
+import { ROTULO_SEM_HABILIDADE, type ConteudoDeAtividade, type ConteudoDePlanoDeAula, type FonteDoArtefato, type QuestaoObjetiva } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import { extrairTextoPorPagina } from '../../../../tools/demonstracao/extrair-texto.ts'
 import { AVISO_DE_IA_NO_PDF, AVISO_DE_IA_NO_RASCUNHO, gerarPdfDoArtefato, MARCA_DE_RASCUNHO, nomeDoArquivoDoPdf, textoParaAFontePadrao } from './pdf-do-artefato.js'
@@ -193,5 +193,28 @@ describe('gerarPdfDoArtefato', () => {
     ]) {
       expect(texto).toContain(trecho)
     }
+  })
+  it('a questão sem habilidade sai com o rótulo no gabarito, e o plano sem habilidade, com o rótulo na seção (correção 2026-11-20-leitura-de-habilidade-nula)', async () => {
+    const base = atividade(2)
+    const semHabilidade: ConteudoDeAtividade = { ...base, questoes: base.questoes.map((item, indice) => (indice === 0 ? { ...item, habilidade: null } : item)) }
+    const paginas = (await extrairTextoPorPagina(await gerarPdfDoArtefato(semHabilidade, TITULOS))).map(umaLinha)
+    const gabarito = paginas.at(-1) ?? ''
+    expect(gabarito).toContain(`1. B — ${ROTULO_SEM_HABILIDADE}`)
+    expect(gabarito).toContain('2. C — QUI.EM.04')
+    expect(paginas.slice(0, -1).join(' ')).not.toContain(ROTULO_SEM_HABILIDADE)
+
+    const citacao = { materialId: MATERIAL, pagina: 3, trecho: 'O reagente limitante é o que acaba primeiro.' }
+    const plano: ConteudoDePlanoDeAula = {
+      tipo: 'plano_de_aula',
+      titulo: 'Plano sem habilidade',
+      objetivos: ['Explicar o conceito.'],
+      habilidades: [],
+      duracaoMinutos: 50,
+      etapas: [{ titulo: 'Abertura', minutos: 50, descricao: 'Pergunte à turma.', citacao }],
+      avaliacao: 'Atividade curta.',
+      citacoes: [citacao],
+    }
+    const texto = (await extrairTextoPorPagina(await gerarPdfDoArtefato(plano, TITULOS))).map(umaLinha).join(' ')
+    expect(texto).toContain(`Habilidades • ${ROTULO_SEM_HABILIDADE} Etapas`)
   })
 })

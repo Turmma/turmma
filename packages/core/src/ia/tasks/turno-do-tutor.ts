@@ -39,7 +39,8 @@ const questaoEmAndamentoSchema = z.strictObject({
   numero: z.number().int().min(1).max(20),
   enunciado: z.string().min(1).max(1200),
   alternativas: z.array(z.string().min(1).max(400)).length(4),
-  habilidade: habilidadeSchema,
+  /** `null` é a questão sem habilidade (a leitura a aceita; correção 2026-11-20-leitura-de-habilidade-nula). */
+  habilidade: habilidadeSchema.nullable(),
 })
 
 /**
@@ -421,6 +422,12 @@ const PALAVRAS_DE_ESTUDO = new Set(
 /** Radical grosseiro: "reagentes" e "reagente" contam como a mesma palavra. */
 const radical = (palavra: string): string => palavra.slice(0, 5)
 
+/** O que a questão em andamento diz: o enunciado, as alternativas e, se tiver, a habilidade (a questão sem habilidade não leva a descrição). */
+function textosDaQuestao(questao: TutorInput['questao']): string[] {
+  if (questao === undefined) return ['']
+  return [questao.enunciado, ...questao.alternativas, questao.habilidade?.descricao ?? '']
+}
+
 /**
  * Fora do escopo é o pedido que não toca em nada do que a turma está estudando: nenhuma palavra de conteúdo da
  * dúvida aparece no material, na questão ou na disciplina. Dúvida curta, sem palavra de conteúdo, é continuação.
@@ -432,9 +439,7 @@ function estaForaDoEscopo(entrada: TutorInput): boolean {
   if (doAssunto.length < 2) return false
   const referencia = [
     ...entrada.trechos.map((trecho) => trecho.texto),
-    entrada.questao?.enunciado ?? '',
-    ...(entrada.questao?.alternativas ?? []),
-    entrada.questao?.habilidade.descricao ?? '',
+    ...textosDaQuestao(entrada.questao),
     ...entrada.memoria.map((item) => item.habilidade.descricao),
     entrada.contexto.disciplina,
   ].join(' ')
@@ -489,7 +494,8 @@ function apoioNoMaterial(entrada: TutorInput): { citacao: Citacao; orientacao: s
 
 /** O que o Tutor lembra é o trabalho: quantas questões daquela habilidade o aluno errou antes (D66). */
 function lembrancaDoTrabalho(entrada: TutorInput): string {
-  const daQuestao = entrada.memoria.find((item) => item.habilidade.codigo === entrada.questao?.habilidade.codigo)
+  const codigoDaQuestao = entrada.questao?.habilidade?.codigo
+  const daQuestao = entrada.memoria.find((item) => item.habilidade.codigo === codigoDaQuestao)
   const item = daQuestao ?? [...entrada.memoria].sort((a, b) => b.erros - a.erros)[0]
   if (item === undefined || item.erros === 0) return ''
   return `Nas atividades anteriores você errou ${item.erros} ${item.erros === 1 ? 'questão' : 'questões'} de “${item.habilidade.descricao}”, então vamos devagar nesse ponto.`

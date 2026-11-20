@@ -1088,3 +1088,34 @@ describe('o Tutor pelo provedor', () => {
     expect(consumo.registros).toMatchObject([{ funcao: 'tutor_com_o_aluno', perfil: 'rapido', alunoId: ALUNO_1, escolaId: ESCOLA_A, estado: 'concluida' }])
   })
 })
+
+describe('a leitura aceita a questão sem habilidade (correção 2026-11-20-leitura-de-habilidade-nula)', () => {
+  it('a questão sem habilidade entra na entrada do Tutor com `habilidade: null`, e a chave ausente continua recusada', () => {
+    const entrada = entradaDoTutor('o que é o reagente limitante?')
+    if (entrada.questao === undefined) throw new Error('a entrada de teste deveria ter a questão')
+    expect(turnoDoTutor.esquemaDeEntrada.safeParse({ ...entrada, questao: { ...entrada.questao, habilidade: null } }).success).toBe(true)
+    const { habilidade: _habilidade, ...semAChave } = entrada.questao
+    expect(turnoDoTutor.esquemaDeEntrada.safeParse({ ...entrada, questao: semAChave }).success).toBe(false)
+  })
+
+  it('a questão sem habilidade não derruba o turno: o Tutor segue socrático e lembra a habilidade em que o aluno mais errou, e a com habilidade, a da questão', async () => {
+    const base = entradaDoTutor('não entendi essa')
+    if (base.questao === undefined) throw new Error('a entrada de teste deveria ter a questão')
+    // A habilidade da questão (3 erros) não é a de mais erros (5): "achou pela questão" e "caiu na de mais erros" dão frases diferentes.
+    const entrada = { ...base, memoria: [{ habilidade: { codigo: 'EM13CNT104', descricao: 'Relacionar mol, massa molar e constante de Avogadro à quantidade de matéria' }, acertos: 0, erros: 5 }, ...base.memoria.slice(0, 1)] }
+    const daQuestao = await turno(entrada)
+    expect(daQuestao.resposta).toContain('você errou 3 questões de “Identificar o reagente limitante e o reagente em excesso de uma reação”')
+    const saida = await turno({ ...entrada, questao: { ...base.questao, habilidade: null } })
+    expect(saida.resposta).toContain('você errou 5 questões de “Relacionar mol, massa molar e constante de Avogadro à quantidade de matéria”')
+    expect(saida.resposta.trim().endsWith('?')).toBe(true)
+    // A dúvida com assunto próprio passa pela conferência de escopo, que lê o texto da questão: sem habilidade, não há descrição a ler.
+    const comAssunto = await turno({ ...entrada, duvida: 'não entendi o reagente limitante dessa reação', questao: { ...base.questao, habilidade: null } })
+    expect(comAssunto.resposta.trim().endsWith('?')).toBe(true)
+  })
+
+  it('sem questão em andamento (o aluno só conversa sobre o material), a dúvida com assunto próprio também passa pela conferência de escopo', async () => {
+    const { questao: _questao, ...semQuestao } = entradaDoTutor('não entendi o reagente limitante dessa reação')
+    const saida = await turno(semQuestao)
+    expect(saida.resposta.trim().endsWith('?')).toBe(true)
+  })
+})
