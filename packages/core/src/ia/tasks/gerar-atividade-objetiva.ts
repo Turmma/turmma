@@ -1,19 +1,21 @@
-import { conteudoDeAtividadeSchema, MAXIMO_DE_QUESTOES_POR_ATIVIDADE, TAMANHO_MAXIMO_DO_TEMA, type ConteudoDeAtividade, type Habilidade, type QuestaoObjetiva } from '@educa/shared'
+import { conteudoDeAtividadeSchema, MAXIMO_DE_QUESTOES_POR_ATIVIDADE, TAMANHO_MAXIMO_DO_TEMA, type ConteudoDeAtividade, type QuestaoObjetiva } from '@educa/shared'
 import { z } from 'zod'
 import {
   citacaoDaFrase,
   citacaoVeioDosTrechos,
   dadoEmJson,
-  dadosDosTrechos,
+  dadosDosTrechosDeGeracao,
   contextoDaTurmaSchema,
-  habilidadesSchema,
-  trechoSchema,
+  habilidadesDaPagina,
+  habilidadesDosTrechos,
+  trechoDeGeracaoSchema,
   extrairFatos,
   frasesDoMaterial,
   habilidadeMaisProxima,
   termoComArtigo,
   type Fato,
   type FraseDoMaterial,
+  type TrechoDeGeracao,
 } from '../material.js'
 import { PROMPT_GERAR_ATIVIDADE_OBJETIVA } from '../prompts/gerar-atividade-objetiva.js'
 import { defineTask, MaterialSemConteudoAproveitavelError } from '../task.js'
@@ -24,26 +26,27 @@ export const atividadeObjetivaInputSchema = z.strictObject({
   tema: z.string().min(1).max(TAMANHO_MAXIMO_DO_TEMA),
   quantidade: z.number().int().min(1).max(MAXIMO_DE_QUESTOES_POR_ATIVIDADE),
   contexto: contextoDaTurmaSchema,
-  /** As habilidades da disciplina que a atividade pode cobrar: toda questão leva uma delas. */
-  habilidades: habilidadesSchema,
-  /** Os trechos que a busca achou para o tema. Sem trecho não há o que citar, e por isso não há atividade. */
-  trechos: z.array(trechoSchema).min(1).max(12),
+  /**
+   * Os trechos que a busca achou para o tema, cada um com as habilidades da BNCC da seção da página (classificacao-bncc, 10.0). Sem trecho não há o que citar, e por isso não há atividade. A questão leva uma
+   * das habilidades da página que cita, ou nenhuma.
+   */
+  trechos: z.array(trechoDeGeracaoSchema).min(1).max(12),
 })
 export type AtividadeObjetivaInput = z.infer<typeof atividadeObjetivaInputSchema>
 
-/** Página citada que veio nos trechos, habilidade que veio na entrada, quatro alternativas diferentes. */
-export function problemasDasQuestoes(
-  questoes: readonly QuestaoObjetiva[],
-  entrada: Pick<AtividadeObjetivaInput, 'trechos' | 'habilidades'>,
-): string[] {
-  const codigos = new Set(entrada.habilidades.map((habilidade) => habilidade.codigo))
+/**
+ * Página citada que veio nos trechos, habilidade que veio em algum trecho (ou nenhuma), quatro alternativas diferentes. A habilidade que veio num trecho mas não na página citada **não** é saída inválida: o
+ * `concluir` da ferramenta a anula na gravação (Tech Spec, seção 5, "Geração").
+ */
+export function problemasDasQuestoes(questoes: readonly QuestaoObjetiva[], entrada: Pick<AtividadeObjetivaInput, 'trechos'>): string[] {
+  const codigos = new Set(habilidadesDosTrechos(entrada.trechos).map((habilidade) => habilidade.codigo))
   return questoes.flatMap((questao, indice) => {
     const onde = `Questão ${indice + 1}`
     const problemas: string[] = []
     if (!citacaoVeioDosTrechos(questao.citacao, entrada.trechos)) {
       problemas.push(`${onde}: a citação aponta para a página ${questao.citacao.pagina}, que não está nos trechos recebidos. Cite só material e página que vieram nos dados.`)
     }
-    if (!codigos.has(questao.habilidade.codigo)) problemas.push(`${onde}: a habilidade precisa ser uma das recebidas, copiada como veio.`)
+    if (questao.habilidade !== null && !codigos.has(questao.habilidade.codigo)) problemas.push(`${onde}: a habilidade precisa ser uma das recebidas, copiada como veio, ou null.`)
     if (new Set(questao.alternativas.map(normalize)).size !== questao.alternativas.length) problemas.push(`${onde}: as quatro alternativas precisam ser diferentes entre si.`)
     return problemas
   })
@@ -98,7 +101,7 @@ function comACorretaNaPosicao(correta: string, distratores: readonly string[], s
   return { alternativas, gabarito }
 }
 
-function questaoDoFato(fatos: readonly Fato[], indice: number, habilidades: readonly Habilidade[]): QuestaoObjetiva | undefined {
+function questaoDoFato(fatos: readonly Fato[], indice: number, trechos: readonly TrechoDeGeracao[]): QuestaoObjetiva | undefined {
   const fato = fatos[indice]
   if (fato === undefined) return undefined
   const distratores = distratoresDoFato(fatos, indice, fato)
@@ -106,7 +109,7 @@ function questaoDoFato(fatos: readonly Fato[], indice: number, habilidades: read
   return {
     enunciado: cortar(enunciadoDoFato(fato), 1200),
     ...comACorretaNaPosicao(alternativaDoFato(fato), distratores, fato.termo),
-    habilidade: habilidadeMaisProxima(habilidades, fato.frase),
+    habilidade: habilidadeMaisProxima(habilidadesDaPagina(trechos, fato), fato.frase),
     citacao: citacaoDaFrase(fato),
     explicacao: `Na página ${fato.pagina}, o material diz: “${cortar(fato.frase, 480)}”`,
   }
@@ -131,7 +134,7 @@ function lacunaDaFrase(frase: FraseDoMaterial): Lacuna | undefined {
   return omitida === undefined ? undefined : { ...frase, omitida }
 }
 
-function questaoDaLacuna(lacunas: readonly Lacuna[], indice: number, habilidades: readonly Habilidade[]): QuestaoObjetiva | undefined {
+function questaoDaLacuna(lacunas: readonly Lacuna[], indice: number, trechos: readonly TrechoDeGeracao[]): QuestaoObjetiva | undefined {
   const lacuna = lacunas[indice]
   if (lacuna === undefined) return undefined
   const usadas = new Set([normalize(lacuna.omitida)])
@@ -152,7 +155,7 @@ function questaoDaLacuna(lacunas: readonly Lacuna[], indice: number, habilidades
   return {
     enunciado: cortar(`Complete a frase do material: “${lacuna.frase.replace(lacuna.omitida, '______')}”`, 1200),
     ...comACorretaNaPosicao(lacuna.omitida.toLowerCase(), distratores, lacuna.frase),
-    habilidade: habilidadeMaisProxima(habilidades, lacuna.frase),
+    habilidade: habilidadeMaisProxima(habilidadesDaPagina(trechos, lacuna), lacuna.frase),
     citacao: citacaoDaFrase(lacuna),
     explicacao: `Na página ${lacuna.pagina}, o material diz: “${cortar(lacuna.frase, 480)}”`,
   }
@@ -203,13 +206,13 @@ function primeiroODoTema(ordem: readonly number[], fatos: readonly Fato[], tema:
  * Questões tiradas das frases definitórias do material ("X é Y", "X corresponde a Y", relação com número). Quando
  * elas não bastam, completa com lacuna: a frase do material com uma palavra escondida.
  */
-export function questoesDoMaterial(entrada: Pick<AtividadeObjetivaInput, 'tema' | 'trechos' | 'habilidades' | 'quantidade'>): QuestaoObjetiva[] {
+export function questoesDoMaterial(entrada: Pick<AtividadeObjetivaInput, 'tema' | 'trechos' | 'quantidade'>): QuestaoObjetiva[] {
   const fatos = alternandoDefinicaoEValor(extrairFatos(entrada.trechos))
   const questoes: QuestaoObjetiva[] = []
   const frasesUsadas = new Set<string>()
   for (const indice of primeiroODoTema(intercalarPorPagina(fatos), fatos, entrada.tema)) {
     if (questoes.length === entrada.quantidade) break
-    const questao = questaoDoFato(fatos, indice, entrada.habilidades)
+    const questao = questaoDoFato(fatos, indice, entrada.trechos)
     if (questao === undefined) continue
     questoes.push(questao)
     frasesUsadas.add(fatos[indice]?.frase ?? '')
@@ -219,7 +222,7 @@ export function questoesDoMaterial(entrada: Pick<AtividadeObjetivaInput, 'tema' 
     for (const indice of intercalarPorPagina(lacunas)) {
       if (questoes.length === entrada.quantidade) break
       if (frasesUsadas.has(lacunas[indice]?.frase ?? '')) continue
-      const questao = questaoDaLacuna(lacunas, indice, entrada.habilidades)
+      const questao = questaoDaLacuna(lacunas, indice, entrada.trechos)
       if (questao !== undefined) questoes.push(questao)
     }
   }
@@ -234,7 +237,7 @@ export const gerarAtividadeObjetiva = defineTask({
   esquemaDeSaida: conteudoDeAtividadeSchema,
   prompt: PROMPT_GERAR_ATIVIDADE_OBJETIVA,
   maximoDeTokensDeSaida: 6000,
-  maximoDeTokensDeEntrada: 26100,
+  maximoDeTokensDeEntrada: 31300,
   levaTextoLivreDePessoa: false,
   levaTextoDeAluno: false,
   categoriasEnviadas: ['material_da_escola'],
@@ -255,8 +258,8 @@ export const gerarAtividadeObjetiva = defineTask({
       dados: [
         { tipo: 'tema_pedido_pelo_professor', corpo: entrada.tema },
         dadoEmJson('serie_e_disciplina', entrada.contexto),
-        dadoEmJson('habilidades', entrada.habilidades),
-        ...dadosDosTrechos(entrada.trechos),
+        dadoEmJson('habilidades_da_bncc', habilidadesDosTrechos(entrada.trechos)),
+        ...dadosDosTrechosDeGeracao(entrada.trechos),
       ],
     }
   },

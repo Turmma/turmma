@@ -1,5 +1,8 @@
 import { diaDeUso, systemClock, type Clock, type Database } from '@educa/core'
+import { FUNCAO_DA_TAREFA_DE_IA, type Habilidade } from '@educa/shared'
+import { SuspensaoRepository } from '../ia/suspensao.repository.js'
 import { MaterialRepository } from './material.repository.js'
+import { SecoesRepository } from './secoes.repository.js'
 
 /** O teto do texto de um trecho que vai a uma tarefa de IA (`trechoSchema`, em `packages/core/src/ia/material.ts`). */
 export const MAXIMO_DE_CARACTERES_DO_TRECHO_PARA_IA = 8_000
@@ -20,6 +23,14 @@ export interface TrechoDoMaterial {
   /** Página do PDF, a partir de 1. */
   readonly pagina: number
   readonly texto: string
+}
+
+/**
+ * O trecho da **geração** (classificacao-bncc, 10.0): a página e, com ela, as habilidades da BNCC da seção a que pertence, no recorte da turma. Só a ferramenta (e a geração que o chat pede) usa este: o Tutor
+ * e a proposta do chat seguem com `TrechoDoMaterial`, sem habilidade.
+ */
+export interface TrechoComHabilidades extends TrechoDoMaterial {
+  readonly habilidades: readonly Habilidade[]
 }
 
 export interface PedidoDeTrechos {
@@ -79,6 +90,23 @@ export class TrechoSearch {
       'unidade',
     )
     return achados.map(paraIa)
+  }
+
+  /**
+   * `find`, e a cada página as habilidades da BNCC da seção dela (classificacao-bncc, 10.0; Tech Spec, seção 5, "Geração"), **no recorte atual da turma**: o componente da disciplina e a série pedidos, nunca o recorte
+   * em que a seção foi classificada. Com a função `classificar_secoes` suspensa na escola, só a habilidade que a coordenação pôs ou corrigiu (`origem: 'coordenacao'`). Página sem seção, ou de seção sem habilidade
+   * (`aguardando`, `sem_habilidade`), vem com a lista vazia: a questão dela sai sem habilidade.
+   */
+  async findComHabilidades(pedido: PedidoDeTrechos): Promise<TrechoComHabilidades[]> {
+    const achados = await this.find(pedido)
+    if (achados.length === 0) return []
+    const suspensa = await new SuspensaoRepository(this.banco).estaSuspensa(FUNCAO_DA_TAREFA_DE_IA.classificar_secoes)
+    const habilidades = await new SecoesRepository(this.banco).habilidadesDasPaginas(
+      achados.map(({ materialId, pagina }) => ({ materialId, pagina })),
+      { disciplinaId: pedido.disciplinaId.toLowerCase(), serieId: pedido.serieId.toLowerCase() },
+      suspensa,
+    )
+    return achados.map((trecho) => ({ ...trecho, habilidades: habilidades.get(`${trecho.materialId}:${String(trecho.pagina)}`) ?? [] }))
   }
 
   /**

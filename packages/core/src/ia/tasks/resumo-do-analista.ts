@@ -51,7 +51,9 @@ function problemasDoResumo(entrada: AnalistaInput, saida: AnalistaOutput): strin
     // Os dados desta fatia sustentam só o alerta de acerto baixo: queda pede período anterior, e os outros não são de habilidade.
     if (alerta.tipo !== 'habilidade_com_acerto_baixo') return void problemas.push(`${onde}: os dados só sustentam o tipo "habilidade_com_acerto_baixo".`)
     const recorte = entrada.recortes.find((candidato) => mesmoRecorte(alerta, candidato))
-    const medida = recorte?.porHabilidade.find((item) => item.habilidade.codigo === alerta.habilidade?.codigo)
+    // A questão sem habilidade (`habilidade: null`) é medida, mas não vira alerta: não há habilidade a retomar (classificacao-bncc, 10.0).
+    const codigoDoAlerta = alerta.habilidade?.codigo
+    const medida = codigoDoAlerta === undefined ? undefined : recorte?.porHabilidade.find((item) => item.habilidade?.codigo === codigoDoAlerta)
     if (recorte === undefined || medida === undefined) return void problemas.push(`${onde}: série, disciplina e habilidade precisam ser de um recorte recebido.`)
     if (!isDeepStrictEqual(alerta.serie, recorte.serie) || !isDeepStrictEqual(alerta.disciplina, recorte.disciplina) || !isDeepStrictEqual(alerta.habilidade, medida.habilidade)) {
       problemas.push(`${onde}: série, disciplina e habilidade são copiadas do recorte, campo por campo.`)
@@ -60,7 +62,7 @@ function problemasDoResumo(entrada: AnalistaInput, saida: AnalistaOutput): strin
     if (alerta.valor !== valor || alerta.referencia !== limiar) problemas.push(`${onde}: "valor" é o acerto medido (${valor}) e "referencia" é o limiar recebido (${limiar}).`)
     if (valor >= limiar) problemas.push(`${onde}: só é alerta a habilidade com acerto abaixo do limiar de ${limiar}%.`)
     if (new Set(alerta.hipoteses).size !== alerta.hipoteses.length) problemas.push(`${onde}: não repita hipótese.`)
-    const chave = `${recorte.serie.id}:${recorte.disciplina.id}:${medida.habilidade.codigo}`
+    const chave = `${recorte.serie.id}:${recorte.disciplina.id}:${codigoDoAlerta ?? ''}`
     if (vistos.has(chave)) problemas.push(`${onde}: já há um alerta para esta habilidade neste recorte.`)
     vistos.add(chave)
   })
@@ -103,15 +105,21 @@ export const resumoDoAnalista = defineTask({
     const { limiarDeAcertoBaixoPercentual: limiar, ...agregados } = entrada
     const alertas: AlertaDoAnalista[] = entrada.recortes
       .flatMap((recorte) =>
-        recorte.porHabilidade.map((medida) => ({
-          tipo: 'habilidade_com_acerto_baixo' as const,
-          serie: recorte.serie,
-          disciplina: recorte.disciplina,
-          habilidade: medida.habilidade,
-          valor: acertoPercentual(medida.acertos, medida.total),
-          referencia: limiar,
-          hipoteses: hipotesesDoRecorte(recorte),
-        })),
+        recorte.porHabilidade.flatMap((medida) =>
+          medida.habilidade === null
+            ? []
+            : [
+                {
+                  tipo: 'habilidade_com_acerto_baixo' as const,
+                  serie: recorte.serie,
+                  disciplina: recorte.disciplina,
+                  habilidade: medida.habilidade,
+                  valor: acertoPercentual(medida.acertos, medida.total),
+                  referencia: limiar,
+                  hipoteses: hipotesesDoRecorte(recorte),
+                },
+              ],
+        ),
       )
       .filter((alerta) => alerta.valor < limiar)
       // Do pior para o melhor; no empate, a ordem em que vieram.

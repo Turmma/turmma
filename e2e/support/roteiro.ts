@@ -47,20 +47,21 @@ export function turmaDoNome(escolaId: string, nome: string): Promise<string> {
 
 export interface QuestaoNoBanco {
   readonly gabarito: number
-  readonly habilidade: string
+  /** `null` é a questão sem habilidade da BNCC (classificacao-bncc, 10.0). */
+  readonly habilidade: string | null
   readonly alternativaCerta: string
 }
 
 /** O artefato de atividade objetiva da escola com aquele título: o id e, de cada questão, o gabarito e a habilidade. */
 export function atividadeNoBanco(escolaId: string, titulo: string): Promise<{ id: string; questoes: QuestaoNoBanco[] }> {
   return comBanco(async (banco) => {
-    const { rows } = await banco.query<{ id: string; conteudo: { questoes: { gabarito: number; alternativas: string[]; habilidade: { codigo: string } }[] } }>(
+    const { rows } = await banco.query<{ id: string; conteudo: { questoes: { gabarito: number; alternativas: string[]; habilidade: { codigo: string } | null }[] } }>(
       "select id, conteudo from artefato where escola_id = $1 and titulo = $2 and tipo = 'atividade_objetiva' and origem_id is null",
       [escolaId, titulo],
     )
     if (rows.length !== 1 || rows[0] === undefined) throw new Error(`o e2e do roteiro esperava um artefato "${titulo}", achou ${String(rows.length)}`)
     const { id, conteudo } = rows[0]
-    return { id, questoes: conteudo.questoes.map((questao) => ({ gabarito: questao.gabarito, habilidade: questao.habilidade.codigo, alternativaCerta: questao.alternativas[questao.gabarito] ?? '' })) }
+    return { id, questoes: conteudo.questoes.map((questao) => ({ gabarito: questao.gabarito, habilidade: questao.habilidade?.codigo ?? null, alternativaCerta: questao.alternativas[questao.gabarito] ?? '' })) }
   })
 }
 

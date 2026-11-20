@@ -39,7 +39,7 @@ export async function criarArtefatoDoVinculo(escolaId: string, vinculoId: string
           enunciado: 'Qual é a massa molar da água, H2O?',
           alternativas: ['16 g/mol', '18 g/mol', '20 g/mol', '34 g/mol'],
           gabarito: 1,
-          habilidade: { codigo: 'QUI.EM.05', descricao: 'Calcular a massa molar de uma substância' },
+          habilidade: { codigo: 'EM13CNT102', descricao: 'Calcular a massa molar de uma substância' },
           citacao: { materialId, pagina: 2, trecho: 'Na água, dois hidrogênios e um oxigênio.' },
           explicacao: 'Dois hidrogênios e um oxigênio somam 18.',
         },

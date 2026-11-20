@@ -176,7 +176,7 @@ está desenhado (1.8, item 3).
 ### 1.6 O dado que entra, e o que sai para terceiro
 
 **Entra:** a correção das respostas de lotes aprovados; a habilidade de cada questão, que vem do
-artefato; a turma, a série e a disciplina. A tabela de habilidades da BNCC é pública e não tem
+artefato (a questão sem habilidade entra com `codigo: null`, numa linha à parte, e nunca se soma à de um código); a turma, a série e a disciplina. A tabela de habilidades da BNCC é pública e não tem
 dono.
 
 **Fica guardado:** o acerto por habilidade, por aluno e por turma, ligado à atividade de origem.

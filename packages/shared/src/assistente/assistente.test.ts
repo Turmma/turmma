@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { adaptarArtefatoRequestSchema, gerarComFerramentaRequestSchema, renomearArtefatoRequestSchema, artefatoResponseSchema, rotuloDaFonte, TITULO_DA_FONTE_SEM_LINHA } from './artefato.js'
-import { conteudoDeAtividadeSchema, conteudoDePlanoDeAulaSchema, conteudoDoArtefatoSchema, questaoObjetivaSchema, TIPOS_DE_ADAPTACAO } from './conteudo.js'
+import { conteudoDeAtividadeSchema, conteudoDePlanoDeAulaSchema, conteudoDoArtefatoSchema, habilidadeSchema, MAXIMO_DE_CARACTERES_DA_HABILIDADE, descricaoParaOModelo, questaoObjetivaSchema, TIPOS_DE_ADAPTACAO } from './conteudo.js'
 import {
   conversaDoAssistenteQuerySchema,
   conteudoDaMensagemDoAgenteSchema,
@@ -12,7 +12,6 @@ import {
   RESPOSTAS_A_PROPOSTA,
 } from './conversa.js'
 import { entregasQuerySchema, entregaSchema, decidirEntregaRequestSchema, TAMANHO_MINIMO_DA_JUSTIFICATIVA } from './entrega.js'
-import { CATALOGO_DE_HABILIDADES, HABILIDADE_GERAL, habilidadeDoCatalogo, habilidadesDaDisciplina } from './habilidades.js'
 
 // Valores fixos e sintéticos: o pacote não tem os tipos do Node.
 const UM_ID = '0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b'
@@ -230,36 +229,33 @@ describe('entrega: aprovar ou rejeitar com justificativa (regra 70, item 3)', ()
   })
 })
 
-describe('catálogo de habilidades por disciplina, em código', () => {
-  it('Química do Ensino Médio cobre estequiometria, do balanceamento ao rendimento', () => {
-    const quimica = habilidadesDaDisciplina('Química', 'em')
-    const deEstequiometria = quimica.filter((habilidade) => habilidade.tema === 'Estequiometria').map((habilidade) => habilidade.descricao.toLowerCase())
-    expect(deEstequiometria.length).toBeGreaterThanOrEqual(4)
-    for (const assunto of ['conservação da massa', 'massa molar', 'equação balanceada', 'reagente limitante', 'rendimento']) {
-      expect(deEstequiometria.some((descricao) => descricao.includes(assunto)), assunto).toBe(true)
-    }
+describe('a habilidade da questão é da BNCC, ou nenhuma (classificacao-bncc, 10.0)', () => {
+  it('a descrição da BNCC acima do teto do contrato (300) vai cortada em palavra, com reticências, e cabe no schema; a que cabe vai como está', () => {
+    const curta = 'Analisar e representar transformações e conservações em sistemas.'
+    expect(descricaoParaOModelo(curta)).toBe(curta)
+    const exata = 'a'.repeat(MAXIMO_DE_CARACTERES_DA_HABILIDADE)
+    expect(descricaoParaOModelo(exata)).toBe(exata)
+    const longa = Array.from({ length: 200 }, (_, indice) => `palavra${String(indice)}`).join(' ')
+    const cortada = descricaoParaOModelo(longa)
+    expect(cortada.length).toBeLessThanOrEqual(MAXIMO_DE_CARACTERES_DA_HABILIDADE)
+    expect(cortada.endsWith('…')).toBe(true)
+    expect(longa.startsWith(cortada.slice(0, -1))).toBe(true)
+    expect(longa.charAt(cortada.length - 1)).toBe(' ')
+    expect(habilidadeSchema.safeParse({ codigo: 'EM13CNT101', descricao: cortada }).success).toBe(true)
+    expect(habilidadeSchema.safeParse({ codigo: 'EM13CNT101', descricao: 'x'.repeat(MAXIMO_DE_CARACTERES_DA_HABILIDADE + 1) }).success).toBe(false)
   })
 
-  it('a disciplina é achada sem acento nem maiúscula, e a etapa separa o catálogo', () => {
-    const quimica = CATALOGO_DE_HABILIDADES.quimica_em.habilidades
-    for (const nome of ['Química', 'QUIMICA', '  química ']) expect(habilidadesDaDisciplina(nome, 'em'), nome).toEqual(quimica)
-    expect(habilidadesDaDisciplina('Ciências', 'ef_anos_finais')).toEqual(CATALOGO_DE_HABILIDADES.ciencias_ef.habilidades)
-    // Química dos anos finais e a disciplina que o catálogo curto não conhece caem na habilidade geral: nunca lista vazia.
-    expect(habilidadesDaDisciplina('Química', 'ef_anos_finais')).toEqual([HABILIDADE_GERAL])
-    expect(habilidadesDaDisciplina('Projeto de Vida', 'em')).toEqual([HABILIDADE_GERAL])
+  it('a questão sem habilidade é conteúdo válido: `habilidade: null`', () => {
+    expect(questaoObjetivaSchema.safeParse({ ...questao, habilidade: null }).success).toBe(true)
+    expect(questaoObjetivaSchema.safeParse({ ...questao, habilidade: undefined }).success).toBe(false)
   })
 
-  it('todo código é único, cabe no contrato e não se apresenta como código da BNCC', () => {
-    const todas = [...Object.values(CATALOGO_DE_HABILIDADES).flatMap((disciplina) => [...disciplina.habilidades]), HABILIDADE_GERAL]
-    const codigos = todas.map((habilidade) => habilidade.codigo)
-    expect(new Set(codigos).size).toBe(codigos.length)
-    for (const habilidade of todas) {
-      expect(habilidade.codigo.length, habilidade.codigo).toBeLessThanOrEqual(20)
-      // O formato da BNCC é `EM13CNT101` ou `EF09CI02`: o catálogo curto não afirma correspondência com ela.
-      expect(habilidade.codigo, habilidade.codigo).not.toMatch(/^E[FM]\d{2}/)
-      expect(habilidadeDoCatalogo(habilidade.codigo)).toEqual(habilidade)
-      expect(questaoObjetivaSchema.safeParse({ ...questao, habilidade: { codigo: habilidade.codigo, descricao: habilidade.descricao } }).success, habilidade.codigo).toBe(true)
-    }
-    expect(habilidadeDoCatalogo('EM13CNT101')).toBeUndefined()
+  it('o código antigo (`QUI.EM.05`) das atividades de antes continua legível, e o da BNCC também', () => {
+    expect(questaoObjetivaSchema.safeParse(questao).success).toBe(true)
+    expect(questaoObjetivaSchema.safeParse({ ...questao, habilidade: { codigo: 'EM13CNT101', descricao: 'Analisar e representar as transformações e conservações em sistemas.' } }).success).toBe(true)
+  })
+
+  it('o plano aceita nenhuma habilidade, quando nenhuma seção citada tem', () => {
+    expect(conteudoDePlanoDeAulaSchema.safeParse({ ...plano, habilidades: [] }).success).toBe(true)
   })
 })

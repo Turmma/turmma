@@ -62,10 +62,12 @@ function conferirOMaterial(atividade: AtividadeDaTurma | undefined, material: Ma
   if (material !== undefined && pedido.pagina !== undefined && pedido.pagina > (material.paginas ?? 0)) naoEncontrado()
 }
 
-/** As habilidades das questões de uma atividade, pelo código: é de onde sai a descrição que a correção não guarda. */
+/** As habilidades das questões de uma atividade, pelo código: é de onde sai a descrição que a correção não guarda. A questão sem habilidade (classificacao-bncc, 10.0) não entra. */
 function habilidadesDaAtividade(conteudo: unknown): Map<string, Habilidade> {
   const lido = conteudoDeAtividadeSchema.safeParse(conteudo)
-  return new Map(lido.success ? lido.data.questoes.map((questao) => [questao.habilidade.codigo, questao.habilidade]) : [])
+  const habilidades = new Map<string, Habilidade>()
+  if (lido.success) for (const { habilidade } of lido.data.questoes) if (habilidade !== null) habilidades.set(habilidade.codigo, habilidade)
+  return habilidades
 }
 
 /**
@@ -77,7 +79,7 @@ export function questaoSemGabarito(conteudo: unknown, numero: number): QuestaoEm
   const lido = conteudoDeAtividadeSchema.safeParse(conteudo)
   const questao = lido.success ? lido.data.questoes[numero - 1] : undefined
   if (questao === undefined) return undefined
-  return { numero, enunciado: questao.enunciado, alternativas: [...questao.alternativas], habilidade: { codigo: questao.habilidade.codigo, descricao: questao.habilidade.descricao } }
+  return { numero, enunciado: questao.enunciado, alternativas: [...questao.alternativas], habilidade: questao.habilidade === null ? null : { codigo: questao.habilidade.codigo, descricao: questao.habilidade.descricao } }
 }
 
 /**
@@ -90,6 +92,8 @@ export function memoriaDoTrabalho(trabalhos: readonly TrabalhoDoAluno[]): Memori
     if (trabalho.porHabilidade === null) continue
     const habilidades = habilidadesDaAtividade(trabalho.conteudo)
     for (const item of diagnosticoGravadoSchema.parse(trabalho.porHabilidade)) {
+      // A questão sem habilidade (`codigo: null`) conta no diagnóstico, mas não vira memória por habilidade (D66).
+      if (item.codigo === null) continue
       const habilidade = habilidades.get(item.codigo)
       if (habilidade === undefined) continue
       const atual = soma.get(item.codigo) ?? { habilidade, acertos: 0, erros: 0 }

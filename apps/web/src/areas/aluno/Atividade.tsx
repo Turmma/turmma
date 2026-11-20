@@ -1,4 +1,4 @@
-import { ErrorCode, type MeuDiagnosticoResponse, type ProvaResponse } from '@educa/shared'
+import { ErrorCode, ROTULO_SEM_HABILIDADE, type MeuDiagnosticoResponse, type ProvaResponse } from '@educa/shared'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, ArrowRight, Check, CircleAlert, MessageCircleQuestion } from 'lucide-react'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
@@ -319,7 +319,7 @@ function Diagnostico({ diagnostico, prova }: { diagnostico: MeuDiagnosticoRespon
                 Acertos por habilidade
               </h3>
               {diagnostico.porHabilidade.map((item) => (
-                <ProgressBar key={item.habilidade.codigo} rotulo={item.habilidade.descricao} valor={item.acertos} maximo={item.total} texto={textoDoAcerto(item.acertos, item.total)} />
+                <ProgressBar key={item.habilidade?.codigo ?? 'sem-habilidade'} rotulo={item.habilidade?.descricao ?? ROTULO_SEM_HABILIDADE} valor={item.acertos} maximo={item.total} texto={textoDoAcerto(item.acertos, item.total)} />
               ))}
             </section>
           )}

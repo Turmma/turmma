@@ -317,6 +317,31 @@ describe('Analista de desempenho escolar', () => {
         for (const espiao of espioes) espiao.mockRestore()
       }
     })
+
+    it('a questão sem habilidade da BNCC (classificacao-bncc, 10.0) entra no recorte numa linha própria, com `habilidade: null`, depois das que têm código, e a conta do acerto a inclui', async () => {
+      const doPrimeiro = { serieId: 'serie-0', disciplinaId: 'disciplina' }
+      const recorte = { serieId: 'serie-0', etapa: 'em' as const, ano: 1, disciplinaId: 'disciplina', disciplina: 'Química', lotesAprovados: 2, alunos: 10, professores: 2 }
+      const espioes = [
+        vi.spyOn(AnalistaRepository.prototype, 'recortesComLotes').mockResolvedValue([recorte]),
+        vi.spyOn(AnalistaRepository.prototype, 'acertosPorRecorte').mockResolvedValue([
+          { ...doPrimeiro, codigo: 'H0', acertos: 1, total: 2 },
+          { ...doPrimeiro, codigo: null, acertos: 3, total: 4 },
+        ]),
+        vi.spyOn(AnalistaRepository.prototype, 'descricoesDasHabilidades').mockResolvedValue(new Map([['H0', 'Descrição de H0']])),
+      ]
+      try {
+        const { entrada } = await preparar(a, new ResumoDoAnalistaCommand(bancada.banco))
+        const [primeiro] = entrada.recortes
+        expect(primeiro?.porHabilidade).toEqual([
+          { habilidade: { codigo: 'H0', descricao: 'Descrição de H0' }, acertos: 1, total: 2 },
+          { habilidade: null, acertos: 3, total: 4 },
+        ])
+        // A conta é a das duas linhas: 4 de 6.
+        expect(primeiro?.acertoPercentual).toBe(66.7)
+      } finally {
+        for (const espiao of espioes) espiao.mockRestore()
+      }
+    })
   })
 
   describe('o dado nominal', () => {
@@ -329,6 +354,26 @@ describe('Analista de desempenho escolar', () => {
       expect(erro(await get(a.coordenacao, `/v1/analista/nominal?finalidade=${FINALIDADE}`))).toEqual(ENTRADA_INVALIDA)
       expect(erro(await get(a.coordenacao, `/v1/analista/nominal?turmaId=${a.turma}&finalidade=${FINALIDADE}&professorId=${a.professora.usuarioId}`))).toEqual(ENTRADA_INVALIDA)
       expect(await leiturasNominais(a)).toHaveLength(antes)
+    })
+
+    it('o dado nominal da turma também leva a linha `habilidade: null` (classificacao-bncc, 10.0), sem código nem descrição inventados', async () => {
+      const espioes = [
+        vi.spyOn(AnalistaRepository.prototype, 'acertosDaTurma').mockResolvedValue([
+          { codigo: 'H0', acertos: 1, total: 2 },
+          { codigo: null, acertos: 3, total: 4 },
+        ]),
+        vi.spyOn(AnalistaRepository.prototype, 'descricoesDasHabilidades').mockResolvedValue(new Map([['H0', 'Descrição de H0']])),
+      ]
+      try {
+        const resposta = await nominal(a.coordenacao, a.turma)
+        expect(resposta.status).toBe(200)
+        expect(analistaNominalResponseSchema.parse(resposta.corpo).porHabilidade).toEqual([
+          { habilidade: { codigo: 'H0', descricao: 'Descrição de H0' }, acertos: 1, total: 2 },
+          { habilidade: null, acertos: 3, total: 4 },
+        ])
+      } finally {
+        for (const espiao of espioes) espiao.mockRestore()
+      }
     })
 
     it('com finalidade, traz a turma, os professores dela, o acerto por habilidade e os sinais de trabalho; nada de aluno', async () => {

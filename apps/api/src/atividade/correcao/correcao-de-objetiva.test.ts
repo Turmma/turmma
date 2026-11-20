@@ -18,13 +18,13 @@ import {
 
 const MATERIAL = '018f4e2a-7b1c-7d3e-9a4b-0123456789ab'
 
-/** Uma questão com o gabarito e a habilidade dados. O texto é sintético: a conta não o lê. */
-function questao(gabarito: number, codigo = 'QUI.EM.05'): QuestaoObjetiva {
+/** Uma questão com o gabarito e a habilidade dados (`null` é a questão sem habilidade). O texto é sintético: a conta não o lê. O código antigo (`QUI.EM.05`) é só um texto aqui: a conta o trata como qualquer outro. */
+function questao(gabarito: number, codigo: string | null = 'QUI.EM.05'): QuestaoObjetiva {
   return {
     enunciado: 'Enunciado sintético',
     alternativas: ['a', 'b', 'c', 'd'],
     gabarito,
-    habilidade: { codigo, descricao: `Habilidade ${codigo}` },
+    habilidade: codigo === null ? null : { codigo, descricao: `Habilidade ${codigo}` },
     citacao: { materialId: MATERIAL, pagina: 1, trecho: 'trecho' },
     explicacao: 'explicação',
   }
@@ -45,6 +45,22 @@ function destaques(marcadas: RespostasDaTentativa, { historico, colegas = 0, que
   const lote = acertosDoLote(questoes, [marcadas, ...Array.from({ length: colegas }, () => certo)])
   return destaquesDaTentativa({ questoes, respostas: marcadas, correcao: corrigirTentativa(questoes, marcadas), historico, lote })
 }
+
+describe('correção de objetiva: a questão sem habilidade (classificacao-bncc, 10.0)', () => {
+  it('conta numa linha à parte, com `codigo: null`, e nunca soma à de um código; as duas sem habilidade somam entre si', () => {
+    const questoes = [questao(0, 'EM13CNT101'), questao(1, null), questao(2, null), questao(3, 'EM13CNT101')]
+    const correcao = corrigirTentativa(questoes, respostas(0, 1, 0, 3))
+    expect(correcao.porHabilidade).toEqual([
+      { codigo: 'EM13CNT101', acertos: 2, total: 2 },
+      { codigo: null, acertos: 1, total: 2 },
+    ])
+    expect(correcao).toMatchObject({ acertos: 3, total: 4, emBranco: 0 })
+  })
+
+  it('a atividade toda sem habilidade tem uma linha só, com o total das questões', () => {
+    expect(corrigirTentativa([questao(0, null), questao(1, null)], respostas(null, 1)).porHabilidade).toEqual([{ codigo: null, acertos: 1, total: 2 }])
+  })
+})
 
 describe('correção de objetiva: a conta', () => {
   it('compara cada resposta com o gabarito e conta acertos, total e em branco; a questão errada não é acerto nem branco', () => {

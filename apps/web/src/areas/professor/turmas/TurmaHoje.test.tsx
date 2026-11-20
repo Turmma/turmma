@@ -636,6 +636,16 @@ describe('Hoje: o acerto por habilidade é só de correção aprovada, em barra 
     expect(seNomes(textoDaPagina())).toEqual([])
   })
 
+  it('a questão sem habilidade (classificacao-bncc, 10.0) é uma barra com o rótulo "Sem habilidade", sem código, ao lado das que têm', async () => {
+    const rede = fakeNetwork()
+    instalar(rede, { desempenho: ok({ ...DESEMPENHO, porHabilidade: [...DESEMPENHO.porHabilidade, { habilidade: null, acertos: 3, total: 6, alunosAbaixoDaMetade: 2 }] }) })
+    montar()
+    const regiao = await screen.findByRole('region', { name: 'Acerto por habilidade' })
+    await waitFor(() => expect(regiao.textContent).toContain('QUI.EM.04'))
+    expect(regiao.textContent).toContain('Sem habilidade')
+    expect(regiao.textContent).toContain('3 de 6')
+  })
+
   it('só de correção aprovada: com `lotesAprovados` zero não há barra, e o vazio diz o que falta', async () => {
     const rede = fakeNetwork()
     instalar(rede, { desempenho: ok({ ...DESEMPENHO_VAZIO, porHabilidade: [] }) })

@@ -10,8 +10,8 @@ import type { SessaoFixtures, TestSessao } from './sessao.fixture.js'
 
 /** O gabarito da atividade de teste, pelo índice da alternativa: questão 1 → A, 2 → B, 3 → C, 4 → D, 5 → A. */
 export const GABARITO_DE_TESTE = [0, 1, 2, 3, 0] as const
-export const HABILIDADE_DAS_TRES_PRIMEIRAS = { codigo: 'QUI.EM.05', descricao: 'Calcular a massa de reagentes e produtos numa reação' }
-export const HABILIDADE_DAS_DUAS_ULTIMAS = { codigo: 'QUI.EM.06', descricao: 'Identificar o reagente limitante' }
+export const HABILIDADE_DAS_TRES_PRIMEIRAS = { codigo: 'EM13CNT102', descricao: 'Calcular a massa de reagentes e produtos numa reação' }
+export const HABILIDADE_DAS_DUAS_ULTIMAS = { codigo: 'EM13CNT103', descricao: 'Identificar o reagente limitante' }
 /** O texto que nunca pode chegar ao aluno antes da aprovação. */
 export const EXPLICACAO_DE_TESTE = 'Explicação sintética do gabarito que só aparece depois da aprovação'
 

@@ -170,7 +170,7 @@ vale 72 horas. O painel da operação não mostra dado de aluno nem de professor
 
 ---
 
-## 3. Passo 1: o material da escola, com licença (Coordenação, 2 min)
+## 3. Passo 1: o material da escola, com licença (Coordenação, 4 min; 2 min sem o item 3)
 
 1. **Material** → **Enviar material** → arraste o PDF de demonstração (o título sai do nome do arquivo; troque por
    `Química 2, capítulo 7: Estequiometria`) → Disciplina `Química` → Séries: marque **`2º ano do Ensino Médio`** → De quem
@@ -183,6 +183,12 @@ vale 72 horas. O painel da operação não mostra dado de aluno nem de professor
    **`Autoria da escola ou de professor dela`** → declaração → **Enviar material**.
    **Aparece:** em alguns segundos, "Pronto · 6 páginas". **Diga:** "A IA só trabalha com o que a escola subiu e pode
    usar. Tudo que ela gerar vai citar a página daqui."
+3. (Na versão curta, o item 3 é opcional: diga a frase dele e siga.) Na linha do material, clique no **título** → no painel, em **Habilidades da BNCC**, o capítulo 7 vem com a
+   habilidade que a IA sugeriu (a classificação roda à noite e já rodou) → **Corrigir** → desmarque a sugestão e marque
+   a primeira habilidade da lista → **Salvar correção**. **Aparece:** "Corrigida pela coordenação", com o código e o
+   texto da habilidade. **Diga:** "A geração só usa a habilidade da BNCC da seção que ela cita, e a coordenação tem a
+   última palavra sobre qual é. Se a seção ficar sem habilidade, a questão sai sem habilidade, e o sistema não inventa
+   uma." Feche o painel (Esc).
 
 ## 4. Passo 2: a professora e o Assistente de ensino (Professora, 6 min)
 

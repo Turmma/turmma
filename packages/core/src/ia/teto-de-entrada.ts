@@ -77,7 +77,12 @@ function tamanhoNoLimite(def: Definicao): number | undefined {
   return verificacoes.find((verificacao) => verificacao.check === 'length_equals')?.length ?? verificacoes.find((verificacao) => verificacao.check === 'max_length')?.maximum
 }
 
-function textoNoLimite(def: Definicao, caminho: string): string {
+/**
+ * O texto sem formato no limite: `a` repetido até o `max`. Dentro de uma lista, os primeiros caracteres levam o número do item
+ * (`variacao`, "3." ou "11.4."), sem mudar o comprimento: o pior pedido de verdade tem itens diferentes, e a tarefa que une
+ * ou deduplica itens (as habilidades dos trechos da geração, 10.0) só mede o pior caso com eles distintos.
+ */
+function textoNoLimite(def: Definicao, caminho: string, variacao: string): string {
   const conhecido = TEXTO_DE_FORMATO_CONHECIDO[String(def.format)]
   if (conhecido !== undefined) return conhecido
   if (def.format !== undefined) throw new EntradaSemLimiteError(caminho, `string de formato "${def.format}", que o gerador não sabe montar`)
@@ -86,7 +91,7 @@ function textoNoLimite(def: Definicao, caminho: string): string {
   if (deFormato !== undefined) throw new EntradaSemLimiteError(caminho, `string com regra de formato (${deFormato.format ?? '?'}), que o gerador não sabe montar`)
   const tamanho = tamanhoNoLimite(def)
   if (tamanho === undefined) throw new EntradaSemLimiteError(caminho, 'string sem limite de tamanho (`max`)')
-  return 'a'.repeat(tamanho)
+  return variacao.length <= tamanho ? variacao + 'a'.repeat(tamanho - variacao.length) : 'a'.repeat(tamanho)
 }
 
 function numeroNoLimite(def: Definicao): number {
@@ -97,22 +102,21 @@ function numeroNoLimite(def: Definicao): number {
   return teto.inclusive === false ? (inteiro ? teto.value - 1 : teto.value - 0.5) : teto.value
 }
 
-function listaNoLimite(def: Definicao, caminho: string): unknown[] {
+function listaNoLimite(def: Definicao, caminho: string, variacao: string): unknown[] {
   const tamanho = tamanhoNoLimite(def)
   if (tamanho === undefined) throw new EntradaSemLimiteError(caminho, 'array sem limite de itens (`max`)')
-  const item = noLimite(def.element as z.ZodType, `${caminho}[]`)
-  return Array.from({ length: tamanho }, () => item)
+  return Array.from({ length: tamanho }, (_, indice) => noLimite(def.element as z.ZodType, `${caminho}[]`, `${variacao}${indice}.`))
 }
 
-function objetoNoLimite(def: Definicao, caminho: string): Record<string, unknown> {
+function objetoNoLimite(def: Definicao, caminho: string, variacao: string): Record<string, unknown> {
   if (def.catchall !== undefined && definicaoDe(def.catchall).type !== 'never') throw new EntradaSemLimiteError(caminho, 'objeto com chaves livres (`catchall`)')
-  return Object.fromEntries(Object.entries(def.shape as Readonly<Record<string, z.ZodType>>).map(([chave, valor]) => [chave, noLimite(valor, `${caminho}.${chave}`)]))
+  return Object.fromEntries(Object.entries(def.shape as Readonly<Record<string, z.ZodType>>).map(([chave, valor]) => [chave, noLimite(valor, `${caminho}.${chave}`, variacao)]))
 }
 
-type ValorNoLimite = (def: Definicao, caminho: string) => unknown
+type ValorNoLimite = (def: Definicao, caminho: string, variacao: string) => unknown
 
 /** Quem embrulha outro esquema (opcional, anulável, com valor padrão…): o valor é o do de dentro, com o campo presente. */
-const doInterior: ValorNoLimite = (def, caminho) => noLimite(def.innerType as z.ZodType, caminho)
+const doInterior: ValorNoLimite = (def, caminho, variacao) => noLimite(def.innerType as z.ZodType, caminho, variacao)
 
 /** O valor no limite de cada forma de esquema que o gerador conhece. Forma que não está aqui falha: não se adivinha o limite. */
 const VALOR_NO_LIMITE: Readonly<Record<string, ValorNoLimite>> = {
@@ -123,10 +127,10 @@ const VALOR_NO_LIMITE: Readonly<Record<string, ValorNoLimite>> = {
   enum: (def) => maiorEmTexto(Object.values(def.entries as Readonly<Record<string, string | number>>)),
   literal: (def) => maiorEmTexto(def.values as readonly unknown[]),
   array: listaNoLimite,
-  tuple: (def, caminho) => (def.items as readonly z.ZodType[]).map((item, indice) => noLimite(item, `${caminho}[${indice}]`)),
+  tuple: (def, caminho, variacao) => (def.items as readonly z.ZodType[]).map((item, indice) => noLimite(item, `${caminho}[${indice}]`, variacao)),
   object: objetoNoLimite,
-  union: (def, caminho) => maiorEmTexto((def.options as readonly z.ZodType[]).map((braco, indice) => noLimite(braco, `${caminho}|${indice}`))),
-  intersection: (def, caminho) => ({ ...(noLimite(def.left as z.ZodType, caminho) as object), ...(noLimite(def.right as z.ZodType, caminho) as object) }),
+  union: (def, caminho, variacao) => maiorEmTexto((def.options as readonly z.ZodType[]).map((braco, indice) => noLimite(braco, `${caminho}|${indice}`, variacao))),
+  intersection: (def, caminho, variacao) => ({ ...(noLimite(def.left as z.ZodType, caminho, variacao) as object), ...(noLimite(def.right as z.ZodType, caminho, variacao) as object) }),
   optional: doInterior,
   nullable: doInterior,
   default: doInterior,
@@ -134,7 +138,7 @@ const VALOR_NO_LIMITE: Readonly<Record<string, ValorNoLimite>> = {
   readonly: doInterior,
   catch: doInterior,
   nonoptional: doInterior,
-  pipe: (def, caminho) => noLimite(def.in as z.ZodType, caminho),
+  pipe: (def, caminho, variacao) => noLimite(def.in as z.ZodType, caminho, variacao),
 }
 
 /**
@@ -142,11 +146,11 @@ const VALOR_NO_LIMITE: Readonly<Record<string, ValorNoLimite>> = {
  * de maior tamanho. Forma sem limite declarado, ou que o gerador não conhece, é falha (`EntradaSemLimiteError`) e não valor
  * adivinhado: o teto de uma tarefa que o gerador não alcança não estaria provado.
  */
-export function noLimite(esquema: z.ZodType, caminho = 'entrada'): unknown {
+export function noLimite(esquema: z.ZodType, caminho = 'entrada', variacao = ''): unknown {
   const def = definicaoDe(esquema)
   const valor = VALOR_NO_LIMITE[def.type]
   if (valor === undefined) throw new EntradaSemLimiteError(caminho, `forma "${def.type}" sem limite que o gerador conheça`)
-  return valor(def, caminho)
+  return valor(def, caminho, variacao)
 }
 
 /** Tira da entrada o campo que o `caminho` aponta, se ele existe num objeto. Devolve se tirou. */

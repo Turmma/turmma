@@ -883,10 +883,10 @@ describe('camada de IA na API', () => {
     })
 
     it('material sem trecho aproveitável termina "falhou" com MATERIAL_INSUFICIENTE, que a tela sabe mostrar', async () => {
-      const trechos = [{ materialId: randomUUID(), pagina: 1, texto: 'Sumário. Capítulo 7.' }]
+      const trechos = [{ materialId: randomUUID(), pagina: 1, texto: 'Sumário. Capítulo 7.', habilidades: [] }]
       const aoConcluir = vi.fn(async (): Promise<ResultadoGravado> => ({ tipo: 'artefato', artefatoId: randomUUID(), entregaId: null }))
       const chaveEnvio = randomUUID()
-      ganchosDaAtividade.set(chaveEnvio, { entrada: async () => ({ tema: 'estequiometria', quantidade: 5, contexto: { serie: '2º ano', disciplina: 'Química' }, habilidades: [{ codigo: 'QUI.EM.05', descricao: 'Estequiometria' }], trechos }), concluir: aoConcluir })
+      ganchosDaAtividade.set(chaveEnvio, { entrada: async () => ({ tema: 'estequiometria', quantidade: 5, contexto: { serie: '2º ano', disciplina: 'Química' }, trechos }), concluir: aoConcluir })
       const { execucaoId } = await como(a, a.professor, 'professor', () =>
         agendador.agendar({ comando: 'gerar_atividade_objetiva', chaveEnvio, entradaDaExecucao: { tarefa: 'gerar_atividade_objetiva', parametros: { turmaId: a.turma, disciplinaId: a.quimica, tema: 'estequiometria' } } }),
       )
@@ -902,7 +902,6 @@ describe('camada de IA na API', () => {
       tema: 'estequiometria',
       quantidade: 3,
       contexto: { serie: '2º ano do Ensino Médio', disciplina: 'Química' },
-      habilidades: [{ codigo: 'EM13CNT101', descricao: 'Analisar e representar transformações e conservações em sistemas.' }],
       trechos: [],
     }
     type Lido = { readonly execucaoVista: string }

@@ -1,4 +1,4 @@
-import { NOME_DO_ALERTA_DO_ANALISTA, TEXTO_DA_HIPOTESE, type ConteudoDoResumoDoAnalista } from '@educa/shared'
+import { NOME_DO_ALERTA_DO_ANALISTA, ROTULO_SEM_HABILIDADE, TEXTO_DA_HIPOTESE, type ConteudoDoResumoDoAnalista } from '@educa/shared'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, type RefObject } from 'react'
 import { emCurso } from '../../../api/ciclo-de-execucao'
@@ -182,11 +182,11 @@ function Resumo({ geradoEm, conteudo, foco }: { readonly geradoEm: string; reado
             <div className="mt-3 flex min-w-0 flex-col gap-3">
               {recorte.porHabilidade.map((medida) => (
                 <ProgressBar
-                  key={medida.habilidade.codigo}
-                  rotulo={medida.habilidade.descricao}
+                  key={medida.habilidade?.codigo ?? 'sem-habilidade'}
+                  rotulo={medida.habilidade?.descricao ?? ROTULO_SEM_HABILIDADE}
                   valor={acertoPercentual(medida.acertos, medida.total)}
                   texto={`${formatPercentual(acertoPercentual(medida.acertos, medida.total))} · ${String(medida.acertos)} de ${String(medida.total)}`}
-                  detalhe={medida.habilidade.codigo}
+                  {...(medida.habilidade === null ? {} : { detalhe: medida.habilidade.codigo })}
                 />
               ))}
             </div>

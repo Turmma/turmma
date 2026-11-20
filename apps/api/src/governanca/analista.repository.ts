@@ -44,7 +44,8 @@ export interface RecorteComLotes extends ChaveDoRecorte {
 }
 
 export interface AcertoNoRecorte extends ChaveDoRecorte {
-  readonly codigo: string
+  /** `null` é a questão sem habilidade da BNCC (classificacao-bncc, 10.0). */
+  readonly codigo: string | null
   readonly acertos: number
   readonly total: number
 }
@@ -199,7 +200,7 @@ export class AnalistaRepository {
   acertosPorRecorte(): Promise<AcertoNoRecorte[]> {
     const habilidade = sql`jsonb_to_recordset(${correcao.porHabilidade}) as habilidade(codigo text, acertos int, total int)`
     return this.banco
-      .select({ serieId: turma.serieId, disciplinaId: artefato.disciplinaId, codigo: sql<string>`habilidade.codigo`, acertos: sql<number>`sum(habilidade.acertos)::int`, total: sql<number>`sum(habilidade.total)::int` })
+      .select({ serieId: turma.serieId, disciplinaId: artefato.disciplinaId, codigo: sql<string | null>`habilidade.codigo`, acertos: sql<number>`sum(habilidade.acertos)::int`, total: sql<number>`sum(habilidade.total)::int` })
       .from(entrega)
       .innerJoin(atividadeAplicada, aplicacaoDaEntrega)
       .innerJoin(artefato, artefatoDaAplicacao)
@@ -215,7 +216,7 @@ export class AnalistaRepository {
   async descricoesDasHabilidades(turmaId?: string): Promise<Map<string, string>> {
     const questao = sql`jsonb_array_elements(${artefato.conteudo} -> 'questoes') as questao`
     const linhas = await this.banco
-      .selectDistinct({ codigo: sql<string>`questao -> 'habilidade' ->> 'codigo'`, descricao: sql<string>`questao -> 'habilidade' ->> 'descricao'` })
+      .selectDistinct({ codigo: sql<string | null>`questao -> 'habilidade' ->> 'codigo'`, descricao: sql<string | null>`questao -> 'habilidade' ->> 'descricao'` })
       .from(entrega)
       .innerJoin(atividadeAplicada, aplicacaoDaEntrega)
       .innerJoin(artefato, artefatoDaAplicacao)
@@ -223,7 +224,8 @@ export class AnalistaRepository {
       .where(this.#lotesAprovados(turmaId === undefined ? undefined : eq(entrega.turmaId, turmaId)))
       .orderBy(sql`1`, sql`2`)
     const descricoes = new Map<string, string>()
-    for (const linha of linhas) if (!descricoes.has(linha.codigo)) descricoes.set(linha.codigo, linha.descricao)
+    // A questão sem habilidade (`habilidade: null` no conteúdo) não tem código nem descrição para guardar.
+    for (const linha of linhas) if (linha.codigo !== null && linha.descricao !== null && !descricoes.has(linha.codigo)) descricoes.set(linha.codigo, linha.descricao)
     return descricoes
   }
 
@@ -285,10 +287,10 @@ export class AnalistaRepository {
   }
 
   /** O acerto por habilidade da turma, somado nos lotes aprovados dela. Sem aluno: quem quer por aluno usa o desempenho da turma. */
-  acertosDaTurma(turmaId: string): Promise<{ codigo: string; acertos: number; total: number }[]> {
+  acertosDaTurma(turmaId: string): Promise<{ codigo: string | null; acertos: number; total: number }[]> {
     const habilidade = sql`jsonb_to_recordset(${correcao.porHabilidade}) as habilidade(codigo text, acertos int, total int)`
     return this.banco
-      .select({ codigo: sql<string>`habilidade.codigo`, acertos: sql<number>`sum(habilidade.acertos)::int`, total: sql<number>`sum(habilidade.total)::int` })
+      .select({ codigo: sql<string | null>`habilidade.codigo`, acertos: sql<number>`sum(habilidade.acertos)::int`, total: sql<number>`sum(habilidade.total)::int` })
       .from(entrega)
       .innerJoin(correcao, correcaoDaEntrega)
       .crossJoinLateral(habilidade)

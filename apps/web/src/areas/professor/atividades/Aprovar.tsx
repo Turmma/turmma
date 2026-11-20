@@ -1,4 +1,4 @@
-import { ErrorCode, type Destaque, type DestaqueAbertoResponse } from '@educa/shared'
+import { ErrorCode, ROTULO_SEM_HABILIDADE, type Destaque, type DestaqueAbertoResponse } from '@educa/shared'
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft } from 'lucide-react'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
@@ -376,7 +376,7 @@ export default function Aprovar({ atividadeAplicadaId }: { atividadeAplicadaId: 
               <SectionHeader titulo="Acerto por habilidade" apoio="As respostas certas da turma em cada habilidade, somadas." />
               <div className="flex min-w-0 flex-col gap-3 rounded-cartao border-2 border-borda bg-superficie p-4">
                 {resumo.porHabilidade.map((item) => (
-                  <ProgressBar key={item.habilidade.codigo} rotulo={`${item.habilidade.codigo} · ${item.habilidade.descricao}`} valor={item.acertos} maximo={item.total} texto={`${String(item.acertos)} de ${String(item.total)}`} />
+                  <ProgressBar key={item.habilidade?.codigo ?? 'sem-habilidade'} rotulo={item.habilidade === null ? ROTULO_SEM_HABILIDADE : `${item.habilidade.codigo} · ${item.habilidade.descricao}`} valor={item.acertos} maximo={item.total} texto={`${String(item.acertos)} de ${String(item.total)}`} />
                 ))}
               </div>
             </section>
@@ -388,7 +388,7 @@ export default function Aprovar({ atividadeAplicadaId }: { atividadeAplicadaId: 
                 rotulo="Acertos por questão"
                 colunas={[
                   { chave: 'numero', titulo: 'Questão', celula: (questao) => String(questao.numero) },
-                  { chave: 'habilidade', titulo: 'Habilidade', celula: (questao) => questao.habilidade.codigo },
+                  { chave: 'habilidade', titulo: 'Habilidade', celula: (questao) => questao.habilidade?.codigo ?? ROTULO_SEM_HABILIDADE },
                   { chave: 'gabarito', titulo: 'Gabarito', celula: (questao) => letraDaAlternativa(questao.gabarito) },
                   { chave: 'acertos', titulo: 'Acertaram', celula: (questao) => `${String(questao.acertos)} de ${String(resumo.corrigidos)}` },
                   { chave: 'marcacoes', titulo: 'Marcaram', celula: (questao) => questao.porAlternativa.map((quantos, alternativa) => `${letraDaAlternativa(alternativa)}: ${String(quantos)}`).join(' · ') },

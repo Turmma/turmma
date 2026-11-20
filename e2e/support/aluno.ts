@@ -225,8 +225,8 @@ export function diagnosticoDa(atividade: MinhaAtividade): MeuDiagnosticoResponse
     acertos: 2,
     total: 3,
     porHabilidade: [
-      { habilidade: { codigo: 'QUI.EM.05', descricao: 'Calcular a massa molar de uma substância' }, acertos: 1, total: 1 },
-      { habilidade: { codigo: 'QUI.EM.06', descricao: 'Aplicar a proporção em mols da equação balanceada' }, acertos: 1, total: 2 },
+      { habilidade: { codigo: 'EM13CNT102', descricao: 'Calcular a massa molar de uma substância' }, acertos: 1, total: 1 },
+      { habilidade: { codigo: 'EM13CNT103', descricao: 'Aplicar a proporção em mols da equação balanceada' }, acertos: 1, total: 2 },
     ],
     questoes: [
       { numero: 1, alternativa: 1, gabarito: 1, correta: true, explicacao: 'Dois hidrogênios e um oxigênio somam 18.', citacao: citacao(2) },

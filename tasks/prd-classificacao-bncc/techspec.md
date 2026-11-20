@@ -118,11 +118,17 @@ efeito. O texto vem dos `trecho`. A trava é só a das seções (`for update ...
 **Suspensão** de `classificacao_do_material`: a geração, a troca e a cobertura ignoram `origem: 'ia'` (vale só a
 correção); reclassificar e D76 recusam; a rotina não agenda; o painel diz por quê. Retomada: a rotina das 19h agenda.
 
-**Geração** (RF7, RF2). A busca da ferramenta e do chat devolve, com cada trecho, as habilidades da seção da página,
-filtradas pelo recorte atual da turma. A tarefa escolhe, por questão, uma das da página citada, ou nenhuma; `habilidade`
+**Geração** (RF7, RF2). A busca da ferramenta devolve, com cada trecho, as habilidades da seção da página,
+filtradas pelo recorte atual da turma (a geração que o chat pede passa pela mesma busca; a **proposta** do chat, que só
+escolhe a ferramenta e os parâmetros, não tem campo de habilidade e não a recebe). A descrição acima de 300 caracteres (162
+habilidades da BNCC passam disso, até 1.500) vai cortada em palavra, com reticências, no contrato da geração: o teto de 300
+é o dos tetos de entrada medidos de Tutor, relatório e Analista, e o texto inteiro segue em `habilidade_bncc`. A tarefa escolhe, por questão, uma das da página citada, ou nenhuma; `habilidade`
 aceita `null`, e o plano, `habilidades` vazia (a união das seções citadas). Habilidade fora da seção citada é anulada na
 gravação, e `ia.habilidade_anulada` soma. **O Tutor não recebe** as habilidades da seção: a entrada dele segue com
-`materialId`, `pagina` e `texto`, e a habilidade só chega pela atividade aplicada. Sai o catálogo (`habilidades.ts`,
+`materialId`, `pagina` e `texto`, e a habilidade só chega pela atividade aplicada. O **teto de entrada** das duas tarefas de geração
+(`gerar_atividade_objetiva`, `gerar_plano_de_aula`) é o do pior pedido, com os 12 trechos levando 5 habilidades distintas cada
+(a união de 60): 31.300 tokens, e não os 26.100 de antes; o gerador de `teto-de-entrada.ts` monta itens distintos nas listas,
+e um caso prova a união de 60. Sai o catálogo (`habilidades.ts`,
 `habilidadesParaOTema`, `QUI.EM.*` no seed). Questão sem habilidade entra no `por_habilidade` com `codigo: null`. O
 schema de leitura aceita `null` e código antigo (a tarefa confere a produção, D82).
 
@@ -189,7 +195,7 @@ não atingiu a taxa (`RETIDOS.json`, `medidaLocal`), e o Joaquim decidiu a funç
 | Corridas | uma linha por trava, ordem forçada e mutação em `cenarios.md`, P1 a P11 |
 | Laços | agendar (rotina e `PATCH`) e D76: lotes de 500 seções por transação, `statement_timeout`, até o sinal |
 | Índices | `secao_do_material (escola_id, material_id, pagina_inicial)`; `habilidade_da_secao (escola_id, codigo)`; parcial `(escola_id, execucao_id)` |
-| Migration | §3; a versão anterior lê execução sem ano e questão com `null` (teste) |
+| Migration | §3; a versão anterior lê execução sem ano (teste). **Questão com `habilidade: null`, plano com `habilidades: []` e diagnóstico com `codigo: null` (10.0): expandir antes de gravar.** O código de hoje recusa os três (`habilidade` obrigatória, `.min(1)` no plano), e nenhum SQL de volta os torna legíveis sem inventar habilidade. Por isso a leitura vai antes, numa correção na `develop` que chega à `main` **antes** da classificacao-bncc: os schemas de `packages/shared` aceitam os três formatos, e todo leitor da API e da web os aceita (abrir e corrigir a prova, o lote, o artefato, o Analista, o dado nominal, com o rótulo `ROTULO_SEM_HABILIDADE`), inclusive a correção do lote, que deriva `codigo: null` da questão sem habilidade. Nada nela grava `null`: a geração continua a da versão de hoje. O teste da correção lê, pelos leitores, o conteúdo com os três formatos. A volta da classificacao-bncc vai a essa versão, sem SQL; o runbook diz que voltar para antes da correção deixa a prova dessas atividades sem abrir. A ordem dos dois pousos está no `TODO.md` (Arquiteto, divergência da 10.0, 20/11/2026) |
 | Dependência cai | provedor ou balde: adia (§5); Redis: outbox |
 | Métrica | `ia.habilidade_anulada`; envio à classificação (`classificada_em − enviado_em`); correções e trocas pela auditoria, por escola, nunca por professor |
 | Alerta | `classificacao-atrasada`: na abertura da janela, execução `classificar_secoes` `falhou` na noite, ou `pendente` criada antes dela; com runbook. A métrica é `classificacao.execucoes_atrasadas{escola_id}`, medida de 5 em 5 minutos pelo `worker-lote` (a `EscolaGauge`) na janela letiva **da escola** (`ultimaNoite`: do fecho do último dia letivo à abertura mais recente), sem série para a escola sem atraso; o alerta dispara acima de 0, por 1 min, e traz só a escola. A consulta tem o índice parcial `execucao_agente_classificacao_idx` (`escola_id, estado, concluida_em`, só da função da classificação; migration 0064): `execucao_agente` cresce com o Tutor, e sem ele a medição lê a tabela da escola a cada 5 minutos (22 ms e 11,8 mil buffers com 400 mil turnos; com o índice, 0,075 ms) |

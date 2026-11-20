@@ -382,7 +382,7 @@ export function atividadeSintetica(turmaId: string, disciplinaId: string, campos
           enunciado: 'Qual a massa de CO₂ formada na queima completa de 24 g de carbono?',
           alternativas: ['44 g', '88 g', '24 g', '12 g'],
           gabarito: 1,
-          habilidade: { codigo: 'QUI.EM.04', descricao: 'Usar a proporção da equação balanceada para calcular massa, volume ou quantidade de matéria.' },
+          habilidade: { codigo: 'EM13CNT101', descricao: 'Usar a proporção da equação balanceada para calcular massa, volume ou quantidade de matéria.' },
           citacao: citacao(142, 'Na combustão completa, cada mol de carbono forma um mol de dióxido de carbono.'),
           explicacao: '24 g de carbono são 2 mol, que formam 2 mol de CO₂, ou 88 g.',
         },
@@ -390,7 +390,7 @@ export function atividadeSintetica(turmaId: string, disciplinaId: string, campos
           enunciado: 'Em uma reação com 2 mol de H₂ e 2 mol de O₂, qual é o reagente limitante?',
           alternativas: ['O oxigênio', 'A água', 'O hidrogênio', 'Nenhum dos dois'],
           gabarito: 2,
-          habilidade: { codigo: 'QUI.EM.05', descricao: 'Identificar o reagente limitante e o reagente em excesso.' },
+          habilidade: { codigo: 'EM13CNT102', descricao: 'Identificar o reagente limitante e o reagente em excesso.' },
           citacao: citacao(145, 'O reagente limitante é o que acaba primeiro e determina quanto produto se forma.'),
           explicacao: 'São precisos 2 mol de H₂ para cada mol de O₂: o hidrogênio acaba primeiro.',
         },
@@ -481,8 +481,8 @@ export function entregaDoLote(lote: CorrecaoDoLoteResponse, turmaId: string): En
   }
 }
 
-const HABILIDADE_04 = { codigo: 'QUI.EM.04', descricao: 'Usar a proporção da equação balanceada para calcular massa, volume ou quantidade de matéria.' }
-const HABILIDADE_05 = { codigo: 'QUI.EM.05', descricao: 'Identificar o reagente limitante e o reagente em excesso.' }
+const HABILIDADE_04 = { codigo: 'EM13CNT101', descricao: 'Usar a proporção da equação balanceada para calcular massa, volume ou quantidade de matéria.' }
+const HABILIDADE_05 = { codigo: 'EM13CNT102', descricao: 'Identificar o reagente limitante e o reagente em excesso.' }
 
 /** Os alunos sintéticos do lote: nomes inventados, de ninguém. */
 export const ALUNOS_DO_LOTE = ['Ana Sintética', 'Bruno Sintético', 'Caio Sintético', 'Dora Sintética'].map((nome) => ({ alunoId: randomUUID(), nome }))

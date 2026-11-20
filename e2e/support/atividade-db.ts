@@ -18,9 +18,9 @@ const PAGINAS = [
 ]
 
 export const HABILIDADES_DO_FLUXO = {
-  massaMolar: { codigo: 'QUI.EM.05', descricao: 'Calcular a massa molar de uma substância' },
-  proporcao: { codigo: 'QUI.EM.06', descricao: 'Aplicar a proporção em mols da equação balanceada' },
-  limitante: { codigo: 'QUI.EM.07', descricao: 'Identificar o reagente limitante de uma reação' },
+  massaMolar: { codigo: 'EM13CNT102', descricao: 'Calcular a massa molar de uma substância' },
+  proporcao: { codigo: 'EM13CNT103', descricao: 'Aplicar a proporção em mols da equação balanceada' },
+  limitante: { codigo: 'EM13CNT104', descricao: 'Identificar o reagente limitante de uma reação' },
 } as const
 
 /** A alternativa certa da questão 3, por extenso: o Tutor não pode repeti-la ao aluno. */

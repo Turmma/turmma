@@ -183,7 +183,9 @@ describe('ferramentas e artefato', () => {
       expect(plano.conteudo.duracaoMinutos).toBe(DURACAO_PADRAO_DO_PLANO_DE_AULA_MIN)
       expect(plano.conteudo.etapas.reduce((soma, etapa) => soma + etapa.minutos, 0)).toBe(50)
       expect(plano.conteudo.etapas.every((etapa) => etapa.citacao?.materialId === a.materialId)).toBe(true)
-      expect(plano.conteudo.habilidades.every((habilidade) => habilidade.codigo.startsWith('QUI.EM.'))).toBe(true)
+      // O catálogo próprio saiu: o plano só leva habilidade da BNCC (a união das seções citadas; vazia quando o material ainda não tem seção classificada).
+      expect(plano.conteudo.habilidades.every((habilidade) => /^EM13|^EF\d{2}/u.test(habilidade.codigo))).toBe(true)
+      expect(JSON.stringify(plano.conteudo)).not.toContain('QUI.EM')
       expect((await baixarPdf(a.professora, plano.id)).status).toBe(200)
     })
 

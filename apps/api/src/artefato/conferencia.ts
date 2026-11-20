@@ -1,30 +1,28 @@
 import { diaDeUso, DomainException, LLMError, systemClock } from '@educa/core'
-import { ErrorCode, conteudoDeAtividadeSchema, habilidadesDaDisciplina, type AdaptacaoAplicada, type Citacao, type ConteudoDeAtividade, type ConteudoDoArtefato, type Etapa, type Habilidade } from '@educa/shared'
+import { ErrorCode, conteudoDeAtividadeSchema, type AdaptacaoAplicada, type Citacao, type ConteudoDeAtividade, type ConteudoDoArtefato, type Habilidade } from '@educa/shared'
+import type { TrechoComHabilidades } from '../material/trecho-search.js'
 import type { ArtefatoLido, ArtefatoRepository } from './artefato.repository.js'
 
-/** Quantas habilidades uma tarefa aceita (`habilidadesSchema`, na camada de IA). */
-export const MAXIMO_DE_HABILIDADES_NA_TAREFA = 6
-
-function palavrasDe(texto: string): Set<string> {
-  const semAcento = texto
-    .normalize('NFD')
-    .replace(/\p{M}/gu, '')
-    .toLowerCase()
-  return new Set((semAcento.match(/[\p{L}\p{N}]+/gu) ?? []).filter((palavra) => palavra.length >= 3))
-}
-
 /**
- * As habilidades do catálogo que a tarefa pode cobrar, para a disciplina e a etapa da turma: até seis, primeiro as que
- * mais têm a ver com o tema pedido (pelo assunto e pela descrição), e no empate na ordem do catálogo. Só código e
- * descrição: a entrada da tarefa é estrita. Sem catálogo para a disciplina, vem a habilidade geral, nunca lista vazia.
+ * A habilidade que não é da **seção da página citada** sai na gravação (classificacao-bncc, 10.0; Tech Spec, seção 5, "Geração"): a questão fica com `habilidade: null` e o plano perde aquele código. A conferência da
+ * saída da tarefa já barrou o código que não veio em trecho nenhum; este é o caso do código que veio, mas de outra seção (o capítulo 3 na questão que cita o capítulo 7). O plano vale a **união das seções que cita**
+ * (as citações da lista e as de cada etapa). Devolve o conteúdo e quantas habilidades anulou, para a métrica `ia.habilidade_anulada`.
  */
-export function habilidadesParaOTema(disciplina: string, etapa: Etapa, tema: string): Habilidade[] {
-  const doTema = palavrasDe(tema)
-  return habilidadesDaDisciplina(disciplina, etapa)
-    .map((habilidade, posicao) => ({ habilidade, posicao, afinidade: [...palavrasDe(`${habilidade.tema} ${habilidade.descricao}`)].filter((palavra) => doTema.has(palavra)).length }))
-    .sort((a, b) => b.afinidade - a.afinidade || a.posicao - b.posicao)
-    .slice(0, MAXIMO_DE_HABILIDADES_NA_TAREFA)
-    .map(({ habilidade }) => ({ codigo: habilidade.codigo, descricao: habilidade.descricao }))
+export function anularHabilidadesForaDaSecao(conteudo: ConteudoDoArtefato, entregues: readonly TrechoComHabilidades[]): { readonly conteudo: ConteudoDoArtefato; readonly anuladas: number } {
+  const doTrecho = (citacao: Citacao): readonly Habilidade[] => entregues.find((trecho) => trecho.materialId === citacao.materialId && trecho.pagina === citacao.pagina)?.habilidades ?? []
+  if (conteudo.tipo === 'atividade_objetiva') {
+    let anuladas = 0
+    const questoes = conteudo.questoes.map((questao) => {
+      const { habilidade } = questao
+      if (habilidade === null || doTrecho(questao.citacao).some((daPagina) => daPagina.codigo === habilidade.codigo)) return questao
+      anuladas += 1
+      return { ...questao, habilidade: null }
+    })
+    return { conteudo: { ...conteudo, questoes }, anuladas }
+  }
+  const dasSecoesCitadas = new Set(citacoesDoConteudo(conteudo).flatMap((citacao) => doTrecho(citacao).map((habilidade) => habilidade.codigo)))
+  const habilidades = conteudo.habilidades.filter((habilidade) => dasSecoesCitadas.has(habilidade.codigo))
+  return { conteudo: { ...conteudo, habilidades }, anuladas: conteudo.habilidades.length - habilidades.length }
 }
 
 /** Toda citação que o conteúdo guarda: a de cada questão, ou a lista do plano e a de cada etapa. */
@@ -32,6 +30,9 @@ export function citacoesDoConteudo(conteudo: ConteudoDoArtefato): Citacao[] {
   if (conteudo.tipo === 'atividade_objetiva') return conteudo.questoes.map((questao) => questao.citacao)
   return [...conteudo.citacoes, ...conteudo.etapas.flatMap((etapa) => (etapa.citacao === undefined ? [] : [etapa.citacao]))]
 }
+
+/** A mesma habilidade, ou nenhuma nas duas: a questão sem habilidade (classificacao-bncc, 10.0) continua sem ela na versão adaptada. */
+const mesmaHabilidade = (a: Habilidade | null, b: Habilidade | null): boolean => (a === null || b === null ? a === b : a.codigo === b.codigo && a.descricao === b.descricao)
 
 const mesmosTipos = (a: readonly string[], b: readonly string[]): boolean => [...a].sort().join(',') === [...b].sort().join(',')
 
@@ -50,8 +51,7 @@ export function exigirAdaptacaoFiel(original: ConteudoDeAtividade, adaptada: Con
         origem !== undefined &&
         questao.gabarito === origem.gabarito &&
         questao.alternativas.length === origem.alternativas.length &&
-        questao.habilidade.codigo === origem.habilidade.codigo &&
-        questao.habilidade.descricao === origem.habilidade.descricao &&
+        mesmaHabilidade(questao.habilidade, origem.habilidade) &&
         questao.citacao.materialId === origem.citacao.materialId &&
         questao.citacao.pagina === origem.citacao.pagina &&
         questao.citacao.trecho === origem.citacao.trecho

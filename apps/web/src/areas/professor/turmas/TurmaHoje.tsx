@@ -1,4 +1,4 @@
-import type { Sinal, UsoDoAluno } from '@educa/shared'
+import { ROTULO_SEM_HABILIDADE, type Sinal, type UsoDoAluno } from '@educa/shared'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { ChartNoAxesColumn, ChevronRight, HeartHandshake } from 'lucide-react'
 import { useEffect, useId, useRef } from 'react'
@@ -260,8 +260,8 @@ export default function TurmaHoje({ turmaId, aoPerderATurma }: { turmaId: string
           <div className="flex min-w-0 flex-col gap-3 rounded-cartao border border-linha bg-superficie p-4">
             {dados.porHabilidade.map((item) => (
               <ProgressBar
-                key={item.habilidade.codigo}
-                rotulo={`${item.habilidade.codigo} · ${item.habilidade.descricao}`}
+                key={item.habilidade?.codigo ?? 'sem-habilidade'}
+                rotulo={item.habilidade === null ? ROTULO_SEM_HABILIDADE : `${item.habilidade.codigo} · ${item.habilidade.descricao}`}
                 valor={item.acertos}
                 maximo={item.total}
                 texto={`${String(item.acertos)} de ${String(item.total)}`}

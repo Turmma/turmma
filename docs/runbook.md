@@ -1291,6 +1291,28 @@ material que ficar `pronto` entre o bloco e o código novo volta a ficar sem se�
 
 **Depois:** registre no `TODO.md` a janela (de quando a quando) e quantos materiais receberam seção no bloco, só contagens.
 
+## Voltar o código depois da classificacao-bncc 10.0 (rollback)
+
+*Procedimento, não alerta: não há regra em `infra/grafana/alertas/`. Vale para a volta da versão que grava a questão com `habilidade: null`, o plano com
+`habilidades: []` e o diagnóstico com `codigo: null` (classificacao-bncc, tarefa 10.0; Tech Spec, seção 7c, linha "Migration"). A 10.0 não tem migration: não
+há nada a reverter no banco, e não há bloco de SQL, porque nenhum SQL torna esses formatos legíveis ao código de antes sem inventar uma habilidade.*
+
+**A ordem dos pousos é o que protege a volta.** A leitura dos três formatos (os schemas de `packages/shared` e os leitores da API e da web) pousa numa correção
+própria, na `develop` e na `main`, **antes** da classificacao-bncc; nada nela grava `null`. A classificacao-bncc só pousa depois. Voltar a classificacao-bncc vai
+para essa versão da correção, que lê o que a 10.0 gravou: é a volta de um comando, sem passo no banco.
+
+**Não volte para antes da correção da leitura** (a versão sem ela, de antes da classificacao-bncc, ou a `main` sem a correção): a versão de antes exige `habilidade`
+em toda questão e `.min(1)` no `codigo` do diagnóstico, e recusa o que a 10.0 gravou. A atividade gerada depois do pouso com seção `aguardando`,
+`sem_habilidade`, de antes do primeiro capítulo, ou com a habilidade anulada, leva `null`, e o caso é frequente: sem a leitura, o aluno **não abre a prova** dessas
+atividades (erro 500) e a correção do lote delas falha. **Não faça:** trocar o `null` por uma habilidade escolhida à mão, nem apagar a questão: a habilidade que a
+coordenação não corrigiu não existe, e o diagnóstico não pode ganhar código que ninguém deu.
+
+**Se a volta para antes da correção for inevitável:** pare a geração antes (suspenda as ferramentas de geração na governança), deixe as atividades com `null` fora
+do alcance dos alunos (nenhuma aplicação nova delas) e registre no `TODO.md` quais atividades ficaram assim, só contagens; o roll-forward é pousar a correção da
+leitura de novo, e nada mais.
+
+**Depois:** registre no `TODO.md` a janela (de quando a quando) e quantas atividades com `null` existiam, só contagens.
+
 ## Voltar o código depois da 5.0 (a IA no worker) (rollback)
 
 *Procedimento, não alerta: não há regra em `infra/grafana/alertas/`. Vale para a volta da versão em que o `POST` grava o job `ia.executar` e o

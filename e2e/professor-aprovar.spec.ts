@@ -88,7 +88,7 @@ test.describe('aprovar a correção (11.5)', () => {
     await activate(abas.getByRole('tab', { name: 'Resumo' }), hasTouch)
     await expect(page).toHaveURL(new RegExp(`/professor/aprovar/${atividadeId}\\?aba=resumo$`))
     await expect(page.getByRole('region', { name: 'Distribuição dos acertos' })).toContainText('2 acertos')
-    await expect(page.getByRole('region', { name: 'Acerto por habilidade' })).toContainText('QUI.EM.05')
+    await expect(page.getByRole('region', { name: 'Acerto por habilidade' })).toContainText('EM13CNT102')
     await expect(page.getByRole('region', { name: 'Acerto por habilidade' })).toContainText('15 de 28')
     await expect(page.getByRole('region', { name: 'Por questão' })).toContainText('a: 8 · b: 2 · c: 15 · d: 2')
     await expect(page.getByRole('region', { name: 'Por questão' })).toContainText('pode ter o gabarito errado')

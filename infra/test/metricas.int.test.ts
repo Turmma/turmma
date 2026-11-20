@@ -260,6 +260,8 @@ describe('métricas na observabilidade local, por rota, fila e escola', () => {
         ...NOMES_NO_PROMETHEUS.esperaDaClassificacao,
         // As execuções da classificação que não terminaram a noite, por escola: o que o alerta `classificacao-atrasada` lê (classificacao-bncc, tarefa 5.0; Tech Spec, seção 7c).
         ...NOMES_NO_PROMETHEUS.execucoesAtrasadasDaClassificacao,
+        // As habilidades que a geração anulou por não serem da seção da página citada, por escola (classificacao-bncc, tarefa 10.0; Tech Spec, seção 7c).
+        ...NOMES_NO_PROMETHEUS.habilidadeAnulada,
       ].sort(),
     )
     expect(comEscola.filter((nome) => !admitidas.has(nome ?? ''))).toEqual([])

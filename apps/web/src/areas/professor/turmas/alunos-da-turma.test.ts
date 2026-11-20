@@ -99,6 +99,15 @@ describe('a junção dos acertos', () => {
     expect(com && textoPorHabilidade(com)).toBe('QUI.EM.04: 1 de 2')
     expect(sem && textoPorHabilidade(sem)).toBe(TEXTO_SEM_HABILIDADE)
   })
+
+  it('a questão sem habilidade (`null`, classificacao-bncc, 10.0) entra na linha do aluno com o rótulo, depois da que tem código, sem código inventado', () => {
+    const [linha] = buildLinhas(
+      [aluno(1, 'Ana Sintética')],
+      turma([desempenhoDe(1, 'Ana Sintética', 2, 4, [{ habilidade: HABILIDADE, acertos: 1, total: 2 }, { habilidade: null, acertos: 1, total: 2 }])]),
+      true,
+    )
+    expect(linha && textoPorHabilidade(linha)).toBe('QUI.EM.04: 1 de 2 · Sem habilidade: 1 de 2')
+  })
 })
 
 describe('quem saiu da turma (transferido, ou com o acesso desativado)', () => {

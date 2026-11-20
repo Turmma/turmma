@@ -34,8 +34,7 @@ const ENTRADA_DA_ATIVIDADE: EntradaDaTarefa<typeof gerarAtividadeObjetiva> = {
   tema: 'estequiometria',
   quantidade: 3,
   contexto: { serie: '2º ano do Ensino Médio', disciplina: 'Química' },
-  habilidades: [{ codigo: 'EM13CNT101', descricao: 'Analisar e representar transformações e conservações em sistemas.' }],
-  trechos: [{ materialId: '0198a7b2-4c1d-7e3f-8a9b-1c2d3e4f5a6b', pagina: 1, texto: 'A estequiometria calcula a quantidade de reagentes e de produtos de uma reação química balanceada.' }],
+  trechos: [{ materialId: '0198a7b2-4c1d-7e3f-8a9b-1c2d3e4f5a6b', pagina: 1, texto: 'A estequiometria calcula a quantidade de reagentes e de produtos de uma reação química balanceada.', habilidades: [{ codigo: 'EM13CNT101', descricao: 'Analisar e representar transformações e conservações em sistemas.' }] }],
 }
 const ENTRADA_DO_TUTOR: EntradaDaTarefa<typeof turnoDoTutor> = { duvida: 'não entendi essa parte', contexto: { serie: '2º ano do Ensino Médio', disciplina: 'Química' }, trechos: [], memoria: [], turnosAnteriores: [] }
 

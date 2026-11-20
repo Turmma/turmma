@@ -712,6 +712,18 @@ describe('relatorio_da_correcao: a conta é do domínio, a IA só põe em palavr
     expect(visaoGeral).toContain('mais acertos, a 3 (100%)')
   })
 
+  it('a questão sem habilidade (classificacao-bncc, 10.0) manda retomar o conteúdo da questão, e a com habilidade, o texto da habilidade', () => {
+    const entrada = entradaDoRelatorio()
+    const [primeira, segunda, terceira] = entrada.questoes
+    if (primeira === undefined || segunda === undefined || terceira === undefined) throw new Error('fixture sem as três questões')
+    const { questoes } = relatorioDaCorrecao.falso({ ...entrada, questoes: [{ ...primeira, habilidade: null }, { ...segunda, habilidade: null }, terceira] })
+    // A 1 (25 de 30) é a da maioria que acertou, e a 2 (8 de 30), a de menos da metade: as duas falam do conteúdo da questão.
+    expect(questoes[0]?.texto).toContain('os erros pedem uma revisão rápida de o conteúdo desta questão.')
+    expect(questoes[1]?.texto).toContain('vale retomar o conteúdo desta questão.')
+    expect(questoes[1]?.texto).not.toContain('Identificar o reagente limitante')
+    expect(relatorioDaCorrecao.esquemaDeEntrada.safeParse({ ...entrada, questoes: [{ ...primeira, habilidade: null }, segunda, terceira] }).success).toBe(true)
+  })
+
   it('a entrada é a contagem da turma: resposta de um aluno, ou aluno identificado, não tem onde entrar', () => {
     const entrada = entradaDoRelatorio()
     const [primeira] = entrada.questoes
@@ -743,6 +755,20 @@ describe('resumo_do_analista: só agregado, em listas fechadas, sem texto do mod
     expect(resumoDoAnalista.esquemaDeSaida).toBe(conteudoDoResumoDoAnalistaSchema)
     expect(conteudoDoResumoDoAnalistaSchema.safeParse(bom).success).toBe(true)
     expect(resumoDoAnalista.conferir?.(entrada, bom)).toEqual([])
+  })
+
+  it('a medida da questão sem habilidade (classificacao-bncc, 10.0) entra no resumo, mas não vira alerta: não há habilidade a retomar', () => {
+    const [primeiro, ...demais] = entrada.recortes
+    if (primeiro === undefined) throw new Error('fixture sem recorte')
+    const comNula = { ...entrada, recortes: [{ ...primeiro, porHabilidade: [...primeiro.porHabilidade, { habilidade: null, acertos: 1, total: 10 }] }, ...demais] }
+    expect(resumoDoAnalista.esquemaDeEntrada.safeParse(comNula).success).toBe(true)
+    const saida = resumoDoAnalista.falso(comNula)
+    expect(saida.recortes[0]?.porHabilidade.at(-1)).toEqual({ habilidade: null, acertos: 1, total: 10 })
+    // Os dois alertas de antes, nenhum da medida de 10%: a questão sem habilidade não tem o que retomar.
+    expect(saida.alertas.map((alerta) => alerta.habilidade?.codigo)).toEqual(['EM13CNT104', 'EM13CNT302'])
+    // E o alerta que o modelo escrevesse sem habilidade é recusado pela conferência.
+    const alertaSemHabilidade = { ...saida.alertas[0], habilidade: null, valor: 10 }
+    expect(resumoDoAnalista.conferir?.(comNula, { ...saida, alertas: [alertaSemHabilidade as never] })?.length).toBeGreaterThan(0)
   })
 
   it('devolve os agregados como vieram e acrescenta só os alertas', () => {

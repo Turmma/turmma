@@ -77,8 +77,8 @@ material `pronto` e não excluído.
 | `POST /entregas/:id/decidir` | `decidirEntregaRequestSchema` | `entregaResponseSchema` | `entrega.decidir` P `tv` | `ENTREGA_JA_DECIDIDA`; `ENTRADA_INVALIDA` ao aprovar lote por aqui | `entrega.decidida` |
 
 O conteúdo do artefato é `conteudoDoArtefatoSchema` (`assistente/conteudo.ts`): toda questão e todo plano citam material
-e página. O catálogo de habilidades é `habilidadesDaDisciplina(nome, etapa)` (`assistente/habilidades.ts`): códigos nossos,
-não da BNCC. A resposta do Assistente é `conteudoDaMensagemDoAgenteSchema`: texto com citações, ou a **proposta de
+e página. A habilidade da questão é da BNCC, a da seção da página que ela cita, ou `null` (classificacao-bncc, 10.0); não há mais
+catálogo próprio. A resposta do Assistente é `conteudoDaMensagemDoAgenteSchema`: texto com citações, ou a **proposta de
 ferramenta** (a pergunta da D18).
 
 **As duas opções da pergunta têm rota.** "Abrir a ferramenta" é `POST /ferramentas/:ferramenta/gerar`, com os parâmetros
@@ -252,7 +252,7 @@ O que o `jsonb` de cada coluna guarda: `artefato.conteudo` → `conteudoDoArtefa
 14. **O resumo do Analista não tem texto livre.** Alerta é tipo, número, referência e hipótese de lista fechada (`HIPOTESES_DO_ANALISTA`); a tela monta a frase. Recorte com menos de dois professores é recusado pelo schema e aparece só em `recortesNominais`, sem número.
 15. **A governança não mostra turma nem quem decidiu.** O item tem função, tipo, estado, datas e a série.
 16. **O motivo da suspensão é opcional e de lista fechada.** O mockup não tem campo de motivo; texto livre ali guardaria nome.
-17. **O catálogo de habilidades tem códigos nossos** (`QUI.EM.05`), sem afirmar correspondência com a BNCC.
+17. **~~O catálogo de habilidades tem códigos nossos~~ (`QUI.EM.05`): saiu na classificacao-bncc (tarefa 10.0).** A habilidade da questão é um código da BNCC da seção da página citada, ou nenhuma (`null`). O código antigo das atividades de antes segue legível, e o diagnóstico conta a questão sem habilidade com `codigo: null`.
 18. **Material não tem ano letivo**, e a recusa por licença não grava `material` (decisão do orquestrador).
 19. **`btree_gin`** entrou para o índice de busca começar pela escola (regra 80, item 8).
 20. **O uso do Tutor por turma é rota própria** (`GET /tutor/uso`), e não um quinto tipo de sinal: o sinal é fato pontual; o uso é a lista de quem usou. Vem de `mensagem_tutor`, sem tabela nova.

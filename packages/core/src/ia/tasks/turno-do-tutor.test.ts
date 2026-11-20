@@ -1088,3 +1088,36 @@ describe('o Tutor pelo provedor', () => {
     expect(consumo.registros).toMatchObject([{ funcao: 'tutor_com_o_aluno', perfil: 'rapido', alunoId: ALUNO_1, escolaId: ESCOLA_A, estado: 'concluida' }])
   })
 })
+
+describe('o Tutor não recebe as habilidades da seção (classificacao-bncc, 10.0)', () => {
+  it('o trecho do Tutor é o `{ materialId, pagina, texto }` estrito: com `habilidades`, a entrada é inválida', () => {
+    const entrada = entradaDoTutor('o que é o reagente limitante?')
+    expect(turnoDoTutor.esquemaDeEntrada.safeParse(entrada).success).toBe(true)
+    const trecho = entrada.trechos[0]
+    expect(trecho).toBeDefined()
+    expect(turnoDoTutor.esquemaDeEntrada.safeParse({ ...entrada, trechos: [{ ...trecho, habilidades: [{ codigo: 'EM13CNT301', descricao: 'Identificar o reagente limitante.' }] }] }).success).toBe(false)
+  })
+
+  it('a questão sem habilidade da BNCC não derruba o turno: o Tutor segue socrático e lembra a habilidade em que o aluno mais errou', async () => {
+    const entrada = entradaDoTutor('não entendi essa')
+    if (entrada.questao === undefined) throw new Error('a entrada de teste deveria ter a questão')
+    const saida = await turno({ ...entrada, questao: { ...entrada.questao, habilidade: null } })
+    // A dúvida com assunto próprio passa pela conferência de escopo, que lê o texto da questão: sem habilidade, ela não tem descrição a ler.
+    const comAssunto = await turno({ ...entrada, duvida: 'não entendi o reagente limitante dessa reação', questao: { ...entrada.questao, habilidade: null } })
+    expect(comAssunto.resposta).toContain('você errou 3 questões')
+    expect(saida.resposta).toContain('você errou 3 questões de “Identificar o reagente limitante e o reagente em excesso de uma reação”')
+    expect(saida.resposta.trim().endsWith('?')).toBe(true)
+  })
+
+  it('sem questão em andamento (o aluno só conversa sobre o material), a dúvida com assunto próprio também passa pela conferência de escopo', async () => {
+    const { questao: _questao, ...semQuestao } = entradaDoTutor('não entendi o reagente limitante dessa reação')
+    const saida = await turno(semQuestao)
+    expect(saida.resposta.trim().endsWith('?')).toBe(true)
+  })
+
+  it('a questão sem habilidade da BNCC entra na entrada do Tutor com `habilidade: null`', () => {
+    const entrada = entradaDoTutor('o que é o reagente limitante?')
+    if (entrada.questao === undefined) throw new Error('a entrada de teste deveria ter a questão')
+    expect(turnoDoTutor.esquemaDeEntrada.safeParse({ ...entrada, questao: { ...entrada.questao, habilidade: null } }).success).toBe(true)
+  })
+})

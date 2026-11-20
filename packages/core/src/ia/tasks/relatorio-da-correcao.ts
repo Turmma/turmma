@@ -21,7 +21,8 @@ export const relatorioInputSchema = z.strictObject({
     .array(
       z.strictObject({
         numero: z.number().int().min(1).max(20),
-        habilidade: habilidadeSchema,
+        /** `null` é a questão sem habilidade da BNCC (classificacao-bncc, 10.0). */
+        habilidade: habilidadeSchema.nullable(),
         gabarito: z.number().int().min(0).max(ALTERNATIVAS_POR_QUESTAO - 1),
         /** Quantas respostas em cada alternativa, na ordem da questão. */
         marcacoes: z.array(contagem).length(ALTERNATIVAS_POR_QUESTAO),
@@ -51,6 +52,9 @@ function numerosDaQuestao(questao: QuestaoCorrigida): { acertos: number; total: 
   return { acertos, total, percentual: total === 0 ? 0 : Math.round((acertos / total) * 100) }
 }
 
+/** O que retomar: a habilidade, ou, na questão sem habilidade, o conteúdo da própria questão. */
+const assuntoDaQuestao = (questao: QuestaoCorrigida): string => (questao.habilidade === null ? 'o conteúdo desta questão' : `“${questao.habilidade.descricao}”`)
+
 function textoDaQuestao(questao: QuestaoCorrigida): string {
   const { acertos, total, percentual } = numerosDaQuestao(questao)
   if (total === 0) return 'Ninguém respondeu a esta questão.'
@@ -62,8 +66,8 @@ function textoDaQuestao(questao: QuestaoCorrigida): string {
   if (maisMarcada >= 0) partes.push(`A errada mais marcada foi a ${letra(maisMarcada)}, com ${plural(questao.marcacoes[maisMarcada] ?? 0, 'resposta', 'respostas')}.`)
   if (questao.emBranco > 0) partes.push(`${plural(questao.emBranco, 'ficou', 'ficaram')} em branco.`)
   if (acertos === total) partes.push('Todos acertaram.')
-  else if (acertos * 2 < total) partes.push(`Menos da metade acertou: vale retomar “${questao.habilidade.descricao}”.`)
-  else partes.push(`A maioria acertou; os erros pedem uma revisão rápida de “${questao.habilidade.descricao}”.`)
+  else if (acertos * 2 < total) partes.push(`Menos da metade acertou: vale retomar ${assuntoDaQuestao(questao)}.`)
+  else partes.push(`A maioria acertou; os erros pedem uma revisão rápida de ${assuntoDaQuestao(questao)}.`)
   return cortar(partes.join(' '), 500)
 }
 

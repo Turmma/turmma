@@ -194,6 +194,25 @@ describe('o documento: os quatro estados', () => {
     expect(within(folha).getByText(EXPLICACAO)).toBeTruthy()
     expect(within(folha).getByText('Gabarito', { exact: true })).toBeTruthy()
   })
+
+  it('a questão sem habilidade (classificacao-bncc, 10.0) abre, e a folha diz "Sem habilidade" em vez de inventar um código', async () => {
+    const rede = fakeNetwork()
+    const semHabilidade = atividade(2, { conteudo: { tipo: 'atividade_objetiva', titulo: 'Atividade 2', questoes: [{ ...questao, habilidade: null }] } })
+    instalar(rede, { artefatos: [semHabilidade] })
+    montar(id(2))
+    const folha = await screen.findByRole('article', { name: 'Atividade 2' })
+    expect(within(folha).getByText('Sem habilidade')).toBeTruthy()
+    expect(within(folha).queryByText(/^Habilidade /)).toBeNull()
+  })
+
+  it('a questão com habilidade segue mostrando o código e o texto dela', async () => {
+    const rede = fakeNetwork()
+    instalar(rede, { artefatos: [atividade(1)] })
+    montar(id(1))
+    const folha = await screen.findByRole('article', { name: 'Atividade 1' })
+    expect(within(folha).getByText('Habilidade QUI.EM.04:')).toBeTruthy()
+    expect(within(folha).getByText('Usar a proporção da equação balanceada.')).toBeTruthy()
+  })
 })
 
 describe('as fontes do artefato (ingestao-do-material, 10.0; RF11): o chip diz título, edição e "edição anterior"', () => {

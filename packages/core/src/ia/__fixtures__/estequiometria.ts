@@ -1,5 +1,5 @@
 import type { Habilidade } from '@educa/shared'
-import type { Trecho } from '../material.js'
+import type { Trecho, TrechoDeGeracao } from '../material.js'
 
 /**
  * Texto sintético e original, escrito para os testes da camada de IA: "Química 2, cap. 7 — Estequiometria", seis
@@ -55,7 +55,15 @@ export function trechosDeEstequiometria(paginas: readonly number[] = [1, 2, 3, 4
   })
 }
 
-/** Catálogo curto de habilidades de Química, como o que a fatia guarda em código. */
+/**
+ * Os trechos como a geração os recebe (classificacao-bncc, 10.0): cada página com as habilidades da seção dela. Sem o segundo argumento, o capítulo inteiro é uma seção só, com as quatro habilidades abaixo;
+ * quem quer páginas de seções diferentes passa o que cada página leva.
+ */
+export function trechosDeGeracaoDeEstequiometria(paginas: readonly number[] = [1, 2, 3, 4, 5, 6], habilidadesDaPagina: (pagina: number) => readonly Habilidade[] = () => HABILIDADES_DE_ESTEQUIOMETRIA): TrechoDeGeracao[] {
+  return trechosDeEstequiometria(paginas).map((trecho) => ({ ...trecho, habilidades: [...habilidadesDaPagina(trecho.pagina)] }))
+}
+
+/** As habilidades da BNCC de Química do capítulo de estequiometria: a seção que o capítulo inteiro forma nos testes. */
 export const HABILIDADES_DE_ESTEQUIOMETRIA: readonly Habilidade[] = [
   { codigo: 'EM13CNT104', descricao: 'Relacionar mol, massa molar e constante de Avogadro à quantidade de matéria' },
   { codigo: 'EM13CNT101', descricao: 'Aplicar a conservação da massa e a proporção estequiométrica em equação balanceada' },

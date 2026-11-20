@@ -46,8 +46,11 @@ function executar<Entrada, Saida>(tarefa: TaskDefinition<Entrada, Saida>, entrad
   return saida
 }
 
+/** O capítulo inteiro é uma seção só: cada página leva as habilidades dela (classificacao-bncc, 10.0). */
+const comHabilidades = (trechos: Trecho[]) => trechos.map((trecho) => ({ ...trecho, habilidades: HABILIDADES }))
+
 const pedirAtividade = (tema: string, quantidade: number, trechos: Trecho[] = TRECHOS) =>
-  executar(gerarAtividadeObjetiva, { tema, quantidade, contexto: CONTEXTO, habilidades: HABILIDADES, trechos })
+  executar(gerarAtividadeObjetiva, { tema, quantidade, contexto: CONTEXTO, trechos: comHabilidades(trechos) })
 
 let trechosDoPdf: Trecho[]
 
@@ -162,7 +165,7 @@ describe('atividade objetiva a partir do material de demonstração', () => {
 })
 
 describe('plano de aula a partir do material de demonstração', () => {
-  const pedirPlano = (tema: string) => executar(gerarPlanoDeAula, { tema, duracaoMinutos: 50, contexto: CONTEXTO, habilidades: HABILIDADES, trechos: TRECHOS })
+  const pedirPlano = (tema: string) => executar(gerarPlanoDeAula, { tema, duracaoMinutos: 50, contexto: CONTEXTO, trechos: comHabilidades(TRECHOS) })
 
   it('sai válido, com as etapas somando a duração e cada etapa citando a página de onde a frase saiu de fato', () => {
     const plano = pedirPlano('estequiometria')

@@ -491,6 +491,10 @@ export {
   conteudoDePlanoDeAulaSchema,
   conteudoDoArtefatoSchema,
   habilidadeSchema,
+  MAXIMO_DE_CARACTERES_DA_HABILIDADE,
+  descricaoParaOModelo,
+  MAXIMO_DE_HABILIDADES_DO_PLANO,
+  ROTULO_SEM_HABILIDADE,
   questaoObjetivaSchema,
   FERRAMENTAS,
   ROTULOS_DA_ADAPTACAO,
@@ -653,16 +657,6 @@ export type {
   RegistrarLicencaRequest,
   SituacaoDaLicenca,
 } from './material/licenca.js'
-export {
-  CATALOGO_DE_HABILIDADES,
-  HABILIDADE_GERAL,
-  habilidadeDoCatalogo,
-  habilidadesDaDisciplina,
-} from './assistente/habilidades.js'
-export type {
-  DisciplinaDoCatalogo,
-  HabilidadeDoCatalogo,
-} from './assistente/habilidades.js'
 export {
   AUTORES_DE_MENSAGEM_DE_AGENTE,
   camposDaConsultaDeConversa,

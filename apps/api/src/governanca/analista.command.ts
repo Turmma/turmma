@@ -101,7 +101,7 @@ export class ResumoDoAnalistaCommand implements ExecucaoCommand<EntradaDaTarefa<
         alunos: recorte.alunos,
         lotesAprovados: recorte.lotesAprovados,
         acertoPercentual: percentual(soma.acertos, soma.total),
-        porHabilidade: doRecorte.slice(0, MAXIMO_DE_HABILIDADES_POR_RECORTE).map((linha) => ({ habilidade: { codigo: linha.codigo, descricao: descricoes.get(linha.codigo) ?? linha.codigo }, acertos: linha.acertos, total: linha.total })),
+        porHabilidade: doRecorte.slice(0, MAXIMO_DE_HABILIDADES_POR_RECORTE).map((linha) => ({ habilidade: linha.codigo === null ? null : { codigo: linha.codigo, descricao: descricoes.get(linha.codigo) ?? linha.codigo }, acertos: linha.acertos, total: linha.total })),
       })
     }
     return { recortes, recortesNominais }

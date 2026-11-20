@@ -222,7 +222,7 @@ function escreverAtividade(folha: Folha, conteudo: ConteudoDeAtividade, fontes: 
     folha.escrever(`Versão adaptada: ${rotulos.join(', ')}.`, { ...doProfessor.corpo, depois: 12 })
   }
   conteudo.questoes.forEach((questao, indice) => {
-    folha.escrever(`${String(indice + 1)}. ${LETRAS[questao.gabarito] ?? '?'} — ${questao.habilidade.codigo}`, doProfessor.corpo)
+    folha.escrever(`${String(indice + 1)}. ${LETRAS[questao.gabarito] ?? '?'} — ${questao.habilidade?.codigo ?? 'sem habilidade da BNCC'}`, doProfessor.corpo)
   })
 }
 

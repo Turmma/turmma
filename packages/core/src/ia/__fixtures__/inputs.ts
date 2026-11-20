@@ -7,7 +7,7 @@ import type { RelatorioInput } from '../tasks/relatorio-da-correcao.js'
 import type { ClassificarSecoesInput } from '../tasks/classificar-secoes.js'
 import type { AnalistaInput } from '../tasks/resumo-do-analista.js'
 import type { TutorInput } from '../tasks/turno-do-tutor.js'
-import { CONTEXTO_DE_QUIMICA, HABILIDADES_DE_ESTEQUIOMETRIA, trechosDeEstequiometria } from './estequiometria.js'
+import { CONTEXTO_DE_QUIMICA, HABILIDADES_DE_ESTEQUIOMETRIA, trechosDeEstequiometria, trechosDeGeracaoDeEstequiometria } from './estequiometria.js'
 
 /** Uma entrada válida de cada tarefa, toda sintética, sobre o mesmo material de estequiometria. */
 
@@ -22,8 +22,7 @@ export const entradaDeAtividade = (): AtividadeObjetivaInput => ({
   tema: 'estequiometria',
   quantidade: 6,
   contexto: { ...CONTEXTO_DE_QUIMICA },
-  habilidades,
-  trechos: trechosDeEstequiometria(),
+  trechos: trechosDeGeracaoDeEstequiometria(),
 })
 
 export const atividadeDeEstequiometria = (): ConteudoDeAtividade => gerarAtividadeObjetiva.falso(entradaDeAtividade())
@@ -32,8 +31,7 @@ export const entradaDePlano = (): PlanoDeAulaInput => ({
   tema: 'reagente limitante',
   duracaoMinutos: 50,
   contexto: { ...CONTEXTO_DE_QUIMICA },
-  habilidades,
-  trechos: trechosDeEstequiometria(),
+  trechos: trechosDeGeracaoDeEstequiometria(),
 })
 
 export const entradaDeAdaptacao = (): AdaptacaoInput => ({
@@ -50,14 +48,15 @@ export function questaoDoReagenteLimitante(): ConteudoDeAtividade['questoes'][nu
 
 export function entradaDoTutor(duvida: string): TutorInput {
   const questao = questaoDoReagenteLimitante()
+  const habilidadeDaQuestao = questao.habilidade ?? habilidades[2] ?? { codigo: 'X', descricao: 'x' }
   return {
     duvida,
     contexto: { ...CONTEXTO_DE_QUIMICA },
     trechos: trechosDeEstequiometria(),
-    questao: { numero: 5, enunciado: questao.enunciado, alternativas: questao.alternativas, habilidade: questao.habilidade },
+    questao: { numero: 5, enunciado: questao.enunciado, alternativas: questao.alternativas, habilidade: habilidadeDaQuestao },
     memoria: [
-      { habilidade: questao.habilidade, acertos: 1, erros: 3 },
-      { habilidade: habilidades[0] ?? questao.habilidade, acertos: 4, erros: 0 },
+      { habilidade: habilidadeDaQuestao, acertos: 1, erros: 3 },
+      { habilidade: habilidades[0] ?? habilidadeDaQuestao, acertos: 4, erros: 0 },
     ],
     turnosAnteriores: [],
   }

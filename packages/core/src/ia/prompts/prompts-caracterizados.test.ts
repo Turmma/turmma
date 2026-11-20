@@ -13,8 +13,8 @@ import { TASK_CATALOG } from '../tasks/index.js'
  */
 const PROMPTS_CARACTERIZADOS = {
   propor_ferramenta: { versao: '2026-10-22.1', sha256: '9414fab889df02fb704f6b106b9aa851229f62eef1c16e594ea3d22abe06b685' },
-  gerar_atividade_objetiva: { versao: '2026-10-04.2', sha256: '4ee752e054bae2cd295d1a298e86c71386d28f29606fcf0cf4c1102811d95963' },
-  gerar_plano_de_aula: { versao: '2026-10-04.2', sha256: '7a5358f9974edc40037c76859ce6cda5bfbbf4994bf947ac42138b9a889c910e' },
+  gerar_atividade_objetiva: { versao: '2026-11-19.1', sha256: 'ffca5ddbabe60264f3e3061ba869563dc9aa7bc92307c87fa9fcc89f8933eb62' },
+  gerar_plano_de_aula: { versao: '2026-11-19.1', sha256: 'e9dc1c5c0b1366e647b9ae8304404aad6fa739e7cdd7616ecf4a3003b7336898' },
   adaptar_atividade: { versao: '2026-10-04.2', sha256: '511761286495398542f2c84a0167dc6c1469183a6a19db28aca3f0674024c846' },
   turno_do_tutor: { versao: '2026-10-22.1', sha256: '7154c8e6a8dea0d595729215960dcc201755cc16fb8559d97df67a843251764c' },
   relatorio_da_correcao: { versao: '2026-10-04.2', sha256: '563f38c01f1effd63bf0d27081879a40f7431b235bd9b21e56c97856c9966d6a' },

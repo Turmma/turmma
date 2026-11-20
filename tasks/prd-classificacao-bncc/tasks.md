@@ -75,12 +75,12 @@
   - [x] 9.4 O `DROP COLUMN` no `TODO.md`; `docs/modelo-de-dados.md`
   - [x] 9.5 Testes
 
-- [ ] **10.0 — A geração usa a BNCC da seção citada, e o catálogo próprio sai**
-  - [ ] 10.1 A busca devolve, com cada trecho, as habilidades da seção da página, pelo recorte atual
-  - [ ] 10.2 Atividade, plano, adaptação e chat escolhem uma da página ou nenhuma; a de fora é anulada
-  - [ ] 10.3 O Tutor não recebe; sai o catálogo; `null` no diagnóstico; a leitura aceita o código antigo (D82)
-  - [ ] 10.4 O passo 1 do roteiro ganha a correção do capítulo pelo painel
-  - [ ] 10.5 Testes
+- [x] **10.0 — A geração usa a BNCC da seção citada, e o catálogo próprio sai**
+  - [x] 10.1 A busca devolve, com cada trecho, as habilidades da seção da página, pelo recorte atual
+  - [x] 10.2 Atividade, plano, adaptação e chat escolhem uma da página ou nenhuma; a de fora é anulada
+  - [x] 10.3 O Tutor não recebe; sai o catálogo; `null` no diagnóstico; a leitura aceita o código antigo (D82)
+  - [x] 10.4 O passo 1 do roteiro ganha a correção do capítulo pelo painel
+  - [x] 10.5 Testes
 
 - [ ] **11.0 — O professor troca a habilidade da questão no artefato, com a trava que aplicar e adaptar também tomam**
   - [ ] 11.1 `PATCH /v1/artefatos/:id/questoes/:indice/habilidade`

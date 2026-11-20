@@ -3,17 +3,18 @@ import { describe, expect, it } from 'vitest'
 import { withEscolaContextOfRequest } from '../__fixtures__/escola-context.js'
 import { ScriptedAdapter } from '../__fixtures__/scripted-adapter.js'
 import { atividadeDeEstequiometria, entradaDeAdaptacao, entradaDeAtividade, entradaDePlano, ESCOLA_A } from '../__fixtures__/inputs.js'
-import { CONTEXTO_DE_QUIMICA, HABILIDADES_DE_ESTEQUIOMETRIA, MATERIAL_DE_ESTEQUIOMETRIA, PAGINAS_DE_ESTEQUIOMETRIA, trechosDeEstequiometria } from '../__fixtures__/estequiometria.js'
+import { CONTEXTO_DE_QUIMICA, HABILIDADES_DE_ESTEQUIOMETRIA, MATERIAL_DE_ESTEQUIOMETRIA, PAGINAS_DE_ESTEQUIOMETRIA, trechosDeEstequiometria, trechosDeGeracaoDeEstequiometria } from '../__fixtures__/estequiometria.js'
 import { FakeAdapter } from '../fake-adapter.js'
 import { InMemoryConsumo, InMemoryOrcamento } from '../consumo.js'
 import { LLMError } from '../errors.js'
-import { extrairFatos } from '../material.js'
+import { extrairFatos, habilidadesDaPagina } from '../material.js'
 import { LLMGateway } from '../llm-gateway.js'
 import { InMemorySuspensoes } from '../suspensao.js'
 import { normalize, semPontoFinal } from '../text.js'
 import { adaptarAtividade } from './adaptar-atividade.js'
 import { gerarAtividadeObjetiva } from './gerar-atividade-objetiva.js'
 import { gerarPlanoDeAula } from './gerar-plano-de-aula.js'
+import { proporFerramenta } from './propor-ferramenta.js'
 
 const MATERIAL_INTEIRO = normalize(PAGINAS_DE_ESTEQUIOMETRIA.join(' '))
 const textoDaPagina = (pagina: number): string => PAGINAS_DE_ESTEQUIOMETRIA[pagina - 1] ?? ''
@@ -59,15 +60,15 @@ describe('gerar_atividade_objetiva, versão determinística', () => {
       expect(questao.citacao.materialId).toBe(MATERIAL_DE_ESTEQUIOMETRIA)
       expect(textoDaPagina(questao.citacao.pagina)).toContain(questao.citacao.trecho)
       expect(questao.explicacao).toContain(`página ${questao.citacao.pagina}`)
-      expect(codigos).toContain(questao.habilidade.codigo)
+      expect(codigos).toContain(questao.habilidade?.codigo)
     }
   })
 
   it('espalha as questões pelas páginas antes de repetir assunto, e a habilidade acompanha o assunto da página', () => {
     const { questoes } = atividadeDeEstequiometria()
     expect(questoes.map((questao) => questao.citacao.pagina)).toEqual([1, 2, 3, 4, 5, 6])
-    expect(questoes.find((questao) => questao.citacao.pagina === 5)?.habilidade.codigo).toBe('EM13CNT301')
-    expect(questoes.find((questao) => questao.citacao.pagina === 2)?.habilidade.codigo).toBe('EM13CNT104')
+    expect(questoes.find((questao) => questao.citacao.pagina === 5)?.habilidade?.codigo).toBe('EM13CNT301')
+    expect(questoes.find((questao) => questao.citacao.pagina === 2)?.habilidade?.codigo).toBe('EM13CNT104')
   })
 
   it('a posição da correta varia entre as questões, sem ser sempre a mesma letra', () => {
@@ -76,7 +77,7 @@ describe('gerar_atividade_objetiva, versão determinística', () => {
   })
 
   it('relação com número vira "qual é", com outros valores do material como distratores', () => {
-    const atividade = gerarAtividadeObjetiva.falso({ ...entradaDeAtividade(), quantidade: 20, trechos: trechosDeEstequiometria([2]) })
+    const atividade = gerarAtividadeObjetiva.falso({ ...entradaDeAtividade(), quantidade: 20, trechos: trechosDeGeracaoDeEstequiometria([2]) })
     const daAgua = atividade.questoes.find((questao) => questao.enunciado === 'Segundo o material, qual é a massa molar da água?')
     expect(daAgua?.alternativas[daAgua.gabarito]).toBe('18 g/mol')
     expect([...(daAgua?.alternativas ?? [])].sort()).toEqual(['18 g/mol', '32 g/mol', '44 g/mol', '58,5 g/mol'])
@@ -88,7 +89,7 @@ describe('gerar_atividade_objetiva, versão determinística', () => {
       'Perdas no manuseio e reagentes impuros explicam por que o rendimento real fica abaixo do teórico. ' +
       'Antes de qualquer cálculo, confere-se o balanceamento da equação química inteira. ' +
       'Para achar o limitante, compara-se a quantidade disponível de cada reagente com a proporção.'
-    const entrada = { ...entradaDeAtividade(), quantidade: 3, trechos: [{ materialId: MATERIAL_DE_ESTEQUIOMETRIA, pagina: 9, texto }] }
+    const entrada = { ...entradaDeAtividade(), quantidade: 3, trechos: [{ materialId: MATERIAL_DE_ESTEQUIOMETRIA, pagina: 9, texto, habilidades: [] }] }
     const atividade = gerarAtividadeObjetiva.falso(entrada)
     expect(atividade.questoes).toHaveLength(3)
     for (const questao of atividade.questoes) {
@@ -104,7 +105,7 @@ describe('gerar_atividade_objetiva, versão determinística', () => {
 
   it('material sem frase aproveitável não vira atividade inventada: falha com material insuficiente', async () => {
     const { ia } = provedorCom(new FakeAdapter())
-    const entrada = { ...entradaDeAtividade(), trechos: [{ materialId: MATERIAL_DE_ESTEQUIOMETRIA, pagina: 1, texto: 'Sumário. Capítulo 7.' }] }
+    const entrada = { ...entradaDeAtividade(), trechos: [{ materialId: MATERIAL_DE_ESTEQUIOMETRIA, pagina: 1, texto: 'Sumário. Capítulo 7.', habilidades: [] }] }
     expect((await erroDe(ia.generate({ tarefa: gerarAtividadeObjetiva, entrada, escolaId: ESCOLA_A }))).codigoDeIa).toBe('MATERIAL_INSUFICIENTE')
   })
 })
@@ -181,7 +182,7 @@ describe('gerar_plano_de_aula', () => {
     }
     const paginas = plano.citacoes.map((citacao) => citacao.pagina)
     expect(new Set(paginas).size).toBe(paginas.length)
-    expect(plano.habilidades).toEqual(HABILIDADES_DE_ESTEQUIOMETRIA)
+    expect(plano.habilidades).toEqual([...HABILIDADES_DE_ESTEQUIOMETRIA].sort((a, b) => a.codigo.localeCompare(b.codigo)))
   })
 
   it('a conferência recusa etapa sem citação, página que não veio, soma acima da duração e habilidade de fora', () => {
@@ -203,7 +204,7 @@ describe('gerar_plano_de_aula', () => {
 
   it('sem frase definitória, o plano se apoia nas frases do material e continua citando a página', () => {
     const texto = 'Na síntese da água, dois mols de gás hidrogênio reagem com um mol de gás oxigênio. Perdas no manuseio explicam por que o rendimento real fica abaixo do teórico.'
-    const entrada = { ...entradaDePlano(), trechos: [{ materialId: MATERIAL_DE_ESTEQUIOMETRIA, pagina: 4, texto }] }
+    const entrada = { ...entradaDePlano(), trechos: [{ materialId: MATERIAL_DE_ESTEQUIOMETRIA, pagina: 4, texto, habilidades: [] }] }
     const plano = gerarPlanoDeAula.falso(entrada)
     expect(gerarPlanoDeAula.esquemaDeSaida.safeParse(plano).success).toBe(true)
     expect(gerarPlanoDeAula.conferir?.(entrada, plano)).toEqual([])
@@ -309,5 +310,105 @@ describe('contexto da turma', () => {
   it('é série e disciplina, e mais nada', () => {
     expect(Object.keys(CONTEXTO_DE_QUIMICA).sort()).toEqual(['disciplina', 'serie'])
     expect(gerarAtividadeObjetiva.esquemaDeEntrada.safeParse({ ...entradaDeAtividade(), contexto: { ...CONTEXTO_DE_QUIMICA, turma: '2ºB' } }).success).toBe(false)
+  })
+})
+
+describe('a habilidade da questão é a da seção da página que ela cita, ou nenhuma (classificacao-bncc, 10.0)', () => {
+  const CAPITULO_3 = [{ codigo: 'EM13CNT104', descricao: 'Relacionar mol, massa molar e constante de Avogadro à quantidade de matéria' }]
+  const CAPITULO_7 = [{ codigo: 'EM13CNT301', descricao: 'Identificar o reagente limitante e o reagente em excesso de uma reação' }]
+  /** As páginas 1 a 3 são do capítulo 3, e as 4 a 6 do capítulo 7: cada página leva as habilidades da seção dela. */
+  const duasSecoes = (pagina: number) => (pagina <= 3 ? CAPITULO_3 : CAPITULO_7)
+
+  it('o chat não leva habilidade: a proposta de ferramenta é de campos fechados e recusa o campo `habilidades`, nos parâmetros e fora deles', () => {
+    const base = { tipo: 'proposta_de_ferramenta', texto: 'Quer que eu abra a ferramenta?' }
+    const proposta = { ferramenta: 'atividade_objetiva', parametros: { tema: 'estequiometria' } }
+    expect(proporFerramenta.esquemaDeSaida.safeParse({ ...base, proposta }).success).toBe(true)
+    expect(proporFerramenta.esquemaDeSaida.safeParse({ ...base, proposta: { ...proposta, parametros: { ...proposta.parametros, habilidades: CAPITULO_3 } } }).success).toBe(false)
+    expect(proporFerramenta.esquemaDeSaida.safeParse({ ...base, proposta: { ...proposta, habilidades: CAPITULO_3 } }).success).toBe(false)
+  })
+
+  it('cada questão leva uma habilidade da própria página, nunca a do outro capítulo', () => {
+    const questoes = gerarAtividadeObjetiva.falso({ ...entradaDeAtividade(), trechos: trechosDeGeracaoDeEstequiometria([1, 2, 3, 4, 5, 6], duasSecoes) }).questoes
+    expect(questoes.length).toBeGreaterThan(0)
+    for (const questao of questoes) expect(questao.habilidade?.codigo).toBe(questao.citacao.pagina <= 3 ? 'EM13CNT104' : 'EM13CNT301')
+  })
+
+  it('a página de mesmo número em outro material não empresta a habilidade: vale a seção do material que a questão cita', () => {
+    const OUTRO = '0190f5a0-0000-7000-8000-0000000000ff'
+    const doOutroMaterial = trechosDeGeracaoDeEstequiometria([5, 6], () => CAPITULO_7).map((trecho) => ({ ...trecho, materialId: OUTRO }))
+    const trechos = [...trechosDeGeracaoDeEstequiometria([5, 6], () => CAPITULO_3), ...doOutroMaterial]
+    const primeiro = trechos[0]
+    if (primeiro === undefined) throw new Error('fixture sem trecho')
+    expect(habilidadesDaPagina(trechos, { materialId: primeiro.materialId, pagina: 5 }).map((habilidade) => habilidade.codigo)).toEqual(['EM13CNT104'])
+    expect(habilidadesDaPagina(trechos, { materialId: OUTRO, pagina: 5 }).map((habilidade) => habilidade.codigo)).toEqual(['EM13CNT301'])
+    expect(habilidadesDaPagina(trechos, { materialId: OUTRO, pagina: 9 })).toEqual([])
+  })
+
+  it('a página de uma seção sem habilidade (aguardando, sem_habilidade, antes do capítulo 1) dá a questão `null`', () => {
+    const semSecao = (pagina: number) => (pagina === 5 ? [] : CAPITULO_7)
+    const questoes = gerarAtividadeObjetiva.falso({ ...entradaDeAtividade(), trechos: trechosDeGeracaoDeEstequiometria([1, 2, 3, 4, 5, 6], semSecao) }).questoes
+    expect(questoes.find((questao) => questao.citacao.pagina === 5)?.habilidade).toBeNull()
+    expect(questoes.find((questao) => questao.citacao.pagina === 4)?.habilidade?.codigo).toBe('EM13CNT301')
+    const nenhuma = gerarAtividadeObjetiva.falso({ ...entradaDeAtividade(), trechos: trechosDeGeracaoDeEstequiometria([1, 2, 3, 4, 5, 6], () => []) })
+    expect(nenhuma.questoes.every((questao) => questao.habilidade === null)).toBe(true)
+    expect(gerarAtividadeObjetiva.conferir?.({ ...entradaDeAtividade(), trechos: trechosDeGeracaoDeEstequiometria([1, 2, 3, 4, 5, 6], () => []) }, nenhuma)).toEqual([])
+  })
+
+  it('o plano cobre a união das seções que cita: os capítulos 3 e 7, sem a habilidade de um capítulo que ele não usou', () => {
+    const trechos = trechosDeGeracaoDeEstequiometria([1, 2, 3, 4, 5, 6], duasSecoes)
+    const plano = gerarPlanoDeAula.falso({ ...entradaDePlano(), trechos })
+    const paginasCitadas = new Set(plano.citacoes.map((citacao) => citacao.pagina))
+    const esperadas = [...new Set([...paginasCitadas].map((pagina) => duasSecoes(pagina)[0]?.codigo))].sort()
+    expect(plano.habilidades.map((habilidade) => habilidade.codigo).sort()).toEqual(esperadas)
+    // Cada página com a sua habilidade: o plano que usa quatro das seis páginas leva as quatro, e nunca a de uma página que não usou.
+    const umaPorPagina = (pagina: number) => [{ codigo: `EM13CNT10${String(pagina)}`, descricao: `Habilidade da página ${String(pagina)}` }]
+    const daPagina = gerarPlanoDeAula.falso({ ...entradaDePlano(), trechos: trechosDeGeracaoDeEstequiometria([1, 2, 3, 4, 5, 6], umaPorPagina) })
+    const citadas = new Set([...daPagina.citacoes, ...daPagina.etapas.flatMap((etapa) => (etapa.citacao === undefined ? [] : [etapa.citacao]))].map((citacao) => citacao.pagina))
+    expect(citadas.size).toBeLessThan(6)
+    expect(daPagina.habilidades.map((habilidade) => habilidade.codigo).sort()).toEqual([...citadas].map((pagina) => `EM13CNT10${String(pagina)}`).sort())
+    // Dois materiais com as mesmas páginas: a habilidade de uma página é a do material que o plano cita, e não a da página de mesmo número do outro.
+    const OUTRO = '0190f5a0-0000-7000-8000-0000000000ff'
+    const doOutro = trechosDeGeracaoDeEstequiometria([1, 2, 3, 4, 5, 6], (pagina) => [{ codigo: `EM13CNT20${String(pagina)}`, descricao: `Habilidade do outro material, página ${String(pagina)}` }]).map((trecho) => ({ ...trecho, materialId: OUTRO }))
+    const dosDois = gerarPlanoDeAula.falso({ ...entradaDePlano(), trechos: [...trechosDeGeracaoDeEstequiometria([1, 2, 3, 4, 5, 6], umaPorPagina), ...doOutro] })
+    const citadasDosDois = [...dosDois.citacoes, ...dosDois.etapas.flatMap((etapa) => (etapa.citacao === undefined ? [] : [etapa.citacao]))]
+    const esperadasDosDois = new Set(citadasDosDois.map((citacao) => `EM13CNT${citacao.materialId === OUTRO ? '20' : '10'}${String(citacao.pagina)}`))
+    expect(new Set(dosDois.habilidades.map((habilidade) => habilidade.codigo))).toEqual(esperadasDosDois)
+    const soDoCapitulo7 = gerarPlanoDeAula.falso({ ...entradaDePlano(), trechos: trechosDeGeracaoDeEstequiometria([4, 5, 6], duasSecoes) })
+    expect(soDoCapitulo7.habilidades).toEqual(CAPITULO_7)
+    const semHabilidade = gerarPlanoDeAula.falso({ ...entradaDePlano(), trechos: trechosDeGeracaoDeEstequiometria([1, 2, 3, 4, 5, 6], () => []) })
+    expect(semHabilidade.habilidades).toEqual([])
+    expect(gerarPlanoDeAula.esquemaDeSaida.safeParse(semHabilidade).success).toBe(true)
+  })
+
+  it('`QUI.EM.05` na boca do modelo é recusado na atividade e no plano, e `null` na questão vale', async () => {
+    const entrada = entradaDeAtividade()
+    const antiga = { codigo: 'QUI.EM.05', descricao: 'Identificar o reagente limitante e o reagente em excesso.' }
+    const boa = atividadeDeEstequiometria()
+    const comAntiga: ConteudoDeAtividade = { ...boa, questoes: boa.questoes.map((questao, indice) => (indice === 0 ? { ...questao, habilidade: antiga } : questao)) }
+    expect(gerarAtividadeObjetiva.conferir?.(entrada, comAntiga)).toHaveLength(1)
+    const { ia } = provedorCom(new ScriptedAdapter([JSON.stringify(comAntiga), JSON.stringify(comAntiga)]))
+    expect((await erroDe(ia.generate({ tarefa: gerarAtividadeObjetiva, entrada, escolaId: ESCOLA_A }))).codigoDeIa).toBe('IA_SAIDA_INVALIDA')
+    const comNula: ConteudoDeAtividade = { ...boa, questoes: boa.questoes.map((questao, indice) => (indice === 0 ? { ...questao, habilidade: null } : questao)) }
+    expect(gerarAtividadeObjetiva.conferir?.(entrada, comNula)).toEqual([])
+    const plano = gerarPlanoDeAula.falso(entradaDePlano())
+    expect(gerarPlanoDeAula.conferir?.(entradaDePlano(), { ...plano, habilidades: [antiga] })).toHaveLength(1)
+  })
+
+  it('a adaptação mantém a habilidade `null` da questão original, e a que troca `null` por código é recusada', () => {
+    const original = atividadeDeEstequiometria()
+    const semHabilidade: ConteudoDeAtividade = { ...original, questoes: original.questoes.map((questao) => ({ ...questao, habilidade: null })) }
+    const entrada = { conteudo: semHabilidade, adaptacao: { tipos: ['linguagem_direta' as const] } }
+    const adaptada = adaptarAtividade.falso(entrada)
+    expect(adaptada.questoes.every((questao) => questao.habilidade === null)).toBe(true)
+    expect(adaptarAtividade.conferir?.(entrada, adaptada)).toEqual([])
+    const trocada: ConteudoDeAtividade = { ...adaptada, questoes: adaptada.questoes.map((questao, indice) => (indice === 0 ? { ...questao, habilidade: { codigo: 'QUI.EM.05', descricao: 'antiga' } } : questao)) }
+    expect(adaptarAtividade.conferir?.(entrada, trocada)).toHaveLength(1)
+  })
+
+  it('a entrada rejeita trecho com mais de cinco habilidades: é o teto da seção', () => {
+    const seis = Array.from({ length: 6 }, (_, indice) => ({ codigo: `EM13CNT10${String(indice)}`, descricao: 'x' }))
+    const entrada = entradaDeAtividade()
+    expect(gerarAtividadeObjetiva.esquemaDeEntrada.safeParse({ ...entrada, trechos: [{ ...entrada.trechos[0], habilidades: seis }] }).success).toBe(false)
+    expect(gerarAtividadeObjetiva.esquemaDeEntrada.safeParse({ ...entrada, trechos: [{ ...entrada.trechos[0], habilidades: seis.slice(0, 5) }] }).success).toBe(true)
   })
 })

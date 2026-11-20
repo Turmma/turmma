@@ -11,9 +11,9 @@ import type { SessaoFixtures } from './sessao.fixture.js'
  * mentira**, um servidor OpenAI-compatível nesta máquina que responde o que o teste mandar e guarda o que recebeu.
  */
 
-export const HABILIDADE_MASSA_MOLAR = { codigo: 'QUI.EM.05', descricao: 'Calcular a massa molar de uma substância' }
-export const HABILIDADE_PROPORCAO = { codigo: 'QUI.EM.06', descricao: 'Aplicar a proporção em mols da equação balanceada' }
-export const HABILIDADE_LIMITANTE = { codigo: 'QUI.EM.07', descricao: 'Identificar o reagente limitante de uma reação' }
+export const HABILIDADE_MASSA_MOLAR = { codigo: 'EM13CNT102', descricao: 'Calcular a massa molar de uma substância' }
+export const HABILIDADE_PROPORCAO = { codigo: 'EM13CNT103', descricao: 'Aplicar a proporção em mols da equação balanceada' }
+export const HABILIDADE_LIMITANTE = { codigo: 'EM13CNT104', descricao: 'Identificar o reagente limitante de uma reação' }
 
 /** A alternativa correta da questão 3, por extenso: é o que o Tutor nunca pode repetir ao aluno. */
 export const ALTERNATIVA_CERTA_DA_QUESTAO_3 = 'O reagente que acaba primeiro e determina quanto produto se forma'

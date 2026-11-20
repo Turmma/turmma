@@ -20,8 +20,8 @@ import {
   type Database,
   type DatabaseTransaction,
 } from '@educa/core'
-import { habilidadeEhCandidata, type ComponenteBncc, type EstadoDeExecucao, type OrigemDaHabilidadeDaSecao, type SerieDoRecorte } from '@educa/shared'
-import { and, asc, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm'
+import { descricaoParaOModelo, habilidadeEhCandidata, MAXIMO_DE_HABILIDADES_POR_SECAO, type ComponenteBncc, type EstadoDeExecucao, type OrigemDaHabilidadeDaSecao, type SerieDoRecorte } from '@educa/shared'
+import { and, asc, eq, gte, inArray, isNotNull, isNull, lte, or, sql } from 'drizzle-orm'
 import { comVinculoConfirmadoDoProfessor } from '../assistente/turma-do-professor.repository.js'
 
 /** A seção viva que a execução classifica: o que o `preparar` monta a entrada. O texto vem à parte (`paginasDaSecao`). */
@@ -152,6 +152,69 @@ export class SecoesRepository {
       .where(inArray(habilidadeBncc.etapa, etapas))
       .orderBy(asc(habilidadeBncc.codigo))
     return linhas.filter((linha) => habilidadeEhCandidata(linha.codigo, componente, series))
+  }
+
+  /**
+   * A consulta que `habilidadesDasPaginas` roda, sem executá-la: o `EXPLAIN` da Tech Spec, seção 7c, a lê daqui (`.toSQL()`), e não de uma cópia escrita à mão. O `or(...)` de páginas traz de uma vez as
+   * seções candidatas de todas as páginas da busca (até 20), cada uma presa à escola e ao material pelo índice `(escola_id, material_id, pagina_inicial)`.
+   */
+  consultaDasHabilidadesDasPaginas(paginas: ReadonlyArray<{ readonly materialId: string; readonly pagina: number }>, soDaCoordenacao: boolean) {
+    const escolaId = requireEscolaId()
+    return this.banco
+      .select({
+        materialId: secaoDoMaterial.materialId,
+        paginaInicial: secaoDoMaterial.paginaInicial,
+        paginaFinal: secaoDoMaterial.paginaFinal,
+        codigo: habilidadeDaSecao.codigo,
+        descricao: habilidadeBncc.descricao,
+      })
+      .from(secaoDoMaterial)
+      .innerJoin(habilidadeDaSecao, and(eq(habilidadeDaSecao.escolaId, secaoDoMaterial.escolaId), eq(habilidadeDaSecao.secaoId, secaoDoMaterial.id)))
+      .innerJoin(habilidadeBncc, eq(habilidadeBncc.codigo, habilidadeDaSecao.codigo))
+      .where(
+        and(
+          eq(secaoDoMaterial.escolaId, escolaId),
+          or(...paginas.map((pagina) => and(eq(secaoDoMaterial.materialId, pagina.materialId), lte(secaoDoMaterial.paginaInicial, pagina.pagina), gte(secaoDoMaterial.paginaFinal, pagina.pagina)))),
+          soDaCoordenacao ? eq(habilidadeDaSecao.origem, 'coordenacao') : undefined,
+        ),
+      )
+      .orderBy(asc(habilidadeDaSecao.codigo))
+  }
+
+  /**
+   * As habilidades da BNCC da **seção de cada página** dada (classificacao-bncc, 10.0; Tech Spec, seção 5, "Geração"), no recorte atual da turma: só as que `habilidadeEhCandidata` aceita para o componente da
+   * disciplina e para a série da turma (o 9º ano não recebe `EF06…` de um material passado do 6º ao 9º). Página de antes do primeiro capítulo, de seção ainda `aguardando` ou `sem_habilidade`, e disciplina sem
+   * componente: lista vazia. `soDaCoordenacao` (a função suspensa) deixa só `origem: 'coordenacao'`. A escola é a do contexto e entra no `secao_do_material` e no `habilidade_da_secao` (a junção usa o índice
+   * `(escola_id, material_id, pagina_inicial)` da seção e a chave `(escola_id, secao_id, codigo)` da habilidade). Devolve por `materialId:pagina`, na ordem do código, até `MAXIMO_DE_HABILIDADES_POR_SECAO`.
+   * **Premissa:** as páginas vêm de uma busca que já conferiu o estado e a licença do material (`TrechoSearch.find`); este método lê a classificação da seção, e **não** confere se o material está `pronto`, nem a licença,
+   * nem se foi excluído. Quem o chamar com página que não veio dessa busca pode ler as habilidades de material excluído da própria escola (nunca de outra: a escola é a do contexto).
+   */
+  async habilidadesDasPaginas(
+    paginas: ReadonlyArray<{ readonly materialId: string; readonly pagina: number }>,
+    recorte: { readonly disciplinaId: string; readonly serieId: string },
+    soDaCoordenacao: boolean,
+  ): Promise<Map<string, HabilidadeCandidata[]>> {
+    const porPagina = new Map<string, HabilidadeCandidata[]>()
+    if (paginas.length === 0) return porPagina
+    const escolaId = requireEscolaId()
+    const [turmaDoPedido] = await this.banco
+      .select({ componente: disciplina.componenteBncc, etapa: serie.etapa, ano: serie.ano })
+      .from(serie)
+      .innerJoin(disciplina, and(eq(disciplina.escolaId, serie.escolaId), eq(disciplina.id, recorte.disciplinaId)))
+      .where(and(eq(serie.escolaId, escolaId), eq(serie.id, recorte.serieId)))
+    if (turmaDoPedido === undefined || turmaDoPedido.componente === null) return porPagina
+    const { componente } = turmaDoPedido
+    const series: SerieDoRecorte[] = [{ etapa: turmaDoPedido.etapa, ano: turmaDoPedido.ano }]
+    const linhas = await this.consultaDasHabilidadesDasPaginas(paginas, soDaCoordenacao)
+    for (const { materialId, pagina } of paginas) {
+      const daPagina = linhas
+        .filter((linha) => linha.materialId === materialId && linha.paginaInicial <= pagina && pagina <= linha.paginaFinal && habilidadeEhCandidata(linha.codigo, componente, series))
+        .slice(0, MAXIMO_DE_HABILIDADES_POR_SECAO)
+        // A descrição acima do teto do contrato vai cortada (`descricaoParaOModelo`); o texto inteiro fica em `habilidade_bncc`.
+        .map(({ codigo, descricao }) => ({ codigo, descricao: descricaoParaOModelo(descricao) }))
+      porPagina.set(`${materialId}:${String(pagina)}`, daPagina)
+    }
+    return porPagina
   }
 
   /**

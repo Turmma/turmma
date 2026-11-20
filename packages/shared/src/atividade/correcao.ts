@@ -29,11 +29,12 @@ export const NOME_DO_MOTIVO_DE_DESTAQUE: Readonly<Record<MotivoDeDestaque, strin
 }
 
 /**
- * O que se guarda em `correcao.por_habilidade`: por código do catálogo, quantas questões o aluno acertou, de quantas.
- * É o diagnóstico (D46). Só código e contagem: sem texto.
+ * O que se guarda em `correcao.por_habilidade`: por código da BNCC, quantas questões o aluno acertou, de quantas.
+ * É o diagnóstico (D46). Só código e contagem: sem texto. `codigo: null` é a questão sem habilidade (classificacao-bncc, 10.0); o código
+ * antigo (`QUI.EM.05`) das atividades de antes continua legível.
  */
 export const diagnosticoGravadoSchema = z
-  .array(z.strictObject({ codigo: z.string().min(1).max(20), acertos: z.number().int().nonnegative(), total: z.number().int().min(1) }))
+  .array(z.strictObject({ codigo: z.string().min(1).max(20).nullable(), acertos: z.number().int().nonnegative(), total: z.number().int().min(1) }))
   .max(MAXIMO_DE_QUESTOES_POR_ATIVIDADE)
 export type DiagnosticoGravado = z.infer<typeof diagnosticoGravadoSchema>
 
@@ -43,7 +44,7 @@ export const faixaDeAcertosSchema = z.strictObject({ de: z.number().int().nonneg
 /** Uma questão no lote: quantos acertaram, quantos marcaram cada alternativa e quantos deixaram em branco. É onde aparece o gabarito suspeito. */
 export const questaoDoLoteSchema = z.strictObject({
   numero: numeroDaQuestaoSchema,
-  habilidade: habilidadeSchema,
+  habilidade: habilidadeSchema.nullable(),
   gabarito: alternativaSchema,
   acertos: z.number().int().nonnegative(),
   porAlternativa: z.array(z.number().int().nonnegative()).length(ALTERNATIVAS_POR_QUESTAO),

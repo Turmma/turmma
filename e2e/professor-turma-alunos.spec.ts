@@ -98,23 +98,29 @@ function vigiarALista(page: Page): { readonly turmas: string[] } {
   return { turmas }
 }
 
-test.describe('Alunos na turma aberta: a lista de nomes e os acertos', () => {
-  test('os alunos em ordem de nome, e não na de id da API; os acertos aprovados de cada um; sem correção aprovada e quem saiu da turma, sem número; nada de nota, de ranking nem de ordem por acerto', async ({ page }) => {
-    const { api, professora, turma, alunos, marca } = await prepararCenario(page)
-    const [zelia, alvaro, bruna, ana, joao, outroJoao] = alunos
-    if (zelia === undefined || alvaro === undefined || bruna === undefined || ana === undefined || joao === undefined || outroJoao === undefined) throw new Error('faltou aluno')
-    // Ana acertou tudo, Álvaro metade, o primeiro João nada; Bruna está no desempenho sem lote aprovado; Zélia e o outro João nem constam
-    // nele. Dora está no desempenho e não na lista: foi transferida (ou teve o acesso desativado) entre uma leitura e a outra.
-    api.desempenho = desempenhoDe(turma.turmaId, [
-      { alunoId: ana.usuarioId, nome: ana.nome, acertos: 2, total: 2 },
-      { alunoId: alvaro.usuarioId, nome: alvaro.nome, acertos: 1, total: 2 },
-      { alunoId: joao.usuarioId, nome: joao.nome, acertos: 0, total: 2 },
-      { alunoId: bruna.usuarioId, nome: bruna.nome, acertos: 0, total: 0 },
-      { alunoId: randomUUID(), nome: `Dora Sintética ${marca}`, acertos: 2, total: 2 },
-    ])
-    await abrirJaEntrando(page, professora, enderecoDaAba(turma))
+/**
+ * A professora abre a aba Alunos de uma turma com seis alunos e o desempenho aprovado: Ana acertou tudo, Álvaro metade, o primeiro João nada; Bruna está no desempenho sem lote aprovado; Zélia e o outro João nem constam
+ * nele. Dora está no desempenho e não na lista: foi transferida (ou teve o acesso desativado) entre uma leitura e a outra. Cada caso paga a entrada, e por isso os dois que leem esta aba são dois (o do prazo de 15 s).
+ */
+async function abrirAbaComDesempenho(page: Page): Promise<{ readonly marca: string; readonly alvaro: AlunoNaTurmaDeTeste; readonly bruna: AlunoNaTurmaDeTeste; readonly zelia: AlunoNaTurmaDeTeste }> {
+  const { api, professora, turma, alunos, marca } = await prepararCenario(page)
+  const [zelia, alvaro, bruna, ana, joao, outroJoao] = alunos
+  if (zelia === undefined || alvaro === undefined || bruna === undefined || ana === undefined || joao === undefined || outroJoao === undefined) throw new Error('faltou aluno')
+  api.desempenho = desempenhoDe(turma.turmaId, [
+    { alunoId: ana.usuarioId, nome: ana.nome, acertos: 2, total: 2 },
+    { alunoId: alvaro.usuarioId, nome: alvaro.nome, acertos: 1, total: 2 },
+    { alunoId: joao.usuarioId, nome: joao.nome, acertos: 0, total: 2 },
+    { alunoId: bruna.usuarioId, nome: bruna.nome, acertos: 0, total: 0 },
+    { alunoId: randomUUID(), nome: `Dora Sintética ${marca}`, acertos: 2, total: 2 },
+  ])
+  await abrirJaEntrando(page, professora, enderecoDaAba(turma))
+  await expect(linhaDe(page, ana.nome)).toContainText('2 de 2', { timeout: SIGN_IN_TIMEOUT_MS })
+  return { marca, alvaro, bruna, zelia }
+}
 
-    await expect(linhaDe(page, ana.nome)).toContainText('2 de 2', { timeout: SIGN_IN_TIMEOUT_MS })
+test.describe('Alunos na turma aberta: a lista de nomes e os acertos', () => {
+  test('os alunos em ordem de nome, e não na de id da API; os acertos aprovados de cada um; sem correção aprovada e quem saiu da turma, sem número', async ({ page }) => {
+    const { marca, alvaro, bruna, zelia } = await abrirAbaComDesempenho(page)
     // Em ordem de nome (a lista chegou em ordem de id): "Álvaro" com o A, os dois "João" em duas linhas, Dora entre Bruna e João.
     expect(await nomesNaTela(page)).toEqual([
       `Álvaro Sintético ${marca}`,
@@ -126,14 +132,17 @@ test.describe('Alunos na turma aberta: a lista de nomes e os acertos', () => {
       `Zélia Sintética ${marca}`,
     ])
     await expect(linhaDe(page, alvaro.nome)).toContainText('1 de 2')
-    await expect(linhaDe(page, alvaro.nome)).toContainText('QUI.EM.04: 1 de 2')
+    await expect(linhaDe(page, alvaro.nome)).toContainText('EM13CNT101: 1 de 2')
     await expect(linhaDe(page, bruna.nome)).toContainText('Sem correção aprovada')
     await expect(linhaDe(page, zelia.nome)).toContainText('Sem correção aprovada')
     await expect(linhaDe(page, `Dora Sintética ${marca}`)).toContainText('Saiu da turma')
     await expect(linhaDe(page, `Dora Sintética ${marca}`)).not.toContainText(/\d de \d/)
     await expect(regiaoDosAlunos(page)).not.toContainText('0 de 0')
     await expect(regiaoDosAlunos(page)).toContainText('7 alunos, em ordem de nome')
+  })
 
+  test('a lista de alunos não é ranking: o único controle é o menu de cada aluno da turma, sem nota, média, posição nem ordem por acerto, e cabe na tela', async ({ page }) => {
+    const { marca } = await abrirAbaComDesempenho(page)
     // Não é ranking: o único controle da região é o menu "Ações" de cada aluno que está na turma (a senha provisória, 12.0), nenhum de ordem, busca ou filtro, e nenhuma palavra de nota, de média ou de posição na aba.
     await expect(regiaoDosAlunos(page).getByRole('button')).toHaveCount(6)
     await expect(regiaoDosAlunos(page).getByRole('button', { name: /Ações$/ })).toHaveCount(6)
@@ -141,7 +150,7 @@ test.describe('Alunos na turma aberta: a lista de nomes e os acertos', () => {
     await expect(principal(page)).not.toContainText(VOCABULARIO_DE_NOTA)
     await expect(principal(page)).not.toContainText(PALAVRAS_DE_RANKING)
     expect(await horizontalOverflow(page)).toBe(0)
-    expect(await seriousViolations(page)).toEqual([])
+    // A varredura de acessibilidade da lista é a do caso de 360 px, abaixo (a mesma aba): repeti-la aqui custa a entrada de novo e passa do prazo de 15 s.
   })
 
   test('a lista não fica na memória da aba: sai o nome ao deixar a aba, volta a ser lida ao voltar; nenhum nome em localStorage, sessionStorage, endereço nem log da web', async ({ page }) => {

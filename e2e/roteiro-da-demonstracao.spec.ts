@@ -9,7 +9,7 @@ import { abrirAbaAlunos, passarPelaIntroducaoDaCoordenacao, passarPelaIntroducao
 import { irPelaCoordenacao, linhasDaTabela, painelDoAno } from './support/coordenacao.ts'
 import { caixa, conversa, DISCIPLINA, gerarAtividade, AI_TIMEOUT_MS, TITULO_DO_MATERIAL } from './support/professor-flow.ts'
 import { auditoriasNoBanco, suspensoesNoBanco } from './support/governanca.ts'
-import { CAMINHO_DO_PDF_DE_DEMONSTRACAO, materiaisNoBanco, recusasNaAuditoria } from './support/material.ts'
+import { CAMINHO_DO_PDF_DE_DEMONSTRACAO, materiaisNoBanco, recusasNaAuditoria, secoesNoBanco } from './support/material.ts'
 import { criarOperadorComSegundoFator, removerOperador } from './support/operacao.ts'
 import { idDaEscolaComOEndereco, nomeQueVemPrimeiro } from './support/painel.ts'
 import { expect, test } from './support/profiles.ts'
@@ -365,6 +365,33 @@ test.describe('o roteiro da demonstração, de ponta a ponta', () => {
       expect(await materiaisNoBanco(escolaId)).toEqual([expect.objectContaining({ titulo: TITULO_DO_MATERIAL, estado: 'pronto', paginas: 6, trechos: 6 })])
     })
 
+    // ── 4b. A habilidade do capítulo 7, corrigida no painel: é a da seção que a geração do passo 2 cita (classificacao-bncc, 8.0 e 10.0). ──
+    let habilidadeDoCapitulo = ''
+    await test.step('a coordenação abre o painel do material e escolhe a habilidade da BNCC do capítulo 7', async () => {
+      const materialId = (await materiaisNoBanco(escolaId))[0]?.id ?? ''
+      expect(materialId).not.toBe('')
+      const lista = principal(coordenacao).getByRole('region', { name: 'Materiais da escola' })
+      await linhasDaTabela(lista).filter({ hasText: TITULO_DO_MATERIAL }).locator('button[aria-haspopup="dialog"]').click()
+      const painelDoMaterial = coordenacao.getByRole('dialog', { name: TITULO_DO_MATERIAL })
+      const habilidades = painelDoMaterial.getByRole('region', { name: 'Habilidades da BNCC' })
+      await expect(habilidades).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+      const capitulo = habilidades.locator('ol > li').first()
+      await capitulo.getByRole('button', { name: /^Corrigir/ }).click()
+      const caixas = capitulo.getByRole('group', { name: /^Habilidades de / }).getByRole('checkbox')
+      const primeira = caixas.first()
+      await expect(primeira).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+      // O capítulo já abre com a sugestão da IA marcada: a coordenação a troca (ela tem a última palavra) e fica só com a primeira da lista.
+      for (const caixa of await caixas.all()) if (await caixa.isChecked()) await caixa.uncheck()
+      await primeira.check()
+      habilidadeDoCapitulo = /^(\S+)/u.exec((await primeira.getAttribute('aria-label')) ?? (await primeira.locator('xpath=ancestor::label').innerText()))?.[1] ?? ''
+      expect(habilidadeDoCapitulo).toMatch(/^EM13CNT\d{3}$/u)
+      await capitulo.getByRole('button', { name: 'Salvar correção' }).click()
+      await expect(capitulo).toContainText('Corrigida pela coordenação', { timeout: SIGN_IN_TIMEOUT_MS })
+      // No banco: a seção do material tem a habilidade da coordenação, e só ela.
+      expect((await secoesNoBanco(escolaId, materialId)).flatMap((section) => section.habilidades)).toEqual([{ codigo: habilidadeDoCapitulo, origem: 'coordenacao' }])
+      await coordenacao.keyboard.press('Escape')
+    })
+
     // ── 5. Passo 2: a conversa, a pergunta da D18, a página citada, o PDF, a versão adaptada aprovada (A2). ──────────
     const helenaId = await usuarioDaEquipe(escolaId, helena.email)
     await test.step('a professora pede a atividade, aceita a ferramenta, vê a página citada, exporta, adapta e aprova', async () => {
@@ -419,9 +446,11 @@ test.describe('o roteiro da demonstração, de ponta a ponta', () => {
 
     // ── 6. Passo 3: aplicar como avaliação; a aluna responde na tela, os colegas pela API (A3). ────────────────────
     const primeira = await atividadeNoBanco(escolaId, PRIMEIRA)
+    // A habilidade de cada questão é a que a coordenação escolheu para o capítulo, e nenhuma é inventada pelo sistema (classificacao-bncc, 10.0).
+    expect(primeira.questoes.map((questao) => questao.habilidade)).toEqual(primeira.questoes.map(() => habilidadeDoCapitulo))
     const anaId = await alunoDaMatricula(escolaId, ana.matricula)
     // A Ana erra a primeira questão de cada habilidade e acerta as outras: é o que o Tutor vai lembrar no passo 5.
-    const habilidadesVistas = new Set<string>()
+    const habilidadesVistas = new Set<string | null>()
     const respostasDaAna = primeira.questoes.map((questao) => {
       const erra = !habilidadesVistas.has(questao.habilidade)
       habilidadesVistas.add(questao.habilidade)

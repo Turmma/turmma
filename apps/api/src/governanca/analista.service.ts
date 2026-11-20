@@ -66,7 +66,7 @@ export class AnalistaService {
         porHabilidade: acertos
           .filter((linha) => linha.total > 0)
           .slice(0, MAXIMO_DE_HABILIDADES_POR_RECORTE)
-          .map((linha) => ({ habilidade: { codigo: linha.codigo, descricao: descricoes.get(linha.codigo) ?? linha.codigo }, acertos: linha.acertos, total: linha.total })),
+          .map((linha) => ({ habilidade: linha.codigo === null ? null : { codigo: linha.codigo, descricao: descricoes.get(linha.codigo) ?? linha.codigo }, acertos: linha.acertos, total: linha.total })),
         sinais: { travou: sinais.get('travou') ?? 0, resposta_pronta: sinais.get('resposta_pronta') ?? 0, duvida_repetida: sinais.get('duvida_repetida') ?? 0 },
       }
       // A cada leitura, na mesma transação, antes de responder (regra 20, item 10; regra 70, item 8).

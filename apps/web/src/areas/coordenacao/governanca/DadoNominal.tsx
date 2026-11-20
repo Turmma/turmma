@@ -1,4 +1,4 @@
-import { FINALIDADES_DA_LEITURA_NOMINAL, NOME_DA_FINALIDADE_NOMINAL, nomeDaSerie, type FinalidadeDaLeituraNominal, type AnalistaNominalResponse } from '@educa/shared'
+import { FINALIDADES_DA_LEITURA_NOMINAL, NOME_DA_FINALIDADE_NOMINAL, nomeDaSerie, ROTULO_SEM_HABILIDADE, type FinalidadeDaLeituraNominal, type AnalistaNominalResponse } from '@educa/shared'
 import { useQuery } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { turmasQueryOptions } from '../../../api/estrutura'
@@ -179,11 +179,11 @@ function ResultadoNominal({ dado, aoFechar }: PropsDoResultado) {
                 <p className="text-sm text-sutil">{formatQuantity(dado.lotesAprovados, 'correção aprovada', 'correções aprovadas')} na turma, somando as disciplinas.</p>
                 {dado.porHabilidade.map((medida) => (
                   <ProgressBar
-                    key={medida.habilidade.codigo}
-                    rotulo={medida.habilidade.descricao}
+                    key={medida.habilidade?.codigo ?? 'sem-habilidade'}
+                    rotulo={medida.habilidade?.descricao ?? ROTULO_SEM_HABILIDADE}
                     valor={acertoPercentual(medida.acertos, medida.total)}
                     texto={`${formatPercentual(acertoPercentual(medida.acertos, medida.total))} · ${String(medida.acertos)} de ${String(medida.total)}`}
-                    detalhe={medida.habilidade.codigo}
+                    {...(medida.habilidade === null ? {} : { detalhe: medida.habilidade.codigo })}
                   />
                 ))}
               </div>

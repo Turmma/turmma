@@ -1,12 +1,12 @@
-import { conteudoDePlanoDeAulaSchema, TAMANHO_MAXIMO_DO_TEMA, type Citacao, type ConteudoDePlanoDeAula } from '@educa/shared'
+import { conteudoDePlanoDeAulaSchema, MAXIMO_DE_HABILIDADES_DO_PLANO, TAMANHO_MAXIMO_DO_TEMA, type Citacao, type ConteudoDePlanoDeAula } from '@educa/shared'
 import { z } from 'zod'
 import {
   citacaoDaFrase,
   dadoEmJson,
-  dadosDosTrechos,
+  dadosDosTrechosDeGeracao,
   contextoDaTurmaSchema,
-  habilidadesSchema,
-  trechoSchema,
+  habilidadesDosTrechos,
+  trechoDeGeracaoSchema,
   extrairFatos,
   frasesDoMaterial,
   problemasDasCitacoes,
@@ -20,8 +20,8 @@ export const planoDeAulaInputSchema = z.strictObject({
   tema: z.string().min(1).max(TAMANHO_MAXIMO_DO_TEMA),
   duracaoMinutos: z.number().int().min(10).max(240),
   contexto: contextoDaTurmaSchema,
-  habilidades: habilidadesSchema,
-  trechos: z.array(trechoSchema).min(1).max(12),
+  /** Os trechos com as habilidades da BNCC da seção de cada página (classificacao-bncc, 10.0): o plano cobre a união das seções que cita. */
+  trechos: z.array(trechoDeGeracaoSchema).min(1).max(12),
 })
 export type PlanoDeAulaInput = z.infer<typeof planoDeAulaInputSchema>
 
@@ -93,7 +93,7 @@ export const gerarPlanoDeAula = defineTask({
   esquemaDeSaida: conteudoDePlanoDeAulaSchema,
   prompt: PROMPT_GERAR_PLANO_DE_AULA,
   maximoDeTokensDeSaida: 4000,
-  maximoDeTokensDeEntrada: 26100,
+  maximoDeTokensDeEntrada: 31300,
   levaTextoLivreDePessoa: false,
   levaTextoDeAluno: false,
   categoriasEnviadas: ['material_da_escola'],
@@ -104,8 +104,8 @@ export const gerarPlanoDeAula = defineTask({
       dados: [
         { tipo: 'tema_pedido_pelo_professor', corpo: entrada.tema },
         dadoEmJson('serie_e_disciplina', entrada.contexto),
-        dadoEmJson('habilidades', entrada.habilidades),
-        ...dadosDosTrechos(entrada.trechos),
+        dadoEmJson('habilidades_da_bncc', habilidadesDosTrechos(entrada.trechos)),
+        ...dadosDosTrechosDeGeracao(entrada.trechos),
       ],
     }
   },
@@ -117,8 +117,8 @@ export const gerarPlanoDeAula = defineTask({
       if (etapa.citacao === undefined) problemas.push(`Etapa ${indice + 1}: falta a citação. Toda etapa cita o material e a página de onde saiu.`)
       else problemas.push(...problemasDasCitacoes([etapa.citacao], entrada.trechos, `Etapa ${indice + 1}`))
     })
-    const codigos = new Set(entrada.habilidades.map((habilidade) => habilidade.codigo))
-    if (saida.habilidades.some((habilidade) => !codigos.has(habilidade.codigo))) problemas.push('As habilidades do plano precisam ser das recebidas, copiadas como vieram.')
+    const codigos = new Set(habilidadesDosTrechos(entrada.trechos).map((habilidade) => habilidade.codigo))
+    if (saida.habilidades.some((habilidade) => !codigos.has(habilidade.codigo))) problemas.push('As habilidades do plano precisam ser das recebidas, copiadas como vieram, ou a lista vazia.')
     const soma = saida.etapas.reduce((total, etapa) => total + etapa.minutos, 0)
     if (soma > entrada.duracaoMinutos) problemas.push(`As etapas somam ${soma} minutos, e a aula tem ${entrada.duracaoMinutos}. A soma não pode passar da duração.`)
     if (saida.duracaoMinutos !== entrada.duracaoMinutos) problemas.push(`"duracaoMinutos" precisa ser a duração pedida: ${entrada.duracaoMinutos}.`)
@@ -140,7 +140,8 @@ export const gerarPlanoDeAula = defineTask({
       tipo: 'plano_de_aula',
       titulo: cortar(`Plano de aula — ${entrada.tema}`, 160),
       objetivos: referencias.map((referencia) => cortar(`Explicar ${referencia} com as próprias palavras, com apoio do material.`, 300)),
-      habilidades: [...entrada.habilidades],
+      // A união das seções que o plano cita: as das páginas das etapas, nunca as de uma página que ele não usou.
+      habilidades: habilidadesDosTrechos(entrada.trechos.filter((trecho) => usados.some((apoio) => apoio.materialId === trecho.materialId && apoio.pagina === trecho.pagina))).slice(0, MAXIMO_DE_HABILIDADES_DO_PLANO),
       duracaoMinutos: entrada.duracaoMinutos,
       etapas: [
         {

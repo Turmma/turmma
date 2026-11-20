@@ -2680,6 +2680,55 @@
           "range": true
         }
       ]
+    },
+    {
+      "id": 57,
+      "type": "timeseries",
+      "title": "Habilidades anuladas na geração (1 h), por escola",
+      "description": "Quantas habilidades da BNCC a gravação da geração anulou por não serem da seção da página citada (classificacao-bncc, tarefa 10.0): a questão sai sem habilidade e o plano sem aquele código. Sobe quando o modelo escolhe habilidade de outro capítulo; sustentado, é sinal de prompt ou de modelo para rever com o llm-integrator. Só a escola no rótulo: nunca o código, a questão, o artefato nem o professor.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 179
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "refId": "A",
+          "expr": "sum by (escola_id) (increase(ia_habilidade_anulada_total[1h]))",
+          "legendFormat": "{{escola_id}}",
+          "range": true
+        }
+      ]
     }
   ]
 }

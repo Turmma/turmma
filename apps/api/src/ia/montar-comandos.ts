@@ -27,8 +27,8 @@ export function buildComandos(registro: RegistroDeComandos, banco: Database, tre
   return {
     turnoDoTutor: comRegistro(registro, new TurnoDoTutorCommand(banco, alcance, trechos, suspensao)),
     proporFerramenta: comRegistro(registro, new ProporFerramentaCommand(banco, trechos)),
-    atividadeObjetiva: comRegistro(registro, new GerarAtividadeObjetivaCommand(banco, trechos)),
-    planoDeAula: comRegistro(registro, new GerarPlanoDeAulaCommand(banco, trechos)),
+    atividadeObjetiva: comRegistro(registro, new GerarAtividadeObjetivaCommand(banco, trechos, medidor)),
+    planoDeAula: comRegistro(registro, new GerarPlanoDeAulaCommand(banco, trechos, medidor)),
     adaptacao: comRegistro(registro, new AdaptarAtividadeCommand(banco)),
     resumoDoAnalista: comRegistro(registro, new ResumoDoAnalistaCommand(banco)),
     classificarSecoes: comRegistro(registro, new ClassificarSecoesCommand(banco, medidor)),

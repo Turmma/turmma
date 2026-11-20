@@ -55,13 +55,19 @@ test.describe('a turma aberta em três abas (D69)', () => {
     await expect(page).not.toHaveURL(new RegExp(`/professor/turmas/${turmaId}`))
   })
 
-  test('com lote aprovado, Hoje mostra o acerto por habilidade em barra neutra e sem nota, ranking nem aluno', async ({ page, hasTouch }) => {
-    const { api, turmaId } = await entrar(page, hasTouch)
+  test('com lote aprovado, Hoje mostra o acerto por habilidade em barra neutra e sem nota, ranking nem aluno', async ({ page }) => {
+    // A professora entra pela API e abre a turma numa carga só: o caso paga uma entrada a menos (o portão reprova caso acima de 15 s).
+    const api = await mockAssistenteApi(page)
+    const professora = await criarEquipeComSenha()
+    const { turmaId, vinculoIds } = await criarAlocacaoDoProfessor(professora.escolaId, professora.usuarioId, ['Química'])
+    await confirmarVinculosNoBanco(professora.escolaId, vinculoIds)
     api.desempenho = desempenhoSintetico(turmaId)
     comLote(api, turmaId)
-    await irPara(page, `/professor/turmas/${turmaId}`)
+    const entrada = await page.request.post('/v1/sessao/email', { data: { email: professora.email, senha: professora.senha } })
+    expect(entrada.ok(), 'a entrada pela API').toBe(true)
+    await page.goto(`/professor/turmas/${turmaId}`)
     const habilidades = page.getByRole('region', { name: 'Acerto por habilidade' })
-    await expect(habilidades).toContainText('QUI.EM.04', { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(habilidades).toContainText('EM13CNT101', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(habilidades).toContainText('20 de 28')
     await expect(habilidades).toContainText('8 alunos acertaram menos da metade das questões desta habilidade nas atividades aprovadas.')
     await expect(habilidades).toContainText('Nenhum aluno acertou menos da metade das questões desta habilidade nas atividades aprovadas.')
@@ -83,7 +89,7 @@ test.describe('a turma aberta em três abas (D69)', () => {
     const entrada = await page.request.post('/v1/sessao/email', { data: { email: professora.email, senha: professora.senha } })
     expect(entrada.ok(), 'a entrada pela API').toBe(true)
     await page.goto(`/professor/turmas/${turma.turmaId}`)
-    await expect(page.getByRole('region', { name: 'Acerto por habilidade' })).toContainText('QUI.EM.04', { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(page.getByRole('region', { name: 'Acerto por habilidade' })).toContainText('EM13CNT101', { timeout: SIGN_IN_TIMEOUT_MS })
     await soOPainelDaAbaRola(page)
   })
 

@@ -2,6 +2,7 @@ import { TAREFAS_DE_IA } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import { entradaDeAtividade } from './__fixtures__/inputs.js'
+import { habilidadesDosTrechos, MAXIMO_DE_HABILIDADES_POR_TRECHO } from './material.js'
 import { defineTask, type TaskDefinition } from './task.js'
 import { TASK_CATALOG } from './tasks/index.js'
 import { EntradaSemLimiteError, noLimite, piorEntradaDaTarefa, SOBRA_MAXIMA_DO_TETO, tokensDoPedido, tokensDoPiorPedido } from './teto-de-entrada.js'
@@ -43,6 +44,16 @@ describe('o teto de entrada de cada tarefa é o pior pedido válido', () => {
     expect(tutor.questao).toBeDefined()
     expect(tutor.trechos).toHaveLength(8)
     expect(tutor.duvida).toHaveLength(2000)
+  })
+
+  it('o pior pedido da geração tem as habilidades de cada trecho distintas: a união chega a 60, e é ela que o teto cobre (classificacao-bncc, 10.0)', () => {
+    const trechosDoPior = [piorEntradaDaTarefa(TASK_CATALOG.gerar_atividade_objetiva).trechos, piorEntradaDaTarefa(TASK_CATALOG.gerar_plano_de_aula).trechos]
+    for (const trechos of trechosDoPior) {
+      expect(trechos).toHaveLength(12)
+      expect(trechos.every((trecho) => trecho.habilidades.length === MAXIMO_DE_HABILIDADES_POR_TRECHO)).toBe(true)
+      // Sem a variação, os 12 trechos repetiriam as mesmas 5 habilidades, a união deduplicaria em 5 e o teto passaria sem cobrir o campo que cresceu.
+      expect(habilidadesDosTrechos(trechos)).toHaveLength(12 * MAXIMO_DE_HABILIDADES_POR_TRECHO)
+    }
   })
 
   it('a tarefa sem `maximoDeTokensDeEntrada` não compila', () => {
@@ -114,7 +125,7 @@ describe('o gerador do pior pedido: o valor no limite', () => {
     })
     expect(noLimite(esquema)).toEqual({
       texto: 'aaaaaaa',
-      quatro: ['aa', 'aa', 'aa', 'aa'],
+      quatro: ['0.', '1.', '2.', '3.'],
       lista: [9, 9, 9],
       sem: Number.MAX_SAFE_INTEGER,
       ate: 5,
@@ -126,6 +137,12 @@ describe('o gerador do pior pedido: o valor no limite', () => {
       plano: { x: 'a' },
       braco: { y: 'aaaaaaaaa' },
     })
+  })
+
+  it('o texto curto demais para levar o número do item na lista fica com `a` repetido, sem estourar', () => {
+    expect(noLimite(z.array(z.string().max(1)).max(12))).toEqual(Array.from({ length: 12 }, () => 'a'))
+    // Cabendo o número, o item o leva: é o que mantém distintos os itens que uma tarefa deduplica.
+    expect(noLimite(z.array(z.string().max(4)).max(3))).toEqual(['0.aa', '1.aa', '2.aa'])
   })
 
   it('o limite exclusivo fica abaixo do valor: o inteiro em uma unidade, o decimal em meia', () => {

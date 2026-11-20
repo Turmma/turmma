@@ -19,8 +19,8 @@ export interface EscolaComEntregas {
   readonly aluno: string
 }
 
-const HABILIDADE_MASSA = { codigo: 'QUI.EM.05', descricao: 'Calcular a massa de reagentes e produtos numa reação' }
-const HABILIDADE_LIMITANTE = { codigo: 'QUI.EM.06', descricao: 'Identificar o reagente limitante' }
+const HABILIDADE_MASSA = { codigo: 'EM13CNT102', descricao: 'Calcular a massa de reagentes e produtos numa reação' }
+const HABILIDADE_LIMITANTE = { codigo: 'EM13CNT103', descricao: 'Identificar o reagente limitante' }
 
 async function comBanco<T>(tarefa: (banco: Client) => Promise<T>): Promise<T> {
   const banco = new Client({ connectionString: urlDoBancoDeTeste() })

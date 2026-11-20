@@ -245,6 +245,11 @@ export const METRICS = {
    * dispara acima de 0.
    */
   execucoesAtrasadasDaClassificacao: 'classificacao.execucoes_atrasadas',
+  /**
+   * Quantas habilidades da BNCC o `concluir` da geração anulou por não serem da seção da página citada (classificacao-bncc, tarefa 10.0; Tech Spec §5, "Geração", e §7c, "Métrica"), por `escola_id`: a questão
+   * sai sem habilidade (`null`) e o plano sem aquele código. É o que diz se o modelo está escolhendo habilidade fora do trecho que cita. Só a escola no rótulo: nunca o código, a questão, o artefato nem o professor.
+   */
+  habilidadeAnulada: 'ia.habilidade_anulada',
 } as const
 
 /**
@@ -271,6 +276,7 @@ export const METRICS_WITH_ESCOLA: readonly string[] = [
   METRICS.execucaoInterrompida,
   METRICS.esperaDaClassificacao,
   METRICS.execucoesAtrasadasDaClassificacao,
+  METRICS.habilidadeAnulada,
 ]
 
 /** O rótulo da escola nas métricas de job. Rotina do sistema, sem escola, aparece como `sistema`, como na chave da vaga. */

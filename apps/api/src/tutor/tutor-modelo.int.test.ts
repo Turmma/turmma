@@ -237,6 +237,23 @@ describe('Tutor contra um modelo que não obedece', () => {
       expect(linhasDeLog.some((linha) => linha.includes('reagente limitante') || linha.includes(NOME_DO_ALUNO))).toBe(false)
     })
 
+    it('o Tutor não recebe as habilidades da seção: o trecho do material vai com `materialId`, `pagina` e o texto, e nada mais (classificacao-bncc, 10.0)', async () => {
+      const aluno = await novoAluno()
+      // O material da escola tem seção classificada, com uma habilidade que não aparece em mais lugar nenhum do pedido.
+      const DA_SECAO = 'EM13CNT203'
+      await sql('delete from secao_do_material where escola_id = $1 and material_id = $2', [a.escolaId, a.materialId])
+      const { rows } = await sql<{ id: string }>('insert into secao_do_material (escola_id, material_id, ordem, pagina_inicial, pagina_final) values ($1, $2, 1, 1, 6) returning id', [a.escolaId, a.materialId])
+      await sql("insert into habilidade_da_secao (escola_id, secao_id, codigo, origem) values ($1, $2, $3, 'ia')", [a.escolaId, rows[0]?.id, DA_SECAO])
+
+      modelo.responder((pedido) => obediente(pedido))
+      expect((await turno(aluno, 'não entendi o que é reagente limitante', naQuestao(3))).estado).toBe('concluida')
+      const pedido = modelo.pedidos[modelo.pedidos.length - 1] ?? ''
+      expect(pedido).toContain('trecho_do_material')
+      expect(pedido).toContain(a.materialId)
+      expect(pedido).not.toContain(DA_SECAO)
+      expect(pedido).not.toContain('habilidades=')
+    })
+
     it('o turno de assunto delicado nunca vai ao modelo, nem no turno seguinte: o filtro é o tipo gravado, não o texto', async () => {
       const aluno = await novoAluno()
       const marca = `araponga${randomUUID().slice(0, 8)}`

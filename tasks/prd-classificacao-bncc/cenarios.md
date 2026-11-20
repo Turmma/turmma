@@ -137,11 +137,14 @@ teste vermelho por um caso que rodou e falhou. Nenhum teste chama provedor: `Scr
   material das 9h usado às 10h)
 - [I] Com a função suspensa, só a correção vale: a seção só com `origem: 'ia'` dá questão sem habilidade, e a cobertura
   conta só as corrigidas. Mutação: ler `origem: 'ia'` na suspensão
-- [I] Plano que cita os capítulos 3 e 7: `habilidades` é a união das duas seções; a questão que cita páginas de duas
-  seções escolhe entre a união delas
+- [I] Plano que cita os capítulos 3 e 7: `habilidades` é a união das duas seções. A questão cita **uma página só**
+  (`citacaoSchema`), e escolhe entre as habilidades da seção dessa página, ou `null`; quem cita várias seções é o plano
 - [I] Recorte atual: material passado do 6º ao 9º pelo `PATCH`, a geração de uma turma do 9º não recebe `EF06…`
-- [U] Cada saída recusa `QUI.EM.05` vindo do `ScriptedAdapter` ou o anula: atividade, plano, adaptação, chat do
-  Assistente, Tutor (memória)
+- [U] Cada saída que leva habilidade recusa `QUI.EM.05` vindo do `ScriptedAdapter` ou o anula: atividade, plano,
+  adaptação. O chat não leva habilidade: a proposta de ferramenta é de campos fechados e recusa o campo (a geração que
+  o chat pede passa pela busca da ferramenta, e a conferência dela vale). O Tutor não produz habilidade (a saída dele é
+  a resposta) e não tem caso de recusa: o `QUI.EM.05` que a memória traz de uma atividade antiga é aceito, como na
+  leitura do legado (D82). O caso do Tutor é o da linha seguinte
 - [I] A entrada do Tutor não leva habilidade da seção (`materialId`, `pagina`, `texto`). Mutação: passar as habilidades
 - [I] Todo código do seed existe em `habilidade_bncc`; a atividade antiga com `QUI.EM.05` ainda abre em Turmas
 

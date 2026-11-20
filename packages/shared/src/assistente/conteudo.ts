@@ -18,11 +18,28 @@ export const citacaoSchema = z.strictObject({
 })
 export type Citacao = z.infer<typeof citacaoSchema>
 
+/**
+ * O teto da descrição de habilidade nos contratos da geração, do Tutor, do relatório e do Analista, cujos tetos de entrada de IA (regra 80; `teto-de-entrada.test.ts`) foram medidos com ele. A BNCC tem
+ * descrição de até 1.500 caracteres (162 passam de 300): a que vem de `habilidade_bncc` para esses contratos passa por `descricaoParaOModelo`, e o texto inteiro segue na tabela pública (classificacao-bncc, 10.0).
+ */
+export const MAXIMO_DE_CARACTERES_DA_HABILIDADE = 300
+
+/** A descrição da BNCC no tamanho do contrato: até o teto, com reticências no lugar do que passou (nunca corta no meio de uma palavra). */
+export function descricaoParaOModelo(descricao: string): string {
+  if (descricao.length <= MAXIMO_DE_CARACTERES_DA_HABILIDADE) return descricao
+  const corte = descricao.slice(0, MAXIMO_DE_CARACTERES_DA_HABILIDADE - 1)
+  const ultimoEspaco = corte.lastIndexOf(' ')
+  return `${(ultimoEspaco > 0 ? corte.slice(0, ultimoEspaco) : corte).trimEnd()}…`
+}
+
 export const habilidadeSchema = z.strictObject({
   codigo: z.string().min(1).max(20),
-  descricao: z.string().min(1).max(300),
+  descricao: z.string().min(1).max(MAXIMO_DE_CARACTERES_DA_HABILIDADE),
 })
 export type Habilidade = z.infer<typeof habilidadeSchema>
+
+/** O que as leituras mostram no lugar da habilidade da questão que não tem nenhuma (classificacao-bncc, 10.0; a explicação curta que acompanha é da 12.0). */
+export const ROTULO_SEM_HABILIDADE = 'Sem habilidade'
 
 export const TIPOS_DE_ADAPTACAO = [
   'fonte_ampliada',
@@ -57,7 +74,8 @@ export const questaoObjetivaSchema = z.strictObject({
   alternativas: z.array(z.string().min(1).max(400)).length(ALTERNATIVAS_POR_QUESTAO),
   /** Índice da alternativa correta, de 0 a 3. */
   gabarito: z.number().int().min(0).max(ALTERNATIVAS_POR_QUESTAO - 1),
-  habilidade: habilidadeSchema,
+  /** Uma das habilidades da BNCC da seção da página citada, ou `null` quando a seção não tem nenhuma (classificacao-bncc, 10.0; RF7). */
+  habilidade: habilidadeSchema.nullable(),
   citacao: citacaoSchema,
   /** Por que a alternativa é a correta: alimenta o relatório por questão. Nunca chega ao aluno antes da aprovação. */
   explicacao: z.string().min(1).max(600),
@@ -80,11 +98,15 @@ export const etapaDoPlanoSchema = z.strictObject({
   citacao: citacaoSchema.optional(),
 })
 
+/** Quantas habilidades da BNCC um plano de aula guarda: o teto de `conteudoDePlanoDeAulaSchema.habilidades`, que a tarefa de geração também corta. */
+export const MAXIMO_DE_HABILIDADES_DO_PLANO = 6
+
 export const conteudoDePlanoDeAulaSchema = z.strictObject({
   tipo: z.literal('plano_de_aula'),
   titulo: z.string().min(1).max(160),
   objetivos: z.array(z.string().min(1).max(300)).min(1).max(6),
-  habilidades: z.array(habilidadeSchema).min(1).max(6),
+  /** A união das habilidades das seções citadas que o plano cobre; vazia quando nenhuma seção citada tem habilidade. */
+  habilidades: z.array(habilidadeSchema).max(MAXIMO_DE_HABILIDADES_DO_PLANO),
   duracaoMinutos: z.number().int().min(10).max(240),
   etapas: z.array(etapaDoPlanoSchema).min(1).max(8),
   avaliacao: z.string().min(1).max(600),

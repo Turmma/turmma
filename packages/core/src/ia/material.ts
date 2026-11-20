@@ -1,4 +1,4 @@
-import { InvariantException, habilidadeSchema, type Citacao, type Habilidade } from '@educa/shared'
+import { habilidadeSchema, MAXIMO_DE_HABILIDADES_POR_SECAO, type Citacao, type Habilidade } from '@educa/shared'
 import { z } from 'zod'
 import type { PromptData } from './task.js'
 import { contemTexto, cortar, frases, normalize, palavras, palavrasEmComum, semPontoFinal } from './text.js'
@@ -25,7 +25,36 @@ export const contextoDaTurmaSchema = z.strictObject({
 })
 export type ContextoDaTurma = z.infer<typeof contextoDaTurmaSchema>
 
-export const habilidadesSchema = z.array(habilidadeSchema).min(1).max(6)
+/** Quantas habilidades a classificação põe numa seção: é o teto do que um trecho leva. */
+export const MAXIMO_DE_HABILIDADES_POR_TRECHO = MAXIMO_DE_HABILIDADES_POR_SECAO
+
+/**
+ * O trecho da **geração** (classificacao-bncc, 10.0; Tech Spec, seção 5): a página e as habilidades da BNCC da seção a que ela pertence, já no recorte da turma. Sem habilidade quando a seção ainda não foi
+ * classificada, não tem nenhuma, ou a página é de antes do primeiro capítulo. O Tutor **não** usa este: o dele é o `trechoSchema` estrito, sem o campo.
+ */
+export const trechoDeGeracaoSchema = trechoSchema.extend({ habilidades: z.array(habilidadeSchema).max(MAXIMO_DE_HABILIDADES_POR_TRECHO) })
+export type TrechoDeGeracao = z.infer<typeof trechoDeGeracaoSchema>
+
+/** A união das habilidades dos trechos, sem repetir o código e na ordem dele: é a lista que o modelo e a conferência veem. */
+export function habilidadesDosTrechos(trechos: readonly TrechoDeGeracao[]): Habilidade[] {
+  const porCodigo = new Map<string, Habilidade>()
+  for (const trecho of trechos) for (const habilidade of trecho.habilidades) if (!porCodigo.has(habilidade.codigo)) porCodigo.set(habilidade.codigo, habilidade)
+  return [...porCodigo.values()].sort((a, b) => a.codigo.localeCompare(b.codigo))
+}
+
+/** As habilidades da seção da página citada: a união das dos trechos que têm aquele material e aquela página (um trecho só, na prática). */
+export function habilidadesDaPagina(trechos: readonly TrechoDeGeracao[], citacao: Pick<Citacao, 'materialId' | 'pagina'>): Habilidade[] {
+  return habilidadesDosTrechos(trechos.filter((trecho) => trecho.materialId === citacao.materialId && trecho.pagina === citacao.pagina))
+}
+
+/** Os trechos da geração como dado do prompt: o código das habilidades da seção vai no atributo, e a descrição na lista única que a tarefa acrescenta. */
+export function dadosDosTrechosDeGeracao(trechos: readonly TrechoDeGeracao[]): PromptData[] {
+  return trechos.map((trecho) => ({
+    tipo: 'trecho_do_material',
+    atributos: { materialId: trecho.materialId, pagina: trecho.pagina, habilidades: trecho.habilidades.map((habilidade) => habilidade.codigo).join(',') },
+    corpo: trecho.texto,
+  }))
+}
 
 export function dadosDosTrechos(trechos: readonly Trecho[]): PromptData[] {
   return trechos.map((trecho) => ({
@@ -231,10 +260,10 @@ export function fraseMaisProxima(candidatas: readonly FraseDoMaterial[], texto: 
   return melhor
 }
 
-/** A habilidade cuja descrição mais se parece com o texto; no empate, a primeira da lista. */
-export function habilidadeMaisProxima(habilidades: readonly Habilidade[], texto: string): Habilidade {
+/** A habilidade cuja descrição mais se parece com o texto; no empate, a primeira da lista. Lista vazia (a seção sem habilidade): `null`, a questão sai sem habilidade. */
+export function habilidadeMaisProxima(habilidades: readonly Habilidade[], texto: string): Habilidade | null {
   const [primeira, ...demais] = habilidades
-  if (primeira === undefined) throw new InvariantException('lista de habilidades vazia')
+  if (primeira === undefined) return null
   let melhor = primeira
   let pontos = palavrasEmComum(primeira.descricao, texto)
   for (const habilidade of demais) {
