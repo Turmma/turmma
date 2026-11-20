@@ -1,7 +1,7 @@
 # Estado da execução — classificacao-bncc
 
 ## Agora
-- **Espero:** (1) o `RELATÓRIO` do `Validador` (funcionalidade completa, sobre `8be34721`), 1ª rodada; esteira de `8be34721` corre ao lado. (2) a palavra do Joaquim para pousá-la na `develop` (parada, em "Esperando o Joaquim"); conferida às ~02:50, 7 revisores APROVADO na 2ª. 12.0 e 13.0 esperam a 11.0.
+- **Espero:** (1) a palavra do Joaquim sobre as 2 ressalvas maiores da validação (APROVADA COM RESSALVAS, rodada 1, sobre `4538566c`; "Esperando o Joaquim"). (2) a palavra do Joaquim para pousá-la na `develop` (parada, em "Esperando o Joaquim"); conferida às ~02:50, 7 revisores APROVADO na 2ª. 12.0 e 13.0 esperam a 11.0.
 - **Devo ainda:** em cada encontro e antes do pouso, rodar `npm run ci:verificar` e `npm run guarda:segredo` no andar, porque a esteira os pula atrás do `conferir-entregas`. No checkout do andar, o gitleaks do `ci:verificar` lê 0 commits, e o `guarda:segredo` é o que lê o histórico. Os dois deram verde em `e28ce2ee` (20/11), em `2ec4b202` (20/11 ~06:1x), em `eefbace7` (20/11 ~02:45; 1.431 commits, nenhum segredo), em `1a5aa033` (13:12), em `e0ed1252` (~14:05) e em `ff4b3728` (~15:25; 1.423 commits, nenhum segredo). A 10.0 só parte com a medida do `Arquiteto` registrada; taxa fora do `padrao` é decisão do Joaquim. No fechamento, marcar `[x]` o item "(F4, retro, M3)" do `TODO.md`. Push da `develop` (retro da X6, `46ea2309`) no próximo pouso.
 - **Correção `metodos-de-mercado` na spec (19/11 ~18:20, com a palavra do Joaquim):** merge `8e5c8b32` com push; L1 e L2 avançadas para ele (fast-forward, push; o lock não mudou); andar da correção apagado. Para o `Validador`: `openAnoLetivo` (antes `abrirAnoLetivo`) talvez seja ato de domínio (no documento da correção); o `TODO.md` ganhou 6 entradas.
 - **Base:** `spec/classificacao-bncc` em `8be34721`
@@ -53,6 +53,11 @@ Recomendo: carregar o qwen3.6-35b-a3b, que é o que a Tech Spec mede.
 Decisão: pousar na `develop` (com push) a correção que ensina a versão de hoje a ler `habilidade: null`, `habilidades: []` e `codigo: null`. Precisa chegar à `main` ANTES da classificacao-bncc (§7c, `TODO.md`).
 Contexto: `e2e3213c`, conferida; 7 revisores APROVADO na 2ª; esteira da branch VERDE em 44683309238 (~03:20). A develop local leva junto a retro da X6 (`46ea2309`), sem push até aqui.
 Opções: pousar agora | esperar a spec. Recomendo: pousar com a esteira verde.
+
+## 20/11 ~10:00 — ressalvas maiores da validação da F4b, no meu terminal
+Decisão: corrigir agora e revalidar, ou aceitar, cada uma. (1) três `@Unscoped` novos sobre `habilidade_bncc` no módulo material, contra a §6 e sem registro na §11 (regra 10, item 9; não é vazamento); (2) a descrição da habilidade gravada na questão é a do modelo, sem conferência, e aparece no artefato e no diagnóstico como texto da BNCC.
+Arquivo: `tasks/prd-classificacao-bncc/validacao.md`, seção 4.
+Recomendo: corrigir as duas agora (`corrigir`, uma por achado, em L1 e L2) e revalidar.
 
 ## O que falhou
 - 20/11: esteira de `eefbace7` (depois da 10.0) VERMELHA também na integração: `atividade.int.test.ts` › "encerrar corrige" (o portão da tarefa roda só os alvos alterados). Correção na L1 antes da 12.0.
