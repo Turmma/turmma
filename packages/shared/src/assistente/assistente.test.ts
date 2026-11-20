@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { adaptarArtefatoRequestSchema, gerarComFerramentaRequestSchema, indiceDaQuestaoSchema, renomearArtefatoRequestSchema, artefatoResponseSchema, secaoDaQuestaoSchema, trocarHabilidadeRequestSchema, rotuloDaFonte, TITULO_DA_FONTE_SEM_LINHA } from './artefato.js'
-import { conteudoDeAtividadeSchema, conteudoDePlanoDeAulaSchema, conteudoDoArtefatoSchema, habilidadeSchema, MAXIMO_DE_CARACTERES_DA_HABILIDADE, descricaoParaOModelo, questaoObjetivaSchema, TIPOS_DE_ADAPTACAO } from './conteudo.js'
+import { conteudoDeAtividadeSchema, conteudoDePlanoDeAulaSchema, conteudoDoArtefatoSchema, habilidadeSchema, MAXIMO_DE_CARACTERES_DA_HABILIDADE, descricaoParaOModelo, questaoObjetivaSchema, ROTULO_SEM_HABILIDADE, TIPOS_DE_ADAPTACAO } from './conteudo.js'
 import {
   conversaDoAssistenteQuerySchema,
   conteudoDaMensagemDoAgenteSchema,
@@ -274,5 +274,27 @@ describe('a habilidade da questão é da BNCC, ou nenhuma (classificacao-bncc, 1
 
   it('o plano aceita nenhuma habilidade, quando nenhuma seção citada tem', () => {
     expect(conteudoDePlanoDeAulaSchema.safeParse({ ...plano, habilidades: [] }).success).toBe(true)
+  })
+})
+
+describe('a leitura aceita os três formatos de habilidade (correção 2026-11-20-leitura-de-habilidade-nula)', () => {
+  it('a questão sem habilidade é conteúdo válido (`habilidade: null`), e a com habilidade, a de antes, continua', () => {
+    expect(questaoObjetivaSchema.safeParse({ ...questao, habilidade: null }).success).toBe(true)
+    expect(questaoObjetivaSchema.safeParse(questao).success).toBe(true)
+    // `null` é explícito: a chave ausente continua recusada.
+    const { habilidade: _habilidade, ...semAChave } = questao
+    expect(questaoObjetivaSchema.safeParse(semAChave).success).toBe(false)
+    expect(conteudoDeAtividadeSchema.safeParse({ ...atividade, questoes: [{ ...questao, habilidade: null }, questao] }).success).toBe(true)
+    expect(conteudoDoArtefatoSchema.safeParse({ ...atividade, questoes: [{ ...questao, habilidade: null }] }).success).toBe(true)
+  })
+
+  it('o plano aceita nenhuma habilidade, e continua recusando mais de seis', () => {
+    expect(conteudoDePlanoDeAulaSchema.safeParse({ ...plano, habilidades: [] }).success).toBe(true)
+    expect(conteudoDoArtefatoSchema.safeParse({ ...plano, habilidades: [] }).success).toBe(true)
+    expect(conteudoDePlanoDeAulaSchema.safeParse({ ...plano, habilidades: Array.from({ length: 7 }, () => questao.habilidade) }).success).toBe(false)
+  })
+
+  it('o rótulo da leitura é o texto fixo "Sem habilidade"', () => {
+    expect(ROTULO_SEM_HABILIDADE).toBe('Sem habilidade')
   })
 })

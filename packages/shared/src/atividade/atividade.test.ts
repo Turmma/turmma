@@ -244,3 +244,29 @@ describe('desempenho da turma (D34, D45)', () => {
     expect(desempenhoDaTurmaResponseSchema.safeParse({ ...resposta, professor: { id: UM_ID, nome: 'Camila' } }).success).toBe(false)
   })
 })
+
+describe('a leitura aceita o diagnóstico sem habilidade (correção 2026-11-20-leitura-de-habilidade-nula)', () => {
+  it('o diagnóstico gravado aceita `codigo: null` ao lado do código, e continua recusando texto e código vazio', () => {
+    expect(diagnosticoGravadoSchema.safeParse([{ codigo: 'EM13CNT101', acertos: 1, total: 2 }, { codigo: null, acertos: 0, total: 1 }]).success).toBe(true)
+    expect(diagnosticoGravadoSchema.safeParse([{ codigo: null, acertos: 0, total: 1, comentario: 'x' }]).success).toBe(false)
+    expect(diagnosticoGravadoSchema.safeParse([{ codigo: '', acertos: 0, total: 1 }]).success).toBe(false)
+  })
+
+  it('o resumo do lote, o diagnóstico do aluno e o desempenho da turma aceitam `habilidade: null` numa linha à parte', () => {
+    const linha = { habilidade: null, acertos: 1, total: 2 }
+    const resumo = {
+      alunosDaTurma: 32,
+      corrigidos: 30,
+      questoes: 2,
+      mediaDeAcertos: 1.4,
+      distribuicao: [{ de: 0, ate: 2, alunos: 30 }],
+      porHabilidade: [{ habilidade, acertos: 42, total: 60 }, linha],
+      porQuestao: [{ numero: 1, habilidade, gabarito: 0, acertos: 20, porAlternativa: [20, 5, 3, 1], emBranco: 1 }, { numero: 2, habilidade: null, gabarito: 1, acertos: 22, porAlternativa: [4, 22, 2, 1], emBranco: 1 }],
+    }
+    expect(resumoDoLoteSchema.safeParse(resumo).success).toBe(true)
+    const diagnostico = { atividadeAplicadaId: UM_ID, titulo: 'Lista', acertos: 1, total: 2, porHabilidade: [linha], questoes: [{ numero: 1, alternativa: 0, gabarito: 0, correta: true, explicacao: 'x', citacao }], aprovadoPor: { nome: 'Camila Duarte' }, aprovadoEm: AGORA }
+    expect(meuDiagnosticoResponseSchema.safeParse(diagnostico).success).toBe(true)
+    const aluno = { alunoId: UM_ID, nome: 'Ana Beatriz', acertos: 1, total: 2, porHabilidade: [linha] }
+    expect(desempenhoDaTurmaResponseSchema.safeParse({ turmaId: OUTRO_ID, lotesAprovados: 1, porHabilidade: [{ ...linha, alunosAbaixoDaMetade: 1 }], alunos: [aluno] }).success).toBe(true)
+  })
+})

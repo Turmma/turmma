@@ -18,9 +18,12 @@ export interface CorrecaoCalculada {
   readonly porHabilidade: DiagnosticoGravado
 }
 
-/** Compara as respostas com o gabarito. A habilidade sai na ordem em que aparece na atividade. */
+/**
+ * Compara as respostas com o gabarito. A habilidade sai na ordem em que aparece na atividade. A questão sem habilidade
+ * (`habilidade: null`) conta numa linha à parte, com `codigo: null`: nunca soma à de um código (classificacao-bncc, 10.0;
+ * correção 2026-11-20-leitura-de-habilidade-nula).
+ */
 export function corrigirTentativa(questoes: readonly QuestaoObjetiva[], respostas: RespostasDaTentativa): CorrecaoCalculada {
-  // A questão sem habilidade (`null`) tem a sua própria linha e não se soma à de nenhuma habilidade (classificacao-bncc, 10.0).
   const porHabilidade = new Map<string | null, { codigo: string | null; acertos: number; total: number }>()
   let acertos = 0
   let emBranco = 0

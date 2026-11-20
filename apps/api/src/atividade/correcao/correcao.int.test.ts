@@ -616,32 +616,46 @@ describe('correção de objetiva e validação do lote', () => {
       const entregaId = await encerrarAtividade(rotas, escola.professora, id)
       if (entregaId === null) throw new Error('o lote não nasceu')
 
-      // No banco: o diagnóstico de cada aluno tem uma linha com o código e uma com `null`.
+      // No banco: o diagnóstico de quem errou a última tem uma linha com o código e uma com `null`.
       const doCaio = (await correcoesDoLote(entregaId)).find((linha) => linha['aluno_id'] === turma.caio.usuarioId)
       expect(doCaio?.['por_habilidade']).toEqual([
         { codigo: HABILIDADE_DAS_TRES_PRIMEIRAS.codigo, acertos: 3, total: 3 },
         { codigo: null, acertos: 1, total: 2 },
       ])
 
-      await aprovarOLote(rotas, escola.professora, id)
-      // O resumo do lote da professora: a linha sem habilidade soma os dois alunos (1 de 2 e 2 de 2).
-      const lote = await lerCorrecao(escola.professora, id)
-      expect(lote.resumo.porHabilidade).toEqual([
+      // O lote da professora abre, antes e depois da aprovação, com a linha sem habilidade (1 de 2 e 2 de 2: 3 de 4).
+      const resumoDoLote = (await lerCorrecao(escola.professora, id)).resumo
+      expect(resumoDoLote.porHabilidade).toEqual([
         { habilidade: HABILIDADE_DAS_TRES_PRIMEIRAS, acertos: 6, total: 6 },
         { habilidade: null, acertos: 3, total: 4 },
       ])
-      expect(lote.resumo.porQuestao.map((questao) => questao.habilidade?.codigo ?? null)).toEqual([HABILIDADE_DAS_TRES_PRIMEIRAS.codigo, HABILIDADE_DAS_TRES_PRIMEIRAS.codigo, HABILIDADE_DAS_TRES_PRIMEIRAS.codigo, null, null])
-      // O desempenho da turma e o do aluno: a mesma linha `null`, depois das habilidades com código.
+      expect(resumoDoLote.porQuestao.map((questao) => questao.habilidade?.codigo ?? null)).toEqual([...Array.from({ length: 3 }, () => HABILIDADE_DAS_TRES_PRIMEIRAS.codigo), null, null])
+      await aprovarOLote(rotas, escola.professora, id)
+      // Depois da aprovação o lote abre de novo, agora pelo que ficou gravado em jsonb com `habilidade: null` (`validacaoParaATela`).
+      const aprovado = await lerCorrecao(escola.professora, id)
+      expect(aprovado.validacao?.apresentado.resumo.porHabilidade).toEqual([
+        { habilidade: HABILIDADE_DAS_TRES_PRIMEIRAS, acertos: 6, total: 6 },
+        { habilidade: null, acertos: 3, total: 4 },
+      ])
+
+      // O desempenho da turma e o do aluno: a mesma linha `null`, depois das habilidades com código, e nunca um objeto de código nulo.
       const desempenho = await lerDesempenho(escola.professora, escola.turma)
       expect(desempenho.porHabilidade.map((linha) => [linha.habilidade?.codigo ?? null, linha.acertos, linha.total])).toEqual([[HABILIDADE_DAS_TRES_PRIMEIRAS.codigo, 6, 6], [null, 3, 4]])
-      expect(desempenho.alunos.find((aluno) => aluno.alunoId === turma.caio.usuarioId)?.porHabilidade.map((linha) => [linha.habilidade?.codigo ?? null, linha.acertos, linha.total])).toEqual([[HABILIDADE_DAS_TRES_PRIMEIRAS.codigo, 3, 3], [null, 1, 2]])
-      // A linha sem habilidade é `habilidade: null` (e não um objeto de código nulo), na turma e no aluno.
+      const doAlunoNoDesempenho = desempenho.alunos.find((aluno) => aluno.alunoId === turma.caio.usuarioId)
+      expect(doAlunoNoDesempenho?.porHabilidade.map((linha) => [linha.habilidade?.codigo ?? null, linha.acertos, linha.total])).toEqual([[HABILIDADE_DAS_TRES_PRIMEIRAS.codigo, 3, 3], [null, 1, 2]])
       expect(desempenho.porHabilidade.at(-1)?.habilidade).toBeNull()
-      expect(desempenho.alunos.find((aluno) => aluno.alunoId === turma.caio.usuarioId)?.porHabilidade.at(-1)?.habilidade).toBeNull()
-      // O que o aluno vê no diagnóstico dele: a linha sem habilidade, sem código inventado.
+      expect(doAlunoNoDesempenho?.porHabilidade.at(-1)?.habilidade).toBeNull()
+      expect(somaDosAlunos(desempenho)).toEqual(new Map(desempenho.porHabilidade.map((linha) => [linha.habilidade?.codigo ?? 'sem habilidade', [linha.acertos, linha.total]])))
+
+      // O que a aluna vê no diagnóstico dela: a linha sem habilidade, sem código inventado.
       const meu = await rotas.diagnostico(turma.caio, id)
       expect(meu.status).toBe(200)
       expect((meu.corpo['porHabilidade'] as { habilidade: { codigo: string } | null }[]).map((linha) => linha.habilidade?.codigo ?? null)).toEqual([HABILIDADE_DAS_TRES_PRIMEIRAS.codigo, null])
+      // E a prova abre para quem a lê, com as cinco questões, sem levar o gabarito.
+      const prova = await rotas.prova(turma.ana2, id)
+      expect(prova.status).toBe(200)
+      expect((prova.corpo['questoes'] as unknown[]).length).toBe(5)
+      expect(JSON.stringify(prova.corpo)).not.toContain('gabarito')
     })
 
     it('transferido antes de a professora encerrar: o trabalho entra no lote da turma em que foi feito, o resumo conta quem respondeu e fecha, o apresentado é o que a rota mostrou, e ele não lê o diagnóstico', async () => {

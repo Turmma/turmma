@@ -57,6 +57,15 @@ describe('correção de objetiva: a questão sem habilidade (classificacao-bncc,
     expect(correcao).toMatchObject({ acertos: 3, total: 4, emBranco: 0 })
   })
 
+  it('a linha sem habilidade segue a ordem da atividade, e não vai para o fim: com a questão 1 sem habilidade, ela vem primeiro no diagnóstico', () => {
+    const questoes = [questao(0, null), questao(1, 'EM13CNT101'), questao(2, 'EM13CNT102')]
+    expect(corrigirTentativa(questoes, respostas(0, 1, 3)).porHabilidade).toEqual([
+      { codigo: null, acertos: 1, total: 1 },
+      { codigo: 'EM13CNT101', acertos: 1, total: 1 },
+      { codigo: 'EM13CNT102', acertos: 0, total: 1 },
+    ])
+  })
+
   it('a atividade toda sem habilidade tem uma linha só, com o total das questões', () => {
     expect(corrigirTentativa([questao(0, null), questao(1, null)], respostas(null, 1)).porHabilidade).toEqual([{ codigo: null, acertos: 1, total: 2 }])
   })

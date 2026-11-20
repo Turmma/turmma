@@ -215,6 +215,26 @@ describe('o documento: os quatro estados', () => {
     expect(within(folha).getByText('Habilidade QUI.EM.04:')).toBeTruthy()
     expect(within(folha).getByText('Usar a proporção da equação balanceada.')).toBeTruthy()
   })
+
+  it('o plano sem habilidade (`habilidades: []`, correção 2026-11-20-leitura-de-habilidade-nula) abre, e a seção diz "Sem habilidade"; com habilidade, lista a dela', async () => {
+    const rede = fakeNetwork()
+    instalar(rede, { artefatos: [{ ...PLANO, conteudo: { ...PLANO.conteudo, habilidades: [] } }] })
+    montar(PLANO.id)
+    const folha = await screen.findByRole('article', { name: 'Plano de ondas' })
+    const secao = within(folha).getByRole('heading', { name: 'Habilidades' }).parentElement
+    expect(secao?.textContent).toContain('Sem habilidade')
+    expect(within(folha).queryByText(/FIS\.EM\.01/)).toBeNull()
+  })
+
+  it('o plano com habilidade lista o código e o texto, sem o rótulo de "sem habilidade"', async () => {
+    const rede = fakeNetwork()
+    instalar(rede, { artefatos: [PLANO] })
+    montar(PLANO.id)
+    const folha = await screen.findByRole('article', { name: 'Plano de ondas' })
+    const secao = within(folha).getByRole('heading', { name: 'Habilidades' }).parentElement
+    expect(secao?.textContent).toContain('FIS.EM.01')
+    expect(secao?.textContent).not.toContain('Sem habilidade')
+  })
 })
 
 describe('as fontes do artefato (ingestao-do-material, 10.0; RF11): o chip diz título, edição e "edição anterior"', () => {

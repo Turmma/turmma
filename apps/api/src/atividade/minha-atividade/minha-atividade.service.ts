@@ -147,6 +147,8 @@ export class MinhaAtividadeService {
       acertos: diagnostico.acertos,
       total: diagnostico.total,
       porHabilidade: diagnostico.porHabilidade.flatMap((parte) => {
+        // `codigo: null` é a questão sem habilidade: a linha vai com `habilidade: null`, sem código nem descrição inventados.
+        // Isso vale porque `habilidadesDaAtividade` (`lote.ts`) guarda a chave `null` apontando para `null`: sem ela, o `flatMap` perderia a linha.
         const habilidade = habilidades.get(parte.codigo)
         return habilidade === undefined ? [] : [{ habilidade, acertos: parte.acertos, total: parte.total }]
       }),

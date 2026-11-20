@@ -209,7 +209,7 @@ export class AnalistaRepository {
       .crossJoinLateral(habilidade)
       .where(this.#lotesAprovados())
       .groupBy(turma.serieId, artefato.disciplinaId, sql`habilidade.codigo`)
-      .orderBy(sql`habilidade.codigo`)
+      .orderBy(sql`habilidade.codigo nulls last`)
   }
 
   /** A descrição de cada habilidade das atividades dos lotes aprovados (da turma, se dada), pelo código: o catálogo é nosso, em código. */
@@ -296,6 +296,6 @@ export class AnalistaRepository {
       .crossJoinLateral(habilidade)
       .where(this.#lotesAprovados(eq(entrega.turmaId, turmaId)))
       .groupBy(sql`habilidade.codigo`)
-      .orderBy(sql`habilidade.codigo`)
+      .orderBy(sql`habilidade.codigo nulls last`)
   }
 }

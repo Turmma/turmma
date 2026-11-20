@@ -146,6 +146,7 @@ function Plano({ conteudo, materiais, resumido }: { conteudo: ConteudoDePlanoDeA
           <section className="flex min-w-0 flex-col gap-1.5">
             <h3 className="text-base font-semibold text-tinta">Habilidades</h3>
             <ul className="flex min-w-0 flex-col gap-1 text-sm text-sutil">
+              {conteudo.habilidades.length === 0 && <li className="break-words">{ROTULO_SEM_HABILIDADE}</li>}
               {conteudo.habilidades.map((habilidade) => (
                 <li key={habilidade.codigo} className="break-words">
                   <span className="font-medium">{habilidade.codigo}: </span>

@@ -39,6 +39,16 @@ describe('resumo do lote com questão sem habilidade (classificacao-bncc, 10.0)'
   })
 })
 
+describe('a ordem da linha sem habilidade no resumo do lote (correção 2026-11-20-leitura-de-habilidade-nula)', () => {
+  it('segue a ordem da atividade, e não vai para o fim: com a questão 1 sem habilidade, ela vem primeiro', () => {
+    const questoes = [questao(0, null), questao(1, 'EM13CNT101'), questao(2, 'EM13CNT102')]
+    const respostas = new Map<string, RespostasDaTentativa>([[ANA, new Map([[1, 0], [2, 1], [3, 3]])]])
+    const correcoes = [...respostas].map(([alunoId, marcadas]) => ({ alunoId, ...corrigirTentativa(questoes, marcadas), destaques: [], destaqueAbertoEm: null }))
+    const resumo = resumoDoLote({ questoes, alunosDaTurma: 1, correcoes, respostas })
+    expect(resumo.porHabilidade.map((linha) => [linha.habilidade?.codigo ?? null, linha.acertos, linha.total])).toEqual([[null, 1, 1], ['EM13CNT101', 1, 1], ['EM13CNT102', 0, 1]])
+  })
+})
+
 describe('resumo do lote', () => {
   const lote = dados({ [ANA]: [0, 1, 2], [BIA]: [0, 3, null], [CAIO]: [null, null, null] })
 

@@ -718,9 +718,12 @@ describe('relatorio_da_correcao: a conta é do domínio, a IA só põe em palavr
     if (primeira === undefined || segunda === undefined || terceira === undefined) throw new Error('fixture sem as três questões')
     const { questoes } = relatorioDaCorrecao.falso({ ...entrada, questoes: [{ ...primeira, habilidade: null }, { ...segunda, habilidade: null }, terceira] })
     // A 1 (25 de 30) é a da maioria que acertou, e a 2 (8 de 30), a de menos da metade: as duas falam do conteúdo da questão.
-    expect(questoes[0]?.texto).toContain('os erros pedem uma revisão rápida de o conteúdo desta questão.')
+    expect(questoes[0]?.texto).toContain('os erros pedem uma revisão rápida do conteúdo desta questão.')
     expect(questoes[1]?.texto).toContain('vale retomar o conteúdo desta questão.')
     expect(questoes[1]?.texto).not.toContain('Identificar o reagente limitante')
+    // O outro lado: a mesma questão 1, com a habilidade, fala da habilidade ("de “…”"), e não do conteúdo da questão.
+    const textoComHabilidade = relatorioDaCorrecao.falso(entrada).questoes[0]?.texto
+    expect(textoComHabilidade).toContain(`os erros pedem uma revisão rápida de “${primeira.habilidade?.descricao ?? ''}”.`)
     expect(relatorioDaCorrecao.esquemaDeEntrada.safeParse({ ...entrada, questoes: [{ ...primeira, habilidade: null }, segunda, terceira] }).success).toBe(true)
   })
 
@@ -766,6 +769,8 @@ describe('resumo_do_analista: só agregado, em listas fechadas, sem texto do mod
     expect(saida.recortes[0]?.porHabilidade.at(-1)).toEqual({ habilidade: null, acertos: 1, total: 10 })
     // Os dois alertas de antes, nenhum da medida de 10%: a questão sem habilidade não tem o que retomar.
     expect(saida.alertas.map((alerta) => alerta.habilidade?.codigo)).toEqual(['EM13CNT104', 'EM13CNT302'])
+    expect(conteudoDoResumoDoAnalistaSchema.safeParse(saida).success).toBe(true)
+    expect(resumoDoAnalista.conferir?.(comNula, saida)).toEqual([])
     // E o alerta que o modelo escrevesse sem habilidade é recusado pela conferência.
     const alertaSemHabilidade = { ...saida.alertas[0], habilidade: null, valor: 10 }
     expect(resumoDoAnalista.conferir?.(comNula, { ...saida, alertas: [alertaSemHabilidade as never] })?.length).toBeGreaterThan(0)

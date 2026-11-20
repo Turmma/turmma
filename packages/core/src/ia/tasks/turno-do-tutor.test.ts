@@ -1119,5 +1119,8 @@ describe('o Tutor não recebe as habilidades da seção (classificacao-bncc, 10.
     const entrada = entradaDoTutor('o que é o reagente limitante?')
     if (entrada.questao === undefined) throw new Error('a entrada de teste deveria ter a questão')
     expect(turnoDoTutor.esquemaDeEntrada.safeParse({ ...entrada, questao: { ...entrada.questao, habilidade: null } }).success).toBe(true)
+    // A chave ausente continua recusada: `null` é o que a leitura aceita, não a omissão.
+    const { habilidade: _habilidade, ...semAChave } = entrada.questao
+    expect(turnoDoTutor.esquemaDeEntrada.safeParse({ ...entrada, questao: semAChave }).success).toBe(false)
   })
 })

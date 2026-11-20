@@ -55,6 +55,9 @@ function numerosDaQuestao(questao: QuestaoCorrigida): { acertos: number; total: 
 /** O que retomar: a habilidade, ou, na questão sem habilidade, o conteúdo da própria questão. */
 const assuntoDaQuestao = (questao: QuestaoCorrigida): string => (questao.habilidade === null ? 'o conteúdo desta questão' : `“${questao.habilidade.descricao}”`)
 
+/** A revisão rápida, com a preposição já concordada: "de “…”" para a habilidade, "do conteúdo desta questão" para a que não tem. */
+const revisaoDaQuestao = (questao: QuestaoCorrigida): string => (questao.habilidade === null ? 'do conteúdo desta questão' : `de “${questao.habilidade.descricao}”`)
+
 function textoDaQuestao(questao: QuestaoCorrigida): string {
   const { acertos, total, percentual } = numerosDaQuestao(questao)
   if (total === 0) return 'Ninguém respondeu a esta questão.'
@@ -67,7 +70,7 @@ function textoDaQuestao(questao: QuestaoCorrigida): string {
   if (questao.emBranco > 0) partes.push(`${plural(questao.emBranco, 'ficou', 'ficaram')} em branco.`)
   if (acertos === total) partes.push('Todos acertaram.')
   else if (acertos * 2 < total) partes.push(`Menos da metade acertou: vale retomar ${assuntoDaQuestao(questao)}.`)
-  else partes.push(`A maioria acertou; os erros pedem uma revisão rápida de ${assuntoDaQuestao(questao)}.`)
+  else partes.push(`A maioria acertou; os erros pedem uma revisão rápida ${revisaoDaQuestao(questao)}.`)
   return cortar(partes.join(' '), 500)
 }
 
