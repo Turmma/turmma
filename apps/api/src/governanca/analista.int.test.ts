@@ -1,4 +1,5 @@
-import { analistaNominalResponseSchema, resumoDoAnalistaResponseSchema, type ConteudoDoResumoDoAnalista } from '@educa/shared'
+import { resumoDoAnalista } from '@educa/core'
+import { analistaNominalResponseSchema, conteudoDeAtividadeSchema, resumoDoAnalistaResponseSchema, type ConteudoDoResumoDoAnalista } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
@@ -8,6 +9,7 @@ import {
   alunosComSessao,
   aplicarAtividade,
   aprovarOLote,
+  conteudoDeTeste,
   criarAtividade,
   encerrarAtividade,
   HABILIDADE_DAS_DUAS_ULTIMAS,
@@ -341,6 +343,55 @@ describe('Analista de desempenho escolar', () => {
       } finally {
         for (const espiao of espioes) espiao.mockRestore()
       }
+    })
+
+    it('a questão sem habilidade (classificacao-bncc, 12.0), com dado de verdade no banco: o SQL a deixa numa linha `null` com o número dela, não a soma a nenhuma habilidade e não a perde; e o alerta não nasce dela', async () => {
+      // Uma escola só deste caso, para os números das outras não mudarem. Cinco questões: as duas primeiras da habilidade 102, a 3ª e a 4ª sem habilidade, a 5ª da 103.
+      const c = await montarEscolaComAssistente(api, bancada)
+      const [doOutroTurno] = await alunosComSessao(bancada, c, c.outraTurma, ['Aluno Sintético do outro 2º ano'])
+      if (doOutroTurno === undefined) throw new Error('o aluno da outra turma não foi criado')
+      const base = conteudoDeTeste(c.materialId)
+      const conteudo = conteudoDeAtividadeSchema.parse({ ...base, questoes: base.questoes.map((questao, indice) => ({ ...questao, habilidade: indice === 2 || indice === 3 ? null : questao.habilidade })) })
+      const lote = async (professora: TestSessao, turmaId: string, aluno: TestSessao, marcadas: readonly number[]) => {
+        const id = await aplicarAtividade(rotas, professora, await criarAtividade(bancada, c, { turmaId, conteudo }), turmaId)
+        await responderProva(rotas, aluno, id, marcadas)
+        if ((await encerrarAtividade(rotas, professora, id)) === null) throw new Error('o lote não nasceu')
+        await aprovarOLote(rotas, professora, id)
+      }
+      // Gabarito 0, 1, 2, 3, 0. Na turma da professora: acerta 102 (2 de 2), uma das duas sem habilidade (1 de 2) e erra a 103 (0 de 1).
+      await lote(c.professora, c.turma, c.aluno, [0, 1, 0, 3, 1])
+      // Na da colega: acerta 102 (2 de 2), a outra das duas sem habilidade (1 de 2) e acerta a 103 (1 de 1).
+      await lote(c.colega, c.outraTurma, doOutroTurno, [0, 1, 2, 0, 0])
+
+      // O dado nominal da turma da professora, sem espião nenhum.
+      const resposta = await nominal(c.coordenacao, c.turma)
+      expect(resposta.status).toBe(200)
+      expect(analistaNominalResponseSchema.parse(resposta.corpo).porHabilidade).toEqual([
+        { habilidade: HABILIDADE_DAS_TRES_PRIMEIRAS, acertos: 2, total: 2 },
+        { habilidade: HABILIDADE_DAS_DUAS_ULTIMAS, acertos: 0, total: 1 },
+        { habilidade: null, acertos: 1, total: 2 },
+      ])
+
+      // O recorte de Química da escola, com os dois lotes aprovados: as linhas com código somam só as delas, e a `null` fica à parte com a soma das duas turmas.
+      const { entrada } = await comoPessoa(c, c.coordenacao, 'coordenador', () => new ResumoDoAnalistaCommand(bancada.banco).preparar({ id: randomUUID(), tarefa: 'resumo_do_analista' as const, chaveEnvio: randomUUID(), entrada: { tarefa: 'resumo_do_analista' as const } }))
+      const quimica = entrada.recortes.find((recorte) => recorte.disciplina.nome === 'Química')
+      expect(quimica?.porHabilidade).toEqual([
+        { habilidade: HABILIDADE_DAS_TRES_PRIMEIRAS, acertos: 4, total: 4 },
+        { habilidade: HABILIDADE_DAS_DUAS_ULTIMAS, acertos: 1, total: 2 },
+        { habilidade: null, acertos: 2, total: 4 },
+      ])
+      // A conta do acerto do recorte é a das três linhas: 7 de 10.
+      expect(quimica?.acertoPercentual).toBe(70)
+
+      // O alerta: a linha `null` está em 50%, abaixo do limiar, e mesmo assim nenhum alerta é dela. Quem barra o que o modelo escrevesse é a conferência,
+      // que aqui recusa o alerta sem habilidade (e o caso de unidade em `numeros.test.ts`, da 10.0, a prova sem banco).
+      const saida = resumoDoAnalista.falso(entrada)
+      expect(saida.alertas.every((alerta) => alerta.habilidade !== null)).toBe(true)
+      expect(resumoDoAnalista.conferir?.(entrada, saida)).toEqual([])
+      const [primeiroAlerta] = saida.alertas
+      if (primeiroAlerta === undefined) throw new Error('o resumo não tem alerta para copiar')
+      const alertaSemHabilidade = { ...primeiroAlerta, habilidade: null, valor: 50 }
+      expect(resumoDoAnalista.conferir?.(entrada, { ...saida, alertas: [alertaSemHabilidade as never] })?.length).toBeGreaterThan(0)
     })
   })
 

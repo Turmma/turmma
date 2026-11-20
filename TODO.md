@@ -1251,6 +1251,11 @@ código"), com o destino de cada uma. As pequenas foram fechadas na correção `
 - [ ] (classificacao-bncc, 3.0, pedagogia-reviewer, 1ª) **`EFEITO_COMUM_DA_SUSPENSAO` fala em "o que está esperando o professor", que não existe na classificação:** o texto é comum às seis
       funções (`apps/web/src/areas/coordenacao/governanca/textos-da-governanca.ts`), e a classificação (autonomia 1) não deixa nada à espera de aprovação; a coordenação que a suspende lê uma
       frase que não se aplica. Tirar a frase comum da classificação, ou separá-la, mexe nos outros cinco textos e nos testes deles (dono: a tarefa que tocar `textos-da-governanca.ts`)
+- [ ] (classificacao-bncc, 12.0, conformidade-reviewer e revisor-geral, 1ª) **"Esta questão não tem habilidade da BNCC associada." fica no singular sobre barras que somam várias questões:**
+      em Turmas (`TurmaHoje.tsx`, a segunda linha da barra) e no Analista a barra "Sem habilidade" é a soma das questões sem habilidade de várias atividades. A frase vem do `cenarios.md`
+      "Telas" (RF7 e RF9), que o Implementador não muda; o revisor-geral pede uma variante no plural e a entrada dela no `cenarios.md` (dono: o Arquiteto, antes da validação da classificacao-bncc)
+- [ ] (classificacao-bncc, 12.0, frontend-reviewer, 1ª) **Em Alunos, a 360 px, a coluna "Por habilidade" é texto corrido:** hoje quebra bem, como nas fotos, mas com muitas habilidades ficaria comprida;
+      uma habilidade por linha resolveria (dono: a tarefa que tocar `AlunosDaTurma.tsx`)
 
 ## Produto
 

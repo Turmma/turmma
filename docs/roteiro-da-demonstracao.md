@@ -237,8 +237,11 @@ aluno e sugere uma nota" (a resposta explica que a IA não corrige redação nem
    **Aparece:** "Validação registrada por Helena Demo · …". **Diga:** "A IA corrige a objetiva, mas a professora não
    aprova só clicando: o sistema registra o que mostrou, o que ela abriu e quem confirmou (D56). E não é nota: é
    diagnóstico por habilidade (D46)."
-4. **Turmas** → **Abrir a turma 2ºA** → **Visão Geral**: o acerto por habilidade e os alunos em ordem de nome.
+4. **Turmas** → **Abrir a turma 2ºA** → aba **Hoje**: o acerto por habilidade; na aba **Alunos**, os alunos em ordem de nome.
    **Diga:** "Só entra correção aprovada. Não há ranking nem cor de alerta; o número está no texto."
+   *Nota para quem apresenta (não é fala):* nesta demonstração toda questão tem habilidade, então nenhuma barra aparece
+   como "Sem habilidade". Se a pergunta vier, é assim que a tela mostra a questão que ficou sem habilidade: a barra
+   "Sem habilidade", com "Esta questão não tem habilidade da BNCC associada."; o `e2e/classificacao-bncc.spec.ts` a prova.
 5. Perfil **Aluno** (Ana) → recarregue a atividade. **Aparece:** "Seu resultado": "Você acertou N de 5 questões",
    por habilidade, e "Correção aprovada por Helena Demo". Sem nota, sem percentual, sem colega.
 

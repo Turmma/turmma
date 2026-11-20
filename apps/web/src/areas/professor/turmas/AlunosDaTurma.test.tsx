@@ -23,6 +23,7 @@ const erro = (status: number, codigo: string): FakeResponse => ({ status, corpo:
 
 const aluno = (n: number, nome: string) => ({ usuarioId: id(n), nome })
 const HABILIDADE = { codigo: 'QUI.EM.04', descricao: 'Estequiometria' }
+const NOTA_SEM_HABILIDADE = 'Sem habilidade: Esta questão não tem habilidade da BNCC associada.'
 const desempenhoDe = (n: number, nome: string, acertos: number, total: number) => ({
   alunoId: id(n),
   nome,
@@ -115,6 +116,21 @@ describe('Alunos: a lista de nomes da turma', () => {
     // Com alunos na lista e ninguém que saiu, nem o vazio nem o aviso de quem saiu aparecem.
     expect(screen.queryByText('A lista ainda não chegou')).toBeNull()
     expect(screen.queryByText(/Quem saiu da turma/)).toBeNull()
+    // Sem questão sem habilidade no desempenho, a nota do "Sem habilidade" não aparece.
+    expect(screen.queryByText(NOTA_SEM_HABILIDADE)).toBeNull()
+  })
+
+  it('a questão sem habilidade (classificacao-bncc, 12.0): o aluno diz "Sem habilidade" na coluna, e a explicação vem uma vez só, abaixo da tabela, sem código inventado', async () => {
+    const rede = fakeNetwork()
+    const comNula = (n: number, nome: string) => ({ alunoId: id(n), nome, acertos: 2, total: 4, porHabilidade: [{ habilidade: HABILIDADE, acertos: 1, total: 2 }, { habilidade: null, acertos: 1, total: 2 }] })
+    instalar(rede, { desempenho: desempenho([comNula(1, BRUNO.nome), comNula(3, ANA.nome)]) })
+    montar()
+
+    await waitFor(() => expect(doAluno(ANA.nome).getByText('QUI.EM.04: 1 de 2 · Sem habilidade: 1 de 2')).toBeTruthy())
+    expect(doAluno(BRUNO.nome).getByText('QUI.EM.04: 1 de 2 · Sem habilidade: 1 de 2')).toBeTruthy()
+    // A frase de explicação é uma só, e não uma por linha da tabela.
+    expect(screen.getAllByText(NOTA_SEM_HABILIDADE)).toHaveLength(1)
+    expect(within(screen.getByRole('table', { name: 'Acertos por aluno' })).queryByText(NOTA_SEM_HABILIDADE)).toBeNull()
   })
 
   it('a web lê a lista de cem em cem, sem `?anoLetivoId` e sem finalidade, e os acertos de lote aprovado: nenhuma outra rota de aluno', async () => {

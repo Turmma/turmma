@@ -5,6 +5,7 @@ import { emCurso } from '../../../api/ciclo-de-execucao'
 import { useExecutionLifecycle } from '../../../api/execucoes'
 import { resumoDoAnalistaQueryOptions, generateResumoDoAnalista, lugarDoResumoDoAnalista } from './api/governanca'
 import { ProgressBar } from '../../../components/ui/ProgressBar'
+import { EXPLICACAO_SEM_HABILIDADE } from '../../../components/habilidades/sem-habilidade'
 import { Button } from '../../../components/ui/Button'
 import { Card } from '../../../components/ui/Card'
 import { LoadingState, ErrorState, EmptyState } from '../../../components/states/index'
@@ -186,7 +187,7 @@ function Resumo({ geradoEm, conteudo, foco }: { readonly geradoEm: string; reado
                   rotulo={medida.habilidade?.descricao ?? ROTULO_SEM_HABILIDADE}
                   valor={acertoPercentual(medida.acertos, medida.total)}
                   texto={`${formatPercentual(acertoPercentual(medida.acertos, medida.total))} · ${String(medida.acertos)} de ${String(medida.total)}`}
-                  {...(medida.habilidade === null ? {} : { detalhe: medida.habilidade.codigo })}
+                  detalhe={medida.habilidade === null ? EXPLICACAO_SEM_HABILIDADE : medida.habilidade.codigo}
                 />
               ))}
             </div>

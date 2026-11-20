@@ -1,4 +1,5 @@
 import { ROTULO_SEM_HABILIDADE, type AlunoDaTurma, type DesempenhoDaTurmaResponse } from '@educa/shared'
+import { EXPLICACAO_SEM_HABILIDADE } from '../../../components/habilidades/sem-habilidade'
 
 /**
  * O que a aba Alunos decide sem tocar a rede (telas do professor, 12.0; RF18, RF21): a ordem de nome, a junção da lista de nomes
@@ -27,6 +28,8 @@ export const TEXTO_DE_QUEM_SAIU = 'Saiu da turma'
 export const TEXTO_DOS_ACERTOS_QUE_CARREGAM = 'Carregando os acertos…'
 export const TEXTO_DOS_ACERTOS_QUE_FALHARAM = 'Acertos não lidos'
 export const TEXTO_SEM_HABILIDADE = '—'
+/** A nota que explica o "Sem habilidade" da coluna "Por habilidade": a célula é uma linha curta, e a explicação (classificacao-bncc, 12.0) vem uma vez só, abaixo da tabela. */
+export const NOTA_DA_QUESTAO_SEM_HABILIDADE = `${ROTULO_SEM_HABILIDADE}: ${EXPLICACAO_SEM_HABILIDADE}`
 
 /**
  * Em ordem de nome, no português do Brasil; dois alunos com o mesmo nome ficam em duas linhas, e o id desempata: a ordem não
@@ -79,4 +82,9 @@ export function textoPorHabilidade(linha: AlunoRow): string {
   const itens = linha.desempenho?.porHabilidade ?? []
   if (itens.length === 0) return TEXTO_SEM_HABILIDADE
   return itens.map((item) => `${item.habilidade?.codigo ?? ROTULO_SEM_HABILIDADE}: ${String(item.acertos)} de ${String(item.total)}`).join(' · ')
+}
+
+/** Algum aluno da lista tem acerto em questão sem habilidade da BNCC? Então a tabela diz, abaixo, o que o "Sem habilidade" da coluna quer dizer. */
+export function hasQuestaoSemHabilidade(linhas: readonly AlunoRow[]): boolean {
+  return linhas.some((linha) => linha.desempenho?.porHabilidade.some((item) => item.habilidade === null) === true)
 }

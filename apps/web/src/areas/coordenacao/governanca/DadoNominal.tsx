@@ -4,6 +4,7 @@ import { useRef, useState } from 'react'
 import { turmasQueryOptions } from '../../../api/estrutura'
 import { readDadoNominal } from './api/governanca'
 import { ProgressBar } from '../../../components/ui/ProgressBar'
+import { EXPLICACAO_SEM_HABILIDADE } from '../../../components/habilidades/sem-habilidade'
 import { Button } from '../../../components/ui/Button'
 import { Card } from '../../../components/ui/Card'
 import { ConfirmDialog } from '../../../components/ui/overlays/ConfirmDialog'
@@ -183,7 +184,7 @@ function ResultadoNominal({ dado, aoFechar }: PropsDoResultado) {
                     rotulo={medida.habilidade?.descricao ?? ROTULO_SEM_HABILIDADE}
                     valor={acertoPercentual(medida.acertos, medida.total)}
                     texto={`${formatPercentual(acertoPercentual(medida.acertos, medida.total))} · ${String(medida.acertos)} de ${String(medida.total)}`}
-                    {...(medida.habilidade === null ? {} : { detalhe: medida.habilidade.codigo })}
+                    detalhe={medida.habilidade === null ? EXPLICACAO_SEM_HABILIDADE : medida.habilidade.codigo}
                   />
                 ))}
               </div>

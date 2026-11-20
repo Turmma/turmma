@@ -8,6 +8,7 @@ import {
   TEXTO_DOS_ACERTOS_QUE_FALHARAM,
   TEXTO_SEM_CORRECAO_APROVADA,
   TEXTO_SEM_HABILIDADE,
+  hasQuestaoSemHabilidade,
   textoDosAcertos,
   textoPorHabilidade,
   type AlunoRow,
@@ -107,6 +108,16 @@ describe('a junção dos acertos', () => {
       true,
     )
     expect(linha && textoPorHabilidade(linha)).toBe('QUI.EM.04: 1 de 2 · Sem habilidade: 1 de 2')
+  })
+
+  it('a nota do "Sem habilidade" só vale com alguma linha que tenha a questão sem habilidade: com código em todas, sem desempenho e sem lista, não', () => {
+    const com = buildLinhas([aluno(1, 'Ana Sintética')], turma([desempenhoDe(1, 'Ana Sintética', 2, 4, [{ habilidade: HABILIDADE, acertos: 1, total: 2 }, { habilidade: null, acertos: 1, total: 2 }])]), true)
+    const soComCodigo = buildLinhas([aluno(1, 'Ana Sintética')], turma([desempenhoDe(1, 'Ana Sintética', 1, 2, [{ habilidade: HABILIDADE, acertos: 1, total: 2 }])]), true)
+    const semDesempenho = buildLinhas([aluno(1, 'Ana Sintética')], undefined, true)
+    expect(hasQuestaoSemHabilidade(com)).toBe(true)
+    expect(hasQuestaoSemHabilidade(soComCodigo)).toBe(false)
+    expect(hasQuestaoSemHabilidade(semDesempenho)).toBe(false)
+    expect(hasQuestaoSemHabilidade([])).toBe(false)
   })
 })
 

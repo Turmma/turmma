@@ -340,7 +340,10 @@ conversa (regra 50, item 10; D34).
 - **"Acerto por habilidade"**: só de correção aprovada, em barras neutras (nenhuma fica vermelha) com o número
   em texto ("12 de 20") e quantos alunos acertaram menos da metade da habilidade (limiar provisório: decisão em
   aberto). Sem correção aprovada, o vazio tracejado diz que o acerto aparece depois de a professora aprovar.
-  Sem média, nota nem ranking (D46, D69)
+  Sem média, nota nem ranking (D46, D69). **A questão sem habilidade da BNCC** (classificacao-bncc, 12.0; RF7) é uma barra
+  como as outras, com o rótulo **"Sem habilidade"**, sem código nem descrição inventados e depois das que têm, e a segunda
+  linha diz primeiro **"Esta questão não tem habilidade da BNCC associada."** e depois a contagem, falando "dessas questões"
+  em vez de "desta habilidade". Ela conta no acerto e nunca se soma a uma habilidade com código
 - **O nome chega por ação explícita**: "Ver quem" e "Ver o uso do Tutor por aluno" abrem o painel "O que o
   Tutor viu" (`?ver=tutor`), com a atenção humana (nome e hora, sem o que foi dito), os "Sinais por aluno" e o
   "Uso do Tutor pela turma" (as trocas do mês contra o pacote e, por aluno, as trocas de hoje, a última troca e
@@ -376,8 +379,10 @@ atividade", leva a Criados já filtrado pela turma e pelo tipo; sem atividade, o
   texto. Não existe "aprovar todos" (D4)
 - **"Por aluno"**: os nomes da turma em ordem de nome (dois alunos de mesmo nome são duas linhas), lidos de cem
   em cem, com "Ver mais", e as colunas "Acertos" ("12 de 20") e "Por habilidade", só de correção aprovada. O
-  aluno sem correção aprovada diz "Sem correção aprovada", e não "0 de 0"; quem saiu da turma (transferido, ou
-  com o acesso desativado) diz "Saiu da turma", sem número. A falha dos acertos não tira os nomes. A lista não
+  aluno sem correção aprovada diz "Sem correção aprovada", e não "0 de 0"; a questão sem habilidade entra na coluna "Por
+  habilidade" como "Sem habilidade: 1 de 2", depois das que têm código, e **uma nota abaixo da tabela, uma vez só**, diz
+  "Sem habilidade: Esta questão não tem habilidade da BNCC associada." (só aparece se alguma linha a tem; classificacao-bncc, 12.0);
+  quem saiu da turma (transferido, ou com o acesso desativado) diz "Saiu da turma", sem número. A falha dos acertos não tira os nomes. A lista não
   fica no cache nem em armazenamento do navegador. Cada aluno que **está na turma** tem a coluna **"Ações"**, um menu (`Menu`, nome
   acessível "<nome>: Ações") com **"Gerar senha provisória"**; quem saiu da turma mostra "—" (acesso-e-convites, 12.0; RF13)
 - **Não há** ordem por acerto, situação do aluno, média, busca por nome, selo de Adaptação por aluno nem
@@ -511,7 +516,8 @@ uma linha de Eu, e o "Sair" fica à vista na casca em todo lugar e também é um
 - **Tarefas** são as atividades e as provas atribuídas pelo professor, em Para fazer, Entregues e
   Corrigidas, e a tarefa aberta, no endereço de Atividades (X4). O desenho das duas está na 11.5
 - **Eu** é **"Como estou indo"**, só do próprio aluno: uma linha por tarefa de correção aprovada,
-  com "N de M certas" e as habilidades a rever; as linhas **Privacidade** ("Meus dados", do F3),
+  com "N de M certas" e as habilidades a rever (a questão sem habilidade da BNCC conta no "N de M", e **não ganha linha** em
+  "Para rever": a API só manda habilidade com código, D66; classificacao-bncc, 12.0); as linhas **Privacidade** ("Meus dados", do F3),
   **Ajustes** (aparência e tamanho da letra), **Rever a introdução** e **Sair**; a seção **Conta da escola** (F2c, tarefa 15.0), só quando a escola liberou o Google ou a
   Microsoft, com o botão que liga a conta da escola; e, com o F9, **o que o Tutor lembra**: tudo que o aluno já fez no sistema —
   atividades, trabalhos, avaliações e sessões (D66) —, que ele consegue ver e contestar. Toma o
@@ -561,7 +567,10 @@ de hoje (A5), que o F12 completa:
 
 **Analista** é o **Analista de desempenho escolar**: resumo de segunda de manhã e alertas na hora,
 em agregado; recorte com um professor só conta como nominal (D32 e D45 revistas). Hoje existe o
-resumo (A5); a X2 o põe na página de conversa, sem perguntas livres.
+resumo (A5); a X2 o põe na página de conversa, sem perguntas livres. **A questão sem habilidade da BNCC** (classificacao-bncc,
+12.0) é uma barra do recorte (e do dado nominal da turma) com o rótulo "Sem habilidade", depois das que têm código, e embaixo
+"Esta questão não tem habilidade da BNCC associada."; o resumo a mede e a mostra, **não a soma a nenhuma habilidade nem a usa
+no alerta** (não há habilidade a retomar).
 
 **Escola** tem quatro abas, **Turmas, Professores, Material e Grade e calendário**, que recebem os
 itens Estrutura, Professores e Material de hoje; a quarta nasce com o F2 (D73), no endereço
@@ -2284,7 +2293,8 @@ seção 1.3, a fila.
   no cartão da questão. A partir de 768 px, "Enviar a atividade", o ponto de parada e "Anterior" e "Próxima" ficam numa
   linha só, sem barra presa; no celular a barra fica presa embaixo. Corrigida, ela mostra o diagnóstico (acertos por
   habilidade e questão por questão, em contagem, sem nota, sem percentual e sem comparação), com a assinatura da função
-  que corrigiu e quem aprovou; a partir de 1024 px em duas colunas, com "Questão por questão" rolando por dentro. A
+  que corrigiu e quem aprovou; a questão sem habilidade da BNCC é uma barra de "Acertos por habilidade" com o rótulo
+  "Sem habilidade" e, embaixo, "Esta questão não tem habilidade da BNCC associada." (classificacao-bncc, 12.0); a partir de 1024 px em duas colunas, com "Questão por questão" rolando por dentro. A
   comemoração, uma vez, no envio confirmado (9.5, regra 7)
 - **Eu** (X4, 2.0, 7.0 e 8.0): a turma, a série e a escola na linha de apoio do título, sem cartão; os avisos de
   carregando, erro e "sem turma" logo abaixo dele; "Como estou indo" e as quatro linhas da conta (Privacidade, Ajustes,

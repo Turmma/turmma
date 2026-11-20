@@ -230,7 +230,7 @@ na execução: código só quando o trecho sustenta a habilidade, e "nenhuma" va
 | Painel do material | por seção: situação, habilidades com descrição, origem; corrigir (seletor com filtro); reclassificar; avisos | `GET /:id`, habilidades, `PUT`, reclassificar |
 | Material, cobertura | por série: o que falta por componente; seções sem classificação | `GET /cobertura` |
 | Artefato do professor | habilidade da questão, com o capítulo; trocar (seletor com filtro) | artefato, habilidades, `PATCH` |
-| Turmas, aluno, Analista | "Sem habilidade", com explicação curta | leituras de hoje |
+| Turmas, aluno, Analista | "Sem habilidade", com explicação curta ("Esta questão não tem habilidade da BNCC associada."). No aluno, a leitura é o resultado da atividade; a tela Eu não recebe a linha `null` (só habilidade com código vira "Para rever", D66) e a questão conta só no "N de M certas" | leituras de hoje |
 
 Estados, textos, 360 px, teclado: `cenarios.md`. A lista da troca traz primeiro as do capítulo.
 

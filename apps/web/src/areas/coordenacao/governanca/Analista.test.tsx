@@ -65,6 +65,8 @@ describe('o Analista: os estados', () => {
     expect(regiao.textContent).toContain('EF07MA01')
     expect(regiao.textContent).toContain('Sem habilidade')
     expect(regiao.textContent).toContain('5 de 10')
+    // A explicação curta (classificacao-bncc, 12.0) está na barra sem habilidade, uma vez, e a com habilidade segue com o código.
+    expect(regiao.textContent?.match(/Esta questão não tem habilidade da BNCC associada\./gu)).toHaveLength(1)
   })
 
   it('o dado nominal da turma (classificacao-bncc, 10.0) mostra a linha sem habilidade como "Sem habilidade", sem código, depois da que tem', async () => {
@@ -99,6 +101,8 @@ describe('o Analista: os estados', () => {
     expect(regiao.textContent).toContain('5 de 10')
     // A linha sem habilidade não ganha código: só uma barra tem o detalhe do código.
     expect(regiao.textContent?.match(/EF07MA\d+/gu)).toEqual(['EF07MA01'])
+    // E a explicação curta (classificacao-bncc, 12.0) vai com ela, uma vez.
+    expect(regiao.textContent?.match(/Esta questão não tem habilidade da BNCC associada\./gu)).toHaveLength(1)
   })
 
   it('carregando: só o aviso de leitura, e nenhum dos três vazios de dentro enquanto a leitura não terminou', async () => {

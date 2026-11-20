@@ -17,7 +17,7 @@ import { SectionHeader } from '../../../components/ui/Page'
 import { formatQuantity } from '../../../format'
 import { convitePedido, enderecoSemOConvite, turmaIndisponivel } from './acesso/acesso-da-turma'
 import { AcessoDaTurma } from './acesso/AcessoDaTurma'
-import { buildLinhas, textoDosAcertos, textoPorHabilidade, type LeituraDosAcertos } from './alunos-da-turma'
+import { buildLinhas, NOTA_DA_QUESTAO_SEM_HABILIDADE, hasQuestaoSemHabilidade, textoDosAcertos, textoPorHabilidade, type LeituraDosAcertos } from './alunos-da-turma'
 
 type EscolaDaSessao = Parameters<typeof AcessoDaTurma>[0]['escola']
 
@@ -173,6 +173,7 @@ export default function AlunosDaTurma({ turmaId, turmaNome, escola, aoPerderATur
             chaveDaLinha={(linha) => linha.usuarioId}
           />
           {quemSaiu > 0 && <p className="t-apoio text-sutil">Quem saiu da turma (transferido, ou com o acesso desativado) aparece sem acertos.</p>}
+          {hasQuestaoSemHabilidade(linhas) && <p className="t-apoio text-sutil">{NOTA_DA_QUESTAO_SEM_HABILIDADE}</p>}
           {alunos.hasNextPage ? (
             <Button ref={botaoDeVerMais} variante="secundario" onClick={() => void verMais()} disabled={alunos.isFetchingNextPage} className="self-start">
               {alunos.isFetchingNextPage ? 'Carregando…' : 'Ver mais'}

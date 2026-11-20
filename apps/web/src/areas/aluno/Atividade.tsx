@@ -25,6 +25,7 @@ import { StatusBadge } from '../../components/ui/StatusBadge'
 import { Page } from '../../components/ui/Page'
 import { formatDayAndTime } from '../../format'
 import { usePageTitle } from '../../document-title'
+import { EXPLICACAO_SEM_HABILIDADE } from '../../components/habilidades/sem-habilidade'
 import {
   alternativaMarcada,
   AVISO_DE_OUTRA_JANELA,
@@ -319,7 +320,7 @@ function Diagnostico({ diagnostico, prova }: { diagnostico: MeuDiagnosticoRespon
                 Acertos por habilidade
               </h3>
               {diagnostico.porHabilidade.map((item) => (
-                <ProgressBar key={item.habilidade?.codigo ?? 'sem-habilidade'} rotulo={item.habilidade?.descricao ?? ROTULO_SEM_HABILIDADE} valor={item.acertos} maximo={item.total} texto={textoDoAcerto(item.acertos, item.total)} />
+                <ProgressBar key={item.habilidade?.codigo ?? 'sem-habilidade'} rotulo={item.habilidade?.descricao ?? ROTULO_SEM_HABILIDADE} valor={item.acertos} maximo={item.total} texto={textoDoAcerto(item.acertos, item.total)} {...(item.habilidade === null ? { detalhe: EXPLICACAO_SEM_HABILIDADE } : {})} />
               ))}
             </section>
           )}

@@ -59,6 +59,8 @@ export interface MaterialDeTeste {
   readonly paginas?: number
   /** A licença registrada que ele cita (ingestao-do-material, 6.0): vira material de terceiro (o licenciante é o dela). */
   readonly licencaId?: string
+  /** O texto de cada página, na ordem (classificacao-bncc, 12.0): a geração de verdade tira as questões de frases definitórias, e o texto de enchimento não dá nenhuma. Sem ele, o texto de enchimento. */
+  readonly textos?: readonly string[]
 }
 
 /**
@@ -76,7 +78,7 @@ export function criarMaterialNoBanco(escolaId: string, disciplinaId: string, mat
     const id = rows[0]?.id
     if (id === undefined) throw new Error('o seed do e2e não criou o material')
     for (let pagina = 1; pagina <= (paginas ?? 0); pagina += 1) {
-      await banco.query('insert into trecho (escola_id, disciplina_id, material_id, pagina, texto) values ($1, $2, $3, $4, $5)', [escolaId, disciplinaId, id, pagina, `Texto sintético da página ${String(pagina)}.`])
+      await banco.query('insert into trecho (escola_id, disciplina_id, material_id, pagina, texto) values ($1, $2, $3, $4, $5)', [escolaId, disciplinaId, id, pagina, material.textos?.[pagina - 1] ?? `Texto sintético da página ${String(pagina)}.`])
     }
     return id
   })

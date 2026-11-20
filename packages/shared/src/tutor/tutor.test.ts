@@ -123,6 +123,14 @@ describe('memória do Tutor (D66): o trabalho do aluno, nunca a pessoa', () => {
     expect(memoriaDoTutorResponseSchema.safeParse({ trabalhos: [], sinais: [{ ...sinal, tipo: 'atencao_humana' }] }).success).toBe(false)
   })
 
+  it('"a reforçar" é só habilidade com código (classificacao-bncc, 12.0): a questão sem habilidade não entra, nem como `null` nem sem código', () => {
+    const comReforco = (aReforcar: unknown[]) => memoriaDoTutorResponseSchema.safeParse({ trabalhos: [{ ...trabalho, resultado: { ...trabalho.resultado, aReforcar } }], sinais: [] }).success
+    expect(comReforco([habilidade])).toBe(true)
+    expect(comReforco([null])).toBe(false)
+    expect(comReforco([{ codigo: null, descricao: 'Sem habilidade' }])).toBe(false)
+    expect(comReforco([{ descricao: 'Sem habilidade' }])).toBe(false)
+  })
+
   it('não tem onde escrever o jeito, o humor, a atenção ou o comportamento do aluno', () => {
     for (const campo of [{ perfil: 'aluno ansioso, desiste rápido' }, { observacoes: ['pouco atento'] }, { humor: 'frustrado' }, { resumoDoAluno: 'tem dificuldade de concentração' }, { adaptacao: 'fonte ampliada' }]) {
       expect(memoriaDoTutorResponseSchema.safeParse({ trabalhos: [trabalho], sinais: [sinal], ...campo }).success, Object.keys(campo)[0]).toBe(false)

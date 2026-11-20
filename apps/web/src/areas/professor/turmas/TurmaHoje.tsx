@@ -1,4 +1,4 @@
-import { ROTULO_SEM_HABILIDADE, type Sinal, type UsoDoAluno } from '@educa/shared'
+import { ROTULO_SEM_HABILIDADE, type DesempenhoDaTurmaResponse, type Sinal, type UsoDoAluno } from '@educa/shared'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { ChartNoAxesColumn, ChevronRight, HeartHandshake } from 'lucide-react'
 import { useEffect, useId, useRef } from 'react'
@@ -21,6 +21,7 @@ import { Table } from '../../../components/ui/Table'
 import { SectionHeader } from '../../../components/ui/Page'
 import { formatDayAndTime } from '../../../format'
 import { textoDeAlunos } from '../atividades/aprovar'
+import { EXPLICACAO_SEM_HABILIDADE } from '../../../components/habilidades/sem-habilidade'
 import { turmaIndisponivel } from './acesso/acesso-da-turma'
 import { enderecoComOPainelDoTutor, painelDoTutorPedido } from './endereco-da-turma'
 import { enderecoDaSemanaDaTurma, turmasEDisciplinasDosVinculos } from './semana/semana'
@@ -266,11 +267,7 @@ export default function TurmaHoje({ turmaId, aoPerderATurma }: { turmaId: string
                 maximo={item.total}
                 texto={`${String(item.acertos)} de ${String(item.total)}`}
                 // De onde vem o número: a metade é o limiar provisório (os limiares são decisão em aberto), e a tela diz qual é.
-                detalhe={
-                  item.alunosAbaixoDaMetade === 0
-                    ? 'Nenhum aluno acertou menos da metade das questões desta habilidade nas atividades aprovadas.'
-                    : `${textoDeAlunos(item.alunosAbaixoDaMetade)} ${item.alunosAbaixoDaMetade === 1 ? 'acertou' : 'acertaram'} menos da metade das questões desta habilidade nas atividades aprovadas.`
-                }
+                detalhe={detalheDaHabilidade(item)}
               />
             ))}
           </div>
@@ -303,6 +300,19 @@ interface PropsDoPainel {
   readonly trabalho: readonly SinalDeTrabalho[]
   readonly titulosDasAtividades: Readonly<Record<string, string>>
   readonly aoFechar: () => void
+}
+
+/**
+ * A segunda linha da barra do acerto por habilidade: quantos alunos acertaram menos da metade das questões dela (o limiar é provisório e a tela diz qual é). A questão sem habilidade
+ * (classificacao-bncc, 12.0) diz antes a explicação curta, e a contagem fala "dessas questões", porque não há habilidade a nomear.
+ */
+function detalheDaHabilidade(item: DesempenhoDaTurmaResponse['porHabilidade'][number]): string {
+  const alvo = item.habilidade === null ? 'dessas questões' : 'das questões desta habilidade'
+  const contagem =
+    item.alunosAbaixoDaMetade === 0
+      ? `Nenhum aluno acertou menos da metade ${alvo} nas atividades aprovadas.`
+      : `${textoDeAlunos(item.alunosAbaixoDaMetade)} ${item.alunosAbaixoDaMetade === 1 ? 'acertou' : 'acertaram'} menos da metade ${alvo} nas atividades aprovadas.`
+  return item.habilidade === null ? `${EXPLICACAO_SEM_HABILIDADE} ${contagem}` : contagem
 }
 
 /**

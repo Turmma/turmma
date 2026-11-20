@@ -646,6 +646,28 @@ describe('Hoje: o acerto por habilidade é só de correção aprovada, em barra 
     expect(regiao.textContent).toContain('3 de 6')
   })
 
+  it('a barra sem habilidade (classificacao-bncc, 12.0) diz a explicação e fala "dessas questões"; a que tem código segue com "desta habilidade", e a explicação é uma só', async () => {
+    const rede = fakeNetwork()
+    instalar(rede, { desempenho: ok({ ...DESEMPENHO, porHabilidade: [...DESEMPENHO.porHabilidade, { habilidade: null, acertos: 3, total: 6, alunosAbaixoDaMetade: 2 }] }) })
+    montar()
+    const regiao = await screen.findByRole('region', { name: 'Acerto por habilidade' })
+    await waitFor(() => expect(regiao.textContent).toContain('QUI.EM.04'))
+    expect(regiao.textContent).toContain('Esta questão não tem habilidade da BNCC associada. 2 alunos acertaram menos da metade dessas questões nas atividades aprovadas.')
+    expect(regiao.textContent?.match(/Esta questão não tem habilidade da BNCC associada\./gu)).toHaveLength(1)
+    // As barras com código não ganham a explicação e seguem falando da habilidade.
+    expect(regiao.textContent).toContain('menos da metade das questões desta habilidade nas atividades aprovadas.')
+  })
+
+  it('a barra sem habilidade (classificacao-bncc, 12.0) em que ninguém acertou menos da metade diz a explicação e "dessas questões" também', async () => {
+    const rede = fakeNetwork()
+    instalar(rede, { desempenho: ok({ ...DESEMPENHO, porHabilidade: [{ habilidade: null, acertos: 6, total: 6, alunosAbaixoDaMetade: 0 }] }) })
+    montar()
+    const regiao = await screen.findByRole('region', { name: 'Acerto por habilidade' })
+    await waitFor(() => expect(regiao.textContent).toContain('Sem habilidade'))
+    expect(regiao.textContent).toContain('Esta questão não tem habilidade da BNCC associada. Nenhum aluno acertou menos da metade dessas questões nas atividades aprovadas.')
+    expect(regiao.textContent).not.toContain('desta habilidade')
+  })
+
   it('só de correção aprovada: com `lotesAprovados` zero não há barra, e o vazio diz o que falta', async () => {
     const rede = fakeNetwork()
     instalar(rede, { desempenho: ok({ ...DESEMPENHO_VAZIO, porHabilidade: [] }) })

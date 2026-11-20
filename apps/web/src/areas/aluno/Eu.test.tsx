@@ -224,6 +224,21 @@ describe('Eu: "Como estou indo"', () => {
     expect(within(secao).queryByText(ROTULO_DAS_HABILIDADES)).toBeNull()
   })
 
+  it('a questão sem habilidade (classificacao-bncc, 12.0) conta no "N de M certas" e não vira "Para rever": a API só manda habilidade com código (D66), e o Eu não inventa linha para ela', async () => {
+    const rede = fakeNetwork()
+    rede.responderPor('/v1/minha-turma', COM_TURMA)
+    // Erros só nas questões sem habilidade: o resultado é 2 de 6, e a lista de habilidades a rever vem vazia.
+    const trabalho = trabalhoNaMemoria({ titulo: 'Lista com questão sem habilidade', resultado: resultadoAprovado({ acertos: 2, total: 6, aReforcar: [] }) })
+    rede.responderPor('/v1/tutor/memoria', { status: 200, corpo: memoriaDoAluno([trabalho]) })
+    montar()
+
+    const secao = comoEstouIndo()
+    expect(await within(secao).findByText('2 de 6 certas')).toBeTruthy()
+    expect(within(secao).queryByText(ROTULO_DAS_HABILIDADES)).toBeNull()
+    expect(secao.textContent).not.toContain('Sem habilidade')
+    expect(secao.textContent).not.toContain('Esta questão não tem habilidade da BNCC associada.')
+  })
+
   it('só trabalho sem aprovação: é o vazio, e não uma lista de tarefas pendentes', async () => {
     const rede = fakeNetwork()
     rede.responderPor('/v1/minha-turma', COM_TURMA)

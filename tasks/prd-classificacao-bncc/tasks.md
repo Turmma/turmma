@@ -88,7 +88,7 @@
   - [x] 11.3 A tela do artefato: a habilidade com o capítulo e "Trocar"; a Parte A no `docs/interface.md`
   - [x] 11.4 Testes: recusas, P6a, P6b, P7, P8, isolamento, estados, recomeço
 
-- [ ] **12.0 — "Sem habilidade" em Turmas, no aluno e no Analista, e o fluxo inteiro passa no e2e**
+- [x] **12.0 — "Sem habilidade" em Turmas, no aluno e no Analista, e o fluxo inteiro passa no e2e**
   - [ ] 12.1 A linha "Sem habilidade", com a explicação, nas três leituras
   - [ ] 12.2 A Parte A das três telas no `docs/interface.md`
   - [ ] 12.3 O e2e do fluxo: a coordenação corrige, o professor gera, troca e aplica, e Turmas mostra a trocada
