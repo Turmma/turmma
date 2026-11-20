@@ -275,6 +275,8 @@ export { EnvioDeMaterialRepository, ESPERA_MAXIMA_PELA_LINHA_DO_ENVIO_MS } from 
 export { VarreduraDoMaterialRepository } from './material/varredura.repository.js'
 export { capituloDoMaterial, habilidadeDaSecao, licencaDeMaterial, materialSerie, secaoDoMaterial } from './db/schema/material.js'
 export { habilidadeBncc } from './db/schema/habilidade-bncc.js'
+export { BnccRepository } from './bncc/bncc.repository.js'
+export type { FiltroDeHabilidades, HabilidadeDaBncc } from './bncc/bncc.repository.js'
 export { CARACTERES_DO_COMECO_DA_SECAO, CARACTERES_DOS_SUBTITULOS_DA_SECAO, CARACTERES_LIDOS_POR_PAGINA, PAGINAS_LIDAS_POR_SECAO, textoDaSecao } from './material/texto-das-secoes.js'
 export type { AlvoDaVarredura } from './material/varredura.repository.js'
 export type { ArquivoAApagar, ArquivoLido, PedidoDoUsuario, PedidoParaMontar } from './titular/arquivo-do-titular.repository.js'

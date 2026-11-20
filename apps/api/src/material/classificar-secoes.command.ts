@@ -1,4 +1,5 @@
 import {
+  BnccRepository,
   classificarSecoes,
   LLMError,
   requireEscolaId,
@@ -11,10 +12,11 @@ import {
   type Meter,
   globalMeter,
 } from '@educa/core'
-import { ErrorCode, habilidadeEhCandidata, type ComponenteBncc, type ResultadoGravado, type SerieDoRecorte } from '@educa/shared'
+import { ErrorCode, habilidadeEhCandidata, type ComponenteBncc, type HabilidadeCandidataBncc, type ResultadoGravado, type SerieDoRecorte } from '@educa/shared'
 import type { EntradaDaTarefa, ExecucaoCommand, ExecucaoLida, Preparado, SaidaDaTarefa } from '../ia/execucao-command.js'
 import { MetricasDaExecucao } from '../ia/metricas-da-execucao.js'
-import { SecoesRepository, type HabilidadeCandidata } from './secoes.repository.js'
+import { candidatasDoRecorte } from './habilidades-do-recorte.js'
+import { SecoesRepository } from './secoes.repository.js'
 
 /** O que o `preparar` leva ao `concluir`: se não há o que mandar ao modelo e, nesse caso, se foi por falta de candidata (a execução limpa as seções, P11) ou de seção viva (nada a fazer). */
 export interface LidoDaClassificacao {
@@ -82,9 +84,10 @@ export class ClassificarSecoesCommand implements ExecucaoCommand<EntradaDaTarefa
   async #recortesDasVivas(
     repositorio: SecoesRepository,
     vivas: Awaited<ReturnType<SecoesRepository['vivasDaExecucao']>>,
-  ): Promise<{ candidatas: Map<string, HabilidadeCandidata>; recorteDaSecao: Map<string, RecorteDaSecao> }> {
+  ): Promise<{ candidatas: Map<string, HabilidadeCandidataBncc>; recorteDaSecao: Map<string, RecorteDaSecao> }> {
     const recorte = await repositorio.recorteDosMateriais([...new Set(vivas.map((secao) => secao.disciplinaId))], [...new Set(vivas.map((secao) => secao.materialId))])
-    const candidatas = new Map<string, HabilidadeCandidata>()
+    const bncc = new BnccRepository(this.banco)
+    const candidatas = new Map<string, HabilidadeCandidataBncc>()
     const recorteDaSecao = new Map<string, RecorteDaSecao>()
     const recortesJaLidos = new Set<string>()
     for (const secao of vivas) {
@@ -95,7 +98,7 @@ export class ClassificarSecoesCommand implements ExecucaoCommand<EntradaDaTarefa
       const chave = `${componente}|${series.map((serie) => `${serie.etapa}${String(serie.ano)}`).sort().join(',')}`
       if (recortesJaLidos.has(chave)) continue
       recortesJaLidos.add(chave)
-      for (const candidata of await repositorio.candidatas(componente, series)) candidatas.set(candidata.codigo, candidata)
+      for (const candidata of await candidatasDoRecorte(bncc, componente, series)) candidatas.set(candidata.codigo, candidata)
     }
     return { candidatas, recorteDaSecao }
   }

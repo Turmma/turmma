@@ -1,4 +1,4 @@
-import { AuditoriaRecorder, AuditoriaRepository, DomainException, type Database, type DatabaseTransaction } from '@educa/core'
+import { AuditoriaRecorder, AuditoriaRepository, BnccRepository, DomainException, type Database, type DatabaseTransaction } from '@educa/core'
 import {
   CODIGOS_DA_BNCC,
   ErrorCode,
@@ -24,6 +24,7 @@ import { paginar } from '../http/pagination.js'
 import { ExecucaoDaSessaoRepository } from '../ia/execucao.repository.js'
 import type { ExecucaoScheduler } from '../ia/execucao.scheduler.js'
 import { SuspensaoRepository } from '../ia/suspensao.repository.js'
+import { descricaoOficialDaHabilidade } from '../material/habilidades-do-recorte.js'
 import { SecoesRepository } from '../material/secoes.repository.js'
 import { ArtefatoRepository, type ArtefatoLido } from './artefato.repository.js'
 import { atividadeOriginal, citacoesDoConteudo, exigirMaterialEmUso } from './conferencia.js'
@@ -100,16 +101,16 @@ async function lockArtefatoParaTrocar(tx: Database | DatabaseTransaction, id: st
   if (recorte === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
   const conteudo = conteudoDoArtefatoSchema.parse(alvo.conteudo)
   if (conteudo.tipo !== 'atividade_objetiva' || indice >= conteudo.questoes.length) throw new DomainException(ErrorCode.ENTRADA_INVALIDA)
-  return { artefatos, alvo, conteudo, recorte, secoes }
+  return { artefatos, alvo, conteudo, recorte }
 }
 
 /**
  * O código pedido tem de ser do recorte da turma e da disciplina (sem componente na disciplina, só `null` vale), e a descrição
  * vem da tabela da BNCC, nunca do cliente. `undefined` é o pedido de deixar a questão sem habilidade.
  */
-async function descricaoDaHabilidadeDoRecorte(secoes: SecoesRepository, recorte: NonNullable<Awaited<ReturnType<SecoesRepository['recorteDoArtefato']>>>, codigo: string | null): Promise<string | undefined> {
+async function descricaoDaHabilidadeDoRecorte(bncc: BnccRepository, recorte: NonNullable<Awaited<ReturnType<SecoesRepository['recorteDoArtefato']>>>, codigo: string | null): Promise<string | undefined> {
   if (codigo !== null && (recorte.componente === null || !habilidadeEhCandidata(codigo, recorte.componente, recorte.series))) throw new DomainException(ErrorCode.ENTRADA_INVALIDA)
-  const descricao = codigo === null ? undefined : await secoes.descricaoDaHabilidade(codigo)
+  const descricao = codigo === null ? undefined : await descricaoOficialDaHabilidade(bncc, codigo)
   if (codigo !== null && descricao === undefined) throw new DomainException(ErrorCode.ENTRADA_INVALIDA)
   return descricao
 }
@@ -201,9 +202,9 @@ export class ArtefatoService {
    */
   async trocarHabilidade(id: string, indice: number, pedido: TrocarHabilidadeRequest): Promise<ArtefatoResponse> {
     await this.banco.transaction(async (tx) => {
-      const { artefatos, alvo, conteudo, recorte, secoes } = await lockArtefatoParaTrocar(tx, id, indice)
+      const { artefatos, alvo, conteudo, recorte } = await lockArtefatoParaTrocar(tx, id, indice)
       const { codigo } = pedido
-      const descricao = await descricaoDaHabilidadeDoRecorte(secoes, recorte, codigo)
+      const descricao = await descricaoDaHabilidadeDoRecorte(new BnccRepository(tx), recorte, codigo)
       if (alvo.origemId !== null || (await artefatos.hasAplicacaoOuVersao(id))) throw new DomainException(ErrorCode.CONFLITO)
       const antes = conteudo.questoes[indice]?.habilidade ?? null
       const questoes = conteudo.questoes.map((questao, posicao) => (posicao === indice ? { ...questao, habilidade: codigo === null || descricao === undefined ? null : { codigo, descricao } } : questao))

@@ -1,19 +1,12 @@
-import { disciplina, execucaoAgente, habilidadeBncc, habilidadeDaSecao, material, requireEscolaId, secaoDoMaterial, serie, Unscoped, type Database, type DatabaseTransaction } from '@educa/core'
-import type { ComponenteBncc, Etapa, GrupoDaCobertura } from '@educa/shared'
-import { and, asc, eq, isNotNull, isNull, ne, or, sql, type SQL } from 'drizzle-orm'
+import { disciplina, execucaoAgente, habilidadeDaSecao, material, requireEscolaId, secaoDoMaterial, serie, type Database, type DatabaseTransaction } from '@educa/core'
+import type { ComponenteBncc, Etapa } from '@educa/shared'
+import { and, eq, isNotNull, isNull, ne, or, sql, type SQL } from 'drizzle-orm'
 import { declaradoParaASerie, proprioOuComLicencaVigente } from './material.repository.js'
 
 /** A série da escola do contexto: o recorte da cobertura. */
 export interface SerieDaCobertura {
   readonly etapa: Etapa
   readonly ano: number
-}
-
-/** Uma habilidade que a série tem, com o grupo em que a cobertura a reúne (o componente no Fundamental, a área no Médio). */
-export interface HabilidadeDaSerie {
-  readonly codigo: string
-  readonly descricao: string
-  readonly grupo: GrupoDaCobertura
 }
 
 /** O par que uma seção em uso cobre: o código e o componente da disciplina do material dela. */
@@ -50,7 +43,7 @@ const terminouAClassificacao = or(isNotNull(secaoDoMaterial.corrigidaEm), eq(exe
 
 /**
  * A cobertura de uma série pela BNCC (classificacao-bncc, 13.0; RF19): a série, as habilidades que ela tem, as que as seções dos materiais em uso cobrem e quantas seções ainda não foram classificadas. A escola é a do contexto e
- * entra em **todo** método (regra 10, item 3); nenhum o recebe por argumento. A tabela da BNCC é pública e a única leitura sem escola (`habilidadesDaSerie`).
+ * entra em **todo** método (regra 10, item 3); nenhum o recebe por argumento. Nenhum método lê sem escola: a leitura da tabela pública da BNCC é a do `BnccRepository`, no núcleo (regra 10, item 9).
  */
 export class CoberturaRepository {
   constructor(private readonly banco: Database | DatabaseTransaction) {}
@@ -62,24 +55,6 @@ export class CoberturaRepository {
       .from(serie)
       .where(and(eq(serie.escolaId, requireEscolaId()), eq(serie.id, serieId)))
     return linha
-  }
-
-  /**
-   * As habilidades da BNCC que a série tem, na ordem do código: no Fundamental, as que listam o ano dela (`anos`); no Médio, todas (a BNCC do Médio não é seriada). É a lista de que a cobertura subtrai o que os materiais cobrem.
-   * A tabela é pública e não tem `escola_id` (regra 10, item 1).
-   */
-  @Unscoped('a tabela da BNCC é pública e não tem escola_id (regra 10, item 1): devolve só código, texto e grupo de habilidade, nunca dado de escola nem de pessoa')
-  habilidadesDaSerie(recorte: SerieDaCobertura): Promise<HabilidadeDaSerie[]> {
-    return this.banco
-      .select({
-        codigo: habilidadeBncc.codigo,
-        descricao: habilidadeBncc.descricao,
-        // O grupo é a área no Médio (as `EM13LP` têm componente e área: a área vence, são de Linguagens) e o componente no Fundamental (que não tem área); o check `habilidade_bncc_recorte_da_etapa` garante um dos dois.
-        grupo: sql<GrupoDaCobertura>`coalesce(${habilidadeBncc.area}, ${habilidadeBncc.componente})`,
-      })
-      .from(habilidadeBncc)
-      .where(and(eq(habilidadeBncc.etapa, recorte.etapa), recorte.etapa === 'em' ? undefined : sql`${habilidadeBncc.anos} @> array[${recorte.ano}]::smallint[]`))
-      .orderBy(asc(habilidadeBncc.codigo))
   }
 
   /**

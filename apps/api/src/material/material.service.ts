@@ -1,4 +1,4 @@
-import { AgendamentoDaClassificacaoRepository, ANTES_DA_PRIMEIRA_SECAO, DEFAULT_RETRY_AFTER_SECONDS, DomainException, AuditoriaRecorder, AuditoriaRepository, diaDeUso, SECOES_POR_LOTE_DO_AGENDAMENTO, FileStorageUnavailableError, JobOutbox, postgresErrorIn, summarizeError, requestSessao, systemClock, type Clock, type Database, type DatabaseTransaction, type FileStorage, type LoggerBase } from '@educa/core'
+import { AgendamentoDaClassificacaoRepository, ANTES_DA_PRIMEIRA_SECAO, BnccRepository, DEFAULT_RETRY_AFTER_SECONDS, DomainException, AuditoriaRecorder, AuditoriaRepository, diaDeUso, SECOES_POR_LOTE_DO_AGENDAMENTO, FileStorageUnavailableError, JobOutbox, postgresErrorIn, summarizeError, requestSessao, systemClock, type Clock, type Database, type DatabaseTransaction, type FileStorage, type LoggerBase } from '@educa/core'
 import {
   alcanceDe,
   CODIGOS_DA_BNCC,
@@ -55,6 +55,7 @@ import { z } from 'zod'
 import { paginar } from '../http/pagination.js'
 import { SuspensaoRepository } from '../ia/suspensao.repository.js'
 import { CoberturaRepository } from './cobertura.repository.js'
+import { candidatasDoRecorte } from './habilidades-do-recorte.js'
 import { LicencaRepository, type LicencaParaUso, type VigenciaDaLicenca } from './licenca.repository.js'
 import { MaterialRepository, type AlcanceDoMaterial, type MaterialLido } from './material.repository.js'
 import { SecoesRepository, type HabilidadeLida, type SecaoLida } from './secoes.repository.js'
@@ -652,7 +653,7 @@ export class MaterialService {
       if (recorte === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     }
     if (recorte.componente === null) return habilidadesBnccResponseSchema.parse({ itens: [], semComponente: true })
-    return habilidadesBnccResponseSchema.parse({ itens: await secoes.candidatas(recorte.componente, recorte.series), semComponente: false })
+    return habilidadesBnccResponseSchema.parse({ itens: await candidatasDoRecorte(new BnccRepository(banco), recorte.componente, recorte.series), semComponente: false })
   }
 
   /** O teto das correções antes de o corpo ser lido (`MaterialCorrigirGuard`): 300 por hora por pessoa e 900 por escola, contados na auditoria (`material.classificacao_corrigida`). */
@@ -746,7 +747,7 @@ export class MaterialService {
     const hoje = this.#hoje()
     const [materiaisEmUso, daSerie, cobertas, semClassificacao] = await Promise.all([
       cobertura.materiaisEmUso(serieId, hoje),
-      cobertura.habilidadesDaSerie(recorte),
+      new BnccRepository(banco).habilidades({ etapa: recorte.etapa, ano: recorte.ano }),
       cobertura.habilidadesCobertas(serieId, hoje, suspensa),
       cobertura.secoesSemClassificacao(serieId, hoje, suspensa),
     ])
