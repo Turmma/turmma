@@ -43,7 +43,7 @@ export interface EntregaDaGovernanca {
 /** O consumo de uma função no período, somado. Sem origem, sem aluno, sem entrada e sem saída. */
 export interface ConsumoDaFuncao {
   readonly funcao: ChaveDeFuncao
-  readonly chamadas: number
+  readonly execucoes: number
   readonly tokensDeEntrada: number
   readonly tokensDeSaida: number
   readonly custoMicros: number
@@ -163,7 +163,8 @@ export class GovernancaRepository {
   }
 
   /**
-   * O consumo de IA da escola entre os dois dias (o primeiro entra, o segundo não), **somado por função** (D14, D64).
+   * O consumo de IA da escola entre os dois dias (o primeiro entra, o segundo não), **somado por função** (D14, D64). `execucoes` conta **execuções**, não linhas: uma execução com a repetição por saída
+   * inválida ou a troca de modelo tem uma linha por chamada (camada-ia 1.0), e a linha sem execução vale uma.
    * `consumo_ia` não tem ano letivo nem usuário; o índice `(escola_id, funcao, em)` serve a consulta. Não abre por
    * origem nem por aluno: `regra_fixa` com `aluno_id` marcaria quem caiu no encaminhamento da D36.
    */
@@ -171,7 +172,7 @@ export class GovernancaRepository {
     return this.banco
       .select({
         funcao: consumoIa.funcao,
-        chamadas: sql<number>`count(*)::int`,
+        execucoes: sql<number>`(count(distinct ${consumoIa.execucaoId}) + count(*) filter (where ${consumoIa.execucaoId} is null))::int`,
         tokensDeEntrada: sql<number>`coalesce(sum(${consumoIa.tokensDeEntrada}), 0)::int`,
         tokensDeSaida: sql<number>`coalesce(sum(${consumoIa.tokensDeSaida}), 0)::int`,
         custoMicros: sql<number>`coalesce(sum(${consumoIa.custoMicros}), 0)::float8`,

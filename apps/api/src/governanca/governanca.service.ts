@@ -32,7 +32,7 @@ function primeiroDiaDoMesSeguinte(mes: string): string {
   return dia.toISOString().slice(0, 10)
 }
 
-const SEM_CONSUMO: ConsumoSomado = { chamadas: 0, tokensDeEntrada: 0, tokensDeSaida: 0, custoMicros: 0, comEnvioExterno: 0 }
+const SEM_CONSUMO: ConsumoSomado = { execucoes: 0, tokensDeEntrada: 0, tokensDeSaida: 0, custoMicros: 0, comEnvioExterno: 0 }
 
 /**
  * A governança de IA da coordenação (MVP, A5; D9, D14, D45, D60, D64; regra 70, itens 5, 6, 8 e 9).
@@ -130,7 +130,7 @@ export class GovernancaService {
     const porFuncao = CHAVES_DE_FUNCAO.flatMap((funcao) => linhas.filter((linha) => linha.funcao === funcao))
     const total = porFuncao.reduce<ConsumoSomado>(
       (soma, linha) => ({
-        chamadas: soma.chamadas + linha.chamadas,
+        execucoes: soma.execucoes + linha.execucoes,
         tokensDeEntrada: soma.tokensDeEntrada + linha.tokensDeEntrada,
         tokensDeSaida: soma.tokensDeSaida + linha.tokensDeSaida,
         custoMicros: soma.custoMicros + linha.custoMicros,

@@ -214,7 +214,11 @@ describe('AdaptadorOpenAICompat: saída inválida repete uma vez, dizendo o que 
     const erro = await erroDe(gerarAtividade(ia))
     expect(erro).toMatchObject({ codigoDeIa: 'IA_SAIDA_INVALIDA', codigo: 'IA_SAIDA_INVALIDA', status: 502 })
     expect(pedidos).toHaveLength(2)
-    expect(consumo.registros).toMatchObject([{ estado: 'falhou', codigoDeErro: 'IA_SAIDA_INVALIDA', tentativas: 2, tokensDeEntrada: 2400 }])
+    // Uma linha por chamada, cada uma com o uso que o provedor informou (`USO`): 1.200 de entrada.
+    expect(consumo.registros).toMatchObject([
+      { estado: 'falhou', codigoDeErro: 'IA_SAIDA_INVALIDA', tentativas: 1, tokensDeEntrada: 1200 },
+      { estado: 'falhou', codigoDeErro: 'IA_SAIDA_INVALIDA', tentativas: 1, tokensDeEntrada: 1200 },
+    ])
   })
 })
 

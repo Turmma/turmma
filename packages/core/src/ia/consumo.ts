@@ -38,6 +38,8 @@ interface DadosDoConsumo {
   readonly saida?: unknown
   readonly tokensDeEntrada: number
   readonly tokensDeSaida: number
+  /** O custo da chamada em milionésimos de real, pelo preço vigente no instante dela (`custoDaChamada`). Zero onde não há preço (o adaptador falso, o modelo local) e na regra fixa. */
+  readonly custoMicros: number
   readonly duracaoMs: number
   readonly tentativas: number
   readonly estado: EstadoDeConsumoDeIa
@@ -79,6 +81,8 @@ export function consumoEstimadoDaInterrompida(entrada: { readonly tarefa: DadosD
     promptVersao: tarefa.prompt.versao,
     tokensDeEntrada: tarefa.maximoDeTokensDeEntrada,
     tokensDeSaida: tarefa.maximoDeTokensDeSaida,
+    // O custo da estimada da interrompida, com um destino por linha, é da tarefa 11.0 da camada-ia; até lá ela segue sem custo.
+    custoMicros: 0,
     duracaoMs: Math.min(DURACAO_MAXIMA_DA_LINHA_MS, Math.max(0, Math.round(duracaoMs))),
     // Ao menos uma chamada pode ter saído: é a que se estima.
     tentativas: 1,
@@ -95,19 +99,55 @@ export interface PrecoDoModelo {
   readonly saidaMicrosPorMilTokens: number
 }
 
-/**
- * O preço de cada modelo que a subida conhece. **Hoje a tabela só barra a subida:** o valor dos preços **não é lido por nenhum cálculo**, e o cálculo do custo por chamada (`custo_micros`) ainda não existe
- * (fica registrado para a D37, que o fecha junto da precificação). O **modelo menor** de um perfil (`LLM_MODELO_MENOR_<PERFIL>`, 49.0) só entra se está aqui: sem preço declarado, a subida falha
- * (`createLLMGateway`), para que o degrau não passe a usar um modelo que ninguém conferiu. Os do adaptador falso custam zero. O modelo real entra com a D37 (o teto real e os modelos menores), junto da linha dele em
- * `docs/avaliacao-de-modelos.md`: até lá, configurar um menor contra provedor de verdade recusa a subida, de propósito.
- */
-export const PRECO_DOS_MODELOS: Readonly<Record<string, PrecoDoModelo>> = {
-  [MODELO_FALSO]: { entradaMicrosPorMilTokens: 0, saidaMicrosPorMilTokens: 0 },
-  [MODELO_FALSO_MENOR]: { entradaMicrosPorMilTokens: 0, saidaMicrosPorMilTokens: 0 },
+/** Um preço e desde quando ele vale: a lista de um modelo cresce, e a linha antiga nunca muda (o custo de uma chamada é o do instante dela). */
+export interface VigenciaDePreco extends PrecoDoModelo {
+  /** O instante a partir do qual o preço vale, em ISO 8601 com fuso. */
+  readonly vigenteDesde: string
+  /** De onde o número veio: a página de preços do provedor e a data em que foi lida. */
+  readonly fonte: string
 }
 
-export function precoDoModelo(modelo: string): PrecoDoModelo | undefined {
-  return Object.hasOwn(PRECO_DOS_MODELOS, modelo) ? PRECO_DOS_MODELOS[modelo] : undefined
+/** A chave de cada modelo é `provedor:modelo`: o mesmo modelo em dois provedores tem dois preços. O provedor é o `provedorId` do envio, ou a origem do adaptador onde nada sai. */
+export type TabelaDePrecos = Readonly<Record<string, readonly VigenciaDePreco[]>>
+
+export function chaveDoPreco(provedor: string, modelo: string): string {
+  return `${provedor}:${modelo}`
+}
+
+const VIGENCIA_DO_FALSO = '2026-01-01T00:00:00Z'
+
+/**
+ * O preço de cada modelo, no código (Joaquim, 20/11/2026): é o que a subida confere e o que `custoDaChamada` lê (D14, regra 30, item 4). A chave é `provedor:modelo` e o valor, a lista das vigências em
+ * ordem de data. **Preço novo é uma vigência a mais**, nunca a troca do número: a chamada antiga mantém o custo que gravou, e a seguinte usa o da vigência do seu instante. O **modelo menor** de um perfil
+ * (`LLM_MODELO_MENOR_<PERFIL>`, 49.0) só entra se está aqui, e fora de `AMBIENTE=local` o modelo do principal também: sem preço declarado, a subida falha (`createLLMGateway`), para a chamada não gravar custo
+ * zero onde há cobrança. Os do adaptador falso custam zero. O modelo real entra com a D37, junto da linha dele em `docs/avaliacao-de-modelos.md`.
+ */
+export const PRECO_DOS_MODELOS: TabelaDePrecos = {
+  [chaveDoPreco('falso', MODELO_FALSO)]: [{ vigenteDesde: VIGENCIA_DO_FALSO, fonte: 'adaptador falso: não há cobrança', entradaMicrosPorMilTokens: 0, saidaMicrosPorMilTokens: 0 }],
+  [chaveDoPreco('falso', MODELO_FALSO_MENOR)]: [{ vigenteDesde: VIGENCIA_DO_FALSO, fonte: 'adaptador falso: não há cobrança', entradaMicrosPorMilTokens: 0, saidaMicrosPorMilTokens: 0 }],
+}
+
+/** A vigência do `instante`: a mais recente que já começou. Sem preço declarado para a chave, ou só com vigência futura, `undefined`. */
+export function precoDoModelo(chave: string, instante: Date, tabela: TabelaDePrecos = PRECO_DOS_MODELOS): VigenciaDePreco | undefined {
+  const vigencias = Object.hasOwn(tabela, chave) ? tabela[chave] : undefined
+  if (vigencias === undefined) return undefined
+  let vigente: VigenciaDePreco | undefined
+  for (const vigencia of vigencias) {
+    const desde = Date.parse(vigencia.vigenteDesde)
+    if (desde <= instante.getTime() && (vigente === undefined || desde > Date.parse(vigente.vigenteDesde))) vigente = vigencia
+  }
+  return vigente
+}
+
+/**
+ * O custo da chamada em micros: (entrada × preço da entrada + saída × preço da saída) ÷ 1.000, **arredondado para cima** (D14: o custo nunca é subestimado). A conta é de inteiros, e a divisão por mil
+ * se faz pelo resto, para a fração de micro nunca se perder em ponto flutuante. Sem preço (`undefined`), zero.
+ */
+export function custoDaChamada(tokens: { readonly tokensDeEntrada: number; readonly tokensDeSaida: number }, preco: PrecoDoModelo | undefined): number {
+  if (preco === undefined) return 0
+  const microsPorMil = tokens.tokensDeEntrada * preco.entradaMicrosPorMilTokens + tokens.tokensDeSaida * preco.saidaMicrosPorMilTokens
+  const resto = microsPorMil % 1_000
+  return (microsPorMil - resto) / 1_000 + (resto === 0 ? 0 : 1)
 }
 
 /** Porta do registro. A implementação em Postgres grava em `consumo_ia`, na escola do contexto. */

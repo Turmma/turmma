@@ -26,6 +26,7 @@ export class ConsumoRepository implements RegistroDeConsumo {
       promptVersao: consumo.promptVersao,
       tokensDeEntrada: consumo.tokensDeEntrada,
       tokensDeSaida: consumo.tokensDeSaida,
+      custoMicros: consumo.custoMicros,
       duracaoMs: consumo.duracaoMs,
       envioExterno: consumo.envioExterno,
       provedor: consumo.provedorId,

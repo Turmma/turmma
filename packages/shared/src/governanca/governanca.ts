@@ -97,11 +97,11 @@ export const consumoQuerySchema = z.strictObject({ mes: z.string().regex(/^\d{4}
 export type ConsumoQuery = z.infer<typeof consumoQuerySchema>
 
 /**
- * O consumo somado: chamadas ao modelo, tokens de entrada e de saída, custo e quantas chamadas saíram para provedor
+ * O consumo somado: execuções (cada uma pode ter mais de uma chamada ao modelo: a repetição por saída inválida e a troca de modelo), tokens de entrada e de saída, custo e quantas chamadas saíram para provedor
  * externo. O custo é em **milionésimos de real** (`custoMicros`), inteiro, para a soma não perder centavo.
  */
 export const consumoSomadoSchema = z.strictObject({
-  chamadas: z.number().int().nonnegative(),
+  execucoes: z.number().int().nonnegative(),
   tokensDeEntrada: z.number().int().nonnegative(),
   tokensDeSaida: z.number().int().nonnegative(),
   custoMicros: z.number().int().nonnegative(),

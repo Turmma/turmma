@@ -75,7 +75,7 @@ describe('governança da coordenação: agregada, sem professor (D45, D64; regra
   })
 
   it('o consumo é por função, com o pacote do Tutor; não existe consumo por professor nem por aluno', () => {
-    const somado = { chamadas: 120, tokensDeEntrada: 48000, tokensDeSaida: 21000, custoMicros: 0, comEnvioExterno: 0 }
+    const somado = { execucoes: 120, tokensDeEntrada: 48000, tokensDeSaida: 21000, custoMicros: 0, comEnvioExterno: 0 }
     const consumo = { mes: '2026-10', total: somado, porFuncao: [{ ...somado, funcao: 'tutor_com_o_aluno' }], tutor: { trocasNoMes: 412, pacoteDoMes: 9600, trocasPorDiaPorAluno: 60, trocasPorMesPorAluno: 300 } }
     expect(consumoResponseSchema.safeParse(consumo).success).toBe(true)
     for (const campo of [...CAMPOS_DE_PROFESSOR, { porAluno: [{ alunoId: UM_ID, trocas: 60 }] }, { porUsuario: [] }]) {

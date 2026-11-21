@@ -475,28 +475,28 @@ describe('governança de IA da coordenação', () => {
       const resposta = await get(a.coordenacao, '/v1/governanca/consumo')
       expect(resposta.status).toBe(200)
       const consumo = consumoResponseSchema.parse(resposta.corpo)
-      const noBanco = await sql<{ funcao: string; chamadas: number; entrada: number; saida: number }>(
-        `select funcao, count(*)::int as chamadas, sum(tokens_de_entrada)::int as entrada, sum(tokens_de_saida)::int as saida from consumo_ia where escola_id = $1 group by funcao`,
+      const noBanco = await sql<{ funcao: string; execucoes: number; entrada: number; saida: number }>(
+        `select funcao, (count(distinct execucao_id) + count(*) filter (where execucao_id is null))::int as execucoes, sum(tokens_de_entrada)::int as entrada, sum(tokens_de_saida)::int as saida from consumo_ia where escola_id = $1 group by funcao`,
         [a.escolaId],
       )
       expect(noBanco.length).toBeGreaterThan(0)
-      expect(consumo.porFuncao.map(({ funcao, chamadas, tokensDeEntrada, tokensDeSaida }) => ({ funcao, chamadas, entrada: tokensDeEntrada, saida: tokensDeSaida })).sort((x, y) => x.funcao.localeCompare(y.funcao))).toEqual(
+      expect(consumo.porFuncao.map(({ funcao, execucoes, tokensDeEntrada, tokensDeSaida }) => ({ funcao, execucoes, entrada: tokensDeEntrada, saida: tokensDeSaida })).sort((x, y) => x.funcao.localeCompare(y.funcao))).toEqual(
         [...noBanco].sort((x, y) => x.funcao.localeCompare(y.funcao)),
       )
-      expect(consumo.total.chamadas).toBe(noBanco.reduce((soma, linha) => soma + linha.chamadas, 0))
+      expect(consumo.total.execucoes).toBe(noBanco.reduce((soma, linha) => soma + linha.execucoes, 0))
       expect(consumo.total.tokensDeEntrada).toBe(noBanco.reduce((soma, linha) => soma + linha.entrada, 0))
-      // O custo não é medido nesta fatia: fica em zero, e a tela diz que não está medido.
+      // O custo é medido pelo preço do modelo (camada-ia 1.0), e o adaptador falso não tem preço: fica em zero, e a tela diz que o custo em reais não é medido.
       expect(consumo.total.custoMicros).toBe(0)
-      for (const linha of consumo.porFuncao) expect(Object.keys(linha).sort()).toEqual(['chamadas', 'comEnvioExterno', 'custoMicros', 'funcao', 'tokensDeEntrada', 'tokensDeSaida'])
+      for (const linha of consumo.porFuncao) expect(Object.keys(linha).sort()).toEqual(['comEnvioExterno', 'custoMicros', 'execucoes', 'funcao', 'tokensDeEntrada', 'tokensDeSaida'])
 
       const texto = JSON.stringify(resposta.corpo)
       for (const proibido of ['origem', 'regra_fixa', 'falso', 'alunoId', 'usuarioId', '"entrada"', '"saida"', 'modelo', 'perfil', a.aluno.usuarioId, a.professora.usuarioId]) expect(texto).not.toContain(proibido)
 
       // A escola B gastou menos, e o que A gastou não aparece lá.
       const deB = consumoResponseSchema.parse((await get(b.coordenacao, '/v1/governanca/consumo')).corpo)
-      const [totalDeB] = await sql<{ chamadas: number }>('select count(*)::int as chamadas from consumo_ia where escola_id = $1', [b.escolaId])
-      expect(deB.total.chamadas).toBe(totalDeB?.chamadas)
-      expect(deB.total.chamadas).not.toBe(consumo.total.chamadas)
+      const [totalDeB] = await sql<{ execucoes: number }>('select (count(distinct execucao_id) + count(*) filter (where execucao_id is null))::int as execucoes from consumo_ia where escola_id = $1', [b.escolaId])
+      expect(deB.total.execucoes).toBe(totalDeB?.execucoes)
+      expect(deB.total.execucoes).not.toBe(consumo.total.execucoes)
     })
 
     it('a chamada com provedor entra na soma como qualquer outra, e o provedor não sai pela governança', async () => {
@@ -512,7 +512,7 @@ describe('governança de IA da coordenação', () => {
       await chamada(false, null)
       const resposta = await get(a.coordenacao, '/v1/governanca/consumo')
       const depois = consumoResponseSchema.parse(resposta.corpo)
-      expect(depois.total.chamadas).toBe(antes.total.chamadas + 2)
+      expect(depois.total.execucoes).toBe(antes.total.execucoes + 2)
       expect(depois.total.tokensDeEntrada).toBe(antes.total.tokensDeEntrada + 2000)
       expect(depois.total.tokensDeSaida).toBe(antes.total.tokensDeSaida + 1000)
       expect(depois.total.comEnvioExterno).toBe(antes.total.comEnvioExterno + 1)
@@ -520,9 +520,42 @@ describe('governança de IA da coordenação', () => {
       expect(JSON.stringify(resposta.corpo)).not.toContain('provedor')
     })
 
+    it('a execução com duas linhas de consumo (a repetição da saída inválida) conta uma execução, e os tokens das duas linhas somam', async () => {
+      await execucaoTerminada(api, a.professora, await dispararExecucao(api, a.professora, '/v1/assistente/mensagens', mensagemAoAssistente(a)))
+      await fila.ociosa()
+      const antes = consumoResponseSchema.parse((await get(a.coordenacao, '/v1/governanca/consumo')).corpo)
+      // A segunda linha da mesma execução: o que a repetição por saída inválida grava, uma linha por chamada.
+      const inserida = await sql(
+        `insert into consumo_ia (escola_id, execucao_id, tarefa, funcao, perfil, origem, modelo, prompt_versao, tokens_de_entrada, tokens_de_saida, duracao_ms, envio_externo, tentativas, estado)
+         select escola_id, execucao_id, tarefa, funcao, perfil, origem, modelo, prompt_versao, 1000, 500, duracao_ms, envio_externo, 1, estado
+           from consumo_ia where escola_id = $1 and execucao_id is not null and estado = 'concluida' order by em desc limit 1
+         returning execucao_id`,
+        [a.escolaId],
+      )
+      expect(inserida).toHaveLength(1)
+      const depois = consumoResponseSchema.parse((await get(a.coordenacao, '/v1/governanca/consumo')).corpo)
+      expect(depois.total.execucoes).toBe(antes.total.execucoes)
+      expect(depois.total.tokensDeEntrada).toBe(antes.total.tokensDeEntrada + 1000)
+      expect(depois.total.tokensDeSaida).toBe(antes.total.tokensDeSaida + 500)
+    })
+
+    it('a linha sem execução (o que a regra fixa do Tutor grava) conta uma execução por linha, e não some da conta', async () => {
+      const antes = consumoResponseSchema.parse((await get(a.coordenacao, '/v1/governanca/consumo')).corpo)
+      const modelo = `sem-execucao-${randomUUID()}`
+      for (let i = 0; i < 2; i += 1) {
+        await sql(
+          `insert into consumo_ia (escola_id, tarefa, funcao, perfil, origem, modelo, prompt_versao, tokens_de_entrada, tokens_de_saida, duracao_ms, envio_externo, tentativas, estado)
+           values ($1, 'gerar_atividade_objetiva', 'conversa_e_ferramentas', 'padrao', 'falso', $2, 'v1', 10, 5, 1, false, 0, 'concluida')`,
+          [a.escolaId, modelo],
+        )
+      }
+      const depois = consumoResponseSchema.parse((await get(a.coordenacao, '/v1/governanca/consumo')).corpo)
+      expect(depois.total.execucoes).toBe(antes.total.execucoes + 2)
+    })
+
     it('o mês sem consumo responde zerado, e o pacote do Tutor soma os alunos das turmas', async () => {
       const passado = consumoResponseSchema.parse((await get(a.coordenacao, '/v1/governanca/consumo?mes=2020-01')).corpo)
-      expect(passado).toMatchObject({ mes: '2020-01', total: { chamadas: 0, tokensDeEntrada: 0, tokensDeSaida: 0, custoMicros: 0, comEnvioExterno: 0 }, porFuncao: [], tutor: { trocasNoMes: 0 } })
+      expect(passado).toMatchObject({ mes: '2020-01', total: { execucoes: 0, tokensDeEntrada: 0, tokensDeSaida: 0, custoMicros: 0, comEnvioExterno: 0 }, porFuncao: [], tutor: { trocasNoMes: 0 } })
       const atual = consumoResponseSchema.parse((await get(a.coordenacao, '/v1/governanca/consumo')).corpo)
       const alunos = await contarNaEscola(bancada, 'vinculo', a.escolaId, `papel = 'aluno' and estado = 'confirmado'`)
       expect(alunos).toBeGreaterThan(0)
