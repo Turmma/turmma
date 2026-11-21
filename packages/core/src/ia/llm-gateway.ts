@@ -11,14 +11,14 @@ import type { ModelAdapter, ModelCall, ModelResponse, RepairHint } from './adapt
 import { FakeAdapter } from './fake-adapter.js'
 import { OpenAICompatAdapter } from './openai-compat-adapter.js'
 import { ResilientAdapter } from './resilient-adapter.js'
-import { precoDoModelo, type ConsumoDeIa, type DestinoDoAdaptador, type OrcamentoDeIa, type RegistroDeConsumo } from './consumo.js'
+import { chaveDoPreco, custoDaChamada, precoDoModelo, type ConsumoDeIa, type DestinoDoAdaptador, type OrcamentoDeIa, type RegistroDeConsumo, type TabelaDePrecos } from './consumo.js'
 import { LLMError, type LLMErrorCode } from './errors.js'
 import { semMarcacao } from './clean-output.js'
 import { SEM_ENVIO_EXTERNO, type DeclaracaoDeSoberania, type LLMProvider, type GenerationMeasurement, type GenerationRequest, type GenerationResult } from './port.js'
 import { exigirFuncaoAtiva, type SuspensaoDeFuncao } from './suspensao.js'
 import type { TaskDefinition } from './task.js'
 import { tokensDoPedido } from './teto-de-entrada.js'
-import type { Perfil } from './perfis.js'
+import { PERFIS, type Perfil } from './perfis.js'
 import type { LimiteDeTokens, ReservaDeTokens } from './token-limiter.js'
 
 /** O que o provedor escreve no log: evento fixo, ids, duração. Nunca entrada, saída nem prompt (regra 20, item 9). */
@@ -46,6 +46,8 @@ export interface LLMGatewayDependencies {
   readonly limiteDeTokens?: LimiteDeTokens
   /** O modelo menor de cada perfil que tem o seu (`LLM_MODELO_MENOR_<PERFIL>`): o degrau depois da espera. O turno do Tutor nunca o usa. */
   readonly modelosMenores?: Readonly<Partial<Record<Perfil, string>>>
+  /** O preço de cada modelo (`provedor:modelo`, com as vigências). Sem ele vale `PRECO_DOS_MODELOS`; o teste injeta a tabela com os preços que prova. */
+  readonly precos?: TabelaDePrecos
 }
 
 /** Quanto o pedido espera pela vaga de tokens antes de descer um degrau: o "Pensando" que o aluno aguenta (`aluno/Tutor.tsx`), dentro do prazo único da execução (RF7). */
@@ -69,6 +71,8 @@ const TAREFAS_SEM_MODELO_MENOR: ReadonlySet<TarefaDeIa> = new Set<TarefaDeIa>(['
 
 export const MOTIVO_MODELO_MENOR_SEM_PRECO =
   'LLM_MODELO_MENOR_<PERFIL> precisa de preço em PRECO_DOS_MODELOS (packages/core/src/ia/consumo.ts): sem preço o degrau do gateway gastaria sem a conta da D14, e o modelo real só entra com a D37'
+export const MOTIVO_MODELO_SEM_PRECO =
+  'LLM_MODELO e LLM_MODELO_<PERFIL> precisam de preço em PRECO_DOS_MODELOS (packages/core/src/ia/consumo.ts, chave provedor:modelo) fora de AMBIENTE=local: sem preço a chamada gravaria custo zero e o orçamento de IA subestimaria o gasto (D14)'
 
 /** A espera entre duas reservas, cortada pelo sinal de quem chamou (o prazo único da execução, ou o desligamento): o prazo que vence na espera a encerra na hora. */
 function wait(ms: number, sinal: AbortSignal | undefined): Promise<void> {
@@ -174,11 +178,27 @@ function validate<Entrada, Saida>(tarefa: TaskDefinition<Entrada, Saida>, entrad
   return problemas.length === 0 ? { ok: true, saida } : { ok: false, problemas: problemas.slice(0, PROBLEMAS_MAXIMOS_NA_REPETICAO), naConferencia: true }
 }
 
+/**
+ * Uma chamada que saiu para o modelo, e é uma linha de `consumo_ia` (D14): o custo pelo preço vigente no instante dela. O `codigoDeErro` é pessimista desde o começo (a chamada que saiu e não
+ * terminou de ser lida conta como falha de indisponibilidade) e se acerta quando a saída é lida e reprovada. A última chamada de uma execução que deu certo vira `concluida` ao gravar.
+ */
+interface ChamadaEnviada {
+  readonly modelo: string
+  readonly tokensDeEntrada: number
+  readonly tokensDeSaida: number
+  readonly custoMicros: number
+  readonly duracaoMs: number
+  readonly em: Date
+  codigoDeErro: LLMErrorCode
+}
+
 interface Gasto {
   modelo: string
   tokensDeEntrada: number
   tokensDeSaida: number
   tentativas: number
+  /** Só as chamadas que saíram, na ordem: a que não saiu (balde cheio, disjuntor aberto) não é chamada. */
+  readonly chamadas: ChamadaEnviada[]
 }
 
 /**
@@ -254,7 +274,7 @@ export class LLMGateway implements LLMProvider {
       await this.exigirOrcamento(pedido, inicio)
     }
 
-    const gasto: Gasto = { modelo: adaptador.modeloDoPerfil(tarefa.perfil), tokensDeEntrada: 0, tokensDeSaida: 0, tentativas: 0 }
+    const gasto: Gasto = { modelo: adaptador.modeloDoPerfil(tarefa.perfil), tokensDeEntrada: 0, tokensDeSaida: 0, tentativas: 0, chamadas: [] }
     let saida: Saida
     try {
       saida = fixa === undefined ? await this.chamarAteValer(pedido, entrada, gasto) : this.exigirSaidaFixa(tarefa, entrada, fixa)
@@ -264,16 +284,18 @@ export class LLMGateway implements LLMProvider {
       if (!(erro instanceof LLMError)) this.dependencias.logger?.warn({ evento: 'ia.geracao.erro_inesperado', erro: summarizeError(erro) })
       const medicao = this.medir(pedido, gasto, inicio, false)
       // O registro da falha é o melhor possível: se ele também falhar, o erro que sobe continua sendo o da chamada.
-      // O lote adia o que não saiu (balde cheio, disjuntor aberto) e tenta de novo: a tentativa que nem chegou ao provedor não deixa linha de consumo (D14: a conta é do que foi enviado).
+      // O lote adia o que não saiu (balde cheio, disjuntor aberto) e tenta de novo: a tentativa que nem chegou ao provedor não deixa linha de consumo (D14: a conta é do que foi enviado). As chamadas que saíram antes dela têm a sua.
       const adiavelSemEnvio = pedido.fila === 'lote' && erro instanceof LLMError && erro.semEnvio
-      if (!adiavelSemEnvio) await this.dependencias.registro.registrar(this.consumo(pedido, medicao, { ...conteudo({ entrada: entradaDoRegistro }), estado: 'falhou', codigoDeErro: codigo })).catch(() => undefined)
+      if (gasto.chamadas.length > 0 || !adiavelSemEnvio) {
+        await this.registrarLinhas(this.linhasDeConsumo(pedido, gasto, medicao, { estado: 'falhou', codigoDeErro: codigo, conteudo: conteudo({ entrada: entradaDoRegistro }) })).catch(() => undefined)
+      }
       this.avisar(pedido, codigo, inicio, gasto.tentativas)
       throw erro instanceof LLMError ? erro : new LLMError('IA_INDISPONIVEL')
     }
 
     const medicao = this.medir(pedido, gasto, inicio, fixa !== undefined)
     try {
-      await this.dependencias.registro.registrar(this.consumo(pedido, medicao, { ...conteudo({ entrada: entradaDoRegistro, saida }), estado: 'concluida' }))
+      await this.registrarLinhas(this.linhasDeConsumo(pedido, gasto, medicao, { estado: 'concluida', conteudo: conteudo({ entrada: entradaDoRegistro, saida }) }))
     } catch {
       this.avisar(pedido, 'IA_INDISPONIVEL', inicio, gasto.tentativas)
       throw new LLMError('IA_INDISPONIVEL')
@@ -359,13 +381,17 @@ export class LLMGateway implements LLMProvider {
       const sinal = pedido.sinal ?? new AbortController().signal
       // O modelo que vai receber o pedido: se a chamada falhar, o consumo de `falhou` grava este (regra 70, item 6), e não o do perfil.
       gasto.modelo = vaga.modelo ?? this.dependencias.adaptador.modeloDoPerfil(tarefa.perfil)
-      const resposta = await this.chamarModelo(pedido, chamadaAoModelo({ tarefa, entrada, sinal }, correcao, vaga.modelo))
+      const inicioDaChamada = performance.now()
+      const resposta = await this.chamarContando(pedido, chamadaAoModelo({ tarefa, entrada, sinal }, correcao, vaga.modelo), gasto, inicioDaChamada, correcao)
+      const chamada = this.chamadaFeita(resposta.modelo, { tokensDeEntrada: resposta.tokensDeEntrada, tokensDeSaida: resposta.tokensDeSaida }, inicioDaChamada)
+      gasto.chamadas.push(chamada)
       await vaga.reserva?.acertar(resposta.tokensDeEntrada + resposta.tokensDeSaida)
       gasto.modelo = resposta.modelo
       gasto.tokensDeEntrada += resposta.tokensDeEntrada
       gasto.tokensDeSaida += resposta.tokensDeSaida
       const interpretada = interpretar(tarefa, entrada, resposta.texto)
       if (interpretada.ok) return interpretada.saida
+      chamada.codigoDeErro = 'IA_SAIDA_INVALIDA'
       correcao = { respostaAnterior: resposta.texto, problemas: interpretada.problemas }
       reprovadaNaConferencia = interpretada.naConferencia === true
       problemasDaUltima = interpretada.problemas
@@ -385,6 +411,18 @@ export class LLMGateway implements LLMProvider {
     const tipo = tarefa.nome
     this.dependencias.logger?.info({ evento: 'ia.geracao.reserva', tipo, escolaId: pedido.escolaId, execucaoId: pedido.execucaoId, tentativas })
     return validada.saida
+  }
+
+  /** A chamada ao modelo. Se ela cai, a que saiu deixa a sua linha estimada em `gasto.chamadas` antes de o erro subir. */
+  private async chamarContando<Entrada, Saida>(pedido: GenerationRequest<Entrada, Saida>, aoModelo: ModelCall<Entrada, Saida>, gasto: Gasto, inicioDaChamada: number, correcao: RepairHint | undefined): Promise<ModelResponse> {
+    const { entrada } = aoModelo
+    try {
+      return await this.chamarModelo(pedido, aoModelo)
+    } catch (erro) {
+      // A chamada que saiu e não voltou com uso (o prazo, a conexão, o servidor) custa o que se estima: a entrada contada e a saída no teto da tarefa (D14, superestima). A que não saiu (o disjuntor aberto) não é chamada.
+      if (!(erro instanceof LLMError && erro.semEnvio)) gasto.chamadas.push(this.chamadaSemUso(pedido, entrada, correcao, gasto.modelo, inicioDaChamada, erro instanceof LLMError ? erro.codigoDeIa : 'IA_INDISPONIVEL'))
+      throw erro
+    }
   }
 
   /** Uma chamada ao adaptador, medida: a duração e, se falhou, o código. Só o que o provedor fez: a espera pela vaga e a repetição por saída inválida ficam de fora. */
@@ -490,10 +528,75 @@ export class LLMGateway implements LLMProvider {
     }
   }
 
+  /** A chamada que saiu, com o custo pelo preço vigente no instante dela (`em`) e a chave `provedor:modelo`. A saída ainda não lida vale falha: quem a lê acerta o `estado`. */
+  private chamadaFeita(modelo: string, tokens: { readonly tokensDeEntrada: number; readonly tokensDeSaida: number }, inicioDaChamada: number): ChamadaEnviada {
+    const { adaptador, precos } = this.dependencias
+    const em = this.relogio.agora()
+    const preco = precoDoModelo(chaveDoPreco(adaptador.envio.provedorId ?? adaptador.origem, modelo), em, precos)
+    return { modelo, ...tokens, custoMicros: custoDaChamada(tokens, preco), duracaoMs: Math.round(performance.now() - inicioDaChamada), em, codigoDeErro: 'IA_INDISPONIVEL' }
+  }
+
+  /** A chamada que saiu e não voltou com uso: a entrada contada do pedido (a repetição leva a correção) e a saída no teto da tarefa, ao preço do modelo que a recebeu. */
+  private chamadaSemUso<Entrada, Saida>(pedido: GenerationRequest<Entrada, Saida>, entrada: Entrada, correcao: RepairHint | undefined, modelo: string, inicioDaChamada: number, codigo: LLMErrorCode): ChamadaEnviada {
+    const { tarefa } = pedido
+    const chamada = this.chamadaFeita(modelo, { tokensDeEntrada: tokensDoPedido(tarefa, entrada, correcao), tokensDeSaida: tarefa.maximoDeTokensDeSaida }, inicioDaChamada)
+    chamada.codigoDeErro = codigo
+    return chamada
+  }
+
+  /**
+   * As linhas de consumo da execução, **uma por chamada que saiu**, na ordem (D14). A saída inválida de uma chamada seguida de repetição grava `falhou`/`IA_SAIDA_INVALIDA` sem conteúdo (regra 20: a saída que
+   * não valeu não fica para depuração); `entrada` e `saida` ficam só na última. Sem chamada que saiu (a regra fixa, o balde cheio, o disjuntor aberto), uma linha só, sem tokens, sem custo e sem envio.
+   */
+  private linhasDeConsumo<Entrada, Saida>(
+    pedido: GenerationRequest<Entrada, Saida>,
+    gasto: Gasto,
+    medicao: GenerationMeasurement,
+    final: { readonly estado: 'concluida' | 'falhou'; readonly codigoDeErro?: LLMErrorCode; readonly conteudo: Pick<ConsumoDeIa, 'entrada' | 'saida'> },
+  ): ConsumoDeIa[] {
+    const { adaptador } = this.dependencias
+    const { chamadas } = gasto
+    if (chamadas.length === 0) {
+      return [this.consumo(pedido, { ...medicao, tentativas: 0, ...SEM_ENVIO_EXTERNO }, { ...final.conteudo, estado: final.estado, ...(final.codigoDeErro === undefined ? {} : { codigoDeErro: final.codigoDeErro }) }, 0, this.relogio.agora())]
+    }
+    return chamadas.map((chamada, indice) => {
+      const ultima = indice === chamadas.length - 1
+      const concluida = ultima && final.estado === 'concluida'
+      const medida: GenerationMeasurement = {
+        origem: adaptador.origem,
+        perfil: pedido.tarefa.perfil,
+        modelo: chamada.modelo,
+        promptVersao: pedido.tarefa.prompt.versao,
+        tokensDeEntrada: chamada.tokensDeEntrada,
+        tokensDeSaida: chamada.tokensDeSaida,
+        duracaoMs: chamada.duracaoMs,
+        tentativas: 1,
+        ...adaptador.envio,
+      }
+      const resultado: Pick<ConsumoDeIa, 'estado' | 'codigoDeErro'> = concluida ? { estado: 'concluida' } : { estado: 'falhou', codigoDeErro: chamada.codigoDeErro }
+      return this.consumo(pedido, medida, { ...(ultima ? final.conteudo : {}), ...resultado }, chamada.custoMicros, chamada.em)
+    })
+  }
+
+  /** Grava todas, na ordem, e só falha depois de tentar a última: uma que falhou não esconde a seguinte. */
+  private async registrarLinhas(linhas: readonly ConsumoDeIa[]): Promise<void> {
+    let falhou = false
+    for (const linha of linhas) {
+      try {
+        await this.dependencias.registro.registrar(linha)
+      } catch {
+        falhou = true
+      }
+    }
+    if (falhou) throw new LLMError('IA_INDISPONIVEL')
+  }
+
   private consumo<Entrada, Saida>(
     pedido: GenerationRequest<Entrada, Saida>,
     medicao: GenerationMeasurement,
     resultado: Pick<ConsumoDeIa, 'entrada' | 'saida' | 'estado' | 'codigoDeErro'>,
+    custoMicros: number,
+    em: Date,
   ): ConsumoDeIa {
     return {
       // O aluno só entra no consumo das funções que são dele (o Tutor): nas outras, o consumo não tem pessoa (D64).
@@ -502,8 +605,9 @@ export class LLMGateway implements LLMProvider {
       tarefa: pedido.tarefa.nome,
       funcao: pedido.tarefa.funcao,
       ...medicao,
+      custoMicros,
       ...resultado,
-      em: this.relogio.agora(),
+      em,
     }
   }
 
@@ -516,6 +620,7 @@ export class LLMGateway implements LLMProvider {
 }
 
 export interface LLMGatewayPorts {
+  readonly precos?: TabelaDePrecos
   readonly limiteDeTokens?: LimiteDeTokens
   readonly registro: RegistroDeConsumo
   readonly orcamento: OrcamentoDeIa
@@ -531,8 +636,9 @@ export interface LLMGatewayPorts {
  * prazo por perfil, a repetição e o disjuntor.
  */
 export function createLLMGateway(config: LLMConfig, portas: LLMGatewayPorts): LLMProvider {
-  exigirPrecoDosModelosMenores(config)
-  const adaptador = new ResilientAdapter(adaptadorInterno(config), {
+  const interno = adaptadorInterno(config)
+  exigirPrecoDosModelos(config, interno, portas.precos, (portas.relogio ?? systemClock).agora())
+  const adaptador = new ResilientAdapter(interno, {
     prazosMs: config.prazosMs,
     recuoMs: config.recuoMs,
     aleatorio: Math.random,
@@ -541,10 +647,20 @@ export function createLLMGateway(config: LLMConfig, portas: LLMGatewayPorts): LL
   return new LLMGateway({ adaptador, ...portas, ...(config.modelosMenores === undefined ? {} : { modelosMenores: config.modelosMenores }) })
 }
 
-/** O modelo menor sem preço em `PRECO_DOS_MODELOS` recusa a subida (49.0, D14): o degrau gastaria sem conta. Diz a variável, nunca o valor dela. */
-function exigirPrecoDosModelosMenores(config: LLMConfig): void {
-  const semPreco = Object.entries(config.modelosMenores ?? {}).filter(([, modelo]) => precoDoModelo(modelo) === undefined)
-  if (semPreco.length > 0) throw new InvalidConfigError(semPreco.map(([perfil]) => `LLM_MODELO_MENOR_${perfil.toUpperCase()}`).sort(), [MOTIVO_MODELO_MENOR_SEM_PRECO])
+/**
+ * O modelo sem preço em `PRECO_DOS_MODELOS` recusa a subida (D14): o menor de um perfil em qualquer ambiente (49.0: o degrau gastaria sem conta) e o do principal fora de `AMBIENTE=local` com
+ * `openai_compat` (`config.exigePreco`: a chamada gravaria custo zero onde há cobrança). A chave é `provedor:modelo` e o preço vale se há vigência que já começou. Diz a variável, nunca o valor dela.
+ */
+function exigirPrecoDosModelos(config: LLMConfig, adaptador: ModelAdapter, precos: TabelaDePrecos | undefined, agora: Date): void {
+  const provedor = adaptador.envio.provedorId ?? adaptador.origem
+  const semPreco = (modelo: string): boolean => precoDoModelo(chaveDoPreco(provedor, modelo), agora, precos) === undefined
+  const doPrincipal =
+    config.exigePreco === true ? PERFIS.filter((perfil) => semPreco(config.modelo?.modelos[perfil] ?? '')).map((perfil) => config.modelo?.variaveisDosModelos?.[perfil] ?? 'LLM_MODELO') : []
+  const dosMenores = Object.entries(config.modelosMenores ?? {})
+    .filter(([, modelo]) => semPreco(modelo))
+    .map(([perfil]) => `LLM_MODELO_MENOR_${perfil.toUpperCase()}`)
+  if (doPrincipal.length === 0 && dosMenores.length === 0) return
+  throw new InvalidConfigError([...new Set([...doPrincipal, ...dosMenores])].sort(), [...(doPrincipal.length === 0 ? [] : [MOTIVO_MODELO_SEM_PRECO]), ...(dosMenores.length === 0 ? [] : [MOTIVO_MODELO_MENOR_SEM_PRECO])])
 }
 
 /** O adaptador que `IA_ADAPTADOR` escolhe, sem a resiliência: a única conta de qual é, e que `createLLMGateway` e `destinoDoAdaptador` dividem. */

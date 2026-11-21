@@ -6,14 +6,14 @@ import { ScriptedAdapter, PROVEDOR_ROTEIRIZADO } from './__fixtures__/scripted-a
 import { chatResponse, startFakeLlamaServer, type FakeLlamaServer } from './__fixtures__/fake-llama-server.js'
 import { withEscolaContextOfRequest } from './__fixtures__/escola-context.js'
 import { ALUNO_1, ALUNO_2, atividadeDeEstequiometria, entradaDeAtividade, entradaDoAssistente, entradaDoRelatorio, entradaDoTutor, ESCOLA_A, ESCOLA_B } from './__fixtures__/inputs.js'
-import type { ModelAdapter } from './adapter.js'
+import type { ModelAdapter, ModelCall, ModelResponse } from './adapter.js'
 import { FakeAdapter, MODELO_FALSO } from './fake-adapter.js'
-import { InMemoryConsumo, InMemoryOrcamento, type OrcamentoQuery, type ConsumoDeIa, type OrcamentoDeIa, type RegistroDeConsumo } from './consumo.js'
-import type { LLMConfig } from '../config/llm-config.js'
+import { chaveDoPreco, custoDaChamada, InMemoryConsumo, InMemoryOrcamento, type OrcamentoQuery, type ConsumoDeIa, type OrcamentoDeIa, type RegistroDeConsumo, type TabelaDePrecos } from './consumo.js'
+import { loadLLMConfig, type LLMConfig } from '../config/llm-config.js'
 import { HTTP_STATUS_BY_CODE } from '../error/domain.exception.js'
 import { LLM_ERROR_CODES, LLMError } from './errors.js'
 import type { DeclaracaoDeSoberania, EnvioDaChamada, GenerationMeasurement } from './port.js'
-import { createLLMGateway, destinoDoAdaptador, ESPERA_MAXIMA_DA_VAGA_MS, MODELO_DA_REGRA_FIXA, MOTIVO_MODELO_MENOR_SEM_PRECO, LLMGateway, type LLMGatewayDependencies, type LLMLogger } from './llm-gateway.js'
+import { createLLMGateway, destinoDoAdaptador, ESPERA_MAXIMA_DA_VAGA_MS, MODELO_DA_REGRA_FIXA, MOTIVO_MODELO_MENOR_SEM_PRECO, MOTIVO_MODELO_SEM_PRECO, LLMGateway, type LLMGatewayDependencies, type LLMLogger } from './llm-gateway.js'
 import type { FilaDeTokens, LimiteDeTokens, ResultadoDaReserva } from './token-limiter.js'
 import { InvalidConfigError } from '../config/validate-config.js'
 import { RECUSA_DE_CORRECAO_DE_TEXTO_DE_ALUNO } from './tasks/propor-ferramenta.js'
@@ -45,7 +45,7 @@ function soOQuePassou<Campos extends object>(campos: Campos): { [Chave in keyof 
 }
 
 /** `semContexto`: o provedor puro, sem o contexto da escola do pedido, para o teste do que acontece sem escola no contexto. */
-function montar(opcoes: { adaptador?: ModelAdapter; orcamento?: OrcamentoDeIa; registro?: RegistroDeConsumo; suspensao?: SuspensaoDeFuncao; soberania?: DeclaracaoDeSoberania; logger?: LLMLogger; agora?: () => Date; semContexto?: true; medidor?: MedidorDeTeste['medidor']; limiteDeTokens?: LimiteDeTokens; modelosMenores?: LLMGatewayDependencies['modelosMenores'] } = {}) {
+function montar(opcoes: { adaptador?: ModelAdapter; orcamento?: OrcamentoDeIa; registro?: RegistroDeConsumo; suspensao?: SuspensaoDeFuncao; soberania?: DeclaracaoDeSoberania; logger?: LLMLogger; agora?: () => Date; semContexto?: true; medidor?: MedidorDeTeste['medidor']; limiteDeTokens?: LimiteDeTokens; modelosMenores?: LLMGatewayDependencies['modelosMenores']; precos?: TabelaDePrecos } = {}) {
   const consumo = new InMemoryConsumo()
   const relogio = { agora: opcoes.agora ?? (() => new Date('2026-10-05T13:00:00Z')) }
   const puro = new LLMGateway({
@@ -54,7 +54,7 @@ function montar(opcoes: { adaptador?: ModelAdapter; orcamento?: OrcamentoDeIa; r
     orcamento: opcoes.orcamento ?? SEMPRE,
     suspensao: opcoes.suspensao ?? new InMemorySuspensoes(),
     relogio,
-    ...soOQuePassou({ soberania: opcoes.soberania, logger: opcoes.logger, medidor: opcoes.medidor, limiteDeTokens: opcoes.limiteDeTokens, modelosMenores: opcoes.modelosMenores }),
+    ...soOQuePassou({ soberania: opcoes.soberania, logger: opcoes.logger, medidor: opcoes.medidor, limiteDeTokens: opcoes.limiteDeTokens, modelosMenores: opcoes.modelosMenores, precos: opcoes.precos }),
   })
   const ia = opcoes.semContexto === true ? puro : withEscolaContextOfRequest(puro)
   return { ia, consumo, relogio }
@@ -77,6 +77,7 @@ const consumidaDeMedida = () =>
     promptVersao: 'v',
     tokensDeEntrada: 1,
     tokensDeSaida: 1,
+    custoMicros: 0,
     duracaoMs: 1,
     tentativas: 1,
     tarefa: 'gerar_atividade_objetiva',
@@ -134,7 +135,7 @@ describe('ProvedorDeIa: saída validada e medição', () => {
 
   it('o tipo da porta só aceita os dois pares possíveis: com envio externo, o provedor; sem envio, nulo', () => {
     const medida = { origem: 'openai_compat', perfil: 'padrao', modelo: 'm', promptVersao: 'v', tokensDeEntrada: 1, tokensDeSaida: 1, duracaoMs: 1, tentativas: 1 } as const
-    const consumida = { ...medida, tarefa: 'gerar_atividade_objetiva', funcao: 'conversa_e_ferramentas', estado: 'concluida', em: new Date() } as const
+    const consumida = { ...medida, custoMicros: 0, tarefa: 'gerar_atividade_objetiva', funcao: 'conversa_e_ferramentas', estado: 'concluida', em: new Date() } as const
     const externo: EnvioDaChamada = { envioExterno: true, provedorId: 'maritaca' }
     const local: EnvioDaChamada = { envioExterno: false, provedorId: null }
     const medicoes: GenerationMeasurement[] = [
@@ -290,6 +291,9 @@ describe('ProvedorDeIa: toda execução registra (regra 30, item 4)', () => {
         tarefa: 'gerar_atividade_objetiva',
         funcao: 'conversa_e_ferramentas',
         ...medicao,
+        // A linha é a da chamada: a duração dela, e não a da execução inteira; o adaptador falso não tem preço.
+        duracaoMs: expect.any(Number) as number,
+        custoMicros: 0,
         entrada,
         saida,
         estado: 'concluida',
@@ -301,8 +305,12 @@ describe('ProvedorDeIa: toda execução registra (regra 30, item 4)', () => {
   it('a falha também fica registrada, com o código, sem saída', async () => {
     const { ia, consumo } = montar({ adaptador: new ScriptedAdapter(['não é json', '{"tipo":"outra coisa"}']) })
     await erroDe(ia.generate({ tarefa: gerarAtividadeObjetiva, entrada: entradaDeAtividade(), escolaId: ESCOLA_A }))
-    expect(consumo.registros).toMatchObject([{ estado: 'falhou', codigoDeErro: 'IA_SAIDA_INVALIDA', tentativas: 2, tokensDeEntrada: 200, tokensDeSaida: 40 }])
-    expect(consumo.registros[0]).not.toHaveProperty('saida')
+    // Uma linha por chamada que saiu (D14): as duas inválidas, cada uma com os seus tokens; a saída nunca fica.
+    expect(consumo.registros).toMatchObject([
+      { estado: 'falhou', codigoDeErro: 'IA_SAIDA_INVALIDA', tentativas: 1, tokensDeEntrada: 100, tokensDeSaida: 20 },
+      { estado: 'falhou', codigoDeErro: 'IA_SAIDA_INVALIDA', tentativas: 1, tokensDeEntrada: 100, tokensDeSaida: 20 },
+    ])
+    for (const registro of consumo.registros) expect(registro).not.toHaveProperty('saida')
   })
 
   it('tarefa que leva texto de aluno não deixa entrada nem saída no consumo: o registro da conversa é do Tutor, não daqui', async () => {
@@ -322,7 +330,10 @@ describe('ProvedorDeIa: toda execução registra (regra 30, item 4)', () => {
   it('na falha de tarefa que leva texto de aluno, o consumo também fica sem a entrada', async () => {
     const { ia, consumo } = montar({ adaptador: new ScriptedAdapter(['não é json', 'não é json']), soberania: CONFERIDA })
     await erroDe(ia.generate({ tarefa: turnoDoTutor, entrada: entradaDoTutor('não entendi palavra-marcada-do-aluno'), escolaId: ESCOLA_A, alunoId: ALUNO_1 }))
-    expect(consumo.registros).toMatchObject([{ estado: 'falhou', codigoDeErro: 'IA_SAIDA_INVALIDA' }])
+    expect(consumo.registros).toMatchObject([
+      { estado: 'falhou', codigoDeErro: 'IA_SAIDA_INVALIDA' },
+      { estado: 'falhou', codigoDeErro: 'IA_SAIDA_INVALIDA' },
+    ])
     expect(JSON.stringify(consumo.registros)).not.toContain('palavra-marcada')
   })
 
@@ -336,6 +347,7 @@ describe('ProvedorDeIa: toda execução registra (regra 30, item 4)', () => {
     await erroDe(falhando.ia.generate({ tarefa: proporFerramenta, entrada, escolaId: ESCOLA_A, execucaoId: EXECUCAO }))
     expect(consumo.registros).toMatchObject([
       { tarefa: 'propor_ferramenta', funcao: 'conversa_e_ferramentas', estado: 'concluida', execucaoId: EXECUCAO },
+      { tarefa: 'propor_ferramenta', estado: 'falhou', codigoDeErro: 'IA_SAIDA_INVALIDA' },
       { tarefa: 'propor_ferramenta', estado: 'falhou', codigoDeErro: 'IA_SAIDA_INVALIDA' },
     ])
     for (const registro of consumo.registros) {
@@ -366,7 +378,10 @@ describe('ProvedorDeIa: toda execução registra (regra 30, item 4)', () => {
     const { ia, consumo } = montar({ adaptador: new ScriptedAdapter(['não é json', 'não é json']) })
     const entrada = entradaDeAtividade()
     await erroDe(ia.generate({ tarefa: gerarAtividadeObjetiva, entrada, escolaId: ESCOLA_A }))
-    expect(consumo.registros[0]?.entrada).toEqual(entrada)
+    // Uma linha por chamada: a entrada fica só na última (a inválida que ainda teve repetição não guarda nada, regra 20).
+    expect(consumo.registros).toHaveLength(2)
+    expect(consumo.registros[0]).not.toHaveProperty('entrada')
+    expect(consumo.registros[1]?.entrada).toEqual(entrada)
   })
 
   it('se o registro falhar, a saída não é devolvida: nada que não foi registrado chega ao domínio', async () => {
@@ -1135,7 +1150,11 @@ describe('LLMGateway: o limite de tokens e a degradação (49.0; RF7, RF8; regra
     expect(saida).toEqual({ tipo: 'texto', texto: RECUSA_DE_CORRECAO_DE_TEXTO_DE_ALUNO, citacoes: [] })
     expect(JSON.stringify(saida)).not.toContain('nota do aluno')
     expect(medicao.modelo).toBe('menor-rapido')
-    expect(consumo.registros).toMatchObject([{ modelo: 'menor-rapido', tentativas: 2 }])
+    // Duas chamadas ao menor, duas linhas; a execução terminou pela regra fixa da D55, e a última é a que carrega o resultado.
+    expect(consumo.registros).toMatchObject([
+      { modelo: 'menor-rapido', tentativas: 1, estado: 'falhou', codigoDeErro: 'IA_SAIDA_INVALIDA' },
+      { modelo: 'menor-rapido', tentativas: 1, estado: 'concluida' },
+    ])
   })
 
   it('a ordem: a D62 e o teto de entrada recusam antes do reservar, e nada é reservado', async () => {
@@ -1365,5 +1384,245 @@ describe('createLLMGateway: o modelo menor precisa de preço (49.0, D14)', () =>
     } finally {
       vi.useRealTimers()
     }
+  })
+})
+
+describe('LLMGateway: uma linha por chamada enviada, com o custo pelo preço vigente (camada-ia 1.0; RF5, RF6; D14)', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  /** 100 de entrada e 20 de saída por chamada (o `ScriptedAdapter`): a 1.300 e 5.200 micros por mil, (130.000 + 104.000) ÷ 1.000 = 234. */
+  const ANTIGO = { vigenteDesde: '2026-01-01T00:00:00Z', fonte: 'tabela do teste', entradaMicrosPorMilTokens: 1_300, saidaMicrosPorMilTokens: 5_200 }
+  const CUSTO_ANTIGO = 234
+  const PRECOS: TabelaDePrecos = {
+    [chaveDoPreco(PROVEDOR_ROTEIRIZADO, 'roteirizado-padrao')]: [ANTIGO],
+    [chaveDoPreco(PROVEDOR_ROTEIRIZADO, 'menor-padrao')]: [{ ...ANTIGO, entradaMicrosPorMilTokens: 300, saidaMicrosPorMilTokens: 1_200 }],
+  }
+  const pedido = () => ({ tarefa: gerarAtividadeObjetiva, entrada: entradaDeAtividade(), escolaId: ESCOLA_A, execucaoId: EXECUCAO })
+  const pedidoDoLote = () => ({ ...pedido(), fila: 'lote' as const })
+
+  it('a chamada que voltou grava o custo: 100 + 20 tokens a 1.300 e 5.200 micros por mil custam 234', async () => {
+    const { ia, consumo } = montar({ adaptador: new ScriptedAdapter([saidaDeAtividade()]), precos: PRECOS })
+    await ia.generate(pedido())
+    expect(consumo.registros).toMatchObject([{ estado: 'concluida', tentativas: 1, tokensDeEntrada: 100, tokensDeSaida: 20, custoMicros: CUSTO_ANTIGO }])
+  })
+
+  it('primeira saída inválida e a segunda válida: duas linhas, a primeira `falhou`/`IA_SAIDA_INVALIDA`, cada uma com os seus tokens e o seu custo', async () => {
+    const adaptador = new ScriptedAdapter(['não é json', saidaDeAtividade()])
+    const { ia, consumo } = montar({ adaptador, precos: PRECOS })
+    await ia.generate(pedido())
+    expect(adaptador.chamadas).toBe(2)
+    expect(consumo.registros).toMatchObject([
+      { estado: 'falhou', codigoDeErro: 'IA_SAIDA_INVALIDA', tentativas: 1, tokensDeEntrada: 100, tokensDeSaida: 20, custoMicros: CUSTO_ANTIGO, modelo: 'roteirizado-padrao', provedorId: PROVEDOR_ROTEIRIZADO, execucaoId: EXECUCAO },
+      { estado: 'concluida', tentativas: 1, tokensDeEntrada: 100, tokensDeSaida: 20, custoMicros: CUSTO_ANTIGO, modelo: 'roteirizado-padrao', provedorId: PROVEDOR_ROTEIRIZADO, execucaoId: EXECUCAO },
+    ])
+  })
+
+  it('`entrada` e `saida` ficam só na última linha: a saída inválida não é guardada para depuração (regra 20)', async () => {
+    const { ia, consumo } = montar({ adaptador: new ScriptedAdapter(['não é json', saidaDeAtividade()]), precos: PRECOS })
+    const entrada = entradaDeAtividade()
+    const { saida } = await ia.generate({ ...pedido(), entrada })
+    expect(consumo.registros).toHaveLength(2)
+    expect(consumo.registros[0]).not.toHaveProperty('entrada')
+    expect(consumo.registros[0]).not.toHaveProperty('saida')
+    expect(consumo.registros[1]).toMatchObject({ entrada, saida })
+  })
+
+  it('duas vigências do mesmo modelo: cada chamada grava o preço do seu instante, e a linha antiga não muda com o preço novo', async () => {
+    let agora = new Date('2026-10-05T11:59:59Z')
+    const novo = { ...ANTIGO, vigenteDesde: '2026-10-05T12:00:00Z', entradaMicrosPorMilTokens: 2_000, saidaMicrosPorMilTokens: 8_000 }
+    const precos: TabelaDePrecos = { [chaveDoPreco(PROVEDOR_ROTEIRIZADO, 'roteirizado-padrao')]: [ANTIGO, novo] }
+    const { ia, consumo } = montar({ adaptador: new ScriptedAdapter([saidaDeAtividade(), saidaDeAtividade()]), precos, agora: () => agora })
+    await ia.generate(pedido())
+    agora = new Date('2026-10-05T12:00:00Z')
+    await ia.generate(pedido())
+    // (100 × 2.000 + 20 × 8.000) ÷ 1.000 = 360
+    expect(consumo.registros.map((registro) => registro.custoMicros)).toEqual([CUSTO_ANTIGO, 360])
+  })
+
+  it('o mesmo modelo em dois provedores, a preços diferentes: a chave leva o provedor que atendeu', async () => {
+    const precos: TabelaDePrecos = {
+      [chaveDoPreco(PROVEDOR_ROTEIRIZADO, 'roteirizado-padrao')]: [ANTIGO],
+      // O modelo local do `ScriptedAdapter` sem envio externo tem a origem como provedor. (100 × 900 + 20 × 1.800) ÷ 1.000 = 126
+      [chaveDoPreco('openai_compat', 'roteirizado-padrao')]: [{ ...ANTIGO, entradaMicrosPorMilTokens: 900, saidaMicrosPorMilTokens: 1_800 }],
+    }
+    const externo = montar({ adaptador: new ScriptedAdapter([saidaDeAtividade()], true), precos })
+    await externo.ia.generate(pedido())
+    const local = montar({ adaptador: new ScriptedAdapter([saidaDeAtividade()], false), precos })
+    await local.ia.generate(pedido())
+    expect(externo.consumo.registros).toMatchObject([{ custoMicros: CUSTO_ANTIGO }])
+    expect(local.consumo.registros).toMatchObject([{ custoMicros: 126 }])
+  })
+
+  it('o adaptador falso e o modelo sem preço gravam custo zero', async () => {
+    const falso = montar()
+    await falso.ia.generate(pedido())
+    const semPreco = montar({ adaptador: new ScriptedAdapter([saidaDeAtividade()]), precos: {} })
+    await semPreco.ia.generate(pedido())
+    expect(falso.consumo.registros).toMatchObject([{ custoMicros: 0 }])
+    expect(semPreco.consumo.registros).toMatchObject([{ custoMicros: 0 }])
+  })
+
+  it('troca para o menor: duas linhas, cada uma com o seu modelo e o seu preço', async () => {
+    vi.useFakeTimers()
+    const limite = new LimiteDeMentira()
+    // O principal responde a primeira vez com saída inválida e fecha: a repetição não acha vaga nele e desce ao menor.
+    class FechaOPrincipalDepoisDaPrimeira extends ScriptedAdapter {
+      override async chamar<Entrada, Saida>(chamada: ModelCall<Entrada, Saida>): Promise<ModelResponse> {
+        const resposta = await super.chamar(chamada)
+        limite.fechados.add(PRINCIPAL_DO_PADRAO)
+        return resposta
+      }
+    }
+    const { ia, consumo } = montar({ adaptador: new FechaOPrincipalDepoisDaPrimeira(['não é json', saidaDeAtividade()]), limiteDeTokens: limite, modelosMenores: MENORES, precos: PRECOS })
+    const resultado = ia.generate({ ...pedido(), fila: 'ferramenta' as const })
+    await vi.advanceTimersByTimeAsync(ESPERA_MAXIMA_DA_VAGA_MS)
+    await resultado
+    // O menor a 300 e 1.200 micros por mil: (100 × 300 + 20 × 1.200) ÷ 1.000 = 54.
+    expect(consumo.registros).toMatchObject([
+      { modelo: 'roteirizado-padrao', custoMicros: CUSTO_ANTIGO, estado: 'falhou', codigoDeErro: 'IA_SAIDA_INVALIDA' },
+      { modelo: 'menor-padrao', custoMicros: 54, estado: 'concluida' },
+    ])
+  })
+
+  describe('a chamada que saiu sem voltar com uso grava a estimativa (D14: superestima)', () => {
+    it.each(['IA_TEMPO_ESGOTADO', 'IA_INDISPONIVEL'] as const)('%s depois do envio: a entrada contada, a saída no teto da tarefa e o custo disso', async (codigo) => {
+      const { ia, consumo } = montar({ adaptador: new ScriptedAdapter([new LLMError(codigo)]), precos: PRECOS })
+      await erroDe(ia.generate(pedido()))
+      const tokens = { tokensDeEntrada: tokensDoPedido(gerarAtividadeObjetiva, entradaDeAtividade()), tokensDeSaida: gerarAtividadeObjetiva.maximoDeTokensDeSaida }
+      expect(consumo.registros).toMatchObject([{ estado: 'falhou', codigoDeErro: codigo, tentativas: 1, envioExterno: true, provedorId: PROVEDOR_ROTEIRIZADO, ...tokens, custoMicros: custoDaChamada(tokens, ANTIGO) }])
+      expect(consumo.registros[0]?.custoMicros).toBeGreaterThan(0)
+      expect(consumo.registros[0]?.entrada).toEqual(entradaDeAtividade())
+    })
+
+    it('a repetição que cai leva a correção na entrada contada: a primeira inválida grava o uso real, a segunda a estimativa', async () => {
+      const { ia, consumo } = montar({ adaptador: new ScriptedAdapter(['não é json', new LLMError('IA_TEMPO_ESGOTADO')]), precos: PRECOS })
+      await erroDe(ia.generate(pedido()))
+      expect(consumo.registros).toHaveLength(2)
+      expect(consumo.registros[0]).toMatchObject({ estado: 'falhou', codigoDeErro: 'IA_SAIDA_INVALIDA', tokensDeEntrada: 100, tokensDeSaida: 20 })
+      expect(consumo.registros[0]).not.toHaveProperty('entrada')
+      expect(consumo.registros[1]).toMatchObject({ estado: 'falhou', codigoDeErro: 'IA_TEMPO_ESGOTADO', tokensDeSaida: gerarAtividadeObjetiva.maximoDeTokensDeSaida })
+      expect(consumo.registros[1]?.tokensDeEntrada).toBeGreaterThan(tokensDoPedido(gerarAtividadeObjetiva, entradaDeAtividade()))
+      expect(consumo.registros[1]?.entrada).toEqual(entradaDeAtividade())
+    })
+  })
+
+  describe('a chamada que não saiu não é chamada (D14: a conta é do que foi enviado)', () => {
+    const DISJUNTOR_ABERTO = () => new LLMError('IA_INDISPONIVEL', undefined, 'disjuntor')
+
+    it('disjuntor aberto no lote: nenhuma linha, e o job adia', async () => {
+      const { ia, consumo } = montar({ adaptador: new ScriptedAdapter([DISJUNTOR_ABERTO()]), precos: PRECOS })
+      const erro = await erroDe(ia.generate(pedidoDoLote()))
+      expect(erro.semEnvio).toBe(true)
+      expect(consumo.registros).toEqual([])
+    })
+
+    it('disjuntor aberto fora do lote: uma linha da falha, sem tokens, sem custo e sem dizer que houve envio', async () => {
+      const adaptador = new ScriptedAdapter([DISJUNTOR_ABERTO()])
+      const { ia, consumo } = montar({ adaptador, precos: PRECOS })
+      await erroDe(ia.generate(pedido()))
+      expect(adaptador.chamadas).toBe(1)
+      expect(consumo.registros).toMatchObject([{ estado: 'falhou', codigoDeErro: 'IA_INDISPONIVEL', tentativas: 0, tokensDeEntrada: 0, tokensDeSaida: 0, custoMicros: 0, envioExterno: false, provedorId: null }])
+    })
+
+    it('a chamada anterior que saiu continua tendo a sua linha, mesmo com a repetição adiada pelo disjuntor', async () => {
+      const { ia, consumo } = montar({ adaptador: new ScriptedAdapter(['não é json', DISJUNTOR_ABERTO()]), precos: PRECOS })
+      await erroDe(ia.generate(pedidoDoLote()))
+      expect(consumo.registros).toMatchObject([{ estado: 'falhou', codigoDeErro: 'IA_SAIDA_INVALIDA', tentativas: 1, custoMicros: CUSTO_ANTIGO }])
+      expect(consumo.registros).toHaveLength(1)
+    })
+  })
+
+  it('principal inválido duas vezes: duas linhas, e o limite de chamadas é o de sempre', async () => {
+    const adaptador = new ScriptedAdapter(['não é json', 'não é json', saidaDeAtividade()])
+    const { ia, consumo } = montar({ adaptador, precos: PRECOS })
+    await erroDe(ia.generate(pedido()))
+    expect(adaptador.chamadas).toBe(2)
+    expect(consumo.registros).toHaveLength(2)
+    expect(consumo.registros.map((registro) => registro.custoMicros)).toEqual([CUSTO_ANTIGO, CUSTO_ANTIGO])
+    // As duas chamadas saíram e nenhuma deu certo: as duas linhas são `falhou`/`IA_SAIDA_INVALIDA`, e a última não vira `concluida`.
+    expect(consumo.registros.map((registro) => [registro.estado, registro.codigoDeErro])).toEqual([
+      ['falhou', 'IA_SAIDA_INVALIDA'],
+      ['falhou', 'IA_SAIDA_INVALIDA'],
+    ])
+  })
+
+  it('a regra fixa não chama modelo: uma linha, sem tokens e sem custo', async () => {
+    const { ia, consumo } = montar({ adaptador: new ScriptedAdapter([]), precos: PRECOS })
+    await ia.generate({ tarefa: turnoDoTutor, entrada: entradaDoTutor('eu quero morrer'), escolaId: ESCOLA_A, alunoId: ALUNO_1 })
+    expect(consumo.registros).toMatchObject([{ origem: 'regra_fixa', tentativas: 0, tokensDeEntrada: 0, tokensDeSaida: 0, custoMicros: 0 }])
+  })
+
+  it('se o registro de uma das linhas falhar, a saída não é devolvida, e a outra linha ainda é gravada', async () => {
+    const gravadas: ConsumoDeIa[] = []
+    let chamadas = 0
+    const registro: RegistroDeConsumo = {
+      registrar: async (linha) => {
+        chamadas += 1
+        if (chamadas === 1) throw new Error('banco fora')
+        gravadas.push(linha)
+      },
+    }
+    const { ia } = montar({ adaptador: new ScriptedAdapter(['não é json', saidaDeAtividade()]), registro, precos: PRECOS })
+    const erro = await erroDe(ia.generate(pedido()))
+    expect(erro.codigoDeIa).toBe('IA_INDISPONIVEL')
+    expect(gravadas).toMatchObject([{ estado: 'concluida' }])
+  })
+})
+
+describe('createLLMGateway: fora de `local`, o modelo do principal precisa de preço (camada-ia 1.0; RF6)', () => {
+  const PORTAS = { registro: new InMemoryConsumo(), orcamento: SEMPRE, suspensao: new InMemorySuspensoes() }
+  const VIGENTE = { vigenteDesde: '2026-01-01T00:00:00Z', fonte: 'tabela do teste', entradaMicrosPorMilTokens: 1_300, saidaMicrosPorMilTokens: 5_200 }
+  const AMBIENTE = { AMBIENTE: 'producao', IA_ADAPTADOR: 'openai_compat', LLM_BASE_URL: 'https://api.provedor.example/v1', IA_PROVEDOR_ID: 'provedor-de-teste', LLM_TOKENS_POR_MINUTO: '2500000' }
+  const precosDe = (provedor: string, ...modelos: string[]): TabelaDePrecos => Object.fromEntries(modelos.map((modelo) => [chaveDoPreco(provedor, modelo), [VIGENTE]]))
+  const subir = (ambiente: Record<string, string | undefined>, precos: TabelaDePrecos, relogio?: { agora: () => Date }): void => {
+    createLLMGateway(loadLLMConfig({ ...AMBIENTE, ...ambiente }), { ...PORTAS, precos, ...(relogio === undefined ? {} : { relogio }) })
+  }
+  const recusa = (ambiente: Record<string, string | undefined>, precos: TabelaDePrecos, relogio?: { agora: () => Date }): InvalidConfigError => {
+    try {
+      subir(ambiente, precos, relogio)
+    } catch (erro) {
+      if (erro instanceof InvalidConfigError) return erro
+      throw erro
+    }
+    throw new Error('a subida deveria ter sido recusada')
+  }
+
+  it('`AMBIENTE=producao` com `openai_compat` e o modelo comum sem preço: recusa citando `LLM_MODELO`, nunca o valor', () => {
+    const erro = recusa({ LLM_MODELO: 'modelo-sem-preco' }, {})
+    expect(erro).toMatchObject({ variaveis: ['LLM_MODELO'], motivos: [MOTIVO_MODELO_SEM_PRECO] })
+    expect(JSON.stringify(erro)).not.toContain('modelo-sem-preco')
+  })
+
+  it('o perfil com modelo próprio sem preço cita a variável dele, e só a dele', () => {
+    const precos = precosDe('provedor-de-teste', 'modelo-comum')
+    expect(recusa({ LLM_MODELO: 'modelo-comum', LLM_MODELO_RAPIDO: 'modelo-do-tutor', LLM_MODELO_VISAO: 'modelo-da-foto' }, precos)).toMatchObject({ variaveis: ['LLM_MODELO_RAPIDO', 'LLM_MODELO_VISAO'], motivos: [MOTIVO_MODELO_SEM_PRECO] })
+    // O comum sem preço, com os de dois perfis cobertos: o comum ainda atende os outros dois.
+    expect(recusa({ LLM_MODELO: 'modelo-comum', LLM_MODELO_RAPIDO: 'a', LLM_MODELO_PADRAO: 'b' }, precosDe('provedor-de-teste', 'a', 'b'))).toMatchObject({ variaveis: ['LLM_MODELO'] })
+  })
+
+  it('com preço em todos os modelos, sobe; o staging também exige, e o `local` dispensa', () => {
+    const precos = precosDe('provedor-de-teste', 'modelo-comum', 'modelo-do-tutor')
+    expect(() => subir({ LLM_MODELO: 'modelo-comum', LLM_MODELO_RAPIDO: 'modelo-do-tutor' }, precos)).not.toThrow()
+    expect(recusa({ AMBIENTE: 'staging', LLM_MODELO: 'modelo-sem-preco' }, {})).toMatchObject({ variaveis: ['LLM_MODELO'] })
+    expect(() => subir({ AMBIENTE: 'local', LLM_MODELO: 'modelo-sem-preco' }, {})).not.toThrow()
+  })
+
+  it('o preço é do `provedor:modelo`: o mesmo modelo com preço em outro provedor não vale', () => {
+    expect(recusa({ LLM_MODELO: 'modelo-comum' }, precosDe('outro-provedor', 'modelo-comum'))).toMatchObject({ variaveis: ['LLM_MODELO'], motivos: [MOTIVO_MODELO_SEM_PRECO] })
+    // O provedor é o `IA_PROVEDOR_ID`, e não a origem do adaptador (`openai_compat`): o preço escrito com a origem não vale.
+    expect(recusa({ LLM_MODELO: 'modelo-comum' }, precosDe('openai_compat', 'modelo-comum'))).toMatchObject({ variaveis: ['LLM_MODELO'] })
+  })
+
+  it('o preço precisa já estar vigente: só com vigência futura, a subida é recusada', () => {
+    const futuro = { [chaveDoPreco('provedor-de-teste', 'modelo-comum')]: [{ ...VIGENTE, vigenteDesde: '2026-12-01T00:00:00Z' }] }
+    expect(recusa({ LLM_MODELO: 'modelo-comum' }, futuro, { agora: () => new Date('2026-11-20T12:00:00Z') })).toMatchObject({ variaveis: ['LLM_MODELO'] })
+    expect(() => subir({ LLM_MODELO: 'modelo-comum' }, futuro, { agora: () => new Date('2026-12-01T00:00:00Z') })).not.toThrow()
+  })
+
+  it('o principal e o menor sem preço juntos: as duas variáveis e os dois motivos, em ordem', () => {
+    const erro = recusa({ LLM_MODELO: 'modelo-sem-preco', LLM_MODELO_MENOR_PADRAO: 'menor-sem-preco' }, {})
+    expect(erro).toMatchObject({ variaveis: ['LLM_MODELO', 'LLM_MODELO_MENOR_PADRAO'], motivos: [MOTIVO_MODELO_SEM_PRECO, MOTIVO_MODELO_MENOR_SEM_PRECO] })
   })
 })

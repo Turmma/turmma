@@ -3,6 +3,9 @@ import {
   runInContext,
   DomainException,
   LLMError,
+  LLMGateway,
+  InMemorySuspensoes,
+  chaveDoPreco,
   EXECUCAO_INTERROMPIDA,
   gerarAtividadeObjetiva,
   unscopedJustification,
@@ -16,6 +19,10 @@ import {
   type ConsumoDeIa,
   type RequestContext,
   type TaskDefinition,
+  type TabelaDePrecos,
+  type FilaDeTokens,
+  type LimiteDeTokens,
+  type ResultadoDaReserva,
   type OrcamentoDeIa,
   type SuspensaoDeFuncao,
   type DatabaseTransaction,
@@ -38,6 +45,9 @@ import { ORCAMENTO_DE_IA, SUSPENSAO_DE_FUNCAO } from './ia.module.js'
 import { OrcamentoRepository } from './orcamento.repository.js'
 import { RegistroDeComandos, tarefasSemComando, TAREFAS_SEM_CHAMADOR } from './registro-de-comandos.js'
 import { SuspensaoRepository } from './suspensao.repository.js'
+import type { ModelAdapter, ModelCall, ModelResponse } from '../../../../packages/core/src/ia/adapter.js'
+import type { Perfil } from '../../../../packages/core/src/ia/perfis.js'
+import { atividadeDeEstequiometria, entradaDeAtividade } from '../../../../packages/core/src/ia/__fixtures__/inputs.js'
 
 /**
  * A camada de IA ligada ao banco e à API (MVP, fase 1): as quatro portas em Postgres, o `GET /v1/execucoes/:id` e o
@@ -487,6 +497,7 @@ describe('camada de IA na API', () => {
       promptVersao: '2026-10-04.1',
       tokensDeEntrada: 120,
       tokensDeSaida: 80,
+      custoMicros: 0,
       duracaoMs: 15,
       envioExterno: false as const,
       provedorId: null,
@@ -538,6 +549,113 @@ describe('camada de IA na API', () => {
         { provedor: null, envio_externo: false },
         { provedor: null, envio_externo: false },
       ])
+    })
+
+    it('grava o custo em micros que a linha traz, e zero quando ela não tem preço', async () => {
+      const modelo = `modelo-${randomUUID()}`
+      await registrarEm(a, consumoDe({ modelo, custoMicros: 5_200 }))
+      await registrarEm(a, consumoDe({ modelo, custoMicros: 0, tentativas: 0, origem: 'regra_fixa' }))
+      const { rows } = await sql('select custo_micros::int as custo from consumo_ia where escola_id = $1 and modelo = $2 order by custo_micros', [a.escolaId, modelo])
+      expect(rows).toEqual([{ custo: 0 }, { custo: 5_200 }])
+    })
+
+    describe('o gateway sobre o banco: uma linha por chamada enviada, com o custo pelo preço vigente (camada-ia 1.0)', () => {
+      const PROVEDOR = 'provedor-de-teste'
+      const MODELO = `modelo-${randomUUID().slice(0, 8)}`
+      const VIGENTE = { vigenteDesde: '2026-01-01T00:00:00Z', fonte: 'tabela do teste', entradaMicrosPorMilTokens: 1_300, saidaMicrosPorMilTokens: 5_200 }
+      const MENOR = `menor-${MODELO}`
+      const PRECOS: TabelaDePrecos = { [chaveDoPreco(PROVEDOR, MODELO)]: [VIGENTE], [chaveDoPreco(PROVEDOR, MENOR)]: [{ ...VIGENTE, entradaMicrosPorMilTokens: 300, saidaMicrosPorMilTokens: 1_200 }] }
+
+      /** Devolve, em ordem, o roteiro: texto vira a resposta (100 de entrada e 20 de saída), `Error` é lançado. Externo, com o provedor do teste. */
+      class Roteirizado implements ModelAdapter {
+        readonly origem = 'openai_compat'
+        readonly envio = { envioExterno: true, provedorId: PROVEDOR } as const
+        chamadas = 0
+        constructor(private readonly roteiro: readonly (string | Error)[]) {}
+        modeloDoPerfil(_perfil: Perfil): string {
+          return MODELO
+        }
+        async chamar<Entrada, Saida>(chamada: ModelCall<Entrada, Saida>): Promise<ModelResponse> {
+          const item = this.roteiro[this.chamadas]
+          this.chamadas += 1
+          if (item === undefined) throw new Error('o roteiro do teste acabou')
+          if (item instanceof Error) throw item
+          return { texto: item, modelo: chamada.modelo ?? MODELO, tokensDeEntrada: 100, tokensDeSaida: 20 }
+        }
+      }
+
+      /** O principal dá a vaga uma vez e fecha: a repetição não acha vaga nele e desce ao menor do perfil (o degrau 2 espera `ESPERA_MAXIMA_DA_VAGA_MS`, em tempo de verdade). */
+      class FechaOPrincipalDepoisDaPrimeira implements LimiteDeTokens {
+        #concedidas = 0
+        async reservar(modelo: string, _estimativa: number, _fila: FilaDeTokens): Promise<ResultadoDaReserva> {
+          // O balde é do `provedor:modelo`.
+          const doPrincipal = modelo === `${PROVEDOR}:${MODELO}`
+          if (doPrincipal && this.#concedidas >= 1) return { concedida: false, msAteLiberar: 1_000 }
+          if (doPrincipal) this.#concedidas += 1
+          return { concedida: true, usoDoTeto: 0.1, reserva: { acertar: async () => undefined } }
+        }
+      }
+
+      const gerar = async (escola: Escola, roteiro: readonly (string | Error)[], opcoes: { menor?: boolean } = {}) => {
+        const execucao = await execucaoPendente(escola, escola.professor)
+        const gateway = new LLMGateway({
+          adaptador: new Roteirizado(roteiro),
+          registro: new ConsumoRepository(bancada.banco),
+          orcamento: { check: async () => ({ permitido: true as const }) },
+          suspensao: new InMemorySuspensoes(),
+          precos: PRECOS,
+          ...(opcoes.menor === true ? { limiteDeTokens: new FechaOPrincipalDepoisDaPrimeira(), modelosMenores: { padrao: MENOR } } : {}),
+        })
+        const fila = opcoes.menor === true ? { fila: 'ferramenta' as const } : {}
+        const resultado = await noContextoDe(escola, () => gateway.generate({ tarefa: gerarAtividadeObjetiva, entrada: entradaDeAtividade(), escolaId: escola.escolaId, execucaoId: execucao.id, ...fila })).then(
+          () => 'ok',
+          (erro: unknown) => (erro instanceof LLMError ? erro.codigoDeIa : 'erro cru'),
+        )
+        // `concluida` antes de `falhou` na ordem alfabética: a ordem do `em` não desempata duas linhas do mesmo milissegundo.
+        const { rows } = await sql(
+          `select estado, codigo_de_erro, tentativas, tokens_de_entrada, tokens_de_saida, custo_micros::int as custo, provedor, modelo, (entrada is not null) as tem_entrada, (saida is not null) as tem_saida
+             from consumo_ia where escola_id = $1 and execucao_id = $2 order by estado`,
+          [escola.escolaId, execucao.id],
+        )
+        return { resultado, linhas: rows }
+      }
+
+      it('a primeira saída inválida e a segunda válida: duas linhas no banco, cada uma com os seus tokens e o seu custo, e a entrada e a saída só na última', async () => {
+        const { resultado, linhas } = await gerar(a, ['não é json', JSON.stringify(atividadeDeEstequiometria())])
+        expect(resultado).toBe('ok')
+        // (100 × 1.300 + 20 × 5.200) ÷ 1.000 = 234
+        expect(linhas).toEqual([
+          { estado: 'concluida', codigo_de_erro: null, tentativas: 1, tokens_de_entrada: 100, tokens_de_saida: 20, custo: 234, provedor: PROVEDOR, modelo: MODELO, tem_entrada: true, tem_saida: true },
+          { estado: 'falhou', codigo_de_erro: 'IA_SAIDA_INVALIDA', tentativas: 1, tokens_de_entrada: 100, tokens_de_saida: 20, custo: 234, provedor: PROVEDOR, modelo: MODELO, tem_entrada: false, tem_saida: false },
+        ])
+      })
+
+      it('a troca para o modelo menor: duas linhas no banco, cada uma com o seu modelo e o seu custo pelo preço dele', async () => {
+        const { resultado, linhas } = await gerar(a, ['não é json', JSON.stringify(atividadeDeEstequiometria())], { menor: true })
+        expect(resultado).toBe('ok')
+        // O menor a 300 e 1.200 micros por mil: (100 × 300 + 20 × 1.200) ÷ 1.000 = 54; o principal, 234.
+        expect(linhas).toMatchObject([
+          { estado: 'concluida', modelo: MENOR, custo: 54, tem_entrada: true },
+          { estado: 'falhou', codigo_de_erro: 'IA_SAIDA_INVALIDA', modelo: MODELO, custo: 234, tem_entrada: false },
+        ])
+      }, 30_000)
+
+      it('o prazo esgotado depois do envio: a linha tem a entrada contada, a saída no teto da tarefa e custo maior que zero', async () => {
+        const { resultado, linhas } = await gerar(a, [new LLMError('IA_TEMPO_ESGOTADO')])
+        expect(resultado).toBe('IA_TEMPO_ESGOTADO')
+        expect(linhas).toHaveLength(1)
+        expect(linhas[0]).toMatchObject({ estado: 'falhou', codigo_de_erro: 'IA_TEMPO_ESGOTADO', tentativas: 1, tokens_de_saida: gerarAtividadeObjetiva.maximoDeTokensDeSaida, provedor: PROVEDOR, tem_saida: false })
+        expect(Number(linhas[0]?.['tokens_de_entrada'])).toBeGreaterThan(0)
+        expect(Number(linhas[0]?.['custo'])).toBeGreaterThan(0)
+      })
+
+      it('a linha é da escola de quem gastou: a escola A ganha a linha, e a outra escola não ganha nenhuma', async () => {
+        const antesDeA = await contar('consumo_ia', a.escolaId)
+        const antesDeB = await contar('consumo_ia', b.escolaId)
+        await gerar(a, [JSON.stringify(atividadeDeEstequiometria())])
+        expect(await contar('consumo_ia', a.escolaId)).toBe(antesDeA + 1)
+        expect(await contar('consumo_ia', b.escolaId)).toBe(antesDeB)
+      })
     })
 
     it('o consumo de A não aponta para execução de B: o banco recusa', async () => {
@@ -737,6 +855,7 @@ describe('camada de IA na API', () => {
           promptVersao: '2026-10-04.1',
           tokensDeEntrada: 10,
           tokensDeSaida: 5,
+          custoMicros: 0,
           duracaoMs: 3,
           envioExterno: false,
           provedorId: null,

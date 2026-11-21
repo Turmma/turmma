@@ -2954,18 +2954,28 @@ linhas). A M2 da F4 (o inventário no portão) vem logo depois: é a família de
       revisores`, e o `revisar-tarefa`, passo 1.3, manda `DEVOLUÇÃO` com a linha e o arquivo, sem chamar revisor. Casos: a linha que cita os dois
       com só um mudado; a que cita `cenarios.md:140` com o diff em outro trecho. Na F4b, 5 reprovações do `revisor-geral` em 4 tarefas e uma
       escalada. Guardiões: `revisor-geral`, `test-engineer`
-- [ ] (F4b, retro, M3) **O commit de código de processo fora de tarefa é recusado em qualquer sessão.** `tools/processo/portao.ts`
+- [x] (F4b, retro, M3) **O commit de código de processo fora de tarefa é recusado em qualquer sessão.** `tools/processo/portao.ts`
       (`decidirCommit`): todo commit de sessão do Claude Code, o Orquestrador incluído, passa pela conta do `conferir-entregas`
       (`ehCodigoParaAEsteira`); arquivo de código sem `(tarefa N.0)` ou `(correção <slug>)` é recusado, com o caminho (abrir a correção:
       `docs/aia/ouro-retido/` leva o `conformidade-reviewer`; ou pedir ao Joaquim o commit no terminal dele, com `Fora do processo:`). Casos: o
       commit do Orquestrador só com `docs/aia/ouro-retido/x.json`, recusado; o mesmo com `(correção …)`, aceito. Na F4b, `3209137c` e `080e774f`
-      deixaram o `verificar` vermelho em 14 execuções e cego três dias. Guardiões: `revisor-geral`, `test-engineer`
-- [ ] (F4b, retro, M4) **O censo lê a execução mais nova com o e2e verde**, na mesma correção da M3. `tools/ci/esteira.ts --censo`: a execução
+      deixaram o `verificar` vermelho em 14 execuções e cego três dias. Guardiões: `revisor-geral`, `test-engineer` *Feita na correção `2026-11-21-commit-de-processo-fora-de-tarefa` (21/11/2026).*
+- [x] (F4b, retro, M4) **O censo lê a execução mais nova com o e2e verde**, na mesma correção da M3. `tools/ci/esteira.ts --censo`: a execução
       mais nova com todas as fatias de e2e verdes, mesmo com outro job vermelho, dizendo no topo qual leu e o que estava vermelho nela. Caso com
-      `verificar` vermelho e e2e verde. Guardiões: `infra-guardian`, `revisor-geral`, `test-engineer`
+      `verificar` vermelho e e2e verde. Guardiões: `infra-guardian`, `revisor-geral`, `test-engineer` *Feita na correção `2026-11-21-commit-de-processo-fora-de-tarefa` (21/11/2026).*
 - [ ] (F4b, retro, M5) **O achado grava caminho relativo.** `tools/processo/revisoes.ts`: ao gravar o bloco em `achados/`, a raiz do checkout
       (a do andar ou da linha, `…/.maestri/floors/<andar>/`) sai, e o caminho fica relativo à raiz do repositório. Caso: o achado com o caminho
       absoluto de uma linha sai relativo. O repositório é público. Guardiões: `revisor-geral`, `test-engineer`
+
+## Da correção 2026-11-21-commit-de-processo-fora-de-tarefa (M3 e M4 da retro da F4b), fora dela
+
+- [ ] (correção `2026-11-21-commit-de-processo-fora-de-tarefa`, infra-guardian e test-engineer, 1ª, 21/11/2026) **`ultimaComE2eVerde` faz um `gh run view --json jobs` por execução terminada, até as 30 do `--limit`.** Com o e2e vermelho por muito tempo são até 30 chamadas por censo: pedir os jobs junto do `gh run list`, ou parar depois de N execuções sem e2e verde, e anotar o teto. Muda o custo e o contrato do `--censo`, e só pesa com e2e vermelho por muito tempo; não bloqueia
+- [ ] (idem, conformidade-reviewer, 1ª) **Gerar a mensagem de recusa do `portao.ts` a partir da tabela de `guardioes-por-caminho.ts`**, em vez de escrever à mão que `docs/aia/ouro-retido/` leva o `conformidade-reviewer`. Muda o desenho da mensagem e o seu teste; hoje a mensagem e a tabela concordam
+- [ ] (idem, conformidade-reviewer, 1ª) **Nota para a retro: o commit por `env -u`, script ou `sh -c` não passa pelo `PreToolUse`**; só a esteira (`conferir-entregas`) segura o ouro da AIA. Já valia em sessão de papel, e o documento da correção declara o limite; não é regressão
+- [ ] (idem, revisor-geral, 1ª) **`tasks/prd-harness/prd.md:55`: o RF9 diz "na última esteira verde da spec".** Nota de revisão apontando a M4 da F4b (o censo lê a execução mais nova com o e2e verde). Dono: Arquiteto; o PRD é documento dele, e a nota depende de o Joaquim aceitar a mudança
+- [ ] (idem, revisor-geral, 1ª) **`.github/workflows/ci.yml:186`: o comentário diz "última execução verde"**, junto do item acima. A correção o deixou como está, porque tocar `.github/` caduca todos os revisores por um comentário; entra na próxima que mexer no `ci.yml`
+- [ ] (idem, revisor-geral, 2ª) **`tasks/prd-harness/techspec.md:196-197`: a frase "mesmo com outro job vermelho, o `verificar` por exemplo, que o `gh run view --json jobs` diz" ficou truncada.** Sugestão: "e o que estava vermelho vem do `gh run view --json jobs`". Junto dos dois itens acima: é texto de documento já aprovado, e mexer nele agora anularia as seis aprovações por uma frase
+- [ ] (idem, test-engineer, 2ª) **O documento da correção descreve os dois casos novos de `hook-portao.test.ts` sem citar o nome deles** ("sem papel, passa calado: $etiqueta" e "sem papel (%s), o desvio com -a não é negado como desvio…"). É a validação que liga linha a teste; o RF não depende disso
 
 ## Da retrospectiva da X6 (reengenharia-continuacao, 17/11/2026)
 
@@ -4213,3 +4223,10 @@ Orquestrador em 17/11/2026; não seguram o pouso (D79).
 - [ ] (correção `divergencia-cobra-cada-arquivo`, privacy-guardian, 1ª, 21/11/2026) **`citacoesDaLinha` aceita `../x.md` na última célula:** normalizar o caminho do `.md` citado e recusar o que sai da raiz do repositório. Muda comportamento (recusa citação); o revisor diz que não vaza nada (leitura local, saída booleana). Dono: Arquiteto, na retro da F5.
 - [ ] (correção `divergencia-cobra-cada-arquivo`, test-engineer, 1ª, 21/11/2026) **Caso que rode `portao-local.ts revisores` num repositório temporário**, no lugar da prova textual do fonte (`a ligação no portão`, em `divergencias.test.ts`): o caso atual segue o padrão do que já havia para o portão. Dono: Arquiteto, na retro da F5.
 - [ ] (correção `divergencia-cobra-cada-arquivo`, revisor-geral e test-engineer, 2ª, 21/11/2026) **`trechoTocadoNoDiff` e o arquivo renomeado:** o `.md` movido com `git mv` e citado pelo nome novo (`arquivo:linha`) não está no HEAD e vale como tocado em qualquer linha, o que pode calar um `arquivo:linha` que o diff não toca. Só está no comentário do fonte; raro na spec. Dono: Arquiteto, na retro da F5.
+## Da camada-ia, tarefa 1.0 (o custo por chamada), fora dela
+
+- [ ] (camada-ia, 1.0, privacy-guardian, 1ª) **`docs/lgpd.md`, linha 99:** dizer que a execução pode ter mais de uma linha de consumo, uma por chamada enviada, e que a linha da saída inválida não guarda `entrada` nem `saida`; nenhum campo pessoal novo entrou (dono: Arquiteto; arquivo que a 1.0 não toca).
+- [ ] (camada-ia, 1.0, conformidade-reviewer, 1ª) **`packages/core/src/db/schema/mensagem-tutor.ts:28`** diz que o freio do dia "conta as chamadas dele em `consumo_ia`"; o freio conta `mensagem_tutor` (`OrcamentoRepository`). Erro anterior à 1.0, em arquivo que ela não tocou.
+- [ ] (camada-ia, 1.0, infra-guardian, 1ª) **`registrarLinhas(...).catch(() => undefined)`** (`llm-gateway.ts`, o registro da falha) descarta sem rastro a linha que não gravou: um contador `ia.consumo.registro_falhou{funcao}` e o parágrafo do runbook. Métrica nova muda o contrato de observabilidade (regra 80, item 10).
+- [ ] (camada-ia, 1.0, infra-guardian e llm-integrator, 1ª) **A subida com `openai_compat` fora de `local` só funciona depois que o modelo real (o Ollama inclusive) entra em `PRECO_DOS_MODELOS`:** item no checklist de deploy da F18 e aviso no `.env.example`. O runbook da 1.0 já traz a recusa na subida.
+- [ ] (camada-ia, 1.0, test-engineer, 1ª) **`apps/api/src/ia/ia.int.test.ts` importa de `../../../../packages/core/src/...`** (o adaptador, o perfil e as fixtures) em vez de `@educa/core`: exportar o que falta na superfície de `@educa/core` e trocar os imports.

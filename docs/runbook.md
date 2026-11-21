@@ -1364,6 +1364,35 @@ Redis cai numa execução já encerrada, a transição `pendente → rodando` n�
 
 **Depois:** registre no `TODO.md` a janela (de quando a quando) e quantas execuções e quantos jobs o bloco fechou, só contagens.
 
+## Voltar o código depois da camada-ia 1.0 (rollback)
+
+*Procedimento, não alerta: não há regra em `infra/grafana/alertas/`. Vale para a volta da versão em que o gateway grava uma linha de `consumo_ia` por chamada enviada, com o custo pelo
+preço vigente (camada-ia, tarefa 1.0) para a anterior, de uma linha por execução e custo zero. A 1.0 não tem migration: `custo_micros` já existia, com zero por padrão. Não há nada a reverter
+no banco, e por isso não há bloco de SQL.*
+
+**Deploy e volta fora do horário letivo** (regra 80, item 9).
+
+**O que o código anterior faz com o que a 1.0 deixou:**
+
+- **As linhas de consumo**: a anterior lê as mesmas colunas e as aceita. A execução com saída inválida e repetição, ou com troca para o modelo menor, tem duas linhas (cada uma com os seus
+  tokens e o seu custo); a anterior espera uma só.
+- **A Governança conta linhas como execuções** (`count(*)`): enquanto o mês tiver linhas de duas chamadas, o número de "execuções" fica um pouco acima do real. Os tokens somam certo, porque
+  cada chamada gastou os seus.
+- **O custo do mês**: a anterior soma `custo_micros` como sempre somou. Com o custo que a 1.0 gravou, a tela de Governança passa a dizer "Custo do mês: R$ …" no lugar de "não é medido
+  nesta versão", e o número é o certo para as chamadas gravadas pela 1.0. As gravadas antes dela continuam em zero.
+- **A web antiga com a API nova** (deploy fora de ordem): o contrato de `GET /v1/governanca/consumo` troca `chamadas` por `execucoes`, e a resposta é estrita. A web anterior à 1.0 não
+  reconhece o campo, a validação falha e o Painel ("Consumo do mês") e a Governança caem no `ErrorState`, com o botão de tentar de novo, até a web nova subir. A API e a web sobem juntas. O mesmo vale
+  para a tarefa 6.0, que muda o contrato de novo.
+- **A subida da API e do worker**: a anterior não exige preço do modelo do principal. A 1.0 recusa a subida, fora de `AMBIENTE=local` com `openai_compat`, se o modelo de algum perfil não tem
+  preço em `PRECO_DOS_MODELOS`. Voltar o código tira a exigência; subir a 1.0 de novo sem a entrada do modelo na tabela falha na subida, citando `LLM_MODELO` ou `LLM_MODELO_<PERFIL>`.
+
+**Na volta para a versão nova (roll-forward):** não há bloco a rodar. As linhas das duas versões convivem, e a Governança volta a contar execuções.
+
+**Não faça:** apagar linhas de `consumo_ia` para "voltar a uma linha por execução". A soma do mês, a lista de quem recebeu dado do aluno (`consumo_ia.provedor`) e a auditoria do que a IA
+gastou dependem delas.
+
+**Depois:** nada a registrar, além da janela no `TODO.md` se o mês da Governança foi lido durante a volta.
+
 ## A D62 na subida: o `worker-ia` parado (procedimento)
 
 *Procedimento, não alerta: não há regra própria em `infra/grafana/alertas/`; o sinal é o healthcheck do `worker-ia` (o batimento não bate) e, com a fila esperando, o alerta "Job

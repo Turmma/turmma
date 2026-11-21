@@ -63,7 +63,7 @@ const INCIDENTE_SEM_CONFIRMACAO = {
   avisadoEm: MOMENTO,
   confirmadoEm: null,
 }
-const CONSUMO_DO_MES = { chamadas: 2, tokensDeEntrada: 1000, tokensDeSaida: 500, custoMicros: 0, comEnvioExterno: 0 }
+const CONSUMO_DO_MES = { execucoes: 2, tokensDeEntrada: 1000, tokensDeSaida: 500, custoMicros: 0, comEnvioExterno: 0 }
 
 const ok = (itens: readonly unknown[], extra: Record<string, unknown> = {}): FakeResponse => ({ status: 200, corpo: { itens, ...extra } })
 const FORA = { status: 404, corpo: { erro: { codigo: 'NAO_ENCONTRADO', mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } }

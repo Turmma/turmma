@@ -177,6 +177,7 @@ export class TutorService {
         promptVersao: turnoDoTutor.prompt.versao,
         tokensDeEntrada: 0,
         tokensDeSaida: 0,
+        custoMicros: 0,
         duracaoMs: Math.round(performance.now() - inicio),
         envioExterno: false,
         provedorId: null,

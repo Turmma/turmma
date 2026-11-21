@@ -174,7 +174,8 @@ produto não é cobrada (não há linha nova a provar). A linha `Sem mutação` 
 o exemplo do guia para o documento a libera por engano; o motivo é o que o revisor lê. O caminho do `.md` pedido ao
 portão é normalizado para relativo à raiz antes de ir ao carimbo.
 
-**(e) O RF16.** `PASTAS_DE_CODIGO` vale para toda sessão. Em sessão de papel somam-se `tools/`, `.github/`,
+**(e) O RF16.** `PASTAS_DE_CODIGO` vale para toda sessão. Em sessão de papel e em toda sessão do Claude Code, o Orquestrador inclusive (o `PreToolUse` passa
+`sessaoDoClaudeCode` à `decidirCommit`; correção `2026-11-21-commit-de-processo-fora-de-tarefa`), somam-se `tools/`, `.github/`,
 `.claude/settings*.json`, `.claude/hooks/`, `docs/aia/ouro/`, `docs/aia/ouro-retido/`, `package.json`, `compose.yaml`, `.env.example`,
 `eslint.config.mjs`, `eslint-suppressions.json`, `vitest.config.ts`, `playwright.config.ts`, `tsconfig*.json`,
 `knip.json`, `.gitleaks.toml` e `.size-limit.json`. Os guardiões de cada um estão na tabela. Skill, papel,
@@ -198,13 +199,17 @@ regra, AIA e o resto de `docs/` continuam documento.
   No código (4.0): o passo do `npm run ci:e2e` liga o repórter com `EDUCA_RELATORIO_DO_E2E: censo-do-e2e.json` (a única `env`
   do YAML, e o teste de "sem segredo nem ambiente" a aceita só ali), e o passo seguinte publica `censo-do-e2e-<fatia>` com
   `path: censo-do-e2e.json`, `if: success() || failure()` (o cancelado por prazo não termina o relatório) e
-  `overwrite: true` (reexecutar a fatia vermelha que passa publica o mesmo nome). O `--censo` acha a última execução
-  verde, lê os artefatos das sete fatias (`gh api …/artifacts`, `gh run download --name`) e lista o caso com
+  `overwrite: true` (reexecutar a fatia vermelha que passa publica o mesmo nome). O `--censo` acha a execução **terminada mais nova
+  com o e2e verde** (`ultimaComE2eVerde`, M4 da retro da F4b, correção `2026-11-21-commit-de-processo-fora-de-tarefa`): entram a verde e a
+  vermelha, ficam de fora a rodando e a cancelada, e vale a que tem o job `e2e <fatia>/<total> (…)` de **toda** fatia de `FATIAS_DO_E2E` em
+  `success` (job pulado, cancelado ou ausente não vale pela fatia), mesmo com outro job vermelho, o `verificar` por exemplo, que o
+  `gh run view --json jobs` diz. Ele lê os artefatos das fatias (`gh api …/artifacts`, `gh run download --name`) e lista o caso com
   `duracaoMs * 3 > prazoMs * 2`, **lendo o prazo do próprio relatório** (`casosMedidos`: o `timeout` que o Playwright
   deu ao caso, com `slow` e `setTimeout` aplicados), e não o do fonte (`prazosDosCasos`, que é do HEAD e não do commit
-  da execução). Sai 0 sem caso na lista, 1 com a lista, e 2 quando não há o que ler: sem execução verde, fatia sem
+  da execução). Sai 0 sem caso na lista, 1 com a lista, e 2 quando não há o que ler: "nenhuma execução com o e2e verde", fatia sem
   artefato ou de artefato expirado (o texto diz quais, em separado), e nenhuma fatia é lida então, porque lista de uma
-  parte da suíte passaria pela suíte inteira
+  parte da suíte passaria pela suíte inteira. O topo do relatório diz qual execução leu e o que estava vermelho fora do e2e
+  (`foraDoE2e`: `leu a execução <id> (<sha>), com o e2e verde; vermelho fora do e2e: <jobs>.`)
 - **Retitulado (RF11):** sem o título no HEAD, vale o caso cujo corpo sem o título é idêntico; corpo mudado, ou dois
   corpos iguais, não herdam prazo. No código (4.0): o corpo é o texto do caso sem comentário, até o próximo `test(` ou
   `test.describe`; o título novo herda só se o HEAD tinha **um** caso com aquele corpo e a árvore (`git ls-files

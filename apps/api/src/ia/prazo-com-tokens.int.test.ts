@@ -186,9 +186,10 @@ describe('o prazo único cobre a espera pela vaga de tokens (49.0)', () => {
     expect(estado.fimEm).toBeUndefined()
     await vi.advanceTimersByTimeAsync(1)
     expect(estado).toMatchObject({ fimEm: 140_000, ok: false, codigo: 'IA_TEMPO_ESGOTADO' })
-    // A 2.ª chamada não saiu: o consumo conta só a que saiu.
+    // A 2.ª chamada não saiu, e não é chamada (camada-ia 1.0): o consumo tem só a linha da que saiu, e ela falhou pela saída inválida; o prazo esgotado é do erro que sobe, e não de uma linha.
     expect(adaptador.chamadasDe).toHaveLength(1)
-    expect(consumo.registros).toMatchObject([{ estado: 'falhou', codigoDeErro: 'IA_TEMPO_ESGOTADO', tentativas: 1 }])
+    expect(consumo.registros).toMatchObject([{ estado: 'falhou', codigoDeErro: 'IA_SAIDA_INVALIDA', tentativas: 1 }])
+    expect(consumo.registros).toHaveLength(1)
   })
 
   it('sem o prazo apertado, a espera acaba sozinha aos 8 s: o degrau de IA_INDISPONIVEL cabe dentro dos 140 s, sem erro cru', async () => {

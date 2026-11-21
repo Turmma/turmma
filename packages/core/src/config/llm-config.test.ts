@@ -80,6 +80,7 @@ describe('loadLLMConfig', () => {
       modelo: {
         baseUrl: 'http://127.0.0.1:8080/v1',
         modelos: { rapido: 'qwen3-8b', padrao: 'qwen3-8b', complexo: 'qwen3-8b', visao: 'qwen3-8b' },
+        variaveisDosModelos: { rapido: 'LLM_MODELO', padrao: 'LLM_MODELO', complexo: 'LLM_MODELO', visao: 'LLM_MODELO' },
         processamentoLocal: true,
       },
     })
@@ -101,6 +102,18 @@ describe('loadLLMConfig', () => {
   it('o id por perfil vence o comum, e só o perfil declarado muda', () => {
     const { modelo } = loadLLMConfig({ ...LLAMA, LLM_MODELO_RAPIDO: 'qwen3-4b', LLM_MODELO_VISAO: 'qwen-vl' })
     expect(modelo?.modelos).toEqual({ rapido: 'qwen3-4b', padrao: 'qwen3-8b', complexo: 'qwen3-8b', visao: 'qwen-vl' })
+  })
+
+  it('de qual variável vem o modelo de cada perfil: a do perfil quando ele tem a sua, a comum nos outros (é a que a subida cita quando falta preço)', () => {
+    const { modelo } = loadLLMConfig({ ...LLAMA, LLM_MODELO_RAPIDO: 'qwen3-4b', LLM_MODELO_VISAO: 'qwen-vl' })
+    expect(modelo?.variaveisDosModelos).toEqual({ rapido: 'LLM_MODELO_RAPIDO', padrao: 'LLM_MODELO', complexo: 'LLM_MODELO', visao: 'LLM_MODELO_VISAO' })
+  })
+
+  it('fora de `local`, com `openai_compat`, o preço do modelo é exigido na subida; em `local` e com o adaptador falso, não', () => {
+    expect(loadLLMConfig({ ...LLAMA, ...TOKENS, AMBIENTE: 'producao' })).toHaveProperty('exigePreco', true)
+    expect(loadLLMConfig({ ...LLAMA, ...TOKENS, AMBIENTE: 'staging' })).toHaveProperty('exigePreco', true)
+    expect(loadLLMConfig(LLAMA)).not.toHaveProperty('exigePreco')
+    expect(loadLLMConfig({ ...LOCAL, ...TOKENS, AMBIENTE: 'staging' })).not.toHaveProperty('exigePreco')
   })
 
   it('sem o id comum, os quatro perfis precisam estar declarados', () => {

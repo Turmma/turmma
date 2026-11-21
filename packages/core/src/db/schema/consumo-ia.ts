@@ -24,11 +24,17 @@ import { usuario } from './usuario.js'
  * - **Não existe consumo por professor** (D64): a tabela não tem coluna de usuário. `aluno_id` só existe nas funções do
  *   Tutor (check), e vira nulo se o aluno for eliminado (`on delete set null (aluno_id)`, escrito à mão na 0022): o custo
  *   da escola fica, sem a pessoa.
- * - **O freio diário do Tutor (D38)** conta as chamadas do aluno no dia, uma por troca, inclusive a de regra fixa: o
- *   índice parcial `(escola_id, aluno_id, em)` é dele. O limite vem de `configuracao_operacional_escola.tutor_trocas_por_dia`,
- *   nunca de constante. O pacote do mês da turma conta as mensagens do aluno em `mensagem_tutor`, que tem a turma.
+ * - **O freio diário do Tutor (D38) e o pacote do mês da turma não contam linhas desta tabela**: contam as perguntas do aluno em `mensagem_tutor` (`OrcamentoRepository`), e por isso várias linhas
+ *   por execução não mudam o freio. O limite do dia vem de `configuracao_operacional_escola.tutor_trocas_por_dia`, nunca de constante. O índice parcial `(escola_id, aluno_id, em)` desce a leitura
+ *   do consumo do aluno (o arquivo do titular e a lista de quem recebeu o dado dele).
+ * - **Uma linha por chamada enviada ao modelo** (camada-ia 1.0): a saída inválida seguida de repetição e a troca para o modelo menor deixam duas linhas da mesma execução, cada uma com o seu
+ *   modelo, os seus tokens e o seu custo; `entrada` e `saida` ficam só na última. A chamada que saiu e não voltou com uso (prazo, conexão, servidor) grava a estimativa: a entrada contada e a saída
+ *   no teto da tarefa. A que não saiu (disjuntor aberto, balde cheio) não é chamada: no lote não deixa linha, e nas outras filas deixa uma só, sem tokens, sem custo e sem envio.
+ *   **Nenhuma linha guarda o código final da execução**: a saída inválida seguida de repetição que não sai (prazo, disjuntor) deixa a linha da primeira chamada em `IA_SAIDA_INVALIDA`, e o motivo
+ *   que encerrou a execução (`IA_TEMPO_ESGOTADO`, `IA_INDISPONIVEL`) vive em `execucao_agente.erro` e no erro que sobe, nunca aqui.
  * - `custo_micros` é o custo em **milionésimos de real**, inteiro: a soma de milhares de chamadas de fração de centavo
- *   não perde nada. Zero no adaptador falso, no modelo local e na regra fixa, e é o padrão da coluna.
+ *   não perde nada. É o da chamada pelo preço vigente no instante dela (`PRECO_DOS_MODELOS`, `custoDaChamada`, para cima), e não muda depois. Zero no adaptador falso, no modelo local sem preço e na regra
+ *   fixa, e é o padrão da coluna.
  * - `codigo_de_erro` é um `ErrorCode` da camada de IA, e o check só aceita o formato de código: a mensagem do provedor
  *   não cabe.
  * - Sem `ano_letivo_id`: é série no tempo, somada por mês, como `uso_infra_diario`.

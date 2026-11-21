@@ -60,15 +60,15 @@ describe('a linha da governança diz que uma pessoa decidiu, nunca quem (D45, D6
 
 describe('o consumo', () => {
   it('soma os tokens de entrada e de saída e diz as execuções', () => {
-    expect(textoDoConsumo({ chamadas: 1, tokensDeEntrada: 1200, tokensDeSaida: 34 })).toBe('1.234 tokens · 1 execução')
-    expect(textoDoConsumo({ chamadas: 8, tokensDeEntrada: 0, tokensDeSaida: 1 })).toBe('1 token · 8 execuções')
+    expect(textoDoConsumo({ execucoes: 1, tokensDeEntrada: 1200, tokensDeSaida: 34 })).toBe('1.234 tokens · 1 execução')
+    expect(textoDoConsumo({ execucoes: 8, tokensDeEntrada: 0, tokensDeSaida: 1 })).toBe('1 token · 8 execuções')
   })
 
   it('com o custo em zero, a tela diz que não é medido, e nunca "R$ 0,00"', () => {
-    const texto = textoDoCusto({ custoMicros: 0, chamadas: 12 })
+    const texto = textoDoCusto({ custoMicros: 0 })
     expect(texto).toContain('não é medido')
     expect(texto).not.toContain('R$')
-    expect(textoDoCusto({ custoMicros: 12_340_000, chamadas: 12 })).toMatch(/^Custo do mês: R\$\s12,34\.$/)
+    expect(textoDoCusto({ custoMicros: 12_340_000 })).toMatch(/^Custo do mês: R\$\s12,34\.$/)
   })
 
   it('o pacote do Tutor é dito em trocas, contra o pacote da escola', () => {

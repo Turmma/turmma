@@ -157,6 +157,8 @@ export interface ModelConfig {
   /** O id do modelo de cada perfil: o `LLM_MODELO_<PERFIL>`, ou o `LLM_MODELO` comum. */
   readonly modelos: Readonly<Record<Perfil, string>>
   readonly chaveApi?: string
+  /** De qual variável vem o modelo de cada perfil: `LLM_MODELO_<PERFIL>` quando o perfil tem o seu, `LLM_MODELO` quando usa o comum. A subida cita a variável quando o modelo não tem preço. */
+  readonly variaveisDosModelos?: Readonly<Record<Perfil, string>>
   /** O modelo roda na nossa máquina ou rede: não há envio externo. */
   readonly processamentoLocal: boolean
   /** O id do provedor que recebe o conteúdo (`IA_PROVEDOR_ID`). Obrigatório quando o processamento não é local; o local não tem provedor. */
@@ -171,6 +173,8 @@ export interface LLMConfig {
   readonly prazosMs: Readonly<Record<Perfil, number>>
   /** Espera antes da única repetição em 429 e conexão recusada (regra 30, item 8): cabe no menor prazo. */
   readonly recuoMs: number
+  /** Fora de `AMBIENTE=local` com `openai_compat`: o modelo de cada perfil precisa de preço em `PRECO_DOS_MODELOS`, ou a subida é recusada (D14). Ausente, vale como em `local`. */
+  readonly exigePreco?: true
   /** O contratado com o provedor (`LLM_TOKENS_POR_MINUTO`). Ausente (só em `AMBIENTE=local`), o gateway não limita tokens. */
   readonly tokensPorMinuto?: number
   /** O modelo menor de cada perfil que tem o seu (`LLM_MODELO_MENOR_<PERFIL>`): o degrau depois da espera. Ausente, ou sem o perfil, o degrau é pulado. */
@@ -198,6 +202,16 @@ function opcoesDoAdaptadorFalso(valores: ValoresDoFalso): Pick<LLMConfig, 'laten
   }
 }
 
+/** Fora de `AMBIENTE=local`, com o provedor de verdade: o modelo de cada perfil precisa de preço (D14). */
+function exigeOPreco(valores: { readonly AMBIENTE: string; readonly IA_ADAPTADOR: string }): boolean {
+  return valores.AMBIENTE !== 'local' && valores.IA_ADAPTADOR === 'openai_compat'
+}
+
+/** A variável de onde vem o modelo do perfil: a do perfil, se ele tem a sua, e a comum nos outros. */
+function variavelDoModelo(perfil: Perfil, doPerfil: Readonly<Record<Perfil, string | undefined>>): string {
+  return doPerfil[perfil] === undefined ? 'LLM_MODELO' : `LLM_MODELO_${perfil.toUpperCase()}`
+}
+
 export function loadLLMConfig(ambiente: Record<string, string | undefined>): LLMConfig {
   const valores = validateEnvironment(llmEnvSchema, ambiente)
   const menoresDoPerfil: Readonly<Record<Perfil, string | undefined>> = {
@@ -216,6 +230,7 @@ export function loadLLMConfig(ambiente: Record<string, string | undefined>): LLM
     prazosMs: { rapido: valores.LLM_TIMEOUT_MS_RAPIDO, padrao: valores.LLM_TIMEOUT_MS_PADRAO, complexo: valores.LLM_TIMEOUT_MS, visao: valores.LLM_TIMEOUT_MS },
     recuoMs: valores.LLM_RECUO_MS,
     replicas: valores.IA_REPLICAS,
+    ...(exigeOPreco(valores) ? { exigePreco: true as const } : {}),
     ...(valores.LLM_TOKENS_POR_MINUTO === undefined ? {} : { tokensPorMinuto: valores.LLM_TOKENS_POR_MINUTO }),
     ...(menores === undefined ? {} : { modelosMenores: menores }),
     ...opcoesDoAdaptadorFalso(valores),
@@ -229,11 +244,13 @@ export function loadLLMConfig(ambiente: Record<string, string | undefined>): LLM
   }
   const comum = valores.LLM_MODELO ?? ''
   const modelos = Object.fromEntries(PERFIS.map((perfil) => [perfil, doPerfil[perfil] ?? comum])) as Record<Perfil, string>
+  const variaveisDosModelos = Object.fromEntries(PERFIS.map((perfil) => [perfil, variavelDoModelo(perfil, doPerfil)])) as Record<Perfil, string>
   return {
     ...base,
     modelo: {
       baseUrl: valores.LLM_BASE_URL,
       modelos,
+      variaveisDosModelos,
       ...(valores.LLM_CHAVE_API === undefined ? {} : { chaveApi: valores.LLM_CHAVE_API }),
       processamentoLocal: valores.LLM_PROCESSAMENTO_LOCAL === 'true',
       ...(valores.IA_PROVEDOR_ID === undefined ? {} : { provedorId: valores.IA_PROVEDOR_ID }),

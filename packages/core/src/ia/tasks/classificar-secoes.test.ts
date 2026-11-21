@@ -161,8 +161,12 @@ describe('classificar_secoes: a saída inválida é IA_SAIDA_INVALIDA, sem nada 
     const erro = await erroDe(classificar(ia, daSonda))
     expect(erro.codigoDeIa).toBe('IA_SAIDA_INVALIDA')
     expect(adaptador.chamadas).toBe(2)
-    expect(consumo.registros).toMatchObject([{ funcao: 'classificacao_do_material', estado: 'falhou', codigoDeErro: 'IA_SAIDA_INVALIDA' }])
-    expect(consumo.registros[0]?.saida).toBeUndefined()
+    // Uma linha por chamada que saiu: a primeira inválida e a repetição, as duas `falhou`.
+    expect(consumo.registros).toMatchObject([
+      { funcao: 'classificacao_do_material', estado: 'falhou', codigoDeErro: 'IA_SAIDA_INVALIDA' },
+      { funcao: 'classificacao_do_material', estado: 'falhou', codigoDeErro: 'IA_SAIDA_INVALIDA' },
+    ])
+    for (const registro of consumo.registros) expect(registro.saida).toBeUndefined()
   })
 
   it('a repetição diz ao modelo o que corrigir, em texto fixo, sem repetir o que ele escreveu', async () => {
