@@ -188,6 +188,11 @@ interface RegisteredRoute {
  *   `usuarioId`, e a escola vem do banco. Não cria escola nem rede.
  * - `PUT /v1/escola/provedores` (13.0): troca a lista de domínios e tenants do login pela conta da escola da sessão,
  *   que já existe; não recebe escola nenhuma.
+ * - `PUT /v1/operacao/escolas/:id/orcamento-ia` (camada-ia, 3.0): define o orçamento de IA de uma escola que já existe, na
+ *   linha de `configuracao_operacional_escola` dela (o único `insert` é dessa linha, nunca de `escola`; escola inexistente
+ *   é `NAO_ENCONTRADO`); `@OperacaoRoute`, como as do painel.
+ * - `PUT /v1/operacao/redes/:id/orcamento-ia` (camada-ia, 3.0): define o orçamento de IA de uma rede que já existe, com
+ *   `update` de `rede` pelo id do caminho e sem `insert` (rede inexistente é `NAO_ENCONTRADO`); `@OperacaoRoute`.
  */
 const ROTAS_PERMITIDAS: readonly string[] = [
   'POST /v1/operacao/redes',
@@ -196,6 +201,8 @@ const ROTAS_PERMITIDAS: readonly string[] = [
   'PUT /v1/escola/sessao',
   'POST /v1/sessao/escola',
   'PUT /v1/escola/provedores',
+  'PUT /v1/operacao/escolas/:id/orcamento-ia',
+  'PUT /v1/operacao/redes/:id/orcamento-ia',
 ]
 
 /** Rota que escreve e tem rede ou escola em algum segmento fixo: `POST /v1/escolas`, `POST /v1/escolas/criar`. */
@@ -207,7 +214,7 @@ function criaRedeOuEscola(rota: RegisteredRoute): boolean {
   return fixos.some((segmento) => /(^|[-_.])(redes?|escolas?|instituic(ao|oes)|unidades?)([-_.]|$)/i.test(segmento))
 }
 
-describe('permissão: nenhuma rota da API cria rede nem escola, fora das duas do painel da operação', () => {
+describe('permissão: nenhuma rota da API cria rede nem escola, fora da lista conferida', () => {
   let app: INestApplication
 
   beforeAll(async () => {
@@ -232,6 +239,10 @@ describe('permissão: nenhuma rota da API cria rede nem escola, fora das duas do
     // A conferida passa, e só com o método conferido.
     expect(criaRedeOuEscola({ metodo: 'PUT', caminho: '/v1/escola/sessao' })).toBe(false)
     expect(criaRedeOuEscola({ metodo: 'POST', caminho: '/v1/escola/sessao' })).toBe(true)
+    expect(criaRedeOuEscola({ metodo: 'PUT', caminho: '/v1/operacao/escolas/:id/orcamento-ia' })).toBe(false)
+    expect(criaRedeOuEscola({ metodo: 'POST', caminho: '/v1/operacao/escolas/:id/orcamento-ia' })).toBe(true)
+    expect(criaRedeOuEscola({ metodo: 'PUT', caminho: '/v1/operacao/redes/:id/orcamento-ia' })).toBe(false)
+    expect(criaRedeOuEscola({ metodo: 'POST', caminho: '/v1/operacao/redes/:id/orcamento-ia' })).toBe(true)
     expect(criaRedeOuEscola({ metodo: 'GET', caminho: '/v1/escolas/:slug/acesso' })).toBe(false)
     expect(criaRedeOuEscola({ metodo: 'POST', caminho: '/v1/sistema/jobs-sinteticos' })).toBe(false)
   })
