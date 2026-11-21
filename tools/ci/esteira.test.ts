@@ -64,11 +64,11 @@ function casosDoE2e(argumentos: readonly string[] = []): number {
 }
 
 /**
- * Os índices das fatias de um job em fatias (`e2e`, `infra` e `unidade`), pela matriz dele (`strategy.matrix.fatia`). Sem matriz, uma fatia só:
- * a suíte inteira num job, que é como a esteira estava até a correção 2026-10-03-e2e-em-fatias (o e2e) e até a
- * 2026-11-12-job-de-infra-passa-de-45-min (a infra).
+ * Os índices das fatias de um job em fatias (`e2e`, `infra`, `integracao` e `unidade`), pela matriz dele (`strategy.matrix.fatia`). Sem matriz, uma fatia só:
+ * a suíte inteira num job, que é como a esteira estava até a correção 2026-10-03-e2e-em-fatias (o e2e), até a
+ * 2026-11-12-job-de-infra-passa-de-45-min (a infra) e até a 2026-11-21-integracao-no-teto-da-esteira (a integração).
  */
-function fatiasDoJob(nome: 'e2e' | 'infra' | 'unidade'): number[] {
+function fatiasDoJob(nome: 'e2e' | 'infra' | 'integracao' | 'unidade'): number[] {
   const matriz = workflow.jobs[nome]?.strategy?.matrix
   if (matriz === undefined) return [1]
   // Só a fatia: `include` ou `exclude` acrescentariam ou tirariam jobs sem a guarda ver.
@@ -347,9 +347,9 @@ describe('esteira do GitHub (.github/workflows/ci.yml)', () => {
     expect(Object.keys(workflow.jobs).sort()).toEqual(['e2e', 'infra', 'integracao', 'unidade', 'verificar'])
     for (const [nome, job] of Object.entries(workflow.jobs)) {
       const comandos = job.steps.flatMap((passo) => (passo.run === undefined ? [] : [passo.run.trim()]))
-      // O e2e, a infra e a unidade passam a fatia deles, e o total do `--shard` é o tamanho da matriz: `/3` com quatro fatias rodaria a quarta
+      // O e2e, a infra, a integração e a unidade passam a fatia deles, e o total do `--shard` é o tamanho da matriz: `/3` com quatro fatias rodaria a quarta
       // fatia de três, que não existe, e a de `/5` deixaria um quinto da suíte sem rodar.
-      const argumentos = nome === 'e2e' || nome === 'infra' || nome === 'unidade' ? ` -- --shard=${EXPRESSAO_DA_FATIA}/${String(fatiasDoJob(nome).length)}` : ''
+      const argumentos = nome === 'e2e' || nome === 'infra' || nome === 'integracao' || nome === 'unidade' ? ` -- --shard=${EXPRESSAO_DA_FATIA}/${String(fatiasDoJob(nome).length)}` : ''
       // O `verificar` confere também as entregas (RF14, terceira camada), antes das suítes; o teste dele está abaixo.
       const antes = nome === 'verificar' ? ['npm run ci:conferir-entregas'] : []
       expect(comandos).toEqual(['npm ci', ...antes, `npm run ci:${nome}${argumentos}`])
@@ -374,6 +374,19 @@ describe('esteira do GitHub (.github/workflows/ci.yml)', () => {
     // Cada fatia tem o seu teto: a soma dos arquivos de `infra/test` dividida em fatias, e não o job inteiro em 45 min (run 43325031136).
     expect(Number(job?.['timeout-minutes'])).toBeGreaterThan(0)
     expect(Number(job?.['timeout-minutes'])).toBeLessThanOrEqual(45)
+  })
+
+  it('a integração roda em fatias que não se cancelam, e cada uma tem teto abaixo dos 30 min do job único: a folga vem de repartir, não do número', () => {
+    const job = workflow.jobs['integracao']
+    // Uma fatia só seria a suíte inteira num runner: foi ela que passou dos 30 min (run 44887365743, 194 dos 206 arquivos verdes).
+    expect(fatiasDoJob('integracao').length).toBeGreaterThan(1)
+    expect(job?.strategy?.['fail-fast']).toBe(false)
+    // O nome mostra a fatia: sem isso, os jobs da execução aparecem iguais e não se sabe qual ficou vermelho.
+    expect(job?.name).toContain(`${EXPRESSAO_DA_FATIA}/${String(fatiasDoJob('integracao').length)}`)
+    // O teto de cada fatia não volta a passar dos 30 min do job único, que foi o que estourou
+    // (`tasks/correcoes/2026-11-21-integracao-no-teto-da-esteira.md`).
+    expect(Number(job?.['timeout-minutes'])).toBeGreaterThan(0)
+    expect(Number(job?.['timeout-minutes'])).toBeLessThan(30)
   })
 
   it('a unidade roda em fatias que não se cancelam, e o verificar e cada fatia têm teto de até 15 min', () => {
