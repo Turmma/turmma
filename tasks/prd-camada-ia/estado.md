@@ -1,13 +1,14 @@
 # Estado da execução — camada-ia
 
 ## Agora
-- **Espero:** o `RELATÓRIO` do `Implementador 2` (L2) da 6.0 (grande, partida 08:28) e do `Implementador 3` (L3) da correção `2026-11-21-limpeza-do-e2e-com-orcamento-do-mes` (da 2.0, partida 08:28), os dois em `PEDIDO de retomada` às 09:2x depois do desligamento do PC. A L1 está ociosa: o quadro oferece a 9.0, mas a 9.0 e a 12.0 esperam a pergunta do tamanho; a 8.0 parte depois da 6.0.
+- **Espero:** o `RELATÓRIO` do `Implementador 2` (L2) da 6.0 (grande, partida 08:28, retomada 09:2x), do `Implementador` (L1) da correção `2026-11-21-rotas-do-orcamento-fora-da-lista-conferida` (da 3.0, 09:5x) e do `Implementador 3` (L3) da correção `2026-11-21-tutor-modelo-recebe-pedidos-a-mais` (origem por achar, 09:5x), 1ª tentativa das duas correções. A 9.0 e a 12.0 esperam a pergunta do tamanho; a 8.0 parte depois da 6.0.
 - **Devo ainda:** antes do pouso, o `Arquiteto` acrescentar à autoconferência 10 e à tabela de testes do `2_task.md` o caso novo da corrida do retrato (relatório da 2.0). Push da `develop` (a retro `6496c7b5` está sem push) no próximo pouso. A 13.0 depende das chaves de teste dos finalistas, que são do Joaquim (PRD §10).
-- **Base:** `spec/camada-ia` em `116d53e3`; última verde `1a291ab`; `c2265b8` vermelha (integração no teto, antes da correção); a esteira de `116d53e` (com a correção) roda
+- **Base:** `spec/camada-ia` em `544f6285`; última verde `1a291ab`; `0e85765` vermelha (44903191816: integração 1/3 e 3/3, as duas correções acima; o teto de tempo já passou)
 
 ## Concluídas
 | Tarefa | Commit | Modelo | Rodadas | Observação |
 |---|---|---|---|---|
+| correção `2026-11-21-limpeza-do-e2e-com-orcamento-do-mes` (da 2.0, L3) | `39da363b` | Sonnet | `test-engineer` e `revisor-geral` na 2ª; os outros quatro na 1ª | 4 mutações; encontro em `544f6285` |
 | correção `2026-11-21-integracao-no-teto-da-esteira` (L1, esteira 44887365743) | `190427bb` | Sonnet | 4 revisores APROVADO na 2ª | integração em três fatias com `--shard`, teto de 25 min cada; encontro em `116d53e3` pelo Orquestrador, depois do desligamento (o relatório não chegou a ser enviado) |
 | 7.0 | `edee568c` | Sonnet | 7 revisores APROVADO na 2ª | encontro em `f74f44b0`; DIVERGÊNCIA (ordem) no item 6 da r1, triada pelo `Arquiteto` como mal-entendido; telas vistas pelo Implementador (a vitrine não tem operador); apontou `orcamento_ia_do_mes` fora da limpeza do e2e (correção na L3) e dois e2e intermitentes (E3 celular, W4 chromebook) |
 | 5.0 | `83292427` | Sonnet | `test-engineer` e `revisor-geral` na 2ª; os outros quatro na 1ª | encontro em `cc6e316c`; o `5_task.md:43` corrigido para ENTRADA_INVALIDA |
@@ -32,6 +33,7 @@ Recomendo: cortar em F5a e F5b. Numa spec só, o pouso inteiro espera a 13.0, qu
 Segue sem depender: as correções M2 e M4 da X6 (processo) e a 1.0 em diante, que estão nas duas opções.
 
 ## O que falhou
+- 21/11 ~09:50: esteira de `0e85765` (44903191816), já com a integração em três fatias, dentro do teto: caem dois testes que o estouro escondia. Integração 3/3: `ops-escola.int.test.ts`, as rotas `PUT …/orcamento-ia` da 3.0 fora da lista conferida (correção na L1). Integração 1/3: `tutor-modelo.int.test.ts:99`, o modelo falso recebe 17 pedidos em vez de 2 (correção na L3).
 - 21/11 ~08:40: o PC foi desligado com as três linhas trabalhando; às 09:11 o time voltou com sessões novas e o Docker parado (aberto daqui). Na L1, 16 arquivos rastreados ficaram com 0 byte (os que o merge `cc6e316c` tinha escrito): restaurados do commit; `git fsck` limpo, nenhum outro checkout afetado.
 - 21/11 ~07:4x: esteira de `21e6186` (44887365743): o job de integração cancelado no `timeout-minutes` de 30; nas verdes anteriores, 22, 28,5 e 28,3 min. Não é intermitência: o job encostou no teto. Correção na L1, antes de qualquer partida.
 - 21/11: esteira de `970e37c` (44862658083) vermelha no e2e 4/11: `operacao-escolas.spec.ts:595`, o `afterEach` apaga a escola com `job_registro` dela (FK). A spec só mudou processo até aqui: defeito da develop, correção na L3. O encontro da L3 passou de 10 min (a verificação tem prazo de 540 s) e terminou bem.
