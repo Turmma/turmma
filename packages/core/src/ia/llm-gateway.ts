@@ -348,6 +348,7 @@ export class LLMGateway implements LLMProvider {
         ...(pedido.alunoId === undefined ? {} : { alunoId: pedido.alunoId }),
         ...(pedido.turmaId === undefined ? {} : { turmaId: pedido.turmaId }),
         ...(pedido.execucaoId === undefined ? {} : { execucaoId: pedido.execucaoId }),
+        ...(pedido.fila === undefined ? {} : { fila: pedido.fila }),
       })
       if (!decisao.permitido) {
         codigo = decisao.codigo

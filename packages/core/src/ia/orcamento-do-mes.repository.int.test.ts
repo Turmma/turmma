@@ -294,7 +294,7 @@ describe('OrcamentoDoMesRepository: o orçamento de IA da escola do contexto', (
       expect(await naEscola(e.escolaId, (r) => r.doMes('2026-04', MEIO_DE_ABRIL))).toMatchObject({ alunosAtivos: 150, valorPorAlunoMicros: 1 * REAIS, orcamentoMicros: 150 * REAIS, custoMicros: 0, porcentagem: 0, aviso: null })
     })
 
-    it('duas réplicas da medida regravando o mesmo mês ao mesmo tempo deixam uma linha só, a do último valor', async () => {
+    it('duas réplicas da medida regravando o mesmo mês ao mesmo tempo deixam uma linha só (qual valor fica, a corrida forçada pela trava prova em `apps/worker/test/orcamento-gauge.int.test.ts`)', async () => {
       const e = await escola({ escola: { valor: 5 * REAIS } })
       await alunos(e, 10)
       const [primeira, segunda] = await Promise.all([naEscola(e.escolaId, (r) => r.regravarRetrato(FIM_DE_MARCO)), naEscola(e.escolaId, (r) => r.regravarRetrato(FIM_DE_MARCO))])

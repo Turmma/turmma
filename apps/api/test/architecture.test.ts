@@ -1396,6 +1396,7 @@ const QUEM_USA_A_ROTINA = [
   'apps/worker/src/expurgo-gauge.ts',
   'apps/worker/src/incidente-gauge.ts',
   'apps/worker/src/importacao-gauge.ts',
+  'apps/worker/src/orcamento-gauge.ts',
   'apps/worker/src/escola-gauge.ts',
   'apps/worker/src/composition.ts',
   'apps/worker/src/processors/agendar-classificacao.ts',

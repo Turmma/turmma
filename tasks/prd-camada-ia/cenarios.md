@@ -77,7 +77,8 @@
 | RF9 | Worker sem `LLM_RESERVA_BASE_URL` nem `IA_RESERVA_PROVEDOR_ID`: a série `ia.provedor_de_reserva.conferido` não é publicada e o alerta não dispara; com a reserva configurada e recusada, publica 0 e dispara em 10 min | `apps/worker/test/` (a medida da conferência), `infra/test/alertas.test.ts` | série publicada com 0 sem reserva; alerta por `absent()` |
 | RF9 | Acima de 100%, o turno do Tutor e a ferramenta (`interativa`, `ferramenta`, `normal`) são atendidos | `apps/api/src/ia/orcamento-teto.int.test.ts` | conferir o teto em toda fila |
 | RF10 | Teto 200%: no limite exato, o lote segue; um micro acima, volta a `pendente` com `JobAdiadoError(orcamento)`, sem tentativa, e `ia.lote.adiado{motivo="orcamento"}` soma 1 | idem | `>` trocado por `>=`; contar tentativa |
-| RF10 | Às 23h50 do último dia (relógio falso): `tenteDeNovoEmSegundos = 600`; no meio do mês, 3.600 | `orcamento-de-ia.test.ts` | sem o `mín` |
+| RF10 | `ia.lote.adiado{motivo}` soma o adiamento do lote em cada motivo (`orcamento`, `provedor` e `janela`); o código do teto numa ferramenta termina a execução como `falhou`, sem adiar o job | `orcamento-teto.int.test.ts`, `ia.int.test.ts` | contar só `orcamento`; adiar por código em qualquer fila |
+| RF10 | Às 23h50 do último dia (relógio falso): `tenteDeNovoEmSegundos = 600`; no meio do mês, 3.600 | `orcamento-teto.int.test.ts` (a espera pelo processador), `apps/api/src/ia/orcamento.repository.test.ts` (a conta da virada) | sem o `mín` |
 | RF10 | Na virada do mês, o lote adiado volta a rodar; com o teto subido pela Operação, também | `orcamento-teto.int.test.ts` | — |
 | RF10 | Escola `sem_orcamento` ou `sem_aluno_ativo`: o lote nunca é adiado pelo teto | idem | orçamento zero como teto zero |
 

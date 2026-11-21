@@ -1,0 +1,62 @@
+# Alerta "IA acima do teto de segurança numa escola" (camada-ia, tarefa 4.0; Tech Spec, seções 5 e 7c; PRD, RF10;
+# runbook: docs/runbook.md#ia-acima-do-teto-de-segurança-numa-escola).
+# Provisionado por arquivo no Grafana da observabilidade local (infra/compose.yml monta esta pasta em provisioning/alerting).
+#
+# `ia.orcamento.uso_do_teto{escola_id}` é o custo gravado do mês sobre o teto de segurança da escola (orçamento × teto ÷ 100), medido pelo worker-lote a cada 5 min, da mesma soma de
+# `ia.orcamento.uso_do_mes`. O limiar está na expressão e é **estrito** (`> 1`): o lote só espera com o custo **acima** do teto, e no teto exato ele segue. A regra toma o maior valor entre as
+# réplicas, por escola, e exige 1 min. Acima do teto, **só** o job de lote da escola espera (a classificação do material), até a virada do mês ou até a Operação subir o teto: o Tutor e a
+# ferramenta nunca param por orçamento. Escola sem orçamento definido ou sem aluno ativo não tem série (`noDataState: OK`). A série traz a escola e um número, nunca o valor em reais.
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: ia-orcamento-teto
+    folder: Educa.ia alertas
+    interval: 10s
+    rules:
+      - uid: educa-ia-orcamento-teto
+        title: IA acima do teto de segurança numa escola
+        condition: C
+        for: 1m
+        noDataState: OK
+        execErrState: Error
+        isPaused: false
+        labels:
+          area: ia
+        annotations:
+          summary: 'A escola {{ $labels.escola_id }} passou do teto de segurança do orçamento de IA: o lote dela está esperando'
+          description: Só o job de lote (a classificação do material) espera, até a virada do mês ou até o teto subir. O Tutor e as ferramentas seguem. Siga o runbook.
+          runbook_url: https://github.com/Turmma/turmma/blob/main/docs/runbook.md#ia-acima-do-teto-de-segurança-numa-escola
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              datasource:
+                type: prometheus
+                uid: prometheus
+              expr: 'max by (escola_id) (ia_orcamento_uso_do_teto{job="educa/worker"}) > 1'
+              instant: true
+              range: false
+              intervalMs: 10000
+              maxDataPoints: 43200
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params: [0]

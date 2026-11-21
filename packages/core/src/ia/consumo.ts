@@ -8,6 +8,7 @@ import { EXECUCAO_INTERROMPIDA } from './executor.js'
 import { MODELO_FALSO, MODELO_FALSO_MENOR } from './fake-adapter.js'
 import type { Perfil } from './perfis.js'
 import type { EnvioDaChamada, OutputSource } from './port.js'
+import type { FilaDeTokens } from './token-limiter.js'
 import type { TaskDefinition } from './task.js'
 
 /**
@@ -167,6 +168,11 @@ export interface OrcamentoQuery {
    * e não conta contra ela. Na consulta feita antes de gravar (o `POST` do Tutor), não vem.
    */
   readonly execucaoId?: string
+  /**
+   * A fila de onde o pedido vem (camada-ia, 4.0; Tech Spec §5, "O teto de segurança"): **só a `lote` é conferida contra o teto de segurança do orçamento do mês**. O Tutor, a ferramenta e o `normal`
+   * nunca esperam pelo orçamento (D38, D40). Sem ela vale a `normal`, como no limitador de tokens.
+   */
+  readonly fila?: FilaDeTokens
 }
 
 /** Por que não pode gastar: o teto da escola, o freio diário do aluno ou o pacote do mês da turma. */

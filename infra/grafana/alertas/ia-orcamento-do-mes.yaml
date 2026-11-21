@@ -1,0 +1,108 @@
+# Alertas "IA a 80% do orçamento do mês numa escola" e "IA a 100% do orçamento do mês numa escola" (camada-ia, tarefa 4.0; Tech Spec, seção 7c; PRD, RF9;
+# runbook: docs/runbook.md#ia-a-80-do-orçamento-do-mês-numa-escola e #ia-a-100-do-orçamento-do-mês-numa-escola).
+# Provisionado por arquivo no Grafana da observabilidade local (infra/compose.yml monta esta pasta em provisioning/alerting).
+#
+# `ia.orcamento.uso_do_mes{escola_id}` é o custo gravado do mês civil de São Paulo sobre o orçamento da escola (valor por aluno × alunos ativos), medido pelo worker-lote a cada 5 min
+# (0,79 é 79%). O limiar está na expressão (`>= 0.8` e `>= 1`, e não `>`): a coordenação recebe o aviso do mesmo limiar, e a 80% exatos os dois já valem. A regra toma o maior valor entre as réplicas
+# do worker-lote, por escola, e exige 1 min. **Nada é cortado a 80% nem a 100% (D40):** o alerta avisa a Operação, que conversa com a escola. Escola sem orçamento definido ou sem aluno ativo não tem série,
+# e sem dado é normal (`noDataState: OK`). A série traz a escola e um número: nunca o valor em reais.
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: ia-orcamento-do-mes
+    folder: Educa.ia alertas
+    interval: 10s
+    rules:
+      - uid: educa-ia-orcamento-80
+        title: IA a 80% do orçamento do mês numa escola
+        condition: C
+        for: 1m
+        noDataState: OK
+        execErrState: Error
+        isPaused: false
+        labels:
+          area: ia
+        annotations:
+          summary: 'A escola {{ $labels.escola_id }} já usou 80% ou mais do orçamento de IA do mês'
+          description: Nada é cortado. A coordenação já vê o aviso no Painel. Confira o uso da escola e o orçamento dela. Siga o runbook.
+          runbook_url: https://github.com/Turmma/turmma/blob/main/docs/runbook.md#ia-a-80-do-orçamento-do-mês-numa-escola
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              datasource:
+                type: prometheus
+                uid: prometheus
+              expr: 'max by (escola_id) (ia_orcamento_uso_do_mes{job="educa/worker"}) >= 0.8'
+              instant: true
+              range: false
+              intervalMs: 10000
+              maxDataPoints: 43200
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params: [0]
+      - uid: educa-ia-orcamento-100
+        title: IA a 100% do orçamento do mês numa escola
+        condition: C
+        for: 1m
+        noDataState: OK
+        execErrState: Error
+        isPaused: false
+        labels:
+          area: ia
+        annotations:
+          summary: 'A escola {{ $labels.escola_id }} passou do orçamento de IA do mês'
+          description: Nada é cortado, e a IA segue respondendo. O lote da escola só espera acima do teto de segurança, que é outro alerta. Siga o runbook.
+          runbook_url: https://github.com/Turmma/turmma/blob/main/docs/runbook.md#ia-a-100-do-orçamento-do-mês-numa-escola
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              datasource:
+                type: prometheus
+                uid: prometheus
+              expr: 'max by (escola_id) (ia_orcamento_uso_do_mes{job="educa/worker"}) >= 1'
+              instant: true
+              range: false
+              intervalMs: 10000
+              maxDataPoints: 43200
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params: [0]

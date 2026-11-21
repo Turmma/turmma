@@ -250,6 +250,30 @@ describe('regras de alerta provisionadas', () => {
     expect(provedorFora.noDataState).toBe('OK')
     expect(NOMES_NO_PROMETHEUS.disjuntorDeIaAberto).toEqual(['ia_disjuntor_aberto'])
 
+    // camada-ia, tarefa 4.0: o uso do orçamento do mês, por escola, pelo maior valor entre as réplicas do worker-lote. O limiar está na expressão: `>= 0.8` e `>= 1` (o aviso da coordenação vale `>=`) e `> 1` no teto (o lote
+    // só espera com o custo **acima** dele). `noDataState: OK`: escola sem orçamento ou sem aluno ativo não tem série. Nenhuma das três leva valor em reais na consulta.
+    const orcamentoAos80 = regraPorUid(REGRAS_PROVISIONADAS.iaOrcamentoAos80).regra
+    expect(orcamentoAos80.for).toBe('1m')
+    expect(expressao(orcamentoAos80)).toBe('max by (escola_id) (ia_orcamento_uso_do_mes{job="educa/worker"}) >= 0.8')
+    expect(limiar(orcamentoAos80)).toEqual({ type: 'gt', params: [0] })
+    const orcamentoAos100 = regraPorUid(REGRAS_PROVISIONADAS.iaOrcamentoAos100).regra
+    expect(orcamentoAos100.for).toBe('1m')
+    expect(expressao(orcamentoAos100)).toBe('max by (escola_id) (ia_orcamento_uso_do_mes{job="educa/worker"}) >= 1')
+    expect(limiar(orcamentoAos100)).toEqual({ type: 'gt', params: [0] })
+    const orcamentoTeto = regraPorUid(REGRAS_PROVISIONADAS.iaOrcamentoTeto).regra
+    expect(orcamentoTeto.for).toBe('1m')
+    expect(expressao(orcamentoTeto)).toBe('max by (escola_id) (ia_orcamento_uso_do_teto{job="educa/worker"}) > 1')
+    expect(limiar(orcamentoTeto)).toEqual({ type: 'gt', params: [0] })
+    for (const regra of [orcamentoAos80, orcamentoAos100, orcamentoTeto]) {
+      expect(regra.noDataState).toBe('OK')
+      expect(expressao(regra)).not.toMatch(/usuario|execucao|aluno/)
+    }
+    // As duas métricas que as regras leem são as que o código exporta, com o nome que o Prometheus dá a elas; o runbook do teto cita o alerta da classificação, que ele provoca.
+    expect(NOMES_NO_PROMETHEUS.usoDoOrcamentoDoMes).toEqual(['ia_orcamento_uso_do_mes'])
+    expect(NOMES_NO_PROMETHEUS.usoDoTetoDoOrcamento).toEqual(['ia_orcamento_uso_do_teto'])
+    const runbook = entradasDoRunbook(readFileSync(join(raizRepositorio, CAMINHO_DO_RUNBOOK), 'utf8'))
+    expect(runbook.get(ancoraDoTitulo(orcamentoTeto.title))).toContain(regraPorUid(REGRAS_PROVISIONADAS.classificacaoAtrasada).regra.title)
+
     // "Tokens acima de 80 %": o balde cheio, que é o `PARTE_DO_BALDE_GERAL` do contratado (0,8) por 5 min, e o aviso aos 70 %, os dois pelo maior valor entre as réplicas por modelo.
     // O limiar está na expressão (`>= 0,8`, e não `> 0,8`: o uso do teto é a ocupação do balde vezes `PARTE_DO_BALDE_GERAL`, e o balde cheio, ou a reserva que ele recusa, vale exatamente 0,8 e nunca passa dele). O `0,8` é o da constante: o balde e o alerta não divergem.
     const aos80 = regraPorUid(REGRAS_PROVISIONADAS.iaTokensAcimaDe80).regra

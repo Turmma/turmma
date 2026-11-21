@@ -262,6 +262,9 @@ describe('métricas na observabilidade local, por rota, fila e escola', () => {
         ...NOMES_NO_PROMETHEUS.execucoesAtrasadasDaClassificacao,
         // As habilidades que a geração anulou por não serem da seção da página citada, por escola (classificacao-bncc, tarefa 10.0; Tech Spec, seção 7c).
         ...NOMES_NO_PROMETHEUS.habilidadeAnulada,
+        // O que a escola já gastou do orçamento de IA do mês e do teto de segurança dele, por escola: o que os alertas de 80%, de 100% e do teto leem (camada-ia, tarefa 4.0; Tech Spec, seção 7c).
+        ...NOMES_NO_PROMETHEUS.usoDoOrcamentoDoMes,
+        ...NOMES_NO_PROMETHEUS.usoDoTetoDoOrcamento,
       ].sort(),
     )
     expect(comEscola.filter((nome) => !admitidas.has(nome ?? ''))).toEqual([])

@@ -148,7 +148,8 @@ export class FilaDeIa {
     this.destino = opcoes.destino ?? destinoDoAdaptador(testConfig(sobreposicao).ia)
     this.#gateway = createLLMGateway(testConfig(sobreposicao).ia, {
       registro: new ConsumoRepository(this.banco),
-      orcamento: new OrcamentoRepository(this.banco),
+      // O mês do teto de segurança do lote é o do relógio da bancada (`fixarHorario`): o teste da virada do mês põe o job às 00h10 de 1º/12 sem esperar.
+      orcamento: new OrcamentoRepository(this.banco, { agora: () => (this.#agora ?? systemClock.agora)() }),
       suspensao,
       logger: this.#logger,
       medidor,

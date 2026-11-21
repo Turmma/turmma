@@ -149,6 +149,7 @@ export class ExecucaoProcessor {
       const esperaMs = Math.max(1, proximaAbertura(janela, agora).getTime() - agora.getTime())
       const tipo = lida.tarefa
       logger.info({ evento: 'ia.execucao.adiada_pela_janela', execucaoId, escolaId, tipo, esperaMs })
+      this.#metricas.loteAdiado('janela')
       throw new JobAdiadoError(esperaMs, 'janela')
     }
     try {
@@ -265,7 +266,12 @@ export class ExecucaoProcessor {
     if (this.#semFalhaParaGravar(erro, { execucaoId, escolaId, tipo, sinalDoJob })) return
     // O lote não falha por causa do provedor: volta a `pendente` e o job é adiado (a execução que o prazo único estourou, não: `prazo.aborted` vale `IA_TEMPO_ESGOTADO`).
     if (erro instanceof LLMError && adiavelNoLote(erro, comando, prazo)) {
-      await this.#adiarOLote(erro, { execucaoId, escolaId, tipo })
+      await this.#adiarOLote(erro, { execucaoId, escolaId, tipo }, 'provedor')
+      return
+    }
+    // O teto de segurança do orçamento do mês (camada-ia, 4.0): só o lote o recebe, e ele espera, sem falhar e sem gastar tentativa, até a virada do mês ou até a Operação subir o teto.
+    if (erro instanceof LLMError && adiavelPeloOrcamento(erro, comando)) {
+      await this.#adiarOLote(erro, { execucaoId, escolaId, tipo }, 'orcamento')
       return
     }
     // O prazo único estourou pelo próprio sinal: o gateway devolve `IA_TEMPO_ESGOTADO` (ou outro código, se a chamada cedeu antes), e o código é o do prazo.
@@ -303,10 +309,10 @@ export class ExecucaoProcessor {
   }
 
   /**
-   * O provedor não atendeu o lote (balde cheio, disjuntor aberto, provedor fora): a execução volta a `pendente` e o job é adiado, **sem tentativa** (`JobAdiadoError`, motivo `provedor`). A espera é a que o balde disse
-   * (`tenteDeNovoEmSegundos`) ou, sem ela, a do meio-abre do disjuntor; o executor soma o jitter. Se o `update` não achou a execução `rodando` (a varredura a encerrou), não há o que adiar e o job termina.
+   * O provedor não atendeu o lote (balde cheio, disjuntor aberto, provedor fora), ou o custo do mês passou do teto de segurança (camada-ia, 4.0): a execução volta a `pendente` e o job é adiado, **sem tentativa**
+   * (`JobAdiadoError`, motivo `provedor` ou `orcamento`), e `ia.lote.adiado{motivo}` soma. A espera é a que o balde ou o teto disse (`tenteDeNovoEmSegundos`) ou, sem ela, a do meio-abre do disjuntor; o executor soma o jitter. Se o `update` não achou a execução `rodando` (a varredura a encerrou), não há o que adiar e o job termina.
    */
-  async #adiarOLote(erro: LLMError, { execucaoId, escolaId, tipo }: { execucaoId: string; escolaId: string; tipo: string }): Promise<void> {
+  async #adiarOLote(erro: LLMError, { execucaoId, escolaId, tipo }: { execucaoId: string; escolaId: string; tipo: string }, motivo: 'provedor' | 'orcamento'): Promise<void> {
     const { logger, banco } = this.dependencias
     const voltou = await new ExecucaoRepository(banco).voltarAPendente(execucaoId).catch((erroAoGravar: unknown) => {
       logger.warn({ evento: 'ia.execucao.volta_nao_gravada', execucaoId, escolaId, erro: summarizeError(erroAoGravar) })
@@ -314,15 +320,23 @@ export class ExecucaoProcessor {
     })
     if (!voltou) return
     const esperaMs = erro.tenteDeNovoEmSegundos === undefined ? MEIO_ABRE_O_DISJUNTOR_EM_MS : erro.tenteDeNovoEmSegundos * 1_000
-    const codigo = ErrorCode.IA_INDISPONIVEL
-    logger.warn({ evento: 'ia.execucao.adiada_pelo_provedor', execucaoId, escolaId, tipo, codigo, esperaMs })
-    throw new JobAdiadoError(esperaMs, 'provedor')
+    this.#metricas.loteAdiado(motivo)
+    // Só ids, a tarefa, o código e a espera: nunca o valor do orçamento, do custo nem da porcentagem (regra 20, item 9).
+    const codigo = erro.codigoDeIa
+    if (motivo === 'orcamento') logger.warn({ evento: 'ia.lote.adiado_pelo_orcamento', execucaoId, escolaId, tipo, codigo, esperaMs })
+    else logger.warn({ evento: 'ia.execucao.adiada_pelo_provedor', execucaoId, escolaId, tipo, codigo, esperaMs })
+    throw new JobAdiadoError(esperaMs, motivo)
   }
 }
 
 /** O lote que o provedor não atendeu (balde cheio, disjuntor aberto, provedor fora) espera; a soberania é recusa definitiva, e o prazo único estourado vale `IA_TEMPO_ESGOTADO`. */
 function adiavelNoLote(erro: LLMError, comando: ComandoExecutavel | undefined, prazo: AbortSignal): boolean {
   return comando?.fila === 'lote' && !prazo.aborted && erro.codigoDeIa === ErrorCode.IA_INDISPONIVEL && erro.motivo !== 'soberania'
+}
+
+/** O teto de segurança passou: o lote espera, e nenhuma outra fila recebe esse código (o gateway só o devolve ao `lote`). */
+function adiavelPeloOrcamento(erro: LLMError, comando: ComandoExecutavel | undefined): boolean {
+  return comando?.fila === 'lote' && erro.codigoDeIa === ErrorCode.IA_ORCAMENTO_ESGOTADO
 }
 
 /** O prazo único estourou pelo próprio sinal: o código é o do prazo; senão, o do erro tipado, ou `ERRO_INTERNO`. */

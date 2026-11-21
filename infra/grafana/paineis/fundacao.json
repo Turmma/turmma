@@ -2729,6 +2729,153 @@
           "range": true
         }
       ]
+    },
+    {
+      "id": 58,
+      "type": "timeseries",
+      "title": "IA: uso do orçamento do mês, por escola",
+      "description": "Quanto do orçamento de IA do mês a escola já gastou (camada-ia, tarefa 4.0): o custo gravado do mês civil de São Paulo sobre o valor por aluno × alunos ativos; 0,8 é 80% e 1 é 100%. Medido pelo worker-lote a cada 5 min. O alerta \"IA a 80% do orçamento do mês numa escola\" dispara a partir de 0,8, e o de 100% a partir de 1. Escola sem valor definido ou sem aluno ativo não tem série. Só a escola no rótulo: nunca o valor em reais. O que fazer está no runbook.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 187
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "refId": "A",
+          "expr": "max by (escola_id) (ia_orcamento_uso_do_mes)",
+          "legendFormat": "{{escola_id}}",
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 59,
+      "type": "timeseries",
+      "title": "IA: uso do teto de segurança, por escola",
+      "description": "Quanto do teto de segurança do orçamento de IA do mês a escola já gastou (camada-ia, tarefa 4.0): o custo sobre orçamento × teto ÷ 100 (o teto padrão é 200%). Acima de 1 o lote da escola (a classificação do material) espera até a virada do mês ou até o teto subir; o Tutor, as ferramentas e o chat seguem. O alerta \"IA acima do teto de segurança numa escola\" dispara acima de 1. Só a escola no rótulo. O que fazer está no runbook.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 187
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "refId": "A",
+          "expr": "max by (escola_id) (ia_orcamento_uso_do_teto)",
+          "legendFormat": "{{escola_id}}",
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 60,
+      "type": "timeseries",
+      "title": "IA: jobs do lote adiados sem falhar (1 h), por motivo",
+      "description": "Quantas vezes o job do lote esperou sem falhar e sem gastar tentativa (camada-ia, tarefa 4.0): `janela` (horário letivo da escola), `provedor` (balde cheio, disjuntor aberto ou provedor fora) e `orcamento` (teto de segurança do mês). Só o motivo no rótulo: nunca a escola, a execução nem o valor do orçamento.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 187
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "refId": "A",
+          "expr": "sum by (motivo) (increase(ia_lote_adiado_total[1h]))",
+          "legendFormat": "{{motivo}}",
+          "range": true
+        }
+      ]
     }
   ]
 }

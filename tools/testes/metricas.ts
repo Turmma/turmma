@@ -115,4 +115,7 @@ export const NOMES_NO_PROMETHEUS = {
   esperaDaClassificacao: ['material_classificacao_espera_seconds_bucket', 'material_classificacao_espera_seconds_count', 'material_classificacao_espera_seconds_sum'],
   execucoesAtrasadasDaClassificacao: ['classificacao_execucoes_atrasadas'],
   habilidadeAnulada: ['ia_habilidade_anulada_total'],
+  usoDoOrcamentoDoMes: ['ia_orcamento_uso_do_mes'],
+  usoDoTetoDoOrcamento: ['ia_orcamento_uso_do_teto'],
+  loteAdiado: ['ia_lote_adiado_total'],
 } as const satisfies Record<keyof typeof METRICS, readonly string[]>

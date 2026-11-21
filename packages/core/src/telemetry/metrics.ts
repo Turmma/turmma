@@ -250,6 +250,21 @@ export const METRICS = {
    * sai sem habilidade (`null`) e o plano sem aquele código. É o que diz se o modelo está escolhendo habilidade fora do trecho que cita. Só a escola no rótulo: nunca o código, a questão, o artefato nem o professor.
    */
   habilidadeAnulada: 'ia.habilidade_anulada',
+  /**
+   * Quanto do orçamento de IA do mês a escola já gastou (camada-ia, tarefa 4.0; Tech Spec §7c), por `escola_id`: o custo gravado do mês civil de São Paulo sobre valor por aluno × alunos ativos (0,79 = 79%).
+   * Medida pelo worker-lote a cada 5 min, de uma soma só com o retrato. É o que os alertas de 80% e de 100% leem. Sem série na escola `sem_orcamento` ou `sem_aluno_ativo`. Só a escola no rótulo.
+   */
+  usoDoOrcamentoDoMes: 'ia.orcamento.uso_do_mes',
+  /**
+   * Quanto do **teto de segurança** a escola já gastou no mês (4.0), por `escola_id`: o custo do mês sobre orçamento × teto ÷ 100; acima de 1 o job de lote da escola espera até a virada do mês ou até o
+   * teto subir. Da mesma soma de `ia.orcamento.uso_do_mes`, e sem série nas mesmas escolas. É o que o alerta do teto lê.
+   */
+  usoDoTetoDoOrcamento: 'ia.orcamento.uso_do_teto',
+  /**
+   * Jobs do lote de IA adiados sem falhar e sem gastar tentativa (4.0), por `motivo`: `janela` (o horário letivo da escola), `provedor` (balde cheio, disjuntor aberto, provedor fora) e `orcamento` (o custo
+   * do mês passou do teto de segurança). Sem escola, execução nem valor no rótulo.
+   */
+  loteAdiado: 'ia.lote.adiado',
 } as const
 
 /**
@@ -277,6 +292,8 @@ export const METRICS_WITH_ESCOLA: readonly string[] = [
   METRICS.esperaDaClassificacao,
   METRICS.execucoesAtrasadasDaClassificacao,
   METRICS.habilidadeAnulada,
+  METRICS.usoDoOrcamentoDoMes,
+  METRICS.usoDoTetoDoOrcamento,
 ]
 
 /** O rótulo da escola nas métricas de job. Rotina do sistema, sem escola, aparece como `sistema`, como na chave da vaga. */
