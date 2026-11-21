@@ -1,13 +1,14 @@
 # Estado da execução — camada-ia
 
 ## Agora
-- **Espero:** o `RELATÓRIO` do `Implementador 2` (L2) da tarefa 2.0 (grande, partida 21/11 02:20), 1ª tentativa. L1 e L3 ociosas: 3.0, 4.0, 6.0 e 9.0 esperam a 2.0; a 12.0 (e a 9.0, num corte) espera a pergunta do tamanho. As correções da retro da F4b e da X6 estão todas feitas.
-- **Devo ainda:** push da `develop` (a retro `6496c7b5` está sem push) no próximo pouso. A 13.0 depende das chaves de teste dos finalistas, que são do Joaquim (PRD §10).
-- **Base:** `spec/camada-ia` em `082d4d99`; esteira verde em `fef6308` (44872008290), com o e2e 4/11
+- **Espero:** o `RELATÓRIO` do `Implementador` (L1) da 3.0 e do `Implementador 2` (L2) da 4.0, ambas grandes, partidas 21/11 03:54, 1ª tentativa. L3 ociosa: a 6.0 não corre junto com a 3.0 (o `tasks.md` não autoriza); a 9.0 e a 12.0 esperam a pergunta do tamanho (num corte vão para a F5b).
+- **Devo ainda:** antes do pouso, o `Arquiteto` acrescentar à autoconferência 10 e à tabela de testes do `2_task.md` o caso novo da corrida do retrato (relatório da 2.0). Push da `develop` (a retro `6496c7b5` está sem push) no próximo pouso. A 13.0 depende das chaves de teste dos finalistas, que são do Joaquim (PRD §10).
+- **Base:** `spec/camada-ia` em `a545ab9f`
 
 ## Concluídas
 | Tarefa | Commit | Modelo | Rodadas | Observação |
 |---|---|---|---|---|
+| 2.0 | `67ea22b2` | Sonnet | 6 revisores APROVADO, na 1ª e na 2ª | encontro em `a545ab9f`; `TODO.md` "Da camada-ia, tarefa 2.0" e a 0067 na lista das migrations sem `concurrently` |
 | correção `2026-11-21-achado-com-caminho-relativo` (M5 da F4b, L1) | `628218b6` | Sonnet | 6 revisores APROVADO na 2ª | 20 mutações; encontro em `082d4d99`; o histórico já gravado em `tasks/*/achados/` segue com o caminho da máquina (entrada no `TODO.md`, decisão do Joaquim) |
 | correção `2026-11-21-limpeza-do-painel-com-job-registro` (L3, esteira 44862658083) | `185f67f8` | Sonnet | 6 revisores APROVADO na 2ª | `job_registro` e `expurgo_execucao` apagados antes da escola; 4 mutações; encontro em `59ff170b` |
 | correção `2026-11-21-divergencia-cobra-cada-arquivo` (M1 da F4b, L1) | `7cb4754b` | Sonnet | 3 revisores APROVADO na 3ª | 40 mutações; encontro em `460d1b3d`; 2 linhas no `TODO.md` |
