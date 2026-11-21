@@ -57,7 +57,7 @@ import { inventariosDosAlterados } from './inventarios-do-portao.ts'
 
 export { PAPEIS_DO_TIME } from './comando-git.ts'
 
-// Código só entra por tarefa ou por correção, as duas com revisores. Em sessão de papel, o código de processo (`ehCodigoParaAEsteira`)
+// Código só entra por tarefa ou por correção, as duas com revisores. Em sessão de papel e do Claude Code (o Orquestrador), o código de processo (`ehCodigoParaAEsteira`)
 // também (RF16).
 export const PASTAS_DE_CODIGO = ['apps/', 'packages/', 'infra/', 'e2e/']
 
@@ -308,25 +308,39 @@ export interface EntradaDoCommit {
   conteudoDe: ConteudoDe
   /** A raiz da árvore: dela vêm o carimbo, os instantâneos (`.processo/`), as pastas de `tasks/` e a hora dos arquivos. */
   raiz: string
-  /** O papel da sessão (`CLAUDE_CODE_AGENT`). As pastas de processo (RF16) só contam como código em sessão de papel (`arquivosDeCodigo`). */
+  /** O papel da sessão (`CLAUDE_CODE_AGENT`). As pastas de processo (RF16) só contam como código em sessão de papel ou do Claude Code (`arquivosDeCodigo`). */
   papel: string | undefined
+  /**
+   * A decisão é a do `PreToolUse`, que só dispara em sessão do Claude Code: o Orquestrador, que não tem papel, é uma delas. Nela o código de
+   * processo conta como código também sem papel (M3 da retro da F4b). O git hook nativo e o terminal do Joaquim não a passam.
+   */
+  sessaoDoClaudeCode?: boolean
+}
+
+/** O código de processo conta como código: em sessão de papel, e em toda sessão do Claude Code, o Orquestrador inclusive. */
+function contaOProcesso(entrada: Pick<EntradaDoCommit, 'papel' | 'sessaoDoClaudeCode'>): boolean {
+  return ehPapelDoTime(entrada.papel) || entrada.sessaoDoClaudeCode === true
 }
 
 /**
- * O que o commit leva de código. As pastas de produto contam em toda sessão; em sessão de papel contam também as de processo e as
- * configurações do portão (RF16), pela mesma `ehCodigoParaAEsteira` que a esteira usa: uma lista só, sem cópia (§5a, 12.0). Sem
- * papel (o Orquestrador e o Joaquim) o processo é documento, como sempre foi.
+ * O que o commit leva de código. As pastas de produto contam em toda sessão; em sessão de papel e em sessão do Claude Code contam também as de
+ * processo e as configurações do portão (RF16), pela mesma `ehCodigoParaAEsteira` que a esteira usa: uma lista só, sem cópia (§5a, 12.0).
+ * Só o terminal do Joaquim, sem o `PreToolUse`, tem o processo como documento, e a linha `Fora do processo:` é dele.
  */
-const arquivosDeCodigo = (arquivos: string[], papel: string | undefined): string[] =>
-  arquivos.filter((arquivo) => (ehPapelDoTime(papel) ? ehCodigoParaAEsteira(arquivo) : PASTAS_DE_CODIGO.some((pasta) => arquivo.startsWith(pasta))))
+const arquivosDeCodigo = (arquivos: string[], entrada: Pick<EntradaDoCommit, 'papel' | 'sessaoDoClaudeCode'>): string[] =>
+  arquivos.filter((arquivo) => (contaOProcesso(entrada) ? ehCodigoParaAEsteira(arquivo) : PASTAS_DE_CODIGO.some((pasta) => arquivo.startsWith(pasta))))
 
 /** O commit que não cita documento: passa quando não leva código, e bloqueia quando leva. */
-function bloqueioDoCommitSemDocumento(arquivos: string[], papel: string | undefined): string | null {
-  const codigo = arquivosDeCodigo(arquivos, papel)
+function bloqueioDoCommitSemDocumento(entrada: EntradaDoCommit): string | null {
+  const codigo = arquivosDeCodigo(entrada.arquivos, entrada)
   if (codigo.length === 0) return null
-  return (
+  const base =
     `Commit bloqueado: ele leva código (${codigo.slice(0, 3).join(', ')}${codigo.length > 3 ? ', …' : ''}) sem "(tarefa N.0)" nem "(correção <slug>)". ` +
     'Código entra por tarefa ou por correção, que passam pelos revisores (o Orquestrador conduz, com /seguir).'
+  if (ehPapelDoTime(entrada.papel)) return base
+  return (
+    `${base} Fora de papel do time (o Orquestrador, por exemplo) o caminho é abrir a correção (/corrigir: \`docs/aia/ouro-retido/\` leva o \`conformidade-reviewer\`), ` +
+    'ou pedir ao Joaquim o commit no terminal dele, com `Fora do processo:`.'
   )
 }
 
@@ -383,7 +397,7 @@ function bloqueioDoDocumento(entrada: EntradaDoCommit, alterados: string[], cami
 export function decidirCommit(entrada: EntradaDoCommit, conferencia: ConferenciaDoDocumento = () => null): string | null {
   const alterados = entrada.alterados ?? entrada.arquivos
   const documento = documentoDaMensagem(entrada.mensagem, entrada.raiz, alterados)
-  if (!documento) return bloqueioDoCommitSemDocumento(entrada.arquivos, entrada.papel)
+  if (!documento) return bloqueioDoCommitSemDocumento(entrada)
   if ('erro' in documento) return documento.erro
   return bloqueioDoDocumento(entrada, alterados, documento.caminho, conferencia)
 }
@@ -408,7 +422,7 @@ export const LINHA_FORA_DO_PROCESSO = /^Fora do processo:/im
 /**
  * Além de `PASTAS_DE_CODIGO`, o que o §5(e) da Tech Spec conta como código de processo: pastas, e os arquivos de
  * configuração do portão. A esteira (`tools/ci/conferir-entregas.ts`) não sabe se quem commitou era papel, e por isso conta
- * estes em todo commit; a `decidirCommit` os cobra só em sessão de papel (`arquivosDeCodigo`, 14.0).
+ * estes em todo commit; a `decidirCommit` os cobra em sessão de papel e do Claude Code (`arquivosDeCodigo`, 14.0).
  */
 export const PASTAS_DE_PROCESSO = [
   'tools/',
@@ -506,6 +520,7 @@ function bloqueioDoCommit(comando: string, raizDaSessao: string, cwd: string | u
     conteudoDe: conteudoDoDisco(raiz),
     raiz,
     papel,
+    sessaoDoClaudeCode: true,
   }
   return decidirCommit(entrada, conferencia)
 }

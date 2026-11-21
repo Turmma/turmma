@@ -152,7 +152,8 @@ describe('o hook nega o desvio do git hook e a linha Fora do processo (RF14)', (
     { etiqueta: 'no-verify abreviado em ver', comando: 'git commit --no-ver -m "x"', motivo: /--no-verify/ },
     { etiqueta: 'n no commit', comando: 'git commit -n -m "x"', motivo: /-n, que é --no-verify/ },
     { etiqueta: 'n junto do m', comando: 'git commit -nm "x"', motivo: /-n, que é --no-verify/ },
-    { etiqueta: 'n no meio do bloco', comando: 'git commit -anm "x"', motivo: /-n, que é --no-verify/ },
+    // O `-a` leva o `tools/` da cópia: é o único que, fora de papel, o `PreToolUse` recusa, e como código sem marca (M3 da retro da F4b), não como desvio.
+    { etiqueta: 'n no meio do bloco', comando: 'git commit -anm "x"', motivo: /-n, que é --no-verify/, levaOTools: true },
     { etiqueta: 'hookspath por c', comando: 'git -c core.hooksPath=/dev/null commit -m "x"', motivo: /core\.hooksPath/ },
     { etiqueta: 'hookspath em maiúsculas', comando: 'git -c core.HOOKSPATH=x commit -m "x"', motivo: /core\.hooksPath/ },
     { etiqueta: 'hookspath por config', comando: 'git config core.hookspath /tmp/x', motivo: /core\.hooksPath/ },
@@ -174,12 +175,23 @@ describe('o hook nega o desvio do git hook e a linha Fora do processo (RF14)', (
     expect(razao).not.toContain('o portão de revisões falhou')
   })
 
-  it.each(negados)('sem papel, passa calado: $etiqueta', ({ comando }) => {
+  it.each(negados.filter(({ levaOTools }) => levaOTools !== true))('sem papel, passa calado: $etiqueta', ({ comando }) => {
     const saida = rodar(portao(), copiaComGit(), comando)
     expect(saida.status).toBe(0)
     expect(saida.stdout).toBe('')
     // Um papel que não é do time também passa: o orquestrador e o subagente de fora do time não têm hook a pular.
     expect(rodar(portao(), copiaComGit(), comando, 'general-purpose').stdout).toBe('')
+  })
+
+  it.each([undefined, 'general-purpose'])('sem papel (%s), o desvio com -a não é negado como desvio: o commit leva o tools/ da cópia e é recusado como código sem marca', (papel) => {
+    const comando = negados.find(({ levaOTools }) => levaOTools === true)?.comando ?? ''
+    expect(comando).toContain('-anm')
+    const saida = rodar(portao(), copiaComGit(), comando, papel)
+    expect(saida.status).toBe(0)
+    expect(decisao(saida)?.permissionDecision).toBe('deny')
+    const razao = decisao(saida)?.permissionDecisionReason ?? ''
+    expect(razao).toMatch(/^Commit bloqueado: ele leva código \(tools\//)
+    expect(razao).not.toContain('Comando bloqueado')
   })
 
   it.each([

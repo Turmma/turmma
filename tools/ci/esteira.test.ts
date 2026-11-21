@@ -3,7 +3,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { parse } from 'yaml'
-import { FATIAS_DO_E2E } from '../processo/esteira.ts'
+import { FATIAS_DO_E2E, prefixoDoJobDeE2e } from '../processo/esteira.ts'
 import { branchDaLinha } from '../processo/linhas.ts'
 import { ARQUIVO_DO_CENSO_DO_E2E, PREFIXO_DO_ARTEFATO_DO_CENSO, VARIAVEL_DO_RELATORIO_DO_E2E } from './duracao-do-e2e.ts'
 import { raizRepositorio } from './executar.ts'
@@ -469,7 +469,7 @@ describe('esteira do GitHub (.github/workflows/ci.yml)', () => {
   it('o relatório do censo sobe também na execução verde, sem o cancelado, e só depois do e2e que o grava com o nome certo', () => {
     const passos = workflow.jobs['e2e']?.steps ?? []
     const publicacao = publicacaoDoCenso()
-    // Sem `success()` a fatia verde não publicaria nada, e o censo só lê a execução verde.
+    // Sem `success()` a fatia verde não publicaria nada, e o censo lê a execução com o e2e verde, mesmo com outro job vermelho.
     expect(publicacao?.if).toBe('success() || failure()')
     // O arquivo que se publica é o que o Playwright grava: o passo do e2e liga o repórter com esse nome, e ele roda antes.
     const indiceDoE2e = passos.findIndex((passo) => passo.run?.trim().startsWith('npm run ci:e2e') === true)
@@ -478,6 +478,12 @@ describe('esteira do GitHub (.github/workflows/ci.yml)', () => {
     expect(passos.indexOf(publicacao as Passo)).toBeGreaterThan(indiceDoE2e)
     // As fatias que o censo lê são as da matriz.
     expect([...FATIAS_DO_E2E]).toEqual(fatiasDoE2e())
+  })
+
+  it('o nome do job de e2e começa pelo prefixo que o censo procura nos jobs, para toda fatia da matriz', () => {
+    const nome = workflow.jobs['e2e']?.name ?? ''
+    expect(nome).toContain(EXPRESSAO_DA_FATIA)
+    for (const fatia of fatiasDoE2e()) expect(nome.replace(EXPRESSAO_DA_FATIA, String(fatia)).startsWith(prefixoDoJobDeE2e(fatia))).toBe(true)
   })
 
   it('o job e2e publica exatamente dois artefatos, o traço e o relatório do censo: um terceiro, com outro nome, levaria o que não se declarou a um repositório público', () => {

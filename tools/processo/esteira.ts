@@ -4,12 +4,13 @@
 //
 //   node tools/processo/esteira.ts                 ao fechar uma tarefa: a esteira de algum commit desta branch ficou vermelha?
 //   node tools/processo/esteira.ts --fechamento    no fim da spec: a esteira está verde no último commit que alterou código?
-//   node tools/processo/esteira.ts --censo [branch]   algum caso de e2e passa de dois terços do prazo na última esteira verde?
+//   node tools/processo/esteira.ts --censo [branch]   algum caso de e2e passa de dois terços do prazo na execução mais nova com o e2e verde?
 //
 // Sai com 0 quando dá para seguir (verde, rodando ou ainda sem execução, na pergunta da tarefa; verde, no fechamento)
 // e com 1 quando não dá, dizendo o commit, a execução e os jobs que caíram. O censo sai com 0 sem nenhum caso acima de dois
-// terços, com 1 listando os casos (o Orquestrador abre correção), e com 2 quando não há o que ler: sem execução verde, ou
-// com fatia faltando ou de artefato expirado (diz qual).
+// terços, com 1 listando os casos (o Orquestrador abre correção), e com 2 quando não há o que ler: sem execução com o e2e verde, ou
+// com fatia faltando ou de artefato expirado (diz qual). Vale a execução mais nova com **todas as fatias de e2e verdes**, mesmo com outro
+// job vermelho (o `verificar`): o topo do relatório diz qual execução leu e o que estava vermelho nela (M4 da retro da F4b).
 //
 // Execução cancelada: se um push mais novo da mesma branch a cancelou (o `concurrency` do `ci.yml`), ela está superada e
 // não conta; sem esse push (o `timeout-minutes` de um job, um cancelamento à mão), é vermelha e o relatório cita o job.
@@ -176,9 +177,53 @@ export function casosDoCenso(fatias: readonly { fatia: number; relatorio: Relato
     .sort((a, b) => b.duracaoMs / b.prazoMs - a.duracaoMs / a.prazoMs)
 }
 
-/** A execução verde mais nova: a vermelha que veio depois dela não muda o que o censo lê. */
-export function ultimaVerde(execucoes: readonly Execucao[]): Execucao | undefined {
-  return execucoes.filter((execucao) => execucao.estado === 'verde').sort((a, b) => b.criadaEm.localeCompare(a.criadaEm))[0]
+/** Um job da execução, como o `gh run view --json jobs` o devolve. */
+export interface JobDoGh {
+  name: string
+  conclusion: string | null
+}
+
+/** A saída de `gh run view --json jobs`. */
+export function jobsDoGh(saida: string): JobDoGh[] {
+  return (JSON.parse(saida) as { jobs: JobDoGh[] }).jobs.map(({ name, conclusion }) => ({ name, conclusion }))
+}
+
+/** Os jobs que não passaram: o cancelado por prazo entra, o pulado não. */
+function jobsSemPassar(jobs: readonly JobDoGh[]): string[] {
+  return jobs
+    .filter((job) => job.conclusion !== 'success' && job.conclusion !== 'skipped')
+    .map((job) => job.name)
+}
+
+/** A execução acabou: verde ou vermelha. A rodando não tem o veredito, e a cancelada não tem o relatório de todas as fatias. */
+function terminou(execucao: Execucao): boolean {
+  return execucao.estado === 'verde' || execucao.estado === 'vermelha'
+}
+
+/** O começo do nome do job de uma fatia do e2e, como o `ci.yml` o dá: `e2e <fatia>/<total> (…)`. `tools/ci/esteira.test.ts` o confere contra o `name` do job. */
+export function prefixoDoJobDeE2e(fatia: number): string {
+  return `e2e ${String(fatia)}/${String(FATIAS_DO_E2E.length)} `
+}
+
+/** Toda fatia da matriz do e2e tem o seu job, e ele terminou em sucesso. */
+function e2eVerde(jobs: readonly JobDoGh[]): boolean {
+  return FATIAS_DO_E2E.every((fatia) => jobs.some((job) => job.name.startsWith(prefixoDoJobDeE2e(fatia)) && job.conclusion === 'success'))
+}
+
+/**
+ * A execução terminada mais nova com todas as fatias de e2e verdes, e o que estava vermelho fora delas. Vale a verde e a vermelha por outro
+ * job (o `verificar` caído esconde o censo por dias, e o e2e dele está lá): a rodando não terminou e a cancelada não tem relatório de todas as fatias.
+ */
+export function ultimaComE2eVerde(
+  execucoes: readonly Execucao[],
+  jobsDe: (execucao: number) => JobDoGh[],
+): { execucao: Execucao; foraDoE2e: string[] } | undefined {
+  const terminadas = execucoes.filter(terminou).sort((a, b) => b.criadaEm.localeCompare(a.criadaEm))
+  for (const execucao of terminadas) {
+    const jobs = jobsDe(execucao.id)
+    if (e2eVerde(jobs)) return { execucao, foraDoE2e: jobsSemPassar(jobs) }
+  }
+  return undefined
 }
 
 /** O que o GitHub diz de um artefato da execução. `expired`: passou do `retention-days` e não baixa mais. */
@@ -226,23 +271,25 @@ export function relatorioDaFatia(texto: string, fatia: number): RelatorioDoPlayw
 
 export type Censo =
   | { tipo: 'sem-verde' }
-  | { tipo: 'incompleto'; execucao: Execucao; faltando: number[]; expiradas: number[] }
-  | { tipo: 'lista'; execucao: Execucao; casos: CasoDoCenso[] }
+  | { tipo: 'incompleto'; execucao: Execucao; foraDoE2e: string[]; faltando: number[]; expiradas: number[] }
+  | { tipo: 'lista'; execucao: Execucao; foraDoE2e: string[]; casos: CasoDoCenso[] }
 
 /**
- * O censo da última execução verde: com todas as fatias de `FATIAS_DO_E2E` a ler, a lista dos casos acima de dois terços do prazo; com fatia
+ * O censo da execução mais nova com o e2e verde (`ultimaComE2eVerde`): com todas as fatias de `FATIAS_DO_E2E` a ler, a lista dos casos acima de dois terços do prazo; com fatia
  * faltando ou expirada, nada é lido, porque lista de uma parte da suíte passaria pela suíte inteira.
  */
 export function fazerOCenso(
   execucoes: readonly Execucao[],
   artefatosDe: (execucao: number) => ArtefatoDoGh[],
   relatorioDe: (execucao: number, fatia: number) => RelatorioDoPlaywright,
+  jobsDe: (execucao: number) => JobDoGh[],
 ): Censo {
-  const execucao = ultimaVerde(execucoes)
-  if (execucao === undefined) return { tipo: 'sem-verde' }
+  const lida = ultimaComE2eVerde(execucoes, jobsDe)
+  if (lida === undefined) return { tipo: 'sem-verde' }
+  const { execucao, foraDoE2e } = lida
   const { faltando, expiradas } = fatiasSemRelatorio(artefatosDe(execucao.id))
-  if (faltando.length > 0 || expiradas.length > 0) return { tipo: 'incompleto', execucao, faltando, expiradas }
-  return { tipo: 'lista', execucao, casos: casosDoCenso(FATIAS_DO_E2E.map((fatia) => ({ fatia, relatorio: relatorioDe(execucao.id, fatia) }))) }
+  if (faltando.length > 0 || expiradas.length > 0) return { tipo: 'incompleto', execucao, foraDoE2e, faltando, expiradas }
+  return { tipo: 'lista', execucao, foraDoE2e, casos: casosDoCenso(FATIAS_DO_E2E.map((fatia) => ({ fatia, relatorio: relatorioDe(execucao.id, fatia) }))) }
 }
 
 export function codigoDoCenso(censo: Censo): 0 | 1 | 2 {
@@ -254,20 +301,27 @@ function segundos(ms: number): string {
   return (ms / 1000).toFixed(1).replace('.', ',')
 }
 
+/** O topo do relatório: a execução lida, que tinha o e2e verde, e o que estava vermelho fora dele. */
+function topoDoCenso(censo: Exclude<Censo, { tipo: 'sem-verde' }>, branch: string, alvo: string): string {
+  const vermelho = censo.foraDoE2e.length > 0 ? `; vermelho fora do e2e: ${censo.foraDoE2e.join('; ')}` : ''
+  return `censo do e2e de ${branch}: leu a ${alvo}, com o e2e verde${vermelho}.\n`
+}
+
 export function relatorioDoCenso(censo: Censo, branch: string): string {
-  if (censo.tipo === 'sem-verde') return `censo do e2e de ${branch}: nenhuma execução verde da esteira para ler.`
+  if (censo.tipo === 'sem-verde') return `censo do e2e de ${branch}: nenhuma execução com o e2e verde da esteira para ler.`
   const alvo = `execução ${String(censo.execucao.id)} (${curto(censo.execucao.sha)})`
+  const topo = topoDoCenso(censo, branch, alvo)
   if (censo.tipo === 'incompleto') {
     const faltando = censo.faltando.length > 0 ? ` Fatia(s) sem artefato: ${censo.faltando.join(', ')}.` : ''
     const expiradas = censo.expiradas.length > 0 ? ` Fatia(s) com artefato expirado: ${censo.expiradas.join(', ')}.` : ''
-    return `censo do e2e de ${branch}: a ${alvo} não tem o relatório de todas as fatias.${faltando}${expiradas} Uma execução verde mais nova o tem: gh workflow run esteira --ref ${branch}`
+    return `${topo}censo do e2e de ${branch}: a ${alvo} não tem o relatório de todas as fatias.${faltando}${expiradas} Uma execução mais nova com o e2e verde o tem: gh workflow run esteira --ref ${branch}`
   }
-  if (censo.casos.length === 0) return `censo do e2e de ${branch}, ${alvo}: nenhum caso acima de dois terços do prazo.`
+  if (censo.casos.length === 0) return `${topo}censo do e2e de ${branch}, ${alvo}: nenhum caso acima de dois terços do prazo.`
   const linhas = censo.casos.map(
     (caso) =>
       `  ${caso.arquivo}:${String(caso.linha)} (${caso.projeto}, fatia ${String(caso.fatia)}) levou ${segundos(caso.duracaoMs)} s de ${segundos(caso.prazoMs)} s — ${caso.titulo}`,
   )
-  return `censo do e2e de ${branch}, ${alvo}: ${String(censo.casos.length)} caso(s) acima de dois terços do prazo.\n${linhas.join('\n')}`
+  return `${topo}censo do e2e de ${branch}, ${alvo}: ${String(censo.casos.length)} caso(s) acima de dois terços do prazo.\n${linhas.join('\n')}`
 }
 
 /** A branch do `--censo [branch]`: o argumento que vem depois dele, ou a atual. */
@@ -356,9 +410,7 @@ export function execucoesDoGh(saida: string): Execucao[] {
 
 /** Os jobs de uma execução que não passaram: o cancelado por prazo entra, o pulado não. Saída do `gh run view --json jobs`. */
 export function jobsQueNaoPassaram(saida: string): string[] {
-  return (JSON.parse(saida) as { jobs: { name: string; conclusion: string | null }[] }).jobs
-    .filter((job) => job.conclusion !== 'success' && job.conclusion !== 'skipped')
-    .map((job) => job.name)
+  return jobsSemPassar(jobsDoGh(saida))
 }
 
 /** Só a execução que deu o veredito vermelho tem os jobs lidos: os da superada não aparecem, e nem são pedidos ao GitHub. */
@@ -381,6 +433,7 @@ if (import.meta.filename === process.argv[1]) {
           baixarORelatorio(id, fatia, (argumentos) => {
             executar('gh', argumentos, raiz)
           }),
+        (id) => jobsDoGh(executar('gh', ['run', 'view', String(id), '--json', 'jobs'], raiz)),
       )
       process.stdout.write(`${relatorioDoCenso(censo, alvo)}\n`)
       process.exit(codigoDoCenso(censo))
