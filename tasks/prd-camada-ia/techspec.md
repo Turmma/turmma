@@ -50,7 +50,7 @@ corrente a cada 5 min (`on conflict do update`); o fechado guarda o último. A `
 
 **Uma linha por chamada enviada**, com provedor, modelo, tokens, custo e `tentativas = 1`; a saída inválida grava
 `falhou`/`IA_SAIDA_INVALIDA`; `entrada` e `saida` só na última (a inválida não fica para depuração, regra 20). A que
-não saiu (disjuntor aberto, sem vaga) não grava, como hoje.
+não saiu (disjuntor aberto, sem vaga) não é chamada: no lote não grava, como hoje; nas outras filas deixa a linha única da falha, como a do balde cheio na X6 (`tentativas = 0`, sem tokens, custo nem envio). O **código final da execução** não vive no consumo: a saída inválida seguida de repetição que não sai (prazo, disjuntor) deixa a linha da primeira chamada em `IA_SAIDA_INVALIDA`, e o motivo que encerrou a execução fica em `execucao_agente.erro` e no erro que sobe.
 
 **A estimativa** (D14: superestima custo e destino). A chamada que saiu sem voltar com uso (prazo, conexão, servidor)
 grava a entrada contada e a saída no teto. A interrompida grava os dois tetos da tarefa, uma linha por destino, ao
@@ -69,7 +69,7 @@ preço de cada modelo: se a tarefa tem aprovação para o provedor de reserva co
 | GET | `/v1/governanca/consumo` | coordenação | `?mes=` (inalterada) | `orcamento { situacao, porcentagem, aviso: 80\|100\|null }`, `porFuncao [{ funcao, parte, execucoes }]`, `tutor`; **sem** tokens e custo |
 
 `situacao`: `definido`, `sem_orcamento`, `sem_aluno_ativo` ou `sem_retrato` (mês fechado antes da F5). O mês corrente
-é calculado na hora; o fechado lê o retrato. `parte` (0 a 100) é a fatia dos tokens. `aviso`: o limiar já cruzado no mês corrente (`>=`); nulo no fechado. "Hoje" é o dia de São Paulo até agora. `execucoes` é `count(distinct execucao_id)`; `escolasQueUsamOValorDaRede` conta valor ou teto vindo da rede. Entrada em centavos (R$ 0,01 a R$ 100,00), saída em micros. Id inexistente: `NAO_ENCONTRADO`.
+é calculado na hora; o fechado lê o retrato. `parte` (0 a 100) é a fatia dos tokens. `aviso`: o limiar já cruzado no mês corrente (`>=`); nulo no fechado. "Hoje" é o dia de São Paulo até agora. `execucoes` é `count(distinct execucao_id)` mais uma por linha sem execução; `escolasQueUsamOValorDaRede` conta valor ou teto vindo da rede. Entrada em centavos (R$ 0,01 a R$ 100,00), saída em micros. Id inexistente: `NAO_ENCONTRADO`.
 
 ## 5. Fluxo
 
@@ -90,7 +90,7 @@ execução**, duas por provedor. A reserva passa pelo mesmo `chamarModelo`, com 
 
 **A subida.** O principal segue como na X6. A reserva passa na mesma conferência (Brasil sempre, treinamento vedado), com as
 categorias das tarefas aprovadas para ela. Sem conferência, ela não é elegível, confere de novo a cada 5 s
-(intervalo injetado) e `ia.provedor_de_reserva.conferido = 0`. Modelo da reserva sem preço recusa a subida; entrada de
+(intervalo injetado) e `ia.provedor_de_reserva.conferido = 0`. Modelo da reserva sem preço recusa a subida, e o do principal também, fora de `local` com `openai_compat` (`LLMConfig.exigePreco`; quem confere é o `createLLMGateway`, que cita `LLM_MODELO` ou `LLM_MODELO_<PERFIL>`); entrada de
 `MODELOS_APROVADOS` com tarefa fora de `TAREFAS_DE_IA` quebra o teste da constante.
 
 **O teto de segurança.** `OrcamentoQuery` ganha `fila`; só a `lote` é conferida. Com `situacao = definido` e o custo do

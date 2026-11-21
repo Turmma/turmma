@@ -319,8 +319,11 @@ describe('adaptar_atividade', () => {
     const trocada = { ...boa, questoes: boa.questoes.map((questao) => ({ ...questao, gabarito: (questao.gabarito + 1) % 4 })) }
     const { ia, consumo } = provedorCom(new ScriptedAdapter([JSON.stringify(trocada), JSON.stringify(trocada)]))
     expect((await erroDe(ia.generate({ tarefa: adaptarAtividade, entrada, escolaId: ESCOLA_A }))).codigoDeIa).toBe('IA_SAIDA_INVALIDA')
-    expect(consumo.registros).toMatchObject([{ funcao: 'adaptacao', estado: 'falhou', codigoDeErro: 'IA_SAIDA_INVALIDA', tentativas: 2 }])
-    expect(consumo.registros[0]?.saida).toBeUndefined()
+    expect(consumo.registros).toMatchObject([
+      { funcao: 'adaptacao', estado: 'falhou', codigoDeErro: 'IA_SAIDA_INVALIDA', tentativas: 1 },
+      { funcao: 'adaptacao', estado: 'falhou', codigoDeErro: 'IA_SAIDA_INVALIDA', tentativas: 1 },
+    ])
+    for (const registro of consumo.registros) expect(registro.saida).toBeUndefined()
   })
 })
 

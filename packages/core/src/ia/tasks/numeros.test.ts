@@ -241,7 +241,11 @@ describe('propor_ferramenta e a D55: a IA não julga texto de aluno nem dá nota
       expect(saida).toEqual({ tipo: 'texto', texto: RECUSA_DE_CORRECAO_DE_TEXTO_DE_ALUNO, citacoes: [] })
       expect(insistente.chamadas).toBe(2)
       expect(insistente.correcoes[1]?.problemas.join(' ')).toContain('nota, conceito ou pontuação')
-      expect(consumo.registros).toMatchObject([{ funcao: 'conversa_e_ferramentas', estado: 'concluida', tentativas: 2 }])
+      // Duas chamadas, duas linhas: a primeira com a saída que a conferência barrou, a última com o resultado (a recusa da regra fixa).
+      expect(consumo.registros).toMatchObject([
+        { funcao: 'conversa_e_ferramentas', estado: 'falhou', codigoDeErro: 'IA_SAIDA_INVALIDA', tentativas: 1 },
+        { funcao: 'conversa_e_ferramentas', estado: 'concluida', tentativas: 1 },
+      ])
       expect(JSON.stringify(consumo.registros)).not.toMatch(/6,5|razoável|Bia/u)
 
       const semNota = { tipo: 'texto', texto: 'Eu não avalio texto de aluno: a correção é sua.', citacoes: [] }
@@ -644,7 +648,11 @@ describe('propor_ferramenta na tarefa 3.0: juízo sobre texto de aluno, na entra
       expect(saida).toEqual(recusa)
       expect(adaptador.chamadas).toBe(2)
       expect(adaptador.correcoes[1]?.problemas.join(' ')).toContain('julga texto de aluno')
-      expect(consumo.registros).toMatchObject([{ funcao: 'conversa_e_ferramentas', estado: 'concluida', tentativas: 2 }])
+      // Duas chamadas, duas linhas: a primeira com a saída que a conferência barrou, a última com o resultado (a recusa da regra fixa).
+      expect(consumo.registros).toMatchObject([
+        { funcao: 'conversa_e_ferramentas', estado: 'falhou', codigoDeErro: 'IA_SAIDA_INVALIDA', tentativas: 1 },
+        { funcao: 'conversa_e_ferramentas', estado: 'concluida', tentativas: 1 },
+      ])
       expect(JSON.stringify(consumo.registros)).not.toMatch(/Bia|confuso|coes/u)
       // Duas linhas, só com id e contagem: a da reserva e a da conclusão. Nenhuma leva o texto, a saída ou a conversa.
       expect(logger.info.mock.calls).toEqual([
@@ -864,6 +872,6 @@ describe('resumo_do_analista: só agregado, em listas fechadas, sem texto do mod
     expect(erro).toBeInstanceOf(LLMError)
     expect((erro as LLMError).codigoDeIa).toBe('IA_SAIDA_INVALIDA')
     expect(adaptador.correcoes[1]?.problemas.join(' ')).toContain('resumo')
-    expect(consumo.registros).toMatchObject([{ funcao: 'resumo_e_alerta', estado: 'falhou' }])
+    expect(consumo.registros).toMatchObject([{ funcao: 'resumo_e_alerta', estado: 'falhou' }, { funcao: 'resumo_e_alerta', estado: 'falhou' }])
   })
 })

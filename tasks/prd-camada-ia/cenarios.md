@@ -47,7 +47,8 @@
 | RF5 | Aprovação `(tarefa, provedor da reserva, modelo-x)` e a reserva configurada com `modelo-y`: a interrompida grava as duas estimadas mesmo assim (destino superestimado, D14); o compartilhamento lista as duas | `consumo.test.ts`, `arquivo-do-titular.int.test.ts` | comparar também o modelo |
 | RF5 | Aprovação para a tarefa com **outro** `provedorId`, e a reserva configurada com o seu: a interrompida grava só a estimada do principal; o compartilhamento lista só o principal | `consumo.test.ts`, `arquivo-do-titular.int.test.ts` | comparar sem o `provedorId` |
 | RF5 | Interrompida de tarefa sem aprovação para a reserva: só a do principal | idem | estimada da reserva sempre |
-| RF5 | Governança com uma execução de duas linhas: `execucoes = 1` | `governanca.int.test.ts` | `count(*)` |
+| RF5 | Governança com uma execução de duas linhas: `execucoes = 1`; duas linhas sem execução: `execucoes = 2` | `governanca.int.test.ts` | `count(*)`; tirar a linha sem execução da conta |
+| RF5 | A chamada que não saiu não é chamada: com o disjuntor aberto ou sem vaga **no lote**, nenhuma linha, e o job adia; **fora do lote**, uma linha da falha com `tentativas = 0`, sem tokens, custo nem envio; e a chamada anterior que saiu mantém a sua linha mesmo com a repetição adiada | `llm-gateway.test.ts` | gravar a linha no lote; não gravar fora do lote |
 
 ### Custo e orçamento (RF6 a RF10)
 

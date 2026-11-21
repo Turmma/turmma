@@ -63,7 +63,7 @@ const CONSUMO: FakeResponse = {
   status: 200,
   corpo: {
     mes: '2026-10',
-    total: { chamadas: 0, tokensDeEntrada: 0, tokensDeSaida: 0, custoMicros: 0, comEnvioExterno: 0 },
+    total: { execucoes: 0, tokensDeEntrada: 0, tokensDeSaida: 0, custoMicros: 0, comEnvioExterno: 0 },
     porFuncao: [],
     tutor: { trocasNoMes: 0, pacoteDoMes: 9600, trocasPorDiaPorAluno: 60, trocasPorMesPorAluno: 300 },
   },

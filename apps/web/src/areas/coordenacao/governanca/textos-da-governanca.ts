@@ -100,17 +100,17 @@ export function acertoPercentual(acertos: number, total: number): number {
 }
 
 /** "12.340 tokens · 8 execuções": o que a função gastou, em texto. */
-export function textoDoConsumo(consumo: Pick<ConsumoSomado, 'chamadas' | 'tokensDeEntrada' | 'tokensDeSaida'>): string {
-  return `${formatQuantity(consumo.tokensDeEntrada + consumo.tokensDeSaida, 'token', 'tokens')} · ${formatQuantity(consumo.chamadas, 'execução', 'execuções')}`
+export function textoDoConsumo(consumo: Pick<ConsumoSomado, 'execucoes' | 'tokensDeEntrada' | 'tokensDeSaida'>): string {
+  return `${formatQuantity(consumo.tokensDeEntrada + consumo.tokensDeSaida, 'token', 'tokens')} · ${formatQuantity(consumo.execucoes, 'execução', 'execuções')}`
 }
 
 const reais = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 
 /**
- * O custo do mês. **Com zero medido, a tela não escreve "R$ 0,00"**: nesta versão o custo por chamada não é medido, e
+ * O custo do mês. **Com zero medido, a tela não escreve "R$ 0,00"**: o adaptador falso e o modelo local não têm preço, e
  * mostrar zero em reais seria afirmar que a IA não custou nada.
  */
-export function textoDoCusto(total: Pick<ConsumoSomado, 'custoMicros' | 'chamadas'>): string {
+export function textoDoCusto(total: Pick<ConsumoSomado, 'custoMicros'>): string {
   if (total.custoMicros <= 0) return 'O custo em reais ainda não é medido nesta versão: o que aparece aqui são os tokens que cada função gastou.'
   return `Custo do mês: ${reais.format(total.custoMicros / 1_000_000)}.`
 }

@@ -10,13 +10,13 @@ teto de palavras. São 13, uma acima do teto de 12. O corte possível é em duas
 
 ## Lista
 
-- [ ] **1.0 — Toda chamada ao modelo grava o seu custo, pelo preço vigente, numa linha só dela**
-  - [ ] 1.1 `PRECO_DOS_MODELOS` por `provedor:modelo`, com `vigenteDesde` e `fonte`; `custoDaChamada`, para cima
-  - [ ] 1.2 O gateway grava uma linha por chamada enviada; a que caiu depois do envio grava a estimativa
-  - [ ] 1.3 A subida exige preço de todo modelo com envio externo
-  - [ ] 1.4 A Governança conta execuções com `count(distinct execucao_id)`
-  - [ ] 1.5 `docs/runbook.md`, "Voltar o código depois da camada-ia 1.0"
-  - [ ] 1.6 Testes
+- [x] **1.0 — Toda chamada ao modelo grava o seu custo, pelo preço vigente, numa linha só dela**
+  - [x] 1.1 `PRECO_DOS_MODELOS` por `provedor:modelo`, com `vigenteDesde` e `fonte`; `custoDaChamada`, para cima
+  - [x] 1.2 O gateway grava uma linha por chamada enviada; a que caiu depois do envio grava a estimativa
+  - [x] 1.3 A subida exige preço de todo modelo com envio externo
+  - [x] 1.4 A Governança conta execuções com `count(distinct execucao_id)`
+  - [x] 1.5 `docs/runbook.md`, "Voltar o código depois da camada-ia 1.0"
+  - [x] 1.6 Testes
 
 - [ ] **2.0 — O orçamento de IA existe no banco e na conta: colunas, retrato do mês e a leitura por escola**
   - [ ] 2.1 Migration de expansão: colunas da escola e da rede, `orcamento_ia_do_mes`, `pelo_provedor_de_reserva`

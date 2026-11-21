@@ -632,7 +632,8 @@ HabilidadeDaSecao  → escola*, secao*, codigo* (HabilidadeBncc), origem* (ia | 
 ExecucaoAgente*    → escola*, anoLetivo? (nulo só na tarefa `classificar_secoes`, que roda pela rotina), funcao*, tarefa*, solicitadaPor?, chaveEnvio*,
                      estado* (pendente | rodando | concluida | falhou), entrada*, resultado?, erro?, datas,
                      anonimizadaEm? (F3)
-ConsumoIa*         → escola*, aluno?, execucao?, tarefa*, funcao*, perfil*, origem*, modelo*, promptVersao*,
+ConsumoIa*         → (uma linha por chamada enviada ao modelo: a repetição e a troca de modelo deixam mais de uma por execução)
+                     escola*, aluno?, execucao?, tarefa*, funcao*, perfil*, origem*, modelo*, promptVersao*,
                      tokensDeEntrada*, tokensDeSaida*, custoMicros*, duracaoMs*, envioExterno*, provedor? (F3: só com
                      envioExterno; o id do provedor que recebeu o conteúdo), tentativas*,
                      estado*, codigoDeErro?, entrada?, saida?, em*
