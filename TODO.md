@@ -2973,9 +2973,21 @@ linhas). A M2 da F4 (o inventário no portão) vem logo depois: é a família de
 - [x] (F4b, retro, M4) **O censo lê a execução mais nova com o e2e verde**, na mesma correção da M3. `tools/ci/esteira.ts --censo`: a execução
       mais nova com todas as fatias de e2e verdes, mesmo com outro job vermelho, dizendo no topo qual leu e o que estava vermelho nela. Caso com
       `verificar` vermelho e e2e verde. Guardiões: `infra-guardian`, `revisor-geral`, `test-engineer` *Feita na correção `2026-11-21-commit-de-processo-fora-de-tarefa` (21/11/2026).*
-- [ ] (F4b, retro, M5) **O achado grava caminho relativo.** `tools/processo/revisoes.ts`: ao gravar o bloco em `achados/`, a raiz do checkout
+- [x] (F4b, retro, M5) **O achado grava caminho relativo.** `tools/processo/documento-de-revisao.ts` (`semCaminhoDaMaquina`; o código do hook mora nele, e não em
+      `revisoes.ts`, que só reexporta): ao gravar o bloco em `achados/` e a linha de `achados/indice.md`, a raiz do checkout
       (a do andar ou da linha, `…/.maestri/floors/<andar>/`) sai, e o caminho fica relativo à raiz do repositório. Caso: o achado com o caminho
-      absoluto de uma linha sai relativo. O repositório é público. Guardiões: `revisor-geral`, `test-engineer`
+      absoluto de uma linha sai relativo. O repositório é público. Guardiões: `revisor-geral`, `test-engineer` *Feita na correção `2026-11-21-achado-com-caminho-relativo` (21/11/2026).*
+- [ ] (correção `2026-11-21-achado-com-caminho-relativo`, revisor-geral, test-engineer e privacy-guardian, 1ª, 21/11/2026) **O histórico e o que o prefixo não alcança.**
+      (1) **O histórico continua público**: os milhares de caminhos com `/home/` já gravados em `tasks/*/achados/` (e as linhas de `achados/indice.md`) seguem no repositório;
+      limpar é um script de uma vez (`semCaminhoDaMaquina` sobre cada arquivo, sem raiz) e decidir se reescreve o histórico do git, que é outra conversa (o repositório é público
+      desde a F0). (2) O que a limpeza deixa: `/home/<usuário>/.claude/projects/-home-<usuário>-Documents-git-Educa-ia/memory/…` perde só o prefixo e vira `.claude/projects/-home-<usuário>-…`,
+      com o usuário ainda dentro e **parecendo caminho do repositório**; `/tmp/claude-<uid>/-home-<usuário>-…/scratchpad/…` e `~/Documents/git/Educa-ia/…` ficam inteiros e expõem a
+      estrutura de pastas. Pedir ao revisor que cite o caminho relativo é mais barato que tirar tudo na saída (a Mesa passa a pedir no prompt, desde a 2ª rodada desta correção).
+      (3) **A raiz sozinha seguida de ponto final não é trocada** (`o cwd é /home/u/Documents/git/Educa-ia.`): o `.` em `(?![\w.-])` de `semCaminhoDaMaquina` a deixa inteira, e no térreo nada mais a pega.
+      Trocar por `(?![\w-]|\.[\w-])`, com o caso `semCaminhoDaMaquina('cwd /srv/x/y.', '/srv/x/y')` e o bloco de mutação (`revisor-geral` e `test-engineer`, 2ª). (4) **A rota HTTP com um segmento igual
+      ao de uma pasta do repositório** (`/api/docs/x`, `/v1/tasks/…`) perde o começo até esse segmento: `DA_RAIZ_DO_REPOSITORIO` não distingue rota de caminho; está dito em "O que fica de fora" do documento
+      da correção, e só pesa se um revisor citar rota assim (`test-engineer`, 2ª). Exigir que a base termine num checkout conhecido foi recusado nesta correção, por mudar comportamento.
+      (Dono: Joaquim e `privacy-guardian`; o Arquiteto na retro)
 
 ## Da correção 2026-11-21-commit-de-processo-fora-de-tarefa (M3 e M4 da retro da F4b), fora dela
 
