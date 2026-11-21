@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { tokenDeLinkSchema } from '../sessao/token.js'
 import { FORMATO_SLUG, TAMANHO_MAXIMO_SLUG, TIPOS_DE_REDE } from '../estrutura/rede-e-escola.js'
 import { TAMANHO_MAXIMO_EMAIL } from '../sessao/login.js'
-import { orcamentoVigente, type OrcamentoDefinido } from '../governanca/orcamento-de-ia.js'
+import { orcamentoVigente, type OrcamentoDefinido, type SituacaoDoOrcamento } from '../governanca/orcamento-de-ia.js'
 
 /** O maior nome de rede, de escola ou de pessoa convidada: o teto do check de `usuario.nome`, `rede.nome` e `escola.nome`. */
 export const TAMANHO_MAXIMO_NOME_DIGITADO = 200
@@ -262,6 +262,22 @@ export const painelQuerySchema = z.strictObject({
 
 export type PainelQuery = z.infer<typeof painelQuerySchema>
 
+/**
+ * As ordens do uso (camada-ia, 5.0): as da lista e `custo`, o custo de IA do mês corrente (decrescente, calculado para todas as escolas antes de paginar). O `custo` é **só do uso**: a aba Escolas
+ * segue com `ORDENS_DO_PAINEL`, e `?ordem=custo` em `GET /v1/operacao/escolas` é `ENTRADA_INVALIDA`.
+ */
+export const ORDENS_DO_USO_DO_PAINEL = [...ORDENS_DO_PAINEL, 'custo'] as const
+
+export type OrdemDoUso = (typeof ORDENS_DO_USO_DO_PAINEL)[number]
+
+/** Consulta de `GET /v1/operacao/uso`: a da lista, com a ordem por custo. Estrita, como a da lista. */
+export const usoDoPainelQuerySchema = z.strictObject({
+  pagina: painelQuerySchema.shape.pagina,
+  ordem: z.enum(ORDENS_DO_USO_DO_PAINEL).default('nome'),
+})
+
+export type UsoDoPainelQuery = z.infer<typeof usoDoPainelQuerySchema>
+
 const contagemSchema = z.number().int().nonnegative()
 
 /**
@@ -303,14 +319,52 @@ export const usoDoPeriodoDoPainelSchema = z.strictObject({
 export type UsoDoPeriodoDoPainel = z.infer<typeof usoDoPeriodoDoPainelSchema>
 
 /**
+ * O uso de IA de uma escola num período (camada-ia, 5.0; RF11): as execuções (uma por execução, e uma por linha sem execução), as chamadas (uma por linha de consumo), os tokens (entrada e saída), o custo em
+ * micros e quantas chamadas a reserva atendeu. **Só número**: nenhuma pessoa, nenhuma função, nenhum modelo.
+ */
+export const usoDeIaDoPeriodoDoPainelSchema = z.strictObject({
+  execucoes: contagemSchema,
+  chamadas: contagemSchema,
+  tokens: contagemSchema,
+  custoMicros: contagemSchema,
+  chamadasPeloProvedorDeReserva: contagemSchema,
+})
+
+export type UsoDeIaDoPeriodoDoPainel = z.infer<typeof usoDeIaDoPeriodoDoPainelSchema>
+
+const valorPorAlunoMicrosSchema = z.number().int().positive().nullable()
+const origemDoValorSchema = z.enum(['escola', 'rede', 'nenhuma'])
+/** Como está o orçamento do mês corrente: o mês de agora nunca é `sem_retrato`, que é do mês fechado antes da medição. */
+const situacaoDoMesCorrenteSchema = z.enum(['definido', 'sem_orcamento', 'sem_aluno_ativo'] satisfies readonly SituacaoDoOrcamento[])
+const situacaoDoMesFechadoSchema = z.enum(['definido', 'sem_orcamento', 'sem_aluno_ativo', 'sem_retrato'] satisfies readonly SituacaoDoOrcamento[])
+const porcentagemSchema = z.number().int().nonnegative().nullable()
+
+/**
+ * O grupo `ia` de uma escola no uso: `hoje` (o dia de São Paulo até agora) e `mes` (o mês de São Paulo de agora), os alunos ativos de hoje, o valor por aluno que vale com a origem dele, a porcentagem do
+ * orçamento e a situação. A porcentagem é nula fora de `definido` (sem divisão por zero), e os reais seguem visíveis.
+ */
+export const usoDeIaDaEscolaDoPainelSchema = z.strictObject({
+  hoje: usoDeIaDoPeriodoDoPainelSchema,
+  mes: usoDeIaDoPeriodoDoPainelSchema,
+  alunosAtivos: contagemSchema,
+  valorPorAlunoMicros: valorPorAlunoMicrosSchema,
+  origemDoValor: origemDoValorSchema,
+  porcentagem: porcentagemSchema,
+  situacao: situacaoDoMesCorrenteSchema,
+})
+
+export type UsoDeIaDaEscolaDoPainel = z.infer<typeof usoDeIaDaEscolaDoPainelSchema>
+
+/**
  * O uso de uma escola: o do último dia fechado e o do mês dele, até esse dia (requisições e jobs somados, e o pico de
- * bytes). Zero quando não há linha. Só id, nome e número.
+ * bytes), mais o grupo `ia` de hoje e do mês corrente. Zero quando não há linha. Só id, nome e número.
  */
 export const usoDaEscolaDoPainelSchema = z.strictObject({
   id: z.uuid(),
   nome: z.string().min(1).max(TAMANHO_MAXIMO_NOME_DIGITADO),
   dia: usoDoPeriodoDoPainelSchema,
   mes: usoDoPeriodoDoPainelSchema,
+  ia: usoDeIaDaEscolaDoPainelSchema,
 })
 
 export type UsoDaEscolaDoPainel = z.infer<typeof usoDaEscolaDoPainelSchema>
@@ -329,3 +383,28 @@ export const usoDoPainelResponseSchema = z.strictObject({
 })
 
 export type UsoDoPainelResponse = z.infer<typeof usoDoPainelResponseSchema>
+
+/** Quantos meses `GET /v1/operacao/escolas/:id/uso-ia` devolve: os 12 anteriores ao mês corrente (camada-ia, 5.0). */
+export const MESES_DO_USO_DE_IA = 12
+
+/**
+ * Um mês fechado de uma escola, **pelo retrato**: o `AAAA-MM`, os números do consumo dele (os de `ia.mes`) e o orçamento que o retrato gravou (alunos, valor, origem, porcentagem, situação). O mês sem retrato
+ * (fechado antes da medição) é `sem_retrato`, com só o consumo e o resto nulo. Nenhum aviso: ele só existe no mês corrente.
+ */
+export const mesDoUsoDeIaDaEscolaSchema = usoDeIaDoPeriodoDoPainelSchema.extend({
+  mes: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
+  alunosAtivos: contagemSchema.nullable(),
+  valorPorAlunoMicros: valorPorAlunoMicrosSchema,
+  origemDoValor: origemDoValorSchema.nullable(),
+  porcentagem: porcentagemSchema,
+  situacao: situacaoDoMesFechadoSchema,
+})
+
+export type MesDoUsoDeIaDaEscola = z.infer<typeof mesDoUsoDeIaDaEscolaSchema>
+
+/** Resposta de `GET /v1/operacao/escolas/:id/uso-ia`: exatamente os 12 meses anteriores ao corrente, do mais recente ao mais antigo. */
+export const usoDeIaDaEscolaDoPainelResponseSchema = z.strictObject({
+  meses: z.array(mesDoUsoDeIaDaEscolaSchema).length(MESES_DO_USO_DE_IA),
+})
+
+export type UsoDeIaDaEscolaDoPainelResponse = z.infer<typeof usoDeIaDaEscolaDoPainelResponseSchema>

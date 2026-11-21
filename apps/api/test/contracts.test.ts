@@ -165,6 +165,46 @@ describe('contratos de saída: nenhuma resposta traz credencial, segredo ou iden
     expect(camposDoEsquema(shared.gravarPlanilhaResponseSchema)).toEqual(['id'])
   })
 
+  it('camada-ia 5.0: `GET /v1/operacao/uso` traz o grupo `ia` só com número, e `GET …/escolas/:id/uso-ia` os 12 meses sem pessoa, função, modelo, aviso nem teto', () => {
+    const nomes = esquemasDeResposta.map(([nome]) => nome)
+    expect(nomes).toEqual(expect.arrayContaining(['usoDoPainelResponseSchema', 'usoDeIaDaEscolaDoPainelResponseSchema']))
+    const doUso = camposDoEsquema(shared.usoDoPainelResponseSchema).filter((campo) => campo.startsWith('itens[].ia'))
+    const periodo = (prefixo: string) => ['execucoes', 'chamadas', 'tokens', 'custoMicros', 'chamadasPeloProvedorDeReserva'].map((campo) => `${prefixo}.${campo}`)
+    expect(doUso).toEqual([
+      'itens[].ia',
+      'itens[].ia.hoje',
+      ...periodo('itens[].ia.hoje'),
+      // O mês reusa o esquema de hoje, e a varredura não o repete.
+      'itens[].ia.mes',
+      'itens[].ia.alunosAtivos',
+      'itens[].ia.valorPorAlunoMicros',
+      'itens[].ia.origemDoValor',
+      'itens[].ia.porcentagem',
+      'itens[].ia.situacao',
+    ])
+    expect(camposDoEsquema(shared.usoDeIaDoPeriodoDoPainelSchema)).toEqual(['execucoes', 'chamadas', 'tokens', 'custoMicros', 'chamadasPeloProvedorDeReserva'])
+    const dosMeses = camposDoEsquema(shared.usoDeIaDaEscolaDoPainelResponseSchema)
+    expect(dosMeses).toEqual([
+      'meses',
+      'meses[].execucoes',
+      'meses[].chamadas',
+      'meses[].tokens',
+      'meses[].custoMicros',
+      'meses[].chamadasPeloProvedorDeReserva',
+      'meses[].mes',
+      'meses[].alunosAtivos',
+      'meses[].valorPorAlunoMicros',
+      'meses[].origemDoValor',
+      'meses[].porcentagem',
+      'meses[].situacao',
+    ])
+    for (const proibido of ['alunoId', 'usuarioId', 'nome', 'funcao', 'modelo', 'provedorId', 'aviso', 'teto', 'entrada', 'saida']) {
+      expect([...doUso, ...dosMeses].filter((campo) => campo.toLowerCase().includes(proibido.toLowerCase())), proibido).toEqual([])
+    }
+    expect(problemasDoContrato('usoDoPainelResponseSchema', shared.usoDoPainelResponseSchema)).toEqual([])
+    expect(problemasDoContrato('usoDeIaDaEscolaDoPainelResponseSchema', shared.usoDeIaDaEscolaDoPainelResponseSchema)).toEqual([])
+  })
+
   it('ingestao-do-material 4.0: `GET /v1/materiais/:id` entra na varredura com os capítulos, e só com o que o painel mostra: nem o texto das páginas, nem hash, nem quem enviou', () => {
     expect(esquemasDeResposta.map(([nome]) => nome)).toContain('materialComCapitulosResponseSchema')
     const campos = camposDoEsquema(shared.materialComCapitulosResponseSchema)

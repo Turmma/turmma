@@ -1,12 +1,15 @@
 import { IdPipe, ZodValidationPipe } from '@educa/core'
 import {
   painelQuerySchema,
+  usoDoPainelQuerySchema,
   conviteDaCoordenacaoRequestSchema,
   criarEscolaRequestSchema,
   criarRedeRequestSchema,
   operadorEmptyBodyRequestSchema,
   orcamentoDeIaRequestSchema,
   type PainelQuery,
+  type UsoDoPainelQuery,
+  type UsoDeIaDaEscolaDoPainelResponse,
   type ConviteDaCoordenacaoRequest,
   type CriarEscolaRequest,
   type CriarRedeRequest,
@@ -31,7 +34,7 @@ const emptyBodySchema = operadorEmptyBodyRequestSchema.default({})
  * `GET /v1/operacao/escolas`, `POST /v1/operacao/escolas`, `GET /v1/operacao/uso`,
  * `POST /v1/operacao/escolas/:id/convite-coordenacao`, `POST /v1/operacao/convites/:id/refazer` e
  * `POST /v1/operacao/convites/:id/revogar`, e as duas do orçamento de IA (camada-ia, 3.0): `PUT /v1/operacao/escolas/:id/orcamento-ia` e
- * `PUT /v1/operacao/redes/:id/orcamento-ia`.
+ * `PUT /v1/operacao/redes/:id/orcamento-ia`, e a do uso de IA (camada-ia, 5.0): `GET /v1/operacao/escolas/:id/uso-ia`, os 12 meses anteriores da escola; o `GET /v1/operacao/uso` aceita também `?ordem=custo`.
  * Todas `@OperacaoRoute` (a `OperadorGuard` e o limite `rl:op:{sub}`), com `no-store`, e o corpo pelo contrato estrito
  * de `packages/shared`: campo a mais, como `autor`, é `ENTRADA_INVALIDA` antes de qualquer leitura ou escrita; na lista e
  * no uso, a consulta (`pagina`, `ordem`) também é estrita. O `:id` fora do formato de UUID responde como o inexistente
@@ -58,8 +61,15 @@ export class PainelController {
   @Get('uso')
   @OperacaoRoute()
   @Header('Cache-Control', 'no-store')
-  uso(@Query(new ZodValidationPipe(painelQuerySchema)) consulta: PainelQuery): Promise<UsoDoPainelResponse> {
+  uso(@Query(new ZodValidationPipe(usoDoPainelQuerySchema)) consulta: UsoDoPainelQuery): Promise<UsoDoPainelResponse> {
     return this.painel.uso(consulta)
+  }
+
+  @Get('escolas/:id/uso-ia')
+  @OperacaoRoute()
+  @Header('Cache-Control', 'no-store')
+  usoDeIaDaEscola(@Param('id', IdPipe) escolaId: string): Promise<UsoDeIaDaEscolaDoPainelResponse> {
+    return this.painel.usoDeIaDaEscola(escolaId)
   }
 
   @Post('redes')

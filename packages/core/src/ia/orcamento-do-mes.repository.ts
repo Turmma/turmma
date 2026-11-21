@@ -9,11 +9,12 @@ import {
   type OrcamentoVigente,
   type RetratoDoOrcamento,
 } from '@educa/shared'
-import { and, eq, gte, lt, sql, type SQL } from 'drizzle-orm'
+import { and, eq, gte, inArray, lt, sql, type SQL } from 'drizzle-orm'
 import { requireEscolaId } from '../context/context-escola.js'
 import type { Database, DatabaseTransaction } from '../db/database.js'
 import { configuracaoOperacionalEscola } from '../db/schema/configuracao-operacional-escola.js'
 import { consumoIa } from '../db/schema/consumo-ia.js'
+import { escola } from '../db/schema/escola.js'
 import { orcamentoIaDoMes } from '../db/schema/orcamento-ia-do-mes.js'
 
 /**
@@ -33,6 +34,109 @@ export function alunosAtivosDaEscola(escolaId: SQL): SQL {
 /** O mês `AAAA-MM` como o dia 1 que o retrato grava (`2026-03-01`). */
 const primeiroDiaDoMes = (mes: string): string => `${mes}-01`
 
+/** O que a consulta do consumo lê de uma faixa de tempo: `[inicio, fim)`, dois instantes. */
+export interface FaixaDeTempo {
+  readonly inicio: SQL
+  readonly fim: SQL
+}
+
+/**
+ * A faixa do mês civil de São Paulo (`AAAA-MM`): `[dia 1 às 00h, dia 1 do mês seguinte às 00h)`. É o trecho comum da soma do mês: o `OrcamentoDoMesRepository`, o `uso()` da Operação (camada-ia, 5.0) e os 12 meses
+ * leem o consumo por esta faixa, e a chamada de 23h30 de 31/03 (UTC-3) é de março.
+ */
+export function faixaDoMes(mes: string): FaixaDeTempo {
+  const inicio = primeiroDiaDoMes(mes)
+  return {
+    inicio: sql`((${inicio}::date)::timestamp at time zone ${FUSO_DO_ORCAMENTO})`,
+    fim: sql`((${inicio}::date + interval '1 month')::timestamp at time zone ${FUSO_DO_ORCAMENTO})`,
+  }
+}
+
+/** A faixa do dia civil de São Paulo (`AAAA-MM-DD`): `[às 00h, às 00h do dia seguinte)`. */
+export function faixaDoDia(dia: string): FaixaDeTempo {
+  return {
+    inicio: sql`((${dia}::date)::timestamp at time zone ${FUSO_DO_ORCAMENTO})`,
+    fim: sql`((${dia}::date + 1)::timestamp at time zone ${FUSO_DO_ORCAMENTO})`,
+  }
+}
+
+/**
+ * O custo, em micros, da escola `escolaId` no mês civil de São Paulo, como subconsulta de uma coluna: **só o id do contexto ou o `e.id` de quem embute em método `@Unscoped` da Operação, nunca valor de requisição**
+ * (regra 10, item 3). É a chave da ordem por custo do `uso()`; começa pela escola, no `consumo_ia_mes_idx`.
+ */
+export function custoDaEscolaNoMes(escolaId: SQL, mes: string): SQL {
+  const { inicio, fim } = faixaDoMes(mes)
+  return sql`(select coalesce(sum(c.custo_micros), 0) from consumo_ia as c where c.escola_id = ${escolaId} and c.em >= ${inicio} and c.em < ${fim})`
+}
+
+/**
+ * As colunas do uso de IA de uma faixa, para um `select … from consumo_ia as c`: `execucoes` conta execuções (`count(distinct execucao_id)` mais uma por linha sem execução, como a Governança), `chamadas` conta linhas,
+ * `tokens` soma entrada e saída, `custoMicros` soma o custo gravado de cada linha e `chamadasPeloProvedorDeReserva` conta as linhas da reserva. Tudo sai do `consumo_ia_mes_idx`, sem a tabela. As somas saem em texto
+ * (o driver devolve `bigint` assim) e `UsoDeIaLido` as converte.
+ */
+export const COLUNAS_DO_USO_DE_IA: SQL = sql`
+  (count(distinct c.execucao_id) + count(*) filter (where c.execucao_id is null))::int as execucoes,
+  count(*)::int as chamadas,
+  coalesce(sum(c.tokens_de_entrada + c.tokens_de_saida), 0)::text as tokens,
+  coalesce(sum(c.custo_micros), 0)::text as "custoMicros",
+  (count(*) filter (where c.pelo_provedor_de_reserva))::int as "chamadasPeloProvedorDeReserva"`
+
+/** A linha das `COLUNAS_DO_USO_DE_IA` como o driver a devolve. */
+export interface UsoDeIaDaLinha extends Record<string, unknown> {
+  readonly execucoes: number
+  readonly chamadas: number
+  readonly tokens: string
+  readonly custoMicros: string
+  readonly chamadasPeloProvedorDeReserva: number
+}
+
+/** O uso de IA de uma escola num período, em número: o que a Operação lê (D76), sem pessoa, função nem modelo. */
+export interface UsoDeIa {
+  readonly execucoes: number
+  readonly chamadas: number
+  readonly tokens: number
+  readonly custoMicros: number
+  readonly chamadasPeloProvedorDeReserva: number
+}
+
+/** O período sem nenhuma chamada. */
+export const USO_DE_IA_VAZIO: UsoDeIa = { execucoes: 0, chamadas: 0, tokens: 0, custoMicros: 0, chamadasPeloProvedorDeReserva: 0 }
+
+/** Converte a linha do driver (somas em texto) no número que a tela e o contrato usam. */
+export function usoDeIaLido(linha: UsoDeIaDaLinha): UsoDeIa {
+  return {
+    execucoes: linha.execucoes,
+    chamadas: linha.chamadas,
+    tokens: Number(linha.tokens),
+    custoMicros: Number(linha.custoMicros),
+    chamadasPeloProvedorDeReserva: linha.chamadasPeloProvedorDeReserva,
+  }
+}
+
+/** A linha da consulta dos meses: o mês `AAAA-MM` e as `COLUNAS_DO_USO_DE_IA`. */
+interface UsoDoMesRow extends UsoDeIaDaLinha {
+  mes: string
+}
+
+/** Um mês fechado da escola: o consumo dele e o orçamento que o retrato gravou, ou `sem_retrato`. */
+export interface UsoDeIaDoMes {
+  readonly mes: string
+  readonly uso: UsoDeIa
+  readonly orcamento: OrcamentoDoMes
+}
+
+/** Quantos meses o `usoDosMesesAnteriores` devolve: os 12 anteriores ao corrente. */
+const MESES_ANTERIORES = 12
+
+/** Os `quantos` meses (`AAAA-MM`) anteriores a `mes`, do mais recente ao mais antigo; passa pela virada do ano. */
+function mesesAnterioresA(mes: string, quantos: number): string[] {
+  const [ano = 0, numero = 0] = mes.split('-').map(Number)
+  return Array.from({ length: quantos }, (_, indice) => {
+    const posicao = ano * 12 + (numero - 1) - (indice + 1)
+    return `${String(Math.floor(posicao / 12))}-${String((posicao % 12) + 1).padStart(2, '0')}`
+  })
+}
+
 /**
  * O orçamento de IA da escola do contexto (camada-ia, tarefa 2.0; Tech Spec, seções 3, 5 e 6; RF7 e RF8): o consumo do mês, os alunos ativos, o valor e o teto da escola e da rede, o retrato do mês e a regravação
  * dele. Escreve também a configuração da escola do `PUT` da Operação (3.0: `lockConfiguracaoDaEscola` e `saveConfiguracaoDaEscola`, na transação do `PUT`). A API (Governança, Operação), o lote (o teto, 4.0) e a medida (4.0) leem por aqui, e a conta é a de `orcamentoDoMes`, em `@educa/shared`. **Nenhum método é `@Unscoped`**: toda leitura parte da escola do
@@ -49,17 +153,11 @@ export class OrcamentoDoMesRepository {
    * escola (o `consumo_ia_mes_idx`).
    */
   consultaDoCustoDoMes(mes: string) {
-    const inicio = primeiroDiaDoMes(mes)
+    const { inicio, fim } = faixaDoMes(mes)
     return this.banco
       .select({ total: sql<string | null>`sum(${consumoIa.custoMicros})` })
       .from(consumoIa)
-      .where(
-        and(
-          eq(consumoIa.escolaId, requireEscolaId()),
-          gte(consumoIa.em, sql`(${inicio}::date)::timestamp at time zone ${FUSO_DO_ORCAMENTO}`),
-          lt(consumoIa.em, sql`((${inicio}::date + interval '1 month')::timestamp at time zone ${FUSO_DO_ORCAMENTO})`),
-        ),
-      )
+      .where(and(eq(consumoIa.escolaId, requireEscolaId()), gte(consumoIa.em, inicio), lt(consumoIa.em, fim)))
   }
 
   /** O custo, em micros, das chamadas da escola no mês civil de São Paulo (`AAAA-MM`): a soma do `custo_micros` gravado de cada linha, nunca recalculado pelo preço de hoje. Mês sem chamada soma nulo, e vale zero. */
@@ -135,6 +233,50 @@ export class OrcamentoDoMesRepository {
       .from(orcamentoIaDoMes)
       .where(and(eq(orcamentoIaDoMes.escolaId, requireEscolaId()), eq(orcamentoIaDoMes.mes, primeiroDiaDoMes(mes))))
     return linha
+  }
+
+  /**
+   * A consulta do consumo dos 12 meses anteriores ao de `agora`, sem executá-la (o `EXPLAIN` do teste lê o plano **desta** consulta): uma só, agrupada pelo mês civil de São Paulo, sobre a faixa de `[1º dia do mais antigo,
+   * 1º dia do corrente)` da escola do contexto, no `consumo_ia_mes_idx`.
+   */
+  consultaDoUsoDosMeses(agora: Date): SQL {
+    const meses = mesesAnterioresA(mesDeSaoPaulo(agora), MESES_ANTERIORES)
+    const [maisRecente, maisAntigo] = [meses[0] ?? '', meses[meses.length - 1] ?? '']
+    return sql`
+      select to_char(date_trunc('month', c.em at time zone ${FUSO_DO_ORCAMENTO}), 'YYYY-MM') as mes, ${COLUNAS_DO_USO_DE_IA}
+      from consumo_ia as c
+      where c.escola_id = ${requireEscolaId()}::uuid and c.em >= ${faixaDoMes(maisAntigo).inicio} and c.em < ${faixaDoMes(maisRecente).fim}
+      group by 1`
+  }
+
+  /**
+   * Os 12 meses anteriores ao de `agora` da escola do contexto, do mais recente ao mais antigo (camada-ia, 5.0; RF11): em cada um, o consumo (`consultaDoUsoDosMeses`) e o orçamento **do retrato** dele, com o número de alunos
+   * e o valor de quando o mês fechou, ou `sem_retrato` se a medida não o gravou. O mês sem chamada soma zero. Escola que não existe devolve `undefined`. Só a escola do contexto: o consumo e o retrato de outra escola, no mesmo
+   * mês, não entram.
+   */
+  async usoDosMesesAnteriores(agora: Date): Promise<UsoDeIaDoMes[] | undefined> {
+    const escolaId = requireEscolaId()
+    const [existe] = await this.banco.select({ id: escola.id }).from(escola).where(eq(escola.id, escolaId))
+    if (existe === undefined) return undefined
+    const meses = mesesAnterioresA(mesDeSaoPaulo(agora), MESES_ANTERIORES)
+    const { rows } = await this.banco.execute<UsoDoMesRow>(this.consultaDoUsoDosMeses(agora))
+    const retratos = await this.banco
+      .select({
+        mes: orcamentoIaDoMes.mes,
+        alunosAtivos: orcamentoIaDoMes.alunosAtivos,
+        valorPorAlunoMicros: orcamentoIaDoMes.valorPorAlunoMicros,
+        tetoPercentual: orcamentoIaDoMes.tetoPercentual,
+        origemDoValor: orcamentoIaDoMes.origemDoValor,
+      })
+      .from(orcamentoIaDoMes)
+      .where(and(eq(orcamentoIaDoMes.escolaId, escolaId), inArray(orcamentoIaDoMes.mes, meses.map(primeiroDiaDoMes))))
+    const consumoDoMes = new Map(rows.map((linha) => [linha.mes, usoDeIaLido(linha)]))
+    const retratoDoMes = new Map(retratos.map(({ mes, ...retrato }) => [mes, retrato]))
+    return meses.map((mes) => {
+      const uso = consumoDoMes.get(mes) ?? USO_DE_IA_VAZIO
+      const retrato = retratoDoMes.get(primeiroDiaDoMes(mes))
+      return { mes, uso, orcamento: retrato === undefined ? orcamentoSemRetrato(uso.custoMicros) : orcamentoDoMes(retrato, uso.custoMicros, false) }
+    })
   }
 
   /**

@@ -1,5 +1,26 @@
-import { Unscoped, type Database, type DadosDaCoordenacao, type UsagePeriod } from '@educa/core'
-import { ESCOLAS_POR_PAGINA, MAXIMO_DE_REDES_DO_PAINEL, type OrcamentoDefinido, type OrdemDoPainel, type TipoDeRede } from '@educa/shared'
+import {
+  alunosAtivosDaEscola,
+  COLUNAS_DO_USO_DE_IA,
+  custoDaEscolaNoMes,
+  faixaDoDia,
+  faixaDoMes,
+  Unscoped,
+  usoDeIaLido,
+  type Database,
+  type DadosDaCoordenacao,
+  type UsagePeriod,
+  type UsoDeIa,
+  type UsoDeIaDaLinha,
+} from '@educa/core'
+import {
+  diaDeSaoPaulo,
+  ESCOLAS_POR_PAGINA,
+  MAXIMO_DE_REDES_DO_PAINEL,
+  mesDeSaoPaulo,
+  type OrcamentoDefinido,
+  type OrdemDoUso,
+  type TipoDeRede,
+} from '@educa/shared'
 import { sql, type SQL } from 'drizzle-orm'
 
 /** O período do uso que a lista e o uso leem: o último dia fechado e o primeiro dia do mês dele, `AAAA-MM-DD`. */
@@ -8,11 +29,15 @@ export interface ReferenciaDoUso {
   readonly primeiroDoMes: string
 }
 
-/** Uma página da lista ou do uso: 25 escolas a partir de `pagina` (de 1), na `ordem`, com o período de referência do uso. */
+/**
+ * Uma página da lista ou do uso: 25 escolas a partir de `pagina` (de 1), na `ordem`, com o período de referência do uso e o `agora` do relógio do serviço: o mês e o dia de IA são os de São Paulo de `agora`, e
+ * nenhuma consulta lê o `now()` do Postgres. `custo` só chega pelo `uso()` (a lista não o aceita).
+ */
 export interface PedidoDePaginaDoPainel {
   readonly pagina: number
-  readonly ordem: OrdemDoPainel
+  readonly ordem: OrdemDoUso
   readonly referencia: ReferenciaDoUso
+  readonly agora: Date
 }
 
 /** O que a escola define de orçamento de IA, e o que a rede dela define: a conta do que vale (`orcamentoDaEscolaNoPainel`) é do chamador, a mesma do lote e da Governança. */
@@ -43,12 +68,21 @@ export interface EscolaLidaNoPainel {
   readonly coordenacao: DadosDaCoordenacao
 }
 
-/** O uso de uma escola no dia de referência e no mês dele, até esse dia. */
+/** O uso de IA de uma escola: hoje e o mês corrente, os alunos ativos de hoje e o que a escola e a rede dela definem de orçamento (a conta do que vale é do chamador, a mesma do lote e da Governança). */
+export interface IaLidaNoPainel {
+  readonly hoje: UsoDeIa
+  readonly mes: UsoDeIa
+  readonly alunosAtivos: number
+  readonly orcamento: OrcamentoLidoDaEscola
+}
+
+/** O uso de uma escola no dia de referência e no mês dele, até esse dia, e o uso de IA de hoje e do mês corrente. */
 export interface UsoLidoNoPainel {
   readonly id: string
   readonly nome: string
   readonly dia: UsagePeriod
   readonly mes: UsagePeriod
+  readonly ia: IaLidaNoPainel
 }
 
 export interface PaginaLidaNoPainel<Item> {
@@ -99,6 +133,13 @@ interface UsoRow extends Record<string, unknown> {
   mesRequisicoes: string
   mesJobs: string
   mesBytes: string
+  iaHoje: UsoDeIaDaLinha
+  iaMes: UsoDeIaDaLinha
+  alunosAtivos: number
+  iaValorMicros: string | null
+  iaTeto: number | null
+  redeIaValorMicros: string | null
+  redeIaTeto: number | null
 }
 
 /** Quantas escolas existem: o total que a lista e o uso paginam, lido junto da página por cada um deles. */
@@ -110,17 +151,23 @@ const instante = (ms: string | null): Date | null => (ms === null ? null : new D
 const microsDoDriver = (valor: string | null): number | null => (valor === null ? null : Number(valor))
 
 /**
- * As escolas da página, na ordem pedida, cada uma com a posição dela: `nome` (crescente), ou `uso`, as requisições do mês
- * de referência até o dia (decrescente), calculadas para todas as escolas antes de cortar a página; nas duas, o
- * desempate é pelo `id`, e a posição é total: a página seguinte continua exatamente de onde a anterior parou. Só a
- * página (25) segue para as subconsultas das contagens e do uso.
+ * A chave de cada ordem: `nome` (crescente); `uso`, as requisições do mês de referência até o dia (decrescente); e `custo`, o custo de IA do mês corrente de São Paulo, o de `agora` (decrescente), pelo mesmo
+ * trecho da soma do orçamento (`custoDaEscolaNoMes`). Nas três o desempate é pelo `id`.
  */
-function escolasDaPagina({ pagina, ordem, referencia }: PedidoDePaginaDoPainel): SQL {
-  const chave =
-    ordem === 'nome'
-      ? sql`e.nome, e.id`
-      : sql`(select coalesce(sum(u.requisicoes), 0) from uso_infra_diario as u
+function chaveDaOrdem({ ordem, referencia, agora }: PedidoDePaginaDoPainel): SQL {
+  if (ordem === 'nome') return sql`e.nome, e.id`
+  if (ordem === 'custo') return sql`${custoDaEscolaNoMes(sql`e.id`, mesDeSaoPaulo(agora))} desc, e.id`
+  return sql`(select coalesce(sum(u.requisicoes), 0) from uso_infra_diario as u
               where u.escola_id = e.id and u.dia between ${referencia.primeiroDoMes}::date and ${referencia.dia}::date) desc, e.id`
+}
+
+/**
+ * As escolas da página, na ordem pedida, cada uma com a posição dela, calculada para todas as escolas antes de cortar a página; o desempate é pelo `id`, e a posição é total: a página seguinte continua
+ * exatamente de onde a anterior parou. Só a página (25) segue para as subconsultas das contagens e do uso.
+ */
+function escolasDaPagina(pedido: PedidoDePaginaDoPainel): SQL {
+  const { pagina } = pedido
+  const chave = chaveDaOrdem(pedido)
   return sql`
     select ordenadas.id, ordenadas.posicao
     from (select e.id, row_number() over (order by ${chave}) as posicao from escola as e) as ordenadas
@@ -132,10 +179,54 @@ function escolasDaPagina({ pagina, ordem, referencia }: PedidoDePaginaDoPainel):
  * Quantas pessoas com vínculo `papel` no ano em curso da escola `e`, de usuário ativo, contando cada uma uma vez (o
  * professor com duas disciplinas, ou o aluno em duas turmas do ano). `condicao` diz que vínculo conta.
  */
-function pessoasComVinculo(papel: 'professor' | 'aluno', condicao: SQL): SQL {
+function pessoasComVinculo(papel: 'professor', condicao: SQL): SQL {
   return sql`(select count(distinct v.usuario_id)::int
     from vinculo as v join usuario as pessoa on pessoa.escola_id = v.escola_id and pessoa.id = v.usuario_id
     where v.escola_id = e.id and v.ano_letivo_id = ano.id and v.papel = ${papel} and ${condicao} and pessoa.desativado_em is null)`
+}
+
+/**
+ * A consulta do uso de uma página, sem executá-la: o `EXPLAIN` do teste lê o plano **desta** consulta. As 25 escolas da página saem primeiro, na ordem pedida; só elas descem às subconsultas, cada uma correlacionada pelo
+ * `escola_id` e pelos índices que começam por ele (regra 80, item 8): o uso de infra, e o de IA de hoje e do mês, que leem o `consumo_ia_mes_idx` sem a tabela. `to_jsonb` leva as colunas de IA de cada período numa
+ * coluna só, e o `UsoDeIaDaLinha` as descreve.
+ */
+export function usoDaPaginaSql(pedido: PedidoDePaginaDoPainel): SQL {
+  const { dia, primeiroDoMes } = pedido.referencia
+  const hoje = faixaDoDia(diaDeSaoPaulo(pedido.agora))
+  const mes = faixaDoMes(mesDeSaoPaulo(pedido.agora))
+  return sql`
+    with pagina as (${escolasDaPagina(pedido)})
+    select e.id, e.nome,
+      coalesce(no_dia.requisicoes, 0) as "diaRequisicoes",
+      coalesce(no_dia.jobs, 0) as "diaJobs",
+      coalesce(no_dia.bytes_storage, 0) as "diaBytes",
+      no_mes.requisicoes as "mesRequisicoes",
+      no_mes.jobs as "mesJobs",
+      no_mes.bytes as "mesBytes",
+      to_jsonb(ia_hoje) as "iaHoje",
+      to_jsonb(ia_mes) as "iaMes",
+      ${alunosAtivosDaEscola(sql`e.id`)} as "alunosAtivos",
+      cfg.ia_valor_por_aluno_micros::text as "iaValorMicros",
+      cfg.ia_teto_de_seguranca_percentual as "iaTeto",
+      r.ia_valor_por_aluno_micros::text as "redeIaValorMicros",
+      r.ia_teto_de_seguranca_percentual as "redeIaTeto"
+    from pagina
+    join escola as e on e.id = pagina.id
+    join rede as r on r.id = e.rede_id
+    left join configuracao_operacional_escola as cfg on cfg.escola_id = e.id
+    left join uso_infra_diario as no_dia on no_dia.escola_id = e.id and no_dia.dia = ${dia}::date
+    left join lateral (
+      select coalesce(sum(m.requisicoes), 0) as requisicoes, coalesce(sum(m.jobs), 0) as jobs, coalesce(max(m.bytes_storage), 0) as bytes
+      from uso_infra_diario as m
+      where m.escola_id = e.id and m.dia between ${primeiroDoMes}::date and ${dia}::date
+    ) as no_mes on true
+    left join lateral (
+      select ${COLUNAS_DO_USO_DE_IA} from consumo_ia as c where c.escola_id = e.id and c.em >= ${hoje.inicio} and c.em < ${hoje.fim}
+    ) as ia_hoje on true
+    left join lateral (
+      select ${COLUNAS_DO_USO_DE_IA} from consumo_ia as c where c.escola_id = e.id and c.em >= ${mes.inicio} and c.em < ${mes.fim}
+    ) as ia_mes on true
+    order by pagina.posicao`
 }
 
 /**
@@ -193,7 +284,7 @@ export class PainelRepository {
         select e.id, e.nome, e.slug, r.id as "redeId", r.nome as "redeNome",
           (select count(*)::int from turma as t where t.escola_id = e.id and t.ano_letivo_id = ano.id) as turmas,
           ${pessoasComVinculo('professor', sql`v.estado = 'confirmado' and v.encerrado_em is null`)} as professores,
-          ${pessoasComVinculo('aluno', sql`v.encerrado_em is null`)} as alunos,
+          ${alunosAtivosDaEscola(sql`e.id`)} as alunos,
           cfg.ia_valor_por_aluno_micros::text as "iaValorMicros",
           cfg.ia_teto_de_seguranca_percentual as "iaTeto",
           r.ia_valor_por_aluno_micros::text as "redeIaValorMicros",
@@ -257,34 +348,14 @@ export class PainelRepository {
   }
 
   /**
-   * Uma página do uso de infra por escola (D30), com a mesma regra do `UsageRepository`: no dia de referência, a linha dele;
-   * no mês, do dia 1 até o dia de referência, requisições e jobs somados e o pico de bytes. Sem linha, zero. O que vem
-   * depois do dia de referência (o dia de hoje, ainda não fechado) não entra.
+   * Uma página do uso por escola (D30): o de infra, com a mesma regra do `UsageRepository` (no dia de referência, a linha dele; no mês, do dia 1 até o dia de referência, requisições e jobs somados e o pico de bytes; sem
+   * linha, zero; o dia de hoje, ainda não fechado, não entra) e **o de IA** (camada-ia, 5.0; RF11): hoje (o dia de São Paulo de `agora`) e o mês corrente (o mês de São Paulo de `agora`), somados do consumo gravado de
+   * cada linha pelos trechos do `OrcamentoDoMesRepository` (`faixaDoDia`, `faixaDoMes`, `COLUNAS_DO_USO_DE_IA`, `alunosAtivosDaEscola`), com o orçamento que a escola e a rede definem. `agora` é parâmetro: nenhuma conta lê
+   * o `now()` do Postgres. Só id, nome e número.
    */
-  @Unscoped('painel do operador: o uso de infra de cada escola no último dia fechado e no mês dele; só id, nome e número, sem pessoa')
+  @Unscoped('painel do operador: o uso de infra e de IA de cada escola no último dia fechado, em hoje e no mês; só id, nome e número, sem pessoa')
   async uso(pedido: PedidoDePaginaDoPainel): Promise<PaginaLidaNoPainel<UsoLidoNoPainel>> {
-    const { dia, primeiroDoMes } = pedido.referencia
-    const [pagina, total] = await Promise.all([
-      this.banco.execute<UsoRow>(sql`
-        with pagina as (${escolasDaPagina(pedido)})
-        select e.id, e.nome,
-          coalesce(no_dia.requisicoes, 0) as "diaRequisicoes",
-          coalesce(no_dia.jobs, 0) as "diaJobs",
-          coalesce(no_dia.bytes_storage, 0) as "diaBytes",
-          no_mes.requisicoes as "mesRequisicoes",
-          no_mes.jobs as "mesJobs",
-          no_mes.bytes as "mesBytes"
-        from pagina
-        join escola as e on e.id = pagina.id
-        left join uso_infra_diario as no_dia on no_dia.escola_id = e.id and no_dia.dia = ${dia}::date
-        left join lateral (
-          select coalesce(sum(m.requisicoes), 0) as requisicoes, coalesce(sum(m.jobs), 0) as jobs, coalesce(max(m.bytes_storage), 0) as bytes
-          from uso_infra_diario as m
-          where m.escola_id = e.id and m.dia between ${primeiroDoMes}::date and ${dia}::date
-        ) as no_mes on true
-        order by pagina.posicao`),
-      this.banco.execute<{ total: number }>(TOTAL_DE_ESCOLAS),
-    ])
+    const [pagina, total] = await Promise.all([this.banco.execute<UsoRow>(usoDaPaginaSql(pedido)), this.banco.execute<{ total: number }>(TOTAL_DE_ESCOLAS)])
     return {
       total: total.rows[0]?.total ?? 0,
       itens: pagina.rows.map((linha) => ({
@@ -292,6 +363,15 @@ export class PainelRepository {
         nome: linha.nome,
         dia: { requisicoes: Number(linha.diaRequisicoes), jobs: Number(linha.diaJobs), bytesStorage: Number(linha.diaBytes) },
         mes: { requisicoes: Number(linha.mesRequisicoes), jobs: Number(linha.mesJobs), bytesStorage: Number(linha.mesBytes) },
+        ia: {
+          hoje: usoDeIaLido(linha.iaHoje),
+          mes: usoDeIaLido(linha.iaMes),
+          alunosAtivos: linha.alunosAtivos,
+          orcamento: {
+            escola: { valorPorAlunoMicros: microsDoDriver(linha.iaValorMicros), tetoPercentual: linha.iaTeto },
+            rede: { valorPorAlunoMicros: microsDoDriver(linha.redeIaValorMicros), tetoPercentual: linha.redeIaTeto },
+          },
+        },
       })),
     }
   }
