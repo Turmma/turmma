@@ -14,6 +14,7 @@ import { AppModule } from '../src/app.module.js'
 import { OperacaoLoginRoute, OperacaoRoute } from '../src/operacao/decorators.js'
 import { OperacaoModule } from '../src/operacao/operacao.module.js'
 import { PainelController } from '../src/operacao/painel/painel.controller.js'
+import { OrcamentoDaRedeRepository } from '../src/operacao/painel/orcamento-da-rede.repository.js'
 import { PainelRepository } from '../src/operacao/painel/painel.repository.js'
 import { testConfig } from './test-config.js'
 import { controladoresDoModulo, ROTAS_COM_SESSAO_DE_OPERADOR, ROTAS_DO_PAINEL, rotasDe, rotasDeOperacaoSemGuarda, rotasForaDaCerca, type RegisteredRoute } from './registered-routes.js'
@@ -50,6 +51,8 @@ const ZONAS_DAS_CLASSES_CERCADAS: readonly { classe: string; uso: RegExp; zona: 
   { classe: 'ContaGlobalRepository', uso: /\bContaGlobalRepository\b|conta-global\.repository|@educa\/core\/conta-global/, zona: ['apps/api/src/sessao/', 'packages/core/src/ciclo-de-vida/', 'packages/core/src/estrutura/cadastro-de-professor.ts'] },
   // A zona do painel é o arquivo do service e o do repository, e não a pasta `operacao/painel/`.
   { classe: 'PainelRepository', uso: /\bPainelRepository\b|painel\.repository/, zona: ['apps/api/src/operacao/painel/painel.service.ts', 'apps/api/src/operacao/painel/painel.repository.ts'] },
+  // O `PUT` da rede, acima do tenant (camada-ia, 3.0): só o service do painel o usa.
+  { classe: 'OrcamentoDaRedeRepository', uso: /\bOrcamentoDaRedeRepository\b|orcamento-da-rede\.repository/, zona: ['apps/api/src/operacao/painel/painel.service.ts', 'apps/api/src/operacao/painel/orcamento-da-rede.repository.ts'] },
   // O cadastro do professor acha ou cria a conta global pelo e-mail, sem escopo: só `sessao/` o chama. Cercar a classe não basta, porque a função a repassa (onboarding-por-convite, 1.0, tenancy-guardian).
   // O `EnvioRepository` toca o `link_da_conta`, da conta global, pelo id do job: só o processor do e-mail o usa, e a composição do worker o recebe pela função dele (acesso-e-convites, 5.0).
   { classe: 'EnvioRepository', uso: /\bEnvioRepository\b|envio\.repository|@educa\/core\/envio/, zona: ['apps/worker/src/processors/enviar-email.ts', 'packages/core/src/email/envio.repository.ts'] },
@@ -729,10 +732,10 @@ describe('arquitetura: os marcadores da operação só na pasta da operação (C
 describe('arquitetura: a rota @RotaDeOperacao tem a GuardaDeOperador no handler resolvido (C41)', () => {
   it('toda rota @RotaDeOperacao registrada tem a guarda', () => {
     const rotas = rotasDaApi().filter((rota) => rota.marcador === 'rota')
-    // I3 (A0b): a varredura enxerga exatamente o `/eu` e as oito rotas do painel, nem uma a mais, nem uma a menos.
+    // I3 (A0b): a varredura enxerga exatamente o `/eu` e as dez rotas do painel (as oito da A0b e as duas `PUT` do orçamento de IA), nem uma a mais, nem uma a menos.
     expect(rotas.map(nomeDaRota).toSorted()).toEqual(ROTAS_COM_SESSAO_DE_OPERADOR)
     expect(rotasDe([PainelController]).map(nomeDaRota).toSorted()).toEqual(ROTAS_DO_PAINEL.toSorted())
-    expect(ROTAS_DO_PAINEL).toHaveLength(8)
+    expect(ROTAS_DO_PAINEL).toHaveLength(10)
     expect(rotasDeOperacaoSemGuarda(rotas)).toEqual([])
   })
 
@@ -785,7 +788,7 @@ describe('arquitetura: toda rota @RotaDeOperacao conta pelo rl:op:{sub} (C36, pa
 
   it('em cada rota @RotaDeOperacao registrada, o token de operador conta no rl:op do sub, e em nenhum outro limite', async () => {
     const rotas = rotasDaApi().filter((rota) => rota.marcador === 'rota')
-    // I3 (A0b): as varridas são exatamente o `/eu` e as oito rotas do painel.
+    // I3 (A0b): as varridas são exatamente o `/eu` e as dez rotas do painel.
     expect(rotas.map(nomeDaRota).toSorted()).toEqual(ROTAS_COM_SESSAO_DE_OPERADOR)
     for (const rota of rotas) {
       const { guarda, limitador } = guardaComLimitador()
@@ -1628,12 +1631,38 @@ describe('arquitetura: a leitura da tabela pública da BNCC é do BnccRepository
 
 /**
  * Regra 10, itens 3 e 9, e a Tech Spec da camada-ia (seção 6): o orçamento de IA do mês da escola é lido pelo `OrcamentoDoMesRepository`, sempre pela escola do contexto, e **nenhum método dele é `@Unscoped`**. A
- * rede é lida pelo `escola.rede_id` da própria escola, nunca por id de fora; a exceção acima do tenant (o `PUT` da rede) é de outro repository, na 3.0.
+ * rede é lida pelo `escola.rede_id` da própria escola, nunca por id de fora; a exceção acima do tenant (o `PUT` da rede) é de outro repository, o `OrcamentoDaRedeRepository` (3.0).
  */
 describe('arquitetura: o OrcamentoDoMesRepository lê pela escola do contexto e não declara exceção', () => {
   it('nenhum método dele é @Unscoped, e a lista dos métodos é a que a tarefa entregou', () => {
     const metodos = Object.getOwnPropertyNames(nucleo.OrcamentoDoMesRepository.prototype).filter((nome) => nome !== 'constructor')
-    expect(metodos.toSorted()).toEqual(['alunosAtivos', 'configuracaoDaEscola', 'configuracaoDaRede', 'consultaDoCustoDoMes', 'custoDoMes', 'doMes', 'regravarRetrato', 'retrato', 'retratoDeHoje', 'vigente'])
+    expect(metodos.toSorted()).toEqual([
+      'alunosAtivos',
+      'configuracaoDaEscola',
+      'configuracaoDaRede',
+      'consultaDoCustoDoMes',
+      'custoDoMes',
+      'doMes',
+      'lockConfiguracaoDaEscola',
+      'regravarRetrato',
+      'retrato',
+      'retratoDeHoje',
+      'saveConfiguracaoDaEscola',
+      'vigente',
+    ])
     for (const metodo of metodos) expect(nucleo.unscopedJustification(nucleo.OrcamentoDoMesRepository, metodo), metodo).toBeUndefined()
+  })
+})
+
+/**
+ * Regra 10, item 9, e a Tech Spec da camada-ia (seções 3 e 6; 3.0): a rede fica acima do tenant, e o `PUT` do orçamento de IA dela é a única exceção declarada da operação neste módulo: o `OrcamentoDaRedeRepository`
+ * tem **exatamente um** método `@Unscoped`, com a justificativa "acima do tenant", e nenhum outro. Segundo método sem escopo, ou escrita da rede por outro lugar, é mudança da spec.
+ */
+describe('arquitetura: o OrcamentoDaRedeRepository tem uma exceção só, acima do tenant', () => {
+  it('o único método é `definir`, @Unscoped com a justificativa que cita o tenant', () => {
+    const metodos = Object.getOwnPropertyNames(OrcamentoDaRedeRepository.prototype).filter((nome) => nome !== 'constructor')
+    expect(metodos).toEqual(['definir'])
+    expect(nucleo.unscopedJustification(OrcamentoDaRedeRepository, 'definir')).toMatch(/^acima do tenant: /)
+    expect(metodos.filter((metodo) => nucleo.unscopedJustification(OrcamentoDaRedeRepository, metodo) !== undefined)).toHaveLength(1)
   })
 })

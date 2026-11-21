@@ -4,6 +4,7 @@ import {
   ESCOLAS_POR_PAGINA,
   conviteDaCoordenacaoResponseSchema,
   escolasDoPainelResponseSchema,
+  redesDoPainelResponseSchema,
   usoDoPainelResponseSchema,
   type EscolaDoPainel,
   type OrdemDoPainel,
@@ -15,7 +16,7 @@ import { randomBytes, randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
 import { PainelService } from '../src/operacao/painel/painel.service.js'
-import { esperarErro, pedir, PRAZO_DAS_CONSULTAS_MS, subirApiDoPainel, todasAsPaginas, type Resposta } from './painel.fixture.js'
+import { esperarErro, nomeQueVemPrimeiro, pedir, PRAZO_DAS_CONSULTAS_MS, subirApiDoPainel, todasAsPaginas, type Resposta } from './painel.fixture.js'
 import { OperadorFixtures, type TestOperadorSessao } from './operador-session.fixture.js'
 import { segurarTravaDaEscola } from './escola-lock.js'
 
@@ -178,7 +179,7 @@ describe('painel da operação: a lista de escolas e o uso, entre escolas (taref
       await app.close()
     } finally {
       try {
-        for (const tabela of ['vinculo', 'credencial_matricula', 'turma', 'disciplina', 'serie', 'ano_letivo', 'convite', 'sessao', 'usuario', 'uso_infra_diario', 'auditoria']) {
+        for (const tabela of ['vinculo', 'credencial_matricula', 'turma', 'disciplina', 'serie', 'ano_letivo', 'convite', 'sessao', 'usuario', 'uso_infra_diario', 'auditoria', 'configuracao_operacional_escola']) {
           await pool.query(`delete from ${tabela} where escola_id = any($1::uuid[])`, [escolas])
         }
         await pool.query('delete from escola where id = any($1::uuid[])', [escolas])
@@ -263,7 +264,7 @@ describe('painel da operação: a lista de escolas e o uso, entre escolas (taref
       expect(contagens(b)).toEqual({ turmas: 1, professores: 1, alunos: 3 })
       expect(contagens(c)).toEqual({ turmas: 0, professores: 0, alunos: 0 })
 
-      // O item inteiro: só id, nome, endereço, rede, estado e número.
+      // O item inteiro: só id, nome, endereço, rede, estado, número e o orçamento de IA (a escola sem nada próprio, e a rede sem nada: o padrão).
       const { rows } = await pool.query<{ slug: string }>('select slug from escola where id = $1', [a])
       expect(doItem(itens, a)).toStrictEqual({
         id: a,
@@ -274,6 +275,10 @@ describe('painel da operação: a lista de escolas e o uso, entre escolas (taref
         turmas: 3,
         professores: 2,
         alunos: 3,
+        orcamento: {
+          proprio: { valorPorAlunoMicros: null, tetoDeSegurancaPercentual: null },
+          vigente: { valorPorAlunoMicros: null, origemDoValor: 'nenhuma', tetoDeSegurancaPercentual: 200, origemDoTeto: 'padrao' },
+        },
       })
     })
   })
@@ -466,6 +471,89 @@ describe('painel da operação: a lista de escolas e o uso, entre escolas (taref
       const padrao = await pedir(url, 'GET', '/v1/operacao/escolas', sessao.token)
       expect(padrao.status).toBe(200)
       expect(padrao.corpo).toEqual(listas.nome.paginas[0])
+    })
+  })
+
+  /**
+   * O orçamento de IA que a lista de escolas e a de redes mostram (camada-ia, 3.0; RF7 e RF11): o próprio e o vigente de cada uma, e quantas escolas usam o valor ou o teto da rede. Três redes com valores
+   * diferentes, escolas com cada combinação de próprio e herdado, e a contagem de uma rede que não alcança a outra.
+   */
+  describe('camada-ia 3.0: o orçamento próprio e o vigente, e as escolas que usam o valor da rede', () => {
+    const REAIS = 1_000_000
+    const propria = (valorPorAlunoMicros: number | null, tetoDeSegurancaPercentual: number | null) => ({ valorPorAlunoMicros, tetoDeSegurancaPercentual })
+    const vigente = (valorPorAlunoMicros: number | null, origemDoValor: string, tetoDeSegurancaPercentual: number, origemDoTeto: string) => ({ valorPorAlunoMicros, origemDoValor, tetoDeSegurancaPercentual, origemDoTeto })
+
+    /** Uma rede com o orçamento dado (o nome vem antes das outras: as 200 do `GET /redes`). */
+    async function redeComOrcamento(valorMicros: number | null, teto: number | null): Promise<string> {
+      const id = await idDe(`insert into rede (nome, tipo, ia_valor_por_aluno_micros, ia_teto_de_seguranca_percentual) values ($1, 'grupo', $2, $3) returning id`, [nomeQueVemPrimeiro('Rede do Orçamento'), valorMicros, teto])
+      redes.push(id)
+      return id
+    }
+    /** Uma escola na rede, com a linha de configuração só se `proprio` vier (o painel não cria a linha). */
+    async function escolaComOrcamento(rede: string, proprio?: { valorMicros: number | null; teto: number | null }): Promise<string> {
+      const id = await idDe('insert into escola (rede_id, nome, slug) values ($1, $2, $3) returning id', [rede, nomeQueVemPrimeiro('Escola do Orçamento'), `orcamento-${randomUUID()}`])
+      escolas.push(id)
+      if (proprio !== undefined) await pool.query('insert into configuracao_operacional_escola (escola_id, ia_valor_por_aluno_micros, ia_teto_de_seguranca_percentual) values ($1, $2, $3)', [id, proprio.valorMicros, proprio.teto])
+      return id
+    }
+    const redesLidas = async () => {
+      const resposta = await pedir(url, 'GET', '/v1/operacao/redes', sessao.token)
+      expect(resposta.status).toBe(200)
+      return redesDoPainelResponseSchema.parse(resposta.corpo).itens
+    }
+
+    it('GET /escolas e /redes: o próprio e o vigente de cada escola e de cada rede, a escola sobre a rede coluna a coluna, e a contagem só das escolas da rede que usam o valor ou o teto dela', async () => {
+      // A rede 1 (R$ 5, teto 300%), a rede 2 (R$ 1, teto 100%) e a rede 3, sem nada.
+      const rede1 = await redeComOrcamento(5 * REAIS, 300)
+      const rede2 = await redeComOrcamento(1 * REAIS, 100)
+      const rede3 = await redeComOrcamento(null, null)
+      const valorProprioETetoDaRede = await escolaComOrcamento(rede1, { valorMicros: 3 * REAIS, teto: null })
+      const tetoProprioEValorDaRede = await escolaComOrcamento(rede1, { valorMicros: null, teto: 150 })
+      const osDoisProprios = await escolaComOrcamento(rede1, { valorMicros: 2 * REAIS, teto: 150 })
+      const semLinha = await escolaComOrcamento(rede1)
+      const daRede2 = await escolaComOrcamento(rede2)
+      const daRede3 = await escolaComOrcamento(rede3)
+
+      const lidas = await redesLidas()
+      expect(doItem(lidas, rede1)).toMatchObject({ orcamento: { proprio: propria(5 * REAIS, 300), vigente: vigente(5 * REAIS, 'rede', 300, 'rede') }, escolasQueUsamOValorDaRede: 3 })
+      // A escola da rede 2 usa o valor da rede 2, e não conta na 1; a rede 3 não define nada, e a escola dela não usa nada da rede.
+      expect(doItem(lidas, rede2)).toMatchObject({ orcamento: { proprio: propria(1 * REAIS, 100), vigente: vigente(1 * REAIS, 'rede', 100, 'rede') }, escolasQueUsamOValorDaRede: 1 })
+      expect(doItem(lidas, rede3)).toMatchObject({ orcamento: { proprio: propria(null, null), vigente: vigente(null, 'nenhuma', 200, 'padrao') }, escolasQueUsamOValorDaRede: 0 })
+
+      const { itens } = await lista('nome')
+      expect(doItem(itens, valorProprioETetoDaRede).orcamento).toStrictEqual({ proprio: propria(3 * REAIS, null), vigente: vigente(3 * REAIS, 'escola', 300, 'rede') })
+      expect(doItem(itens, tetoProprioEValorDaRede).orcamento).toStrictEqual({ proprio: propria(null, 150), vigente: vigente(5 * REAIS, 'rede', 150, 'escola') })
+      expect(doItem(itens, osDoisProprios).orcamento).toStrictEqual({ proprio: propria(2 * REAIS, 150), vigente: vigente(2 * REAIS, 'escola', 150, 'escola') })
+      expect(doItem(itens, semLinha).orcamento).toStrictEqual({ proprio: propria(null, null), vigente: vigente(5 * REAIS, 'rede', 300, 'rede') })
+      expect(doItem(itens, daRede2).orcamento).toStrictEqual({ proprio: propria(null, null), vigente: vigente(1 * REAIS, 'rede', 100, 'rede') })
+      expect(doItem(itens, daRede3).orcamento).toStrictEqual({ proprio: propria(null, null), vigente: vigente(null, 'nenhuma', 200, 'padrao') })
+    })
+
+    it('GET /redes: as redes vêm por nome, a mais nova do teste primeiro, e não pela ordem em que nasceram', async () => {
+      const nascidas: string[] = []
+      for (let i = 0; i < 3; i += 1) {
+        nascidas.push(await redeComOrcamento(null, null))
+        // O nome que vem primeiro leva o relógio: a espera garante um nome diferente a cada rede.
+        await new Promise((pronto) => setTimeout(pronto, 5))
+      }
+      const lidas = (await redesLidas()).map((item) => item.id).filter((id) => nascidas.includes(id))
+      expect(lidas).toEqual([...nascidas].reverse())
+    })
+
+    it('a rede que só define o teto conta a escola sem teto próprio, e a que só define o valor conta a escola sem valor próprio; escola com os dois próprios não conta em nenhuma', async () => {
+      const soOTeto = await redeComOrcamento(null, 250)
+      const soOValor = await redeComOrcamento(4 * REAIS, null)
+      await escolaComOrcamento(soOTeto, { valorMicros: 2 * REAIS, teto: null })
+      await escolaComOrcamento(soOTeto, { valorMicros: null, teto: 150 })
+      await escolaComOrcamento(soOTeto, { valorMicros: 2 * REAIS, teto: 150 })
+      await escolaComOrcamento(soOValor, { valorMicros: null, teto: 150 })
+      await escolaComOrcamento(soOValor, { valorMicros: 2 * REAIS, teto: 150 })
+      // Sem teto próprio, mas a rede não define teto: não usa nada dela.
+      await escolaComOrcamento(soOValor, { valorMicros: 2 * REAIS, teto: null })
+      const lidas = await redesLidas()
+      // Só o teto da rede: a escola que tem teto próprio não usa nada dela (a de valor próprio e sem teto usa o teto); só o valor: a de teto próprio e sem valor usa o valor.
+      expect(doItem(lidas, soOTeto).escolasQueUsamOValorDaRede).toBe(1)
+      expect(doItem(lidas, soOValor).escolasQueUsamOValorDaRede).toBe(1)
     })
   })
 

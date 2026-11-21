@@ -5,18 +5,21 @@ import {
   criarEscolaRequestSchema,
   criarRedeRequestSchema,
   operadorEmptyBodyRequestSchema,
+  orcamentoDeIaRequestSchema,
   type PainelQuery,
   type ConviteDaCoordenacaoRequest,
   type CriarEscolaRequest,
   type CriarRedeRequest,
   type OperadorEmptyBodyRequest,
+  type OrcamentoDeIaDoPainel,
+  type OrcamentoDeIaRequest,
   type ConviteDaCoordenacaoResponse,
   type CriadoNoPainelResponse,
   type EscolasDoPainelResponse,
   type RedesDoPainelResponse,
   type UsoDoPainelResponse,
 } from '@educa/shared'
-import { Body, Controller, Get, Header, HttpCode, HttpStatus, Inject, Param, Post, Query } from '@nestjs/common'
+import { Body, Controller, Get, Header, HttpCode, HttpStatus, Inject, Param, Post, Put, Query } from '@nestjs/common'
 import { OperacaoRoute } from '../decorators.js'
 import { PainelService } from './painel.service.js'
 
@@ -27,7 +30,8 @@ const emptyBodySchema = operadorEmptyBodyRequestSchema.default({})
  * O painel da operação na API (Tech Spec da A0b, seção 4), as oito rotas: `GET /v1/operacao/redes`, `POST /v1/operacao/redes`,
  * `GET /v1/operacao/escolas`, `POST /v1/operacao/escolas`, `GET /v1/operacao/uso`,
  * `POST /v1/operacao/escolas/:id/convite-coordenacao`, `POST /v1/operacao/convites/:id/refazer` e
- * `POST /v1/operacao/convites/:id/revogar`.
+ * `POST /v1/operacao/convites/:id/revogar`, e as duas do orçamento de IA (camada-ia, 3.0): `PUT /v1/operacao/escolas/:id/orcamento-ia` e
+ * `PUT /v1/operacao/redes/:id/orcamento-ia`.
  * Todas `@OperacaoRoute` (a `OperadorGuard` e o limite `rl:op:{sub}`), com `no-store`, e o corpo pelo contrato estrito
  * de `packages/shared`: campo a mais, como `autor`, é `ENTRADA_INVALIDA` antes de qualquer leitura ou escrita; na lista e
  * no uso, a consulta (`pagina`, `ordem`) também é estrita. O `:id` fora do formato de UUID responde como o inexistente
@@ -70,6 +74,26 @@ export class PainelController {
   @Header('Cache-Control', 'no-store')
   createEscola(@Body(new ZodValidationPipe(criarEscolaRequestSchema)) pedido: CriarEscolaRequest): Promise<CriadoNoPainelResponse> {
     return this.painel.createEscola(pedido)
+  }
+
+  @Put('escolas/:id/orcamento-ia')
+  @OperacaoRoute()
+  @Header('Cache-Control', 'no-store')
+  definirOrcamentoDaEscola(
+    @Param('id', IdPipe) escolaId: string,
+    @Body(new ZodValidationPipe(orcamentoDeIaRequestSchema)) pedido: OrcamentoDeIaRequest,
+  ): Promise<OrcamentoDeIaDoPainel> {
+    return this.painel.definirOrcamentoDaEscola(escolaId, pedido)
+  }
+
+  @Put('redes/:id/orcamento-ia')
+  @OperacaoRoute()
+  @Header('Cache-Control', 'no-store')
+  definirOrcamentoDaRede(
+    @Param('id', IdPipe) redeId: string,
+    @Body(new ZodValidationPipe(orcamentoDeIaRequestSchema)) pedido: OrcamentoDeIaRequest,
+  ): Promise<OrcamentoDeIaDoPainel> {
+    return this.painel.definirOrcamentoDaRede(redeId, pedido)
   }
 
   @Post('escolas/:id/convite-coordenacao')

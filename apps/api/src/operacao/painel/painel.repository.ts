@@ -1,6 +1,6 @@
-import { rede, Unscoped, type Database, type DadosDaCoordenacao, type UsagePeriod } from '@educa/core'
-import { ESCOLAS_POR_PAGINA, MAXIMO_DE_REDES_DO_PAINEL, type OrdemDoPainel, type RedeDoPainel } from '@educa/shared'
-import { asc, sql, type SQL } from 'drizzle-orm'
+import { Unscoped, type Database, type DadosDaCoordenacao, type UsagePeriod } from '@educa/core'
+import { ESCOLAS_POR_PAGINA, MAXIMO_DE_REDES_DO_PAINEL, type OrcamentoDefinido, type OrdemDoPainel, type TipoDeRede } from '@educa/shared'
+import { sql, type SQL } from 'drizzle-orm'
 
 /** O período do uso que a lista e o uso leem: o último dia fechado e o primeiro dia do mês dele, `AAAA-MM-DD`. */
 export interface ReferenciaDoUso {
@@ -15,7 +15,22 @@ export interface PedidoDePaginaDoPainel {
   readonly referencia: ReferenciaDoUso
 }
 
-/** Uma escola da lista: id, nome, endereço, rede, contagens do ano em curso e o que decide o estado da coordenação. */
+/** O que a escola define de orçamento de IA, e o que a rede dela define: a conta do que vale (`orcamentoDaEscolaNoPainel`) é do chamador, a mesma do lote e da Governança. */
+export interface OrcamentoLidoDaEscola {
+  readonly escola: OrcamentoDefinido
+  readonly rede: OrcamentoDefinido
+}
+
+/** Uma rede da lista: id, nome, tipo, o que ela define de orçamento de IA e quantas escolas usam o valor ou o teto dela. */
+export interface RedeLidaNoPainel {
+  readonly id: string
+  readonly nome: string
+  readonly tipo: TipoDeRede
+  readonly orcamento: OrcamentoDefinido
+  readonly escolasQueUsamOValorDaRede: number
+}
+
+/** Uma escola da lista: id, nome, endereço, rede, contagens do ano em curso, o orçamento de IA e o que decide o estado da coordenação. */
 export interface EscolaLidaNoPainel {
   readonly id: string
   readonly nome: string
@@ -24,6 +39,7 @@ export interface EscolaLidaNoPainel {
   readonly turmas: number
   readonly professores: number
   readonly alunos: number
+  readonly orcamento: OrcamentoLidoDaEscola
   readonly coordenacao: DadosDaCoordenacao
 }
 
@@ -50,6 +66,10 @@ interface EscolaRow extends Record<string, unknown> {
   turmas: number
   professores: number
   alunos: number
+  iaValorMicros: string | null
+  iaTeto: number | null
+  redeIaValorMicros: string | null
+  redeIaTeto: number | null
   coordenadorAtivo: boolean
   conviteId: string | null
   expiraEmMs: string | null
@@ -57,6 +77,16 @@ interface EscolaRow extends Record<string, unknown> {
   revogadoEmMs: string | null
   usuarioDesativadoEmMs: string | null
   agoraMs: string
+}
+
+/** O que o driver devolve de uma linha das redes: `bigint` chega como texto, e a contagem em `int`. */
+interface RedeRow extends Record<string, unknown> {
+  id: string
+  nome: string
+  tipo: TipoDeRede
+  iaValorMicros: string | null
+  iaTeto: number | null
+  escolasQueUsamOValorDaRede: number
 }
 
 /** O que o driver devolve de uma linha do uso: `bigint` e `sum` chegam como texto. */
@@ -75,6 +105,9 @@ interface UsoRow extends Record<string, unknown> {
 const TOTAL_DE_ESCOLAS = sql`select count(*)::int as total from escola`
 
 const instante = (ms: string | null): Date | null => (ms === null ? null : new Date(Number(ms)))
+
+/** O `bigint` do driver (texto), em número: o valor por aluno em micros cabe folgado em 2^53 (no máximo R$ 100,00 = 10^8). */
+const microsDoDriver = (valor: string | null): number | null => (valor === null ? null : Number(valor))
 
 /**
  * As escolas da página, na ordem pedida, cada uma com a posição dela: `nome` (crescente), ou `uso`, as requisições do mês
@@ -118,9 +151,31 @@ function pessoasComVinculo(papel: 'professor' | 'aluno', condicao: SQL): SQL {
 export class PainelRepository {
   constructor(private readonly banco: Database) {}
 
-  @Unscoped('painel do operador: a lista de redes para criar escola, acima do tenant; só id, nome e tipo, até 200, sem escola nem pessoa')
-  async redes(): Promise<RedeDoPainel[]> {
-    return this.banco.select({ id: rede.id, nome: rede.nome, tipo: rede.tipo }).from(rede).orderBy(asc(rede.nome), asc(rede.id)).limit(MAXIMO_DE_REDES_DO_PAINEL)
+  /**
+   * As redes por nome, até 200, cada uma com o orçamento de IA que ela define e **quantas escolas usam o valor ou o teto dela**: a escola sem valor próprio quando a rede tem valor, ou sem teto próprio quando a
+   * rede tem teto (a escola sem linha de configuração não tem nenhum dos dois próprios). Só id, nome, tipo e número, sem escola nem pessoa.
+   */
+  @Unscoped('painel do operador: a lista de redes para criar escola e definir o orçamento de IA, acima do tenant; só id, nome, tipo e número, até 200, sem escola nem pessoa')
+  async redes(): Promise<RedeLidaNoPainel[]> {
+    const { rows } = await this.banco.execute<RedeRow>(sql`
+      select r.id, r.nome, r.tipo,
+        r.ia_valor_por_aluno_micros::text as "iaValorMicros",
+        r.ia_teto_de_seguranca_percentual as "iaTeto",
+        (select count(*)::int
+          from escola as e left join configuracao_operacional_escola as cfg on cfg.escola_id = e.id
+          where e.rede_id = r.id
+            and ((cfg.ia_valor_por_aluno_micros is null and r.ia_valor_por_aluno_micros is not null)
+              or (cfg.ia_teto_de_seguranca_percentual is null and r.ia_teto_de_seguranca_percentual is not null))) as "escolasQueUsamOValorDaRede"
+      from rede as r
+      order by r.nome, r.id
+      limit ${MAXIMO_DE_REDES_DO_PAINEL}`)
+    return rows.map((linha) => ({
+      id: linha.id,
+      nome: linha.nome,
+      tipo: linha.tipo,
+      orcamento: { valorPorAlunoMicros: microsDoDriver(linha.iaValorMicros), tetoPercentual: linha.iaTeto },
+      escolasQueUsamOValorDaRede: linha.escolasQueUsamOValorDaRede,
+    }))
   }
 
   /**
@@ -139,6 +194,10 @@ export class PainelRepository {
           (select count(*)::int from turma as t where t.escola_id = e.id and t.ano_letivo_id = ano.id) as turmas,
           ${pessoasComVinculo('professor', sql`v.estado = 'confirmado' and v.encerrado_em is null`)} as professores,
           ${pessoasComVinculo('aluno', sql`v.encerrado_em is null`)} as alunos,
+          cfg.ia_valor_por_aluno_micros::text as "iaValorMicros",
+          cfg.ia_teto_de_seguranca_percentual as "iaTeto",
+          r.ia_valor_por_aluno_micros::text as "redeIaValorMicros",
+          r.ia_teto_de_seguranca_percentual as "redeIaTeto",
           exists(select 1 from usuario as coordenador
             where coordenador.escola_id = e.id and coordenador.papel = 'coordenador' and coordenador.desativado_em is null) as "coordenadorAtivo",
           ultimo.id as "conviteId",
@@ -150,6 +209,7 @@ export class PainelRepository {
         from pagina
         join escola as e on e.id = pagina.id
         join rede as r on r.id = e.rede_id
+        left join configuracao_operacional_escola as cfg on cfg.escola_id = e.id
         left join lateral (select a.id from ano_letivo as a where a.escola_id = e.id and a.situacao = 'em_curso') as ano on true
         left join lateral (
           select c.id, c.expira_em, c.usado_em, c.revogado_em, convidado.desativado_em as usuario_desativado_em
@@ -173,6 +233,10 @@ export class PainelRepository {
           turmas: linha.turmas,
           professores: linha.professores,
           alunos: linha.alunos,
+          orcamento: {
+            escola: { valorPorAlunoMicros: microsDoDriver(linha.iaValorMicros), tetoPercentual: linha.iaTeto },
+            rede: { valorPorAlunoMicros: microsDoDriver(linha.redeIaValorMicros), tetoPercentual: linha.redeIaTeto },
+          },
           coordenacao: {
             coordenadorAtivo: linha.coordenadorAtivo,
             ultimoConvite:

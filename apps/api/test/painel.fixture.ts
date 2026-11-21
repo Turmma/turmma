@@ -32,7 +32,7 @@ export interface Resposta {
 }
 
 /** Um pedido à API, com o token de operador (ou sem nenhum, com `token` indefinido). */
-export async function pedir(url: string, verbo: 'GET' | 'POST', caminho: string, token: string | undefined, corpo?: unknown): Promise<Resposta> {
+export async function pedir(url: string, verbo: 'GET' | 'POST' | 'PUT', caminho: string, token: string | undefined, corpo?: unknown): Promise<Resposta> {
   const resposta = await fetch(`${url}${caminho}`, {
     method: verbo,
     headers: { ...(token === undefined ? {} : { Authorization: `Bearer ${token}` }), ...(corpo === undefined ? {} : { 'Content-Type': 'application/json' }) },

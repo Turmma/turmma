@@ -95,6 +95,10 @@ export function escolaDoPainel(n: number, extra: Partial<EscolaDoPainel> = {}): 
     turmas: 4,
     professores: 6,
     alunos: 112,
+    orcamento: {
+      proprio: { valorPorAlunoMicros: null, tetoDeSegurancaPercentual: null },
+      vigente: { valorPorAlunoMicros: null, origemDoValor: 'nenhuma', tetoDeSegurancaPercentual: 200, origemDoTeto: 'padrao' },
+    },
     ...extra,
   }
 }

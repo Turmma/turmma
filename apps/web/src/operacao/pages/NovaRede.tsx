@@ -12,7 +12,7 @@ import { ROTULO_DO_TIPO_DE_REDE, textoDaFalha } from '../textos'
 interface Props {
   readonly aoFechar: () => void
   /** A rede criada (ou a mesma, no pedido repetido): a tela anuncia e a oferece no diálogo Nova escola. */
-  readonly aoCriar: (rede: RedeDoPainel) => void
+  readonly aoCriar: (rede: Pick<RedeDoPainel, 'id' | 'nome' | 'tipo'>) => void
 }
 
 /**

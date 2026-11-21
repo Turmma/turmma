@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { tokenDeLinkSchema } from '../sessao/token.js'
 import { FORMATO_SLUG, TAMANHO_MAXIMO_SLUG, TIPOS_DE_REDE } from '../estrutura/rede-e-escola.js'
 import { TAMANHO_MAXIMO_EMAIL } from '../sessao/login.js'
+import { orcamentoVigente, type OrcamentoDefinido } from '../governanca/orcamento-de-ia.js'
 
 /** O maior nome de rede, de escola ou de pessoa convidada: o teto do check de `usuario.nome`, `rede.nome` e `escola.nome`. */
 export const TAMANHO_MAXIMO_NOME_DIGITADO = 200
@@ -57,11 +58,88 @@ export const criadoNoPainelResponseSchema = z.strictObject({ id: z.uuid() })
 
 export type CriadoNoPainelResponse = z.infer<typeof criadoNoPainelResponseSchema>
 
-/** Uma rede na lista do painel: id, nome e tipo, e nada de escola nem de pessoa. */
+/** Quantos micros (milionésimos de real) vale um centavo: a Operação digita em centavos e a API grava e devolve em micros (camada-ia, 3.0; Tech Spec, seção 4). */
+export const MICROS_POR_CENTAVO = 10_000
+
+/** O menor e o maior valor de IA por aluno por mês que a Operação define, em centavos: R$ 0,01 e R$ 100,00 (a faixa da Tech Spec, seção 4). */
+export const VALOR_MINIMO_DE_IA_POR_ALUNO_CENTAVOS = 1
+export const VALOR_MAXIMO_DE_IA_POR_ALUNO_CENTAVOS = 10_000
+
+/** O menor e o maior teto de segurança, em % do orçamento do mês: os do check `*_ia_teto_valido` do banco. */
+export const TETO_MINIMO_DE_SEGURANCA_PERCENTUAL = 100
+export const TETO_MAXIMO_DE_SEGURANCA_PERCENTUAL = 1000
+
+/** Centavos digitados, em micros gravados. */
+export const centavosParaMicros = (centavos: number): number => centavos * MICROS_POR_CENTAVO
+
+/**
+ * Corpo de `PUT /v1/operacao/escolas/:id/orcamento-ia` e `/redes/:id/orcamento-ia` (camada-ia, 3.0; RF7): o valor por aluno por mês, em centavos, e o teto de
+ * segurança, em %. **Os dois campos são obrigatórios e o `PUT` troca os dois:** `null` é "sem valor próprio", e a escola volta a valer o da rede. Estrito:
+ * campo a mais, como `autor` ou `escolaId`, é `ENTRADA_INVALIDA`; a escola ou a rede vem do caminho e o autor, da sessão.
+ */
+export const orcamentoDeIaRequestSchema = z.strictObject({
+  valorPorAlunoCentavos: z.number().int().min(VALOR_MINIMO_DE_IA_POR_ALUNO_CENTAVOS).max(VALOR_MAXIMO_DE_IA_POR_ALUNO_CENTAVOS).nullable(),
+  tetoDeSegurancaPercentual: z.number().int().min(TETO_MINIMO_DE_SEGURANCA_PERCENTUAL).max(TETO_MAXIMO_DE_SEGURANCA_PERCENTUAL).nullable(),
+})
+
+export type OrcamentoDeIaRequest = z.infer<typeof orcamentoDeIaRequestSchema>
+
+/** O que a escola, ou a rede, define: o valor em micros e o teto em %, cada um nulo onde não definiu. */
+export const orcamentoProprioDoPainelSchema = z.strictObject({
+  valorPorAlunoMicros: z.number().int().positive().nullable(),
+  tetoDeSegurancaPercentual: z.number().int().min(TETO_MINIMO_DE_SEGURANCA_PERCENTUAL).max(TETO_MAXIMO_DE_SEGURANCA_PERCENTUAL).nullable(),
+})
+
+/** O que vale hoje, com a origem de cada número: o valor é nulo (e a origem, `nenhuma`) quando nem a escola nem a rede definiram. */
+export const orcamentoVigenteDoPainelSchema = z.strictObject({
+  valorPorAlunoMicros: z.number().int().positive().nullable(),
+  origemDoValor: z.enum(['escola', 'rede', 'nenhuma']),
+  tetoDeSegurancaPercentual: z.number().int().min(TETO_MINIMO_DE_SEGURANCA_PERCENTUAL).max(TETO_MAXIMO_DE_SEGURANCA_PERCENTUAL),
+  origemDoTeto: z.enum(['escola', 'rede', 'padrao']),
+})
+
+/** O orçamento de IA de uma escola ou de uma rede no painel: o próprio e o vigente. Só valor, teto e origem: nada de pessoa. */
+export const orcamentoDeIaDoPainelSchema = z.strictObject({
+  proprio: orcamentoProprioDoPainelSchema,
+  vigente: orcamentoVigenteDoPainelSchema,
+})
+
+export type OrcamentoDeIaDoPainel = z.infer<typeof orcamentoDeIaDoPainelSchema>
+
+const SEM_ORCAMENTO_DEFINIDO: OrcamentoDefinido = { valorPorAlunoMicros: null, tetoPercentual: null }
+
+function orcamentoDoPainel(proprio: OrcamentoDefinido, vigente: ReturnType<typeof orcamentoVigente>): OrcamentoDeIaDoPainel {
+  return {
+    proprio: { valorPorAlunoMicros: proprio.valorPorAlunoMicros, tetoDeSegurancaPercentual: proprio.tetoPercentual },
+    vigente: {
+      valorPorAlunoMicros: vigente.valorPorAlunoMicros,
+      origemDoValor: vigente.origemDoValor,
+      tetoDeSegurancaPercentual: vigente.tetoPercentual,
+      origemDoTeto: vigente.origemDoTeto,
+    },
+  }
+}
+
+/** O orçamento da escola no painel: o que ela define e o que vale, a escola sobre a rede, coluna a coluna (`orcamentoVigente`, a mesma conta do lote e da Governança). */
+export function orcamentoDaEscolaNoPainel(escola: OrcamentoDefinido, rede: OrcamentoDefinido): OrcamentoDeIaDoPainel {
+  return orcamentoDoPainel(escola, orcamentoVigente(escola, rede))
+}
+
+/** O orçamento da rede no painel: o que ela define e o que vale para uma escola sem nada próprio (a origem é `rede`, ou `nenhuma` e `padrao` onde a rede também não definiu). */
+export function orcamentoDaRedeNoPainel(rede: OrcamentoDefinido): OrcamentoDeIaDoPainel {
+  return orcamentoDoPainel(rede, orcamentoVigente(SEM_ORCAMENTO_DEFINIDO, rede))
+}
+
+/**
+ * Uma rede na lista do painel: id, nome e tipo, o orçamento de IA dela e **quantas escolas usam o valor ou o teto da rede** (a escola sem valor próprio com a rede definindo valor,
+ * ou sem teto próprio com a rede definindo teto): é o número que o diálogo mostra antes de salvar. Nada de escola nem de pessoa.
+ */
 export const redeDoPainelSchema = z.strictObject({
   id: z.uuid(),
   nome: z.string().min(1).max(TAMANHO_MAXIMO_NOME_DIGITADO),
   tipo: z.enum(TIPOS_DE_REDE),
+  orcamento: orcamentoDeIaDoPainelSchema,
+  escolasQueUsamOValorDaRede: z.number().int().nonnegative(),
 })
 
 export type RedeDoPainel = z.infer<typeof redeDoPainelSchema>
@@ -201,6 +279,7 @@ export const escolaDoPainelSchema = z.strictObject({
   turmas: contagemSchema,
   professores: contagemSchema,
   alunos: contagemSchema,
+  orcamento: orcamentoDeIaDoPainelSchema,
 })
 
 export type EscolaDoPainel = z.infer<typeof escolaDoPainelSchema>

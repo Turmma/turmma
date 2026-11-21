@@ -349,6 +349,18 @@ export {
   escolaDoPainelSchema,
   usoDaEscolaDoPainelSchema,
   usoDoPeriodoDoPainelSchema,
+  orcamentoDeIaDoPainelSchema,
+  orcamentoDeIaRequestSchema,
+  orcamentoProprioDoPainelSchema,
+  orcamentoVigenteDoPainelSchema,
+  centavosParaMicros,
+  orcamentoDaEscolaNoPainel,
+  orcamentoDaRedeNoPainel,
+  MICROS_POR_CENTAVO,
+  TETO_MAXIMO_DE_SEGURANCA_PERCENTUAL,
+  TETO_MINIMO_DE_SEGURANCA_PERCENTUAL,
+  VALOR_MAXIMO_DE_IA_POR_ALUNO_CENTAVOS,
+  VALOR_MINIMO_DE_IA_POR_ALUNO_CENTAVOS,
   ESCOLAS_POR_PAGINA,
   ESTADOS_DA_COORDENACAO,
   GERAR_CONVITE_POR_ESTADO,
@@ -375,6 +387,8 @@ export type {
   UsoDoPainelResponse,
   UsoDaEscolaDoPainel,
   UsoDoPeriodoDoPainel,
+  OrcamentoDeIaDoPainel,
+  OrcamentoDeIaRequest,
 } from './operacao/painel.js'
 export {
   cadastrarProfessorRequestSchema,
@@ -943,7 +957,7 @@ export type {
   FuncoesDaGovernancaResponse,
   ResumoDaGovernancaResponse,
 } from './governanca/governanca.js'
-export { diaDeSaoPaulo, FUSO_DO_ORCAMENTO, mesDeSaoPaulo, orcamentoDoMes, orcamentoSemRetrato, orcamentoVigente, TETO_PADRAO_PERCENTUAL } from './governanca/orcamento-de-ia.js'
+export { diaDeSaoPaulo, FUSO_DO_ORCAMENTO, mesDeSaoPaulo, mesmoOrcamentoDefinido, orcamentoDoMes, orcamentoSemRetrato, orcamentoVigente, TETO_PADRAO_PERCENTUAL } from './governanca/orcamento-de-ia.js'
 export type {
   AvisoDoOrcamento,
   OrcamentoDefinido,

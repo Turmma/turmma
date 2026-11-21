@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
+  centavosParaMicros,
   ESCOLAS_POR_PAGINA,
+  MICROS_POR_CENTAVO,
+  orcamentoDaEscolaNoPainel,
+  orcamentoDaRedeNoPainel,
+  orcamentoDeIaDoPainelSchema,
+  orcamentoDeIaRequestSchema,
   painelQuerySchema,
   conviteDaCoordenacaoRequestSchema,
   criarEscolaRequestSchema,
@@ -20,7 +26,12 @@ const V4 = '3f1c8a52-6b0e-4d7a-9c21-5e8f0a1b2c3d'
 const V7 = '0192a4c0-5b1e-7c3d-8e4f-a0b1c2d3e4f5'
 const REDE = '0192a4c0-5b1e-7c3d-8e4f-a0b1c2d3e4f6'
 
+const SEM_ORCAMENTO = {
+  proprio: { valorPorAlunoMicros: null, tetoDeSegurancaPercentual: null },
+  vigente: { valorPorAlunoMicros: null, origemDoValor: 'nenhuma', tetoDeSegurancaPercentual: 200, origemDoTeto: 'padrao' },
+}
 const rede = { id: V4, nome: 'Rede Sintética', tipo: 'grupo' }
+const redeDaLista = { ...rede, orcamento: SEM_ORCAMENTO, escolasQueUsamOValorDaRede: 0 }
 const escola = { id: V7, redeId: REDE, nome: 'Colégio Sintético', slug: 'colegio-sintetico' }
 
 describe('contratos do painel da operação (Tech Spec da A0b, seção 4)', () => {
@@ -52,10 +63,10 @@ describe('contratos do painel da operação (Tech Spec da A0b, seção 4)', () =
     for (const nome of ['', '   ', 'Rede\nSintética', 'x'.repeat(201)]) expect(criarRedeRequestSchema.safeParse({ ...rede, nome }).success, nome).toBe(false)
   })
 
-  it('as respostas são estritas: só o id, e a rede só com id, nome e tipo, até 200', () => {
+  it('as respostas são estritas: só o id, e a rede só com id, nome, tipo, orçamento e a contagem, até 200', () => {
     expect(criadoNoPainelResponseSchema.safeParse({ id: V4, slug: 'x' }).success).toBe(false)
-    expect(redesDoPainelResponseSchema.safeParse({ itens: [{ ...rede, ipsSaida: [] }] }).success).toBe(false)
-    const muitas = Array.from({ length: MAXIMO_DE_REDES_DO_PAINEL + 1 }, () => rede)
+    expect(redesDoPainelResponseSchema.safeParse({ itens: [{ ...redeDaLista, ipsSaida: [] }] }).success).toBe(false)
+    const muitas = Array.from({ length: MAXIMO_DE_REDES_DO_PAINEL + 1 }, () => redeDaLista)
     expect(redesDoPainelResponseSchema.safeParse({ itens: muitas }).success).toBe(false)
     expect(redesDoPainelResponseSchema.safeParse({ itens: muitas.slice(1) }).success).toBe(true)
   })
@@ -87,7 +98,7 @@ describe('contratos do painel da operação (Tech Spec da A0b, seção 4)', () =
   })
 
   it('a resposta da lista é estrita: só id, nome, endereço, rede, estado, convite e número, até 25 por página', () => {
-    const item = { id: V7, nome: 'Colégio Sintético', slug: 'colegio-sintetico', rede: { id: REDE, nome: 'Rede Sintética' }, estado: 'pendente', conviteId: V4, turmas: 2, professores: 3, alunos: 40 }
+    const item = { id: V7, nome: 'Colégio Sintético', slug: 'colegio-sintetico', rede: { id: REDE, nome: 'Rede Sintética' }, estado: 'pendente', conviteId: V4, turmas: 2, professores: 3, alunos: 40, orcamento: SEM_ORCAMENTO }
     const pagina = { itens: [item], pagina: 1, total: 1 }
     expect(escolasDoPainelResponseSchema.safeParse(pagina).success).toBe(true)
     const { conviteId: _semConvite, ...semConvite } = item
@@ -139,5 +150,72 @@ describe('a matriz do convite da coordenação é a da Tech Spec (A0b, seção 5
       sem_coordenacao: 'conflito',
       ativa: 'conflito',
     })
+  })
+})
+
+/**
+ * O orçamento de IA no painel da Operação (camada-ia, 3.0; Tech Spec, seção 4; RF7): o corpo do `PUT` é em centavos e estrito, a resposta é em micros, e a conta do que vale é a mesma da Governança e do lote.
+ */
+describe('o orçamento de IA no painel da Operação (camada-ia, 3.0)', () => {
+  const pedido = { valorPorAlunoCentavos: 500, tetoDeSegurancaPercentual: 200 }
+
+  it('500 centavos são 5.000.000 micros: o fator é de 10.000 micros por centavo', () => {
+    expect(MICROS_POR_CENTAVO).toBe(10_000)
+    expect(centavosParaMicros(500)).toBe(5_000_000)
+    expect(centavosParaMicros(1)).toBe(10_000)
+    expect(centavosParaMicros(10_000)).toBe(100_000_000)
+  })
+
+  it('os limites do valor: 0 e R$ 100,01 recusam; R$ 0,01 e R$ 100,00 passam; centavo fracionado, texto e fora do inteiro recusam', () => {
+    for (const valorPorAlunoCentavos of [0, 10_001, -1, 0.5, 500.5, '500', Number.NaN]) {
+      expect(orcamentoDeIaRequestSchema.safeParse({ ...pedido, valorPorAlunoCentavos }).success, String(valorPorAlunoCentavos)).toBe(false)
+    }
+    for (const valorPorAlunoCentavos of [1, 10_000]) expect(orcamentoDeIaRequestSchema.safeParse({ ...pedido, valorPorAlunoCentavos }).success, String(valorPorAlunoCentavos)).toBe(true)
+  })
+
+  it('os limites do teto: 99 e 1001 recusam; 100 e 1000 passam; fracionado recusa', () => {
+    for (const tetoDeSegurancaPercentual of [99, 1001, 0, 150.5, '200']) {
+      expect(orcamentoDeIaRequestSchema.safeParse({ ...pedido, tetoDeSegurancaPercentual }).success, String(tetoDeSegurancaPercentual)).toBe(false)
+    }
+    for (const tetoDeSegurancaPercentual of [100, 1000]) expect(orcamentoDeIaRequestSchema.safeParse({ ...pedido, tetoDeSegurancaPercentual }).success, String(tetoDeSegurancaPercentual)).toBe(true)
+  })
+
+  it('nulo volta à rede, em cada campo ou nos dois; os dois campos são obrigatórios e o corpo é estrito', () => {
+    expect(orcamentoDeIaRequestSchema.safeParse({ valorPorAlunoCentavos: null, tetoDeSegurancaPercentual: null }).success).toBe(true)
+    expect(orcamentoDeIaRequestSchema.safeParse({ valorPorAlunoCentavos: null, tetoDeSegurancaPercentual: 200 }).success).toBe(true)
+    expect(orcamentoDeIaRequestSchema.safeParse({ valorPorAlunoCentavos: 500, tetoDeSegurancaPercentual: null }).success).toBe(true)
+    expect(orcamentoDeIaRequestSchema.safeParse({ valorPorAlunoCentavos: 500 }).success).toBe(false)
+    expect(orcamentoDeIaRequestSchema.safeParse({ tetoDeSegurancaPercentual: 200 }).success).toBe(false)
+    for (const aMais of [{ autor: 'outra-pessoa' }, { escolaId: V4 }, { redeId: V4 }, { valorPorAlunoMicros: 5_000_000 }]) expect(orcamentoDeIaRequestSchema.safeParse({ ...pedido, ...aMais }).success).toBe(false)
+  })
+
+  it('a escola sem valor e a rede com R$ 5: vale o da rede; a precedência é por coluna, e a rede vale com a origem dela', () => {
+    const rede5 = { valorPorAlunoMicros: 5_000_000, tetoPercentual: null }
+    const nada = { valorPorAlunoMicros: null, tetoPercentual: null }
+    expect(orcamentoDaEscolaNoPainel(nada, rede5)).toEqual({
+      proprio: { valorPorAlunoMicros: null, tetoDeSegurancaPercentual: null },
+      vigente: { valorPorAlunoMicros: 5_000_000, origemDoValor: 'rede', tetoDeSegurancaPercentual: 200, origemDoTeto: 'padrao' },
+    })
+    // Teto próprio e sem valor: o valor é o da rede e o teto é o da escola.
+    expect(orcamentoDaEscolaNoPainel({ valorPorAlunoMicros: null, tetoPercentual: 150 }, { valorPorAlunoMicros: 5_000_000, tetoPercentual: 300 }).vigente).toEqual({
+      valorPorAlunoMicros: 5_000_000,
+      origemDoValor: 'rede',
+      tetoDeSegurancaPercentual: 150,
+      origemDoTeto: 'escola',
+    })
+    // A rede sozinha: o próprio é o que ela define; o vigente tem origem `rede` onde ela definiu e `nenhuma` e `padrao` onde não.
+    expect(orcamentoDaRedeNoPainel({ valorPorAlunoMicros: 5_000_000, tetoPercentual: null })).toEqual({
+      proprio: { valorPorAlunoMicros: 5_000_000, tetoDeSegurancaPercentual: null },
+      vigente: { valorPorAlunoMicros: 5_000_000, origemDoValor: 'rede', tetoDeSegurancaPercentual: 200, origemDoTeto: 'padrao' },
+    })
+    expect(orcamentoDaRedeNoPainel(nada).vigente).toEqual({ valorPorAlunoMicros: null, origemDoValor: 'nenhuma', tetoDeSegurancaPercentual: 200, origemDoTeto: 'padrao' })
+  })
+
+  it('a resposta é estrita: o próprio e o vigente, só valor, teto e origem, e o valor zero ou o teto fora da faixa são recusados', () => {
+    expect(orcamentoDeIaDoPainelSchema.safeParse(SEM_ORCAMENTO).success).toBe(true)
+    expect(orcamentoDeIaDoPainelSchema.safeParse({ ...SEM_ORCAMENTO, autor: 'joaquim' }).success).toBe(false)
+    expect(orcamentoDeIaDoPainelSchema.safeParse({ ...SEM_ORCAMENTO, proprio: { ...SEM_ORCAMENTO.proprio, valorPorAlunoMicros: 0 } }).success).toBe(false)
+    expect(orcamentoDeIaDoPainelSchema.safeParse({ ...SEM_ORCAMENTO, vigente: { ...SEM_ORCAMENTO.vigente, tetoDeSegurancaPercentual: 99 } }).success).toBe(false)
+    expect(orcamentoDeIaDoPainelSchema.safeParse({ ...SEM_ORCAMENTO, vigente: { ...SEM_ORCAMENTO.vigente, origemDoValor: 'operador' } }).success).toBe(false)
   })
 })

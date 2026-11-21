@@ -29,6 +29,10 @@ const ESCOLA = {
   turmas: 0,
   professores: 0,
   alunos: 0,
+  orcamento: {
+    proprio: { valorPorAlunoMicros: null, tetoDeSegurancaPercentual: null },
+    vigente: { valorPorAlunoMicros: null, origemDoValor: 'nenhuma', tetoDeSegurancaPercentual: 200, origemDoTeto: 'padrao' },
+  },
 }
 
 beforeEach(async () => {

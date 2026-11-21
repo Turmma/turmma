@@ -1,9 +1,13 @@
 import {
+  AuditoriaRecorder,
   currentContext,
   diaAnterior,
   diaDeUso,
   DomainException,
   estadoDaCoordenacao,
+  mapPostgresError,
+  OrcamentoDoMesRepository,
+  postgresErrorIn,
   runInContext,
   requireContextOperador,
   systemClock,
@@ -12,11 +16,19 @@ import {
 } from '@educa/core'
 import {
   ErrorCode,
+  centavosParaMicros,
   conviteDaCoordenacaoResponseSchema,
   criadoNoPainelResponseSchema,
   escolasDoPainelResponseSchema,
+  mesmoOrcamentoDefinido,
+  orcamentoDaEscolaNoPainel,
+  orcamentoDaRedeNoPainel,
+  orcamentoDeIaDoPainelSchema,
   redesDoPainelResponseSchema,
   usoDoPainelResponseSchema,
+  type OrcamentoDefinido,
+  type OrcamentoDeIaDoPainel,
+  type OrcamentoDeIaRequest,
   type PainelQuery,
   type ConviteDaCoordenacaoRequest,
   type CriarEscolaRequest,
@@ -32,6 +44,7 @@ import { randomUUID } from 'node:crypto'
 import { createEscola, createRede } from '../escola/escola.js'
 import { type AuthorCheck, createConviteDeCoordenador, refazerConviteDaCoordenacao, revogarConvitePeloOperador } from '../../sessao/index.js'
 import { OperadorRepository } from '../operador/operador.repository.js'
+import { OrcamentoDaRedeRepository } from './orcamento-da-rede.repository.js'
 import { PainelRepository, type ReferenciaDoUso } from './painel.repository.js'
 
 /**
@@ -56,6 +69,18 @@ export function referenciaDoUso(agora: Date): ReferenciaDoUso {
   const dia = diaAnterior(diaDeUso(agora))
   return { dia, primeiroDoMes: `${dia.slice(0, 7)}-01` }
 }
+
+/** O pedido em micros: o valor digitado em centavos vira micros, e o teto segue em %. Nulo continua nulo ("sem valor próprio", e a escola volta a valer o da rede). */
+function definidoPeloPedido(pedido: OrcamentoDeIaRequest): OrcamentoDefinido {
+  return { valorPorAlunoMicros: pedido.valorPorAlunoCentavos === null ? null : centavosParaMicros(pedido.valorPorAlunoCentavos), tetoPercentual: pedido.tetoDeSegurancaPercentual }
+}
+
+/** O estado do orçamento como a auditoria o guarda, com os nomes dela. */
+function auditado(definido: OrcamentoDefinido): { valorPorAlunoMicros: number | null; tetoDeSegurancaPercentual: number | null } {
+  return { valorPorAlunoMicros: definido.valorPorAlunoMicros, tetoDeSegurancaPercentual: definido.tetoPercentual }
+}
+
+const registro = new AuditoriaRecorder()
 
 /** Roda `logar` com a escola no contexto, além dos ids da requisição: a linha de log leva só ids (regra 20, item 9). */
 function naEscola(escolaId: string, logar: () => void): void {
@@ -87,8 +112,10 @@ export class PainelService {
     private readonly relogio: Clock = systemClock,
   ) {}
 
+  /** As redes com o orçamento de IA próprio e o vigente (a rede vale para a escola sem nada próprio) e quantas escolas usam o valor ou o teto dela. */
   async redes(): Promise<RedesDoPainelResponse> {
-    return redesDoPainelResponseSchema.parse({ itens: await new PainelRepository(this.banco).redes() })
+    const lidas = await new PainelRepository(this.banco).redes()
+    return redesDoPainelResponseSchema.parse({ itens: lidas.map(({ orcamento, ...rede }) => ({ ...rede, orcamento: orcamentoDaRedeNoPainel(orcamento) })) })
   }
 
   /**
@@ -100,8 +127,9 @@ export class PainelService {
     return escolasDoPainelResponseSchema.parse({
       pagina,
       total: lida.total,
-      itens: lida.itens.map(({ coordenacao, ...escola }) => ({
+      itens: lida.itens.map(({ coordenacao, orcamento, ...escola }) => ({
         ...escola,
+        orcamento: orcamentoDaEscolaNoPainel(orcamento.escola, orcamento.rede),
         estado: estadoDaCoordenacao(coordenacao),
         ...(coordenacao.ultimoConvite === undefined ? {} : { conviteId: coordenacao.ultimoConvite.id }),
       })),
@@ -150,5 +178,58 @@ export class PainelService {
     const autor = autorDaSessao(requireContextOperador())
     const { escolaId } = await revogarConvitePeloOperador(this.banco, autor, conviteId)
     naEscola(escolaId, () => this.#logger.log('operacao.convite.revogado'))
+  }
+
+  /**
+   * Define o orçamento de IA da escola do `:id` (camada-ia, 3.0; RF7). Tudo numa transação, **no contexto da escola**: o autor conferido primeiro, a linha de configuração garantida e travada
+   * (`for update`), o `antes` lido já com a trava, a gravação e a auditoria `escola.orcamento_ia_alterado`, **só quando o `depois` difere do `antes`** (o mesmo pedido de novo não grava nem audita).
+   * Escola inexistente é `NAO_ENCONTRADO` (a chave estrangeira da linha de configuração a recusa), e escola sem ano `em_curso` também grava: o contexto é só a escola. Devolve o orçamento próprio e o vigente.
+   */
+  async definirOrcamentoDaEscola(escolaId: string, pedido: OrcamentoDeIaRequest): Promise<OrcamentoDeIaDoPainel> {
+    const autor = autorDaSessao(requireContextOperador())
+    const depois = definidoPeloPedido(pedido)
+    const requisicaoId = currentContext()?.requisicaoId ?? randomUUID()
+    try {
+      const resultado = await runInContext({ requisicaoId, escolaId }, () =>
+        this.banco.transaction(async (tx) => {
+          const autorOperador = await autor(tx)
+          const orcamentos = new OrcamentoDoMesRepository(tx)
+          const antes = await orcamentos.lockConfiguracaoDaEscola()
+          const mudou = !mesmoOrcamentoDefinido(antes, depois)
+          if (mudou) {
+            await orcamentos.saveConfiguracaoDaEscola(depois)
+            await registro.save(tx, 'escola.orcamento_ia_alterado', { entidadeId: escolaId, antes: auditado(antes), depois: auditado(depois), autorOperador })
+          }
+          return { mudou, rede: await orcamentos.configuracaoDaRede() }
+        }),
+      )
+      if (resultado.mudou) naEscola(escolaId, () => this.#logger.log('operacao.escola.orcamento_ia_alterado'))
+      return orcamentoDeIaDoPainelSchema.parse(orcamentoDaEscolaNoPainel(depois, resultado.rede))
+    } catch (erro) {
+      // foreign_key_violation: a escola do caminho não existe.
+      if (postgresErrorIn(erro)?.code === '23503') throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+      throw mapPostgresError(erro) ?? erro
+    }
+  }
+
+  /**
+   * Define o orçamento de IA da rede do `:id` (camada-ia, 3.0; RF7), acima do tenant: o `OrcamentoDaRedeRepository` trava a linha da rede, lê o `antes` e grava só se mudou, e a auditoria
+   * `rede.orcamento_ia_alterado` (sem escola, assinada pelo operador) vai na mesma transação. Rede inexistente é `NAO_ENCONTRADO`, sem auditoria: é o `select` vazio, e não uma chave estrangeira recusada (a rede não grava linha nova), e por isso, ao contrário do `PUT` da escola, não há `catch` que traduza o `23503`; erro inesperado do Postgres sobe como está. A contagem de escolas afetadas vem do `GET /v1/operacao/redes`.
+   */
+  async definirOrcamentoDaRede(redeId: string, pedido: OrcamentoDeIaRequest): Promise<OrcamentoDeIaDoPainel> {
+    const autor = autorDaSessao(requireContextOperador())
+    const depois = definidoPeloPedido(pedido)
+    const requisicaoId = currentContext()?.requisicaoId ?? randomUUID()
+    const definida = await runInContext({ requisicaoId }, () =>
+      this.banco.transaction(async (tx) => {
+        const autorOperador = await autor(tx)
+        const definida = await new OrcamentoDaRedeRepository(tx).definir(redeId, depois)
+        if (definida === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+        if (definida.mudou) await registro.save(tx, 'rede.orcamento_ia_alterado', { entidadeId: redeId, antes: auditado(definida.antes), depois: auditado(depois), autorOperador })
+        return definida
+      }),
+    )
+    if (definida.mudou) this.#logger.log('operacao.rede.orcamento_ia_alterado')
+    return orcamentoDeIaDoPainelSchema.parse(orcamentoDaRedeNoPainel(depois))
   }
 }

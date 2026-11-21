@@ -112,7 +112,7 @@ export function caminhoConcreto(caminho: string): string {
 }
 
 /**
- * As oito rotas do painel da operação (Tech Spec da A0b, seção 4). A I3 prova que as varreduras C36, C41 e C46 enxergam
+ * As dez rotas do painel da operação (Tech Spec da A0b, seção 4, e as duas `PUT` do orçamento de IA, camada-ia 3.0). A I3 prova que as varreduras C36, C41 e C46 enxergam
  * exatamente estas, e que as rotas `@OperacaoRoute` são elas mais o `GET /v1/operacao/eu` da A0: rota nova do painel é
  * mudança da spec, e entra aqui.
  */
@@ -125,7 +125,10 @@ export const ROTAS_DO_PAINEL: readonly string[] = [
   'POST /v1/operacao/escolas/:id/convite-coordenacao',
   'POST /v1/operacao/convites/:id/refazer',
   'POST /v1/operacao/convites/:id/revogar',
+  // camada-ia, 3.0: o orçamento de IA da escola e da rede.
+  'PUT /v1/operacao/escolas/:id/orcamento-ia',
+  'PUT /v1/operacao/redes/:id/orcamento-ia',
 ]
 
-/** As rotas `@OperacaoRoute` da API: o `/eu` da A0 e as oito do painel, em ordem, para comparar com a lista registrada. */
+/** As rotas `@OperacaoRoute` da API: o `/eu` da A0 e as dez do painel, em ordem, para comparar com a lista registrada. */
 export const ROTAS_COM_SESSAO_DE_OPERADOR: readonly string[] = ['GET /v1/operacao/eu', ...ROTAS_DO_PAINEL].toSorted()

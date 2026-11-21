@@ -68,6 +68,8 @@ preço de cada modelo: se a tarefa tem aprovação para o provedor de reserva co
 | PUT | `/v1/operacao/redes/:id/orcamento-ia` | operador | igual | igual (a contagem vem do `GET …/redes`) |
 | GET | `/v1/governanca/consumo` | coordenação | `?mes=` (inalterada) | `orcamento { situacao, porcentagem, aviso: 80\|100\|null }`, `porFuncao [{ funcao, parte, execucoes }]`, `tutor`; **sem** tokens e custo |
 
+O corpo do `PUT` é um `z.strictObject` com os dois campos obrigatórios: fora da faixa, campo a mais ou campo faltando respondem **`400 ENTRADA_INVALIDA`**, o código de todo corpo recusado do painel (`VALIDACAO` não existe em `ErrorCode`). O `GET …/redes` e o `GET …/escolas` estendidos mudam o contrato de `RedeDoPainel` e `EscolaDoPainel`, e a web acompanha só no tipo e no mock (`NovaRede.tsx`, o fixture e o mock de `api/painel.test.ts`); o diálogo é da 7.0 (§9).
+
 `situacao`: `definido`, `sem_orcamento`, `sem_aluno_ativo` ou `sem_retrato` (mês fechado antes da F5). O mês corrente
 é calculado na hora; o fechado lê o retrato. `parte` (0 a 100) é a fatia dos tokens. `aviso`: o limiar já cruzado no mês corrente (`>=`); nulo no fechado. "Hoje" é o dia de São Paulo até agora. `execucoes` é `count(distinct execucao_id)` mais uma por linha sem execução; `escolasQueUsamOValorDaRede` conta valor ou teto vindo da rede. Entrada em centavos (R$ 0,01 a R$ 100,00), saída em micros. Id inexistente: `NAO_ENCONTRADO`.
 
@@ -101,7 +103,11 @@ mês **acima** (`>`) de orçamento × teto ÷ 100: `IA_ORCAMENTO_ESGOTADO`, com 
 contado uma vez. Sem ano em curso, zero.
 
 **O `PUT`.** Uma transação: garante a linha (`insert … on conflict do nothing`), `select … for update`, lê o `antes`,
-grava, e audita só quando `antes ≠ depois`. Sem `chaveEnvio` (D81); na rede, igual.
+grava, e audita só quando `antes ≠ depois`. Sem `chaveEnvio` (D81); na rede, igual. **Onde moram as peças (tarefa 3.0):** o `PUT` da escola grava
+pelo `OrcamentoDoMesRepository`, com dois métodos de escopo da escola (`lockConfiguracaoDaEscola`: o `insert … on conflict do nothing` e o `select … for update`; e
+`saveConfiguracaoDaEscola`), porque nenhum repository do plano escreve em `configuracao_operacional_escola` e o serviço não toca tabela. A comparação do `antes` com o `depois` é
+`mesmoOrcamentoDefinido`, em `packages/shared/src/governanca/orcamento-de-ia.ts` ao lado de `orcamentoVigente`; as constantes de limite, o fator de centavos para micros e os contratos
+do `PUT` ficam em `packages/shared/src/operacao/painel.ts`.
 
 ## 6. Isolamento (obrigatório)
 
@@ -109,7 +115,7 @@ grava, e audita só quando `antes ≠ depois`. Sem `chaveEnvio` (D81); na rede, 
 (`requireEscolaId()`); a medida estende a `EscolaGauge`. Os meses e o `PUT` da escola
 rodam no contexto da escola `:id` (`runInContext`, como `naEscola`). A leitura entre escolas fica nos três `@Unscoped` do I1 (`uso()`, `escolas()`, `redes()`),
 só com id, nome e número; o `uso()` monta a soma e os alunos com os mesmos trechos do `OrcamentoDoMesRepository`. A
-rede se grava no único `@Unscoped` do `OrcamentoDaRedeRepository` (acima do tenant). Rotas novas em `ROTAS_DO_PAINEL`; testes em
+rede se grava no único `@Unscoped` do `OrcamentoDaRedeRepository` (acima do tenant). O `PUT` da escola usa os dois métodos novos do `OrcamentoDoMesRepository` (§5), sem `@Unscoped`. Rotas novas em `ROTAS_DO_PAINEL`; testes em
 `cenarios.md` §2.
 
 ## 7. Dado pessoal (obrigatório)
@@ -158,7 +164,7 @@ reserva custa a diferença de preço, que o relatório traz.
 
 **Operação, Uso:** o grupo "IA" da §4, a ordem por custo, "Ver meses" e "Definir orçamento" na célula sem orçamento.
 **Operação, Escolas:** o diálogo "Orçamento de IA" (rede e escola), que mostra antes e depois e, na rede, quantas
-escolas mudam, antes de "Salvar orçamento". **Coordenação:** "IA do mês: N% do previsto" no Painel; a Governança troca
+escolas mudam, antes de "Salvar orçamento" (a tarefa 3.0 não faz a tela: só ajusta o tipo e os mocks da Operação ao contrato novo, §4). **Coordenação:** "IA do mês: N% do previsto" no Painel; a Governança troca
 os tokens pela `parte`. Nenhuma tela calcula porcentagem. Textos, estados, celular e acessibilidade: `cenarios.md` §4,
 para `docs/interface.md` 5.
 

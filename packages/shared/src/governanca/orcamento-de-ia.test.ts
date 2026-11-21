@@ -3,6 +3,7 @@ import {
   avisoDaPorcentagem,
   diaDeSaoPaulo,
   mesDeSaoPaulo,
+  mesmoOrcamentoDefinido,
   orcamentoDoMes,
   orcamentoSemRetrato,
   orcamentoVigente,
@@ -118,5 +119,21 @@ describe('o mês e o dia de São Paulo', () => {
   it('1º de janeiro às 00h30 de São Paulo é do ano novo, e 31/12 às 23h59 é do ano velho', () => {
     expect(mesDeSaoPaulo(new Date('2027-01-01T00:30:00-03:00'))).toBe('2027-01')
     expect(mesDeSaoPaulo(new Date('2026-12-31T23:59:00-03:00'))).toBe('2026-12')
+  })
+})
+
+describe('o orçamento definido que não mudou: o `PUT` da Operação não grava nem audita (camada-ia, 3.0)', () => {
+  const base = { valorPorAlunoMicros: 5 * REAIS, tetoPercentual: 200 }
+
+  it('o mesmo valor e o mesmo teto são o mesmo orçamento, também com os dois nulos', () => {
+    expect(mesmoOrcamentoDefinido(base, { ...base })).toBe(true)
+    expect(mesmoOrcamentoDefinido(NADA, { ...NADA })).toBe(true)
+  })
+
+  it('mudar só o valor, ou só o teto, ou passar de nulo a um número, é outro orçamento', () => {
+    expect(mesmoOrcamentoDefinido(base, { ...base, valorPorAlunoMicros: 4 * REAIS })).toBe(false)
+    expect(mesmoOrcamentoDefinido(base, { ...base, tetoPercentual: 150 })).toBe(false)
+    expect(mesmoOrcamentoDefinido(NADA, { ...NADA, valorPorAlunoMicros: 5 * REAIS })).toBe(false)
+    expect(mesmoOrcamentoDefinido(NADA, { ...NADA, tetoPercentual: 200 })).toBe(false)
   })
 })

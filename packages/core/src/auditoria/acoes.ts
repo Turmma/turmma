@@ -93,6 +93,12 @@ const contagensDaPlanilhaGravada = z.strictObject(
   Object.fromEntries(CHAVES_DO_RESUMO_DA_IMPORTACAO.map((chave) => [chave === 'nomes_corrigidos' ? 'corrigidos' : chave, z.number().int().nonnegative().optional()])),
 )
 
+/** O estado do orçamento de IA que a auditoria guarda: o valor por aluno em micros e o teto em %, cada um nulo onde não foi definido (camada-ia, 3.0). */
+const orcamentoDeIaAuditado = z.strictObject({
+  valorPorAlunoMicros: z.number().int().positive().nullable(),
+  tetoDeSegurancaPercentual: z.number().int().min(100).max(1000).nullable(),
+})
+
 /**
  * Toda ação que a auditoria aceita, com a lista fechada de `antes`, `depois` e `finalidade`. Cada tarefa
  * acrescenta as dela; ação fora daqui é recusada. Todo objeto é `strictObject`: campo fora da lista é
@@ -109,6 +115,24 @@ export const ACOES_DE_AUDITORIA = {
     entidade: 'escola',
     antes: null,
     depois: z.strictObject({ redeId: z.uuid() }),
+    finalidade: null,
+  },
+  /**
+   * A Operação mudou o orçamento de IA de uma escola (camada-ia, 3.0; RF7): o valor por aluno por mês (em micros) e o teto de segurança (em %), cada um nulo onde a escola não tem valor próprio e vale o da rede.
+   * Só números, antes e depois, e o autor é o operador da sessão. **A coordenação nunca a lê** (RF12): é prestação de contas da nossa equipe, assinada por operador (`autor_usuario_id` nulo), e nenhuma leitura
+   * da escola a devolve.
+   */
+  'escola.orcamento_ia_alterado': {
+    entidade: 'escola',
+    antes: orcamentoDeIaAuditado,
+    depois: orcamentoDeIaAuditado,
+    finalidade: null,
+  },
+  /** O mesmo, para a rede: o `entidade_id` é a rede e a linha não tem escola (`escola_id` nulo), como `rede.criada`. */
+  'rede.orcamento_ia_alterado': {
+    entidade: 'rede',
+    antes: orcamentoDeIaAuditado,
+    depois: orcamentoDeIaAuditado,
     finalidade: null,
   },
   /** A coordenação mudou os minutos sem uso até a sessão vencer (5.0): só os dois números, antes e depois. */

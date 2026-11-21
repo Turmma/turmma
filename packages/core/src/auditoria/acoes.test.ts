@@ -244,6 +244,25 @@ describe('mapa de ações da auditoria', () => {
     expect(suspensa.safeParse({ funcao: 'corretor', motivo: null }).success).toBe(false)
   })
 
+  it.each([
+    ['escola.orcamento_ia_alterado', 'escola'],
+    ['rede.orcamento_ia_alterado', 'rede'],
+  ] as const)('%s leva só o valor em micros e o teto em %%, antes e depois, cada um nulo onde não há valor próprio, e nada de pessoa (camada-ia, 3.0)', (acao, entidade) => {
+    const { antes, depois, finalidade, entidade: daAcao } = ACOES_DE_AUDITORIA[acao]
+    expect(daAcao).toBe(entidade)
+    expect(finalidade).toBeNull()
+    for (const lado of [antes, depois]) {
+      expect(lado.safeParse({ valorPorAlunoMicros: 5_000_000, tetoDeSegurancaPercentual: 200 }).success).toBe(true)
+      expect(lado.safeParse({ valorPorAlunoMicros: null, tetoDeSegurancaPercentual: null }).success).toBe(true)
+      // O valor é positivo e o teto fica de 100 a 1000, como os checks do banco; campo a mais, como o autor, é recusado.
+      for (const invalido of [{ valorPorAlunoMicros: 0, tetoDeSegurancaPercentual: 200 }, { valorPorAlunoMicros: 1.5, tetoDeSegurancaPercentual: 200 }, { valorPorAlunoMicros: 1, tetoDeSegurancaPercentual: 99 }, { valorPorAlunoMicros: 1, tetoDeSegurancaPercentual: 1001 }]) {
+        expect(lado.safeParse(invalido).success, JSON.stringify(invalido)).toBe(false)
+      }
+      expect(lado.safeParse({ valorPorAlunoMicros: 1, tetoDeSegurancaPercentual: 200, autor: 'joaquim' }).success).toBe(false)
+      expect(lado.safeParse({ valorPorAlunoMicros: 1 }).success).toBe(false)
+    }
+  })
+
   it('finalidade só como enum: texto livre é recusado', () => {
     const mapa = {
       'teste.livre': { entidade: 'teste', antes: null, depois: null, finalidade: z.string().max(200) },

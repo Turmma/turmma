@@ -48,6 +48,11 @@ export function orcamentoVigente(escola: OrcamentoDefinido, rede: OrcamentoDefin
   }
 }
 
+/** Duas definições são a mesma quando o valor **e** o teto batem: o `PUT` da Operação só grava e só audita quando a de agora difere da de antes (3.0). */
+export function mesmoOrcamentoDefinido(a: OrcamentoDefinido, b: OrcamentoDefinido): boolean {
+  return a.valorPorAlunoMicros === b.valorPorAlunoMicros && a.tetoPercentual === b.tetoPercentual
+}
+
 /**
  * Como está o orçamento do mês: `definido` (valor e aluno ativo: há porcentagem), `sem_orcamento` (nem a escola nem a rede definiram o valor), `sem_aluno_ativo` (montagem, virada do ano
  * letivo: sem porcentagem e sem aviso, e a Operação vê os reais) e `sem_retrato` (mês fechado antes da medição existir). Sem valor **e** sem aluno, vale `sem_orcamento`: é o que a Operação resolve.

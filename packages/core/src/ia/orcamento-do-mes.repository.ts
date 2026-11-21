@@ -35,7 +35,7 @@ const primeiroDiaDoMes = (mes: string): string => `${mes}-01`
 
 /**
  * O orçamento de IA da escola do contexto (camada-ia, tarefa 2.0; Tech Spec, seções 3, 5 e 6; RF7 e RF8): o consumo do mês, os alunos ativos, o valor e o teto da escola e da rede, o retrato do mês e a regravação
- * dele. A API (Governança, Operação), o lote (o teto, 4.0) e a medida (4.0) leem por aqui, e a conta é a de `orcamentoDoMes`, em `@educa/shared`. **Nenhum método é `@Unscoped`**: toda leitura parte da escola do
+ * dele. Escreve também a configuração da escola do `PUT` da Operação (3.0: `lockConfiguracaoDaEscola` e `saveConfiguracaoDaEscola`, na transação do `PUT`). A API (Governança, Operação), o lote (o teto, 4.0) e a medida (4.0) leem por aqui, e a conta é a de `orcamentoDoMes`, em `@educa/shared`. **Nenhum método é `@Unscoped`**: toda leitura parte da escola do
  * contexto (`requireEscolaId()`), e a rede é lida pelo `escola.rede_id` dela, nunca por id vindo de fora. Só o `PUT` da rede, acima do tenant, é exceção, e mora em outro repository (3.0).
  *
  * O mês é o **civil de São Paulo** (`AAAA-MM`), e o "agora" entra como parâmetro: nenhuma conta lê o relógio do banco. O mês corrente nunca se lê do retrato: é calculado na hora; o fechado lê o retrato, com
@@ -82,6 +82,30 @@ export class OrcamentoDoMesRepository {
       .from(configuracaoOperacionalEscola)
       .where(eq(configuracaoOperacionalEscola.escolaId, requireEscolaId()))
     return { valorPorAlunoMicros: linha?.valorPorAlunoMicros ?? null, tetoPercentual: linha?.tetoPercentual ?? null }
+  }
+
+  /**
+   * A primeira metade do `PUT` da escola do contexto (camada-ia, 3.0; Tech Spec, seção 5): garante a linha de `configuracao_operacional_escola` (`insert … on conflict do nothing`: o painel não a cria, e a escola
+   * sem linha é a que o `PUT` mais encontra) e a **trava** (`for update`), e devolve o que a escola define **agora**, o `antes` que a auditoria guarda. Só vale dentro da transação do `PUT`: a linha fica travada até ela
+   * terminar, e o segundo `PUT` da mesma escola espera aqui e lê o `depois` do primeiro. Escola que não existe é recusada pela chave estrangeira (23503), e quem chama a trata como inexistente.
+   */
+  async lockConfiguracaoDaEscola(): Promise<OrcamentoDefinido> {
+    const escolaId = requireEscolaId()
+    await this.banco.insert(configuracaoOperacionalEscola).values({ escolaId }).onConflictDoNothing()
+    const [linha] = await this.banco
+      .select({ valorPorAlunoMicros: configuracaoOperacionalEscola.iaValorPorAlunoMicros, tetoPercentual: configuracaoOperacionalEscola.iaTetoDeSegurancaPercentual })
+      .from(configuracaoOperacionalEscola)
+      .where(eq(configuracaoOperacionalEscola.escolaId, escolaId))
+      .for('update')
+    return { valorPorAlunoMicros: linha?.valorPorAlunoMicros ?? null, tetoPercentual: linha?.tetoPercentual ?? null }
+  }
+
+  /** A segunda metade do `PUT`: grava as duas colunas da escola do contexto, a linha que `lockConfiguracaoDaEscola` garantiu e travou. */
+  async saveConfiguracaoDaEscola(depois: OrcamentoDefinido): Promise<void> {
+    await this.banco
+      .update(configuracaoOperacionalEscola)
+      .set({ iaValorPorAlunoMicros: depois.valorPorAlunoMicros, iaTetoDeSegurancaPercentual: depois.tetoPercentual })
+      .where(eq(configuracaoOperacionalEscola.escolaId, requireEscolaId()))
   }
 
   /** O que a rede da escola do contexto define, achada pelo `escola.rede_id` da própria escola. */

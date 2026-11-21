@@ -28,13 +28,13 @@ teto de palavras. São 13, uma acima do teto de 12. O corte possível é em duas
   - [x] 2.7 Runbook da volta
   - [x] 2.8 Testes
 
-- [ ] **3.0 — A Operação define o orçamento de IA da escola e da rede, com auditoria**
-  - [ ] 3.1 Os dois `PUT`, no contexto da escola e pelo `OrcamentoDaRedeRepository`
-  - [ ] 3.2 A transação com `for update` e a auditoria só quando muda
-  - [ ] 3.3 As duas ações de auditoria, fora da leitura da coordenação
-  - [ ] 3.4 `GET /redes` e `/escolas` com o orçamento próprio e o vigente
-  - [ ] 3.5 As rotas em `ROTAS_DO_PAINEL`
-  - [ ] 3.6 Testes
+- [x] **3.0 — A Operação define o orçamento de IA da escola e da rede, com auditoria**
+  - [x] 3.1 Os dois `PUT`, no contexto da escola e pelo `OrcamentoDaRedeRepository`
+  - [x] 3.2 A transação com `for update` e a auditoria só quando muda
+  - [x] 3.3 As duas ações de auditoria, fora da leitura da coordenação
+  - [x] 3.4 `GET /redes` e `/escolas` com o orçamento próprio e o vigente
+  - [x] 3.5 As rotas em `ROTAS_DO_PAINEL`
+  - [x] 3.6 Testes
 
 - [ ] **4.0 — Acima do teto de segurança só o lote espera, e a Operação é avisada a 80%, 100% e no teto**
   - [ ] 4.1 `OrcamentoQuery` com `fila`; `IA_ORCAMENTO_ESGOTADO` no lote
