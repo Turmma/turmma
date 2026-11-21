@@ -2948,7 +2948,7 @@ M5 mudam código de processo: entram por correção. **Antes das tarefas da F5, 
 abertas):** as duas causas voltaram na F4b (a 4.0, a 5.0 e a 7.0 perderam a 1ª rodada da seção "Revisões"; a 13.0 reprovou no `and(` de várias
 linhas). A M2 da F4 (o inventário no portão) vem logo depois: é a família de três dos quatro vermelhos de código da esteira desta spec.
 
-- [ ] (F4b, retro, M1) **A divergência que fica só na tarefa para a rodada antes dos revisores.** `tools/processo/divergencias.ts`: o aviso lê
+- [x] *(feito na correção `2026-11-21-divergencia-cobra-cada-arquivo`)* (F4b, retro, M1) **A divergência que fica só na tarefa para a rodada antes dos revisores.** `tools/processo/divergencias.ts`: o aviso lê
       a coluna "Onde está na spec" de cada linha nova e cobra cada arquivo que ela cita (`techspec.md`, `cenarios.md`, o documento da seção 11),
       e não "um dos dois mudou"; com `arquivo:linha` citado, cobra que o diff toque aquele trecho. O aviso sai também em `portao-local.ts
       revisores`, e o `revisar-tarefa`, passo 1.3, manda `DEVOLUÇÃO` com a linha e o arquivo, sem chamar revisor. Casos: a linha que cita os dois
@@ -4207,3 +4207,9 @@ Orquestrador em 17/11/2026; não seguram o pouso (D79).
 
 - [ ] (censo do e2e do fechamento da classificacao-bncc, execução 44831599999, 20/11/2026, dívida da develop: arquivos que a spec não alterou) **Nove casos acima de dois terços do prazo, nenhum acima de 90%:** `alocacao.spec.ts:85` (77,8 e 70,0 s de 90, o mais perto: 86%), `operacao.spec.ts:125` (61,2 s de 90), `escola-e-vinculos.spec.ts:211` (23,6 e 22,2 s de 30) e `:271` (21,5 e 20,3 s), `titulo-da-tela.spec.ts:138` (20,6 e 20,1 s). Os mesmos dos censos da F2, F2b e F4 (dono: Orquestrador)
 - [x] *(aceita na retro da F4b, 20/11/2026: vira a M4, em "Da retrospectiva da F4b")* (fechamento da classificacao-bncc, 20/11/2026) **`esteira.ts --censo` lê só execução toda verde, e com o `verificar` vermelho até o pouso (os commits do lote retido) ele leu a de 17/11 (44145984577, `ead27b4`), três dias e cinco tarefas atrás.** O censo depende só do e2e: ler a execução mais nova com todas as fatias de e2e verdes, mesmo com outro job vermelho. Desta vez o Orquestrador rodou `fazerOCenso` à mão sobre a 44831599999 (dono: Arquiteto, na retro)
+
+## Da correção 2026-11-21-divergencia-cobra-cada-arquivo, fora dela
+
+- [ ] (correção `divergencia-cobra-cada-arquivo`, privacy-guardian, 1ª, 21/11/2026) **`citacoesDaLinha` aceita `../x.md` na última célula:** normalizar o caminho do `.md` citado e recusar o que sai da raiz do repositório. Muda comportamento (recusa citação); o revisor diz que não vaza nada (leitura local, saída booleana). Dono: Arquiteto, na retro da F5.
+- [ ] (correção `divergencia-cobra-cada-arquivo`, test-engineer, 1ª, 21/11/2026) **Caso que rode `portao-local.ts revisores` num repositório temporário**, no lugar da prova textual do fonte (`a ligação no portão`, em `divergencias.test.ts`): o caso atual segue o padrão do que já havia para o portão. Dono: Arquiteto, na retro da F5.
+- [ ] (correção `divergencia-cobra-cada-arquivo`, revisor-geral e test-engineer, 2ª, 21/11/2026) **`trechoTocadoNoDiff` e o arquivo renomeado:** o `.md` movido com `git mv` e citado pelo nome novo (`arquivo:linha`) não está no HEAD e vale como tocado em qualquer linha, o que pode calar um `arquivo:linha` que o diff não toca. Só está no comentário do fonte; raro na spec. Dono: Arquiteto, na retro da F5.

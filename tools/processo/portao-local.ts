@@ -99,6 +99,10 @@ if (argumentos[0] === 'revisores') {
   if (mutacoes !== null) bloqueios.push(mutacoes)
   process.stdout.write(`${linhaDosObrigatorios(obrigatorios)}\n`)
   process.stdout.write(bloqueios.length > 0 ? `${bloqueios.map((bloqueio) => `- ${bloqueio}`).join('\n')}\n` : `nada pendente: ${linhaResumo}\n`)
+  // M1 da retro da F4b: o aviso da divergência que não chegou à spec sai também aqui, antes de a Mesa chamar revisor. Só informa
+  // (o código de saída é o de acima); quem devolve a rodada, com a linha e o arquivo, é a Mesa (`revisar-tarefa`, passo 1.3).
+  const divergencia = avisoDaDivergenciaSoNoDocumento(raiz, documento, alterados)
+  if (divergencia !== null) process.stdout.write(`\n${divergencia}`)
   process.exit(bloqueios.length > 0 ? 1 : 0)
 }
 
