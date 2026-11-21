@@ -103,6 +103,10 @@ rodada nova; o caso que originou cada pergunta está em `docs/processo-licoes.md
    item por termo de uma condição composta e a linha de SQL ou Lua em template string (`sql`, `execute(`, `eval(`); não vê o SQL
    sem etiqueta, o `and(`/`or(` com um argumento por linha (a `eq(t.escolaId, escolaId),` sozinha), o `&&` dentro de um `and(`, o ternário nem essas
    linhas sem condição: confira esses à mão (8 reprovações na F2c, a maioria já coberta pela ferramenta).
+   O bloco fica vermelho pela asserção, não por exceção: o mutante que lê propriedade de `undefined` e derruba a renderização
+   não prova a cláusula (use `?.`; a 8.0 da F4b). Número (piso, teto, taxa) se prova nos dois lados da fronteira, e o bloco
+   troca o número, não tira o critério (3.0). Também ficam de fora do `--faltando`: o atributo de JSX com comparação
+   (`disabled={motivo !== undefined}`, 8.0 e 11.0), o `.for('update')` e o `update` sem condição (7.0).
 2. **O texto que você põe na tela já aparece nela?** Procure o texto novo em `e2e/` (`grep -rln '<texto>' e2e/`) e rode
    isolados os specs que o contam (`toHaveCount`, `nth`): o portão só puxa os specs que citam texto **removido**.
 3. **O cenário tem o segundo dado que torna a cláusula observável?** Se o repository filtra por turma, aluno em **duas**
@@ -121,7 +125,12 @@ rodada nova; o caso que originou cada pergunta está em `docs/processo-licoes.md
    (`not.toContain`, `toHaveCount(0)`, `vezes > antes`) só prova depois da resposta que poderia trazer o que ela nega: espere
    essa resposta (`page.waitForResponse`, o pedido contado na rede falsa, ou um controle na mesma cena que mostra o positivo) e
    leia o "antes" com a tela parada, logo antes do clique; `waitFor(() => expect(…).not…)` passa na primeira volta. Na F2c,
-   a 6.0, a 12.0, a 16.0 e a 19.0 reprovaram por asserção que passava antes de a resposta chegar.
+   a 6.0, a 12.0, a 16.0 e a 19.0 reprovaram por asserção que passava antes de a resposta chegar. E a entrada do teste
+   distingue o caso: o estado esperado no fim é diferente do que já valia antes (um job que não faz nada não pode passar; 6.0
+   da F4b); o pior caso usa valores distintos, que a deduplicação não junta (10.0); a leitura com `LIMIT` no banco
+   compartilhado filtra pelo id do outro lado, e não conta com o banco vazio (5.0); o repository que soma ou junta não é
+   espiado (regra 40; 12.0); e o `EXPLAIN` roda o `.toSQL()` da consulta do repository, uma por consulta nova no caminho
+   quente, como `apps/api/test/semana-itens.int.test.ts` (`consultasDosItens`), nunca um SQL escrito no teste (5.0, 10.0).
 6. **A guarda nova (regra de lint, teste estrutural, trava de pasta) tem fixture de quem a contorna, e falha quando o alvo
    some?** Uma fixture e o teste vermelho para cada forma de escrever o mesmo que a regra conhece (reexportação,
    `import *`, `import()` e `require`, o caminho como texto em outra posição, alias). A cerca sobre arquivo que mudou de

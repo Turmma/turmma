@@ -54,12 +54,12 @@
   - [x] 6.4 Testes: recorte, componente apagado, suspensa, P9 (rotina × `PATCH`), P10a, P10b, P11
 
 - [x] **7.0 — A coordenação lê, corrige e manda reclassificar pela API, e a operação reclassifica uma escola (D76)**
-  - [ ] 7.1 `GET /v1/materiais/:id` com `secoes[]` e `classificacaoSuspensa`
-  - [ ] 7.2 `GET /v1/habilidades-bncc`
-  - [ ] 7.3 `PUT …/secoes/:secaoId/habilidades`; o `for update` na seção no `concluir`
-  - [ ] 7.4 `POST …/reclassificar` e o comando `reclassificar-escola`, com chamado
-  - [ ] 7.5 Os tetos e as ações de auditoria
-  - [ ] 7.6 Testes: correção, recusas, tetos, isolamento, P1b, P2, P3, P5, P9 (rotina × reclassificar)
+  - [x] 7.1 `GET /v1/materiais/:id` com `secoes[]` e `classificacaoSuspensa`
+  - [x] 7.2 `GET /v1/habilidades-bncc`
+  - [x] 7.3 `PUT …/secoes/:secaoId/habilidades`; o `for update` na seção no `concluir`
+  - [x] 7.4 `POST …/reclassificar` e o comando `reclassificar-escola`, com chamado
+  - [x] 7.5 Os tetos e as ações de auditoria
+  - [x] 7.6 Testes: correção, recusas, tetos, isolamento, P1b, P2, P3, P5, P9 (rotina × reclassificar)
 
 - [x] **8.0 — O painel do material mostra a classificação por capítulo, corrige com o seletor e pede a reclassificação**
   - [x] 8.1 As habilidades no painel: rótulos, origem, avisos
@@ -89,16 +89,16 @@
   - [x] 11.4 Testes: recusas, P6a, P6b, P7, P8, isolamento, estados, recomeço
 
 - [x] **12.0 — "Sem habilidade" em Turmas, no aluno e no Analista, e o fluxo inteiro passa no e2e**
-  - [ ] 12.1 A linha "Sem habilidade", com a explicação, nas três leituras
-  - [ ] 12.2 A Parte A das três telas no `docs/interface.md`
-  - [ ] 12.3 O e2e do fluxo: a coordenação corrige, o professor gera, troca e aplica, e Turmas mostra a trocada
-  - [ ] 12.4 O roteiro conferido de novo
-  - [ ] 12.5 Testes
+  - [x] 12.1 A linha "Sem habilidade", com a explicação, nas três leituras
+  - [x] 12.2 A Parte A das três telas no `docs/interface.md`
+  - [x] 12.3 O e2e do fluxo: a coordenação corrige, o professor gera, troca e aplica, e Turmas mostra a trocada
+  - [x] 12.4 O roteiro conferido de novo
+  - [x] 12.5 Testes
 
 - [x] **13.0 — A coordenação vê, por série, as habilidades sem material**
-  - [ ] 13.1 `GET /v1/materiais/cobertura`, antes de `:id`
-  - [ ] 13.2 A aba Cobertura em Material; a Parte A no `docs/interface.md`
-  - [ ] 13.3 Testes: filtro da F4, ano do bloco, área, suspensão, isolamento, `EXPLAIN`
+  - [x] 13.1 `GET /v1/materiais/cobertura`, antes de `:id`
+  - [x] 13.2 A aba Cobertura em Material; a Parte A no `docs/interface.md`
+  - [x] 13.3 Testes: filtro da F4, ano do bloco, área, suspensão, isolamento, `EXPLAIN`
 
 ## Dependências e paralelismo
 

@@ -88,7 +88,7 @@ pede, o hook soma sozinho (`tools/processo/guardioes-por-caminho.ts`, descrito e
 | chama modelo ou cria agente | `llm-integrator` |
 | gera ou corrige conteúdo pedagógico | `pedagogia-reviewer` |
 | cria ou altera tela | `frontend-reviewer` |
-| depende de regra externa ou API de terceiro | `domain-researcher` |
+| depende de regra externa ou API de terceiro | `domain-researcher`: pesquisa antes do código. Entra como subtarefa, com o relatório (arquivo ou hash), e não na linha "Subagentes obrigatórios": não dá veredito e o hook não a conta como rodada |
 | qualquer tarefa | `test-engineer` e `revisor-geral`, implícitos: o hook os exige mesmo sem marca |
 
 Na dúvida, marque. Auditoria a mais custa minutos; auditoria a menos custa o contrato.
@@ -118,6 +118,11 @@ infere o porte pela contagem de guardiões e avisa que inferiu.
 - Cada desvio da seção 11 da Tech Spec vira subtarefa de documento na tarefa que o cria: a exceção ao
   `escolaId` no `docs/modelo-de-dados.md`, o módulo global no `docs/arquitetura.md`. Na A0 os dois
   ficaram de fora, e um deles foi o único achado maior da validação
+- **Cada "não" da linha "Migration e volta do código" da §7c vira trabalho com dono:** uma tarefa de expansão (os leitores
+  aceitam o formato novo, com o teste que lê o dado novo com o esquema de hoje), primeira da cadeia de quem grava e marcada
+  para pousar na `develop` antes, quando a §7c diz; e, na tarefa que grava, a subtarefa da seção "Voltar o código depois da
+  N.0" do `docs/runbook.md`, com o caso que a prova. Na F4b a §7c prometia o teste da versão anterior e nenhuma tarefa o
+  carregava: três reprovações (2.0, 9.0, 10.0), a expansão pousada à parte e um conflito de ~30 arquivos no merge
 - **Tarefa que tira, move ou renomeia um lugar leva a busca pelo nome antigo** em `apps/web/src`,
   `e2e/` e `docs/` (`grep -rn '<nome antigo>'`), com cada ocorrência trocada ou justificada no
   documento. E **toda tarefa que muda uma tela que o `docs/interface.md` descreve leva a subtarefa da

@@ -74,7 +74,7 @@ o nível de autonomia do agente. Referência: `.claude/rules/70-conformidade-cne
 | Corridas de concorrência | **uma linha por trava**: a instrução com todas as condições de estado (o dono ativo, o convite não revogado), o que fica na mesma transação, o que o perdedor recebe, e o cenário em paralelo que a prova; o cenário diz a ordem forçada (quem segura a trava, quem chega depois, com `esperarNaTrava` ou `WriteBlockTrigger`) e a troca que o deixa vermelho (a ordem antiga das travas, a trava tirada, o passo antes de outro): cenário que passa nas duas ordens não prova a trava (na F2b, R1, J16 e G1 caíram na revisão da spec por isso); quando a mesma escrita pode violar duas restrições únicas (a chave de idempotência e a regra de negócio), qual delas decide, e que a resposta ao perdedor não depende da ordem em que o Postgres as confere |
 | Laços e ritmo | job em laço: lote × prazo de cada passo × passadas ≤ `prazoMs`, e o laço para no sinal; tela que se relê sozinha: pedidos por minuto da aba inteira (todas as leituras que ligam juntas) na maior escola do dimensionamento (`docs/infra.md` §3.5) contra `LIMITE_REQ_USUARIO_MIN`; suíte nova no projeto infra: a soma das durações contra o `timeout-minutes` do job. Na F4, a 2.0, a 11.0 e o job de 45 min |
 | Índices novos | começando pelo escopo |
-| Migration | compatível com o código anterior? |
+| Migration e volta do código | para cada formato novo que se grava (coluna, valor de `jsonb`, estado) e cada dado que a versão nova deixa de gravar: a versão em produção lê o que a nova grava? A anterior, de volta, deixa o dado num estado que a nova não conserta? Cada "não" é uma expansão que pousa antes (os leitores aceitam), o teste que lê o dado novo com o esquema do HEAD e a seção "Voltar o código depois da N.0" do runbook. Na F4b, a 2.0, a 9.0 e a 10.0 reprovaram por isso, e a expansão da 10.0 pousou à parte, com conflito de ~30 arquivos |
 | Quando cada dependência cai | banco, Redis, provedor de IA, storage: o que o usuário vê |
 | O erro que não diz se gravou | para cada código de erro novo, ou de sentido mudado, no caminho: de onde ele vem (o servidor, que recusou antes de gravar; o prazo do navegador; a conexão que caiu), se o servidor pode ter gravado, o que a tela afirma e se o cliente repete, com recuo. O prazo do navegador e a conexão que caiu são sempre "pode ter gravado". Na X6, a 12.0 e a 14.0 (seis reprovações e uma escalada) |
 | Métrica e alerta | o que mede, o que alerta, parágrafo do runbook |
@@ -117,6 +117,10 @@ esteira e 44 na máquina local.
 | Integração | |
 | E2E | |
 | Isolamento | |
+
+O `cenarios.md`, na mesma pasta, acompanha a Tech Spec desde a primeira rodada da revisão: os testes por RF, o isolamento
+efetivo, cada corrida com a ordem forçada e a mutação que a derruba, e os textos e estados de cada tela. Na F4b ele faltou, e os
+nove revisores o pediram na 1ª rodada.
 
 ## 11. Conformidade com as regras
 
