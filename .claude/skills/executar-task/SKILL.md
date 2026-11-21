@@ -360,7 +360,8 @@ volte ao passo 5 e peça à Mesa a rodada de quem o hook apontar.
 
 Só depois de tudo verde e de a Mesa responder "APROVADO por todos":
 
-- Marque a tarefa `[x]` em `tasks.md`, e leve o `tasks.md` no commit
+- Marque a tarefa e as subtarefas dela `[x]` em `tasks.md`, e leve o `tasks.md` no commit (na F4b, 14 subitens ficaram em
+  `[ ]` com as 13 tarefas feitas)
 - **Faça o commit da tarefa na branch do seu checkout** (a da linha, `spec/<funcionalidade>--l<n>`,
   D79). Stage apenas os arquivos desta tarefa, incluindo o `N_task.md` com a seção "Revisões", a
   `techspec.md` e o `cenarios.md` quando uma
