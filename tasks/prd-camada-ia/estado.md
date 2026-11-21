@@ -1,7 +1,7 @@
 # Estado da execução — camada-ia
 
 ## Agora
-- **Espero:** o `RELATÓRIO` do `Implementador 2` (L2) da 6.0 (grande, partida 08:28, retomada 09:2x), do `Implementador` (L1) da correção `2026-11-21-rotas-do-orcamento-fora-da-lista-conferida` (da 3.0, 09:5x) e do `Implementador 3` (L3) da correção `2026-11-21-tutor-modelo-recebe-pedidos-a-mais` (origem por achar, 09:5x), 1ª tentativa das duas correções. A 9.0 e a 12.0 esperam a pergunta do tamanho; a 8.0 parte depois da 6.0.
+- **Espero:** o `RELATÓRIO` das três linhas, retomadas às 11:14 depois do reinício do PC (sessões novas, trabalho na árvore): `Implementador 2` (L2) da 6.0 (grande, partida 08:28; nenhuma rodada ainda), `Implementador` (L1) da correção `2026-11-21-rotas-do-orcamento-fora-da-lista-conferida` (1ª rodada aprovou, recomendação do título a aplicar, rodada 2) e `Implementador 3` (L3) da correção `2026-11-21-tutor-modelo-recebe-pedidos-a-mais` (1ª rodada: test-engineer reprovou, ordem r1). A 9.0 e a 12.0 esperam a pergunta do tamanho; a 8.0 parte depois da 6.0.
 - **Devo ainda:** antes do pouso, o `Arquiteto` acrescentar à autoconferência 10 e à tabela de testes do `2_task.md` o caso novo da corrida do retrato (relatório da 2.0). Push da `develop` (a retro `6496c7b5` está sem push) no próximo pouso. A 13.0 depende das chaves de teste dos finalistas, que são do Joaquim (PRD §10).
 - **Base:** `spec/camada-ia` em `544f6285`; última verde `1a291ab`; `0e85765` vermelha (44903191816: integração 1/3 e 3/3, as duas correções acima; o teto de tempo já passou)
 
