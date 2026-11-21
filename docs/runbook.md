@@ -1012,6 +1012,7 @@ da classificação (p95) e a vazão do balde `lote`.
    de novo. Se repetir noites seguidas para uma escola, suspenda a função nela ou use o D76 com chamado, e abra a correção.
 6. A função está suspensa na escola → a rotina não agenda (`classificacao.agendada` com `estado: suspensa`), as seções ficam `nao_agendada` e o alerta só dispara pelo que sobrou antes da suspensão. Retomada a função, a rotina das 19h agenda.
 7. O `worker-lote` não roda a rotina → sem `classificacao.rotina_disparada` às 19h no log dele, olhe "Job que falhou de vez" e o agendador (`agendamentos.registrados` no boot).
+8. A escola passou do **teto de segurança** do orçamento de IA do mês → o lote dela espera até a virada do mês ou até o teto subir (`ia.lote.adiado_pelo_orcamento` no log do `worker-ia`, e o alerta "IA acima do teto de segurança numa escola" para a mesma escola): as execuções ficam `pendente`, sem falha. Não é defeito da classificação; veja a entrada desse alerta.
 
 **Se nada disso resolver:** não apague execução nem seção à mão, e não marque a seção como classificada: a coordenação corrige a habilidade na tela do material (a correção vence), e a geração segue sem habilidade onde ela falta. Avise a coordenação das escolas
 com material novo de que a classificação está atrasada e que a habilidade da questão aparece depois (seção "Como avisar as escolas").
@@ -1417,6 +1418,27 @@ migrations (`0066` e `0067`) só expandem, e o código anterior as ignora: **nã
 
 **Depois:** nada a registrar.
 
+## Voltar o código depois da camada-ia 4.0 (rollback)
+
+*Procedimento, não alerta: não há regra em `infra/grafana/alertas/`. Vale para a volta da versão que passou a segurar o lote acima do teto de segurança do orçamento de IA e a medir o uso do mês (camada-ia, tarefa 4.0) para a anterior.
+A 4.0 **não tem migration**: usa as colunas e a tabela `orcamento_ia_do_mes` que a 2.0 criou. Não há nada a reverter no banco, e por isso não há bloco de SQL.*
+
+**Deploy e volta fora do horário letivo** (regra 80, item 9).
+
+**O que o código anterior faz com o que a 4.0 deixou:**
+
+- **O lote adiado pelo teto**: a execução da classificação (`classificar_secoes`) fica `pendente` e o job fica adiado na fila `lote`, sem tentativa gasta. O código anterior **não confere o teto**: ao ser entregue, o job roda como qualquer outro, e **o lote adiado volta a correr** (a classificação do material
+  da escola acima do teto é feita, e o custo dela entra no mês). É o esperado da volta: o teto só existe na 4.0. Se a escola está acima do teto e a volta é por defeito, avise a Operação de que o lote dela vai gastar.
+- **As séries `ia.orcamento.uso_do_mes` e `ia.orcamento.uso_do_teto`, e o contador `ia.lote.adiado`**: o worker anterior não as publica, e os três alertas novos (`IA a 80%…`, `IA a 100%…`, `IA acima do teto…`) ficam sem dado, o que vale `OK` (`noDataState`). Nada dispara.
+- **O retrato do mês** (`orcamento_ia_do_mes`): o worker anterior não o regrava. Fica parado no último valor, e o mês que virar sem a 4.0 não terá retrato (`sem_retrato` na leitura do mês fechado).
+- **O código `IA_ORCAMENTO_ESGOTADO` e o motivo `orcamento`**: o anterior não os produz nem os conhece como motivo de adiamento; um job adiado com motivo `orcamento` já está na fila com a espera gravada e volta pelo relógio da fila.
+
+**Na volta para a versão nova (roll-forward):** não há bloco a rodar. A medida volta a regravar o retrato do mês corrente a cada 5 min, e o lote volta a conferir o teto na primeira chamada.
+
+**Não faça:** apagar ou marcar à mão execução ou job do lote "para destravar": o lote adiado se resolve na virada do mês, ou com o teto da escola.
+
+**Depois:** nada a registrar.
+
 ## A D62 na subida: o `worker-ia` parado (procedimento)
 
 *Procedimento, não alerta: não há regra própria em `infra/grafana/alertas/`; o sinal é o healthcheck do `worker-ia` (o batimento não bate) e, com a fila esperando, o alerta "Job
@@ -1583,6 +1605,70 @@ houver vaga: "Tentar de novo" na tela, nunca erro cru. A `ferramenta` (teto de 1
 **Se nada disso resolver:** avise a coordenação das escolas com Tutor em sala de que a IA está lenta nesse horário e que "Tentar de novo" é esperado; não suba `LLM_TOKENS_POR_MINUTO` acima do contratado "para passar": é o que a folga de 20 % protege contra o 429 do provedor. Se o modelo menor está respondendo, as ferramentas seguem; o Tutor não tem menor (D36).
 
 **Depois:** registre no `TODO.md` a hora, o modelo, quantos minutos e o degrau mais alto (só contagens, sem id de escola). Saturação que se repete vira tarefa de capacidade e entra na planilha de custo (`docs/infra.md`).
+
+## IA a 80% do orçamento do mês numa escola
+
+**Dispara quando:** o custo gravado do mês civil de São Paulo de uma escola chega a 80% ou mais do orçamento dela (valor por aluno × alunos ativos), por 1 min (`max by (escola_id) (ia_orcamento_uso_do_mes{job="educa/worker"}) >= 0.8`, regra
+`infra/grafana/alertas/ia-orcamento-do-mes.yaml`; camada-ia, tarefa 4.0; Tech Spec, seção 7c). O worker-lote mede a cada 5 min e regrava o retrato do mês; a série traz o `escola_id` e uma fração (0,81 é 81%), nunca o valor em reais. Escola sem valor definido
+(`sem_orcamento`) ou sem aluno ativo (`sem_aluno_ativo`) não tem série. O aviso a 80% vale `>=`: o mesmo limiar que a coordenação vê no Painel ("A escola já usou 80% do previsto para a IA neste mês. Nada é cortado."). Some sozinho na virada do mês.
+
+**Impacto:** nenhum no uso. **Nada é cortado (D40):** o Tutor, as ferramentas, o Assistente e o lote seguem. É aviso à Operação para conversar com a escola antes de ela chegar a 100% e ao teto de segurança.
+
+**Primeiro olhar:** o uso do mês da escola por dia e por função, só com ids e números (nunca conteúdo):
+`docker compose exec postgres psql -U educa -c "select (em at time zone 'America/Sao_Paulo')::date as dia, funcao, count(*) as chamadas, sum(custo_micros) as custo_micros from consumo_ia where escola_id = '<escola_id>' and em >= (date_trunc('month', now() at time zone 'America/Sao_Paulo')) at time zone 'America/Sao_Paulo' group by 1, 2 order by 1, 2"`,
+e o retrato: `select mes, alunos_ativos, valor_por_aluno_micros, teto_percentual, origem_do_valor, atualizado_em from orcamento_ia_do_mes where escola_id = '<escola_id>' order by mes desc limit 3`. O `escola_id` vem do rótulo do alerta.
+
+**Causas prováveis:**
+1. Uso normal de uma escola que adotou a IA (muitos professores gerando atividade, o Tutor em sala) → é o esperado perto do fim do mês; acompanhe se passa de 100%.
+2. O orçamento ficou pequeno para a escola: entraram alunos depois do retrato, ou o valor por aluno é baixo → o orçamento é valor × alunos ativos de hoje (a medida o regrava a cada 5 min); confira `alunos_ativos` e `origem_do_valor` (`escola`, `rede` ou `nenhuma`) no retrato.
+3. Um laço (uma ferramenta chamada em repetição, uma tarefa que repete a saída inválida, um onboarding de 300 apostilas na classificação) → a consulta acima mostra a função e o dia do salto; veja "Classificação do material atrasada" e "Tokens acima de 80% do contratado".
+4. Mês de uma escola com preço de modelo novo (`PRECO_DOS_MODELOS` mudou no meio do mês) → cada linha guarda o custo do preço de quando foi gravada; o salto de custo por chamada aparece no dia da troca.
+
+**Se nada disso resolver:** converse com a coordenação da escola; **não corte a IA** nem suspenda função por causa de orçamento (D40). Para subir ou baixar o valor por aluno ou o teto, a Operação usa o orçamento de IA da escola (aba Escolas, ou `PUT /v1/operacao/escolas/:id/orcamento-ia`, camada-ia 3.0), com auditoria.
+
+**Depois:** registre no `TODO.md` a escola (só o id), o mês e a causa. Escola que chega a 80% todo mês vira conversa de preço (D40, D50), não tarefa de código.
+
+## IA a 100% do orçamento do mês numa escola
+
+**Dispara quando:** o custo gravado do mês civil de São Paulo de uma escola chega a 100% ou mais do orçamento dela, por 1 min (`max by (escola_id) (ia_orcamento_uso_do_mes{job="educa/worker"}) >= 1`, regra
+`infra/grafana/alertas/ia-orcamento-do-mes.yaml`; camada-ia, tarefa 4.0; Tech Spec, seção 7c). Mesma série e mesma medida do alerta de 80%; a coordenação vê no Painel "A escola passou do previsto para a IA neste mês. Nada é cortado, e a equipe Turmma vai conversar com vocês se isso se repetir."
+Some sozinho na virada do mês, ou quando a Operação sobe o valor por aluno.
+
+**Impacto:** nenhum no uso: a IA responde (**nada é cortado a 100%**, D40). O que muda é o risco para a margem (D39, D30) e a proximidade do teto de segurança, acima do qual só o lote da escola espera (veja "IA acima do teto de segurança numa escola").
+
+**Primeiro olhar:** o mesmo do alerta de 80% ("IA a 80% do orçamento do mês numa escola"): o custo do mês por dia e por função e o retrato, só com ids e números. Compare com o teto vigente: `teto_percentual` do retrato (200% quando nem a escola nem a rede definiram) vezes o orçamento.
+
+**Causas prováveis:**
+1. As do alerta de 80% (uso alto, orçamento pequeno para a escola, laço).
+2. A escola tem muito aluno novo e o valor por aluno vem da rede (`origem_do_valor = rede`) → o orçamento é da rede, e o ajuste vale para todas as escolas dela; a Operação vê quantas escolas usam o valor da rede antes de salvar.
+3. O consumo do Tutor em prova ou semana de revisão, concentrado → o freio do Tutor (D38) é outro limite: este alerta não o toca.
+
+**Se nada disso resolver:** converse com a coordenação (a equipe Turmma conversa com a escola, como o aviso do Painel promete); **não corte a IA nem suspenda função** (D40). A Operação decide subir o valor por aluno ou o teto, com auditoria.
+
+**Depois:** registre no `TODO.md` a escola (só o id), o mês e o que ficou combinado. Escola acima de 100% por dois meses seguidos entra na conversa de preço (D50).
+
+## IA acima do teto de segurança numa escola
+
+**Dispara quando:** o custo gravado do mês de uma escola passa do **teto de segurança** dela (orçamento × teto ÷ 100: 200% do orçamento quando nem a escola nem a rede definiram outro), por 1 min
+(`max by (escola_id) (ia_orcamento_uso_do_teto{job="educa/worker"}) > 1`, regra `infra/grafana/alertas/ia-orcamento-teto.yaml`; camada-ia, tarefa 4.0; Tech Spec, seções 5 e 7c; PRD, RF10). O limiar é estrito, como o do lote: no teto exato o lote segue, um micro acima ele espera. A série traz o
+`escola_id` e uma fração, nunca o valor em reais. Some sozinho na virada do mês, ou quando a Operação sobe o teto ou o valor por aluno.
+
+**Impacto:** **só o job de lote da escola espera** (hoje, a classificação do material pela BNCC, `classificar_secoes`): a execução volta a `pendente`, o job é adiado sem gastar tentativa (`ia.lote.adiado_pelo_orcamento`, `ia_lote_adiado_total{motivo="orcamento"}`), e ele reconfere de hora em hora, até a virada do
+mês ou até o teto subir. O Tutor, as ferramentas, o Assistente e o Analista **nunca param por orçamento** (D38, D40). O material novo da escola fica sem habilidade da BNCC enquanto o lote espera, e por isso, na manhã seguinte, o alerta "Classificação do material atrasada" pode disparar para a mesma escola: é este o motivo, e não falha da classificação.
+Nada vai ao aluno, e nenhuma nota depende do lote (a correção da objetiva é regra, e nota só existe com aprovação humana, D33 e D56).
+
+**Primeiro olhar:** as execuções do lote esperando, só com ids, estados e datas: `docker compose exec postgres psql -U educa -c "select id, estado, criada_em from execucao_agente where escola_id = '<escola_id>' and tarefa = 'classificar_secoes' and estado = 'pendente' order by criada_em limit 40"`; o custo do mês por dia e por função
+(a consulta de "IA a 80% do orçamento do mês numa escola") e o retrato (`teto_percentual`, `valor_por_aluno_micros`, `alunos_ativos`). O log do `worker-ia` traz `ia.lote.adiado_pelo_orcamento` com a tarefa, a espera e os ids, nunca o valor.
+
+**Causas prováveis:**
+1. A escola gastou mais de duas vezes o orçamento (ou o teto que ela tem): uso alto, laço, ou onboarding grande (300 apostilas custam muita classificação) → veja as causas de "IA a 80% do orçamento do mês numa escola". O lote só espera: o resto da IA segue.
+2. O orçamento ficou pequeno (aluno que entrou depois, valor da rede baixo) → ajuste o valor por aluno ou o teto da escola, com auditoria; a medida regrava o retrato em até 5 min e o lote adiado volta a rodar na próxima conferência (até 1 h).
+3. Um laço que gasta sem parar (uma tarefa com saída inválida repetida) → a consulta por função mostra; suspenda a função da escola só se for defeito (`FUNCAO_SUSPENSA`), nunca por causa do orçamento em si.
+
+**Se nada disso resolver:** não apague execução nem job à mão. Suba o teto (ou o valor por aluno) da escola se a conversa com a coordenação permitir, ou espere a virada do mês: na virada o lote adiado volta a rodar sozinho, **fora do horário letivo da escola**. Avise a coordenação de que o material novo ficará sem habilidade da BNCC até lá
+(seção "Como avisar as escolas").
+
+**Depois:** registre no `TODO.md` a escola (só o id), o mês, o teto e quanto tempo o lote esperou. Escola que passa do teto mais de um mês entra na conversa de preço (D50).
 
 ## Salvamento de resposta de prova lento ou falhando
 

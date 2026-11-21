@@ -36,14 +36,14 @@ teto de palavras. São 13, uma acima do teto de 12. O corte possível é em duas
   - [x] 3.5 As rotas em `ROTAS_DO_PAINEL`
   - [x] 3.6 Testes
 
-- [ ] **4.0 — Acima do teto de segurança só o lote espera, e a Operação é avisada a 80%, 100% e no teto**
-  - [ ] 4.1 `OrcamentoQuery` com `fila`; `IA_ORCAMENTO_ESGOTADO` no lote
-  - [ ] 4.2 O adiamento com motivo `orcamento`, sem tentativa
-  - [ ] 4.3 A medida do worker e o retrato
-  - [ ] 4.4 Os alertas de 80%, 100% e do teto, com runbook
-  - [ ] 4.5 Runbook da volta
-  - [ ] 4.6 Nada em `packages/shared`
-  - [ ] 4.7 Testes
+- [x] **4.0 — Acima do teto de segurança só o lote espera, e a Operação é avisada a 80%, 100% e no teto**
+  - [x] 4.1 `OrcamentoQuery` com `fila`; `IA_ORCAMENTO_ESGOTADO` no lote
+  - [x] 4.2 O adiamento com motivo `orcamento`, sem tentativa
+  - [x] 4.3 A medida do worker e o retrato
+  - [x] 4.4 Os alertas de 80%, 100% e do teto, com runbook
+  - [x] 4.5 Runbook da volta
+  - [x] 4.6 Nada em `packages/shared`
+  - [x] 4.7 Testes
 
 - [ ] **5.0 — A Operação lê o uso de IA de cada escola, no dia, no mês e nos 12 meses anteriores**
   - [ ] 5.1 A ordem `custo` só no uso

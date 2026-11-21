@@ -1087,6 +1087,25 @@ describe('camada de IA na API', () => {
       expect(await execucaoNoBanco(execucaoId)).toMatchObject({ estado: 'falhou', resultado: null })
     })
 
+    it('o código do teto de segurança só adia a fila de lote: numa ferramenta, o mesmo código termina a execução como falhou, sem adiar o job (camada-ia, 4.0)', async () => {
+      const teste = comandoDeTeste()
+      const { agendadorDeTeste, liberar } = agendadorComEspera(teste)
+      fila.comModelo(() => Promise.reject(new LLMError('IA_ORCAMENTO_ESGOTADO', 3_600)))
+      const adiadosAntes = (await medidor.pontos('ia.lote.adiado')).reduce((soma, ponto) => soma + Number(ponto.valor), 0)
+      const { execucaoId } = await como(a, a.professor, 'professor', () => agendadorDeTeste.agendar(pedirComando()))
+      liberar()
+      try {
+        // Sem esperar a bancada ociosa: o job adiado (o que este caso nega) ficaria de pé por uma hora, e o caso tem de cair no ato, não no prazo. O `timeout` de 8 s é só rede de segurança: o estado muda no ato, e o prazo não é a prova.
+        await expect.poll(async () => (await execucaoNoBanco(execucaoId)).estado, { timeout: 8_000, interval: 50 }).toBe('falhou')
+        expect(await execucaoNoBanco(execucaoId)).toMatchObject({ estado: 'falhou', erro: 'IA_ORCAMENTO_ESGOTADO' })
+        expect(teste.concluir).not.toHaveBeenCalled()
+        expect((await medidor.pontos('ia.lote.adiado')).reduce((soma, ponto) => soma + Number(ponto.valor), 0)).toBe(adiadosAntes)
+      } finally {
+        // O job que sobrar (só existe se o caso caiu) não pode segurar o `ociosa()` do fim do arquivo.
+        await sql("update job_registro set estado = 'falhou' where escola_id = $1 and tipo in ('ia.executar', 'ia.executar-lote') and estado not in ('concluido', 'falhou')", [a.escolaId])
+      }
+    })
+
     it('a API sobe com o comando de toda tarefa do catálogo que alguém chama, cada um registrado pelo módulo dono', () => {
       expect(api.app.get(RegistroDeComandos).tarefas().sort()).toEqual(TAREFAS_DE_IA.filter((tarefa) => !TAREFAS_SEM_CHAMADOR.includes(tarefa)).sort())
       expect(tarefasSemComando(api.app.get(RegistroDeComandos).tarefas())).toEqual([])

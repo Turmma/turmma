@@ -80,6 +80,9 @@ export const REGRAS_PROVISIONADAS = {
   iaProvedorFora: 'educa-ia-provedor-fora',
   iaTokensAcimaDe70: 'educa-ia-tokens-acima-de-70',
   iaTokensAcimaDe80: 'educa-ia-tokens-acima-de-80',
+  iaOrcamentoAos80: 'educa-ia-orcamento-80',
+  iaOrcamentoAos100: 'educa-ia-orcamento-100',
+  iaOrcamentoTeto: 'educa-ia-orcamento-teto',
 } as const
 
 export const WORKERS_INTERATIVOS = ['worker-interativo-1', 'worker-interativo-2'] as const

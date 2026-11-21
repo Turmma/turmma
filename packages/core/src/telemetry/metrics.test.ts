@@ -155,6 +155,8 @@ describe('métricas com escola', () => {
         METRICS.esperaDaClassificacao,
         METRICS.execucoesAtrasadasDaClassificacao,
         METRICS.habilidadeAnulada,
+        METRICS.usoDoOrcamentoDoMes,
+        METRICS.usoDoTetoDoOrcamento,
       ].sort(),
     )
     expect(METRICS_WITH_ESCOLA).not.toContain(METRICS.limiteEmailIp)

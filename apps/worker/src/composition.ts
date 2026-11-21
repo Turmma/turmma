@@ -16,6 +16,7 @@ import {
   SyntheticEffectRepository,
   JobOutbox,
   ClassificacaoAtrasadaRepository,
+  OrcamentoDoMesRepository,
   CronEscolasRepository,
   ExpurgoDaEscolaRepository,
   ExpurgoDeAcessoRepository,
@@ -89,6 +90,7 @@ import { createVarreduraDeTemporarios } from './processors/varrer-envios.js'
 import { EliminacaoGauge } from './eliminacao-gauge.js'
 import { ArquivoGauge } from './arquivo-gauge.js'
 import { ClassificacaoGauge } from './classificacao-gauge.js'
+import { OrcamentoGauge } from './orcamento-gauge.js'
 import type { EscolaGauge } from './escola-gauge.js'
 import { ImportacaoGauge } from './importacao-gauge.js'
 import { ExpurgoGauge } from './expurgo-gauge.js'
@@ -393,7 +395,7 @@ interface MedicoesPorEscolaDependencies {
 }
 
 /**
- * As medições por escola que os alertas leem (as noites do expurgo, o incidente sem confirmação, o arquivo do titular, a eliminação e a classificação do material atrasada): sobem com o worker-lote, medem a cada
+ * As medições por escola que os alertas leem (as noites do expurgo, o incidente sem confirmação, o arquivo do titular, a eliminação, a classificação do material atrasada e o uso do orçamento de IA do mês): sobem com o worker-lote, medem a cada
  * volta e param com ele. Sem medidor não há medição. Devolve o que as encerra, uma depois da outra.
  */
 function startMedicoesPorEscola({ escolas, banco, expurgoDaEscola, arquivos, janelaDaEscola, relogio, logger, medidor }: MedicoesPorEscolaDependencies): () => Promise<void> {
@@ -406,6 +408,7 @@ function startMedicoesPorEscola({ escolas, banco, expurgoDaEscola, arquivos, jan
           new ArquivoGauge({ escolas, repositorio: arquivos, relogio, logger, medidor }),
           new EliminacaoGauge({ escolas, repositorio: expurgoDaEscola, relogio, logger, medidor }),
           new ClassificacaoGauge({ escolas, repositorio: new ClassificacaoAtrasadaRepository(banco), janelaDaEscola, relogio, logger, medidor }),
+          new OrcamentoGauge({ escolas, repositorio: new OrcamentoDoMesRepository(banco), relogio, logger, medidor }),
         ]
   for (const medicao of medicoes) medicao.start()
   return async () => {

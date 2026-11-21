@@ -97,7 +97,7 @@ categorias das tarefas aprovadas para ela. Sem conferência, ela não é elegív
 
 **O teto de segurança.** `OrcamentoQuery` ganha `fila`; só a `lote` é conferida. Com `situacao = definido` e o custo do
 mês **acima** (`>`) de orçamento × teto ÷ 100: `IA_ORCAMENTO_ESGOTADO`, com `tenteDeNovoEmSegundos` = mín(até a virada,
-3.600). O processador adia (`JobAdiadoError`, motivo `orcamento`), sem tentativa, e soma `ia.lote.adiado{motivo}`. Sem trava: as 2 vagas de lote podem passar do teto juntas, o que se aceita.
+3.600). O processador adia (`JobAdiadoError`, motivo `orcamento`), sem tentativa, e soma `ia.lote.adiado{motivo}` (o motivo é `orcamento`, e também `janela` e `provedor`, que já adiavam o lote). O código do teto só adia a fila de lote: em outra fila ele termina a execução como `falhou`. Sem trava: as 2 vagas de lote podem passar do teto juntas, o que se aceita.
 
 **Alunos ativos:** a contagem de hoje, pela regra da aba Escolas: vínculo de aluno não encerrado no ano `em_curso`,
 contado uma vez. Sem ano em curso, zero.
