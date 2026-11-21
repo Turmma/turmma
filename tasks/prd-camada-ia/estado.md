@@ -1,13 +1,14 @@
 # Estado da execução — camada-ia
 
 ## Agora
-- **Espero:** o `RELATÓRIO` do `Implementador 2` (L2) da 7.0 (pequena, partida 05:57; perto das 2 h sem 1ª rodada às 07:27, no 2º portão) e do `Implementador` (L1) da correção `2026-11-21-integracao-no-teto-da-esteira` (partida 07:52), 1ª tentativa. L3 ociosa: 6.0 espera a 7.0; 9.0 e 12.0 esperam a pergunta do tamanho.
+- **Espero:** o `RELATÓRIO` do `Implementador` (L1) da correção `2026-11-21-integracao-no-teto-da-esteira` (07:51), do `Implementador 2` (L2) da 6.0 (grande, partida 08:28) e do `Implementador 3` (L3) da correção `2026-11-21-limpeza-do-e2e-com-orcamento-do-mes` (da 2.0, partida 08:28), 1ª tentativa de cada. A 9.0 e a 12.0 esperam a pergunta do tamanho; a 8.0 parte depois da 6.0.
 - **Devo ainda:** antes do pouso, o `Arquiteto` acrescentar à autoconferência 10 e à tabela de testes do `2_task.md` o caso novo da corrida do retrato (relatório da 2.0). Push da `develop` (a retro `6496c7b5` está sem push) no próximo pouso. A 13.0 depende das chaves de teste dos finalistas, que são do Joaquim (PRD §10).
-- **Base:** `spec/camada-ia` em `cc6e316c`; última verde `1a291ab`; `21e6186` vermelha (integração no teto de 30 min)
+- **Base:** `spec/camada-ia` em `f74f44b0`; última verde `1a291ab`; `21e6186` vermelha (integração no teto)
 
 ## Concluídas
 | Tarefa | Commit | Modelo | Rodadas | Observação |
 |---|---|---|---|---|
+| 7.0 | `edee568c` | Sonnet | 7 revisores APROVADO na 2ª | encontro em `f74f44b0`; DIVERGÊNCIA (ordem) no item 6 da r1, triada pelo `Arquiteto` como mal-entendido; telas vistas pelo Implementador (a vitrine não tem operador); apontou `orcamento_ia_do_mes` fora da limpeza do e2e (correção na L3) e dois e2e intermitentes (E3 celular, W4 chromebook) |
 | 5.0 | `83292427` | Sonnet | `test-engineer` e `revisor-geral` na 2ª; os outros quatro na 1ª | encontro em `cc6e316c`; o `5_task.md:43` corrigido para ENTRADA_INVALIDA |
 | 3.0 | `57c9182a` | Sonnet | `test-engineer` e `revisor-geral` na 2ª; os outros quatro na 1ª | encontro em `e6e2690c`; 4 divergências registradas em `cenarios.md`/`techspec.md`; o `5_task.md:43` cita VALIDACAO (o código é ENTRADA_INVALIDA), dito à 5.0 |
 | 4.0 | `5d8332d7` | Sonnet | `test-engineer` e `revisor-geral` na 2ª; os outros cinco na 1ª | encontro em `47c16e14` |
