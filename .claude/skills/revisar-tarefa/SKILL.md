@@ -44,7 +44,12 @@ Documento: `$ARGUMENTS`
      reprovaram só pelo carimbo;
    - linha por revisor (`nenhuma rodada`, `a última rodada terminou …`, `… mudou depois do início
      da … rodada`): **são esses, e só esses, que você chama nesta rodada**;
-   - `nada pendente`: todos têm rodada que vale. Vá ao passo 4.
+   - `nada pendente`: todos têm rodada que vale. Vá ao passo 4, **a menos que o bloco do item seguinte venha junto**: ele vale mesmo com `nada pendente`;
+   - bloco que começa por `Atenção: a seção "Divergências resolvidas nesta tarefa" de <documento> ganhou …`, depois das linhas acima: a divergência
+     da tarefa não chegou a cada arquivo que a coluna "Onde está na spec" cita (a `techspec.md`, o `cenarios.md`, o
+     documento da seção 11), ou o diff não toca a linha citada (`arquivo:linha`). O comando só informa e sai com o
+     código de sempre; **a rodada não começa**: é `DEVOLUÇÃO`, copiando do aviso a linha e o arquivo que faltam. O
+     `revisor-geral` reprovou por isso cinco vezes na F4b.
 
    A caducidade que o comando aplica segue o que o revisor audita: mudança só em arquivo de teste
    caduca só `test-engineer` e `revisor-geral`; mudança só em comentário de `.ts`/`.tsx` caduca só

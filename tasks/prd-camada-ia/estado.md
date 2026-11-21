@@ -1,13 +1,17 @@
 # Estado da execução — camada-ia
 
 ## Agora
-- **Espero:** o `RELATÓRIO` do `Implementador 2` (L2) da tarefa 1.0 (partida 21/11 00:32), do `Implementador` (L1) da correção `2026-11-21-divergencia-cobra-cada-arquivo` (M1 da F4b, 00:43) e do `Implementador 3` (L3) da `2026-11-21-limpeza-do-painel-com-job-registro` (esteira 44862658083 vermelha no e2e 4/11, defeito da develop), 1ª tentativa de cada. A 12.0 não parte enquanto a pergunta do tamanho estiver aberta: num corte ela vai para a F5b.
-- **Devo ainda:** a M5 da F4b (caminho relativo em `achados/`) por correção, na próxima linha livre sem tarefa. Push da `develop` (a retro `6496c7b5` está sem push) no próximo pouso. A 13.0 depende das chaves de teste dos finalistas, que são do Joaquim (PRD §10).
-- **Base:** `spec/camada-ia` em `feb0c65b`
+- **Espero:** o `RELATÓRIO` do `Implementador 2` (L2) da tarefa 2.0 (grande, partida 21/11 02:20), 1ª tentativa. L1 e L3 ociosas: 3.0, 4.0, 6.0 e 9.0 esperam a 2.0; a 12.0 (e a 9.0, num corte) espera a pergunta do tamanho. As correções da retro da F4b e da X6 estão todas feitas.
+- **Devo ainda:** push da `develop` (a retro `6496c7b5` está sem push) no próximo pouso. A 13.0 depende das chaves de teste dos finalistas, que são do Joaquim (PRD §10).
+- **Base:** `spec/camada-ia` em `082d4d99`; esteira verde em `fef6308` (44872008290), com o e2e 4/11
 
 ## Concluídas
 | Tarefa | Commit | Modelo | Rodadas | Observação |
 |---|---|---|---|---|
+| correção `2026-11-21-achado-com-caminho-relativo` (M5 da F4b, L1) | `628218b6` | Sonnet | 6 revisores APROVADO na 2ª | 20 mutações; encontro em `082d4d99`; o histórico já gravado em `tasks/*/achados/` segue com o caminho da máquina (entrada no `TODO.md`, decisão do Joaquim) |
+| correção `2026-11-21-limpeza-do-painel-com-job-registro` (L3, esteira 44862658083) | `185f67f8` | Sonnet | 6 revisores APROVADO na 2ª | `job_registro` e `expurgo_execucao` apagados antes da escola; 4 mutações; encontro em `59ff170b` |
+| correção `2026-11-21-divergencia-cobra-cada-arquivo` (M1 da F4b, L1) | `7cb4754b` | Sonnet | 3 revisores APROVADO na 3ª | 40 mutações; encontro em `460d1b3d`; 2 linhas no `TODO.md` |
+| 1.0 | `a2f4ffd4` | Sonnet | `revisor-geral` e `test-engineer` na 2ª; os outros cinco na 1ª | encontro em `87fb2505`; 2 recomendações no `TODO.md` ("Da camada-ia, tarefa 1.0"); um preenchimento do `1_task.md` por script, antes de haver "Revisões" |
 | correção `2026-11-21-commit-de-processo-fora-de-tarefa` (M3+M4 da F4b, L3) | `7b69f130` | Sonnet | 6 revisores APROVADO na 2ª | 22 mutações; 7 itens no `TODO.md` |
 | correção `2026-11-21-inventario-no-portao` (M2 da F4, L1) | `2dcf4891` | Sonnet | `revisor-geral` na 2ª; os outros cinco na 1ª | 5 mutações; `TODO.md`: M2 marcada e uma linha nova |
 | correção `2026-11-20-faltando-junta-and-de-varias-linhas` (M4 da X6, L2) | `e2dd889a` | Sonnet | 4 revisores APROVADO na 2ª | 61 mutações; `TODO.md`: M4 marcada e 3 itens na seção da F4b |

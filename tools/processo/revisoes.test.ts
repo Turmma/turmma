@@ -5,6 +5,8 @@ import { dirname, join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import {
   acrescentarRevisao,
+  semCaminhoDaMaquina,
+  resumoDoAchado,
   antesDoCommit,
   alteracaoQueCaduca,
   alteracoesDeCodigo,
@@ -1303,6 +1305,85 @@ describe('achados separados por documento, com índice', { timeout: 60_000 }, ()
     // Pelo fim da rodada se acha o bloco inteiro no arquivo do documento.
     expect(readFileSync(join(raiz, 'tasks/prd-exemplo/achados/3_task.md'), 'utf8')).toContain('2026-09-13 10:05:00')
     expect(linhas[0]).toContain('2026-09-13 10:05:00')
+  })
+
+  it('o bloco guardado em achados/ não leva o caminho da máquina, só o do repositório', () => {
+    const raiz = repositorio()
+    const doutroAndar = '/home/joaquim/Documentos/git/.maestri/floors/educaia--specoutra--l2'
+    const doTerreo = '/home/joaquim/Documents/git/Educa-ia'
+    rodada(
+      raiz,
+      'tasks/prd-exemplo/9_task.md',
+      'revisor-geral',
+      'VEREDITO: REPROVADO\n\nBloqueantes:\n' +
+        `- \`${raiz}/apps/api/src/sessao/login.service.ts:88\` — a guarda aceita \`falhou() || vencido()\`\n` +
+        `- ${doutroAndar}/packages/core/src/ia/llm-gateway.ts:12 e ${doTerreo}/tools/processo/revisoes.ts:3 citam o mesmo desvio\n` +
+        `- o teste de \`apps/api/src/tasks/fila.test.ts\` (relativo) e \`${raiz}/tasks/prd-exemplo/9_task.md\` seguem como estão\n` +
+        `- \`${raiz}/TODO.md:10\` e \`${raiz}/.claude/skills/seguir/protocolo.md:2\` também\n` +
+        `- \`${raiz}/node_modules/x/index.js:4\` e o cwd \`${raiz}\` também saem: só a raiz do hook alcança o que não é pasta do repositório\n` +
+        `- ${doutroAndar}/node_modules/y/z.js:9 e ${doutroAndar} sozinho: o andar sai mesmo sem pasta do repositório depois\n` +
+        `- o térreo, uma linha por pasta e arquivo da raiz: ${doTerreo}/CLAUDE.md:7 ${doTerreo}/package.json ${doTerreo}/apps/web/a.ts ${doTerreo}/packages/shared/b.ts ` +
+        `${doTerreo}/infra/c.yml ${doTerreo}/e2e/d.spec.ts ${doTerreo}/docs/e.md ${doTerreo}/.claude/rules/f.md ${doTerreo}/.github/g.yml ${doTerreo}/.processo/h.json\n` +
+        '- o que começa com ponto ou `~` não é caminho absoluto: ../packages/core/src/tasks/x.ts e ~/packages/core/src/tasks/y.ts ficam como estão\n' +
+        '- a URL https://github.com/Turmma/turmma/blob/develop/apps/web/x.ts não é caminho da máquina',
+      '2026-09-18T10:00:00',
+    )
+
+    const bloco = readFileSync(join(raiz, 'tasks/prd-exemplo/achados/9_task.md'), 'utf8')
+    expect(bloco).not.toContain('/home/')
+    expect(bloco).not.toContain('.maestri')
+    expect(bloco).not.toContain(raiz)
+    // O do repositório fica, com a linha, e o texto em volta também: só o prefixo da máquina sai.
+    expect(bloco).toContain('`apps/api/src/sessao/login.service.ts:88` — a guarda aceita')
+    expect(bloco).toContain('packages/core/src/ia/llm-gateway.ts:12 e tools/processo/revisoes.ts:3 citam o mesmo desvio')
+    // Caminho que já é relativo e tem `tasks/` no meio não é partido pela limpeza.
+    expect(bloco).toContain('`apps/api/src/tasks/fila.test.ts`')
+    expect(bloco).toContain('`tasks/prd-exemplo/9_task.md`')
+    expect(bloco).toContain('`TODO.md:10`')
+    expect(bloco).toContain('`.claude/skills/seguir/protocolo.md:2`')
+    expect(bloco).toContain('`node_modules/x/index.js:4` e o cwd `.` também saem')
+    expect(bloco).toContain('https://github.com/Turmma/turmma/blob/develop/apps/web/x.ts')
+    expect(bloco).toContain('- node_modules/y/z.js:9 e  sozinho: o andar sai')
+    expect(bloco).toContain('CLAUDE.md:7 package.json apps/web/a.ts packages/shared/b.ts infra/c.yml e2e/d.spec.ts docs/e.md .claude/rules/f.md .github/g.yml .processo/h.json')
+    expect(bloco).toContain('../packages/core/src/tasks/x.ts e ~/packages/core/src/tasks/y.ts ficam como estão')
+  })
+
+  it('a raiz do hook que é prefixo do nome de outro andar não o parte', () => {
+    // O andar da spec e o de uma linha convivem, e o nome de um é o começo do outro: trocar a raiz por `.` onde o nome continua deixaria `.--l1/apps/…`.
+    const doAndar = '/home/joaquim/Documents/git/.maestri/floors/educaia--speccamada-ia'
+    expect(semCaminhoDaMaquina(`${doAndar}--l1/apps/api/x.ts:3 e ${doAndar}/apps/api/y.ts:4 e ${doAndar}`, doAndar)).toBe('apps/api/x.ts:3 e apps/api/y.ts:4 e .')
+    // A raiz de outro andar que só difere no fim (`l1` e `l10`) também fica inteira até a pasta do repositório.
+    expect(semCaminhoDaMaquina('/srv/educaia--l10/apps/x.ts', '/srv/educaia--l1')).toBe('apps/x.ts')
+    // A raiz entra na troca como texto, não como padrão: `a+b` não casa `aab`.
+    expect(semCaminhoDaMaquina('/srv/aab e /srv/a+b', '/srv/a+b')).toBe('/srv/aab e .')
+  })
+
+  it('o índice de achados também não leva o caminho da máquina', () => {
+    const raiz = repositorio()
+    const doutroAndar = '/home/joaquim/Documentos/git/.maestri/floors/educaia--specoutra--l2'
+    rodada(
+      raiz,
+      'tasks/prd-exemplo/10_task.md',
+      'revisor-geral',
+      `VEREDITO: REPROVADO\n\nBloqueantes:\n- \`${raiz}/node_modules/q.js:2\` e \`${doutroAndar}/.claude/skills/x.md:3\` e ${doutroAndar}/node_modules/w.js: a guarda cai`,
+      '2026-09-19T10:00:00',
+    )
+    const indice = readFileSync(join(raiz, 'tasks/prd-exemplo/achados/indice.md'), 'utf8')
+    expect(indice).not.toContain('/home/')
+    expect(indice).not.toContain('.maestri')
+    expect(indice).not.toContain(raiz)
+    expect(indice).toContain('`node_modules/q.js:2` e `.claude/skills/x.md:3` e node_modules/w.js: a guarda cai')
+  })
+
+  it('o resumo do índice tira o caminho do andar e das pastas do repositório, sem a raiz do hook', () => {
+    // `separar-achados.ts` chama `resumoDoAchado` sem raiz: a limpeza própria do resumo é a de DO_ANDAR e DA_RAIZ_DO_REPOSITORIO.
+    const resumo = resumoDoAchado('VEREDITO: REPROVADO\n\nBloqueantes:\n- /home/u/Documents/git/Educa-ia/.claude/skills/x.md:3 e /home/u/.maestri/floors/educaia--spec--l1/y.ts: a guarda cai')
+    expect(resumo).toBe('.claude/skills/x.md:3 e y.ts: a guarda cai')
+  })
+
+  it('a raiz do hook com barra no fim sai do mesmo jeito, e sem raiz só sai o que se reconhece', () => {
+    expect(semCaminhoDaMaquina('/srv/x/y/node_modules/a.js:1 e /srv/x/y', '/srv/x/y/')).toBe('node_modules/a.js:1 e .')
+    expect(semCaminhoDaMaquina('/srv/x/y/node_modules/a.js:1')).toBe('/srv/x/y/node_modules/a.js:1')
   })
 
   it('"nenhuma" é resposta quando vem pontuada, e é conteúdo quando continua a frase', () => {

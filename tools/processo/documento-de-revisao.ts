@@ -305,13 +305,30 @@ export function acrescentarRevisao(conteudoTarefa: string, revisao: Omit<Revisao
 // Quem decide é `exigenciaDaRodada`, e não um regex de `Recomendações:`, porque o regex pedia os dois
 // pontos: `## Recomendações (não bloqueiam)` seguido dos itens não casava, e a rodada ia para a
 // tabela do documento sem bloco nenhum aqui. É o defeito que o `TODO.md` registra desde 20/09/2026.
-export function achadoDaRodada(revisao: Revisao, mensagemFinal: string): string | null {
+export function achadoDaRodada(revisao: Revisao, mensagemFinal: string, raiz?: string): string | null {
   if (revisao.veredito === 'APROVADO' && !exigenciaDaRodada(mensagemFinal) && !temSecaoSemDeclaracao(mensagemFinal)) return null
   // O corte guarda 80 linhas, mas `resumoDoAchado` lê a mensagem inteira: exigência abaixo da linha
   // 80 vira célula de índice apontando um bloco que não a contém. Disparou uma vez em 214 blocos.
   const linhas = mensagemFinal.trim().split('\n')
   const texto = linhas.length > 80 ? [...linhas.slice(0, 80), `[… ${linhas.length - 80} linhas cortadas]`].join('\n') : linhas.join('\n')
-  return `## ${revisao.revisor} · ${revisao.rodada}ª rodada · ${revisao.veredito} · ${revisao.fim}\n\n${texto}\n`
+  return `## ${revisao.revisor} · ${revisao.rodada}ª rodada · ${revisao.veredito} · ${revisao.fim}\n\n${semCaminhoDaMaquina(texto, raiz)}\n`
+}
+
+// O bloco de `achados/` é commitado, e o repositório é público: o caminho da máquina (o usuário, a pasta do Maestri, o andar) não vai junto. Sai o
+// prefixo até a raiz de um checkout, o do hook (`raiz`), o de outro andar (`…/.maestri/floors/<andar>/`) ou o do térreo; fica o caminho do repositório.
+// O que vem antes da barra não pode ser letra, ponto, `~`, `-`, `:` nem `/`: `apps/api/src/tasks/x.ts` e `https://host/a/apps/x` não são partidos.
+const REPOSITORIO = '(?:apps|packages|infra|e2e|tools|tasks|docs|\\.claude|\\.github|\\.processo)\\/|(?:CLAUDE|TODO|README|ROADMAP)\\.md\\b|package\\.json\\b'
+const DO_ANDAR = /(?<![\w./~:-])\/[^\s`'"()<>|[\]]*?\.maestri\/floors\/[^/\s`'"]+\/?/g
+const DA_RAIZ_DO_REPOSITORIO = new RegExp(`(?<![\\w./~:-])\\/[^\\s\`'"()<>|[\\]]*?\\/(?=${REPOSITORIO})`, 'g')
+
+// A raiz do hook é trocada **literal**: `replaceAll` com texto não lê a raiz como padrão (o `.` e o `(` de um caminho não viram regex). A raiz sozinha vira `.`, mas só
+// onde o nome acaba: `…/educaia--spec` é prefixo de `…/educaia--spec--l1`, e trocar por `.` o começo do outro andar o deixaria `.--l1/…`. O `escaparParaRegex` existe só para essa troca.
+const escaparParaRegex = (texto: string): string => texto.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+export function semCaminhoDaMaquina(texto: string, raiz?: string): string {
+  const base = raiz?.replace(/\/+$/, '')
+  const semRaiz = base ? texto.replaceAll(`${base}/`, '').replace(new RegExp(`${escaparParaRegex(base)}(?![\\w.-])`, 'g'), '.') : texto
+  return semRaiz.replace(DO_ANDAR, '').replace(DA_RAIZ_DO_REPOSITORIO, '')
 }
 
 /** O arquivo dos achados de um documento. Um por tarefa, spec ou correção — nunca um por pasta. */
@@ -349,13 +366,12 @@ const LIMITE_DO_RESUMO = 160
 // um resumo curto demais para dizer alguma coisa.
 const RECUO_MAXIMO_DO_CORTE = 40
 
-// Metade dos revisores cita o arquivo pelo caminho absoluto da máquina. Num resumo de 160 caracteres
-// o prefixo até a raiz do repositório come a informação, e é igual em todas as linhas.
-const ATE_A_RAIZ = /\/\S*?\/(?=(?:apps|packages|infra|e2e|tools|tasks|docs)\/|(?:CLAUDE|TODO|README|ROADMAP)\.md\b)/g
+// Metade dos revisores cita o arquivo pelo caminho absoluto da máquina. Num resumo de 160 caracteres o prefixo até a raiz do repositório come a informação, e é igual
+// em todas as linhas; e o índice é commitado como o bloco, num repositório público. A limpeza é a mesma do bloco (`DO_ANDAR` e `DA_RAIZ_DO_REPOSITORIO`).
 
 // Negrito antes do marcador de lista: `**texto**` não é item, e tirar o `*` primeiro o quebraria.
 function limpar(linha: string): string {
-  return linha.replaceAll('**', '').replace(ITEM, '').replaceAll('|', '\\|').replace(ATE_A_RAIZ, '').replace(/\s+/g, ' ').trim()
+  return linha.replaceAll('**', '').replace(ITEM, '').replaceAll('|', '\\|').replace(DO_ANDAR, '').replace(DA_RAIZ_DO_REPOSITORIO, '').replace(/\s+/g, ' ').trim()
 }
 
 function encurtar(texto: string): string {
@@ -511,7 +527,7 @@ export function registrar(entrada: EntradaHook, raiz: string, agora = new Date()
     // O conteúdo que esta rodada viu. Mutação com restauração (o teste de mutação que se pede ao
     // `test-engineer`) deixa o conteúdo igual, e a rodada não caduca por causa dele.
     if (revisao) gravarInstantaneo(raiz, chaveDaRodada(relativo, revisao.revisor, revisao.rodada), alteracoesDeCodigo(raiz, arquivosAlterados(raiz)))
-    const achado = revisao ? achadoDaRodada(revisao, mensagemFinal) : null
+    const achado = revisao ? achadoDaRodada(revisao, mensagemFinal, raiz) : null
     if (achado && revisao) {
       mkdirSync(dirname(caminhoAchado), { recursive: true })
       writeFileSync(caminhoAchado, acrescentarAchado(achadosAnteriores, relativo, achado))
@@ -520,7 +536,7 @@ export function registrar(entrada: EntradaHook, raiz: string, agora = new Date()
       const caminhoIndice = join(raiz, caminhoDoIndice(relativo))
       comTrava(caminhoIndice, () => {
         const indice = existsSync(caminhoIndice) ? readFileSync(caminhoIndice, 'utf8') : ''
-        writeFileSync(caminhoIndice, acrescentarNoIndice(indice, revisao, relativo, resumoDoAchado(mensagemFinal)))
+        writeFileSync(caminhoIndice, acrescentarNoIndice(indice, revisao, relativo, resumoDoAchado(semCaminhoDaMaquina(mensagemFinal, raiz))))
       })
     }
   })
