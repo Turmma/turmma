@@ -92,11 +92,16 @@ motivos)`. Vale para o código de `tools/` também. Na X4, a 4.0 e a 6.0 reprova
 `--faltando` é o piso, não a lista**: a linha com vários termos (`and(eq(a), eq(b))`, `a && b`, `a || b`) sai **um item por termo**, e
 o termo só deixa a lista com um bloco que o **tire e deixe os outros** (trocar a linha inteira, ou citá-la como contexto, não o alcança) ou
 com um motivo na seção "Mutações" cuja crase seja **igual** ao termo (de três caracteres ou mais); a linha de SQL ou de Lua em template string (`sql`, `execute(`, `query(`,
-`eval(`, `defineCommand`, `redis.call`) também é listada, sem condição de TypeScript. Ele ainda **não vê** (a) o SQL em template sem
-etiqueta e fora de `execute(` e `query(`, (b) o `&&` dentro de um `and(` como grupo à parte, (c) o `and(` ou o `or(` com **um argumento por linha**
-(`.where(`, `and(`, `eq(t.escolaId, escolaId),`, cada um na sua: a linha `eq(...)` sozinha não tem termo nem condição, e é a cláusula de escopo da regra 10),
-(d) o ternário (`return x ? a && b : c` deixa o `x ?` no primeiro termo), (e) a linha sem condição que protege (a chamada que confere antes,
-a fiação de uma guarda, o campo zod). Esses a pergunta 1 da autoconferência lista à mão: na F2c foram 8 reprovações do `test-engineer` por
+`eval(`, `defineCommand`, `redis.call`) também é listada, sem condição de TypeScript. O `and(` ou o `or(` que abre e fecha em linhas diferentes
+(`.where(`, `and(`, `eq(t.escolaId, escolaId),`, cada um na sua: a cláusula de escopo da regra 10) sai **um item por argumento**, com a linha do
+argumento (o de várias linhas é um item só), e o argumento só deixa a lista com um bloco que o tire e deixe os irmãos, que moram em outras
+linhas, ou com o motivo de crase igual ao argumento. O bloco casa o argumento pelo **texto**: o que tira `eq(t.escolaId, escolaId),` de uma consulta
+tira da lista o argumento igual de todas as outras do arquivo (o mesmo vale para o termo), e a cláusula de escopo da regra 10 pede um bloco por consulta, conferido à mão.
+Ele ainda **não vê** (a) o SQL em template sem
+etiqueta e fora de `execute(` e `query(`, (b) o `&&` dentro de um `and(` como grupo à parte, (c) o `&&` e o `||` com os operandos em linhas
+diferentes (`t.escolaId === escolaId &&` numa linha e o resto na de baixo é cláusula de escopo que escapa), (d) o ternário (`return x ? a && b : c` deixa o `x ?` no primeiro termo),
+(e) a linha sem condição que protege (a chamada que confere antes, a fiação de uma guarda, o campo zod), (f) o `or(` de dentro com o primeiro argumento
+na linha da abertura e o modelo de texto com crase aninhada dentro de `${}`. Esses a pergunta 1 da autoconferência lista à mão: na F2c foram 8 reprovações do `test-engineer` por
 cláusula que ele não listava, a maioria de termo e de SQL ou Lua, que agora saem da ferramenta. E cada linha da
 tabela de testes ganha o caso na coluna "Caso" (pergunta 11); documento sem a coluna leva a lista "linha → caso" no plano.
 

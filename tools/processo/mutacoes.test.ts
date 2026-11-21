@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { VARIAVEL_DO_RELATORIO_DO_E2E } from '../ci/duracao-do-e2e.ts'
 import {
   aplicarMutacao,
+  argumentosDeVariasLinhas,
   casoFalhouNoRelatorio,
   avaliarMutacoes,
   comandoDoTeste,
@@ -1108,6 +1109,155 @@ describe('o --faltando e o SQL ou o Lua em template string (M1 da retro da F2c)'
   })
 })
 
+describe('o --faltando junta as linhas de um and/or de várias linhas (M4 da retro da X6)', () => {
+  const arg = (fonte: string[]) => [...argumentosDeVariasLinhas(fonte.join('\n'))].sort(([a], [b]) => a - b).map(([n, argumentos]) => `${String(n)}: ${argumentos.map((a) => a.termo).join(' | ')}`)
+
+  it.each([
+    {
+      nome: 'um argumento por linha, com a abertura em `.where(and(`',
+      fonte: ['return db', '  .where(and(', '    eq(t.escolaId, escolaId),', '    this.#semResposta(),', '  ))'],
+      linhas: ['3: eq(t.escolaId, escolaId)', '4: this.#semResposta()'],
+    },
+    { nome: 'o primeiro argumento na linha do and(', fonte: ['and(eq(a, 1),', '  eq(b, 2),', ')'], linhas: ['1: eq(a, 1)', '2: eq(b, 2)'] },
+    { nome: 'dois argumentos na mesma linha', fonte: ['or(', '  eq(a, 1), eq(b, 2),', '  eq(c, 3),', ')'], linhas: ['2: eq(a, 1) | eq(b, 2)', '3: eq(c, 3)'] },
+    { nome: 'sem a vírgula do último argumento', fonte: ['and(', '  eq(a, 1),', '  eq(b, 2)', ')'], linhas: ['2: eq(a, 1)', '3: eq(b, 2)'] },
+    {
+      nome: 'or dentro de and: cada linha de dentro é do argumento mais interno',
+      fonte: ['and(', '  eq(a, 1),', '  or(', '    eq(b, 2),', '    eq(c, 3),', '  ),', ')'],
+      linhas: ['2: eq(a, 1)', '3: or(', '4: eq(b, 2)', '5: eq(c, 3)', '6: or('],
+    },
+    {
+      nome: 'argumento de várias linhas: todas as linhas são dele, e o termo é a primeira',
+      fonte: ['and(', '  eq(a, 1),', '  inArray(', '    b,', '    [1, 2],', '  ),', ')'],
+      linhas: ['2: eq(a, 1)', '3: inArray(', '4: inArray(', '5: inArray(', '6: inArray('],
+    },
+    {
+      nome: 'vírgula e parêntese dentro de texto entre aspas simples e duplas e de modelo, com crase escapada',
+      fonte: ['and(', "  eq(a, 'x,)'),", '  eq(b, "y,)"),', '  sql`c, )`,', '  sql`d \\`, )`,', ')'],
+      linhas: ["2: eq(a, 'x,)')", '3: eq(b, "y,)")', '4: sql`c, )`', '5: sql`d \\`, )`'],
+    },
+    { nome: 'argumentos na coluna zero', fonte: ['and(', 'eq(a, 1),', 'eq(b, 2),', ')'], linhas: ['2: eq(a, 1)', '3: eq(b, 2)'] },
+    { nome: 'divisão e multiplicação coladas ao operando', fonte: ['and(', '  eq(a/b*c, 1),', '  d,', ')'], linhas: ['2: eq(a/b*c, 1)', '3: d'] },
+    { nome: 'colchete e chave direto no and, com vírgula dentro', fonte: ['and(', '  [a, b],', '  { c: 1, d: 2 },', '  e,', ')'], linhas: ['2: [a, b]', '3: { c: 1, d: 2 }', '4: e'] },
+    { nome: 'um fecho sem abertura antes do and', fonte: ['a)', 'and(', '  x,', '  y,', ')'], linhas: ['3: x', '4: y'] },
+    { nome: 'espaços repetidos dentro do argumento', fonte: ['and(', '  eq(a,   1),', '  b,', ')'], linhas: ['2: eq(a, 1)', '3: b'] },
+    {
+      nome: 'comentário no fim da primeira linha de um argumento de várias linhas',
+      fonte: ['and(', '  inArray( // nota', '    b,', '  ),', '  c,', ')'],
+      linhas: ['2: inArray(', '3: inArray(', '4: inArray(', '5: c'],
+    },
+    { nome: 'comentário no meio e no começo de um argumento', fonte: ['and(', '  eq(a, 1), // um, dois)', '  /* x, y */ eq(b, 2),', ')'], linhas: ['2: eq(a, 1)', '3: eq(b, 2)'] },
+    { nome: 'expressão regular com parêntese', fonte: ['or(', '  x.test(/a,)/),', '  y,', ')'], linhas: ['2: x.test(/a,)/)', '3: y'] },
+  ])('os argumentos de $nome', ({ fonte, linhas }) => {
+    expect(arg(fonte)).toEqual(linhas)
+  })
+
+  it.each([
+    { nome: 'and de uma linha só', fonte: ['return and(eq(a, 1), eq(b, 2))'] },
+    { nome: 'and de várias linhas com um argumento só', fonte: ['and(', '  eq(a, 1),', ')'] },
+    { nome: 'função de nome maior, que não é and', fonte: ['brand(', '  a,', '  b,', ')'] },
+    { nome: 'chamada que não é and nem or', fonte: ['eq(', '  a,', '  b,', ')'] },
+    { nome: 'and em texto entre aspas', fonte: ["const t = 'and('", '  + a,', '  + b'] },
+    { nome: 'and em comentário', fonte: ['// and(', '//   a,', '//   b,', '// )'] },
+    { nome: 'colchete depois de and', fonte: ['and[', '  a,', '  b,', ']'] },
+  ])('não há argumentos em $nome', ({ fonte }) => {
+    expect(arg(fonte)).toEqual([])
+  })
+
+  it('cada argumento leva a primeira linha dele e os irmãos, sem repetir o que é igual', () => {
+    const mapa = argumentosDeVariasLinhas(['and(', '  eq(a, 1),', '  inArray(', '    b,', '  ),', '  eq(a, 1),', ')'].join('\n'))
+    expect(mapa.get(2)).toEqual([{ de: 2, termo: 'eq(a, 1)', irmaos: ['inArray('] }])
+    expect(mapa.get(4)).toEqual([{ de: 3, termo: 'inArray(', irmaos: ['eq(a, 1)'] }])
+  })
+
+  const linha = (texto: string, linhaNo: number, mapa?: ReturnType<typeof argumentosDeVariasLinhas>): LinhaAcrescentada => {
+    const argumentos = mapa?.get(linhaNo)
+    return { arquivo: 'apps/api/src/pedidos.repository.ts', linha: linhaNo, texto, ...(argumentos === undefined ? {} : { argumentos }) }
+  }
+  const FONTE = ['return db', '  .where(and(', '    eq(pedidos.escolaId, escolaId),', '    eq(pedidos.id, id),', '    this.#semResposta(),', '  ))'].join('\n')
+  const grupos = argumentosDeVariasLinhas(FONTE)
+  const novas = (...numeros: number[]) => numeros.map((n) => linha(FONTE.split('\n')[n - 1] ?? '', n, grupos))
+  const itens = (faltando: ReturnType<typeof linhasSemBloco>) => faltando.map((item) => `${String(item.linha)} ${item.termo ?? '-'}`)
+  const bloco2 = (antes: string[], depois: string[], arquivo = 'apps/api/src/pedidos.repository.ts'): Mutacao => ({ arquivo, teste: 'apps/api/test/x.int.test.ts', caso: null, antes, depois })
+
+  it('cada linha de argumento do and de várias linhas é listada com o termo dela', () => {
+    const faltando = linhasSemBloco(novas(3, 4, 5), [])
+    expect(itens(faltando)).toEqual(['3 eq(pedidos.escolaId, escolaId)', '4 eq(pedidos.id, id)', '5 this.#semResposta()'])
+    expect(faltando.map((item) => item.condicoes)).toEqual([['termos'], ['termos'], ['termos']])
+  })
+
+  it('a linha de um argumento antigo não entra: só a linha nova', () => {
+    expect(itens(linhasSemBloco(novas(5), []))).toEqual(['5 this.#semResposta()'])
+  })
+
+  it('o bloco que tira o argumento e deixa os irmãos o alcança, ainda que os irmãos fiquem em outras linhas', () => {
+    const tiraOEscopo = bloco2(['.where(and(', 'eq(pedidos.escolaId, escolaId),', 'eq(pedidos.id, id),'], ['.where(and(', 'eq(pedidos.id, id),'])
+    expect(itens(linhasSemBloco(novas(3, 4, 5), [tiraOEscopo]))).toEqual(['4 eq(pedidos.id, id)', '5 this.#semResposta()'])
+    const tiraSoOArgumento = bloco2(['this.#semResposta(),'], [])
+    expect(itens(linhasSemBloco(novas(3, 4, 5), [tiraSoOArgumento]))).toEqual(['3 eq(pedidos.escolaId, escolaId)', '4 eq(pedidos.id, id)'])
+  })
+
+  it('o bloco que cita a linha só como contexto, ou tira o irmão junto, não alcança o argumento', () => {
+    const contexto = bloco2(['.where(and(', 'eq(pedidos.escolaId, escolaId),', 'eq(pedidos.id, id),'], ['.where(and(', 'eq(pedidos.escolaId, escolaId),', 'eq(pedidos.id, id),', 'true,'])
+    expect(itens(linhasSemBloco(novas(3), [contexto]))).toEqual(['3 eq(pedidos.escolaId, escolaId)'])
+    const tiraOsDois = bloco2(['eq(pedidos.escolaId, escolaId),', 'eq(pedidos.id, id),'], ['true,'])
+    expect(itens(linhasSemBloco(novas(3, 4), [tiraOsDois]))).toEqual(['3 eq(pedidos.escolaId, escolaId)', '4 eq(pedidos.id, id)'])
+  })
+
+  it('o bloco que não cita o argumento não o alcança, ainda que nenhum irmão saia', () => {
+    expect(itens(linhasSemBloco(novas(3), [bloco2(['return outra'], [])]))).toEqual(['3 eq(pedidos.escolaId, escolaId)'])
+  })
+
+  it('o bloco de outro arquivo não alcança o argumento', () => {
+    expect(itens(linhasSemBloco(novas(5), [bloco2(['this.#semResposta(),'], [], 'apps/api/src/outro.repository.ts')]))).toEqual(['5 this.#semResposta()'])
+  })
+
+  it('o motivo com a crase igual ao termo o tira da lista; a crase com a linha inteira, não', () => {
+    expect(itens(linhasSemBloco(novas(4, 5), [], 'O `this.#semResposta()` só estreita o tipo.'))).toEqual(['4 eq(pedidos.id, id)'])
+    expect(itens(linhasSemBloco(novas(5), [], 'O `this.#semResposta(),` só estreita o tipo.'))).toEqual(['5 this.#semResposta()'])
+  })
+
+  it('o argumento de várias linhas é um item só, na primeira linha nova dele', () => {
+    const fonte = ['and(', '  eq(a, 1),', '  inArray(', '    b,', '    [1, 2],', '  ),', ')'].join('\n')
+    const mapa = argumentosDeVariasLinhas(fonte)
+    const todas = fonte.split('\n').map((texto, i) => linha(texto, i + 1, mapa))
+    expect(itens(linhasSemBloco(todas, []))).toEqual(['2 eq(a, 1)', '3 inArray('])
+  })
+
+  it('a linha de dentro do and de várias linhas com um termo composto também lista os termos dela', () => {
+    const fonte = ['and(', '  eq(a, 1),', '  ok && eq(b, 2),', ')'].join('\n')
+    const mapa = argumentosDeVariasLinhas(fonte)
+    const faltando = linhasSemBloco([linha('  ok && eq(b, 2),', 3, mapa)], [])
+    expect(itens(faltando)).toEqual(['3 ok && eq(b, 2)', '3 ok', '3 eq(b, 2)'])
+    expect(faltando.map((item) => item.condicoes)).toEqual([['&&'], ['&&'], ['&&']])
+  })
+
+  it('a condição de uma linha que só continua um argumento de várias linhas segue listada, e um bloco que a muta a tira', () => {
+    const fonte = ['const r = and(', '  eq(t.escolaId, escolaId),', '  inArray(', '    t.id,', '    ids ?? [],', '  ),', '  eq(t.ano, ano ?? atual),', ')'].join('\n')
+    const mapa = argumentosDeVariasLinhas(fonte)
+    const todas = fonte.split('\n').map((texto, i) => linha(texto, i + 1, mapa))
+    const faltando = linhasSemBloco(todas, [])
+    expect(itens(faltando)).toEqual(['2 eq(t.escolaId, escolaId)', '3 inArray(', '5 -', '7 eq(t.ano, ano ?? atual)'])
+    expect(faltando[2]?.condicoes).toEqual(['??'])
+    expect(itens(linhasSemBloco(todas, [bloco2(['ids ?? [],'], ['ids,'])]))).toEqual(['2 eq(t.escolaId, escolaId)', '3 inArray(', '7 eq(t.ano, ano ?? atual)'])
+  })
+
+  it('o argumento de texto igual em duas consultas do mesmo arquivo é listado nas duas', () => {
+    const consulta = (nome: string) => [`export function ${nome}() {`, '  return and(', '    eq(t.escolaId, escolaId),', '    eq(t.id, id),', '  )', '}']
+    const fonte = [...consulta('a'), ...consulta('b')].join('\n')
+    const mapa = argumentosDeVariasLinhas(fonte)
+    const todas = fonte.split('\n').map((texto, i) => linha(texto, i + 1, mapa))
+    expect(itens(linhasSemBloco(todas, []))).toEqual(['3 eq(t.escolaId, escolaId)', '4 eq(t.id, id)', '9 eq(t.escolaId, escolaId)', '10 eq(t.id, id)'])
+  })
+
+  it('o relatório diz o termo do argumento', () => {
+    expect(relatorioDoFaltando(linhasSemBloco(novas(5), []), 'tasks/prd-x/3_task.md')).toBe(
+      'Linhas novas de produção com condição que nenhum bloco de tasks/prd-x/3_task.md alcança (1):\n' +
+        '  apps/api/src/pedidos.repository.ts:5  [termos]  this.#semResposta(),  (termo `this.#semResposta()`)\n',
+    )
+  })
+})
+
 describe('--faltando, sobre uma árvore de verdade', () => {
   const script = join(dirname(fileURLToPath(import.meta.url)), 'mutacoes.ts')
 
@@ -1210,6 +1360,31 @@ describe('--faltando, sobre uma árvore de verdade', () => {
     const saida = rodar(repositorio(umSo, true)).stdout
     expect(saida).toContain('  tools/ci/velho.ts:2  [||]  export const c = a || 3  (termo `a`)\n')
     expect(saida).not.toContain('(termo `3`)')
+  })
+
+  it('o and de várias linhas de um arquivo novo e de um versionado lista cada linha de argumento, e o bloco que tira o argumento o alcança', () => {
+    const REPO = ['export const q = db', '  .where(and(', '    eq(t.escolaId, escolaId),', '    this.#semResposta(),', '  ))'].join('\n') + '\n'
+    const VELHO = ['export const a = 1', 'export const w = or(', '  isNull(t.x),', '  gt(t.y, 1),', ')'].join('\n') + '\n'
+    const comOsArquivos = (documento: string) => {
+      const raiz = repositorio(documento)
+      writeFileSync(join(raiz, 'apps/api/src/repo.ts'), REPO)
+      writeFileSync(join(raiz, 'apps/api/src/velho.ts'), VELHO)
+      execFileSync('git', ['add', 'apps/api/src/velho.ts'], { cwd: raiz, stdio: 'pipe' })
+      return raiz
+    }
+    const lista = rodar(comOsArquivos('# Tarefa\n')).stdout
+    expect(lista).toContain('  apps/api/src/repo.ts:3  [termos]  eq(t.escolaId, escolaId),  (termo `eq(t.escolaId, escolaId)`)\n')
+    expect(lista).toContain('  apps/api/src/repo.ts:4  [termos]  this.#semResposta(),  (termo `this.#semResposta()`)\n')
+    expect(lista).toContain('  apps/api/src/velho.ts:3  [termos]  isNull(t.x),  (termo `isNull(t.x)`)\n')
+    expect(lista).toContain('  apps/api/src/velho.ts:4  [termos]  gt(t.y, 1),  (termo `gt(t.y, 1)`)\n')
+    const teste = 'teste: apps/api/test/velho.int.test.ts'
+    const doc = (...blocos: string[]) => ['# Tarefa', '', ...blocos.flatMap((b) => [b, ''])].join('\n')
+    const semEscopo = bloco('arquivo: apps/api/src/repo.ts', teste, '   .where(and(', '-     eq(t.escolaId, escolaId),', '      this.#semResposta(),')
+    const semResposta = bloco('arquivo: apps/api/src/repo.ts', teste, '   .where(and(', '      eq(t.escolaId, escolaId),', '-     this.#semResposta(),')
+    const soUm = rodar(comOsArquivos(doc(semEscopo))).stdout
+    expect(soUm).not.toContain('(termo `eq(t.escolaId, escolaId)`)')
+    expect(soUm).toContain('(termo `this.#semResposta()`)')
+    expect(rodar(comOsArquivos(doc(semEscopo, semResposta))).stdout).not.toContain('apps/api/src/repo.ts')
   })
 
   it('lista o que nenhum bloco alcança e sai 0', () => {
