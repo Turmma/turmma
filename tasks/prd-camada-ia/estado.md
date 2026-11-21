@@ -1,7 +1,7 @@
 # Estado da execução — camada-ia
 
 ## Agora
-- **Espero:** o `RELATÓRIO` das três linhas: `Implementador 2` (L2) da 6.0 (grande, partida 08:28, retomada 11:14 depois do reinício do PC; no portão desde 12:04, sem rodada ainda); `Implementador` (L1) da correção `2026-11-21-e2e-operacao-aviso-da-sessao-no-celular` (12:2x, 1ª tentativa) e `Implementador 3` (L3) da correção `2026-11-21-e2e-professores-convite-vencido-no-celular` (12:2x, 1ª tentativa), os dois e2e intermitentes só no celular. A 9.0 e a 12.0 esperam a pergunta do tamanho; a 8.0 parte depois da 6.0.
+- **Espero:** o `RELATÓRIO` das três linhas: `Implementador 2` (L2) da 6.0 (grande, partida 08:28, retomada 11:14 depois do reinício do PC; no portão desde 12:04, sem rodada ainda); `Implementador` (L1) da correção `2026-11-21-e2e-operacao-aviso-da-sessao-no-celular` (12:2x, 1ª tentativa) e `Implementador 3` (L3) da correção `2026-11-21-e2e-professores-convite-vencido-no-celular` (12:2x, 1ª tentativa), os dois e2e intermitentes só no celular. A 8.0, última da F5a, parte depois da 6.0. A 9.0 a 13.0 saíram para a F5b (`reserva-e-avaliacao`, corte do Arquiteto em `9bc6ac95`).
 - **Devo ainda:** antes do pouso, o `Arquiteto` acrescentar à autoconferência 10 e à tabela de testes do `2_task.md` o caso novo da corrida do retrato (relatório da 2.0). Push da `develop` (a retro `6496c7b5` está sem push) no próximo pouso. A 13.0 depende das chaves de teste dos finalistas, que são do Joaquim (PRD §10).
 - **Base:** `spec/camada-ia` em `7d86caed`; última verde `1a291ab`; `7d86cae` vermelha (44915770834: só e2e 10/11, operacao.spec.ts:350 no celular; as integrações 1/3 e 3/3 passaram com as correções das rotas e do tutor-modelo); `5a90726` vermelha também em e2e 11/11 (professores.spec.ts:388 no celular)
 
