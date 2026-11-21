@@ -1,13 +1,14 @@
 # Estado da execução — camada-ia
 
 ## Agora
-- **Espero:** o `RELATÓRIO` do `Implementador 2` (L2) da tarefa 1.0 (partida 21/11 00:32), do `Implementador` (L1) da correção `2026-11-21-divergencia-cobra-cada-arquivo` (M1 da F4b, 00:43) e do `Implementador 3` (L3) da `2026-11-21-limpeza-do-painel-com-job-registro` (esteira 44862658083 vermelha no e2e 4/11, defeito da develop), 1ª tentativa de cada. A 12.0 não parte enquanto a pergunta do tamanho estiver aberta: num corte ela vai para a F5b.
+- **Espero:** o `RELATÓRIO` do `Implementador 2` (L2) da tarefa 2.0 (grande, partida 21/11 ~02:1x), do `Implementador` (L1) da correção `2026-11-21-divergencia-cobra-cada-arquivo` (M1 da F4b, 00:43) e do `Implementador 3` (L3) da `2026-11-21-limpeza-do-painel-com-job-registro` (01:44), 1ª tentativa de cada. A 12.0 não parte enquanto a pergunta do tamanho estiver aberta: num corte ela vai para a F5b.
 - **Devo ainda:** a M5 da F4b (caminho relativo em `achados/`) por correção, na próxima linha livre sem tarefa. Push da `develop` (a retro `6496c7b5` está sem push) no próximo pouso. A 13.0 depende das chaves de teste dos finalistas, que são do Joaquim (PRD §10).
-- **Base:** `spec/camada-ia` em `feb0c65b`
+- **Base:** `spec/camada-ia` em `87fb2505`; esteira verde em `620a11e` (44867601850)
 
 ## Concluídas
 | Tarefa | Commit | Modelo | Rodadas | Observação |
 |---|---|---|---|---|
+| 1.0 | `a2f4ffd4` | Sonnet | `revisor-geral` e `test-engineer` na 2ª; os outros cinco na 1ª | encontro em `87fb2505`; 2 recomendações no `TODO.md` ("Da camada-ia, tarefa 1.0"); um preenchimento do `1_task.md` por script, antes de haver "Revisões" |
 | correção `2026-11-21-commit-de-processo-fora-de-tarefa` (M3+M4 da F4b, L3) | `7b69f130` | Sonnet | 6 revisores APROVADO na 2ª | 22 mutações; 7 itens no `TODO.md` |
 | correção `2026-11-21-inventario-no-portao` (M2 da F4, L1) | `2dcf4891` | Sonnet | `revisor-geral` na 2ª; os outros cinco na 1ª | 5 mutações; `TODO.md`: M2 marcada e uma linha nova |
 | correção `2026-11-20-faltando-junta-and-de-varias-linhas` (M4 da X6, L2) | `e2dd889a` | Sonnet | 4 revisores APROVADO na 2ª | 61 mutações; `TODO.md`: M4 marcada e 3 itens na seção da F4b |
